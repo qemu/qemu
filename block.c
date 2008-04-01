@@ -193,8 +193,12 @@ void get_tmp_filename(char *filename, int size)
 void get_tmp_filename(char *filename, int size)
 {
     int fd;
+    char *tmpdir;
     /* XXX: race condition possible */
-    pstrcpy(filename, size, "/tmp/vl.XXXXXX");
+    tmpdir = getenv("TMPDIR");
+    if (!tmpdir)
+        tmpdir = "/tmp";
+    snprintf(filename, size, "%s/vl.XXXXXX", tmpdir);
     fd = mkstemp(filename);
     close(fd);
 }

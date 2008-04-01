@@ -21,44 +21,44 @@
 #if defined(REG)
 void glue(op_load_gpr_T0_gpr, REG) (void)
 {
-    T0 = env->gpr[REG][env->current_tc];
+    T0 = env->gpr[env->current_tc][REG];
     FORCE_RET();
 }
 
 void glue(op_store_T0_gpr_gpr, REG) (void)
 {
-    env->gpr[REG][env->current_tc] = T0;
+    env->gpr[env->current_tc][REG] = T0;
     FORCE_RET();
 }
 
 void glue(op_load_gpr_T1_gpr, REG) (void)
 {
-    T1 = env->gpr[REG][env->current_tc];
+    T1 = env->gpr[env->current_tc][REG];
     FORCE_RET();
 }
 
 void glue(op_store_T1_gpr_gpr, REG) (void)
 {
-    env->gpr[REG][env->current_tc] = T1;
+    env->gpr[env->current_tc][REG] = T1;
     FORCE_RET();
 }
 
 void glue(op_load_gpr_T2_gpr, REG) (void)
 {
-    T2 = env->gpr[REG][env->current_tc];
+    T2 = env->gpr[env->current_tc][REG];
     FORCE_RET();
 }
 
 
 void glue(op_load_srsgpr_T0_gpr, REG) (void)
 {
-    T0 = env->gpr[REG][(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf];
+    T0 = env->gpr[REG][(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf];       // ???
     FORCE_RET();
 }
 
 void glue(op_store_T0_srsgpr_gpr, REG) (void)
 {
-    env->gpr[REG][(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf] = T0;
+    env->gpr[REG][(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf] = T0;       // ???
     FORCE_RET();
 }
 #endif

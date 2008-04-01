@@ -27,8 +27,6 @@
 #include "pci.h"
 #include "net.h"
 
-#define __iomem
-typedef int boolean_t;
 #include "e1000_hw.h"
 
 #define DEBUG
@@ -52,7 +50,7 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 #endif
 
 #define IOPORT_SIZE       0x40
-#define PNPMMIO_SIZE      0x60000
+#define PNPMMIO_SIZE      0x20000
 
 /*
  * HW models:
@@ -139,7 +137,7 @@ static char phy_regcap[0x20] = {
     [PHY_CTRL] = PHY_RW,	[PHY_1000T_CTRL] = PHY_RW,
     [PHY_LP_ABILITY] = PHY_R,	[PHY_1000T_STATUS] = PHY_R,
     [PHY_AUTONEG_ADV] = PHY_RW,	[M88E1000_RX_ERR_CNTR] = PHY_R,
-    [PHY_ID2] = PHY_R,
+    [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R
 };
 
 static void
@@ -328,7 +326,7 @@ xmit_seg(E1000State *s)
         if (tp->tcp) {
             sofar = frames * tp->mss;
             cpu_to_be32wu((uint32_t *)(tp->data+css+4),	// seq
-                be32_to_cpup((uint32_t *)(tp->data+css+4))+sofar);
+                be32_to_cpupu((uint32_t *)(tp->data+css+4))+sofar);
             if (tp->paylen - sofar > tp->mss)
                 tp->data[css + 13] &= ~9;		// PSH, FIN
         } else	// UDP
@@ -903,6 +901,7 @@ static uint16_t phy_reg_init[] = {
     [PHY_1000T_CTRL] = 0x0e00,			[M88E1000_PHY_SPEC_CTRL] = 0x360,
     [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,	[PHY_AUTONEG_ADV] = 0xde1,
     [PHY_LP_ABILITY] = 0x1e0,			[PHY_1000T_STATUS] = 0x3c00,
+    [M88E1000_PHY_SPEC_STATUS] = 0xac00,
 };
 
 static uint32_t mac_reg_init[] = {

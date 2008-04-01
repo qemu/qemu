@@ -1,32 +1,10 @@
-Index: rombios.c
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
-retrieving revision 1.174
-diff -u -w -r1.174 rombios.c
---- rombios.c	17 Oct 2006 16:48:05 -0000	1.174
-+++ rombios.c	8 Feb 2007 21:57:48 -0000
-@@ -9472,6 +9472,14 @@
-   mov eax, #0x00040000
-   call eax
- 
-+  ;; reset the memory (some boot loaders such as syslinux suppose 
-+  ;; that the memory is set to zero)
-+  mov edi, #0x00040000
-+  mov ecx, #0x40000 / 4
-+  xor eax, eax
-+  rep 
-+    stosd
-+
-   ;; return to 16 bit protected mode first
-   db 0xea
-   dd rombios32_10
 Index: rombios.h
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.h,v
-retrieving revision 1.3
-diff -u -w -r1.3 rombios.h
---- rombios.h	3 Oct 2006 20:27:30 -0000	1.3
-+++ rombios.h	8 Feb 2007 21:57:48 -0000
+retrieving revision 1.6
+diff -u -d -p -r1.6 rombios.h
+--- rombios.h	26 Jan 2008 09:15:27 -0000	1.6
++++ rombios.h	28 Mar 2008 10:22:04 -0000
 @@ -19,7 +19,7 @@
  //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  
@@ -39,19 +17,36 @@ diff -u -w -r1.3 rombios.h
 Index: rombios32.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios32.c,v
-retrieving revision 1.8
-diff -u -w -r1.8 rombios32.c
---- rombios32.c	3 Oct 2006 20:27:30 -0000	1.8
-+++ rombios32.c	8 Feb 2007 21:57:48 -0000
-@@ -852,6 +852,11 @@
-     int ioapic_id, i, len;
-     int mp_config_table_size;
+retrieving revision 1.24
+diff -u -d -p -r1.24 rombios32.c
+--- rombios32.c	6 Mar 2008 20:18:20 -0000	1.24
++++ rombios32.c	28 Mar 2008 10:22:04 -0000
+@@ -477,7 +477,12 @@ void smp_probe(void)
+         sipi_vector = AP_BOOT_ADDR >> 12;
+         writel(APIC_BASE + APIC_ICR_LOW, 0x000C4600 | sipi_vector);
  
-+#ifdef BX_QEMU
-+    if (smp_cpus <= 1)
-+        return;
++#ifndef BX_QEMU
+         delay_ms(10);
++#else
++	while (cmos_readb(0x5f) + 1 != readw((void *)CPU_COUNT_ADDR))
++		;
 +#endif
-+
- #ifdef BX_USE_EBDA_TABLES
-     mp_config_table = (uint8_t *)(ram_size - ACPI_DATA_SIZE - MPTABLE_MAX_SIZE);
- #else
+ 
+         smp_cpus = readw((void *)CPU_COUNT_ADDR);
+     }
+Index: rombios32start.S
+===================================================================
+RCS file: /cvsroot/bochs/bochs/bios/rombios32start.S,v
+retrieving revision 1.4
+diff -u -d -p -r1.4 rombios32start.S
+--- rombios32start.S	26 Jan 2008 09:15:27 -0000	1.4
++++ rombios32start.S	28 Mar 2008 10:22:04 -0000
+@@ -42,7 +42,7 @@ _start:
+ smp_ap_boot_code_start:
+   xor %ax, %ax
+   mov %ax, %ds
+-  incw CPU_COUNT_ADDR
++  lock incw CPU_COUNT_ADDR
+ 1:
+   hlt
+   jmp 1b

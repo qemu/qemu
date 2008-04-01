@@ -108,6 +108,7 @@ linux_user="no"
 darwin_user="no"
 build_docs="no"
 uname_release=""
+curses="yes"
 
 # OS specific
 targetos=`uname -s`
@@ -205,16 +206,14 @@ fi
 
 # find source path
 source_path=`dirname "$0"`
+source_path_used="no"
+workdir=`pwd`
 if [ -z "$source_path" ]; then
-    source_path=`pwd`
+    source_path=$workdir
 else
     source_path=`cd "$source_path"; pwd`
 fi
-if test "$source_path" = `pwd` ; then
-    source_path_used="no"
-else
-    source_path_used="yes"
-fi
+[ -f "$workdir/vl.c" ] || source_path_used="yes"
 
 werror="no"
 # generate compile errors on warnings for development builds
@@ -325,6 +324,8 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
+  --disable-curses) curses="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -416,6 +417,7 @@ echo "  --enable-esd             enable EsoundD audio driver"
 echo "  --enable-fmod            enable FMOD audio driver"
 echo "  --enable-dsound          enable DirectSound audio driver"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
+echo "  --disable-curses         disable curses output"
 echo "  --enable-system          enable all system emulation targets"
 echo "  --disable-system         disable all system emulation targets"
 echo "  --enable-linux-user      enable all linux usermode emulation targets"
@@ -440,7 +442,7 @@ cat > $TMPC <<EOF
 int main(void) {}
 EOF
 
-if $cc -c -o $TMPO $TMPC 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC 2> /dev/null ; then
   : C compiler works ok
 else
     echo "ERROR: \"$cc\" either does not exist or does not work"
@@ -461,7 +463,7 @@ if test "$check_gcc" = "yes" ; then
 #endif
 int main(){return 0;}
 EOF
-    if "$cc" -o $TMPE $TMPC 2> /dev/null ; then
+    if "$cc" $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
 	echo "WARNING: \"$cc\" looks like gcc 4.x"
 	found_compat_cc="no"
 	if test "$gcc3_search" = "yes" ; then
@@ -561,7 +563,7 @@ int main(int argc, char ** argv){
 }
 EOF
 
-if $cc -o $TMPE $TMPC 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
 $TMPE && bigendian="yes"
 else
 echo big/little test failed
@@ -613,7 +615,7 @@ cat > $TMPC << EOF
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-        if $cc -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /tmp/qemu-$$-sdl-config.log ; then
+        if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /tmp/qemu-$$-sdl-config.log ; then
             _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
             if test "$_sdlversion" -lt 121 ; then
                 sdl_too_old=yes
@@ -664,7 +666,7 @@ if test "$alsa" = "yes" ; then
 #include <alsa/asoundlib.h>
 int main(void) { snd_pcm_t **handle; return snd_pcm_close(*handle); }
 EOF
-  if $cc -o $TMPE $TMPC -lasound 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lasound 2> /dev/null ; then
     :
   else
     echo
@@ -674,6 +676,20 @@ EOF
     exit 1
   fi
 fi
+
+##########################################
+# curses probe
+
+if test "$curses" = "yes" ; then
+  curses=no
+  cat > $TMPC << EOF
+#include <curses.h>
+int main(void) { return curses_version(); }
+EOF
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses 2> /dev/null ; then
+    curses=yes
+  fi
+fi # test "$curses"
 
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
@@ -709,6 +725,7 @@ fi
 echo "Source path       $source_path"
 echo "C compiler        $cc"
 echo "Host C compiler   $host_cc"
+echo "ARCH_CFLAGS       $ARCH_CFLAGS"
 echo "make              $make"
 echo "install           $install"
 echo "host CPU          $cpu"
@@ -725,6 +742,7 @@ echo "SDL support       $sdl"
 if test "$sdl" != "no" ; then
     echo "SDL static link   $sdl_static"
 fi
+echo "curses support    $curses"
 echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
 echo "AC97 support      $ac97"
@@ -864,7 +882,7 @@ else
 #include <byteswap.h>
 int main(void) { return bswap_32(0); }
 EOF
-  if $cc -o $TMPE $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
     echo "#define HAVE_BYTESWAP_H 1" >> $config_h
   fi
 fi
@@ -979,8 +997,13 @@ if test "$sdl1" = "yes" ; then
   fi
 fi
 if test "$cocoa" = "yes" ; then
-    echo "#define CONFIG_COCOA 1" >> $config_h
-    echo "CONFIG_COCOA=yes" >> $config_mak
+  echo "#define CONFIG_COCOA 1" >> $config_h
+  echo "CONFIG_COCOA=yes" >> $config_mak
+fi
+if test "$curses" = "yes" ; then
+  echo "#define CONFIG_CURSES 1" >> $config_h
+  echo "CONFIG_CURSES=yes" >> $config_mak
+  echo "CURSES_LIBS=-lcurses" >> $config_mak
 fi
 
 # XXX: suppress that
@@ -1045,7 +1068,8 @@ if test "$target_user_only" = "no" -a "$check_gfx" = "yes" \
         -a "$sdl" = "no" -a "$cocoa" = "no" ; then
     echo "ERROR: QEMU requires SDL or Cocoa for graphical output"
     echo "To build QEMU without graphical output configure with --disable-gfx-check"
-    echo "Note that this will disable all output from the virtual graphics card."
+    echo "Note that this will disable all output from the virtual graphics card"
+    echo "except through VNC or curses."
     exit 1;
 fi
 
@@ -1055,6 +1079,7 @@ test -f $config_h && mv $config_h ${config_h}~
 
 mkdir -p $target_dir
 mkdir -p $target_dir/fpu
+mkdir -p $target_dir/tcg
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" ; then
   mkdir -p $target_dir/nwfpe
 fi
@@ -1224,6 +1249,7 @@ if test "$source_path_used" = "yes" ; then
     DIRS="tests tests/cris slirp audio"
     FILES="Makefile tests/Makefile"
     FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"
+    FILES="$FILES tests/test-mmap.c"
     for dir in $DIRS ; do
             mkdir -p $dir
     done

@@ -1,5 +1,5 @@
 /*
- * QEMU ETRAX System Emulator
+ * QEMU ETRAX Timers
  *
  * Copyright (c) 2007 Edgar E. Iglesias, Axis Communications AB.
  *
@@ -26,37 +26,37 @@
 #include "hw.h"
 #include "qemu-timer.h"
 
-void etrax_ack_irq(CPUState *env, uint32_t mask);
+#define D(x)
 
-#define R_TIME 0xb001e038
-#define RW_TMR0_DIV 0xb001e000
-#define R_TMR0_DATA 0xb001e004
-#define RW_TMR0_CTRL 0xb001e008
-#define RW_TMR1_DIV 0xb001e010
-#define R_TMR1_DATA 0xb001e014
-#define RW_TMR1_CTRL 0xb001e018
-
-#define RW_INTR_MASK 0xb001e048
-#define RW_ACK_INTR 0xb001e04c
-#define R_INTR 0xb001e050
-#define R_MASKED_INTR 0xb001e054
-
-
-uint32_t rw_intr_mask;
-uint32_t rw_ack_intr;
-uint32_t r_intr;
+#define RW_TMR0_DIV   0x00
+#define R_TMR0_DATA   0x04
+#define RW_TMR0_CTRL  0x08
+#define RW_TMR1_DIV   0x10
+#define R_TMR1_DATA   0x14
+#define RW_TMR1_CTRL  0x18
+#define R_TIME        0x38
+#define RW_WD_CTRL    0x40
+#define RW_INTR_MASK  0x48
+#define RW_ACK_INTR   0x4c
+#define R_INTR        0x50
+#define R_MASKED_INTR 0x54
 
 struct fs_timer_t {
-	QEMUBH *bh;
-	unsigned int limit;
-	int scale;
-	ptimer_state *ptimer;
 	CPUState *env;
 	qemu_irq *irq;
-	uint32_t mask;
-};
+	target_phys_addr_t base;
 
-static struct fs_timer_t timer0;
+	QEMUBH *bh;
+	ptimer_state *ptimer;
+	unsigned int limit;
+	int scale;
+	uint32_t mask;
+	struct timeval last;
+
+	uint32_t rw_intr_mask;
+	uint32_t rw_ack_intr;
+	uint32_t r_intr;
+};
 
 /* diff two timevals.  Return a single int in us. */
 int diff_timeval_us(struct timeval *a, struct timeval *b)
@@ -69,70 +69,63 @@ int diff_timeval_us(struct timeval *a, struct timeval *b)
         return diff;
 }
 
-static uint32_t timer_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t timer_rinvalid (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env = opaque;
-	uint32_t r = 0;
-	printf ("%s %x pc=%x\n", __func__, addr, env->pc);
-	return r;
-}
-static uint32_t timer_readw (void *opaque, target_phys_addr_t addr)
-{
-	CPUState *env = opaque;
-	uint32_t r = 0;
-	printf ("%s %x pc=%x\n", __func__, addr, env->pc);
-	return r;
+	struct fs_timer_t *t = opaque;
+	CPUState *env = t->env;
+	cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
+		  addr, env->pc);
+	return 0;
 }
 
 static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env = opaque;
+	struct fs_timer_t *t = opaque;
+	D(CPUState *env = t->env);
 	uint32_t r = 0;
 
+	/* Make addr relative to this instances base.  */
+	addr -= t->base;
 	switch (addr) {
 	case R_TMR0_DATA:
 		break;
 	case R_TMR1_DATA:
-		printf ("R_TMR1_DATA\n");
+		D(printf ("R_TMR1_DATA\n"));
 		break;
 	case R_TIME:
 	{
-		static struct timeval last;
 		struct timeval now;
 		gettimeofday(&now, NULL);
-		if (!(last.tv_sec == 0 && last.tv_usec == 0)) {
-			r = diff_timeval_us(&now, &last);
+		if (!(t->last.tv_sec == 0 
+		      && t->last.tv_usec == 0)) {
+			r = diff_timeval_us(&now, &t->last);
 			r *= 1000; /* convert to ns.  */
 			r++; /* make sure we increase for each call.  */
 		}
-		last = now;
+		t->last = now;
 		break;
 	}
 
 	case RW_INTR_MASK:
-		r = rw_intr_mask;
+		r = t->rw_intr_mask;
 		break;
 	case R_MASKED_INTR:
-		r = r_intr & rw_intr_mask;
+		r = t->r_intr & t->rw_intr_mask;
 		break;
 	default:
-		printf ("%s %x p=%x\n", __func__, addr, env->pc);
+		D(printf ("%s %x p=%x\n", __func__, addr, env->pc));
 		break;
 	}
 	return r;
 }
 
 static void
-timer_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+timer_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
-}
-static void
-timer_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
+	struct fs_timer_t *t = opaque;
+	CPUState *env = t->env;
+	cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
+		  addr, env->pc);
 }
 
 static void write_ctrl(struct fs_timer_t *t, uint32_t v)
@@ -149,7 +142,7 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 	{
 	case 0:
 	case 1:
-		printf ("extern or disabled timer clock?\n");
+		D(printf ("extern or disabled timer clock?\n"));
 		break;
 	case 4: freq_hz =  29493000; break;
 	case 5: freq_hz =  32000000; break;
@@ -160,19 +153,19 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 		break;
 	}
 
-	printf ("freq_hz=%d limit=%d\n", freq_hz, t->limit);
+	D(printf ("freq_hz=%d limit=%d\n", freq_hz, t->limit));
 	t->scale = 0;
 	if (t->limit > 2048)
 	{
 		t->scale = 2048;
-		ptimer_set_period(timer0.ptimer, freq_hz / t->scale);
+		ptimer_set_period(t->ptimer, freq_hz / t->scale);
 	}
 
-	printf ("op=%d\n", op);
 	switch (op)
 	{
 		case 0:
-			printf ("limit=%d %d\n", t->limit, t->limit/t->scale);
+			D(printf ("limit=%d %d\n", 
+				  t->limit, t->limit/t->scale));
 			ptimer_set_limit(t->ptimer, t->limit / t->scale, 1);
 			break;
 		case 1:
@@ -187,43 +180,48 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 	}
 }
 
-static void timer_ack_irq(void)
+static void timer_ack_irq(struct fs_timer_t *t)
 {
-	if (!(r_intr & timer0.mask & rw_intr_mask)) {
-		qemu_irq_lower(timer0.irq[0]);
-		etrax_ack_irq(timer0.env, 1 << 0x1b);
-	}
+	if (!(t->r_intr & t->mask & t->rw_intr_mask))
+		qemu_irq_lower(t->irq[0]);
 }
 
 static void
 timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n",
-		__func__, addr, value, env->pc);
+	struct fs_timer_t *t = opaque;
+	CPUState *env = t->env;
+
+	D(printf ("%s %x %x pc=%x\n",
+		__func__, addr, value, env->pc));
+	/* Make addr relative to this instances base.  */
+	addr -= t->base;
 	switch (addr)
 	{
 		case RW_TMR0_DIV:
-			printf ("RW_TMR0_DIV=%x\n", value);
-			timer0.limit = value;
+			D(printf ("RW_TMR0_DIV=%x\n", value));
+			t->limit = value;
 			break;
 		case RW_TMR0_CTRL:
-			printf ("RW_TMR0_CTRL=%x\n", value);
-			write_ctrl(&timer0, value);
+			D(printf ("RW_TMR0_CTRL=%x\n", value));
+			write_ctrl(t, value);
 			break;
 		case RW_TMR1_DIV:
-			printf ("RW_TMR1_DIV=%x\n", value);
+			D(printf ("RW_TMR1_DIV=%x\n", value));
 			break;
 		case RW_TMR1_CTRL:
-			printf ("RW_TMR1_CTRL=%x\n", value);
+			D(printf ("RW_TMR1_CTRL=%x\n", value));
 			break;
 		case RW_INTR_MASK:
-			printf ("RW_INTR_MASK=%x\n", value);
-			rw_intr_mask = value;
+			D(printf ("RW_INTR_MASK=%x\n", value));
+			t->rw_intr_mask = value;
+			break;
+		case RW_WD_CTRL:
+			D(printf ("RW_WD_CTRL=%x\n", value));
 			break;
 		case RW_ACK_INTR:
-			r_intr &= ~value;
-			timer_ack_irq();
+			t->r_intr &= ~value;
+			timer_ack_irq(t);
 			break;
 		default:
 			printf ("%s %x %x pc=%x\n",
@@ -233,37 +231,44 @@ timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 }
 
 static CPUReadMemoryFunc *timer_read[] = {
-    &timer_readb,
-    &timer_readw,
+    &timer_rinvalid,
+    &timer_rinvalid,
     &timer_readl,
 };
 
 static CPUWriteMemoryFunc *timer_write[] = {
-    &timer_writeb,
-    &timer_writew,
+    &timer_winvalid,
+    &timer_winvalid,
     &timer_writel,
 };
 
 static void timer_irq(void *opaque)
 {
 	struct fs_timer_t *t = opaque;
-
-	r_intr |= t->mask;
-	if (t->mask & rw_intr_mask) {
+	t->r_intr |= t->mask;
+	if (t->mask & t->rw_intr_mask) {
+		D(printf("%s raise\n", __func__));
 		qemu_irq_raise(t->irq[0]);
 	}
 }
 
-void etraxfs_timer_init(CPUState *env, qemu_irq *irqs)
+void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, 
+			target_phys_addr_t base)
 {
+	static struct fs_timer_t *t;
 	int timer_regs;
 
-	timer0.bh = qemu_bh_new(timer_irq, &timer0);
-	timer0.ptimer = ptimer_init(timer0.bh);
-	timer0.irq = irqs + 0x1b;
-	timer0.mask = 1;
-	timer0.env = env;
+	t = qemu_mallocz(sizeof *t);
+	if (!t)
+		return;
 
-	timer_regs = cpu_register_io_memory(0, timer_read, timer_write, env);
-	cpu_register_physical_memory (0xb001e000, 0x5c, timer_regs);
+	t->bh = qemu_bh_new(timer_irq, t);
+	t->ptimer = ptimer_init(t->bh);
+	t->irq = irqs + 26;
+	t->mask = 1;
+	t->env = env;
+	t->base = base;
+
+	timer_regs = cpu_register_io_memory(0, timer_read, timer_write, t);
+	cpu_register_physical_memory (base, 0x5c, timer_regs);
 }

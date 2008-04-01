@@ -56,7 +56,7 @@ pal_handler_t pal_handlers[] = {
 
 #if 0
 /* One must explicitely check that the TB is valid and the FOE bit is reset */
-static void update_itb ()
+static void update_itb (void)
 {
     /* This writes into a temp register, not the actual one */
     mtpr(TB_TAG);
@@ -65,7 +65,7 @@ static void update_itb ()
     mtpr(ITB_PTE);
 }
 
-static void update_dtb ();
+static void update_dtb (void);
 {
     mtpr(TB_CTL);
     /* This write into a temp register, not the actual one */

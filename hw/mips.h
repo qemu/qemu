@@ -6,8 +6,8 @@
 PCIBus *pci_gt64120_init(qemu_irq *pic);
 
 /* ds1225y.c */
-typedef struct ds1225y_t ds1225y_t;
-ds1225y_t *ds1225y_init(target_phys_addr_t mem_base, const char *filename);
+void *ds1225y_init(target_phys_addr_t mem_base, const char *filename);
+void ds1225y_set_protection(void *opaque, int protection);
 
 /* mipsnet.c */
 void mipsnet_init(int base, qemu_irq irq, NICInfo *nd);

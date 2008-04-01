@@ -30,28 +30,11 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "tcg-op.h"
 
 //#define MIPS_DEBUG_DISAS
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
 //#define MIPS_SINGLE_STEP
-
-#ifdef USE_DIRECT_JUMP
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) (long)(x)
-#endif
-
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
-
-#include "gen-op.h"
 
 /* MIPS major opcodes */
 #define MASK_OP_MAJOR(op)  (op & (0x3F << 26))
@@ -1791,17 +1774,13 @@ static always_inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong des
     TranslationBlock *tb;
     tb = ctx->tb;
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
-        if (n == 0)
-            gen_op_goto_tb0(TBPARAM(tb));
-        else
-            gen_op_goto_tb1(TBPARAM(tb));
+        tcg_gen_goto_tb(n);
         gen_save_pc(dest);
-        gen_op_set_T0((long)tb + n);
+        tcg_gen_exit_tb((long)tb + n);
     } else {
         gen_save_pc(dest);
-        gen_op_reset_T0();
+        tcg_gen_exit_tb(0);
     }
-    gen_op_exit_tb();
 }
 
 /* Branches (before delay slot) */
@@ -6656,8 +6635,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             /* unconditional branch to register */
             MIPS_DEBUG("branch to register");
             gen_op_breg();
-            gen_op_reset_T0();
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         default:
             MIPS_DEBUG("unknown branch");
@@ -6679,10 +6657,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf (logfile, "search pc %d\n", search_pc);
 
     pc_start = tb->pc;
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
-    nb_gen_labels = 0;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.tb = tb;
@@ -6762,8 +6737,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             break;
         case BS_EXCP:
             gen_op_interrupt_restart();
-            gen_op_reset_T0();
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         case BS_BRANCH:
         default:
@@ -6789,11 +6763,6 @@ done_generating:
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
-        fprintf(logfile, "\n");
-    }
-    if (loglevel & CPU_LOG_TB_OP) {
-        fprintf(logfile, "OP:\n");
-        dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
     }
     if (loglevel & CPU_LOG_TB_CPU) {
@@ -6856,7 +6825,7 @@ void dump_fpu (CPUState *env)
 {
     if (loglevel) {
        fprintf(logfile, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
-               env->PC[env->current_tc], env->HI[0][env->current_tc], env->LO[0][env->current_tc], env->hflags, env->btarget, env->bcond);
+               env->PC[env->current_tc], env->HI[env->current_tc][0], env->LO[env->current_tc][0], env->hflags, env->btarget, env->bcond);
        fpu_dump_state(env, logfile, fprintf, 0);
     }
 }
@@ -6875,16 +6844,16 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 
     if (!SIGN_EXT_P(env->PC[env->current_tc]))
         cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->PC[env->current_tc]);
-    if (!SIGN_EXT_P(env->HI[0][env->current_tc]))
-        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[0][env->current_tc]);
-    if (!SIGN_EXT_P(env->LO[0][env->current_tc]))
-        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[0][env->current_tc]);
+    if (!SIGN_EXT_P(env->HI[env->current_tc][0]))
+        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[env->current_tc][0]);
+    if (!SIGN_EXT_P(env->LO[env->current_tc][0]))
+        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[env->current_tc][0]);
     if (!SIGN_EXT_P(env->btarget))
         cpu_fprintf(f, "BROKEN: btarget=0x" TARGET_FMT_lx "\n", env->btarget);
 
     for (i = 0; i < 32; i++) {
-        if (!SIGN_EXT_P(env->gpr[i][env->current_tc]))
-            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->gpr[i][env->current_tc]);
+        if (!SIGN_EXT_P(env->gpr[env->current_tc][i]))
+            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->gpr[env->current_tc][i]);
     }
 
     if (!SIGN_EXT_P(env->CP0_EPC))
@@ -6905,7 +6874,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "GPR%02d:", i);
-        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->gpr[i][env->current_tc]);
+        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->gpr[env->current_tc][i]);
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }

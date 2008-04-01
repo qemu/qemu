@@ -879,8 +879,8 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
 	dz = 1;
 
     if (vs->absolute) {
-	kbd_mouse_event(x * 0x7FFF / vs->ds->width,
-			y * 0x7FFF / vs->ds->height,
+	kbd_mouse_event(x * 0x7FFF / (vs->ds->width - 1),
+			y * 0x7FFF / (vs->ds->height - 1),
 			dz, buttons);
     } else if (vs->has_pointer_type_change) {
 	x -= 0x7FFF;
@@ -945,6 +945,7 @@ static void do_key_event(VncState *vs, int down, uint32_t sym)
             return;
         }
         break;
+    case 0x3a:			/* CapsLock */
     case 0x45:			/* NumLock */
         if (!down)
             vs->modifiers_state[keycode] ^= 1;
@@ -1898,6 +1899,22 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
     return 0;
 }
 
+static void vnc_connect(VncState *vs)
+{
+    VNC_DEBUG("New client on socket %d\n", vs->csock);
+    socket_set_nonblock(vs->csock);
+    qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+    vnc_write(vs, "RFB 003.008\n", 12);
+    vnc_flush(vs);
+    vnc_read_when(vs, protocol_version, 12);
+    memset(vs->old_data, 0, vs->ds->linesize * vs->ds->height);
+    memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
+    vs->has_resize = 0;
+    vs->has_hextile = 0;
+    vs->ds->dpy_copy = NULL;
+    vnc_update_client(vs);
+}
+
 static void vnc_listen_read(void *opaque)
 {
     VncState *vs = opaque;
@@ -1909,18 +1926,7 @@ static void vnc_listen_read(void *opaque)
 
     vs->csock = accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
     if (vs->csock != -1) {
-	VNC_DEBUG("New client on socket %d\n", vs->csock);
-        socket_set_nonblock(vs->csock);
-	qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, opaque);
-	vnc_write(vs, "RFB 003.008\n", 12);
-	vnc_flush(vs);
-	vnc_read_when(vs, protocol_version, 12);
-	memset(vs->old_data, 0, vs->ds->linesize * vs->ds->height);
-	memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
-	vs->has_resize = 0;
-	vs->has_hextile = 0;
-	vs->ds->dpy_copy = NULL;
-        vnc_update_client(vs);
+        vnc_connect(vs);
     }
 }
 
@@ -2087,6 +2093,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
     VncState *vs = ds ? (VncState *)ds->opaque : vnc_state;
     const char *options;
     int password = 0;
+    int reverse = 0;
 #if CONFIG_VNC_TLS
     int tls = 0, x509 = 0;
 #endif
@@ -2103,6 +2110,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	options++;
 	if (strncmp(options, "password", 8) == 0) {
 	    password = 1; /* Require password auth */
+	} else if (strncmp(options, "reverse", 7) == 0) {
+	    reverse = 1;
 #if CONFIG_VNC_TLS
 	} else if (strncmp(options, "tls", 3) == 0) {
 	    tls = 1; /* Require TLS */
@@ -2196,7 +2205,9 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	memset(uaddr.sun_path, 0, 108);
 	snprintf(uaddr.sun_path, 108, "%s", p);
 
-	unlink(uaddr.sun_path);
+	if (!reverse) {
+	    unlink(uaddr.sun_path);
+	}
     } else
 #endif
     {
@@ -2210,7 +2221,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	    return -1;
 	}
 
-	iaddr.sin_port = htons(ntohs(iaddr.sin_port) + 5900);
+	iaddr.sin_port = htons(ntohs(iaddr.sin_port) + (reverse ? 0 : 5900));
 
 	vs->lsock = socket(PF_INET, SOCK_STREAM, 0);
 	if (vs->lsock == -1) {
@@ -2231,6 +2242,22 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	    vs->display = NULL;
 	    return -1;
 	}
+    }
+
+    if (reverse) {
+        if (connect(vs->lsock, addr, addrlen) == -1) {
+            fprintf(stderr, "Connection to VNC client failed\n");
+            close(vs->lsock);
+            vs->lsock = -1;
+            free(vs->display);
+            vs->display = NULL;
+            return -1;
+        } else {
+            vs->csock = vs->lsock;
+            vs->lsock = -1;
+            vnc_connect(vs);
+            return 0;
+        }
     }
 
     if (bind(vs->lsock, addr, addrlen) == -1) {

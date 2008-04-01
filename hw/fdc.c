@@ -360,6 +360,102 @@ enum {
     FD_STATE_FORMAT = 0x40,
 };
 
+enum {
+    FD_REG_0 = 0x00,
+    FD_REG_STATUSB = 0x01,
+    FD_REG_DOR = 0x02,
+    FD_REG_TDR = 0x03,
+    FD_REG_MSR = 0x04,
+    FD_REG_DSR = 0x04,
+    FD_REG_FIFO = 0x05,
+    FD_REG_DIR = 0x07,
+};
+
+enum {
+    FD_CMD_SPECIFY = 0x03,
+    FD_CMD_SENSE_DRIVE_STATUS = 0x04,
+    FD_CMD_RECALIBRATE = 0x07,
+    FD_CMD_SENSE_INTERRUPT_STATUS = 0x08,
+    FD_CMD_DUMPREG = 0x0e,
+    FD_CMD_SEEK = 0x0f,
+    FD_CMD_VERSION = 0x10,
+    FD_CMD_PERPENDICULAR_MODE = 0x12,
+    FD_CMD_CONFIGURE = 0x13,
+    FD_CMD_UNLOCK = 0x14,
+    FD_CMD_POWERDOWN_MODE = 0x17,
+    FD_CMD_PART_ID = 0x18,
+    FD_CMD_SAVE = 0x2c,
+    FD_CMD_OPTION = 0x33,
+    FD_CMD_READ_TRACK = 0x42,
+    FD_CMD_WRITE = 0x45,
+    FD_CMD_READ = 0x46,
+    FD_CMD_WRITE_DELETED = 0x49,
+    FD_CMD_READ_ID = 0x4a,
+    FD_CMD_READ_DELETED = 0x4c,
+    FD_CMD_RESTORE = 0x4c,
+    FD_CMD_FORMAT_TRACK = 0x4d,
+    FD_CMD_SCAN_EQUAL = 0x50,
+    FD_CMD_VERIFY = 0x56,
+    FD_CMD_SCAN_LOW_OR_EQUAL = 0x59,
+    FD_CMD_SCAN_HIGH_OR_EQUAL = 0x5d,
+    FD_CMD_DRIVE_SPECIFICATION_COMMAND = 0x8e,
+    FD_CMD_RELATIVE_SEEK_OUT = 0x8f,
+    FD_CMD_LOCK = 0x94,
+    FD_CMD_FORMAT_AND_WRITE = 0xcd,
+    FD_CMD_RELATIVE_SEEK_IN = 0xcf,
+};
+
+enum {
+    FD_CONFIG_PRETRK = 0xff, /* Pre-compensation set to track 0 */
+    FD_CONFIG_FIFOTHR = 0x0f, /* FIFO threshold set to 1 byte */
+    FD_CONFIG_POLL  = 0x10, /* Poll enabled */
+    FD_CONFIG_EFIFO = 0x20, /* FIFO disabled */
+    FD_CONFIG_EIS   = 0x40, /* No implied seeks */
+};
+
+enum {
+    FD_SR0_EQPMT    = 0x10,
+    FD_SR0_SEEK     = 0x20,
+    FD_SR0_ABNTERM  = 0x40,
+    FD_SR0_INVCMD   = 0x80,
+    FD_SR0_RDYCHG   = 0xc0,
+};
+
+enum {
+    FD_DOR_SELMASK  = 0x01,
+    FD_DOR_nRESET   = 0x04,
+    FD_DOR_DMAEN    = 0x08,
+    FD_DOR_MOTEN0   = 0x10,
+    FD_DOR_MOTEN1   = 0x20,
+    FD_DOR_MOTEN2   = 0x40,
+    FD_DOR_MOTEN3   = 0x80,
+};
+
+enum {
+    FD_TDR_BOOTSEL  = 0x0c,
+};
+
+enum {
+    FD_DSR_DRATEMASK= 0x03,
+    FD_DSR_PWRDOWN  = 0x40,
+    FD_DSR_SWRESET  = 0x80,
+};
+
+enum {
+    FD_MSR_DRV0BUSY = 0x01,
+    FD_MSR_DRV1BUSY = 0x02,
+    FD_MSR_DRV2BUSY = 0x04,
+    FD_MSR_DRV3BUSY = 0x08,
+    FD_MSR_CMDBUSY  = 0x10,
+    FD_MSR_NONDMA   = 0x20,
+    FD_MSR_DIO      = 0x40,
+    FD_MSR_RQM      = 0x80,
+};
+
+enum {
+    FD_DIR_DSKCHG   = 0x80,
+};
+
 #define FD_STATE(state) ((state) & FD_STATE_STATE)
 #define FD_SET_STATE(state, new_state) \
 do { (state) = ((state) & ~FD_STATE_STATE) | (new_state); } while (0)
@@ -411,7 +507,7 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     uint32_t retval;
 
     switch (reg & 0x07) {
-    case 0x00:
+    case FD_REG_0:
         if (fdctrl->sun4m) {
             // Identify to Linux as S82078B
             retval = fdctrl_read_statusB(fdctrl);
@@ -419,22 +515,22 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
             retval = (uint32_t)(-1);
         }
         break;
-    case 0x01:
+    case FD_REG_STATUSB:
         retval = fdctrl_read_statusB(fdctrl);
         break;
-    case 0x02:
+    case FD_REG_DOR:
         retval = fdctrl_read_dor(fdctrl);
         break;
-    case 0x03:
+    case FD_REG_TDR:
         retval = fdctrl_read_tape(fdctrl);
         break;
-    case 0x04:
+    case FD_REG_MSR:
         retval = fdctrl_read_main_status(fdctrl);
         break;
-    case 0x05:
+    case FD_REG_FIFO:
         retval = fdctrl_read_data(fdctrl);
         break;
-    case 0x07:
+    case FD_REG_DIR:
         retval = fdctrl_read_dir(fdctrl);
         break;
     default:
@@ -453,16 +549,16 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
     FLOPPY_DPRINTF("write reg%d: 0x%02x\n", reg & 7, value);
 
     switch (reg & 0x07) {
-    case 0x02:
+    case FD_REG_DOR:
         fdctrl_write_dor(fdctrl, value);
         break;
-    case 0x03:
+    case FD_REG_TDR:
         fdctrl_write_tape(fdctrl, value);
         break;
-    case 0x04:
+    case FD_REG_DSR:
         fdctrl_write_rate(fdctrl, value);
         break;
-    case 0x05:
+    case FD_REG_FIFO:
         fdctrl_write_data(fdctrl, value);
         break;
     default:
@@ -621,21 +717,21 @@ static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
     fdctrl->irq = irq;
     fdctrl->dma_chann = dma_chann;
     fdctrl->io_base = io_base;
-    fdctrl->config = 0x60; /* Implicit seek, polling & FIFO enabled */
+    fdctrl->config = FD_CONFIG_EIS | FD_CONFIG_EFIFO; /* Implicit seek, polling & FIFO enabled */
     if (fdctrl->dma_chann != -1) {
         fdctrl->dma_en = 1;
         DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
     } else {
         fdctrl->dma_en = 0;
     }
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < MAX_FD; i++) {
         fd_init(&fdctrl->drives[i], fds[i]);
     }
     fdctrl_reset(fdctrl, 0);
     fdctrl->state = FD_CTRL_ACTIVE;
     register_savevm("fdc", io_base, 1, fdc_save, fdc_load, fdctrl);
     qemu_register_reset(fdctrl_external_reset, fdctrl);
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < MAX_FD; i++) {
         fd_revalidate(&fdctrl->drives[i]);
     }
 
@@ -670,8 +766,18 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
     return fdctrl;
 }
 
+static void fdctrl_handle_tc(void *opaque, int irq, int level)
+{
+    //fdctrl_t *s = opaque;
+
+    if (level) {
+        // XXX
+        FLOPPY_DPRINTF("TC pulsed\n");
+    }
+}
+
 fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
-                             BlockDriverState **fds)
+                             BlockDriverState **fds, qemu_irq *fdc_tc)
 {
     fdctrl_t *fdctrl;
     int io_mem;
@@ -682,6 +788,7 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
                                     fdctrl_mem_write_strict,
                                     fdctrl);
     cpu_register_physical_memory(io_base, 0x08, io_mem);
+    *fdc_tc = *qemu_allocate_irqs(fdctrl_handle_tc, fdctrl, 1);
 
     return fdctrl;
 }
@@ -734,7 +841,7 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
         fd_reset(&fdctrl->drives[i]);
     fdctrl_reset_fifo(fdctrl);
     if (do_irq)
-        fdctrl_raise_irq(fdctrl, 0xc0);
+        fdctrl_raise_irq(fdctrl, FD_SR0_RDYCHG);
 }
 
 static inline fdrive_t *drv0 (fdctrl_t *fdctrl)
@@ -766,13 +873,15 @@ static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl)
 
     /* Drive motors state indicators */
     if (drv0(fdctrl)->drflags & FDRIVE_MOTOR_ON)
-        retval |= 1 << 5;
+        retval |= FD_DOR_MOTEN0;
     if (drv1(fdctrl)->drflags & FDRIVE_MOTOR_ON)
-        retval |= 1 << 4;
+        retval |= FD_DOR_MOTEN1;
     /* DMA enable */
-    retval |= fdctrl->dma_en << 3;
+    if (fdctrl->dma_en)
+        retval |= FD_DOR_DMAEN;
     /* Reset indicator */
-    retval |= (fdctrl->state & FD_CTRL_RESET) == 0 ? 0x04 : 0;
+    if (!(fdctrl->state & FD_CTRL_RESET))
+        retval |= FD_DOR_nRESET;
     /* Selected drive */
     retval |= fdctrl->cur_drv;
     FLOPPY_DPRINTF("digital output register: 0x%02x\n", retval);
@@ -784,28 +893,28 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
 {
     /* Reset mode */
     if (fdctrl->state & FD_CTRL_RESET) {
-        if (!(value & 0x04)) {
+        if (!(value & FD_DOR_nRESET)) {
             FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
             return;
         }
     }
     FLOPPY_DPRINTF("digital output register set to 0x%02x\n", value);
     /* Drive motors state indicators */
-    if (value & 0x20)
+    if (value & FD_DOR_MOTEN1)
         fd_start(drv1(fdctrl));
     else
         fd_stop(drv1(fdctrl));
-    if (value & 0x10)
+    if (value & FD_DOR_MOTEN0)
         fd_start(drv0(fdctrl));
     else
         fd_stop(drv0(fdctrl));
     /* DMA enable */
 #if 0
     if (fdctrl->dma_chann != -1)
-        fdctrl->dma_en = 1 - ((value >> 3) & 1);
+        fdctrl->dma_en = value & FD_DOR_DMAEN ? 1 : 0;
 #endif
     /* Reset */
-    if (!(value & 0x04)) {
+    if (!(value & FD_DOR_nRESET)) {
         if (!(fdctrl->state & FD_CTRL_RESET)) {
             FLOPPY_DPRINTF("controller enter RESET state\n");
             fdctrl->state |= FD_CTRL_RESET;
@@ -818,7 +927,7 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
         }
     }
     /* Selected drive */
-    fdctrl->cur_drv = value & 1;
+    fdctrl->cur_drv = value & FD_DOR_SELMASK;
 }
 
 /* Tape drive register : 0x03 */
@@ -843,7 +952,7 @@ static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value)
     }
     FLOPPY_DPRINTF("tape drive register set to 0x%02x\n", value);
     /* Disk boot selection indicator */
-    fdctrl->bootsel = (value >> 2) & 1;
+    fdctrl->bootsel = (value & FD_TDR_BOOTSEL) >> 2;
     /* Tape indicators: never allow */
 }
 
@@ -855,16 +964,16 @@ static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
     fdctrl->state &= ~(FD_CTRL_SLEEP | FD_CTRL_RESET);
     if (!(fdctrl->state & FD_CTRL_BUSY)) {
         /* Data transfer allowed */
-        retval |= 0x80;
+        retval |= FD_MSR_RQM;
         /* Data transfer direction indicator */
         if (fdctrl->data_dir == FD_DIR_READ)
-            retval |= 0x40;
+            retval |= FD_MSR_DIO;
     }
-    /* Should handle 0x20 for SPECIFY command */
+    /* Should handle FD_MSR_NONDMA for SPECIFY command */
     /* Command busy indicator */
     if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA ||
         FD_STATE(fdctrl->data_state) == FD_STATE_STATUS)
-        retval |= 0x10;
+        retval |= FD_MSR_CMDBUSY;
     FLOPPY_DPRINTF("main status register: 0x%02x\n", retval);
 
     return retval;
@@ -880,16 +989,15 @@ static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
     }
     FLOPPY_DPRINTF("select rate register set to 0x%02x\n", value);
     /* Reset: autoclear */
-    if (value & 0x80) {
+    if (value & FD_DSR_SWRESET) {
         fdctrl->state |= FD_CTRL_RESET;
         fdctrl_reset(fdctrl, 1);
         fdctrl->state &= ~FD_CTRL_RESET;
     }
-    if (value & 0x40) {
+    if (value & FD_DSR_PWRDOWN) {
         fdctrl->state |= FD_CTRL_SLEEP;
         fdctrl_reset(fdctrl, 1);
     }
-//        fdctrl.precomp = (value >> 2) & 0x07;
 }
 
 static int fdctrl_media_changed(fdrive_t *drv)
@@ -912,7 +1020,7 @@ static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl)
 
     if (fdctrl_media_changed(drv0(fdctrl)) ||
         fdctrl_media_changed(drv1(fdctrl)))
-        retval |= 0x80;
+        retval |= FD_DIR_DSKCHG;
     if (retval != 0)
         FLOPPY_DPRINTF("Floppy digital input register: 0x%02x\n", retval);
 
@@ -945,13 +1053,13 @@ static void fdctrl_unimplemented (fdctrl_t *fdctrl)
     fdrive_t *cur_drv;
 
     cur_drv = get_cur_drv(fdctrl);
-    fdctrl->fifo[0] = 0x60 | (cur_drv->head << 2) | fdctrl->cur_drv;
+    fdctrl->fifo[0] = FD_SR0_ABNTERM | FD_SR0_SEEK | (cur_drv->head << 2) | fdctrl->cur_drv;
     fdctrl->fifo[1] = 0x00;
     fdctrl->fifo[2] = 0x00;
     fdctrl_set_fifo(fdctrl, 3, 1);
 #else
     //    fdctrl_reset_fifo(fdctrl);
-    fdctrl->fifo[0] = 0x80;
+    fdctrl->fifo[0] = FD_SR0_INVCMD;
     fdctrl_set_fifo(fdctrl, 1, 0);
 #endif
 }
@@ -988,7 +1096,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     uint8_t kh, kt, ks;
     int did_seek;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
     cur_drv = get_cur_drv(fdctrl);
     kt = fdctrl->fifo[2];
     kh = fdctrl->fifo[3];
@@ -1000,21 +1108,21 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & 0x40)) {
     case 2:
         /* sect too big */
-        fdctrl_stop_transfer(fdctrl, 0x40, 0x00, 0x00);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
         return;
     case 3:
         /* track too big */
-        fdctrl_stop_transfer(fdctrl, 0x40, 0x80, 0x00);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x80, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
         return;
     case 4:
         /* No seek enabled */
-        fdctrl_stop_transfer(fdctrl, 0x40, 0x00, 0x00);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
@@ -1086,7 +1194,7 @@ static void fdctrl_start_transfer_del (fdctrl_t *fdctrl, int direction)
     /* We don't handle deleted data,
      * so we don't return *ANYTHING*
      */
-    fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
+    fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
 }
 
 /* handlers for DMA transfers */
@@ -1111,9 +1219,9 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         dma_len = fdctrl->data_len;
     if (cur_drv->bs == NULL) {
         if (fdctrl->data_dir == FD_DIR_WRITE)
-            fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
         else
-            fdctrl_stop_transfer(fdctrl, 0x40, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
         len = 0;
         goto transfer_error;
     }
@@ -1126,7 +1234,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                        "(%d-0x%08x 0x%08x)\n", len, dma_len, fdctrl->data_pos,
                        fdctrl->data_len, fdctrl->cur_drv, cur_drv->head,
                        cur_drv->track, cur_drv->sect, fd_sector(cur_drv),
-                       fd_sector(cur_drv) * 512);
+                       fd_sector(cur_drv) * FD_SECTOR_LEN);
         if (fdctrl->data_dir != FD_DIR_WRITE ||
             len < FD_SECTOR_LEN || rel_pos != 0) {
             /* READ & SCAN commands and realign to a sector for WRITE */
@@ -1151,7 +1259,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
             if (bdrv_write(cur_drv->bs, fd_sector(cur_drv),
                            fdctrl->fifo, 1) < 0) {
                 FLOPPY_ERROR("writting sector %d\n", fd_sector(cur_drv));
-                fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
+                fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
                 goto transfer_error;
             }
             break;
@@ -1218,7 +1326,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         fdctrl->data_dir == FD_DIR_SCANH)
         status2 = 0x08;
     if (FD_DID_SEEK(fdctrl->data_state))
-        status0 |= 0x20;
+        status0 |= FD_SR0_SEEK;
     fdctrl->data_len -= len;
     //    if (fdctrl->data_len == 0)
     fdctrl_stop_transfer(fdctrl, status0, status1, status2);
@@ -1257,7 +1365,7 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
          * then from status mode to command mode
          */
         if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA) {
-            fdctrl_stop_transfer(fdctrl, 0x20, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
         } else {
             fdctrl_reset_fifo(fdctrl);
             fdctrl_reset_irq(fdctrl);
@@ -1274,7 +1382,7 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
     uint8_t kh, kt, ks;
     int did_seek;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
     cur_drv = get_cur_drv(fdctrl);
     kt = fdctrl->fifo[6];
     kh = fdctrl->fifo[7];
@@ -1283,24 +1391,24 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
                    fdctrl->cur_drv, kh, kt, ks,
                    _fd_sector(kh, kt, ks, cur_drv->last_sect));
     did_seek = 0;
-    switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & 0x40)) {
+    switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
         /* sect too big */
-        fdctrl_stop_transfer(fdctrl, 0x40, 0x00, 0x00);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
         return;
     case 3:
         /* track too big */
-        fdctrl_stop_transfer(fdctrl, 0x40, 0x80, 0x00);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x80, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
         return;
     case 4:
         /* No seek enabled */
-        fdctrl_stop_transfer(fdctrl, 0x40, 0x00, 0x00);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
@@ -1316,13 +1424,13 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
     if (cur_drv->bs == NULL ||
         bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
         FLOPPY_ERROR("formatting sector %d\n", fd_sector(cur_drv));
-        fdctrl_stop_transfer(fdctrl, 0x60, 0x00, 0x00);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
     } else {
         if (cur_drv->sect == cur_drv->last_sect) {
             fdctrl->data_state &= ~FD_STATE_FORMAT;
             /* Last sector done */
             if (FD_DID_SEEK(fdctrl->data_state))
-                fdctrl_stop_transfer(fdctrl, 0x20, 0x00, 0x00);
+                fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
             else
                 fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         } else {
@@ -1360,43 +1468,43 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
          * then from status mode to command mode
          */
         if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA)
-            fdctrl_stop_transfer(fdctrl, 0x20, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
         return;
     }
     if (fdctrl->data_pos == 0) {
         /* Command */
         switch (value & 0x5F) {
-        case 0x46:
+        case FD_CMD_READ:
             /* READ variants */
             FLOPPY_DPRINTF("READ command\n");
             /* 8 parameters cmd */
             fdctrl->data_len = 9;
             goto enqueue;
-        case 0x4C:
+        case FD_CMD_READ_DELETED:
             /* READ_DELETED variants */
             FLOPPY_DPRINTF("READ_DELETED command\n");
             /* 8 parameters cmd */
             fdctrl->data_len = 9;
             goto enqueue;
-        case 0x50:
+        case FD_CMD_SCAN_EQUAL:
             /* SCAN_EQUAL variants */
             FLOPPY_DPRINTF("SCAN_EQUAL command\n");
             /* 8 parameters cmd */
             fdctrl->data_len = 9;
             goto enqueue;
-        case 0x56:
+        case FD_CMD_VERIFY:
             /* VERIFY variants */
             FLOPPY_DPRINTF("VERIFY command\n");
             /* 8 parameters cmd */
             fdctrl->data_len = 9;
             goto enqueue;
-        case 0x59:
+        case FD_CMD_SCAN_LOW_OR_EQUAL:
             /* SCAN_LOW_OR_EQUAL variants */
             FLOPPY_DPRINTF("SCAN_LOW_OR_EQUAL command\n");
             /* 8 parameters cmd */
             fdctrl->data_len = 9;
             goto enqueue;
-        case 0x5D:
+        case FD_CMD_SCAN_HIGH_OR_EQUAL:
             /* SCAN_HIGH_OR_EQUAL variants */
             FLOPPY_DPRINTF("SCAN_HIGH_OR_EQUAL command\n");
             /* 8 parameters cmd */
@@ -1406,13 +1514,13 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             break;
         }
         switch (value & 0x7F) {
-        case 0x45:
+        case FD_CMD_WRITE:
             /* WRITE variants */
             FLOPPY_DPRINTF("WRITE command\n");
             /* 8 parameters cmd */
             fdctrl->data_len = 9;
             goto enqueue;
-        case 0x49:
+        case FD_CMD_WRITE_DELETED:
             /* WRITE_DELETED variants */
             FLOPPY_DPRINTF("WRITE_DELETED command\n");
             /* 8 parameters cmd */
@@ -1422,25 +1530,25 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             break;
         }
         switch (value) {
-        case 0x03:
+        case FD_CMD_SPECIFY:
             /* SPECIFY */
             FLOPPY_DPRINTF("SPECIFY command\n");
             /* 1 parameter cmd */
             fdctrl->data_len = 3;
             goto enqueue;
-        case 0x04:
+        case FD_CMD_SENSE_DRIVE_STATUS:
             /* SENSE_DRIVE_STATUS */
             FLOPPY_DPRINTF("SENSE_DRIVE_STATUS command\n");
             /* 1 parameter cmd */
             fdctrl->data_len = 2;
             goto enqueue;
-        case 0x07:
+        case FD_CMD_RECALIBRATE:
             /* RECALIBRATE */
             FLOPPY_DPRINTF("RECALIBRATE command\n");
             /* 1 parameter cmd */
             fdctrl->data_len = 2;
             goto enqueue;
-        case 0x08:
+        case FD_CMD_SENSE_INTERRUPT_STATUS:
             /* SENSE_INTERRUPT_STATUS */
             FLOPPY_DPRINTF("SENSE_INTERRUPT_STATUS command (%02x)\n",
                            fdctrl->int_status);
@@ -1458,9 +1566,9 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->fifo[1] = cur_drv->track;
             fdctrl_set_fifo(fdctrl, 2, 0);
             fdctrl_reset_irq(fdctrl);
-            fdctrl->int_status = 0xC0;
+            fdctrl->int_status = FD_SR0_RDYCHG;
             return;
-        case 0x0E:
+        case FD_CMD_DUMPREG:
             /* DUMPREG */
             FLOPPY_DPRINTF("DUMPREG command\n");
             /* Drives position */
@@ -1478,13 +1586,13 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->fifo[9] = fdctrl->precomp_trk;
             fdctrl_set_fifo(fdctrl, 10, 0);
             return;
-        case 0x0F:
+        case FD_CMD_SEEK:
             /* SEEK */
             FLOPPY_DPRINTF("SEEK command\n");
             /* 2 parameters cmd */
             fdctrl->data_len = 3;
             goto enqueue;
-        case 0x10:
+        case FD_CMD_VERSION:
             /* VERSION */
             FLOPPY_DPRINTF("VERSION command\n");
             /* No parameters cmd */
@@ -1492,19 +1600,19 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->fifo[0] = fdctrl->version;
             fdctrl_set_fifo(fdctrl, 1, 1);
             return;
-        case 0x12:
+        case FD_CMD_PERPENDICULAR_MODE:
             /* PERPENDICULAR_MODE */
             FLOPPY_DPRINTF("PERPENDICULAR_MODE command\n");
             /* 1 parameter cmd */
             fdctrl->data_len = 2;
             goto enqueue;
-        case 0x13:
+        case FD_CMD_CONFIGURE:
             /* CONFIGURE */
             FLOPPY_DPRINTF("CONFIGURE command\n");
             /* 3 parameters cmd */
             fdctrl->data_len = 4;
             goto enqueue;
-        case 0x14:
+        case FD_CMD_UNLOCK:
             /* UNLOCK */
             FLOPPY_DPRINTF("UNLOCK command\n");
             /* No parameters cmd */
@@ -1512,20 +1620,20 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->fifo[0] = 0;
             fdctrl_set_fifo(fdctrl, 1, 0);
             return;
-        case 0x17:
+        case FD_CMD_POWERDOWN_MODE:
             /* POWERDOWN_MODE */
             FLOPPY_DPRINTF("POWERDOWN_MODE command\n");
             /* 2 parameters cmd */
             fdctrl->data_len = 3;
             goto enqueue;
-        case 0x18:
+        case FD_CMD_PART_ID:
             /* PART_ID */
             FLOPPY_DPRINTF("PART_ID command\n");
             /* No parameters cmd */
             fdctrl->fifo[0] = 0x41; /* Stepping 1 */
             fdctrl_set_fifo(fdctrl, 1, 0);
             return;
-        case 0x2C:
+        case FD_CMD_SAVE:
             /* SAVE */
             FLOPPY_DPRINTF("SAVE command\n");
             /* No parameters cmd */
@@ -1549,49 +1657,49 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->fifo[14] = 0;
             fdctrl_set_fifo(fdctrl, 15, 1);
             return;
-        case 0x33:
+        case FD_CMD_OPTION:
             /* OPTION */
             FLOPPY_DPRINTF("OPTION command\n");
             /* 1 parameter cmd */
             fdctrl->data_len = 2;
             goto enqueue;
-        case 0x42:
+        case FD_CMD_READ_TRACK:
             /* READ_TRACK */
             FLOPPY_DPRINTF("READ_TRACK command\n");
             /* 8 parameters cmd */
             fdctrl->data_len = 9;
             goto enqueue;
-        case 0x4A:
+        case FD_CMD_READ_ID:
             /* READ_ID */
             FLOPPY_DPRINTF("READ_ID command\n");
             /* 1 parameter cmd */
             fdctrl->data_len = 2;
             goto enqueue;
-        case 0x4C:
+        case FD_CMD_RESTORE:
             /* RESTORE */
             FLOPPY_DPRINTF("RESTORE command\n");
             /* 17 parameters cmd */
             fdctrl->data_len = 18;
             goto enqueue;
-        case 0x4D:
+        case FD_CMD_FORMAT_TRACK:
             /* FORMAT_TRACK */
             FLOPPY_DPRINTF("FORMAT_TRACK command\n");
             /* 5 parameters cmd */
             fdctrl->data_len = 6;
             goto enqueue;
-        case 0x8E:
+        case FD_CMD_DRIVE_SPECIFICATION_COMMAND:
             /* DRIVE_SPECIFICATION_COMMAND */
             FLOPPY_DPRINTF("DRIVE_SPECIFICATION_COMMAND command\n");
             /* 5 parameters cmd */
             fdctrl->data_len = 6;
             goto enqueue;
-        case 0x8F:
+        case FD_CMD_RELATIVE_SEEK_OUT:
             /* RELATIVE_SEEK_OUT */
             FLOPPY_DPRINTF("RELATIVE_SEEK_OUT command\n");
             /* 2 parameters cmd */
             fdctrl->data_len = 3;
             goto enqueue;
-        case 0x94:
+        case FD_CMD_LOCK:
             /* LOCK */
             FLOPPY_DPRINTF("LOCK command\n");
             /* No parameters cmd */
@@ -1599,13 +1707,13 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->fifo[0] = 0x10;
             fdctrl_set_fifo(fdctrl, 1, 1);
             return;
-        case 0xCD:
+        case FD_CMD_FORMAT_AND_WRITE:
             /* FORMAT_AND_WRITE */
             FLOPPY_DPRINTF("FORMAT_AND_WRITE command\n");
             /* 10 parameters cmd */
             fdctrl->data_len = 11;
             goto enqueue;
-        case 0xCF:
+        case FD_CMD_RELATIVE_SEEK_IN:
             /* RELATIVE_SEEK_IN */
             FLOPPY_DPRINTF("RELATIVE_SEEK_IN command\n");
             /* 2 parameters cmd */
@@ -1630,38 +1738,38 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             return;
         }
         switch (fdctrl->fifo[0] & 0x1F) {
-        case 0x06:
+        case FD_CMD_READ & 0x1F:
             {
                 /* READ variants */
                 FLOPPY_DPRINTF("treat READ command\n");
                 fdctrl_start_transfer(fdctrl, FD_DIR_READ);
                 return;
             }
-        case 0x0C:
+        case FD_CMD_READ_DELETED & 0x1F:
             /* READ_DELETED variants */
 //            FLOPPY_DPRINTF("treat READ_DELETED command\n");
             FLOPPY_ERROR("treat READ_DELETED command\n");
             fdctrl_start_transfer_del(fdctrl, FD_DIR_READ);
             return;
-        case 0x16:
+        case FD_CMD_VERIFY & 0x1F:
             /* VERIFY variants */
 //            FLOPPY_DPRINTF("treat VERIFY command\n");
             FLOPPY_ERROR("treat VERIFY command\n");
-            fdctrl_stop_transfer(fdctrl, 0x20, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
             return;
-        case 0x10:
+        case FD_CMD_SCAN_EQUAL & 0x1F:
             /* SCAN_EQUAL variants */
 //            FLOPPY_DPRINTF("treat SCAN_EQUAL command\n");
             FLOPPY_ERROR("treat SCAN_EQUAL command\n");
             fdctrl_start_transfer(fdctrl, FD_DIR_SCANE);
             return;
-        case 0x19:
+        case FD_CMD_SCAN_LOW_OR_EQUAL & 0x1F:
             /* SCAN_LOW_OR_EQUAL variants */
 //            FLOPPY_DPRINTF("treat SCAN_LOW_OR_EQUAL command\n");
             FLOPPY_ERROR("treat SCAN_LOW_OR_EQUAL command\n");
             fdctrl_start_transfer(fdctrl, FD_DIR_SCANL);
             return;
-        case 0x1D:
+        case FD_CMD_SCAN_HIGH_OR_EQUAL & 0x1F:
             /* SCAN_HIGH_OR_EQUAL variants */
 //            FLOPPY_DPRINTF("treat SCAN_HIGH_OR_EQUAL command\n");
             FLOPPY_ERROR("treat SCAN_HIGH_OR_EQUAL command\n");
@@ -1671,12 +1779,12 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             break;
         }
         switch (fdctrl->fifo[0] & 0x3F) {
-        case 0x05:
+        case FD_CMD_WRITE & 0x3F:
             /* WRITE variants */
             FLOPPY_DPRINTF("treat WRITE command (%02x)\n", fdctrl->fifo[0]);
             fdctrl_start_transfer(fdctrl, FD_DIR_WRITE);
             return;
-        case 0x09:
+        case FD_CMD_WRITE_DELETED & 0x3F:
             /* WRITE_DELETED variants */
 //            FLOPPY_DPRINTF("treat WRITE_DELETED command\n");
             FLOPPY_ERROR("treat WRITE_DELETED command\n");
@@ -1686,7 +1794,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             break;
         }
         switch (fdctrl->fifo[0]) {
-        case 0x03:
+        case FD_CMD_SPECIFY:
             /* SPECIFY */
             FLOPPY_DPRINTF("treat SPECIFY command\n");
             fdctrl->timer0 = (fdctrl->fifo[1] >> 4) & 0xF;
@@ -1695,10 +1803,10 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             /* No result back */
             fdctrl_reset_fifo(fdctrl);
             break;
-        case 0x04:
+        case FD_CMD_SENSE_DRIVE_STATUS:
             /* SENSE_DRIVE_STATUS */
             FLOPPY_DPRINTF("treat SENSE_DRIVE_STATUS command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
             cur_drv = get_cur_drv(fdctrl);
             cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
             /* 1 Byte status back */
@@ -1709,20 +1817,20 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
                 0x28;
             fdctrl_set_fifo(fdctrl, 1, 0);
             break;
-        case 0x07:
+        case FD_CMD_RECALIBRATE:
             /* RECALIBRATE */
             FLOPPY_DPRINTF("treat RECALIBRATE command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
             cur_drv = get_cur_drv(fdctrl);
             fd_recalibrate(cur_drv);
             fdctrl_reset_fifo(fdctrl);
             /* Raise Interrupt */
-            fdctrl_raise_irq(fdctrl, 0x20);
+            fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
             break;
-        case 0x0F:
+        case FD_CMD_SEEK:
             /* SEEK */
             FLOPPY_DPRINTF("treat SEEK command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
             cur_drv = get_cur_drv(fdctrl);
             fd_start(cur_drv);
             if (fdctrl->fifo[2] <= cur_drv->track)
@@ -1731,14 +1839,14 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
                 cur_drv->dir = 0;
             fdctrl_reset_fifo(fdctrl);
             if (fdctrl->fifo[2] > cur_drv->max_track) {
-                fdctrl_raise_irq(fdctrl, 0x60);
+                fdctrl_raise_irq(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK);
             } else {
                 cur_drv->track = fdctrl->fifo[2];
                 /* Raise Interrupt */
-                fdctrl_raise_irq(fdctrl, 0x20);
+                fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
             }
             break;
-        case 0x12:
+        case FD_CMD_PERPENDICULAR_MODE:
             /* PERPENDICULAR_MODE */
             FLOPPY_DPRINTF("treat PERPENDICULAR_MODE command\n");
             if (fdctrl->fifo[1] & 0x80)
@@ -1746,7 +1854,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             /* No result back */
             fdctrl_reset_fifo(fdctrl);
             break;
-        case 0x13:
+        case FD_CMD_CONFIGURE:
             /* CONFIGURE */
             FLOPPY_DPRINTF("treat CONFIGURE command\n");
             fdctrl->config = fdctrl->fifo[2];
@@ -1754,26 +1862,26 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             /* No result back */
             fdctrl_reset_fifo(fdctrl);
             break;
-        case 0x17:
+        case FD_CMD_POWERDOWN_MODE:
             /* POWERDOWN_MODE */
             FLOPPY_DPRINTF("treat POWERDOWN_MODE command\n");
             fdctrl->pwrd = fdctrl->fifo[1];
             fdctrl->fifo[0] = fdctrl->fifo[1];
             fdctrl_set_fifo(fdctrl, 1, 1);
             break;
-        case 0x33:
+        case FD_CMD_OPTION:
             /* OPTION */
             FLOPPY_DPRINTF("treat OPTION command\n");
             /* No result back */
             fdctrl_reset_fifo(fdctrl);
             break;
-        case 0x42:
+        case FD_CMD_READ_TRACK:
             /* READ_TRACK */
-//            FLOPPY_DPRINTF("treat READ_TRACK command\n");
+            FLOPPY_DPRINTF("treat READ_TRACK command\n");
             FLOPPY_ERROR("treat READ_TRACK command\n");
             fdctrl_start_transfer(fdctrl, FD_DIR_READ);
             break;
-        case 0x4A:
+        case FD_CMD_READ_ID:
             /* READ_ID */
             FLOPPY_DPRINTF("treat READ_ID command\n");
             /* XXX: should set main status register to busy */
@@ -1781,7 +1889,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             qemu_mod_timer(fdctrl->result_timer,
                            qemu_get_clock(vm_clock) + (ticks_per_sec / 50));
             break;
-        case 0x4C:
+        case FD_CMD_RESTORE:
             /* RESTORE */
             FLOPPY_DPRINTF("treat RESTORE command\n");
             /* Drives position */
@@ -1798,10 +1906,10 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->pwrd = fdctrl->fifo[13];
             fdctrl_reset_fifo(fdctrl);
             break;
-        case 0x4D:
+        case FD_CMD_FORMAT_TRACK:
             /* FORMAT_TRACK */
             FLOPPY_DPRINTF("treat FORMAT_TRACK command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
             cur_drv = get_cur_drv(fdctrl);
             fdctrl->data_state |= FD_STATE_FORMAT;
             if (fdctrl->fifo[0] & 0x80)
@@ -1825,7 +1933,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl->data_state &= ~FD_STATE_FORMAT;
             fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
             break;
-        case 0x8E:
+        case FD_CMD_DRIVE_SPECIFICATION_COMMAND:
             /* DRIVE_SPECIFICATION_COMMAND */
             FLOPPY_DPRINTF("treat DRIVE_SPECIFICATION_COMMAND command\n");
             if (fdctrl->fifo[fdctrl->data_pos - 1] & 0x80) {
@@ -1845,10 +1953,10 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
                 fdctrl_set_fifo(fdctrl, 1, 1);
             }
             break;
-        case 0x8F:
+        case FD_CMD_RELATIVE_SEEK_OUT:
             /* RELATIVE_SEEK_OUT */
             FLOPPY_DPRINTF("treat RELATIVE_SEEK_OUT command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
             cur_drv = get_cur_drv(fdctrl);
             fd_start(cur_drv);
             cur_drv->dir = 0;
@@ -1858,18 +1966,18 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
                 cur_drv->track += fdctrl->fifo[2];
             }
             fdctrl_reset_fifo(fdctrl);
-            fdctrl_raise_irq(fdctrl, 0x20);
+            fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
             break;
-        case 0xCD:
+        case FD_CMD_FORMAT_AND_WRITE:
             /* FORMAT_AND_WRITE */
-//                FLOPPY_DPRINTF("treat FORMAT_AND_WRITE command\n");
+            FLOPPY_DPRINTF("treat FORMAT_AND_WRITE command\n");
             FLOPPY_ERROR("treat FORMAT_AND_WRITE command\n");
             fdctrl_unimplemented(fdctrl);
             break;
-        case 0xCF:
+        case FD_CMD_RELATIVE_SEEK_IN:
             /* RELATIVE_SEEK_IN */
             FLOPPY_DPRINTF("treat RELATIVE_SEEK_IN command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & 1;
+            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
             cur_drv = get_cur_drv(fdctrl);
             fd_start(cur_drv);
             cur_drv->dir = 1;
@@ -1880,7 +1988,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             }
             fdctrl_reset_fifo(fdctrl);
             /* Raise Interrupt */
-            fdctrl_raise_irq(fdctrl, 0x20);
+            fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
             break;
         }
     }

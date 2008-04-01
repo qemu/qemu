@@ -29,6 +29,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "tcg-op.h"
 #include "m68k-qreg.h"
 
 //#define DEBUG_DISPATCH 1
@@ -68,19 +69,8 @@ typedef struct DisasContext {
 static void *gen_throws_exception;
 #define gen_last_qop NULL
 
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
 extern FILE *logfile;
 extern int loglevel;
-
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-
-#include "gen-op.h"
 
 #if defined(CONFIG_USER_ONLY)
 #define gen_st(s, name, addr, val) gen_op_st##name##_raw(addr, val)
@@ -623,7 +613,7 @@ static void gen_jmpcc(DisasContext *s, int cond, int l1)
     gen_flush_flags(s);
     switch (cond) {
     case 0: /* T */
-        gen_op_jmp(l1);
+        gen_op_jmp_im(l1);
         break;
     case 1: /* F */
         break;
@@ -703,7 +693,7 @@ static void gen_jmpcc(DisasContext *s, int cond, int l1)
             gen_op_xor32(tmp, tmp, QREG_CC_DEST);
             gen_op_and32(tmp, tmp, gen_im32(CCF_V));
             gen_op_jmp_nz32(tmp, l2);
-            gen_op_jmp(l1);
+            gen_op_jmp_im(l1);
             gen_set_label(l2);
         }
         break;
@@ -792,14 +782,12 @@ static void gen_jmp_tb(DisasContext *s, int n, uint32_t dest)
         gen_exception(s, dest, EXCP_DEBUG);
     } else if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) ||
                (s->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
-        gen_op_goto_tb(0, n, (long)tb);
+        tcg_gen_goto_tb(n);
         gen_op_mov32(QREG_PC, gen_im32(dest));
-        gen_op_mov32(QREG_T0, gen_im32((long)tb + n));
-        gen_op_exit_tb();
+        tcg_gen_exit_tb((long)tb + n);
     } else {
         gen_jmp(s, gen_im32(dest));
-        gen_op_mov32(QREG_T0, gen_im32(0));
-        gen_op_exit_tb();
+        tcg_gen_exit_tb(0);
     }
     s->is_jmp = DISAS_TB_JUMP;
 }
@@ -3074,7 +3062,7 @@ static void expand_op_addx_cc(qOP *qop)
     gen_op_add32(arg0, arg0, gen_im32(1));
     gen_op_mov32(QREG_CC_OP, gen_im32(CC_OP_ADDX));
     gen_op_set_leu32(QREG_CC_X, arg0, arg1);
-    gen_op_jmp(l2);
+    gen_op_jmp_im(l2);
     gen_set_label(l1);
     gen_op_mov32(QREG_CC_OP, gen_im32(CC_OP_ADD));
     gen_op_set_ltu32(QREG_CC_X, arg0, arg1);
@@ -3094,7 +3082,7 @@ static void expand_op_subx_cc(qOP *qop)
     gen_op_set_leu32(QREG_CC_X, arg0, arg1);
     gen_op_sub32(arg0, arg0, gen_im32(1));
     gen_op_mov32(QREG_CC_OP, gen_im32(CC_OP_SUBX));
-    gen_op_jmp(l2);
+    gen_op_jmp_im(l2);
     gen_set_label(l1);
     gen_op_set_ltu32(QREG_CC_X, arg0, arg1);
     gen_op_mov32(QREG_CC_OP, gen_im32(CC_OP_SUB));
@@ -3163,9 +3151,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
     dc->tb = tb;
 
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
 
     dc->env = env;
     dc->is_jmp = DISAS_NEXT;
@@ -3175,7 +3161,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     dc->fpcr = env->fpcr;
     dc->user = (env->sr & SR_S) == 0;
     dc->is_mem = 0;
-    nb_gen_labels = 0;
     lj = -1;
     do {
         free_qreg = 0;
@@ -3233,8 +3218,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
         case DISAS_UPDATE:
             gen_flush_cc_op(dc);
             /* indicate that the hash table must be used to find the next TB */
-            gen_op_mov32(QREG_T0, gen_im32(0));
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         case DISAS_TB_JUMP:
             /* nothing more to generate */
@@ -3249,11 +3233,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, dc->pc - pc_start, 0);
         fprintf(logfile, "\n");
-        if (loglevel & (CPU_LOG_TB_OP)) {
-            fprintf(logfile, "OP:\n");
-            dump_ops(gen_opc_buf, gen_opparam_buf);
-            fprintf(logfile, "\n");
-        }
     }
 #endif
     if (search_pc) {

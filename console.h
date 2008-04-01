@@ -71,6 +71,7 @@ struct DisplayState {
     int height;
     void *opaque;
     struct QEMUTimer *gui_timer;
+    uint64_t gui_timer_interval;
 
     void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
     void (*dpy_resize)(struct DisplayState *s, int w, int h);
@@ -79,6 +80,7 @@ struct DisplayState {
                      int dst_x, int dst_y, int w, int h);
     void (*dpy_fill)(struct DisplayState *s, int x, int y,
                      int w, int h, uint32_t c);
+    void (*dpy_text_cursor)(struct DisplayState *s, int x, int y);
     void (*mouse_set)(int x, int y, int on);
     void (*cursor_define)(int width, int height, int bpp, int hot_x, int hot_y,
                           uint8_t *image, uint8_t *mask);
@@ -94,17 +96,32 @@ static inline void dpy_resize(DisplayState *s, int w, int h)
     s->dpy_resize(s, w, h);
 }
 
+static inline void dpy_cursor(DisplayState *s, int x, int y)
+{
+    if (s->dpy_text_cursor)
+        s->dpy_text_cursor(s, x, y);
+}
+
+typedef unsigned long console_ch_t;
+static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
+{
+    cpu_to_le32wu((uint32_t *) dest, ch);
+}
+
 typedef void (*vga_hw_update_ptr)(void *);
 typedef void (*vga_hw_invalidate_ptr)(void *);
 typedef void (*vga_hw_screen_dump_ptr)(void *, const char *);
+typedef void (*vga_hw_text_update_ptr)(void *, console_ch_t *);
 
 TextConsole *graphic_console_init(DisplayState *ds, vga_hw_update_ptr update,
                                   vga_hw_invalidate_ptr invalidate,
                                   vga_hw_screen_dump_ptr screen_dump,
+                                  vga_hw_text_update_ptr text_update,
                                   void *opaque);
 void vga_hw_update(void);
 void vga_hw_invalidate(void);
 void vga_hw_screen_dump(const char *filename);
+void vga_hw_text_update(console_ch_t *chardata);
 
 int is_graphic_console(void);
 CharDriverState *text_console_init(DisplayState *ds, const char *p);
@@ -123,6 +140,9 @@ void vnc_display_close(DisplayState *ds);
 int vnc_display_open(DisplayState *ds, const char *display);
 int vnc_display_password(DisplayState *ds, const char *password);
 void do_info_vnc(void);
+
+/* curses.c */
+void curses_display_init(DisplayState *ds, int full_screen);
 
 /* x_keymap.c */
 extern uint8_t _translate_keycode(const int key);

@@ -31,15 +31,13 @@ struct TranslationBlock;
 
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 32
+/* A Call op needs up to 6 + 2N parameters (N = number of arguments).  */
+#define MAX_OPC_PARAM 10
 #define OPC_BUF_SIZE 512
 #define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
 
-#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * 3)
+#define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
-extern uint16_t gen_opc_buf[OPC_BUF_SIZE];
-extern uint32_t gen_opparam_buf[OPPARAM_BUF_SIZE];
-extern long gen_labels[OPC_BUF_SIZE];
-extern int nb_gen_labels;
 extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
 extern target_ulong gen_opc_npc[OPC_BUF_SIZE];
 extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
@@ -63,8 +61,8 @@ extern int loglevel;
 
 int gen_intermediate_code(CPUState *env, struct TranslationBlock *tb);
 int gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
-void dump_ops(const uint16_t *opc_buf, const uint32_t *opparam_buf);
 unsigned long code_gen_max_block_size(void);
+void cpu_gen_init(void);
 int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb,
@@ -120,6 +118,7 @@ static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
 #elif defined(__powerpc__)
 #define CODE_GEN_BUFFER_SIZE     (6 * 1024 * 1024)
 #else
+/* XXX: make it dynamic on x86 */
 #define CODE_GEN_BUFFER_SIZE     (16 * 1024 * 1024)
 #endif
 
@@ -136,7 +135,7 @@ static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
 
 #define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / CODE_GEN_AVG_BLOCK_SIZE)
 
-#if defined(__powerpc__)
+#if defined(__powerpc__) || defined(__x86_64__)
 #define USE_DIRECT_JUMP
 #endif
 #if defined(__i386__) && !defined(_WIN32)
@@ -172,7 +171,7 @@ typedef struct TranslationBlock {
 #ifdef USE_DIRECT_JUMP
     uint16_t tb_jmp_offset[4]; /* offset of jump instruction */
 #else
-    uint32_t tb_next[2]; /* address of jump generated code */
+    unsigned long tb_next[2]; /* address of jump generated code */
 #endif
     /* list of TBs jumping to this one. This is a circular list using
        the two least significant bits of the pointers to tell what is
@@ -293,63 +292,33 @@ TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 #define ASM_OP_LABEL_NAME(n, opname) \
     ASM_NAME(__op_label) #n "." ASM_NAME(opname)
 
-#if defined(__powerpc__)
-
-/* we patch the jump instruction directly */
-#define GOTO_TB(opname, tbparam, n)\
-do {\
-    asm volatile (ASM_DATA_SECTION\
-		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
-		  ".long 1f\n"\
-		  ASM_PREVIOUS_SECTION \
-                  "b " ASM_NAME(__op_jmp) #n "\n"\
-		  "1:\n");\
-} while (0)
-
-#elif defined(__i386__) && defined(USE_DIRECT_JUMP)
-
-/* we patch the jump instruction directly */
-#define GOTO_TB(opname, tbparam, n)\
-do {\
-    asm volatile (".section .data\n"\
-		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
-		  ".long 1f\n"\
-		  ASM_PREVIOUS_SECTION \
-                  "jmp " ASM_NAME(__op_jmp) #n "\n"\
-		  "1:\n");\
-} while (0)
-
-#elif defined(__x86_64__) && defined(USE_DIRECT_JUMP)
-
-#define GOTO_TB(opname, tbparam, n)\
-do {\
-    asm volatile (ASM_DATA_SECTION\
-		  ASM_OP_LABEL_NAME(n, opname) ":\n"\
-		  ".quad 1f\n"\
-		  ASM_PREVIOUS_SECTION \
-                  "jmp " ASM_NAME(__op_jmp) #n "\n"\
-		  "1:\n");\
-} while (0)
-
-#else
-
-/* jump to next block operations (more portable code, does not need
-   cache flushing, but slower because of indirect jump) */
-#define GOTO_TB(opname, tbparam, n)\
-do {\
-    static void __attribute__((used)) *dummy ## n = &&dummy_label ## n;\
-    static void __attribute__((used)) *__op_label ## n \
-        __asm__(ASM_OP_LABEL_NAME(n, opname)) = &&label ## n;\
-    goto *(void *)(((TranslationBlock *)tbparam)->tb_next[n]);\
-label ## n: ;\
-dummy_label ## n: ;\
-} while (0)
-
-#endif
-
 extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
+
+#if defined(__hppa__)
+
+typedef int spinlock_t[4];
+
+#define SPIN_LOCK_UNLOCKED { 1, 1, 1, 1 }
+
+static inline void resetlock (spinlock_t *p)
+{
+    (*p)[0] = (*p)[1] = (*p)[2] = (*p)[3] = 1;
+}
+
+#else
+
+typedef int spinlock_t;
+
+#define SPIN_LOCK_UNLOCKED 0
+
+static inline void resetlock (spinlock_t *p)
+{
+    *p = SPIN_LOCK_UNLOCKED;
+}
+
+#endif
 
 #if defined(__powerpc__)
 static inline int testandset (int *p)
@@ -450,6 +419,33 @@ static inline int testandset (int *p)
                          : "cc","memory");
     return ret;
 }
+#elif defined(__hppa__)
+
+/* Because malloc only guarantees 8-byte alignment for malloc'd data,
+   and GCC only guarantees 8-byte alignment for stack locals, we can't
+   be assured of 16-byte alignment for atomic lock data even if we
+   specify "__attribute ((aligned(16)))" in the type declaration.  So,
+   we use a struct containing an array of four ints for the atomic lock
+   type and dynamically select the 16-byte aligned int from the array
+   for the semaphore.  */
+#define __PA_LDCW_ALIGNMENT 16
+static inline void *ldcw_align (void *p) {
+    unsigned long a = (unsigned long)p;
+    a = (a + __PA_LDCW_ALIGNMENT - 1) & ~(__PA_LDCW_ALIGNMENT - 1);
+    return (void *)a;
+}
+
+static inline int testandset (spinlock_t *p)
+{
+    unsigned int ret;
+    p = ldcw_align(p);
+    __asm__ __volatile__("ldcw 0(%1),%0"
+                         : "=r" (ret)
+                         : "r" (p)
+                         : "memory" );
+    return !ret;
+}
+
 #elif defined(__ia64)
 
 #include <ia64intrin.h>
@@ -497,10 +493,6 @@ static inline int testandset (int *p)
 #error unimplemented CPU support
 #endif
 
-typedef int spinlock_t;
-
-#define SPIN_LOCK_UNLOCKED 0
-
 #if defined(CONFIG_USER_ONLY)
 static inline void spin_lock(spinlock_t *lock)
 {
@@ -509,7 +501,7 @@ static inline void spin_lock(spinlock_t *lock)
 
 static inline void spin_unlock(spinlock_t *lock)
 {
-    *lock = 0;
+    resetlock(lock);
 }
 
 static inline int spin_trylock(spinlock_t *lock)

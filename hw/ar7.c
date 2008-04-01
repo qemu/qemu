@@ -386,7 +386,7 @@ const char *mips_backtrace(void)
     static char buffer[256];
     char *p = buffer;
     p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->PC[ar7.cpu_env->current_tc]));
-    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->gpr[31][ar7.cpu_env->current_tc]));
+    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->gpr[ar7.cpu_env->current_tc][31]));
     assert((p - buffer) < sizeof(buffer));
     return buffer;
 }
@@ -3569,12 +3569,12 @@ static int64_t load_kernel (CPUState *env)
     }
 
     /* a0 = argc, a1 = argv, a2 = envp */
-    env->gpr[4][env->current_tc] = 0;
-    env->gpr[5][env->current_tc] = K1(INITRD_LOAD_ADDR);
-    env->gpr[6][env->current_tc] = K1(INITRD_LOAD_ADDR);
+    env->gpr[env->current_tc][4] = 0;
+    env->gpr[env->current_tc][5] = K1(INITRD_LOAD_ADDR);
+    env->gpr[env->current_tc][6] = K1(INITRD_LOAD_ADDR);
 
     /* Set SP (needed for some kernels) - normally set by bootloader. */
-    env->gpr[29][env->current_tc] = env->PC[env->current_tc] + loaderparams.ram_size - 0x1000;
+    env->gpr[env->current_tc][29] = env->PC[env->current_tc] + loaderparams.ram_size - 0x1000;
 
     /* TODO: use code from Malta for command line setup. */
     if (loaderparams.kernel_cmdline && *loaderparams.kernel_cmdline) {
@@ -3601,7 +3601,7 @@ static int64_t load_kernel (CPUState *env)
         argc = 0;
         i = ((i + 3) & ~3);
         argv = (uint32_t *)(address + i);
-        env->gpr[5][env->current_tc] = K1(INITRD_LOAD_ADDR + i);
+        env->gpr[env->current_tc][5] = K1(INITRD_LOAD_ADDR + i);
         arg0 = argv;
         *argv = (uint32_t)K1(INITRD_LOAD_ADDR);
         for (i = 0; i < size;) {
@@ -3611,8 +3611,8 @@ static int64_t load_kernel (CPUState *env)
                 if (address[i] == '\0' && argc == 0) {
                   argc = argv - arg0;
                   *argv = 0;
-                  env->gpr[4][env->current_tc] = argc;
-                  env->gpr[6][env->current_tc] = env->gpr[5][env->current_tc] + 4 * (argc + 1);
+                  env->gpr[env->current_tc][4] = argc;
+                  env->gpr[env->current_tc][6] = env->gpr[env->current_tc][5] + 4 * (argc + 1);
                 }
             }
         }

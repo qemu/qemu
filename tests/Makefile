@@ -51,6 +51,15 @@ ifeq ($(ARCH),i386)
 	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK (no code copy)"; fi
 endif
 
+.PHONY: test-mmap
+test-mmap: test-mmap.c
+	$(CC) $(CFLAGS) -Wall -static -O2 $(LDFLAGS) -o $@ $<
+	-./test-mmap
+	-$(QEMU) ./test-mmap
+	-$(QEMU) -p 8192 ./test-mmap 8192
+	-$(QEMU) -p 16384 ./test-mmap 16384
+	-$(QEMU) -p 32768 ./test-mmap 32768
+
 # generic Linux and CPU test
 linux-test: linux-test.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< -lm

@@ -178,6 +178,7 @@ BlockDriverState *bs_snapshots;
 int vga_ram_size;
 static DisplayState display_state;
 int nographic;
+int curses;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 int ram_size;
@@ -185,8 +186,8 @@ int pit_min_timer_count = 0;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
-int rtc_utc = 1;
-int rtc_start_date = -1; /* -1 means now */
+static int rtc_utc = 1;
+static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
 int vmsvga_enabled = 0;
 #ifdef TARGET_SPARC
@@ -245,8 +246,6 @@ struct drive_opt {
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
 static int event_pending = 1;
-
-extern char *logfilename;
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
@@ -595,7 +594,7 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
             if (qemu_put_mouse_event_current->qemu_put_mouse_event_absolute)
                 width = 0x7fff;
             else
-                width = graphic_width;
+                width = graphic_width - 1;
             mouse_event(mouse_event_opaque,
                                  width - dy, dx, dz, buttons_state);
         } else
@@ -906,7 +905,7 @@ static struct qemu_alarm_timer alarm_timers[] = {
     {NULL, }
 };
 
-static void show_available_alarms()
+static void show_available_alarms(void)
 {
     int i;
 
@@ -923,7 +922,7 @@ static void configure_alarms(char const *opt)
     char *arg;
     char *name;
 
-    if (!strcmp(opt, "help")) {
+    if (!strcmp(opt, "?")) {
         show_available_alarms();
         exit(0);
     }
@@ -965,10 +964,10 @@ next:
 	/* Disable remaining timers */
         for (i = cur; i < count; i++)
             alarm_timers[i].name = NULL;
+    } else {
+        show_available_alarms();
+        exit(1);
     }
-
-    /* debug */
-    show_available_alarms();
 }
 
 QEMUClock *rt_clock;
@@ -1313,11 +1312,14 @@ static void hpet_stop_timer(struct qemu_alarm_timer *t)
 static int rtc_start_timer(struct qemu_alarm_timer *t)
 {
     int rtc_fd;
+    unsigned long current_rtc_freq = 0;
 
     TFR(rtc_fd = open("/dev/rtc", O_RDONLY));
     if (rtc_fd < 0)
         return -1;
-    if (ioctl(rtc_fd, RTC_IRQP_SET, RTC_FREQ) < 0) {
+    ioctl(rtc_fd, RTC_IRQP_READ, &current_rtc_freq);
+    if (current_rtc_freq != RTC_FREQ &&
+        ioctl(rtc_fd, RTC_IRQP_SET, RTC_FREQ) < 0) {
         fprintf(stderr, "Could not configure '/dev/rtc' to have a 1024 Hz timer. This is not a fatal\n"
                 "error, but for better emulation accuracy either use a 2.6 host Linux kernel or\n"
                 "type 'echo 1024 > /proc/sys/dev/rtc/max-user-freq' as root.\n");
@@ -1566,6 +1568,43 @@ static void quit_timers(void)
 {
     alarm_timer->stop(alarm_timer);
     alarm_timer = NULL;
+}
+
+/***********************************************************/
+/* host time/date access */
+void qemu_get_timedate(struct tm *tm, int offset)
+{
+    time_t ti;
+    struct tm *ret;
+
+    time(&ti);
+    ti += offset;
+    if (rtc_date_offset == -1) {
+        if (rtc_utc)
+            ret = gmtime(&ti);
+        else
+            ret = localtime(&ti);
+    } else {
+        ti -= rtc_date_offset;
+        ret = gmtime(&ti);
+    }
+
+    memcpy(tm, ret, sizeof(struct tm));
+}
+
+int qemu_timedate_diff(struct tm *tm)
+{
+    time_t seconds;
+
+    if (rtc_date_offset == -1)
+        if (rtc_utc)
+            seconds = mktimegm(tm);
+        else
+            seconds = mktime(tm);
+    else
+        seconds = mktimegm(tm) + rtc_date_offset;
+
+    return seconds - time(NULL);
 }
 
 /***********************************************************/
@@ -4794,6 +4833,7 @@ static int net_client_init(const char *str)
         vlan->nb_host_devs++;
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             fd = strtol(buf, NULL, 0);
+            fcntl(fd, F_SETFL, O_NONBLOCK);
             ret = -1;
             if (net_tap_fd_init(vlan, fd))
                 ret = 0;
@@ -4933,7 +4973,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
                        "cache", NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
-         fprintf(stderr, "qemu: unknowm parameter '%s' in '%s'\n",
+         fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
                          buf, str);
          return -1;
     }
@@ -7175,7 +7215,11 @@ static void gui_update(void *opaque)
 {
     DisplayState *ds = opaque;
     ds->dpy_refresh(ds);
-    qemu_mod_timer(ds->gui_timer, GUI_REFRESH_INTERVAL + qemu_get_clock(rt_clock));
+    qemu_mod_timer(ds->gui_timer,
+        (ds->gui_timer_interval ?
+	    ds->gui_timer_interval :
+	    GUI_REFRESH_INTERVAL)
+	+ qemu_get_clock(rt_clock));
 }
 
 struct vm_change_state_entry {
@@ -7269,6 +7313,27 @@ static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
 
+int qemu_shutdown_requested(void)
+{
+    int r = shutdown_requested;
+    shutdown_requested = 0;
+    return r;
+}
+
+int qemu_reset_requested(void)
+{
+    int r = reset_requested;
+    reset_requested = 0;
+    return r;
+}
+
+int qemu_powerdown_requested(void)
+{
+    int r = powerdown_requested;
+    powerdown_requested = 0;
+    return r;
+}
+
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
     QEMUResetEntry **pre, *re;
@@ -7283,7 +7348,7 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
     *pre = re;
 }
 
-static void qemu_system_reset(void)
+void qemu_system_reset(void)
 {
     QEMUResetEntry *re;
 
@@ -7657,6 +7722,9 @@ static void help(int exitcode)
            "                (default is CL-GD5446 PCI VGA)\n"
            "-no-acpi        disable ACPI\n"
 #endif
+#ifdef CONFIG_CURSES
+           "-curses         use a curses/ncurses interface instead of SDL\n"
+#endif
            "-no-reboot      exit instead of rebooting\n"
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
 	   "-vnc display    start a VNC server on display\n"
@@ -7668,10 +7736,8 @@ static void help(int exitcode)
            "-prom-env variable=value  set OpenBIOS nvram variables\n"
 #endif
            "-clock          force the use of the given methods for timer alarm.\n"
-           "                To see what timers are available use -clock help\n"
-           "-startdate      select initial date of the Qemu clock\n"
-           "-translation setting1,... configures code translation\n"
-           "                (use -translation ? for a list of settings)\n"
+           "                To see what timers are available use -clock ?\n"
+           "-startdate      select initial date of the clock\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -7687,7 +7753,7 @@ static void help(int exitcode)
            DEFAULT_NETWORK_DOWN_SCRIPT,
 #endif
            DEFAULT_GDBSTUB_PORT,
-           logfilename);
+           "/tmp/qemu.log");
     exit(exitcode);
 }
 
@@ -7764,6 +7830,7 @@ enum {
     QEMU_OPTION_smp,
     QEMU_OPTION_vnc,
     QEMU_OPTION_no_acpi,
+    QEMU_OPTION_curses,
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_show_cursor,
     QEMU_OPTION_daemonize,
@@ -7774,7 +7841,6 @@ enum {
     QEMU_OPTION_old_param,
     QEMU_OPTION_clock,
     QEMU_OPTION_startdate,
-    QEMU_OPTION_translation,
 };
 
 typedef struct QEMUOption {
@@ -7861,6 +7927,9 @@ const QEMUOption qemu_options[] = {
     { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
     { "smp", HAS_ARG, QEMU_OPTION_smp },
     { "vnc", HAS_ARG, QEMU_OPTION_vnc },
+#ifdef CONFIG_CURSES
+    { "curses", 0, QEMU_OPTION_curses },
+#endif
 
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
@@ -7883,7 +7952,6 @@ const QEMUOption qemu_options[] = {
 #endif
     { "clock", HAS_ARG, QEMU_OPTION_clock },
     { "startdate", HAS_ARG, QEMU_OPTION_startdate },
-    { "translation", HAS_ARG, QEMU_OPTION_translation },
     { NULL },
 };
 
@@ -7956,6 +8024,11 @@ static void register_machines(void)
     qemu_register_machine(&ss600mp_machine);
     qemu_register_machine(&ss20_machine);
     qemu_register_machine(&ss2_machine);
+    qemu_register_machine(&voyager_machine);
+    qemu_register_machine(&ss_lx_machine);
+    qemu_register_machine(&ss4_machine);
+    qemu_register_machine(&scls_machine);
+    qemu_register_machine(&sbook_machine);
     qemu_register_machine(&ss1000_machine);
     qemu_register_machine(&ss2000_machine);
 #endif
@@ -8175,21 +8248,21 @@ int main(int argc, char **argv)
     const char *boot_devices = "";
     DisplayState *ds = &display_state;
     int cyls, heads, secs, translation;
-    char net_clients[MAX_NET_CLIENTS][256];
+    const char *net_clients[MAX_NET_CLIENTS];
     int nb_net_clients;
     int hda_index;
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd;
-    char monitor_device[128];
-    char serial_devices[MAX_SERIAL_PORTS][128];
+    const char *monitor_device;
+    const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
-    char parallel_devices[MAX_PARALLEL_PORTS][128];
+    const char *parallel_devices[MAX_PARALLEL_PORTS];
     int parallel_device_index;
     const char *loadvm = NULL;
     QEMUMachine *machine;
     const char *cpu_model;
-    char usb_devices[MAX_USB_CMDLINE][128];
+    const char *usb_devices[MAX_USB_CMDLINE];
     int usb_devices_index;
     int fds[2];
     const char *pid_file = NULL;
@@ -8245,20 +8318,21 @@ int main(int argc, char **argv)
 #endif
     snapshot = 0;
     nographic = 0;
+    curses = 0;
     kernel_filename = NULL;
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    pstrcpy(monitor_device, sizeof(monitor_device), "vc:800x600");
+    monitor_device = "vc:800x600";
 
-    pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "vc:80Cx24C");
+    serial_devices[0] = "vc:80Cx24C";
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
-        serial_devices[i][0] = '\0';
+        serial_devices[i] = NULL;
     serial_device_index = 0;
 
-    pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "vc:640x480");
+    parallel_devices[0] = "vc:640x480";
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
-        parallel_devices[i][0] = '\0';
+        parallel_devices[i] = NULL;
     parallel_device_index = 0;
 
     usb_devices_index = 0;
@@ -8416,11 +8490,16 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_nographic:
-                pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "stdio");
-                pstrcpy(parallel_devices[0], sizeof(parallel_devices[0]), "null");
-                pstrcpy(monitor_device, sizeof(monitor_device), "stdio");
+                serial_devices[0] = "stdio";
+                parallel_devices[0] = "null";
+                monitor_device = "stdio";
                 nographic = 1;
                 break;
+#ifdef CONFIG_CURSES
+            case QEMU_OPTION_curses:
+                curses = 1;
+                break;
+#endif
             case QEMU_OPTION_portrait:
                 graphic_rotate = 1;
                 break;
@@ -8481,9 +8560,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "qemu: too many network clients\n");
                     exit(1);
                 }
-                pstrcpy(net_clients[nb_net_clients],
-                        sizeof(net_clients[0]),
-                        optarg);
+                net_clients[nb_net_clients] = optarg;
                 nb_net_clients++;
                 break;
 #ifdef CONFIG_SLIRP
@@ -8618,15 +8695,14 @@ int main(int argc, char **argv)
                     break;
                 }
             case QEMU_OPTION_monitor:
-                pstrcpy(monitor_device, sizeof(monitor_device), optarg);
+                monitor_device = optarg;
                 break;
             case QEMU_OPTION_serial:
                 if (serial_device_index >= MAX_SERIAL_PORTS) {
                     fprintf(stderr, "qemu: too many serial ports\n");
                     exit(1);
                 }
-                pstrcpy(serial_devices[serial_device_index],
-                        sizeof(serial_devices[0]), optarg);
+                serial_devices[serial_device_index] = optarg;
                 serial_device_index++;
                 break;
             case QEMU_OPTION_parallel:
@@ -8634,8 +8710,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "qemu: too many parallel ports\n");
                     exit(1);
                 }
-                pstrcpy(parallel_devices[parallel_device_index],
-                        sizeof(parallel_devices[0]), optarg);
+                parallel_devices[parallel_device_index] = optarg;
                 parallel_device_index++;
                 break;
 	    case QEMU_OPTION_loadvm:
@@ -8680,9 +8755,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "Too many USB devices\n");
                     exit(1);
                 }
-                pstrcpy(usb_devices[usb_devices_index],
-                        sizeof(usb_devices[usb_devices_index]),
-                        optarg);
+                usb_devices[usb_devices_index] = optarg;
                 usb_devices_index++;
                 break;
             case QEMU_OPTION_smp:
@@ -8742,8 +8815,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_startdate:
                 {
                     struct tm tm;
+                    time_t rtc_start_date;
                     if (!strcmp(optarg, "now")) {
-                        rtc_start_date = -1;
+                        rtc_date_offset = -1;
                     } else {
                         if (sscanf(optarg, "%d-%d-%dT%d:%d:%d",
                                &tm.tm_year,
@@ -8772,23 +8846,8 @@ int main(int argc, char **argv)
                                     "'now' or '2006-06-17T16:01:21' or '2006-06-17'\n");
                             exit(1);
                         }
+                        rtc_date_offset = time(NULL) - rtc_start_date;
                     }
-                }
-                break;
-            case QEMU_OPTION_translation:
-                {
-                    int mask;
-                    CPUTranslationSetting *setting;
-
-                    mask = cpu_str_to_translation_mask(optarg);
-                    if (!mask) {
-                        printf("Translation settings (comma separated):\n");
-                        for(setting = cpu_translation_settings; setting->mask != 0; setting++) {
-                            printf("%-10s %s\n", setting->name, setting->help);
-                    }
-                    exit(1);
-                    }
-                    cpu_set_translation_settings(mask);
                 }
                 break;
             }
@@ -8887,10 +8946,8 @@ int main(int argc, char **argv)
     /* init network clients */
     if (nb_net_clients == 0) {
         /* if no clients, we use a default config */
-        pstrcpy(net_clients[0], sizeof(net_clients[0]),
-                "nic");
-        pstrcpy(net_clients[1], sizeof(net_clients[0]),
-                "user");
+        net_clients[0] = "nic";
+        net_clients[1] = "user";
         nb_net_clients = 2;
     }
 
@@ -8980,13 +9037,23 @@ int main(int argc, char **argv)
     /* terminal init */
     memset(&display_state, 0, sizeof(display_state));
     if (nographic) {
+        if (curses) {
+            fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
+            exit(1);
+        }
         /* nearly nothing to do */
         dumb_display_init(ds);
     } else if (vnc_display != NULL) {
         vnc_display_init(ds);
         if (vnc_display_open(ds, vnc_display) < 0)
             exit(1);
-    } else {
+    } else
+#if defined(CONFIG_CURSES)
+    if (curses) {
+        curses_display_init(ds, full_screen);
+    } else
+#endif
+    {
 #if defined(CONFIG_SDL)
         sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
@@ -8999,17 +9066,18 @@ int main(int argc, char **argv)
     /* Maintain compatibility with multiple stdio monitors */
     if (!strcmp(monitor_device,"stdio")) {
         for (i = 0; i < MAX_SERIAL_PORTS; i++) {
-            if (!strcmp(serial_devices[i],"mon:stdio")) {
-                monitor_device[0] = '\0';
+            const char *devname = serial_devices[i];
+            if (devname && !strcmp(devname,"mon:stdio")) {
+                monitor_device = NULL;
                 break;
-            } else if (!strcmp(serial_devices[i],"stdio")) {
-                monitor_device[0] = '\0';
-                pstrcpy(serial_devices[0], sizeof(serial_devices[0]), "mon:stdio");
+            } else if (devname && !strcmp(devname,"stdio")) {
+                monitor_device = NULL;
+                serial_devices[i] = "mon:stdio";
                 break;
             }
         }
     }
-    if (monitor_device[0] != '\0') {
+    if (monitor_device) {
         monitor_hd = qemu_chr_open(monitor_device);
         if (!monitor_hd) {
             fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
@@ -9020,7 +9088,7 @@ int main(int argc, char **argv)
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         const char *devname = serial_devices[i];
-        if (devname[0] != '\0' && strcmp(devname, "none")) {
+        if (devname && strcmp(devname, "none")) {
             serial_hds[i] = qemu_chr_open(devname);
             if (!serial_hds[i]) {
                 fprintf(stderr, "qemu: could not open serial device '%s'\n",
@@ -9034,7 +9102,7 @@ int main(int argc, char **argv)
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         const char *devname = parallel_devices[i];
-        if (devname[0] != '\0' && strcmp(devname, "none")) {
+        if (devname && strcmp(devname, "none")) {
             parallel_hds[i] = qemu_chr_open(devname);
             if (!parallel_hds[i]) {
                 fprintf(stderr, "qemu: could not open parallel device '%s'\n",

@@ -21,7 +21,6 @@
 #include "config.h"
 #include "exec.h"
 #include "disas.h"
-#include <string.h>
 
 #if !defined(CONFIG_SOFTMMU)
 #undef EAX
@@ -41,9 +40,6 @@ int tb_invalidated_flag;
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
-
-/* translation settings */
-int translation_settings = 0;
 
 #define SAVE_GLOBALS()
 #define RESTORE_GLOBALS()
@@ -125,57 +121,6 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
     longjmp(env->jmp_env, 1);
 }
 
-CPUTranslationSetting cpu_translation_settings[] = {
-    { CPU_SETTING_NO_CACHE, "no-cache",
-      "Do not use translation blocks cache (very slow!)" },
-    { 0, NULL, NULL },
-};
-
-void cpu_set_translation_settings(int translation_flags)
-{
-    translation_settings = translation_flags;
-}
-
-static int cmp1(const char *s1, int n, const char *s2)
-{
-    if (strlen(s2) != n)
-        return 0;
-    return memcmp(s1, s2, n) == 0;
-}
-
-/* takes a comma separated list of translation settings. Return 0 if error. */
-int cpu_str_to_translation_mask(const char *str)
-{
-    CPUTranslationSetting *setting;
-    int mask;
-    const char *p, *p1;
-
-    p = str;
-    mask = 0;
-    for(;;) {
-        p1 = strchr(p, ',');
-        if (!p1)
-            p1 = p + strlen(p);
-        if(cmp1(p,p1-p,"all")) {
-            for(setting = cpu_translation_settings; setting->mask != 0; setting++) {
-                mask |= setting->mask;
-            }
-        } else {
-            for(setting = cpu_translation_settings; setting->mask != 0; setting++) {
-                if (cmp1(p, p1 - p, setting->name))
-                    goto found;
-            }
-            return 0;
-        }
-    found:
-        mask |= setting->mask;
-        if (*p1 != ',')
-            break;
-        p = p1 + 1;
-    }
-    return mask;
-}
-
 static TranslationBlock *tb_find_slow(target_ulong pc,
                                       target_ulong cs_base,
                                       uint64_t flags)
@@ -196,9 +141,6 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     phys_pc = get_phys_addr_code(env, pc);
     phys_page1 = phys_pc & TARGET_PAGE_MASK;
     phys_page2 = -1;
-    if (translation_settings & CPU_SETTING_NO_CACHE)
-        goto not_found;
-
     h = tb_phys_hash_func(phys_pc);
     ptb1 = &tb_phys_hash[h];
     for(;;) {
@@ -322,10 +264,7 @@ static inline TranslationBlock *tb_find_fast(void)
 #else
 #error unsupported CPU
 #endif
-    if (translation_settings & CPU_SETTING_NO_CACHE)
-        tb = NULL;
-    else
-        tb = env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
+    tb = env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
     if (__builtin_expect(!tb || tb->pc != pc || tb->cs_base != cs_base ||
                          tb->flags != flags, 0)) {
         tb = tb_find_slow(pc, cs_base, flags);
@@ -355,7 +294,7 @@ int cpu_exec(CPUState *env1)
 #endif
 #endif
     int ret, interrupt_request;
-    void (*gen_func)(void);
+    long (*gen_func)(void);
     TranslationBlock *tb;
     uint8_t *tc_ptr;
 
@@ -618,7 +557,6 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_CRIS)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
-			env->interrupt_request &= ~CPU_INTERRUPT_HARD;
                         BREAK_CHAIN;
                     }
 #elif defined(TARGET_M68K)
@@ -737,7 +675,7 @@ int cpu_exec(CPUState *env1)
 		fp.gp = code_gen_buffer + 2 * (1 << 20);
 		(*(void (*)(void)) &fp)();
 #else
-                gen_func();
+                T0 = gen_func();
 #endif
                 env->current_tb = NULL;
                 /* reset soft MMU for next block (it can currently
@@ -1247,10 +1185,6 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
            a virtual CPU fault */
         cpu_restore_state(tb, env, pc, puc);
     }
-#if 0
-        printf("PF exception: NIP=0x%08x error=0x%x %p\n",
-               env->nip, env->error_code, tb);
-#endif
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);

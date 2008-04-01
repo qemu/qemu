@@ -11,7 +11,6 @@
 /* MIPSnet register offsets */
 
 #define MIPSNET_DEV_ID		0x00
-# define MIPSNET_DEV_ID_STRING	"MIPSNET0"
 #define MIPSNET_BUSY		0x08
 #define MIPSNET_RX_DATA_COUNT	0x0c
 #define MIPSNET_TX_DATA_COUNT	0x10
@@ -105,15 +104,14 @@ static uint32_t mipsnet_ioport_read(void *opaque, uint32_t addr)
 {
     MIPSnetState *s = opaque;
     int ret = 0;
-    const char *devid = MIPSNET_DEV_ID_STRING;
 
     addr &= 0x3f;
     switch (addr) {
     case MIPSNET_DEV_ID:
-	ret = *((uint32_t *)&devid);
+	ret = be32_to_cpu(0x4d495053);		/* MIPS */
         break;
     case MIPSNET_DEV_ID + 4:
-	ret = *((uint32_t *)(&devid + 4));
+	ret = be32_to_cpu(0x4e455430);		/* NET0 */
         break;
     case MIPSNET_BUSY:
 	ret = s->busy;

@@ -680,7 +680,7 @@ void cpu_loop (CPUSPARCState *env)
                 if (trapnr == TT_DFAULT)
                     info._sifields._sigfault._addr = env->dmmuregs[4];
                 else
-                    info._sifields._sigfault._addr = env->tpc[env->tl];
+                    info._sifields._sigfault._addr = env->tsptr->tpc;
                 queue_signal(info.si_signo, &info);
             }
             break;
@@ -1522,7 +1522,7 @@ void cpu_loop(CPUMIPSState *env)
         trapnr = cpu_mips_exec(env);
         switch(trapnr) {
         case EXCP_SYSCALL:
-            syscall_num = env->gpr[2][env->current_tc] - 4000;
+            syscall_num = env->gpr[env->current_tc][2] - 4000;
             env->PC[env->current_tc] += 4;
             if (syscall_num >= sizeof(mips_syscall_args)) {
                 ret = -ENOSYS;
@@ -1532,7 +1532,7 @@ void cpu_loop(CPUMIPSState *env)
                 abi_ulong arg5 = 0, arg6 = 0, arg7 = 0, arg8 = 0;
 
                 nb_args = mips_syscall_args[syscall_num];
-                sp_reg = env->gpr[29][env->current_tc];
+                sp_reg = env->gpr[env->current_tc][29];
                 switch (nb_args) {
                 /* these arguments are taken from the stack */
                 /* FIXME - what to do if get_user() fails? */
@@ -1543,20 +1543,20 @@ void cpu_loop(CPUMIPSState *env)
                 default:
                     break;
                 }
-                ret = do_syscall(env, env->gpr[2][env->current_tc],
-                                 env->gpr[4][env->current_tc],
-                                 env->gpr[5][env->current_tc],
-                                 env->gpr[6][env->current_tc],
-                                 env->gpr[7][env->current_tc],
+                ret = do_syscall(env, env->gpr[env->current_tc][2],
+                                 env->gpr[env->current_tc][4],
+                                 env->gpr[env->current_tc][5],
+                                 env->gpr[env->current_tc][6],
+                                 env->gpr[env->current_tc][7],
                                  arg5, arg6/*, arg7, arg8*/);
             }
             if ((unsigned int)ret >= (unsigned int)(-1133)) {
-                env->gpr[7][env->current_tc] = 1; /* error flag */
+                env->gpr[env->current_tc][7] = 1; /* error flag */
                 ret = -ret;
             } else {
-                env->gpr[7][env->current_tc] = 0; /* error flag */
+                env->gpr[env->current_tc][7] = 0; /* error flag */
             }
-            env->gpr[2][env->current_tc] = ret;
+            env->gpr[env->current_tc][2] = ret;
             break;
         case EXCP_TLBL:
         case EXCP_TLBS:
@@ -1673,6 +1673,9 @@ void cpu_loop (CPUState *env)
                 queue_signal(info.si_signo, &info);
             }
             break;
+	case EXCP_INTERRUPT:
+	  /* just indicate that signals should be handled asap */
+	  break;
         case EXCP_BREAK:
             ret = do_syscall(env, 
                              env->regs[9], 
@@ -1760,7 +1763,7 @@ void cpu_loop(CPUM68KState *env)
                                           env->dregs[3],
                                           env->dregs[4],
                                           env->dregs[5],
-                                          env->dregs[6]);
+                                          env->aregs[0]);
             }
             break;
         case EXCP_INTERRUPT:
@@ -2298,7 +2301,7 @@ int main(int argc, char **argv)
         int i;
 
         for(i = 0; i < 32; i++) {
-            env->gpr[i][env->current_tc] = regs->regs[i];
+            env->gpr[env->current_tc][i] = regs->regs[i];
         }
         env->PC[env->current_tc] = regs->cp0_epc;
     }

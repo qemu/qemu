@@ -392,21 +392,14 @@ void rtc_set_date(RTCState *s, const struct tm *tm)
 
 static void rtc_set_date_from_host(RTCState *s)
 {
-    time_t ti;
-    struct tm *tm;
-    struct tm tmbuffer;
+    struct tm tm;
     int val;
 
     /* set the CMOS date */
-    if (rtc_start_date == -1) {
-        time(&ti);
-    } else {
-        ti = rtc_start_date;
-    }
-    tm = qemu_time_r(&ti, &tmbuffer);
-    rtc_set_date(s, tm);
+    qemu_get_timedate(&tm, 0);
+    rtc_set_date(s, &tm);
 
-    val = to_bcd(s, (tm->tm_year / 100) + 19);
+    val = to_bcd(s, (tm.tm_year / 100) + 19);
     rtc_set_memory(s, REG_IBM_CENTURY_BYTE, val);
     rtc_set_memory(s, REG_IBM_PS2_CENTURY_BYTE, val);
 }

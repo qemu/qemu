@@ -1002,7 +1002,7 @@ struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq,
     cpu_register_physical_memory(base, 0x00100000, iomemtype);
 
     graphic_console_init(ds, pxa2xx_update_display,
-                    pxa2xx_invalidate_display, pxa2xx_screen_dump, s);
+                    pxa2xx_invalidate_display, pxa2xx_screen_dump, NULL, s);
 
     switch (s->ds->depth) {
     case 0:

@@ -222,11 +222,6 @@ void OPPROTO op_debug (void)
     do_raise_exception(EXCP_DEBUG);
 }
 
-void OPPROTO op_exit_tb (void)
-{
-    EXIT_TB();
-}
-
 /* Load/store special registers */
 void OPPROTO op_load_cr (void)
 {
@@ -585,47 +580,28 @@ void OPPROTO op_float_check_status (void)
 }
 #endif
 
-#if defined(WORDS_BIGENDIAN)
-#define WORD0 0
-#define WORD1 1
-#else
-#define WORD0 1
-#define WORD1 0
-#endif
 void OPPROTO op_load_fpscr_FT0 (void)
 {
     /* The 32 MSB of the target fpr are undefined.
      * They'll be zero...
      */
-    union {
-        float64 d;
-        struct {
-            uint32_t u[2];
-        } s;
-    } u;
+    CPU_DoubleU u;
 
-    u.s.u[WORD0] = 0;
-    u.s.u[WORD1] = env->fpscr;
+    u.l.upper = 0;
+    u.l.lower = env->fpscr;
     FT0 = u.d;
     RETURN();
 }
 
 void OPPROTO op_set_FT0 (void)
 {
-    union {
-        float64 d;
-        struct {
-            uint32_t u[2];
-        } s;
-    } u;
+    CPU_DoubleU u;
 
-    u.s.u[WORD0] = 0;
-    u.s.u[WORD1] = PARAM1;
+    u.l.upper = 0;
+    u.l.lower = PARAM1;
     FT0 = u.d;
     RETURN();
 }
-#undef WORD0
-#undef WORD1
 
 void OPPROTO op_load_fpscr_T0 (void)
 {
@@ -673,16 +649,6 @@ void OPPROTO op_setlr_64 (void)
     RETURN();
 }
 #endif
-
-void OPPROTO op_goto_tb0 (void)
-{
-    GOTO_TB(op_goto_tb0, PARAM1, 0);
-}
-
-void OPPROTO op_goto_tb1 (void)
-{
-    GOTO_TB(op_goto_tb1, PARAM1, 1);
-}
 
 void OPPROTO op_b_T1 (void)
 {
@@ -3241,27 +3207,21 @@ void OPPROTO op_efststeq (void)
 
 void OPPROTO op_efdsub (void)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u1, u2;
-    u1.u = T0_64;
-    u2.u = T1_64;
-    u1.f = float64_sub(u1.f, u2.f, &env->spe_status);
-    T0_64 = u1.u;
+    CPU_DoubleU u1, u2;
+    u1.ll = T0_64;
+    u2.ll = T1_64;
+    u1.d = float64_sub(u1.d, u2.d, &env->spe_status);
+    T0_64 = u1.ll;
     RETURN();
 }
 
 void OPPROTO op_efdadd (void)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u1, u2;
-    u1.u = T0_64;
-    u2.u = T1_64;
-    u1.f = float64_add(u1.f, u2.f, &env->spe_status);
-    T0_64 = u1.u;
+    CPU_DoubleU u1, u2;
+    u1.ll = T0_64;
+    u2.ll = T1_64;
+    u1.d = float64_add(u1.d, u2.d, &env->spe_status);
+    T0_64 = u1.ll;
     RETURN();
 }
 
@@ -3297,27 +3257,21 @@ void OPPROTO op_efdneg (void)
 
 void OPPROTO op_efddiv (void)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u1, u2;
-    u1.u = T0_64;
-    u2.u = T1_64;
-    u1.f = float64_div(u1.f, u2.f, &env->spe_status);
-    T0_64 = u1.u;
+    CPU_DoubleU u1, u2;
+    u1.ll = T0_64;
+    u2.ll = T1_64;
+    u1.d = float64_div(u1.d, u2.d, &env->spe_status);
+    T0_64 = u1.ll;
     RETURN();
 }
 
 void OPPROTO op_efdmul (void)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u1, u2;
-    u1.u = T0_64;
-    u2.u = T1_64;
-    u1.f = float64_mul(u1.f, u2.f, &env->spe_status);
-    T0_64 = u1.u;
+    CPU_DoubleU u1, u2;
+    u1.ll = T0_64;
+    u2.ll = T1_64;
+    u1.d = float64_mul(u1.d, u2.d, &env->spe_status);
+    T0_64 = u1.ll;
     RETURN();
 }
 

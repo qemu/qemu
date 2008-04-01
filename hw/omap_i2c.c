@@ -29,6 +29,7 @@ struct omap_i2c_s {
     i2c_slave slave;
     i2c_bus *bus;
 
+    uint8_t revision;
     uint8_t mask;
     uint16_t stat;
     uint16_t dma;
@@ -43,6 +44,9 @@ struct omap_i2c_s {
     uint8_t times[2];
     uint16_t test;
 };
+
+#define OMAP2_INTR_REV	0x34
+#define OMAP2_GC_REV	0x34
 
 static void omap_i2c_interrupts_update(struct omap_i2c_s *s)
 {
@@ -124,6 +128,7 @@ static void omap_i2c_fifo_run(struct omap_i2c_s *s)
             i2c_end_transfer(s->bus);
             s->control &= ~(1 << 1);				/* STP */
             s->count_cur = s->count;
+            s->txlen = 0;
         } else if ((s->control >> 9) & 1) {			/* TRX */
             while (ack && s->txlen)
                 ack = (i2c_send(s->bus,
@@ -162,6 +167,7 @@ static void omap_i2c_fifo_run(struct omap_i2c_s *s)
                 i2c_end_transfer(s->bus);
                 s->control &= ~(1 << 1);			/* STP */
                 s->count_cur = s->count;
+                s->txlen = 0;
             } else {
                 s->stat |= 1 << 2;				/* ARDY */
                 s->control &= ~(1 << 10);			/* MST */
@@ -201,8 +207,7 @@ static uint32_t omap_i2c_read(void *opaque, target_phys_addr_t addr)
 
     switch (offset) {
     case 0x00:	/* I2C_REV */
-        /* TODO: set a value greater or equal to real hardware */
-        return 0x11;						/* REV */
+        return s->revision;					/* REV */
 
     case 0x04:	/* I2C_IE */
         return s->mask;
@@ -211,11 +216,16 @@ static uint32_t omap_i2c_read(void *opaque, target_phys_addr_t addr)
         return s->stat | (i2c_bus_busy(s->bus) << 12);
 
     case 0x0c:	/* I2C_IV */
+        if (s->revision >= OMAP2_INTR_REV)
+            break;
         ret = ffs(s->stat & s->mask);
         if (ret)
             s->stat ^= 1 << (ret - 1);
         omap_i2c_interrupts_update(s);
         return ret;
+
+    case 0x10:	/* I2C_SYSS */
+        return (s->control >> 15) & 1;				/* I2C_EN */
 
     case 0x14:	/* I2C_BUF */
         return s->dma;
@@ -242,7 +252,7 @@ static uint32_t omap_i2c_read(void *opaque, target_phys_addr_t addr)
         } else
             /* XXX: remote access (qualifier) error - what's that?  */;
         if (!s->rxlen) {
-            s->stat |= ~(1 << 3);				/* RRDY */
+            s->stat &= ~(1 << 3);				/* RRDY */
             if (((s->control >> 10) & 1) &&			/* MST */
                             ((~s->control >> 9) & 1)) {		/* TRX */
                 s->stat |= 1 << 2;				/* ARDY */
@@ -253,6 +263,9 @@ static uint32_t omap_i2c_read(void *opaque, target_phys_addr_t addr)
         omap_i2c_fifo_run(s);
         omap_i2c_interrupts_update(s);
         return ret;
+
+    case 0x20:	/* I2C_SYSC */
+        return 0;
 
     case 0x24:	/* I2C_CON */
         return s->control;
@@ -293,13 +306,23 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x00:	/* I2C_REV */
-    case 0x08:	/* I2C_STAT */
     case 0x0c:	/* I2C_IV */
-        OMAP_BAD_REG(addr);
+    case 0x10:	/* I2C_SYSS */
+        OMAP_RO_REG(addr);
         return;
 
     case 0x04:	/* I2C_IE */
-        s->mask = value & 0x1f;
+        s->mask = value & (s->revision < OMAP2_GC_REV ? 0x1f : 0x3f);
+        break;
+
+    case 0x08:	/* I2C_STAT */
+        if (s->revision < OMAP2_INTR_REV) {
+            OMAP_RO_REG(addr);
+            return;
+        }
+
+        s->stat &= ~(value & 0x3f);
+        omap_i2c_interrupts_update(s);
         break;
 
     case 0x14:	/* I2C_BUF */
@@ -335,29 +358,42 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
         omap_i2c_interrupts_update(s);
         break;
 
-    case 0x24:	/* I2C_CON */
-        s->control = value & 0xcf07;
-        if (~value & (1 << 15)) {				/* I2C_EN */
+    case 0x20:	/* I2C_SYSC */
+        if (s->revision < OMAP2_INTR_REV) {
+            OMAP_BAD_REG(addr);
+            return;
+        }
+
+        if (value & 2)
             omap_i2c_reset(s);
+        break;
+
+    case 0x24:	/* I2C_CON */
+        s->control = value & 0xcf87;
+        if (~value & (1 << 15)) {				/* I2C_EN */
+            if (s->revision < OMAP2_INTR_REV)
+                omap_i2c_reset(s);
             break;
         }
-        if (~value & (1 << 10)) {				/* MST */
+        if ((value & (1 << 15)) && !(value & (1 << 10))) {	/* MST */
             printf("%s: I^2C slave mode not supported\n", __FUNCTION__);
             break;
         }
-        if (value & (1 << 9)) {					/* XA */
+        if ((value & (1 << 15)) && value & (1 << 8)) {		/* XA */
             printf("%s: 10-bit addressing mode not supported\n", __FUNCTION__);
             break;
         }
-        if (value & (1 << 0)) {					/* STT */
+        if ((value & (1 << 15)) && value & (1 << 0)) {		/* STT */
             nack = !!i2c_start_transfer(s->bus, s->addr[1],	/* SA */
                             (~value >> 9) & 1);			/* TRX */
             s->stat |= nack << 1;				/* NACK */
             s->control &= ~(1 << 0);				/* STT */
             if (nack)
                 s->control &= ~(1 << 1);			/* STP */
-            else
+            else {
+                s->count_cur = s->count;
                 omap_i2c_fifo_run(s);
+            }
             omap_i2c_interrupts_update(s);
         }
         break;
@@ -384,9 +420,42 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x3c:	/* I2C_SYSTEST */
-        s->test = value & 0xf00f;
+        s->test = value & 0xf80f;
+        if (value & (1 << 11))					/* SBB */
+            if (s->revision >= OMAP2_INTR_REV) {
+                s->stat |= 0x3f;
+                omap_i2c_interrupts_update(s);
+            }
         if (value & (1 << 15))					/* ST_EN */
             printf("%s: System Test not supported\n", __FUNCTION__);
+        break;
+
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static void omap_i2c_writeb(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_i2c_s *s = (struct omap_i2c_s *) opaque;
+    int offset = addr & OMAP_MPUI_REG_MASK;
+
+    switch (offset) {
+    case 0x1c:	/* I2C_DATA */
+        if (s->txlen > 2) {
+            /* XXX: remote access (qualifier) error - what's that?  */
+            break;
+        }
+        s->fifo <<= 8;
+        s->txlen += 1;
+        s->fifo |= value & 0xff;
+        s->stat &= ~(1 << 10);					/* XUDF */
+        if (s->txlen > 2)
+            s->stat &= ~(1 << 4);				/* XRDY */
+        omap_i2c_fifo_run(s);
+        omap_i2c_interrupts_update(s);
         break;
 
     default:
@@ -402,9 +471,9 @@ static CPUReadMemoryFunc *omap_i2c_readfn[] = {
 };
 
 static CPUWriteMemoryFunc *omap_i2c_writefn[] = {
-    omap_badwidth_write16,
+    omap_i2c_writeb,	/* Only the last fifo write can be 8 bit.  */
     omap_i2c_write,
-    omap_i2c_write,	/* TODO: Only the last fifo write can be 8 bit.  */
+    omap_badwidth_write16,
 };
 
 struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
@@ -414,6 +483,8 @@ struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
     struct omap_i2c_s *s = (struct omap_i2c_s *)
             qemu_mallocz(sizeof(struct omap_i2c_s));
 
+    /* TODO: set a value greater or equal to real hardware */
+    s->revision = 0x11;
     s->base = base;
     s->irq = irq;
     s->drq[0] = dma[0];
@@ -427,6 +498,30 @@ struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
     iomemtype = cpu_register_io_memory(0, omap_i2c_readfn,
                     omap_i2c_writefn, s);
     cpu_register_physical_memory(s->base, 0x800, iomemtype);
+
+    return s;
+}
+
+struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
+                qemu_irq irq, qemu_irq *dma, omap_clk fclk, omap_clk iclk)
+{
+    int iomemtype;
+    struct omap_i2c_s *s = (struct omap_i2c_s *)
+            qemu_mallocz(sizeof(struct omap_i2c_s));
+
+    s->revision = 0x34;
+    s->irq = irq;
+    s->drq[0] = dma[0];
+    s->drq[1] = dma[1];
+    s->slave.event = omap_i2c_event;
+    s->slave.recv = omap_i2c_rx;
+    s->slave.send = omap_i2c_tx;
+    s->bus = i2c_init_bus();
+    omap_i2c_reset(s);
+
+    iomemtype = cpu_register_io_memory(0, omap_i2c_readfn,
+                    omap_i2c_writefn, s);
+    s->base = omap_l4_attach(ta, 0, iomemtype);
 
     return s;
 }

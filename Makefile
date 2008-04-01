@@ -47,7 +47,7 @@ BLOCK_OBJS+=block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
 BLOCK_OBJS+=block-qcow2.o block-parallels.o
 
 ######################################################################
-# libqemu_common.a: Target indepedent part of system emulation. The
+# libqemu_common.a: Target independent part of system emulation. The
 # long term path is to suppress *all* target specific code in case of
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
@@ -106,6 +106,9 @@ OBJS+=$(addprefix audio/, $(AUDIO_OBJS))
 ifdef CONFIG_SDL
 OBJS+=sdl.o x_keymap.o
 endif
+ifdef CONFIG_CURSES
+OBJS+=curses.o
+endif
 OBJS+=vnc.o d3des.o
 
 ifdef CONFIG_COCOA
@@ -128,6 +131,9 @@ sdl.o: sdl.c keymaps.c sdl_keysym.h
 
 vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(CONFIG_VNC_TLS_CFLAGS) -c -o $@ $<
+
+curses.o: curses.c keymaps.c curses_keys.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
 
 audio/sdlaudio.o: audio/sdlaudio.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) -c -o $@ $<
@@ -203,14 +209,14 @@ ifneq ($(TOOLS),)
 	$(INSTALL) -m 755 -s $(TOOLS) "$(DESTDIR)$(bindir)"
 endif
 	mkdir -p "$(DESTDIR)$(datadir)"
-	for x in bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
+	set -e; for x in bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
 		video.x openbios-sparc32 pxe-ne2k_pci.bin \
 		pxe-rtl8139.bin pxe-pcnet.bin; do \
 		$(INSTALL) -m 644 $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
 	done
 ifndef CONFIG_WIN32
 	mkdir -p "$(DESTDIR)$(datadir)/keymaps"
-	for x in $(KEYMAPS); do \
+	set -e; for x in $(KEYMAPS); do \
 		$(INSTALL) -m 644 $(SRC_PATH)/keymaps/$$x "$(DESTDIR)$(datadir)/keymaps"; \
 	done
 endif
@@ -265,12 +271,12 @@ qemu-setup.exe: $(SRC_PATH)/qemu.nsi
 tar:
 	rm -rf /tmp/$(FILE)
 	cp -r . /tmp/$(FILE)
-	( cd /tmp ; tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS )
+	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS
 	rm -rf /tmp/$(FILE)
 
 # generate a binary distribution
 tarbin:
-	( cd / ; tar zcvf ~/qemu-$(VERSION)-$(ARCH).tar.gz \
+	cd / && tar zcvf ~/qemu-$(VERSION)-$(ARCH).tar.gz \
 	$(bindir)/qemu \
 	$(bindir)/qemu-system-ppc \
 	$(bindir)/qemu-system-ppc64 \
@@ -315,7 +321,7 @@ tarbin:
         $(datadir)/pxe-pcnet.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
-	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-img.1 )
+	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-img.1
 
 # Include automatically generated dependency files
 -include $(wildcard *.d audio/*.d slirp/*.d)

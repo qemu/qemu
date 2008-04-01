@@ -29,6 +29,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "tcg-op.h"
 
 #define ENABLE_ARCH_5J    0
 #define ENABLE_ARCH_6     arm_feature(env, ARM_FEATURE_V6)
@@ -69,26 +70,9 @@ typedef struct DisasContext {
 #define DISAS_WFI 4
 #define DISAS_SWI 5
 
-#ifdef USE_DIRECT_JUMP
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) (long)(x)
-#endif
-
 /* XXX: move that elsewhere */
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
 extern FILE *logfile;
 extern int loglevel;
-
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-
-#include "gen-op.h"
 
 #define PAS_OP(pfx) {  \
     gen_op_ ## pfx ## add16_T0_T1, \
@@ -2433,19 +2417,14 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint32_t dest)
 
     tb = s->tb;
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
-        if (n == 0)
-            gen_op_goto_tb0(TBPARAM(tb));
-        else
-            gen_op_goto_tb1(TBPARAM(tb));
+        tcg_gen_goto_tb(n);
         gen_op_movl_T0_im(dest);
         gen_op_movl_r15_T0();
-        gen_op_movl_T0_im((long)tb + n);
-        gen_op_exit_tb();
+        tcg_gen_exit_tb((long)tb + n);
     } else {
         gen_op_movl_T0_im(dest);
         gen_op_movl_r15_T0();
-        gen_op_movl_T0_0();
-        gen_op_exit_tb();
+        tcg_gen_exit_tb(0);
     }
 }
 
@@ -7487,9 +7466,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
 
     dc->tb = tb;
 
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
 
     dc->is_jmp = DISAS_NEXT;
     dc->pc = pc_start;
@@ -7507,7 +7484,6 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     }
 #endif
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    nb_gen_labels = 0;
     lj = -1;
     /* Reset the conditional execution bits immediately. This avoids
        complications trying to do it at the end of the block.  */
@@ -7626,8 +7602,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         case DISAS_JUMP:
         case DISAS_UPDATE:
             /* indicate that the hash table must be used to find the next TB */
-            gen_op_movl_T0_0();
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         case DISAS_TB_JUMP:
             /* nothing more to generate */
@@ -7655,11 +7630,6 @@ done_generating:
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, dc->pc - pc_start, env->thumb);
         fprintf(logfile, "\n");
-        if (loglevel & (CPU_LOG_TB_OP)) {
-            fprintf(logfile, "OP:\n");
-            dump_ops(gen_opc_buf, gen_opparam_buf);
-            fprintf(logfile, "\n");
-        }
     }
 #endif
     if (search_pc) {

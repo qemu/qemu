@@ -23,7 +23,7 @@ typedef struct target_sigaltstack {
 
 static inline abi_ulong get_sp_from_cpustate(CPUMIPSState *state)
 {
-    return state->gpr[29][state->current_tc];
+    return state->gpr[state->current_tc][29];
 }
 
 #endif /* TARGET_SIGNAL_H */

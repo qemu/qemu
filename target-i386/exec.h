@@ -181,8 +181,9 @@ void __hidden cpu_loop_exit(void);
 
 void OPPROTO op_movl_eflags_T0(void);
 void OPPROTO op_movl_T0_eflags(void);
-void helper_divl_EAX_T0(void);
-void helper_idivl_EAX_T0(void);
+
+#include "helper.h"
+
 void helper_mulq_EAX_T0(void);
 void helper_imulq_EAX_T0(void);
 void helper_imulq_T0_T1(void);

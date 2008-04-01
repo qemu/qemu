@@ -1,3 +1,34 @@
+CP0 Status  0x10400000 Cause   0x00000000 EPC    0x00000000
+    Config0 0x80240082 Config1 0x9e9b4d8a LLAddr 0x00000000
+IN: prom_init
+0x942795fc:  lw a2,30192(v0)
+0x94279600:  lui        t5,0x9429
+0x94279604:  addiu      t3,a2,632
+0x94279608:  addiu      t4,t5,28768
+0x9427960c:  lw a1,0(a2)
+0x94279610:  beqz       a1,0x94279670
+0x94279614:  nop
+
+---------------- 2 00000010
+do_raise_exception_err: 26 0
+do_interrupt enter: PC 9427960c EPC 00000000 TLB load exception
+do_interrupt: PC bfc00380 EPC 9427960c cause 2
+    S 10400002 C 00000008 A 00000000 D 00000000
+cpu_mips_handle_mmu_fault pc bfc00380 ad bfc00380 rw 2 mmu_idx 0 smmu 1
+cpu_mips_handle_mmu_fault address=bfc00380 ret 0 physical 1fc00380 prot 1
+------------------------------------------------
+pc=0xbfc00380 HI=0x02a239d4 LO=0x02a23a24 ds 0018 00000000 0
+GPR00: r0 00000000 at 10400000 v0 94290000 v1 94290000
+GPR04: a0 94232e9c a1 94297400 a2 00000000 a3 00000000
+GPR08: t0 94264170 t1 94260000 t2 942a0000 t3 00000278
+GPR12: t4 94297060 t5 94290000 t6 00000000 t7 00000000
+GPR16: s0 94263dc0 s1 00000004 s2 00000001 s3 00000000
+GPR20: s4 00000000 s5 00000000 s6 00000000 s7 00000000
+GPR24: t8 00000000 t9 00000000 k0 00000000 k1 00000000
+GPR28: gp 94260000 sp 94261f10 s8 00000000 ra 9427b964
+CP0 Status  0x10400002 Cause   0x00000008 EPC    0x9427960c
+    Config0 0x80240082 Config1 0x9e9b4d8a LLAddr 0x00000000
+
 TODO list for AR7 / QEMU
 
 2008-03-16

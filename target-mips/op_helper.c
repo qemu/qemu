@@ -163,25 +163,25 @@ void do_dclz (void)
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 static always_inline uint64_t get_HILO (void)
 {
-    return (env->HI[0][env->current_tc] << 32) | (uint32_t)env->LO[0][env->current_tc];
+    return (env->HI[env->current_tc][0] << 32) | (uint32_t)env->LO[env->current_tc][0];
 }
 
 static always_inline void set_HILO (uint64_t HILO)
 {
-    env->LO[0][env->current_tc] = (int32_t)HILO;
-    env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+    env->LO[env->current_tc][0] = (int32_t)HILO;
+    env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
 static always_inline void set_HIT0_LO (uint64_t HILO)
 {
-    env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
-    T0 = env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+    env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
+    T0 = env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
 static always_inline void set_HI_LOT0 (uint64_t HILO)
 {
-    T0 = env->LO[0][env->current_tc] = (int32_t)(HILO & 0xFFFFFFFF);
-    env->HI[0][env->current_tc] = (int32_t)(HILO >> 32);
+    T0 = env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
+    env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
 void do_mult (void)
@@ -303,8 +303,8 @@ void do_div (void)
 {
     /* 64bit datatypes because we may see overflow/underflow. */
     if (T1 != 0) {
-        env->LO[0][env->current_tc] = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
-        env->HI[0][env->current_tc] = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
+        env->LO[env->current_tc][0] = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
+        env->HI[env->current_tc][0] = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
     }
 }
 #endif
@@ -316,12 +316,12 @@ void do_ddiv (void)
         int64_t arg0 = (int64_t)T0;
         int64_t arg1 = (int64_t)T1;
         if (arg0 == ((int64_t)-1 << 63) && arg1 == (int64_t)-1) {
-            env->LO[0][env->current_tc] = arg0;
-            env->HI[0][env->current_tc] = 0;
+            env->LO[env->current_tc][0] = arg0;
+            env->HI[env->current_tc][0] = 0;
         } else {
             lldiv_t res = lldiv(arg0, arg1);
-            env->LO[0][env->current_tc] = res.quot;
-            env->HI[0][env->current_tc] = res.rem;
+            env->LO[env->current_tc][0] = res.quot;
+            env->HI[env->current_tc][0] = res.rem;
         }
     }
 }
@@ -330,8 +330,8 @@ void do_ddiv (void)
 void do_ddivu (void)
 {
     if (T1 != 0) {
-        env->LO[0][env->current_tc] = T0 / T1;
-        env->HI[0][env->current_tc] = T0 % T1;
+        env->LO[env->current_tc][0] = T0 / T1;
+        env->HI[env->current_tc][0] = T0 % T1;
     }
 }
 #endif
@@ -651,21 +651,21 @@ void do_pmon (int function)
     function /= 2;
     switch (function) {
     case 2: /* TODO: char inbyte(int waitflag); */
-        if (env->gpr[4][env->current_tc] == 0)
-            env->gpr[2][env->current_tc] = -1;
+        if (env->gpr[env->current_tc][4] == 0)
+            env->gpr[env->current_tc][2] = -1;
         /* Fall through */
     case 11: /* TODO: char inbyte (void); */
-        env->gpr[2][env->current_tc] = -1;
+        env->gpr[env->current_tc][2] = -1;
         break;
     case 3:
     case 12:
-        printf("%c", (char)(env->gpr[4][env->current_tc] & 0xFF));
+        printf("%c", (char)(env->gpr[env->current_tc][4] & 0xFF));
         break;
     case 17:
         break;
     case 158:
         {
-            unsigned char *fmt = (void *)(unsigned long)env->gpr[4][env->current_tc];
+            unsigned char *fmt = (void *)(unsigned long)env->gpr[env->current_tc][4];
             printf("%s", fmt);
         }
         break;

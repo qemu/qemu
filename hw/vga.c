@@ -1662,6 +1662,166 @@ static void vga_reset(VGAState *s)
     s->graphic_mode = -1; /* force full update */
 }
 
+#define TEXTMODE_X(x)	((x) % width)
+#define TEXTMODE_Y(x)	((x) / width)
+#define VMEM2CHTYPE(v)	((v & 0xff0007ff) | \
+        ((v & 0x00000800) << 10) | ((v & 0x00007000) >> 1))
+/* relay text rendering to the display driver
+ * instead of doing a full vga_update_display() */
+static void vga_update_text(void *opaque, console_ch_t *chardata)
+{
+    VGAState *s = (VGAState *) opaque;
+    int graphic_mode, i, cursor_offset, cursor_visible;
+    int cw, cheight, width, height, size, c_min, c_max;
+    uint32_t *src;
+    console_ch_t *dst, val;
+    char msg_buffer[80];
+    int full_update = 0;
+
+    if (!(s->ar_index & 0x20)) {
+        graphic_mode = GMODE_BLANK;
+    } else {
+        graphic_mode = s->gr[6] & 1;
+    }
+    if (graphic_mode != s->graphic_mode) {
+        s->graphic_mode = graphic_mode;
+        full_update = 1;
+    }
+    if (s->last_width == -1) {
+        s->last_width = 0;
+        full_update = 1;
+    }
+
+    switch (graphic_mode) {
+    case GMODE_TEXT:
+        /* TODO: update palette */
+        full_update |= update_basic_params(s);
+
+        /* total width & height */
+        cheight = (s->cr[9] & 0x1f) + 1;
+        cw = 8;
+        if (!(s->sr[1] & 0x01))
+            cw = 9;
+        if (s->sr[1] & 0x08)
+            cw = 16; /* NOTE: no 18 pixel wide */
+        width = (s->cr[0x01] + 1);
+        if (s->cr[0x06] == 100) {
+            /* ugly hack for CGA 160x100x16 - explain me the logic */
+            height = 100;
+        } else {
+            height = s->cr[0x12] | 
+                ((s->cr[0x07] & 0x02) << 7) | 
+                ((s->cr[0x07] & 0x40) << 3);
+            height = (height + 1) / cheight;
+        }
+
+        size = (height * width);
+        if (size > CH_ATTR_SIZE) {
+            if (!full_update)
+                return;
+
+            sprintf(msg_buffer, "%i x %i Text mode", width, height);
+            break;
+        }
+
+        if (width != s->last_width || height != s->last_height ||
+            cw != s->last_cw || cheight != s->last_ch) {
+            s->last_scr_width = width * cw;
+            s->last_scr_height = height * cheight;
+            dpy_resize(s->ds, width, height);
+            s->last_width = width;
+            s->last_height = height;
+            s->last_ch = cheight;
+            s->last_cw = cw;
+            full_update = 1;
+        }
+
+        /* Update "hardware" cursor */
+        cursor_offset = ((s->cr[0x0e] << 8) | s->cr[0x0f]) - s->start_addr;
+        if (cursor_offset != s->cursor_offset ||
+            s->cr[0xa] != s->cursor_start ||
+            s->cr[0xb] != s->cursor_end || full_update) {
+            cursor_visible = !(s->cr[0xa] & 0x20);
+            if (cursor_visible && cursor_offset < size && cursor_offset >= 0)
+                dpy_cursor(s->ds,
+                           TEXTMODE_X(cursor_offset),
+                           TEXTMODE_Y(cursor_offset));
+            else
+                dpy_cursor(s->ds, -1, -1);
+            s->cursor_offset = cursor_offset;
+            s->cursor_start = s->cr[0xa];
+            s->cursor_end = s->cr[0xb];
+        }
+
+        src = (uint32_t *) s->vram_ptr + s->start_addr;
+        dst = chardata;
+
+        if (full_update) {
+            for (i = 0; i < size; src ++, dst ++, i ++)
+                console_write_ch(dst, VMEM2CHTYPE(*src));
+
+            dpy_update(s->ds, 0, 0, width, height);
+        } else {
+            c_max = 0;
+
+            for (i = 0; i < size; src ++, dst ++, i ++) {
+                console_write_ch(&val, VMEM2CHTYPE(*src));
+                if (*dst != val) {
+                    *dst = val;
+                    c_max = i;
+                    break;
+                }
+            }
+            c_min = i;
+            for (; i < size; src ++, dst ++, i ++) {
+                console_write_ch(&val, VMEM2CHTYPE(*src));
+                if (*dst != val) {
+                    *dst = val;
+                    c_max = i;
+                }
+            }
+
+            if (c_min <= c_max) {
+                i = TEXTMODE_Y(c_min);
+                dpy_update(s->ds, 0, i, width, TEXTMODE_Y(c_max) - i + 1);
+            }
+        }
+
+        return;
+    case GMODE_GRAPH:
+        if (!full_update)
+            return;
+
+        s->get_resolution(s, &width, &height);
+        sprintf(msg_buffer, "%i x %i Graphic mode", width, height);
+        break;
+    case GMODE_BLANK:
+    default:
+        if (!full_update)
+            return;
+
+        sprintf(msg_buffer, "VGA Blank mode");
+        break;
+    }
+
+    /* Display a message */
+    s->last_width = 60;
+    s->last_height = height = 3;
+    dpy_cursor(s->ds, -1, -1);
+    dpy_resize(s->ds, s->last_width, height);
+
+    for (dst = chardata, i = 0; i < s->last_width * height; i ++)
+        console_write_ch(dst ++, ' ');
+
+    size = strlen(msg_buffer);
+    width = (s->last_width - size) / 2;
+    dst = chardata + s->last_width + width;
+    for (i = 0; i < size; i ++)
+        console_write_ch(dst ++, 0x00200100 | msg_buffer[i]);
+
+    dpy_update(s->ds, 0, 0, s->last_width, height);
+}
+
 static CPUReadMemoryFunc *vga_mem_read[3] = {
     vga_mem_readb,
     vga_mem_readw,
@@ -1832,6 +1992,7 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
     s->update = vga_update_display;
     s->invalidate = vga_invalidate_display;
     s->screen_dump = vga_screen_dump;
+    s->text_update = vga_update_text;
 }
 
 /* used by both ISA and PCI */
@@ -1973,7 +2134,8 @@ int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init(s);
 
-    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump, s);
+    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump,
+                         s->text_update, s);
 
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
@@ -1997,7 +2159,8 @@ int isa_vga_mm_init(DisplayState *ds, uint8_t *vga_ram_base,
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_mm_init(s, vram_base, ctrl_base, it_shift);
 
-    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump, s);
+    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump,
+                         s->text_update, s);
 
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
@@ -2025,7 +2188,8 @@ int pci_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init(s);
 
-    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump, s);
+    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump,
+                         s->text_update, s);
 
     s->pci_dev = &d->dev;
 

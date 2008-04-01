@@ -31,24 +31,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
-
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-
-#ifdef USE_DIRECT_JUMP
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) ((long)(x))
-#endif
-
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
-
-#include "gen-op.h"
+#include "tcg-op.h"
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;
@@ -172,18 +155,15 @@ static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
 	!ctx->singlestep_enabled) {
 	/* Use a direct jump if in same page and singlestep not enabled */
-	if (n == 0)
-	    gen_op_goto_tb0(TBPARAM(tb));
-	else
-	    gen_op_goto_tb1(TBPARAM(tb));
-	gen_op_movl_imm_T0((long) tb + n);
+        tcg_gen_goto_tb(n);
+        gen_op_movl_imm_PC(dest);
+        tcg_gen_exit_tb((long) tb + n);
     } else {
-	gen_op_movl_imm_T0(0);
+        gen_op_movl_imm_PC(dest);
+        if (ctx->singlestep_enabled)
+            gen_op_debug();
+        tcg_gen_exit_tb(0);
     }
-    gen_op_movl_imm_PC(dest);
-    if (ctx->singlestep_enabled)
-	gen_op_debug();
-    gen_op_exit_tb();
 }
 
 static void gen_jump(DisasContext * ctx)
@@ -192,10 +172,9 @@ static void gen_jump(DisasContext * ctx)
 	/* Target is not statically known, it comes necessarily from a
 	   delayed jump as immediate jump are conditinal jumps */
 	gen_op_movl_delayed_pc_PC();
-	gen_op_movl_imm_T0(0);
 	if (ctx->singlestep_enabled)
 	    gen_op_debug();
-	gen_op_exit_tb();
+	tcg_gen_exit_tb(0);
     } else {
 	gen_goto_tb(ctx, 0, ctx->delayed_pc);
     }
@@ -289,11 +268,11 @@ void _decode_opc(DisasContext * ctx)
     case 0x0018:		/* sett */
 	gen_op_sett();
 	return;
-    case 0xfbfb:		/* frchg */
+    case 0xfbfd:		/* frchg */
 	gen_op_frchg();
 	ctx->bstate = BS_STOP;
 	return;
-    case 0xf3fb:		/* fschg */
+    case 0xf3fd:		/* fschg */
 	gen_op_fschg();
 	ctx->bstate = BS_STOP;
 	return;
@@ -317,7 +296,7 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(B11_8));
 	return;
-    case 0xe000:		/* mov.l #imm,Rn */
+    case 0xe000:		/* mov #imm,Rn */
 	gen_op_movl_imm_rN(B7_0s, REG(B11_8));
 	return;
     case 0x9000:		/* mov.w @(disp,PC),Rn */
@@ -330,7 +309,7 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(B11_8));
 	return;
-    case 0x7000:		/* add.l #imm,Rn */
+    case 0x7000:		/* add #imm,Rn */
 	gen_op_add_imm_rN(B7_0s, REG(B11_8));
 	return;
     case 0xa000:		/* bra disp */
@@ -382,20 +361,20 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_movl_T0_rN(REG(B11_8));
 	return;
     case 0x2004:		/* mov.b Rm,@-Rn */
-	gen_op_dec1_rN(REG(B11_8));
 	gen_op_movl_rN_T0(REG(B7_4));
+	gen_op_dec1_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0x2005:		/* mov.w Rm,@-Rn */
-	gen_op_dec2_rN(REG(B11_8));
 	gen_op_movl_rN_T0(REG(B7_4));
+	gen_op_dec2_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
 	gen_op_stw_T0_T1(ctx);
 	return;
     case 0x2006:		/* mov.l Rm,@-Rn */
-	gen_op_dec4_rN(REG(B11_8));
 	gen_op_movl_rN_T0(REG(B7_4));
+	gen_op_dec4_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
 	return;
@@ -403,19 +382,22 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldb_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(B11_8));
-	gen_op_inc1_rN(REG(B7_4));
+	if ( B11_8 != B7_4 )
+		gen_op_inc1_rN(REG(B7_4));
 	return;
     case 0x6005:		/* mov.w @Rm+,Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldw_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(B11_8));
-	gen_op_inc2_rN(REG(B7_4));
+	if ( B11_8 != B7_4 )
+		gen_op_inc2_rN(REG(B7_4));
 	return;
     case 0x6006:		/* mov.l @Rm+,Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(B11_8));
-	gen_op_inc4_rN(REG(B7_4));
+	if ( B11_8 != B7_4 )
+		gen_op_inc4_rN(REG(B7_4));
 	return;
     case 0x0004:		/* mov.b Rm,@(R0,Rn) */
 	gen_op_movl_rN_T0(REG(B7_4));
@@ -523,7 +505,6 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_movl_rN_T1(REG(B11_8));
 	gen_op_div0s_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
 	return;
     case 0x3004:		/* div1 Rm,Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
@@ -557,25 +538,25 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_movuw_rN_T0(REG(B7_4));
 	gen_op_movl_T0_rN(REG(B11_8));
 	return;
-    case 0x000f:		/* mac.l @Rm+,@Rn- */
+    case 0x000f:		/* mac.l @Rm+,@Rn+ */
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_T1();
-	gen_op_movl_rN_T1(REG(B7_4));
+	gen_op_inc4_rN(REG(B11_8));
+	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macl_T0_T1();
 	gen_op_inc4_rN(REG(B7_4));
-	gen_op_inc4_rN(REG(B11_8));
 	return;
     case 0x400f:		/* mac.w @Rm+,@Rn+ */
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_T1();
-	gen_op_movl_rN_T1(REG(B7_4));
+	gen_op_inc2_rN(REG(B11_8));
+	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macw_T0_T1();
 	gen_op_inc2_rN(REG(B7_4));
-	gen_op_inc2_rN(REG(B11_8));
 	return;
     case 0x0007:		/* mul.l Rm,Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
@@ -650,10 +631,8 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf00c: /* fmov {F,D,X}Rm,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    if (ctx->opcode & 0x0110)
-		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(DREG(B7_4));
-	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	    gen_op_fmov_drN_DT0(XREG(B7_4));
+	    gen_op_fmov_DT0_drN(XREG(B11_8));
 	} else {
 	    gen_op_fmov_frN_FT0(FREG(B7_4));
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
@@ -661,9 +640,7 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf00a: /* fmov {F,D,X}Rm,@Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    if (ctx->opcode & 0x0010)
-		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(DREG(B7_4));
+	    gen_op_fmov_drN_DT0(XREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
 	    gen_op_stfq_DT0_T1(ctx);
 	} else {
@@ -674,11 +651,9 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf008: /* fmov @Rm,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    if (ctx->opcode & 0x0100)
-		break; /* illegal instruction */
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	    gen_op_fmov_DT0_drN(XREG(B11_8));
 	} else {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfl_T0_FT0(ctx);
@@ -687,11 +662,9 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf009: /* fmov @Rm+,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    if (ctx->opcode & 0x0100)
-		break; /* illegal instruction */
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	    gen_op_fmov_DT0_drN(XREG(B11_8));
 	    gen_op_inc8_rN(REG(B7_4));
 	} else {
 	    gen_op_movl_rN_T0(REG(B7_4));
@@ -702,10 +675,8 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf00b: /* fmov {F,D,X}Rm,@-Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    if (ctx->opcode & 0x0100)
-		break; /* illegal instruction */
 	    gen_op_dec8_rN(REG(B11_8));
-	    gen_op_fmov_drN_DT0(DREG(B7_4));
+	    gen_op_fmov_drN_DT0(XREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
 	    gen_op_stfq_DT0_T1(ctx);
 	} else {
@@ -717,12 +688,10 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    if (ctx->opcode & 0x0100)
-		break; /* illegal instruction */
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_add_rN_T0(REG(0));
 	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	    gen_op_fmov_DT0_drN(XREG(B11_8));
 	} else {
 	    gen_op_movl_rN_T0(REG(B7_4));
 	    gen_op_add_rN_T0(REG(0));
@@ -732,9 +701,7 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf007: /* fmov {F,D,X}Rn,@(R0,Rn) - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    if (ctx->opcode & 0x0010)
-		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(DREG(B7_4));
+	    gen_op_fmov_drN_DT0(XREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
 	    gen_op_add_rN_T1(REG(0));
 	    gen_op_stfq_DT0_T1(ctx);
@@ -776,8 +743,10 @@ void _decode_opc(DisasContext * ctx)
 	    ctx->fpscr & FPSCR_PR ? gen_op_fdiv_DT() : gen_op_fdiv_FT();
 	    break;
 	case 0xf004:		/* fcmp/eq Rm,Rn */
+	    ctx->fpscr & FPSCR_PR ? gen_op_fcmp_eq_DT() : gen_op_fcmp_eq_FT();
 	    return;
 	case 0xf005:		/* fcmp/gt Rm,Rn */
+	    ctx->fpscr & FPSCR_PR ? gen_op_fcmp_gt_DT() : gen_op_fcmp_gt_FT();
 	    return;
 	}
 
@@ -794,11 +763,11 @@ void _decode_opc(DisasContext * ctx)
     case 0xc900:		/* and #imm,R0 */
 	gen_op_and_imm_rN(B7_0, REG(0));
 	return;
-    case 0xcd00:		/* and.b #imm,@(R0+GBR) */
+    case 0xcd00:		/* and.b #imm,@(R0,GBR) */
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_addl_GBR_T0();
 	gen_op_movl_T0_T1();
-	gen_op_ldb_T0_T0(ctx);
+	gen_op_ldub_T0_T0(ctx);
 	gen_op_and_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
 	return;
@@ -836,13 +805,13 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xc500:		/* mov.w @(disp,GBR),R0 */
 	gen_op_stc_gbr_T0();
-	gen_op_addl_imm_T0(B7_0);
+	gen_op_addl_imm_T0(B7_0 * 2);
 	gen_op_ldw_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(0));
 	return;
     case 0xc600:		/* mov.l @(disp,GBR),R0 */
 	gen_op_stc_gbr_T0();
-	gen_op_addl_imm_T0(B7_0);
+	gen_op_addl_imm_T0(B7_0 * 4);
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(0));
 	return;
@@ -855,14 +824,14 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xc100:		/* mov.w R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
-	gen_op_addl_imm_T0(B7_0);
+	gen_op_addl_imm_T0(B7_0 * 2);
 	gen_op_movl_T0_T1();
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_stw_T0_T1(ctx);
 	return;
     case 0xc200:		/* mov.l R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
-	gen_op_addl_imm_T0(B7_0);
+	gen_op_addl_imm_T0(B7_0 * 4);
 	gen_op_movl_T0_T1();
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_stl_T0_T1(ctx);
@@ -898,11 +867,11 @@ void _decode_opc(DisasContext * ctx)
     case 0xcb00:		/* or #imm,R0 */
 	gen_op_or_imm_rN(B7_0, REG(0));
 	return;
-    case 0xcf00:		/* or.b #imm,@(R0+GBR) */
+    case 0xcf00:		/* or.b #imm,@(R0,GBR) */
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_addl_GBR_T0();
 	gen_op_movl_T0_T1();
-	gen_op_ldb_T0_T0(ctx);
+	gen_op_ldub_T0_T0(ctx);
 	gen_op_or_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
 	return;
@@ -914,20 +883,20 @@ void _decode_opc(DisasContext * ctx)
     case 0xc800:		/* tst #imm,R0 */
 	gen_op_tst_imm_rN(B7_0, REG(0));
 	return;
-    case 0xcc00:		/* tst #imm,@(R0+GBR) */
+    case 0xcc00:		/* tst.b #imm,@(R0,GBR) */
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_addl_GBR_T0();
-	gen_op_ldb_T0_T0(ctx);
+	gen_op_ldub_T0_T0(ctx);
 	gen_op_tst_imm_T0(B7_0);
 	return;
     case 0xca00:		/* xor #imm,R0 */
 	gen_op_xor_imm_rN(B7_0, REG(0));
 	return;
-    case 0xce00:		/* xor.b #imm,@(R0+GBR) */
+    case 0xce00:		/* xor.b #imm,@(R0,GBR) */
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_addl_GBR_T0();
 	gen_op_movl_T0_T1();
-	gen_op_ldb_T0_T0(ctx);
+	gen_op_ldub_T0_T0(ctx);
 	gen_op_xor_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
 	return;
@@ -1038,7 +1007,7 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	return;
-    case 0x00a2:		/* ocbp @Rn */
+    case 0x00a3:		/* ocbp @Rn */
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	return;
@@ -1123,6 +1092,37 @@ void _decode_opc(DisasContext * ctx)
 	    gen_op_ftrc_FT();
 	}
 	return;
+    case 0xf04d: /* fneg FRn/DRn - FPSCR: Nothing */
+	gen_op_fneg_frN(FREG(B11_8));
+	return;
+    case 0xf05d: /* fabs FRn/DRn */
+	if (ctx->fpscr & FPSCR_PR) {
+	    if (ctx->opcode & 0x0100)
+		break; /* illegal instruction */
+	    gen_op_fmov_drN_DT0(DREG(B11_8));
+	    gen_op_fabs_DT();
+	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	} else {
+	    gen_op_fmov_frN_FT0(FREG(B11_8));
+	    gen_op_fabs_FT();
+	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	}
+	return;
+    case 0xf06d: /* fsqrt FRn */
+	if (ctx->fpscr & FPSCR_PR) {
+	    if (ctx->opcode & 0x0100)
+		break; /* illegal instruction */
+	    gen_op_fmov_drN_DT0(FREG(B11_8));
+	    gen_op_fsqrt_DT();
+	    gen_op_fmov_DT0_drN(FREG(B11_8));
+	} else {
+	    gen_op_fmov_frN_FT0(FREG(B11_8));
+	    gen_op_fsqrt_FT();
+	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	}
+	return;
+    case 0xf07d: /* fsrra FRn */
+	break;
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
 	    gen_op_movl_imm_T0(0);
@@ -1137,6 +1137,16 @@ void _decode_opc(DisasContext * ctx)
 	    return;
 	}
 	break;
+    case 0xf0ad: /* fcnvsd FPUL,DRn */
+	gen_op_movl_fpul_FT0();
+	gen_op_fcnvsd_FT_DT();
+	gen_op_fmov_DT0_drN(DREG(B11_8));
+	return;
+    case 0xf0bd: /* fcnvds DRn,FPUL */
+	gen_op_fmov_drN_DT0(DREG(B11_8));
+	gen_op_fcnvds_DT_FT();
+	gen_op_movl_FT0_fpul();
+	return;
     }
 
     fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",
@@ -1176,9 +1186,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     int i, ii;
 
     pc_start = tb->pc;
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
     ctx.pc = pc_start;
     ctx.flags = (uint32_t)tb->flags;
     ctx.bstate = BS_NONE;
@@ -1190,7 +1198,6 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
     ctx.singlestep_enabled = env->singlestep_enabled;
-    nb_gen_labels = 0;
 
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
@@ -1254,8 +1261,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
             break;
         case BS_EXCP:
             /* gen_op_interrupt_restart(); */
-            gen_op_movl_imm_T0(0);
-            gen_op_exit_tb();
+            tcg_gen_exit_tb(0);
             break;
         case BS_BRANCH:
         default:
@@ -1281,11 +1287,6 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     if (loglevel & CPU_LOG_TB_IN_ASM) {
 	fprintf(logfile, "IN:\n");	/* , lookup_symbol(pc_start)); */
 	target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
-	fprintf(logfile, "\n");
-    }
-    if (loglevel & CPU_LOG_TB_OP) {
-	fprintf(logfile, "OP:\n");
-	dump_ops(gen_opc_buf, gen_opparam_buf);
 	fprintf(logfile, "\n");
     }
 #endif

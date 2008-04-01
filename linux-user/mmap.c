@@ -337,7 +337,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     page_set_flags(start, start + len, prot | PAGE_VALID);
  the_end:
 #ifdef DEBUG_MMAP
-    printf("ret=0x%llx\n", start);
+    printf("ret=0x" TARGET_FMT_lx "\n", start);
     page_dump(stdout);
     printf("\n");
 #endif
@@ -432,4 +432,3 @@ int target_msync(abi_ulong start, abi_ulong len, int flags)
     start &= qemu_host_page_mask;
     return msync(g2h(start), end - start, flags);
 }
-

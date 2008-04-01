@@ -26,32 +26,32 @@
 #include <ctype.h>
 #include "hw.h"
 
-#define RW_TR_DMA_EN 0xb0026004
-#define RW_DOUT 0xb002601c
-#define RW_STAT_DIN 0xb0026020
-#define R_STAT_DIN 0xb0026024
+#define D(x)
+
+#define RW_TR_DMA_EN 0x04
+#define RW_DOUT 0x1c
+#define RW_STAT_DIN 0x20
+#define R_STAT_DIN 0x24
 
 static uint32_t ser_readb (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env = opaque;
-	uint32_t r = 0;
-	printf ("%s %x pc=%x\n", __func__, addr, env->pc);
-	return r;
+	D(CPUState *env = opaque);
+	D(printf ("%s %x pc=%x\n", __func__, addr, env->pc));
+	return 0;
 }
 static uint32_t ser_readw (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env = opaque;
-	uint32_t r = 0;
-	printf ("%s %x pc=%x\n", __func__, addr, env->pc);
-	return r;
+	D(CPUState *env = opaque);
+	D(printf ("%s %x pc=%x\n", __func__, addr, env->pc));
+	return 0;
 }
 
 static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 {
-	CPUState *env = opaque;
+	D(CPUState *env = opaque);
 	uint32_t r = 0;
 
-	switch (addr)
+	switch (addr & 0xfff)
 	{
 		case RW_TR_DMA_EN:
 			break;
@@ -61,7 +61,7 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 			break;
 
 		default:
-			printf ("%s %x p=%x\n", __func__, addr, env->pc);
+			D(printf ("%s %x p=%x\n", __func__, addr, env->pc));
 			break;
 	}
 	return r;
@@ -70,21 +70,21 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 static void
 ser_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
+	D(CPUState *env = opaque);
+ 	D(printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc));
 }
 static void
 ser_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
+	D(CPUState *env = opaque);
+	D(printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc));
 }
 static void
 ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	CPUState *env = opaque;
+	D(CPUState *env = opaque);
 
-	switch (addr)
+	switch (addr & 0xfff)
 	{
 		case RW_TR_DMA_EN:
 			break;
@@ -93,30 +93,30 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 				putchar(value);
 			else
 				putchar('.');
+			fflush(stdout);
 			break;
 		default:
-			printf ("%s %x %x pc=%x\n",
-				__func__, addr, value, env->pc);
+			D(printf ("%s %x %x pc=%x\n",
+				  __func__, addr, value, env->pc));
 			break;
 	}
 }
 
 static CPUReadMemoryFunc *ser_read[] = {
-    &ser_readb,
-    &ser_readw,
-    &ser_readl,
+	&ser_readb,
+	&ser_readw,
+	&ser_readl,
 };
 
 static CPUWriteMemoryFunc *ser_write[] = {
-    &ser_writeb,
-    &ser_writew,
-    &ser_writel,
+	&ser_writeb,
+	&ser_writew,
+	&ser_writel,
 };
 
-void etraxfs_ser_init(CPUState *env, qemu_irq *irqs)
+void etraxfs_ser_init(CPUState *env, qemu_irq *irqs, target_phys_addr_t base)
 {
 	int ser_regs;
-
 	ser_regs = cpu_register_io_memory(0, ser_read, ser_write, env);
-	cpu_register_physical_memory (0xb0026000, 0x3c, ser_regs);
+	cpu_register_physical_memory (base, 0x3c, ser_regs);
 }

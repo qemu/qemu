@@ -121,6 +121,7 @@ struct TextConsole {
     vga_hw_update_ptr hw_update;
     vga_hw_invalidate_ptr hw_invalidate;
     vga_hw_screen_dump_ptr hw_screen_dump;
+    vga_hw_text_update_ptr hw_text_update;
     void *hw;
 
     int g_width, g_height;
@@ -135,6 +136,7 @@ struct TextConsole {
     TextAttributes t_attrib_default; /* default text attributes */
     TextAttributes t_attrib; /* currently active text attributes */
     TextCell *cells;
+    int text_x[2], text_y[2], cursor_invalidate;
 
     enum TTYState state;
     int esc_params[MAX_ESC_PARAMS];
@@ -169,6 +171,12 @@ void vga_hw_screen_dump(const char *filename)
        so always dump the dirst one.  */
     if (consoles[0]->hw_screen_dump)
         consoles[0]->hw_screen_dump(consoles[0]->hw, filename);
+}
+
+void vga_hw_text_update(console_ch_t *chardata)
+{
+    if (active_console && active_console->hw_text_update)
+        active_console->hw_text_update(active_console->hw, chardata);
 }
 
 /* convert a RGBA color to a color index usable in graphic primitives */
@@ -515,12 +523,25 @@ static void text_console_resize(TextConsole *s)
     s->cells = cells;
 }
 
+static inline void text_update_xy(TextConsole *s, int x, int y)
+{
+    s->text_x[0] = MIN(s->text_x[0], x);
+    s->text_x[1] = MAX(s->text_x[1], x);
+    s->text_y[0] = MIN(s->text_y[0], y);
+    s->text_y[1] = MAX(s->text_y[1], y);
+}
+
 static void update_xy(TextConsole *s, int x, int y)
 {
     TextCell *c;
     int y1, y2;
 
     if (s == active_console) {
+        if (!s->ds->depth) {
+            text_update_xy(s, x, y);
+            return;
+        }
+
         y1 = (s->y_base + y) % s->total_height;
         y2 = y1 - s->y_displayed;
         if (y2 < 0)
@@ -542,6 +563,12 @@ static void console_show_cursor(TextConsole *s, int show)
 
     if (s == active_console) {
         int x = s->x;
+
+        if (!s->ds->depth) {
+            s->cursor_invalidate = 1;
+            return;
+        }
+
         if (x >= s->width) {
             x = s->width - 1;
         }
@@ -571,6 +598,14 @@ static void console_refresh(TextConsole *s)
 
     if (s != active_console)
         return;
+    if (!s->ds->depth) {
+        s->text_x[0] = 0;
+        s->text_y[0] = 0;
+        s->text_x[1] = s->width - 1;
+        s->text_y[1] = s->height - 1;
+        s->cursor_invalidate = 1;
+        return;
+    }
 
     vga_fill_rect(s->ds, 0, 0, s->ds->width, s->ds->height,
                   color_table[0][COLOR_BLACK]);
@@ -648,6 +683,14 @@ static void console_put_lf(TextConsole *s)
             c++;
         }
         if (s == active_console && s->y_displayed == s->y_base) {
+            if (!s->ds->depth) {
+                s->text_x[0] = 0;
+                s->text_y[0] = 0;
+                s->text_x[1] = s->width - 1;
+                s->text_y[1] = s->height - 1;
+                return;
+            }
+
             vga_bitblt(s->ds, 0, FONT_HEIGHT, 0, 0,
                        s->width * FONT_WIDTH,
                        (s->height - 1) * FONT_HEIGHT);
@@ -998,21 +1041,7 @@ void console_select(unsigned int index)
     s = consoles[index];
     if (s) {
         active_console = s;
-        if (s->console_type != GRAPHIC_CONSOLE) {
-            if (s->g_width != s->ds->width ||
-                s->g_height != s->ds->height) {
-                if (s->console_type == TEXT_CONSOLE_FIXED_SIZE) {
-                    dpy_resize(s->ds, s->g_width, s->g_height);
-                } else {
-                    s->g_width = s->ds->width;
-                    s->g_height = s->ds->height;
-                    text_console_resize(s);
-                }
-            }
-            console_refresh(s);
-        } else {
-            vga_hw_invalidate();
-        }
+        vga_hw_invalidate();
     }
 }
 
@@ -1116,6 +1145,52 @@ void kbd_put_keysym(int keysym)
     }
 }
 
+static void text_console_invalidate(void *opaque)
+{
+    TextConsole *s = (TextConsole *) opaque;
+
+    if (s->console_type != GRAPHIC_CONSOLE) {
+        if (s->g_width != s->ds->width ||
+            s->g_height != s->ds->height) {
+            if (s->console_type == TEXT_CONSOLE_FIXED_SIZE)
+                dpy_resize(s->ds, s->g_width, s->g_height);
+            else {
+                s->g_width = s->ds->width;
+                s->g_height = s->ds->height;
+                text_console_resize(s);
+            }
+        }
+    }
+    console_refresh(s);
+}
+
+static void text_console_update(void *opaque, console_ch_t *chardata)
+{
+    TextConsole *s = (TextConsole *) opaque;
+    int i, j, src;
+
+    if (s->text_x[0] <= s->text_x[1]) {
+        src = (s->y_base + s->text_y[0]) * s->width;
+        chardata += s->text_y[0] * s->width;
+        for (i = s->text_y[0]; i <= s->text_y[1]; i ++)
+            for (j = 0; j < s->width; j ++, src ++)
+                console_write_ch(chardata ++, s->cells[src].ch |
+                                (s->cells[src].t_attrib.fgcol << 12) |
+                                (s->cells[src].t_attrib.bgcol << 8) |
+                                (s->cells[src].t_attrib.bold << 21));
+        dpy_update(s->ds, s->text_x[0], s->text_y[0],
+                   s->text_x[1] - s->text_x[0], i - s->text_y[0]);
+        s->text_x[0] = s->width;
+        s->text_y[0] = s->height;
+        s->text_x[1] = 0;
+        s->text_y[1] = 0;
+    }
+    if (s->cursor_invalidate) {
+        dpy_cursor(s->ds, s->x, s->y);
+        s->cursor_invalidate = 0;
+    }
+}
+
 static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
 {
     TextConsole *s;
@@ -1150,6 +1225,7 @@ static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
 TextConsole *graphic_console_init(DisplayState *ds, vga_hw_update_ptr update,
                                   vga_hw_invalidate_ptr invalidate,
                                   vga_hw_screen_dump_ptr screen_dump,
+                                  vga_hw_text_update_ptr text_update,
                                   void *opaque)
 {
     TextConsole *s;
@@ -1160,13 +1236,14 @@ TextConsole *graphic_console_init(DisplayState *ds, vga_hw_update_ptr update,
     s->hw_update = update;
     s->hw_invalidate = invalidate;
     s->hw_screen_dump = screen_dump;
+    s->hw_text_update = text_update;
     s->hw = opaque;
     return s;
 }
 
 int is_graphic_console(void)
 {
-    return active_console->console_type == GRAPHIC_CONSOLE;
+    return active_console && active_console->console_type == GRAPHIC_CONSOLE;
 }
 
 void console_color_init(DisplayState *ds)
@@ -1233,6 +1310,10 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     }
     s->g_width = width;
     s->g_height = height;
+
+    s->hw_invalidate = text_console_invalidate;
+    s->hw_text_update = text_console_update;
+    s->hw = s;
 
     /* Set text attribute defaults */
     s->t_attrib_default.bold = 0;

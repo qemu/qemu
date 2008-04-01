@@ -213,6 +213,9 @@ static void cmos_init(int ram_size, const char *boot_device, BlockDriverState **
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
 
+    /* set the number of CPU */
+    rtc_set_memory(s, 0x5f, smp_cpus - 1);
+
     /* set boot devices, and disable floppy signature check if requested */
 #define PC_MAX_BOOT_DEVICES 3
     nbds = strlen(boot_device);
@@ -868,8 +871,8 @@ static void pc_init1(int ram_size, int vga_ram_size,
         }
     } else if (vmsvga_enabled) {
         if (pci_enabled)
-            pci_vmsvga_init(pci_bus, ds, phys_ram_base + ram_size,
-                            ram_size, vga_ram_size);
+            pci_vmsvga_init(pci_bus, ds, phys_ram_base + vga_ram_addr,
+                            vga_ram_addr, vga_ram_size);
         else
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
     } else {
@@ -981,7 +984,7 @@ static void pc_init1(int ram_size, int vga_ram_size,
         i2c_bus *smbus;
 
         /* TODO: Populate SPD eeprom data.  */
-        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100);
+        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100, i8259[9]);
         for (i = 0; i < 8; i++) {
             smbus_eeprom_device_init(smbus, 0x50 + i, eeprom_buf + (i * 256));
         }

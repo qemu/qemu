@@ -53,7 +53,7 @@ struct m48t59_t {
     time_t   time_offset;
     time_t   stop_time;
     /* Alarm & watchdog */
-    time_t   alarm;
+    struct tm alarm;
     struct QEMUTimer *alrm_timer;
     struct QEMUTimer *wd_timer;
     /* NVRAM storage */
@@ -74,28 +74,10 @@ static inline uint8_t fromBCD (uint8_t BCD)
     return ((BCD >> 4) * 10) + (BCD & 0x0F);
 }
 
-/* RTC management helpers */
-static void get_time (m48t59_t *NVRAM, struct tm *tm)
-{
-    time_t t;
-
-    t = time(NULL) + NVRAM->time_offset;
-    qemu_time_r(&t, tm);
-}
-
-static void set_time (m48t59_t *NVRAM, struct tm *tm)
-{
-    time_t now, new_time;
-
-    new_time = mktime(tm);
-    now = time(NULL);
-    NVRAM->time_offset = new_time - now;
-}
-
 /* Alarm management */
 static void alarm_cb (void *opaque)
 {
-    struct tm tm, tm_now;
+    struct tm tm;
     uint64_t next_time;
     m48t59_t *NVRAM = opaque;
 
@@ -104,55 +86,62 @@ static void alarm_cb (void *opaque)
 	(NVRAM->buffer[0x1FF4] & 0x80) == 0 &&
 	(NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
 	(NVRAM->buffer[0x1FF2] & 0x80) == 0) {
-	/* Repeat once a month */
-	get_time(NVRAM, &tm_now);
-	memcpy(&tm, &tm_now, sizeof(struct tm));
-	tm.tm_mon++;
-	if (tm.tm_mon == 13) {
-	    tm.tm_mon = 1;
-	    tm.tm_year++;
-	}
-	next_time = mktime(&tm);
+        /* Repeat once a month */
+        qemu_get_timedate(&tm, NVRAM->time_offset);
+        tm.tm_mon++;
+        if (tm.tm_mon == 13) {
+            tm.tm_mon = 1;
+            tm.tm_year++;
+        }
+        next_time = qemu_timedate_diff(&tm) - NVRAM->time_offset;
     } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF4] & 0x80) == 0 &&
 	       (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
 	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
-	/* Repeat once a day */
-	next_time = 24 * 60 * 60 + mktime(&tm_now);
+        /* Repeat once a day */
+        next_time = 24 * 60 * 60;
     } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF4] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
 	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
-	/* Repeat once an hour */
-	next_time = 60 * 60 + mktime(&tm_now);
+        /* Repeat once an hour */
+        next_time = 60 * 60;
     } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF4] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF3] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
-	/* Repeat once a minute */
-	next_time = 60 + mktime(&tm_now);
+        /* Repeat once a minute */
+        next_time = 60;
     } else {
-	/* Repeat once a second */
-	next_time = 1 + mktime(&tm_now);
+        /* Repeat once a second */
+        next_time = 1;
     }
-    qemu_mod_timer(NVRAM->alrm_timer, next_time * 1000);
+    qemu_mod_timer(NVRAM->alrm_timer, qemu_get_clock(vm_clock) +
+                    next_time * 1000);
     qemu_set_irq(NVRAM->IRQ, 0);
 }
 
-
-static void get_alarm (m48t59_t *NVRAM, struct tm *tm)
+static void set_alarm (m48t59_t *NVRAM)
 {
-    qemu_time_r(&NVRAM->alarm, tm);
-}
-
-static void set_alarm (m48t59_t *NVRAM, struct tm *tm)
-{
-    NVRAM->alarm = mktime(tm);
+    int diff;
     if (NVRAM->alrm_timer != NULL) {
         qemu_del_timer(NVRAM->alrm_timer);
-        if (NVRAM->alarm - time(NULL) > 0)
-            qemu_mod_timer(NVRAM->alrm_timer, NVRAM->alarm * 1000);
+        diff = qemu_timedate_diff(&NVRAM->alarm) - NVRAM->time_offset;
+        if (diff > 0)
+            qemu_mod_timer(NVRAM->alrm_timer, diff * 1000);
     }
+}
+
+/* RTC management helpers */
+static inline void get_time (m48t59_t *NVRAM, struct tm *tm)
+{
+    qemu_get_timedate(tm, NVRAM->time_offset);
+}
+
+static void set_time (m48t59_t *NVRAM, struct tm *tm)
+{
+    NVRAM->time_offset = qemu_timedate_diff(tm);
+    set_alarm(NVRAM);
 }
 
 /* Watchdog management */
@@ -215,40 +204,36 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
         /* alarm seconds */
         tmp = fromBCD(val & 0x7F);
         if (tmp >= 0 && tmp <= 59) {
-            get_alarm(NVRAM, &tm);
-            tm.tm_sec = tmp;
+            NVRAM->alarm.tm_sec = tmp;
             NVRAM->buffer[0x1FF2] = val;
-            set_alarm(NVRAM, &tm);
+            set_alarm(NVRAM);
         }
         break;
     case 0x1FF3:
         /* alarm minutes */
         tmp = fromBCD(val & 0x7F);
         if (tmp >= 0 && tmp <= 59) {
-            get_alarm(NVRAM, &tm);
-            tm.tm_min = tmp;
+            NVRAM->alarm.tm_min = tmp;
             NVRAM->buffer[0x1FF3] = val;
-            set_alarm(NVRAM, &tm);
+            set_alarm(NVRAM);
         }
         break;
     case 0x1FF4:
         /* alarm hours */
         tmp = fromBCD(val & 0x3F);
         if (tmp >= 0 && tmp <= 23) {
-            get_alarm(NVRAM, &tm);
-            tm.tm_hour = tmp;
+            NVRAM->alarm.tm_hour = tmp;
             NVRAM->buffer[0x1FF4] = val;
-            set_alarm(NVRAM, &tm);
+            set_alarm(NVRAM);
         }
         break;
     case 0x1FF5:
         /* alarm date */
         tmp = fromBCD(val & 0x1F);
         if (tmp != 0) {
-            get_alarm(NVRAM, &tm);
-            tm.tm_mday = tmp;
+            NVRAM->alarm.tm_mday = tmp;
             NVRAM->buffer[0x1FF5] = val;
-            set_alarm(NVRAM, &tm);
+            set_alarm(NVRAM);
         }
         break;
     case 0x1FF6:
@@ -274,7 +259,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 	    tm.tm_sec = tmp;
 	    set_time(NVRAM, &tm);
 	}
-       if ((val & 0x80) ^ (NVRAM->buffer[addr] & 0x80)) {
+        if ((val & 0x80) ^ (NVRAM->buffer[addr] & 0x80)) {
 	    if (val & 0x80) {
 		NVRAM->stop_time = time(NULL);
 	    } else {
@@ -282,7 +267,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
 		NVRAM->stop_time = 0;
 	    }
 	}
-       NVRAM->buffer[addr] = val & 0x80;
+        NVRAM->buffer[addr] = val & 0x80;
         break;
     case 0x1FFA:
     case 0x07FA:
@@ -668,6 +653,7 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
         s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
     }
     s->lock = 0;
+    qemu_get_timedate(&s->alarm, 0);
 
     qemu_register_reset(m48t59_reset, s);
     save_base = mem_base ? mem_base : io_base;

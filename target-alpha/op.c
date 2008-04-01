@@ -216,11 +216,6 @@ void OPPROTO op_clear_irf (void)
     RETURN();
 }
 
-void OPPROTO op_exit_tb (void)
-{
-    EXIT_TB();
-}
-
 /* Arithmetic */
 void OPPROTO op_addq (void)
 {

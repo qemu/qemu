@@ -649,7 +649,7 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
         }
 #endif
         end = addr | mask;
-        while (addr < end) {
+        while (addr - 1 < end) {
             // optimize memset in tlb_flush_page!!!
             tlb_flush_page (env, addr);
             addr += TARGET_PAGE_SIZE;

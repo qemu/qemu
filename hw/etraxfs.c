@@ -25,9 +25,8 @@
 #include <sys/time.h>
 #include "hw.h"
 #include "sysemu.h"
+#include "flash.h"
 #include "boards.h"
-
-extern FILE *logfile;
 
 static void main_cpu_reset(void *opaque)
 {
@@ -35,78 +34,11 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(env);
 }
 
-static uint32_t fs_mmio_readb (void *opaque, target_phys_addr_t addr)
-{
-	CPUState *env = opaque;
-	uint32_t r = 0;
-	printf ("%s %x pc=%x\n", __func__, addr, env->pc);
-	return r;
-}
-static uint32_t fs_mmio_readw (void *opaque, target_phys_addr_t addr)
-{
-	CPUState *env = opaque;
-	uint32_t r = 0;
-	printf ("%s %x pc=%x\n", __func__, addr, env->pc);
-	return r;
-}
-
-static uint32_t fs_mmio_readl (void *opaque, target_phys_addr_t addr)
-{
-	CPUState *env = opaque;
-	uint32_t r = 0;
-	printf ("%s %x p=%x\n", __func__, addr, env->pc);
-	return r;
-}
-
-static void
-fs_mmio_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
-}
-static void
-fs_mmio_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
-}
-static void
-fs_mmio_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-	CPUState *env = opaque;
-	printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc);
-}
-
-static CPUReadMemoryFunc *fs_mmio_read[] = {
-    &fs_mmio_readb,
-    &fs_mmio_readw,
-    &fs_mmio_readl,
-};
-
-static CPUWriteMemoryFunc *fs_mmio_write[] = {
-    &fs_mmio_writeb,
-    &fs_mmio_writew,
-    &fs_mmio_writel,
-};
-
-
 /* Init functions for different blocks.  */
-extern void etraxfs_timer_init(CPUState *env, qemu_irq *irqs);
-extern void etraxfs_ser_init(CPUState *env, qemu_irq *irqs);
-
-void etrax_ack_irq(CPUState *env, uint32_t mask)
-{
-	env->pending_interrupts &= ~mask;
-}
-
-static void dummy_cpu_set_irq(void *opaque, int irq, int level)
-{
-	CPUState *env = opaque;
-
-	/* Hmm, should this really be done here?  */
-	env->pending_interrupts |= 1 << irq;
-	cpu_interrupt(env, CPU_INTERRUPT_HARD);
-}
+extern qemu_irq *etraxfs_pic_init(CPUState *env, target_phys_addr_t base);
+void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, 
+			target_phys_addr_t base);
+void etraxfs_ser_init(CPUState *env, qemu_irq *irqs, target_phys_addr_t base);
 
 static
 void bareetraxfs_init (int ram_size, int vga_ram_size,
@@ -115,9 +47,12 @@ void bareetraxfs_init (int ram_size, int vga_ram_size,
                        const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    qemu_irq *irqs;
+    qemu_irq *pic;
     int kernel_size;
-    int internal_regs;
+    int flash_size = 0x800000;
+    int index;
+    ram_addr_t phys_flash;
+    ram_addr_t phys_ram;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -126,17 +61,37 @@ void bareetraxfs_init (int ram_size, int vga_ram_size,
     env = cpu_init(cpu_model);
 /*    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env); */
     qemu_register_reset(main_cpu_reset, env);
-    irqs = qemu_allocate_irqs(dummy_cpu_set_irq, env, 32);
 
-    internal_regs = cpu_register_io_memory(0,
-					   fs_mmio_read, fs_mmio_write, env);
-    /* 0xb0050000 is the last reg.  */
-    cpu_register_physical_memory (0xac000000, 0x4010000, internal_regs);
     /* allocate RAM */
-    cpu_register_physical_memory(0x40000000, ram_size, IO_MEM_RAM);
+    phys_ram = qemu_ram_alloc(ram_size);
+    cpu_register_physical_memory(0x40000000, ram_size, phys_ram | IO_MEM_RAM);
+    /* Unached mapping.  */
+    cpu_register_physical_memory(0xc0000000, ram_size, phys_ram | IO_MEM_RAM);
 
-    etraxfs_timer_init(env, irqs);
-    etraxfs_ser_init(env, irqs);
+    phys_flash = qemu_ram_alloc(flash_size);
+    cpu_register_physical_memory(0,flash_size, IO_MEM_ROM);
+    cpu_register_physical_memory(0x80000000, flash_size, IO_MEM_ROM);
+    cpu_register_physical_memory(0x04000000, flash_size, IO_MEM_ROM);
+    cpu_register_physical_memory(0x84000000, flash_size, 
+				 0x04000000 | IO_MEM_ROM);
+    index = drive_get_index(IF_PFLASH, 0, 0);
+    pflash_cfi01_register(0x80000000, flash_size,
+			  drives_table[index].bdrv, 65536, flash_size >> 16,
+			  4, 0x0000, 0x0000, 0x0000, 0x0000);
+    index = drive_get_index(IF_PFLASH, 0, 1);
+    pflash_cfi01_register(0x84000000, flash_size,
+			  drives_table[index].bdrv, 65536, flash_size >> 16,
+			  4, 0x0000, 0x0000, 0x0000, 0x0000);
+
+    pic = etraxfs_pic_init(env, 0xb001c000);
+    /* 2 timers.  */
+    etraxfs_timer_init(env, pic, 0xb001e000);
+    etraxfs_timer_init(env, pic, 0xb005e000);
+    /* 4 serial ports.  */
+    etraxfs_ser_init(env, pic, 0xb0026000);
+    etraxfs_ser_init(env, pic, 0xb0028000);
+    etraxfs_ser_init(env, pic, 0xb002a000);
+    etraxfs_ser_init(env, pic, 0xb002c000);
 
     kernel_size = load_image(kernel_filename, phys_ram_base + 0x4000);
     /* magic for boot.  */
@@ -162,14 +117,6 @@ void bareetraxfs_init (int ram_size, int vga_ram_size,
 }
 
 void DMA_run(void)
-{
-}
-
-void pic_info()
-{
-}
-
-void irq_info()
 {
 }
 

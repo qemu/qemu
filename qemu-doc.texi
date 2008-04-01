@@ -363,17 +363,6 @@ Set the initial date of the real time clock. Valid format for
 @var{date} are: @code{now} or @code{2006-06-17T16:01:21} or
 @code{2006-06-17}. The default value is @code{now}.
 
-@item -translation @var{setting1[,...]}
-Select dynamic translation options @var{setting}, @code{-translation ?}
-shows a list of settings. Valid settings are:
-
-@table @code
-@item @var{no-cache}
-This option disables caching of translated code. Is useful for low-level
-debugging of the emulated environment. This option incurs a massive
-slow-down in emulation speed.
-@end table
-
 @item -pidfile @var{file}
 Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
@@ -411,6 +400,12 @@ command line application. The emulated serial port is redirected on
 the console. Therefore, you can still use QEMU to debug a Linux kernel
 with a serial console.
 
+@item -curses
+
+Normally, QEMU uses SDL to display the VGA output.  With this option,
+QEMU can display the VGA output when in text mode using a 
+curses/ncurses interface.  Nothing is displayed in graphical mode.
+
 @item -no-frame
 
 Do not use decorations for SDL windows and start them using the whole
@@ -432,21 +427,21 @@ syntax for the @var{display} is
 
 @table @code
 
-@item @var{interface}:@var{d}
+@item @var{host}:@var{d}
 
-TCP connections will only be allowed from @var{interface} on display @var{d}.
-By convention the TCP port is 5900+@var{d}. Optionally, @var{interface} can
-be omitted in which case the server will bind to all interfaces.
+TCP connections will only be allowed from @var{host} on display @var{d}.
+By convention the TCP port is 5900+@var{d}. Optionally, @var{host} can
+be omitted in which case the server will accept connections from any host.
 
-@item @var{unix}:@var{path}
+@item @code{unix}:@var{path}
 
 Connections will be allowed over UNIX domain sockets where @var{path} is the
 location of a unix socket to listen for connections on.
 
 @item none
 
-VNC is initialized by not started. The monitor @code{change} command can be used
-to later start the VNC server.
+VNC is initialized but not started. The monitor @code{change} command
+can be used to later start the VNC server.
 
 @end table
 
@@ -454,6 +449,13 @@ Following the @var{display} value there may be one or more @var{option} flags
 separated by commas. Valid options are
 
 @table @code
+
+@item reverse
+
+Connect to a listening VNC client via a ``reverse'' connection. The
+client is specified by the @var{display}. For reverse network
+connections (@var{host}:@var{d},@code{reverse}), the @var{d} argument
+is a TCP port number, not a display number.
 
 @item password
 
@@ -560,7 +562,7 @@ Qemu can emulate several different models of network card.
 Valid values for @var{type} are
 @code{i82551}, @code{i82557b}, @code{i82559er},
 @code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
-@code{smc91c111}, @code{lance} and @code{mcf_fec}.
+@code{e1000}, @code{smc91c111}, @code{lance} and @code{mcf_fec}.
 Not all devices are supported on all targets.  Use -net nic,model=?
 for a list of available devices for your target.
 
@@ -1071,7 +1073,7 @@ Change the configuration of a device.
 Change the medium for a removable disk device to point to @var{filename}. eg
 
 @example
-(qemu) change cdrom /path/to/some.iso
+(qemu) change ide1-cd0 /path/to/some.iso
 @end example
 
 @item change vnc @var{display},@var{options}

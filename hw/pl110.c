@@ -426,7 +426,7 @@ void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq,
     s->versatile = versatile;
     s->irq = irq;
     graphic_console_init(ds, pl110_update_display, pl110_invalidate_display,
-                         NULL, s);
+                         NULL, NULL, s);
     /* ??? Save/restore.  */
     return s;
 }

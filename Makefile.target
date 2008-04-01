@@ -194,8 +194,17 @@ all: $(PROGS)
 
 #########################################################
 # cpu emulator library
-LIBOBJS=exec.o kqemu.o translate-op.o translate-all.o cpu-exec.o\
-        translate.o op.o host-utils.o
+LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
+        translate.o host-utils.o
+ifndef CONFIG_NO_DYNGEN_OP
+LIBOBJS+=op.o
+endif
+# TCG code generator
+LIBOBJS+= tcg/tcg.o tcg/tcg-dyngen.o tcg/tcg-runtime.o
+CPPFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
+ifeq ($(ARCH),sparc64)
+CPPFLAGS+=-I$(SRC_PATH)/tcg/sparc
+endif
 ifdef CONFIG_SOFTFLOAT
 LIBOBJS+=fpu/softfloat.o
 else
@@ -289,20 +298,28 @@ endif
 
 # libqemu
 
+ifndef CONFIG_NO_DYNGEN_OP
+OPC_H = gen-op.h dyngen-opc.h op.h
+endif
+
 libqemu.a: $(LIBOBJS)
 	rm -f $@
 	$(AR) rcs $@ $(LIBOBJS)
 
-translate.o: translate.c gen-op.h opc.h cpu.h
+translate.o: translate.c cpu.h $(OPC_H)
 
-translate-all.o: translate-all.c opc.h cpu.h
+translate-all.o: translate-all.c cpu.h $(OPC_H)
 
-translate-op.o: translate-all.c op.h opc.h cpu.h
+tcg/tcg.o: cpu.h $(OPC_H)
+
+tcg/tcg-dyngen.o: $(OPC_H)
+
+tcg/tcg-runtime.o: $(OPC_H)
 
 op.h: op.o $(DYNGEN)
 	$(DYNGEN) -o $@ $<
 
-opc.h: op.o $(DYNGEN)
+dyngen-opc.h: op.o $(DYNGEN)
 	$(DYNGEN) -c -o $@ $<
 
 gen-op.h: op.o $(DYNGEN)
@@ -527,7 +544,7 @@ LIBS += $(CONFIG_VNC_TLS_LIBS)
 endif
 
 # SCSI layer
-OBJS+= lsi53c895a.o
+OBJS+= lsi53c895a.o esp.o
 
 # USB layer
 OBJS+= usb-ohci.o
@@ -543,6 +560,7 @@ OBJS += eepro100.o
 OBJS += ne2000.o
 OBJS += pcnet.o
 OBJS += rtl8139.o
+OBJS += e1000.o
 OBJS += atheros_wlan.o atheros_wlan_io.o atheros_wlan_ap.o
 OBJS += atheros_wlan_packet.o atheros_wlan_crc32.o
 OBJS += tnetw1130.o
@@ -595,9 +613,12 @@ endif
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)
 OBJS+= etraxfs.o
-OBJS+= ptimer.o
+OBJS+= etraxfs_pic.o
 OBJS+= etraxfs_timer.o
 OBJS+= etraxfs_ser.o
+
+OBJS+= ptimer.o
+OBJS+= pflash_cfi01.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)
@@ -606,7 +627,7 @@ OBJS+= fdc.o mc146818rtc.o serial.o m48t59.o
 OBJS+= cirrus_vga.o parallel.o ptimer.o
 else
 OBJS+= sun4m.o tcx.o pcnet.o iommu.o m48t59.o slavio_intctl.o
-OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o esp.o sparc32_dma.o
+OBJS+= slavio_timer.o slavio_serial.o slavio_misc.o fdc.o sparc32_dma.o
 OBJS+= cs4231.o ptimer.o eccmemctl.o sbi.o sun4c_intctl.o
 endif
 endif
@@ -622,7 +643,7 @@ OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 OBJS+= pflash_cfi01.o gumstix.o
 OBJS+= spitz.o ide.o serial.o nand.o ecc.o
-OBJS+= omap.o omap_lcdc.o omap1_clk.o omap_mmc.o omap_i2c.o
+OBJS+= omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 OBJS+= palm.o tsc210x.o
 OBJS+= mst_fpga.o mainstone.o
 CPPFLAGS += -DHAS_AUDIO
@@ -687,7 +708,7 @@ main.o: CFLAGS+=-p
 endif
 
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS)
 
 endif # !CONFIG_USER_ONLY
 
@@ -698,8 +719,8 @@ endif # !CONFIG_USER_ONLY
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *.o *.a *~ $(PROGS) gen-op.h opc.h op.h nwfpe/*.o fpu/*.o
-	rm -f *.d */*.d
+	rm -f *.o *.a *~ $(PROGS) gen-op.h dyngen-opc.h op.h nwfpe/*.o fpu/*.o
+	rm -f *.d */*.d tcg/*.o
 
 install: all
 ifneq ($(PROGS),)

@@ -1008,6 +1008,7 @@ void helper_syscall(int next_eip_addend)
                                DESC_S_MASK |
                                DESC_W_MASK | DESC_A_MASK);
         env->eflags &= ~env->fmask;
+        load_eflags(env->eflags, 0);
         if (code64)
             env->eip = env->lstar;
         else
@@ -1608,13 +1609,13 @@ int32_t idiv32(int64_t *q_ptr, int64_t num, int32_t den)
 }
 #endif
 
-void helper_divl_EAX_T0(void)
+void helper_divl_EAX_T0(target_ulong t0)
 {
     unsigned int den, r;
     uint64_t num, q;
 
     num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
-    den = T0;
+    den = t0;
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
@@ -1630,13 +1631,13 @@ void helper_divl_EAX_T0(void)
     EDX = (uint32_t)r;
 }
 
-void helper_idivl_EAX_T0(void)
+void helper_idivl_EAX_T0(target_ulong t0)
 {
     int den, r;
     int64_t num, q;
 
     num = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
-    den = T0;
+    den = t0;
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
@@ -1670,7 +1671,7 @@ void helper_cmpxchg8b(void)
     CC_SRC = eflags;
 }
 
-void helper_single_step()
+void helper_single_step(void)
 {
     env->dr[6] |= 0x4000;
     raise_exception(EXCP01_SSTP);
@@ -2718,6 +2719,7 @@ void helper_movl_crN_T0(int reg)
         break;
     case 8:
         cpu_set_apic_tpr(env, T0);
+        env->cr[8] = T0;
         break;
     default:
         env->cr[reg] = T0;
@@ -4065,6 +4067,7 @@ void helper_vmrun(target_ulong addr)
     int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     if (int_ctl & V_INTR_MASKING_MASK) {
         env->cr[8] = int_ctl & V_TPR_MASK;
+        cpu_set_apic_tpr(env, env->cr[8]);
         if (env->eflags & IF_MASK)
             env->hflags |= HF_HIF_MASK;
     }
@@ -4124,7 +4127,7 @@ void helper_vmrun(target_ulong addr)
         case SVM_EVTINJ_TYPE_INTR:
                 env->exception_index = vector;
                 env->error_code = event_inj_err;
-                env->exception_is_int = 1;
+                env->exception_is_int = 0;
                 env->exception_next_eip = -1;
                 if (loglevel & CPU_LOG_TB_IN_ASM)
                     fprintf(logfile, "INTR");
@@ -4132,7 +4135,7 @@ void helper_vmrun(target_ulong addr)
         case SVM_EVTINJ_TYPE_NMI:
                 env->exception_index = vector;
                 env->error_code = event_inj_err;
-                env->exception_is_int = 1;
+                env->exception_is_int = 0;
                 env->exception_next_eip = EIP;
                 if (loglevel & CPU_LOG_TB_IN_ASM)
                     fprintf(logfile, "NMI");
@@ -4376,8 +4379,10 @@ void vmexit(uint64_t exit_code, uint64_t exit_info_1)
     cpu_x86_update_cr0(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr0)) | CR0_PE_MASK);
     cpu_x86_update_cr4(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr4)));
     cpu_x86_update_cr3(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr3)));
-    if (int_ctl & V_INTR_MASKING_MASK)
+    if (int_ctl & V_INTR_MASKING_MASK) {
         env->cr[8] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr8));
+        cpu_set_apic_tpr(env, env->cr[8]);
+    }
     /* we need to set the efer after the crs so the hidden flags get set properly */
 #ifdef TARGET_X86_64
     env->efer  = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.efer));

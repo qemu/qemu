@@ -142,7 +142,7 @@ typedef struct mips_def_t mips_def_t;
 typedef struct CPUMIPSState CPUMIPSState;
 struct CPUMIPSState {
     /* General integer registers */
-    target_ulong gpr[32][MIPS_SHADOW_SET_MAX];
+    target_ulong gpr[MIPS_SHADOW_SET_MAX][32];
     /* Special registers */
     target_ulong PC[MIPS_TC_MAX];
 #if TARGET_LONG_BITS > HOST_LONG_BITS
@@ -150,9 +150,9 @@ struct CPUMIPSState {
     target_ulong t1;
     target_ulong t2;
 #endif
-    target_ulong HI[MIPS_DSP_ACC][MIPS_TC_MAX];
-    target_ulong LO[MIPS_DSP_ACC][MIPS_TC_MAX];
-    target_ulong ACX[MIPS_DSP_ACC][MIPS_TC_MAX];
+    target_ulong HI[MIPS_TC_MAX][MIPS_DSP_ACC];
+    target_ulong LO[MIPS_TC_MAX][MIPS_DSP_ACC];
+    target_ulong ACX[MIPS_TC_MAX][MIPS_DSP_ACC];
     target_ulong DSPControl[MIPS_TC_MAX];
 
     CPUMIPSMVPContext *mvp;

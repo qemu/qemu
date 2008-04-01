@@ -280,7 +280,7 @@ void *ssd0323_init(DisplayState *ds, qemu_irq *cmd_p)
     s = (ssd0323_state *)qemu_mallocz(sizeof(ssd0323_state));
     s->ds = ds;
     graphic_console_init(ds, ssd0323_update_display, ssd0323_invalidate_display,
-                         NULL, s);
+                         NULL, NULL, s);
     dpy_resize(s->ds, 128 * MAGNIFY, 64 * MAGNIFY);
     s->col_end = 63;
     s->row_end = 79;

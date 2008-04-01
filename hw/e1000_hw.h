@@ -514,9 +514,9 @@
 #define E1000_EEPROM_SWDPIN0   0x0001   /* SWDPIN 0 EEPROM Value */
 #define E1000_EEPROM_LED_LOGIC 0x0020   /* Led Logic Word */
 #define E1000_EEPROM_RW_REG_DATA   16   /* Offset to data in EEPROM read/write registers */
-#define E1000_EEPROM_RW_REG_DONE   2    /* Offset to READ/WRITE done bit */
+#define E1000_EEPROM_RW_REG_DONE   0x10 /* Offset to READ/WRITE done bit */
 #define E1000_EEPROM_RW_REG_START  1    /* First bit for telling part to start operation */
-#define E1000_EEPROM_RW_ADDR_SHIFT 2    /* Shift to the address bits */
+#define E1000_EEPROM_RW_ADDR_SHIFT 8    /* Shift to the address bits */
 #define E1000_EEPROM_POLL_WRITE    1    /* Flag for polling for write complete */
 #define E1000_EEPROM_POLL_READ     0    /* Flag for polling for read complete */
 /* Register Bit Masks */

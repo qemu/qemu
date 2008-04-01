@@ -9,8 +9,8 @@
  * This code is licenced under the LGPL.
  *
  * Note that this file only handles the SCSI architecture model and device
- * commands.  Emultion of interface/link layer protocols is handled by
- * the host adapter emulation.
+ * commands.  Emulation of interface/link layer protocols is handled by
+ * the host adapter emulator.
  */
 
 //#define DEBUG_SCSI
@@ -362,8 +362,129 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         break;
     case 0x12:
         DPRINTF("Inquiry (len %d)\n", len);
-        if (len < 36) {
-            BADF("Inquiry buffer too small (%d)\n", len);
+        if (buf[1] & 0x2) {
+            /* Command support data - optional, not implemented */
+            BADF("optional INQUIRY command support request not implemented\n");
+            goto fail;
+        }
+        else if (buf[1] & 0x1) {
+            /* Vital product data */
+            uint8_t page_code = buf[2];
+            if (len < 4) {
+                BADF("Error: Inquiry (EVPD[%02X]) buffer size %d is "
+                     "less than 4\n", page_code, len);
+                goto fail;
+            }
+
+            switch (page_code) {
+                case 0x00:
+                    {
+                        /* Supported page codes, mandatory */
+                        DPRINTF("Inquiry EVPD[Supported pages] "
+                                "buffer size %d\n", len);
+
+                        r->buf_len = 0;
+
+                        if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
+                            outbuf[r->buf_len++] = 5;
+                        } else {
+                            outbuf[r->buf_len++] = 0;
+                        }
+
+                        outbuf[r->buf_len++] = 0x00; // this page
+                        outbuf[r->buf_len++] = 0x00;
+                        outbuf[r->buf_len++] = 3;    // number of pages
+                        outbuf[r->buf_len++] = 0x00; // list of supported pages (this page)
+                        outbuf[r->buf_len++] = 0x80; // unit serial number
+                        outbuf[r->buf_len++] = 0x83; // device identification
+                    }
+                    break;
+                case 0x80:
+                    {
+                        /* Device serial number, optional */
+                        if (len < 4) {
+                            BADF("Error: EVPD[Serial number] Inquiry buffer "
+                                 "size %d too small, %d needed\n", len, 4);
+                            goto fail;
+                        }
+
+                        DPRINTF("Inquiry EVPD[Serial number] buffer size %d\n", len);
+
+                        r->buf_len = 0;
+
+                        /* Supported page codes */
+                        if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
+                            outbuf[r->buf_len++] = 5;
+                        } else {
+                            outbuf[r->buf_len++] = 0;
+                        }
+
+                        outbuf[r->buf_len++] = 0x80; // this page
+                        outbuf[r->buf_len++] = 0x00;
+                        outbuf[r->buf_len++] = 0x01; // 1 byte data follow
+
+                        outbuf[r->buf_len++] = '0';  // 1 byte data follow 
+                    }
+
+                    break;
+                case 0x83:
+                    {
+                        /* Device identification page, mandatory */
+                        int max_len = 255 - 8;
+                        int id_len = strlen(bdrv_get_device_name(s->bdrv));
+                        if (id_len > max_len)
+                            id_len = max_len;
+
+                        DPRINTF("Inquiry EVPD[Device identification] "
+                                "buffer size %d\n", len);
+                        r->buf_len = 0;
+                        if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
+                            outbuf[r->buf_len++] = 5;
+                        } else {
+                            outbuf[r->buf_len++] = 0;
+                        }
+
+                        outbuf[r->buf_len++] = 0x83; // this page
+                        outbuf[r->buf_len++] = 0x00;
+                        outbuf[r->buf_len++] = 3 + id_len;
+
+                        outbuf[r->buf_len++] = 0x2; // ASCII
+                        outbuf[r->buf_len++] = 0;   // not officially assigned
+                        outbuf[r->buf_len++] = 0;   // reserved
+                        outbuf[r->buf_len++] = id_len; // length of data following
+
+                        memcpy(&outbuf[r->buf_len],
+                               bdrv_get_device_name(s->bdrv), id_len);
+                        r->buf_len += id_len;
+                    }
+                    break;
+                default:
+                    BADF("Error: unsupported Inquiry (EVPD[%02X]) "
+                         "buffer size %d\n", page_code, len);
+                    goto fail;
+            }
+            /* done with EVPD */
+            break;
+        }
+        else {
+            /* Standard INQUIRY data */
+            if (buf[2] != 0) {
+                BADF("Error: Inquiry (STANDARD) page or code "
+                     "is non-zero [%02X]\n", buf[2]);
+                goto fail;
+            }
+
+            /* PAGE CODE == 0 */
+            if (len < 5) {
+                BADF("Error: Inquiry (STANDARD) buffer size %d "
+                     "is less than 5\n", len);
+                goto fail;
+            }
+
+            if (len < 36) {
+                BADF("Error: Inquiry (STANDARD) buffer size %d "
+                     "is less than 36 (TODO: only 5 required)\n", len);
+            }
         }
 	memset(outbuf, 0, 36);
 	if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {

@@ -49,6 +49,7 @@ typedef struct PIIX4PMState {
     uint8_t smb_data1;
     uint8_t smb_data[32];
     uint8_t smb_index;
+    qemu_irq irq;
 } PIIX4PMState;
 
 #define RTC_EN (1 << 10)
@@ -70,6 +71,8 @@ typedef struct PIIX4PMState {
 #define SMBHSTDAT0 0x05
 #define SMBHSTDAT1 0x06
 #define SMBBLKDAT 0x07
+
+PIIX4PMState *pm_state;
 
 static uint32_t get_pmtmr(PIIX4PMState *s)
 {
@@ -97,11 +100,12 @@ static void pm_update_sci(PIIX4PMState *s)
     pmsts = get_pmsts(s);
     sci_level = (((pmsts & s->pmen) &
                   (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN)) != 0);
-    qemu_set_irq(s->dev.irq[0], sci_level);
+    qemu_set_irq(s->irq, sci_level);
     /* schedule a timer interruption if needed */
     if ((s->pmen & TMROF_EN) && !(pmsts & TMROF_EN)) {
         expire_time = muldiv64(s->tmr_overflow_time, ticks_per_sec, PM_FREQ);
         qemu_mod_timer(s->tmr_timer, expire_time);
+        s->tmr_overflow_time += 0x800000;
     } else {
         qemu_del_timer(s->tmr_timer);
     }
@@ -467,7 +471,8 @@ static int pm_load(QEMUFile* f,void* opaque,int version_id)
     return 0;
 }
 
-i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
+i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
+                       qemu_irq sci_irq)
 {
     PIIX4PMState *s;
     uint8_t *pci_conf;
@@ -475,6 +480,7 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
     s = (PIIX4PMState *)pci_register_device(bus,
                                          "PM", sizeof(PIIX4PMState),
                                          devfn, NULL, pm_write_config);
+    pm_state = s;
     pci_conf = s->dev.config;
     pci_conf[0x00] = 0x86;
     pci_conf[0x01] = 0x80;
@@ -514,5 +520,16 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
     register_savevm("piix4_pm", 0, 1, pm_save, pm_load, s);
 
     s->smbus = i2c_init_bus();
+    s->irq = sci_irq;
     return s->smbus;
 }
+
+#if defined(TARGET_I386)
+void qemu_system_powerdown(void)
+{
+    if(pm_state->pmen & PWRBTN_EN) {
+        pm_state->pmsts |= PWRBTN_EN;
+	pm_update_sci(pm_state);
+    }
+}
+#endif

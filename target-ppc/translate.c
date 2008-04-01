@@ -26,6 +26,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "tcg-op.h"
 
 /* Include definitions for instructions classes and implementations flags */
 //#define DO_SINGLE_STEP
@@ -36,27 +37,11 @@
 
 /*****************************************************************************/
 /* Code translation helpers                                                  */
-#if defined(USE_DIRECT_JUMP)
-#define TBPARAM(x)
-#else
-#define TBPARAM(x) (long)(x)
-#endif
 
-enum {
-#define DEF(s, n, copy_size) INDEX_op_ ## s,
-#include "opc.h"
-#undef DEF
-    NB_OPS,
-};
-
-static uint16_t *gen_opc_ptr;
-static uint32_t *gen_opparam_ptr;
 #if defined(OPTIMIZE_FPRF_UPDATE)
 static uint16_t *gen_fprf_buf[OPC_BUF_SIZE];
 static uint16_t **gen_fprf_ptr;
 #endif
-
-#include "gen-op.h"
 
 static always_inline void gen_set_T0 (target_ulong val)
 {
@@ -2798,11 +2783,9 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
 {
     TranslationBlock *tb;
     tb = ctx->tb;
-    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
-        if (n == 0)
-            gen_op_goto_tb0(TBPARAM(tb));
-        else
-            gen_op_goto_tb1(TBPARAM(tb));
+    if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
+        !ctx->singlestep_enabled) {
+        tcg_gen_goto_tb(n);
         gen_set_T1(dest);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
@@ -2810,10 +2793,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
         else
 #endif
             gen_op_b_T1();
-        gen_op_set_T0((long)tb + n);
-        if (ctx->singlestep_enabled)
-            gen_op_debug();
-        gen_op_exit_tb();
+        tcg_gen_exit_tb((long)tb + n);
     } else {
         gen_set_T1(dest);
 #if defined(TARGET_PPC64)
@@ -2822,10 +2802,9 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
         else
 #endif
             gen_op_b_T1();
-        gen_op_reset_T0();
         if (ctx->singlestep_enabled)
             gen_op_debug();
-        gen_op_exit_tb();
+        tcg_gen_exit_tb(0);
     }
 }
 
@@ -2934,7 +2913,6 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
                 else
 #endif
                     gen_op_b_T1();
-                gen_op_reset_T0();
                 goto no_test;
             }
             break;
@@ -3005,11 +2983,10 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
         else
 #endif
             gen_op_btest_T1(ctx->nip);
-        gen_op_reset_T0();
     no_test:
         if (ctx->singlestep_enabled)
             gen_op_debug();
-        gen_op_exit_tb();
+        tcg_gen_exit_tb(0);
     }
  out:
     ctx->exception = POWERPC_EXCP_BRANCH;
@@ -6176,13 +6153,10 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     int j, lj = -1;
 
     pc_start = tb->pc;
-    gen_opc_ptr = gen_opc_buf;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-    gen_opparam_ptr = gen_opparam_buf;
 #if defined(OPTIMIZE_FPRF_UPDATE)
     gen_fprf_ptr = gen_fprf_buf;
 #endif
-    nb_gen_labels = 0;
     ctx.nip = pc_start;
     ctx.tb = tb;
     ctx.exception = POWERPC_EXCP_NONE;
@@ -6332,9 +6306,8 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     if (ctx.exception == POWERPC_EXCP_NONE) {
         gen_goto_tb(&ctx, 0, ctx.nip);
     } else if (ctx.exception != POWERPC_EXCP_BRANCH) {
-        gen_op_reset_T0();
         /* Generate the return instruction */
-        gen_op_exit_tb();
+        tcg_gen_exit_tb(0);
     }
     *gen_opc_ptr = INDEX_op_end;
     if (unlikely(search_pc)) {
@@ -6356,11 +6329,6 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         flags |= little_endian << 16;
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, ctx.nip - pc_start, flags);
-        fprintf(logfile, "\n");
-    }
-    if (loglevel & CPU_LOG_TB_OP) {
-        fprintf(logfile, "OP:\n");
-        dump_ops(gen_opc_buf, gen_opparam_buf);
         fprintf(logfile, "\n");
     }
 #endif

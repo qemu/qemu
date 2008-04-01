@@ -45,13 +45,7 @@ void OPPROTO op_movl_imm_T0(void)
 
 void OPPROTO op_movl_imm_T1(void)
 {
-    T0 = (uint32_t) PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_movl_imm_T2(void)
-{
-    T0 = (uint32_t) PARAM1;
+    T1 = (uint32_t) PARAM1;
     RETURN();
 }
 
@@ -161,12 +155,6 @@ void OPPROTO op_rts(void)
     RETURN();
 }
 
-void OPPROTO op_exit_tb(void)
-{
-    EXIT_TB();
-    RETURN();
-}
-
 void OPPROTO op_addl_imm_T0(void)
 {
     T0 += PARAM1;
@@ -243,6 +231,12 @@ void OPPROTO op_swapw_T0(void)
 void OPPROTO op_xtrct_T0_T1(void)
 {
     T1 = ((T0 & 0xffff) << 16) | ((T1 >> 16) & 0xffff);
+    RETURN();
+}
+
+void OPPROTO op_add_T0_T1(void)
+{
+    T1 += T0;
     RETURN();
 }
 
@@ -361,13 +355,13 @@ void OPPROTO op_mull_T0_T1(void)
 
 void OPPROTO op_mulsw_T0_T1(void)
 {
-    env->macl = (int32_t) T0 *(int32_t) T1;
+    env->macl = (int32_t)(int16_t) T0 *(int32_t)(int16_t) T1;
     RETURN();
 }
 
 void OPPROTO op_muluw_T0_T1(void)
 {
-    env->macl = (uint32_t) T0 *(uint32_t) T1;
+    env->macl = (uint32_t)(uint16_t) T0 *(uint32_t)(uint16_t) T1;
     RETURN();
 }
 
@@ -388,7 +382,7 @@ void OPPROTO op_shad_T0_T1(void)
     if ((T0 & 0x80000000) == 0)
 	T1 <<= (T0 & 0x1f);
     else if ((T0 & 0x1f) == 0)
-	T1 = 0;
+	T1 = (T1 & 0x80000000)? 0xffffffff : 0;
     else
 	T1 = ((int32_t) T1) >> ((~T0 & 0x1f) + 1);
     RETURN();
@@ -545,7 +539,7 @@ void OPPROTO op_shal_Rn(void)
 void OPPROTO op_shar_Rn(void)
 {
     cond_t(env->gregs[PARAM1] & 1);
-    env->gregs[PARAM1] >>= 1;
+    *(int32_t *)&env->gregs[PARAM1] >>= 1;
     RETURN();
 }
 
@@ -773,6 +767,30 @@ void OPPROTO op_fdiv_DT(void)
     RETURN();
 }
 
+void OPPROTO op_fcmp_eq_FT(void)
+{
+    cond_t(float32_compare(FT0, FT1, &env->fp_status) == 0);
+    RETURN();
+}
+
+void OPPROTO op_fcmp_eq_DT(void)
+{
+    cond_t(float64_compare(DT0, DT1, &env->fp_status) == 0);
+    RETURN();
+}
+
+void OPPROTO op_fcmp_gt_FT(void)
+{
+    cond_t(float32_compare(FT0, FT1, &env->fp_status) == 1);
+    RETURN();
+}
+
+void OPPROTO op_fcmp_gt_DT(void)
+{
+    cond_t(float64_compare(DT0, DT1, &env->fp_status) == 1);
+    RETURN();
+}
+
 void OPPROTO op_float_FT(void)
 {
     FT0 = int32_to_float32(env->fpul, &env->fp_status);
@@ -797,9 +815,51 @@ void OPPROTO op_ftrc_DT(void)
     RETURN();
 }
 
+void OPPROTO op_fneg_frN(void)
+{
+    env->fregs[PARAM1] = float32_chs(env->fregs[PARAM1]);
+    RETURN();
+}
+
+void OPPROTO op_fabs_FT(void)
+{
+    FT0 = float32_abs(FT0);
+    RETURN();
+}
+
+void OPPROTO op_fabs_DT(void)
+{
+    DT0 = float64_abs(DT0);
+    RETURN();
+}
+
+void OPPROTO op_fcnvsd_FT_DT(void)
+{
+    DT0 = float32_to_float64(FT0, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fcnvds_DT_FT(void)
+{
+    FT0 = float64_to_float32(DT0, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fsqrt_FT(void)
+{
+    FT0 = float32_sqrt(FT0, &env->fp_status);
+    RETURN();
+}
+
+void OPPROTO op_fsqrt_DT(void)
+{
+    DT0 = float64_sqrt(DT0, &env->fp_status);
+    RETURN();
+}
+
 void OPPROTO op_fmov_T0_frN(void)
 {
-    *(unsigned int *)&env->fregs[PARAM1] = T0;
+    *(uint32_t *)&env->fregs[PARAM1] = T0;
     RETURN();
 }
 
@@ -944,18 +1004,6 @@ void OPPROTO op_movl_fpul_FT0(void)
 void OPPROTO op_movl_FT0_fpul(void)
 {
     *(float32 *)&env->fpul = FT0;
-    RETURN();
-}
-
-void OPPROTO op_goto_tb0(void)
-{
-    GOTO_TB(op_goto_tb0, PARAM1, 0);
-    RETURN();
-}
-
-void OPPROTO op_goto_tb1(void)
-{
-    GOTO_TB(op_goto_tb1, PARAM1, 1);
     RETURN();
 }
 

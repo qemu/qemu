@@ -455,54 +455,63 @@ void do_popcntb_64 (void)
 
 /*****************************************************************************/
 /* Floating point operations helpers */
-static always_inline int fpisneg (float64 f)
+static always_inline int fpisneg (float64 d)
 {
-    union {
-        float64 f;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
-    u.f = f;
+    u.d = d;
 
-    return u.u >> 63 != 0;
+    return u.ll >> 63 != 0;
 }
 
-static always_inline int isden (float f)
+static always_inline int isden (float64 d)
 {
-    union {
-        float64 f;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
-    u.f = f;
+    u.d = d;
 
-    return ((u.u >> 52) & 0x7FF) == 0;
+    return ((u.ll >> 52) & 0x7FF) == 0;
 }
 
-static always_inline int iszero (float64 f)
+static always_inline int iszero (float64 d)
 {
-    union {
-        float64 f;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
-    u.f = f;
+    u.d = d;
 
-    return (u.u & ~0x8000000000000000ULL) == 0;
+    return (u.ll & ~0x8000000000000000ULL) == 0;
 }
 
-static always_inline int isinfinity (float64 f)
+static always_inline int isinfinity (float64 d)
 {
-    union {
-        float64 f;
-        uint64_t u;
-    } u;
+    CPU_DoubleU u;
 
-    u.f = f;
+    u.d = d;
 
-    return ((u.u >> 52) & 0x7FF) == 0x7FF &&
-        (u.u & 0x000FFFFFFFFFFFFFULL) == 0;
+    return ((u.ll >> 52) & 0x7FF) == 0x7FF &&
+        (u.ll & 0x000FFFFFFFFFFFFFULL) == 0;
 }
+
+#ifdef CONFIG_SOFTFLOAT
+static always_inline int isfinite (float64 d)
+{
+    CPU_DoubleU u;
+
+    u.d = d;
+
+    return (((u.ll >> 52) & 0x7FF) != 0x7FF);
+}
+
+static always_inline int isnormal (float64 d)
+{
+    CPU_DoubleU u;
+
+    u.d = d;
+
+    uint32_t exp = (u.ll >> 52) & 0x7FF;
+    return ((0 < exp) && (exp < 0x7FF));
+}
+#endif
 
 void do_compute_fprf (int set_fprf)
 {
@@ -638,10 +647,7 @@ static always_inline void fload_invalid_op_excp (int op)
 
 static always_inline void float_zero_divide_excp (void)
 {
-    union {
-        float64 f;
-        uint64_t u;
-    } u0, u1;
+    CPU_DoubleU u0, u1;
 
     env->fpscr |= 1 << FPSCR_ZX;
     env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
@@ -656,11 +662,11 @@ static always_inline void float_zero_divide_excp (void)
         }
     } else {
         /* Set the result to infinity */
-        u0.f = FT0;
-        u1.f = FT1;
-        u0.u = ((u0.u ^ u1.u) & 0x8000000000000000ULL);
-        u0.u |= 0x7FFULL << 52;
-        FT0 = u0.f;
+        u0.d = FT0;
+        u1.d = FT1;
+        u0.ll = ((u0.ll ^ u1.ll) & 0x8000000000000000ULL);
+        u0.ll |= 0x7FFULL << 52;
+        FT0 = u0.d;
     }
 }
 
@@ -865,18 +871,13 @@ void do_store_fpscr (uint32_t mask)
     /*
      * We use only the 32 LSB of the incoming fpr
      */
-    union {
-        double d;
-        struct {
-            uint32_t u[2];
-        } s;
-    } u;
+    CPU_DoubleU u;
     uint32_t prev, new;
     int i;
 
     u.d = FT0;
     prev = env->fpscr;
-    new = u.s.u[WORD1];
+    new = u.l.lower;
     new &= ~0x90000000;
     new |= prev & 0x90000000;
     for (i = 0; i < 7; i++) {
@@ -888,12 +889,16 @@ void do_store_fpscr (uint32_t mask)
     /* Update VX and FEX */
     if (fpscr_ix != 0)
         env->fpscr |= 1 << FPSCR_VX;
+    else
+        env->fpscr &= ~(1 << FPSCR_VX);
     if ((fpscr_ex & fpscr_eex) != 0) {
         env->fpscr |= 1 << FPSCR_FEX;
         env->exception_index = POWERPC_EXCP_PROGRAM;
         /* XXX: we should compute it properly */
         env->error_code = POWERPC_EXCP_FP;
     }
+    else
+        env->fpscr &= ~(1 << FPSCR_FEX);
     fpscr_set_rounding_mode();
 }
 #undef WORD0
@@ -988,10 +993,7 @@ void do_fdiv (void)
 
 void do_fctiw (void)
 {
-    union {
-        double d;
-        uint64_t i;
-    } p;
+    CPU_DoubleU p;
 
     if (unlikely(float64_is_signaling_nan(FT0))) {
         /* sNaN conversion */
@@ -1000,12 +1002,12 @@ void do_fctiw (void)
         /* qNan / infinity conversion */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
-        p.i = float64_to_int32(FT0, &env->fp_status);
+        p.ll = float64_to_int32(FT0, &env->fp_status);
 #if USE_PRECISE_EMULATION
         /* XXX: higher bits are not supposed to be significant.
          *     to make tests easier, return the same as a real PowerPC 750
          */
-        p.i |= 0xFFF80000ULL << 32;
+        p.ll |= 0xFFF80000ULL << 32;
 #endif
         FT0 = p.d;
     }
@@ -1013,10 +1015,7 @@ void do_fctiw (void)
 
 void do_fctiwz (void)
 {
-    union {
-        double d;
-        uint64_t i;
-    } p;
+    CPU_DoubleU p;
 
     if (unlikely(float64_is_signaling_nan(FT0))) {
         /* sNaN conversion */
@@ -1025,12 +1024,12 @@ void do_fctiwz (void)
         /* qNan / infinity conversion */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
-        p.i = float64_to_int32_round_to_zero(FT0, &env->fp_status);
+        p.ll = float64_to_int32_round_to_zero(FT0, &env->fp_status);
 #if USE_PRECISE_EMULATION
         /* XXX: higher bits are not supposed to be significant.
          *     to make tests easier, return the same as a real PowerPC 750
          */
-        p.i |= 0xFFF80000ULL << 32;
+        p.ll |= 0xFFF80000ULL << 32;
 #endif
         FT0 = p.d;
     }
@@ -1039,21 +1038,15 @@ void do_fctiwz (void)
 #if defined(TARGET_PPC64)
 void do_fcfid (void)
 {
-    union {
-        double d;
-        uint64_t i;
-    } p;
+    CPU_DoubleU p;
 
     p.d = FT0;
-    FT0 = int64_to_float64(p.i, &env->fp_status);
+    FT0 = int64_to_float64(p.ll, &env->fp_status);
 }
 
 void do_fctid (void)
 {
-    union {
-        double d;
-        uint64_t i;
-    } p;
+    CPU_DoubleU p;
 
     if (unlikely(float64_is_signaling_nan(FT0))) {
         /* sNaN conversion */
@@ -1062,17 +1055,14 @@ void do_fctid (void)
         /* qNan / infinity conversion */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
-        p.i = float64_to_int64(FT0, &env->fp_status);
+        p.ll = float64_to_int64(FT0, &env->fp_status);
         FT0 = p.d;
     }
 }
 
 void do_fctidz (void)
 {
-    union {
-        double d;
-        uint64_t i;
-    } p;
+    CPU_DoubleU p;
 
     if (unlikely(float64_is_signaling_nan(FT0))) {
         /* sNaN conversion */
@@ -1081,7 +1071,7 @@ void do_fctidz (void)
         /* qNan / infinity conversion */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
-        p.i = float64_to_int64_round_to_zero(FT0, &env->fp_status);
+        p.ll = float64_to_int64_round_to_zero(FT0, &env->fp_status);
         FT0 = p.d;
     }
 }
@@ -1267,10 +1257,7 @@ void do_fsqrt (void)
 
 void do_fre (void)
 {
-    union {
-        double d;
-        uint64_t i;
-    } p;
+    CPU_DoubleU p;
 
     if (unlikely(float64_is_signaling_nan(FT0))) {
         /* sNaN reciprocal */
@@ -1282,16 +1269,16 @@ void do_fre (void)
         FT0 = float64_div(1.0, FT0, &env->fp_status);
     } else {
         p.d = FT0;
-        if (p.i == 0x8000000000000000ULL) {
-            p.i = 0xFFF0000000000000ULL;
-        } else if (p.i == 0x0000000000000000ULL) {
-            p.i = 0x7FF0000000000000ULL;
+        if (p.ll == 0x8000000000000000ULL) {
+            p.ll = 0xFFF0000000000000ULL;
+        } else if (p.ll == 0x0000000000000000ULL) {
+            p.ll = 0x7FF0000000000000ULL;
         } else if (isnan(FT0)) {
-            p.i = 0x7FF8000000000000ULL;
+            p.ll = 0x7FF8000000000000ULL;
         } else if (fpisneg(FT0)) {
-            p.i = 0x8000000000000000ULL;
+            p.ll = 0x8000000000000000ULL;
         } else {
-            p.i = 0x0000000000000000ULL;
+            p.ll = 0x0000000000000000ULL;
         }
         FT0 = p.d;
     }
@@ -1299,10 +1286,7 @@ void do_fre (void)
 
 void do_fres (void)
 {
-    union {
-        double d;
-        uint64_t i;
-    } p;
+    CPU_DoubleU p;
 
     if (unlikely(float64_is_signaling_nan(FT0))) {
         /* sNaN reciprocal */
@@ -1319,16 +1303,16 @@ void do_fres (void)
 #endif
     } else {
         p.d = FT0;
-        if (p.i == 0x8000000000000000ULL) {
-            p.i = 0xFFF0000000000000ULL;
-        } else if (p.i == 0x0000000000000000ULL) {
-            p.i = 0x7FF0000000000000ULL;
+        if (p.ll == 0x8000000000000000ULL) {
+            p.ll = 0xFFF0000000000000ULL;
+        } else if (p.ll == 0x0000000000000000ULL) {
+            p.ll = 0x7FF0000000000000ULL;
         } else if (isnan(FT0)) {
-            p.i = 0x7FF8000000000000ULL;
+            p.ll = 0x7FF8000000000000ULL;
         } else if (fpisneg(FT0)) {
-            p.i = 0x8000000000000000ULL;
+            p.ll = 0x8000000000000000ULL;
         } else {
-            p.i = 0x0000000000000000ULL;
+            p.ll = 0x0000000000000000ULL;
         }
         FT0 = p.d;
     }
@@ -1336,10 +1320,7 @@ void do_fres (void)
 
 void do_frsqrte (void)
 {
-    union {
-        double d;
-        uint64_t i;
-    } p;
+    CPU_DoubleU p;
 
     if (unlikely(float64_is_signaling_nan(FT0))) {
         /* sNaN reciprocal square root */
@@ -1352,16 +1333,16 @@ void do_frsqrte (void)
         FT0 = float32_div(1.0, FT0, &env->fp_status);
     } else {
         p.d = FT0;
-        if (p.i == 0x8000000000000000ULL) {
-            p.i = 0xFFF0000000000000ULL;
-        } else if (p.i == 0x0000000000000000ULL) {
-            p.i = 0x7FF0000000000000ULL;
+        if (p.ll == 0x8000000000000000ULL) {
+            p.ll = 0xFFF0000000000000ULL;
+        } else if (p.ll == 0x0000000000000000ULL) {
+            p.ll = 0x7FF0000000000000ULL;
         } else if (isnan(FT0)) {
-            p.i |= 0x000FFFFFFFFFFFFFULL;
+            p.ll |= 0x000FFFFFFFFFFFFFULL;
         } else if (fpisneg(FT0)) {
-            p.i = 0x7FF8000000000000ULL;
+            p.ll = 0x7FF8000000000000ULL;
         } else {
-            p.i = 0x0000000000000000ULL;
+            p.ll = 0x0000000000000000ULL;
         }
         FT0 = p.d;
     }
@@ -2052,36 +2033,27 @@ DO_SPE_CMP(cmpltu);
 /* Single precision floating-point conversions from/to integer */
 static always_inline uint32_t _do_efscfsi (int32_t val)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
 
     u.f = int32_to_float32(val, &env->spe_status);
 
-    return u.u;
+    return u.l;
 }
 
 static always_inline uint32_t _do_efscfui (uint32_t val)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
 
     u.f = uint32_to_float32(val, &env->spe_status);
 
-    return u.u;
+    return u.l;
 }
 
 static always_inline int32_t _do_efsctsi (uint32_t val)
 {
-    union {
-        int32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
 
-    u.u = val;
+    u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(isnan(u.f)))
         return 0;
@@ -2091,12 +2063,9 @@ static always_inline int32_t _do_efsctsi (uint32_t val)
 
 static always_inline uint32_t _do_efsctui (uint32_t val)
 {
-    union {
-        int32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
 
-    u.u = val;
+    u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(isnan(u.f)))
         return 0;
@@ -2106,12 +2075,9 @@ static always_inline uint32_t _do_efsctui (uint32_t val)
 
 static always_inline int32_t _do_efsctsiz (uint32_t val)
 {
-    union {
-        int32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
 
-    u.u = val;
+    u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(isnan(u.f)))
         return 0;
@@ -2121,12 +2087,9 @@ static always_inline int32_t _do_efsctsiz (uint32_t val)
 
 static always_inline uint32_t _do_efsctuiz (uint32_t val)
 {
-    union {
-        int32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
 
-    u.u = val;
+    u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(isnan(u.f)))
         return 0;
@@ -2167,43 +2130,34 @@ void do_efsctuiz (void)
 /* Single precision floating-point conversion to/from fractional */
 static always_inline uint32_t _do_efscfsf (uint32_t val)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
     float32 tmp;
 
     u.f = int32_to_float32(val, &env->spe_status);
     tmp = int64_to_float32(1ULL << 32, &env->spe_status);
     u.f = float32_div(u.f, tmp, &env->spe_status);
 
-    return u.u;
+    return u.l;
 }
 
 static always_inline uint32_t _do_efscfuf (uint32_t val)
 {
-    union {
-        uint32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
     float32 tmp;
 
     u.f = uint32_to_float32(val, &env->spe_status);
     tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
     u.f = float32_div(u.f, tmp, &env->spe_status);
 
-    return u.u;
+    return u.l;
 }
 
 static always_inline int32_t _do_efsctsf (uint32_t val)
 {
-    union {
-        int32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
     float32 tmp;
 
-    u.u = val;
+    u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(isnan(u.f)))
         return 0;
@@ -2215,13 +2169,10 @@ static always_inline int32_t _do_efsctsf (uint32_t val)
 
 static always_inline uint32_t _do_efsctuf (uint32_t val)
 {
-    union {
-        int32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
     float32 tmp;
 
-    u.u = val;
+    u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(isnan(u.f)))
         return 0;
@@ -2233,13 +2184,10 @@ static always_inline uint32_t _do_efsctuf (uint32_t val)
 
 static always_inline int32_t _do_efsctsfz (uint32_t val)
 {
-    union {
-        int32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
     float32 tmp;
 
-    u.u = val;
+    u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(isnan(u.f)))
         return 0;
@@ -2251,13 +2199,10 @@ static always_inline int32_t _do_efsctsfz (uint32_t val)
 
 static always_inline uint32_t _do_efsctufz (uint32_t val)
 {
-    union {
-        int32_t u;
-        float32 f;
-    } u;
+    CPU_FloatU u;
     float32 tmp;
 
-    u.u = val;
+    u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(isnan(u.f)))
         return 0;
@@ -2334,86 +2279,68 @@ void do_efdcmpeq (void)
 /* Double precision floating-point conversion to/from integer */
 static always_inline uint64_t _do_efdcfsi (int64_t val)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
 
-    u.f = int64_to_float64(val, &env->spe_status);
+    u.d = int64_to_float64(val, &env->spe_status);
 
-    return u.u;
+    return u.ll;
 }
 
 static always_inline uint64_t _do_efdcfui (uint64_t val)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
 
-    u.f = uint64_to_float64(val, &env->spe_status);
+    u.d = uint64_to_float64(val, &env->spe_status);
 
-    return u.u;
+    return u.ll;
 }
 
 static always_inline int64_t _do_efdctsi (uint64_t val)
 {
-    union {
-        int64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
 
-    u.u = val;
+    u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(isnan(u.d)))
         return 0;
 
-    return float64_to_int64(u.f, &env->spe_status);
+    return float64_to_int64(u.d, &env->spe_status);
 }
 
 static always_inline uint64_t _do_efdctui (uint64_t val)
 {
-    union {
-        int64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
 
-    u.u = val;
+    u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(isnan(u.d)))
         return 0;
 
-    return float64_to_uint64(u.f, &env->spe_status);
+    return float64_to_uint64(u.d, &env->spe_status);
 }
 
 static always_inline int64_t _do_efdctsiz (uint64_t val)
 {
-    union {
-        int64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
 
-    u.u = val;
+    u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(isnan(u.d)))
         return 0;
 
-    return float64_to_int64_round_to_zero(u.f, &env->spe_status);
+    return float64_to_int64_round_to_zero(u.d, &env->spe_status);
 }
 
 static always_inline uint64_t _do_efdctuiz (uint64_t val)
 {
-    union {
-        int64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
 
-    u.u = val;
+    u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(isnan(u.d)))
         return 0;
 
-    return float64_to_uint64_round_to_zero(u.f, &env->spe_status);
+    return float64_to_uint64_round_to_zero(u.d, &env->spe_status);
 }
 
 void do_efdcfsi (void)
@@ -2449,104 +2376,86 @@ void do_efdctuiz (void)
 /* Double precision floating-point conversion to/from fractional */
 static always_inline uint64_t _do_efdcfsf (int64_t val)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
     float64 tmp;
 
-    u.f = int32_to_float64(val, &env->spe_status);
+    u.d = int32_to_float64(val, &env->spe_status);
     tmp = int64_to_float64(1ULL << 32, &env->spe_status);
-    u.f = float64_div(u.f, tmp, &env->spe_status);
+    u.d = float64_div(u.d, tmp, &env->spe_status);
 
-    return u.u;
+    return u.ll;
 }
 
 static always_inline uint64_t _do_efdcfuf (uint64_t val)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
     float64 tmp;
 
-    u.f = uint32_to_float64(val, &env->spe_status);
+    u.d = uint32_to_float64(val, &env->spe_status);
     tmp = int64_to_float64(1ULL << 32, &env->spe_status);
-    u.f = float64_div(u.f, tmp, &env->spe_status);
+    u.d = float64_div(u.d, tmp, &env->spe_status);
 
-    return u.u;
+    return u.ll;
 }
 
 static always_inline int64_t _do_efdctsf (uint64_t val)
 {
-    union {
-        int64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
     float64 tmp;
 
-    u.u = val;
+    u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(isnan(u.d)))
         return 0;
     tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
-    u.f = float64_mul(u.f, tmp, &env->spe_status);
+    u.d = float64_mul(u.d, tmp, &env->spe_status);
 
-    return float64_to_int32(u.f, &env->spe_status);
+    return float64_to_int32(u.d, &env->spe_status);
 }
 
 static always_inline uint64_t _do_efdctuf (uint64_t val)
 {
-    union {
-        int64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
     float64 tmp;
 
-    u.u = val;
+    u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(isnan(u.d)))
         return 0;
     tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
-    u.f = float64_mul(u.f, tmp, &env->spe_status);
+    u.d = float64_mul(u.d, tmp, &env->spe_status);
 
-    return float64_to_uint32(u.f, &env->spe_status);
+    return float64_to_uint32(u.d, &env->spe_status);
 }
 
 static always_inline int64_t _do_efdctsfz (uint64_t val)
 {
-    union {
-        int64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
     float64 tmp;
 
-    u.u = val;
+    u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(isnan(u.d)))
         return 0;
     tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
-    u.f = float64_mul(u.f, tmp, &env->spe_status);
+    u.d = float64_mul(u.d, tmp, &env->spe_status);
 
-    return float64_to_int32_round_to_zero(u.f, &env->spe_status);
+    return float64_to_int32_round_to_zero(u.d, &env->spe_status);
 }
 
 static always_inline uint64_t _do_efdctufz (uint64_t val)
 {
-    union {
-        int64_t u;
-        float64 f;
-    } u;
+    CPU_DoubleU u;
     float64 tmp;
 
-    u.u = val;
+    u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(isnan(u.d)))
         return 0;
     tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
-    u.f = float64_mul(u.f, tmp, &env->spe_status);
+    u.d = float64_mul(u.d, tmp, &env->spe_status);
 
-    return float64_to_uint32_round_to_zero(u.f, &env->spe_status);
+    return float64_to_uint32_round_to_zero(u.d, &env->spe_status);
 }
 
 void do_efdcfsf (void)
@@ -2582,36 +2491,24 @@ void do_efdctufz (void)
 /* Floating point conversion between single and double precision */
 static always_inline uint32_t _do_efscfd (uint64_t val)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u1;
-    union {
-        uint32_t u;
-        float32 f;
-    } u2;
+    CPU_DoubleU u1;
+    CPU_FloatU u2;
 
-    u1.u = val;
-    u2.f = float64_to_float32(u1.f, &env->spe_status);
+    u1.ll = val;
+    u2.f = float64_to_float32(u1.d, &env->spe_status);
 
-    return u2.u;
+    return u2.l;
 }
 
 static always_inline uint64_t _do_efdcfs (uint32_t val)
 {
-    union {
-        uint64_t u;
-        float64 f;
-    } u2;
-    union {
-        uint32_t u;
-        float32 f;
-    } u1;
+    CPU_DoubleU u2;
+    CPU_FloatU u1;
 
-    u1.u = val;
-    u2.f = float32_to_float64(u1.f, &env->spe_status);
+    u1.l = val;
+    u2.d = float32_to_float64(u1.f, &env->spe_status);
 
-    return u2.u;
+    return u2.ll;
 }
 
 void do_efscfd (void)

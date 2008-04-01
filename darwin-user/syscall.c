@@ -417,7 +417,7 @@ long do_mach_syscall(void *cpu_env, int num, uint32_t arg1, uint32_t arg2, uint3
                 uint32_t arg4, uint32_t arg5, uint32_t arg6, uint32_t arg7,
                 uint32_t arg8)
 {
-    extern uint32_t mach_reply_port();
+    extern uint32_t mach_reply_port(void);
 
     long ret = 0;
 
@@ -551,7 +551,7 @@ long do_thread_syscall(void *cpu_env, int num, uint32_t arg1, uint32_t arg2, uin
                 uint32_t arg8)
 {
     extern uint32_t cthread_set_self(uint32_t);
-    extern uint32_t processor_facilities_used();
+    extern uint32_t processor_facilities_used(void);
     long ret = 0;
 
     arg1 = tswap32(arg1);
@@ -830,7 +830,7 @@ static inline void byteswap_timeval(struct timeval *t)
 }
 
 long do_unix_syscall_indirect(void *cpu_env, int num);
-long do_sync();
+long do_sync(void);
 long do_exit(uint32_t arg1);
 long do_getlogin(char *out, uint32_t size);
 long do_open(char * arg1, uint32_t arg2, uint32_t arg3);
@@ -996,7 +996,7 @@ long do_exit(uint32_t arg1)
     return -1;
 }
 
-long do_sync()
+long do_sync(void)
 {
     sync();
     return 0;

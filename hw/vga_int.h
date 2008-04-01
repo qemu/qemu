@@ -139,6 +139,7 @@
     vga_hw_update_ptr update;                                           \
     vga_hw_invalidate_ptr invalidate;                                   \
     vga_hw_screen_dump_ptr screen_dump;                                 \
+    vga_hw_text_update_ptr text_update;                                 \
     /* hardware mouse cursor support */                                 \
     uint32_t invalidated_y_table[VGA_MAX_HEIGHT / 32];                  \
     void (*cursor_invalidate)(struct VGAState *s);                      \

@@ -276,8 +276,6 @@ static void sdl_grab_start(void)
     } else
         sdl_hide_cursor();
     SDL_WM_GrabInput(SDL_GRAB_ON);
-    /* dummy read to avoid moving the mouse */
-    SDL_GetRelativeMouseState(NULL, NULL);
     gui_grab = 1;
     sdl_update_caption();
 }
@@ -290,10 +288,9 @@ static void sdl_grab_end(void)
     sdl_update_caption();
 }
 
-static void sdl_send_mouse_event(int dz)
+static void sdl_send_mouse_event(int dx, int dy, int dz, int x, int y, int state)
 {
-    int dx, dy, state, buttons;
-    state = SDL_GetRelativeMouseState(&dx, &dy);
+    int buttons;
     buttons = 0;
     if (state & SDL_BUTTON(SDL_BUTTON_LEFT))
         buttons |= MOUSE_EVENT_LBUTTON;
@@ -311,18 +308,18 @@ static void sdl_send_mouse_event(int dz)
 	    absolute_enabled = 1;
 	}
 
-	SDL_GetMouseState(&dx, &dy);
-	dx = dx * 0x7FFF / width;
-	dy = dy * 0x7FFF / height;
+       dx = x * 0x7FFF / (width - 1);
+       dy = y * 0x7FFF / (height - 1);
     } else if (absolute_enabled) {
 	sdl_show_cursor();
 	absolute_enabled = 0;
     } else if (guest_cursor) {
-        SDL_GetMouseState(&dx, &dy);
-        dx -= guest_x;
-        dy -= guest_y;
-        guest_x += dx;
-        guest_y += dy;
+        x -= guest_x;
+        y -= guest_y;
+        guest_x += x;
+        guest_y += y;
+        dx = x;
+        dy = y;
     }
 
     kbd_mouse_event(dx, dy, dz, buttons);
@@ -347,6 +344,7 @@ static void sdl_refresh(DisplayState *ds)
 {
     SDL_Event ev1, *ev = &ev1;
     int mod_state;
+    int buttonstate = SDL_GetMouseState(NULL, NULL);
 
     if (last_vm_running != vm_running) {
         last_vm_running = vm_running;
@@ -474,7 +472,8 @@ static void sdl_refresh(DisplayState *ds)
         case SDL_MOUSEMOTION:
             if (gui_grab || kbd_mouse_is_absolute() ||
                 absolute_enabled) {
-                sdl_send_mouse_event(0);
+                sdl_send_mouse_event(ev->motion.xrel, ev->motion.yrel, 0,
+                       ev->motion.x, ev->motion.y, ev->motion.state);
             }
             break;
         case SDL_MOUSEBUTTONDOWN:
@@ -483,13 +482,18 @@ static void sdl_refresh(DisplayState *ds)
                 SDL_MouseButtonEvent *bev = &ev->button;
                 if (!gui_grab && !kbd_mouse_is_absolute()) {
                     if (ev->type == SDL_MOUSEBUTTONDOWN &&
-                        (bev->state & SDL_BUTTON_LMASK)) {
+                        (bev->button == SDL_BUTTON_LEFT)) {
                         /* start grabbing all events */
                         sdl_grab_start();
                     }
                 } else {
                     int dz;
                     dz = 0;
+                    if (ev->type == SDL_MOUSEBUTTONDOWN) {
+                        buttonstate |= SDL_BUTTON(bev->button);
+                    } else {
+                        buttonstate &= ~SDL_BUTTON(bev->button);
+                    }
 #ifdef SDL_BUTTON_WHEELUP
                     if (bev->button == SDL_BUTTON_WHEELUP && ev->type == SDL_MOUSEBUTTONDOWN) {
                         dz = -1;
@@ -497,7 +501,7 @@ static void sdl_refresh(DisplayState *ds)
                         dz = 1;
                     }
 #endif
-                    sdl_send_mouse_event(dz);
+                    sdl_send_mouse_event(0, 0, dz, bev->x, bev->y, buttonstate);
                 }
             }
             break;
@@ -505,6 +509,15 @@ static void sdl_refresh(DisplayState *ds)
             if (gui_grab && ev->active.state == SDL_APPINPUTFOCUS &&
                 !ev->active.gain && !gui_fullscreen_initial_grab) {
                 sdl_grab_end();
+            }
+            if (ev->active.state & SDL_APPACTIVE) {
+                if (ev->active.gain) {
+                    /* Back to default interval */
+                    ds->gui_timer_interval = 0;
+                } else {
+                    /* Sleeping interval */
+                    ds->gui_timer_interval = 500;
+                }
             }
             break;
         default:

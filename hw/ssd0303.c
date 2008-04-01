@@ -270,6 +270,6 @@ void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address)
     s->i2c.recv = ssd0303_recv;
     s->i2c.send = ssd0303_send;
     graphic_console_init(ds, ssd0303_update_display, ssd0303_invalidate_display,
-                         NULL, s);
+                         NULL, NULL, s);
     dpy_resize(s->ds, 96 * MAGNIFY, 16 * MAGNIFY);
 }

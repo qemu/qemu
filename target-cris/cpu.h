@@ -35,7 +35,7 @@
 #define EXCP_MMU_READ    1
 #define EXCP_MMU_WRITE   2
 #define EXCP_MMU_FLUSH   3
-#define EXCP_MMU_MISS    4
+#define EXCP_MMU_FAULT   4
 #define EXCP_BREAK      16 /* trap.  */
 
 /* CPU flags.  */
@@ -97,21 +97,12 @@ typedef struct CPUCRISState {
 	uint32_t regs[16];
 	uint32_t pregs[16];
 	uint32_t pc;
-	uint32_t sr;
-	uint32_t flag_mask; /* Per insn mask of affected flags.  */
-
-	/* SSP and USP.  */
-	int current_sp;
-	uint32_t sp[2];
 
 	/* These are setup up by the guest code just before transfering the
 	   control back to the host.  */
 	int jmp;
 	uint32_t btarget;
 	int btaken;
-
-	/* for traps.  */
-	int trapnr;
 
 	/* Condition flag tracking.  */
 	uint32_t cc_op;
@@ -129,9 +120,12 @@ typedef struct CPUCRISState {
 
 	int features;
 
-        uint64_t pending_interrupts;
-	int interrupt_request;
 	int exception_index;
+	int interrupt_request;
+	int interrupt_vector;
+	int fault_vector;
+	int trap_vector;
+
 	int user_mode_only;
 	int halted;
 
@@ -141,7 +135,6 @@ typedef struct CPUCRISState {
 		int exec_loads;
 		int exec_stores;
 	} stats;
-
 
 	jmp_buf jmp_env;
 	CPU_COMMON
@@ -220,6 +213,7 @@ void register_cris_insns (CPUCRISState *env);
 
 /* CRIS uses 8k pages.  */
 #define TARGET_PAGE_BITS 13
+#define MMAP_SHIFT TARGET_PAGE_BITS
 
 #define CPUState CPUCRISState
 #define cpu_init cpu_cris_init
@@ -239,26 +233,32 @@ static inline int cpu_mmu_index (CPUState *env)
 
 #include "cpu-all.h"
 
-/* Register aliases.  */
-#define REG_SP  14
-#define REG_ACR 15
-#define REG_MOF 7
+/* Register aliases. R0 - R15 */
+#define R_FP  8
+#define R_SP  14
+#define R_ACR 15
 
-/* Support regs.  */
-#define SR_PID 2
-#define SR_SRS 3
-#define SR_EBP 9
-#define SR_ERP 10
-#define SR_CCS 13
+/* Support regs, P0 - P15  */
+#define PR_BZ  0
+#define PR_VR  1
+#define PR_PID 2
+#define PR_SRS 3
+#define PR_WZ  4
+#define PR_MOF 7
+#define PR_DZ  8
+#define PR_EBP 9
+#define PR_ERP 10
+#define PR_SRP 11
+#define PR_CCS 13
 
-/* Support func regs.  */
+/* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0
-#define SFR_RW_MM_CFG      1][0
-#define SFR_RW_MM_KBASE_LO 1][1
-#define SFR_RW_MM_KBASE_HI 1][2
-#define SFR_R_MM_CAUSE     1][3
-#define SFR_RW_MM_TLB_SEL  1][4
-#define SFR_RW_MM_TLB_LO   1][5
-#define SFR_RW_MM_TLB_HI   1][6
+#define SFR_RW_MM_CFG      2][0
+#define SFR_RW_MM_KBASE_LO 2][1
+#define SFR_RW_MM_KBASE_HI 2][2
+#define SFR_R_MM_CAUSE     2][3
+#define SFR_RW_MM_TLB_SEL  2][4
+#define SFR_RW_MM_TLB_LO   2][5
+#define SFR_RW_MM_TLB_HI   2][6
 
 #endif

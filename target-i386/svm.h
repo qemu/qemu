@@ -323,7 +323,7 @@ struct __attribute__ ((__packed__)) vmcb {
 
 /* function references */
 
-void helper_stgi();
+void helper_stgi(void);
 void vmexit(uint64_t exit_code, uint64_t exit_info_1);
 int svm_check_intercept_param(uint32_t type, uint64_t param);
 static inline int svm_check_intercept(unsigned int type) {

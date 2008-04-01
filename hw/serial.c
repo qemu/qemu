@@ -93,6 +93,8 @@ struct SerialState {
     int it_shift;
 };
 
+static void serial_receive_byte(SerialState *s, int ch);
+
 static void serial_update_irq(SerialState *s)
 {
     if ((s->lsr & UART_LSR_DR) && (s->ier & UART_IER_RDI)) {
@@ -164,11 +166,18 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->lsr &= ~UART_LSR_THRE;
             serial_update_irq(s);
             ch = val;
-            qemu_chr_write(s->chr, &ch, 1);
+            if (!(s->mcr & UART_MCR_LOOP)) {
+                /* when not in loopback mode, send the char */
+                qemu_chr_write(s->chr, &ch, 1);
+            }
             s->thr_ipending = 1;
             s->lsr |= UART_LSR_THRE;
             s->lsr |= UART_LSR_TEMT;
             serial_update_irq(s);
+            if (s->mcr & UART_MCR_LOOP) {
+                /* in loopback mode, say that we just received a char */
+                serial_receive_byte(s, ch);
+            }
         }
         break;
     case 1:
@@ -229,7 +238,10 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
             ret = s->rbr;
             s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);
             serial_update_irq(s);
-            qemu_chr_accept_input(s->chr);
+            if (!(s->mcr & UART_MCR_LOOP)) {
+                /* in loopback mode, don't receive any data */
+                qemu_chr_accept_input(s->chr);
+            }
         }
         break;
     case 1:
@@ -354,6 +366,25 @@ static int serial_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void serial_reset(void *opaque)
+{
+    SerialState *s = opaque;
+
+    s->divider = 0;
+    s->rbr = 0;
+    s->ier = 0;
+    s->iir = UART_IIR_NO_INT;
+    s->lcr = 0;
+    s->mcr = 0;
+    s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
+    s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
+    s->scr = 0;
+
+    s->thr_ipending = 0;
+    s->last_break_enable = 0;
+    qemu_irq_lower(s->irq);
+}
+
 /* If fd is zero, it means that the serial device uses the console */
 SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr)
 {
@@ -367,9 +398,9 @@ SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr)
         return NULL;
     s->base = base;
     s->irq = irq;
-    s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
-    s->iir = UART_IIR_NO_INT;
-    s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
+
+    qemu_register_reset(serial_reset, s);
+    serial_reset(s);
 
     register_savevm("serial", base, 2, serial_save, serial_load, s);
 
@@ -468,11 +499,11 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     if (!s)
         return NULL;
     s->irq = irq;
-    s->lsr = UART_LSR_TEMT | UART_LSR_THRE;
-    s->iir = UART_IIR_NO_INT;
-    s->msr = UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS;
     s->base = base;
     s->it_shift = it_shift;
+
+    qemu_register_reset(serial_reset, s);
+    serial_reset(s);
 
     register_savevm("serial", base, 2, serial_save, serial_load, s);
 

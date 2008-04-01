@@ -537,12 +537,13 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
         s->cplane_offset = vram_offset;
         cpu_register_physical_memory(addr + 0x0a000000ULL, size, vram_offset);
         graphic_console_init(s->ds, tcx24_update_display,
-                             tcx24_invalidate_display, tcx24_screen_dump, s);
+                             tcx24_invalidate_display,
+                             tcx24_screen_dump, NULL, s);
     } else {
         cpu_register_physical_memory(addr + 0x00300000ULL, TCX_THC_NREGS_8,
                                      dummy_memory);
         graphic_console_init(s->ds, tcx_update_display, tcx_invalidate_display,
-                             tcx_screen_dump, s);
+                             tcx_screen_dump, NULL, s);
     }
     // NetBSD writes here even with 8-bit display
     cpu_register_physical_memory(addr + 0x00301000ULL, TCX_THC_NREGS_24,

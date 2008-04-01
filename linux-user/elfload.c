@@ -805,6 +805,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         NEW_AUX_ENT(AT_GID, (abi_ulong) getgid());
         NEW_AUX_ENT(AT_EGID, (abi_ulong) getegid());
         NEW_AUX_ENT(AT_HWCAP, (abi_ulong) ELF_HWCAP);
+        NEW_AUX_ENT(AT_CLKTCK, (abi_ulong) sysconf(_SC_CLK_TCK));
         if (k_platform)
             NEW_AUX_ENT(AT_PLATFORM, u_platform);
 #ifdef ARCH_DLINFO

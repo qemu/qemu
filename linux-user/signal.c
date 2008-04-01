@@ -1126,33 +1126,7 @@ setup_return(CPUState *env, struct emulated_sigaction *ka,
 {
 	abi_ulong handler = ka->sa._sa_handler;
 	abi_ulong retcode;
-	int thumb = 0;
-#if defined(TARGET_CONFIG_CPU_32)
-#if 0
-	abi_ulong cpsr = env->cpsr;
-
-	/*
-	 * Maybe we need to deliver a 32-bit signal to a 26-bit task.
-	 */
-	if (ka->sa.sa_flags & SA_THIRTYTWO)
-		cpsr = (cpsr & ~MODE_MASK) | USR_MODE;
-
-#ifdef CONFIG_ARM_THUMB
-	if (elf_hwcap & HWCAP_THUMB) {
-		/*
-		 * The LSB of the handler determines if we're going to
-		 * be using THUMB or ARM mode for this signal handler.
-		 */
-		thumb = handler & 1;
-
-		if (thumb)
-			cpsr |= T_BIT;
-		else
-			cpsr &= ~T_BIT;
-	}
-#endif /* CONFIG_ARM_THUMB */
-#endif /* 0 */
-#endif /* TARGET_CONFIG_CPU_32 */
+	int thumb = handler & 1;
 
 	if (ka->sa.sa_flags & TARGET_SA_RESTORER) {
 		retcode = ka->sa.sa_restorer;
@@ -1175,6 +1149,7 @@ setup_return(CPUState *env, struct emulated_sigaction *ka,
 	env->regs[13] = frame_addr;
 	env->regs[14] = retcode;
 	env->regs[15] = handler & (thumb ? ~1 : ~3);
+	env->thumb = thumb;
 
 #if 0
 #ifdef TARGET_CONFIG_CPU_32
@@ -1292,7 +1267,7 @@ restore_sigcontext(CPUState *env, struct target_sigcontext *sc)
 	__get_user_error(env->regs[15], &sc->arm_pc, err);
 #ifdef TARGET_CONFIG_CPU_32
 	__get_user_error(cpsr, &sc->arm_cpsr, err);
-        cpsr_write(env, cpsr, 0xffffffff);
+        cpsr_write(env, cpsr, CPSR_USER | CPSR_EXEC);
 #endif
 
 	err |= !valid_user_regs(env);
@@ -2128,7 +2103,7 @@ setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
     err |= __put_user(regs->PC[regs->current_tc], &sc->sc_pc);
 
 #define save_gp_reg(i) do {   							\
-        err |= __put_user(regs->gpr[i][regs->current_tc], &sc->sc_regs[i]);	\
+        err |= __put_user(regs->gpr[regs->current_tc][i], &sc->sc_regs[i]);	\
     } while(0)
     __put_user(0, &sc->sc_regs[0]); save_gp_reg(1); save_gp_reg(2);
     save_gp_reg(3); save_gp_reg(4); save_gp_reg(5); save_gp_reg(6);
@@ -2141,8 +2116,8 @@ setup_sigcontext(CPUState *regs, struct target_sigcontext *sc)
     save_gp_reg(31);
 #undef save_gp_reg
 
-    err |= __put_user(regs->HI[0][regs->current_tc], &sc->sc_mdhi);
-    err |= __put_user(regs->LO[0][regs->current_tc], &sc->sc_mdlo);
+    err |= __put_user(regs->HI[regs->current_tc][0], &sc->sc_mdhi);
+    err |= __put_user(regs->LO[regs->current_tc][0], &sc->sc_mdlo);
 
     /* Not used yet, but might be useful if we ever have DSP suppport */
 #if 0
@@ -2202,11 +2177,11 @@ restore_sigcontext(CPUState *regs, struct target_sigcontext *sc)
 
     err |= __get_user(regs->CP0_EPC, &sc->sc_pc);
 
-    err |= __get_user(regs->HI[0][regs->current_tc], &sc->sc_mdhi);
-    err |= __get_user(regs->LO[0][regs->current_tc], &sc->sc_mdlo);
+    err |= __get_user(regs->HI[regs->current_tc][0], &sc->sc_mdhi);
+    err |= __get_user(regs->LO[regs->current_tc][0], &sc->sc_mdlo);
 
 #define restore_gp_reg(i) do {   							\
-        err |= __get_user(regs->gpr[i][regs->current_tc], &sc->sc_regs[i]);		\
+        err |= __get_user(regs->gpr[regs->current_tc][i], &sc->sc_regs[i]);		\
     } while(0)
     restore_gp_reg( 1); restore_gp_reg( 2); restore_gp_reg( 3);
     restore_gp_reg( 4); restore_gp_reg( 5); restore_gp_reg( 6);
@@ -2272,7 +2247,7 @@ get_sigframe(struct emulated_sigaction *ka, CPUState *regs, size_t frame_size)
     unsigned long sp;
 
     /* Default to using normal stack */
-    sp = regs->gpr[29][regs->current_tc];
+    sp = regs->gpr[regs->current_tc][29];
 
     /*
      * FPU emulator may have it's own trampoline active just
@@ -2321,15 +2296,15 @@ static void setup_frame(int sig, struct emulated_sigaction * ka,
     * $25 and PC point to the signal handler, $29 points to the
     * struct sigframe.
     */
-    regs->gpr[ 4][regs->current_tc] = sig;
-    regs->gpr[ 5][regs->current_tc] = 0;
-    regs->gpr[ 6][regs->current_tc] = frame_addr + offsetof(struct sigframe, sf_sc);
-    regs->gpr[29][regs->current_tc] = frame_addr;
-    regs->gpr[31][regs->current_tc] = frame_addr + offsetof(struct sigframe, sf_code);
+    regs->gpr[regs->current_tc][ 4] = sig;
+    regs->gpr[regs->current_tc][ 5] = 0;
+    regs->gpr[regs->current_tc][ 6] = frame_addr + offsetof(struct sigframe, sf_sc);
+    regs->gpr[regs->current_tc][29] = frame_addr;
+    regs->gpr[regs->current_tc][31] = frame_addr + offsetof(struct sigframe, sf_code);
     /* The original kernel code sets CP0_EPC to the handler
     * since it returns to userland using eret
     * we cannot do this here, and we must set PC directly */
-    regs->PC[regs->current_tc] = regs->gpr[25][regs->current_tc] = ka->sa._sa_handler;
+    regs->PC[regs->current_tc] = regs->gpr[regs->current_tc][25] = ka->sa._sa_handler;
     unlock_user_struct(frame, frame_addr, 1);
     return;
 
@@ -2350,7 +2325,7 @@ long do_sigreturn(CPUState *regs)
 #if defined(DEBUG_SIGNAL)
     fprintf(stderr, "do_sigreturn\n");
 #endif
-    frame_addr = regs->gpr[29][regs->current_tc];
+    frame_addr = regs->gpr[regs->current_tc][29];
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
    	goto badframe;
 
@@ -2702,6 +2677,179 @@ badframe:
     unlock_user_struct(frame, frame_addr, 0);
     force_sig(TARGET_SIGSEGV);
     return 0;
+}
+#elif defined(TARGET_CRIS)
+
+struct target_sigcontext {
+        struct target_pt_regs regs;  /* needs to be first */
+        uint32_t oldmask;
+        uint32_t usp;    /* usp before stacking this gunk on it */
+};
+
+/* Signal frames. */
+struct target_signal_frame {
+        struct target_sigcontext sc;
+        uint32_t extramask[TARGET_NSIG_WORDS - 1];
+        uint8_t retcode[8];       /* Trampoline code. */
+};
+
+struct rt_signal_frame {
+        struct siginfo *pinfo;
+        void *puc;
+        struct siginfo info;
+        struct ucontext uc;
+        uint8_t retcode[8];       /* Trampoline code. */
+};
+
+static void setup_sigcontext(struct target_sigcontext *sc, CPUState *env)
+{
+	__put_user(env->regs[0], &sc->regs.r0);
+	__put_user(env->regs[1], &sc->regs.r1);
+	__put_user(env->regs[2], &sc->regs.r2);
+	__put_user(env->regs[3], &sc->regs.r3);
+	__put_user(env->regs[4], &sc->regs.r4);
+	__put_user(env->regs[5], &sc->regs.r5);
+	__put_user(env->regs[6], &sc->regs.r6);
+	__put_user(env->regs[7], &sc->regs.r7);
+	__put_user(env->regs[8], &sc->regs.r8);
+	__put_user(env->regs[9], &sc->regs.r9);
+	__put_user(env->regs[10], &sc->regs.r10);
+	__put_user(env->regs[11], &sc->regs.r11);
+	__put_user(env->regs[12], &sc->regs.r12);
+	__put_user(env->regs[13], &sc->regs.r13);
+	__put_user(env->regs[14], &sc->usp);
+	__put_user(env->regs[15], &sc->regs.acr);
+	__put_user(env->pregs[PR_MOF], &sc->regs.mof);
+	__put_user(env->pregs[PR_SRP], &sc->regs.srp);
+	__put_user(env->pc, &sc->regs.erp);
+}
+
+static void restore_sigcontext(struct target_sigcontext *sc, CPUState *env)
+{
+	__get_user(env->regs[0], &sc->regs.r0);
+	__get_user(env->regs[1], &sc->regs.r1);
+	__get_user(env->regs[2], &sc->regs.r2);
+	__get_user(env->regs[3], &sc->regs.r3);
+	__get_user(env->regs[4], &sc->regs.r4);
+	__get_user(env->regs[5], &sc->regs.r5);
+	__get_user(env->regs[6], &sc->regs.r6);
+	__get_user(env->regs[7], &sc->regs.r7);
+	__get_user(env->regs[8], &sc->regs.r8);
+	__get_user(env->regs[9], &sc->regs.r9);
+	__get_user(env->regs[10], &sc->regs.r10);
+	__get_user(env->regs[11], &sc->regs.r11);
+	__get_user(env->regs[12], &sc->regs.r12);
+	__get_user(env->regs[13], &sc->regs.r13);
+	__get_user(env->regs[14], &sc->usp);
+	__get_user(env->regs[15], &sc->regs.acr);
+	__get_user(env->pregs[PR_MOF], &sc->regs.mof);
+	__get_user(env->pregs[PR_SRP], &sc->regs.srp);
+	__get_user(env->pc, &sc->regs.erp);
+}
+
+static abi_ulong get_sigframe(CPUState *env, int framesize)
+{
+	abi_ulong sp;
+	/* Align the stack downwards to 4.  */
+	sp = (env->regs[R_SP] & ~3);
+	return sp - framesize;
+}
+
+static void setup_frame(int sig, struct emulated_sigaction *ka,
+			target_sigset_t *set, CPUState *env)
+{
+	struct target_signal_frame *frame;
+	abi_ulong frame_addr;
+	int err = 0;
+	int i;
+
+	frame_addr = get_sigframe(env, sizeof *frame);
+	if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
+		goto badframe;
+
+	/*
+	 * The CRIS signal return trampoline. A real linux/CRIS kernel doesn't
+	 * use this trampoline anymore but it sets it up for GDB.
+	 * In QEMU, using the trampoline simplifies things a bit so we use it.
+	 *
+	 * This is movu.w __NR_sigreturn, r9; break 13;
+	 */
+	err |= __put_user(0x9c5f, frame->retcode+0);
+	err |= __put_user(TARGET_NR_sigreturn, 
+			  frame->retcode+2);
+	err |= __put_user(0xe93d, frame->retcode+4);
+
+	/* Save the mask.  */
+	err |= __put_user(set->sig[0], &frame->sc.oldmask);
+	if (err)
+		goto badframe;
+
+	for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+		if (__put_user(set->sig[i], &frame->extramask[i - 1]))
+			goto badframe;
+	}
+
+	setup_sigcontext(&frame->sc, env);
+
+	/* Move the stack and setup the arguments for the handler.  */
+	env->regs[R_SP] = (uint32_t) frame;
+	env->regs[10] = sig;
+	env->pc = (unsigned long) ka->sa._sa_handler;
+	/* Link SRP so the guest returns through the trampoline.  */
+	env->pregs[PR_SRP] = (uint32_t) &frame->retcode[0];
+
+	unlock_user_struct(frame, frame_addr, 1);
+	return;
+  badframe:
+	unlock_user_struct(frame, frame_addr, 1);
+	force_sig(TARGET_SIGSEGV);
+}
+
+static void setup_rt_frame(int sig, struct emulated_sigaction *ka,
+                           target_siginfo_t *info,
+			   target_sigset_t *set, CPUState *env)
+{
+    fprintf(stderr, "CRIS setup_rt_frame: not implemented\n");
+}
+
+long do_sigreturn(CPUState *env)
+{
+	struct target_signal_frame *frame;
+	abi_ulong frame_addr;
+	target_sigset_t target_set;
+	sigset_t set;
+	int i;
+
+	frame_addr = env->regs[R_SP];
+	/* Make sure the guest isn't playing games.  */
+	if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 1))
+		goto badframe;
+
+	/* Restore blocked signals */
+	if (__get_user(target_set.sig[0], &frame->sc.oldmask))
+		goto badframe;
+	for(i = 1; i < TARGET_NSIG_WORDS; i++) {
+		if (__get_user(target_set.sig[i], &frame->extramask[i - 1]))
+			goto badframe;
+	}
+	target_to_host_sigset_internal(&set, &target_set);
+	sigprocmask(SIG_SETMASK, &set, NULL);
+
+	restore_sigcontext(&frame->sc, env);
+	/* Compensate for the syscall return path advancing brk.  */
+	env->pc -= 2;
+
+	unlock_user_struct(frame, frame_addr, 0);
+	return env->regs[10];
+  badframe:
+	unlock_user_struct(frame, frame_addr, 0);
+	force_sig(TARGET_SIGSEGV);
+}
+
+long do_rt_sigreturn(CPUState *env)
+{
+    fprintf(stderr, "CRIS do_rt_sigreturn: not implemented\n");
+    return -TARGET_ENOSYS;
 }
 
 #else

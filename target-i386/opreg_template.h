@@ -18,110 +18,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-void OPPROTO glue(op_movl_A0,REGNAME)(void)
-{
-    A0 = (uint32_t)REG;
-}
-
-void OPPROTO glue(op_addl_A0,REGNAME)(void)
-{
-    A0 = (uint32_t)(A0 + REG);
-}
-
-void OPPROTO glue(glue(op_addl_A0,REGNAME),_s1)(void)
-{
-    A0 = (uint32_t)(A0 + (REG << 1));
-}
-
-void OPPROTO glue(glue(op_addl_A0,REGNAME),_s2)(void)
-{
-    A0 = (uint32_t)(A0 + (REG << 2));
-}
-
-void OPPROTO glue(glue(op_addl_A0,REGNAME),_s3)(void)
-{
-    A0 = (uint32_t)(A0 + (REG << 3));
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO glue(op_movq_A0,REGNAME)(void)
-{
-    A0 = REG;
-}
-
-void OPPROTO glue(op_addq_A0,REGNAME)(void)
-{
-    A0 = (A0 + REG);
-}
-
-void OPPROTO glue(glue(op_addq_A0,REGNAME),_s1)(void)
-{
-    A0 = (A0 + (REG << 1));
-}
-
-void OPPROTO glue(glue(op_addq_A0,REGNAME),_s2)(void)
-{
-    A0 = (A0 + (REG << 2));
-}
-
-void OPPROTO glue(glue(op_addq_A0,REGNAME),_s3)(void)
-{
-    A0 = (A0 + (REG << 3));
-}
-#endif
-
-void OPPROTO glue(op_movl_T0,REGNAME)(void)
-{
-    T0 = REG;
-}
-
-void OPPROTO glue(op_movl_T1,REGNAME)(void)
-{
-    T1 = REG;
-}
-
-void OPPROTO glue(op_movh_T0,REGNAME)(void)
-{
-    T0 = REG >> 8;
-}
-
-void OPPROTO glue(op_movh_T1,REGNAME)(void)
-{
-    T1 = REG >> 8;
-}
-
-void OPPROTO glue(glue(op_movl,REGNAME),_T0)(void)
-{
-    REG = (uint32_t)T0;
-}
-
-void OPPROTO glue(glue(op_movl,REGNAME),_T1)(void)
-{
-    REG = (uint32_t)T1;
-}
-
-void OPPROTO glue(glue(op_movl,REGNAME),_A0)(void)
-{
-    REG = (uint32_t)A0;
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO glue(glue(op_movq,REGNAME),_T0)(void)
-{
-    REG = T0;
-}
-
-void OPPROTO glue(glue(op_movq,REGNAME),_T1)(void)
-{
-    REG = T1;
-}
-
-void OPPROTO glue(glue(op_movq,REGNAME),_A0)(void)
-{
-    REG = A0;
-}
-#endif
-
 /* mov T1 to REG if T0 is true */
 void OPPROTO glue(glue(op_cmovw,REGNAME),_T1_T0)(void)
 {
@@ -132,8 +28,15 @@ void OPPROTO glue(glue(op_cmovw,REGNAME),_T1_T0)(void)
 
 void OPPROTO glue(glue(op_cmovl,REGNAME),_T1_T0)(void)
 {
+#ifdef TARGET_X86_64
     if (T0)
         REG = (uint32_t)T1;
+    else
+        REG = (uint32_t)REG;
+#else
+    if (T0)
+        REG = (uint32_t)T1;
+#endif
     FORCE_RET();
 }
 
@@ -145,46 +48,3 @@ void OPPROTO glue(glue(op_cmovq,REGNAME),_T1_T0)(void)
     FORCE_RET();
 }
 #endif
-
-/* NOTE: T0 high order bits are ignored */
-void OPPROTO glue(glue(op_movw,REGNAME),_T0)(void)
-{
-    REG = (REG & ~0xffff) | (T0 & 0xffff);
-}
-
-/* NOTE: T0 high order bits are ignored */
-void OPPROTO glue(glue(op_movw,REGNAME),_T1)(void)
-{
-    REG = (REG & ~0xffff) | (T1 & 0xffff);
-}
-
-/* NOTE: A0 high order bits are ignored */
-void OPPROTO glue(glue(op_movw,REGNAME),_A0)(void)
-{
-    REG = (REG & ~0xffff) | (A0 & 0xffff);
-}
-
-/* NOTE: T0 high order bits are ignored */
-void OPPROTO glue(glue(op_movb,REGNAME),_T0)(void)
-{
-    REG = (REG & ~0xff) | (T0 & 0xff);
-}
-
-/* NOTE: T0 high order bits are ignored */
-void OPPROTO glue(glue(op_movh,REGNAME),_T0)(void)
-{
-    REG = (REG & ~0xff00) | ((T0 & 0xff) << 8);
-}
-
-/* NOTE: T1 high order bits are ignored */
-void OPPROTO glue(glue(op_movb,REGNAME),_T1)(void)
-{
-    REG = (REG & ~0xff) | (T1 & 0xff);
-}
-
-/* NOTE: T1 high order bits are ignored */
-void OPPROTO glue(glue(op_movh,REGNAME),_T1)(void)
-{
-    REG = (REG & ~0xff00) | ((T1 & 0xff) << 8);
-}
-

@@ -202,6 +202,12 @@
 /* set to 1 set disable mult support */
 #define MAX_MULT_SECTORS 16
 
+#define IDE_DMA_BUF_SECTORS 256
+
+#if (IDE_DMA_BUF_SECTORS < MAX_MULT_SECTORS)
+#error "IDE_DMA_BUF_SECTORS must be bigger or equal to MAX_MULT_SECTORS"
+#endif
+
 /* ATAPI defines */
 
 #define ATAPI_PACKET_SIZE 12
@@ -899,8 +905,8 @@ static void ide_read_dma_cb(void *opaque, int ret)
 
     /* launch next transfer */
     n = s->nsector;
-    if (n > MAX_MULT_SECTORS)
-        n = MAX_MULT_SECTORS;
+    if (n > IDE_DMA_BUF_SECTORS)
+        n = IDE_DMA_BUF_SECTORS;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
 #ifdef DEBUG_AIO
@@ -998,8 +1004,8 @@ static void ide_write_dma_cb(void *opaque, int ret)
 
     /* launch next transfer */
     n = s->nsector;
-    if (n > MAX_MULT_SECTORS)
-        n = MAX_MULT_SECTORS;
+    if (n > IDE_DMA_BUF_SECTORS)
+        n = IDE_DMA_BUF_SECTORS;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
 
@@ -1293,8 +1299,8 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         data_offset = 16;
     } else {
         n = s->packet_transfer_size >> 11;
-        if (n > (MAX_MULT_SECTORS / 4))
-            n = (MAX_MULT_SECTORS / 4);
+        if (n > (IDE_DMA_BUF_SECTORS / 4))
+            n = (IDE_DMA_BUF_SECTORS / 4);
         s->io_buffer_size = n * 2048;
         data_offset = 0;
     }
@@ -2476,22 +2482,17 @@ struct partition {
 static int guess_disk_lchs(IDEState *s,
                            int *pcylinders, int *pheads, int *psectors)
 {
-    uint8_t *buf;
+    uint8_t *buf = s->io_buffer;
     int ret, i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
 
-    buf = qemu_memalign(512, 512);
-    if (buf == NULL)
-        return -1;
     ret = bdrv_read(s->bs, 0, buf, 1);
     if (ret < 0) {
-        qemu_free(buf);
         return -1;
     }
     /* test msdos magic */
     if (buf[510] != 0x55 || buf[511] != 0xaa) {
-        qemu_free(buf);
         return -1;
     }
     for(i = 0; i < 4; i++) {
@@ -2514,11 +2515,9 @@ static int guess_disk_lchs(IDEState *s,
             printf("guessed geometry: LCHS=%d %d %d\n",
                    cylinders, heads, sectors);
 #endif
-            qemu_free(buf);
             return 0;
         }
     }
-    qemu_free(buf);
     return -1;
 }
 
@@ -2533,7 +2532,7 @@ static void ide_init2(IDEState *ide_state,
 
     for(i = 0; i < 2; i++) {
         s = ide_state + i;
-        s->io_buffer = qemu_memalign(512, MAX_MULT_SECTORS*512 + 4);
+        s->io_buffer = qemu_memalign(512, IDE_DMA_BUF_SECTORS*512 + 4);
         if (i == 0)
             s->bs = hd0;
         else

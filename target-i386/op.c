@@ -172,31 +172,6 @@ void OPPROTO op_testl_T0_T1_cc(void)
 
 /* operations without flags */
 
-void OPPROTO op_addl_T0_T1(void)
-{
-    T0 += T1;
-}
-
-void OPPROTO op_orl_T0_T1(void)
-{
-    T0 |= T1;
-}
-
-void OPPROTO op_andl_T0_T1(void)
-{
-    T0 &= T1;
-}
-
-void OPPROTO op_subl_T0_T1(void)
-{
-    T0 -= T1;
-}
-
-void OPPROTO op_xorl_T0_T1(void)
-{
-    T0 ^= T1;
-}
-
 void OPPROTO op_negl_T0(void)
 {
     T0 = -T0;
@@ -216,18 +191,6 @@ void OPPROTO op_notl_T0(void)
 {
     T0 = ~T0;
 }
-
-void OPPROTO op_bswapl_T0(void)
-{
-    T0 = bswap32(T0);
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO op_bswapq_T0(void)
-{
-    helper_bswapq_T0();
-}
-#endif
 
 /* multiply/divide */
 
@@ -399,16 +362,6 @@ void OPPROTO op_idivw_AX_T0(void)
     EDX = (EDX & ~0xffff) | r;
 }
 
-void OPPROTO op_divl_EAX_T0(void)
-{
-    helper_divl_EAX_T0();
-}
-
-void OPPROTO op_idivl_EAX_T0(void)
-{
-    helper_idivl_EAX_T0();
-}
-
 #ifdef TARGET_X86_64
 void OPPROTO op_divq_EAX_T0(void)
 {
@@ -424,46 +377,6 @@ void OPPROTO op_idivq_EAX_T0(void)
 /* constant load & misc op */
 
 /* XXX: consistent names */
-void OPPROTO op_movl_T0_imu(void)
-{
-    T0 = (uint32_t)PARAM1;
-}
-
-void OPPROTO op_movl_T0_im(void)
-{
-    T0 = (int32_t)PARAM1;
-}
-
-void OPPROTO op_addl_T0_im(void)
-{
-    T0 += PARAM1;
-}
-
-void OPPROTO op_andl_T0_ffff(void)
-{
-    T0 = T0 & 0xffff;
-}
-
-void OPPROTO op_andl_T0_im(void)
-{
-    T0 = T0 & PARAM1;
-}
-
-void OPPROTO op_movl_T0_T1(void)
-{
-    T0 = T1;
-}
-
-void OPPROTO op_movl_T1_imu(void)
-{
-    T1 = (uint32_t)PARAM1;
-}
-
-void OPPROTO op_movl_T1_im(void)
-{
-    T1 = (int32_t)PARAM1;
-}
-
 void OPPROTO op_addl_T1_im(void)
 {
     T1 += PARAM1;
@@ -472,26 +385,6 @@ void OPPROTO op_addl_T1_im(void)
 void OPPROTO op_movl_T1_A0(void)
 {
     T1 = A0;
-}
-
-void OPPROTO op_movl_A0_im(void)
-{
-    A0 = (uint32_t)PARAM1;
-}
-
-void OPPROTO op_addl_A0_im(void)
-{
-    A0 = (uint32_t)(A0 + PARAM1);
-}
-
-void OPPROTO op_movl_A0_seg(void)
-{
-    A0 = (uint32_t)*(target_ulong *)((char *)env + PARAM1);
-}
-
-void OPPROTO op_addl_A0_seg(void)
-{
-    A0 = (uint32_t)(A0 + *(target_ulong *)((char *)env + PARAM1));
 }
 
 void OPPROTO op_addl_A0_AL(void)
@@ -523,57 +416,12 @@ typedef union UREG64 {
 
 #ifdef TARGET_X86_64
 
-void OPPROTO op_movq_T0_im64(void)
-{
-    T0 = PARAMQ1;
-}
-
-void OPPROTO op_movq_T1_im64(void)
-{
-    T1 = PARAMQ1;
-}
-
-void OPPROTO op_movq_A0_im(void)
-{
-    A0 = (int32_t)PARAM1;
-}
-
-void OPPROTO op_movq_A0_im64(void)
-{
-    A0 = PARAMQ1;
-}
-
-void OPPROTO op_addq_A0_im(void)
-{
-    A0 = (A0 + (int32_t)PARAM1);
-}
-
-void OPPROTO op_addq_A0_im64(void)
-{
-    A0 = (A0 + PARAMQ1);
-}
-
-void OPPROTO op_movq_A0_seg(void)
-{
-    A0 = *(target_ulong *)((char *)env + PARAM1);
-}
-
-void OPPROTO op_addq_A0_seg(void)
-{
-    A0 += *(target_ulong *)((char *)env + PARAM1);
-}
-
 void OPPROTO op_addq_A0_AL(void)
 {
     A0 = (A0 + (EAX & 0xff));
 }
 
 #endif
-
-void OPPROTO op_andl_A0_ffff(void)
-{
-    A0 = A0 & 0xffff;
-}
 
 /* memory access */
 
@@ -586,30 +434,6 @@ void OPPROTO op_andl_A0_ffff(void)
 
 #define MEMSUFFIX _user
 #include "ops_mem.h"
-#endif
-
-/* indirect jump */
-
-void OPPROTO op_jmp_T0(void)
-{
-    EIP = T0;
-}
-
-void OPPROTO op_movl_eip_im(void)
-{
-    EIP = (uint32_t)PARAM1;
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO op_movq_eip_im(void)
-{
-    EIP = (int32_t)PARAM1;
-}
-
-void OPPROTO op_movq_eip_im64(void)
-{
-    EIP = PARAMQ1;
-}
 #endif
 
 void OPPROTO op_hlt(void)
@@ -733,16 +557,6 @@ void OPPROTO op_cmpxchg8b(void)
 void OPPROTO op_single_step(void)
 {
     helper_single_step();
-}
-
-void OPPROTO op_movl_T0_0(void)
-{
-    T0 = 0;
-}
-
-void OPPROTO op_exit_tb(void)
-{
-    EXIT_TB();
 }
 
 /* multiple size ops */
@@ -876,75 +690,6 @@ void OPPROTO op_addq_EDI_T0(void)
 void OPPROTO op_decq_ECX(void)
 {
     ECX--;
-}
-#endif
-
-/* push/pop utils */
-
-void op_addl_A0_SS(void)
-{
-    A0 = (uint32_t)(A0 + env->segs[R_SS].base);
-}
-
-void op_subl_A0_2(void)
-{
-    A0 = (uint32_t)(A0 - 2);
-}
-
-void op_subl_A0_4(void)
-{
-    A0 = (uint32_t)(A0 - 4);
-}
-
-void op_addl_ESP_4(void)
-{
-    ESP = (uint32_t)(ESP + 4);
-}
-
-void op_addl_ESP_2(void)
-{
-    ESP = (uint32_t)(ESP + 2);
-}
-
-void op_addw_ESP_4(void)
-{
-    ESP = (ESP & ~0xffff) | ((ESP + 4) & 0xffff);
-}
-
-void op_addw_ESP_2(void)
-{
-    ESP = (ESP & ~0xffff) | ((ESP + 2) & 0xffff);
-}
-
-void op_addl_ESP_im(void)
-{
-    ESP = (uint32_t)(ESP + PARAM1);
-}
-
-void op_addw_ESP_im(void)
-{
-    ESP = (ESP & ~0xffff) | ((ESP + PARAM1) & 0xffff);
-}
-
-#ifdef TARGET_X86_64
-void op_subq_A0_2(void)
-{
-    A0 -= 2;
-}
-
-void op_subq_A0_8(void)
-{
-    A0 -= 8;
-}
-
-void op_addq_ESP_8(void)
-{
-    ESP += 8;
-}
-
-void op_addq_ESP_im(void)
-{
-    ESP += PARAM1;
 }
 #endif
 
@@ -1362,16 +1107,6 @@ void OPPROTO op_clts(void)
 
 /* flags handling */
 
-void OPPROTO op_goto_tb0(void)
-{
-    GOTO_TB(op_goto_tb0, PARAM1, 0);
-}
-
-void OPPROTO op_goto_tb1(void)
-{
-    GOTO_TB(op_goto_tb1, PARAM1, 1);
-}
-
 void OPPROTO op_jmp_label(void)
 {
     GOTO_LABEL_PARAM(1);
@@ -1449,11 +1184,6 @@ void OPPROTO op_setle_T0_cc(void)
 void OPPROTO op_xor_T0_1(void)
 {
     T0 ^= 1;
-}
-
-void OPPROTO op_set_cc_op(void)
-{
-    CC_OP = PARAM1;
 }
 
 void OPPROTO op_mov_T0_cc(void)

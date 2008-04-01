@@ -1,0 +1,423 @@
+Tiny Code Generator - Fabrice Bellard.
+
+1) Introduction
+
+TCG (Tiny Code Generator) began as a generic backend for a C
+compiler. It was simplified to be used in QEMU. It also has its roots
+in the QOP code generator written by Paul Brook. 
+
+2) Definitions
+
+The TCG "target" is the architecture for which we generate the
+code. It is of course not the same as the "target" of QEMU which is
+the emulated architecture. As TCG started as a generic C backend used
+for cross compiling, it is assumed that the TCG target is different
+from the host, although it is never the case for QEMU.
+
+A TCG "function" corresponds to a QEMU Translated Block (TB).
+
+A TCG "temporary" is a variable only live in a given
+function. Temporaries are allocated explicitly in each function.
+
+A TCG "global" is a variable which is live in all the functions. They
+are defined before the functions defined. A TCG global can be a memory
+location (e.g. a QEMU CPU register), a fixed host register (e.g. the
+QEMU CPU state pointer) or a memory location which is stored in a
+register outside QEMU TBs (not implemented yet).
+
+A TCG "basic block" corresponds to a list of instructions terminated
+by a branch instruction. 
+
+3) Intermediate representation
+
+3.1) Introduction
+
+TCG instructions operate on variables which are temporaries or
+globals. TCG instructions and variables are strongly typed. Two types
+are supported: 32 bit integers and 64 bit integers. Pointers are
+defined as an alias to 32 bit or 64 bit integers depending on the TCG
+target word size.
+
+Each instruction has a fixed number of output variable operands, input
+variable operands and always constant operands.
+
+The notable exception is the call instruction which has a variable
+number of outputs and inputs.
+
+In the textual form, output operands come first, followed by input
+operands, followed by constant operands. The output type is included
+in the instruction name. Constants are prefixed with a '$'.
+
+add_i32 t0, t1, t2  (t0 <- t1 + t2)
+
+sub_i64 t2, t3, $4  (t2 <- t3 - 4)
+
+3.2) Assumptions
+
+* Basic blocks
+
+- Basic blocks end after branches (e.g. brcond_i32 instruction),
+  goto_tb and exit_tb instructions.
+- Basic blocks end before legacy dyngen operations.
+- Basic blocks start after the end of a previous basic block, at a
+  set_label instruction or after a legacy dyngen operation.
+
+After the end of a basic block, temporaries at destroyed and globals
+are stored at their initial storage (register or memory place
+depending on their declarations).
+
+* Floating point types are not supported yet
+
+* Pointers: depending on the TCG target, pointer size is 32 bit or 64
+  bit. The type TCG_TYPE_PTR is an alias to TCG_TYPE_I32 or
+  TCG_TYPE_I64.
+
+* Helpers:
+
+Using the tcg_gen_helper_x_y it is possible to call any function
+taking i32, i64 or pointer types types. Before calling an helper, all
+globals are stored at their canonical location and it is assumed that
+the function can modify them. In the future, function modifiers will
+be allowed to tell that the helper does not read or write some globals.
+
+On some TCG targets (e.g. x86), several calling conventions are
+supported.
+
+* Branches:
+
+Use the instruction 'br' to jump to a label. Use 'jmp' to jump to an
+explicit address. Conditional branches can only jump to labels.
+
+3.3) Code Optimizations
+
+When generating instructions, you can count on at least the following
+optimizations:
+
+- Single instructions are simplified, e.g.
+
+   and_i32 t0, t0, $0xffffffff
+    
+  is suppressed.
+
+- A liveness analysis is done at the basic block level. The
+  information is used to suppress moves from a dead temporary to
+  another one. It is also used to remove instructions which compute
+  dead results. The later is especially useful for condition code
+  optimization in QEMU.
+
+  In the following example:
+
+  add_i32 t0, t1, t2
+  add_i32 t0, t0, $1
+  mov_i32 t0, $1
+
+  only the last instruction is kept.
+
+- A macro system is supported (may get closer to function inlining
+  some day). It is useful if the liveness analysis is likely to prove
+  that some results of a computation are indeed not useful. With the
+  macro system, the user can provide several alternative
+  implementations which are used depending on the used results. It is
+  especially useful for condition code optimization in QEMU.
+
+  Here is an example:
+
+  macro_2 t0, t1, $1
+  mov_i32 t0, $0x1234
+
+  The macro identified by the ID "$1" normally returns the values t0
+  and t1. Suppose its implementation is:
+
+  macro_start
+  brcond_i32  t2, $0, $TCG_COND_EQ, $1
+  mov_i32 t0, $2
+  br $2
+  set_label $1
+  mov_i32 t0, $3
+  set_label $2
+  add_i32 t1, t3, t4
+  macro_end
+  
+  If t0 is not used after the macro, the user can provide a simpler
+  implementation:
+
+  macro_start
+  add_i32 t1, t2, t4
+  macro_end
+
+  TCG automatically chooses the right implementation depending on
+  which macro outputs are used after it.
+
+  Note that if TCG did more expensive optimizations, macros would be
+  less useful. In the previous example a macro is useful because the
+  liveness analysis is done on each basic block separately. Hence TCG
+  cannot remove the code computing 't0' even if it is not used after
+  the first macro implementation.
+
+3.4) Instruction Reference
+
+********* Function call
+
+* call <ret> <params> ptr
+
+call function 'ptr' (pointer type)
+
+<ret> optional 32 bit or 64 bit return value
+<params> optional 32 bit or 64 bit parameters
+
+********* Jumps/Labels
+
+* jmp t0
+
+Absolute jump to address t0 (pointer type).
+
+* set_label $label
+
+Define label 'label' at the current program point.
+
+* br $label
+
+Jump to label.
+
+* brcond_i32/i64 cond, t0, t1, label
+
+Conditional jump if t0 cond t1 is true. cond can be:
+    TCG_COND_EQ
+    TCG_COND_NE
+    TCG_COND_LT /* signed */
+    TCG_COND_GE /* signed */
+    TCG_COND_LE /* signed */
+    TCG_COND_GT /* signed */
+    TCG_COND_LTU /* unsigned */
+    TCG_COND_GEU /* unsigned */
+    TCG_COND_LEU /* unsigned */
+    TCG_COND_GTU /* unsigned */
+
+********* Arithmetic
+
+* add_i32/i64 t0, t1, t2
+
+t0=t1+t2
+
+* sub_i32/i64 t0, t1, t2
+
+t0=t1-t2
+
+* mul_i32/i64 t0, t1, t2
+
+t0=t1*t2
+
+* div_i32/i64 t0, t1, t2
+
+t0=t1/t2 (signed). Undefined behavior if division by zero or overflow.
+
+* divu_i32/i64 t0, t1, t2
+
+t0=t1/t2 (unsigned). Undefined behavior if division by zero.
+
+* rem_i32/i64 t0, t1, t2
+
+t0=t1%t2 (signed). Undefined behavior if division by zero or overflow.
+
+* remu_i32/i64 t0, t1, t2
+
+t0=t1%t2 (unsigned). Undefined behavior if division by zero.
+
+********* Logical
+
+* and_i32/i64 t0, t1, t2
+
+t0=t1&t2
+
+* or_i32/i64 t0, t1, t2
+
+t0=t1|t2
+
+* xor_i32/i64 t0, t1, t2
+
+t0=t1^t2
+
+********* Shifts
+
+* shl_i32/i64 t0, t1, t2
+
+t0=t1 << t2. Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+
+* shr_i32/i64 t0, t1, t2
+
+t0=t1 >> t2 (unsigned). Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+
+* sar_i32/i64 t0, t1, t2
+
+t0=t1 >> t2 (signed). Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+
+********* Misc
+
+* mov_i32/i64 t0, t1
+
+t0 = t1
+
+Move t1 to t0 (both operands must have the same type).
+
+* ext8s_i32/i64 t0, t1
+ext16s_i32/i64 t0, t1
+ext32s_i64 t0, t1
+
+8, 16 or 32 bit sign extension (both operands must have the same type)
+
+* bswap16_i32 t0, t1
+
+16 bit byte swap on a 32 bit value. The two high order bytes must be set
+to zero.
+
+* bswap_i32 t0, t1
+
+32 bit byte swap
+
+* bswap_i64 t0, t1
+
+64 bit byte swap
+
+* discard_i32/i64 t0
+
+Indicate that the value of t0 won't be used later. It is useful to
+force dead code elimination.
+
+********* Type conversions
+
+* ext_i32_i64 t0, t1
+Convert t1 (32 bit) to t0 (64 bit) and does sign extension
+
+* extu_i32_i64 t0, t1
+Convert t1 (32 bit) to t0 (64 bit) and does zero extension
+
+* trunc_i64_i32 t0, t1
+Truncate t1 (64 bit) to t0 (32 bit)
+
+********* Load/Store
+
+* ld_i32/i64 t0, t1, offset
+ld8s_i32/i64 t0, t1, offset
+ld8u_i32/i64 t0, t1, offset
+ld16s_i32/i64 t0, t1, offset
+ld16u_i32/i64 t0, t1, offset
+ld32s_i64 t0, t1, offset
+ld32u_i64 t0, t1, offset
+
+t0 = read(t1 + offset)
+Load 8, 16, 32 or 64 bits with or without sign extension from host memory. 
+offset must be a constant.
+
+* st_i32/i64 t0, t1, offset
+st8_i32/i64 t0, t1, offset
+st16_i32/i64 t0, t1, offset
+st32_i64 t0, t1, offset
+
+write(t0, t1 + offset)
+Write 8, 16, 32 or 64 bits to host memory.
+
+********* QEMU specific operations
+
+* tb_exit t0
+
+Exit the current TB and return the value t0 (word type).
+
+* goto_tb index
+
+Exit the current TB and jump to the TB index 'index' (constant) if the
+current TB was linked to this TB. Otherwise execute the next
+instructions.
+
+* qemu_ld_i32/i64 t0, t1, flags
+qemu_ld8u_i32/i64 t0, t1, flags
+qemu_ld8s_i32/i64 t0, t1, flags
+qemu_ld16u_i32/i64 t0, t1, flags
+qemu_ld16s_i32/i64 t0, t1, flags
+qemu_ld32u_i64 t0, t1, flags
+qemu_ld32s_i64 t0, t1, flags
+
+Load data at the QEMU CPU address t1 into t0. t1 has the QEMU CPU
+address type. 'flags' contains the QEMU memory index (selects user or
+kernel access) for example.
+
+* qemu_st_i32/i64 t0, t1, flags
+qemu_st8_i32/i64 t0, t1, flags
+qemu_st16_i32/i64 t0, t1, flags
+qemu_st32_i64 t0, t1, flags
+
+Store the data t0 at the QEMU CPU Address t1. t1 has the QEMU CPU
+address type. 'flags' contains the QEMU memory index (selects user or
+kernel access) for example.
+
+Note 1: Some shortcuts are defined when the last operand is known to be
+a constant (e.g. addi for add, movi for mov).
+
+Note 2: When using TCG, the opcodes must never be generated directly
+as some of them may not be available as "real" opcodes. Always use the
+function tcg_gen_xxx(args).
+
+4) Backend
+
+tcg-target.h contains the target specific definitions. tcg-target.c
+contains the target specific code.
+
+4.1) Assumptions
+
+The target word size (TCG_TARGET_REG_BITS) is expected to be 32 bit or
+64 bit. It is expected that the pointer has the same size as the word.
+
+On a 32 bit target, all 64 bit operations are converted to 32 bits. A
+few specific operations must be implemented to allow it (see add2_i32,
+sub2_i32, brcond2_i32).
+
+Floating point operations are not supported in this version. A
+previous incarnation of the code generator had full support of them,
+but it is better to concentrate on integer operations first.
+
+On a 64 bit target, no assumption is made in TCG about the storage of
+the 32 bit values in 64 bit registers.
+
+4.2) Constraints
+
+GCC like constraints are used to define the constraints of every
+instruction. Memory constraints are not supported in this
+version. Aliases are specified in the input operands as for GCC.
+
+A target can define specific register or constant constraints. If an
+operation uses a constant input constraint which does not allow all
+constants, it must also accept registers in order to have a fallback.
+
+The movi_i32 and movi_i64 operations must accept any constants.
+
+The mov_i32 and mov_i64 operations must accept any registers of the
+same type.
+
+The ld/st instructions must accept signed 32 bit constant offsets. It
+can be implemented by reserving a specific register to compute the
+address if the offset is too big.
+
+The ld/st instructions must accept any destination (ld) or source (st)
+register.
+
+4.3) Function call assumptions
+
+- The only supported types for parameters and return value are: 32 and
+  64 bit integers and pointer.
+- The stack grows downwards.
+- The first N parameters are passed in registers.
+- The next parameters are passed on the stack by storing them as words.
+- Some registers are clobbered during the call. 
+- The function can return 0 or 1 value in registers. On a 32 bit
+  target, functions must be able to return 2 values in registers for
+  64 bit return type.
+
+5) Migration from dyngen to TCG
+
+TCG is backward compatible with QEMU "dyngen" operations. It means
+that TCG instructions can be freely mixed with dyngen operations. It
+is expected that QEMU targets will be progressively fully converted to
+TCG. Once a target is fully converted to TCG, it will be possible
+to apply more optimizations because more registers will be free for
+the generated code.
+
+The exception model is the same as the dyngen one.

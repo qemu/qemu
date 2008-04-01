@@ -258,7 +258,7 @@ static void *load_data(int fd, long offset, unsigned int size)
     return data;
 }
 
-static int strstart(const char *str, const char *val, const char **ptr)
+int strstart(const char *str, const char *val, const char **ptr)
 {
     const char *p, *q;
     p = str;
@@ -274,7 +274,7 @@ static int strstart(const char *str, const char *val, const char **ptr)
     return 1;
 }
 
-static void pstrcpy(char *buf, int buf_size, const char *str)
+void pstrcpy(char *buf, int buf_size, const char *str)
 {
     int c;
     char *q = buf;
@@ -291,32 +291,32 @@ static void pstrcpy(char *buf, int buf_size, const char *str)
     *q = '\0';
 }
 
-static void swab16s(uint16_t *p)
+void swab16s(uint16_t *p)
 {
     *p = bswap16(*p);
 }
 
-static void swab32s(uint32_t *p)
+void swab32s(uint32_t *p)
 {
     *p = bswap32(*p);
 }
 
-static void swab32ss(int32_t *p)
+void swab32ss(int32_t *p)
 {
     *p = bswap32(*p);
 }
 
-static void swab64s(uint64_t *p)
+void swab64s(uint64_t *p)
 {
     *p = bswap64(*p);
 }
 
-static void swab64ss(int64_t *p)
+void swab64ss(int64_t *p)
 {
     *p = bswap64(*p);
 }
 
-static uint16_t get16(uint16_t *p)
+uint16_t get16(uint16_t *p)
 {
     uint16_t val;
     val = *p;
@@ -325,7 +325,7 @@ static uint16_t get16(uint16_t *p)
     return val;
 }
 
-static uint32_t get32(uint32_t *p)
+uint32_t get32(uint32_t *p)
 {
     uint32_t val;
     val = *p;
@@ -334,14 +334,14 @@ static uint32_t get32(uint32_t *p)
     return val;
 }
 
-static void put16(uint16_t *p, uint16_t val)
+void put16(uint16_t *p, uint16_t val)
 {
     if (do_swap)
         val = bswap16(val);
     *p = val;
 }
 
-static void put32(uint32_t *p, uint32_t val)
+void put32(uint32_t *p, uint32_t val)
 {
     if (do_swap)
         val = bswap32(val);
@@ -364,7 +364,7 @@ uint8_t **sdata;
 struct elfhdr ehdr;
 char *strtab;
 
-static int elf_must_swap(struct elfhdr *h)
+int elf_must_swap(struct elfhdr *h)
 {
   union {
       uint32_t i;
@@ -376,7 +376,7 @@ static int elf_must_swap(struct elfhdr *h)
       (swaptest.b[0] == 0);
 }
 
-static void elf_swap_ehdr(struct elfhdr *h)
+void elf_swap_ehdr(struct elfhdr *h)
 {
     swab16s(&h->e_type);			/* Object file type */
     swab16s(&h->	e_machine);		/* Architecture */
@@ -393,7 +393,7 @@ static void elf_swap_ehdr(struct elfhdr *h)
     swab16s(&h->	e_shstrndx);		/* Section header string table index */
 }
 
-static void elf_swap_shdr(struct elf_shdr *h)
+void elf_swap_shdr(struct elf_shdr *h)
 {
   swab32s(&h->	sh_name);		/* Section name (string tbl index) */
   swab32s(&h->	sh_type);		/* Section type */
@@ -407,7 +407,7 @@ static void elf_swap_shdr(struct elf_shdr *h)
   swabls(&h->	sh_entsize);		/* Entry size if section holds table */
 }
 
-static void elf_swap_phdr(struct elf_phdr *h)
+void elf_swap_phdr(struct elf_phdr *h)
 {
     swab32s(&h->p_type);			/* Segment type */
     swabls(&h->p_offset);		/* Segment file offset */
@@ -419,7 +419,7 @@ static void elf_swap_phdr(struct elf_phdr *h)
     swabls(&h->p_align);		/* Segment alignment */
 }
 
-static void elf_swap_rel(ELF_RELOC *rel)
+void elf_swap_rel(ELF_RELOC *rel)
 {
     swabls(&rel->r_offset);
     swabls(&rel->r_info);
@@ -428,8 +428,8 @@ static void elf_swap_rel(ELF_RELOC *rel)
 #endif
 }
 
-static struct elf_shdr *find_elf_section(struct elf_shdr *shdr, int shnum,
-                                         const char *shstr, const char *name)
+struct elf_shdr *find_elf_section(struct elf_shdr *shdr, int shnum, const char *shstr,
+                                  const char *name)
 {
     int i;
     const char *shname;
@@ -446,7 +446,7 @@ static struct elf_shdr *find_elf_section(struct elf_shdr *shdr, int shnum,
     return NULL;
 }
 
-static int find_reloc(int sh_index)
+int find_reloc(int sh_index)
 {
     struct elf_shdr *sec;
     int i;
@@ -475,7 +475,7 @@ static char *get_sym_name(EXE_SYM *sym)
 }
 
 /* load an elf object file */
-static int load_object(const char *filename)
+int load_object(const char *filename)
 {
     int fd;
     struct elf_shdr *sec, *symtab_sec, *strtab_sec, *text_sec;
@@ -1212,14 +1212,16 @@ int load_object(const char *filename)
 
 #endif /* CONFIG_FORMAT_MACH */
 
-static void get_reloc_expr(char *name, int name_size, const char *sym_name)
+/* return true if the expression is a label reference */
+int get_reloc_expr(char *name, int name_size, const char *sym_name)
 {
     const char *p;
 
     if (strstart(sym_name, "__op_param", &p)) {
         snprintf(name, name_size, "param%s", p);
     } else if (strstart(sym_name, "__op_gen_label", &p)) {
-        snprintf(name, name_size, "gen_labels[param%s]", p);
+        snprintf(name, name_size, "param%s", p);
+        return 1;
     } else {
 #ifdef HOST_SPARC
         if (sym_name[0] == '.')
@@ -1230,6 +1232,7 @@ static void get_reloc_expr(char *name, int name_size, const char *sym_name)
 #endif
             snprintf(name, name_size, "(long)(&%s)", sym_name);
     }
+    return 0;
 }
 
 #ifdef HOST_IA64
@@ -1432,8 +1435,8 @@ int arm_emit_ldr_info(const char *name, unsigned long start_offset,
 #define MAX_ARGS 3
 
 /* generate op code */
-static void gen_code(const char *name, host_ulong offset, host_ulong size,
-                     FILE *outfile, int gen_switch)
+void gen_code(const char *name, host_ulong offset, host_ulong size,
+              FILE *outfile, int gen_switch)
 {
     int copy_size = 0;
     uint8_t *p_start, *p_end;
@@ -1612,12 +1615,14 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
             error("No save at the beginning of %s", name);
         }
 
+#if 0
         /* Skip a preceeding nop, if present.  */
         if (p > p_start) {
             skip_insn = get32((uint32_t *)(p - 0x4));
             if (skip_insn == 0x01000000)
                 p -= 4;
         }
+#endif
 
         copy_size = p - p_start;
     }
@@ -1661,30 +1666,6 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
 #define INSN_RETURN     0x03e00008
 #define INSN_NOP        0x00000000
 
-        uint8_t *p = (void *)(p_end - 8);
-        if (p == p_start) {
-            error("empty code for %s", name);
-        } else if (get32((uint32_t *)(p)) != INSN_RETURN) {
-            error("jr ra expected near the end of %s", name);
-        } else if (get32((uint32_t *)(p + 4)) != INSN_NOP) {
-            error("nop expected at the end of %s", name);
-        } else if ((get32((uint32_t *)(p_start)) >> 16) == 0x3c1c &&
-                  (get32((uint32_t *)(p_start + 4)) >> 16) == 0x279c &&
-                  get32((uint32_t *)(p_start + 8)) == 0x0399e021) {
-            /* Skip prologue
-               lui      gp,nn
-               addiu    gp,gp,nn
-               addu     gp,gp,t9 */
-            p_start += 12;
-            start_offset += 12;
-        }
-        copy_size = p - p_start;
-    }
-#elif (defined(HOST_MIPS) || defined(HOST_MIPS64)) && 0
-    {
-#define INSN_RETURN     0x03e00008
-#define INSN_NOP        0x00000000
-
         uint8_t *p = p_end;
 
         if (p < (p_start + 0x8)) {
@@ -1695,7 +1676,7 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
             p -= 0x8;
             end_insn1 = get32((uint32_t *)(p + 0x0));
             end_insn2 = get32((uint32_t *)(p + 0x4));
-            if (end_insn1 != INSN_RETURN || end_insn2 != INSN_NOP)
+            if (end_insn1 != INSN_RETURN && end_insn2 != INSN_NOP)
                 error("jr ra not found at end of %s", name);
         }
         copy_size = p - p_start;
@@ -1759,7 +1740,9 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
             if (offset >= start_offset &&
                 offset < start_offset + (p_end - p_start)) {
                 sym_name = get_rel_sym_name(rel);
-                if (sym_name && *sym_name && 
+                if(!sym_name)
+                    continue;
+                if (*sym_name &&
                     !strstart(sym_name, "__op_param", NULL) &&
                     !strstart(sym_name, "__op_jmp", NULL) &&
                     !strstart(sym_name, "__op_gen_label", NULL)) {
@@ -1785,7 +1768,7 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
 				fprintf(outfile, "    extern char %s;\n",
 					sym_name);
 #else
-                    fprintf(outfile, "    extern char %s;\n", sym_name);
+                    fprintf(outfile, "extern char %s;\n", sym_name);
 #endif
                 }
             }
@@ -1868,7 +1851,7 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
 #if defined(HOST_I386)
             {
                 char relname[256];
-                int type;
+                int type, is_label;
                 int addend;
                 int reloc_offset;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
@@ -1890,21 +1873,33 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
                         continue;
                     }
 
-                    get_reloc_expr(relname, sizeof(relname), sym_name);
+                    is_label = get_reloc_expr(relname, sizeof(relname), sym_name);
                     addend = get32((uint32_t *)(text + rel->r_offset));
 #ifdef CONFIG_FORMAT_ELF
                     type = ELF32_R_TYPE(rel->r_info);
-                    switch(type) {
-                    case R_386_32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
-                                reloc_offset, relname, addend);
-                        break;
-                    case R_386_PC32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d;\n",
-                                reloc_offset, relname, reloc_offset, addend);
-                        break;
-                    default:
-                        error("unsupported i386 relocation (%d)", type);
+                    if (is_label) {
+                        switch(type) {
+                        case R_386_32:
+                        case R_386_PC32:
+                            fprintf(outfile, "    tcg_out_reloc(s, gen_code_ptr + %d, %d, %s, %d);\n",
+                                    reloc_offset, type, relname, addend);
+                            break;
+                        default:
+                            error("unsupported i386 relocation (%d)", type);
+                        }
+                    } else {
+                        switch(type) {
+                        case R_386_32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
+                                    reloc_offset, relname, addend);
+                            break;
+                        case R_386_PC32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d;\n",
+                                    reloc_offset, relname, reloc_offset, addend);
+                            break;
+                        default:
+                            error("unsupported i386 relocation (%d)", type);
+                        }
                     }
 #elif defined(CONFIG_FORMAT_COFF)
                     {
@@ -1921,17 +1916,37 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
                         }
                     }
                     type = rel->r_type;
-                    switch(type) {
-                    case DIR32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
-                                reloc_offset, relname, addend);
-                        break;
-                    case DISP32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d -4;\n",
-                                reloc_offset, relname, reloc_offset, addend);
-                        break;
-                    default:
-                        error("unsupported i386 relocation (%d)", type);
+                    if (is_label) {
+/* TCG uses elf relocation constants */
+#define R_386_32	1
+#define R_386_PC32	2
+                        switch(type) {
+                        case DIR32:
+                            type = R_386_32;
+                            goto do_reloc;
+                        case DISP32:
+                            type = R_386_PC32;
+                            addend -= 4;
+                        do_reloc:
+                            fprintf(outfile, "    tcg_out_reloc(s, gen_code_ptr + %d, %d, %s, %d);\n",
+                                    reloc_offset, type, relname, addend);
+                            break;
+                        default:
+                            error("unsupported i386 relocation (%d)", type);
+                        }
+                    } else {
+                        switch(type) {
+                        case DIR32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
+                                    reloc_offset, relname, addend);
+                            break;
+                        case DISP32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d -4;\n",
+                                    reloc_offset, relname, reloc_offset, addend);
+                            break;
+                        default:
+                            error("unsupported i386 relocation (%d)", type);
+                        }
                     }
 #else
 #error unsupport object format
@@ -1942,43 +1957,45 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
 #elif defined(HOST_X86_64)
             {
                 char relname[256];
-                int type;
+                int type, is_label;
                 int addend;
                 int reloc_offset;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
-                    sym_name = get_rel_sym_name(rel);
-                    get_reloc_expr(relname, sizeof(relname), sym_name);
+                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
+                    is_label = get_reloc_expr(relname, sizeof(relname), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = rel->r_addend;
                     reloc_offset = rel->r_offset - start_offset;
-                    if (strstart(sym_name, "__op_jmp", &p)) {
-                        int n;
-                        n = strtol(p, NULL, 10);
-                        /* __op_jmp relocations are done at
-                           runtime to do translated block
-                           chaining: the offset of the instruction
-                           needs to be stored */
-                        fprintf(outfile, "    jmp_offsets[%d] = %d + (gen_code_ptr - gen_code_buf);\n",
-                                n, reloc_offset);
-                        continue;
-                    }
-                    switch(type) {
-                    case R_X86_64_32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (uint32_t)%s + %d;\n",
-                                reloc_offset, relname, addend);
-                        break;
-                    case R_X86_64_32S:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (int32_t)%s + %d;\n",
-                                reloc_offset, relname, addend);
-                        break;
-                    case R_X86_64_PC32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d;\n",
-                                reloc_offset, relname, reloc_offset, addend);
-                        break;
-                    default:
-                        error("unsupported X86_64 relocation (%d)", type);
+                    if (is_label) {
+                        switch(type) {
+                        case R_X86_64_32:
+                        case R_X86_64_32S:
+                        case R_X86_64_PC32:
+                            fprintf(outfile, "    tcg_out_reloc(s, gen_code_ptr + %d, %d, %s, %d);\n",
+                                    reloc_offset, type, relname, addend);
+                            break;
+                        default:
+                            error("unsupported X86_64 relocation (%d)", type);
+                        }
+                    } else {
+                        switch(type) {
+                        case R_X86_64_32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (uint32_t)%s + %d;\n",
+                                    reloc_offset, relname, addend);
+                            break;
+                        case R_X86_64_32S:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (int32_t)%s + %d;\n",
+                                    reloc_offset, relname, addend);
+                            break;
+                        case R_X86_64_PC32:
+                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s - (long)(gen_code_ptr + %d) + %d;\n",
+                                    reloc_offset, relname, reloc_offset, addend);
+                            break;
+                        default:
+                            error("unsupported X86_64 relocation (%d)", type);
+                        }
                     }
                 }
                 }
@@ -1993,7 +2010,7 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
-                        sym_name = get_rel_sym_name(rel);
+                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                         reloc_offset = rel->r_offset - start_offset;
                         if (strstart(sym_name, "__op_jmp", &p)) {
                             int n;
@@ -2135,7 +2152,7 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset &&
 			rel->r_offset < start_offset + copy_size) {
-                        sym_name = get_rel_sym_name(rel);
+                        sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                         get_reloc_expr(relname, sizeof(relname), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
                         addend = rel->r_addend;
@@ -2506,7 +2523,7 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
-                    sym_name = get_rel_sym_name(rel);
+                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                     /* the compiler leave some unnecessary references to the code */
                     if (sym_name[0] == '\0')
                         continue;
@@ -2542,7 +2559,7 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
                 if (rel->r_offset >= start_offset &&
 		    rel->r_offset < start_offset + copy_size) {
 		    sym = &(symtab[ELFW(R_SYM)(rel->r_info)]);
-                    sym_name = get_rel_sym_name(rel);
+                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                     get_reloc_expr(relname, sizeof(relname), sym_name);
                     type = ELF32_R_TYPE(rel->r_info);
                     addend = get32((uint32_t *)(text + rel->r_offset)) + rel->r_addend;
@@ -2566,85 +2583,12 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_MIPS) || defined(HOST_MIPS64)
             {
-#ifdef CONFIG_FORMAT_ELF
-#warning "relocation code for mips still untested"
-                for(i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
-                    host_ulong r_offset = rel->r_offset;
-                    if (r_offset >= start_offset && r_offset < start_offset + copy_size) {
-                        char relname[256];
-                        int reloc_offset = r_offset - start_offset;
-#if defined(WORDS_BIGENDIAN)
-                        int reloc_offset_lsb = reloc_offset + 2;
-#else
-                        int reloc_offset_lsb = reloc_offset;
-#endif
-                        int addend = get32((uint32_t *)(text + r_offset));
-                        int type = ELF32_R_TYPE(rel->r_info);
-                        sym_name = get_rel_sym_name(rel);
-                        get_reloc_expr(relname, sizeof(relname), sym_name);
-                        switch(type) {
-                        case R_MIPS_HI16:
-                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)((uint32_t)(%s) >> 16); // r_offset = %d // R_MIPS_HI16\n", 
-                                    reloc_offset_lsb, relname, r_offset);
-                            break;
-                        case R_MIPS_LO16:
-                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)(%s); // r_offset = %d // R_MIPS_LO16\n", 
-                                    reloc_offset_lsb, relname, r_offset);
-                            break;
-                        case R_MIPS_GOT16:
-                            /* No need to relocate. */
-                            fprintf(outfile, "    (void)%s; // reloc_offset = %d, r_offset = %d // R_MIPS_GOT16\n", 
-                                    relname, reloc_offset, r_offset);
-                            break;
-                        case R_MIPS_PC16:
-                            fprintf(outfile, "#warning untested mips relocation R_MIPS_PC16\n");
-                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)(%s - (long)(gen_code_ptr + %d) + %d); // r_offset = %d // R_MIPS_PC16\n", 
-                                    reloc_offset_lsb, relname, reloc_offset + 4, addend, r_offset);
-                            break;
-                        case R_MIPS_CALL16:
-                            /* No need to relocate. */
-                            fprintf(outfile, "    (void)%s; // reloc_offset = %d, r_offset = %d // R_MIPS_CALL16\n", 
-                                    relname, reloc_offset, r_offset);
-                            break;
-                        case R_MIPS_GOTHI16:
-                            fprintf(outfile, "#error unsupported mips relocation R_MIPS_GOTHI16\n");
-                            break;
-                        case R_MIPS_GOTLO16:
-                            fprintf(outfile, "#error unsupported mips relocation R_MIPS_GOTLO16\n");
-                            break;
-                        case R_MIPS_CALLHI16:
-                            fprintf(outfile, "#warning untested mips relocation R_MIPS_CALLHI16\n");
-                            fprintf(outfile, "    (void)%s; // reloc_offset = %d, r_offset = %d // R_MIPS_CALLHI16\n", 
-                                    relname, reloc_offset, r_offset);
-                            break;
-                        case R_MIPS_CALLLO16:
-                            fprintf(outfile, "#warning untested mips relocation R_MIPS_CALLLO16\n");
-                            fprintf(outfile, "    (void)%s; // reloc_offset = %d, r_offset = %d // R_MIPS_CALLLO16\n", 
-                                    relname, reloc_offset, r_offset);
-                            break;
-                        default:
-                            error("unsupported mips relocation (%d) for %s in %s\n", type, sym_name, relname);
-                        }
-                    }
-                }
-#else
-#error unsupport object format
-#endif
-            }
-#elif defined(HOST_MIPS) && 0
-            {
                 for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
-                    host_ulong r_offset = rel->r_offset;
-		    if (r_offset >= start_offset && r_offset < start_offset + copy_size) {
+		    if (rel->r_offset >= start_offset && rel->r_offset < start_offset + copy_size) {
                         char relname[256];
                         int type;
                         int addend;
-                        int reloc_offset = r_offset - start_offset;
-#if defined(WORDS_BIGENDIAN)
-                        int reloc_offset_lsb = reloc_offset + 2;
-#else
-                        int reloc_offset_lsb = reloc_offset;
-#endif
+                        int reloc_offset;
 
 			sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
                         /* the compiler leave some unnecessary references to the code */
@@ -2653,6 +2597,7 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
                         get_reloc_expr(relname, sizeof(relname), sym_name);
 			type = ELF32_R_TYPE(rel->r_info);
                         addend = get32((uint32_t *)(text + rel->r_offset));
+                        reloc_offset = rel->r_offset - start_offset;
 			switch (type) {
 			case R_MIPS_26:
                             fprintf(outfile, "    /* R_MIPS_26 RELOC, offset 0x%x, name %s */\n",
@@ -2664,14 +2609,26 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
 				    "   & 0x3fffff);\n",
                                     reloc_offset, addend, addend, relname, reloc_offset);
 			    break;
-                        case R_MIPS_HI16:
-                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)((uint32_t)(%s) >> 16); // R_MIPS_HI16\n", 
-                                    reloc_offset_lsb, relname);
-                            break;
-                        case R_MIPS_LO16:
-                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (uint16_t)(%s); // R_MIPS_LO16\n", 
-                                    reloc_offset_lsb, relname);
-                            break;
+			case R_MIPS_HI16:
+                            fprintf(outfile, "    /* R_MIPS_HI16 RELOC, offset 0x%x, name %s */\n",
+				    rel->r_offset, sym_name);
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + 0x%x) = "
+				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
+				    " & ~0xffff) "
+				    " | (((%s - 0x8000) >> 16) & 0xffff);\n",
+                                    reloc_offset, reloc_offset, relname);
+			    break;
+			case R_MIPS_LO16:
+                            fprintf(outfile, "    /* R_MIPS_LO16 RELOC, offset 0x%x, name %s */\n",
+				    rel->r_offset, sym_name);
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + 0x%x) = "
+				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
+				    " & ~0xffff) "
+				    " | (%s & 0xffff);\n",
+                                    reloc_offset, reloc_offset, relname);
+			    break;
 			case R_MIPS_PC16:
                             fprintf(outfile, "    /* R_MIPS_PC16 RELOC, offset 0x%x, name %s */\n",
 				    rel->r_offset, sym_name);
@@ -2684,10 +2641,14 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
 			    break;
 			case R_MIPS_GOT16:
 			case R_MIPS_CALL16:
-                            /* No need to relocate. */
-                            fprintf(outfile, "    /* R_MIPS_CALL16 / R_MIPS_GOT16 RELOC, offset 0x%x, name %s */\n",
+                            fprintf(outfile, "    /* R_MIPS_GOT16 RELOC, offset 0x%x, name %s */\n",
 				    rel->r_offset, sym_name);
-                            fprintf(outfile, "    (void)%s;\n", relname);
+                            fprintf(outfile,
+				    "    *(uint32_t *)(gen_code_ptr + 0x%x) = "
+				    "((*(uint32_t *)(gen_code_ptr + 0x%x)) "
+				    " & ~0xffff) "
+				    " | (((%s - 0x8000) >> 16) & 0xffff);\n",
+                                    reloc_offset, reloc_offset, relname);
 			    break;
 			default:
 			    error("unsupported MIPS relocation (%d)", type);
@@ -2722,17 +2683,12 @@ static void gen_code(const char *name, host_ulong offset, host_ulong size,
     }
 }
 
-static int gen_file(FILE *outfile, int out_type)
+int gen_file(FILE *outfile, int out_type)
 {
     int i;
     EXE_SYM *sym;
 
     if (out_type == OUT_INDEX_OP) {
-        fprintf(outfile, "DEF(end, 0, 0)\n");
-        fprintf(outfile, "DEF(nop, 0, 0)\n");
-        fprintf(outfile, "DEF(nop1, 1, 0)\n");
-        fprintf(outfile, "DEF(nop2, 2, 0)\n");
-        fprintf(outfile, "DEF(nop3, 3, 0)\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
             name = get_sym_name(sym);
@@ -2742,7 +2698,6 @@ static int gen_file(FILE *outfile, int out_type)
         }
     } else if (out_type == OUT_GEN_OP) {
         /* generate gen_xxx functions */
-        fprintf(outfile, "#include \"dyngen-op.h\"\n");
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
             name = get_sym_name(sym);
@@ -2759,6 +2714,7 @@ static int gen_file(FILE *outfile, int out_type)
         /* generate big code generation switch */
 
 #ifdef HOST_ARM
+#error broken
         /* We need to know the size of all the ops so we can figure out when
            to emit constant pools.  This must be consistent with opc.h.  */
 fprintf(outfile,
@@ -2779,16 +2735,8 @@ fprintf(outfile,
 "};\n");
 #endif
 
-fprintf(outfile,
-"int dyngen_code(uint8_t *gen_code_buf,\n"
-"                uint16_t *label_offsets, uint16_t *jmp_offsets,\n"
-"                const uint16_t *opc_buf, const uint32_t *opparam_buf, const long *gen_labels)\n"
-"{\n"
-"    uint8_t *gen_code_ptr;\n"
-"    const uint16_t *opc_ptr;\n"
-"    const uint32_t *opparam_ptr;\n");
-
 #ifdef HOST_ARM
+#error broken
 /* Arm is tricky because it uses constant pools for loading immediate values.
    We assume (and require) each function is code followed by a constant pool.
    All the ops are small so this should be ok.  For each op we figure
@@ -2821,6 +2769,7 @@ fprintf(outfile,
 "    uint8_t *arm_pool_ptr = gen_code_buf + 0x1000000;\n");
 #endif
 #ifdef HOST_IA64
+#error broken
     {
 	long addend, not_first = 0;
 	unsigned long sym_idx;
@@ -2878,18 +2827,8 @@ fprintf(outfile,
     }
 #endif
 
-fprintf(outfile,
-"\n"
-"    gen_code_ptr = gen_code_buf;\n"
-"    opc_ptr = opc_buf;\n"
-"    opparam_ptr = opparam_buf;\n");
-
-	/* Generate prologue, if needed. */
-
-fprintf(outfile,
-"    for(;;) {\n");
-
 #ifdef HOST_ARM
+#error broken
 /* Generate constant pool if needed */
 fprintf(outfile,
 "            if (gen_code_ptr + arm_opc_size[*opc_ptr] >= arm_pool_ptr) {\n"
@@ -2901,9 +2840,6 @@ fprintf(outfile,
 "                arm_pool_ptr = gen_code_ptr + 0x1000000;\n"
 "            }\n");
 #endif
-
-fprintf(outfile,
-"        switch(*opc_ptr++) {\n");
 
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
             const char *name;
@@ -2920,57 +2856,12 @@ fprintf(outfile,
                 gen_code(name, sym->st_value, sym->st_size, outfile, 1);
             }
         }
-
-fprintf(outfile,
-"        case INDEX_op_nop:\n"
-"            break;\n"
-"        case INDEX_op_nop1:\n"
-"            opparam_ptr++;\n"
-"            break;\n"
-"        case INDEX_op_nop2:\n"
-"            opparam_ptr += 2;\n"
-"            break;\n"
-"        case INDEX_op_nop3:\n"
-"            opparam_ptr += 3;\n"
-"            break;\n"
-"        default:\n"
-"            goto the_end;\n"
-"        }\n");
-
-
-fprintf(outfile,
-"    }\n"
-" the_end:\n"
-);
-#ifdef HOST_IA64
-    fprintf(outfile,
-	    "    {\n"
-	    "      extern char code_gen_buffer[];\n"
-	    "      ia64_apply_fixes(&gen_code_ptr, ltoff_fixes, "
-	    "(uint64_t) code_gen_buffer + 2*(1<<20), plt_fixes,\n\t\t\t"
-	    "sizeof(plt_target)/sizeof(plt_target[0]),\n\t\t\t"
-	    "plt_target, plt_offset);\n    }\n");
-#endif
-
-/* generate some code patching */
-#ifdef HOST_ARM
-fprintf(outfile,
-"if (arm_data_ptr != arm_data_table + ARM_LDR_TABLE_SIZE)\n"
-"    gen_code_ptr = arm_flush_ldr(gen_code_ptr, arm_ldr_table, "
-"arm_ldr_ptr, arm_data_ptr, arm_data_table + ARM_LDR_TABLE_SIZE, 0);\n");
-#endif
-    /* flush instruction cache */
-    fprintf(outfile, "flush_icache_range((unsigned long)gen_code_buf, (unsigned long)gen_code_ptr);\n");
-
-    fprintf(outfile, "return gen_code_ptr -  gen_code_buf;\n");
-    fprintf(outfile, "}\n\n");
-
     }
 
     return 0;
 }
 
-static void usage(void)
+void usage(void)
 {
     printf("dyngen (c) 2003 Fabrice Bellard\n"
            "usage: dyngen [-o outfile] [-c] objfile\n"

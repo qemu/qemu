@@ -51,6 +51,7 @@ typedef struct MiscState {
     uint32_t sysctrl;
     uint16_t leds;
     CPUState *env;
+    qemu_irq fdc_tc;
 } MiscState;
 
 #define MISC_SIZE 1
@@ -65,6 +66,8 @@ typedef struct MiscState {
 #define MISC_DIAG 0x01a00000
 #define MISC_MDM  0x01b00000
 #define MISC_SYS  0x01f00000
+
+#define AUX1_TC        0x02
 
 #define AUX2_PWROFF    0x01
 #define AUX2_PWRINTCLR 0x02
@@ -175,6 +178,14 @@ static void slavio_aux1_mem_writeb(void *opaque, target_phys_addr_t addr,
     MiscState *s = opaque;
 
     MISC_DPRINTF("Write aux1 %2.2x\n", val & 0xff);
+    if (val & AUX1_TC) {
+        // Send a pulse to floppy terminal count line
+        if (s->fdc_tc) {
+            qemu_irq_raise(s->fdc_tc);
+            qemu_irq_lower(s->fdc_tc);
+        }
+        val &= ~AUX1_TC;
+    }
     s->aux1 = val & 0xff;
 }
 
@@ -407,7 +418,7 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
 void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
                        target_phys_addr_t aux1_base,
                        target_phys_addr_t aux2_base, qemu_irq irq,
-                       CPUState *env)
+                       CPUState *env, qemu_irq **fdc_tc)
 {
     int io;
     MiscState *s;
@@ -462,6 +473,7 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
 
     s->irq = irq;
     s->env = env;
+    *fdc_tc = &s->fdc_tc;
 
     register_savevm("slavio_misc", base, 1, slavio_misc_save, slavio_misc_load,
                     s);
