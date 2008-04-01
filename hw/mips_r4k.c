@@ -98,7 +98,7 @@ static void load_kernel (CPUState *env)
     }
 
     /* Set SP (needed for some kernels) - normally set by bootloader. */
-    env->gpr[29][env->current_tc] = (entry + (kernel_size & 0xfffffffc)) + 0x1000;
+    env->gpr[env->current_tc][29] = (entry + (kernel_size & 0xfffffffc)) + 0x1000;
 
     /* load initrd */
     initrd_size = 0;
