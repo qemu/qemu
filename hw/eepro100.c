@@ -33,6 +33,12 @@
  *
  * Intel 8255x 10/100 Mbps Ethernet Controller Family
  * Open Source Software Developer Manual
+ *
+ * TODO:
+ * EE100   eepro100_write2         addr=General Status/Control+2 val=0x0080
+ * EE100   eepro100_write2         feature is missing in this emulation: unknown word write
+ * EE100   eepro100_read2          addr=General Status/Control+2 val=0x0080
+ * EE100   eepro100_read2          feature is missing in this emulation: unknown word read
  */
 
 #include <assert.h>
