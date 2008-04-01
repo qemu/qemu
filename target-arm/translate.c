@@ -423,7 +423,8 @@ static void gen_set_CF_bit31(TCGv var)
 /* Set N and Z flags from var.  */
 static inline void gen_logic_CC(TCGv var)
 {
-    tcg_gen_st_i32(var, cpu_env, offsetof(CPUState, NZF));
+    tcg_gen_st_i32(var, cpu_env, offsetof(CPUState, NF));
+    tcg_gen_st_i32(var, cpu_env, offsetof(CPUState, ZF));
 }
 
 /* T0 += T1 + CF.  */
@@ -679,11 +680,11 @@ static void gen_test_cc(int cc, int label)
     zero = tcg_const_i32(0);
     switch (cc) {
     case 0: /* eq: Z */
-        tmp = load_cpu_field(NZF);
+        tmp = load_cpu_field(ZF);
         tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
         break;
     case 1: /* ne: !Z */
-        tmp = load_cpu_field(NZF);
+        tmp = load_cpu_field(ZF);
         tcg_gen_brcond_i32(TCG_COND_NE, tmp, zero, label);
         break;
     case 2: /* cs: C */
@@ -695,11 +696,11 @@ static void gen_test_cc(int cc, int label)
         tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
         break;
     case 4: /* mi: N */
-        tmp = load_cpu_field(NZF);
+        tmp = load_cpu_field(NF);
         tcg_gen_brcond_i32(TCG_COND_LT, tmp, zero, label);
         break;
     case 5: /* pl: !N */
-        tmp = load_cpu_field(NZF);
+        tmp = load_cpu_field(NF);
         tcg_gen_brcond_i32(TCG_COND_GE, tmp, zero, label);
         break;
     case 6: /* vs: V */
@@ -715,7 +716,7 @@ static void gen_test_cc(int cc, int label)
         tmp = load_cpu_field(CF);
         tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, inv);
         dead_tmp(tmp);
-        tmp = load_cpu_field(NZF);
+        tmp = load_cpu_field(ZF);
         tcg_gen_brcond_i32(TCG_COND_NE, tmp, zero, label);
         gen_set_label(inv);
         break;
@@ -723,41 +724,41 @@ static void gen_test_cc(int cc, int label)
         tmp = load_cpu_field(CF);
         tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
         dead_tmp(tmp);
-        tmp = load_cpu_field(NZF);
+        tmp = load_cpu_field(ZF);
         tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
         break;
     case 10: /* ge: N == V -> N ^ V == 0 */
         tmp = load_cpu_field(VF);
-        tmp2 = load_cpu_field(NZF);
+        tmp2 = load_cpu_field(NF);
         tcg_gen_xor_i32(tmp, tmp, tmp2);
         dead_tmp(tmp2);
         tcg_gen_brcond_i32(TCG_COND_GE, tmp, zero, label);
         break;
     case 11: /* lt: N != V -> N ^ V != 0 */
         tmp = load_cpu_field(VF);
-        tmp2 = load_cpu_field(NZF);
+        tmp2 = load_cpu_field(NF);
         tcg_gen_xor_i32(tmp, tmp, tmp2);
         dead_tmp(tmp2);
         tcg_gen_brcond_i32(TCG_COND_LT, tmp, zero, label);
         break;
     case 12: /* gt: !Z && N == V */
         inv = gen_new_label();
-        tmp = load_cpu_field(NZF);
+        tmp = load_cpu_field(ZF);
         tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, inv);
         dead_tmp(tmp);
         tmp = load_cpu_field(VF);
-        tmp2 = load_cpu_field(NZF);
+        tmp2 = load_cpu_field(NF);
         tcg_gen_xor_i32(tmp, tmp, tmp2);
         dead_tmp(tmp2);
         tcg_gen_brcond_i32(TCG_COND_GE, tmp, zero, label);
         gen_set_label(inv);
         break;
     case 13: /* le: Z || N != V */
-        tmp = load_cpu_field(NZF);
+        tmp = load_cpu_field(ZF);
         tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
         dead_tmp(tmp);
         tmp = load_cpu_field(VF);
-        tmp2 = load_cpu_field(NZF);
+        tmp2 = load_cpu_field(NF);
         tcg_gen_xor_i32(tmp, tmp, tmp2);
         dead_tmp(tmp2);
         tcg_gen_brcond_i32(TCG_COND_LT, tmp, zero, label);
@@ -5641,7 +5642,8 @@ static void gen_logicq_cc(TCGv val)
 {
     TCGv tmp = new_tmp();
     gen_helper_logicq_cc(tmp, val);
-    store_cpu_field(tmp, NZF);
+    gen_logic_CC(tmp);
+    dead_tmp(tmp);
 }
 
 static void disas_arm_insn(CPUState * env, DisasContext *s)

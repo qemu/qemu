@@ -315,7 +315,7 @@ uint32_t HELPER (add_cc)(uint32_t a, uint32_t b)
 {
     uint32_t result;
     result = T0 + T1;
-    env->NZF = result;
+    env->NF = env->ZF = result;
     env->CF = result < a;
     env->VF = (a ^ b ^ -1) & (a ^ result);
     return result;
@@ -332,7 +332,7 @@ uint32_t HELPER(adc_cc)(uint32_t a, uint32_t b)
         env->CF = result <= a;
     }
     env->VF = (a ^ b ^ -1) & (a ^ result);
-    env->NZF = result;
+    env->NF = env->ZF = result;
     return result;
 }
 
@@ -340,7 +340,7 @@ uint32_t HELPER(sub_cc)(uint32_t a, uint32_t b)
 {
     uint32_t result;
     result = a - b;
-    env->NZF = result;
+    env->NF = env->ZF = result;
     env->CF = a >= b;
     env->VF = (a ^ b) & (a ^ result);
     return result;
@@ -357,7 +357,7 @@ uint32_t HELPER(sbc_cc)(uint32_t a, uint32_t b)
         env->CF = a >= b;
     }
     env->VF = (a ^ b) & (a ^ result);
-    env->NZF = result;
+    env->NF = env->ZF = result;
     return result;
 }
 

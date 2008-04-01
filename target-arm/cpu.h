@@ -86,7 +86,8 @@ typedef struct CPUARMState {
     /* cpsr flag cache for faster execution */
     uint32_t CF; /* 0 or 1 */
     uint32_t VF; /* V is the bit 31. All other bits are undefined */
-    uint32_t NZF; /* N is bit 31. Z is computed from NZF */
+    uint32_t NF; /* N is bit 31. All other bits are undefined.  */
+    uint32_t ZF; /* Z set if zero.  */
     uint32_t QF; /* 0 or 1 */
     uint32_t GE; /* cpsr[19:16] */
     uint32_t thumb; /* cpsr[5]. 0 = arm mode, 1 = thumb mode. */
@@ -254,8 +255,8 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask);
 static inline uint32_t xpsr_read(CPUARMState *env)
 {
     int ZF;
-    ZF = (env->NZF == 0);
-    return (env->NZF & 0x80000000) | (ZF << 30)
+    ZF = (env->ZF == 0);
+    return (env->NF & 0x80000000) | (ZF << 30)
         | (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
         | (env->thumb << 24) | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
@@ -265,9 +266,9 @@ static inline uint32_t xpsr_read(CPUARMState *env)
 /* Set the xPSR.  Note that some bits of mask must be all-set or all-clear.  */
 static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 {
-    /* NOTE: N = 1 and Z = 1 cannot be stored currently */
     if (mask & CPSR_NZCV) {
-        env->NZF = (val & 0xc0000000) ^ 0x40000000;
+        env->ZF = (~val) & CPSR_Z;
+        env->NF = val;
         env->CF = (val >> 29) & 1;
         env->VF = (val << 3) & 0x80000000;
     }
