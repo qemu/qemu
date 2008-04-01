@@ -216,8 +216,9 @@ static int ne2000_can_receive(void *opaque)
 {
     NE2000State *s = opaque;
 
+    /* Receive (drop) packets if card is disabled.  */
     if (s->cmd & E8390_STOP)
-        return 0;
+        return 1;
     return !ne2000_buffer_full(s);
 }
 
