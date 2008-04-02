@@ -2300,7 +2300,7 @@ void op_mftgpr(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->gpr[PARAM1][other_tc];    // ???
+    T0 = env->gpr[other_tc][PARAM1];
     FORCE_RET();
 }
 
@@ -2308,7 +2308,7 @@ void op_mftlo(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->LO[PARAM1][other_tc];     // ???
+    T0 = env->LO[other_tc][PARAM1];
     FORCE_RET();
 }
 
@@ -2316,7 +2316,7 @@ void op_mfthi(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->HI[PARAM1][other_tc];
+    T0 = env->HI[other_tc][PARAM1];
     FORCE_RET();
 }
 
@@ -2324,7 +2324,7 @@ void op_mftacx(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->ACX[PARAM1][other_tc];
+    T0 = env->ACX[other_tc][PARAM1];
     FORCE_RET();
 }
 
@@ -2340,7 +2340,7 @@ void op_mttgpr(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->gpr[PARAM1][other_tc];    // ???
+    T0 = env->gpr[other_tc][PARAM1];
     FORCE_RET();
 }
 
@@ -2348,7 +2348,7 @@ void op_mttlo(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->LO[PARAM1][other_tc];
+    T0 = env->LO[other_tc][PARAM1];
     FORCE_RET();
 }
 
@@ -2356,7 +2356,7 @@ void op_mtthi(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->HI[PARAM1][other_tc];
+    T0 = env->HI[other_tc][PARAM1];
     FORCE_RET();
 }
 
@@ -2364,7 +2364,7 @@ void op_mttacx(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->ACX[PARAM1][other_tc];
+    T0 = env->ACX[other_tc][PARAM1];
     FORCE_RET();
 }
 
