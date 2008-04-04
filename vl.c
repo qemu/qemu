@@ -7541,7 +7541,7 @@ static int main_loop(void)
                 qemu_time += profile_getclock() - ti;
 #endif
                 next_cpu = env->next_cpu ?: first_cpu;
-                if (event_pending) {
+                if (event_pending && likely(ret != EXCP_DEBUG)) {
                     ret = EXCP_INTERRUPT;
                     event_pending = 0;
                     break;
@@ -7573,7 +7573,7 @@ static int main_loop(void)
 		qemu_system_powerdown();
                 ret = EXCP_INTERRUPT;
             }
-            if (ret == EXCP_DEBUG) {
+            if (unlikely(ret == EXCP_DEBUG)) {
                 vm_stop(EXCP_DEBUG);
             }
             /* If all cpus are halted then wait until the next IRQ */
