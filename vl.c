@@ -26,7 +26,6 @@
 #include "hw/usb.h"
 #include "hw/pcmcia.h"
 #include "hw/pc.h"
-#include "hw/fdc.h"
 #include "hw/audiodev.h"
 #include "hw/isa.h"
 #include "net.h"
@@ -8002,6 +8001,7 @@ static void register_machines(void)
     qemu_register_machine(&taihu_machine);
 #elif defined(TARGET_MIPS)
     qemu_register_machine(&mips_machine);
+    qemu_register_machine(&mips_magnum_machine);
     qemu_register_machine(&mips_malta_machine);
     qemu_register_machine(&mips_pica61_machine);
     qemu_register_machine(&mips_mipssim_machine);
@@ -8056,7 +8056,7 @@ static void register_machines(void)
 #ifdef HAS_AUDIO
 struct soundhw soundhw[] = {
 #ifdef HAS_AUDIO_CHOICE
-#ifdef TARGET_I386
+#if defined(TARGET_I386) || defined(TARGET_MIPS)
     {
         "pcspk",
         "PC speaker",
