@@ -98,7 +98,7 @@ void do_compute_fprf (int set_class);
 #ifdef CONFIG_SOFTFLOAT
 void do_float_check_status (void);
 #endif
-#if USE_PRECISE_EMULATION
+#ifdef CONFIG_SOFTFLOAT
 void do_fadd (void);
 void do_fsub (void);
 void do_fmul (void);
@@ -109,13 +109,13 @@ void do_fre (void);
 void do_fres (void);
 void do_frsqrte (void);
 void do_fsel (void);
-#if USE_PRECISE_EMULATION
+#ifdef CONFIG_SOFTFLOAT
 void do_fmadd (void);
 void do_fmsub (void);
 #endif
 void do_fnmadd (void);
 void do_fnmsub (void);
-#if USE_PRECISE_EMULATION
+#ifdef CONFIG_SOFTFLOAT
 void do_frsp (void);
 #endif
 void do_fctiw (void);
