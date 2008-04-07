@@ -162,6 +162,8 @@ unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, CPUARMState* qregs)
     fpa11->initflag = 1;
   }
 
+  set_float_exception_flags(0, &fpa11->fp_status);
+
   if (TEST_OPCODE(opcode,MASK_CPRT))
   {
     //fprintf(stderr,"emulating CPRT\n");
@@ -191,6 +193,11 @@ unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, CPUARMState* qregs)
   }
 
 //  restore_flags(flags);
+  if(nRc == 1 && get_float_exception_flags(&fpa11->fp_status))
+  {
+    //printf("fef 0x%x\n",float_exception_flags);
+    nRc=-get_float_exception_flags(&fpa11->fp_status);
+  }
 
   //printf("returning %d\n",nRc);
   return(nRc);
