@@ -1224,7 +1224,7 @@ if test "$target_darwin_user" = "yes" ; then
   echo "#define CONFIG_DARWIN_USER 1" >> $config_h
 fi
 
-if test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" -o "$target_cpu" = "sparc" -o "$target_cpu" = "sparc64"  -o "$target_cpu" = "sparc32plus" -o "$target_cpu" = "m68k" -o "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" -o "$target_cpu" = "mipsn32" -o "$target_cpu" = "mipsn32el" -o "$target_cpu" = "mips64" -o "$target_cpu" = "mips64el" -o "$target_cpu" = "ppc" ; then
+if test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" -o "$target_cpu" = "sparc" -o "$target_cpu" = "sparc64"  -o "$target_cpu" = "sparc32plus" -o "$target_cpu" = "m68k" -o "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" -o "$target_cpu" = "mipsn32" -o "$target_cpu" = "mipsn32el" -o "$target_cpu" = "mips64" -o "$target_cpu" = "mips64el"; then
   echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
   echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
 fi

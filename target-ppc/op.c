@@ -1716,7 +1716,7 @@ void OPPROTO op_srli_T1_64 (void)
 /* fadd - fadd. */
 void OPPROTO op_fadd (void)
 {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
     do_fadd();
 #else
     FT0 = float64_add(FT0, FT1, &env->fp_status);
@@ -1727,7 +1727,7 @@ void OPPROTO op_fadd (void)
 /* fsub - fsub. */
 void OPPROTO op_fsub (void)
 {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
     do_fsub();
 #else
     FT0 = float64_sub(FT0, FT1, &env->fp_status);
@@ -1738,7 +1738,7 @@ void OPPROTO op_fsub (void)
 /* fmul - fmul. */
 void OPPROTO op_fmul (void)
 {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
     do_fmul();
 #else
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
@@ -1749,7 +1749,7 @@ void OPPROTO op_fmul (void)
 /* fdiv - fdiv. */
 void OPPROTO op_fdiv (void)
 {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
     do_fdiv();
 #else
     FT0 = float64_div(FT0, FT1, &env->fp_status);
@@ -1796,7 +1796,7 @@ void OPPROTO op_fsel (void)
 /* fmadd - fmadd. */
 void OPPROTO op_fmadd (void)
 {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
     do_fmadd();
 #else
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
@@ -1808,7 +1808,7 @@ void OPPROTO op_fmadd (void)
 /* fmsub - fmsub. */
 void OPPROTO op_fmsub (void)
 {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
     do_fmsub();
 #else
     FT0 = float64_mul(FT0, FT1, &env->fp_status);
@@ -1835,7 +1835,7 @@ void OPPROTO op_fnmsub (void)
 /* frsp - frsp. */
 void OPPROTO op_frsp (void)
 {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
     do_frsp();
 #else
     FT0 = float64_to_float32(FT0, &env->fp_status);

@@ -922,7 +922,7 @@ void do_float_check_status (void)
 }
 #endif
 
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
 void do_fadd (void)
 {
     if (unlikely(float64_is_signaling_nan(FT0) ||
@@ -989,7 +989,7 @@ void do_fdiv (void)
         FT0 = float64_div(FT0, FT1, &env->fp_status);
     }
 }
-#endif /* CONFIG_SOFTFLOAT */
+#endif /* USE_PRECISE_EMULATION */
 
 void do_fctiw (void)
 {
@@ -1003,7 +1003,7 @@ void do_fctiw (void)
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
         p.ll = float64_to_int32(FT0, &env->fp_status);
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
         /* XXX: higher bits are not supposed to be significant.
          *     to make tests easier, return the same as a real PowerPC 750
          */
@@ -1025,7 +1025,7 @@ void do_fctiwz (void)
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
         p.ll = float64_to_int32_round_to_zero(FT0, &env->fp_status);
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
         /* XXX: higher bits are not supposed to be significant.
          *     to make tests easier, return the same as a real PowerPC 750
          */
@@ -1114,7 +1114,7 @@ void do_frim (void)
     do_fri(float_round_down);
 }
 
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
 void do_fmadd (void)
 {
     if (unlikely(float64_is_signaling_nan(FT0) ||
@@ -1164,7 +1164,7 @@ void do_fmsub (void)
 #endif
     }
 }
-#endif /* CONFIG_SOFTFLOAT */
+#endif /* USE_PRECISE_EMULATION */
 
 void do_fnmadd (void)
 {
@@ -1174,7 +1174,7 @@ void do_fnmadd (void)
         /* sNaN operation */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
 #ifdef FLOAT128
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -1206,7 +1206,7 @@ void do_fnmsub (void)
         /* sNaN operation */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
 #ifdef FLOAT128
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -1230,7 +1230,7 @@ void do_fnmsub (void)
     }
 }
 
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
 void do_frsp (void)
 {
     if (unlikely(float64_is_signaling_nan(FT0))) {
@@ -1240,7 +1240,7 @@ void do_frsp (void)
         FT0 = float64_to_float32(FT0, &env->fp_status);
     }
 }
-#endif /* CONFIG_SOFTFLOAT */
+#endif /* USE_PRECISE_EMULATION */
 
 void do_fsqrt (void)
 {
@@ -1295,7 +1295,7 @@ void do_fres (void)
         /* Zero reciprocal */
         float_zero_divide_excp();
     } else if (likely(isnormal(FT0))) {
-#ifdef CONFIG_SOFTFLOAT
+#if USE_PRECISE_EMULATION
         FT0 = float64_div(1.0, FT0, &env->fp_status);
         FT0 = float64_to_float32(FT0, &env->fp_status);
 #else

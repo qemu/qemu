@@ -27,6 +27,10 @@
 #include "cpu.h"
 #include "exec-all.h"
 
+/* For normal operations, precise emulation should not be needed */
+//#define USE_PRECISE_EMULATION 1
+#define USE_PRECISE_EMULATION 0
+
 register struct CPUPPCState *env asm(AREG0);
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 /* no registers can be used */
