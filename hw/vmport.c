@@ -34,7 +34,6 @@
 
 typedef struct _VMPortState
 {
-    CPUState *env;
     IOPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
 } VMPortState;
@@ -53,14 +52,15 @@ void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque)
 static uint32_t vmport_ioport_read(void *opaque, uint32_t addr)
 {
     VMPortState *s = opaque;
+    CPUState *env = cpu_single_env;
     unsigned char command;
     uint32_t eax;
 
-    eax = s->env->regs[R_EAX];
+    eax = env->regs[R_EAX];
     if (eax != VMPORT_MAGIC)
         return eax;
 
-    command = s->env->regs[R_ECX];
+    command = env->regs[R_ECX];
     if (command >= VMPORT_ENTRIES)
         return eax;
     if (!s->func[command])
@@ -74,25 +74,23 @@ static uint32_t vmport_ioport_read(void *opaque, uint32_t addr)
 
 static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
 {
-    CPUState *env = opaque;
+    CPUState *env = cpu_single_env;
     env->regs[R_EBX] = VMPORT_MAGIC;
     return 6;
 }
 
 static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 {
-    CPUState *env = opaque;
+    CPUState *env = cpu_single_env;
     env->regs[R_EBX] = 0x1177;
     return ram_size;
 }
 
-void vmport_init(CPUState *env)
+void vmport_init(void)
 {
-    port_state.env = env;
-
     register_ioport_read(0x5658, 1, 4, vmport_ioport_read, &port_state);
 
     /* Register some generic port commands */
-    vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, env);
-    vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, env);
+    vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);
+    vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
 }
