@@ -132,6 +132,7 @@ typedef struct CPUTLBEntry {
                    sizeof(target_phys_addr_t))];
 } CPUTLBEntry;
 
+#define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
     /* soft mmu support */                                              \
@@ -145,7 +146,8 @@ typedef struct CPUTLBEntry {
     /* The meaning of the MMU modes is defined in the target code. */   \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
-    long temp_buf[128]; /* buffer for temporaries in the code generator */ \
+    /* buffer for temporaries in the code generator */                  \
+    long temp_buf[CPU_TEMP_BUF_NLONGS];                                 \
                                                                         \
     /* from this point: preserved by CPU reset */                       \
     /* ice debug support */                                             \

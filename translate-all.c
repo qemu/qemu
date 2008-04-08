@@ -85,7 +85,7 @@ void cpu_gen_init(void)
 {
     tcg_context_init(&tcg_ctx); 
     tcg_set_frame(&tcg_ctx, TCG_AREG0, offsetof(CPUState, temp_buf),
-                  128 * sizeof(long));
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 
 /* return non zero if the very first instruction is invalid so that
