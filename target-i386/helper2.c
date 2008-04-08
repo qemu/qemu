@@ -128,6 +128,13 @@ typedef struct x86_def_t {
     uint32_t xlevel;
 } x86_def_t;
 
+#define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
+#define PENTIUM_FEATURES (I486_FEATURES | CPUID_DE | CPUID_TSC | \
+          CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX)
+#define PENTIUM2_FEATURES (PENTIUM_FEATURES | CPUID_PAE | CPUID_SEP | \
+          CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | \
+          CPUID_PSE36 | CPUID_FXSR)
+#define PENTIUM3_FEATURES (PENTIUM_FEATURES | CPUID_SSE)
 #define PPRO_FEATURES (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | \
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
           CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | \
@@ -172,7 +179,7 @@ static x86_def_t x86_defs[] = {
         .family = 4,
         .model = 0,
         .stepping = 0,
-        .features = 0x0000000B,
+        .features = I486_FEATURES,
         .xlevel = 0,
     },
     {
@@ -181,7 +188,7 @@ static x86_def_t x86_defs[] = {
         .family = 5,
         .model = 4,
         .stepping = 3,
-        .features = 0x008001BF,
+        .features = PENTIUM_FEATURES,
         .xlevel = 0,
     },
     {
@@ -190,7 +197,7 @@ static x86_def_t x86_defs[] = {
         .family = 6,
         .model = 5,
         .stepping = 2,
-        .features = 0x0183F9FF,
+        .features = PENTIUM2_FEATURES,
         .xlevel = 0,
     },
     {
@@ -199,7 +206,7 @@ static x86_def_t x86_defs[] = {
         .family = 6,
         .model = 7,
         .stepping = 3,
-        .features = 0x0383F9FF,
+        .features = PENTIUM3_FEATURES,
         .xlevel = 0,
     },
     {
