@@ -57,6 +57,11 @@ OBJS+=scsi-generic.o
 OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o usb-serial.o
 OBJS+=sd.o ssi-sd.o
 
+ifdef CONFIG_BRLAPI
+OBJS+= baum.o
+LIBS+=-lbrlapi
+endif
+
 ifdef CONFIG_WIN32
 OBJS+=tap-win32.o
 endif

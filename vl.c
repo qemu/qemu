@@ -28,6 +28,7 @@
 #include "hw/pc.h"
 #include "hw/audiodev.h"
 #include "hw/isa.h"
+#include "hw/baum.h"
 #include "net.h"
 #include "console.h"
 #include "sysemu.h"
@@ -3473,7 +3474,12 @@ CharDriverState *qemu_chr_open(const char *filename)
     } else
     if (strstart(filename, "file:", &p)) {
         return qemu_chr_open_win_file_out(p);
-    }
+    } else
+#endif
+#ifdef CONFIG_BRLAPI
+    if (!strcmp(filename, "braille")) {
+        return chr_baum_init();
+    } else
 #endif
     {
         return NULL;
@@ -5281,6 +5287,10 @@ static int usb_device_add(const char *devname)
         dev = usb_wacom_init();
     } else if (strstart(devname, "serial:", &p)) {
         dev = usb_serial_init(p);
+#ifdef CONFIG_BRLAPI
+    } else if (!strcmp(devname, "braille")) {
+        dev = usb_baum_init();
+#endif
     } else {
         return -1;
     }

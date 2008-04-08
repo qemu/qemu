@@ -546,6 +546,10 @@ Pass through the host device identified by vendor_id:product_id (Linux only).
 Serial converter to host character device @var{dev}, see @code{-serial} for the
 available devices.
 
+@item braille
+Braille device.  This will use BrlAPI to display the braille output on a real
+or fake device.
+
 @end table
 
 @end table
@@ -858,6 +862,10 @@ listening on port 4444 would be:
 @table @code
 @item -serial mon:telnet::4444,server,nowait
 @end table
+
+@item braille
+Braille device.  This will use BrlAPI to display the braille output on a real
+or fake device.
 
 @end table
 
@@ -1614,6 +1622,9 @@ usb_add serial:productid=FA00:tcp:192.168.0.2:4444
 @end example
 will connect to tcp port 4444 of ip 192.168.0.2, and plug that to the virtual
 serial converter, faking a Matrix Orbital LCD Display (USB ID 0403:FA00).
+@item braille
+Braille device.  This will use BrlAPI to display the braille output on a real
+or fake device.
 @end table
 
 @node host_usb_devices
