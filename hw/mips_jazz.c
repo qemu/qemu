@@ -33,24 +33,16 @@
 #include "net.h"
 #include "scsi.h"
 
-extern int nographic;
-
 #ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
 #else
 #define BIOS_FILENAME "mipsel_bios.bin"
 #endif
 
-#ifdef TARGET_MIPS64
-#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffULL)
-#else
-#define PHYS_TO_VIRT(x) ((x) | ~0x7fffffffU)
-#endif
-#define VIRT_TO_PHYS_ADDEND (-((int64_t)(int32_t)0x80000000))
-
 enum jazz_model_e
 {
     JAZZ_MAGNUM,
+    JAZZ_PICA61,
 };
 
 static void main_cpu_reset(void *opaque)
@@ -196,6 +188,10 @@ void mips_jazz_init (int ram_size, int vga_ram_size,
     case JAZZ_MAGNUM:
         g364fb_mm_init(ds, vga_ram_size, 0, 0x40000000, 0x60000000);
         break;
+    case JAZZ_PICA61:
+        isa_vga_mm_init(ds, phys_ram_base + ram_size, ram_size, vga_ram_size,
+                        0x40000000, 0x60000000, 0);
+        break;
     default:
         break;
     }
@@ -268,8 +264,23 @@ void mips_magnum_init (int ram_size, int vga_ram_size,
     mips_jazz_init(ram_size, vga_ram_size, ds, cpu_model, JAZZ_MAGNUM);
 }
 
+static
+void mips_pica61_init (int ram_size, int vga_ram_size,
+                       const char *boot_device, DisplayState *ds,
+                       const char *kernel_filename, const char *kernel_cmdline,
+                       const char *initrd_filename, const char *cpu_model)
+{
+    mips_jazz_init(ram_size, vga_ram_size, ds, cpu_model, JAZZ_PICA61);
+}
+
 QEMUMachine mips_magnum_machine = {
     "magnum",
     "MIPS Magnum",
     mips_magnum_init,
+};
+
+QEMUMachine mips_pica61_machine = {
+    "pica61",
+    "Acer Pica 61",
+    mips_pica61_init,
 };
