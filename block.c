@@ -452,7 +452,14 @@ void bdrv_close(BlockDriverState *bs)
 
 void bdrv_delete(BlockDriverState *bs)
 {
-    /* XXX: remove the driver list */
+    BlockDriverState **pbs;
+
+    pbs = &bdrv_first;
+    while (*pbs != bs && *pbs != NULL)
+        pbs = &(*pbs)->next;
+    if (*pbs == bs)
+        *pbs = bs->next;
+
     bdrv_close(bs);
     qemu_free(bs);
 }
