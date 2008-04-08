@@ -77,6 +77,7 @@ For system emulation, the following hardware targets are supported:
 @item Sun4m/Sun4c/Sun4d (32-bit Sparc processor)
 @item Sun4u (64-bit Sparc processor, in progress)
 @item Malta board (32-bit and 64-bit MIPS processors)
+@item MIPS Magnum (64-bit MIPS processor)
 @item ARM Integrator/CP (ARM)
 @item ARM Versatile baseboard (ARM)
 @item ARM RealView Emulation baseboard (ARM)
@@ -2185,7 +2186,7 @@ PC-compatible serial ports
 Four executables cover simulation of 32 and 64-bit MIPS systems in
 both endian options, @file{qemu-system-mips}, @file{qemu-system-mipsel}
 @file{qemu-system-mips64} and @file{qemu-system-mips64el}.
-Four different machine types are emulated:
+Five different machine types are emulated:
 
 @itemize @minus
 @item
@@ -2196,6 +2197,8 @@ The MIPS Malta prototype board "malta"
 An ACER Pica "pica61". This machine needs the 64-bit emulator.
 @item
 MIPS emulator pseudo board "mipssim"
+@item
+A MIPS Magnum R4000 machine "magnum". This machine needs the 64-bit emulator.
 @end itemize
 
 The generic emulation is supported by Debian 'Etch' and is able to
@@ -2255,6 +2258,22 @@ PC style serial port
 @item
 MIPSnet network emulation
 @end itemize
+
+The MIPS Magnum R4000 emulation supports:
+
+@itemize @minus
+@item
+MIPS R4000 CPU
+@item
+PC-style IRQ controller
+@item
+PC Keyboard
+@item
+SCSI controller
+@item
+G364 framebuffer
+@end itemize
+
 
 @node ARM System emulator
 @section ARM System emulator
