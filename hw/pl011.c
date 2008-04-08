@@ -195,7 +195,7 @@ static int pl011_can_receive(void *opaque)
         return s->read_count < 1;
 }
 
-static void pl011_receive(void *opaque, const uint8_t *buf, int size)
+static void pl011_put_fifo(void *opaque, uint32_t value)
 {
     pl011_state *s = (pl011_state *)opaque;
     int slot;
@@ -203,7 +203,7 @@ static void pl011_receive(void *opaque, const uint8_t *buf, int size)
     slot = s->read_pos + s->read_count;
     if (slot >= 16)
         slot -= 16;
-    s->read_fifo[slot] = *buf;
+    s->read_fifo[slot] = value;
     s->read_count++;
     s->flags &= ~PL011_FLAG_RXFE;
     if (s->cr & 0x10 || s->read_count == 16) {
@@ -215,9 +215,15 @@ static void pl011_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+static void pl011_receive(void *opaque, const uint8_t *buf, int size)
+{
+    pl011_put_fifo(opaque, *buf);
+}
+
 static void pl011_event(void *opaque, int event)
 {
-    /* ??? Should probably implement break.  */
+    if (event == CHR_EVENT_BREAK)
+        pl011_put_fifo(opaque, 0x400);
 }
 
 static CPUReadMemoryFunc *pl011_readfn[] = {
