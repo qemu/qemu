@@ -1,5 +1,5 @@
 /*
- *  MMX/SSE/SSE2/PNI support
+ *  MMX/3DNow!/SSE/SSE2/SSE3/PNI support
  *
  *  Copyright (c) 2005 Fabrice Bellard
  *
@@ -409,6 +409,7 @@ static inline int satsw(int x)
 #define FCMPEQ(a, b) (a) == (b) ? -1 : 0
 
 #define FMULLW(a, b) (a) * (b)
+#define FMULHRW(a, b) ((int16_t)(a) * (int16_t)(b) + 0x8000) >> 16
 #define FMULHUW(a, b) (a) * (b) >> 16
 #define FMULHW(a, b) (int16_t)(a) * (int16_t)(b) >> 16
 
@@ -455,6 +456,9 @@ SSE_OP_W(op_pcmpeqw, FCMPEQ)
 SSE_OP_L(op_pcmpeql, FCMPEQ)
 
 SSE_OP_W(op_pmullw, FMULLW)
+#if SHIFT == 0
+SSE_OP_W(op_pmulhrw, FMULHRW)
+#endif
 SSE_OP_W(op_pmulhuw, FMULHUW)
 SSE_OP_W(op_pmulhw, FMULHW)
 
@@ -1382,6 +1386,175 @@ void OPPROTO glue(op_punpck ## base_name ## qdq, SUFFIX) (void)  \
 
 UNPCK_OP(l, 0)
 UNPCK_OP(h, 1)
+
+/* 3DNow! float ops */
+#if SHIFT == 0
+void OPPROTO op_pi2fd(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_S(0) = int32_to_float32(s->MMX_L(0), &env->mmx_status);
+    d->MMX_S(1) = int32_to_float32(s->MMX_L(1), &env->mmx_status);
+}
+
+void OPPROTO op_pi2fw(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_S(0) = int32_to_float32((int16_t)s->MMX_W(0), &env->mmx_status);
+    d->MMX_S(1) = int32_to_float32((int16_t)s->MMX_W(2), &env->mmx_status);
+}
+
+void OPPROTO op_pf2id(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_L(0) = float32_to_int32_round_to_zero(s->MMX_S(0), &env->mmx_status);
+    d->MMX_L(1) = float32_to_int32_round_to_zero(s->MMX_S(1), &env->mmx_status);
+}
+
+void OPPROTO op_pf2iw(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_L(0) = satsw(float32_to_int32_round_to_zero(s->MMX_S(0), &env->mmx_status));
+    d->MMX_L(1) = satsw(float32_to_int32_round_to_zero(s->MMX_S(1), &env->mmx_status));
+}
+
+void OPPROTO op_pfacc(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    MMXReg r;
+    r.MMX_S(0) = float32_add(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
+    r.MMX_S(1) = float32_add(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
+    *d = r;
+}
+
+void OPPROTO op_pfadd(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_S(0) = float32_add(d->MMX_S(0), s->MMX_S(0), &env->mmx_status);
+    d->MMX_S(1) = float32_add(d->MMX_S(1), s->MMX_S(1), &env->mmx_status);
+}
+
+void OPPROTO op_pfcmpeq(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_L(0) = float32_eq(d->MMX_S(0), s->MMX_S(0), &env->mmx_status) ? -1 : 0;
+    d->MMX_L(1) = float32_eq(d->MMX_S(1), s->MMX_S(1), &env->mmx_status) ? -1 : 0;
+}
+
+void OPPROTO op_pfcmpge(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_L(0) = float32_le(s->MMX_S(0), d->MMX_S(0), &env->mmx_status) ? -1 : 0;
+    d->MMX_L(1) = float32_le(s->MMX_S(1), d->MMX_S(1), &env->mmx_status) ? -1 : 0;
+}
+
+void OPPROTO op_pfcmpgt(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_L(0) = float32_lt(s->MMX_S(0), d->MMX_S(0), &env->mmx_status) ? -1 : 0;
+    d->MMX_L(1) = float32_lt(s->MMX_S(1), d->MMX_S(1), &env->mmx_status) ? -1 : 0;
+}
+
+void OPPROTO op_pfmax(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    if (float32_lt(d->MMX_S(0), s->MMX_S(0), &env->mmx_status))
+        d->MMX_S(0) = s->MMX_S(0);
+    if (float32_lt(d->MMX_S(1), s->MMX_S(1), &env->mmx_status))
+        d->MMX_S(1) = s->MMX_S(1);
+}
+
+void OPPROTO op_pfmin(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    if (float32_lt(s->MMX_S(0), d->MMX_S(0), &env->mmx_status))
+        d->MMX_S(0) = s->MMX_S(0);
+    if (float32_lt(s->MMX_S(1), d->MMX_S(1), &env->mmx_status))
+        d->MMX_S(1) = s->MMX_S(1);
+}
+
+void OPPROTO op_pfmul(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_S(0) = float32_mul(d->MMX_S(0), s->MMX_S(0), &env->mmx_status);
+    d->MMX_S(1) = float32_mul(d->MMX_S(1), s->MMX_S(1), &env->mmx_status);
+}
+
+void OPPROTO op_pfnacc(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    MMXReg r;
+    r.MMX_S(0) = float32_sub(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
+    r.MMX_S(1) = float32_sub(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
+    *d = r;
+}
+
+void OPPROTO op_pfpnacc(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    MMXReg r;
+    r.MMX_S(0) = float32_sub(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
+    r.MMX_S(1) = float32_add(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
+    *d = r;
+}
+
+void OPPROTO op_pfrcp(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_S(0) = approx_rcp(s->MMX_S(0));
+    d->MMX_S(1) = d->MMX_S(0);
+}
+
+void OPPROTO op_pfrsqrt(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_L(1) = s->MMX_L(0) & 0x7fffffff;
+    d->MMX_S(1) = approx_rsqrt(d->MMX_S(1));
+    d->MMX_L(1) |= s->MMX_L(0) & 0x80000000;
+    d->MMX_L(0) = d->MMX_L(1);
+}
+
+void OPPROTO op_pfsub(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_S(0) = float32_sub(d->MMX_S(0), s->MMX_S(0), &env->mmx_status);
+    d->MMX_S(1) = float32_sub(d->MMX_S(1), s->MMX_S(1), &env->mmx_status);
+}
+
+void OPPROTO op_pfsubr(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    d->MMX_S(0) = float32_sub(s->MMX_S(0), d->MMX_S(0), &env->mmx_status);
+    d->MMX_S(1) = float32_sub(s->MMX_S(1), d->MMX_S(1), &env->mmx_status);
+}
+
+void OPPROTO op_pswapd(void)
+{
+    MMXReg *d = (MMXReg *)((char *)env + PARAM1);
+    MMXReg *s = (MMXReg *)((char *)env + PARAM2);
+    MMXReg r;
+    r.MMX_L(0) = s->MMX_L(1);
+    r.MMX_L(1) = s->MMX_L(0);
+    *d = r;
+}
+#endif
 
 #undef SHIFT
 #undef XMM_ONLY

@@ -150,7 +150,8 @@ static x86_def_t x86_defs[] = {
             CPUID_PSE36,
         .ext_features = CPUID_EXT_SSE3,
         .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | 
-            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
+            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX |
+            CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
         .ext3_features = CPUID_EXT3_SVM,
         .xlevel = 0x8000000A,
     },
@@ -200,6 +201,19 @@ static x86_def_t x86_defs[] = {
         .stepping = 3,
         .features = 0x0383F9FF,
         .xlevel = 0,
+    },
+    {
+        .name = "athlon",
+        .level = 2,
+        .vendor1 = 0x68747541, /* "Auth" */
+        .vendor2 = 0x69746e65, /* "enti" */
+        .vendor3 = 0x444d4163, /* "cAMD" */
+        .family = 6,
+        .model = 2,
+        .stepping = 3,
+        .features = PPRO_FEATURES | PPRO_FEATURES | CPUID_PSE36 | CPUID_VME | CPUID_MTRR | CPUID_MCA,
+        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
+        .xlevel = 0x80000008,
     },
 };
 

@@ -2408,12 +2408,16 @@ static GenOpFunc1 *gen_sto_env_A0[3] = {
 };
 
 #define SSE_SPECIAL ((GenOpFunc2 *)1)
+#define SSE_DUMMY ((GenOpFunc2 *)2)
 
 #define MMX_OP2(x) { gen_op_ ## x ## _mmx, gen_op_ ## x ## _xmm }
 #define SSE_FOP(x) { gen_op_ ## x ## ps, gen_op_ ## x ## pd, \
                      gen_op_ ## x ## ss, gen_op_ ## x ## sd, }
 
 static GenOpFunc2 *sse_op_table1[256][4] = {
+    /* 3DNow! extensions */
+    [0x0e] = { SSE_DUMMY }, /* femms */
+    [0x0f] = { SSE_DUMMY }, /* pf... */
     /* pure SSE operations */
     [0x10] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movups, movupd, movss, movsd */
     [0x11] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movups, movupd, movss, movsd */
@@ -2480,7 +2484,7 @@ static GenOpFunc2 *sse_op_table1[256][4] = {
     [0x74] = MMX_OP2(pcmpeqb),
     [0x75] = MMX_OP2(pcmpeqw),
     [0x76] = MMX_OP2(pcmpeql),
-    [0x77] = { SSE_SPECIAL }, /* emms */
+    [0x77] = { SSE_DUMMY }, /* emms */
     [0x7c] = { NULL, gen_op_haddpd, NULL, gen_op_haddps },
     [0x7d] = { NULL, gen_op_hsubpd, NULL, gen_op_hsubps },
     [0x7e] = { SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL }, /* movd, movd, , movq */
@@ -2577,6 +2581,33 @@ static GenOpFunc2 *sse_op_table4[8][4] = {
     SSE_FOP(cmpord),
 };
 
+static GenOpFunc2 *sse_op_table5[256] = {
+    [0x0c] = gen_op_pi2fw,
+    [0x0d] = gen_op_pi2fd,
+    [0x1c] = gen_op_pf2iw,
+    [0x1d] = gen_op_pf2id,
+    [0x8a] = gen_op_pfnacc,
+    [0x8e] = gen_op_pfpnacc,
+    [0x90] = gen_op_pfcmpge,
+    [0x94] = gen_op_pfmin,
+    [0x96] = gen_op_pfrcp,
+    [0x97] = gen_op_pfrsqrt,
+    [0x9a] = gen_op_pfsub,
+    [0x9e] = gen_op_pfadd,
+    [0xa0] = gen_op_pfcmpgt,
+    [0xa4] = gen_op_pfmax,
+    [0xa6] = gen_op_movq, /* pfrcpit1; no need to actually increase precision */
+    [0xa7] = gen_op_movq, /* pfrsqit1 */
+    [0xaa] = gen_op_pfsubr,
+    [0xae] = gen_op_pfacc,
+    [0xb0] = gen_op_pfcmpeq,
+    [0xb4] = gen_op_pfmul,
+    [0xb6] = gen_op_movq, /* pfrcpit2 */
+    [0xb7] = gen_op_pmulhrw_mmx,
+    [0xbb] = gen_op_pswapd,
+    [0xbf] = gen_op_pavgb_mmx /* pavgusb */
+};
+
 static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
 {
     int b1, op1_offset, op2_offset, is_xmm, val, ot;
@@ -2596,7 +2627,7 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
     sse_op2 = sse_op_table1[b][b1];
     if (!sse_op2)
         goto illegal_op;
-    if (b <= 0x5f || b == 0xc6 || b == 0xc2) {
+    if ((b <= 0x5f && b >= 0x10) || b == 0xc6 || b == 0xc2) {
         is_xmm = 1;
     } else {
         if (b1 == 0) {
@@ -2618,8 +2649,8 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
     }
     if (is_xmm && !(s->flags & HF_OSFXSR_MASK))
         goto illegal_op;
-    if (b == 0x77) {
-        /* emms */
+    if (b == 0x77 || b == 0x0e) {
+        /* emms or femms */
         gen_op_emms();
         return;
     }
@@ -3151,6 +3182,13 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             }
         }
         switch(b) {
+        case 0x0f: /* 3DNow! data insns */
+            val = ldub_code(s->pc++);
+            sse_op2 = sse_op_table5[val];
+            if (!sse_op2)
+                goto illegal_op;
+            sse_op2(op1_offset, op2_offset);
+            break;
         case 0x70: /* pshufx insn */
         case 0xc6: /* pshufx insn */
             val = ldub_code(s->pc++);
@@ -6148,7 +6186,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_eob(s);
         }
         break;
-    /* MMX/SSE/SSE2/PNI support */
+    /* MMX/3DNow!/SSE/SSE2/SSE3 support */
     case 0x1c3: /* MOVNTI reg, mem */
         if (!(s->cpuid_features & CPUID_SSE2))
             goto illegal_op;
@@ -6214,6 +6252,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         case 7: /* sfence / clflush */
             if ((modrm & 0xc7) == 0xc0) {
                 /* sfence */
+                /* XXX: also check for cpuid_ext2_features & CPUID_EXT2_EMMX */
                 if (!(s->cpuid_features & CPUID_SSE))
                     goto illegal_op;
             } else {
@@ -6227,8 +6266,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         }
         break;
-    case 0x10d: /* prefetch */
+    case 0x10d: /* 3DNow! prefetch(w) */
         modrm = ldub_code(s->pc++);
+        mod = (modrm >> 6) & 3;
+        if (mod == 3)
+            goto illegal_op;
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
         /* ignore for now */
         break;
@@ -6245,6 +6287,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_op_rsm();
         gen_eob(s);
         break;
+    case 0x10e ... 0x10f:
+        /* 3DNow! instructions, ignore prefixes */
+        s->prefix &= ~(PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA);
     case 0x110 ... 0x117:
     case 0x128 ... 0x12f:
     case 0x150 ... 0x177:

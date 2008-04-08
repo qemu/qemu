@@ -428,8 +428,9 @@ typedef union {
 
 typedef union {
     uint8_t _b[8];
-    uint16_t _w[2];
-    uint32_t _l[1];
+    uint16_t _w[4];
+    uint32_t _l[2];
+    float32 _s[2];
     uint64_t q;
 } MMXReg;
 
@@ -444,6 +445,7 @@ typedef union {
 #define MMX_B(n) _b[7 - (n)]
 #define MMX_W(n) _w[3 - (n)]
 #define MMX_L(n) _l[1 - (n)]
+#define MMX_S(n) _s[1 - (n)]
 #else
 #define XMM_B(n) _b[n]
 #define XMM_W(n) _w[n]
@@ -455,6 +457,7 @@ typedef union {
 #define MMX_B(n) _b[n]
 #define MMX_W(n) _w[n]
 #define MMX_L(n) _l[n]
+#define MMX_S(n) _s[n]
 #endif
 #define MMX_Q(n) q
 
@@ -520,6 +523,7 @@ typedef struct CPUX86State {
         int64_t i64;
     } fp_convert;
 
+    float_status mmx_status; /* for 3DNow! float ops */
     float_status sse_status;
     uint32_t mxcsr;
     XMMReg xmm_regs[CPU_NB_REGS];
