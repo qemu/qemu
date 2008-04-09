@@ -100,6 +100,7 @@ typedef struct DisasContext {
     int rip_offset; /* only used in x86_64, but left for simplicity */
     int cpuid_features;
     int cpuid_ext_features;
+    int cpuid_ext2_features;
 } DisasContext;
 
 static void gen_eob(DisasContext *s);
@@ -2649,8 +2650,15 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
     }
     if (is_xmm && !(s->flags & HF_OSFXSR_MASK))
         goto illegal_op;
-    if (b == 0x77 || b == 0x0e) {
-        /* emms or femms */
+    if (b == 0x0e) {
+        if (!(s->cpuid_ext2_features & CPUID_EXT2_3DNOW))
+            goto illegal_op;
+        /* femms */
+        gen_op_emms();
+        return;
+    }
+    if (b == 0x77) {
+        /* emms */
         gen_op_emms();
         return;
     }
@@ -3183,6 +3191,8 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         }
         switch(b) {
         case 0x0f: /* 3DNow! data insns */
+            if (!(s->cpuid_ext2_features & CPUID_EXT2_3DNOW))
+                goto illegal_op;
             val = ldub_code(s->pc++);
             sse_op2 = sse_op_table5[val];
             if (!sse_op2)
@@ -6757,6 +6767,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     }
     dc->cpuid_features = env->cpuid_features;
     dc->cpuid_ext_features = env->cpuid_ext_features;
+    dc->cpuid_ext2_features = env->cpuid_ext2_features;
 #ifdef TARGET_X86_64
     dc->lma = (flags >> HF_LMA_SHIFT) & 1;
     dc->code64 = (flags >> HF_CS64_SHIFT) & 1;
