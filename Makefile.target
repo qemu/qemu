@@ -322,10 +322,10 @@ cpu-exec.o: cpu-exec.c
 
 ifdef CONFIG_LINUX_USER
 
-VPATH+=:$(SRC_PATH)/linux-user
 ifndef TARGET_ABI_DIR
   TARGET_ABI_DIR=$(TARGET_ARCH)
 endif
+VPATH+=:$(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 CPPFLAGS+=-I$(SRC_PATH)/linux-user -I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)
 
 ifdef CONFIG_STATIC
