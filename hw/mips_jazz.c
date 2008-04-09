@@ -200,7 +200,7 @@ void mips_jazz_init (int ram_size, int vga_ram_size,
     /* FIXME: missing NS SONIC DP83932 */
 
     /* SCSI adapter */
-    scsi_hba = esp_init(0x80002000,
+    scsi_hba = esp_init(0x80002000, 0,
                         espdma_memory_read, espdma_memory_write, NULL,
                         rc4030[5], &esp_reset);
     for (n = 0; n < ESP_MAX_DEVS; n++) {
