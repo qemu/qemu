@@ -744,6 +744,32 @@ static void do_memory_save(unsigned int valh, unsigned int vall,
     fclose(f);
 }
 
+static void do_physical_memory_save(unsigned int valh, unsigned int vall,
+                                    uint32_t size, const char *filename)
+{
+    FILE *f;
+    uint32_t l;
+    uint8_t buf[1024];
+    target_long addr = GET_TLONG(valh, vall);
+
+    f = fopen(filename, "wb");
+    if (!f) {
+        term_printf("could not open '%s'\n", filename);
+        return;
+    }
+    while (size != 0) {
+        l = sizeof(buf);
+        if (l > size)
+            l = size;
+        cpu_physical_memory_rw(addr, buf, l, 0);
+        fwrite(buf, 1, l, f);
+        fflush(f);
+        addr += l;
+        size -= l;
+    }
+    fclose(f);
+}
+
 static void do_sum(uint32_t start, uint32_t size)
 {
     uint32_t addr;
@@ -1328,6 +1354,8 @@ static term_cmd_t term_cmds[] = {
        "capture index", "stop capture" },
     { "memsave", "lis", do_memory_save,
       "addr size file", "save to disk virtual memory dump starting at 'addr' of size 'size'", },
+    { "pmemsave", "lis", do_physical_memory_save,
+      "addr size file", "save to disk physical memory dump starting at 'addr' of size 'size'", },
     { NULL, NULL, },
 };
 
