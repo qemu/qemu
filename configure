@@ -35,17 +35,26 @@ case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
   ;;
+  x86_64|amd64)
+    cpu="x86_64"
+  ;;
+  alpha)
+    cpu="alpha"
+  ;;
   armv*b)
     cpu="armv4b"
   ;;
   armv*l)
     cpu="armv4l"
   ;;
-  alpha)
-    cpu="alpha"
+  cris)
+    cpu="cris"
   ;;
-  "Power Macintosh"|ppc|ppc64)
-    cpu="powerpc"
+  ia64)
+    cpu="ia64"
+  ;;
+  m68k)
+    cpu="m68k"
   ;;
   mips)
     cpu="mips"
@@ -53,8 +62,8 @@ case "$cpu" in
   mips64)
     cpu="mips64"
   ;;
-  cris)
-    cpu="cris"
+  "Power Macintosh"|ppc|ppc64)
+    cpu="powerpc"
   ;;
   s390*)
     cpu="s390"
@@ -64,15 +73,6 @@ case "$cpu" in
   ;;
   sparc64)
     cpu="sparc64"
-  ;;
-  ia64)
-    cpu="ia64"
-  ;;
-  m68k)
-    cpu="m68k"
-  ;;
-  x86_64|amd64)
-    cpu="x86_64"
   ;;
   *)
     cpu="unknown"
