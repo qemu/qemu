@@ -4001,7 +4001,6 @@ static inline uint16_t cpu2vmcb_attrib(uint32_t cpu_attrib)
 	    | ((cpu_attrib & 0xf00000) >> 12);       /* AVL, L, DB, G */
 }
 
-extern uint8_t *phys_ram_base;
 void helper_vmrun(target_ulong addr)
 {
     uint32_t event_inj;
