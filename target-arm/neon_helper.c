@@ -726,7 +726,7 @@ NEON_VOP(mul_u8, neon_u8, 4)
 NEON_VOP(mul_u16, neon_u16, 2)
 #undef NEON_FN
 
-/* Polynomial multiplication is like integer multiplcation except the
+/* Polynomial multiplication is like integer multiplication except the
    partial products are XORed, not added.  */
 uint32_t HELPER(neon_mul_p8)(uint32_t op1, uint32_t op2)
 {

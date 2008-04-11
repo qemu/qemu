@@ -1,5 +1,5 @@
 /*
- * Luminary Micro Stellaris preipherals
+ * Luminary Micro Stellaris peripherals
  *
  * Copyright (c) 2006 CodeSourcery.
  * Written by Paul Brook

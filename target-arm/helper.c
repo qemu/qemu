@@ -1908,7 +1908,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 
 /* Signed saturating arithmetic.  */
 
-/* Perform 16-bit signed satruating addition.  */
+/* Perform 16-bit signed saturating addition.  */
 static inline uint16_t add16_sat(uint16_t a, uint16_t b)
 {
     uint16_t res;
@@ -1923,7 +1923,7 @@ static inline uint16_t add16_sat(uint16_t a, uint16_t b)
     return res;
 }
 
-/* Perform 8-bit signed satruating addition.  */
+/* Perform 8-bit signed saturating addition.  */
 static inline uint8_t add8_sat(uint8_t a, uint8_t b)
 {
     uint8_t res;
@@ -1938,7 +1938,7 @@ static inline uint8_t add8_sat(uint8_t a, uint8_t b)
     return res;
 }
 
-/* Perform 16-bit signed satruating subtraction.  */
+/* Perform 16-bit signed saturating subtraction.  */
 static inline uint16_t sub16_sat(uint16_t a, uint16_t b)
 {
     uint16_t res;
@@ -1953,7 +1953,7 @@ static inline uint16_t sub16_sat(uint16_t a, uint16_t b)
     return res;
 }
 
-/* Perform 8-bit signed satruating subtraction.  */
+/* Perform 8-bit signed saturating subtraction.  */
 static inline uint8_t sub8_sat(uint8_t a, uint8_t b)
 {
     uint8_t res;
