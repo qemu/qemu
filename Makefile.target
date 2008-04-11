@@ -430,6 +430,7 @@ OBJS+=gdbstub.o
 endif
 
 OBJS+= libqemu.a
+OBJS+= ../libqemu_common.a
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.

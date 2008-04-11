@@ -32,6 +32,7 @@
 #include "exec-all.h"
 #include "disas.h"
 #include "tcg-op.h"
+#include "qemu-common.h"
 
 typedef struct DisasContext {
     struct TranslationBlock *tb;

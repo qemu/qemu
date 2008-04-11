@@ -39,7 +39,7 @@
 #endif
 
 #include "config.h"
-#include "osdep.h"
+#include "qemu-common.h"
 
 /* Note: the long term plan is to reduce the dependancies on the QEMU
    CPU definitions. Currently they are used for qemu_ld/st
@@ -146,36 +146,6 @@ int gen_new_label(void)
 }
 
 #include "tcg-target.c"
-
-/* XXX: factorize */
-static void pstrcpy(char *buf, int buf_size, const char *str)
-{
-    int c;
-    char *q = buf;
-
-    if (buf_size <= 0)
-        return;
-
-    for(;;) {
-        c = *str++;
-        if (c == 0 || q >= buf + buf_size - 1)
-            break;
-        *q++ = c;
-    }
-    *q = '\0';
-}
-
-#if TCG_TARGET_REG_BITS == 32
-/* strcat and truncate. */
-static char *pstrcat(char *buf, int buf_size, const char *s)
-{
-    int len;
-    len = strlen(buf);
-    if (len < buf_size)
-        pstrcpy(buf + len, buf_size - len, s);
-    return buf;
-}
-#endif
 
 /* pool based memory allocation */
 void *tcg_malloc_internal(TCGContext *s, int size)

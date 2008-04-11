@@ -6,6 +6,7 @@
 #include "exec-all.h"
 #include "gdbstub.h"
 #include "helpers.h"
+#include "qemu-common.h"
 
 static uint32_t cortexa8_cp15_c0_c1[8] =
 { 0x1031, 0x11, 0x400, 0, 0x31100003, 0x20000000, 0x01202000, 0x11 };

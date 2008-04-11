@@ -28,6 +28,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "svm.h"
+#include "qemu-common.h"
 
 //#define DEBUG_MMU
 

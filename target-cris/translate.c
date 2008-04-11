@@ -32,6 +32,7 @@
 #include "tcg-op.h"
 #include "helper.h"
 #include "crisv32-decode.h"
+#include "qemu-common.h"
 
 #define CRIS_STATS 0
 #if CRIS_STATS

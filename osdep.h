@@ -47,16 +47,9 @@
 
 #define qemu_printf printf
 
-void *qemu_malloc(size_t size);
-void *qemu_mallocz(size_t size);
-void qemu_free(void *ptr);
-char *qemu_strdup(const char *str);
-
 void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_vmalloc(size_t size);
 void qemu_vfree(void *ptr);
-
-void *get_mmap_addr(unsigned long size);
 
 int qemu_create_pidfile(const char *filename);
 
