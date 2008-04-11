@@ -882,6 +882,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
     cpu_loop_exit();
+    /* never comes here */
+    return 1;
 }
 #elif defined(TARGET_SPARC)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
@@ -918,6 +920,8 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
     cpu_loop_exit();
+    /* never comes here */
+    return 1;
 }
 #elif defined (TARGET_PPC)
 static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
