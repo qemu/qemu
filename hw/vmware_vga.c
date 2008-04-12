@@ -58,6 +58,7 @@ struct vmsvga_state_s {
 #ifndef EMBED_STDVGA
     DisplayState *ds;
     int vram_size;
+    ram_addr_t vram_offset;
 #endif
     uint8_t *vram;
     target_phys_addr_t vram_base;
@@ -1114,6 +1115,7 @@ static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
     s->ds = ds;
     s->vram = vga_ram_base;
     s->vram_size = vga_ram_size;
+    s->vram_offset = vga_ram_offset;
 
     s->scratch_size = SVGA_SCRATCH_SIZE;
     s->scratch = (uint32_t *) qemu_malloc(s->scratch_size * 4);
@@ -1186,7 +1188,7 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
     iomemtype = cpu_register_io_memory(0, vmsvga_vram_read,
                     vmsvga_vram_write, s);
 #else
-    iomemtype = 0 | IO_MEM_RAM;
+    iomemtype = s->vram_offset | IO_MEM_RAM;
 #endif
     cpu_register_physical_memory(s->vram_base, s->vram_size,
                     iomemtype);
