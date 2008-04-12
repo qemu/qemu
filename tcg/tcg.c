@@ -53,7 +53,7 @@
 
 
 static void patch_reloc(uint8_t *code_ptr, int type, 
-                        tcg_target_long value);
+                        tcg_target_long value, tcg_target_long addend);
 
 TCGOpDef tcg_op_defs[] = {
 #define DEF(s, n, copy_size) { #s, 0, 0, n, n, 0, copy_size },
@@ -100,7 +100,7 @@ void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
         /* FIXME: This may break relocations on RISC targets that
            modify instruction fields in place.  The caller may not have 
            written the initial value.  */
-        patch_reloc(code_ptr, type, l->u.value + addend);
+        patch_reloc(code_ptr, type, l->u.value, addend);
     } else {
         /* add a new relocation entry */
         r = tcg_malloc(sizeof(TCGRelocation));
@@ -123,7 +123,7 @@ static void tcg_out_label(TCGContext *s, int label_index,
         tcg_abort();
     r = l->u.first_reloc;
     while (r != NULL) {
-        patch_reloc(r->ptr, r->type, value + r->addend);
+        patch_reloc(r->ptr, r->type, value, r->addend);
         r = r->next;
     }
     l->has_value = 1;
@@ -1442,7 +1442,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     int nb_iargs, nb_oargs, flags, nb_regs, i, reg, nb_params;
     TCGArg arg, func_arg;
     TCGTemp *ts;
-    tcg_target_long stack_offset, call_stack_size;
+    tcg_target_long stack_offset, call_stack_size, func_addr;
     int const_func_arg;
     TCGRegSet allocated_regs;
     const TCGArgConstraint *arg_ct;
@@ -1464,7 +1464,11 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     call_stack_size = (nb_params - nb_regs) * sizeof(tcg_target_long);
     call_stack_size = (call_stack_size + TCG_TARGET_STACK_ALIGN - 1) & 
         ~(TCG_TARGET_STACK_ALIGN - 1);
+#ifdef TCG_TARGET_STACK_GROWSUP
+    tcg_out_addi(s, TCG_REG_CALL_STACK, call_stack_size);
+#else
     tcg_out_addi(s, TCG_REG_CALL_STACK, -call_stack_size);
+#endif
 
     stack_offset = 0;
     for(i = nb_regs; i < nb_params; i++) {
@@ -1487,7 +1491,11 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
         } else {
             tcg_abort();
         }
+#ifdef TCG_TARGET_STACK_GROWSUP
+        stack_offset -= sizeof(tcg_target_long);
+#else
         stack_offset += sizeof(tcg_target_long);
+#endif
     }
     
     /* assign input registers */
@@ -1516,6 +1524,10 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     func_arg = args[nb_oargs + nb_iargs - 1];
     arg_ct = &def->args_ct[0];
     ts = &s->temps[func_arg];
+    func_addr = ts->val;
+#ifdef HOST_HPPA
+    func_addr = (tcg_target_long)__canonicalize_funcptr_for_compare((void *)func_addr);
+#endif
     const_func_arg = 0;
     if (ts->val_type == TEMP_VAL_MEM) {
         reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs);
@@ -1529,12 +1541,12 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
         }
         func_arg = reg;
     } else if (ts->val_type == TEMP_VAL_CONST) {
-        if (tcg_target_const_match(ts->val, arg_ct)) {
+        if (tcg_target_const_match(func_addr, arg_ct)) {
             const_func_arg = 1;
-            func_arg = ts->val;
+            func_arg = func_addr;
         } else {
             reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs);
-            tcg_out_movi(s, ts->type, reg, ts->val);
+            tcg_out_movi(s, ts->type, reg, func_addr);
             func_arg = reg;
         }
     } else {
@@ -1574,7 +1586,11 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
 
     tcg_out_op(s, opc, &func_arg, &const_func_arg);
     
+#ifdef TCG_TARGET_STACK_GROWSUP
+    tcg_out_addi(s, TCG_REG_CALL_STACK, -call_stack_size);
+#else
     tcg_out_addi(s, TCG_REG_CALL_STACK, call_stack_size);
+#endif
 
     /* assign output registers and emit moves if needed */
     for(i = 0; i < nb_oargs; i++) {

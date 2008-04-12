@@ -50,6 +50,9 @@ case "$cpu" in
   cris)
     cpu="cris"
   ;;
+  parisc|parisc64)
+    cpu="hppa"
+  ;;
   ia64)
     cpu="ia64"
   ;;
@@ -576,6 +579,7 @@ else
 
 # if cross compiling, cannot launch a program, so make a static guess
 if test "$cpu" = "armv4b" \
+     -o "$cpu" = "hppa" \
      -o "$cpu" = "m68k" \
      -o "$cpu" = "mips" \
      -o "$cpu" = "mips64" \
@@ -865,6 +869,9 @@ elif test "$cpu" = "armv4l" ; then
 elif test "$cpu" = "cris" ; then
   echo "ARCH=cris" >> $config_mak
   echo "#define HOST_CRIS 1" >> $config_h
+elif test "$cpu" = "hppa" ; then
+  echo "ARCH=hppa" >> $config_mak
+  echo "#define HOST_HPPA 1" >> $config_h
 elif test "$cpu" = "ia64" ; then
   echo "ARCH=ia64" >> $config_mak
   echo "#define HOST_IA64 1" >> $config_h

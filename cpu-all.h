@@ -20,7 +20,7 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
-#if defined(__arm__) || defined(__sparc__) || defined(__mips__)
+#if defined(__arm__) || defined(__sparc__) || defined(__mips__) || defined(__hppa__)
 #define WORDS_ALIGNED
 #endif
 
@@ -949,6 +949,15 @@ static inline int64_t cpu_get_real_ticks(void)
     val = high;
     val <<= 32;
     val |= low;
+    return val;
+}
+
+#elif defined(__hppa__)
+
+static inline int64_t cpu_get_real_ticks(void)
+{
+    int val;
+    asm volatile ("mfctl %%cr16, %0" : "=r"(val));
     return val;
 }
 

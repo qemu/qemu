@@ -157,6 +157,10 @@ enum bfd_architecture
 #define bfd_mach_ppc_7400      7400
   bfd_arch_rs6000,     /* IBM RS/6000 */
   bfd_arch_hppa,       /* HP PA RISC */
+#define bfd_mach_hppa10        10
+#define bfd_mach_hppa11        11
+#define bfd_mach_hppa20        20
+#define bfd_mach_hppa20w       25
   bfd_arch_d10v,       /* Mitsubishi D10V */
   bfd_arch_z8k,        /* Zilog Z8000 */
 #define bfd_mach_z8001         1

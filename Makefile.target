@@ -128,6 +128,11 @@ ifeq ($(ARCH),alpha)
 CFLAGS+=-msmall-data
 endif
 
+ifeq ($(ARCH),hppa)
+OP_CFLAGS=-O1 -fno-delayed-branch
+BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
 ifeq ($(ARCH),ia64)
 CFLAGS+=-mno-sdata
 OP_CFLAGS+=-mno-sdata
@@ -266,6 +271,9 @@ LIBOBJS+=m68k-dis.o
 endif
 ifeq ($(findstring sh4, $(TARGET_ARCH) $(ARCH)),sh4)
 LIBOBJS+=sh4-dis.o
+endif
+ifeq ($(findstring hppa, $(TARGET_BASE_ARCH) $(ARCH)),hppa)
+LIBOBJS+=hppa-dis.o
 endif
 ifeq ($(findstring s390, $(TARGET_ARCH) $(ARCH)),s390)
 LIBOBJS+=s390-dis.o

@@ -88,8 +88,9 @@ static const int tcg_target_call_oarg_regs[2] = {
 };
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value)
+                        tcg_target_long value, tcg_target_long addend)
 {
+    value += addend;
     switch (type) {
     case R_SPARC_32:
         if (value != (uint32_t)value)

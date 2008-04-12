@@ -465,9 +465,54 @@ static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
 #endif
 
 #ifndef CONFIG_NO_DYNGEN_OP
+
+#if defined __hppa__
+struct hppa_branch_stub {
+    uint32_t *location;
+    long target;
+    struct hppa_branch_stub *next;
+};
+
+#define HPPA_RECORD_BRANCH(LIST, LOC, TARGET) \
+do { \
+    struct hppa_branch_stub *stub = alloca(sizeof(struct hppa_branch_stub)); \
+    stub->location = LOC; \
+    stub->target = TARGET; \
+    stub->next = LIST; \
+    LIST = stub; \
+} while (0)
+
+static inline void hppa_process_stubs(struct hppa_branch_stub *stub,
+                                      uint8_t **gen_code_pp)
+{
+    uint32_t *s = (uint32_t *)*gen_code_pp;
+    uint32_t *p = s + 1;
+
+    if (!stub) return;
+
+    for (; stub != NULL; stub = stub->next) {
+        unsigned long l = (unsigned long)p;
+        /* stub:
+         * ldil L'target, %r1
+         * be,n R'target(%sr4,%r1)
+         */
+        *p++ = 0x20200000 | reassemble_21(lrsel(stub->target, 0));
+        *p++ = 0xe0202002 | (reassemble_17(rrsel(stub->target, 0) >> 2));
+        hppa_patch17f(stub->location, l, 0);
+    }
+    /* b,l,n stub,%r0 */
+    *s = 0xe8000002 | reassemble_17((p - s) - 2);
+    *gen_code_pp = (uint8_t *)p;
+}
+#endif /* __hppa__ */
+
 const TCGArg *dyngen_op(TCGContext *s, int opc, const TCGArg *opparam_ptr)
 {
     uint8_t *gen_code_ptr;
+
+#ifdef __hppa__
+    struct hppa_branch_stub *hppa_stubs = NULL;
+#endif
 
     gen_code_ptr = s->code_ptr;
     switch(opc) {
@@ -478,6 +523,11 @@ const TCGArg *dyngen_op(TCGContext *s, int opc, const TCGArg *opparam_ptr)
     default:
         tcg_abort();
     }
+
+#ifdef __hppa__
+    hppa_process_stubs(hppa_stubs, &gen_code_ptr);
+#endif
+
     s->code_ptr = gen_code_ptr;
     return opparam_ptr;
 }
