@@ -748,8 +748,9 @@ static void pc_init1(int ram_size, int vga_ram_size,
         if (pci_enabled) {
             apic_init(env);
         }
-        vmport_init(env);
     }
+
+    vmport_init();
 
     /* allocate RAM */
     ram_addr = qemu_ram_alloc(ram_size);

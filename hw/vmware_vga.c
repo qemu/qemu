@@ -1237,7 +1237,7 @@ void pci_vmsvga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
 
     pci_register_io_region(&s->card, 0, 0x10,
                     PCI_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);
-    pci_register_io_region(&s->card, 0, vga_ram_size,
+    pci_register_io_region(&s->card, 1, vga_ram_size,
                     PCI_ADDRESS_SPACE_MEM_PREFETCH, pci_vmsvga_map_mem);
 
     vmsvga_init(&s->chip, ds, vga_ram_base, vga_ram_offset, vga_ram_size);

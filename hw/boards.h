@@ -36,11 +36,12 @@ extern QEMUMachine taihu_machine;
 /* mips_r4k.c */
 extern QEMUMachine mips_machine;
 
+/* mips_jazz.c */
+extern QEMUMachine mips_magnum_machine;
+extern QEMUMachine mips_pica61_machine;
+
 /* mips_malta.c */
 extern QEMUMachine mips_malta_machine;
-
-/* mips_pica61.c */
-extern QEMUMachine mips_pica61_machine;
 
 /* mips_mipssim.c */
 extern QEMUMachine mips_mipssim_machine;

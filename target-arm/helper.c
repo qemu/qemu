@@ -6,6 +6,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "gdbstub.h"
+#include "helpers.h"
 
 static uint32_t cortexa8_cp15_c0_c1[8] =
 { 0x1031, 0x11, 0x400, 0, 0x31100003, 0x20000000, 0x01202000, 0x11 };
@@ -175,6 +176,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
 {
     CPUARMState *env;
     uint32_t id;
+    static int inited = 0;
 
     id = cpu_arm_find_by_name(cpu_model);
     if (id == 0)
@@ -183,6 +185,11 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    if (!inited) {
+        inited = 1;
+        arm_translate_init();
+    }
+
     env->cpu_model_str = cpu_model;
     env->cp15.c0_cpuid = id;
     cpu_reset(env);
@@ -250,35 +257,11 @@ void cpu_arm_close(CPUARMState *env)
     free(env);
 }
 
-/* Polynomial multiplication is like integer multiplcation except the
-   partial products are XORed, not added.  */
-uint32_t helper_neon_mul_p8(uint32_t op1, uint32_t op2)
-{
-    uint32_t mask;
-    uint32_t result;
-    result = 0;
-    while (op1) {
-        mask = 0;
-        if (op1 & 1)
-            mask |= 0xff;
-        if (op1 & (1 << 8))
-            mask |= (0xff << 8);
-        if (op1 & (1 << 16))
-            mask |= (0xff << 16);
-        if (op1 & (1 << 24))
-            mask |= (0xff << 24);
-        result ^= op2 & mask;
-        op1 = (op1 >> 1) & 0x7f7f7f7f;
-        op2 = (op2 << 1) & 0xfefefefe;
-    }
-    return result;
-}
-
 uint32_t cpsr_read(CPUARMState *env)
 {
     int ZF;
-    ZF = (env->NZF == 0);
-    return env->uncached_cpsr | (env->NZF & 0x80000000) | (ZF << 30) |
+    ZF = (env->ZF == 0);
+    return env->uncached_cpsr | (env->NF & 0x80000000) | (ZF << 30) |
         (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
         | (env->thumb << 5) | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
@@ -287,9 +270,9 @@ uint32_t cpsr_read(CPUARMState *env)
 
 void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 {
-    /* NOTE: N = 1 and Z = 1 cannot be stored currently */
     if (mask & CPSR_NZCV) {
-        env->NZF = (val & 0xc0000000) ^ 0x40000000;
+        env->ZF = (~val) & CPSR_Z;
+        env->NF = val;
         env->CF = (val >> 29) & 1;
         env->VF = (val << 3) & 0x80000000;
     }
@@ -314,6 +297,65 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     }
     mask &= ~CACHED_CPSR_BITS;
     env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
+}
+
+/* Sign/zero extend */
+uint32_t HELPER(sxtb16)(uint32_t x)
+{
+    uint32_t res;
+    res = (uint16_t)(int8_t)x;
+    res |= (uint32_t)(int8_t)(x >> 16) << 16;
+    return res;
+}
+
+uint32_t HELPER(uxtb16)(uint32_t x)
+{
+    uint32_t res;
+    res = (uint16_t)(uint8_t)x;
+    res |= (uint32_t)(uint8_t)(x >> 16) << 16;
+    return res;
+}
+
+uint32_t HELPER(clz)(uint32_t x)
+{
+    int count;
+    for (count = 32; x; count--)
+        x >>= 1;
+    return count;
+}
+
+int32_t HELPER(sdiv)(int32_t num, int32_t den)
+{
+    if (den == 0)
+      return 0;
+    return num / den;
+}
+
+uint32_t HELPER(udiv)(uint32_t num, uint32_t den)
+{
+    if (den == 0)
+      return 0;
+    return num / den;
+}
+
+uint32_t HELPER(rbit)(uint32_t x)
+{
+    x =  ((x & 0xff000000) >> 24)
+       | ((x & 0x00ff0000) >> 8)
+       | ((x & 0x0000ff00) << 8)
+       | ((x & 0x000000ff) << 24);
+    x =  ((x & 0xf0f0f0f0) >> 4)
+       | ((x & 0x0f0f0f0f) << 4);
+    x =  ((x & 0x88888888) >> 3)
+       | ((x & 0x44444444) >> 1)
+       | ((x & 0x22222222) << 1)
+       | ((x & 0x11111111) << 3);
+    return x;
+}
+
+uint32_t HELPER(abs)(uint32_t x)
+{
+    return ((int32_t)x < 0) ? -x : x;
 }
 
 #if defined(CONFIG_USER_ONLY)
@@ -372,7 +414,7 @@ static void flush_mmon(uint32_t addr)
 }
 
 /* Mark an address for exclusive access.  */
-void helper_mark_exclusive(CPUState *env, uint32_t addr)
+void HELPER(mark_exclusive)(CPUState *env, uint32_t addr)
 {
     if (!env->mmon_entry)
         allocate_mmon_state(env);
@@ -383,7 +425,7 @@ void helper_mark_exclusive(CPUState *env, uint32_t addr)
 
 /* Test if an exclusive address is still exclusive.  Returns zero
    if the address is still exclusive.   */
-int helper_test_exclusive(CPUState *env, uint32_t addr)
+uint32_t HELPER(test_exclusive)(CPUState *env, uint32_t addr)
 {
     int res;
 
@@ -397,7 +439,7 @@ int helper_test_exclusive(CPUState *env, uint32_t addr)
     return res;
 }
 
-void helper_clrex(CPUState *env)
+void HELPER(clrex)(CPUState *env)
 {
     if (!(env->mmon_entry && env->mmon_entry->addr))
         return;
@@ -410,38 +452,38 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void helper_set_cp(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
     return;
 }
 
-uint32_t helper_get_cp(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp)(CPUState *env, uint32_t insn)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
     return 0;
 }
 
-void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
 }
 
-uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
     return 0;
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void helper_v7m_msr(CPUState *env, int reg, uint32_t val)
+void HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
 }
 
-uint32_t helper_v7m_mrs(CPUState *env, int reg)
+uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
     return 0;
@@ -453,12 +495,12 @@ void switch_mode(CPUState *env, int mode)
         cpu_abort(env, "Tried to switch out of user mode\n");
 }
 
-void helper_set_r13_banked(CPUState *env, int mode, uint32_t val)
+void HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
 {
     cpu_abort(env, "banked r13 write\n");
 }
 
-uint32_t helper_get_r13_banked(CPUState *env, int mode)
+uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
 {
     cpu_abort(env, "banked r13 read\n");
     return 0;
@@ -1116,22 +1158,22 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 /* Not really implemented.  Need to figure out a sane way of doing this.
    Maybe add generic watchpoint support and use that.  */
 
-void helper_mark_exclusive(CPUState *env, uint32_t addr)
+void HELPER(mark_exclusive)(CPUState *env, uint32_t addr)
 {
     env->mmon_addr = addr;
 }
 
-int helper_test_exclusive(CPUState *env, uint32_t addr)
+uint32_t HELPER(test_exclusive)(CPUState *env, uint32_t addr)
 {
     return (env->mmon_addr != addr);
 }
 
-void helper_clrex(CPUState *env)
+void HELPER(clrex)(CPUState *env)
 {
     env->mmon_addr = -1;
 }
 
-void helper_set_cp(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
 {
     int cp_num = (insn >> 8) & 0xf;
     int cp_info = (insn >> 5) & 7;
@@ -1143,7 +1185,7 @@ void helper_set_cp(CPUState *env, uint32_t insn, uint32_t val)
                                  cp_info, src, operand, val);
 }
 
-uint32_t helper_get_cp(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp)(CPUState *env, uint32_t insn)
 {
     int cp_num = (insn >> 8) & 0xf;
     int cp_info = (insn >> 5) & 7;
@@ -1186,7 +1228,7 @@ static uint32_t extended_mpu_ap_bits(uint32_t val)
     return ret;
 }
 
-void helper_set_cp15(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
 {
     int op1;
     int op2;
@@ -1470,7 +1512,7 @@ bad_reg:
               (insn >> 16) & 0xf, crm, op1, op2);
 }
 
-uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
 {
     int op1;
     int op2;
@@ -1649,10 +1691,8 @@ uint32_t helper_get_cp15(CPUState *env, uint32_t insn)
 	    }
         }
     case 7: /* Cache control.  */
-        /* ??? This is for test, clean and invaidate operations that set the
-           Z flag.  We can't represent N = Z = 1, so it also clears
-           the N flag.  Oh well.  */
-        env->NZF = 0;
+        /* FIXME: Should only clear Z flag if destination is r15.  */
+        env->ZF = 0;
         return 0;
     case 8: /* MMU TLB control.  */
         goto bad_reg;
@@ -1733,17 +1773,17 @@ bad_reg:
     return 0;
 }
 
-void helper_set_r13_banked(CPUState *env, int mode, uint32_t val)
+void HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
 {
     env->banked_r13[bank_number(mode)] = val;
 }
 
-uint32_t helper_get_r13_banked(CPUState *env, int mode)
+uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
 {
     return env->banked_r13[bank_number(mode)];
 }
 
-uint32_t helper_v7m_mrs(CPUState *env, int reg)
+uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
 {
     switch (reg) {
     case 0: /* APSR */
@@ -1780,7 +1820,7 @@ uint32_t helper_v7m_mrs(CPUState *env, int reg)
     }
 }
 
-void helper_v7m_msr(CPUState *env, int reg, uint32_t val)
+void HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
 {
     switch (reg) {
     case 0: /* APSR */
@@ -1862,3 +1902,616 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 }
 
 #endif
+
+/* Note that signed overflow is undefined in C.  The following routines are
+   careful to use unsigned types where modulo arithmetic is required.
+   Failure to do so _will_ break on newer gcc.  */
+
+/* Signed saturating arithmetic.  */
+
+/* Perform 16-bit signed saturating addition.  */
+static inline uint16_t add16_sat(uint16_t a, uint16_t b)
+{
+    uint16_t res;
+
+    res = a + b;
+    if (((res ^ a) & 0x8000) && !((a ^ b) & 0x8000)) {
+        if (a & 0x8000)
+            res = 0x8000;
+        else
+            res = 0x7fff;
+    }
+    return res;
+}
+
+/* Perform 8-bit signed saturating addition.  */
+static inline uint8_t add8_sat(uint8_t a, uint8_t b)
+{
+    uint8_t res;
+
+    res = a + b;
+    if (((res ^ a) & 0x80) && !((a ^ b) & 0x80)) {
+        if (a & 0x80)
+            res = 0x80;
+        else
+            res = 0x7f;
+    }
+    return res;
+}
+
+/* Perform 16-bit signed saturating subtraction.  */
+static inline uint16_t sub16_sat(uint16_t a, uint16_t b)
+{
+    uint16_t res;
+
+    res = a - b;
+    if (((res ^ a) & 0x8000) && ((a ^ b) & 0x8000)) {
+        if (a & 0x8000)
+            res = 0x8000;
+        else
+            res = 0x7fff;
+    }
+    return res;
+}
+
+/* Perform 8-bit signed saturating subtraction.  */
+static inline uint8_t sub8_sat(uint8_t a, uint8_t b)
+{
+    uint8_t res;
+
+    res = a - b;
+    if (((res ^ a) & 0x80) && ((a ^ b) & 0x80)) {
+        if (a & 0x80)
+            res = 0x80;
+        else
+            res = 0x7f;
+    }
+    return res;
+}
+
+#define ADD16(a, b, n) RESULT(add16_sat(a, b), n, 16);
+#define SUB16(a, b, n) RESULT(sub16_sat(a, b), n, 16);
+#define ADD8(a, b, n)  RESULT(add8_sat(a, b), n, 8);
+#define SUB8(a, b, n)  RESULT(sub8_sat(a, b), n, 8);
+#define PFX q
+
+#include "op_addsub.h"
+
+/* Unsigned saturating arithmetic.  */
+static inline uint16_t add16_usat(uint16_t a, uint8_t b)
+{
+    uint16_t res;
+    res = a + b;
+    if (res < a)
+        res = 0xffff;
+    return res;
+}
+
+static inline uint16_t sub16_usat(uint16_t a, uint8_t b)
+{
+    if (a < b)
+        return a - b;
+    else
+        return 0;
+}
+
+static inline uint8_t add8_usat(uint8_t a, uint8_t b)
+{
+    uint8_t res;
+    res = a + b;
+    if (res < a)
+        res = 0xff;
+    return res;
+}
+
+static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
+{
+    if (a < b)
+        return a - b;
+    else
+        return 0;
+}
+
+#define ADD16(a, b, n) RESULT(add16_usat(a, b), n, 16);
+#define SUB16(a, b, n) RESULT(sub16_usat(a, b), n, 16);
+#define ADD8(a, b, n)  RESULT(add8_usat(a, b), n, 8);
+#define SUB8(a, b, n)  RESULT(sub8_usat(a, b), n, 8);
+#define PFX uq
+
+#include "op_addsub.h"
+
+/* Signed modulo arithmetic.  */
+#define SARITH16(a, b, n, op) do { \
+    int32_t sum; \
+    sum = (int16_t)((uint16_t)(a) op (uint16_t)(b)); \
+    RESULT(sum, n, 16); \
+    if (sum >= 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define SARITH8(a, b, n, op) do { \
+    int32_t sum; \
+    sum = (int8_t)((uint8_t)(a) op (uint8_t)(b)); \
+    RESULT(sum, n, 8); \
+    if (sum >= 0) \
+        ge |= 1 << n; \
+    } while(0)
+
+
+#define ADD16(a, b, n) SARITH16(a, b, n, +)
+#define SUB16(a, b, n) SARITH16(a, b, n, -)
+#define ADD8(a, b, n)  SARITH8(a, b, n, +)
+#define SUB8(a, b, n)  SARITH8(a, b, n, -)
+#define PFX s
+#define ARITH_GE
+
+#include "op_addsub.h"
+
+/* Unsigned modulo arithmetic.  */
+#define ADD16(a, b, n) do { \
+    uint32_t sum; \
+    sum = (uint32_t)(uint16_t)(a) + (uint32_t)(uint16_t)(b); \
+    RESULT(sum, n, 16); \
+    if ((sum >> 16) == 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define ADD8(a, b, n) do { \
+    uint32_t sum; \
+    sum = (uint32_t)(uint8_t)(a) + (uint32_t)(uint8_t)(b); \
+    RESULT(sum, n, 8); \
+    if ((sum >> 8) == 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define SUB16(a, b, n) do { \
+    uint32_t sum; \
+    sum = (uint32_t)(uint16_t)(a) - (uint32_t)(uint16_t)(b); \
+    RESULT(sum, n, 16); \
+    if ((sum >> 16) == 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define SUB8(a, b, n) do { \
+    uint32_t sum; \
+    sum = (uint32_t)(uint8_t)(a) - (uint32_t)(uint8_t)(b); \
+    RESULT(sum, n, 8); \
+    if ((sum >> 8) == 0) \
+        ge |= 3 << (n * 2); \
+    } while(0)
+
+#define PFX u
+#define ARITH_GE
+
+#include "op_addsub.h"
+
+/* Halved signed arithmetic.  */
+#define ADD16(a, b, n) \
+  RESULT(((int32_t)(int16_t)(a) + (int32_t)(int16_t)(b)) >> 1, n, 16)
+#define SUB16(a, b, n) \
+  RESULT(((int32_t)(int16_t)(a) - (int32_t)(int16_t)(b)) >> 1, n, 16)
+#define ADD8(a, b, n) \
+  RESULT(((int32_t)(int8_t)(a) + (int32_t)(int8_t)(b)) >> 1, n, 8)
+#define SUB8(a, b, n) \
+  RESULT(((int32_t)(int8_t)(a) - (int32_t)(int8_t)(b)) >> 1, n, 8)
+#define PFX sh
+
+#include "op_addsub.h"
+
+/* Halved unsigned arithmetic.  */
+#define ADD16(a, b, n) \
+  RESULT(((uint32_t)(uint16_t)(a) + (uint32_t)(uint16_t)(b)) >> 1, n, 16)
+#define SUB16(a, b, n) \
+  RESULT(((uint32_t)(uint16_t)(a) - (uint32_t)(uint16_t)(b)) >> 1, n, 16)
+#define ADD8(a, b, n) \
+  RESULT(((uint32_t)(uint8_t)(a) + (uint32_t)(uint8_t)(b)) >> 1, n, 8)
+#define SUB8(a, b, n) \
+  RESULT(((uint32_t)(uint8_t)(a) - (uint32_t)(uint8_t)(b)) >> 1, n, 8)
+#define PFX uh
+
+#include "op_addsub.h"
+
+static inline uint8_t do_usad(uint8_t a, uint8_t b)
+{
+    if (a > b)
+        return a - b;
+    else
+        return b - a;
+}
+
+/* Unsigned sum of absolute byte differences.  */
+uint32_t HELPER(usad8)(uint32_t a, uint32_t b)
+{
+    uint32_t sum;
+    sum = do_usad(a, b);
+    sum += do_usad(a >> 8, b >> 8);
+    sum += do_usad(a >> 16, b >>16);
+    sum += do_usad(a >> 24, b >> 24);
+    return sum;
+}
+
+/* For ARMv6 SEL instruction.  */
+uint32_t HELPER(sel_flags)(uint32_t flags, uint32_t a, uint32_t b)
+{
+    uint32_t mask;
+
+    mask = 0;
+    if (flags & 1)
+        mask |= 0xff;
+    if (flags & 2)
+        mask |= 0xff00;
+    if (flags & 4)
+        mask |= 0xff0000;
+    if (flags & 8)
+        mask |= 0xff000000;
+    return (a & mask) | (b & ~mask);
+}
+
+uint32_t HELPER(logicq_cc)(uint64_t val)
+{
+    return (val >> 32) | (val != 0);
+}
+
+/* VFP support.  We follow the convention used for VFP instrunctions:
+   Single precition routines have a "s" suffix, double precision a
+   "d" suffix.  */
+
+/* Convert host exception flags to vfp form.  */
+static inline int vfp_exceptbits_from_host(int host_bits)
+{
+    int target_bits = 0;
+
+    if (host_bits & float_flag_invalid)
+        target_bits |= 1;
+    if (host_bits & float_flag_divbyzero)
+        target_bits |= 2;
+    if (host_bits & float_flag_overflow)
+        target_bits |= 4;
+    if (host_bits & float_flag_underflow)
+        target_bits |= 8;
+    if (host_bits & float_flag_inexact)
+        target_bits |= 0x10;
+    return target_bits;
+}
+
+uint32_t HELPER(vfp_get_fpscr)(CPUState *env)
+{
+    int i;
+    uint32_t fpscr;
+
+    fpscr = (env->vfp.xregs[ARM_VFP_FPSCR] & 0xffc8ffff)
+            | (env->vfp.vec_len << 16)
+            | (env->vfp.vec_stride << 20);
+    i = get_float_exception_flags(&env->vfp.fp_status);
+    fpscr |= vfp_exceptbits_from_host(i);
+    return fpscr;
+}
+
+/* Convert vfp exception flags to target form.  */
+static inline int vfp_exceptbits_to_host(int target_bits)
+{
+    int host_bits = 0;
+
+    if (target_bits & 1)
+        host_bits |= float_flag_invalid;
+    if (target_bits & 2)
+        host_bits |= float_flag_divbyzero;
+    if (target_bits & 4)
+        host_bits |= float_flag_overflow;
+    if (target_bits & 8)
+        host_bits |= float_flag_underflow;
+    if (target_bits & 0x10)
+        host_bits |= float_flag_inexact;
+    return host_bits;
+}
+
+void HELPER(vfp_set_fpscr)(CPUState *env, uint32_t val)
+{
+    int i;
+    uint32_t changed;
+
+    changed = env->vfp.xregs[ARM_VFP_FPSCR];
+    env->vfp.xregs[ARM_VFP_FPSCR] = (val & 0xffc8ffff);
+    env->vfp.vec_len = (val >> 16) & 7;
+    env->vfp.vec_stride = (val >> 20) & 3;
+
+    changed ^= val;
+    if (changed & (3 << 22)) {
+        i = (val >> 22) & 3;
+        switch (i) {
+        case 0:
+            i = float_round_nearest_even;
+            break;
+        case 1:
+            i = float_round_up;
+            break;
+        case 2:
+            i = float_round_down;
+            break;
+        case 3:
+            i = float_round_to_zero;
+            break;
+        }
+        set_float_rounding_mode(i, &env->vfp.fp_status);
+    }
+
+    i = vfp_exceptbits_to_host((val >> 8) & 0x1f);
+    set_float_exception_flags(i, &env->vfp.fp_status);
+    /* XXX: FZ and DN are not implemented.  */
+}
+
+#define VFP_HELPER(name, p) HELPER(glue(glue(vfp_,name),p))
+
+#define VFP_BINOP(name) \
+float32 VFP_HELPER(name, s)(float32 a, float32 b, CPUState *env) \
+{ \
+    return float32_ ## name (a, b, &env->vfp.fp_status); \
+} \
+float64 VFP_HELPER(name, d)(float64 a, float64 b, CPUState *env) \
+{ \
+    return float64_ ## name (a, b, &env->vfp.fp_status); \
+}
+VFP_BINOP(add)
+VFP_BINOP(sub)
+VFP_BINOP(mul)
+VFP_BINOP(div)
+#undef VFP_BINOP
+
+float32 VFP_HELPER(neg, s)(float32 a)
+{
+    return float32_chs(a);
+}
+
+float64 VFP_HELPER(neg, d)(float64 a)
+{
+    return float32_chs(a);
+}
+
+float32 VFP_HELPER(abs, s)(float32 a)
+{
+    return float32_abs(a);
+}
+
+float64 VFP_HELPER(abs, d)(float64 a)
+{
+    return float32_abs(a);
+}
+
+float32 VFP_HELPER(sqrt, s)(float32 a, CPUState *env)
+{
+    return float32_sqrt(a, &env->vfp.fp_status);
+}
+
+float64 VFP_HELPER(sqrt, d)(float64 a, CPUState *env)
+{
+    return float64_sqrt(a, &env->vfp.fp_status);
+}
+
+/* XXX: check quiet/signaling case */
+#define DO_VFP_cmp(p, type) \
+void VFP_HELPER(cmp, p)(type a, type b, CPUState *env)  \
+{ \
+    uint32_t flags; \
+    switch(type ## _compare_quiet(a, b, &env->vfp.fp_status)) { \
+    case 0: flags = 0x6; break; \
+    case -1: flags = 0x8; break; \
+    case 1: flags = 0x2; break; \
+    default: case 2: flags = 0x3; break; \
+    } \
+    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
+        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
+} \
+void VFP_HELPER(cmpe, p)(type a, type b, CPUState *env) \
+{ \
+    uint32_t flags; \
+    switch(type ## _compare(a, b, &env->vfp.fp_status)) { \
+    case 0: flags = 0x6; break; \
+    case -1: flags = 0x8; break; \
+    case 1: flags = 0x2; break; \
+    default: case 2: flags = 0x3; break; \
+    } \
+    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
+        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
+}
+DO_VFP_cmp(s, float32)
+DO_VFP_cmp(d, float64)
+#undef DO_VFP_cmp
+
+/* Helper routines to perform bitwise copies between float and int.  */
+static inline float32 vfp_itos(uint32_t i)
+{
+    union {
+        uint32_t i;
+        float32 s;
+    } v;
+
+    v.i = i;
+    return v.s;
+}
+
+static inline uint32_t vfp_stoi(float32 s)
+{
+    union {
+        uint32_t i;
+        float32 s;
+    } v;
+
+    v.s = s;
+    return v.i;
+}
+
+static inline float64 vfp_itod(uint64_t i)
+{
+    union {
+        uint64_t i;
+        float64 d;
+    } v;
+
+    v.i = i;
+    return v.d;
+}
+
+static inline uint64_t vfp_dtoi(float64 d)
+{
+    union {
+        uint64_t i;
+        float64 d;
+    } v;
+
+    v.d = d;
+    return v.i;
+}
+
+/* Integer to float conversion.  */
+float32 VFP_HELPER(uito, s)(float32 x, CPUState *env)
+{
+    return uint32_to_float32(vfp_stoi(x), &env->vfp.fp_status);
+}
+
+float64 VFP_HELPER(uito, d)(float32 x, CPUState *env)
+{
+    return uint32_to_float64(vfp_stoi(x), &env->vfp.fp_status);
+}
+
+float32 VFP_HELPER(sito, s)(float32 x, CPUState *env)
+{
+    return int32_to_float32(vfp_stoi(x), &env->vfp.fp_status);
+}
+
+float64 VFP_HELPER(sito, d)(float32 x, CPUState *env)
+{
+    return int32_to_float64(vfp_stoi(x), &env->vfp.fp_status);
+}
+
+/* Float to integer conversion.  */
+float32 VFP_HELPER(toui, s)(float32 x, CPUState *env)
+{
+    return vfp_itos(float32_to_uint32(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(toui, d)(float64 x, CPUState *env)
+{
+    return vfp_itos(float64_to_uint32(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(tosi, s)(float32 x, CPUState *env)
+{
+    return vfp_itos(float32_to_int32(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(tosi, d)(float64 x, CPUState *env)
+{
+    return vfp_itos(float64_to_int32(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(touiz, s)(float32 x, CPUState *env)
+{
+    return vfp_itos(float32_to_uint32_round_to_zero(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(touiz, d)(float64 x, CPUState *env)
+{
+    return vfp_itos(float64_to_uint32_round_to_zero(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(tosiz, s)(float32 x, CPUState *env)
+{
+    return vfp_itos(float32_to_int32_round_to_zero(x, &env->vfp.fp_status));
+}
+
+float32 VFP_HELPER(tosiz, d)(float64 x, CPUState *env)
+{
+    return vfp_itos(float64_to_int32_round_to_zero(x, &env->vfp.fp_status));
+}
+
+/* floating point conversion */
+float64 VFP_HELPER(fcvtd, s)(float32 x, CPUState *env)
+{
+    return float32_to_float64(x, &env->vfp.fp_status);
+}
+
+float32 VFP_HELPER(fcvts, d)(float64 x, CPUState *env)
+{
+    return float64_to_float32(x, &env->vfp.fp_status);
+}
+
+/* VFP3 fixed point conversion.  */
+#define VFP_CONV_FIX(name, p, ftype, itype, sign) \
+ftype VFP_HELPER(name##to, p)(ftype x, uint32_t shift, CPUState *env) \
+{ \
+    ftype tmp; \
+    tmp = sign##int32_to_##ftype ((itype)vfp_##p##toi(x), \
+                                  &env->vfp.fp_status); \
+    return ftype##_scalbn(tmp, shift, &env->vfp.fp_status); \
+} \
+ftype VFP_HELPER(to##name, p)(ftype x, uint32_t shift, CPUState *env) \
+{ \
+    ftype tmp; \
+    tmp = ftype##_scalbn(x, shift, &env->vfp.fp_status); \
+    return vfp_ito##p((itype)ftype##_to_##sign##int32_round_to_zero(tmp, \
+        &env->vfp.fp_status)); \
+}
+
+VFP_CONV_FIX(sh, d, float64, int16, )
+VFP_CONV_FIX(sl, d, float64, int32, )
+VFP_CONV_FIX(uh, d, float64, uint16, u)
+VFP_CONV_FIX(ul, d, float64, uint32, u)
+VFP_CONV_FIX(sh, s, float32, int16, )
+VFP_CONV_FIX(sl, s, float32, int32, )
+VFP_CONV_FIX(uh, s, float32, uint16, u)
+VFP_CONV_FIX(ul, s, float32, uint32, u)
+#undef VFP_CONV_FIX
+
+float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 two = int32_to_float32(2, s);
+    return float32_sub(two, float32_mul(a, b, s), s);
+}
+
+float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 three = int32_to_float32(3, s);
+    return float32_sub(three, float32_mul(a, b, s), s);
+}
+
+/* NEON helpers.  */
+
+/* TODO: The architecture specifies the value that the estimate functions
+   should return.  We return the exact reciprocal/root instead.  */
+float32 HELPER(recpe_f32)(float32 a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 one = int32_to_float32(1, s);
+    return float32_div(one, a, s);
+}
+
+float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 one = int32_to_float32(1, s);
+    return float32_div(one, float32_sqrt(a, s), s);
+}
+
+uint32_t HELPER(recpe_u32)(uint32_t a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 tmp;
+    tmp = int32_to_float32(a, s);
+    tmp = float32_scalbn(tmp, -32, s);
+    tmp = helper_recpe_f32(tmp, env);
+    tmp = float32_scalbn(tmp, 31, s);
+    return float32_to_int32(tmp, s);
+}
+
+uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUState *env)
+{
+    float_status *s = &env->vfp.fp_status;
+    float32 tmp;
+    tmp = int32_to_float32(a, s);
+    tmp = float32_scalbn(tmp, -32, s);
+    tmp = helper_rsqrte_f32(tmp, env);
+    tmp = float32_scalbn(tmp, 31, s);
+    return float32_to_int32(tmp, s);
+}

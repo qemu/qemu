@@ -286,6 +286,8 @@ for opt do
   ;;
   --disable-kqemu) kqemu="no"
   ;;
+  --disable-brlapi) brlapi="no"
+  ;;
   --enable-profiler) profiler="yes"
   ;;
   --enable-cocoa) cocoa="yes" ; coreaudio="yes" ; sdl="no"
@@ -416,6 +418,7 @@ echo "  --enable-alsa            enable ALSA audio driver"
 echo "  --enable-esd             enable EsoundD audio driver"
 echo "  --enable-fmod            enable FMOD audio driver"
 echo "  --enable-dsound          enable DirectSound audio driver"
+echo "  --disable-brlapi         disable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --enable-system          enable all system emulation targets"
@@ -678,6 +681,20 @@ EOF
 fi
 
 ##########################################
+# BrlAPI probe
+
+if test -z "$brlapi" ; then
+    brlapi=no
+cat > $TMPC << EOF
+#include <brlapi.h>
+int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
+EOF
+    if $cc -o $TMPE ${OS_CFLAGS} $TMPC -lbrlapi 2> /tmp/qemu-$$-brlapi.log ; then
+	    brlapi=yes
+    fi # brlapi compile test
+fi # -z $brlapi
+
+##########################################
 # curses probe
 
 if test "$curses" = "yes" ; then
@@ -774,6 +791,7 @@ if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
 echo "kqemu support     $kqemu"
+echo "brlapi support    $brlapi"
 echo "Documentation     $build_docs"
 [ ! -z "$uname_release" ] && \
 echo "uname -r          $uname_release"
@@ -1005,6 +1023,11 @@ if test "$curses" = "yes" ; then
   echo "CONFIG_CURSES=yes" >> $config_mak
   echo "CURSES_LIBS=-lcurses" >> $config_mak
 fi
+if test "$brlapi" = "yes" ; then
+  echo "CONFIG_BRLAPI=yes" >> $config_mak
+  echo "#define CONFIG_BRLAPI 1" >> $config_h
+  echo "BRLAPI_LIBS=-lbrlapi" >> $config_mak
+fi
 
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
@@ -1112,8 +1135,10 @@ if test "$target_cpu" = "i386" ; then
   fi
 elif test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
   echo "TARGET_ARCH=arm" >> $config_mak
+  echo "CONFIG_NO_DYNGEN_OP=yes" >> $config_mak
   echo "#define TARGET_ARCH \"arm\"" >> $config_h
   echo "#define TARGET_ARM 1" >> $config_h
+  echo "#define CONFIG_NO_DYNGEN_OP 1" >> $config_h
   bflt="yes"
 elif test "$target_cpu" = "sparc" ; then
   echo "TARGET_ARCH=sparc" >> $config_mak

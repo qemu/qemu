@@ -26,9 +26,9 @@
 #include "hw/usb.h"
 #include "hw/pcmcia.h"
 #include "hw/pc.h"
-#include "hw/fdc.h"
 #include "hw/audiodev.h"
 #include "hw/isa.h"
+#include "hw/baum.h"
 #include "net.h"
 #include "console.h"
 #include "sysemu.h"
@@ -3480,7 +3480,12 @@ CharDriverState *qemu_chr_open(const char *filename)
     } else
     if (strstart(filename, "file:", &p)) {
         return qemu_chr_open_win_file_out(p);
-    }
+    } else
+#endif
+#ifdef CONFIG_BRLAPI
+    if (!strcmp(filename, "braille")) {
+        return chr_baum_init();
+    } else
 #endif
     {
         return NULL;
@@ -5288,6 +5293,10 @@ static int usb_device_add(const char *devname)
         dev = usb_wacom_init();
     } else if (strstart(devname, "serial:", &p)) {
         dev = usb_serial_init(p);
+#ifdef CONFIG_BRLAPI
+    } else if (!strcmp(devname, "braille")) {
+        dev = usb_baum_init();
+#endif
     } else {
         return -1;
     }
@@ -7547,7 +7556,7 @@ static int main_loop(void)
                 qemu_time += profile_getclock() - ti;
 #endif
                 next_cpu = env->next_cpu ?: first_cpu;
-                if (event_pending) {
+                if (event_pending && likely(ret != EXCP_DEBUG)) {
                     ret = EXCP_INTERRUPT;
                     event_pending = 0;
                     break;
@@ -7579,7 +7588,7 @@ static int main_loop(void)
 		qemu_system_powerdown();
                 ret = EXCP_INTERRUPT;
             }
-            if (ret == EXCP_DEBUG) {
+            if (unlikely(ret == EXCP_DEBUG)) {
                 vm_stop(EXCP_DEBUG);
             }
             /* If all cpus are halted then wait until the next IRQ */
@@ -8012,6 +8021,7 @@ static void register_machines(void)
     qemu_register_ar7_machines();
 //~ #endif
     qemu_register_mips_machines();
+    qemu_register_machine(&mips_magnum_machine);
     qemu_register_machine(&mips_malta_machine);
     qemu_register_machine(&mips_pica61_machine);
     qemu_register_machine(&mips_mipssim_machine);
@@ -8066,7 +8076,7 @@ static void register_machines(void)
 #ifdef HAS_AUDIO
 struct soundhw soundhw[] = {
 #ifdef HAS_AUDIO_CHOICE
-#ifdef TARGET_I386
+#if defined(TARGET_I386) || defined(TARGET_MIPS)
     {
         "pcspk",
         "PC speaker",

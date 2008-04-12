@@ -23,6 +23,8 @@ version 0.9.1:
   - Gumstix boards: connex and verdex emulation (Thorsten Zitterell)
   - Intel mainstone II board emulation (Armin Kuster)
   - VMware SVGA II graphics card support (Andrzej Zaborowski)
+  - MIPS Magnum R4000 machine (Hervé Poussineau)
+  - Braille support (Samuel Thibault)
 
 version 0.9.0:
 

@@ -1540,7 +1540,7 @@ static struct audio_option audio_options[] = {
      "(undocumented)", NULL, 0},
 
     {"LOG_TO_MONITOR", AUD_OPT_BOOL, &conf.log_to_monitor,
-     "print logging messages to montior instead of stderr", NULL, 0},
+     "print logging messages to monitor instead of stderr", NULL, 0},
 
     {NULL, 0, NULL, NULL, NULL, 0}
 };

@@ -64,6 +64,11 @@ OBJS+=scsi-generic.o
 OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o usb-serial.o
 OBJS+=sd.o ssi-sd.o
 
+ifdef CONFIG_BRLAPI
+OBJS+= baum.o
+LIBS+=-lbrlapi
+endif
+
 ifdef CONFIG_WIN32
 OBJS+=tap-win32.o
 endif
@@ -133,7 +138,7 @@ vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(CONFIG_VNC_TLS_CFLAGS) -c -o $@ $<
 
 curses.o: curses.c keymaps.c curses_keys.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(BASE_CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 audio/sdlaudio.o: audio/sdlaudio.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) -c -o $@ $<

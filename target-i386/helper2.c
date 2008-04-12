@@ -129,6 +129,13 @@ typedef struct x86_def_t {
     uint32_t xlevel;
 } x86_def_t;
 
+#define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
+#define PENTIUM_FEATURES (I486_FEATURES | CPUID_DE | CPUID_TSC | \
+          CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_MMX)
+#define PENTIUM2_FEATURES (PENTIUM_FEATURES | CPUID_PAE | CPUID_SEP | \
+          CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | \
+          CPUID_PSE36 | CPUID_FXSR)
+#define PENTIUM3_FEATURES (PENTIUM2_FEATURES | CPUID_SSE)
 #define PPRO_FEATURES (CPUID_FP87 | CPUID_DE | CPUID_PSE | CPUID_TSC | \
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
           CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | \
@@ -151,7 +158,8 @@ static x86_def_t x86_defs[] = {
             CPUID_PSE36,
         .ext_features = CPUID_EXT_SSE3,
         .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | 
-            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
+            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX |
+            CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
         .ext3_features = CPUID_EXT3_SVM,
         .xlevel = 0x8000000A,
     },
@@ -172,7 +180,7 @@ static x86_def_t x86_defs[] = {
         .family = 4,
         .model = 0,
         .stepping = 0,
-        .features = 0x0000000B,
+        .features = I486_FEATURES,
         .xlevel = 0,
     },
     {
@@ -181,7 +189,7 @@ static x86_def_t x86_defs[] = {
         .family = 5,
         .model = 4,
         .stepping = 3,
-        .features = 0x008001BF,
+        .features = PENTIUM_FEATURES,
         .xlevel = 0,
     },
     {
@@ -190,7 +198,7 @@ static x86_def_t x86_defs[] = {
         .family = 6,
         .model = 5,
         .stepping = 2,
-        .features = 0x0183F9FF,
+        .features = PENTIUM2_FEATURES,
         .xlevel = 0,
     },
     {
@@ -199,8 +207,21 @@ static x86_def_t x86_defs[] = {
         .family = 6,
         .model = 7,
         .stepping = 3,
-        .features = 0x0383F9FF,
+        .features = PENTIUM3_FEATURES,
         .xlevel = 0,
+    },
+    {
+        .name = "athlon",
+        .level = 2,
+        .vendor1 = 0x68747541, /* "Auth" */
+        .vendor2 = 0x69746e65, /* "enti" */
+        .vendor3 = 0x444d4163, /* "cAMD" */
+        .family = 6,
+        .model = 2,
+        .stepping = 3,
+        .features = PPRO_FEATURES | PPRO_FEATURES | CPUID_PSE36 | CPUID_VME | CPUID_MTRR | CPUID_MCA,
+        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
+        .xlevel = 0x80000008,
     },
 };
 

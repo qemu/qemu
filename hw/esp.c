@@ -21,8 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "hw.h"
-#include "block.h"
 #include "scsi-disk.h"
 #include "scsi.h"
 
@@ -44,14 +44,13 @@ do { printf("ESP: " fmt , ##args); } while (0)
 #define DPRINTF(fmt, args...)
 #endif
 
-#define ESP_MASK 0x3f
 #define ESP_REGS 16
-#define ESP_SIZE (ESP_REGS * 4)
 #define TI_BUFSZ 32
 
 typedef struct ESPState ESPState;
 
 struct ESPState {
+    uint32_t it_shift;
     qemu_irq irq;
     uint8_t rregs[ESP_REGS];
     uint8_t wregs[ESP_REGS];
@@ -403,7 +402,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
     ESPState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & ESP_MASK) >> 2;
+    saddr = (addr >> s->it_shift) & (ESP_REGS - 1);
     DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
     switch (saddr) {
     case ESP_FIFO:
@@ -439,7 +438,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     ESPState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & ESP_MASK) >> 2;
+    saddr = (addr >> s->it_shift) & (ESP_REGS - 1);
     DPRINTF("write reg[%d]: 0x%2.2x -> 0x%2.2x\n", saddr, s->wregs[saddr],
             val);
     switch (saddr) {
@@ -621,7 +620,7 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
         s->scsi_dev[id] = scsi_disk_init(bd, 0, esp_command_complete, s);
 }
 
-void *esp_init(target_phys_addr_t espaddr,
+void *esp_init(target_phys_addr_t espaddr, int it_shift,
                espdma_memory_read_write dma_memory_read,
                espdma_memory_read_write dma_memory_write,
                void *dma_opaque, qemu_irq irq, qemu_irq *reset)
@@ -634,12 +633,13 @@ void *esp_init(target_phys_addr_t espaddr,
         return NULL;
 
     s->irq = irq;
+    s->it_shift = it_shift;
     s->dma_memory_read = dma_memory_read;
     s->dma_memory_write = dma_memory_write;
     s->dma_opaque = dma_opaque;
 
     esp_io_memory = cpu_register_io_memory(0, esp_mem_read, esp_mem_write, s);
-    cpu_register_physical_memory(espaddr, ESP_SIZE, esp_io_memory);
+    cpu_register_physical_memory(espaddr, ESP_REGS << it_shift, esp_io_memory);
 
     esp_reset(s);
 

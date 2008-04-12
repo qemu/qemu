@@ -2,6 +2,7 @@
  * QEMU Floppy disk emulator (Intel 82078)
  *
  * Copyright (c) 2003, 2007 Jocelyn Mayer
+ * Copyright (c) 2008 Hervé Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -372,35 +373,34 @@ enum {
 };
 
 enum {
+    FD_CMD_READ_TRACK = 0x02,
     FD_CMD_SPECIFY = 0x03,
     FD_CMD_SENSE_DRIVE_STATUS = 0x04,
+    FD_CMD_WRITE = 0x05,
+    FD_CMD_READ = 0x06,
     FD_CMD_RECALIBRATE = 0x07,
     FD_CMD_SENSE_INTERRUPT_STATUS = 0x08,
+    FD_CMD_WRITE_DELETED = 0x09,
+    FD_CMD_READ_ID = 0x0a,
+    FD_CMD_READ_DELETED = 0x0c,
+    FD_CMD_FORMAT_TRACK = 0x0d,
     FD_CMD_DUMPREG = 0x0e,
     FD_CMD_SEEK = 0x0f,
     FD_CMD_VERSION = 0x10,
+    FD_CMD_SCAN_EQUAL = 0x11,
     FD_CMD_PERPENDICULAR_MODE = 0x12,
     FD_CMD_CONFIGURE = 0x13,
-    FD_CMD_UNLOCK = 0x14,
+    FD_CMD_LOCK = 0x14,
+    FD_CMD_VERIFY = 0x16,
     FD_CMD_POWERDOWN_MODE = 0x17,
     FD_CMD_PART_ID = 0x18,
+    FD_CMD_SCAN_LOW_OR_EQUAL = 0x19,
+    FD_CMD_SCAN_HIGH_OR_EQUAL = 0x1d,
     FD_CMD_SAVE = 0x2c,
     FD_CMD_OPTION = 0x33,
-    FD_CMD_READ_TRACK = 0x42,
-    FD_CMD_WRITE = 0x45,
-    FD_CMD_READ = 0x46,
-    FD_CMD_WRITE_DELETED = 0x49,
-    FD_CMD_READ_ID = 0x4a,
-    FD_CMD_READ_DELETED = 0x4c,
     FD_CMD_RESTORE = 0x4c,
-    FD_CMD_FORMAT_TRACK = 0x4d,
-    FD_CMD_SCAN_EQUAL = 0x50,
-    FD_CMD_VERIFY = 0x56,
-    FD_CMD_SCAN_LOW_OR_EQUAL = 0x59,
-    FD_CMD_SCAN_HIGH_OR_EQUAL = 0x5d,
     FD_CMD_DRIVE_SPECIFICATION_COMMAND = 0x8e,
     FD_CMD_RELATIVE_SEEK_OUT = 0x8f,
-    FD_CMD_LOCK = 0x94,
     FD_CMD_FORMAT_AND_WRITE = 0xcd,
     FD_CMD_RELATIVE_SEEK_IN = 0xcf,
 };
@@ -1047,7 +1047,7 @@ static void fdctrl_set_fifo (fdctrl_t *fdctrl, int fifo_len, int do_irq)
 }
 
 /* Set an error: unimplemented/unknown command */
-static void fdctrl_unimplemented (fdctrl_t *fdctrl)
+static void fdctrl_unimplemented (fdctrl_t *fdctrl, int direction)
 {
 #if 0
     fdrive_t *cur_drv;
@@ -1441,9 +1441,339 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
     }
 }
 
+static void fdctrl_handle_lock (fdctrl_t *fdctrl, int direction)
+{
+    fdctrl->lock = (fdctrl->fifo[0] & 0x80) ? 1 : 0;
+    fdctrl->fifo[0] = fdctrl->lock << 4;
+    fdctrl_set_fifo(fdctrl, 1, fdctrl->lock);
+}
+
+static void fdctrl_handle_dumpreg (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+    /* Drives position */
+    fdctrl->fifo[0] = drv0(fdctrl)->track;
+    fdctrl->fifo[1] = drv1(fdctrl)->track;
+    fdctrl->fifo[2] = 0;
+    fdctrl->fifo[3] = 0;
+    /* timers */
+    fdctrl->fifo[4] = fdctrl->timer0;
+    fdctrl->fifo[5] = (fdctrl->timer1 << 1) | fdctrl->dma_en;
+    fdctrl->fifo[6] = cur_drv->last_sect;
+    fdctrl->fifo[7] = (fdctrl->lock << 7) |
+        (cur_drv->perpendicular << 2);
+    fdctrl->fifo[8] = fdctrl->config;
+    fdctrl->fifo[9] = fdctrl->precomp_trk;
+    fdctrl_set_fifo(fdctrl, 10, 0);
+}
+
+static void fdctrl_handle_version (fdctrl_t *fdctrl, int direction)
+{
+    /* Controller's version */
+    fdctrl->fifo[0] = fdctrl->version;
+    fdctrl_set_fifo(fdctrl, 1, 1);
+}
+
+static void fdctrl_handle_partid (fdctrl_t *fdctrl, int direction)
+{
+    fdctrl->fifo[0] = 0x41; /* Stepping 1 */
+    fdctrl_set_fifo(fdctrl, 1, 0);
+}
+
+static void fdctrl_handle_restore (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+    /* Drives position */
+    drv0(fdctrl)->track = fdctrl->fifo[3];
+    drv1(fdctrl)->track = fdctrl->fifo[4];
+    /* timers */
+    fdctrl->timer0 = fdctrl->fifo[7];
+    fdctrl->timer1 = fdctrl->fifo[8];
+    cur_drv->last_sect = fdctrl->fifo[9];
+    fdctrl->lock = fdctrl->fifo[10] >> 7;
+    cur_drv->perpendicular = (fdctrl->fifo[10] >> 2) & 0xF;
+    fdctrl->config = fdctrl->fifo[11];
+    fdctrl->precomp_trk = fdctrl->fifo[12];
+    fdctrl->pwrd = fdctrl->fifo[13];
+    fdctrl_reset_fifo(fdctrl);
+}
+
+static void fdctrl_handle_save (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+    fdctrl->fifo[0] = 0;
+    fdctrl->fifo[1] = 0;
+    /* Drives position */
+    fdctrl->fifo[2] = drv0(fdctrl)->track;
+    fdctrl->fifo[3] = drv1(fdctrl)->track;
+    fdctrl->fifo[4] = 0;
+    fdctrl->fifo[5] = 0;
+    /* timers */
+    fdctrl->fifo[6] = fdctrl->timer0;
+    fdctrl->fifo[7] = fdctrl->timer1;
+    fdctrl->fifo[8] = cur_drv->last_sect;
+    fdctrl->fifo[9] = (fdctrl->lock << 7) |
+        (cur_drv->perpendicular << 2);
+    fdctrl->fifo[10] = fdctrl->config;
+    fdctrl->fifo[11] = fdctrl->precomp_trk;
+    fdctrl->fifo[12] = fdctrl->pwrd;
+    fdctrl->fifo[13] = 0;
+    fdctrl->fifo[14] = 0;
+    fdctrl_set_fifo(fdctrl, 15, 1);
+}
+
+static void fdctrl_handle_readid (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+    /* XXX: should set main status register to busy */
+    cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
+    qemu_mod_timer(fdctrl->result_timer,
+                   qemu_get_clock(vm_clock) + (ticks_per_sec / 50));
+}
+
+static void fdctrl_handle_format_track (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv;
+
+    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    cur_drv = get_cur_drv(fdctrl);
+    fdctrl->data_state |= FD_STATE_FORMAT;
+    if (fdctrl->fifo[0] & 0x80)
+        fdctrl->data_state |= FD_STATE_MULTI;
+    else
+        fdctrl->data_state &= ~FD_STATE_MULTI;
+    fdctrl->data_state &= ~FD_STATE_SEEK;
+    cur_drv->bps =
+        fdctrl->fifo[2] > 7 ? 16384 : 128 << fdctrl->fifo[2];
+#if 0
+    cur_drv->last_sect =
+        cur_drv->flags & FDISK_DBL_SIDES ? fdctrl->fifo[3] :
+        fdctrl->fifo[3] / 2;
+#else
+    cur_drv->last_sect = fdctrl->fifo[3];
+#endif
+    /* TODO: implement format using DMA expected by the Bochs BIOS
+     * and Linux fdformat (read 3 bytes per sector via DMA and fill
+     * the sector with the specified fill byte
+     */
+    fdctrl->data_state &= ~FD_STATE_FORMAT;
+    fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+}
+
+static void fdctrl_handle_specify (fdctrl_t *fdctrl, int direction)
+{
+    fdctrl->timer0 = (fdctrl->fifo[1] >> 4) & 0xF;
+    fdctrl->timer1 = fdctrl->fifo[2] >> 1;
+    fdctrl->dma_en = 1 - (fdctrl->fifo[2] & 1) ;
+    /* No result back */
+    fdctrl_reset_fifo(fdctrl);
+}
+
+static void fdctrl_handle_sense_drive_status (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv;
+
+    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    cur_drv = get_cur_drv(fdctrl);
+    cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
+    /* 1 Byte status back */
+    fdctrl->fifo[0] = (cur_drv->ro << 6) |
+        (cur_drv->track == 0 ? 0x10 : 0x00) |
+        (cur_drv->head << 2) |
+        fdctrl->cur_drv |
+        0x28;
+    fdctrl_set_fifo(fdctrl, 1, 0);
+}
+
+static void fdctrl_handle_recalibrate (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv;
+
+    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    cur_drv = get_cur_drv(fdctrl);
+    fd_recalibrate(cur_drv);
+    fdctrl_reset_fifo(fdctrl);
+    /* Raise Interrupt */
+    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+}
+
+static void fdctrl_handle_sense_interrupt_status (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+#if 0
+    fdctrl->fifo[0] =
+        fdctrl->int_status | (cur_drv->head << 2) | fdctrl->cur_drv;
+#else
+    /* XXX: int_status handling is broken for read/write
+       commands, so we do this hack. It should be suppressed
+       ASAP */
+    fdctrl->fifo[0] =
+        0x20 | (cur_drv->head << 2) | fdctrl->cur_drv;
+#endif
+    fdctrl->fifo[1] = cur_drv->track;
+    fdctrl_set_fifo(fdctrl, 2, 0);
+    fdctrl_reset_irq(fdctrl);
+    fdctrl->int_status = FD_SR0_RDYCHG;
+}
+
+static void fdctrl_handle_seek (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv;
+
+    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    cur_drv = get_cur_drv(fdctrl);
+    fd_start(cur_drv);
+    if (fdctrl->fifo[2] <= cur_drv->track)
+        cur_drv->dir = 1;
+    else
+        cur_drv->dir = 0;
+    fdctrl_reset_fifo(fdctrl);
+    if (fdctrl->fifo[2] > cur_drv->max_track) {
+        fdctrl_raise_irq(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK);
+    } else {
+        cur_drv->track = fdctrl->fifo[2];
+        /* Raise Interrupt */
+        fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    }
+}
+
+static void fdctrl_handle_perpendicular_mode (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+    if (fdctrl->fifo[1] & 0x80)
+        cur_drv->perpendicular = fdctrl->fifo[1] & 0x7;
+    /* No result back */
+           fdctrl_reset_fifo(fdctrl);
+}
+
+static void fdctrl_handle_configure (fdctrl_t *fdctrl, int direction)
+{
+    fdctrl->config = fdctrl->fifo[2];
+    fdctrl->precomp_trk =  fdctrl->fifo[3];
+    /* No result back */
+    fdctrl_reset_fifo(fdctrl);
+}
+
+static void fdctrl_handle_powerdown_mode (fdctrl_t *fdctrl, int direction)
+{
+    fdctrl->pwrd = fdctrl->fifo[1];
+    fdctrl->fifo[0] = fdctrl->fifo[1];
+    fdctrl_set_fifo(fdctrl, 1, 1);
+}
+
+static void fdctrl_handle_option (fdctrl_t *fdctrl, int direction)
+{
+    /* No result back */
+    fdctrl_reset_fifo(fdctrl);
+}
+
+static void fdctrl_handle_drive_specification_command (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+    if (fdctrl->fifo[fdctrl->data_pos - 1] & 0x80) {
+        /* Command parameters done */
+        if (fdctrl->fifo[fdctrl->data_pos - 1] & 0x40) {
+            fdctrl->fifo[0] = fdctrl->fifo[1];
+            fdctrl->fifo[2] = 0;
+            fdctrl->fifo[3] = 0;
+            fdctrl_set_fifo(fdctrl, 4, 1);
+        } else {
+            fdctrl_reset_fifo(fdctrl);
+        }
+    } else if (fdctrl->data_len > 7) {
+        /* ERROR */
+        fdctrl->fifo[0] = 0x80 |
+            (cur_drv->head << 2) | fdctrl->cur_drv;
+        fdctrl_set_fifo(fdctrl, 1, 1);
+    }
+}
+
+static void fdctrl_handle_relative_seek_out (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    cur_drv = get_cur_drv(fdctrl);
+    fd_start(cur_drv);
+    cur_drv->dir = 0;
+    if (fdctrl->fifo[2] + cur_drv->track >= cur_drv->max_track) {
+        cur_drv->track = cur_drv->max_track - 1;
+    } else {
+        cur_drv->track += fdctrl->fifo[2];
+    }
+    fdctrl_reset_fifo(fdctrl);
+    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+}
+
+static void fdctrl_handle_relative_seek_in (fdctrl_t *fdctrl, int direction)
+{
+    fdrive_t *cur_drv = get_cur_drv(fdctrl);
+
+    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    cur_drv = get_cur_drv(fdctrl);
+    fd_start(cur_drv);
+    cur_drv->dir = 1;
+    if (fdctrl->fifo[2] > cur_drv->track) {
+        cur_drv->track = 0;
+    } else {
+        cur_drv->track -= fdctrl->fifo[2];
+    }
+    fdctrl_reset_fifo(fdctrl);
+    /* Raise Interrupt */
+    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+}
+
 static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
 {
     fdrive_t *cur_drv;
+    int pos;
+    static const struct {
+        uint8_t value;
+        uint8_t mask;
+        const char* name;
+        int parameters;
+        void (*handler)(fdctrl_t *fdctrl, int direction);
+        int parameter;
+    } commands[] = {
+        { FD_CMD_READ, 0x1f, "READ", 8, fdctrl_start_transfer, FD_DIR_READ },
+        { FD_CMD_WRITE, 0x3f, "WRITE", 8, fdctrl_start_transfer, FD_DIR_WRITE },
+        { FD_CMD_SEEK, 0xff, "SEEK", 2, fdctrl_handle_seek },
+        { FD_CMD_SENSE_INTERRUPT_STATUS, 0xff, "SENSE INTERRUPT STATUS", 0, fdctrl_handle_sense_interrupt_status },
+        { FD_CMD_RECALIBRATE, 0xff, "RECALIBRATE", 1, fdctrl_handle_recalibrate },
+        { FD_CMD_FORMAT_TRACK, 0xbf, "FORMAT TRACK", 5, fdctrl_handle_format_track },
+        { FD_CMD_READ_TRACK, 0xbf, "READ TRACK", 8, fdctrl_start_transfer, FD_DIR_READ },
+        { FD_CMD_RESTORE, 0xff, "RESTORE", 17, fdctrl_handle_restore }, /* part of READ DELETED DATA */
+        { FD_CMD_SAVE, 0xff, "SAVE", 0, fdctrl_handle_save }, /* part of READ DELETED DATA */
+        { FD_CMD_READ_DELETED, 0x1f, "READ DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_READ },
+        { FD_CMD_SCAN_EQUAL, 0x1f, "SCAN EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANE },
+        { FD_CMD_VERIFY, 0x1f, "VERIFY", 8, fdctrl_unimplemented },
+        { FD_CMD_SCAN_LOW_OR_EQUAL, 0x1f, "SCAN LOW OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANL },
+        { FD_CMD_SCAN_HIGH_OR_EQUAL, 0x1f, "SCAN HIGH OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANH },
+        { FD_CMD_WRITE_DELETED, 0x3f, "WRITE DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_WRITE },
+        { FD_CMD_READ_ID, 0xbf, "READ ID", 1, fdctrl_handle_readid },
+        { FD_CMD_SPECIFY, 0xff, "SPECIFY", 2, fdctrl_handle_specify },
+        { FD_CMD_SENSE_DRIVE_STATUS, 0xff, "SENSE DRIVE STATUS", 1, fdctrl_handle_sense_drive_status },
+        { FD_CMD_PERPENDICULAR_MODE, 0xff, "PERPENDICULAR MODE", 1, fdctrl_handle_perpendicular_mode },
+        { FD_CMD_CONFIGURE, 0xff, "CONFIGURE", 3, fdctrl_handle_configure },
+        { FD_CMD_POWERDOWN_MODE, 0xff, "POWERDOWN MODE", 2, fdctrl_handle_powerdown_mode },
+        { FD_CMD_OPTION, 0xff, "OPTION", 1, fdctrl_handle_option },
+        { FD_CMD_DRIVE_SPECIFICATION_COMMAND, 0xff, "DRIVE SPECIFICATION COMMAND", 5, fdctrl_handle_drive_specification_command },
+        { FD_CMD_RELATIVE_SEEK_OUT, 0xff, "RELATIVE SEEK OUT", 2, fdctrl_handle_relative_seek_out },
+        { FD_CMD_FORMAT_AND_WRITE, 0xff, "FORMAT AND WRITE", 10, fdctrl_unimplemented },
+        { FD_CMD_RELATIVE_SEEK_IN, 0xff, "RELATIVE SEEK IN", 2, fdctrl_handle_relative_seek_in },
+        { FD_CMD_LOCK, 0x7f, "LOCK", 0, fdctrl_handle_lock },
+        { FD_CMD_DUMPREG, 0xff, "DUMPREG", 0, fdctrl_handle_dumpreg },
+        { FD_CMD_VERSION, 0xff, "VERSION", 0, fdctrl_handle_version },
+        { FD_CMD_PART_ID, 0xff, "PART ID", 0, fdctrl_handle_partid },
+        { FD_CMD_WRITE, 0x1f, "WRITE (BeOS)", 8, fdctrl_start_transfer, FD_DIR_WRITE }, /* not in specification ; BeOS 4.5 bug */
+    };
 
     cur_drv = get_cur_drv(fdctrl);
     /* Reset mode */
@@ -1473,258 +1803,18 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
     }
     if (fdctrl->data_pos == 0) {
         /* Command */
-        switch (value & 0x5F) {
-        case FD_CMD_READ:
-            /* READ variants */
-            FLOPPY_DPRINTF("READ command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        case FD_CMD_READ_DELETED:
-            /* READ_DELETED variants */
-            FLOPPY_DPRINTF("READ_DELETED command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        case FD_CMD_SCAN_EQUAL:
-            /* SCAN_EQUAL variants */
-            FLOPPY_DPRINTF("SCAN_EQUAL command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        case FD_CMD_VERIFY:
-            /* VERIFY variants */
-            FLOPPY_DPRINTF("VERIFY command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        case FD_CMD_SCAN_LOW_OR_EQUAL:
-            /* SCAN_LOW_OR_EQUAL variants */
-            FLOPPY_DPRINTF("SCAN_LOW_OR_EQUAL command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        case FD_CMD_SCAN_HIGH_OR_EQUAL:
-            /* SCAN_HIGH_OR_EQUAL variants */
-            FLOPPY_DPRINTF("SCAN_HIGH_OR_EQUAL command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        default:
-            break;
+        for (pos = 0; pos < sizeof(commands)/sizeof(commands[0]); pos++) {
+            if ((value & commands[pos].mask) == commands[pos].value) {
+                FLOPPY_DPRINTF("%s command\n", commands[pos].name);
+                fdctrl->data_len = commands[pos].parameters + 1;
+                goto enqueue;
+            }
         }
-        switch (value & 0x7F) {
-        case FD_CMD_WRITE:
-            /* WRITE variants */
-            FLOPPY_DPRINTF("WRITE command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        case FD_CMD_WRITE_DELETED:
-            /* WRITE_DELETED variants */
-            FLOPPY_DPRINTF("WRITE_DELETED command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        default:
-            break;
-        }
-        switch (value) {
-        case FD_CMD_SPECIFY:
-            /* SPECIFY */
-            FLOPPY_DPRINTF("SPECIFY command\n");
-            /* 1 parameter cmd */
-            fdctrl->data_len = 3;
-            goto enqueue;
-        case FD_CMD_SENSE_DRIVE_STATUS:
-            /* SENSE_DRIVE_STATUS */
-            FLOPPY_DPRINTF("SENSE_DRIVE_STATUS command\n");
-            /* 1 parameter cmd */
-            fdctrl->data_len = 2;
-            goto enqueue;
-        case FD_CMD_RECALIBRATE:
-            /* RECALIBRATE */
-            FLOPPY_DPRINTF("RECALIBRATE command\n");
-            /* 1 parameter cmd */
-            fdctrl->data_len = 2;
-            goto enqueue;
-        case FD_CMD_SENSE_INTERRUPT_STATUS:
-            /* SENSE_INTERRUPT_STATUS */
-            FLOPPY_DPRINTF("SENSE_INTERRUPT_STATUS command (%02x)\n",
-                           fdctrl->int_status);
-            /* No parameters cmd: returns status if no interrupt */
-#if 0
-            fdctrl->fifo[0] =
-                fdctrl->int_status | (cur_drv->head << 2) | fdctrl->cur_drv;
-#else
-            /* XXX: int_status handling is broken for read/write
-               commands, so we do this hack. It should be suppressed
-               ASAP */
-            fdctrl->fifo[0] =
-                0x20 | (cur_drv->head << 2) | fdctrl->cur_drv;
-#endif
-            fdctrl->fifo[1] = cur_drv->track;
-            fdctrl_set_fifo(fdctrl, 2, 0);
-            fdctrl_reset_irq(fdctrl);
-            fdctrl->int_status = FD_SR0_RDYCHG;
-            return;
-        case FD_CMD_DUMPREG:
-            /* DUMPREG */
-            FLOPPY_DPRINTF("DUMPREG command\n");
-            /* Drives position */
-            fdctrl->fifo[0] = drv0(fdctrl)->track;
-            fdctrl->fifo[1] = drv1(fdctrl)->track;
-            fdctrl->fifo[2] = 0;
-            fdctrl->fifo[3] = 0;
-            /* timers */
-            fdctrl->fifo[4] = fdctrl->timer0;
-            fdctrl->fifo[5] = (fdctrl->timer1 << 1) | fdctrl->dma_en;
-            fdctrl->fifo[6] = cur_drv->last_sect;
-            fdctrl->fifo[7] = (fdctrl->lock << 7) |
-                (cur_drv->perpendicular << 2);
-            fdctrl->fifo[8] = fdctrl->config;
-            fdctrl->fifo[9] = fdctrl->precomp_trk;
-            fdctrl_set_fifo(fdctrl, 10, 0);
-            return;
-        case FD_CMD_SEEK:
-            /* SEEK */
-            FLOPPY_DPRINTF("SEEK command\n");
-            /* 2 parameters cmd */
-            fdctrl->data_len = 3;
-            goto enqueue;
-        case FD_CMD_VERSION:
-            /* VERSION */
-            FLOPPY_DPRINTF("VERSION command\n");
-            /* No parameters cmd */
-            /* Controller's version */
-            fdctrl->fifo[0] = fdctrl->version;
-            fdctrl_set_fifo(fdctrl, 1, 1);
-            return;
-        case FD_CMD_PERPENDICULAR_MODE:
-            /* PERPENDICULAR_MODE */
-            FLOPPY_DPRINTF("PERPENDICULAR_MODE command\n");
-            /* 1 parameter cmd */
-            fdctrl->data_len = 2;
-            goto enqueue;
-        case FD_CMD_CONFIGURE:
-            /* CONFIGURE */
-            FLOPPY_DPRINTF("CONFIGURE command\n");
-            /* 3 parameters cmd */
-            fdctrl->data_len = 4;
-            goto enqueue;
-        case FD_CMD_UNLOCK:
-            /* UNLOCK */
-            FLOPPY_DPRINTF("UNLOCK command\n");
-            /* No parameters cmd */
-            fdctrl->lock = 0;
-            fdctrl->fifo[0] = 0;
-            fdctrl_set_fifo(fdctrl, 1, 0);
-            return;
-        case FD_CMD_POWERDOWN_MODE:
-            /* POWERDOWN_MODE */
-            FLOPPY_DPRINTF("POWERDOWN_MODE command\n");
-            /* 2 parameters cmd */
-            fdctrl->data_len = 3;
-            goto enqueue;
-        case FD_CMD_PART_ID:
-            /* PART_ID */
-            FLOPPY_DPRINTF("PART_ID command\n");
-            /* No parameters cmd */
-            fdctrl->fifo[0] = 0x41; /* Stepping 1 */
-            fdctrl_set_fifo(fdctrl, 1, 0);
-            return;
-        case FD_CMD_SAVE:
-            /* SAVE */
-            FLOPPY_DPRINTF("SAVE command\n");
-            /* No parameters cmd */
-            fdctrl->fifo[0] = 0;
-            fdctrl->fifo[1] = 0;
-            /* Drives position */
-            fdctrl->fifo[2] = drv0(fdctrl)->track;
-            fdctrl->fifo[3] = drv1(fdctrl)->track;
-            fdctrl->fifo[4] = 0;
-            fdctrl->fifo[5] = 0;
-            /* timers */
-            fdctrl->fifo[6] = fdctrl->timer0;
-            fdctrl->fifo[7] = fdctrl->timer1;
-            fdctrl->fifo[8] = cur_drv->last_sect;
-            fdctrl->fifo[9] = (fdctrl->lock << 7) |
-                (cur_drv->perpendicular << 2);
-            fdctrl->fifo[10] = fdctrl->config;
-            fdctrl->fifo[11] = fdctrl->precomp_trk;
-            fdctrl->fifo[12] = fdctrl->pwrd;
-            fdctrl->fifo[13] = 0;
-            fdctrl->fifo[14] = 0;
-            fdctrl_set_fifo(fdctrl, 15, 1);
-            return;
-        case FD_CMD_OPTION:
-            /* OPTION */
-            FLOPPY_DPRINTF("OPTION command\n");
-            /* 1 parameter cmd */
-            fdctrl->data_len = 2;
-            goto enqueue;
-        case FD_CMD_READ_TRACK:
-            /* READ_TRACK */
-            FLOPPY_DPRINTF("READ_TRACK command\n");
-            /* 8 parameters cmd */
-            fdctrl->data_len = 9;
-            goto enqueue;
-        case FD_CMD_READ_ID:
-            /* READ_ID */
-            FLOPPY_DPRINTF("READ_ID command\n");
-            /* 1 parameter cmd */
-            fdctrl->data_len = 2;
-            goto enqueue;
-        case FD_CMD_RESTORE:
-            /* RESTORE */
-            FLOPPY_DPRINTF("RESTORE command\n");
-            /* 17 parameters cmd */
-            fdctrl->data_len = 18;
-            goto enqueue;
-        case FD_CMD_FORMAT_TRACK:
-            /* FORMAT_TRACK */
-            FLOPPY_DPRINTF("FORMAT_TRACK command\n");
-            /* 5 parameters cmd */
-            fdctrl->data_len = 6;
-            goto enqueue;
-        case FD_CMD_DRIVE_SPECIFICATION_COMMAND:
-            /* DRIVE_SPECIFICATION_COMMAND */
-            FLOPPY_DPRINTF("DRIVE_SPECIFICATION_COMMAND command\n");
-            /* 5 parameters cmd */
-            fdctrl->data_len = 6;
-            goto enqueue;
-        case FD_CMD_RELATIVE_SEEK_OUT:
-            /* RELATIVE_SEEK_OUT */
-            FLOPPY_DPRINTF("RELATIVE_SEEK_OUT command\n");
-            /* 2 parameters cmd */
-            fdctrl->data_len = 3;
-            goto enqueue;
-        case FD_CMD_LOCK:
-            /* LOCK */
-            FLOPPY_DPRINTF("LOCK command\n");
-            /* No parameters cmd */
-            fdctrl->lock = 1;
-            fdctrl->fifo[0] = 0x10;
-            fdctrl_set_fifo(fdctrl, 1, 1);
-            return;
-        case FD_CMD_FORMAT_AND_WRITE:
-            /* FORMAT_AND_WRITE */
-            FLOPPY_DPRINTF("FORMAT_AND_WRITE command\n");
-            /* 10 parameters cmd */
-            fdctrl->data_len = 11;
-            goto enqueue;
-        case FD_CMD_RELATIVE_SEEK_IN:
-            /* RELATIVE_SEEK_IN */
-            FLOPPY_DPRINTF("RELATIVE_SEEK_IN command\n");
-            /* 2 parameters cmd */
-            fdctrl->data_len = 3;
-            goto enqueue;
-        default:
-            /* Unknown command */
-            FLOPPY_ERROR("unknown command: 0x%02x\n", value);
-            fdctrl_unimplemented(fdctrl);
-            return;
-        }
+
+        /* Unknown command */
+        FLOPPY_ERROR("unknown command: 0x%02x\n", value);
+        fdctrl_unimplemented(fdctrl, 0);
+        return;
     }
  enqueue:
     FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
@@ -1737,259 +1827,13 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             fdctrl_format_sector(fdctrl);
             return;
         }
-        switch (fdctrl->fifo[0] & 0x1F) {
-        case FD_CMD_READ & 0x1F:
-            {
-                /* READ variants */
-                FLOPPY_DPRINTF("treat READ command\n");
-                fdctrl_start_transfer(fdctrl, FD_DIR_READ);
-                return;
+
+        for (pos = 0; pos < sizeof(commands)/sizeof(commands[0]); pos++) {
+            if ((fdctrl->fifo[0] & commands[pos].mask) == commands[pos].value) {
+                FLOPPY_DPRINTF("treat %s command\n", commands[pos].name);
+                (*commands[pos].handler)(fdctrl, commands[pos].parameter);
+                break;
             }
-        case FD_CMD_READ_DELETED & 0x1F:
-            /* READ_DELETED variants */
-//            FLOPPY_DPRINTF("treat READ_DELETED command\n");
-            FLOPPY_ERROR("treat READ_DELETED command\n");
-            fdctrl_start_transfer_del(fdctrl, FD_DIR_READ);
-            return;
-        case FD_CMD_VERIFY & 0x1F:
-            /* VERIFY variants */
-//            FLOPPY_DPRINTF("treat VERIFY command\n");
-            FLOPPY_ERROR("treat VERIFY command\n");
-            fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
-            return;
-        case FD_CMD_SCAN_EQUAL & 0x1F:
-            /* SCAN_EQUAL variants */
-//            FLOPPY_DPRINTF("treat SCAN_EQUAL command\n");
-            FLOPPY_ERROR("treat SCAN_EQUAL command\n");
-            fdctrl_start_transfer(fdctrl, FD_DIR_SCANE);
-            return;
-        case FD_CMD_SCAN_LOW_OR_EQUAL & 0x1F:
-            /* SCAN_LOW_OR_EQUAL variants */
-//            FLOPPY_DPRINTF("treat SCAN_LOW_OR_EQUAL command\n");
-            FLOPPY_ERROR("treat SCAN_LOW_OR_EQUAL command\n");
-            fdctrl_start_transfer(fdctrl, FD_DIR_SCANL);
-            return;
-        case FD_CMD_SCAN_HIGH_OR_EQUAL & 0x1F:
-            /* SCAN_HIGH_OR_EQUAL variants */
-//            FLOPPY_DPRINTF("treat SCAN_HIGH_OR_EQUAL command\n");
-            FLOPPY_ERROR("treat SCAN_HIGH_OR_EQUAL command\n");
-            fdctrl_start_transfer(fdctrl, FD_DIR_SCANH);
-            return;
-        default:
-            break;
-        }
-        switch (fdctrl->fifo[0] & 0x3F) {
-        case FD_CMD_WRITE & 0x3F:
-            /* WRITE variants */
-            FLOPPY_DPRINTF("treat WRITE command (%02x)\n", fdctrl->fifo[0]);
-            fdctrl_start_transfer(fdctrl, FD_DIR_WRITE);
-            return;
-        case FD_CMD_WRITE_DELETED & 0x3F:
-            /* WRITE_DELETED variants */
-//            FLOPPY_DPRINTF("treat WRITE_DELETED command\n");
-            FLOPPY_ERROR("treat WRITE_DELETED command\n");
-            fdctrl_start_transfer_del(fdctrl, FD_DIR_WRITE);
-            return;
-        default:
-            break;
-        }
-        switch (fdctrl->fifo[0]) {
-        case FD_CMD_SPECIFY:
-            /* SPECIFY */
-            FLOPPY_DPRINTF("treat SPECIFY command\n");
-            fdctrl->timer0 = (fdctrl->fifo[1] >> 4) & 0xF;
-            fdctrl->timer1 = fdctrl->fifo[2] >> 1;
-            fdctrl->dma_en = 1 - (fdctrl->fifo[2] & 1) ;
-            /* No result back */
-            fdctrl_reset_fifo(fdctrl);
-            break;
-        case FD_CMD_SENSE_DRIVE_STATUS:
-            /* SENSE_DRIVE_STATUS */
-            FLOPPY_DPRINTF("treat SENSE_DRIVE_STATUS command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
-            cur_drv = get_cur_drv(fdctrl);
-            cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
-            /* 1 Byte status back */
-            fdctrl->fifo[0] = (cur_drv->ro << 6) |
-                (cur_drv->track == 0 ? 0x10 : 0x00) |
-                (cur_drv->head << 2) |
-                fdctrl->cur_drv |
-                0x28;
-            fdctrl_set_fifo(fdctrl, 1, 0);
-            break;
-        case FD_CMD_RECALIBRATE:
-            /* RECALIBRATE */
-            FLOPPY_DPRINTF("treat RECALIBRATE command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
-            cur_drv = get_cur_drv(fdctrl);
-            fd_recalibrate(cur_drv);
-            fdctrl_reset_fifo(fdctrl);
-            /* Raise Interrupt */
-            fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
-            break;
-        case FD_CMD_SEEK:
-            /* SEEK */
-            FLOPPY_DPRINTF("treat SEEK command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
-            cur_drv = get_cur_drv(fdctrl);
-            fd_start(cur_drv);
-            if (fdctrl->fifo[2] <= cur_drv->track)
-                cur_drv->dir = 1;
-            else
-                cur_drv->dir = 0;
-            fdctrl_reset_fifo(fdctrl);
-            if (fdctrl->fifo[2] > cur_drv->max_track) {
-                fdctrl_raise_irq(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK);
-            } else {
-                cur_drv->track = fdctrl->fifo[2];
-                /* Raise Interrupt */
-                fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
-            }
-            break;
-        case FD_CMD_PERPENDICULAR_MODE:
-            /* PERPENDICULAR_MODE */
-            FLOPPY_DPRINTF("treat PERPENDICULAR_MODE command\n");
-            if (fdctrl->fifo[1] & 0x80)
-                cur_drv->perpendicular = fdctrl->fifo[1] & 0x7;
-            /* No result back */
-            fdctrl_reset_fifo(fdctrl);
-            break;
-        case FD_CMD_CONFIGURE:
-            /* CONFIGURE */
-            FLOPPY_DPRINTF("treat CONFIGURE command\n");
-            fdctrl->config = fdctrl->fifo[2];
-            fdctrl->precomp_trk =  fdctrl->fifo[3];
-            /* No result back */
-            fdctrl_reset_fifo(fdctrl);
-            break;
-        case FD_CMD_POWERDOWN_MODE:
-            /* POWERDOWN_MODE */
-            FLOPPY_DPRINTF("treat POWERDOWN_MODE command\n");
-            fdctrl->pwrd = fdctrl->fifo[1];
-            fdctrl->fifo[0] = fdctrl->fifo[1];
-            fdctrl_set_fifo(fdctrl, 1, 1);
-            break;
-        case FD_CMD_OPTION:
-            /* OPTION */
-            FLOPPY_DPRINTF("treat OPTION command\n");
-            /* No result back */
-            fdctrl_reset_fifo(fdctrl);
-            break;
-        case FD_CMD_READ_TRACK:
-            /* READ_TRACK */
-            FLOPPY_DPRINTF("treat READ_TRACK command\n");
-            FLOPPY_ERROR("treat READ_TRACK command\n");
-            fdctrl_start_transfer(fdctrl, FD_DIR_READ);
-            break;
-        case FD_CMD_READ_ID:
-            /* READ_ID */
-            FLOPPY_DPRINTF("treat READ_ID command\n");
-            /* XXX: should set main status register to busy */
-            cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
-            qemu_mod_timer(fdctrl->result_timer,
-                           qemu_get_clock(vm_clock) + (ticks_per_sec / 50));
-            break;
-        case FD_CMD_RESTORE:
-            /* RESTORE */
-            FLOPPY_DPRINTF("treat RESTORE command\n");
-            /* Drives position */
-            drv0(fdctrl)->track = fdctrl->fifo[3];
-            drv1(fdctrl)->track = fdctrl->fifo[4];
-            /* timers */
-            fdctrl->timer0 = fdctrl->fifo[7];
-            fdctrl->timer1 = fdctrl->fifo[8];
-            cur_drv->last_sect = fdctrl->fifo[9];
-            fdctrl->lock = fdctrl->fifo[10] >> 7;
-            cur_drv->perpendicular = (fdctrl->fifo[10] >> 2) & 0xF;
-            fdctrl->config = fdctrl->fifo[11];
-            fdctrl->precomp_trk = fdctrl->fifo[12];
-            fdctrl->pwrd = fdctrl->fifo[13];
-            fdctrl_reset_fifo(fdctrl);
-            break;
-        case FD_CMD_FORMAT_TRACK:
-            /* FORMAT_TRACK */
-            FLOPPY_DPRINTF("treat FORMAT_TRACK command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
-            cur_drv = get_cur_drv(fdctrl);
-            fdctrl->data_state |= FD_STATE_FORMAT;
-            if (fdctrl->fifo[0] & 0x80)
-                fdctrl->data_state |= FD_STATE_MULTI;
-            else
-                fdctrl->data_state &= ~FD_STATE_MULTI;
-            fdctrl->data_state &= ~FD_STATE_SEEK;
-            cur_drv->bps =
-                fdctrl->fifo[2] > 7 ? 16384 : 128 << fdctrl->fifo[2];
-#if 0
-            cur_drv->last_sect =
-                cur_drv->flags & FDISK_DBL_SIDES ? fdctrl->fifo[3] :
-                fdctrl->fifo[3] / 2;
-#else
-            cur_drv->last_sect = fdctrl->fifo[3];
-#endif
-            /* TODO: implement format using DMA expected by the Bochs BIOS
-             * and Linux fdformat (read 3 bytes per sector via DMA and fill
-             * the sector with the specified fill byte
-             */
-            fdctrl->data_state &= ~FD_STATE_FORMAT;
-            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
-            break;
-        case FD_CMD_DRIVE_SPECIFICATION_COMMAND:
-            /* DRIVE_SPECIFICATION_COMMAND */
-            FLOPPY_DPRINTF("treat DRIVE_SPECIFICATION_COMMAND command\n");
-            if (fdctrl->fifo[fdctrl->data_pos - 1] & 0x80) {
-                /* Command parameters done */
-                if (fdctrl->fifo[fdctrl->data_pos - 1] & 0x40) {
-                    fdctrl->fifo[0] = fdctrl->fifo[1];
-                    fdctrl->fifo[2] = 0;
-                    fdctrl->fifo[3] = 0;
-                    fdctrl_set_fifo(fdctrl, 4, 1);
-                } else {
-                    fdctrl_reset_fifo(fdctrl);
-                }
-            } else if (fdctrl->data_len > 7) {
-                /* ERROR */
-                fdctrl->fifo[0] = 0x80 |
-                    (cur_drv->head << 2) | fdctrl->cur_drv;
-                fdctrl_set_fifo(fdctrl, 1, 1);
-            }
-            break;
-        case FD_CMD_RELATIVE_SEEK_OUT:
-            /* RELATIVE_SEEK_OUT */
-            FLOPPY_DPRINTF("treat RELATIVE_SEEK_OUT command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
-            cur_drv = get_cur_drv(fdctrl);
-            fd_start(cur_drv);
-            cur_drv->dir = 0;
-            if (fdctrl->fifo[2] + cur_drv->track >= cur_drv->max_track) {
-                cur_drv->track = cur_drv->max_track - 1;
-            } else {
-                cur_drv->track += fdctrl->fifo[2];
-            }
-            fdctrl_reset_fifo(fdctrl);
-            fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
-            break;
-        case FD_CMD_FORMAT_AND_WRITE:
-            /* FORMAT_AND_WRITE */
-            FLOPPY_DPRINTF("treat FORMAT_AND_WRITE command\n");
-            FLOPPY_ERROR("treat FORMAT_AND_WRITE command\n");
-            fdctrl_unimplemented(fdctrl);
-            break;
-        case FD_CMD_RELATIVE_SEEK_IN:
-            /* RELATIVE_SEEK_IN */
-            FLOPPY_DPRINTF("treat RELATIVE_SEEK_IN command\n");
-            fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
-            cur_drv = get_cur_drv(fdctrl);
-            fd_start(cur_drv);
-            cur_drv->dir = 1;
-            if (fdctrl->fifo[2] > cur_drv->track) {
-                cur_drv->track = 0;
-            } else {
-                cur_drv->track -= fdctrl->fifo[2];
-            }
-            fdctrl_reset_fifo(fdctrl);
-            /* Raise Interrupt */
-            fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
-            break;
         }
     }
 }

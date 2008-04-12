@@ -516,7 +516,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
         exit(1);
     }
 
-    main_esp = esp_init(hwdef->esp_base,
+    main_esp = esp_init(hwdef->esp_base, 2,
                         espdma_memory_read, espdma_memory_write,
                         espdma, *espdma_irq, esp_reset);
 
@@ -668,7 +668,7 @@ static void sun4c_hw_init(const struct hwdef *hwdef, int RAM_size,
         exit(1);
     }
 
-    main_esp = esp_init(hwdef->esp_base,
+    main_esp = esp_init(hwdef->esp_base, 2,
                         espdma_memory_read, espdma_memory_write,
                         espdma, *espdma_irq, esp_reset);
 
@@ -1460,7 +1460,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, int RAM_size,
         exit(1);
     }
 
-    main_esp = esp_init(hwdef->esp_base,
+    main_esp = esp_init(hwdef->esp_base, 2,
                         espdma_memory_read, espdma_memory_write,
                         espdma, *espdma_irq, esp_reset);
 

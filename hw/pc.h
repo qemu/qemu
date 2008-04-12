@@ -63,7 +63,7 @@ int pit_get_mode(PITState *pit, int channel);
 int pit_get_out(PITState *pit, int channel, int64_t current_time);
 
 /* vmport.c */
-void vmport_init(CPUState *env);
+void vmport_init(void);
 void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);
 
 /* vmmouse.c */

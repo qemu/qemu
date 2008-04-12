@@ -378,19 +378,68 @@ void cpu_loop(CPUARMState *env)
             {
                 TaskState *ts = env->opaque;
                 uint32_t opcode;
+                int rc;
 
                 /* we handle the FPU emulation here, as Linux */
                 /* we get the opcode */
                 /* FIXME - what to do if get_user() fails? */
                 get_user_u32(opcode, env->regs[15]);
 
-                if (EmulateAll(opcode, &ts->fpa, env) == 0) {
+                rc = EmulateAll(opcode, &ts->fpa, env);
+                if (rc == 0) { /* illegal instruction */
                     info.si_signo = SIGILL;
                     info.si_errno = 0;
                     info.si_code = TARGET_ILL_ILLOPN;
                     info._sifields._sigfault._addr = env->regs[15];
                     queue_signal(info.si_signo, &info);
-                } else {
+                } else if (rc < 0) { /* FP exception */
+                    int arm_fpe=0;
+
+                    /* translate softfloat flags to FPSR flags */
+                    if (-rc & float_flag_invalid)
+                      arm_fpe |= BIT_IOC;
+                    if (-rc & float_flag_divbyzero)
+                      arm_fpe |= BIT_DZC;
+                    if (-rc & float_flag_overflow)
+                      arm_fpe |= BIT_OFC;
+                    if (-rc & float_flag_underflow)
+                      arm_fpe |= BIT_UFC;
+                    if (-rc & float_flag_inexact)
+                      arm_fpe |= BIT_IXC;
+
+                    FPSR fpsr = ts->fpa.fpsr;
+                    //printf("fpsr 0x%x, arm_fpe 0x%x\n",fpsr,arm_fpe);
+
+                    if (fpsr & (arm_fpe << 16)) { /* exception enabled? */
+                      info.si_signo = SIGFPE;
+                      info.si_errno = 0;
+
+                      /* ordered by priority, least first */
+                      if (arm_fpe & BIT_IXC) info.si_code = TARGET_FPE_FLTRES;
+                      if (arm_fpe & BIT_UFC) info.si_code = TARGET_FPE_FLTUND;
+                      if (arm_fpe & BIT_OFC) info.si_code = TARGET_FPE_FLTOVF;
+                      if (arm_fpe & BIT_DZC) info.si_code = TARGET_FPE_FLTDIV;
+                      if (arm_fpe & BIT_IOC) info.si_code = TARGET_FPE_FLTINV;
+
+                      info._sifields._sigfault._addr = env->regs[15];
+                      queue_signal(info.si_signo, &info);
+                    } else {
+                      env->regs[15] += 4;
+                    }
+
+                    /* accumulate unenabled exceptions */
+                    if ((!(fpsr & BIT_IXE)) && (arm_fpe & BIT_IXC))
+                      fpsr |= BIT_IXC;
+                    if ((!(fpsr & BIT_UFE)) && (arm_fpe & BIT_UFC))
+                      fpsr |= BIT_UFC;
+                    if ((!(fpsr & BIT_OFE)) && (arm_fpe & BIT_OFC))
+                      fpsr |= BIT_OFC;
+                    if ((!(fpsr & BIT_DZE)) && (arm_fpe & BIT_DZC))
+                      fpsr |= BIT_DZC;
+                    if ((!(fpsr & BIT_IOE)) && (arm_fpe & BIT_IOC))
+                      fpsr |= BIT_IOC;
+                    ts->fpa.fpsr=fpsr;
+                } else { /* everything OK */
                     /* increment PC */
                     env->regs[15] += 4;
                 }
