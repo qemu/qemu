@@ -221,6 +221,7 @@ const char *vnc_display;
 int acpi_enabled = 1;
 int fd_bootchk = 1;
 int no_reboot = 0;
+int no_shutdown = 0;
 int cursor_hide = 1;
 int graphic_rotate = 0;
 int daemonize = 0;
@@ -7576,7 +7577,12 @@ static int main_loop(void)
 
             if (shutdown_requested) {
                 ret = EXCP_INTERRUPT;
-                break;
+                if (no_shutdown) {
+                    vm_stop(0);
+                    no_shutdown = 0;
+                }
+                else
+                    break;
             }
             if (reset_requested) {
                 reset_requested = 0;
@@ -7735,6 +7741,7 @@ static void help(int exitcode)
            "-curses         use a curses/ncurses interface instead of SDL\n"
 #endif
            "-no-reboot      exit instead of rebooting\n"
+           "-no-shutdown    stop before shutdown\n"
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
 	   "-vnc display    start a VNC server on display\n"
 #ifndef _WIN32
@@ -7841,6 +7848,7 @@ enum {
     QEMU_OPTION_no_acpi,
     QEMU_OPTION_curses,
     QEMU_OPTION_no_reboot,
+    QEMU_OPTION_no_shutdown,
     QEMU_OPTION_show_cursor,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_option_rom,
@@ -7946,6 +7954,7 @@ const QEMUOption qemu_options[] = {
     { "vmwarevga", 0, QEMU_OPTION_vmsvga },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
+    { "no-shutdown", 0, QEMU_OPTION_no_shutdown },
     { "show-cursor", 0, QEMU_OPTION_show_cursor },
     { "daemonize", 0, QEMU_OPTION_daemonize },
     { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
@@ -8783,6 +8792,9 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_no_reboot:
                 no_reboot = 1;
+                break;
+            case QEMU_OPTION_no_shutdown:
+                no_shutdown = 1;
                 break;
             case QEMU_OPTION_show_cursor:
                 cursor_hide = 0;

@@ -47,8 +47,9 @@ const int tcg_target_call_iarg_regs[3] = { TCG_REG_EAX, TCG_REG_EDX, TCG_REG_ECX
 const int tcg_target_call_oarg_regs[2] = { TCG_REG_EAX, TCG_REG_EDX };
 
 static void patch_reloc(uint8_t *code_ptr, int type, 
-                        tcg_target_long value)
+                        tcg_target_long value, tcg_target_long addend)
 {
+    value += addend;
     switch(type) {
     case R_386_32:
         *(uint32_t *)code_ptr = value;

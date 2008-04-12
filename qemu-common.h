@@ -89,6 +89,14 @@ int strstart(const char *str, const char *val, const char **ptr);
 int stristart(const char *str, const char *val, const char **ptr);
 time_t mktimegm(struct tm *tm);
 
+void *qemu_malloc(size_t size);
+void *qemu_mallocz(size_t size);
+void qemu_free(void *ptr);
+char *qemu_strdup(const char *str);
+
+void *get_mmap_addr(unsigned long size);
+
+
 /* Error handling.  */
 
 void hw_error(const char *fmt, ...)

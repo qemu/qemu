@@ -27,6 +27,7 @@
 #include "exec-all.h"
 #include "disas.h"
 #include "tcg-op.h"
+#include "qemu-common.h"
 
 /* Include definitions for instructions classes and implementations flags */
 //#define DO_SINGLE_STEP

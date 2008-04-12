@@ -7,6 +7,7 @@
 #include "exec-all.h"
 #include "gdbstub.h"
 #include "helpers.h"
+#include "qemu-common.h"
 
 static uint32_t cortexa8_cp15_c0_c1[8] =
 { 0x1031, 0x11, 0x400, 0, 0x31100003, 0x20000000, 0x01202000, 0x11 };
@@ -675,7 +676,7 @@ void do_interrupt_v7m(CPUARMState *env)
         env->regs[13] += 4;
         xpsr |= 0x200;
     }
-    /* Switch to the hander mode.  */
+    /* Switch to the handler mode.  */
     v7m_push(env, xpsr);
     v7m_push(env, env->regs[15]);
     v7m_push(env, env->regs[14]);

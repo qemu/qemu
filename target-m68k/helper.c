@@ -26,6 +26,7 @@
 #include "config.h"
 #include "cpu.h"
 #include "exec-all.h"
+#include "qemu-common.h"
 
 enum m68k_cpuid {
     M68K_CPUID_M5206,

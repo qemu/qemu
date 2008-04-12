@@ -514,9 +514,13 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr,
             break;
         case W_TXCTRL1:
         case W_TXCTRL2:
+            s->wregs[s->reg] = val;
+            slavio_serial_update_parameters(s);
+            break;
         case W_BRGLO:
         case W_BRGHI:
             s->wregs[s->reg] = val;
+            s->rregs[s->reg] = val;
             slavio_serial_update_parameters(s);
             break;
         case W_MINTR:

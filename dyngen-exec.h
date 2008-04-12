@@ -124,6 +124,11 @@ extern int printf(const char *, ...);
 #define AREG1 "r4"
 #define AREG2 "r5"
 #define AREG3 "r6"
+#elif defined(__hppa__)
+#define AREG0 "r17"
+#define AREG1 "r14"
+#define AREG2 "r15"
+#define AREG3 "r16"
 #elif defined(__mips__)
 #define AREG0 "fp"
 #define AREG1 "s0"
@@ -301,6 +306,8 @@ extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
     "ori $2,$2,%lo(" ASM_NAME(__op_gen_label)#n ")\n\t" \
     "jr $2")
 #endif
+#elif defined(__hppa__)
+#define GOTO_LABEL_PARAM(n) asm volatile ("b,n " ASM_NAME(__op_gen_label) #n)
 #else
 #error unsupported CPU
 #endif

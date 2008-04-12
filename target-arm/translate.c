@@ -6242,6 +6242,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     if (insn & (1 << 23)) {
                         /* load/store exclusive */
                         gen_movl_T1_reg(s, rn);
+                        addr = cpu_T[1];
                         if (insn & (1 << 20)) {
                             gen_helper_mark_exclusive(cpu_env, cpu_T[1]);
                             tmp = gen_ld32(addr, IS_USER(s));
@@ -6254,6 +6255,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                                                tcg_const_i32(0), label);
                             tmp = load_reg(s,rm);
                             gen_st32(tmp, cpu_T[1], IS_USER(s));
+                            gen_set_label(label);
                             gen_movl_reg_T0(s, rd);
                         }
                     } else {
@@ -6373,7 +6375,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     break;
                 case 1:
                     if ((insn & 0x00700020) == 0) {
-                        /* Hafword pack.  */
+                        /* Halfword pack.  */
                         tmp = load_reg(s, rn);
                         tmp2 = load_reg(s, rm);
                         shift = (insn >> 7) & 0x1f;
@@ -6456,7 +6458,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                                 dead_tmp(tmp2);
                             }
                         }
-                        store_reg(s, rd, tmp2);
+                        store_reg(s, rd, tmp);
                     } else if ((insn & 0x003f0f60) == 0x003f0f20) {
                         /* rev */
                         tmp = load_reg(s, rm);
@@ -6911,7 +6913,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             /* Second half of bl.  */
             offset = ((insn & 0x7ff) << 1) | 1;
             tmp = load_reg(s, 14);
-            tcg_gen_addi_i32(tmp, tmp, 14);
+            tcg_gen_addi_i32(tmp, tmp, offset);
 
             tmp2 = new_tmp();
             tcg_gen_movi_i32(tmp2, s->pc | 1);
@@ -6992,6 +6994,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             } else if ((insn & (1 << 23)) == 0) {
                 /* Load/store exclusive word.  */
                 gen_movl_T1_reg(s, rn);
+                addr = cpu_T[1];
                 if (insn & (1 << 20)) {
                     gen_helper_mark_exclusive(cpu_env, cpu_T[1]);
                     tmp = gen_ld32(addr, IS_USER(s));
@@ -8306,7 +8309,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
             tmp = load_reg(s, 13);
             val = (insn & 0x7f) * 4;
             if (insn & (1 << 7))
-              val = -(int32_t)val;
+                val = -(int32_t)val;
             tcg_gen_addi_i32(tmp, tmp, val);
             store_reg(s, 13, tmp);
             break;
@@ -8527,7 +8530,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
 
     case 15:
         if (disas_thumb2_insn(env, s, insn))
-          goto undef32;
+            goto undef32;
         break;
     }
     return;

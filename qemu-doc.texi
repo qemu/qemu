@@ -413,6 +413,10 @@ Do not use decorations for SDL windows and start them using the whole
 available screen space. This makes the using QEMU in a dedicated desktop
 workspace more convenient.
 
+@item -no-quit
+
+Disable SDL window close capability.
+
 @item -full-screen
 Start in full screen.
 
@@ -931,6 +935,11 @@ only).
 
 @item -no-reboot
 Exit instead of rebooting.
+
+@item -no-shutdown
+Don't exit QEMU on guest shutdown, but instead only stop the emulation.
+This allows for instance switching to monitor to commit changes to the
+disk image.
 
 @item -loadvm file
 Start right away with a saved state (@code{loadvm} in monitor)

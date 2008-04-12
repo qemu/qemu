@@ -26,6 +26,7 @@
 #include "exec-all.h"
 #include "disas.h"
 #include "tcg-op.h"
+#include "qemu-common.h"
 
 #define DO_SINGLE_STEP
 #define GENERATE_NOP

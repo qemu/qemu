@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "qemu.h"
+#include "qemu-common.h"
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
