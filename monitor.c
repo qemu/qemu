@@ -750,7 +750,7 @@ static void do_physical_memory_save(unsigned int valh, unsigned int vall,
     FILE *f;
     uint32_t l;
     uint8_t buf[1024];
-    target_long addr = GET_TLONG(valh, vall);
+    target_phys_addr_t addr = GET_TPHYSADDR(valh, vall); 
 
     f = fopen(filename, "wb");
     if (!f) {
