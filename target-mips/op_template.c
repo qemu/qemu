@@ -52,13 +52,13 @@ void glue(op_load_gpr_T2_gpr, REG) (void)
 
 void glue(op_load_srsgpr_T0_gpr, REG) (void)
 {
-    T0 = env->gpr[REG][(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf];       // ???
+    T0 = env->gpr[(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf][REG];
     FORCE_RET();
 }
 
 void glue(op_store_T0_srsgpr_gpr, REG) (void)
 {
-    env->gpr[REG][(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf] = T0;       // ???
+    env->gpr[(env->CP0_SRSCtl >> CP0SRSCtl_PSS) & 0xf][REG] = T0;
     FORCE_RET();
 }
 #endif
