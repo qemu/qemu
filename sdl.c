@@ -352,6 +352,7 @@ static void sdl_refresh(DisplayState *ds)
     }
 
     vga_hw_update();
+    SDL_EnableUNICODE(!is_graphic_console());
 
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
@@ -640,7 +641,6 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     sdl_resize(ds, 640, 400);
     sdl_update_caption();
     SDL_EnableKeyRepeat(250, 50);
-    SDL_EnableUNICODE(1);
     gui_grab = 0;
 
     sdl_cursor_hidden = SDL_CreateCursor(&data, &data, 8, 1, 0, 0);

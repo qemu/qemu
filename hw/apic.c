@@ -166,6 +166,37 @@ static inline void reset_bit(uint32_t *tab, int index)
     tab[i] &= ~mask;
 }
 
+void apic_local_deliver(CPUState *env, int vector)
+{
+    APICState *s = env->apic_state;
+    uint32_t lvt = s->lvt[vector];
+    int trigger_mode;
+
+    if (lvt & APIC_LVT_MASKED)
+        return;
+
+    switch ((lvt >> 8) & 7) {
+    case APIC_DM_SMI:
+        cpu_interrupt(env, CPU_INTERRUPT_SMI);
+        break;
+
+    case APIC_DM_NMI:
+        cpu_interrupt(env, CPU_INTERRUPT_NMI);
+        break;
+
+    case APIC_DM_EXTINT:
+        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        break;
+
+    case APIC_DM_FIXED:
+        trigger_mode = APIC_TRIGGER_EDGE;
+        if ((vector == APIC_LVT_LINT0 || vector == APIC_LVT_LINT1) &&
+            (lvt & APIC_LVT_LEVEL_TRIGGER))
+            trigger_mode = APIC_TRIGGER_LEVEL;
+        apic_set_irq(s, lvt & 0xff, trigger_mode);
+    }
+}
+
 #define foreach_apic(apic, deliver_bitmask, code) \
 {\
     int __i, __j, __mask;\
@@ -216,8 +247,14 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
             break;
 
         case APIC_DM_SMI:
+            foreach_apic(apic_iter, deliver_bitmask,
+                cpu_interrupt(apic_iter->cpu_env, CPU_INTERRUPT_SMI) );
+            return;
+
         case APIC_DM_NMI:
-            break;
+            foreach_apic(apic_iter, deliver_bitmask,
+                cpu_interrupt(apic_iter->cpu_env, CPU_INTERRUPT_NMI) );
+            return;
 
         case APIC_DM_INIT:
             /* normal INIT IPI sent to processors */
@@ -496,10 +533,8 @@ int apic_accept_pic_intr(CPUState *env)
 
     lvt0 = s->lvt[APIC_LVT_LINT0];
 
-    if (s->id == 0 &&
-        ((s->apicbase & MSR_IA32_APICBASE_ENABLE) == 0 ||
-         ((lvt0 & APIC_LVT_MASKED) == 0 &&
-          ((lvt0 >> 8) & 0x7) == APIC_DM_EXTINT)))
+    if ((s->apicbase & MSR_IA32_APICBASE_ENABLE) == 0 ||
+        (lvt0 & APIC_LVT_MASKED) == 0)
         return 1;
 
     return 0;
@@ -550,9 +585,7 @@ static void apic_timer(void *opaque)
 {
     APICState *s = opaque;
 
-    if (!(s->lvt[APIC_LVT_TIMER] & APIC_LVT_MASKED)) {
-        apic_set_irq(s, s->lvt[APIC_LVT_TIMER] & 0xff, APIC_TRIGGER_EDGE);
-    }
+    apic_local_deliver(s->cpu_env, APIC_LVT_TIMER);
     apic_timer_update(s, s->next_time);
 }
 
@@ -815,12 +848,14 @@ static void apic_reset(void *opaque)
     APICState *s = opaque;
     apic_init_ipi(s);
 
-    /*
-     * LINT0 delivery mode is set to ExtInt at initialization time
-     * typically by BIOS, so PIC interrupt can be delivered to the
-     * processor when local APIC is enabled.
-     */
-    s->lvt[APIC_LVT_LINT0] = 0x700;
+    if (s->id == 0) {
+        /*
+         * LINT0 delivery mode on CPU #0 is set to ExtInt at initialization
+         * time typically by BIOS, so PIC interrupt can be delivered to the
+         * processor when local APIC is enabled.
+         */
+        s->lvt[APIC_LVT_LINT0] = 0x700;
+    }
 }
 
 static CPUReadMemoryFunc *apic_mem_read[3] = {
@@ -845,19 +880,13 @@ int apic_init(CPUState *env)
     if (!s)
         return -1;
     env->apic_state = s;
-    apic_init_ipi(s);
     s->id = last_apic_id++;
     env->cpuid_apic_id = s->id;
     s->cpu_env = env;
     s->apicbase = 0xfee00000 |
         (s->id ? 0 : MSR_IA32_APICBASE_BSP) | MSR_IA32_APICBASE_ENABLE;
 
-    /*
-     * LINT0 delivery mode is set to ExtInt at initialization time
-     * typically by BIOS, so PIC interrupt can be delivered to the
-     * processor when local APIC is enabled.
-     */
-    s->lvt[APIC_LVT_LINT0] = 0x700;
+    apic_reset(s);
 
     /* XXX: mapping more APICs at the same memory location */
     if (apic_io_memory == 0) {

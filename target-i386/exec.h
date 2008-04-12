@@ -593,8 +593,9 @@ static inline int cpu_halted(CPUState *env) {
     if (!(env->hflags & HF_HALTED_MASK))
         return 0;
     /* disable halt condition */
-    if ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->eflags & IF_MASK)) {
+    if (((env->interrupt_request & CPU_INTERRUPT_HARD) &&
+         (env->eflags & IF_MASK)) ||
+        (env->interrupt_request & CPU_INTERRUPT_NMI)) {
         env->hflags &= ~HF_HALTED_MASK;
         return 0;
     }

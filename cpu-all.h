@@ -753,6 +753,7 @@ extern int code_copy_enabled;
 #define CPU_INTERRUPT_SMI    0x40 /* (x86 only) SMI interrupt pending */
 #define CPU_INTERRUPT_DEBUG  0x80 /* Debug event occured.  */
 #define CPU_INTERRUPT_VIRQ   0x100 /* virtual interrupt pending.  */
+#define CPU_INTERRUPT_NMI    0x200 /* NMI pending. */
 
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);
