@@ -6241,6 +6241,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     if (insn & (1 << 23)) {
                         /* load/store exclusive */
                         gen_movl_T1_reg(s, rn);
+                        addr = cpu_T[1];
                         if (insn & (1 << 20)) {
                             gen_helper_mark_exclusive(cpu_env, cpu_T[1]);
                             tmp = gen_ld32(addr, IS_USER(s));
@@ -6991,6 +6992,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             } else if ((insn & (1 << 23)) == 0) {
                 /* Load/store exclusive word.  */
                 gen_movl_T1_reg(s, rn);
+                addr = cpu_T[1];
                 if (insn & (1 << 20)) {
                     gen_helper_mark_exclusive(cpu_env, cpu_T[1]);
                     tmp = gen_ld32(addr, IS_USER(s));
