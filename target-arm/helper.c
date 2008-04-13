@@ -675,7 +675,7 @@ void do_interrupt_v7m(CPUARMState *env)
         env->regs[13] += 4;
         xpsr |= 0x200;
     }
-    /* Switch to the hander mode.  */
+    /* Switch to the handler mode.  */
     v7m_push(env, xpsr);
     v7m_push(env, env->regs[15]);
     v7m_push(env, env->regs[14]);

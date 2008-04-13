@@ -6372,7 +6372,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     break;
                 case 1:
                     if ((insn & 0x00700020) == 0) {
-                        /* Hafword pack.  */
+                        /* Halfword pack.  */
                         tmp = load_reg(s, rn);
                         tmp2 = load_reg(s, rm);
                         shift = (insn >> 7) & 0x1f;
@@ -6455,7 +6455,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                                 dead_tmp(tmp2);
                             }
                         }
-                        store_reg(s, rd, tmp2);
+                        store_reg(s, rd, tmp);
                     } else if ((insn & 0x003f0f60) == 0x003f0f20) {
                         /* rev */
                         tmp = load_reg(s, rm);
