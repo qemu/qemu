@@ -113,9 +113,16 @@ int cpu_get_pic_interrupt(CPUState *env)
 
 static void pic_irq_request(void *opaque, int irq, int level)
 {
-    CPUState *env = opaque;
-    if (level && apic_accept_pic_intr(env))
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    CPUState *env = first_cpu;
+
+    if (!level)
+        return;
+
+    while (env) {
+        if (apic_accept_pic_intr(env))
+            apic_local_deliver(env, APIC_LINT0);
+        env = env->next_cpu;
+    }
 }
 
 /* PC cmos mappings */
@@ -845,7 +852,7 @@ static void pc_init1(int ram_size, int vga_ram_size,
     if (linux_boot)
 	load_linux(kernel_filename, initrd_filename, kernel_cmdline);
 
-    cpu_irq = qemu_allocate_irqs(pic_irq_request, first_cpu, 1);
+    cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);
     i8259 = i8259_init(cpu_irq[0]);
     ferr_irq = i8259[13];
 
