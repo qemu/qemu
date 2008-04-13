@@ -216,8 +216,14 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
             break;
 
         case APIC_DM_SMI:
+            foreach_apic(apic_iter, deliver_bitmask,
+                cpu_interrupt(apic_iter->cpu_env, CPU_INTERRUPT_SMI) );
+            return;
+
         case APIC_DM_NMI:
-            break;
+            foreach_apic(apic_iter, deliver_bitmask,
+                cpu_interrupt(apic_iter->cpu_env, CPU_INTERRUPT_NMI) );
+            return;
 
         case APIC_DM_INIT:
             /* normal INIT IPI sent to processors */
