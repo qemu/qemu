@@ -148,6 +148,7 @@
 #define HF_SMM_SHIFT        19 /* CPU in SMM mode */
 #define HF_GIF_SHIFT        20 /* if set CPU takes interrupts */
 #define HF_HIF_SHIFT        21 /* shadow copy of IF_MASK when in SVM */
+#define HF_NMI_SHIFT        22 /* CPU serving NMI */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -167,6 +168,7 @@
 #define HF_SMM_MASK          (1 << HF_SMM_SHIFT)
 #define HF_GIF_MASK          (1 << HF_GIF_SHIFT)
 #define HF_HIF_MASK          (1 << HF_HIF_SHIFT)
+#define HF_NMI_MASK          (1 << HF_NMI_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_MP_MASK  (1 << 1)

@@ -2383,6 +2383,7 @@ void helper_iret_real(int shift)
     if (shift == 0)
         eflags_mask &= 0xffff;
     load_eflags(new_eflags, eflags_mask);
+    env->hflags &= ~HF_NMI_MASK;
 }
 
 static inline void validate_seg(int seg_reg, int cpl)
@@ -2634,6 +2635,7 @@ void helper_iret_protected(int shift, int next_eip)
     } else {
         helper_ret_protected(shift, 1, 0);
     }
+    env->hflags &= ~HF_NMI_MASK;
 #ifdef USE_KQEMU
     if (kqemu_is_ok(env)) {
         CC_OP = CC_OP_EFLAGS;

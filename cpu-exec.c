@@ -444,6 +444,12 @@ int cpu_exec(CPUState *env1)
                         env->interrupt_request &= ~CPU_INTERRUPT_SMI;
                         do_smm_enter();
                         BREAK_CHAIN;
+                    } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
+                        !(env->hflags & HF_NMI_MASK)) {
+                        env->interrupt_request &= ~CPU_INTERRUPT_NMI;
+                        env->hflags |= HF_NMI_MASK;
+                        do_interrupt(EXCP02_NMI, 0, 0, 0, 1);
+                        BREAK_CHAIN;
                     } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
                         (env->eflags & IF_MASK || env->hflags & HF_HIF_MASK) &&
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
