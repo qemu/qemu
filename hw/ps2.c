@@ -44,6 +44,7 @@
 
 /* Keyboard Replies */
 #define KBD_REPLY_POR		0xAA	/* Power on reset */
+#define KBD_REPLY_ID		0xAB	/* Keyboard ID */
 #define KBD_REPLY_ACK		0xFA	/* Command ACK */
 #define KBD_REPLY_RESEND	0xFE	/* Command NACK, send the cmd again */
 
@@ -133,7 +134,11 @@ void ps2_queue(void *opaque, int b)
     s->update_irq(s->update_arg, 1);
 }
 
-/* keycode is expressed in scancode set 2 */
+/*
+   keycode is expressed as follow:
+   bit 7    - 0 key pressed, 1 = key released
+   bits 6-0 - translated scancode set 2
+ */
 static void ps2_put_keycode(void *opaque, int keycode)
 {
     PS2KbdState *s = opaque;
@@ -199,8 +204,11 @@ void ps2_write_keyboard(void *opaque, int val)
         case KBD_CMD_GET_ID:
             ps2_queue(&s->common, KBD_REPLY_ACK);
             /* We emulate a MF2 AT keyboard here */
-            ps2_put_keycode(s, 0xab);
-            ps2_put_keycode(s, 0x83);
+            ps2_queue(&s->common, KBD_REPLY_ID);
+            if (s->translate)
+                ps2_queue(&s->common, 0x41);
+            else
+                ps2_queue(&s->common, 0x83);
             break;
         case KBD_CMD_ECHO:
             ps2_queue(&s->common, KBD_CMD_ECHO);
