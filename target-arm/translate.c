@@ -6254,6 +6254,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                                                tcg_const_i32(0), label);
                             tmp = load_reg(s,rm);
                             gen_st32(tmp, cpu_T[1], IS_USER(s));
+                            gen_set_label(label);
                             gen_movl_reg_T0(s, rd);
                         }
                     } else {
