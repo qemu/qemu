@@ -1009,7 +1009,7 @@ static inline void gen_vfp_##name(int dp)                             \
         gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, cpu_F1s, cpu_env); \
 }
 
-#define VFP_OP1i(name)                               \
+#define VFP_OP1(name)                               \
 static inline void gen_vfp_##name(int dp, int arg)  \
 {                                                   \
     if (dp)                                         \
@@ -1068,9 +1068,9 @@ static inline void gen_vfp_cmpe(int dp)
 static inline void gen_vfp_F1_ld0(int dp)
 {
     if (dp)
-        tcg_gen_movi_i64(cpu_F0d, 0);
+        tcg_gen_movi_i64(cpu_F1d, 0);
     else
-        tcg_gen_movi_i32(cpu_F0s, 0);
+        tcg_gen_movi_i32(cpu_F1s, 0);
 }
 
 static inline void gen_vfp_uito(int dp)
@@ -3117,7 +3117,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         else
                             i |= 0x800;
                         n |= i << 19;
-                        tcg_gen_movi_i32(cpu_F0d, ((uint64_t)n) << 32);
+                        tcg_gen_movi_i32(cpu_F0s, n);
                     }
                     break;
                 case 15: /* extension space */
