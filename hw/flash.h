@@ -34,6 +34,11 @@ uint8_t nand_getio(struct nand_flash_s *s);
 #define NAND_MFR_HYNIX		0xad
 #define NAND_MFR_MICRON		0x2c
 
+/* onenand.c */
+void onenand_base_update(void *opaque, target_phys_addr_t new);
+void onenand_base_unmap(void *opaque);
+void *onenand_init(uint32_t id, int regshift, qemu_irq irq);
+
 /* ecc.c */
 struct ecc_state_s {
     uint8_t cp;		/* Column parity */

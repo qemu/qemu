@@ -3496,7 +3496,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             qemu_mallocz(sizeof(struct omap_mpu_state_s));
-    ram_addr_t sram_base, q3_base;
+    ram_addr_t sram_base, q2_base;
     qemu_irq *cpu_irq;
     qemu_irq dma_irqs[4];
     omap_clk gpio_clks[4];
@@ -3520,7 +3520,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
 
     /* Memory-mapped stuff */
     cpu_register_physical_memory(OMAP2_Q2_BASE, s->sdram_size,
-                    (q3_base = qemu_ram_alloc(s->sdram_size)) | IO_MEM_RAM);
+                    (q2_base = qemu_ram_alloc(s->sdram_size)) | IO_MEM_RAM);
     cpu_register_physical_memory(OMAP2_SRAM_BASE, s->sram_size,
                     (sram_base = qemu_ram_alloc(s->sram_size)) | IO_MEM_RAM);
 

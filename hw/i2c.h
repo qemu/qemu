@@ -71,4 +71,14 @@ uint32_t wm8750_adc_dat(void *opaque);
 /* ssd0303.c */
 void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address);
 
+/* twl92230.c */
+i2c_slave *twl92230_init(i2c_bus *bus, qemu_irq irq);
+qemu_irq *twl92230_gpio_in_get(i2c_slave *i2c);
+void twl92230_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler);
+
+/* tmp105.c */
+struct i2c_slave *tmp105_init(i2c_bus *bus, qemu_irq alarm);
+void tmp105_reset(i2c_slave *i2c);
+void tmp105_set(i2c_slave *i2c, int temp);
+
 #endif

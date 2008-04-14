@@ -81,6 +81,9 @@ extern QEMUMachine terrierpda_machine;
 /* palm.c */
 extern QEMUMachine palmte_machine;
 
+/* nseries.c */
+extern QEMUMachine n800_machine;
+
 /* gumstix.c */
 extern QEMUMachine connex_machine;
 extern QEMUMachine verdex_machine;
