@@ -47,21 +47,18 @@ static void main_cpu_reset(void *opaque)
     CPUState *env = opaque;
 
     cpu_reset(env);
-    if (env->kernel_filename)
-        arm_load_kernel(env, env->ram_size, env->kernel_filename,
-                        env->kernel_cmdline, env->initrd_filename,
-                        env->board_id, env->loader_start);
+    if (env->boot_info)
+        arm_load_kernel(env, env->boot_info);
 
     /* TODO:  Reset secondary CPUs.  */
 }
 
-static void set_kernel_args(uint32_t ram_size, int initrd_size,
-                            const char *kernel_cmdline,
-                            target_phys_addr_t loader_start)
+static void set_kernel_args(struct arm_boot_info *info,
+                int initrd_size, void *base)
 {
     uint32_t *p;
 
-    p = (uint32_t *)(phys_ram_base + KERNEL_ARGS_ADDR);
+    p = (uint32_t *)(base + KERNEL_ARGS_ADDR);
     /* ATAG_CORE */
     stl_raw(p++, 5);
     stl_raw(p++, 0x54410001);
@@ -69,46 +66,55 @@ static void set_kernel_args(uint32_t ram_size, int initrd_size,
     stl_raw(p++, 0x1000);
     stl_raw(p++, 0);
     /* ATAG_MEM */
+    /* TODO: handle multiple chips on one ATAG list */
     stl_raw(p++, 4);
     stl_raw(p++, 0x54410002);
-    stl_raw(p++, ram_size);
-    stl_raw(p++, loader_start);
+    stl_raw(p++, info->ram_size);
+    stl_raw(p++, info->loader_start);
     if (initrd_size) {
         /* ATAG_INITRD2 */
         stl_raw(p++, 4);
         stl_raw(p++, 0x54420005);
-        stl_raw(p++, loader_start + INITRD_LOAD_ADDR);
+        stl_raw(p++, info->loader_start + INITRD_LOAD_ADDR);
         stl_raw(p++, initrd_size);
     }
-    if (kernel_cmdline && *kernel_cmdline) {
+    if (info->kernel_cmdline && *info->kernel_cmdline) {
         /* ATAG_CMDLINE */
         int cmdline_size;
 
-        cmdline_size = strlen(kernel_cmdline);
-        memcpy (p + 2, kernel_cmdline, cmdline_size + 1);
+        cmdline_size = strlen(info->kernel_cmdline);
+        memcpy(p + 2, info->kernel_cmdline, cmdline_size + 1);
         cmdline_size = (cmdline_size >> 2) + 1;
         stl_raw(p++, cmdline_size + 2);
         stl_raw(p++, 0x54410009);
         p += cmdline_size;
+    }
+    if (info->atag_board) {
+        /* ATAG_BOARD */
+        int atag_board_len;
+
+        atag_board_len = (info->atag_board(info, p + 2) + 3) >> 2;
+        stl_raw(p++, 2 + atag_board_len);
+        stl_raw(p++, 0x414f4d50);
+        p += atag_board_len;
     }
     /* ATAG_END */
     stl_raw(p++, 0);
     stl_raw(p++, 0);
 }
 
-static void set_kernel_args_old(uint32_t ram_size, int initrd_size,
-                                const char *kernel_cmdline,
-                                target_phys_addr_t loader_start)
+static void set_kernel_args_old(struct arm_boot_info *info,
+                int initrd_size, void *base)
 {
     uint32_t *p;
     unsigned char *s;
 
     /* see linux/include/asm-arm/setup.h */
-    p = (uint32_t *)(phys_ram_base + KERNEL_ARGS_ADDR);
+    p = (uint32_t *)(base + KERNEL_ARGS_ADDR);
     /* page_size */
     stl_raw(p++, 4096);
     /* nr_pages */
-    stl_raw(p++, ram_size / 4096);
+    stl_raw(p++, info->ram_size / 4096);
     /* ramdisk_size */
     stl_raw(p++, 0);
 #define FLAG_READONLY	1
@@ -142,7 +148,7 @@ static void set_kernel_args_old(uint32_t ram_size, int initrd_size,
     stl_raw(p++, 0);
     /* initrd_start */
     if (initrd_size)
-        stl_raw(p++, loader_start + INITRD_LOAD_ADDR);
+        stl_raw(p++, info->loader_start + INITRD_LOAD_ADDR);
     else
         stl_raw(p++, 0);
     /* initrd_size */
@@ -159,17 +165,15 @@ static void set_kernel_args_old(uint32_t ram_size, int initrd_size,
     stl_raw(p++, 0);
     /* zero unused fields */
     memset(p, 0, 256 + 1024 -
-           (p - ((uint32_t *)(phys_ram_base + KERNEL_ARGS_ADDR))));
-    s = phys_ram_base + KERNEL_ARGS_ADDR + 256 + 1024;
-    if (kernel_cmdline)
-        strcpy (s, kernel_cmdline);
+           (p - ((uint32_t *)(base + KERNEL_ARGS_ADDR))));
+    s = base + KERNEL_ARGS_ADDR + 256 + 1024;
+    if (info->kernel_cmdline)
+        strcpy (s, info->kernel_cmdline);
     else
         stb_raw(s, 0);
 }
 
-void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
-                     const char *kernel_cmdline, const char *initrd_filename,
-                     int board_id, target_phys_addr_t loader_start)
+void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
 {
     int kernel_size;
     int initrd_size;
@@ -177,36 +181,41 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
     int is_linux = 0;
     uint64_t elf_entry;
     target_ulong entry;
+    uint32_t pd;
+    void *loader_phys;
 
     /* Load the kernel.  */
-    if (!kernel_filename) {
+    if (!info->kernel_filename) {
         fprintf(stderr, "Kernel image must be specified\n");
         exit(1);
     }
 
-    if (!env->kernel_filename) {
-        env->ram_size = ram_size;
-        env->kernel_filename = kernel_filename;
-        env->kernel_cmdline = kernel_cmdline;
-        env->initrd_filename = initrd_filename;
-        env->board_id = board_id;
-        env->loader_start = loader_start;
+    if (!env->boot_info) {
+        if (info->nb_cpus == 0)
+            info->nb_cpus = 1;
+        env->boot_info = info;
         qemu_register_reset(main_cpu_reset, env);
     }
+
+    pd = cpu_get_physical_page_desc(info->loader_start);
+    loader_phys = phys_ram_base + (pd & TARGET_PAGE_MASK) +
+            (info->loader_start & ~TARGET_PAGE_MASK);
+
     /* Assume that raw images are linux kernels, and ELF images are not.  */
-    kernel_size = load_elf(kernel_filename, 0, &elf_entry, NULL, NULL);
+    kernel_size = load_elf(info->kernel_filename, 0, &elf_entry, NULL, NULL);
     entry = elf_entry;
     if (kernel_size < 0) {
-        kernel_size = load_uboot(kernel_filename, &entry, &is_linux);
+        kernel_size = load_uboot(info->kernel_filename, &entry, &is_linux);
     }
     if (kernel_size < 0) {
-        kernel_size = load_image(kernel_filename,
-                                 phys_ram_base + KERNEL_LOAD_ADDR);
-        entry = loader_start + KERNEL_LOAD_ADDR;
+        kernel_size = load_image(info->kernel_filename,
+                                 loader_phys + KERNEL_LOAD_ADDR);
+        entry = info->loader_start + KERNEL_LOAD_ADDR;
         is_linux = 1;
     }
     if (kernel_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+        fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                info->kernel_filename);
         exit(1);
     }
     if (!is_linux) {
@@ -214,30 +223,29 @@ void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
         env->regs[15] = entry & 0xfffffffe;
         env->thumb = entry & 1;
     } else {
-        if (initrd_filename) {
-            initrd_size = load_image(initrd_filename,
-                                     phys_ram_base + INITRD_LOAD_ADDR);
+        if (info->initrd_filename) {
+            initrd_size = load_image(info->initrd_filename,
+                                     loader_phys + INITRD_LOAD_ADDR);
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initrd '%s'\n",
-                        initrd_filename);
+                        info->initrd_filename);
                 exit(1);
             }
         } else {
             initrd_size = 0;
         }
-        bootloader[1] |= board_id & 0xff;
-        bootloader[2] |= (board_id >> 8) & 0xff;
-        bootloader[5] = loader_start + KERNEL_ARGS_ADDR;
+        bootloader[1] |= info->board_id & 0xff;
+        bootloader[2] |= (info->board_id >> 8) & 0xff;
+        bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
         bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++)
-            stl_raw(phys_ram_base + (n * 4), bootloader[n]);
-        for (n = 0; n < sizeof(smpboot) / 4; n++)
-            stl_raw(phys_ram_base + ram_size + (n * 4), smpboot[n]);
+            stl_raw(loader_phys + (n * 4), bootloader[n]);
+        if (info->nb_cpus > 1)
+            for (n = 0; n < sizeof(smpboot) / 4; n++)
+                stl_raw(loader_phys + info->ram_size + (n * 4), smpboot[n]);
         if (old_param)
-            set_kernel_args_old(ram_size, initrd_size,
-                                kernel_cmdline, loader_start);
+            set_kernel_args_old(info, initrd_size, loader_phys);
         else
-            set_kernel_args(ram_size, initrd_size,
-                            kernel_cmdline, loader_start);
+            set_kernel_args(info, initrd_size, loader_phys);
     }
 }

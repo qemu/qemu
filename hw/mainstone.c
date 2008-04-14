@@ -59,12 +59,17 @@ static struct keymap map[0xE0] = {
 
 enum mainstone_model_e { mainstone };
 
+static struct arm_boot_info mainstone_binfo = {
+    .loader_start = PXA2XX_SDRAM_BASE,
+    .ram_size = 0x04000000,
+};
+
 static void mainstone_common_init(int ram_size, int vga_ram_size,
                 DisplayState *ds, const char *kernel_filename,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, enum mainstone_model_e model, int arm_id)
 {
-    uint32_t mainstone_ram   = 0x04000000;
+    uint32_t mainstone_ram   = mainstone_binfo.ram_size;
     uint32_t mainstone_rom   = 0x00800000;
     uint32_t mainstone_flash = 0x02000000;
     uint32_t sector_len = 256 * 1024;
@@ -90,7 +95,7 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
                     qemu_ram_alloc(mainstone_rom) | IO_MEM_ROM);
 
     /* Setup initial (reset) machine state */
-    cpu->env->regs[15] = PXA2XX_SDRAM_BASE;
+    cpu->env->regs[15] = mainstone_binfo.loader_start;
 
     /* There are two 32MiB flash devices on the board */
     for (i = 0; i < 2; i ++) {
@@ -121,8 +126,11 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
 
     smc91c111_init(&nd_table[0], MST_ETH_PHYS, mst_irq[ETHERNET_IRQ]);
 
-    arm_load_kernel(cpu->env, mainstone_ram, kernel_filename, kernel_cmdline,
-                    initrd_filename, arm_id, PXA2XX_SDRAM_BASE);
+    mainstone_binfo.kernel_filename = kernel_filename;
+    mainstone_binfo.kernel_cmdline = kernel_cmdline;
+    mainstone_binfo.initrd_filename = initrd_filename;
+    mainstone_binfo.board_id = arm_id;
+    arm_load_kernel(cpu->env, &mainstone_binfo);
 }
 
 static void mainstone_init(int ram_size, int vga_ram_size,

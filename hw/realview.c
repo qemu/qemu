@@ -18,6 +18,11 @@
 
 /* Board init.  */
 
+static struct arm_boot_info realview_binfo = {
+    .loader_start = 0x0,
+    .board_id = 0x33b,
+};
+
 static void realview_init(int ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
@@ -177,8 +182,12 @@ static void realview_init(int ram_size, int vga_ram_size,
     /* 0x68000000 PCI mem 1.  */
     /* 0x6c000000 PCI mem 2.  */
 
-    arm_load_kernel(first_cpu, ram_size, kernel_filename, kernel_cmdline,
-                    initrd_filename, 0x33b, 0x0);
+    realview_binfo.ram_size = ram_size;
+    realview_binfo.kernel_filename = kernel_filename;
+    realview_binfo.kernel_cmdline = kernel_cmdline;
+    realview_binfo.initrd_filename = initrd_filename;
+    realview_binfo.nb_cpus = ncpu;
+    arm_load_kernel(first_cpu, &realview_binfo);
 
     /* ??? Hack to map an additional page of ram for the secondary CPU
        startup code.  I guess this works on real hardware because the

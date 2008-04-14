@@ -183,6 +183,12 @@ static void palmte_gpio_setup(struct omap_mpu_state_s *cpu)
     qemu_irq_raise(omap_mpuio_in_get(cpu->mpuio)[11]);
 }
 
+static struct arm_boot_info palmte_binfo = {
+    .loader_start = OMAP_EMIFF_BASE,
+    .ram_size = 0x02000000,
+    .board_id = 0x331,
+};
+
 static void palmte_init(int ram_size, int vga_ram_size,
                 const char *boot_device, DisplayState *ds,
                 const char *kernel_filename, const char *kernel_cmdline,
@@ -190,7 +196,7 @@ static void palmte_init(int ram_size, int vga_ram_size,
 {
     struct omap_mpu_state_s *cpu;
     int flash_size = 0x00800000;
-    int sdram_size = 0x02000000;
+    int sdram_size = palmte_binfo.ram_size;
     int io;
     static uint32_t cs0val = 0xffffffff;
     static uint32_t cs1val = 0x0000e1a0;
@@ -250,10 +256,12 @@ static void palmte_init(int ram_size, int vga_ram_size,
     /* Load the kernel.  */
     if (kernel_filename) {
         /* Start at bootloader.  */
-        cpu->env->regs[15] = OMAP_EMIFF_BASE;
+        cpu->env->regs[15] = palmte_binfo.loader_start;
 
-        arm_load_kernel(cpu->env, sdram_size, kernel_filename, kernel_cmdline,
-                        initrd_filename, 0x331, OMAP_EMIFF_BASE);
+        palmte_binfo.kernel_filename = kernel_filename;
+        palmte_binfo.kernel_cmdline = kernel_cmdline;
+        palmte_binfo.initrd_filename = initrd_filename;
+        arm_load_kernel(cpu->env, &palmte_binfo);
     }
 
     dpy_resize(ds, 320, 320);

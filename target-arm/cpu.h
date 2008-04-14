@@ -55,6 +55,8 @@ typedef void ARMWriteCPFunc(void *opaque, int cp_info,
 typedef uint32_t ARMReadCPFunc(void *opaque, int cp_info,
                                int dstreg, int operand);
 
+struct arm_boot_info;
+
 #define NB_MMU_MODES 2
 
 /* We currently assume float and double are IEEE single and double
@@ -196,12 +198,7 @@ typedef struct CPUARMState {
     CPU_COMMON
 
     /* These fields after the common ones so they are preserved on reset.  */
-    int ram_size;
-    const char *kernel_filename;
-    const char *kernel_cmdline;
-    const char *initrd_filename;
-    int board_id;
-    target_phys_addr_t loader_start;
+    struct arm_boot_info *boot_info;
 } CPUARMState;
 
 CPUARMState *cpu_arm_init(const char *cpu_model);
