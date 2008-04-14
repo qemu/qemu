@@ -1125,10 +1125,4 @@ inline static int debug_register_io_memory(int io_index,
 #  define cpu_register_io_memory	debug_register_io_memory
 # endif
 
-/* Not really omap specific, but is the only thing that uses the
-   uwire interface.  */
-/* tsc210x.c */
-struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio);
-struct i2s_codec_s *tsc210x_codec(struct uwire_slave_s *chip);
-
 #endif /* hw_omap_h */
