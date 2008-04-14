@@ -37,7 +37,7 @@
 
 #ifdef DEBUG_SD
 #define DPRINTF(fmt, args...) \
-do { printf("SD: " fmt , ##args); } while (0)
+do { fprintf(stderr, "SD: " fmt , ##args); } while (0)
 #else
 #define DPRINTF(fmt, args...) do {} while(0)
 #endif
@@ -99,6 +99,8 @@ struct SDState {
     qemu_irq inserted_cb;
     BlockDriverState *bdrv;
     uint8_t *buf;
+
+    int enable;
 };
 
 static void sd_set_status(SDState *sd)
@@ -530,7 +532,7 @@ static void sd_lock_command(SDState *sd)
         sd->card_status &= ~CARD_IS_LOCKED;
         sd->pwd_len = 0;
         /* Erasing the entire card here! */
-        printf("SD: Card force-erased by CMD42\n");
+        fprintf(stderr, "SD: Card force-erased by CMD42\n");
         return;
     }
 
@@ -1076,7 +1078,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         return sd_r1;
 
     case 56:	/* CMD56:  GEN_CMD */
-        printf("SD: GEN_CMD 0x%08x\n", req.arg);
+        fprintf(stderr, "SD: GEN_CMD 0x%08x\n", req.arg);
 
         switch (sd->state) {
         case sd_transfer_state:
@@ -1096,18 +1098,18 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
     bad_cmd:
         sd->card_status |= ILLEGAL_COMMAND;
 
-        printf("SD: Unknown CMD%i\n", req.cmd);
+        fprintf(stderr, "SD: Unknown CMD%i\n", req.cmd);
         return sd_r0;
 
     unimplemented_cmd:
         /* Commands that are recognised but not yet implemented in SPI mode.  */
         sd->card_status |= ILLEGAL_COMMAND;
-        printf ("SD: CMD%i not implemented in SPI mode\n", req.cmd);
+        fprintf(stderr, "SD: CMD%i not implemented in SPI mode\n", req.cmd);
         return sd_r0;
     }
 
     sd->card_status |= ILLEGAL_COMMAND;
-    printf("SD: CMD%i in a wrong state\n", req.cmd);
+    fprintf(stderr, "SD: CMD%i in a wrong state\n", req.cmd);
     return sd_r0;
 }
 
@@ -1217,7 +1219,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
         return sd_normal_command(sd, req);
     }
 
-    printf("SD: ACMD%i in a wrong state\n", req.cmd);
+    fprintf(stderr, "SD: ACMD%i in a wrong state\n", req.cmd);
     return sd_r0;
 }
 
@@ -1227,7 +1229,7 @@ int sd_do_command(SDState *sd, struct sd_request_s *req,
     sd_rsp_type_t rtype;
     int rsplen;
 
-    if (!bdrv_is_inserted(sd->bdrv)) {
+    if (!bdrv_is_inserted(sd->bdrv) || !sd->enable) {
         return 0;
     }
 
@@ -1247,7 +1249,7 @@ int sd_do_command(SDState *sd, struct sd_request_s *req,
                           sd_cmd_class[req->cmd] == 7 ||
                           req->cmd == 16 || req->cmd == 55))) {
             sd->card_status |= ILLEGAL_COMMAND;
-            printf("SD: Card is locked\n");
+            fprintf(stderr, "SD: Card is locked\n");
             return 0;
         }
 
@@ -1321,7 +1323,7 @@ static void sd_blk_read(SDState *sd, uint32_t addr, uint32_t len)
     uint32_t end = addr + len;
 
     if (!sd->bdrv || bdrv_read(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
-        printf("sd_blk_read: read error on host side\n");
+        fprintf(stderr, "sd_blk_read: read error on host side\n");
         return;
     }
 
@@ -1329,7 +1331,7 @@ static void sd_blk_read(SDState *sd, uint32_t addr, uint32_t len)
         memcpy(sd->data, sd->buf + (addr & 511), 512 - (addr & 511));
 
         if (bdrv_read(sd->bdrv, end >> 9, sd->buf, 1) == -1) {
-            printf("sd_blk_read: read error on host side\n");
+            fprintf(stderr, "sd_blk_read: read error on host side\n");
             return;
         }
         memcpy(sd->data + 512 - (addr & 511), sd->buf, end & 511);
@@ -1343,28 +1345,28 @@ static void sd_blk_write(SDState *sd, uint32_t addr, uint32_t len)
 
     if ((addr & 511) || len < 512)
         if (!sd->bdrv || bdrv_read(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
-            printf("sd_blk_write: read error on host side\n");
+            fprintf(stderr, "sd_blk_write: read error on host side\n");
             return;
         }
 
     if (end > (addr & ~511) + 512) {
         memcpy(sd->buf + (addr & 511), sd->data, 512 - (addr & 511));
         if (bdrv_write(sd->bdrv, addr >> 9, sd->buf, 1) == -1) {
-            printf("sd_blk_write: write error on host side\n");
+            fprintf(stderr, "sd_blk_write: write error on host side\n");
             return;
         }
 
         if (bdrv_read(sd->bdrv, end >> 9, sd->buf, 1) == -1) {
-            printf("sd_blk_write: read error on host side\n");
+            fprintf(stderr, "sd_blk_write: read error on host side\n");
             return;
         }
         memcpy(sd->buf, sd->data + 512 - (addr & 511), end & 511);
         if (bdrv_write(sd->bdrv, end >> 9, sd->buf, 1) == -1)
-            printf("sd_blk_write: write error on host side\n");
+            fprintf(stderr, "sd_blk_write: write error on host side\n");
     } else {
         memcpy(sd->buf + (addr & 511), sd->data, len);
         if (!sd->bdrv || bdrv_write(sd->bdrv, addr >> 9, sd->buf, 1) == -1)
-            printf("sd_blk_write: write error on host side\n");
+            fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
 }
 
@@ -1377,11 +1379,11 @@ void sd_write_data(SDState *sd, uint8_t value)
 {
     int i;
 
-    if (!sd->bdrv || !bdrv_is_inserted(sd->bdrv))
+    if (!sd->bdrv || !bdrv_is_inserted(sd->bdrv) || !sd->enable)
         return;
 
     if (sd->state != sd_receivingdata_state) {
-        printf("sd_write_data: not in Receiving-Data state\n");
+        fprintf(stderr, "sd_write_data: not in Receiving-Data state\n");
         return;
     }
 
@@ -1489,7 +1491,7 @@ void sd_write_data(SDState *sd, uint8_t value)
         break;
 
     default:
-        printf("sd_write_data: unknown command\n");
+        fprintf(stderr, "sd_write_data: unknown command\n");
         break;
     }
 }
@@ -1499,11 +1501,11 @@ uint8_t sd_read_data(SDState *sd)
     /* TODO: Append CRCs */
     uint8_t ret;
 
-    if (!sd->bdrv || !bdrv_is_inserted(sd->bdrv))
+    if (!sd->bdrv || !bdrv_is_inserted(sd->bdrv) || !sd->enable)
         return 0x00;
 
     if (sd->state != sd_sendingdata_state) {
-        printf("sd_read_data: not in Sending-Data state\n");
+        fprintf(stderr, "sd_read_data: not in Sending-Data state\n");
         return 0x00;
     }
 
@@ -1603,7 +1605,7 @@ uint8_t sd_read_data(SDState *sd)
         break;
 
     default:
-        printf("sd_read_data: unknown command\n");
+        fprintf(stderr, "sd_read_data: unknown command\n");
         return 0x00;
     }
 
@@ -1613,4 +1615,9 @@ uint8_t sd_read_data(SDState *sd)
 int sd_data_ready(SDState *sd)
 {
     return sd->state == sd_sendingdata_state;
+}
+
+void sd_enable(SDState *sd, int enable)
+{
+    sd->enable = enable;
 }

@@ -55,6 +55,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00090078;
         break;
+    case ARM_CPUID_ARM1136_R2:
     case ARM_CPUID_ARM1136:
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_VFP);
@@ -206,6 +207,7 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { ARM_CPUID_ARM946, "arm946"},
     { ARM_CPUID_ARM1026, "arm1026"},
     { ARM_CPUID_ARM1136, "arm1136"},
+    { ARM_CPUID_ARM1136_R2, "arm1136-r2"},
     { ARM_CPUID_ARM11MPCORE, "arm11mpcore"},
     { ARM_CPUID_CORTEXM3, "cortex-m3"},
     { ARM_CPUID_CORTEXA8, "cortex-a8"},
@@ -1582,6 +1584,7 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
             case ARM_CPUID_ARM1026:
                 return 1;
             case ARM_CPUID_ARM1136:
+            case ARM_CPUID_ARM1136_R2:
                 return 7;
             case ARM_CPUID_ARM11MPCORE:
                 return 1;
@@ -1762,6 +1765,10 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
             case 8: /* TI925T_status */
                 return 0;
             }
+            /* TODO: Peripheral port remap register:
+             * On OMAP2 mcr p15, 0, rn, c15, c2, 4 sets up the interrupt
+             * controller base address at $rn & ~0xfff and map size of
+             * 0x200 << ($rn & 0xfff), when MMU is off.  */
             goto bad_reg;
         }
         return 0;

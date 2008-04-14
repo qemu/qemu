@@ -74,6 +74,7 @@ void sd_write_data(SDState *sd, uint8_t value);
 uint8_t sd_read_data(SDState *sd);
 void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert);
 int sd_data_ready(SDState *sd);
+void sd_enable(SDState *sd, int enable);
 
 /* ssi-sd.c */
 int ssi_sd_xfer(void *opaque, int val);

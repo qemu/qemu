@@ -5,8 +5,8 @@
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
+ * published by the Free Software Foundation; either version 2 or
+ * (at your option) version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,6 +25,7 @@
 #include "omap.h"
 #include "boards.h"
 #include "arm-misc.h"
+#include "devices.h"
 
 static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
 {
@@ -32,12 +33,14 @@ static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
     return *val >> ((offset & 3) << 3);
 }
 
-static uint32_t static_readh(void *opaque, target_phys_addr_t offset) {
+static uint32_t static_readh(void *opaque, target_phys_addr_t offset)
+{
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 1) << 3);
 }
 
-static uint32_t static_readw(void *opaque, target_phys_addr_t offset) {
+static uint32_t static_readw(void *opaque, target_phys_addr_t offset)
+{
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 0) << 3);
 }

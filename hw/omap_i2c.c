@@ -150,6 +150,8 @@ static void omap_i2c_fifo_run(struct omap_i2c_s *s)
             }
             if (ack && s->count_cur)
                 s->stat |= 1 << 4;				/* XRDY */
+            else
+                s->stat &= ~(1 << 4);				/* XRDY */
             if (!s->count_cur) {
                 s->stat |= 1 << 2;				/* ARDY */
                 s->control &= ~(1 << 10);			/* MST */
@@ -161,6 +163,8 @@ static void omap_i2c_fifo_run(struct omap_i2c_s *s)
             }
             if (s->rxlen)
                 s->stat |= 1 << 3;				/* RRDY */
+            else
+                s->stat &= ~(1 << 3);				/* RRDY */
         }
         if (!s->count_cur) {
             if ((s->control >> 1) & 1) {			/* STP */
@@ -321,7 +325,8 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
             return;
         }
 
-        s->stat &= ~(value & 0x3f);
+        /* RRDY and XRDY are reset by hardware. (in all versions???) */
+        s->stat &= ~(value & 0x27);
         omap_i2c_interrupts_update(s);
         break;
 
@@ -376,11 +381,13 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
             break;
         }
         if ((value & (1 << 15)) && !(value & (1 << 10))) {	/* MST */
-            printf("%s: I^2C slave mode not supported\n", __FUNCTION__);
+            fprintf(stderr, "%s: I^2C slave mode not supported\n",
+                            __FUNCTION__);
             break;
         }
         if ((value & (1 << 15)) && value & (1 << 8)) {		/* XA */
-            printf("%s: 10-bit addressing mode not supported\n", __FUNCTION__);
+            fprintf(stderr, "%s: 10-bit addressing mode not supported\n",
+                            __FUNCTION__);
             break;
         }
         if ((value & (1 << 15)) && value & (1 << 0)) {		/* STT */
@@ -427,7 +434,7 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
                 omap_i2c_interrupts_update(s);
             }
         if (value & (1 << 15))					/* ST_EN */
-            printf("%s: System Test not supported\n", __FUNCTION__);
+            fprintf(stderr, "%s: System Test not supported\n", __FUNCTION__);
         break;
 
     default:
