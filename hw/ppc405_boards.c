@@ -236,7 +236,7 @@ static void ref405ep_init (int ram_size, int vga_ram_size,
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
                               drives_table[index].bdrv, 65536, fl_sectors, 2,
-                              0x0001, 0x22DA, 0x0000, 0x0000);
+                              0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
         fl_idx++;
     } else
 #endif
@@ -553,7 +553,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
                               drives_table[index].bdrv, 65536, fl_sectors, 4,
-                              0x0001, 0x22DA, 0x0000, 0x0000);
+                              0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
         fl_idx++;
     } else
 #endif
@@ -589,7 +589,7 @@ static void taihu_405ep_init(int ram_size, int vga_ram_size,
 #endif
         pflash_cfi02_register(0xfc000000, bios_offset,
                               drives_table[index].bdrv, 65536, fl_sectors, 4,
-                              0x0001, 0x22DA, 0x0000, 0x0000);
+                              0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
         fl_idx++;
     }
     /* Register CLPD & LCD display */

@@ -63,6 +63,7 @@ struct pflash_t {
     uint8_t cmd;
     uint8_t status;
     uint16_t ident[4];
+    uint16_t unlock_addr[2];
     uint8_t cfi_len;
     uint8_t cfi_table[0x52];
     QEMUTimer *timer;
@@ -246,9 +247,9 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
             pfl->cmd = 0x98;
             return;
         }
-        if (boff != 0x555 || cmd != 0xAA) {
+        if (boff != pfl->unlock_addr[0] || cmd != 0xAA) {
             DPRINTF("%s: unlock0 failed " TARGET_FMT_lx " %02x %04x\n",
-                    __func__, boff, cmd, 0x555);
+                    __func__, boff, cmd, pfl->unlock_addr[0]);
             goto reset_flash;
         }
         DPRINTF("%s: unlock sequence started\n", __func__);
@@ -256,7 +257,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     case 1:
         /* We started an unlock sequence */
     check_unlock1:
-        if (boff != 0x2AA || cmd != 0x55) {
+        if (boff != pfl->unlock_addr[1] || cmd != 0x55) {
             DPRINTF("%s: unlock1 failed " TARGET_FMT_lx " %02x\n", __func__,
                     boff, cmd);
             goto reset_flash;
@@ -265,7 +266,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         break;
     case 2:
         /* We finished an unlock sequence */
-        if (!pfl->bypass && boff != 0x555) {
+        if (!pfl->bypass && boff != pfl->unlock_addr[0]) {
             DPRINTF("%s: command failed " TARGET_FMT_lx " %02x\n", __func__,
                     boff, cmd);
             goto reset_flash;
@@ -361,7 +362,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     case 5:
         switch (cmd) {
         case 0x10:
-            if (boff != 0x555) {
+            if (boff != pfl->unlock_addr[0]) {
                 DPRINTF("%s: chip erase: invalid address " TARGET_FMT_lx "\n",
                         __func__, offset);
                 goto reset_flash;
@@ -528,7 +529,8 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
                                 BlockDriverState *bs, uint32_t sector_len,
                                 int nb_blocs, int width,
                                 uint16_t id0, uint16_t id1,
-                                uint16_t id2, uint16_t id3)
+                                uint16_t id2, uint16_t id3,
+                                uint16_t unlock_addr0, uint16_t unlock_addr1)
 {
     pflash_t *pfl;
     int32_t total_len;
@@ -573,6 +575,8 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
     pfl->ident[1] = id1;
     pfl->ident[2] = id2;
     pfl->ident[3] = id3;
+    pfl->unlock_addr[0] = unlock_addr0;
+    pfl->unlock_addr[1] = unlock_addr1;
     /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
     pfl->cfi_len = 0x52;
     /* Standard "QRY" string */
