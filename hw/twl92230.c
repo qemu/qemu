@@ -59,9 +59,9 @@ struct menelaus_s {
         struct tm tm;
         struct tm new;
         struct tm alm;
-        time_t sec;
-        time_t alm_sec;
-        time_t next_comp;
+        int sec_offset;
+        int alm_sec;
+        int next_comp;
         struct tm *(*gettime)(const time_t *timep, struct tm *result);
     } rtc;
     qemu_irq handler[3];
@@ -91,20 +91,21 @@ static inline void menelaus_rtc_stop(struct menelaus_s *s)
 
 static void menelaus_rtc_update(struct menelaus_s *s)
 {
-    s->rtc.gettime(&s->rtc.sec, &s->rtc.tm);
+    qemu_get_timedate(&s->rtc.tm, s->rtc.sec_offset);
 }
 
 static void menelaus_alm_update(struct menelaus_s *s)
 {
     if ((s->rtc.ctrl & 3) == 3)
-        s->rtc.alm_sec = mktime(&s->rtc.alm);
+        s->rtc.alm_sec = qemu_timedate_diff(&s->rtc.alm) - s->rtc.sec_offset;
 }
 
 static void menelaus_rtc_hz(void *opaque)
 {
     struct menelaus_s *s = (struct menelaus_s *) opaque;
 
-    s->rtc.sec ++;
+    s->rtc.next_comp --;
+    s->rtc.alm_sec --;
     s->rtc.next += 1000;
     qemu_mod_timer(s->rtc.hz, s->rtc.next);
     if ((s->rtc.ctrl >> 3) & 3) {				/* EVERY */
@@ -118,13 +119,13 @@ static void menelaus_rtc_hz(void *opaque)
     } else
         s->status |= 1 << 8;					/* RTCTMR */
     if ((s->rtc.ctrl >> 1) & 1) {				/* RTC_AL_EN */
-        if (s->rtc.sec == s->rtc.alm_sec)
+        if (s->rtc.alm_sec == 0)
             s->status |= 1 << 9;				/* RTCALM */
         /* TODO: wake-up */
     }
-    if (s->rtc.next_comp >= s->rtc.sec) {
+    if (s->rtc.next_comp <= 0) {
         s->rtc.next -= muldiv64((int16_t) s->rtc.comp, 1000, 0x8000);
-        s->rtc.next_comp = s->rtc.sec + 3600;
+        s->rtc.next_comp = 3600;
     }
     menelaus_update(s);
 }
@@ -132,7 +133,6 @@ static void menelaus_rtc_hz(void *opaque)
 void menelaus_reset(i2c_slave *i2c)
 {
     struct menelaus_s *s = (struct menelaus_s *) i2c;
-    time_t ti;
     s->reg = 0x00;
 
     s->vcore[0] = 0x0c;	/* XXX: X-loader needs 0x8c? check!  */
@@ -169,14 +169,14 @@ void menelaus_reset(i2c_slave *i2c)
     s->mmc_ctrl[2] = 0x00;
     s->mmc_debounce = 0x05;
 
-    time(&ti);
     if (s->rtc.ctrl & 1)
         menelaus_rtc_stop(s);
     s->rtc.ctrl = 0x00;
     s->rtc.comp = 0x0000;
     s->rtc.next = 1000;
-    s->rtc.sec = ti;
-    s->rtc.next_comp = s->rtc.sec + 1800;
+    s->rtc.sec_offset = 0;
+    s->rtc.next_comp = 1800;
+    s->rtc.alm_sec = 1800;
     s->rtc.alm.tm_sec = 0x00;
     s->rtc.alm.tm_min = 0x00;
     s->rtc.alm.tm_hour = 0x00;
@@ -627,7 +627,7 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
             s->status |= 1 << 10;				/* RTCERR */
             menelaus_update(s);
         }
-        s->rtc.sec += difftime(mktime(&tm), mktime(&s->rtc.tm));
+        s->rtc.sec_offset = qemu_timedate_diff(&tm);
         break;
     case MENELAUS_RTC_SEC:
         s->rtc.tm.tm_sec = from_bcd(value & 0x7f);
@@ -887,9 +887,6 @@ i2c_slave *twl92230_init(i2c_bus *bus, qemu_irq irq)
     s->i2c.event = menelaus_event;
     s->i2c.recv = menelaus_rx;
     s->i2c.send = menelaus_tx;
-
-    /* TODO: use the qemu gettime functions */
-    s->rtc.gettime = localtime_r;
 
     s->irq = irq;
     s->rtc.hz = qemu_new_timer(rt_clock, menelaus_rtc_hz, s);
