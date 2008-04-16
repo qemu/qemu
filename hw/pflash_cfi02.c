@@ -55,7 +55,8 @@ struct pflash_t {
     BlockDriverState *bs;
     target_phys_addr_t base;
     uint32_t sector_len;
-    uint32_t total_len;
+    uint32_t chip_len;
+    int mappings;
     int width;
     int wcycle; /* if 0, the flash is read normally */
     int bypass;
@@ -72,6 +73,19 @@ struct pflash_t {
     void *storage;
 };
 
+static void pflash_register_memory(pflash_t *pfl, int rom_mode)
+{
+    unsigned long phys_offset = pfl->fl_mem;
+    int i;
+
+    if (rom_mode)
+        phys_offset |= pfl->off | IO_MEM_ROMD;
+
+    for (i = 0; i < pfl->mappings; i++)
+        cpu_register_physical_memory(pfl->base + i * pfl->chip_len,
+                                     pfl->chip_len, phys_offset);
+}
+
 static void pflash_timer (void *opaque)
 {
     pflash_t *pfl = opaque;
@@ -82,8 +96,7 @@ static void pflash_timer (void *opaque)
     if (pfl->bypass) {
         pfl->wcycle = 2;
     } else {
-        cpu_register_physical_memory(pfl->base, pfl->total_len,
-                                     pfl->off | IO_MEM_ROMD | pfl->fl_mem);
+        pflash_register_memory(pfl, 1);
         pfl->wcycle = 0;
     }
     pfl->cmd = 0;
@@ -98,6 +111,7 @@ static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
     DPRINTF("%s: offset " TARGET_FMT_lx "\n", __func__, offset);
     ret = -1;
     offset -= pfl->base;
+    offset &= pfl->chip_len - 1;
     boff = offset & 0xFF;
     if (pfl->width == 2)
         boff = boff >> 1;
@@ -226,11 +240,10 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         offset -= (uint32_t)(long)pfl->storage;
     else
         offset -= pfl->base;
+    offset &= pfl->chip_len - 1;
 
     DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d\n", __func__,
             offset, value, width);
-    /* Set the device in I/O access mode */
-    cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
     boff = offset & (pfl->sector_len - 1);
     if (pfl->width == 2)
         boff = boff >> 1;
@@ -238,6 +251,8 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         boff = boff >> 2;
     switch (pfl->wcycle) {
     case 0:
+        /* Set the device in I/O access mode */
+        pflash_register_memory(pfl, 0);
         /* We're in read mode */
     check_unlock0:
         if (boff == 0x55 && cmd == 0x98) {
@@ -369,9 +384,9 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
             }
             /* Chip erase */
             DPRINTF("%s: start chip erase\n", __func__);
-            memset(pfl->storage, 0xFF, pfl->total_len);
+            memset(pfl->storage, 0xFF, pfl->chip_len);
             pfl->status = 0x00;
-            pflash_update(pfl, 0, pfl->total_len);
+            pflash_update(pfl, 0, pfl->chip_len);
             /* Let's wait 5 seconds before chip erase is done */
             qemu_mod_timer(pfl->timer,
                            qemu_get_clock(vm_clock) + (ticks_per_sec * 5));
@@ -424,8 +439,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
 
     /* Reset flash */
  reset_flash:
-    cpu_register_physical_memory(pfl->base, pfl->total_len,
-                                 pfl->off | IO_MEM_ROMD | pfl->fl_mem);
+    pflash_register_memory(pfl, 1);
     pfl->bypass = 0;
     pfl->wcycle = 0;
     pfl->cmd = 0;
@@ -527,15 +541,15 @@ static int ctz32 (uint32_t n)
 
 pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
                                 BlockDriverState *bs, uint32_t sector_len,
-                                int nb_blocs, int width,
+                                int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3,
                                 uint16_t unlock_addr0, uint16_t unlock_addr1)
 {
     pflash_t *pfl;
-    int32_t total_len;
+    int32_t chip_len;
 
-    total_len = sector_len * nb_blocs;
+    chip_len = sector_len * nb_blocs;
     /* XXX: to be fixed */
 #if 0
     if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
@@ -549,12 +563,14 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
     pfl->fl_mem = cpu_register_io_memory(0, pflash_read_ops, pflash_write_ops,
                                          pfl);
     pfl->off = off;
-    cpu_register_physical_memory(base, total_len,
-                                 off | pfl->fl_mem | IO_MEM_ROMD);
+    pfl->base = base;
+    pfl->chip_len = chip_len;
+    pfl->mappings = nb_mappings;
+    pflash_register_memory(pfl, 1);
     pfl->bs = bs;
     if (pfl->bs) {
         /* read the initial flash content */
-        bdrv_read(pfl->bs, 0, pfl->storage, total_len >> 9);
+        bdrv_read(pfl->bs, 0, pfl->storage, chip_len >> 9);
     }
 #if 0 /* XXX: there should be a bit to set up read-only,
        *      the same way the hardware does (with WP pin).
@@ -564,9 +580,7 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
     pfl->ro = 0;
 #endif
     pfl->timer = qemu_new_timer(vm_clock, pflash_timer, pfl);
-    pfl->base = base;
     pfl->sector_len = sector_len;
-    pfl->total_len = total_len;
     pfl->width = width;
     pfl->wcycle = 0;
     pfl->cmd = 0;
@@ -620,7 +634,7 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
     /* Max timeout for chip erase */
     pfl->cfi_table[0x26] = 0x0D;
     /* Device size */
-    pfl->cfi_table[0x27] = ctz32(total_len) + 1;
+    pfl->cfi_table[0x27] = ctz32(chip_len) + 1;
     /* Flash device interface (8 & 16 bits) */
     pfl->cfi_table[0x28] = 0x02;
     pfl->cfi_table[0x29] = 0x00;
