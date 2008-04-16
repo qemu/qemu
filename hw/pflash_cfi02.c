@@ -70,6 +70,7 @@ struct pflash_t {
     QEMUTimer *timer;
     ram_addr_t off;
     int fl_mem;
+    int rom_mode;
     void *storage;
 };
 
@@ -80,6 +81,7 @@ static void pflash_register_memory(pflash_t *pfl, int rom_mode)
 
     if (rom_mode)
         phys_offset |= pfl->off | IO_MEM_ROMD;
+    pfl->rom_mode = rom_mode;
 
     for (i = 0; i < pfl->mappings; i++)
         cpu_register_physical_memory(pfl->base + i * pfl->chip_len,
@@ -110,7 +112,13 @@ static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
 
     DPRINTF("%s: offset " TARGET_FMT_lx "\n", __func__, offset);
     ret = -1;
-    offset -= pfl->base;
+    if (pfl->rom_mode) {
+        offset -= (uint32_t)(long)pfl->storage;
+        /* Lazy reset of to ROMD mode */
+        if (pfl->wcycle == 0)
+            pflash_register_memory(pfl, 1);
+    } else
+        offset -= pfl->base;
     offset &= pfl->chip_len - 1;
     boff = offset & 0xFF;
     if (pfl->width == 2)
@@ -224,8 +232,6 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     uint8_t *p;
     uint8_t cmd;
 
-    /* WARNING: when the memory area is in ROMD mode, the offset is a
-       ram offset, not a physical address */
     cmd = value;
     if (pfl->cmd != 0xA0 && cmd == 0xF0) {
 #if 0
@@ -236,7 +242,9 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     }
     DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d %d\n", __func__,
             offset, value, width, pfl->wcycle);
-    if (pfl->wcycle == 0)
+    /* WARNING: when the memory area is in ROMD mode, the offset is a
+       ram offset, not a physical address */
+    if (pfl->rom_mode)
         offset -= (uint32_t)(long)pfl->storage;
     else
         offset -= pfl->base;
@@ -251,8 +259,9 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         boff = boff >> 2;
     switch (pfl->wcycle) {
     case 0:
-        /* Set the device in I/O access mode */
-        pflash_register_memory(pfl, 0);
+        /* Set the device in I/O access mode if required */
+        if (pfl->rom_mode)
+            pflash_register_memory(pfl, 0);
         /* We're in read mode */
     check_unlock0:
         if (boff == 0x55 && cmd == 0x98) {
@@ -439,7 +448,6 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
 
     /* Reset flash */
  reset_flash:
-    pflash_register_memory(pfl, 1);
     pfl->bypass = 0;
     pfl->wcycle = 0;
     pfl->cmd = 0;
