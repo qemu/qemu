@@ -469,6 +469,11 @@ static void icp_control_init(uint32_t base)
 
 /* Board init.  */
 
+static struct arm_boot_info integrator_binfo = {
+    .loader_start = 0x0,
+    .board_id = 0x113,
+};
+
 static void integratorcp_init(int ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
@@ -527,8 +532,11 @@ static void integratorcp_init(int ram_size, int vga_ram_size,
     }
     pl110_init(ds, 0xc0000000, pic[22], 0);
 
-    arm_load_kernel(env, ram_size, kernel_filename, kernel_cmdline,
-                    initrd_filename, 0x113, 0x0);
+    integrator_binfo.ram_size = ram_size;
+    integrator_binfo.kernel_filename = kernel_filename;
+    integrator_binfo.kernel_cmdline = kernel_cmdline;
+    integrator_binfo.initrd_filename = initrd_filename;
+    arm_load_kernel(env, &integrator_binfo);
 }
 
 QEMUMachine integratorcp_machine = {

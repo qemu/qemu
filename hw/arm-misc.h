@@ -21,10 +21,17 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
                       const char *kernel_filename, const char *cpu_model);
 
 /* arm_boot.c */
-
-void arm_load_kernel(CPUState *env, int ram_size, const char *kernel_filename,
-                     const char *kernel_cmdline, const char *initrd_filename,
-                     int board_id, target_phys_addr_t loader_start);
+struct arm_boot_info {
+    int ram_size;
+    const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
+    target_phys_addr_t loader_start;
+    int nb_cpus;
+    int board_id;
+    int (*atag_board)(struct arm_boot_info *info, void *p);
+};
+void arm_load_kernel(CPUState *env, struct arm_boot_info *info);
 
 /* armv7m_nvic.c */
 int system_clock_scale;

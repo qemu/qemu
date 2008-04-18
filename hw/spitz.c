@@ -1180,12 +1180,17 @@ static void sl_bootparam_write(uint32_t ptr)
 /* Board init.  */
 enum spitz_model_e { spitz, akita, borzoi, terrier };
 
+static struct arm_boot_info spitz_binfo = {
+    .loader_start = PXA2XX_SDRAM_BASE,
+    .ram_size = 0x04000000,
+};
+
 static void spitz_common_init(int ram_size, int vga_ram_size,
                 DisplayState *ds, const char *kernel_filename,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, enum spitz_model_e model, int arm_id)
 {
-    uint32_t spitz_ram = 0x04000000;
+    uint32_t spitz_ram = spitz_binfo.ram_size;
     uint32_t spitz_rom = 0x00800000;
     struct pxa2xx_state_s *cpu;
     struct scoop_info_s *scp;
@@ -1230,10 +1235,13 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
         spitz_microdrive_attach(cpu);
 
     /* Setup initial (reset) machine state */
-    cpu->env->regs[15] = PXA2XX_SDRAM_BASE;
+    cpu->env->regs[15] = spitz_binfo.loader_start;
 
-    arm_load_kernel(cpu->env, spitz_ram, kernel_filename, kernel_cmdline,
-                    initrd_filename, arm_id, PXA2XX_SDRAM_BASE);
+    spitz_binfo.kernel_filename = kernel_filename;
+    spitz_binfo.kernel_cmdline = kernel_cmdline;
+    spitz_binfo.initrd_filename = initrd_filename;
+    spitz_binfo.board_id = arm_id;
+    arm_load_kernel(cpu->env, &spitz_binfo);
     sl_bootparam_write(SL_PXA_PARAM_BASE - PXA2XX_SDRAM_BASE);
 }
 

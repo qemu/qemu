@@ -1,12 +1,14 @@
 /*
  * TI TSC2102 (touchscreen/sensors/audio controller) emulator.
+ * TI TSC2301 (touchscreen/sensors/keypad).
  *
  * Copyright (c) 2006 Andrzej Zaborowski  <balrog@zabor.org>
+ * Copyright (C) 2008 Nokia Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
+ * published by the Free Software Foundation; either version 2 or
+ * (at your option) version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -35,12 +37,15 @@
 
 struct tsc210x_state_s {
     qemu_irq pint;
+    qemu_irq kbint;
+    qemu_irq davint;
     QEMUTimer *timer;
     QEMUSoundCard card;
     struct uwire_slave_s chip;
     struct i2s_codec_s codec;
     uint8_t in_fifo[16384];
     uint8_t out_fifo[16384];
+    uint16_t model;
 
     int x, y;
     int pressure;
@@ -64,7 +69,7 @@ struct tsc210x_state_s {
     uint16_t audio_ctrl1;
     uint16_t audio_ctrl2;
     uint16_t audio_ctrl3;
-    uint16_t pll[2];
+    uint16_t pll[3];
     uint16_t volume;
     int64_t volume_change;
     int softstep;
@@ -78,6 +83,17 @@ struct tsc210x_state_s {
     int i2s_rx_rate;
     int i2s_tx_rate;
     AudioState *audio;
+
+    int tr[8];
+
+    struct {
+        uint16_t down;
+        uint16_t mask;
+        int scan;
+        int debounce;
+        int mode;
+        int intr;
+    } kb;
 };
 
 static const int resolution[4] = { 12, 8, 10, 12 };
@@ -118,17 +134,10 @@ static const uint16_t mode_regs[16] = {
     0x0000,	/* Y+, X- drivers */
 };
 
-/*
- * Convert screen coordinates to arbitrary values that the
- * touchscreen in my Palm Tungsten E device returns.
- * This shouldn't really matter (because the guest system
- * should calibrate the touchscreen anyway), but let's
- * imitate some real hardware.
- */
-#define X_TRANSFORM(value)		\
-    ((3850 - ((int) (value) * (3850 - 250) / 32768)) << 4)
-#define Y_TRANSFORM(value)		\
-    ((150 + ((int) (value) * (3037 - 150) / 32768)) << 4)
+#define X_TRANSFORM(s)			\
+    ((s->y * s->tr[0] - s->x * s->tr[1]) / s->tr[2] + s->tr[3])
+#define Y_TRANSFORM(s)			\
+    ((s->y * s->tr[4] - s->x * s->tr[5]) / s->tr[6] + s->tr[7])
 #define Z1_TRANSFORM(s)			\
     ((400 - ((s)->x >> 7) + ((s)->pressure << 10)) << 4)
 #define Z2_TRANSFORM(s)			\
@@ -161,6 +170,7 @@ static void tsc210x_reset(struct tsc210x_state_s *s)
     s->audio_ctrl3 = 0x0000;
     s->pll[0] = 0x1004;
     s->pll[1] = 0x0000;
+    s->pll[2] = 0x1fff;
     s->volume = 0xffff;
     s->dac_power = 0x8540;
     s->softstep = 1;
@@ -190,7 +200,15 @@ static void tsc210x_reset(struct tsc210x_state_s *s)
     s->i2s_tx_rate = 0;
     s->i2s_rx_rate = 0;
 
+    s->kb.scan = 1;
+    s->kb.debounce = 0;
+    s->kb.mask = 0x0000;
+    s->kb.mode = 3;
+    s->kb.intr = 0;
+
     qemu_set_irq(s->pint, !s->irq);
+    qemu_set_irq(s->davint, !s->dav);
+    qemu_irq_raise(s->kbint);
 }
 
 struct tsc210x_rate_info_s {
@@ -344,13 +362,13 @@ static uint16_t tsc2102_data_register_read(struct tsc210x_state_s *s, int reg)
     switch (reg) {
     case 0x00:	/* X */
         s->dav &= 0xfbff;
-        return TSC_CUT_RESOLUTION(X_TRANSFORM(s->x), s->precision) +
+        return TSC_CUT_RESOLUTION(X_TRANSFORM(s), s->precision) +
                 (s->noise & 3);
 
     case 0x01:	/* Y */
         s->noise ++;
         s->dav &= 0xfdff;
-        return TSC_CUT_RESOLUTION(Y_TRANSFORM(s->y), s->precision) ^
+        return TSC_CUT_RESOLUTION(Y_TRANSFORM(s), s->precision) ^
                 (s->noise & 3);
 
     case 0x02:	/* Z1 */
@@ -364,6 +382,14 @@ static uint16_t tsc2102_data_register_read(struct tsc210x_state_s *s, int reg)
                 (s->noise & 3);
 
     case 0x04:	/* KPData */
+        if ((s->model & 0xff00) == 0x2300) {
+            if (s->kb.intr && (s->kb.mode & 2)) {
+                s->kb.intr = 0;
+                qemu_irq_raise(s->kbint);
+            }
+            return s->kb.down;
+        }
+
         return 0xffff;
 
     case 0x05:	/* BAT1 */
@@ -414,9 +440,19 @@ static uint16_t tsc2102_control_register_read(
         return (s->pressure << 15) | ((!s->busy) << 14) |
                 (s->nextfunction << 10) | (s->nextprecision << 8) | s->filter; 
 
-    case 0x01:	/* Status */
-        return (s->pin_func << 14) | ((!s->enabled) << 13) |
-                (s->host_mode << 12) | ((!!s->dav) << 11) | s->dav;
+    case 0x01:	/* Status / Keypad Control */
+        if ((s->model & 0xff00) == 0x2100)
+            return (s->pin_func << 14) | ((!s->enabled) << 13) |
+                    (s->host_mode << 12) | ((!!s->dav) << 11) | s->dav;
+        else
+            return (s->kb.intr << 15) | ((s->kb.scan || !s->kb.down) << 14) |
+                    (s->kb.debounce << 11);
+
+    case 0x02:	/* DAC Control */
+        if ((s->model & 0xff00) == 0x2300)
+            return s->dac_power & 0x8000;
+        else
+            goto bad_reg;
 
     case 0x03:	/* Reference */
         return s->ref;
@@ -427,7 +463,18 @@ static uint16_t tsc2102_control_register_read(
     case 0x05:	/* Configuration */
         return s->timing;
 
+    case 0x06:	/* Secondary configuration */
+        if ((s->model & 0xff00) == 0x2100)
+            goto bad_reg;
+        return ((!s->dav) << 15) | ((s->kb.mode & 1) << 14) | s->pll[2];
+
+    case 0x10:	/* Keypad Mask */
+        if ((s->model & 0xff00) == 0x2100)
+            goto bad_reg;
+        return s->kb.mask;
+
     default:
+    bad_reg:
 #ifdef TSC_VERBOSE
         fprintf(stderr, "tsc2102_control_register_read: "
                         "no such register: 0x%02x\n", reg);
@@ -556,9 +603,26 @@ static void tsc2102_control_register_write(
         s->filter = value & 0xff;
         return;
 
-    case 0x01:	/* Status */
-        s->pin_func = value >> 14;
+    case 0x01:	/* Status / Keypad Control */
+        if ((s->model & 0xff00) == 0x2100)
+            s->pin_func = value >> 14;
+	else {
+            s->kb.scan = (value >> 14) & 1;
+            s->kb.debounce = (value >> 11) & 7;
+            if (s->kb.intr && s->kb.scan) {
+                s->kb.intr = 0;
+                qemu_irq_raise(s->kbint);
+            }
+        }
         return;
+
+    case 0x02:	/* DAC Control */
+        if ((s->model & 0xff00) == 0x2300) {
+            s->dac_power &= 0x7fff;
+            s->dac_power |= 0x8000 & value;
+        } else
+            goto bad_reg;
+        break;
 
     case 0x03:	/* Reference */
         s->ref = value & 0x1f;
@@ -586,7 +650,21 @@ static void tsc2102_control_register_write(
 #endif
         return;
 
+    case 0x06:	/* Secondary configuration */
+        if ((s->model & 0xff00) == 0x2100)
+            goto bad_reg;
+        s->kb.mode = value >> 14;
+        s->pll[2] = value & 0x3ffff;
+        return;
+
+    case 0x10:	/* Keypad Mask */
+        if ((s->model & 0xff00) == 0x2100)
+            goto bad_reg;
+        s->kb.mask = value;
+        return;
+
     default:
+    bad_reg:
 #ifdef TSC_VERBOSE
         fprintf(stderr, "tsc2102_control_register_write: "
                         "no such register: 0x%02x\n", reg);
@@ -785,7 +863,7 @@ static void tsc210x_pin_update(struct tsc210x_state_s *s)
         return;
     }
 
-    if (!s->enabled || s->busy)
+    if (!s->enabled || s->busy || s->dav)
         return;
 
     s->busy = 1;
@@ -805,6 +883,8 @@ static uint16_t tsc210x_read(struct tsc210x_state_s *s)
     switch (s->page) {
     case TSC_DATA_REGISTERS_PAGE:
         ret = tsc2102_data_register_read(s, s->offset);
+        if (!s->dav)
+            qemu_irq_raise(s->davint);
         break;
     case TSC_CONTROL_REGISTERS_PAGE:
         ret = tsc2102_control_register_read(s, s->offset);
@@ -859,6 +939,22 @@ static void tsc210x_write(struct tsc210x_state_s *s, uint16_t value)
     }
 }
 
+uint32_t tsc210x_txrx(void *opaque, uint32_t value)
+{
+    struct tsc210x_state_s *s = opaque;
+    uint32_t ret = 0;
+
+    /* TODO: sequential reads etc - how do we make sure the host doesn't
+     * unintentionally read out a conversion result from a register while
+     * transmitting the command word of the next command?  */
+    if (!value || (s->state && s->command))
+        ret = tsc210x_read(s);
+    if (value || (s->state && !s->command))
+        tsc210x_write(s, value);
+
+    return ret;
+}
+
 static void tsc210x_timer_tick(void *opaque)
 {
     struct tsc210x_state_s *s = opaque;
@@ -871,6 +967,7 @@ static void tsc210x_timer_tick(void *opaque)
     s->busy = 0;
     s->dav |= mode_regs[s->function];
     tsc210x_pin_update(s);
+    qemu_irq_lower(s->davint);
 }
 
 static void tsc210x_touchscreen_event(void *opaque,
@@ -1001,6 +1098,7 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
 
     s->busy = qemu_timer_pending(s->timer);
     qemu_set_irq(s->pint, !s->irq);
+    qemu_set_irq(s->davint, !s->dav);
 
     return 0;
 }
@@ -1020,8 +1118,18 @@ struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio)
     s->precision = s->nextprecision = 0;
     s->timer = qemu_new_timer(vm_clock, tsc210x_timer_tick, s);
     s->pint = pint;
+    s->model = 0x2102;
     s->name = "tsc2102";
     s->audio = audio;
+
+    s->tr[0] = 0;
+    s->tr[1] = 1;
+    s->tr[2] = 0;
+    s->tr[3] = 1;
+    s->tr[4] = 1;
+    s->tr[5] = 0;
+    s->tr[6] = 0;
+    s->tr[7] = 1;
 
     s->chip.opaque = s;
     s->chip.send = (void *) tsc210x_write;
@@ -1048,9 +1156,149 @@ struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio)
     return &s->chip;
 }
 
+struct uwire_slave_s *tsc2301_init(qemu_irq penirq, qemu_irq kbirq,
+                qemu_irq dav, AudioState *audio)
+{
+    struct tsc210x_state_s *s;
+
+    s = (struct tsc210x_state_s *)
+            qemu_mallocz(sizeof(struct tsc210x_state_s));
+    memset(s, 0, sizeof(struct tsc210x_state_s));
+    s->x = 400;
+    s->y = 240;
+    s->pressure = 0;
+    s->precision = s->nextprecision = 0;
+    s->timer = qemu_new_timer(vm_clock, tsc210x_timer_tick, s);
+    s->pint = penirq;
+    s->kbint = kbirq;
+    s->davint = dav;
+    s->model = 0x2301;
+    s->name = "tsc2301";
+    s->audio = audio;
+
+    s->tr[0] = 0;
+    s->tr[1] = 1;
+    s->tr[2] = 0;
+    s->tr[3] = 1;
+    s->tr[4] = 1;
+    s->tr[5] = 0;
+    s->tr[6] = 0;
+    s->tr[7] = 1;
+
+    s->chip.opaque = s;
+    s->chip.send = (void *) tsc210x_write;
+    s->chip.receive = (void *) tsc210x_read;
+
+    s->codec.opaque = s;
+    s->codec.tx_swallow = (void *) tsc210x_i2s_swallow;
+    s->codec.set_rate = (void *) tsc210x_i2s_set_rate;
+    s->codec.in.fifo = s->in_fifo;
+    s->codec.out.fifo = s->out_fifo;
+
+    tsc210x_reset(s);
+
+    qemu_add_mouse_event_handler(tsc210x_touchscreen_event, s, 1,
+                    "QEMU TSC2301-driven Touchscreen");
+
+    if (s->audio)
+        AUD_register_card(s->audio, s->name, &s->card);
+
+    qemu_register_reset((void *) tsc210x_reset, s);
+    register_savevm(s->name, tsc2102_iid ++, 0,
+                    tsc210x_save, tsc210x_load, s);
+
+    return &s->chip;
+}
+
 struct i2s_codec_s *tsc210x_codec(struct uwire_slave_s *chip)
 {
     struct tsc210x_state_s *s = (struct tsc210x_state_s *) chip->opaque;
 
     return &s->codec;
+}
+
+/*
+ * Use tslib generated calibration data to generate ADC input values
+ * from the touchscreen.  Assuming 12-bit precision was used during
+ * tslib calibration.
+ */
+void tsc210x_set_transform(struct uwire_slave_s *chip,
+                struct mouse_transform_info_s *info)
+{
+    struct tsc210x_state_s *s = (struct tsc210x_state_s *) chip->opaque;
+#if 0
+    int64_t ltr[8];
+
+    ltr[0] = (int64_t) info->a[1] * info->y;
+    ltr[1] = (int64_t) info->a[4] * info->x;
+    ltr[2] = (int64_t) info->a[1] * info->a[3] -
+            (int64_t) info->a[4] * info->a[0];
+    ltr[3] = (int64_t) info->a[2] * info->a[4] -
+            (int64_t) info->a[5] * info->a[1];
+    ltr[4] = (int64_t) info->a[0] * info->y;
+    ltr[5] = (int64_t) info->a[3] * info->x;
+    ltr[6] = (int64_t) info->a[4] * info->a[0] -
+            (int64_t) info->a[1] * info->a[3];
+    ltr[7] = (int64_t) info->a[2] * info->a[3] -
+            (int64_t) info->a[5] * info->a[0];
+
+    /* Avoid integer overflow */
+    s->tr[0] = ltr[0] >> 11;
+    s->tr[1] = ltr[1] >> 11;
+    s->tr[2] = muldiv64(ltr[2], 1, info->a[6]);
+    s->tr[3] = muldiv64(ltr[3], 1 << 4, ltr[2]);
+    s->tr[4] = ltr[4] >> 11;
+    s->tr[5] = ltr[5] >> 11;
+    s->tr[6] = muldiv64(ltr[6], 1, info->a[6]);
+    s->tr[7] = muldiv64(ltr[7], 1 << 4, ltr[6]);
+#else
+
+    /* This version assumes touchscreen X & Y axis are parallel or
+     * perpendicular to LCD's  X & Y axis in some way.  */
+    if (abs(info->a[0]) > abs(info->a[1])) {
+        s->tr[0] = 0;
+        s->tr[1] = -info->a[6] * info->x;
+        s->tr[2] = info->a[0];
+        s->tr[3] = -info->a[2] / info->a[0];
+        s->tr[4] = info->a[6] * info->y;
+        s->tr[5] = 0;
+        s->tr[6] = info->a[4];
+        s->tr[7] = -info->a[5] / info->a[4];
+    } else {
+        s->tr[0] = info->a[6] * info->y;
+        s->tr[1] = 0;
+        s->tr[2] = info->a[1];
+        s->tr[3] = -info->a[2] / info->a[1];
+        s->tr[4] = 0;
+        s->tr[5] = -info->a[6] * info->x;
+        s->tr[6] = info->a[3];
+        s->tr[7] = -info->a[5] / info->a[3];
+    }
+
+    s->tr[0] >>= 11;
+    s->tr[1] >>= 11;
+    s->tr[3] <<= 4;
+    s->tr[4] >>= 11;
+    s->tr[5] >>= 11;
+    s->tr[7] <<= 4;
+#endif
+}
+
+void tsc210x_key_event(struct uwire_slave_s *chip, int key, int down)
+{
+    struct tsc210x_state_s *s = (struct tsc210x_state_s *) chip->opaque;
+
+    if (down)
+        s->kb.down |= 1 << key;
+    else
+        s->kb.down &= ~(1 << key);
+
+    if (down && (s->kb.down & ~s->kb.mask) && !s->kb.intr) {
+        s->kb.intr = 1;
+        qemu_irq_lower(s->kbint);
+    } else if (s->kb.intr && !(s->kb.down & ~s->kb.mask) &&
+                    !(s->kb.mode & 1)) {
+        s->kb.intr = 0;
+        qemu_irq_raise(s->kbint);
+    }
 }
