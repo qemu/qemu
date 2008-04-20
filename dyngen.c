@@ -1759,7 +1759,36 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     }
 
     if (gen_switch == 2) {
-        fprintf(outfile, "DEF(%s, %d, %d)\n", name + 3, nb_args, copy_size);
+
+#if defined(HOST_HPPA)
+	int op_size = copy_size;
+	int has_stubs = 0;
+	char relname[256];
+	int type, is_label;
+
+	for (i = 0, rel = relocs; i < nb_relocs; i++, rel++) {
+	    if (rel->r_offset >= start_offset &&
+		rel->r_offset < start_offset + copy_size) {
+		sym_name = get_rel_sym_name(rel);
+		sym_name = strtab + symtab[ELF32_R_SYM(rel->r_info)].st_name;
+		is_label = get_reloc_expr(relname, sizeof(relname), sym_name);
+		type = ELF32_R_TYPE(rel->r_info);
+
+		if (!is_label && type == R_PARISC_PCREL17F) {
+		    has_stubs = 1;
+		    op_size += 8; /* ldil and be,n instructions */
+		}
+	    }
+	}
+
+	if (has_stubs)
+	    op_size += 4; /* b,l,n instruction, to skip past the stubs */
+
+	fprintf(outfile, "DEF(%s, %d, %d)\n", name + 3, nb_args, op_size);
+#else
+	fprintf(outfile, "DEF(%s, %d, %d)\n", name + 3, nb_args, copy_size);
+#endif
+
     } else if (gen_switch == 1) {
 
         /* output C code */
