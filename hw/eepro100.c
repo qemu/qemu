@@ -98,7 +98,7 @@
 
 #define UNEXPECTED() logout("%s:%u unexpected\n", __FILE__, __LINE__)
 
-#define missing(text)       assert(!"feature is missing in this emulation: " text)
+//~ #define missing(text)       assert(!"feature is missing in this emulation: " text)
 #define missing(text)       logout("feature is missing in this emulation: " text "\n")
 
 #define MAX_ETH_FRAME_SIZE 1514
@@ -1772,7 +1772,10 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
     // !!!
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
-    assert(size <= rfd_size);
+    if (size > rfd_size) {
+      logout("received frame with %d > %u\n", size, rfd_size);
+      UNEXPECTED();
+    }
     if (size < 64) {
         rfd_status |= 0x0080;
     }
@@ -1794,7 +1797,7 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
     s->ru_offset = le32_to_cpu(rx.link);
     if (rfd_command & 0x8000) {
         /* EL bit is set, so this was the last frame. */
-        assert(0);
+        set_ru_state(s, ru_idle);
     }
     if (rfd_command & 0x4000) {
         /* S bit is set. */
