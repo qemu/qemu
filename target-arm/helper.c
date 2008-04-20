@@ -2271,7 +2271,7 @@ float32 VFP_HELPER(neg, s)(float32 a)
 
 float64 VFP_HELPER(neg, d)(float64 a)
 {
-    return float32_chs(a);
+    return float64_chs(a);
 }
 
 float32 VFP_HELPER(abs, s)(float32 a)
@@ -2281,7 +2281,7 @@ float32 VFP_HELPER(abs, s)(float32 a)
 
 float64 VFP_HELPER(abs, d)(float64 a)
 {
-    return float32_abs(a);
+    return float64_abs(a);
 }
 
 float32 VFP_HELPER(sqrt, s)(float32 a, CPUState *env)

@@ -1079,9 +1079,9 @@ static inline void gen_vfp_uito(int dp)
 static inline void gen_vfp_sito(int dp)
 {
     if (dp)
-        gen_helper_vfp_uitod(cpu_F0d, cpu_F0s, cpu_env);
+        gen_helper_vfp_sitod(cpu_F0d, cpu_F0s, cpu_env);
     else
-        gen_helper_vfp_uitos(cpu_F0s, cpu_F0s, cpu_env);
+        gen_helper_vfp_sitos(cpu_F0s, cpu_F0s, cpu_env);
 }
 
 static inline void gen_vfp_toui(int dp)
