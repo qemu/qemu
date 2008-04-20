@@ -76,10 +76,10 @@ static void wm8750_audio_in_cb(void *opaque, int avail_b)
 static void wm8750_audio_out_cb(void *opaque, int free_b)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;
-    wm8750_out_flush(s);
 
     s->req_out = free_b;
     s->data_req(s->opaque, free_b >> 2, s->req_in >> 2);
+    wm8750_out_flush(s);
 }
 
 struct wm_rate_s {
@@ -213,6 +213,7 @@ static void inline wm8750_mask_update(struct wm8750_s *s)
 void wm8750_reset(i2c_slave *i2c)
 {
     struct wm8750_s *s = (struct wm8750_s *) i2c;
+    s->rate = &wm_rate_table[0];
     s->enable = 0;
     wm8750_set_format(s);
     s->diff[0] = 0;
