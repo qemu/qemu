@@ -62,7 +62,6 @@ struct menelaus_s {
         int sec_offset;
         int alm_sec;
         int next_comp;
-        struct tm *(*gettime)(const time_t *timep, struct tm *result);
     } rtc;
     qemu_irq handler[3];
     qemu_irq *in;
