@@ -1739,6 +1739,9 @@ static PCIDevice *nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
     d = (PCIEEPRO100State *) pci_register_device(bus, nd->model,
                                                  sizeof(PCIEEPRO100State), -1,
                                                  NULL, NULL);
+    if (!d)
+        return NULL;
+
     d->dev.unregister = pci_nic_uninit;
 
     s = &d->eepro100;

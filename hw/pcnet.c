@@ -2023,7 +2023,11 @@ PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     d = (PCNetState *)pci_register_device(bus, "PCNet", sizeof(PCNetState),
                                           devfn, NULL, NULL);
+    if (!d)
+	return NULL;
+
     d->dev.unregister = pci_pcnet_uninit;
+
     pci_conf = d->dev.config;
 
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_AMD);
