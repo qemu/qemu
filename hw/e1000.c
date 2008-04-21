@@ -1063,6 +1063,9 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
     d = (E1000State *)pci_register_device(bus, "e1000",
                 sizeof(E1000State), devfn, NULL, NULL);
 
+    if (!d)
+	return NULL;
+
     pci_conf = d->dev.config;
     memset(pci_conf, 0, 256);
 
