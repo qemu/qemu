@@ -499,7 +499,7 @@ typedef struct CPUX86State {
     SegmentCache idt; /* only base and limit are used */
 
     target_ulong cr[9]; /* NOTE: cr1, cr5-7 are unused */
-    uint32_t a20_mask;
+    uint64_t a20_mask;
 
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
