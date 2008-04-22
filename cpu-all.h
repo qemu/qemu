@@ -700,7 +700,7 @@ static inline void stfq_be_p(void *ptr, float64 v)
 
 /* page related stuff */
 
-#define TARGET_PAGE_SIZE (1 << TARGET_PAGE_BITS)
+#define TARGET_PAGE_SIZE (1UL << TARGET_PAGE_BITS)
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 #define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)
 
@@ -806,12 +806,16 @@ int cpu_inw(CPUState *env, int addr);
 int cpu_inl(CPUState *env, int addr);
 #endif
 
+/* address in the RAM (different from a physical address) */
+typedef unsigned long ram_addr_t;
+
 /* memory API */
 
-extern int phys_ram_size;
+extern ram_addr_t phys_ram_size;
 extern int phys_ram_fd;
 extern uint8_t *phys_ram_base;
 extern uint8_t *phys_ram_dirty;
+extern ram_addr_t ram_size;
 
 /* physical memory access */
 #define TLB_INVALID_MASK   (1 << 3)
@@ -833,10 +837,10 @@ typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t 
 typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);
 
 void cpu_register_physical_memory(target_phys_addr_t start_addr,
-                                  unsigned long size,
-                                  unsigned long phys_offset);
-uint32_t cpu_get_physical_page_desc(target_phys_addr_t addr);
-ram_addr_t qemu_ram_alloc(unsigned int size);
+                                  ram_addr_t size,
+                                  ram_addr_t phys_offset);
+ram_addr_t cpu_get_physical_page_desc(target_phys_addr_t addr);
+ram_addr_t qemu_ram_alloc(ram_addr_t);
 void qemu_ram_free(ram_addr_t addr);
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc **mem_read,

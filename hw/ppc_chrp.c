@@ -57,7 +57,7 @@ static CPUReadMemoryFunc *unin_read[] = {
 };
 
 /* PowerPC Mac99 hardware initialisation */
-static void ppc_core99_init (int ram_size, int vga_ram_size,
+static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
                              const char *boot_device, DisplayState *ds,
                              const char *kernel_filename,
                              const char *kernel_cmdline,

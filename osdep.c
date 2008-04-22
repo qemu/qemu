@@ -98,7 +98,6 @@ static void *kqemu_vmalloc(size_t size)
             int64_t free_space;
             int ram_mb;
 
-            extern int ram_size;
             free_space = (int64_t)stfs.f_bavail * stfs.f_bsize;
             if ((ram_size + 8192 * 1024) >= free_space) {
                 ram_mb = (ram_size / (1024 * 1024));

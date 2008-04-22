@@ -322,7 +322,9 @@ Disable boot signature checking for floppy disks in Bochs BIOS. It may
 be needed to boot from old floppy disks.
 
 @item -m @var{megs}
-Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.
+Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.  Optionally,
+a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
+gigabytes respectively.
 
 @item -smp @var{n}
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255

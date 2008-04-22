@@ -103,7 +103,7 @@ static int vga_osi_call (CPUState *env)
     return 1; /* osi_call handled */
 }
 
-static void ppc_heathrow_init (int ram_size, int vga_ram_size,
+static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
                                const char *boot_device, DisplayState *ds,
                                const char *kernel_filename,
                                const char *kernel_cmdline,

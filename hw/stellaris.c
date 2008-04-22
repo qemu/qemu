@@ -1169,7 +1169,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 }
 
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
-static void lm3s811evb_init(int ram_size, int vga_ram_size,
+static void lm3s811evb_init(ram_addr_t ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -1177,7 +1177,7 @@ static void lm3s811evb_init(int ram_size, int vga_ram_size,
     stellaris_init(kernel_filename, cpu_model, ds, &stellaris_boards[0]);
 }
 
-static void lm3s6965evb_init(int ram_size, int vga_ram_size,
+static void lm3s6965evb_init(ram_addr_t ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)

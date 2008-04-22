@@ -227,7 +227,7 @@ static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 static fdctrl_t *floppy_controller;
 
 /* Sun4u hardware initialisation */
-static void sun4u_init(int ram_size, int vga_ram_size,
+static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
                        const char *boot_devices, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)

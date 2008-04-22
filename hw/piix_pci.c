@@ -55,7 +55,7 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
     return (irq_num + slot_addend) & 3;
 }
 
-static uint32_t isa_page_descs[384 / 4];
+static target_phys_addr_t isa_page_descs[384 / 4];
 static uint8_t smm_enabled;
 static int pci_irq_levels[4];
 
