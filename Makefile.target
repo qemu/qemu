@@ -432,9 +432,6 @@ endif
 ifeq ($(TARGET_ARCH), m68k)
 OBJS+= m68k-sim.o m68k-semi.o
 endif
-ifeq ($(TARGET_BASE_ARCH), sparc)
-OBJS+= sparc_quad_float.o
-endif
 
 ifdef CONFIG_GDBSTUB
 OBJS+=gdbstub.o
