@@ -800,7 +800,8 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 
 #else
 
-#define PHYS_ADDR_MASK (~0xfff)
+/* Bits 52-62 of a PTE are reserved. Bit 63 is the NX bit. */
+#define PHYS_ADDR_MASK 0xffffffffff000L
 
 /* return value:
    -1 = cannot handle fault
