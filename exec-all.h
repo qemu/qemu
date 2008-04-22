@@ -82,7 +82,7 @@ int cpu_restore_state_copy(struct TranslationBlock *tb,
 void cpu_resume_from_signal(CPUState *env1, void *puc);
 void cpu_exec_init(CPUState *env);
 int page_unprotect(target_ulong address, unsigned long pc, void *puc);
-void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t end,
+void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
                                    int is_cpu_write_access);
 void tb_invalidate_page_range(target_ulong start, target_ulong end);
 void tlb_flush_page(CPUState *env, target_ulong addr);

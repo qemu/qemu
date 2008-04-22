@@ -763,7 +763,7 @@ static void main_cpu_reset(void *opaque)
 }
 
 static
-void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
+void mips_malta_init (int ram_size, int vga_ram_size,
                       const char *boot_device, DisplayState *ds,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)

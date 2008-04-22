@@ -41,7 +41,7 @@ void etraxfs_timer_init(CPUState *env, qemu_irq *irqs,
 void etraxfs_ser_init(CPUState *env, qemu_irq *irqs, target_phys_addr_t base);
 
 static
-void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
+void bareetraxfs_init (int ram_size, int vga_ram_size,
                        const char *boot_device, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)

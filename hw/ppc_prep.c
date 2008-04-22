@@ -535,7 +535,7 @@ CPUReadMemoryFunc *PPC_prep_io_read[] = {
 #define NVRAM_SIZE        0x2000
 
 /* PowerPC PREP hardware initialisation */
-static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
+static void ppc_prep_init (int ram_size, int vga_ram_size,
                            const char *boot_device, DisplayState *ds,
                            const char *kernel_filename,
                            const char *kernel_cmdline,

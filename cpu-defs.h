@@ -76,6 +76,9 @@ typedef uint64_t target_phys_addr_t;
 #error TARGET_PHYS_ADDR_BITS undefined
 #endif
 
+/* address in the RAM (different from a physical address) */
+typedef unsigned long ram_addr_t;
+
 #define HOST_LONG_SIZE (HOST_LONG_BITS / 8)
 
 #define EXCP_INTERRUPT 	0x10000 /* async interruption */
