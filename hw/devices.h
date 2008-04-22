@@ -52,4 +52,11 @@ void *tahvo_init(qemu_irq irq, int betty);
 
 void retu_key_event(void *retu, int state);
 
+/* tusb6010.c */
+struct tusb_s;
+struct tusb_s *tusb6010_init(qemu_irq intr);
+int tusb6010_sync_io(struct tusb_s *s);
+int tusb6010_async_io(struct tusb_s *s);
+void tusb6010_power(struct tusb_s *s, int on);
+
 #endif
