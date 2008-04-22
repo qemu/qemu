@@ -257,7 +257,7 @@ FILE = qemu-$(VERSION)
 tar:
 	rm -rf /tmp/$(FILE)
 	cp -r . /tmp/$(FILE)
-	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS
+	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS --exclude .git --exclude .svn
 	rm -rf /tmp/$(FILE)
 
 # generate a binary distribution
