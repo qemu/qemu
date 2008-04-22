@@ -1,10 +1,134 @@
+Index: rombios.c
+===================================================================
+RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
+retrieving revision 1.205
+diff -u -d -p -r1.205 rombios.c
+--- rombios.c	21 Mar 2008 19:06:31 -0000	1.205
++++ rombios.c	10 Apr 2008 09:47:48 -0000
+@@ -4395,22 +4395,25 @@ BX_DEBUG_INT15("case default:\n");
+ #endif // BX_USE_PS2_MOUSE
+
+
+-void set_e820_range(ES, DI, start, end, type)
++void set_e820_range(ES, DI, start, end, extra_start, extra_end, type)
+      Bit16u ES;
+      Bit16u DI;
+      Bit32u start;
+      Bit32u end;
++     Bit8u extra_start;
++     Bit8u extra_end;
+      Bit16u type;
+ {
+     write_word(ES, DI, start);
+     write_word(ES, DI+2, start >> 16);
+-    write_word(ES, DI+4, 0x00);
++    write_word(ES, DI+4, extra_start);
+     write_word(ES, DI+6, 0x00);
+
+     end -= start;
++    extra_end -= extra_start;
+     write_word(ES, DI+8, end);
+     write_word(ES, DI+10, end >> 16);
+-    write_word(ES, DI+12, 0x0000);
++    write_word(ES, DI+12, extra_end);
+     write_word(ES, DI+14, 0x0000);
+
+     write_word(ES, DI+16, type);
+@@ -4423,7 +4426,9 @@ int15_function32(regs, ES, DS, FLAGS)
+   Bit16u ES, DS, FLAGS;
+ {
+   Bit32u  extended_memory_size=0; // 64bits long
++  Bit32u  extra_lowbits_memory_size=0;
+   Bit16u  CX,DX;
++  Bit8u   extra_highbits_memory_size=0;
+
+ BX_DEBUG_INT15("int15 AX=%04x\n",regs.u.r16.ax);
+
+@@ -4497,11 +4502,18 @@ ASM_END
+                     extended_memory_size += (1L * 1024 * 1024);
+                 }
+
++                extra_lowbits_memory_size = inb_cmos(0x5c);
++                extra_lowbits_memory_size <<= 8;
++                extra_lowbits_memory_size |= inb_cmos(0x5b);
++                extra_lowbits_memory_size *= 64;
++                extra_lowbits_memory_size *= 1024;
++                extra_highbits_memory_size = inb_cmos(0x5d);
++
+                 switch(regs.u.r16.bx)
+                 {
+                     case 0:
+                         set_e820_range(ES, regs.u.r16.di,
+-                                       0x0000000L, 0x0009fc00L, 1);
++                                       0x0000000L, 0x0009fc00L, 0, 0, 1);
+                         regs.u.r32.ebx = 1;
+                         regs.u.r32.eax = 0x534D4150;
+                         regs.u.r32.ecx = 0x14;
+@@ -4510,7 +4522,7 @@ ASM_END
+                         break;
+                     case 1:
+                         set_e820_range(ES, regs.u.r16.di,
+-                                       0x0009fc00L, 0x000a0000L, 2);
++                                       0x0009fc00L, 0x000a0000L, 0, 0, 2);
+                         regs.u.r32.ebx = 2;
+                         regs.u.r32.eax = 0x534D4150;
+                         regs.u.r32.ecx = 0x14;
+@@ -4519,7 +4531,7 @@ ASM_END
+                         break;
+                     case 2:
+                         set_e820_range(ES, regs.u.r16.di,
+-                                       0x000e8000L, 0x00100000L, 2);
++                                       0x000e8000L, 0x00100000L, 0, 0, 2);
+                         regs.u.r32.ebx = 3;
+                         regs.u.r32.eax = 0x534D4150;
+                         regs.u.r32.ecx = 0x14;
+@@ -4529,7 +4541,7 @@ ASM_END
+                     case 3:
+                         set_e820_range(ES, regs.u.r16.di,
+                                        0x00100000L,
+-                                       extended_memory_size - ACPI_DATA_SIZE, 1);
++                                       extended_memory_size - ACPI_DATA_SIZE ,0, 0, 1);
+                         regs.u.r32.ebx = 4;
+                         regs.u.r32.eax = 0x534D4150;
+                         regs.u.r32.ecx = 0x14;
+@@ -4539,7 +4551,7 @@ ASM_END
+                     case 4:
+                         set_e820_range(ES, regs.u.r16.di,
+                                        extended_memory_size - ACPI_DATA_SIZE,
+-                                       extended_memory_size, 3); // ACPI RAM
++                                       extended_memory_size ,0, 0, 3); // ACPI RAM
+                         regs.u.r32.ebx = 5;
+                         regs.u.r32.eax = 0x534D4150;
+                         regs.u.r32.ecx = 0x14;
+@@ -4549,7 +4561,20 @@ ASM_END
+                     case 5:
+                         /* 256KB BIOS area at the end of 4 GB */
+                         set_e820_range(ES, regs.u.r16.di,
+-                                       0xfffc0000L, 0x00000000L, 2);
++                                       0xfffc0000L, 0x00000000L ,0, 0, 2);
++                        if (extra_highbits_memory_size || extra_lowbits_memory_size)
++                            regs.u.r32.ebx = 6;
++                        else
++                            regs.u.r32.ebx = 0;
++                        regs.u.r32.eax = 0x534D4150;
++                        regs.u.r32.ecx = 0x14;
++                        CLEAR_CF();
++                        return;
++                    case 6:
++                        /* Maping of memory above 4 GB */
++                        set_e820_range(ES, regs.u.r16.di, 0x00000000L,
++                        extra_lowbits_memory_size, 1, extra_highbits_memory_size
++                                       + 1, 1);
+                         regs.u.r32.ebx = 0;
+                         regs.u.r32.eax = 0x534D4150;
+                         regs.u.r32.ecx = 0x14;
 Index: rombios.h
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.h,v
 retrieving revision 1.6
 diff -u -d -p -r1.6 rombios.h
 --- rombios.h	26 Jan 2008 09:15:27 -0000	1.6
-+++ rombios.h	28 Mar 2008 10:22:04 -0000
++++ rombios.h	10 Apr 2008 09:47:48 -0000
 @@ -19,7 +19,7 @@
  //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  
@@ -20,7 +144,7 @@ RCS file: /cvsroot/bochs/bochs/bios/rombios32.c,v
 retrieving revision 1.24
 diff -u -d -p -r1.24 rombios32.c
 --- rombios32.c	6 Mar 2008 20:18:20 -0000	1.24
-+++ rombios32.c	28 Mar 2008 10:22:04 -0000
++++ rombios32.c	10 Apr 2008 09:47:48 -0000
 @@ -477,7 +477,12 @@ void smp_probe(void)
          sipi_vector = AP_BOOT_ADDR >> 12;
          writel(APIC_BASE + APIC_ICR_LOW, 0x000C4600 | sipi_vector);
@@ -40,7 +164,7 @@ RCS file: /cvsroot/bochs/bochs/bios/rombios32start.S,v
 retrieving revision 1.4
 diff -u -d -p -r1.4 rombios32start.S
 --- rombios32start.S	26 Jan 2008 09:15:27 -0000	1.4
-+++ rombios32start.S	28 Mar 2008 10:22:04 -0000
++++ rombios32start.S	10 Apr 2008 09:47:48 -0000
 @@ -42,7 +42,7 @@ _start:
  smp_ap_boot_code_start:
    xor %ax, %ax
