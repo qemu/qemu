@@ -308,4 +308,5 @@ QEMUMachine mcf5208evb_machine = {
     "mcf5208evb",
     "MCF5206EVB",
     mcf5208evb_init,
+    16384,
 };

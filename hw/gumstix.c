@@ -125,10 +125,12 @@ QEMUMachine connex_machine = {
     "connex",
     "Gumstix Connex (PXA255)",
     connex_init,
+    (0x05000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };
 
 QEMUMachine verdex_machine = {
     "verdex",
     "Gumstix Verdex (PXA270)",
     verdex_init,
+    (0x12000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };

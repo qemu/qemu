@@ -14,6 +14,8 @@ typedef struct QEMUMachine {
     const char *name;
     const char *desc;
     QEMUMachineInitFunc *init;
+#define RAMSIZE_FIXED	(1 << 0)
+    size_t ram_require;
     struct QEMUMachine *next;
 } QEMUMachine;
 

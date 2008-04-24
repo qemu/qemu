@@ -941,4 +941,5 @@ QEMUMachine n800_machine = {
     "n800",
     "Nokia N800 aka. RX-34 tablet (OMAP2420)",
     n800_init,
+    (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
 };

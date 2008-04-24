@@ -39,6 +39,8 @@
 #define VGABIOS_FILENAME "vgabios.bin"
 #define VGABIOS_CIRRUS_FILENAME "vgabios-cirrus.bin"
 
+#define PC_MAX_BIOS_SIZE (4 * 1024 * 1024)
+
 /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
 #define ACPI_DATA_SIZE       0x10000
 
@@ -1018,10 +1020,12 @@ QEMUMachine pc_machine = {
     "pc",
     "Standard PC",
     pc_init_pci,
+    VGA_RAM_SIZE + PC_MAX_BIOS_SIZE,
 };
 
 QEMUMachine isapc_machine = {
     "isapc",
     "ISA-only PC",
     pc_init_isa,
+    VGA_RAM_SIZE + PC_MAX_BIOS_SIZE,
 };

@@ -2093,7 +2093,7 @@ uint32_t cpu_get_physical_page_desc(target_phys_addr_t addr)
 ram_addr_t qemu_ram_alloc(unsigned int size)
 {
     ram_addr_t addr;
-    if ((phys_ram_alloc_offset + size) >= phys_ram_size) {
+    if ((phys_ram_alloc_offset + size) > phys_ram_size) {
         fprintf(stderr, "Not enough memory (requested_size = %u, max memory = %d)\n",
                 size, phys_ram_size);
         abort();

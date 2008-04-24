@@ -370,4 +370,5 @@ QEMUMachine heathrow_machine = {
     "g3bw",
     "Heathrow based PowerMAC",
     ppc_heathrow_init,
+    BIOS_SIZE + VGA_RAM_SIZE,
 };

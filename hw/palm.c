@@ -274,4 +274,5 @@ QEMUMachine palmte_machine = {
     "cheetah",
     "Palm Tungsten|E aka. Cheetah PDA (OMAP310)",
     palmte_init,
+    (0x02000000 + 0x00800000 + OMAP15XX_SRAM_SIZE) | RAMSIZE_FIXED,
 };

@@ -1189,10 +1189,12 @@ QEMUMachine lm3s811evb_machine = {
     "lm3s811evb",
     "Stellaris LM3S811EVB",
     lm3s811evb_init,
+    (64 * 1024 * 1024 + 8 * 1024 * 1024) | RAMSIZE_FIXED,
 };
 
 QEMUMachine lm3s6965evb_machine = {
     "lm3s6965evb",
     "Stellaris LM3S6965EVB",
     lm3s6965evb_init,
+    (256 * 1024 * 1024 + 64 * 1024 * 1024) | RAMSIZE_FIXED,
 };

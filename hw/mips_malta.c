@@ -949,4 +949,5 @@ QEMUMachine mips_malta_machine = {
     "malta",
     "MIPS Malta Core LV",
     mips_malta_init,
+    VGA_RAM_SIZE + BIOS_SIZE,
 };

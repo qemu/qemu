@@ -286,4 +286,5 @@ QEMUMachine mips_machine = {
     "mips",
     "mips r4k platform",
     mips_r4k_init,
+    VGA_RAM_SIZE + BIOS_SIZE,
 };

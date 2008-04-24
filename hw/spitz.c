@@ -1180,6 +1180,9 @@ static void sl_bootparam_write(uint32_t ptr)
 /* Board init.  */
 enum spitz_model_e { spitz, akita, borzoi, terrier };
 
+#define SPITZ_RAM	0x04000000
+#define SPITZ_ROM	0x00800000
+
 static struct arm_boot_info spitz_binfo = {
     .loader_start = PXA2XX_SDRAM_BASE,
     .ram_size = 0x04000000,
@@ -1190,8 +1193,6 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, enum spitz_model_e model, int arm_id)
 {
-    uint32_t spitz_ram = spitz_binfo.ram_size;
-    uint32_t spitz_rom = 0x00800000;
     struct pxa2xx_state_s *cpu;
     struct scoop_info_s *scp;
 
@@ -1199,17 +1200,17 @@ static void spitz_common_init(int ram_size, int vga_ram_size,
         cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
 
     /* Setup CPU & memory */
-    if (ram_size < spitz_ram + spitz_rom + PXA2XX_INTERNAL_SIZE) {
+    if (ram_size < SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE) {
         fprintf(stderr, "This platform requires %i bytes of memory\n",
-                        spitz_ram + spitz_rom + PXA2XX_INTERNAL_SIZE);
+                        SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE);
         exit(1);
     }
-    cpu = pxa270_init(spitz_ram, ds, cpu_model);
+    cpu = pxa270_init(spitz_binfo.ram_size, ds, cpu_model);
 
     sl_flash_register(cpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
-    cpu_register_physical_memory(0, spitz_rom,
-                    qemu_ram_alloc(spitz_rom) | IO_MEM_ROM);
+    cpu_register_physical_memory(0, SPITZ_ROM,
+                    qemu_ram_alloc(SPITZ_ROM) | IO_MEM_ROM);
 
     /* Setup peripherals */
     spitz_keyboard_register(cpu);
@@ -1285,22 +1286,26 @@ QEMUMachine akitapda_machine = {
     "akita",
     "Akita PDA (PXA270)",
     akita_init,
+    SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };
 
 QEMUMachine spitzpda_machine = {
     "spitz",
     "Spitz PDA (PXA270)",
     spitz_init,
+    SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };
 
 QEMUMachine borzoipda_machine = {
     "borzoi",
     "Borzoi PDA (PXA270)",
     borzoi_init,
+    SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };
 
 QEMUMachine terrierpda_machine = {
     "terrier",
     "Terrier PDA (PXA270)",
     terrier_init,
+    SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };

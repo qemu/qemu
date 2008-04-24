@@ -59,6 +59,10 @@ static struct keymap map[0xE0] = {
 
 enum mainstone_model_e { mainstone };
 
+#define MAINSTONE_RAM	0x04000000
+#define MAINSTONE_ROM	0x00800000
+#define MAINSTONE_FLASH	0x02000000
+
 static struct arm_boot_info mainstone_binfo = {
     .loader_start = PXA2XX_SDRAM_BASE,
     .ram_size = 0x04000000,
@@ -69,9 +73,6 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, enum mainstone_model_e model, int arm_id)
 {
-    uint32_t mainstone_ram   = mainstone_binfo.ram_size;
-    uint32_t mainstone_rom   = 0x00800000;
-    uint32_t mainstone_flash = 0x02000000;
     uint32_t sector_len = 256 * 1024;
     target_phys_addr_t mainstone_flash_base[] = { MST_FLASH_0, MST_FLASH_1 };
     struct pxa2xx_state_s *cpu;
@@ -82,17 +83,17 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
         cpu_model = "pxa270-c5";
 
     /* Setup CPU & memory */
-    if (ram_size < mainstone_ram + mainstone_rom + 2 * mainstone_flash +
+    if (ram_size < MAINSTONE_RAM + MAINSTONE_ROM + 2 * MAINSTONE_FLASH +
                     PXA2XX_INTERNAL_SIZE) {
         fprintf(stderr, "This platform requires %i bytes of memory\n",
-                        mainstone_ram + mainstone_rom + 2 * mainstone_flash +
+                        MAINSTONE_RAM + MAINSTONE_ROM + 2 * MAINSTONE_FLASH +
                         PXA2XX_INTERNAL_SIZE);
         exit(1);
     }
 
-    cpu = pxa270_init(mainstone_ram, ds, cpu_model);
-    cpu_register_physical_memory(0, mainstone_rom,
-                    qemu_ram_alloc(mainstone_rom) | IO_MEM_ROM);
+    cpu = pxa270_init(mainstone_binfo.ram_size, ds, cpu_model);
+    cpu_register_physical_memory(0, MAINSTONE_ROM,
+                    qemu_ram_alloc(MAINSTONE_ROM) | IO_MEM_ROM);
 
     /* Setup initial (reset) machine state */
     cpu->env->regs[15] = mainstone_binfo.loader_start;
@@ -107,9 +108,9 @@ static void mainstone_common_init(int ram_size, int vga_ram_size,
         }
 
         if (!pflash_cfi01_register(mainstone_flash_base[i],
-                                qemu_ram_alloc(mainstone_flash),
+                                qemu_ram_alloc(MAINSTONE_FLASH),
                                 drives_table[index].bdrv, sector_len,
-                                mainstone_flash / sector_len, 4, 0, 0, 0, 0)) {
+                                MAINSTONE_FLASH / sector_len, 4, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
             exit(1);
         }
@@ -146,4 +147,6 @@ QEMUMachine mainstone2_machine = {
     "mainstone",
     "Mainstone II (PXA27x)",
     mainstone_init,
+    (MAINSTONE_RAM + MAINSTONE_ROM + 2 * MAINSTONE_FLASH +
+     PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };
