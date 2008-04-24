@@ -106,4 +106,7 @@ extern QEMUMachine dummy_m68k_machine;
 /* mainstone.c */
 extern QEMUMachine mainstone2_machine;
 
+/* musicpal.c */
+extern QEMUMachine musicpal_machine;
+
 #endif
