@@ -49,8 +49,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
     end = start + len;
     if (end < start)
         return -EINVAL;
-    if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC))
-        return -EINVAL;
+    prot &= PROT_READ | PROT_WRITE | PROT_EXEC;
     if (len == 0)
         return 0;
 
