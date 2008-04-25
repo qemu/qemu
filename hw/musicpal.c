@@ -759,32 +759,50 @@ static uint8_t scale_lcd_color(uint8_t col)
     }
 }
 
-static void set_lcd_pixel(musicpal_lcd_state *s, int x, int y, int col)
-{
-    int dx, dy;
-
-    for (dy = 0; dy < 3; dy++)
-        for (dx = 0; dx < 3; dx++) {
-            s->ds->data[(x*3 + dx + (y*3 + dy) * 128*3) * 4 + 0] =
-                scale_lcd_color(col);
-            s->ds->data[(x*3 + dx + (y*3 + dy) * 128*3) * 4 + 1] =
-                scale_lcd_color(col >> 8);
-            s->ds->data[(x*3 + dx + (y*3 + dy) * 128*3) * 4 + 2] =
-                scale_lcd_color(col >> 16);
-        }
+#define SET_LCD_PIXEL(depth, type) \
+static inline void glue(set_lcd_pixel, depth) \
+        (musicpal_lcd_state *s, int x, int y, type col) \
+{ \
+    int dx, dy; \
+    type *pixel = &((type *) s->ds->data)[(y * 128 * 3 + x) * 3]; \
+\
+    for (dy = 0; dy < 3; dy++, pixel += 127 * 3) \
+        for (dx = 0; dx < 3; dx++, pixel++) \
+            *pixel = col; \
 }
+SET_LCD_PIXEL(8, uint8_t)
+SET_LCD_PIXEL(16, uint16_t)
+SET_LCD_PIXEL(32, uint32_t)
+
+#include "pixel_ops.h"
 
 static void lcd_refresh(void *opaque)
 {
     musicpal_lcd_state *s = opaque;
-    int x, y;
+    int x, y, col;
 
-    for (x = 0; x < 128; x++)
-        for (y = 0; y < 64; y++)
-            if (s->video_ram[x + (y/8)*128] & (1 << (y % 8)))
-                set_lcd_pixel(s, x, y, MP_LCD_TEXTCOLOR);
-            else
-                set_lcd_pixel(s, x, y, 0);
+    switch (s->ds->depth) {
+    case 0:
+        return;
+#define LCD_REFRESH(depth, func) \
+    case depth: \
+        col = func(scale_lcd_color((MP_LCD_TEXTCOLOR >> 16) & 0xff), \
+                   scale_lcd_color((MP_LCD_TEXTCOLOR >> 8) & 0xff), \
+                   scale_lcd_color(MP_LCD_TEXTCOLOR & 0xff)); \
+        for (x = 0; x < 128; x++) \
+            for (y = 0; y < 64; y++) \
+                if (s->video_ram[x + (y/8)*128] & (1 << (y % 8))) \
+                    glue(set_lcd_pixel, depth)(s, x, y, col); \
+                else \
+                    glue(set_lcd_pixel, depth)(s, x, y, 0); \
+        break;
+    LCD_REFRESH(8, rgb_to_pixel8)
+    LCD_REFRESH(16, rgb_to_pixel16)
+    LCD_REFRESH(32, (s->ds->bgr ? rgb_to_pixel32bgr : rgb_to_pixel32))
+    default:
+        cpu_abort(cpu_single_env, "unsupported colour depth %i\n",
+                  s->ds->depth);
+    }
 
     dpy_update(s->ds, 0, 0, 128*3, 64*3);
 }
