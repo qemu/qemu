@@ -324,13 +324,13 @@ int register_ioport_read(int start, int length, int size,
     } else if (size == 4) {
         bsize = 2;
     } else {
-        fprintf(stderr, "register_ioport_read: invalid size\n");
+        hw_error("register_ioport_read: invalid size");
         return -1;
     }
     for(i = start; i < start + length; i += size) {
         ioport_read_table[bsize][i] = func;
         if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
-            fprintf(stderr, "register_ioport_read: invalid opaque\n");
+            hw_error("register_ioport_read: invalid opaque");
         ioport_opaque[i] = opaque;
     }
     return 0;
@@ -349,15 +349,13 @@ int register_ioport_write(int start, int length, int size,
     } else if (size == 4) {
         bsize = 2;
     } else {
-        fprintf(stderr, "register_ioport_write: invalid size\n");
+        hw_error("register_ioport_write: invalid size");
         return -1;
     }
     for(i = start; i < start + length; i += size) {
         ioport_write_table[bsize][i] = func;
-        if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque) {
-            fprintf(stderr, "register_ioport_write: invalid opaque\n");
-            return -1;
-        }
+        if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
+            hw_error("register_ioport_write: invalid opaque");
         ioport_opaque[i] = opaque;
     }
     return 0;
