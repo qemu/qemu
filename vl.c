@@ -142,12 +142,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
-#if defined(TARGET_MIPS)
-# define MAX_FLASH_SIZE (16 * MiB)
-#else
-# define MAX_FLASH_SIZE (0 * 1024)
-#endif
-
 #define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
 
 #ifdef TARGET_PPC
