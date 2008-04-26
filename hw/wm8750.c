@@ -627,6 +627,24 @@ void wm8750_dac_dat(void *opaque, uint32_t sample)
         wm8750_out_flush(s);
 }
 
+void *wm8750_dac_buffer(void *opaque, int samples)
+{
+    struct wm8750_s *s = (struct wm8750_s *) opaque;
+    /* XXX: Should check if there are <i>samples</i> free samples available */
+    void *ret = s->data_out + s->idx_out;
+
+    s->idx_out += samples << 2;
+    s->req_out -= samples << 2;
+    return ret;
+}
+
+void wm8750_dac_commit(void *opaque)
+{
+    struct wm8750_s *s = (struct wm8750_s *) opaque;
+
+    return wm8750_out_flush(s);
+}
+
 uint32_t wm8750_adc_dat(void *opaque)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;

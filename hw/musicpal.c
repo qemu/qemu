@@ -254,7 +254,7 @@ typedef struct musicpal_audio_state {
 static void audio_callback(void *opaque, int free_out, int free_in)
 {
     musicpal_audio_state *s = opaque;
-    int16_t channel[2];
+    int16_t *codec_buffer;
     int pos, block_size;
 
     if (!(s->playback_mode & MP_AUDIO_PLAYBACK_EN))
@@ -270,17 +270,19 @@ static void audio_callback(void *opaque, int free_out, int free_in)
         return;
 
     if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE)
-        for (pos = 0; pos < block_size; pos += 4)
-            wm8750_dac_dat(s->wm,
-                    *(uint32_t *)(s->target_buffer + s->play_pos + pos));
-    else
+        memcpy(wm8750_dac_buffer(s->wm, block_size >> 2), 
+               (uint32_t *)(s->target_buffer + s->play_pos),
+               block_size);
+    else {
+        codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
         for (pos = 0; pos < block_size; pos += 2) {
-            channel[0] = cpu_to_le16(2 *
+            *codec_buffer++ = cpu_to_le16(2 *
                     *(int8_t *)(s->target_buffer + s->play_pos + pos));
-            channel[1] = cpu_to_le16(2 *
+            *codec_buffer++ = cpu_to_le16(2 *
                     *(int8_t *)(s->target_buffer + s->play_pos + pos + 1));
-            wm8750_dac_dat(s->wm, channel[0] | (channel[1] << 16));
         }
+    }
+    wm8750_dac_commit(s->wm);
 
     s->last_free = free_out - block_size;
 
