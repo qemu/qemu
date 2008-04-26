@@ -335,4 +335,5 @@ QEMUMachine core99_machine = {
     "mac99",
     "Mac99 based PowerMAC",
     ppc_core99_init,
+    BIOS_SIZE + VGA_RAM_SIZE,
 };

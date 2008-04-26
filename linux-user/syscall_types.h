@@ -79,3 +79,32 @@ STRUCT(count_info,
 
 STRUCT(mixer_info,
        MK_ARRAY(TYPE_CHAR, 16), MK_ARRAY(TYPE_CHAR, 32), TYPE_INT, MK_ARRAY(TYPE_INT, 10))
+
+/* loop device ioctls */
+STRUCT(loop_info,
+       TYPE_INT,                 /* lo_number */
+       TYPE_SHORT,               /* lo_device */
+       TYPE_ULONG,               /* lo_inode */
+       TYPE_SHORT,               /* lo_rdevice */
+       TYPE_INT,                 /* lo_offset */
+       TYPE_INT,                 /* lo_encrypt_type */
+       TYPE_INT,                 /* lo_encrypt_key_size */
+       TYPE_INT,                 /* lo_flags */
+       MK_ARRAY(TYPE_CHAR, 64),  /* lo_name */
+       MK_ARRAY(TYPE_CHAR, 32),  /* lo_encrypt_key */
+       MK_ARRAY(TYPE_ULONG, 2),  /* lo_init */
+       MK_ARRAY(TYPE_CHAR, 4))   /* reserved */
+
+STRUCT(loop_info64,
+       TYPE_ULONGLONG,           /* lo_device */
+       TYPE_ULONGLONG,           /* lo_inode */
+       TYPE_ULONGLONG,           /* lo_rdevice */
+       TYPE_ULONGLONG,           /* lo_offset */
+       TYPE_ULONG,               /* lo_number */
+       TYPE_ULONG,               /* lo_encrypt_type */
+       TYPE_ULONG,               /* lo_encrypt_key_size */
+       TYPE_ULONG,               /* lo_flags */
+       MK_ARRAY(TYPE_CHAR, 64),  /* lo_name */
+       MK_ARRAY(TYPE_CHAR, 64),  /* lo_crypt_name */
+       MK_ARRAY(TYPE_CHAR, 32),  /* lo_encrypt_key */
+       MK_ARRAY(TYPE_ULONGLONG, 2))  /* lo_init */

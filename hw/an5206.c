@@ -91,4 +91,5 @@ QEMUMachine an5206_machine = {
     "an5206",
     "Arnewsh 5206",
     an5206_init,
+    512,
 };

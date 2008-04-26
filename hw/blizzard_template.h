@@ -51,11 +51,11 @@ static void glue(blizzard_draw_line16_, DEPTH)(PIXEL_TYPE *dest,
                 const uint16_t *src, unsigned int width)
 {
 #if !defined(SWAP_WORDS) && DEPTH == 16
-    memcpy(dest, src, width << 1);
+    memcpy(dest, src, width);
 #else
     uint16_t data;
     unsigned int r, g, b;
-    const uint16_t *end = (void *) src + width;
+    const uint16_t *end = (const void *) src + width;
     while (src < end) {
         data = lduw_raw(src ++);
         b = (data & 0x1f) << 3;

@@ -108,6 +108,11 @@
 #define USB_DT_INTERFACE		0x04
 #define USB_DT_ENDPOINT			0x05
 
+#define USB_ENDPOINT_XFER_CONTROL	0
+#define USB_ENDPOINT_XFER_ISOC		1
+#define USB_ENDPOINT_XFER_BULK		2
+#define USB_ENDPOINT_XFER_INT		3
+
 typedef struct USBPort USBPort;
 typedef struct USBDevice USBDevice;
 typedef struct USBPacket USBPacket;
@@ -227,3 +232,25 @@ void qemu_register_usb_port(USBPort *port, void *opaque, int index,
 
 #define VM_USB_HUB_SIZE 8
 
+/* usb-musb.c */
+enum musb_irq_source_e {
+    musb_irq_suspend = 0,
+    musb_irq_resume,
+    musb_irq_rst_babble,
+    musb_irq_sof,
+    musb_irq_connect,
+    musb_irq_disconnect,
+    musb_irq_vbus_request,
+    musb_irq_vbus_error,
+    musb_irq_rx,
+    musb_irq_tx,
+    musb_set_vbus,
+    musb_set_session,
+    __musb_irq_max,
+};
+
+struct musb_s;
+struct musb_s *musb_init(qemu_irq *irqs);
+uint32_t musb_core_intr_get(struct musb_s *s);
+void musb_core_intr_clear(struct musb_s *s, uint32_t mask);
+void musb_set_size(struct musb_s *s, int epnum, int size, int is_tx);

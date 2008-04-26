@@ -14,6 +14,8 @@ typedef struct QEMUMachine {
     const char *name;
     const char *desc;
     QEMUMachineInitFunc *init;
+#define RAMSIZE_FIXED	(1 << 0)
+    size_t ram_require;
     struct QEMUMachine *next;
 } QEMUMachine;
 
@@ -103,5 +105,8 @@ extern QEMUMachine dummy_m68k_machine;
 
 /* mainstone.c */
 extern QEMUMachine mainstone2_machine;
+
+/* musicpal.c */
+extern QEMUMachine musicpal_machine;
 
 #endif

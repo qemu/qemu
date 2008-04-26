@@ -68,6 +68,7 @@
 #include <linux/soundcard.h>
 #include <linux/dirent.h>
 #include <linux/kd.h>
+#include <linux/loop.h>
 
 #include "qemu.h"
 
@@ -420,7 +421,7 @@ abi_long do_brk(abi_ulong new_brk)
     if (!new_brk)
         return target_brk;
     if (new_brk < target_original_brk)
-        return -TARGET_ENOMEM;
+        return target_brk;
 
     brk_page = HOST_PAGE_ALIGN(target_brk);
 
@@ -435,12 +436,11 @@ abi_long do_brk(abi_ulong new_brk)
     mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
                                         PROT_READ|PROT_WRITE,
                                         MAP_ANON|MAP_FIXED|MAP_PRIVATE, 0, 0));
-    if (is_error(mapped_addr)) {
-	return mapped_addr;
-    } else {
+
+    if (!is_error(mapped_addr))
 	target_brk = new_brk;
-    	return target_brk;
-    }
+    
+    return target_brk;
 }
 
 static inline abi_long copy_from_user_fdset(fd_set *fds,

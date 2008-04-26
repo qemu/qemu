@@ -764,4 +764,5 @@ QEMUMachine prep_machine = {
     "prep",
     "PowerPC PREP platform",
     ppc_prep_init,
+    BIOS_SIZE + VGA_RAM_SIZE,
 };

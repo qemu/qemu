@@ -107,8 +107,7 @@ static void *kqemu_vmalloc(size_t size)
                         tmpdir, ram_mb);
                 if (strcmp(tmpdir, "/dev/shm") == 0) {
                     fprintf(stderr, "To have more space available provided you have enough RAM and swap, do as root:\n"
-                            "umount /dev/shm\n"
-                            "mount -t tmpfs -o size=%dm none /dev/shm\n",
+                            "mount -o remount,size=%dm /dev/shm\n",
                             ram_mb + 16);
                 } else {
                     fprintf(stderr,

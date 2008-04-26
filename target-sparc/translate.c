@@ -267,28 +267,28 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num,
 static inline void gen_mov_reg_N(TCGv reg, TCGv src)
 {
     tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_shri_tl(reg, reg, 23);
+    tcg_gen_shri_tl(reg, reg, PSR_NEG_SHIFT);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
 static inline void gen_mov_reg_Z(TCGv reg, TCGv src)
 {
     tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_shri_tl(reg, reg, 22);
+    tcg_gen_shri_tl(reg, reg, PSR_ZERO_SHIFT);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
 static inline void gen_mov_reg_V(TCGv reg, TCGv src)
 {
     tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_shri_tl(reg, reg, 21);
+    tcg_gen_shri_tl(reg, reg, PSR_OVF_SHIFT);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
 static inline void gen_mov_reg_C(TCGv reg, TCGv src)
 {
     tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_shri_tl(reg, reg, 20);
+    tcg_gen_shri_tl(reg, reg, PSR_CARRY_SHIFT);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
@@ -966,7 +966,7 @@ static inline void gen_mov_reg_FCC0(TCGv reg, TCGv src,
                                     unsigned int fcc_offset)
 {
     tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_shri_tl(reg, reg, 10 + fcc_offset);
+    tcg_gen_shri_tl(reg, reg, FSR_FCC0_SHIFT + fcc_offset);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
@@ -974,7 +974,7 @@ static inline void gen_mov_reg_FCC1(TCGv reg, TCGv src,
                                     unsigned int fcc_offset)
 {
     tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_shri_tl(reg, reg, 11 + fcc_offset);
+    tcg_gen_shri_tl(reg, reg, FSR_FCC1_SHIFT + fcc_offset);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 

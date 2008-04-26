@@ -108,8 +108,6 @@ extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;
 #endif
 
-/* XXX: make it dynamic */
-#define MAX_BIOS_SIZE (4 * 1024 * 1024)
 #if defined (TARGET_PPC)
 #define BIOS_SIZE (1024 * 1024)
 #elif defined (TARGET_SPARC64)

@@ -1249,15 +1249,14 @@ static void pcnet_transmit(PCNetState *s)
 #endif
         if (GET_FIELD(tmd.status, TMDS, STP)) {
             s->xmit_pos = 0;
-            if (!GET_FIELD(tmd.status, TMDS, ENP)) {
-                int bcnt = 4096 - GET_FIELD(tmd.length, TMDL, BCNT);
-                s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
-                                 s->buffer, bcnt, CSR_BSWP(s));
-                s->xmit_pos += bcnt;
-            }
             xmit_cxda = PHYSADDR(s,CSR_CXDA(s));
         }
-        if (GET_FIELD(tmd.status, TMDS, ENP) && (s->xmit_pos >= 0)) {
+        if (!GET_FIELD(tmd.status, TMDS, ENP)) {
+            int bcnt = 4096 - GET_FIELD(tmd.length, TMDL, BCNT);
+            s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
+                             s->buffer + s->xmit_pos, bcnt, CSR_BSWP(s));
+            s->xmit_pos += bcnt;
+        } else if (s->xmit_pos >= 0) {
             int bcnt = 4096 - GET_FIELD(tmd.length, TMDL, BCNT);
             s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
                              s->buffer + s->xmit_pos, bcnt, CSR_BSWP(s));

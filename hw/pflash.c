@@ -62,8 +62,11 @@ pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
                     flash_manufacturer, flash_type, id2, id3);
             break;
         default:
-            pf = pflash_cfi02_register(base, off, bs, blocksize, nblocks, width,
-                    flash_manufacturer, flash_type, id2, id3);
+            /* TODO: fix new parameters (0) */
+            pf = pflash_cfi02_register(base, off, bs, blocksize, nblocks,
+                    0, width,
+                    flash_manufacturer, flash_type, id2, id3,
+                    0, 0);
     }
     return pf;
 }

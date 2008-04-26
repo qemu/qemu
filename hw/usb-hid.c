@@ -134,14 +134,14 @@ static const uint8_t qemu_mouse_config_descriptor[] = {
         0x00,        /*  u8 country_code */
         0x01,        /*  u8 num_descriptors */
         0x22,        /*  u8 type; Report */
-        50, 0,       /*  u16 len */
+        52, 0,       /*  u16 len */
 
 	/* one endpoint (status change endpoint) */
 	0x07,       /*  u8  ep_bLength; */
 	0x05,       /*  u8  ep_bDescriptorType; Endpoint */
 	0x81,       /*  u8  ep_bEndpointAddress; IN Endpoint 1 */
  	0x03,       /*  u8  ep_bmAttributes; Interrupt */
- 	0x03, 0x00, /*  u16 ep_wMaxPacketSize; */
+ 	0x04, 0x00, /*  u16 ep_wMaxPacketSize; */
 	0x0a,       /*  u8  ep_bInterval; (255ms -- usb 2.0 spec) */
 };
 
@@ -260,16 +260,14 @@ static const uint8_t qemu_mouse_hid_report_descriptor[] = {
     0xA1, 0x00, 0x05, 0x09, 0x19, 0x01, 0x29, 0x03,
     0x15, 0x00, 0x25, 0x01, 0x95, 0x03, 0x75, 0x01,
     0x81, 0x02, 0x95, 0x01, 0x75, 0x05, 0x81, 0x01,
-    0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x15, 0x81,
-    0x25, 0x7F, 0x75, 0x08, 0x95, 0x02, 0x81, 0x06,
-    0x05, 0x01, 0x09, 0x38, 0x15, 0x81, 0x25, 0x7F,
-    0x35, 0x00, 0x45, 0x00, 0x75, 0x08, 0x95, 0x01,
-    0x81, 0x02, 0xC0, 0xC0,
+    0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x09, 0x38,
+    0x15, 0x81, 0x25, 0x7F, 0x75, 0x08, 0x95, 0x03,
+    0x81, 0x06, 0xC0, 0xC0,
 };
 
 static const uint8_t qemu_tablet_hid_report_descriptor[] = {
         0x05, 0x01, /* Usage Page Generic Desktop */
-        0x09, 0x01, /* Usage Mouse */
+        0x09, 0x01, /* Usage Pointer */
         0xA1, 0x01, /* Collection Application */
         0x09, 0x01, /* Usage Pointer */
         0xA1, 0x00, /* Collection Physical */
@@ -283,7 +281,7 @@ static const uint8_t qemu_tablet_hid_report_descriptor[] = {
         0x81, 0x02, /* Input (Data, Var, Abs) */
         0x95, 0x01, /* Report Count 1 */
         0x75, 0x05, /* Report Size 5 */
-        0x81, 0x01, /* Input (Cnst, Var, Abs) */
+        0x81, 0x01, /* Input (Cnst, Array, Abs) */
         0x05, 0x01, /* Usage Page Generic Desktop */
         0x09, 0x30, /* Usage X */
         0x09, 0x31, /* Usage Y */
@@ -302,7 +300,7 @@ static const uint8_t qemu_tablet_hid_report_descriptor[] = {
         0x45, 0x00, /* Physical Maximum 0 (same as logical) */
         0x75, 0x08, /* Report Size 8 */
         0x95, 0x01, /* Report Count 1 */
-        0x81, 0x02, /* Input (Data, Var, Rel) */
+        0x81, 0x06, /* Input (Data, Var, Rel) */
         0xC0,       /* End Collection */
         0xC0,       /* End Collection */
 };
@@ -495,14 +493,15 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
     if (s->buttons_state & MOUSE_EVENT_MBUTTON)
         b |= 0x04;
 
-    buf[0] = b;
-    buf[1] = dx;
-    buf[2] = dy;
-    l = 3;
-    if (len >= 4) {
-        buf[3] = dz;
-        l = 4;
-    }
+    l = 0;
+    if (len > l)
+        buf[l ++] = b;
+    if (len > l)
+        buf[l ++] = dx;
+    if (len > l)
+        buf[l ++] = dy;
+    if (len > l)
+        buf[l ++] = dz;
     return l;
 }
 

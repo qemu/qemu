@@ -199,5 +199,6 @@ static void realview_init(int ram_size, int vga_ram_size,
 QEMUMachine realview_machine = {
     "realview",
     "ARM RealView Emulation Baseboard (ARM926EJ-S)",
-    realview_init
+    realview_init,
+    0x1000
 };

@@ -520,11 +520,13 @@ static int ctz32 (uint32_t n)
     return ret;
 }
 
+/* TODO: use new parameters nb_mappings, unlock_addr0, unlock_addr1 */
 pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
                                 BlockDriverState *bs, uint32_t sector_len,
-                                int nb_blocs, int width,
+                                int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
-                                uint16_t id2, uint16_t id3)
+                                uint16_t id2, uint16_t id3,
+                                uint16_t unlock_addr0, uint16_t unlock_addr1)
 {
     pflash_t *pfl;
     int32_t total_len;

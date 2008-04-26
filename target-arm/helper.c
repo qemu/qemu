@@ -738,7 +738,7 @@ void do_interrupt(CPUARMState *env)
         new_mode = ARM_CPU_MODE_SVC;
         addr = 0x08;
         mask = CPSR_I;
-        /* The PC already points to the next instructon.  */
+        /* The PC already points to the next instruction.  */
         offset = 0;
         break;
     case EXCP_BKPT:
@@ -871,7 +871,7 @@ static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
     type = (desc & 3);
     domain = (env->cp15.c3 >> ((desc >> 4) & 0x1e)) & 3;
     if (type == 0) {
-        /* Secton translation fault.  */
+        /* Section translation fault.  */
         code = 5;
         goto do_fault;
     }
@@ -962,7 +962,7 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
     desc = ldl_phys(table);
     type = (desc & 3);
     if (type == 0) {
-        /* Secton translation fault.  */
+        /* Section translation fault.  */
         code = 5;
         domain = 0;
         goto do_fault;
@@ -2272,7 +2272,7 @@ float32 VFP_HELPER(neg, s)(float32 a)
 
 float64 VFP_HELPER(neg, d)(float64 a)
 {
-    return float32_chs(a);
+    return float64_chs(a);
 }
 
 float32 VFP_HELPER(abs, s)(float32 a)
@@ -2282,7 +2282,7 @@ float32 VFP_HELPER(abs, s)(float32 a)
 
 float64 VFP_HELPER(abs, d)(float64 a)
 {
-    return float32_abs(a);
+    return float64_abs(a);
 }
 
 float32 VFP_HELPER(sqrt, s)(float32 a, CPUState *env)

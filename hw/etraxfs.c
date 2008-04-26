@@ -124,4 +124,5 @@ QEMUMachine bareetraxfs_machine = {
     "bareetraxfs",
     "Bare ETRAX FS board",
     bareetraxfs_init,
+    0x800000,
 };

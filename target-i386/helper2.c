@@ -378,7 +378,7 @@ void cpu_reset(CPUX86State *env)
     env->hflags |= HF_GIF_MASK;
 
     cpu_x86_update_cr0(env, 0x60000010);
-    env->a20_mask = 0xffffffff;
+    env->a20_mask = ~0x0;
     env->smbase = 0x30000;
 
     env->idt.limit = 0xffff;
@@ -696,7 +696,7 @@ void cpu_x86_set_a20(CPUX86State *env, int a20_state)
         /* when a20 is changed, all the MMU mappings are invalid, so
            we must flush everything */
         tlb_flush(env, 1);
-        env->a20_mask = 0xffefffff | (a20_state << 20);
+        env->a20_mask = (~0x100000) | (a20_state << 20);
     }
 }
 
@@ -801,7 +801,8 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 
 #else
 
-#define PHYS_ADDR_MASK 0xfffff000
+/* Bits 52-62 of a PTE are reserved. Bit 63 is the NX bit. */
+#define PHYS_ADDR_MASK 0xffffffffff000L
 
 /* return value:
    -1 = cannot handle fault
@@ -813,9 +814,10 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                              int is_write1, int mmu_idx, int is_softmmu)
 {
     uint64_t ptep, pte;
-    uint32_t pdpe_addr, pde_addr, pte_addr;
+    target_ulong pde_addr, pte_addr;
     int error_code, is_dirty, prot, page_size, ret, is_write, is_user;
-    unsigned long paddr, page_offset;
+    target_phys_addr_t paddr;
+    uint32_t page_offset;
     target_ulong vaddr, virt_addr;
 
     is_user = mmu_idx == MMU_USER_IDX;
@@ -835,12 +837,11 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 
     if (env->cr[4] & CR4_PAE_MASK) {
         uint64_t pde, pdpe;
+        target_ulong pdpe_addr;
 
-        /* XXX: we only use 32 bit physical addresses */
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            uint32_t pml4e_addr;
-            uint64_t pml4e;
+            uint64_t pml4e_addr, pml4e;
             int32_t sext;
 
             /* test virtual address sign extension */
@@ -1102,17 +1103,19 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
-    uint32_t pde_addr, pte_addr;
-    uint32_t pde, pte, paddr, page_offset, page_size;
+    target_ulong pde_addr, pte_addr;
+    uint64_t pte;
+    target_phys_addr_t paddr;
+    uint32_t page_offset;
+    int page_size;
 
     if (env->cr[4] & CR4_PAE_MASK) {
-        uint32_t pdpe_addr, pde_addr, pte_addr;
-        uint32_t pdpe;
+        target_ulong pdpe_addr;
+        uint64_t pde, pdpe;
 
-        /* XXX: we only use 32 bit physical addresses */
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            uint32_t pml4e_addr, pml4e;
+            uint64_t pml4e_addr, pml4e;
             int32_t sext;
 
             /* test virtual address sign extension */
@@ -1122,13 +1125,13 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 
             pml4e_addr = ((env->cr[3] & ~0xfff) + (((addr >> 39) & 0x1ff) << 3)) &
                 env->a20_mask;
-            pml4e = ldl_phys(pml4e_addr);
+            pml4e = ldq_phys(pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK))
                 return -1;
 
             pdpe_addr = ((pml4e & ~0xfff) + (((addr >> 30) & 0x1ff) << 3)) &
                 env->a20_mask;
-            pdpe = ldl_phys(pdpe_addr);
+            pdpe = ldq_phys(pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK))
                 return -1;
         } else
@@ -1136,14 +1139,14 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
         {
             pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 27) & 0x18)) &
                 env->a20_mask;
-            pdpe = ldl_phys(pdpe_addr);
+            pdpe = ldq_phys(pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK))
                 return -1;
         }
 
         pde_addr = ((pdpe & ~0xfff) + (((addr >> 21) & 0x1ff) << 3)) &
             env->a20_mask;
-        pde = ldl_phys(pde_addr);
+        pde = ldq_phys(pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             return -1;
         }
@@ -1156,9 +1159,11 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
             pte_addr = ((pde & ~0xfff) + (((addr >> 12) & 0x1ff) << 3)) &
                 env->a20_mask;
             page_size = 4096;
-            pte = ldl_phys(pte_addr);
+            pte = ldq_phys(pte_addr);
         }
     } else {
+        uint32_t pde;
+
         if (!(env->cr[0] & CR0_PG_MASK)) {
             pte = addr;
             page_size = 4096;

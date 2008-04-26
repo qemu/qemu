@@ -3965,63 +3965,76 @@ static void speedport_init(int ram_size, int vga_ram_size,
 
 #endif
 
+#define RAMSIZE (0 * MiB)
+
 static QEMUMachine mips_machines[] = {
   {
     "ar7",
     "MIPS 4KEc / AR7 platform",
     mips_ar7_init,
+    RAMSIZE,
   },
   {
     "ar7-amd",
     "MIPS AR7 with AMD flash",
     ar7_amd_init,
+    RAMSIZE,
   },
   {
     "tnetd7200",
     "MIPS 4KEc / TNETD7200 platform",
     mips_tnetd7200_init,
+    RAMSIZE,
   },
   {
     "tnetd7300",
     "MIPS 4KEc / TNETD7300 platform",
     mips_tnetd7300_init,
+    RAMSIZE,
   },
 #if defined(TARGET_WORDS_BIGENDIAN)
   {
     "zyxel",
     "Zyxel 2 MiB flash (AR7 platform)",
     zyxel_init,
+    RAMSIZE,
   },
 #else
   {
     "fbox-4mb",
     "FBox 4 MiB flash (AR7 platform)",
     fbox4_init,
+    RAMSIZE,
   },
   {
     "fbox-8mb",
     "FBox 8 MiB flash (AR7 platform)",
     fbox8_init,
+    RAMSIZE,
   },
   {
     "sinus-basic-se",
     "Sinus DSL Basic SE (AR7 platform)",
     sinus_basic_se_init,
+    RAMSIZE,
   },
   {
     "sinus-se",
     "Sinus DSL SE (AR7 platform)",
     sinus_se_init,
+    RAMSIZE,
   },
   {
     "sinus-basic-3",
     "Sinus DSL Basic 3 (AR7 platform)",
     sinus_basic_3_init,
+    RAMSIZE,
   },
   {
     "speedport",
     "Speedport (AR7 platform)",
     speedport_init,
+    RAMSIZE,
   },
 #endif
 };

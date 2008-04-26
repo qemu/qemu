@@ -55,10 +55,10 @@ static inline void wm8750_in_load(struct wm8750_s *s)
 
 static inline void wm8750_out_flush(struct wm8750_s *s)
 {
-    int sent;
-    if (!s->idx_out)
-        return;
-    sent = AUD_write(*s->out[0], s->data_out, s->idx_out);
+    int sent = 0;
+    while (sent < s->idx_out)
+        sent += AUD_write(*s->out[0], s->data_out + sent, s->idx_out - sent)
+                ?: s->idx_out;
     s->idx_out = 0;
 }
 
@@ -67,19 +67,20 @@ static void wm8750_audio_in_cb(void *opaque, int avail_b)
     struct wm8750_s *s = (struct wm8750_s *) opaque;
     s->req_in = avail_b;
     s->data_req(s->opaque, s->req_out >> 2, avail_b >> 2);
-
-#if 0
-    wm8750_in_load(s);
-#endif
 }
 
 static void wm8750_audio_out_cb(void *opaque, int free_b)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;
-    wm8750_out_flush(s);
 
-    s->req_out = free_b;
-    s->data_req(s->opaque, free_b >> 2, s->req_in >> 2);
+    if (s->idx_out >= free_b) {
+        s->idx_out = free_b;
+        s->req_out = 0;
+        wm8750_out_flush(s);
+    } else
+        s->req_out = free_b - s->idx_out;
+ 
+    s->data_req(s->opaque, s->req_out >> 2, s->req_in >> 2);
 }
 
 struct wm_rate_s {
@@ -121,7 +122,7 @@ static const struct wm_rate_s wm_rate_table[] = {
     {  512, 24000,  512, 24000 },	/* SR: 11100 */
     {  768, 24000,  768, 24000 },	/* SR: 11101 */
     {  128, 88200,  128, 88200 },	/* SR: 11110 */
-    {  192, 88200,  128, 88200 },	/* SR: 11111 */
+    {  192, 88200,  192, 88200 },	/* SR: 11111 */
 };
 
 static void wm8750_set_format(struct wm8750_s *s)
@@ -213,6 +214,7 @@ static void inline wm8750_mask_update(struct wm8750_s *s)
 void wm8750_reset(i2c_slave *i2c)
 {
     struct wm8750_s *s = (struct wm8750_s *) i2c;
+    s->rate = &wm_rate_table[0];
     s->enable = 0;
     wm8750_set_format(s);
     s->diff[0] = 0;
@@ -596,6 +598,7 @@ i2c_slave *wm8750_init(i2c_bus *bus, AudioState *audio)
     return &s->i2c;
 }
 
+#if 0
 static void wm8750_fini(i2c_slave *i2c)
 {
     struct wm8750_s *s = (struct wm8750_s *) i2c;
@@ -603,6 +606,7 @@ static void wm8750_fini(i2c_slave *i2c)
     AUD_remove_card(&s->card);
     qemu_free(s);
 }
+#endif
 
 void wm8750_data_req_set(i2c_slave *i2c,
                 void (*data_req)(void *, int, int), void *opaque)
@@ -621,6 +625,24 @@ void wm8750_dac_dat(void *opaque, uint32_t sample)
     s->idx_out += 4;
     if (s->idx_out >= sizeof(s->data_out) || s->req_out <= 0)
         wm8750_out_flush(s);
+}
+
+void *wm8750_dac_buffer(void *opaque, int samples)
+{
+    struct wm8750_s *s = (struct wm8750_s *) opaque;
+    /* XXX: Should check if there are <i>samples</i> free samples available */
+    void *ret = s->data_out + s->idx_out;
+
+    s->idx_out += samples << 2;
+    s->req_out -= samples << 2;
+    return ret;
+}
+
+void wm8750_dac_commit(void *opaque)
+{
+    struct wm8750_s *s = (struct wm8750_s *) opaque;
+
+    return wm8750_out_flush(s);
 }
 
 uint32_t wm8750_adc_dat(void *opaque)

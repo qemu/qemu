@@ -1213,60 +1213,70 @@ QEMUMachine ss5_machine = {
     "SS-5",
     "Sun4m platform, SPARCstation 5",
     ss5_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine ss10_machine = {
     "SS-10",
     "Sun4m platform, SPARCstation 10",
     ss10_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine ss600mp_machine = {
     "SS-600MP",
     "Sun4m platform, SPARCserver 600MP",
     ss600mp_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine ss20_machine = {
     "SS-20",
     "Sun4m platform, SPARCstation 20",
     ss20_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine ss2_machine = {
     "SS-2",
     "Sun4c platform, SPARCstation 2",
     ss2_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine voyager_machine = {
     "Voyager",
     "Sun4m platform, SPARCstation Voyager",
     vger_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine ss_lx_machine = {
     "LX",
     "Sun4m platform, SPARCstation LX",
     ss_lx_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine ss4_machine = {
     "SS-4",
     "Sun4m platform, SPARCstation 4",
     ss4_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine scls_machine = {
     "SPARCClassic",
     "Sun4m platform, SPARCClassic",
     scls_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine sbook_machine = {
     "SPARCbook",
     "Sun4m platform, SPARCbook",
     sbook_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 static const struct sun4d_hwdef sun4d_hwdefs[] = {
@@ -1503,10 +1513,12 @@ QEMUMachine ss1000_machine = {
     "SS-1000",
     "Sun4d platform, SPARCserver 1000",
     ss1000_init,
+    PROM_SIZE_MAX + 0x00100000,
 };
 
 QEMUMachine ss2000_machine = {
     "SS-2000",
     "Sun4d platform, SPARCcenter 2000",
     ss2000_init,
+    PROM_SIZE_MAX + 0x00100000,
 };

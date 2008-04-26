@@ -539,15 +539,49 @@ fi
 if test -z "$target_list" ; then
 # these targets are portable
     if [ "$softmmu" = "yes" ] ; then
-        target_list="i386-softmmu sparc-softmmu x86_64-softmmu mips-softmmu mipsel-softmmu mips64-softmmu mips64el-softmmu arm-softmmu ppc-softmmu ppcemb-softmmu ppc64-softmmu m68k-softmmu sh4-softmmu sh4eb-softmmu cris-softmmu"
+        target_list="\
+i386-softmmu \
+x86_64-softmmu \
+arm-softmmu \
+cris-softmmu \
+m68k-softmmu \
+mips-softmmu \
+mipsel-softmmu \
+mips64-softmmu \
+mips64el-softmmu \
+ppc-softmmu \
+ppcemb-softmmu \
+ppc64-softmmu \
+sh4-softmmu \
+sh4eb-softmmu \
+sparc-softmmu \
+"
     fi
 # the following are Linux specific
     if [ "$linux_user" = "yes" ] ; then
-        target_list="i386-linux-user arm-linux-user armeb-linux-user sparc-linux-user sparc64-linux-user sparc32plus-linux-user mips-linux-user mipsel-linux-user m68k-linux-user alpha-linux-user sh4-linux-user sh4eb-linux-user ppc-linux-user ppc64-linux-user ppc64abi32-linux-user x86_64-linux-user cris-linux-user $target_list"
+        target_list="${target_list}\
+i386-linux-user \
+x86_64-linux-user \
+alpha-linux-user \
+arm-linux-user \
+armeb-linux-user \
+cris-linux-user \
+m68k-linux-user \
+mips-linux-user \
+mipsel-linux-user \
+ppc-linux-user \
+ppc64-linux-user \
+ppc64abi32-linux-user \
+sh4-linux-user \
+sh4eb-linux-user \
+sparc-linux-user \
+sparc64-linux-user \
+sparc32plus-linux-user \
+"
     fi
 # the following are Darwin specific
     if [ "$darwin_user" = "yes" ] ; then
-        target_list="i386-darwin-user ppc-darwin-user $target_list"
+        target_list="$target_list i386-darwin-user ppc-darwin-user"
     fi
 else
     target_list=`echo "$target_list" | sed -e 's/,/ /g'`
@@ -855,55 +889,72 @@ echo "CFLAGS=$CFLAGS" >> $config_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_mak
 echo "EXESUF=$EXESUF" >> $config_mak
 echo "AIOLIBS=$AIOLIBS" >> $config_mak
-if test "$cpu" = "i386" ; then
-  echo "ARCH=i386" >> $config_mak
-  echo "#define HOST_I386 1" >> $config_h
-elif test "$cpu" = "x86_64" ; then
-  echo "ARCH=x86_64" >> $config_mak
-  echo "#define HOST_X86_64 1" >> $config_h
-elif test "$cpu" = "alpha" ; then
-  echo "ARCH=alpha" >> $config_mak
-  echo "#define HOST_ALPHA 1" >> $config_h
-elif test "$cpu" = "armv4b" ; then
-  echo "ARCH=arm" >> $config_mak
-  echo "#define HOST_ARM 1" >> $config_h
-elif test "$cpu" = "armv4l" ; then
-  echo "ARCH=arm" >> $config_mak
-  echo "#define HOST_ARM 1" >> $config_h
-elif test "$cpu" = "cris" ; then
-  echo "ARCH=cris" >> $config_mak
-  echo "#define HOST_CRIS 1" >> $config_h
-elif test "$cpu" = "hppa" ; then
-  echo "ARCH=hppa" >> $config_mak
-  echo "#define HOST_HPPA 1" >> $config_h
-elif test "$cpu" = "ia64" ; then
-  echo "ARCH=ia64" >> $config_mak
-  echo "#define HOST_IA64 1" >> $config_h
-elif test "$cpu" = "m68k" ; then
-  echo "ARCH=m68k" >> $config_mak
-  echo "#define HOST_M68K 1" >> $config_h
-elif test "$cpu" = "mips" ; then
-  echo "ARCH=mips" >> $config_mak
-  echo "#define HOST_MIPS 1" >> $config_h
-elif test "$cpu" = "mips64" ; then
-  echo "ARCH=mips64" >> $config_mak
-  echo "#define HOST_MIPS64 1" >> $config_h
-elif test "$cpu" = "powerpc" ; then
-  echo "ARCH=ppc" >> $config_mak
-  echo "#define HOST_PPC 1" >> $config_h
-elif test "$cpu" = "s390" ; then
-  echo "ARCH=s390" >> $config_mak
-  echo "#define HOST_S390 1" >> $config_h
-elif test "$cpu" = "sparc" ; then
-  echo "ARCH=sparc" >> $config_mak
-  echo "#define HOST_SPARC 1" >> $config_h
-elif test "$cpu" = "sparc64" ; then
-  echo "ARCH=sparc64" >> $config_mak
-  echo "#define HOST_SPARC64 1" >> $config_h
-else
-  echo "Unsupported CPU = $cpu"
-  exit 1
-fi
+case "$cpu" in
+  i386)
+    echo "ARCH=i386" >> $config_mak
+    echo "#define HOST_I386 1" >> $config_h
+  ;;
+  x86_64)
+    echo "ARCH=x86_64" >> $config_mak
+    echo "#define HOST_X86_64 1" >> $config_h
+  ;;
+  alpha)
+    echo "ARCH=alpha" >> $config_mak
+    echo "#define HOST_ALPHA 1" >> $config_h
+  ;;
+  armv4b)
+    echo "ARCH=arm" >> $config_mak
+    echo "#define HOST_ARM 1" >> $config_h
+  ;;
+  armv4l)
+    echo "ARCH=arm" >> $config_mak
+    echo "#define HOST_ARM 1" >> $config_h
+  ;;
+  cris)
+    echo "ARCH=cris" >> $config_mak
+    echo "#define HOST_CRIS 1" >> $config_h
+  ;;
+  hppa)
+    echo "ARCH=hppa" >> $config_mak
+    echo "#define HOST_HPPA 1" >> $config_h
+  ;;
+  ia64)
+    echo "ARCH=ia64" >> $config_mak
+    echo "#define HOST_IA64 1" >> $config_h
+  ;;
+  m68k)
+    echo "ARCH=m68k" >> $config_mak
+    echo "#define HOST_M68K 1" >> $config_h
+  ;;
+  mips)
+    echo "ARCH=mips" >> $config_mak
+    echo "#define HOST_MIPS 1" >> $config_h
+  ;;
+  mips64)
+    echo "ARCH=mips64" >> $config_mak
+    echo "#define HOST_MIPS64 1" >> $config_h
+  ;;
+  powerpc)
+    echo "ARCH=ppc" >> $config_mak
+    echo "#define HOST_PPC 1" >> $config_h
+  ;;
+  s390)
+    echo "ARCH=s390" >> $config_mak
+    echo "#define HOST_S390 1" >> $config_h
+  ;;
+  sparc)
+    echo "ARCH=sparc" >> $config_mak
+    echo "#define HOST_SPARC 1" >> $config_h
+  ;;
+  sparc64)
+    echo "ARCH=sparc64" >> $config_mak
+    echo "#define HOST_SPARC64 1" >> $config_h
+  ;;
+  *)
+    echo "Unsupported CPU = $cpu"
+    exit 1
+  ;;
+esac
 if test "$bigendian" = "yes" ; then
   echo "WORDS_BIGENDIAN=yes" >> $config_mak
   echo "#define WORDS_BIGENDIAN 1" >> $config_h
@@ -1143,110 +1194,131 @@ elfload32="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_cpu/g"`
 echo "#define CONFIG_QEMU_PREFIX \"$interp_prefix1\"" >> $config_h
 
-if test "$target_cpu" = "i386" ; then
-  echo "TARGET_ARCH=i386" >> $config_mak
-  echo "#define TARGET_ARCH \"i386\"" >> $config_h
-  echo "#define TARGET_I386 1" >> $config_h
-  if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "i386" ; then
-    echo "#define USE_KQEMU 1" >> $config_h
-  fi
-elif test "$target_cpu" = "x86_64" ; then
-  echo "TARGET_ARCH=x86_64" >> $config_mak
-  echo "#define TARGET_ARCH \"x86_64\"" >> $config_h
-  echo "#define TARGET_I386 1" >> $config_h
-  echo "#define TARGET_X86_64 1" >> $config_h
-  if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "x86_64"  ; then
-    echo "#define USE_KQEMU 1" >> $config_h
-  fi
-elif test "$target_cpu" = "alpha" ; then
-  echo "TARGET_ARCH=alpha" >> $config_mak
-  echo "#define TARGET_ARCH \"alpha\"" >> $config_h
-  echo "#define TARGET_ALPHA 1" >> $config_h
-elif test "$target_cpu" = "arm" -o "$target_cpu" = "armeb" ; then
-  echo "TARGET_ARCH=arm" >> $config_mak
-  echo "CONFIG_NO_DYNGEN_OP=yes" >> $config_mak
-  echo "#define TARGET_ARCH \"arm\"" >> $config_h
-  echo "#define TARGET_ARM 1" >> $config_h
-  echo "#define CONFIG_NO_DYNGEN_OP 1" >> $config_h
-  bflt="yes"
-elif test "$target_cpu" = "cris" ; then
-  echo "TARGET_ARCH=cris" >> $config_mak
-  echo "#define TARGET_ARCH \"cris\"" >> $config_h
-  echo "#define TARGET_CRIS 1" >> $config_h
-  echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
-  echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
-elif test "$target_cpu" = "m68k" ; then
-  echo "TARGET_ARCH=m68k" >> $config_mak
-  echo "#define TARGET_ARCH \"m68k\"" >> $config_h
-  echo "#define TARGET_M68K 1" >> $config_h
-  bflt="yes"
-elif test "$target_cpu" = "mips" -o "$target_cpu" = "mipsel" ; then
-  echo "TARGET_ARCH=mips" >> $config_mak
-  echo "#define TARGET_ARCH \"mips\"" >> $config_h
-  echo "#define TARGET_MIPS 1" >> $config_h
-  echo "#define TARGET_ABI_MIPSO32 1" >> $config_h
-elif test "$target_cpu" = "mipsn32" -o "$target_cpu" = "mipsn32el" ; then
-  echo "TARGET_ARCH=mipsn32" >> $config_mak
-  echo "#define TARGET_ARCH \"mipsn32\"" >> $config_h
-  echo "#define TARGET_MIPS 1" >> $config_h
-  echo "#define TARGET_ABI_MIPSN32 1" >> $config_h
-elif test "$target_cpu" = "mips64" -o "$target_cpu" = "mips64el" ; then
-  echo "TARGET_ARCH=mips64" >> $config_mak
-  echo "#define TARGET_ARCH \"mips64\"" >> $config_h
-  echo "#define TARGET_MIPS 1" >> $config_h
-  echo "#define TARGET_MIPS64 1" >> $config_h
-  echo "#define TARGET_ABI_MIPSN64 1" >> $config_h
-elif test "$target_cpu" = "ppc" ; then
-  echo "TARGET_ARCH=ppc" >> $config_mak
-  echo "#define TARGET_ARCH \"ppc\"" >> $config_h
-  echo "#define TARGET_PPC 1" >> $config_h
-elif test "$target_cpu" = "ppcemb" ; then
-  echo "TARGET_ARCH=ppcemb" >> $config_mak
-  echo "TARGET_ABI_DIR=ppc" >> $config_mak
-  echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
-  echo "#define TARGET_PPC 1" >> $config_h
-  echo "#define TARGET_PPCEMB 1" >> $config_h
-elif test "$target_cpu" = "ppc64" ; then
-  echo "TARGET_ARCH=ppc64" >> $config_mak
-  echo "TARGET_ABI_DIR=ppc" >> $config_mak
-  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
-  echo "#define TARGET_PPC 1" >> $config_h
-  echo "#define TARGET_PPC64 1" >> $config_h
-elif test "$target_cpu" = "ppc64abi32" ; then
-  echo "TARGET_ARCH=ppc64" >> $config_mak
-  echo "TARGET_ABI_DIR=ppc" >> $config_mak
-  echo "TARGET_ARCH2=ppc64abi32" >> $config_mak
-  echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
-  echo "#define TARGET_PPC 1" >> $config_h
-  echo "#define TARGET_PPC64 1" >> $config_h
-  echo "#define TARGET_ABI32 1" >> $config_h
-elif test "$target_cpu" = "sh4" -o "$target_cpu" = "sh4eb" ; then
-  echo "TARGET_ARCH=sh4" >> $config_mak
-  echo "#define TARGET_ARCH \"sh4\"" >> $config_h
-  echo "#define TARGET_SH4 1" >> $config_h
-  bflt="yes"
-elif test "$target_cpu" = "sparc" ; then
-  echo "TARGET_ARCH=sparc" >> $config_mak
-  echo "#define TARGET_ARCH \"sparc\"" >> $config_h
-  echo "#define TARGET_SPARC 1" >> $config_h
-elif test "$target_cpu" = "sparc64" ; then
-  echo "TARGET_ARCH=sparc64" >> $config_mak
-  echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
-  echo "#define TARGET_SPARC 1" >> $config_h
-  echo "#define TARGET_SPARC64 1" >> $config_h
-  elfload32="yes"
-elif test "$target_cpu" = "sparc32plus" ; then
-  echo "TARGET_ARCH=sparc64" >> $config_mak
-  echo "TARGET_ABI_DIR=sparc" >> $config_mak
-  echo "TARGET_ARCH2=sparc32plus" >> $config_mak
-  echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
-  echo "#define TARGET_SPARC 1" >> $config_h
-  echo "#define TARGET_SPARC64 1" >> $config_h
-  echo "#define TARGET_ABI32 1" >> $config_h
-else
-  echo "Unsupported target CPU"
-  exit 1
-fi
+case "$target_cpu" in
+  i386)
+    echo "TARGET_ARCH=i386" >> $config_mak
+    echo "#define TARGET_ARCH \"i386\"" >> $config_h
+    echo "#define TARGET_I386 1" >> $config_h
+    if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "i386"
+    then
+      echo "#define USE_KQEMU 1" >> $config_h
+    fi
+  ;;
+  x86_64)
+    echo "TARGET_ARCH=x86_64" >> $config_mak
+    echo "#define TARGET_ARCH \"x86_64\"" >> $config_h
+    echo "#define TARGET_I386 1" >> $config_h
+    echo "#define TARGET_X86_64 1" >> $config_h
+    if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "x86_64"
+    then
+      echo "#define USE_KQEMU 1" >> $config_h
+    fi
+  ;;
+  alpha)
+    echo "TARGET_ARCH=alpha" >> $config_mak
+    echo "#define TARGET_ARCH \"alpha\"" >> $config_h
+    echo "#define TARGET_ALPHA 1" >> $config_h
+  ;;
+  arm|armeb)
+    echo "TARGET_ARCH=arm" >> $config_mak
+    echo "CONFIG_NO_DYNGEN_OP=yes" >> $config_mak
+    echo "#define TARGET_ARCH \"arm\"" >> $config_h
+    echo "#define TARGET_ARM 1" >> $config_h
+    echo "#define CONFIG_NO_DYNGEN_OP 1" >> $config_h
+    bflt="yes"
+  ;;
+  cris)
+    echo "TARGET_ARCH=cris" >> $config_mak
+    echo "#define TARGET_ARCH \"cris\"" >> $config_h
+    echo "#define TARGET_CRIS 1" >> $config_h
+    echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
+    echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
+  ;;
+  m68k)
+    echo "TARGET_ARCH=m68k" >> $config_mak
+    echo "#define TARGET_ARCH \"m68k\"" >> $config_h
+    echo "#define TARGET_M68K 1" >> $config_h
+    bflt="yes"
+  ;;
+  mips|mipsel)
+    echo "TARGET_ARCH=mips" >> $config_mak
+    echo "#define TARGET_ARCH \"mips\"" >> $config_h
+    echo "#define TARGET_MIPS 1" >> $config_h
+    echo "#define TARGET_ABI_MIPSO32 1" >> $config_h
+  ;;
+  mipsn32|mipsn32el)
+    echo "TARGET_ARCH=mipsn32" >> $config_mak
+    echo "#define TARGET_ARCH \"mipsn32\"" >> $config_h
+    echo "#define TARGET_MIPS 1" >> $config_h
+    echo "#define TARGET_ABI_MIPSN32 1" >> $config_h
+  ;;
+  mips64|mips64el)
+    echo "TARGET_ARCH=mips64" >> $config_mak
+    echo "#define TARGET_ARCH \"mips64\"" >> $config_h
+    echo "#define TARGET_MIPS 1" >> $config_h
+    echo "#define TARGET_MIPS64 1" >> $config_h
+    echo "#define TARGET_ABI_MIPSN64 1" >> $config_h
+  ;;
+  ppc)
+    echo "TARGET_ARCH=ppc" >> $config_mak
+    echo "#define TARGET_ARCH \"ppc\"" >> $config_h
+    echo "#define TARGET_PPC 1" >> $config_h
+  ;;
+  ppcemb)
+    echo "TARGET_ARCH=ppcemb" >> $config_mak
+    echo "TARGET_ABI_DIR=ppc" >> $config_mak
+    echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
+    echo "#define TARGET_PPC 1" >> $config_h
+    echo "#define TARGET_PPCEMB 1" >> $config_h
+  ;;
+  ppc64)
+    echo "TARGET_ARCH=ppc64" >> $config_mak
+    echo "TARGET_ABI_DIR=ppc" >> $config_mak
+    echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
+    echo "#define TARGET_PPC 1" >> $config_h
+    echo "#define TARGET_PPC64 1" >> $config_h
+  ;;
+  ppc64abi32)
+    echo "TARGET_ARCH=ppc64" >> $config_mak
+    echo "TARGET_ABI_DIR=ppc" >> $config_mak
+    echo "TARGET_ARCH2=ppc64abi32" >> $config_mak
+    echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
+    echo "#define TARGET_PPC 1" >> $config_h
+    echo "#define TARGET_PPC64 1" >> $config_h
+    echo "#define TARGET_ABI32 1" >> $config_h
+  ;;
+  sh4|sh4eb)
+    echo "TARGET_ARCH=sh4" >> $config_mak
+    echo "#define TARGET_ARCH \"sh4\"" >> $config_h
+    echo "#define TARGET_SH4 1" >> $config_h
+    bflt="yes"
+  ;;
+  sparc)
+    echo "TARGET_ARCH=sparc" >> $config_mak
+    echo "#define TARGET_ARCH \"sparc\"" >> $config_h
+    echo "#define TARGET_SPARC 1" >> $config_h
+  ;;
+  sparc64)
+    echo "TARGET_ARCH=sparc64" >> $config_mak
+    echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
+    echo "#define TARGET_SPARC 1" >> $config_h
+    echo "#define TARGET_SPARC64 1" >> $config_h
+    elfload32="yes"
+  ;;
+  sparc32plus)
+    echo "TARGET_ARCH=sparc64" >> $config_mak
+    echo "TARGET_ABI_DIR=sparc" >> $config_mak
+    echo "TARGET_ARCH2=sparc32plus" >> $config_mak
+    echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
+    echo "#define TARGET_SPARC 1" >> $config_h
+    echo "#define TARGET_SPARC64 1" >> $config_h
+    echo "#define TARGET_ABI32 1" >> $config_h
+  ;;
+  *)
+    echo "Unsupported target CPU"
+    exit 1
+  ;;
+esac
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=yes" >> $config_mak
   echo "#define TARGET_WORDS_BIGENDIAN 1" >> $config_h

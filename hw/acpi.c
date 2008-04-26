@@ -50,12 +50,15 @@ typedef struct PIIX4PMState {
     uint8_t smb_data[32];
     uint8_t smb_index;
     qemu_irq irq;
+    int64_t pmtmr;
 } PIIX4PMState;
 
 #define RTC_EN (1 << 10)
 #define PWRBTN_EN (1 << 8)
 #define GBL_EN (1 << 5)
 #define TMROF_EN (1 << 0)
+#define TIMER_OVERFLOW_CNT (1 << 23)
+#define TIMER_MASK 0xffffffLL
 
 #define SCI_EN (1 << 0)
 
@@ -74,47 +77,61 @@ typedef struct PIIX4PMState {
 
 PIIX4PMState *pm_state;
 
+static void update_pmtmr(PIIX4PMState *s)
+{
+    int64_t pmtmr;
+
+    pmtmr = muldiv64(qemu_get_clock(vm_clock), PM_FREQ, ticks_per_sec)
+            & TIMER_MASK;
+
+    if (!(s->pmsts & TMROF_EN)) {
+        if ((pmtmr ^ s->pmtmr) & TIMER_OVERFLOW_CNT) {
+            s->pmsts |= TMROF_EN;
+            if (s->pmen & TMROF_EN)
+                qemu_set_irq(s->irq, 1);
+        } else {
+            /* Calculate when the timer will neet to set
+             * the overflow bit again */
+            uint64_t delta = TIMER_OVERFLOW_CNT -
+                    (pmtmr & (TIMER_OVERFLOW_CNT - 1));
+
+            delta = muldiv64(delta, ticks_per_sec, PM_FREQ);
+            qemu_mod_timer(s->tmr_timer, qemu_get_clock(vm_clock) + delta);
+        }
+    }
+
+    s->pmtmr = pmtmr;
+}
+
 static uint32_t get_pmtmr(PIIX4PMState *s)
 {
-    uint32_t d;
-    d = muldiv64(qemu_get_clock(vm_clock), PM_FREQ, ticks_per_sec);
-    return d & 0xffffff;
+    update_pmtmr(s);
+    return s->pmtmr & TIMER_MASK;
 }
+
 
 static int get_pmsts(PIIX4PMState *s)
 {
-    int64_t d;
-    int pmsts;
-    pmsts = s->pmsts;
-    d = muldiv64(qemu_get_clock(vm_clock), PM_FREQ, ticks_per_sec);
-    if (d >= s->tmr_overflow_time)
-        s->pmsts |= TMROF_EN;
-    return pmsts;
+    /* Just increase the accurancy by double computing the timer value */
+    update_pmtmr(s);
+
+    return s->pmsts;
 }
 
 static void pm_update_sci(PIIX4PMState *s)
 {
-    int sci_level, pmsts;
-    int64_t expire_time;
+    int sci_level;
 
-    pmsts = get_pmsts(s);
-    sci_level = (((pmsts & s->pmen) &
-                  (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN)) != 0);
-    qemu_set_irq(s->irq, sci_level);
-    /* schedule a timer interruption if needed */
-    if ((s->pmen & TMROF_EN) && !(pmsts & TMROF_EN)) {
-        expire_time = muldiv64(s->tmr_overflow_time, ticks_per_sec, PM_FREQ);
-        qemu_mod_timer(s->tmr_timer, expire_time);
-        s->tmr_overflow_time += 0x800000;
-    } else {
-        qemu_del_timer(s->tmr_timer);
-    }
+    sci_level = (((s->pmsts & s->pmen) & 
+                   (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN)) != 0);
+    if (!sci_level)
+        qemu_set_irq(s->irq, sci_level);
 }
 
 static void pm_tmr_timer(void *opaque)
 {
     PIIX4PMState *s = opaque;
-    pm_update_sci(s);
+    update_pmtmr(s);
 }
 
 static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
@@ -123,18 +140,9 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
     addr &= 0x3f;
     switch(addr) {
     case 0x00:
-        {
-            int64_t d;
-            int pmsts;
-            pmsts = get_pmsts(s);
-            if (pmsts & val & TMROF_EN) {
-                /* if TMRSTS is reset, then compute the new overflow time */
-                d = muldiv64(qemu_get_clock(vm_clock), PM_FREQ, ticks_per_sec);
-                s->tmr_overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
-            }
-            s->pmsts &= ~val;
-            pm_update_sci(s);
-        }
+        s->pmsts &= ~val;
+        update_pmtmr(s);
+        pm_update_sci(s);
         break;
     case 0x02:
         s->pmen = val;

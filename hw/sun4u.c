@@ -385,4 +385,5 @@ QEMUMachine sun4u_machine = {
     "sun4u",
     "Sun4u platform",
     sun4u_init,
+    PROM_SIZE_MAX + VGA_RAM_SIZE,
 };

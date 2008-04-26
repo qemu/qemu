@@ -110,5 +110,6 @@ static void shix_init(int ram_size, int vga_ram_size,
 QEMUMachine shix_machine = {
     "shix",
     "shix card",
-    shix_init
+    shix_init,
+    (0x00004000 + 0x01000000 + 0x01000000) | RAMSIZE_FIXED
 };

@@ -197,4 +197,5 @@ QEMUMachine mips_mipssim_machine = {
     "mipssim",
     "MIPS MIPSsim platform",
     mips_mipssim_init,
+    BIOS_SIZE + VGA_RAM_SIZE /* unused */,
 };

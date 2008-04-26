@@ -216,7 +216,7 @@ ifneq ($(TOOLS),)
 endif
 	mkdir -p "$(DESTDIR)$(datadir)"
 	set -e; for x in bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
-		video.x openbios-sparc32 pxe-ne2k_pci.bin \
+		video.x openbios-sparc32 openbios-sparc64 pxe-ne2k_pci.bin \
 		pxe-rtl8139.bin pxe-pcnet.bin; do \
 		$(INSTALL) -m 644 $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
 	done
@@ -277,7 +277,7 @@ qemu-setup.exe: $(SRC_PATH)/qemu.nsi
 tar:
 	rm -rf /tmp/$(FILE)
 	cp -r . /tmp/$(FILE)
-	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS
+	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS --exclude .git --exclude .svn
 	rm -rf /tmp/$(FILE)
 
 # generate a binary distribution
@@ -322,6 +322,7 @@ tarbin:
 	$(datadir)/ppc_rom.bin \
 	$(datadir)/video.x \
 	$(datadir)/openbios-sparc32 \
+	$(datadir)/openbios-sparc64 \
         $(datadir)/pxe-ne2k_pci.bin \
 	$(datadir)/pxe-rtl8139.bin \
         $(datadir)/pxe-pcnet.bin \

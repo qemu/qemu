@@ -1080,9 +1080,9 @@ static inline void gen_vfp_uito(int dp)
 static inline void gen_vfp_sito(int dp)
 {
     if (dp)
-        gen_helper_vfp_uitod(cpu_F0d, cpu_F0s, cpu_env);
+        gen_helper_vfp_sitod(cpu_F0d, cpu_F0s, cpu_env);
     else
-        gen_helper_vfp_uitos(cpu_F0s, cpu_F0s, cpu_env);
+        gen_helper_vfp_sitos(cpu_F0s, cpu_F0s, cpu_env);
 }
 
 static inline void gen_vfp_toui(int dp)
@@ -2878,7 +2878,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                             tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
                         case ARM_VFP_FPSCR:
-			    if (rd == 15) {
+                            if (rd == 15) {
                                 tmp = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
                                 tcg_gen_andi_i32(tmp, tmp, 0xf0000000);
                             } else {
@@ -6888,7 +6888,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
 
     if (!(arm_feature(env, ARM_FEATURE_THUMB2)
           || arm_feature (env, ARM_FEATURE_M))) {
-        /* Thumb-1 cores may need to tread bl and blx as a pair of
+        /* Thumb-1 cores may need to treat bl and blx as a pair of
            16-bit instructions to get correct prefetch abort behavior.  */
         insn = insn_hw1;
         if ((insn & (1 << 12)) == 0) {

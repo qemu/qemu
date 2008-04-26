@@ -794,6 +794,7 @@ void mips_malta_init (int ram_size, int vga_ram_size,
     char buf[1024];
     unsigned long bios_offset;
     target_long bios_size;
+    ram_addr_t ram_addr;
     int64_t kernel_entry;
     PCIBus *pci_bus;
     CPUState *env;
@@ -835,7 +836,8 @@ void mips_malta_init (int ram_size, int vga_ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    ram_addr = qemu_ram_alloc(ram_size);
+    cpu_register_physical_memory(0, ram_size, ram_addr | IO_MEM_RAM);
 
     /* Map the bios at two physical locations, as on the real board. */
     bios_offset = ram_size + vga_ram_size;
@@ -985,6 +987,7 @@ QEMUMachine mips_malta_machine = {
     "malta",
     "MIPS Malta Core LV",
     mips_malta_init,
+    VGA_RAM_SIZE + BIOS_SIZE,
 };
 
 

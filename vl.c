@@ -8067,6 +8067,7 @@ static void register_machines(void)
     qemu_register_machine(&connex_machine);
     qemu_register_machine(&verdex_machine);
     qemu_register_machine(&mainstone2_machine);
+    qemu_register_machine(&musicpal_machine);
 #elif defined(TARGET_SH4)
     qemu_register_machine(&shix_machine);
     qemu_register_machine(&r2d_machine);
@@ -8330,7 +8331,7 @@ int main(int argc, char **argv)
     }
     cpu_model = NULL;
     initrd_filename = NULL;
-    ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
+    ram_size = -1;
     vga_ram_size = VGA_RAM_SIZE;
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
@@ -9021,7 +9022,25 @@ int main(int argc, char **argv)
 #endif
 
     /* init the memory */
-    phys_ram_size = ram_size + vga_ram_size + MAX_BIOS_SIZE + MAX_FLASH_SIZE;
+    phys_ram_size = machine->ram_require & ~RAMSIZE_FIXED;
+
+    if (machine->ram_require & RAMSIZE_FIXED) {
+        if (ram_size > 0) {
+            if (ram_size < phys_ram_size) {
+                fprintf(stderr, "Machine `%s' requires %i bytes of memory\n",
+                                machine->name, phys_ram_size);
+                exit(-1);
+            }
+
+            phys_ram_size = ram_size;
+        } else
+            ram_size = phys_ram_size;
+    } else {
+        if (ram_size < 0)
+            ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
+
+        phys_ram_size += ram_size;
+    }
 
     phys_ram_base = qemu_vmalloc(phys_ram_size);
     if (!phys_ram_base) {
