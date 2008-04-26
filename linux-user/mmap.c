@@ -259,13 +259,24 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             host_start += offset - host_offset;
         start = h2g(host_start);
     } else {
+        int flg;
+        target_ulong addr;
+
         if (start & ~TARGET_PAGE_MASK) {
             errno = EINVAL;
             return -1;
         }
         end = start + len;
         real_end = HOST_PAGE_ALIGN(end);
-        
+
+        for(addr = real_start; addr < real_end; addr += TARGET_PAGE_SIZE) {
+            flg = page_get_flags(addr);
+            if (flg & PAGE_RESERVED) {
+                errno = ENXIO;
+                return -1;
+            }
+        }
+
         /* worst case: we cannot map the file because the offset is not
            aligned, so we read it */
         if (!(flags & MAP_ANONYMOUS) &&
