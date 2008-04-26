@@ -68,6 +68,7 @@
 #include <linux/soundcard.h>
 #include <linux/dirent.h>
 #include <linux/kd.h>
+#include <linux/loop.h>
 
 #include "qemu.h"
 
