@@ -2544,20 +2544,20 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
             if (!(flags & PAGE_WRITE))
                 return;
             /* XXX: this code should not depend on lock_user */
-            if (!(p = lock_user(VERIFY_WRITE, addr, len, 0)))
+            if (!(p = lock_user(VERIFY_WRITE, addr, l, 0)))
                 /* FIXME - should this return an error rather than just fail? */
                 return;
-            memcpy(p, buf, len);
-            unlock_user(p, addr, len);
+            memcpy(p, buf, l);
+            unlock_user(p, addr, l);
         } else {
             if (!(flags & PAGE_READ))
                 return;
             /* XXX: this code should not depend on lock_user */
-            if (!(p = lock_user(VERIFY_READ, addr, len, 1)))
+            if (!(p = lock_user(VERIFY_READ, addr, l, 1)))
                 /* FIXME - should this return an error rather than just fail? */
                 return;
-            memcpy(buf, p, len);
-            unlock_user(p, addr, 0);
+            memcpy(buf, p, l);
+            unlock_user(p, addr, l);
         }
         len -= l;
         buf += l;
