@@ -270,15 +270,15 @@ static void audio_callback(void *opaque, int free_out, int free_in)
         return;
 
     if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE)
-        memcpy(wm8750_dac_buffer(s->wm, block_size >> 2), 
+        memcpy(wm8750_dac_buffer(s->wm, block_size >> 2),
                (uint32_t *)(s->target_buffer + s->play_pos),
                block_size);
     else {
         codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
         for (pos = 0; pos < block_size; pos += 2) {
-            *codec_buffer++ = cpu_to_le16(2 *
+            *codec_buffer++ = cpu_to_le16(256 *
                     *(int8_t *)(s->target_buffer + s->play_pos + pos));
-            *codec_buffer++ = cpu_to_le16(2 *
+            *codec_buffer++ = cpu_to_le16(256 *
                     *(int8_t *)(s->target_buffer + s->play_pos + pos + 1));
         }
     }
