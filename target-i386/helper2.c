@@ -800,8 +800,17 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 
 #else
 
-/* Bits 52-62 of a PTE are reserved. Bit 63 is the NX bit. */
-#define PHYS_ADDR_MASK 0xffffffffff000L
+/* XXX: This value should match the one returned by CPUID
+ * and in exec.c */
+#if defined(USE_KQEMU)
+#define PHYS_ADDR_MASK 0xfffff000L
+#else
+# if defined(TARGET_X86_64)
+# define PHYS_ADDR_MASK 0xfffffff000L
+# else
+# define PHYS_ADDR_MASK 0xffffff000L
+# endif
+#endif
 
 /* return value:
    -1 = cannot handle fault

@@ -116,7 +116,7 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len)
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
 static
-void mips_jazz_init (int ram_size, int vga_ram_size,
+void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
                      DisplayState *ds, const char *cpu_model,
                      enum jazz_model_e jazz_model)
 {
@@ -256,7 +256,7 @@ void mips_jazz_init (int ram_size, int vga_ram_size,
 }
 
 static
-void mips_magnum_init (int ram_size, int vga_ram_size,
+void mips_magnum_init (ram_addr_t ram_size, int vga_ram_size,
                        const char *boot_device, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -265,7 +265,7 @@ void mips_magnum_init (int ram_size, int vga_ram_size,
 }
 
 static
-void mips_pica61_init (int ram_size, int vga_ram_size,
+void mips_pica61_init (ram_addr_t ram_size, int vga_ram_size,
                        const char *boot_device, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
