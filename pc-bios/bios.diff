@@ -1,14 +1,14 @@
 Index: rombios.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
-retrieving revision 1.205
-diff -u -d -p -r1.205 rombios.c
---- rombios.c	21 Mar 2008 19:06:31 -0000	1.205
-+++ rombios.c	10 Apr 2008 09:47:48 -0000
-@@ -4395,22 +4395,25 @@ BX_DEBUG_INT15("case default:\n");
+retrieving revision 1.207
+diff -u -d -p -r1.207 rombios.c
+--- rombios.c	21 Apr 2008 14:22:01 -0000	1.207
++++ rombios.c	27 Apr 2008 23:40:19 -0000
+@@ -4404,22 +4404,25 @@ BX_DEBUG_INT15("case default:\n");
  #endif // BX_USE_PS2_MOUSE
-
-
+ 
+ 
 -void set_e820_range(ES, DI, start, end, type)
 +void set_e820_range(ES, DI, start, end, extra_start, extra_end, type)
       Bit16u ES;
@@ -24,7 +24,7 @@ diff -u -d -p -r1.205 rombios.c
 -    write_word(ES, DI+4, 0x00);
 +    write_word(ES, DI+4, extra_start);
      write_word(ES, DI+6, 0x00);
-
+ 
      end -= start;
 +    extra_end -= extra_start;
      write_word(ES, DI+8, end);
@@ -32,22 +32,22 @@ diff -u -d -p -r1.205 rombios.c
 -    write_word(ES, DI+12, 0x0000);
 +    write_word(ES, DI+12, extra_end);
      write_word(ES, DI+14, 0x0000);
-
+ 
      write_word(ES, DI+16, type);
-@@ -4423,7 +4426,9 @@ int15_function32(regs, ES, DS, FLAGS)
+@@ -4432,7 +4435,9 @@ int15_function32(regs, ES, DS, FLAGS)
    Bit16u ES, DS, FLAGS;
  {
    Bit32u  extended_memory_size=0; // 64bits long
 +  Bit32u  extra_lowbits_memory_size=0;
    Bit16u  CX,DX;
 +  Bit8u   extra_highbits_memory_size=0;
-
+ 
  BX_DEBUG_INT15("int15 AX=%04x\n",regs.u.r16.ax);
-
-@@ -4497,11 +4502,18 @@ ASM_END
+ 
+@@ -4506,11 +4511,18 @@ ASM_END
                      extended_memory_size += (1L * 1024 * 1024);
                  }
-
+ 
 +                extra_lowbits_memory_size = inb_cmos(0x5c);
 +                extra_lowbits_memory_size <<= 8;
 +                extra_lowbits_memory_size |= inb_cmos(0x5b);
@@ -64,7 +64,7 @@ diff -u -d -p -r1.205 rombios.c
                          regs.u.r32.ebx = 1;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4510,7 +4522,7 @@ ASM_END
+@@ -4519,7 +4531,7 @@ ASM_END
                          break;
                      case 1:
                          set_e820_range(ES, regs.u.r16.di,
@@ -73,7 +73,7 @@ diff -u -d -p -r1.205 rombios.c
                          regs.u.r32.ebx = 2;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4519,7 +4531,7 @@ ASM_END
+@@ -4528,7 +4540,7 @@ ASM_END
                          break;
                      case 2:
                          set_e820_range(ES, regs.u.r16.di,
@@ -82,16 +82,16 @@ diff -u -d -p -r1.205 rombios.c
                          regs.u.r32.ebx = 3;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4529,7 +4541,7 @@ ASM_END
-                     case 3:
+@@ -4539,7 +4551,7 @@ ASM_END
+ #if BX_ROMBIOS32
                          set_e820_range(ES, regs.u.r16.di,
                                         0x00100000L,
 -                                       extended_memory_size - ACPI_DATA_SIZE, 1);
 +                                       extended_memory_size - ACPI_DATA_SIZE ,0, 0, 1);
                          regs.u.r32.ebx = 4;
-                         regs.u.r32.eax = 0x534D4150;
-                         regs.u.r32.ecx = 0x14;
-@@ -4539,7 +4551,7 @@ ASM_END
+ #else
+                         set_e820_range(ES, regs.u.r16.di,
+@@ -4555,7 +4567,7 @@ ASM_END
                      case 4:
                          set_e820_range(ES, regs.u.r16.di,
                                         extended_memory_size - ACPI_DATA_SIZE,
@@ -100,7 +100,7 @@ diff -u -d -p -r1.205 rombios.c
                          regs.u.r32.ebx = 5;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4549,7 +4561,20 @@ ASM_END
+@@ -4565,7 +4577,20 @@ ASM_END
                      case 5:
                          /* 256KB BIOS area at the end of 4 GB */
                          set_e820_range(ES, regs.u.r16.di,
@@ -128,7 +128,7 @@ RCS file: /cvsroot/bochs/bochs/bios/rombios.h,v
 retrieving revision 1.6
 diff -u -d -p -r1.6 rombios.h
 --- rombios.h	26 Jan 2008 09:15:27 -0000	1.6
-+++ rombios.h	10 Apr 2008 09:47:48 -0000
++++ rombios.h	27 Apr 2008 23:40:19 -0000
 @@ -19,7 +19,7 @@
  //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  
@@ -141,11 +141,11 @@ diff -u -d -p -r1.6 rombios.h
 Index: rombios32.c
 ===================================================================
 RCS file: /cvsroot/bochs/bochs/bios/rombios32.c,v
-retrieving revision 1.24
-diff -u -d -p -r1.24 rombios32.c
---- rombios32.c	6 Mar 2008 20:18:20 -0000	1.24
-+++ rombios32.c	10 Apr 2008 09:47:48 -0000
-@@ -477,7 +477,12 @@ void smp_probe(void)
+retrieving revision 1.26
+diff -u -d -p -r1.26 rombios32.c
+--- rombios32.c	8 Apr 2008 16:41:18 -0000	1.26
++++ rombios32.c	27 Apr 2008 23:40:19 -0000
+@@ -478,7 +478,12 @@ void smp_probe(void)
          sipi_vector = AP_BOOT_ADDR >> 12;
          writel(APIC_BASE + APIC_ICR_LOW, 0x000C4600 | sipi_vector);
  
@@ -158,19 +158,42 @@ diff -u -d -p -r1.24 rombios32.c
  
          smp_cpus = readw((void *)CPU_COUNT_ADDR);
      }
-Index: rombios32start.S
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/rombios32start.S,v
-retrieving revision 1.4
-diff -u -d -p -r1.4 rombios32start.S
---- rombios32start.S	26 Jan 2008 09:15:27 -0000	1.4
-+++ rombios32start.S	10 Apr 2008 09:47:48 -0000
-@@ -42,7 +42,7 @@ _start:
- smp_ap_boot_code_start:
-   xor %ax, %ax
-   mov %ax, %ds
--  incw CPU_COUNT_ADDR
-+  lock incw CPU_COUNT_ADDR
- 1:
-   hlt
-   jmp 1b
+@@ -1081,7 +1086,7 @@ struct rsdp_descriptor         /* Root S
+ struct rsdt_descriptor_rev1
+ {
+ 	ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
+-	uint32_t                             table_offset_entry [3]; /* Array of pointers to other */
++	uint32_t                             table_offset_entry [2]; /* Array of pointers to other */
+ 			 /* ACPI tables */
+ };
+ 
+@@ -1335,8 +1340,8 @@ void acpi_bios_init(void)
+     struct fadt_descriptor_rev1 *fadt;
+     struct facs_descriptor_rev1 *facs;
+     struct multiple_apic_table *madt;
+-    uint8_t *dsdt, *ssdt;
+-    uint32_t base_addr, rsdt_addr, fadt_addr, addr, facs_addr, dsdt_addr, ssdt_addr;
++    uint8_t *dsdt;
++    uint32_t base_addr, rsdt_addr, fadt_addr, addr, facs_addr, dsdt_addr;
+     uint32_t acpi_tables_size, madt_addr, madt_size;
+     int i;
+ 
+@@ -1370,10 +1375,6 @@ void acpi_bios_init(void)
+     dsdt = (void *)(addr);
+     addr += sizeof(AmlCode);
+ 
+-    ssdt_addr = addr;
+-    ssdt = (void *)(addr);
+-    addr += acpi_build_processor_ssdt(ssdt);
+-
+     addr = (addr + 7) & ~7;
+     madt_addr = addr;
+     madt_size = sizeof(*madt) +
+@@ -1403,7 +1404,6 @@ void acpi_bios_init(void)
+     memset(rsdt, 0, sizeof(*rsdt));
+     rsdt->table_offset_entry[0] = cpu_to_le32(fadt_addr);
+     rsdt->table_offset_entry[1] = cpu_to_le32(madt_addr);
+-    rsdt->table_offset_entry[2] = cpu_to_le32(ssdt_addr);
+     acpi_build_table_header((struct acpi_table_header *)rsdt,
+                             "RSDT", sizeof(*rsdt), 1);
+ 
