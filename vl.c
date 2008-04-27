@@ -8277,7 +8277,7 @@ int main(int argc, char **argv)
     machine = first_machine;
     cpu_model = NULL;
     initrd_filename = NULL;
-    ram_size = -1;
+    ram_size = 0;
     vga_ram_size = VGA_RAM_SIZE;
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
@@ -9000,7 +9000,7 @@ int main(int argc, char **argv)
         } else
             ram_size = phys_ram_size;
     } else {
-        if (ram_size < 0)
+        if (ram_size == 0)
             ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
 
         phys_ram_size += ram_size;
