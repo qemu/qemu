@@ -1283,6 +1283,19 @@ static void do_wav_capture (const char *path,
 }
 #endif
 
+#if defined(TARGET_I386)
+static void do_inject_nmi(int cpu_index)
+{
+    CPUState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu)
+        if (env->cpu_index == cpu_index) {
+            cpu_interrupt(env, CPU_INTERRUPT_NMI);
+            break;
+        }
+}
+#endif
+
 static term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help,
       "[cmd]", "show the help" },
@@ -1356,6 +1369,10 @@ static term_cmd_t term_cmds[] = {
       "addr size file", "save to disk virtual memory dump starting at 'addr' of size 'size'", },
     { "pmemsave", "lis", do_physical_memory_save,
       "addr size file", "save to disk physical memory dump starting at 'addr' of size 'size'", },
+#if defined(TARGET_I386)
+    { "nmi", "i", do_inject_nmi,
+      "cpu", "inject an NMI on the given CPU", },
+#endif
     { NULL, NULL, },
 };
 
