@@ -76,6 +76,9 @@
 #define PROM_VADDR           0xffd00000
 #define PROM_FILENAME        "openbios-sparc32"
 
+// Control plane, 8-bit and 24-bit planes
+#define TCX_SIZE             (9 * 1024 * 1024)
+
 #define MAX_CPUS 16
 #define MAX_PILS 16
 
@@ -1213,70 +1216,70 @@ QEMUMachine ss5_machine = {
     "SS-5",
     "Sun4m platform, SPARCstation 5",
     ss5_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss10_machine = {
     "SS-10",
     "Sun4m platform, SPARCstation 10",
     ss10_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss600mp_machine = {
     "SS-600MP",
     "Sun4m platform, SPARCserver 600MP",
     ss600mp_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss20_machine = {
     "SS-20",
     "Sun4m platform, SPARCstation 20",
     ss20_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss2_machine = {
     "SS-2",
     "Sun4c platform, SPARCstation 2",
     ss2_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine voyager_machine = {
     "Voyager",
     "Sun4m platform, SPARCstation Voyager",
     vger_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss_lx_machine = {
     "LX",
     "Sun4m platform, SPARCstation LX",
     ss_lx_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss4_machine = {
     "SS-4",
     "Sun4m platform, SPARCstation 4",
     ss4_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine scls_machine = {
     "SPARCClassic",
     "Sun4m platform, SPARCClassic",
     scls_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine sbook_machine = {
     "SPARCbook",
     "Sun4m platform, SPARCbook",
     sbook_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 static const struct sun4d_hwdef sun4d_hwdefs[] = {
@@ -1300,7 +1303,7 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .ledma_base   = 0x800040000ULL,
         .le_base      = 0x800060000ULL,
         .sbi_base     = 0xf02800000ULL,
-        .vram_size    = 0x00100000,
+        .vram_size    = TCX_SIZE,
         .nvram_size   = 0x2000,
         .esp_irq = 3,
         .le_irq = 4,
@@ -1333,7 +1336,7 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .ledma_base   = 0x800040000ULL,
         .le_base      = 0x800060000ULL,
         .sbi_base     = 0xf02800000ULL,
-        .vram_size    = 0x00100000,
+        .vram_size    = TCX_SIZE,
         .nvram_size   = 0x2000,
         .esp_irq = 3,
         .le_irq = 4,
@@ -1513,12 +1516,12 @@ QEMUMachine ss1000_machine = {
     "SS-1000",
     "Sun4d platform, SPARCserver 1000",
     ss1000_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss2000_machine = {
     "SS-2000",
     "Sun4d platform, SPARCcenter 2000",
     ss2000_init,
-    PROM_SIZE_MAX + 0x00100000,
+    PROM_SIZE_MAX + TCX_SIZE,
 };

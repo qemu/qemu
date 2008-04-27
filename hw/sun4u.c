@@ -35,7 +35,7 @@
 #define KERNEL_LOAD_ADDR     0x00404000
 #define CMDLINE_ADDR         0x003ff000
 #define INITRD_LOAD_ADDR     0x00300000
-#define PROM_SIZE_MAX        (512 * 1024)
+#define PROM_SIZE_MAX        (4 * 1024 * 1024)
 #define PROM_ADDR            0x1fff0000000ULL
 #define PROM_VADDR           0x000ffd00000ULL
 #define APB_SPECIAL_BASE     0x1fe00000000ULL
