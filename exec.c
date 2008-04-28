@@ -2557,7 +2557,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 /* FIXME - should this return an error rather than just fail? */
                 return;
             memcpy(buf, p, l);
-            unlock_user(p, addr, l);
+            unlock_user(p, addr, 0);
         }
         len -= l;
         buf += l;
