@@ -6943,3 +6943,11 @@ void cpu_reset (CPUMIPSState *env)
 #endif
     cpu_mips_register(env, env->cpu_model);
 }
+
+void gen_pc_load(CPUState *env, TranslationBlock *tb,
+                unsigned long searched_pc, int pc_pos, void *puc)
+{
+    env->PC[env->current_tc] = gen_opc_pc[pc_pos];
+    env->hflags &= ~MIPS_HFLAG_BMASK;
+    env->hflags |= gen_opc_hflags[pc_pos];
+}

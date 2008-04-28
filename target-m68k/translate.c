@@ -3280,3 +3280,8 @@ void cpu_dump_state(CPUState *env, FILE *f,
     cpu_fprintf (f, "FPRESULT = %12g\n", *(double *)&env->fp_result);
 }
 
+void gen_pc_load(CPUState *env, TranslationBlock *tb,
+                unsigned long searched_pc, int pc_pos, void *puc)
+{
+    env->pc = gen_opc_pc[pc_pos];
+}

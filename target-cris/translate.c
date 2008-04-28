@@ -2702,3 +2702,9 @@ void cpu_reset (CPUCRISState *env)
 	memset(env, 0, offsetof(CPUCRISState, breakpoints));
 	tlb_flush(env, 1);
 }
+
+void gen_pc_load(CPUState *env, struct TranslationBlock *tb,
+                 unsigned long searched_pc, int pc_pos, void *puc)
+{
+    env->pregs[PR_ERP] = gen_opc_pc[pc_pos];
+}

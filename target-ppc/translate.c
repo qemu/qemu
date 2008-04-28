@@ -6345,3 +6345,45 @@ int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 {
     return gen_intermediate_code_internal(env, tb, 1);
 }
+
+void gen_pc_load(CPUState *env, TranslationBlock *tb,
+                unsigned long searched_pc, int pc_pos, void *puc)
+{
+    int type, c;
+    /* for PPC, we need to look at the micro operation to get the
+     * access type */
+    env->nip = gen_opc_pc[pc_pos];
+    c = gen_opc_buf[pc_pos];
+    switch(c) {
+#if defined(CONFIG_USER_ONLY)
+#define CASE3(op)\
+    case INDEX_op_ ## op ## _raw
+#else
+#define CASE3(op)\
+    case INDEX_op_ ## op ## _user:\
+    case INDEX_op_ ## op ## _kernel:\
+    case INDEX_op_ ## op ## _hypv
+#endif
+
+    CASE3(stfd):
+    CASE3(stfs):
+    CASE3(lfd):
+    CASE3(lfs):
+        type = ACCESS_FLOAT;
+        break;
+    CASE3(lwarx):
+        type = ACCESS_RES;
+        break;
+    CASE3(stwcx):
+        type = ACCESS_RES;
+        break;
+    CASE3(eciwx):
+    CASE3(ecowx):
+        type = ACCESS_EXT;
+        break;
+    default:
+        type = ACCESS_INT;
+        break;
+    }
+    env->access_type = type;
+}

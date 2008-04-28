@@ -6888,3 +6888,26 @@ int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
     return gen_intermediate_code_internal(env, tb, 1);
 }
 
+void gen_pc_load(CPUState *env, TranslationBlock *tb,
+                unsigned long searched_pc, int pc_pos, void *puc)
+{
+    int cc_op;
+#ifdef DEBUG_DISAS
+    if (loglevel & CPU_LOG_TB_OP) {
+        int i;
+        fprintf(logfile, "RESTORE:\n");
+        for(i = 0;i <= pc_pos; i++) {
+            if (gen_opc_instr_start[i]) {
+                fprintf(logfile, "0x%04x: " TARGET_FMT_lx "\n", i, gen_opc_pc[i]);
+            }
+        }
+        fprintf(logfile, "spc=0x%08lx pc_pos=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n",
+                searched_pc, pc_pos, gen_opc_pc[pc_pos] - tb->cs_base,
+                (uint32_t)tb->cs_base);
+    }
+#endif
+    env->eip = gen_opc_pc[pc_pos] - tb->cs_base;
+    cc_op = gen_opc_cc_op[pc_pos];
+    if (cc_op != CC_OP_DYNAMIC)
+        env->cc_op = cc_op;
+}

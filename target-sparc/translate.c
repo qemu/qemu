@@ -4659,3 +4659,23 @@ void gen_intermediate_code_init(CPUSPARCState *env)
                                               gregnames[i]);
     }
 }
+
+void gen_pc_load(CPUState *env, TranslationBlock *tb,
+                unsigned long searched_pc, int pc_pos, void *puc)
+{
+    target_ulong npc;
+    env->pc = gen_opc_pc[pc_pos];
+    npc = gen_opc_npc[pc_pos];
+    if (npc == 1) {
+        /* dynamic NPC: already stored */
+    } else if (npc == 2) {
+        target_ulong t2 = (target_ulong)(unsigned long)puc;
+        /* jump PC: use T2 and the jump targets of the translation */
+        if (t2)
+            env->npc = gen_opc_jump_pc[0];
+        else
+            env->npc = gen_opc_jump_pc[1];
+    } else {
+        env->npc = npc;
+    }
+}

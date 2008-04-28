@@ -1303,3 +1303,10 @@ int gen_intermediate_code_pc(CPUState * env, struct TranslationBlock *tb)
 {
     return gen_intermediate_code_internal(env, tb, 1);
 }
+
+void gen_pc_load(CPUState *env, TranslationBlock *tb,
+                unsigned long searched_pc, int pc_pos, void *puc)
+{
+    env->pc = gen_opc_pc[pc_pos];
+    env->flags = gen_opc_hflags[pc_pos];
+}
