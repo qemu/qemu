@@ -4961,6 +4961,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
     BlockDriverState *bdrv;
+    BlockDriver *drv = NULL;
     int max_devs;
     int index;
     int cache;
@@ -4968,7 +4969,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     char *str = arg->opt;
     char *params[] = { "bus", "unit", "if", "index", "cyls", "heads",
                        "secs", "trans", "media", "snapshot", "file",
-                       "cache", NULL };
+                       "cache", "format", NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
@@ -5136,6 +5137,14 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         }
     }
 
+    if (get_param_value(buf, sizeof(buf), "format", str)) {
+        drv = bdrv_find_format(buf);
+        if (!drv) {
+            fprintf(stderr, "qemu: '%s' invalid format\n", buf);
+            return -1;
+        }
+    }
+
     if (arg->file == NULL)
         get_param_value(file, sizeof(file), "file", str);
     else
@@ -5238,7 +5247,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         bdrv_flags |= BDRV_O_SNAPSHOT;
     if (!cache)
         bdrv_flags |= BDRV_O_DIRECT;
-    if (bdrv_open(bdrv, file, bdrv_flags) < 0 || qemu_key_check(bdrv, file)) {
+    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0 || qemu_key_check(bdrv, file)) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return -1;
