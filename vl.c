@@ -9000,8 +9000,8 @@ int main(int argc, char **argv)
     if (machine->ram_require & RAMSIZE_FIXED) {
         if (ram_size > 0) {
             if (ram_size < phys_ram_size) {
-                fprintf(stderr, "Machine `%s' requires %i bytes of memory\n",
-                                machine->name, phys_ram_size);
+                fprintf(stderr, "Machine `%s' requires %llu bytes of memory\n",
+                                machine->name, (unsigned long long) phys_ram_size);
                 exit(-1);
             }
 
