@@ -365,7 +365,7 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
     uint32_t mask, sr;
 
     uic = opaque;
-    mask = 1 << irq_num;
+    mask = 1 << (31-irq_num);
 #ifdef DEBUG_UIC
     if (loglevel & CPU_LOG_INT) {
         fprintf(logfile, "%s: irq %d level %d uicsr %08" PRIx32
