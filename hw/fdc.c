@@ -49,6 +49,9 @@ do { printf("FLOPPY ERROR: %s: " fmt, __func__ , ##args); } while (0)
 /********************************************************/
 /* Floppy drive emulation                               */
 
+#define GET_CUR_DRV(fdctrl) ((fdctrl)->cur_drv)
+#define SET_CUR_DRV(fdctrl, drive) ((fdctrl)->cur_drv = (drive))
+
 /* Will always be a fixed parameter for us */
 #define FD_SECTOR_LEN 512
 #define FD_SECTOR_SC  2   /* Sector size code */
@@ -612,17 +615,18 @@ static void fdc_save (QEMUFile *f, void *opaque)
     fdctrl_t *s = opaque;
     uint8_t tmp;
     int i;
+    uint8_t dor = s->dor | GET_CUR_DRV(s);
 
     /* Controller state */
     qemu_put_8s(f, &s->sra);
     qemu_put_8s(f, &s->srb);
+    qemu_put_8s(f, &dor);
     qemu_put_8s(f, &s->tdr);
     qemu_put_8s(f, &s->dsr);
     qemu_put_8s(f, &s->msr);
     qemu_put_8s(f, &s->status0);
     qemu_put_8s(f, &s->status1);
     qemu_put_8s(f, &s->status2);
-    qemu_put_8s(f, &s->cur_drv);
     /* Command FIFO */
     qemu_put_buffer(f, s->fifo, FD_SECTOR_LEN);
     qemu_put_be32s(f, &s->data_pos);
@@ -665,13 +669,15 @@ static int fdc_load (QEMUFile *f, void *opaque, int version_id)
     /* Controller state */
     qemu_get_8s(f, &s->sra);
     qemu_get_8s(f, &s->srb);
+    qemu_get_8s(f, &s->dor);
+    SET_CUR_DRV(s, s->dor & FD_DOR_SELMASK);
+    s->dor &= ~FD_DOR_SELMASK;
     qemu_get_8s(f, &s->tdr);
     qemu_get_8s(f, &s->dsr);
     qemu_get_8s(f, &s->msr);
     qemu_get_8s(f, &s->status0);
     qemu_get_8s(f, &s->status1);
     qemu_get_8s(f, &s->status2);
-    qemu_get_8s(f, &s->cur_drv);
     /* Command FIFO */
     qemu_get_buffer(f, s->fifo, FD_SECTOR_LEN);
     qemu_get_be32s(f, &s->data_pos);
@@ -1053,8 +1059,8 @@ static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
     cur_drv = get_cur_drv(fdctrl);
     FLOPPY_DPRINTF("transfer status: %02x %02x %02x (%02x)\n",
                    status0, status1, status2,
-                   status0 | (cur_drv->head << 2) | fdctrl->cur_drv);
-    fdctrl->fifo[0] = status0 | (cur_drv->head << 2) | fdctrl->cur_drv;
+                   status0 | (cur_drv->head << 2) | GET_CUR_DRV(fdctrl));
+    fdctrl->fifo[0] = status0 | (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
     fdctrl->fifo[1] = status1;
     fdctrl->fifo[2] = status2;
     fdctrl->fifo[3] = cur_drv->track;
@@ -1077,13 +1083,13 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     uint8_t kh, kt, ks;
     int did_seek = 0;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     kt = fdctrl->fifo[2];
     kh = fdctrl->fifo[3];
     ks = fdctrl->fifo[4];
     FLOPPY_DPRINTF("Start transfer at %d %d %02x %02x (%d)\n",
-                   fdctrl->cur_drv, kh, kt, ks,
+                   GET_CUR_DRV(fdctrl), kh, kt, ks,
                    _fd_sector(kh, kt, ks, cur_drv->last_sect));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
@@ -1218,7 +1224,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
             len = FD_SECTOR_LEN - rel_pos;
         FLOPPY_DPRINTF("copy %d bytes (%d %d %d) %d pos %d %02x "
                        "(%d-0x%08x 0x%08x)\n", len, dma_len, fdctrl->data_pos,
-                       fdctrl->data_len, fdctrl->cur_drv, cur_drv->head,
+                       fdctrl->data_len, GET_CUR_DRV(fdctrl), cur_drv->head,
                        cur_drv->track, cur_drv->sect, fd_sector(cur_drv),
                        fd_sector(cur_drv) * FD_SECTOR_LEN);
         if (fdctrl->data_dir != FD_DIR_WRITE ||
@@ -1347,13 +1353,13 @@ static void fdctrl_format_sector (fdctrl_t *fdctrl)
     fdrive_t *cur_drv;
     uint8_t kh, kt, ks;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     kt = fdctrl->fifo[6];
     kh = fdctrl->fifo[7];
     ks = fdctrl->fifo[8];
     FLOPPY_DPRINTF("format sector at %d %d %02x %02x (%d)\n",
-                   fdctrl->cur_drv, kh, kt, ks,
+                   GET_CUR_DRV(fdctrl), kh, kt, ks,
                    _fd_sector(kh, kt, ks, cur_drv->last_sect));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
@@ -1516,7 +1522,7 @@ static void fdctrl_handle_format_track (fdctrl_t *fdctrl, int direction)
 {
     fdrive_t *cur_drv;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     fdctrl->data_state |= FD_STATE_FORMAT;
     if (fdctrl->fifo[0] & 0x80)
@@ -1557,14 +1563,14 @@ static void fdctrl_handle_sense_drive_status (fdctrl_t *fdctrl, int direction)
 {
     fdrive_t *cur_drv;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
     /* 1 Byte status back */
     fdctrl->fifo[0] = (cur_drv->ro << 6) |
         (cur_drv->track == 0 ? 0x10 : 0x00) |
         (cur_drv->head << 2) |
-        fdctrl->cur_drv |
+        GET_CUR_DRV(fdctrl) |
         0x28;
     fdctrl_set_fifo(fdctrl, 1, 0);
 }
@@ -1573,7 +1579,7 @@ static void fdctrl_handle_recalibrate (fdctrl_t *fdctrl, int direction)
 {
     fdrive_t *cur_drv;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     fd_recalibrate(cur_drv);
     fdctrl_reset_fifo(fdctrl);
@@ -1587,13 +1593,13 @@ static void fdctrl_handle_sense_interrupt_status (fdctrl_t *fdctrl, int directio
 
 #if 0
     fdctrl->fifo[0] =
-        fdctrl->status0 | (cur_drv->head << 2) | fdctrl->cur_drv;
+        fdctrl->status0 | (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
 #else
     /* XXX: status0 handling is broken for read/write
        commands, so we do this hack. It should be suppressed
        ASAP */
     fdctrl->fifo[0] =
-        FD_SR0_SEEK | (cur_drv->head << 2) | fdctrl->cur_drv;
+        FD_SR0_SEEK | (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
 #endif
     fdctrl->fifo[1] = cur_drv->track;
     fdctrl_set_fifo(fdctrl, 2, 0);
@@ -1605,7 +1611,7 @@ static void fdctrl_handle_seek (fdctrl_t *fdctrl, int direction)
 {
     fdrive_t *cur_drv;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     fdctrl_reset_fifo(fdctrl);
     if (fdctrl->fifo[2] > cur_drv->max_track) {
@@ -1665,7 +1671,7 @@ static void fdctrl_handle_drive_specification_command (fdctrl_t *fdctrl, int dir
     } else if (fdctrl->data_len > 7) {
         /* ERROR */
         fdctrl->fifo[0] = 0x80 |
-            (cur_drv->head << 2) | fdctrl->cur_drv;
+            (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
         fdctrl_set_fifo(fdctrl, 1, 1);
     }
 }
@@ -1674,7 +1680,7 @@ static void fdctrl_handle_relative_seek_out (fdctrl_t *fdctrl, int direction)
 {
     fdrive_t *cur_drv;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     if (fdctrl->fifo[2] + cur_drv->track >= cur_drv->max_track) {
         cur_drv->track = cur_drv->max_track - 1;
@@ -1690,7 +1696,7 @@ static void fdctrl_handle_relative_seek_in (fdctrl_t *fdctrl, int direction)
 {
     fdrive_t *cur_drv;
 
-    fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     if (fdctrl->fifo[2] > cur_drv->track) {
         cur_drv->track = 0;
