@@ -312,12 +312,6 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value);
 static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl);
 
 enum {
-    FD_CTRL_ACTIVE = 0x01, /* XXX: suppress that */
-    FD_CTRL_SLEEP  = 0x04, /* XXX: suppress that */
-    FD_CTRL_BUSY   = 0x08, /* dma transfer in progress */
-};
-
-enum {
     FD_DIR_WRITE   = 0,
     FD_DIR_READ    = 1,
     FD_DIR_SCANE   = 2,
@@ -326,13 +320,9 @@ enum {
 };
 
 enum {
-    FD_STATE_CMD    = 0x00,
-    FD_STATE_STATUS = 0x01,
-    FD_STATE_DATA   = 0x02,
-    FD_STATE_STATE  = 0x03,
-    FD_STATE_MULTI  = 0x10,
-    FD_STATE_SEEK   = 0x20,
-    FD_STATE_FORMAT = 0x40,
+    FD_STATE_MULTI  = 0x01,	/* multi track flag */
+    FD_STATE_FORMAT = 0x02,	/* format flag */
+    FD_STATE_SEEK   = 0x04,	/* seek flag */
 };
 
 enum {
@@ -450,9 +440,6 @@ enum {
     FD_DIR_DSKCHG   = 0x80,
 };
 
-#define FD_STATE(state) ((state) & FD_STATE_STATE)
-#define FD_SET_STATE(state, new_state) \
-do { (state) = ((state) & ~FD_STATE_STATE) | (new_state); } while (0)
 #define FD_MULTI_TRACK(state) ((state) & FD_STATE_MULTI)
 #define FD_DID_SEEK(state) ((state) & FD_STATE_SEEK)
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
@@ -470,6 +457,7 @@ struct fdctrl_t {
     uint8_t sra;
     uint8_t srb;
     uint8_t dor;
+    uint8_t dsr;
     uint8_t msr;
     uint8_t state;
     uint8_t dma_en;
@@ -713,9 +701,11 @@ static void fdctrl_reset_irq (fdctrl_t *fdctrl)
 
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
 {
-    // Sparc mutation
-    if (fdctrl->sun4m && !fdctrl->dma_en) {
-        fdctrl->state &= ~FD_CTRL_BUSY;
+    /* Sparc mutation */
+    if (fdctrl->sun4m && (fdctrl->msr & FD_MSR_CMDBUSY)) {
+        /* XXX: not sure */
+        fdctrl->msr &= ~FD_MSR_CMDBUSY;
+        fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
         fdctrl->int_status = status;
         return;
     }
@@ -742,11 +732,11 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
     fdctrl->cur_drv = 0;
     fdctrl->dor = FD_DOR_nRESET;
     fdctrl->dor |= (fdctrl->dma_chann != -1) ? FD_DOR_DMAEN : 0;
-    fdctrl->msr = 0;
+    fdctrl->msr = FD_MSR_RQM;
     /* FIFO state */
     fdctrl->data_pos = 0;
     fdctrl->data_len = 0;
-    fdctrl->data_state = FD_STATE_CMD;
+    fdctrl->data_state = 0;
     fdctrl->data_dir = FD_DIR_WRITE;
     for (i = 0; i < MAX_FD; i++)
         fd_recalibrate(&fdctrl->drives[i]);
@@ -831,7 +821,7 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
         if (!(fdctrl->dor & FD_DOR_nRESET)) {
             FLOPPY_DPRINTF("controller out of RESET state\n");
             fdctrl_reset(fdctrl, 1);
-            fdctrl->state &= ~FD_CTRL_SLEEP;
+            fdctrl->dsr &= ~FD_DSR_PWRDOWN;
         }
     }
     /* Selected drive */
@@ -869,22 +859,11 @@ static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value)
 /* Main status register : 0x04 (read) */
 static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
 {
-    uint32_t retval = 0;
+    uint32_t retval = fdctrl->msr;
 
+    fdctrl->dsr &= ~FD_DSR_PWRDOWN;
     fdctrl->dor |= FD_DOR_nRESET;
-    fdctrl->state &= ~FD_CTRL_SLEEP;
-    if (!(fdctrl->state & FD_CTRL_BUSY)) {
-        /* Data transfer allowed */
-        retval |= FD_MSR_RQM;
-        /* Data transfer direction indicator */
-        if (fdctrl->data_dir == FD_DIR_READ)
-            retval |= FD_MSR_DIO;
-    }
-    /* Should handle FD_MSR_NONDMA for SPECIFY command */
-    /* Command busy indicator */
-    if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA ||
-        FD_STATE(fdctrl->data_state) == FD_STATE_STATUS)
-        retval |= FD_MSR_CMDBUSY;
+
     FLOPPY_DPRINTF("main status register: 0x%02x\n", retval);
 
     return retval;
@@ -906,9 +885,9 @@ static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
         fdctrl->dor |= FD_DOR_nRESET;
     }
     if (value & FD_DSR_PWRDOWN) {
-        fdctrl->state |= FD_CTRL_SLEEP;
         fdctrl_reset(fdctrl, 1);
     }
+    fdctrl->dsr = value;
 }
 
 static int fdctrl_media_changed(fdrive_t *drv)
@@ -943,7 +922,7 @@ static void fdctrl_reset_fifo (fdctrl_t *fdctrl)
 {
     fdctrl->data_dir = FD_DIR_WRITE;
     fdctrl->data_pos = 0;
-    FD_SET_STATE(fdctrl->data_state, FD_STATE_CMD);
+    fdctrl->msr &= ~(FD_MSR_CMDBUSY | FD_MSR_DIO);
 }
 
 /* Set FIFO status for the host to read */
@@ -952,7 +931,7 @@ static void fdctrl_set_fifo (fdctrl_t *fdctrl, int fifo_len, int do_irq)
     fdctrl->data_dir = FD_DIR_READ;
     fdctrl->data_len = fifo_len;
     fdctrl->data_pos = 0;
-    FD_SET_STATE(fdctrl->data_state, FD_STATE_STATUS);
+    fdctrl->msr |= FD_MSR_CMDBUSY | FD_MSR_RQM | FD_MSR_DIO;
     if (do_irq)
         fdctrl_raise_irq(fdctrl, 0x00);
 }
@@ -1029,8 +1008,8 @@ static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
     fdctrl->data_dir = FD_DIR_READ;
     if (!(fdctrl->msr & FD_MSR_NONDMA)) {
         DMA_release_DREQ(fdctrl->dma_chann);
-        fdctrl->state &= ~FD_CTRL_BUSY;
     }
+    fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
     fdctrl->msr &= ~FD_MSR_NONDMA;
     fdctrl_set_fifo(fdctrl, 7, 1);
 }
@@ -1079,10 +1058,11 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     default:
         break;
     }
+
     /* Set the FIFO state */
     fdctrl->data_dir = direction;
     fdctrl->data_pos = 0;
-    FD_SET_STATE(fdctrl->data_state, FD_STATE_DATA); /* FIFO ready for data */
+    fdctrl->msr |= FD_MSR_CMDBUSY;
     if (fdctrl->fifo[0] & 0x80)
         fdctrl->data_state |= FD_STATE_MULTI;
     else
@@ -1116,7 +1096,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
             (direction == FD_DIR_WRITE && dma_mode == 2) ||
             (direction == FD_DIR_READ && dma_mode == 1)) {
             /* No access is allowed until DMA transfer has completed */
-            fdctrl->state |= FD_CTRL_BUSY;
+            fdctrl->msr &= ~FD_MSR_RQM;
             /* Now, we just have to wait for the DMA controller to
              * recall us...
              */
@@ -1129,6 +1109,8 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
     }
     FLOPPY_DPRINTF("start non-DMA transfer\n");
     fdctrl->msr |= FD_MSR_NONDMA;
+    if (direction != FD_DIR_WRITE)
+        fdctrl->msr |= FD_MSR_DIO;
     /* IO based transfer: calculate len */
     fdctrl_raise_irq(fdctrl, 0x00);
 
@@ -1154,7 +1136,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
     uint8_t status0 = 0x00, status1 = 0x00, status2 = 0x00;
 
     fdctrl = opaque;
-    if (!(fdctrl->state & FD_CTRL_BUSY)) {
+    if (fdctrl->msr & FD_MSR_RQM) {
         FLOPPY_DPRINTF("Not in DMA transfer mode !\n");
         return 0;
     }
@@ -1263,9 +1245,9 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
     int pos;
 
     cur_drv = get_cur_drv(fdctrl);
-    fdctrl->state &= ~FD_CTRL_SLEEP;
-    if (FD_STATE(fdctrl->data_state) == FD_STATE_CMD) {
-        FLOPPY_ERROR("can't read data in CMD state\n");
+    fdctrl->dsr &= ~FD_DSR_PWRDOWN;
+    if (!(fdctrl->msr & FD_MSR_RQM) || !(fdctrl->msr & FD_MSR_DIO)) {
+        FLOPPY_ERROR("controller not ready for reading\n");
         return 0;
     }
     pos = fdctrl->data_pos;
@@ -1708,11 +1690,11 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
         FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
         return;
     }
-    fdctrl->state &= ~FD_CTRL_SLEEP;
-    if (FD_STATE(fdctrl->data_state) == FD_STATE_STATUS) {
-        FLOPPY_ERROR("can't write data in status mode\n");
+    if (!(fdctrl->msr & FD_MSR_RQM) || (fdctrl->msr & FD_MSR_DIO)) {
+        FLOPPY_ERROR("controller not ready for writing\n");
         return;
     }
+    fdctrl->dsr &= ~FD_DSR_PWRDOWN;
     /* Is it write command time ? */
     if (fdctrl->msr & FD_MSR_NONDMA) {
         /* FIFO data write */
@@ -1729,7 +1711,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
         /* Switch from transfer mode to status mode
          * then from status mode to command mode
          */
-        if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA)
+        if (fdctrl->data_pos == fdctrl->data_len)
             fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
         return;
     }
@@ -1812,7 +1794,6 @@ static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
         fd_init(&fdctrl->drives[i], fds[i]);
     }
     fdctrl_reset(fdctrl, 0);
-    fdctrl->state = FD_CTRL_ACTIVE;
     register_savevm("fdc", io_base, 1, fdc_save, fdc_load, fdctrl);
     qemu_register_reset(fdctrl_external_reset, fdctrl);
     for (i = 0; i < MAX_FD; i++) {
