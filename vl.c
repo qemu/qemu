@@ -4949,6 +4949,11 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
+static void bdrv_format_print(void *opaque, const char *name)
+{
+    fprintf(stderr, " %s", name);
+}
+
 static int drive_init(struct drive_opt *arg, int snapshot,
                       QEMUMachine *machine)
 {
@@ -5138,6 +5143,12 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     }
 
     if (get_param_value(buf, sizeof(buf), "format", str)) {
+       if (strcmp(buf, "?") == 0) {
+            fprintf(stderr, "qemu: Supported formats:");
+            bdrv_iterate_format(bdrv_format_print, NULL);
+            fprintf(stderr, "\n");
+	    return -1;
+        }
         drv = bdrv_find_format(buf);
         if (!drv) {
             fprintf(stderr, "qemu: '%s' invalid format\n", buf);
@@ -7634,9 +7645,9 @@ static void help(int exitcode)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
-	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][index=i]\n"
-           "       [,cyls=c,heads=h,secs=s[,trans=t]][snapshot=on|off]"
-           "       [,cache=on|off]\n"
+	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
+           "       [,cyls=c,heads=h,secs=s[,trans=t]][,snapshot=on|off]\n"
+           "       [,cache=on|off][,format=f]\n"
 	   "                use 'file' as a drive image\n"
            "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"
