@@ -322,7 +322,6 @@ static void fdctrl_reset_fifo (fdctrl_t *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status);
-static void fdctrl_result_timer(void *opaque);
 
 static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl);
 static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl);
@@ -694,78 +693,6 @@ static void fdctrl_external_reset(void *opaque)
     fdctrl_reset(s, 0);
 }
 
-static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
-                                     target_phys_addr_t io_base,
-                                     BlockDriverState **fds)
-{
-    fdctrl_t *fdctrl;
-    int i;
-
-    FLOPPY_DPRINTF("init controller\n");
-    fdctrl = qemu_mallocz(sizeof(fdctrl_t));
-    if (!fdctrl)
-        return NULL;
-    fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
-    if (fdctrl->fifo == NULL) {
-        qemu_free(fdctrl);
-        return NULL;
-    }
-    fdctrl->result_timer = qemu_new_timer(vm_clock,
-                                          fdctrl_result_timer, fdctrl);
-
-    fdctrl->version = 0x90; /* Intel 82078 controller */
-    fdctrl->irq = irq;
-    fdctrl->dma_chann = dma_chann;
-    fdctrl->io_base = io_base;
-    fdctrl->config = FD_CONFIG_EIS | FD_CONFIG_EFIFO; /* Implicit seek, polling & FIFO enabled */
-    if (fdctrl->dma_chann != -1) {
-        fdctrl->dma_en = 1;
-        DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
-    } else {
-        fdctrl->dma_en = 0;
-    }
-    for (i = 0; i < MAX_FD; i++) {
-        fd_init(&fdctrl->drives[i], fds[i]);
-    }
-    fdctrl_reset(fdctrl, 0);
-    fdctrl->state = FD_CTRL_ACTIVE;
-    register_savevm("fdc", io_base, 1, fdc_save, fdc_load, fdctrl);
-    qemu_register_reset(fdctrl_external_reset, fdctrl);
-    for (i = 0; i < MAX_FD; i++) {
-        fd_revalidate(&fdctrl->drives[i]);
-    }
-
-    return fdctrl;
-}
-
-fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
-                       target_phys_addr_t io_base,
-                       BlockDriverState **fds)
-{
-    fdctrl_t *fdctrl;
-    int io_mem;
-
-    fdctrl = fdctrl_init_common(irq, dma_chann, io_base, fds);
-
-    fdctrl->sun4m = 0;
-    if (mem_mapped) {
-        io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write,
-                                        fdctrl);
-        cpu_register_physical_memory(io_base, 0x08, io_mem);
-    } else {
-        register_ioport_read((uint32_t)io_base + 0x01, 5, 1, &fdctrl_read,
-                             fdctrl);
-        register_ioport_read((uint32_t)io_base + 0x07, 1, 1, &fdctrl_read,
-                             fdctrl);
-        register_ioport_write((uint32_t)io_base + 0x01, 5, 1, &fdctrl_write,
-                              fdctrl);
-        register_ioport_write((uint32_t)io_base + 0x07, 1, 1, &fdctrl_write,
-                              fdctrl);
-    }
-
-    return fdctrl;
-}
-
 static void fdctrl_handle_tc(void *opaque, int irq, int level)
 {
     //fdctrl_t *s = opaque;
@@ -774,23 +701,6 @@ static void fdctrl_handle_tc(void *opaque, int irq, int level)
         // XXX
         FLOPPY_DPRINTF("TC pulsed\n");
     }
-}
-
-fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
-                             BlockDriverState **fds, qemu_irq *fdc_tc)
-{
-    fdctrl_t *fdctrl;
-    int io_mem;
-
-    fdctrl = fdctrl_init_common(irq, 0, io_base, fds);
-    fdctrl->sun4m = 1;
-    io_mem = cpu_register_io_memory(0, fdctrl_mem_read_strict,
-                                    fdctrl_mem_write_strict,
-                                    fdctrl);
-    cpu_register_physical_memory(io_base, 0x08, io_mem);
-    *fdc_tc = *qemu_allocate_irqs(fdctrl_handle_tc, fdctrl, 1);
-
-    return fdctrl;
 }
 
 /* XXX: may change if moved to bdrv */
@@ -1730,50 +1640,54 @@ static void fdctrl_handle_relative_seek_in (fdctrl_t *fdctrl, int direction)
     fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
 }
 
+static const struct {
+    uint8_t value;
+    uint8_t mask;
+    const char* name;
+    int parameters;
+    void (*handler)(fdctrl_t *fdctrl, int direction);
+    int direction;
+} handlers[] = {
+    { FD_CMD_READ, 0x1f, "READ", 8, fdctrl_start_transfer, FD_DIR_READ },
+    { FD_CMD_WRITE, 0x3f, "WRITE", 8, fdctrl_start_transfer, FD_DIR_WRITE },
+    { FD_CMD_SEEK, 0xff, "SEEK", 2, fdctrl_handle_seek },
+    { FD_CMD_SENSE_INTERRUPT_STATUS, 0xff, "SENSE INTERRUPT STATUS", 0, fdctrl_handle_sense_interrupt_status },
+    { FD_CMD_RECALIBRATE, 0xff, "RECALIBRATE", 1, fdctrl_handle_recalibrate },
+    { FD_CMD_FORMAT_TRACK, 0xbf, "FORMAT TRACK", 5, fdctrl_handle_format_track },
+    { FD_CMD_READ_TRACK, 0xbf, "READ TRACK", 8, fdctrl_start_transfer, FD_DIR_READ },
+    { FD_CMD_RESTORE, 0xff, "RESTORE", 17, fdctrl_handle_restore }, /* part of READ DELETED DATA */
+    { FD_CMD_SAVE, 0xff, "SAVE", 0, fdctrl_handle_save }, /* part of READ DELETED DATA */
+    { FD_CMD_READ_DELETED, 0x1f, "READ DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_READ },
+    { FD_CMD_SCAN_EQUAL, 0x1f, "SCAN EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANE },
+    { FD_CMD_VERIFY, 0x1f, "VERIFY", 8, fdctrl_unimplemented },
+    { FD_CMD_SCAN_LOW_OR_EQUAL, 0x1f, "SCAN LOW OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANL },
+    { FD_CMD_SCAN_HIGH_OR_EQUAL, 0x1f, "SCAN HIGH OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANH },
+    { FD_CMD_WRITE_DELETED, 0x3f, "WRITE DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_WRITE },
+    { FD_CMD_READ_ID, 0xbf, "READ ID", 1, fdctrl_handle_readid },
+    { FD_CMD_SPECIFY, 0xff, "SPECIFY", 2, fdctrl_handle_specify },
+    { FD_CMD_SENSE_DRIVE_STATUS, 0xff, "SENSE DRIVE STATUS", 1, fdctrl_handle_sense_drive_status },
+    { FD_CMD_PERPENDICULAR_MODE, 0xff, "PERPENDICULAR MODE", 1, fdctrl_handle_perpendicular_mode },
+    { FD_CMD_CONFIGURE, 0xff, "CONFIGURE", 3, fdctrl_handle_configure },
+    { FD_CMD_POWERDOWN_MODE, 0xff, "POWERDOWN MODE", 2, fdctrl_handle_powerdown_mode },
+    { FD_CMD_OPTION, 0xff, "OPTION", 1, fdctrl_handle_option },
+    { FD_CMD_DRIVE_SPECIFICATION_COMMAND, 0xff, "DRIVE SPECIFICATION COMMAND", 5, fdctrl_handle_drive_specification_command },
+    { FD_CMD_RELATIVE_SEEK_OUT, 0xff, "RELATIVE SEEK OUT", 2, fdctrl_handle_relative_seek_out },
+    { FD_CMD_FORMAT_AND_WRITE, 0xff, "FORMAT AND WRITE", 10, fdctrl_unimplemented },
+    { FD_CMD_RELATIVE_SEEK_IN, 0xff, "RELATIVE SEEK IN", 2, fdctrl_handle_relative_seek_in },
+    { FD_CMD_LOCK, 0x7f, "LOCK", 0, fdctrl_handle_lock },
+    { FD_CMD_DUMPREG, 0xff, "DUMPREG", 0, fdctrl_handle_dumpreg },
+    { FD_CMD_VERSION, 0xff, "VERSION", 0, fdctrl_handle_version },
+    { FD_CMD_PART_ID, 0xff, "PART ID", 0, fdctrl_handle_partid },
+    { FD_CMD_WRITE, 0x1f, "WRITE (BeOS)", 8, fdctrl_start_transfer, FD_DIR_WRITE }, /* not in specification ; BeOS 4.5 bug */
+    { 0, 0, "unknown", 0, fdctrl_unimplemented }, /* default handler */
+};
+/* Associate command to an index in the 'handlers' array */
+static uint8_t command_to_handler[256];
+
 static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
 {
     fdrive_t *cur_drv;
     int pos;
-    static const struct {
-        uint8_t value;
-        uint8_t mask;
-        const char* name;
-        int parameters;
-        void (*handler)(fdctrl_t *fdctrl, int direction);
-        int parameter;
-    } commands[] = {
-        { FD_CMD_READ, 0x1f, "READ", 8, fdctrl_start_transfer, FD_DIR_READ },
-        { FD_CMD_WRITE, 0x3f, "WRITE", 8, fdctrl_start_transfer, FD_DIR_WRITE },
-        { FD_CMD_SEEK, 0xff, "SEEK", 2, fdctrl_handle_seek },
-        { FD_CMD_SENSE_INTERRUPT_STATUS, 0xff, "SENSE INTERRUPT STATUS", 0, fdctrl_handle_sense_interrupt_status },
-        { FD_CMD_RECALIBRATE, 0xff, "RECALIBRATE", 1, fdctrl_handle_recalibrate },
-        { FD_CMD_FORMAT_TRACK, 0xbf, "FORMAT TRACK", 5, fdctrl_handle_format_track },
-        { FD_CMD_READ_TRACK, 0xbf, "READ TRACK", 8, fdctrl_start_transfer, FD_DIR_READ },
-        { FD_CMD_RESTORE, 0xff, "RESTORE", 17, fdctrl_handle_restore }, /* part of READ DELETED DATA */
-        { FD_CMD_SAVE, 0xff, "SAVE", 0, fdctrl_handle_save }, /* part of READ DELETED DATA */
-        { FD_CMD_READ_DELETED, 0x1f, "READ DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_READ },
-        { FD_CMD_SCAN_EQUAL, 0x1f, "SCAN EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANE },
-        { FD_CMD_VERIFY, 0x1f, "VERIFY", 8, fdctrl_unimplemented },
-        { FD_CMD_SCAN_LOW_OR_EQUAL, 0x1f, "SCAN LOW OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANL },
-        { FD_CMD_SCAN_HIGH_OR_EQUAL, 0x1f, "SCAN HIGH OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANH },
-        { FD_CMD_WRITE_DELETED, 0x3f, "WRITE DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_WRITE },
-        { FD_CMD_READ_ID, 0xbf, "READ ID", 1, fdctrl_handle_readid },
-        { FD_CMD_SPECIFY, 0xff, "SPECIFY", 2, fdctrl_handle_specify },
-        { FD_CMD_SENSE_DRIVE_STATUS, 0xff, "SENSE DRIVE STATUS", 1, fdctrl_handle_sense_drive_status },
-        { FD_CMD_PERPENDICULAR_MODE, 0xff, "PERPENDICULAR MODE", 1, fdctrl_handle_perpendicular_mode },
-        { FD_CMD_CONFIGURE, 0xff, "CONFIGURE", 3, fdctrl_handle_configure },
-        { FD_CMD_POWERDOWN_MODE, 0xff, "POWERDOWN MODE", 2, fdctrl_handle_powerdown_mode },
-        { FD_CMD_OPTION, 0xff, "OPTION", 1, fdctrl_handle_option },
-        { FD_CMD_DRIVE_SPECIFICATION_COMMAND, 0xff, "DRIVE SPECIFICATION COMMAND", 5, fdctrl_handle_drive_specification_command },
-        { FD_CMD_RELATIVE_SEEK_OUT, 0xff, "RELATIVE SEEK OUT", 2, fdctrl_handle_relative_seek_out },
-        { FD_CMD_FORMAT_AND_WRITE, 0xff, "FORMAT AND WRITE", 10, fdctrl_unimplemented },
-        { FD_CMD_RELATIVE_SEEK_IN, 0xff, "RELATIVE SEEK IN", 2, fdctrl_handle_relative_seek_in },
-        { FD_CMD_LOCK, 0x7f, "LOCK", 0, fdctrl_handle_lock },
-        { FD_CMD_DUMPREG, 0xff, "DUMPREG", 0, fdctrl_handle_dumpreg },
-        { FD_CMD_VERSION, 0xff, "VERSION", 0, fdctrl_handle_version },
-        { FD_CMD_PART_ID, 0xff, "PART ID", 0, fdctrl_handle_partid },
-        { FD_CMD_WRITE, 0x1f, "WRITE (BeOS)", 8, fdctrl_start_transfer, FD_DIR_WRITE }, /* not in specification ; BeOS 4.5 bug */
-    };
 
     cur_drv = get_cur_drv(fdctrl);
     /* Reset mode */
@@ -1803,20 +1717,11 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
     }
     if (fdctrl->data_pos == 0) {
         /* Command */
-        for (pos = 0; pos < sizeof(commands)/sizeof(commands[0]); pos++) {
-            if ((value & commands[pos].mask) == commands[pos].value) {
-                FLOPPY_DPRINTF("%s command\n", commands[pos].name);
-                fdctrl->data_len = commands[pos].parameters + 1;
-                goto enqueue;
-            }
-        }
-
-        /* Unknown command */
-        FLOPPY_ERROR("unknown command: 0x%02x\n", value);
-        fdctrl_unimplemented(fdctrl, 0);
-        return;
+        pos = command_to_handler[value & 0xff];
+        FLOPPY_DPRINTF("%s command\n", handlers[pos].name);
+        fdctrl->data_len = handlers[pos].parameters + 1;
     }
- enqueue:
+
     FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
     fdctrl->fifo[fdctrl->data_pos] = value;
     if (++fdctrl->data_pos == fdctrl->data_len) {
@@ -1828,13 +1733,9 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
             return;
         }
 
-        for (pos = 0; pos < sizeof(commands)/sizeof(commands[0]); pos++) {
-            if ((fdctrl->fifo[0] & commands[pos].mask) == commands[pos].value) {
-                FLOPPY_DPRINTF("treat %s command\n", commands[pos].name);
-                (*commands[pos].handler)(fdctrl, commands[pos].parameter);
-                break;
-            }
-        }
+        pos = command_to_handler[fdctrl->fifo[0] & 0xff];
+        FLOPPY_DPRINTF("treat %s command\n", handlers[pos].name);
+        (*handlers[pos].handler)(fdctrl, handlers[pos].direction);
     }
 }
 
@@ -1851,4 +1752,102 @@ static void fdctrl_result_timer(void *opaque)
         cur_drv->sect = (cur_drv->sect % cur_drv->last_sect) + 1;
     }
     fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+}
+
+/* Init functions */
+static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
+                                     target_phys_addr_t io_base,
+                                     BlockDriverState **fds)
+{
+    fdctrl_t *fdctrl;
+    int i, j;
+
+    /* Fill 'command_to_handler' lookup table */
+    for (i = sizeof(handlers)/sizeof(handlers[0]) - 1; i >= 0; i--) {
+        for (j = 0; j < sizeof(command_to_handler); j++) {
+            if ((j & handlers[i].mask) == handlers[i].value)
+                command_to_handler[j] = i;
+        }
+    }
+
+    FLOPPY_DPRINTF("init controller\n");
+    fdctrl = qemu_mallocz(sizeof(fdctrl_t));
+    if (!fdctrl)
+        return NULL;
+    fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
+    if (fdctrl->fifo == NULL) {
+        qemu_free(fdctrl);
+        return NULL;
+    }
+    fdctrl->result_timer = qemu_new_timer(vm_clock,
+                                          fdctrl_result_timer, fdctrl);
+
+    fdctrl->version = 0x90; /* Intel 82078 controller */
+    fdctrl->irq = irq;
+    fdctrl->dma_chann = dma_chann;
+    fdctrl->io_base = io_base;
+    fdctrl->config = FD_CONFIG_EIS | FD_CONFIG_EFIFO; /* Implicit seek, polling & FIFO enabled */
+    if (fdctrl->dma_chann != -1) {
+        fdctrl->dma_en = 1;
+        DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
+    } else {
+        fdctrl->dma_en = 0;
+    }
+    for (i = 0; i < MAX_FD; i++) {
+        fd_init(&fdctrl->drives[i], fds[i]);
+    }
+    fdctrl_reset(fdctrl, 0);
+    fdctrl->state = FD_CTRL_ACTIVE;
+    register_savevm("fdc", io_base, 1, fdc_save, fdc_load, fdctrl);
+    qemu_register_reset(fdctrl_external_reset, fdctrl);
+    for (i = 0; i < MAX_FD; i++) {
+        fd_revalidate(&fdctrl->drives[i]);
+    }
+
+    return fdctrl;
+}
+
+fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
+                       target_phys_addr_t io_base,
+                       BlockDriverState **fds)
+{
+    fdctrl_t *fdctrl;
+    int io_mem;
+
+    fdctrl = fdctrl_init_common(irq, dma_chann, io_base, fds);
+
+    fdctrl->sun4m = 0;
+    if (mem_mapped) {
+        io_mem = cpu_register_io_memory(0, fdctrl_mem_read, fdctrl_mem_write,
+                                        fdctrl);
+        cpu_register_physical_memory(io_base, 0x08, io_mem);
+    } else {
+        register_ioport_read((uint32_t)io_base + 0x01, 5, 1, &fdctrl_read,
+                             fdctrl);
+        register_ioport_read((uint32_t)io_base + 0x07, 1, 1, &fdctrl_read,
+                             fdctrl);
+        register_ioport_write((uint32_t)io_base + 0x01, 5, 1, &fdctrl_write,
+                              fdctrl);
+        register_ioport_write((uint32_t)io_base + 0x07, 1, 1, &fdctrl_write,
+                              fdctrl);
+    }
+
+    return fdctrl;
+}
+
+fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
+                             BlockDriverState **fds, qemu_irq *fdc_tc)
+{
+    fdctrl_t *fdctrl;
+    int io_mem;
+
+    fdctrl = fdctrl_init_common(irq, 0, io_base, fds);
+    fdctrl->sun4m = 1;
+    io_mem = cpu_register_io_memory(0, fdctrl_mem_read_strict,
+                                    fdctrl_mem_write_strict,
+                                    fdctrl);
+    cpu_register_physical_memory(io_base, 0x08, io_mem);
+    *fdc_tc = *qemu_allocate_irqs(fdctrl_handle_tc, fdctrl, 1);
+
+    return fdctrl;
 }
