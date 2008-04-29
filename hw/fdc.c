@@ -417,7 +417,11 @@ enum {
 };
 
 enum {
+#if MAX_FD == 4
+    FD_DOR_SELMASK  = 0x03,
+#else
     FD_DOR_SELMASK  = 0x01,
+#endif
     FD_DOR_nRESET   = 0x04,
     FD_DOR_DMAEN    = 0x08,
     FD_DOR_MOTEN0   = 0x10,
@@ -427,7 +431,11 @@ enum {
 };
 
 enum {
+#if MAX_FD == 4
     FD_TDR_BOOTSEL  = 0x0c,
+#else
+    FD_TDR_BOOTSEL  = 0x04,
+#endif
 };
 
 enum {
@@ -494,7 +502,7 @@ struct fdctrl_t {
     /* Sun4m quirks? */
     int sun4m;
     /* Floppy drives */
-    fdrive_t drives[2];
+    fdrive_t drives[MAX_FD];
 };
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
@@ -602,6 +610,8 @@ static void fd_save (QEMUFile *f, fdrive_t *fd)
 static void fdc_save (QEMUFile *f, void *opaque)
 {
     fdctrl_t *s = opaque;
+    uint8_t tmp;
+    int i;
 
     /* Controller state */
     qemu_put_8s(f, &s->sra);
@@ -627,8 +637,11 @@ static void fdc_save (QEMUFile *f, void *opaque)
     qemu_put_8s(f, &s->config);
     qemu_put_8s(f, &s->lock);
     qemu_put_8s(f, &s->pwrd);
-    fd_save(f, &s->drives[0]);
-    fd_save(f, &s->drives[1]);
+
+    tmp = MAX_FD;
+    qemu_put_8s(f, &tmp);
+    for (i = 0; i < MAX_FD; i++)
+        fd_save(f, &s->drives[i]);
 }
 
 static int fd_load (QEMUFile *f, fdrive_t *fd)
@@ -643,7 +656,8 @@ static int fd_load (QEMUFile *f, fdrive_t *fd)
 static int fdc_load (QEMUFile *f, void *opaque, int version_id)
 {
     fdctrl_t *s = opaque;
-    int ret;
+    int i, ret = 0;
+    uint8_t n;
 
     if (version_id != 2)
         return -EINVAL;
@@ -672,10 +686,16 @@ static int fdc_load (QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->config);
     qemu_get_8s(f, &s->lock);
     qemu_get_8s(f, &s->pwrd);
+    qemu_get_8s(f, &n);
 
-    ret = fd_load(f, &s->drives[0]);
-    if (ret == 0)
-        ret = fd_load(f, &s->drives[1]);
+    if (n > MAX_FD)
+        return -EINVAL;
+
+    for (i = 0; i < n; i++) {
+        ret = fd_load(f, &s->drives[i]);
+        if (ret != 0)
+            break;
+    }
 
     return ret;
 }
@@ -773,9 +793,35 @@ static inline fdrive_t *drv1 (fdctrl_t *fdctrl)
         return &fdctrl->drives[0];
 }
 
+#if MAX_FD == 4
+static inline fdrive_t *drv2 (fdctrl_t *fdctrl)
+{
+    if ((fdctrl->tdr & FD_TDR_BOOTSEL) < (2 << 2))
+        return &fdctrl->drives[2];
+    else
+        return &fdctrl->drives[1];
+}
+
+static inline fdrive_t *drv3 (fdctrl_t *fdctrl)
+{
+    if ((fdctrl->tdr & FD_TDR_BOOTSEL) < (3 << 2))
+        return &fdctrl->drives[3];
+    else
+        return &fdctrl->drives[2];
+}
+#endif
+
 static fdrive_t *get_cur_drv (fdctrl_t *fdctrl)
 {
-    return fdctrl->cur_drv == 0 ? drv0(fdctrl) : drv1(fdctrl);
+    switch (fdctrl->cur_drv) {
+        case 0: return drv0(fdctrl);
+        case 1: return drv1(fdctrl);
+#if MAX_FD == 4
+        case 2: return drv2(fdctrl);
+        case 3: return drv3(fdctrl);
+#endif
+        default: return NULL;
+    }
 }
 
 /* Status A register : 0x00 (read-only) */
@@ -923,8 +969,13 @@ static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl)
 {
     uint32_t retval = 0;
 
-    if (fdctrl_media_changed(drv0(fdctrl)) ||
-        fdctrl_media_changed(drv1(fdctrl)))
+    if (fdctrl_media_changed(drv0(fdctrl))
+     || fdctrl_media_changed(drv1(fdctrl))
+#if MAX_FD == 4
+     || fdctrl_media_changed(drv2(fdctrl))
+     || fdctrl_media_changed(drv3(fdctrl))
+#endif
+        )
         retval |= FD_DIR_DSKCHG;
     if (retval != 0)
         FLOPPY_DPRINTF("Floppy digital input register: 0x%02x\n", retval);
@@ -1367,8 +1418,13 @@ static void fdctrl_handle_dumpreg (fdctrl_t *fdctrl, int direction)
     /* Drives position */
     fdctrl->fifo[0] = drv0(fdctrl)->track;
     fdctrl->fifo[1] = drv1(fdctrl)->track;
+#if MAX_FD == 4
+    fdctrl->fifo[2] = drv2(fdctrl)->track;
+    fdctrl->fifo[3] = drv3(fdctrl)->track;
+#else
     fdctrl->fifo[2] = 0;
     fdctrl->fifo[3] = 0;
+#endif
     /* timers */
     fdctrl->fifo[4] = fdctrl->timer0;
     fdctrl->fifo[5] = (fdctrl->timer1 << 1) | (fdctrl->dor & FD_DOR_DMAEN ? 1 : 0);
@@ -1400,6 +1456,10 @@ static void fdctrl_handle_restore (fdctrl_t *fdctrl, int direction)
     /* Drives position */
     drv0(fdctrl)->track = fdctrl->fifo[3];
     drv1(fdctrl)->track = fdctrl->fifo[4];
+#if MAX_FD == 4
+    drv2(fdctrl)->track = fdctrl->fifo[5];
+    drv3(fdctrl)->track = fdctrl->fifo[6];
+#endif
     /* timers */
     fdctrl->timer0 = fdctrl->fifo[7];
     fdctrl->timer1 = fdctrl->fifo[8];
@@ -1421,8 +1481,13 @@ static void fdctrl_handle_save (fdctrl_t *fdctrl, int direction)
     /* Drives position */
     fdctrl->fifo[2] = drv0(fdctrl)->track;
     fdctrl->fifo[3] = drv1(fdctrl)->track;
+#if MAX_FD == 4
+    fdctrl->fifo[4] = drv2(fdctrl)->track;
+    fdctrl->fifo[5] = drv3(fdctrl)->track;
+#else
     fdctrl->fifo[4] = 0;
     fdctrl->fifo[5] = 0;
+#endif
     /* timers */
     fdctrl->fifo[6] = fdctrl->timer0;
     fdctrl->fifo[7] = fdctrl->timer1;
