@@ -494,6 +494,8 @@ struct fdctrl_t {
     QEMUTimer *result_timer;
     uint8_t sra;
     uint8_t srb;
+    uint8_t dor;
+    uint8_t msr;
     uint8_t state;
     uint8_t dma_en;
     uint8_t cur_drv;
@@ -771,6 +773,9 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
     if (!fdctrl->drives[1].bs)
         fdctrl->sra |= FD_SRA_nDRV2;
     fdctrl->cur_drv = 0;
+    fdctrl->dor = 0;
+    fdctrl->dor |= (fdctrl->dma_chann != -1) ? FD_DOR_DMAEN : 0;
+    fdctrl->msr = 0;
     /* FIFO state */
     fdctrl->data_pos = 0;
     fdctrl->data_len = 0;
@@ -829,7 +834,7 @@ static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl)
     if (drv1(fdctrl)->drflags & FDRIVE_MOTOR_ON)
         retval |= FD_DOR_MOTEN1;
     /* DMA enable */
-    if (fdctrl->dma_en)
+    if (fdctrl->dor & FD_DOR_DMAEN)
         retval |= FD_DOR_DMAEN;
     /* Reset indicator */
     if (!(fdctrl->state & FD_CTRL_RESET))
@@ -897,6 +902,8 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
     }
     /* Selected drive */
     fdctrl->cur_drv = value & FD_DOR_SELMASK;
+
+    fdctrl->dor = value;
 }
 
 /* Tape drive register : 0x03 */
@@ -1085,10 +1092,11 @@ static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
     fdctrl->fifo[5] = cur_drv->sect;
     fdctrl->fifo[6] = FD_SECTOR_SC;
     fdctrl->data_dir = FD_DIR_READ;
-    if (fdctrl->state & FD_CTRL_BUSY) {
+    if (!(fdctrl->msr & FD_MSR_NONDMA)) {
         DMA_release_DREQ(fdctrl->dma_chann);
         fdctrl->state &= ~FD_CTRL_BUSY;
     }
+    fdctrl->msr &= ~FD_MSR_NONDMA;
     fdctrl_set_fifo(fdctrl, 7, 1);
 }
 
@@ -1159,7 +1167,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
         fdctrl->data_len *= tmp;
     }
     fdctrl->eot = fdctrl->fifo[6];
-    if (fdctrl->dma_en) {
+    if (fdctrl->dor & FD_DOR_DMAEN) {
         int dma_mode;
         /* DMA transfer are enabled. Check if DMA channel is well programmed */
         dma_mode = DMA_get_channel_mode(fdctrl->dma_chann);
@@ -1185,6 +1193,7 @@ static void fdctrl_start_transfer (fdctrl_t *fdctrl, int direction)
         }
     }
     FLOPPY_DPRINTF("start non-DMA transfer\n");
+    fdctrl->msr |= FD_MSR_NONDMA;
     /* IO based transfer: calculate len */
     fdctrl_raise_irq(fdctrl, 0x00);
 
@@ -1325,7 +1334,7 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
         return 0;
     }
     pos = fdctrl->data_pos;
-    if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA) {
+    if (fdctrl->msr & FD_MSR_NONDMA) {
         pos %= FD_SECTOR_LEN;
         if (pos == 0) {
             if (fdctrl->data_pos != 0)
@@ -1343,7 +1352,7 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
         /* Switch from transfer mode to status mode
          * then from status mode to command mode
          */
-        if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA) {
+        if (fdctrl->msr & FD_MSR_NONDMA) {
             fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
         } else {
             fdctrl_reset_fifo(fdctrl);
@@ -1438,7 +1447,7 @@ static void fdctrl_handle_dumpreg (fdctrl_t *fdctrl, int direction)
     fdctrl->fifo[3] = 0;
     /* timers */
     fdctrl->fifo[4] = fdctrl->timer0;
-    fdctrl->fifo[5] = (fdctrl->timer1 << 1) | fdctrl->dma_en;
+    fdctrl->fifo[5] = (fdctrl->timer1 << 1) | (fdctrl->dor & FD_DOR_DMAEN ? 1 : 0);
     fdctrl->fifo[6] = cur_drv->last_sect;
     fdctrl->fifo[7] = (fdctrl->lock << 7) |
         (cur_drv->perpendicular << 2);
@@ -1547,7 +1556,10 @@ static void fdctrl_handle_specify (fdctrl_t *fdctrl, int direction)
 {
     fdctrl->timer0 = (fdctrl->fifo[1] >> 4) & 0xF;
     fdctrl->timer1 = fdctrl->fifo[2] >> 1;
-    fdctrl->dma_en = 1 - (fdctrl->fifo[2] & 1) ;
+    if (fdctrl->fifo[2] & 1)
+        fdctrl->dor &= ~FD_DOR_DMAEN;
+    else
+        fdctrl->dor |= FD_DOR_DMAEN;
     /* No result back */
     fdctrl_reset_fifo(fdctrl);
 }
@@ -1770,7 +1782,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
         return;
     }
     /* Is it write command time ? */
-    if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA) {
+    if (fdctrl->msr & FD_MSR_NONDMA) {
         /* FIFO data write */
         fdctrl->fifo[fdctrl->data_pos++] = value;
         if (fdctrl->data_pos % FD_SECTOR_LEN == (FD_SECTOR_LEN - 1) ||
@@ -1862,10 +1874,7 @@ static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
     fdctrl->io_base = io_base;
     fdctrl->config = FD_CONFIG_EIS | FD_CONFIG_EFIFO; /* Implicit seek, polling & FIFO enabled */
     if (fdctrl->dma_chann != -1) {
-        fdctrl->dma_en = 1;
         DMA_register_channel(dma_chann, &fdctrl_transfer_handler, fdctrl);
-    } else {
-        fdctrl->dma_en = 0;
     }
     for (i = 0; i < MAX_FD; i++) {
         fd_init(&fdctrl->drives[i], fds[i]);
@@ -1915,7 +1924,7 @@ fdctrl_t *sun4m_fdctrl_init (qemu_irq irq, target_phys_addr_t io_base,
     fdctrl_t *fdctrl;
     int io_mem;
 
-    fdctrl = fdctrl_init_common(irq, 0, io_base, fds);
+    fdctrl = fdctrl_init_common(irq, -1, io_base, fds);
     fdctrl->sun4m = 1;
     io_mem = cpu_register_io_memory(0, fdctrl_mem_read_strict,
                                     fdctrl_mem_write_strict,
