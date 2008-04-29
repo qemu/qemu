@@ -467,10 +467,10 @@ struct fdctrl_t {
     uint8_t sra;
     uint8_t srb;
     uint8_t dor;
+    uint8_t tdr;
     uint8_t dsr;
     uint8_t msr;
     uint8_t cur_drv;
-    uint8_t bootsel;
     uint8_t status0;
     uint8_t status1;
     uint8_t status2;
@@ -606,13 +606,13 @@ static void fdc_save (QEMUFile *f, void *opaque)
     /* Controller state */
     qemu_put_8s(f, &s->sra);
     qemu_put_8s(f, &s->srb);
+    qemu_put_8s(f, &s->tdr);
     qemu_put_8s(f, &s->dsr);
     qemu_put_8s(f, &s->msr);
     qemu_put_8s(f, &s->status0);
     qemu_put_8s(f, &s->status1);
     qemu_put_8s(f, &s->status2);
     qemu_put_8s(f, &s->cur_drv);
-    qemu_put_8s(f, &s->bootsel);
     /* Command FIFO */
     qemu_put_buffer(f, s->fifo, FD_SECTOR_LEN);
     qemu_put_be32s(f, &s->data_pos);
@@ -651,13 +651,13 @@ static int fdc_load (QEMUFile *f, void *opaque, int version_id)
     /* Controller state */
     qemu_get_8s(f, &s->sra);
     qemu_get_8s(f, &s->srb);
+    qemu_get_8s(f, &s->tdr);
     qemu_get_8s(f, &s->dsr);
     qemu_get_8s(f, &s->msr);
     qemu_get_8s(f, &s->status0);
     qemu_get_8s(f, &s->status1);
     qemu_get_8s(f, &s->status2);
     qemu_get_8s(f, &s->cur_drv);
-    qemu_get_8s(f, &s->bootsel);
     /* Command FIFO */
     qemu_get_buffer(f, s->fifo, FD_SECTOR_LEN);
     qemu_get_be32s(f, &s->data_pos);
@@ -762,12 +762,15 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
 
 static inline fdrive_t *drv0 (fdctrl_t *fdctrl)
 {
-    return &fdctrl->drives[fdctrl->bootsel];
+    return &fdctrl->drives[(fdctrl->tdr & FD_TDR_BOOTSEL) >> 2];
 }
 
 static inline fdrive_t *drv1 (fdctrl_t *fdctrl)
 {
-    return &fdctrl->drives[1 - fdctrl->bootsel];
+    if ((fdctrl->tdr & FD_TDR_BOOTSEL) < (1 << 2))
+        return &fdctrl->drives[1];
+    else
+        return &fdctrl->drives[0];
 }
 
 static fdrive_t *get_cur_drv (fdctrl_t *fdctrl)
@@ -848,11 +851,8 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
 /* Tape drive register : 0x03 */
 static uint32_t fdctrl_read_tape (fdctrl_t *fdctrl)
 {
-    uint32_t retval = 0;
+    uint32_t retval = fdctrl->tdr;
 
-    /* Disk boot selection indicator */
-    retval |= fdctrl->bootsel << 2;
-    /* Tape indicators: never allowed */
     FLOPPY_DPRINTF("tape drive register: 0x%02x\n", retval);
 
     return retval;
@@ -867,7 +867,7 @@ static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value)
     }
     FLOPPY_DPRINTF("tape drive register set to 0x%02x\n", value);
     /* Disk boot selection indicator */
-    fdctrl->bootsel = (value & FD_TDR_BOOTSEL) >> 2;
+    fdctrl->tdr = value & FD_TDR_BOOTSEL;
     /* Tape indicators: never allow */
 }
 
