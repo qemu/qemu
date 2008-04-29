@@ -69,10 +69,6 @@ typedef enum fdrive_type_t {
     FDRIVE_DRV_NONE = 0x03,   /* No drive connected     */
 } fdrive_type_t;
 
-typedef enum fdrive_flags_t {
-    FDRIVE_MOTOR_ON   = 0x01, /* motor on/off           */
-} fdrive_flags_t;
-
 typedef enum fdisk_flags_t {
     FDISK_DBL_SIDES  = 0x01,
 } fdisk_flags_t;
@@ -81,7 +77,6 @@ typedef struct fdrive_t {
     BlockDriverState *bs;
     /* Drive status */
     fdrive_type_t drive;
-    fdrive_flags_t drflags;
     uint8_t perpendicular;    /* 2.88 MB access mode    */
     /* Position */
     uint8_t head;
@@ -103,7 +98,6 @@ static void fd_init (fdrive_t *drv, BlockDriverState *bs)
     /* Drive */
     drv->bs = bs;
     drv->drive = FDRIVE_DRV_NONE;
-    drv->drflags = 0;
     drv->perpendicular = 0;
     /* Disk */
     drv->last_sect = 0;
@@ -296,24 +290,6 @@ static void fd_revalidate (fdrive_t *drv)
     }
 }
 
-/* Motor control */
-static void fd_start (fdrive_t *drv)
-{
-    drv->drflags |= FDRIVE_MOTOR_ON;
-}
-
-static void fd_stop (fdrive_t *drv)
-{
-    drv->drflags &= ~FDRIVE_MOTOR_ON;
-}
-
-/* Re-initialise a drives (motor off, repositioned) */
-static void fd_reset (fdrive_t *drv)
-{
-    fd_stop(drv);
-    fd_recalibrate(drv);
-}
-
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
 
@@ -337,7 +313,6 @@ static uint32_t fdctrl_read_dir (fdctrl_t *fdctrl);
 
 enum {
     FD_CTRL_ACTIVE = 0x01, /* XXX: suppress that */
-    FD_CTRL_RESET  = 0x02,
     FD_CTRL_SLEEP  = 0x04, /* XXX: suppress that */
     FD_CTRL_BUSY   = 0x08, /* dma transfer in progress */
 };
@@ -621,10 +596,6 @@ static CPUWriteMemoryFunc *fdctrl_mem_write_strict[3] = {
 
 static void fd_save (QEMUFile *f, fdrive_t *fd)
 {
-    uint8_t tmp;
-
-    tmp = fd->drflags;
-    qemu_put_8s(f, &tmp);
     qemu_put_8s(f, &fd->head);
     qemu_put_8s(f, &fd->track);
     qemu_put_8s(f, &fd->sect);
@@ -662,10 +633,6 @@ static void fdc_save (QEMUFile *f, void *opaque)
 
 static int fd_load (QEMUFile *f, fdrive_t *fd)
 {
-    uint8_t tmp;
-
-    qemu_get_8s(f, &tmp);
-    fd->drflags = tmp;
     qemu_get_8s(f, &fd->head);
     qemu_get_8s(f, &fd->track);
     qemu_get_8s(f, &fd->sect);
@@ -773,7 +740,7 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
     if (!fdctrl->drives[1].bs)
         fdctrl->sra |= FD_SRA_nDRV2;
     fdctrl->cur_drv = 0;
-    fdctrl->dor = 0;
+    fdctrl->dor = FD_DOR_nRESET;
     fdctrl->dor |= (fdctrl->dma_chann != -1) ? FD_DOR_DMAEN : 0;
     fdctrl->msr = 0;
     /* FIFO state */
@@ -782,7 +749,7 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
     fdctrl->data_state = FD_STATE_CMD;
     fdctrl->data_dir = FD_DIR_WRITE;
     for (i = 0; i < MAX_FD; i++)
-        fd_reset(&fdctrl->drives[i]);
+        fd_recalibrate(&fdctrl->drives[i]);
     fdctrl_reset_fifo(fdctrl);
     if (do_irq)
         fdctrl_raise_irq(fdctrl, FD_SR0_RDYCHG);
@@ -826,19 +793,8 @@ static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl)
 /* Digital output register : 0x02 */
 static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl)
 {
-    uint32_t retval = 0;
+    uint32_t retval = fdctrl->dor;
 
-    /* Drive motors state indicators */
-    if (drv0(fdctrl)->drflags & FDRIVE_MOTOR_ON)
-        retval |= FD_DOR_MOTEN0;
-    if (drv1(fdctrl)->drflags & FDRIVE_MOTOR_ON)
-        retval |= FD_DOR_MOTEN1;
-    /* DMA enable */
-    if (fdctrl->dor & FD_DOR_DMAEN)
-        retval |= FD_DOR_DMAEN;
-    /* Reset indicator */
-    if (!(fdctrl->state & FD_CTRL_RESET))
-        retval |= FD_DOR_nRESET;
     /* Selected drive */
     retval |= fdctrl->cur_drv;
     FLOPPY_DPRINTF("digital output register: 0x%02x\n", retval);
@@ -848,13 +804,6 @@ static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl)
 
 static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
 {
-    /* Reset mode */
-    if (fdctrl->state & FD_CTRL_RESET) {
-        if (!(value & FD_DOR_nRESET)) {
-            FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
-            return;
-        }
-    }
     FLOPPY_DPRINTF("digital output register set to 0x%02x\n", value);
 
     /* Motors */
@@ -873,31 +822,16 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
     else
         fdctrl->srb &= ~FD_SRB_DR0;
 
-    /* Drive motors state indicators */
-    if (value & FD_DOR_MOTEN1)
-        fd_start(drv1(fdctrl));
-    else
-        fd_stop(drv1(fdctrl));
-    if (value & FD_DOR_MOTEN0)
-        fd_start(drv0(fdctrl));
-    else
-        fd_stop(drv0(fdctrl));
-    /* DMA enable */
-#if 0
-    if (fdctrl->dma_chann != -1)
-        fdctrl->dma_en = value & FD_DOR_DMAEN ? 1 : 0;
-#endif
     /* Reset */
     if (!(value & FD_DOR_nRESET)) {
-        if (!(fdctrl->state & FD_CTRL_RESET)) {
+        if (fdctrl->dor & FD_DOR_nRESET) {
             FLOPPY_DPRINTF("controller enter RESET state\n");
-            fdctrl->state |= FD_CTRL_RESET;
         }
     } else {
-        if (fdctrl->state & FD_CTRL_RESET) {
+        if (!(fdctrl->dor & FD_DOR_nRESET)) {
             FLOPPY_DPRINTF("controller out of RESET state\n");
             fdctrl_reset(fdctrl, 1);
-            fdctrl->state &= ~(FD_CTRL_RESET | FD_CTRL_SLEEP);
+            fdctrl->state &= ~FD_CTRL_SLEEP;
         }
     }
     /* Selected drive */
@@ -922,7 +856,7 @@ static uint32_t fdctrl_read_tape (fdctrl_t *fdctrl)
 static void fdctrl_write_tape (fdctrl_t *fdctrl, uint32_t value)
 {
     /* Reset mode */
-    if (fdctrl->state & FD_CTRL_RESET) {
+    if (!(fdctrl->dor & FD_DOR_nRESET)) {
         FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
         return;
     }
@@ -937,7 +871,8 @@ static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
 {
     uint32_t retval = 0;
 
-    fdctrl->state &= ~(FD_CTRL_SLEEP | FD_CTRL_RESET);
+    fdctrl->dor |= FD_DOR_nRESET;
+    fdctrl->state &= ~FD_CTRL_SLEEP;
     if (!(fdctrl->state & FD_CTRL_BUSY)) {
         /* Data transfer allowed */
         retval |= FD_MSR_RQM;
@@ -959,16 +894,16 @@ static uint32_t fdctrl_read_main_status (fdctrl_t *fdctrl)
 static void fdctrl_write_rate (fdctrl_t *fdctrl, uint32_t value)
 {
     /* Reset mode */
-    if (fdctrl->state & FD_CTRL_RESET) {
+    if (!(fdctrl->dor & FD_DOR_nRESET)) {
         FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
         return;
     }
     FLOPPY_DPRINTF("select rate register set to 0x%02x\n", value);
     /* Reset: autoclear */
     if (value & FD_DSR_SWRESET) {
-        fdctrl->state |= FD_CTRL_RESET;
+        fdctrl->dor &= ~FD_DOR_nRESET;
         fdctrl_reset(fdctrl, 1);
-        fdctrl->state &= ~FD_CTRL_RESET;
+        fdctrl->dor |= FD_DOR_nRESET;
     }
     if (value & FD_DSR_PWRDOWN) {
         fdctrl->state |= FD_CTRL_SLEEP;
@@ -1618,7 +1553,6 @@ static void fdctrl_handle_seek (fdctrl_t *fdctrl, int direction)
 
     fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
     cur_drv = get_cur_drv(fdctrl);
-    fd_start(cur_drv);
     if (fdctrl->fifo[2] <= cur_drv->track)
         cur_drv->dir = 1;
     else
@@ -1640,7 +1574,7 @@ static void fdctrl_handle_perpendicular_mode (fdctrl_t *fdctrl, int direction)
     if (fdctrl->fifo[1] & 0x80)
         cur_drv->perpendicular = fdctrl->fifo[1] & 0x7;
     /* No result back */
-           fdctrl_reset_fifo(fdctrl);
+    fdctrl_reset_fifo(fdctrl);
 }
 
 static void fdctrl_handle_configure (fdctrl_t *fdctrl, int direction)
@@ -1692,7 +1626,6 @@ static void fdctrl_handle_relative_seek_out (fdctrl_t *fdctrl, int direction)
 
     fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
     cur_drv = get_cur_drv(fdctrl);
-    fd_start(cur_drv);
     cur_drv->dir = 0;
     if (fdctrl->fifo[2] + cur_drv->track >= cur_drv->max_track) {
         cur_drv->track = cur_drv->max_track - 1;
@@ -1709,7 +1642,6 @@ static void fdctrl_handle_relative_seek_in (fdctrl_t *fdctrl, int direction)
 
     fdctrl->cur_drv = fdctrl->fifo[1] & FD_DOR_SELMASK;
     cur_drv = get_cur_drv(fdctrl);
-    fd_start(cur_drv);
     cur_drv->dir = 1;
     if (fdctrl->fifo[2] > cur_drv->track) {
         cur_drv->track = 0;
@@ -1772,7 +1704,7 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
 
     cur_drv = get_cur_drv(fdctrl);
     /* Reset mode */
-    if (fdctrl->state & FD_CTRL_RESET) {
+    if (!(fdctrl->dor & FD_DOR_nRESET)) {
         FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
         return;
     }
