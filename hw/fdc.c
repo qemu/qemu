@@ -323,6 +323,7 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status);
 
+static uint32_t fdctrl_read_statusA (fdctrl_t *fdctrl);
 static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl);
 static uint32_t fdctrl_read_dor (fdctrl_t *fdctrl);
 static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value);
@@ -339,7 +340,6 @@ enum {
     FD_CTRL_RESET  = 0x02,
     FD_CTRL_SLEEP  = 0x04, /* XXX: suppress that */
     FD_CTRL_BUSY   = 0x08, /* dma transfer in progress */
-    FD_CTRL_INTR   = 0x10,
 };
 
 enum {
@@ -361,8 +361,8 @@ enum {
 };
 
 enum {
-    FD_REG_0 = 0x00,
-    FD_REG_STATUSB = 0x01,
+    FD_REG_SRA = 0x00,
+    FD_REG_SRB = 0x01,
     FD_REG_DOR = 0x02,
     FD_REG_TDR = 0x03,
     FD_REG_MSR = 0x04,
@@ -421,6 +421,26 @@ enum {
 };
 
 enum {
+    FD_SRA_DIR      = 0x01,
+    FD_SRA_nWP      = 0x02,
+    FD_SRA_nINDX    = 0x04,
+    FD_SRA_HDSEL    = 0x08,
+    FD_SRA_nTRK0    = 0x10,
+    FD_SRA_STEP     = 0x20,
+    FD_SRA_nDRV2    = 0x40,
+    FD_SRA_INTPEND  = 0x80,
+};
+
+enum {
+    FD_SRB_MTR0     = 0x01,
+    FD_SRB_MTR1     = 0x02,
+    FD_SRB_WGATE    = 0x04,
+    FD_SRB_RDATA    = 0x08,
+    FD_SRB_WDATA    = 0x10,
+    FD_SRB_DR0      = 0x20,
+};
+
+enum {
     FD_DOR_SELMASK  = 0x01,
     FD_DOR_nRESET   = 0x04,
     FD_DOR_DMAEN    = 0x08,
@@ -472,6 +492,8 @@ struct fdctrl_t {
     target_phys_addr_t io_base;
     /* Controller state */
     QEMUTimer *result_timer;
+    uint8_t sra;
+    uint8_t srb;
     uint8_t state;
     uint8_t dma_en;
     uint8_t cur_drv;
@@ -506,15 +528,10 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     uint32_t retval;
 
     switch (reg & 0x07) {
-    case FD_REG_0:
-        if (fdctrl->sun4m) {
-            // Identify to Linux as S82078B
-            retval = fdctrl_read_statusB(fdctrl);
-        } else {
-            retval = (uint32_t)(-1);
-        }
+    case FD_REG_SRA:
+        retval = fdctrl_read_statusA(fdctrl);
         break;
-    case FD_REG_STATUSB:
+    case FD_REG_SRB:
         retval = fdctrl_read_statusB(fdctrl);
         break;
     case FD_REG_DOR:
@@ -617,6 +634,9 @@ static void fdc_save (QEMUFile *f, void *opaque)
 {
     fdctrl_t *s = opaque;
 
+    /* Controller state */
+    qemu_put_8s(f, &s->sra);
+    qemu_put_8s(f, &s->srb);
     qemu_put_8s(f, &s->state);
     qemu_put_8s(f, &s->dma_en);
     qemu_put_8s(f, &s->cur_drv);
@@ -661,6 +681,9 @@ static int fdc_load (QEMUFile *f, void *opaque, int version_id)
     if (version_id != 1)
         return -EINVAL;
 
+    /* Controller state */
+    qemu_get_8s(f, &s->sra);
+    qemu_get_8s(f, &s->srb);
     qemu_get_8s(f, &s->state);
     qemu_get_8s(f, &s->dma_en);
     qemu_get_8s(f, &s->cur_drv);
@@ -712,9 +735,11 @@ int fdctrl_get_drive_type(fdctrl_t *fdctrl, int drive_num)
 /* Change IRQ state */
 static void fdctrl_reset_irq (fdctrl_t *fdctrl)
 {
+    if (!(fdctrl->sra & FD_SRA_INTPEND))
+        return;
     FLOPPY_DPRINTF("Reset interrupt\n");
     qemu_set_irq(fdctrl->irq, 0);
-    fdctrl->state &= ~FD_CTRL_INTR;
+    fdctrl->sra &= ~FD_SRA_INTPEND;
 }
 
 static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
@@ -725,9 +750,9 @@ static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status)
         fdctrl->int_status = status;
         return;
     }
-    if (~(fdctrl->state & FD_CTRL_INTR)) {
+    if (!(fdctrl->sra & FD_SRA_INTPEND)) {
         qemu_set_irq(fdctrl->irq, 1);
-        fdctrl->state |= FD_CTRL_INTR;
+        fdctrl->sra |= FD_SRA_INTPEND;
     }
     FLOPPY_DPRINTF("Set interrupt status to 0x%02x\n", status);
     fdctrl->int_status = status;
@@ -741,6 +766,10 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
     FLOPPY_DPRINTF("reset controller\n");
     fdctrl_reset_irq(fdctrl);
     /* Initialise controller */
+    fdctrl->sra = 0;
+    fdctrl->srb = 0xc0;
+    if (!fdctrl->drives[1].bs)
+        fdctrl->sra |= FD_SRA_nDRV2;
     fdctrl->cur_drv = 0;
     /* FIFO state */
     fdctrl->data_pos = 0;
@@ -769,11 +798,24 @@ static fdrive_t *get_cur_drv (fdctrl_t *fdctrl)
     return fdctrl->cur_drv == 0 ? drv0(fdctrl) : drv1(fdctrl);
 }
 
+/* Status A register : 0x00 (read-only) */
+static uint32_t fdctrl_read_statusA (fdctrl_t *fdctrl)
+{
+    uint32_t retval = fdctrl->sra;
+
+    FLOPPY_DPRINTF("status register A: 0x%02x\n", retval);
+
+    return retval;
+}
+
 /* Status B register : 0x01 (read-only) */
 static uint32_t fdctrl_read_statusB (fdctrl_t *fdctrl)
 {
-    FLOPPY_DPRINTF("status register: 0x00\n");
-    return 0;
+    uint32_t retval = fdctrl->srb;
+
+    FLOPPY_DPRINTF("status register B: 0x%02x\n", retval);
+
+    return retval;
 }
 
 /* Digital output register : 0x02 */
@@ -809,6 +851,23 @@ static void fdctrl_write_dor (fdctrl_t *fdctrl, uint32_t value)
         }
     }
     FLOPPY_DPRINTF("digital output register set to 0x%02x\n", value);
+
+    /* Motors */
+    if (value & FD_DOR_MOTEN0)
+        fdctrl->srb |= FD_SRB_MTR0;
+    else
+        fdctrl->srb &= ~FD_SRB_MTR0;
+    if (value & FD_DOR_MOTEN1)
+        fdctrl->srb |= FD_SRB_MTR1;
+    else
+        fdctrl->srb &= ~FD_SRB_MTR1;
+
+    /* Drive */
+    if (value & 1)
+        fdctrl->srb |= FD_SRB_DR0;
+    else
+        fdctrl->srb &= ~FD_SRB_DR0;
+
     /* Drive motors state indicators */
     if (value & FD_DOR_MOTEN1)
         fd_start(drv1(fdctrl));
