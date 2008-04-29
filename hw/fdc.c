@@ -974,6 +974,40 @@ static void fdctrl_unimplemented (fdctrl_t *fdctrl, int direction)
 #endif
 }
 
+/* Seek to next sector */
+static int fdctrl_seek_to_next_sect (fdctrl_t *fdctrl, fdrive_t *cur_drv)
+{
+    FLOPPY_DPRINTF("seek to next sector (%d %02x %02x => %d)\n",
+                   cur_drv->head, cur_drv->track, cur_drv->sect,
+                   fd_sector(cur_drv));
+    /* XXX: cur_drv->sect >= cur_drv->last_sect should be an
+       error in fact */
+    if (cur_drv->sect >= cur_drv->last_sect ||
+        cur_drv->sect == fdctrl->eot) {
+        cur_drv->sect = 1;
+        if (FD_MULTI_TRACK(fdctrl->data_state)) {
+            if (cur_drv->head == 0 &&
+                (cur_drv->flags & FDISK_DBL_SIDES) != 0) {
+                cur_drv->head = 1;
+            } else {
+                cur_drv->head = 0;
+                cur_drv->track++;
+                if ((cur_drv->flags & FDISK_DBL_SIDES) == 0)
+                    return 0;
+            }
+        } else {
+            cur_drv->track++;
+            return 0;
+        }
+        FLOPPY_DPRINTF("seek to next track (%d %02x %02x => %d)\n",
+                       cur_drv->head, cur_drv->track,
+                       cur_drv->sect, fd_sector(cur_drv));
+    } else {
+        cur_drv->sect++;
+    }
+    return 1;
+}
+
 /* Callback for transfer end (stop or abort) */
 static void fdctrl_stop_transfer (fdctrl_t *fdctrl, uint8_t status0,
                                   uint8_t status1, uint8_t status2)
@@ -1196,35 +1230,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         rel_pos = fdctrl->data_pos % FD_SECTOR_LEN;
         if (rel_pos == 0) {
             /* Seek to next sector */
-            FLOPPY_DPRINTF("seek to next sector (%d %02x %02x => %d) (%d)\n",
-                           cur_drv->head, cur_drv->track, cur_drv->sect,
-                           fd_sector(cur_drv),
-                           fdctrl->data_pos - len);
-            /* XXX: cur_drv->sect >= cur_drv->last_sect should be an
-               error in fact */
-            if (cur_drv->sect >= cur_drv->last_sect ||
-                cur_drv->sect == fdctrl->eot) {
-                cur_drv->sect = 1;
-                if (FD_MULTI_TRACK(fdctrl->data_state)) {
-                    if (cur_drv->head == 0 &&
-                        (cur_drv->flags & FDISK_DBL_SIDES) != 0) {
-                        cur_drv->head = 1;
-                    } else {
-                        cur_drv->head = 0;
-                        cur_drv->track++;
-                        if ((cur_drv->flags & FDISK_DBL_SIDES) == 0)
-                            break;
-                    }
-                } else {
-                    cur_drv->track++;
-                    break;
-                }
-                FLOPPY_DPRINTF("seek to next track (%d %02x %02x => %d)\n",
-                               cur_drv->head, cur_drv->track,
-                               cur_drv->sect, fd_sector(cur_drv));
-            } else {
-                cur_drv->sect++;
-            }
+            if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv))
+                break;
         }
     }
  end_transfer:
@@ -1250,7 +1257,7 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
 {
     fdrive_t *cur_drv;
     uint32_t retval = 0;
-    int pos, len;
+    int pos;
 
     cur_drv = get_cur_drv(fdctrl);
     fdctrl->state &= ~FD_CTRL_SLEEP;
@@ -1262,9 +1269,12 @@ static uint32_t fdctrl_read_data (fdctrl_t *fdctrl)
     if (FD_STATE(fdctrl->data_state) == FD_STATE_DATA) {
         pos %= FD_SECTOR_LEN;
         if (pos == 0) {
-            len = fdctrl->data_len - fdctrl->data_pos;
-            if (len > FD_SECTOR_LEN)
-                len = FD_SECTOR_LEN;
+            if (fdctrl->data_pos != 0)
+                if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
+                    FLOPPY_DPRINTF("error seeking to next sector %d\n",
+                                   fd_sector(cur_drv));
+                    return 0;
+                }
             bdrv_read(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1);
         }
     }
@@ -1707,6 +1717,11 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
         if (fdctrl->data_pos % FD_SECTOR_LEN == (FD_SECTOR_LEN - 1) ||
             fdctrl->data_pos == fdctrl->data_len) {
             bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1);
+            if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
+                FLOPPY_DPRINTF("error seeking to next sector %d\n",
+                               fd_sector(cur_drv));
+                return;
+            }
         }
         /* Switch from transfer mode to status mode
          * then from status mode to command mode
