@@ -79,7 +79,7 @@ extern int nographic;
 
 static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                                    const unsigned char *arch,
-                                   uint32_t RAM_size, const char *boot_devices,
+                                   ram_addr_t RAM_size, const char *boot_devices,
                                    uint32_t kernel_image, uint32_t kernel_size,
                                    const char *cmdline,
                                    uint32_t initrd_image, uint32_t initrd_size,

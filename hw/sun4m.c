@@ -156,7 +156,7 @@ void DMA_register_channel (int nchan,
 extern int nographic;
 
 static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
-                       const char *boot_devices, uint32_t RAM_size,
+                       const char *boot_devices, ram_addr_t RAM_size,
                        uint32_t kernel_size,
                        int width, int height, int depth,
                        int machine_id, const char *arch)
@@ -366,7 +366,7 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
     return kernel_size;
 }
 
-static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
+static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           DisplayState *ds, const char *kernel_filename,
                           const char *kernel_cmdline,
@@ -416,7 +416,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
     /* allocate RAM */
     if ((uint64_t)RAM_size > hwdef->max_mem) {
         fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)RAM_size / (1024 * 1024),
+                (unsigned int)(RAM_size / (1024 * 1024)),
                 (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);
     }
@@ -545,7 +545,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, int RAM_size,
                  hwdef->ecc_version);
 }
 
-static void sun4c_hw_init(const struct hwdef *hwdef, int RAM_size,
+static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           DisplayState *ds, const char *kernel_filename,
                           const char *kernel_cmdline,
@@ -583,8 +583,8 @@ static void sun4c_hw_init(const struct hwdef *hwdef, int RAM_size,
     /* allocate RAM */
     if ((uint64_t)RAM_size > hwdef->max_mem) {
         fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)RAM_size / (1024 * 1024),
-                (unsigned int)hwdef->max_mem / (1024 * 1024));
+                (unsigned int)(RAM_size / (1024 * 1024)),
+                (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);
     }
     cpu_register_physical_memory(0, RAM_size, 0);
@@ -774,7 +774,7 @@ static const struct hwdef hwdefs[] = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
         },
-        .max_mem = 0xffffffff, // XXX actually first 62GB ok
+        .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
     },
     /* SS-600MP */
@@ -818,7 +818,7 @@ static const struct hwdef hwdefs[] = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
         },
-        .max_mem = 0xffffffff, // XXX actually first 62GB ok
+        .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
     },
     /* SS-20 */
@@ -862,7 +862,7 @@ static const struct hwdef hwdefs[] = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
             6, 0, 4, 10, 8, 0, 11, 0,   0, 0, 0, 0, 15, 0, 15, 0,
         },
-        .max_mem = 0xffffffff, // XXX actually first 62GB ok
+        .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
     },
     /* SS-2 */
@@ -1163,7 +1163,7 @@ static void ss2_init(ram_addr_t RAM_size, int vga_ram_size,
 }
 
 /* SPARCstation Voyager hardware initialisation */
-static void vger_init(int RAM_size, int vga_ram_size,
+static void vger_init(ram_addr_t RAM_size, int vga_ram_size,
                       const char *boot_device, DisplayState *ds,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
@@ -1173,7 +1173,7 @@ static void vger_init(int RAM_size, int vga_ram_size,
 }
 
 /* SPARCstation LX hardware initialisation */
-static void ss_lx_init(int RAM_size, int vga_ram_size,
+static void ss_lx_init(ram_addr_t RAM_size, int vga_ram_size,
                        const char *boot_device, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -1183,7 +1183,7 @@ static void ss_lx_init(int RAM_size, int vga_ram_size,
 }
 
 /* SPARCstation 4 hardware initialisation */
-static void ss4_init(int RAM_size, int vga_ram_size,
+static void ss4_init(ram_addr_t RAM_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -1193,7 +1193,7 @@ static void ss4_init(int RAM_size, int vga_ram_size,
 }
 
 /* SPARCClassic hardware initialisation */
-static void scls_init(int RAM_size, int vga_ram_size,
+static void scls_init(ram_addr_t RAM_size, int vga_ram_size,
                       const char *boot_device, DisplayState *ds,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
@@ -1203,7 +1203,7 @@ static void scls_init(int RAM_size, int vga_ram_size,
 }
 
 /* SPARCbook hardware initialisation */
-static void sbook_init(int RAM_size, int vga_ram_size,
+static void sbook_init(ram_addr_t RAM_size, int vga_ram_size,
                        const char *boot_device, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -1313,7 +1313,7 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .ser_irq = 12,
         .machine_id = 0x80,
         .iounit_version = 0x03000000,
-        .max_mem = 0xffffffff, // XXX actually first 62GB ok
+        .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
     },
     /* SS-2000 */
@@ -1346,12 +1346,12 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .ser_irq = 12,
         .machine_id = 0x80,
         .iounit_version = 0x03000000,
-        .max_mem = 0xffffffff, // XXX actually first 62GB ok
+        .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
     },
 };
 
-static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, int RAM_size,
+static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           DisplayState *ds, const char *kernel_filename,
                           const char *kernel_cmdline,
@@ -1397,7 +1397,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, int RAM_size,
     /* allocate RAM */
     if ((uint64_t)RAM_size > hwdef->max_mem) {
         fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
-                (unsigned int)RAM_size / (1024 * 1024),
+                (unsigned int)(RAM_size / (1024 * 1024)),
                 (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);
     }
