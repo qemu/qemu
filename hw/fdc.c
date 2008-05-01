@@ -1770,8 +1770,10 @@ static void fdctrl_write_data (fdctrl_t *fdctrl, uint32_t value)
     /* Is it write command time ? */
     if (fdctrl->msr & FD_MSR_NONDMA) {
         /* FIFO data write */
-        fdctrl->fifo[fdctrl->data_pos++] = value;
-        if (fdctrl->data_pos % FD_SECTOR_LEN == (FD_SECTOR_LEN - 1) ||
+        pos = fdctrl->data_pos++;
+        pos %= FD_SECTOR_LEN;
+        fdctrl->fifo[pos] = value;
+        if (pos == FD_SECTOR_LEN - 1 ||
             fdctrl->data_pos == fdctrl->data_len) {
             cur_drv = get_cur_drv(fdctrl);
             if (bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
