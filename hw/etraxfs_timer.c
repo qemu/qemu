@@ -180,8 +180,9 @@ static void timer_update_irq(struct fs_timer_t *t)
 		qemu_irq_lower(t->irq[0]);
 }
 
-static void timer_hit(struct fs_timer_t *t)
+static void timer_hit(void *opaque)
 {
+	struct fs_timer_t *t = opaque;
 	t->r_intr |= 1;
 	timer_update_irq(t);
 }
