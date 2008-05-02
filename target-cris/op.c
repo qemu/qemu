@@ -192,17 +192,32 @@ void OPPROTO op_ccs_lshift (void)
 }
 void OPPROTO op_ccs_rshift (void)
 {
-	uint32_t ccs;
+	register uint32_t ccs;
 
 	/* Apply the ccs shift.  */
 	ccs = env->pregs[PR_CCS];
 	ccs = (ccs & 0xc0000000) | ((ccs & 0x0fffffff) >> 10);
+	if (ccs & U_FLAG)
+	{
+		/* Enter user mode.  */
+		env->ksp = env->regs[R_SP];
+		env->regs[R_SP] = env->pregs[PR_USP];
+	}
+
 	env->pregs[PR_CCS] = ccs;
+
 	RETURN();
 }
 
 void OPPROTO op_setf (void)
 {
+	if (!(env->pregs[PR_CCS] & U_FLAG) && (PARAM1 & U_FLAG))
+	{
+		/* Enter user mode.  */
+		env->ksp = env->regs[R_SP];
+		env->regs[R_SP] = env->pregs[PR_USP];
+	}
+
 	env->pregs[PR_CCS] |= PARAM1;
 	RETURN();
 }
@@ -265,7 +280,11 @@ void OPPROTO op_movl_flags_T0 (void)
 
 void OPPROTO op_movl_sreg_T0 (void)
 {
-	env->sregs[env->pregs[PR_SRS]][PARAM1] = T0;
+	uint32_t srs;
+	srs = env->pregs[PR_SRS];
+	srs &= 3;
+
+	env->sregs[srs][PARAM1] = T0;
 	RETURN();
 }
 
@@ -285,7 +304,10 @@ void OPPROTO op_movl_tlb_hi_T0 (void)
 void OPPROTO op_movl_tlb_lo_T0 (void)
 {
 	uint32_t srs;
+
+	env->pregs[PR_SRS] &= 3;
 	srs = env->pregs[PR_SRS];
+
 	if (srs == 1 || srs == 2)
 	{
 		uint32_t set;
@@ -309,7 +331,28 @@ void OPPROTO op_movl_tlb_lo_T0 (void)
 
 void OPPROTO op_movl_T0_sreg (void)
 {
-	T0 = env->sregs[env->pregs[PR_SRS]][PARAM1];
+	uint32_t srs;
+	env->pregs[PR_SRS] &= 3;
+	srs = env->pregs[PR_SRS];
+	
+	if (srs == 1 || srs == 2)
+	{
+		uint32_t set;
+		uint32_t idx;
+		uint32_t lo, hi;
+
+		idx = set = env->sregs[SFR_RW_MM_TLB_SEL];
+		set >>= 4;
+		set &= 3;
+		idx &= 15;
+
+		/* Update the mirror regs.  */
+		hi = env->tlbsets[srs - 1][set][idx].hi;
+		lo = env->tlbsets[srs - 1][set][idx].lo;
+		env->sregs[SFR_RW_MM_TLB_HI] = hi;
+		env->sregs[SFR_RW_MM_TLB_LO] = lo;
+	}
+	T0 = env->sregs[srs][PARAM1];
 	RETURN();
 }
 
@@ -360,340 +403,6 @@ void OPPROTO op_update_cc_x (void)
 {
 	env->cc_x_live = PARAM1;
 	env->cc_x = PARAM2;
-	RETURN();
-}
-
-/* FIXME: is this allowed?  */
-extern inline void evaluate_flags_writeback(uint32_t flags)
-{
-	int x;
-
-	/* Extended arithmetics, leave the z flag alone.  */
-	env->debug3 = env->pregs[PR_CCS];
-
-	if (env->cc_x_live)
-		x = env->cc_x;
-	else
-		x = env->pregs[PR_CCS] & X_FLAG;
-
-	if ((x || env->cc_op == CC_OP_ADDC)
-	    && flags & Z_FLAG)
-		env->cc_mask &= ~Z_FLAG;
-
-	/* all insn clear the x-flag except setf or clrf.  */
-	env->pregs[PR_CCS] &= ~(env->cc_mask | X_FLAG);
-	flags &= env->cc_mask;
-	env->pregs[PR_CCS] |= flags;
-	RETURN();
-}
-
-void OPPROTO op_evaluate_flags_muls(void)
-{
-	uint32_t src;
-	uint32_t dst;
-	uint32_t res;
-	uint32_t flags = 0;
-	/* were gonna have to redo the muls.  */
-	int64_t tmp, t0 ,t1;
-	int32_t mof;
-	int dneg;
-
-	src = env->cc_src;
-	dst = env->cc_dest;
-	res = env->cc_result;
-
-
-	/* cast into signed values to make GCC sign extend.  */
-	t0 = (int32_t)src;
-	t1 = (int32_t)dst;
-	dneg = ((int32_t)res) < 0;
-
-	tmp = t0 * t1;
-	mof = tmp >> 32;
-	if (tmp == 0)
-		flags |= Z_FLAG;
-	else if (tmp < 0)
-		flags |= N_FLAG;
-	if ((dneg && mof != -1)
-	    || (!dneg && mof != 0))
-		flags |= V_FLAG;
-	evaluate_flags_writeback(flags);
-	RETURN();
-}
-
-void OPPROTO op_evaluate_flags_mulu(void)
-{
-	uint32_t src;
-	uint32_t dst;
-	uint32_t res;
-	uint32_t flags = 0;
-	/* were gonna have to redo the muls.  */
-	uint64_t tmp, t0 ,t1;
-	uint32_t mof;
-
-	src = env->cc_src;
-	dst = env->cc_dest;
-	res = env->cc_result;
-
-
-	/* cast into signed values to make GCC sign extend.  */
-	t0 = src;
-	t1 = dst;
-
-	tmp = t0 * t1;
-	mof = tmp >> 32;
-	if (tmp == 0)
-		flags |= Z_FLAG;
-	else if (tmp >> 63)
-		flags |= N_FLAG;
-	if (mof)
-		flags |= V_FLAG;
-
-	evaluate_flags_writeback(flags);
-	RETURN();
-}
-
-void OPPROTO op_evaluate_flags_mcp(void)
-{
-	uint32_t src;
-	uint32_t dst;
-	uint32_t res;
-	uint32_t flags = 0;
-
-	src = env->cc_src;
-	dst = env->cc_dest;
-	res = env->cc_result;
-
-	if ((res & 0x80000000L) != 0L)
-	{
-		flags |= N_FLAG;
-		if (((src & 0x80000000L) == 0L)
-		    && ((dst & 0x80000000L) == 0L))
-		{
-			flags |= V_FLAG;
-		}
-		else if (((src & 0x80000000L) != 0L) &&
-			 ((dst & 0x80000000L) != 0L))
-		{
-			flags |= R_FLAG;
-		}
-	}
-	else
-	{
-		if (res == 0L)
-			flags |= Z_FLAG;
-		if (((src & 0x80000000L) != 0L)
-		    && ((dst & 0x80000000L) != 0L))
-			flags |= V_FLAG;
-		if ((dst & 0x80000000L) != 0L
-		    || (src & 0x80000000L) != 0L)
-			flags |= R_FLAG;
-	}
-
-	evaluate_flags_writeback(flags);
-	RETURN();
-}
-
-void OPPROTO op_evaluate_flags_alu_4(void)
-{
-	uint32_t src;
-	uint32_t dst;
-	uint32_t res;
-	uint32_t flags = 0;
-
-	src = env->cc_src;
-	dst = env->cc_dest;
-	res = env->cc_result;
-
-	if ((res & 0x80000000L) != 0L)
-	{
-		flags |= N_FLAG;
-		if (((src & 0x80000000L) == 0L)
-		    && ((dst & 0x80000000L) == 0L))
-		{
-			flags |= V_FLAG;
-		}
-		else if (((src & 0x80000000L) != 0L) &&
-			 ((dst & 0x80000000L) != 0L))
-		{
-			flags |= C_FLAG;
-		}
-	}
-	else
-	{
-		if (res == 0L)
-			flags |= Z_FLAG;
-		if (((src & 0x80000000L) != 0L)
-		    && ((dst & 0x80000000L) != 0L))
-			flags |= V_FLAG;
-		if ((dst & 0x80000000L) != 0L
-		    || (src & 0x80000000L) != 0L)
-			flags |= C_FLAG;
-	}
-
-	if (env->cc_op == CC_OP_SUB
-	    || env->cc_op == CC_OP_CMP) {
-		flags ^= C_FLAG;
-	}
-	evaluate_flags_writeback(flags);
-	RETURN();
-}
-
-void OPPROTO op_evaluate_flags_move_4 (void)
-{
-	uint32_t src;
-	uint32_t res;
-	uint32_t flags = 0;
-
-	src = env->cc_src;
-	res = env->cc_result;
-
-	if ((int32_t)res < 0)
-		flags |= N_FLAG;
-	else if (res == 0L)
-		flags |= Z_FLAG;
-
-	evaluate_flags_writeback(flags);
-	RETURN();
-}
-void OPPROTO op_evaluate_flags_move_2 (void)
-{
-	uint32_t src;
-	uint32_t flags = 0;
-	uint16_t res;
-
-	src = env->cc_src;
-	res = env->cc_result;
-
-	if ((int16_t)res < 0L)
-		flags |= N_FLAG;
-	else if (res == 0)
-		flags |= Z_FLAG;
-
-	evaluate_flags_writeback(flags);
-	RETURN();
-}
-
-/* TODO: This is expensive. We could split things up and only evaluate part of
-   CCR on a need to know basis. For now, we simply re-evaluate everything.  */
-void OPPROTO op_evaluate_flags (void)
-{
-	uint32_t src;
-	uint32_t dst;
-	uint32_t res;
-	uint32_t flags = 0;
-
-	src = env->cc_src;
-	dst = env->cc_dest;
-	res = env->cc_result;
-
-
-	/* Now, evaluate the flags. This stuff is based on
-	   Per Zander's CRISv10 simulator.  */
-	switch (env->cc_size)
-	{
-		case 1:
-			if ((res & 0x80L) != 0L)
-			{
-				flags |= N_FLAG;
-				if (((src & 0x80L) == 0L)
-				    && ((dst & 0x80L) == 0L))
-				{
-					flags |= V_FLAG;
-				}
-				else if (((src & 0x80L) != 0L)
-					 && ((dst & 0x80L) != 0L))
-				{
-					flags |= C_FLAG;
-				}
-			}
-			else
-			{
-				if ((res & 0xFFL) == 0L)
-				{
-					flags |= Z_FLAG;
-				}
-				if (((src & 0x80L) != 0L)
-				    && ((dst & 0x80L) != 0L))
-				{
-					flags |= V_FLAG;
-				}
-				if ((dst & 0x80L) != 0L
-				    || (src & 0x80L) != 0L)
-				{
-					flags |= C_FLAG;
-				}
-			}
-			break;
-		case 2:
-			if ((res & 0x8000L) != 0L)
-			{
-				flags |= N_FLAG;
-				if (((src & 0x8000L) == 0L)
-				    && ((dst & 0x8000L) == 0L))
-				{
-					flags |= V_FLAG;
-				}
-				else if (((src & 0x8000L) != 0L)
-					 && ((dst & 0x8000L) != 0L))
-				{
-					flags |= C_FLAG;
-				}
-			}
-			else
-			{
-				if ((res & 0xFFFFL) == 0L)
-				{
-					flags |= Z_FLAG;
-				}
-				if (((src & 0x8000L) != 0L)
-				    && ((dst & 0x8000L) != 0L))
-				{
-					flags |= V_FLAG;
-				}
-				if ((dst & 0x8000L) != 0L
-				    || (src & 0x8000L) != 0L)
-				{
-					flags |= C_FLAG;
-				}
-			}
-			break;
-		case 4:
-			if ((res & 0x80000000L) != 0L)
-			{
-				flags |= N_FLAG;
-				if (((src & 0x80000000L) == 0L)
-				    && ((dst & 0x80000000L) == 0L))
-				{
-					flags |= V_FLAG;
-				}
-				else if (((src & 0x80000000L) != 0L) &&
-					 ((dst & 0x80000000L) != 0L))
-				{
-					flags |= C_FLAG;
-				}
-			}
-			else
-			{
-				if (res == 0L)
-					flags |= Z_FLAG;
-				if (((src & 0x80000000L) != 0L)
-				    && ((dst & 0x80000000L) != 0L))
-					flags |= V_FLAG;
-				if ((dst & 0x80000000L) != 0L
-				    || (src & 0x80000000L) != 0L)
-					flags |= C_FLAG;
-			}
-			break;
-		default:
-			break;
-	}
-
-	if (env->cc_op == CC_OP_SUB
-	    || env->cc_op == CC_OP_CMP) {
-		flags ^= C_FLAG;
-	}
-	evaluate_flags_writeback(flags);
 	RETURN();
 }
 
@@ -1274,17 +983,3 @@ void OPPROTO op_jmp1 (void)
 	env->pc = env->btarget;
 	RETURN();
 }
-
-/* Load and store */
-#define MEMSUFFIX _raw
-#include "op_mem.c"
-#undef MEMSUFFIX
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_mem.c"
-#undef MEMSUFFIX
-
-#define MEMSUFFIX _kernel
-#include "op_mem.c"
-#undef MEMSUFFIX
-#endif
