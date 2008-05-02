@@ -1380,7 +1380,7 @@ static struct arm_boot_info musicpal_binfo = {
     .board_id = 0x20e,
 };
 
-static void musicpal_init(int ram_size, int vga_ram_size,
+static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
                const char *boot_device, DisplayState *ds,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
@@ -1410,7 +1410,7 @@ static void musicpal_init(int ram_size, int vga_ram_size,
 
     /* Catch various stuff not handled by separate subsystems */
     iomemtype = cpu_register_io_memory(0, musicpal_readfn,
-                                       musicpal_writefn, first_cpu);
+                                       musicpal_writefn, env);
     cpu_register_physical_memory(0x80000000, 0x10000, iomemtype);
 
     pic = mv88w8618_pic_init(MP_PIC_BASE, pic[ARM_PIC_CPU_IRQ]);
@@ -1465,7 +1465,7 @@ static void musicpal_init(int ram_size, int vga_ram_size,
     musicpal_binfo.kernel_filename = kernel_filename;
     musicpal_binfo.kernel_cmdline = kernel_cmdline;
     musicpal_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(first_cpu, &musicpal_binfo);
+    arm_load_kernel(env, &musicpal_binfo);
 }
 
 QEMUMachine musicpal_machine = {
