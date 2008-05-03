@@ -257,7 +257,7 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_CRIS)
-    flags = env->pregs[PR_CCS];
+    flags = env->pregs[PR_CCS] & (U_FLAG | X_FLAG);
     cs_base = 0;
     pc = env->pc;
 #else
