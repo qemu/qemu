@@ -307,6 +307,74 @@ static void t_gen_mulu(TCGv d, TCGv d2, TCGv a, TCGv b)
 	tcg_gen_discard_i64(t1);
 }
 
+/* 32bit branch-free binary search for counting leading zeros.  */
+static void t_gen_lz_i32(TCGv d, TCGv x)
+{
+	TCGv y, m, n;
+
+	y = tcg_temp_new(TCG_TYPE_I32);
+	m = tcg_temp_new(TCG_TYPE_I32);
+	n = tcg_temp_new(TCG_TYPE_I32);
+
+	/* y = -(x >> 16)  */
+	tcg_gen_shri_i32(y, x, 16);
+	tcg_gen_sub_i32(y, tcg_const_i32(0), y);
+
+	/* m = (y >> 16) & 16  */
+	tcg_gen_sari_i32(m, y, 16);
+	tcg_gen_andi_i32(m, m, 16);
+
+	/* n = 16 - m  */
+	tcg_gen_sub_i32(n, tcg_const_i32(16), m);
+	/* x = x >> m  */
+	tcg_gen_shr_i32(x, x, m);
+
+	/* y = x - 0x100  */
+	tcg_gen_subi_i32(y, x, 0x100);
+	/* m = (y >> 16) & 8  */
+	tcg_gen_sari_i32(m, y, 16);
+	tcg_gen_andi_i32(m, m, 8);
+	/* n = n + m  */
+	tcg_gen_add_i32(n, n, m);
+	/* x = x << m  */
+	tcg_gen_shl_i32(x, x, m);
+
+	/* y = x - 0x1000  */
+	tcg_gen_subi_i32(y, x, 0x1000);
+	/* m = (y >> 16) & 4  */
+	tcg_gen_sari_i32(m, y, 16);
+	tcg_gen_andi_i32(m, m, 4);
+	/* n = n + m  */
+	tcg_gen_add_i32(n, n, m);
+	/* x = x << m  */
+	tcg_gen_shl_i32(x, x, m);
+
+	/* y = x - 0x4000  */
+	tcg_gen_subi_i32(y, x, 0x4000);
+	/* m = (y >> 16) & 2  */
+	tcg_gen_sari_i32(m, y, 16);
+	tcg_gen_andi_i32(m, m, 2);
+	/* n = n + m  */
+	tcg_gen_add_i32(n, n, m);
+	/* x = x << m  */
+	tcg_gen_shl_i32(x, x, m);
+
+	/* y = x >> 14  */
+	tcg_gen_shri_i32(y, x, 14);
+	/* m = y & ~(y >> 1)  */
+	tcg_gen_sari_i32(m, y, 1);
+	tcg_gen_xori_i32(m, m, 0xffffffff);
+	tcg_gen_and_i32(m, m, y);
+
+	/* d = n + 2 - m  */
+	tcg_gen_addi_i32(d, n, 2);
+	tcg_gen_sub_i32(d, d, m);
+
+	tcg_gen_discard_i32(y);
+	tcg_gen_discard_i32(m);
+	tcg_gen_discard_i32(n);
+}
+
 /* Extended arithmetics on CRIS.  */
 static inline void t_gen_add_flag(TCGv d, int flag)
 {
@@ -632,7 +700,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			t_gen_subx_carry(cpu_T[0]);
 			break;
 		case CC_OP_LZ:
-			gen_op_lz_T0_T1();
+			t_gen_lz_i32(cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_BTST:
 			gen_op_btst_T0_T1();
