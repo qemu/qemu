@@ -377,12 +377,12 @@ void check_file_fixed_eof_mmaps(void)
 
 void check_file_fixed_mmaps(void)
 {
-	unsigned int *addr;
+	unsigned char *addr;
 	unsigned int *p1, *p2, *p3, *p4;
 	int i;
 
 	/* Find a suitable address to start with.  */
-	addr = mmap(NULL, pagesize * 44 * 3, PROT_READ, 
+	addr = mmap(NULL, pagesize * 40 * 4, PROT_READ, 
 		    MAP_PRIVATE | MAP_ANONYMOUS,
 		    -1, 0);
 	fprintf (stderr, "%s addr=%p", __func__, (void *)addr);
@@ -405,10 +405,10 @@ void check_file_fixed_mmaps(void)
 
 		/* Make sure we get pages aligned with the pagesize. 
 		   The target expects this.  */
-		fail_unless (p1 == addr);
-		fail_unless (p2 == addr + pagesize);
-		fail_unless (p3 == addr + pagesize * 2);
-		fail_unless (p4 == addr + pagesize * 3);
+		fail_unless (p1 == (void *)addr);
+		fail_unless (p2 == (void *)addr + pagesize);
+		fail_unless (p3 == (void *)addr + pagesize * 2);
+		fail_unless (p4 == (void *)addr + pagesize * 3);
 
 		/* Verify that the file maps was made correctly.  */
 		fail_unless (*p1 == 0);
@@ -425,7 +425,7 @@ void check_file_fixed_mmaps(void)
 		munmap (p2, pagesize);
 		munmap (p3, pagesize);
 		munmap (p4, pagesize);
-		addr += pagesize * 3;
+		addr += pagesize * 4;
 	}
 	fprintf (stderr, " passed\n");
 }
