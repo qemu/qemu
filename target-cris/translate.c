@@ -449,11 +449,10 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 	tb = dc->tb;
 	if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
 		tcg_gen_goto_tb(n);
-		tcg_gen_movi_tl(cpu_T[0], dest);
-		t_gen_mov_env_TN(pc, cpu_T[0]);
+		tcg_gen_movi_tl(env_pc, dest);
 		tcg_gen_exit_tb((long)tb + n);
 	} else {
-		t_gen_mov_env_TN(pc, cpu_T[0]);
+		tcg_gen_mov_tl(env_pc, cpu_T[0]);
 		tcg_gen_exit_tb(0);
 	}
 }
@@ -916,6 +915,8 @@ static inline void t_gen_sext(TCGv d, TCGv s, int size)
 		tcg_gen_ext8s_i32(d, s);
 	else if (size == 2)
 		tcg_gen_ext16s_i32(d, s);
+	else
+		tcg_gen_mov_tl(d, s);
 }
 
 static inline void t_gen_zext(TCGv d, TCGv s, int size)
@@ -925,6 +926,8 @@ static inline void t_gen_zext(TCGv d, TCGv s, int size)
 		tcg_gen_andi_i32(d, s, 0xff);
 	else if (size == 2)
 		tcg_gen_andi_i32(d, s, 0xffff);
+	else
+		tcg_gen_mov_tl(d, s);
 }
 
 #if DISAS_CRIS
@@ -968,11 +971,10 @@ static inline void do_postinc (DisasContext *dc, int size)
 static void dec_prep_move_r(DisasContext *dc, int rs, int rd,
 			    int size, int s_ext)
 {
-	t_gen_mov_TN_reg(cpu_T[1], rs);
 	if (s_ext)
-		t_gen_sext(cpu_T[1], cpu_T[1], size);
+		t_gen_sext(cpu_T[1], cpu_R[rs], size);
 	else
-		t_gen_zext(cpu_T[1], cpu_T[1], size);
+		t_gen_zext(cpu_T[1], cpu_R[rs], size);
 }
 
 /* Prepare T0 and T1 for a register alu operation.
@@ -983,11 +985,10 @@ static void dec_prep_alu_r(DisasContext *dc, int rs, int rd,
 {
 	dec_prep_move_r(dc, rs, rd, size, s_ext);
 
-	t_gen_mov_TN_reg(cpu_T[0], rd);
 	if (s_ext)
-		t_gen_sext(cpu_T[0], cpu_T[0], size);
+		t_gen_sext(cpu_T[0], cpu_R[rd], size);
 	else
-		t_gen_zext(cpu_T[0], cpu_T[0], size);
+		t_gen_zext(cpu_T[0], cpu_R[rd], size);
 }
 
 /* Prepare T0 and T1 for a memory + alu operation.
