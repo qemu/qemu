@@ -375,6 +375,23 @@ static void t_gen_lz_i32(TCGv d, TCGv x)
 	tcg_gen_discard_i32(n);
 }
 
+static void t_gen_cris_dstep(TCGv d, TCGv s)
+{
+	int l1;
+
+	l1 = gen_new_label();
+
+	/* 
+	 * d <<= 1
+	 * if (d >= s)
+	 *    d -= s;
+	 */
+	tcg_gen_shli_tl(d, d, 1);
+	tcg_gen_brcond_tl(TCG_COND_LTU, d, s, l1);
+	tcg_gen_sub_tl(d, d, s);
+	gen_set_label(l1);
+}
+
 /* Extended arithmetics on CRIS.  */
 static inline void t_gen_add_flag(TCGv d, int flag)
 {
@@ -725,7 +742,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 		}
 		break;
 		case CC_OP_DSTEP:
-			gen_op_dstep_T0_T1();
+			t_gen_cris_dstep(cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_BOUND:
 		{
