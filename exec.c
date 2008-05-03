@@ -227,6 +227,10 @@ static void page_init(void)
             do {
                 n = fscanf (f, "%llx-%llx %*[^\n]\n", &startaddr, &endaddr);
                 if (n == 2) {
+                    startaddr = MIN(startaddr,
+                                    (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
+                    endaddr = MIN(endaddr,
+                                    (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
                     page_set_flags(TARGET_PAGE_ALIGN(startaddr),
                                    TARGET_PAGE_ALIGN(endaddr),
                                    PAGE_RESERVED); 
