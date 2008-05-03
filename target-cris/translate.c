@@ -958,13 +958,10 @@ static unsigned int memsize_zz(DisasContext *dc)
 	}
 }
 
-static void do_postinc (DisasContext *dc, int size)
+static inline void do_postinc (DisasContext *dc, int size)
 {
-	if (!dc->postinc)
-		return;
-	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
-	tcg_gen_addi_tl(cpu_T[0], cpu_T[0], size);
-	t_gen_mov_reg_TN(dc->op1, cpu_T[0]);
+	if (dc->postinc)
+		tcg_gen_addi_tl(cpu_R[dc->op1], cpu_R[dc->op1], size);
 }
 
 
