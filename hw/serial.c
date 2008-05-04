@@ -25,6 +25,7 @@
 #include "qemu-char.h"
 #include "isa.h"
 #include "pc.h"
+#include "qemu-timer.h"
 
 //#define DEBUG_SERIAL
 
@@ -73,6 +74,13 @@
 #define UART_LSR_OE	0x02	/* Overrun error indicator */
 #define UART_LSR_DR	0x01	/* Receiver data ready */
 
+/*
+ * Delay TX IRQ after sending as much characters as the given interval would
+ * contain on real hardware. This avoids overloading the guest if it processes
+ * its output buffer in a loop inside the TX IRQ handler.
+ */
+#define THROTTLE_TX_INTERVAL	10 /* ms */
+
 struct SerialState {
     uint16_t divider;
     uint8_t rbr; /* receive register */
@@ -91,6 +99,8 @@ struct SerialState {
     int last_break_enable;
     target_phys_addr_t base;
     int it_shift;
+    QEMUTimer *tx_timer;
+    int tx_burst;
 };
 
 static void serial_receive_byte(SerialState *s, int ch);
@@ -109,6 +119,28 @@ static void serial_update_irq(SerialState *s)
     } else {
         qemu_irq_lower(s->irq);
     }
+}
+
+static void serial_tx_done(void *opaque)
+{
+    SerialState *s = opaque;
+
+    if (s->tx_burst < 0) {
+        uint16_t divider;
+
+        if (s->divider)
+          divider = s->divider;
+        else
+          divider = 1;
+
+        /* We assume 10 bits/char, OK for this purpose. */
+        s->tx_burst = THROTTLE_TX_INTERVAL * 1000 /
+            (1000000 * 10 / (115200 / divider));
+    }
+    s->thr_ipending = 1;
+    s->lsr |= UART_LSR_THRE;
+    s->lsr |= UART_LSR_TEMT;
+    serial_update_irq(s);
 }
 
 static void serial_update_parameters(SerialState *s)
@@ -166,14 +198,17 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             if (!(s->mcr & UART_MCR_LOOP)) {
                 /* when not in loopback mode, send the char */
                 qemu_chr_write(s->chr, &ch, 1);
-            }
-            s->thr_ipending = 1;
-            s->lsr |= UART_LSR_THRE;
-            s->lsr |= UART_LSR_TEMT;
-            serial_update_irq(s);
-            if (s->mcr & UART_MCR_LOOP) {
+            } else {
                 /* in loopback mode, say that we just received a char */
                 serial_receive_byte(s, ch);
+            }
+            if (s->tx_burst > 0) {
+                s->tx_burst--;
+                serial_tx_done(s);
+            } else if (s->tx_burst == 0) {
+                s->tx_burst--;
+                qemu_mod_timer(s->tx_timer, qemu_get_clock(vm_clock) +
+                               ticks_per_sec * THROTTLE_TX_INTERVAL / 1000);
             }
         }
         break;
@@ -387,6 +422,10 @@ SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr)
         return NULL;
     s->irq = irq;
 
+    s->tx_timer = qemu_new_timer(vm_clock, serial_tx_done, s);
+    if (!s->tx_timer)
+        return NULL;
+
     qemu_register_reset(serial_reset, s);
     serial_reset(s);
 
@@ -485,6 +524,10 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     s->irq = irq;
     s->base = base;
     s->it_shift = it_shift;
+
+    s->tx_timer = qemu_new_timer(vm_clock, serial_tx_done, s);
+    if (!s->tx_timer)
+        return NULL;
 
     qemu_register_reset(serial_reset, s);
     serial_reset(s);
