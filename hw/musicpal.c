@@ -309,7 +309,7 @@ static void musicpal_audio_clock_update(musicpal_audio_state *s)
 
     rate /= ((s->clock_div >> 8) & 0xff) + 1;
 
-    wm8750_set_bclk_in(s->wm, rate / 2);
+    wm8750_set_bclk_in(s->wm, rate);
 }
 
 static uint32_t musicpal_audio_read(void *opaque, target_phys_addr_t offset)
