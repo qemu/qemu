@@ -99,6 +99,7 @@ struct SerialState {
     int last_break_enable;
     target_phys_addr_t base;
     int it_shift;
+    int baudbase;
     QEMUTimer *tx_timer;
     int tx_burst;
 };
@@ -135,7 +136,7 @@ static void serial_tx_done(void *opaque)
 
         /* We assume 10 bits/char, OK for this purpose. */
         s->tx_burst = THROTTLE_TX_INTERVAL * 1000 /
-            (1000000 * 10 / (115200 / divider));
+            (1000000 * 10 / (s->baudbase / divider));
     }
     s->thr_ipending = 1;
     s->lsr |= UART_LSR_THRE;
@@ -163,7 +164,7 @@ static void serial_update_parameters(SerialState *s)
     data_bits = (s->lcr & 0x03) + 5;
     if (s->divider == 0)
         return;
-    speed = 115200 / s->divider;
+    speed = s->baudbase / s->divider;
     ssp.speed = speed;
     ssp.parity = parity;
     ssp.data_bits = data_bits;
@@ -413,7 +414,8 @@ static void serial_reset(void *opaque)
 }
 
 /* If fd is zero, it means that the serial device uses the console */
-SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr)
+SerialState *serial_init(int base, qemu_irq irq, int baudbase,
+                         CharDriverState *chr)
 {
     SerialState *s;
 
@@ -421,6 +423,7 @@ SerialState *serial_init(int base, qemu_irq irq, CharDriverState *chr)
     if (!s)
         return NULL;
     s->irq = irq;
+    s->baudbase = baudbase;
 
     s->tx_timer = qemu_new_timer(vm_clock, serial_tx_done, s);
     if (!s->tx_timer)
@@ -512,8 +515,8 @@ static CPUWriteMemoryFunc *serial_mm_write[] = {
 };
 
 SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
-                             qemu_irq irq, CharDriverState *chr,
-                             int ioregister)
+                             qemu_irq irq, int baudbase,
+                             CharDriverState *chr, int ioregister)
 {
     SerialState *s;
     int s_io_memory;
@@ -524,6 +527,7 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     s->irq = irq;
     s->base = base;
     s->it_shift = it_shift;
+    s->baudbase= baudbase;
 
     s->tx_timer = qemu_new_timer(vm_clock, serial_tx_done, s);
     if (!s->tx_timer)

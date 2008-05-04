@@ -1448,10 +1448,10 @@ static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
     mv88w8618_pit_init(MP_PIT_BASE, pic, MP_TIMER1_IRQ);
 
     if (serial_hds[0])
-        serial_mm_init(MP_UART1_BASE, 2, pic[MP_UART1_IRQ], /*1825000,*/
+        serial_mm_init(MP_UART1_BASE, 2, pic[MP_UART1_IRQ], 1825000,
                    serial_hds[0], 1);
     if (serial_hds[1])
-        serial_mm_init(MP_UART2_BASE, 2, pic[MP_UART2_IRQ], /*1825000,*/
+        serial_mm_init(MP_UART2_BASE, 2, pic[MP_UART2_IRQ], 1825000,
                    serial_hds[1], 1);
 
     /* Register flash */

@@ -1223,7 +1223,7 @@ void ppc405_serial_init (CPUState *env, ppc4xx_mmio_t *mmio,
 #ifdef DEBUG_SERIAL
     printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
-    serial = serial_mm_init(offset, 0, irq, chr, 0);
+    serial = serial_mm_init(offset, 0, irq, 399193, chr, 0);
     ppc4xx_mmio_register(env, mmio, offset, 0x008,
                          serial_mm_read, serial_mm_write, serial);
 }

@@ -2006,7 +2006,8 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
     struct omap_uart_s *s = (struct omap_uart_s *)
             qemu_mallocz(sizeof(struct omap_uart_s));
 
-    s->serial = serial_mm_init(base, 2, irq, chr ?: qemu_chr_open("null"), 1);
+    s->serial = serial_mm_init(base, 2, irq, omap_clk_getrate(fclk)/16,
+                               chr ?: qemu_chr_open("null"), 1);
 
     return s;
 }
