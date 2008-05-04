@@ -377,10 +377,7 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
     if (irq_num < 0 || irq_num > 31)
         return;
     sr = uic->uicsr;
-    if (!(uic->uicpr & mask)) {
-        /* Negatively asserted IRQ */
-        level = level == 0 ? 1 : 0;
-    }
+
     /* Update status register */
     if (uic->uictr & mask) {
         /* Edge sensitive interrupt */
@@ -479,7 +476,6 @@ static void dcr_write_uic (void *opaque, int dcrn, target_ulong val)
         break;
     case DCR_UICPR:
         uic->uicpr = val;
-        ppcuic_trigger_irq(uic);
         break;
     case DCR_UICTR:
         uic->uictr = val;
