@@ -278,6 +278,7 @@ typedef struct ppcuic_t ppcuic_t;
 struct ppcuic_t {
     uint32_t dcr_base;
     int use_vectors;
+    uint32_t level;  /* Remembers the state of level-triggered interrupts. */
     uint32_t uicsr;  /* Status register */
     uint32_t uicer;  /* Enable register */
     uint32_t uiccr;  /* Critical register */
@@ -385,10 +386,13 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
             uic->uicsr |= mask;
     } else {
         /* Level sensitive interrupt */
-        if (level == 1)
+        if (level == 1) {
             uic->uicsr |= mask;
-        else
+            uic->level |= mask;
+        } else {
             uic->uicsr &= ~mask;
+            uic->level &= ~mask;
+        }
     }
 #ifdef DEBUG_UIC
     if (loglevel & CPU_LOG_INT) {
@@ -460,6 +464,7 @@ static void dcr_write_uic (void *opaque, int dcrn, target_ulong val)
     switch (dcrn) {
     case DCR_UICSR:
         uic->uicsr &= ~val;
+        uic->uicsr |= uic->level;
         ppcuic_trigger_irq(uic);
         break;
     case DCR_UICSRS:
