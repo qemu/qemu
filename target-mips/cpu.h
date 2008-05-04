@@ -148,7 +148,6 @@ struct CPUMIPSState {
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     target_ulong t0;
     target_ulong t1;
-    target_ulong t2;
 #endif
     target_ulong HI[MIPS_TC_MAX][MIPS_DSP_ACC];
     target_ulong LO[MIPS_TC_MAX][MIPS_DSP_ACC];

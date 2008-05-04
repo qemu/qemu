@@ -43,12 +43,6 @@ void glue(op_store_T1_gpr_gpr, REG) (void)
     FORCE_RET();
 }
 
-void glue(op_load_gpr_T2_gpr, REG) (void)
-{
-    T2 = env->gpr[env->current_tc][REG];
-    FORCE_RET();
-}
-
 
 void glue(op_load_srsgpr_T0_gpr, REG) (void)
 {
@@ -78,7 +72,6 @@ void glue(op_store_T0_srsgpr_gpr, REG) (void)
 
 SET_RESET(T0, _T0)
 SET_RESET(T1, _T1)
-SET_RESET(T2, _T2)
 
 #undef SET_RESET
 
@@ -92,7 +85,6 @@ SET_RESET(T2, _T2)
 
 SET64(T0, _T0)
 SET64(T1, _T1)
-SET64(T2, _T2)
 
 #undef SET64
 

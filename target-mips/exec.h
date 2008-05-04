@@ -13,11 +13,9 @@ register struct CPUMIPSState *env asm(AREG0);
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 #define T0 (env->t0)
 #define T1 (env->t1)
-#define T2 (env->t2)
 #else
-register target_ulong T0 asm(AREG1);
-register target_ulong T1 asm(AREG2);
-register target_ulong T2 asm(AREG3);
+register target_ulong T0 asm(AREG2);
+register target_ulong T1 asm(AREG3);
 #endif
 
 #if defined (USE_HOST_FLOAT_REGS)
