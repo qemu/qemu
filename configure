@@ -1291,24 +1291,30 @@ case "$target_cpu" in
   ;;
   sparc)
     echo "TARGET_ARCH=sparc" >> $config_mak
+    echo "CONFIG_NO_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"sparc\"" >> $config_h
     echo "#define TARGET_SPARC 1" >> $config_h
+    echo "#define CONFIG_NO_DYNGEN_OP 1" >> $config_h
   ;;
   sparc64)
     echo "TARGET_ARCH=sparc64" >> $config_mak
+    echo "CONFIG_NO_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
     echo "#define TARGET_SPARC 1" >> $config_h
     echo "#define TARGET_SPARC64 1" >> $config_h
+    echo "#define CONFIG_NO_DYNGEN_OP 1" >> $config_h
     elfload32="yes"
   ;;
   sparc32plus)
     echo "TARGET_ARCH=sparc64" >> $config_mak
     echo "TARGET_ABI_DIR=sparc" >> $config_mak
     echo "TARGET_ARCH2=sparc32plus" >> $config_mak
+    echo "CONFIG_NO_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"sparc64\"" >> $config_h
     echo "#define TARGET_SPARC 1" >> $config_h
     echo "#define TARGET_SPARC64 1" >> $config_h
     echo "#define TARGET_ABI32 1" >> $config_h
+    echo "#define CONFIG_NO_DYNGEN_OP 1" >> $config_h
   ;;
   *)
     echo "Unsupported target CPU"

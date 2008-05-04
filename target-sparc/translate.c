@@ -184,33 +184,12 @@ static void gen_op_store_QT0_fpr(unsigned int dst)
 #ifdef TARGET_SPARC64
 #define hypervisor(dc) 0
 #endif
-#define gen_op_ldst(name)        gen_op_##name##_raw()
 #else
 #define supervisor(dc) (dc->mem_idx >= 1)
 #ifdef TARGET_SPARC64
 #define hypervisor(dc) (dc->mem_idx == 2)
-#define OP_LD_TABLE(width)                                              \
-    static GenOpFunc * const gen_op_##width[] = {                       \
-        &gen_op_##width##_user,                                         \
-        &gen_op_##width##_kernel,                                       \
-        &gen_op_##width##_hypv,                                         \
-    };
 #else
-#define OP_LD_TABLE(width)                                              \
-    static GenOpFunc * const gen_op_##width[] = {                       \
-        &gen_op_##width##_user,                                         \
-        &gen_op_##width##_kernel,                                       \
-    };
 #endif
-#define gen_op_ldst(name)        (*gen_op_##name[dc->mem_idx])()
-#endif
-
-#ifndef CONFIG_USER_ONLY
-#ifdef __i386__
-OP_LD_TABLE(std);
-#endif /* __i386__ */
-OP_LD_TABLE(stdf);
-OP_LD_TABLE(lddf);
 #endif
 
 #ifdef TARGET_ABI32
@@ -4209,16 +4188,19 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x22:      /* load quad fpreg */
 #if defined(CONFIG_USER_ONLY)
-                    tcg_gen_helper_0_2(helper_check_align, cpu_addr, tcg_const_i32(7));
-                    gen_op_ldst(ldqf);
+                    tcg_gen_helper_0_2(helper_check_align, cpu_addr,
+                                       tcg_const_i32(7));
+                    tcg_gen_helper_0_1(helper_ldqf, cpu_addr);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     break;
 #else
                     goto nfpu_insn;
 #endif
                 case 0x23:      /* load double fpreg */
-                    tcg_gen_helper_0_2(helper_check_align, cpu_addr, tcg_const_i32(7));
-                    gen_op_ldst(lddf);
+                    tcg_gen_helper_0_2(helper_check_align, cpu_addr,
+                                       tcg_const_i32(7));
+                    tcg_gen_helper_0_2(helper_lddf, cpu_addr,
+                                       tcg_const_i32(dc->mem_idx));
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     break;
                 default:
@@ -4245,23 +4227,23 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x7: /* store double word */
                     if (rd & 1)
                         goto illegal_insn;
-#ifndef __i386__
                     else {
                         TCGv r_low;
 
                         tcg_gen_helper_0_2(helper_check_align, cpu_addr, tcg_const_i32(7));
                         r_low = tcg_temp_new(TCG_TYPE_I32);
                         gen_movl_reg_TN(rd + 1, r_low);
+#ifndef __i386__
                         tcg_gen_helper_1_2(helper_pack64, cpu_tmp64, cpu_val,
                                            r_low);
                         tcg_gen_qemu_st64(cpu_tmp64, cpu_addr, dc->mem_idx);
-                    }
 #else /* __i386__ */
-                    tcg_gen_helper_0_2(helper_check_align, cpu_addr, tcg_const_i32(7));
-                    flush_cond(dc, cpu_cond);
-                    gen_movl_reg_TN(rd + 1, cpu_cond);
-                    gen_op_ldst(std);
+                        tcg_gen_st_tl(cpu_val, cpu_env, offsetof(CPUState, t1));
+                        tcg_gen_st_tl(r_low, cpu_env, offsetof(CPUState, t2));
+                        tcg_gen_helper_0_2(helper_std_i386, cpu_addr,
+                                           tcg_const_i32(dc->mem_idx));
 #endif /* __i386__ */
+                    }
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
                 case 0x14: /* store word alternate */
@@ -4345,9 +4327,10 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifdef TARGET_SPARC64
 #if defined(CONFIG_USER_ONLY)
                     /* V9 stqf, store quad fpreg */
-                    tcg_gen_helper_0_2(helper_check_align, cpu_addr, tcg_const_i32(7));
+                    tcg_gen_helper_0_2(helper_check_align, cpu_addr,
+                                       tcg_const_i32(7));
                     gen_op_load_fpr_QT0(QFPREG(rd));
-                    gen_op_ldst(stqf);
+                    tcg_gen_helper_0_1(helper_stqf, cpu_addr);
                     break;
 #else
                     goto nfpu_insn;
@@ -4364,10 +4347,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto nfq_insn;
 #endif
 #endif
-                case 0x27:
-                    tcg_gen_helper_0_2(helper_check_align, cpu_addr, tcg_const_i32(7));
+                case 0x27: /* store double fpreg */
+                    tcg_gen_helper_0_2(helper_check_align, cpu_addr,
+                                       tcg_const_i32(7));
                     gen_op_load_fpr_DT0(DFPREG(rd));
-                    gen_op_ldst(stdf);
+                    tcg_gen_helper_0_2(helper_stdf, cpu_addr,
+                                       tcg_const_i32(dc->mem_idx));
                     break;
                 default:
                     goto illegal_insn;
