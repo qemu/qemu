@@ -277,10 +277,12 @@ QEMUMachine mips_magnum_machine = {
     "magnum",
     "MIPS Magnum",
     mips_magnum_init,
+    MAGNUM_BIOS_SIZE + VGA_RAM_SIZE,
 };
 
 QEMUMachine mips_pica61_machine = {
     "pica61",
     "Acer Pica 61",
     mips_pica61_init,
+    MAGNUM_BIOS_SIZE + VGA_RAM_SIZE,
 };

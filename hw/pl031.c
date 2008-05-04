@@ -196,7 +196,6 @@ void pl031_init(uint32_t base, qemu_irq irq)
     int iomemtype;
     pl031_state *s;
     struct tm tm;
-    struct tm tmbuffer;
 
     s = qemu_mallocz(sizeof(pl031_state));
     if (!s)
