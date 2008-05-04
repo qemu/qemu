@@ -117,8 +117,8 @@ volume_t nominal_volume = {
     1.0,
     1.0
 #else
-    UINT_MAX,
-    UINT_MAX
+    1ULL << 32,
+    1ULL << 32
 #endif
 };
 
@@ -1953,5 +1953,23 @@ void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
             }
             return;
         }
+    }
+}
+
+void AUD_set_volume_out (SWVoiceOut *sw, int mute, uint8_t lvol, uint8_t rvol)
+{
+    if (sw) {
+        sw->vol.mute = mute;
+        sw->vol.l = nominal_volume.l * lvol / 255;
+        sw->vol.r = nominal_volume.r * rvol / 255;
+    }
+}
+
+void AUD_set_volume_in (SWVoiceIn *sw, int mute, uint8_t lvol, uint8_t rvol)
+{
+    if (sw) {
+        sw->vol.mute = mute;
+        sw->vol.l = nominal_volume.l * lvol / 255;
+        sw->vol.r = nominal_volume.r * rvol / 255;
     }
 }

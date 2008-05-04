@@ -39,9 +39,17 @@ struct wm8750_s {
 
     uint8_t diff[2], pol, ds, monomix[2], alc, mute;
     uint8_t path[4], mpath[2], power, format;
-    uint32_t inmask, outmask;
     const struct wm_rate_s *rate;
 };
+
+/* pow(10.0, -i / 20.0), i = 0..42 */
+static const uint8_t wm8750_vol_db_table[] = {
+    255, 227, 203, 181, 161, 143, 128, 114, 102, 90, 81, 72, 64, 57, 51, 45,
+    40, 36, 32, 29, 26, 23, 20, 18, 16, 14, 13, 11, 10, 9, 8, 7, 6, 6, 5, 5,
+    4, 4, 3, 3, 3, 2, 2
+};
+
+#define WM8750_VOL_TRANSFORM(x)	wm8750_vol_db_table[(0x7f - x) / 3]
 
 static inline void wm8750_in_load(struct wm8750_s *s)
 {
@@ -125,6 +133,32 @@ static const struct wm_rate_s wm_rate_table[] = {
     {  192, 88200,  192, 88200 },	/* SR: 11111 */
 };
 
+static void wm8750_vol_update(struct wm8750_s *s)
+{
+    /* FIXME: multiply all volumes by s->invol[2], s->invol[3] */
+
+    AUD_set_volume_in(*s->in[0], s->mute,
+                    s->inmute[0] ? 0 : 0xff,
+                    s->inmute[1] ? 0 : 0xff);
+
+    /* FIXME: multiply all volumes by s->outvol[0], s->outvol[1] */
+
+    /* Speaker: LOUT2VOL ROUT2VOL */
+    AUD_set_volume_out(s->dac_voice[0], s->mute,
+                    s->outmute[0] ? 0 : WM8750_VOL_TRANSFORM(s->outvol[4]),
+                    s->outmute[1] ? 0 : WM8750_VOL_TRANSFORM(s->outvol[5]));
+
+    /* Headphone: LOUT2VOL ROUT2VOL */
+    AUD_set_volume_out(s->dac_voice[1], s->mute,
+                    s->outmute[0] ? 0 : WM8750_VOL_TRANSFORM(s->outvol[2]),
+                    s->outmute[1] ? 0 : WM8750_VOL_TRANSFORM(s->outvol[3]));
+
+    /* MONOOUT: MONOVOL MONOVOL */
+    AUD_set_volume_out(s->dac_voice[2], s->mute,
+                    s->outmute[0] ? 0 : WM8750_VOL_TRANSFORM(s->outvol[6]),
+                    s->outmute[1] ? 0 : WM8750_VOL_TRANSFORM(s->outvol[6]));
+}
+
 static void wm8750_set_format(struct wm8750_s *s)
 {
     int i;
@@ -185,6 +219,8 @@ static void wm8750_set_format(struct wm8750_s *s)
                     CODEC ".monomix", s, wm8750_audio_out_cb, &out_fmt);
     /* no sense emulating OUT3 which is a mix of other outputs */
 
+    wm8750_vol_update(s);
+
     /* We should connect the left and right channels to their
      * respective inputs/outputs but we have completely no need
      * for mixing or combining paths to different ports, so we
@@ -193,22 +229,6 @@ static void wm8750_set_format(struct wm8750_s *s)
         AUD_set_active_in(*s->in[0], 1);
     if (s->out[0] && *s->out[0])
         AUD_set_active_out(*s->out[0], 1);
-}
-
-static void inline wm8750_mask_update(struct wm8750_s *s)
-{
-#define R_ONLY	0x0000ffff
-#define L_ONLY	0xffff0000
-#define BOTH	(R_ONLY | L_ONLY)
-#define NONE	(R_ONLY & L_ONLY)
-    s->inmask =
-            (s->inmute[0] ? R_ONLY : BOTH) &
-            (s->inmute[1] ? L_ONLY : BOTH) &
-            (s->mute ? NONE : BOTH);
-    s->outmask =
-            (s->outmute[0] ? R_ONLY : BOTH) &
-            (s->outmute[1] ? L_ONLY : BOTH) &
-            (s->mute ? NONE : BOTH);
 }
 
 void wm8750_reset(i2c_slave *i2c)
@@ -249,7 +269,7 @@ void wm8750_reset(i2c_slave *i2c)
     s->req_in = 0;
     s->idx_out = 0;
     s->req_out = 0;
-    wm8750_mask_update(s);
+    wm8750_vol_update(s);
     s->i2c_len = 0;
 }
 
@@ -367,19 +387,19 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
     case WM8750_LINVOL:	/* Left Channel PGA */
         s->invol[0] = value & 0x3f;		/* LINVOL */
         s->inmute[0] = (value >> 7) & 1;	/* LINMUTE */
-        wm8750_mask_update(s);
+        wm8750_vol_update(s);
         break;
 
     case WM8750_RINVOL:	/* Right Channel PGA */
         s->invol[1] = value & 0x3f;		/* RINVOL */
         s->inmute[1] = (value >> 7) & 1;	/* RINMUTE */
-        wm8750_mask_update(s);
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ADCDAC:	/* ADC and DAC Control */
         s->pol = (value >> 5) & 3;		/* ADCPOL */
         s->mute = (value >> 3) & 1;		/* DACMU */
-        wm8750_mask_update(s);
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ADCTL3:	/* Additional Control (3) */
@@ -437,19 +457,21 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
         break;
 
     case WM8750_LOUT1V:	/* LOUT1 Volume */
-        s->outvol[2] = value & 0x7f;		/* LOUT2VOL */
+        s->outvol[2] = value & 0x7f;		/* LOUT1VOL */
         break;
 
     case WM8750_LOUT2V:	/* LOUT2 Volume */
         s->outvol[4] = value & 0x7f;		/* LOUT2VOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ROUT1V:	/* ROUT1 Volume */
-        s->outvol[3] = value & 0x7f;		/* ROUT2VOL */
+        s->outvol[3] = value & 0x7f;		/* ROUT1VOL */
         break;
 
     case WM8750_ROUT2V:	/* ROUT2 Volume */
         s->outvol[5] = value & 0x7f;		/* ROUT2VOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_MOUTV:	/* MONOOUT Volume */
@@ -531,8 +553,6 @@ static void wm8750_save(QEMUFile *f, void *opaque)
         qemu_put_8s(f, &s->mpath[i]);
     qemu_put_8s(f, &s->format);
     qemu_put_8s(f, &s->power);
-    qemu_put_be32s(f, &s->inmask);
-    qemu_put_be32s(f, &s->outmask);
     qemu_put_byte(f, (s->rate - wm_rate_table) / sizeof(*s->rate));
     i2c_slave_save(f, &s->i2c);
 }
@@ -573,8 +593,6 @@ static int wm8750_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_8s(f, &s->mpath[i]);
     qemu_get_8s(f, &s->format);
     qemu_get_8s(f, &s->power);
-    qemu_get_be32s(f, &s->inmask);
-    qemu_get_be32s(f, &s->outmask);
     s->rate = &wm_rate_table[(uint8_t) qemu_get_byte(f) & 0x1f];
     i2c_slave_load(f, &s->i2c);
     return 0;
@@ -619,8 +637,7 @@ void wm8750_data_req_set(i2c_slave *i2c,
 void wm8750_dac_dat(void *opaque, uint32_t sample)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;
-    uint32_t *data = (uint32_t *) &s->data_out[s->idx_out];
-    *data = sample & s->outmask;
+    *(uint32_t *) &s->data_out[s->idx_out] = sample;
     s->req_out -= 4;
     s->idx_out += 4;
     if (s->idx_out >= sizeof(s->data_out) || s->req_out <= 0)
@@ -654,5 +671,5 @@ uint32_t wm8750_adc_dat(void *opaque)
     data = (uint32_t *) &s->data_in[s->idx_in];
     s->req_in -= 4;
     s->idx_in += 4;
-    return *data & s->inmask;
+    return *data;
 }
