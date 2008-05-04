@@ -32,6 +32,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     CPUState *env = opaque;
     uint16_t fptag, fpus, fpuc, fpregs_format;
     uint32_t hflags;
+    int32_t a20_mask;
     int i;
 
     for(i = 0; i < CPU_NB_REGS; i++)
@@ -100,7 +101,8 @@ void cpu_save(QEMUFile *f, void *opaque)
         qemu_put_betls(f, &env->dr[i]);
 
     /* MMU */
-    qemu_put_be32s(f, &env->a20_mask);
+    a20_mask = (int32_t) env->a20_mask;
+    qemu_put_be32s(f, &a20_mask);
 
     /* XMM */
     qemu_put_be32s(f, &env->mxcsr);
@@ -150,6 +152,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     int i, guess_mmx;
     uint32_t hflags;
     uint16_t fpus, fpuc, fptag, fpregs_format;
+    int32_t a20_mask;
 
     if (version_id != 3 && version_id != 4)
         return -EINVAL;
@@ -238,7 +241,8 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_betls(f, &env->dr[i]);
 
     /* MMU */
-    qemu_get_be32s(f, &env->a20_mask);
+    qemu_get_be32s(f, &a20_mask);
+    env->a20_mask = a20_mask;
 
     qemu_get_be32s(f, &env->mxcsr);
     for(i = 0; i < CPU_NB_REGS; i++) {
