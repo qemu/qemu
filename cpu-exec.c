@@ -36,6 +36,7 @@
 #endif
 
 int tb_invalidated_flag;
+static unsigned long next_tb;
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
@@ -273,13 +274,11 @@ static inline TranslationBlock *tb_find_fast(void)
             /* as some TB could have been invalidated because
                of memory exceptions while generating the code, we
                must recompute the hash index here */
-            T0 = 0;
+            next_tb = 0;
         }
     }
     return tb;
 }
-
-#define BREAK_CHAIN T0 = 0
 
 /* main execution loop */
 
@@ -293,7 +292,7 @@ int cpu_exec(CPUState *env1)
 #endif
 #endif
     int ret, interrupt_request;
-    long (*gen_func)(void);
+    unsigned long (*gen_func)(void);
     TranslationBlock *tb;
     uint8_t *tc_ptr;
 
@@ -414,7 +413,7 @@ int cpu_exec(CPUState *env1)
             }
 #endif
 
-            T0 = 0; /* force lookup of first TB */
+            next_tb = 0; /* force lookup of first TB */
             for(;;) {
                 SAVE_GLOBALS();
                 interrupt_request = env->interrupt_request;
@@ -443,13 +442,13 @@ int cpu_exec(CPUState *env1)
                         svm_check_intercept(SVM_EXIT_SMI);
                         env->interrupt_request &= ~CPU_INTERRUPT_SMI;
                         do_smm_enter();
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                         !(env->hflags & HF_NMI_MASK)) {
                         env->interrupt_request &= ~CPU_INTERRUPT_NMI;
                         env->hflags |= HF_NMI_MASK;
                         do_interrupt(EXCP02_NMI, 0, 0, 0, 1);
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
                         (env->eflags & IF_MASK || env->hflags & HF_HIF_MASK) &&
                         !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
@@ -463,7 +462,7 @@ int cpu_exec(CPUState *env1)
                         do_interrupt(intno, 0, 0, 0, 1);
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-                        BREAK_CHAIN;
+                        next_tb = 0;
 #if !defined(CONFIG_USER_ONLY)
                     } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
                         (env->eflags & IF_MASK) && !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
@@ -477,7 +476,7 @@ int cpu_exec(CPUState *env1)
 	                 do_interrupt(intno, 0, 0, -1, 1);
                          stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
                                   ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl)) & ~V_IRQ_MASK);
-                        BREAK_CHAIN;
+                        next_tb = 0;
 #endif
                     }
 #elif defined(TARGET_PPC)
@@ -490,7 +489,7 @@ int cpu_exec(CPUState *env1)
                         ppc_hw_interrupt(env);
                         if (env->pending_interrupts == 0)
                             env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
 #elif defined(TARGET_MIPS)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -503,7 +502,7 @@ int cpu_exec(CPUState *env1)
                         env->exception_index = EXCP_EXT_INTERRUPT;
                         env->error_code = 0;
                         do_interrupt(env);
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
 #elif defined(TARGET_SPARC)
                     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -520,7 +519,7 @@ int cpu_exec(CPUState *env1)
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
                             cpu_check_irqs(env);
 #endif
-                        BREAK_CHAIN;
+                        next_tb = 0;
 			}
 		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
 			//do_interrupt(0, 0, 0, 0, 0);
@@ -531,7 +530,7 @@ int cpu_exec(CPUState *env1)
                         && !(env->uncached_cpsr & CPSR_F)) {
                         env->exception_index = EXCP_FIQ;
                         do_interrupt(env);
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
                     /* ARMv7-M interrupt return works by loading a magic value
                        into the PC.  On real hardware the load causes the
@@ -547,22 +546,22 @@ int cpu_exec(CPUState *env1)
                             || !(env->uncached_cpsr & CPSR_I))) {
                         env->exception_index = EXCP_IRQ;
                         do_interrupt(env);
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
 #elif defined(TARGET_SH4)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
 #elif defined(TARGET_ALPHA)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
 #elif defined(TARGET_CRIS)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         do_interrupt(env);
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
 #elif defined(TARGET_M68K)
                     if (interrupt_request & CPU_INTERRUPT_HARD
@@ -575,7 +574,7 @@ int cpu_exec(CPUState *env1)
                            first signalled.  */
                         env->exception_index = env->pending_vector;
                         do_interrupt(1);
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
 #endif
                    /* Don't use the cached interupt_request value,
@@ -584,7 +583,7 @@ int cpu_exec(CPUState *env1)
                         env->interrupt_request &= ~CPU_INTERRUPT_EXITTB;
                         /* ensure that no TB jump will be modified as
                            the program flow was changed */
-                        BREAK_CHAIN;
+                        next_tb = 0;
                     }
                     if (interrupt_request & CPU_INTERRUPT_EXIT) {
                         env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
@@ -640,13 +639,13 @@ int cpu_exec(CPUState *env1)
                    spans two pages, we cannot safely do a direct
                    jump. */
                 {
-                    if (T0 != 0 &&
+                    if (next_tb != 0 &&
 #if USE_KQEMU
                         (env->kqemu_enabled != 2) &&
 #endif
                         tb->page_addr[1] == -1) {
                     spin_lock(&tb_lock);
-                    tb_add_jump((TranslationBlock *)(long)(T0 & ~3), T0 & 3, tb);
+                    tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
                     spin_unlock(&tb_lock);
                 }
                 }
@@ -667,7 +666,7 @@ int cpu_exec(CPUState *env1)
                 asm volatile ("ble  0(%%sr4,%1)\n"
                               "copy %%r31,%%r18\n"
                               "copy %%r28,%0\n"
-                              : "=r" (T0)
+                              : "=r" (next_tb)
                               : "r" (gen_func)
                               : "r1", "r2", "r3", "r4", "r5", "r6", "r7",
                                 "r8", "r9", "r10", "r11", "r12", "r13",
@@ -690,8 +689,29 @@ int cpu_exec(CPUState *env1)
 		fp.ip = tc_ptr;
 		fp.gp = code_gen_buffer + 2 * (1 << 20);
 		(*(void (*)(void)) &fp)();
+#elif defined(__i386)
+                asm volatile ("sub $12, %%esp\n\t"
+                              "push %%ebp\n\t"
+                              "call *%1\n\t"
+                              "pop %%ebp\n\t"
+                              "add $12, %%esp\n\t"
+                              : "=a" (next_tb)
+                              : "a" (gen_func)
+                              : "ebx", "ecx", "edx", "esi", "edi", "cc",
+                                "memory");
+#elif defined(__x86_64__)
+                asm volatile ("sub $8, %%rsp\n\t"
+                              "push %%rbp\n\t"
+                              "call *%1\n\t"
+                              "pop %%rbp\n\t"
+                              "add $8, %%rsp\n\t"
+                              : "=a" (next_tb)
+                              : "a" (gen_func)
+                              : "rbx", "rcx", "rdx", "rsi", "rdi", "r8", "r9",
+                                "r10", "r11", "r12", "r13", "r14", "r15", "cc",
+                                "memory");
 #else
-                T0 = gen_func();
+                next_tb = gen_func();
 #endif
                 env->current_tb = NULL;
                 /* reset soft MMU for next block (it can currently
@@ -700,7 +720,7 @@ int cpu_exec(CPUState *env1)
                 if (env->hflags & HF_SOFTMMU_MASK) {
                     env->hflags &= ~HF_SOFTMMU_MASK;
                     /* do not allow linking to another block */
-                    T0 = 0;
+                    next_tb = 0;
                 }
 #endif
 #if defined(USE_KQEMU)
