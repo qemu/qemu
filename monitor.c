@@ -1019,6 +1019,21 @@ static void do_ioport_read(int count, int format, int size, int addr, int has_in
                 suffix, addr, size * 2, val);
 }
 
+static void do_boot_set(const char *bootdevice)
+{
+    int res;
+
+    if (qemu_boot_set_handler)  {
+        res = qemu_boot_set_handler(bootdevice);
+        if (res == 0)
+            term_printf("boot device list now set to %s\n", bootdevice);
+        else
+            term_printf("setting boot device list failed with error %i\n", res);
+    } else {
+        term_printf("no function defined to set boot device list for this architecture\n");
+    }
+}
+
 static void do_system_reset(void)
 {
     qemu_system_reset_request();
@@ -1369,6 +1384,8 @@ static term_cmd_t term_cmds[] = {
       "addr size file", "save to disk virtual memory dump starting at 'addr' of size 'size'", },
     { "pmemsave", "lis", do_physical_memory_save,
       "addr size file", "save to disk physical memory dump starting at 'addr' of size 'size'", },
+    { "boot_set", "s", do_boot_set,
+      "bootdevice", "define new values for the boot device list" },
 #if defined(TARGET_I386)
     { "nmi", "i", do_inject_nmi,
       "cpu", "inject an NMI on the given CPU", },

@@ -6855,6 +6855,14 @@ void qemu_system_powerdown_request(void)
         cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
+/* boot_set handler */
+QEMUBootSetHandler *qemu_boot_set_handler = NULL;
+
+void qemu_register_boot_set(QEMUBootSetHandler *func)
+{
+	qemu_boot_set_handler = func;
+}
+
 void main_loop_wait(int timeout)
 {
     IOHandlerRecord *ioh;

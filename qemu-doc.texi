@@ -1259,6 +1259,14 @@ intercepts at low level, such as @code{ctrl-alt-f1} in X Window.
 
 Reset the system.
 
+@item boot_set @var{bootdevicelist}
+
+Define new values for the boot device list. Those values will override
+the values specified on the command line through the @code{-boot} option.
+
+The values that can be specified here depend on the machine type, but are
+the same that can be specified in the @code{-boot} command line option.
+
 @item usb_add @var{devname}
 
 Add the USB device @var{devname}.  For details of available devices see
