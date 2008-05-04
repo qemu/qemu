@@ -8310,14 +8310,14 @@ int main(int argc, char **argv)
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    monitor_device = "vc";
+    monitor_device = "vc:800x600";
 
-    serial_devices[0] = "vc";
+    serial_devices[0] = "vc:80Cx24C";
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
         serial_devices[i] = NULL;
     serial_device_index = 0;
 
-    parallel_devices[0] = "vc";
+    parallel_devices[0] = "vc:640x480";
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
         parallel_devices[i] = NULL;
     parallel_device_index = 0;
