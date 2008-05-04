@@ -40,6 +40,7 @@ struct wm8750_s {
     uint8_t diff[2], pol, ds, monomix[2], alc, mute;
     uint8_t path[4], mpath[2], power, format;
     const struct wm_rate_s *rate;
+    int adc_hz, dac_hz, ext_adc_hz, ext_dac_hz, master;
 };
 
 /* pow(10.0, -i / 20.0) * 255, i = 0..42 */
@@ -197,7 +198,7 @@ static void wm8750_set_format(struct wm8750_s *s)
     /* Setup input */
     in_fmt.endianness = 0;
     in_fmt.nchannels = 2;
-    in_fmt.freq = s->rate->adc_hz;
+    in_fmt.freq = s->adc_hz;
     in_fmt.fmt = AUD_FMT_S16;
 
     s->adc_voice[0] = AUD_open_in(&s->card, s->adc_voice[0],
@@ -210,7 +211,7 @@ static void wm8750_set_format(struct wm8750_s *s)
     /* Setup output */
     out_fmt.endianness = 0;
     out_fmt.nchannels = 2;
-    out_fmt.freq = s->rate->dac_hz;
+    out_fmt.freq = s->dac_hz;
     out_fmt.fmt = AUD_FMT_S16;
     monoout_fmt.endianness = 0;
     monoout_fmt.nchannels = 1;
@@ -238,12 +239,33 @@ static void wm8750_set_format(struct wm8750_s *s)
         AUD_set_active_out(*s->out[0], 1);
 }
 
+static void wm8750_clk_update(struct wm8750_s *s, int ext)
+{
+    if (s->master || !s->ext_dac_hz)
+        s->dac_hz = s->rate->dac_hz;
+    else
+        s->dac_hz = s->ext_dac_hz;
+
+    if (s->master || !s->ext_adc_hz)
+        s->adc_hz = s->rate->adc_hz;
+    else
+        s->adc_hz = s->ext_adc_hz;
+
+    if (s->master || (!s->ext_dac_hz && !s->ext_adc_hz)) {
+        if (!ext)
+            wm8750_set_format(s);
+    } else {
+        if (ext)
+            wm8750_set_format(s);
+    }
+}
+
 void wm8750_reset(i2c_slave *i2c)
 {
     struct wm8750_s *s = (struct wm8750_s *) i2c;
     s->rate = &wm_rate_table[0];
     s->enable = 0;
-    wm8750_set_format(s);
+    wm8750_clk_update(s, 1);
     s->diff[0] = 0;
     s->diff[1] = 0;
     s->ds = 0;
@@ -515,17 +537,14 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
         break;
 
     case WM8750_IFACE:	/* Digital Audio Interface Format */
-#ifdef VERBOSE
-        if (value & 0x40)			/* MS */
-            printf("%s: attempt to enable Master Mode\n", __FUNCTION__);
-#endif
         s->format = value;
-        wm8750_set_format(s);
+        s->master = (value >> 6) & 1;			/* MS */
+        wm8750_clk_update(s, s->master);
         break;
 
     case WM8750_SRATE:	/* Clocking and Sample Rate Control */
         s->rate = &wm_rate_table[(value >> 1) & 0x1f];
-        wm8750_set_format(s);
+        wm8750_clk_update(s, 0);
         break;
 
     case WM8750_RESET:	/* Reset */
@@ -666,6 +685,7 @@ void wm8750_data_req_set(i2c_slave *i2c,
 void wm8750_dac_dat(void *opaque, uint32_t sample)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;
+
     *(uint32_t *) &s->data_out[s->idx_out] = sample;
     s->req_out -= 4;
     s->idx_out += 4;
@@ -695,10 +715,21 @@ uint32_t wm8750_adc_dat(void *opaque)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;
     uint32_t *data;
+
     if (s->idx_in >= sizeof(s->data_in))
         wm8750_in_load(s);
+
     data = (uint32_t *) &s->data_in[s->idx_in];
     s->req_in -= 4;
     s->idx_in += 4;
     return *data;
+}
+
+void wm8750_set_bclk_in(void *opaque, int hz)
+{
+    struct wm8750_s *s = (struct wm8750_s *) opaque;
+
+    s->ext_adc_hz = hz;
+    s->ext_dac_hz = hz;
+    wm8750_clk_update(s, 1);
 }

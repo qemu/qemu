@@ -298,6 +298,20 @@ static void audio_callback(void *opaque, int free_out, int free_in)
         qemu_irq_raise(s->irq);
 }
 
+static void musicpal_audio_clock_update(musicpal_audio_state *s)
+{
+    int rate;
+
+    if (s->playback_mode & MP_AUDIO_CLOCK_24MHZ)
+        rate = 24576000 / 64; /* 24.576MHz */
+    else
+        rate = 11289600 / 64; /* 11.2896MHz */
+
+    rate /= ((s->clock_div >> 8) & 0xff) + 1;
+
+    wm8750_set_bclk_in(s->wm, rate / 2);
+}
+
 static uint32_t musicpal_audio_read(void *opaque, target_phys_addr_t offset)
 {
     musicpal_audio_state *s = opaque;
@@ -339,12 +353,14 @@ static void musicpal_audio_write(void *opaque, target_phys_addr_t offset,
             s->play_pos = 0;
         }
         s->playback_mode = value;
+        musicpal_audio_clock_update(s);
         break;
 
     case MP_AUDIO_CLOCK_DIV:
         s->clock_div = value;
         s->last_free = 0;
         s->play_pos = 0;
+        musicpal_audio_clock_update(s);
         break;
 
     case MP_AUDIO_IRQ_STATUS:
