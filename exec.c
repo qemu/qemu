@@ -75,6 +75,10 @@
 #define TARGET_VIRT_ADDR_SPACE_BITS 42
 #elif defined(TARGET_PPC64)
 #define TARGET_PHYS_ADDR_SPACE_BITS 42
+#elif defined(TARGET_X86_64) && !defined(USE_KQEMU)
+#define TARGET_PHYS_ADDR_SPACE_BITS 42
+#elif defined(TARGET_I386) && !defined(USE_KQEMU)
+#define TARGET_PHYS_ADDR_SPACE_BITS 36
 #else
 /* Note: for compatibility with kqemu, we use 32 bits for x86_64 */
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
@@ -89,7 +93,7 @@ spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE] __attribute__((aligned (32)));
 uint8_t *code_gen_ptr;
 
-int phys_ram_size;
+ram_addr_t phys_ram_size;
 int phys_ram_fd;
 uint8_t *phys_ram_base;
 uint8_t *phys_ram_dirty;
@@ -114,7 +118,7 @@ typedef struct PageDesc {
 
 typedef struct PhysPageDesc {
     /* offset in host memory of the page + io_index in the low 12 bits */
-    uint32_t phys_offset;
+    ram_addr_t phys_offset;
 } PhysPageDesc;
 
 #define L2_BITS 10
@@ -224,6 +228,10 @@ static void page_init(void)
             do {
                 n = fscanf (f, "%llx-%llx %*[^\n]\n", &startaddr, &endaddr);
                 if (n == 2) {
+                    startaddr = MIN(startaddr,
+                                    (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
+                    endaddr = MIN(endaddr,
+                                    (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
                     page_set_flags(TARGET_PAGE_ALIGN(startaddr),
                                    TARGET_PAGE_ALIGN(endaddr),
                                    PAGE_RESERVED); 
@@ -235,7 +243,7 @@ static void page_init(void)
 #endif
 }
 
-static inline PageDesc *page_find_alloc(unsigned int index)
+static inline PageDesc *page_find_alloc(target_ulong index)
 {
     PageDesc **lp, *p;
 
@@ -250,7 +258,7 @@ static inline PageDesc *page_find_alloc(unsigned int index)
     return p + (index & (L2_SIZE - 1));
 }
 
-static inline PageDesc *page_find(unsigned int index)
+static inline PageDesc *page_find(target_ulong index)
 {
     PageDesc *p;
 
@@ -512,12 +520,12 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
     tb_set_jmp_target(tb, n, (unsigned long)(tb->tc_ptr + tb->tb_next_offset[n]));
 }
 
-static inline void tb_phys_invalidate(TranslationBlock *tb, unsigned int page_addr)
+static inline void tb_phys_invalidate(TranslationBlock *tb, target_ulong page_addr)
 {
     CPUState *env;
     PageDesc *p;
     unsigned int h, n1;
-    target_ulong phys_pc;
+    target_phys_addr_t phys_pc;
     TranslationBlock *tb1, *tb2;
 
     /* remove the TB from the hash list */
@@ -668,7 +676,7 @@ static void tb_gen_code(CPUState *env,
    the same physical page. 'is_cpu_write_access' should be true if called
    from a real cpu write access: the virtual CPU will exit the current
    TB if code is modified inside this TB. */
-void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
+void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t end,
                                    int is_cpu_write_access)
 {
     int n, current_tb_modified, current_tb_not_found, current_flags;
@@ -781,7 +789,7 @@ void tb_invalidate_phys_page_range(target_ulong start, target_ulong end,
 }
 
 /* len must be <= 8 and start must be a multiple of len */
-static inline void tb_invalidate_phys_page_fast(target_ulong start, int len)
+static inline void tb_invalidate_phys_page_fast(target_phys_addr_t start, int len)
 {
     PageDesc *p;
     int offset, b;
@@ -810,7 +818,7 @@ static inline void tb_invalidate_phys_page_fast(target_ulong start, int len)
 }
 
 #if !defined(CONFIG_SOFTMMU)
-static void tb_invalidate_phys_page(target_ulong addr,
+static void tb_invalidate_phys_page(target_phys_addr_t addr,
                                     unsigned long pc, void *puc)
 {
     int n, current_flags, current_tb_modified;
@@ -1986,9 +1994,9 @@ static inline void tlb_set_dirty(CPUState *env,
 #endif /* defined(CONFIG_USER_ONLY) */
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
-                             int memory);
-static void *subpage_init (target_phys_addr_t base, uint32_t *phys,
-                           int orig_memory);
+                             ram_addr_t memory);
+static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
+                           ram_addr_t orig_memory);
 #define CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2, \
                       need_subpage)                                     \
     do {                                                                \
@@ -2013,13 +2021,13 @@ static void *subpage_init (target_phys_addr_t base, uint32_t *phys,
    page size. If (phys_offset & ~TARGET_PAGE_MASK) != 0, then it is an
    io memory page */
 void cpu_register_physical_memory(target_phys_addr_t start_addr,
-                                  unsigned long size,
-                                  unsigned long phys_offset)
+                                  ram_addr_t size,
+                                  ram_addr_t phys_offset)
 {
     target_phys_addr_t addr, end_addr;
     PhysPageDesc *p;
     CPUState *env;
-    unsigned long orig_size = size;
+    ram_addr_t orig_size = size;
     void *subpage;
 
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
@@ -2036,7 +2044,7 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     for(addr = start_addr; addr != end_addr; addr += TARGET_PAGE_SIZE) {
         p = phys_page_find(addr >> TARGET_PAGE_BITS);
         if (p && p->phys_offset != IO_MEM_UNASSIGNED) {
-            unsigned long orig_memory = p->phys_offset;
+            ram_addr_t orig_memory = p->phys_offset;
             target_phys_addr_t start_addr2, end_addr2;
             int need_subpage = 0;
 
@@ -2089,7 +2097,7 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
 }
 
 /* XXX: temporary until new memory mapping API */
-uint32_t cpu_get_physical_page_desc(target_phys_addr_t addr)
+ram_addr_t cpu_get_physical_page_desc(target_phys_addr_t addr)
 {
     PhysPageDesc *p;
 
@@ -2123,11 +2131,11 @@ static const char *backtrace(char *buffer, size_t length)
 #endif /* DEBUG_UNASSIGNED */
 
 /* XXX: better than nothing */
-ram_addr_t qemu_ram_alloc(unsigned int size)
+ram_addr_t qemu_ram_alloc(ram_addr_t size)
 {
     ram_addr_t addr;
     if ((phys_ram_alloc_offset + size) > phys_ram_size) {
-        fprintf(stderr, "Not enough memory (requested_size = %u, max memory = %d)\n",
+        fprintf(stderr, "Not enough memory (requested_size = %lu, max memory = %ld)\n",
                 size, phys_ram_size);
         abort();
     }
@@ -2449,7 +2457,7 @@ static CPUWriteMemoryFunc *subpage_write[] = {
 };
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
-                             int memory)
+                             ram_addr_t memory)
 {
     int idx, eidx;
     unsigned int i;
@@ -2479,8 +2487,8 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     return 0;
 }
 
-static void *subpage_init (target_phys_addr_t base, uint32_t *phys,
-                           int orig_memory)
+static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
+                           ram_addr_t orig_memory)
 {
     subpage_t *mmio;
     int subpage_memory;
@@ -2581,19 +2589,19 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
             if (!(flags & PAGE_WRITE))
                 return;
             /* XXX: this code should not depend on lock_user */
-            if (!(p = lock_user(VERIFY_WRITE, addr, len, 0)))
+            if (!(p = lock_user(VERIFY_WRITE, addr, l, 0)))
                 /* FIXME - should this return an error rather than just fail? */
                 return;
-            memcpy(p, buf, len);
-            unlock_user(p, addr, len);
+            memcpy(p, buf, l);
+            unlock_user(p, addr, l);
         } else {
             if (!(flags & PAGE_READ))
                 return;
             /* XXX: this code should not depend on lock_user */
-            if (!(p = lock_user(VERIFY_READ, addr, len, 1)))
+            if (!(p = lock_user(VERIFY_READ, addr, l, 1)))
                 /* FIXME - should this return an error rather than just fail? */
                 return;
-            memcpy(buf, p, len);
+            memcpy(buf, p, l);
             unlock_user(p, addr, 0);
         }
         len -= l;

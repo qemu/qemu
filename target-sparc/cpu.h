@@ -250,7 +250,7 @@ typedef struct CPUSPARCState {
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL 4
-    uint64_t t0, t1, t2;
+    uint64_t t0;
     trap_state *tsptr;
     trap_state ts[MAXTL];
     uint32_t xcc;               /* Extended integer condition codes */
@@ -271,9 +271,7 @@ typedef struct CPUSPARCState {
     uint64_t hpstate, htstate[MAXTL], hintp, htba, hver, hstick_cmpr, ssr;
     void *hstick; // UA 2005
 #endif
-#if !defined(TARGET_SPARC64) && !defined(reg_T2)
-    target_ulong t2;
-#endif
+    target_ulong t1, t2;
 } CPUSPARCState;
 #if defined(TARGET_SPARC64)
 #define GET_FSR32(env) (env->fsr & 0xcfc1ffff)

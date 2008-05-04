@@ -3,7 +3,7 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
-typedef void QEMUMachineInitFunc(int ram_size, int vga_ram_size,
+typedef void QEMUMachineInitFunc(ram_addr_t ram_size, int vga_ram_size,
                                  const char *boot_device, DisplayState *ds,
                                  const char *kernel_filename,
                                  const char *kernel_cmdline,
@@ -15,11 +15,16 @@ typedef struct QEMUMachine {
     const char *desc;
     QEMUMachineInitFunc *init;
 #define RAMSIZE_FIXED	(1 << 0)
-    size_t ram_require;
+    ram_addr_t ram_require;
     struct QEMUMachine *next;
 } QEMUMachine;
 
 int qemu_register_machine(QEMUMachine *m);
+void register_machines(void);
+
+/* ar7.c */
+int qemu_register_ar7_machines(void);
+int qemu_register_mips_machines(void);
 
 /* Axis ETRAX.  */
 extern QEMUMachine bareetraxfs_machine;

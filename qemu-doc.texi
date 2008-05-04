@@ -261,6 +261,10 @@ These options have the same definition as they have in @option{-hdachs}.
 @var{snapshot} is "on" or "off" and allows to enable snapshot for given drive (see @option{-snapshot}).
 @item cache=@var{cache}
 @var{cache} is "on" or "off" and allows to disable host cache to access data.
+@item format=@var{format}
+Specify which disk @var{format} will be used rather than detecting
+the format.  Can be used to specifiy format=raw to avoid interpreting
+an untrusted format header.
 @end table
 
 Instead of @option{-cdrom} you can use:
@@ -322,7 +326,9 @@ Disable boot signature checking for floppy disks in Bochs BIOS. It may
 be needed to boot from old floppy disks.
 
 @item -m @var{megs}
-Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.
+Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.  Optionally,
+a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
+gigabytes respectively.
 
 @item -smp @var{n}
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255

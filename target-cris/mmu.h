@@ -7,6 +7,7 @@ struct cris_mmu_result_t
 {
 	uint32_t phy;
 	uint32_t pfn;
+	int prot;
 	int bf_vec;
 };
 

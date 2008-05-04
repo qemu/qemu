@@ -336,6 +336,9 @@ gen-op.h: op.o $(DYNGEN)
 op.o: op.c
 	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
+machine.o: machine.c
+	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
 ifeq ($(TARGET_BASE_ARCH), i386)
@@ -515,7 +518,7 @@ endif #CONFIG_DARWIN_USER
 # System emulator target
 ifndef CONFIG_USER_ONLY
 
-OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o
+OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o
 ifdef CONFIG_WIN32
 OBJS+=block-raw-win32.o
 else

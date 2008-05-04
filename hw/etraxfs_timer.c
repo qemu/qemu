@@ -48,26 +48,22 @@ struct fs_timer_t {
 
 	QEMUBH *bh;
 	ptimer_state *ptimer;
-	unsigned int limit;
-	int scale;
-	uint32_t mask;
 	struct timeval last;
+
+	/* Control registers.  */
+	uint32_t rw_tmr0_div;
+	uint32_t r_tmr0_data;
+	uint32_t rw_tmr0_ctrl;
+
+	uint32_t rw_tmr1_div;
+	uint32_t r_tmr1_data;
+	uint32_t rw_tmr1_ctrl;
 
 	uint32_t rw_intr_mask;
 	uint32_t rw_ack_intr;
 	uint32_t r_intr;
+	uint32_t r_masked_intr;
 };
-
-/* diff two timevals.  Return a single int in us. */
-int diff_timeval_us(struct timeval *a, struct timeval *b)
-{
-        int diff;
-
-        /* assume these values are signed.  */
-        diff = (a->tv_sec - b->tv_sec) * 1000 * 1000;
-        diff += (a->tv_usec - b->tv_usec);
-        return diff;
-}
 
 static uint32_t timer_rinvalid (void *opaque, target_phys_addr_t addr)
 {
@@ -93,19 +89,8 @@ static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
 		D(printf ("R_TMR1_DATA\n"));
 		break;
 	case R_TIME:
-	{
-		struct timeval now;
-		gettimeofday(&now, NULL);
-		if (!(t->last.tv_sec == 0 
-		      && t->last.tv_usec == 0)) {
-			r = diff_timeval_us(&now, &t->last);
-			r *= 1000; /* convert to ns.  */
-			r++; /* make sure we increase for each call.  */
-		}
-		t->last = now;
+		r = qemu_get_clock(vm_clock) * 10;
 		break;
-	}
-
 	case RW_INTR_MASK:
 		r = t->rw_intr_mask;
 		break;
@@ -128,14 +113,16 @@ timer_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 		  addr, env->pc);
 }
 
-static void write_ctrl(struct fs_timer_t *t, uint32_t v)
+#define TIMER_SLOWDOWN 4
+static void update_ctrl(struct fs_timer_t *t)
 {
-	int op;
-	int freq;
-	int freq_hz;
+	unsigned int op;
+	unsigned int freq;
+	unsigned int freq_hz;
+	unsigned int div;
 
-	op = v & 3;
-	freq = v >> 2;
+	op = t->rw_tmr0_ctrl & 3;
+	freq = t->rw_tmr0_ctrl >> 2;
 	freq_hz = 32000000;
 
 	switch (freq)
@@ -153,25 +140,26 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 		break;
 	}
 
-	D(printf ("freq_hz=%d limit=%d\n", freq_hz, t->limit));
-	t->scale = 0;
-	if (t->limit > 2048)
-	{
-		t->scale = 2048;
-		ptimer_set_period(t->ptimer, freq_hz / t->scale);
-	}
+	D(printf ("freq_hz=%d div=%d\n", freq_hz, t->rw_tmr0_div));
+	div = t->rw_tmr0_div * TIMER_SLOWDOWN;
+	div >>= 15;
+	freq_hz >>= 15;
+	ptimer_set_freq(t->ptimer, freq_hz);
+	ptimer_set_limit(t->ptimer, div, 0);
 
 	switch (op)
 	{
 		case 0:
-			D(printf ("limit=%d %d\n", 
-				  t->limit, t->limit/t->scale));
-			ptimer_set_limit(t->ptimer, t->limit / t->scale, 1);
+			/* Load.  */
+			ptimer_set_limit(t->ptimer, div, 1);
+			ptimer_run(t->ptimer, 1);
 			break;
 		case 1:
+			/* Hold.  */
 			ptimer_stop(t->ptimer);
 			break;
 		case 2:
+			/* Run.  */
 			ptimer_run(t->ptimer, 0);
 			break;
 		default:
@@ -180,10 +168,23 @@ static void write_ctrl(struct fs_timer_t *t, uint32_t v)
 	}
 }
 
-static void timer_ack_irq(struct fs_timer_t *t)
+static void timer_update_irq(struct fs_timer_t *t)
 {
-	if (!(t->r_intr & t->mask & t->rw_intr_mask))
+	t->r_intr &= ~(t->rw_ack_intr);
+	t->r_masked_intr = t->r_intr & t->rw_intr_mask;
+
+	D(printf("%s: masked_intr=%x\n", __func__, t->r_masked_intr));
+	if (t->r_masked_intr & 1)
+		qemu_irq_raise(t->irq[0]);
+	else
 		qemu_irq_lower(t->irq[0]);
+}
+
+static void timer_hit(void *opaque)
+{
+	struct fs_timer_t *t = opaque;
+	t->r_intr |= 1;
+	timer_update_irq(t);
 }
 
 static void
@@ -192,22 +193,20 @@ timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 	struct fs_timer_t *t = opaque;
 	CPUState *env = t->env;
 
-	D(printf ("%s %x %x pc=%x\n",
-		__func__, addr, value, env->pc));
 	/* Make addr relative to this instances base.  */
 	addr -= t->base;
 	switch (addr)
 	{
 		case RW_TMR0_DIV:
-			D(printf ("RW_TMR0_DIV=%x\n", value));
-			t->limit = value;
+			t->rw_tmr0_div = value;
 			break;
 		case RW_TMR0_CTRL:
 			D(printf ("RW_TMR0_CTRL=%x\n", value));
-			write_ctrl(t, value);
+			t->rw_tmr0_ctrl = value;
+			update_ctrl(t);
 			break;
 		case RW_TMR1_DIV:
-			D(printf ("RW_TMR1_DIV=%x\n", value));
+			t->rw_tmr1_div = value;
 			break;
 		case RW_TMR1_CTRL:
 			D(printf ("RW_TMR1_CTRL=%x\n", value));
@@ -215,13 +214,15 @@ timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 		case RW_INTR_MASK:
 			D(printf ("RW_INTR_MASK=%x\n", value));
 			t->rw_intr_mask = value;
+			timer_update_irq(t);
 			break;
 		case RW_WD_CTRL:
 			D(printf ("RW_WD_CTRL=%x\n", value));
 			break;
 		case RW_ACK_INTR:
-			t->r_intr &= ~value;
-			timer_ack_irq(t);
+			t->rw_ack_intr = value;
+			timer_update_irq(t);
+			t->rw_ack_intr = 0;
 			break;
 		default:
 			printf ("%s %x %x pc=%x\n",
@@ -242,16 +243,6 @@ static CPUWriteMemoryFunc *timer_write[] = {
     &timer_writel,
 };
 
-static void timer_irq(void *opaque)
-{
-	struct fs_timer_t *t = opaque;
-	t->r_intr |= t->mask;
-	if (t->mask & t->rw_intr_mask) {
-		D(printf("%s raise\n", __func__));
-		qemu_irq_raise(t->irq[0]);
-	}
-}
-
 void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, 
 			target_phys_addr_t base)
 {
@@ -262,10 +253,9 @@ void etraxfs_timer_init(CPUState *env, qemu_irq *irqs,
 	if (!t)
 		return;
 
-	t->bh = qemu_bh_new(timer_irq, t);
+	t->bh = qemu_bh_new(timer_hit, t);
 	t->ptimer = ptimer_init(t->bh);
-	t->irq = irqs + 26;
-	t->mask = 1;
+	t->irq = irqs;
 	t->env = env;
 	t->base = base;
 

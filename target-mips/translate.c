@@ -422,6 +422,8 @@ enum {
     OPC_NMSUB_PS= 0x3E | OPC_CP3,
 };
 
+/* global register indices */
+static TCGv cpu_env, current_tc_regs, cpu_T[2];
 
 const unsigned char *regnames[] =
     { "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
@@ -449,7 +451,6 @@ static always_inline void func(int n)            \
 /* General purpose registers moves */
 GEN32(gen_op_load_gpr_T0, gen_op_load_gpr_T0_gpr);
 GEN32(gen_op_load_gpr_T1, gen_op_load_gpr_T1_gpr);
-GEN32(gen_op_load_gpr_T2, gen_op_load_gpr_T2_gpr);
 
 GEN32(gen_op_store_T0_gpr, gen_op_store_T0_gpr_gpr);
 GEN32(gen_op_store_T1_gpr, gen_op_store_T1_gpr_gpr);
@@ -600,15 +601,6 @@ do {                                                                          \
     }                                                                         \
 } while (0)
 
-#define GEN_LOAD_REG_T2(Rn)                                                   \
-do {                                                                          \
-    if (Rn == 0) {                                                            \
-        gen_op_reset_T2();                                                    \
-    } else {                                                                  \
-        gen_op_load_gpr_T2(Rn);                                               \
-    }                                                                         \
-} while (0)
-
 #define GEN_LOAD_SRSREG_TN(Tn, Rn)                                            \
 do {                                                                          \
     if (Rn == 0) {                                                            \
@@ -715,14 +707,9 @@ static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
         ctx->saved_hflags = ctx->hflags;
         switch (ctx->hflags & MIPS_HFLAG_BMASK) {
         case MIPS_HFLAG_BR:
-            gen_op_save_breg_target();
             break;
         case MIPS_HFLAG_BC:
-            gen_op_save_bcond();
-            /* fall through */
         case MIPS_HFLAG_BL:
-            /* bcond was already saved by the BL insn */
-            /* fall through */
         case MIPS_HFLAG_B:
             gen_save_btarget(ctx->btarget);
             break;
@@ -735,15 +722,11 @@ static always_inline void restore_cpu_state (CPUState *env, DisasContext *ctx)
     ctx->saved_hflags = ctx->hflags;
     switch (ctx->hflags & MIPS_HFLAG_BMASK) {
     case MIPS_HFLAG_BR:
-        gen_op_restore_breg_target();
-        break;
-    case MIPS_HFLAG_B:
-        ctx->btarget = env->btarget;
         break;
     case MIPS_HFLAG_BC:
     case MIPS_HFLAG_BL:
+    case MIPS_HFLAG_B:
         ctx->btarget = env->btarget;
-        gen_op_restore_bcond();
         break;
     }
 }
@@ -1784,6 +1767,19 @@ static always_inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong des
     }
 }
 
+static inline void tcg_gen_set_bcond(void)
+{
+    tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, bcond));
+}
+
+static inline void tcg_gen_jnz_bcond(int label)
+{
+    int r_tmp = tcg_temp_new(TCG_TYPE_TL);
+
+    tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
+    tcg_gen_brcond_tl(TCG_COND_NE, r_tmp, tcg_const_i32(0), label);
+}
+
 /* Branches (before delay slot) */
 static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
                                 int rs, int rt, int32_t offset)
@@ -1852,7 +1848,8 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             generate_exception(ctx, EXCP_RI);
             return;
         }
-        GEN_LOAD_REG_T2(rs);
+        GEN_LOAD_REG_T1(rs);
+        gen_op_save_breg_target();
         break;
     default:
         MIPS_INVAL("branch/jump");
@@ -1997,7 +1994,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             MIPS_DEBUG("bltzal %s, " TARGET_FMT_lx, regnames[rs], btarget);
         not_likely:
             ctx->hflags |= MIPS_HFLAG_BC;
-            gen_op_set_bcond();
+            tcg_gen_set_bcond();
             break;
         case OPC_BLTZALL:
             gen_op_ltz();
@@ -2005,8 +2002,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             MIPS_DEBUG("bltzall %s, " TARGET_FMT_lx, regnames[rs], btarget);
         likely:
             ctx->hflags |= MIPS_HFLAG_BL;
-            gen_op_set_bcond();
-            gen_op_save_bcond();
+            tcg_gen_set_bcond();
             break;
         default:
             MIPS_INVAL("conditional branch/jump");
@@ -4877,8 +4873,7 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
         opn = "bc1tl";
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
-        gen_op_set_bcond();
-        gen_op_save_bcond();
+        tcg_gen_set_bcond();
         break;
     case OPC_BC1FANY2:
         gen_op_bc1any2f(cc);
@@ -4897,7 +4892,7 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
         opn = "bc1any4t";
     not_likely:
         ctx->hflags |= MIPS_HFLAG_BC;
-        gen_op_set_bcond();
+        tcg_gen_set_bcond();
         break;
     default:
         MIPS_INVAL(opn);
@@ -6070,7 +6065,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         /* Handle blikely not taken case */
         MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
         l1 = gen_new_label();
-        gen_op_jnz_T2(l1);
+        tcg_gen_jnz_bcond(l1);
         gen_op_save_state(ctx->hflags & ~MIPS_HFLAG_BMASK);
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
@@ -6626,7 +6621,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             {
               int l1;
               l1 = gen_new_label();
-              gen_op_jnz_T2(l1);
+              tcg_gen_jnz_bcond(l1);
               gen_goto_tb(ctx, 1, ctx->pc + 4);
               gen_set_label(l1);
               gen_goto_tb(ctx, 0, ctx->btarget);
@@ -6891,6 +6886,29 @@ void cpu_dump_state (CPUState *env, FILE *f,
 #endif
 }
 
+static void mips_tcg_init(void)
+{
+    static int inited;
+
+    /* Initialize various static tables. */
+    if (inited)
+	return;
+
+    cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    current_tc_regs = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG1, "current_tc_regs");
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+    cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t0), "T0");
+    cpu_T[1] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t1), "T1");
+#else
+    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T0");
+    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "T1");
+#endif
+
+    inited = 1;
+}
+
 #include "translate_init.c"
 
 CPUMIPSState *cpu_mips_init (const char *cpu_model)
@@ -6908,6 +6926,7 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
 
     cpu_exec_init(env);
     env->cpu_model_str = cpu_model;
+    mips_tcg_init();
     cpu_reset(env);
     return env;
 }
@@ -6958,4 +6977,12 @@ void cpu_reset (CPUMIPSState *env)
     env->hflags = MIPS_HFLAG_CP0;
 #endif
     cpu_mips_register(env, env->cpu_model);
+}
+
+void gen_pc_load(CPUState *env, TranslationBlock *tb,
+                unsigned long searched_pc, int pc_pos, void *puc)
+{
+    env->PC[env->current_tc] = gen_opc_pc[pc_pos];
+    env->hflags &= ~MIPS_HFLAG_BMASK;
+    env->hflags |= gen_opc_hflags[pc_pos];
 }

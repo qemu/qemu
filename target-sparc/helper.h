@@ -45,6 +45,13 @@ void TCG_HELPER_PROTO helper_flush(target_ulong addr);
 target_ulong TCG_HELPER_PROTO helper_udiv(target_ulong a, target_ulong b);
 target_ulong TCG_HELPER_PROTO helper_sdiv(target_ulong a, target_ulong b);
 uint64_t TCG_HELPER_PROTO helper_pack64(target_ulong high, target_ulong low);
+void TCG_HELPER_PROTO helper_std_i386(target_ulong addr, int mem_idx);
+void TCG_HELPER_PROTO helper_stdf(target_ulong addr, int mem_idx);
+void TCG_HELPER_PROTO helper_lddf(target_ulong addr, int mem_idx);
+#if defined(CONFIG_USER_ONLY)
+void TCG_HELPER_PROTO helper_ldqf(target_ulong addr);
+void TCG_HELPER_PROTO helper_stqf(target_ulong addr);
+#endif
 uint64_t TCG_HELPER_PROTO helper_ld_asi(target_ulong addr, int asi,
                                         int size, int sign);
 void TCG_HELPER_PROTO helper_st_asi(target_ulong addr, uint64_t val, int asi,

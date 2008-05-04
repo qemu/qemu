@@ -7,12 +7,10 @@ register struct CPUSPARCState *env asm(AREG0);
 
 #ifdef TARGET_SPARC64
 #define T0 (env->t0)
-#define T1 (env->t1)
 #define T2 (env->t2)
 #define REGWPTR env->regwptr
 #else
 register uint32_t T0 asm(AREG1);
-register uint32_t T1 asm(AREG2);
 
 #undef REG_REGWPTR // Broken
 #ifdef REG_REGWPTR

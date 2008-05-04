@@ -1747,7 +1747,21 @@ void helper_cpuid(void)
         break;
     case 0x80000008:
         /* virtual & phys address size in low 2 bytes. */
-        EAX = 0x00003028;
+/* XXX: This value must match the one used in the MMU code. */ 
+#if defined(TARGET_X86_64)
+#  if defined(USE_KQEMU)
+        EAX = 0x00003020;	/* 48 bits virtual, 32 bits physical */
+#  else
+/* XXX: The physical address space is limited to 42 bits in exec.c. */
+        EAX = 0x00003028;	/* 48 bits virtual, 40 bits physical */
+#  endif
+#else
+# if defined(USE_KQEMU)
+        EAX = 0x00000020;	/* 32 bits physical */
+#  else
+        EAX = 0x00000024;	/* 36 bits physical */
+#  endif
+#endif
         EBX = 0;
         ECX = 0;
         EDX = 0;

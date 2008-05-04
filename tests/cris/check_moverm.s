@@ -40,6 +40,6 @@ mem3:
  test_cc 0 1 1 0
  subq 1,r2
  move.d [r2],r3
- checkr3 102318ff
+ checkr3 102318fe
 
  quit

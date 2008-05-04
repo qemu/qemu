@@ -1986,7 +1986,7 @@ static inline uint8_t sub8_sat(uint8_t a, uint8_t b)
 #include "op_addsub.h"
 
 /* Unsigned saturating arithmetic.  */
-static inline uint16_t add16_usat(uint16_t a, uint8_t b)
+static inline uint16_t add16_usat(uint16_t a, uint16_t b)
 {
     uint16_t res;
     res = a + b;
@@ -1995,7 +1995,7 @@ static inline uint16_t add16_usat(uint16_t a, uint8_t b)
     return res;
 }
 
-static inline uint16_t sub16_usat(uint16_t a, uint8_t b)
+static inline uint16_t sub16_usat(uint16_t a, uint16_t b)
 {
     if (a < b)
         return a - b;

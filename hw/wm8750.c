@@ -39,9 +39,19 @@ struct wm8750_s {
 
     uint8_t diff[2], pol, ds, monomix[2], alc, mute;
     uint8_t path[4], mpath[2], power, format;
-    uint32_t inmask, outmask;
     const struct wm_rate_s *rate;
+    int adc_hz, dac_hz, ext_adc_hz, ext_dac_hz, master;
 };
+
+/* pow(10.0, -i / 20.0) * 255, i = 0..42 */
+static const uint8_t wm8750_vol_db_table[] = {
+    255, 227, 203, 181, 161, 143, 128, 114, 102, 90, 81, 72, 64, 57, 51, 45,
+    40, 36, 32, 29, 26, 23, 20, 18, 16, 14, 13, 11, 10, 9, 8, 7, 6, 6, 5, 5,
+    4, 4, 3, 3, 3, 2, 2
+};
+
+#define WM8750_OUTVOL_TRANSFORM(x)	wm8750_vol_db_table[(0x7f - x) / 3]
+#define WM8750_INVOL_TRANSFORM(x)	(x << 2)
 
 static inline void wm8750_in_load(struct wm8750_s *s)
 {
@@ -125,6 +135,38 @@ static const struct wm_rate_s wm_rate_table[] = {
     {  192, 88200,  192, 88200 },	/* SR: 11111 */
 };
 
+static void wm8750_vol_update(struct wm8750_s *s)
+{
+    /* FIXME: multiply all volumes by s->invol[2], s->invol[3] */
+
+    AUD_set_volume_in(s->adc_voice[0], s->mute,
+                    s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
+                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
+    AUD_set_volume_in(s->adc_voice[1], s->mute,
+                    s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
+                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
+    AUD_set_volume_in(s->adc_voice[2], s->mute,
+                    s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
+                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
+
+    /* FIXME: multiply all volumes by s->outvol[0], s->outvol[1] */
+
+    /* Speaker: LOUT2VOL ROUT2VOL */
+    AUD_set_volume_out(s->dac_voice[0], s->mute,
+                    s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[4]),
+                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[5]));
+
+    /* Headphone: LOUT1VOL ROUT1VOL */
+    AUD_set_volume_out(s->dac_voice[1], s->mute,
+                    s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[2]),
+                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[3]));
+
+    /* MONOOUT: MONOVOL MONOVOL */
+    AUD_set_volume_out(s->dac_voice[2], s->mute,
+                    s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]),
+                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]));
+}
+
 static void wm8750_set_format(struct wm8750_s *s)
 {
     int i;
@@ -156,7 +198,7 @@ static void wm8750_set_format(struct wm8750_s *s)
     /* Setup input */
     in_fmt.endianness = 0;
     in_fmt.nchannels = 2;
-    in_fmt.freq = s->rate->adc_hz;
+    in_fmt.freq = s->adc_hz;
     in_fmt.fmt = AUD_FMT_S16;
 
     s->adc_voice[0] = AUD_open_in(&s->card, s->adc_voice[0],
@@ -169,7 +211,7 @@ static void wm8750_set_format(struct wm8750_s *s)
     /* Setup output */
     out_fmt.endianness = 0;
     out_fmt.nchannels = 2;
-    out_fmt.freq = s->rate->dac_hz;
+    out_fmt.freq = s->dac_hz;
     out_fmt.fmt = AUD_FMT_S16;
     monoout_fmt.endianness = 0;
     monoout_fmt.nchannels = 1;
@@ -185,6 +227,8 @@ static void wm8750_set_format(struct wm8750_s *s)
                     CODEC ".monomix", s, wm8750_audio_out_cb, &out_fmt);
     /* no sense emulating OUT3 which is a mix of other outputs */
 
+    wm8750_vol_update(s);
+
     /* We should connect the left and right channels to their
      * respective inputs/outputs but we have completely no need
      * for mixing or combining paths to different ports, so we
@@ -195,20 +239,25 @@ static void wm8750_set_format(struct wm8750_s *s)
         AUD_set_active_out(*s->out[0], 1);
 }
 
-static void inline wm8750_mask_update(struct wm8750_s *s)
+static void wm8750_clk_update(struct wm8750_s *s, int ext)
 {
-#define R_ONLY	0x0000ffff
-#define L_ONLY	0xffff0000
-#define BOTH	(R_ONLY | L_ONLY)
-#define NONE	(R_ONLY & L_ONLY)
-    s->inmask =
-            (s->inmute[0] ? R_ONLY : BOTH) &
-            (s->inmute[1] ? L_ONLY : BOTH) &
-            (s->mute ? NONE : BOTH);
-    s->outmask =
-            (s->outmute[0] ? R_ONLY : BOTH) &
-            (s->outmute[1] ? L_ONLY : BOTH) &
-            (s->mute ? NONE : BOTH);
+    if (s->master || !s->ext_dac_hz)
+        s->dac_hz = s->rate->dac_hz;
+    else
+        s->dac_hz = s->ext_dac_hz;
+
+    if (s->master || !s->ext_adc_hz)
+        s->adc_hz = s->rate->adc_hz;
+    else
+        s->adc_hz = s->ext_adc_hz;
+
+    if (s->master || (!s->ext_dac_hz && !s->ext_adc_hz)) {
+        if (!ext)
+            wm8750_set_format(s);
+    } else {
+        if (ext)
+            wm8750_set_format(s);
+    }
 }
 
 void wm8750_reset(i2c_slave *i2c)
@@ -216,7 +265,7 @@ void wm8750_reset(i2c_slave *i2c)
     struct wm8750_s *s = (struct wm8750_s *) i2c;
     s->rate = &wm_rate_table[0];
     s->enable = 0;
-    wm8750_set_format(s);
+    wm8750_clk_update(s, 1);
     s->diff[0] = 0;
     s->diff[1] = 0;
     s->ds = 0;
@@ -233,6 +282,7 @@ void wm8750_reset(i2c_slave *i2c)
     s->outvol[3] = 0x79;
     s->outvol[4] = 0x79;
     s->outvol[5] = 0x79;
+    s->outvol[6] = 0x79;
     s->inmute[0] = 0;
     s->inmute[1] = 0;
     s->outmute[0] = 0;
@@ -249,7 +299,7 @@ void wm8750_reset(i2c_slave *i2c)
     s->req_in = 0;
     s->idx_out = 0;
     s->req_out = 0;
-    wm8750_mask_update(s);
+    wm8750_vol_update(s);
     s->i2c_len = 0;
 }
 
@@ -367,19 +417,19 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
     case WM8750_LINVOL:	/* Left Channel PGA */
         s->invol[0] = value & 0x3f;		/* LINVOL */
         s->inmute[0] = (value >> 7) & 1;	/* LINMUTE */
-        wm8750_mask_update(s);
+        wm8750_vol_update(s);
         break;
 
     case WM8750_RINVOL:	/* Right Channel PGA */
         s->invol[1] = value & 0x3f;		/* RINVOL */
         s->inmute[1] = (value >> 7) & 1;	/* RINMUTE */
-        wm8750_mask_update(s);
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ADCDAC:	/* ADC and DAC Control */
         s->pol = (value >> 5) & 3;		/* ADCPOL */
         s->mute = (value >> 3) & 1;		/* DACMU */
-        wm8750_mask_update(s);
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ADCTL3:	/* Additional Control (3) */
@@ -387,10 +437,12 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
 
     case WM8750_LADC:	/* Left ADC Digital Volume */
         s->invol[2] = value & 0xff;		/* LADCVOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_RADC:	/* Right ADC Digital Volume */
         s->invol[3] = value & 0xff;		/* RADCVOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ALC1:	/* ALC Control (1) */
@@ -403,10 +455,12 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
 
     case WM8750_LDAC:	/* Left Channel Digital Volume */
         s->outvol[0] = value & 0xff;		/* LDACVOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_RDAC:	/* Right Channel Digital Volume */
         s->outvol[1] = value & 0xff;		/* RDACVOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_BASS:	/* Bass Control */
@@ -414,46 +468,63 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
 
     case WM8750_LOUTM1:	/* Left Mixer Control (1) */
         s->path[0] = (value >> 8) & 1;		/* LD2LO */
+        /* TODO: mute/unmute respective paths */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_LOUTM2:	/* Left Mixer Control (2) */
         s->path[1] = (value >> 8) & 1;		/* RD2LO */
+        /* TODO: mute/unmute respective paths */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ROUTM1:	/* Right Mixer Control (1) */
         s->path[2] = (value >> 8) & 1;		/* LD2RO */
+        /* TODO: mute/unmute respective paths */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ROUTM2:	/* Right Mixer Control (2) */
         s->path[3] = (value >> 8) & 1;		/* RD2RO */
+        /* TODO: mute/unmute respective paths */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_MOUTM1:	/* Mono Mixer Control (1) */
         s->mpath[0] = (value >> 8) & 1;		/* LD2MO */
+        /* TODO: mute/unmute respective paths */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_MOUTM2:	/* Mono Mixer Control (2) */
         s->mpath[1] = (value >> 8) & 1;		/* RD2MO */
+        /* TODO: mute/unmute respective paths */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_LOUT1V:	/* LOUT1 Volume */
-        s->outvol[2] = value & 0x7f;		/* LOUT2VOL */
+        s->outvol[2] = value & 0x7f;		/* LOUT1VOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_LOUT2V:	/* LOUT2 Volume */
         s->outvol[4] = value & 0x7f;		/* LOUT2VOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ROUT1V:	/* ROUT1 Volume */
-        s->outvol[3] = value & 0x7f;		/* ROUT2VOL */
+        s->outvol[3] = value & 0x7f;		/* ROUT1VOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ROUT2V:	/* ROUT2 Volume */
         s->outvol[5] = value & 0x7f;		/* ROUT2VOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_MOUTV:	/* MONOOUT Volume */
         s->outvol[6] = value & 0x7f;		/* MONOOUTVOL */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_ADCTL2:	/* Additional Control (2) */
@@ -461,20 +532,19 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
 
     case WM8750_PWR2:	/* Power Management (2) */
         s->power = value & 0x7e;
+        /* TODO: mute/unmute respective paths */
+        wm8750_vol_update(s);
         break;
 
     case WM8750_IFACE:	/* Digital Audio Interface Format */
-#ifdef VERBOSE
-        if (value & 0x40)			/* MS */
-            printf("%s: attempt to enable Master Mode\n", __FUNCTION__);
-#endif
         s->format = value;
-        wm8750_set_format(s);
+        s->master = (value >> 6) & 1;			/* MS */
+        wm8750_clk_update(s, s->master);
         break;
 
     case WM8750_SRATE:	/* Clocking and Sample Rate Control */
         s->rate = &wm_rate_table[(value >> 1) & 0x1f];
-        wm8750_set_format(s);
+        wm8750_clk_update(s, 0);
         break;
 
     case WM8750_RESET:	/* Reset */
@@ -531,8 +601,6 @@ static void wm8750_save(QEMUFile *f, void *opaque)
         qemu_put_8s(f, &s->mpath[i]);
     qemu_put_8s(f, &s->format);
     qemu_put_8s(f, &s->power);
-    qemu_put_be32s(f, &s->inmask);
-    qemu_put_be32s(f, &s->outmask);
     qemu_put_byte(f, (s->rate - wm_rate_table) / sizeof(*s->rate));
     i2c_slave_save(f, &s->i2c);
 }
@@ -573,8 +641,6 @@ static int wm8750_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_8s(f, &s->mpath[i]);
     qemu_get_8s(f, &s->format);
     qemu_get_8s(f, &s->power);
-    qemu_get_be32s(f, &s->inmask);
-    qemu_get_be32s(f, &s->outmask);
     s->rate = &wm_rate_table[(uint8_t) qemu_get_byte(f) & 0x1f];
     i2c_slave_load(f, &s->i2c);
     return 0;
@@ -619,8 +685,8 @@ void wm8750_data_req_set(i2c_slave *i2c,
 void wm8750_dac_dat(void *opaque, uint32_t sample)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;
-    uint32_t *data = (uint32_t *) &s->data_out[s->idx_out];
-    *data = sample & s->outmask;
+
+    *(uint32_t *) &s->data_out[s->idx_out] = sample;
     s->req_out -= 4;
     s->idx_out += 4;
     if (s->idx_out >= sizeof(s->data_out) || s->req_out <= 0)
@@ -649,10 +715,21 @@ uint32_t wm8750_adc_dat(void *opaque)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;
     uint32_t *data;
+
     if (s->idx_in >= sizeof(s->data_in))
         wm8750_in_load(s);
+
     data = (uint32_t *) &s->data_in[s->idx_in];
     s->req_in -= 4;
     s->idx_in += 4;
-    return *data & s->inmask;
+    return *data;
+}
+
+void wm8750_set_bclk_in(void *opaque, int hz)
+{
+    struct wm8750_s *s = (struct wm8750_s *) opaque;
+
+    s->ext_adc_hz = hz;
+    s->ext_dac_hz = hz;
+    wm8750_clk_update(s, 1);
 }

@@ -2217,6 +2217,109 @@ uint64_t helper_pack64(target_ulong high, target_ulong low)
     return ((uint64_t)high << 32) | (uint64_t)(low & 0xffffffff);
 }
 
+#ifdef TARGET_ABI32
+#define ADDR(x) ((x) & 0xffffffff)
+#else
+#define ADDR(x) (x)
+#endif
+
+#ifdef __i386__
+void helper_std_i386(target_ulong addr, int mem_idx)
+{
+    uint64_t tmp = ((uint64_t)env->t1 << 32) | (uint64_t)(env->t2 & 0xffffffff);
+
+#if !defined(CONFIG_USER_ONLY)
+    switch (mem_idx) {
+    case 0:
+        stq_user(ADDR(addr), tmp);
+        break;
+    case 1:
+        stq_kernel(ADDR(addr), tmp);
+        break;
+#ifdef TARGET_SPARC64
+    case 2:
+        stq_hypv(ADDR(addr), tmp);
+        break;
+#endif
+    default:
+        break;
+    }
+#else
+    stq_raw(ADDR(addr), tmp);
+#endif
+}
+#endif /* __i386__ */
+
+void helper_stdf(target_ulong addr, int mem_idx)
+{
+#if !defined(CONFIG_USER_ONLY)
+    switch (mem_idx) {
+    case 0:
+        stfq_user(ADDR(addr), DT0);
+        break;
+    case 1:
+        stfq_kernel(ADDR(addr), DT0);
+        break;
+#ifdef TARGET_SPARC64
+    case 2:
+        stfq_hypv(ADDR(addr), DT0);
+        break;
+#endif
+    default:
+        break;
+    }
+#else
+    stfq_raw(ADDR(addr), DT0);
+#endif
+}
+
+void helper_lddf(target_ulong addr, int mem_idx)
+{
+#if !defined(CONFIG_USER_ONLY)
+    switch (mem_idx) {
+    case 0:
+        DT0 = ldfq_user(ADDR(addr));
+        break;
+    case 1:
+        DT0 = ldfq_kernel(ADDR(addr));
+        break;
+#ifdef TARGET_SPARC64
+    case 2:
+        DT0 = ldfq_hypv(ADDR(addr));
+        break;
+#endif
+    default:
+        break;
+    }
+#else
+    DT0 = ldfq_raw(ADDR(addr));
+#endif
+}
+
+#if defined(CONFIG_USER_ONLY)
+void helper_ldqf(target_ulong addr)
+{
+    // XXX add 128 bit load
+    CPU_QuadU u;
+
+    u.ll.upper = ldq_raw(ADDR(addr));
+    u.ll.lower = ldq_raw(ADDR(addr + 8));
+    QT0 = u.q;
+}
+
+void helper_stqf(target_ulong addr)
+{
+    // XXX add 128 bit store
+    CPU_QuadU u;
+
+    u.q = QT0;
+    stq_raw(ADDR(addr), u.ll.upper);
+    stq_raw(ADDR(addr + 8), u.ll.lower);
+}
+#endif
+
+#undef ADDR
+
 void helper_ldfsr(void)
 {
     int rnd_mode;

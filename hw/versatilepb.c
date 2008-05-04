@@ -159,7 +159,7 @@ static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
 
 static struct arm_boot_info versatile_binfo;
 
-static void versatile_init(int ram_size, int vga_ram_size,
+static void versatile_init(ram_addr_t ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model,
@@ -293,7 +293,7 @@ static void versatile_init(int ram_size, int vga_ram_size,
     arm_load_kernel(env, &versatile_binfo);
 }
 
-static void vpb_init(int ram_size, int vga_ram_size,
+static void vpb_init(ram_addr_t ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -304,7 +304,7 @@ static void vpb_init(int ram_size, int vga_ram_size,
                    initrd_filename, cpu_model, 0x183);
 }
 
-static void vab_init(int ram_size, int vga_ram_size,
+static void vab_init(ram_addr_t ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)

@@ -35,7 +35,7 @@
 #define KERNEL_LOAD_ADDR     0x00404000
 #define CMDLINE_ADDR         0x003ff000
 #define INITRD_LOAD_ADDR     0x00300000
-#define PROM_SIZE_MAX        (512 * 1024)
+#define PROM_SIZE_MAX        (4 * 1024 * 1024)
 #define PROM_ADDR            0x1fff0000000ULL
 #define PROM_VADDR           0x000ffd00000ULL
 #define APB_SPECIAL_BASE     0x1fe00000000ULL
@@ -79,7 +79,7 @@ extern int nographic;
 
 static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                                    const unsigned char *arch,
-                                   uint32_t RAM_size, const char *boot_devices,
+                                   ram_addr_t RAM_size, const char *boot_devices,
                                    uint32_t kernel_image, uint32_t kernel_size,
                                    const char *cmdline,
                                    uint32_t initrd_image, uint32_t initrd_size,
@@ -227,7 +227,7 @@ static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 static fdctrl_t *floppy_controller;
 
 /* Sun4u hardware initialisation */
-static void sun4u_init(int ram_size, int vga_ram_size,
+static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
                        const char *boot_devices, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)

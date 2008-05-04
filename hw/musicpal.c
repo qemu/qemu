@@ -270,15 +270,15 @@ static void audio_callback(void *opaque, int free_out, int free_in)
         return;
 
     if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE)
-        memcpy(wm8750_dac_buffer(s->wm, block_size >> 2), 
+        memcpy(wm8750_dac_buffer(s->wm, block_size >> 2),
                (uint32_t *)(s->target_buffer + s->play_pos),
                block_size);
     else {
         codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
         for (pos = 0; pos < block_size; pos += 2) {
-            *codec_buffer++ = cpu_to_le16(2 *
+            *codec_buffer++ = cpu_to_le16(256 *
                     *(int8_t *)(s->target_buffer + s->play_pos + pos));
-            *codec_buffer++ = cpu_to_le16(2 *
+            *codec_buffer++ = cpu_to_le16(256 *
                     *(int8_t *)(s->target_buffer + s->play_pos + pos + 1));
         }
     }
@@ -296,6 +296,20 @@ static void audio_callback(void *opaque, int free_out, int free_in)
 
     if (s->status & s->irq_enable)
         qemu_irq_raise(s->irq);
+}
+
+static void musicpal_audio_clock_update(musicpal_audio_state *s)
+{
+    int rate;
+
+    if (s->playback_mode & MP_AUDIO_CLOCK_24MHZ)
+        rate = 24576000 / 64; /* 24.576MHz */
+    else
+        rate = 11289600 / 64; /* 11.2896MHz */
+
+    rate /= ((s->clock_div >> 8) & 0xff) + 1;
+
+    wm8750_set_bclk_in(s->wm, rate);
 }
 
 static uint32_t musicpal_audio_read(void *opaque, target_phys_addr_t offset)
@@ -339,12 +353,14 @@ static void musicpal_audio_write(void *opaque, target_phys_addr_t offset,
             s->play_pos = 0;
         }
         s->playback_mode = value;
+        musicpal_audio_clock_update(s);
         break;
 
     case MP_AUDIO_CLOCK_DIV:
         s->clock_div = value;
         s->last_free = 0;
         s->play_pos = 0;
+        musicpal_audio_clock_update(s);
         break;
 
     case MP_AUDIO_IRQ_STATUS:
@@ -1380,7 +1396,7 @@ static struct arm_boot_info musicpal_binfo = {
     .board_id = 0x20e,
 };
 
-static void musicpal_init(int ram_size, int vga_ram_size,
+static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
                const char *boot_device, DisplayState *ds,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
@@ -1410,7 +1426,7 @@ static void musicpal_init(int ram_size, int vga_ram_size,
 
     /* Catch various stuff not handled by separate subsystems */
     iomemtype = cpu_register_io_memory(0, musicpal_readfn,
-                                       musicpal_writefn, first_cpu);
+                                       musicpal_writefn, env);
     cpu_register_physical_memory(0x80000000, 0x10000, iomemtype);
 
     pic = mv88w8618_pic_init(MP_PIC_BASE, pic[ARM_PIC_CPU_IRQ]);
@@ -1465,7 +1481,7 @@ static void musicpal_init(int ram_size, int vga_ram_size,
     musicpal_binfo.kernel_filename = kernel_filename;
     musicpal_binfo.kernel_cmdline = kernel_cmdline;
     musicpal_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(first_cpu, &musicpal_binfo);
+    arm_load_kernel(env, &musicpal_binfo);
 }
 
 QEMUMachine musicpal_machine = {

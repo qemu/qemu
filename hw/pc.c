@@ -190,7 +190,8 @@ static int boot_device2nibble(char boot_device)
 }
 
 /* hd_table must contain 4 block drivers */
-static void cmos_init(int ram_size, const char *boot_device, BlockDriverState **hd_table)
+static void cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
+                      const char *boot_device, BlockDriverState **hd_table)
 {
     RTCState *s = rtc_state;
     int nbds, bds[3] = { 0, };
@@ -212,6 +213,12 @@ static void cmos_init(int ram_size, const char *boot_device, BlockDriverState **
     rtc_set_memory(s, 0x18, val >> 8);
     rtc_set_memory(s, 0x30, val);
     rtc_set_memory(s, 0x31, val >> 8);
+
+    if (above_4g_mem_size) {
+        rtc_set_memory(s, 0x5b, (unsigned int)above_4g_mem_size >> 16);
+        rtc_set_memory(s, 0x5c, (unsigned int)above_4g_mem_size >> 24);
+        rtc_set_memory(s, 0x5d, (uint64_t)above_4g_mem_size >> 32);
+    }
 
     if (ram_size > (16 * 1024 * 1024))
         val = (ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
@@ -678,7 +685,7 @@ static void pc_init_ne2k_isa(NICInfo *nd, qemu_irq *pic)
 }
 
 /* PC hardware initialisation */
-static void pc_init1(int ram_size, int vga_ram_size,
+static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
                      const char *boot_device, DisplayState *ds,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename,
@@ -687,6 +694,7 @@ static void pc_init1(int ram_size, int vga_ram_size,
     char buf[1024];
     int ret, linux_boot, i;
     ram_addr_t ram_addr, vga_ram_addr, bios_offset, vga_bios_offset;
+    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
     int bios_size, isa_bios_size, vga_bios_size;
     PCIBus *pci_bus;
     int piix3_devfn = -1;
@@ -697,6 +705,13 @@ static void pc_init1(int ram_size, int vga_ram_size,
     int index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
+
+    if (ram_size >= 0xe0000000 ) {
+        above_4g_mem_size = ram_size - 0xe0000000;
+        below_4g_mem_size = 0xe0000000;
+    } else {
+        below_4g_mem_size = ram_size;
+    }
 
     linux_boot = (kernel_filename != NULL);
 
@@ -732,7 +747,13 @@ static void pc_init1(int ram_size, int vga_ram_size,
 
     /* allocate RAM */
     ram_addr = qemu_ram_alloc(ram_size);
-    cpu_register_physical_memory(0, ram_size, ram_addr);
+    cpu_register_physical_memory(0, below_4g_mem_size, ram_addr);
+
+    /* above 4giga memory allocation */
+    if (above_4g_mem_size > 0) {
+        cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
+                                     ram_addr + below_4g_mem_size);
+    }
 
     /* allocate VGA RAM */
     vga_ram_addr = qemu_ram_alloc(vga_ram_size);
@@ -952,7 +973,7 @@ static void pc_init1(int ram_size, int vga_ram_size,
     }
     floppy_controller = fdctrl_init(i8259[6], 2, 0, 0x3f0, fd);
 
-    cmos_init(ram_size, boot_device, hd);
+    cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device, hd);
 
     if (pci_enabled && usb_enabled) {
         usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);
@@ -992,7 +1013,7 @@ static void pc_init1(int ram_size, int vga_ram_size,
     }
 }
 
-static void pc_init_pci(int ram_size, int vga_ram_size,
+static void pc_init_pci(ram_addr_t ram_size, int vga_ram_size,
                         const char *boot_device, DisplayState *ds,
                         const char *kernel_filename,
                         const char *kernel_cmdline,
@@ -1004,7 +1025,7 @@ static void pc_init_pci(int ram_size, int vga_ram_size,
              initrd_filename, 1, cpu_model);
 }
 
-static void pc_init_isa(int ram_size, int vga_ram_size,
+static void pc_init_isa(ram_addr_t ram_size, int vga_ram_size,
                         const char *boot_device, DisplayState *ds,
                         const char *kernel_filename,
                         const char *kernel_cmdline,

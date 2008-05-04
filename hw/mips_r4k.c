@@ -153,11 +153,10 @@ static void main_cpu_reset(void *opaque)
 }
 
 static const int sector_len = 32 * 1024;
-static
-void mips_init (int ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void mips_init(ram_addr_t ram_size, int vga_ram_size,
+                    const char *boot_device, DisplayState *ds,
+                    const char *kernel_filename, const char *kernel_cmdline,
+                    const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
     unsigned long bios_offset;

@@ -2109,3 +2109,8 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     return env;
 }
 
+void gen_pc_load(CPUState *env, TranslationBlock *tb,
+                unsigned long searched_pc, int pc_pos, void *puc)
+{
+    env->pc = gen_opc_pc[pc_pos];
+}

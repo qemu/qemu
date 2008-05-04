@@ -2587,13 +2587,13 @@ CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
     ppc405_dma_init(env, dma_irqs);
     /* Serial ports */
     if (serial_hds[0] != NULL) {
-        ppc405_serial_init(env, mmio, 0x300, pic[31], serial_hds[0]);
+        ppc405_serial_init(env, mmio, 0x300, pic[0], serial_hds[0]);
     }
     if (serial_hds[1] != NULL) {
-        ppc405_serial_init(env, mmio, 0x400, pic[30], serial_hds[1]);
+        ppc405_serial_init(env, mmio, 0x400, pic[1], serial_hds[1]);
     }
     /* IIC controller */
-    ppc405_i2c_init(env, mmio, 0x500, pic[29]);
+    ppc405_i2c_init(env, mmio, 0x500, pic[2]);
     /* GPIO */
     ppc405_gpio_init(env, mmio, 0x700);
     /* CPU control */
@@ -2930,49 +2930,50 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
     pic = ppcuic_init(env, irqs, 0x0C0, 0, 1);
     *picp = pic;
     /* SDRAM controller */
-    ppc405_sdram_init(env, pic[14], 2, ram_bases, ram_sizes, do_init);
+	/* XXX 405EP has no ECC interrupt */
+    ppc405_sdram_init(env, pic[17], 2, ram_bases, ram_sizes, do_init);
     offset = 0;
     for (i = 0; i < 2; i++)
         offset += ram_sizes[i];
     /* External bus controller */
     ppc405_ebc_init(env);
     /* DMA controller */
-    dma_irqs[0] = pic[26];
-    dma_irqs[1] = pic[25];
-    dma_irqs[2] = pic[24];
-    dma_irqs[3] = pic[23];
+    dma_irqs[0] = pic[5];
+    dma_irqs[1] = pic[6];
+    dma_irqs[2] = pic[7];
+    dma_irqs[3] = pic[8];
     ppc405_dma_init(env, dma_irqs);
     /* IIC controller */
-    ppc405_i2c_init(env, mmio, 0x500, pic[29]);
+    ppc405_i2c_init(env, mmio, 0x500, pic[2]);
     /* GPIO */
     ppc405_gpio_init(env, mmio, 0x700);
     /* Serial ports */
     if (serial_hds[0] != NULL) {
-        ppc405_serial_init(env, mmio, 0x300, pic[31], serial_hds[0]);
+        ppc405_serial_init(env, mmio, 0x300, pic[0], serial_hds[0]);
     }
     if (serial_hds[1] != NULL) {
-        ppc405_serial_init(env, mmio, 0x400, pic[30], serial_hds[1]);
+        ppc405_serial_init(env, mmio, 0x400, pic[1], serial_hds[1]);
     }
     /* OCM */
     ppc405_ocm_init(env, ram_sizes[0] + ram_sizes[1]);
     offset += 4096;
     /* GPT */
-    gpt_irqs[0] = pic[12];
-    gpt_irqs[1] = pic[11];
-    gpt_irqs[2] = pic[10];
-    gpt_irqs[3] = pic[9];
-    gpt_irqs[4] = pic[8];
+    gpt_irqs[0] = pic[19];
+    gpt_irqs[1] = pic[20];
+    gpt_irqs[2] = pic[21];
+    gpt_irqs[3] = pic[22];
+    gpt_irqs[4] = pic[23];
     ppc4xx_gpt_init(env, mmio, 0x000, gpt_irqs);
     /* PCI */
-    /* Uses pic[28], pic[15], pic[13] */
+    /* Uses pic[3], pic[16], pic[18] */
     /* MAL */
-    mal_irqs[0] = pic[20];
-    mal_irqs[1] = pic[19];
-    mal_irqs[2] = pic[18];
-    mal_irqs[3] = pic[17];
+    mal_irqs[0] = pic[11];
+    mal_irqs[1] = pic[12];
+    mal_irqs[2] = pic[13];
+    mal_irqs[3] = pic[14];
     ppc405_mal_init(env, mal_irqs);
     /* Ethernet */
-    /* Uses pic[22], pic[16], pic[14] */
+    /* Uses pic[9], pic[15], pic[17] */
     /* CPU control */
     ppc405ep_cpc_init(env, clk_setup, sysclk);
     *offsetp = offset;

@@ -142,8 +142,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 
-#define PHYS_RAM_MAX_SIZE (2047 * 1024 * 1024)
-
 #ifdef TARGET_PPC
 #define DEFAULT_RAM_SIZE 144
 #else
@@ -175,7 +173,7 @@ int nographic;
 int curses;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
-int ram_size;
+ram_addr_t ram_size;
 int pit_min_timer_count = 0;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
@@ -4951,6 +4949,11 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
+static void bdrv_format_print(void *opaque, const char *name)
+{
+    fprintf(stderr, " %s", name);
+}
+
 static int drive_init(struct drive_opt *arg, int snapshot,
                       QEMUMachine *machine)
 {
@@ -4963,6 +4966,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     int bus_id, unit_id;
     int cyls, heads, secs, translation;
     BlockDriverState *bdrv;
+    BlockDriver *drv = NULL;
     int max_devs;
     int index;
     int cache;
@@ -4970,7 +4974,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     char *str = arg->opt;
     char *params[] = { "bus", "unit", "if", "index", "cyls", "heads",
                        "secs", "trans", "media", "snapshot", "file",
-                       "cache", NULL };
+                       "cache", "format", NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
@@ -5138,6 +5142,20 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         }
     }
 
+    if (get_param_value(buf, sizeof(buf), "format", str)) {
+       if (strcmp(buf, "?") == 0) {
+            fprintf(stderr, "qemu: Supported formats:");
+            bdrv_iterate_format(bdrv_format_print, NULL);
+            fprintf(stderr, "\n");
+	    return -1;
+        }
+        drv = bdrv_find_format(buf);
+        if (!drv) {
+            fprintf(stderr, "qemu: '%s' invalid format\n", buf);
+            return -1;
+        }
+    }
+
     if (arg->file == NULL)
         get_param_value(file, sizeof(file), "file", str);
     else
@@ -5240,7 +5258,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         bdrv_flags |= BDRV_O_SNAPSHOT;
     if (!cache)
         bdrv_flags |= BDRV_O_DIRECT;
-    if (bdrv_open(bdrv, file, bdrv_flags) < 0 || qemu_key_check(bdrv, file)) {
+    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0 || qemu_key_check(bdrv, file)) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return -1;
@@ -6302,557 +6320,6 @@ void do_info_snapshots(void)
 }
 
 /***********************************************************/
-/* cpu save/restore */
-
-#if defined(TARGET_I386)
-
-static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
-{
-    qemu_put_be32(f, dt->selector);
-    qemu_put_betl(f, dt->base);
-    qemu_put_be32(f, dt->limit);
-    qemu_put_be32(f, dt->flags);
-}
-
-static void cpu_get_seg(QEMUFile *f, SegmentCache *dt)
-{
-    dt->selector = qemu_get_be32(f);
-    dt->base = qemu_get_betl(f);
-    dt->limit = qemu_get_be32(f);
-    dt->flags = qemu_get_be32(f);
-}
-
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    CPUState *env = opaque;
-    uint16_t fptag, fpus, fpuc, fpregs_format;
-    uint32_t hflags;
-    int i;
-
-    for(i = 0; i < CPU_NB_REGS; i++)
-        qemu_put_betls(f, &env->regs[i]);
-    qemu_put_betls(f, &env->eip);
-    qemu_put_betls(f, &env->eflags);
-    hflags = env->hflags; /* XXX: suppress most of the redundant hflags */
-    qemu_put_be32s(f, &hflags);
-
-    /* FPU */
-    fpuc = env->fpuc;
-    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-    fptag = 0;
-    for(i = 0; i < 8; i++) {
-        fptag |= ((!env->fptags[i]) << i);
-    }
-
-    qemu_put_be16s(f, &fpuc);
-    qemu_put_be16s(f, &fpus);
-    qemu_put_be16s(f, &fptag);
-
-#ifdef USE_X86LDOUBLE
-    fpregs_format = 0;
-#else
-    fpregs_format = 1;
-#endif
-    qemu_put_be16s(f, &fpregs_format);
-
-    for(i = 0; i < 8; i++) {
-#ifdef USE_X86LDOUBLE
-        {
-            uint64_t mant;
-            uint16_t exp;
-            /* we save the real CPU data (in case of MMX usage only 'mant'
-               contains the MMX register */
-            cpu_get_fp80(&mant, &exp, env->fpregs[i].d);
-            qemu_put_be64(f, mant);
-            qemu_put_be16(f, exp);
-        }
-#else
-        /* if we use doubles for float emulation, we save the doubles to
-           avoid losing information in case of MMX usage. It can give
-           problems if the image is restored on a CPU where long
-           doubles are used instead. */
-        qemu_put_be64(f, env->fpregs[i].mmx.MMX_Q(0));
-#endif
-    }
-
-    for(i = 0; i < 6; i++)
-        cpu_put_seg(f, &env->segs[i]);
-    cpu_put_seg(f, &env->ldt);
-    cpu_put_seg(f, &env->tr);
-    cpu_put_seg(f, &env->gdt);
-    cpu_put_seg(f, &env->idt);
-
-    qemu_put_be32s(f, &env->sysenter_cs);
-    qemu_put_be32s(f, &env->sysenter_esp);
-    qemu_put_be32s(f, &env->sysenter_eip);
-
-    qemu_put_betls(f, &env->cr[0]);
-    qemu_put_betls(f, &env->cr[2]);
-    qemu_put_betls(f, &env->cr[3]);
-    qemu_put_betls(f, &env->cr[4]);
-
-    for(i = 0; i < 8; i++)
-        qemu_put_betls(f, &env->dr[i]);
-
-    /* MMU */
-    qemu_put_be32s(f, &env->a20_mask);
-
-    /* XMM */
-    qemu_put_be32s(f, &env->mxcsr);
-    for(i = 0; i < CPU_NB_REGS; i++) {
-        qemu_put_be64s(f, &env->xmm_regs[i].XMM_Q(0));
-        qemu_put_be64s(f, &env->xmm_regs[i].XMM_Q(1));
-    }
-
-#ifdef TARGET_X86_64
-    qemu_put_be64s(f, &env->efer);
-    qemu_put_be64s(f, &env->star);
-    qemu_put_be64s(f, &env->lstar);
-    qemu_put_be64s(f, &env->cstar);
-    qemu_put_be64s(f, &env->fmask);
-    qemu_put_be64s(f, &env->kernelgsbase);
-#endif
-    qemu_put_be32s(f, &env->smbase);
-}
-
-#ifdef USE_X86LDOUBLE
-/* XXX: add that in a FPU generic layer */
-union x86_longdouble {
-    uint64_t mant;
-    uint16_t exp;
-};
-
-#define MANTD1(fp)	(fp & ((1LL << 52) - 1))
-#define EXPBIAS1 1023
-#define EXPD1(fp)	((fp >> 52) & 0x7FF)
-#define SIGND1(fp)	((fp >> 32) & 0x80000000)
-
-static void fp64_to_fp80(union x86_longdouble *p, uint64_t temp)
-{
-    int e;
-    /* mantissa */
-    p->mant = (MANTD1(temp) << 11) | (1LL << 63);
-    /* exponent + sign */
-    e = EXPD1(temp) - EXPBIAS1 + 16383;
-    e |= SIGND1(temp) >> 16;
-    p->exp = e;
-}
-#endif
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    CPUState *env = opaque;
-    int i, guess_mmx;
-    uint32_t hflags;
-    uint16_t fpus, fpuc, fptag, fpregs_format;
-
-    if (version_id != 3 && version_id != 4)
-        return -EINVAL;
-    for(i = 0; i < CPU_NB_REGS; i++)
-        qemu_get_betls(f, &env->regs[i]);
-    qemu_get_betls(f, &env->eip);
-    qemu_get_betls(f, &env->eflags);
-    qemu_get_be32s(f, &hflags);
-
-    qemu_get_be16s(f, &fpuc);
-    qemu_get_be16s(f, &fpus);
-    qemu_get_be16s(f, &fptag);
-    qemu_get_be16s(f, &fpregs_format);
-
-    /* NOTE: we cannot always restore the FPU state if the image come
-       from a host with a different 'USE_X86LDOUBLE' define. We guess
-       if we are in an MMX state to restore correctly in that case. */
-    guess_mmx = ((fptag == 0xff) && (fpus & 0x3800) == 0);
-    for(i = 0; i < 8; i++) {
-        uint64_t mant;
-        uint16_t exp;
-
-        switch(fpregs_format) {
-        case 0:
-            mant = qemu_get_be64(f);
-            exp = qemu_get_be16(f);
-#ifdef USE_X86LDOUBLE
-            env->fpregs[i].d = cpu_set_fp80(mant, exp);
-#else
-            /* difficult case */
-            if (guess_mmx)
-                env->fpregs[i].mmx.MMX_Q(0) = mant;
-            else
-                env->fpregs[i].d = cpu_set_fp80(mant, exp);
-#endif
-            break;
-        case 1:
-            mant = qemu_get_be64(f);
-#ifdef USE_X86LDOUBLE
-            {
-                union x86_longdouble *p;
-                /* difficult case */
-                p = (void *)&env->fpregs[i];
-                if (guess_mmx) {
-                    p->mant = mant;
-                    p->exp = 0xffff;
-                } else {
-                    fp64_to_fp80(p, mant);
-                }
-            }
-#else
-            env->fpregs[i].mmx.MMX_Q(0) = mant;
-#endif
-            break;
-        default:
-            return -EINVAL;
-        }
-    }
-
-    env->fpuc = fpuc;
-    /* XXX: restore FPU round state */
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
-    fptag ^= 0xff;
-    for(i = 0; i < 8; i++) {
-        env->fptags[i] = (fptag >> i) & 1;
-    }
-
-    for(i = 0; i < 6; i++)
-        cpu_get_seg(f, &env->segs[i]);
-    cpu_get_seg(f, &env->ldt);
-    cpu_get_seg(f, &env->tr);
-    cpu_get_seg(f, &env->gdt);
-    cpu_get_seg(f, &env->idt);
-
-    qemu_get_be32s(f, &env->sysenter_cs);
-    qemu_get_be32s(f, &env->sysenter_esp);
-    qemu_get_be32s(f, &env->sysenter_eip);
-
-    qemu_get_betls(f, &env->cr[0]);
-    qemu_get_betls(f, &env->cr[2]);
-    qemu_get_betls(f, &env->cr[3]);
-    qemu_get_betls(f, &env->cr[4]);
-
-    for(i = 0; i < 8; i++)
-        qemu_get_betls(f, &env->dr[i]);
-
-    /* MMU */
-    qemu_get_be32s(f, &env->a20_mask);
-
-    qemu_get_be32s(f, &env->mxcsr);
-    for(i = 0; i < CPU_NB_REGS; i++) {
-        qemu_get_be64s(f, &env->xmm_regs[i].XMM_Q(0));
-        qemu_get_be64s(f, &env->xmm_regs[i].XMM_Q(1));
-    }
-
-#ifdef TARGET_X86_64
-    qemu_get_be64s(f, &env->efer);
-    qemu_get_be64s(f, &env->star);
-    qemu_get_be64s(f, &env->lstar);
-    qemu_get_be64s(f, &env->cstar);
-    qemu_get_be64s(f, &env->fmask);
-    qemu_get_be64s(f, &env->kernelgsbase);
-#endif
-    if (version_id >= 4)
-        qemu_get_be32s(f, &env->smbase);
-
-    /* XXX: compute hflags from scratch, except for CPL and IIF */
-    env->hflags = hflags;
-    tlb_flush(env, 1);
-    return 0;
-}
-
-#elif defined(TARGET_PPC)
-void cpu_save(QEMUFile *f, void *opaque)
-{
-}
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    return 0;
-}
-
-#elif defined(TARGET_MIPS)
-void cpu_save(QEMUFile *f, void *opaque)
-{
-}
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    return 0;
-}
-
-#elif defined(TARGET_SPARC)
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    CPUState *env = opaque;
-    int i;
-    uint32_t tmp;
-
-    for(i = 0; i < 8; i++)
-        qemu_put_betls(f, &env->gregs[i]);
-    for(i = 0; i < NWINDOWS * 16; i++)
-        qemu_put_betls(f, &env->regbase[i]);
-
-    /* FPU */
-    for(i = 0; i < TARGET_FPREGS; i++) {
-        union {
-            float32 f;
-            uint32_t i;
-        } u;
-        u.f = env->fpr[i];
-        qemu_put_be32(f, u.i);
-    }
-
-    qemu_put_betls(f, &env->pc);
-    qemu_put_betls(f, &env->npc);
-    qemu_put_betls(f, &env->y);
-    tmp = GET_PSR(env);
-    qemu_put_be32(f, tmp);
-    qemu_put_betls(f, &env->fsr);
-    qemu_put_betls(f, &env->tbr);
-#ifndef TARGET_SPARC64
-    qemu_put_be32s(f, &env->wim);
-    /* MMU */
-    for(i = 0; i < 16; i++)
-        qemu_put_be32s(f, &env->mmuregs[i]);
-#endif
-}
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    CPUState *env = opaque;
-    int i;
-    uint32_t tmp;
-
-    for(i = 0; i < 8; i++)
-        qemu_get_betls(f, &env->gregs[i]);
-    for(i = 0; i < NWINDOWS * 16; i++)
-        qemu_get_betls(f, &env->regbase[i]);
-
-    /* FPU */
-    for(i = 0; i < TARGET_FPREGS; i++) {
-        union {
-            float32 f;
-            uint32_t i;
-        } u;
-        u.i = qemu_get_be32(f);
-        env->fpr[i] = u.f;
-    }
-
-    qemu_get_betls(f, &env->pc);
-    qemu_get_betls(f, &env->npc);
-    qemu_get_betls(f, &env->y);
-    tmp = qemu_get_be32(f);
-    env->cwp = 0; /* needed to ensure that the wrapping registers are
-                     correctly updated */
-    PUT_PSR(env, tmp);
-    qemu_get_betls(f, &env->fsr);
-    qemu_get_betls(f, &env->tbr);
-#ifndef TARGET_SPARC64
-    qemu_get_be32s(f, &env->wim);
-    /* MMU */
-    for(i = 0; i < 16; i++)
-        qemu_get_be32s(f, &env->mmuregs[i]);
-#endif
-    tlb_flush(env, 1);
-    return 0;
-}
-
-#elif defined(TARGET_ARM)
-
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    int i;
-    CPUARMState *env = (CPUARMState *)opaque;
-
-    for (i = 0; i < 16; i++) {
-        qemu_put_be32(f, env->regs[i]);
-    }
-    qemu_put_be32(f, cpsr_read(env));
-    qemu_put_be32(f, env->spsr);
-    for (i = 0; i < 6; i++) {
-        qemu_put_be32(f, env->banked_spsr[i]);
-        qemu_put_be32(f, env->banked_r13[i]);
-        qemu_put_be32(f, env->banked_r14[i]);
-    }
-    for (i = 0; i < 5; i++) {
-        qemu_put_be32(f, env->usr_regs[i]);
-        qemu_put_be32(f, env->fiq_regs[i]);
-    }
-    qemu_put_be32(f, env->cp15.c0_cpuid);
-    qemu_put_be32(f, env->cp15.c0_cachetype);
-    qemu_put_be32(f, env->cp15.c1_sys);
-    qemu_put_be32(f, env->cp15.c1_coproc);
-    qemu_put_be32(f, env->cp15.c1_xscaleauxcr);
-    qemu_put_be32(f, env->cp15.c2_base0);
-    qemu_put_be32(f, env->cp15.c2_base1);
-    qemu_put_be32(f, env->cp15.c2_mask);
-    qemu_put_be32(f, env->cp15.c2_data);
-    qemu_put_be32(f, env->cp15.c2_insn);
-    qemu_put_be32(f, env->cp15.c3);
-    qemu_put_be32(f, env->cp15.c5_insn);
-    qemu_put_be32(f, env->cp15.c5_data);
-    for (i = 0; i < 8; i++) {
-        qemu_put_be32(f, env->cp15.c6_region[i]);
-    }
-    qemu_put_be32(f, env->cp15.c6_insn);
-    qemu_put_be32(f, env->cp15.c6_data);
-    qemu_put_be32(f, env->cp15.c9_insn);
-    qemu_put_be32(f, env->cp15.c9_data);
-    qemu_put_be32(f, env->cp15.c13_fcse);
-    qemu_put_be32(f, env->cp15.c13_context);
-    qemu_put_be32(f, env->cp15.c13_tls1);
-    qemu_put_be32(f, env->cp15.c13_tls2);
-    qemu_put_be32(f, env->cp15.c13_tls3);
-    qemu_put_be32(f, env->cp15.c15_cpar);
-
-    qemu_put_be32(f, env->features);
-
-    if (arm_feature(env, ARM_FEATURE_VFP)) {
-        for (i = 0;  i < 16; i++) {
-            CPU_DoubleU u;
-            u.d = env->vfp.regs[i];
-            qemu_put_be32(f, u.l.upper);
-            qemu_put_be32(f, u.l.lower);
-        }
-        for (i = 0; i < 16; i++) {
-            qemu_put_be32(f, env->vfp.xregs[i]);
-        }
-
-        /* TODO: Should use proper FPSCR access functions.  */
-        qemu_put_be32(f, env->vfp.vec_len);
-        qemu_put_be32(f, env->vfp.vec_stride);
-
-        if (arm_feature(env, ARM_FEATURE_VFP3)) {
-            for (i = 16;  i < 32; i++) {
-                CPU_DoubleU u;
-                u.d = env->vfp.regs[i];
-                qemu_put_be32(f, u.l.upper);
-                qemu_put_be32(f, u.l.lower);
-            }
-        }
-    }
-
-    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
-        for (i = 0; i < 16; i++) {
-            qemu_put_be64(f, env->iwmmxt.regs[i]);
-        }
-        for (i = 0; i < 16; i++) {
-            qemu_put_be32(f, env->iwmmxt.cregs[i]);
-        }
-    }
-
-    if (arm_feature(env, ARM_FEATURE_M)) {
-        qemu_put_be32(f, env->v7m.other_sp);
-        qemu_put_be32(f, env->v7m.vecbase);
-        qemu_put_be32(f, env->v7m.basepri);
-        qemu_put_be32(f, env->v7m.control);
-        qemu_put_be32(f, env->v7m.current_sp);
-        qemu_put_be32(f, env->v7m.exception);
-    }
-}
-
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-    CPUARMState *env = (CPUARMState *)opaque;
-    int i;
-
-    if (version_id != ARM_CPU_SAVE_VERSION)
-        return -EINVAL;
-
-    for (i = 0; i < 16; i++) {
-        env->regs[i] = qemu_get_be32(f);
-    }
-    cpsr_write(env, qemu_get_be32(f), 0xffffffff);
-    env->spsr = qemu_get_be32(f);
-    for (i = 0; i < 6; i++) {
-        env->banked_spsr[i] = qemu_get_be32(f);
-        env->banked_r13[i] = qemu_get_be32(f);
-        env->banked_r14[i] = qemu_get_be32(f);
-    }
-    for (i = 0; i < 5; i++) {
-        env->usr_regs[i] = qemu_get_be32(f);
-        env->fiq_regs[i] = qemu_get_be32(f);
-    }
-    env->cp15.c0_cpuid = qemu_get_be32(f);
-    env->cp15.c0_cachetype = qemu_get_be32(f);
-    env->cp15.c1_sys = qemu_get_be32(f);
-    env->cp15.c1_coproc = qemu_get_be32(f);
-    env->cp15.c1_xscaleauxcr = qemu_get_be32(f);
-    env->cp15.c2_base0 = qemu_get_be32(f);
-    env->cp15.c2_base1 = qemu_get_be32(f);
-    env->cp15.c2_mask = qemu_get_be32(f);
-    env->cp15.c2_data = qemu_get_be32(f);
-    env->cp15.c2_insn = qemu_get_be32(f);
-    env->cp15.c3 = qemu_get_be32(f);
-    env->cp15.c5_insn = qemu_get_be32(f);
-    env->cp15.c5_data = qemu_get_be32(f);
-    for (i = 0; i < 8; i++) {
-        env->cp15.c6_region[i] = qemu_get_be32(f);
-    }
-    env->cp15.c6_insn = qemu_get_be32(f);
-    env->cp15.c6_data = qemu_get_be32(f);
-    env->cp15.c9_insn = qemu_get_be32(f);
-    env->cp15.c9_data = qemu_get_be32(f);
-    env->cp15.c13_fcse = qemu_get_be32(f);
-    env->cp15.c13_context = qemu_get_be32(f);
-    env->cp15.c13_tls1 = qemu_get_be32(f);
-    env->cp15.c13_tls2 = qemu_get_be32(f);
-    env->cp15.c13_tls3 = qemu_get_be32(f);
-    env->cp15.c15_cpar = qemu_get_be32(f);
-
-    env->features = qemu_get_be32(f);
-
-    if (arm_feature(env, ARM_FEATURE_VFP)) {
-        for (i = 0;  i < 16; i++) {
-            CPU_DoubleU u;
-            u.l.upper = qemu_get_be32(f);
-            u.l.lower = qemu_get_be32(f);
-            env->vfp.regs[i] = u.d;
-        }
-        for (i = 0; i < 16; i++) {
-            env->vfp.xregs[i] = qemu_get_be32(f);
-        }
-
-        /* TODO: Should use proper FPSCR access functions.  */
-        env->vfp.vec_len = qemu_get_be32(f);
-        env->vfp.vec_stride = qemu_get_be32(f);
-
-        if (arm_feature(env, ARM_FEATURE_VFP3)) {
-            for (i = 0;  i < 16; i++) {
-                CPU_DoubleU u;
-                u.l.upper = qemu_get_be32(f);
-                u.l.lower = qemu_get_be32(f);
-                env->vfp.regs[i] = u.d;
-            }
-        }
-    }
-
-    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
-        for (i = 0; i < 16; i++) {
-            env->iwmmxt.regs[i] = qemu_get_be64(f);
-        }
-        for (i = 0; i < 16; i++) {
-            env->iwmmxt.cregs[i] = qemu_get_be32(f);
-        }
-    }
-
-    if (arm_feature(env, ARM_FEATURE_M)) {
-        env->v7m.other_sp = qemu_get_be32(f);
-        env->v7m.vecbase = qemu_get_be32(f);
-        env->v7m.basepri = qemu_get_be32(f);
-        env->v7m.control = qemu_get_be32(f);
-        env->v7m.current_sp = qemu_get_be32(f);
-        env->v7m.exception = qemu_get_be32(f);
-    }
-
-    return 0;
-}
-
-#else
-
-//#warning No CPU save/restore functions
-
-#endif
-
-/***********************************************************/
 /* ram save/restore */
 
 static int ram_get_page(QEMUFile *f, uint8_t *buf, int len)
@@ -6877,7 +6344,8 @@ static int ram_get_page(QEMUFile *f, uint8_t *buf, int len)
 
 static int ram_load_v1(QEMUFile *f, void *opaque)
 {
-    int i, ret;
+    int ret;
+    ram_addr_t i;
 
     if (qemu_get_be32(f) != phys_ram_size)
         return -EINVAL;
@@ -7013,7 +6481,7 @@ static void ram_decompress_close(RamDecompressState *s)
 
 static void ram_save(QEMUFile *f, void *opaque)
 {
-    int i;
+    ram_addr_t i;
     RamCompressState s1, *s = &s1;
     uint8_t buf[10];
 
@@ -7058,7 +6526,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     RamDecompressState s1, *s = &s1;
     uint8_t buf[10];
-    int i;
+    ram_addr_t i;
 
     if (version_id == 1)
         return ram_load_v1(f, opaque);
@@ -7075,7 +6543,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         }
         if (buf[0] == 0) {
             if (ram_decompress_buf(s, phys_ram_base + i, BDRV_HASH_BLOCK_SIZE) < 0) {
-                fprintf(stderr, "Error while reading ram block address=0x%08x", i);
+                fprintf(stderr, "Error while reading ram block address=0x%08" PRIx64, (uint64_t)i);
                 goto error;
             }
         } else
@@ -7626,9 +7094,9 @@ static void help(int exitcode)
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
-	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][index=i]\n"
-           "       [,cyls=c,heads=h,secs=s[,trans=t]][snapshot=on|off]"
-           "       [,cache=on|off]\n"
+	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
+           "       [,cyls=c,heads=h,secs=s[,trans=t]][,snapshot=on|off]\n"
+           "       [,cache=on|off][,format=f]\n"
 	   "                use 'file' as a drive image\n"
            "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"
@@ -8006,78 +7474,6 @@ static void read_passwords(void)
     }
 }
 
-/* XXX: currently we cannot use simultaneously different CPUs */
-static void register_machines(void)
-{
-#if defined(TARGET_I386)
-    qemu_register_machine(&pc_machine);
-    qemu_register_machine(&isapc_machine);
-    //~ qemu_register_machine(&scu2_machine);
-#elif defined(TARGET_PPC)
-    qemu_register_machine(&heathrow_machine);
-    qemu_register_machine(&core99_machine);
-    qemu_register_machine(&prep_machine);
-    qemu_register_machine(&ref405ep_machine);
-    qemu_register_machine(&taihu_machine);
-#elif defined(TARGET_MIPS)
-//~ #if !defined(TARGET_MIPS64)
-    qemu_register_ar7_machines();
-//~ #endif
-    qemu_register_mips_machines();
-    qemu_register_machine(&mips_magnum_machine);
-    qemu_register_machine(&mips_malta_machine);
-    qemu_register_machine(&mips_pica61_machine);
-    qemu_register_machine(&mips_mipssim_machine);
-#elif defined(TARGET_SPARC)
-#ifdef TARGET_SPARC64
-    qemu_register_machine(&sun4u_machine);
-#else
-    qemu_register_machine(&ss5_machine);
-    qemu_register_machine(&ss10_machine);
-    qemu_register_machine(&ss600mp_machine);
-    qemu_register_machine(&ss20_machine);
-    qemu_register_machine(&ss2_machine);
-    qemu_register_machine(&voyager_machine);
-    qemu_register_machine(&ss_lx_machine);
-    qemu_register_machine(&ss4_machine);
-    qemu_register_machine(&scls_machine);
-    qemu_register_machine(&sbook_machine);
-    qemu_register_machine(&ss1000_machine);
-    qemu_register_machine(&ss2000_machine);
-#endif
-#elif defined(TARGET_ARM)
-    qemu_register_machine(&integratorcp_machine);
-    qemu_register_machine(&versatilepb_machine);
-    qemu_register_machine(&versatileab_machine);
-    qemu_register_machine(&realview_machine);
-    qemu_register_machine(&akitapda_machine);
-    qemu_register_machine(&spitzpda_machine);
-    qemu_register_machine(&borzoipda_machine);
-    qemu_register_machine(&terrierpda_machine);
-    qemu_register_machine(&palmte_machine);
-    qemu_register_machine(&n800_machine);
-    qemu_register_machine(&lm3s811evb_machine);
-    qemu_register_machine(&lm3s6965evb_machine);
-    qemu_register_machine(&connex_machine);
-    qemu_register_machine(&verdex_machine);
-    qemu_register_machine(&mainstone2_machine);
-    qemu_register_machine(&musicpal_machine);
-#elif defined(TARGET_SH4)
-    qemu_register_machine(&shix_machine);
-    qemu_register_machine(&r2d_machine);
-#elif defined(TARGET_ALPHA)
-    /* XXX: TODO */
-#elif defined(TARGET_M68K)
-    qemu_register_machine(&mcf5208evb_machine);
-    qemu_register_machine(&an5206_machine);
-    qemu_register_machine(&dummy_m68k_machine);
-#elif defined(TARGET_CRIS)
-    qemu_register_machine(&bareetraxfs_machine);
-#else
-#error unsupported CPU
-#endif
-}
-
 #ifdef HAS_AUDIO
 struct soundhw soundhw[] = {
 #ifdef HAS_AUDIO_CHOICE
@@ -8325,7 +7721,7 @@ int main(int argc, char **argv)
     }
     cpu_model = NULL;
     initrd_filename = NULL;
-    ram_size = -1;
+    ram_size = 0;
     vga_ram_size = VGA_RAM_SIZE;
 #ifdef CONFIG_GDBSTUB
     use_gdbstub = 0;
@@ -8606,16 +8002,39 @@ int main(int argc, char **argv)
             case QEMU_OPTION_h:
                 help(0);
                 break;
-            case QEMU_OPTION_m:
-                ram_size = atoi(optarg) * 1024 * 1024;
-                if (ram_size <= 0)
-                    help(1);
-                if (ram_size > PHYS_RAM_MAX_SIZE) {
-                    fprintf(stderr, "qemu: at most %d MB RAM can be simulated\n",
-                            PHYS_RAM_MAX_SIZE / (1024 * 1024));
+            case QEMU_OPTION_m: {
+                uint64_t value;
+                char *ptr;
+
+                value = strtoul(optarg, &ptr, 10);
+                switch (*ptr) {
+                case 0: case 'M': case 'm':
+                    value <<= 20;
+                    break;
+                case 'G': case 'g':
+                    value <<= 30;
+                    break;
+                default:
+                    fprintf(stderr, "qemu: invalid ram size: %s\n", optarg);
                     exit(1);
                 }
+
+                /* On 32-bit hosts, QEMU is limited by virtual address space */
+                if (value > (2047 << 20)
+#ifndef USE_KQEMU
+                    && HOST_LONG_BITS == 32
+#endif
+                    ) {
+                    fprintf(stderr, "qemu: at most 2047 MB RAM can be simulated\n");
+                    exit(1);
+                }
+                if (value != (uint64_t)(ram_addr_t)value) {
+                    fprintf(stderr, "qemu: ram size too large\n");
+                    exit(1);
+                }
+                ram_size = value;
                 break;
+            }
             case QEMU_OPTION_d:
                 {
                     int mask;
@@ -9021,8 +8440,8 @@ int main(int argc, char **argv)
     if (machine->ram_require & RAMSIZE_FIXED) {
         if (ram_size > 0) {
             if (ram_size < phys_ram_size) {
-                fprintf(stderr, "Machine `%s' requires %i bytes of memory\n",
-                                machine->name, phys_ram_size);
+                fprintf(stderr, "Machine `%s' requires %llu bytes of memory\n",
+                                machine->name, (unsigned long long) phys_ram_size);
                 exit(-1);
             }
 
@@ -9030,7 +8449,7 @@ int main(int argc, char **argv)
         } else
             ram_size = phys_ram_size;
     } else {
-        if (ram_size < 0)
+        if (ram_size == 0)
             ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
 
         phys_ram_size += ram_size;
