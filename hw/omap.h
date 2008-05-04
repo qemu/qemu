@@ -330,6 +330,7 @@ void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, int iomemtype,
 /*
  * OMAP-24xx common IRQ numbers
  */
+# define OMAP_INT_24XX_STI		4
 # define OMAP_INT_24XX_SYS_NIRQ		7
 # define OMAP_INT_24XX_L3_IRQ		10
 # define OMAP_INT_24XX_PRCM_MPU_IRQ	11

@@ -1419,6 +1419,196 @@ void omap_mcspi_attach(struct omap_mcspi_s *s,
     s->ch[chipselect].opaque = opaque;
 }
 
+/* STI/XTI (emulation interface) console - reverse engineered only */
+struct omap_sti_s {
+    target_phys_addr_t base;
+    target_phys_addr_t channel_base;
+    qemu_irq irq;
+    CharDriverState *chr;
+
+    uint32_t sysconfig;
+    uint32_t systest;
+    uint32_t irqst;
+    uint32_t irqen;
+    uint32_t clkcontrol;
+    uint32_t serial_config;
+};
+
+#define STI_TRACE_CONSOLE_CHANNEL	239
+#define STI_TRACE_CONTROL_CHANNEL	253
+
+static inline void omap_sti_interrupt_update(struct omap_sti_s *s)
+{
+    qemu_set_irq(s->irq, s->irqst & s->irqen);
+}
+
+static void omap_sti_reset(struct omap_sti_s *s)
+{
+    s->sysconfig = 0;
+    s->irqst = 0;
+    s->irqen = 0;
+    s->clkcontrol = 0;
+    s->serial_config = 0;
+
+    omap_sti_interrupt_update(s);
+}
+
+static uint32_t omap_sti_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_sti_s *s = (struct omap_sti_s *) opaque;
+    int offset = addr - s->base;
+
+    switch (offset) {
+    case 0x00:	/* STI_REVISION */
+        return 0x10;
+
+    case 0x10:	/* STI_SYSCONFIG */
+        return s->sysconfig;
+
+    case 0x14:	/* STI_SYSSTATUS / STI_RX_STATUS / XTI_SYSSTATUS */
+        return 0x00;
+
+    case 0x18:	/* STI_IRQSTATUS */
+        return s->irqst;
+
+    case 0x1c:	/* STI_IRQSETEN / STI_IRQCLREN */
+        return s->irqen;
+
+    case 0x24:	/* STI_ER / STI_DR / XTI_TRACESELECT */
+    case 0x28:	/* STI_RX_DR / XTI_RXDATA */
+        break;
+
+    case 0x2c:	/* STI_CLK_CTRL / XTI_SCLKCRTL */
+        return s->clkcontrol;
+
+    case 0x30:	/* STI_SERIAL_CFG / XTI_SCONFIG */
+        return s->serial_config;
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_sti_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_sti_s *s = (struct omap_sti_s *) opaque;
+    int offset = addr - s->base;
+
+    switch (offset) {
+    case 0x00:	/* STI_REVISION */
+    case 0x14:	/* STI_SYSSTATUS / STI_RX_STATUS / XTI_SYSSTATUS */
+        OMAP_RO_REG(addr);
+        return;
+
+    case 0x10:	/* STI_SYSCONFIG */
+        if (value & (1 << 1))				/* SOFTRESET */
+            omap_sti_reset(s);
+        s->sysconfig = value & 0xfe;
+        break;
+
+    case 0x18:	/* STI_IRQSTATUS */
+        s->irqst &= ~value;
+        omap_sti_interrupt_update(s);
+        break;
+
+    case 0x1c:	/* STI_IRQSETEN / STI_IRQCLREN */
+        s->irqen = value & 0xffff;
+        omap_sti_interrupt_update(s);
+        break;
+
+    case 0x2c:	/* STI_CLK_CTRL / XTI_SCLKCRTL */
+        s->clkcontrol = value & 0xff;
+        break;
+
+    case 0x30:	/* STI_SERIAL_CFG / XTI_SCONFIG */
+        s->serial_config = value & 0xff;
+        break;
+
+    case 0x24:	/* STI_ER / STI_DR / XTI_TRACESELECT */
+    case 0x28:	/* STI_RX_DR / XTI_RXDATA */
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_sti_readfn[] = {
+    omap_badwidth_read32,
+    omap_badwidth_read32,
+    omap_sti_read,
+};
+
+static CPUWriteMemoryFunc *omap_sti_writefn[] = {
+    omap_badwidth_write32,
+    omap_badwidth_write32,
+    omap_sti_write,
+};
+
+static uint32_t omap_sti_fifo_read(void *opaque, target_phys_addr_t addr)
+{
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_sti_fifo_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_sti_s *s = (struct omap_sti_s *) opaque;
+    int offset = addr - s->channel_base;
+    int ch = offset >> 6;
+    uint8_t byte = value;
+
+    if (ch == STI_TRACE_CONTROL_CHANNEL) {
+        /* Flush channel <i>value</i>.  */
+        qemu_chr_write(s->chr, "\r", 1);
+    } else if (ch == STI_TRACE_CONSOLE_CHANNEL || 1) {
+        if (value == 0xc0 || value == 0xc3) {
+            /* Open channel <i>ch</i>.  */
+        } else if (value == 0x00)
+            qemu_chr_write(s->chr, "\n", 1);
+        else
+            qemu_chr_write(s->chr, &byte, 1);
+    }
+}
+
+static CPUReadMemoryFunc *omap_sti_fifo_readfn[] = {
+    omap_sti_fifo_read,
+    omap_badwidth_read8,
+    omap_badwidth_read8,
+};
+
+static CPUWriteMemoryFunc *omap_sti_fifo_writefn[] = {
+    omap_sti_fifo_write,
+    omap_badwidth_write8,
+    omap_badwidth_write8,
+};
+
+struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
+                target_phys_addr_t channel_base, qemu_irq irq, omap_clk clk,
+                CharDriverState *chr)
+{
+    int iomemtype;
+    struct omap_sti_s *s = (struct omap_sti_s *)
+            qemu_mallocz(sizeof(struct omap_sti_s));
+
+    s->irq = irq;
+    omap_sti_reset(s);
+
+    s->chr = chr ?: qemu_chr_open("null");
+
+    iomemtype = cpu_register_io_memory(0, omap_sti_readfn,
+                    omap_sti_writefn, s);
+    s->base = omap_l4_attach(ta, 0, iomemtype);
+
+    iomemtype = cpu_register_io_memory(0, omap_sti_fifo_readfn,
+                    omap_sti_fifo_writefn, s);
+    s->channel_base = channel_base;
+    cpu_register_physical_memory(s->channel_base, 0x10000, iomemtype);
+
+    return s;
+}
+
 /* L4 Interconnect */
 struct omap_target_agent_s {
     struct omap_l4_s *bus;
@@ -3674,6 +3864,11 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "dss_l3_iclk"),
                     omap_findclk(s, "dss_l4_iclk"));
 
+    omap_sti_init(omap_l4ta(s->l4, 18), 0x54000000,
+                    s->irq[0][OMAP_INT_24XX_STI], omap_findclk(s, "emul_ck"),
+                    serial_hds[0] && serial_hds[1] && serial_hds[2] ?
+                    serial_hds[3] : 0);
+
     /* All register mappings (includin those not currenlty implemented):
      * SystemControlMod	48000000 - 48000fff
      * SystemControlL4	48001000 - 48001fff
@@ -3803,6 +3998,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
      * HDQ/1-wire Mod	480b2000 - 480b2fff
      * HDQ/1-wire L4	480b3000 - 480b3fff
      * MPU interrupt	480fe000 - 480fefff
+     * STI channel base	54000000 - 5400ffff
      * IVA RAM		5c000000 - 5c01ffff
      * IVA ROM		5c020000 - 5c027fff
      * IMG_BUF_A	5c040000 - 5c040fff
