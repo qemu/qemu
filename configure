@@ -733,7 +733,7 @@ cat > $TMPC << EOF
 #include <brlapi.h>
 int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
 EOF
-    if $cc -o $TMPE ${OS_CFLAGS} $TMPC -lbrlapi 2> /tmp/qemu-$$-brlapi.log ; then
+    if $cc -o $TMPE ${OS_CFLAGS} $TMPC -lbrlapi 2> /dev/null ; then
 	    brlapi=yes
     fi # brlapi compile test
 fi # -z $brlapi
