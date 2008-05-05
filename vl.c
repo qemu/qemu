@@ -2269,28 +2269,78 @@ static CharDriverState *qemu_chr_open_stdio(void)
     return chr;
 }
 
+#ifdef __sun__
+/* Once Solaris has openpty(), this is going to be removed. */
+int openpty(int *amaster, int *aslave, char *name,
+            struct termios *termp, struct winsize *winp)
+{
+        const char *slave;
+        int mfd = -1, sfd = -1;
+
+        *amaster = *aslave = -1;
+
+        mfd = open("/dev/ptmx", O_RDWR | O_NOCTTY);
+        if (mfd < 0)
+                goto err;
+
+        if (grantpt(mfd) == -1 || unlockpt(mfd) == -1)
+                goto err;
+
+        if ((slave = ptsname(mfd)) == NULL)
+                goto err;
+
+        if ((sfd = open(slave, O_RDONLY | O_NOCTTY)) == -1)
+                goto err;
+
+        if (ioctl(sfd, I_PUSH, "ptem") == -1 ||
+            (termp != NULL && tcgetattr(sfd, termp) < 0))
+                goto err;
+
+        if (amaster)
+                *amaster = mfd;
+        if (aslave)
+                *aslave = sfd;
+        if (winp)
+                ioctl(sfd, TIOCSWINSZ, winp);
+
+        return 0;
+
+err:
+        if (sfd != -1)
+                close(sfd);
+        close(mfd);
+        return -1;
+}
+
+void cfmakeraw (struct termios *termios_p)
+{
+        termios_p->c_iflag &=
+                ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
+        termios_p->c_oflag &= ~OPOST;
+        termios_p->c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
+        termios_p->c_cflag &= ~(CSIZE|PARENB);
+        termios_p->c_cflag |= CS8;
+
+        termios_p->c_cc[VMIN] = 0;
+        termios_p->c_cc[VTIME] = 0;
+}
+#endif
+
 #if defined(__linux__) || defined(__sun__)
 static CharDriverState *qemu_chr_open_pty(void)
 {
     struct termios tty;
-    char slave_name[1024];
     int master_fd, slave_fd;
 
-#if defined(__linux__)
-    /* Not satisfying */
-    if (openpty(&master_fd, &slave_fd, slave_name, NULL, NULL) < 0) {
+    if (openpty(&master_fd, &slave_fd, NULL, NULL, NULL) < 0) {
         return NULL;
     }
-#endif
 
-    /* Disabling local echo and line-buffered output */
-    tcgetattr (master_fd, &tty);
-    tty.c_lflag &= ~(ECHO|ICANON|ISIG);
-    tty.c_cc[VMIN] = 1;
-    tty.c_cc[VTIME] = 0;
-    tcsetattr (master_fd, TCSAFLUSH, &tty);
+    /* Set raw attributes on the pty. */
+    cfmakeraw(&tty);
+    tcsetattr(slave_fd, TCSAFLUSH, &tty);
 
-    fprintf(stderr, "char device redirected to %s\n", slave_name);
+    fprintf(stderr, "char device redirected to %s\n", ptsname(master_fd));
     return qemu_chr_open_fd(master_fd, master_fd);
 }
 
