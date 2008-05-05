@@ -19,7 +19,7 @@
  */
 
 /* allow to see translation results - the slowdown should be negligible, so we leave it */
-//#define DEBUG_DISAS
+#define DEBUG_DISAS
 
 /* is_jmp field values */
 #define DISAS_NEXT    0 /* next instruction can be analyzed */
