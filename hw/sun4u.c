@@ -329,7 +329,8 @@ static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_init(serial_io[i], NULL/*serial_irq[i]*/, serial_hds[i]);
+            serial_init(serial_io[i], NULL/*serial_irq[i]*/, 115200,
+                        serial_hds[i]);
         }
     }
 
