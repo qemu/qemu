@@ -4030,6 +4030,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan, int fd)
     if (!s)
         return NULL;
     s->fd = fd;
+    enable_sigio_timer(fd);
     s->vc = qemu_new_vlan_client(vlan, tap_receive, NULL, s);
     qemu_set_fd_handler(s->fd, tap_send, NULL, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str), "tap: fd=%d", fd);
