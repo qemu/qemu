@@ -96,6 +96,12 @@ HELPER_CFLAGS=
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
+# op.c and helper.c need this on 32-bit x86 system to avoid
+# a compiler spill error. This can probably go away
+# once the SSE ops have been converted to TCG
+ifeq ($(HAVE_GT_GCC_3_3), true)
+I386_CFLAGS=-march=i586 -mtune=i686
+endif
 endif
 
 ifeq ($(ARCH),ppc)
@@ -309,7 +315,7 @@ gen-op.h: op.o $(DYNGEN)
 	$(DYNGEN) -g -o $@ $<
 
 op.o: op.c
-	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(OP_CFLAGS) $(CPPFLAGS) $(I386_CFLAGS) -c -o $@ $<
 
 machine.o: machine.c
 	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
@@ -319,7 +325,7 @@ machine.o: machine.c
 ifeq ($(TARGET_BASE_ARCH), i386)
 # XXX: rename helper.c to op_helper.c
 helper.o: helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
 else
 op_helper.o: op_helper.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
