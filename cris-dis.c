@@ -2625,12 +2625,10 @@ print_insn_cris_generic (bfd_vma memaddr,
      If we can't get any data, or we do not get enough data, we print
      the error message.  */
 
-  for (nbytes = MAX_BYTES_PER_CRIS_INSN; nbytes > 0; nbytes -= 2)
-    {
-      status = (*info->read_memory_func) (memaddr, buffer, nbytes, info);
-      if (status == 0)
-	break;
-    }
+  nbytes = info->buffer_length;
+  if (nbytes > MAX_BYTES_PER_CRIS_INSN)
+	  nbytes = MAX_BYTES_PER_CRIS_INSN;
+  status = (*info->read_memory_func) (memaddr, buffer, nbytes, info);  
 
   /* If we did not get all we asked for, then clear the rest.
      Hopefully this makes a reproducible result in case of errors.  */
