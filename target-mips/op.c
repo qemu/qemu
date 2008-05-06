@@ -247,30 +247,6 @@
 #include "fop_template.c"
 #undef FTN
 
-void op_load_HI (void)
-{
-    T0 = env->HI[env->current_tc][PARAM1];
-    FORCE_RET();
-}
-
-void op_store_HI (void)
-{
-    env->HI[env->current_tc][PARAM1] = T0;
-    FORCE_RET();
-}
-
-void op_load_LO (void)
-{
-    T0 = env->LO[env->current_tc][PARAM1];
-    FORCE_RET();
-}
-
-void op_store_LO (void)
-{
-    env->LO[env->current_tc][PARAM1] = T0;
-    FORCE_RET();
-}
-
 /* Load and store */
 #define MEMSUFFIX _raw
 #include "op_mem.c"

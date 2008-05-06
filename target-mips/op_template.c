@@ -56,37 +56,3 @@ void glue(op_store_T0_srsgpr_gpr, REG) (void)
     FORCE_RET();
 }
 #endif
-
-#if defined (TN)
-#define SET_RESET(treg, tregname)        \
-    void glue(op_set, tregname)(void)    \
-    {                                    \
-        treg = (int32_t)PARAM1;          \
-        FORCE_RET();                     \
-    }                                    \
-    void glue(op_reset, tregname)(void)  \
-    {                                    \
-        treg = 0;                        \
-        FORCE_RET();                     \
-    }                                    \
-
-SET_RESET(T0, _T0)
-SET_RESET(T1, _T1)
-
-#undef SET_RESET
-
-#if defined(TARGET_MIPS64)
-#define SET64(treg, tregname)                               \
-    void glue(op_set64, tregname)(void)                     \
-    {                                                       \
-        treg = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2; \
-        FORCE_RET();                                        \
-    }
-
-SET64(T0, _T0)
-SET64(T1, _T1)
-
-#undef SET64
-
-#endif
-#endif
