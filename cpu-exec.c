@@ -1432,7 +1432,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     unsigned long pc;
     int is_write;
 
-    pc = uc->uc_mcontext.gregs[R15];
+    pc = uc->uc_mcontext.arm_pc;
     /* XXX: compute is_write */
     is_write = 0;
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
