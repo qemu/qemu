@@ -1020,12 +1020,22 @@ struct target_sigcontext {
 	abi_ulong fault_address;
 };
 
-struct target_ucontext {
+struct target_ucontext_v1 {
     abi_ulong tuc_flags;
     abi_ulong tuc_link;
     target_stack_t tuc_stack;
     struct target_sigcontext tuc_mcontext;
     target_sigset_t  tuc_sigmask;	/* mask last for extensibility */
+};
+
+struct target_ucontext_v2 {
+    abi_ulong tuc_flags;
+    abi_ulong tuc_link;
+    target_stack_t tuc_stack;
+    struct target_sigcontext tuc_mcontext;
+    target_sigset_t  tuc_sigmask;	/* mask last for extensibility */
+    char __unused[128 - sizeof(sigset_t)];
+    abi_ulong tuc_regspace[128] __attribute__((__aligned__(8)));
 };
 
 struct sigframe
@@ -1035,12 +1045,19 @@ struct sigframe
     abi_ulong retcode;
 };
 
-struct rt_sigframe
+struct rt_sigframe_v1
 {
     abi_ulong pinfo;
     abi_ulong puc;
     struct target_siginfo info;
-    struct target_ucontext uc;
+    struct target_ucontext_v1 uc;
+    abi_ulong retcode;
+};
+
+struct rt_sigframe_v2
+{
+    struct target_siginfo info;
+    struct target_ucontext_v2 uc;
     abi_ulong retcode;
 };
 
@@ -1191,11 +1208,11 @@ end:
 }
 
 /* compare linux/arch/arm/kernel/signal.c:setup_rt_frame() */
-static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
-                           target_siginfo_t *info,
-			   target_sigset_t *set, CPUState *env)
+static void setup_rt_frame_v1(int usig, struct emulated_sigaction *ka,
+                              target_siginfo_t *info,
+			      target_sigset_t *set, CPUState *env)
 {
-	struct rt_sigframe *frame;
+	struct rt_sigframe_v1 *frame;
 	abi_ulong frame_addr = get_sigframe(ka, env, sizeof(*frame));
 	struct target_sigaltstack stack;
 	int i, err = 0;
@@ -1204,14 +1221,14 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 	if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
             return /* 1 */;
 
-        info_addr = frame_addr + offsetof(struct rt_sigframe, info);
+        info_addr = frame_addr + offsetof(struct rt_sigframe_v1, info);
 	__put_user_error(info_addr, &frame->pinfo, err);
-        uc_addr = frame_addr + offsetof(struct rt_sigframe, uc);
+        uc_addr = frame_addr + offsetof(struct rt_sigframe_v1, uc);
 	__put_user_error(uc_addr, &frame->puc, err);
 	err |= copy_siginfo_to_user(&frame->info, info);
 
 	/* Clear all the bits of the ucontext we don't use.  */
-	memset(&frame->uc, 0, offsetof(struct target_ucontext, tuc_mcontext));
+	memset(&frame->uc, 0, offsetof(struct target_ucontext_v1, tuc_mcontext));
 
         memset(&stack, 0, sizeof(stack));
         __put_user(target_sigaltstack_used.ss_sp, &stack.ss_sp);
@@ -1228,7 +1245,55 @@ static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
 
 	if (err == 0)
 		err = setup_return(env, ka, &frame->retcode, frame_addr, usig,
-                                   frame_addr + offsetof(struct rt_sigframe, retcode));
+                                   frame_addr + offsetof(struct rt_sigframe_v1, retcode));
+
+	if (err == 0) {
+            env->regs[1] = info_addr;
+            env->regs[2] = uc_addr;
+	}
+
+end:
+	unlock_user_struct(frame, frame_addr, 1);
+
+        //	return err;
+}
+
+static void setup_rt_frame_v2(int usig, struct emulated_sigaction *ka,
+                              target_siginfo_t *info,
+                              target_sigset_t *set, CPUState *env)
+{
+	struct rt_sigframe_v2 *frame;
+	abi_ulong frame_addr = get_sigframe(ka, env, sizeof(*frame));
+	struct target_sigaltstack stack;
+	int i, err = 0;
+        abi_ulong info_addr, uc_addr;
+
+	if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
+            return /* 1 */;
+
+        info_addr = frame_addr + offsetof(struct rt_sigframe_v2, info);
+        uc_addr = frame_addr + offsetof(struct rt_sigframe_v2, uc);
+	err |= copy_siginfo_to_user(&frame->info, info);
+
+	/* Clear all the bits of the ucontext we don't use.  */
+	memset(&frame->uc, 0, offsetof(struct target_ucontext_v2, tuc_mcontext));
+
+        memset(&stack, 0, sizeof(stack));
+        __put_user(target_sigaltstack_used.ss_sp, &stack.ss_sp);
+        __put_user(target_sigaltstack_used.ss_size, &stack.ss_size);
+        __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &stack.ss_flags);
+        memcpy(&frame->uc.tuc_stack, &stack, sizeof(stack));
+
+	err |= setup_sigcontext(&frame->uc.tuc_mcontext, /*&frame->fpstate,*/
+				env, set->sig[0]);
+        for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+            if (__put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]))
+                goto end;
+        }
+
+	if (err == 0)
+		err = setup_return(env, ka, &frame->retcode, frame_addr, usig,
+                                   frame_addr + offsetof(struct rt_sigframe_v2, retcode));
 
 	if (err == 0) {
 		/*
@@ -1244,6 +1309,17 @@ end:
 	unlock_user_struct(frame, frame_addr, 1);
 
         //	return err;
+}
+
+static void setup_rt_frame(int usig, struct emulated_sigaction *ka,
+                           target_siginfo_t *info,
+			   target_sigset_t *set, CPUState *env)
+{
+    if (get_osversion() >= 0x020612) {
+        setup_rt_frame_v2(usig, ka, info, set, env);
+    } else {
+        setup_rt_frame_v1(usig, ka, info, set, env);
+    }
 }
 
 static int
@@ -1325,10 +1401,10 @@ badframe:
 	return 0;
 }
 
-long do_rt_sigreturn(CPUState *env)
+long do_rt_sigreturn_v1(CPUState *env)
 {
         abi_ulong frame_addr;
-	struct rt_sigframe *frame;
+	struct rt_sigframe_v1 *frame;
         sigset_t host_set;
 
 	/*
@@ -1349,7 +1425,7 @@ long do_rt_sigreturn(CPUState *env)
 	if (restore_sigcontext(env, &frame->uc.tuc_mcontext))
 		goto badframe;
 
-	if (do_sigaltstack(frame_addr + offsetof(struct rt_sigframe, uc.tuc_stack), 0, get_sp_from_cpustate(env)) == -EFAULT)
+	if (do_sigaltstack(frame_addr + offsetof(struct rt_sigframe_v1, uc.tuc_stack), 0, get_sp_from_cpustate(env)) == -EFAULT)
 		goto badframe;
 
 #if 0
@@ -1364,6 +1440,56 @@ badframe:
 	unlock_user_struct(frame, frame_addr, 0);
         force_sig(SIGSEGV /* , current */);
 	return 0;
+}
+
+long do_rt_sigreturn_v2(CPUState *env)
+{
+        abi_ulong frame_addr;
+	struct rt_sigframe_v2 *frame;
+        sigset_t host_set;
+
+	/*
+	 * Since we stacked the signal on a 64-bit boundary,
+	 * then 'sp' should be word aligned here.  If it's
+	 * not, then the user is trying to mess with us.
+	 */
+	if (env->regs[13] & 7)
+		goto badframe;
+
+        frame_addr = env->regs[13];
+	if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
+                goto badframe;
+
+        target_to_host_sigset(&host_set, &frame->uc.tuc_sigmask);
+        sigprocmask(SIG_SETMASK, &host_set, NULL);
+
+	if (restore_sigcontext(env, &frame->uc.tuc_mcontext))
+		goto badframe;
+
+	if (do_sigaltstack(frame_addr + offsetof(struct rt_sigframe_v2, uc.tuc_stack), 0, get_sp_from_cpustate(env)) == -EFAULT)
+		goto badframe;
+
+#if 0
+	/* Send SIGTRAP if we're single-stepping */
+	if (ptrace_cancel_bpt(current))
+		send_sig(SIGTRAP, current, 1);
+#endif
+	unlock_user_struct(frame, frame_addr, 0);
+	return env->regs[0];
+
+badframe:
+	unlock_user_struct(frame, frame_addr, 0);
+        force_sig(SIGSEGV /* , current */);
+	return 0;
+}
+
+long do_rt_sigreturn(CPUState *env)
+{
+    if (get_osversion() >= 0x020612) {
+        return do_rt_sigreturn_v2(env);
+    } else {
+        return do_rt_sigreturn_v1(env);
+    }
 }
 
 #elif defined(TARGET_SPARC)
