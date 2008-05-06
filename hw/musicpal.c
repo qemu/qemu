@@ -255,7 +255,8 @@ typedef struct musicpal_audio_state {
 static void audio_callback(void *opaque, int free_out, int free_in)
 {
     musicpal_audio_state *s = opaque;
-    int16_t *codec_buffer, *mem_buffer;
+    int16_t *codec_buffer;
+    void *mem_buffer;
     int pos, block_size;
 
     if (!(s->playback_mode & MP_AUDIO_PLAYBACK_EN))
@@ -276,8 +277,9 @@ static void audio_callback(void *opaque, int free_out, int free_in)
         if (s->playback_mode & MP_AUDIO_MONO) {
             codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
             for (pos = 0; pos < block_size; pos += 2) {
-                *codec_buffer++ = *mem_buffer;
-                *codec_buffer++ = *mem_buffer++;
+                *codec_buffer++ = *(uint16_t *)mem_buffer;
+                *codec_buffer++ = *(uint16_t *)mem_buffer;
+                mem_buffer += 2;
             }
         } else
             memcpy(wm8750_dac_buffer(s->wm, block_size >> 2),
@@ -286,14 +288,14 @@ static void audio_callback(void *opaque, int free_out, int free_in)
         if (s->playback_mode & MP_AUDIO_MONO) {
             codec_buffer = wm8750_dac_buffer(s->wm, block_size);
             for (pos = 0; pos < block_size; pos++) {
-                *codec_buffer++ = cpu_to_le16(256 * *((int8_t *)mem_buffer));
-                *codec_buffer++ = cpu_to_le16(256 * *((int8_t *)mem_buffer)++);
+                *codec_buffer++ = cpu_to_le16(256 * *(int8_t *)mem_buffer);
+                *codec_buffer++ = cpu_to_le16(256 * *(int8_t *)mem_buffer++);
             }
         } else {
             codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
             for (pos = 0; pos < block_size; pos += 2) {
-                *codec_buffer++ = cpu_to_le16(256 * *((int8_t *)mem_buffer)++);
-                *codec_buffer++ = cpu_to_le16(256 * *((int8_t *)mem_buffer)++);
+                *codec_buffer++ = cpu_to_le16(256 * *(int8_t *)mem_buffer++);
+                *codec_buffer++ = cpu_to_le16(256 * *(int8_t *)mem_buffer++);
             }
         }
     }
