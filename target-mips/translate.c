@@ -422,41 +422,71 @@ enum {
 };
 
 /* global register indices */
-static TCGv cpu_env, current_tc_regs, cpu_T[2];
+static TCGv cpu_env, current_tc_gprs, cpu_T[2];
 
+/* General purpose registers moves */
 const unsigned char *regnames[] =
     { "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
       "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
       "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
       "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra", };
 
-/* Warning: no function for r0 register (hard wired to zero) */
-#define GEN32(func, NAME)                        \
-static GenOpFunc *NAME ## _table [32] = {        \
-NULL,       NAME ## 1, NAME ## 2, NAME ## 3,     \
-NAME ## 4,  NAME ## 5, NAME ## 6, NAME ## 7,     \
-NAME ## 8,  NAME ## 9, NAME ## 10, NAME ## 11,   \
-NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,  \
-NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,  \
-NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,  \
-NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,  \
-NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,  \
-};                                               \
-static always_inline void func(int n)            \
-{                                                \
-    NAME ## _table[n]();                         \
+static inline void gen_op_load_gpr_TN(int t_index, int reg)
+{
+    tcg_gen_ld_tl(cpu_T[t_index], current_tc_gprs, sizeof(target_ulong) * reg);
 }
 
-/* General purpose registers moves */
-GEN32(gen_op_load_gpr_T0, gen_op_load_gpr_T0_gpr);
-GEN32(gen_op_load_gpr_T1, gen_op_load_gpr_T1_gpr);
+static inline void gen_op_load_gpr_T0(int reg)
+{
+    gen_op_load_gpr_TN(0, reg);
+}
 
-GEN32(gen_op_store_T0_gpr, gen_op_store_T0_gpr_gpr);
-GEN32(gen_op_store_T1_gpr, gen_op_store_T1_gpr_gpr);
+static inline void gen_op_load_gpr_T1(int reg)
+{
+    gen_op_load_gpr_TN(1, reg);
+}
+
+static inline void gen_op_store_gpr_TN(int t_index, int reg)
+{
+    tcg_gen_st_tl(cpu_T[t_index], current_tc_gprs, sizeof(target_ulong) * reg);
+}
+
+static inline void gen_op_store_gpr_T0(int reg)
+{
+    gen_op_store_gpr_TN(0, reg);
+}
+
+static inline void gen_op_store_gpr_T1(int reg)
+{
+    gen_op_store_gpr_TN(1, reg);
+}
 
 /* Moves to/from shadow registers */
-GEN32(gen_op_load_srsgpr_T0, gen_op_load_srsgpr_T0_gpr);
-GEN32(gen_op_store_T0_srsgpr, gen_op_store_T0_srsgpr_gpr);
+static inline void gen_op_load_srsgpr_T0(int reg)
+{
+    int r_tmp = tcg_temp_new(TCG_TYPE_I32);
+
+    tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSCtl));
+    tcg_gen_shri_i32(r_tmp, r_tmp, CP0SRSCtl_PSS);
+    tcg_gen_andi_i32(r_tmp, r_tmp, 0xf);
+    tcg_gen_muli_i32(r_tmp, r_tmp, sizeof(target_ulong) * 32);
+    tcg_gen_add_i32(r_tmp, cpu_env, r_tmp);
+
+    tcg_gen_ld_tl(cpu_T[0], r_tmp, sizeof(target_ulong) * reg);
+}
+
+static inline void gen_op_store_srsgpr_T0(int reg)
+{
+    int r_tmp = tcg_temp_new(TCG_TYPE_I32);
+
+    tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSCtl));
+    tcg_gen_shri_i32(r_tmp, r_tmp, CP0SRSCtl_PSS);
+    tcg_gen_andi_i32(r_tmp, r_tmp, 0xf);
+    tcg_gen_muli_i32(r_tmp, r_tmp, sizeof(target_ulong) * 32);
+    tcg_gen_add_i32(r_tmp, cpu_env, r_tmp);
+
+    tcg_gen_st_tl(cpu_T[0], r_tmp, sizeof(target_ulong) * reg);
+}
 
 static const char *fregnames[] =
     { "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
@@ -634,7 +664,7 @@ do {                                                                          \
 #define GEN_STORE_T0_REG(Rn)                                                  \
 do {                                                                          \
     if (Rn != 0) {                                                            \
-        glue(gen_op_store_T0,_gpr)(Rn);                                       \
+        gen_op_store_gpr_T0(Rn);                                              \
         ctx->glue(last_T0,_store) = gen_opc_ptr;                              \
         ctx->glue(last_T0,_gpr) = Rn;                                         \
     }                                                                         \
@@ -643,14 +673,13 @@ do {                                                                          \
 #define GEN_STORE_T1_REG(Rn)                                                  \
 do {                                                                          \
     if (Rn != 0)                                                              \
-        glue(gen_op_store_T1,_gpr)(Rn);                                       \
+        gen_op_store_gpr_T1(Rn);                                              \
 } while (0)
 
 #define GEN_STORE_TN_SRSREG(Rn, Tn)                                           \
 do {                                                                          \
-    if (Rn != 0) {                                                            \
-        glue(glue(gen_op_store_, Tn),_srsgpr)(Rn);                            \
-    }                                                                         \
+    if (Rn != 0)                                                              \
+        glue(gen_op_store_srsgpr_, Tn)(Rn);                                   \
 } while (0)
 
 #define GEN_LOAD_FREG_FTN(FTn, Fn)                                            \
@@ -813,6 +842,7 @@ static always_inline void check_mips_64(DisasContext *ctx)
         generate_exception(ctx, EXCP_RI);
 }
 
+/* load/store instructions. */
 #if defined(CONFIG_USER_ONLY)
 #define op_ldst(name)        gen_op_##name##_raw()
 #define OP_LD_TABLE(width)
@@ -1638,7 +1668,7 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
         generate_exception(ctx, EXCP_RI);
         return;
     }
-    gen_op_store_T0_gpr(rd);
+    gen_op_store_gpr_T0(rd);
     MIPS_DEBUG("%s %s, %s", opn, regnames[rd], regnames[rs]);
 }
 
@@ -1870,12 +1900,12 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             return;
         case OPC_BLTZAL:  /* 0 < 0           */
             GEN_LOAD_IMM_TN(T0, ctx->pc + 8);
-            gen_op_store_T0_gpr(31);
+            gen_op_store_gpr_T0(31);
             MIPS_DEBUG("bnever and link");
             return;
         case OPC_BLTZALL: /* 0 < 0 likely */
             GEN_LOAD_IMM_TN(T0, ctx->pc + 8);
-            gen_op_store_T0_gpr(31);
+            gen_op_store_gpr_T0(31);
             /* Skip the instruction in the delay slot */
             MIPS_DEBUG("bnever, link and skip");
             ctx->pc += 4;
@@ -2002,7 +2032,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     ctx->btarget = btarget;
     if (blink > 0) {
         GEN_LOAD_IMM_TN(T0, ctx->pc + 8);
-        gen_op_store_T0_gpr(blink);
+        gen_op_store_gpr_T0(blink);
     }
 }
 
@@ -4721,7 +4751,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             return;
         }
         gen_mfc0(env, ctx, rd, ctx->opcode & 0x7);
-        gen_op_store_T0_gpr(rt);
+        gen_op_store_gpr_T0(rt);
         opn = "mfc0";
         break;
     case OPC_MTC0:
@@ -4738,7 +4768,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             return;
         }
         gen_dmfc0(env, ctx, rd, ctx->opcode & 0x7);
-        gen_op_store_T0_gpr(rt);
+        gen_op_store_gpr_T0(rt);
         opn = "dmfc0";
         break;
     case OPC_DMTC0:
@@ -4757,7 +4787,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         }
         gen_mftr(env, ctx, rt, (ctx->opcode >> 5) & 1,
                  ctx->opcode & 0x7, (ctx->opcode >> 4) & 1);
-        gen_op_store_T0_gpr(rd);
+        gen_op_store_gpr_T0(rd);
         opn = "mftr";
         break;
     case OPC_MTTR:
@@ -6806,8 +6836,13 @@ void fpu_dump_state(CPUState *env, FILE *f,
 void dump_fpu (CPUState *env)
 {
     if (loglevel) {
-       fprintf(logfile, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
-               env->PC[env->current_tc], env->HI[env->current_tc][0], env->LO[env->current_tc][0], env->hflags, env->btarget, env->bcond);
+        fprintf(logfile,
+                "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx
+                " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx
+                " %04x\n",
+                env->PC[env->current_tc], env->HI[env->current_tc][0],
+                env->LO[env->current_tc][0], env->hflags, env->btarget,
+                env->bcond);
        fpu_dump_state(env, logfile, fprintf, 0);
     }
 }
@@ -6881,15 +6916,18 @@ static void mips_tcg_init(void)
 	return;
 
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
-    current_tc_regs = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG1, "current_tc_regs");
+    current_tc_gprs = tcg_global_mem_new(TCG_TYPE_PTR,
+                                         TCG_AREG0,
+                                         offsetof(CPUState, current_tc_gprs),
+                                         "current_tc_gprs");
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
                                   TCG_AREG0, offsetof(CPUState, t0), "T0");
     cpu_T[1] = tcg_global_mem_new(TCG_TYPE_TL,
                                   TCG_AREG0, offsetof(CPUState, t1), "T1");
 #else
-    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T0");
-    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "T1");
+    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
+    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
 #endif
 
     inited = 1;

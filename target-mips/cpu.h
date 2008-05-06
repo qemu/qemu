@@ -158,6 +158,7 @@ struct CPUMIPSState {
     CPUMIPSTLBContext *tlb;
     CPUMIPSFPUContext *fpu;
     uint32_t current_tc;
+    target_ulong *current_tc_gprs;
 
     uint32_t SEGBITS;
     target_ulong SEGMask;
