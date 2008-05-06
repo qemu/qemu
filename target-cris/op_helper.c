@@ -60,8 +60,8 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     saved_env = env;
     env = cpu_single_env;
 
-    D(fprintf(logfile, "%s ra=%x acr=%x %x\n", __func__, retaddr,
-	    env->regs[R_ACR], saved_env->regs[R_ACR]));
+    D(fprintf(logfile, "%s pc=%x tpc=%x ra=%x\n", __func__, 
+	     env->pc, env->debug1, retaddr));
     ret = cpu_cris_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (__builtin_expect(ret, 0)) {
         if (retaddr) {
@@ -89,7 +89,7 @@ void helper_tlb_update(uint32_t T0)
 		return;
 
 	vaddr = cris_mmu_tlb_latest_update(env, T0);
-	D(printf("flush old_vaddr=%x vaddr=%x T0=%x\n", vaddr, 
+	D(fprintf(logfile, "flush old_vaddr=%x vaddr=%x T0=%x\n", vaddr, 
 		 env->sregs[SFR_R_MM_CAUSE] & TARGET_PAGE_MASK, T0));
 	tlb_flush_page(env, vaddr);
 #endif

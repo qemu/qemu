@@ -79,6 +79,12 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	miss = cris_mmu_translate(&res, env, address, rw, mmu_idx);
 	if (miss)
 	{
+		if (env->exception_index == EXCP_MMU_FAULT)
+			cpu_abort(env, 
+				  "CRIS: Illegal recursive bus fault."
+				  "addr=%x rw=%d\n",
+				  address, rw);
+
 		env->exception_index = EXCP_MMU_FAULT;
 		env->fault_vector = res.bf_vec;
 		r = 1;
@@ -101,7 +107,7 @@ void do_interrupt(CPUState *env)
 {
 	int ex_vec = -1;
 
-	D(fprintf (stderr, "exception index=%d interrupt_req=%d\n",
+	D(fprintf (logfile, "exception index=%d interrupt_req=%d\n",
 		   env->exception_index,
 		   env->interrupt_request));
 
@@ -133,8 +139,9 @@ void do_interrupt(CPUState *env)
 	}
 
 	if ((env->pregs[PR_CCS] & U_FLAG)) {
-		D(fprintf(logfile, "excp isr=%x PC=%x ERP=%x pid=%x ccs=%x cc=%d %x\n",
+		D(fprintf(logfile, "excp isr=%x PC=%x SP=%x ERP=%x pid=%x ccs=%x cc=%d %x\n",
 			  ex_vec, env->pc,
+			  env->regs[R_SP],
 			  env->pregs[PR_ERP], env->pregs[PR_PID],
 			  env->pregs[PR_CCS],
 			  env->cc_op, env->cc_mask));
