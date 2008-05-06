@@ -495,8 +495,10 @@ static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 #ifdef CONFIG_USER_ONLY
     if (env->CP0_Config1 & (1 << CP0C1_FP))
         env->hflags |= MIPS_HFLAG_FPU;
+#ifdef TARGET_MIPS64
     if (env->fpu->fcr0 & (1 << FCR0_F64))
         env->hflags |= MIPS_HFLAG_F64;
+#endif
 #endif
 }
 
