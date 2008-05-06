@@ -696,7 +696,7 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
 
     if (timer->enable && timer->st && timer->rate) {
         timer->val = timer->reset_val;	/* Should skip this on clk enable */
-        expires = muldiv64(timer->val << (timer->ptv + 1),
+        expires = muldiv64((uint64_t) timer->val << (timer->ptv + 1),
                         ticks_per_sec, timer->rate);
 
         /* If timer expiry would be sooner than in about 1 ms and
