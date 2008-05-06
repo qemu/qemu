@@ -113,7 +113,7 @@ timer_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 		  addr, env->pc);
 }
 
-#define TIMER_SLOWDOWN 4
+#define TIMER_SLOWDOWN 1
 static void update_ctrl(struct fs_timer_t *t)
 {
 	unsigned int op;
