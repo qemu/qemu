@@ -1763,7 +1763,7 @@ static inline void tcg_gen_jnz_bcond(int label)
     int r_tmp = tcg_temp_new(TCG_TYPE_TL);
 
     tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
-    tcg_gen_brcond_tl(TCG_COND_NE, r_tmp, tcg_const_i32(0), label);
+    tcg_gen_brcond_tl(TCG_COND_NE, r_tmp, tcg_const_tl(0), label);
 }
 
 /* Branches (before delay slot) */
