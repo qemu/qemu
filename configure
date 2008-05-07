@@ -1232,10 +1232,10 @@ case "$target_cpu" in
   ;;
   cris)
     echo "TARGET_ARCH=cris" >> $config_mak
+    echo "CONFIG_NO_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"cris\"" >> $config_h
     echo "#define TARGET_CRIS 1" >> $config_h
-    echo "CONFIG_SOFTFLOAT=yes" >> $config_mak
-    echo "#define CONFIG_SOFTFLOAT 1" >> $config_h
+    echo "#define CONFIG_NO_DYNGEN_OP 1" >> $config_h
   ;;
   m68k)
     echo "TARGET_ARCH=m68k" >> $config_mak
