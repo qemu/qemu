@@ -1031,4 +1031,5 @@ QEMUMachine n810_machine = {
     "n810",
     "Nokia N810 tablet aka. RX-44 (OMAP2420)",
     n810_init,
+    (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
 };
