@@ -424,6 +424,46 @@ enum {
 /* global register indices */
 static TCGv cpu_env, current_tc_gprs, cpu_T[2];
 
+/* The code generator doesn't like lots of temporaries, so maintain our own
+   cache for reuse within a function.  */
+#define MAX_TEMPS 4
+static int num_temps;
+static TCGv temps[MAX_TEMPS];
+
+/* Allocate a temporary variable.  */
+static TCGv new_tmp(void)
+{
+    TCGv tmp;
+    if (num_temps == MAX_TEMPS)
+        abort();
+
+    if (GET_TCGV(temps[num_temps]))
+      return temps[num_temps++];
+
+    tmp = tcg_temp_new(TCG_TYPE_I32);
+    temps[num_temps++] = tmp;
+    return tmp;
+}
+
+/* Release a temporary variable.  */
+static void dead_tmp(TCGv tmp)
+{
+    int i;
+    num_temps--;
+    i = num_temps;
+    if (GET_TCGV(temps[i]) == GET_TCGV(tmp))
+        return;
+
+    /* Shuffle this temp to the last slot.  */
+    while (GET_TCGV(temps[i]) != GET_TCGV(tmp))
+        i--;
+    while (i < num_temps) {
+        temps[i] = temps[i + 1];
+        i++;
+    }
+    temps[i] = tmp;
+}
+
 /* General purpose registers moves */
 const unsigned char *regnames[] =
     { "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
@@ -464,7 +504,7 @@ static inline void gen_op_store_gpr_T1(int reg)
 /* Moves to/from shadow registers */
 static inline void gen_op_load_srsgpr_T0(int reg)
 {
-    int r_tmp = tcg_temp_new(TCG_TYPE_I32);
+    int r_tmp = new_tmp();
 
     tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSCtl));
     tcg_gen_shri_i32(r_tmp, r_tmp, CP0SRSCtl_PSS);
@@ -473,11 +513,12 @@ static inline void gen_op_load_srsgpr_T0(int reg)
     tcg_gen_add_i32(r_tmp, cpu_env, r_tmp);
 
     tcg_gen_ld_tl(cpu_T[0], r_tmp, sizeof(target_ulong) * reg);
+    dead_tmp(r_tmp);
 }
 
 static inline void gen_op_store_srsgpr_T0(int reg)
 {
-    int r_tmp = tcg_temp_new(TCG_TYPE_I32);
+    int r_tmp = new_tmp();
 
     tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSCtl));
     tcg_gen_shri_i32(r_tmp, r_tmp, CP0SRSCtl_PSS);
@@ -486,6 +527,7 @@ static inline void gen_op_store_srsgpr_T0(int reg)
     tcg_gen_add_i32(r_tmp, cpu_env, r_tmp);
 
     tcg_gen_st_tl(cpu_T[0], r_tmp, sizeof(target_ulong) * reg);
+    dead_tmp(r_tmp);
 }
 
 /* Load immediates, zero being a special case. */
