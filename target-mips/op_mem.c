@@ -18,61 +18,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/* Standard loads and stores */
-void glue(op_lb, MEMSUFFIX) (void)
-{
-    T0 = glue(ldsb, MEMSUFFIX)(T0);
-    FORCE_RET();
-}
-
-void glue(op_lbu, MEMSUFFIX) (void)
-{
-    T0 = glue(ldub, MEMSUFFIX)(T0);
-    FORCE_RET();
-}
-
-void glue(op_sb, MEMSUFFIX) (void)
-{
-    glue(stb, MEMSUFFIX)(T0, T1);
-    FORCE_RET();
-}
-
-void glue(op_lh, MEMSUFFIX) (void)
-{
-    T0 = glue(ldsw, MEMSUFFIX)(T0);
-    FORCE_RET();
-}
-
-void glue(op_lhu, MEMSUFFIX) (void)
-{
-    T0 = glue(lduw, MEMSUFFIX)(T0);
-    FORCE_RET();
-}
-
-void glue(op_sh, MEMSUFFIX) (void)
-{
-    glue(stw, MEMSUFFIX)(T0, T1);
-    FORCE_RET();
-}
-
-void glue(op_lw, MEMSUFFIX) (void)
-{
-    T0 = glue(ldl, MEMSUFFIX)(T0);
-    FORCE_RET();
-}
-
-void glue(op_lwu, MEMSUFFIX) (void)
-{
-    T0 = (uint32_t)glue(ldl, MEMSUFFIX)(T0);
-    FORCE_RET();
-}
-
-void glue(op_sw, MEMSUFFIX) (void)
-{
-    glue(stl, MEMSUFFIX)(T0, T1);
-    FORCE_RET();
-}
-
 /* "half" load and stores.  We must do the memory access inline,
    or fault handling won't work.  */
 
@@ -166,43 +111,7 @@ void glue(op_swr, MEMSUFFIX) (void)
     FORCE_RET();
 }
 
-void glue(op_ll, MEMSUFFIX) (void)
-{
-    T1 = T0;
-    T0 = glue(ldl, MEMSUFFIX)(T0);
-    env->CP0_LLAddr = T1;
-    FORCE_RET();
-}
-
-void glue(op_sc, MEMSUFFIX) (void)
-{
-    CALL_FROM_TB0(dump_sc);
-    if (T0 & 0x3) {
-        env->CP0_BadVAddr = T0;
-        CALL_FROM_TB1(do_raise_exception, EXCP_AdES);
-    }
-    if (T0 == env->CP0_LLAddr) {
-        glue(stl, MEMSUFFIX)(T0, T1);
-        T0 = 1;
-    } else {
-        T0 = 0;
-    }
-    FORCE_RET();
-}
-
 #if defined(TARGET_MIPS64)
-void glue(op_ld, MEMSUFFIX) (void)
-{
-    T0 = glue(ldq, MEMSUFFIX)(T0);
-    FORCE_RET();
-}
-
-void glue(op_sd, MEMSUFFIX) (void)
-{
-    glue(stq, MEMSUFFIX)(T0, T1);
-    FORCE_RET();
-}
-
 /* "half" load and stores.  We must do the memory access inline,
    or fault handling won't work.  */
 
@@ -355,30 +264,6 @@ void glue(op_sdr, MEMSUFFIX) (void)
     if (GET_LMASK64(T0) == 7)
         glue(stb, MEMSUFFIX)(GET_OFFSET(T0, -7), (uint8_t)(T1 >> 56));
 
-    FORCE_RET();
-}
-
-void glue(op_lld, MEMSUFFIX) (void)
-{
-    T1 = T0;
-    T0 = glue(ldq, MEMSUFFIX)(T0);
-    env->CP0_LLAddr = T1;
-    FORCE_RET();
-}
-
-void glue(op_scd, MEMSUFFIX) (void)
-{
-    CALL_FROM_TB0(dump_sc);
-    if (T0 & 0x7) {
-        env->CP0_BadVAddr = T0;
-        CALL_FROM_TB1(do_raise_exception, EXCP_AdES);
-    }
-    if (T0 == env->CP0_LLAddr) {
-        glue(stq, MEMSUFFIX)(T0, T1);
-        T0 = 1;
-    } else {
-        T0 = 0;
-    }
     FORCE_RET();
 }
 #endif /* TARGET_MIPS64 */
