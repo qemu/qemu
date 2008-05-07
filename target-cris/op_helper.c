@@ -79,20 +79,10 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 
-void helper_tlb_update(uint32_t T0)
+void helper_raise_exception(uint32_t index)
 {
-#if !defined(CONFIG_USER_ONLY)
-	uint32_t vaddr;
-	uint32_t srs = env->pregs[PR_SRS];
-
-	if (srs != 1 && srs != 2)
-		return;
-
-	vaddr = cris_mmu_tlb_latest_update(env, T0);
-	D(fprintf(logfile, "flush old_vaddr=%x vaddr=%x T0=%x\n", vaddr, 
-		 env->sregs[SFR_R_MM_CAUSE] & TARGET_PAGE_MASK, T0));
-	tlb_flush_page(env, vaddr);
-#endif
+	env->exception_index = index;
+	cpu_loop_exit();
 }
 
 void helper_tlb_flush(void)
@@ -110,13 +100,105 @@ void helper_dummy(void)
 
 }
 
-/* Only used for debugging at the moment.  */
+void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
+{
+	uint32_t srs;
+	srs = env->pregs[PR_SRS];
+	srs &= 3;
+	env->sregs[srs][sreg] = env->regs[reg];
+
+#if !defined(CONFIG_USER_ONLY)
+	if (srs == 1 || srs == 2) {
+		if (sreg == 6) {
+			/* Writes to tlb-hi write to mm_cause as a side 
+			   effect.  */
+			env->sregs[SFR_RW_MM_TLB_HI] = T0;
+			env->sregs[SFR_R_MM_CAUSE] = T0;
+		}
+		else if (sreg == 5) {
+			uint32_t set;
+			uint32_t idx;
+			uint32_t lo, hi;
+			uint32_t vaddr;
+
+			vaddr = cris_mmu_tlb_latest_update(env);
+			D(fprintf(logfile, "tlb flush vaddr=%x\n", vaddr));
+			tlb_flush_page(env, vaddr);
+
+			idx = set = env->sregs[SFR_RW_MM_TLB_SEL];
+			set >>= 4;
+			set &= 3;
+
+			idx &= 15;
+			/* We've just made a write to tlb_lo.  */
+			lo = env->sregs[SFR_RW_MM_TLB_LO];
+			/* Writes are done via r_mm_cause.  */
+			hi = env->sregs[SFR_R_MM_CAUSE];
+			env->tlbsets[srs - 1][set][idx].lo = lo;
+			env->tlbsets[srs - 1][set][idx].hi = hi;
+		}
+	}
+#endif
+}
+
+void helper_movl_reg_sreg (uint32_t reg, uint32_t sreg)
+{
+	uint32_t srs;
+	env->pregs[PR_SRS] &= 3;
+	srs = env->pregs[PR_SRS];
+	
+#if !defined(CONFIG_USER_ONLY)
+	if (srs == 1 || srs == 2)
+	{
+		uint32_t set;
+		uint32_t idx;
+		uint32_t lo, hi;
+
+		idx = set = env->sregs[SFR_RW_MM_TLB_SEL];
+		set >>= 4;
+		set &= 3;
+		idx &= 15;
+
+		/* Update the mirror regs.  */
+		hi = env->tlbsets[srs - 1][set][idx].hi;
+		lo = env->tlbsets[srs - 1][set][idx].lo;
+		env->sregs[SFR_RW_MM_TLB_HI] = hi;
+		env->sregs[SFR_RW_MM_TLB_LO] = lo;
+	}
+#endif
+	env->regs[reg] = env->sregs[srs][sreg];
+	RETURN();
+}
+
+static void cris_ccs_rshift(CPUState *env)
+{
+	uint32_t ccs;
+
+	/* Apply the ccs shift.  */
+	ccs = env->pregs[PR_CCS];
+	ccs = (ccs & 0xc0000000) | ((ccs & 0x0fffffff) >> 10);
+	if (ccs & U_FLAG)
+	{
+		/* Enter user mode.  */
+		env->ksp = env->regs[R_SP];
+		env->regs[R_SP] = env->pregs[PR_USP];
+	}
+
+	env->pregs[PR_CCS] = ccs;
+}
+
 void helper_rfe(void)
 {
 	D(fprintf(logfile, "rfe: erp=%x pid=%x ccs=%x btarget=%x\n", 
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
 		 env->btarget));
+
+	cris_ccs_rshift(env);
+
+	/* RFE sets the P_FLAG only if the R_FLAG is not set.  */
+	if (!(env->pregs[PR_CCS] & R_FLAG))
+		env->pregs[PR_CCS] |= P_FLAG;
 }
 
 void helper_store(uint32_t a0)
@@ -155,7 +237,6 @@ static void evaluate_flags_writeback(uint32_t flags)
 	env->pregs[PR_CCS] &= ~(env->cc_mask | X_FLAG);
 	flags &= env->cc_mask;
 	env->pregs[PR_CCS] |= flags;
-	RETURN();
 }
 
 void helper_evaluate_flags_muls(void)
@@ -164,8 +245,7 @@ void helper_evaluate_flags_muls(void)
 	uint32_t dst;
 	uint32_t res;
 	uint32_t flags = 0;
-	/* were gonna have to redo the muls.  */
-	int64_t tmp, t0 ,t1;
+	int64_t tmp;
 	int32_t mof;
 	int dneg;
 
@@ -173,14 +253,12 @@ void helper_evaluate_flags_muls(void)
 	dst = env->cc_dest;
 	res = env->cc_result;
 
-
-	/* cast into signed values to make GCC sign extend.  */
-	t0 = (int32_t)src;
-	t1 = (int32_t)dst;
 	dneg = ((int32_t)res) < 0;
 
-	tmp = t0 * t1;
-	mof = tmp >> 32;
+	mof = env->pregs[PR_MOF];
+	tmp = mof;
+	tmp <<= 32;
+	tmp |= res;
 	if (tmp == 0)
 		flags |= Z_FLAG;
 	else if (tmp < 0)
@@ -197,21 +275,17 @@ void  helper_evaluate_flags_mulu(void)
 	uint32_t dst;
 	uint32_t res;
 	uint32_t flags = 0;
-	/* were gonna have to redo the muls.  */
-	uint64_t tmp, t0 ,t1;
+	uint64_t tmp;
 	uint32_t mof;
 
 	src = env->cc_src;
 	dst = env->cc_dest;
 	res = env->cc_result;
 
-
-	/* cast into signed values to make GCC sign extend.  */
-	t0 = src;
-	t1 = dst;
-
-	tmp = t0 * t1;
-	mof = tmp >> 32;
+	mof = env->pregs[PR_MOF];
+	tmp = mof;
+	tmp <<= 32;
+	tmp |= res;
 	if (tmp == 0)
 		flags |= Z_FLAG;
 	else if (tmp >> 63)

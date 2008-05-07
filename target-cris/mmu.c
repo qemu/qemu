@@ -265,7 +265,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 }
 
 /* Give us the vaddr corresponding to the latest TLB update.  */
-target_ulong cris_mmu_tlb_latest_update(CPUState *env, uint32_t new_lo)
+target_ulong cris_mmu_tlb_latest_update(CPUState *env)
 {
 	uint32_t sel = env->sregs[SFR_RW_MM_TLB_SEL];
 	uint32_t vaddr;
