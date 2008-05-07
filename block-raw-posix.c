@@ -77,10 +77,10 @@
 typedef struct BDRVRawState {
     int fd;
     int type;
-    int open_flags;
     unsigned int lseek_err_cnt;
 #if defined(__linux__)
     /* linux floppy specific */
+    int fd_open_flags;
     int64_t fd_open_time;
     int64_t fd_error_time;
     int fd_got_error;
@@ -111,7 +111,6 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         open_flags |= O_DIRECT;
 #endif
 
-    s->open_flags = open_flags;
     s->type = FTYPE_FILE;
 
     fd = open(filename, open_flags, 0644);
@@ -142,14 +141,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 #endif
 */
 
-/* 
- * offset and count are in bytes, but must be multiples of 512 for files 
- * opened with O_DIRECT. buf must be aligned to 512 bytes then.
- *
- * This function may be called without alignment if the caller ensures
- * that O_DIRECT is not in effect.
- */
-static int raw_pread_aligned(BlockDriverState *bs, int64_t offset,
+static int raw_pread(BlockDriverState *bs, int64_t offset,
                      uint8_t *buf, int count)
 {
     BDRVRawState *s = bs->opaque;
@@ -202,14 +194,7 @@ label__raw_read__success:
     return ret;
 }
 
-/* 
- * offset and count are in bytes, but must be multiples of 512 for files 
- * opened with O_DIRECT. buf must be aligned to 512 bytes then.
- *
- * This function may be called without alignment if the caller ensures
- * that O_DIRECT is not in effect.
- */
-static int raw_pwrite_aligned(BlockDriverState *bs, int64_t offset,
+static int raw_pwrite(BlockDriverState *bs, int64_t offset,
                       const uint8_t *buf, int count)
 {
     BDRVRawState *s = bs->opaque;
@@ -244,67 +229,6 @@ label__raw_write__success:
 
     return ret;
 }
-
-
-#ifdef O_DIRECT
-/* 
- * offset and count are in bytes and possibly not aligned. For files opened 
- * with O_DIRECT, necessary alignments are ensured before calling 
- * raw_pread_aligned to do the actual read.
- */
-static int raw_pread(BlockDriverState *bs, int64_t offset,
-                     uint8_t *buf, int count)
-{
-    BDRVRawState *s = bs->opaque;
-
-    if (unlikely((s->open_flags & O_DIRECT) &&
-            (offset % 512 || count % 512 || (uintptr_t) buf % 512))) {
-
-        int ret;
-
-        // Temporarily disable O_DIRECT for unaligned access
-        fcntl(s->fd, F_SETFL, s->open_flags & ~O_DIRECT);
-        ret = raw_pread_aligned(bs, offset, buf, count);
-        fcntl(s->fd, F_SETFL, s->open_flags);
-
-        return ret;
-
-    } else {
-        return raw_pread_aligned(bs, offset, buf, count);
-    }
-}
-
-/* 
- * offset and count are in bytes and possibly not aligned. For files opened 
- * with O_DIRECT, necessary alignments are ensured before calling 
- * raw_pwrite_aligned to do the actual write.
- */
-static int raw_pwrite(BlockDriverState *bs, int64_t offset,
-                      const uint8_t *buf, int count)
-{
-    BDRVRawState *s = bs->opaque;
-
-    if (unlikely((s->open_flags & O_DIRECT) &&
-            (offset % 512 || count % 512 || (uintptr_t) buf % 512))) {
-
-        int ret;
-
-        // Temporarily disable O_DIRECT for unaligned access
-        fcntl(s->fd, F_SETFL, s->open_flags & ~O_DIRECT);
-        ret = raw_pwrite_aligned(bs, offset, buf, count);
-        fcntl(s->fd, F_SETFL, s->open_flags);
-
-        return ret;
-    } else {
-        return raw_pwrite_aligned(bs, offset, buf, count);
-    }
-}
-
-#else
-#define raw_pread raw_pread_aligned
-#define raw_pwrite raw_pwrite_aligned
-#endif
-
 
 /***********************************************************/
 /* Unix AIO using POSIX AIO */
@@ -478,26 +402,10 @@ static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     RawAIOCB *acb;
-    BDRVRawState *s = bs->opaque;
-
-    /* 
-     * If O_DIRECT is used and the buffer is not aligned fall back
-     * to synchronous IO.
-     */
-    if (unlikely((s->open_flags & O_DIRECT) && ((uintptr_t) buf % 512))) {
-        int ret;
-
-        acb = qemu_aio_get(bs, cb, opaque);
-        ret = raw_pread(bs, 512 * sector_num, buf, 512 * nb_sectors);
-        acb->common.cb(acb->common.opaque, ret);
-        qemu_aio_release(acb);
-        return &acb->common;
-    }
 
     acb = raw_aio_setup(bs, sector_num, buf, nb_sectors, cb, opaque);
     if (!acb)
         return NULL;
-
     if (aio_read(&acb->aiocb) < 0) {
         qemu_aio_release(acb);
         return NULL;
@@ -510,21 +418,6 @@ static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     RawAIOCB *acb;
-    BDRVRawState *s = bs->opaque;
-
-    /* 
-     * If O_DIRECT is used and the buffer is not aligned fall back
-     * to synchronous IO.
-     */
-    if (unlikely((s->open_flags & O_DIRECT) && ((uintptr_t) buf % 512))) {
-        int ret;
-
-        acb = qemu_aio_get(bs, cb, opaque);
-        ret = raw_pwrite(bs, 512 * sector_num, buf, 512 * nb_sectors);
-        acb->common.cb(acb->common.opaque, ret);
-        qemu_aio_release(acb);
-        return &acb->common;
-    }
 
     acb = raw_aio_setup(bs, sector_num, (uint8_t*)buf, nb_sectors, cb, opaque);
     if (!acb)
@@ -786,7 +679,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         s->type = FTYPE_CD;
     } else if (strstart(filename, "/dev/fd", NULL)) {
         s->type = FTYPE_FD;
-        s->open_flags = open_flags;
+        s->fd_open_flags = open_flags;
         /* open will not fail even if no floppy is inserted */
         open_flags |= O_NONBLOCK;
     } else if (strstart(filename, "/dev/sg", NULL)) {
@@ -841,7 +734,7 @@ static int fd_open(BlockDriverState *bs)
 #endif
             return -EIO;
         }
-        s->fd = open(bs->filename, s->open_flags);
+        s->fd = open(bs->filename, s->fd_open_flags);
         if (s->fd < 0) {
             s->fd_error_time = qemu_get_clock(rt_clock);
             s->fd_got_error = 1;
@@ -938,7 +831,7 @@ static int raw_eject(BlockDriverState *bs, int eject_flag)
                 close(s->fd);
                 s->fd = -1;
             }
-            fd = open(bs->filename, s->open_flags | O_NONBLOCK);
+            fd = open(bs->filename, s->fd_open_flags | O_NONBLOCK);
             if (fd >= 0) {
                 if (ioctl(fd, FDEJECT, 0) < 0)
                     perror("FDEJECT");
