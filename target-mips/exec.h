@@ -110,8 +110,6 @@ void fpu_dump_state(CPUState *env, FILE *f,
 void dump_sc (void);
 void do_pmon (int function);
 
-void dump_sc (void);
-
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu);
 void do_interrupt (CPUState *env);
