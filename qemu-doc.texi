@@ -87,6 +87,7 @@ For system emulation, the following hardware targets are supported:
 @item Freescale MCF5208EVB (ColdFire V2).
 @item Arnewsh MCF5206 evaluation board (ColdFire V2).
 @item Palm Tungsten|E PDA (OMAP310 processor)
+@item MusicPal (MV88W8618 ARM processor)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, 32-bit MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
@@ -2464,6 +2465,26 @@ Cortex-M3 CPU core.
 Timers, UARTs, ADC, I@math{^2}C and SSI interfaces.
 @item
 OSRAM Pictiva 128x64 OLED with SSD0323 controller connected via SSI.
+@end itemize
+
+The Freecom MusicPal internet radio emulation includes the following
+elements:
+
+@itemize @minus
+@item
+Marvell MV88W8618 ARM core.
+@item
+32 MB RAM, 256 KB SRAM, 8 MB flash.
+@item
+Up to 2 16550 UARTs
+@item
+MV88W8xx8 Ethernet controller
+@item
+MV88W8618 audio controller, WM8750 CODEC and mixer
+@item
+128×64 display with brightness control
+@item
+2 buttons, 2 navigation wheels with button function
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More
