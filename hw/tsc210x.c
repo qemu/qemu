@@ -939,10 +939,14 @@ static void tsc210x_write(struct tsc210x_state_s *s, uint16_t value)
     }
 }
 
-uint32_t tsc210x_txrx(void *opaque, uint32_t value)
+uint32_t tsc210x_txrx(void *opaque, uint32_t value, int len)
 {
     struct tsc210x_state_s *s = opaque;
     uint32_t ret = 0;
+
+    if (len != 16)
+        cpu_abort(cpu_single_env, "%s: FIXME: bad SPI word width %i\n",
+                        __FUNCTION__, len);
 
     /* TODO: sequential reads etc - how do we make sure the host doesn't
      * unintentionally read out a conversion result from a register while
@@ -1124,12 +1128,12 @@ struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio)
 
     s->tr[0] = 0;
     s->tr[1] = 1;
-    s->tr[2] = 0;
-    s->tr[3] = 1;
+    s->tr[2] = 1;
+    s->tr[3] = 0;
     s->tr[4] = 1;
     s->tr[5] = 0;
-    s->tr[6] = 0;
-    s->tr[7] = 1;
+    s->tr[6] = 1;
+    s->tr[7] = 0;
 
     s->chip.opaque = s;
     s->chip.send = (void *) tsc210x_write;
@@ -1178,12 +1182,12 @@ struct uwire_slave_s *tsc2301_init(qemu_irq penirq, qemu_irq kbirq,
 
     s->tr[0] = 0;
     s->tr[1] = 1;
-    s->tr[2] = 0;
-    s->tr[3] = 1;
+    s->tr[2] = 1;
+    s->tr[3] = 0;
     s->tr[4] = 1;
     s->tr[5] = 0;
-    s->tr[6] = 0;
-    s->tr[7] = 1;
+    s->tr[6] = 1;
+    s->tr[7] = 0;
 
     s->chip.opaque = s;
     s->chip.send = (void *) tsc210x_write;

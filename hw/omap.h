@@ -695,7 +695,7 @@ struct omap_mcspi_s;
 struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
                 qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk);
 void omap_mcspi_attach(struct omap_mcspi_s *s,
-                uint32_t (*txrx)(void *opaque, uint32_t), void *opaque,
+                uint32_t (*txrx)(void *opaque, uint32_t, int), void *opaque,
                 int chipselect);
 
 struct omap_rtc_s;
@@ -1011,6 +1011,15 @@ void omap_mpu_wakeup(void *opaque, int irq, int req);
 #define OMAP_TAG_BOOT_REASON	0x4f80
 #define OMAP_TAG_FLASH_PART_STR	0x4f81
 #define OMAP_TAG_VERSION_STR	0x4f82
+
+enum {
+    OMAP_GPIOSW_TYPE_COVER	= 0 << 4,
+    OMAP_GPIOSW_TYPE_CONNECTION	= 1 << 4,
+    OMAP_GPIOSW_TYPE_ACTIVITY	= 2 << 4,
+};
+
+#define OMAP_GPIOSW_INVERTED	0x0001
+#define OMAP_GPIOSW_OUTPUT	0x0002
 
 # define TCMI_VERBOSE			1
 //# define MEM_VERBOSE			1

@@ -37,7 +37,11 @@ struct n800_s {
     struct omap_mpu_state_s *cpu;
 
     struct rfbi_chip_s blizzard;
-    struct uwire_slave_s *ts;
+    struct {
+        void *opaque;
+        uint32_t (*txrx)(void *opaque, uint32_t value, int len);
+        struct uwire_slave_s *chip;
+    } ts;
     i2c_bus *i2c;
 
     int keymap[0x80];
@@ -48,34 +52,38 @@ struct n800_s {
 };
 
 /* GPIO pins */
-#define N800_TUSB_ENABLE_GPIO		0
+#define N8X0_TUSB_ENABLE_GPIO		0
 #define N800_MMC2_WP_GPIO		8
 #define N800_UNKNOWN_GPIO0		9	/* out */
 #define N800_UNKNOWN_GPIO1		10	/* out */
 #define N800_CAM_TURN_GPIO		12
+#define N810_GPS_RESET_GPIO		12
 #define N800_BLIZZARD_POWERDOWN_GPIO	15
 #define N800_MMC1_WP_GPIO		23
 #define N8X0_ONENAND_GPIO		26
+#define N810_BLIZZARD_RESET_GPIO	30
 #define N800_UNKNOWN_GPIO2		53	/* out */
 #define N8X0_TUSB_INT_GPIO		58
-#define N800_BT_WKUP_GPIO		61
-#define N800_STI_GPIO			62
+#define N8X0_BT_WKUP_GPIO		61
+#define N8X0_STI_GPIO			62
 #define N8X0_CBUS_SEL_GPIO		64
-#define N8X0_CBUS_CLK_GPIO		65	/* sure? */
-#define N8X0_CBUS_DAT_GPIO		66
-#define N800_WLAN_IRQ_GPIO		87
-#define N800_BT_RESET_GPIO		92
-#define N800_TEA5761_CS_GPIO		93
+#define N8X0_CBUS_DAT_GPIO		65
+#define N8X0_CBUS_CLK_GPIO		66
+#define N8X0_WLAN_IRQ_GPIO		87
+#define N8X0_BT_RESET_GPIO		92
+#define N8X0_TEA5761_CS_GPIO		93
 #define N800_UNKNOWN_GPIO		94
+#define N810_TSC_RESET_GPIO		94
 #define N800_CAM_ACT_GPIO		95
-#define N800_MMC_CS_GPIO		96
-#define N800_WLAN_PWR_GPIO		97
+#define N810_GPS_WAKEUP_GPIO		95
+#define N8X0_MMC_CS_GPIO		96
+#define N8X0_WLAN_PWR_GPIO		97
 #define N8X0_BT_HOST_WKUP_GPIO		98
 #define N800_UNKNOWN_GPIO3		101	/* out */
 #define N810_KB_LOCK_GPIO		102
 #define N800_TSC_TS_GPIO		103
-#define N810_TSC2005_GPIO		106
-#define N800_HEADPHONE_GPIO		107
+#define N810_TSC_TS_GPIO		106
+#define N8X0_HEADPHONE_GPIO		107
 #define N8X0_RETU_GPIO			108
 #define N800_TSC_KP_IRQ_GPIO		109
 #define N810_KEYBOARD_GPIO		109
@@ -83,7 +91,8 @@ struct n800_s {
 #define N810_SLIDE_GPIO			110
 #define N8X0_TAHVO_GPIO			111
 #define N800_UNKNOWN_GPIO4		112	/* out */
-#define N810_TSC_RESET_GPIO		118
+#define N810_SLEEPX_LED_GPIO		112
+#define N810_TSC_UNKNOWN_GPIO		118	/* out */
 #define N800_TSC_RESET_GPIO		119	/* ? */
 #define N8X0_TMP105_GPIO		125
 
@@ -108,10 +117,10 @@ static void n800_mmc_cs_cb(void *opaque, int line, int level)
     printf("%s: MMC slot %i active\n", __FUNCTION__, level + 1);
 }
 
-static void n800_gpio_setup(struct n800_s *s)
+static void n8x0_gpio_setup(struct n800_s *s)
 {
     qemu_irq *mmc_cs = qemu_allocate_irqs(n800_mmc_cs_cb, s->cpu->mmc, 1);
-    omap2_gpio_out_set(s->cpu->gpif, N800_MMC_CS_GPIO, mmc_cs[0]);
+    omap2_gpio_out_set(s->cpu->gpif, N8X0_MMC_CS_GPIO, mmc_cs[0]);
 
     qemu_irq_lower(omap2_gpio_in_get(s->cpu->gpif, N800_BAT_COVER_GPIO)[0]);
 }
@@ -126,7 +135,7 @@ static void n8x0_nand_setup(struct n800_s *s)
                                     N8X0_ONENAND_GPIO)[0]));
 }
 
-static void n800_i2c_setup(struct n800_s *s)
+static void n8x0_i2c_setup(struct n800_s *s)
 {
     qemu_irq tmp_irq = omap2_gpio_in_get(s->cpu->gpif, N8X0_TMP105_GPIO)[0];
 
@@ -144,6 +153,18 @@ static void n800_i2c_setup(struct n800_s *s)
 }
 
 /* Touchscreen and keypad controller */
+static struct mouse_transform_info_s n800_pointercal = {
+    .x = 800,
+    .y = 480,
+    .a = { 14560, -68, -3455208, -39, -9621, 35152972, 65536 },
+};
+
+static struct mouse_transform_info_s n810_pointercal = {
+    .x = 800,
+    .y = 480,
+    .a = { 15041, 148, -4731056, 171, -10238, 35933380, 65536 },
+};
+
 #define RETU_KEYCODE	61	/* F3 */
 
 static void n800_key_event(void *opaque, int keycode)
@@ -157,7 +178,7 @@ static void n800_key_event(void *opaque, int keycode)
         return;
     }
 
-    tsc210x_key_event(s->ts, code, !(keycode & 0x80));
+    tsc210x_key_event(s->ts.chip, code, !(keycode & 0x80));
 }
 
 static const int n800_keys[16] = {
@@ -179,13 +200,7 @@ static const int n800_keys[16] = {
     -1,
 };
 
-static struct mouse_transform_info_s n800_pointercal = {
-    .x = 800,
-    .y = 480,
-    .a = { 14560, -68, -3455208, -39, -9621, 35152972, 65536 },
-};
-
-static void n800_tsc_setup(struct n800_s *s)
+static void n800_tsc_kbd_setup(struct n800_s *s)
 {
     int i;
 
@@ -195,7 +210,9 @@ static void n800_tsc_setup(struct n800_s *s)
     qemu_irq kbirq = omap2_gpio_in_get(s->cpu->gpif, N800_TSC_KP_IRQ_GPIO)[0];
     qemu_irq dav = omap2_gpio_in_get(s->cpu->gpif, N800_TSC_TS_GPIO)[0];
 
-    s->ts = tsc2301_init(penirq, kbirq, dav, 0);
+    s->ts.chip = tsc2301_init(penirq, kbirq, dav, 0);
+    s->ts.opaque = s->ts.chip->opaque;
+    s->ts.txrx = tsc210x_txrx;
 
     for (i = 0; i < 0x80; i ++)
         s->keymap[i] = -1;
@@ -205,7 +222,17 @@ static void n800_tsc_setup(struct n800_s *s)
 
     qemu_add_kbd_event_handler(n800_key_event, s);
 
-    tsc210x_set_transform(s->ts, &n800_pointercal);
+    tsc210x_set_transform(s->ts.chip, &n800_pointercal);
+}
+
+static void n810_tsc_setup(struct n800_s *s)
+{
+    qemu_irq pintdav = omap2_gpio_in_get(s->cpu->gpif, N810_TSC_TS_GPIO)[0];
+
+    s->ts.opaque = tsc2005_init(pintdav);
+    s->ts.txrx = tsc2005_txrx;
+
+    tsc2005_set_transform(s->ts.opaque, &n810_pointercal);
 }
 
 /* LCD MIPI DBI-C controller (URAL) */
@@ -252,10 +279,14 @@ static void mipid_reset(struct mipid_s *s)
     s->gamma = 0;
 }
 
-static uint32_t mipid_txrx(void *opaque, uint32_t cmd)
+static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 {
     struct mipid_s *s = (struct mipid_s *) opaque;
     uint8_t ret;
+
+    if (len > 9)
+        cpu_abort(cpu_single_env, "%s: FIXME: bad SPI word width %i\n",
+                        __FUNCTION__, len);
 
     if (s->p >= sizeof(s->resp) / sizeof(*s->resp))
         ret = 0;
@@ -486,12 +517,12 @@ static void *mipid_init(void)
     return s;
 }
 
-static void n800_spi_setup(struct n800_s *s)
+static void n8x0_spi_setup(struct n800_s *s)
 {
-    void *tsc2301 = s->ts->opaque;
+    void *tsc = s->ts.opaque;
     void *mipid = mipid_init();
 
-    omap_mcspi_attach(s->cpu->mcspi[0], tsc210x_txrx, tsc2301, 0);
+    omap_mcspi_attach(s->cpu->mcspi[0], s->ts.txrx, tsc, 0);
     omap_mcspi_attach(s->cpu->mcspi[0], mipid_txrx, mipid, 1);
 }
 
@@ -540,7 +571,7 @@ static void n800_dss_init(struct rfbi_chip_s *chip)
     free(fb_blank);
 }
 
-static void n800_dss_setup(struct n800_s *s, DisplayState *ds)
+static void n8x0_dss_setup(struct n800_s *s, DisplayState *ds)
 {
     s->blizzard.opaque = s1d13745_init(0, ds);
     s->blizzard.block = s1d13745_write_block;
@@ -550,7 +581,7 @@ static void n800_dss_setup(struct n800_s *s, DisplayState *ds)
     omap_rfbi_attach(s->cpu->dss, 0, &s->blizzard);
 }
 
-static void n800_cbus_setup(struct n800_s *s)
+static void n8x0_cbus_setup(struct n800_s *s)
 {
     qemu_irq dat_out = omap2_gpio_in_get(s->cpu->gpif, N8X0_CBUS_DAT_GPIO)[0];
     qemu_irq retu_irq = omap2_gpio_in_get(s->cpu->gpif, N8X0_RETU_GPIO)[0];
@@ -566,17 +597,17 @@ static void n800_cbus_setup(struct n800_s *s)
     cbus_attach(cbus, s->tahvo = tahvo_init(tahvo_irq, 1));
 }
 
-static void n800_usb_power_cb(void *opaque, int line, int level)
+static void n8x0_usb_power_cb(void *opaque, int line, int level)
 {
     struct n800_s *s = opaque;
 
     tusb6010_power(s->usb, level);
 }
 
-static void n800_usb_setup(struct n800_s *s)
+static void n8x0_usb_setup(struct n800_s *s)
 {
     qemu_irq tusb_irq = omap2_gpio_in_get(s->cpu->gpif, N8X0_TUSB_INT_GPIO)[0];
-    qemu_irq tusb_pwr = qemu_allocate_irqs(n800_usb_power_cb, s, 1)[0];
+    qemu_irq tusb_pwr = qemu_allocate_irqs(n8x0_usb_power_cb, s, 1)[0];
     struct tusb_s *tusb = tusb6010_init(tusb_irq);
 
     /* Using the NOR interface */
@@ -586,7 +617,7 @@ static void n800_usb_setup(struct n800_s *s)
                     tusb6010_sync_io(tusb), 0, 0, tusb);
 
     s->usb = tusb;
-    omap2_gpio_out_set(s->cpu->gpif, N800_TUSB_ENABLE_GPIO, tusb_pwr);
+    omap2_gpio_out_set(s->cpu->gpif, N8X0_TUSB_ENABLE_GPIO, tusb_pwr);
 }
 
 /* This task is normally performed by the bootloader.  If we're loading
@@ -603,7 +634,7 @@ static void n800_gpmc_init(struct n800_s *s)
 }
 
 /* Setup sequence done by the bootloader */
-static void n800_boot_init(void *opaque)
+static void n8x0_boot_init(void *opaque)
 {
     struct n800_s *s = (struct n800_s *) opaque;
     uint32_t buf;
@@ -667,11 +698,79 @@ static void n800_boot_init(void *opaque)
 #define OMAP_TAG_CBUS		0x4e03
 #define OMAP_TAG_EM_ASIC_BB5	0x4e04
 
-static int n800_atag_setup(struct arm_boot_info *info, void *p)
+static struct omap_gpiosw_info_s {
+    const char *name;
+    int line;
+    int type;
+} n800_gpiosw_info[] = {
+    {
+        "bat_cover", N800_BAT_COVER_GPIO,
+        OMAP_GPIOSW_TYPE_COVER | OMAP_GPIOSW_INVERTED,
+    }, {
+        "cam_act", N800_CAM_ACT_GPIO,
+        OMAP_GPIOSW_TYPE_ACTIVITY,
+    }, {
+        "cam_turn", N800_CAM_TURN_GPIO,
+        OMAP_GPIOSW_TYPE_ACTIVITY | OMAP_GPIOSW_INVERTED,
+    }, {
+        "headphone", N8X0_HEADPHONE_GPIO,
+        OMAP_GPIOSW_TYPE_CONNECTION | OMAP_GPIOSW_INVERTED,
+    },
+    { 0 }
+}, n810_gpiosw_info[] = {
+    {
+        "gps_reset", N810_GPS_RESET_GPIO,
+        OMAP_GPIOSW_TYPE_ACTIVITY | OMAP_GPIOSW_OUTPUT,
+    }, {
+        "gps_wakeup", N810_GPS_WAKEUP_GPIO,
+        OMAP_GPIOSW_TYPE_ACTIVITY | OMAP_GPIOSW_OUTPUT,
+    }, {
+        "headphone", N8X0_HEADPHONE_GPIO,
+        OMAP_GPIOSW_TYPE_CONNECTION | OMAP_GPIOSW_INVERTED,
+    }, {
+        "kb_lock", N810_KB_LOCK_GPIO,
+        OMAP_GPIOSW_TYPE_COVER | OMAP_GPIOSW_INVERTED,
+    }, {
+        "sleepx_led", N810_SLEEPX_LED_GPIO,
+        OMAP_GPIOSW_TYPE_ACTIVITY | OMAP_GPIOSW_INVERTED | OMAP_GPIOSW_OUTPUT,
+    }, {
+        "slide", N810_SLIDE_GPIO,
+        OMAP_GPIOSW_TYPE_COVER | OMAP_GPIOSW_INVERTED,
+    },
+    { 0 }
+};
+
+static struct omap_partition_info_s {
+    uint32_t offset;
+    uint32_t size;
+    int mask;
+    const char *name;
+} n800_part_info[] = {
+    { 0x00000000, 0x00020000, 0x3, "bootloader" },
+    { 0x00020000, 0x00060000, 0x0, "config" },
+    { 0x00080000, 0x00200000, 0x0, "kernel" },
+    { 0x00280000, 0x00200000, 0x3, "initfs" },
+    { 0x00480000, 0x0fb80000, 0x3, "rootfs" },
+
+    { 0, 0, 0, 0 }
+}, n810_part_info[] = {
+    { 0x00000000, 0x00020000, 0x3, "bootloader" },
+    { 0x00020000, 0x00060000, 0x0, "config" },
+    { 0x00080000, 0x00220000, 0x0, "kernel" },
+    { 0x002a0000, 0x00400000, 0x0, "initfs" },
+    { 0x006a0000, 0x0f960000, 0x0, "rootfs" },
+
+    { 0, 0, 0, 0 }
+};
+
+static int n8x0_atag_setup(void *p, int model)
 {
     uint8_t *b;
     uint16_t *w;
     uint32_t *l;
+    struct omap_gpiosw_info_s *gpiosw;
+    struct omap_partition_info_s *partition;
+    const char *tag;
 
     w = p;
 
@@ -680,10 +779,21 @@ static int n800_atag_setup(struct arm_boot_info *info, void *p)
     stw_raw(w ++, (1 << 2) | (1 << 1) | (1 << 0)); /* uint enabled_uarts */
     w ++;
 
-    stw_raw(w ++, OMAP_TAG_EM_ASIC_BB5);	/* u16 tag */
+#if 0
+    stw_raw(w ++, OMAP_TAG_SERIAL_CONSOLE);	/* u16 tag */
     stw_raw(w ++, 4);				/* u16 len */
-    stw_raw(w ++, N8X0_RETU_GPIO);		/* s16 retu_irq_gpio */
-    stw_raw(w ++, N8X0_TAHVO_GPIO);		/* s16 tahvo_irq_gpio */
+    stw_raw(w ++, XLDR_LL_UART);		/* u8 console_uart */
+    stw_raw(w ++, 115200);			/* u32 console_speed */
+#endif
+
+    stw_raw(w ++, OMAP_TAG_LCD);		/* u16 tag */
+    stw_raw(w ++, 36);				/* u16 len */
+    strcpy((void *) w, "QEMU LCD panel");	/* char panel_name[16] */
+    w += 8;
+    strcpy((void *) w, "blizzard");		/* char ctrl_name[16] */
+    w += 8;
+    stw_raw(w ++, N810_BLIZZARD_RESET_GPIO);	/* TODO: n800 s16 nreset_gpio */
+    stw_raw(w ++, 24);				/* u8 data_lines */
 
     stw_raw(w ++, OMAP_TAG_CBUS);		/* u16 tag */
     stw_raw(w ++, 8);				/* u16 len */
@@ -692,49 +802,30 @@ static int n800_atag_setup(struct arm_boot_info *info, void *p)
     stw_raw(w ++, N8X0_CBUS_SEL_GPIO);		/* s16 sel_gpio */
     w ++;
 
-    stw_raw(w ++, OMAP_TAG_GPIO_SWITCH);	/* u16 tag */
-    stw_raw(w ++, 20);				/* u16 len */
-    strcpy((void *) w, "bat_cover");		/* char name[12] */
-    w += 6;
-    stw_raw(w ++, N800_BAT_COVER_GPIO);		/* u16 gpio */
-    stw_raw(w ++, 0x01);
-    stw_raw(w ++, 0);
-    stw_raw(w ++, 0);
+    stw_raw(w ++, OMAP_TAG_EM_ASIC_BB5);	/* u16 tag */
+    stw_raw(w ++, 4);				/* u16 len */
+    stw_raw(w ++, N8X0_RETU_GPIO);		/* s16 retu_irq_gpio */
+    stw_raw(w ++, N8X0_TAHVO_GPIO);		/* s16 tahvo_irq_gpio */
 
-    stw_raw(w ++, OMAP_TAG_GPIO_SWITCH);	/* u16 tag */
-    stw_raw(w ++, 20);				/* u16 len */
-    strcpy((void *) w, "cam_act");		/* char name[12] */
-    w += 6;
-    stw_raw(w ++, N800_CAM_ACT_GPIO);		/* u16 gpio */
-    stw_raw(w ++, 0x20);
-    stw_raw(w ++, 0);
-    stw_raw(w ++, 0);
-
-    stw_raw(w ++, OMAP_TAG_GPIO_SWITCH);	/* u16 tag */
-    stw_raw(w ++, 20);				/* u16 len */
-    strcpy((void *) w, "cam_turn");		/* char name[12] */
-    w += 6;
-    stw_raw(w ++, N800_CAM_TURN_GPIO);		/* u16 gpio */
-    stw_raw(w ++, 0x21);
-    stw_raw(w ++, 0);
-    stw_raw(w ++, 0);
-
-    stw_raw(w ++, OMAP_TAG_GPIO_SWITCH);	/* u16 tag */
-    stw_raw(w ++, 20);				/* u16 len */
-    strcpy((void *) w, "headphone");		/* char name[12] */
-    w += 6;
-    stw_raw(w ++, N800_HEADPHONE_GPIO);		/* u16 gpio */
-    stw_raw(w ++, 0x11);
-    stw_raw(w ++, 0);
-    stw_raw(w ++, 0);
+    gpiosw = (model == 810) ? n810_gpiosw_info : n800_gpiosw_info;
+    for (; gpiosw->name; gpiosw ++) {
+        stw_raw(w ++, OMAP_TAG_GPIO_SWITCH);	/* u16 tag */
+        stw_raw(w ++, 20);			/* u16 len */
+        strcpy((void *) w, gpiosw->name);	/* char name[12] */
+        w += 6;
+        stw_raw(w ++, gpiosw->line);		/* u16 gpio */
+        stw_raw(w ++, gpiosw->type);
+        stw_raw(w ++, 0);
+        stw_raw(w ++, 0);
+    }
 
     stw_raw(w ++, OMAP_TAG_NOKIA_BT);		/* u16 tag */
     stw_raw(w ++, 12);				/* u16 len */
     b = (void *) w;
     stb_raw(b ++, 0x01);			/* u8 chip_type	(CSR) */
-    stb_raw(b ++, N800_BT_WKUP_GPIO);		/* u8 bt_wakeup_gpio */
+    stb_raw(b ++, N8X0_BT_WKUP_GPIO);		/* u8 bt_wakeup_gpio */
     stb_raw(b ++, N8X0_BT_HOST_WKUP_GPIO);	/* u8 host_wakeup_gpio */
-    stb_raw(b ++, N800_BT_RESET_GPIO);		/* u8 reset_gpio */
+    stb_raw(b ++, N8X0_BT_RESET_GPIO);		/* u8 reset_gpio */
     stb_raw(b ++, 1);				/* u8 bt_uart */
     memset(b, 0, 6);				/* u8 bd_addr[6] */
     b += 6;
@@ -744,70 +835,48 @@ static int n800_atag_setup(struct arm_boot_info *info, void *p)
     stw_raw(w ++, OMAP_TAG_WLAN_CX3110X);	/* u16 tag */
     stw_raw(w ++, 8);				/* u16 len */
     stw_raw(w ++, 0x25);			/* u8 chip_type */
-    stw_raw(w ++, N800_WLAN_PWR_GPIO);		/* s16 power_gpio */
-    stw_raw(w ++, N800_WLAN_IRQ_GPIO);		/* s16 irq_gpio */
+    stw_raw(w ++, N8X0_WLAN_PWR_GPIO);		/* s16 power_gpio */
+    stw_raw(w ++, N8X0_WLAN_IRQ_GPIO);		/* s16 irq_gpio */
     stw_raw(w ++, -1);				/* s16 spi_cs_gpio */
 
     stw_raw(w ++, OMAP_TAG_MMC);		/* u16 tag */
     stw_raw(w ++, 16);				/* u16 len */
-    stw_raw(w ++, 0xf);				/* unsigned flags */
-    stw_raw(w ++, -1);				/* s16 power_pin */
-    stw_raw(w ++, -1);				/* s16 switch_pin */
-    stw_raw(w ++, -1);				/* s16 wp_pin */
-    stw_raw(w ++, 0);				/* unsigned flags */
-    stw_raw(w ++, 0);				/* s16 power_pin */
-    stw_raw(w ++, 0);				/* s16 switch_pin */
-    stw_raw(w ++, 0);				/* s16 wp_pin */
+    if (model == 810) {
+        stw_raw(w ++, 0x23f);			/* unsigned flags */
+        stw_raw(w ++, -1);			/* s16 power_pin */
+        stw_raw(w ++, -1);			/* s16 switch_pin */
+        stw_raw(w ++, -1);			/* s16 wp_pin */
+        stw_raw(w ++, 0x240);			/* unsigned flags */
+        stw_raw(w ++, 0xc000);			/* s16 power_pin */
+        stw_raw(w ++, 0x0248);			/* s16 switch_pin */
+        stw_raw(w ++, 0xc000);			/* s16 wp_pin */
+    } else {
+        stw_raw(w ++, 0xf);			/* unsigned flags */
+        stw_raw(w ++, -1);			/* s16 power_pin */
+        stw_raw(w ++, -1);			/* s16 switch_pin */
+        stw_raw(w ++, -1);			/* s16 wp_pin */
+        stw_raw(w ++, 0);			/* unsigned flags */
+        stw_raw(w ++, 0);			/* s16 power_pin */
+        stw_raw(w ++, 0);			/* s16 switch_pin */
+        stw_raw(w ++, 0);			/* s16 wp_pin */
+    }
 
     stw_raw(w ++, OMAP_TAG_TEA5761);		/* u16 tag */
     stw_raw(w ++, 4);				/* u16 len */
-    stw_raw(w ++, N800_TEA5761_CS_GPIO);	/* u16 enable_gpio */
+    stw_raw(w ++, N8X0_TEA5761_CS_GPIO);	/* u16 enable_gpio */
     w ++;
 
-    stw_raw(w ++, OMAP_TAG_PARTITION);		/* u16 tag */
-    stw_raw(w ++, 28);				/* u16 len */
-    strcpy((void *) w, "bootloader");		/* char name[16] */
-    l = (void *) (w + 8);
-    stl_raw(l ++, 0x00020000);			/* unsigned int size */
-    stl_raw(l ++, 0x00000000);			/* unsigned int offset */
-    stl_raw(l ++, 0x3);				/* unsigned int mask_flags */
-    w = (void *) l;
-
-    stw_raw(w ++, OMAP_TAG_PARTITION);		/* u16 tag */
-    stw_raw(w ++, 28);				/* u16 len */
-    strcpy((void *) w, "config");		/* char name[16] */
-    l = (void *) (w + 8);
-    stl_raw(l ++, 0x00060000);			/* unsigned int size */
-    stl_raw(l ++, 0x00020000);			/* unsigned int offset */
-    stl_raw(l ++, 0x0);				/* unsigned int mask_flags */
-    w = (void *) l;
-
-    stw_raw(w ++, OMAP_TAG_PARTITION);		/* u16 tag */
-    stw_raw(w ++, 28);				/* u16 len */
-    strcpy((void *) w, "kernel");		/* char name[16] */
-    l = (void *) (w + 8);
-    stl_raw(l ++, 0x00200000);			/* unsigned int size */
-    stl_raw(l ++, 0x00080000);			/* unsigned int offset */
-    stl_raw(l ++, 0x0);				/* unsigned int mask_flags */
-    w = (void *) l;
-
-    stw_raw(w ++, OMAP_TAG_PARTITION);		/* u16 tag */
-    stw_raw(w ++, 28);				/* u16 len */
-    strcpy((void *) w, "initfs");		/* char name[16] */
-    l = (void *) (w + 8);
-    stl_raw(l ++, 0x00200000);			/* unsigned int size */
-    stl_raw(l ++, 0x00280000);			/* unsigned int offset */
-    stl_raw(l ++, 0x3);				/* unsigned int mask_flags */
-    w = (void *) l;
-
-    stw_raw(w ++, OMAP_TAG_PARTITION);		/* u16 tag */
-    stw_raw(w ++, 28);				/* u16 len */
-    strcpy((void *) w, "rootfs");		/* char name[16] */
-    l = (void *) (w + 8);
-    stl_raw(l ++, 0x0fb80000);			/* unsigned int size */
-    stl_raw(l ++, 0x00480000);			/* unsigned int offset */
-    stl_raw(l ++, 0x3);				/* unsigned int mask_flags */
-    w = (void *) l;
+    partition = (model == 810) ? n810_part_info : n800_part_info;
+    for (; partition->name; partition ++) {
+        stw_raw(w ++, OMAP_TAG_PARTITION);	/* u16 tag */
+        stw_raw(w ++, 28);			/* u16 len */
+        strcpy((void *) w, partition->name);	/* char name[16] */
+        l = (void *) (w + 8);
+        stl_raw(l ++, partition->size);		/* unsigned int size */
+        stl_raw(l ++, partition->offset);	/* unsigned int offset */
+        stl_raw(l ++, partition->mask);		/* unsigned int mask_flags */
+        w = (void *) l;
+    }
 
     stw_raw(w ++, OMAP_TAG_BOOT_REASON);	/* u16 tag */
     stw_raw(w ++, 12);				/* u16 len */
@@ -827,77 +896,49 @@ static int n800_atag_setup(struct arm_boot_info *info, void *p)
 #endif
     w += 6;
 
-#if 0	/* N810 */
+    tag = (model == 810) ? "RX-44" : "RX-34";
     stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
     stw_raw(w ++, 24);				/* u16 len */
     strcpy((void *) w, "product");		/* char component[12] */
     w += 6;
-    strcpy((void *) w, "RX-44");		/* char version[12] */
+    strcpy((void *) w, tag);			/* char version[12] */
     w += 6;
 
     stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
     stw_raw(w ++, 24);				/* u16 len */
     strcpy((void *) w, "hw-build");		/* char component[12] */
     w += 6;
-    strcpy((void *) w, "QEMU");			/* char version[12] */
+    strcpy((void *) w, "QEMU " QEMU_VERSION);	/* char version[12] */
     w += 6;
 
+    tag = (model == 810) ? "1.1.10-qemu" : "1.1.6-qemu";
     stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
     stw_raw(w ++, 24);				/* u16 len */
     strcpy((void *) w, "nolo");			/* char component[12] */
     w += 6;
-    strcpy((void *) w, "1.1.10-qemu");		/* char version[12] */
+    strcpy((void *) w, tag);			/* char version[12] */
     w += 6;
-#else
-    stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
-    stw_raw(w ++, 24);				/* u16 len */
-    strcpy((void *) w, "product");		/* char component[12] */
-    w += 6;
-    strcpy((void *) w, "RX-34");		/* char version[12] */
-    w += 6;
-
-    stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
-    stw_raw(w ++, 24);				/* u16 len */
-    strcpy((void *) w, "hw-build");		/* char component[12] */
-    w += 6;
-    strcpy((void *) w, "QEMU");			/* char version[12] */
-    w += 6;
-
-    stw_raw(w ++, OMAP_TAG_VERSION_STR);	/* u16 tag */
-    stw_raw(w ++, 24);				/* u16 len */
-    strcpy((void *) w, "nolo");			/* char component[12] */
-    w += 6;
-    strcpy((void *) w, "1.1.6-qemu");		/* char version[12] */
-    w += 6;
-#endif
-
-    stw_raw(w ++, OMAP_TAG_LCD);		/* u16 tag */
-    stw_raw(w ++, 36);				/* u16 len */
-    strcpy((void *) w, "QEMU LCD panel");	/* char panel_name[16] */
-    w += 8;
-    strcpy((void *) w, "blizzard");		/* char ctrl_name[16] */
-    w += 8;
-    stw_raw(w ++, 5);				/* TODO s16 nreset_gpio */
-    stw_raw(w ++, 16);				/* u8 data_lines */
 
     return (void *) w - p;
 }
 
-static struct arm_boot_info n800_binfo = {
-    .loader_start = OMAP2_Q2_BASE,
-    /* Actually two chips of 0x4000000 bytes each */
-    .ram_size = 0x08000000,
-    .board_id = 0x4f7,
-    .atag_board = n800_atag_setup,
-};
+static int n800_atag_setup(struct arm_boot_info *info, void *p)
+{
+    return n8x0_atag_setup(p, 800);
+}
 
-static void n800_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static int n810_atag_setup(struct arm_boot_info *info, void *p)
+{
+    return n8x0_atag_setup(p, 810);
+}
+
+static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
+                DisplayState *ds, const char *kernel_filename,
+                const char *kernel_cmdline, const char *initrd_filename,
+                const char *cpu_model, struct arm_boot_info *binfo, int model)
 {
     struct n800_s *s = (struct n800_s *) qemu_mallocz(sizeof(*s));
-    int sdram_size = n800_binfo.ram_size;
+    int sdram_size = binfo->ram_size;
     int onenandram_size = 0x00010000;
 
     if (ram_size < sdram_size + onenandram_size + OMAP242X_SRAM_SIZE) {
@@ -908,15 +949,18 @@ static void n800_init(ram_addr_t ram_size, int vga_ram_size,
 
     s->cpu = omap2420_mpu_init(sdram_size, NULL, cpu_model);
 
-    n800_gpio_setup(s);
+    n8x0_gpio_setup(s);
     n8x0_nand_setup(s);
-    n800_i2c_setup(s);
-    n800_tsc_setup(s);
-    n800_spi_setup(s);
-    n800_dss_setup(s, ds);
-    n800_cbus_setup(s);
+    n8x0_i2c_setup(s);
+    if (model == 800)
+        n800_tsc_kbd_setup(s);
+    else if (model == 810)
+        n810_tsc_setup(s);
+    n8x0_spi_setup(s);
+    n8x0_dss_setup(s, ds);
+    n8x0_cbus_setup(s);
     if (usb_enabled)
-        n800_usb_setup(s);
+        n8x0_usb_setup(s);
 
     /* Setup initial (reset) machine state */
 
@@ -925,21 +969,66 @@ static void n800_init(ram_addr_t ram_size, int vga_ram_size,
 
     if (kernel_filename) {
         /* Or at the linux loader.  */
-        n800_binfo.kernel_filename = kernel_filename;
-        n800_binfo.kernel_cmdline = kernel_cmdline;
-        n800_binfo.initrd_filename = initrd_filename;
-        arm_load_kernel(s->cpu->env, &n800_binfo);
+        binfo->kernel_filename = kernel_filename;
+        binfo->kernel_cmdline = kernel_cmdline;
+        binfo->initrd_filename = initrd_filename;
+        arm_load_kernel(s->cpu->env, binfo);
 
-        qemu_register_reset(n800_boot_init, s);
-        n800_boot_init(s);
+        qemu_register_reset(n8x0_boot_init, s);
+        n8x0_boot_init(s);
     }
 
     dpy_resize(ds, 800, 480);
 }
 
+static struct arm_boot_info n800_binfo = {
+    .loader_start = OMAP2_Q2_BASE,
+    /* Actually two chips of 0x4000000 bytes each */
+    .ram_size = 0x08000000,
+    .board_id = 0x4f7,
+    .atag_board = n800_atag_setup,
+};
+
+static struct arm_boot_info n810_binfo = {
+    .loader_start = OMAP2_Q2_BASE,
+    /* Actually two chips of 0x4000000 bytes each */
+    .ram_size = 0x08000000,
+    /* 0x60c and 0x6bf (WiMAX Edition) have been assigned but are not
+     * used by some older versions of the bootloader and 5555 is used
+     * instead (including versions that shipped with many devices).  */
+    .board_id = 0x60c,
+    .atag_board = n810_atag_setup,
+};
+
+static void n800_init(ram_addr_t ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char *kernel_filename, const char *kernel_cmdline,
+                const char *initrd_filename, const char *cpu_model)
+{
+    return n8x0_init(ram_size, boot_device, ds,
+                    kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model, &n800_binfo, 800);
+}
+
+static void n810_init(ram_addr_t ram_size, int vga_ram_size,
+                const char *boot_device, DisplayState *ds,
+                const char *kernel_filename, const char *kernel_cmdline,
+                const char *initrd_filename, const char *cpu_model)
+{
+    return n8x0_init(ram_size, boot_device, ds,
+                    kernel_filename, kernel_cmdline, initrd_filename,
+                    cpu_model, &n810_binfo, 810);
+}
+
 QEMUMachine n800_machine = {
     "n800",
-    "Nokia N800 aka. RX-34 tablet (OMAP2420)",
+    "Nokia N800 tablet aka. RX-34 (OMAP2420)",
     n800_init,
     (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
+};
+
+QEMUMachine n810_machine = {
+    "n810",
+    "Nokia N810 tablet aka. RX-44 (OMAP2420)",
+    n810_init,
 };

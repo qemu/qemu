@@ -1109,7 +1109,7 @@ struct omap_mcspi_s {
     struct omap_mcspi_ch_s {
         qemu_irq txdrq;
         qemu_irq rxdrq;
-        uint32_t (*txrx)(void *opaque, uint32_t);
+        uint32_t (*txrx)(void *opaque, uint32_t, int);
         void *opaque;
 
         uint32_t tx;
@@ -1157,7 +1157,8 @@ static void omap_mcspi_transfer_run(struct omap_mcspi_s *s, int chnum)
     if (!(s->control & 1) ||				/* SINGLE */
                     (ch->config & (1 << 20))) {		/* FORCE */
         if (ch->txrx)
-            ch->rx = ch->txrx(ch->opaque, ch->tx);
+            ch->rx = ch->txrx(ch->opaque, ch->tx,	/* WL */
+                            1 + (0x1f & (ch->config >> 7)));
     }
 
     ch->tx = 0;
@@ -1408,7 +1409,7 @@ struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
 }
 
 void omap_mcspi_attach(struct omap_mcspi_s *s,
-                uint32_t (*txrx)(void *opaque, uint32_t), void *opaque,
+                uint32_t (*txrx)(void *opaque, uint32_t, int), void *opaque,
                 int chipselect)
 {
     if (chipselect < 0 || chipselect >= s->chnum)
@@ -1476,7 +1477,8 @@ static uint32_t omap_sti_read(void *opaque, target_phys_addr_t addr)
 
     case 0x24:	/* STI_ER / STI_DR / XTI_TRACESELECT */
     case 0x28:	/* STI_RX_DR / XTI_RXDATA */
-        break;
+        /* TODO */
+        return 0;
 
     case 0x2c:	/* STI_CLK_CTRL / XTI_SCLKCRTL */
         return s->clkcontrol;
@@ -1527,6 +1529,9 @@ static void omap_sti_write(void *opaque, target_phys_addr_t addr,
 
     case 0x24:	/* STI_ER / STI_DR / XTI_TRACESELECT */
     case 0x28:	/* STI_RX_DR / XTI_RXDATA */
+        /* TODO */
+        return;
+
     default:
         OMAP_BAD_REG(addr);
         return;
