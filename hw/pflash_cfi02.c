@@ -608,8 +608,8 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
     /* Command set (AMD/Fujitsu) */
     pfl->cfi_table[0x13] = 0x02;
     pfl->cfi_table[0x14] = 0x00;
-    /* Primary extended table address (none) */
-    pfl->cfi_table[0x15] = 0x00;
+    /* Primary extended table address */
+    pfl->cfi_table[0x15] = 0x31;
     pfl->cfi_table[0x16] = 0x00;
     /* Alternate command set (none) */
     pfl->cfi_table[0x17] = 0x00;
@@ -627,22 +627,22 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
     pfl->cfi_table[0x1E] = 0x00;
     /* Reserved */
     pfl->cfi_table[0x1F] = 0x07;
-    /* Timeout for min size buffer write (16 µs) */
-    pfl->cfi_table[0x20] = 0x04;
+    /* Timeout for min size buffer write (NA) */
+    pfl->cfi_table[0x20] = 0x00;
     /* Typical timeout for block erase (512 ms) */
     pfl->cfi_table[0x21] = 0x09;
     /* Typical timeout for full chip erase (4096 ms) */
     pfl->cfi_table[0x22] = 0x0C;
     /* Reserved */
     pfl->cfi_table[0x23] = 0x01;
-    /* Max timeout for buffer write */
-    pfl->cfi_table[0x24] = 0x04;
+    /* Max timeout for buffer write (NA) */
+    pfl->cfi_table[0x24] = 0x00;
     /* Max timeout for block erase */
     pfl->cfi_table[0x25] = 0x0A;
     /* Max timeout for chip erase */
     pfl->cfi_table[0x26] = 0x0D;
     /* Device size */
-    pfl->cfi_table[0x27] = ctz32(chip_len) + 1;
+    pfl->cfi_table[0x27] = ctz32(chip_len);
     /* Flash device interface (8 & 16 bits) */
     pfl->cfi_table[0x28] = 0x02;
     pfl->cfi_table[0x29] = 0x00;
@@ -658,6 +658,24 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
     pfl->cfi_table[0x2E] = (nb_blocs - 1) >> 8;
     pfl->cfi_table[0x2F] = sector_len >> 8;
     pfl->cfi_table[0x30] = sector_len >> 16;
+
+    /* Extended */
+    pfl->cfi_table[0x31] = 'P';
+    pfl->cfi_table[0x32] = 'R';
+    pfl->cfi_table[0x33] = 'I';
+
+    pfl->cfi_table[0x34] = '1';
+    pfl->cfi_table[0x35] = '0';
+
+    pfl->cfi_table[0x36] = 0x00;
+    pfl->cfi_table[0x37] = 0x00;
+    pfl->cfi_table[0x38] = 0x00;
+    pfl->cfi_table[0x39] = 0x00;
+
+    pfl->cfi_table[0x3a] = 0x00;
+
+    pfl->cfi_table[0x3b] = 0x00;
+    pfl->cfi_table[0x3c] = 0x00;
 
     return pfl;
 }
