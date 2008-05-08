@@ -1626,13 +1626,15 @@ cirrus_hook_read_cr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x17:			// Standard VGA
     case 0x18:			// Standard VGA
 	return CIRRUS_HOOK_NOT_HANDLED;
+    case 0x24:			// Attribute Controller Toggle Readback (R)
+        *reg_value = (s->ar_flip_flop << 7);
+        break;
     case 0x19:			// Interlace End
     case 0x1a:			// Miscellaneous Control
     case 0x1b:			// Extended Display Control
     case 0x1c:			// Sync Adjust and Genlock
     case 0x1d:			// Overlay Extended Control
     case 0x22:			// Graphics Data Latches Readback (R)
-    case 0x24:			// Attribute Controller Toggle Readback (R)
     case 0x25:			// Part Status
     case 0x27:			// Part ID (R)
 	*reg_value = s->cr[reg_index];
