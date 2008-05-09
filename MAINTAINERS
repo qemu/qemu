@@ -1,0 +1,73 @@
+QEMU Maintainers
+================
+
+
+CPU cores:
+----------
+
+x86                Fabrice Bellard (new maintainer needed)
+ARM                Paul Brook
+SPARC              Blue Swirl
+MIPS               Tiemo Seufer
+PowerPC            Jocelyn Mayer
+M68K               Paul Brook
+SH4                ?
+CRIS               Edgar E. Iglesias
+Alpha              Jocelyn Mayer
+
+Machines (sorted by CPU):
+-------------------------
+
+x86
+  pc.c                    Fabrice Bellard (new maintainer needed)
+ARM
+  integratorcp.c          Paul Brook
+  versatilepb.c           Paul Brook
+  Real View               Paul Brook
+  spitz.c                 Andrzej Zaborowski
+  palm.c                  Andrzej Zaborowski
+  nseries.c               Andrzej Zaborowski
+  stellaris.c             Paul Brook
+  gumstix.c               Thorsten Zitterell
+  mainstone.c             Armin Kuster
+  musicpal.c              Jan Kiszka
+SPARC
+  sun4u.c                 Blue Swirl
+  sun4m.c                 Blue Swirl
+MIPS
+  mips_r4k.c              Aurelien Jarno
+  mips_malta.c            Aurelien Jarno
+  mips_jazz.c             Hervé Poussineau
+  mips_mipssim.c          Thiemo Seufer
+PowerPC
+  ppc_prep.c              Jocelyn Mayer
+  ppc_oldworld.c          Jocelyn Mayer, Fabrice Bellard
+  ppc_chrp.c              Jocelyn Mayer, Fabrice Bellard
+  ppc405_boards.c         Jocelyn Mayer
+M86K
+  mcf5208.c               Paul Brook
+  an5206.c                Paul Brook
+  dummy_m68k.c            Paul Brook
+SH4
+  shix.c                  ?
+  r2d.c                   Magnus Damm
+CRIS
+  etraxfs.c               Edgar E. Iglesias
+Alpha
+
+Generic Subsystems:
+-------------------  
+
+Dynamic translator        Fabrice Bellard (new maintainer needed)
+Main loop                 Fabrice Bellard (new maintainer needed)
+TCG                       Fabrice Bellard
+kqemu interface           Fabrice Bellard
+IDE device                ?
+SCSI device               Paul Brook
+PCI layer                 ?
+USB layer                 ?
+Block layer               ?
+Graphic layer             ?
+Character device layer    ?
+Network device layer      ?
+GDB stub                  ?
