@@ -1119,7 +1119,7 @@ GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER)
 }
 
 /* isel (PowerPC 2.03 specification) */
-GEN_HANDLER(isel, 0x1F, 0x0F, 0x00, 0x00000001, PPC_ISEL)
+GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL)
 {
     uint32_t bi = rC(ctx->opcode);
     uint32_t mask;

@@ -169,6 +169,7 @@ void cpu_loop(CPUState *env);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
 char *target_strerror(int err);
+int get_osversion(void);
 
 extern int loglevel;
 extern FILE *logfile;

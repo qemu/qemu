@@ -87,6 +87,7 @@ For system emulation, the following hardware targets are supported:
 @item Freescale MCF5208EVB (ColdFire V2).
 @item Arnewsh MCF5206 evaluation board (ColdFire V2).
 @item Palm Tungsten|E PDA (OMAP310 processor)
+@item MusicPal (MV88W8618 ARM processor)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, 32-bit MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
@@ -1259,6 +1260,14 @@ intercepts at low level, such as @code{ctrl-alt-f1} in X Window.
 
 Reset the system.
 
+@item boot_set @var{bootdevicelist}
+
+Define new values for the boot device list. Those values will override
+the values specified on the command line through the @code{-boot} option.
+
+The values that can be specified here depend on the machine type, but are
+the same that can be specified in the @code{-boot} command line option.
+
 @item usb_add @var{devname}
 
 Add the USB device @var{devname}.  For details of available devices see
@@ -1941,6 +1950,36 @@ Use @code{set architecture i8086} to dump 16 bit code. Then use
 @code{x/10i $cs*16+$eip} to dump the code at the PC position.
 @end enumerate
 
+Advanced debugging options:
+
+The default single stepping behavior is step with the IRQs and timer service routines off.  It is set this way because when gdb executes a single step it expects to advance beyond the current instruction.  With the IRQs and and timer service routines on, a single step might jump into the one of the interrupt or exception vectors instead of executing the current instruction. This means you may hit the same breakpoint a number of times before executing the instruction gdb wants to have executed.  Because there are rare circumstances where you want to single step into an interrupt vector the behavior can be controlled from GDB.  There are three commands you can query and set the single step behavior:
+@enumerate @code
+@item maintenance packet qqemu.sstepbits
+
+This will display the MASK bits used to control the single stepping IE:
+@example
+(gdb) maintenance packet qqemu.sstepbits
+sending: "qqemu.sstepbits"
+received: "ENABLE=1,NOIRQ=2,NOTIMER=4"
+@end example
+@item maintenance packet qqemu.sstep
+
+This will display the current value of the mask used when single stepping IE:
+@example
+(gdb) maintenance packet qqemu.sstep
+sending: "qqemu.sstep"
+received: "0x7"
+@end example
+@item maintenance packet Qqemu.sstep=HEX_VALUE
+
+This will change the single step mask, so if wanted to enable IRQs on the single step, but not timers, you would use:
+@example
+(gdb) maintenance packet Qqemu.sstep=0x5
+sending: "qemu.sstep=0x5"
+received: "OK"
+@end example
+@end enumerate
+
 @node pcsys_os_specific
 @section Target OS specific information
 
@@ -2458,6 +2497,26 @@ Cortex-M3 CPU core.
 Timers, UARTs, ADC, I@math{^2}C and SSI interfaces.
 @item
 OSRAM Pictiva 128x64 OLED with SSD0323 controller connected via SSI.
+@end itemize
+
+The Freecom MusicPal internet radio emulation includes the following
+elements:
+
+@itemize @minus
+@item
+Marvell MV88W8618 ARM core.
+@item
+32 MB RAM, 256 KB SRAM, 8 MB flash.
+@item
+Up to 2 16550 UARTs
+@item
+MV88W8xx8 Ethernet controller
+@item
+MV88W8618 audio controller, WM8750 CODEC and mixer
+@item
+128×64 display with brightness control
+@item
+2 buttons, 2 navigation wheels with button function
 @end itemize
 
 A Linux 2.6 test image is available on the QEMU web site. More

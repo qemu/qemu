@@ -48,104 +48,6 @@
         func(arg0, arg1, arg2, arg3)
 #endif
 
-#define REG 1
-#include "op_template.c"
-#undef REG
-#define REG 2
-#include "op_template.c"
-#undef REG
-#define REG 3
-#include "op_template.c"
-#undef REG
-#define REG 4
-#include "op_template.c"
-#undef REG
-#define REG 5
-#include "op_template.c"
-#undef REG
-#define REG 6
-#include "op_template.c"
-#undef REG
-#define REG 7
-#include "op_template.c"
-#undef REG
-#define REG 8
-#include "op_template.c"
-#undef REG
-#define REG 9
-#include "op_template.c"
-#undef REG
-#define REG 10
-#include "op_template.c"
-#undef REG
-#define REG 11
-#include "op_template.c"
-#undef REG
-#define REG 12
-#include "op_template.c"
-#undef REG
-#define REG 13
-#include "op_template.c"
-#undef REG
-#define REG 14
-#include "op_template.c"
-#undef REG
-#define REG 15
-#include "op_template.c"
-#undef REG
-#define REG 16
-#include "op_template.c"
-#undef REG
-#define REG 17
-#include "op_template.c"
-#undef REG
-#define REG 18
-#include "op_template.c"
-#undef REG
-#define REG 19
-#include "op_template.c"
-#undef REG
-#define REG 20
-#include "op_template.c"
-#undef REG
-#define REG 21
-#include "op_template.c"
-#undef REG
-#define REG 22
-#include "op_template.c"
-#undef REG
-#define REG 23
-#include "op_template.c"
-#undef REG
-#define REG 24
-#include "op_template.c"
-#undef REG
-#define REG 25
-#include "op_template.c"
-#undef REG
-#define REG 26
-#include "op_template.c"
-#undef REG
-#define REG 27
-#include "op_template.c"
-#undef REG
-#define REG 28
-#include "op_template.c"
-#undef REG
-#define REG 29
-#include "op_template.c"
-#undef REG
-#define REG 30
-#include "op_template.c"
-#undef REG
-#define REG 31
-#include "op_template.c"
-#undef REG
-
-#define TN
-#include "op_template.c"
-#undef TN
-
 #define FREG 0
 #include "fop_template.c"
 #undef FREG
@@ -246,30 +148,6 @@
 #define FTN
 #include "fop_template.c"
 #undef FTN
-
-void op_load_HI (void)
-{
-    T0 = env->HI[env->current_tc][PARAM1];
-    FORCE_RET();
-}
-
-void op_store_HI (void)
-{
-    env->HI[env->current_tc][PARAM1] = T0;
-    FORCE_RET();
-}
-
-void op_load_LO (void)
-{
-    T0 = env->LO[env->current_tc][PARAM1];
-    FORCE_RET();
-}
-
-void op_store_LO (void)
-{
-    env->LO[env->current_tc][PARAM1] = T0;
-    FORCE_RET();
-}
 
 /* Load and store */
 #define MEMSUFFIX _raw

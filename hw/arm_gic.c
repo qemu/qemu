@@ -62,7 +62,7 @@ typedef struct gic_irq_state
 #define GIC_TEST_MODEL(irq) s->irq_state[irq].model
 #define GIC_SET_LEVEL(irq, cm) s->irq_state[irq].level = (cm)
 #define GIC_CLEAR_LEVEL(irq, cm) s->irq_state[irq].level &= ~(cm)
-#define GIC_TEST_LEVEL(irq, cm) (s->irq_state[irq].level & (cm)) != 0
+#define GIC_TEST_LEVEL(irq, cm) ((s->irq_state[irq].level & (cm)) != 0)
 #define GIC_SET_TRIGGER(irq) s->irq_state[irq].trigger = 1
 #define GIC_CLEAR_TRIGGER(irq) s->irq_state[irq].trigger = 0
 #define GIC_TEST_TRIGGER(irq) s->irq_state[irq].trigger

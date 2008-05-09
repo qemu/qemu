@@ -14,8 +14,8 @@ register struct CPUMIPSState *env asm(AREG0);
 #define T0 (env->t0)
 #define T1 (env->t1)
 #else
-register target_ulong T0 asm(AREG2);
-register target_ulong T1 asm(AREG3);
+register target_ulong T0 asm(AREG1);
+register target_ulong T1 asm(AREG2);
 #endif
 
 #if defined (USE_HOST_FLOAT_REGS)
@@ -109,8 +109,6 @@ void fpu_dump_state(CPUState *env, FILE *f,
                     int flags);
 void dump_sc (void);
 void do_pmon (int function);
-
-void dump_sc (void);
 
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu);

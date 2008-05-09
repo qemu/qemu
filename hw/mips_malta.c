@@ -468,7 +468,8 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
 
     uart_chr = qemu_chr_open("vc:80Cx24C");
     qemu_chr_printf(uart_chr, "CBUS UART\r\n");
-    s->uart = serial_mm_init(base + 0x900, 3, env->irq[2], uart_chr, 1);
+    s->uart =
+        serial_mm_init(base + 0x900, 3, env->irq[2], 230400, uart_chr, 1);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
@@ -956,9 +957,9 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     if (serial_hds[0])
-        serial_init(0x3f8, i8259[4], serial_hds[0]);
+        serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
     if (serial_hds[1])
-        serial_init(0x2f8, i8259[3], serial_hds[1]);
+        serial_init(0x2f8, i8259[3], 115200, serial_hds[1]);
     if (parallel_hds[0])
         parallel_init(0x378, i8259[7], parallel_hds[0]);
     for(i = 0; i < MAX_FD; i++) {

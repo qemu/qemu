@@ -220,6 +220,20 @@
 #define CIRRUS_HOOK_NOT_HANDLED 0
 #define CIRRUS_HOOK_HANDLED 1
 
+#define BLTUNSAFE(s) \
+    ( \
+        ( /* check dst is within bounds */ \
+            (s)->cirrus_blt_height * (s)->cirrus_blt_dstpitch \
+                + ((s)->cirrus_blt_dstaddr & (s)->cirrus_addr_mask) > \
+                    (s)->vram_size \
+        ) || \
+        ( /* check src is within bounds */ \
+            (s)->cirrus_blt_height * (s)->cirrus_blt_srcpitch \
+                + ((s)->cirrus_blt_srcaddr & (s)->cirrus_addr_mask) > \
+                    (s)->vram_size \
+        ) \
+    )
+
 struct CirrusVGAState;
 typedef void (*cirrus_bitblt_rop_t) (struct CirrusVGAState *s,
                                      uint8_t * dst, const uint8_t * src,
@@ -639,7 +653,7 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
 
     for (y = 0; y < lines; y++) {
 	off_cur = off_begin;
-	off_cur_end = off_cur + bytesperline;
+	off_cur_end = (off_cur + bytesperline) & s->cirrus_addr_mask;
 	off_cur &= TARGET_PAGE_MASK;
 	while (off_cur < off_cur_end) {
 	    cpu_physical_memory_set_dirty(s->vram_offset + off_cur);
@@ -654,7 +668,11 @@ static int cirrus_bitblt_common_patterncopy(CirrusVGAState * s,
 {
     uint8_t *dst;
 
-    dst = s->vram_ptr + s->cirrus_blt_dstaddr;
+    dst = s->vram_ptr + (s->cirrus_blt_dstaddr & s->cirrus_addr_mask);
+
+    if (BLTUNSAFE(s))
+        return 0;
+
     (*s->cirrus_rop) (s, dst, src,
                       s->cirrus_blt_dstpitch, 0,
                       s->cirrus_blt_width, s->cirrus_blt_height);
@@ -670,8 +688,10 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 {
     cirrus_fill_t rop_func;
 
+    if (BLTUNSAFE(s))
+        return 0;
     rop_func = cirrus_fill[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
-    rop_func(s, s->vram_ptr + s->cirrus_blt_dstaddr,
+    rop_func(s, s->vram_ptr + (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
              s->cirrus_blt_dstpitch,
              s->cirrus_blt_width, s->cirrus_blt_height);
     cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,
@@ -690,8 +710,8 @@ static int cirrus_bitblt_solidfill(CirrusVGAState *s, int blt_rop)
 static int cirrus_bitblt_videotovideo_patterncopy(CirrusVGAState * s)
 {
     return cirrus_bitblt_common_patterncopy(s,
-					    s->vram_ptr +
-                                            (s->cirrus_blt_srcaddr & ~7));
+					    s->vram_ptr + ((s->cirrus_blt_srcaddr & ~7) &
+                                            s->cirrus_addr_mask));
 }
 
 static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
@@ -741,8 +761,10 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
     if (notify)
 	vga_hw_update();
 
-    (*s->cirrus_rop) (s, s->vram_ptr + s->cirrus_blt_dstaddr,
-		      s->vram_ptr + s->cirrus_blt_srcaddr,
+    (*s->cirrus_rop) (s, s->vram_ptr +
+		      (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
+		      s->vram_ptr +
+		      (s->cirrus_blt_srcaddr & s->cirrus_addr_mask),
 		      s->cirrus_blt_dstpitch, s->cirrus_blt_srcpitch,
 		      s->cirrus_blt_width, s->cirrus_blt_height);
 
@@ -768,8 +790,14 @@ static int cirrus_bitblt_videotovideo_copy(CirrusVGAState * s)
 		       s->cirrus_blt_srcaddr - s->start_addr,
 		       s->cirrus_blt_width, s->cirrus_blt_height);
     } else {
-	(*s->cirrus_rop) (s, s->vram_ptr + s->cirrus_blt_dstaddr,
-			  s->vram_ptr + s->cirrus_blt_srcaddr,
+
+    if (BLTUNSAFE(s))
+        return 0;
+
+	(*s->cirrus_rop) (s, s->vram_ptr +
+                (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
+			  s->vram_ptr +
+                (s->cirrus_blt_srcaddr & s->cirrus_addr_mask),
 			  s->cirrus_blt_dstpitch, s->cirrus_blt_srcpitch,
 			  s->cirrus_blt_width, s->cirrus_blt_height);
 
@@ -801,8 +829,9 @@ static void cirrus_bitblt_cputovideo_next(CirrusVGAState * s)
         } else {
             /* at least one scan line */
             do {
-                (*s->cirrus_rop)(s, s->vram_ptr + s->cirrus_blt_dstaddr,
-                                 s->cirrus_bltbuf, 0, 0, s->cirrus_blt_width, 1);
+                (*s->cirrus_rop)(s, s->vram_ptr +
+                                 (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
+                                  s->cirrus_bltbuf, 0, 0, s->cirrus_blt_width, 1);
                 cirrus_invalidate_region(s, s->cirrus_blt_dstaddr, 0,
                                          s->cirrus_blt_width, 1);
                 s->cirrus_blt_dstaddr += s->cirrus_blt_dstpitch;
@@ -1597,13 +1626,15 @@ cirrus_hook_read_cr(CirrusVGAState * s, unsigned reg_index, int *reg_value)
     case 0x17:			// Standard VGA
     case 0x18:			// Standard VGA
 	return CIRRUS_HOOK_NOT_HANDLED;
+    case 0x24:			// Attribute Controller Toggle Readback (R)
+        *reg_value = (s->ar_flip_flop << 7);
+        break;
     case 0x19:			// Interlace End
     case 0x1a:			// Miscellaneous Control
     case 0x1b:			// Extended Display Control
     case 0x1c:			// Sync Adjust and Genlock
     case 0x1d:			// Overlay Extended Control
     case 0x22:			// Graphics Data Latches Readback (R)
-    case 0x24:			// Attribute Controller Toggle Readback (R)
     case 0x25:			// Part Status
     case 0x27:			// Part ID (R)
 	*reg_value = s->cr[reg_index];
@@ -1920,7 +1951,7 @@ static void cirrus_mem_writeb_mode4and5_8bpp(CirrusVGAState * s,
     unsigned val = mem_value;
     uint8_t *dst;
 
-    dst = s->vram_ptr + offset;
+    dst = s->vram_ptr + (offset &= s->cirrus_addr_mask);
     for (x = 0; x < 8; x++) {
 	if (val & 0x80) {
 	    *dst = s->cirrus_shadow_gr1;
@@ -1943,7 +1974,7 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
     unsigned val = mem_value;
     uint8_t *dst;
 
-    dst = s->vram_ptr + offset;
+    dst = s->vram_ptr + (offset &= s->cirrus_addr_mask);
     for (x = 0; x < 8; x++) {
 	if (val & 0x80) {
 	    *dst = s->cirrus_shadow_gr1;

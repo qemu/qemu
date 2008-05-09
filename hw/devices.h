@@ -23,10 +23,15 @@ struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio);
 struct uwire_slave_s *tsc2301_init(qemu_irq penirq, qemu_irq kbirq,
                 qemu_irq dav, AudioState *audio);
 struct i2s_codec_s *tsc210x_codec(struct uwire_slave_s *chip);
-uint32_t tsc210x_txrx(void *opaque, uint32_t value);
+uint32_t tsc210x_txrx(void *opaque, uint32_t value, int len);
 void tsc210x_set_transform(struct uwire_slave_s *chip,
                 struct mouse_transform_info_s *info);
 void tsc210x_key_event(struct uwire_slave_s *chip, int key, int down);
+
+/* tsc2005.c */
+void *tsc2005_init(qemu_irq pintdav);
+uint32_t tsc2005_txrx(void *opaque, uint32_t value, int len);
+void tsc2005_set_transform(void *opaque, struct mouse_transform_info_s *info);
 
 /* stellaris_input.c */
 void stellaris_gamepad_init(int n, qemu_irq *irq, const int *keycode);

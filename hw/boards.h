@@ -90,6 +90,7 @@ extern QEMUMachine palmte_machine;
 
 /* nseries.c */
 extern QEMUMachine n800_machine;
+extern QEMUMachine n810_machine;
 
 /* gumstix.c */
 extern QEMUMachine connex_machine;

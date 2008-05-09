@@ -696,7 +696,7 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
 
     if (timer->enable && timer->st && timer->rate) {
         timer->val = timer->reset_val;	/* Should skip this on clk enable */
-        expires = muldiv64(timer->val << (timer->ptv + 1),
+        expires = muldiv64((uint64_t) timer->val << (timer->ptv + 1),
                         ticks_per_sec, timer->rate);
 
         /* If timer expiry would be sooner than in about 1 ms and
@@ -1987,6 +1987,8 @@ struct omap_uart_s {
     uint8_t syscontrol;
     uint8_t wkup;
     uint8_t cfps;
+    uint8_t mdr[2];
+    uint8_t scr;
 };
 
 void omap_uart_reset(struct omap_uart_s *s)
@@ -2004,7 +2006,8 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
     struct omap_uart_s *s = (struct omap_uart_s *)
             qemu_mallocz(sizeof(struct omap_uart_s));
 
-    s->serial = serial_mm_init(base, 2, irq, chr ?: qemu_chr_open("null"), 1);
+    s->serial = serial_mm_init(base, 2, irq, omap_clk_getrate(fclk)/16,
+                               chr ?: qemu_chr_open("null"), 1);
 
     return s;
 }
@@ -2015,6 +2018,14 @@ static uint32_t omap_uart_read(void *opaque, target_phys_addr_t addr)
     int offset = addr - s->base;
 
     switch (offset) {
+    case 0x20:	/* MDR1 */
+        return s->mdr[0];
+    case 0x24:	/* MDR2 */
+        return s->mdr[1];
+    case 0x40:	/* SCR */
+        return s->scr;
+    case 0x44:	/* SSR */
+        return 0x0;
     case 0x48:	/* EBLR */
         return s->eblr;
     case 0x50:	/* MVR */
@@ -2040,9 +2051,19 @@ static void omap_uart_write(void *opaque, target_phys_addr_t addr,
     int offset = addr - s->base;
 
     switch (offset) {
+    case 0x20:	/* MDR1 */
+        s->mdr[0] = value & 0x7f;
+        break;
+    case 0x24:	/* MDR2 */
+        s->mdr[1] = value & 0xff;
+        break;
+    case 0x40:	/* SCR */
+        s->scr = value & 0xff;
+        break;
     case 0x48:	/* EBLR */
         s->eblr = value & 0xff;
         break;
+    case 0x44:	/* SSR */
     case 0x50:	/* MVR */
     case 0x58:	/* SYSS */
         OMAP_RO_REG(addr);

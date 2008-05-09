@@ -32,12 +32,12 @@
 
 #define D(x)
 
-static int cris_mmu_enabled(uint32_t rw_gc_cfg)
+static inline int cris_mmu_enabled(uint32_t rw_gc_cfg)
 {
 	return (rw_gc_cfg & 12) != 0;
 }
 
-static int cris_mmu_segmented_addr(int seg, uint32_t rw_mm_cfg)
+static inline int cris_mmu_segmented_addr(int seg, uint32_t rw_mm_cfg)
 {
 	return (1 << seg) & rw_mm_cfg;
 }
@@ -187,15 +187,26 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		set_exception_vector(0x0a, d_mmu_access);
 		set_exception_vector(0x0b, d_mmu_write);
 		*/
-		if (!tlb_g 
+		if (!tlb_g
 		    && tlb_pid != (env->pregs[PR_PID] & 0xff)) {
 			D(printf ("tlb: wrong pid %x %x pc=%x\n", 
 				 tlb_pid, env->pregs[PR_PID], env->pc));
 			match = 0;
 			res->bf_vec = vect_base;
+		} else if (cfg_k && tlb_k && usermode) {
+			D(printf ("tlb: kernel protected %x lo=%x pc=%x\n", 
+				  vaddr, lo, env->pc));
+			match = 0;
+			res->bf_vec = vect_base + 2;
 		} else if (rw == 1 && cfg_w && !tlb_w) {
-			D(printf ("tlb: write protected %x lo=%x\n", 
-				vaddr, lo));
+			D(printf ("tlb: write protected %x lo=%x pc=%x\n", 
+				  vaddr, lo, env->pc));
+			match = 0;
+			/* write accesses never go through the I mmu.  */
+			res->bf_vec = vect_base + 3;
+		} else if (rw == 2 && cfg_x && !tlb_x) {
+			D(printf ("tlb: exec protected %x lo=%x pc=%x\n", 
+				 vaddr, lo, env->pc));
 			match = 0;
 			res->bf_vec = vect_base + 3;
 		} else if (cfg_v && !tlb_v) {
@@ -254,7 +265,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 }
 
 /* Give us the vaddr corresponding to the latest TLB update.  */
-target_ulong cris_mmu_tlb_latest_update(CPUState *env, uint32_t new_lo)
+target_ulong cris_mmu_tlb_latest_update(CPUState *env)
 {
 	uint32_t sel = env->sregs[SFR_RW_MM_TLB_SEL];
 	uint32_t vaddr;

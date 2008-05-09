@@ -31,6 +31,7 @@
 #include "net.h"
 #include "smbus.h"
 #include "boards.h"
+#include "console.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -187,6 +188,33 @@ static int boot_device2nibble(char boot_device)
         return 0x04; /* Network boot */
     }
     return 0;
+}
+
+/* copy/pasted from cmos_init, should be made a general function
+ and used there as well */
+int pc_boot_set(const char *boot_device)
+{
+#define PC_MAX_BOOT_DEVICES 3
+    RTCState *s = rtc_state;
+    int nbds, bds[3] = { 0, };
+    int i;
+
+    nbds = strlen(boot_device);
+    if (nbds > PC_MAX_BOOT_DEVICES) {
+        term_printf("Too many boot devices for PC\n");
+        return(1);
+    }
+    for (i = 0; i < nbds; i++) {
+        bds[i] = boot_device2nibble(boot_device[i]);
+        if (bds[i] == 0) {
+            term_printf("Invalid boot device for PC: '%c'\n",
+                    boot_device[i]);
+            return(1);
+        }
+    }
+    rtc_set_memory(s, 0x3d, (bds[1] << 4) | bds[0]);
+    rtc_set_memory(s, 0x38, (bds[2] << 4));
+    return(0);
 }
 
 /* hd_table must contain 4 block drivers */
@@ -713,6 +741,8 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
         below_4g_mem_size = ram_size;
     }
 
+    qemu_register_boot_set(pc_boot_set);
+
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
@@ -901,7 +931,8 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_init(serial_io[i], i8259[serial_irq[i]], serial_hds[i]);
+            serial_init(serial_io[i], i8259[serial_irq[i]], 115200,
+                        serial_hds[i]);
         }
     }
 

@@ -360,6 +360,9 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
     case SH7750_PTEL_A7:
 	s->cpu->ptel = mem_value;
 	return;
+    case SH7750_PTEA_A7:
+	s->cpu->ptea = mem_value & 0x0000000f;
+	return;
     case SH7750_TTB_A7:
 	s->cpu->ttb = mem_value;
 	return;
@@ -553,9 +556,19 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
 
     cpu->intc_handle = &s->intc;
 
-    sh_serial_init(0x1fe00000, 0, s->periph_freq, serial_hds[0]);
+    sh_serial_init(0x1fe00000, 0, s->periph_freq, serial_hds[0],
+		   sh_intc_source(&s->intc, SCI1_ERI),
+		   sh_intc_source(&s->intc, SCI1_RXI),
+		   sh_intc_source(&s->intc, SCI1_TXI),
+		   sh_intc_source(&s->intc, SCI1_TEI),
+		   NULL);
     sh_serial_init(0x1fe80000, SH_SERIAL_FEAT_SCIF,
-		   s->periph_freq, serial_hds[1]);
+		   s->periph_freq, serial_hds[1],
+		   sh_intc_source(&s->intc, SCIF_ERI),
+		   sh_intc_source(&s->intc, SCIF_RXI),
+		   sh_intc_source(&s->intc, SCIF_TXI),
+		   NULL,
+		   sh_intc_source(&s->intc, SCIF_BRI));
 
     tmu012_init(0x1fd80000,
 		TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,

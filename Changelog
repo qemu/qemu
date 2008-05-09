@@ -1,3 +1,7 @@
+  - MIPS Magnum R4000 machine (Hervé Poussineau)
+  - Braille support (Samuel Thibault)
+  - Freecom MusicPal system emulation (Jan Kiszka)
+
 version 0.9.1:
 
   - TFTP booting from host directory (Anthony Liguori, Erwan Velu)
@@ -23,8 +27,6 @@ version 0.9.1:
   - Gumstix boards: connex and verdex emulation (Thorsten Zitterell)
   - Intel mainstone II board emulation (Armin Kuster)
   - VMware SVGA II graphics card support (Andrzej Zaborowski)
-  - MIPS Magnum R4000 machine (Hervé Poussineau)
-  - Braille support (Samuel Thibault)
 
 version 0.9.0:
 

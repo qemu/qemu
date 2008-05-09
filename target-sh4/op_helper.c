@@ -76,6 +76,16 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 #endif
 
+void helper_ldtlb(void)
+{
+#ifdef CONFIG_USER_ONLY
+    /* XXXXX */
+    assert(0);
+#else
+    cpu_load_tlb(env);
+#endif
+}
+
 void helper_addc_T0_T1(void)
 {
     uint32_t tmp0, tmp1;

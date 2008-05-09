@@ -2840,6 +2840,52 @@ static void bmdma_writeb(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+static uint32_t bmdma_addr_readb(void *opaque, uint32_t addr)
+{
+    BMDMAState *bm = opaque;
+    uint32_t val;
+    val = (bm->addr >> ((addr & 3) * 8)) & 0xff;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    return val;
+}
+
+static void bmdma_addr_writeb(void *opaque, uint32_t addr, uint32_t val)
+{
+    BMDMAState *bm = opaque;
+    int shift = (addr & 3) * 8;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    bm->addr &= ~(0xFF << shift);
+    bm->addr |= ((val & 0xFF) << shift) & ~3;
+    bm->cur_addr = bm->addr;
+}
+
+static uint32_t bmdma_addr_readw(void *opaque, uint32_t addr)
+{
+    BMDMAState *bm = opaque;
+    uint32_t val;
+    val = (bm->addr >> ((addr & 3) * 8)) & 0xffff;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    return val;
+}
+
+static void bmdma_addr_writew(void *opaque, uint32_t addr, uint32_t val)
+{
+    BMDMAState *bm = opaque;
+    int shift = (addr & 3) * 8;
+#ifdef DEBUG_IDE
+    printf("%s: 0x%08x\n", __func__, val);
+#endif
+    bm->addr &= ~(0xFFFF << shift);
+    bm->addr |= ((val & 0xFFFF) << shift) & ~3;
+    bm->cur_addr = bm->addr;
+}
+
 static uint32_t bmdma_addr_readl(void *opaque, uint32_t addr)
 {
     BMDMAState *bm = opaque;
@@ -2878,6 +2924,10 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
         register_ioport_write(addr + 1, 3, 1, bmdma_writeb, bm);
         register_ioport_read(addr, 4, 1, bmdma_readb, bm);
 
+        register_ioport_write(addr + 4, 4, 1, bmdma_addr_writeb, bm);
+        register_ioport_read(addr + 4, 4, 1, bmdma_addr_readb, bm);
+        register_ioport_write(addr + 4, 4, 2, bmdma_addr_writew, bm);
+        register_ioport_read(addr + 4, 4, 2, bmdma_addr_readw, bm);
         register_ioport_write(addr + 4, 4, 4, bmdma_addr_writel, bm);
         register_ioport_read(addr + 4, 4, 4, bmdma_addr_readl, bm);
         addr += 8;

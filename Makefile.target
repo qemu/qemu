@@ -115,6 +115,12 @@ HELPER_CFLAGS=
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
+# op.c and helper.c need this on 32-bit x86 system to avoid
+# a compiler spill error. This can probably go away
+# once the SSE ops have been converted to TCG
+ifeq ($(HAVE_GT_GCC_3_3), true)
+I386_CFLAGS=-march=i586 -mtune=i686
+endif
 endif
 
 ifeq ($(ARCH),ppc)
@@ -334,7 +340,7 @@ gen-op.h: op.o $(DYNGEN)
 	$(DYNGEN) -g -o $@ $<
 
 op.o: op.c
-	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(OP_CFLAGS) $(CPPFLAGS) $(I386_CFLAGS) -c -o $@ $<
 
 machine.o: machine.c
 	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
@@ -344,7 +350,7 @@ machine.o: machine.c
 ifeq ($(TARGET_BASE_ARCH), i386)
 # XXX: rename helper.c to op_helper.c
 helper.o: helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
 else
 op_helper.o: op_helper.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
@@ -659,6 +665,7 @@ OBJS+= omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 OBJS+= omap2.o omap_dss.o
 OBJS+= palm.o tsc210x.o
 OBJS+= nseries.o blizzard.o onenand.o vga.o cbus.o tusb6010.o usb-musb.o
+OBJS+= tsc2005.o
 OBJS+= mst_fpga.o mainstone.o
 OBJS+= musicpal.o pflash_cfi02.o
 CPPFLAGS += -DHAS_AUDIO

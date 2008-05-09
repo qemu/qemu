@@ -230,6 +230,7 @@ static i2c_interface *mixer_i2c;
 #define MP_AUDIO_16BIT_SAMPLE   (1 << 0)
 #define MP_AUDIO_PLAYBACK_EN    (1 << 7)
 #define MP_AUDIO_CLOCK_24MHZ    (1 << 9)
+#define MP_AUDIO_MONO           (1 << 14)
 
 /* Wolfson 8750 I2C address */
 #define MP_WM_ADDR              0x34
@@ -243,7 +244,7 @@ typedef struct musicpal_audio_state {
     uint32_t status;
     uint32_t irq_enable;
     unsigned long phys_buf;
-    void *target_buffer;
+    int8_t *target_buffer;
     unsigned int threshold;
     unsigned int play_pos;
     unsigned int last_free;
@@ -255,31 +256,47 @@ static void audio_callback(void *opaque, int free_out, int free_in)
 {
     musicpal_audio_state *s = opaque;
     int16_t *codec_buffer;
+    int8_t *mem_buffer;
     int pos, block_size;
 
     if (!(s->playback_mode & MP_AUDIO_PLAYBACK_EN))
         return;
 
     if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE)
-        free_out <<= 2;
-    else
+        free_out <<= 1;
+
+    if (!(s->playback_mode & MP_AUDIO_MONO))
         free_out <<= 1;
 
     block_size = s->threshold/2;
     if (free_out - s->last_free < block_size)
         return;
 
-    if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE)
-        memcpy(wm8750_dac_buffer(s->wm, block_size >> 2),
-               (uint32_t *)(s->target_buffer + s->play_pos),
-               block_size);
-    else {
-        codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
-        for (pos = 0; pos < block_size; pos += 2) {
-            *codec_buffer++ = cpu_to_le16(256 *
-                    *(int8_t *)(s->target_buffer + s->play_pos + pos));
-            *codec_buffer++ = cpu_to_le16(256 *
-                    *(int8_t *)(s->target_buffer + s->play_pos + pos + 1));
+    mem_buffer = s->target_buffer + s->play_pos;
+    if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE) {
+        if (s->playback_mode & MP_AUDIO_MONO) {
+            codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
+            for (pos = 0; pos < block_size; pos += 2) {
+                *codec_buffer++ = *(int16_t *)mem_buffer;
+                *codec_buffer++ = *(int16_t *)mem_buffer;
+                mem_buffer += 2;
+            }
+        } else
+            memcpy(wm8750_dac_buffer(s->wm, block_size >> 2),
+                   (uint32_t *)mem_buffer, block_size);
+    } else {
+        if (s->playback_mode & MP_AUDIO_MONO) {
+            codec_buffer = wm8750_dac_buffer(s->wm, block_size);
+            for (pos = 0; pos < block_size; pos++) {
+                *codec_buffer++ = cpu_to_le16(256 * *mem_buffer);
+                *codec_buffer++ = cpu_to_le16(256 * *mem_buffer++);
+            }
+        } else {
+            codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
+            for (pos = 0; pos < block_size; pos += 2) {
+                *codec_buffer++ = cpu_to_le16(256 * *mem_buffer++);
+                *codec_buffer++ = cpu_to_le16(256 * *mem_buffer++);
+            }
         }
     }
     wm8750_dac_commit(s->wm);
@@ -1433,10 +1450,10 @@ static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
     mv88w8618_pit_init(MP_PIT_BASE, pic, MP_TIMER1_IRQ);
 
     if (serial_hds[0])
-        serial_mm_init(MP_UART1_BASE, 2, pic[MP_UART1_IRQ], /*1825000,*/
+        serial_mm_init(MP_UART1_BASE, 2, pic[MP_UART1_IRQ], 1825000,
                    serial_hds[0], 1);
     if (serial_hds[1])
-        serial_mm_init(MP_UART2_BASE, 2, pic[MP_UART2_IRQ], /*1825000,*/
+        serial_mm_init(MP_UART2_BASE, 2, pic[MP_UART2_IRQ], 1825000,
                    serial_hds[1], 1);
 
     /* Register flash */

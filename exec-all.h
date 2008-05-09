@@ -30,7 +30,7 @@
 struct TranslationBlock;
 
 /* XXX: make safe guess about sizes */
-#define MAX_OP_PER_INSTR 32
+#define MAX_OP_PER_INSTR 64
 /* A Call op needs up to 6 + 2N parameters (N = number of arguments).  */
 #define MAX_OPC_PARAM 10
 #define OPC_BUF_SIZE 512
@@ -194,15 +194,15 @@ static inline unsigned int tb_jmp_cache_hash_page(target_ulong pc)
 {
     target_ulong tmp;
     tmp = pc ^ (pc >> (TARGET_PAGE_BITS - TB_JMP_PAGE_BITS));
-    return (tmp >> TB_JMP_PAGE_BITS) & TB_JMP_PAGE_MASK;
+    return (tmp >> (TARGET_PAGE_BITS - TB_JMP_PAGE_BITS)) & TB_JMP_PAGE_MASK;
 }
 
 static inline unsigned int tb_jmp_cache_hash_func(target_ulong pc)
 {
     target_ulong tmp;
     tmp = pc ^ (pc >> (TARGET_PAGE_BITS - TB_JMP_PAGE_BITS));
-    return (((tmp >> TB_JMP_PAGE_BITS) & TB_JMP_PAGE_MASK) |
-	    (tmp & TB_JMP_ADDR_MASK));
+    return (((tmp >> (TARGET_PAGE_BITS - TB_JMP_PAGE_BITS)) & TB_JMP_PAGE_MASK)
+	    | (tmp & TB_JMP_ADDR_MASK));
 }
 
 static inline unsigned int tb_phys_hash_func(unsigned long pc)

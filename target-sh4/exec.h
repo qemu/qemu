@@ -64,6 +64,7 @@ static inline void env_to_regs(void)
 
 int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 			     int mmu_idx, int is_softmmu);
+void cpu_load_tlb(CPUState * env);
 
 int find_itlb_entry(CPUState * env, target_ulong address,
 		    int use_asid, int update);
@@ -81,6 +82,7 @@ void helper_subc_T0_T1(void);
 void helper_subv_T0_T1(void);
 void helper_rotcl(uint32_t * addr);
 void helper_rotcr(uint32_t * addr);
+void helper_ldtlb(void);
 
 void do_interrupt(CPUState * env);
 

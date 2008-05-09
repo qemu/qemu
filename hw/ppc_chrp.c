@@ -264,7 +264,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     dummy_irq = i8259_init(NULL);
 
     /* XXX: use Mac Serial port */
-    serial_init(0x3f8, dummy_irq[4], serial_hds[0]);
+    serial_init(0x3f8, dummy_irq[4], 115200, serial_hds[0]);
     for(i = 0; i < nb_nics; i++) {
         if (!nd_table[i].model)
             nd_table[i].model = "ne2k_pci";

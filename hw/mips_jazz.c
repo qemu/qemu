@@ -234,9 +234,9 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* Serial ports */
     if (serial_hds[0])
-        serial_mm_init(0x80006000, 0, rc4030[8], serial_hds[0], 1);
+        serial_mm_init(0x80006000, 0, rc4030[8], 8000000/16, serial_hds[0], 1);
     if (serial_hds[1])
-        serial_mm_init(0x80007000, 0, rc4030[9], serial_hds[1], 1);
+        serial_mm_init(0x80007000, 0, rc4030[9], 8000000/16, serial_hds[1], 1);
 
     /* Parallel port */
     if (parallel_hds[0])

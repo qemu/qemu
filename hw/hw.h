@@ -92,6 +92,12 @@ typedef void QEMUResetHandler(void *opaque);
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque);
 
+/* handler to set the boot_device for a specific type of QEMUMachine */
+/* return 0 if success */
+typedef int QEMUBootSetHandler(const char *boot_device);
+extern QEMUBootSetHandler *qemu_boot_set_handler;
+void qemu_register_boot_set(QEMUBootSetHandler *func);
+
 /* These should really be in isa.h, but are here to make pc.h happy.  */
 typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);

@@ -2077,7 +2077,8 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     for (i = 0; pxa270_serial[i].io_base; i ++)
         if (serial_hds[i])
             serial_mm_init(pxa270_serial[i].io_base, 2,
-                            s->pic[pxa270_serial[i].irqn], serial_hds[i], 1);
+                           s->pic[pxa270_serial[i].irqn], 14857000/16,
+                           serial_hds[i], 1);
         else
             break;
     if (serial_hds[i])
@@ -2202,7 +2203,8 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     for (i = 0; pxa255_serial[i].io_base; i ++)
         if (serial_hds[i])
             serial_mm_init(pxa255_serial[i].io_base, 2,
-                            s->pic[pxa255_serial[i].irqn], serial_hds[i], 1);
+                           s->pic[pxa255_serial[i].irqn], 14745600/16,
+                           serial_hds[i], 1);
         else
             break;
     if (serial_hds[i])

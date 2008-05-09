@@ -29,6 +29,7 @@ General
   To cope with these differences, Qemu currently flushes the TLB at
   each ASID change. Using the MMU modes to implement ASIDs hinges on
   implementing the global bit efficiently.
+- save/restore of the CPU state is not implemented (see machine.c).
 
 MIPS64
 ------

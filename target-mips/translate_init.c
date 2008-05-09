@@ -495,8 +495,10 @@ static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 #ifdef CONFIG_USER_ONLY
     if (env->CP0_Config1 & (1 << CP0C1_FP))
         env->hflags |= MIPS_HFLAG_FPU;
+#ifdef TARGET_MIPS64
     if (env->fpu->fcr0 & (1 << FCR0_F64))
         env->hflags |= MIPS_HFLAG_F64;
+#endif
 #endif
 }
 
@@ -543,6 +545,8 @@ static int cpu_mips_register (CPUMIPSState *env, const mips_def_t *def)
     env->CP0_Status_rw_bitmask = def->CP0_Status_rw_bitmask;
     env->CP0_TCStatus_rw_bitmask = def->CP0_TCStatus_rw_bitmask;
     env->CP0_SRSCtl = def->CP0_SRSCtl;
+    env->current_tc = 0;
+    env->current_tc_gprs = &env->gpr[env->current_tc][0];
     env->SEGBITS = def->SEGBITS;
     env->SEGMask = (target_ulong)((1ULL << def->SEGBITS) - 1);
 #if defined(TARGET_MIPS64)

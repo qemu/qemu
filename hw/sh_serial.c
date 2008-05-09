@@ -55,6 +55,12 @@ typedef struct {
     int flags;
 
     CharDriverState *chr;
+
+    struct intc_source *eri;
+    struct intc_source *rxi;
+    struct intc_source *txi;
+    struct intc_source *tei;
+    struct intc_source *bri;
 } sh_serial_state;
 
 static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
@@ -74,9 +80,15 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
         s->brr = val;
 	return;
     case 0x08: /* SCR */
-        s->scr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0xfb : 0xff);
+        s->scr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0xfa : 0xff);
         if (!(val & (1 << 5)))
             s->flags |= SH_SERIAL_FLAG_TEND;
+        if ((s->feat & SH_SERIAL_FEAT_SCIF) && s->txi) {
+            if ((val & (1 << 7)) && !(s->txi->asserted))
+                sh_intc_toggle_source(s->txi, 0, 1);
+            else if (!(val & (1 << 7)) && s->txi->asserted)
+                sh_intc_toggle_source(s->txi, 0, -1);
+        }
         return;
     case 0x0c: /* FTDR / TDR */
         if (s->chr) {
@@ -159,6 +171,12 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
 #endif
     if (s->feat & SH_SERIAL_FEAT_SCIF) {
         switch(offs) {
+        case 0x00: /* SMR */
+            ret = s->smr;
+            break;
+        case 0x08: /* SCR */
+            ret = s->scr;
+            break;
         case 0x10: /* FSR */
             ret = 0;
             if (s->flags & SH_SERIAL_FLAG_TEND)
@@ -278,7 +296,12 @@ static CPUWriteMemoryFunc *sh_serial_writefn[] = {
 };
 
 void sh_serial_init (target_phys_addr_t base, int feat,
-		     uint32_t freq, CharDriverState *chr)
+		     uint32_t freq, CharDriverState *chr,
+		     struct intc_source *eri_source,
+		     struct intc_source *rxi_source,
+		     struct intc_source *txi_source,
+		     struct intc_source *tei_source,
+		     struct intc_source *bri_source)
 {
     sh_serial_state *s;
     int s_io_memory;
@@ -314,4 +337,10 @@ void sh_serial_init (target_phys_addr_t base, int feat,
     if (chr)
         qemu_chr_add_handlers(chr, sh_serial_can_receive1, sh_serial_receive1,
 			      sh_serial_event, s);
+
+    s->eri = eri_source;
+    s->rxi = rxi_source;
+    s->txi = txi_source;
+    s->tei = tei_source;
+    s->bri = bri_source;
 }

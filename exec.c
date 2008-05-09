@@ -1367,6 +1367,21 @@ CPUState *cpu_copy(CPUState *env)
 
 #if !defined(CONFIG_USER_ONLY)
 
+static inline void tlb_flush_jmp_cache(CPUState *env, target_ulong addr)
+{
+    unsigned int i;
+
+    /* Discard jump cache entries for any tb which might potentially
+       overlap the flushed page.  */
+    i = tb_jmp_cache_hash_page(addr - TARGET_PAGE_SIZE);
+    memset (&env->tb_jmp_cache[i], 0, 
+	    TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
+
+    i = tb_jmp_cache_hash_page(addr);
+    memset (&env->tb_jmp_cache[i], 0, 
+	    TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
+}
+
 /* NOTE: if flush_global is true, also flush global entries (not
    implemented yet) */
 void tlb_flush(CPUState *env, int flush_global)
@@ -1429,7 +1444,6 @@ static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong addr)
 void tlb_flush_page(CPUState *env, target_ulong addr)
 {
     int i;
-    TranslationBlock *tb;
 
 #if defined(DEBUG_TLB)
     printf("tlb_flush_page: " TARGET_FMT_lx "\n", addr);
@@ -1449,13 +1463,7 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
 #endif
 #endif
 
-    /* Discard jump cache entries for any tb which might potentially
-       overlap the flushed page.  */
-    i = tb_jmp_cache_hash_page(addr - TARGET_PAGE_SIZE);
-    memset (&env->tb_jmp_cache[i], 0, TB_JMP_PAGE_SIZE * sizeof(tb));
-
-    i = tb_jmp_cache_hash_page(addr);
-    memset (&env->tb_jmp_cache[i], 0, TB_JMP_PAGE_SIZE * sizeof(tb));
+    tlb_flush_jmp_cache(env, addr);
 
 #if !defined(CONFIG_SOFTMMU)
     if (addr < MMAP_AREA_END)
@@ -1706,6 +1714,10 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
             te->addr_read = address;
         } else {
             te->addr_read = -1;
+        }
+
+        if (te->addr_code != -1) {
+            tlb_flush_jmp_cache(env, te->addr_code);
         }
         if (prot & PAGE_EXEC) {
             te->addr_code = address;

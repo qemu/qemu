@@ -38,6 +38,7 @@
  */
 
 #include "bswap.h"
+#include "softfloat.h"
 
 #if defined(WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
 #define BSWAP_NEEDED
@@ -762,6 +763,11 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr);
 int cpu_watchpoint_remove(CPUState *env, target_ulong addr);
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc);
 int cpu_breakpoint_remove(CPUState *env, target_ulong pc);
+
+#define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
+#define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
+#define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
+
 void cpu_single_step(CPUState *env, int enabled);
 void cpu_reset(CPUState *s);
 

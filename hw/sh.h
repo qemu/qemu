@@ -35,7 +35,12 @@ void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
 /* sh_serial.c */
 #define SH_SERIAL_FEAT_SCIF (1 << 0)
 void sh_serial_init (target_phys_addr_t base, int feat,
-		     uint32_t freq, CharDriverState *chr);
+		     uint32_t freq, CharDriverState *chr,
+		     struct intc_source *eri_source,
+		     struct intc_source *rxi_source,
+		     struct intc_source *txi_source,
+		     struct intc_source *tei_source,
+		     struct intc_source *bri_source);
 
 /* tc58128.c */
 int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
