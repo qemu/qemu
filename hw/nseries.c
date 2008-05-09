@@ -45,6 +45,7 @@ struct n800_s {
     i2c_bus *i2c;
 
     int keymap[0x80];
+    i2c_slave *kbd;
 
     struct tusb_s *usb;
     void *retu;
@@ -92,16 +93,22 @@ struct n800_s {
 #define N8X0_TAHVO_GPIO			111
 #define N800_UNKNOWN_GPIO4		112	/* out */
 #define N810_SLEEPX_LED_GPIO		112
-#define N810_TSC_UNKNOWN_GPIO		118	/* out */
-#define N800_TSC_RESET_GPIO		119	/* ? */
+#define N800_TSC_RESET_GPIO		118	/* ? */
+#define N800_TSC_UNKNOWN_GPIO		119	/* out */
 #define N8X0_TMP105_GPIO		125
 
 /* Config */
 #define XLDR_LL_UART			1
 
-/* Addresses on the I2C bus */
-#define N8X0_TMP105_ADDR		0x48
-#define N8X0_MENELAUS_ADDR		0x72
+/* Addresses on the I2C bus 0 */
+#define N810_TLV320AIC33_ADDR		0x18	/* Audio CODEC */
+#define N8X0_TCM825x_ADDR		0x29	/* Camera */
+#define N810_LP5521_ADDR		0x32	/* LEDs */
+#define N810_TSL2563_ADDR		0x3d	/* Light sensor */
+#define N810_LM8323_ADDR		0x45	/* Keyboard */
+/* Addresses on the I2C bus 1 */
+#define N8X0_TMP105_ADDR		0x48	/* Temperature sensor */
+#define N8X0_MENELAUS_ADDR		0x72	/* Power management */
 
 /* Chipselects on GPMC NOR interface */
 #define N8X0_ONENAND_CS			0
@@ -190,12 +197,12 @@ static const int n800_keys[16] = {
     28,	/* Enter */
     77,	/* Right */
     -1,
-    1,	/* Cycle (ESC) */
+     1,	/* Cycle (ESC) */
     80,	/* Down */
     62,	/* Menu (F4) */
     -1,
     66,	/* Zoom- (F8) */
-    64,	/* FS (F6) */
+    64,	/* FullScreen (F6) */
     65,	/* Zoom+ (F7) */
     -1,
 };
@@ -233,6 +240,107 @@ static void n810_tsc_setup(struct n800_s *s)
     s->ts.txrx = tsc2005_txrx;
 
     tsc2005_set_transform(s->ts.opaque, &n810_pointercal);
+}
+
+/* N810 Keyboard controller */
+static void n810_key_event(void *opaque, int keycode)
+{
+    struct n800_s *s = (struct n800_s *) opaque;
+    int code = s->keymap[keycode & 0x7f];
+
+    if (code == -1) {
+        if ((keycode & 0x7f) == RETU_KEYCODE)
+            retu_key_event(s->retu, !(keycode & 0x80));
+        return;
+    }
+
+    lm832x_key_event(s->kbd, code, !(keycode & 0x80));
+}
+
+#define M	0
+
+static int n810_keys[0x80] = {
+    [0x01] = 16,	/* Q */
+    [0x02] = 37,	/* K */
+    [0x03] = 24,	/* O */
+    [0x04] = 25,	/* P */
+    [0x05] = 14,	/* Backspace */
+    [0x06] = 30,	/* A */
+    [0x07] = 31,	/* S */
+    [0x08] = 32,	/* D */
+    [0x09] = 33,	/* F */
+    [0x0a] = 34,	/* G */
+    [0x0b] = 35,	/* H */
+    [0x0c] = 36,	/* J */
+
+    [0x11] = 17,	/* W */
+    [0x12] = 62,	/* Menu (F4) */
+    [0x13] = 38,	/* L */
+    [0x14] = 40,	/* ' (Apostrophe) */
+    [0x16] = 44,	/* Z */
+    [0x17] = 45,	/* X */
+    [0x18] = 46,	/* C */
+    [0x19] = 47,	/* V */
+    [0x1a] = 48,	/* B */
+    [0x1b] = 49,	/* N */
+    [0x1c] = 42,	/* Shift (Left shift) */
+    [0x1f] = 65,	/* Zoom+ (F7) */
+
+    [0x21] = 18,	/* E */
+    [0x22] = 39,	/* ; (Semicolon) */
+    [0x23] = 12,	/* - (Minus) */
+    [0x24] = 13,	/* = (Equal) */
+    [0x2b] = 56,	/* Fn (Left Alt) */
+    [0x2c] = 50,	/* M */
+    [0x2f] = 66,	/* Zoom- (F8) */
+
+    [0x31] = 19,	/* R */
+    [0x32] = 29 | M,	/* Right Ctrl */
+    [0x34] = 57,	/* Space */
+    [0x35] = 51,	/* , (Comma) */
+    [0x37] = 72 | M,	/* Up */
+    [0x3c] = 82 | M,	/* Compose (Insert) */
+    [0x3f] = 64,	/* FullScreen (F6) */
+
+    [0x41] = 20,	/* T */
+    [0x44] = 52,	/* . (Dot) */
+    [0x46] = 77 | M,	/* Right */
+    [0x4f] = 63,	/* Home (F5) */
+    [0x51] = 21,	/* Y */
+    [0x53] = 80 | M,	/* Down */
+    [0x55] = 28,	/* Enter */
+    [0x5f] =  1,	/* Cycle (ESC) */
+
+    [0x61] = 22,	/* U */
+    [0x64] = 75 | M,	/* Left */
+
+    [0x71] = 23,	/* I */
+#if 0
+    [0x75] = 28 | M,	/* KP Enter (KP Enter) */
+#else
+    [0x75] = 15,	/* KP Enter (Tab) */
+#endif
+};
+
+#undef M
+
+static void n810_kbd_setup(struct n800_s *s)
+{
+    qemu_irq kbd_irq = omap2_gpio_in_get(s->cpu->gpif, N810_KEYBOARD_GPIO)[0];
+    int i;
+
+    for (i = 0; i < 0x80; i ++)
+        s->keymap[i] = -1;
+    for (i = 0; i < 0x80; i ++)
+        if (n810_keys[i] > 0)
+            s->keymap[n810_keys[i]] = i;
+
+    qemu_add_kbd_event_handler(n810_key_event, s);
+
+    /* Attach the LM8322 keyboard to the I2C bus,
+     * should happen in n8x0_i2c_setup and s->kbd be initialised here.  */
+    s->kbd = lm8323_init(s->i2c, kbd_irq);
+    i2c_set_slave_address(s->kbd, N810_LM8323_ADDR);
 }
 
 /* LCD MIPI DBI-C controller (URAL) */
@@ -954,8 +1062,10 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
     n8x0_i2c_setup(s);
     if (model == 800)
         n800_tsc_kbd_setup(s);
-    else if (model == 810)
+    else if (model == 810) {
         n810_tsc_setup(s);
+        n810_kbd_setup(s);
+    }
     n8x0_spi_setup(s);
     n8x0_dss_setup(s, ds);
     n8x0_cbus_setup(s);
