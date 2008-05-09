@@ -23,13 +23,6 @@
 #include "hw.h"
 #include "qemu-timer.h"
 #include "console.h"
-#include "omap.h"
-
-#define TSC_DATA_REGISTERS_PAGE		0x0
-#define TSC_CONTROL_REGISTERS_PAGE	0x1
-#define TSC_AUDIO_REGISTERS_PAGE	0x2
-
-#define TSC_VERBOSE
 
 #define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - (p ? 12 : 10)))
 
@@ -114,9 +107,6 @@ static const uint16_t mode_regs[16] = {
 #define AUX_VAL				(700 << 4)	/* +/- 3 at 12-bit */
 #define TEMP1_VAL			(1264 << 4)	/* +/- 5 at 12-bit */
 #define TEMP2_VAL			(1531 << 4)	/* +/- 5 at 12-bit */
-
-#define TSC_POWEROFF_DELAY		50
-#define TSC_SOFTSTEP_DELAY		50
 
 static uint16_t tsc2005_read(struct tsc2005_state_s *s, int reg)
 {
@@ -250,9 +240,6 @@ static void tsc2005_pin_update(struct tsc2005_state_s *s)
         pin_state = !s->pressure;
     }
 
-    if (!s->enabled)
-        pin_state = 0;
-
     if (pin_state != s->irq) {
         s->irq = pin_state;
         qemu_set_irq(s->pint, s->irq);
@@ -261,6 +248,8 @@ static void tsc2005_pin_update(struct tsc2005_state_s *s)
     switch (s->nextfunction) {
     case TSC_MODE_XYZ_SCAN:
     case TSC_MODE_XY_SCAN:
+        if (!s->host_mode && s->dav)
+            s->enabled = 0;
         if (!s->pressure)
             return;
         /* Fall through */
@@ -344,6 +333,9 @@ uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
                     s->enabled = !(value & 1);
                     fprintf(stderr, "%s: touchscreen sense %sabled\n",
                                     __FUNCTION__, s->enabled ? "en" : "dis");
+                    if (s->busy && !s->enabled)
+                        qemu_del_timer(s->timer);
+                    s->busy &= s->enabled;
                 }
                 tsc2005_pin_update(s);
             }

@@ -134,8 +134,8 @@ static void max7310_event(i2c_slave *i2c, enum i2c_event event)
         s->i2c_command_byte = 1;
         break;
     case I2C_FINISH:
-        if (s->len == 1)
 #ifdef VERBOSE
+        if (s->len == 1)
             printf("%s: message too short (%i bytes)\n", __FUNCTION__, s->len);
 #endif
         break;
