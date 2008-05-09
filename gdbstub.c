@@ -73,6 +73,11 @@ typedef struct GDBState {
 #endif
 } GDBState;
 
+/* By default use no IRQs and no timers while single stepping so as to
+ * make single stepping like an ICE HW step.
+ */
+static int sstep_flags = SSTEP_ENABLE|SSTEP_NOIRQ|SSTEP_NOTIMER;
+
 #ifdef CONFIG_USER_ONLY
 /* XXX: This is not thread safe.  Do we care?  */
 static int gdbserver_fd = -1;
@@ -1072,7 +1077,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             env->pc = addr;
 #endif
         }
-        cpu_single_step(env, 1);
+        cpu_single_step(env, sstep_flags);
         gdb_continue(s);
 	return RS_IDLE;
     case 'F':
@@ -1179,9 +1184,34 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             goto breakpoint_error;
         }
         break;
-#ifdef CONFIG_LINUX_USER
     case 'q':
-        if (strncmp(p, "Offsets", 7) == 0) {
+    case 'Q':
+        /* parse any 'q' packets here */
+        if (!strcmp(p,"qemu.sstepbits")) {
+            /* Query Breakpoint bit definitions */
+            sprintf(buf,"ENABLE=%x,NOIRQ=%x,NOTIMER=%x",
+                    SSTEP_ENABLE,
+                    SSTEP_NOIRQ,
+                    SSTEP_NOTIMER);
+            put_packet(s, buf);
+            break;
+        } else if (strncmp(p,"qemu.sstep",10) == 0) {
+            /* Display or change the sstep_flags */
+            p += 10;
+            if (*p != '=') {
+                /* Display current setting */
+                sprintf(buf,"0x%x", sstep_flags);
+                put_packet(s, buf);
+                break;
+            }
+            p++;
+            type = strtoul(p, (char **)&p, 16);
+            sstep_flags = type;
+            put_packet(s, "OK");
+            break;
+        }
+#ifdef CONFIG_LINUX_USER
+        else if (strncmp(p, "Offsets", 7) == 0) {
             TaskState *ts = env->opaque;
 
             sprintf(buf,
@@ -1193,10 +1223,9 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             put_packet(s, buf);
             break;
         }
-        /* Fall through.  */
 #endif
+        /* Fall through.  */
     default:
-        //        unknown_command:
         /* put empty packet */
         buf[0] = '\0';
         put_packet(s, buf);

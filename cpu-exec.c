@@ -421,7 +421,7 @@ int cpu_exec(CPUState *env1)
 #if defined(TARGET_I386)
 			&& env->hflags & HF_GIF_MASK
 #endif
-				) {
+            && !(env->singlestep_enabled & SSTEP_NOIRQ)) {
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         env->exception_index = EXCP_DEBUG;
