@@ -233,9 +233,141 @@ static int put_packet(GDBState *s, char *buf)
     }
     return 0;
 }
+#if defined(TARGET_X86_64)
 
-#if defined(TARGET_I386)
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+    uint8_t *p = mem_buf;
+    int i, fpus;
 
+#define PUTREG(x) do { \
+       target_ulong reg = tswapl(x); \
+       memcpy(p, &reg, sizeof reg); \
+       p += sizeof reg; \
+    } while (0)
+#define PUTREG32(x) do { \
+       uint32_t reg = tswap32(x);              \
+       memcpy(p, &reg, sizeof reg); \
+       p += sizeof reg; \
+    } while (0)
+#define PUTREGF(x) do { \
+       memcpy(p, &(x), 10);                     \
+       p += sizeof (x);                     \
+    } while (0)
+
+    PUTREG(env->regs[R_EAX]);
+    PUTREG(env->regs[R_EBX]);
+    PUTREG(env->regs[R_ECX]);
+    PUTREG(env->regs[R_EDX]);
+    PUTREG(env->regs[R_ESI]);
+    PUTREG(env->regs[R_EDI]);
+    PUTREG(env->regs[R_EBP]);
+    PUTREG(env->regs[R_ESP]);
+    PUTREG(env->regs[8]);
+    PUTREG(env->regs[9]);
+    PUTREG(env->regs[10]);
+    PUTREG(env->regs[11]);
+    PUTREG(env->regs[12]);
+    PUTREG(env->regs[13]);
+    PUTREG(env->regs[14]);
+    PUTREG(env->regs[15]);
+
+    PUTREG(env->eip);
+    PUTREG32(env->eflags);
+    PUTREG32(env->segs[R_CS].selector);
+    PUTREG32(env->segs[R_SS].selector);
+    PUTREG32(env->segs[R_DS].selector);
+    PUTREG32(env->segs[R_ES].selector);
+    PUTREG32(env->segs[R_FS].selector);
+    PUTREG32(env->segs[R_GS].selector);
+    /* XXX: convert floats */
+    for(i = 0; i < 8; i++) {
+        PUTREGF(env->fpregs[i]);
+    }
+    PUTREG32(env->fpuc);
+    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    PUTREG32(fpus);
+    PUTREG32(0); /* XXX: convert tags */
+    PUTREG32(0); /* fiseg */
+    PUTREG32(0); /* fioff */
+    PUTREG32(0); /* foseg */
+    PUTREG32(0); /* fooff */
+    PUTREG32(0); /* fop */
+
+#undef PUTREG
+#undef PUTREG32
+#undef PUTREGF
+
+    return p - mem_buf;
+}
+
+static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+{
+    uint8_t *p = mem_buf;
+    uint32_t junk;
+    int i, fpus;
+
+#define GETREG(x) do { \
+       target_ulong reg; \
+       memcpy(&reg, p, sizeof reg);     \
+       x = tswapl(reg);               \
+       p += sizeof reg;                 \
+    } while (0)
+#define GETREG32(x) do { \
+       uint32_t reg; \
+       memcpy(&reg, p, sizeof reg);     \
+       x = tswap32(reg);               \
+       p += sizeof reg;                 \
+    } while (0)
+#define GETREGF(x) do { \
+       memcpy(&(x), p, 10);               \
+       p += 10;                         \
+    } while (0)
+
+    GETREG(env->regs[R_EAX]);
+    GETREG(env->regs[R_EBX]);
+    GETREG(env->regs[R_ECX]);
+    GETREG(env->regs[R_EDX]);
+    GETREG(env->regs[R_ESI]);
+    GETREG(env->regs[R_EDI]);
+    GETREG(env->regs[R_EBP]);
+    GETREG(env->regs[R_ESP]);
+    GETREG(env->regs[8]);
+    GETREG(env->regs[9]);
+    GETREG(env->regs[10]);
+    GETREG(env->regs[11]);
+    GETREG(env->regs[12]);
+    GETREG(env->regs[13]);
+    GETREG(env->regs[14]);
+    GETREG(env->regs[15]);
+
+    GETREG(env->eip);
+    GETREG32(env->eflags);
+    GETREG32(env->segs[R_CS].selector);
+    GETREG32(env->segs[R_SS].selector);
+    GETREG32(env->segs[R_DS].selector);
+    GETREG32(env->segs[R_ES].selector);
+    GETREG32(env->segs[R_FS].selector);
+    GETREG32(env->segs[R_GS].selector);
+    /* XXX: convert floats */
+    for(i = 0; i < 8; i++) {
+        GETREGF(env->fpregs[i]);
+    }
+    GETREG32(env->fpuc);
+    GETREG32(fpus); /* XXX: convert fpus */
+    GETREG32(junk); /* XXX: convert tags */
+    GETREG32(junk); /* fiseg */
+    GETREG32(junk); /* fioff */
+    GETREG32(junk); /* foseg */
+    GETREG32(junk); /* fooff */
+    GETREG32(junk); /* fop */
+
+#undef GETREG
+#undef GETREG32
+#undef GETREGF
+}
+
+#elif defined(TARGET_I386)
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
     int i, fpus;
