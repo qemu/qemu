@@ -50,7 +50,8 @@ static inline int cpu_halted(CPUState *env) {
 #include "softmmu_exec.h"
 #endif
 
-#define RETURN() __asm__ __volatile__("")
+//~ #define RETURN() __asm__ __volatile__("")
+#define RETURN() ((void)0)
 
 static inline void regs_to_env(void)
 {
