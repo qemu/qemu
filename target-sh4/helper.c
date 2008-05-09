@@ -193,7 +193,7 @@ static void update_itlb_use(CPUState * env, int itlbnb)
 
     switch (itlbnb) {
     case 0:
-	and_mask = 0x7f;
+	and_mask = 0x1f;
 	break;
     case 1:
 	and_mask = 0xe7;
@@ -208,7 +208,7 @@ static void update_itlb_use(CPUState * env, int itlbnb)
 	break;
     }
 
-    env->mmucr &= (and_mask << 24);
+    env->mmucr &= (and_mask << 24) | 0x00ffffff;
     env->mmucr |= (or_mask << 24);
 }
 
@@ -216,7 +216,7 @@ static int itlb_replacement(CPUState * env)
 {
     if ((env->mmucr & 0xe0000000) == 0xe0000000)
 	return 0;
-    if ((env->mmucr & 0x98000000) == 0x08000000)
+    if ((env->mmucr & 0x98000000) == 0x18000000)
 	return 1;
     if ((env->mmucr & 0x54000000) == 0x04000000)
 	return 2;
@@ -264,7 +264,7 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
 	start = (entries[i].vpn << 10) & ~(entries[i].size - 1);
 	end = start + entries[i].size - 1;
 	if (address >= start && address <= end) {	/* Match */
-	    if (match != -1)
+	    if (match != MMU_DTLB_MISS)
 		return MMU_DTLB_MULTIPLE;	/* Multiple match */
 	    match = i;
 	}
@@ -290,8 +290,10 @@ int find_itlb_entry(CPUState * env, target_ulong address,
 	    n = itlb_replacement(env);
 	    env->itlb[n] = env->utlb[e];
 	    e = n;
-	}
-    }
+	} else if (e == MMU_DTLB_MISS)
+	    e = MMU_ITLB_MISS;
+    } else if (e == MMU_DTLB_MISS)
+	e = MMU_ITLB_MISS;
     if (e >= 0)
 	update_itlb_use(env, e);
     return e;
@@ -418,6 +420,21 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
     target_ulong physical, page_offset, page_size;
     int prot, ret, access_type;
 
+    switch (rw) {
+    case 0:
+        rw = PAGE_READ;
+        break;
+    case 1:
+        rw = PAGE_WRITE;
+        break;
+    case 2: /* READ_ACCESS_TYPE == 2 defined in softmmu_template.h */
+        rw = PAGE_READ;
+        break;
+    default:
+        /* fatal error */
+        assert(0);
+    }
+
     /* XXXXX */
 #if 0
     fprintf(stderr, "%s pc %08x ad %08x rw %d mmu_idx %d smmu %d\n",
@@ -477,6 +494,43 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 
     get_physical_address(env, &physical, &prot, addr, PAGE_READ, 0);
     return physical;
+}
+
+void cpu_load_tlb(CPUState * env)
+{
+    int n = cpu_mmucr_urc(env->mmucr);
+    tlb_t * entry = &env->utlb[n];
+
+    /* Take values into cpu status from registers. */
+    entry->asid = (uint8_t)cpu_pteh_asid(env->pteh);
+    entry->vpn  = cpu_pteh_vpn(env->pteh);
+    entry->v    = (uint8_t)cpu_ptel_v(env->ptel);
+    entry->ppn  = cpu_ptel_ppn(env->ptel);
+    entry->sz   = (uint8_t)cpu_ptel_sz(env->ptel);
+    switch (entry->sz) {
+    case 0: /* 00 */
+        entry->size = 1024; /* 1K */
+        break;
+    case 1: /* 01 */
+        entry->size = 1024 * 4; /* 4K */
+        break;
+    case 2: /* 10 */
+        entry->size = 1024 * 64; /* 64K */
+        break;
+    case 3: /* 11 */
+        entry->size = 1024 * 1024; /* 1M */
+        break;
+    default:
+        assert(0);
+        break;
+    }
+    entry->sh   = (uint8_t)cpu_ptel_sh(env->ptel);
+    entry->c    = (uint8_t)cpu_ptel_c(env->ptel);
+    entry->pr   = (uint8_t)cpu_ptel_pr(env->ptel);
+    entry->d    = (uint8_t)cpu_ptel_d(env->ptel);
+    entry->wt   = (uint8_t)cpu_ptel_wt(env->ptel);
+    entry->sa   = (uint8_t)cpu_ptea_sa(env->ptea);
+    entry->tc   = (uint8_t)cpu_ptea_tc(env->ptea);
 }
 
 #endif

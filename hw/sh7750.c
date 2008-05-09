@@ -360,6 +360,9 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
     case SH7750_PTEL_A7:
 	s->cpu->ptel = mem_value;
 	return;
+    case SH7750_PTEA_A7:
+	s->cpu->ptea = mem_value & 0x0000000f;
+	return;
     case SH7750_TTB_A7:
 	s->cpu->ttb = mem_value;
 	return;

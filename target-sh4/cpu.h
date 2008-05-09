@@ -163,5 +163,78 @@ enum {
 #define MMUCR    0x1F000010
 #define MMUCR_AT (1<<0)
 #define MMUCR_SV (1<<8)
+#define MMUCR_URC_BITS (6)
+#define MMUCR_URC_OFFSET (10)
+#define MMUCR_URC_SIZE (1 << MMUCR_URC_BITS)
+#define MMUCR_URC_MASK (((MMUCR_URC_SIZE) - 1) << MMUCR_URC_OFFSET)
+static inline int cpu_mmucr_urc (uint32_t mmucr)
+{
+    return ((mmucr & MMUCR_URC_MASK) >> MMUCR_URC_OFFSET);
+}
+
+/* PTEH : Page Translation Entry High register */
+#define PTEH_ASID_BITS (8)
+#define PTEH_ASID_SIZE (1 << PTEH_ASID_BITS)
+#define PTEH_ASID_MASK (PTEH_ASID_SIZE - 1)
+#define cpu_pteh_asid(pteh) ((pteh) & PTEH_ASID_MASK)
+#define PTEH_VPN_BITS (22)
+#define PTEH_VPN_OFFSET (10)
+#define PTEH_VPN_SIZE (1 << PTEH_VPN_BITS)
+#define PTEH_VPN_MASK (((PTEH_VPN_SIZE) - 1) << PTEH_VPN_OFFSET)
+static inline int cpu_pteh_vpn (uint32_t pteh)
+{
+    return ((pteh & PTEH_VPN_MASK) >> PTEH_VPN_OFFSET);
+}
+
+/* PTEL : Page Translation Entry Low register */
+#define PTEL_V        (1 << 8)
+#define cpu_ptel_v(ptel) (((ptel) & PTEL_V) >> 8)
+#define PTEL_C        (1 << 3)
+#define cpu_ptel_c(ptel) (((ptel) & PTEL_C) >> 3)
+#define PTEL_D        (1 << 2)
+#define cpu_ptel_d(ptel) (((ptel) & PTEL_D) >> 2)
+#define PTEL_SH       (1 << 1)
+#define cpu_ptel_sh(ptel)(((ptel) & PTEL_SH) >> 1)
+#define PTEL_WT       (1 << 0)
+#define cpu_ptel_wt(ptel) ((ptel) & PTEL_WT)
+
+#define PTEL_SZ_HIGH_OFFSET  (7)
+#define PTEL_SZ_HIGH  (1 << PTEL_SZ_HIGH_OFFSET)
+#define PTEL_SZ_LOW_OFFSET   (4)
+#define PTEL_SZ_LOW   (1 << PTEL_SZ_LOW_OFFSET)
+static inline int cpu_ptel_sz (uint32_t ptel)
+{
+    int sz;
+    sz = (ptel & PTEL_SZ_HIGH) >> PTEL_SZ_HIGH_OFFSET;
+    sz <<= 1;
+    sz |= (ptel & PTEL_SZ_LOW) >> PTEL_SZ_LOW_OFFSET;
+    return sz;
+}
+
+#define PTEL_PPN_BITS (19)
+#define PTEL_PPN_OFFSET (10)
+#define PTEL_PPN_SIZE (1 << PTEL_PPN_BITS)
+#define PTEL_PPN_MASK (((PTEL_PPN_SIZE) - 1) << PTEL_PPN_OFFSET)
+static inline int cpu_ptel_ppn (uint32_t ptel)
+{
+    return ((ptel & PTEL_PPN_MASK) >> PTEL_PPN_OFFSET);
+}
+
+#define PTEL_PR_BITS   (2)
+#define PTEL_PR_OFFSET (5)
+#define PTEL_PR_SIZE (1 << PTEL_PR_BITS)
+#define PTEL_PR_MASK (((PTEL_PR_SIZE) - 1) << PTEL_PR_OFFSET)
+static inline int cpu_ptel_pr (uint32_t ptel)
+{
+    return ((ptel & PTEL_PR_MASK) >> PTEL_PR_OFFSET);
+}
+
+/* PTEA : Page Translation Entry Assistance register */
+#define PTEA_SA_BITS (3)
+#define PTEA_SA_SIZE (1 << PTEA_SA_BITS)
+#define PTEA_SA_MASK (PTEA_SA_SIZE - 1)
+#define cpu_ptea_sa(ptea) ((ptea) & PTEA_SA_MASK)
+#define PTEA_TC        (1 << 3)
+#define cpu_ptea_tc(ptea) (((ptea) & PTEA_TC) >> 3)
 
 #endif				/* _CPU_SH4_H */

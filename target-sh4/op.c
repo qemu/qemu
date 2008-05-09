@@ -185,6 +185,12 @@ void OPPROTO op_clrt(void)
     RETURN();
 }
 
+void OPPROTO op_ldtlb(void)
+{
+    helper_ldtlb();
+    RETURN();
+}
+
 void OPPROTO op_sets(void)
 {
     env->sr |= SR_S;

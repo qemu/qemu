@@ -256,7 +256,11 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_clrt();
 	return;
     case 0x0038:		/* ldtlb */
+#if defined(CONFIG_USER_ONLY)
 	assert(0);		/* XXXXX */
+#else
+	gen_op_ldtlb();
+#endif
 	return;
     case 0x002b:		/* rte */
 	CHECK_NOT_DELAY_SLOT gen_op_rte();
