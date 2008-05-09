@@ -1,6 +1,9 @@
 #include "exec.h"
 #include "host-utils.h"
 #include "helper.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif /* !defined(CONFIG_USER_ONLY) */
 
 //#define DEBUG_PCALL
 //#define DEBUG_MMU

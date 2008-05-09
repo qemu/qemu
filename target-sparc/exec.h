@@ -56,11 +56,6 @@ void memcpy32(target_ulong *dst, const target_ulong *src);
 target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev);
 void dump_mmu(CPUState *env);
 
-/* XXX: move that to a generic header */
-#if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
-#endif /* !defined(CONFIG_USER_ONLY) */
-
 static inline void env_to_regs(void)
 {
 #if defined(reg_REGWPTR)
