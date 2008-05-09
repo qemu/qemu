@@ -240,112 +240,173 @@ static int put_packet(GDBState *s, char *buf)
 }
 
 #if defined(TARGET_I386)
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
-{
-    int i, fpus;
-    uint32_t *registers = (uint32_t *)mem_buf;
 
 #ifdef TARGET_X86_64
-    /* This corresponds with amd64_register_info[] in gdb/amd64-tdep.c */
-    uint64_t *registers64 = (uint64_t *)mem_buf;
-
-    if (env->hflags & HF_CS64_MASK) {
-        registers64[0] = tswap64(env->regs[R_EAX]);
-        registers64[1] = tswap64(env->regs[R_EBX]);
-        registers64[2] = tswap64(env->regs[R_ECX]);
-        registers64[3] = tswap64(env->regs[R_EDX]);
-        registers64[4] = tswap64(env->regs[R_ESI]);
-        registers64[5] = tswap64(env->regs[R_EDI]);
-        registers64[6] = tswap64(env->regs[R_EBP]);
-        registers64[7] = tswap64(env->regs[R_ESP]);
-        for(i = 8; i < 16; i++) {
-            registers64[i] = tswap64(env->regs[i]);
-        }
-        registers64[16] = tswap64(env->eip);
-
-        registers = (uint32_t *)&registers64[17];
-        registers[0] = tswap32(env->eflags);
-        registers[1] = tswap32(env->segs[R_CS].selector);
-        registers[2] = tswap32(env->segs[R_SS].selector);
-        registers[3] = tswap32(env->segs[R_DS].selector);
-        registers[4] = tswap32(env->segs[R_ES].selector);
-        registers[5] = tswap32(env->segs[R_FS].selector);
-        registers[6] = tswap32(env->segs[R_GS].selector);
-        /* XXX: convert floats */
-        for(i = 0; i < 8; i++) {
-            memcpy(mem_buf + 16 * 8 + 7 * 4 + i * 10, &env->fpregs[i], 10);
-        }
-        registers[27] = tswap32(env->fpuc); /* fctrl */
-        fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-        registers[28] = tswap32(fpus); /* fstat */
-        registers[29] = 0; /* ftag */
-        registers[30] = 0; /* fiseg */
-        registers[31] = 0; /* fioff */
-        registers[32] = 0; /* foseg */
-        registers[33] = 0; /* fooff */
-        registers[34] = 0; /* fop */
-        for(i = 0; i < 16; i++) {
-            memcpy(mem_buf + 16 * 8 + 35 * 4 + i * 16, &env->xmm_regs[i], 16);
-        }
-        registers[99] = tswap32(env->mxcsr);
-
-        return 8 * 17 + 4 * 7 + 10 * 8 + 4 * 8 + 16 * 16 + 4;
-    }
+static const uint8_t gdb_x86_64_regs[16] = {
+    R_EAX, R_EBX, R_ECX, R_EDX, R_ESI, R_EDI, R_EBP, R_ESP,
+    8, 9, 10, 11, 12, 13, 14, 15,
+};
 #endif
 
-    for(i = 0; i < 8; i++) {
-        registers[i] = env->regs[i];
-    }
-    registers[8] = env->eip;
-    registers[9] = env->eflags;
-    registers[10] = env->segs[R_CS].selector;
-    registers[11] = env->segs[R_SS].selector;
-    registers[12] = env->segs[R_DS].selector;
-    registers[13] = env->segs[R_ES].selector;
-    registers[14] = env->segs[R_FS].selector;
-    registers[15] = env->segs[R_GS].selector;
-    /* XXX: convert floats */
-    for(i = 0; i < 8; i++) {
-        memcpy(mem_buf + 16 * 4 + i * 10, &env->fpregs[i], 10);
-    }
-    registers[36] = env->fpuc;
-    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-    registers[37] = fpus;
-    registers[38] = 0; /* XXX: convert tags */
-    registers[39] = 0; /* fiseg */
-    registers[40] = 0; /* fioff */
-    registers[41] = 0; /* foseg */
-    registers[42] = 0; /* fooff */
-    registers[43] = 0; /* fop */
+static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+{
+    int i, fpus, nb_regs;
+    uint8_t *p;
 
-    for(i = 0; i < 16; i++)
-        tswapls(&registers[i]);
-    for(i = 36; i < 44; i++)
-        tswapls(&registers[i]);
-    return 44 * 4;
+    p = mem_buf;
+#ifdef TARGET_X86_64
+    if (env->hflags & HF_CS64_MASK) {
+        nb_regs = 16;
+        for(i = 0; i < 16; i++) {
+            *(uint64_t *)p = tswap64(env->regs[gdb_x86_64_regs[i]]);
+            p += 8;
+        }
+        *(uint64_t *)p = tswap64(env->eip);
+        p += 8;
+    } else
+#endif
+    {
+        nb_regs = 8;
+        for(i = 0; i < 8; i++) {
+            *(uint32_t *)p = tswap32(env->regs[i]);
+            p += 4;
+        }
+        *(uint32_t *)p = tswap32(env->eip);
+        p += 4;
+    }
+
+    *(uint32_t *)p = tswap32(env->eflags);
+    p += 4;
+    *(uint32_t *)p = tswap32(env->segs[R_CS].selector);
+    p += 4;
+    *(uint32_t *)p = tswap32(env->segs[R_SS].selector);
+    p += 4;
+    *(uint32_t *)p = tswap32(env->segs[R_DS].selector);
+    p += 4;
+    *(uint32_t *)p = tswap32(env->segs[R_ES].selector);
+    p += 4;
+    *(uint32_t *)p = tswap32(env->segs[R_FS].selector);
+    p += 4;
+    *(uint32_t *)p = tswap32(env->segs[R_GS].selector);
+    p += 4;
+    for(i = 0; i < 8; i++) {
+        /* XXX: convert floats */
+#ifdef USE_X86LDOUBLE
+        memcpy(p, &env->fpregs[i], 10);
+#else
+        memset(p, 0, 10);
+#endif
+        p += 10;
+    }
+    *(uint32_t *)p = tswap32(env->fpuc); /* fctrl */
+    p += 4;
+    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+    *(uint32_t *)p = tswap32(fpus); /* fstat */
+    p += 4;
+    *(uint32_t *)p = 0; /* ftag */
+    p += 4;
+    *(uint32_t *)p = 0; /* fiseg */
+    p += 4;
+    *(uint32_t *)p = 0; /* fioff */
+    p += 4;
+    *(uint32_t *)p = 0; /* foseg */
+    p += 4;
+    *(uint32_t *)p = 0; /* fooff */
+    p += 4;
+    *(uint32_t *)p = 0; /* fop */
+    p += 4;
+    for(i = 0; i < nb_regs; i++) {
+        *(uint64_t *)p = tswap64(env->xmm_regs[i].XMM_Q(0));
+        p += 8;
+        *(uint64_t *)p = tswap64(env->xmm_regs[i].XMM_Q(1));
+        p += 8;
+    }
+    *(uint32_t *)p = tswap32(env->mxcsr);
+    p += 4;
+    return p - mem_buf;
+}
+
+static inline void cpu_gdb_load_seg(CPUState *env, const uint8_t **pp, 
+                                    int sreg)
+{
+    const uint8_t *p;
+    uint32_t sel;
+    p = *pp;
+    sel = tswap32(*(uint32_t *)p);
+    p += 4;
+    if (sel != env->segs[sreg].selector) {
+#if defined(CONFIG_USER_ONLY)
+        cpu_x86_load_seg(env, sreg, sel);
+#else
+        /* XXX: do it with a debug function which does not raise an
+           exception */
+#endif
+    }
+    *pp = p;
 }
 
 static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 {
-    uint32_t *registers = (uint32_t *)mem_buf;
-    int i;
+    const uint8_t *p = mem_buf;
+    int i, nb_regs;
+    uint16_t fpus;
 
-    for(i = 0; i < 8; i++) {
-        env->regs[i] = tswapl(registers[i]);
-    }
-    env->eip = tswapl(registers[8]);
-    env->eflags = tswapl(registers[9]);
-#if defined(CONFIG_USER_ONLY)
-#define LOAD_SEG(index, sreg)\
-            if (tswapl(registers[index]) != env->segs[sreg].selector)\
-                cpu_x86_load_seg(env, sreg, tswapl(registers[index]));
-            LOAD_SEG(10, R_CS);
-            LOAD_SEG(11, R_SS);
-            LOAD_SEG(12, R_DS);
-            LOAD_SEG(13, R_ES);
-            LOAD_SEG(14, R_FS);
-            LOAD_SEG(15, R_GS);
+#ifdef TARGET_X86_64
+    if (env->hflags & HF_CS64_MASK) {
+        nb_regs = 16;
+        for(i = 0; i < 16; i++) {
+            env->regs[gdb_x86_64_regs[i]] = tswap64(*(uint64_t *)p);
+            p += 8;
+        }
+        env->eip = tswap64(*(uint64_t *)p);
+        p += 8;
+    } else
 #endif
+    {
+        nb_regs = 8;
+        for(i = 0; i < 8; i++) {
+            env->regs[i] = tswap32(*(uint32_t *)p);
+            p += 4;
+        }
+        env->eip = tswap32(*(uint32_t *)p);
+        p += 4;
+    }
+    env->eflags = tswap32(*(uint32_t *)p);
+    p += 4;
+    cpu_gdb_load_seg(env, &p, R_CS);
+    cpu_gdb_load_seg(env, &p, R_SS);
+    cpu_gdb_load_seg(env, &p, R_DS);
+    cpu_gdb_load_seg(env, &p, R_ES);
+    cpu_gdb_load_seg(env, &p, R_FS);
+    cpu_gdb_load_seg(env, &p, R_GS);
+    
+    /* FPU state */
+    for(i = 0; i < 8; i++) {
+        /* XXX: convert floats */
+#ifdef USE_X86LDOUBLE
+        memcpy(&env->fpregs[i], p, 10);
+#endif
+        p += 10;
+    }
+    env->fpuc = tswap32(*(uint32_t *)p); /* fctrl */
+    p += 4;
+    fpus = tswap32(*(uint32_t *)p);
+    p += 4;
+    env->fpstt = (fpus >> 11) & 7;
+    env->fpus = fpus & ~0x3800;
+    p += 4 * 6;
+    
+    if (size >= ((p - mem_buf) + 16 * nb_regs + 4)) {
+        /* SSE state */
+        for(i = 0; i < nb_regs; i++) {
+            env->xmm_regs[i].XMM_Q(0) = tswap64(*(uint64_t *)p);
+            p += 8;
+            env->xmm_regs[i].XMM_Q(1) = tswap64(*(uint64_t *)p);
+            p += 8;
+        }
+        env->mxcsr = tswap32(*(uint32_t *)p);
+        p += 4;
+    }
 }
 
 #elif defined (TARGET_PPC)
