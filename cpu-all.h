@@ -38,6 +38,7 @@
  */
 
 #include "bswap.h"
+#include "softfloat.h"
 
 #if defined(WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
 #define BSWAP_NEEDED

@@ -25,8 +25,6 @@
 
 #include "cpu-defs.h"
 
-#include "softfloat.h"
-
 #define TARGET_HAS_ICE 1
 
 #define ELF_MACHINE	EM_CRIS
