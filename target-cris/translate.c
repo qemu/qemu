@@ -2509,7 +2509,7 @@ static unsigned int dec_jasc_im(DisasContext *dc)
 	cris_cc_mask(dc, 0);
 	/* Store the return address in Pd.  */
 	tcg_gen_movi_tl(cpu_T[0], imm);
-	t_gen_mov_env_TN(btarget, cpu_T[0]);
+	tcg_gen_mov_tl(env_btarget, cpu_T[0]);
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + 8 + 4);
 	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
@@ -2522,7 +2522,7 @@ static unsigned int dec_jasc_r(DisasContext *dc)
 	cris_cc_mask(dc, 0);
 	/* Store the return address in Pd.  */
 	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
-	t_gen_mov_env_TN(btarget, cpu_T[0]);
+	tcg_gen_mov_tl(env_btarget, cpu_T[0]);
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + 4 + 4);
 	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
@@ -2557,7 +2557,7 @@ static unsigned int dec_bas_im(DisasContext *dc)
 	cris_cc_mask(dc, 0);
 	/* Stor the return address in Pd.  */
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + simm);
-	t_gen_mov_env_TN(btarget, cpu_T[0]);
+	tcg_gen_mov_tl(env_btarget, cpu_T[0]);
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + 8);
 	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
@@ -2573,7 +2573,7 @@ static unsigned int dec_basc_im(DisasContext *dc)
 	cris_cc_mask(dc, 0);
 	/* Stor the return address in Pd.  */
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + simm);
-	t_gen_mov_env_TN(btarget, cpu_T[0]);
+	tcg_gen_mov_tl(env_btarget, cpu_T[0]);
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + 12);
 	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
@@ -2813,10 +2813,12 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	if (!logfile)
 		logfile = stderr;
 
-	if (tb->pc & 1)
-		cpu_abort(env, "unaligned pc=%x erp=%x\n",
-			  env->pc, env->pregs[PR_ERP]);
-	pc_start = tb->pc;
+	/* Odd PC indicates that branch is rexecuting due to exception in the
+	 * delayslot, like in real hw.
+	 * FIXME: we need to handle the case were the branch and the insn in
+	 *         the delayslot do not share pages.
+	 */
+	pc_start = tb->pc & ~1;
 	dc->env = env;
 	dc->tb = tb;
 
@@ -2905,14 +2907,16 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 			}
 		}
 
-		if (env->singlestep_enabled)
+		/* If we are rexecuting a branch due to exceptions on
+		   delay slots dont break.  */
+		if (!(tb->pc & 1) && env->singlestep_enabled)
 			break;
 	} while (!dc->is_jmp && gen_opc_ptr < gen_opc_end
 		 && ((dc->pc < next_page_start) || dc->delayed_branch));
 
 	if (dc->delayed_branch == 1) {
 		/* Reexecute the last insn.  */
-		dc->pc = dc->ppc;
+		dc->pc = dc->ppc | 1;
 	}
 
 	if (!dc->is_jmp) {
