@@ -30,6 +30,7 @@
 #include "qemu-common.h"
 
 //#define DEBUG_MMU
+//#define DEBUG_FEATURES
 
 typedef struct sparc_def_t sparc_def_t;
 
@@ -43,9 +44,10 @@ struct sparc_def_t {
     uint32_t mmu_cxr_mask;
     uint32_t mmu_sfsr_mask;
     uint32_t mmu_trcr_mask;
+    uint32_t features;
 };
 
-static const sparc_def_t *cpu_sparc_find_by_name(const unsigned char *name);
+static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const unsigned char *cpu_model);
 
 /* Sparc MMU emulation */
 
@@ -684,19 +686,14 @@ void cpu_reset(CPUSPARCState *env)
 #endif
 }
 
-CPUSPARCState *cpu_sparc_init(const char *cpu_model)
+static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
 {
-    CPUSPARCState *env;
-    const sparc_def_t *def;
+    sparc_def_t def1, *def = &def1;
 
-    def = cpu_sparc_find_by_name(cpu_model);
-    if (!def)
-        return NULL;
+    if (cpu_sparc_find_by_name(def, cpu_model) < 0)
+        return -1;
 
-    env = qemu_mallocz(sizeof(CPUSPARCState));
-    if (!env)
-        return NULL;
-    cpu_exec_init(env);
+    env->features = def->features;
     env->cpu_model_str = cpu_model;
     env->version = def->iu_version;
     env->fsr = def->fpu_version;
@@ -709,9 +706,29 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
     env->mmuregs[0] |= def->mmu_version;
     cpu_sparc_set_id(env, 0);
 #endif
+    return 0;
+}
+
+static void cpu_sparc_close(CPUSPARCState *env)
+{
+    free(env);
+}
+
+CPUSPARCState *cpu_sparc_init(const char *cpu_model)
+{
+    CPUSPARCState *env;
+
+    env = qemu_mallocz(sizeof(CPUSPARCState));
+    if (!env)
+        return NULL;
+    cpu_exec_init(env);
 
     gen_intermediate_code_init(env);
 
+    if (cpu_sparc_register(env, cpu_model) < 0) {
+        cpu_sparc_close(env);
+        return NULL;
+    }
     cpu_reset(env);
 
     return env;
@@ -732,6 +749,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Fujitsu Sparc64 III",
@@ -739,6 +757,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Fujitsu Sparc64 IV",
@@ -746,6 +765,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Fujitsu Sparc64 V",
@@ -753,6 +773,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI UltraSparc I",
@@ -760,6 +781,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI UltraSparc II",
@@ -767,6 +789,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI UltraSparc IIi",
@@ -774,6 +797,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI UltraSparc IIe",
@@ -781,6 +805,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc III",
@@ -788,6 +813,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc III Cu",
@@ -795,6 +821,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc IIIi",
@@ -802,6 +829,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc IV",
@@ -809,6 +837,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc IV+",
@@ -816,6 +845,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc IIIi+",
@@ -823,6 +853,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "NEC UltraSparc I",
@@ -830,6 +861,7 @@ static const sparc_def_t sparc_defs[] = {
                        | (MAXTL << 8) | (NWINDOWS - 1)),
         .fpu_version = 0x00000000,
         .mmu_version = 0,
+        .features = CPU_DEFAULT_FEATURES,
     },
 #else
     {
@@ -842,6 +874,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_FEATURE_FLOAT,
     },
     {
         .name = "Fujitsu MB86904",
@@ -853,6 +886,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x000000ff,
         .mmu_sfsr_mask = 0x00016fff,
         .mmu_trcr_mask = 0x00ffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Fujitsu MB86907",
@@ -864,6 +898,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x000000ff,
         .mmu_sfsr_mask = 0x00016fff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "LSI L64811",
@@ -875,6 +910,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT,
     },
     {
         .name = "Cypress CY7C601",
@@ -886,6 +922,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT,
     },
     {
         .name = "Cypress CY7C611",
@@ -897,6 +934,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT,
     },
     {
         .name = "TI SuperSparc II",
@@ -908,6 +946,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000ffff,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI MicroSparc I",
@@ -919,6 +958,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0x00016fff,
         .mmu_trcr_mask = 0x0000003f,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI MicroSparc II",
@@ -930,6 +970,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x000000ff,
         .mmu_sfsr_mask = 0x00016fff,
         .mmu_trcr_mask = 0x00ffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI MicroSparc IIep",
@@ -941,6 +982,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x000000ff,
         .mmu_sfsr_mask = 0x00016bff,
         .mmu_trcr_mask = 0x00ffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI SuperSparc 51",
@@ -952,6 +994,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000ffff,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI SuperSparc 61",
@@ -963,6 +1006,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000ffff,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Ross RT625",
@@ -974,6 +1018,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Ross RT620",
@@ -985,6 +1030,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "BIT B5010",
@@ -996,6 +1042,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT,
     },
     {
         .name = "Matsushita MN10501",
@@ -1007,6 +1054,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_MUL | CPU_FEATURE_FSQRT,
     },
     {
         .name = "Weitek W8601",
@@ -1018,6 +1066,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "LEON2",
@@ -1029,6 +1078,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "LEON3",
@@ -1040,20 +1090,137 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
+        .features = CPU_DEFAULT_FEATURES,
     },
 #endif
 };
 
-static const sparc_def_t *cpu_sparc_find_by_name(const unsigned char *name)
+static const char * const feature_name[] = {
+    "float",
+    "float128",
+    "swap",
+    "mul",
+    "div",
+    "flush",
+    "fsqrt",
+    "fmul",
+    "vis1",
+    "vis2",
+};
+
+static void print_features(FILE *f,
+                           int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                           uint32_t features, const char *prefix)
 {
     unsigned int i;
 
+    for (i = 0; i < ARRAY_SIZE(feature_name); i++)
+        if (feature_name[i] && (features & (1 << i))) {
+            if (prefix)
+                (*cpu_fprintf)(f, "%s", prefix);
+            (*cpu_fprintf)(f, "%s ", feature_name[i]);
+        }
+}
+
+static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features)
+{
+    unsigned int i;
+
+    for (i = 0; i < ARRAY_SIZE(feature_name); i++)
+        if (feature_name[i] && !strcmp(flagname, feature_name[i])) {
+            *features |= 1 << i;
+            return;
+        }
+    fprintf(stderr, "CPU feature %s not found\n", flagname);
+}
+
+static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const unsigned char *cpu_model)
+{
+    unsigned int i;
+    const sparc_def_t *def = NULL;
+    char *s = strdup(cpu_model);
+    char *featurestr, *name = strtok(s, ",");
+    uint32_t plus_features = 0;
+    uint32_t minus_features = 0;
+    long long iu_version;
+    uint32_t fpu_version, mmu_version;
+
     for (i = 0; i < sizeof(sparc_defs) / sizeof(sparc_def_t); i++) {
         if (strcasecmp(name, sparc_defs[i].name) == 0) {
-            return &sparc_defs[i];
+            def = &sparc_defs[i];
         }
     }
-    return NULL;
+    if (!def)
+        goto error;
+    memcpy(cpu_def, def, sizeof(*def));
+
+    featurestr = strtok(NULL, ",");
+    while (featurestr) {
+        char *val;
+
+        if (featurestr[0] == '+') {
+            add_flagname_to_bitmaps(featurestr + 1, &plus_features);
+        } else if (featurestr[0] == '-') {
+            add_flagname_to_bitmaps(featurestr + 1, &minus_features);
+        } else if ((val = strchr(featurestr, '='))) {
+            *val = 0; val++;
+            if (!strcmp(featurestr, "iu_version")) {
+                char *err;
+
+                iu_version = strtoll(val, &err, 0);
+                if (!*val || *err) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    goto error;
+                }
+                cpu_def->iu_version = iu_version;
+#ifdef DEBUG_FEATURES
+                fprintf(stderr, "iu_version %llx\n", iu_version);
+#endif
+            } else if (!strcmp(featurestr, "fpu_version")) {
+                char *err;
+
+                fpu_version = strtol(val, &err, 0);
+                if (!*val || *err) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    goto error;
+                }
+                cpu_def->fpu_version = fpu_version;
+#ifdef DEBUG_FEATURES
+                fprintf(stderr, "fpu_version %llx\n", fpu_version);
+#endif
+            } else if (!strcmp(featurestr, "mmu_version")) {
+                char *err;
+
+                mmu_version = strtol(val, &err, 0);
+                if (!*val || *err) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    goto error;
+                }
+                cpu_def->mmu_version = mmu_version;
+#ifdef DEBUG_FEATURES
+                fprintf(stderr, "mmu_version %llx\n", mmu_version);
+#endif
+            } else {
+                fprintf(stderr, "unrecognized feature %s\n", featurestr);
+                goto error;
+            }
+        } else {
+            fprintf(stderr, "feature string `%s' not in format (+feature|-feature|feature=xyz)\n", featurestr);
+            goto error;
+        }
+        featurestr = strtok(NULL, ",");
+    }
+    cpu_def->features |= plus_features;
+    cpu_def->features &= ~minus_features;
+#ifdef DEBUG_FEATURES
+    print_features(stderr, fprintf, cpu_def->features, NULL);
+#endif
+    free(s);
+    return 0;
+
+ error:
+    free(s);
+    return -1;
 }
 
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
@@ -1061,12 +1228,19 @@ void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
     unsigned int i;
 
     for (i = 0; i < sizeof(sparc_defs) / sizeof(sparc_def_t); i++) {
-        (*cpu_fprintf)(f, "Sparc %16s IU " TARGET_FMT_lx " FPU %08x MMU %08x\n",
+        (*cpu_fprintf)(f, "Sparc %16s IU " TARGET_FMT_lx " FPU %08x MMU %08x ",
                        sparc_defs[i].name,
                        sparc_defs[i].iu_version,
                        sparc_defs[i].fpu_version,
                        sparc_defs[i].mmu_version);
+        print_features(f, cpu_fprintf, CPU_DEFAULT_FEATURES & ~sparc_defs[i].features, "-");
+        print_features(f, cpu_fprintf, ~CPU_DEFAULT_FEATURES & sparc_defs[i].features, "+");
+        (*cpu_fprintf)(f, "\n");
     }
+    (*cpu_fprintf)(f, "CPU feature flags (+/-): ");
+    print_features(f, cpu_fprintf, -1, NULL);
+    (*cpu_fprintf)(f, "\n");
+    (*cpu_fprintf)(f, "Numerical features (=): iu_version fpu_version mmu_version\n");
 }
 
 #define GET_FLAG(a,b) ((env->psr & a)?b:'-')

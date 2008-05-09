@@ -61,7 +61,6 @@ void helper_check_align(target_ulong addr, uint32_t align)
 
 #define F_HELPER(name, p) void helper_f##name##p(void)
 
-#if defined(CONFIG_USER_ONLY)
 #define F_BINOP(name)                                           \
     F_HELPER(name, s)                                           \
     {                                                           \
@@ -75,17 +74,6 @@ void helper_check_align(target_ulong addr, uint32_t align)
     {                                                           \
         QT0 = float128_ ## name (QT0, QT1, &env->fp_status);    \
     }
-#else
-#define F_BINOP(name)                                           \
-    F_HELPER(name, s)                                           \
-    {                                                           \
-        FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
-    }                                                           \
-    F_HELPER(name, d)                                           \
-    {                                                           \
-        DT0 = float64_ ## name (DT0, DT1, &env->fp_status);     \
-    }
-#endif
 
 F_BINOP(add);
 F_BINOP(sub);
@@ -100,14 +88,12 @@ void helper_fsmuld(void)
                       &env->fp_status);
 }
 
-#if defined(CONFIG_USER_ONLY)
 void helper_fdmulq(void)
 {
     QT0 = float128_mul(float64_to_float128(DT0, &env->fp_status),
                        float64_to_float128(DT1, &env->fp_status),
                        &env->fp_status);
 }
-#endif
 
 F_HELPER(neg, s)
 {
@@ -120,12 +106,10 @@ F_HELPER(neg, d)
     DT0 = float64_chs(DT1);
 }
 
-#if defined(CONFIG_USER_ONLY)
 F_HELPER(neg, q)
 {
     QT0 = float128_chs(QT1);
 }
-#endif
 #endif
 
 /* Integer to float conversion.  */
@@ -139,12 +123,10 @@ F_HELPER(ito, d)
     DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
 }
 
-#if defined(CONFIG_USER_ONLY)
 F_HELPER(ito, q)
 {
     QT0 = int32_to_float128(*((int32_t *)&FT1), &env->fp_status);
 }
-#endif
 
 #ifdef TARGET_SPARC64
 F_HELPER(xto, s)
@@ -156,12 +138,11 @@ F_HELPER(xto, d)
 {
     DT0 = int64_to_float64(*((int64_t *)&DT1), &env->fp_status);
 }
-#if defined(CONFIG_USER_ONLY)
+
 F_HELPER(xto, q)
 {
     QT0 = int64_to_float128(*((int64_t *)&DT1), &env->fp_status);
 }
-#endif
 #endif
 #undef F_HELPER
 
@@ -176,7 +157,6 @@ void helper_fstod(void)
     DT0 = float32_to_float64(FT1, &env->fp_status);
 }
 
-#if defined(CONFIG_USER_ONLY)
 void helper_fqtos(void)
 {
     FT0 = float128_to_float32(QT1, &env->fp_status);
@@ -196,7 +176,6 @@ void helper_fdtoq(void)
 {
     QT0 = float64_to_float128(DT1, &env->fp_status);
 }
-#endif
 
 /* Float to integer conversion.  */
 void helper_fstoi(void)
@@ -209,12 +188,10 @@ void helper_fdtoi(void)
     *((int32_t *)&FT0) = float64_to_int32_round_to_zero(DT1, &env->fp_status);
 }
 
-#if defined(CONFIG_USER_ONLY)
 void helper_fqtoi(void)
 {
     *((int32_t *)&FT0) = float128_to_int32_round_to_zero(QT1, &env->fp_status);
 }
-#endif
 
 #ifdef TARGET_SPARC64
 void helper_fstox(void)
@@ -227,12 +204,10 @@ void helper_fdtox(void)
     *((int64_t *)&DT0) = float64_to_int64_round_to_zero(DT1, &env->fp_status);
 }
 
-#if defined(CONFIG_USER_ONLY)
 void helper_fqtox(void)
 {
     *((int64_t *)&DT0) = float128_to_int64_round_to_zero(QT1, &env->fp_status);
 }
-#endif
 
 void helper_faligndata(void)
 {
@@ -722,12 +697,10 @@ void helper_fabsd(void)
     DT0 = float64_abs(DT1);
 }
 
-#if defined(CONFIG_USER_ONLY)
 void helper_fabsq(void)
 {
     QT0 = float128_abs(QT1);
 }
-#endif
 #endif
 
 void helper_fsqrts(void)
@@ -740,12 +713,10 @@ void helper_fsqrtd(void)
     DT0 = float64_sqrt(DT1, &env->fp_status);
 }
 
-#if defined(CONFIG_USER_ONLY)
 void helper_fsqrtq(void)
 {
     QT0 = float128_sqrt(QT1, &env->fp_status);
 }
-#endif
 
 #define GEN_FCMP(name, size, reg1, reg2, FS, TRAP)                      \
     void glue(helper_, name) (void)                                     \
@@ -784,37 +755,33 @@ GEN_FCMP(fcmpd, float64, DT0, DT1, 0, 0);
 GEN_FCMP(fcmpes, float32, FT0, FT1, 0, 1);
 GEN_FCMP(fcmped, float64, DT0, DT1, 0, 1);
 
-#ifdef CONFIG_USER_ONLY
 GEN_FCMP(fcmpq, float128, QT0, QT1, 0, 0);
 GEN_FCMP(fcmpeq, float128, QT0, QT1, 0, 1);
-#endif
 
 #ifdef TARGET_SPARC64
 GEN_FCMP(fcmps_fcc1, float32, FT0, FT1, 22, 0);
 GEN_FCMP(fcmpd_fcc1, float64, DT0, DT1, 22, 0);
+GEN_FCMP(fcmpq_fcc1, float128, QT0, QT1, 22, 0);
 
 GEN_FCMP(fcmps_fcc2, float32, FT0, FT1, 24, 0);
 GEN_FCMP(fcmpd_fcc2, float64, DT0, DT1, 24, 0);
+GEN_FCMP(fcmpq_fcc2, float128, QT0, QT1, 24, 0);
 
 GEN_FCMP(fcmps_fcc3, float32, FT0, FT1, 26, 0);
 GEN_FCMP(fcmpd_fcc3, float64, DT0, DT1, 26, 0);
+GEN_FCMP(fcmpq_fcc3, float128, QT0, QT1, 26, 0);
 
 GEN_FCMP(fcmpes_fcc1, float32, FT0, FT1, 22, 1);
 GEN_FCMP(fcmped_fcc1, float64, DT0, DT1, 22, 1);
+GEN_FCMP(fcmpeq_fcc1, float128, QT0, QT1, 22, 1);
 
 GEN_FCMP(fcmpes_fcc2, float32, FT0, FT1, 24, 1);
 GEN_FCMP(fcmped_fcc2, float64, DT0, DT1, 24, 1);
+GEN_FCMP(fcmpeq_fcc2, float128, QT0, QT1, 24, 1);
 
 GEN_FCMP(fcmpes_fcc3, float32, FT0, FT1, 26, 1);
 GEN_FCMP(fcmped_fcc3, float64, DT0, DT1, 26, 1);
-#ifdef CONFIG_USER_ONLY
-GEN_FCMP(fcmpq_fcc1, float128, QT0, QT1, 22, 0);
-GEN_FCMP(fcmpq_fcc2, float128, QT0, QT1, 24, 0);
-GEN_FCMP(fcmpq_fcc3, float128, QT0, QT1, 26, 0);
-GEN_FCMP(fcmpeq_fcc1, float128, QT0, QT1, 22, 1);
-GEN_FCMP(fcmpeq_fcc2, float128, QT0, QT1, 24, 1);
 GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
-#endif
 #endif
 
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY) && defined(DEBUG_MXCC)
@@ -2074,11 +2041,9 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     case 8:
         *((int64_t *)&DT0) = val;
         break;
-#if defined(CONFIG_USER_ONLY)
     case 16:
         // XXX
         break;
-#endif
     }
 }
 
@@ -2119,11 +2084,9 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     case 8:
         val = *((int64_t *)&DT0);
         break;
-#if defined(CONFIG_USER_ONLY)
     case 16:
         // XXX
         break;
-#endif
     }
     helper_st_asi(addr, val, asi, size);
 }
@@ -2299,27 +2262,73 @@ void helper_lddf(target_ulong addr, int mem_idx)
 #endif
 }
 
-#if defined(CONFIG_USER_ONLY)
-void helper_ldqf(target_ulong addr)
+void helper_ldqf(target_ulong addr, int mem_idx)
 {
     // XXX add 128 bit load
     CPU_QuadU u;
 
+#if !defined(CONFIG_USER_ONLY)
+    switch (mem_idx) {
+    case 0:
+        u.ll.upper = ldq_user(ADDR(addr));
+        u.ll.lower = ldq_user(ADDR(addr + 8));
+        QT0 = u.q;
+        break;
+    case 1:
+        u.ll.upper = ldq_kernel(ADDR(addr));
+        u.ll.lower = ldq_kernel(ADDR(addr + 8));
+        QT0 = u.q;
+        break;
+#ifdef TARGET_SPARC64
+    case 2:
+        u.ll.upper = ldq_hypv(ADDR(addr));
+        u.ll.lower = ldq_hypv(ADDR(addr + 8));
+        QT0 = u.q;
+        break;
+#endif
+    default:
+        break;
+    }
+#else
     u.ll.upper = ldq_raw(ADDR(addr));
     u.ll.lower = ldq_raw(ADDR(addr + 8));
     QT0 = u.q;
+#endif
 }
 
-void helper_stqf(target_ulong addr)
+void helper_stqf(target_ulong addr, int mem_idx)
 {
     // XXX add 128 bit store
     CPU_QuadU u;
 
+#if !defined(CONFIG_USER_ONLY)
+    switch (mem_idx) {
+    case 0:
+        u.q = QT0;
+        stq_user(ADDR(addr), u.ll.upper);
+        stq_user(ADDR(addr + 8), u.ll.lower);
+        break;
+    case 1:
+        u.q = QT0;
+        stq_kernel(ADDR(addr), u.ll.upper);
+        stq_kernel(ADDR(addr + 8), u.ll.lower);
+        break;
+#ifdef TARGET_SPARC64
+    case 2:
+        u.q = QT0;
+        stq_hypv(ADDR(addr), u.ll.upper);
+        stq_hypv(ADDR(addr + 8), u.ll.lower);
+        break;
+#endif
+    default:
+        break;
+    }
+#else
     u.q = QT0;
     stq_raw(ADDR(addr), u.ll.upper);
     stq_raw(ADDR(addr + 8), u.ll.lower);
-}
 #endif
+}
 
 #undef ADDR
 

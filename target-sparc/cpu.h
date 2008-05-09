@@ -43,6 +43,7 @@
 #define TT_TOVF     0x0a
 #define TT_EXTINT   0x10
 #define TT_CODE_ACCESS 0x21
+#define TT_UNIMP_FLUSH 0x25
 #define TT_DATA_ACCESS 0x29
 #define TT_DIV_ZERO 0x2a
 #define TT_NCP_INSN 0x24
@@ -52,6 +53,7 @@
 #define TT_TMISS    0x09
 #define TT_CODE_ACCESS 0x0a
 #define TT_ILL_INSN 0x10
+#define TT_UNIMP_FLUSH TT_ILL_INSN
 #define TT_PRIV_INSN 0x11
 #define TT_NFPU_INSN 0x20
 #define TT_FP_EXCP  0x21
@@ -244,9 +246,7 @@ typedef struct CPUSPARCState {
     /* temporary float registers */
     float32 ft0, ft1;
     float64 dt0, dt1;
-#if defined(CONFIG_USER_ONLY)
     float128 qt0, qt1;
-#endif
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL 4
@@ -272,7 +272,32 @@ typedef struct CPUSPARCState {
     void *hstick; // UA 2005
 #endif
     target_ulong t1, t2;
+    uint32_t features;
 } CPUSPARCState;
+
+#define CPU_FEATURE_FLOAT    (1 << 0)
+#define CPU_FEATURE_FLOAT128 (1 << 1)
+#define CPU_FEATURE_SWAP     (1 << 2)
+#define CPU_FEATURE_MUL      (1 << 3)
+#define CPU_FEATURE_DIV      (1 << 4)
+#define CPU_FEATURE_FLUSH    (1 << 5)
+#define CPU_FEATURE_FSQRT    (1 << 6)
+#define CPU_FEATURE_FMUL     (1 << 7)
+#define CPU_FEATURE_VIS1     (1 << 8)
+#define CPU_FEATURE_VIS2     (1 << 9)
+#ifndef TARGET_SPARC64
+#define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
+                              CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
+                              CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
+                              CPU_FEATURE_FMUL)
+#else
+#define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
+                              CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
+                              CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
+                              CPU_FEATURE_FMUL | CPU_FEATURE_VIS1 |   \
+                              CPU_FEATURE_VIS2)
+#endif
+
 #if defined(TARGET_SPARC64)
 #define GET_FSR32(env) (env->fsr & 0xcfc1ffff)
 #define PUT_FSR32(env, val) do { uint32_t _tmp = val;                   \
@@ -292,7 +317,6 @@ typedef struct CPUSPARCState {
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);
 void gen_intermediate_code_init(CPUSPARCState *env);
 int cpu_sparc_exec(CPUSPARCState *s);
-int cpu_sparc_close(CPUSPARCState *s);
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
                                                  ...));
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);

@@ -39,10 +39,8 @@ register uint32_t T2 asm(AREG3);
 #define FT1 (env->ft1)
 #define DT0 (env->dt0)
 #define DT1 (env->dt1)
-#if defined(CONFIG_USER_ONLY)
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
-#endif
 
 #include "cpu.h"
 #include "exec-all.h"
