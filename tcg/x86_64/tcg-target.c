@@ -215,7 +215,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 
 #define P_EXT   0x100 /* 0x0f opcode prefix */
 #define P_REXW  0x200 /* set rex.w = 1 */
-#define P_REX   0x400 /* force rex usage */
+#define P_REXB  0x400 /* force rex use for byte registers */
                                   
 static const uint8_t tcg_cond_to_jcc[10] = {
     [TCG_COND_EQ] = JCC_JE,
@@ -235,7 +235,7 @@ static inline void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
     int rex;
     rex = ((opc >> 6) & 0x8) | ((r >> 1) & 0x4) | 
         ((x >> 2) & 2) | ((rm >> 3) & 1);
-    if (rex || (opc & P_REX)) {
+    if (rex || ((opc & P_REXB) && r >= 4)) {
         tcg_out8(s, rex | 0x40);
     }
     if (opc & P_EXT)
@@ -748,7 +748,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0:
         /* movzbl */
-        tcg_out_modrm(s, 0xb6 | P_EXT, TCG_REG_RSI, data_reg);
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB, TCG_REG_RSI, data_reg);
         break;
     case 1:
         /* movzwl */
@@ -791,7 +791,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0:
         /* movb */
-        tcg_out_modrm_offset(s, 0x88 | P_REX, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0x88 | P_REXB, data_reg, r0, 0);
         break;
     case 1:
         if (bswap) {
@@ -929,7 +929,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_st8_i32:
     case INDEX_op_st8_i64:
         /* movb */
-        tcg_out_modrm_offset(s, 0x88 | P_REX, args[0], args[1], args[2]);
+        tcg_out_modrm_offset(s, 0x88 | P_REXB, args[0], args[1], args[2]);
         break;
     case INDEX_op_st16_i32:
     case INDEX_op_st16_i64:
@@ -1133,8 +1133,6 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
 }
 
 static int tcg_target_callee_save_regs[] = {
-    TCG_REG_R10,
-    TCG_REG_R11,
     TCG_REG_RBP,
     TCG_REG_RBX,
     TCG_REG_R12,
@@ -1286,6 +1284,6 @@ void tcg_target_init(TCGContext *s)
     
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RSP);
-    
+
     tcg_add_target_add_op_defs(x86_64_op_defs);
 }
