@@ -130,8 +130,8 @@ typedef struct DriveInfo {
 #define MAX_SCSI_DEVS	7
 #define MAX_DRIVES 32
 
-int nb_drives;
-DriveInfo drives_table[MAX_DRIVES+1];
+extern int nb_drives;
+extern DriveInfo drives_table[MAX_DRIVES+1];
 
 extern int drive_get_index(BlockInterfaceType type, int bus, int unit);
 extern int drive_get_max_bus(BlockInterfaceType type);

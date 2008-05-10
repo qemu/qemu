@@ -222,20 +222,20 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
 
 static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
-    int index;
+    int page_index;
     RES_TYPE res;
     target_ulong addr;
     unsigned long physaddr;
     int mmu_idx;
 
     addr = ptr;
-    index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = CPU_MMU_INDEX;
-    if (__builtin_expect(env->tlb_table[mmu_idx][index].ADDR_READ !=
+    if (__builtin_expect(env->tlb_table[mmu_idx][page_index].ADDR_READ !=
                          (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))), 0)) {
         res = glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, mmu_idx);
     } else {
-        physaddr = addr + env->tlb_table[mmu_idx][index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
         res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
     }
     return res;
@@ -244,19 +244,19 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
 #if DATA_SIZE <= 2
 static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
-    int res, index;
+    int res, page_index;
     target_ulong addr;
     unsigned long physaddr;
     int mmu_idx;
 
     addr = ptr;
-    index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = CPU_MMU_INDEX;
-    if (__builtin_expect(env->tlb_table[mmu_idx][index].ADDR_READ !=
+    if (__builtin_expect(env->tlb_table[mmu_idx][page_index].ADDR_READ !=
                          (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))), 0)) {
         res = (DATA_STYPE)glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, mmu_idx);
     } else {
-        physaddr = addr + env->tlb_table[mmu_idx][index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
         res = glue(glue(lds, SUFFIX), _raw)((uint8_t *)physaddr);
     }
     return res;
@@ -269,19 +269,19 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
 
 static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE v)
 {
-    int index;
+    int page_index;
     target_ulong addr;
     unsigned long physaddr;
     int mmu_idx;
 
     addr = ptr;
-    index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = CPU_MMU_INDEX;
-    if (__builtin_expect(env->tlb_table[mmu_idx][index].addr_write !=
+    if (__builtin_expect(env->tlb_table[mmu_idx][page_index].addr_write !=
                          (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))), 0)) {
         glue(glue(__st, SUFFIX), MMUSUFFIX)(addr, v, mmu_idx);
     } else {
-        physaddr = addr + env->tlb_table[mmu_idx][index].addend;
+        physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
         glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, v);
     }
 }

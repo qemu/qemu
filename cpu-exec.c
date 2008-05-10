@@ -640,7 +640,7 @@ int cpu_exec(CPUState *env1)
                    jump. */
                 {
                     if (next_tb != 0 &&
-#if USE_KQEMU
+#ifdef USE_KQEMU
                         (env->kqemu_enabled != 2) &&
 #endif
                         tb->page_addr[1] == -1) {
