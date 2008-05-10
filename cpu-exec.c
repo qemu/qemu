@@ -18,8 +18,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "config.h"
+#define CPU_NO_GLOBAL_REGS
 #include "exec.h"
 #include "disas.h"
+#include "tcg.h"
 
 #if !defined(CONFIG_SOFTMMU)
 #undef EAX
@@ -292,7 +294,6 @@ int cpu_exec(CPUState *env1)
 #endif
 #endif
     int ret, interrupt_request;
-    unsigned long (*gen_func)(void);
     TranslationBlock *tb;
     uint8_t *tc_ptr;
 
@@ -652,67 +653,7 @@ int cpu_exec(CPUState *env1)
                 tc_ptr = tb->tc_ptr;
                 env->current_tb = tb;
                 /* execute the generated code */
-                gen_func = (void *)tc_ptr;
-#if defined(__sparc__)
-                __asm__ __volatile__("call	%0\n\t"
-                                     "mov	%%o7,%%i0"
-                                     : /* no outputs */
-                                     : "r" (gen_func)
-                                     : "i0", "i1", "i2", "i3", "i4", "i5",
-                                       "o0", "o1", "o2", "o3", "o4", "o5",
-                                       "l0", "l1", "l2", "l3", "l4", "l5",
-                                       "l6", "l7");
-#elif defined(__hppa__)
-                asm volatile ("ble  0(%%sr4,%1)\n"
-                              "copy %%r31,%%r18\n"
-                              "copy %%r28,%0\n"
-                              : "=r" (next_tb)
-                              : "r" (gen_func)
-                              : "r1", "r2", "r3", "r4", "r5", "r6", "r7",
-                                "r8", "r9", "r10", "r11", "r12", "r13",
-                                "r18", "r19", "r20", "r21", "r22", "r23",
-                                "r24", "r25", "r26", "r27", "r28", "r29",
-                                "r30", "r31");
-#elif defined(__arm__)
-                asm volatile ("mov pc, %0\n\t"
-                              ".global exec_loop\n\t"
-                              "exec_loop:\n\t"
-                              : /* no outputs */
-                              : "r" (gen_func)
-                              : "r1", "r2", "r3", "r8", "r9", "r10", "r12", "r14");
-#elif defined(__ia64)
-		struct fptr {
-			void *ip;
-			void *gp;
-		} fp;
-
-		fp.ip = tc_ptr;
-		fp.gp = code_gen_buffer + 2 * (1 << 20);
-		(*(void (*)(void)) &fp)();
-#elif defined(__i386)
-                asm volatile ("sub $12, %%esp\n\t"
-                              "push %%ebp\n\t"
-                              "call *%1\n\t"
-                              "pop %%ebp\n\t"
-                              "add $12, %%esp\n\t"
-                              : "=a" (next_tb)
-                              : "a" (gen_func)
-                              : "ebx", "ecx", "edx", "esi", "edi", "cc",
-                                "memory");
-#elif defined(__x86_64__)
-                asm volatile ("sub $8, %%rsp\n\t"
-                              "push %%rbp\n\t"
-                              "call *%1\n\t"
-                              "pop %%rbp\n\t"
-                              "add $8, %%rsp\n\t"
-                              : "=a" (next_tb)
-                              : "a" (gen_func)
-                              : "rbx", "rcx", "rdx", "rsi", "rdi", "r8", "r9",
-                                "r10", "r11", "r12", "r13", "r14", "r15", "cc",
-                                "memory");
-#else
-                next_tb = gen_func();
-#endif
+                next_tb = tcg_qemu_tb_exec(tc_ptr);
                 env->current_tb = NULL;
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */

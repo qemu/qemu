@@ -89,6 +89,7 @@ int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
+uint8_t code_gen_prologue[1024] __attribute__((aligned (32)));
 uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE] __attribute__((aligned (32)));
 uint8_t *code_gen_ptr;
 
@@ -173,6 +174,31 @@ typedef struct subpage_t {
     void *opaque[TARGET_PAGE_SIZE][2][4];
 } subpage_t;
 
+#ifdef _WIN32
+static void map_exec(void *addr, long size)
+{
+    DWORD old_protect;
+    VirtualProtect(addr, size,
+                   PAGE_EXECUTE_READWRITE, &old_protect);
+    
+}
+#else
+static void map_exec(void *addr, long size)
+{
+    unsigned long start, end;
+    
+    start = (unsigned long)addr;
+    start &= ~(qemu_real_host_page_size - 1);
+    
+    end = (unsigned long)addr + size;
+    end += qemu_real_host_page_size - 1;
+    end &= ~(qemu_real_host_page_size - 1);
+    
+    mprotect((void *)start, end - start,
+             PROT_READ | PROT_WRITE | PROT_EXEC);
+}
+#endif
+
 static void page_init(void)
 {
     /* NOTE: we can always suppose that qemu_host_page_size >=
@@ -184,26 +210,12 @@ static void page_init(void)
 
         GetSystemInfo(&system_info);
         qemu_real_host_page_size = system_info.dwPageSize;
-
-        VirtualProtect(code_gen_buffer, sizeof(code_gen_buffer),
-                       PAGE_EXECUTE_READWRITE, &old_protect);
     }
 #else
     qemu_real_host_page_size = getpagesize();
-    {
-        unsigned long start, end;
-
-        start = (unsigned long)code_gen_buffer;
-        start &= ~(qemu_real_host_page_size - 1);
-
-        end = (unsigned long)code_gen_buffer + sizeof(code_gen_buffer);
-        end += qemu_real_host_page_size - 1;
-        end &= ~(qemu_real_host_page_size - 1);
-
-        mprotect((void *)start, end - start,
-                 PROT_READ | PROT_WRITE | PROT_EXEC);
-    }
 #endif
+    map_exec(code_gen_buffer, sizeof(code_gen_buffer));
+    map_exec(code_gen_prologue, sizeof(code_gen_prologue));
 
     if (qemu_host_page_size == 0)
         qemu_host_page_size = qemu_real_host_page_size;
