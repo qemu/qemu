@@ -304,7 +304,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 {
 	int s;
 	struct sockaddr_in addr;
-	int addrlen = sizeof(addr);
+	socklen_t addrlen = sizeof(addr);
 	int opt;
         int master = -1;
 	char *argv[256];
