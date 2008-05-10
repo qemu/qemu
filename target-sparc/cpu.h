@@ -254,7 +254,6 @@ typedef struct CPUSPARCState {
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL 4
-    uint64_t t0;
     trap_state *tsptr;
     trap_state ts[MAXTL];
     uint32_t xcc;               /* Extended integer condition codes */
