@@ -19,14 +19,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/*
-   TODO-list:
-
-   Rest of V9 instructions, VIS instructions
-   NPC/PC static optimisations (use JUMP_TB when possible)
-   Optimize synthetic instructions
-*/
-
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
