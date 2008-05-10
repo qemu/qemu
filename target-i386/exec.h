@@ -32,6 +32,8 @@
 /* at least 4 register variables are defined */
 register struct CPUX86State *env asm(AREG0);
 
+#ifndef CPU_NO_GLOBAL_REGS
+
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 
 /* no registers can be used */
@@ -47,48 +49,9 @@ register target_ulong T0 asm(AREG1);
 register target_ulong T1 asm(AREG2);
 register target_ulong T2 asm(AREG3);
 
-/* if more registers are available, we define some registers too */
-#ifdef AREG4
-register target_ulong EAX asm(AREG4);
-#define reg_EAX
-#endif
-
-#ifdef AREG5
-register target_ulong ESP asm(AREG5);
-#define reg_ESP
-#endif
-
-#ifdef AREG6
-register target_ulong EBP asm(AREG6);
-#define reg_EBP
-#endif
-
-#ifdef AREG7
-register target_ulong ECX asm(AREG7);
-#define reg_ECX
-#endif
-
-#ifdef AREG8
-register target_ulong EDX asm(AREG8);
-#define reg_EDX
-#endif
-
-#ifdef AREG9
-register target_ulong EBX asm(AREG9);
-#define reg_EBX
-#endif
-
-#ifdef AREG10
-register target_ulong ESI asm(AREG10);
-#define reg_ESI
-#endif
-
-#ifdef AREG11
-register target_ulong EDI asm(AREG11);
-#define reg_EDI
-#endif
-
 #endif /* ! (TARGET_LONG_BITS > HOST_LONG_BITS) */
+
+#endif /* ! CPU_NO_GLOBAL_REGS */
 
 #define A0 T2
 
