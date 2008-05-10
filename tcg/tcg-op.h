@@ -23,7 +23,7 @@
  */
 #include "tcg.h"
 
-#ifndef CONFIG_NO_DYNGEN_OP
+#ifdef CONFIG_DYNGEN_OP
 /* legacy dyngen operations */
 #include "gen-op.h"
 #endif

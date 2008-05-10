@@ -1780,7 +1780,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
         case INDEX_op_end:
             goto the_end;
 
-#ifndef CONFIG_NO_DYNGEN_OP
+#ifdef CONFIG_DYNGEN_OP
         case 0 ... INDEX_op_end - 1:
             /* legacy dyngen ops */
 #ifdef CONFIG_PROFILER
