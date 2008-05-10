@@ -1286,6 +1286,7 @@ case "$target_cpu" in
     echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
     echo "#define TARGET_PPCEMB 1" >> $config_h
+    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   ppc64)
     echo "TARGET_ARCH=ppc64" >> $config_mak
