@@ -235,7 +235,7 @@ static inline void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
     int rex;
     rex = ((opc >> 6) & 0x8) | ((r >> 1) & 0x4) | 
         ((x >> 2) & 2) | ((rm >> 3) & 1);
-    if (rex || ((opc & P_REXB) && r >= 4)) {
+    if (rex || (opc & P_REXB)) {
         tcg_out8(s, rex | 0x40);
     }
     if (opc & P_EXT)
