@@ -46,7 +46,7 @@
                          according to jump_pc[T2] */
 
 /* global register indexes */
-static TCGv cpu_env, cpu_T[3], cpu_regwptr, cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
+static TCGv cpu_env, cpu_T[2], cpu_regwptr, cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
 static TCGv cpu_psr, cpu_fsr, cpu_pc, cpu_npc, cpu_gregs[8];
 static TCGv cpu_cond, cpu_src1, cpu_src2, cpu_dst, cpu_addr, cpu_val;
 #ifdef TARGET_SPARC64
@@ -4223,16 +4223,9 @@ static void disas_sparc_insn(DisasContext * dc)
                         tcg_gen_helper_0_2(helper_check_align, cpu_addr, tcg_const_i32(7));
                         r_low = tcg_temp_new(TCG_TYPE_I32);
                         gen_movl_reg_TN(rd + 1, r_low);
-#ifndef __i386__
                         tcg_gen_helper_1_2(helper_pack64, cpu_tmp64, cpu_val,
                                            r_low);
                         tcg_gen_qemu_st64(cpu_tmp64, cpu_addr, dc->mem_idx);
-#else /* __i386__ */
-                        tcg_gen_st_tl(cpu_val, cpu_env, offsetof(CPUState, t1));
-                        tcg_gen_st_tl(r_low, cpu_env, offsetof(CPUState, t2));
-                        tcg_gen_helper_0_2(helper_std_i386, cpu_addr,
-                                           tcg_const_i32(dc->mem_idx));
-#endif /* __i386__ */
                     }
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
@@ -4475,8 +4468,6 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     cpu_tmp32 = tcg_temp_new(TCG_TYPE_I32);
     cpu_tmp64 = tcg_temp_new(TCG_TYPE_I64);
 
-    cpu_cond = cpu_T[2];
-
     do {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
@@ -4599,22 +4590,18 @@ void gen_intermediate_code_init(CPUSPARCState *env)
         cpu_regwptr = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
                                          offsetof(CPUState, regwptr),
                                          "regwptr");
-        //#if TARGET_LONG_BITS > HOST_LONG_BITS
 #ifdef TARGET_SPARC64
+        cpu_xcc = tcg_global_mem_new(TCG_TYPE_I32,
+                                     TCG_AREG0, offsetof(CPUState, xcc),
+                                     "xcc");
+#endif
+        /* XXX: T0 and T1 should be temporaries */
         cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
                                       TCG_AREG0, offsetof(CPUState, t0), "T0");
         cpu_T[1] = tcg_global_mem_new(TCG_TYPE_TL,
                                       TCG_AREG0, offsetof(CPUState, t1), "T1");
-        cpu_T[2] = tcg_global_mem_new(TCG_TYPE_TL,
-                                      TCG_AREG0, offsetof(CPUState, t2), "T2");
-        cpu_xcc = tcg_global_mem_new(TCG_TYPE_I32,
-                                     TCG_AREG0, offsetof(CPUState, xcc),
-                                     "xcc");
-#else
-        cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
-        cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
-        cpu_T[2] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "T2");
-#endif
+        cpu_cond = tcg_global_mem_new(TCG_TYPE_TL,
+                                      TCG_AREG0, offsetof(CPUState, cond), "cond");
         cpu_cc_src = tcg_global_mem_new(TCG_TYPE_TL,
                                         TCG_AREG0, offsetof(CPUState, cc_src),
                                         "cc_src");

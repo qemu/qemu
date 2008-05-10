@@ -2189,33 +2189,6 @@ uint64_t helper_pack64(target_ulong high, target_ulong low)
 #define ADDR(x) (x)
 #endif
 
-#ifdef __i386__
-void helper_std_i386(target_ulong addr, int mem_idx)
-{
-    uint64_t tmp = ((uint64_t)env->t1 << 32) | (uint64_t)(env->t2 & 0xffffffff);
-
-#if !defined(CONFIG_USER_ONLY)
-    switch (mem_idx) {
-    case 0:
-        stq_user(ADDR(addr), tmp);
-        break;
-    case 1:
-        stq_kernel(ADDR(addr), tmp);
-        break;
-#ifdef TARGET_SPARC64
-    case 2:
-        stq_hypv(ADDR(addr), tmp);
-        break;
-#endif
-    default:
-        break;
-    }
-#else
-    stq_raw(ADDR(addr), tmp);
-#endif
-}
-#endif /* __i386__ */
-
 void helper_stdf(target_ulong addr, int mem_idx)
 {
 #if !defined(CONFIG_USER_ONLY)
@@ -2894,7 +2867,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
             if (tb) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env, pc, (void *)T2);
+                cpu_restore_state(tb, env, pc, (void *)env->cond);
             }
         }
         cpu_loop_exit();

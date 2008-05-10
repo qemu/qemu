@@ -4,36 +4,7 @@
 #include "dyngen-exec.h"
 
 register struct CPUSPARCState *env asm(AREG0);
-
-#ifdef TARGET_SPARC64
-#define T0 (env->t0)
-#define T2 (env->t2)
 #define REGWPTR env->regwptr
-#else
-register uint32_t T0 asm(AREG1);
-
-#undef REG_REGWPTR // Broken
-#ifdef REG_REGWPTR
-#if defined(__sparc__)
-register uint32_t *REGWPTR asm(AREG4);
-#else
-register uint32_t *REGWPTR asm(AREG3);
-#endif
-#define reg_REGWPTR
-
-#ifdef AREG4
-register uint32_t T2 asm(AREG4);
-#define reg_T2
-#else
-#define T2 (env->t2)
-#endif
-
-#else
-#define REGWPTR env->regwptr
-register uint32_t T2 asm(AREG3);
-#endif
-#define reg_T2
-#endif
 
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)

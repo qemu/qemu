@@ -188,7 +188,6 @@ typedef struct trap_state {
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
-    float32 fpr[TARGET_FPREGS];  /* floating point registers */
     target_ulong pc;       /* program counter */
     target_ulong npc;      /* next program counter */
     target_ulong y;        /* multiply/divide register */
@@ -197,8 +196,13 @@ typedef struct CPUSPARCState {
     target_ulong cc_src, cc_src2;
     target_ulong cc_dst;
 
+    target_ulong t0, t1; /* temporaries live across basic blocks */
+    target_ulong cond; /* conditional branch result (XXX: save it in a
+                          temporary register when possible) */
+
     uint32_t psr;      /* processor state register */
     target_ulong fsr;      /* FPU state register */
+    float32 fpr[TARGET_FPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted
                           from PSR) */
     uint32_t wim;      /* window invalid mask */
@@ -271,7 +275,6 @@ typedef struct CPUSPARCState {
     uint64_t hpstate, htstate[MAXTL], hintp, htba, hver, hstick_cmpr, ssr;
     void *hstick; // UA 2005
 #endif
-    target_ulong t1, t2;
     uint32_t features;
 } CPUSPARCState;
 
