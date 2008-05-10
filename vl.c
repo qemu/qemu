@@ -7262,7 +7262,7 @@ static void help(int exitcode)
 #endif
            "-no-reboot      exit instead of rebooting\n"
            "-no-shutdown    stop before shutdown\n"
-           "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
+           "-loadvm [tag|id]  start right away with a saved state (loadvm in monitor)\n"
 	   "-vnc display    start a VNC server on display\n"
 #ifndef _WIN32
 	   "-daemonize      daemonize QEMU after initializing\n"
