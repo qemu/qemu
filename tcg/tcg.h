@@ -90,6 +90,10 @@ typedef struct TCGPool {
 
 #define TCG_MAX_TEMPS 512
 
+/* when the size of the arguments of a called function is smaller than
+   this value, they are statically allocated in the TB stack frame */
+#define TCG_STATIC_CALL_ARGS_SIZE 128
+
 typedef int TCGType;
 
 #define TCG_TYPE_I32 0
@@ -285,8 +289,11 @@ typedef struct TCGArgConstraint {
 
 #define TCG_OPF_BB_END     0x01 /* instruction defines the end of a basic
                                    block */
-#define TCG_OPF_CALL_CLOBBER 0x02 /* instruction clobbers call registers */
-#define TCG_OPF_SIDE_EFFECTS 0x04 /* instruction has side effects */
+#define TCG_OPF_CALL_CLOBBER 0x02 /* instruction clobbers call registers 
+                                   and potentially update globals. */
+#define TCG_OPF_SIDE_EFFECTS 0x04 /* instruction has side effects : it
+                                     cannot be removed if its output
+                                     are not used */
 
 typedef struct TCGOpDef {
     const char *name;
@@ -305,6 +312,7 @@ typedef struct TCGTargetOpDef {
 extern TCGOpDef tcg_op_defs[];
 
 void tcg_target_init(TCGContext *s);
+void tcg_target_qemu_prologue(TCGContext *s);
 
 #define tcg_abort() \
 do {\
@@ -358,3 +366,6 @@ int64_t tcg_helper_div_i64(int64_t arg1, int64_t arg2);
 int64_t tcg_helper_rem_i64(int64_t arg1, int64_t arg2);
 uint64_t tcg_helper_divu_i64(uint64_t arg1, uint64_t arg2);
 uint64_t tcg_helper_remu_i64(uint64_t arg1, uint64_t arg2);
+
+extern uint8_t code_gen_prologue[];
+#define tcg_qemu_tb_exec(tb_ptr) ((long REGPARM (*)(void *))code_gen_prologue)(tb_ptr)
