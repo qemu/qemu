@@ -8,7 +8,7 @@ CPU cores:
 x86                Fabrice Bellard (new maintainer needed)
 ARM                Paul Brook
 SPARC              Blue Swirl
-MIPS               Tiemo Seufer
+MIPS               Thiemo Seufer
 PowerPC            Jocelyn Mayer
 M68K               Paul Brook
 SH4                ?
@@ -71,3 +71,6 @@ Graphic layer             ?
 Character device layer    ?
 Network device layer      ?
 GDB stub                  ?
+Linux user                ?
+Darwin user               ?
+SLIRP                     ?
