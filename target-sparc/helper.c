@@ -28,6 +28,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "qemu-common.h"
+#include "helper.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_FEATURES
@@ -35,7 +36,7 @@
 typedef struct sparc_def_t sparc_def_t;
 
 struct sparc_def_t {
-    const unsigned char *name;
+    const char *name;
     target_ulong iu_version;
     uint32_t fpu_version;
     uint32_t mmu_version;
@@ -47,7 +48,7 @@ struct sparc_def_t {
     uint32_t features;
 };
 
-static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const unsigned char *cpu_model);
+static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 
 /* Sparc MMU emulation */
 
@@ -67,13 +68,13 @@ void cpu_unlock(void)
 
 #if defined(CONFIG_USER_ONLY)
 
-int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+int cpu_sparc_handle_mmu_fault(CPUState *env1, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu)
 {
     if (rw & 2)
-        env->exception_index = TT_TFAULT;
+        env1->exception_index = TT_TFAULT;
     else
-        env->exception_index = TT_DFAULT;
+        env1->exception_index = TT_DFAULT;
     return 1;
 }
 
@@ -387,8 +388,7 @@ void dump_mmu(CPUState *env)
  * UltraSparc IIi I/DMMUs
  */
 static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical, int *prot,
-                          int *access_index, target_ulong address, int rw,
-                          int is_user)
+                                     target_ulong address, int rw, int is_user)
 {
     target_ulong mask;
     unsigned int i;
@@ -447,8 +447,7 @@ static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical
 }
 
 static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical, int *prot,
-                          int *access_index, target_ulong address, int rw,
-                          int is_user)
+                                     target_ulong address, int is_user)
 {
     target_ulong mask;
     unsigned int i;
@@ -509,9 +508,11 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
     int is_user = mmu_idx == MMU_USER_IDX;
 
     if (rw == 2)
-        return get_physical_address_code(env, physical, prot, access_index, address, rw, is_user);
+        return get_physical_address_code(env, physical, prot, address,
+                                         is_user);
     else
-        return get_physical_address_data(env, physical, prot, access_index, address, rw, is_user);
+        return get_physical_address_data(env, physical, prot, address, rw,
+                                         is_user);
 }
 
 /* Perform address translation */
@@ -1134,7 +1135,7 @@ static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features)
     fprintf(stderr, "CPU feature %s not found\n", flagname);
 }
 
-static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const unsigned char *cpu_model)
+static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
 {
     unsigned int i;
     const sparc_def_t *def = NULL;

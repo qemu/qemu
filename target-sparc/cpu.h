@@ -376,30 +376,30 @@ void cpu_check_irqs(CPUSPARCState *env);
 #define MMU_KERNEL_IDX 1
 #define MMU_HYPV_IDX   2
 
-static inline int cpu_mmu_index (CPUState *env)
+static inline int cpu_mmu_index(CPUState *env1)
 {
 #if defined(CONFIG_USER_ONLY)
     return MMU_USER_IDX;
 #elif !defined(TARGET_SPARC64)
-    return env->psrs;
+    return env1->psrs;
 #else
-    if (!env->psrs)
+    if (!env1->psrs)
         return MMU_USER_IDX;
-    else if ((env->hpstate & HS_PRIV) == 0)
+    else if ((env1->hpstate & HS_PRIV) == 0)
         return MMU_KERNEL_IDX;
     else
         return MMU_HYPV_IDX;
 #endif
 }
 
-static inline int cpu_fpu_enabled(CPUState *env)
+static inline int cpu_fpu_enabled(CPUState *env1)
 {
 #if defined(CONFIG_USER_ONLY)
     return 1;
 #elif !defined(TARGET_SPARC64)
-    return env->psref;
+    return env1->psref;
 #else
-    return ((env->pstate & PS_PEF) != 0) && ((env->fprs & FPRS_FEF) != 0);
+    return ((env1->pstate & PS_PEF) != 0) && ((env1->fprs & FPRS_FEF) != 0);
 #endif
 }
 

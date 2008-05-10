@@ -45,13 +45,6 @@
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
 
-/* TSC handling */
-
-uint64_t cpu_get_tsc()
-{
-    return qemu_get_clock(vm_clock);
-}
-
 int DMA_get_channel_mode (int nchan)
 {
     return 0;
@@ -164,11 +157,11 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     return 0;
 }
 
-void pic_info()
+void pic_info(void)
 {
 }
 
-void irq_info()
+void irq_info(void)
 {
 }
 
@@ -189,21 +182,21 @@ static void main_cpu_reset(void *opaque)
     ptimer_run(env->hstick, 0);
 }
 
-void tick_irq(void *opaque)
+static void tick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
     cpu_interrupt(env, CPU_INTERRUPT_TIMER);
 }
 
-void stick_irq(void *opaque)
+static void stick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
     cpu_interrupt(env, CPU_INTERRUPT_TIMER);
 }
 
-void hstick_irq(void *opaque)
+static void hstick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
@@ -227,7 +220,7 @@ static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 static fdctrl_t *floppy_controller;
 
 /* Sun4u hardware initialisation */
-static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
+static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
                        const char *boot_devices, DisplayState *ds,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
@@ -241,7 +234,7 @@ static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
     PCIBus *pci_bus;
     QEMUBH *bh;
     qemu_irq *irq;
-    int index;
+    int drive_index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
 
@@ -271,9 +264,9 @@ static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
     main_cpu_reset(env);
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, ram_size, 0);
+    cpu_register_physical_memory(0, RAM_size, 0);
 
-    prom_offset = ram_size + vga_ram_size;
+    prom_offset = RAM_size + vga_ram_size;
     cpu_register_physical_memory(PROM_ADDR,
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE) & TARGET_PAGE_MASK,
                                  prom_offset | IO_MEM_ROM);
@@ -325,7 +318,7 @@ static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
     }
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, NULL);
     isa_mem_base = VGA_BASE;
-    pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size, vga_ram_size);
+    pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + RAM_size, RAM_size, vga_ram_size);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
@@ -352,9 +345,10 @@ static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
     for(i = 0; i < MAX_IDE_BUS * MAX_IDE_DEVS; i++) {
-        index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
-       if (index != -1)
-           hd[i] = drives_table[index].bdrv;
+        drive_index = drive_get_index(IF_IDE, i / MAX_IDE_DEVS,
+                                      i % MAX_IDE_DEVS);
+       if (drive_index != -1)
+           hd[i] = drives_table[drive_index].bdrv;
        else
            hd[i] = NULL;
     }
@@ -364,15 +358,15 @@ static void sun4u_init(ram_addr_t ram_size, int vga_ram_size,
     /* FIXME: wire up interrupts.  */
     i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
     for(i = 0; i < MAX_FD; i++) {
-        index = drive_get_index(IF_FLOPPY, 0, i);
-       if (index != -1)
-           fd[i] = drives_table[index].bdrv;
+        drive_index = drive_get_index(IF_FLOPPY, 0, i);
+       if (drive_index != -1)
+           fd[i] = drives_table[drive_index].bdrv;
        else
            fd[i] = NULL;
     }
     floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd);
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
-    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", ram_size, boot_devices,
+    sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", RAM_size, boot_devices,
                          KERNEL_LOAD_ADDR, kernel_size,
                          kernel_cmdline,
                          INITRD_LOAD_ADDR, initrd_size,

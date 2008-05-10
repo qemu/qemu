@@ -144,7 +144,7 @@ static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
     }
 }
 
-static inline int check_dirty(TCXState *ts, ram_addr_t page, ram_addr_t page24,
+static inline int check_dirty(ram_addr_t page, ram_addr_t page24,
                               ram_addr_t cpage)
 {
     int ret;
@@ -279,7 +279,7 @@ static void tcx24_update_display(void *opaque)
 
     for(y = 0; y < ts->height; y += 4, page += TARGET_PAGE_SIZE,
             page24 += TARGET_PAGE_SIZE, cpage += TARGET_PAGE_SIZE) {
-        if (check_dirty(ts, page, page24, cpage)) {
+        if (check_dirty(page, page24, cpage)) {
             if (y_start < 0)
                 y_start = y;
             if (page < page_min)

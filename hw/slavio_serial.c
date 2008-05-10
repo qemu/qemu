@@ -92,8 +92,8 @@ typedef struct {
 #define SERIAL_REGS 16
 typedef struct ChannelState {
     qemu_irq irq;
-    int reg;
-    int rxint, txint, rxint_under_svc, txint_under_svc;
+    uint32_t reg;
+    uint32_t rxint, txint, rxint_under_svc, txint_under_svc;
     chn_id_t chn; // this channel, A (base+4) or B (base+0)
     chn_type_t type;
     struct ChannelState *otherchn;
@@ -656,8 +656,8 @@ static CPUWriteMemoryFunc *slavio_serial_mem_write[3] = {
 
 static void slavio_serial_save_chn(QEMUFile *f, ChannelState *s)
 {
-    int tmp;
-    tmp = 0;
+    uint32_t tmp = 0;
+
     qemu_put_be32s(f, &tmp); /* unused, was IRQ.  */
     qemu_put_be32s(f, &s->reg);
     qemu_put_be32s(f, &s->rxint);
@@ -680,7 +680,7 @@ static void slavio_serial_save(QEMUFile *f, void *opaque)
 
 static int slavio_serial_load_chn(QEMUFile *f, ChannelState *s, int version_id)
 {
-    int tmp;
+    uint32_t tmp;
 
     if (version_id > 2)
         return -EINVAL;

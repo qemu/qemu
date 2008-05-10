@@ -31,7 +31,7 @@
 #define DPRINTF(fmt, args...) \
 do { printf("TIMER: " fmt , ##args); } while (0)
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, args...) do {} while (0)
 #endif
 
 /*
@@ -57,11 +57,11 @@ typedef struct SLAVIO_TIMERState {
     uint32_t count, counthigh, reached;
     uint64_t limit;
     // processor only
-    int running;
+    uint32_t running;
     struct SLAVIO_TIMERState *master;
-    int slave_index;
+    uint32_t slave_index;
     // system only
-    unsigned int num_slaves;
+    uint32_t num_slaves;
     struct SLAVIO_TIMERState *slave[MAX_CPUS];
     uint32_t slave_mode;
 } SLAVIO_TIMERState;
@@ -363,7 +363,7 @@ static void slavio_timer_reset(void *opaque)
 static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
                                             qemu_irq irq,
                                             SLAVIO_TIMERState *master,
-                                            int slave_index)
+                                            uint32_t slave_index)
 {
     int slavio_timer_io_memory;
     SLAVIO_TIMERState *s;

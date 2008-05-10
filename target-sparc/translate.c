@@ -66,9 +66,6 @@ typedef struct DisasContext {
     uint32_t features;
 } DisasContext;
 
-extern FILE *logfile;
-extern int loglevel;
-
 // This function uses non-native bit order
 #define GET_FIELD(X, FROM, TO) \
   ((X) >> (31 - (TO)) & ((1 << ((TO) - (FROM) + 1)) - 1))

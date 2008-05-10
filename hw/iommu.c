@@ -252,8 +252,7 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
     return ret;
 }
 
-static target_phys_addr_t iommu_translate_pa(IOMMUState *s,
-                                             target_phys_addr_t addr,
+static target_phys_addr_t iommu_translate_pa(target_phys_addr_t addr,
                                              uint32_t pte)
 {
     uint32_t tmppte;
@@ -296,7 +295,7 @@ void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
             iommu_bad_addr(opaque, page, is_write);
             return;
         }
-        phys_addr = iommu_translate_pa(opaque, addr, flags);
+        phys_addr = iommu_translate_pa(addr, flags);
         if (is_write) {
             if (!(flags & IOPTE_WRITE)) {
                 iommu_bad_addr(opaque, page, is_write);

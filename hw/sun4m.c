@@ -32,6 +32,8 @@
 #include "boards.h"
 #include "firmware_abi.h"
 #include "scsi.h"
+#include "pc.h"
+#include "isa.h"
 
 //#define DEBUG_IRQ
 
@@ -122,13 +124,6 @@ struct sun4d_hwdef {
     uint64_t max_mem;
     const char * const default_cpu_model;
 };
-
-/* TSC handling */
-
-uint64_t cpu_get_tsc()
-{
-    return qemu_get_clock(vm_clock);
-}
 
 int DMA_get_channel_mode (int nchan)
 {
@@ -238,13 +233,13 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
 
 static void *slavio_intctl;
 
-void pic_info()
+void pic_info(void)
 {
     if (slavio_intctl)
         slavio_pic_info(slavio_intctl);
 }
 
-void irq_info()
+void irq_info(void)
 {
     if (slavio_intctl)
         slavio_irq_info(slavio_intctl);
@@ -319,7 +314,6 @@ static void secondary_cpu_reset(void *opaque)
 }
 
 static unsigned long sun4m_load_kernel(const char *kernel_filename,
-                                       const char *kernel_cmdline,
                                        const char *initrd_filename)
 {
     int linux_boot;
@@ -384,7 +378,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     int ret;
     char buf[1024];
     BlockDriverState *fd[MAX_FD];
-    int index;
+    int drive_index;
 
     /* init CPUs */
     if (!cpu_model)
@@ -506,9 +500,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
         memset(fd, 0, sizeof(fd));
-        index = drive_get_index(IF_FLOPPY, 0, 0);
-        if (index != -1)
-            fd[0] = drives_table[index].bdrv;
+        drive_index = drive_get_index(IF_FLOPPY, 0, 0);
+        if (drive_index != -1)
+            fd[0] = drives_table[drive_index].bdrv;
 
         sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
                           fdc_tc);
@@ -524,17 +518,16 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
                         espdma, *espdma_irq, esp_reset);
 
     for (i = 0; i < ESP_MAX_DEVS; i++) {
-        index = drive_get_index(IF_SCSI, 0, i);
-        if (index == -1)
+        drive_index = drive_get_index(IF_SCSI, 0, i);
+        if (drive_index == -1)
             continue;
-        esp_scsi_attach(main_esp, drives_table[index].bdrv, i);
+        esp_scsi_attach(main_esp, drives_table[drive_index].bdrv, i);
     }
 
     if (hwdef->cs_base != (target_phys_addr_t)-1)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
 
-    kernel_size = sun4m_load_kernel(kernel_filename, kernel_cmdline,
-                                    initrd_filename);
+    kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename);
 
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
@@ -561,7 +554,7 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     int ret;
     char buf[1024];
     BlockDriverState *fd[MAX_FD];
-    int index;
+    int drive_index;
 
     /* init CPU */
     if (!cpu_model)
@@ -658,9 +651,9 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
         fd[1] = fd[0] = NULL;
-        index = drive_get_index(IF_FLOPPY, 0, 0);
-        if (index != -1)
-            fd[0] = drives_table[index].bdrv;
+        drive_index = drive_get_index(IF_FLOPPY, 0, 0);
+        if (drive_index != -1)
+            fd[0] = drives_table[drive_index].bdrv;
 
         sun4m_fdctrl_init(slavio_irq[hwdef->fd_irq], hwdef->fd_base, fd,
                           fdc_tc);
@@ -676,14 +669,13 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
                         espdma, *espdma_irq, esp_reset);
 
     for (i = 0; i < ESP_MAX_DEVS; i++) {
-        index = drive_get_index(IF_SCSI, 0, i);
-        if (index == -1)
+        drive_index = drive_get_index(IF_SCSI, 0, i);
+        if (drive_index == -1)
             continue;
-        esp_scsi_attach(main_esp, drives_table[index].bdrv, i);
+        esp_scsi_attach(main_esp, drives_table[drive_index].bdrv, i);
     }
 
-    kernel_size = sun4m_load_kernel(kernel_filename, kernel_cmdline,
-                                    initrd_filename);
+    kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename);
 
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
@@ -1366,7 +1358,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     unsigned long prom_offset, kernel_size;
     int ret;
     char buf[1024];
-    int index;
+    int drive_index;
 
     /* init CPUs */
     if (!cpu_model)
@@ -1478,14 +1470,13 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
                         espdma, *espdma_irq, esp_reset);
 
     for (i = 0; i < ESP_MAX_DEVS; i++) {
-        index = drive_get_index(IF_SCSI, 0, i);
-        if (index == -1)
+        drive_index = drive_get_index(IF_SCSI, 0, i);
+        if (drive_index == -1)
             continue;
-        esp_scsi_attach(main_esp, drives_table[index].bdrv, i);
+        esp_scsi_attach(main_esp, drives_table[drive_index].bdrv, i);
     }
 
-    kernel_size = sun4m_load_kernel(kernel_filename, kernel_cmdline,
-                                    initrd_filename);
+    kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename);
 
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,

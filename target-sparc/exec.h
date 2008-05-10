@@ -45,15 +45,6 @@ register uint32_t T2 asm(AREG3);
 #include "cpu.h"
 #include "exec-all.h"
 
-void cpu_lock(void);
-void cpu_unlock(void);
-void cpu_loop_exit(void);
-void set_cwp(int new_cwp);
-void do_interrupt(int intno);
-void memcpy32(target_ulong *dst, const target_ulong *src);
-target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev);
-void dump_mmu(CPUState *env);
-
 static inline void env_to_regs(void)
 {
 #if defined(reg_REGWPTR)
@@ -66,14 +57,14 @@ static inline void regs_to_env(void)
 {
 }
 
-int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+int cpu_sparc_handle_mmu_fault(CPUState *env1, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu);
 
-static inline int cpu_halted(CPUState *env) {
-    if (!env->halted)
+static inline int cpu_halted(CPUState *env1) {
+    if (!env1->halted)
         return 0;
-    if ((env->interrupt_request & CPU_INTERRUPT_HARD) && (env->psret != 0)) {
-        env->halted = 0;
+    if ((env1->interrupt_request & CPU_INTERRUPT_HARD) && (env1->psret != 0)) {
+        env1->halted = 0;
         return 0;
     }
     return EXCP_HALTED;
