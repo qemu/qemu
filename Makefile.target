@@ -331,7 +331,7 @@ op_helper.o: op_helper.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 endif
 
-cpu-exec.o: cpu-exec.c
+cpu-exec.o: cpu-exec.c $(OPC_H)
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 #########################################################
