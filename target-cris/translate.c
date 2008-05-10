@@ -1120,7 +1120,6 @@ void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
 {
 	int mem_index = cpu_mmu_index(dc->env);
 
-	cris_evaluate_flags(dc);
 	if (size == 1) {
 		if (sign)
 			tcg_gen_qemu_ld8s(dst, addr, mem_index);
@@ -1276,8 +1275,6 @@ static int dec_prep_alu_m(DisasContext *dc, int s_ext, int memsize)
 		tcg_gen_movi_tl(cpu_T[1], imm);
 		dc->postinc = 0;
 	} else {
-		/* FIXME: qemu_ld does not act as a barrier?  */
-		tcg_gen_helper_0_0(helper_dummy);
 		gen_load(dc, cpu_T[1], cpu_R[rs], memsize, 0);
 		if (s_ext)
 			t_gen_sext(cpu_T[1], cpu_T[1], memsize);
@@ -2340,8 +2337,6 @@ static unsigned int dec_move_pm(DisasContext *dc)
 		cris_evaluate_flags(dc);
 	t_gen_mov_TN_preg(cpu_T[1], dc->op2);
 
-	/* FIXME: qemu_st does not act as a barrier?  */
-	tcg_gen_helper_0_0(helper_dummy);
 	gen_store(dc, cpu_R[dc->op1], cpu_T[1], memsize);
 
 	cris_cc_mask(dc, 0);
@@ -2357,9 +2352,6 @@ static unsigned int dec_movem_mr(DisasContext *dc)
 
 	DIS(fprintf (logfile, "movem [$r%u%s, $r%u\n", dc->op1,
 		    dc->postinc ? "+]" : "]", dc->op2));
-
-	/* FIXME: qemu_ld does not act as a barrier?  */
-	tcg_gen_helper_0_0(helper_dummy);
 
 	/* fetch the address into T0 and T1.  */
 	for (i = 0; i <= dc->op2; i++) {
@@ -2390,9 +2382,6 @@ static unsigned int dec_movem_rm(DisasContext *dc)
 	DIS(fprintf (logfile, "movem $r%u, [$r%u%s\n", dc->op2, dc->op1,
 		     dc->postinc ? "+]" : "]"));
 
-	/* FIXME: qemu_st does not act as a barrier?  */
-	tcg_gen_helper_0_0(helper_dummy);
-
 	for (i = 0; i <= dc->op2; i++) {
 		/* Displace addr.  */
 		tcg_gen_addi_tl(cpu_T[0], cpu_R[dc->op1], i * 4);
@@ -2415,8 +2404,6 @@ static unsigned int dec_move_rm(DisasContext *dc)
 		     memsize, dc->op2, dc->op1));
 
 	/* prepare store.  */
-	/* FIXME: qemu_st does not act as a barrier?  */
-	tcg_gen_helper_0_0(helper_dummy);
 	gen_store(dc, cpu_R[dc->op1], cpu_R[dc->op2], memsize);
 
 	if (dc->postinc)
