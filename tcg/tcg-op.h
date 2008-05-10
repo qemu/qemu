@@ -164,7 +164,7 @@ static inline void tcg_gen_br(int label)
 
 static inline void tcg_gen_mov_i32(TCGv ret, TCGv arg)
 {
-    if (ret != arg)
+    if (GET_TCGV(ret) != GET_TCGV(arg))
         tcg_gen_op2(INDEX_op_mov_i32, ret, arg);
 }
 
@@ -501,7 +501,7 @@ static inline void tcg_gen_remu_i32(TCGv ret, TCGv arg1, TCGv arg2)
 
 static inline void tcg_gen_mov_i64(TCGv ret, TCGv arg)
 {
-    if (ret != arg) {
+    if (GET_TCGV(ret) != GET_TCGV(arg)) {
         tcg_gen_mov_i32(ret, arg);
         tcg_gen_mov_i32(TCGV_HIGH(ret), TCGV_HIGH(arg));
     }
@@ -732,7 +732,7 @@ static inline void tcg_gen_remu_i64(TCGv ret, TCGv arg1, TCGv arg2)
 
 static inline void tcg_gen_mov_i64(TCGv ret, TCGv arg)
 {
-    if (ret != arg)
+    if (GET_TCGV(ret) != GET_TCGV(arg))
         tcg_gen_op2(INDEX_op_mov_i64, ret, arg);
 }
 
