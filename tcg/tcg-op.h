@@ -1208,6 +1208,24 @@ static inline void tcg_gen_bswap_i64(TCGv ret, TCGv arg)
 
 #endif
 
+static inline void tcg_gen_neg_i32(TCGv ret, TCGv arg)
+{
+#ifdef TCG_TARGET_HAS_neg_i32
+    tcg_gen_op2(INDEX_op_neg_i32, ret, arg);
+#else
+    tcg_gen_sub_i32(ret, tcg_const_i32(0), arg);
+#endif
+}
+
+static inline void tcg_gen_neg_i64(TCGv ret, TCGv arg)
+{
+#ifdef TCG_TARGET_HAS_neg_i64
+    tcg_gen_op2(INDEX_op_neg_i64, ret, arg);
+#else
+    tcg_gen_sub_i64(ret, tcg_const_i64(0), arg);
+#endif
+}
+
 
 static inline void tcg_gen_discard_i32(TCGv arg)
 {
@@ -1441,6 +1459,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_add_tl tcg_gen_add_i64
 #define tcg_gen_addi_tl tcg_gen_addi_i64
 #define tcg_gen_sub_tl tcg_gen_sub_i64
+#define tcg_gen_neg_tl tcg_gen_neg_i64
 #define tcg_gen_subi_tl tcg_gen_subi_i64
 #define tcg_gen_and_tl tcg_gen_and_i64
 #define tcg_gen_andi_tl tcg_gen_andi_i64
@@ -1483,6 +1502,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_add_tl tcg_gen_add_i32
 #define tcg_gen_addi_tl tcg_gen_addi_i32
 #define tcg_gen_sub_tl tcg_gen_sub_i32
+#define tcg_gen_neg_tl tcg_gen_neg_i32
 #define tcg_gen_subi_tl tcg_gen_subi_i32
 #define tcg_gen_and_tl tcg_gen_and_i32
 #define tcg_gen_andi_tl tcg_gen_andi_i32

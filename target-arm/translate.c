@@ -457,12 +457,6 @@ static inline void tcg_gen_not_i32(TCGv t0, TCGv t1)
     tcg_gen_xori_i32(t0, t1, ~0);
 }
 
-/* FIXME:  Implement this natively.  */
-static inline void tcg_gen_neg_i64(TCGv dest, TCGv src)
-{
-    tcg_gen_sub_i64(dest, tcg_const_i64(0), src);
-}
-
 /* T0 &= ~T1.  Clobbers T1.  */
 /* FIXME: Implement bic natively.  */
 static inline void tcg_gen_bic_i32(TCGv dest, TCGv t0, TCGv t1)
@@ -8111,7 +8105,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
             break;
         case 0x9: /* neg */
             if (s->condexec_mask)
-                gen_op_subl_T0_T1();
+                tcg_gen_neg_i32(cpu_T[0], cpu_T[1]);
             else
                 gen_op_subl_T0_T1_cc();
             break;

@@ -318,7 +318,7 @@ static void t_gen_lz_i32(TCGv d, TCGv x)
 
 	/* y = -(x >> 16)  */
 	tcg_gen_shri_i32(y, x, 16);
-	tcg_gen_sub_i32(y, tcg_const_i32(0), y);
+	tcg_gen_neg_i32(y, y);
 
 	/* m = (y >> 16) & 16  */
 	tcg_gen_sari_i32(m, y, 16);
@@ -753,9 +753,9 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			t_gen_add_flag(cpu_T[0], 8); /* R_FLAG.  */
 			break;
 		case CC_OP_SUB:
-			tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
+			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-			tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
+			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
 			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
 
@@ -784,9 +784,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			t_gen_asr(cpu_T[0], cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_NEG:
-			/* Hopefully the TCG backend recognizes this pattern
-			   and makes a real neg out of it.  */
-			tcg_gen_sub_tl(cpu_T[0], tcg_const_tl(0), cpu_T[1]);
+			tcg_gen_neg_tl(cpu_T[0], cpu_T[1]);
 			/* Extended arithmetics.  */
 			t_gen_subx_carry(cpu_T[0]);
 			break;
@@ -829,10 +827,10 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 		}
 		break;
 		case CC_OP_CMP:
-			tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
+			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
-			tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
+			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
 			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
 
@@ -1642,7 +1640,7 @@ static unsigned int dec_abs_r(DisasContext *dc)
 	/* TODO: consider a branch free approach.  */
 	l1 = gen_new_label();
 	tcg_gen_brcond_tl(TCG_COND_GE, cpu_T[1], tcg_const_tl(0), l1);
-	tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
+	tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 	gen_set_label(l1);
 	crisv32_alu_op(dc, CC_OP_MOVE, dc->op2, 4);
 	return 2;

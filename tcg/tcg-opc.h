@@ -148,6 +148,12 @@ DEF2(ext32s_i64, 1, 1, 0, 0)
 DEF2(bswap_i64, 1, 1, 0, 0)
 #endif
 #endif
+#ifdef TCG_TARGET_HAS_neg_i32
+DEF2(neg_i32, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_neg_i64
+DEF2(neg_i64, 1, 1, 0, 0)
+#endif
 
 /* QEMU specific */
 DEF2(exit_tb, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
