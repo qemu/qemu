@@ -174,7 +174,7 @@ static void timer_update_irq(struct fs_timer_t *t)
 	t->r_masked_intr = t->r_intr & t->rw_intr_mask;
 
 	D(printf("%s: masked_intr=%x\n", __func__, t->r_masked_intr));
-	if (t->r_masked_intr & 1)
+	if (t->r_masked_intr)
 		qemu_irq_raise(t->irq[0]);
 	else
 		qemu_irq_lower(t->irq[0]);
