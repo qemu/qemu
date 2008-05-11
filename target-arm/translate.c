@@ -221,8 +221,8 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 #define gen_op_rorl_T1_im(im) tcg_gen_rori_i32(cpu_T[1], cpu_T[1], im)
 
 /* Value extensions.  */
-#define gen_uxtb(var) tcg_gen_andi_i32(var, var, 0xff)
-#define gen_uxth(var) tcg_gen_andi_i32(var, var, 0xffff)
+#define gen_uxtb(var) tcg_gen_ext8u_i32(var, var)
+#define gen_uxth(var) tcg_gen_ext16u_i32(var, var)
 #define gen_sxtb(var) tcg_gen_ext8s_i32(var, var)
 #define gen_sxth(var) tcg_gen_ext16s_i32(var, var)
 
@@ -1446,7 +1446,7 @@ static void gen_op_iwmmxt_setpsr_nz(void)
 static inline void gen_op_iwmmxt_addl_M0_wRn(int rn)
 {
     iwmmxt_load_reg(cpu_V1, rn);
-    tcg_gen_andi_i64(cpu_V1, cpu_V1, 0xffffffffu);
+    tcg_gen_ext32u_i64(cpu_V1, cpu_V1);
     tcg_gen_add_i64(cpu_M0, cpu_M0, cpu_V1);
 }
 
@@ -2704,7 +2704,7 @@ static void gen_neon_dup_u8(TCGv var, int shift)
     TCGv tmp = new_tmp();
     if (shift)
         tcg_gen_shri_i32(var, var, shift);
-    tcg_gen_andi_i32(var, var, 0xff);
+    tcg_gen_ext8u_i32(var, var);
     tcg_gen_shli_i32(tmp, var, 8);
     tcg_gen_or_i32(var, var, tmp);
     tcg_gen_shli_i32(tmp, var, 16);
@@ -2715,7 +2715,7 @@ static void gen_neon_dup_u8(TCGv var, int shift)
 static void gen_neon_dup_low16(TCGv var)
 {
     TCGv tmp = new_tmp();
-    tcg_gen_andi_i32(var, var, 0xffff);
+    tcg_gen_ext16u_i32(var, var);
     tcg_gen_shli_i32(tmp, var, 16);
     tcg_gen_or_i32(var, var, tmp);
     dead_tmp(tmp);
@@ -5862,7 +5862,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 /* MOVT */
                 tmp = load_reg(s, rd);
-                tcg_gen_andi_i32(tmp, tmp, 0xffff);
+                tcg_gen_ext16u_i32(tmp, tmp);
                 tcg_gen_ori_i32(tmp, tmp, val << 16);
             }
             store_reg(s, rd, tmp);
@@ -6378,10 +6378,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         if (insn & (1 << 6)) {
                             /* pkhtb */
                             tcg_gen_andi_i32(tmp, tmp, 0xffff0000);
-                            tcg_gen_andi_i32(tmp2, tmp2, 0xffff);
+                            tcg_gen_ext16u_i32(tmp2, tmp2);
                         } else {
                             /* pkhbt */
-                            tcg_gen_andi_i32(tmp, tmp, 0xffff);
+                            tcg_gen_ext16u_i32(tmp, tmp);
                             tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
                         }
                         tcg_gen_or_i32(tmp, tmp, tmp2);
@@ -7700,7 +7700,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                         if (insn & (1 << 23)) {
                             /* movt */
                             tmp = load_reg(s, rd);
-                            tcg_gen_andi_i32(tmp, tmp, 0xffff);
+                            tcg_gen_ext16u_i32(tmp, tmp);
                             tcg_gen_ori_i32(tmp, tmp, imm << 16);
                         } else {
                             /* movw */

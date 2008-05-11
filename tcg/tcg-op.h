@@ -980,6 +980,18 @@ static inline void tcg_gen_ext16s_i32(TCGv ret, TCGv arg)
 #endif
 }
 
+/* These are currently just for convenience.
+   We assume a target will recognise these automatically .  */
+static inline void tcg_gen_ext8u_i32(TCGv ret, TCGv arg)
+{
+    tcg_gen_andi_i32(ret, arg, 0xffu);
+}
+
+static inline void tcg_gen_ext16u_i32(TCGv ret, TCGv arg)
+{
+    tcg_gen_andi_i32(ret, arg, 0xffffu);
+}
+
 /* Note: we assume the two high bytes are set to zero */
 static inline void tcg_gen_bswap16_i32(TCGv ret, TCGv arg)
 {
@@ -1038,6 +1050,24 @@ static inline void tcg_gen_ext32s_i64(TCGv ret, TCGv arg)
 {
     tcg_gen_mov_i32(ret, arg);
     tcg_gen_sari_i32(TCGV_HIGH(ret), ret, 31);
+}
+
+static inline void tcg_gen_ext8u_i64(TCGv ret, TCGv arg)
+{
+    tcg_gen_ext8u_i32(ret, arg);
+    tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
+}
+
+static inline void tcg_gen_ext16u_i64(TCGv ret, TCGv arg)
+{
+    tcg_gen_ext16u_i32(ret, arg);
+    tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
+}
+
+static inline void tcg_gen_ext32u_i64(TCGv ret, TCGv arg)
+{
+    tcg_gen_mov_i32(ret, arg);
+    tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
 }
 
 static inline void tcg_gen_trunc_i64_i32(TCGv ret, TCGv arg)
@@ -1100,6 +1130,21 @@ static inline void tcg_gen_ext32s_i64(TCGv ret, TCGv arg)
 #endif
 }
 
+static inline void tcg_gen_ext8u_i64(TCGv ret, TCGv arg)
+{
+    tcg_gen_andi_i64(ret, arg, 0xffu);
+}
+
+static inline void tcg_gen_ext16u_i64(TCGv ret, TCGv arg)
+{
+    tcg_gen_andi_i64(ret, arg, 0xffffu);
+}
+
+static inline void tcg_gen_ext32u_i64(TCGv ret, TCGv arg)
+{
+    tcg_gen_andi_i64(ret, arg, 0xffffffffu);
+}
+
 /* Note: we assume the target supports move between 32 and 64 bit
    registers.  This will probably break MIPS64 targets.  */
 static inline void tcg_gen_trunc_i64_i32(TCGv ret, TCGv arg)
@@ -1111,7 +1156,7 @@ static inline void tcg_gen_trunc_i64_i32(TCGv ret, TCGv arg)
    registers */
 static inline void tcg_gen_extu_i32_i64(TCGv ret, TCGv arg)
 {
-    tcg_gen_andi_i64(ret, arg, 0xffffffff);
+    tcg_gen_andi_i64(ret, arg, 0xffffffffu);
 }
 
 /* Note: we assume the target supports move between 32 and 64 bit
