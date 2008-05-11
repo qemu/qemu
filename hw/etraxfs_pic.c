@@ -154,6 +154,7 @@ static void etraxfs_pic_handler(void *opaque, int irq, int level)
 		 __func__, irq, level,
 		 fs->rw_mask, fs->r_vect, fs->r_masked_vect));
 
+	irq -= 1;
 	fs->r_vect &= ~(1 << irq);
 	fs->r_vect |= (!!level << irq);
 	fs->r_masked_vect = fs->r_vect & fs->rw_mask;
