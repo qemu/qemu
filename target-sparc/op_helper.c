@@ -33,6 +33,12 @@ do { printf("ASI: " fmt , ##args); } while (0)
 #define DPRINTF_ASI(fmt, args...) do {} while (0)
 #endif
 
+#ifdef TARGET_ABI32
+#define ABI32_MASK(addr) do { (addr) &= 0xffffffffULL; } while (0)
+#else
+#define ABI32_MASK(addr) do {} while (0)
+#endif
+
 void raise_exception(int tt)
 {
     env->exception_index = tt;
@@ -55,8 +61,13 @@ void helper_trapcc(target_ulong nb_trap, target_ulong do_trap)
 
 void helper_check_align(target_ulong addr, uint32_t align)
 {
-    if (addr & align)
+    if (addr & align) {
+#ifdef DEBUG_UNALIGNED
+    printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx
+           "\n", addr, env->pc);
+#endif
         raise_exception(TT_UNALIGNED);
+    }
 }
 
 #define F_HELPER(name, p) void helper_f##name##p(void)
@@ -832,6 +843,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     uint32_t last_addr = addr;
 #endif
 
+    helper_check_align(addr, size - 1);
     switch (asi) {
     case 2: /* SuperSparc MXCC registers */
         switch (addr) {
@@ -1030,6 +1042,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 
 void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
 {
+    helper_check_align(addr, size - 1);
     switch(asi) {
     case 2: /* SuperSparc MXCC registers */
         switch (addr) {
@@ -1335,6 +1348,9 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     if (asi < 0x80)
         raise_exception(TT_PRIV_ACT);
 
+    helper_check_align(addr, size - 1);
+    ABI32_MASK(addr);
+
     switch (asi) {
     case 0x80: // Primary
     case 0x82: // Primary no-fault
@@ -1421,6 +1437,9 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     if (asi < 0x80)
         raise_exception(TT_PRIV_ACT);
 
+    helper_check_align(addr, size - 1);
+    ABI32_MASK(addr);
+
     /* Convert to little endian */
     switch (asi) {
     case 0x88: // Primary LE
@@ -1491,6 +1510,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
+    helper_check_align(addr, size - 1);
     switch (asi) {
     case 0x10: // As if user primary
     case 0x18: // As if user primary LE
@@ -1714,6 +1734,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
+    helper_check_align(addr, size - 1);
     /* Convert to little endian */
     switch (asi) {
     case 0x0c: // Nucleus Little Endian (LE)
@@ -2009,6 +2030,7 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     unsigned int i;
     target_ulong val;
 
+    helper_check_align(addr, 3);
     switch (asi) {
     case 0xf0: // Block load primary
     case 0xf1: // Block load secondary
@@ -2018,10 +2040,7 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
             raise_exception(TT_ILL_INSN);
             return;
         }
-        if (addr & 0x3f) {
-            raise_exception(TT_UNALIGNED);
-            return;
-        }
+        helper_check_align(addr, 0x3f);
         for (i = 0; i < 16; i++) {
             *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x8f, 4, 0);
             addr += 4;
@@ -2052,6 +2071,7 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     unsigned int i;
     target_ulong val = 0;
 
+    helper_check_align(addr, 3);
     switch (asi) {
     case 0xf0: // Block store primary
     case 0xf1: // Block store secondary
@@ -2061,10 +2081,7 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
             raise_exception(TT_ILL_INSN);
             return;
         }
-        if (addr & 0x3f) {
-            raise_exception(TT_UNALIGNED);
-            return;
-        }
+        helper_check_align(addr, 0x3f);
         for (i = 0; i < 16; i++) {
             val = *(uint32_t *)&env->fpr[rd++];
             helper_st_asi(addr, val, asi & 0x8f, 4);
@@ -2183,55 +2200,53 @@ uint64_t helper_pack64(target_ulong high, target_ulong low)
     return ((uint64_t)high << 32) | (uint64_t)(low & 0xffffffff);
 }
 
-#ifdef TARGET_ABI32
-#define ADDR(x) ((x) & 0xffffffff)
-#else
-#define ADDR(x) (x)
-#endif
-
 void helper_stdf(target_ulong addr, int mem_idx)
 {
+    helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
     case 0:
-        stfq_user(ADDR(addr), DT0);
+        stfq_user(addr, DT0);
         break;
     case 1:
-        stfq_kernel(ADDR(addr), DT0);
+        stfq_kernel(addr, DT0);
         break;
 #ifdef TARGET_SPARC64
     case 2:
-        stfq_hypv(ADDR(addr), DT0);
+        stfq_hypv(addr, DT0);
         break;
 #endif
     default:
         break;
     }
 #else
-    stfq_raw(ADDR(addr), DT0);
+    ABI32_MASK(addr);
+    stfq_raw(addr, DT0);
 #endif
 }
 
 void helper_lddf(target_ulong addr, int mem_idx)
 {
+    helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
     case 0:
-        DT0 = ldfq_user(ADDR(addr));
+        DT0 = ldfq_user(addr);
         break;
     case 1:
-        DT0 = ldfq_kernel(ADDR(addr));
+        DT0 = ldfq_kernel(addr);
         break;
 #ifdef TARGET_SPARC64
     case 2:
-        DT0 = ldfq_hypv(ADDR(addr));
+        DT0 = ldfq_hypv(addr);
         break;
 #endif
     default:
         break;
     }
 #else
-    DT0 = ldfq_raw(ADDR(addr));
+    ABI32_MASK(addr);
+    DT0 = ldfq_raw(addr);
 #endif
 }
 
@@ -2240,22 +2255,23 @@ void helper_ldqf(target_ulong addr, int mem_idx)
     // XXX add 128 bit load
     CPU_QuadU u;
 
+    helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
     case 0:
-        u.ll.upper = ldq_user(ADDR(addr));
-        u.ll.lower = ldq_user(ADDR(addr + 8));
+        u.ll.upper = ldq_user(addr);
+        u.ll.lower = ldq_user(addr + 8);
         QT0 = u.q;
         break;
     case 1:
-        u.ll.upper = ldq_kernel(ADDR(addr));
-        u.ll.lower = ldq_kernel(ADDR(addr + 8));
+        u.ll.upper = ldq_kernel(addr);
+        u.ll.lower = ldq_kernel(addr + 8);
         QT0 = u.q;
         break;
 #ifdef TARGET_SPARC64
     case 2:
-        u.ll.upper = ldq_hypv(ADDR(addr));
-        u.ll.lower = ldq_hypv(ADDR(addr + 8));
+        u.ll.upper = ldq_hypv(addr);
+        u.ll.lower = ldq_hypv(addr + 8);
         QT0 = u.q;
         break;
 #endif
@@ -2263,8 +2279,9 @@ void helper_ldqf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    u.ll.upper = ldq_raw(ADDR(addr));
-    u.ll.lower = ldq_raw(ADDR(addr + 8));
+    ABI32_MASK(addr);
+    u.ll.upper = ldq_raw(addr);
+    u.ll.lower = ldq_raw((addr + 8) & 0xffffffffULL);
     QT0 = u.q;
 #endif
 }
@@ -2274,23 +2291,24 @@ void helper_stqf(target_ulong addr, int mem_idx)
     // XXX add 128 bit store
     CPU_QuadU u;
 
+    helper_check_align(addr, 7);
 #if !defined(CONFIG_USER_ONLY)
     switch (mem_idx) {
     case 0:
         u.q = QT0;
-        stq_user(ADDR(addr), u.ll.upper);
-        stq_user(ADDR(addr + 8), u.ll.lower);
+        stq_user(addr, u.ll.upper);
+        stq_user(addr + 8, u.ll.lower);
         break;
     case 1:
         u.q = QT0;
-        stq_kernel(ADDR(addr), u.ll.upper);
-        stq_kernel(ADDR(addr + 8), u.ll.lower);
+        stq_kernel(addr, u.ll.upper);
+        stq_kernel(addr + 8, u.ll.lower);
         break;
 #ifdef TARGET_SPARC64
     case 2:
         u.q = QT0;
-        stq_hypv(ADDR(addr), u.ll.upper);
-        stq_hypv(ADDR(addr + 8), u.ll.lower);
+        stq_hypv(addr, u.ll.upper);
+        stq_hypv(addr + 8, u.ll.lower);
         break;
 #endif
     default:
@@ -2298,12 +2316,11 @@ void helper_stqf(target_ulong addr, int mem_idx)
     }
 #else
     u.q = QT0;
-    stq_raw(ADDR(addr), u.ll.upper);
-    stq_raw(ADDR(addr + 8), u.ll.lower);
+    ABI32_MASK(addr);
+    stq_raw(addr, u.ll.upper);
+    stq_raw((addr + 8) & 0xffffffffULL, u.ll.lower);
 #endif
 }
-
-#undef ADDR
 
 void helper_ldfsr(void)
 {
@@ -2833,12 +2850,32 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 #define SHIFT 3
 #include "softmmu_template.h"
 
+/* XXX: make it generic ? */
+static void cpu_restore_state2(void *retaddr)
+{
+    TranslationBlock *tb;
+    unsigned long pc;
+
+    if (retaddr) {
+        /* now we have a real cpu fault */
+        pc = (unsigned long)retaddr;
+        tb = tb_find_pc(pc);
+        if (tb) {
+            /* the PC is inside the translated code. It means that we have
+               a virtual CPU fault */
+            cpu_restore_state(tb, env, pc, (void *)(long)env->cond);
+        }
+    }
+}
+
 static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
                                 void *retaddr)
 {
 #ifdef DEBUG_UNALIGNED
-    printf("Unaligned access to 0x%x from 0x%x\n", addr, env->pc);
+    printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx
+           "\n", addr, env->pc);
 #endif
+    cpu_restore_state2(retaddr);
     raise_exception(TT_UNALIGNED);
 }
 
@@ -2848,9 +2885,7 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 /* XXX: fix it to restore all registers */
 void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {
-    TranslationBlock *tb;
     int ret;
-    unsigned long pc;
     CPUState *saved_env;
 
     /* XXX: hack to restore env in all cases, even if not called from
@@ -2860,16 +2895,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
     ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (ret) {
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, pc, (void *)env->cond);
-            }
-        }
+        cpu_restore_state2(retaddr);
         cpu_loop_exit();
     }
     env = saved_env;
