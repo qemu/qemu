@@ -290,90 +290,6 @@ void OPPROTO op_imulq_T0_T1(void)
 }
 #endif
 
-/* division, flags are undefined */
-
-void OPPROTO op_divb_AL_T0(void)
-{
-    unsigned int num, den, q, r;
-
-    num = (EAX & 0xffff);
-    den = (T0 & 0xff);
-    if (den == 0) {
-        raise_exception(EXCP00_DIVZ);
-    }
-    q = (num / den);
-    if (q > 0xff)
-        raise_exception(EXCP00_DIVZ);
-    q &= 0xff;
-    r = (num % den) & 0xff;
-    EAX = (EAX & ~0xffff) | (r << 8) | q;
-}
-
-void OPPROTO op_idivb_AL_T0(void)
-{
-    int num, den, q, r;
-
-    num = (int16_t)EAX;
-    den = (int8_t)T0;
-    if (den == 0) {
-        raise_exception(EXCP00_DIVZ);
-    }
-    q = (num / den);
-    if (q != (int8_t)q)
-        raise_exception(EXCP00_DIVZ);
-    q &= 0xff;
-    r = (num % den) & 0xff;
-    EAX = (EAX & ~0xffff) | (r << 8) | q;
-}
-
-void OPPROTO op_divw_AX_T0(void)
-{
-    unsigned int num, den, q, r;
-
-    num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
-    den = (T0 & 0xffff);
-    if (den == 0) {
-        raise_exception(EXCP00_DIVZ);
-    }
-    q = (num / den);
-    if (q > 0xffff)
-        raise_exception(EXCP00_DIVZ);
-    q &= 0xffff;
-    r = (num % den) & 0xffff;
-    EAX = (EAX & ~0xffff) | q;
-    EDX = (EDX & ~0xffff) | r;
-}
-
-void OPPROTO op_idivw_AX_T0(void)
-{
-    int num, den, q, r;
-
-    num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
-    den = (int16_t)T0;
-    if (den == 0) {
-        raise_exception(EXCP00_DIVZ);
-    }
-    q = (num / den);
-    if (q != (int16_t)q)
-        raise_exception(EXCP00_DIVZ);
-    q &= 0xffff;
-    r = (num % den) & 0xffff;
-    EAX = (EAX & ~0xffff) | q;
-    EDX = (EDX & ~0xffff) | r;
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO op_divq_EAX_T0(void)
-{
-    helper_divq_EAX_T0();
-}
-
-void OPPROTO op_idivq_EAX_T0(void)
-{
-    helper_idivq_EAX_T0();
-}
-#endif
-
 /* constant load & misc op */
 
 /* XXX: consistent names */
@@ -423,42 +339,6 @@ void OPPROTO op_addq_A0_AL(void)
 
 #endif
 
-void OPPROTO op_hlt(void)
-{
-    helper_hlt();
-}
-
-void OPPROTO op_monitor(void)
-{
-    helper_monitor();
-}
-
-void OPPROTO op_mwait(void)
-{
-    helper_mwait();
-}
-
-void OPPROTO op_debug(void)
-{
-    env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit();
-}
-
-void OPPROTO op_raise_interrupt(void)
-{
-    int intno, next_eip_addend;
-    intno = PARAM1;
-    next_eip_addend = PARAM2;
-    raise_interrupt(intno, 1, 0, next_eip_addend);
-}
-
-void OPPROTO op_raise_exception(void)
-{
-    int exception_index;
-    exception_index = PARAM1;
-    raise_exception(exception_index);
-}
-
 void OPPROTO op_into(void)
 {
     int eflags;
@@ -469,81 +349,9 @@ void OPPROTO op_into(void)
     FORCE_RET();
 }
 
-void OPPROTO op_cli(void)
-{
-    env->eflags &= ~IF_MASK;
-}
-
-void OPPROTO op_sti(void)
-{
-    env->eflags |= IF_MASK;
-}
-
-void OPPROTO op_set_inhibit_irq(void)
-{
-    env->hflags |= HF_INHIBIT_IRQ_MASK;
-}
-
-void OPPROTO op_reset_inhibit_irq(void)
-{
-    env->hflags &= ~HF_INHIBIT_IRQ_MASK;
-}
-
-void OPPROTO op_rsm(void)
-{
-    helper_rsm();
-}
-
-#if 0
-/* vm86plus instructions */
-void OPPROTO op_cli_vm(void)
-{
-    env->eflags &= ~VIF_MASK;
-}
-
-void OPPROTO op_sti_vm(void)
-{
-    env->eflags |= VIF_MASK;
-    if (env->eflags & VIP_MASK) {
-        EIP = PARAM1;
-        raise_exception(EXCP0D_GPF);
-    }
-    FORCE_RET();
-}
-#endif
-
-void OPPROTO op_boundw(void)
-{
-    int low, high, v;
-    low = ldsw(A0);
-    high = ldsw(A0 + 2);
-    v = (int16_t)T0;
-    if (v < low || v > high) {
-        raise_exception(EXCP05_BOUND);
-    }
-    FORCE_RET();
-}
-
-void OPPROTO op_boundl(void)
-{
-    int low, high, v;
-    low = ldl(A0);
-    high = ldl(A0 + 4);
-    v = T0;
-    if (v < low || v > high) {
-        raise_exception(EXCP05_BOUND);
-    }
-    FORCE_RET();
-}
-
 void OPPROTO op_cmpxchg8b(void)
 {
     helper_cmpxchg8b();
-}
-
-void OPPROTO op_single_step(void)
-{
-    helper_single_step();
 }
 
 /* multiple size ops */
@@ -680,197 +488,36 @@ void OPPROTO op_decq_ECX(void)
 }
 #endif
 
-void OPPROTO op_rdtsc(void)
-{
-    helper_rdtsc();
-}
-
-void OPPROTO op_rdpmc(void)
-{
-    helper_rdpmc();
-}
-
-void OPPROTO op_cpuid(void)
-{
-    helper_cpuid();
-}
-
-void OPPROTO op_enter_level(void)
-{
-    helper_enter_level(PARAM1, PARAM2);
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO op_enter64_level(void)
-{
-    helper_enter64_level(PARAM1, PARAM2);
-}
-#endif
-
-void OPPROTO op_sysenter(void)
-{
-    helper_sysenter();
-}
-
-void OPPROTO op_sysexit(void)
-{
-    helper_sysexit();
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO op_syscall(void)
-{
-    helper_syscall(PARAM1);
-}
-
-void OPPROTO op_sysret(void)
-{
-    helper_sysret(PARAM1);
-}
-#endif
-
-void OPPROTO op_rdmsr(void)
-{
-    helper_rdmsr();
-}
-
-void OPPROTO op_wrmsr(void)
-{
-    helper_wrmsr();
-}
-
 /* bcd */
 
-/* XXX: exception */
 void OPPROTO op_aam(void)
 {
-    int base = PARAM1;
-    int al, ah;
-    al = EAX & 0xff;
-    ah = al / base;
-    al = al % base;
-    EAX = (EAX & ~0xffff) | al | (ah << 8);
-    CC_DST = al;
+    helper_aam(PARAM1);
 }
 
 void OPPROTO op_aad(void)
 {
-    int base = PARAM1;
-    int al, ah;
-    al = EAX & 0xff;
-    ah = (EAX >> 8) & 0xff;
-    al = ((ah * base) + al) & 0xff;
-    EAX = (EAX & ~0xffff) | al;
-    CC_DST = al;
+    helper_aad(PARAM1);
 }
 
 void OPPROTO op_aaa(void)
 {
-    int icarry;
-    int al, ah, af;
-    int eflags;
-
-    eflags = cc_table[CC_OP].compute_all();
-    af = eflags & CC_A;
-    al = EAX & 0xff;
-    ah = (EAX >> 8) & 0xff;
-
-    icarry = (al > 0xf9);
-    if (((al & 0x0f) > 9 ) || af) {
-        al = (al + 6) & 0x0f;
-        ah = (ah + 1 + icarry) & 0xff;
-        eflags |= CC_C | CC_A;
-    } else {
-        eflags &= ~(CC_C | CC_A);
-        al &= 0x0f;
-    }
-    EAX = (EAX & ~0xffff) | al | (ah << 8);
-    CC_SRC = eflags;
-    FORCE_RET();
+    helper_aaa();
 }
 
 void OPPROTO op_aas(void)
 {
-    int icarry;
-    int al, ah, af;
-    int eflags;
-
-    eflags = cc_table[CC_OP].compute_all();
-    af = eflags & CC_A;
-    al = EAX & 0xff;
-    ah = (EAX >> 8) & 0xff;
-
-    icarry = (al < 6);
-    if (((al & 0x0f) > 9 ) || af) {
-        al = (al - 6) & 0x0f;
-        ah = (ah - 1 - icarry) & 0xff;
-        eflags |= CC_C | CC_A;
-    } else {
-        eflags &= ~(CC_C | CC_A);
-        al &= 0x0f;
-    }
-    EAX = (EAX & ~0xffff) | al | (ah << 8);
-    CC_SRC = eflags;
-    FORCE_RET();
+    helper_aas();
 }
 
 void OPPROTO op_daa(void)
 {
-    int al, af, cf;
-    int eflags;
-
-    eflags = cc_table[CC_OP].compute_all();
-    cf = eflags & CC_C;
-    af = eflags & CC_A;
-    al = EAX & 0xff;
-
-    eflags = 0;
-    if (((al & 0x0f) > 9 ) || af) {
-        al = (al + 6) & 0xff;
-        eflags |= CC_A;
-    }
-    if ((al > 0x9f) || cf) {
-        al = (al + 0x60) & 0xff;
-        eflags |= CC_C;
-    }
-    EAX = (EAX & ~0xff) | al;
-    /* well, speed is not an issue here, so we compute the flags by hand */
-    eflags |= (al == 0) << 6; /* zf */
-    eflags |= parity_table[al]; /* pf */
-    eflags |= (al & 0x80); /* sf */
-    CC_SRC = eflags;
-    FORCE_RET();
+    helper_daa();
 }
 
 void OPPROTO op_das(void)
 {
-    int al, al1, af, cf;
-    int eflags;
-
-    eflags = cc_table[CC_OP].compute_all();
-    cf = eflags & CC_C;
-    af = eflags & CC_A;
-    al = EAX & 0xff;
-
-    eflags = 0;
-    al1 = al;
-    if (((al & 0x0f) > 9 ) || af) {
-        eflags |= CC_A;
-        if (al < 6 || cf)
-            eflags |= CC_C;
-        al = (al - 6) & 0xff;
-    }
-    if ((al1 > 0x99) || cf) {
-        al = (al - 0x60) & 0xff;
-        eflags |= CC_C;
-    }
-    EAX = (EAX & ~0xff) | al;
-    /* well, speed is not an issue here, so we compute the flags by hand */
-    eflags |= (al == 0) << 6; /* zf */
-    eflags |= parity_table[al]; /* pf */
-    eflags |= (al & 0x80); /* sf */
-    CC_SRC = eflags;
-    FORCE_RET();
+    helper_das();
 }
 
 /* segment handling */
@@ -878,7 +525,7 @@ void OPPROTO op_das(void)
 /* never use it with R_CS */
 void OPPROTO op_movl_seg_T0(void)
 {
-    load_seg(PARAM1, T0);
+    helper_load_seg(PARAM1, T0);
 }
 
 /* faster VM86 version */
@@ -901,22 +548,22 @@ void OPPROTO op_movl_T0_seg(void)
 
 void OPPROTO op_lsl(void)
 {
-    helper_lsl();
+    helper_lsl(T0);
 }
 
 void OPPROTO op_lar(void)
 {
-    helper_lar();
+    helper_lar(T0);
 }
 
 void OPPROTO op_verr(void)
 {
-    helper_verr();
+    helper_verr(T0);
 }
 
 void OPPROTO op_verw(void)
 {
-    helper_verw();
+    helper_verw(T0);
 }
 
 void OPPROTO op_arpl(void)
@@ -967,16 +614,6 @@ void OPPROTO op_iret_protected(void)
 void OPPROTO op_lret_protected(void)
 {
     helper_lret_protected(PARAM1, PARAM2);
-}
-
-void OPPROTO op_lldt_T0(void)
-{
-    helper_lldt_T0();
-}
-
-void OPPROTO op_ltr_T0(void)
-{
-    helper_ltr_T0();
 }
 
 /* CR registers access. */
@@ -1044,11 +681,6 @@ void OPPROTO op_lmsw_T0(void)
        if already set to one. */
     T0 = (env->cr[0] & ~0xe) | (T0 & 0xf);
     helper_movl_crN_T0(0);
-}
-
-void OPPROTO op_invlpg_A0(void)
-{
-    helper_invlpg(A0);
 }
 
 void OPPROTO op_movl_T0_env(void)
@@ -1282,16 +914,6 @@ void OPPROTO op_movl_T0_eflags_vm(void)
 }
 #endif
 
-void OPPROTO op_cld(void)
-{
-    DF = 1;
-}
-
-void OPPROTO op_std(void)
-{
-    DF = -1;
-}
-
 void OPPROTO op_clc(void)
 {
     int eflags;
@@ -1421,46 +1043,4 @@ void OPPROTO op_unlock(void)
 void OPPROTO op_com_dummy(void)
 {
     T0 = 0;
-}
-
-/* Secure Virtual Machine ops */
-
-void OPPROTO op_vmrun(void)
-{
-    helper_vmrun(EAX);
-}
-
-void OPPROTO op_vmmcall(void)
-{
-    helper_vmmcall();
-}
-
-void OPPROTO op_vmload(void)
-{
-    helper_vmload(EAX);
-}
-
-void OPPROTO op_vmsave(void)
-{
-    helper_vmsave(EAX);
-}
-
-void OPPROTO op_stgi(void)
-{
-    helper_stgi();
-}
-
-void OPPROTO op_clgi(void)
-{
-    helper_clgi();
-}
-
-void OPPROTO op_skinit(void)
-{
-    helper_skinit();
-}
-
-void OPPROTO op_invlpga(void)
-{
-    helper_invlpga();
 }

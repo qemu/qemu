@@ -95,10 +95,6 @@ extern int loglevel;
 #define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7].d)
 #define ST1    ST(1)
 
-#ifdef USE_FP_CONVERT
-#define FP_CONVERT  (env->fp_convert)
-#endif
-
 #include "cpu.h"
 #include "exec-all.h"
 
@@ -109,15 +105,13 @@ typedef struct CCTable {
 
 extern CCTable cc_table[];
 
-void load_seg(int seg_reg, int selector);
+void helper_load_seg(int seg_reg, int selector);
 void helper_ljmp_protected_T0_T1(int next_eip);
 void helper_lcall_real_T0_T1(int shift, int next_eip);
 void helper_lcall_protected_T0_T1(int shift, int next_eip);
 void helper_iret_real(int shift);
 void helper_iret_protected(int shift, int next_eip);
 void helper_lret_protected(int shift, int addend);
-void helper_lldt_T0(void);
-void helper_ltr_T0(void);
 void helper_movl_crN_T0(int reg);
 void helper_movl_drN_T0(int reg);
 void helper_invlpg(target_ulong addr);
@@ -150,27 +144,7 @@ void OPPROTO op_movl_T0_eflags(void);
 void helper_mulq_EAX_T0(void);
 void helper_imulq_EAX_T0(void);
 void helper_imulq_T0_T1(void);
-void helper_divq_EAX_T0(void);
-void helper_idivq_EAX_T0(void);
-void helper_bswapq_T0(void);
 void helper_cmpxchg8b(void);
-void helper_single_step(void);
-void helper_cpuid(void);
-void helper_enter_level(int level, int data32);
-void helper_enter64_level(int level, int data64);
-void helper_sysenter(void);
-void helper_sysexit(void);
-void helper_syscall(int next_eip_addend);
-void helper_sysret(int dflag);
-void helper_rdtsc(void);
-void helper_rdpmc(void);
-void helper_rdmsr(void);
-void helper_wrmsr(void);
-void helper_lsl(void);
-void helper_lar(void);
-void helper_verr(void);
-void helper_verw(void);
-void helper_rsm(void);
 
 void check_iob_T0(void);
 void check_iow_T0(void);
@@ -182,46 +156,6 @@ void check_iol_DX(void);
 #if !defined(CONFIG_USER_ONLY)
 
 #include "softmmu_exec.h"
-
-static inline double ldfq(target_ulong ptr)
-{
-    union {
-        double d;
-        uint64_t i;
-    } u;
-    u.i = ldq(ptr);
-    return u.d;
-}
-
-static inline void stfq(target_ulong ptr, double v)
-{
-    union {
-        double d;
-        uint64_t i;
-    } u;
-    u.d = v;
-    stq(ptr, u.i);
-}
-
-static inline float ldfl(target_ulong ptr)
-{
-    union {
-        float f;
-        uint32_t i;
-    } u;
-    u.i = ldl(ptr);
-    return u.f;
-}
-
-static inline void stfl(target_ulong ptr, float v)
-{
-    union {
-        float f;
-        uint32_t i;
-    } u;
-    u.f = v;
-    stl(ptr, u.i);
-}
 
 #endif /* !defined(CONFIG_USER_ONLY) */
 
@@ -429,20 +363,6 @@ extern const CPU86_LDouble f15rk[7];
 void fpu_raise_exception(void);
 void restore_native_fp_state(CPUState *env);
 void save_native_fp_state(CPUState *env);
-float approx_rsqrt(float a);
-float approx_rcp(float a);
-void update_fp_status(void);
-void helper_hlt(void);
-void helper_monitor(void);
-void helper_mwait(void);
-void helper_vmrun(target_ulong addr);
-void helper_vmmcall(void);
-void helper_vmload(target_ulong addr);
-void helper_vmsave(target_ulong addr);
-void helper_stgi(void);
-void helper_clgi(void);
-void helper_skinit(void);
-void helper_invlpga(void);
 void vmexit(uint64_t exit_code, uint64_t exit_info_1);
 
 extern const uint8_t parity_table[256];
