@@ -7032,6 +7032,7 @@ void main_loop_wait(int timeout)
     qemu_aio_poll();
 
     if (vm_running) {
+        if (!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER))
         qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
                         qemu_get_clock(vm_clock));
         /* run dma transfers, if any */
@@ -7039,6 +7040,7 @@ void main_loop_wait(int timeout)
     }
 
     /* real time timers */
+    if (!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER))
     qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
                     qemu_get_clock(rt_clock));
 
