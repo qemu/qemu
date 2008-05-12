@@ -3071,21 +3071,7 @@ void helper_verw(void)
     CC_SRC = eflags | CC_Z;
 }
 
-/* FPU helpers */
-
-void helper_fldt_ST0_A0(void)
-{
-    int new_fpstt;
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = helper_fldt(A0);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
-}
-
-void helper_fstt_ST0_A0(void)
-{
-    helper_fstt(ST0, A0);
-}
+/* x87 FPU helpers */
 
 static void fpu_set_exception(int mask)
 {
@@ -3094,7 +3080,7 @@ static void fpu_set_exception(int mask)
         env->fpus |= FPUS_SE | FPUS_B;
 }
 
-CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b)
+static inline CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b)
 {
     if (b == 0.0)
         fpu_set_exception(FPUS_ZE);
@@ -3113,9 +3099,427 @@ void fpu_raise_exception(void)
 #endif
 }
 
+void helper_flds_FT0(uint32_t val)
+{
+    union {
+        float32 f;
+        uint32_t i;
+    } u;
+    u.i = val;
+    FT0 = float32_to_floatx(u.f, &env->fp_status);
+}
+
+void helper_fldl_FT0(uint64_t val)
+{
+    union {
+        float64 f;
+        uint64_t i;
+    } u;
+    u.i = val;
+    FT0 = float64_to_floatx(u.f, &env->fp_status);
+}
+
+void helper_fildl_FT0(int32_t val)
+{
+    FT0 = int32_to_floatx(val, &env->fp_status);
+}
+
+void helper_flds_ST0(uint32_t val)
+{
+    int new_fpstt;
+    union {
+        float32 f;
+        uint32_t i;
+    } u;
+    new_fpstt = (env->fpstt - 1) & 7;
+    u.i = val;
+    env->fpregs[new_fpstt].d = float32_to_floatx(u.f, &env->fp_status);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+void helper_fldl_ST0(uint64_t val)
+{
+    int new_fpstt;
+    union {
+        float64 f;
+        uint64_t i;
+    } u;
+    new_fpstt = (env->fpstt - 1) & 7;
+    u.i = val;
+    env->fpregs[new_fpstt].d = float64_to_floatx(u.f, &env->fp_status);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+void helper_fildl_ST0(int32_t val)
+{
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt].d = int32_to_floatx(val, &env->fp_status);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+void helper_fildll_ST0(int64_t val)
+{
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt].d = int64_to_floatx(val, &env->fp_status);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+uint32_t helper_fsts_ST0(void)
+{
+    union {
+        float32 f;
+        uint32_t i;
+    } u;
+    u.f = floatx_to_float32(ST0, &env->fp_status);
+    return u.i;
+}
+
+uint64_t helper_fstl_ST0(void)
+{
+    union {
+        float64 f;
+        uint64_t i;
+    } u;
+    u.f = floatx_to_float64(ST0, &env->fp_status);
+    return u.i;
+}
+
+int32_t helper_fist_ST0(void)
+{
+    int32_t val;
+    val = floatx_to_int32(ST0, &env->fp_status);
+    if (val != (int16_t)val)
+        val = -32768;
+    return val;
+}
+
+int32_t helper_fistl_ST0(void)
+{
+    int32_t val;
+    val = floatx_to_int32(ST0, &env->fp_status);
+    return val;
+}
+
+int64_t helper_fistll_ST0(void)
+{
+    int64_t val;
+    val = floatx_to_int64(ST0, &env->fp_status);
+    return val;
+}
+
+int32_t helper_fistt_ST0(void)
+{
+    int32_t val;
+    val = floatx_to_int32_round_to_zero(ST0, &env->fp_status);
+    if (val != (int16_t)val)
+        val = -32768;
+    return val;
+}
+
+int32_t helper_fisttl_ST0(void)
+{
+    int32_t val;
+    val = floatx_to_int32_round_to_zero(ST0, &env->fp_status);
+    return val;
+}
+
+int64_t helper_fisttll_ST0(void)
+{
+    int64_t val;
+    val = floatx_to_int64_round_to_zero(ST0, &env->fp_status);
+    return val;
+}
+
+void helper_fldt_ST0(target_ulong ptr)
+{
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt].d = helper_fldt(ptr);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+void helper_fstt_ST0(target_ulong ptr)
+{
+    helper_fstt(ST0, ptr);
+}
+
+void helper_fpush(void)
+{
+    fpush();
+}
+
+void helper_fpop(void)
+{
+    fpop();
+}
+
+void helper_fdecstp(void)
+{
+    env->fpstt = (env->fpstt - 1) & 7;
+    env->fpus &= (~0x4700);
+}
+
+void helper_fincstp(void)
+{
+    env->fpstt = (env->fpstt + 1) & 7;
+    env->fpus &= (~0x4700);
+}
+
+/* FPU move */
+
+void helper_ffree_STN(int st_index)
+{
+    env->fptags[(env->fpstt + st_index) & 7] = 1;
+}
+
+void helper_fmov_ST0_FT0(void)
+{
+    ST0 = FT0;
+}
+
+void helper_fmov_FT0_STN(int st_index)
+{
+    FT0 = ST(st_index);
+}
+
+void helper_fmov_ST0_STN(int st_index)
+{
+    ST0 = ST(st_index);
+}
+
+void helper_fmov_STN_ST0(int st_index)
+{
+    ST(st_index) = ST0;
+}
+
+void helper_fxchg_ST0_STN(int st_index)
+{
+    CPU86_LDouble tmp;
+    tmp = ST(st_index);
+    ST(st_index) = ST0;
+    ST0 = tmp;
+}
+
+/* FPU operations */
+
+static const int fcom_ccval[4] = {0x0100, 0x4000, 0x0000, 0x4500};
+
+void helper_fcom_ST0_FT0(void)
+{
+    int ret;
+
+    ret = floatx_compare(ST0, FT0, &env->fp_status);
+    env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret + 1];
+    FORCE_RET();
+}
+
+void helper_fucom_ST0_FT0(void)
+{
+    int ret;
+
+    ret = floatx_compare_quiet(ST0, FT0, &env->fp_status);
+    env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret+ 1];
+    FORCE_RET();
+}
+
+static const int fcomi_ccval[4] = {CC_C, CC_Z, 0, CC_Z | CC_P | CC_C};
+
+void helper_fcomi_ST0_FT0(void)
+{
+    int eflags;
+    int ret;
+
+    ret = floatx_compare(ST0, FT0, &env->fp_status);
+    eflags = cc_table[CC_OP].compute_all();
+    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
+    CC_SRC = eflags;
+    FORCE_RET();
+}
+
+void helper_fucomi_ST0_FT0(void)
+{
+    int eflags;
+    int ret;
+
+    ret = floatx_compare_quiet(ST0, FT0, &env->fp_status);
+    eflags = cc_table[CC_OP].compute_all();
+    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
+    CC_SRC = eflags;
+    FORCE_RET();
+}
+
+void helper_fadd_ST0_FT0(void)
+{
+    ST0 += FT0;
+}
+
+void helper_fmul_ST0_FT0(void)
+{
+    ST0 *= FT0;
+}
+
+void helper_fsub_ST0_FT0(void)
+{
+    ST0 -= FT0;
+}
+
+void helper_fsubr_ST0_FT0(void)
+{
+    ST0 = FT0 - ST0;
+}
+
+void helper_fdiv_ST0_FT0(void)
+{
+    ST0 = helper_fdiv(ST0, FT0);
+}
+
+void helper_fdivr_ST0_FT0(void)
+{
+    ST0 = helper_fdiv(FT0, ST0);
+}
+
+/* fp operations between STN and ST0 */
+
+void helper_fadd_STN_ST0(int st_index)
+{
+    ST(st_index) += ST0;
+}
+
+void helper_fmul_STN_ST0(int st_index)
+{
+    ST(st_index) *= ST0;
+}
+
+void helper_fsub_STN_ST0(int st_index)
+{
+    ST(st_index) -= ST0;
+}
+
+void helper_fsubr_STN_ST0(int st_index)
+{
+    CPU86_LDouble *p;
+    p = &ST(st_index);
+    *p = ST0 - *p;
+}
+
+void helper_fdiv_STN_ST0(int st_index)
+{
+    CPU86_LDouble *p;
+    p = &ST(st_index);
+    *p = helper_fdiv(*p, ST0);
+}
+
+void helper_fdivr_STN_ST0(int st_index)
+{
+    CPU86_LDouble *p;
+    p = &ST(st_index);
+    *p = helper_fdiv(ST0, *p);
+}
+
+/* misc FPU operations */
+void helper_fchs_ST0(void)
+{
+    ST0 = floatx_chs(ST0);
+}
+
+void helper_fabs_ST0(void)
+{
+    ST0 = floatx_abs(ST0);
+}
+
+void helper_fld1_ST0(void)
+{
+    ST0 = f15rk[1];
+}
+
+void helper_fldl2t_ST0(void)
+{
+    ST0 = f15rk[6];
+}
+
+void helper_fldl2e_ST0(void)
+{
+    ST0 = f15rk[5];
+}
+
+void helper_fldpi_ST0(void)
+{
+    ST0 = f15rk[2];
+}
+
+void helper_fldlg2_ST0(void)
+{
+    ST0 = f15rk[3];
+}
+
+void helper_fldln2_ST0(void)
+{
+    ST0 = f15rk[4];
+}
+
+void helper_fldz_ST0(void)
+{
+    ST0 = f15rk[0];
+}
+
+void helper_fldz_FT0(void)
+{
+    FT0 = f15rk[0];
+}
+
+uint32_t helper_fnstsw(void)
+{
+    return (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+}
+
+uint32_t helper_fnstcw(void)
+{
+    return env->fpuc;
+}
+
+void helper_fldcw(uint32_t val)
+{
+    env->fpuc = val;
+    update_fp_status();
+}
+
+void helper_fclex(void)
+{
+    env->fpus &= 0x7f00;
+}
+
+void helper_fwait(void)
+{
+    if (env->fpus & FPUS_SE)
+        fpu_raise_exception();
+    FORCE_RET();
+}
+
+void helper_fninit(void)
+{
+    env->fpus = 0;
+    env->fpstt = 0;
+    env->fpuc = 0x37f;
+    env->fptags[0] = 1;
+    env->fptags[1] = 1;
+    env->fptags[2] = 1;
+    env->fptags[3] = 1;
+    env->fptags[4] = 1;
+    env->fptags[5] = 1;
+    env->fptags[6] = 1;
+    env->fptags[7] = 1;
+}
+
 /* BCD ops */
 
-void helper_fbld_ST0_A0(void)
+void helper_fbld_ST0(target_ulong ptr)
 {
     CPU86_LDouble tmp;
     uint64_t val;
@@ -3124,24 +3528,24 @@ void helper_fbld_ST0_A0(void)
 
     val = 0;
     for(i = 8; i >= 0; i--) {
-        v = ldub(A0 + i);
+        v = ldub(ptr + i);
         val = (val * 100) + ((v >> 4) * 10) + (v & 0xf);
     }
     tmp = val;
-    if (ldub(A0 + 9) & 0x80)
+    if (ldub(ptr + 9) & 0x80)
         tmp = -tmp;
     fpush();
     ST0 = tmp;
 }
 
-void helper_fbst_ST0_A0(void)
+void helper_fbst_ST0(target_ulong ptr)
 {
     int v;
     target_ulong mem_ref, mem_end;
     int64_t val;
 
     val = floatx_to_int64(ST0, &env->fp_status);
-    mem_ref = A0;
+    mem_ref = ptr;
     mem_end = mem_ref + 9;
     if (val < 0) {
         stb(mem_end, 0x80);

@@ -231,6 +231,12 @@ static inline void stfl(target_ulong ptr, float v)
 #define floatx_to_int64 floatx80_to_int64
 #define floatx_to_int32_round_to_zero floatx80_to_int32_round_to_zero
 #define floatx_to_int64_round_to_zero floatx80_to_int64_round_to_zero
+#define int32_to_floatx int32_to_floatx80
+#define int64_to_floatx int64_to_floatx80
+#define float32_to_floatx float32_to_floatx80
+#define float64_to_floatx float64_to_floatx80
+#define floatx_to_float32 floatx80_to_float32
+#define floatx_to_float64 floatx80_to_float64
 #define floatx_abs floatx80_abs
 #define floatx_chs floatx80_chs
 #define floatx_round_to_int floatx80_round_to_int
@@ -251,6 +257,12 @@ static inline void stfl(target_ulong ptr, float v)
 #define floatx_to_int64 float64_to_int64
 #define floatx_to_int32_round_to_zero float64_to_int32_round_to_zero
 #define floatx_to_int64_round_to_zero float64_to_int64_round_to_zero
+#define int32_to_floatx int32_to_float64
+#define int64_to_floatx int64_to_float64
+#define float32_to_floatx float32_to_float64
+#define float64_to_floatx(x, e) (x)
+#define floatx_to_float32 float64_to_float32
+#define floatx_to_float64(x, e) (x)
 #define floatx_abs float64_abs
 #define floatx_chs float64_chs
 #define floatx_round_to_int float64_round_to_int
@@ -378,22 +390,6 @@ static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 }
 #else
 
-/* XXX: same endianness assumed */
-
-#ifdef CONFIG_USER_ONLY
-
-static inline CPU86_LDouble helper_fldt(target_ulong ptr)
-{
-    return *(CPU86_LDouble *)(unsigned long)ptr;
-}
-
-static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
-{
-    *(CPU86_LDouble *)(unsigned long)ptr = f;
-}
-
-#else
-
 /* we use memory access macros */
 
 static inline CPU86_LDouble helper_fldt(target_ulong ptr)
@@ -414,8 +410,6 @@ static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
     stw(ptr + 8, temp.l.upper);
 }
 
-#endif /* !CONFIG_USER_ONLY */
-
 #endif /* USE_X86LDOUBLE */
 
 #define FPUS_IE (1 << 0)
@@ -432,33 +426,7 @@ static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 
 extern const CPU86_LDouble f15rk[7];
 
-void helper_fldt_ST0_A0(void);
-void helper_fstt_ST0_A0(void);
 void fpu_raise_exception(void);
-CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b);
-void helper_fbld_ST0_A0(void);
-void helper_fbst_ST0_A0(void);
-void helper_f2xm1(void);
-void helper_fyl2x(void);
-void helper_fptan(void);
-void helper_fpatan(void);
-void helper_fxtract(void);
-void helper_fprem1(void);
-void helper_fprem(void);
-void helper_fyl2xp1(void);
-void helper_fsqrt(void);
-void helper_fsincos(void);
-void helper_frndint(void);
-void helper_fscale(void);
-void helper_fsin(void);
-void helper_fcos(void);
-void helper_fxam_ST0(void);
-void helper_fstenv(target_ulong ptr, int data32);
-void helper_fldenv(target_ulong ptr, int data32);
-void helper_fsave(target_ulong ptr, int data32);
-void helper_frstor(target_ulong ptr, int data32);
-void helper_fxsave(target_ulong ptr, int data64);
-void helper_fxrstor(target_ulong ptr, int data64);
 void restore_native_fp_state(CPUState *env);
 void save_native_fp_state(CPUState *env);
 float approx_rsqrt(float a);
