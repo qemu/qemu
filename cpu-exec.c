@@ -354,6 +354,8 @@ int cpu_exec(CPUState *env1)
                                       env->exception_is_int,
                                       env->error_code,
                                       env->exception_next_eip);
+                    /* successfully delivered */
+                    env->old_exception = -1;
 #endif
                     ret = env->exception_index;
                     break;
