@@ -483,24 +483,36 @@ static inline void t_gen_addx_carry(TCGv d)
 	tcg_gen_discard_tl(c);
 }
 
-static inline void t_gen_subx_carry(TCGv d)
+static inline void t_gen_subx_carry(DisasContext *dc, TCGv d)
 {
-	TCGv x, c;
+	if (dc->flagx_live) {
+		TCGv x, c;
 
-	x = tcg_temp_new(TCG_TYPE_TL);
-	c = tcg_temp_new(TCG_TYPE_TL);
-	t_gen_mov_TN_preg(x, PR_CCS);
-	tcg_gen_mov_tl(c, x);
+		x = tcg_temp_new(TCG_TYPE_TL);
+		c = tcg_temp_new(TCG_TYPE_TL);
+		t_gen_mov_TN_preg(x, PR_CCS);
+		tcg_gen_mov_tl(c, x);
 
-	/* Propagate carry into d if X is set. Branch free.  */
-	tcg_gen_andi_tl(c, c, C_FLAG);
-	tcg_gen_andi_tl(x, x, X_FLAG);
-	tcg_gen_shri_tl(x, x, 4);
+		/* Propagate carry into d if X is set. Branch free.  */
+		tcg_gen_andi_tl(c, c, C_FLAG);
+		tcg_gen_andi_tl(x, x, X_FLAG);
+		tcg_gen_shri_tl(x, x, 4);
 
-	tcg_gen_and_tl(x, x, c);
-	tcg_gen_sub_tl(d, d, x);
-	tcg_gen_discard_tl(x);
-	tcg_gen_discard_tl(c);
+		tcg_gen_and_tl(x, x, c);
+		tcg_gen_sub_tl(d, d, x);
+		tcg_gen_discard_tl(x);
+		tcg_gen_discard_tl(c);
+	} else {
+		if (dc->flags_x) {
+			TCGv c;
+		
+			c = tcg_temp_new(TCG_TYPE_TL);
+			/* C flag is already at bit 0.  */
+			tcg_gen_andi_tl(c, c, C_FLAG);
+			tcg_gen_add_tl(d, d, c);
+			tcg_gen_discard_tl(c);
+		}
+	}
 }
 
 /* Swap the two bytes within each half word of the s operand.
@@ -633,7 +645,7 @@ static inline void cris_clear_x_flag(DisasContext *dc)
 {
 	if (!dc->flagx_live 
 	    || (dc->flagx_live && dc->flags_x)
-	    || dc->cc_op != CC_OP_FLAGS)
+	    || dc->cc_op == CC_OP_FLAGS)
 		tcg_gen_andi_i32(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~X_FLAG);
 	dc->flagx_live = 1;
 	dc->flags_x = 0;
@@ -760,7 +772,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
 
 			/* Extended arithmetics.  */
-			t_gen_subx_carry(cpu_T[0]);
+			t_gen_subx_carry(dc, cpu_T[0]);
 			break;
 		case CC_OP_MOVE:
 			tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
@@ -786,7 +798,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 		case CC_OP_NEG:
 			tcg_gen_neg_tl(cpu_T[0], cpu_T[1]);
 			/* Extended arithmetics.  */
-			t_gen_subx_carry(cpu_T[0]);
+			t_gen_subx_carry(dc, cpu_T[0]);
 			break;
 		case CC_OP_LZ:
 			t_gen_lz_i32(cpu_T[0], cpu_T[1]);
@@ -827,15 +839,12 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 		}
 		break;
 		case CC_OP_CMP:
-			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
-			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+			tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
-			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
-			/* CRIS flag evaluation needs ~src.  */
-			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
+			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], ~0);
 
 			/* Extended arithmetics.  */
-			t_gen_subx_carry(cpu_T[0]);
+			t_gen_subx_carry(dc, cpu_T[0]);
 			writeback = 0;
 			break;
 		default:
@@ -855,17 +864,13 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 	/* Writeback.  */
 	if (writeback) {
 		if (size == 4)
-			t_gen_mov_reg_TN(rd, cpu_T[0]);
+			tcg_gen_mov_tl(cpu_R[rd], cpu_T[0]);
 		else {
-			tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
-			t_gen_mov_TN_reg(cpu_T[0], rd);
 			if (size == 1)
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0xff);
+				tcg_gen_andi_tl(cpu_R[rd], cpu_R[rd], ~0xff);
 			else
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0xffff);
-			tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-			t_gen_mov_reg_TN(rd, cpu_T[0]);
-			tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+				tcg_gen_andi_tl(cpu_R[rd], cpu_R[rd], ~0xffff);
+			tcg_gen_or_tl(cpu_R[rd], cpu_R[rd], cpu_T[0]);
 		}
 	}
 	if (dc->update_cc)
@@ -1208,7 +1213,6 @@ static inline void do_postinc (DisasContext *dc, int size)
 		tcg_gen_addi_tl(cpu_R[dc->op1], cpu_R[dc->op1], size);
 }
 
-
 static void dec_prep_move_r(DisasContext *dc, int rs, int rd,
 			    int size, int s_ext)
 {
@@ -1352,7 +1356,7 @@ static unsigned int dec_moveq(DisasContext *dc)
 	imm = sign_extend(dc->op1, 5);
 	DIS(fprintf (logfile, "moveq %d, $r%u\n", imm, dc->op2));
 
-	t_gen_mov_reg_TN(dc->op2, tcg_const_tl(imm));
+	tcg_gen_mov_tl(cpu_R[dc->op2], tcg_const_tl(imm));
 	return 2;
 }
 static unsigned int dec_subq(DisasContext *dc)
@@ -1363,7 +1367,7 @@ static unsigned int dec_subq(DisasContext *dc)
 
 	cris_cc_mask(dc, CC_MASK_NZVC);
 	/* Fetch register operand,  */
-	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	tcg_gen_mov_tl(cpu_T[0], cpu_R[dc->op2]);
 	tcg_gen_movi_tl(cpu_T[1], dc->op1);
 	crisv32_alu_op(dc, CC_OP_SUB, dc->op2, 4);
 	return 2;
