@@ -1238,14 +1238,14 @@ void do_interrupt(int intno, int is_int, int error_code,
  */
 static int check_exception(int intno, int *error_code)
 {
-    char first_contributory = env->old_exception == 0 ||
+    int first_contributory = env->old_exception == 0 ||
                               (env->old_exception >= 10 &&
                                env->old_exception <= 13);
-    char second_contributory = intno == 0 ||
+    int second_contributory = intno == 0 ||
                                (intno >= 10 && intno <= 13);
 
     if (loglevel & CPU_LOG_INT)
-        fprintf(logfile, "check_exception old: %x new %x\n",
+        fprintf(logfile, "check_exception old: 0x%x new 0x%x\n",
                 env->old_exception, intno);
 
     if (env->old_exception == EXCP08_DBLE)
