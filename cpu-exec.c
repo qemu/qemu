@@ -739,7 +739,7 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
         cpu_x86_load_seg_cache(env, seg_reg, selector,
                                (selector << 4), 0xffff, 0);
     } else {
-        load_seg(seg_reg, selector);
+        helper_load_seg(seg_reg, selector);
     }
     env = saved_env;
 }
