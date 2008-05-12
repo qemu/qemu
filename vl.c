@@ -7343,7 +7343,6 @@ enum {
     QEMU_OPTION_hdachs,
     QEMU_OPTION_L,
     QEMU_OPTION_bios,
-    QEMU_OPTION_no_code_copy,
     QEMU_OPTION_k,
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
@@ -7440,7 +7439,6 @@ const QEMUOption qemu_options[] = {
     { "hdachs", HAS_ARG, QEMU_OPTION_hdachs },
     { "L", HAS_ARG, QEMU_OPTION_L },
     { "bios", HAS_ARG, QEMU_OPTION_bios },
-    { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
 #ifdef USE_KQEMU
     { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
     { "kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu },
@@ -7978,9 +7976,6 @@ int main(int argc, char **argv)
                 fd_bootchk = 0;
                 break;
 #endif
-            case QEMU_OPTION_no_code_copy:
-                code_copy_enabled = 0;
-                break;
             case QEMU_OPTION_net:
                 if (nb_net_clients >= MAX_NET_CLIENTS) {
                     fprintf(stderr, "qemu: too many network clients\n");
