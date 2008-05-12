@@ -105,7 +105,7 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     header->kernel_image = cpu_to_be64((uint64_t)kernel_image);
     header->kernel_size = cpu_to_be64((uint64_t)kernel_size);
     if (cmdline) {
-        strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
+        pstrcpy_targphys(CMDLINE_ADDR, TARGET_PAGE_SIZE, cmdline);
         header->cmdline = cpu_to_be64((uint64_t)CMDLINE_ADDR);
         header->cmdline_size = cpu_to_be64((uint64_t)strlen(cmdline));
     }
@@ -289,11 +289,12 @@ static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
         /* XXX: put correct offset */
         kernel_size = load_elf(kernel_filename, 0, NULL, NULL, NULL);
         if (kernel_size < 0)
-            kernel_size = load_aout(kernel_filename,
-                                    phys_ram_base + KERNEL_LOAD_ADDR);
+            kernel_size = load_aout(kernel_filename, KERNEL_LOAD_ADDR,
+                                    ram_size - KERNEL_LOAD_ADDR);
         if (kernel_size < 0)
-            kernel_size = load_image(kernel_filename,
-                                     phys_ram_base + KERNEL_LOAD_ADDR);
+            kernel_size = load_image_targphys(kernel_filename,
+                                              KERNEL_LOAD_ADDR,
+                                              ram_size - KERNEL_LOAD_ADDR);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
@@ -302,8 +303,9 @@ static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
 
         /* load initrd */
         if (initrd_filename) {
-            initrd_size = load_image(initrd_filename,
-                                     phys_ram_base + INITRD_LOAD_ADDR);
+            initrd_size = load_image_targphys(initrd_filename,
+                                              INITRD_LOAD_ADDR,
+                                              ram_size - INITRD_LOAD_ADDR);
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
@@ -312,12 +314,9 @@ static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
         }
         if (initrd_size > 0) {
             for (i = 0; i < 64 * TARGET_PAGE_SIZE; i += TARGET_PAGE_SIZE) {
-                if (ldl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i)
-                    == 0x48647253) { // HdrS
-                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 16,
-                            INITRD_LOAD_ADDR);
-                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 20,
-                            initrd_size);
+                if (ldl_phys(KERNEL_LOAD_ADDR + i) == 0x48647253) { // HdrS
+                    stl_phys(KERNEL_LOAD_ADDR + i + 16, INITRD_LOAD_ADDR);
+                    stl_phys(KERNEL_LOAD_ADDR + i + 20, initrd_size);
                     break;
                 }
             }

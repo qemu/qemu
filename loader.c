@@ -39,6 +39,7 @@ int get_image_size(const char *filename)
 }
 
 /* return the size or -1 if error */
+/* deprecated, because caller does not specify buffer size! */
 int load_image(const char *filename, uint8_t *addr)
 {
     int fd, size;
@@ -53,6 +54,84 @@ int load_image(const char *filename, uint8_t *addr)
     }
     close(fd);
     return size;
+}
+
+/* return the amount read, just like fread.  0 may mean error or eof */
+int fread_targphys(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
+{
+    uint8_t buf[4096];
+    target_phys_addr_t dst_begin = dst_addr;
+    size_t want, did;
+
+    while (nbytes) {
+	want = nbytes > sizeof(buf) ? sizeof(buf) : nbytes;
+	did = fread(buf, 1, want, f);
+	if (did != want) break;
+
+	cpu_physical_memory_write_rom(dst_addr, buf, did);
+	dst_addr += did;
+	nbytes -= did;
+    }
+    return dst_addr - dst_begin;
+}
+
+/* returns 0 on error, 1 if ok */
+int fread_targphys_ok(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
+{
+    return fread_targphys(dst_addr, nbytes, f) == nbytes;
+}
+
+/* read()-like version */
+int read_targphys(int fd, target_phys_addr_t dst_addr, size_t nbytes)
+{
+    uint8_t buf[4096];
+    target_phys_addr_t dst_begin = dst_addr;
+    size_t want, did;
+
+    while (nbytes) {
+	want = nbytes > sizeof(buf) ? sizeof(buf) : nbytes;
+	did = read(fd, buf, want);
+	if (did != want) break;
+
+	cpu_physical_memory_write_rom(dst_addr, buf, did);
+	dst_addr += did;
+	nbytes -= did;
+    }
+    return dst_addr - dst_begin;
+}
+
+/* return the size or -1 if error */
+int load_image_targphys(const char *filename,
+			target_phys_addr_t addr, int max_sz)
+{
+    FILE *f;
+    size_t got;
+
+    f = fopen(filename, "rb");
+    if (!f) return -1;
+
+    got = fread_targphys(addr, max_sz, f);
+    if (ferror(f)) { fclose(f); return -1; }
+    fclose(f);
+
+    return got;
+}
+
+void pstrcpy_targphys(target_phys_addr_t dest, int buf_size,
+                      const char *source)
+{
+    static const uint8_t nul_byte = 0;
+    const char *nulp;
+
+    if (buf_size <= 0) return;
+    nulp = memchr(source, 0, buf_size);
+    if (nulp) {
+	cpu_physical_memory_write_rom(dest, (uint8_t *)source,
+                                      (nulp - source) + 1);
+    } else {
+	cpu_physical_memory_write_rom(dest, (uint8_t *)source, buf_size - 1);
+	cpu_physical_memory_write_rom(dest, &nul_byte, 1);
+    }
 }
 
 /* A.OUT loader */
@@ -105,7 +184,7 @@ static void bswap_ahdr(struct exec *e)
      : (_N_SEGMENT_ROUND (_N_TXTENDADDR(x))))
 
 
-int load_aout(const char *filename, uint8_t *addr)
+int load_aout(const char *filename, target_phys_addr_t addr, int max_sz)
 {
     int fd, size, ret;
     struct exec e;
@@ -126,17 +205,21 @@ int load_aout(const char *filename, uint8_t *addr)
     case ZMAGIC:
     case QMAGIC:
     case OMAGIC:
+        if (e.a_text + e.a_data > max_sz)
+            goto fail;
 	lseek(fd, N_TXTOFF(e), SEEK_SET);
-	size = read(fd, addr, e.a_text + e.a_data);
+	size = read_targphys(fd, addr, e.a_text + e.a_data);
 	if (size < 0)
 	    goto fail;
 	break;
     case NMAGIC:
+        if (N_DATADDR(e) + e.a_data > max_sz)
+            goto fail;
 	lseek(fd, N_TXTOFF(e), SEEK_SET);
-	size = read(fd, addr, e.a_text);
+	size = read_targphys(fd, addr, e.a_text);
 	if (size < 0)
 	    goto fail;
-	ret = read(fd, addr + N_DATADDR(e), e.a_data);
+	ret = read_targphys(fd, addr + N_DATADDR(e), e.a_data);
 	if (ret < 0)
 	    goto fail;
 	size += ret;
