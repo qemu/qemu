@@ -6860,6 +6860,8 @@ void optimize_flags_init(void)
     cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
     cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
     cpu_A0 = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "A0");
+#endif
+#if defined(__i386__)
     cpu_tmp1 = tcg_global_reg2_new_hack(TCG_TYPE_I64, TCG_AREG1, TCG_AREG2, "tmp1");
 #endif
 }
@@ -6955,7 +6957,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
 #endif
 
     cpu_tmp0 = tcg_temp_new(TCG_TYPE_TL);
-#if TARGET_LONG_BITS > HOST_LONG_BITS
+#if !defined(__i386__)
     cpu_tmp1 = tcg_temp_new(TCG_TYPE_I64);
 #endif
     cpu_tmp2 = tcg_temp_new(TCG_TYPE_I32);
