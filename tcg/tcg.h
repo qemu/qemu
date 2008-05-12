@@ -267,6 +267,8 @@ void tcg_set_frame(TCGContext *s, int reg,
                    tcg_target_long start, tcg_target_long size);
 void tcg_set_macro_func(TCGContext *s, TCGMacroFunc *func);
 TCGv tcg_global_reg_new(TCGType type, int reg, const char *name);
+TCGv tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2, 
+                              const char *name);
 TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
                         const char *name);
 TCGv tcg_temp_new(TCGType type);
