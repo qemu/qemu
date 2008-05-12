@@ -423,19 +423,6 @@ void OPPROTO op_addq_A0_AL(void)
 
 #endif
 
-/* memory access */
-
-#define MEMSUFFIX _raw
-#include "ops_mem.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _kernel
-#include "ops_mem.h"
-
-#define MEMSUFFIX _user
-#include "ops_mem.h"
-#endif
-
 void OPPROTO op_hlt(void)
 {
     helper_hlt();
