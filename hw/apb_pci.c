@@ -230,9 +230,12 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
                                           pci_apb_iowrite, s);
 
     cpu_register_physical_memory(special_base + 0x2000ULL, 0x40, apb_config);
-    cpu_register_physical_memory(special_base + 0x1000000ULL, 0x10, pci_mem_config);
-    cpu_register_physical_memory(special_base + 0x2000000ULL, 0x10000, pci_ioport);
-    cpu_register_physical_memory(mem_base, 0x10000000, pci_mem_data); // XXX size should be 4G-prom
+    cpu_register_physical_memory(special_base + 0x1000000ULL, 0x10,
+                                 pci_mem_config);
+    cpu_register_physical_memory(special_base + 0x2000000ULL, 0x10000,
+                                 pci_ioport);
+    cpu_register_physical_memory(mem_base, 0x10000000,
+                                 pci_mem_data); // XXX size should be 4G-prom
 
     d = pci_register_device(s->bus, "Advanced PCI Bus", sizeof(PCIDevice),
                             0, NULL, NULL);
@@ -252,8 +255,10 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     d->config[0x0E] = 0x00; // header_type
 
     /* APB secondary busses */
-    secondary = pci_bridge_init(s->bus, 8, 0x108e5000, pci_apb_map_irq, "Advanced PCI Bus secondary bridge 1");
-    pci_bridge_init(s->bus, 9, 0x108e5000, pci_apb_map_irq, "Advanced PCI Bus secondary bridge 2");
+    secondary = pci_bridge_init(s->bus, 8, 0x108e5000, pci_apb_map_irq,
+                                "Advanced PCI Bus secondary bridge 1");
+    pci_bridge_init(s->bus, 9, 0x108e5000, pci_apb_map_irq,
+                    "Advanced PCI Bus secondary bridge 2");
     return secondary;
 }
 

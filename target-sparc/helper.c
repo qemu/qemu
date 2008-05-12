@@ -193,7 +193,8 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
                     return (3 << 8) | (4 << 2);
                 case 2: /* L3 PTE */
                     virt_addr = address & TARGET_PAGE_MASK;
-                    page_offset = (address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1);
+                    page_offset = (address & TARGET_PAGE_MASK) &
+                        (TARGET_PAGE_SIZE - 1);
                 }
                 break;
             case 2: /* L2 PTE */
@@ -243,7 +244,8 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     target_ulong vaddr;
     int error_code = 0, prot, ret = 0, access_index;
 
-    error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, mmu_idx);
+    error_code = get_physical_address(env, &paddr, &prot, &access_index,
+                                      address, rw, mmu_idx);
     if (error_code == 0) {
         vaddr = address & TARGET_PAGE_MASK;
         paddr &= TARGET_PAGE_MASK;
@@ -387,7 +389,8 @@ void dump_mmu(CPUState *env)
 /*
  * UltraSparc IIi I/DMMUs
  */
-static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical, int *prot,
+static int get_physical_address_data(CPUState *env,
+                                     target_phys_addr_t *physical, int *prot,
                                      target_ulong address, int rw, int is_user)
 {
     target_ulong mask;
@@ -423,7 +426,8 @@ static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical
                 ((env->dtlb_tte[i] & 0x4) && is_user) ||
                 (!(env->dtlb_tte[i] & 0x2) && (rw == 1))) {
                 if (env->dmmuregs[3]) /* Fault status register */
-                    env->dmmuregs[3] = 2; /* overflow (not read before another fault) */
+                    env->dmmuregs[3] = 2; /* overflow (not read before
+                                             another fault) */
                 env->dmmuregs[3] |= (is_user << 3) | ((rw == 1) << 2) | 1;
                 env->dmmuregs[4] = address; /* Fault address register */
                 env->exception_index = TT_DFAULT;
@@ -432,7 +436,8 @@ static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical
 #endif
                 return 1;
             }
-            *physical = (env->dtlb_tte[i] & mask & 0x1fffffff000ULL) + (address & ~mask & 0x1fffffff000ULL);
+            *physical = (env->dtlb_tte[i] & mask & 0x1fffffff000ULL) +
+                (address & ~mask & 0x1fffffff000ULL);
             *prot = PAGE_READ;
             if (env->dtlb_tte[i] & 0x2)
                 *prot |= PAGE_WRITE;
@@ -446,7 +451,8 @@ static int get_physical_address_data(CPUState *env, target_phys_addr_t *physical
     return 1;
 }
 
-static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical, int *prot,
+static int get_physical_address_code(CPUState *env,
+                                     target_phys_addr_t *physical, int *prot,
                                      target_ulong address, int is_user)
 {
     target_ulong mask;
@@ -481,7 +487,8 @@ static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical
             if ((env->itlb_tte[i] & 0x8000000000000000ULL) == 0 ||
                 ((env->itlb_tte[i] & 0x4) && is_user)) {
                 if (env->immuregs[3]) /* Fault status register */
-                    env->immuregs[3] = 2; /* overflow (not read before another fault) */
+                    env->immuregs[3] = 2; /* overflow (not read before
+                                             another fault) */
                 env->immuregs[3] |= (is_user << 3) | 1;
                 env->exception_index = TT_TFAULT;
 #ifdef DEBUG_MMU
@@ -489,7 +496,8 @@ static int get_physical_address_code(CPUState *env, target_phys_addr_t *physical
 #endif
                 return 1;
             }
-            *physical = (env->itlb_tte[i] & mask & 0x1fffffff000ULL) + (address & ~mask & 0x1fffffff000ULL);
+            *physical = (env->itlb_tte[i] & mask & 0x1fffffff000ULL) +
+                (address & ~mask & 0x1fffffff000ULL);
             *prot = PAGE_EXEC;
             return 0;
         }
@@ -523,12 +531,15 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     target_phys_addr_t paddr;
     int error_code = 0, prot, ret = 0, access_index;
 
-    error_code = get_physical_address(env, &paddr, &prot, &access_index, address, rw, mmu_idx);
+    error_code = get_physical_address(env, &paddr, &prot, &access_index,
+                                      address, rw, mmu_idx);
     if (error_code == 0) {
         virt_addr = address & TARGET_PAGE_MASK;
-        vaddr = virt_addr + ((address & TARGET_PAGE_MASK) & (TARGET_PAGE_SIZE - 1));
+        vaddr = virt_addr + ((address & TARGET_PAGE_MASK) &
+                             (TARGET_PAGE_SIZE - 1));
 #ifdef DEBUG_MMU
-        printf("Translate at 0x%" PRIx64 " -> 0x%" PRIx64 ", vaddr 0x%" PRIx64 "\n", address, paddr, vaddr);
+        printf("Translate at 0x%" PRIx64 " -> 0x%" PRIx64 ", vaddr 0x%" PRIx64
+               "\n", address, paddr, vaddr);
 #endif
         ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
         return ret;
@@ -543,7 +554,8 @@ void dump_mmu(CPUState *env)
     unsigned int i;
     const char *mask;
 
-    printf("MMU contexts: Primary: %" PRId64 ", Secondary: %" PRId64 "\n", env->dmmuregs[1], env->dmmuregs[2]);
+    printf("MMU contexts: Primary: %" PRId64 ", Secondary: %" PRId64 "\n",
+           env->dmmuregs[1], env->dmmuregs[2]);
     if ((env->lsu & DMMU_E) == 0) {
         printf("DMMU disabled\n");
     } else {
@@ -565,7 +577,8 @@ void dump_mmu(CPUState *env)
                 break;
             }
             if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx ", %s, %s, %s, %s, ctx %" PRId64 "\n",
+                printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx
+                       ", %s, %s, %s, %s, ctx %" PRId64 "\n",
                        env->dtlb_tag[i] & ~0x1fffULL,
                        env->dtlb_tte[i] & 0x1ffffffe000ULL,
                        mask,
@@ -597,7 +610,8 @@ void dump_mmu(CPUState *env)
                 break;
             }
             if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx ", %s, %s, %s, ctx %" PRId64 "\n",
+                printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_lx
+                       ", %s, %s, %s, ctx %" PRId64 "\n",
                        env->itlb_tag[i] & ~0x1fffULL,
                        env->itlb_tte[i] & 0x1ffffffe000ULL,
                        mask,
@@ -1206,7 +1220,8 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
                 goto error;
             }
         } else {
-            fprintf(stderr, "feature string `%s' not in format (+feature|-feature|feature=xyz)\n", featurestr);
+            fprintf(stderr, "feature string `%s' not in format "
+                    "(+feature|-feature|feature=xyz)\n", featurestr);
             goto error;
         }
         featurestr = strtok(NULL, ",");
@@ -1224,7 +1239,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
     return -1;
 }
 
-void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+void sparc_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
     unsigned int i;
 
@@ -1234,14 +1249,17 @@ void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
                        sparc_defs[i].iu_version,
                        sparc_defs[i].fpu_version,
                        sparc_defs[i].mmu_version);
-        print_features(f, cpu_fprintf, CPU_DEFAULT_FEATURES & ~sparc_defs[i].features, "-");
-        print_features(f, cpu_fprintf, ~CPU_DEFAULT_FEATURES & sparc_defs[i].features, "+");
+        print_features(f, cpu_fprintf, CPU_DEFAULT_FEATURES &
+                       ~sparc_defs[i].features, "-");
+        print_features(f, cpu_fprintf, ~CPU_DEFAULT_FEATURES &
+                       sparc_defs[i].features, "+");
         (*cpu_fprintf)(f, "\n");
     }
     (*cpu_fprintf)(f, "CPU feature flags (+/-): ");
     print_features(f, cpu_fprintf, -1, NULL);
     (*cpu_fprintf)(f, "\n");
-    (*cpu_fprintf)(f, "Numerical features (=): iu_version fpu_version mmu_version\n");
+    (*cpu_fprintf)(f, "Numerical features (=): iu_version fpu_version "
+                   "mmu_version\n");
 }
 
 #define GET_FLAG(a,b) ((env->psr & a)?b:'-')
@@ -1252,7 +1270,8 @@ void cpu_dump_state(CPUState *env, FILE *f,
 {
     int i, x;
 
-    cpu_fprintf(f, "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n", env->pc, env->npc);
+    cpu_fprintf(f, "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n", env->pc,
+                env->npc);
     cpu_fprintf(f, "General Registers:\n");
     for (i = 0; i < 4; i++)
         cpu_fprintf(f, "%%g%c: " TARGET_FMT_lx "\t", i + '0', env->gregs[i]);
@@ -1283,15 +1302,16 @@ void cpu_dump_state(CPUState *env, FILE *f,
 #ifdef TARGET_SPARC64
     cpu_fprintf(f, "pstate: 0x%08x ccr: 0x%02x asi: 0x%02x tl: %d fprs: %d\n",
                 env->pstate, GET_CCR(env), env->asi, env->tl, env->fprs);
-    cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate %d cleanwin %d cwp %d\n",
+    cpu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate %d "
+                "cleanwin %d cwp %d\n",
                 env->cansave, env->canrestore, env->otherwin, env->wstate,
                 env->cleanwin, NWINDOWS - 1 - env->cwp);
 #else
-    cpu_fprintf(f, "psr: 0x%08x -> %c%c%c%c %c%c%c wim: 0x%08x\n", GET_PSR(env),
-            GET_FLAG(PSR_ZERO, 'Z'), GET_FLAG(PSR_OVF, 'V'),
-            GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),
-            env->psrs?'S':'-', env->psrps?'P':'-',
-            env->psret?'E':'-', env->wim);
+    cpu_fprintf(f, "psr: 0x%08x -> %c%c%c%c %c%c%c wim: 0x%08x\n",
+                GET_PSR(env), GET_FLAG(PSR_ZERO, 'Z'), GET_FLAG(PSR_OVF, 'V'),
+                GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),
+                env->psrs?'S':'-', env->psrps?'P':'-',
+                env->psret?'E':'-', env->wim);
 #endif
     cpu_fprintf(f, "fsr: 0x%08x\n", GET_FSR32(env));
 }

@@ -41,7 +41,8 @@
  * Sun4m architecture was used in the following machines:
  *
  * SPARCserver 6xxMP/xx
- * SPARCclassic (SPARCclassic Server)(SPARCstation LC) (4/15), SPARCclassic X (4/10)
+ * SPARCclassic (SPARCclassic Server)(SPARCstation LC) (4/15),
+ * SPARCclassic X (4/10)
  * SPARCstation LX/ZX (4/30)
  * SPARCstation Voyager
  * SPARCstation 10/xx, SPARCserver 10/xx
@@ -327,9 +328,11 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
         kernel_size = load_elf(kernel_filename, -0xf0000000ULL, NULL, NULL,
                                NULL);
         if (kernel_size < 0)
-            kernel_size = load_aout(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+            kernel_size = load_aout(kernel_filename,
+                                    phys_ram_base + KERNEL_LOAD_ADDR);
         if (kernel_size < 0)
-            kernel_size = load_image(kernel_filename, phys_ram_base + KERNEL_LOAD_ADDR);
+            kernel_size = load_image(kernel_filename,
+                                     phys_ram_base + KERNEL_LOAD_ADDR);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
@@ -339,7 +342,8 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
         /* load initrd */
         initrd_size = 0;
         if (initrd_filename) {
-            initrd_size = load_image(initrd_filename, phys_ram_base + INITRD_LOAD_ADDR);
+            initrd_size = load_image(initrd_filename,
+                                     phys_ram_base + INITRD_LOAD_ADDR);
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
@@ -350,8 +354,10 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
             for (i = 0; i < 64 * TARGET_PAGE_SIZE; i += TARGET_PAGE_SIZE) {
                 if (ldl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i)
                     == 0x48647253) { // HdrS
-                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 16, INITRD_LOAD_ADDR);
-                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 20, initrd_size);
+                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 16,
+                            INITRD_LOAD_ADDR);
+                    stl_raw(phys_ram_base + KERNEL_LOAD_ADDR + i + 20,
+                            initrd_size);
                     break;
                 }
             }
@@ -409,7 +415,8 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
 
     /* allocate RAM */
     if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d, maximum %d\n",
                 (unsigned int)(RAM_size / (1024 * 1024)),
                 (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);
@@ -575,7 +582,8 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
 
     /* allocate RAM */
     if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d, maximum %d\n",
                 (unsigned int)(RAM_size / (1024 * 1024)),
                 (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);
@@ -1127,7 +1135,8 @@ static void ss10_init(ram_addr_t RAM_size, int vga_ram_size,
 /* SPARCserver 600MP hardware initialisation */
 static void ss600mp_init(ram_addr_t RAM_size, int vga_ram_size,
                          const char *boot_device, DisplayState *ds,
-                         const char *kernel_filename, const char *kernel_cmdline,
+                         const char *kernel_filename,
+                         const char *kernel_cmdline,
                          const char *initrd_filename, const char *cpu_model)
 {
     sun4m_hw_init(&hwdefs[2], RAM_size, boot_device, ds, kernel_filename,
@@ -1388,7 +1397,8 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 
     /* allocate RAM */
     if ((uint64_t)RAM_size > hwdef->max_mem) {
-        fprintf(stderr, "qemu: Too much memory for this machine: %d, maximum %d\n",
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d, maximum %d\n",
                 (unsigned int)(RAM_size / (1024 * 1024)),
                 (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);

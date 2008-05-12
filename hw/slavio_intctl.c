@@ -99,7 +99,8 @@ static uint32_t slavio_intctl_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr,
+                                     uint32_t val)
 {
     SLAVIO_INTCTLState *s = opaque;
     uint32_t saddr;
@@ -115,13 +116,15 @@ static void slavio_intctl_mem_writel(void *opaque, target_phys_addr_t addr, uint
         val &= CPU_SOFTIRQ_MASK;
         s->intreg_pending[cpu] &= ~val;
         slavio_check_interrupts(s);
-        DPRINTF("Cleared cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
+        DPRINTF("Cleared cpu %d irq mask %x, curmask %x\n", cpu, val,
+                s->intreg_pending[cpu]);
         break;
     case 2: // set softint
         val &= CPU_SOFTIRQ_MASK;
         s->intreg_pending[cpu] |= val;
         slavio_check_interrupts(s);
-        DPRINTF("Set cpu %d irq mask %x, curmask %x\n", cpu, val, s->intreg_pending[cpu]);
+        DPRINTF("Set cpu %d irq mask %x, curmask %x\n", cpu, val,
+                s->intreg_pending[cpu]);
         break;
     default:
         break;
@@ -166,7 +169,8 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr,
+                                      uint32_t val)
 {
     SLAVIO_INTCTLState *s = opaque;
     uint32_t saddr;
@@ -178,7 +182,8 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
         // Force clear unused bits
         val &= MASTER_IRQ_MASK;
         s->intregm_disabled &= ~val;
-        DPRINTF("Enabled master irq mask %x, curmask %x\n", val, s->intregm_disabled);
+        DPRINTF("Enabled master irq mask %x, curmask %x\n", val,
+                s->intregm_disabled);
         slavio_check_interrupts(s);
         break;
     case 3: // set (disable, clear pending)
@@ -187,7 +192,8 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr, uin
         s->intregm_disabled |= val;
         s->intregm_pending &= ~val;
         slavio_check_interrupts(s);
-        DPRINTF("Disabled master irq mask %x, curmask %x\n", val, s->intregm_disabled);
+        DPRINTF("Disabled master irq mask %x, curmask %x\n", val,
+                s->intregm_disabled);
         break;
     case 4:
         s->target_cpu = val & (MAX_CPUS - 1);
@@ -219,7 +225,8 @@ void slavio_pic_info(void *opaque)
     for (i = 0; i < MAX_CPUS; i++) {
         term_printf("per-cpu %d: pending 0x%08x\n", i, s->intreg_pending[i]);
     }
-    term_printf("master: pending 0x%08x, disabled 0x%08x\n", s->intregm_pending, s->intregm_disabled);
+    term_printf("master: pending 0x%08x, disabled 0x%08x\n",
+                s->intregm_pending, s->intregm_disabled);
 }
 
 void slavio_irq_info(void *opaque)
@@ -376,16 +383,23 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
 
     s->intbit_to_level = intbit_to_level;
     for (i = 0; i < MAX_CPUS; i++) {
-        slavio_intctl_io_memory = cpu_register_io_memory(0, slavio_intctl_mem_read, slavio_intctl_mem_write, s);
+        slavio_intctl_io_memory = cpu_register_io_memory(0,
+                                                         slavio_intctl_mem_read,
+                                                         slavio_intctl_mem_write,
+                                                         s);
         cpu_register_physical_memory(addr + i * TARGET_PAGE_SIZE, INTCTL_SIZE,
                                      slavio_intctl_io_memory);
         s->cpu_irqs[i] = parent_irq[i];
     }
 
-    slavio_intctlm_io_memory = cpu_register_io_memory(0, slavio_intctlm_mem_read, slavio_intctlm_mem_write, s);
+    slavio_intctlm_io_memory = cpu_register_io_memory(0,
+                                                      slavio_intctlm_mem_read,
+                                                      slavio_intctlm_mem_write,
+                                                      s);
     cpu_register_physical_memory(addrg, INTCTLM_SIZE, slavio_intctlm_io_memory);
 
-    register_savevm("slavio_intctl", addr, 1, slavio_intctl_save, slavio_intctl_load, s);
+    register_savevm("slavio_intctl", addr, 1, slavio_intctl_save,
+                    slavio_intctl_load, s);
     qemu_register_reset(slavio_intctl_reset, s);
     *irq = qemu_allocate_irqs(slavio_set_irq, s, 32);
 

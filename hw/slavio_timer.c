@@ -206,7 +206,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             s->limit = val & TIMER_MAX_COUNT32;
             if (s->timer) {
                 if (s->limit == 0) /* free-run */
-                    ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
+                    ptimer_set_limit(s->timer,
+                                     LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
                 else
                     ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 1);
             }
@@ -233,7 +234,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
         s->limit = val & TIMER_MAX_COUNT32;
         if (s->timer) {
             if (s->limit == 0)	/* free-run */
-                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
+                ptimer_set_limit(s->timer,
+                                 LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
             else
                 ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 0);
         }
@@ -271,7 +273,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
                         // user timer limit is always the same
                         s->slave[i]->limit = TIMER_MAX_COUNT64;
                         ptimer_set_limit(s->slave[i]->timer,
-                                         LIMIT_TO_PERIODS(s->slave[i]->limit), 1);
+                                         LIMIT_TO_PERIODS(s->slave[i]->limit),
+                                         1);
                         // set this processors user timer bit in config
                         // register
                         s->slave_mode |= processor;

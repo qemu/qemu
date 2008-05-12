@@ -795,15 +795,19 @@ GEN_FCMP(fcmped_fcc3, float64, DT0, DT1, 26, 1);
 GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
 #endif
 
-#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY) && defined(DEBUG_MXCC)
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY) && \
+    defined(DEBUG_MXCC)
 static void dump_mxcc(CPUState *env)
 {
     printf("mxccdata: %016llx %016llx %016llx %016llx\n",
-        env->mxccdata[0], env->mxccdata[1], env->mxccdata[2], env->mxccdata[3]);
+           env->mxccdata[0], env->mxccdata[1],
+           env->mxccdata[2], env->mxccdata[3]);
     printf("mxccregs: %016llx %016llx %016llx %016llx\n"
            "          %016llx %016llx %016llx %016llx\n",
-        env->mxccregs[0], env->mxccregs[1], env->mxccregs[2], env->mxccregs[3],
-        env->mxccregs[4], env->mxccregs[5], env->mxccregs[6], env->mxccregs[7]);
+           env->mxccregs[0], env->mxccregs[1],
+           env->mxccregs[2], env->mxccregs[3],
+           env->mxccregs[4], env->mxccregs[5],
+           env->mxccregs[6], env->mxccregs[7]);
 }
 #endif
 
@@ -851,32 +855,38 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             if (size == 8)
                 ret = env->mxccregs[3];
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00a04: /* MXCC control register */
             if (size == 4)
                 ret = env->mxccregs[3];
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00c00: /* Module reset register */
             if (size == 8) {
                 ret = env->mxccregs[5];
                 // should we do something here?
             } else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00f00: /* MBus port address register */
             if (size == 8)
                 ret = env->mxccregs[7];
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         default:
-            DPRINTF_MXCC("%08x: unimplemented address, size: %d\n", addr, size);
+            DPRINTF_MXCC("%08x: unimplemented address, size: %d\n", addr,
+                         size);
             break;
         }
-        DPRINTF_MXCC("asi = %d, size = %d, sign = %d, addr = %08x -> ret = %08x,"
+        DPRINTF_MXCC("asi = %d, size = %d, sign = %d, "
+                     "addr = %08x -> ret = %08x,"
                      "addr = %08x\n", asi, size, sign, last_addr, ret, addr);
 #ifdef DEBUG_MXCC
         dump_mxcc(env);
@@ -1050,76 +1060,97 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
             if (size == 8)
                 env->mxccdata[0] = val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00008: /* MXCC stream data register 1 */
             if (size == 8)
                 env->mxccdata[1] = val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00010: /* MXCC stream data register 2 */
             if (size == 8)
                 env->mxccdata[2] = val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00018: /* MXCC stream data register 3 */
             if (size == 8)
                 env->mxccdata[3] = val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00100: /* MXCC stream source */
             if (size == 8)
                 env->mxccregs[0] = val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
-            env->mxccdata[0] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +  0);
-            env->mxccdata[1] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +  8);
-            env->mxccdata[2] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) + 16);
-            env->mxccdata[3] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) + 24);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
+            env->mxccdata[0] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+                                        0);
+            env->mxccdata[1] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+                                        8);
+            env->mxccdata[2] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+                                        16);
+            env->mxccdata[3] = ldq_phys((env->mxccregs[0] & 0xffffffffULL) +
+                                        24);
             break;
         case 0x01c00200: /* MXCC stream destination */
             if (size == 8)
                 env->mxccregs[1] = val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
-            stq_phys((env->mxccregs[1] & 0xffffffffULL) +  0, env->mxccdata[0]);
-            stq_phys((env->mxccregs[1] & 0xffffffffULL) +  8, env->mxccdata[1]);
-            stq_phys((env->mxccregs[1] & 0xffffffffULL) + 16, env->mxccdata[2]);
-            stq_phys((env->mxccregs[1] & 0xffffffffULL) + 24, env->mxccdata[3]);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
+            stq_phys((env->mxccregs[1] & 0xffffffffULL) +  0,
+                     env->mxccdata[0]);
+            stq_phys((env->mxccregs[1] & 0xffffffffULL) +  8,
+                     env->mxccdata[1]);
+            stq_phys((env->mxccregs[1] & 0xffffffffULL) + 16,
+                     env->mxccdata[2]);
+            stq_phys((env->mxccregs[1] & 0xffffffffULL) + 24,
+                     env->mxccdata[3]);
             break;
         case 0x01c00a00: /* MXCC control register */
             if (size == 8)
                 env->mxccregs[3] = val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00a04: /* MXCC control register */
             if (size == 4)
-                env->mxccregs[3] = (env->mxccregs[0xa] & 0xffffffff00000000ULL) | val;
+                env->mxccregs[3] = (env->mxccregs[0xa] & 0xffffffff00000000ULL)
+                    | val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00e00: /* MXCC error register  */
             // writing a 1 bit clears the error
             if (size == 8)
                 env->mxccregs[6] &= ~val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         case 0x01c00f00: /* MBus port address register */
             if (size == 8)
                 env->mxccregs[7] = val;
             else
-                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr, size);
+                DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
+                             size);
             break;
         default:
-            DPRINTF_MXCC("%08x: unimplemented address, size: %d\n", addr, size);
+            DPRINTF_MXCC("%08x: unimplemented address, size: %d\n", addr,
+                         size);
             break;
         }
-        DPRINTF_MXCC("asi = %d, size = %d, addr = %08x, val = %08x\n", asi, size, addr, val);
+        DPRINTF_MXCC("asi = %d, size = %d, addr = %08x, val = %08x\n", asi,
+                     size, addr, val);
 #ifdef DEBUG_MXCC
         dump_mxcc(env);
 #endif
@@ -1192,7 +1223,8 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                 break;
             }
             if (oldreg != env->mmuregs[reg]) {
-                DPRINTF_MMU("mmu change reg[%d]: 0x%08x -> 0x%08x\n", reg, oldreg, env->mmuregs[reg]);
+                DPRINTF_MMU("mmu change reg[%d]: 0x%08x -> 0x%08x\n",
+                            reg, oldreg, env->mmuregs[reg]);
             }
 #ifdef DEBUG_MMU
             dump_mmu(env);
@@ -1317,7 +1349,8 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
     case 0x30: // store buffer tags or Turbosparc secondary cache diagnostic
     case 0x31: // store buffer data, Ross RT620 I-cache flush or
                // Turbosparc snoop RAM
-    case 0x32: // store buffer control or Turbosparc page table descriptor diagnostic
+    case 0x32: // store buffer control or Turbosparc page table
+               // descriptor diagnostic
     case 0x36: /* I-cache flash clear */
     case 0x37: /* D-cache flash clear */
     case 0x38: /* breakpoint diagnostics */
@@ -1860,7 +1893,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             // Mappings generated during D/I MMU disabled mode are
             // invalid in normal mode
             if (oldreg != env->lsu) {
-                DPRINTF_MMU("LSU change: 0x%" PRIx64 " -> 0x%" PRIx64 "\n", oldreg, env->lsu);
+                DPRINTF_MMU("LSU change: 0x%" PRIx64 " -> 0x%" PRIx64 "\n",
+                            oldreg, env->lsu);
 #ifdef DEBUG_MMU
                 dump_mmu(env);
 #endif
@@ -1894,7 +1928,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             }
             env->immuregs[reg] = val;
             if (oldreg != env->immuregs[reg]) {
-                DPRINTF_MMU("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08" PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
+                DPRINTF_MMU("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08"
+                            PRIx64 "\n", reg, oldreg, env->immuregs[reg]);
             }
 #ifdef DEBUG_MMU
             dump_mmu(env);
@@ -1963,7 +1998,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             }
             env->dmmuregs[reg] = val;
             if (oldreg != env->dmmuregs[reg]) {
-                DPRINTF_MMU("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08" PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
+                DPRINTF_MMU("mmu change reg[%d]: 0x%08" PRIx64 " -> 0x%08"
+                            PRIx64 "\n", reg, oldreg, env->dmmuregs[reg]);
             }
 #ifdef DEBUG_MMU
             dump_mmu(env);
@@ -2042,7 +2078,8 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
         }
         helper_check_align(addr, 0x3f);
         for (i = 0; i < 16; i++) {
-            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x8f, 4, 0);
+            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x8f, 4,
+                                                         0);
             addr += 4;
         }
 
@@ -2697,7 +2734,8 @@ void do_interrupt(int intno)
 #endif
 #if !defined(CONFIG_USER_ONLY)
     if (env->tl == MAXTL) {
-        cpu_abort(env, "Trap 0x%04x while trap level is MAXTL, Error state", env->exception_index);
+        cpu_abort(env, "Trap 0x%04x while trap level is MAXTL, Error state",
+                  env->exception_index);
         return;
     }
 #endif
@@ -2807,7 +2845,8 @@ void do_interrupt(int intno)
 #endif
 #if !defined(CONFIG_USER_ONLY)
     if (env->psret == 0) {
-        cpu_abort(env, "Trap 0x%02x while interrupts disabled, Error state", env->exception_index);
+        cpu_abort(env, "Trap 0x%02x while interrupts disabled, Error state",
+                  env->exception_index);
         return;
     }
 #endif
@@ -2833,7 +2872,8 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
 #ifdef __s390__
-# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & 0x7fffffffUL))
+# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & \
+                          0x7fffffffUL))
 #else
 # define GETPC() (__builtin_return_address(0))
 #endif
@@ -2915,8 +2955,8 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
     env = cpu_single_env;
 #ifdef DEBUG_UNASSIGNED
     if (is_asi)
-        printf("Unassigned mem %s access to " TARGET_FMT_plx " asi 0x%02x from "
-               TARGET_FMT_lx "\n",
+        printf("Unassigned mem %s access to " TARGET_FMT_plx
+               " asi 0x%02x from " TARGET_FMT_lx "\n",
                is_exec ? "exec" : is_write ? "write" : "read", addr, is_asi,
                env->pc);
     else
@@ -2955,8 +2995,8 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx "\n",
-           addr, env->pc);
+    printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
+           "\n", addr, env->pc);
     env = saved_env;
 #endif
     if (is_exec)

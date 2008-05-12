@@ -516,7 +516,8 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
     vram_base += size;
 
     io_memory = cpu_register_io_memory(0, tcx_dac_read, tcx_dac_write, s);
-    cpu_register_physical_memory(addr + 0x00200000ULL, TCX_DAC_NREGS, io_memory);
+    cpu_register_physical_memory(addr + 0x00200000ULL, TCX_DAC_NREGS,
+                                 io_memory);
 
     dummy_memory = cpu_register_io_memory(0, tcx_dummy_read, tcx_dummy_write,
                                           s);

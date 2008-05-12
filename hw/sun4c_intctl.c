@@ -68,7 +68,8 @@ static uint32_t sun4c_intctl_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void sun4c_intctl_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void sun4c_intctl_mem_writeb(void *opaque, target_phys_addr_t addr,
+                                    uint32_t val)
 {
     Sun4c_INTCTLState *s = opaque;
 
@@ -94,7 +95,8 @@ void sun4c_pic_info(void *opaque)
 {
     Sun4c_INTCTLState *s = opaque;
 
-    term_printf("master: pending 0x%2.2x, enabled 0x%2.2x\n", s->pending, s->reg);
+    term_printf("master: pending 0x%2.2x, enabled 0x%2.2x\n", s->pending,
+                s->reg);
 }
 
 void sun4c_irq_info(void *opaque)
