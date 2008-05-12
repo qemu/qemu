@@ -4535,12 +4535,12 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 
                     switch(op >> 4) {
                     case 0:
-                        gen_op_ld_T0_A0(OT_LONG);
+                        gen_op_ld_T0_A0(OT_LONG + s->mem_index);
                         tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
                         tcg_gen_helper_0_1(helper_flds_FT0, cpu_tmp2);
                         break;
                     case 1:
-                        gen_op_ld_T0_A0(OT_LONG);
+                        gen_op_ld_T0_A0(OT_LONG + s->mem_index);
                         tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
                         tcg_gen_helper_0_1(helper_fildl_FT0, cpu_tmp2);
                         break;
@@ -4551,7 +4551,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         break;
                     case 3:
                     default:
-                        gen_op_ld_T0_A0(OT_WORD);
+                        gen_op_lds_T0_A0(OT_WORD + s->mem_index);
                         tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
                         tcg_gen_helper_0_1(helper_fildl_FT0, cpu_tmp2);
                         break;
@@ -4574,12 +4574,12 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 case 0:
                     switch(op >> 4) {
                     case 0:
-                        gen_op_ld_T0_A0(OT_LONG);
+                        gen_op_ld_T0_A0(OT_LONG + s->mem_index);
                         tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
                         tcg_gen_helper_0_1(helper_flds_ST0, cpu_tmp2);
                         break;
                     case 1:
-                        gen_op_ld_T0_A0(OT_LONG);
+                        gen_op_ld_T0_A0(OT_LONG + s->mem_index);
                         tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
                         tcg_gen_helper_0_1(helper_fildl_ST0, cpu_tmp2);
                         break;
@@ -4590,7 +4590,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         break;
                     case 3:
                     default:
-                        gen_op_ld_T0_A0(OT_WORD);
+                        gen_op_lds_T0_A0(OT_WORD + s->mem_index);
                         tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
                         tcg_gen_helper_0_1(helper_fildl_ST0, cpu_tmp2);
                         break;
@@ -4602,7 +4602,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     case 1:
                         tcg_gen_helper_1_0(helper_fisttl_ST0, cpu_tmp2);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2);
-                        gen_op_st_T0_A0(OT_LONG);
+                        gen_op_st_T0_A0(OT_LONG + s->mem_index);
                         break;
                     case 2:
                         tcg_gen_helper_1_0(helper_fisttll_ST0, cpu_tmp1);
@@ -4613,7 +4613,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     default:
                         tcg_gen_helper_1_0(helper_fistt_ST0, cpu_tmp2);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2);
-                        gen_op_st_T0_A0(OT_WORD);
+                        gen_op_st_T0_A0(OT_WORD + s->mem_index);
                         break;
                     }
                     tcg_gen_helper_0_0(helper_fpop);
@@ -4623,12 +4623,12 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     case 0:
                         tcg_gen_helper_1_0(helper_fsts_ST0, cpu_tmp2);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2);
-                        gen_op_st_T0_A0(OT_LONG);
+                        gen_op_st_T0_A0(OT_LONG + s->mem_index);
                         break;
                     case 1:
                         tcg_gen_helper_1_0(helper_fistl_ST0, cpu_tmp2);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2);
-                        gen_op_st_T0_A0(OT_LONG);
+                        gen_op_st_T0_A0(OT_LONG + s->mem_index);
                         break;
                     case 2:
                         tcg_gen_helper_1_0(helper_fstl_ST0, cpu_tmp1);
@@ -4639,7 +4639,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     default:
                         tcg_gen_helper_1_0(helper_fist_ST0, cpu_tmp2);
                         tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2);
-                        gen_op_st_T0_A0(OT_WORD);
+                        gen_op_st_T0_A0(OT_WORD + s->mem_index);
                         break;
                     }
                     if ((op & 7) == 3)
