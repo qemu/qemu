@@ -2144,44 +2144,9 @@ void OPPROTO op_unlock(void)
 }
 
 /* SSE support */
-static inline void memcpy16(void *d, void *s)
+void OPPROTO op_com_dummy(void)
 {
-    ((uint32_t *)d)[0] = ((uint32_t *)s)[0];
-    ((uint32_t *)d)[1] = ((uint32_t *)s)[1];
-    ((uint32_t *)d)[2] = ((uint32_t *)s)[2];
-    ((uint32_t *)d)[3] = ((uint32_t *)s)[3];
-}
-
-void OPPROTO op_movo(void)
-{
-    /* XXX: badly generated code */
-    XMMReg *d, *s;
-    d = (XMMReg *)((char *)env + PARAM1);
-    s = (XMMReg *)((char *)env + PARAM2);
-    memcpy16(d, s);
-}
-
-void OPPROTO op_movq(void)
-{
-    uint64_t *d, *s;
-    d = (uint64_t *)((char *)env + PARAM1);
-    s = (uint64_t *)((char *)env + PARAM2);
-    *d = *s;
-}
-
-void OPPROTO op_movl(void)
-{
-    uint32_t *d, *s;
-    d = (uint32_t *)((char *)env + PARAM1);
-    s = (uint32_t *)((char *)env + PARAM2);
-    *d = *s;
-}
-
-void OPPROTO op_movq_env_0(void)
-{
-    uint64_t *d;
-    d = (uint64_t *)((char *)env + PARAM1);
-    *d = 0;
+    T0 = 0;
 }
 
 void OPPROTO op_fxsave_A0(void)
@@ -2193,27 +2158,6 @@ void OPPROTO op_fxrstor_A0(void)
 {
     helper_fxrstor(A0, PARAM1);
 }
-
-/* XXX: optimize by storing fptt and fptags in the static cpu state */
-void OPPROTO op_enter_mmx(void)
-{
-    env->fpstt = 0;
-    *(uint32_t *)(env->fptags) = 0;
-    *(uint32_t *)(env->fptags + 4) = 0;
-}
-
-void OPPROTO op_emms(void)
-{
-    /* set to empty state */
-    *(uint32_t *)(env->fptags) = 0x01010101;
-    *(uint32_t *)(env->fptags + 4) = 0x01010101;
-}
-
-#define SHIFT 0
-#include "ops_sse.h"
-
-#define SHIFT 1
-#include "ops_sse.h"
 
 /* Secure Virtual Machine ops */
 

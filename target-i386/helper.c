@@ -4462,3 +4462,32 @@ void vmexit(uint64_t exit_code, uint64_t exit_info_1)
 }
 
 #endif
+
+/* MMX/SSE */
+/* XXX: optimize by storing fptt and fptags in the static cpu state */
+void helper_enter_mmx(void)
+{
+    env->fpstt = 0;
+    *(uint32_t *)(env->fptags) = 0;
+    *(uint32_t *)(env->fptags + 4) = 0;
+}
+
+void helper_emms(void)
+{
+    /* set to empty state */
+    *(uint32_t *)(env->fptags) = 0x01010101;
+    *(uint32_t *)(env->fptags + 4) = 0x01010101;
+}
+
+/* XXX: suppress */
+void helper_movq(uint64_t *d, uint64_t *s)
+{
+    *d = *s;
+}
+
+#define SHIFT 0
+#include "ops_sse.h"
+
+#define SHIFT 1
+#include "ops_sse.h"
+
