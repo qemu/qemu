@@ -30,18 +30,18 @@
 
 #define D(x)
 
-#define R_STAT            0x2c
-#define RW_MGM_CTRL       0x28
-#define FS_ETH_MAX_REGS   0x5c
-
-
-
+/* 
+ * The MDIO extensions in the TDK PHY model were reversed engineered from the 
+ * linux driver (PHYID and Diagnostics reg).
+ * TODO: Add friendly names for the register nums.
+ */
 struct qemu_phy
 {
 	uint32_t regs[32];
 
 	unsigned int (*read)(struct qemu_phy *phy, unsigned int req);
-	void (*write)(struct qemu_phy *phy, unsigned int req, unsigned int data);
+	void (*write)(struct qemu_phy *phy, unsigned int req, 
+		      unsigned int data);
 };
 
 static unsigned int tdk_read(struct qemu_phy *phy, unsigned int req)
@@ -61,11 +61,35 @@ static unsigned int tdk_read(struct qemu_phy *phy, unsigned int req)
 			r |= (1 << 3); /* Autoneg able.  */
 			r |= (1 << 2); /* Link.  */
 			break;
+		case 5:
+			/* Link partner ability.
+			   We are kind; always agree with whatever best mode
+			   the guest advertises.  */
+			r = 1 << 14; /* Success.  */
+			/* Copy advertised modes.  */
+			r |= phy->regs[4] & (15 << 5);
+			/* Autoneg support.  */
+			r |= 1;
+			break;
+		case 18:
+		{
+			/* Diagnostics reg.  */
+			int duplex = 0;
+			int speed_100 = 0;
+
+			/* Are we advertising 100 half or 100 duplex ? */
+			speed_100 = !!(phy->regs[4] & 0x180);
+			/* Are we advertising 10 duplex or 100 duplex ? */
+			duplex = !!(phy->regs[4] & 0x180);
+			r = (speed_100 << 10) | (duplex << 11);
+		}
+		break;
+
 		default:
 			r = phy->regs[regnum];
 			break;
 	}
-	D(printf("%s %x = reg[%d]\n", __func__, r, regnum));
+	D(printf("\n%s %x = reg[%d]\n", __func__, r, regnum));
 	return r;
 }
 
@@ -86,6 +110,13 @@ tdk_write(struct qemu_phy *phy, unsigned int req, unsigned int data)
 static void 
 tdk_init(struct qemu_phy *phy)
 {
+	phy->regs[0] = 0x3100;
+	/* PHY Id.  */
+	phy->regs[2] = 0x0300;
+	phy->regs[3] = 0xe400;
+	/* Autonegotiation advertisement reg.  */
+	phy->regs[4] = 0x01E1;
+
 	phy->read = tdk_read;
 	phy->write = tdk_write;
 }
@@ -230,8 +261,8 @@ static void mdio_cycle(struct qemu_mdio *bus)
 		case DATA:			
 			if (!bus->mdc) {
 				if (bus->drive) {
-					bus->mdio = bus->data & 1;
-					bus->data >>= 1;
+					bus->mdio = !!(bus->data & (1 << 15));
+					bus->data <<= 1;
 				}
 			} else {
 				if (!bus->drive) {
@@ -241,7 +272,9 @@ static void mdio_cycle(struct qemu_mdio *bus)
 				if (bus->cnt == 16 * 2) {
 					bus->cnt = 0;
 					bus->state = PREAMBLE;
-					mdio_write_req(bus);
+					if (!bus->drive)
+						mdio_write_req(bus);
+					bus->drive = 0;
 				}
 			}
 			break;
@@ -250,6 +283,11 @@ static void mdio_cycle(struct qemu_mdio *bus)
 	}
 }
 
+/* ETRAX-FS Ethernet MAC block starts here.  */
+
+#define R_STAT            0x2c
+#define RW_MGM_CTRL       0x28
+#define FS_ETH_MAX_REGS   0x5c
 
 struct fs_eth
 {
@@ -398,15 +436,15 @@ static int eth_tx_push(void *opaque, unsigned char *buf, int len)
 }
 
 static CPUReadMemoryFunc *eth_read[] = {
-    &eth_rinvalid,
-    &eth_rinvalid,
-    &eth_readl,
+	&eth_rinvalid,
+	&eth_rinvalid,
+	&eth_readl,
 };
 
 static CPUWriteMemoryFunc *eth_write[] = {
-    &eth_winvalid,
-    &eth_winvalid,
-    &eth_writel,
+	&eth_winvalid,
+	&eth_winvalid,
+	&eth_writel,
 };
 
 void *etraxfs_eth_init(NICInfo *nd, CPUState *env, 
