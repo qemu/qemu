@@ -435,7 +435,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     ret = load_elf(buf, hwdef->slavio_base - PROM_VADDR, NULL, NULL, NULL);
     if (ret < 0 || ret > PROM_SIZE_MAX)
-        ret = load_image_targphys(buf, prom_offset, PROM_SIZE_MAX);
+        ret = load_image_targphys(buf, hwdef->slavio_base, PROM_SIZE_MAX);
     if (ret < 0 || ret > PROM_SIZE_MAX) {
         fprintf(stderr, "qemu: could not load prom '%s'\n",
                 buf);
@@ -605,7 +605,7 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     ret = load_elf(buf, hwdef->slavio_base - PROM_VADDR, NULL, NULL, NULL);
     if (ret < 0 || ret > PROM_SIZE_MAX)
-        ret = load_image_targphys(buf, prom_offset, PROM_SIZE_MAX);
+        ret = load_image_targphys(buf, hwdef->slavio_base, PROM_SIZE_MAX);
     if (ret < 0 || ret > PROM_SIZE_MAX) {
         fprintf(stderr, "qemu: could not load prom '%s'\n",
                 buf);
@@ -1421,7 +1421,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     ret = load_elf(buf, hwdef->slavio_base - PROM_VADDR, NULL, NULL, NULL);
     if (ret < 0 || ret > PROM_SIZE_MAX)
-        ret = load_image_targphys(buf, prom_offset, PROM_SIZE_MAX);
+        ret = load_image_targphys(buf, hwdef->slavio_base, PROM_SIZE_MAX);
     if (ret < 0 || ret > PROM_SIZE_MAX) {
         fprintf(stderr, "qemu: could not load prom '%s'\n",
                 buf);
