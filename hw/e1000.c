@@ -448,7 +448,7 @@ start_xmit(E1000State *s)
         cpu_physical_memory_read(base, (void *)&desc, sizeof(desc));
 
         DBGOUT(TX, "index %d: %p : %x %x\n", s->mac_reg[TDH],
-               (void *)desc.buffer_addr, desc.lower.data,
+               (void *)(intptr_t)desc.buffer_addr, desc.lower.data,
                desc.upper.data);
 
         process_tx_desc(s, &desc);
