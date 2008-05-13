@@ -1,0 +1,29 @@
+Correctness issues:
+
+- rework eflags optimization (will be a consequence of TCG port)
+- SVM: rework the implementation: simplify code, move most intercept
+  tests as dynamic, correct segment access, verify exception safety,
+  remove most of the added CPU state.
+- arpl eflags computation is invalid
+- x86_64: fxsave/fxrestore intel/amd differences
+- x86_64: lcall/ljmp intel/amd differences ?
+- x86_64: cmpxchgl intel/amd differences ?
+- x86_64: cmovl bug intel/amd differences ?
+- x86: monitor invalid 
+- better code fetch (different exception handling + CS.limit support)
+- user/kernel PUSHL/POPL in helper.c
+- add missing cpuid tests
+- return UD exception if LOCK prefix incorrectly used
+- test ldt limit < 7 ?
+- fix some 16 bit sp push/pop overflow (pusha/popa, lcall lret)
+- full support of segment limit/rights 
+- full x87 exception support
+- improve x87 bit exactness (use bochs code ?)
+
+Optimizations/Features:
+
+- finish TCG port
+- evaluate x87 stack pointer statically
+- find a way to avoid translating several time the same TB if CR0.TS
+  is set or not.
+- move kqemu support outside target-i386.
