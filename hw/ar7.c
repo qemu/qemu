@@ -151,7 +151,7 @@ static struct {
 //~ #define MASK(hi, lo) (((~(~0 << (hi))) & (~0 << (lo))) | (1 << (hi)))
 
 static struct _loaderparams {
-    int ram_size;
+    ram_addr_t ram_size;
     const char *kernel_filename;
     const char *kernel_cmdline;
     const char *initrd_filename;
@@ -3098,13 +3098,13 @@ static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE + VLYNQ_CTRL, 4) ||
                INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         uint32_t oldvalue = ar7_io_memread(opaque, addr & ~3);
-        //~ logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
+        //~ logout("??? addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
         oldvalue &= ~(0xff << (8 * (addr & 3)));
         value = oldvalue + ((value & 0xff) << (8 * (addr & 3)));
         ar7_io_memwrite(opaque, addr & ~3, value);
     } else if (addr & 3) {
         ar7_io_memwrite(opaque, addr & ~3, value);
-        logout("addr=0x%08x, val=0x%02x\n", addr, value);
+        logout("addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
         UNEXPECTED();
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
         ar7_io_memwrite(opaque, addr, value);
@@ -3113,7 +3113,7 @@ static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 #endif
     } else {
         ar7_io_memwrite(opaque, addr, value);
-        logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
+        logout("??? addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
         //~ UNEXPECTED();
     }
     //~ cpu_outb(NULL, addr & 0xffff, value);
@@ -3127,7 +3127,7 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
     } else if (INRANGE(AVALANCHE_BBIF_BASE, av.bbif)) {
         value >>= (addr & 3) * 8;
         value &= 0xff;
-        logout("??? addr=0x%08x, val=0x%02x\n", addr, value);
+        logout("??? addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         value >>= ((addr & 3) * 8);
         value &= 0xff;
@@ -3137,14 +3137,14 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
         value >>= ((addr & 3) * 8);
         value &= 0xff;
     } else if (addr & 3) {
-        logout("addr=0x%08x, val=0x%02x\n", addr, value);
+        logout("addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
         UNEXPECTED();
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
 #endif
     } else {
-        logout("addr=0x%08x, val=0x%02x\n", addr, value & 0xff);
+        logout("addr=0x%08x, val=0x%02x\n", (unsigned)addr, value & 0xff);
         UNEXPECTED();
     }
     value &= 0xff;
@@ -3155,7 +3155,7 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     if (0) {
     } else {
-        logout("??? addr=0x%08x, val=0x%04x\n", addr, value);
+        logout("??? addr=0x%08x, val=0x%04x\n", (unsigned)addr, value);
         switch (addr & 3) {
 #if !defined(TARGET_WORDS_BIGENDIAN)
         case 0:
@@ -3190,7 +3190,7 @@ static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
       default:
           assert(0);
       }
-      TRACE(OTHER, logout("addr=0x%08x, val=0x%04x\n", addr, value));
+      TRACE(OTHER, logout("addr=0x%08x, val=0x%04x\n", (unsigned)addr, value));
     }
     return value;
 }
@@ -3675,7 +3675,7 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-static void mips_ar7_common_init (int ram_size,
+static void mips_ar7_common_init (ram_addr_t machine_ram_size,
                     uint16_t flash_manufacturer, uint16_t flash_type,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3691,9 +3691,9 @@ static void mips_ar7_common_init (int ram_size,
     set_traceflags();
 #endif
 
-    if (ram_size > 192 * MiB) {
+    if (machine_ram_size > 192 * MiB) {
         /* The external RAM start at 0x14000000 and ends before 0x20000000. */
-        ram_size = 192 * MiB;
+        machine_ram_size = 192 * MiB;
     }
 
     /* Initialize CPU. */
@@ -3704,22 +3704,23 @@ static void mips_ar7_common_init (int ram_size,
         cpu_model = "4KEcR1";
     }
     env = cpu_init(cpu_model);
+    if (!env) {
+        fprintf(stderr, "Unable to find CPU definition %s\n", cpu_model);
+        exit(1);
+    }
+    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+    qemu_register_reset(main_cpu_reset, env);
     ar7_mips_init(env);
 
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
-
-    loaderparams.ram_size = ram_size;
+    loaderparams.ram_size = machine_ram_size;
     loaderparams.kernel_filename = kernel_filename;
     loaderparams.kernel_cmdline = kernel_cmdline;
     loaderparams.initrd_filename = initrd_filename;
 
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
-    qemu_register_reset(main_cpu_reset, env);
-
-    ram_offset = qemu_ram_alloc(ram_size);
-    cpu_register_physical_memory(KERNEL_LOAD_ADDR, ram_size, ram_offset | IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(machine_ram_size);
+    cpu_register_physical_memory(KERNEL_LOAD_ADDR, machine_ram_size, ram_offset | IO_MEM_RAM);
     fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x\n",
-        __func__, phys_ram_base, ram_size);
+        __func__, phys_ram_base, (unsigned)machine_ram_size);
 
     /* load_kernel would fail when ram_offset != 0. */
     assert(ram_offset == 0);
@@ -3780,7 +3781,11 @@ static void mips_ar7_common_init (int ram_size,
     /* Init internal devices */
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
-    //~ cpu_mips_irqctrl_init();
+    cpu_mips_irqctrl_init();
+
+    /* Interrupt controller */
+    /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
+    //~ i8259 = i8259_init(env->irq[2]);
 
     ar7.primary_irq = qemu_allocate_irqs(ar7_primary_irq, env, NUM_PRIMARY_IRQS);
     ar7.secondary_irq = qemu_allocate_irqs(ar7_secondary_irq, env, NUM_SECONDARY_IRQS);
@@ -3803,50 +3808,50 @@ static void mips_ar7_common_init (int ram_size,
     ar7_init(env);
 }
 
-static void mips_ar7_init(int ram_size, int vga_ram_size,
+static void mips_ar7_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_ST, 0x2249,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_ST, 0x2249,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
 
-static void ar7_amd_init(int ram_size, int vga_ram_size,
+static void ar7_amd_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_AMD, AM29LV160DB,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_AMD, AM29LV160DB,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
 
-static void mips_tnetd7200_init(int ram_size, int vga_ram_size,
+static void mips_tnetd7200_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_ST, 0x2249,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_ST, 0x2249,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
     reg_write(av.gpio, GPIO_CVR, 0x0002002b);
 }
 
-static void mips_tnetd7300_init(int ram_size, int vga_ram_size,
+static void mips_tnetd7300_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (ram_size, MANUFACTURER_ST, 0x2249,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_ST, 0x2249,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
 
 #if defined(TARGET_WORDS_BIGENDIAN)
 
-static void zyxel_init(int ram_size, int vga_ram_size,
+static void zyxel_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3854,17 +3859,17 @@ static void zyxel_init(int ram_size, int vga_ram_size,
     /* Change the default RAM size from 128 MiB to 8 MiB.
        This is the external RAM at physical address KERNEL_LOAD_ADDR.
        Any other size can be selected with command line option -m. */
-    if (ram_size == 128 * MiB) {
-        ram_size = 8 * MiB;
+    if (machine_ram_size == 128 * MiB) {
+        machine_ram_size = 8 * MiB;
     }
-    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL, I28F160C3B,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
 
 #else
 
-static void fbox4_init(int ram_size, int vga_ram_size,
+static void fbox4_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3872,15 +3877,15 @@ static void fbox4_init(int ram_size, int vga_ram_size,
     /* Change the default RAM size from 128 MiB to 32 MiB.
        This is the external RAM at physical address KERNEL_LOAD_ADDR.
        Any other size can be selected with command line option -m. */
-    if (ram_size == 128 * MiB) {
-        ram_size = 32 * MiB;
+    if (machine_ram_size == 128 * MiB) {
+        machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
 
-static void fbox8_init(int ram_size, int vga_ram_size,
+static void fbox8_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3888,15 +3893,15 @@ static void fbox8_init(int ram_size, int vga_ram_size,
     /* Change the default RAM size from 128 MiB to 32 MiB.
        This is the external RAM at physical address KERNEL_LOAD_ADDR.
        Any other size can be selected with command line option -m. */
-    if (ram_size == 128 * MiB) {
-        ram_size = 32 * MiB;
+    if (machine_ram_size == 128 * MiB) {
+        machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV640BT,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_MACRONIX, MX29LV640BT,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
 
-static void sinus_basic_3_init(int ram_size, int vga_ram_size,
+static void sinus_basic_3_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3904,15 +3909,15 @@ static void sinus_basic_3_init(int ram_size, int vga_ram_size,
     /* Change the default RAM size from 128 MiB to 16 MiB.
        This is the external RAM at physical address KERNEL_LOAD_ADDR.
        Any other size can be selected with command line option -m. */
-    if (ram_size == 128 * MiB) {
-        ram_size = 16 * MiB;
+    if (machine_ram_size == 128 * MiB) {
+        machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init (ram_size, MANUFACTURER_004A, ES29LV160DB,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_004A, ES29LV160DB,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
 
-static void sinus_basic_se_init(int ram_size, int vga_ram_size,
+static void sinus_basic_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3920,15 +3925,15 @@ static void sinus_basic_se_init(int ram_size, int vga_ram_size,
     /* Change the default RAM size from 128 MiB to 16 MiB.
        This is the external RAM at physical address KERNEL_LOAD_ADDR.
        Any other size can be selected with command line option -m. */
-    if (ram_size == 128 * MiB) {
-        ram_size = 16 * MiB;
+    if (machine_ram_size == 128 * MiB) {
+        machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL, I28F160C3B,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
 }
 
-static void sinus_se_init(int ram_size, int vga_ram_size,
+static void sinus_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3936,17 +3941,17 @@ static void sinus_se_init(int ram_size, int vga_ram_size,
     /* Change the default RAM size from 128 MiB to 16 MiB.
        This is the external RAM at physical address KERNEL_LOAD_ADDR.
        Any other size can be selected with command line option -m. */
-    if (ram_size == 128 * MiB) {
-        ram_size = 16 * MiB;
+    if (machine_ram_size == 128 * MiB) {
+        machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init (ram_size, MANUFACTURER_INTEL, I28F160C3B,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
     /* Emulate external phy 0. */
     ar7.phyaddr = 0;
 }
 
-static void speedport_init(int ram_size, int vga_ram_size,
+static void speedport_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *boot_device, DisplayState *ds,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
@@ -3954,10 +3959,10 @@ static void speedport_init(int ram_size, int vga_ram_size,
     /* Change the default RAM size from 128 MiB to 32 MiB.
        This is the external RAM at physical address KERNEL_LOAD_ADDR.
        Any other size can be selected with command line option -m. */
-    if (ram_size == 128 * MiB) {
-        ram_size = 32 * MiB;
+    if (machine_ram_size == 128 * MiB) {
+        machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init (ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
+    mips_ar7_common_init (machine_ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
                           kernel_filename, kernel_cmdline, initrd_filename,
                           cpu_model);
     reg_write(av.gpio, GPIO_CVR, 0x0002002b);
