@@ -174,8 +174,9 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		tlb_pfn = EXTRACT_FIELD(lo, 13, 31);
 		tlb_g  = EXTRACT_FIELD(lo, 4, 4);
 
-		D(printf("TLB[%d][%d] v=%x vpage=%x -> pfn=%x lo=%x hi=%x\n", 
-				i, idx, tlb_vpn, vpage, tlb_pfn, lo, hi));
+		D(fprintf(logfile, 
+			 "TLB[%d][%d][%d] v=%x vpage=%x->pfn=%x lo=%x hi=%x\n", 
+			 mmu, set, idx, tlb_vpn, vpage, tlb_pfn, lo, hi));
 		if ((tlb_g || (tlb_pid == (env->pregs[PR_PID] & 0xff)))
 		    && tlb_vpn == vpage) {
 			match = 1;
@@ -224,7 +225,6 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 			res->bf_vec = vect_base + 3;
 		} else if (cfg_v && !tlb_v) {
 			D(printf ("tlb: invalid %x\n", vaddr));
-			set_field(&r_cause, rwcause, 8, 9);
 			match = 0;
 			res->bf_vec = vect_base + 1;
 		}
@@ -287,21 +287,42 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 	return !match;
 }
 
-/* Give us the vaddr corresponding to the latest TLB update.  */
-target_ulong cris_mmu_tlb_latest_update(CPUState *env)
+void cris_mmu_flush_pid(CPUState *env, uint32_t pid)
 {
-	uint32_t sel = env->sregs[SFR_RW_MM_TLB_SEL];
-	uint32_t vaddr;
-	uint32_t hi;
-	int set;
-	int idx;
+	target_ulong vaddr;
+	unsigned int idx;
+	uint32_t lo, hi;
+	uint32_t tlb_vpn;
+	int tlb_pid, tlb_g, tlb_v, tlb_k;
+	unsigned int set;
+	unsigned int mmu;
 
-	idx = EXTRACT_FIELD(sel, 0, 4);
-	set = EXTRACT_FIELD(sel, 4, 5);
+	pid &= 0xff;
+	for (mmu = 0; mmu < 2; mmu++) {
+		for (set = 0; set < 4; set++)
+		{
+			for (idx = 0; idx < 16; idx++) {
+				lo = env->tlbsets[mmu][set][idx].lo;
+				hi = env->tlbsets[mmu][set][idx].hi;
+				
+				tlb_vpn = EXTRACT_FIELD(hi, 13, 31);
+				tlb_pid = EXTRACT_FIELD(hi, 0, 7);
+				tlb_g  = EXTRACT_FIELD(lo, 4, 4);
+				tlb_v = EXTRACT_FIELD(lo, 3, 3);
+				tlb_k = EXTRACT_FIELD(lo, 2, 2);
 
-	hi = env->tlbsets[1][set][idx].hi;
-	vaddr = EXTRACT_FIELD(hi, 13, 31);
-	return vaddr << TARGET_PAGE_BITS;
+				/* Kernel protected areas need to be flushed
+				   as well.  */
+				if (tlb_v && !tlb_g) {
+					vaddr = tlb_vpn << TARGET_PAGE_BITS;
+					D(fprintf(logfile,
+						  "flush pid=%x vaddr=%x\n", 
+						  pid, vaddr));
+					tlb_flush_page(env, vaddr);
+				}
+			}
+		}
+	}
 }
 
 int cris_mmu_translate(struct cris_mmu_result_t *res,
