@@ -1,7 +1,7 @@
 /*
  * QEMU AR7 support
  *
- * Copyright (C) 2006-2007 Stefan Weil
+ * Copyright (C) 2006-2008 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -408,6 +408,26 @@ static const char *dump(const uint8_t * buf, unsigned size)
  * Helper functions.
  *
  ****************************************************************************/
+
+static inline unsigned ptr2uint(void *ptr)
+{
+  union {
+    void *ptr;
+    unsigned n;
+  } u;
+  u.ptr = ptr;
+  return u.n;
+}
+
+static inline void *uint2ptr(unsigned n)
+{
+  union {
+    void *ptr;
+    unsigned n;
+  } u;
+  u.n = n;
+  return u.ptr;
+}
 
 typedef struct {
     unsigned offset;
@@ -3244,7 +3264,7 @@ static void ar7_serial_init(CPUState * env)
 
 static int ar7_nic_can_receive(void *opaque)
 {
-    unsigned cpmac_index = (unsigned)opaque;
+    unsigned cpmac_index = ptr2uint(opaque);
     uint8_t *cpmac = ar7.cpmac[cpmac_index];
     int enabled = (reg_read(cpmac, CPMAC_RXCONTROL) & RXCONTROL_RXEN) != 0;
 
@@ -3255,7 +3275,7 @@ static int ar7_nic_can_receive(void *opaque)
 
 static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
 {
-    unsigned cpmac_index = (unsigned)opaque;
+    unsigned cpmac_index = ptr2uint(opaque);
     uint8_t *cpmac = ar7.cpmac[cpmac_index];
     uint32_t rxmbpenable = reg_read(cpmac, CPMAC_RXMBPENABLE);
     uint32_t rxmaxlen = reg_read(cpmac, CPMAC_RXMAXLEN);
@@ -3379,7 +3399,7 @@ static void ar7_nic_init(void)
                 TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
                 ar7.nic[n].vc = qemu_new_vlan_client(nd->vlan, ar7_nic_receive,
                                                       ar7_nic_can_receive,
-                                                      (void *)n);
+                                                      uint2ptr(n));
                 n++;
                 emac_reset(n);
             } else {
