@@ -53,19 +53,14 @@ static unsigned long next_tb;
 // Work around ugly bugs in glibc that mangle global register contents
 
 static volatile void *saved_env;
-static volatile unsigned long saved_t0, saved_i7;
 #undef SAVE_GLOBALS
 #define SAVE_GLOBALS() do {                                     \
         saved_env = env;                                        \
-        saved_t0 = T0;                                          \
-        asm volatile ("st %%i7, [%0]" : : "r" (&saved_i7));     \
     } while(0)
 
 #undef RESTORE_GLOBALS
 #define RESTORE_GLOBALS() do {                                  \
         env = (void *)saved_env;                                \
-        T0 = saved_t0;                                          \
-        asm volatile ("ld [%0], %%i7" : : "r" (&saved_i7));     \
     } while(0)
 
 static int sparc_setjmp(jmp_buf buf)

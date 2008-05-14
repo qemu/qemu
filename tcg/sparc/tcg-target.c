@@ -266,13 +266,19 @@ static inline void tcg_out_ldst(TCGContext *s, int ret, int addr, int offset, in
 static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
                               int arg1, tcg_target_long arg2)
 {
-    fprintf(stderr, "unimplemented %s\n", __func__);
+    if (type == TCG_TYPE_I32)
+        tcg_out_ldst(s, ret, arg1, arg2, LDUW);
+    else
+        tcg_out_ldst(s, ret, arg1, arg2, LDX);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
                               int arg1, tcg_target_long arg2)
 {
-    fprintf(stderr, "unimplemented %s\n", __func__);
+    if (type == TCG_TYPE_I32)
+        tcg_out_ldst(s, arg, arg1, arg2, STW);
+    else
+        tcg_out_ldst(s, arg, arg1, arg2, STX);
 }
 
 static inline void tcg_out_arith(TCGContext *s, int rd, int rs1, int rs2,
@@ -312,10 +318,14 @@ static inline void tcg_out_nop(TCGContext *s)
     tcg_out32(s, SETHI | INSN_RD(TCG_REG_G0) | 0);
 }
 
-static inline void tcg_target_prologue(TCGContext *s)
+/* Generate global QEMU prologue and epilogue code */
+void tcg_target_qemu_prologue(TCGContext *s)
 {
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
               INSN_IMM13(-TCG_TARGET_STACK_MINFRAME));
+    tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_O0) |
+              INSN_RS2(TCG_REG_G0));
+    tcg_out_nop(s);
 }
 
 static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
