@@ -2236,7 +2236,7 @@ int main(int argc, char **argv)
     set_idt(2, 0);
     set_idt(3, 3);
     set_idt(4, 3);
-    set_idt(5, 3);
+    set_idt(5, 0);
     set_idt(6, 0);
     set_idt(7, 0);
     set_idt(8, 0);

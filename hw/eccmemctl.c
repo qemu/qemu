@@ -53,7 +53,8 @@
 
 /* ECC fault control register */
 #define ECC_MER_EE     0x00000001      /* Enable ECC checking */
-#define ECC_MER_EI     0x00000002      /* Enable Interrupts on correctable errors */
+#define ECC_MER_EI     0x00000002      /* Enable Interrupts on
+                                          correctable errors */
 #define ECC_MER_MRR0   0x00000004      /* SIMM 0 */
 #define ECC_MER_MRR1   0x00000008      /* SIMM 1 */
 #define ECC_MER_MRR2   0x00000010      /* SIMM 2 */
@@ -65,7 +66,7 @@
 #define ECC_MER_REU    0x00000200      /* Memory Refresh Enable (600MP) */
 #define ECC_MER_MRR    0x000003fc      /* MRR mask */
 #define ECC_MEM_A      0x00000400      /* Memory controller addr map select */
-#define ECC_MER_DCI    0x00000800      /* Dsiables Coherent Invalidate ACK */
+#define ECC_MER_DCI    0x00000800      /* Disables Coherent Invalidate ACK */
 #define ECC_MER_VER    0x0f000000      /* Version */
 #define ECC_MER_IMPL   0xf0000000      /* Implementation */
 

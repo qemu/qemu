@@ -77,8 +77,6 @@ int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
 int cpu_restore_state(struct TranslationBlock *tb,
                       CPUState *env, unsigned long searched_pc,
                       void *puc);
-int cpu_gen_code_copy(CPUState *env, struct TranslationBlock *tb,
-                      int max_code_size, int *gen_code_size_ptr);
 int cpu_restore_state_copy(struct TranslationBlock *tb,
                            CPUState *env, unsigned long searched_pc,
                            void *puc);
@@ -93,13 +91,13 @@ void tlb_flush(CPUState *env, int flush_global);
 int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
                       target_phys_addr_t paddr, int prot,
                       int mmu_idx, int is_softmmu);
-static inline int tlb_set_page(CPUState *env, target_ulong vaddr,
+static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
                                target_phys_addr_t paddr, int prot,
                                int mmu_idx, int is_softmmu)
 {
     if (prot & PAGE_READ)
         prot |= PAGE_EXEC;
-    return tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
+    return tlb_set_page_exec(env1, vaddr, paddr, prot, mmu_idx, is_softmmu);
 }
 
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
@@ -161,7 +159,6 @@ typedef struct TranslationBlock {
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
     uint16_t cflags;    /* compile flags */
-#define CF_CODE_COPY   0x0001 /* block was generated in code copy mode */
 #define CF_TB_FP_USED  0x0002 /* fp ops are used in the TB */
 #define CF_FP_USED     0x0004 /* fp ops are used in the TB or in a chained TB */
 #define CF_SINGLE_INSN 0x0008 /* compile only a single instruction */
@@ -564,7 +561,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx,
 #endif
 
 #if defined(CONFIG_USER_ONLY)
-static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
+static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 {
     return addr;
 }
@@ -572,25 +569,25 @@ static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
 /* NOTE: this function can trigger an exception */
 /* NOTE2: the returned address is not exactly the physical address: it
    is the offset relative to phys_ram_base */
-static inline target_ulong get_phys_addr_code(CPUState *env, target_ulong addr)
+static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 {
-    int mmu_idx, index, pd;
+    int mmu_idx, page_index, pd;
 
-    index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    mmu_idx = cpu_mmu_index(env);
-    if (__builtin_expect(env->tlb_table[mmu_idx][index].addr_code !=
+    page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    mmu_idx = cpu_mmu_index(env1);
+    if (__builtin_expect(env1->tlb_table[mmu_idx][page_index].addr_code !=
                          (addr & TARGET_PAGE_MASK), 0)) {
         ldub_code(addr);
     }
-    pd = env->tlb_table[mmu_idx][index].addr_code & ~TARGET_PAGE_MASK;
+    pd = env1->tlb_table[mmu_idx][page_index].addr_code & ~TARGET_PAGE_MASK;
     if (pd > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
 #if defined(TARGET_SPARC) || defined(TARGET_MIPS)
         do_unassigned_access(addr, 0, 1, 0);
 #else
-        cpu_abort(env, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
+        cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
 #endif
     }
-    return addr + env->tlb_table[mmu_idx][index].addend - (unsigned long)phys_ram_base;
+    return addr + env1->tlb_table[mmu_idx][page_index].addend - (unsigned long)phys_ram_base;
 }
 #endif
 

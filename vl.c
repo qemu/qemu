@@ -7032,6 +7032,7 @@ void main_loop_wait(int timeout)
     qemu_aio_poll();
 
     if (vm_running) {
+        if (!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER))
         qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
                         qemu_get_clock(vm_clock));
         /* run dma transfers, if any */
@@ -7039,6 +7040,7 @@ void main_loop_wait(int timeout)
     }
 
     /* real time timers */
+    if (!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER))
     qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
                     qemu_get_clock(rt_clock));
 
@@ -7262,7 +7264,7 @@ static void help(int exitcode)
 #endif
            "-no-reboot      exit instead of rebooting\n"
            "-no-shutdown    stop before shutdown\n"
-           "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
+           "-loadvm [tag|id]  start right away with a saved state (loadvm in monitor)\n"
 	   "-vnc display    start a VNC server on display\n"
 #ifndef _WIN32
 	   "-daemonize      daemonize QEMU after initializing\n"
@@ -7341,7 +7343,6 @@ enum {
     QEMU_OPTION_hdachs,
     QEMU_OPTION_L,
     QEMU_OPTION_bios,
-    QEMU_OPTION_no_code_copy,
     QEMU_OPTION_k,
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
@@ -7438,7 +7439,6 @@ const QEMUOption qemu_options[] = {
     { "hdachs", HAS_ARG, QEMU_OPTION_hdachs },
     { "L", HAS_ARG, QEMU_OPTION_L },
     { "bios", HAS_ARG, QEMU_OPTION_bios },
-    { "no-code-copy", 0, QEMU_OPTION_no_code_copy },
 #ifdef USE_KQEMU
     { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
     { "kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu },
@@ -8021,9 +8021,6 @@ int main(int argc, char **argv)
                 fd_bootchk = 0;
                 break;
 #endif
-            case QEMU_OPTION_no_code_copy:
-                code_copy_enabled = 0;
-                break;
             case QEMU_OPTION_net:
                 if (nb_net_clients >= MAX_NET_CLIENTS) {
                     fprintf(stderr, "qemu: too many network clients\n");

@@ -452,7 +452,7 @@ static inline uint64_t ldq_be_p(void *ptr)
 {
     uint32_t a,b;
     a = ldl_be_p(ptr);
-    b = ldl_be_p(ptr+4);
+    b = ldl_be_p((uint8_t *)ptr + 4);
     return (((uint64_t)a<<32)|b);
 }
 
@@ -489,7 +489,7 @@ static inline void stl_be_p(void *ptr, int v)
 static inline void stq_be_p(void *ptr, uint64_t v)
 {
     stl_be_p(ptr, v >> 32);
-    stl_be_p(ptr + 4, v);
+    stl_be_p((uint8_t *)ptr + 4, v);
 }
 
 /* float access */
@@ -518,7 +518,7 @@ static inline float64 ldfq_be_p(void *ptr)
 {
     CPU_DoubleU u;
     u.l.upper = ldl_be_p(ptr);
-    u.l.lower = ldl_be_p(ptr + 4);
+    u.l.lower = ldl_be_p((uint8_t *)ptr + 4);
     return u.d;
 }
 
@@ -527,7 +527,7 @@ static inline void stfq_be_p(void *ptr, float64 v)
     CPU_DoubleU u;
     u.d = v;
     stl_be_p(ptr, u.l.upper);
-    stl_be_p(ptr + 4, u.l.lower);
+    stl_be_p((uint8_t *)ptr + 4, u.l.lower);
 }
 
 #else
@@ -743,7 +743,6 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
     __attribute__ ((__noreturn__));
 extern CPUState *first_cpu;
 extern CPUState *cpu_single_env;
-extern int code_copy_enabled;
 
 #define CPU_INTERRUPT_EXIT   0x01 /* wants exit from main loop */
 #define CPU_INTERRUPT_HARD   0x02 /* hardware interrupt pending */

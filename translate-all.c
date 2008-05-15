@@ -49,8 +49,6 @@ target_ulong gen_opc_jump_pc[2];
 uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 #endif
 
-int code_copy_enabled = 1;
-
 #ifdef CONFIG_PROFILER
 int64_t dyngen_tb_count1;
 int64_t dyngen_tb_count;

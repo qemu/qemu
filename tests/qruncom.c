@@ -199,9 +199,6 @@ int main(int argc, char **argv)
 
     env = cpu_init("qemu32");
 
-    /* disable code copy to simplify debugging */
-    code_copy_enabled = 0;
-
     /* set user mode state (XXX: should be done automatically by
        cpu_init ?) */
     env->user_mode_only = 1;

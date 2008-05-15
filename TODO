@@ -1,35 +1,20 @@
-short term:
-----------
-- x86_64: fxsave/fxrestore bugs
-- x86_64: lcall/ljmp intel/amd differences
-- x86_64: cmpxchgl
-- x86_64: cmovl bug
-- x86: monitor invalid 
+General:
+-------
 - cycle counter for all archs
 - cpu_interrupt() win32/SMP fix
-- support variable tsc freq
-- USB host async
-- IDE async
-- debug option in 'configure' script + disable -fomit-frame-pointer
 - Precise VGA timings for old games/demos (malc patch)
 - merge PIC spurious interrupt patch
 - warning for OS/2: must not use 128 MB memory (merge bochs cmos patch ?)
 - config file (at least for windows/Mac OS X)
 - update doc: PCI infos.
 - basic VGA optimizations
-- better code fetch (different exception handling + CS.limit support)
+- better code fetch
 - do not resize vga if invalid size.
-- avoid looping if only exceptions
 - TLB code protection support for PPC
-- see openMosix Doc
 - disable SMC handling for ARM/SPARC/PPC (not finished)
 - see undefined flags for BTx insn
-- user/kernel PUSHL/POPL in helper.c
 - keyboard output buffer filling timing emulation
-- return UD exception if LOCK prefix incorrectly used
-- test ldt limit < 7 ?
 - tests for each target CPU
-- fix CCOP optimisation
 - fix all remaining thread lock issues (must put TBs in a specific invalid
   state, find a solution for tb_flush()).
 
@@ -40,21 +25,14 @@ ppc specific:
 
 linux-user specific:
 -------------------
-- add IPC syscalls
-- handle rare page fault cases (in particular if page fault in helpers or
-  in syscall emulation code).
+- remove threading support as it cannot work at this point
+- improve IPC syscalls
 - more syscalls (in particular all 64 bit ones, IPCs, fix 64 bit
   issues, fix 16 bit uid issues)
-- use page_unprotect_range in every suitable syscall to handle all
-  cases of self modifying code.
-- fix thread stack freeing (use kernel 2.5.x CLONE_CHILD_CLEARTID)
 - use kernel traps for unaligned accesses on ARM ?
 
 
 lower priority:
 --------------
 - int15 ah=86: use better timing
-- suppress shift_mem ops
-- fix some 16 bit sp push/pop overflow (pusha/popa, lcall lret)
-- optimize FPU operations (evaluate x87 stack pointer statically)
 - use -msoft-float on ARM

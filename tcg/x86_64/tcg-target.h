@@ -57,6 +57,8 @@ enum {
 /* optional instructions */
 #define TCG_TARGET_HAS_bswap_i32
 #define TCG_TARGET_HAS_bswap_i64
+#define TCG_TARGET_HAS_neg_i32
+#define TCG_TARGET_HAS_neg_i64
 
 /* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_R14

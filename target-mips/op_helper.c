@@ -50,11 +50,13 @@ void do_raise_exception (uint32_t exception)
 
 void do_restore_state (void *pc_ptr)
 {
-  TranslationBlock *tb;
-  unsigned long pc = (unsigned long) pc_ptr;
-
-  tb = tb_find_pc (pc);
-  cpu_restore_state (tb, env, pc, NULL);
+    TranslationBlock *tb;
+    unsigned long pc = (unsigned long) pc_ptr;
+    
+    tb = tb_find_pc (pc);
+    if (tb) {
+        cpu_restore_state (tb, env, pc, NULL);
+    }
 }
 
 void do_raise_exception_direct_err (uint32_t exception, int error_code)

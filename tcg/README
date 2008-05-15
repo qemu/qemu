@@ -203,6 +203,10 @@ t0=t1+t2
 
 t0=t1-t2
 
+* neg_i32/i64 t0, t1
+
+t0=-t1 (two's complement)
+
 * mul_i32/i64 t0, t1, t2
 
 t0=t1*t2
@@ -260,10 +264,13 @@ t0 = t1
 Move t1 to t0 (both operands must have the same type).
 
 * ext8s_i32/i64 t0, t1
+ext8u_i32/i64 t0, t1
 ext16s_i32/i64 t0, t1
+ext16u_i32/i64 t0, t1
 ext32s_i64 t0, t1
+ext32u_i64 t0, t1
 
-8, 16 or 32 bit sign extension (both operands must have the same type)
+8, 16 or 32 bit sign/zero extension (both operands must have the same type)
 
 * bswap16_i32 t0, t1
 

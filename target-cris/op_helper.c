@@ -85,6 +85,13 @@ void helper_raise_exception(uint32_t index)
 	cpu_loop_exit();
 }
 
+void helper_tlb_flush_pid(uint32_t pid)
+{
+#if !defined(CONFIG_USER_ONLY)
+	cris_mmu_flush_pid(env, pid);
+#endif
+}
+
 void helper_tlb_flush(void)
 {
 	tlb_flush(env, 1);
@@ -99,6 +106,10 @@ void helper_dummy(void)
 {
 
 }
+
+/* Used by the tlb decoder.  */
+#define EXTRACT_FIELD(src, start, end) \
+	    (((src) >> start) & ((1 << (end - start + 1)) - 1))
 
 void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 {
@@ -120,10 +131,7 @@ void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 			uint32_t idx;
 			uint32_t lo, hi;
 			uint32_t vaddr;
-
-			vaddr = cris_mmu_tlb_latest_update(env);
-			D(fprintf(logfile, "tlb flush vaddr=%x\n", vaddr));
-			tlb_flush_page(env, vaddr);
+			int tlb_v;
 
 			idx = set = env->sregs[SFR_RW_MM_TLB_SEL];
 			set >>= 4;
@@ -134,8 +142,19 @@ void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 			lo = env->sregs[SFR_RW_MM_TLB_LO];
 			/* Writes are done via r_mm_cause.  */
 			hi = env->sregs[SFR_R_MM_CAUSE];
+
+			vaddr = EXTRACT_FIELD(env->tlbsets[srs-1][set][idx].hi,
+					      13, 31);
+			vaddr <<= TARGET_PAGE_BITS;
+			tlb_v = EXTRACT_FIELD(env->tlbsets[srs-1][set][idx].lo,
+					    3, 3);
 			env->tlbsets[srs - 1][set][idx].lo = lo;
 			env->tlbsets[srs - 1][set][idx].hi = hi;
+
+			D(fprintf(logfile, 
+				  "tlb flush vaddr=%x v=%d pc=%x\n", 
+				  vaddr, tlb_v, env->pc));
+			tlb_flush_page(env, vaddr);
 		}
 	}
 #endif

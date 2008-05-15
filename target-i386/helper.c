@@ -1238,14 +1238,14 @@ void do_interrupt(int intno, int is_int, int error_code,
  */
 static int check_exception(int intno, int *error_code)
 {
-    char first_contributory = env->old_exception == 0 ||
+    int first_contributory = env->old_exception == 0 ||
                               (env->old_exception >= 10 &&
                                env->old_exception <= 13);
-    char second_contributory = intno == 0 ||
+    int second_contributory = intno == 0 ||
                                (intno >= 10 && intno <= 13);
 
     if (loglevel & CPU_LOG_INT)
-        fprintf(logfile, "check_exception old: %x new %x\n",
+        fprintf(logfile, "check_exception old: 0x%x new 0x%x\n",
                 env->old_exception, intno);
 
     if (env->old_exception == EXCP08_DBLE)
@@ -1609,7 +1609,79 @@ int32_t idiv32(int64_t *q_ptr, int64_t num, int32_t den)
 }
 #endif
 
-void helper_divl_EAX_T0(target_ulong t0)
+/* division, flags are undefined */
+
+void helper_divb_AL(target_ulong t0)
+{
+    unsigned int num, den, q, r;
+
+    num = (EAX & 0xffff);
+    den = (t0 & 0xff);
+    if (den == 0) {
+        raise_exception(EXCP00_DIVZ);
+    }
+    q = (num / den);
+    if (q > 0xff)
+        raise_exception(EXCP00_DIVZ);
+    q &= 0xff;
+    r = (num % den) & 0xff;
+    EAX = (EAX & ~0xffff) | (r << 8) | q;
+}
+
+void helper_idivb_AL(target_ulong t0)
+{
+    int num, den, q, r;
+
+    num = (int16_t)EAX;
+    den = (int8_t)t0;
+    if (den == 0) {
+        raise_exception(EXCP00_DIVZ);
+    }
+    q = (num / den);
+    if (q != (int8_t)q)
+        raise_exception(EXCP00_DIVZ);
+    q &= 0xff;
+    r = (num % den) & 0xff;
+    EAX = (EAX & ~0xffff) | (r << 8) | q;
+}
+
+void helper_divw_AX(target_ulong t0)
+{
+    unsigned int num, den, q, r;
+
+    num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
+    den = (t0 & 0xffff);
+    if (den == 0) {
+        raise_exception(EXCP00_DIVZ);
+    }
+    q = (num / den);
+    if (q > 0xffff)
+        raise_exception(EXCP00_DIVZ);
+    q &= 0xffff;
+    r = (num % den) & 0xffff;
+    EAX = (EAX & ~0xffff) | q;
+    EDX = (EDX & ~0xffff) | r;
+}
+
+void helper_idivw_AX(target_ulong t0)
+{
+    int num, den, q, r;
+
+    num = (EAX & 0xffff) | ((EDX & 0xffff) << 16);
+    den = (int16_t)t0;
+    if (den == 0) {
+        raise_exception(EXCP00_DIVZ);
+    }
+    q = (num / den);
+    if (q != (int16_t)q)
+        raise_exception(EXCP00_DIVZ);
+    q &= 0xffff;
+    r = (num % den) & 0xffff;
+    EAX = (EAX & ~0xffff) | q;
+    EDX = (EDX & ~0xffff) | r;
+}
+
+void helper_divl_EAX(target_ulong t0)
 {
     unsigned int den, r;
     uint64_t num, q;
@@ -1631,7 +1703,7 @@ void helper_divl_EAX_T0(target_ulong t0)
     EDX = (uint32_t)r;
 }
 
-void helper_idivl_EAX_T0(target_ulong t0)
+void helper_idivl_EAX(target_ulong t0)
 {
     int den, r;
     int64_t num, q;
@@ -1651,6 +1723,138 @@ void helper_idivl_EAX_T0(target_ulong t0)
         raise_exception(EXCP00_DIVZ);
     EAX = (uint32_t)q;
     EDX = (uint32_t)r;
+}
+
+/* bcd */
+
+/* XXX: exception */
+void helper_aam(int base)
+{
+    int al, ah;
+    al = EAX & 0xff;
+    ah = al / base;
+    al = al % base;
+    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    CC_DST = al;
+}
+
+void helper_aad(int base)
+{
+    int al, ah;
+    al = EAX & 0xff;
+    ah = (EAX >> 8) & 0xff;
+    al = ((ah * base) + al) & 0xff;
+    EAX = (EAX & ~0xffff) | al;
+    CC_DST = al;
+}
+
+void helper_aaa(void)
+{
+    int icarry;
+    int al, ah, af;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    af = eflags & CC_A;
+    al = EAX & 0xff;
+    ah = (EAX >> 8) & 0xff;
+
+    icarry = (al > 0xf9);
+    if (((al & 0x0f) > 9 ) || af) {
+        al = (al + 6) & 0x0f;
+        ah = (ah + 1 + icarry) & 0xff;
+        eflags |= CC_C | CC_A;
+    } else {
+        eflags &= ~(CC_C | CC_A);
+        al &= 0x0f;
+    }
+    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    CC_SRC = eflags;
+    FORCE_RET();
+}
+
+void helper_aas(void)
+{
+    int icarry;
+    int al, ah, af;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    af = eflags & CC_A;
+    al = EAX & 0xff;
+    ah = (EAX >> 8) & 0xff;
+
+    icarry = (al < 6);
+    if (((al & 0x0f) > 9 ) || af) {
+        al = (al - 6) & 0x0f;
+        ah = (ah - 1 - icarry) & 0xff;
+        eflags |= CC_C | CC_A;
+    } else {
+        eflags &= ~(CC_C | CC_A);
+        al &= 0x0f;
+    }
+    EAX = (EAX & ~0xffff) | al | (ah << 8);
+    CC_SRC = eflags;
+    FORCE_RET();
+}
+
+void helper_daa(void)
+{
+    int al, af, cf;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    cf = eflags & CC_C;
+    af = eflags & CC_A;
+    al = EAX & 0xff;
+
+    eflags = 0;
+    if (((al & 0x0f) > 9 ) || af) {
+        al = (al + 6) & 0xff;
+        eflags |= CC_A;
+    }
+    if ((al > 0x9f) || cf) {
+        al = (al + 0x60) & 0xff;
+        eflags |= CC_C;
+    }
+    EAX = (EAX & ~0xff) | al;
+    /* well, speed is not an issue here, so we compute the flags by hand */
+    eflags |= (al == 0) << 6; /* zf */
+    eflags |= parity_table[al]; /* pf */
+    eflags |= (al & 0x80); /* sf */
+    CC_SRC = eflags;
+    FORCE_RET();
+}
+
+void helper_das(void)
+{
+    int al, al1, af, cf;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    cf = eflags & CC_C;
+    af = eflags & CC_A;
+    al = EAX & 0xff;
+
+    eflags = 0;
+    al1 = al;
+    if (((al & 0x0f) > 9 ) || af) {
+        eflags |= CC_A;
+        if (al < 6 || cf)
+            eflags |= CC_C;
+        al = (al - 6) & 0xff;
+    }
+    if ((al1 > 0x99) || cf) {
+        al = (al - 0x60) & 0xff;
+        eflags |= CC_C;
+    }
+    EAX = (EAX & ~0xff) | al;
+    /* well, speed is not an issue here, so we compute the flags by hand */
+    eflags |= (al == 0) << 6; /* zf */
+    eflags |= parity_table[al]; /* pf */
+    eflags |= (al & 0x80); /* sf */
+    CC_SRC = eflags;
+    FORCE_RET();
 }
 
 void helper_cmpxchg8b(void)
@@ -1845,15 +2049,14 @@ void helper_enter64_level(int level, int data64)
 }
 #endif
 
-void helper_lldt_T0(void)
+void helper_lldt(int selector)
 {
-    int selector;
     SegmentCache *dt;
     uint32_t e1, e2;
     int index, entry_limit;
     target_ulong ptr;
 
-    selector = T0 & 0xffff;
+    selector &= 0xffff;
     if ((selector & 0xfffc) == 0) {
         /* XXX: NULL selector case: invalid LDT */
         env->ldt.base = 0;
@@ -1893,15 +2096,14 @@ void helper_lldt_T0(void)
     env->ldt.selector = selector;
 }
 
-void helper_ltr_T0(void)
+void helper_ltr(int selector)
 {
-    int selector;
     SegmentCache *dt;
     uint32_t e1, e2;
     int index, type, entry_limit;
     target_ulong ptr;
 
-    selector = T0 & 0xffff;
+    selector &= 0xffff;
     if ((selector & 0xfffc) == 0) {
         /* NULL selector case: invalid TR */
         env->tr.base = 0;
@@ -1950,7 +2152,7 @@ void helper_ltr_T0(void)
 }
 
 /* only works if protected mode and not VM86. seg_reg must be != R_CS */
-void load_seg(int seg_reg, int selector)
+void helper_load_seg(int seg_reg, int selector)
 {
     uint32_t e1, e2;
     int cpl, dpl, rpl;
@@ -2916,14 +3118,14 @@ void helper_rdmsr(void)
 }
 #endif
 
-void helper_lsl(void)
+void helper_lsl(uint32_t selector)
 {
-    unsigned int selector, limit;
+    unsigned int limit;
     uint32_t e1, e2, eflags;
     int rpl, dpl, cpl, type;
 
+    selector &= 0xffff;
     eflags = cc_table[CC_OP].compute_all();
-    selector = T0 & 0xffff;
     if (load_segment(&e1, &e2, selector) != 0)
         goto fail;
     rpl = selector & 3;
@@ -2959,14 +3161,13 @@ void helper_lsl(void)
     CC_SRC = eflags | CC_Z;
 }
 
-void helper_lar(void)
+void helper_lar(uint32_t selector)
 {
-    unsigned int selector;
     uint32_t e1, e2, eflags;
     int rpl, dpl, cpl, type;
 
+    selector &= 0xffff;
     eflags = cc_table[CC_OP].compute_all();
-    selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0)
         goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
@@ -3006,14 +3207,13 @@ void helper_lar(void)
     CC_SRC = eflags | CC_Z;
 }
 
-void helper_verr(void)
+void helper_verr(uint32_t selector)
 {
-    unsigned int selector;
     uint32_t e1, e2, eflags;
     int rpl, dpl, cpl;
 
+    selector &= 0xffff;
     eflags = cc_table[CC_OP].compute_all();
-    selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0)
         goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
@@ -3040,14 +3240,13 @@ void helper_verr(void)
     CC_SRC = eflags | CC_Z;
 }
 
-void helper_verw(void)
+void helper_verw(uint32_t selector)
 {
-    unsigned int selector;
     uint32_t e1, e2, eflags;
     int rpl, dpl, cpl;
 
+    selector &= 0xffff;
     eflags = cc_table[CC_OP].compute_all();
-    selector = T0 & 0xffff;
     if ((selector & 0xfffc) == 0)
         goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
@@ -3071,21 +3270,7 @@ void helper_verw(void)
     CC_SRC = eflags | CC_Z;
 }
 
-/* FPU helpers */
-
-void helper_fldt_ST0_A0(void)
-{
-    int new_fpstt;
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = helper_fldt(A0);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
-}
-
-void helper_fstt_ST0_A0(void)
-{
-    helper_fstt(ST0, A0);
-}
+/* x87 FPU helpers */
 
 static void fpu_set_exception(int mask)
 {
@@ -3094,7 +3279,7 @@ static void fpu_set_exception(int mask)
         env->fpus |= FPUS_SE | FPUS_B;
 }
 
-CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b)
+static inline CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b)
 {
     if (b == 0.0)
         fpu_set_exception(FPUS_ZE);
@@ -3113,9 +3298,465 @@ void fpu_raise_exception(void)
 #endif
 }
 
+void helper_flds_FT0(uint32_t val)
+{
+    union {
+        float32 f;
+        uint32_t i;
+    } u;
+    u.i = val;
+    FT0 = float32_to_floatx(u.f, &env->fp_status);
+}
+
+void helper_fldl_FT0(uint64_t val)
+{
+    union {
+        float64 f;
+        uint64_t i;
+    } u;
+    u.i = val;
+    FT0 = float64_to_floatx(u.f, &env->fp_status);
+}
+
+void helper_fildl_FT0(int32_t val)
+{
+    FT0 = int32_to_floatx(val, &env->fp_status);
+}
+
+void helper_flds_ST0(uint32_t val)
+{
+    int new_fpstt;
+    union {
+        float32 f;
+        uint32_t i;
+    } u;
+    new_fpstt = (env->fpstt - 1) & 7;
+    u.i = val;
+    env->fpregs[new_fpstt].d = float32_to_floatx(u.f, &env->fp_status);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+void helper_fldl_ST0(uint64_t val)
+{
+    int new_fpstt;
+    union {
+        float64 f;
+        uint64_t i;
+    } u;
+    new_fpstt = (env->fpstt - 1) & 7;
+    u.i = val;
+    env->fpregs[new_fpstt].d = float64_to_floatx(u.f, &env->fp_status);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+void helper_fildl_ST0(int32_t val)
+{
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt].d = int32_to_floatx(val, &env->fp_status);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+void helper_fildll_ST0(int64_t val)
+{
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt].d = int64_to_floatx(val, &env->fp_status);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+uint32_t helper_fsts_ST0(void)
+{
+    union {
+        float32 f;
+        uint32_t i;
+    } u;
+    u.f = floatx_to_float32(ST0, &env->fp_status);
+    return u.i;
+}
+
+uint64_t helper_fstl_ST0(void)
+{
+    union {
+        float64 f;
+        uint64_t i;
+    } u;
+    u.f = floatx_to_float64(ST0, &env->fp_status);
+    return u.i;
+}
+
+int32_t helper_fist_ST0(void)
+{
+    int32_t val;
+    val = floatx_to_int32(ST0, &env->fp_status);
+    if (val != (int16_t)val)
+        val = -32768;
+    return val;
+}
+
+int32_t helper_fistl_ST0(void)
+{
+    int32_t val;
+    val = floatx_to_int32(ST0, &env->fp_status);
+    return val;
+}
+
+int64_t helper_fistll_ST0(void)
+{
+    int64_t val;
+    val = floatx_to_int64(ST0, &env->fp_status);
+    return val;
+}
+
+int32_t helper_fistt_ST0(void)
+{
+    int32_t val;
+    val = floatx_to_int32_round_to_zero(ST0, &env->fp_status);
+    if (val != (int16_t)val)
+        val = -32768;
+    return val;
+}
+
+int32_t helper_fisttl_ST0(void)
+{
+    int32_t val;
+    val = floatx_to_int32_round_to_zero(ST0, &env->fp_status);
+    return val;
+}
+
+int64_t helper_fisttll_ST0(void)
+{
+    int64_t val;
+    val = floatx_to_int64_round_to_zero(ST0, &env->fp_status);
+    return val;
+}
+
+void helper_fldt_ST0(target_ulong ptr)
+{
+    int new_fpstt;
+    new_fpstt = (env->fpstt - 1) & 7;
+    env->fpregs[new_fpstt].d = helper_fldt(ptr);
+    env->fpstt = new_fpstt;
+    env->fptags[new_fpstt] = 0; /* validate stack entry */
+}
+
+void helper_fstt_ST0(target_ulong ptr)
+{
+    helper_fstt(ST0, ptr);
+}
+
+void helper_fpush(void)
+{
+    fpush();
+}
+
+void helper_fpop(void)
+{
+    fpop();
+}
+
+void helper_fdecstp(void)
+{
+    env->fpstt = (env->fpstt - 1) & 7;
+    env->fpus &= (~0x4700);
+}
+
+void helper_fincstp(void)
+{
+    env->fpstt = (env->fpstt + 1) & 7;
+    env->fpus &= (~0x4700);
+}
+
+/* FPU move */
+
+void helper_ffree_STN(int st_index)
+{
+    env->fptags[(env->fpstt + st_index) & 7] = 1;
+}
+
+void helper_fmov_ST0_FT0(void)
+{
+    ST0 = FT0;
+}
+
+void helper_fmov_FT0_STN(int st_index)
+{
+    FT0 = ST(st_index);
+}
+
+void helper_fmov_ST0_STN(int st_index)
+{
+    ST0 = ST(st_index);
+}
+
+void helper_fmov_STN_ST0(int st_index)
+{
+    ST(st_index) = ST0;
+}
+
+void helper_fxchg_ST0_STN(int st_index)
+{
+    CPU86_LDouble tmp;
+    tmp = ST(st_index);
+    ST(st_index) = ST0;
+    ST0 = tmp;
+}
+
+/* FPU operations */
+
+static const int fcom_ccval[4] = {0x0100, 0x4000, 0x0000, 0x4500};
+
+void helper_fcom_ST0_FT0(void)
+{
+    int ret;
+
+    ret = floatx_compare(ST0, FT0, &env->fp_status);
+    env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret + 1];
+    FORCE_RET();
+}
+
+void helper_fucom_ST0_FT0(void)
+{
+    int ret;
+
+    ret = floatx_compare_quiet(ST0, FT0, &env->fp_status);
+    env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret+ 1];
+    FORCE_RET();
+}
+
+static const int fcomi_ccval[4] = {CC_C, CC_Z, 0, CC_Z | CC_P | CC_C};
+
+void helper_fcomi_ST0_FT0(void)
+{
+    int eflags;
+    int ret;
+
+    ret = floatx_compare(ST0, FT0, &env->fp_status);
+    eflags = cc_table[CC_OP].compute_all();
+    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
+    CC_SRC = eflags;
+    FORCE_RET();
+}
+
+void helper_fucomi_ST0_FT0(void)
+{
+    int eflags;
+    int ret;
+
+    ret = floatx_compare_quiet(ST0, FT0, &env->fp_status);
+    eflags = cc_table[CC_OP].compute_all();
+    eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
+    CC_SRC = eflags;
+    FORCE_RET();
+}
+
+void helper_fadd_ST0_FT0(void)
+{
+    ST0 += FT0;
+}
+
+void helper_fmul_ST0_FT0(void)
+{
+    ST0 *= FT0;
+}
+
+void helper_fsub_ST0_FT0(void)
+{
+    ST0 -= FT0;
+}
+
+void helper_fsubr_ST0_FT0(void)
+{
+    ST0 = FT0 - ST0;
+}
+
+void helper_fdiv_ST0_FT0(void)
+{
+    ST0 = helper_fdiv(ST0, FT0);
+}
+
+void helper_fdivr_ST0_FT0(void)
+{
+    ST0 = helper_fdiv(FT0, ST0);
+}
+
+/* fp operations between STN and ST0 */
+
+void helper_fadd_STN_ST0(int st_index)
+{
+    ST(st_index) += ST0;
+}
+
+void helper_fmul_STN_ST0(int st_index)
+{
+    ST(st_index) *= ST0;
+}
+
+void helper_fsub_STN_ST0(int st_index)
+{
+    ST(st_index) -= ST0;
+}
+
+void helper_fsubr_STN_ST0(int st_index)
+{
+    CPU86_LDouble *p;
+    p = &ST(st_index);
+    *p = ST0 - *p;
+}
+
+void helper_fdiv_STN_ST0(int st_index)
+{
+    CPU86_LDouble *p;
+    p = &ST(st_index);
+    *p = helper_fdiv(*p, ST0);
+}
+
+void helper_fdivr_STN_ST0(int st_index)
+{
+    CPU86_LDouble *p;
+    p = &ST(st_index);
+    *p = helper_fdiv(ST0, *p);
+}
+
+/* misc FPU operations */
+void helper_fchs_ST0(void)
+{
+    ST0 = floatx_chs(ST0);
+}
+
+void helper_fabs_ST0(void)
+{
+    ST0 = floatx_abs(ST0);
+}
+
+void helper_fld1_ST0(void)
+{
+    ST0 = f15rk[1];
+}
+
+void helper_fldl2t_ST0(void)
+{
+    ST0 = f15rk[6];
+}
+
+void helper_fldl2e_ST0(void)
+{
+    ST0 = f15rk[5];
+}
+
+void helper_fldpi_ST0(void)
+{
+    ST0 = f15rk[2];
+}
+
+void helper_fldlg2_ST0(void)
+{
+    ST0 = f15rk[3];
+}
+
+void helper_fldln2_ST0(void)
+{
+    ST0 = f15rk[4];
+}
+
+void helper_fldz_ST0(void)
+{
+    ST0 = f15rk[0];
+}
+
+void helper_fldz_FT0(void)
+{
+    FT0 = f15rk[0];
+}
+
+uint32_t helper_fnstsw(void)
+{
+    return (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
+}
+
+uint32_t helper_fnstcw(void)
+{
+    return env->fpuc;
+}
+
+static void update_fp_status(void)
+{
+    int rnd_type;
+
+    /* set rounding mode */
+    switch(env->fpuc & RC_MASK) {
+    default:
+    case RC_NEAR:
+        rnd_type = float_round_nearest_even;
+        break;
+    case RC_DOWN:
+        rnd_type = float_round_down;
+        break;
+    case RC_UP:
+        rnd_type = float_round_up;
+        break;
+    case RC_CHOP:
+        rnd_type = float_round_to_zero;
+        break;
+    }
+    set_float_rounding_mode(rnd_type, &env->fp_status);
+#ifdef FLOATX80
+    switch((env->fpuc >> 8) & 3) {
+    case 0:
+        rnd_type = 32;
+        break;
+    case 2:
+        rnd_type = 64;
+        break;
+    case 3:
+    default:
+        rnd_type = 80;
+        break;
+    }
+    set_floatx80_rounding_precision(rnd_type, &env->fp_status);
+#endif
+}
+
+void helper_fldcw(uint32_t val)
+{
+    env->fpuc = val;
+    update_fp_status();
+}
+
+void helper_fclex(void)
+{
+    env->fpus &= 0x7f00;
+}
+
+void helper_fwait(void)
+{
+    if (env->fpus & FPUS_SE)
+        fpu_raise_exception();
+    FORCE_RET();
+}
+
+void helper_fninit(void)
+{
+    env->fpus = 0;
+    env->fpstt = 0;
+    env->fpuc = 0x37f;
+    env->fptags[0] = 1;
+    env->fptags[1] = 1;
+    env->fptags[2] = 1;
+    env->fptags[3] = 1;
+    env->fptags[4] = 1;
+    env->fptags[5] = 1;
+    env->fptags[6] = 1;
+    env->fptags[7] = 1;
+}
+
 /* BCD ops */
 
-void helper_fbld_ST0_A0(void)
+void helper_fbld_ST0(target_ulong ptr)
 {
     CPU86_LDouble tmp;
     uint64_t val;
@@ -3124,24 +3765,24 @@ void helper_fbld_ST0_A0(void)
 
     val = 0;
     for(i = 8; i >= 0; i--) {
-        v = ldub(A0 + i);
+        v = ldub(ptr + i);
         val = (val * 100) + ((v >> 4) * 10) + (v & 0xf);
     }
     tmp = val;
-    if (ldub(A0 + 9) & 0x80)
+    if (ldub(ptr + 9) & 0x80)
         tmp = -tmp;
     fpush();
     ST0 = tmp;
 }
 
-void helper_fbst_ST0_A0(void)
+void helper_fbst_ST0(target_ulong ptr)
 {
     int v;
     target_ulong mem_ref, mem_end;
     int64_t val;
 
     val = floatx_to_int64(ST0, &env->fp_status);
-    mem_ref = A0;
+    mem_ref = ptr;
     mem_end = mem_ref + 9;
     if (val < 0) {
         stb(mem_end, 0x80);
@@ -3803,37 +4444,32 @@ void helper_imulq_T0_T1(void)
     CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
 }
 
-void helper_divq_EAX_T0(void)
+void helper_divq_EAX(target_ulong t0)
 {
     uint64_t r0, r1;
-    if (T0 == 0) {
+    if (t0 == 0) {
         raise_exception(EXCP00_DIVZ);
     }
     r0 = EAX;
     r1 = EDX;
-    if (div64(&r0, &r1, T0))
+    if (div64(&r0, &r1, t0))
         raise_exception(EXCP00_DIVZ);
     EAX = r0;
     EDX = r1;
 }
 
-void helper_idivq_EAX_T0(void)
+void helper_idivq_EAX(target_ulong t0)
 {
     uint64_t r0, r1;
-    if (T0 == 0) {
+    if (t0 == 0) {
         raise_exception(EXCP00_DIVZ);
     }
     r0 = EAX;
     r1 = EDX;
-    if (idiv64(&r0, &r1, T0))
+    if (idiv64(&r0, &r1, t0))
         raise_exception(EXCP00_DIVZ);
     EAX = r0;
     EDX = r1;
-}
-
-void helper_bswapq_T0(void)
-{
-    T0 = bswap64(T0);
 }
 #endif
 
@@ -3845,7 +4481,7 @@ void helper_hlt(void)
     cpu_loop_exit();
 }
 
-void helper_monitor(void)
+void helper_monitor(target_ulong ptr)
 {
     if ((uint32_t)ECX != 0)
         raise_exception(EXCP0D_GPF);
@@ -3865,52 +4501,90 @@ void helper_mwait(void)
     }
 }
 
-float approx_rsqrt(float a)
+void helper_debug(void)
+{
+    env->exception_index = EXCP_DEBUG;
+    cpu_loop_exit();
+}
+
+void helper_raise_interrupt(int intno, int next_eip_addend)
+{
+    raise_interrupt(intno, 1, 0, next_eip_addend);
+}
+
+void helper_raise_exception(int exception_index)
+{
+    raise_exception(exception_index);
+}
+
+void helper_cli(void)
+{
+    env->eflags &= ~IF_MASK;
+}
+
+void helper_sti(void)
+{
+    env->eflags |= IF_MASK;
+}
+
+#if 0
+/* vm86plus instructions */
+void helper_cli_vm(void)
+{
+    env->eflags &= ~VIF_MASK;
+}
+
+void helper_sti_vm(void)
+{
+    env->eflags |= VIF_MASK;
+    if (env->eflags & VIP_MASK) {
+        raise_exception(EXCP0D_GPF);
+    }
+}
+#endif
+
+void helper_set_inhibit_irq(void)
+{
+    env->hflags |= HF_INHIBIT_IRQ_MASK;
+}
+
+void helper_reset_inhibit_irq(void)
+{
+    env->hflags &= ~HF_INHIBIT_IRQ_MASK;
+}
+
+void helper_boundw(void)
+{
+    int low, high, v;
+    low = ldsw(A0);
+    high = ldsw(A0 + 2);
+    v = (int16_t)T0;
+    if (v < low || v > high) {
+        raise_exception(EXCP05_BOUND);
+    }
+    FORCE_RET();
+}
+
+void helper_boundl(void)
+{
+    int low, high, v;
+    low = ldl(A0);
+    high = ldl(A0 + 4);
+    v = T0;
+    if (v < low || v > high) {
+        raise_exception(EXCP05_BOUND);
+    }
+    FORCE_RET();
+}
+
+static float approx_rsqrt(float a)
 {
     return 1.0 / sqrt(a);
 }
 
-float approx_rcp(float a)
+static float approx_rcp(float a)
 {
     return 1.0 / a;
-}
-
-void update_fp_status(void)
-{
-    int rnd_type;
-
-    /* set rounding mode */
-    switch(env->fpuc & RC_MASK) {
-    default:
-    case RC_NEAR:
-        rnd_type = float_round_nearest_even;
-        break;
-    case RC_DOWN:
-        rnd_type = float_round_down;
-        break;
-    case RC_UP:
-        rnd_type = float_round_up;
-        break;
-    case RC_CHOP:
-        rnd_type = float_round_to_zero;
-        break;
-    }
-    set_float_rounding_mode(rnd_type, &env->fp_status);
-#ifdef FLOATX80
-    switch((env->fpuc >> 8) & 3) {
-    case 0:
-        rnd_type = 32;
-        break;
-    case 2:
-        rnd_type = 64;
-        break;
-    case 3:
-    default:
-        rnd_type = 80;
-        break;
-    }
-    set_floatx80_rounding_precision(rnd_type, &env->fp_status);
-#endif
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -3987,10 +4661,10 @@ void helper_clgi(void)
 
 #if defined(CONFIG_USER_ONLY)
 
-void helper_vmrun(target_ulong addr) { }
+void helper_vmrun(void) { }
 void helper_vmmcall(void) { }
-void helper_vmload(target_ulong addr) { }
-void helper_vmsave(target_ulong addr) { }
+void helper_vmload(void) { }
+void helper_vmsave(void) { }
 void helper_skinit(void) { }
 void helper_invlpga(void) { }
 void vmexit(uint64_t exit_code, uint64_t exit_info_1) { }
@@ -4017,11 +4691,13 @@ static inline uint16_t cpu2vmcb_attrib(uint32_t cpu_attrib)
 	    | ((cpu_attrib & 0xf00000) >> 12);       /* AVL, L, DB, G */
 }
 
-void helper_vmrun(target_ulong addr)
+void helper_vmrun(void)
 {
+    target_ulong addr;
     uint32_t event_inj;
     uint32_t int_ctl;
 
+    addr = EAX;
     if (loglevel & CPU_LOG_TB_IN_ASM)
         fprintf(logfile,"vmrun! " TARGET_FMT_lx "\n", addr);
 
@@ -4188,8 +4864,10 @@ void helper_vmmcall(void)
         fprintf(logfile,"vmmcall!\n");
 }
 
-void helper_vmload(target_ulong addr)
+void helper_vmload(void)
 {
+    target_ulong addr;
+    addr = EAX;
     if (loglevel & CPU_LOG_TB_IN_ASM)
         fprintf(logfile,"vmload! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
                 addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
@@ -4212,8 +4890,10 @@ void helper_vmload(target_ulong addr)
     env->sysenter_eip = ldq_phys(addr + offsetof(struct vmcb, save.sysenter_eip));
 }
 
-void helper_vmsave(target_ulong addr)
+void helper_vmsave(void)
 {
+    target_ulong addr;
+    addr = EAX;
     if (loglevel & CPU_LOG_TB_IN_ASM)
         fprintf(logfile,"vmsave! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
                 addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
@@ -4462,3 +5142,32 @@ void vmexit(uint64_t exit_code, uint64_t exit_info_1)
 }
 
 #endif
+
+/* MMX/SSE */
+/* XXX: optimize by storing fptt and fptags in the static cpu state */
+void helper_enter_mmx(void)
+{
+    env->fpstt = 0;
+    *(uint32_t *)(env->fptags) = 0;
+    *(uint32_t *)(env->fptags + 4) = 0;
+}
+
+void helper_emms(void)
+{
+    /* set to empty state */
+    *(uint32_t *)(env->fptags) = 0x01010101;
+    *(uint32_t *)(env->fptags + 4) = 0x01010101;
+}
+
+/* XXX: suppress */
+void helper_movq(uint64_t *d, uint64_t *s)
+{
+    *d = *s;
+}
+
+#define SHIFT 0
+#include "ops_sse.h"
+
+#define SHIFT 1
+#include "ops_sse.h"
+

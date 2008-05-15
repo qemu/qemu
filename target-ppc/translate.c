@@ -29,6 +29,10 @@
 #include "tcg-op.h"
 #include "qemu-common.h"
 
+#define CPU_SINGLE_STEP 0x1
+#define CPU_BRANCH_STEP 0x2
+#define GDBSTUB_SINGLE_STEP 0x4
+
 /* Include definitions for instructions classes and implementations flags */
 //#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
@@ -2785,7 +2789,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
     TranslationBlock *tb;
     tb = ctx->tb;
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
-        !ctx->singlestep_enabled) {
+        likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
         gen_set_T1(dest);
 #if defined(TARGET_PPC64)
@@ -2803,8 +2807,20 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
         else
 #endif
             gen_op_b_T1();
-        if (ctx->singlestep_enabled)
-            gen_op_debug();
+        if (unlikely(ctx->singlestep_enabled)) {
+            if ((ctx->singlestep_enabled &
+                 (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
+                ctx->exception == POWERPC_EXCP_BRANCH) {
+                target_ulong tmp = ctx->nip;
+                ctx->nip = dest;
+                GEN_EXCP(ctx, POWERPC_EXCP_TRACE, 0);
+                ctx->nip = tmp;
+            }
+            if (ctx->singlestep_enabled & GDBSTUB_SINGLE_STEP) {
+                gen_update_nip(ctx, dest);
+                gen_op_debug();
+            }
+        }
         tcg_gen_exit_tb(0);
     }
 }
@@ -2824,6 +2840,7 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 {
     target_ulong li, target;
 
+    ctx->exception = POWERPC_EXCP_BRANCH;
     /* sign extend LI */
 #if defined(TARGET_PPC64)
     if (ctx->sf_mode)
@@ -2842,7 +2859,6 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
     if (LK(ctx->opcode))
         gen_setlr(ctx, ctx->nip);
     gen_goto_tb(ctx, 0, target);
-    ctx->exception = POWERPC_EXCP_BRANCH;
 }
 
 #define BCOND_IM  0
@@ -2857,6 +2873,7 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
     uint32_t bi = BI(ctx->opcode);
     uint32_t mask;
 
+    ctx->exception = POWERPC_EXCP_BRANCH;
     if ((bo & 0x4) == 0)
         gen_op_dec_ctr();
     switch(type) {
@@ -2906,7 +2923,7 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
         case 6:
             if (type == BCOND_IM) {
                 gen_goto_tb(ctx, 0, target);
-                goto out;
+                return;
             } else {
 #if defined(TARGET_PPC64)
                 if (ctx->sf_mode)
@@ -2985,12 +3002,12 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
 #endif
             gen_op_btest_T1(ctx->nip);
     no_test:
-        if (ctx->singlestep_enabled)
+        if (ctx->singlestep_enabled & GDBSTUB_SINGLE_STEP) {
+            gen_update_nip(ctx, ctx->nip);
             gen_op_debug();
+        }
         tcg_gen_exit_tb(0);
     }
- out:
-    ctx->exception = POWERPC_EXCP_BRANCH;
 }
 
 GEN_HANDLER(bc, 0x10, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
@@ -6150,7 +6167,6 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     int supervisor, little_endian;
-    int single_step, branch_step;
     int j, lj = -1;
 
     pc_start = tb->pc;
@@ -6184,14 +6200,13 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     else
         ctx.altivec_enabled = 0;
     if ((env->flags & POWERPC_FLAG_SE) && msr_se)
-        single_step = 1;
+        ctx.singlestep_enabled = CPU_SINGLE_STEP;
     else
-        single_step = 0;
+        ctx.singlestep_enabled = 0;
     if ((env->flags & POWERPC_FLAG_BE) && msr_be)
-        branch_step = 1;
-    else
-        branch_step = 0;
-    ctx.singlestep_enabled = env->singlestep_enabled || single_step == 1;
+        ctx.singlestep_enabled |= CPU_BRANCH_STEP;
+    if (unlikely(env->singlestep_enabled))
+        ctx.singlestep_enabled |= GDBSTUB_SINGLE_STEP;
 #if defined (DO_SINGLE_STEP) && 0
     /* Single step trace mode */
     msr_se = 1;
@@ -6284,14 +6299,11 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         handler->count++;
 #endif
         /* Check trace mode exceptions */
-        if (unlikely(branch_step != 0 &&
-                     ctx.exception == POWERPC_EXCP_BRANCH)) {
-            GEN_EXCP(ctxp, POWERPC_EXCP_TRACE, 0);
-        } else if (unlikely(single_step != 0 &&
-                            (ctx.nip <= 0x100 || ctx.nip > 0xF00 ||
-                             (ctx.nip & 0xFC) != 0x04) &&
-                            ctx.exception != POWERPC_SYSCALL &&
-                            ctx.exception != POWERPC_EXCP_TRAP)) {
+        if (unlikely(ctx.singlestep_enabled & CPU_SINGLE_STEP &&
+                     (ctx.nip <= 0x100 || ctx.nip > 0xF00) &&
+                     ctx.exception != POWERPC_SYSCALL &&
+                     ctx.exception != POWERPC_EXCP_TRAP &&
+                     ctx.exception != POWERPC_EXCP_BRANCH)) {
             GEN_EXCP(ctxp, POWERPC_EXCP_TRACE, 0);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
                             (env->singlestep_enabled))) {
@@ -6307,6 +6319,10 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     if (ctx.exception == POWERPC_EXCP_NONE) {
         gen_goto_tb(&ctx, 0, ctx.nip);
     } else if (ctx.exception != POWERPC_EXCP_BRANCH) {
+        if (unlikely(env->singlestep_enabled)) {
+            gen_update_nip(&ctx, ctx.nip);
+            gen_op_debug();
+        }
         /* Generate the return instruction */
         tcg_gen_exit_tb(0);
     }

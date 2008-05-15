@@ -1953,7 +1953,7 @@ Use @code{set architecture i8086} to dump 16 bit code. Then use
 Advanced debugging options:
 
 The default single stepping behavior is step with the IRQs and timer service routines off.  It is set this way because when gdb executes a single step it expects to advance beyond the current instruction.  With the IRQs and and timer service routines on, a single step might jump into the one of the interrupt or exception vectors instead of executing the current instruction. This means you may hit the same breakpoint a number of times before executing the instruction gdb wants to have executed.  Because there are rare circumstances where you want to single step into an interrupt vector the behavior can be controlled from GDB.  There are three commands you can query and set the single step behavior:
-@enumerate @code
+@table @code
 @item maintenance packet qqemu.sstepbits
 
 This will display the MASK bits used to control the single stepping IE:
@@ -1978,7 +1978,7 @@ This will change the single step mask, so if wanted to enable IRQs on the single
 sending: "qemu.sstep=0x5"
 received: "OK"
 @end example
-@end enumerate
+@end table
 
 @node pcsys_os_specific
 @section Target OS specific information

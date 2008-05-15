@@ -464,7 +464,7 @@ static inline void ia64_apply_fixes (uint8_t **gen_code_pp,
 #endif
 #endif
 
-#ifndef CONFIG_NO_DYNGEN_OP
+#ifdef CONFIG_DYNGEN_OP
 
 #if defined __hppa__
 struct hppa_branch_stub {

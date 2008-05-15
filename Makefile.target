@@ -207,7 +207,7 @@ all: $(PROGS)
 # cpu emulator library
 LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
         translate.o host-utils.o
-ifndef CONFIG_NO_DYNGEN_OP
+ifdef CONFIG_DYNGEN_OP
 LIBOBJS+=op.o
 endif
 # TCG code generator
@@ -312,7 +312,7 @@ endif
 
 # libqemu
 
-ifndef CONFIG_NO_DYNGEN_OP
+ifdef CONFIG_DYNGEN_OP
 OPC_H = gen-op.h dyngen-opc.h op.h
 endif
 
@@ -356,7 +356,7 @@ op_helper.o: op_helper.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 endif
 
-cpu-exec.o: cpu-exec.c
+cpu-exec.o: cpu-exec.c $(OPC_H)
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 #########################################################
@@ -631,12 +631,14 @@ endif
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)
 OBJS+= etraxfs.o
+OBJS+= etraxfs_dma.o
 OBJS+= etraxfs_pic.o
+OBJS+= etraxfs_eth.o
 OBJS+= etraxfs_timer.o
 OBJS+= etraxfs_ser.o
 
 OBJS+= ptimer.o
-OBJS+= pflash_cfi01.o
+OBJS+= pflash_cfi02.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)

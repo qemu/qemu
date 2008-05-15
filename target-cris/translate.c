@@ -21,8 +21,7 @@
 
 /*
  * FIXME:
- * The condition code translation is in desperate need of attention. It's slow
- * and for system simulation it seems buggy. It sucks.
+ * The condition code translation is in need of attention.
  */
 
 #include <stdarg.h>
@@ -40,13 +39,6 @@
 #include "helper.h"
 #include "crisv32-decode.h"
 #include "qemu-common.h"
-
-#define CRIS_STATS 0
-#if CRIS_STATS
-#define STATS(x) x
-#else
-#define STATS(x)
-#endif
 
 #define DISAS_CRIS 0
 #if DISAS_CRIS
@@ -110,25 +102,18 @@ typedef struct DisasContext {
 
 	int user; /* user or kernel mode.  */
 	int is_jmp;
-	int dyn_jmp;
 
-	uint32_t delayed_pc;
 	int delayed_branch;
-	int bcc;
-	uint32_t condlabel;
 
 	struct TranslationBlock *tb;
 	int singlestep_enabled;
 } DisasContext;
 
-void cris_prepare_jmp (DisasContext *dc, uint32_t dst);
 static void gen_BUG(DisasContext *dc, char *file, int line)
 {
 	printf ("BUG: pc=%x %s %d\n", dc->pc, file, line);
 	fprintf (logfile, "BUG: pc=%x %s %d\n", dc->pc, file, line);
-	cpu_dump_state (dc->env, stdout, fprintf, 0);
-	fflush(NULL);
-	cris_prepare_jmp (dc, 0x70000000 + line);
+	cpu_abort(dc->env, "%s:%d\n", file, line);
 }
 
 const char *regnames[] =
@@ -208,7 +193,7 @@ static inline void t_gen_mov_TN_preg(TCGv tn, int r)
 	else
 		tcg_gen_mov_tl(tn, cpu_PR[r]);
 }
-static inline void t_gen_mov_preg_TN(int r, TCGv tn)
+static inline void t_gen_mov_preg_TN(DisasContext *dc, int r, TCGv tn)
 {
 	if (r < 0 || r > 15)
 		fprintf(stderr, "wrong register write $p%d\n", r);
@@ -217,10 +202,9 @@ static inline void t_gen_mov_preg_TN(int r, TCGv tn)
 	else if (r == PR_SRS)
 		tcg_gen_andi_tl(cpu_PR[r], tn, 3);
 	else {
-		if (r == PR_PID) {
-			tcg_gen_helper_0_0(helper_tlb_flush);
-		}
 		tcg_gen_mov_tl(cpu_PR[r], tn);
+		if (r == PR_PID)
+			tcg_gen_helper_0_1(helper_tlb_flush_pid, tn);
 	}
 }
 
@@ -319,7 +303,7 @@ static void t_gen_lz_i32(TCGv d, TCGv x)
 
 	/* y = -(x >> 16)  */
 	tcg_gen_shri_i32(y, x, 16);
-	tcg_gen_sub_i32(y, tcg_const_i32(0), y);
+	tcg_gen_neg_i32(y, y);
 
 	/* m = (y >> 16) & 16  */
 	tcg_gen_sari_i32(m, y, 16);
@@ -484,24 +468,36 @@ static inline void t_gen_addx_carry(TCGv d)
 	tcg_gen_discard_tl(c);
 }
 
-static inline void t_gen_subx_carry(TCGv d)
+static inline void t_gen_subx_carry(DisasContext *dc, TCGv d)
 {
-	TCGv x, c;
+	if (dc->flagx_live) {
+		TCGv x, c;
 
-	x = tcg_temp_new(TCG_TYPE_TL);
-	c = tcg_temp_new(TCG_TYPE_TL);
-	t_gen_mov_TN_preg(x, PR_CCS);
-	tcg_gen_mov_tl(c, x);
+		x = tcg_temp_new(TCG_TYPE_TL);
+		c = tcg_temp_new(TCG_TYPE_TL);
+		t_gen_mov_TN_preg(x, PR_CCS);
+		tcg_gen_mov_tl(c, x);
 
-	/* Propagate carry into d if X is set. Branch free.  */
-	tcg_gen_andi_tl(c, c, C_FLAG);
-	tcg_gen_andi_tl(x, x, X_FLAG);
-	tcg_gen_shri_tl(x, x, 4);
+		/* Propagate carry into d if X is set. Branch free.  */
+		tcg_gen_andi_tl(c, c, C_FLAG);
+		tcg_gen_andi_tl(x, x, X_FLAG);
+		tcg_gen_shri_tl(x, x, 4);
 
-	tcg_gen_and_tl(x, x, c);
-	tcg_gen_sub_tl(d, d, x);
-	tcg_gen_discard_tl(x);
-	tcg_gen_discard_tl(c);
+		tcg_gen_and_tl(x, x, c);
+		tcg_gen_sub_tl(d, d, x);
+		tcg_gen_discard_tl(x);
+		tcg_gen_discard_tl(c);
+	} else {
+		if (dc->flags_x) {
+			TCGv c;
+		
+			c = tcg_temp_new(TCG_TYPE_TL);
+			/* C flag is already at bit 0.  */
+			tcg_gen_andi_tl(c, c, C_FLAG);
+			tcg_gen_add_tl(d, d, c);
+			tcg_gen_discard_tl(c);
+		}
+	}
 }
 
 /* Swap the two bytes within each half word of the s operand.
@@ -585,7 +581,7 @@ static inline void t_gen_swapr(TCGv d, TCGv s)
 	tcg_gen_discard_tl(org_s);
 }
 
-static void t_gen_cc_jmp(target_ulong pc_true, target_ulong pc_false)
+static void t_gen_cc_jmp(TCGv pc_true, TCGv pc_false)
 {
 	TCGv btaken;
 	int l1;
@@ -595,9 +591,9 @@ static void t_gen_cc_jmp(target_ulong pc_true, target_ulong pc_false)
 
 	/* Conditional jmp.  */
 	t_gen_mov_TN_env(btaken, btaken);
-	tcg_gen_movi_tl(env_pc, pc_false);
+	tcg_gen_mov_tl(env_pc, pc_false);
 	tcg_gen_brcond_tl(TCG_COND_EQ, btaken, tcg_const_tl(0), l1);
-	tcg_gen_movi_tl(env_pc, pc_true);
+	tcg_gen_mov_tl(env_pc, pc_true);
 	gen_set_label(l1);
 
 	tcg_gen_discard_tl(btaken);
@@ -634,7 +630,7 @@ static inline void cris_clear_x_flag(DisasContext *dc)
 {
 	if (!dc->flagx_live 
 	    || (dc->flagx_live && dc->flags_x)
-	    || dc->cc_op != CC_OP_FLAGS)
+	    || dc->cc_op == CC_OP_FLAGS)
 		tcg_gen_andi_i32(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~X_FLAG);
 	dc->flagx_live = 1;
 	dc->flags_x = 0;
@@ -729,10 +725,11 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 	int writeback = 1;
 	if (dc->update_cc) {
 		cris_update_cc_op(dc, op, size);
-		tcg_gen_mov_tl(cc_dest, cpu_T[0]);
+		if (op != CC_OP_MOVE)
+			tcg_gen_mov_tl(cc_dest, cpu_T[0]);
 
 		/* FIXME: This shouldn't be needed. But we don't pass the
-		 tests without it. Investigate.  */
+		   tests without it. Investigate.  */
 		t_gen_mov_env_TN(cc_x_live, tcg_const_tl(dc->flagx_live));
 		t_gen_mov_env_TN(cc_x, tcg_const_tl(dc->flags_x));
 	}
@@ -754,14 +751,14 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			t_gen_add_flag(cpu_T[0], 8); /* R_FLAG.  */
 			break;
 		case CC_OP_SUB:
-			tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
+			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-			tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
+			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
 			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
 
 			/* Extended arithmetics.  */
-			t_gen_subx_carry(cpu_T[0]);
+			t_gen_subx_carry(dc, cpu_T[0]);
 			break;
 		case CC_OP_MOVE:
 			tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
@@ -785,11 +782,9 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			t_gen_asr(cpu_T[0], cpu_T[0], cpu_T[1]);
 			break;
 		case CC_OP_NEG:
-			/* Hopefully the TCG backend recognizes this pattern
-			   and makes a real neg out of it.  */
-			tcg_gen_sub_tl(cpu_T[0], tcg_const_tl(0), cpu_T[1]);
+			tcg_gen_neg_tl(cpu_T[0], cpu_T[1]);
 			/* Extended arithmetics.  */
-			t_gen_subx_carry(cpu_T[0]);
+			t_gen_subx_carry(dc, cpu_T[0]);
 			break;
 		case CC_OP_LZ:
 			t_gen_lz_i32(cpu_T[0], cpu_T[1]);
@@ -803,7 +798,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			TCGv mof;
 			mof = tcg_temp_new(TCG_TYPE_TL);
 			t_gen_muls(cpu_T[0], mof, cpu_T[0], cpu_T[1]);
-			t_gen_mov_preg_TN(PR_MOF, mof);
+			t_gen_mov_preg_TN(dc, PR_MOF, mof);
 			tcg_gen_discard_tl(mof);
 		}
 		break;
@@ -812,7 +807,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			TCGv mof;
 			mof = tcg_temp_new(TCG_TYPE_TL);
 			t_gen_mulu(cpu_T[0], mof, cpu_T[0], cpu_T[1]);
-			t_gen_mov_preg_TN(PR_MOF, mof);
+			t_gen_mov_preg_TN(dc, PR_MOF, mof);
 			tcg_gen_discard_tl(mof);
 		}
 		break;
@@ -830,15 +825,12 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 		}
 		break;
 		case CC_OP_CMP:
-			tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
-			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+			tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
-			tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
-			/* CRIS flag evaluation needs ~src.  */
-			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
+			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], ~0);
 
 			/* Extended arithmetics.  */
-			t_gen_subx_carry(cpu_T[0]);
+			t_gen_subx_carry(dc, cpu_T[0]);
 			writeback = 0;
 			break;
 		default:
@@ -858,27 +850,17 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 	/* Writeback.  */
 	if (writeback) {
 		if (size == 4)
-			t_gen_mov_reg_TN(rd, cpu_T[0]);
+			tcg_gen_mov_tl(cpu_R[rd], cpu_T[0]);
 		else {
-			tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
-			t_gen_mov_TN_reg(cpu_T[0], rd);
 			if (size == 1)
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0xff);
+				tcg_gen_andi_tl(cpu_R[rd], cpu_R[rd], ~0xff);
 			else
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0xffff);
-			tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-			t_gen_mov_reg_TN(rd, cpu_T[0]);
-			tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+				tcg_gen_andi_tl(cpu_R[rd], cpu_R[rd], ~0xffff);
+			tcg_gen_or_tl(cpu_R[rd], cpu_R[rd], cpu_T[0]);
 		}
 	}
 	if (dc->update_cc)
 		tcg_gen_mov_tl(cc_result, cpu_T[0]);
-
-	{
-		/* TODO: Optimize this.  */
-		if (!dc->flagx_live)
-			cris_evaluate_flags(dc);
-	}
 }
 
 static int arith_cc(DisasContext *dc)
@@ -1071,7 +1053,6 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 			tcg_gen_andi_tl(cpu_T[0], cpu_PR[PR_CCS], P_FLAG);
 			break;
 		case CC_A:
-			cris_evaluate_flags(dc);
 			tcg_gen_movi_tl(cpu_T[0], 1);
 			break;
 		default:
@@ -1085,14 +1066,13 @@ static void cris_prepare_cc_branch (DisasContext *dc, int offset, int cond)
 	/* This helps us re-schedule the micro-code to insns in delay-slots
 	   before the actual jump.  */
 	dc->delayed_branch = 2;
-	dc->delayed_pc = dc->pc + offset;
-	dc->bcc = cond;
 	if (cond != CC_A)
 	{
 		gen_tst_cc (dc, cond);
 		t_gen_mov_env_TN(btaken, cpu_T[0]);
-	}
-	tcg_gen_movi_tl(env_btarget, dc->delayed_pc);
+	} else
+		t_gen_mov_env_TN(btaken, tcg_const_tl(1));
+	tcg_gen_movi_tl(env_btarget, dc->pc + offset);
 }
 
 
@@ -1102,18 +1082,7 @@ void cris_prepare_dyn_jmp (DisasContext *dc)
 	/* This helps us re-schedule the micro-code to insns in delay-slots
 	   before the actual jump.  */
 	dc->delayed_branch = 2;
-	dc->dyn_jmp = 1;
-	dc->bcc = CC_A;
-}
-
-void cris_prepare_jmp (DisasContext *dc, uint32_t dst)
-{
-	/* This helps us re-schedule the micro-code to insns in delay-slots
-	   before the actual jump.  */
-	dc->delayed_branch = 2;
-	dc->delayed_pc = dst;
-	dc->dyn_jmp = 0;
-	dc->bcc = CC_A;
+	t_gen_mov_env_TN(btaken, tcg_const_tl(1));
 }
 
 void gen_load(DisasContext *dc, TCGv dst, TCGv addr, 
@@ -1167,11 +1136,10 @@ static inline void t_gen_sext(TCGv d, TCGv s, int size)
 
 static inline void t_gen_zext(TCGv d, TCGv s, int size)
 {
-	/* TCG-FIXME: this is not optimal. Many archs have fast zext insns.  */
 	if (size == 1)
-		tcg_gen_andi_i32(d, s, 0xff);
+		tcg_gen_ext8u_i32(d, s);
 	else if (size == 2)
-		tcg_gen_andi_i32(d, s, 0xffff);
+		tcg_gen_ext16u_i32(d, s);
 	else
 		tcg_gen_mov_tl(d, s);
 }
@@ -1213,7 +1181,6 @@ static inline void do_postinc (DisasContext *dc, int size)
 		tcg_gen_addi_tl(cpu_R[dc->op1], cpu_R[dc->op1], size);
 }
 
-
 static void dec_prep_move_r(DisasContext *dc, int rs, int rd,
 			    int size, int s_ext)
 {
@@ -1237,10 +1204,7 @@ static void dec_prep_alu_r(DisasContext *dc, int rs, int rd,
 		t_gen_zext(cpu_T[0], cpu_R[rd], size);
 }
 
-/* Prepare T0 and T1 for a memory + alu operation.
-   s_ext decides if the operand1 should be sign-extended or zero-extended when
-   needed.  */
-static int dec_prep_alu_m(DisasContext *dc, int s_ext, int memsize)
+static int dec_prep_move_m(DisasContext *dc, int s_ext, int memsize)
 {
 	unsigned int rs, rd;
 	uint32_t imm;
@@ -1273,21 +1237,30 @@ static int dec_prep_alu_m(DisasContext *dc, int s_ext, int memsize)
 			imm = ldl_code(dc->pc + 2);
 			
 		DIS(fprintf (logfile, "imm=%x rd=%d sext=%d ms=%d\n",
-			    imm, rd, s_ext, memsize));
+			     imm, rd, s_ext, memsize));
 		tcg_gen_movi_tl(cpu_T[1], imm);
 		dc->postinc = 0;
 	} else {
-		/* FIXME: qemu_ld does not act as a barrier?  */
-		tcg_gen_helper_0_0(helper_dummy);
 		gen_load(dc, cpu_T[1], cpu_R[rs], memsize, 0);
 		if (s_ext)
 			t_gen_sext(cpu_T[1], cpu_T[1], memsize);
 		else
 			t_gen_zext(cpu_T[1], cpu_T[1], memsize);
 	}
+	return insn_len;
+}
+
+/* Prepare T0 and T1 for a memory + alu operation.
+   s_ext decides if the operand1 should be sign-extended or zero-extended when
+   needed.  */
+static int dec_prep_alu_m(DisasContext *dc, int s_ext, int memsize)
+{
+	int insn_len;
+
+	insn_len = dec_prep_move_m(dc, s_ext, memsize);
 
 	/* put dest in T0.  */
-	t_gen_mov_TN_reg(cpu_T[0], rd);
+	tcg_gen_mov_tl(cpu_T[0], cpu_R[dc->op2]);
 	return insn_len;
 }
 
@@ -1359,7 +1332,7 @@ static unsigned int dec_moveq(DisasContext *dc)
 	imm = sign_extend(dc->op1, 5);
 	DIS(fprintf (logfile, "moveq %d, $r%u\n", imm, dc->op2));
 
-	t_gen_mov_reg_TN(dc->op2, tcg_const_tl(imm));
+	tcg_gen_mov_tl(cpu_R[dc->op2], tcg_const_tl(imm));
 	return 2;
 }
 static unsigned int dec_subq(DisasContext *dc)
@@ -1370,7 +1343,7 @@ static unsigned int dec_subq(DisasContext *dc)
 
 	cris_cc_mask(dc, CC_MASK_NZVC);
 	/* Fetch register operand,  */
-	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
+	tcg_gen_mov_tl(cpu_T[0], cpu_R[dc->op2]);
 	tcg_gen_movi_tl(cpu_T[1], dc->op1);
 	crisv32_alu_op(dc, CC_OP_SUB, dc->op2, 4);
 	return 2;
@@ -1424,7 +1397,7 @@ static unsigned int dec_btstq(DisasContext *dc)
 	crisv32_alu_op(dc, CC_OP_BTST, dc->op2, 4);
 
 	cris_update_cc_op(dc, CC_OP_FLAGS, 4);
-	t_gen_mov_preg_TN(PR_CCS, cpu_T[0]);
+	t_gen_mov_preg_TN(dc, PR_CCS, cpu_T[0]);
 	dc->flags_live = 1;
 	return 2;
 }
@@ -1647,7 +1620,7 @@ static unsigned int dec_abs_r(DisasContext *dc)
 	/* TODO: consider a branch free approach.  */
 	l1 = gen_new_label();
 	tcg_gen_brcond_tl(TCG_COND_GE, cpu_T[1], tcg_const_tl(0), l1);
-	tcg_gen_sub_tl(cpu_T[1], tcg_const_tl(0), cpu_T[1]);
+	tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 	gen_set_label(l1);
 	crisv32_alu_op(dc, CC_OP_MOVE, dc->op2, 4);
 	return 2;
@@ -1705,7 +1678,9 @@ static char * swapmode_name(int mode, char *modename) {
 
 static unsigned int dec_swap_r(DisasContext *dc)
 {
-	DIS(char modename[4]);
+#if DISAS_CRIS
+	char modename[4];
+#endif
 	DIS(fprintf (logfile, "swap%s $r%u\n",
 		     swapmode_name(dc->op2, modename), dc->op1));
 
@@ -1780,7 +1755,7 @@ static unsigned int dec_btst_r(DisasContext *dc)
 	crisv32_alu_op(dc, CC_OP_BTST, dc->op2, 4);
 
 	cris_update_cc_op(dc, CC_OP_FLAGS, 4);
-	t_gen_mov_preg_TN(PR_CCS, cpu_T[0]);
+	t_gen_mov_preg_TN(dc, PR_CCS, cpu_T[0]);
 	dc->flags_live = 1;
 	return 2;
 }
@@ -1903,14 +1878,16 @@ static unsigned int dec_setclrf(DisasContext *dc)
 	flags = (EXTRACT_FIELD(dc->ir, 12, 15) << 4)
 		| EXTRACT_FIELD(dc->ir, 0, 3);
 	DIS(fprintf (logfile, "set=%d flags=%x\n", set, flags));
-	if (set && flags == 0)
+	if (set && flags == 0) {
 		DIS(fprintf (logfile, "nop\n"));
-	else if (!set && (flags & 0x20))
+	} else if (!set && (flags & 0x20)) {
 		DIS(fprintf (logfile, "di\n"));
-	else
+	}
+	else {
 		DIS(fprintf (logfile, "%sf %x\n",
-			    set ? "set" : "clr",
+			     set ? "set" : "clr",
 			    flags));
+	}
 
 	if (set && (flags & X_FLAG)) {
 		dc->flagx_live = 1;
@@ -1927,7 +1904,7 @@ static unsigned int dec_setclrf(DisasContext *dc)
 			/* Enter user mode.  */
 			t_gen_mov_env_TN(ksp, cpu_R[R_SP]);
 			tcg_gen_mov_tl(cpu_R[R_SP], cpu_PR[PR_USP]);
-			dc->is_jmp = DISAS_UPDATE;
+			dc->is_jmp = DISAS_NEXT;
 		}
 		tcg_gen_ori_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], flags);
 	}
@@ -1974,7 +1951,7 @@ static unsigned int dec_move_rp(DisasContext *dc)
 	else
 		t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 
-	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
+	t_gen_mov_preg_TN(dc, dc->op2, cpu_T[0]);
 	if (dc->op2 == PR_CCS) {
 		cris_update_cc_op(dc, CC_OP_FLAGS, 4);
 		dc->flags_live = 1;
@@ -2007,7 +1984,7 @@ static unsigned int dec_move_mr(DisasContext *dc)
 		    dc->op1, dc->postinc ? "+]" : "]",
 		    dc->op2));
 
-	insn_len = dec_prep_alu_m(dc, 0, memsize);
+	insn_len = dec_prep_move_m(dc, 0, memsize);
 	cris_cc_mask(dc, CC_MASK_NZ);
 	crisv32_alu_op(dc, CC_OP_MOVE, dc->op2, memsize);
 	do_postinc(dc, memsize);
@@ -2320,7 +2297,7 @@ static unsigned int dec_move_mp(DisasContext *dc)
 		}
 	}
 
-	t_gen_mov_preg_TN(dc->op2, cpu_T[1]);
+	t_gen_mov_preg_TN(dc, dc->op2, cpu_T[1]);
 
 	do_postinc(dc, memsize);
 	return insn_len;
@@ -2340,9 +2317,6 @@ static unsigned int dec_move_pm(DisasContext *dc)
 	if (dc->op2 == PR_CCS)
 		cris_evaluate_flags(dc);
 	t_gen_mov_TN_preg(cpu_T[1], dc->op2);
-
-	/* FIXME: qemu_st does not act as a barrier?  */
-	tcg_gen_helper_0_0(helper_dummy);
 	gen_store(dc, cpu_R[dc->op1], cpu_T[1], memsize);
 
 	cris_cc_mask(dc, 0);
@@ -2358,9 +2332,6 @@ static unsigned int dec_movem_mr(DisasContext *dc)
 
 	DIS(fprintf (logfile, "movem [$r%u%s, $r%u\n", dc->op1,
 		    dc->postinc ? "+]" : "]", dc->op2));
-
-	/* FIXME: qemu_ld does not act as a barrier?  */
-	tcg_gen_helper_0_0(helper_dummy);
 
 	/* fetch the address into T0 and T1.  */
 	for (i = 0; i <= dc->op2; i++) {
@@ -2391,9 +2362,6 @@ static unsigned int dec_movem_rm(DisasContext *dc)
 	DIS(fprintf (logfile, "movem $r%u, [$r%u%s\n", dc->op2, dc->op1,
 		     dc->postinc ? "+]" : "]"));
 
-	/* FIXME: qemu_st does not act as a barrier?  */
-	tcg_gen_helper_0_0(helper_dummy);
-
 	for (i = 0; i <= dc->op2; i++) {
 		/* Displace addr.  */
 		tcg_gen_addi_tl(cpu_T[0], cpu_R[dc->op1], i * 4);
@@ -2416,8 +2384,6 @@ static unsigned int dec_move_rm(DisasContext *dc)
 		     memsize, dc->op2, dc->op1));
 
 	/* prepare store.  */
-	/* FIXME: qemu_st does not act as a barrier?  */
-	tcg_gen_helper_0_0(helper_dummy);
 	gen_store(dc, cpu_R[dc->op1], cpu_R[dc->op2], memsize);
 
 	if (dc->postinc)
@@ -2495,7 +2461,7 @@ static unsigned int dec_jas_im(DisasContext *dc)
 	cris_cc_mask(dc, 0);
 	/* Store the return address in Pd.  */
 	tcg_gen_movi_tl(env_btarget, imm);
-	t_gen_mov_preg_TN(dc->op2, tcg_const_tl(dc->pc + 8));
+	t_gen_mov_preg_TN(dc, dc->op2, tcg_const_tl(dc->pc + 8));
 	cris_prepare_dyn_jmp(dc);
 	return 6;
 }
@@ -2512,7 +2478,7 @@ static unsigned int dec_jasc_im(DisasContext *dc)
 	tcg_gen_movi_tl(cpu_T[0], imm);
 	tcg_gen_mov_tl(env_btarget, cpu_T[0]);
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + 8 + 4);
-	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
+	t_gen_mov_preg_TN(dc, dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 6;
 }
@@ -2525,7 +2491,7 @@ static unsigned int dec_jasc_r(DisasContext *dc)
 	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	tcg_gen_mov_tl(env_btarget, cpu_T[0]);
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + 4 + 4);
-	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
+	t_gen_mov_preg_TN(dc, dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 2;
 }
@@ -2560,7 +2526,7 @@ static unsigned int dec_bas_im(DisasContext *dc)
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + simm);
 	tcg_gen_mov_tl(env_btarget, cpu_T[0]);
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + 8);
-	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
+	t_gen_mov_preg_TN(dc, dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 6;
 }
@@ -2576,7 +2542,7 @@ static unsigned int dec_basc_im(DisasContext *dc)
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + simm);
 	tcg_gen_mov_tl(env_btarget, cpu_T[0]);
 	tcg_gen_movi_tl(cpu_T[0], dc->pc + 12);
-	t_gen_mov_preg_TN(dc->op2, cpu_T[0]);
+	t_gen_mov_preg_TN(dc, dc->op2, cpu_T[0]);
 	cris_prepare_dyn_jmp(dc);
 	return 6;
 }
@@ -2798,8 +2764,42 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
 	}
 }
 
+
+/*
+ * Delay slots on QEMU/CRIS.
+ *
+ * If an exception hits on a delayslot, the core will let ERP (the Exception
+ * Return Pointer) point to the branch (the previous) insn and set the lsb to
+ * to give SW a hint that the exception actually hit on the dslot.
+ *
+ * CRIS expects all PC addresses to be 16-bit aligned. The lsb is ignored by
+ * the core and any jmp to an odd addresses will mask off that lsb. It is 
+ * simply there to let sw know there was an exception on a dslot.
+ *
+ * When the software returns from an exception, the branch will re-execute.
+ * On QEMU care needs to be taken when a branch+delayslot sequence is broken
+ * and the branch and delayslot dont share pages.
+ *
+ * The TB contaning the branch insn will set up env->btarget and evaluate 
+ * env->btaken. When the translation loop exits we will note that the branch 
+ * sequence is broken and let env->dslot be the size of the branch insn (those
+ * vary in length).
+ *
+ * The TB contaning the delayslot will have the PC of its real insn (i.e no lsb
+ * set). It will also expect to have env->dslot setup with the size of the 
+ * delay slot so that env->pc - env->dslot point to the branch insn. This TB 
+ * will execute the dslot and take the branch, either to btarget or just one 
+ * insn ahead.
+ *
+ * When exceptions occur, we check for env->dslot in do_interrupt to detect 
+ * broken branch sequences and setup $erp accordingly (i.e let it point to the
+ * branch and set lsb). Then env->dslot gets cleared so that the exception 
+ * handler can enter. When returning from exceptions (jump $erp) the lsb gets
+ * masked off and we will reexecute the branch insn.
+ *
+ */
+
 /* generate intermediate code for basic block 'tb'.  */
-struct DisasContext ctx;
 static int
 gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
                                int search_pc)
@@ -2808,6 +2808,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
    	uint32_t pc_start;
 	unsigned int insn_len;
 	int j, lj;
+	struct DisasContext ctx;
 	struct DisasContext *dc = &ctx;
 	uint32_t next_page_start;
 
@@ -2816,8 +2817,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
 	/* Odd PC indicates that branch is rexecuting due to exception in the
 	 * delayslot, like in real hw.
-	 * FIXME: we need to handle the case were the branch and the insn in
-	 *         the delayslot do not share pages.
 	 */
 	pc_start = tb->pc & ~1;
 	dc->env = env;
@@ -2833,19 +2832,24 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	dc->flagx_live = 0;
 	dc->flags_x = 0;
 	dc->cc_mask = 0;
+	dc->update_cc = 0;
 	cris_update_cc_op(dc, CC_OP_FLAGS, 4);
 
-	dc->user = env->pregs[PR_CCS] & U_FLAG;
-	dc->delayed_branch = 0;
+	/* Decode TB flags.  */
+	dc->user = tb->flags & U_FLAG;
+	dc->delayed_branch = !!(tb->flags & 7);
 
 	if (loglevel & CPU_LOG_TB_IN_ASM) {
 		fprintf(logfile,
-			"search=%d pc=%x ccs=%x pid=%x usp=%x dbg=%x %x %x\n"
+			"srch=%d pc=%x %x bt=%x ds=%lld ccs=%x\n"
+			"pid=%x usp=%x dbg=%x %x %x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n",
-			search_pc, env->pc, env->pregs[PR_CCS], 
+			search_pc, dc->pc, dc->ppc, 
+			env->btarget, tb->flags & 7,
+			env->pregs[PR_CCS], 
 			env->pregs[PR_PID], env->pregs[PR_USP],
 			env->debug1, env->debug2, env->debug3,
 			env->regs[0], env->regs[1], env->regs[2], env->regs[3],
@@ -2873,14 +2877,17 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 				while (lj < j)
 					gen_opc_instr_start[lj++] = 0;
 			}
-			if (dc->delayed_branch == 1) {
+			if (dc->delayed_branch == 1)
 				gen_opc_pc[lj] = dc->ppc | 1;
-				gen_opc_instr_start[lj] = 0;
-			}
-			else {
+			else
 				gen_opc_pc[lj] = dc->pc;
-				gen_opc_instr_start[lj] = 1;
-			}
+			gen_opc_instr_start[lj] = 1;
+		}
+
+		/* Pretty disas.  */
+		DIS(fprintf(logfile, "%x ", dc->pc));
+		if (search_pc) {
+			DIS(fprintf(logfile, "%x ", dc->pc));
 		}
 
 		dc->clear_x = 1;
@@ -2894,17 +2901,13 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 		   actually genereating any host code, the simulator will just
 		   loop doing nothing for on this program location.  */
 		if (dc->delayed_branch) {
+			t_gen_mov_env_TN(dslot, tcg_const_tl(0));
 			dc->delayed_branch--;
 			if (dc->delayed_branch == 0)
 			{
-				if (dc->bcc == CC_A) {
-					tcg_gen_mov_tl(env_pc, env_btarget);
-					dc->is_jmp = DISAS_JUMP;
-				}
-				else {
-					t_gen_cc_jmp(dc->delayed_pc, dc->pc);
-					dc->is_jmp = DISAS_JUMP;
-				}
+				t_gen_cc_jmp(env_btarget, 
+					     tcg_const_tl(dc->pc));
+				dc->is_jmp = DISAS_JUMP;
 			}
 		}
 
@@ -2913,15 +2916,16 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 		if (!(tb->pc & 1) && env->singlestep_enabled)
 			break;
 	} while (!dc->is_jmp && gen_opc_ptr < gen_opc_end
-		 && ((dc->pc < next_page_start) || dc->delayed_branch));
+		 && (dc->pc < next_page_start));
 
+	/* Broken branch+delayslot sequence.  */
 	if (dc->delayed_branch == 1) {
-		/* Reexecute the last insn.  */
-		dc->pc = dc->ppc | 1;
+		/* Set env->dslot to the size of the branch insn.  */
+		t_gen_mov_env_TN(dslot, tcg_const_tl(dc->pc - dc->ppc));
 	}
 
 	if (!dc->is_jmp) {
-		D(printf("!jmp pc=%x jmp=%d db=%d\n", dc->pc, 
+		D(fprintf(logfile, "!jmp pc=%x jmp=%d db=%d\n", dc->pc, 
 			 dc->is_jmp, dc->delayed_branch));
 		/* T0 and env_pc should hold the new pc.  */
 		tcg_gen_movi_tl(cpu_T[0], dc->pc);
@@ -3092,6 +3096,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	TCG_HELPER(helper_dummy);
 
 	TCG_HELPER(helper_tlb_flush);
+	TCG_HELPER(helper_tlb_flush_pid);
 	TCG_HELPER(helper_movl_sreg_reg);
 	TCG_HELPER(helper_movl_reg_sreg);
 	TCG_HELPER(helper_rfe);

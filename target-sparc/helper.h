@@ -48,10 +48,8 @@ uint64_t TCG_HELPER_PROTO helper_pack64(target_ulong high, target_ulong low);
 void TCG_HELPER_PROTO helper_std_i386(target_ulong addr, int mem_idx);
 void TCG_HELPER_PROTO helper_stdf(target_ulong addr, int mem_idx);
 void TCG_HELPER_PROTO helper_lddf(target_ulong addr, int mem_idx);
-#if defined(CONFIG_USER_ONLY)
-void TCG_HELPER_PROTO helper_ldqf(target_ulong addr);
-void TCG_HELPER_PROTO helper_stqf(target_ulong addr);
-#endif
+void TCG_HELPER_PROTO helper_ldqf(target_ulong addr, int mem_idx);
+void TCG_HELPER_PROTO helper_stqf(target_ulong addr, int mem_idx);
 uint64_t TCG_HELPER_PROTO helper_ld_asi(target_ulong addr, int asi,
                                         int size, int sign);
 void TCG_HELPER_PROTO helper_st_asi(target_ulong addr, uint64_t val, int asi,
@@ -67,11 +65,9 @@ void TCG_HELPER_PROTO helper_fcmps(void);
 void TCG_HELPER_PROTO helper_fcmpd(void);
 void TCG_HELPER_PROTO helper_fcmpes(void);
 void TCG_HELPER_PROTO helper_fcmped(void);
-#if defined(CONFIG_USER_ONLY)
 void TCG_HELPER_PROTO helper_fsqrtq(void);
 void TCG_HELPER_PROTO helper_fcmpq(void);
 void TCG_HELPER_PROTO helper_fcmpeq(void);
-#endif
 #ifdef TARGET_SPARC64
 void TCG_HELPER_PROTO helper_fabsd(void);
 void TCG_HELPER_PROTO helper_fcmps_fcc1(void);
@@ -86,7 +82,6 @@ void TCG_HELPER_PROTO helper_fcmpes_fcc2(void);
 void TCG_HELPER_PROTO helper_fcmped_fcc2(void);
 void TCG_HELPER_PROTO helper_fcmpes_fcc3(void);
 void TCG_HELPER_PROTO helper_fcmped_fcc3(void);
-#if defined(CONFIG_USER_ONLY)
 void TCG_HELPER_PROTO helper_fabsq(void);
 void TCG_HELPER_PROTO helper_fcmpq_fcc1(void);
 void TCG_HELPER_PROTO helper_fcmpq_fcc2(void);
@@ -95,19 +90,12 @@ void TCG_HELPER_PROTO helper_fcmpeq_fcc1(void);
 void TCG_HELPER_PROTO helper_fcmpeq_fcc2(void);
 void TCG_HELPER_PROTO helper_fcmpeq_fcc3(void);
 #endif
-#endif
 void TCG_HELPER_PROTO raise_exception(int tt);
 #define F_HELPER_0_0(name) void TCG_HELPER_PROTO helper_f ## name(void)
-#if defined(CONFIG_USER_ONLY)
 #define F_HELPER_SDQ_0_0(name)                  \
     F_HELPER_0_0(name ## s);                    \
     F_HELPER_0_0(name ## d);                    \
     F_HELPER_0_0(name ## q)
-#else
-#define F_HELPER_SDQ_0_0(name)                  \
-    F_HELPER_0_0(name ## s);                    \
-    F_HELPER_0_0(name ## d);
-#endif
 
 F_HELPER_SDQ_0_0(add);
 F_HELPER_SDQ_0_0(sub);
@@ -124,23 +112,17 @@ F_HELPER_SDQ_0_0(xto);
 #endif
 F_HELPER_0_0(dtos);
 F_HELPER_0_0(stod);
-#if defined(CONFIG_USER_ONLY)
 F_HELPER_0_0(qtos);
 F_HELPER_0_0(stoq);
 F_HELPER_0_0(qtod);
 F_HELPER_0_0(dtoq);
-#endif
 F_HELPER_0_0(stoi);
 F_HELPER_0_0(dtoi);
-#if defined(CONFIG_USER_ONLY)
 F_HELPER_0_0(qtoi);
-#endif
 #ifdef TARGET_SPARC64
 F_HELPER_0_0(stox);
 F_HELPER_0_0(dtox);
-#if defined(CONFIG_USER_ONLY)
 F_HELPER_0_0(qtox);
-#endif
 F_HELPER_0_0(aligndata);
 void TCG_HELPER_PROTO helper_movl_FT0_0(void);
 void TCG_HELPER_PROTO helper_movl_DT0_0(void);
@@ -193,3 +175,11 @@ VIS_CMPHELPER(cmpne);
 #undef F_HELPER_SDQ_0_0
 #undef VIS_HELPER
 #undef VIS_CMPHELPER
+
+void cpu_lock(void);
+void cpu_unlock(void);
+void cpu_loop_exit(void);
+void set_cwp(int new_cwp);
+void memcpy32(target_ulong *dst, const target_ulong *src);
+target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev);
+void dump_mmu(CPUState *env);

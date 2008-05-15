@@ -31,7 +31,7 @@
 #define DPRINTF(fmt, args...) \
 do { printf("TIMER: " fmt , ##args); } while (0)
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, args...) do {} while (0)
 #endif
 
 /*
@@ -57,11 +57,11 @@ typedef struct SLAVIO_TIMERState {
     uint32_t count, counthigh, reached;
     uint64_t limit;
     // processor only
-    int running;
+    uint32_t running;
     struct SLAVIO_TIMERState *master;
-    int slave_index;
+    uint32_t slave_index;
     // system only
-    unsigned int num_slaves;
+    uint32_t num_slaves;
     struct SLAVIO_TIMERState *slave[MAX_CPUS];
     uint32_t slave_mode;
 } SLAVIO_TIMERState;
@@ -206,7 +206,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
             s->limit = val & TIMER_MAX_COUNT32;
             if (s->timer) {
                 if (s->limit == 0) /* free-run */
-                    ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
+                    ptimer_set_limit(s->timer,
+                                     LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
                 else
                     ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 1);
             }
@@ -233,7 +234,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
         s->limit = val & TIMER_MAX_COUNT32;
         if (s->timer) {
             if (s->limit == 0)	/* free-run */
-                ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
+                ptimer_set_limit(s->timer,
+                                 LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
             else
                 ptimer_set_limit(s->timer, LIMIT_TO_PERIODS(s->limit), 0);
         }
@@ -271,7 +273,8 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
                         // user timer limit is always the same
                         s->slave[i]->limit = TIMER_MAX_COUNT64;
                         ptimer_set_limit(s->slave[i]->timer,
-                                         LIMIT_TO_PERIODS(s->slave[i]->limit), 1);
+                                         LIMIT_TO_PERIODS(s->slave[i]->limit),
+                                         1);
                         // set this processors user timer bit in config
                         // register
                         s->slave_mode |= processor;
@@ -363,7 +366,7 @@ static void slavio_timer_reset(void *opaque)
 static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
                                             qemu_irq irq,
                                             SLAVIO_TIMERState *master,
-                                            int slave_index)
+                                            uint32_t slave_index)
 {
     int slavio_timer_io_memory;
     SLAVIO_TIMERState *s;

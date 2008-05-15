@@ -107,11 +107,10 @@ typedef struct CPUCRISState {
 	/* Pseudo register for the kernel stack.  */
 	uint32_t ksp;
 
-	/* These are setup up by the guest code just before transfering the
-	   control back to the host.  */
-	int jmp;
-	uint32_t btarget;
+	/* Branch.  */
+	int dslot;
 	int btaken;
+	uint32_t btarget;
 
 	/* Condition flag tracking.  */
 	uint32_t cc_op;
@@ -119,10 +118,8 @@ typedef struct CPUCRISState {
 	uint32_t cc_dest;
 	uint32_t cc_src;
 	uint32_t cc_result;
-
 	/* size of the operation, 1 = byte, 2 = word, 4 = dword.  */
 	int cc_size;
-
 	/* Extended arithmetics.  */
 	int cc_x_live;
 	int cc_x;
@@ -137,13 +134,6 @@ typedef struct CPUCRISState {
 	uint32_t debug2;
 	uint32_t debug3;
 
-	struct
-	{
-		int exec_insns;
-		int exec_loads;
-		int exec_stores;
-	} stats;
-
 	/* FIXME: add a check in the translator to avoid writing to support
 	   register sets beyond the 4th. The ISA allows up to 256! but in
 	   practice there is no core that implements more than 4.
@@ -152,6 +142,11 @@ typedef struct CPUCRISState {
 	   core. Accesses do not pass down the normal hierarchy.
 	*/
 	uint32_t sregs[4][16];
+
+	/* Linear feedback shift reg in the mmu. Used to provide pseudo
+	   randomness for the 'hint' the mmu gives to sw for chosing valid
+	   sets on TLB refills.  */
+	uint32_t mmu_rand_lfsr;
 
 	/*
 	 * We just store the stores to the tlbset here for later evaluation

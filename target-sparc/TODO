@@ -1,0 +1,89 @@
+TODO-list:
+
+CPU common:
+- Unimplemented features/bugs:
+ - Delay slot handling may fail sometimes (branch end of page, delay
+ slot next page)
+ - Atomical instructions
+ - CPU features should match real CPUs (also ASI selection)
+- Optimizations/improvements:
+ - Condition code/branch handling like x86, also for FPU?
+ - Remove explicit alignment checks
+ - Global register for regwptr, so that windowed registers can be
+ accessed directly
+ - Improve Sparc32plus addressing
+ - NPC/PC static optimisations (use JUMP_TB when possible)? (Is this
+ obsolete?)
+ - Synthetic instructions
+ - MMU model dependant on CPU model
+ - Select ASI helper at translation time (on V9 only if known)
+ - KQemu/KVM support for VM only
+ - Hardware breakpoint/watchpoint support
+ - Cache emulation mode
+ - Reverse-endian pages
+ - Faster FPU emulation
+ - Busy loop detection
+
+Sparc32 CPUs:
+- Unimplemented features/bugs:
+ - Sun4/Sun4c MMUs
+ - Some V8 ASIs
+
+Sparc64 CPUs:
+- Unimplemented features/bugs:
+ - Interrupt handling
+ - Secondary address space, other MMU functions
+ - Many V9/UA2005/UA2007 ASIs
+ - Rest of V9 instructions, missing VIS instructions
+ - IG/MG/AG vs. UA2007 globals
+ - Full hypervisor support
+ - SMP/CMT
+ - Sun4v CPUs
+- Optimizations/improvements:
+ - Use TCG logic ops for VIS when possible
+
+Sun4:
+- To be added
+
+Sun4c:
+- A lot of unimplemented features
+- Maybe split from Sun4m
+
+Sun4m:
+- Unimplemented features/bugs:
+ - Hardware devices do not match real boards
+ - Floppy does not work
+ - Missing keys, sendkey support for all keys
+ - CS4231 (DMA, make sound, make available for PC)
+ - Add cg6, bwtwo
+ - Arbitrary resolution support
+ - PCI for MicroSparc-IIe
+ - JavaStation machines
+ - SBus slot probing
+ - SMP probing support
+ - Interrupt routing does not match real HW
+ - SuSE 7.3 keyboard sometimes unresponsive
+ - Gentoo 2004.1 SMP does not work
+ - SS600MP ledma -> lebuffer
+ - Type 5 keyboard
+ - Less fixed hardware choices
+ - DBRI audio (Am7930)
+ - BPP parallel
+ - Diagnostic switch
+
+Sun4d:
+- A lot of unimplemented features:
+ - SBI
+ - IO-unit
+- Maybe split from Sun4m
+
+Sun4u:
+- Unimplemented features/bugs:
+ - Interrupt controller
+ - PCI/IOMMU support (Simba, JIO, Tomatillo, Psycho, Schizo, Safari...)
+ - SMP
+ - Happy Meal Ethernet, flash, I2C, GPIO
+ - A lot of real machine types
+
+Sun4v:
+- To be added

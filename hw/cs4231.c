@@ -98,7 +98,8 @@ static void cs_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     DPRINTF("write reg[%d]: 0x%8.8x -> 0x%8.8x\n", saddr, s->regs[saddr], val);
     switch (saddr) {
     case 1:
-        DPRINTF("write dreg[%d]: 0x%2.2x -> 0x%2.2x\n", CS_RAP(s), s->dregs[CS_RAP(s)], val);
+        DPRINTF("write dreg[%d]: 0x%2.2x -> 0x%2.2x\n", CS_RAP(s),
+                s->dregs[CS_RAP(s)], val);
         switch(CS_RAP(s)) {
         case 11:
         case 25: // Read only

@@ -167,7 +167,6 @@ extern int printf(const char *, ...);
 #define AREG11 "l7"
 #endif
 #endif
-#define USE_FP_CONVERT
 #elif defined(__s390__)
 #define AREG0 "r10"
 #define AREG1 "r7"

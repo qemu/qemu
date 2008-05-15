@@ -73,6 +73,8 @@ const int tcg_target_call_oarg_regs[2] = {
     TCG_REG_RDX 
 };
 
+static uint8_t *tb_ret_addr;
+
 static void patch_reloc(uint8_t *code_ptr, int type, 
                         tcg_target_long value, tcg_target_long addend)
 {
@@ -213,7 +215,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 
 #define P_EXT   0x100 /* 0x0f opcode prefix */
 #define P_REXW  0x200 /* set rex.w = 1 */
-#define P_REX   0x400 /* force rex usage */
+#define P_REXB  0x400 /* force rex use for byte registers */
                                   
 static const uint8_t tcg_cond_to_jcc[10] = {
     [TCG_COND_EQ] = JCC_JE,
@@ -233,7 +235,7 @@ static inline void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
     int rex;
     rex = ((opc >> 6) & 0x8) | ((r >> 1) & 0x4) | 
         ((x >> 2) & 2) | ((rm >> 3) & 1);
-    if (rex || (opc & P_REX)) {
+    if (rex || (opc & P_REXB)) {
         tcg_out8(s, rex | 0x40);
     }
     if (opc & P_EXT)
@@ -746,7 +748,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0:
         /* movzbl */
-        tcg_out_modrm(s, 0xb6 | P_EXT, TCG_REG_RSI, data_reg);
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB, TCG_REG_RSI, data_reg);
         break;
     case 1:
         /* movzwl */
@@ -789,7 +791,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0:
         /* movb */
-        tcg_out_modrm_offset(s, 0x88 | P_REX, data_reg, r0, 0);
+        tcg_out_modrm_offset(s, 0x88 | P_REXB, data_reg, r0, 0);
         break;
     case 1:
         if (bswap) {
@@ -841,7 +843,8 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     switch(opc) {
     case INDEX_op_exit_tb:
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_RAX, args[0]);
-        tcg_out8(s, 0xc3); /* ret */
+        tcg_out8(s, 0xe9); /* jmp tb_ret_addr */
+        tcg_out32(s, tb_ret_addr - s->code_ptr - 4);
         break;
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
@@ -926,7 +929,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_st8_i32:
     case INDEX_op_st8_i64:
         /* movb */
-        tcg_out_modrm_offset(s, 0x88 | P_REX, args[0], args[1], args[2]);
+        tcg_out_modrm_offset(s, 0x88 | P_REXB, args[0], args[1], args[2]);
         break;
     case INDEX_op_st16_i32:
     case INDEX_op_st16_i64:
@@ -1089,6 +1092,13 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_opc(s, (0xc8 + (args[0] & 7)) | P_EXT | P_REXW, 0, args[0], 0);
         break;
 
+    case INDEX_op_neg_i32:
+        tcg_out_modrm(s, 0xf7, 3, args[0]);
+        break;
+    case INDEX_op_neg_i64:
+        tcg_out_modrm(s, 0xf7 | P_REXW, 3, args[0]);
+        break;
+
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
         break;
@@ -1127,6 +1137,56 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     default:
         tcg_abort();
     }
+}
+
+static int tcg_target_callee_save_regs[] = {
+    TCG_REG_RBP,
+    TCG_REG_RBX,
+    TCG_REG_R12,
+    TCG_REG_R13,
+    /*    TCG_REG_R14, */ /* currently used for the global env, so no
+                             need to save */
+    TCG_REG_R15,
+};
+
+static inline void tcg_out_push(TCGContext *s, int reg)
+{
+    tcg_out_opc(s, (0x50 + (reg & 7)), 0, reg, 0);
+}
+
+static inline void tcg_out_pop(TCGContext *s, int reg)
+{
+    tcg_out_opc(s, (0x58 + (reg & 7)), 0, reg, 0);
+}
+
+/* Generate global QEMU prologue and epilogue code */
+void tcg_target_qemu_prologue(TCGContext *s)
+{
+    int i, frame_size, push_size, stack_addend;
+
+    /* TB prologue */
+    /* save all callee saved registers */
+    for(i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
+        tcg_out_push(s, tcg_target_callee_save_regs[i]);
+
+    }
+    /* reserve some stack space */
+    push_size = 8 + ARRAY_SIZE(tcg_target_callee_save_regs) * 8;
+    frame_size = push_size + TCG_STATIC_CALL_ARGS_SIZE;
+    frame_size = (frame_size + TCG_TARGET_STACK_ALIGN - 1) & 
+        ~(TCG_TARGET_STACK_ALIGN - 1);
+    stack_addend = frame_size - push_size;
+    tcg_out_addi(s, TCG_REG_RSP, -stack_addend);
+
+    tcg_out_modrm(s, 0xff, 4, TCG_REG_RDI); /* jmp *%rdi */
+    
+    /* TB epilogue */
+    tb_ret_addr = s->code_ptr;
+    tcg_out_addi(s, TCG_REG_RSP, stack_addend);
+    for(i = ARRAY_SIZE(tcg_target_callee_save_regs) - 1; i >= 0; i--) {
+        tcg_out_pop(s, tcg_target_callee_save_regs[i]);
+    }
+    tcg_out8(s, 0xc3); /* ret */
 }
 
 static const TCGTargetOpDef x86_64_op_defs[] = {
@@ -1194,6 +1254,9 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
     { INDEX_op_bswap_i32, { "r", "0" } },
     { INDEX_op_bswap_i64, { "r", "0" } },
 
+    { INDEX_op_neg_i32, { "r", "0" } },
+    { INDEX_op_neg_i64, { "r", "0" } },
+
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },
     { INDEX_op_qemu_ld16u, { "r", "L" } },
@@ -1212,6 +1275,10 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
 
 void tcg_target_init(TCGContext *s)
 {
+    /* fail safe */
+    if ((1 << CPU_TLB_ENTRY_BITS) != sizeof(CPUTLBEntry))
+        tcg_abort();
+
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffff);
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, 0xffff);
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
@@ -1227,10 +1294,6 @@ void tcg_target_init(TCGContext *s)
     
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RSP);
-    /* XXX: will be suppresed when proper global TB entry code will be
-       generated */
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_RBX);
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_RBP);
-    
+
     tcg_add_target_add_op_defs(x86_64_op_defs);
 }

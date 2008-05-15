@@ -43,6 +43,7 @@
 #define TT_TOVF     0x0a
 #define TT_EXTINT   0x10
 #define TT_CODE_ACCESS 0x21
+#define TT_UNIMP_FLUSH 0x25
 #define TT_DATA_ACCESS 0x29
 #define TT_DIV_ZERO 0x2a
 #define TT_NCP_INSN 0x24
@@ -52,6 +53,7 @@
 #define TT_TMISS    0x09
 #define TT_CODE_ACCESS 0x0a
 #define TT_ILL_INSN 0x10
+#define TT_UNIMP_FLUSH TT_ILL_INSN
 #define TT_PRIV_INSN 0x11
 #define TT_NFPU_INSN 0x20
 #define TT_FP_EXCP  0x21
@@ -186,7 +188,6 @@ typedef struct trap_state {
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
-    float32 fpr[TARGET_FPREGS];  /* floating point registers */
     target_ulong pc;       /* program counter */
     target_ulong npc;      /* next program counter */
     target_ulong y;        /* multiply/divide register */
@@ -195,8 +196,13 @@ typedef struct CPUSPARCState {
     target_ulong cc_src, cc_src2;
     target_ulong cc_dst;
 
+    target_ulong t0, t1; /* temporaries live across basic blocks */
+    target_ulong cond; /* conditional branch result (XXX: save it in a
+                          temporary register when possible) */
+
     uint32_t psr;      /* processor state register */
     target_ulong fsr;      /* FPU state register */
+    float32 fpr[TARGET_FPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted
                           from PSR) */
     uint32_t wim;      /* window invalid mask */
@@ -244,13 +250,10 @@ typedef struct CPUSPARCState {
     /* temporary float registers */
     float32 ft0, ft1;
     float64 dt0, dt1;
-#if defined(CONFIG_USER_ONLY)
     float128 qt0, qt1;
-#endif
     float_status fp_status;
 #if defined(TARGET_SPARC64)
 #define MAXTL 4
-    uint64_t t0;
     trap_state *tsptr;
     trap_state ts[MAXTL];
     uint32_t xcc;               /* Extended integer condition codes */
@@ -271,8 +274,32 @@ typedef struct CPUSPARCState {
     uint64_t hpstate, htstate[MAXTL], hintp, htba, hver, hstick_cmpr, ssr;
     void *hstick; // UA 2005
 #endif
-    target_ulong t1, t2;
+    uint32_t features;
 } CPUSPARCState;
+
+#define CPU_FEATURE_FLOAT    (1 << 0)
+#define CPU_FEATURE_FLOAT128 (1 << 1)
+#define CPU_FEATURE_SWAP     (1 << 2)
+#define CPU_FEATURE_MUL      (1 << 3)
+#define CPU_FEATURE_DIV      (1 << 4)
+#define CPU_FEATURE_FLUSH    (1 << 5)
+#define CPU_FEATURE_FSQRT    (1 << 6)
+#define CPU_FEATURE_FMUL     (1 << 7)
+#define CPU_FEATURE_VIS1     (1 << 8)
+#define CPU_FEATURE_VIS2     (1 << 9)
+#ifndef TARGET_SPARC64
+#define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
+                              CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
+                              CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
+                              CPU_FEATURE_FMUL)
+#else
+#define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
+                              CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
+                              CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
+                              CPU_FEATURE_FMUL | CPU_FEATURE_VIS1 |   \
+                              CPU_FEATURE_VIS2)
+#endif
+
 #if defined(TARGET_SPARC64)
 #define GET_FSR32(env) (env->fsr & 0xcfc1ffff)
 #define PUT_FSR32(env, val) do { uint32_t _tmp = val;                   \
@@ -292,7 +319,6 @@ typedef struct CPUSPARCState {
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);
 void gen_intermediate_code_init(CPUSPARCState *env);
 int cpu_sparc_exec(CPUSPARCState *s);
-int cpu_sparc_close(CPUSPARCState *s);
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
                                                  ...));
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
@@ -321,7 +347,7 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
 #ifdef TARGET_SPARC64
 #define GET_CCR(env) (((env->xcc >> 20) << 4) | ((env->psr & PSR_ICC) >> 20))
 #define PUT_CCR(env, val) do { int _tmp = val;                          \
-        env->xcc = (_tmp >> 4) << 20;                                           \
+        env->xcc = (_tmp >> 4) << 20;                                   \
         env->psr = (_tmp & 0xf) << 20;                                  \
     } while (0)
 #define GET_CWP64(env) (NWINDOWS - 1 - (env)->cwp)
@@ -352,30 +378,30 @@ void cpu_check_irqs(CPUSPARCState *env);
 #define MMU_KERNEL_IDX 1
 #define MMU_HYPV_IDX   2
 
-static inline int cpu_mmu_index (CPUState *env)
+static inline int cpu_mmu_index(CPUState *env1)
 {
 #if defined(CONFIG_USER_ONLY)
     return MMU_USER_IDX;
 #elif !defined(TARGET_SPARC64)
-    return env->psrs;
+    return env1->psrs;
 #else
-    if (!env->psrs)
+    if (!env1->psrs)
         return MMU_USER_IDX;
-    else if ((env->hpstate & HS_PRIV) == 0)
+    else if ((env1->hpstate & HS_PRIV) == 0)
         return MMU_KERNEL_IDX;
     else
         return MMU_HYPV_IDX;
 #endif
 }
 
-static inline int cpu_fpu_enabled(CPUState *env)
+static inline int cpu_fpu_enabled(CPUState *env1)
 {
 #if defined(CONFIG_USER_ONLY)
     return 1;
 #elif !defined(TARGET_SPARC64)
-    return env->psref;
+    return env1->psref;
 #else
-    return ((env->pstate & PS_PEF) != 0) && ((env->fprs & FPRS_FEF) != 0);
+    return ((env1->pstate & PS_PEF) != 0) && ((env1->fprs & FPRS_FEF) != 0);
 #endif
 }
 

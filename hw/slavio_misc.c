@@ -381,10 +381,9 @@ static CPUWriteMemoryFunc *slavio_led_mem_write[3] = {
 static void slavio_misc_save(QEMUFile *f, void *opaque)
 {
     MiscState *s = opaque;
-    int tmp;
+    uint32_t tmp = 0;
     uint8_t tmp8;
 
-    tmp = 0;
     qemu_put_be32s(f, &tmp); /* ignored, was IRQ.  */
     qemu_put_8s(f, &s->config);
     qemu_put_8s(f, &s->aux1);
@@ -398,7 +397,7 @@ static void slavio_misc_save(QEMUFile *f, void *opaque)
 static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
 {
     MiscState *s = opaque;
-    int tmp;
+    uint32_t tmp;
     uint8_t tmp8;
 
     if (version_id != 1)

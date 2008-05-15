@@ -97,9 +97,10 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 		r = tlb_set_page(env, address, phy, prot, mmu_idx, is_softmmu);
 	}
 	if (r > 0)
-		D(fprintf(logfile, "%s returns %d irqreq=%x addr=%x ismmu=%d vec=%x\n", 
-			 __func__, r, env->interrupt_request, 
-			 address, is_softmmu, res.bf_vec));
+		D(fprintf(logfile, "%s returns %d irqreq=%x addr=%x"
+			  " phy=%x ismmu=%d vec=%x pc=%x\n", 
+			  __func__, r, env->interrupt_request, 
+			  address, res.phy, is_softmmu, res.bf_vec, env->pc));
 	return r;
 }
 
@@ -138,13 +139,19 @@ void do_interrupt(CPUState *env)
 			break;
 	}
 
-	if ((env->pregs[PR_CCS] & U_FLAG)) {
-		D(fprintf(logfile, "excp isr=%x PC=%x SP=%x ERP=%x pid=%x ccs=%x cc=%d %x\n",
-			  ex_vec, env->pc,
+	if (env->dslot) {
+		D(fprintf(logfile, "excp isr=%x PC=%x ds=%d SP=%x"
+			  " ERP=%x pid=%x ccs=%x cc=%d %x\n",
+			  ex_vec, env->pc, env->dslot,
 			  env->regs[R_SP],
 			  env->pregs[PR_ERP], env->pregs[PR_PID],
 			  env->pregs[PR_CCS],
 			  env->cc_op, env->cc_mask));
+		/* We loose the btarget, btaken state here so rexec the
+		   branch.  */
+		env->pregs[PR_ERP] -= env->dslot;
+		/* Exception starts with dslot cleared.  */
+		env->dslot = 0;
 	}
 	
 	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);

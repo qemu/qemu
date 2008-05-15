@@ -518,12 +518,6 @@ typedef struct CPUX86State {
     /* emulator internal variables */
     float_status fp_status;
     CPU86_LDouble ft0;
-    union {
-	float f;
-        double d;
-	int i32;
-        int64_t i64;
-    } fp_convert;
 
     float_status mmx_status; /* for 3DNow! float ops */
     float_status sse_status;

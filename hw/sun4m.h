@@ -41,6 +41,8 @@ void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
 /* sun4c_intctl.c */
 void *sun4c_intctl_init(target_phys_addr_t addr, qemu_irq **irq,
                         qemu_irq *parent_irq);
+void sun4c_pic_info(void *opaque);
+void sun4c_irq_info(void *opaque);
 
 /* slavio_timer.c */
 void slavio_timer_init_all(target_phys_addr_t base, qemu_irq master_irq,

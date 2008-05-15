@@ -41,7 +41,7 @@
 #define DPRINTF(fmt, args...) \
 do { printf("ESP: " fmt , ##args); } while (0)
 #else
-#define DPRINTF(fmt, args...)
+#define DPRINTF(fmt, args...) do {} while (0)
 #endif
 
 #define ESP_REGS 16
@@ -57,13 +57,13 @@ struct ESPState {
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
     uint8_t ti_buf[TI_BUFSZ];
-    int sense;
-    int dma;
+    uint32_t sense;
+    uint32_t dma;
     SCSIDevice *scsi_dev[ESP_MAX_DEVS];
     SCSIDevice *current_dev;
     uint8_t cmdbuf[TI_BUFSZ];
-    int cmdlen;
-    int do_cmd;
+    uint32_t cmdlen;
+    uint32_t do_cmd;
 
     /* The amount of data left in the current DMA transfer.  */
     uint32_t dma_left;
@@ -159,7 +159,7 @@ static void esp_lower_irq(ESPState *s)
     }
 }
 
-static int get_cmd(ESPState *s, uint8_t *buf)
+static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 {
     uint32_t dmalen;
     int target;
