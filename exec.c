@@ -1338,11 +1338,6 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
 #ifdef TARGET_I386
-    if(env->intercept & INTERCEPT_SVM_MASK) {
-	/* most probably the virtual machine should not
-	   be shut down but rather caught by the VMM */
-        vmexit(SVM_EXIT_SHUTDOWN, 0);
-    }
     cpu_dump_state(env, stderr, fprintf, X86_DUMP_FPU | X86_DUMP_CCOP);
 #else
     cpu_dump_state(env, stderr, fprintf, 0);
