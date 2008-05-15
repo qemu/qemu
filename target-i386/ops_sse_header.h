@@ -104,7 +104,7 @@ void glue(helper_pmuludq, SUFFIX) (Reg *d, Reg *s);
 void glue(helper_pmaddwd, SUFFIX) (Reg *d, Reg *s);
 
 void glue(helper_psadbw, SUFFIX) (Reg *d, Reg *s);
-void glue(helper_maskmov, SUFFIX) (Reg *d, Reg *s);
+void glue(helper_maskmov, SUFFIX) (Reg *d, Reg *s, target_ulong a0);
 void glue(helper_movl_mm_T0, SUFFIX) (Reg *d, uint32_t val);
 #ifdef TARGET_X86_64
 void glue(helper_movq_mm_T0, SUFFIX) (Reg *d, uint64_t val);

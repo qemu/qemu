@@ -471,12 +471,12 @@ void glue(helper_psadbw, SUFFIX) (Reg *d, Reg *s)
 #endif
 }
 
-void glue(helper_maskmov, SUFFIX) (Reg *d, Reg *s)
+void glue(helper_maskmov, SUFFIX) (Reg *d, Reg *s, target_ulong a0)
 {
     int i;
     for(i = 0; i < (8 << SHIFT); i++) {
         if (s->B(i) & 0x80)
-            stb(A0 + i, d->B(i));
+            stb(a0 + i, d->B(i));
     }
     FORCE_RET();
 }

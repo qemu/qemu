@@ -554,39 +554,6 @@ void OPPROTO glue(op_movl_T0_Dshift, SUFFIX)(void)
     T0 = DF << SHIFT;
 }
 
-/* port I/O */
-#if DATA_BITS <= 32
-void OPPROTO glue(glue(op_out, SUFFIX), _T0_T1)(void)
-{
-    glue(cpu_out, SUFFIX)(env, T0, T1 & DATA_MASK);
-}
-
-void OPPROTO glue(glue(op_in, SUFFIX), _T0_T1)(void)
-{
-    T1 = glue(cpu_in, SUFFIX)(env, T0);
-}
-
-void OPPROTO glue(glue(op_in, SUFFIX), _DX_T0)(void)
-{
-    T0 = glue(cpu_in, SUFFIX)(env, EDX & 0xffff);
-}
-
-void OPPROTO glue(glue(op_out, SUFFIX), _DX_T0)(void)
-{
-    glue(cpu_out, SUFFIX)(env, EDX & 0xffff, T0);
-}
-
-void OPPROTO glue(glue(op_check_io, SUFFIX), _T0)(void)
-{
-    glue(glue(check_io, SUFFIX), _T0)();
-}
-
-void OPPROTO glue(glue(op_check_io, SUFFIX), _DX)(void)
-{
-    glue(glue(check_io, SUFFIX), _DX)();
-}
-#endif
-
 #undef DATA_BITS
 #undef SHIFT_MASK
 #undef SHIFT1_MASK
