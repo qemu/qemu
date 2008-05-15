@@ -169,14 +169,31 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define INSN_OFF22(x) (((x) >> 2) & 0x3fffff)
 
 #define INSN_COND(x, a) (((x) << 25) | ((a) << 29))
+#define COND_N     0x0
+#define COND_E     0x1
+#define COND_LE    0x2
+#define COND_L     0x3
+#define COND_LEU   0x4
+#define COND_CS    0x5
+#define COND_NEG   0x6
+#define COND_VS    0x7
 #define COND_A     0x8
+#define COND_NE    0x9
+#define COND_G     0xa
+#define COND_GE    0xb
+#define COND_GU    0xc
+#define COND_CC    0xd
+#define COND_POS   0xe
+#define COND_VC    0xf
 #define BA         (INSN_OP(0) | INSN_COND(COND_A, 0) | INSN_OP2(0x2))
 
 #define ARITH_ADD  (INSN_OP(2) | INSN_OP3(0x00))
 #define ARITH_AND  (INSN_OP(2) | INSN_OP3(0x01))
+#define ARITH_ANDCC (INSN_OP(2) | INSN_OP3(0x11))
 #define ARITH_OR   (INSN_OP(2) | INSN_OP3(0x02))
 #define ARITH_XOR  (INSN_OP(2) | INSN_OP3(0x03))
 #define ARITH_SUB  (INSN_OP(2) | INSN_OP3(0x08))
+#define ARITH_SUBCC (INSN_OP(2) | INSN_OP3(0x18))
 #define ARITH_ADDX (INSN_OP(2) | INSN_OP3(0x10))
 #define ARITH_SUBX (INSN_OP(2) | INSN_OP3(0x0c))
 #define ARITH_UMUL (INSN_OP(2) | INSN_OP3(0x0a))
@@ -264,8 +281,11 @@ static inline void tcg_out_ldst(TCGContext *s, int ret, int addr, int offset, in
     if (check_fit(offset, 13))
         tcg_out32(s, op | INSN_RD(ret) | INSN_RS1(addr) |
                   INSN_IMM13(offset));
-    else
-        fprintf(stderr, "unimplemented %s with offset %d\n", __func__, offset);
+    else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I5, offset);
+        tcg_out32(s, op | INSN_RD(ret) | INSN_RS1(TCG_REG_I5) |
+                  INSN_RS2(addr));
+    }
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
@@ -323,12 +343,52 @@ static inline void tcg_out_nop(TCGContext *s)
     tcg_out32(s, SETHI | INSN_RD(TCG_REG_G0) | 0);
 }
 
+static void tcg_out_branch(TCGContext *s, int opc, int label_index)
+{
+    int32_t val;
+    TCGLabel *l = &s->labels[label_index];
+
+    if (l->has_value) {
+        val = l->u.value - (tcg_target_long)s->code_ptr;
+        tcg_out32(s, (INSN_OP(0) | opc | INSN_OP2(0x2)
+                      | INSN_OFF22(l->u.value - (unsigned long)s->code_ptr)));
+    } else
+        fprintf(stderr, "unimplemented branch\n");
+}
+
+static const uint8_t tcg_cond_to_bcond[10] = {
+    [TCG_COND_EQ] = COND_E,
+    [TCG_COND_NE] = COND_NE,
+    [TCG_COND_LT] = COND_L,
+    [TCG_COND_GE] = COND_GE,
+    [TCG_COND_LE] = COND_LE,
+    [TCG_COND_GT] = COND_G,
+    [TCG_COND_LTU] = COND_CS,
+    [TCG_COND_GEU] = COND_CC,
+    [TCG_COND_LEU] = COND_LEU,
+    [TCG_COND_GTU] = COND_GU,
+};
+
+static void tcg_out_brcond(TCGContext *s, int cond,
+                           TCGArg arg1, TCGArg arg2, int const_arg2,
+                           int label_index)
+{
+    if (const_arg2 && arg2 == 0)
+        /* andcc r, r, %g0 */
+        tcg_out_arithi(s, TCG_REG_G0, arg1, arg1, ARITH_ANDCC);
+    else
+        /* subcc r1, r2, %g0 */
+        tcg_out_arith(s, TCG_REG_G0, arg1, arg2, ARITH_SUBCC);
+    tcg_out_branch(s, tcg_cond_to_bcond[cond], label_index);
+    tcg_out_nop(s);
+}
+
 /* Generate global QEMU prologue and epilogue code */
 void tcg_target_qemu_prologue(TCGContext *s)
 {
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
               INSN_IMM13(-TCG_TARGET_STACK_MINFRAME));
-    tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_O0) |
+    tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I0) |
               INSN_RS2(TCG_REG_G0));
     tcg_out_nop(s);
 }
@@ -349,14 +409,10 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* direct jump method */
-            if (check_fit(args[0] - (unsigned long)s->code_ptr, 26)) {
-                tcg_out32(s, BA |
-                          INSN_OFF22(args[0] - (unsigned long)s->code_ptr));
-            } else {
-                tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I5, args[0]);
-                tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I5) |
-                          INSN_RS2(TCG_REG_G0));
-            }
+            tcg_out32(s, SETHI | INSN_RD(TCG_REG_I5) |
+                      ((args[0] & 0xffffe000) >> 10));
+            tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I5) |
+                      INSN_IMM13((args[0] & 0x1fff)));
             s->tb_jmp_offset[args[0]] = s->code_ptr - s->code_buf;
         } else {
             /* indirect jump method */
@@ -374,8 +430,8 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
                                  & 0x3fffffff));
             tcg_out_nop(s);
         } else {
-            tcg_out_ld_ptr(s, TCG_REG_O7, (tcg_target_long)(s->tb_next + args[0]));
-            tcg_out32(s, JMPL | INSN_RD(TCG_REG_O7) | INSN_RS1(TCG_REG_O7) |
+            tcg_out_ld_ptr(s, TCG_REG_I5, (tcg_target_long)(s->tb_next + args[0]));
+            tcg_out32(s, JMPL | INSN_RD(TCG_REG_O7) | INSN_RS1(TCG_REG_I5) |
                       INSN_RS2(TCG_REG_G0));
             tcg_out_nop(s);
         }
@@ -475,7 +531,8 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
 #endif
 
     case INDEX_op_brcond_i32:
-        fprintf(stderr, "unimplemented brcond\n");
+        tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
+                       args[3]);
         break;
 
     case INDEX_op_qemu_ld8u:
