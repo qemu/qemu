@@ -134,7 +134,12 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     return 0;
 }
 
-#define ABS(x) ((x) < 0? -(x) : (x))
+static inline int check_fit(tcg_target_long val, unsigned int bits)
+{
+    return ((val << ((sizeof(tcg_target_long) * 8 - bits))
+             >> (sizeof(tcg_target_long) * 8 - bits)) == val);
+}
+
 /* test if a constant matches the constraint */
 static inline int tcg_target_const_match(tcg_target_long val,
                                          const TCGArgConstraint *arg_ct)
@@ -144,9 +149,9 @@ static inline int tcg_target_const_match(tcg_target_long val,
     ct = arg_ct->ct;
     if (ct & TCG_CT_CONST)
         return 1;
-    else if ((ct & TCG_CT_CONST_S11) && ABS(val) == (ABS(val) & 0x3ff))
+    else if ((ct & TCG_CT_CONST_S11) && check_fit(val, 11))
         return 1;
-    else if ((ct & TCG_CT_CONST_S13) && ABS(val) == (ABS(val) & 0xfff))
+    else if ((ct & TCG_CT_CONST_S13) && check_fit(val, 13))
         return 1;
     else
         return 0;
@@ -217,10 +222,10 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
                                 int ret, tcg_target_long arg)
 {
 #if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
-    if (arg != (arg & 0xffffffff))
+    if (!check_fit(arg, 32))
         fprintf(stderr, "unimplemented %s with constant %ld\n", __func__, arg);
 #endif
-    if (arg == (arg & 0xfff))
+    if (check_fit(arg, 13))
         tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS1(TCG_REG_G0) |
                   INSN_IMM13(arg));
     else {
@@ -243,9 +248,9 @@ static inline void tcg_out_ld_ptr(TCGContext *s, int ret,
                                   tcg_target_long arg)
 {
 #if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
-    if (arg != (arg & 0xffffffff))
+    if (!check_fit(arg, 32))
         fprintf(stderr, "unimplemented %s with offset %ld\n", __func__, arg);
-    if (arg != (arg & 0xfff))
+    if (!check_fit(arg, 13))
         tcg_out32(s, SETHI | INSN_RD(ret) | (((uint32_t)arg & 0xfffffc00) >> 10));
     tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(ret) |
               INSN_IMM13(arg & 0x3ff));
@@ -256,7 +261,7 @@ static inline void tcg_out_ld_ptr(TCGContext *s, int ret,
 
 static inline void tcg_out_ldst(TCGContext *s, int ret, int addr, int offset, int op)
 {
-    if (offset == (offset & 0xfff))
+    if (check_fit(offset, 13))
         tcg_out32(s, op | INSN_RD(ret) | INSN_RS1(addr) |
                   INSN_IMM13(offset));
     else
@@ -306,7 +311,7 @@ static inline void tcg_out_sety(TCGContext *s, tcg_target_long val)
 static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
 {
     if (val != 0) {
-        if (val == (val & 0xfff))
+        if (check_fit(val, 13))
             tcg_out_arithi(s, reg, reg, val, ARITH_ADD);
         else
             fprintf(stderr, "unimplemented addi %ld\n", (long)val);
@@ -344,8 +349,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* direct jump method */
-            if (ABS(args[0] - (unsigned long)s->code_ptr) ==
-                (ABS(args[0] - (unsigned long)s->code_ptr) & 0x1fffff)) {
+            if (check_fit(args[0] - (unsigned long)s->code_ptr, 26)) {
                 tcg_out32(s, BA |
                           INSN_OFF22(args[0] - (unsigned long)s->code_ptr));
             } else {
