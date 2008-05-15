@@ -1,5 +1,7 @@
 #define TCG_HELPER_PROTO
 
+void helper_lock(void);
+void helper_unlock(void);
 void helper_divb_AL(target_ulong t0);
 void helper_idivb_AL(target_ulong t0);
 void helper_divw_AX(target_ulong t0);
@@ -7,6 +9,9 @@ void helper_idivw_AX(target_ulong t0);
 void helper_divl_EAX(target_ulong t0);
 void helper_idivl_EAX(target_ulong t0);
 #ifdef TARGET_X86_64
+void helper_mulq_EAX_T0(target_ulong t0);
+void helper_imulq_EAX_T0(target_ulong t0);
+target_ulong helper_imulq_T0_T1(target_ulong t0, target_ulong t1);
 void helper_divq_EAX(target_ulong t0);
 void helper_idivq_EAX(target_ulong t0);
 #endif
@@ -18,26 +23,34 @@ void helper_aas(void);
 void helper_daa(void);
 void helper_das(void);
 
-void helper_lsl(uint32_t selector);
-void helper_lar(uint32_t selector);
+uint32_t helper_lsl(uint32_t selector);
+uint32_t helper_lar(uint32_t selector);
 void helper_verr(uint32_t selector);
 void helper_verw(uint32_t selector);
 void helper_lldt(int selector);
 void helper_ltr(int selector);
 void helper_load_seg(int seg_reg, int selector);
-void helper_ljmp_protected_T0_T1(int next_eip);
-void helper_lcall_real_T0_T1(int shift, int next_eip);
-void helper_lcall_protected_T0_T1(int shift, int next_eip);
+void helper_ljmp_protected(int new_cs, target_ulong new_eip,
+                           int next_eip_addend);
+void helper_lcall_real(int new_cs, target_ulong new_eip1,
+                       int shift, int next_eip);
+void helper_lcall_protected(int new_cs, target_ulong new_eip, 
+                            int shift, int next_eip_addend);
 void helper_iret_real(int shift);
 void helper_iret_protected(int shift, int next_eip);
 void helper_lret_protected(int shift, int addend);
-void helper_movl_crN_T0(int reg);
-void helper_movl_drN_T0(int reg);
+void helper_movl_crN_T0(int reg, target_ulong t0);
+void helper_lmsw(target_ulong t0);
+void helper_clts(void);
+#if !defined(CONFIG_USER_ONLY)
+target_ulong helper_movtl_T0_cr8(void);
+#endif
+void helper_movl_drN_T0(int reg, target_ulong t0);
 void helper_invlpg(target_ulong addr);
 
-void helper_enter_level(int level, int data32);
+void helper_enter_level(int level, int data32, target_ulong t1);
 #ifdef TARGET_X86_64
-void helper_enter64_level(int level, int data64);
+void helper_enter64_level(int level, int data64, target_ulong t1);
 #endif
 void helper_sysenter(void);
 void helper_sysexit(void);
@@ -55,9 +68,10 @@ void helper_cli(void);
 void helper_sti(void);
 void helper_set_inhibit_irq(void);
 void helper_reset_inhibit_irq(void);
-void helper_boundw(void);
-void helper_boundl(void);
+void helper_boundw(target_ulong a0, int v);
+void helper_boundl(target_ulong a0, int v);
 void helper_rsm(void);
+void helper_cmpxchg8b(target_ulong a0);
 void helper_single_step(void);
 void helper_cpuid(void);
 void helper_rdtsc(void);
@@ -65,6 +79,20 @@ void helper_rdpmc(void);
 void helper_rdmsr(void);
 void helper_wrmsr(void);
 
+void helper_check_iob(uint32_t t0);
+void helper_check_iow(uint32_t t0);
+void helper_check_iol(uint32_t t0);
+void helper_outb(uint32_t port, uint32_t data);
+target_ulong helper_inb(uint32_t port);
+void helper_outw(uint32_t port, uint32_t data);
+target_ulong helper_inw(uint32_t port);
+void helper_outl(uint32_t port, uint32_t data);
+target_ulong helper_inl(uint32_t port);
+
+void helper_svm_check_intercept_param(uint32_t type, uint64_t param);
+void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1);
+void helper_svm_check_io(uint32_t port, uint32_t param, 
+                         uint32_t next_eip_addend);
 void helper_vmrun(void);
 void helper_vmmcall(void);
 void helper_vmload(void);

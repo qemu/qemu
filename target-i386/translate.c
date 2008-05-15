@@ -60,7 +60,7 @@
 /* global register indexes */
 static TCGv cpu_env, cpu_T[2], cpu_A0;
 /* local register indexes (only used inside old micro ops) */
-static TCGv cpu_tmp0, cpu_tmp1, cpu_tmp2, cpu_ptr0, cpu_ptr1;
+static TCGv cpu_tmp0, cpu_tmp1, cpu_tmp2, cpu_tmp3, cpu_ptr0, cpu_ptr1;
 
 #ifdef TARGET_X86_64
 static int x86_64_hregs;
@@ -903,52 +903,54 @@ static GenOpFunc1 *gen_op_string_jnz_sub[2][4] = {
     },
 };
 
-static GenOpFunc *gen_op_in_DX_T0[3] = {
-    gen_op_inb_DX_T0,
-    gen_op_inw_DX_T0,
-    gen_op_inl_DX_T0,
+static void *helper_in_func[3] = {
+    helper_inb,
+    helper_inw,
+    helper_inl,
 };
 
-static GenOpFunc *gen_op_out_DX_T0[3] = {
-    gen_op_outb_DX_T0,
-    gen_op_outw_DX_T0,
-    gen_op_outl_DX_T0,
+static void *helper_out_func[3] = {
+    helper_outb,
+    helper_outw,
+    helper_outl,
 };
 
-static GenOpFunc *gen_op_in[3] = {
-    gen_op_inb_T0_T1,
-    gen_op_inw_T0_T1,
-    gen_op_inl_T0_T1,
+static void *gen_check_io_func[3] = {
+    helper_check_iob,
+    helper_check_iow,
+    helper_check_iol,
 };
 
-static GenOpFunc *gen_op_out[3] = {
-    gen_op_outb_T0_T1,
-    gen_op_outw_T0_T1,
-    gen_op_outl_T0_T1,
-};
-
-static GenOpFunc *gen_check_io_T0[3] = {
-    gen_op_check_iob_T0,
-    gen_op_check_iow_T0,
-    gen_op_check_iol_T0,
-};
-
-static GenOpFunc *gen_check_io_DX[3] = {
-    gen_op_check_iob_DX,
-    gen_op_check_iow_DX,
-    gen_op_check_iol_DX,
-};
-
-static void gen_check_io(DisasContext *s, int ot, int use_dx, target_ulong cur_eip)
+static void gen_check_io(DisasContext *s, int ot, target_ulong cur_eip,
+                         uint32_t svm_flags)
 {
+    int state_saved;
+    target_ulong next_eip;
+
+    state_saved = 0;
     if (s->pe && (s->cpl > s->iopl || s->vm86)) {
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_jmp_im(cur_eip);
-        if (use_dx)
-            gen_check_io_DX[ot]();
-        else
-            gen_check_io_T0[ot]();
+        state_saved = 1;
+        tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+        tcg_gen_helper_0_1(gen_check_io_func[ot],
+                           cpu_tmp2);
+    }
+    if(s->flags & (1ULL << INTERCEPT_IOIO_PROT)) {
+        if (!state_saved) {
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_jmp_im(cur_eip);
+            state_saved = 1;
+        }
+        svm_flags |= (1 << (4 + ot));
+        next_eip = s->pc - s->cs_base;
+        tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+        tcg_gen_helper_0_3(helper_svm_check_io,
+                           cpu_tmp2,
+                           tcg_const_i32(svm_flags),
+                           tcg_const_i32(next_eip - cur_eip));
     }
 }
 
@@ -1080,7 +1082,10 @@ static inline void gen_ins(DisasContext *s, int ot)
     gen_string_movl_A0_EDI(s);
     gen_op_movl_T0_0();
     gen_op_st_T0_A0(ot + s->mem_index);
-    gen_op_in_DX_T0[ot]();
+    gen_op_mov_TN_reg(OT_WORD, 1, R_EDX);
+    tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[1]);
+    tcg_gen_andi_i32(cpu_tmp2, cpu_tmp2, 0xffff);
+    tcg_gen_helper_1_1(helper_in_func[ot], cpu_T[0], cpu_tmp2);
     gen_op_st_T0_A0(ot + s->mem_index);
     gen_op_movl_T0_Dshift[ot]();
 #ifdef TARGET_X86_64
@@ -1099,7 +1104,13 @@ static inline void gen_outs(DisasContext *s, int ot)
 {
     gen_string_movl_A0_ESI(s);
     gen_op_ld_T0_A0(ot + s->mem_index);
-    gen_op_out_DX_T0[ot]();
+
+    gen_op_mov_TN_reg(OT_WORD, 1, R_EDX);
+    tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[1]);
+    tcg_gen_andi_i32(cpu_tmp2, cpu_tmp2, 0xffff);
+    tcg_gen_trunc_tl_i32(cpu_tmp3, cpu_T[0]);
+    tcg_gen_helper_0_2(helper_out_func[ot], cpu_tmp2, cpu_tmp3);
+
     gen_op_movl_T0_Dshift[ot]();
 #ifdef TARGET_X86_64
     if (s->aflag == 2) {
@@ -1976,7 +1987,8 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, target_ulong cur_eip)
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_jmp_im(cur_eip);
-        gen_op_movl_seg_T0(seg_reg);
+        tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+        tcg_gen_helper_0_2(helper_load_seg, tcg_const_i32(seg_reg), cpu_tmp2);
         /* abort translation because the addseg value may change or
            because ss32 may change. For R_SS, translation must always
            stop as a special handling must be done to disable hardware
@@ -1990,28 +2002,6 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, target_ulong cur_eip)
     }
 }
 
-#define SVM_movq_T1_im(x) gen_movtl_T1_im(x)
-
-static inline int
-gen_svm_check_io(DisasContext *s, target_ulong pc_start, uint64_t type)
-{
-#if !defined(CONFIG_USER_ONLY)
-    if(s->flags & (1ULL << INTERCEPT_IOIO_PROT)) {
-        if (s->cc_op != CC_OP_DYNAMIC)
-            gen_op_set_cc_op(s->cc_op);
-        SVM_movq_T1_im(s->pc - s->cs_base);
-        gen_jmp_im(pc_start - s->cs_base);
-        gen_op_geneflags();
-        gen_op_svm_check_intercept_io((uint32_t)(type >> 32), (uint32_t)type);
-        s->cc_op = CC_OP_DYNAMIC;
-        /* FIXME: maybe we could move the io intercept vector to the TB as well
-                  so we know if this is an EOB or not ... let's assume it's not
-                  for now. */
-    }
-#endif
-    return 0;
-}
-
 static inline int svm_is_rep(int prefixes)
 {
     return ((prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) ? 8 : 0);
@@ -2019,7 +2009,7 @@ static inline int svm_is_rep(int prefixes)
 
 static inline int
 gen_svm_check_intercept_param(DisasContext *s, target_ulong pc_start,
-                              uint64_t type, uint64_t param)
+                              uint32_t type, uint64_t param)
 {
     if(!(s->flags & (INTERCEPT_SVM_MASK)))
 	/* no SVM activated */
@@ -2029,12 +2019,10 @@ gen_svm_check_intercept_param(DisasContext *s, target_ulong pc_start,
         case SVM_EXIT_READ_CR0 ... SVM_EXIT_EXCP_BASE - 1:
             if (s->cc_op != CC_OP_DYNAMIC) {
                 gen_op_set_cc_op(s->cc_op);
-                s->cc_op = CC_OP_DYNAMIC;
             }
             gen_jmp_im(pc_start - s->cs_base);
-            SVM_movq_T1_im(param);
-            gen_op_geneflags();
-            gen_op_svm_check_intercept_param((uint32_t)(type >> 32), (uint32_t)type);
+            tcg_gen_helper_0_2(helper_svm_check_intercept_param, 
+                               tcg_const_i32(type), tcg_const_i64(param));
             /* this is a special case as we do not know if the interception occurs
                so we assume there was none */
             return 0;
@@ -2042,12 +2030,10 @@ gen_svm_check_intercept_param(DisasContext *s, target_ulong pc_start,
             if(s->flags & (1ULL << INTERCEPT_MSR_PROT)) {
                 if (s->cc_op != CC_OP_DYNAMIC) {
                     gen_op_set_cc_op(s->cc_op);
-                    s->cc_op = CC_OP_DYNAMIC;
                 }
                 gen_jmp_im(pc_start - s->cs_base);
-                SVM_movq_T1_im(param);
-                gen_op_geneflags();
-                gen_op_svm_check_intercept_param((uint32_t)(type >> 32), (uint32_t)type);
+                tcg_gen_helper_0_2(helper_svm_check_intercept_param,
+                                   tcg_const_i32(type), tcg_const_i64(param));
                 /* this is a special case as we do not know if the interception occurs
                    so we assume there was none */
                 return 0;
@@ -2057,12 +2043,10 @@ gen_svm_check_intercept_param(DisasContext *s, target_ulong pc_start,
             if(s->flags & (1ULL << ((type - SVM_EXIT_INTR) + INTERCEPT_INTR))) {
                 if (s->cc_op != CC_OP_DYNAMIC) {
                     gen_op_set_cc_op(s->cc_op);
-		    s->cc_op = CC_OP_EFLAGS;
                 }
                 gen_jmp_im(pc_start - s->cs_base);
-                SVM_movq_T1_im(param);
-                gen_op_geneflags();
-                gen_op_svm_vmexit(type >> 32, type);
+                tcg_gen_helper_0_2(helper_vmexit,
+                                   tcg_const_i32(type), tcg_const_i64(param));
                 /* we can optimize this one so TBs don't get longer
                    than up to vmexit */
                 gen_eob(s);
@@ -2276,9 +2260,10 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
         gen_op_st_T0_A0(ot + s->mem_index);
         if (level) {
             /* XXX: must save state */
-            tcg_gen_helper_0_2(helper_enter64_level,
+            tcg_gen_helper_0_3(helper_enter64_level,
                                tcg_const_i32(level),
-                               tcg_const_i32((ot == OT_QUAD)));
+                               tcg_const_i32((ot == OT_QUAD)),
+                               cpu_T[1]);
         }
         gen_op_mov_reg_T1(ot, R_EBP);
         gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
@@ -2301,9 +2286,10 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
         gen_op_st_T0_A0(ot + s->mem_index);
         if (level) {
             /* XXX: must save state */
-            tcg_gen_helper_0_2(helper_enter_level,
+            tcg_gen_helper_0_3(helper_enter_level,
                                tcg_const_i32(level),
-                               tcg_const_i32(s->dflag));
+                               tcg_const_i32(s->dflag),
+                               cpu_T[1]);
         }
         gen_op_mov_reg_T1(ot, R_EBP);
         gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
@@ -3208,22 +3194,6 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
     } else {
         /* generic MMX or SSE operation */
         switch(b) {
-        case 0xf7:
-            /* maskmov : we must prepare A0 */
-            if (mod != 3)
-                goto illegal_op;
-#ifdef TARGET_X86_64
-            if (s->aflag == 2) {
-                gen_op_movq_A0_reg(R_EDI);
-            } else
-#endif
-            {
-                gen_op_movl_A0_reg(R_EDI);
-                if (s->aflag == 0)
-                    gen_op_andl_A0_ffff();
-            }
-            gen_add_A0_ds_seg(s);
-            break;
         case 0x70: /* pshufx insn */
         case 0xc6: /* pshufx insn */
         case 0xc2: /* compare insns */
@@ -3294,6 +3264,26 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
             tcg_gen_addi_ptr(cpu_ptr1, cpu_env, op2_offset);
             tcg_gen_helper_0_2(sse_op2, cpu_ptr0, cpu_ptr1);
+            break;
+        case 0xf7:
+            /* maskmov : we must prepare A0 */
+            if (mod != 3)
+                goto illegal_op;
+#ifdef TARGET_X86_64
+            if (s->aflag == 2) {
+                gen_op_movq_A0_reg(R_EDI);
+            } else
+#endif
+            {
+                gen_op_movl_A0_reg(R_EDI);
+                if (s->aflag == 0)
+                    gen_op_andl_A0_ffff();
+            }
+            gen_add_A0_ds_seg(s);
+
+            tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
+            tcg_gen_addi_ptr(cpu_ptr1, cpu_env, op2_offset);
+            tcg_gen_helper_0_3(sse_op2, cpu_ptr0, cpu_ptr1, cpu_A0);
             break;
         default:
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
@@ -3440,7 +3430,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 
     /* lock generation */
     if (prefixes & PREFIX_LOCK)
-        gen_op_lock();
+        tcg_gen_helper_0_0(helper_lock);
 
     /* now check op code */
  reswitch:
@@ -3783,9 +3773,17 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 if (s->cc_op != CC_OP_DYNAMIC)
                     gen_op_set_cc_op(s->cc_op);
                 gen_jmp_im(pc_start - s->cs_base);
-                gen_op_lcall_protected_T0_T1(dflag, s->pc - pc_start);
+                tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+                tcg_gen_helper_0_4(helper_lcall_protected,
+                                   cpu_tmp2, cpu_T[1],
+                                   tcg_const_i32(dflag), 
+                                   tcg_const_i32(s->pc - pc_start));
             } else {
-                gen_op_lcall_real_T0_T1(dflag, s->pc - s->cs_base);
+                tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+                tcg_gen_helper_0_4(helper_lcall_real,
+                                   cpu_tmp2, cpu_T[1],
+                                   tcg_const_i32(dflag), 
+                                   tcg_const_i32(s->pc - s->cs_base));
             }
             gen_eob(s);
             break;
@@ -3804,7 +3802,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 if (s->cc_op != CC_OP_DYNAMIC)
                     gen_op_set_cc_op(s->cc_op);
                 gen_jmp_im(pc_start - s->cs_base);
-                gen_op_ljmp_protected_T0_T1(s->pc - pc_start);
+                tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+                tcg_gen_helper_0_3(helper_ljmp_protected,
+                                   cpu_tmp2,
+                                   cpu_T[1],
+                                   tcg_const_i32(s->pc - pc_start));
             } else {
                 gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
                 gen_op_movl_T0_T1();
@@ -4355,11 +4357,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_op_mov_TN_reg(ot, 0, reg);
             /* for xchg, lock is implicit */
             if (!(prefixes & PREFIX_LOCK))
-                gen_op_lock();
+                tcg_gen_helper_0_0(helper_lock);
             gen_op_ld_T1_A0(ot + s->mem_index);
             gen_op_st_T0_A0(ot + s->mem_index);
             if (!(prefixes & PREFIX_LOCK))
-                gen_op_unlock();
+                tcg_gen_helper_0_0(helper_unlock);
             gen_op_mov_reg_T1(ot, reg);
         }
         break;
@@ -5117,13 +5119,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        gen_check_io(s, ot, 1, pc_start - s->cs_base);
         gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
         gen_op_andl_T0_ffff();
-        if (gen_svm_check_io(s, pc_start,
-                             SVM_IOIO_TYPE_MASK | (1 << (4+ot)) |
-                             svm_is_rep(prefixes) | 4 | (1 << (7+s->aflag))))
-            break;
+        gen_check_io(s, ot, pc_start - s->cs_base, 
+                     SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes) | 4);
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_ins(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
@@ -5136,13 +5135,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             ot = OT_BYTE;
         else
             ot = dflag ? OT_LONG : OT_WORD;
-        gen_check_io(s, ot, 1, pc_start - s->cs_base);
         gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
         gen_op_andl_T0_ffff();
-        if (gen_svm_check_io(s, pc_start,
-                             (1 << (4+ot)) | svm_is_rep(prefixes) |
-                             4 | (1 << (7+s->aflag))))
-            break;
+        gen_check_io(s, ot, pc_start - s->cs_base,
+                     svm_is_rep(prefixes) | 4);
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_outs(s, ot, pc_start - s->cs_base, s->pc - s->cs_base);
         } else {
@@ -5161,12 +5157,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             ot = dflag ? OT_LONG : OT_WORD;
         val = ldub_code(s->pc++);
         gen_op_movl_T0_im(val);
-        gen_check_io(s, ot, 0, pc_start - s->cs_base);
-        if (gen_svm_check_io(s, pc_start,
-                             SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes) |
-                             (1 << (4+ot))))
-            break;
-        gen_op_in[ot]();
+        gen_check_io(s, ot, pc_start - s->cs_base,
+                     SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
+        tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+        tcg_gen_helper_1_1(helper_in_func[ot], cpu_T[1], cpu_tmp2);
         gen_op_mov_reg_T1(ot, R_EAX);
         break;
     case 0xe6:
@@ -5177,12 +5171,14 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             ot = dflag ? OT_LONG : OT_WORD;
         val = ldub_code(s->pc++);
         gen_op_movl_T0_im(val);
-        gen_check_io(s, ot, 0, pc_start - s->cs_base);
-        if (gen_svm_check_io(s, pc_start, svm_is_rep(prefixes) |
-                             (1 << (4+ot))))
-            break;
+        gen_check_io(s, ot, pc_start - s->cs_base,
+                     svm_is_rep(prefixes));
         gen_op_mov_TN_reg(ot, 1, R_EAX);
-        gen_op_out[ot]();
+
+        tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+        tcg_gen_andi_i32(cpu_tmp2, cpu_tmp2, 0xffff);
+        tcg_gen_trunc_tl_i32(cpu_tmp3, cpu_T[1]);
+        tcg_gen_helper_0_2(helper_out_func[ot], cpu_tmp2, cpu_tmp3);
         break;
     case 0xec:
     case 0xed:
@@ -5192,12 +5188,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             ot = dflag ? OT_LONG : OT_WORD;
         gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
         gen_op_andl_T0_ffff();
-        gen_check_io(s, ot, 0, pc_start - s->cs_base);
-        if (gen_svm_check_io(s, pc_start,
-                             SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes) |
-                             (1 << (4+ot))))
-            break;
-        gen_op_in[ot]();
+        gen_check_io(s, ot, pc_start - s->cs_base,
+                     SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
+        tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+        tcg_gen_helper_1_1(helper_in_func[ot], cpu_T[1], cpu_tmp2);
         gen_op_mov_reg_T1(ot, R_EAX);
         break;
     case 0xee:
@@ -5208,12 +5202,14 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             ot = dflag ? OT_LONG : OT_WORD;
         gen_op_mov_TN_reg(OT_WORD, 0, R_EDX);
         gen_op_andl_T0_ffff();
-        gen_check_io(s, ot, 0, pc_start - s->cs_base);
-        if (gen_svm_check_io(s, pc_start,
-                             svm_is_rep(prefixes) | (1 << (4+ot))))
-            break;
+        gen_check_io(s, ot, pc_start - s->cs_base,
+                     svm_is_rep(prefixes));
         gen_op_mov_TN_reg(ot, 1, R_EAX);
-        gen_op_out[ot]();
+
+        tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
+        tcg_gen_andi_i32(cpu_tmp2, cpu_tmp2, 0xffff);
+        tcg_gen_trunc_tl_i32(cpu_tmp3, cpu_T[1]);
+        tcg_gen_helper_0_2(helper_out_func[ot], cpu_tmp2, cpu_tmp3);
         break;
 
         /************************/
@@ -5246,7 +5242,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
             gen_jmp_im(pc_start - s->cs_base);
-            gen_op_lret_protected(s->dflag, val);
+            tcg_gen_helper_0_2(helper_lret_protected,
+                               tcg_const_i32(s->dflag), 
+                               tcg_const_i32(val));
         } else {
             gen_stack_A0(s);
             /* pop offset */
@@ -5273,20 +5271,22 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             break;
         if (!s->pe) {
             /* real mode */
-            gen_op_iret_real(s->dflag);
+            tcg_gen_helper_0_1(helper_iret_real, tcg_const_i32(s->dflag));
             s->cc_op = CC_OP_EFLAGS;
         } else if (s->vm86) {
             if (s->iopl != 3) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             } else {
-                gen_op_iret_real(s->dflag);
+                tcg_gen_helper_0_1(helper_iret_real, tcg_const_i32(s->dflag));
                 s->cc_op = CC_OP_EFLAGS;
             }
         } else {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
             gen_jmp_im(pc_start - s->cs_base);
-            gen_op_iret_protected(s->dflag, s->pc - s->cs_base);
+            tcg_gen_helper_0_2(helper_iret_protected,
+                               tcg_const_i32(s->dflag), 
+                               tcg_const_i32(s->pc - s->cs_base));
             s->cc_op = CC_OP_EFLAGS;
         }
         gen_eob(s);
@@ -5723,10 +5723,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_op_mov_TN_reg(ot, 0, reg);
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
         gen_jmp_im(pc_start - s->cs_base);
+        tcg_gen_trunc_tl_i32(cpu_tmp2, cpu_T[0]);
         if (ot == OT_WORD)
-            tcg_gen_helper_0_0(helper_boundw);
+            tcg_gen_helper_0_2(helper_boundw, cpu_A0, cpu_tmp2);
         else
-            tcg_gen_helper_0_0(helper_boundl);
+            tcg_gen_helper_0_2(helper_boundl, cpu_A0, cpu_tmp2);
         break;
     case 0x1c8 ... 0x1cf: /* bswap reg */
         reg = (b & 7) | REX_B(s);
@@ -6134,7 +6135,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0))
                     break;
                 gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
-                gen_op_lmsw_T0();
+                tcg_gen_helper_0_1(helper_lmsw, cpu_T[0]);
                 gen_jmp_im(s->pc - s->cs_base);
                 gen_eob(s);
             }
@@ -6223,6 +6224,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             } else {
                 gen_op_mov_TN_reg(ot, 0, rm);
             }
+            gen_op_mov_TN_reg(ot, 1, reg);
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
             gen_op_arpl();
@@ -6299,14 +6301,15 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 if (b & 2) {
                     gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0 + reg);
                     gen_op_mov_TN_reg(ot, 0, rm);
-                    gen_op_movl_crN_T0(reg);
+                    tcg_gen_helper_0_2(helper_movl_crN_T0, 
+                                       tcg_const_i32(reg), cpu_T[0]);
                     gen_jmp_im(s->pc - s->cs_base);
                     gen_eob(s);
                 } else {
                     gen_svm_check_intercept(s, pc_start, SVM_EXIT_READ_CR0 + reg);
 #if !defined(CONFIG_USER_ONLY)
                     if (reg == 8)
-                        gen_op_movtl_T0_cr8();
+                        tcg_gen_helper_1_0(helper_movtl_T0_cr8, cpu_T[0]);
                     else
 #endif
                         gen_op_movtl_T0_env(offsetof(CPUX86State,cr[reg]));
@@ -6338,7 +6341,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (b & 2) {
                 gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_DR0 + reg);
                 gen_op_mov_TN_reg(ot, 0, rm);
-                gen_op_movl_drN_T0(reg);
+                tcg_gen_helper_0_2(helper_movl_drN_T0,
+                                   tcg_const_i32(reg), cpu_T[0]);
                 gen_jmp_im(s->pc - s->cs_base);
                 gen_eob(s);
             } else {
@@ -6353,7 +6357,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0);
-            gen_op_clts();
+            tcg_gen_helper_0_0(helper_clts);
             /* abort block because static cpu state changed */
             gen_jmp_im(s->pc - s->cs_base);
             gen_eob(s);
@@ -6485,11 +6489,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     }
     /* lock generation */
     if (s->prefix & PREFIX_LOCK)
-        gen_op_unlock();
+        tcg_gen_helper_0_0(helper_unlock);
     return s->pc;
  illegal_op:
     if (s->prefix & PREFIX_LOCK)
-        gen_op_unlock();
+        tcg_gen_helper_0_0(helper_unlock);
     /* XXX: ensure that no lock was generated */
     gen_exception(s, EXCP06_ILLOP, pc_start - s->cs_base);
     return s->pc;
@@ -6861,7 +6865,8 @@ void optimize_flags_init(void)
     cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
     cpu_A0 = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "A0");
 #endif
-#if defined(__i386__)
+#if defined(__i386__) && (TARGET_LONG_BITS <= HOST_LONG_BITS)
+    /* XXX: must be suppressed once there are less fixed registers */
     cpu_tmp1 = tcg_global_reg2_new_hack(TCG_TYPE_I64, TCG_AREG1, TCG_AREG2, "tmp1");
 #endif
 }
@@ -6957,10 +6962,11 @@ static inline int gen_intermediate_code_internal(CPUState *env,
 #endif
 
     cpu_tmp0 = tcg_temp_new(TCG_TYPE_TL);
-#if !defined(__i386__)
+#if !(defined(__i386__) && (TARGET_LONG_BITS <= HOST_LONG_BITS))
     cpu_tmp1 = tcg_temp_new(TCG_TYPE_I64);
 #endif
     cpu_tmp2 = tcg_temp_new(TCG_TYPE_I32);
+    cpu_tmp3 = tcg_temp_new(TCG_TYPE_I32);
     cpu_ptr0 = tcg_temp_new(TCG_TYPE_PTR);
     cpu_ptr1 = tcg_temp_new(TCG_TYPE_PTR);
 

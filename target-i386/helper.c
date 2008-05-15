@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#define CPU_NO_GLOBAL_REGS
 #include "exec.h"
 #include "host-utils.h"
 
@@ -93,16 +94,16 @@ const CPU86_LDouble f15rk[7] =
     3.32192809488736234781L,  /*l2t*/
 };
 
-/* thread support */
+/* broken thread support */
 
 spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
 
-void cpu_lock(void)
+void helper_lock(void)
 {
     spin_lock(&global_cpu_lock);
 }
 
-void cpu_unlock(void)
+void helper_unlock(void)
 {
     spin_unlock(&global_cpu_lock);
 }
@@ -508,34 +509,49 @@ static inline void check_io(int addr, int size)
     }
 }
 
-void check_iob_T0(void)
+void helper_check_iob(uint32_t t0)
 {
-    check_io(T0, 1);
+    check_io(t0, 1);
 }
 
-void check_iow_T0(void)
+void helper_check_iow(uint32_t t0)
 {
-    check_io(T0, 2);
+    check_io(t0, 2);
 }
 
-void check_iol_T0(void)
+void helper_check_iol(uint32_t t0)
 {
-    check_io(T0, 4);
+    check_io(t0, 4);
 }
 
-void check_iob_DX(void)
+void helper_outb(uint32_t port, uint32_t data)
 {
-    check_io(EDX & 0xffff, 1);
+    cpu_outb(env, port, data & 0xff);
 }
 
-void check_iow_DX(void)
+target_ulong helper_inb(uint32_t port)
 {
-    check_io(EDX & 0xffff, 2);
+    return cpu_inb(env, port);
 }
 
-void check_iol_DX(void)
+void helper_outw(uint32_t port, uint32_t data)
 {
-    check_io(EDX & 0xffff, 4);
+    cpu_outw(env, port, data & 0xffff);
+}
+
+target_ulong helper_inw(uint32_t port)
+{
+    return cpu_inw(env, port);
+}
+
+void helper_outl(uint32_t port, uint32_t data)
+{
+    cpu_outl(env, port, data);
+}
+
+target_ulong helper_inl(uint32_t port)
+{
+    return cpu_inl(env, port);
 }
 
 static inline unsigned int get_sp_mask(unsigned int e2)
@@ -1275,7 +1291,7 @@ void raise_interrupt(int intno, int is_int, int error_code,
                      int next_eip_addend)
 {
     if (!is_int) {
-        svm_check_intercept_param(SVM_EXIT_EXCP_BASE + intno, error_code);
+        helper_svm_check_intercept_param(SVM_EXIT_EXCP_BASE + intno, error_code);
         intno = check_exception(intno, &error_code);
     }
 
@@ -1857,19 +1873,19 @@ void helper_das(void)
     FORCE_RET();
 }
 
-void helper_cmpxchg8b(void)
+void helper_cmpxchg8b(target_ulong a0)
 {
     uint64_t d;
     int eflags;
 
     eflags = cc_table[CC_OP].compute_all();
-    d = ldq(A0);
+    d = ldq(a0);
     if (d == (((uint64_t)EDX << 32) | EAX)) {
-        stq(A0, ((uint64_t)ECX << 32) | EBX);
+        stq(a0, ((uint64_t)ECX << 32) | EBX);
         eflags |= CC_Z;
     } else {
-        EDX = d >> 32;
-        EAX = d;
+        EDX = (uint32_t)(d >> 32);
+        EAX = (uint32_t)d;
         eflags &= ~CC_Z;
     }
     CC_SRC = eflags;
@@ -1986,7 +2002,7 @@ void helper_cpuid(void)
     }
 }
 
-void helper_enter_level(int level, int data32)
+void helper_enter_level(int level, int data32, target_ulong t1)
 {
     target_ulong ssp;
     uint32_t esp_mask, esp, ebp;
@@ -2004,7 +2020,7 @@ void helper_enter_level(int level, int data32)
             stl(ssp + (esp & esp_mask), ldl(ssp + (ebp & esp_mask)));
         }
         esp -= 4;
-        stl(ssp + (esp & esp_mask), T1);
+        stl(ssp + (esp & esp_mask), t1);
     } else {
         /* 16 bit */
         esp -= 2;
@@ -2014,12 +2030,12 @@ void helper_enter_level(int level, int data32)
             stw(ssp + (esp & esp_mask), lduw(ssp + (ebp & esp_mask)));
         }
         esp -= 2;
-        stw(ssp + (esp & esp_mask), T1);
+        stw(ssp + (esp & esp_mask), t1);
     }
 }
 
 #ifdef TARGET_X86_64
-void helper_enter64_level(int level, int data64)
+void helper_enter64_level(int level, int data64, target_ulong t1)
 {
     target_ulong esp, ebp;
     ebp = EBP;
@@ -2034,7 +2050,7 @@ void helper_enter64_level(int level, int data64)
             stq(esp, ldq(ebp));
         }
         esp -= 8;
-        stq(esp, T1);
+        stq(esp, t1);
     } else {
         /* 16 bit */
         esp -= 2;
@@ -2044,7 +2060,7 @@ void helper_enter64_level(int level, int data64)
             stw(esp, lduw(ebp));
         }
         esp -= 2;
-        stw(esp, T1);
+        stw(esp, t1);
     }
 }
 #endif
@@ -2231,14 +2247,13 @@ void helper_load_seg(int seg_reg, int selector)
 }
 
 /* protected mode jump */
-void helper_ljmp_protected_T0_T1(int next_eip_addend)
+void helper_ljmp_protected(int new_cs, target_ulong new_eip,
+                           int next_eip_addend)
 {
-    int new_cs, gate_cs, type;
+    int gate_cs, type;
     uint32_t e1, e2, cpl, dpl, rpl, limit;
-    target_ulong new_eip, next_eip;
+    target_ulong next_eip;
 
-    new_cs = T0;
-    new_eip = T1;
     if ((new_cs & 0xfffc) == 0)
         raise_exception_err(EXCP0D_GPF, 0);
     if (load_segment(&e1, &e2, new_cs) != 0)
@@ -2322,14 +2337,14 @@ void helper_ljmp_protected_T0_T1(int next_eip_addend)
 }
 
 /* real mode call */
-void helper_lcall_real_T0_T1(int shift, int next_eip)
+void helper_lcall_real(int new_cs, target_ulong new_eip1,
+                       int shift, int next_eip)
 {
-    int new_cs, new_eip;
+    int new_eip;
     uint32_t esp, esp_mask;
     target_ulong ssp;
 
-    new_cs = T0;
-    new_eip = T1;
+    new_eip = new_eip1;
     esp = ESP;
     esp_mask = get_sp_mask(env->segs[R_SS].flags);
     ssp = env->segs[R_SS].base;
@@ -2348,16 +2363,15 @@ void helper_lcall_real_T0_T1(int shift, int next_eip)
 }
 
 /* protected mode call */
-void helper_lcall_protected_T0_T1(int shift, int next_eip_addend)
+void helper_lcall_protected(int new_cs, target_ulong new_eip, 
+                            int shift, int next_eip_addend)
 {
-    int new_cs, new_stack, i;
+    int new_stack, i;
     uint32_t e1, e2, cpl, dpl, rpl, selector, offset, param_count;
     uint32_t ss, ss_e1, ss_e2, sp, type, ss_dpl, sp_mask;
     uint32_t val, limit, old_sp_mask;
-    target_ulong ssp, old_ssp, next_eip, new_eip;
+    target_ulong ssp, old_ssp, next_eip;
 
-    new_cs = T0;
-    new_eip = T1;
     next_eip = env->eip + next_eip_addend;
 #ifdef DEBUG_PCALL
     if (loglevel & CPU_LOG_PCALL) {
@@ -2922,34 +2936,55 @@ void helper_sysexit(void)
 #endif
 }
 
-void helper_movl_crN_T0(int reg)
+void helper_movl_crN_T0(int reg, target_ulong t0)
 {
 #if !defined(CONFIG_USER_ONLY)
     switch(reg) {
     case 0:
-        cpu_x86_update_cr0(env, T0);
+        cpu_x86_update_cr0(env, t0);
         break;
     case 3:
-        cpu_x86_update_cr3(env, T0);
+        cpu_x86_update_cr3(env, t0);
         break;
     case 4:
-        cpu_x86_update_cr4(env, T0);
+        cpu_x86_update_cr4(env, t0);
         break;
     case 8:
-        cpu_set_apic_tpr(env, T0);
-        env->cr[8] = T0;
+        cpu_set_apic_tpr(env, t0);
+        env->cr[8] = t0;
         break;
     default:
-        env->cr[reg] = T0;
+        env->cr[reg] = t0;
         break;
     }
 #endif
 }
 
-/* XXX: do more */
-void helper_movl_drN_T0(int reg)
+void helper_lmsw(target_ulong t0)
 {
-    env->dr[reg] = T0;
+    /* only 4 lower bits of CR0 are modified. PE cannot be set to zero
+       if already set to one. */
+    t0 = (env->cr[0] & ~0xe) | (t0 & 0xf);
+    helper_movl_crN_T0(0, t0);
+}
+
+void helper_clts(void)
+{
+    env->cr[0] &= ~CR0_TS_MASK;
+    env->hflags &= ~HF_TS_MASK;
+}
+
+#if !defined(CONFIG_USER_ONLY)
+target_ulong helper_movtl_T0_cr8(void)
+{
+    return cpu_get_apic_tpr(env);
+}
+#endif
+
+/* XXX: do more */
+void helper_movl_drN_T0(int reg, target_ulong t0)
+{
+    env->dr[reg] = t0;
 }
 
 void helper_invlpg(target_ulong addr)
@@ -2975,10 +3010,10 @@ void helper_rdpmc(void)
         raise_exception(EXCP0D_GPF);
     }
 
-    if (!svm_check_intercept_param(SVM_EXIT_RDPMC, 0)) {
-        /* currently unimplemented */
-        raise_exception_err(EXCP06_ILLOP, 0);
-    }
+    helper_svm_check_intercept_param(SVM_EXIT_RDPMC, 0);
+    
+    /* currently unimplemented */
+    raise_exception_err(EXCP06_ILLOP, 0);
 }
 
 #if defined(CONFIG_USER_ONLY)
@@ -3118,7 +3153,7 @@ void helper_rdmsr(void)
 }
 #endif
 
-void helper_lsl(uint32_t selector)
+uint32_t helper_lsl(uint32_t selector)
 {
     unsigned int limit;
     uint32_t e1, e2, eflags;
@@ -3153,15 +3188,15 @@ void helper_lsl(uint32_t selector)
         if (dpl < cpl || dpl < rpl) {
         fail:
             CC_SRC = eflags & ~CC_Z;
-            return;
+            return 0;
         }
     }
     limit = get_seg_limit(e1, e2);
-    T1 = limit;
     CC_SRC = eflags | CC_Z;
+    return limit;
 }
 
-void helper_lar(uint32_t selector)
+uint32_t helper_lar(uint32_t selector)
 {
     uint32_t e1, e2, eflags;
     int rpl, dpl, cpl, type;
@@ -3200,11 +3235,11 @@ void helper_lar(uint32_t selector)
         if (dpl < cpl || dpl < rpl) {
         fail:
             CC_SRC = eflags & ~CC_Z;
-            return;
+            return 0;
         }
     }
-    T1 = e2 & 0x00f0ff00;
     CC_SRC = eflags | CC_Z;
+    return e2 & 0x00f0ff00;
 }
 
 void helper_verr(uint32_t selector)
@@ -4412,36 +4447,36 @@ static int idiv64(uint64_t *plow, uint64_t *phigh, int64_t b)
     return 0;
 }
 
-void helper_mulq_EAX_T0(void)
+void helper_mulq_EAX_T0(target_ulong t0)
 {
     uint64_t r0, r1;
 
-    mulu64(&r0, &r1, EAX, T0);
+    mulu64(&r0, &r1, EAX, t0);
     EAX = r0;
     EDX = r1;
     CC_DST = r0;
     CC_SRC = r1;
 }
 
-void helper_imulq_EAX_T0(void)
+void helper_imulq_EAX_T0(target_ulong t0)
 {
     uint64_t r0, r1;
 
-    muls64(&r0, &r1, EAX, T0);
+    muls64(&r0, &r1, EAX, t0);
     EAX = r0;
     EDX = r1;
     CC_DST = r0;
     CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
 }
 
-void helper_imulq_T0_T1(void)
+target_ulong helper_imulq_T0_T1(target_ulong t0, target_ulong t1)
 {
     uint64_t r0, r1;
 
-    muls64(&r0, &r1, T0, T1);
-    T0 = r0;
+    muls64(&r0, &r1, t0, t1);
     CC_DST = r0;
     CC_SRC = ((int64_t)r1 != ((int64_t)r0 >> 63));
+    return r0;
 }
 
 void helper_divq_EAX(target_ulong t0)
@@ -4553,24 +4588,23 @@ void helper_reset_inhibit_irq(void)
     env->hflags &= ~HF_INHIBIT_IRQ_MASK;
 }
 
-void helper_boundw(void)
+void helper_boundw(target_ulong a0, int v)
 {
-    int low, high, v;
-    low = ldsw(A0);
-    high = ldsw(A0 + 2);
-    v = (int16_t)T0;
+    int low, high;
+    low = ldsw(a0);
+    high = ldsw(a0 + 2);
+    v = (int16_t)v;
     if (v < low || v > high) {
         raise_exception(EXCP05_BOUND);
     }
     FORCE_RET();
 }
 
-void helper_boundl(void)
+void helper_boundl(target_ulong a0, int v)
 {
-    int low, high, v;
-    low = ldl(A0);
-    high = ldl(A0 + 4);
-    v = T0;
+    int low, high;
+    low = ldl(a0);
+    high = ldl(a0 + 4);
     if (v < low || v > high) {
         raise_exception(EXCP05_BOUND);
     }
@@ -4661,18 +4695,35 @@ void helper_clgi(void)
 
 #if defined(CONFIG_USER_ONLY)
 
-void helper_vmrun(void) { }
-void helper_vmmcall(void) { }
-void helper_vmload(void) { }
-void helper_vmsave(void) { }
-void helper_skinit(void) { }
-void helper_invlpga(void) { }
-void vmexit(uint64_t exit_code, uint64_t exit_info_1) { }
-int svm_check_intercept_param(uint32_t type, uint64_t param)
+void helper_vmrun(void) 
+{ 
+}
+void helper_vmmcall(void) 
+{ 
+}
+void helper_vmload(void) 
+{ 
+}
+void helper_vmsave(void) 
+{ 
+}
+void helper_skinit(void) 
+{ 
+}
+void helper_invlpga(void) 
+{ 
+}
+void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) 
+{ 
+}
+void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
 {
-    return 0;
 }
 
+void helper_svm_check_io(uint32_t port, uint32_t param, 
+                         uint32_t next_eip_addend)
+{
+}
 #else
 
 static inline uint32_t
@@ -4702,7 +4753,6 @@ void helper_vmrun(void)
         fprintf(logfile,"vmrun! " TARGET_FMT_lx "\n", addr);
 
     env->vm_vmcb = addr;
-    regs_to_env();
 
     /* save the current CPU state in the hsave page */
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.base), env->gdt.base);
@@ -4800,8 +4850,6 @@ void helper_vmrun(void)
     }
 
     helper_stgi();
-
-    regs_to_env();
 
     /* maybe we need to inject an event */
     event_inj = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj));
@@ -4927,95 +4975,98 @@ void helper_invlpga(void)
     tlb_flush(env, 0);
 }
 
-int svm_check_intercept_param(uint32_t type, uint64_t param)
+void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
 {
     switch(type) {
     case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR0 + 8:
         if (INTERCEPTEDw(_cr_read, (1 << (type - SVM_EXIT_READ_CR0)))) {
-            vmexit(type, param);
-            return 1;
+            helper_vmexit(type, param);
         }
         break;
     case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR0 + 8:
         if (INTERCEPTEDw(_dr_read, (1 << (type - SVM_EXIT_READ_DR0)))) {
-            vmexit(type, param);
-            return 1;
+            helper_vmexit(type, param);
         }
         break;
     case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR0 + 8:
         if (INTERCEPTEDw(_cr_write, (1 << (type - SVM_EXIT_WRITE_CR0)))) {
-            vmexit(type, param);
-            return 1;
+            helper_vmexit(type, param);
         }
         break;
     case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR0 + 8:
         if (INTERCEPTEDw(_dr_write, (1 << (type - SVM_EXIT_WRITE_DR0)))) {
-            vmexit(type, param);
-            return 1;
+            helper_vmexit(type, param);
         }
         break;
     case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 16:
         if (INTERCEPTEDl(_exceptions, (1 << (type - SVM_EXIT_EXCP_BASE)))) {
-            vmexit(type, param);
-            return 1;
+            helper_vmexit(type, param);
         }
         break;
     case SVM_EXIT_IOIO:
-        if (INTERCEPTED(1ULL << INTERCEPT_IOIO_PROT)) {
-            /* FIXME: this should be read in at vmrun (faster this way?) */
-            uint64_t addr = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.iopm_base_pa));
-            uint16_t port = (uint16_t) (param >> 16);
-
-            uint16_t mask = (1 << ((param >> 4) & 7)) - 1;
-            if(lduw_phys(addr + port / 8) & (mask << (port & 7)))
-                vmexit(type, param);
-        }
         break;
 
     case SVM_EXIT_MSR:
         if (INTERCEPTED(1ULL << INTERCEPT_MSR_PROT)) {
             /* FIXME: this should be read in at vmrun (faster this way?) */
             uint64_t addr = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.msrpm_base_pa));
+            uint32_t t0, t1;
             switch((uint32_t)ECX) {
             case 0 ... 0x1fff:
-                T0 = (ECX * 2) % 8;
-                T1 = ECX / 8;
+                t0 = (ECX * 2) % 8;
+                t1 = ECX / 8;
                 break;
             case 0xc0000000 ... 0xc0001fff:
-                T0 = (8192 + ECX - 0xc0000000) * 2;
-                T1 = (T0 / 8);
-                T0 %= 8;
+                t0 = (8192 + ECX - 0xc0000000) * 2;
+                t1 = (t0 / 8);
+                t0 %= 8;
                 break;
             case 0xc0010000 ... 0xc0011fff:
-                T0 = (16384 + ECX - 0xc0010000) * 2;
-                T1 = (T0 / 8);
-                T0 %= 8;
+                t0 = (16384 + ECX - 0xc0010000) * 2;
+                t1 = (t0 / 8);
+                t0 %= 8;
                 break;
             default:
-                vmexit(type, param);
-                return 1;
+                helper_vmexit(type, param);
+                t0 = 0;
+                t1 = 0;
+                break;
             }
-            if (ldub_phys(addr + T1) & ((1 << param) << T0))
-                vmexit(type, param);
-            return 1;
+            if (ldub_phys(addr + t1) & ((1 << param) << t0))
+                helper_vmexit(type, param);
         }
         break;
     default:
         if (INTERCEPTED((1ULL << ((type - SVM_EXIT_INTR) + INTERCEPT_INTR)))) {
-            vmexit(type, param);
-            return 1;
+            helper_vmexit(type, param);
         }
         break;
     }
-    return 0;
 }
 
-void vmexit(uint64_t exit_code, uint64_t exit_info_1)
+void helper_svm_check_io(uint32_t port, uint32_t param, 
+                         uint32_t next_eip_addend)
+{
+    if (INTERCEPTED(1ULL << INTERCEPT_IOIO_PROT)) {
+        /* FIXME: this should be read in at vmrun (faster this way?) */
+        uint64_t addr = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.iopm_base_pa));
+        uint16_t mask = (1 << ((param >> 4) & 7)) - 1;
+        if(lduw_phys(addr + port / 8) & (mask << (port & 7))) {
+            /* next EIP */
+            stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), 
+                     env->eip + next_eip_addend);
+            helper_vmexit(SVM_EXIT_IOIO, param | (port << 16));
+        }
+    }
+}
+
+/* Note: currently only 32 bits of exit_code are used */
+void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
 {
     uint32_t int_ctl;
 
     if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile,"vmexit(%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", " TARGET_FMT_lx ")!\n",
+        fprintf(logfile,"vmexit(%08x, %016" PRIx64 ", %016" PRIx64 ", " TARGET_FMT_lx ")!\n",
                 exit_code, exit_info_1,
                 ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2)),
                 EIP);
@@ -5105,8 +5156,7 @@ void vmexit(uint64_t exit_code, uint64_t exit_info_1)
 
     /* other setups */
     cpu_x86_set_cpl(env, 0);
-    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_code_hi), (uint32_t)(exit_code >> 32));
-    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_code), exit_code);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_code), exit_code);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_1), exit_info_1);
 
     helper_clgi();
@@ -5137,7 +5187,6 @@ void vmexit(uint64_t exit_code, uint64_t exit_info_1)
     env->error_code = 0;
     env->old_exception = -1;
 
-    regs_to_env();
     cpu_loop_exit();
 }
 

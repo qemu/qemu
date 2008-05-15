@@ -276,17 +276,17 @@ void OPPROTO op_imull_T0_T1(void)
 #ifdef TARGET_X86_64
 void OPPROTO op_mulq_EAX_T0(void)
 {
-    helper_mulq_EAX_T0();
+    helper_mulq_EAX_T0(T0);
 }
 
 void OPPROTO op_imulq_EAX_T0(void)
 {
-    helper_imulq_EAX_T0();
+    helper_imulq_EAX_T0(T0);
 }
 
 void OPPROTO op_imulq_T0_T1(void)
 {
-    helper_imulq_T0_T1();
+    T0 = helper_imulq_T0_T1(T0, T1);
 }
 #endif
 
@@ -351,7 +351,7 @@ void OPPROTO op_into(void)
 
 void OPPROTO op_cmpxchg8b(void)
 {
-    helper_cmpxchg8b();
+    helper_cmpxchg8b(A0);
 }
 
 /* multiple size ops */
@@ -522,12 +522,6 @@ void OPPROTO op_das(void)
 
 /* segment handling */
 
-/* never use it with R_CS */
-void OPPROTO op_movl_seg_T0(void)
-{
-    helper_load_seg(PARAM1, T0);
-}
-
 /* faster VM86 version */
 void OPPROTO op_movl_seg_T0_vm(void)
 {
@@ -548,12 +542,20 @@ void OPPROTO op_movl_T0_seg(void)
 
 void OPPROTO op_lsl(void)
 {
-    helper_lsl(T0);
+    uint32_t val;
+    val = helper_lsl(T0);
+    if (CC_SRC & CC_Z)
+        T1 = val;
+    FORCE_RET();
 }
 
 void OPPROTO op_lar(void)
 {
-    helper_lar(T0);
+    uint32_t val;
+    val = helper_lar(T0);
+    if (CC_SRC & CC_Z)
+        T1 = val;
+    FORCE_RET();
 }
 
 void OPPROTO op_verr(void)
@@ -583,104 +585,6 @@ void OPPROTO op_arpl_update(void)
     int eflags;
     eflags = cc_table[CC_OP].compute_all();
     CC_SRC = (eflags & ~CC_Z) | T1;
-}
-
-/* T0: segment, T1:eip */
-void OPPROTO op_ljmp_protected_T0_T1(void)
-{
-    helper_ljmp_protected_T0_T1(PARAM1);
-}
-
-void OPPROTO op_lcall_real_T0_T1(void)
-{
-    helper_lcall_real_T0_T1(PARAM1, PARAM2);
-}
-
-void OPPROTO op_lcall_protected_T0_T1(void)
-{
-    helper_lcall_protected_T0_T1(PARAM1, PARAM2);
-}
-
-void OPPROTO op_iret_real(void)
-{
-    helper_iret_real(PARAM1);
-}
-
-void OPPROTO op_iret_protected(void)
-{
-    helper_iret_protected(PARAM1, PARAM2);
-}
-
-void OPPROTO op_lret_protected(void)
-{
-    helper_lret_protected(PARAM1, PARAM2);
-}
-
-/* CR registers access. */
-void OPPROTO op_movl_crN_T0(void)
-{
-    helper_movl_crN_T0(PARAM1);
-}
-
-/* These pseudo-opcodes check for SVM intercepts. */
-void OPPROTO op_svm_check_intercept(void)
-{
-    A0 = PARAM1 & PARAM2;
-    svm_check_intercept(PARAMQ1);
-}
-
-void OPPROTO op_svm_check_intercept_param(void)
-{
-    A0 = PARAM1 & PARAM2;
-    svm_check_intercept_param(PARAMQ1, T1);
-}
-
-void OPPROTO op_svm_vmexit(void)
-{
-    A0 = PARAM1 & PARAM2;
-    vmexit(PARAMQ1, T1);
-}
-
-void OPPROTO op_geneflags(void)
-{
-    CC_SRC = cc_table[CC_OP].compute_all();
-}
-
-/* This pseudo-opcode checks for IO intercepts. */
-#if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_svm_check_intercept_io(void)
-{
-    A0 = PARAM1 & PARAM2;
-    /* PARAMQ1 = TYPE (0 = OUT, 1 = IN; 4 = STRING; 8 = REP)
-       T0      = PORT
-       T1      = next eip */
-    stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), T1);
-    /* ASIZE does not appear on real hw */
-    svm_check_intercept_param(SVM_EXIT_IOIO,
-                              (PARAMQ1 & ~SVM_IOIO_ASIZE_MASK) |
-                              ((T0 & 0xffff) << 16));
-}
-#endif
-
-#if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_movtl_T0_cr8(void)
-{
-    T0 = cpu_get_apic_tpr(env);
-}
-#endif
-
-/* DR registers access */
-void OPPROTO op_movl_drN_T0(void)
-{
-    helper_movl_drN_T0(PARAM1);
-}
-
-void OPPROTO op_lmsw_T0(void)
-{
-    /* only 4 lower bits of CR0 are modified. PE cannot be set to zero
-       if already set to one. */
-    T0 = (env->cr[0] & ~0xe) | (T0 & 0xf);
-    helper_movl_crN_T0(0);
 }
 
 void OPPROTO op_movl_T0_env(void)
@@ -716,12 +620,6 @@ void OPPROTO op_movtl_T1_env(void)
 void OPPROTO op_movtl_env_T1(void)
 {
     *(target_ulong *)((char *)env + PARAM1) = T1;
-}
-
-void OPPROTO op_clts(void)
-{
-    env->cr[0] &= ~CR0_TS_MASK;
-    env->hflags &= ~HF_TS_MASK;
 }
 
 /* flags handling */
@@ -1026,17 +924,6 @@ CCTable cc_table[CC_OP_NB] = {
 void OPPROTO op_fcomi_dummy(void)
 {
     T0 = 0;
-}
-
-/* threading support */
-void OPPROTO op_lock(void)
-{
-    cpu_lock();
-}
-
-void OPPROTO op_unlock(void)
-{
-    cpu_unlock();
 }
 
 /* SSE support */

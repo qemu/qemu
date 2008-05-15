@@ -71,8 +71,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	uint32_t int_vector;
 	uint32_t int_state;
 	uint8_t reserved_3[4];
-	uint32_t exit_code;
-	uint32_t exit_code_hi;
+	uint64_t exit_code;
 	uint64_t exit_info_1;
 	uint64_t exit_info_2;
 	uint32_t exit_int_info;
@@ -322,14 +321,6 @@ struct __attribute__ ((__packed__)) vmcb {
 #define SVM_INVLPGA ".byte 0x0f, 0x01, 0xdf"
 
 /* function references */
-
-void helper_stgi(void);
-void vmexit(uint64_t exit_code, uint64_t exit_info_1);
-int svm_check_intercept_param(uint32_t type, uint64_t param);
-static inline int svm_check_intercept(unsigned int type) {
-    return svm_check_intercept_param(type, 0);
-}
-
 
 #define INTERCEPTED(mask) (env->intercept & mask)
 #define INTERCEPTEDw(var, mask) (env->intercept ## var & mask)
