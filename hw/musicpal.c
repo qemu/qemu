@@ -59,6 +59,7 @@
 #define MP_AUDIO_IRQ            30
 
 static uint32_t gpio_in_state = 0xffffffff;
+static uint32_t gpio_isr;
 static uint32_t gpio_out_state;
 static ram_addr_t sram_off;
 
@@ -1280,11 +1281,10 @@ static uint32_t musicpal_read(void *opaque, target_phys_addr_t offset)
                         (i2c_get_data(mixer_i2c) << MP_GPIO_I2C_DATA_BIT);
         return gpio_in_state >> 16;
 
-    /* This is a simplification of reality */
     case MP_GPIO_ISR_LO:
-        return ~gpio_in_state & 0xFFFF;
+        return gpio_isr & 0xFFFF;
     case MP_GPIO_ISR_HI:
-        return ~gpio_in_state >> 16;
+        return gpio_isr >> 16;
 
     /* Workaround to allow loading the binary-only wlandrv.ko crap
      * from the original Freecom firmware. */
@@ -1324,7 +1324,7 @@ static void musicpal_write(void *opaque, target_phys_addr_t offset,
 }
 
 /* Keyboard codes & masks */
-#define KEY_PRESSED             0x80
+#define KEY_RELEASED            0x80
 #define KEY_CODE                0x7f
 
 #define KEYCODE_TAB             0x0f
@@ -1367,7 +1367,7 @@ static void musicpal_key_event(void *opaque, int keycode)
             event = MP_GPIO_WHEEL_VOL;
             break;
         }
-    else
+    else {
         switch (keycode & KEY_CODE) {
         case KEYCODE_F:
             event = MP_GPIO_BTN_FAVORITS;
@@ -1385,12 +1385,19 @@ static void musicpal_key_event(void *opaque, int keycode)
             event = MP_GPIO_BTN_MENU;
             break;
         }
+        /* Do not repeat already pressed buttons */
+        if (!(keycode & KEY_RELEASED) && !(gpio_in_state & event))
+            event = 0;
+    }
 
-    if (keycode & KEY_PRESSED)
-        gpio_in_state |= event;
-    else if (gpio_in_state & event) {
-        gpio_in_state &= ~event;
-        qemu_irq_raise(irq);
+    if (event) {
+        if (keycode & KEY_RELEASED) {
+            gpio_in_state |= event;
+        } else {
+            gpio_in_state &= ~event;
+            gpio_isr = event;
+            qemu_irq_raise(irq);
+        }
     }
 
     kbd_extended = 0;
