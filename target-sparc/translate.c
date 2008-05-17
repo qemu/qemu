@@ -3008,18 +3008,33 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
 #ifndef TARGET_SPARC64
                     case 0x25:  /* sll */
-                        tcg_gen_andi_tl(cpu_tmp0, cpu_src2, 0x1f);
-                        tcg_gen_shl_tl(cpu_dst, cpu_src1, cpu_tmp0);
+                        if (IS_IMM) { /* immediate */
+                            rs2 = GET_FIELDs(insn, 20, 31);
+                            tcg_gen_shli_tl(cpu_dst, cpu_src1, rs2 & 0x1f);
+                        } else { /* register */
+                            tcg_gen_andi_tl(cpu_tmp0, cpu_src2, 0x1f);
+                            tcg_gen_shl_tl(cpu_dst, cpu_src1, cpu_tmp0);
+                        }
                         gen_movl_TN_reg(rd, cpu_dst);
                         break;
                     case 0x26:  /* srl */
-                        tcg_gen_andi_tl(cpu_tmp0, cpu_src2, 0x1f);
-                        tcg_gen_shr_tl(cpu_dst, cpu_src1, cpu_tmp0);
+                        if (IS_IMM) { /* immediate */
+                            rs2 = GET_FIELDs(insn, 20, 31);
+                            tcg_gen_shri_tl(cpu_dst, cpu_src1, rs2 & 0x1f);
+                        } else { /* register */
+                            tcg_gen_andi_tl(cpu_tmp0, cpu_src2, 0x1f);
+                            tcg_gen_shr_tl(cpu_dst, cpu_src1, cpu_tmp0);
+                        }
                         gen_movl_TN_reg(rd, cpu_dst);
                         break;
                     case 0x27:  /* sra */
-                        tcg_gen_andi_tl(cpu_tmp0, cpu_src2, 0x1f);
-                        tcg_gen_sar_tl(cpu_dst, cpu_src1, cpu_tmp0);
+                        if (IS_IMM) { /* immediate */
+                            rs2 = GET_FIELDs(insn, 20, 31);
+                            tcg_gen_sari_tl(cpu_dst, cpu_src1, rs2 & 0x1f);
+                        } else { /* register */
+                            tcg_gen_andi_tl(cpu_tmp0, cpu_src2, 0x1f);
+                            tcg_gen_sar_tl(cpu_dst, cpu_src1, cpu_tmp0);
+                        }
                         gen_movl_TN_reg(rd, cpu_dst);
                         break;
 #endif
