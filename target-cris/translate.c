@@ -347,7 +347,7 @@ static void t_gen_lz_i32(TCGv d, TCGv x)
 	tcg_gen_shri_i32(y, x, 14);
 	/* m = y & ~(y >> 1)  */
 	tcg_gen_sari_i32(m, y, 1);
-	tcg_gen_xori_i32(m, m, 0xffffffff);
+	tcg_gen_not_i32(m, m);
 	tcg_gen_and_i32(m, m, y);
 
 	/* d = n + 2 - m  */
@@ -754,7 +754,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 			tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
-			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], -1);
+			tcg_gen_not_tl(cpu_T[1], cpu_T[1]);
 
 			/* Extended arithmetics.  */
 			t_gen_subx_carry(dc, cpu_T[0]);
@@ -826,7 +826,7 @@ static void crisv32_alu_op(DisasContext *dc, int op, int rd, int size)
 		case CC_OP_CMP:
 			tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
 			/* CRIS flag evaluation needs ~src.  */
-			tcg_gen_xori_tl(cpu_T[1], cpu_T[1], ~0);
+			tcg_gen_not_tl(cpu_T[1], cpu_T[1]);
 
 			/* Extended arithmetics.  */
 			t_gen_subx_carry(dc, cpu_T[0]);
@@ -1686,7 +1686,7 @@ static unsigned int dec_swap_r(DisasContext *dc)
 	cris_cc_mask(dc, CC_MASK_NZ);
 	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	if (dc->op2 & 8)
-		tcg_gen_xori_tl(cpu_T[0], cpu_T[0], -1);
+		tcg_gen_not_tl(cpu_T[0], cpu_T[0]);
 	if (dc->op2 & 4)
 		t_gen_swapw(cpu_T[0], cpu_T[0]);
 	if (dc->op2 & 2)
