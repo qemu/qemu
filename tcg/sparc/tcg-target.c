@@ -198,8 +198,8 @@ static inline int tcg_target_const_match(tcg_target_long val,
 
 #define ARITH_ADD  (INSN_OP(2) | INSN_OP3(0x00))
 #define ARITH_AND  (INSN_OP(2) | INSN_OP3(0x01))
-#define ARITH_ANDCC (INSN_OP(2) | INSN_OP3(0x11))
 #define ARITH_OR   (INSN_OP(2) | INSN_OP3(0x02))
+#define ARITH_ORCC (INSN_OP(2) | INSN_OP3(0x12))
 #define ARITH_XOR  (INSN_OP(2) | INSN_OP3(0x03))
 #define ARITH_SUB  (INSN_OP(2) | INSN_OP3(0x04))
 #define ARITH_SUBCC (INSN_OP(2) | INSN_OP3(0x14))
@@ -387,8 +387,8 @@ static void tcg_out_brcond(TCGContext *s, int cond,
                            int label_index)
 {
     if (const_arg2 && arg2 == 0)
-        /* andcc r, r, %g0 */
-        tcg_out_arith(s, TCG_REG_G0, arg1, arg1, ARITH_ANDCC);
+        /* orcc r, r, %g0 */
+        tcg_out_arith(s, TCG_REG_G0, TCG_REG_G0, arg1, ARITH_ORCC);
     else
         /* subcc r1, r2, %g0 */
         tcg_out_arith(s, TCG_REG_G0, arg1, arg2, ARITH_SUBCC);
@@ -418,14 +418,14 @@ extern void __stl_mmu(void);
 extern void __stq_mmu(void);
 
 
-static void *qemu_ld_helpers[4] = {
+static const void * const qemu_ld_helpers[4] = {
     __ldb_mmu,
     __ldw_mmu,
     __ldl_mmu,
     __ldq_mmu,
 };
 
-static void *qemu_st_helpers[4] = {
+static const void * const qemu_st_helpers[4] = {
     __stb_mmu,
     __stw_mmu,
     __stl_mmu,
@@ -531,7 +531,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     tcg_out32(s, 0);
 
     /* label1: */
-    *label1_ptr = (INSN_OP(0) | COND_A | INSN_OP2(0x2) |
+    *label1_ptr = (INSN_OP(0) | INSN_COND(COND_A, 0) | INSN_OP2(0x2) |
                    INSN_OFF22((unsigned long)label1_ptr -
                               (unsigned long)s->code_ptr));
 
@@ -599,7 +599,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 
 #if defined(CONFIG_SOFTMMU)
     /* label2: */
-    *label2_ptr = (INSN_OP(0) | COND_A | INSN_OP2(0x2) |
+    *label2_ptr = (INSN_OP(0) | INSN_COND(COND_A, 0) | INSN_OP2(0x2) |
                    INSN_OFF22((unsigned long)label2_ptr -
                               (unsigned long)s->code_ptr));
 #endif
@@ -703,7 +703,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     tcg_out32(s, 0);
 
     /* label1: */
-    *label1_ptr = (INSN_OP(0) | COND_A | INSN_OP2(0x2) |
+    *label1_ptr = (INSN_OP(0) | INSN_COND(COND_A, 0) | INSN_OP2(0x2) |
                    INSN_OFF22((unsigned long)label1_ptr -
                               (unsigned long)s->code_ptr));
 
@@ -753,7 +753,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 
 #if defined(CONFIG_SOFTMMU)
     /* label2: */
-    *label2_ptr = (INSN_OP(0) | COND_A | INSN_OP2(0x2) |
+    *label2_ptr = (INSN_OP(0) | INSN_COND(COND_A, 0) | INSN_OP2(0x2) |
                    INSN_OFF22((unsigned long)label2_ptr -
                               (unsigned long)s->code_ptr));
 #endif
