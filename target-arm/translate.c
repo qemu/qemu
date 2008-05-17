@@ -451,12 +451,6 @@ static void gen_sub_carry(TCGv dest, TCGv t0, TCGv t1)
 #define gen_sbc_T0_T1() gen_sub_carry(cpu_T[0], cpu_T[0], cpu_T[1])
 #define gen_rsc_T0_T1() gen_sub_carry(cpu_T[0], cpu_T[1], cpu_T[0])
 
-/* FIXME:  Implement this natively.  */
-static inline void tcg_gen_not_i32(TCGv t0, TCGv t1)
-{
-    tcg_gen_xori_i32(t0, t1, ~0);
-}
-
 /* T0 &= ~T1.  Clobbers T1.  */
 /* FIXME: Implement bic natively.  */
 static inline void tcg_gen_bic_i32(TCGv dest, TCGv t0, TCGv t1)
