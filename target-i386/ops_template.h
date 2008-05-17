@@ -415,20 +415,6 @@ void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
     T0 = ((DATA_STYPE)src1 <= (DATA_STYPE)src2);
 }
 
-#undef MEM_WRITE
-#include "ops_template_mem.h"
-
-#define MEM_WRITE 0
-#include "ops_template_mem.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#define MEM_WRITE 1
-#include "ops_template_mem.h"
-
-#define MEM_WRITE 2
-#include "ops_template_mem.h"
-#endif
-
 /* bit operations */
 #if DATA_BITS >= 16
 
