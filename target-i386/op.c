@@ -224,30 +224,6 @@ void OPPROTO op_imulq_T0_T1(void)
 /* constant load & misc op */
 
 /* XXX: consistent names */
-void OPPROTO op_addl_T1_im(void)
-{
-    T1 += PARAM1;
-}
-
-void OPPROTO op_movl_T1_A0(void)
-{
-    T1 = A0;
-}
-
-void OPPROTO op_addl_A0_AL(void)
-{
-    A0 = (uint32_t)(A0 + (EAX & 0xff));
-}
-
-#ifdef TARGET_X86_64
-
-void OPPROTO op_addq_A0_AL(void)
-{
-    A0 = (A0 + (EAX & 0xff));
-}
-
-#endif
-
 void OPPROTO op_into(void)
 {
     int eflags;

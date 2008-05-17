@@ -2352,12 +2352,12 @@ static void gen_push_T0(DisasContext *s)
             gen_op_addl_A0_im(-4);
         if (s->ss32) {
             if (s->addseg) {
-                gen_op_movl_T1_A0();
+                tcg_gen_mov_tl(cpu_T[1], cpu_A0);
                 gen_op_addl_A0_seg(R_SS);
             }
         } else {
             gen_op_andl_A0_ffff();
-            gen_op_movl_T1_A0();
+            tcg_gen_mov_tl(cpu_T[1], cpu_A0);
             gen_op_addl_A0_seg(R_SS);
         }
         gen_op_st_T0_A0(s->dflag + 1 + s->mem_index);
@@ -2447,7 +2447,7 @@ static void gen_stack_A0(DisasContext *s)
     gen_op_movl_A0_reg(R_ESP);
     if (!s->ss32)
         gen_op_andl_A0_ffff();
-    gen_op_movl_T1_A0();
+    tcg_gen_mov_tl(cpu_T[1], cpu_A0);
     if (s->addseg)
         gen_op_addl_A0_seg(R_SS);
 }
@@ -2460,7 +2460,7 @@ static void gen_pusha(DisasContext *s)
     gen_op_addl_A0_im(-16 <<  s->dflag);
     if (!s->ss32)
         gen_op_andl_A0_ffff();
-    gen_op_movl_T1_A0();
+    tcg_gen_mov_tl(cpu_T[1], cpu_A0);
     if (s->addseg)
         gen_op_addl_A0_seg(R_SS);
     for(i = 0;i < 8; i++) {
@@ -2478,8 +2478,8 @@ static void gen_popa(DisasContext *s)
     gen_op_movl_A0_reg(R_ESP);
     if (!s->ss32)
         gen_op_andl_A0_ffff();
-    gen_op_movl_T1_A0();
-    gen_op_addl_T1_im(16 <<  s->dflag);
+    tcg_gen_mov_tl(cpu_T[1], cpu_A0);
+    tcg_gen_addi_tl(cpu_T[1], cpu_T[1], 16 <<  s->dflag);
     if (s->addseg)
         gen_op_addl_A0_seg(R_SS);
     for(i = 0;i < 8; i++) {
@@ -2505,7 +2505,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
 
         gen_op_movl_A0_reg(R_ESP);
         gen_op_addq_A0_im(-opsize);
-        gen_op_movl_T1_A0();
+        tcg_gen_mov_tl(cpu_T[1], cpu_A0);
 
         /* push bp */
         gen_op_mov_TN_reg(OT_LONG, 0, R_EBP);
@@ -2518,7 +2518,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
                                cpu_T[1]);
         }
         gen_op_mov_reg_T1(ot, R_EBP);
-        gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
+        tcg_gen_addi_tl(cpu_T[1], cpu_T[1], -esp_addend + (-opsize * level));
         gen_op_mov_reg_T1(OT_QUAD, R_ESP);
     } else
 #endif
@@ -2530,7 +2530,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
         gen_op_addl_A0_im(-opsize);
         if (!s->ss32)
             gen_op_andl_A0_ffff();
-        gen_op_movl_T1_A0();
+        tcg_gen_mov_tl(cpu_T[1], cpu_A0);
         if (s->addseg)
             gen_op_addl_A0_seg(R_SS);
         /* push bp */
@@ -2544,7 +2544,7 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
                                cpu_T[1]);
         }
         gen_op_mov_reg_T1(ot, R_EBP);
-        gen_op_addl_T1_im( -esp_addend + (-opsize * level) );
+        tcg_gen_addi_tl(cpu_T[1], cpu_T[1], -esp_addend + (-opsize * level));
         gen_op_mov_reg_T1(OT_WORD + s->ss32, R_ESP);
     }
 }
@@ -4561,14 +4561,20 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 #ifdef TARGET_X86_64
         if (s->aflag == 2) {
             gen_op_movq_A0_reg(R_EBX);
-            gen_op_addq_A0_AL();
+            gen_op_mov_TN_reg(OT_QUAD, 0, R_EAX);
+            tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
+            tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_T[0]);
         } else
 #endif
         {
             gen_op_movl_A0_reg(R_EBX);
-            gen_op_addl_A0_AL();
+            gen_op_mov_TN_reg(OT_LONG, 0, R_EAX);
+            tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
+            tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_T[0]);
             if (s->aflag == 0)
                 gen_op_andl_A0_ffff();
+            else
+                tcg_gen_andi_tl(cpu_A0, cpu_A0, 0xffffffff);
         }
         gen_add_A0_ds_seg(s);
         gen_op_ldu_T0_A0(OT_BYTE + s->mem_index);
@@ -6285,13 +6291,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     gen_jmp_im(pc_start - s->cs_base);
 #ifdef TARGET_X86_64
                     if (s->aflag == 2) {
-                        gen_op_movq_A0_reg(R_EBX);
-                        gen_op_addq_A0_AL();
+                        gen_op_movq_A0_reg(R_EAX);
                     } else
 #endif
                     {
-                        gen_op_movl_A0_reg(R_EBX);
-                        gen_op_addl_A0_AL();
+                        gen_op_movl_A0_reg(R_EAX);
                         if (s->aflag == 0)
                             gen_op_andl_A0_ffff();
                     }
