@@ -199,3 +199,14 @@ void TCG_HELPER_PROTO helper_movq(uint64_t *d, uint64_t *s);
 #define SHIFT 1
 #include "ops_sse_header.h"
 
+target_ulong helper_rclb(target_ulong t0, target_ulong t1);
+target_ulong helper_rclw(target_ulong t0, target_ulong t1);
+target_ulong helper_rcll(target_ulong t0, target_ulong t1);
+target_ulong helper_rcrb(target_ulong t0, target_ulong t1);
+target_ulong helper_rcrw(target_ulong t0, target_ulong t1);
+target_ulong helper_rcrl(target_ulong t0, target_ulong t1);
+#ifdef TARGET_X86_64
+target_ulong helper_rclq(target_ulong t0, target_ulong t1);
+target_ulong helper_rcrq(target_ulong t0, target_ulong t1);
+#endif
+

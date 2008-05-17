@@ -476,6 +476,7 @@ typedef struct CPUX86State {
     /* temporaries if we cannot store them in host registers */
     target_ulong t0, t1, t2;
 #endif
+    target_ulong t3;
 
     /* standard registers */
     target_ulong regs[CPU_NB_REGS];
@@ -726,6 +727,13 @@ static inline int cpu_mmu_index (CPUState *env)
 {
     return (env->hflags & HF_CPL_MASK) == 3 ? 1 : 0;
 }
+
+typedef struct CCTable {
+    int (*compute_all)(void); /* return all the flags */
+    int (*compute_c)(void);  /* return the C flag */
+} CCTable;
+
+extern CCTable cc_table[];
 
 #include "cpu-all.h"
 

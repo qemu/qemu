@@ -21,15 +21,6 @@
 #define ASM_SOFTMMU
 #include "exec.h"
 
-/* n must be a constant to be efficient */
-static inline target_long lshift(target_long x, int n)
-{
-    if (n >= 0)
-        return x << n;
-    else
-        return x >> (-n);
-}
-
 /* we define the various pieces of code used by the JIT */
 
 #define REG EAX
@@ -131,66 +122,6 @@ static inline target_long lshift(target_long x, int n)
 #undef REGNAME
 
 #endif
-
-/* operations with flags */
-
-/* update flags with T0 and T1 (add/sub case) */
-void OPPROTO op_update2_cc(void)
-{
-    CC_SRC = T1;
-    CC_DST = T0;
-}
-
-/* update flags with T0 (logic operation case) */
-void OPPROTO op_update1_cc(void)
-{
-    CC_DST = T0;
-}
-
-void OPPROTO op_update_neg_cc(void)
-{
-    CC_SRC = -T0;
-    CC_DST = T0;
-}
-
-void OPPROTO op_cmpl_T0_T1_cc(void)
-{
-    CC_SRC = T1;
-    CC_DST = T0 - T1;
-}
-
-void OPPROTO op_update_inc_cc(void)
-{
-    CC_SRC = cc_table[CC_OP].compute_c();
-    CC_DST = T0;
-}
-
-void OPPROTO op_testl_T0_T1_cc(void)
-{
-    CC_DST = T0 & T1;
-}
-
-/* operations without flags */
-
-void OPPROTO op_negl_T0(void)
-{
-    T0 = -T0;
-}
-
-void OPPROTO op_incl_T0(void)
-{
-    T0++;
-}
-
-void OPPROTO op_decl_T0(void)
-{
-    T0--;
-}
-
-void OPPROTO op_notl_T0(void)
-{
-    T0 = ~T0;
-}
 
 /* multiply/divide */
 
@@ -307,28 +238,6 @@ void OPPROTO op_addl_A0_AL(void)
 {
     A0 = (uint32_t)(A0 + (EAX & 0xff));
 }
-
-#ifdef WORDS_BIGENDIAN
-typedef union UREG64 {
-    struct { uint16_t v3, v2, v1, v0; } w;
-    struct { uint32_t v1, v0; } l;
-    uint64_t q;
-} UREG64;
-#else
-typedef union UREG64 {
-    struct { uint16_t v0, v1, v2, v3; } w;
-    struct { uint32_t v0, v1; } l;
-    uint64_t q;
-} UREG64;
-#endif
-
-#define PARAMQ1 \
-({\
-    UREG64 __p;\
-    __p.l.v1 = PARAM1;\
-    __p.l.v0 = PARAM2;\
-    __p.q;\
-})
 
 #ifdef TARGET_X86_64
 

@@ -415,36 +415,6 @@ void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
     T0 = ((DATA_STYPE)src1 <= (DATA_STYPE)src2);
 }
 
-/* shifts */
-
-void OPPROTO glue(glue(op_shl, SUFFIX), _T0_T1)(void)
-{
-    int count;
-    count = T1 & SHIFT1_MASK;
-    T0 = T0 << count;
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_shr, SUFFIX), _T0_T1)(void)
-{
-    int count;
-    count = T1 & SHIFT1_MASK;
-    T0 &= DATA_MASK;
-    T0 = T0 >> count;
-    FORCE_RET();
-}
-
-void OPPROTO glue(glue(op_sar, SUFFIX), _T0_T1)(void)
-{
-    int count;
-    target_long src;
-
-    count = T1 & SHIFT1_MASK;
-    src = (DATA_STYPE)T0;
-    T0 = src >> count;
-    FORCE_RET();
-}
-
 #undef MEM_WRITE
 #include "ops_template_mem.h"
 

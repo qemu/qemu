@@ -5220,3 +5220,22 @@ void helper_movq(uint64_t *d, uint64_t *s)
 #define SHIFT 1
 #include "ops_sse.h"
 
+#define SHIFT 0
+#include "helper_template.h"
+#undef SHIFT
+
+#define SHIFT 1
+#include "helper_template.h"
+#undef SHIFT
+
+#define SHIFT 2
+#include "helper_template.h"
+#undef SHIFT
+
+#ifdef TARGET_X86_64
+
+#define SHIFT 3
+#include "helper_template.h"
+#undef SHIFT
+
+#endif

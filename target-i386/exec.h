@@ -98,13 +98,6 @@ extern int loglevel;
 #include "cpu.h"
 #include "exec-all.h"
 
-typedef struct CCTable {
-    int (*compute_all)(void); /* return all the flags */
-    int (*compute_c)(void);  /* return the C flag */
-} CCTable;
-
-extern CCTable cc_table[];
-
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
@@ -128,6 +121,15 @@ void __hidden cpu_loop_exit(void);
 
 void OPPROTO op_movl_eflags_T0(void);
 void OPPROTO op_movl_T0_eflags(void);
+
+/* n must be a constant to be efficient */
+static inline target_long lshift(target_long x, int n)
+{
+    if (n >= 0)
+        return x << n;
+    else
+        return x >> (-n);
+}
 
 #include "helper.h"
 
