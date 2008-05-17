@@ -962,6 +962,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         /* TODO: Make this return the correct value for user-mode.  */
         snprintf(buf, sizeof(buf), "S%02x", SIGTRAP);
         put_packet(s, buf);
+        /* Remove all the breakpoints when this query is issued,
+         * because gdb is doing and initial connect and the state
+         * should be cleaned up.
+         */
+        cpu_breakpoint_remove_all(env);
+        cpu_watchpoint_remove_all(env);
         break;
     case 'c':
         if (*p != '\0') {
@@ -985,6 +991,17 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         }
         gdb_continue(s);
 	return RS_IDLE;
+    case 'k':
+        /* Kill the target */
+        fprintf(stderr, "\nQEMU: Terminated via GDBstub\n");
+        exit(0);
+    case 'D':
+        /* Detach packet */
+        cpu_breakpoint_remove_all(env);
+        cpu_watchpoint_remove_all(env);
+        gdb_continue(s);
+        put_packet(s, "OK");
+        break;
     case 's':
         if (*p != '\0') {
             addr = strtoull(p, (char **)&p, 16);

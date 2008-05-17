@@ -760,8 +760,10 @@ void cpu_reset_interrupt(CPUState *env, int mask);
 
 int cpu_watchpoint_insert(CPUState *env, target_ulong addr);
 int cpu_watchpoint_remove(CPUState *env, target_ulong addr);
+void cpu_watchpoint_remove_all(CPUState *env);
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc);
 int cpu_breakpoint_remove(CPUState *env, target_ulong pc);
+void cpu_breakpoint_remove_all(CPUState *env);
 
 #define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
 #define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
