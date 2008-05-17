@@ -203,42 +203,6 @@ void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
 /* bit operations */
 #if DATA_BITS >= 16
 
-void OPPROTO glue(glue(op_bt, SUFFIX), _T0_T1_cc)(void)
-{
-    int count;
-    count = T1 & SHIFT_MASK;
-    CC_SRC = T0 >> count;
-}
-
-void OPPROTO glue(glue(op_bts, SUFFIX), _T0_T1_cc)(void)
-{
-    int count;
-    count = T1 & SHIFT_MASK;
-    T1 = T0 >> count;
-    T0 |= (((target_long)1) << count);
-}
-
-void OPPROTO glue(glue(op_btr, SUFFIX), _T0_T1_cc)(void)
-{
-    int count;
-    count = T1 & SHIFT_MASK;
-    T1 = T0 >> count;
-    T0 &= ~(((target_long)1) << count);
-}
-
-void OPPROTO glue(glue(op_btc, SUFFIX), _T0_T1_cc)(void)
-{
-    int count;
-    count = T1 & SHIFT_MASK;
-    T1 = T0 >> count;
-    T0 ^= (((target_long)1) << count);
-}
-
-void OPPROTO glue(glue(op_add_bit, SUFFIX), _A0_T1)(void)
-{
-    A0 += ((DATA_STYPE)T1 >> (3 + SHIFT)) << SHIFT;
-}
-
 void OPPROTO glue(glue(op_bsf, SUFFIX), _T0_cc)(void)
 {
     int count;
@@ -279,13 +243,6 @@ void OPPROTO glue(glue(op_bsr, SUFFIX), _T0_cc)(void)
     FORCE_RET();
 }
 
-#endif
-
-#if DATA_BITS == 32
-void OPPROTO op_update_bt_cc(void)
-{
-    CC_SRC = T1;
-}
 #endif
 
 /* string operations */
