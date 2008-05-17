@@ -4109,24 +4109,40 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     case 0x98: /* CWDE/CBW */
 #ifdef TARGET_X86_64
         if (dflag == 2) {
-            gen_op_movslq_RAX_EAX();
+            gen_op_mov_TN_reg(OT_LONG, 0, R_EAX);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            gen_op_mov_reg_T0(OT_QUAD, R_EAX);
         } else
 #endif
-        if (dflag == 1)
-            gen_op_movswl_EAX_AX();
-        else
-            gen_op_movsbw_AX_AL();
+        if (dflag == 1) {
+            gen_op_mov_TN_reg(OT_WORD, 0, R_EAX);
+            tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
+            gen_op_mov_reg_T0(OT_LONG, R_EAX);
+        } else {
+            gen_op_mov_TN_reg(OT_BYTE, 0, R_EAX);
+            tcg_gen_ext8s_tl(cpu_T[0], cpu_T[0]);
+            gen_op_mov_reg_T0(OT_WORD, R_EAX);
+        }
         break;
     case 0x99: /* CDQ/CWD */
 #ifdef TARGET_X86_64
         if (dflag == 2) {
-            gen_op_movsqo_RDX_RAX();
+            gen_op_mov_TN_reg(OT_QUAD, 0, R_EAX);
+            tcg_gen_sari_tl(cpu_T[0], cpu_T[0], 63);
+            gen_op_mov_reg_T0(OT_QUAD, R_EDX);
         } else
 #endif
-        if (dflag == 1)
-            gen_op_movslq_EDX_EAX();
-        else
-            gen_op_movswl_DX_AX();
+        if (dflag == 1) {
+            gen_op_mov_TN_reg(OT_LONG, 0, R_EAX);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_sari_tl(cpu_T[0], cpu_T[0], 31);
+            gen_op_mov_reg_T0(OT_LONG, R_EDX);
+        } else {
+            gen_op_mov_TN_reg(OT_WORD, 0, R_EAX);
+            tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_sari_tl(cpu_T[0], cpu_T[0], 15);
+            gen_op_mov_reg_T0(OT_WORD, R_EDX);
+        }
         break;
     case 0x1af: /* imul Gv, Ev */
     case 0x69: /* imul Gv, Ev, I */
@@ -4479,17 +4495,17 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 gen_op_mov_TN_reg(ot, 0, rm);
                 switch(ot | (b & 8)) {
                 case OT_BYTE:
-                    gen_op_movzbl_T0_T0();
+                    tcg_gen_ext8u_tl(cpu_T[0], cpu_T[0]);
                     break;
                 case OT_BYTE | 8:
-                    gen_op_movsbl_T0_T0();
+                    tcg_gen_ext8s_tl(cpu_T[0], cpu_T[0]);
                     break;
                 case OT_WORD:
-                    gen_op_movzwl_T0_T0();
+                    tcg_gen_ext16u_tl(cpu_T[0], cpu_T[0]);
                     break;
                 default:
                 case OT_WORD | 8:
-                    gen_op_movswl_T0_T0();
+                    tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
                     break;
                 }
                 gen_op_mov_reg_T0(d_ot, reg);
@@ -6481,7 +6497,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 gen_op_mov_TN_reg(OT_LONG, 0, rm);
                 /* sign extend */
                 if (d_ot == OT_QUAD)
-                    gen_op_movslq_T0_T0();
+                    tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
                 gen_op_mov_reg_T0(d_ot, reg);
             } else {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);

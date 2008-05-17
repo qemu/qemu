@@ -263,67 +263,6 @@ void OPPROTO op_cmpxchg8b(void)
 
 #endif
 
-/* sign extend */
-
-void OPPROTO op_movsbl_T0_T0(void)
-{
-    T0 = (int8_t)T0;
-}
-
-void OPPROTO op_movzbl_T0_T0(void)
-{
-    T0 = (uint8_t)T0;
-}
-
-void OPPROTO op_movswl_T0_T0(void)
-{
-    T0 = (int16_t)T0;
-}
-
-void OPPROTO op_movzwl_T0_T0(void)
-{
-    T0 = (uint16_t)T0;
-}
-
-void OPPROTO op_movswl_EAX_AX(void)
-{
-    EAX = (uint32_t)((int16_t)EAX);
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO op_movslq_T0_T0(void)
-{
-    T0 = (int32_t)T0;
-}
-
-void OPPROTO op_movslq_RAX_EAX(void)
-{
-    EAX = (int32_t)EAX;
-}
-#endif
-
-void OPPROTO op_movsbw_AX_AL(void)
-{
-    EAX = (EAX & ~0xffff) | ((int8_t)EAX & 0xffff);
-}
-
-void OPPROTO op_movslq_EDX_EAX(void)
-{
-    EDX = (uint32_t)((int32_t)EAX >> 31);
-}
-
-void OPPROTO op_movswl_DX_AX(void)
-{
-    EDX = (EDX & ~0xffff) | (((int16_t)EAX >> 15) & 0xffff);
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO op_movsqo_RDX_RAX(void)
-{
-    EDX = (int64_t)EAX >> 63;
-}
-#endif
-
 /* string ops helpers */
 
 void OPPROTO op_addl_ESI_T0(void)
