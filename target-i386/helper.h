@@ -187,6 +187,8 @@ void helper_fsave(target_ulong ptr, int data32);
 void helper_frstor(target_ulong ptr, int data32);
 void helper_fxsave(target_ulong ptr, int data64);
 void helper_fxrstor(target_ulong ptr, int data64);
+target_ulong helper_bsf(target_ulong t0);
+target_ulong helper_bsr(target_ulong t0);
 
 /* MMX/SSE */
 

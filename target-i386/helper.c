@@ -5240,6 +5240,37 @@ void helper_movq(uint64_t *d, uint64_t *s)
 
 #endif
 
+/* bit operations */
+target_ulong helper_bsf(target_ulong t0)
+{
+    int count;
+    target_ulong res;
+
+    res = t0;
+    count = 0;
+    while ((res & 1) == 0) {
+        count++;
+        res >>= 1;
+    }
+    return count;
+}
+
+target_ulong helper_bsr(target_ulong t0)
+{
+    int count;
+    target_ulong res, mask;
+    
+    res = t0;
+    count = TARGET_LONG_BITS - 1;
+    mask = (target_ulong)1 << (TARGET_LONG_BITS - 1);
+    while ((res & mask) == 0) {
+        count--;
+        res <<= 1;
+    }
+    return count;
+}
+
+
 static int compute_all_eflags(void)
 {
     return CC_SRC;

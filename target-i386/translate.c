@@ -498,23 +498,6 @@ static GenOpFunc *gen_op_cmov_reg_T1_T0[NB_OP_SIZES - 1][CPU_NB_REGS] = {
 #endif
 };
 
-static GenOpFunc *gen_op_bsx_T0_cc[3][2] = {
-    [0] = {
-        gen_op_bsfw_T0_cc,
-        gen_op_bsrw_T0_cc,
-    },
-    [1] = {
-        gen_op_bsfl_T0_cc,
-        gen_op_bsrl_T0_cc,
-    },
-#ifdef TARGET_X86_64
-    [2] = {
-        gen_op_bsfq_T0_cc,
-        gen_op_bsrq_T0_cc,
-    },
-#endif
-};
-
 static inline void gen_op_lds_T0_A0(int idx)
 {
     int mem_index = (idx >> 2) - 1;
@@ -5837,16 +5820,27 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         break;
     case 0x1bc: /* bsf */
     case 0x1bd: /* bsr */
-        ot = dflag + OT_WORD;
-        modrm = ldub_code(s->pc++);
-        reg = ((modrm >> 3) & 7) | rex_r;
-        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
-        /* NOTE: in order to handle the 0 case, we must load the
-           result. It could be optimized with a generated jump */
-        gen_op_mov_TN_reg(ot, 1, reg);
-        gen_op_bsx_T0_cc[ot - OT_WORD][b & 1]();
-        gen_op_mov_reg_T1(ot, reg);
-        s->cc_op = CC_OP_LOGICB + ot;
+        {
+            int label1;
+            ot = dflag + OT_WORD;
+            modrm = ldub_code(s->pc++);
+            reg = ((modrm >> 3) & 7) | rex_r;
+            gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
+            gen_extu(ot, cpu_T[0]);
+            label1 = gen_new_label();
+            tcg_gen_movi_tl(cpu_cc_dst, 0);
+            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[0], tcg_const_tl(0), label1);
+            if (b & 1) {
+                tcg_gen_helper_1_1(helper_bsr, cpu_T[0], cpu_T[0]);
+            } else {
+                tcg_gen_helper_1_1(helper_bsf, cpu_T[0], cpu_T[0]);
+            }
+            gen_op_mov_reg_T0(ot, reg);
+            tcg_gen_movi_tl(cpu_cc_dst, 1);
+            gen_set_label(label1);
+            tcg_gen_discard_tl(cpu_cc_src);
+            s->cc_op = CC_OP_LOGICB + ot;
+        }
         break;
         /************************/
         /* bcd */
