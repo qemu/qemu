@@ -946,32 +946,51 @@ void tcg_liveness_analysis(TCGContext *s)
         def = &tcg_op_defs[op];
         switch(op) {
         case INDEX_op_call:
-            nb_args = args[-1];
-            args -= nb_args;
-            nb_iargs = args[0] & 0xffff;
-            nb_oargs = args[0] >> 16;
-            args++;
+            {
+                int call_flags;
 
-            /* output args are dead */
-            for(i = 0; i < nb_oargs; i++) {
-                arg = args[i];
-                dead_temps[arg] = 1;
-            }
-            
-            /* globals are live (they may be used by the call) */
-            memset(dead_temps, 0, s->nb_globals);
+                nb_args = args[-1];
+                args -= nb_args;
+                nb_iargs = args[0] & 0xffff;
+                nb_oargs = args[0] >> 16;
+                args++;
+                call_flags = args[nb_oargs + nb_iargs];
 
-            /* input args are live */
-            dead_iargs = 0;
-            for(i = 0; i < nb_iargs; i++) {
-                arg = args[i + nb_oargs];
-                if (dead_temps[arg]) {
-                    dead_iargs |= (1 << i);
+                /* pure functions can be removed if their result is not
+                   used */
+                if (call_flags & TCG_CALL_PURE) {
+                    for(i = 0; i < nb_oargs; i++) {
+                        arg = args[i];
+                        if (!dead_temps[arg])
+                            goto do_not_remove_call;
+                    }
+                    tcg_set_nop(s, gen_opc_buf + op_index, 
+                                args - 1, nb_args);
+                } else {
+                do_not_remove_call:
+
+                    /* output args are dead */
+                    for(i = 0; i < nb_oargs; i++) {
+                        arg = args[i];
+                        dead_temps[arg] = 1;
+                    }
+                    
+                    /* globals are live (they may be used by the call) */
+                    memset(dead_temps, 0, s->nb_globals);
+                    
+                    /* input args are live */
+                    dead_iargs = 0;
+                    for(i = 0; i < nb_iargs; i++) {
+                        arg = args[i + nb_oargs];
+                        if (dead_temps[arg]) {
+                            dead_iargs |= (1 << i);
+                        }
+                        dead_temps[arg] = 0;
+                    }
+                    s->op_dead_iargs[op_index] = dead_iargs;
                 }
-                dead_temps[arg] = 0;
+                args--;
             }
-            s->op_dead_iargs[op_index] = dead_iargs;
-            args--;
             break;
         case INDEX_op_set_label:
             args--;
@@ -1640,7 +1659,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     }
     
     /* mark dead temporaries and free the associated registers */
-    for(i = 0; i < nb_params; i++) {
+    for(i = 0; i < nb_iargs; i++) {
         arg = args[nb_oargs + i];
         if (IS_DEAD_IARG(i)) {
             ts = &s->temps[arg];
