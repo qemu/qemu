@@ -1226,6 +1226,15 @@ static inline void tcg_gen_neg_i64(TCGv ret, TCGv arg)
 #endif
 }
 
+static inline void tcg_gen_not_i32(TCGv ret, TCGv arg)
+{
+    tcg_gen_xor_i32(ret, arg, tcg_const_i32(-1));
+}
+
+static inline void tcg_gen_not_i64(TCGv ret, TCGv arg)
+{
+    tcg_gen_xor_i64(ret, arg, tcg_const_i64(-1));
+}
 
 static inline void tcg_gen_discard_i32(TCGv arg)
 {
@@ -1467,6 +1476,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_ori_tl tcg_gen_ori_i64
 #define tcg_gen_xor_tl tcg_gen_xor_i64
 #define tcg_gen_xori_tl tcg_gen_xori_i64
+#define tcg_gen_not_tl tcg_gen_not_i64
 #define tcg_gen_shl_tl tcg_gen_shl_i64
 #define tcg_gen_shli_tl tcg_gen_shli_i64
 #define tcg_gen_shr_tl tcg_gen_shr_i64
@@ -1483,6 +1493,12 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_ext_i32_tl tcg_gen_ext_i32_i64
 #define tcg_gen_extu_tl_i64 tcg_gen_mov_i64
 #define tcg_gen_ext_tl_i64 tcg_gen_mov_i64
+#define tcg_gen_ext8u_tl tcg_gen_ext8u_i64
+#define tcg_gen_ext8s_tl tcg_gen_ext8s_i64
+#define tcg_gen_ext16u_tl tcg_gen_ext16u_i64
+#define tcg_gen_ext16s_tl tcg_gen_ext16s_i64
+#define tcg_gen_ext32u_tl tcg_gen_ext32u_i64
+#define tcg_gen_ext32s_tl tcg_gen_ext32s_i64
 #define tcg_const_tl tcg_const_i64
 #else
 #define TCG_TYPE_TL TCG_TYPE_I32
@@ -1510,6 +1526,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_ori_tl tcg_gen_ori_i32
 #define tcg_gen_xor_tl tcg_gen_xor_i32
 #define tcg_gen_xori_tl tcg_gen_xori_i32
+#define tcg_gen_not_tl tcg_gen_not_i32
 #define tcg_gen_shl_tl tcg_gen_shl_i32
 #define tcg_gen_shli_tl tcg_gen_shli_i32
 #define tcg_gen_shr_tl tcg_gen_shr_i32
@@ -1526,6 +1543,12 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_ext_i32_tl tcg_gen_mov_i32
 #define tcg_gen_extu_tl_i64 tcg_gen_extu_i32_i64
 #define tcg_gen_ext_tl_i64 tcg_gen_ext_i32_i64
+#define tcg_gen_ext8u_tl tcg_gen_ext8u_i32
+#define tcg_gen_ext8s_tl tcg_gen_ext8s_i32
+#define tcg_gen_ext16u_tl tcg_gen_ext16u_i32
+#define tcg_gen_ext16s_tl tcg_gen_ext16s_i32
+#define tcg_gen_ext32u_tl tcg_gen_mov_i32
+#define tcg_gen_ext32s_tl tcg_gen_mov_i32
 #define tcg_const_tl tcg_const_i32
 #endif
 
