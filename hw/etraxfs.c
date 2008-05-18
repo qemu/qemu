@@ -60,7 +60,7 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
 {
     CPUState *env;
     qemu_irq *pic;
-    struct etraxfs_dma_client *eth0;
+    struct etraxfs_dma_client *eth[2] = {NULL, NULL};
     int kernel_size;
     int i;
     ram_addr_t phys_ram;
@@ -106,12 +106,18 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
 	    etraxfs_dmac_connect(etraxfs_dmac, i, pic + 7 + i, i & 1);
     }
 
-    /* It has 2, but let's start with one ethernet block.  */
-    eth0 = etraxfs_eth_init(&nd_table[0], env, pic + 25, 0xb0034000);
+    /* Add the two ethernet blocks.  */
+    eth[0] = etraxfs_eth_init(&nd_table[0], env, pic + 25, 0xb0034000);
+    if (&nd_table[1])
+	    eth[1] = etraxfs_eth_init(&nd_table[1], env, pic + 26, 0xb0036000);
     
     /* The DMA Connector block is missing, hardwire things for now.  */
-    etraxfs_dmac_connect_client(etraxfs_dmac, 0, eth0);
-    etraxfs_dmac_connect_client(etraxfs_dmac, 1, eth0 + 1);
+    etraxfs_dmac_connect_client(etraxfs_dmac, 0, eth[0]);
+    etraxfs_dmac_connect_client(etraxfs_dmac, 1, eth[0] + 1);
+    if (eth[1]) {
+	    etraxfs_dmac_connect_client(etraxfs_dmac, 6, eth[1]);
+	    etraxfs_dmac_connect_client(etraxfs_dmac, 7, eth[1] + 1);
+    }
 
     /* 2 timers.  */
     etraxfs_timer_init(env, pic + 0x1b, 0xb001e000);
