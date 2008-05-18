@@ -1312,8 +1312,8 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
         gen_op_mov_reg_T0(ot, d);
     else
         gen_op_st_T0_A0(ot + s1->mem_index);
-    tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
     gen_compute_eflags_c(cpu_cc_src);
+    tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
 }
 
 static void gen_extu(int ot, TCGv reg)
