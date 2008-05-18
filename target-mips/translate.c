@@ -504,7 +504,7 @@ static inline void gen_op_store_gpr_T1(int reg)
 /* Moves to/from shadow registers */
 static inline void gen_op_load_srsgpr_T0(int reg)
 {
-    int r_tmp = new_tmp();
+    TCGv r_tmp = new_tmp();
 
     tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSCtl));
     tcg_gen_shri_i32(r_tmp, r_tmp, CP0SRSCtl_PSS);
@@ -518,7 +518,7 @@ static inline void gen_op_load_srsgpr_T0(int reg)
 
 static inline void gen_op_store_srsgpr_T0(int reg)
 {
-    int r_tmp = new_tmp();
+    TCGv r_tmp = new_tmp();
 
     tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSCtl));
     tcg_gen_shri_i32(r_tmp, r_tmp, CP0SRSCtl_PSS);
@@ -1016,7 +1016,7 @@ OP_LD_ATOMIC(lld,ld64);
 #define OP_ST_ATOMIC(insn,fname,almask)                                 \
 void inline op_ldst_##insn(DisasContext *ctx)                           \
 {                                                                       \
-    int r_tmp = tcg_temp_new(TCG_TYPE_TL);                              \
+    TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);                             \
     int l1 = gen_new_label();                                           \
     int l2 = gen_new_label();                                           \
     int l3 = gen_new_label();                                           \
@@ -1956,7 +1956,7 @@ static inline void tcg_gen_set_bcond(void)
 
 static inline void tcg_gen_jnz_bcond(int label)
 {
-    int r_tmp = tcg_temp_new(TCG_TYPE_TL);
+    TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
 
     tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
     tcg_gen_brcond_tl(TCG_COND_NE, r_tmp, tcg_const_tl(0), label);
@@ -6834,6 +6834,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     if (search_pc && loglevel)
         fprintf (logfile, "search pc %d\n", search_pc);
 
+    num_temps = 0;
+    memset(temps, 0, sizeof(temps));
+
     pc_start = tb->pc;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
@@ -6888,6 +6891,12 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         }
         ctx.opcode = ldl_code(ctx.pc);
         decode_opc(env, &ctx);
+        if (num_temps) {
+            fprintf(stderr,
+                    "Internal resource leak before " TARGET_FMT_lx "\n",
+                    ctx.pc);
+            num_temps = 0;
+        }
         ctx.pc += 4;
 
         if (env->singlestep_enabled)
