@@ -87,10 +87,15 @@ static const int tcg_target_call_oarg_regs[2] = {
     TCG_REG_O1,
 };
 
-static inline int check_fit(tcg_target_long val, unsigned int bits)
+static inline int check_fit_tl(tcg_target_long val, unsigned int bits)
 {
-    return ((val << ((sizeof(tcg_target_long) * 8 - bits))
-             >> (sizeof(tcg_target_long) * 8 - bits)) == val);
+    return (val << ((sizeof(tcg_target_long) * 8 - bits))
+            >> (sizeof(tcg_target_long) * 8 - bits)) == val;
+}
+
+static inline int check_fit_i32(uint32_t val, unsigned int bits)
+{
+    return ((val << (32 - bits)) >> (32 - bits)) == val;
 }
 
 static void patch_reloc(uint8_t *code_ptr, int type,
@@ -106,7 +111,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
     case R_SPARC_WDISP22:
         value -= (long)code_ptr;
         value >>= 2;
-        if (!check_fit(value, 22))
+        if (!check_fit_tl(value, 22))
             tcg_abort();
         *(uint32_t *)code_ptr = ((*(uint32_t *)code_ptr) & ~0x3fffff) | value;
         break;
@@ -158,9 +163,9 @@ static inline int tcg_target_const_match(tcg_target_long val,
     ct = arg_ct->ct;
     if (ct & TCG_CT_CONST)
         return 1;
-    else if ((ct & TCG_CT_CONST_S11) && check_fit(val, 11))
+    else if ((ct & TCG_CT_CONST_S11) && check_fit_tl(val, 11))
         return 1;
-    else if ((ct & TCG_CT_CONST_S13) && check_fit(val, 13))
+    else if ((ct & TCG_CT_CONST_S13) && check_fit_tl(val, 13))
         return 1;
     else
         return 0;
@@ -248,10 +253,10 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
                                 int ret, tcg_target_long arg)
 {
 #if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
-    if (!check_fit(arg, 32))
+    if (!check_fit_tl(arg, 32) && (arg & ~0xffffffff) != 0)
         fprintf(stderr, "unimplemented %s with constant %ld\n", __func__, arg);
 #endif
-    if (check_fit(arg, 13))
+    if (check_fit_i32(arg, 13))
         tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS1(TCG_REG_G0) |
                   INSN_IMM13(arg));
     else {
@@ -274,9 +279,9 @@ static inline void tcg_out_ld_ptr(TCGContext *s, int ret,
                                   tcg_target_long arg)
 {
 #if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
-    if (!check_fit(arg, 32))
+    if (!check_fit_tl(arg, 32) && (arg & ~0xffffffff) != 0)
         fprintf(stderr, "unimplemented %s with offset %ld\n", __func__, arg);
-    if (!check_fit(arg, 13))
+    if (!check_fit_i32(arg, 13))
         tcg_out32(s, SETHI | INSN_RD(ret) | (((uint32_t)arg & 0xfffffc00) >> 10));
     tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(ret) |
               INSN_IMM13(arg & 0x3ff));
@@ -287,7 +292,7 @@ static inline void tcg_out_ld_ptr(TCGContext *s, int ret,
 
 static inline void tcg_out_ldst(TCGContext *s, int ret, int addr, int offset, int op)
 {
-    if (check_fit(offset, 13))
+    if (check_fit_tl(offset, 13))
         tcg_out32(s, op | INSN_RD(ret) | INSN_RS1(addr) |
                   INSN_IMM13(offset));
     else {
@@ -340,7 +345,7 @@ static inline void tcg_out_sety(TCGContext *s, tcg_target_long val)
 static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
 {
     if (val != 0) {
-        if (check_fit(val, 13))
+        if (check_fit_tl(val, 13))
             tcg_out_arithi(s, reg, reg, val, ARITH_ADD);
         else {
             tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I5, val);
