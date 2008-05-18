@@ -263,55 +263,6 @@ void OPPROTO op_cmpxchg8b(void)
 
 #endif
 
-/* string ops helpers */
-
-void OPPROTO op_addl_ESI_T0(void)
-{
-    ESI = (uint32_t)(ESI + T0);
-}
-
-void OPPROTO op_addw_ESI_T0(void)
-{
-    ESI = (ESI & ~0xffff) | ((ESI + T0) & 0xffff);
-}
-
-void OPPROTO op_addl_EDI_T0(void)
-{
-    EDI = (uint32_t)(EDI + T0);
-}
-
-void OPPROTO op_addw_EDI_T0(void)
-{
-    EDI = (EDI & ~0xffff) | ((EDI + T0) & 0xffff);
-}
-
-void OPPROTO op_decl_ECX(void)
-{
-    ECX = (uint32_t)(ECX - 1);
-}
-
-void OPPROTO op_decw_ECX(void)
-{
-    ECX = (ECX & ~0xffff) | ((ECX - 1) & 0xffff);
-}
-
-#ifdef TARGET_X86_64
-void OPPROTO op_addq_ESI_T0(void)
-{
-    ESI = (ESI + T0);
-}
-
-void OPPROTO op_addq_EDI_T0(void)
-{
-    EDI = (EDI + T0);
-}
-
-void OPPROTO op_decq_ECX(void)
-{
-    ECX--;
-}
-#endif
-
 /* bcd */
 
 void OPPROTO op_aam(void)
@@ -460,13 +411,6 @@ void OPPROTO op_jnz_T0_label(void)
     FORCE_RET();
 }
 
-void OPPROTO op_jz_T0_label(void)
-{
-    if (!T0)
-        GOTO_LABEL_PARAM(1);
-    FORCE_RET();
-}
-
 /* slow set cases (compute x86 flags) */
 void OPPROTO op_seto_T0_cc(void)
 {
@@ -525,11 +469,6 @@ void OPPROTO op_setle_T0_cc(void)
 void OPPROTO op_xor_T0_1(void)
 {
     T0 ^= 1;
-}
-
-void OPPROTO op_mov_T0_cc(void)
-{
-    T0 = cc_table[CC_OP].compute_all();
 }
 
 /* XXX: clear VIF/VIP in all ops ? */

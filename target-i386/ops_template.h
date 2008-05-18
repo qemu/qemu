@@ -118,40 +118,6 @@ void OPPROTO glue(op_jle_sub, SUFFIX)(void)
     FORCE_RET();
 }
 
-/* oldies */
-
-#if DATA_BITS >= 16
-
-void OPPROTO glue(op_loopnz, SUFFIX)(void)
-{
-    if ((DATA_TYPE)ECX != 0 && !(T0 & CC_Z))
-        GOTO_LABEL_PARAM(1);
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_loopz, SUFFIX)(void)
-{
-    if ((DATA_TYPE)ECX != 0 && (T0 & CC_Z))
-        GOTO_LABEL_PARAM(1);
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_jz_ecx, SUFFIX)(void)
-{
-    if ((DATA_TYPE)ECX == 0)
-        GOTO_LABEL_PARAM(1);
-    FORCE_RET();
-}
-
-void OPPROTO glue(op_jnz_ecx, SUFFIX)(void)
-{
-    if ((DATA_TYPE)ECX != 0)
-        GOTO_LABEL_PARAM(1);
-    FORCE_RET();
-}
-
-#endif
-
 /* various optimized set cases */
 
 void OPPROTO glue(op_setb_T0_sub, SUFFIX)(void)
@@ -198,13 +164,6 @@ void OPPROTO glue(op_setle_T0_sub, SUFFIX)(void)
     src2 = CC_SRC;
 
     T0 = ((DATA_STYPE)src1 <= (DATA_STYPE)src2);
-}
-
-/* string operations */
-
-void OPPROTO glue(op_movl_T0_Dshift, SUFFIX)(void)
-{
-    T0 = DF << SHIFT;
 }
 
 #undef DATA_BITS
