@@ -1297,14 +1297,19 @@ int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
     siginfo_t *info = pinfo;
-    uint32_t *regs = (uint32_t *)(info + 1);
-    void *sigmask = (regs + 20);
-    unsigned long pc;
     int is_write;
     uint32_t insn;
-
+#if !defined(__sparc_v9__) || defined(HOST_SOLARIS)
+    uint32_t *regs = (uint32_t *)(info + 1);
+    void *sigmask = (regs + 20);
     /* XXX: is there a standard glibc define ? */
-    pc = regs[1];
+    unsigned long pc = regs[1];
+#else
+    struct sigcontext *sc = puc;
+    unsigned long pc = sc->sigc_regs.tpc;
+    void *sigmask = (void *)sc->sigc_mask;
+#endif
+
     /* XXX: need kernel patch to get write flag faster */
     is_write = 0;
     insn = *(uint32_t *)pc;
