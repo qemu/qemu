@@ -53,13 +53,13 @@ static unsigned int tdk_read(struct qemu_phy *phy, unsigned int req)
 
 	switch (regnum) {
 		case 1:
-			/* MR1.  */
+			/* MR1.	 */
 			/* Speeds and modes.  */
 			r |= (1 << 13) | (1 << 14);
 			r |= (1 << 11) | (1 << 12);
 			r |= (1 << 5); /* Autoneg complete.  */
-			r |= (1 << 3); /* Autoneg able.  */
-			r |= (1 << 2); /* Link.  */
+			r |= (1 << 3); /* Autoneg able.	 */
+			r |= (1 << 2); /* Link.	 */
 			break;
 		case 5:
 			/* Link partner ability.
@@ -123,7 +123,7 @@ tdk_init(struct qemu_phy *phy)
 
 struct qemu_mdio
 {
-	/* bus.  */
+	/* bus.	 */
 	int mdc;
 	int mdio;
 
@@ -285,19 +285,30 @@ static void mdio_cycle(struct qemu_mdio *bus)
 
 /* ETRAX-FS Ethernet MAC block starts here.  */
 
-#define R_STAT            0x2c
-#define RW_MGM_CTRL       0x28
-#define FS_ETH_MAX_REGS   0x5c
+#define RW_MA0_LO	  0x00
+#define RW_MA0_HI	  0x04
+#define RW_MA1_LO	  0x08
+#define RW_MA1_HI	  0x0c
+#define RW_GA_LO	  0x10
+#define RW_GA_HI	  0x14
+#define RW_GEN_CTRL	  0x18
+#define RW_REC_CTRL	  0x1c
+#define RW_TR_CTRL	  0x20
+#define RW_CLR_ERR	  0x24
+#define RW_MGM_CTRL	  0x28
+#define R_STAT		  0x2c
+#define FS_ETH_MAX_REGS	  0x5c
 
 struct fs_eth
 {
-        CPUState *env;
+	CPUState *env;
 	qemu_irq *irq;
-        target_phys_addr_t base;
+	target_phys_addr_t base;
 	VLANClientState *vc;
-	uint8_t macaddr[6];
 	int ethregs;
 
+	/* Two addrs in the filter.  */
+	uint8_t macaddr[2][6];
 	uint32_t regs[FS_ETH_MAX_REGS];
 
 	unsigned char rx_fifo[1536];
@@ -309,59 +320,100 @@ struct fs_eth
 
 	/* MDIO bus.  */
 	struct qemu_mdio mdio_bus;
-	/* PHY.  */
+	/* PHY.	 */
 	struct qemu_phy phy;
 };
 
 static uint32_t eth_rinvalid (void *opaque, target_phys_addr_t addr)
 {
-        struct fs_eth *eth = opaque;
-        CPUState *env = eth->env;
-        cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
-                  addr, env->pc);
-        return 0;
+	struct fs_eth *eth = opaque;
+	CPUState *env = eth->env;
+	cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
+		  addr, env->pc);
+	return 0;
 }
 
 static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
 {
-        struct fs_eth *eth = opaque;
-        D(CPUState *env = eth->env);
-        uint32_t r = 0;
+	struct fs_eth *eth = opaque;
+	D(CPUState *env = eth->env);
+	uint32_t r = 0;
 
-        /* Make addr relative to this instances base.  */
-        addr -= eth->base;
-        switch (addr) {
+	/* Make addr relative to this instances base.  */
+	addr -= eth->base;
+	switch (addr) {
 		case R_STAT:
 			/* Attach an MDIO/PHY abstraction.  */
 			r = eth->mdio_bus.mdio & 1;
 			break;
-        default:
+	default:
 		r = eth->regs[addr];
-                D(printf ("%s %x p=%x\n", __func__, addr, env->pc));
-                break;
-        }
-        return r;
+		D(printf ("%s %x p=%x\n", __func__, addr, env->pc));
+		break;
+	}
+	return r;
 }
 
 static void
 eth_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-        struct fs_eth *eth = opaque;
-        CPUState *env = eth->env;
-        cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
-                  addr, env->pc);
+	struct fs_eth *eth = opaque;
+	CPUState *env = eth->env;
+	cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
+		  addr, env->pc);
+}
+
+static void eth_update_ma(struct fs_eth *eth, int ma)
+{
+	int reg;
+	int i = 0;
+
+	ma &= 1;
+
+	reg = RW_MA0_LO;
+	if (ma)
+		reg = RW_MA1_LO;
+
+	eth->macaddr[ma][i++] = eth->regs[reg];
+	eth->macaddr[ma][i++] = eth->regs[reg] >> 8;
+	eth->macaddr[ma][i++] = eth->regs[reg] >> 16;
+	eth->macaddr[ma][i++] = eth->regs[reg] >> 24;
+	eth->macaddr[ma][i++] = eth->regs[reg + 4];
+	eth->macaddr[ma][i++] = eth->regs[reg + 4] >> 8;
+
+	D(printf("set mac%d=%x.%x.%x.%x.%x.%x\n", ma,
+		 eth->macaddr[ma][0], eth->macaddr[ma][1],
+		 eth->macaddr[ma][2], eth->macaddr[ma][3],
+		 eth->macaddr[ma][4], eth->macaddr[ma][5]));
 }
 
 static void
 eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-        struct fs_eth *eth = opaque;
-        CPUState *env = eth->env;
+	struct fs_eth *eth = opaque;
+	CPUState *env = eth->env;
 
-        /* Make addr relative to this instances base.  */
-        addr -= eth->base;
-        switch (addr)
-        {
+	/* Make addr relative to this instances base.  */
+	addr -= eth->base;
+	switch (addr)
+	{
+		case RW_MA0_LO:
+			eth->regs[addr] = value;
+			eth_update_ma(eth, 0);
+			break;
+		case RW_MA0_HI:
+			eth->regs[addr] = value;
+			eth_update_ma(eth, 0);
+			break;
+		case RW_MA1_LO:
+			eth->regs[addr] = value;
+			eth_update_ma(eth, 1);
+			break;
+		case RW_MA1_HI:
+			eth->regs[addr] = value;
+			eth_update_ma(eth, 1);
+			break;
+
 		case RW_MGM_CTRL:
 			/* Attach an MDIO/PHY abstraction.  */
 			if (value & 2)
@@ -371,11 +423,56 @@ eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 			eth->mdio_bus.mdc = !!(value & 4);
 			break;
 
-                default:
-                        printf ("%s %x %x pc=%x\n",
-                                __func__, addr, value, env->pc);
-                        break;
-        }
+		default:
+			eth->regs[addr] = value;
+			printf ("%s %x %x pc=%x\n",
+				__func__, addr, value, env->pc);
+			break;
+	}
+}
+
+/* The ETRAX FS has a groupt address table (GAT) which works like a k=1 bloom
+   filter dropping group addresses we have not joined.	The filter has 64
+   bits (m). The has function is a simple nible xor of the group addr.	*/
+static int eth_match_groupaddr(struct fs_eth *eth, const unsigned char *sa)
+{
+	unsigned int hsh;
+	int m_individual = eth->regs[RW_REC_CTRL] & 4;
+	int match;
+
+	/* First bit on the wire of a MAC address signals multicast or
+	   physical address.  */
+	if (!m_individual && !sa[0] & 1)
+		return 0;
+
+	/* Calculate the hash index for the GA registers. */
+	hsh = 0;
+	hsh ^= (*sa) & 0x3f;
+	hsh ^= ((*sa) >> 6) & 0x03;
+	++sa;
+	hsh ^= ((*sa) << 2) & 0x03c;
+	hsh ^= ((*sa) >> 4) & 0xf;
+	++sa;
+	hsh ^= ((*sa) << 4) & 0x30;
+	hsh ^= ((*sa) >> 2) & 0x3f;
+	++sa;
+	hsh ^= (*sa) & 0x3f;
+	hsh ^= ((*sa) >> 6) & 0x03;
+	++sa;
+	hsh ^= ((*sa) << 2) & 0x03c;
+	hsh ^= ((*sa) >> 4) & 0xf;
+	++sa;
+	hsh ^= ((*sa) << 4) & 0x30;
+	hsh ^= ((*sa) >> 2) & 0x3f;
+
+	hsh &= 63;
+	if (hsh > 31)
+		match = eth->regs[RW_GA_HI] & (1 << (hsh - 32));
+	else
+		match = eth->regs[RW_GA_LO] & (1 << hsh);
+	D(printf("hsh=%x ga=%x.%x mtch=%d\n", hsh,
+		 eth->regs[RW_GA_HI], eth->regs[RW_GA_LO], match));
+	return match;
 }
 
 static int eth_can_receive(void *opaque)
@@ -393,12 +490,33 @@ static int eth_can_receive(void *opaque)
 
 static void eth_receive(void *opaque, const uint8_t *buf, int size)
 {
+	unsigned char sa_bcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	struct fs_eth *eth = opaque;
+	int use_ma0 = eth->regs[RW_REC_CTRL] & 1;
+	int use_ma1 = eth->regs[RW_REC_CTRL] & 2;
+	int r_bcast = eth->regs[RW_REC_CTRL] & 8;
+
+	if (size < 12)
+		return;
+
+	D(printf("%x.%x.%x.%x.%x.%x ma=%d %d bc=%d\n",
+		 buf[0], buf[1], buf[2], buf[3], buf[4], buf[5],
+		 use_ma0, use_ma1, r_bcast));
+	       
+	/* Does the frame get through the address filters?  */
+	if ((!use_ma0 || memcmp(buf, eth->macaddr[0], 6))
+	    && (!use_ma1 || memcmp(buf, eth->macaddr[1], 6))
+	    && (!r_bcast || memcmp(buf, sa_bcast, 6))
+	    && !eth_match_groupaddr(eth, buf))
+		return;
+
 	if (size > sizeof(eth->rx_fifo)) {
-		/* TODO: signal error.  */
+		/* TODO: signal error.	*/
+	} else if (eth->rx_fifo_len) {
+		/* FIFO overrun.  */
 	} else {
 		memcpy(eth->rx_fifo, buf, size);
-		/* +4, HW passes the CRC to sw.  */
+		/* +4, HW passes the CRC to sw.	 */
 		eth->rx_fifo_len = size + 4;
 		eth->rx_fifo_pos = 0;
 	}
@@ -471,7 +589,6 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	eth->irq = irq;
 	eth->dma_out = dma;
 	eth->dma_in = dma + 1;
-	memcpy(eth->macaddr, nd->macaddr, 6);
 
 	/* Connect the phy.  */
 	tdk_init(&eth->phy);
