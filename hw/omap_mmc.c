@@ -615,7 +615,7 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
 
     omap_mmc_reset(s);
 
-    iomemtype = cpu_register_io_memory(0, omap_mmc_readfn,
+    iomemtype = l4_register_io_memory(0, omap_mmc_readfn,
                     omap_mmc_writefn, s);
     s->base = omap_l4_attach(ta, 0, iomemtype);
 
