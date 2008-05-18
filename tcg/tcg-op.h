@@ -1553,8 +1553,12 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #endif
 
 #if TCG_TARGET_REG_BITS == 32
+#define tcg_gen_add_ptr tcg_gen_add_i32
 #define tcg_gen_addi_ptr tcg_gen_addi_i32
+#define tcg_gen_ext_i32_ptr tcg_gen_mov_i32
 #else /* TCG_TARGET_REG_BITS == 32 */
+#define tcg_gen_add_ptr tcg_gen_add_i64
 #define tcg_gen_addi_ptr tcg_gen_addi_i64
+#define tcg_gen_ext_i32_ptr tcg_gen_ext_i32_i64
 #endif /* TCG_TARGET_REG_BITS != 32 */
 

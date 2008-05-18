@@ -48,6 +48,18 @@ void do_raise_exception (uint32_t exception)
     do_raise_exception_err(exception, 0);
 }
 
+void do_interrupt_restart (void)
+{
+    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
+        !(env->CP0_Status & (1 << CP0St_ERL)) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
+        (env->CP0_Status & (1 << CP0St_IE)) &&
+        (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask)) {
+        env->CP0_Cause &= ~(0x1f << CP0Ca_EC);
+        do_raise_exception(EXCP_EXT_INTERRUPT);
+    }
+}
+
 void do_restore_state (void *pc_ptr)
 {
     TranslationBlock *tb;
@@ -57,17 +69,6 @@ void do_restore_state (void *pc_ptr)
     if (tb) {
         cpu_restore_state (tb, env, pc, NULL);
     }
-}
-
-void do_raise_exception_direct_err (uint32_t exception, int error_code)
-{
-    do_restore_state (GETPC ());
-    do_raise_exception_err (exception, error_code);
-}
-
-void do_raise_exception_direct (uint32_t exception)
-{
-    do_raise_exception_direct_err (exception, 0);
 }
 
 #if defined(TARGET_MIPS64)
@@ -299,45 +300,6 @@ void do_mulshiu (void)
     set_HIT0_LO(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-
-#if HOST_LONG_BITS < 64
-void do_div (void)
-{
-    /* 64bit datatypes because we may see overflow/underflow. */
-    if (T1 != 0) {
-        env->LO[env->current_tc][0] = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
-        env->HI[env->current_tc][0] = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
-    }
-}
-#endif
-
-#if defined(TARGET_MIPS64)
-void do_ddiv (void)
-{
-    if (T1 != 0) {
-        int64_t arg0 = (int64_t)T0;
-        int64_t arg1 = (int64_t)T1;
-        if (arg0 == ((int64_t)-1 << 63) && arg1 == (int64_t)-1) {
-            env->LO[env->current_tc][0] = arg0;
-            env->HI[env->current_tc][0] = 0;
-        } else {
-            lldiv_t res = lldiv(arg0, arg1);
-            env->LO[env->current_tc][0] = res.quot;
-            env->HI[env->current_tc][0] = res.rem;
-        }
-    }
-}
-
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-void do_ddivu (void)
-{
-    if (T1 != 0) {
-        env->LO[env->current_tc][0] = T0 / T1;
-        env->HI[env->current_tc][0] = T0 % T1;
-    }
-}
-#endif
-#endif /* TARGET_MIPS64 */
 
 #if defined(CONFIG_USER_ONLY)
 void do_mfc0_random (void)
