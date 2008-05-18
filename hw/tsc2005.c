@@ -197,10 +197,14 @@ static void tsc2005_write(struct tsc2005_state_s *s, int reg, uint16_t data)
 
     case 0xc:	/* CFR0 */
         s->host_mode = data >> 15;
-        s->enabled = !(data & 0x4000);
-        if (s->busy && !s->enabled)
-            qemu_del_timer(s->timer);
-        s->busy &= s->enabled;
+        if (s->enabled != !(data & 0x4000)) {
+            s->enabled = !(data & 0x4000);
+            fprintf(stderr, "%s: touchscreen sense %sabled\n",
+                            __FUNCTION__, s->enabled ? "en" : "dis");
+            if (s->busy && !s->enabled)
+                qemu_del_timer(s->timer);
+            s->busy &= s->enabled;
+        }
         s->nextprecision = (data >> 13) & 1;
         s->timing[0] = data & 0x1fff;
         if ((s->timing[0] >> 11) == 3)

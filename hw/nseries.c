@@ -56,11 +56,13 @@ struct n800_s {
 #define N8X0_TUSB_ENABLE_GPIO		0
 #define N800_MMC2_WP_GPIO		8
 #define N800_UNKNOWN_GPIO0		9	/* out */
+#define N810_MMC2_VIOSD_GPIO		9
 #define N800_UNKNOWN_GPIO1		10	/* out */
 #define N800_CAM_TURN_GPIO		12
 #define N810_GPS_RESET_GPIO		12
 #define N800_BLIZZARD_POWERDOWN_GPIO	15
 #define N800_MMC1_WP_GPIO		23
+#define N810_MMC2_VSD_GPIO		23
 #define N8X0_ONENAND_GPIO		26
 #define N810_BLIZZARD_RESET_GPIO	30
 #define N800_UNKNOWN_GPIO2		53	/* out */
@@ -799,6 +801,10 @@ static void n8x0_boot_init(void *opaque)
     /* CPU setup */
     s->cpu->env->regs[15] = s->cpu->env->boot_info->loader_start;
     s->cpu->env->GE = 0x5;
+
+    /* If the machine has a slided keyboard, open it */
+    if (s->kbd)
+        qemu_irq_raise(omap2_gpio_in_get(s->cpu->gpif, N810_SLIDE_GPIO)[0]);
 }
 
 #define OMAP_TAG_NOKIA_BT	0x4e01
@@ -1057,6 +1063,25 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
 
     s->cpu = omap2420_mpu_init(sdram_size, NULL, cpu_model);
 
+    /* Setup peripherals
+     *
+     * Believed external peripherals layout in the N810:
+     * (spi bus 1)
+     *   tsc2005
+     *   lcd_mipid
+     * (spi bus 2)
+     *   Conexant cx3110x (WLAN)
+     *   optional: pc2400m (WiMAX)
+     * (i2c bus 0)
+     *   TLV320AIC33 (audio codec)
+     *   TCM825x (camera by Toshiba)
+     *   lp5521 (clever LEDs)
+     *   tsl2563 (light sensor, hwmon, model 7, rev. 0)
+     *   lm8323 (keypad, manf 00, rev 04)
+     * (i2c bus 1)
+     *   tmp105 (temperature sensor, hwmon)
+     *   menelaus (pm)
+     */
     n8x0_gpio_setup(s);
     n8x0_nand_setup(s);
     n8x0_i2c_setup(s);
