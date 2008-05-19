@@ -71,7 +71,7 @@ typedef struct TCGRelocation {
 } TCGRelocation; 
 
 typedef struct TCGLabel {
-    long has_value; // long instead of int to enforce alignment
+    int has_value;
     union {
         tcg_target_ulong value;
         TCGRelocation *first_reloc;
@@ -80,8 +80,8 @@ typedef struct TCGLabel {
 
 typedef struct TCGPool {
     struct TCGPool *next;
-    long size; // long instead of int to enforce alignment
-    uint8_t data[0];
+    int size;
+    uint8_t data[0] __attribute__ ((aligned));
 } TCGPool;
 
 #define TCG_POOL_CHUNK_SIZE 32768
