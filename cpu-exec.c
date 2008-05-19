@@ -1299,7 +1299,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     siginfo_t *info = pinfo;
     int is_write;
     uint32_t insn;
-#if !defined(__sparc_v9__) || defined(HOST_SOLARIS)
+#if !defined(__arch64__) || defined(HOST_SOLARIS)
     uint32_t *regs = (uint32_t *)(info + 1);
     void *sigmask = (regs + 20);
     /* XXX: is there a standard glibc define ? */
