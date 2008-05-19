@@ -142,7 +142,7 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 
 #define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / CODE_GEN_AVG_BLOCK_SIZE)
 
-#if defined(__powerpc__) || defined(__x86_64__)
+#if defined(__powerpc__) || defined(__x86_64__) || defined(__arm__)
 #define USE_DIRECT_JUMP
 #endif
 #if defined(__i386__) && !defined(_WIN32)
@@ -239,6 +239,22 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     /* patch the branch destination */
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
     /* no need to flush icache explicitely */
+}
+#elif defined(__arm__)
+static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+{
+    register unsigned long _beg __asm ("a1");
+    register unsigned long _end __asm ("a2");
+    register unsigned long _flg __asm ("a3");
+
+    /* we could use a ldr pc, [pc, #-4] kind of branch and avoid the flush */
+    *(uint32_t *)jmp_addr |= ((addr - (jmp_addr + 8)) >> 2) & 0xffffff;
+
+    /* flush icache */
+    _beg = jmp_addr;
+    _end = jmp_addr + 4;
+    _flg = 0;
+    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
 }
 #endif
 
