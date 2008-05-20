@@ -1284,161 +1284,6 @@ get_plt_index (const char *name, unsigned long addend)
 
 #endif
 
-#ifdef HOST_ARM
-
-int arm_emit_ldr_info(const char *name, unsigned long start_offset,
-                      FILE *outfile, uint8_t *p_start, uint8_t *p_end,
-                      ELF_RELOC *relocs, int nb_relocs)
-{
-    uint8_t *p;
-    uint32_t insn;
-    int offset, min_offset, pc_offset, data_size, spare, max_pool;
-    uint8_t data_allocated[1024];
-    unsigned int data_index;
-    int type;
-
-    memset(data_allocated, 0, sizeof(data_allocated));
-
-    p = p_start;
-    min_offset = p_end - p_start;
-    spare = 0x7fffffff;
-    while (p < p_start + min_offset) {
-        insn = get32((uint32_t *)p);
-        /* TODO: Armv5e ldrd.  */
-        /* TODO: VFP load.  */
-        if ((insn & 0x0d5f0000) == 0x051f0000) {
-            /* ldr reg, [pc, #im] */
-            offset = insn & 0xfff;
-            if (!(insn & 0x00800000))
-                offset = -offset;
-            max_pool = 4096;
-            type = 0;
-        } else if ((insn & 0x0e5f0f00) == 0x0c1f0100) {
-            /* FPA ldf.  */
-            offset = (insn & 0xff) << 2;
-            if (!(insn & 0x00800000))
-                offset = -offset;
-            max_pool = 1024;
-            type = 1;
-        } else if ((insn & 0x0fff0000) == 0x028f0000) {
-            /* Some gcc load a doubleword immediate with
-               add regN, pc, #imm
-               ldmia regN, {regN, regM}
-               Hope and pray the compiler never generates somethin like
-               add reg, pc, #imm1; ldr reg, [reg, #-imm2]; */
-            int r;
-
-            r = (insn & 0xf00) >> 7;
-            offset = ((insn & 0xff) >> r) | ((insn & 0xff) << (32 - r));
-            max_pool = 1024;
-            type = 2;
-        } else {
-            max_pool = 0;
-            type = -1;
-        }
-        if (type >= 0) {
-            /* PC-relative load needs fixing up.  */
-            if (spare > max_pool - offset)
-                spare = max_pool - offset;
-            if ((offset & 3) !=0)
-                error("%s:%04x: pc offset must be 32 bit aligned",
-                      name, start_offset + p - p_start);
-            if (offset < 0)
-                error("%s:%04x: Embedded literal value",
-                      name, start_offset + p - p_start);
-            pc_offset = p - p_start + offset + 8;
-            if (pc_offset <= (p - p_start) ||
-                pc_offset >= (p_end - p_start))
-                error("%s:%04x: pc offset must point inside the function code",
-                      name, start_offset + p - p_start);
-            if (pc_offset < min_offset)
-                min_offset = pc_offset;
-            if (outfile) {
-                /* The intruction position */
-                fprintf(outfile, "    arm_ldr_ptr->ptr = gen_code_ptr + %d;\n",
-                        p - p_start);
-                /* The position of the constant pool data.  */
-                data_index = ((p_end - p_start) - pc_offset) >> 2;
-                fprintf(outfile, "    arm_ldr_ptr->data_ptr = arm_data_ptr - %d;\n",
-                        data_index);
-                fprintf(outfile, "    arm_ldr_ptr->type = %d;\n", type);
-                fprintf(outfile, "    arm_ldr_ptr++;\n");
-            }
-        }
-        p += 4;
-    }
-
-    /* Copy and relocate the constant pool data.  */
-    data_size = (p_end - p_start) - min_offset;
-    if (data_size > 0 && outfile) {
-        spare += min_offset;
-        fprintf(outfile, "    arm_data_ptr -= %d;\n", data_size >> 2);
-        fprintf(outfile, "    arm_pool_ptr -= %d;\n", data_size);
-        fprintf(outfile, "    if (arm_pool_ptr > gen_code_ptr + %d)\n"
-                         "        arm_pool_ptr = gen_code_ptr + %d;\n",
-                         spare, spare);
-
-        data_index = 0;
-        for (pc_offset = min_offset;
-             pc_offset < p_end - p_start;
-             pc_offset += 4) {
-
-            ELF_RELOC *rel;
-            int i, addend, type;
-            const char *sym_name;
-            char relname[1024];
-
-            /* data value */
-            addend = get32((uint32_t *)(p_start + pc_offset));
-            relname[0] = '\0';
-            for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                if (rel->r_offset == (pc_offset + start_offset)) {
-                    sym_name = get_rel_sym_name(rel);
-                    /* the compiler leave some unnecessary references to the code */
-                    get_reloc_expr(relname, sizeof(relname), sym_name);
-                    type = ELF32_R_TYPE(rel->r_info);
-                    if (type != R_ARM_ABS32)
-                        error("%s: unsupported data relocation", name);
-                    break;
-                }
-            }
-            fprintf(outfile, "    arm_data_ptr[%d] = 0x%x",
-                    data_index, addend);
-            if (relname[0] != '\0')
-                fprintf(outfile, " + %s", relname);
-            fprintf(outfile, ";\n");
-
-            data_index++;
-        }
-    }
-
-    if (p == p_start)
-        goto arm_ret_error;
-    p -= 4;
-    insn = get32((uint32_t *)p);
-    /* The last instruction must be an ldm instruction.  There are several
-       forms generated by gcc:
-        ldmib sp, {..., pc}  (implies a sp adjustment of +4)
-        ldmia sp, {..., pc}
-        ldmea fp, {..., pc} */
-    if ((insn & 0xffff8000) == 0xe99d8000) {
-        if (outfile) {
-            fprintf(outfile,
-                    "    *(uint32_t *)(gen_code_ptr + %d) = 0xe28dd004;\n",
-                    p - p_start);
-        }
-        p += 4;
-    } else if ((insn & 0xffff8000) != 0xe89d8000
-        && (insn & 0xffff8000) != 0xe91b8000) {
-    arm_ret_error:
-        if (!outfile)
-            printf("%s: invalid epilog\n", name);
-    }
-    return p - p_start;
-}
-#endif
-
-
 #define MAX_ARGS 3
 
 /* generate op code */
@@ -1633,27 +1478,6 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 
         copy_size = p - p_start;
     }
-#elif defined(HOST_ARM)
-    {
-        uint32_t insn;
-
-        if ((p_end - p_start) <= 16)
-            error("%s: function too small", name);
-        if (get32((uint32_t *)p_start) != 0xe1a0c00d ||
-            (get32((uint32_t *)(p_start + 4)) & 0xffff0000) != 0xe92d0000 ||
-            get32((uint32_t *)(p_start + 8)) != 0xe24cb004)
-            error("%s: invalid prolog", name);
-        p_start += 12;
-        start_offset += 12;
-        insn = get32((uint32_t *)p_start);
-        if ((insn & 0xffffff00) == 0xe24dd000) {
-            /* Stack adjustment.  Assume op uses the frame pointer.  */
-            p_start -= 4;
-            start_offset -= 4;
-        }
-        copy_size = arm_emit_ldr_info(name, start_offset, NULL, p_start, p_end,
-                                      relocs, nb_relocs);
-    }
 #elif defined(HOST_M68K)
     {
         uint8_t *p;
@@ -1725,6 +1549,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
         }
         copy_size = p - p_start;
     }
+#elif defined(HOST_ARM)
+    error("dyngen targets not supported on ARM");
 #else
 #error unsupported CPU
 #endif
@@ -2558,74 +2384,6 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                     }
                 }
             }
-#elif defined(HOST_ARM)
-            {
-                char relname[256];
-                int type;
-                int addend;
-                int reloc_offset;
-                uint32_t insn;
-
-                insn = get32((uint32_t *)(p_start + 4));
-                /* If prologue ends in sub sp, sp, #const then assume
-                   op has a stack frame and needs the frame pointer.  */
-                if ((insn & 0xffffff00) == 0xe24dd000) {
-                    int i;
-                    uint32_t opcode;
-                    opcode = 0xe28db000; /* add fp, sp, #0.  */
-#if 0
-/* ??? Need to undo the extra stack adjustment at the end of the op.
-   For now just leave the stack misaligned and hope it doesn't break anything
-   too important.  */
-                    if ((insn & 4) != 0) {
-                        /* Preserve doubleword stack alignment.  */
-                        fprintf(outfile,
-                                "    *(uint32_t *)(gen_code_ptr + 4)= 0x%x;\n",
-                                insn + 4);
-                        opcode -= 4;
-                    }
-#endif
-                    insn = get32((uint32_t *)(p_start - 4));
-                    /* Calculate the size of the saved registers,
-                       excluding pc.  */
-                    for (i = 0; i < 15; i++) {
-                        if (insn & (1 << i))
-                            opcode += 4;
-                    }
-                    fprintf(outfile,
-                            "    *(uint32_t *)gen_code_ptr = 0x%x;\n", opcode);
-                }
-                arm_emit_ldr_info(relname, start_offset, outfile, p_start, p_end,
-                                  relocs, nb_relocs);
-
-                for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
-                if (rel->r_offset >= start_offset &&
-		    rel->r_offset < start_offset + copy_size) {
-                    sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
-                    /* the compiler leave some unnecessary references to the code */
-                    if (sym_name[0] == '\0')
-                        continue;
-                    get_reloc_expr(relname, sizeof(relname), sym_name);
-                    type = ELF32_R_TYPE(rel->r_info);
-                    addend = get32((uint32_t *)(text + rel->r_offset));
-                    reloc_offset = rel->r_offset - start_offset;
-                    switch(type) {
-                    case R_ARM_ABS32:
-                        fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
-                                reloc_offset, relname, addend);
-                        break;
-                    case R_ARM_PC24:
-                    case R_ARM_JUMP24:
-                    case R_ARM_CALL:
-                        fprintf(outfile, "    arm_reloc_pc24((uint32_t *)(gen_code_ptr + %d), 0x%x, %s);\n",
-                                reloc_offset, addend, relname);
-                        break;
-                    default:
-                        error("unsupported arm relocation (%d)", type);
-                    }
-                }
-                }
-            }
 #elif defined(HOST_M68K)
             {
                 char relname[256];
@@ -2810,6 +2568,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 		    }
                 }
             }
+#elif defined(HOST_ARM)
+    error("dyngen targets not supported on ARM");
 #else
 #error unsupported CPU
 #endif
@@ -2868,59 +2628,7 @@ int gen_file(FILE *outfile, int out_type)
         /* generate big code generation switch */
 
 #ifdef HOST_ARM
-#error broken
-        /* We need to know the size of all the ops so we can figure out when
-           to emit constant pools.  This must be consistent with opc.h.  */
-fprintf(outfile,
-"static const uint32_t arm_opc_size[] = {\n"
-"  0,\n" /* end */
-"  0,\n" /* nop */
-"  0,\n" /* nop1 */
-"  0,\n" /* nop2 */
-"  0,\n"); /* nop3 */
-        for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
-            const char *name;
-            name = get_sym_name(sym);
-            if (strstart(name, OP_PREFIX, NULL)) {
-                fprintf(outfile, "  %d,\n", sym->st_size);
-            }
-	}
-fprintf(outfile,
-"};\n");
-#endif
-
-#ifdef HOST_ARM
-#error broken
-/* Arm is tricky because it uses constant pools for loading immediate values.
-   We assume (and require) each function is code followed by a constant pool.
-   All the ops are small so this should be ok.  For each op we figure
-   out how much "spare" range we have in the load instructions.  This allows
-   us to insert subsequent ops in between the op and the constant pool,
-   eliminating the neeed to jump around the pool.
-
-   We currently generate:
-
-   [ For this example we assume merging would move op1_pool out of range.
-     In practice we should be able to combine many ops before the offset
-     limits are reached. ]
-   op1_code;
-   op2_code;
-   goto op3;
-   op2_pool;
-   op1_pool;
-op3:
-   op3_code;
-   ret;
-   op3_pool;
-
-   Ideally we'd put op1_pool before op2_pool, but that requires two passes.
- */
-fprintf(outfile,
-"    uint8_t *last_gen_code_ptr = gen_code_buf;\n"
-"    LDREntry *arm_ldr_ptr = arm_ldr_table;\n"
-"    uint32_t *arm_data_ptr = arm_data_table + ARM_LDR_TABLE_SIZE;\n"
-/* Initialise the parmissible pool offset to an arbitary large value.  */
-"    uint8_t *arm_pool_ptr = gen_code_buf + 0x1000000;\n");
+    error("dyngen targets not supported on ARM");
 #endif
 #ifdef HOST_IA64
 #error broken
@@ -2979,20 +2687,6 @@ fprintf(outfile,
 	fprintf(outfile, "\n    };\n"
 	    "    unsigned int plt_offset[%u] = { 0 };\n", max_index + 1);
     }
-#endif
-
-#ifdef HOST_ARM
-#error broken
-/* Generate constant pool if needed */
-fprintf(outfile,
-"            if (gen_code_ptr + arm_opc_size[*opc_ptr] >= arm_pool_ptr) {\n"
-"                gen_code_ptr = arm_flush_ldr(gen_code_ptr, arm_ldr_table, "
-"arm_ldr_ptr, arm_data_ptr, arm_data_table + ARM_LDR_TABLE_SIZE, 1);\n"
-"                last_gen_code_ptr = gen_code_ptr;\n"
-"                arm_ldr_ptr = arm_ldr_table;\n"
-"                arm_data_ptr = arm_data_table + ARM_LDR_TABLE_SIZE;\n"
-"                arm_pool_ptr = gen_code_ptr + 0x1000000;\n"
-"            }\n");
 #endif
 
         for(i = 0, sym = symtab; i < nb_syms; i++, sym++) {
