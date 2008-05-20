@@ -64,7 +64,7 @@ const int tcg_target_call_oarg_regs[2] = {
     TCG_REG_R0, TCG_REG_R1
 };
 
-static void patch_reloc(uint8_t *code_ptr, int type, 
+static void patch_reloc(uint8_t *code_ptr, int type,
                 tcg_target_long value, tcg_target_long addend)
 {
     switch (type) {
@@ -913,7 +913,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
                         1, 0, addr_reg2, SHIFT_IMM_LSL(0));
     tcg_out_dat_imm(s, cond, ARITH_MOV, 2, 0, mem_index);
 # endif
-    tcg_out_bl(s, cond, (tcg_target_long) qemu_ld_helpers[s_bits] - 
+    tcg_out_bl(s, cond, (tcg_target_long) qemu_ld_helpers[s_bits] -
                     (tcg_target_long) s->code_ptr);
 
     switch (opc) {
@@ -1178,10 +1178,9 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
 #endif
 }
 
-extern void exec_loop;
 static uint8_t *tb_ret_addr;
 
-static inline void tcg_out_op(TCGContext *s, int opc, 
+static inline void tcg_out_op(TCGContext *s, int opc,
                 const TCGArg *args, const int *const_args)
 {
     int c;
@@ -1312,6 +1311,9 @@ static inline void tcg_out_op(TCGContext *s, int opc,
                         args[0], args[1], args[2], args[3],
                         args[4], args[5], SHIFT_IMM_LSL(0));
         break;
+    case INDEX_op_neg_i32:
+        tcg_out_dat_imm(s, COND_AL, ARITH_RSB, args[0], args[1], 0);
+        break;
     case INDEX_op_mul_i32:
         tcg_out_mul32(s, COND_AL, args[0], args[1], args[2]);
         break;
@@ -1384,7 +1386,7 @@ static inline void tcg_out_op(TCGContext *s, int opc,
     case INDEX_op_qemu_ld64:
         tcg_out_qemu_ld(s, COND_AL, args, 3);
         break;
-        
+
     case INDEX_op_qemu_st8:
         tcg_out_qemu_st(s, COND_AL, args, 0);
         break;
@@ -1445,6 +1447,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_and_i32, { "r", "r", "r" } },
     { INDEX_op_or_i32, { "r", "r", "r" } },
     { INDEX_op_xor_i32, { "r", "r", "r" } },
+    { INDEX_op_neg_i32, { "r", "r" } },
 
     { INDEX_op_shl_i32, { "r", "r", "ri" } },
     { INDEX_op_shr_i32, { "r", "r", "ri" } },
