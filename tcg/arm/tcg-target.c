@@ -562,14 +562,14 @@ static inline void tcg_out_st8s_8(TCGContext *s, int cond,
 static inline void tcg_out_ld8s_r(TCGContext *s, int cond,
                 int rd, int rn, int rm)
 {
-    tcg_out32(s, (cond << 28) | 0x019000f0 |
+    tcg_out32(s, (cond << 28) | 0x019000d0 |
                     (rn << 16) | (rd << 12) | rm);
 }
 
 static inline void tcg_out_st8s_r(TCGContext *s, int cond,
                 int rd, int rn, int rm)
 {
-    tcg_out32(s, (cond << 28) | 0x018000f0 |
+    tcg_out32(s, (cond << 28) | 0x018000d0 |
                     (rn << 16) | (rd << 12) | rm);
 }
 
@@ -1136,7 +1136,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
     }
 # endif
 
-    tcg_out_bl(s, cond, (tcg_target_long) qemu_st_helpers[s_bits] - 
+    tcg_out_bl(s, cond, (tcg_target_long) qemu_st_helpers[s_bits] -
                     (tcg_target_long) s->code_ptr);
 
 # if TARGET_LONG_BITS == 64
@@ -1157,7 +1157,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
         tcg_out_st8_12(s, COND_AL, data_reg, addr_reg, 0);
         break;
     case 0 | 4:
-        tcg_out_ld8s_8(s, COND_AL, data_reg, addr_reg, 0);
+        tcg_out_st8s_8(s, COND_AL, data_reg, addr_reg, 0);
         break;
     case 1:
         tcg_out_st16u_8(s, COND_AL, data_reg, addr_reg, 0);
