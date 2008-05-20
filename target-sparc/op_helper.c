@@ -929,14 +929,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             ret = ldub_code(addr);
             break;
         case 2:
-            ret = lduw_code(addr & ~1);
+            ret = lduw_code(addr);
             break;
         default:
         case 4:
-            ret = ldl_code(addr & ~3);
+            ret = ldl_code(addr);
             break;
         case 8:
-            ret = ldq_code(addr & ~7);
+            ret = ldq_code(addr);
             break;
         }
         break;
@@ -946,14 +946,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             ret = ldub_user(addr);
             break;
         case 2:
-            ret = lduw_user(addr & ~1);
+            ret = lduw_user(addr);
             break;
         default:
         case 4:
-            ret = ldl_user(addr & ~3);
+            ret = ldl_user(addr);
             break;
         case 8:
-            ret = ldq_user(addr & ~7);
+            ret = ldq_user(addr);
             break;
         }
         break;
@@ -963,14 +963,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             ret = ldub_kernel(addr);
             break;
         case 2:
-            ret = lduw_kernel(addr & ~1);
+            ret = lduw_kernel(addr);
             break;
         default:
         case 4:
-            ret = ldl_kernel(addr & ~3);
+            ret = ldl_kernel(addr);
             break;
         case 8:
-            ret = ldq_kernel(addr & ~7);
+            ret = ldq_kernel(addr);
             break;
         }
         break;
@@ -985,14 +985,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             ret = ldub_phys(addr);
             break;
         case 2:
-            ret = lduw_phys(addr & ~1);
+            ret = lduw_phys(addr);
             break;
         default:
         case 4:
-            ret = ldl_phys(addr & ~3);
+            ret = ldl_phys(addr);
             break;
         case 8:
-            ret = ldq_phys(addr & ~7);
+            ret = ldq_phys(addr);
             break;
         }
         break;
@@ -1003,16 +1003,16 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
                             | ((target_phys_addr_t)(asi & 0xf) << 32));
             break;
         case 2:
-            ret = lduw_phys((target_phys_addr_t)(addr & ~1)
+            ret = lduw_phys((target_phys_addr_t)addr
                             | ((target_phys_addr_t)(asi & 0xf) << 32));
             break;
         default:
         case 4:
-            ret = ldl_phys((target_phys_addr_t)(addr & ~3)
+            ret = ldl_phys((target_phys_addr_t)addr
                            | ((target_phys_addr_t)(asi & 0xf) << 32));
             break;
         case 8:
-            ret = ldq_phys((target_phys_addr_t)(addr & ~7)
+            ret = ldq_phys((target_phys_addr_t)addr
                            | ((target_phys_addr_t)(asi & 0xf) << 32));
             break;
         }
@@ -1241,14 +1241,14 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
             stb_user(addr, val);
             break;
         case 2:
-            stw_user(addr & ~1, val);
+            stw_user(addr, val);
             break;
         default:
         case 4:
-            stl_user(addr & ~3, val);
+            stl_user(addr, val);
             break;
         case 8:
-            stq_user(addr & ~7, val);
+            stq_user(addr, val);
             break;
         }
         break;
@@ -1258,14 +1258,14 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
             stb_kernel(addr, val);
             break;
         case 2:
-            stw_kernel(addr & ~1, val);
+            stw_kernel(addr, val);
             break;
         default:
         case 4:
-            stl_kernel(addr & ~3, val);
+            stl_kernel(addr, val);
             break;
         case 8:
-            stq_kernel(addr & ~7, val);
+            stq_kernel(addr, val);
             break;
         }
         break;
@@ -1311,14 +1311,14 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                 stb_phys(addr, val);
                 break;
             case 2:
-                stw_phys(addr & ~1, val);
+                stw_phys(addr, val);
                 break;
             case 4:
             default:
-                stl_phys(addr & ~3, val);
+                stl_phys(addr, val);
                 break;
             case 8:
-                stq_phys(addr & ~7, val);
+                stq_phys(addr, val);
                 break;
             }
         }
@@ -1331,16 +1331,16 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                          | ((target_phys_addr_t)(asi & 0xf) << 32), val);
                 break;
             case 2:
-                stw_phys((target_phys_addr_t)(addr & ~1)
+                stw_phys((target_phys_addr_t)addr
                          | ((target_phys_addr_t)(asi & 0xf) << 32), val);
                 break;
             case 4:
             default:
-                stl_phys((target_phys_addr_t)(addr & ~3)
+                stl_phys((target_phys_addr_t)addr
                          | ((target_phys_addr_t)(asi & 0xf) << 32), val);
                 break;
             case 8:
-                stq_phys((target_phys_addr_t)(addr & ~7)
+                stq_phys((target_phys_addr_t)addr
                          | ((target_phys_addr_t)(asi & 0xf) << 32), val);
                 break;
             }
@@ -1395,14 +1395,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
                 ret = ldub_raw(addr);
                 break;
             case 2:
-                ret = lduw_raw(addr & ~1);
+                ret = lduw_raw(addr);
                 break;
             case 4:
-                ret = ldl_raw(addr & ~3);
+                ret = ldl_raw(addr);
                 break;
             default:
             case 8:
-                ret = ldq_raw(addr & ~7);
+                ret = ldq_raw(addr);
                 break;
             }
         }
@@ -1503,14 +1503,14 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                 stb_raw(addr, val);
                 break;
             case 2:
-                stw_raw(addr & ~1, val);
+                stw_raw(addr, val);
                 break;
             case 4:
-                stl_raw(addr & ~3, val);
+                stl_raw(addr, val);
                 break;
             case 8:
             default:
-                stq_raw(addr & ~7, val);
+                stq_raw(addr, val);
                 break;
             }
         }
@@ -1558,14 +1558,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
                     ret = ldub_hypv(addr);
                     break;
                 case 2:
-                    ret = lduw_hypv(addr & ~1);
+                    ret = lduw_hypv(addr);
                     break;
                 case 4:
-                    ret = ldl_hypv(addr & ~3);
+                    ret = ldl_hypv(addr);
                     break;
                 default:
                 case 8:
-                    ret = ldq_hypv(addr & ~7);
+                    ret = ldq_hypv(addr);
                     break;
                 }
             } else {
@@ -1574,14 +1574,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
                     ret = ldub_kernel(addr);
                     break;
                 case 2:
-                    ret = lduw_kernel(addr & ~1);
+                    ret = lduw_kernel(addr);
                     break;
                 case 4:
-                    ret = ldl_kernel(addr & ~3);
+                    ret = ldl_kernel(addr);
                     break;
                 default:
                 case 8:
-                    ret = ldq_kernel(addr & ~7);
+                    ret = ldq_kernel(addr);
                     break;
                 }
             }
@@ -1591,14 +1591,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
                 ret = ldub_user(addr);
                 break;
             case 2:
-                ret = lduw_user(addr & ~1);
+                ret = lduw_user(addr);
                 break;
             case 4:
-                ret = ldl_user(addr & ~3);
+                ret = ldl_user(addr);
                 break;
             default:
             case 8:
-                ret = ldq_user(addr & ~7);
+                ret = ldq_user(addr);
                 break;
             }
         }
@@ -1613,14 +1613,14 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
                 ret = ldub_phys(addr);
                 break;
             case 2:
-                ret = lduw_phys(addr & ~1);
+                ret = lduw_phys(addr);
                 break;
             case 4:
-                ret = ldl_phys(addr & ~3);
+                ret = ldl_phys(addr);
                 break;
             default:
             case 8:
-                ret = ldq_phys(addr & ~7);
+                ret = ldq_phys(addr);
                 break;
             }
             break;
@@ -1806,14 +1806,14 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                     stb_hypv(addr, val);
                     break;
                 case 2:
-                    stw_hypv(addr & ~1, val);
+                    stw_hypv(addr, val);
                     break;
                 case 4:
-                    stl_hypv(addr & ~3, val);
+                    stl_hypv(addr, val);
                     break;
                 case 8:
                 default:
-                    stq_hypv(addr & ~7, val);
+                    stq_hypv(addr, val);
                     break;
                 }
             } else {
@@ -1822,14 +1822,14 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                     stb_kernel(addr, val);
                     break;
                 case 2:
-                    stw_kernel(addr & ~1, val);
+                    stw_kernel(addr, val);
                     break;
                 case 4:
-                    stl_kernel(addr & ~3, val);
+                    stl_kernel(addr, val);
                     break;
                 case 8:
                 default:
-                    stq_kernel(addr & ~7, val);
+                    stq_kernel(addr, val);
                     break;
                 }
             }
@@ -1839,14 +1839,14 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                 stb_user(addr, val);
                 break;
             case 2:
-                stw_user(addr & ~1, val);
+                stw_user(addr, val);
                 break;
             case 4:
-                stl_user(addr & ~3, val);
+                stl_user(addr, val);
                 break;
             case 8:
             default:
-                stq_user(addr & ~7, val);
+                stq_user(addr, val);
                 break;
             }
         }
@@ -1861,14 +1861,14 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
                 stb_phys(addr, val);
                 break;
             case 2:
-                stw_phys(addr & ~1, val);
+                stw_phys(addr, val);
                 break;
             case 4:
-                stl_phys(addr & ~3, val);
+                stl_phys(addr, val);
                 break;
             case 8:
             default:
-                stq_phys(addr & ~7, val);
+                stq_phys(addr, val);
                 break;
             }
         }
