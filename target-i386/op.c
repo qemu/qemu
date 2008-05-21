@@ -147,41 +147,6 @@
 
 #endif
 
-void OPPROTO op_movl_T0_env(void)
-{
-    T0 = *(uint32_t *)((char *)env + PARAM1);
-}
-
-void OPPROTO op_movl_env_T0(void)
-{
-    *(uint32_t *)((char *)env + PARAM1) = T0;
-}
-
-void OPPROTO op_movl_env_T1(void)
-{
-    *(uint32_t *)((char *)env + PARAM1) = T1;
-}
-
-void OPPROTO op_movtl_T0_env(void)
-{
-    T0 = *(target_ulong *)((char *)env + PARAM1);
-}
-
-void OPPROTO op_movtl_env_T0(void)
-{
-    *(target_ulong *)((char *)env + PARAM1) = T0;
-}
-
-void OPPROTO op_movtl_T1_env(void)
-{
-    T1 = *(target_ulong *)((char *)env + PARAM1);
-}
-
-void OPPROTO op_movtl_env_T1(void)
-{
-    *(target_ulong *)((char *)env + PARAM1) = T1;
-}
-
 /* flags handling */
 
 void OPPROTO op_jmp_label(void)
