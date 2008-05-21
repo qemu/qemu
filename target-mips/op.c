@@ -167,51 +167,6 @@
 #undef MEMSUFFIX
 #endif
 
-/* Logical */
-void op_clo (void)
-{
-    T0 = clo32(T0);
-    FORCE_RET();
-}
-
-void op_clz (void)
-{
-    T0 = clz32(T0);
-    FORCE_RET();
-}
-
-#if defined(TARGET_MIPS64)
-
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-/* Those might call libgcc functions.  */
-void op_dclo (void)
-{
-    CALL_FROM_TB0(do_dclo);
-    FORCE_RET();
-}
-
-void op_dclz (void)
-{
-    CALL_FROM_TB0(do_dclz);
-    FORCE_RET();
-}
-
-#else /* TARGET_LONG_BITS > HOST_LONG_BITS */
-
-void op_dclo (void)
-{
-    T0 = clo64(T0);
-    FORCE_RET();
-}
-
-void op_dclz (void)
-{
-    T0 = clz64(T0);
-    FORCE_RET();
-}
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-#endif /* TARGET_MIPS64 */
-
 /* 64 bits arithmetic */
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void op_mult (void)
@@ -523,29 +478,6 @@ void op_movt (void)
         T0 = T1;
     FORCE_RET();
 }
-
-/* Tests */
-#define OP_COND(name, cond) \
-void glue(op_, name) (void) \
-{                           \
-    if (cond) {             \
-        T0 = 1;             \
-    } else {                \
-        T0 = 0;             \
-    }                       \
-    FORCE_RET();            \
-}
-
-OP_COND(eq, T0 == T1);
-OP_COND(ne, T0 != T1);
-OP_COND(ge, (target_long)T0 >= (target_long)T1);
-OP_COND(geu, T0 >= T1);
-OP_COND(lt, (target_long)T0 < (target_long)T1);
-OP_COND(ltu, T0 < T1);
-OP_COND(gez, (target_long)T0 >= 0);
-OP_COND(gtz, (target_long)T0 > 0);
-OP_COND(lez, (target_long)T0 <= 0);
-OP_COND(ltz, (target_long)T0 < 0);
 
 /* Branches */
 /* Branch to register */

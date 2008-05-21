@@ -71,6 +71,16 @@ void do_restore_state (void *pc_ptr)
     }
 }
 
+void do_clo (void)
+{
+    T0 = clo32(T0);
+}
+
+void do_clz (void)
+{
+    T0 = clz32(T0);
+}
+
 #if defined(TARGET_MIPS64)
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 /* Those might call libgcc functions.  */

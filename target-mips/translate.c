@@ -655,6 +655,65 @@ FOP_CONDS(abs, s)
 FOP_CONDS(, ps)
 FOP_CONDS(abs, ps)
 
+/* Tests */
+#define OP_COND(name, cond)                                   \
+void glue(gen_op_, name) (void)                               \
+{                                                             \
+    int l1 = gen_new_label();                                 \
+    int l2 = gen_new_label();                                 \
+                                                              \
+    tcg_gen_brcond_tl(cond, cpu_T[0], cpu_T[1], l1);          \
+    gen_op_set_T0(0);                                         \
+    tcg_gen_br(l2);                                           \
+    gen_set_label(l1);                                        \
+    gen_op_set_T0(1);                                         \
+    gen_set_label(l2);                                        \
+}
+OP_COND(eq, TCG_COND_EQ);
+OP_COND(ne, TCG_COND_NE);
+OP_COND(ge, TCG_COND_GE);
+OP_COND(geu, TCG_COND_GEU);
+OP_COND(lt, TCG_COND_LT);
+OP_COND(ltu, TCG_COND_LTU);
+#undef OP_COND
+
+#define OP_CONDI(name, cond)                                  \
+void glue(gen_op_, name) (target_ulong val)                   \
+{                                                             \
+    int l1 = gen_new_label();                                 \
+    int l2 = gen_new_label();                                 \
+                                                              \
+    tcg_gen_brcond_tl(cond, cpu_T[0], tcg_const_tl(val), l1); \
+    gen_op_set_T0(0);                                         \
+    tcg_gen_br(l2);                                           \
+    gen_set_label(l1);                                        \
+    gen_op_set_T0(1);                                         \
+    gen_set_label(l2);                                        \
+}
+OP_CONDI(lti, TCG_COND_LT);
+OP_CONDI(ltiu, TCG_COND_LTU);
+#undef OP_CONDI
+
+#define OP_CONDZ(name, cond)                                  \
+void glue(gen_op_, name) (void)                               \
+{                                                             \
+    int l1 = gen_new_label();                                 \
+    int l2 = gen_new_label();                                 \
+                                                              \
+    tcg_gen_brcond_tl(cond, cpu_T[0], tcg_const_tl(0), l1);   \
+    gen_op_set_T0(0);                                         \
+    tcg_gen_br(l2);                                           \
+    gen_set_label(l1);                                        \
+    gen_op_set_T0(1);                                         \
+    gen_set_label(l2);                                        \
+}
+OP_CONDZ(gez, TCG_COND_GE);
+OP_CONDZ(gtz, TCG_COND_GT);
+OP_CONDZ(lez, TCG_COND_LE);
+OP_CONDZ(ltz, TCG_COND_LT);
+#undef OP_CONDZ
+
+
 typedef struct DisasContext {
     struct TranslationBlock *tb;
     target_ulong pc, saved_pc;
@@ -1375,11 +1434,11 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
 #endif
     case OPC_SLTI:
-        gen_op_lt();
+        gen_op_lti(uimm);
         opn = "slti";
         break;
     case OPC_SLTIU:
-        gen_op_ltu();
+        gen_op_ltiu(uimm);
         opn = "sltiu";
         break;
     case OPC_ANDI:
@@ -2160,20 +2219,20 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
     GEN_LOAD_REG_T0(rs);
     switch (opc) {
     case OPC_CLO:
-        gen_op_clo();
+        tcg_gen_helper_0_0(do_clo);
         opn = "clo";
         break;
     case OPC_CLZ:
-        gen_op_clz();
+        tcg_gen_helper_0_0(do_clz);
         opn = "clz";
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DCLO:
-        gen_op_dclo();
+        tcg_gen_helper_0_0(do_dclo);
         opn = "dclo";
         break;
     case OPC_DCLZ:
-        gen_op_dclz();
+        tcg_gen_helper_0_0(do_dclz);
         opn = "dclz";
         break;
 #endif
