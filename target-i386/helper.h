@@ -2,6 +2,8 @@
 
 void helper_lock(void);
 void helper_unlock(void);
+void helper_write_eflags(target_ulong t0, uint32_t update_mask);
+target_ulong helper_read_eflags(void);
 void helper_divb_AL(target_ulong t0);
 void helper_idivb_AL(target_ulong t0);
 void helper_divw_AX(target_ulong t0);

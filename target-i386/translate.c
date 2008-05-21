@@ -5733,7 +5733,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         } else {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_op_movl_T0_eflags();
+            tcg_gen_helper_1_0(helper_read_eflags, cpu_T[0]);
             gen_push_T0(s);
         }
         break;
@@ -5746,22 +5746,28 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_pop_T0(s);
             if (s->cpl == 0) {
                 if (s->dflag) {
-                    gen_op_movl_eflags_T0_cpl0();
+                    tcg_gen_helper_0_2(helper_write_eflags, cpu_T[0],
+                                       tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK | IOPL_MASK)));
                 } else {
-                    gen_op_movw_eflags_T0_cpl0();
+                    tcg_gen_helper_0_2(helper_write_eflags, cpu_T[0],
+                                       tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK | IOPL_MASK) & 0xffff));
                 }
             } else {
                 if (s->cpl <= s->iopl) {
                     if (s->dflag) {
-                        gen_op_movl_eflags_T0_io();
+                        tcg_gen_helper_0_2(helper_write_eflags, cpu_T[0],
+                                           tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK)));
                     } else {
-                        gen_op_movw_eflags_T0_io();
+                        tcg_gen_helper_0_2(helper_write_eflags, cpu_T[0],
+                                           tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK) & 0xffff));
                     }
                 } else {
                     if (s->dflag) {
-                        gen_op_movl_eflags_T0();
+                        tcg_gen_helper_0_2(helper_write_eflags, cpu_T[0],
+                                           tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK)));
                     } else {
-                        gen_op_movw_eflags_T0();
+                        tcg_gen_helper_0_2(helper_write_eflags, cpu_T[0],
+                                           tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK) & 0xffff));
                     }
                 }
             }
@@ -5778,7 +5784,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_op_mov_TN_reg(OT_BYTE, 0, R_AH);
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_movb_eflags_T0();
+        gen_compute_eflags(cpu_cc_src);
+        tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, CC_O);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], CC_S | CC_Z | CC_A | CC_P | CC_C);
+        tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_T[0]);
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0x9f: /* lahf */
@@ -5786,25 +5795,30 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_movl_T0_eflags();
+        gen_compute_eflags(cpu_T[0]);
+        /* Note: gen_compute_eflags() only gives the condition codes */
+        tcg_gen_ori_tl(cpu_T[0], cpu_T[0], 0x02);
         gen_op_mov_reg_T0(OT_BYTE, R_AH);
         break;
     case 0xf5: /* cmc */
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_cmc();
+        gen_compute_eflags(cpu_cc_src);
+        tcg_gen_xori_tl(cpu_cc_src, cpu_cc_src, CC_C);
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0xf8: /* clc */
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_clc();
+        gen_compute_eflags(cpu_cc_src);
+        tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~CC_C);
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0xf9: /* stc */
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_stc();
+        gen_compute_eflags(cpu_cc_src);
+        tcg_gen_ori_tl(cpu_cc_src, cpu_cc_src, CC_C);
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0xfc: /* cld */
@@ -6127,7 +6141,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_salc();
+        gen_compute_eflags_c(cpu_T[0]);
+        tcg_gen_neg_tl(cpu_T[0], cpu_T[0]);
+        gen_op_mov_reg_T0(OT_BYTE, R_EAX);
         break;
     case 0xe0: /* loopnz */
     case 0xe1: /* loopz */

@@ -1,5 +1,6 @@
 Correctness issues:
 
+- some eflags manipulation incorrectly reset the bit 0x2.
 - rework eflags optimization (will be a consequence of TCG port)
 - SVM: rework the implementation: simplify code, move most intercept
   tests as dynamic, correct segment access, verify exception safety,

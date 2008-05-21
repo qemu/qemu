@@ -108,6 +108,20 @@ void helper_unlock(void)
     spin_unlock(&global_cpu_lock);
 }
 
+void helper_write_eflags(target_ulong t0, uint32_t update_mask)
+{
+    load_eflags(t0, update_mask);
+}
+
+target_ulong helper_read_eflags(void)
+{
+    uint32_t eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    eflags |= (DF & DF_MASK);
+    eflags |= env->eflags & ~(VM_MASK | RF_MASK);
+    return eflags;
+}
+
 /* return non zero if error */
 static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
                                int selector)
