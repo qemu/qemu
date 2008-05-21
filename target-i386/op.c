@@ -123,24 +123,6 @@
 
 #endif
 
-/* constant load & misc op */
-
-/* XXX: consistent names */
-void OPPROTO op_into(void)
-{
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    if (eflags & CC_O) {
-        raise_interrupt(EXCP04_INTO, 1, 0, PARAM1);
-    }
-    FORCE_RET();
-}
-
-void OPPROTO op_cmpxchg8b(void)
-{
-    helper_cmpxchg8b(A0);
-}
-
 /* multiple size ops */
 
 #define ldul ldl

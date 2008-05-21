@@ -71,6 +71,7 @@ void helper_reset_inhibit_irq(void);
 void helper_boundw(target_ulong a0, int v);
 void helper_boundl(target_ulong a0, int v);
 void helper_rsm(void);
+void helper_into(int next_eip_addend);
 void helper_cmpxchg8b(target_ulong a0);
 void helper_single_step(void);
 void helper_cpuid(void);

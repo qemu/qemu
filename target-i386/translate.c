@@ -4308,7 +4308,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-        gen_op_cmpxchg8b();
+        tcg_gen_helper_0_1(helper_cmpxchg8b, cpu_A0);
         s->cc_op = CC_OP_EFLAGS;
         break;
 
@@ -6016,7 +6016,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_jmp_im(pc_start - s->cs_base);
-        gen_op_into(s->pc - pc_start);
+        tcg_gen_helper_0_1(helper_into, tcg_const_i32(s->pc - pc_start));
         break;
     case 0xf1: /* icebp (undocumented, exits to external debugger) */
         if (gen_svm_check_intercept(s, pc_start, SVM_EXIT_ICEBP))

@@ -1849,6 +1849,15 @@ void helper_das(void)
     FORCE_RET();
 }
 
+void helper_into(int next_eip_addend)
+{
+    int eflags;
+    eflags = cc_table[CC_OP].compute_all();
+    if (eflags & CC_O) {
+        raise_interrupt(EXCP04_INTO, 1, 0, next_eip_addend);
+    }
+}
+
 void helper_cmpxchg8b(target_ulong a0)
 {
     uint64_t d;
