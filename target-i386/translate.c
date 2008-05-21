@@ -133,6 +133,17 @@ enum {
     OP_SAR = 7,
 };
 
+enum {
+    JCC_O,
+    JCC_B,
+    JCC_Z,
+    JCC_BE,
+    JCC_S,
+    JCC_P,
+    JCC_L,
+    JCC_LE,
+};
+
 /* operand size */
 enum {
     OT_BYTE = 0,
@@ -228,37 +239,9 @@ static inline void gen_op_andl_A0_ffff(void)
 
 #define NB_OP_SIZES 4
 
-#define DEF_REGS(prefix, suffix) \
-  prefix ## EAX ## suffix,\
-  prefix ## ECX ## suffix,\
-  prefix ## EDX ## suffix,\
-  prefix ## EBX ## suffix,\
-  prefix ## ESP ## suffix,\
-  prefix ## EBP ## suffix,\
-  prefix ## ESI ## suffix,\
-  prefix ## EDI ## suffix,\
-  prefix ## R8 ## suffix,\
-  prefix ## R9 ## suffix,\
-  prefix ## R10 ## suffix,\
-  prefix ## R11 ## suffix,\
-  prefix ## R12 ## suffix,\
-  prefix ## R13 ## suffix,\
-  prefix ## R14 ## suffix,\
-  prefix ## R15 ## suffix,
-
 #else /* !TARGET_X86_64 */
 
 #define NB_OP_SIZES 3
-
-#define DEF_REGS(prefix, suffix) \
-  prefix ## EAX ## suffix,\
-  prefix ## ECX ## suffix,\
-  prefix ## EDX ## suffix,\
-  prefix ## EBX ## suffix,\
-  prefix ## ESP ## suffix,\
-  prefix ## EBP ## suffix,\
-  prefix ## ESI ## suffix,\
-  prefix ## EDI ## suffix,
 
 #endif /* !TARGET_X86_64 */
 
@@ -510,20 +493,6 @@ static inline void gen_op_addq_A0_reg_sN(int shift, int reg)
 }
 #endif
 
-static GenOpFunc *gen_op_cmov_reg_T1_T0[NB_OP_SIZES - 1][CPU_NB_REGS] = {
-    [0] = {
-        DEF_REGS(gen_op_cmovw_, _T1_T0)
-    },
-    [1] = {
-        DEF_REGS(gen_op_cmovl_, _T1_T0)
-    },
-#ifdef TARGET_X86_64
-    [2] = {
-        DEF_REGS(gen_op_cmovq_, _T1_T0)
-    },
-#endif
-};
-
 static inline void gen_op_lds_T0_A0(int idx)
 {
     int mem_index = (idx >> 2) - 1;
@@ -743,21 +712,6 @@ static inline void gen_op_jz_ecx(int size, int label1)
     tcg_gen_brcond_tl(TCG_COND_EQ, cpu_tmp0, tcg_const_tl(0), label1);
 }
 
-static GenOpFunc1 *gen_op_string_jnz_sub[2][4] = {
-    {
-        gen_op_jnz_subb,
-        gen_op_jnz_subw,
-        gen_op_jnz_subl,
-        X86_64_ONLY(gen_op_jnz_subq),
-    },
-    {
-        gen_op_jz_subb,
-        gen_op_jz_subw,
-        gen_op_jz_subl,
-        X86_64_ONLY(gen_op_jz_subq),
-    },
-};
-
 static void *helper_in_func[3] = {
     helper_inb,
     helper_inw,
@@ -856,6 +810,352 @@ static void gen_op_update_neg_cc(void)
 {
     tcg_gen_neg_tl(cpu_cc_src, cpu_T[0]);
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
+}
+
+/* compute eflags.C to reg */
+static void gen_compute_eflags_c(TCGv reg)
+{
+#if TCG_TARGET_REG_BITS == 32
+    tcg_gen_shli_i32(cpu_tmp2_i32, cpu_cc_op, 3);
+    tcg_gen_addi_i32(cpu_tmp2_i32, cpu_tmp2_i32, 
+                     (long)cc_table + offsetof(CCTable, compute_c));
+    tcg_gen_ld_i32(cpu_tmp2_i32, cpu_tmp2_i32, 0);
+    tcg_gen_call(&tcg_ctx, cpu_tmp2_i32, TCG_CALL_PURE, 
+                 1, &cpu_tmp2_i32, 0, NULL);
+#else
+    tcg_gen_extu_i32_tl(cpu_tmp1_i64, cpu_cc_op);
+    tcg_gen_shli_i64(cpu_tmp1_i64, cpu_tmp1_i64, 4);
+    tcg_gen_addi_i64(cpu_tmp1_i64, cpu_tmp1_i64, 
+                     (long)cc_table + offsetof(CCTable, compute_c));
+    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_tmp1_i64, 0);
+    tcg_gen_call(&tcg_ctx, cpu_tmp1_i64, TCG_CALL_PURE, 
+                 1, &cpu_tmp2_i32, 0, NULL);
+#endif
+    tcg_gen_extu_i32_tl(reg, cpu_tmp2_i32);
+}
+
+/* compute all eflags to cc_src */
+static void gen_compute_eflags(TCGv reg)
+{
+#if TCG_TARGET_REG_BITS == 32
+    tcg_gen_shli_i32(cpu_tmp2_i32, cpu_cc_op, 3);
+    tcg_gen_addi_i32(cpu_tmp2_i32, cpu_tmp2_i32, 
+                     (long)cc_table + offsetof(CCTable, compute_all));
+    tcg_gen_ld_i32(cpu_tmp2_i32, cpu_tmp2_i32, 0);
+    tcg_gen_call(&tcg_ctx, cpu_tmp2_i32, TCG_CALL_PURE, 
+                 1, &cpu_tmp2_i32, 0, NULL);
+#else
+    tcg_gen_extu_i32_tl(cpu_tmp1_i64, cpu_cc_op);
+    tcg_gen_shli_i64(cpu_tmp1_i64, cpu_tmp1_i64, 4);
+    tcg_gen_addi_i64(cpu_tmp1_i64, cpu_tmp1_i64, 
+                     (long)cc_table + offsetof(CCTable, compute_all));
+    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_tmp1_i64, 0);
+    tcg_gen_call(&tcg_ctx, cpu_tmp1_i64, TCG_CALL_PURE, 
+                 1, &cpu_tmp2_i32, 0, NULL);
+#endif
+    tcg_gen_extu_i32_tl(reg, cpu_tmp2_i32);
+}
+
+static inline void gen_setcc_slow_T0(int op)
+{
+    switch(op) {
+    case JCC_O:
+        gen_compute_eflags(cpu_T[0]);
+        tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 11);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        break;
+    case JCC_B:
+        gen_compute_eflags_c(cpu_T[0]);
+        break;
+    case JCC_Z:
+        gen_compute_eflags(cpu_T[0]);
+        tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 6);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        break;
+    case JCC_BE:
+        gen_compute_eflags(cpu_tmp0);
+        tcg_gen_shri_tl(cpu_T[0], cpu_tmp0, 6);
+        tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_tmp0);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        break;
+    case JCC_S:
+        gen_compute_eflags(cpu_T[0]);
+        tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 7);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        break;
+    case JCC_P:
+        gen_compute_eflags(cpu_T[0]);
+        tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 2);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        break;
+    case JCC_L:
+        gen_compute_eflags(cpu_tmp0);
+        tcg_gen_shri_tl(cpu_T[0], cpu_tmp0, 11); /* CC_O */
+        tcg_gen_shri_tl(cpu_tmp0, cpu_tmp0, 7); /* CC_S */
+        tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_tmp0);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        break;
+    default:
+    case JCC_LE:
+        gen_compute_eflags(cpu_tmp0);
+        tcg_gen_shri_tl(cpu_T[0], cpu_tmp0, 11); /* CC_O */
+        tcg_gen_shri_tl(cpu_tmp4, cpu_tmp0, 7); /* CC_S */
+        tcg_gen_shri_tl(cpu_tmp0, cpu_tmp0, 6); /* CC_Z */
+        tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_tmp4);
+        tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_tmp0);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        break;
+    }
+}
+
+/* return true if setcc_slow is not needed (WARNING: must be kept in
+   sync with gen_jcc1) */
+static int is_fast_jcc_case(DisasContext *s, int b)
+{
+    int jcc_op;
+    jcc_op = (b >> 1) & 7;
+    switch(s->cc_op) {
+        /* we optimize the cmp/jcc case */
+    case CC_OP_SUBB:
+    case CC_OP_SUBW:
+    case CC_OP_SUBL:
+    case CC_OP_SUBQ:
+        if (jcc_op == JCC_O || jcc_op == JCC_P)
+            goto slow_jcc;
+        break;
+
+        /* some jumps are easy to compute */
+    case CC_OP_ADDB:
+    case CC_OP_ADDW:
+    case CC_OP_ADDL:
+    case CC_OP_ADDQ:
+
+    case CC_OP_LOGICB:
+    case CC_OP_LOGICW:
+    case CC_OP_LOGICL:
+    case CC_OP_LOGICQ:
+
+    case CC_OP_INCB:
+    case CC_OP_INCW:
+    case CC_OP_INCL:
+    case CC_OP_INCQ:
+
+    case CC_OP_DECB:
+    case CC_OP_DECW:
+    case CC_OP_DECL:
+    case CC_OP_DECQ:
+
+    case CC_OP_SHLB:
+    case CC_OP_SHLW:
+    case CC_OP_SHLL:
+    case CC_OP_SHLQ:
+        if (jcc_op != JCC_Z && jcc_op != JCC_S)
+            goto slow_jcc;
+        break;
+    default:
+    slow_jcc:
+        return 0;
+    }
+    return 1;
+}
+
+/* generate a conditional jump to label 'l1' according to jump opcode
+   value 'b'. In the fast case, T0 is guaranted not to be used. */
+static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
+{
+    int inv, jcc_op, size, cond;
+    TCGv t0;
+
+    inv = b & 1;
+    jcc_op = (b >> 1) & 7;
+
+    switch(cc_op) {
+        /* we optimize the cmp/jcc case */
+    case CC_OP_SUBB:
+    case CC_OP_SUBW:
+    case CC_OP_SUBL:
+    case CC_OP_SUBQ:
+        
+        size = cc_op - CC_OP_SUBB;
+        switch(jcc_op) {
+        case JCC_Z:
+        fast_jcc_z:
+            switch(size) {
+            case 0:
+                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0xff);
+                t0 = cpu_tmp0;
+                break;
+            case 1:
+                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0xffff);
+                t0 = cpu_tmp0;
+                break;
+#ifdef TARGET_X86_64
+            case 2:
+                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0xffffffff);
+                t0 = cpu_tmp0;
+                break;
+#endif
+            default:
+                t0 = cpu_cc_dst;
+                break;
+            }
+            tcg_gen_brcond_tl(inv ? TCG_COND_NE : TCG_COND_EQ, t0, 
+                              tcg_const_tl(0), l1);
+            break;
+        case JCC_S:
+        fast_jcc_s:
+            switch(size) {
+            case 0:
+                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x80);
+                tcg_gen_brcond_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
+                                  tcg_const_tl(0), l1);
+                break;
+            case 1:
+                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x8000);
+                tcg_gen_brcond_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
+                                  tcg_const_tl(0), l1);
+                break;
+#ifdef TARGET_X86_64
+            case 2:
+                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x80000000);
+                tcg_gen_brcond_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
+                                  tcg_const_tl(0), l1);
+                break;
+#endif
+            default:
+                tcg_gen_brcond_tl(inv ? TCG_COND_GE : TCG_COND_LT, cpu_cc_dst, 
+                                  tcg_const_tl(0), l1);
+                break;
+            }
+            break;
+            
+        case JCC_B:
+            cond = inv ? TCG_COND_GEU : TCG_COND_LTU;
+            goto fast_jcc_b;
+        case JCC_BE:
+            cond = inv ? TCG_COND_GTU : TCG_COND_LEU;
+        fast_jcc_b:
+            tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
+            switch(size) {
+            case 0:
+                t0 = cpu_tmp0;
+                tcg_gen_andi_tl(cpu_tmp4, cpu_tmp4, 0xff);
+                tcg_gen_andi_tl(t0, cpu_cc_src, 0xff);
+                break;
+            case 1:
+                t0 = cpu_tmp0;
+                tcg_gen_andi_tl(cpu_tmp4, cpu_tmp4, 0xffff);
+                tcg_gen_andi_tl(t0, cpu_cc_src, 0xffff);
+                break;
+#ifdef TARGET_X86_64
+            case 2:
+                t0 = cpu_tmp0;
+                tcg_gen_andi_tl(cpu_tmp4, cpu_tmp4, 0xffffffff);
+                tcg_gen_andi_tl(t0, cpu_cc_src, 0xffffffff);
+                break;
+#endif
+            default:
+                t0 = cpu_cc_src;
+                break;
+            }
+            tcg_gen_brcond_tl(cond, cpu_tmp4, t0, l1);
+            break;
+            
+        case JCC_L:
+            cond = inv ? TCG_COND_GE : TCG_COND_LT;
+            goto fast_jcc_l;
+        case JCC_LE:
+            cond = inv ? TCG_COND_GT : TCG_COND_LE;
+        fast_jcc_l:
+            tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
+            switch(size) {
+            case 0:
+                t0 = cpu_tmp0;
+                tcg_gen_ext8s_tl(cpu_tmp4, cpu_tmp4);
+                tcg_gen_ext8s_tl(t0, cpu_cc_src);
+                break;
+            case 1:
+                t0 = cpu_tmp0;
+                tcg_gen_ext16s_tl(cpu_tmp4, cpu_tmp4);
+                tcg_gen_ext16s_tl(t0, cpu_cc_src);
+                break;
+#ifdef TARGET_X86_64
+            case 2:
+                t0 = cpu_tmp0;
+                tcg_gen_ext32s_tl(cpu_tmp4, cpu_tmp4);
+                tcg_gen_ext32s_tl(t0, cpu_cc_src);
+                break;
+#endif
+            default:
+                t0 = cpu_cc_src;
+                break;
+            }
+            tcg_gen_brcond_tl(cond, cpu_tmp4, t0, l1);
+            break;
+            
+        default:
+            goto slow_jcc;
+        }
+        break;
+        
+        /* some jumps are easy to compute */
+    case CC_OP_ADDB:
+    case CC_OP_ADDW:
+    case CC_OP_ADDL:
+    case CC_OP_ADDQ:
+        
+    case CC_OP_ADCB:
+    case CC_OP_ADCW:
+    case CC_OP_ADCL:
+    case CC_OP_ADCQ:
+        
+    case CC_OP_SBBB:
+    case CC_OP_SBBW:
+    case CC_OP_SBBL:
+    case CC_OP_SBBQ:
+        
+    case CC_OP_LOGICB:
+    case CC_OP_LOGICW:
+    case CC_OP_LOGICL:
+    case CC_OP_LOGICQ:
+        
+    case CC_OP_INCB:
+    case CC_OP_INCW:
+    case CC_OP_INCL:
+    case CC_OP_INCQ:
+        
+    case CC_OP_DECB:
+    case CC_OP_DECW:
+    case CC_OP_DECL:
+    case CC_OP_DECQ:
+        
+    case CC_OP_SHLB:
+    case CC_OP_SHLW:
+    case CC_OP_SHLL:
+    case CC_OP_SHLQ:
+        
+    case CC_OP_SARB:
+    case CC_OP_SARW:
+    case CC_OP_SARL:
+    case CC_OP_SARQ:
+        switch(jcc_op) {
+        case JCC_Z:
+            size = (cc_op - CC_OP_ADDB) & 3;
+            goto fast_jcc_z;
+        case JCC_S:
+            size = (cc_op - CC_OP_ADDB) & 3;
+            goto fast_jcc_s;
+        default:
+            goto slow_jcc;
+        }
+        break;
+    default:
+    slow_jcc:
+        gen_setcc_slow_T0(jcc_op);
+        tcg_gen_brcond_tl(inv ? TCG_COND_EQ : TCG_COND_NE, 
+                          cpu_T[0], tcg_const_tl(0), l1);
+        break;
+    }
 }
 
 /* XXX: does not work with gdbstub "ice" single step - not a
@@ -974,7 +1274,7 @@ static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
     gen_ ## op(s, ot);                                                        \
     gen_op_add_reg_im(s->aflag, R_ECX, -1);                                   \
     gen_op_set_cc_op(CC_OP_SUBB + ot);                                        \
-    gen_op_string_jnz_sub[nz][ot](l2);\
+    gen_jcc1(s, CC_OP_SUBB + ot, (JCC_Z << 1) | (nz ^ 1), l2);                \
     if (!s->jmp_opt)                                                          \
         gen_op_jz_ecx(s->aflag, l2);                                          \
     gen_jmp(s, cur_eip);                                                      \
@@ -987,118 +1287,6 @@ GEN_REPZ(ins)
 GEN_REPZ(outs)
 GEN_REPZ2(scas)
 GEN_REPZ2(cmps)
-
-enum {
-    JCC_O,
-    JCC_B,
-    JCC_Z,
-    JCC_BE,
-    JCC_S,
-    JCC_P,
-    JCC_L,
-    JCC_LE,
-};
-
-static GenOpFunc1 *gen_jcc_sub[4][8] = {
-    [OT_BYTE] = {
-        NULL,
-        gen_op_jb_subb,
-        gen_op_jz_subb,
-        gen_op_jbe_subb,
-        gen_op_js_subb,
-        NULL,
-        gen_op_jl_subb,
-        gen_op_jle_subb,
-    },
-    [OT_WORD] = {
-        NULL,
-        gen_op_jb_subw,
-        gen_op_jz_subw,
-        gen_op_jbe_subw,
-        gen_op_js_subw,
-        NULL,
-        gen_op_jl_subw,
-        gen_op_jle_subw,
-    },
-    [OT_LONG] = {
-        NULL,
-        gen_op_jb_subl,
-        gen_op_jz_subl,
-        gen_op_jbe_subl,
-        gen_op_js_subl,
-        NULL,
-        gen_op_jl_subl,
-        gen_op_jle_subl,
-    },
-#ifdef TARGET_X86_64
-    [OT_QUAD] = {
-        NULL,
-        BUGGY_64(gen_op_jb_subq),
-        gen_op_jz_subq,
-        BUGGY_64(gen_op_jbe_subq),
-        gen_op_js_subq,
-        NULL,
-        BUGGY_64(gen_op_jl_subq),
-        BUGGY_64(gen_op_jle_subq),
-    },
-#endif
-};
-
-static GenOpFunc *gen_setcc_slow[8] = {
-    gen_op_seto_T0_cc,
-    gen_op_setb_T0_cc,
-    gen_op_setz_T0_cc,
-    gen_op_setbe_T0_cc,
-    gen_op_sets_T0_cc,
-    gen_op_setp_T0_cc,
-    gen_op_setl_T0_cc,
-    gen_op_setle_T0_cc,
-};
-
-static GenOpFunc *gen_setcc_sub[4][8] = {
-    [OT_BYTE] = {
-        NULL,
-        gen_op_setb_T0_subb,
-        gen_op_setz_T0_subb,
-        gen_op_setbe_T0_subb,
-        gen_op_sets_T0_subb,
-        NULL,
-        gen_op_setl_T0_subb,
-        gen_op_setle_T0_subb,
-    },
-    [OT_WORD] = {
-        NULL,
-        gen_op_setb_T0_subw,
-        gen_op_setz_T0_subw,
-        gen_op_setbe_T0_subw,
-        gen_op_sets_T0_subw,
-        NULL,
-        gen_op_setl_T0_subw,
-        gen_op_setle_T0_subw,
-    },
-    [OT_LONG] = {
-        NULL,
-        gen_op_setb_T0_subl,
-        gen_op_setz_T0_subl,
-        gen_op_setbe_T0_subl,
-        gen_op_sets_T0_subl,
-        NULL,
-        gen_op_setl_T0_subl,
-        gen_op_setle_T0_subl,
-    },
-#ifdef TARGET_X86_64
-    [OT_QUAD] = {
-        NULL,
-        gen_op_setb_T0_subq,
-        gen_op_setz_T0_subq,
-        gen_op_setbe_T0_subq,
-        gen_op_sets_T0_subq,
-        NULL,
-        gen_op_setl_T0_subq,
-        gen_op_setle_T0_subq,
-    },
-#endif
-};
 
 static void *helper_fp_arith_ST0_FT0[8] = {
     helper_fadd_ST0_FT0,
@@ -1122,50 +1310,6 @@ static void *helper_fp_arith_STN_ST0[8] = {
     helper_fdivr_STN_ST0,
     helper_fdiv_STN_ST0,
 };
-
-/* compute eflags.C to reg */
-static void gen_compute_eflags_c(TCGv reg)
-{
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_shli_i32(cpu_tmp2_i32, cpu_cc_op, 3);
-    tcg_gen_addi_i32(cpu_tmp2_i32, cpu_tmp2_i32, 
-                     (long)cc_table + offsetof(CCTable, compute_c));
-    tcg_gen_ld_i32(cpu_tmp2_i32, cpu_tmp2_i32, 0);
-    tcg_gen_call(&tcg_ctx, cpu_tmp2_i32, TCG_CALL_PURE, 
-                 1, &cpu_tmp2_i32, 0, NULL);
-#else
-    tcg_gen_extu_i32_tl(cpu_tmp1_i64, cpu_cc_op);
-    tcg_gen_shli_i64(cpu_tmp1_i64, cpu_tmp1_i64, 4);
-    tcg_gen_addi_i64(cpu_tmp1_i64, cpu_tmp1_i64, 
-                     (long)cc_table + offsetof(CCTable, compute_c));
-    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_tmp1_i64, 0);
-    tcg_gen_call(&tcg_ctx, cpu_tmp1_i64, TCG_CALL_PURE, 
-                 1, &cpu_tmp2_i32, 0, NULL);
-#endif
-    tcg_gen_extu_i32_tl(reg, cpu_tmp2_i32);
-}
-
-/* compute all eflags to cc_src */
-static void gen_compute_eflags(TCGv reg)
-{
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_shli_i32(cpu_tmp2_i32, cpu_cc_op, 3);
-    tcg_gen_addi_i32(cpu_tmp2_i32, cpu_tmp2_i32, 
-                     (long)cc_table + offsetof(CCTable, compute_all));
-    tcg_gen_ld_i32(cpu_tmp2_i32, cpu_tmp2_i32, 0);
-    tcg_gen_call(&tcg_ctx, cpu_tmp2_i32, TCG_CALL_PURE, 
-                 1, &cpu_tmp2_i32, 0, NULL);
-#else
-    tcg_gen_extu_i32_tl(cpu_tmp1_i64, cpu_cc_op);
-    tcg_gen_shli_i64(cpu_tmp1_i64, cpu_tmp1_i64, 4);
-    tcg_gen_addi_i64(cpu_tmp1_i64, cpu_tmp1_i64, 
-                     (long)cc_table + offsetof(CCTable, compute_all));
-    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_tmp1_i64, 0);
-    tcg_gen_call(&tcg_ctx, cpu_tmp1_i64, TCG_CALL_PURE, 
-                 1, &cpu_tmp2_i32, 0, NULL);
-#endif
-    tcg_gen_extu_i32_tl(reg, cpu_tmp2_i32);
-}
 
 /* if d == OR_TMP0, it means memory operand (address in A0) */
 static void gen_op(DisasContext *s1, int op, int ot, int d)
@@ -1974,125 +2118,31 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
 static inline void gen_jcc(DisasContext *s, int b,
                            target_ulong val, target_ulong next_eip)
 {
-    TranslationBlock *tb;
-    int inv, jcc_op;
-    GenOpFunc1 *func;
-    target_ulong tmp;
-    int l1, l2;
+    int l1, l2, cc_op;
 
-    inv = b & 1;
-    jcc_op = (b >> 1) & 7;
-
+    cc_op = s->cc_op;
+    if (s->cc_op != CC_OP_DYNAMIC) {
+        gen_op_set_cc_op(s->cc_op);
+        s->cc_op = CC_OP_DYNAMIC;
+    }
     if (s->jmp_opt) {
-        switch(s->cc_op) {
-            /* we optimize the cmp/jcc case */
-        case CC_OP_SUBB:
-        case CC_OP_SUBW:
-        case CC_OP_SUBL:
-        case CC_OP_SUBQ:
-            func = gen_jcc_sub[s->cc_op - CC_OP_SUBB][jcc_op];
-            break;
-
-            /* some jumps are easy to compute */
-        case CC_OP_ADDB:
-        case CC_OP_ADDW:
-        case CC_OP_ADDL:
-        case CC_OP_ADDQ:
-
-        case CC_OP_ADCB:
-        case CC_OP_ADCW:
-        case CC_OP_ADCL:
-        case CC_OP_ADCQ:
-
-        case CC_OP_SBBB:
-        case CC_OP_SBBW:
-        case CC_OP_SBBL:
-        case CC_OP_SBBQ:
-
-        case CC_OP_LOGICB:
-        case CC_OP_LOGICW:
-        case CC_OP_LOGICL:
-        case CC_OP_LOGICQ:
-
-        case CC_OP_INCB:
-        case CC_OP_INCW:
-        case CC_OP_INCL:
-        case CC_OP_INCQ:
-
-        case CC_OP_DECB:
-        case CC_OP_DECW:
-        case CC_OP_DECL:
-        case CC_OP_DECQ:
-
-        case CC_OP_SHLB:
-        case CC_OP_SHLW:
-        case CC_OP_SHLL:
-        case CC_OP_SHLQ:
-
-        case CC_OP_SARB:
-        case CC_OP_SARW:
-        case CC_OP_SARL:
-        case CC_OP_SARQ:
-            switch(jcc_op) {
-            case JCC_Z:
-                func = gen_jcc_sub[(s->cc_op - CC_OP_ADDB) % 4][jcc_op];
-                break;
-            case JCC_S:
-                func = gen_jcc_sub[(s->cc_op - CC_OP_ADDB) % 4][jcc_op];
-                break;
-            default:
-                func = NULL;
-                break;
-            }
-            break;
-        default:
-            func = NULL;
-            break;
-        }
-
-        if (s->cc_op != CC_OP_DYNAMIC) {
-            gen_op_set_cc_op(s->cc_op);
-            s->cc_op = CC_OP_DYNAMIC;
-        }
-
-        if (!func) {
-            gen_setcc_slow[jcc_op]();
-            func = gen_op_jnz_T0_label;
-        }
-
-        if (inv) {
-            tmp = val;
-            val = next_eip;
-            next_eip = tmp;
-        }
-        tb = s->tb;
-
         l1 = gen_new_label();
-        func(l1);
-
+        gen_jcc1(s, cc_op, b, l1);
+        
         gen_goto_tb(s, 0, next_eip);
 
         gen_set_label(l1);
         gen_goto_tb(s, 1, val);
-
         s->is_jmp = 3;
     } else {
 
-        if (s->cc_op != CC_OP_DYNAMIC) {
-            gen_op_set_cc_op(s->cc_op);
-            s->cc_op = CC_OP_DYNAMIC;
-        }
-        gen_setcc_slow[jcc_op]();
-        if (inv) {
-            tmp = val;
-            val = next_eip;
-            next_eip = tmp;
-        }
         l1 = gen_new_label();
         l2 = gen_new_label();
-        gen_op_jnz_T0_label(l1);
+        gen_jcc1(s, cc_op, b, l1);
+
         gen_jmp_im(next_eip);
-        gen_op_jmp_label(l2);
+        tcg_gen_br(l2);
+
         gen_set_label(l1);
         gen_jmp_im(val);
         gen_set_label(l2);
@@ -2102,68 +2152,27 @@ static inline void gen_jcc(DisasContext *s, int b,
 
 static void gen_setcc(DisasContext *s, int b)
 {
-    int inv, jcc_op;
-    GenOpFunc *func;
+    int inv, jcc_op, l1;
 
-    inv = b & 1;
-    jcc_op = (b >> 1) & 7;
-    switch(s->cc_op) {
-        /* we optimize the cmp/jcc case */
-    case CC_OP_SUBB:
-    case CC_OP_SUBW:
-    case CC_OP_SUBL:
-    case CC_OP_SUBQ:
-        func = gen_setcc_sub[s->cc_op - CC_OP_SUBB][jcc_op];
-        if (!func)
-            goto slow_jcc;
-        break;
-
-        /* some jumps are easy to compute */
-    case CC_OP_ADDB:
-    case CC_OP_ADDW:
-    case CC_OP_ADDL:
-    case CC_OP_ADDQ:
-
-    case CC_OP_LOGICB:
-    case CC_OP_LOGICW:
-    case CC_OP_LOGICL:
-    case CC_OP_LOGICQ:
-
-    case CC_OP_INCB:
-    case CC_OP_INCW:
-    case CC_OP_INCL:
-    case CC_OP_INCQ:
-
-    case CC_OP_DECB:
-    case CC_OP_DECW:
-    case CC_OP_DECL:
-    case CC_OP_DECQ:
-
-    case CC_OP_SHLB:
-    case CC_OP_SHLW:
-    case CC_OP_SHLL:
-    case CC_OP_SHLQ:
-        switch(jcc_op) {
-        case JCC_Z:
-            func = gen_setcc_sub[(s->cc_op - CC_OP_ADDB) % 4][jcc_op];
-            break;
-        case JCC_S:
-            func = gen_setcc_sub[(s->cc_op - CC_OP_ADDB) % 4][jcc_op];
-            break;
-        default:
-            goto slow_jcc;
-        }
-        break;
-    default:
-    slow_jcc:
+    if (is_fast_jcc_case(s, b)) {
+        /* nominal case: we use a jump */
+        tcg_gen_movi_tl(cpu_T[0], 0);
+        l1 = gen_new_label();
+        gen_jcc1(s, s->cc_op, b ^ 1, l1);
+        tcg_gen_movi_tl(cpu_T[0], 1);
+        gen_set_label(l1);
+    } else {
+        /* slow case: it is more efficient not to generate a jump,
+           although it is questionnable whether this optimization is
+           worth to */
+        inv = b & 1;
+        jcc_op = (b >> 1) & 7;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        func = gen_setcc_slow[jcc_op];
-        break;
-    }
-    func();
-    if (inv) {
-        gen_op_xor_T0_1();
+        gen_setcc_slow_T0(jcc_op);
+        if (inv) {
+            tcg_gen_xori_tl(cpu_T[0], cpu_T[0], 1);
+        }
     }
 }
 
@@ -5708,19 +5717,39 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         gen_ldst_modrm(s, modrm, OT_BYTE, OR_TMP0, 1);
         break;
     case 0x140 ... 0x14f: /* cmov Gv, Ev */
-        ot = dflag + OT_WORD;
-        modrm = ldub_code(s->pc++);
-        reg = ((modrm >> 3) & 7) | rex_r;
-        mod = (modrm >> 6) & 3;
-        gen_setcc(s, b);
-        if (mod != 3) {
-            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-            gen_op_ld_T1_A0(ot + s->mem_index);
-        } else {
-            rm = (modrm & 7) | REX_B(s);
-            gen_op_mov_TN_reg(ot, 1, rm);
+        {
+            int l1;
+            ot = dflag + OT_WORD;
+            modrm = ldub_code(s->pc++);
+            reg = ((modrm >> 3) & 7) | rex_r;
+            mod = (modrm >> 6) & 3;
+            if (mod != 3) {
+                gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                gen_op_ld_T1_A0(ot + s->mem_index);
+            } else {
+                rm = (modrm & 7) | REX_B(s);
+                gen_op_mov_TN_reg(ot, 1, rm);
+            }
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+#ifdef TARGET_X86_64
+            if (ot == OT_LONG) {
+                /* XXX: specific Intel behaviour ? */
+                l1 = gen_new_label();
+                gen_jcc1(s, s->cc_op, b ^ 1, l1);
+                tcg_gen_st32_tl(cpu_T[1], cpu_env, offsetof(CPUState, regs[reg]) + REG_L_OFFSET);
+                gen_set_label(l1);
+                tcg_gen_movi_tl(cpu_tmp0, 0);
+                tcg_gen_st32_tl(cpu_tmp0, cpu_env, offsetof(CPUState, regs[reg]) + REG_LH_OFFSET);
+            } else
+#endif
+            {
+                l1 = gen_new_label();
+                gen_jcc1(s, s->cc_op, b ^ 1, l1);
+                gen_op_mov_reg_T1(ot, reg);
+                gen_set_label(l1);
+            }
         }
-        gen_op_cmov_reg_T1_T0[ot - OT_WORD][reg]();
         break;
 
         /************************/
@@ -6191,7 +6220,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 
             gen_set_label(l3);
             gen_jmp_im(next_eip);
-            gen_op_jmp_label(l2);
+            tcg_gen_br(l2);
 
             gen_set_label(l1);
             gen_jmp_im(tval);
