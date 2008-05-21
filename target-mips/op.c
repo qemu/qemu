@@ -510,20 +510,6 @@ void op_dmultu (void)
 #endif
 
 /* Conditional moves */
-void op_movn (void)
-{
-    if (T1 != 0)
-        env->gpr[env->current_tc][PARAM1] = T0;
-    FORCE_RET();
-}
-
-void op_movz (void)
-{
-    if (T1 == 0)
-        env->gpr[env->current_tc][PARAM1] = T0;
-    FORCE_RET();
-}
-
 void op_movf (void)
 {
     if (!(env->fpu->fcr31 & PARAM1))

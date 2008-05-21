@@ -1707,11 +1707,23 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "mul";
         break;
     case OPC_MOVN:
-        gen_op_movn(rd);
+        {
+            int l1 = gen_new_label();
+
+            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), l1);
+            gen_op_store_gpr_T0(rd);
+            gen_set_label(l1);
+        }
         opn = "movn";
         goto print;
     case OPC_MOVZ:
-        gen_op_movz(rd);
+        {
+            int l1 = gen_new_label();
+
+            tcg_gen_brcond_tl(TCG_COND_NE, cpu_T[1], tcg_const_tl(0), l1);
+            gen_op_store_gpr_T0(rd);
+            gen_set_label(l1);
+        }
         opn = "movz";
         goto print;
     case OPC_SLLV:
