@@ -167,34 +167,6 @@ void OPPROTO op_movl_T0_seg(void)
     T0 = env->segs[PARAM1].selector;
 }
 
-void OPPROTO op_lsl(void)
-{
-    uint32_t val;
-    val = helper_lsl(T0);
-    if (CC_SRC & CC_Z)
-        T1 = val;
-    FORCE_RET();
-}
-
-void OPPROTO op_lar(void)
-{
-    uint32_t val;
-    val = helper_lar(T0);
-    if (CC_SRC & CC_Z)
-        T1 = val;
-    FORCE_RET();
-}
-
-void OPPROTO op_verr(void)
-{
-    helper_verr(T0);
-}
-
-void OPPROTO op_verw(void)
-{
-    helper_verw(T0);
-}
-
 void OPPROTO op_arpl(void)
 {
     if ((T0 & 3) < (T1 & 3)) {

@@ -23,10 +23,10 @@ void helper_aas(void);
 void helper_daa(void);
 void helper_das(void);
 
-uint32_t helper_lsl(uint32_t selector);
-uint32_t helper_lar(uint32_t selector);
-void helper_verr(uint32_t selector);
-void helper_verw(uint32_t selector);
+target_ulong helper_lsl(target_ulong selector1);
+target_ulong helper_lar(target_ulong selector1);
+void helper_verr(target_ulong selector1);
+void helper_verw(target_ulong selector1);
 void helper_lldt(int selector);
 void helper_ltr(int selector);
 void helper_load_seg(int seg_reg, int selector);

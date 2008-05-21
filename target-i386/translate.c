@@ -6333,9 +6333,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
             if (op == 4)
-                gen_op_verr();
+                tcg_gen_helper_0_1(helper_verr, cpu_T[0]);
             else
-                gen_op_verw();
+                tcg_gen_helper_0_1(helper_verw, cpu_T[0]);
             s->cc_op = CC_OP_EFLAGS;
             break;
         default:
@@ -6606,21 +6606,27 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         break;
     case 0x102: /* lar */
     case 0x103: /* lsl */
-        if (!s->pe || s->vm86)
-            goto illegal_op;
-        ot = dflag ? OT_LONG : OT_WORD;
-        modrm = ldub_code(s->pc++);
-        reg = ((modrm >> 3) & 7) | rex_r;
-        gen_ldst_modrm(s, modrm, ot, OR_TMP0, 0);
-        gen_op_mov_TN_reg(ot, 1, reg);
-        if (s->cc_op != CC_OP_DYNAMIC)
-            gen_op_set_cc_op(s->cc_op);
-        if (b == 0x102)
-            gen_op_lar();
-        else
-            gen_op_lsl();
-        s->cc_op = CC_OP_EFLAGS;
-        gen_op_mov_reg_T1(ot, reg);
+        {
+            int label1;
+            if (!s->pe || s->vm86)
+                goto illegal_op;
+            ot = dflag ? OT_LONG : OT_WORD;
+            modrm = ldub_code(s->pc++);
+            reg = ((modrm >> 3) & 7) | rex_r;
+            gen_ldst_modrm(s, modrm, OT_WORD, OR_TMP0, 0);
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            if (b == 0x102)
+                tcg_gen_helper_1_1(helper_lar, cpu_T[0], cpu_T[0]);
+            else
+                tcg_gen_helper_1_1(helper_lsl, cpu_T[0], cpu_T[0]);
+            tcg_gen_andi_tl(cpu_tmp0, cpu_cc_src, CC_Z);
+            label1 = gen_new_label();
+            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_tmp0, tcg_const_tl(0), label1);
+            gen_op_mov_reg_T0(ot, reg);
+            gen_set_label(label1);
+            s->cc_op = CC_OP_EFLAGS;
+        }
         break;
     case 0x118:
         modrm = ldub_code(s->pc++);

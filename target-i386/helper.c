@@ -3138,13 +3138,13 @@ void helper_rdmsr(void)
 }
 #endif
 
-uint32_t helper_lsl(uint32_t selector)
+target_ulong helper_lsl(target_ulong selector1)
 {
     unsigned int limit;
-    uint32_t e1, e2, eflags;
+    uint32_t e1, e2, eflags, selector;
     int rpl, dpl, cpl, type;
 
-    selector &= 0xffff;
+    selector = selector1 & 0xffff;
     eflags = cc_table[CC_OP].compute_all();
     if (load_segment(&e1, &e2, selector) != 0)
         goto fail;
@@ -3181,12 +3181,12 @@ uint32_t helper_lsl(uint32_t selector)
     return limit;
 }
 
-uint32_t helper_lar(uint32_t selector)
+target_ulong helper_lar(target_ulong selector1)
 {
-    uint32_t e1, e2, eflags;
+    uint32_t e1, e2, eflags, selector;
     int rpl, dpl, cpl, type;
 
-    selector &= 0xffff;
+    selector = selector1 & 0xffff;
     eflags = cc_table[CC_OP].compute_all();
     if ((selector & 0xfffc) == 0)
         goto fail;
@@ -3227,12 +3227,12 @@ uint32_t helper_lar(uint32_t selector)
     return e2 & 0x00f0ff00;
 }
 
-void helper_verr(uint32_t selector)
+void helper_verr(target_ulong selector1)
 {
-    uint32_t e1, e2, eflags;
+    uint32_t e1, e2, eflags, selector;
     int rpl, dpl, cpl;
 
-    selector &= 0xffff;
+    selector = selector1 & 0xffff;
     eflags = cc_table[CC_OP].compute_all();
     if ((selector & 0xfffc) == 0)
         goto fail;
@@ -3260,12 +3260,12 @@ void helper_verr(uint32_t selector)
     CC_SRC = eflags | CC_Z;
 }
 
-void helper_verw(uint32_t selector)
+void helper_verw(target_ulong selector1)
 {
-    uint32_t e1, e2, eflags;
+    uint32_t e1, e2, eflags, selector;
     int rpl, dpl, cpl;
 
-    selector &= 0xffff;
+    selector = selector1 & 0xffff;
     eflags = cc_table[CC_OP].compute_all();
     if ((selector & 0xfffc) == 0)
         goto fail;
