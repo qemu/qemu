@@ -117,8 +117,6 @@ extern int printf(const char *, ...);
 #define AREG10 "r22"
 #define AREG11 "r23"
 #endif
-#define USE_INT_TO_FLOAT_HELPERS
-#define BUGGY_GCC_DIV64
 #elif defined(__arm__)
 #define AREG0 "r7"
 #define AREG1 "r4"
