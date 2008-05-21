@@ -1293,10 +1293,9 @@ static int tcg_reg_alloc(TCGContext *s, TCGRegSet reg1, TCGRegSet reg2)
     tcg_abort();
 }
 
-/* at the end of a basic block, we assume all temporaries are dead and
-   all globals are stored at their canonical location */
-/* XXX: optimize by handling constants in another array ? */
-void tcg_reg_alloc_bb_end(TCGContext *s)
+/* save globals to their cannonical location and assume they can be
+   modified be the following code. */
+static void save_globals(TCGContext *s)
 {
     TCGTemp *ts;
     int i;
@@ -1306,9 +1305,22 @@ void tcg_reg_alloc_bb_end(TCGContext *s)
         if (!ts->fixed_reg) {
             if (ts->val_type == TEMP_VAL_REG) {
                 tcg_reg_free(s, ts->reg);
+            } else if (ts->val_type == TEMP_VAL_DEAD) {
+                ts->val_type = TEMP_VAL_MEM;
             }
         }
     }
+}
+
+/* at the end of a basic block, we assume all temporaries are dead and
+   all globals are stored at their canonical location */
+/* XXX: optimize by handling constants in another array ? */
+void tcg_reg_alloc_bb_end(TCGContext *s)
+{
+    TCGTemp *ts;
+    int i;
+
+    save_globals(s);
 
     for(i = s->nb_globals; i < s->nb_temps; i++) {
         ts = &s->temps[i];
@@ -1481,14 +1493,7 @@ static void tcg_reg_alloc_op(TCGContext *s,
 
         /* store globals and free associated registers (we assume the insn
            can modify any global. */
-        for(i = 0; i < s->nb_globals; i++) {
-            ts = &s->temps[i];
-            if (!ts->fixed_reg) {
-                if (ts->val_type == TEMP_VAL_REG) {
-                    tcg_reg_free(s, ts->reg);
-                }
-            }
-        }
+        save_globals(s);
     }
 
     /* satisfy the output constraints */
@@ -1680,14 +1685,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     
     /* store globals and free associated registers (we assume the call
        can modify any global. */
-    for(i = 0; i < s->nb_globals; i++) {
-        ts = &s->temps[i];
-        if (!ts->fixed_reg) {
-            if (ts->val_type == TEMP_VAL_REG) {
-                tcg_reg_free(s, ts->reg);
-            }
-        }
-    }
+    save_globals(s);
 
     tcg_out_op(s, opc, &func_arg, &const_func_arg);
     
