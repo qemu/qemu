@@ -5926,7 +5926,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_daa();
+        tcg_gen_helper_0_0(helper_daa);
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0x2f: /* das */
@@ -5934,7 +5934,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_das();
+        tcg_gen_helper_0_0(helper_das);
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0x37: /* aaa */
@@ -5942,7 +5942,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_aaa();
+        tcg_gen_helper_0_0(helper_aaa);
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0x3f: /* aas */
@@ -5950,7 +5950,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
-        gen_op_aas();
+        tcg_gen_helper_0_0(helper_aas);
         s->cc_op = CC_OP_EFLAGS;
         break;
     case 0xd4: /* aam */
@@ -5960,7 +5960,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (val == 0) {
             gen_exception(s, EXCP00_DIVZ, pc_start - s->cs_base);
         } else {
-            gen_op_aam(val);
+            tcg_gen_helper_0_1(helper_aam, tcg_const_i32(val));
             s->cc_op = CC_OP_LOGICB;
         }
         break;
@@ -5968,7 +5968,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (CODE64(s))
             goto illegal_op;
         val = ldub_code(s->pc++);
-        gen_op_aad(val);
+        tcg_gen_helper_0_1(helper_aad, tcg_const_i32(val));
         s->cc_op = CC_OP_LOGICB;
         break;
         /************************/

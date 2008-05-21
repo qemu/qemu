@@ -165,38 +165,6 @@ void OPPROTO op_cmpxchg8b(void)
 
 #endif
 
-/* bcd */
-
-void OPPROTO op_aam(void)
-{
-    helper_aam(PARAM1);
-}
-
-void OPPROTO op_aad(void)
-{
-    helper_aad(PARAM1);
-}
-
-void OPPROTO op_aaa(void)
-{
-    helper_aaa();
-}
-
-void OPPROTO op_aas(void)
-{
-    helper_aas();
-}
-
-void OPPROTO op_daa(void)
-{
-    helper_daa();
-}
-
-void OPPROTO op_das(void)
-{
-    helper_das();
-}
-
 /* segment handling */
 
 /* faster VM86 version */
