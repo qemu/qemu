@@ -3481,8 +3481,6 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             break;
         }
         if (b == 0x2e || b == 0x2f) {
-            /* just to keep the EFLAGS optimization correct */
-            gen_op_com_dummy();
             s->cc_op = CC_OP_EFLAGS;
         }
     }
@@ -5263,7 +5261,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     gen_op_set_cc_op(s->cc_op);
                 tcg_gen_helper_0_1(helper_fmov_FT0_STN, tcg_const_i32(opreg));
                 tcg_gen_helper_0_0(helper_fucomi_ST0_FT0);
-                gen_op_fcomi_dummy();
                 s->cc_op = CC_OP_EFLAGS;
                 break;
             case 0x1e: /* fcomi */
@@ -5271,7 +5268,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     gen_op_set_cc_op(s->cc_op);
                 tcg_gen_helper_0_1(helper_fmov_FT0_STN, tcg_const_i32(opreg));
                 tcg_gen_helper_0_0(helper_fcomi_ST0_FT0);
-                gen_op_fcomi_dummy();
                 s->cc_op = CC_OP_EFLAGS;
                 break;
             case 0x28: /* ffree sti */
@@ -5329,7 +5325,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 tcg_gen_helper_0_1(helper_fmov_FT0_STN, tcg_const_i32(opreg));
                 tcg_gen_helper_0_0(helper_fucomi_ST0_FT0);
                 tcg_gen_helper_0_0(helper_fpop);
-                gen_op_fcomi_dummy();
                 s->cc_op = CC_OP_EFLAGS;
                 break;
             case 0x3e: /* fcomip */
@@ -5338,7 +5333,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 tcg_gen_helper_0_1(helper_fmov_FT0_STN, tcg_const_i32(opreg));
                 tcg_gen_helper_0_0(helper_fcomi_ST0_FT0);
                 tcg_gen_helper_0_0(helper_fpop);
-                gen_op_fcomi_dummy();
                 s->cc_op = CC_OP_EFLAGS;
                 break;
             case 0x10 ... 0x13: /* fcmovxx */

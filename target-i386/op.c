@@ -457,14 +457,3 @@ void OPPROTO op_salc(void)
     cf = cc_table[CC_OP].compute_c();
     EAX = (EAX & ~0xff) | ((-cf) & 0xff);
 }
-
-void OPPROTO op_fcomi_dummy(void)
-{
-    T0 = 0;
-}
-
-/* SSE support */
-void OPPROTO op_com_dummy(void)
-{
-    T0 = 0;
-}
