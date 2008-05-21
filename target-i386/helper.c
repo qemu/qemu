@@ -1609,22 +1609,6 @@ void helper_rsm(void)
 #endif /* !CONFIG_USER_ONLY */
 
 
-#ifdef BUGGY_GCC_DIV64
-/* gcc 2.95.4 on PowerPC does not seem to like using __udivdi3, so we
-   call it from another function */
-uint32_t div32(uint64_t *q_ptr, uint64_t num, uint32_t den)
-{
-    *q_ptr = num / den;
-    return num % den;
-}
-
-int32_t idiv32(int64_t *q_ptr, int64_t num, int32_t den)
-{
-    *q_ptr = num / den;
-    return num % den;
-}
-#endif
-
 /* division, flags are undefined */
 
 void helper_divb_AL(target_ulong t0)
@@ -1707,12 +1691,8 @@ void helper_divl_EAX(target_ulong t0)
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
-#ifdef BUGGY_GCC_DIV64
-    r = div32(&q, num, den);
-#else
     q = (num / den);
     r = (num % den);
-#endif
     if (q > 0xffffffff)
         raise_exception(EXCP00_DIVZ);
     EAX = (uint32_t)q;
@@ -1729,12 +1709,8 @@ void helper_idivl_EAX(target_ulong t0)
     if (den == 0) {
         raise_exception(EXCP00_DIVZ);
     }
-#ifdef BUGGY_GCC_DIV64
-    r = idiv32(&q, num, den);
-#else
     q = (num / den);
     r = (num % den);
-#endif
     if (q != (int32_t)q)
         raise_exception(EXCP00_DIVZ);
     EAX = (uint32_t)q;
