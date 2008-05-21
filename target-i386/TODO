@@ -4,7 +4,6 @@ Correctness issues:
 - SVM: rework the implementation: simplify code, move most intercept
   tests as dynamic, correct segment access, verify exception safety,
   cpu save/restore, SMM save/restore. 
-- arpl eflags computation is invalid
 - x86_64: fxsave/fxrestore intel/amd differences
 - x86_64: lcall/ljmp intel/amd differences ?
 - x86_64: cmpxchgl intel/amd differences ?
@@ -32,6 +31,8 @@ Optimizations/Features:
 - add VMX support
 - add AVX support
 - add SSE5 support
+- faster EFLAGS update: consider SZAP, C, O can be updated separately
+  with a bit field in CC_OP and more state variables.
 - evaluate x87 stack pointer statically
 - find a way to avoid translating several time the same TB if CR0.TS
   is set or not.

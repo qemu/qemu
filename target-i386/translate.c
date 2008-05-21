@@ -2167,6 +2167,22 @@ static void gen_setcc(DisasContext *s, int b)
     }
 }
 
+static inline void gen_op_movl_T0_seg(int seg_reg)
+{
+    tcg_gen_ld32u_tl(cpu_T[0], cpu_env, 
+                     offsetof(CPUX86State,segs[seg_reg].selector));
+}
+
+static inline void gen_op_movl_seg_T0_vm(int seg_reg)
+{
+    tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
+    tcg_gen_st32_tl(cpu_T[0], cpu_env, 
+                    offsetof(CPUX86State,segs[seg_reg].selector));
+    tcg_gen_shli_tl(cpu_T[0], cpu_T[0], 4);
+    tcg_gen_st_tl(cpu_T[0], cpu_env, 
+                  offsetof(CPUX86State,segs[seg_reg].base));
+}
+
 /* move T0 to seg_reg and compute if the CPU state may change. Never
    call this function with seg_reg == R_CS */
 static void gen_movl_seg_T0(DisasContext *s, int seg_reg, target_ulong cur_eip)
@@ -2185,7 +2201,7 @@ static void gen_movl_seg_T0(DisasContext *s, int seg_reg, target_ulong cur_eip)
         if (seg_reg == R_SS || (s->code32 && seg_reg < R_FS))
             s->is_jmp = 3;
     } else {
-        gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[seg_reg]));
+        gen_op_movl_seg_T0_vm(seg_reg);
         if (seg_reg == R_SS)
             s->is_jmp = 3;
     }
@@ -4085,7 +4101,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                                    cpu_T[1],
                                    tcg_const_i32(s->pc - pc_start));
             } else {
-                gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
+                gen_op_movl_seg_T0_vm(R_CS);
                 gen_op_movl_T0_T1();
                 gen_op_jmp_T0();
             }
@@ -5575,7 +5591,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             /* pop selector */
             gen_op_addl_A0_im(2 << s->dflag);
             gen_op_ld_T0_A0(1 + s->dflag + s->mem_index);
-            gen_op_movl_seg_T0_vm(offsetof(CPUX86State,segs[R_CS]));
+            gen_op_movl_seg_T0_vm(R_CS);
             /* add stack offset */
             gen_stack_update(s, val + (4 << s->dflag));
         }
@@ -6578,9 +6594,10 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         } else
 #endif
         {
+            int label1;
             if (!s->pe || s->vm86)
                 goto illegal_op;
-            ot = dflag ? OT_LONG : OT_WORD;
+            ot = OT_WORD;
             modrm = ldub_code(s->pc++);
             reg = (modrm >> 3) & 7;
             mod = (modrm >> 6) & 3;
@@ -6592,16 +6609,26 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 gen_op_mov_TN_reg(ot, 0, rm);
             }
             gen_op_mov_TN_reg(ot, 1, reg);
-            if (s->cc_op != CC_OP_DYNAMIC)
-                gen_op_set_cc_op(s->cc_op);
-            gen_op_arpl();
-            s->cc_op = CC_OP_EFLAGS;
+            tcg_gen_andi_tl(cpu_tmp0, cpu_T[0], 3);
+            tcg_gen_andi_tl(cpu_T[1], cpu_T[1], 3);
+            tcg_gen_movi_tl(cpu_T3, 0);
+            label1 = gen_new_label();
+            tcg_gen_brcond_tl(TCG_COND_GE, cpu_tmp0, cpu_T[1], label1);
+            tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~3);
+            tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_movi_tl(cpu_T3, CC_Z);
+            gen_set_label(label1);
             if (mod != 3) {
                 gen_op_st_T0_A0(ot + s->mem_index);
             } else {
                 gen_op_mov_reg_T0(ot, rm);
             }
-            gen_op_arpl_update();
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_compute_eflags(cpu_cc_src);
+            tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~CC_Z);
+            tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_T3);
+            s->cc_op = CC_OP_EFLAGS;
         }
         break;
     case 0x102: /* lar */

@@ -147,45 +147,6 @@
 
 #endif
 
-/* segment handling */
-
-/* faster VM86 version */
-void OPPROTO op_movl_seg_T0_vm(void)
-{
-    int selector;
-    SegmentCache *sc;
-
-    selector = T0 & 0xffff;
-    /* env->segs[] access */
-    sc = (SegmentCache *)((char *)env + PARAM1);
-    sc->selector = selector;
-    sc->base = (selector << 4);
-}
-
-void OPPROTO op_movl_T0_seg(void)
-{
-    T0 = env->segs[PARAM1].selector;
-}
-
-void OPPROTO op_arpl(void)
-{
-    if ((T0 & 3) < (T1 & 3)) {
-        /* XXX: emulate bug or 0xff3f0000 oring as in bochs ? */
-        T0 = (T0 & ~3) | (T1 & 3);
-        T1 = CC_Z;
-   } else {
-        T1 = 0;
-    }
-    FORCE_RET();
-}
-
-void OPPROTO op_arpl_update(void)
-{
-    int eflags;
-    eflags = cc_table[CC_OP].compute_all();
-    CC_SRC = (eflags & ~CC_Z) | T1;
-}
-
 void OPPROTO op_movl_T0_env(void)
 {
     T0 = *(uint32_t *)((char *)env + PARAM1);
