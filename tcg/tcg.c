@@ -560,7 +560,9 @@ static void tcg_gen_call_internal(TCGContext *s, TCGv func,
 
 
 #if TCG_TARGET_REG_BITS < 64
-/* Note: we convert the 64 bit args to 32 bit */
+/* Note: we convert the 64 bit args to 32 bit and do some alignment
+   and endian swap. Maybe it would be better to do the alignment
+   and endian swap in tcg_reg_alloc_call(). */
 void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
                   unsigned int nb_rets, const TCGv *rets,
                   unsigned int nb_params, const TCGv *args1)
@@ -572,12 +574,17 @@ void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
         ret = rets[0];
         if (tcg_get_base_type(s, ret) == TCG_TYPE_I64) {
             nb_rets = 2;
+#ifdef TCG_TARGET_WORDS_BIGENDIAN
+            rets_2[0] = TCGV_HIGH(ret);
+            rets_2[1] = ret;
+#else
             rets_2[0] = ret;
             rets_2[1] = TCGV_HIGH(ret);
+#endif
             rets = rets_2;
         }
     }
-    args2 = alloca((nb_params * 2) * sizeof(TCGv));
+    args2 = alloca((nb_params * 3) * sizeof(TCGv));
     j = 0;
     call_type = (flags & TCG_CALL_TYPE_MASK);
     for(i = 0; i < nb_params; i++) {
@@ -593,6 +600,12 @@ void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
             args2[j++] = arg;
             args2[j++] = TCGV_HIGH(arg);
 #else
+#ifdef TCG_TARGET_CALL_ALIGN_ARGS
+            /* some targets want aligned 64 bit args */
+            if (j & 1) {
+                args2[j++] = TCG_CALL_DUMMY_ARG;
+            }
+#endif
 #ifdef TCG_TARGET_WORDS_BIGENDIAN
             args2[j++] = TCGV_HIGH(arg);
             args2[j++] = arg;
@@ -744,8 +757,12 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
             }
             for(i = 0; i < (nb_iargs - 1); i++) {
                 fprintf(outfile, ",");
-                fprintf(outfile, "%s",
-                        tcg_get_arg_str_idx(s, buf, sizeof(buf), args[nb_oargs + i]));
+                if (args[nb_oargs + i] == TCG_CALL_DUMMY_ARG) {
+                    fprintf(outfile, "<dummy>");
+                } else {
+                    fprintf(outfile, "%s",
+                            tcg_get_arg_str_idx(s, buf, sizeof(buf), args[nb_oargs + i]));
+                }
             }
         } else {
             if (c == INDEX_op_nopn) {
@@ -983,10 +1000,12 @@ void tcg_liveness_analysis(TCGContext *s)
                     dead_iargs = 0;
                     for(i = 0; i < nb_iargs; i++) {
                         arg = args[i + nb_oargs];
-                        if (dead_temps[arg]) {
-                            dead_iargs |= (1 << i);
+                        if (arg != TCG_CALL_DUMMY_ARG) {
+                            if (dead_temps[arg]) {
+                                dead_iargs |= (1 << i);
+                            }
+                            dead_temps[arg] = 0;
                         }
-                        dead_temps[arg] = 0;
                     }
                     s->op_dead_iargs[op_index] = dead_iargs;
                 }
@@ -1586,52 +1605,60 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     if (allocate_args) {
         tcg_out_addi(s, TCG_REG_CALL_STACK, -STACK_DIR(call_stack_size));
     }
-    /* XXX: on some architectures it does not start at zero */
-    stack_offset = 0;
+
+    stack_offset = TCG_TARGET_CALL_STACK_OFFSET;
     for(i = nb_regs; i < nb_params; i++) {
         arg = args[nb_oargs + i];
-        ts = &s->temps[arg];
-        if (ts->val_type == TEMP_VAL_REG) {
-            tcg_out_st(s, ts->type, ts->reg, TCG_REG_CALL_STACK, stack_offset);
-        } else if (ts->val_type == TEMP_VAL_MEM) {
-            reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
-                                s->reserved_regs);
-            /* XXX: not correct if reading values from the stack */
-            tcg_out_ld(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
-            tcg_out_st(s, ts->type, reg, TCG_REG_CALL_STACK, stack_offset);
-        } else if (ts->val_type == TEMP_VAL_CONST) {
-            reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
-                                s->reserved_regs);
-            /* XXX: sign extend may be needed on some targets */
-            tcg_out_movi(s, ts->type, reg, ts->val);
-            tcg_out_st(s, ts->type, reg, TCG_REG_CALL_STACK, stack_offset);
-        } else {
-            tcg_abort();
+#ifdef TCG_TARGET_STACK_GROWSUP
+        stack_offset -= sizeof(tcg_target_long);
+#endif
+        if (arg != TCG_CALL_DUMMY_ARG) {
+            ts = &s->temps[arg];
+            if (ts->val_type == TEMP_VAL_REG) {
+                tcg_out_st(s, ts->type, ts->reg, TCG_REG_CALL_STACK, stack_offset);
+            } else if (ts->val_type == TEMP_VAL_MEM) {
+                reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
+                                    s->reserved_regs);
+                /* XXX: not correct if reading values from the stack */
+                tcg_out_ld(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
+                tcg_out_st(s, ts->type, reg, TCG_REG_CALL_STACK, stack_offset);
+            } else if (ts->val_type == TEMP_VAL_CONST) {
+                reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
+                                    s->reserved_regs);
+                /* XXX: sign extend may be needed on some targets */
+                tcg_out_movi(s, ts->type, reg, ts->val);
+                tcg_out_st(s, ts->type, reg, TCG_REG_CALL_STACK, stack_offset);
+            } else {
+                tcg_abort();
+            }
         }
-        /* XXX: not necessarily in the same order */
-        stack_offset += STACK_DIR(sizeof(tcg_target_long));
+#ifndef TCG_TARGET_STACK_GROWSUP
+        stack_offset += sizeof(tcg_target_long);
+#endif
     }
     
     /* assign input registers */
     tcg_regset_set(allocated_regs, s->reserved_regs);
     for(i = 0; i < nb_regs; i++) {
         arg = args[nb_oargs + i];
-        ts = &s->temps[arg];
-        reg = tcg_target_call_iarg_regs[i];
-        tcg_reg_free(s, reg);
-        if (ts->val_type == TEMP_VAL_REG) {
-            if (ts->reg != reg) {
-                tcg_out_mov(s, reg, ts->reg);
+        if (arg != TCG_CALL_DUMMY_ARG) {
+            ts = &s->temps[arg];
+            reg = tcg_target_call_iarg_regs[i];
+            tcg_reg_free(s, reg);
+            if (ts->val_type == TEMP_VAL_REG) {
+                if (ts->reg != reg) {
+                    tcg_out_mov(s, reg, ts->reg);
+                }
+            } else if (ts->val_type == TEMP_VAL_MEM) {
+                tcg_out_ld(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
+            } else if (ts->val_type == TEMP_VAL_CONST) {
+                /* XXX: sign extend ? */
+                tcg_out_movi(s, ts->type, reg, ts->val);
+            } else {
+                tcg_abort();
             }
-        } else if (ts->val_type == TEMP_VAL_MEM) {
-            tcg_out_ld(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
-        } else if (ts->val_type == TEMP_VAL_CONST) {
-            /* XXX: sign extend ? */
-            tcg_out_movi(s, ts->type, reg, ts->val);
-        } else {
-            tcg_abort();
+            tcg_regset_set_reg(allocated_regs, reg);
         }
-        tcg_regset_set_reg(allocated_regs, reg);
     }
     
     /* assign function address */

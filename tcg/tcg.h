@@ -153,6 +153,10 @@ typedef int TCGv;
    safely suppressed if the return value is not used. */
 #define TCG_CALL_PURE           0x0010 
 
+/* used to align parameters */
+#define TCG_CALL_DUMMY_TCGV     MAKE_TCGV(-1)
+#define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
+
 typedef enum {
     TCG_COND_EQ,
     TCG_COND_NE,
