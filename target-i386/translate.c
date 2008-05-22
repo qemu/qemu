@@ -1432,7 +1432,6 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
 }
 
-/* XXX: add faster immediate case */
 static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, 
                             int is_right, int is_arith)
 {
@@ -1491,6 +1490,57 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
         
     gen_set_label(shift_label);
     s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
+}
+
+static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2,
+                            int is_right, int is_arith)
+{
+    int mask;
+    
+    if (ot == OT_QUAD)
+        mask = 0x3f;
+    else
+        mask = 0x1f;
+
+    /* load */
+    if (op1 == OR_TMP0)
+        gen_op_ld_T0_A0(ot + s->mem_index);
+    else
+        gen_op_mov_TN_reg(ot, 0, op1);
+
+    op2 &= mask;
+    if (op2 != 0) {
+        if (is_right) {
+            if (is_arith) {
+                gen_exts(ot, cpu_T[0]);
+                tcg_gen_sari_tl(cpu_tmp0, cpu_T[0], op2 - 1);
+                tcg_gen_sari_tl(cpu_T[0], cpu_T[0], op2);
+            } else {
+                gen_extu(ot, cpu_T[0]);
+                tcg_gen_shri_tl(cpu_tmp0, cpu_T[0], op2 - 1);
+                tcg_gen_shri_tl(cpu_T[0], cpu_T[0], op2);
+            }
+        } else {
+            tcg_gen_shli_tl(cpu_tmp0, cpu_T[0], op2 - 1);
+            tcg_gen_shli_tl(cpu_T[0], cpu_T[0], op2);
+        }
+    }
+
+    /* store */
+    if (op1 == OR_TMP0)
+        gen_op_st_T0_A0(ot + s->mem_index);
+    else
+        gen_op_mov_reg_T0(ot, op1);
+        
+    /* update eflags if non zero shift */
+    if (op2 != 0) {
+        tcg_gen_mov_tl(cpu_cc_src, cpu_tmp0);
+        tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
+        if (is_right)
+            s->cc_op = CC_OP_SARB + ot;
+        else
+            s->cc_op = CC_OP_SHLB + ot;
+    }
 }
 
 static inline void tcg_gen_lshift(TCGv ret, TCGv arg1, target_long arg2)
@@ -1770,9 +1820,23 @@ static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
 
 static void gen_shifti(DisasContext *s1, int op, int ot, int d, int c)
 {
-    /* currently not optimized */
-    gen_op_movl_T1_im(c);
-    gen_shift(s1, op, ot, d, OR_TMP1);
+    switch(op) {
+    case OP_SHL:
+    case OP_SHL1:
+        gen_shift_rm_im(s1, ot, d, c, 0, 0);
+        break;
+    case OP_SHR:
+        gen_shift_rm_im(s1, ot, d, c, 1, 0);
+        break;
+    case OP_SAR:
+        gen_shift_rm_im(s1, ot, d, c, 1, 1);
+        break;
+    default:
+        /* currently not optimized */
+        gen_op_movl_T1_im(c);
+        gen_shift(s1, op, ot, d, OR_TMP1);
+        break;
+    }
 }
 
 static void gen_lea_modrm(DisasContext *s, int modrm, int *reg_ptr, int *offset_ptr)
