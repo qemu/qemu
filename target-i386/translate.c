@@ -3586,6 +3586,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     target_ulong next_eip, tval;
     int rex_w, rex_r;
 
+    if (unlikely(loglevel & CPU_LOG_TB_OP))
+        tcg_gen_debug_insn_start(pc_start);
     s->pc = pc_start;
     prefixes = 0;
     aflag = s->code32;
@@ -7233,11 +7235,6 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             disas_flags = !dc->code32;
 	target_disas(logfile, pc_start, pc_ptr - pc_start, disas_flags);
         fprintf(logfile, "\n");
-        if (loglevel & CPU_LOG_TB_OP_OPT) {
-            fprintf(logfile, "OP before opt:\n");
-            tcg_dump_ops(&tcg_ctx, logfile);
-            fprintf(logfile, "\n");
-        }
     }
 #endif
 
