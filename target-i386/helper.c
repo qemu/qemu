@@ -1879,8 +1879,8 @@ void helper_cmpxchg8b(target_ulong a0)
 
     eflags = cc_table[CC_OP].compute_all();
     d = ldq(a0);
-    if (d == (((uint64_t)EDX << 32) | EAX)) {
-        stq(a0, ((uint64_t)ECX << 32) | EBX);
+    if (d == (((uint64_t)EDX << 32) | (uint32_t)EAX)) {
+        stq(a0, ((uint64_t)ECX << 32) | (uint32_t)EBX);
         eflags |= CC_Z;
     } else {
         EDX = (uint32_t)(d >> 32);
@@ -1889,6 +1889,28 @@ void helper_cmpxchg8b(target_ulong a0)
     }
     CC_SRC = eflags;
 }
+
+#ifdef TARGET_X86_64
+void helper_cmpxchg16b(target_ulong a0)
+{
+    uint64_t d0, d1;
+    int eflags;
+
+    eflags = cc_table[CC_OP].compute_all();
+    d0 = ldq(a0);
+    d1 = ldq(a0 + 8);
+    if (d0 == EAX && d1 == EDX) {
+        stq(a0, EBX);
+        stq(a0 + 8, ECX);
+        eflags |= CC_Z;
+    } else {
+        EDX = d1;
+        EAX = d0;
+        eflags &= ~CC_Z;
+    }
+    CC_SRC = eflags;
+}
+#endif
 
 void helper_single_step(void)
 {

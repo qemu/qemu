@@ -4333,11 +4333,26 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         mod = (modrm >> 6) & 3;
         if ((mod == 3) || ((modrm & 0x38) != 0x8))
             goto illegal_op;
-        gen_jmp_im(pc_start - s->cs_base);
-        if (s->cc_op != CC_OP_DYNAMIC)
-            gen_op_set_cc_op(s->cc_op);
-        gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
-        tcg_gen_helper_0_1(helper_cmpxchg8b, cpu_A0);
+#ifdef TARGET_X86_64
+        if (dflag == 2) {
+            if (!(s->cpuid_ext_features & CPUID_EXT_CX16))
+                goto illegal_op;
+            gen_jmp_im(pc_start - s->cs_base);
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            tcg_gen_helper_0_1(helper_cmpxchg16b, cpu_A0);
+        } else
+#endif        
+        {
+            if (!(s->cpuid_features & CPUID_CX8))
+                goto illegal_op;
+            gen_jmp_im(pc_start - s->cs_base);
+            if (s->cc_op != CC_OP_DYNAMIC)
+                gen_op_set_cc_op(s->cc_op);
+            gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+            tcg_gen_helper_0_1(helper_cmpxchg8b, cpu_A0);
+        }
         s->cc_op = CC_OP_EFLAGS;
         break;
 
