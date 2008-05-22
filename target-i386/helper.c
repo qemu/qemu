@@ -4248,6 +4248,18 @@ void helper_fxsave(target_ulong ptr, int data64)
     stw(ptr, env->fpuc);
     stw(ptr + 2, fpus);
     stw(ptr + 4, fptag ^ 0xff);
+#ifdef TARGET_X86_64
+    if (data64) {
+        stq(ptr + 0x08, 0); /* rip */
+        stq(ptr + 0x10, 0); /* rdp */
+    } else 
+#endif
+    {
+        stl(ptr + 0x08, 0); /* eip */
+        stl(ptr + 0x0c, 0); /* sel  */
+        stl(ptr + 0x10, 0); /* dp */
+        stl(ptr + 0x14, 0); /* sel  */
+    }
 
     addr = ptr + 0x20;
     for(i = 0;i < 8; i++) {
@@ -4260,7 +4272,10 @@ void helper_fxsave(target_ulong ptr, int data64)
         /* XXX: finish it */
         stl(ptr + 0x18, env->mxcsr); /* mxcsr */
         stl(ptr + 0x1c, 0x0000ffff); /* mxcsr_mask */
-        nb_xmm_regs = 8 << data64;
+        if (env->hflags & HF_CS64_MASK)
+            nb_xmm_regs = 16;
+        else
+            nb_xmm_regs = 8;
         addr = ptr + 0xa0;
         for(i = 0; i < nb_xmm_regs; i++) {
             stq(addr, env->xmm_regs[i].XMM_Q(0));
@@ -4297,7 +4312,10 @@ void helper_fxrstor(target_ulong ptr, int data64)
         /* XXX: finish it */
         env->mxcsr = ldl(ptr + 0x18);
         //ldl(ptr + 0x1c);
-        nb_xmm_regs = 8 << data64;
+        if (env->hflags & HF_CS64_MASK)
+            nb_xmm_regs = 16;
+        else
+            nb_xmm_regs = 8;
         addr = ptr + 0xa0;
         for(i = 0; i < nb_xmm_regs; i++) {
             env->xmm_regs[i].XMM_Q(0) = ldq(addr);
