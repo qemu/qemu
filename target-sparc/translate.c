@@ -4711,6 +4711,11 @@ void gen_intermediate_code_init(CPUSPARCState *env)
             cpu_gregs[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
                                               offsetof(CPUState, gregs[i]),
                                               gregnames[i]);
+        /* register helpers */
+
+#undef DEF_HELPER
+#define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
+#include "helper.h"
     }
 }
 
