@@ -516,20 +516,9 @@ void tcg_register_helper(void *func, const char *name)
         s->helpers = realloc(s->helpers, n * sizeof(TCGHelperInfo));
         s->allocated_helpers = n;
     }
-    s->helpers[s->nb_helpers].func = func;
+    s->helpers[s->nb_helpers].func = (tcg_target_ulong)func;
     s->helpers[s->nb_helpers].name = name;
     s->nb_helpers++;
-}
-
-const char *tcg_helper_get_name(TCGContext *s, void *func)
-{
-    int i;
-
-    for(i = 0; i < s->nb_helpers; i++) {
-        if (s->helpers[i].func == func)
-            return s->helpers[i].name;
-    }
-    return NULL;
 }
 
 static inline TCGType tcg_get_base_type(TCGContext *s, TCGv arg)
@@ -718,6 +707,37 @@ char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGv arg)
     return tcg_get_arg_str_idx(s, buf, buf_size, GET_TCGV(arg));
 }
 
+/* find helper definition (XXX: inefficient) */
+static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val)
+{
+    int i;
+    for(i = 0; i < s->nb_helpers; i++) {
+        if (s->helpers[i].func == val) 
+            return &s->helpers[i];
+    }
+    return NULL;
+}
+
+static const char *tcg_get_helper_str_idx(TCGContext *s, char *buf, int buf_size,
+                                          int idx)
+{
+    TCGTemp *ts;
+    TCGHelperInfo *th;
+
+    ts = &s->temps[idx];
+    if (ts->val_type == TEMP_VAL_CONST) {
+        /* find helper name (XXX: inefficient) */
+        th = tcg_find_helper(s, ts->val);
+        if (th) {
+            pstrcpy(buf, buf_size, "$");
+            pstrcat(buf, buf_size, th->name);
+            return buf;
+        }
+    }
+    return tcg_get_arg_str_idx(s, buf, buf_size, idx);
+}
+
+
 void tcg_dump_ops(TCGContext *s, FILE *outfile)
 {
     const uint16_t *opc_ptr;
@@ -735,6 +755,7 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
         fprintf(outfile, " %s ", def->name);
         if (c == INDEX_op_call) {
             TCGArg arg;
+
             /* variable number of arguments */
             arg = *args++;
             nb_oargs = arg >> 16;
@@ -742,9 +763,8 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
             nb_cargs = def->nb_cargs;
 
             /* function name */
-            /* XXX: dump helper name for call */
             fprintf(outfile, "%s",
-                    tcg_get_arg_str_idx(s, buf, sizeof(buf), args[nb_oargs + nb_iargs - 1]));
+                    tcg_get_helper_str_idx(s, buf, sizeof(buf), args[nb_oargs + nb_iargs - 1]));
             /* flags */
             fprintf(outfile, ",$0x%" TCG_PRIlx,
                     args[nb_oargs + nb_iargs]);

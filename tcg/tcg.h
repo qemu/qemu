@@ -192,7 +192,7 @@ typedef struct TCGTemp {
 } TCGTemp;
 
 typedef struct TCGHelperInfo {
-    void *func;
+    tcg_target_ulong func;
     const char *name;
 } TCGHelperInfo;
 
