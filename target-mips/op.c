@@ -479,48 +479,6 @@ void op_movt (void)
     FORCE_RET();
 }
 
-/* Branches */
-/* Branch to register */
-void op_save_breg_target (void)
-{
-    env->btarget = T1;
-    FORCE_RET();
-}
-
-void op_breg (void)
-{
-    env->PC[env->current_tc] = env->btarget;
-    FORCE_RET();
-}
-
-void op_save_btarget (void)
-{
-    env->btarget = PARAM1;
-    FORCE_RET();
-}
-
-#if defined(TARGET_MIPS64)
-void op_save_btarget64 (void)
-{
-    env->btarget = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
-    FORCE_RET();
-}
-#endif
-
-/* Conditional branch */
-void op_set_bcond (void)
-{
-    env->bcond = T0;
-    FORCE_RET();
-}
-
-void op_jnz_bcond (void)
-{
-    if (env->bcond)
-        GOTO_LABEL_PARAM(1);
-    FORCE_RET();
-}
-
 /* CP0 functions */
 void op_mfc0_index (void)
 {
@@ -2563,20 +2521,6 @@ void op_save_state (void)
     env->hflags = PARAM1;
     FORCE_RET();
 }
-
-void op_save_pc (void)
-{
-    env->PC[env->current_tc] = PARAM1;
-    FORCE_RET();
-}
-
-#if defined(TARGET_MIPS64)
-void op_save_pc64 (void)
-{
-    env->PC[env->current_tc] = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
-    FORCE_RET();
-}
-#endif
 
 void op_wait (void)
 {
