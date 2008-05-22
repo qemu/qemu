@@ -4286,7 +4286,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     case 0x1b0:
     case 0x1b1: /* cmpxchg Ev, Gv */
         {
-            int label1;
+            int label1, label2;
 
             if ((b & 1) == 0)
                 ot = OT_BYTE;
@@ -4309,12 +4309,18 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             tcg_gen_sub_tl(cpu_T3, cpu_T3, cpu_T[0]);
             gen_extu(ot, cpu_T3);
             tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T3, tcg_const_tl(0), label1);
-            tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
-            gen_op_mov_reg_T0(ot, R_EAX);
-            gen_set_label(label1);
             if (mod == 3) {
+                label2 = gen_new_label();
+                gen_op_mov_reg_T0(ot, R_EAX);
+                tcg_gen_br(label2);
+                gen_set_label(label1);
                 gen_op_mov_reg_T1(ot, rm);
+                gen_set_label(label2);
             } else {
+                tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
+                gen_op_mov_reg_T0(ot, R_EAX);
+                gen_set_label(label1);
+                /* always store */
                 gen_op_st_T1_A0(ot + s->mem_index);
             }
             tcg_gen_mov_tl(cpu_cc_src, cpu_T[0]);
