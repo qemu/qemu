@@ -622,9 +622,10 @@ void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
 void tcg_gen_shifti_i64(TCGv ret, TCGv arg1, 
                         int c, int right, int arith)
 {
-    if (c == 0)
-        return;
-    if (c >= 32) {
+    if (c == 0) {
+        tcg_gen_mov_i32(ret, arg1);
+        tcg_gen_mov_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1));
+    } else if (c >= 32) {
         c -= 32;
         if (right) {
             if (arith) {
