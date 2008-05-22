@@ -7075,6 +7075,11 @@ void optimize_flags_init(void)
                                     TCG_AREG0, offsetof(CPUState, cc_src), "cc_src");
     cpu_cc_dst = tcg_global_mem_new(TCG_TYPE_TL,
                                     TCG_AREG0, offsetof(CPUState, cc_dst), "cc_dst");
+
+    /* register helpers */
+
+#define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
+#include "helper.h"
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
