@@ -145,10 +145,6 @@
 #include "fop_template.c"
 #undef FREG
 
-#define FTN
-#include "fop_template.c"
-#undef FTN
-
 /* Load and store */
 #define MEMSUFFIX _raw
 #include "op_mem.c"
