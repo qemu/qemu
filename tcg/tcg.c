@@ -743,17 +743,31 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
     const uint16_t *opc_ptr;
     const TCGArg *args;
     TCGArg arg;
-    int c, i, k, nb_oargs, nb_iargs, nb_cargs;
+    int c, i, k, nb_oargs, nb_iargs, nb_cargs, first_insn;
     const TCGOpDef *def;
     char buf[128];
 
+    first_insn = 1;
     opc_ptr = gen_opc_buf;
     args = gen_opparam_buf;
     while (opc_ptr < gen_opc_ptr) {
         c = *opc_ptr++;
         def = &tcg_op_defs[c];
-        fprintf(outfile, " %s ", def->name);
-        if (c == INDEX_op_call) {
+        if (c == INDEX_op_debug_insn_start) {
+            uint64_t pc;
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+            pc = ((uint64_t)args[1] << 32) | args[0];
+#else
+            pc = args[0];
+#endif
+            if (!first_insn) 
+                fprintf(outfile, "\n");
+            fprintf(outfile, " ---- 0x%" PRIx64, pc);
+            first_insn = 0;
+            nb_oargs = def->nb_oargs;
+            nb_iargs = def->nb_iargs;
+            nb_cargs = def->nb_cargs;
+        } else if (c == INDEX_op_call) {
             TCGArg arg;
 
             /* variable number of arguments */
@@ -761,6 +775,8 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
             nb_oargs = arg >> 16;
             nb_iargs = arg & 0xffff;
             nb_cargs = def->nb_cargs;
+
+            fprintf(outfile, " %s ", def->name);
 
             /* function name */
             fprintf(outfile, "%s",
@@ -785,6 +801,7 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
                 }
             }
         } else {
+            fprintf(outfile, " %s ", def->name);
             if (c == INDEX_op_nopn) {
                 /* variable number of arguments */
                 nb_cargs = *args;
@@ -1036,6 +1053,9 @@ void tcg_liveness_analysis(TCGContext *s)
             args--;
             /* mark end of basic block */
             tcg_la_bb_end(s, dead_temps);
+            break;
+        case INDEX_op_debug_insn_start:
+            args -= def->nb_args;
             break;
         case INDEX_op_nopn:
             nb_args = args[-1];
@@ -1839,6 +1859,9 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 #endif
             dead_iargs = s->op_dead_iargs[op_index];
             tcg_reg_alloc_mov(s, def, args, dead_iargs);
+            break;
+        case INDEX_op_debug_insn_start:
+            /* debug instruction */
             break;
         case INDEX_op_nop:
         case INDEX_op_nop1:

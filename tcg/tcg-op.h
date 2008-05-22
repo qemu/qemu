@@ -1291,6 +1291,18 @@ static inline void tcg_gen_macro_2(TCGv ret0, TCGv ret1, int macro_id)
 #error must include QEMU headers
 #endif
 
+/* debug info: write the PC of the corresponding QEMU CPU instruction */
+static inline void tcg_gen_debug_insn_start(uint64_t pc)
+{
+    /* XXX: must really use a 32 bit size for TCGArg in all cases */
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+    tcg_gen_op2i(INDEX_op_debug_insn_start, 
+                 (uint32_t)(pc), (uint32_t)(pc >> 32));
+#else
+    tcg_gen_op1i(INDEX_op_debug_insn_start, pc);
+#endif
+}
+
 static inline void tcg_gen_exit_tb(tcg_target_long val)
 {
     tcg_gen_op1i(INDEX_op_exit_tb, val);
