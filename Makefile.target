@@ -186,6 +186,7 @@ all: $(PROGS)
 LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
         translate.o host-utils.o
 ifdef CONFIG_DYNGEN_OP
+exec.o: dyngen-opc.h
 LIBOBJS+=op.o
 endif
 # TCG code generator
