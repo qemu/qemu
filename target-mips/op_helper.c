@@ -159,6 +159,8 @@ void do_drotrv (void)
         T0 = T1;
 }
 
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
+
 void do_dclo (void)
 {
     T0 = clo64(T0);
@@ -169,7 +171,6 @@ void do_dclz (void)
     T0 = clz64(T0);
 }
 
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 #endif /* TARGET_MIPS64 */
 
 /* 64 bits arithmetic for 32 bits hosts */
