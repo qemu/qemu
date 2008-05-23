@@ -849,8 +849,13 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
                     0, 8, CPU_TLB_SIZE - 1);
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
                     0, TCG_AREG0, 0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
+#  define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
+    if (mem_index)
+        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, 0, 0,
+                        (mem_index << (TLB_SHIFT & 1)) |
+                        ((16 - (TLB_SHIFT >> 1)) << 8));
     tcg_out_ld32_12(s, COND_AL, 1, 0,
-                    offsetof(CPUState, tlb_table[mem_index][0].addr_read));
+                    offsetof(CPUState, tlb_table[0][0].addr_read));
     tcg_out_dat_reg(s, COND_AL, ARITH_CMP,
                     0, 1, 8, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
     /* TODO: alignment check?
@@ -862,12 +867,12 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
     /* XXX: possibly we could use a block data load or writeback in
      * the first access.  */
     tcg_out_ld32_12(s, COND_EQ, 1, 0,
-                    offsetof(CPUState, tlb_table[mem_index][0].addr_read) + 4);
+                    offsetof(CPUState, tlb_table[0][0].addr_read) + 4);
     tcg_out_dat_reg(s, COND_EQ, ARITH_CMP,
                     0, 1, addr_reg2, SHIFT_IMM_LSL(0));
 #  endif
     tcg_out_ld32_12(s, COND_EQ, 1, 0,
-                    offsetof(CPUState, tlb_table[mem_index][0].addend));
+                    offsetof(CPUState, tlb_table[0][0].addend));
 
     switch (opc) {
     case 0:
@@ -1015,8 +1020,12 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
                     0, 8, CPU_TLB_SIZE - 1);
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
                     0, TCG_AREG0, 0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
+    if (mem_index)
+        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, 0, 0,
+                        (mem_index << (TLB_SHIFT & 1)) |
+                        ((16 - (TLB_SHIFT >> 1)) << 8));
     tcg_out_ld32_12(s, COND_AL, 1, 0,
-                    offsetof(CPUState, tlb_table[mem_index][0].addr_write));
+                    offsetof(CPUState, tlb_table[0][0].addr_write));
     tcg_out_dat_reg(s, COND_AL, ARITH_CMP,
                     0, 1, 8, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
     /* TODO: alignment check?
@@ -1028,13 +1037,13 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
     /* XXX: possibly we could use a block data load or writeback in
      * the first access.  */
     tcg_out_ld32_12(s, COND_EQ, 1, 0,
-                    offsetof(CPUState, tlb_table[mem_index][0].addr_write)
+                    offsetof(CPUState, tlb_table[0][0].addr_write)
                     + 4);
     tcg_out_dat_reg(s, COND_EQ, ARITH_CMP,
                     0, 1, addr_reg2, SHIFT_IMM_LSL(0));
 #  endif
     tcg_out_ld32_12(s, COND_EQ, 1, 0,
-                    offsetof(CPUState, tlb_table[mem_index][0].addend));
+                    offsetof(CPUState, tlb_table[0][0].addend));
 
     switch (opc) {
     case 0:
