@@ -36,6 +36,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "qemu-common.h"
+#include "tcg.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #endif
@@ -3010,45 +3011,7 @@ void dump_exec_info(FILE *f,
     cpu_fprintf(f, "TB flush count      %d\n", tb_flush_count);
     cpu_fprintf(f, "TB invalidate count %d\n", tb_phys_invalidate_count);
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);
-#ifdef CONFIG_PROFILER
-    {
-        int64_t tot;
-        tot = dyngen_interm_time + dyngen_code_time;
-        cpu_fprintf(f, "JIT cycles          %" PRId64 " (%0.3f s at 2.4 GHz)\n",
-                    tot, tot / 2.4e9);
-        cpu_fprintf(f, "translated TBs      %" PRId64 " (aborted=%" PRId64 " %0.1f%%)\n", 
-                    dyngen_tb_count, 
-                    dyngen_tb_count1 - dyngen_tb_count,
-                    dyngen_tb_count1 ? (double)(dyngen_tb_count1 - dyngen_tb_count) / dyngen_tb_count1 * 100.0 : 0);
-        cpu_fprintf(f, "avg ops/TB          %0.1f max=%d\n", 
-                    dyngen_tb_count ? (double)dyngen_op_count / dyngen_tb_count : 0, dyngen_op_count_max);
-        cpu_fprintf(f, "old ops/total ops   %0.1f%%\n", 
-                    dyngen_op_count ? (double)dyngen_old_op_count / dyngen_op_count * 100.0 : 0);
-        cpu_fprintf(f, "deleted ops/TB      %0.2f\n",
-                    dyngen_tb_count ? 
-                    (double)dyngen_tcg_del_op_count / dyngen_tb_count : 0);
-        cpu_fprintf(f, "cycles/op           %0.1f\n", 
-                    dyngen_op_count ? (double)tot / dyngen_op_count : 0);
-        cpu_fprintf(f, "cycles/in byte     %0.1f\n", 
-                    dyngen_code_in_len ? (double)tot / dyngen_code_in_len : 0);
-        cpu_fprintf(f, "cycles/out byte     %0.1f\n", 
-                    dyngen_code_out_len ? (double)tot / dyngen_code_out_len : 0);
-        if (tot == 0)
-            tot = 1;
-        cpu_fprintf(f, "  gen_interm time   %0.1f%%\n", 
-                    (double)dyngen_interm_time / tot * 100.0);
-        cpu_fprintf(f, "  gen_code time     %0.1f%%\n", 
-                    (double)dyngen_code_time / tot * 100.0);
-        cpu_fprintf(f, "cpu_restore count   %" PRId64 "\n",
-                    dyngen_restore_count);
-        cpu_fprintf(f, "  avg cycles        %0.1f\n",
-                    dyngen_restore_count ? (double)dyngen_restore_time / dyngen_restore_count : 0);
-        {
-            extern void dump_op_count(void);
-            dump_op_count();
-        }
-    }
-#endif
+    tcg_dump_info(f, cpu_fprintf);
 }
 
 #if !defined(CONFIG_USER_ONLY)

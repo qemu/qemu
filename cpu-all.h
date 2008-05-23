@@ -1063,19 +1063,6 @@ extern int64_t dev_time;
 extern int64_t kqemu_ret_int_count;
 extern int64_t kqemu_ret_excp_count;
 extern int64_t kqemu_ret_intr_count;
-
-extern int64_t dyngen_tb_count1;
-extern int64_t dyngen_tb_count;
-extern int64_t dyngen_op_count;
-extern int64_t dyngen_old_op_count;
-extern int64_t dyngen_tcg_del_op_count;
-extern int dyngen_op_count_max;
-extern int64_t dyngen_code_in_len;
-extern int64_t dyngen_code_out_len;
-extern int64_t dyngen_interm_time;
-extern int64_t dyngen_code_time;
-extern int64_t dyngen_restore_count;
-extern int64_t dyngen_restore_time;
 #endif
 
 #endif /* CPU_ALL_H */
