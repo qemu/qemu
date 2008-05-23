@@ -78,8 +78,8 @@ static void patch_reloc(uint8_t *code_ptr, int type,
         tcg_abort();
 
     case R_ARM_PC24:
-        *(uint32_t *) code_ptr |=
-                ((value - ((tcg_target_long) code_ptr + 8)) >> 2) & 0xffffff;
+        *(uint32_t *) code_ptr |= (*(uint32_t *) code_ptr & 0xff000000) |
+                (((value - ((tcg_target_long) code_ptr + 8)) >> 2) & 0xffffff);
         break;
     }
 }
@@ -270,6 +270,17 @@ static inline void tcg_out_b(TCGContext *s, int cond, int32_t offset)
 {
     tcg_out32(s, (cond << 28) | 0x0a000000 |
                     (((offset - 8) >> 2) & 0x00ffffff));
+}
+
+static inline void tcg_out_b_noaddr(TCGContext *s, int cond)
+{
+#ifdef WORDS_BIGENDIAN
+    tcg_out8(s, (cond << 4) | 0x0a);
+    s->code_ptr += 3;
+#else
+    s->code_ptr += 3;
+    tcg_out8(s, (cond << 4) | 0x0a);
+#endif
 }
 
 static inline void tcg_out_bl(TCGContext *s, int cond, int32_t offset)
@@ -734,7 +745,7 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
     } else {
         /* Probably this should be preferred even for COND_AL... */
         tcg_out_reloc(s, s->code_ptr, R_ARM_PC24, label_index, 31337);
-        tcg_out_b(s, cond, 8);
+        tcg_out_b_noaddr(s, cond);
     }
 }
 
