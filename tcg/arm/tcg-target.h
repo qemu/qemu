@@ -55,8 +55,9 @@ enum {
 };
 
 /* used for function call generation */
-#define TCG_REG_CALL_STACK	TCG_REG_R13
-#define TCG_TARGET_STACK_ALIGN	8
+#define TCG_REG_CALL_STACK		TCG_REG_R13
+#define TCG_TARGET_STACK_ALIGN		8
+#define TCG_TARGET_CALL_STACK_OFFSET	0
 
 enum {
     /* Note: must be synced with dyngen-exec.h */
