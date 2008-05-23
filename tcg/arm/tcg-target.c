@@ -854,12 +854,27 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
     s_bits = opc & 3;
 
 # ifdef USE_TLB
+    /* Should generate something like the following:
+     *  ror r8, addr_reg, #TARGET_PAGE_BITS
+     *  and r0, r8, #(CPU_TLB_SIZE - 1)   @ Assumption: CPU_TLB_BITS <= 8
+     *  add r0, T0, r0 lsl #CPU_TLB_ENTRY_BITS
+     */
+#  if CPU_TLB_BITS > 8
+#   error
+#  endif
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
                     8, 0, addr_reg, SHIFT_IMM_ROR(TARGET_PAGE_BITS));
     tcg_out_dat_imm(s, COND_AL, ARITH_AND,
                     0, 8, CPU_TLB_SIZE - 1);
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
                     0, TCG_AREG0, 0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
+    /* In the
+     *  ldr r1 [r0, #(offsetof(CPUState, tlb_table[mem_index][0].addr_read))]
+     * below, the offset is likely to exceed 12 bits if mem_index != 0 and
+     * not exceed otherwise, so use an
+     *  add r0, r0, #(mem_index * sizeof *CPUState.tlb_table)
+     * before.
+     */
 #  define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
     if (mem_index)
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, 0, 0,
@@ -1025,12 +1040,24 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
     s_bits = opc & 3;
 
 # ifdef USE_TLB
+    /* Should generate something like the following:
+     *  ror r8, addr_reg, #TARGET_PAGE_BITS
+     *  and r0, r8, #(CPU_TLB_SIZE - 1)   @ Assumption: CPU_TLB_BITS <= 8
+     *  add r0, T0, r0 lsl #CPU_TLB_ENTRY_BITS
+     */
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
                     8, 0, addr_reg, SHIFT_IMM_ROR(TARGET_PAGE_BITS));
     tcg_out_dat_imm(s, COND_AL, ARITH_AND,
                     0, 8, CPU_TLB_SIZE - 1);
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
                     0, TCG_AREG0, 0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
+    /* In the
+     *  ldr r1 [r0, #(offsetof(CPUState, tlb_table[mem_index][0].addr_write))]
+     * below, the offset is likely to exceed 12 bits if mem_index != 0 and
+     * not exceed otherwise, so use an
+     *  add r0, r0, #(mem_index * sizeof *CPUState.tlb_table)
+     * before.
+     */
     if (mem_index)
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, 0, 0,
                         (mem_index << (TLB_SHIFT & 1)) |
@@ -1082,10 +1109,6 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
 
     label_ptr = (void *) s->code_ptr;
     tcg_out_b(s, COND_EQ, 8);
-# endif
-
-# ifdef SAVE_LR
-    tcg_out_dat_reg(s, cond, ARITH_MOV, 8, 0, 14, SHIFT_IMM_LSL(0));
 # endif
 
     /* TODO: move this code to where the constants pool will be */
@@ -1144,8 +1167,8 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
         tcg_out_dat_imm(s, cond, ARITH_MOV, 3, 0, mem_index);
         break;
     case 3:
-        tcg_out_dat_imm(s, cond, ARITH_MOV, 3, 0, mem_index);
-        tcg_out32(s, (cond << 28) | 0x052d3010); /* str r3, [sp, #-0x10]! */
+        tcg_out_dat_imm(s, cond, ARITH_MOV, 8, 0, mem_index);
+        tcg_out32(s, (cond << 28) | 0x052d8010); /* str r8, [sp, #-0x10]! */
         if (data_reg != 2)
             tcg_out_dat_reg(s, cond, ARITH_MOV,
                             2, 0, data_reg, SHIFT_IMM_LSL(0));
@@ -1154,6 +1177,10 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
                             3, 0, data_reg2, SHIFT_IMM_LSL(0));
         break;
     }
+# endif
+
+# ifdef SAVE_LR
+    tcg_out_dat_reg(s, cond, ARITH_MOV, 8, 0, 14, SHIFT_IMM_LSL(0));
 # endif
 
     tcg_out_bl(s, cond, (tcg_target_long) qemu_st_helpers[s_bits] -
