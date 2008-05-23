@@ -98,6 +98,7 @@ typedef int TCGType;
 
 #define TCG_TYPE_I32 0
 #define TCG_TYPE_I64 1
+#define TCG_TYPE_COUNT 2 /* number of different types */
 
 #if TCG_TARGET_REG_BITS == 32
 #define TCG_TYPE_PTR TCG_TYPE_I32
@@ -188,6 +189,9 @@ typedef struct TCGTemp {
     unsigned int fixed_reg:1;
     unsigned int mem_coherent:1;
     unsigned int mem_allocated:1;
+    unsigned int temp_allocated:1; /* never used for code gen */
+    /* index of next free temp of same base type, -1 if end */
+    int next_free_temp;
     const char *name;
 } TCGTemp;
 
@@ -208,6 +212,8 @@ struct TCGContext {
     TCGTemp *temps; /* globals first, temps after */
     int nb_globals;
     int nb_temps;
+    int first_free_temp[TCG_TYPE_COUNT]; /* index of free temps, -1 if none */
+
     /* constant indexes (end of temp array) */
     int const_start;
     int const_end;
@@ -236,6 +242,7 @@ struct TCGContext {
     TCGHelperInfo *helpers;
     int nb_helpers;
     int allocated_helpers;
+    int helpers_sorted;
 
 #ifdef CONFIG_PROFILER
     /* profiling info */
@@ -299,6 +306,7 @@ TCGv tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2,
 TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
                         const char *name);
 TCGv tcg_temp_new(TCGType type);
+void tcg_temp_free(TCGv arg);
 char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGv arg);
 void tcg_dump_info(FILE *f,
                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
@@ -381,9 +389,6 @@ TCGv tcg_const_i64(int64_t val);
 
 void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type, 
                    int label_index, long addend);
-void tcg_reg_alloc_start(TCGContext *s);
-void tcg_reg_alloc_bb_end(TCGContext *s);
-void tcg_liveness_analysis(TCGContext *s);
 const TCGArg *tcg_gen_code_op(TCGContext *s, int opc, const TCGArg *args1,
                               unsigned int dead_iargs);
 
