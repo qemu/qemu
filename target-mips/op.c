@@ -461,12 +461,6 @@ void op_dmultu (void)
 #endif
 
 /* CP0 functions */
-void op_mfc0_index (void)
-{
-    T0 = env->CP0_Index;
-    FORCE_RET();
-}
-
 void op_mfc0_mvpcontrol (void)
 {
     T0 = env->mvp->CP0_MVPControl;
@@ -488,54 +482,6 @@ void op_mfc0_mvpconf1 (void)
 void op_mfc0_random (void)
 {
     CALL_FROM_TB0(do_mfc0_random);
-    FORCE_RET();
-}
-
-void op_mfc0_vpecontrol (void)
-{
-    T0 = env->CP0_VPEControl;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeconf0 (void)
-{
-    T0 = env->CP0_VPEConf0;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeconf1 (void)
-{
-    T0 = env->CP0_VPEConf1;
-    FORCE_RET();
-}
-
-void op_mfc0_yqmask (void)
-{
-    T0 = env->CP0_YQMask;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeschedule (void)
-{
-    T0 = env->CP0_VPESchedule;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeschefback (void)
-{
-    T0 = env->CP0_VPEScheFBack;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeopt (void)
-{
-    T0 = env->CP0_VPEOpt;
-    FORCE_RET();
-}
-
-void op_mfc0_entrylo0 (void)
-{
-    T0 = (int32_t)env->CP0_EntryLo0;
     FORCE_RET();
 }
 
@@ -637,87 +583,9 @@ void op_mftc0_tcschefback(void)
     FORCE_RET();
 }
 
-void op_mfc0_entrylo1 (void)
-{
-    T0 = (int32_t)env->CP0_EntryLo1;
-    FORCE_RET();
-}
-
-void op_mfc0_context (void)
-{
-    T0 = (int32_t)env->CP0_Context;
-    FORCE_RET();
-}
-
-void op_mfc0_pagemask (void)
-{
-    T0 = env->CP0_PageMask;
-    FORCE_RET();
-}
-
-void op_mfc0_pagegrain (void)
-{
-    T0 = env->CP0_PageGrain;
-    FORCE_RET();
-}
-
-void op_mfc0_wired (void)
-{
-    T0 = env->CP0_Wired;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf0 (void)
-{
-    T0 = env->CP0_SRSConf0;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf1 (void)
-{
-    T0 = env->CP0_SRSConf1;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf2 (void)
-{
-    T0 = env->CP0_SRSConf2;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf3 (void)
-{
-    T0 = env->CP0_SRSConf3;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf4 (void)
-{
-    T0 = env->CP0_SRSConf4;
-    FORCE_RET();
-}
-
-void op_mfc0_hwrena (void)
-{
-    T0 = env->CP0_HWREna;
-    FORCE_RET();
-}
-
-void op_mfc0_badvaddr (void)
-{
-    T0 = (int32_t)env->CP0_BadVAddr;
-    FORCE_RET();
-}
-
 void op_mfc0_count (void)
 {
     CALL_FROM_TB0(do_mfc0_count);
-    FORCE_RET();
-}
-
-void op_mfc0_entryhi (void)
-{
-    T0 = (int32_t)env->CP0_EntryHi;
     FORCE_RET();
 }
 
@@ -726,18 +594,6 @@ void op_mftc0_entryhi(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
-    FORCE_RET();
-}
-
-void op_mfc0_compare (void)
-{
-    T0 = env->CP0_Compare;
-    FORCE_RET();
-}
-
-void op_mfc0_status (void)
-{
-    T0 = env->CP0_Status;
     FORCE_RET();
 }
 
@@ -750,84 +606,6 @@ void op_mftc0_status(void)
     T0 |= tcstatus & (0xf << CP0TCSt_TCU0);
     T0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
     T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
-    FORCE_RET();
-}
-
-void op_mfc0_intctl (void)
-{
-    T0 = env->CP0_IntCtl;
-    FORCE_RET();
-}
-
-void op_mfc0_srsctl (void)
-{
-    T0 = env->CP0_SRSCtl;
-    FORCE_RET();
-}
-
-void op_mfc0_srsmap (void)
-{
-    T0 = env->CP0_SRSMap;
-    FORCE_RET();
-}
-
-void op_mfc0_cause (void)
-{
-    T0 = env->CP0_Cause;
-    FORCE_RET();
-}
-
-void op_mfc0_epc (void)
-{
-    T0 = (int32_t)env->CP0_EPC;
-    FORCE_RET();
-}
-
-void op_mfc0_prid (void)
-{
-    T0 = env->CP0_PRid;
-    FORCE_RET();
-}
-
-void op_mfc0_ebase (void)
-{
-    T0 = env->CP0_EBase;
-    FORCE_RET();
-}
-
-void op_mfc0_config0 (void)
-{
-    T0 = env->CP0_Config0;
-    FORCE_RET();
-}
-
-void op_mfc0_config1 (void)
-{
-    T0 = env->CP0_Config1;
-    FORCE_RET();
-}
-
-void op_mfc0_config2 (void)
-{
-    T0 = env->CP0_Config2;
-    FORCE_RET();
-}
-
-void op_mfc0_config3 (void)
-{
-    T0 = env->CP0_Config3;
-    FORCE_RET();
-}
-
-void op_mfc0_config6 (void)
-{
-    T0 = env->CP0_Config6;
-    FORCE_RET();
-}
-
-void op_mfc0_config7 (void)
-{
-    T0 = env->CP0_Config7;
     FORCE_RET();
 }
 
@@ -849,18 +627,6 @@ void op_mfc0_watchhi (void)
     FORCE_RET();
 }
 
-void op_mfc0_xcontext (void)
-{
-    T0 = (int32_t)env->CP0_XContext;
-    FORCE_RET();
-}
-
-void op_mfc0_framemask (void)
-{
-    T0 = env->CP0_Framemask;
-    FORCE_RET();
-}
-
 void op_mfc0_debug (void)
 {
     T0 = env->CP0_Debug;
@@ -877,54 +643,6 @@ void op_mftc0_debug(void)
     T0 = (env->CP0_Debug & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
          (env->CP0_Debug_tcstatus[other_tc] &
           ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
-    FORCE_RET();
-}
-
-void op_mfc0_depc (void)
-{
-    T0 = (int32_t)env->CP0_DEPC;
-    FORCE_RET();
-}
-
-void op_mfc0_performance0 (void)
-{
-    T0 = env->CP0_Performance0;
-    FORCE_RET();
-}
-
-void op_mfc0_taglo (void)
-{
-    T0 = env->CP0_TagLo;
-    FORCE_RET();
-}
-
-void op_mfc0_datalo (void)
-{
-    T0 = env->CP0_DataLo;
-    FORCE_RET();
-}
-
-void op_mfc0_taghi (void)
-{
-    T0 = env->CP0_TagHi;
-    FORCE_RET();
-}
-
-void op_mfc0_datahi (void)
-{
-    T0 = env->CP0_DataHi;
-    FORCE_RET();
-}
-
-void op_mfc0_errorepc (void)
-{
-    T0 = (int32_t)env->CP0_ErrorEPC;
-    FORCE_RET();
-}
-
-void op_mfc0_desave (void)
-{
-    T0 = env->CP0_DESAVE;
     FORCE_RET();
 }
 
@@ -1488,30 +1206,6 @@ void op_mtc0_desave (void)
 }
 
 #if defined(TARGET_MIPS64)
-void op_dmfc0_yqmask (void)
-{
-    T0 = env->CP0_YQMask;
-    FORCE_RET();
-}
-
-void op_dmfc0_vpeschedule (void)
-{
-    T0 = env->CP0_VPESchedule;
-    FORCE_RET();
-}
-
-void op_dmfc0_vpeschefback (void)
-{
-    T0 = env->CP0_VPEScheFBack;
-    FORCE_RET();
-}
-
-void op_dmfc0_entrylo0 (void)
-{
-    T0 = env->CP0_EntryLo0;
-    FORCE_RET();
-}
-
 void op_dmfc0_tcrestart (void)
 {
     T0 = env->PC[env->current_tc];
@@ -1542,36 +1236,6 @@ void op_dmfc0_tcschefback (void)
     FORCE_RET();
 }
 
-void op_dmfc0_entrylo1 (void)
-{
-    T0 = env->CP0_EntryLo1;
-    FORCE_RET();
-}
-
-void op_dmfc0_context (void)
-{
-    T0 = env->CP0_Context;
-    FORCE_RET();
-}
-
-void op_dmfc0_badvaddr (void)
-{
-    T0 = env->CP0_BadVAddr;
-    FORCE_RET();
-}
-
-void op_dmfc0_entryhi (void)
-{
-    T0 = env->CP0_EntryHi;
-    FORCE_RET();
-}
-
-void op_dmfc0_epc (void)
-{
-    T0 = env->CP0_EPC;
-    FORCE_RET();
-}
-
 void op_dmfc0_lladdr (void)
 {
     T0 = env->CP0_LLAddr >> 4;
@@ -1581,24 +1245,6 @@ void op_dmfc0_lladdr (void)
 void op_dmfc0_watchlo (void)
 {
     T0 = env->CP0_WatchLo[PARAM1];
-    FORCE_RET();
-}
-
-void op_dmfc0_xcontext (void)
-{
-    T0 = env->CP0_XContext;
-    FORCE_RET();
-}
-
-void op_dmfc0_depc (void)
-{
-    T0 = env->CP0_DEPC;
-    FORCE_RET();
-}
-
-void op_dmfc0_errorepc (void)
-{
-    T0 = env->CP0_ErrorEPC;
     FORCE_RET();
 }
 #endif /* TARGET_MIPS64 */
