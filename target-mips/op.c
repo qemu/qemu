@@ -460,21 +460,6 @@ void op_dmultu (void)
 }
 #endif
 
-/* Conditional moves */
-void op_movf (void)
-{
-    if (!(env->fpu->fcr31 & PARAM1))
-        T0 = T1;
-    FORCE_RET();
-}
-
-void op_movt (void)
-{
-    if (env->fpu->fcr31 & PARAM1)
-        T0 = T1;
-    FORCE_RET();
-}
-
 /* CP0 functions */
 void op_mfc0_index (void)
 {
