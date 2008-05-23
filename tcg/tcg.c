@@ -2033,9 +2033,9 @@ void tcg_dump_info(FILE *f,
     }
 }
 #else
-void dump_tcg_info(FILE *f,
+void tcg_dump_info(FILE *f,
                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
-    cpu_fprintf("[TCG profiler not compiled]\n");
+    cpu_fprintf(f, "[TCG profiler not compiled]\n");
 }
 #endif
