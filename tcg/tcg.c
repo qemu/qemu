@@ -1156,10 +1156,7 @@ void tcg_liveness_analysis(TCGContext *s)
                     }
                     tcg_set_nop(s, gen_opc_buf + op_index, args, def->nb_args);
 #ifdef CONFIG_PROFILER
-                    {
-                        extern int64_t dyngen_tcg_del_op_count;
-                        dyngen_tcg_del_op_count++;
-                    }
+                    s->del_op_count++;
 #endif
                 } else {
                 do_not_remove:
@@ -1822,7 +1819,13 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     }
 #endif
 
+#ifdef CONFIG_PROFILER
+    s->la_time -= profile_getclock();
+#endif
     tcg_liveness_analysis(s);
+#ifdef CONFIG_PROFILER
+    s->la_time += profile_getclock();
+#endif
 
 #ifdef DEBUG_DISAS
     if (unlikely(loglevel & CPU_LOG_TB_OP_OPT)) {
@@ -1911,10 +1914,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
         case 0 ... INDEX_op_end - 1:
             /* legacy dyngen ops */
 #ifdef CONFIG_PROFILER
-            {
-                extern int64_t dyngen_old_op_count;
-                dyngen_old_op_count++;
-            }
+            s->old_op_count++;
 #endif
             tcg_reg_alloc_bb_end(s);
             if (search_pc >= 0) {
@@ -1954,13 +1954,15 @@ int dyngen_code(TCGContext *s, uint8_t *gen_code_buf)
 {
 #ifdef CONFIG_PROFILER
     {
-        extern int64_t dyngen_op_count;
-        extern int dyngen_op_count_max;
         int n;
         n = (gen_opc_ptr - gen_opc_buf);
-        dyngen_op_count += n;
-        if (n > dyngen_op_count_max)
-            dyngen_op_count_max = n;
+        s->op_count += n;
+        if (n > s->op_count_max)
+            s->op_count_max = n;
+
+        s->temp_count += s->nb_temps;
+        if (s->nb_temps > s->temp_count_max)
+            s->temp_count_max = s->nb_temps;
     }
 #endif
 
@@ -1980,3 +1982,60 @@ int dyngen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset)
 {
     return tcg_gen_code_common(s, gen_code_buf, offset);
 }
+
+#ifdef CONFIG_PROFILER
+void tcg_dump_info(FILE *f,
+                   int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+{
+    TCGContext *s = &tcg_ctx;
+    int64_t tot;
+
+    tot = s->interm_time + s->code_time;
+    cpu_fprintf(f, "JIT cycles          %" PRId64 " (%0.3f s at 2.4 GHz)\n",
+                tot, tot / 2.4e9);
+    cpu_fprintf(f, "translated TBs      %" PRId64 " (aborted=%" PRId64 " %0.1f%%)\n", 
+                s->tb_count, 
+                s->tb_count1 - s->tb_count,
+                s->tb_count1 ? (double)(s->tb_count1 - s->tb_count) / s->tb_count1 * 100.0 : 0);
+    cpu_fprintf(f, "avg ops/TB          %0.1f max=%d\n", 
+                s->tb_count ? (double)s->op_count / s->tb_count : 0, s->op_count_max);
+    cpu_fprintf(f, "old ops/total ops   %0.1f%%\n", 
+                s->op_count ? (double)s->old_op_count / s->op_count * 100.0 : 0);
+    cpu_fprintf(f, "deleted ops/TB      %0.2f\n",
+                s->tb_count ? 
+                (double)s->del_op_count / s->tb_count : 0);
+    cpu_fprintf(f, "avg temps/TB        %0.2f max=%d\n",
+                s->tb_count ? 
+                (double)s->temp_count / s->tb_count : 0,
+                s->temp_count_max);
+    
+    cpu_fprintf(f, "cycles/op           %0.1f\n", 
+                s->op_count ? (double)tot / s->op_count : 0);
+    cpu_fprintf(f, "cycles/in byte      %0.1f\n", 
+                s->code_in_len ? (double)tot / s->code_in_len : 0);
+    cpu_fprintf(f, "cycles/out byte     %0.1f\n", 
+                s->code_out_len ? (double)tot / s->code_out_len : 0);
+    if (tot == 0)
+        tot = 1;
+    cpu_fprintf(f, "  gen_interm time   %0.1f%%\n", 
+                (double)s->interm_time / tot * 100.0);
+    cpu_fprintf(f, "  gen_code time     %0.1f%%\n", 
+                (double)s->code_time / tot * 100.0);
+    cpu_fprintf(f, "liveness/code time  %0.1f%%\n", 
+                (double)s->la_time / (s->code_time ? s->code_time : 1) * 100.0);
+    cpu_fprintf(f, "cpu_restore count   %" PRId64 "\n",
+                s->restore_count);
+    cpu_fprintf(f, "  avg cycles        %0.1f\n",
+                s->restore_count ? (double)s->restore_time / s->restore_count : 0);
+    {
+        extern void dump_op_count(void);
+        dump_op_count();
+    }
+}
+#else
+void dump_tcg_info(FILE *f,
+                   int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+{
+    cpu_fprintf("[TCG profiler not compiled]\n");
+}
+#endif
