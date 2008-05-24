@@ -74,6 +74,11 @@ enum {
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_O6
 #define TCG_TARGET_STACK_ALIGN 16
+#ifdef __arch64__
+#define TCG_TARGET_CALL_STACK_OFFSET 2047
+#else
+#define TCG_TARGET_CALL_STACK_OFFSET 0
+#endif
 
 #if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
 #define TCG_TARGET_STACK_MINFRAME 176
