@@ -56,6 +56,13 @@ static inline void tcg_gen_op2i(int opc, TCGv arg1, TCGArg arg2)
     *gen_opparam_ptr++ = arg2;
 }
 
+static inline void tcg_gen_op2ii(int opc, TCGArg arg1, TCGArg arg2)
+{
+    *gen_opc_ptr++ = opc;
+    *gen_opparam_ptr++ = arg1;
+    *gen_opparam_ptr++ = arg2;
+}
+
 static inline void tcg_gen_op3(int opc, TCGv arg1, TCGv arg2, TCGv arg3)
 {
     *gen_opc_ptr++ = opc;
@@ -1406,8 +1413,8 @@ static inline void tcg_gen_debug_insn_start(uint64_t pc)
 {
     /* XXX: must really use a 32 bit size for TCGArg in all cases */
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-    tcg_gen_op2i(INDEX_op_debug_insn_start, 
-                 (uint32_t)(pc), (uint32_t)(pc >> 32));
+    tcg_gen_op2ii(INDEX_op_debug_insn_start, 
+                  (uint32_t)(pc), (uint32_t)(pc >> 32));
 #else
     tcg_gen_op1i(INDEX_op_debug_insn_start, pc);
 #endif

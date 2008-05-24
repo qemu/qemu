@@ -4401,7 +4401,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     /* V9 stqf, store quad fpreg */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_QT0(QFPREG(rd));
-                    tcg_gen_helper_0_2(helper_stqf, cpu_addr, dc->mem_idx);
+                    tcg_gen_helper_0_2(helper_stqf, cpu_addr,
+                                       tcg_const_i32(dc->mem_idx));
                     break;
 #else /* !TARGET_SPARC64 */
                     /* stdfq, store floating point queue */
