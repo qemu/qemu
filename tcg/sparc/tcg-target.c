@@ -267,22 +267,35 @@ static inline void tcg_out_sethi(TCGContext *s, int ret, uint32_t arg)
     tcg_out32(s, SETHI | INSN_RD(ret) | ((arg & 0xfffffc00) >> 10));
 }
 
+static inline void tcg_out_movi_imm13(TCGContext *s, int ret, uint32_t arg)
+{
+    tcg_out_arithi(s, ret, TCG_REG_G0, arg, ARITH_OR);
+}
+
+static inline void tcg_out_movi_imm32(TCGContext *s, int ret, uint32_t arg)
+{
+    if (check_fit_i32(arg, 13))
+        tcg_out_movi_imm13(s, ret, arg);
+    else {
+        tcg_out_sethi(s, ret, arg);
+        if (arg & 0x3ff)
+            tcg_out_arithi(s, ret, ret, arg & 0x3ff, ARITH_OR);
+    }
+}
+
 static inline void tcg_out_movi(TCGContext *s, TCGType type,
                                 int ret, tcg_target_long arg)
 {
 #if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
-    if (!check_fit_tl(arg, 32) && (arg & ~0xffffffff) != 0)
-        fprintf(stderr, "unimplemented %s with constant %ld\n", __func__, arg);
+    if (!check_fit_tl(arg, 32) && (arg & ~0xffffffffULL) != 0) {
+        // XXX ret may be I5, need another temp
+        tcg_out_movi_imm32(s, TCG_REG_I5, arg >> 32);
+        tcg_out_arithi(s, TCG_REG_I5, TCG_REG_I5, 32, SHIFT_SLLX);
+        tcg_out_movi_imm32(s, ret, arg);
+        tcg_out_arith(s, ret, ret, TCG_REG_I5, ARITH_OR);
+    } else
 #endif
-    if (check_fit_i32(arg, 13))
-        tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS1(TCG_REG_G0) |
-                  INSN_IMM13(arg));
-    else {
-        tcg_out_sethi(s, ret, arg);
-        if (arg & 0x3ff)
-            tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS1(ret) |
-                      INSN_IMM13(arg & 0x3ff));
-    }
+        tcg_out_movi_imm32(s, ret, arg);
 }
 
 static inline void tcg_out_ld_raw(TCGContext *s, int ret,
@@ -296,15 +309,14 @@ static inline void tcg_out_ld_raw(TCGContext *s, int ret,
 static inline void tcg_out_ld_ptr(TCGContext *s, int ret,
                                   tcg_target_long arg)
 {
+    if (!check_fit_tl(arg, 10))
+        tcg_out_movi(s, TCG_TYPE_PTR, ret, arg & ~0x3ffULL);
 #if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
-    if (!check_fit_tl(arg, 32) && (arg & ~0xffffffff) != 0)
-        fprintf(stderr, "unimplemented %s with offset %ld\n", __func__, arg);
-    if (!check_fit_i32(arg, 13))
-        tcg_out_sethi(s, ret, arg);
     tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(ret) |
               INSN_IMM13(arg & 0x3ff));
 #else
-    tcg_out_ld_raw(s, ret, arg);
+    tcg_out32(s, LDUW | INSN_RD(ret) | INSN_RS1(ret) |
+              INSN_IMM13(arg & 0x3ff));
 #endif
 }
 
