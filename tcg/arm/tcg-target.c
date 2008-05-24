@@ -109,11 +109,19 @@ int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         break;
 
 #ifdef CONFIG_SOFTMMU
-    /* qemu_ld/st inputs (unless 'X' or 'D') */
+    /* qemu_ld/st inputs (unless 'X', 'd' or 'D') */
     case 'x':
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
+        break;
+
+    /* qemu_ld64 data_reg */
+    case 'd':
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
+        /* r1 is still needed to load data_reg2, so don't use it.  */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
         break;
 
@@ -963,8 +971,9 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
                             data_reg, 0, 0, SHIFT_IMM_LSL(0));
         break;
     case 3:
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        data_reg, 0, 0, SHIFT_IMM_LSL(0));
+        if (data_reg != 0)
+            tcg_out_dat_reg(s, cond, ARITH_MOV,
+                            data_reg, 0, 0, SHIFT_IMM_LSL(0));
         if (data_reg2 != 1)
             tcg_out_dat_reg(s, cond, ARITH_MOV,
                             data_reg2, 0, 1, SHIFT_IMM_LSL(0));
@@ -1497,7 +1506,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_ld16u, { "r", "x", "X" } },
     { INDEX_op_qemu_ld16s, { "r", "x", "X" } },
     { INDEX_op_qemu_ld32u, { "r", "x", "X" } },
-    { INDEX_op_qemu_ld64, { "x", "r", "x", "X" } },
+    { INDEX_op_qemu_ld64, { "d", "r", "x", "X" } },
 
     { INDEX_op_qemu_st8, { "x", "x", "X" } },
     { INDEX_op_qemu_st16, { "x", "x", "X" } },
