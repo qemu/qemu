@@ -219,7 +219,7 @@ static void t_gen_lsl(TCGv d, TCGv a, TCGv b)
 	l1 = gen_new_label();
 	/* Speculative shift. */
 	tcg_gen_shl_tl(d, a, b);
-	tcg_gen_brcond_tl(TCG_COND_LEU, b, tcg_const_tl(31), l1);
+	tcg_gen_brcondi_tl(TCG_COND_LEU, b, 31, l1);
 	/* Clear dst if shift operands were to large.  */
 	tcg_gen_movi_tl(d, 0);
 	gen_set_label(l1);
@@ -232,7 +232,7 @@ static void t_gen_lsr(TCGv d, TCGv a, TCGv b)
 	l1 = gen_new_label();
 	/* Speculative shift. */
 	tcg_gen_shr_tl(d, a, b);
-	tcg_gen_brcond_tl(TCG_COND_LEU, b, tcg_const_tl(31), l1);
+	tcg_gen_brcondi_tl(TCG_COND_LEU, b, 31, l1);
 	/* Clear dst if shift operands were to large.  */
 	tcg_gen_movi_tl(d, 0);
 	gen_set_label(l1);
@@ -245,7 +245,7 @@ static void t_gen_asr(TCGv d, TCGv a, TCGv b)
 	l1 = gen_new_label();
 	/* Speculative shift. */
 	tcg_gen_sar_tl(d, a, b);
-	tcg_gen_brcond_tl(TCG_COND_LEU, b, tcg_const_tl(31), l1);
+	tcg_gen_brcondi_tl(TCG_COND_LEU, b, 31, l1);
 	/* Clear dst if shift operands were to large.  */
 	tcg_gen_sar_tl(d, a, tcg_const_tl(30));
 	gen_set_label(l1);
@@ -406,7 +406,7 @@ static void t_gen_btst(TCGv d, TCGv s)
         tcg_gen_andi_tl(d, cpu_PR[PR_CCS], ~(X_FLAG | N_FLAG | Z_FLAG));
 	/* or in the N_FLAG.  */
         tcg_gen_or_tl(d, d, bset);
-	tcg_gen_brcond_tl(TCG_COND_NE, sbit, tcg_const_tl(0), l1);
+	tcg_gen_brcondi_tl(TCG_COND_NE, sbit, 0, l1);
 	/* or in the Z_FLAG.  */
 	tcg_gen_ori_tl(d, d, Z_FLAG);
 	gen_set_label(l1);
@@ -591,7 +591,7 @@ static void t_gen_cc_jmp(TCGv pc_true, TCGv pc_false)
 	/* Conditional jmp.  */
 	t_gen_mov_TN_env(btaken, btaken);
 	tcg_gen_mov_tl(env_pc, pc_false);
-	tcg_gen_brcond_tl(TCG_COND_EQ, btaken, tcg_const_tl(0), l1);
+	tcg_gen_brcondi_tl(TCG_COND_EQ, btaken, 0, l1);
 	tcg_gen_mov_tl(env_pc, pc_true);
 	gen_set_label(l1);
 
@@ -902,8 +902,8 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 				int l1;
 				l1 = gen_new_label();
 				tcg_gen_movi_tl(cpu_T[0], 0);
-				tcg_gen_brcond_tl(TCG_COND_NE, cc_result, 
-						  tcg_const_tl(0), l1);
+				tcg_gen_brcondi_tl(TCG_COND_NE, cc_result, 
+						   0, l1);
 				tcg_gen_movi_tl(cpu_T[0], 1);
 				gen_set_label(l1);
 			}
@@ -1461,7 +1461,7 @@ static unsigned int dec_scc_r(DisasContext *dc)
 
 		l1 = gen_new_label();
 		tcg_gen_movi_tl(cpu_R[dc->op1], 0);
-		tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[0], tcg_const_tl(0), l1);
+		tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
 		tcg_gen_movi_tl(cpu_R[dc->op1], 1);
 		gen_set_label(l1);
 	}
@@ -1618,7 +1618,7 @@ static unsigned int dec_abs_r(DisasContext *dc)
 
 	/* TODO: consider a branch free approach.  */
 	l1 = gen_new_label();
-	tcg_gen_brcond_tl(TCG_COND_GE, cpu_T[1], tcg_const_tl(0), l1);
+	tcg_gen_brcondi_tl(TCG_COND_GE, cpu_T[1], 0, l1);
 	tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
 	gen_set_label(l1);
 	crisv32_alu_op(dc, CC_OP_MOVE, dc->op2, 4);

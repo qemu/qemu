@@ -703,14 +703,14 @@ static inline void gen_op_jnz_ecx(int size, int label1)
 {
     tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUState, regs[R_ECX]));
     gen_extu(size + 1, cpu_tmp0);
-    tcg_gen_brcond_tl(TCG_COND_NE, cpu_tmp0, tcg_const_tl(0), label1);
+    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_tmp0, 0, label1);
 }
 
 static inline void gen_op_jz_ecx(int size, int label1)
 {
     tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUState, regs[R_ECX]));
     gen_extu(size + 1, cpu_tmp0);
-    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_tmp0, tcg_const_tl(0), label1);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, label1);
 }
 
 static void *helper_in_func[3] = {
@@ -1000,32 +1000,31 @@ static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
                 t0 = cpu_cc_dst;
                 break;
             }
-            tcg_gen_brcond_tl(inv ? TCG_COND_NE : TCG_COND_EQ, t0, 
-                              tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(inv ? TCG_COND_NE : TCG_COND_EQ, t0, 0, l1);
             break;
         case JCC_S:
         fast_jcc_s:
             switch(size) {
             case 0:
                 tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x80);
-                tcg_gen_brcond_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
-                                  tcg_const_tl(0), l1);
+                tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
+                                   0, l1);
                 break;
             case 1:
                 tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x8000);
-                tcg_gen_brcond_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
-                                  tcg_const_tl(0), l1);
+                tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
+                                   0, l1);
                 break;
 #ifdef TARGET_X86_64
             case 2:
                 tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x80000000);
-                tcg_gen_brcond_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
-                                  tcg_const_tl(0), l1);
+                tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
+                                   0, l1);
                 break;
 #endif
             default:
-                tcg_gen_brcond_tl(inv ? TCG_COND_GE : TCG_COND_LT, cpu_cc_dst, 
-                                  tcg_const_tl(0), l1);
+                tcg_gen_brcondi_tl(inv ? TCG_COND_GE : TCG_COND_LT, cpu_cc_dst, 
+                                   0, l1);
                 break;
             }
             break;
@@ -1153,8 +1152,8 @@ static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
     default:
     slow_jcc:
         gen_setcc_slow_T0(jcc_op);
-        tcg_gen_brcond_tl(inv ? TCG_COND_EQ : TCG_COND_NE, 
-                          cpu_T[0], tcg_const_tl(0), l1);
+        tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, 
+                           cpu_T[0], 0, l1);
         break;
     }
 }
@@ -1479,7 +1478,7 @@ static void gen_shift_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_set_cc_op(s->cc_op);
 
     shift_label = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), shift_label);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, shift_label);
 
     tcg_gen_mov_tl(cpu_cc_src, cpu_T3);
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
@@ -1574,7 +1573,7 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1,
     /* Must test zero case to avoid using undefined behaviour in TCG
        shifts. */
     label1 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), label1);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, label1);
     
     if (ot <= OT_WORD)
         tcg_gen_andi_tl(cpu_tmp0, cpu_T[1], (1 << (3 + ot)) - 1);
@@ -1610,7 +1609,7 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_set_cc_op(s->cc_op);
 
     label2 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), label2);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, label2);
 
     gen_compute_eflags(cpu_cc_src);
     tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~(CC_O | CC_C));
@@ -1667,7 +1666,7 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
 
     /* update eflags */
     label1 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T3, tcg_const_tl(-1), label1);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T3, -1, label1);
 
     tcg_gen_mov_tl(cpu_cc_src, cpu_T3);
     tcg_gen_discard_tl(cpu_cc_dst);
@@ -1699,7 +1698,7 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1,
     /* Must test zero case to avoid using undefined behaviour in TCG
        shifts. */
     label1 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T3, tcg_const_tl(0), label1);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T3, 0, label1);
     
     tcg_gen_addi_tl(cpu_tmp5, cpu_T3, -1);
     if (ot == OT_WORD) {
@@ -1775,7 +1774,7 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1,
         gen_op_set_cc_op(s->cc_op);
 
     label2 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T3, tcg_const_tl(0), label2);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T3, 0, label2);
 
     tcg_gen_mov_tl(cpu_cc_src, cpu_T[1]);
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
@@ -4375,7 +4374,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             tcg_gen_ld_tl(cpu_T3, cpu_env, offsetof(CPUState, regs[R_EAX]));
             tcg_gen_sub_tl(cpu_T3, cpu_T3, cpu_T[0]);
             gen_extu(ot, cpu_T3);
-            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T3, tcg_const_tl(0), label1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T3, 0, label1);
             if (mod == 3) {
                 label2 = gen_new_label();
                 gen_op_mov_reg_T0(ot, R_EAX);
@@ -5461,7 +5460,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     op1 = fcmov_cc[op & 3] | ((op >> 3) & 1);
                     gen_setcc(s, op1);
                     l1 = gen_new_label();
-                    tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[0], tcg_const_tl(0), l1);
+                    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
                     tcg_gen_helper_0_1(helper_fmov_ST0_STN, tcg_const_i32(opreg));
                     gen_set_label(l1);
                 }
@@ -6047,7 +6046,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_extu(ot, cpu_T[0]);
             label1 = gen_new_label();
             tcg_gen_movi_tl(cpu_cc_dst, 0);
-            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[0], tcg_const_tl(0), label1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, label1);
             if (b & 1) {
                 tcg_gen_helper_1_1(helper_bsr, cpu_T[0], cpu_T[0]);
             } else {
@@ -6289,11 +6288,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 gen_compute_eflags(cpu_tmp0);
                 tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, CC_Z);
                 if (b == 0) {
-                    tcg_gen_brcond_tl(TCG_COND_EQ, 
-                                      cpu_tmp0, tcg_const_tl(0), l1);
+                    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, l1);
                 } else {
-                    tcg_gen_brcond_tl(TCG_COND_NE, 
-                                      cpu_tmp0, tcg_const_tl(0), l1);
+                    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_tmp0, 0, l1);
                 }
                 break;
             case 2: /* loop */
@@ -6782,7 +6779,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 tcg_gen_helper_1_1(helper_lsl, cpu_T[0], cpu_T[0]);
             tcg_gen_andi_tl(cpu_tmp0, cpu_cc_src, CC_Z);
             label1 = gen_new_label();
-            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_tmp0, tcg_const_tl(0), label1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, label1);
             gen_op_mov_reg_T0(ot, reg);
             gen_set_label(label1);
             s->cc_op = CC_OP_EFLAGS;

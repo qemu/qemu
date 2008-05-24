@@ -662,94 +662,92 @@ static void gen_test_cc(int cc, int label)
 {
     TCGv tmp;
     TCGv tmp2;
-    TCGv zero;
     int inv;
 
-    zero = tcg_const_i32(0);
     switch (cc) {
     case 0: /* eq: Z */
         tmp = load_cpu_field(ZF);
-        tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
         break;
     case 1: /* ne: !Z */
         tmp = load_cpu_field(ZF);
-        tcg_gen_brcond_i32(TCG_COND_NE, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_NE, tmp, 0, label);
         break;
     case 2: /* cs: C */
         tmp = load_cpu_field(CF);
-        tcg_gen_brcond_i32(TCG_COND_NE, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_NE, tmp, 0, label);
         break;
     case 3: /* cc: !C */
         tmp = load_cpu_field(CF);
-        tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
         break;
     case 4: /* mi: N */
         tmp = load_cpu_field(NF);
-        tcg_gen_brcond_i32(TCG_COND_LT, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_LT, tmp, 0, label);
         break;
     case 5: /* pl: !N */
         tmp = load_cpu_field(NF);
-        tcg_gen_brcond_i32(TCG_COND_GE, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_GE, tmp, 0, label);
         break;
     case 6: /* vs: V */
         tmp = load_cpu_field(VF);
-        tcg_gen_brcond_i32(TCG_COND_LT, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_LT, tmp, 0, label);
         break;
     case 7: /* vc: !V */
         tmp = load_cpu_field(VF);
-        tcg_gen_brcond_i32(TCG_COND_GE, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_GE, tmp, 0, label);
         break;
     case 8: /* hi: C && !Z */
         inv = gen_new_label();
         tmp = load_cpu_field(CF);
-        tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, inv);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, inv);
         dead_tmp(tmp);
         tmp = load_cpu_field(ZF);
-        tcg_gen_brcond_i32(TCG_COND_NE, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_NE, tmp, 0, label);
         gen_set_label(inv);
         break;
     case 9: /* ls: !C || Z */
         tmp = load_cpu_field(CF);
-        tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
         dead_tmp(tmp);
         tmp = load_cpu_field(ZF);
-        tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
         break;
     case 10: /* ge: N == V -> N ^ V == 0 */
         tmp = load_cpu_field(VF);
         tmp2 = load_cpu_field(NF);
         tcg_gen_xor_i32(tmp, tmp, tmp2);
         dead_tmp(tmp2);
-        tcg_gen_brcond_i32(TCG_COND_GE, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_GE, tmp, 0, label);
         break;
     case 11: /* lt: N != V -> N ^ V != 0 */
         tmp = load_cpu_field(VF);
         tmp2 = load_cpu_field(NF);
         tcg_gen_xor_i32(tmp, tmp, tmp2);
         dead_tmp(tmp2);
-        tcg_gen_brcond_i32(TCG_COND_LT, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_LT, tmp, 0, label);
         break;
     case 12: /* gt: !Z && N == V */
         inv = gen_new_label();
         tmp = load_cpu_field(ZF);
-        tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, inv);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, inv);
         dead_tmp(tmp);
         tmp = load_cpu_field(VF);
         tmp2 = load_cpu_field(NF);
         tcg_gen_xor_i32(tmp, tmp, tmp2);
         dead_tmp(tmp2);
-        tcg_gen_brcond_i32(TCG_COND_GE, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_GE, tmp, 0, label);
         gen_set_label(inv);
         break;
     case 13: /* le: Z || N != V */
         tmp = load_cpu_field(ZF);
-        tcg_gen_brcond_i32(TCG_COND_EQ, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
         dead_tmp(tmp);
         tmp = load_cpu_field(VF);
         tmp2 = load_cpu_field(NF);
         tcg_gen_xor_i32(tmp, tmp, tmp2);
         dead_tmp(tmp2);
-        tcg_gen_brcond_i32(TCG_COND_LT, tmp, zero, label);
+        tcg_gen_brcondi_i32(TCG_COND_LT, tmp, 0, label);
         break;
     default:
         fprintf(stderr, "Bad condition code 0x%x\n", cc);
@@ -6233,8 +6231,8 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                             int label = gen_new_label();
                             rm = insn & 0xf;
                             gen_helper_test_exclusive(cpu_T[0], cpu_env, addr);
-                            tcg_gen_brcond_i32(TCG_COND_NE, cpu_T[0],
-                                               tcg_const_i32(0), label);
+                            tcg_gen_brcondi_i32(TCG_COND_NE, cpu_T[0],
+                                                0, label);
                             tmp = load_reg(s,rm);
                             gen_st32(tmp, cpu_T[1], IS_USER(s));
                             gen_set_label(label);
@@ -6984,8 +6982,8 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                 } else {
                     int label = gen_new_label();
                     gen_helper_test_exclusive(cpu_T[0], cpu_env, addr);
-                    tcg_gen_brcond_i32(TCG_COND_NE, cpu_T[0],
-                                       tcg_const_i32(0), label);
+                    tcg_gen_brcondi_i32(TCG_COND_NE, cpu_T[0],
+                                        0, label);
                     tmp = load_reg(s, rs);
                     gen_st32(tmp, cpu_T[1], IS_USER(s));
                     gen_set_label(label);
@@ -7047,8 +7045,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     int label = gen_new_label();
                     /* Must use a global that is not killed by the branch.  */
                     gen_helper_test_exclusive(cpu_T[0], cpu_env, addr);
-                    tcg_gen_brcond_i32(TCG_COND_NE, cpu_T[0], tcg_const_i32(0),
-                                       label);
+                    tcg_gen_brcondi_i32(TCG_COND_NE, cpu_T[0], 0, label);
                     tmp = load_reg(s, rs);
                     switch (op) {
                     case 0:
@@ -8364,13 +8361,12 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
         case 1: case 3: case 9: case 11: /* czb */
             rm = insn & 7;
             tmp = load_reg(s, rm);
-            tmp2 = tcg_const_i32(0);
             s->condlabel = gen_new_label();
             s->condjmp = 1;
             if (insn & (1 << 11))
-                tcg_gen_brcond_i32(TCG_COND_EQ, tmp, tmp2, s->condlabel);
+                tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, s->condlabel);
             else
-                tcg_gen_brcond_i32(TCG_COND_NE, tmp, tmp2, s->condlabel);
+                tcg_gen_brcondi_i32(TCG_COND_NE, tmp, 0, s->condlabel);
             dead_tmp(tmp);
             offset = ((insn & 0xf8) >> 2) | (insn & 0x200) >> 3;
             val = (uint32_t)s->pc + 2;

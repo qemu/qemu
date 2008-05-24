@@ -679,7 +679,7 @@ void glue(gen_op_, name) (target_ulong val)                   \
     int l1 = gen_new_label();                                 \
     int l2 = gen_new_label();                                 \
                                                               \
-    tcg_gen_brcond_tl(cond, cpu_T[0], tcg_const_tl(val), l1); \
+    tcg_gen_brcondi_tl(cond, cpu_T[0], val, l1);              \
     tcg_gen_movi_tl(cpu_T[0], 0);                             \
     tcg_gen_br(l2);                                           \
     gen_set_label(l1);                                        \
@@ -696,7 +696,7 @@ void glue(gen_op_, name) (void)                               \
     int l1 = gen_new_label();                                 \
     int l2 = gen_new_label();                                 \
                                                               \
-    tcg_gen_brcond_tl(cond, cpu_T[0], tcg_const_tl(0), l1);   \
+    tcg_gen_brcondi_tl(cond, cpu_T[0], 0, l1);                \
     tcg_gen_movi_tl(cpu_T[0], 0);                             \
     tcg_gen_br(l2);                                           \
     gen_set_label(l1);                                        \
@@ -831,10 +831,10 @@ static inline void gen_op_addr_add (void)
 
         tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
         tcg_gen_andi_i32(r_tmp, r_tmp, MIPS_HFLAG_KSU);
-        tcg_gen_brcond_i32(TCG_COND_NE, r_tmp, tcg_const_i32(MIPS_HFLAG_UM), l1);
+        tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, MIPS_HFLAG_UM, l1);
         tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Status));
         tcg_gen_andi_i32(r_tmp, r_tmp, (1 << CP0St_UX));
-        tcg_gen_brcond_i32(TCG_COND_NE, r_tmp, tcg_const_i32(0), l1);
+        tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, 0, l1);
         tcg_gen_ext32s_i64(cpu_T[0], cpu_T[0]);
         gen_set_label(l1);
         dead_tmp(r_tmp);
@@ -995,7 +995,7 @@ void inline op_ldst_##insn(DisasContext *ctx)                           \
     int l3 = gen_new_label();                                           \
                                                                         \
     tcg_gen_andi_tl(r_tmp, cpu_T[0], almask);                           \
-    tcg_gen_brcond_tl(TCG_COND_EQ, r_tmp, tcg_const_tl(0), l1);         \
+    tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp, 0, l1);                      \
     tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, CP0_BadVAddr)); \
     generate_exception(ctx, EXCP_AdES);                                 \
     gen_set_label(l1);                                                  \
@@ -1296,7 +1296,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xori_tl(r_tmp2, cpu_T[0], uimm);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
-            tcg_gen_brcond_tl(TCG_COND_EQ, r_tmp1, tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1327,7 +1327,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xori_tl(r_tmp2, cpu_T[0], uimm);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
-            tcg_gen_brcond_tl(TCG_COND_EQ, r_tmp1, tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1539,7 +1539,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp2, cpu_T[0], cpu_T[1]);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
-            tcg_gen_brcond_tl(TCG_COND_EQ, r_tmp1, tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1570,7 +1570,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp1, r_tmp1, cpu_T[0]);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
-            tcg_gen_brcond_tl(TCG_COND_EQ, r_tmp1, tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
             /* operands of different sign, first operand and result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1602,7 +1602,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp2, cpu_T[0], cpu_T[1]);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
-            tcg_gen_brcond_tl(TCG_COND_EQ, r_tmp1, tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1627,7 +1627,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp1, r_tmp1, cpu_T[0]);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
-            tcg_gen_brcond_tl(TCG_COND_EQ, r_tmp1, tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
             /* operands of different sign, first operand and result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1675,7 +1675,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         {
             int l1 = gen_new_label();
 
-            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, l1);
             gen_store_gpr(cpu_T[0], rd);
             gen_set_label(l1);
         }
@@ -1685,7 +1685,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         {
             int l1 = gen_new_label();
 
-            tcg_gen_brcond_tl(TCG_COND_NE, cpu_T[1], tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[1], 0, l1);
             gen_store_gpr(cpu_T[0], rd);
             gen_set_label(l1);
         }
@@ -1722,7 +1722,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
                 int l2 = gen_new_label();
 
                 tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0x1f);
-                tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[0], tcg_const_tl(0), l1);
+                tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
                 {
                     TCGv r_tmp1 = new_tmp();
                     TCGv r_tmp2 = new_tmp();
@@ -1784,7 +1784,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
                 int l2 = gen_new_label();
 
                 tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0x3f);
-                tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[0], tcg_const_tl(0), l1);
+                tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
                 {
                     TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
 
@@ -1873,7 +1873,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             int l1 = gen_new_label();
 
-            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, l1);
             {
                 TCGv r_tmp1 = new_tmp();
                 TCGv r_tmp2 = new_tmp();
@@ -1907,7 +1907,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             int l1 = gen_new_label();
 
-            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, l1);
             {
                 TCGv r_tmp1 = new_tmp();
                 TCGv r_tmp2 = new_tmp();
@@ -1950,7 +1950,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             int l1 = gen_new_label();
 
-            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, l1);
             {
                 TCGv r_tc_off = new_tmp();
                 TCGv r_tc_off_tl = tcg_temp_new(TCG_TYPE_TL);
@@ -1958,8 +1958,8 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 int l2 = gen_new_label();
                 int l3 = gen_new_label();
 
-                tcg_gen_brcond_tl(TCG_COND_NE, cpu_T[0], tcg_const_tl(1ULL << 63), l2);
-                tcg_gen_brcond_tl(TCG_COND_NE, cpu_T[1], tcg_const_tl(-1ULL), l2);
+                tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 1ULL << 63, l2);
+                tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[1], -1ULL, l2);
                 tcg_gen_div_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
                 tcg_gen_movi_tl(cpu_T[1], 0);
                 tcg_gen_br(l3);
@@ -1984,7 +1984,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             int l1 = gen_new_label();
 
-            tcg_gen_brcond_tl(TCG_COND_EQ, cpu_T[1], tcg_const_tl(0), l1);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, l1);
             {
                 TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
                 TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
@@ -5569,7 +5569,7 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
     tcg_gen_ld_ptr(r_ptr, cpu_env, offsetof(CPUState, fpu));
     tcg_gen_ld_i32(r_tmp, r_ptr, offsetof(CPUMIPSFPUContext, fcr31));
     tcg_gen_andi_i32(r_tmp, r_tmp, ccbit);
-    tcg_gen_brcond_i32(cond, r_tmp, tcg_const_i32(0), l1);
+    tcg_gen_brcondi_i32(cond, r_tmp, 0, l1);
     tcg_gen_mov_tl(t0, t1);
     gen_set_label(l1);
     dead_tmp(r_tmp);
@@ -6656,7 +6656,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
         MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
         tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
-        tcg_gen_brcond_tl(TCG_COND_NE, r_tmp, tcg_const_tl(0), l1);
+        tcg_gen_brcondi_tl(TCG_COND_NE, r_tmp, 0, l1);
         gen_op_save_state(ctx->hflags & ~MIPS_HFLAG_BMASK);
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
@@ -7214,7 +7214,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 int l1 = gen_new_label();
 
                 tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
-                tcg_gen_brcond_tl(TCG_COND_NE, r_tmp, tcg_const_tl(0), l1);
+                tcg_gen_brcondi_tl(TCG_COND_NE, r_tmp, 0, l1);
                 gen_goto_tb(ctx, 1, ctx->pc + 4);
                 gen_set_label(l1);
                 gen_goto_tb(ctx, 0, ctx->btarget);
