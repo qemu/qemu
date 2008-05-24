@@ -4275,7 +4275,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x22:      /* load quad fpreg */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    tcg_gen_helper_0_2(helper_ldqf, cpu_addr, dc->mem_idx);
+                    tcg_gen_helper_0_2(helper_ldqf, cpu_addr,
+                                       tcg_const_i32(dc->mem_idx));
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     break;
                 case 0x23:      /* load double fpreg */
