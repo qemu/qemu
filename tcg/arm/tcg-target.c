@@ -90,8 +90,6 @@ static inline int tcg_target_get_call_iarg_regs_count(int flags)
     return 4;
 }
 
-#define USE_TLB
-
 /* parse target specific constraints */
 int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 {
@@ -115,22 +113,8 @@ int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'x':
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
-# ifdef USE_TLB
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-# endif
-        break;
-
-    /* qemu_ld/st data_reg */
-    case 'd':
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
-        /* r0 and optionally r1 will be overwritten by the address
-         * so don't use these.  */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
-# if TARGET_LONG_BITS == 64 || defined(USE_TLB)
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-# endif
         break;
 
     /* qemu_ld/st64 data_reg2 */
@@ -153,9 +137,7 @@ int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
         /* r0 will be overwritten by the low word of base, so don't use it.  */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
-#  ifdef USE_TLB
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-#  endif
         break;
 # endif
 #endif
@@ -210,6 +192,7 @@ enum arm_data_opc_e {
     ARITH_ADC = 0x5,
     ARITH_SBC = 0x6,
     ARITH_RSC = 0x7,
+    ARITH_TST = 0x8,
     ARITH_CMP = 0xa,
     ARITH_CMN = 0xb,
     ARITH_ORR = 0xc,
@@ -218,7 +201,8 @@ enum arm_data_opc_e {
     ARITH_MVN = 0xf,
 };
 
-#define TO_CPSR(opc)		((opc == ARITH_CMP || opc == ARITH_CMN) << 20)
+#define TO_CPSR(opc) \
+  ((opc == ARITH_CMP || opc == ARITH_CMN || opc == ARITH_TST) << 20)
 
 #define SHIFT_IMM_LSL(im)	(((im) << 7) | 0x00)
 #define SHIFT_IMM_LSR(im)	(((im) << 7) | 0x20)
@@ -309,7 +293,7 @@ static inline void tcg_out_dat_reg2(TCGContext *s,
 static inline void tcg_out_dat_imm(TCGContext *s,
                 int cond, int opc, int rd, int rn, int im)
 {
-    tcg_out32(s, (cond << 28) | (1 << 25) | (opc << 21) |
+    tcg_out32(s, (cond << 28) | (1 << 25) | (opc << 21) | TO_CPSR(opc) |
                     (rn << 16) | (rd << 12) | im);
 }
 
@@ -425,6 +409,21 @@ static inline void tcg_out_st32_r(TCGContext *s, int cond,
                 int rd, int rn, int rm)
 {
     tcg_out32(s, (cond << 28) | 0x07800000 |
+                    (rn << 16) | (rd << 12) | rm);
+}
+
+/* Register pre-increment with base writeback.  */
+static inline void tcg_out_ld32_rwb(TCGContext *s, int cond,
+                int rd, int rn, int rm)
+{
+    tcg_out32(s, (cond << 28) | 0x07b00000 |
+                    (rn << 16) | (rd << 12) | rm);
+}
+
+static inline void tcg_out_st32_rwb(TCGContext *s, int cond,
+                int rd, int rn, int rm)
+{
+    tcg_out32(s, (cond << 28) | 0x07a00000 |
                     (rn << 16) | (rd << 12) | rm);
 }
 
@@ -826,6 +825,8 @@ static void *qemu_st_helpers[4] = {
 };
 #endif
 
+#define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
+
 static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
                 const TCGArg *args, int opc)
 {
@@ -835,9 +836,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
 # if TARGET_LONG_BITS == 64
     int addr_reg2;
 # endif
-# ifdef USE_TLB
     uint32_t *label_ptr;
-# endif
 #endif
 
     data_reg = *args++;
@@ -853,17 +852,16 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
     mem_index = *args;
     s_bits = opc & 3;
 
-# ifdef USE_TLB
     /* Should generate something like the following:
-     *  ror r8, addr_reg, #TARGET_PAGE_BITS
+     *  shr r8, addr_reg, #TARGET_PAGE_BITS
      *  and r0, r8, #(CPU_TLB_SIZE - 1)   @ Assumption: CPU_TLB_BITS <= 8
-     *  add r0, T0, r0 lsl #CPU_TLB_ENTRY_BITS
+     *  add r0, env, r0 lsl #CPU_TLB_ENTRY_BITS
      */
 #  if CPU_TLB_BITS > 8
 #   error
 #  endif
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                    8, 0, addr_reg, SHIFT_IMM_ROR(TARGET_PAGE_BITS));
+                    8, 0, addr_reg, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
     tcg_out_dat_imm(s, COND_AL, ARITH_AND,
                     0, 8, CPU_TLB_SIZE - 1);
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
@@ -875,7 +873,6 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
      *  add r0, r0, #(mem_index * sizeof *CPUState.tlb_table)
      * before.
      */
-#  define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
     if (mem_index)
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, 0, 0,
                         (mem_index << (TLB_SHIFT & 1)) |
@@ -884,11 +881,10 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
                     offsetof(CPUState, tlb_table[0][0].addr_read));
     tcg_out_dat_reg(s, COND_AL, ARITH_CMP,
                     0, 1, 8, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
-    /* TODO: alignment check?
-     * if (s_bits)
-     * tcg_out_data_reg(s, COND_EQ, ARITH_EOR,
-     *                  0, 1, 8, SHIFT_IMM_LSR(32 - s_bits));
-     */
+    /* Check alignment.  */
+    if (s_bits)
+        tcg_out_dat_imm(s, COND_EQ, ARITH_TST,
+                        0, addr_reg, (1 << s_bits) - 1);
 #  if TARGET_LONG_BITS == 64
     /* XXX: possibly we could use a block data load or writeback in
      * the first access.  */
@@ -918,15 +914,13 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
         tcg_out_ld32_r(s, COND_EQ, data_reg, addr_reg, 1);
         break;
     case 3:
-        /* TODO: must write back */
-        tcg_out_ld32_r(s, COND_EQ, data_reg, 1, addr_reg);
+        tcg_out_ld32_rwb(s, COND_EQ, data_reg, 1, addr_reg);
         tcg_out_ld32_12(s, COND_EQ, data_reg2, 1, 4);
         break;
     }
 
     label_ptr = (void *) s->code_ptr;
     tcg_out_b(s, COND_EQ, 8);
-# endif
 
 # ifdef SAVE_LR
     tcg_out_dat_reg(s, cond, ARITH_MOV, 8, 0, 14, SHIFT_IMM_LSL(0));
@@ -969,12 +963,11 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
                             data_reg, 0, 0, SHIFT_IMM_LSL(0));
         break;
     case 3:
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
+                        data_reg, 0, 0, SHIFT_IMM_LSL(0));
         if (data_reg2 != 1)
             tcg_out_dat_reg(s, cond, ARITH_MOV,
                             data_reg2, 0, 1, SHIFT_IMM_LSL(0));
-        if (data_reg != 0)
-            tcg_out_dat_reg(s, cond, ARITH_MOV,
-                            data_reg, 0, 0, SHIFT_IMM_LSL(0));
         break;
     }
 
@@ -982,9 +975,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
     tcg_out_dat_reg(s, cond, ARITH_MOV, 14, 0, 8, SHIFT_IMM_LSL(0));
 # endif
 
-# ifdef USE_TLB
     *label_ptr += ((void *) s->code_ptr - (void *) label_ptr - 8) >> 2;
-# endif
 #else
     switch (opc) {
     case 0:
@@ -1021,9 +1012,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
 # if TARGET_LONG_BITS == 64
     int addr_reg2;
 # endif
-# ifdef USE_TLB
     uint32_t *label_ptr;
-# endif
 #endif
 
     data_reg = *args++;
@@ -1039,14 +1028,13 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
     mem_index = *args;
     s_bits = opc & 3;
 
-# ifdef USE_TLB
     /* Should generate something like the following:
-     *  ror r8, addr_reg, #TARGET_PAGE_BITS
+     *  shr r8, addr_reg, #TARGET_PAGE_BITS
      *  and r0, r8, #(CPU_TLB_SIZE - 1)   @ Assumption: CPU_TLB_BITS <= 8
-     *  add r0, T0, r0 lsl #CPU_TLB_ENTRY_BITS
+     *  add r0, env, r0 lsl #CPU_TLB_ENTRY_BITS
      */
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                    8, 0, addr_reg, SHIFT_IMM_ROR(TARGET_PAGE_BITS));
+                    8, 0, addr_reg, SHIFT_IMM_LSR(TARGET_PAGE_BITS));
     tcg_out_dat_imm(s, COND_AL, ARITH_AND,
                     0, 8, CPU_TLB_SIZE - 1);
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
@@ -1066,11 +1054,10 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
                     offsetof(CPUState, tlb_table[0][0].addr_write));
     tcg_out_dat_reg(s, COND_AL, ARITH_CMP,
                     0, 1, 8, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
-    /* TODO: alignment check?
-     * if (s_bits)
-     * tcg_out_data_reg(s, COND_EQ, ARITH_EOR,
-     *                  0, 1, 8, SHIFT_IMM_LSR(32 - s_bits));
-     */
+    /* Check alignment.  */
+    if (s_bits)
+        tcg_out_dat_imm(s, COND_EQ, ARITH_TST,
+                        0, addr_reg, (1 << s_bits) - 1);
 #  if TARGET_LONG_BITS == 64
     /* XXX: possibly we could use a block data load or writeback in
      * the first access.  */
@@ -1101,15 +1088,13 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
         tcg_out_st32_r(s, COND_EQ, data_reg, addr_reg, 1);
         break;
     case 3:
-        /* TODO: must write back */
-        tcg_out_st32_r(s, COND_EQ, data_reg, 1, addr_reg);
+        tcg_out_st32_rwb(s, COND_EQ, data_reg, 1, addr_reg);
         tcg_out_st32_12(s, COND_EQ, data_reg2, 1, 4);
         break;
     }
 
     label_ptr = (void *) s->code_ptr;
     tcg_out_b(s, COND_EQ, 8);
-# endif
 
     /* TODO: move this code to where the constants pool will be */
     if (addr_reg)
@@ -1195,9 +1180,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
     tcg_out_dat_reg(s, cond, ARITH_MOV, 14, 0, 8, SHIFT_IMM_LSL(0));
 # endif
 
-# ifdef USE_TLB
     *label_ptr += ((void *) s->code_ptr - (void *) label_ptr - 8) >> 2;
-# endif
 #else
     switch (opc) {
     case 0:
@@ -1512,12 +1495,12 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_qemu_ld16u, { "r", "x", "X" } },
     { INDEX_op_qemu_ld16s, { "r", "x", "X" } },
     { INDEX_op_qemu_ld32u, { "r", "x", "X" } },
-    { INDEX_op_qemu_ld64, { "r", "d", "x", "X" } },
+    { INDEX_op_qemu_ld64, { "x", "r", "x", "X" } },
 
-    { INDEX_op_qemu_st8, { "d", "x", "X" } },
-    { INDEX_op_qemu_st16, { "d", "x", "X" } },
-    { INDEX_op_qemu_st32, { "d", "x", "X" } },
-    { INDEX_op_qemu_st64, { "d", "D", "x", "X" } },
+    { INDEX_op_qemu_st8, { "x", "x", "X" } },
+    { INDEX_op_qemu_st16, { "x", "x", "X" } },
+    { INDEX_op_qemu_st32, { "x", "x", "X" } },
+    { INDEX_op_qemu_st64, { "x", "D", "x", "X" } },
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
