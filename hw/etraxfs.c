@@ -108,7 +108,7 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* Add the two ethernet blocks.  */
     eth[0] = etraxfs_eth_init(&nd_table[0], env, pic + 25, 0xb0034000);
-    if (&nd_table[1])
+    if (nb_nics > 1)
 	    eth[1] = etraxfs_eth_init(&nd_table[1], env, pic + 26, 0xb0036000);
     
     /* The DMA Connector block is missing, hardwire things for now.  */
