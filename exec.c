@@ -84,7 +84,7 @@
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #endif
 
-TranslationBlock tbs[CODE_GEN_MAX_BLOCKS];
+TranslationBlock *tbs;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
@@ -335,6 +335,7 @@ void cpu_exec_init(CPUState *env)
 
     if (!code_gen_ptr) {
         cpu_gen_init();
+        tbs = qemu_malloc(CODE_GEN_MAX_BLOCKS * sizeof(TranslationBlock));
         code_gen_ptr = code_gen_buffer;
         page_init();
         io_mem_init();
