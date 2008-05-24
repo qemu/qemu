@@ -1745,9 +1745,6 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
             te->addr_read = -1;
         }
 
-        if (te->addr_code != -1) {
-            tlb_flush_jmp_cache(env, te->addr_code);
-        }
         if (prot & PAGE_EXEC) {
             te->addr_code = address;
         } else {
