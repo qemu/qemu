@@ -78,7 +78,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
         tcg_abort();
 
     case R_ARM_PC24:
-        *(uint32_t *) code_ptr |= (*(uint32_t *) code_ptr & 0xff000000) |
+        *(uint32_t *) code_ptr = ((*(uint32_t *) code_ptr) & 0xff000000) |
                 (((value - ((tcg_target_long) code_ptr + 8)) >> 2) & 0xffffff);
         break;
     }
@@ -109,7 +109,7 @@ int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         break;
 
 #ifdef CONFIG_SOFTMMU
-    /* qemu_ld/st inputs (unless 'd', 'D' or 'X') */
+    /* qemu_ld/st inputs (unless 'X' or 'D') */
     case 'x':
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, (1 << TCG_TARGET_NB_REGS) - 1);
@@ -995,7 +995,8 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
         tcg_out_ld32_12(s, COND_AL, data_reg, addr_reg, 0);
         break;
     case 3:
-        /* TODO: use block load */
+        /* TODO: use block load -
+         * check that data_reg2 > data_reg or the other way */
         tcg_out_ld32_12(s, COND_AL, data_reg, addr_reg, 0);
         tcg_out_ld32_12(s, COND_AL, data_reg2, addr_reg, 4);
         break;
@@ -1200,7 +1201,8 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
         tcg_out_st32_12(s, COND_AL, data_reg, addr_reg, 0);
         break;
     case 3:
-        /* TODO: use block store */
+        /* TODO: use block store -
+         * check that data_reg2 > data_reg or the other way */
         tcg_out_st32_12(s, COND_AL, data_reg, addr_reg, 0);
         tcg_out_st32_12(s, COND_AL, data_reg2, addr_reg, 4);
         break;
