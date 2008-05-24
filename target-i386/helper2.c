@@ -513,7 +513,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     eflags & CC_C ? 'C' : '-',
                     env->hflags & HF_CPL_MASK,
                     (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
-                    (env->a20_mask >> 20) & 1,
+                    (int)(env->a20_mask >> 20) & 1,
                     (env->hflags >> HF_SMM_SHIFT) & 1,
                     (env->hflags >> HF_HALTED_SHIFT) & 1);
     } else
@@ -540,7 +540,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     eflags & CC_C ? 'C' : '-',
                     env->hflags & HF_CPL_MASK,
                     (env->hflags >> HF_INHIBIT_IRQ_SHIFT) & 1,
-                    (env->a20_mask >> 20) & 1,
+                    (int)(env->a20_mask >> 20) & 1,
                     (env->hflags >> HF_SMM_SHIFT) & 1,
                     (env->hflags >> HF_HALTED_SHIFT) & 1);
     }
