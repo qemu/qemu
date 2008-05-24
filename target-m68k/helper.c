@@ -27,6 +27,10 @@
 #include "exec-all.h"
 #include "qemu-common.h"
 
+#include "helpers.h"
+
+#define SIGNBIT (1u << 31)
+
 enum m68k_cpuid {
     M68K_CPUID_M5206,
     M68K_CPUID_M5208,
@@ -121,11 +125,16 @@ void cpu_reset(CPUM68KState *env)
 CPUM68KState *cpu_m68k_init(const char *cpu_model)
 {
     CPUM68KState *env;
+    static int inited;
 
     env = malloc(sizeof(CPUM68KState));
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    if (!inited) {
+        inited = 1;
+        m68k_tcg_init();
+    }
 
     env->cpu_model_str = cpu_model;
 
@@ -211,34 +220,9 @@ void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
         if (HIGHBIT & (tmp ^ dest) & (tmp ^ src))
             flags |= CCF_V;
         break;
-    case CC_OP_SHL:
-        if (src >= 32) {
-            SET_NZ(0);
-        } else {
-            tmp = dest << src;
-            SET_NZ(tmp);
-        }
-        if (src && src <= 32 && (dest & (1 << (32 - src))))
-            flags |= CCF_C;
-        break;
-    case CC_OP_SHR:
-        if (src >= 32) {
-            SET_NZ(0);
-        } else {
-            tmp = dest >> src;
-            SET_NZ(tmp);
-        }
-        if (src && src <= 32 && ((dest >> (src - 1)) & 1))
-            flags |= CCF_C;
-        break;
-    case CC_OP_SAR:
-        if (src >= 32) {
-            SET_NZ(-1);
-        } else {
-            tmp = (int32_t)dest >> src;
-            SET_NZ(tmp);
-        }
-        if (src && src <= 32 && (((int32_t)dest >> (src - 1)) & 1))
+    case CC_OP_SHIFT:
+        SET_NZ(dest);
+        if (src)
             flags |= CCF_C;
         break;
     default:
@@ -248,25 +232,7 @@ void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
     env->cc_dest = flags;
 }
 
-float64 helper_sub_cmpf64(CPUM68KState *env, float64 src0, float64 src1)
-{
-    /* ??? This may incorrectly raise exceptions.  */
-    /* ??? Should flush denormals to zero.  */
-    float64 res;
-    res = float64_sub(src0, src1, &env->fp_status);
-    if (float64_is_nan(res)) {
-        /* +/-inf compares equal against itself, but sub returns nan.  */
-        if (!float64_is_nan(src0)
-            && !float64_is_nan(src1)) {
-            res = float64_zero;
-            if (float64_lt_quiet(src0, res, &env->fp_status))
-                res = float64_chs(res);
-        }
-    }
-    return res;
-}
-
-void helper_movec(CPUM68KState *env, int reg, uint32_t val)
+void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
 {
     switch (reg) {
     case 0x02: /* CACR */
@@ -286,7 +252,7 @@ void helper_movec(CPUM68KState *env, int reg, uint32_t val)
     }
 }
 
-void m68k_set_macsr(CPUM68KState *env, uint32_t val)
+void HELPER(set_macsr)(CPUM68KState *env, uint32_t val)
 {
     uint32_t acc;
     int8_t exthigh;
@@ -376,3 +342,541 @@ void m68k_set_irq_level(CPUM68KState *env, int level, uint8_t vector)
 }
 
 #endif
+
+uint32_t HELPER(bitrev)(uint32_t x)
+{
+    x = ((x >> 1) & 0x55555555u) | ((x << 1) & 0xaaaaaaaau);
+    x = ((x >> 2) & 0x33333333u) | ((x << 2) & 0xccccccccu);
+    x = ((x >> 4) & 0x0f0f0f0fu) | ((x << 4) & 0xf0f0f0f0u);
+    return bswap32(x);
+}
+
+uint32_t HELPER(ff1)(uint32_t x)
+{
+    int n;
+    for (n = 32; x; n--)
+        x >>= 1;
+    return n;
+}
+
+uint32_t HELPER(sats)(uint32_t val, uint32_t ccr)
+{
+    /* The result has the opposite sign to the original value.  */
+    if (ccr & CCF_V)
+        val = (((int32_t)val) >> 31) ^ SIGNBIT;
+    return val;
+}
+
+uint32_t HELPER(subx_cc)(CPUState *env, uint32_t op1, uint32_t op2)
+{
+    uint32_t res;
+    uint32_t old_flags;
+
+    old_flags = env->cc_dest;
+    if (env->cc_x) {
+        env->cc_x = (op1 <= op2);
+        env->cc_op = CC_OP_SUBX;
+        res = op1 - (op2 + 1);
+    } else {
+        env->cc_x = (op1 < op2);
+        env->cc_op = CC_OP_SUB;
+        res = op1 - op2;
+    }
+    env->cc_dest = res;
+    env->cc_src = op2;
+    cpu_m68k_flush_flags(env, env->cc_op);
+    /* !Z is sticky.  */
+    env->cc_dest &= (old_flags | ~CCF_Z);
+    return res;
+}
+
+uint32_t HELPER(addx_cc)(CPUState *env, uint32_t op1, uint32_t op2)
+{
+    uint32_t res;
+    uint32_t old_flags;
+
+    old_flags = env->cc_dest;
+    if (env->cc_x) {
+        res = op1 + op2 + 1;
+        env->cc_x = (res <= op2);
+        env->cc_op = CC_OP_ADDX;
+    } else {
+        res = op1 + op2;
+        env->cc_x = (res < op2);
+        env->cc_op = CC_OP_ADD;
+    }
+    env->cc_dest = res;
+    env->cc_src = op2;
+    cpu_m68k_flush_flags(env, env->cc_op);
+    /* !Z is sticky.  */
+    env->cc_dest &= (old_flags | ~CCF_Z);
+    return res;
+}
+
+uint32_t HELPER(xflag_lt)(uint32_t a, uint32_t b)
+{
+    return a < b;
+}
+
+uint32_t HELPER(btest)(uint32_t x)
+{
+    return x != 0;
+}
+
+void HELPER(set_sr)(CPUState *env, uint32_t val)
+{
+    env->sr = val & 0xffff;
+    m68k_switch_sp(env);
+}
+
+uint32_t HELPER(shl_cc)(CPUState *env, uint32_t val, uint32_t shift)
+{
+    uint32_t result;
+    uint32_t cf;
+
+    shift &= 63;
+    if (shift == 0) {
+        result = val;
+        cf = env->cc_src & CCF_C;
+    } else if (shift < 32) {
+        result = val << shift;
+        cf = (val >> (32 - shift)) & 1;
+    } else if (shift == 32) {
+        result = 0;
+        cf = val & 1;
+    } else /* shift > 32 */ {
+        result = 0;
+        cf = 0;
+    }
+    env->cc_src = cf;
+    env->cc_x = (cf != 0);
+    env->cc_dest = result;
+    return result;
+}
+
+uint32_t HELPER(shr_cc)(CPUState *env, uint32_t val, uint32_t shift)
+{
+    uint32_t result;
+    uint32_t cf;
+
+    shift &= 63;
+    if (shift == 0) {
+        result = val;
+        cf = env->cc_src & CCF_C;
+    } else if (shift < 32) {
+        result = val >> shift;
+        cf = (val >> (shift - 1)) & 1;
+    } else if (shift == 32) {
+        result = 0;
+        cf = val >> 31;
+    } else /* shift > 32 */ {
+        result = 0;
+        cf = 0;
+    }
+    env->cc_src = cf;
+    env->cc_x = (cf != 0);
+    env->cc_dest = result;
+    return result;
+}
+
+uint32_t HELPER(sar_cc)(CPUState *env, uint32_t val, uint32_t shift)
+{
+    uint32_t result;
+    uint32_t cf;
+
+    shift &= 63;
+    if (shift == 0) {
+        result = val;
+        cf = (env->cc_src & CCF_C) != 0;
+    } else if (shift < 32) {
+        result = (int32_t)val >> shift;
+        cf = (val >> (shift - 1)) & 1;
+    } else /* shift >= 32 */ {
+        result = (int32_t)val >> 31;
+        cf = val >> 31;
+    }
+    env->cc_src = cf;
+    env->cc_x = cf;
+    env->cc_dest = result;
+    return result;
+}
+
+/* FPU helpers.  */
+uint32_t HELPER(f64_to_i32)(CPUState *env, float64 val)
+{
+    return float64_to_int32(val, &env->fp_status);
+}
+
+float32 HELPER(f64_to_f32)(CPUState *env, float64 val)
+{
+    return float64_to_float32(val, &env->fp_status);
+}
+
+float64 HELPER(i32_to_f64)(CPUState *env, uint32_t val)
+{
+    return int32_to_float64(val, &env->fp_status);
+}
+
+float64 HELPER(f32_to_f64)(CPUState *env, float32 val)
+{
+    return float32_to_float64(val, &env->fp_status);
+}
+
+float64 HELPER(iround_f64)(CPUState *env, float64 val)
+{
+    return float64_round_to_int(val, &env->fp_status);
+}
+
+float64 HELPER(itrunc_f64)(CPUState *env, float64 val)
+{
+    return float64_trunc_to_int(val, &env->fp_status);
+}
+
+float64 HELPER(sqrt_f64)(CPUState *env, float64 val)
+{
+    return float64_sqrt(val, &env->fp_status);
+}
+
+float64 HELPER(abs_f64)(float64 val)
+{
+    return float64_abs(val);
+}
+
+float64 HELPER(chs_f64)(float64 val)
+{
+    return float64_chs(val);
+}
+
+float64 HELPER(add_f64)(CPUState *env, float64 a, float64 b)
+{
+    return float64_add(a, b, &env->fp_status);
+}
+
+float64 HELPER(sub_f64)(CPUState *env, float64 a, float64 b)
+{
+    return float64_sub(a, b, &env->fp_status);
+}
+
+float64 HELPER(mul_f64)(CPUState *env, float64 a, float64 b)
+{
+    return float64_mul(a, b, &env->fp_status);
+}
+
+float64 HELPER(div_f64)(CPUState *env, float64 a, float64 b)
+{
+    return float64_div(a, b, &env->fp_status);
+}
+
+float64 HELPER(sub_cmp_f64)(CPUState *env, float64 a, float64 b)
+{
+    /* ??? This may incorrectly raise exceptions.  */
+    /* ??? Should flush denormals to zero.  */
+    float64 res;
+    res = float64_sub(a, b, &env->fp_status);
+    if (float64_is_nan(res)) {
+        /* +/-inf compares equal against itself, but sub returns nan.  */
+        if (!float64_is_nan(a)
+            && !float64_is_nan(b)) {
+            res = float64_zero;
+            if (float64_lt_quiet(a, res, &env->fp_status))
+                res = float64_chs(res);
+        }
+    }
+    return res;
+}
+
+uint32_t HELPER(compare_f64)(CPUState *env, float64 val)
+{
+    return float64_compare_quiet(val, float64_zero, &env->fp_status);
+}
+
+/* MAC unit.  */
+/* FIXME: The MAC unit implementation is a bit of a mess.  Some helpers
+   take values,  others take register numbers and manipulate the contents
+   in-place.  */
+void HELPER(mac_move)(CPUState *env, uint32_t dest, uint32_t src)
+{
+    uint32_t mask;
+    env->macc[dest] = env->macc[src];
+    mask = MACSR_PAV0 << dest;
+    if (env->macsr & (MACSR_PAV0 << src))
+        env->macsr |= mask;
+    else
+        env->macsr &= ~mask;
+}
+
+uint64_t HELPER(macmuls)(CPUState *env, uint32_t op1, uint32_t op2)
+{
+    int64_t product;
+    int64_t res;
+
+    product = (uint64_t)op1 * op2;
+    res = (product << 24) >> 24;
+    if (res != product) {
+        env->macsr |= MACSR_V;
+        if (env->macsr & MACSR_OMC) {
+            /* Make sure the accumulate operation overflows.  */
+            if (product < 0)
+                res = ~(1ll << 50);
+            else
+                res = 1ll << 50;
+        }
+    }
+    return res;
+}
+
+uint64_t HELPER(macmulu)(CPUState *env, uint32_t op1, uint32_t op2)
+{
+    uint64_t product;
+
+    product = (uint64_t)op1 * op2;
+    if (product & (0xffffffull << 40)) {
+        env->macsr |= MACSR_V;
+        if (env->macsr & MACSR_OMC) {
+            /* Make sure the accumulate operation overflows.  */
+            product = 1ll << 50;
+        } else {
+            product &= ((1ull << 40) - 1);
+        }
+    }
+    return product;
+}
+
+uint64_t HELPER(macmulf)(CPUState *env, uint32_t op1, uint32_t op2)
+{
+    uint64_t product;
+    uint32_t remainder;
+
+    product = (uint64_t)op1 * op2;
+    if (env->macsr & MACSR_RT) {
+        remainder = product & 0xffffff;
+        product >>= 24;
+        if (remainder > 0x800000)
+            product++;
+        else if (remainder == 0x800000)
+            product += (product & 1);
+    } else {
+        product >>= 24;
+    }
+    return product;
+}
+
+void HELPER(macsats)(CPUState *env, uint32_t acc)
+{
+    int64_t tmp;
+    int64_t result;
+    tmp = env->macc[acc];
+    result = ((tmp << 16) >> 16);
+    if (result != tmp) {
+        env->macsr |= MACSR_V;
+    }
+    if (env->macsr & MACSR_V) {
+        env->macsr |= MACSR_PAV0 << acc;
+        if (env->macsr & MACSR_OMC) {
+            /* The result is saturated to 32 bits, despite overflow occuring
+               at 48 bits.  Seems weird, but that's what the hardware docs
+               say.  */
+            result = (result >> 63) ^ 0x7fffffff;
+        }
+    }
+    env->macc[acc] = result;
+}
+
+void HELPER(macsatu)(CPUState *env, uint32_t acc)
+{
+    uint64_t val;
+
+    val = env->macc[acc];
+    if (val & (0xffffull << 48)) {
+        env->macsr |= MACSR_V;
+    }
+    if (env->macsr & MACSR_V) {
+        env->macsr |= MACSR_PAV0 << acc;
+        if (env->macsr & MACSR_OMC) {
+            if (val > (1ull << 53))
+                val = 0;
+            else
+                val = (1ull << 48) - 1;
+        } else {
+            val &= ((1ull << 48) - 1);
+        }
+    }
+    env->macc[acc] = val;
+}
+
+void HELPER(macsatf)(CPUState *env, uint32_t acc)
+{
+    int64_t sum;
+    int64_t result;
+
+    sum = env->macc[acc];
+    result = (sum << 16) >> 16;
+    if (result != sum) {
+        env->macsr |= MACSR_V;
+    }
+    if (env->macsr & MACSR_V) {
+        env->macsr |= MACSR_PAV0 << acc;
+        if (env->macsr & MACSR_OMC) {
+            result = (result >> 63) ^ 0x7fffffffffffll;
+        }
+    }
+    env->macc[acc] = result;
+}
+
+void HELPER(mac_set_flags)(CPUState *env, uint32_t acc)
+{
+    uint64_t val;
+    val = env->macc[acc];
+    if (val == 0)
+        env->macsr |= MACSR_Z;
+    else if (val & (1ull << 47));
+        env->macsr |= MACSR_N;
+    if (env->macsr & (MACSR_PAV0 << acc)) {
+        env->macsr |= MACSR_V;
+    }
+    if (env->macsr & MACSR_FI) {
+        val = ((int64_t)val) >> 40;
+        if (val != 0 && val != -1)
+            env->macsr |= MACSR_EV;
+    } else if (env->macsr & MACSR_SU) {
+        val = ((int64_t)val) >> 32;
+        if (val != 0 && val != -1)
+            env->macsr |= MACSR_EV;
+    } else {
+        if ((val >> 32) != 0)
+            env->macsr |= MACSR_EV;
+    }
+}
+
+void HELPER(flush_flags)(CPUState *env, uint32_t cc_op)
+{
+    cpu_m68k_flush_flags(env, cc_op);
+}
+
+uint32_t HELPER(get_macf)(CPUState *env, uint64_t val)
+{
+    int rem;
+    uint32_t result;
+
+    if (env->macsr & MACSR_SU) {
+        /* 16-bit rounding.  */
+        rem = val & 0xffffff;
+        val = (val >> 24) & 0xffffu;
+        if (rem > 0x800000)
+            val++;
+        else if (rem == 0x800000)
+            val += (val & 1);
+    } else if (env->macsr & MACSR_RT) {
+        /* 32-bit rounding.  */
+        rem = val & 0xff;
+        val >>= 8;
+        if (rem > 0x80)
+            val++;
+        else if (rem == 0x80)
+            val += (val & 1);
+    } else {
+        /* No rounding.  */
+        val >>= 8;
+    }
+    if (env->macsr & MACSR_OMC) {
+        /* Saturate.  */
+        if (env->macsr & MACSR_SU) {
+            if (val != (uint16_t) val) {
+                result = ((val >> 63) ^ 0x7fff) & 0xffff;
+            } else {
+                result = val & 0xffff;
+            }
+        } else {
+            if (val != (uint32_t)val) {
+                result = ((uint32_t)(val >> 63) & 0x7fffffff);
+            } else {
+                result = (uint32_t)val;
+            }
+        }
+    } else {
+        /* No saturation.  */
+        if (env->macsr & MACSR_SU) {
+            result = val & 0xffff;
+        } else {
+            result = (uint32_t)val;
+        }
+    }
+    return result;
+}
+
+uint32_t HELPER(get_macs)(uint64_t val)
+{
+    if (val == (int32_t)val) {
+        return (int32_t)val;
+    } else {
+        return (val >> 61) ^ ~SIGNBIT;
+    }
+}
+
+uint32_t HELPER(get_macu)(uint64_t val)
+{
+    if ((val >> 32) == 0) {
+        return (uint32_t)val;
+    } else {
+        return 0xffffffffu;
+    }
+}
+
+uint32_t HELPER(get_mac_extf)(CPUState *env, uint32_t acc)
+{
+    uint32_t val;
+    val = env->macc[acc] & 0x00ff;
+    val = (env->macc[acc] >> 32) & 0xff00;
+    val |= (env->macc[acc + 1] << 16) & 0x00ff0000;
+    val |= (env->macc[acc + 1] >> 16) & 0xff000000;
+    return val;
+}
+
+uint32_t HELPER(get_mac_exti)(CPUState *env, uint32_t acc)
+{
+    uint32_t val;
+    val = (env->macc[acc] >> 32) & 0xffff;
+    val |= (env->macc[acc + 1] >> 16) & 0xffff0000;
+    return val;
+}
+
+void HELPER(set_mac_extf)(CPUState *env, uint32_t val, uint32_t acc)
+{
+    int64_t res;
+    int32_t tmp;
+    res = env->macc[acc] & 0xffffffff00ull;
+    tmp = (int16_t)(val & 0xff00);
+    res |= ((int64_t)tmp) << 32;
+    res |= val & 0xff;
+    env->macc[acc] = res;
+    res = env->macc[acc + 1] & 0xffffffff00ull;
+    tmp = (val & 0xff000000);
+    res |= ((int64_t)tmp) << 16;
+    res |= (val >> 16) & 0xff;
+    env->macc[acc + 1] = res;
+}
+
+void HELPER(set_mac_exts)(CPUState *env, uint32_t val, uint32_t acc)
+{
+    int64_t res;
+    int32_t tmp;
+    res = (uint32_t)env->macc[acc];
+    tmp = (int16_t)val;
+    res |= ((int64_t)tmp) << 32;
+    env->macc[acc] = res;
+    res = (uint32_t)env->macc[acc + 1];
+    tmp = val & 0xffff0000;
+    res |= (int64_t)tmp << 16;
+    env->macc[acc + 1] = res;
+}
+
+void HELPER(set_mac_extu)(CPUState *env, uint32_t val, uint32_t acc)
+{
+    uint64_t res;
+    res = (uint32_t)env->macc[acc];
+    res |= ((uint64_t)(val & 0xffff)) << 32;
+    env->macc[acc] = res;
+    res = (uint32_t)env->macc[acc + 1];
+    res |= (uint64_t)(val & 0xffff0000) << 16;
+    env->macc[acc + 1] = res;
+}

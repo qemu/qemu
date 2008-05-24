@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "exec.h"
+#include "helpers.h"
 
 #if defined(CONFIG_USER_ONLY)
 
@@ -161,3 +162,71 @@ void do_interrupt(int is_hw)
 }
 
 #endif
+
+static void raise_exception(int tt)
+{
+    env->exception_index = tt;
+    cpu_loop_exit();
+}
+
+void HELPER(raise_exception)(uint32_t tt)
+{
+    raise_exception(tt);
+}
+
+void HELPER(divu)(CPUState *env, uint32_t word)
+{
+    uint32_t num;
+    uint32_t den;
+    uint32_t quot;
+    uint32_t rem;
+    uint32_t flags;
+
+    num = env->div1;
+    den = env->div2;
+    /* ??? This needs to make sure the throwing location is accurate.  */
+    if (den == 0)
+        raise_exception(EXCP_DIV0);
+    quot = num / den;
+    rem = num % den;
+    flags = 0;
+    /* Avoid using a PARAM1 of zero.  This breaks dyngen because it uses
+       the address of a symbol, and gcc knows symbols can't have address
+       zero.  */
+    if (word && quot > 0xffff)
+        flags |= CCF_V;
+    if (quot == 0)
+        flags |= CCF_Z;
+    else if ((int32_t)quot < 0)
+        flags |= CCF_N;
+    env->div1 = quot;
+    env->div2 = rem;
+    env->cc_dest = flags;
+}
+
+void HELPER(divs)(CPUState *env, uint32_t word)
+{
+    int32_t num;
+    int32_t den;
+    int32_t quot;
+    int32_t rem;
+    int32_t flags;
+
+    num = env->div1;
+    den = env->div2;
+    if (den == 0)
+        raise_exception(EXCP_DIV0);
+    quot = num / den;
+    rem = num % den;
+    flags = 0;
+    if (word && quot != (int16_t)quot)
+        flags |= CCF_V;
+    if (quot == 0)
+        flags |= CCF_Z;
+    else if (quot < 0)
+        flags |= CCF_N;
+    env->div1 = quot;
+    env->div2 = rem;
+    env->cc_dest = flags;
+}
+

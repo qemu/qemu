@@ -1237,10 +1237,8 @@ case "$target_cpu" in
   ;;
   m68k)
     echo "TARGET_ARCH=m68k" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"m68k\"" >> $config_h
     echo "#define TARGET_M68K 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
     bflt="yes"
   ;;
   mips|mipsel)
