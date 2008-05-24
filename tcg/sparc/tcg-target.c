@@ -243,10 +243,28 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define STW        (INSN_OP(3) | INSN_OP3(0x04))
 #define STX        (INSN_OP(3) | INSN_OP3(0x0e))
 
+static inline void tcg_out_arith(TCGContext *s, int rd, int rs1, int rs2,
+                                 int op)
+{
+    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) |
+              INSN_RS2(rs2));
+}
+
+static inline void tcg_out_arithi(TCGContext *s, int rd, int rs1, int offset,
+                                  int op)
+{
+    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) |
+              INSN_IMM13(offset));
+}
+
 static inline void tcg_out_mov(TCGContext *s, int ret, int arg)
 {
-    tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS1(arg) |
-              INSN_RS2(TCG_REG_G0));
+    tcg_out_arith(s, ret, arg, TCG_REG_G0, ARITH_OR);
+}
+
+static inline void tcg_out_sethi(TCGContext *s, int ret, uint32_t arg)
+{
+    tcg_out32(s, SETHI | INSN_RD(ret) | ((arg & 0xfffffc00) >> 10));
 }
 
 static inline void tcg_out_movi(TCGContext *s, TCGType type,
@@ -260,7 +278,7 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
         tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS1(TCG_REG_G0) |
                   INSN_IMM13(arg));
     else {
-        tcg_out32(s, SETHI | INSN_RD(ret) | ((arg & 0xfffffc00) >> 10));
+        tcg_out_sethi(s, ret, arg);
         if (arg & 0x3ff)
             tcg_out32(s, ARITH_OR | INSN_RD(ret) | INSN_RS1(ret) |
                       INSN_IMM13(arg & 0x3ff));
@@ -270,7 +288,7 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 static inline void tcg_out_ld_raw(TCGContext *s, int ret,
                                   tcg_target_long arg)
 {
-    tcg_out32(s, SETHI | INSN_RD(ret) | (((uint32_t)arg & 0xfffffc00) >> 10));
+    tcg_out_sethi(s, ret, arg);
     tcg_out32(s, LDUW | INSN_RD(ret) | INSN_RS1(ret) |
               INSN_IMM13(arg & 0x3ff));
 }
@@ -282,7 +300,7 @@ static inline void tcg_out_ld_ptr(TCGContext *s, int ret,
     if (!check_fit_tl(arg, 32) && (arg & ~0xffffffff) != 0)
         fprintf(stderr, "unimplemented %s with offset %ld\n", __func__, arg);
     if (!check_fit_i32(arg, 13))
-        tcg_out32(s, SETHI | INSN_RD(ret) | (((uint32_t)arg & 0xfffffc00) >> 10));
+        tcg_out_sethi(s, ret, arg);
     tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(ret) |
               INSN_IMM13(arg & 0x3ff));
 #else
@@ -320,20 +338,6 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
         tcg_out_ldst(s, arg, arg1, arg2, STX);
 }
 
-static inline void tcg_out_arith(TCGContext *s, int rd, int rs1, int rs2,
-                                 int op)
-{
-    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) |
-              INSN_RS2(rs2));
-}
-
-static inline void tcg_out_arithi(TCGContext *s, int rd, int rs1, int offset,
-                                  int op)
-{
-    tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) |
-              INSN_IMM13(offset));
-}
-
 static inline void tcg_out_sety(TCGContext *s, tcg_target_long val)
 {
     if (val == 0 || val == -1)
@@ -356,7 +360,7 @@ static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
 
 static inline void tcg_out_nop(TCGContext *s)
 {
-    tcg_out32(s, SETHI | INSN_RD(TCG_REG_G0) | 0);
+    tcg_out_sethi(s, TCG_REG_G0, 0);
 }
 
 static void tcg_out_branch(TCGContext *s, int opc, int label_index)
@@ -392,7 +396,7 @@ static void tcg_out_brcond(TCGContext *s, int cond,
                            int label_index)
 {
     if (const_arg2 && arg2 == 0)
-        /* orcc r, r, %g0 */
+        /* orcc %g0, r, %g0 */
         tcg_out_arith(s, TCG_REG_G0, TCG_REG_G0, arg1, ARITH_ORCC);
     else
         /* subcc r1, r2, %g0 */
@@ -780,8 +784,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* direct jump method */
-            tcg_out32(s, SETHI | INSN_RD(TCG_REG_I5) |
-                      ((args[0] & 0xffffe000) >> 10));
+            tcg_out_sethi(s, TCG_REG_I5, args[0] & 0xffffe000);
             tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I5) |
                       INSN_IMM13((args[0] & 0x1fff)));
             s->tb_jmp_offset[args[0]] = s->code_ptr - s->code_buf;
