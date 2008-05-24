@@ -5547,10 +5547,6 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 
 static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
 {
-    TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
-    TCGv r_tmp = new_tmp();
-    TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
-    TCGv t1 = tcg_temp_new(TCG_TYPE_TL);
     int l1 = gen_new_label();
     uint32_t ccbit;
     TCGCond cond;
@@ -5560,20 +5556,26 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
     else
         ccbit = 1 << 23;
     if (tf)
-        cond = TCG_COND_NE;
-    else
         cond = TCG_COND_EQ;
+    else
+        cond = TCG_COND_NE;
 
-    gen_load_gpr(t0, rd);
-    gen_load_gpr(t1, rs);
-    tcg_gen_ld_ptr(r_ptr, cpu_env, offsetof(CPUState, fpu));
-    tcg_gen_ld_i32(r_tmp, r_ptr, offsetof(CPUMIPSFPUContext, fcr31));
-    tcg_gen_andi_i32(r_tmp, r_tmp, ccbit);
-    tcg_gen_brcondi_i32(cond, r_tmp, 0, l1);
-    tcg_gen_mov_tl(t0, t1);
+    gen_load_gpr(cpu_T[0], rd);
+    gen_load_gpr(cpu_T[1], rs);
+    {
+        TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
+        TCGv r_tmp = new_tmp();
+
+        tcg_gen_ld_ptr(r_ptr, cpu_env, offsetof(CPUState, fpu));
+        tcg_gen_ld_i32(r_tmp, r_ptr, offsetof(CPUMIPSFPUContext, fcr31));
+        tcg_gen_andi_i32(r_tmp, r_tmp, ccbit);
+        tcg_gen_brcondi_i32(cond, r_tmp, 0, l1);
+        dead_tmp(r_tmp);
+    }
+    tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+
     gen_set_label(l1);
-    dead_tmp(r_tmp);
-    gen_store_gpr(t0, rd);
+    gen_store_gpr(cpu_T[0], rd);
 }
 
 #define GEN_MOVCF(fmt)                                                \
