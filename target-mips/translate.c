@@ -5594,7 +5594,6 @@ static void glue(gen_movcf_, fmt) (DisasContext *ctx, int cc, int tf) \
 }
 GEN_MOVCF(d);
 GEN_MOVCF(s);
-GEN_MOVCF(ps);
 #undef GEN_MOVCF
 
 static void gen_farith (DisasContext *ctx, uint32_t op1,
@@ -6213,7 +6212,10 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         GEN_LOAD_FREG_FTN(WTH0, fs);
         GEN_LOAD_FREG_FTN(WT2, fd);
         GEN_LOAD_FREG_FTN(WTH2, fd);
-        gen_movcf_ps(ctx, (ft >> 2) & 0x7, ft & 0x1);
+        if (ft & 0x1)
+            gen_op_float_movt_ps ((ft >> 2) & 0x7);
+        else
+            gen_op_float_movf_ps ((ft >> 2) & 0x7);
         GEN_STORE_FTN_FREG(fd, WT2);
         GEN_STORE_FTN_FREG(fd, WTH2);
         opn = "movcf.ps";

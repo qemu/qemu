@@ -1632,10 +1632,11 @@ FLOAT_OP(movf, s)
 }
 FLOAT_OP(movf, ps)
 {
-    if (!(env->fpu->fcr31 & PARAM1)) {
+    unsigned int mask = GET_FP_COND (env->fpu) >> PARAM1;
+    if (!(mask & 1))
         WT2 = WT0;
+    if (!(mask & 2))
         WTH2 = WTH0;
-    }
     DEBUG_FPU_STATE();
     FORCE_RET();
 }
@@ -1655,10 +1656,11 @@ FLOAT_OP(movt, s)
 }
 FLOAT_OP(movt, ps)
 {
-    if (env->fpu->fcr31 & PARAM1) {
+    unsigned int mask = GET_FP_COND (env->fpu) >> PARAM1;
+    if (mask & 1)
         WT2 = WT0;
+    if (mask & 2)
         WTH2 = WTH0;
-    }
     DEBUG_FPU_STATE();
     FORCE_RET();
 }
