@@ -259,11 +259,6 @@ void tcg_set_frame(TCGContext *s, int reg,
     s->frame_reg = reg;
 }
 
-void tcg_set_macro_func(TCGContext *s, TCGMacroFunc *func)
-{
-    s->macro_func = func;
-}
-
 void tcg_func_start(TCGContext *s)
 {
     int i;
@@ -1120,76 +1115,6 @@ void tcg_liveness_analysis(TCGContext *s)
             /* mark the temporary as dead */
             dead_temps[args[0]] = 1;
             break;
-        case INDEX_op_macro_2:
-            {
-                int dead_args[2], macro_id;
-                int saved_op_index, saved_arg_index;
-                int macro_op_index, macro_arg_index;
-                int macro_end_op_index, macro_end_arg_index;
-                int last_nb_temps;
-                
-                nb_args = 3;
-                args -= nb_args;
-                dead_args[0] = dead_temps[args[0]];
-                dead_args[1] = dead_temps[args[1]];
-                macro_id = args[2];
-
-                /* call the macro function which generate code
-                   depending on the live outputs */
-                saved_op_index = op_index;
-                saved_arg_index = args - gen_opparam_buf;
-
-                /* add a macro start instruction */
-                *gen_opc_ptr++ = INDEX_op_macro_start;
-                *gen_opparam_ptr++ = saved_op_index;
-                *gen_opparam_ptr++ = saved_arg_index;
-
-                macro_op_index = gen_opc_ptr - gen_opc_buf;
-                macro_arg_index = gen_opparam_ptr -  gen_opparam_buf;
-
-                last_nb_temps = s->nb_temps;
-
-                s->macro_func(s, macro_id, dead_args);
-
-                /* realloc temp info (XXX: make it faster) */
-                if (s->nb_temps > last_nb_temps) {
-                    uint8_t *new_dead_temps;
-
-                    new_dead_temps = tcg_malloc(s->nb_temps);
-                    memcpy(new_dead_temps, dead_temps, last_nb_temps);
-                    memset(new_dead_temps + last_nb_temps, 1, 
-                           s->nb_temps - last_nb_temps);
-                    dead_temps = new_dead_temps;
-                }
-
-                macro_end_op_index = gen_opc_ptr - gen_opc_buf;
-                macro_end_arg_index = gen_opparam_ptr - gen_opparam_buf;
-
-                /* end of macro: add a goto to the next instruction */
-                *gen_opc_ptr++ = INDEX_op_macro_end;
-                *gen_opparam_ptr++ = op_index + 1;
-                *gen_opparam_ptr++ = saved_arg_index + nb_args;
-
-                /* modify the macro operation to be a macro_goto */
-                gen_opc_buf[op_index] = INDEX_op_macro_goto;
-                args[0] = macro_op_index;
-                args[1] = macro_arg_index;
-                args[2] = 0; /* dummy third arg to match the 
-                                macro parameters */
-
-                /* set the next instruction to the end of the macro */
-                op_index = macro_end_op_index;
-                args = macro_end_arg_index + gen_opparam_buf;
-            }
-            break;
-        case INDEX_op_macro_start:
-            args -= 2;
-            op_index = args[0];
-            args = gen_opparam_buf + args[1];
-            break;
-        case INDEX_op_macro_goto:
-        case INDEX_op_macro_end:
-            tcg_abort(); /* should never happen in liveness analysis */
         case INDEX_op_end:
             break;
             /* XXX: optimize by hardcoding common cases (e.g. triadic ops) */
@@ -1916,7 +1841,7 @@ void dump_op_count(void)
 static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
                                       long search_pc)
 {
-    int opc, op_index, macro_op_index;
+    int opc, op_index;
     const TCGOpDef *def;
     unsigned int dead_iargs;
     const TCGArg *args;
@@ -1950,7 +1875,6 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     s->code_buf = gen_code_buf;
     s->code_ptr = gen_code_buf;
 
-    macro_op_index = -1;
     args = gen_opparam_buf;
     op_index = 0;
 
@@ -2002,19 +1926,6 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
                 }
             }
             break;
-        case INDEX_op_macro_goto:
-            macro_op_index = op_index; /* only used for exceptions */
-            op_index = args[0] - 1;
-            args = gen_opparam_buf + args[1];
-            goto next;
-        case INDEX_op_macro_end:
-            macro_op_index = -1; /* only used for exceptions */
-            op_index = args[0] - 1;
-            args = gen_opparam_buf + args[1];
-            goto next;
-        case INDEX_op_macro_start:
-            /* must never happen here */
-            tcg_abort();
         case INDEX_op_set_label:
             tcg_reg_alloc_bb_end(s, s->reserved_regs);
             tcg_out_label(s, args[0], (long)s->code_ptr);
@@ -2052,10 +1963,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
         args += def->nb_args;
     next: ;
         if (search_pc >= 0 && search_pc < s->code_ptr - gen_code_buf) {
-            if (macro_op_index >= 0)
-                return macro_op_index;
-            else
-                return op_index;
+            return op_index;
         }
         op_index++;
 #ifndef NDEBUG

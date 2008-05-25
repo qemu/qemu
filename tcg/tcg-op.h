@@ -1396,12 +1396,6 @@ static inline void tcg_gen_discard_i64(TCGv arg)
 #endif
 
 /***************************************/
-static inline void tcg_gen_macro_2(TCGv ret0, TCGv ret1, int macro_id)
-{
-    tcg_gen_op3i(INDEX_op_macro_2, ret0, ret1, macro_id);
-}
-
-/***************************************/
 /* QEMU specific operations. Their type depend on the QEMU CPU
    type. */
 #ifndef TARGET_LONG_BITS

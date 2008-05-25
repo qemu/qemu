@@ -36,11 +36,6 @@ DEF2(nop1, 0, 0, 1, 0)
 DEF2(nop2, 0, 0, 2, 0)
 DEF2(nop3, 0, 0, 3, 0)
 DEF2(nopn, 0, 0, 1, 0) /* variable number of parameters */
-/* macro handling */
-DEF2(macro_2, 2, 0, 1, 0)
-DEF2(macro_start, 0, 0, 2, 0)
-DEF2(macro_end, 0, 0, 2, 0)
-DEF2(macro_goto, 0, 0, 3, 0)
 
 DEF2(discard, 1, 0, 0, 0)
 

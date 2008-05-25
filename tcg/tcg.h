@@ -205,8 +205,6 @@ typedef struct TCGHelperInfo {
 
 typedef struct TCGContext TCGContext;
 
-typedef void TCGMacroFunc(TCGContext *s, int macro_id, const int *dead_args);
-
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
     TCGPool *pool_first, *pool_current;
@@ -240,7 +238,6 @@ struct TCGContext {
     uint8_t *code_ptr;
     TCGTemp static_temps[TCG_MAX_TEMPS];
 
-    TCGMacroFunc *macro_func;
     TCGHelperInfo *helpers;
     int nb_helpers;
     int allocated_helpers;
@@ -301,7 +298,6 @@ int dyngen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
 
 void tcg_set_frame(TCGContext *s, int reg,
                    tcg_target_long start, tcg_target_long size);
-void tcg_set_macro_func(TCGContext *s, TCGMacroFunc *func);
 TCGv tcg_global_reg_new(TCGType type, int reg, const char *name);
 TCGv tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2, 
                               const char *name);
