@@ -316,6 +316,9 @@ static void vnc_dpy_resize(DisplayState *ds, int w, int h)
 	vs->width = ds->width;
 	vs->height = ds->height;
     }
+
+    memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
+    memset(vs->old_data, 42, vs->ds->linesize * vs->ds->height);
 }
 
 /* fastest code */
@@ -1182,8 +1185,6 @@ static void set_pixel_format(VncState *vs,
     }
 
     vnc_dpy_resize(vs->ds, vs->ds->width, vs->ds->height);
-    memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
-    memset(vs->old_data, 42, vs->ds->linesize * vs->ds->height);
 
     vga_hw_invalidate();
     vga_hw_update();
@@ -1981,8 +1982,6 @@ void vnc_display_init(DisplayState *ds)
     vs->ds->dpy_update = vnc_dpy_update;
     vs->ds->dpy_resize = vnc_dpy_resize;
     vs->ds->dpy_refresh = NULL;
-
-    memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
 
     vnc_dpy_resize(vs->ds, 640, 400);
 }
