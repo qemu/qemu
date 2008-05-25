@@ -178,6 +178,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define INSN_RD(x)  ((x) << 25)
 #define INSN_RS1(x) ((x) << 14)
 #define INSN_RS2(x) (x)
+#define INSN_ASI(x) ((x) << 5)
 
 #define INSN_IMM13(x) ((1 << 13) | ((x) & 0x1fff))
 #define INSN_OFF22(x) (((x) >> 2) & 0x3fffff)
@@ -242,6 +243,21 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define STH        (INSN_OP(3) | INSN_OP3(0x06))
 #define STW        (INSN_OP(3) | INSN_OP3(0x04))
 #define STX        (INSN_OP(3) | INSN_OP3(0x0e))
+#define LDUBA      (INSN_OP(3) | INSN_OP3(0x11))
+#define LDSBA      (INSN_OP(3) | INSN_OP3(0x19))
+#define LDUHA      (INSN_OP(3) | INSN_OP3(0x12))
+#define LDSHA      (INSN_OP(3) | INSN_OP3(0x1a))
+#define LDUWA      (INSN_OP(3) | INSN_OP3(0x10))
+#define LDSWA      (INSN_OP(3) | INSN_OP3(0x18))
+#define LDXA       (INSN_OP(3) | INSN_OP3(0x1b))
+#define STBA       (INSN_OP(3) | INSN_OP3(0x15))
+#define STHA       (INSN_OP(3) | INSN_OP3(0x16))
+#define STWA       (INSN_OP(3) | INSN_OP3(0x14))
+#define STXA       (INSN_OP(3) | INSN_OP3(0x1e))
+
+#ifndef ASI_PRIMARY_LITTLE
+#define ASI_PRIMARY_LITTLE 0x88
+#endif
 
 static inline void tcg_out_arith(TCGContext *s, int rd, int rs1, int rs2,
                                  int op)
@@ -330,6 +346,14 @@ static inline void tcg_out_ldst(TCGContext *s, int ret, int addr, int offset, in
         tcg_out32(s, op | INSN_RD(ret) | INSN_RS1(TCG_REG_I5) |
                   INSN_RS2(addr));
     }
+}
+
+static inline void tcg_out_ldst_asi(TCGContext *s, int ret, int addr,
+                                    int offset, int op, int asi)
+{
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I5, offset);
+    tcg_out32(s, op | INSN_RD(ret) | INSN_RS1(TCG_REG_I5) |
+              INSN_ASI(asi) | INSN_RS2(addr));
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
@@ -457,7 +481,7 @@ static const void * const qemu_st_helpers[4] = {
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                             int opc)
 {
-    int addr_reg, data_reg, r0, r1, mem_index, s_bits, bswap, ld_op;
+    int addr_reg, data_reg, r0, r1, mem_index, s_bits, ld_op;
 #if defined(CONFIG_SOFTMMU)
     uint8_t *label1_ptr, *label2_ptr;
 #endif
@@ -565,11 +589,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     r0 = addr_reg;
 #endif
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    bswap = 0;
-#else
-    bswap = 1;
-#endif
     switch(opc) {
     case 0:
         /* ldub [r0], data_reg */
@@ -580,39 +599,49 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         tcg_out_ldst(s, data_reg, r0, 0, LDSB);
         break;
     case 1:
+#ifdef TARGET_WORDS_BIGENDIAN
         /* lduh [r0], data_reg */
         tcg_out_ldst(s, data_reg, r0, 0, LDUH);
-        if (bswap) {
-            fprintf(stderr, "unimplemented %s with bswap\n", __func__);
-        }
+#else
+        /* lduha [r0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, r0, 0, LDUHA, ASI_PRIMARY_LITTLE);
+#endif
         break;
     case 1 | 4:
+#ifdef TARGET_WORDS_BIGENDIAN
         /* ldsh [r0], data_reg */
         tcg_out_ldst(s, data_reg, r0, 0, LDSH);
-        if (bswap) {
-            fprintf(stderr, "unimplemented %s with bswap\n", __func__);
-        }
+#else
+        /* ldsha [r0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, r0, 0, LDSHA, ASI_PRIMARY_LITTLE);
+#endif
         break;
     case 2:
+#ifdef TARGET_WORDS_BIGENDIAN
         /* lduw [r0], data_reg */
         tcg_out_ldst(s, data_reg, r0, 0, LDUW);
-        if (bswap) {
-            fprintf(stderr, "unimplemented %s with bswap\n", __func__);
-        }
+#else
+        /* lduwa [r0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, r0, 0, LDUWA, ASI_PRIMARY_LITTLE);
+#endif
         break;
     case 2 | 4:
+#ifdef TARGET_WORDS_BIGENDIAN
         /* ldsw [r0], data_reg */
         tcg_out_ldst(s, data_reg, r0, 0, LDSW);
-        if (bswap) {
-            fprintf(stderr, "unimplemented %s with bswap\n", __func__);
-        }
+#else
+        /* ldswa [r0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, r0, 0, LDSWA, ASI_PRIMARY_LITTLE);
+#endif
         break;
     case 3:
+#ifdef TARGET_WORDS_BIGENDIAN
         /* ldx [r0], data_reg */
         tcg_out_ldst(s, data_reg, r0, 0, LDX);
-        if (bswap) {
-            fprintf(stderr, "unimplemented %s with bswap\n", __func__);
-        }
+#else
+        /* ldxa [r0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, r0, 0, LDXA, ASI_PRIMARY_LITTLE);
+#endif
         break;
     default:
         tcg_abort();
@@ -629,7 +658,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                             int opc)
 {
-    int addr_reg, data_reg, r0, r1, mem_index, s_bits, bswap, ld_op;
+    int addr_reg, data_reg, r0, r1, mem_index, s_bits, ld_op;
 #if defined(CONFIG_SOFTMMU)
     uint8_t *label1_ptr, *label2_ptr;
 #endif
@@ -737,36 +766,37 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     r0 = addr_reg;
 #endif
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    bswap = 0;
-#else
-    bswap = 1;
-#endif
     switch(opc) {
     case 0:
         /* stb data_reg, [r0] */
         tcg_out_ldst(s, data_reg, r0, 0, STB);
         break;
     case 1:
-        if (bswap) {
-            fprintf(stderr, "unimplemented %s with bswap\n", __func__);
-        }
+#ifdef TARGET_WORDS_BIGENDIAN
         /* sth data_reg, [r0] */
         tcg_out_ldst(s, data_reg, r0, 0, STH);
+#else
+        /* stha data_reg, [r0] ASI_PRIMARY_LITTLE */
+        tcg_out_ldst_asi(s, data_reg, r0, 0, STHA, ASI_PRIMARY_LITTLE);
+#endif
         break;
     case 2:
-        if (bswap) {
-            fprintf(stderr, "unimplemented %s with bswap\n", __func__);
-        }
+#ifdef TARGET_WORDS_BIGENDIAN
         /* stw data_reg, [r0] */
         tcg_out_ldst(s, data_reg, r0, 0, STW);
+#else
+        /* stwa data_reg, [r0] ASI_PRIMARY_LITTLE */
+        tcg_out_ldst_asi(s, data_reg, r0, 0, STWA, ASI_PRIMARY_LITTLE);
+#endif
         break;
     case 3:
-        if (bswap) {
-            fprintf(stderr, "unimplemented %s with bswap\n", __func__);
-        }
+#ifdef TARGET_WORDS_BIGENDIAN
         /* stx data_reg, [r0] */
         tcg_out_ldst(s, data_reg, r0, 0, STX);
+#else
+        /* stxa data_reg, [r0] ASI_PRIMARY_LITTLE */
+        tcg_out_ldst_asi(s, data_reg, r0, 0, STXA, ASI_PRIMARY_LITTLE);
+#endif
         break;
     default:
         tcg_abort();
