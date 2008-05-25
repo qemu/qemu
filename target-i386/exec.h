@@ -29,60 +29,20 @@
 
 #include "cpu-defs.h"
 
-/* at least 4 register variables are defined */
 register struct CPUX86State *env asm(AREG0);
-
-#ifndef CPU_NO_GLOBAL_REGS
-
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-
-/* no registers can be used */
-#define T0 (env->t0)
-#define T1 (env->t1)
-#define T2 (env->t2)
-
-#else
-
-/* XXX: use unsigned long instead of target_ulong - better code will
-   be generated for 64 bit CPUs */
-register target_ulong T0 asm(AREG1);
-register target_ulong T1 asm(AREG2);
-register target_ulong T2 asm(AREG3);
-
-#endif /* ! (TARGET_LONG_BITS > HOST_LONG_BITS) */
-
-#endif /* ! CPU_NO_GLOBAL_REGS */
-
-#define A0 T2
 
 extern FILE *logfile;
 extern int loglevel;
 
-#ifndef reg_EAX
 #define EAX (env->regs[R_EAX])
-#endif
-#ifndef reg_ECX
 #define ECX (env->regs[R_ECX])
-#endif
-#ifndef reg_EDX
 #define EDX (env->regs[R_EDX])
-#endif
-#ifndef reg_EBX
 #define EBX (env->regs[R_EBX])
-#endif
-#ifndef reg_ESP
 #define ESP (env->regs[R_ESP])
-#endif
-#ifndef reg_EBP
 #define EBP (env->regs[R_EBP])
-#endif
-#ifndef reg_ESI
 #define ESI (env->regs[R_ESI])
-#endif
-#ifndef reg_EDI
 #define EDI (env->regs[R_EDI])
-#endif
-#define EIP  (env->eip)
+#define EIP (env->eip)
 #define DF  (env->df)
 
 #define CC_SRC (env->cc_src)

@@ -472,12 +472,6 @@ typedef union {
 #define NB_MMU_MODES 2
 
 typedef struct CPUX86State {
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-    /* temporaries if we cannot store them in host registers */
-    target_ulong t0, t1, t2;
-#endif
-    target_ulong t3;
-
     /* standard registers */
     target_ulong regs[CPU_NB_REGS];
     target_ulong eip;
@@ -526,6 +520,7 @@ typedef struct CPUX86State {
     XMMReg xmm_regs[CPU_NB_REGS];
     XMMReg xmm_t0;
     MMXReg mmx_t0;
+    target_ulong cc_tmp; /* temporary for rcr/rcl */
 
     /* sysenter registers */
     uint32_t sysenter_cs;
