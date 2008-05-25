@@ -3028,10 +3028,6 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
 }
 
-static void tcg_macro_func(TCGContext *s, int macro_id, const int *dead_args)
-{
-}
-
 CPUCRISState *cpu_cris_init (const char *cpu_model)
 {
 	CPUCRISState *env;
@@ -3042,7 +3038,6 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 		return NULL;
 	cpu_exec_init(env);
 
-	tcg_set_macro_func(&tcg_ctx, tcg_macro_func);
 	cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 	cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL, 
