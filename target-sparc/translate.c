@@ -1830,6 +1830,8 @@ static void disas_sparc_insn(DisasContext * dc)
 {
     unsigned int insn, opc, rs1, rs2, rd;
 
+    if (unlikely(loglevel & CPU_LOG_TB_OP))
+        tcg_gen_debug_insn_start(dc->pc);
     insn = ldl_code(dc->pc);
     opc = GET_FIELD(insn, 0, 1);
 
