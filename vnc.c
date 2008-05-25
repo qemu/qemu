@@ -268,7 +268,7 @@ static void vnc_dpy_update(DisplayState *ds, int x, int y, int w, int h)
     x = MIN(x, vs->width);
     y = MIN(y, vs->height);
     w = MIN(x + w, vs->width) - x;
-    h = MIN(y + h, vs->height) - y;
+    h = MIN(h, vs->height);
 
     for (; y < h; y++)
 	for (i = 0; i < w; i += 16)
