@@ -189,6 +189,9 @@ typedef struct TCGTemp {
     unsigned int fixed_reg:1;
     unsigned int mem_coherent:1;
     unsigned int mem_allocated:1;
+    unsigned int temp_local:1; /* If true, the temp is saved accross
+                                  basic blocks. Otherwise, it is not
+                                  preserved accross basic blocks. */
     unsigned int temp_allocated:1; /* never used for code gen */
     /* index of next free temp of same base type, -1 if end */
     int next_free_temp;
@@ -212,11 +215,8 @@ struct TCGContext {
     TCGTemp *temps; /* globals first, temps after */
     int nb_globals;
     int nb_temps;
-    int first_free_temp[TCG_TYPE_COUNT]; /* index of free temps, -1 if none */
-
-    /* constant indexes (end of temp array) */
-    int const_start;
-    int const_end;
+    /* index of free temps, -1 if none */
+    int first_free_temp[TCG_TYPE_COUNT * 2]; 
 
     /* goto_tb support */
     uint8_t *code_buf;
@@ -224,8 +224,10 @@ struct TCGContext {
     uint16_t *tb_next_offset;
     uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
 
+    /* liveness analysis */
     uint16_t *op_dead_iargs; /* for each operation, each bit tells if the
                                 corresponding input argument is dead */
+    
     /* tells in which temporary a given register is. It does not take
        into account fixed registers */
     int reg_to_temp[TCG_TARGET_NB_REGS];
@@ -305,7 +307,15 @@ TCGv tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2,
                               const char *name);
 TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
                         const char *name);
-TCGv tcg_temp_new(TCGType type);
+TCGv tcg_temp_new_internal(TCGType type, int temp_local);
+static inline TCGv tcg_temp_new(TCGType type)
+{
+    return tcg_temp_new_internal(type, 0);
+}
+static inline TCGv tcg_temp_local_new(TCGType type)
+{
+    return tcg_temp_new_internal(type, 1);
+}
 void tcg_temp_free(TCGv arg);
 char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGv arg);
 void tcg_dump_info(FILE *f,

@@ -269,7 +269,7 @@ void tcg_func_start(TCGContext *s)
     int i;
     tcg_pool_reset(s);
     s->nb_temps = s->nb_globals;
-    for(i = 0; i < TCG_TYPE_COUNT; i++)
+    for(i = 0; i < (TCG_TYPE_COUNT * 2); i++)
         s->first_free_temp[i] = -1;
     s->labels = tcg_malloc(sizeof(TCGLabel) * TCG_MAX_LABELS);
     s->nb_labels = 0;
@@ -407,19 +407,23 @@ TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
     return MAKE_TCGV(idx);
 }
 
-TCGv tcg_temp_new(TCGType type)
+TCGv tcg_temp_new_internal(TCGType type, int temp_local)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
-    int idx;
+    int idx, k;
 
-    idx = s->first_free_temp[type];
+    k = type;
+    if (temp_local)
+        k += TCG_TYPE_COUNT;
+    idx = s->first_free_temp[k];
     if (idx != -1) {
         /* There is already an available temp with the
            right type */
         ts = &s->temps[idx];
-        s->first_free_temp[type] = ts->next_free_temp;
+        s->first_free_temp[k] = ts->next_free_temp;
         ts->temp_allocated = 1;
+        assert(ts->temp_local == temp_local);
     } else {
         idx = s->nb_temps;
 #if TCG_TARGET_REG_BITS == 32
@@ -429,11 +433,13 @@ TCGv tcg_temp_new(TCGType type)
             ts->base_type = type;
             ts->type = TCG_TYPE_I32;
             ts->temp_allocated = 1;
+            ts->temp_local = temp_local;
             ts->name = NULL;
             ts++;
             ts->base_type = TCG_TYPE_I32;
             ts->type = TCG_TYPE_I32;
             ts->temp_allocated = 1;
+            ts->temp_local = temp_local;
             ts->name = NULL;
             s->nb_temps += 2;
         } else
@@ -444,6 +450,7 @@ TCGv tcg_temp_new(TCGType type)
             ts->base_type = type;
             ts->type = type;
             ts->temp_allocated = 1;
+            ts->temp_local = temp_local;
             ts->name = NULL;
             s->nb_temps++;
         }
@@ -456,15 +463,17 @@ void tcg_temp_free(TCGv arg)
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
     int idx = GET_TCGV(arg);
-    TCGType type;
+    int k;
 
     assert(idx >= s->nb_globals && idx < s->nb_temps);
     ts = &s->temps[idx];
     assert(ts->temp_allocated != 0);
     ts->temp_allocated = 0;
-    type = ts->base_type;
-    ts->next_free_temp = s->first_free_temp[type];
-    s->first_free_temp[type] = idx;
+    k = ts->base_type;
+    if (ts->temp_local)
+        k += TCG_TYPE_COUNT;
+    ts->next_free_temp = s->first_free_temp[k];
+    s->first_free_temp[k] = idx;
 }
 
 
@@ -683,7 +692,10 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
     if (idx < s->nb_globals) {
         pstrcpy(buf, buf_size, ts->name);
     } else {
-        snprintf(buf, buf_size, "tmp%d", idx - s->nb_globals);
+        if (ts->temp_local) 
+            snprintf(buf, buf_size, "loc%d", idx - s->nb_globals);
+        else
+            snprintf(buf, buf_size, "tmp%d", idx - s->nb_globals);
     }
     return buf;
 }
@@ -987,11 +999,32 @@ static inline void tcg_set_nop(TCGContext *s, uint16_t *opc_ptr,
     }
 }
 
-/* liveness analysis: end of basic block: globals are live, temps are dead */
-static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps)
+/* liveness analysis: end of function: globals are live, temps are
+   dead. */
+/* XXX: at this stage, not used as there would be little gains because
+   most TBs end with a conditional jump. */
+static inline void tcg_la_func_end(TCGContext *s, uint8_t *dead_temps)
 {
     memset(dead_temps, 0, s->nb_globals);
     memset(dead_temps + s->nb_globals, 1, s->nb_temps - s->nb_globals);
+}
+
+/* liveness analysis: end of basic block: globals are live, temps are
+   dead, local temps are live. */
+static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps)
+{
+    int i;
+    TCGTemp *ts;
+
+    memset(dead_temps, 0, s->nb_globals);
+    ts = &s->temps[s->nb_globals];
+    for(i = s->nb_globals; i < s->nb_temps; i++) {
+        if (ts->temp_local)
+            dead_temps[i] = 0;
+        else
+            dead_temps[i] = 1;
+        ts++;
+    }
 }
 
 /* Liveness analysis : update the opc_dead_iargs array to tell if a
@@ -1366,37 +1399,48 @@ static int tcg_reg_alloc(TCGContext *s, TCGRegSet reg1, TCGRegSet reg2)
     tcg_abort();
 }
 
+/* save a temporary to memory. 'allocated_regs' is used in case a
+   temporary registers needs to be allocated to store a constant. */
+static void temp_save(TCGContext *s, int temp, TCGRegSet allocated_regs)
+{
+    TCGTemp *ts;
+    int reg;
+
+    ts = &s->temps[temp];
+    if (!ts->fixed_reg) {
+        switch(ts->val_type) {
+        case TEMP_VAL_REG:
+            tcg_reg_free(s, ts->reg);
+            break;
+        case TEMP_VAL_DEAD:
+            ts->val_type = TEMP_VAL_MEM;
+            break;
+        case TEMP_VAL_CONST:
+            reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
+                                allocated_regs);
+            if (!ts->mem_allocated) 
+                temp_allocate_frame(s, temp);
+            tcg_out_movi(s, ts->type, reg, ts->val);
+            tcg_out_st(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
+            ts->val_type = TEMP_VAL_MEM;
+            break;
+        case TEMP_VAL_MEM:
+            break;
+        default:
+            tcg_abort();
+        }
+    }
+}
+
 /* save globals to their cannonical location and assume they can be
    modified be the following code. 'allocated_regs' is used in case a
    temporary registers needs to be allocated to store a constant. */
 static void save_globals(TCGContext *s, TCGRegSet allocated_regs)
 {
-    TCGTemp *ts;
-    int i, reg;
+    int i;
 
     for(i = 0; i < s->nb_globals; i++) {
-        ts = &s->temps[i];
-        if (!ts->fixed_reg) {
-            switch(ts->val_type) {
-            case TEMP_VAL_REG:
-                tcg_reg_free(s, ts->reg);
-                break;
-            case TEMP_VAL_DEAD:
-                ts->val_type = TEMP_VAL_MEM;
-                break;
-            case TEMP_VAL_CONST:
-                reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
-                                    allocated_regs);
-                tcg_out_movi(s, ts->type, reg, ts->val);
-                tcg_out_st(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
-                ts->val_type = TEMP_VAL_MEM;
-                break;
-            case TEMP_VAL_MEM:
-                break;
-            default:
-                tcg_abort();
-            }
-        }
+        temp_save(s, i, allocated_regs);
     }
 }
 
@@ -1409,10 +1453,14 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
 
     for(i = s->nb_globals; i < s->nb_temps; i++) {
         ts = &s->temps[i];
-        if (ts->val_type == TEMP_VAL_REG) {
-            s->reg_to_temp[ts->reg] = -1;
+        if (ts->temp_local) {
+            temp_save(s, i, allocated_regs);
+        } else {
+            if (ts->val_type == TEMP_VAL_REG) {
+                s->reg_to_temp[ts->reg] = -1;
+            }
+            ts->val_type = TEMP_VAL_DEAD;
         }
-        ts->val_type = TEMP_VAL_DEAD;
     }
 
     save_globals(s, allocated_regs);
