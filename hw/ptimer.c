@@ -100,6 +100,9 @@ void ptimer_set_count(ptimer_state *s, uint64_t count)
 
 void ptimer_run(ptimer_state *s, int oneshot)
 {
+    if (s->enabled) {
+        return;
+    }
     if (s->period == 0) {
         fprintf(stderr, "Timer with period zero, disabling\n");
         return;
