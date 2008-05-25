@@ -1910,10 +1910,11 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                 char relname[256];
                 int type;
                 int addend;
+                int is_label;
                 int reloc_offset;
                 for(i = 0, rel = relocs;i < nb_relocs; i++, rel++) {
                     if (rel->r_offset >= start_offset &&
-			rel->r_offset < start_offset + copy_size) {
+                        rel->r_offset < start_offset + copy_size) {
                         sym_name = strtab + symtab[ELFW(R_SYM)(rel->r_info)].st_name;
                         reloc_offset = rel->r_offset - start_offset;
                         if (strstart(sym_name, "__op_jmp", &p)) {
@@ -1930,31 +1931,44 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
 
                         get_reloc_expr(relname, sizeof(relname), sym_name);
                         type = ELF32_R_TYPE(rel->r_info);
+                        is_label = get_reloc_expr(relname, sizeof(relname), sym_name);
                         addend = rel->r_addend;
-                        switch(type) {
-                        case R_PPC_ADDR32:
-                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
-                                    reloc_offset, relname, addend);
-                            break;
-                        case R_PPC_ADDR16_LO:
-                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d);\n",
-                                    reloc_offset, relname, addend);
-                            break;
-                        case R_PPC_ADDR16_HI:
-                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d) >> 16;\n",
-                                    reloc_offset, relname, addend);
-                            break;
-                        case R_PPC_ADDR16_HA:
-                            fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d + 0x8000) >> 16;\n",
-                                    reloc_offset, relname, addend);
-                            break;
-                        case R_PPC_REL24:
-                            /* warning: must be at 32 MB distancy */
-                            fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((%s - (long)(gen_code_ptr + %d) + %d) & 0x03fffffc);\n",
-                                    reloc_offset, reloc_offset, relname, reloc_offset, addend);
-                            break;
-                        default:
-                            error("unsupported powerpc relocation (%d)", type);
+                        if (is_label) {
+                            switch (type) {
+                            case R_PPC_REL24:
+                                fprintf (outfile, "    tcg_out_reloc(s, gen_code_ptr + %d, %d, %s, %d);\n",
+                                         reloc_offset, type, relname, addend);
+                                break;
+                            default:
+                                error ("unsupported ppc relocation (%d)", type);
+                            }
+                        }
+                        else {
+                            switch(type) {
+                            case R_PPC_ADDR32:
+                                fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = %s + %d;\n",
+                                        reloc_offset, relname, addend);
+                                break;
+                            case R_PPC_ADDR16_LO:
+                                fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d);\n",
+                                        reloc_offset, relname, addend);
+                                break;
+                            case R_PPC_ADDR16_HI:
+                                fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d) >> 16;\n",
+                                        reloc_offset, relname, addend);
+                                break;
+                            case R_PPC_ADDR16_HA:
+                                fprintf(outfile, "    *(uint16_t *)(gen_code_ptr + %d) = (%s + %d + 0x8000) >> 16;\n",
+                                        reloc_offset, relname, addend);
+                                break;
+                            case R_PPC_REL24:
+                                /* warning: must be at 32 MB distancy */
+                                fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((%s - (long)(gen_code_ptr + %d) + %d) & 0x03fffffc);\n",
+                                        reloc_offset, reloc_offset, relname, reloc_offset, addend);
+                                break;
+                            default:
+                                error("unsupported powerpc relocation (%d)", type);
+                            }
                         }
                     }
                 }
