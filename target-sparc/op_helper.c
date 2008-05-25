@@ -2871,12 +2871,6 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
-#ifdef __s390__
-# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & \
-                          0x7fffffffUL))
-#else
-# define GETPC() (__builtin_return_address(0))
-#endif
 
 #define SHIFT 0
 #include "softmmu_template.h"

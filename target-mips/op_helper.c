@@ -22,12 +22,6 @@
 
 #include "host-utils.h"
 
-#ifdef __s390__
-# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & 0x7fffffffUL))
-#else
-# define GETPC() (__builtin_return_address(0))
-#endif
-
 /*****************************************************************************/
 /* Exceptions processing helpers */
 

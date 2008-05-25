@@ -1180,7 +1180,6 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
 
     tcg_out_bl(s, cond, (tcg_target_long) qemu_st_helpers[s_bits] -
                     (tcg_target_long) s->code_ptr);
-
 # if TARGET_LONG_BITS == 64
     if (opc == 3)
         tcg_out_dat_imm(s, cond, ARITH_ADD, 13, 13, 0x10);
