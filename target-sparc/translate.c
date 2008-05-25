@@ -4521,10 +4521,6 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
 }
 
-static void tcg_macro_func(TCGContext *s, int macro_id, const int *dead_args)
-{
-}
-
 static inline int gen_intermediate_code_internal(TranslationBlock * tb,
                                                  int spc, CPUSPARCState *env)
 {
@@ -4671,7 +4667,6 @@ void gen_intermediate_code_init(CPUSPARCState *env)
     if (!inited) {
         inited = 1;
 
-        tcg_set_macro_func(&tcg_ctx, tcg_macro_func);
         cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
         cpu_regwptr = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
                                          offsetof(CPUState, regwptr),
