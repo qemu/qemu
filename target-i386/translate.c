@@ -1511,15 +1511,15 @@ static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2,
         if (is_right) {
             if (is_arith) {
                 gen_exts(ot, cpu_T[0]);
-                tcg_gen_sari_tl(cpu_tmp0, cpu_T[0], op2 - 1);
+                tcg_gen_sari_tl(cpu_tmp4, cpu_T[0], op2 - 1);
                 tcg_gen_sari_tl(cpu_T[0], cpu_T[0], op2);
             } else {
                 gen_extu(ot, cpu_T[0]);
-                tcg_gen_shri_tl(cpu_tmp0, cpu_T[0], op2 - 1);
+                tcg_gen_shri_tl(cpu_tmp4, cpu_T[0], op2 - 1);
                 tcg_gen_shri_tl(cpu_T[0], cpu_T[0], op2);
             }
         } else {
-            tcg_gen_shli_tl(cpu_tmp0, cpu_T[0], op2 - 1);
+            tcg_gen_shli_tl(cpu_tmp4, cpu_T[0], op2 - 1);
             tcg_gen_shli_tl(cpu_T[0], cpu_T[0], op2);
         }
     }
@@ -1532,7 +1532,7 @@ static void gen_shift_rm_im(DisasContext *s, int ot, int op1, int op2,
         
     /* update eflags if non zero shift */
     if (op2 != 0) {
-        tcg_gen_mov_tl(cpu_cc_src, cpu_tmp0);
+        tcg_gen_mov_tl(cpu_cc_src, cpu_tmp4);
         tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
         if (is_right)
             s->cc_op = CC_OP_SARB + ot;
