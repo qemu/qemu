@@ -1648,15 +1648,14 @@ static inline void gen_stf_asi(TCGv addr, int insn, int size, int rd)
 
 static inline void gen_swap_asi(TCGv dst, TCGv addr, int insn)
 {
-    TCGv r_temp, r_asi;
+    TCGv r_asi;
 
-    r_temp = tcg_temp_new(TCG_TYPE_I32);
     r_asi = gen_get_asi(insn, addr);
-    tcg_gen_helper_1_4(helper_ld_asi, r_temp, addr, r_asi,
+    tcg_gen_helper_1_4(helper_ld_asi, cpu_tmp64, addr, r_asi,
                        tcg_const_i32(4), tcg_const_i32(0));
     tcg_gen_helper_0_4(helper_st_asi, addr, dst, r_asi,
                        tcg_const_i32(4));
-    tcg_gen_extu_i32_tl(dst, r_temp);
+    tcg_gen_trunc_i64_tl(dst, cpu_tmp64);
 }
 
 static inline void gen_ldda_asi(TCGv lo, TCGv hi, TCGv addr, int insn)
@@ -1675,7 +1674,7 @@ static inline void gen_stda_asi(TCGv hi, TCGv addr, int insn, int rd)
 {
     TCGv r_temp, r_asi;
 
-    r_temp = tcg_temp_new(TCG_TYPE_I32);
+    r_temp = tcg_temp_new(TCG_TYPE_TL);
     gen_movl_reg_TN(rd + 1, r_temp);
     tcg_gen_helper_1_2(helper_pack64, cpu_tmp64, hi,
                        r_temp);
@@ -1731,15 +1730,13 @@ static inline void gen_st_asi(TCGv src, TCGv addr, int insn, int size)
 static inline void gen_swap_asi(TCGv dst, TCGv addr, int insn)
 {
     int asi;
-    TCGv r_temp;
 
-    r_temp = tcg_temp_new(TCG_TYPE_I32);
     asi = GET_FIELD(insn, 19, 26);
-    tcg_gen_helper_1_4(helper_ld_asi, r_temp, addr, tcg_const_i32(asi),
+    tcg_gen_helper_1_4(helper_ld_asi, cpu_tmp64, addr, tcg_const_i32(asi),
                        tcg_const_i32(4), tcg_const_i32(0));
     tcg_gen_helper_0_4(helper_st_asi, addr, dst, tcg_const_i32(asi),
                        tcg_const_i32(4));
-    tcg_gen_extu_i32_tl(dst, r_temp);
+    tcg_gen_trunc_i64_tl(dst, cpu_tmp64);
 }
 
 static inline void gen_ldda_asi(TCGv lo, TCGv hi, TCGv addr, int insn)
@@ -1759,7 +1756,7 @@ static inline void gen_stda_asi(TCGv hi, TCGv addr, int insn, int rd)
     int asi;
     TCGv r_temp;
 
-    r_temp = tcg_temp_new(TCG_TYPE_I32);
+    r_temp = tcg_temp_new(TCG_TYPE_TL);
     gen_movl_reg_TN(rd + 1, r_temp);
     tcg_gen_helper_1_2(helper_pack64, cpu_tmp64, hi, r_temp);
     asi = GET_FIELD(insn, 19, 26);
@@ -4314,7 +4311,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         ABI32_MASK(cpu_addr);
                         tcg_gen_helper_0_2(helper_check_align, cpu_addr,
                                            tcg_const_i32(7)); // XXX remove
-                        r_low = tcg_temp_new(TCG_TYPE_I32);
+                        r_low = tcg_temp_new(TCG_TYPE_TL);
                         gen_movl_reg_TN(rd + 1, r_low);
                         tcg_gen_helper_1_2(helper_pack64, cpu_tmp64, cpu_val,
                                            r_low);
