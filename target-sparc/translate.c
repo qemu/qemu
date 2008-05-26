@@ -1689,7 +1689,7 @@ static inline void gen_cas_asi(TCGv dst, TCGv addr, TCGv val2, int insn,
 {
     TCGv r_val1, r_asi;
 
-    r_val1 = tcg_temp_new(TCG_TYPE_I32);
+    r_val1 = tcg_temp_new(TCG_TYPE_TL);
     gen_movl_reg_TN(rd, r_val1);
     r_asi = gen_get_asi(insn, addr);
     tcg_gen_helper_1_4(helper_cas_asi, dst, addr, r_val1, val2, r_asi);
