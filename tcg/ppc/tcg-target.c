@@ -866,18 +866,55 @@ static void tcg_out_brcond(TCGContext *s, int cond,
     int imm;
     uint32_t op;
 
-    imm = const_arg2 ? ((int16_t) arg2 == arg2) : 0;
     switch (cond) {
-    case TCG_COND_EQ: op = imm ? CMPLI : CMPL; break;
-    case TCG_COND_NE: op = imm ? CMPLI : CMPL; break;
-    case TCG_COND_LT: op = imm ? CMPI : CMP; break;
-    case TCG_COND_GE: op = imm ? CMPI : CMP; break;
-    case TCG_COND_LE: op = imm ? CMPI : CMP; break;
-    case TCG_COND_GT: op = imm ? CMPI : CMP; break;
-    case TCG_COND_LTU: op = imm ? CMPLI : CMPL; break;
-    case TCG_COND_GEU: op = imm ? CMPLI : CMPL; break;
-    case TCG_COND_LEU: op = imm ? CMPLI : CMPL; break;
-    case TCG_COND_GTU: op = imm ? CMPLI : CMPL; break;
+    case TCG_COND_EQ:
+    case TCG_COND_NE:
+        if (const_arg2) {
+            if ((int16_t) arg2 == arg2) {
+                op = CMPI;
+                imm = 1;
+                break;
+            }
+            else if ((uint16_t) arg2 == arg2) {
+                op = CMPLI;
+                imm = 1;
+                break;
+            }
+        }
+        op = CMPL;
+        imm = 0;
+        break;
+
+    case TCG_COND_LT:
+    case TCG_COND_GE:
+    case TCG_COND_LE:
+    case TCG_COND_GT:
+        if (const_arg2) {
+            if ((int16_t) arg2 == arg2) {
+                op = CMPI;
+                imm = 1;
+                break;
+            }
+        }
+        op = CMP;
+        imm = 0;
+        break;
+
+    case TCG_COND_LTU:
+    case TCG_COND_GEU:
+    case TCG_COND_LEU:
+    case TCG_COND_GTU:
+        if (const_arg2) {
+            if ((uint16_t) arg2 == arg2) {
+                op = CMPLI;
+                imm = 1;
+                break;
+            }
+        }
+        op = CMPL;
+        imm = 0;
+        break;
+
     default:
         tcg_abort ();
     }
