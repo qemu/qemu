@@ -1,0 +1,52 @@
+@example
+@c man begin SYNOPSIS
+usage: qemu-nbd [OPTION]...  @var{filename}
+@c man end
+@end example
+
+@c man begin DESCRIPTION
+
+Export Qemu disk image using NBD protocol.
+
+@c man end
+
+@c man begin OPTIONS
+@table @var
+@item filename
+ is a disk image filename
+@item -p, --port=PORT
+  port to listen on (default `1024')
+@item -o, --offset=OFFSET
+  offset into the image
+@item -b, --bind=IFACE
+  interface to bind to (default `0.0.0.0')
+@item -r, --read-only
+  export read-only
+@item -P, --partition=NUM
+  only expose partition NUM
+@item -v, --verbose
+  display extra debugging information
+@item -h, --help
+  display this help and exit
+@item -V, --version
+  output version information and exit
+@end table
+
+@c man end
+
+@ignore
+
+@setfilename qemu-nbd
+@settitle QEMU Disk Network Block Device Server
+
+@c man begin AUTHOR
+Copyright (C) 2006 Anthony Liguori <anthony@codemonkey.ws>.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+@c man end
+
+@c man begin SEEALSO
+qemu-img(1)
+@c man end
+
+@end ignore
