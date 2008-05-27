@@ -391,7 +391,6 @@ static void
 eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct fs_eth *eth = opaque;
-	CPUState *env = eth->env;
 
 	/* Make addr relative to this instances base.  */
 	addr -= eth->base;
@@ -425,8 +424,8 @@ eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 
 		default:
 			eth->regs[addr] = value;
-			printf ("%s %x %x pc=%x\n",
-				__func__, addr, value, env->pc);
+			D(printf ("%s %x %x\n",
+				  __func__, addr, value));
 			break;
 	}
 }
