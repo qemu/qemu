@@ -1719,7 +1719,7 @@ void cpu_loop (CPUState *env)
                 info.si_errno = 0;
                 /* XXX: check env->error_code */
                 info.si_code = TARGET_SEGV_MAPERR;
-                info._sifields._sigfault._addr = env->debug1;
+                info._sifields._sigfault._addr = env->pregs[PR_EDA];
                 queue_signal(info.si_signo, &info);
             }
             break;
