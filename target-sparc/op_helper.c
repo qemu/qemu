@@ -5,7 +5,6 @@
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-//#define DEBUG_PCALL
 //#define DEBUG_MMU
 //#define DEBUG_MXCC
 //#define DEBUG_UNALIGNED
@@ -2573,7 +2572,7 @@ static inline uint64_t *get_gregset(uint64_t pstate)
     }
 }
 
-static inline void change_pstate(uint64_t new_pstate)
+void change_pstate(uint64_t new_pstate)
 {
     uint64_t pstate_regs, new_pstate_regs;
     uint64_t *src, *dst;
@@ -2620,249 +2619,29 @@ void helper_retry(void)
 }
 #endif
 
-void set_cwp(int new_cwp)
-{
-    /* put the modified wrap registers at their proper location */
-    if (env->cwp == (NWINDOWS - 1))
-        memcpy32(env->regbase, env->regbase + NWINDOWS * 16);
-    env->cwp = new_cwp;
-    /* put the wrap registers at their temporary location */
-    if (new_cwp == (NWINDOWS - 1))
-        memcpy32(env->regbase + NWINDOWS * 16, env->regbase);
-    env->regwptr = env->regbase + (new_cwp * 16);
-    REGWPTR = env->regwptr;
-}
-
 void cpu_set_cwp(CPUState *env1, int new_cwp)
 {
-    CPUState *saved_env;
-#ifdef reg_REGWPTR
-    target_ulong *saved_regwptr;
-#endif
-
-    saved_env = env;
-#ifdef reg_REGWPTR
-    saved_regwptr = REGWPTR;
-#endif
-    env = env1;
-    set_cwp(new_cwp);
-    env = saved_env;
-#ifdef reg_REGWPTR
-    REGWPTR = saved_regwptr;
-#endif
+    /* put the modified wrap registers at their proper location */
+    if (env1->cwp == (NWINDOWS - 1))
+        memcpy32(env1->regbase, env1->regbase + NWINDOWS * 16);
+    env1->cwp = new_cwp;
+    /* put the wrap registers at their temporary location */
+    if (new_cwp == (NWINDOWS - 1))
+        memcpy32(env1->regbase + NWINDOWS * 16, env1->regbase);
+    env1->regwptr = env1->regbase + (new_cwp * 16);
+    REGWPTR = env1->regwptr;
 }
 
-#ifdef TARGET_SPARC64
-#ifdef DEBUG_PCALL
-static const char * const excp_names[0x50] = {
-    [TT_TFAULT] = "Instruction Access Fault",
-    [TT_TMISS] = "Instruction Access MMU Miss",
-    [TT_CODE_ACCESS] = "Instruction Access Error",
-    [TT_ILL_INSN] = "Illegal Instruction",
-    [TT_PRIV_INSN] = "Privileged Instruction",
-    [TT_NFPU_INSN] = "FPU Disabled",
-    [TT_FP_EXCP] = "FPU Exception",
-    [TT_TOVF] = "Tag Overflow",
-    [TT_CLRWIN] = "Clean Windows",
-    [TT_DIV_ZERO] = "Division By Zero",
-    [TT_DFAULT] = "Data Access Fault",
-    [TT_DMISS] = "Data Access MMU Miss",
-    [TT_DATA_ACCESS] = "Data Access Error",
-    [TT_DPROT] = "Data Protection Error",
-    [TT_UNALIGNED] = "Unaligned Memory Access",
-    [TT_PRIV_ACT] = "Privileged Action",
-    [TT_EXTINT | 0x1] = "External Interrupt 1",
-    [TT_EXTINT | 0x2] = "External Interrupt 2",
-    [TT_EXTINT | 0x3] = "External Interrupt 3",
-    [TT_EXTINT | 0x4] = "External Interrupt 4",
-    [TT_EXTINT | 0x5] = "External Interrupt 5",
-    [TT_EXTINT | 0x6] = "External Interrupt 6",
-    [TT_EXTINT | 0x7] = "External Interrupt 7",
-    [TT_EXTINT | 0x8] = "External Interrupt 8",
-    [TT_EXTINT | 0x9] = "External Interrupt 9",
-    [TT_EXTINT | 0xa] = "External Interrupt 10",
-    [TT_EXTINT | 0xb] = "External Interrupt 11",
-    [TT_EXTINT | 0xc] = "External Interrupt 12",
-    [TT_EXTINT | 0xd] = "External Interrupt 13",
-    [TT_EXTINT | 0xe] = "External Interrupt 14",
-    [TT_EXTINT | 0xf] = "External Interrupt 15",
-};
-#endif
-
-void do_interrupt(int intno)
+void set_cwp(int new_cwp)
 {
-#ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_INT) {
-        static int count;
-        const char *name;
-
-        if (intno < 0 || intno >= 0x180 || (intno > 0x4f && intno < 0x80))
-            name = "Unknown";
-        else if (intno >= 0x100)
-            name = "Trap Instruction";
-        else if (intno >= 0xc0)
-            name = "Window Fill";
-        else if (intno >= 0x80)
-            name = "Window Spill";
-        else {
-            name = excp_names[intno];
-            if (!name)
-                name = "Unknown";
-        }
-
-        fprintf(logfile, "%6d: %s (v=%04x) pc=%016" PRIx64 " npc=%016" PRIx64
-                " SP=%016" PRIx64 "\n",
-                count, name, intno,
-                env->pc,
-                env->npc, env->regwptr[6]);
-        cpu_dump_state(env, logfile, fprintf, 0);
-#if 0
-        {
-            int i;
-            uint8_t *ptr;
-
-            fprintf(logfile, "       code=");
-            ptr = (uint8_t *)env->pc;
-            for(i = 0; i < 16; i++) {
-                fprintf(logfile, " %02x", ldub(ptr + i));
-            }
-            fprintf(logfile, "\n");
-        }
-#endif
-        count++;
-    }
-#endif
-#if !defined(CONFIG_USER_ONLY)
-    if (env->tl == MAXTL) {
-        cpu_abort(env, "Trap 0x%04x while trap level is MAXTL, Error state",
-                  env->exception_index);
-        return;
-    }
-#endif
-    env->tsptr->tstate = ((uint64_t)GET_CCR(env) << 32) |
-        ((env->asi & 0xff) << 24) | ((env->pstate & 0xf3f) << 8) |
-        GET_CWP64(env);
-    env->tsptr->tpc = env->pc;
-    env->tsptr->tnpc = env->npc;
-    env->tsptr->tt = intno;
-    change_pstate(PS_PEF | PS_PRIV | PS_AG);
-
-    if (intno == TT_CLRWIN)
-        set_cwp((env->cwp - 1) & (NWINDOWS - 1));
-    else if ((intno & 0x1c0) == TT_SPILL)
-        set_cwp((env->cwp - env->cansave - 2) & (NWINDOWS - 1));
-    else if ((intno & 0x1c0) == TT_FILL)
-        set_cwp((env->cwp + 1) & (NWINDOWS - 1));
-    env->tbr &= ~0x7fffULL;
-    env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
-    if (env->tl < MAXTL - 1) {
-        env->tl++;
-    } else {
-        env->pstate |= PS_RED;
-        if (env->tl != MAXTL)
-            env->tl++;
-    }
-    env->tsptr = &env->ts[env->tl];
-    env->pc = env->tbr;
-    env->npc = env->pc + 4;
-    env->exception_index = 0;
+    cpu_set_cwp(env, new_cwp);
 }
-#else
-#ifdef DEBUG_PCALL
-static const char * const excp_names[0x80] = {
-    [TT_TFAULT] = "Instruction Access Fault",
-    [TT_ILL_INSN] = "Illegal Instruction",
-    [TT_PRIV_INSN] = "Privileged Instruction",
-    [TT_NFPU_INSN] = "FPU Disabled",
-    [TT_WIN_OVF] = "Window Overflow",
-    [TT_WIN_UNF] = "Window Underflow",
-    [TT_UNALIGNED] = "Unaligned Memory Access",
-    [TT_FP_EXCP] = "FPU Exception",
-    [TT_DFAULT] = "Data Access Fault",
-    [TT_TOVF] = "Tag Overflow",
-    [TT_EXTINT | 0x1] = "External Interrupt 1",
-    [TT_EXTINT | 0x2] = "External Interrupt 2",
-    [TT_EXTINT | 0x3] = "External Interrupt 3",
-    [TT_EXTINT | 0x4] = "External Interrupt 4",
-    [TT_EXTINT | 0x5] = "External Interrupt 5",
-    [TT_EXTINT | 0x6] = "External Interrupt 6",
-    [TT_EXTINT | 0x7] = "External Interrupt 7",
-    [TT_EXTINT | 0x8] = "External Interrupt 8",
-    [TT_EXTINT | 0x9] = "External Interrupt 9",
-    [TT_EXTINT | 0xa] = "External Interrupt 10",
-    [TT_EXTINT | 0xb] = "External Interrupt 11",
-    [TT_EXTINT | 0xc] = "External Interrupt 12",
-    [TT_EXTINT | 0xd] = "External Interrupt 13",
-    [TT_EXTINT | 0xe] = "External Interrupt 14",
-    [TT_EXTINT | 0xf] = "External Interrupt 15",
-    [TT_TOVF] = "Tag Overflow",
-    [TT_CODE_ACCESS] = "Instruction Access Error",
-    [TT_DATA_ACCESS] = "Data Access Error",
-    [TT_DIV_ZERO] = "Division By Zero",
-    [TT_NCP_INSN] = "Coprocessor Disabled",
-};
-#endif
 
-void do_interrupt(int intno)
+void helper_flush(target_ulong addr)
 {
-    int cwp;
-
-#ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_INT) {
-        static int count;
-        const char *name;
-
-        if (intno < 0 || intno >= 0x100)
-            name = "Unknown";
-        else if (intno >= 0x80)
-            name = "Trap Instruction";
-        else {
-            name = excp_names[intno];
-            if (!name)
-                name = "Unknown";
-        }
-
-        fprintf(logfile, "%6d: %s (v=%02x) pc=%08x npc=%08x SP=%08x\n",
-                count, name, intno,
-                env->pc,
-                env->npc, env->regwptr[6]);
-        cpu_dump_state(env, logfile, fprintf, 0);
-#if 0
-        {
-            int i;
-            uint8_t *ptr;
-
-            fprintf(logfile, "       code=");
-            ptr = (uint8_t *)env->pc;
-            for(i = 0; i < 16; i++) {
-                fprintf(logfile, " %02x", ldub(ptr + i));
-            }
-            fprintf(logfile, "\n");
-        }
-#endif
-        count++;
-    }
-#endif
-#if !defined(CONFIG_USER_ONLY)
-    if (env->psret == 0) {
-        cpu_abort(env, "Trap 0x%02x while interrupts disabled, Error state",
-                  env->exception_index);
-        return;
-    }
-#endif
-    env->psret = 0;
-    cwp = (env->cwp - 1) & (NWINDOWS - 1);
-    set_cwp(cwp);
-    env->regwptr[9] = env->pc;
-    env->regwptr[10] = env->npc;
-    env->psrps = env->psrs;
-    env->psrs = 1;
-    env->tbr = (env->tbr & TBR_BASE_MASK) | (intno << 4);
-    env->pc = env->tbr;
-    env->npc = env->pc + 4;
-    env->exception_index = 0;
+    addr &= ~7;
+    tb_invalidate_page_range(addr, addr + 8);
 }
-#endif
 
 #if !defined(CONFIG_USER_ONLY)
 

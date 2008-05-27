@@ -333,7 +333,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_MIPS)
                     do_interrupt(env);
 #elif defined(TARGET_SPARC)
-                    do_interrupt(env->exception_index);
+                    do_interrupt(env);
 #elif defined(TARGET_ARM)
                     do_interrupt(env);
 #elif defined(TARGET_SH4)
@@ -474,7 +474,8 @@ int cpu_exec(CPUState *env1)
 			     (pil == 15 || pil > env->psrpil)) ||
 			    type != TT_EXTINT) {
 			    env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-			    do_interrupt(env->interrupt_index);
+                            env->exception_index = env->interrupt_index;
+                            do_interrupt(env);
 			    env->interrupt_index = 0;
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
                             cpu_check_irqs(env);
