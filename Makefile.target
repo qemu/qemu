@@ -201,45 +201,17 @@ else
 LIBOBJS+=fpu/softfloat-native.o
 endif
 CPPFLAGS+=-I$(SRC_PATH)/fpu
-
-ifeq ($(TARGET_ARCH), i386)
-LIBOBJS+=helper.o helper2.o
-endif
-
-ifeq ($(TARGET_ARCH), x86_64)
-LIBOBJS+=helper.o helper2.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), ppc)
 LIBOBJS+= op_helper.o helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), mips)
-LIBOBJS+= op_helper.o helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), sparc)
-LIBOBJS+= op_helper.o helper.o
-endif
 
 ifeq ($(TARGET_BASE_ARCH), arm)
-LIBOBJS+= op_helper.o helper.o neon_helper.o iwmmxt_helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), sh4)
-LIBOBJS+= op_helper.o helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), m68k)
-LIBOBJS+= op_helper.o helper.o
+LIBOBJS+= neon_helper.o iwmmxt_helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), alpha)
-LIBOBJS+= op_helper.o helper.o alpha_palcode.o
+LIBOBJS+= alpha_palcode.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), cris)
-LIBOBJS+= op_helper.o helper.o
 LIBOBJS+= cris-dis.o
 
 ifndef CONFIG_USER_ONLY
@@ -323,14 +295,8 @@ machine.o: machine.c
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-ifeq ($(TARGET_BASE_ARCH), i386)
-# XXX: rename helper.c to op_helper.c
-helper.o: helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
-else
 op_helper.o: op_helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
-endif
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
 
 cpu-exec.o: cpu-exec.c $(OPC_H)
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
