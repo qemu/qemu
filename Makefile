@@ -26,10 +26,15 @@ LIBS+=$(AIOLIBS)
 
 all: $(TOOLS) $(DOCS) recurse-all 
 
-subdir-%: dyngen$(EXESUF) libqemu_common.a
+SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
+
+subdir-%: dyngen$(EXESUF)
 	$(MAKE) -C $(subst subdir-,,$@) all
 
-recurse-all: $(patsubst %,subdir-%, $(TARGET_DIRS))
+$(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
+$(filter %-user,$(SUBDIR_RULES)): libqemu_user.a
+
+recurse-all: $(SUBDIR_RULES)
 
 #######################################################################
 # BLOCK_OBJS is code used by both qemu system emulation and qemu-img
@@ -140,6 +145,14 @@ audio/sdlaudio.o: audio/sdlaudio.c
 libqemu_common.a: $(OBJS)
 	rm -f $@ 
 	$(AR) rcs $@ $(OBJS)
+
+#######################################################################
+# USER_OBJS is code used by qemu userspace emulation
+USER_OBJS=cutils.o
+
+libqemu_user.a: $(USER_OBJS)
+	rm -f $@ 
+	$(AR) rcs $@ $(USER_OBJS)
 
 QEMU_IMG_BLOCK_OBJS = $(BLOCK_OBJS)
 ifdef CONFIG_WIN32

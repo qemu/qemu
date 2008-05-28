@@ -414,14 +414,13 @@ OBJS+=gdbstub.o
 endif
 
 OBJS+= libqemu.a
-OBJS+= ../libqemu_common.a
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: signal.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-$(QEMU_PROG): $(OBJS)
+$(QEMU_PROG): $(OBJS) ../libqemu_user.a
 	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
