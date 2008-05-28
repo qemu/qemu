@@ -5,13 +5,14 @@ CFLAGS=-Wall -O2 -g -fno-strict-aliasing
 LDFLAGS=
 
 ifeq ($(ARCH),i386)
-TESTS=linux-test testthread sha1-i386 test-i386 runcom
+TESTS=linux-test testthread sha1-i386 test-i386
 endif
 ifeq ($(ARCH),x86_64)
 TESTS=test-x86_64
 endif
 TESTS+=sha1# test_path
 #TESTS+=test_path
+#TESTS+=runcom
 
 QEMU=../i386-linux-user/qemu-i386
 
@@ -46,10 +47,6 @@ test:
 endif
 	$(QEMU) test-i386 > test-i386.out
 	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK"; fi
-ifeq ($(ARCH),i386)
-	$(QEMU) -no-code-copy test-i386 > test-i386.out
-	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK (no code copy)"; fi
-endif
 
 .PHONY: test-mmap
 test-mmap: test-mmap.c
