@@ -1096,16 +1096,15 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
         (env->efer & MSR_EFER_NXE) &&
         (env->cr[4] & CR4_PAE_MASK))
         error_code |= PG_ERROR_I_D_MASK;
-    if (INTERCEPTEDl(_exceptions, 1 << EXCP0E_PAGE)) {
-        stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), addr);
+    if (env->intercept_exceptions & (1 << EXCP0E_PAGE)) {
+        /* cr2 is not modified in case of exceptions */
+        stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2), 
+                 addr);
     } else {
         env->cr[2] = addr;
     }
     env->error_code = error_code;
     env->exception_index = EXCP0E_PAGE;
-    /* the VMM will handle this */
-    if (INTERCEPTEDl(_exceptions, 1 << EXCP0E_PAGE))
-        return 2;
     return 1;
 }
 

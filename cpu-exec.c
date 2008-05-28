@@ -171,7 +171,6 @@ static inline TranslationBlock *tb_find_fast(void)
 #if defined(TARGET_I386)
     flags = env->hflags;
     flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
-    flags |= env->intercept;
     cs_base = env->segs[R_CS].base;
     pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)

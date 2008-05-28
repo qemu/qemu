@@ -149,6 +149,8 @@
 #define HF_GIF_SHIFT        20 /* if set CPU takes interrupts */
 #define HF_HIF_SHIFT        21 /* shadow copy of IF_MASK when in SVM */
 #define HF_NMI_SHIFT        22 /* CPU serving NMI */
+#define HF_SVME_SHIFT       23 /* SVME enabled (copy of EFER.SVME */
+#define HF_SVMI_SHIFT       24 /* SVM intercepts are active */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -169,6 +171,8 @@
 #define HF_GIF_MASK          (1 << HF_GIF_SHIFT)
 #define HF_HIF_MASK          (1 << HF_HIF_SHIFT)
 #define HF_NMI_MASK          (1 << HF_NMI_SHIFT)
+#define HF_SVME_MASK         (1 << HF_SVME_SHIFT)
+#define HF_SVMI_MASK         (1 << HF_SVMI_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_MP_MASK  (1 << 1)
@@ -242,6 +246,7 @@
 #define MSR_EFER_LME   (1 << 8)
 #define MSR_EFER_LMA   (1 << 10)
 #define MSR_EFER_NXE   (1 << 11)
+#define MSR_EFER_SVME  (1 << 12)
 #define MSR_EFER_FFXSR (1 << 14)
 
 #define MSR_STAR                        0xc0000081
@@ -322,6 +327,7 @@
 #define CPUID_EXT3_3DNOWPREFETCH (1 << 8)
 #define CPUID_EXT3_OSVW    (1 << 9)
 #define CPUID_EXT3_IBS     (1 << 10)
+#define CPUID_EXT3_SKINIT  (1 << 12)
 
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
