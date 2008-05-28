@@ -56,12 +56,6 @@ typedef void (GenOpFunc1)(long);
 typedef void (GenOpFunc2)(long, long);
 typedef void (GenOpFunc3)(long, long, long);
 
-#if defined(TARGET_I386)
-
-void optimize_flags_init(void);
-
-#endif
-
 extern FILE *logfile;
 extern int loglevel;
 
@@ -105,31 +99,7 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 #define CODE_GEN_PHYS_HASH_BITS     15
 #define CODE_GEN_PHYS_HASH_SIZE     (1 << CODE_GEN_PHYS_HASH_BITS)
 
-/* maximum total translate dcode allocated */
-
-/* NOTE: the translated code area cannot be too big because on some
-   archs the range of "fast" function calls is limited. Here is a
-   summary of the ranges:
-
-   i386  : signed 32 bits
-   arm   : signed 26 bits
-   ppc   : signed 24 bits
-   sparc : signed 32 bits
-   alpha : signed 23 bits
-*/
-
-#if defined(__alpha__)
-#define CODE_GEN_BUFFER_SIZE     (2 * 1024 * 1024)
-#elif defined(__ia64)
-#define CODE_GEN_BUFFER_SIZE     (4 * 1024 * 1024)	/* range of addl */
-#elif defined(__powerpc__)
-#define CODE_GEN_BUFFER_SIZE     (6 * 1024 * 1024)
-#else
-/* XXX: make it dynamic on x86 */
-#define CODE_GEN_BUFFER_SIZE     (64 * 1024 * 1024)
-#endif
-
-//#define CODE_GEN_BUFFER_SIZE     (128 * 1024)
+#define MIN_CODE_GEN_BUFFER_SIZE     (1024 * 1024)
 
 /* estimated block size for TB allocation */
 /* XXX: use a per code average code fragment size and modulate it
@@ -139,8 +109,6 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 #else
 #define CODE_GEN_AVG_BLOCK_SIZE 64
 #endif
-
-#define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / CODE_GEN_AVG_BLOCK_SIZE)
 
 #if defined(__powerpc__) || defined(__x86_64__) || defined(__arm__)
 #define USE_DIRECT_JUMP
@@ -210,9 +178,8 @@ void tb_link_phys(TranslationBlock *tb,
                   target_ulong phys_pc, target_ulong phys_page2);
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
-
-extern uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE];
 extern uint8_t *code_gen_ptr;
+extern int code_gen_max_blocks;
 
 #if defined(USE_DIRECT_JUMP)
 

@@ -723,6 +723,8 @@ static inline int cpu_mmu_index (CPUState *env)
     return (env->hflags & HF_CPL_MASK) == 3 ? 1 : 0;
 }
 
+void optimize_flags_init(void);
+
 typedef struct CCTable {
     int (*compute_all)(void); /* return all the flags */
     int (*compute_c)(void);  /* return the C flag */

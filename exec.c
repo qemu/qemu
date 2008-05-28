@@ -58,9 +58,6 @@
 #undef DEBUG_TB_CHECK
 #endif
 
-/* threshold to flush the translated code buffer */
-#define CODE_GEN_BUFFER_MAX_SIZE (CODE_GEN_BUFFER_SIZE - code_gen_max_block_size())
-
 #define SMC_BITMAP_USE_THRESHOLD 10
 
 #define MMAP_AREA_START        0x00000000
@@ -85,13 +82,17 @@
 #endif
 
 TranslationBlock *tbs;
+int code_gen_max_blocks;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
 uint8_t code_gen_prologue[1024] __attribute__((aligned (32)));
-uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE] __attribute__((aligned (32)));
+uint8_t *code_gen_buffer;
+unsigned long code_gen_buffer_size;
+/* threshold to flush the translated code buffer */
+unsigned long code_gen_buffer_max_size; 
 uint8_t *code_gen_ptr;
 
 ram_addr_t phys_ram_size;
@@ -215,9 +216,6 @@ static void page_init(void)
 #else
     qemu_real_host_page_size = getpagesize();
 #endif
-    map_exec(code_gen_buffer, sizeof(code_gen_buffer));
-    map_exec(code_gen_prologue, sizeof(code_gen_prologue));
-
     if (qemu_host_page_size == 0)
         qemu_host_page_size = qemu_real_host_page_size;
     if (qemu_host_page_size < TARGET_PAGE_SIZE)
@@ -328,18 +326,67 @@ static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr,
                                     target_ulong vaddr);
 #endif
 
+void code_gen_alloc(unsigned long tb_size)
+{
+    code_gen_buffer_size = tb_size;
+    if (code_gen_buffer_size == 0) {
+        /* XXX: needs ajustments */
+        code_gen_buffer_size = (int)(phys_ram_size / 4);
+    }
+    if (code_gen_buffer_size < MIN_CODE_GEN_BUFFER_SIZE)
+        code_gen_buffer_size = MIN_CODE_GEN_BUFFER_SIZE;
+    /* The code gen buffer location may have constraints depending on
+       the host cpu and OS */
+#if defined(__linux__) 
+    {
+        int flags;
+        flags = MAP_PRIVATE | MAP_ANONYMOUS;
+#if defined(__x86_64__)
+        flags |= MAP_32BIT;
+        /* Cannot map more than that */
+        if (code_gen_buffer_size > (800 * 1024 * 1024))
+            code_gen_buffer_size = (800 * 1024 * 1024);
+#endif
+        code_gen_buffer = mmap(NULL, code_gen_buffer_size,
+                               PROT_WRITE | PROT_READ | PROT_EXEC, 
+                               flags, -1, 0);
+        if (code_gen_buffer == MAP_FAILED) {
+            fprintf(stderr, "Could not allocate dynamic translator buffer\n");
+            exit(1);
+        }
+    }
+#else
+    code_gen_buffer = qemu_malloc(code_gen_buffer_size);
+    if (!code_gen_buffer) {
+        fprintf(stderr, "Could not allocate dynamic translator buffer\n");
+        exit(1);
+    }
+    map_exec(code_gen_buffer, code_gen_buffer_size);
+#endif
+    map_exec(code_gen_prologue, sizeof(code_gen_prologue));
+    code_gen_buffer_max_size = code_gen_buffer_size - 
+        code_gen_max_block_size();
+    code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
+    tbs = qemu_malloc(code_gen_max_blocks * sizeof(TranslationBlock));
+}
+
+/* Must be called before using the QEMU cpus. 'tb_size' is the size
+   (in bytes) allocated to the translation buffer. Zero means default
+   size. */
+void cpu_exec_init_all(unsigned long tb_size)
+{
+    page_init();
+    cpu_gen_init();
+    code_gen_alloc(tb_size);
+    code_gen_ptr = code_gen_buffer;
+    io_mem_init();
+}
+
 void cpu_exec_init(CPUState *env)
 {
     CPUState **penv;
     int cpu_index;
 
-    if (!code_gen_ptr) {
-        cpu_gen_init();
-        tbs = qemu_malloc(CODE_GEN_MAX_BLOCKS * sizeof(TranslationBlock));
-        code_gen_ptr = code_gen_buffer;
-        page_init();
-        io_mem_init();
-    }
     env->next_cpu = NULL;
     penv = &first_cpu;
     cpu_index = 0;
@@ -390,7 +437,7 @@ void tb_flush(CPUState *env1)
            nb_tbs, nb_tbs > 0 ?
            ((unsigned long)(code_gen_ptr - code_gen_buffer)) / nb_tbs : 0);
 #endif
-    if ((unsigned long)(code_gen_ptr - code_gen_buffer) > CODE_GEN_BUFFER_SIZE)
+    if ((unsigned long)(code_gen_ptr - code_gen_buffer) > code_gen_buffer_size)
         cpu_abort(env1, "Internal error: code buffer overflow\n");
 
     nb_tbs = 0;
@@ -960,8 +1007,8 @@ TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
-    if (nb_tbs >= CODE_GEN_MAX_BLOCKS ||
-        (code_gen_ptr - code_gen_buffer) >= CODE_GEN_BUFFER_MAX_SIZE)
+    if (nb_tbs >= code_gen_max_blocks ||
+        (code_gen_ptr - code_gen_buffer) >= code_gen_buffer_max_size)
         return NULL;
     tb = &tbs[nb_tbs++];
     tb->pc = pc;
@@ -2990,7 +3037,10 @@ void dump_exec_info(FILE *f,
     }
     /* XXX: avoid using doubles ? */
     cpu_fprintf(f, "Translation buffer state:\n");
-    cpu_fprintf(f, "TB count            %d\n", nb_tbs);
+    cpu_fprintf(f, "gen code size       %ld/%ld\n",
+                code_gen_ptr - code_gen_buffer, code_gen_buffer_max_size);
+    cpu_fprintf(f, "TB count            %d/%d\n", 
+                nb_tbs, code_gen_max_blocks);
     cpu_fprintf(f, "TB avg target size  %d max=%d bytes\n",
                 nb_tbs ? target_code_size / nb_tbs : 0,
                 max_target_code_size);

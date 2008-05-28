@@ -7378,6 +7378,7 @@ enum {
     QEMU_OPTION_old_param,
     QEMU_OPTION_clock,
     QEMU_OPTION_startdate,
+    QEMU_OPTION_tb_size,
 };
 
 typedef struct QEMUOption {
@@ -7489,6 +7490,7 @@ const QEMUOption qemu_options[] = {
 #endif
     { "clock", HAS_ARG, QEMU_OPTION_clock },
     { "startdate", HAS_ARG, QEMU_OPTION_startdate },
+    { "tb-size", HAS_ARG, QEMU_OPTION_tb_size },
     { NULL },
 };
 
@@ -7697,6 +7699,7 @@ int main(int argc, char **argv)
     const char *usb_devices[MAX_USB_CMDLINE];
     int usb_devices_index;
     int fds[2];
+    int tb_size;
     const char *pid_file = NULL;
     VLANState *vlan;
 
@@ -7768,8 +7771,9 @@ int main(int argc, char **argv)
     hda_index = -1;
 
     nb_nics = 0;
-    /* default mac address of the first network interface */
 
+    tb_size = 0;
+    
     optind = 1;
     for(;;) {
         if (optind >= argc)
@@ -8296,6 +8300,11 @@ int main(int argc, char **argv)
                     }
                 }
                 break;
+            case QEMU_OPTION_tb_size:
+                tb_size = strtol(optarg, NULL, 0);
+                if (tb_size < 0)
+                    tb_size = 0;
+                break;
             }
         }
     }
@@ -8466,6 +8475,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "Could not allocate physical memory\n");
         exit(1);
     }
+
+    /* init the dynamic translator */
+    cpu_exec_init_all(tb_size * 1024 * 1024);
 
     bdrv_init();
 
