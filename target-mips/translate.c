@@ -423,7 +423,7 @@ enum {
 };
 
 /* global register indices */
-static TCGv cpu_env, current_tc_gprs, cpu_T[2];
+static TCGv cpu_env, current_tc_gprs, current_tc_hi, cpu_T[2];
 
 /* The code generator doesn't like lots of temporaries, so maintain our own
    cache for reuse within a function.  */
@@ -529,6 +529,33 @@ static inline void gen_store_gpr (TCGv t, int reg)
 {
     if (reg != 0)
         tcg_gen_st_tl(t, current_tc_gprs, sizeof(target_ulong) * reg);
+}
+
+/* Moves to/from HI and LO registers.  */
+static inline void gen_load_LO (TCGv t, int reg)
+{
+    tcg_gen_ld_tl(t, current_tc_hi,
+                  offsetof(CPUState, LO)
+                  - offsetof(CPUState, HI)
+                  + sizeof(target_ulong) * reg);
+}
+
+static inline void gen_store_LO (TCGv t, int reg)
+{
+    tcg_gen_st_tl(t, current_tc_hi,
+                  offsetof(CPUState, LO)
+                  - offsetof(CPUState, HI)
+                  + sizeof(target_ulong) * reg);
+}
+
+static inline void gen_load_HI (TCGv t, int reg)
+{
+    tcg_gen_ld_tl(t, current_tc_hi, sizeof(target_ulong) * reg);
+}
+
+static inline void gen_store_HI (TCGv t, int reg)
+{
+    tcg_gen_st_tl(t, current_tc_hi, sizeof(target_ulong) * reg);
 }
 
 /* Moves to/from shadow registers. */
@@ -1834,23 +1861,23 @@ static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
     }
     switch (opc) {
     case OPC_MFHI:
-        tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUState, HI[0]));
+        gen_load_HI(cpu_T[0], 0);
         gen_store_gpr(cpu_T[0], reg);
         opn = "mfhi";
         break;
     case OPC_MFLO:
-        tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUState, LO[0]));
+        gen_load_LO(cpu_T[0], 0);
         gen_store_gpr(cpu_T[0], reg);
         opn = "mflo";
         break;
     case OPC_MTHI:
         gen_load_gpr(cpu_T[0], reg);
-        tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, HI[0]));
+        gen_store_HI(cpu_T[0], 0);
         opn = "mthi";
         break;
     case OPC_MTLO:
         gen_load_gpr(cpu_T[0], reg);
-        tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, LO[0]));
+        gen_store_LO(cpu_T[0], 0);
         opn = "mtlo";
         break;
     default:
@@ -1878,9 +1905,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 TCGv r_tmp1 = new_tmp();
                 TCGv r_tmp2 = new_tmp();
                 TCGv r_tmp3 = new_tmp();
-                TCGv r_tc_off = new_tmp();
-                TCGv r_tc_off_tl = tcg_temp_new(TCG_TYPE_TL);
-                TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
 
                 tcg_gen_ext_i32_tl(r_tmp1, cpu_T[0]);
                 tcg_gen_ext_i32_tl(r_tmp2, cpu_T[1]);
@@ -1888,16 +1912,11 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 tcg_gen_rem_i32(r_tmp1, r_tmp1, r_tmp2);
                 tcg_gen_trunc_tl_i32(cpu_T[0], r_tmp3);
                 tcg_gen_trunc_tl_i32(cpu_T[1], r_tmp1);
+                gen_store_LO(cpu_T[0], 0);
+                gen_store_HI(cpu_T[1], 0);
                 dead_tmp(r_tmp1);
                 dead_tmp(r_tmp2);
                 dead_tmp(r_tmp3);
-                tcg_gen_ld_i32(r_tc_off, cpu_env, offsetof(CPUState, current_tc));
-                tcg_gen_muli_i32(r_tc_off, r_tc_off, sizeof(target_ulong));
-                tcg_gen_ext_i32_ptr(r_tc_off_tl, r_tc_off);
-                tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_tl);
-                tcg_gen_st_tl(cpu_T[0], r_ptr, offsetof(CPUState, LO));
-                tcg_gen_st_tl(cpu_T[1], r_ptr, offsetof(CPUState, HI));
-                dead_tmp(r_tc_off);
             }
             gen_set_label(l1);
         }
@@ -1912,9 +1931,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 TCGv r_tmp1 = new_tmp();
                 TCGv r_tmp2 = new_tmp();
                 TCGv r_tmp3 = new_tmp();
-                TCGv r_tc_off = new_tmp();
-                TCGv r_tc_off_tl = tcg_temp_new(TCG_TYPE_TL);
-                TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
 
                 tcg_gen_ext_i32_tl(r_tmp1, cpu_T[0]);
                 tcg_gen_ext_i32_tl(r_tmp2, cpu_T[1]);
@@ -1922,16 +1938,11 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 tcg_gen_remu_i32(r_tmp1, r_tmp1, r_tmp2);
                 tcg_gen_trunc_tl_i32(cpu_T[0], r_tmp3);
                 tcg_gen_trunc_tl_i32(cpu_T[1], r_tmp1);
+                gen_store_LO(cpu_T[0], 0);
+                gen_store_HI(cpu_T[1], 0);
                 dead_tmp(r_tmp1);
                 dead_tmp(r_tmp2);
                 dead_tmp(r_tmp3);
-                tcg_gen_ld_i32(r_tc_off, cpu_env, offsetof(CPUState, current_tc));
-                tcg_gen_muli_i32(r_tc_off, r_tc_off, sizeof(target_ulong));
-                tcg_gen_ext_i32_ptr(r_tc_off_tl, r_tc_off);
-                tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_tl);
-                tcg_gen_st_tl(cpu_T[0], r_ptr, offsetof(CPUState, LO));
-                tcg_gen_st_tl(cpu_T[1], r_ptr, offsetof(CPUState, HI));
-                dead_tmp(r_tc_off);
             }
             gen_set_label(l1);
         }
@@ -1952,9 +1963,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
 
             tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[1], 0, l1);
             {
-                TCGv r_tc_off = new_tmp();
-                TCGv r_tc_off_tl = tcg_temp_new(TCG_TYPE_TL);
-                TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
                 int l2 = gen_new_label();
                 int l3 = gen_new_label();
 
@@ -1968,13 +1976,8 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 tcg_gen_rem_i64(cpu_T[1], cpu_T[0], cpu_T[1]);
                 gen_set_label(l3);
 
-                tcg_gen_ld_i32(r_tc_off, cpu_env, offsetof(CPUState, current_tc));
-                tcg_gen_muli_i32(r_tc_off, r_tc_off, sizeof(target_ulong));
-                tcg_gen_ext_i32_ptr(r_tc_off_tl, r_tc_off);
-                tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_tl);
-                tcg_gen_st_tl(cpu_T[0], r_ptr, offsetof(CPUState, LO));
-                tcg_gen_st_tl(cpu_T[1], r_ptr, offsetof(CPUState, HI));
-                dead_tmp(r_tc_off);
+                gen_store_LO(cpu_T[0], 0);
+                gen_store_HI(cpu_T[1], 0);
             }
             gen_set_label(l1);
         }
@@ -1988,19 +1991,11 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             {
                 TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
                 TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
-                TCGv r_tc_off = new_tmp();
-                TCGv r_tc_off_tl = tcg_temp_new(TCG_TYPE_TL);
-                TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
 
                 tcg_gen_divu_i64(r_tmp1, cpu_T[0], cpu_T[1]);
                 tcg_gen_remu_i64(r_tmp2, cpu_T[0], cpu_T[1]);
-                tcg_gen_ld_i32(r_tc_off, cpu_env, offsetof(CPUState, current_tc));
-                tcg_gen_muli_i32(r_tc_off, r_tc_off, sizeof(target_ulong));
-                tcg_gen_ext_i32_ptr(r_tc_off_tl, r_tc_off);
-                tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_tl);
-                tcg_gen_st_tl(r_tmp1, r_ptr, offsetof(CPUState, LO));
-                tcg_gen_st_tl(r_tmp2, r_ptr, offsetof(CPUState, HI));
-                dead_tmp(r_tc_off);
+                gen_store_LO(r_tmp1, 0);
+                gen_store_HI(r_tmp2, 0);
             }
             gen_set_label(l1);
         }
@@ -7512,6 +7507,10 @@ static void mips_tcg_init(void)
                                          TCG_AREG0,
                                          offsetof(CPUState, current_tc_gprs),
                                          "current_tc_gprs");
+    current_tc_hi = tcg_global_mem_new(TCG_TYPE_PTR,
+                                       TCG_AREG0,
+                                       offsetof(CPUState, current_tc_hi),
+                                       "current_tc_hi");
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
                                   TCG_AREG0, offsetof(CPUState, t0), "T0");
