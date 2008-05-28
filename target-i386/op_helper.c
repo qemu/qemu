@@ -4546,7 +4546,7 @@ void helper_hlt(void)
     helper_svm_check_intercept_param(SVM_EXIT_HLT, 0);
     
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
-    env->hflags |= HF_HALTED_MASK;
+    env->halted = 1;
     env->exception_index = EXCP_HLT;
     cpu_loop_exit();
 }

@@ -117,7 +117,6 @@ typedef struct CPUSH4State {
     jmp_buf jmp_env;
     int user_mode_only;
     int interrupt_request;
-    int halted;
     int exception_index;
      CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
     tlb_t itlb[ITLB_SIZE];	/* instruction translation table */

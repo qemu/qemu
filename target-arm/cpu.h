@@ -160,7 +160,6 @@ typedef struct CPUARMState {
     int exception_index;
     int interrupt_request;
     int user_mode_only;
-    int halted;
 
     /* VFP coprocessor state.  */
     struct {

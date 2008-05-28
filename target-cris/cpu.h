@@ -157,7 +157,6 @@ typedef struct CPUCRISState {
 
 	int features;
 	int user_mode_only;
-	int halted;
 
 	jmp_buf jmp_env;
 	CPU_COMMON

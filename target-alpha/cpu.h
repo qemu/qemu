@@ -285,7 +285,6 @@ struct CPUAlphaState {
     jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
     uint32_t hflags;
-    int halted;
 
     int exception_index;
     int error_code;

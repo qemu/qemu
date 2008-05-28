@@ -219,7 +219,6 @@ typedef struct CPUSPARCState {
     int exception_index;
     int interrupt_index;
     int interrupt_request;
-    int halted;
     uint32_t mmu_bm;
     uint32_t mmu_ctpr_mask;
     uint32_t mmu_cxr_mask;

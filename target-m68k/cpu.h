@@ -108,7 +108,6 @@ typedef struct CPUM68KState {
     int exception_index;
     int interrupt_request;
     int user_mode_only;
-    uint32_t halted;
 
     int pending_vector;
     int pending_level;

@@ -385,13 +385,13 @@ static inline void regs_to_env(void)
 
 static inline int cpu_halted(CPUState *env) {
     /* handle exit of HALTED state */
-    if (!(env->hflags & HF_HALTED_MASK))
+    if (!env->halted)
         return 0;
     /* disable halt condition */
     if (((env->interrupt_request & CPU_INTERRUPT_HARD) &&
          (env->eflags & IF_MASK)) ||
         (env->interrupt_request & CPU_INTERRUPT_NMI)) {
-        env->hflags &= ~HF_HALTED_MASK;
+        env->halted = 0;
         return 0;
     }
     return EXCP_HALTED;

@@ -586,8 +586,6 @@ struct CPUPPCState {
 
     CPU_COMMON
 
-    int halted; /* TRUE if the CPU is in suspend state */
-
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
 
