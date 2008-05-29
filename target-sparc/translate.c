@@ -2511,6 +2511,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_op_store_QT0_fpr(QFPREG(rd));
                         break;
                     case 0x69:
+                        CHECK_FPU_FEATURE(dc, FSMULD);
                         gen_op_load_fpr_FT0(rs1);
                         gen_op_load_fpr_FT1(rs2);
                         gen_clear_float_exceptions();

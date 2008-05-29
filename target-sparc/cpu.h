@@ -284,17 +284,18 @@ typedef struct CPUSPARCState {
 #define CPU_FEATURE_FMUL     (1 << 7)
 #define CPU_FEATURE_VIS1     (1 << 8)
 #define CPU_FEATURE_VIS2     (1 << 9)
+#define CPU_FEATURE_FSMULD   (1 << 10)
 #ifndef TARGET_SPARC64
 #define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
                               CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
                               CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
-                              CPU_FEATURE_FMUL)
+                              CPU_FEATURE_FMUL | CPU_FEATURE_FSMULD)
 #else
 #define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
                               CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
                               CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
                               CPU_FEATURE_FMUL | CPU_FEATURE_VIS1 |   \
-                              CPU_FEATURE_VIS2)
+                              CPU_FEATURE_VIS2 | CPU_FEATURE_FSMULD)
 #endif
 
 #if defined(TARGET_SPARC64)

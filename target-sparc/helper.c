@@ -1098,7 +1098,7 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
-        .features = CPU_FEATURE_FLOAT,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_FSMULD,
     },
     {
         .name = "Fujitsu MB86904",
@@ -1134,7 +1134,8 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT |
+        CPU_FEATURE_FSMULD,
     },
     {
         .name = "Cypress CY7C601",
@@ -1146,7 +1147,8 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT |
+        CPU_FEATURE_FSMULD,
     },
     {
         .name = "Cypress CY7C611",
@@ -1158,7 +1160,8 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT |
+        CPU_FEATURE_FSMULD,
     },
     {
         .name = "TI SuperSparc II",
@@ -1182,7 +1185,9 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0x00016fff,
         .mmu_trcr_mask = 0x0000003f,
-        .features = CPU_DEFAULT_FEATURES,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_MUL |
+        CPU_FEATURE_DIV | CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT |
+        CPU_FEATURE_FMUL,
     },
     {
         .name = "TI MicroSparc II",
@@ -1266,7 +1271,8 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP | CPU_FEATURE_FSQRT |
+        CPU_FEATURE_FSMULD,
     },
     {
         .name = "Matsushita MN10501",
@@ -1278,7 +1284,8 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_cxr_mask = 0x0000003f,
         .mmu_sfsr_mask = 0xffffffff,
         .mmu_trcr_mask = 0xffffffff,
-        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_MUL | CPU_FEATURE_FSQRT,
+        .features = CPU_FEATURE_FLOAT | CPU_FEATURE_MUL | CPU_FEATURE_FSQRT |
+        CPU_FEATURE_FSMULD,
     },
     {
         .name = "Weitek W8601",
@@ -1330,6 +1337,7 @@ static const char * const feature_name[] = {
     "fmul",
     "vis1",
     "vis2",
+    "fsmuld",
 };
 
 static void print_features(FILE *f,
