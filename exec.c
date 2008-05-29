@@ -187,14 +187,15 @@ static void map_exec(void *addr, long size)
 #else
 static void map_exec(void *addr, long size)
 {
-    unsigned long start, end;
+    unsigned long start, end, page_size;
     
+    page_size = getpagesize();
     start = (unsigned long)addr;
-    start &= ~(qemu_real_host_page_size - 1);
+    start &= ~(page_size - 1);
     
     end = (unsigned long)addr + size;
-    end += qemu_real_host_page_size - 1;
-    end &= ~(qemu_real_host_page_size - 1);
+    end += page_size - 1;
+    end &= ~(page_size - 1);
     
     mprotect((void *)start, end - start,
              PROT_READ | PROT_WRITE | PROT_EXEC);
@@ -326,12 +327,34 @@ static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr,
                                     target_ulong vaddr);
 #endif
 
+#define DEFAULT_CODE_GEN_BUFFER_SIZE (32 * 1024 * 1024)
+
+#if defined(CONFIG_USER_ONLY)
+/* Currently it is not recommanded to allocate big chunks of data in
+   user mode. It will change when a dedicated libc will be used */
+#define USE_STATIC_CODE_GEN_BUFFER
+#endif
+
+#ifdef USE_STATIC_CODE_GEN_BUFFER
+static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE];
+#endif
+
 void code_gen_alloc(unsigned long tb_size)
 {
+#ifdef USE_STATIC_CODE_GEN_BUFFER
+    code_gen_buffer = static_code_gen_buffer;
+    code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
+    map_exec(code_gen_buffer, code_gen_buffer_size);
+#else
     code_gen_buffer_size = tb_size;
     if (code_gen_buffer_size == 0) {
+#if defined(CONFIG_USER_ONLY)
+        /* in user mode, phys_ram_size is not meaningful */
+        code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
+#else
         /* XXX: needs ajustments */
         code_gen_buffer_size = (int)(phys_ram_size / 4);
+#endif
     }
     if (code_gen_buffer_size < MIN_CODE_GEN_BUFFER_SIZE)
         code_gen_buffer_size = MIN_CODE_GEN_BUFFER_SIZE;
@@ -363,6 +386,7 @@ void code_gen_alloc(unsigned long tb_size)
     }
     map_exec(code_gen_buffer, code_gen_buffer_size);
 #endif
+#endif /* !USE_STATIC_CODE_GEN_BUFFER */
     map_exec(code_gen_prologue, sizeof(code_gen_prologue));
     code_gen_buffer_max_size = code_gen_buffer_size - 
         code_gen_max_block_size();
@@ -375,10 +399,10 @@ void code_gen_alloc(unsigned long tb_size)
    size. */
 void cpu_exec_init_all(unsigned long tb_size)
 {
-    page_init();
     cpu_gen_init();
     code_gen_alloc(tb_size);
     code_gen_ptr = code_gen_buffer;
+    page_init();
     io_mem_init();
 }
 
