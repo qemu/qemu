@@ -52,6 +52,9 @@
 //#include <sys/user.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#if defined(USE_NPTL)
+#include <sys/futex.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -160,6 +163,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_tkill __NR_tkill
 #define __NR_sys_unlinkat __NR_unlinkat
 #define __NR_sys_utimensat __NR_utimensat
+#define __NR_sys_futex __NR_futex
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -240,6 +244,11 @@ _syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
 #if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
+#endif
+#if defined(TARGET_NR_futex) && defined(__NR_futex)
+_syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
+          const struct timespec *,timeout,int *,uaddr2,int,val3)
+          
 #endif
 
 extern int personality(int);
@@ -2718,6 +2727,14 @@ int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
     CPUState *new_env;
 
     if (flags & CLONE_VM) {
+#if defined(USE_NPTL)
+        /* qemu is not threadsafe.  Bail out immediately if application
+           tries to create a thread.  */
+        if (!(flags & CLONE_VFORK)) {
+            gemu_log ("clone(CLONE_VM) not supported\n");
+            return -EINVAL;
+        }
+#endif
         ts = malloc(sizeof(TaskState) + NEW_STACK_SIZE);
         memset(ts, 0, sizeof(TaskState));
         new_stack = ts->stack;
@@ -3055,6 +3072,45 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
     unlock_user_struct(target_ts, target_addr, 1);
     return 0;
 }
+
+#if defined(USE_NPTL)
+/* ??? Using host futex calls even when target atomic operations
+   are not really atomic probably breaks things.  However implementing
+   futexes locally would make futexes shared between multiple processes
+   tricky.  However they're probably useless because guest atomic
+   operations won't work either.  */
+int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
+             target_ulong uaddr2, int val3)
+{
+    struct timespec ts, *pts;
+
+    /* ??? We assume FUTEX_* constants are the same on both host
+       and target.  */
+    switch (op) {
+    case FUTEX_WAIT:
+        if (timeout) {
+            pts = &ts;
+            target_to_host_timespec(pts, timeout);
+        } else {
+            pts = NULL;
+        }
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_WAIT, tswap32(val),
+                         pts, NULL, 0));
+    case FUTEX_WAKE:
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_WAKE, val, NULL, NULL, 0));
+    case FUTEX_FD:
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_FD, val, NULL, NULL, 0));
+    case FUTEX_REQUEUE:
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_REQUEUE, val,
+                         NULL, g2h(uaddr2), 0));
+    case FUTEX_CMP_REQUEUE:
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_CMP_REQUEUE, val,
+                         NULL, g2h(uaddr2), tswap32(val3)));
+    default:
+        return -TARGET_ENOSYS;
+    }
+}
+#endif
 
 int get_osversion(void)
 {
@@ -5613,6 +5669,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
 	break;
+#endif
+#if defined(USE_NPTL)
+    case TARGET_NR_futex:
+        ret = do_futex(arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
 #endif
 
     default:
