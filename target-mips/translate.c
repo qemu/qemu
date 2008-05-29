@@ -1906,12 +1906,12 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 TCGv r_tmp2 = new_tmp();
                 TCGv r_tmp3 = new_tmp();
 
-                tcg_gen_ext_i32_tl(r_tmp1, cpu_T[0]);
-                tcg_gen_ext_i32_tl(r_tmp2, cpu_T[1]);
+                tcg_gen_trunc_tl_i32(r_tmp1, cpu_T[0]);
+                tcg_gen_trunc_tl_i32(r_tmp2, cpu_T[1]);
                 tcg_gen_div_i32(r_tmp3, r_tmp1, r_tmp2);
                 tcg_gen_rem_i32(r_tmp1, r_tmp1, r_tmp2);
-                tcg_gen_trunc_tl_i32(cpu_T[0], r_tmp3);
-                tcg_gen_trunc_tl_i32(cpu_T[1], r_tmp1);
+                tcg_gen_ext_i32_tl(cpu_T[0], r_tmp3);
+                tcg_gen_ext_i32_tl(cpu_T[1], r_tmp1);
                 gen_store_LO(cpu_T[0], 0);
                 gen_store_HI(cpu_T[1], 0);
                 dead_tmp(r_tmp1);
@@ -1932,12 +1932,12 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 TCGv r_tmp2 = new_tmp();
                 TCGv r_tmp3 = new_tmp();
 
-                tcg_gen_ext_i32_tl(r_tmp1, cpu_T[0]);
-                tcg_gen_ext_i32_tl(r_tmp2, cpu_T[1]);
+                tcg_gen_trunc_tl_i32(r_tmp1, cpu_T[0]);
+                tcg_gen_trunc_tl_i32(r_tmp2, cpu_T[1]);
                 tcg_gen_divu_i32(r_tmp3, r_tmp1, r_tmp2);
                 tcg_gen_remu_i32(r_tmp1, r_tmp1, r_tmp2);
-                tcg_gen_trunc_tl_i32(cpu_T[0], r_tmp3);
-                tcg_gen_trunc_tl_i32(cpu_T[1], r_tmp1);
+                tcg_gen_ext_i32_tl(cpu_T[0], r_tmp3);
+                tcg_gen_ext_i32_tl(cpu_T[1], r_tmp1);
                 gen_store_LO(cpu_T[0], 0);
                 gen_store_HI(cpu_T[1], 0);
                 dead_tmp(r_tmp1);
