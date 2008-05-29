@@ -2629,7 +2629,6 @@ void cpu_set_cwp(CPUState *env1, int new_cwp)
     if (new_cwp == (NWINDOWS - 1))
         memcpy32(env1->regbase + NWINDOWS * 16, env1->regbase);
     env1->regwptr = env1->regbase + (new_cwp * 16);
-    REGWPTR = env1->regwptr;
 }
 
 void set_cwp(int new_cwp)

@@ -246,11 +246,6 @@ int cpu_exec(CPUState *env1)
 {
 #define DECLARE_HOST_REGS 1
 #include "hostregs_helper.h"
-#if defined(TARGET_SPARC)
-#if defined(reg_REGWPTR)
-    uint32_t *saved_regwptr;
-#endif
-#endif
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
@@ -273,9 +268,6 @@ int cpu_exec(CPUState *env1)
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_SPARC)
-#if defined(reg_REGWPTR)
-    saved_regwptr = REGWPTR;
-#endif
 #elif defined(TARGET_M68K)
     env->cc_op = CC_OP_FLAGS;
     env->cc_dest = env->sr & 0xf;
@@ -562,8 +554,6 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ARM)
                     cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_SPARC)
-		    REGWPTR = env->regbase + (env->cwp * 16);
-		    env->regwptr = REGWPTR;
                     cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_PPC)
                     cpu_dump_state(env, logfile, fprintf, 0);
@@ -640,9 +630,6 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ARM)
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_SPARC)
-#if defined(reg_REGWPTR)
-    REGWPTR = saved_regwptr;
-#endif
 #elif defined(TARGET_PPC)
 #elif defined(TARGET_M68K)
     cpu_m68k_flush_flags(env, env->cc_op);
