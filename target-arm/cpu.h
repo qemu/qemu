@@ -157,8 +157,6 @@ typedef struct CPUARMState {
     void *irq_opaque;
 
     /* exception/interrupt handling */
-    jmp_buf jmp_env;
-    int exception_index;
     int interrupt_request;
     int user_mode_only;
 

@@ -412,8 +412,6 @@ struct CPUMIPSState {
     int32_t CP0_DESAVE;
     /* Qemu */
     int interrupt_request;
-    jmp_buf jmp_env;
-    int exception_index;
     int error_code;
     int user_mode_only; /* user mode only simulation */
     uint32_t hflags;    /* CPU State */

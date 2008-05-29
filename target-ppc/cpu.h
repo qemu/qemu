@@ -646,7 +646,6 @@ struct CPUPPCState {
     int bfd_mach;
     uint32_t flags;
 
-    int exception_index;
     int error_code;
     int interrupt_request;
     uint32_t pending_interrupts;
@@ -672,7 +671,6 @@ struct CPUPPCState {
     opc_handler_t *opcodes[0x40];
 
     /* Those resources are used only in Qemu core */
-    jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
     target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
     target_ulong hflags_nmsr; /* specific hflags, not comming from MSR */

@@ -552,8 +552,6 @@ typedef struct CPUX86State {
     uint64_t pat;
 
     /* exception/interrupt handling */
-    jmp_buf jmp_env;
-    int exception_index;
     int error_code;
     int exception_is_int;
     target_ulong exception_next_eip;

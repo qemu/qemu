@@ -160,6 +160,10 @@ typedef struct CPUTLBEntry {
     int nb_watchpoints;                                                 \
     int watchpoint_hit;                                                 \
                                                                         \
+    /* Core interrupt code */                                           \
+    jmp_buf jmp_env;                                                    \
+    int exception_index;                                                \
+                                                                        \
     void *next_cpu; /* next CPU sharing TB cache */                     \
     int cpu_index; /* CPU index (informative) */                        \
     /* user data */                                                     \

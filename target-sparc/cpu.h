@@ -214,9 +214,7 @@ typedef struct CPUSPARCState {
     uint32_t pil_in;   /* incoming interrupt level bitmap */
     int      psref;    /* enable fpu */
     target_ulong version;
-    jmp_buf  jmp_env;
     int user_mode_only;
-    int exception_index;
     int interrupt_index;
     int interrupt_request;
     uint32_t mmu_bm;

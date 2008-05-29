@@ -123,7 +123,6 @@ typedef struct CPUCRISState {
 	/* X flag at the time of cc snapshot.  */
 	int cc_x;
 
-	int exception_index;
 	int interrupt_request;
 	int interrupt_vector;
 	int fault_vector;
@@ -158,7 +157,6 @@ typedef struct CPUCRISState {
 	int features;
 	int user_mode_only;
 
-	jmp_buf jmp_env;
 	CPU_COMMON
 } CPUCRISState;
 
