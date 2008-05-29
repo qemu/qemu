@@ -243,7 +243,7 @@ static void page_init(void)
                                     (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
                     endaddr = MIN(endaddr,
                                     (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
-                    page_set_flags(TARGET_PAGE_ALIGN(startaddr),
+                    page_set_flags(startaddr & TARGET_PAGE_MASK,
                                    TARGET_PAGE_ALIGN(endaddr),
                                    PAGE_RESERVED); 
                 }
