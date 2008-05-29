@@ -286,8 +286,9 @@ print_syscall(int num,
                     format = scnames[i].format;
                 gemu_log(format,scnames[i].name, arg1,arg2,arg3,arg4,arg5,arg6);
             }
-            break;
+            return;
         }
+    gemu_log("Unknown syscall %d\n", num);
 }
 
 
