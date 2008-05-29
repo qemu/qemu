@@ -8583,7 +8583,16 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         store_cpu_field(tmp, condexec_bits);
       }
     do {
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+        /* Intercept jump to the magic kernel page.  */
+        if (dc->pc >= 0xffff0000) {
+            /* We always get here via a jump, so know we are not in a
+               conditional execution block.  */
+            gen_exception(EXCP_KERNEL_TRAP);
+            dc->is_jmp = DISAS_UPDATE;
+            break;
+        }
+#else
         if (dc->pc >= 0xfffffff0 && IS_M(env)) {
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */

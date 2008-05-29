@@ -365,6 +365,55 @@ static void arm_cache_flush(abi_ulong start, abi_ulong last)
     }
 }
 
+/* Handle a jump to the kernel code page.  */
+static int
+do_kernel_trap(CPUARMState *env)
+{
+    uint32_t addr;
+    uint32_t cpsr;
+    uint32_t val;
+
+    switch (env->regs[15]) {
+    case 0xffff0fa0: /* __kernel_memory_barrier */
+        /* ??? No-op. Will need to do better for SMP.  */
+        break;
+    case 0xffff0fc0: /* __kernel_cmpxchg */
+        /* ??? This is not really atomic.  However we don't support
+           threads anyway, so it doesn't realy matter.  */
+        cpsr = cpsr_read(env);
+        addr = env->regs[2];
+        /* FIXME: This should SEGV if the access fails.  */
+        if (get_user_u32(val, addr))
+            val = ~env->regs[0];
+        if (val == env->regs[0]) {
+            val = env->regs[1];
+            /* FIXME: Check for segfaults.  */
+            put_user_u32(val, addr);
+            env->regs[0] = 0;
+            cpsr |= CPSR_C;
+        } else {
+            env->regs[0] = -1;
+            cpsr &= ~CPSR_C;
+        }
+        cpsr_write(env, cpsr, CPSR_C);
+        break;
+    case 0xffff0fe0: /* __kernel_get_tls */
+        env->regs[0] = env->cp15.c13_tls2;
+        break;
+    default:
+        return 1;
+    }
+    /* Jump back to the caller.  */
+    addr = env->regs[14];
+    if (addr & 1) {
+        env->thumb = 1;
+        addr &= ~1;
+    }
+    env->regs[15] = addr;
+
+    return 0;
+}
+
 void cpu_loop(CPUARMState *env)
 {
     int trapnr;
@@ -489,14 +538,31 @@ void cpu_loop(CPUARMState *env)
                         n -= ARM_SYSCALL_BASE;
                         env->eabi = 0;
                     }
-                    env->regs[0] = do_syscall(env,
-                                              n,
-                                              env->regs[0],
-                                              env->regs[1],
-                                              env->regs[2],
-                                              env->regs[3],
-                                              env->regs[4],
-                                              env->regs[5]);
+                    if ( n > ARM_NR_BASE) {
+                        switch (n) {
+                        case ARM_NR_cacheflush:
+                            arm_cache_flush(env->regs[0], env->regs[1]);
+                            break;
+                        case ARM_NR_set_tls:
+                            cpu_set_tls(env, env->regs[0]);
+                            env->regs[0] = 0;
+                            break;
+                        default:
+                            gemu_log("qemu: Unsupported ARM syscall: 0x%x\n",
+                                     n);
+                            env->regs[0] = -TARGET_ENOSYS;
+                            break;
+                        }
+                    } else {
+                        env->regs[0] = do_syscall(env,
+                                                  n,
+                                                  env->regs[0],
+                                                  env->regs[1],
+                                                  env->regs[2],
+                                                  env->regs[3],
+                                                  env->regs[4],
+                                                  env->regs[5]);
+                    }
                 } else {
                     goto error;
                 }
@@ -534,6 +600,10 @@ void cpu_loop(CPUARMState *env)
                     queue_signal(info.si_signo, &info);
                   }
             }
+            break;
+        case EXCP_KERNEL_TRAP:
+            if (do_kernel_trap(env))
+              goto error;
             break;
         default:
         error:

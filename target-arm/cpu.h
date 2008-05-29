@@ -38,6 +38,7 @@
 #define EXCP_FIQ             6
 #define EXCP_BKPT            7
 #define EXCP_EXCEPTION_EXIT  8   /* Return from v7M exception.  */
+#define EXCP_KERNEL_TRAP     9   /* Jumped to kernel code page.  */
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2
@@ -216,6 +217,10 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
 
 void cpu_lock(void);
 void cpu_unlock(void);
+static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
+{
+  env->cp15.c13_tls2 = newtls;
+}
 
 #define CPSR_M (0x1f)
 #define CPSR_T (1 << 5)
