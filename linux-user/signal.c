@@ -113,11 +113,15 @@ static inline int sas_ss_flags(unsigned long sp)
 
 static inline int host_to_target_signal(int sig)
 {
+    if (sig > 64)
+        return sig;
     return host_to_target_signal_table[sig];
 }
 
-static inline int target_to_host_signal(int sig)
+int target_to_host_signal(int sig)
 {
+    if (sig > 64)
+        return sig;
     return target_to_host_signal_table[sig];
 }
 

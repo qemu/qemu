@@ -3488,7 +3488,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0;
         break;
     case TARGET_NR_kill:
-        ret = get_errno(kill(arg1, arg2));
+        ret = get_errno(kill(arg1, target_to_host_signal(arg2)));
         break;
     case TARGET_NR_rename:
         {
@@ -5583,13 +5583,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
 #if defined(TARGET_NR_tkill) && defined(__NR_tkill)
     case TARGET_NR_tkill:
-        ret = get_errno(sys_tkill((int)arg1, (int)arg2));
+        ret = get_errno(sys_tkill((int)arg1, target_to_host_signal(arg2)));
         break;
 #endif
 
 #if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
     case TARGET_NR_tgkill:
-	ret = get_errno(sys_tgkill((int)arg1, (int)arg2, (int)arg3));
+	ret = get_errno(sys_tgkill((int)arg1, (int)arg2,
+                        target_to_host_signal(arg3)));
 	break;
 #endif
 
