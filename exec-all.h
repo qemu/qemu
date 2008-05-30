@@ -187,12 +187,23 @@ extern int code_gen_max_blocks;
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
     uint32_t val, *ptr;
+    long disp = addr - jmp_addr;
 
-    /* patch the branch destination */
     ptr = (uint32_t *)jmp_addr;
     val = *ptr;
-    val = (val & ~0x03fffffc) | ((addr - jmp_addr) & 0x03fffffc);
-    *ptr = val;
+
+    if ((disp << 6) >> 6 != disp) {
+        uint16_t *p1;
+
+        p1 = (uint16_t *) ptr;
+        *ptr = (val & ~0x03fffffc) | 4;
+        p1[3] = addr >> 16;
+        p1[5] = addr & 0xffff;
+    } else {
+        /* patch the branch destination */
+        val = (val & ~0x03fffffc) | (disp & 0x03fffffc);
+        *ptr = val;
+    }
     /* flush icache */
     asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
     asm volatile ("sync" : : : "memory");

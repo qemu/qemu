@@ -410,4 +410,9 @@ uint64_t tcg_helper_divu_i64(uint64_t arg1, uint64_t arg2);
 uint64_t tcg_helper_remu_i64(uint64_t arg1, uint64_t arg2);
 
 extern uint8_t code_gen_prologue[];
+#ifdef __powerpc__
+#define tcg_qemu_tb_exec(tb_ptr) \
+    ((long REGPARM __attribute__ ((longcall)) (*)(void *))code_gen_prologue)(tb_ptr)
+#else
 #define tcg_qemu_tb_exec(tb_ptr) ((long REGPARM (*)(void *))code_gen_prologue)(tb_ptr)
+#endif
