@@ -563,14 +563,20 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 #ifdef USE_KQEMU
 #define KQEMU_MODIFY_PAGE_MASK (0xff & ~(VGA_DIRTY_FLAG | CODE_DIRTY_FLAG))
 
+#define MSR_QPI_COMMBASE 0xfabe0010
+
 int kqemu_init(CPUState *env);
 int kqemu_cpu_exec(CPUState *env);
 void kqemu_flush_page(CPUState *env, target_ulong addr);
 void kqemu_flush(CPUState *env, int global);
 void kqemu_set_notdirty(CPUState *env, ram_addr_t ram_addr);
 void kqemu_modify_page(CPUState *env, ram_addr_t ram_addr);
+void kqemu_set_phys_mem(uint64_t start_addr, ram_addr_t size, 
+                        ram_addr_t phys_offset);
 void kqemu_cpu_interrupt(CPUState *env);
 void kqemu_record_dump(void);
+
+extern uint32_t kqemu_comm_base;
 
 static inline int kqemu_is_ok(CPUState *env)
 {

@@ -1950,20 +1950,21 @@ void helper_cpuid(void)
     case 0x80000008:
         /* virtual & phys address size in low 2 bytes. */
 /* XXX: This value must match the one used in the MMU code. */ 
-#if defined(TARGET_X86_64)
-#  if defined(USE_KQEMU)
-        EAX = 0x00003020;	/* 48 bits virtual, 32 bits physical */
-#  else
-/* XXX: The physical address space is limited to 42 bits in exec.c. */
-        EAX = 0x00003028;	/* 48 bits virtual, 40 bits physical */
-#  endif
+        if (env->cpuid_ext2_features & CPUID_EXT2_LM) {
+            /* 64 bit processor */
+#if defined(USE_KQEMU)
+            EAX = 0x00003020;	/* 48 bits virtual, 32 bits physical */
 #else
-# if defined(USE_KQEMU)
-        EAX = 0x00000020;	/* 32 bits physical */
-#  else
-        EAX = 0x00000024;	/* 36 bits physical */
-#  endif
+/* XXX: The physical address space is limited to 42 bits in exec.c. */
+            EAX = 0x00003028;	/* 48 bits virtual, 40 bits physical */
 #endif
+        } else {
+#if defined(USE_KQEMU)
+            EAX = 0x00000020;	/* 32 bits physical */
+#else
+            EAX = 0x00000024;	/* 36 bits physical */
+#endif
+        }
         EBX = 0;
         ECX = 0;
         EDX = 0;
@@ -3156,6 +3157,15 @@ void helper_rdmsr(void)
         break;
     case MSR_KERNELGSBASE:
         val = env->kernelgsbase;
+        break;
+#endif
+#ifdef USE_KQEMU
+    case MSR_QPI_COMMBASE:
+        if (env->kqemu_enabled) {
+            val = kqemu_comm_base;
+        } else {
+            val = 0;
+        }
         break;
 #endif
     default:

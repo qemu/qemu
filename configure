@@ -1222,7 +1222,7 @@ case "$target_cpu" in
     echo "TARGET_ARCH=i386" >> $config_mak
     echo "#define TARGET_ARCH \"i386\"" >> $config_h
     echo "#define TARGET_I386 1" >> $config_h
-    if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "i386"
+    if test $kqemu = "yes" -a "$target_softmmu" = "yes"
     then
       echo "#define USE_KQEMU 1" >> $config_h
     fi
