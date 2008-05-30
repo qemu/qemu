@@ -146,7 +146,7 @@ static inline int cpu_mmu_index (CPUState *env)
 #if defined(CONFIG_USER_ONLY)
 static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 {
-    if (!newsp)
+    if (newsp)
         env->gregs[15] = newsp;
     env->gregs[0] = 0;
 }

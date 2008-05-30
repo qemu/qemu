@@ -737,7 +737,7 @@ extern CCTable cc_table[];
 #if defined(CONFIG_USER_ONLY)
 static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 {
-    if (!newsp)
+    if (newsp)
         env->regs[R_ESP] = newsp;
     env->regs[R_EAX] = 0;
 }

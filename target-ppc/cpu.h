@@ -826,7 +826,7 @@ static inline int cpu_mmu_index (CPUState *env)
 static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 {
     int i;
-    if (!newsp)
+    if (newsp)
         env->gpr[1] = newsp;
     for (i = 7; i < 32; i++)
         env->gpr[i] = 0;
