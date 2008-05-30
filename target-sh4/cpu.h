@@ -143,6 +143,15 @@ static inline int cpu_mmu_index (CPUState *env)
     return (env->sr & SR_MD) == 0 ? 1 : 0;
 }
 
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (!newsp)
+        env->gregs[15] = newsp;
+    env->gregs[0] = 0;
+}
+#endif
+
 #include "cpu-all.h"
 
 /* Memory access type */

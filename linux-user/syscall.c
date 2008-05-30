@@ -2744,64 +2744,8 @@ int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
         first_task_state = ts;
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
-#if defined(TARGET_I386)
-        if (!newsp)
-            newsp = env->regs[R_ESP];
-        new_env->regs[R_ESP] = newsp;
-        new_env->regs[R_EAX] = 0;
-#elif defined(TARGET_ARM)
-        if (!newsp)
-            newsp = env->regs[13];
-        new_env->regs[13] = newsp;
-        new_env->regs[0] = 0;
-#elif defined(TARGET_SPARC)
-        if (!newsp)
-            newsp = env->regwptr[22];
-        new_env->regwptr[22] = newsp;
-        new_env->regwptr[0] = 0;
-	/* XXXXX */
-        printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
-#elif defined(TARGET_M68K)
-        if (!newsp)
-            newsp = env->aregs[7];
-        new_env->aregs[7] = newsp;
-        new_env->dregs[0] = 0;
-        /* ??? is this sufficient?  */
-#elif defined(TARGET_MIPS)
-        if (!newsp)
-            newsp = env->gpr[env->current_tc][29];
-        new_env->gpr[env->current_tc][29] = newsp;
-#elif defined(TARGET_PPC)
-        if (!newsp)
-            newsp = env->gpr[1];
-        new_env->gpr[1] = newsp;
-        {
-            int i;
-            for (i = 7; i < 32; i++)
-                new_env->gpr[i] = 0;
-        }
-#elif defined(TARGET_SH4)
-	if (!newsp)
-	  newsp = env->gregs[15];
-	new_env->gregs[15] = newsp;
-	/* XXXXX */
-#elif defined(TARGET_ALPHA)
-       if (!newsp)
-         newsp = env->ir[30];
-       new_env->ir[30] = newsp;
-        /* ? */
-        {
-            int i;
-            for (i = 7; i < 30; i++)
-                new_env->ir[i] = 0;
-        }
-#elif defined(TARGET_CRIS)
-	if (!newsp)
-	  newsp = env->regs[14];
-	new_env->regs[14] = newsp;
-#else
-#error unsupported target CPU
-#endif
+        /* Init regs that differ from the parent.  */
+        cpu_clone_regs(new_env, newsp);
         new_env->opaque = ts;
 #ifdef __ia64__
         ret = __clone2(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
@@ -2813,6 +2757,9 @@ int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
         if ((flags & ~CSIGNAL) != 0)
             return -EINVAL;
         ret = fork();
+        if (ret == 0) {
+            cpu_clone_regs(env, newsp);
+        }
     }
     return ret;
 }

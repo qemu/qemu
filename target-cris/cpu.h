@@ -218,6 +218,15 @@ static inline int cpu_mmu_index (CPUState *env)
 	return !!(env->pregs[PR_CCS] & U_FLAG);
 }
 
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (!newsp)
+        env->regs[14] = newsp;
+    env->regs[10] = 0;
+}
+#endif
+
 /* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0
 #define SFR_RW_MM_CFG      env->pregs[PR_SRS]][0

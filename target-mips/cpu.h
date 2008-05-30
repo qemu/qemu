@@ -500,6 +500,16 @@ static inline int cpu_mmu_index (CPUState *env)
     return env->hflags & MIPS_HFLAG_KSU;
 }
 
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (!newsp)
+        env->gpr[env->current_tc][29] = newsp;
+    env->gpr[env->current_tc][7] = 0;
+    env->gpr[env->current_tc][2] = 0;
+}
+#endif
+
 #include "cpu-all.h"
 
 /* Memory access type :

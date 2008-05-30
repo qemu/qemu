@@ -822,6 +822,17 @@ static inline int cpu_mmu_index (CPUState *env)
     return env->mmu_idx;
 }
 
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    int i;
+    if (!newsp)
+        env->gpr[1] = newsp;
+    for (i = 7; i < 32; i++)
+        env->gpr[i] = 0;
+}
+#endif
+
 #include "cpu-all.h"
 
 /*****************************************************************************/

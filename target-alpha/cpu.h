@@ -311,6 +311,15 @@ static inline int cpu_mmu_index (CPUState *env)
     return (env->ps >> 3) & 3;
 }
 
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (!newsp)
+        env->ir[30] = newsp;
+    /* FIXME: Zero syscall return value.  */
+}
+#endif
+
 #include "cpu-all.h"
 
 enum {
