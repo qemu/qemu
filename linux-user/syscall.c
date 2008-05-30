@@ -3248,7 +3248,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             argc = 0;
             guest_argp = arg2;
-            for (gp = guest_argp; ; gp += sizeof(abi_ulong)) {
+            for (gp = guest_argp; gp; gp += sizeof(abi_ulong)) {
                 if (get_user_ual(addr, gp))
                     goto efault;
                 if (!addr)
@@ -3257,7 +3257,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             envc = 0;
             guest_envp = arg3;
-            for (gp = guest_envp; ; gp += sizeof(abi_ulong)) {
+            for (gp = guest_envp; gp; gp += sizeof(abi_ulong)) {
                 if (get_user_ual(addr, gp))
                     goto efault;
                 if (!addr)
@@ -3268,7 +3268,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             argp = alloca((argc + 1) * sizeof(void *));
             envp = alloca((envc + 1) * sizeof(void *));
 
-            for (gp = guest_argp, q = argp; ;
+            for (gp = guest_argp, q = argp; gp;
                   gp += sizeof(abi_ulong), q++) {
                 if (get_user_ual(addr, gp))
                     goto execve_efault;
@@ -3279,7 +3279,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             *q = NULL;
 
-            for (gp = guest_envp, q = envp; ;
+            for (gp = guest_envp, q = envp; gp;
                   gp += sizeof(abi_ulong), q++) {
                 if (get_user_ual(addr, gp))
                     goto execve_efault;
