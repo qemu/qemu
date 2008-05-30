@@ -3920,10 +3920,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             ret = get_errno(sigtimedwait(&set, &uinfo, puts));
             if (!is_error(ret) && arg2) {
-                if (!(p = lock_user(VERIFY_WRITE, arg2, sizeof(target_sigset_t), 0)))
+                if (!(p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t), 0)))
                     goto efault;
                 host_to_target_siginfo(p, &uinfo);
-                unlock_user(p, arg2, sizeof(target_sigset_t));
+                unlock_user(p, arg2, sizeof(target_siginfo_t));
             }
         }
         break;
