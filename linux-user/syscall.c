@@ -3169,6 +3169,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
 #endif
+#ifdef TARGET_NR_waitid
+    case TARGET_NR_waitid:
+        {
+            siginfo_t info;
+            info.si_pid = 0;
+            ret = get_errno(waitid(arg1, arg2, &info, arg4));
+            if (!is_error(ret) && arg3 && info.si_pid != 0) {
+                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_siginfo_t), 0)))
+                    goto efault;
+                host_to_target_siginfo(p, &info);
+                unlock_user(p, arg3, sizeof(target_siginfo_t));
+            }
+        }
+        break;
+#endif
 #ifdef TARGET_NR_creat /* not on alpha */
     case TARGET_NR_creat:
         if (!(p = lock_user_string(arg1)))
