@@ -125,30 +125,35 @@ int target_to_host_signal(int sig)
     return target_to_host_signal_table[sig];
 }
 
+static inline void target_sigemptyset(target_sigset_t *set)
+{
+    memset(set, 0, sizeof(*set));
+}
+
+static inline void target_sigaddset(target_sigset_t *set, int signum)
+{
+    signum--;
+    abi_ulong mask = (abi_ulong)1 << (signum % TARGET_NSIG_BPW);
+    set->sig[signum / TARGET_NSIG_BPW] |= mask;
+}
+
+static inline int target_sigismember(const target_sigset_t *set, int signum)
+{
+    signum--;
+    abi_ulong mask = (abi_ulong)1 << (signum % TARGET_NSIG_BPW);
+    return ((set->sig[signum / TARGET_NSIG_BPW] & mask) != 0);
+}
+
 static void host_to_target_sigset_internal(target_sigset_t *d,
                                            const sigset_t *s)
 {
     int i;
-    unsigned long sigmask;
-    uint32_t target_sigmask;
-
-    sigmask = ((unsigned long *)s)[0];
-    target_sigmask = 0;
-    for(i = 0; i < 32; i++) {
-        if (sigmask & (1 << i))
-            target_sigmask |= 1 << (host_to_target_signal(i + 1) - 1);
+    target_sigemptyset(d);
+    for (i = 1; i <= TARGET_NSIG; i++) {
+        if (sigismember(s, i)) {
+            target_sigaddset(d, host_to_target_signal(i));
+        }
     }
-#if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 32
-    d->sig[0] = target_sigmask;
-    for(i = 1;i < TARGET_NSIG_WORDS; i++) {
-        d->sig[i] = ((unsigned long *)s)[i];
-    }
-#elif TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
-    d->sig[0] = target_sigmask;
-    d->sig[1] = sigmask >> 32;
-#else
-    /* XXX: do it */
-#endif
 }
 
 void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
@@ -164,25 +169,12 @@ void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
 void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
 {
     int i;
-    unsigned long sigmask;
-    abi_ulong target_sigmask;
-
-    target_sigmask = s->sig[0];
-    sigmask = 0;
-    for(i = 0; i < 32; i++) {
-        if (target_sigmask & (1 << i))
-            sigmask |= 1 << (target_to_host_signal(i + 1) - 1);
-    }
-#if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 32
-    ((unsigned long *)d)[0] = sigmask;
-    for(i = 1;i < TARGET_NSIG_WORDS; i++) {
-        ((unsigned long *)d)[i] = s->sig[i];
-    }
-#elif TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64 && TARGET_NSIG_WORDS == 2
-    ((unsigned long *)d)[0] = sigmask | ((unsigned long)(s->sig[1]) << 32);
-#else
-    /* XXX: do it */
-#endif /* TARGET_ABI_BITS */
+    sigemptyset(d);
+    for (i = 1; i <= TARGET_NSIG; i++) {
+        if (target_sigismember(s, i)) {
+            sigaddset(d, target_to_host_signal(i));
+        }
+     }
 }
 
 void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
