@@ -157,6 +157,8 @@ static abi_ulong mmap_next_start = 0x18000000;
 static abi_ulong mmap_next_start = 0x40000000;
 #endif
 
+unsigned long last_brk;
+
 /* find a free memory area of size 'size'. The search starts at
    'start'. If 'start' == 0, then a default start address is used.
    Return -1 if error.
@@ -167,6 +169,20 @@ static abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
 {
     abi_ulong addr, addr1, addr_start;
     int prot;
+    unsigned long new_brk;
+
+    new_brk = (unsigned long)sbrk(0);
+    if (last_brk && last_brk < new_brk && last_brk == (target_ulong)last_brk) {
+        /* This is a hack to catch the host allocating memory with brk().
+           If it uses mmap then we loose.
+           FIXME: We really want to avoid the host allocating memory in
+           the first place, and maybe leave some slack to avoid switching
+           to mmap.  */
+        page_set_flags(last_brk & TARGET_PAGE_MASK,
+                       TARGET_PAGE_ALIGN(new_brk),
+                       PAGE_RESERVED); 
+    }
+    last_brk = new_brk;
 
     size = HOST_PAGE_ALIGN(size);
     start = start & qemu_host_page_mask;

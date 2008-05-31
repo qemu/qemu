@@ -234,6 +234,7 @@ static void page_init(void)
         FILE *f;
         int n;
 
+        last_brk = (unsigned long)sbrk(0);
         f = fopen("/proc/self/maps", "r");
         if (f) {
             do {
