@@ -216,7 +216,7 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     sig = host_to_target_signal(info->si_signo);
     tinfo->si_signo = sig;
     tinfo->si_errno = 0;
-    tinfo->si_code = info.si_code;
+    tinfo->si_code = info->si_code;
     if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV ||
         sig == SIGBUS || sig == SIGTRAP) {
         /* should never come here, but who knows. The information for
