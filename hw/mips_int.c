@@ -13,7 +13,7 @@ void cpu_mips_update_irq(CPUState *env)
         if ((env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask) &&
             !(env->interrupt_request & CPU_INTERRUPT_HARD)) {
             cpu_interrupt(env, CPU_INTERRUPT_HARD);
-	}
+        }
     } else
         cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
 }
