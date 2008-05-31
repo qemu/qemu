@@ -2736,12 +2736,8 @@ int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
         }
 #endif
         ts = malloc(sizeof(TaskState) + NEW_STACK_SIZE);
-        memset(ts, 0, sizeof(TaskState));
+        init_task_state(ts);
         new_stack = ts->stack;
-        ts->used = 1;
-        /* add in task state list */
-        ts->next = first_task_state;
-        first_task_state = ts;
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
         /* Init regs that differ from the parent.  */
