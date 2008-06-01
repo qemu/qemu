@@ -577,7 +577,7 @@ static void esp_save(QEMUFile *f, void *opaque)
 
     qemu_put_buffer(f, s->rregs, ESP_REGS);
     qemu_put_buffer(f, s->wregs, ESP_REGS);
-    qemu_put_be32s(f, &s->ti_size);
+    qemu_put_be32s(f, (uint32_t *)&s->ti_size);
     qemu_put_be32s(f, &s->ti_rptr);
     qemu_put_be32s(f, &s->ti_wptr);
     qemu_put_buffer(f, s->ti_buf, TI_BUFSZ);
@@ -599,7 +599,7 @@ static int esp_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_buffer(f, s->rregs, ESP_REGS);
     qemu_get_buffer(f, s->wregs, ESP_REGS);
-    qemu_get_be32s(f, &s->ti_size);
+    qemu_get_be32s(f, (uint32_t *)&s->ti_size);
     qemu_get_be32s(f, &s->ti_rptr);
     qemu_get_be32s(f, &s->ti_wptr);
     qemu_get_buffer(f, s->ti_buf, TI_BUFSZ);
