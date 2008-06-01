@@ -662,7 +662,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case 0x46:
         DPRINTF("Get Configuration (rt %d, maxlen %d)\n", buf[1] & 3, len);
         memset(outbuf, 0, 8);
-        /* ??? This shoud probably return much more information.  For now
+        /* ??? This should probably return much more information.  For now
            just return the basic header indicating the CD-ROM profile.  */
         outbuf[7] = 8; // CD-ROM
         r->buf_len = 8;

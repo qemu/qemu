@@ -219,7 +219,7 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
 {
     /* patch the branch destination */
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
-    /* no need to flush icache explicitely */
+    /* no need to flush icache explicitly */
 }
 #elif defined(__arm__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)

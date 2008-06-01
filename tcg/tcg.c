@@ -1406,7 +1406,7 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args)
            propagation */
         tcg_out_movi(s, ots->type, ots->reg, val);
     } else {
-        /* The movi is not explicitely generated here */
+        /* The movi is not explicitly generated here */
         if (ots->val_type == TEMP_VAL_REG)
             s->reg_to_temp[ots->reg] = -1;
         ots->val_type = TEMP_VAL_CONST;

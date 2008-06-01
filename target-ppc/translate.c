@@ -287,7 +287,7 @@ static void gen_##name (DisasContext *ctx)
 
 typedef struct opcode_t {
     unsigned char opc1, opc2, opc3;
-#if HOST_LONG_BITS == 64 /* Explicitely align to 64 bits */
+#if HOST_LONG_BITS == 64 /* Explicitly align to 64 bits */
     unsigned char pad[5];
 #else
     unsigned char pad[1];

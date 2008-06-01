@@ -386,7 +386,7 @@ static inline void *lock_user(int type, abi_ulong guest_addr, long len, int copy
 }
 
 /* Unlock an area of guest memory.  The first LEN bytes must be
-   flushed back to guest memory. host_ptr = NULL is explicitely
+   flushed back to guest memory. host_ptr = NULL is explicitly
    allowed and does nothing. */
 static inline void unlock_user(void *host_ptr, abi_ulong guest_addr,
                                long len)
