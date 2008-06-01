@@ -49,21 +49,6 @@ target_ulong gen_opc_jump_pc[2];
 uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 #endif
 
-#ifdef CONFIG_PROFILER
-int64_t dyngen_tb_count1;
-int64_t dyngen_tb_count;
-int64_t dyngen_op_count;
-int64_t dyngen_old_op_count;
-int64_t dyngen_tcg_del_op_count;
-int dyngen_op_count_max;
-int64_t dyngen_code_in_len;
-int64_t dyngen_code_out_len;
-int64_t dyngen_interm_time;
-int64_t dyngen_code_time;
-int64_t dyngen_restore_count;
-int64_t dyngen_restore_time;
-#endif
-
 /* XXX: suppress that */
 unsigned long code_gen_max_block_size(void)
 {
@@ -103,8 +88,8 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 #endif
 
 #ifdef CONFIG_PROFILER
-    dyngen_tb_count1++; /* includes aborted translations because of
-                           exceptions */
+    s->tb_count1++; /* includes aborted translations because of
+                       exceptions */
     ti = profile_getclock();
 #endif
     tcg_func_start(s);
@@ -130,16 +115,16 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 #endif
 
 #ifdef CONFIG_PROFILER
-    dyngen_tb_count++;
-    dyngen_interm_time += profile_getclock() - ti;
-    dyngen_code_time -= profile_getclock();
+    s->tb_count++;
+    s->interm_time += profile_getclock() - ti;
+    s->code_time -= profile_getclock();
 #endif
     gen_code_size = dyngen_code(s, gen_code_buf);
     *gen_code_size_ptr = gen_code_size;
 #ifdef CONFIG_PROFILER
-    dyngen_code_time += profile_getclock();
-    dyngen_code_in_len += tb->size;
-    dyngen_code_out_len += gen_code_size;
+    s->code_time += profile_getclock();
+    s->code_in_len += tb->size;
+    s->code_out_len += gen_code_size;
 #endif
 
 #ifdef DEBUG_DISAS
@@ -197,8 +182,8 @@ int cpu_restore_state(TranslationBlock *tb,
     gen_pc_load(env, tb, searched_pc, j, puc);
 
 #ifdef CONFIG_PROFILER
-    dyngen_restore_time += profile_getclock() - ti;
-    dyngen_restore_count++;
+    s->restore_time += profile_getclock() - ti;
+    s->restore_count++;
 #endif
     return 0;
 }

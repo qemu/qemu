@@ -586,8 +586,6 @@ struct CPUPPCState {
 
     CPU_COMMON
 
-    int halted; /* TRUE if the CPU is in suspend state */
-
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
 
@@ -648,7 +646,6 @@ struct CPUPPCState {
     int bfd_mach;
     uint32_t flags;
 
-    int exception_index;
     int error_code;
     int interrupt_request;
     uint32_t pending_interrupts;
@@ -674,7 +671,6 @@ struct CPUPPCState {
     opc_handler_t *opcodes[0x40];
 
     /* Those resources are used only in Qemu core */
-    jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
     target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
     target_ulong hflags_nmsr; /* specific hflags, not comming from MSR */
@@ -825,6 +821,17 @@ static inline int cpu_mmu_index (CPUState *env)
 {
     return env->mmu_idx;
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    int i;
+    if (newsp)
+        env->gpr[1] = newsp;
+    for (i = 7; i < 32; i++)
+        env->gpr[i] = 0;
+}
+#endif
 
 #include "cpu-all.h"
 

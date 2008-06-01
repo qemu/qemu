@@ -87,6 +87,7 @@ For system emulation, the following hardware targets are supported:
 @item Freescale MCF5208EVB (ColdFire V2).
 @item Arnewsh MCF5206 evaluation board (ColdFire V2).
 @item Palm Tungsten|E PDA (OMAP310 processor)
+@item N800 and N810 tablets (OMAP2420 processor)
 @item MusicPal (MV88W8618 ARM processor)
 @end itemize
 
@@ -2469,6 +2470,39 @@ GPIO-connected matrix keypad
 Secure Digital card connected to OMAP MMC/SD host
 @item
 Three on-chip UARTs
+@end itemize
+
+Nokia N800 and N810 internet tablets (known also as RX-34 and RX-44 / 48)
+emulation supports the following elements:
+
+@itemize @minus
+@item
+Texas Instruments OMAP2420 System-on-chip (ARM 1136 core)
+@item
+RAM and non-volatile OneNAND Flash memories
+@item
+Display connected to EPSON remote framebuffer chip and OMAP on-chip
+display controller and a LS041y3 MIPI DBI-C controller
+@item
+TI TSC2301 (in N800) and TI TSC2005 (in N810) touchscreen controllers
+driven through SPI bus
+@item
+National Semiconductor LM8323-controlled qwerty keyboard driven
+through I@math{^2}C bus
+@item
+Secure Digital card connected to OMAP MMC/SD host
+@item
+Three OMAP on-chip UARTs and on-chip STI debugging console
+@item
+Mentor Graphics "Inventra" dual-role USB controller embedded in a TI
+TUSB6010 chip - only USB host mode is supported
+@item
+TI TMP105 temperature sensor driven through I@math{^2}C bus
+@item
+TI TWL92230C power management companion with an RTC on I@math{^2}C bus
+@item
+Nokia RETU and TAHVO multi-purpose chips with an RTC, connected
+through CBUS
 @end itemize
 
 The Luminary Micro Stellaris LM3S811EVB emulation includes the following

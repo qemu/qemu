@@ -312,21 +312,15 @@ static void do_info_cpus(void)
                     env->cpu_index);
 #if defined(TARGET_I386)
         term_printf(" pc=0x" TARGET_FMT_lx, env->eip + env->segs[R_CS].base);
-        if (env->hflags & HF_HALTED_MASK)
-            term_printf(" (halted)");
 #elif defined(TARGET_PPC)
         term_printf(" nip=0x" TARGET_FMT_lx, env->nip);
-        if (env->halted)
-            term_printf(" (halted)");
 #elif defined(TARGET_SPARC)
         term_printf(" pc=0x" TARGET_FMT_lx " npc=0x" TARGET_FMT_lx, env->pc, env->npc);
-        if (env->halted)
-            term_printf(" (halted)");
 #elif defined(TARGET_MIPS)
         term_printf(" PC=0x" TARGET_FMT_lx, env->PC[env->current_tc]);
+#endif
         if (env->halted)
             term_printf(" (halted)");
-#endif
         term_printf("\n");
     }
 }
@@ -1325,7 +1319,7 @@ static term_cmd_t term_cmds[] = {
     { "screendump", "F", do_screen_dump,
       "filename", "save screen into PPM image 'filename'" },
 #endif
-    { "logfile", "s", do_logfile,
+    { "logfile", "F", do_logfile,
       "filename", "output logs to 'filename'" },
     { "log", "s", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" },

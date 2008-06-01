@@ -38,6 +38,7 @@
 #define EXCP_FIQ             6
 #define EXCP_BKPT            7
 #define EXCP_EXCEPTION_EXIT  8   /* Return from v7M exception.  */
+#define EXCP_KERNEL_TRAP     9   /* Jumped to kernel code page.  */
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2
@@ -156,11 +157,8 @@ typedef struct CPUARMState {
     void *irq_opaque;
 
     /* exception/interrupt handling */
-    jmp_buf jmp_env;
-    int exception_index;
     int interrupt_request;
     int user_mode_only;
-    int halted;
 
     /* VFP coprocessor state.  */
     struct {
@@ -217,6 +215,10 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
 
 void cpu_lock(void);
 void cpu_unlock(void);
+static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
+{
+  env->cp15.c13_tls2 = newtls;
+}
 
 #define CPSR_M (0x1f)
 #define CPSR_T (1 << 5)
@@ -405,6 +407,15 @@ static inline int cpu_mmu_index (CPUState *env)
 {
     return (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR ? 1 : 0;
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (newsp)
+        env->regs[13] = newsp;
+    env->regs[0] = 0;
+}
+#endif
 
 #include "cpu-all.h"
 

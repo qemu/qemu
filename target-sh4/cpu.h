@@ -114,11 +114,8 @@ typedef struct CPUSH4State {
     uint32_t expevt;		/* exception event register */
     uint32_t intevt;		/* interrupt event register */
 
-    jmp_buf jmp_env;
     int user_mode_only;
     int interrupt_request;
-    int halted;
-    int exception_index;
      CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
     tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
     void *intc_handle;
@@ -145,6 +142,15 @@ static inline int cpu_mmu_index (CPUState *env)
 {
     return (env->sr & SR_MD) == 0 ? 1 : 0;
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (newsp)
+        env->gregs[15] = newsp;
+    env->gregs[0] = 0;
+}
+#endif
 
 #include "cpu-all.h"
 

@@ -63,7 +63,7 @@ enum mips_mmu_types {
 };
 
 struct mips_def_t {
-    const unsigned char *name;
+    const char *name;
     int32_t CP0_PRid;
     int32_t CP0_Config0;
     int32_t CP0_Config1;
@@ -417,7 +417,7 @@ static mips_def_t mips_defs[] =
 #endif
 };
 
-static const mips_def_t *cpu_mips_find_by_name (const unsigned char *name)
+static const mips_def_t *cpu_mips_find_by_name (const char *name)
 {
     int i;
 
@@ -547,6 +547,7 @@ static int cpu_mips_register (CPUMIPSState *env, const mips_def_t *def)
     env->CP0_SRSCtl = def->CP0_SRSCtl;
     env->current_tc = 0;
     env->current_tc_gprs = &env->gpr[env->current_tc][0];
+    env->current_tc_hi = &env->HI[env->current_tc][0];
     env->SEGBITS = def->SEGBITS;
     env->SEGMask = (target_ulong)((1ULL << def->SEGBITS) - 1);
 #if defined(TARGET_MIPS64)

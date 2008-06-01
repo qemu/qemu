@@ -104,11 +104,8 @@ typedef struct CPUM68KState {
     uint32_t t1;
 
     /* exception/interrupt handling */
-    jmp_buf jmp_env;
-    int exception_index;
     int interrupt_request;
     int user_mode_only;
-    int halted;
 
     int pending_vector;
     int pending_level;
@@ -120,6 +117,7 @@ typedef struct CPUM68KState {
     uint32_t features;
 } CPUM68KState;
 
+void m68k_tcg_init(void);
 CPUM68KState *cpu_m68k_init(const char *cpu_model);
 int cpu_m68k_exec(CPUM68KState *s);
 void cpu_m68k_close(CPUM68KState *s);
@@ -141,9 +139,7 @@ enum {
     CC_OP_CMPW,  /* CC_DEST = result, CC_SRC = source */
     CC_OP_ADDX,  /* CC_DEST = result, CC_SRC = source */
     CC_OP_SUBX,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SHL,   /* CC_DEST = source, CC_SRC = shift */
-    CC_OP_SHR,   /* CC_DEST = source, CC_SRC = shift */
-    CC_OP_SAR,   /* CC_DEST = source, CC_SRC = shift */
+    CC_OP_SHIFT, /* CC_DEST = result, CC_SRC = carry */
 };
 
 #define CCF_C 0x01
@@ -229,6 +225,15 @@ static inline int cpu_mmu_index (CPUState *env)
 {
     return (env->sr & SR_S) == 0 ? 1 : 0;
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (newsp)
+        env->aregs[7] = newsp;
+    env->dregs[0] = 0;
+}
+#endif
 
 #include "cpu-all.h"
 

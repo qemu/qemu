@@ -120,19 +120,13 @@ typedef struct CPUCRISState {
 	uint32_t cc_result;
 	/* size of the operation, 1 = byte, 2 = word, 4 = dword.  */
 	int cc_size;
-	/* Extended arithmetics.  */
-	int cc_x_live;
+	/* X flag at the time of cc snapshot.  */
 	int cc_x;
 
-	int exception_index;
 	int interrupt_request;
 	int interrupt_vector;
 	int fault_vector;
 	int trap_vector;
-
-	uint32_t debug1;
-	uint32_t debug2;
-	uint32_t debug3;
 
 	/* FIXME: add a check in the translator to avoid writing to support
 	   register sets beyond the 4th. The ISA allows up to 256! but in
@@ -162,9 +156,7 @@ typedef struct CPUCRISState {
 
 	int features;
 	int user_mode_only;
-	int halted;
 
-	jmp_buf jmp_env;
 	CPU_COMMON
 } CPUCRISState;
 
@@ -177,20 +169,14 @@ void do_interrupt(CPUCRISState *env);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_cris_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-void cpu_cris_flush_flags(CPUCRISState *, int);
-
-
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi);
 
 enum {
     CC_OP_DYNAMIC, /* Use env->cc_op  */
     CC_OP_FLAGS,
-    CC_OP_LOGIC,
     CC_OP_CMP,
     CC_OP_MOVE,
-    CC_OP_MOVE_PD,
-    CC_OP_MOVE_SD,
     CC_OP_ADD,
     CC_OP_ADDC,
     CC_OP_MCP,
@@ -213,32 +199,6 @@ enum {
     CC_OP_LZ
 };
 
-#define CCF_C 0x01
-#define CCF_V 0x02
-#define CCF_Z 0x04
-#define CCF_N 0x08
-#define CCF_X 0x10
-
-#define CRIS_SSP    0
-#define CRIS_USP    1
-
-void cris_set_irq_level(CPUCRISState *env, int level, uint8_t vector);
-void cris_set_macsr(CPUCRISState *env, uint32_t val);
-void cris_switch_sp(CPUCRISState *env);
-
-void do_cris_semihosting(CPUCRISState *env, int nr);
-
-enum cris_features {
-    CRIS_FEATURE_CF_ISA_MUL,
-};
-
-static inline int cris_feature(CPUCRISState *env, int feature)
-{
-    return (env->features & (1u << feature)) != 0;
-}
-
-void register_cris_insns (CPUCRISState *env);
-
 /* CRIS uses 8k pages.  */
 #define TARGET_PAGE_BITS 13
 #define MMAP_SHIFT TARGET_PAGE_BITS
@@ -257,6 +217,15 @@ static inline int cpu_mmu_index (CPUState *env)
 {
 	return !!(env->pregs[PR_CCS] & U_FLAG);
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (newsp)
+        env->regs[14] = newsp;
+    env->regs[10] = 0;
+}
+#endif
 
 /* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0

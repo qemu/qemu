@@ -140,6 +140,7 @@ typedef struct CPUTLBEntry {
                                    written */                           \
     target_ulong mem_write_vaddr; /* target virtual addr at which the   \
                                      memory was written */              \
+    int halted; /* TRUE if the CPU is in suspend state */               \
     /* The meaning of the MMU modes is defined in the target code. */   \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
@@ -158,6 +159,10 @@ typedef struct CPUTLBEntry {
     } watchpoint[MAX_WATCHPOINTS];                                      \
     int nb_watchpoints;                                                 \
     int watchpoint_hit;                                                 \
+                                                                        \
+    /* Core interrupt code */                                           \
+    jmp_buf jmp_env;                                                    \
+    int exception_index;                                                \
                                                                         \
     void *next_cpu; /* next CPU sharing TB cache */                     \
     int cpu_index; /* CPU index (informative) */                        \

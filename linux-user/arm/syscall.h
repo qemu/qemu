@@ -28,7 +28,9 @@ struct target_pt_regs {
 #define ARM_SYSCALL_BASE	0x900000
 #define ARM_THUMB_SYSCALL	0
 
-#define ARM_NR_cacheflush (ARM_SYSCALL_BASE + 0xf0000 + 2)
+#define ARM_NR_BASE	  0xf0000
+#define ARM_NR_cacheflush (ARM_NR_BASE + 2)
+#define ARM_NR_set_tls	  (ARM_NR_BASE + 5)
 
 #define ARM_NR_semihosting	  0x123456
 #define ARM_NR_thumb_semihosting  0xAB

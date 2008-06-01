@@ -13,6 +13,7 @@ void register_machines(void)
     qemu_register_machine(&terrierpda_machine);
     qemu_register_machine(&palmte_machine);
     qemu_register_machine(&n800_machine);
+    qemu_register_machine(&n810_machine);
     qemu_register_machine(&lm3s811evb_machine);
     qemu_register_machine(&lm3s6965evb_machine);
     qemu_register_machine(&connex_machine);

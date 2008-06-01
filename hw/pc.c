@@ -761,7 +761,7 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
             exit(1);
         }
         if (i != 0)
-            env->hflags |= HF_HALTED_MASK;
+            env->halted = 1;
         if (smp_cpus > 1) {
             /* XXX: enable it in all cases */
             env->cpuid_features |= CPUID_APIC;

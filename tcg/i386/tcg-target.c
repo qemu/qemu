@@ -40,7 +40,6 @@ int tcg_target_reg_alloc_order[] = {
     TCG_REG_ESI,
     TCG_REG_EDI,
     TCG_REG_EBP,
-    TCG_REG_ESP,
 };
 
 const int tcg_target_call_iarg_regs[3] = { TCG_REG_EAX, TCG_REG_EDX, TCG_REG_ECX };
@@ -329,38 +328,17 @@ static void tcg_out_brcond(TCGContext *s, int cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
                            int label_index)
 {
-    int c;
     if (const_arg2) {
         if (arg2 == 0) {
-            /* use test */
-            switch(cond) {
-            case TCG_COND_EQ:
-                c = JCC_JE;
-                break;
-            case TCG_COND_NE:
-                c = JCC_JNE;
-                break;
-            case TCG_COND_LT:
-                c = JCC_JS;
-                break;
-            case TCG_COND_GE:
-                c = JCC_JNS;
-                break;
-            default:
-                goto do_cmpi;
-            }
             /* test r, r */
             tcg_out_modrm(s, 0x85, arg1, arg1);
-            tcg_out_jxx(s, c, label_index);
         } else {
-        do_cmpi:
             tgen_arithi(s, ARITH_CMP, arg1, arg2);
-            tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
         }
     } else {
         tcg_out_modrm(s, 0x01 | (ARITH_CMP << 3), arg2, arg1);
-        tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
     }
+    tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
 }
 
 /* XXX: we implement it at the target level to avoid having to
@@ -381,42 +359,42 @@ static void tcg_out_brcond2(TCGContext *s,
         break;
     case TCG_COND_LT:
         tcg_out_brcond(s, TCG_COND_LT, args[1], args[3], const_args[3], args[5]);
-        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], label_next);
+        tcg_out_jxx(s, JCC_JNE, label_next);
         tcg_out_brcond(s, TCG_COND_LT, args[0], args[2], const_args[2], args[5]);
         break;
     case TCG_COND_LE:
         tcg_out_brcond(s, TCG_COND_LT, args[1], args[3], const_args[3], args[5]);
-        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], label_next);
+        tcg_out_jxx(s, JCC_JNE, label_next);
         tcg_out_brcond(s, TCG_COND_LE, args[0], args[2], const_args[2], args[5]);
         break;
     case TCG_COND_GT:
         tcg_out_brcond(s, TCG_COND_GT, args[1], args[3], const_args[3], args[5]);
-        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], label_next);
+        tcg_out_jxx(s, JCC_JNE, label_next);
         tcg_out_brcond(s, TCG_COND_GT, args[0], args[2], const_args[2], args[5]);
         break;
     case TCG_COND_GE:
         tcg_out_brcond(s, TCG_COND_GT, args[1], args[3], const_args[3], args[5]);
-        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], label_next);
+        tcg_out_jxx(s, JCC_JNE, label_next);
         tcg_out_brcond(s, TCG_COND_GE, args[0], args[2], const_args[2], args[5]);
         break;
     case TCG_COND_LTU:
         tcg_out_brcond(s, TCG_COND_LTU, args[1], args[3], const_args[3], args[5]);
-        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], label_next);
+        tcg_out_jxx(s, JCC_JNE, label_next);
         tcg_out_brcond(s, TCG_COND_LTU, args[0], args[2], const_args[2], args[5]);
         break;
     case TCG_COND_LEU:
         tcg_out_brcond(s, TCG_COND_LTU, args[1], args[3], const_args[3], args[5]);
-        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], label_next);
+        tcg_out_jxx(s, JCC_JNE, label_next);
         tcg_out_brcond(s, TCG_COND_LEU, args[0], args[2], const_args[2], args[5]);
         break;
     case TCG_COND_GTU:
         tcg_out_brcond(s, TCG_COND_GTU, args[1], args[3], const_args[3], args[5]);
-        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], label_next);
+        tcg_out_jxx(s, JCC_JNE, label_next);
         tcg_out_brcond(s, TCG_COND_GTU, args[0], args[2], const_args[2], args[5]);
         break;
     case TCG_COND_GEU:
         tcg_out_brcond(s, TCG_COND_GTU, args[1], args[3], const_args[3], args[5]);
-        tcg_out_brcond(s, TCG_COND_NE, args[1], args[3], const_args[3], label_next);
+        tcg_out_jxx(s, JCC_JNE, label_next);
         tcg_out_brcond(s, TCG_COND_GEU, args[0], args[2], const_args[2], args[5]);
         break;
     default:

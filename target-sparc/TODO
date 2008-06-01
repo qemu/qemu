@@ -6,9 +6,10 @@ CPU common:
  slot next page)
  - Atomical instructions
  - CPU features should match real CPUs (also ASI selection)
+ - Allow choosing of NWINDOWS (CPU model specific and as a CPU feature)
 - Optimizations/improvements:
  - Condition code/branch handling like x86, also for FPU?
- - Remove explicit alignment checks
+ - Remove remaining explicit alignment checks
  - Global register for regwptr, so that windowed registers can be
  accessed directly
  - Improve Sparc32plus addressing
@@ -59,7 +60,7 @@ Sun4m:
  - Arbitrary resolution support
  - PCI for MicroSparc-IIe
  - JavaStation machines
- - SBus slot probing
+ - SBus slot probing, FCode ROM support
  - SMP probing support
  - Interrupt routing does not match real HW
  - SuSE 7.3 keyboard sometimes unresponsive
@@ -70,6 +71,7 @@ Sun4m:
  - DBRI audio (Am7930)
  - BPP parallel
  - Diagnostic switch
+ - ESP PIO mode
 
 Sun4d:
 - A lot of unimplemented features:

@@ -38,52 +38,17 @@
 #include <sys/ucontext.h>
 #endif
 
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
+// Work around ugly bugs in glibc that mangle global register contents
+#undef env
+#define env cpu_single_env
+#endif
+
 int tb_invalidated_flag;
 static unsigned long next_tb;
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
-
-#define SAVE_GLOBALS()
-#define RESTORE_GLOBALS()
-
-#if defined(__sparc__) && !defined(HOST_SOLARIS)
-#include <features.h>
-#if defined(__GLIBC__) && ((__GLIBC__ < 2) || \
-                           ((__GLIBC__ == 2) && (__GLIBC_MINOR__ <= 90)))
-// Work around ugly bugs in glibc that mangle global register contents
-
-static volatile void *saved_env;
-#undef SAVE_GLOBALS
-#define SAVE_GLOBALS() do {                                     \
-        saved_env = env;                                        \
-    } while(0)
-
-#undef RESTORE_GLOBALS
-#define RESTORE_GLOBALS() do {                                  \
-        env = (void *)saved_env;                                \
-    } while(0)
-
-static int sparc_setjmp(jmp_buf buf)
-{
-    int ret;
-
-    SAVE_GLOBALS();
-    ret = setjmp(buf);
-    RESTORE_GLOBALS();
-    return ret;
-}
-#undef setjmp
-#define setjmp(jmp_buf) sparc_setjmp(jmp_buf)
-
-static void sparc_longjmp(jmp_buf buf, int val)
-{
-    SAVE_GLOBALS();
-    longjmp(buf, val);
-}
-#define longjmp(jmp_buf, val) sparc_longjmp(jmp_buf, val)
-#endif
-#endif
 
 void cpu_loop_exit(void)
 {
@@ -177,9 +142,7 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     tb->tc_ptr = tc_ptr;
     tb->cs_base = cs_base;
     tb->flags = flags;
-    SAVE_GLOBALS();
     cpu_gen_code(env, tb, &code_gen_size);
-    RESTORE_GLOBALS();
     code_gen_ptr = (void *)(((unsigned long)code_gen_ptr + code_gen_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
 
     /* check next page if needed */
@@ -209,7 +172,6 @@ static inline TranslationBlock *tb_find_fast(void)
 #if defined(TARGET_I386)
     flags = env->hflags;
     flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
-    flags |= env->intercept;
     cs_base = env->segs[R_CS].base;
     pc = cs_base + env->eip;
 #elif defined(TARGET_ARM)
@@ -256,7 +218,7 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_CRIS)
-    flags = env->pregs[PR_CCS] & U_FLAG;
+    flags = env->pregs[PR_CCS] & (U_FLAG | X_FLAG);
     flags |= env->dslot;
     cs_base = 0;
     pc = env->pc;
@@ -285,11 +247,6 @@ int cpu_exec(CPUState *env1)
 {
 #define DECLARE_HOST_REGS 1
 #include "hostregs_helper.h"
-#if defined(TARGET_SPARC)
-#if defined(reg_REGWPTR)
-    uint32_t *saved_regwptr;
-#endif
-#endif
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
@@ -303,7 +260,6 @@ int cpu_exec(CPUState *env1)
 #define SAVE_HOST_REGS 1
 #include "hostregs_helper.h"
     env = env1;
-    SAVE_GLOBALS();
 
     env_to_regs();
 #if defined(TARGET_I386)
@@ -313,9 +269,6 @@ int cpu_exec(CPUState *env1)
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_SPARC)
-#if defined(reg_REGWPTR)
-    saved_regwptr = REGWPTR;
-#endif
 #elif defined(TARGET_M68K)
     env->cc_op = CC_OP_FLAGS;
     env->cc_dest = env->sr & 0xf;
@@ -372,7 +325,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_MIPS)
                     do_interrupt(env);
 #elif defined(TARGET_SPARC)
-                    do_interrupt(env->exception_index);
+                    do_interrupt(env);
 #elif defined(TARGET_ARM)
                     do_interrupt(env);
 #elif defined(TARGET_SH4)
@@ -415,7 +368,6 @@ int cpu_exec(CPUState *env1)
 
             next_tb = 0; /* force lookup of first TB */
             for(;;) {
-                SAVE_GLOBALS();
                 interrupt_request = env->interrupt_request;
                 if (__builtin_expect(interrupt_request, 0)
 #if defined(TARGET_I386)
@@ -514,7 +466,8 @@ int cpu_exec(CPUState *env1)
 			     (pil == 15 || pil > env->psrpil)) ||
 			    type != TT_EXTINT) {
 			    env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-			    do_interrupt(env->interrupt_index);
+                            env->exception_index = env->interrupt_index;
+                            do_interrupt(env);
 			    env->interrupt_index = 0;
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
                             cpu_check_irqs(env);
@@ -602,8 +555,6 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ARM)
                     cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_SPARC)
-		    REGWPTR = env->regbase + (env->cwp * 16);
-		    env->regwptr = REGWPTR;
                     cpu_dump_state(env, logfile, fprintf, 0);
 #elif defined(TARGET_PPC)
                     cpu_dump_state(env, logfile, fprintf, 0);
@@ -634,7 +585,6 @@ int cpu_exec(CPUState *env1)
                             lookup_symbol(tb->pc));
                 }
 #endif
-                RESTORE_GLOBALS();
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
                    jump. */
@@ -652,17 +602,15 @@ int cpu_exec(CPUState *env1)
                 tc_ptr = tb->tc_ptr;
                 env->current_tb = tb;
                 /* execute the generated code */
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
+#undef env
+                env = cpu_single_env;
+#define env cpu_single_env
+#endif
                 next_tb = tcg_qemu_tb_exec(tc_ptr);
                 env->current_tb = NULL;
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
-#if defined(TARGET_I386) && !defined(CONFIG_SOFTMMU)
-                if (env->hflags & HF_SOFTMMU_MASK) {
-                    env->hflags &= ~HF_SOFTMMU_MASK;
-                    /* do not allow linking to another block */
-                    next_tb = 0;
-                }
-#endif
 #if defined(USE_KQEMU)
 #define MIN_CYCLE_BEFORE_SWITCH (100 * 1000)
                 if (kqemu_is_ok(env) &&
@@ -683,9 +631,6 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ARM)
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_SPARC)
-#if defined(reg_REGWPTR)
-    REGWPTR = saved_regwptr;
-#endif
 #elif defined(TARGET_PPC)
 #elif defined(TARGET_M68K)
     cpu_m68k_flush_flags(env, env->cc_op);
@@ -702,7 +647,6 @@ int cpu_exec(CPUState *env1)
 #endif
 
     /* restore global registers */
-    RESTORE_GLOBALS();
 #include "hostregs_helper.h"
 
     /* fail safe : never use cpu_single_env outside cpu_exec() */
@@ -1334,14 +1278,19 @@ int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
     siginfo_t *info = pinfo;
-    uint32_t *regs = (uint32_t *)(info + 1);
-    void *sigmask = (regs + 20);
-    unsigned long pc;
     int is_write;
     uint32_t insn;
-
+#if !defined(__arch64__) || defined(HOST_SOLARIS)
+    uint32_t *regs = (uint32_t *)(info + 1);
+    void *sigmask = (regs + 20);
     /* XXX: is there a standard glibc define ? */
-    pc = regs[1];
+    unsigned long pc = regs[1];
+#else
+    struct sigcontext *sc = puc;
+    unsigned long pc = sc->sigc_regs.tpc;
+    void *sigmask = (void *)sc->sigc_mask;
+#endif
+
     /* XXX: need kernel patch to get write flag faster */
     is_write = 0;
     insn = *(uint32_t *)pc;

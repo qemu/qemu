@@ -485,7 +485,7 @@ struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
     omap_gp_timer_reset(s);
     omap_gp_timer_clk_setup(s);
 
-    iomemtype = cpu_register_io_memory(0, omap_gp_timer_readfn,
+    iomemtype = l4_register_io_memory(0, omap_gp_timer_readfn,
                     omap_gp_timer_writefn, s);
     s->base = omap_l4_attach(ta, 0, iomemtype);
 
@@ -557,7 +557,7 @@ void omap_synctimer_init(struct omap_target_agent_s *ta,
     struct omap_synctimer_s *s = &mpu->synctimer;
 
     omap_synctimer_reset(s);
-    s->base = omap_l4_attach(ta, 0, cpu_register_io_memory(0,
+    s->base = omap_l4_attach(ta, 0, l4_register_io_memory(0,
                             omap_synctimer_readfn, omap_synctimer_writefn, s));
 }
 
@@ -960,7 +960,7 @@ static void omap_gpio_module_init(struct omap2_gpio_s *s,
     s->wkup = wkup;
     s->in = qemu_allocate_irqs(omap_gpio_module_set, s, 32);
 
-    iomemtype = cpu_register_io_memory(0, omap_gpio_module_readfn,
+    iomemtype = l4_register_io_memory(0, omap_gpio_module_readfn,
                     omap_gpio_module_writefn, s);
     s->base = omap_l4_attach(ta, region, iomemtype);
 }
@@ -1071,7 +1071,7 @@ struct omap_gpif_s *omap2_gpio_init(struct omap_target_agent_s *ta,
 
     omap_gpif_reset(s);
 
-    iomemtype = cpu_register_io_memory(0, omap_gpif_top_readfn,
+    iomemtype = l4_register_io_memory(0, omap_gpif_top_readfn,
                     omap_gpif_top_writefn, s);
     s->topbase = omap_l4_attach(ta, 1, iomemtype);
 
@@ -1401,7 +1401,7 @@ struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
     }
     omap_mcspi_reset(s);
 
-    iomemtype = cpu_register_io_memory(0, omap_mcspi_readfn,
+    iomemtype = l4_register_io_memory(0, omap_mcspi_readfn,
                     omap_mcspi_writefn, s);
     s->base = omap_l4_attach(ta, 0, iomemtype);
 
@@ -1602,7 +1602,7 @@ struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 
     s->chr = chr ?: qemu_chr_open("null");
 
-    iomemtype = cpu_register_io_memory(0, omap_sti_readfn,
+    iomemtype = l4_register_io_memory(0, omap_sti_readfn,
                     omap_sti_writefn, s);
     s->base = omap_l4_attach(ta, 0, iomemtype);
 
@@ -1631,6 +1631,90 @@ struct omap_l4_s {
     struct omap_target_agent_s ta[0];
 };
 
+#ifdef L4_MUX_HACK
+static int omap_l4_io_entries;
+static int omap_cpu_io_entry;
+static struct omap_l4_entry {
+        CPUReadMemoryFunc **mem_read;
+        CPUWriteMemoryFunc **mem_write;
+        void *opaque;
+} *omap_l4_io_entry;
+static CPUReadMemoryFunc **omap_l4_io_readb_fn;
+static CPUReadMemoryFunc **omap_l4_io_readh_fn;
+static CPUReadMemoryFunc **omap_l4_io_readw_fn;
+static CPUWriteMemoryFunc **omap_l4_io_writeb_fn;
+static CPUWriteMemoryFunc **omap_l4_io_writeh_fn;
+static CPUWriteMemoryFunc **omap_l4_io_writew_fn;
+static void **omap_l4_io_opaque;
+
+int l4_register_io_memory(int io_index, CPUReadMemoryFunc **mem_read,
+                CPUWriteMemoryFunc **mem_write, void *opaque)
+{
+    omap_l4_io_entry[omap_l4_io_entries].mem_read = mem_read;
+    omap_l4_io_entry[omap_l4_io_entries].mem_write = mem_write;
+    omap_l4_io_entry[omap_l4_io_entries].opaque = opaque;
+
+    return omap_l4_io_entries ++;
+}
+
+static uint32_t omap_l4_io_readb(void *opaque, target_phys_addr_t addr)
+{
+    unsigned int i = (addr - OMAP2_L4_BASE) >> TARGET_PAGE_BITS;
+
+    return omap_l4_io_readb_fn[i](omap_l4_io_opaque[i], addr);
+}
+
+static uint32_t omap_l4_io_readh(void *opaque, target_phys_addr_t addr)
+{
+    unsigned int i = (addr - OMAP2_L4_BASE) >> TARGET_PAGE_BITS;
+
+    return omap_l4_io_readh_fn[i](omap_l4_io_opaque[i], addr);
+}
+
+static uint32_t omap_l4_io_readw(void *opaque, target_phys_addr_t addr)
+{
+    unsigned int i = (addr - OMAP2_L4_BASE) >> TARGET_PAGE_BITS;
+
+    return omap_l4_io_readw_fn[i](omap_l4_io_opaque[i], addr);
+}
+
+static void omap_l4_io_writeb(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    unsigned int i = (addr - OMAP2_L4_BASE) >> TARGET_PAGE_BITS;
+
+    return omap_l4_io_writeb_fn[i](omap_l4_io_opaque[i], addr, value);
+}
+
+static void omap_l4_io_writeh(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    unsigned int i = (addr - OMAP2_L4_BASE) >> TARGET_PAGE_BITS;
+
+    return omap_l4_io_writeh_fn[i](omap_l4_io_opaque[i], addr, value);
+}
+
+static void omap_l4_io_writew(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    unsigned int i = (addr - OMAP2_L4_BASE) >> TARGET_PAGE_BITS;
+
+    return omap_l4_io_writew_fn[i](omap_l4_io_opaque[i], addr, value);
+}
+
+static CPUReadMemoryFunc *omap_l4_io_readfn[] = {
+    omap_l4_io_readb,
+    omap_l4_io_readh,
+    omap_l4_io_readw,
+};
+
+static CPUWriteMemoryFunc *omap_l4_io_writefn[] = {
+    omap_l4_io_writeb,
+    omap_l4_io_writeh,
+    omap_l4_io_writew,
+};
+#endif
+
 struct omap_l4_s *omap_l4_init(target_phys_addr_t base, int ta_num)
 {
     struct omap_l4_s *bus = qemu_mallocz(
@@ -1638,6 +1722,23 @@ struct omap_l4_s *omap_l4_init(target_phys_addr_t base, int ta_num)
 
     bus->ta_num = ta_num;
     bus->base = base;
+
+#ifdef L4_MUX_HACK
+    omap_l4_io_entries = 1;
+    omap_l4_io_entry = qemu_mallocz(125 * sizeof(*omap_l4_io_entry));
+
+    omap_cpu_io_entry =
+            cpu_register_io_memory(0, omap_l4_io_readfn,
+                            omap_l4_io_writefn, bus);
+# define L4_PAGES	(0xb4000 / TARGET_PAGE_SIZE)
+    omap_l4_io_readb_fn = qemu_mallocz(sizeof(void *) * L4_PAGES);
+    omap_l4_io_readh_fn = qemu_mallocz(sizeof(void *) * L4_PAGES);
+    omap_l4_io_readw_fn = qemu_mallocz(sizeof(void *) * L4_PAGES);
+    omap_l4_io_writeb_fn = qemu_mallocz(sizeof(void *) * L4_PAGES);
+    omap_l4_io_writeh_fn = qemu_mallocz(sizeof(void *) * L4_PAGES);
+    omap_l4_io_writew_fn = qemu_mallocz(sizeof(void *) * L4_PAGES);
+    omap_l4_io_opaque = qemu_mallocz(sizeof(void *) * L4_PAGES);
+#endif
 
     return bus;
 }
@@ -1917,15 +2018,14 @@ struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus, int cs)
     ta->bus = bus;
     ta->start = &omap_l4_region[info->region];
     ta->regions = info->regions;
-    ta->base = bus->base + ta->start[info->ta_region].offset;
 
     ta->component = ('Q' << 24) | ('E' << 16) | ('M' << 8) | ('U' << 0);
     ta->status = 0x00000000;
     ta->control = 0x00000200;	/* XXX 01000200 for L4TAO */
 
-    iomemtype = cpu_register_io_memory(0, omap_l4ta_readfn,
+    iomemtype = l4_register_io_memory(0, omap_l4ta_readfn,
                     omap_l4ta_writefn, ta);
-    cpu_register_physical_memory(ta->base, 0x200, iomemtype);
+    ta->base = omap_l4_attach(ta, info->ta_region, iomemtype);
 
     return ta;
 }
@@ -1934,7 +2034,10 @@ target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
                 int iotype)
 {
     target_phys_addr_t base;
-    size_t size;
+    ssize_t size;
+#ifdef L4_MUX_HACK
+    int i;
+#endif
 
     if (region < 0 || region >= ta->regions) {
         fprintf(stderr, "%s: bad io region (%i)\n", __FUNCTION__, region);
@@ -1943,8 +2046,23 @@ target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
 
     base = ta->bus->base + ta->start[region].offset;
     size = ta->start[region].size;
-    if (iotype)
+    if (iotype) {
+#ifndef L4_MUX_HACK
         cpu_register_physical_memory(base, size, iotype);
+#else
+        cpu_register_physical_memory(base, size, omap_cpu_io_entry);
+        i = (base - ta->bus->base) / TARGET_PAGE_SIZE;
+        for (; size > 0; size -= TARGET_PAGE_SIZE, i ++) {
+            omap_l4_io_readb_fn[i] = omap_l4_io_entry[iotype].mem_read[0];
+            omap_l4_io_readh_fn[i] = omap_l4_io_entry[iotype].mem_read[1];
+            omap_l4_io_readw_fn[i] = omap_l4_io_entry[iotype].mem_read[2];
+            omap_l4_io_writeb_fn[i] = omap_l4_io_entry[iotype].mem_write[0];
+            omap_l4_io_writeh_fn[i] = omap_l4_io_entry[iotype].mem_write[1];
+            omap_l4_io_writew_fn[i] = omap_l4_io_entry[iotype].mem_write[2];
+            omap_l4_io_opaque[i] = omap_l4_io_entry[iotype].opaque;
+        }
+#endif
+    }
 
     return base;
 }
@@ -2036,7 +2154,7 @@ static CPUWriteMemoryFunc *omap_tap_writefn[] = {
 void omap_tap_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu)
 {
-    mpu->tap_base = omap_l4_attach(ta, 0, cpu_register_io_memory(0,
+    mpu->tap_base = omap_l4_attach(ta, 0, l4_register_io_memory(0,
                             omap_tap_readfn, omap_tap_writefn, mpu));
 }
 
@@ -2755,7 +2873,7 @@ struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_prcm_coldreset(s);
 
-    iomemtype = cpu_register_io_memory(0, omap_prcm_readfn,
+    iomemtype = l4_register_io_memory(0, omap_prcm_readfn,
                     omap_prcm_writefn, s);
     s->base = omap_l4_attach(ta, 0, iomemtype);
     omap_l4_attach(ta, 1, iomemtype);
@@ -3079,7 +3197,7 @@ struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_sysctl_reset(s);
 
-    iomemtype = cpu_register_io_memory(0, omap_sysctl_readfn,
+    iomemtype = l4_register_io_memory(0, omap_sysctl_readfn,
                     omap_sysctl_writefn, s);
     s->base = omap_l4_attach(ta, 0, iomemtype);
     omap_l4_attach(ta, 0, iomemtype);

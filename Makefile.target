@@ -208,6 +208,7 @@ all: $(PROGS)
 LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
         translate.o host-utils.o
 ifdef CONFIG_DYNGEN_OP
+exec.o: dyngen-opc.h
 LIBOBJS+=op.o
 endif
 # TCG code generator
@@ -222,53 +223,26 @@ else
 LIBOBJS+=fpu/softfloat-native.o
 endif
 CPPFLAGS+=-I$(SRC_PATH)/fpu
-
-ifeq ($(TARGET_ARCH), i386)
-LIBOBJS+=helper.o helper2.o
-ifdef CONFIG_SCU2
-LIBOBJS += scu2.o
-endif
-endif
-
-ifeq ($(TARGET_ARCH), x86_64)
-LIBOBJS+=helper.o helper2.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), ppc)
 LIBOBJS+= op_helper.o helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), mips)
-LIBOBJS+= op_helper.o helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), sparc)
-LIBOBJS+= op_helper.o helper.o
-endif
 
 ifeq ($(TARGET_BASE_ARCH), arm)
-LIBOBJS+= op_helper.o helper.o neon_helper.o iwmmxt_helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), sh4)
-LIBOBJS+= op_helper.o helper.o
-endif
-
-ifeq ($(TARGET_BASE_ARCH), m68k)
-LIBOBJS+= op_helper.o helper.o
+LIBOBJS+= neon_helper.o iwmmxt_helper.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), alpha)
-LIBOBJS+= op_helper.o helper.o alpha_palcode.o
+LIBOBJS+= alpha_palcode.o
 endif
 
 ifeq ($(TARGET_BASE_ARCH), cris)
-LIBOBJS+= op_helper.o helper.o
 LIBOBJS+= cris-dis.o
 
 ifndef CONFIG_USER_ONLY
 LIBOBJS+= mmu.o
 endif
+endif
+
+ifdef CONFIG_SCU2
+LIBOBJS += scu2.o
 endif
 
 # NOTE: the disassembler code is only needed for debugging
@@ -330,6 +304,7 @@ tcg/tcg-dyngen.o: $(OPC_H)
 
 tcg/tcg-runtime.o: $(OPC_H)
 
+ifdef CONFIG_DYNGEN_OP
 op.h: op.o $(DYNGEN)
 	$(DYNGEN) -o $@ $<
 
@@ -341,20 +316,15 @@ gen-op.h: op.o $(DYNGEN)
 
 op.o: op.c
 	$(CC) $(OP_CFLAGS) $(CPPFLAGS) $(I386_CFLAGS) -c -o $@ $<
+endif
 
 machine.o: machine.c
 	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-ifeq ($(TARGET_BASE_ARCH), i386)
-# XXX: rename helper.c to op_helper.c
-helper.o: helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
-else
 op_helper.o: op_helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
-endif
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
 
 cpu-exec.o: cpu-exec.c $(OPC_H)
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
@@ -472,14 +442,13 @@ OBJS+=gdbstub.o
 endif
 
 OBJS+= libqemu.a
-OBJS+= ../libqemu_common.a
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
 signal.o: signal.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-$(QEMU_PROG): $(OBJS)
+$(QEMU_PROG): $(OBJS) ../libqemu_user.a
 	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of

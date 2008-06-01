@@ -4,7 +4,6 @@
 #include "dyngen-exec.h"
 
 register struct CPUSPARCState *env asm(AREG0);
-#define REGWPTR env->regwptr
 
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)
@@ -18,10 +17,6 @@ register struct CPUSPARCState *env asm(AREG0);
 
 static inline void env_to_regs(void)
 {
-#if defined(reg_REGWPTR)
-    REGWPTR = env->regbase + (env->cwp * 16);
-    env->regwptr = REGWPTR;
-#endif
 }
 
 static inline void regs_to_env(void)
@@ -30,7 +25,7 @@ static inline void regs_to_env(void)
 
 int cpu_sparc_handle_mmu_fault(CPUState *env1, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu);
-void do_interrupt(int intno);
+void do_interrupt(CPUState *env);
 
 static inline int cpu_halted(CPUState *env1) {
     if (!env1->halted)

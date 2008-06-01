@@ -145,10 +145,6 @@
 #include "fop_template.c"
 #undef FREG
 
-#define FTN
-#include "fop_template.c"
-#undef FTN
-
 /* Load and store */
 #define MEMSUFFIX _raw
 #include "op_mem.c"
@@ -166,454 +162,6 @@
 #include "op_mem.c"
 #undef MEMSUFFIX
 #endif
-
-/* Addresses computation */
-void op_addr_add (void)
-{
-/* For compatibility with 32-bit code, data reference in user mode
-   with Status_UX = 0 should be casted to 32-bit and sign extended.
-   See the MIPS64 PRA manual, section 4.10. */
-#if defined(TARGET_MIPS64)
-    if (((env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_UM) &&
-        !(env->CP0_Status & (1 << CP0St_UX)))
-        T0 = (int64_t)(int32_t)(T0 + T1);
-    else
-#endif
-        T0 += T1;
-    FORCE_RET();
-}
-
-/* Arithmetic */
-void op_add (void)
-{
-    T0 = (int32_t)((int32_t)T0 + (int32_t)T1);
-    FORCE_RET();
-}
-
-void op_addo (void)
-{
-    target_ulong tmp;
-
-    tmp = (int32_t)T0;
-    T0 = (int32_t)T0 + (int32_t)T1;
-    if (((tmp ^ T1 ^ (-1)) & (T0 ^ T1)) >> 31) {
-        /* operands of same sign, result different sign */
-        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
-    }
-    T0 = (int32_t)T0;
-    FORCE_RET();
-}
-
-void op_sub (void)
-{
-    T0 = (int32_t)((int32_t)T0 - (int32_t)T1);
-    FORCE_RET();
-}
-
-void op_subo (void)
-{
-    target_ulong tmp;
-
-    tmp = (int32_t)T0;
-    T0 = (int32_t)T0 - (int32_t)T1;
-    if (((tmp ^ T1) & (tmp ^ T0)) >> 31) {
-        /* operands of different sign, first operand and result different sign */
-        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
-    }
-    T0 = (int32_t)T0;
-    FORCE_RET();
-}
-
-void op_mul (void)
-{
-    T0 = (int32_t)((int32_t)T0 * (int32_t)T1);
-    FORCE_RET();
-}
-
-#if HOST_LONG_BITS < 64
-void op_div (void)
-{
-    CALL_FROM_TB0(do_div);
-    FORCE_RET();
-}
-#else
-void op_div (void)
-{
-    if (T1 != 0) {
-        env->LO[env->current_tc][0] = (int32_t)((int64_t)(int32_t)T0 / (int32_t)T1);
-        env->HI[env->current_tc][0] = (int32_t)((int64_t)(int32_t)T0 % (int32_t)T1);
-    }
-    FORCE_RET();
-}
-#endif
-
-void op_divu (void)
-{
-    if (T1 != 0) {
-        env->LO[env->current_tc][0] = (int32_t)((uint32_t)T0 / (uint32_t)T1);
-        env->HI[env->current_tc][0] = (int32_t)((uint32_t)T0 % (uint32_t)T1);
-    }
-    FORCE_RET();
-}
-
-#if defined(TARGET_MIPS64)
-/* Arithmetic */
-void op_dadd (void)
-{
-    T0 += T1;
-    FORCE_RET();
-}
-
-void op_daddo (void)
-{
-    target_long tmp;
-
-    tmp = T0;
-    T0 += T1;
-    if (((tmp ^ T1 ^ (-1)) & (T0 ^ T1)) >> 63) {
-        /* operands of same sign, result different sign */
-        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
-    }
-    FORCE_RET();
-}
-
-void op_dsub (void)
-{
-    T0 -= T1;
-    FORCE_RET();
-}
-
-void op_dsubo (void)
-{
-    target_long tmp;
-
-    tmp = T0;
-    T0 = (int64_t)T0 - (int64_t)T1;
-    if (((tmp ^ T1) & (tmp ^ T0)) >> 63) {
-        /* operands of different sign, first operand and result different sign */
-        CALL_FROM_TB1(do_raise_exception, EXCP_OVERFLOW);
-    }
-    FORCE_RET();
-}
-
-void op_dmul (void)
-{
-    T0 = (int64_t)T0 * (int64_t)T1;
-    FORCE_RET();
-}
-
-/* Those might call libgcc functions.  */
-void op_ddiv (void)
-{
-    do_ddiv();
-    FORCE_RET();
-}
-
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-void op_ddivu (void)
-{
-    do_ddivu();
-    FORCE_RET();
-}
-#else
-void op_ddivu (void)
-{
-    if (T1 != 0) {
-        env->LO[env->current_tc][0] = T0 / T1;
-        env->HI[env->current_tc][0] = T0 % T1;
-    }
-    FORCE_RET();
-}
-#endif
-#endif /* TARGET_MIPS64 */
-
-/* Logical */
-void op_and (void)
-{
-    T0 &= T1;
-    FORCE_RET();
-}
-
-void op_nor (void)
-{
-    T0 = ~(T0 | T1);
-    FORCE_RET();
-}
-
-void op_or (void)
-{
-    T0 |= T1;
-    FORCE_RET();
-}
-
-void op_xor (void)
-{
-    T0 ^= T1;
-    FORCE_RET();
-}
-
-void op_sll (void)
-{
-    T0 = (int32_t)((uint32_t)T0 << T1);
-    FORCE_RET();
-}
-
-void op_sra (void)
-{
-    T0 = (int32_t)((int32_t)T0 >> T1);
-    FORCE_RET();
-}
-
-void op_srl (void)
-{
-    T0 = (int32_t)((uint32_t)T0 >> T1);
-    FORCE_RET();
-}
-
-void op_rotr (void)
-{
-    target_ulong tmp;
-
-    if (T1) {
-       tmp = (int32_t)((uint32_t)T0 << (0x20 - T1));
-       T0 = (int32_t)((uint32_t)T0 >> T1) | tmp;
-    }
-    FORCE_RET();
-}
-
-void op_sllv (void)
-{
-    T0 = (int32_t)((uint32_t)T1 << ((uint32_t)T0 & 0x1F));
-    FORCE_RET();
-}
-
-void op_srav (void)
-{
-    T0 = (int32_t)((int32_t)T1 >> (T0 & 0x1F));
-    FORCE_RET();
-}
-
-void op_srlv (void)
-{
-    T0 = (int32_t)((uint32_t)T1 >> (T0 & 0x1F));
-    FORCE_RET();
-}
-
-void op_rotrv (void)
-{
-    target_ulong tmp;
-
-    T0 &= 0x1F;
-    if (T0) {
-       tmp = (int32_t)((uint32_t)T1 << (0x20 - T0));
-       T0 = (int32_t)((uint32_t)T1 >> T0) | tmp;
-    } else
-       T0 = T1;
-    FORCE_RET();
-}
-
-void op_clo (void)
-{
-    T0 = clo32(T0);
-    FORCE_RET();
-}
-
-void op_clz (void)
-{
-    T0 = clz32(T0);
-    FORCE_RET();
-}
-
-#if defined(TARGET_MIPS64)
-
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-/* Those might call libgcc functions.  */
-void op_dsll (void)
-{
-    CALL_FROM_TB0(do_dsll);
-    FORCE_RET();
-}
-
-void op_dsll32 (void)
-{
-    CALL_FROM_TB0(do_dsll32);
-    FORCE_RET();
-}
-
-void op_dsra (void)
-{
-    CALL_FROM_TB0(do_dsra);
-    FORCE_RET();
-}
-
-void op_dsra32 (void)
-{
-    CALL_FROM_TB0(do_dsra32);
-    FORCE_RET();
-}
-
-void op_dsrl (void)
-{
-    CALL_FROM_TB0(do_dsrl);
-    FORCE_RET();
-}
-
-void op_dsrl32 (void)
-{
-    CALL_FROM_TB0(do_dsrl32);
-    FORCE_RET();
-}
-
-void op_drotr (void)
-{
-    CALL_FROM_TB0(do_drotr);
-    FORCE_RET();
-}
-
-void op_drotr32 (void)
-{
-    CALL_FROM_TB0(do_drotr32);
-    FORCE_RET();
-}
-
-void op_dsllv (void)
-{
-    CALL_FROM_TB0(do_dsllv);
-    FORCE_RET();
-}
-
-void op_dsrav (void)
-{
-    CALL_FROM_TB0(do_dsrav);
-    FORCE_RET();
-}
-
-void op_dsrlv (void)
-{
-    CALL_FROM_TB0(do_dsrlv);
-    FORCE_RET();
-}
-
-void op_drotrv (void)
-{
-    CALL_FROM_TB0(do_drotrv);
-    FORCE_RET();
-}
-
-void op_dclo (void)
-{
-    CALL_FROM_TB0(do_dclo);
-    FORCE_RET();
-}
-
-void op_dclz (void)
-{
-    CALL_FROM_TB0(do_dclz);
-    FORCE_RET();
-}
-
-#else /* TARGET_LONG_BITS > HOST_LONG_BITS */
-
-void op_dsll (void)
-{
-    T0 = T0 << T1;
-    FORCE_RET();
-}
-
-void op_dsll32 (void)
-{
-    T0 = T0 << (T1 + 32);
-    FORCE_RET();
-}
-
-void op_dsra (void)
-{
-    T0 = (int64_t)T0 >> T1;
-    FORCE_RET();
-}
-
-void op_dsra32 (void)
-{
-    T0 = (int64_t)T0 >> (T1 + 32);
-    FORCE_RET();
-}
-
-void op_dsrl (void)
-{
-    T0 = T0 >> T1;
-    FORCE_RET();
-}
-
-void op_dsrl32 (void)
-{
-    T0 = T0 >> (T1 + 32);
-    FORCE_RET();
-}
-
-void op_drotr (void)
-{
-    target_ulong tmp;
-
-    if (T1) {
-        tmp = T0 << (0x40 - T1);
-        T0 = (T0 >> T1) | tmp;
-    }
-    FORCE_RET();
-}
-
-void op_drotr32 (void)
-{
-    target_ulong tmp;
-
-    tmp = T0 << (0x40 - (32 + T1));
-    T0 = (T0 >> (32 + T1)) | tmp;
-    FORCE_RET();
-}
-
-void op_dsllv (void)
-{
-    T0 = T1 << (T0 & 0x3F);
-    FORCE_RET();
-}
-
-void op_dsrav (void)
-{
-    T0 = (int64_t)T1 >> (T0 & 0x3F);
-    FORCE_RET();
-}
-
-void op_dsrlv (void)
-{
-    T0 = T1 >> (T0 & 0x3F);
-    FORCE_RET();
-}
-
-void op_drotrv (void)
-{
-    target_ulong tmp;
-
-    T0 &= 0x3F;
-    if (T0) {
-        tmp = T1 << (0x40 - T0);
-        T0 = (T1 >> T0) | tmp;
-    } else
-        T0 = T1;
-    FORCE_RET();
-}
-
-void op_dclo (void)
-{
-    T0 = clo64(T0);
-    FORCE_RET();
-}
-
-void op_dclz (void)
-{
-    T0 = clz64(T0);
-    FORCE_RET();
-}
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-#endif /* TARGET_MIPS64 */
 
 /* 64 bits arithmetic */
 #if TARGET_LONG_BITS > HOST_LONG_BITS
@@ -912,107 +460,7 @@ void op_dmultu (void)
 }
 #endif
 
-/* Conditional moves */
-void op_movn (void)
-{
-    if (T1 != 0)
-        env->gpr[env->current_tc][PARAM1] = T0;
-    FORCE_RET();
-}
-
-void op_movz (void)
-{
-    if (T1 == 0)
-        env->gpr[env->current_tc][PARAM1] = T0;
-    FORCE_RET();
-}
-
-void op_movf (void)
-{
-    if (!(env->fpu->fcr31 & PARAM1))
-        T0 = T1;
-    FORCE_RET();
-}
-
-void op_movt (void)
-{
-    if (env->fpu->fcr31 & PARAM1)
-        T0 = T1;
-    FORCE_RET();
-}
-
-/* Tests */
-#define OP_COND(name, cond) \
-void glue(op_, name) (void) \
-{                           \
-    if (cond) {             \
-        T0 = 1;             \
-    } else {                \
-        T0 = 0;             \
-    }                       \
-    FORCE_RET();            \
-}
-
-OP_COND(eq, T0 == T1);
-OP_COND(ne, T0 != T1);
-OP_COND(ge, (target_long)T0 >= (target_long)T1);
-OP_COND(geu, T0 >= T1);
-OP_COND(lt, (target_long)T0 < (target_long)T1);
-OP_COND(ltu, T0 < T1);
-OP_COND(gez, (target_long)T0 >= 0);
-OP_COND(gtz, (target_long)T0 > 0);
-OP_COND(lez, (target_long)T0 <= 0);
-OP_COND(ltz, (target_long)T0 < 0);
-
-/* Branches */
-/* Branch to register */
-void op_save_breg_target (void)
-{
-    env->btarget = T1;
-    FORCE_RET();
-}
-
-void op_breg (void)
-{
-    env->PC[env->current_tc] = env->btarget;
-    FORCE_RET();
-}
-
-void op_save_btarget (void)
-{
-    env->btarget = PARAM1;
-    FORCE_RET();
-}
-
-#if defined(TARGET_MIPS64)
-void op_save_btarget64 (void)
-{
-    env->btarget = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
-    FORCE_RET();
-}
-#endif
-
-/* Conditional branch */
-void op_set_bcond (void)
-{
-    env->bcond = T0;
-    FORCE_RET();
-}
-
-void op_jnz_bcond (void)
-{
-    if (env->bcond)
-        GOTO_LABEL_PARAM(1);
-    FORCE_RET();
-}
-
 /* CP0 functions */
-void op_mfc0_index (void)
-{
-    T0 = env->CP0_Index;
-    FORCE_RET();
-}
-
 void op_mfc0_mvpcontrol (void)
 {
     T0 = env->mvp->CP0_MVPControl;
@@ -1034,54 +482,6 @@ void op_mfc0_mvpconf1 (void)
 void op_mfc0_random (void)
 {
     CALL_FROM_TB0(do_mfc0_random);
-    FORCE_RET();
-}
-
-void op_mfc0_vpecontrol (void)
-{
-    T0 = env->CP0_VPEControl;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeconf0 (void)
-{
-    T0 = env->CP0_VPEConf0;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeconf1 (void)
-{
-    T0 = env->CP0_VPEConf1;
-    FORCE_RET();
-}
-
-void op_mfc0_yqmask (void)
-{
-    T0 = env->CP0_YQMask;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeschedule (void)
-{
-    T0 = env->CP0_VPESchedule;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeschefback (void)
-{
-    T0 = env->CP0_VPEScheFBack;
-    FORCE_RET();
-}
-
-void op_mfc0_vpeopt (void)
-{
-    T0 = env->CP0_VPEOpt;
-    FORCE_RET();
-}
-
-void op_mfc0_entrylo0 (void)
-{
-    T0 = (int32_t)env->CP0_EntryLo0;
     FORCE_RET();
 }
 
@@ -1183,87 +583,9 @@ void op_mftc0_tcschefback(void)
     FORCE_RET();
 }
 
-void op_mfc0_entrylo1 (void)
-{
-    T0 = (int32_t)env->CP0_EntryLo1;
-    FORCE_RET();
-}
-
-void op_mfc0_context (void)
-{
-    T0 = (int32_t)env->CP0_Context;
-    FORCE_RET();
-}
-
-void op_mfc0_pagemask (void)
-{
-    T0 = env->CP0_PageMask;
-    FORCE_RET();
-}
-
-void op_mfc0_pagegrain (void)
-{
-    T0 = env->CP0_PageGrain;
-    FORCE_RET();
-}
-
-void op_mfc0_wired (void)
-{
-    T0 = env->CP0_Wired;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf0 (void)
-{
-    T0 = env->CP0_SRSConf0;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf1 (void)
-{
-    T0 = env->CP0_SRSConf1;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf2 (void)
-{
-    T0 = env->CP0_SRSConf2;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf3 (void)
-{
-    T0 = env->CP0_SRSConf3;
-    FORCE_RET();
-}
-
-void op_mfc0_srsconf4 (void)
-{
-    T0 = env->CP0_SRSConf4;
-    FORCE_RET();
-}
-
-void op_mfc0_hwrena (void)
-{
-    T0 = env->CP0_HWREna;
-    FORCE_RET();
-}
-
-void op_mfc0_badvaddr (void)
-{
-    T0 = (int32_t)env->CP0_BadVAddr;
-    FORCE_RET();
-}
-
 void op_mfc0_count (void)
 {
     CALL_FROM_TB0(do_mfc0_count);
-    FORCE_RET();
-}
-
-void op_mfc0_entryhi (void)
-{
-    T0 = (int32_t)env->CP0_EntryHi;
     FORCE_RET();
 }
 
@@ -1272,18 +594,6 @@ void op_mftc0_entryhi(void)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     T0 = (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
-    FORCE_RET();
-}
-
-void op_mfc0_compare (void)
-{
-    T0 = env->CP0_Compare;
-    FORCE_RET();
-}
-
-void op_mfc0_status (void)
-{
-    T0 = env->CP0_Status;
     FORCE_RET();
 }
 
@@ -1296,84 +606,6 @@ void op_mftc0_status(void)
     T0 |= tcstatus & (0xf << CP0TCSt_TCU0);
     T0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
     T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
-    FORCE_RET();
-}
-
-void op_mfc0_intctl (void)
-{
-    T0 = env->CP0_IntCtl;
-    FORCE_RET();
-}
-
-void op_mfc0_srsctl (void)
-{
-    T0 = env->CP0_SRSCtl;
-    FORCE_RET();
-}
-
-void op_mfc0_srsmap (void)
-{
-    T0 = env->CP0_SRSMap;
-    FORCE_RET();
-}
-
-void op_mfc0_cause (void)
-{
-    T0 = env->CP0_Cause;
-    FORCE_RET();
-}
-
-void op_mfc0_epc (void)
-{
-    T0 = (int32_t)env->CP0_EPC;
-    FORCE_RET();
-}
-
-void op_mfc0_prid (void)
-{
-    T0 = env->CP0_PRid;
-    FORCE_RET();
-}
-
-void op_mfc0_ebase (void)
-{
-    T0 = env->CP0_EBase;
-    FORCE_RET();
-}
-
-void op_mfc0_config0 (void)
-{
-    T0 = env->CP0_Config0;
-    FORCE_RET();
-}
-
-void op_mfc0_config1 (void)
-{
-    T0 = env->CP0_Config1;
-    FORCE_RET();
-}
-
-void op_mfc0_config2 (void)
-{
-    T0 = env->CP0_Config2;
-    FORCE_RET();
-}
-
-void op_mfc0_config3 (void)
-{
-    T0 = env->CP0_Config3;
-    FORCE_RET();
-}
-
-void op_mfc0_config6 (void)
-{
-    T0 = env->CP0_Config6;
-    FORCE_RET();
-}
-
-void op_mfc0_config7 (void)
-{
-    T0 = env->CP0_Config7;
     FORCE_RET();
 }
 
@@ -1395,18 +627,6 @@ void op_mfc0_watchhi (void)
     FORCE_RET();
 }
 
-void op_mfc0_xcontext (void)
-{
-    T0 = (int32_t)env->CP0_XContext;
-    FORCE_RET();
-}
-
-void op_mfc0_framemask (void)
-{
-    T0 = env->CP0_Framemask;
-    FORCE_RET();
-}
-
 void op_mfc0_debug (void)
 {
     T0 = env->CP0_Debug;
@@ -1423,54 +643,6 @@ void op_mftc0_debug(void)
     T0 = (env->CP0_Debug & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
          (env->CP0_Debug_tcstatus[other_tc] &
           ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
-    FORCE_RET();
-}
-
-void op_mfc0_depc (void)
-{
-    T0 = (int32_t)env->CP0_DEPC;
-    FORCE_RET();
-}
-
-void op_mfc0_performance0 (void)
-{
-    T0 = env->CP0_Performance0;
-    FORCE_RET();
-}
-
-void op_mfc0_taglo (void)
-{
-    T0 = env->CP0_TagLo;
-    FORCE_RET();
-}
-
-void op_mfc0_datalo (void)
-{
-    T0 = env->CP0_DataLo;
-    FORCE_RET();
-}
-
-void op_mfc0_taghi (void)
-{
-    T0 = env->CP0_TagHi;
-    FORCE_RET();
-}
-
-void op_mfc0_datahi (void)
-{
-    T0 = env->CP0_DataHi;
-    FORCE_RET();
-}
-
-void op_mfc0_errorepc (void)
-{
-    T0 = (int32_t)env->CP0_ErrorEPC;
-    FORCE_RET();
-}
-
-void op_mfc0_desave (void)
-{
-    T0 = env->CP0_DESAVE;
     FORCE_RET();
 }
 
@@ -2034,30 +1206,6 @@ void op_mtc0_desave (void)
 }
 
 #if defined(TARGET_MIPS64)
-void op_dmfc0_yqmask (void)
-{
-    T0 = env->CP0_YQMask;
-    FORCE_RET();
-}
-
-void op_dmfc0_vpeschedule (void)
-{
-    T0 = env->CP0_VPESchedule;
-    FORCE_RET();
-}
-
-void op_dmfc0_vpeschefback (void)
-{
-    T0 = env->CP0_VPEScheFBack;
-    FORCE_RET();
-}
-
-void op_dmfc0_entrylo0 (void)
-{
-    T0 = env->CP0_EntryLo0;
-    FORCE_RET();
-}
-
 void op_dmfc0_tcrestart (void)
 {
     T0 = env->PC[env->current_tc];
@@ -2088,36 +1236,6 @@ void op_dmfc0_tcschefback (void)
     FORCE_RET();
 }
 
-void op_dmfc0_entrylo1 (void)
-{
-    T0 = env->CP0_EntryLo1;
-    FORCE_RET();
-}
-
-void op_dmfc0_context (void)
-{
-    T0 = env->CP0_Context;
-    FORCE_RET();
-}
-
-void op_dmfc0_badvaddr (void)
-{
-    T0 = env->CP0_BadVAddr;
-    FORCE_RET();
-}
-
-void op_dmfc0_entryhi (void)
-{
-    T0 = env->CP0_EntryHi;
-    FORCE_RET();
-}
-
-void op_dmfc0_epc (void)
-{
-    T0 = env->CP0_EPC;
-    FORCE_RET();
-}
-
 void op_dmfc0_lladdr (void)
 {
     T0 = env->CP0_LLAddr >> 4;
@@ -2127,24 +1245,6 @@ void op_dmfc0_lladdr (void)
 void op_dmfc0_watchlo (void)
 {
     T0 = env->CP0_WatchLo[PARAM1];
-    FORCE_RET();
-}
-
-void op_dmfc0_xcontext (void)
-{
-    T0 = env->CP0_XContext;
-    FORCE_RET();
-}
-
-void op_dmfc0_depc (void)
-{
-    T0 = env->CP0_DEPC;
-    FORCE_RET();
-}
-
-void op_dmfc0_errorepc (void)
-{
-    T0 = env->CP0_ErrorEPC;
     FORCE_RET();
 }
 #endif /* TARGET_MIPS64 */
@@ -2532,10 +1632,11 @@ FLOAT_OP(movf, s)
 }
 FLOAT_OP(movf, ps)
 {
-    if (!(env->fpu->fcr31 & PARAM1)) {
+    unsigned int mask = GET_FP_COND (env->fpu) >> PARAM1;
+    if (!(mask & 1))
         WT2 = WT0;
+    if (!(mask & 2))
         WTH2 = WTH0;
-    }
     DEBUG_FPU_STATE();
     FORCE_RET();
 }
@@ -2555,10 +1656,11 @@ FLOAT_OP(movt, s)
 }
 FLOAT_OP(movt, ps)
 {
-    if (env->fpu->fcr31 & PARAM1) {
+    unsigned int mask = GET_FP_COND (env->fpu) >> PARAM1;
+    if (mask & 1)
         WT2 = WT0;
+    if (mask & 2)
         WTH2 = WTH0;
-    }
     DEBUG_FPU_STATE();
     FORCE_RET();
 }
@@ -3049,45 +2151,6 @@ void op_save_state (void)
     FORCE_RET();
 }
 
-void op_save_pc (void)
-{
-    env->PC[env->current_tc] = PARAM1;
-    FORCE_RET();
-}
-
-#if defined(TARGET_MIPS64)
-void op_save_pc64 (void)
-{
-    env->PC[env->current_tc] = ((uint64_t)PARAM1 << 32) | (uint32_t)PARAM2;
-    FORCE_RET();
-}
-#endif
-
-void op_interrupt_restart (void)
-{
-    if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
-        !(env->CP0_Status & (1 << CP0St_ERL)) &&
-        !(env->hflags & MIPS_HFLAG_DM) &&
-        (env->CP0_Status & (1 << CP0St_IE)) &&
-        (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask)) {
-        env->CP0_Cause &= ~(0x1f << CP0Ca_EC);
-        CALL_FROM_TB1(do_raise_exception, EXCP_EXT_INTERRUPT);
-    }
-    FORCE_RET();
-}
-
-void op_raise_exception (void)
-{
-    CALL_FROM_TB1(do_raise_exception, PARAM1);
-    FORCE_RET();
-}
-
-void op_raise_exception_err (void)
-{
-    CALL_FROM_TB2(do_raise_exception_err, PARAM1, PARAM2);
-    FORCE_RET();
-}
-
 void op_wait (void)
 {
     env->halted = 1;
@@ -3154,15 +2217,3 @@ void op_dshd(void)
     FORCE_RET();
 }
 #endif
-
-void op_seb(void)
-{
-    T0 = ((T1 & 0xFF) ^ 0x80) - 0x80;
-    FORCE_RET();
-}
-
-void op_seh(void)
-{
-    T0 = ((T1 & 0xFFFF) ^ 0x8000) - 0x8000;
-    FORCE_RET();
-}

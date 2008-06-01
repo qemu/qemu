@@ -102,30 +102,3 @@ OP_PSLOAD_FREG(WTH2, WTH2_fpr, FREG)
 OP_PSSTORE_FREG(WTH2, WTH2_fpr, FREG)
 
 #endif
-
-#if defined (FTN)
-
-#define SET_RESET(treg, tregname)        \
-    void glue(op_set, tregname)(void)    \
-    {                                    \
-        treg = PARAM1;                   \
-        FORCE_RET();                     \
-    }                                    \
-    void glue(op_reset, tregname)(void)  \
-    {                                    \
-        treg = 0;                        \
-        FORCE_RET();                     \
-    }
-
-SET_RESET(WT0, _WT0)
-SET_RESET(WT1, _WT1)
-SET_RESET(WT2, _WT2)
-SET_RESET(DT0, _DT0)
-SET_RESET(DT1, _DT1)
-SET_RESET(DT2, _DT2)
-SET_RESET(WTH0, _WTH0)
-SET_RESET(WTH1, _WTH1)
-SET_RESET(WTH2, _WTH2)
-
-#undef SET_RESET
-#endif

@@ -37,6 +37,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "qemu-common.h"
+#include "tcg.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #endif
@@ -57,9 +58,6 @@
 /* TB consistency checks only implemented for usermode emulation.  */
 #undef DEBUG_TB_CHECK
 #endif
-
-/* threshold to flush the translated code buffer */
-#define CODE_GEN_BUFFER_MAX_SIZE (CODE_GEN_BUFFER_SIZE - code_gen_max_block_size())
 
 #define SMC_BITMAP_USE_THRESHOLD 10
 
@@ -84,14 +82,18 @@
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #endif
 
-TranslationBlock tbs[CODE_GEN_MAX_BLOCKS];
+TranslationBlock *tbs;
+int code_gen_max_blocks;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
 uint8_t code_gen_prologue[1024] __attribute__((aligned (32)));
-uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE] __attribute__((aligned (32)));
+uint8_t *code_gen_buffer;
+unsigned long code_gen_buffer_size;
+/* threshold to flush the translated code buffer */
+unsigned long code_gen_buffer_max_size; 
 uint8_t *code_gen_ptr;
 
 ram_addr_t phys_ram_size;
@@ -186,14 +188,15 @@ static void map_exec(void *addr, long size)
 #else
 static void map_exec(void *addr, long size)
 {
-    unsigned long start, end;
+    unsigned long start, end, page_size;
     
+    page_size = getpagesize();
     start = (unsigned long)addr;
-    start &= ~(qemu_real_host_page_size - 1);
+    start &= ~(page_size - 1);
     
     end = (unsigned long)addr + size;
-    end += qemu_real_host_page_size - 1;
-    end &= ~(qemu_real_host_page_size - 1);
+    end += page_size - 1;
+    end &= ~(page_size - 1);
     
     mprotect((void *)start, end - start,
              PROT_READ | PROT_WRITE | PROT_EXEC);
@@ -215,9 +218,6 @@ static void page_init(void)
 #else
     qemu_real_host_page_size = getpagesize();
 #endif
-    map_exec(code_gen_buffer, sizeof(code_gen_buffer));
-    map_exec(code_gen_prologue, sizeof(code_gen_prologue));
-
     if (qemu_host_page_size == 0)
         qemu_host_page_size = qemu_real_host_page_size;
     if (qemu_host_page_size < TARGET_PAGE_SIZE)
@@ -235,6 +235,7 @@ static void page_init(void)
         FILE *f;
         int n;
 
+        last_brk = (unsigned long)sbrk(0);
         f = fopen("/proc/self/maps", "r");
         if (f) {
             do {
@@ -244,7 +245,7 @@ static void page_init(void)
                                     (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
                     endaddr = MIN(endaddr,
                                     (1ULL << TARGET_PHYS_ADDR_SPACE_BITS) - 1);
-                    page_set_flags(TARGET_PAGE_ALIGN(startaddr),
+                    page_set_flags(startaddr & TARGET_PAGE_MASK,
                                    TARGET_PAGE_ALIGN(endaddr),
                                    PAGE_RESERVED); 
                 }
@@ -328,17 +329,90 @@ static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr,
                                     target_ulong vaddr);
 #endif
 
+#define DEFAULT_CODE_GEN_BUFFER_SIZE (32 * 1024 * 1024)
+
+#if defined(CONFIG_USER_ONLY)
+/* Currently it is not recommanded to allocate big chunks of data in
+   user mode. It will change when a dedicated libc will be used */
+#define USE_STATIC_CODE_GEN_BUFFER
+#endif
+
+#ifdef USE_STATIC_CODE_GEN_BUFFER
+static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE];
+#endif
+
+void code_gen_alloc(unsigned long tb_size)
+{
+#ifdef USE_STATIC_CODE_GEN_BUFFER
+    code_gen_buffer = static_code_gen_buffer;
+    code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
+    map_exec(code_gen_buffer, code_gen_buffer_size);
+#else
+    code_gen_buffer_size = tb_size;
+    if (code_gen_buffer_size == 0) {
+#if defined(CONFIG_USER_ONLY)
+        /* in user mode, phys_ram_size is not meaningful */
+        code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
+#else
+        /* XXX: needs ajustments */
+        code_gen_buffer_size = (int)(phys_ram_size / 4);
+#endif
+    }
+    if (code_gen_buffer_size < MIN_CODE_GEN_BUFFER_SIZE)
+        code_gen_buffer_size = MIN_CODE_GEN_BUFFER_SIZE;
+    /* The code gen buffer location may have constraints depending on
+       the host cpu and OS */
+#if defined(__linux__) 
+    {
+        int flags;
+        flags = MAP_PRIVATE | MAP_ANONYMOUS;
+#if defined(__x86_64__)
+        flags |= MAP_32BIT;
+        /* Cannot map more than that */
+        if (code_gen_buffer_size > (800 * 1024 * 1024))
+            code_gen_buffer_size = (800 * 1024 * 1024);
+#endif
+        code_gen_buffer = mmap(NULL, code_gen_buffer_size,
+                               PROT_WRITE | PROT_READ | PROT_EXEC, 
+                               flags, -1, 0);
+        if (code_gen_buffer == MAP_FAILED) {
+            fprintf(stderr, "Could not allocate dynamic translator buffer\n");
+            exit(1);
+        }
+    }
+#else
+    code_gen_buffer = qemu_malloc(code_gen_buffer_size);
+    if (!code_gen_buffer) {
+        fprintf(stderr, "Could not allocate dynamic translator buffer\n");
+        exit(1);
+    }
+    map_exec(code_gen_buffer, code_gen_buffer_size);
+#endif
+#endif /* !USE_STATIC_CODE_GEN_BUFFER */
+    map_exec(code_gen_prologue, sizeof(code_gen_prologue));
+    code_gen_buffer_max_size = code_gen_buffer_size - 
+        code_gen_max_block_size();
+    code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
+    tbs = qemu_malloc(code_gen_max_blocks * sizeof(TranslationBlock));
+}
+
+/* Must be called before using the QEMU cpus. 'tb_size' is the size
+   (in bytes) allocated to the translation buffer. Zero means default
+   size. */
+void cpu_exec_init_all(unsigned long tb_size)
+{
+    cpu_gen_init();
+    code_gen_alloc(tb_size);
+    code_gen_ptr = code_gen_buffer;
+    page_init();
+    io_mem_init();
+}
+
 void cpu_exec_init(CPUState *env)
 {
     CPUState **penv;
     int cpu_index;
 
-    if (!code_gen_ptr) {
-        cpu_gen_init();
-        code_gen_ptr = code_gen_buffer;
-        page_init();
-        io_mem_init();
-    }
     env->next_cpu = NULL;
     penv = &first_cpu;
     cpu_index = 0;
@@ -389,7 +463,7 @@ void tb_flush(CPUState *env1)
            nb_tbs, nb_tbs > 0 ?
            ((unsigned long)(code_gen_ptr - code_gen_buffer)) / nb_tbs : 0);
 #endif
-    if ((unsigned long)(code_gen_ptr - code_gen_buffer) > CODE_GEN_BUFFER_SIZE)
+    if ((unsigned long)(code_gen_ptr - code_gen_buffer) > code_gen_buffer_size)
         cpu_abort(env1, "Internal error: code buffer overflow\n");
 
     nb_tbs = 0;
@@ -959,8 +1033,8 @@ TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
 
-    if (nb_tbs >= CODE_GEN_MAX_BLOCKS ||
-        (code_gen_ptr - code_gen_buffer) >= CODE_GEN_BUFFER_MAX_SIZE)
+    if (nb_tbs >= code_gen_max_blocks ||
+        (code_gen_ptr - code_gen_buffer) >= code_gen_buffer_max_size)
         return NULL;
     tb = &tbs[nb_tbs++];
     tb->pc = pc;
@@ -1140,6 +1214,16 @@ int cpu_watchpoint_remove(CPUState *env, target_ulong addr)
     return -1;
 }
 
+/* Remove all watchpoints. */
+void cpu_watchpoint_remove_all(CPUState *env) {
+    int i;
+
+    for (i = 0; i < env->nb_watchpoints; i++) {
+        tlb_flush_page(env, env->watchpoint[i].vaddr);
+    }
+    env->nb_watchpoints = 0;
+}
+
 /* add a breakpoint. EXCP_DEBUG is returned by the CPU loop if a
    breakpoint is reached */
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
@@ -1160,6 +1244,17 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
     return 0;
 #else
     return -1;
+#endif
+}
+
+/* remove all breakpoints */
+void cpu_breakpoint_remove_all(CPUState *env) {
+#if defined(TARGET_HAS_ICE)
+    int i;
+    for(i = 0; i < env->nb_breakpoints; i++) {
+        breakpoint_invalidate(env, env->breakpoints[i]);
+    }
+    env->nb_breakpoints = 0;
 #endif
 }
 
@@ -1723,9 +1818,6 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
             te->addr_read = -1;
         }
 
-        if (te->addr_code != -1) {
-            tlb_flush_jmp_cache(env, te->addr_code);
-        }
         if (prot & PAGE_EXEC) {
             te->addr_code = address;
         } else {
@@ -2049,6 +2141,13 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
     ram_addr_t orig_size = size;
     void *subpage;
 
+#ifdef USE_KQEMU
+    /* XXX: should not depend on cpu context */
+    env = first_cpu;
+    if (env->kqemu_enabled) {
+        kqemu_set_phys_mem(start_addr, size, phys_offset);
+    }
+#endif
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + (target_phys_addr_t)size;
 
@@ -2154,8 +2253,8 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
 {
     ram_addr_t addr;
     if ((phys_ram_alloc_offset + size) > phys_ram_size) {
-        fprintf(stderr, "Not enough memory (requested_size = %lu, max memory = %ld)\n",
-                size, phys_ram_size);
+        fprintf(stderr, "Not enough memory (requested_size = %" PRIu64 ", max memory = %" PRIu64 "\n",
+                (uint64_t)size, (uint64_t)phys_ram_size);
         abort();
     }
     addr = phys_ram_alloc_offset;
@@ -3011,7 +3110,10 @@ void dump_exec_info(FILE *f,
     }
     /* XXX: avoid using doubles ? */
     cpu_fprintf(f, "Translation buffer state:\n");
-    cpu_fprintf(f, "TB count            %d\n", nb_tbs);
+    cpu_fprintf(f, "gen code size       %ld/%ld\n",
+                code_gen_ptr - code_gen_buffer, code_gen_buffer_max_size);
+    cpu_fprintf(f, "TB count            %d/%d\n", 
+                nb_tbs, code_gen_max_blocks);
     cpu_fprintf(f, "TB avg target size  %d max=%d bytes\n",
                 nb_tbs ? target_code_size / nb_tbs : 0,
                 max_target_code_size);
@@ -3030,45 +3132,7 @@ void dump_exec_info(FILE *f,
     cpu_fprintf(f, "TB flush count      %d\n", tb_flush_count);
     cpu_fprintf(f, "TB invalidate count %d\n", tb_phys_invalidate_count);
     cpu_fprintf(f, "TLB flush count     %d\n", tlb_flush_count);
-#ifdef CONFIG_PROFILER
-    {
-        int64_t tot;
-        tot = dyngen_interm_time + dyngen_code_time;
-        cpu_fprintf(f, "JIT cycles          %" PRId64 " (%0.3f s at 2.4 GHz)\n",
-                    tot, tot / 2.4e9);
-        cpu_fprintf(f, "translated TBs      %" PRId64 " (aborted=%" PRId64 " %0.1f%%)\n", 
-                    dyngen_tb_count, 
-                    dyngen_tb_count1 - dyngen_tb_count,
-                    dyngen_tb_count1 ? (double)(dyngen_tb_count1 - dyngen_tb_count) / dyngen_tb_count1 * 100.0 : 0);
-        cpu_fprintf(f, "avg ops/TB          %0.1f max=%d\n", 
-                    dyngen_tb_count ? (double)dyngen_op_count / dyngen_tb_count : 0, dyngen_op_count_max);
-        cpu_fprintf(f, "old ops/total ops   %0.1f%%\n", 
-                    dyngen_op_count ? (double)dyngen_old_op_count / dyngen_op_count * 100.0 : 0);
-        cpu_fprintf(f, "deleted ops/TB      %0.2f\n",
-                    dyngen_tb_count ? 
-                    (double)dyngen_tcg_del_op_count / dyngen_tb_count : 0);
-        cpu_fprintf(f, "cycles/op           %0.1f\n", 
-                    dyngen_op_count ? (double)tot / dyngen_op_count : 0);
-        cpu_fprintf(f, "cycles/in byte     %0.1f\n", 
-                    dyngen_code_in_len ? (double)tot / dyngen_code_in_len : 0);
-        cpu_fprintf(f, "cycles/out byte     %0.1f\n", 
-                    dyngen_code_out_len ? (double)tot / dyngen_code_out_len : 0);
-        if (tot == 0)
-            tot = 1;
-        cpu_fprintf(f, "  gen_interm time   %0.1f%%\n", 
-                    (double)dyngen_interm_time / tot * 100.0);
-        cpu_fprintf(f, "  gen_code time     %0.1f%%\n", 
-                    (double)dyngen_code_time / tot * 100.0);
-        cpu_fprintf(f, "cpu_restore count   %" PRId64 "\n",
-                    dyngen_restore_count);
-        cpu_fprintf(f, "  avg cycles        %0.1f\n",
-                    dyngen_restore_count ? (double)dyngen_restore_time / dyngen_restore_count : 0);
-        {
-            extern void dump_op_count(void);
-            dump_op_count();
-        }
-    }
-#endif
+    tcg_dump_info(f, cpu_fprintf);
 }
 
 #if !defined(CONFIG_USER_ONLY)

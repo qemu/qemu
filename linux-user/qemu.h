@@ -82,6 +82,20 @@ struct vm86_saved_state {
 #include "nwfpe/fpa11.h"
 #endif
 
+#define MAX_SIGQUEUE_SIZE 1024
+
+struct sigqueue {
+    struct sigqueue *next;
+    target_siginfo_t info;
+};
+
+struct emulated_sigtable {
+    int pending; /* true if signal is pending */
+    struct sigqueue *first;
+    struct sigqueue info; /* in order to always have memory for the
+                             first signal, we put it here */
+};
+
 /* NOTE: we force a big alignment so that the stack stored after is
    aligned too */
 typedef struct TaskState {
@@ -109,10 +123,16 @@ typedef struct TaskState {
 #endif
     int used; /* non zero if used */
     struct image_info *info;
+
+    struct emulated_sigtable sigtab[TARGET_NSIG];
+    struct sigqueue sigqueue_table[MAX_SIGQUEUE_SIZE]; /* siginfo queue */
+    struct sigqueue *first_free; /* first free siginfo queue entry */
+    int signal_pending; /* non zero if a signal may be pending */
+
     uint8_t stack[0];
 } __attribute__((aligned(16))) TaskState;
 
-extern TaskState *first_task_state;
+void init_task_state(TaskState *ts);
 extern const char *qemu_uname_release;
 
 /* ??? See if we can avoid exposing so much of the loader internals.  */
@@ -182,11 +202,12 @@ void print_syscall_ret(int num, abi_long arg1);
 extern int do_strace;
 
 /* signal.c */
-void process_pending_signals(void *cpu_env);
+void process_pending_signals(CPUState *cpu_env);
 void signal_init(void);
-int queue_signal(int sig, target_siginfo_t *info);
+int queue_signal(CPUState *env, int sig, target_siginfo_t *info);
 void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
+int target_to_host_signal(int sig);
 long do_sigreturn(CPUState *env);
 long do_rt_sigreturn(CPUState *env);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
@@ -211,6 +232,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                        abi_ulong new_size, unsigned long flags,
                        abi_ulong new_addr);
 int target_msync(abi_ulong start, abi_ulong len, int flags);
+extern unsigned long last_brk;
 
 /* user access */
 

@@ -81,7 +81,7 @@ typedef struct TCGLabel {
 typedef struct TCGPool {
     struct TCGPool *next;
     int size;
-    uint8_t data[0];
+    uint8_t data[0] __attribute__ ((aligned));
 } TCGPool;
 
 #define TCG_POOL_CHUNK_SIZE 32768
@@ -98,6 +98,7 @@ typedef int TCGType;
 
 #define TCG_TYPE_I32 0
 #define TCG_TYPE_I64 1
+#define TCG_TYPE_COUNT 2 /* number of different types */
 
 #if TCG_TARGET_REG_BITS == 32
 #define TCG_TYPE_PTR TCG_TYPE_I32
@@ -148,6 +149,14 @@ typedef int TCGv;
 #define TCG_CALL_TYPE_REGPARM_1 0x0001 /* i386 style regparm call (1 reg) */
 #define TCG_CALL_TYPE_REGPARM_2 0x0002 /* i386 style regparm call (2 regs) */
 #define TCG_CALL_TYPE_REGPARM   0x0003 /* i386 style regparm call (3 regs) */
+/* A pure function only reads its arguments and globals variables and
+   cannot raise exceptions. Hence a call to a pure function can be
+   safely suppressed if the return value is not used. */
+#define TCG_CALL_PURE           0x0010 
+
+/* used to align parameters */
+#define TCG_CALL_DUMMY_TCGV     MAKE_TCGV(-1)
+#define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
 
 typedef enum {
     TCG_COND_EQ,
@@ -180,17 +189,21 @@ typedef struct TCGTemp {
     unsigned int fixed_reg:1;
     unsigned int mem_coherent:1;
     unsigned int mem_allocated:1;
+    unsigned int temp_local:1; /* If true, the temp is saved accross
+                                  basic blocks. Otherwise, it is not
+                                  preserved accross basic blocks. */
+    unsigned int temp_allocated:1; /* never used for code gen */
+    /* index of next free temp of same base type, -1 if end */
+    int next_free_temp;
     const char *name;
 } TCGTemp;
 
 typedef struct TCGHelperInfo {
-    void *func;
+    tcg_target_ulong func;
     const char *name;
 } TCGHelperInfo;
 
 typedef struct TCGContext TCGContext;
-
-typedef void TCGMacroFunc(TCGContext *s, int macro_id, const int *dead_args);
 
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
@@ -200,9 +213,8 @@ struct TCGContext {
     TCGTemp *temps; /* globals first, temps after */
     int nb_globals;
     int nb_temps;
-    /* constant indexes (end of temp array) */
-    int const_start;
-    int const_end;
+    /* index of free temps, -1 if none */
+    int first_free_temp[TCG_TYPE_COUNT * 2]; 
 
     /* goto_tb support */
     uint8_t *code_buf;
@@ -210,8 +222,10 @@ struct TCGContext {
     uint16_t *tb_next_offset;
     uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
 
+    /* liveness analysis */
     uint16_t *op_dead_iargs; /* for each operation, each bit tells if the
                                 corresponding input argument is dead */
+    
     /* tells in which temporary a given register is. It does not take
        into account fixed registers */
     int reg_to_temp[TCG_TARGET_NB_REGS];
@@ -224,10 +238,29 @@ struct TCGContext {
     uint8_t *code_ptr;
     TCGTemp static_temps[TCG_MAX_TEMPS];
 
-    TCGMacroFunc *macro_func;
     TCGHelperInfo *helpers;
     int nb_helpers;
     int allocated_helpers;
+    int helpers_sorted;
+
+#ifdef CONFIG_PROFILER
+    /* profiling info */
+    int64_t tb_count1;
+    int64_t tb_count;
+    int64_t op_count; /* total insn count */
+    int op_count_max; /* max insn per TB */
+    int64_t temp_count;
+    int temp_count_max;
+    int64_t old_op_count;
+    int64_t del_op_count;
+    int64_t code_in_len;
+    int64_t code_out_len;
+    int64_t interm_time;
+    int64_t code_time;
+    int64_t la_time;
+    int64_t restore_count;
+    int64_t restore_time;
+#endif
 };
 
 extern TCGContext tcg_ctx;
@@ -265,14 +298,24 @@ int dyngen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
 
 void tcg_set_frame(TCGContext *s, int reg,
                    tcg_target_long start, tcg_target_long size);
-void tcg_set_macro_func(TCGContext *s, TCGMacroFunc *func);
 TCGv tcg_global_reg_new(TCGType type, int reg, const char *name);
 TCGv tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2, 
                               const char *name);
 TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
                         const char *name);
-TCGv tcg_temp_new(TCGType type);
+TCGv tcg_temp_new_internal(TCGType type, int temp_local);
+static inline TCGv tcg_temp_new(TCGType type)
+{
+    return tcg_temp_new_internal(type, 0);
+}
+static inline TCGv tcg_temp_local_new(TCGType type)
+{
+    return tcg_temp_new_internal(type, 1);
+}
+void tcg_temp_free(TCGv arg);
 char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGv arg);
+void tcg_dump_info(FILE *f,
+                   int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
 #define TCG_CT_ALIAS  0x80
 #define TCG_CT_IALIAS 0x40
@@ -352,9 +395,6 @@ TCGv tcg_const_i64(int64_t val);
 
 void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type, 
                    int label_index, long addend);
-void tcg_reg_alloc_start(TCGContext *s);
-void tcg_reg_alloc_bb_end(TCGContext *s);
-void tcg_liveness_analysis(TCGContext *s);
 const TCGArg *tcg_gen_code_op(TCGContext *s, int opc, const TCGArg *args1,
                               unsigned int dead_iargs);
 
@@ -370,4 +410,9 @@ uint64_t tcg_helper_divu_i64(uint64_t arg1, uint64_t arg2);
 uint64_t tcg_helper_remu_i64(uint64_t arg1, uint64_t arg2);
 
 extern uint8_t code_gen_prologue[];
+#ifdef __powerpc__
+#define tcg_qemu_tb_exec(tb_ptr) \
+    ((long REGPARM __attribute__ ((longcall)) (*)(void *))code_gen_prologue)(tb_ptr)
+#else
 #define tcg_qemu_tb_exec(tb_ptr) ((long REGPARM (*)(void *))code_gen_prologue)(tb_ptr)
+#endif

@@ -282,12 +282,9 @@ struct CPUAlphaState {
     /* Those resources are used only in Qemu core */
     CPU_COMMON
 
-    jmp_buf jmp_env;
     int user_mode_only; /* user mode only simulation */
     uint32_t hflags;
-    int halted;
 
-    int exception_index;
     int error_code;
     int interrupt_request;
 
@@ -313,6 +310,15 @@ static inline int cpu_mmu_index (CPUState *env)
 {
     return (env->ps >> 3) & 3;
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (newsp)
+        env->ir[30] = newsp;
+    /* FIXME: Zero syscall return value.  */
+}
+#endif
 
 #include "cpu-all.h"
 

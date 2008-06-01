@@ -118,8 +118,6 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra);
 void cpu_loop_exit(void);
 void do_raise_exception_err (uint32_t exception, int error_code);
 void do_raise_exception (uint32_t exception);
-void do_raise_exception_direct_err (uint32_t exception, int error_code);
-void do_raise_exception_direct (uint32_t exception);
 
 void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),

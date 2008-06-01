@@ -52,6 +52,9 @@
 //#include <sys/user.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#if defined(USE_NPTL)
+#include <sys/futex.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -68,7 +71,7 @@
 #include <linux/soundcard.h>
 #include <linux/dirent.h>
 #include <linux/kd.h>
-#include <linux/loop.h>
+#include "linux_loop.h"
 
 #include "qemu.h"
 
@@ -160,6 +163,7 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
 #define __NR_sys_tkill __NR_tkill
 #define __NR_sys_unlinkat __NR_unlinkat
 #define __NR_sys_utimensat __NR_utimensat
+#define __NR_sys_futex __NR_futex
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -240,6 +244,11 @@ _syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
 #if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
+#endif
+#if defined(TARGET_NR_futex) && defined(__NR_futex)
+_syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
+          const struct timespec *,timeout,int *,uaddr2,int,val3)
+          
 #endif
 
 extern int personality(int);
@@ -2718,73 +2727,21 @@ int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
     CPUState *new_env;
 
     if (flags & CLONE_VM) {
+#if defined(USE_NPTL)
+        /* qemu is not threadsafe.  Bail out immediately if application
+           tries to create a thread.  */
+        if (!(flags & CLONE_VFORK)) {
+            gemu_log ("clone(CLONE_VM) not supported\n");
+            return -EINVAL;
+        }
+#endif
         ts = malloc(sizeof(TaskState) + NEW_STACK_SIZE);
-        memset(ts, 0, sizeof(TaskState));
+        init_task_state(ts);
         new_stack = ts->stack;
-        ts->used = 1;
-        /* add in task state list */
-        ts->next = first_task_state;
-        first_task_state = ts;
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
-#if defined(TARGET_I386)
-        if (!newsp)
-            newsp = env->regs[R_ESP];
-        new_env->regs[R_ESP] = newsp;
-        new_env->regs[R_EAX] = 0;
-#elif defined(TARGET_ARM)
-        if (!newsp)
-            newsp = env->regs[13];
-        new_env->regs[13] = newsp;
-        new_env->regs[0] = 0;
-#elif defined(TARGET_SPARC)
-        if (!newsp)
-            newsp = env->regwptr[22];
-        new_env->regwptr[22] = newsp;
-        new_env->regwptr[0] = 0;
-	/* XXXXX */
-        printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
-#elif defined(TARGET_M68K)
-        if (!newsp)
-            newsp = env->aregs[7];
-        new_env->aregs[7] = newsp;
-        new_env->dregs[0] = 0;
-        /* ??? is this sufficient?  */
-#elif defined(TARGET_MIPS)
-        if (!newsp)
-            newsp = env->gpr[env->current_tc][29];
-        new_env->gpr[env->current_tc][29] = newsp;
-#elif defined(TARGET_PPC)
-        if (!newsp)
-            newsp = env->gpr[1];
-        new_env->gpr[1] = newsp;
-        {
-            int i;
-            for (i = 7; i < 32; i++)
-                new_env->gpr[i] = 0;
-        }
-#elif defined(TARGET_SH4)
-	if (!newsp)
-	  newsp = env->gregs[15];
-	new_env->gregs[15] = newsp;
-	/* XXXXX */
-#elif defined(TARGET_ALPHA)
-       if (!newsp)
-         newsp = env->ir[30];
-       new_env->ir[30] = newsp;
-        /* ? */
-        {
-            int i;
-            for (i = 7; i < 30; i++)
-                new_env->ir[i] = 0;
-        }
-#elif defined(TARGET_CRIS)
-	if (!newsp)
-	  newsp = env->regs[14];
-	new_env->regs[14] = newsp;
-#else
-#error unsupported target CPU
-#endif
+        /* Init regs that differ from the parent.  */
+        cpu_clone_regs(new_env, newsp);
         new_env->opaque = ts;
 #ifdef __ia64__
         ret = __clone2(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
@@ -2796,6 +2753,9 @@ int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
         if ((flags & ~CSIGNAL) != 0)
             return -EINVAL;
         ret = fork();
+        if (ret == 0) {
+            cpu_clone_regs(env, newsp);
+        }
     }
     return ret;
 }
@@ -3056,6 +3016,45 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
     return 0;
 }
 
+#if defined(USE_NPTL)
+/* ??? Using host futex calls even when target atomic operations
+   are not really atomic probably breaks things.  However implementing
+   futexes locally would make futexes shared between multiple processes
+   tricky.  However they're probably useless because guest atomic
+   operations won't work either.  */
+int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
+             target_ulong uaddr2, int val3)
+{
+    struct timespec ts, *pts;
+
+    /* ??? We assume FUTEX_* constants are the same on both host
+       and target.  */
+    switch (op) {
+    case FUTEX_WAIT:
+        if (timeout) {
+            pts = &ts;
+            target_to_host_timespec(pts, timeout);
+        } else {
+            pts = NULL;
+        }
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_WAIT, tswap32(val),
+                         pts, NULL, 0));
+    case FUTEX_WAKE:
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_WAKE, val, NULL, NULL, 0));
+    case FUTEX_FD:
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_FD, val, NULL, NULL, 0));
+    case FUTEX_REQUEUE:
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_REQUEUE, val,
+                         NULL, g2h(uaddr2), 0));
+    case FUTEX_CMP_REQUEUE:
+        return get_errno(sys_futex(g2h(uaddr), FUTEX_CMP_REQUEUE, val,
+                         NULL, g2h(uaddr2), tswap32(val3)));
+    default:
+        return -TARGET_ENOSYS;
+    }
+}
+#endif
+
 int get_osversion(void)
 {
     static int osversion;
@@ -3166,6 +3165,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
 #endif
+#ifdef TARGET_NR_waitid
+    case TARGET_NR_waitid:
+        {
+            siginfo_t info;
+            info.si_pid = 0;
+            ret = get_errno(waitid(arg1, arg2, &info, arg4));
+            if (!is_error(ret) && arg3 && info.si_pid != 0) {
+                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_siginfo_t), 0)))
+                    goto efault;
+                host_to_target_siginfo(p, &info);
+                unlock_user(p, arg3, sizeof(target_siginfo_t));
+            }
+        }
+        break;
+#endif
 #ifdef TARGET_NR_creat /* not on alpha */
     case TARGET_NR_creat:
         if (!(p = lock_user_string(arg1)))
@@ -3230,7 +3244,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             argc = 0;
             guest_argp = arg2;
-            for (gp = guest_argp; ; gp += sizeof(abi_ulong)) {
+            for (gp = guest_argp; gp; gp += sizeof(abi_ulong)) {
                 if (get_user_ual(addr, gp))
                     goto efault;
                 if (!addr)
@@ -3239,7 +3253,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             envc = 0;
             guest_envp = arg3;
-            for (gp = guest_envp; ; gp += sizeof(abi_ulong)) {
+            for (gp = guest_envp; gp; gp += sizeof(abi_ulong)) {
                 if (get_user_ual(addr, gp))
                     goto efault;
                 if (!addr)
@@ -3250,7 +3264,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             argp = alloca((argc + 1) * sizeof(void *));
             envp = alloca((envc + 1) * sizeof(void *));
 
-            for (gp = guest_argp, q = argp; ;
+            for (gp = guest_argp, q = argp; gp;
                   gp += sizeof(abi_ulong), q++) {
                 if (get_user_ual(addr, gp))
                     goto execve_efault;
@@ -3261,7 +3275,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             *q = NULL;
 
-            for (gp = guest_envp, q = envp; ;
+            for (gp = guest_envp, q = envp; gp;
                   gp += sizeof(abi_ulong), q++) {
                 if (get_user_ual(addr, gp))
                     goto execve_efault;
@@ -3485,7 +3499,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0;
         break;
     case TARGET_NR_kill:
-        ret = get_errno(kill(arg1, arg2));
+        ret = get_errno(kill(arg1, target_to_host_signal(arg2)));
         break;
     case TARGET_NR_rename:
         {
@@ -3902,10 +3916,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             ret = get_errno(sigtimedwait(&set, &uinfo, puts));
             if (!is_error(ret) && arg2) {
-                if (!(p = lock_user(VERIFY_WRITE, arg2, sizeof(target_sigset_t), 0)))
+                if (!(p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t), 0)))
                     goto efault;
                 host_to_target_siginfo(p, &uinfo);
-                unlock_user(p, arg2, sizeof(target_sigset_t));
+                unlock_user(p, arg2, sizeof(target_siginfo_t));
             }
         }
         break;
@@ -5560,6 +5574,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     }
 #endif
+#ifdef TARGET_NR_clock_nanosleep
+    case TARGET_NR_clock_nanosleep:
+    {
+        struct timespec ts;
+        target_to_host_timespec(&ts, arg3);
+        ret = get_errno(clock_nanosleep(arg1, arg2, &ts, arg4 ? &ts : NULL));
+        if (arg4)
+            host_to_target_timespec(arg4, &ts);
+        break;
+    }
+#endif
 
 #if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
     case TARGET_NR_set_tid_address:
@@ -5569,13 +5594,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
 #if defined(TARGET_NR_tkill) && defined(__NR_tkill)
     case TARGET_NR_tkill:
-        ret = get_errno(sys_tkill((int)arg1, (int)arg2));
+        ret = get_errno(sys_tkill((int)arg1, target_to_host_signal(arg2)));
         break;
 #endif
 
 #if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
     case TARGET_NR_tgkill:
-	ret = get_errno(sys_tgkill((int)arg1, (int)arg2, (int)arg3));
+	ret = get_errno(sys_tgkill((int)arg1, (int)arg2,
+                        target_to_host_signal(arg3)));
 	break;
 #endif
 
@@ -5602,6 +5628,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
         }
 	break;
+#endif
+#if defined(USE_NPTL)
+    case TARGET_NR_futex:
+        ret = do_futex(arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
 #endif
 
     default:

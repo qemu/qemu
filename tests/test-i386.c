@@ -30,19 +30,19 @@
 #include <sys/mman.h>
 
 #if !defined(__x86_64__)
-#define TEST_VM86
+//#define TEST_VM86
 #define TEST_SEGS
 #endif
 //#define LINUX_VM86_IOPL_FIX
 //#define TEST_P4_FLAGS
-#if defined(__x86_64__)
+#ifdef __SSE__
 #define TEST_SSE
 #define TEST_CMOV  1
 #define TEST_FCOMI 1
 #else
-//#define TEST_SSE
-#define TEST_CMOV  0
-#define TEST_FCOMI 0
+#undef TEST_SSE
+#define TEST_CMOV  1
+#define TEST_FCOMI 1
 #endif
 
 #if defined(__x86_64__)
@@ -455,6 +455,49 @@ void test_jcc(void)
     TEST_JCC("ns", 0, 1);
     TEST_JCC("ns", 0, -1);
     TEST_JCC("ns", 0, 0);
+}
+
+#define TEST_LOOP(insn) \
+{\
+    for(i = 0; i < sizeof(ecx_vals) / sizeof(long); i++) {\
+        ecx = ecx_vals[i];\
+        for(zf = 0; zf < 2; zf++) {\
+    asm("test %2, %2\n\t"\
+        "movl $1, %0\n\t"\
+          insn " 1f\n\t" \
+        "movl $0, %0\n\t"\
+        "1:\n\t"\
+        : "=a" (res)\
+        : "c" (ecx), "b" (!zf)); \
+    printf("%-10s ECX=" FMTLX " ZF=%ld r=%d\n", insn, ecx, zf, res);      \
+        }\
+   }\
+}
+
+void test_loop(void)
+{
+    long ecx, zf;
+    const long ecx_vals[] = {
+        0,
+        1,
+        0x10000,
+        0x10001,
+#if defined(__x86_64__)
+        0x100000000L,
+        0x100000001L,
+#endif
+    };
+    int i, res;
+
+    TEST_LOOP("jcxz");
+    TEST_LOOP("loopw");
+    TEST_LOOP("loopzw");
+    TEST_LOOP("loopnzw");
+
+    TEST_LOOP("jecxz");
+    TEST_LOOP("loopl");
+    TEST_LOOP("loopzl");
+    TEST_LOOP("loopnzl");
 }
 
 #undef CC_MASK
@@ -1150,22 +1193,25 @@ void test_xchg(void)
 
     {
         uint64_t op0, op1, op2;
+        long eax, edx;
         long i, eflags;
 
         for(i = 0; i < 2; i++) {
             op0 = 0x123456789abcdLL;
+            eax = i2l(op0 & 0xffffffff);
+            edx = i2l(op0 >> 32);
             if (i == 0)
                 op1 = 0xfbca765423456LL;
             else
                 op1 = op0;
             op2 = 0x6532432432434LL;
-            asm("cmpxchg8b %1\n"
+            asm("cmpxchg8b %2\n"
                 "pushf\n"
-                "pop %2\n"
-                : "=A" (op0), "=m" (op1), "=g" (eflags)
-                : "0" (op0), "m" (op1), "b" ((int)op2), "c" ((int)(op2 >> 32)));
-            printf("cmpxchg8b: op0=" FMT64X " op1=" FMT64X " CC=%02lx\n",
-                    op0, op1, eflags & CC_Z);
+                "pop %3\n"
+                : "=a" (eax), "=d" (edx), "=m" (op1), "=g" (eflags)
+                : "0" (eax), "1" (edx), "m" (op1), "b" ((int)op2), "c" ((int)(op2 >> 32)));
+            printf("cmpxchg8b: eax=" FMTLX " edx=" FMTLX " op1=" FMT64X " CC=%02lx\n",
+                   eax, edx, op1, eflags & CC_Z);
         }
     }
 }
@@ -1196,14 +1242,30 @@ uint8_t seg_data2[4096];
 #define TEST_LR(op, size, seg, mask)\
 {\
     int res, res2;\
+    uint16_t mseg = seg;\
     res = 0x12345678;\
     asm (op " %" size "2, %" size "0\n" \
          "movl $0, %1\n"\
          "jnz 1f\n"\
          "movl $1, %1\n"\
          "1:\n"\
-         : "=r" (res), "=r" (res2) : "m" (seg), "0" (res));\
+         : "=r" (res), "=r" (res2) : "m" (mseg), "0" (res));\
     printf(op ": Z=%d %08x\n", res2, res & ~(mask));\
+}
+
+#define TEST_ARPL(op, size, op1, op2)\
+{\
+    long a, b, c;                               \
+    a = (op1);                                  \
+    b = (op2);                                  \
+    asm volatile(op " %" size "3, %" size "0\n"\
+                 "movl $0,%1\n"\
+                 "jnz 1f\n"\
+                 "movl $1,%1\n"\
+                 "1:\n"\
+                 : "=r" (a), "=r" (c) : "0" (a), "r" (b));    \
+    printf(op size " A=" FMTLX " B=" FMTLX " R=" FMTLX " z=%ld\n",\
+           (long)(op1), (long)(op2), a, c);\
 }
 
 /* NOTE: we use Linux modify_ldt syscall */
@@ -1297,6 +1359,10 @@ void test_segs(void)
     TEST_LR("larl", "", 0xfff8, 0);
     TEST_LR("lslw", "w", 0xfff8, 0);
     TEST_LR("lsll", "", 0xfff8, 0);
+
+    TEST_ARPL("arpl", "w", 0x12345678 | 3, 0x762123c | 1);
+    TEST_ARPL("arpl", "w", 0x12345678 | 1, 0x762123c | 3);
+    TEST_ARPL("arpl", "w", 0x12345678 | 1, 0x762123c | 1);
 }
 
 /* 16 bit code test */
@@ -1931,7 +1997,8 @@ uint8_t code[] = {
     0xc3, /* ret */
 };
 
-asm("smc_code2:\n"
+asm(".section \".data\"\n"
+    "smc_code2:\n"
     "movl 4(%esp), %eax\n"
     "movl %eax, smc_patch_addr2 + 1\n"
     "nop\n"
@@ -1944,14 +2011,15 @@ asm("smc_code2:\n"
     "nop\n"
     "smc_patch_addr2:\n"
     "movl $1, %eax\n"
-    "ret\n");
+    "ret\n"
+    ".previous\n"
+    );
 
 typedef int FuncType(void);
 extern int smc_code2(int);
 void test_self_modifying_code(void)
 {
     int i;
-
     printf("self modifying code:\n");
     printf("func1 = 0x%x\n", ((FuncType *)code)());
     for(i = 2; i <= 4; i++) {
@@ -2211,7 +2279,8 @@ void test_sse_comi(double a1, double b1)
 #define CVT_OP_XMM2MMX(op)\
 {\
     asm volatile (#op " %1, %0" : "=y" (r.q[0]) : "x" (a.dq) \
-                  : "%xmm0");\
+                  : "%xmm0"); \
+    asm volatile("emms\n"); \
     printf("%-9s: a=" FMT64X "" FMT64X " r=" FMT64X "\n",\
            #op,\
            a.q[1], a.q[0],\
@@ -2221,6 +2290,7 @@ void test_sse_comi(double a1, double b1)
 #define CVT_OP_MMX2XMM(op)\
 {\
     asm volatile (#op " %1, %0" : "=x" (r.dq) : "y" (a.q[0]));\
+    asm volatile("emms\n"); \
     printf("%-9s: a=" FMT64X " r=" FMT64X "" FMT64X "\n",\
            #op,\
            a.q[0],\
@@ -2657,6 +2727,7 @@ int main(int argc, char **argv)
     test_bsx();
     test_mul();
     test_jcc();
+    test_loop();
     test_floats();
 #if !defined(__x86_64__)
     test_bcd();

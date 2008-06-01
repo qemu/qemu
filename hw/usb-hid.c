@@ -256,53 +256,73 @@ static const uint8_t qemu_keyboard_config_descriptor[] = {
 };
 
 static const uint8_t qemu_mouse_hid_report_descriptor[] = {
-    0x05, 0x01, 0x09, 0x02, 0xA1, 0x01, 0x09, 0x01,
-    0xA1, 0x00, 0x05, 0x09, 0x19, 0x01, 0x29, 0x03,
-    0x15, 0x00, 0x25, 0x01, 0x95, 0x03, 0x75, 0x01,
-    0x81, 0x02, 0x95, 0x01, 0x75, 0x05, 0x81, 0x01,
-    0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x09, 0x38,
-    0x15, 0x81, 0x25, 0x7F, 0x75, 0x08, 0x95, 0x03,
-    0x81, 0x06, 0xC0, 0xC0,
+    0x05, 0x01,		/* Usage Page (Generic Desktop) */
+    0x09, 0x02,		/* Usage (Mouse) */
+    0xa1, 0x01,		/* Collection (Application) */
+    0x09, 0x01,		/*   Usage (Pointer) */
+    0xa1, 0x00,		/*   Collection (Physical) */
+    0x05, 0x09,		/*     Usage Page (Button) */
+    0x19, 0x01,		/*     Usage Minimum (1) */
+    0x29, 0x03,		/*     Usage Maximum (3) */
+    0x15, 0x00,		/*     Logical Minimum (0) */
+    0x25, 0x01,		/*     Logical Maximum (1) */
+    0x95, 0x03,		/*     Report Count (3) */
+    0x75, 0x01,		/*     Report Size (1) */
+    0x81, 0x02,		/*     Input (Data, Variable, Absolute) */
+    0x95, 0x01,		/*     Report Count (1) */
+    0x75, 0x05,		/*     Report Size (5) */
+    0x81, 0x01,		/*     Input (Constant) */
+    0x05, 0x01,		/*     Usage Page (Generic Desktop) */
+    0x09, 0x30,		/*     Usage (X) */
+    0x09, 0x31,		/*     Usage (Y) */
+    0x09, 0x38,		/*     Usage (Wheel) */
+    0x15, 0x81,		/*     Logical Minimum (-0x7f) */
+    0x25, 0x7f,		/*     Logical Maximum (0x7f) */
+    0x75, 0x08,		/*     Report Size (8) */
+    0x95, 0x03,		/*     Report Count (3) */
+    0x81, 0x06,		/*     Input (Data, Variable, Relative) */
+    0xc0,		/*   End Collection */
+    0xc0,		/* End Collection */
 };
 
 static const uint8_t qemu_tablet_hid_report_descriptor[] = {
-        0x05, 0x01, /* Usage Page Generic Desktop */
-        0x09, 0x01, /* Usage Pointer */
-        0xA1, 0x01, /* Collection Application */
-        0x09, 0x01, /* Usage Pointer */
-        0xA1, 0x00, /* Collection Physical */
-        0x05, 0x09, /* Usage Page Button */
-        0x19, 0x01, /* Usage Minimum Button 1 */
-        0x29, 0x03, /* Usage Maximum Button 3 */
-        0x15, 0x00, /* Logical Minimum 0 */
-        0x25, 0x01, /* Logical Maximum 1 */
-        0x95, 0x03, /* Report Count 3 */
-        0x75, 0x01, /* Report Size 1 */
-        0x81, 0x02, /* Input (Data, Var, Abs) */
-        0x95, 0x01, /* Report Count 1 */
-        0x75, 0x05, /* Report Size 5 */
-        0x81, 0x01, /* Input (Cnst, Array, Abs) */
-        0x05, 0x01, /* Usage Page Generic Desktop */
-        0x09, 0x30, /* Usage X */
-        0x09, 0x31, /* Usage Y */
-        0x15, 0x00, /* Logical Minimum 0 */
-        0x26, 0xFF, 0x7F, /* Logical Maximum 0x7fff */
-        0x35, 0x00, /* Physical Minimum 0 */
-        0x46, 0xFE, 0x7F, /* Physical Maximum 0x7fff */
-        0x75, 0x10, /* Report Size 16 */
-        0x95, 0x02, /* Report Count 2 */
-        0x81, 0x02, /* Input (Data, Var, Abs) */
-        0x05, 0x01, /* Usage Page Generic Desktop */
-        0x09, 0x38, /* Usage Wheel */
-        0x15, 0x81, /* Logical Minimum -127 */
-        0x25, 0x7F, /* Logical Maximum 127 */
-        0x35, 0x00, /* Physical Minimum 0 (same as logical) */
-        0x45, 0x00, /* Physical Maximum 0 (same as logical) */
-        0x75, 0x08, /* Report Size 8 */
-        0x95, 0x01, /* Report Count 1 */
-        0x81, 0x06, /* Input (Data, Var, Rel) */
-        0xC0,       /* End Collection */
-        0xC0,       /* End Collection */
+    0x05, 0x01,		/* Usage Page (Generic Desktop) */
+    0x09, 0x01,		/* Usage (Pointer) */
+    0xa1, 0x01,		/* Collection (Application) */
+    0x09, 0x01,		/*   Usage (Pointer) */
+    0xa1, 0x00,		/*   Collection (Physical) */
+    0x05, 0x09,		/*     Usage Page (Button) */
+    0x19, 0x01,		/*     Usage Minimum (1) */
+    0x29, 0x03,		/*     Usage Maximum (3) */
+    0x15, 0x00,		/*     Logical Minimum (0) */
+    0x25, 0x01,		/*     Logical Maximum (1) */
+    0x95, 0x03,		/*     Report Count (3) */
+    0x75, 0x01,		/*     Report Size (1) */
+    0x81, 0x02,		/*     Input (Data, Variable, Absolute) */
+    0x95, 0x01,		/*     Report Count (1) */
+    0x75, 0x05,		/*     Report Size (5) */
+    0x81, 0x01,		/*     Input (Constant) */
+    0x05, 0x01,		/*     Usage Page (Generic Desktop) */
+    0x09, 0x30,		/*     Usage (X) */
+    0x09, 0x31,		/*     Usage (Y) */
+    0x15, 0x00,		/*     Logical Minimum (0) */
+    0x26, 0xfe, 0x7f,	/*     Logical Maximum (0x7fff) */
+    0x35, 0x00,		/*     Physical Minimum (0) */
+    0x46, 0xfe, 0x7f,	/*     Physical Maximum (0x7fff) */
+    0x75, 0x10,		/*     Report Size (16) */
+    0x95, 0x02,		/*     Report Count (2) */
+    0x81, 0x02,		/*     Input (Data, Variable, Absolute) */
+    0x05, 0x01,		/*     Usage Page (Generic Desktop) */
+    0x09, 0x38,		/*     Usage (Wheel) */
+    0x15, 0x81,		/*     Logical Minimum (-0x7f) */
+    0x25, 0x7f,		/*     Logical Maximum (0x7f) */
+    0x35, 0x00,		/*     Physical Minimum (same as logical) */
+    0x45, 0x00,		/*     Physical Maximum (same as logical) */
+    0x75, 0x08,		/*     Report Size (8) */
+    0x95, 0x01,		/*     Report Count (1) */
+    0x81, 0x06,		/*     Input (Data, Variable, Relative) */
+    0xc0,		/*   End Collection */
+    0xc0,		/* End Collection */
 };
 
 static const uint8_t qemu_keyboard_hid_report_descriptor[] = {
@@ -477,13 +497,16 @@ static int usb_mouse_poll(USBHIDState *hs, uint8_t *buf, int len)
 	s->mouse_grabbed = 1;
     }
 
-    dx = int_clamp(s->dx, -128, 127);
-    dy = int_clamp(s->dy, -128, 127);
-    dz = int_clamp(s->dz, -128, 127);
+    dx = int_clamp(s->dx, -127, 127);
+    dy = int_clamp(s->dy, -127, 127);
+    dz = int_clamp(s->dz, -127, 127);
 
     s->dx -= dx;
     s->dy -= dy;
     s->dz -= dz;
+
+    /* Appears we have to invert the wheel direction */
+    dz = 0 - dz;
 
     b = 0;
     if (s->buttons_state & MOUSE_EVENT_LBUTTON)
@@ -516,7 +539,7 @@ static int usb_tablet_poll(USBHIDState *hs, uint8_t *buf, int len)
 	s->mouse_grabbed = 1;
     }
 
-    dz = int_clamp(s->dz, -128, 127);
+    dz = int_clamp(s->dz, -127, 127);
     s->dz -= dz;
 
     /* Appears we have to invert the wheel direction */

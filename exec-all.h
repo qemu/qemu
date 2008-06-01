@@ -56,12 +56,6 @@ typedef void (GenOpFunc1)(long);
 typedef void (GenOpFunc2)(long, long);
 typedef void (GenOpFunc3)(long, long, long);
 
-#if defined(TARGET_I386)
-
-void optimize_flags_init(void);
-
-#endif
-
 extern FILE *logfile;
 extern int loglevel;
 
@@ -105,31 +99,7 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 #define CODE_GEN_PHYS_HASH_BITS     15
 #define CODE_GEN_PHYS_HASH_SIZE     (1 << CODE_GEN_PHYS_HASH_BITS)
 
-/* maximum total translate dcode allocated */
-
-/* NOTE: the translated code area cannot be too big because on some
-   archs the range of "fast" function calls is limited. Here is a
-   summary of the ranges:
-
-   i386  : signed 32 bits
-   arm   : signed 26 bits
-   ppc   : signed 24 bits
-   sparc : signed 32 bits
-   alpha : signed 23 bits
-*/
-
-#if defined(__alpha__)
-#define CODE_GEN_BUFFER_SIZE     (2 * 1024 * 1024)
-#elif defined(__ia64)
-#define CODE_GEN_BUFFER_SIZE     (4 * 1024 * 1024)	/* range of addl */
-#elif defined(__powerpc__)
-#define CODE_GEN_BUFFER_SIZE     (6 * 1024 * 1024)
-#else
-/* XXX: make it dynamic on x86 */
-#define CODE_GEN_BUFFER_SIZE     (16 * 1024 * 1024)
-#endif
-
-//#define CODE_GEN_BUFFER_SIZE     (128 * 1024)
+#define MIN_CODE_GEN_BUFFER_SIZE     (1024 * 1024)
 
 /* estimated block size for TB allocation */
 /* XXX: use a per code average code fragment size and modulate it
@@ -140,9 +110,7 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 #define CODE_GEN_AVG_BLOCK_SIZE 64
 #endif
 
-#define CODE_GEN_MAX_BLOCKS    (CODE_GEN_BUFFER_SIZE / CODE_GEN_AVG_BLOCK_SIZE)
-
-#if defined(__powerpc__) || defined(__x86_64__)
+#if defined(__powerpc__) || defined(__x86_64__) || defined(__arm__)
 #define USE_DIRECT_JUMP
 #endif
 #if defined(__i386__) && !defined(_WIN32)
@@ -213,9 +181,8 @@ void tb_link_phys(TranslationBlock *tb,
                   target_ulong phys_pc, target_ulong phys_page2);
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
-
-extern uint8_t code_gen_buffer[CODE_GEN_BUFFER_SIZE];
 extern uint8_t *code_gen_ptr;
+extern int code_gen_max_blocks;
 
 #if defined(USE_DIRECT_JUMP)
 
@@ -223,12 +190,23 @@ extern uint8_t *code_gen_ptr;
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
     uint32_t val, *ptr;
+    long disp = addr - jmp_addr;
 
-    /* patch the branch destination */
     ptr = (uint32_t *)jmp_addr;
     val = *ptr;
-    val = (val & ~0x03fffffc) | ((addr - jmp_addr) & 0x03fffffc);
-    *ptr = val;
+
+    if ((disp << 6) >> 6 != disp) {
+        uint16_t *p1;
+
+        p1 = (uint16_t *) ptr;
+        *ptr = (val & ~0x03fffffc) | 4;
+        p1[3] = addr >> 16;
+        p1[5] = addr & 0xffff;
+    } else {
+        /* patch the branch destination */
+        val = (val & ~0x03fffffc) | (disp & 0x03fffffc);
+        *ptr = val;
+    }
     /* flush icache */
     asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
     asm volatile ("sync" : : : "memory");
@@ -242,6 +220,22 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     /* patch the branch destination */
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
     /* no need to flush icache explicitely */
+}
+#elif defined(__arm__)
+static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+{
+    register unsigned long _beg __asm ("a1");
+    register unsigned long _end __asm ("a2");
+    register unsigned long _flg __asm ("a3");
+
+    /* we could use a ldr pc, [pc, #-4] kind of branch and avoid the flush */
+    *(uint32_t *)jmp_addr |= ((addr - (jmp_addr + 8)) >> 2) & 0xffffff;
+
+    /* flush icache */
+    _beg = jmp_addr;
+    _end = jmp_addr + 4;
+    _flg = 0;
+    __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
 }
 #endif
 
@@ -594,14 +588,20 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 #ifdef USE_KQEMU
 #define KQEMU_MODIFY_PAGE_MASK (0xff & ~(VGA_DIRTY_FLAG | CODE_DIRTY_FLAG))
 
+#define MSR_QPI_COMMBASE 0xfabe0010
+
 int kqemu_init(CPUState *env);
 int kqemu_cpu_exec(CPUState *env);
 void kqemu_flush_page(CPUState *env, target_ulong addr);
 void kqemu_flush(CPUState *env, int global);
 void kqemu_set_notdirty(CPUState *env, ram_addr_t ram_addr);
 void kqemu_modify_page(CPUState *env, ram_addr_t ram_addr);
+void kqemu_set_phys_mem(uint64_t start_addr, ram_addr_t size, 
+                        ram_addr_t phys_offset);
 void kqemu_cpu_interrupt(CPUState *env);
 void kqemu_record_dump(void);
+
+extern uint32_t kqemu_comm_base;
 
 static inline int kqemu_is_ok(CPUState *env)
 {

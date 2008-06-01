@@ -29,60 +29,20 @@
 
 #include "cpu-defs.h"
 
-/* at least 4 register variables are defined */
 register struct CPUX86State *env asm(AREG0);
-
-#ifndef CPU_NO_GLOBAL_REGS
-
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-
-/* no registers can be used */
-#define T0 (env->t0)
-#define T1 (env->t1)
-#define T2 (env->t2)
-
-#else
-
-/* XXX: use unsigned long instead of target_ulong - better code will
-   be generated for 64 bit CPUs */
-register target_ulong T0 asm(AREG1);
-register target_ulong T1 asm(AREG2);
-register target_ulong T2 asm(AREG3);
-
-#endif /* ! (TARGET_LONG_BITS > HOST_LONG_BITS) */
-
-#endif /* ! CPU_NO_GLOBAL_REGS */
-
-#define A0 T2
 
 extern FILE *logfile;
 extern int loglevel;
 
-#ifndef reg_EAX
 #define EAX (env->regs[R_EAX])
-#endif
-#ifndef reg_ECX
 #define ECX (env->regs[R_ECX])
-#endif
-#ifndef reg_EDX
 #define EDX (env->regs[R_EDX])
-#endif
-#ifndef reg_EBX
 #define EBX (env->regs[R_EBX])
-#endif
-#ifndef reg_ESP
 #define ESP (env->regs[R_ESP])
-#endif
-#ifndef reg_EBP
 #define EBP (env->regs[R_EBP])
-#endif
-#ifndef reg_ESI
 #define ESI (env->regs[R_ESI])
-#endif
-#ifndef reg_EDI
 #define EDI (env->regs[R_EDI])
-#endif
-#define EIP  (env->eip)
+#define EIP (env->eip)
 #define DF  (env->df)
 
 #define CC_SRC (env->cc_src)
@@ -97,13 +57,6 @@ extern int loglevel;
 
 #include "cpu.h"
 #include "exec-all.h"
-
-typedef struct CCTable {
-    int (*compute_all)(void); /* return all the flags */
-    int (*compute_c)(void);  /* return the C flag */
-} CCTable;
-
-extern CCTable cc_table[];
 
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
@@ -128,6 +81,15 @@ void __hidden cpu_loop_exit(void);
 
 void OPPROTO op_movl_eflags_T0(void);
 void OPPROTO op_movl_T0_eflags(void);
+
+/* n must be a constant to be efficient */
+static inline target_long lshift(target_long x, int n)
+{
+    if (n >= 0)
+        return x << n;
+    else
+        return x >> (-n);
+}
 
 #include "helper.h"
 
@@ -362,7 +324,7 @@ static inline void load_eflags(int eflags, int update_mask)
     CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     DF = 1 - (2 * ((eflags >> 10) & 1));
     env->eflags = (env->eflags & ~update_mask) |
-        (eflags & update_mask);
+        (eflags & update_mask) | 0x2;
 }
 
 static inline void env_to_regs(void)
@@ -423,13 +385,13 @@ static inline void regs_to_env(void)
 
 static inline int cpu_halted(CPUState *env) {
     /* handle exit of HALTED state */
-    if (!(env->hflags & HF_HALTED_MASK))
+    if (!env->halted)
         return 0;
     /* disable halt condition */
     if (((env->interrupt_request & CPU_INTERRUPT_HARD) &&
          (env->eflags & IF_MASK)) ||
         (env->interrupt_request & CPU_INTERRUPT_NMI)) {
-        env->hflags &= ~HF_HALTED_MASK;
+        env->halted = 0;
         return 0;
     }
     return EXCP_HALTED;

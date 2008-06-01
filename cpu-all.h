@@ -233,6 +233,15 @@ static inline int lduw_le_p(void *ptr)
     int val;
     __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return val;
+#elif defined(__sparc__)
+#ifndef ASI_PRIMARY_LITTLE
+#define ASI_PRIMARY_LITTLE 0x88
+#endif
+
+    int val;
+    __asm__ __volatile__ ("lduha [%1] %2, %0" : "=r" (val) : "r" (ptr),
+                          "i" (ASI_PRIMARY_LITTLE));
+    return val;
 #else
     uint8_t *p = ptr;
     return p[0] | (p[1] << 8);
@@ -245,6 +254,11 @@ static inline int ldsw_le_p(void *ptr)
     int val;
     __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return (int16_t)val;
+#elif defined(__sparc__)
+    int val;
+    __asm__ __volatile__ ("ldsha [%1] %2, %0" : "=r" (val) : "r" (ptr),
+                          "i" (ASI_PRIMARY_LITTLE));
+    return val;
 #else
     uint8_t *p = ptr;
     return (int16_t)(p[0] | (p[1] << 8));
@@ -257,6 +271,11 @@ static inline int ldl_le_p(void *ptr)
     int val;
     __asm__ __volatile__ ("lwbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return val;
+#elif defined(__sparc__)
+    int val;
+    __asm__ __volatile__ ("lduwa [%1] %2, %0" : "=r" (val) : "r" (ptr),
+                          "i" (ASI_PRIMARY_LITTLE));
+    return val;
 #else
     uint8_t *p = ptr;
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
@@ -265,17 +284,27 @@ static inline int ldl_le_p(void *ptr)
 
 static inline uint64_t ldq_le_p(void *ptr)
 {
+#if defined(__sparc__)
+    uint64_t val;
+    __asm__ __volatile__ ("ldxa [%1] %2, %0" : "=r" (val) : "r" (ptr),
+                          "i" (ASI_PRIMARY_LITTLE));
+    return val;
+#else
     uint8_t *p = ptr;
     uint32_t v1, v2;
     v1 = ldl_le_p(p);
     v2 = ldl_le_p(p + 4);
     return v1 | ((uint64_t)v2 << 32);
+#endif
 }
 
 static inline void stw_le_p(void *ptr, int v)
 {
 #ifdef __powerpc__
     __asm__ __volatile__ ("sthbrx %1,0,%2" : "=m" (*(uint16_t *)ptr) : "r" (v), "r" (ptr));
+#elif defined(__sparc__)
+    __asm__ __volatile__ ("stha %1, [%2] %3" : "=m" (*(uint16_t *)ptr) : "r" (v),
+                          "r" (ptr), "i" (ASI_PRIMARY_LITTLE));
 #else
     uint8_t *p = ptr;
     p[0] = v;
@@ -287,6 +316,9 @@ static inline void stl_le_p(void *ptr, int v)
 {
 #ifdef __powerpc__
     __asm__ __volatile__ ("stwbrx %1,0,%2" : "=m" (*(uint32_t *)ptr) : "r" (v), "r" (ptr));
+#elif defined(__sparc__)
+    __asm__ __volatile__ ("stwa %1, [%2] %3" : "=m" (*(uint32_t *)ptr) : "r" (v),
+                          "r" (ptr), "i" (ASI_PRIMARY_LITTLE));
 #else
     uint8_t *p = ptr;
     p[0] = v;
@@ -298,9 +330,15 @@ static inline void stl_le_p(void *ptr, int v)
 
 static inline void stq_le_p(void *ptr, uint64_t v)
 {
+#if defined(__sparc__)
+    __asm__ __volatile__ ("stxa %1, [%2] %3" : "=m" (*(uint64_t *)ptr) : "r" (v),
+                          "r" (ptr), "i" (ASI_PRIMARY_LITTLE));
+#undef ASI_PRIMARY_LITTLE
+#else
     uint8_t *p = ptr;
     stl_le_p(p, (uint32_t)v);
     stl_le_p(p + 4, v >> 32);
+#endif
 }
 
 /* float access */
@@ -729,6 +767,7 @@ int page_get_flags(target_ulong address);
 void page_set_flags(target_ulong start, target_ulong end, int flags);
 int page_check_range(target_ulong start, target_ulong len, int flags);
 
+void cpu_exec_init_all(unsigned long tb_size);
 CPUState *cpu_copy(CPUState *env);
 
 void cpu_dump_state(CPUState *env, FILE *f,
@@ -760,8 +799,10 @@ void cpu_reset_interrupt(CPUState *env, int mask);
 
 int cpu_watchpoint_insert(CPUState *env, target_ulong addr);
 int cpu_watchpoint_remove(CPUState *env, target_ulong addr);
+void cpu_watchpoint_remove_all(CPUState *env);
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc);
 int cpu_breakpoint_remove(CPUState *env, target_ulong pc);
+void cpu_breakpoint_remove_all(CPUState *env);
 
 #define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
 #define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
@@ -1069,19 +1110,6 @@ extern int64_t dev_time;
 extern int64_t kqemu_ret_int_count;
 extern int64_t kqemu_ret_excp_count;
 extern int64_t kqemu_ret_intr_count;
-
-extern int64_t dyngen_tb_count1;
-extern int64_t dyngen_tb_count;
-extern int64_t dyngen_op_count;
-extern int64_t dyngen_old_op_count;
-extern int64_t dyngen_tcg_del_op_count;
-extern int dyngen_op_count_max;
-extern int64_t dyngen_code_in_len;
-extern int64_t dyngen_code_out_len;
-extern int64_t dyngen_interm_time;
-extern int64_t dyngen_code_time;
-extern int64_t dyngen_restore_count;
-extern int64_t dyngen_restore_time;
 #endif
 
 #endif /* CPU_ALL_H */

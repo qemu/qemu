@@ -450,41 +450,20 @@ static void tcg_out_brcond(TCGContext *s, int cond,
                            TCGArg arg1, TCGArg arg2, int const_arg2,
                            int label_index, int rexw)
 {
-    int c;
     if (const_arg2) {
         if (arg2 == 0) {
-            /* use test */
-            switch(cond) {
-            case TCG_COND_EQ:
-                c = JCC_JE;
-                break;
-            case TCG_COND_NE:
-                c = JCC_JNE;
-                break;
-            case TCG_COND_LT:
-                c = JCC_JS;
-                break;
-            case TCG_COND_GE:
-                c = JCC_JNS;
-                break;
-            default:
-                goto do_cmpi;
-            }
             /* test r, r */
             tcg_out_modrm(s, 0x85 | rexw, arg1, arg1);
-            tcg_out_jxx(s, c, label_index);
         } else {
-        do_cmpi:
             if (rexw)
                 tgen_arithi64(s, ARITH_CMP, arg1, arg2);
             else
                 tgen_arithi32(s, ARITH_CMP, arg1, arg2);
-            tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
         }
     } else {
         tcg_out_modrm(s, 0x01 | (ARITH_CMP << 3) | rexw, arg2, arg1);
-        tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
     }
+    tcg_out_jxx(s, tcg_cond_to_jcc[cond], label_index);
 }
 
 #if defined(CONFIG_SOFTMMU)

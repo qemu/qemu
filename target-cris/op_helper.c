@@ -22,13 +22,9 @@
 #include <assert.h>
 #include "exec.h"
 #include "mmu.h"
+#include "helper.h"
 
 #define MMUSUFFIX _mmu
-#ifdef __s390__
-# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & 0x7fffffffUL))
-#else
-# define GETPC() (__builtin_return_address(0))
-#endif
 
 #define SHIFT 0
 #include "softmmu_template.h"
@@ -72,6 +68,9 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
                 cpu_restore_state(tb, env, pc, NULL);
+
+		/* Evaluate flags after retranslation.  */
+                helper_top_evaluate_flags();
             }
         }
         cpu_loop_exit();
@@ -92,12 +91,7 @@ void helper_tlb_flush_pid(uint32_t pid)
 #endif
 }
 
-void helper_tlb_flush(void)
-{
-	tlb_flush(env, 1);
-}
-
-void helper_dump(uint32_t a0, uint32_t a1)
+void helper_dump(uint32_t a0, uint32_t a1, uint32_t a2)
 {
 	(fprintf(logfile, "%s: a0=%x a1=%x\n", __func__, a0, a1)); 
 }
@@ -241,13 +235,7 @@ static void evaluate_flags_writeback(uint32_t flags)
 	int x;
 
 	/* Extended arithmetics, leave the z flag alone.  */
-	env->debug3 = env->pregs[PR_CCS];
-
-	if (env->cc_x_live)
-		x = env->cc_x;
-	else
-		x = env->pregs[PR_CCS] & X_FLAG;
-
+	x = env->cc_x;
 	if ((x || env->cc_op == CC_OP_ADDC)
 	    && flags & Z_FLAG)
 		env->cc_mask &= ~Z_FLAG;
@@ -364,7 +352,23 @@ void  helper_evaluate_flags_alu_4(void)
 
 	src = env->cc_src;
 	dst = env->cc_dest;
-	res = env->cc_result;
+
+	/* Reconstruct the result.  */
+	switch (env->cc_op)
+	{
+		case CC_OP_SUB:
+			res = dst - src;
+			break;
+		case CC_OP_ADD:
+			res = dst + src;
+			break;
+		default:
+			res = env->cc_result;
+			break;
+	}
+
+	if (env->cc_op == CC_OP_SUB || env->cc_op == CC_OP_CMP)
+		src = ~src;
 
 	if ((res & 0x80000000L) != 0L)
 	{
@@ -401,11 +405,9 @@ void  helper_evaluate_flags_alu_4(void)
 
 void  helper_evaluate_flags_move_4 (void)
 {
-	uint32_t src;
 	uint32_t res;
 	uint32_t flags = 0;
 
-	src = env->cc_src;
 	res = env->cc_result;
 
 	if ((int32_t)res < 0)
@@ -445,6 +447,8 @@ void helper_evaluate_flags (void)
 	dst = env->cc_dest;
 	res = env->cc_result;
 
+	if (env->cc_op == CC_OP_SUB || env->cc_op == CC_OP_CMP)
+		src = ~src;
 
 	/* Now, evaluate the flags. This stuff is based on
 	   Per Zander's CRISv10 simulator.  */
@@ -552,4 +556,56 @@ void helper_evaluate_flags (void)
 		flags ^= C_FLAG;
 	}
 	evaluate_flags_writeback(flags);
+}
+
+void helper_top_evaluate_flags(void)
+{
+	switch (env->cc_op)
+	{
+		case CC_OP_MCP:
+			helper_evaluate_flags_mcp();
+			break;
+		case CC_OP_MULS:
+			helper_evaluate_flags_muls();
+			break;
+		case CC_OP_MULU:
+			helper_evaluate_flags_mulu();
+			break;
+		case CC_OP_MOVE:
+		case CC_OP_AND:
+		case CC_OP_OR:
+		case CC_OP_XOR:
+		case CC_OP_ASR:
+		case CC_OP_LSR:
+		case CC_OP_LSL:
+			switch (env->cc_size)
+			{
+				case 4:
+					helper_evaluate_flags_move_4();
+					break;
+				case 2:
+					helper_evaluate_flags_move_2();
+					break;
+				default:
+					helper_evaluate_flags();
+					break;
+			}
+			break;
+		case CC_OP_FLAGS:
+			/* live.  */
+			break;
+		default:
+		{
+			switch (env->cc_size)
+			{
+				case 4:
+					helper_evaluate_flags_alu_4();
+					break;
+				default:
+					helper_evaluate_flags();
+					break;
+			}
+		}
+		break;
+	}
 }

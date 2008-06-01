@@ -214,12 +214,9 @@ typedef struct CPUSPARCState {
     uint32_t pil_in;   /* incoming interrupt level bitmap */
     int      psref;    /* enable fpu */
     target_ulong version;
-    jmp_buf  jmp_env;
     int user_mode_only;
-    int exception_index;
     int interrupt_index;
     int interrupt_request;
-    int halted;
     uint32_t mmu_bm;
     uint32_t mmu_ctpr_mask;
     uint32_t mmu_cxr_mask;
@@ -287,17 +284,18 @@ typedef struct CPUSPARCState {
 #define CPU_FEATURE_FMUL     (1 << 7)
 #define CPU_FEATURE_VIS1     (1 << 8)
 #define CPU_FEATURE_VIS2     (1 << 9)
+#define CPU_FEATURE_FSMULD   (1 << 10)
 #ifndef TARGET_SPARC64
 #define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
                               CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
                               CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
-                              CPU_FEATURE_FMUL)
+                              CPU_FEATURE_FMUL | CPU_FEATURE_FSMULD)
 #else
 #define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
                               CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
                               CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
                               CPU_FEATURE_FMUL | CPU_FEATURE_VIS1 |   \
-                              CPU_FEATURE_VIS2)
+                              CPU_FEATURE_VIS2 | CPU_FEATURE_FSMULD)
 #endif
 
 #if defined(TARGET_SPARC64)
@@ -404,6 +402,18 @@ static inline int cpu_fpu_enabled(CPUState *env1)
     return ((env1->pstate & PS_PEF) != 0) && ((env1->fprs & FPRS_FEF) != 0);
 #endif
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+{
+    if (newsp)
+        env->regwptr[22] = newsp;
+    env->regwptr[0] = 0;
+    /* FIXME: Do we also need to clear CF?  */
+    /* XXXXX */
+    printf ("HELPME: %s:%d\n", __FILE__, __LINE__);
+}
+#endif
 
 #include "cpu-all.h"
 

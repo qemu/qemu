@@ -65,6 +65,7 @@ typedef struct GDBState {
     int line_csum;
     uint8_t last_packet[4100];
     int last_packet_len;
+    int signal;
 #ifdef CONFIG_USER_ONLY
     int fd;
     int running_state;
@@ -93,9 +94,13 @@ static int get_char(GDBState *s)
     for(;;) {
         ret = recv(s->fd, &ch, 1, 0);
         if (ret < 0) {
+            if (errno == ECONNRESET)
+                s->fd = -1;
             if (errno != EINTR && errno != EAGAIN)
                 return -1;
         } else if (ret == 0) {
+            close(s->fd);
+            s->fd = -1;
             return -1;
         } else {
             break;
@@ -962,6 +967,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         /* TODO: Make this return the correct value for user-mode.  */
         snprintf(buf, sizeof(buf), "S%02x", SIGTRAP);
         put_packet(s, buf);
+        /* Remove all the breakpoints when this query is issued,
+         * because gdb is doing and initial connect and the state
+         * should be cleaned up.
+         */
+        cpu_breakpoint_remove_all(env);
+        cpu_watchpoint_remove_all(env);
         break;
     case 'c':
         if (*p != '\0') {
@@ -985,6 +996,21 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         }
         gdb_continue(s);
 	return RS_IDLE;
+    case 'C':
+        s->signal = strtoul(p, (char **)&p, 16);
+        gdb_continue(s);
+        return RS_IDLE;
+    case 'k':
+        /* Kill the target */
+        fprintf(stderr, "\nQEMU: Terminated via GDBstub\n");
+        exit(0);
+    case 'D':
+        /* Detach packet */
+        cpu_breakpoint_remove_all(env);
+        cpu_watchpoint_remove_all(env);
+        gdb_continue(s);
+        put_packet(s, "OK");
+        break;
     case 's':
         if (*p != '\0') {
             addr = strtoull(p, (char **)&p, 16);
@@ -1347,10 +1373,9 @@ gdb_handlesig (CPUState *env, int sig)
   char buf[256];
   int n;
 
-  if (gdbserver_fd < 0)
-    return sig;
-
   s = &gdbserver_state;
+  if (gdbserver_fd < 0 || s->fd < 0)
+    return sig;
 
   /* disable single step if it was enabled */
   cpu_single_step(env, 0);
@@ -1361,6 +1386,10 @@ gdb_handlesig (CPUState *env, int sig)
       snprintf(buf, sizeof(buf), "S%02x", sig);
       put_packet(s, buf);
     }
+  /* put_packet() might have detected that the peer terminated the 
+     connection.  */
+  if (s->fd < 0)
+      return sig;
 
   sig = 0;
   s->state = RS_IDLE;
@@ -1381,6 +1410,8 @@ gdb_handlesig (CPUState *env, int sig)
           return sig;
         }
   }
+  sig = s->signal;
+  s->signal = 0;
   return sig;
 }
 
@@ -1390,10 +1421,9 @@ void gdb_exit(CPUState *env, int code)
   GDBState *s;
   char buf[4];
 
-  if (gdbserver_fd < 0)
-    return;
-
   s = &gdbserver_state;
+  if (gdbserver_fd < 0 || s->fd < 0)
+    return;
 
   snprintf(buf, sizeof(buf), "W%02x", code);
   put_packet(s, buf);

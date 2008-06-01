@@ -16,14 +16,18 @@ from the host, although it is never the case for QEMU.
 
 A TCG "function" corresponds to a QEMU Translated Block (TB).
 
-A TCG "temporary" is a variable only live in a given
-function. Temporaries are allocated explicitly in each function.
+A TCG "temporary" is a variable only live in a basic
+block. Temporaries are allocated explicitly in each function.
 
-A TCG "global" is a variable which is live in all the functions. They
-are defined before the functions defined. A TCG global can be a memory
-location (e.g. a QEMU CPU register), a fixed host register (e.g. the
-QEMU CPU state pointer) or a memory location which is stored in a
-register outside QEMU TBs (not implemented yet).
+A TCG "local temporary" is a variable only live in a function. Local
+temporaries are allocated explicitly in each function.
+
+A TCG "global" is a variable which is live in all the functions
+(equivalent of a C global variable). They are defined before the
+functions defined. A TCG global can be a memory location (e.g. a QEMU
+CPU register), a fixed host register (e.g. the QEMU CPU state pointer)
+or a memory location which is stored in a register outside QEMU TBs
+(not implemented yet).
 
 A TCG "basic block" corresponds to a list of instructions terminated
 by a branch instruction. 
@@ -32,11 +36,11 @@ by a branch instruction.
 
 3.1) Introduction
 
-TCG instructions operate on variables which are temporaries or
-globals. TCG instructions and variables are strongly typed. Two types
-are supported: 32 bit integers and 64 bit integers. Pointers are
-defined as an alias to 32 bit or 64 bit integers depending on the TCG
-target word size.
+TCG instructions operate on variables which are temporaries, local
+temporaries or globals. TCG instructions and variables are strongly
+typed. Two types are supported: 32 bit integers and 64 bit
+integers. Pointers are defined as an alias to 32 bit or 64 bit
+integers depending on the TCG target word size.
 
 Each instruction has a fixed number of output variable operands, input
 variable operands and always constant operands.
@@ -44,13 +48,11 @@ variable operands and always constant operands.
 The notable exception is the call instruction which has a variable
 number of outputs and inputs.
 
-In the textual form, output operands come first, followed by input
-operands, followed by constant operands. The output type is included
-in the instruction name. Constants are prefixed with a '$'.
+In the textual form, output operands usually come first, followed by
+input operands, followed by constant operands. The output type is
+included in the instruction name. Constants are prefixed with a '$'.
 
 add_i32 t0, t1, t2  (t0 <- t1 + t2)
-
-sub_i64 t2, t3, $4  (t2 <- t3 - 4)
 
 3.2) Assumptions
 
@@ -62,9 +64,8 @@ sub_i64 t2, t3, $4  (t2 <- t3 - 4)
 - Basic blocks start after the end of a previous basic block, at a
   set_label instruction or after a legacy dyngen operation.
 
-After the end of a basic block, temporaries at destroyed and globals
-are stored at their initial storage (register or memory place
-depending on their declarations).
+After the end of a basic block, the content of temporaries is
+destroyed, but local temporaries and globals are preserved.
 
 * Floating point types are not supported yet
 
@@ -75,7 +76,7 @@ depending on their declarations).
 * Helpers:
 
 Using the tcg_gen_helper_x_y it is possible to call any function
-taking i32, i64 or pointer types types. Before calling an helper, all
+taking i32, i64 or pointer types. Before calling an helper, all
 globals are stored at their canonical location and it is assumed that
 the function can modify them. In the future, function modifiers will
 be allowed to tell that the helper does not read or write some globals.
@@ -100,7 +101,7 @@ optimizations:
   is suppressed.
 
 - A liveness analysis is done at the basic block level. The
-  information is used to suppress moves from a dead temporary to
+  information is used to suppress moves from a dead variable to
   another one. It is also used to remove instructions which compute
   dead results. The later is especially useful for condition code
   optimization in QEMU.
@@ -112,47 +113,6 @@ optimizations:
   mov_i32 t0, $1
 
   only the last instruction is kept.
-
-- A macro system is supported (may get closer to function inlining
-  some day). It is useful if the liveness analysis is likely to prove
-  that some results of a computation are indeed not useful. With the
-  macro system, the user can provide several alternative
-  implementations which are used depending on the used results. It is
-  especially useful for condition code optimization in QEMU.
-
-  Here is an example:
-
-  macro_2 t0, t1, $1
-  mov_i32 t0, $0x1234
-
-  The macro identified by the ID "$1" normally returns the values t0
-  and t1. Suppose its implementation is:
-
-  macro_start
-  brcond_i32  t2, $0, $TCG_COND_EQ, $1
-  mov_i32 t0, $2
-  br $2
-  set_label $1
-  mov_i32 t0, $3
-  set_label $2
-  add_i32 t1, t3, t4
-  macro_end
-  
-  If t0 is not used after the macro, the user can provide a simpler
-  implementation:
-
-  macro_start
-  add_i32 t1, t2, t4
-  macro_end
-
-  TCG automatically chooses the right implementation depending on
-  which macro outputs are used after it.
-
-  Note that if TCG did more expensive optimizations, macros would be
-  less useful. In the previous example a macro is useful because the
-  liveness analysis is done on each basic block separately. Hence TCG
-  cannot remove the code computing 't0' even if it is not used after
-  the first macro implementation.
 
 3.4) Instruction Reference
 
@@ -240,6 +200,10 @@ t0=t1|t2
 * xor_i32/i64 t0, t1, t2
 
 t0=t1^t2
+
+* not_i32/i64 t0, t1
+
+t0=~t1
 
 ********* Shifts
 
@@ -428,3 +392,34 @@ to apply more optimizations because more registers will be free for
 the generated code.
 
 The exception model is the same as the dyngen one.
+
+6) Recommended coding rules for best performance
+
+- Use globals to represent the parts of the QEMU CPU state which are
+  often modified, e.g. the integer registers and the condition
+  codes. TCG will be able to use host registers to store them.
+
+- Avoid globals stored in fixed registers. They must be used only to
+  store the pointer to the CPU state and possibly to store a pointer
+  to a register window. The other uses are to ensure backward
+  compatibility with dyngen during the porting a new target to TCG.
+
+- Use temporaries. Use local temporaries only when really needed,
+  e.g. when you need to use a value after a jump. Local temporaries
+  introduce a performance hit in the current TCG implementation: their
+  content is saved to memory at end of each basic block.
+
+- Free temporaries and local temporaries when they are no longer used
+  (tcg_temp_free). Since tcg_const_x() also creates a temporary, you
+  should free it after it is used. Freeing temporaries does not yield
+  a better generated code, but it reduces the memory usage of TCG and
+  the speed of the translation.
+
+- Don't hesitate to use helpers for complicated or seldom used target
+  intructions. There is little performance advantage in using TCG to
+  implement target instructions taking more than about twenty TCG
+  instructions.
+
+- Use the 'discard' instruction if you know that TCG won't be able to
+  prove that a given global is "dead" at a given program point. The
+  x86 target uses it to improve the condition codes optimisation.

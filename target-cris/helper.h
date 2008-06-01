@@ -2,7 +2,6 @@
 
 void TCG_HELPER_PROTO helper_raise_exception(uint32_t index);
 void TCG_HELPER_PROTO helper_tlb_flush_pid(uint32_t pid);
-void TCG_HELPER_PROTO helper_tlb_flush(void);
 void TCG_HELPER_PROTO helper_dump(uint32_t a0, uint32_t a1, uint32_t a2);
 void TCG_HELPER_PROTO helper_dummy(void);
 void TCG_HELPER_PROTO helper_rfe(void);
@@ -18,3 +17,4 @@ void TCG_HELPER_PROTO helper_evaluate_flags_alu_4(void);
 void TCG_HELPER_PROTO helper_evaluate_flags_move_4 (void);
 void TCG_HELPER_PROTO helper_evaluate_flags_move_2 (void);
 void TCG_HELPER_PROTO helper_evaluate_flags (void);
+void TCG_HELPER_PROTO helper_top_evaluate_flags(void);

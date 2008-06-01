@@ -1093,12 +1093,6 @@ void helper_reset_FT2 (void)
 /* Softmmu support */
 #if !defined (CONFIG_USER_ONLY)
 
-#ifdef __s390__
-# define GETPC() ((void*)((unsigned long)__builtin_return_address(0) & 0x7fffffffUL))
-#else
-# define GETPC() (__builtin_return_address(0))
-#endif
-
 /* XXX: the two following helpers are pure hacks.
  *      Hopefully, we emulate the PALcode, then we should never see
  *      HW_LD / HW_ST instructions.

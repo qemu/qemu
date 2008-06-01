@@ -19,7 +19,6 @@
 
 typedef struct {
     uint32_t base;
-    DisplayState *ds;
     uint32_t level;
     uint32_t soft_level;
     uint32_t irq_enable;

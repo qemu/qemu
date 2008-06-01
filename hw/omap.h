@@ -71,6 +71,7 @@ struct omap_target_agent_s;
 struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus, int cs);
 target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
                 int iotype);
+# define l4_register_io_memory	cpu_register_io_memory
 
 struct omap_intr_handler_s;
 struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
@@ -1133,6 +1134,15 @@ inline static int debug_register_io_memory(int io_index,
     return cpu_register_io_memory(io_index, io_readfn, io_writefn, s);
 }
 #  define cpu_register_io_memory	debug_register_io_memory
+# endif
+
+/* Define when we want to reduce the number of IO regions registered.  */
+# define L4_MUX_HACK
+
+# ifdef L4_MUX_HACK
+#  undef l4_register_io_memory
+int l4_register_io_memory(int io_index, CPUReadMemoryFunc **mem_read,
+                CPUWriteMemoryFunc **mem_write, void *opaque);
 # endif
 
 #endif /* hw_omap_h */

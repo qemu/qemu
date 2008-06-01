@@ -42,9 +42,8 @@ int cpu_cris_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
                              int mmu_idx, int is_softmmu)
 {
 	env->exception_index = 0xaa;
-	env->debug1 = address;
+	env->pregs[PR_EDA] = address;
 	cpu_dump_state(env, stderr, fprintf, 0);
-	env->pregs[PR_ERP] = env->pc;
 	return 1;
 }
 
