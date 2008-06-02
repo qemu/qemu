@@ -1422,7 +1422,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
                     tcg_gen_shl_i32(r_tmp2, r_tmp1, r_tmp2);
                     tcg_gen_shri_i32(r_tmp1, r_tmp1, uimm);
                     tcg_gen_or_i32(r_tmp1, r_tmp1, r_tmp2);
-                    tcg_gen_ext_i32_tl(r_tmp1, cpu_T[0]);
+                    tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
                     dead_tmp(r_tmp1);
                     dead_tmp(r_tmp2);
                 }
@@ -1762,7 +1762,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
                     tcg_gen_shl_i32(r_tmp3, r_tmp2, r_tmp3);
                     tcg_gen_shr_i32(r_tmp1, r_tmp2, r_tmp1);
                     tcg_gen_or_i32(r_tmp1, r_tmp1, r_tmp3);
-                    tcg_gen_ext_i32_tl(r_tmp1, cpu_T[0]);
+                    tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
                     dead_tmp(r_tmp1);
                     dead_tmp(r_tmp2);
                     dead_tmp(r_tmp3);
