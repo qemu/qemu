@@ -22,8 +22,6 @@
 #include "audio/audio.h"
 #include "boards.h"
 
-#define spitz_printf(format, ...)	\
-    fprintf(stderr, "%s: " format, __FUNCTION__, ##__VA_ARGS__)
 #undef REG_FMT
 #if TARGET_PHYS_ADDR_BITS == 32
 #define REG_FMT			"0x%02x"
@@ -90,7 +88,7 @@ static uint32_t sl_readb(void *opaque, target_phys_addr_t addr)
         return ecc_digest(&s->ecc, nand_getio(s->nand));
 
     default:
-        spitz_printf("Bad register offset " REG_FMT "\n", addr);
+        zaurus_printf("Bad register offset " REG_FMT "\n", addr);
     }
     return 0;
 }
@@ -134,7 +132,7 @@ static void sl_writeb(void *opaque, target_phys_addr_t addr,
         break;
 
     default:
-        spitz_printf("Bad register offset " REG_FMT "\n", addr);
+        zaurus_printf("Bad register offset " REG_FMT "\n", addr);
     }
 }
 
@@ -537,9 +535,9 @@ static int bl_intensity, bl_power;
 static void spitz_bl_update(struct pxa2xx_state_s *s)
 {
     if (bl_power && bl_intensity)
-        spitz_printf("LCD Backlight now at %i/63\n", bl_intensity);
+        zaurus_printf("LCD Backlight now at %i/63\n", bl_intensity);
     else
-        spitz_printf("LCD Backlight now off\n");
+        zaurus_printf("LCD Backlight now off\n");
 }
 
 static inline void spitz_bl_bit5(void *opaque, int line, int level)
@@ -570,9 +568,9 @@ static void spitz_lcdtg_dac_put(void *opaque, uint8_t cmd)
     switch (addr) {
     case LCDTG_RESCTL:
         if (value)
-            spitz_printf("LCD in QVGA mode\n");
+            zaurus_printf("LCD in QVGA mode\n");
         else
-            spitz_printf("LCD in VGA mode\n");
+            zaurus_printf("LCD in VGA mode\n");
         break;
 
     case LCDTG_DUTYCTRL:
@@ -780,16 +778,16 @@ static void spitz_out_switch(void *opaque, int line, int level)
 {
     switch (line) {
     case 0:
-        spitz_printf("Charging %s.\n", level ? "off" : "on");
+        zaurus_printf("Charging %s.\n", level ? "off" : "on");
         break;
     case 1:
-        spitz_printf("Discharging %s.\n", level ? "on" : "off");
+        zaurus_printf("Discharging %s.\n", level ? "on" : "off");
         break;
     case 2:
-        spitz_printf("Green LED %s.\n", level ? "on" : "off");
+        zaurus_printf("Green LED %s.\n", level ? "on" : "off");
         break;
     case 3:
-        spitz_printf("Orange LED %s.\n", level ? "on" : "off");
+        zaurus_printf("Orange LED %s.\n", level ? "on" : "off");
         break;
     case 4:
         spitz_bl_bit5(opaque, line, level);

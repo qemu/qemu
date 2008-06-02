@@ -21,8 +21,6 @@
 #include "pxa.h"
 #include "sharpsl.h"
 
-#define zaurus_printf(format, ...)	\
-    fprintf(stderr, "%s: " format, __FUNCTION__, ##__VA_ARGS__)
 #undef REG_FMT
 #if TARGET_PHYS_ADDR_BITS == 32
 #define REG_FMT			"0x%02x"
