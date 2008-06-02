@@ -2565,6 +2565,7 @@ static int disas_cp_insn(CPUState *env, DisasContext *s, uint32_t insn)
         gen_set_pc_im(s->pc);
         tmp = load_reg(s, rd);
         gen_helper_set_cp(cpu_env, tcg_const_i32(insn), tmp);
+        dead_tmp(tmp);
     }
     return 0;
 }
