@@ -37,7 +37,7 @@ typedef struct SMBusEEPROMDevice {
 static void eeprom_quick_cmd(SMBusDevice *dev, uint8_t read)
 {
 #ifdef DEBUG
-    printf("eeprom_quick_cmd: addr=0x%02x read=%d\n", dev->addr, read);
+    printf("eeprom_quick_cmd: addr=0x%02x read=%d\n", dev->i2c.address, read);
 #endif
 }
 
@@ -45,7 +45,8 @@ static void eeprom_send_byte(SMBusDevice *dev, uint8_t val)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
 #ifdef DEBUG
-    printf("eeprom_send_byte: addr=0x%02x val=0x%02x\n", dev->addr, val);
+    printf("eeprom_send_byte: addr=0x%02x val=0x%02x\n",
+           dev->i2c.address, val);
 #endif
     eeprom->offset = val;
 }
@@ -55,7 +56,8 @@ static uint8_t eeprom_receive_byte(SMBusDevice *dev)
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
     uint8_t val = eeprom->data[eeprom->offset++];
 #ifdef DEBUG
-    printf("eeprom_receive_byte: addr=0x%02x val=0x%02x\n", dev->addr, val);
+    printf("eeprom_receive_byte: addr=0x%02x val=0x%02x\n",
+           dev->i2c.address, val);
 #endif
     return val;
 }
@@ -65,8 +67,8 @@ static void eeprom_write_data(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int l
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
     int n;
 #ifdef DEBUG
-    printf("eeprom_write_byte: addr=0x%02x cmd=0x%02x val=0x%02x\n", dev->addr,
-           cmd, buf[0]);
+    printf("eeprom_write_byte: addr=0x%02x cmd=0x%02x val=0x%02x\n",
+           dev->i2c.address, cmd, buf[0]);
 #endif
     /* An page write operation is not a valid SMBus command.
        It is a block write without a length byte.  Fortunately we
