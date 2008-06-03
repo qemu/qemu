@@ -351,7 +351,7 @@
 
 enum {
     CC_OP_DYNAMIC, /* must use dynamic code to get cc_op */
-    CC_OP_EFLAGS,  /* all cc are explicitely computed, CC_SRC = flags */
+    CC_OP_EFLAGS,  /* all cc are explicitly computed, CC_SRC = flags */
 
     CC_OP_MULB, /* modify all flags, C, O = (CC_SRC != 0) */
     CC_OP_MULW,

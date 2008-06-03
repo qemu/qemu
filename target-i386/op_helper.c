@@ -689,7 +689,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     }
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
-    /* check privledge if software int */
+    /* check privilege if software int */
     if (is_int && dpl < cpl)
         raise_exception_err(EXCP0D_GPF, intno * 8 + 2);
     /* check valid bit */
@@ -900,7 +900,7 @@ static void do_interrupt64(int intno, int is_int, int error_code,
     }
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
-    /* check privledge if software int */
+    /* check privilege if software int */
     if (is_int && dpl < cpl)
         raise_exception_err(EXCP0D_GPF, intno * 16 + 2);
     /* check valid bit */
@@ -1166,7 +1166,7 @@ void do_interrupt_user(int intno, int is_int, int error_code,
 
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     cpl = env->hflags & HF_CPL_MASK;
-    /* check privledge if software int */
+    /* check privilege if software int */
     if (is_int && dpl < cpl)
         raise_exception_err(EXCP0D_GPF, (intno << shift) + 2);
 
@@ -2698,7 +2698,7 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
     sp += addend;
     if (rpl == cpl && (!(env->hflags & HF_CS64_MASK) ||
                        ((env->hflags & HF_CS64_MASK) && !is_iret))) {
-        /* return to same priledge level */
+        /* return to same privilege level */
         cpu_x86_load_seg_cache(env, R_CS, new_cs,
                        get_seg_base(e1, e2),
                        get_seg_limit(e1, e2),

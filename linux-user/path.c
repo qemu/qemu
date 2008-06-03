@@ -82,7 +82,7 @@ static struct pathelem *add_entry(struct pathelem *root, const char *name)
     return root;
 }
 
-/* This needs to be done after tree is stabalized (ie. no more reallocs!). */
+/* This needs to be done after tree is stabilized (ie. no more reallocs!). */
 static void set_parents(struct pathelem *child, struct pathelem *parent)
 {
     unsigned int i;

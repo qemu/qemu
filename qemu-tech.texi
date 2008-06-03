@@ -277,7 +277,7 @@ The new Plex86 [8] PC virtualizer is done in the same spirit as the
 qemu-fast system emulator. It requires a patched Linux kernel to work
 (you cannot launch the same kernel on your PC), but the patches are
 really small. As it is a PC virtualizer (no emulation is done except
-for some priveledged instructions), it has the potential of being
+for some privileged instructions), it has the potential of being
 faster than QEMU. The downside is that a complicated (and potentially
 unsafe) host kernel patch is needed.
 
@@ -334,7 +334,7 @@ instruction, it just stores one operand (called @code{CC_SRC}), the
 result (called @code{CC_DST}) and the type of operation (called
 @code{CC_OP}).
 
-@code{CC_OP} is almost never explicitely set in the generated code
+@code{CC_OP} is almost never explicitly set in the generated code
 because it is known at translation time.
 
 In order to increase performances, a backward pass is performed on the

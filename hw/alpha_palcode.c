@@ -55,7 +55,7 @@ pal_handler_t pal_handlers[] = {
 };
 
 #if 0
-/* One must explicitely check that the TB is valid and the FOE bit is reset */
+/* One must explicitly check that the TB is valid and the FOE bit is reset */
 static void update_itb (void)
 {
     /* This writes into a temp register, not the actual one */
