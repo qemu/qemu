@@ -867,6 +867,7 @@ static const KeyDef key_defs[] = {
     { 0x4e, "kp_add" },
     { 0x9c, "kp_enter" },
     { 0x53, "kp_decimal" },
+    { 0x54, "sysrq" },
 
     { 0x52, "kp_0" },
     { 0x4f, "kp_1" },
