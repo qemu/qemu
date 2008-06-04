@@ -6407,6 +6407,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         break;
 #endif
     case 0x1a2: /* cpuid */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+        gen_jmp_im(pc_start - s->cs_base);
         tcg_gen_helper_0_0(helper_cpuid);
         break;
     case 0xf4: /* hlt */
@@ -6700,6 +6703,9 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         goto illegal_op;
                     }
                 } else {
+                    if (s->cc_op != CC_OP_DYNAMIC)
+                        gen_op_set_cc_op(s->cc_op);
+                    gen_jmp_im(pc_start - s->cs_base);
                     gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
                     tcg_gen_helper_0_1(helper_invlpg, cpu_A0);
                     gen_jmp_im(s->pc - s->cs_base);
