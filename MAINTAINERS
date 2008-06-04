@@ -1,11 +1,16 @@
 QEMU Maintainers
 ================
 
+Project leaders:
+----------------
+
+Fabrice Bellard
+Paul Brook
 
 CPU cores:
 ----------
 
-x86                Fabrice Bellard (new maintainer needed)
+x86                Fabrice Bellard
 ARM                Paul Brook
 SPARC              Blue Swirl
 MIPS               Thiemo Seufer
@@ -58,7 +63,7 @@ Alpha
 Generic Subsystems:
 -------------------  
 
-Dynamic translator        Fabrice Bellard (new maintainer needed)
+Dynamic translator        Fabrice Bellard
 Main loop                 Fabrice Bellard (new maintainer needed)
 TCG                       Fabrice Bellard
 kqemu interface           Fabrice Bellard
@@ -68,6 +73,7 @@ PCI layer                 ?
 USB layer                 ?
 Block layer               ?
 Graphic layer             ?
+Audio device layer        Vassili Karpov (malc)
 Character device layer    ?
 Network device layer      ?
 GDB stub                  ?
