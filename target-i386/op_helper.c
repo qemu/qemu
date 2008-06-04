@@ -4908,7 +4908,7 @@ void helper_vmrun(int aflag, int next_eip_addend)
         break;
     }
 
-    helper_stgi();
+    env->hflags2 |= HF2_GIF_MASK;
 
     if (int_ctl & V_IRQ_MASK) {
         env->interrupt_request |= CPU_INTERRUPT_VIRQ;
@@ -5266,7 +5266,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_code), exit_code);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_1), exit_info_1);
 
-    helper_clgi();
+    env->hflags2 &= ~HF2_GIF_MASK;
     /* FIXME: Resets the current ASID register to zero (host ASID). */
 
     /* Clears the V_IRQ and V_INTR_MASKING bits inside the processor. */
