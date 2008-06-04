@@ -6569,7 +6569,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        tcg_gen_helper_0_0(helper_vmrun);
+                        tcg_gen_helper_0_1(helper_vmrun, 
+                                           tcg_const_i32(s->aflag));
                         s->cc_op = CC_OP_EFLAGS;
                         gen_eob(s);
                     }
@@ -6586,7 +6587,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        tcg_gen_helper_0_0(helper_vmload);
+                        tcg_gen_helper_0_1(helper_vmload,
+                                           tcg_const_i32(s->aflag));
                     }
                     break;
                 case 3: /* VMSAVE */
@@ -6596,7 +6598,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        tcg_gen_helper_0_0(helper_vmsave);
+                        tcg_gen_helper_0_1(helper_vmsave,
+                                           tcg_const_i32(s->aflag));
                     }
                     break;
                 case 4: /* STGI */
@@ -6635,7 +6638,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        tcg_gen_helper_0_0(helper_invlpga);
+                        tcg_gen_helper_0_1(helper_invlpga,
+                                           tcg_const_i32(s->aflag));
                     }
                     break;
                 default:

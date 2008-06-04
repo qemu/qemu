@@ -2994,7 +2994,7 @@ void helper_movl_drN_T0(int reg, target_ulong t0)
 void helper_invlpg(target_ulong addr)
 {
     helper_svm_check_intercept_param(SVM_EXIT_INVLPG, 0);
-    cpu_x86_flush_tlb(env, addr);
+    tlb_flush_page(env, addr);
 }
 
 void helper_rdtsc(void)
@@ -4721,16 +4721,16 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 #if defined(CONFIG_USER_ONLY)
 
-void helper_vmrun(void) 
+void helper_vmrun(int aflag)
 { 
 }
 void helper_vmmcall(void) 
 { 
 }
-void helper_vmload(void) 
+void helper_vmload(int aflag)
 { 
 }
-void helper_vmsave(void) 
+void helper_vmsave(int aflag)
 { 
 }
 void helper_stgi(void)
@@ -4742,7 +4742,7 @@ void helper_clgi(void)
 void helper_skinit(void) 
 { 
 }
-void helper_invlpga(void) 
+void helper_invlpga(int aflag)
 { 
 }
 void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1) 
@@ -4791,7 +4791,7 @@ static inline void svm_load_seg_cache(target_phys_addr_t addr,
                            sc->base, sc->limit, sc->flags);
 }
 
-void helper_vmrun(void)
+void helper_vmrun(int aflag)
 {
     target_ulong addr;
     uint32_t event_inj;
@@ -4799,7 +4799,11 @@ void helper_vmrun(void)
 
     helper_svm_check_intercept_param(SVM_EXIT_VMRUN, 0);
 
-    addr = EAX;
+    if (aflag == 2)
+        addr = EAX;
+    else
+        addr = (uint32_t)EAX;
+
     if (loglevel & CPU_LOG_TB_IN_ASM)
         fprintf(logfile,"vmrun! " TARGET_FMT_lx "\n", addr);
 
@@ -4970,13 +4974,16 @@ void helper_vmmcall(void)
     raise_exception(EXCP06_ILLOP);
 }
 
-void helper_vmload(void)
+void helper_vmload(int aflag)
 {
     target_ulong addr;
     helper_svm_check_intercept_param(SVM_EXIT_VMLOAD, 0);
 
-    /* XXX: invalid in 32 bit */
-    addr = EAX;
+    if (aflag == 2)
+        addr = EAX;
+    else
+        addr = (uint32_t)EAX;
+
     if (loglevel & CPU_LOG_TB_IN_ASM)
         fprintf(logfile,"vmload! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
                 addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
@@ -5003,11 +5010,16 @@ void helper_vmload(void)
     env->sysenter_eip = ldq_phys(addr + offsetof(struct vmcb, save.sysenter_eip));
 }
 
-void helper_vmsave(void)
+void helper_vmsave(int aflag)
 {
     target_ulong addr;
     helper_svm_check_intercept_param(SVM_EXIT_VMSAVE, 0);
-    addr = EAX;
+
+    if (aflag == 2)
+        addr = EAX;
+    else
+        addr = (uint32_t)EAX;
+
     if (loglevel & CPU_LOG_TB_IN_ASM)
         fprintf(logfile,"vmsave! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
                 addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
@@ -5050,15 +5062,22 @@ void helper_skinit(void)
 {
     helper_svm_check_intercept_param(SVM_EXIT_SKINIT, 0);
     /* XXX: not implemented */
-    if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile,"skinit!\n");
     raise_exception(EXCP06_ILLOP);
 }
 
-void helper_invlpga(void)
+void helper_invlpga(int aflag)
 {
+    target_ulong addr;
     helper_svm_check_intercept_param(SVM_EXIT_INVLPGA, 0);
-    tlb_flush(env, 0);
+    
+    if (aflag == 2)
+        addr = EAX;
+    else
+        addr = (uint32_t)EAX;
+
+    /* XXX: could use the ASID to see if it is needed to do the
+       flush */
+    tlb_flush_page(env, addr);
 }
 
 void helper_svm_check_intercept_param(uint32_t type, uint64_t param)

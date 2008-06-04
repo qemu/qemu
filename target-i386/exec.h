@@ -61,7 +61,6 @@ extern int loglevel;
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
-void cpu_x86_flush_tlb(CPUX86State *env, target_ulong addr);
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                              int is_write, int mmu_idx, int is_softmmu);
 void tlb_fill(target_ulong addr, int is_write, int mmu_idx,

@@ -102,14 +102,14 @@ DEF_HELPER(void, helper_svm_check_intercept_param, (uint32_t type, uint64_t para
 DEF_HELPER(void, helper_vmexit, (uint32_t exit_code, uint64_t exit_info_1))
 DEF_HELPER(void, helper_svm_check_io, (uint32_t port, uint32_t param, 
                          uint32_t next_eip_addend))
-DEF_HELPER(void, helper_vmrun, (void))
+DEF_HELPER(void, helper_vmrun, (int aflag))
 DEF_HELPER(void, helper_vmmcall, (void))
-DEF_HELPER(void, helper_vmload, (void))
-DEF_HELPER(void, helper_vmsave, (void))
+DEF_HELPER(void, helper_vmload, (int aflag))
+DEF_HELPER(void, helper_vmsave, (int aflag))
 DEF_HELPER(void, helper_stgi, (void))
 DEF_HELPER(void, helper_clgi, (void))
 DEF_HELPER(void, helper_skinit, (void))
-DEF_HELPER(void, helper_invlpga, (void))
+DEF_HELPER(void, helper_invlpga, (int aflag))
 
 /* x86 FPU */
 
