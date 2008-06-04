@@ -710,7 +710,7 @@ static inline void gen_save_pc(target_ulong pc)
     tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_ptr);
     tcg_gen_st_tl(r_tmp, r_ptr, offsetof(CPUState, PC));
     tcg_temp_free(r_tc_off);
-    tcg_temp_free(r_tc_off_tl);
+    tcg_temp_free(r_tc_off_ptr);
     tcg_temp_free(r_ptr);
     tcg_temp_free(r_tmp);
 }
@@ -729,7 +729,7 @@ static inline void gen_breg_pc(void)
     tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_ptr);
     tcg_gen_st_tl(r_tmp, r_ptr, offsetof(CPUState, PC));
     tcg_temp_free(r_tc_off);
-    tcg_temp_free(r_tc_off_tl);
+    tcg_temp_free(r_tc_off_ptr);
     tcg_temp_free(r_ptr);
     tcg_temp_free(r_tmp);
 }
@@ -740,6 +740,7 @@ static inline void gen_save_btarget(target_ulong btarget)
 
     tcg_gen_movi_tl(r_tmp, btarget);
     tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, btarget));
+    tcg_temp_free(r_tmp);
 }
 
 static always_inline void gen_save_breg_target(int reg)
@@ -748,6 +749,7 @@ static always_inline void gen_save_breg_target(int reg)
 
     gen_load_gpr(r_tmp, reg);
     tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, btarget));
+    tcg_temp_free(r_tmp);
 }
 
 static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
@@ -988,7 +990,7 @@ OP_LD_ATOMIC(lld,ld64);
 #define OP_ST_ATOMIC(insn,fname,almask)                                 \
 void inline op_ldst_##insn(DisasContext *ctx)                           \
 {                                                                       \
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);                             \
+    TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_TL);                       \
     int l1 = gen_new_label();                                           \
     int l2 = gen_new_label();                                           \
     int l3 = gen_new_label();                                           \
@@ -1000,6 +1002,7 @@ void inline op_ldst_##insn(DisasContext *ctx)                           \
     gen_set_label(l1);                                                  \
     tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, CP0_LLAddr));      \
     tcg_gen_brcond_tl(TCG_COND_NE, cpu_T[0], r_tmp, l2);                \
+    tcg_temp_free(r_tmp);                                               \
     tcg_gen_qemu_##fname(cpu_T[1], cpu_T[0], ctx->mem_idx);             \
     tcg_gen_movi_tl(cpu_T[0], 1);                                       \
     tcg_gen_br(l3);                                                     \
@@ -1282,7 +1285,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
     switch (opc) {
     case OPC_ADDI:
         {
-            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1294,8 +1297,10 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xori_tl(r_tmp1, r_tmp1, -1);
             tcg_gen_xori_tl(r_tmp2, cpu_T[0], uimm);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
             tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
+            tcg_temp_free(r_tmp1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1313,7 +1318,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
 #if defined(TARGET_MIPS64)
     case OPC_DADDI:
         {
-            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1325,8 +1330,10 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xori_tl(r_tmp1, r_tmp1, -1);
             tcg_gen_xori_tl(r_tmp2, cpu_T[0], uimm);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
             tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
+            tcg_temp_free(r_tmp1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1438,6 +1445,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
                     tcg_gen_shl_tl(r_tmp1, cpu_T[0], r_tmp1);
                     tcg_gen_shri_tl(cpu_T[0], cpu_T[0], uimm);
                     tcg_gen_or_tl(cpu_T[0], cpu_T[0], r_tmp1);
+                    tcg_temp_free(r_tmp1);
                 }
                 opn = "drotr";
             } else {
@@ -1478,6 +1486,8 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
                 tcg_gen_shl_tl(r_tmp1, cpu_T[0], r_tmp1);
                 tcg_gen_shr_tl(cpu_T[0], cpu_T[0], r_tmp2);
                 tcg_gen_or_tl(cpu_T[0], cpu_T[0], r_tmp1);
+                tcg_temp_free(r_tmp1);
+                tcg_temp_free(r_tmp2);
                 opn = "drotr32";
             } else {
                 tcg_gen_shri_tl(cpu_T[0], cpu_T[0], uimm + 32);
@@ -1524,7 +1534,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
     switch (opc) {
     case OPC_ADD:
         {
-            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1537,8 +1547,10 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xori_tl(r_tmp1, r_tmp1, -1);
             tcg_gen_xor_tl(r_tmp2, cpu_T[0], cpu_T[1]);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
             tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
+            tcg_temp_free(r_tmp1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1556,7 +1568,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
     case OPC_SUB:
         {
-            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1568,8 +1580,10 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp2, r_tmp1, cpu_T[1]);
             tcg_gen_xor_tl(r_tmp1, r_tmp1, cpu_T[0]);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
             tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
+            tcg_temp_free(r_tmp1);
             /* operands of different sign, first operand and result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1588,7 +1602,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
 #if defined(TARGET_MIPS64)
     case OPC_DADD:
         {
-            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1600,8 +1614,10 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xori_tl(r_tmp1, r_tmp1, -1);
             tcg_gen_xor_tl(r_tmp2, cpu_T[0], cpu_T[1]);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
             tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
+            tcg_temp_free(r_tmp1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1614,7 +1630,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
     case OPC_DSUB:
         {
-            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1625,8 +1641,10 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp2, r_tmp1, cpu_T[1]);
             tcg_gen_xor_tl(r_tmp1, r_tmp1, cpu_T[0]);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
             tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
             tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
+            tcg_temp_free(r_tmp1);
             /* operands of different sign, first operand and result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
@@ -1792,6 +1810,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
                     tcg_gen_shl_tl(r_tmp1, cpu_T[1], r_tmp1);
                     tcg_gen_shr_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
                     tcg_gen_or_tl(cpu_T[0], cpu_T[0], r_tmp1);
+                    tcg_temp_free(r_tmp1);
                     tcg_gen_br(l2);
                 }
                 gen_set_label(l1);
@@ -1886,6 +1905,9 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                 tcg_gen_rem_i64(r_tmp2, r_tmp1, r_tmp2);
                 tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp3);
                 tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp2);
+                tcg_temp_free(r_tmp1);
+                tcg_temp_free(r_tmp2);
+                tcg_temp_free(r_tmp3);
                 tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
                 tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
                 gen_store_LO(cpu_T[0], 0);
@@ -1956,6 +1978,8 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
                     tcg_gen_rem_i64(r_tmp2, cpu_T[0], cpu_T[1]);
                     gen_store_LO(r_tmp1, 0);
                     gen_store_HI(r_tmp2, 0);
+                    tcg_temp_free(r_tmp1);
+                    tcg_temp_free(r_tmp2);
                 }
             }
             gen_set_label(l1);
@@ -1973,6 +1997,8 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
 
                 tcg_gen_divu_i64(r_tmp1, cpu_T[0], cpu_T[1]);
                 tcg_gen_remu_i64(r_tmp2, cpu_T[0], cpu_T[1]);
+                tcg_temp_free(r_tmp1);
+                tcg_temp_free(r_tmp2);
                 gen_store_LO(r_tmp1, 0);
                 gen_store_HI(r_tmp2, 0);
             }
@@ -2539,11 +2565,27 @@ fail:
 }
 
 /* CP0 (MMU and control) */
+static inline void gen_mfc0_load32 (TCGv t, target_ulong off)
+{
+    TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
+
+    tcg_gen_ld_i32(r_tmp, cpu_env, off);
+    tcg_gen_ext_i32_tl(t, r_tmp);
+    tcg_temp_free(r_tmp);
+}
+
+static inline void gen_mfc0_load64 (TCGv t, target_ulong off)
+{
+    TCGv r_tmp = tcg_temp_new(TCG_TYPE_I64);
+
+    tcg_gen_ld_i64(r_tmp, cpu_env, off);
+    tcg_gen_trunc_i64_tl(t, r_tmp);
+    tcg_temp_free(r_tmp);
+}
+
 static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
 {
     const char *rn = "invalid";
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
-    TCGv r_tmp64 = tcg_temp_new(TCG_TYPE_I64);
 
     if (sel != 0)
         check_insn(env, ctx, ISA_MIPS32);
@@ -2552,8 +2594,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 0:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Index));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Index));
             rn = "Index";
             break;
         case 1:
@@ -2583,44 +2624,37 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_VPEControl));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_VPEControl));
             rn = "VPEControl";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_VPEConf0));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_VPEConf0));
             rn = "VPEConf0";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_VPEConf1));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_VPEConf1));
             rn = "VPEConf1";
             break;
         case 4:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i64(r_tmp64, cpu_env, offsetof(CPUState, CP0_YQMask));
-            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp64);
+            gen_mfc0_load64(cpu_T[0], offsetof(CPUState, CP0_YQMask));
             rn = "YQMask";
             break;
         case 5:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_tl(r_tmp64, cpu_env, offsetof(CPUState, CP0_VPESchedule));
-            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp64);
+            gen_mfc0_load64(cpu_T[0], offsetof(CPUState, CP0_VPESchedule));
             rn = "VPESchedule";
             break;
         case 6:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_tl(r_tmp64, cpu_env, offsetof(CPUState, CP0_VPEScheFBack));
-            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp64);
+            gen_mfc0_load64(cpu_T[0], offsetof(CPUState, CP0_VPEScheFBack));
             rn = "VPEScheFBack";
             break;
         case 7:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_VPEOpt));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_VPEOpt));
             rn = "VPEOpt";
             break;
         default:
@@ -2702,14 +2736,12 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 5:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_PageMask));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_PageMask));
             rn = "PageMask";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_PageGrain));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_PageGrain));
             rn = "PageGrain";
             break;
         default:
@@ -2719,38 +2751,32 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 6:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Wired));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Wired));
             rn = "Wired";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf0));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf0));
             rn = "SRSConf0";
             break;
         case 2:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf1));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf1));
             rn = "SRSConf1";
             break;
         case 3:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf2));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf2));
             rn = "SRSConf2";
             break;
         case 4:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf3));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf3));
             rn = "SRSConf3";
             break;
         case 5:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf4));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf4));
             rn = "SRSConf4";
             break;
         default:
@@ -2761,8 +2787,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_HWREna));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_HWREna));
             rn = "HWREna";
             break;
         default:
@@ -2805,8 +2830,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 11:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Compare));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Compare));
             rn = "Compare";
             break;
         /* 6,7 are implementation dependent */
@@ -2817,26 +2841,22 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 12:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Status));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Status));
             rn = "Status";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_IntCtl));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_IntCtl));
             rn = "IntCtl";
             break;
         case 2:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSCtl));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSCtl));
             rn = "SRSCtl";
             break;
         case 3:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSMap));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSMap));
             rn = "SRSMap";
             break;
         default:
@@ -2846,8 +2866,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 13:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Cause));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Cause));
             rn = "Cause";
             break;
         default:
@@ -2868,14 +2887,12 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 15:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_PRid));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_PRid));
             rn = "PRid";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_EBase));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_EBase));
             rn = "EBase";
             break;
         default:
@@ -2885,35 +2902,29 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 16:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config0));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config0));
             rn = "Config";
             break;
         case 1:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config1));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config1));
             rn = "Config1";
             break;
         case 2:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config2));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config2));
             rn = "Config2";
             break;
         case 3:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config3));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config3));
             rn = "Config3";
             break;
         /* 4,5 are reserved */
         /* 6,7 are implementation dependent */
         case 6:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config6));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config6));
             rn = "Config6";
             break;
         case 7:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config7));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config7));
             rn = "Config7";
             break;
         default:
@@ -2968,8 +2979,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
        /* Officially reserved, but sel 0 is used for R1x000 framemask */
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Framemask));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Framemask));
             rn = "Framemask";
             break;
         default:
@@ -3021,8 +3031,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 25:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Performance0));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Performance0));
             rn = "Performance0";
             break;
         case 1:
@@ -3076,16 +3085,14 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_TagLo));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_TagLo));
             rn = "TagLo";
             break;
         case 1:
         case 3:
         case 5:
         case 7:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_DataLo));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_DataLo));
             rn = "DataLo";
             break;
         default:
@@ -3098,16 +3105,14 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_TagHi));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_TagHi));
             rn = "TagHi";
             break;
         case 1:
         case 3:
         case 5:
         case 7:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_DataHi));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_DataHi));
             rn = "DataHi";
             break;
         default:
@@ -3129,8 +3134,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             /* EJTAG support */
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_DESAVE));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_DESAVE));
             rn = "DESAVE";
             break;
         default:
@@ -3761,7 +3765,6 @@ die:
 static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
 {
     const char *rn = "invalid";
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
 
     if (sel != 0)
         check_insn(env, ctx, ISA_MIPS64);
@@ -3770,8 +3773,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 0:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Index));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Index));
             rn = "Index";
             break;
         case 1:
@@ -3801,20 +3803,17 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_VPEControl));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_VPEControl));
             rn = "VPEControl";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_VPEConf0));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_VPEConf0));
             rn = "VPEConf0";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_VPEConf1));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_VPEConf1));
             rn = "VPEConf1";
             break;
         case 4:
@@ -3834,8 +3833,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 7:
             check_insn(env, ctx, ASE_MT);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_VPEOpt));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_VPEOpt));
             rn = "VPEOpt";
             break;
         default:
@@ -3914,14 +3912,12 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 5:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_PageMask));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_PageMask));
             rn = "PageMask";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_PageGrain));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_PageGrain));
             rn = "PageGrain";
             break;
         default:
@@ -3931,38 +3927,32 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 6:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Wired));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Wired));
             rn = "Wired";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf0));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf0));
             rn = "SRSConf0";
             break;
         case 2:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf1));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf1));
             rn = "SRSConf1";
             break;
         case 3:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf2));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf2));
             rn = "SRSConf2";
             break;
         case 4:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf3));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf3));
             rn = "SRSConf3";
             break;
         case 5:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSConf4));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSConf4));
             rn = "SRSConf4";
             break;
         default:
@@ -3973,8 +3963,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_HWREna));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_HWREna));
             rn = "HWREna";
             break;
         default:
@@ -4015,8 +4004,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 11:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Compare));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Compare));
             rn = "Compare";
             break;
         /* 6,7 are implementation dependent */
@@ -4027,26 +4015,22 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 12:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Status));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Status));
             rn = "Status";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_IntCtl));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_IntCtl));
             rn = "IntCtl";
             break;
         case 2:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSCtl));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSCtl));
             rn = "SRSCtl";
             break;
         case 3:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_SRSMap));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_SRSMap));
             rn = "SRSMap";
             break;
         default:
@@ -4056,8 +4040,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 13:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Cause));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Cause));
             rn = "Cause";
             break;
         default:
@@ -4077,14 +4060,12 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 15:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_PRid));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_PRid));
             rn = "PRid";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_EBase));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_EBase));
             rn = "EBase";
             break;
         default:
@@ -4094,34 +4075,28 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 16:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config0));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config0));
             rn = "Config";
             break;
         case 1:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config1));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config1));
             rn = "Config1";
             break;
         case 2:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config2));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config2));
             rn = "Config2";
             break;
         case 3:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config3));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config3));
             rn = "Config3";
             break;
        /* 6,7 are implementation dependent */
         case 6:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config6));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config6));
             rn = "Config6";
             break;
         case 7:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Config7));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Config7));
             rn = "Config7";
             break;
         default:
@@ -4173,8 +4148,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
        /* Officially reserved, but sel 0 is used for R1x000 framemask */
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Framemask));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Framemask));
             rn = "Framemask";
             break;
         default:
@@ -4225,8 +4199,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 25:
         switch (sel) {
         case 0:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Performance0));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_Performance0));
             rn = "Performance0";
             break;
         case 1:
@@ -4280,16 +4253,14 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_TagLo));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_TagLo));
             rn = "TagLo";
             break;
         case 1:
         case 3:
         case 5:
         case 7:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_DataLo));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_DataLo));
             rn = "DataLo";
             break;
         default:
@@ -4302,16 +4273,14 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_TagHi));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_TagHi));
             rn = "TagHi";
             break;
         case 1:
         case 3:
         case 5:
         case 7:
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_DataHi));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_DataHi));
             rn = "DataHi";
             break;
         default:
@@ -4332,8 +4301,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             /* EJTAG support */
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_DESAVE));
-            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp);
+            gen_mfc0_load32(cpu_T[0], offsetof(CPUState, CP0_DESAVE));
             rn = "DESAVE";
             break;
         default:
@@ -6629,12 +6597,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
     /* Handle blikely not taken case */
     if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
-        TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
+        TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_TL);
         int l1 = gen_new_label();
 
         MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
         tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
         tcg_gen_brcondi_tl(TCG_COND_NE, r_tmp, 0, l1);
+        tcg_temp_free(r_tmp);
         gen_op_save_state(ctx->hflags & ~MIPS_HFLAG_BMASK);
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
@@ -7188,11 +7157,12 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             /* Conditional branch */
             MIPS_DEBUG("conditional branch");
             {
-                TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
+                TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_TL);
                 int l1 = gen_new_label();
 
                 tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
                 tcg_gen_brcondi_tl(TCG_COND_NE, r_tmp, 0, l1);
+                tcg_temp_free(r_tmp);
                 gen_goto_tb(ctx, 1, ctx->pc + 4);
                 gen_set_label(l1);
                 gen_goto_tb(ctx, 0, ctx->btarget);
