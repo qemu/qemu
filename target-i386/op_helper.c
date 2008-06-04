@@ -3005,7 +3005,7 @@ void helper_rdtsc(void)
     }
     helper_svm_check_intercept_param(SVM_EXIT_RDTSC, 0);
 
-    val = cpu_get_tsc(env);
+    val = cpu_get_tsc(env) + env->tsc_offset;
     EAX = (uint32_t)(val);
     EDX = (uint32_t)(val >> 32);
 }
@@ -4851,6 +4851,8 @@ void helper_vmrun(int aflag, int next_eip_addend)
     /* enable intercepts */
     env->hflags |= HF_SVMI_MASK;
 
+    env->tsc_offset = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.tsc_offset));
+
     env->gdt.base  = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.gdtr.base));
     env->gdt.limit = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, save.gdtr.limit));
 
@@ -5226,6 +5228,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
     env->intercept = 0;
     env->intercept_exceptions = 0;
     env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+    env->tsc_offset = 0;
 
     env->gdt.base  = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.base));
     env->gdt.limit = ldl_phys(env->vm_hsave + offsetof(struct vmcb, save.gdtr.limit));

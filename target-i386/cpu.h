@@ -119,9 +119,9 @@
 #define ID_MASK                 0x00200000
 
 /* hidden flags - used internally by qemu to represent additional cpu
-   states. Only the CPL and INHIBIT_IRQ are not redundant. We avoid
-   using the IOPL_MASK, TF_MASK and VM_MASK bit position to ease oring
-   with eflags. */
+   states. Only the CPL, INHIBIT_IRQ, SMM and SVMI are not
+   redundant. We avoid using the IOPL_MASK, TF_MASK and VM_MASK bit
+   position to ease oring with eflags. */
 /* current cpl */
 #define HF_CPL_SHIFT         0
 /* true if soft mmu is being used */
@@ -543,6 +543,7 @@ typedef struct CPUX86State {
 
     target_phys_addr_t vm_hsave;
     target_phys_addr_t vm_vmcb;
+    uint64_t tsc_offset;
     uint64_t intercept;
     uint16_t intercept_cr_read;
     uint16_t intercept_cr_write;
