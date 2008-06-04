@@ -740,14 +740,14 @@ static inline void gen_save_pc(target_ulong pc)
 {
     TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
     TCGv r_tc_off = new_tmp();
-    TCGv r_tc_off_tl = tcg_temp_new(TCG_TYPE_TL);
+    TCGv r_tc_off_ptr = tcg_temp_new(TCG_TYPE_PTR);
     TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
 
     tcg_gen_movi_tl(r_tmp, pc);
     tcg_gen_ld_i32(r_tc_off, cpu_env, offsetof(CPUState, current_tc));
     tcg_gen_muli_i32(r_tc_off, r_tc_off, sizeof(target_ulong));
-    tcg_gen_ext_i32_tl(r_tc_off_tl, r_tc_off);
-    tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_tl);
+    tcg_gen_ext_i32_ptr(r_tc_off_ptr, r_tc_off);
+    tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_ptr);
     tcg_gen_st_tl(r_tmp, r_ptr, offsetof(CPUState, PC));
     dead_tmp(r_tc_off);
 }
@@ -756,14 +756,14 @@ static inline void gen_breg_pc(void)
 {
     TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
     TCGv r_tc_off = new_tmp();
-    TCGv r_tc_off_tl = tcg_temp_new(TCG_TYPE_TL);
+    TCGv r_tc_off_ptr = tcg_temp_new(TCG_TYPE_PTR);
     TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
 
     tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, btarget));
     tcg_gen_ld_i32(r_tc_off, cpu_env, offsetof(CPUState, current_tc));
     tcg_gen_muli_i32(r_tc_off, r_tc_off, sizeof(target_ulong));
-    tcg_gen_ext_i32_tl(r_tc_off_tl, r_tc_off);
-    tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_tl);
+    tcg_gen_ext_i32_ptr(r_tc_off_ptr, r_tc_off);
+    tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_ptr);
     tcg_gen_st_tl(r_tmp, r_ptr, offsetof(CPUState, PC));
     dead_tmp(r_tc_off);
 }
