@@ -541,8 +541,8 @@ typedef struct CPUX86State {
     uint64_t efer;
     uint64_t star;
 
-    target_phys_addr_t vm_hsave;
-    target_phys_addr_t vm_vmcb;
+    uint64_t vm_hsave;
+    uint64_t vm_vmcb;
     uint64_t tsc_offset;
     uint64_t intercept;
     uint16_t intercept_cr_read;
