@@ -1435,8 +1435,7 @@ void do_smm_enter(void)
     /* init SMM cpu state */
 
 #ifdef TARGET_X86_64
-    env->efer = 0;
-    env->hflags &= ~HF_LMA_MASK;
+    cpu_load_efer(env, 0);
 #endif
     load_eflags(0, ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
     env->eip = 0x00008000;
@@ -1463,11 +1462,7 @@ void helper_rsm(void)
 
     sm_state = env->smbase + 0x8000;
 #ifdef TARGET_X86_64
-    env->efer = ldq_phys(sm_state + 0x7ed0);
-    if (env->efer & MSR_EFER_LMA)
-        env->hflags |= HF_LMA_MASK;
-    else
-        env->hflags &= ~HF_LMA_MASK;
+    cpu_load_efer(env, ldq_phys(sm_state + 0x7ed0));
 
     for(i = 0; i < 6; i++) {
         offset = 0x7e00 + i * 16;
@@ -3069,8 +3064,10 @@ void helper_wrmsr(void)
                 update_mask |= MSR_EFER_FFXSR;
             if (env->cpuid_ext2_features & CPUID_EXT2_NX)
                 update_mask |= MSR_EFER_NXE;
-            env->efer = (env->efer & ~update_mask) |
-            (val & update_mask);
+            if (env->cpuid_ext3_features & CPUID_EXT3_SVM)
+                update_mask |= MSR_EFER_SVME;
+            cpu_load_efer(env, (env->efer & ~update_mask) |
+                          (val & update_mask));
         }
         break;
     case MSR_STAR:
@@ -4873,10 +4870,8 @@ void helper_vmrun(void)
     }
 
 #ifdef TARGET_X86_64
-    env->efer = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.efer));
-    env->hflags &= ~HF_LMA_MASK;
-    if (env->efer & MSR_EFER_LMA)
-       env->hflags |= HF_LMA_MASK;
+    cpu_load_efer(env, 
+                  ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.efer)));
 #endif
     env->eflags = 0;
     load_eflags(ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rflags)),
@@ -5224,20 +5219,11 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
         env->cr[8] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr8));
         cpu_set_apic_tpr(env, env->cr[8]);
     }
-    /* we need to set the efer after the crs so the hidden flags get set properly */
+    /* we need to set the efer after the crs so the hidden flags get
+       set properly */
 #ifdef TARGET_X86_64
-    env->efer  = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.efer));
-    env->hflags &= ~HF_LMA_MASK;
-    if (env->efer & MSR_EFER_LMA)
-       env->hflags |= HF_LMA_MASK;
-    /* XXX: should also emulate the VM_CR MSR */
-    env->hflags &= ~HF_SVME_MASK;
-    if (env->cpuid_ext3_features & CPUID_EXT3_SVM) {
-        if (env->efer & MSR_EFER_SVME)
-            env->hflags |= HF_SVME_MASK;
-    } else {
-        env->efer &= ~MSR_EFER_SVME;
-    }
+    cpu_load_efer(env, 
+                  ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.efer)));
 #endif
 
     env->eflags = 0;

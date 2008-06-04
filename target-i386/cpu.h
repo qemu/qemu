@@ -148,7 +148,7 @@
 #define HF_GIF_SHIFT        20 /* if set CPU takes interrupts */
 #define HF_HIF_SHIFT        21 /* shadow copy of IF_MASK when in SVM */
 #define HF_NMI_SHIFT        22 /* CPU serving NMI */
-#define HF_SVME_SHIFT       23 /* SVME enabled (copy of EFER.SVME */
+#define HF_SVME_SHIFT       23 /* SVME enabled (copy of EFER.SVME) */
 #define HF_SVMI_SHIFT       24 /* SVM intercepts are active */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)

@@ -397,3 +397,14 @@ static inline int cpu_halted(CPUState *env) {
     return EXCP_HALTED;
 }
 
+/* load efer and update the corresponding hflags. XXX: do consistency
+   checks with cpuid bits ? */
+static inline void cpu_load_efer(CPUState *env, uint64_t val)
+{
+    env->efer = val;
+    env->hflags &= ~(HF_LMA_MASK | HF_SVME_MASK);
+    if (env->efer & MSR_EFER_LMA)
+        env->hflags |= HF_LMA_MASK;
+    if (env->efer & MSR_EFER_SVME)
+        env->hflags |= HF_SVME_MASK;
+}
