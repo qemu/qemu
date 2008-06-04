@@ -368,11 +368,8 @@ int cpu_exec(CPUState *env1)
             next_tb = 0; /* force lookup of first TB */
             for(;;) {
                 interrupt_request = env->interrupt_request;
-                if (__builtin_expect(interrupt_request, 0)
-#if defined(TARGET_I386)
-			&& env->hflags & HF_GIF_MASK
-#endif
-            && likely(!(env->singlestep_enabled & SSTEP_NOIRQ))) {
+                if (__builtin_expect(interrupt_request, 0) &&
+                    likely(!(env->singlestep_enabled & SSTEP_NOIRQ))) {
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         env->exception_index = EXCP_DEBUG;
@@ -388,47 +385,51 @@ int cpu_exec(CPUState *env1)
                     }
 #endif
 #if defined(TARGET_I386)
-                    if ((interrupt_request & CPU_INTERRUPT_SMI) &&
-                        !(env->hflags & HF_SMM_MASK)) {
-                        svm_check_intercept(SVM_EXIT_SMI);
-                        env->interrupt_request &= ~CPU_INTERRUPT_SMI;
-                        do_smm_enter();
-                        next_tb = 0;
-                    } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
-                        !(env->hflags & HF_NMI_MASK)) {
-                        env->interrupt_request &= ~CPU_INTERRUPT_NMI;
-                        env->hflags |= HF_NMI_MASK;
-                        do_interrupt(EXCP02_NMI, 0, 0, 0, 1);
-                        next_tb = 0;
-                    } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                        (env->eflags & IF_MASK || env->hflags & HF_HIF_MASK) &&
-                        !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
-                        int intno;
-                        svm_check_intercept(SVM_EXIT_INTR);
-                        env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
-                        intno = cpu_get_pic_interrupt(env);
-                        if (loglevel & CPU_LOG_TB_IN_ASM) {
-                            fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
-                        }
-                        do_interrupt(intno, 0, 0, 0, 1);
-                        /* ensure that no TB jump will be modified as
-                           the program flow was changed */
-                        next_tb = 0;
+                    if (env->hflags2 & HF2_GIF_MASK) {
+                        if ((interrupt_request & CPU_INTERRUPT_SMI) &&
+                            !(env->hflags & HF_SMM_MASK)) {
+                            svm_check_intercept(SVM_EXIT_SMI);
+                            env->interrupt_request &= ~CPU_INTERRUPT_SMI;
+                            do_smm_enter();
+                            next_tb = 0;
+                        } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
+                                   !(env->hflags2 & HF2_NMI_MASK)) {
+                            env->interrupt_request &= ~CPU_INTERRUPT_NMI;
+                            env->hflags2 |= HF2_NMI_MASK;
+                            do_interrupt(EXCP02_NMI, 0, 0, 0, 1);
+                            next_tb = 0;
+                        } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                                   (((env->hflags2 & HF2_VINTR_MASK) && 
+                                     (env->hflags2 & HF2_HIF_MASK)) ||
+                                    (!(env->hflags2 & HF2_VINTR_MASK) && 
+                                     (env->eflags & IF_MASK && 
+                                      !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
+                            int intno;
+                            svm_check_intercept(SVM_EXIT_INTR);
+                            env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
+                            intno = cpu_get_pic_interrupt(env);
+                            if (loglevel & CPU_LOG_TB_IN_ASM) {
+                                fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
+                            }
+                            do_interrupt(intno, 0, 0, 0, 1);
+                            /* ensure that no TB jump will be modified as
+                               the program flow was changed */
+                            next_tb = 0;
 #if !defined(CONFIG_USER_ONLY)
-                    } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
-                        (env->eflags & IF_MASK) && !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
-                         int intno;
-                         /* FIXME: this should respect TPR */
-                         env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
-                         svm_check_intercept(SVM_EXIT_VINTR);
-                         intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
-                         if (loglevel & CPU_LOG_TB_IN_ASM)
-                             fprintf(logfile, "Servicing virtual hardware INT=0x%02x\n", intno);
-	                 do_interrupt(intno, 0, 0, -1, 1);
-                         stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
-                                  ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl)) & ~V_IRQ_MASK);
-                        next_tb = 0;
+                        } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
+                                   (env->eflags & IF_MASK) && 
+                                   !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
+                            int intno;
+                            /* FIXME: this should respect TPR */
+                            svm_check_intercept(SVM_EXIT_VINTR);
+                            env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+                            intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
+                            if (loglevel & CPU_LOG_TB_IN_ASM)
+                                fprintf(logfile, "Servicing virtual hardware INT=0x%02x\n", intno);
+                            do_interrupt(intno, 0, 0, 0, 1);
+                            next_tb = 0;
 #endif
+                        }
                     }
 #elif defined(TARGET_PPC)
 #if 0

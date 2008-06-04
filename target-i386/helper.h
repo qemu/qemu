@@ -47,9 +47,6 @@ DEF_HELPER(target_ulong, helper_read_crN, (int reg))
 DEF_HELPER(void, helper_write_crN, (int reg, target_ulong t0))
 DEF_HELPER(void, helper_lmsw, (target_ulong t0))
 DEF_HELPER(void, helper_clts, (void))
-#if !defined(CONFIG_USER_ONLY)
-DEF_HELPER(target_ulong, helper_movtl_T0_cr8, (void))
-#endif
 DEF_HELPER(void, helper_movl_drN_T0, (int reg, target_ulong t0))
 DEF_HELPER(void, helper_invlpg, (target_ulong addr))
 
@@ -102,7 +99,7 @@ DEF_HELPER(void, helper_svm_check_intercept_param, (uint32_t type, uint64_t para
 DEF_HELPER(void, helper_vmexit, (uint32_t exit_code, uint64_t exit_info_1))
 DEF_HELPER(void, helper_svm_check_io, (uint32_t port, uint32_t param, 
                          uint32_t next_eip_addend))
-DEF_HELPER(void, helper_vmrun, (int aflag))
+DEF_HELPER(void, helper_vmrun, (int aflag, int next_eip_addend))
 DEF_HELPER(void, helper_vmmcall, (void))
 DEF_HELPER(void, helper_vmload, (int aflag))
 DEF_HELPER(void, helper_vmsave, (int aflag))

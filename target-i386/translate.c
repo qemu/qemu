@@ -6569,10 +6569,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        tcg_gen_helper_0_1(helper_vmrun, 
-                                           tcg_const_i32(s->aflag));
-                        s->cc_op = CC_OP_EFLAGS;
-                        gen_eob(s);
+                        tcg_gen_helper_0_2(helper_vmrun, 
+                                           tcg_const_i32(s->aflag),
+                                           tcg_const_i32(s->pc - pc_start));
+                        tcg_gen_exit_tb(0);
+                        s->is_jmp = 3;
                     }
                     break;
                 case 1: /* VMMCALL */

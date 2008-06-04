@@ -145,11 +145,8 @@
 #define HF_OSFXSR_SHIFT     16 /* CR4.OSFXSR */
 #define HF_VM_SHIFT         17 /* must be same as eflags */
 #define HF_SMM_SHIFT        19 /* CPU in SMM mode */
-#define HF_GIF_SHIFT        20 /* if set CPU takes interrupts */
-#define HF_HIF_SHIFT        21 /* shadow copy of IF_MASK when in SVM */
-#define HF_NMI_SHIFT        22 /* CPU serving NMI */
-#define HF_SVME_SHIFT       23 /* SVME enabled (copy of EFER.SVME) */
-#define HF_SVMI_SHIFT       24 /* SVM intercepts are active */
+#define HF_SVME_SHIFT       20 /* SVME enabled (copy of EFER.SVME) */
+#define HF_SVMI_SHIFT       21 /* SVM intercepts are active */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -166,11 +163,20 @@
 #define HF_CS64_MASK         (1 << HF_CS64_SHIFT)
 #define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
 #define HF_SMM_MASK          (1 << HF_SMM_SHIFT)
-#define HF_GIF_MASK          (1 << HF_GIF_SHIFT)
-#define HF_HIF_MASK          (1 << HF_HIF_SHIFT)
-#define HF_NMI_MASK          (1 << HF_NMI_SHIFT)
 #define HF_SVME_MASK         (1 << HF_SVME_SHIFT)
 #define HF_SVMI_MASK         (1 << HF_SVMI_SHIFT)
+
+/* hflags2 */
+
+#define HF2_GIF_SHIFT        0 /* if set CPU takes interrupts */
+#define HF2_HIF_SHIFT        1 /* value of IF_MASK when entering SVM */
+#define HF2_NMI_SHIFT        2 /* CPU serving NMI */
+#define HF2_VINTR_SHIFT      3 /* value of V_INTR_MASKING bit */
+
+#define HF2_GIF_MASK          (1 << HF2_GIF_SHIFT)
+#define HF2_HIF_MASK          (1 << HF2_HIF_SHIFT) 
+#define HF2_NMI_MASK          (1 << HF2_NMI_SHIFT)
+#define HF2_VINTR_MASK        (1 << HF2_VINTR_SHIFT)
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_MP_MASK  (1 << 1)
@@ -488,7 +494,9 @@ typedef struct CPUX86State {
     target_ulong cc_dst;
     uint32_t cc_op;
     int32_t df; /* D flag : 1 if D = 0, -1 if D = 1 */
-    uint32_t hflags; /* hidden flags, see HF_xxx constants */
+    uint32_t hflags; /* TB flags, see HF_xxx constants. These flags
+                        are known at translation time. */
+    uint32_t hflags2; /* various other flags, see HF2_xxx constants. */
 
     /* segments */
     SegmentCache segs[6]; /* selector values */
@@ -497,7 +505,7 @@ typedef struct CPUX86State {
     SegmentCache gdt; /* only base and limit are used */
     SegmentCache idt; /* only base and limit are used */
 
-    target_ulong cr[9]; /* NOTE: cr1, cr5-7 are unused */
+    target_ulong cr[5]; /* NOTE: cr1 is unused */
     uint64_t a20_mask;
 
     /* FPU state */
@@ -541,6 +549,7 @@ typedef struct CPUX86State {
     uint16_t intercept_dr_read;
     uint16_t intercept_dr_write;
     uint32_t intercept_exceptions;
+    uint8_t v_tpr;
 
 #ifdef TARGET_X86_64
     target_ulong lstar;

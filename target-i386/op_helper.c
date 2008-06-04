@@ -2591,7 +2591,7 @@ void helper_iret_real(int shift)
     if (shift == 0)
         eflags_mask &= 0xffff;
     load_eflags(new_eflags, eflags_mask);
-    env->hflags &= ~HF_NMI_MASK;
+    env->hflags2 &= ~HF2_NMI_MASK;
 }
 
 static inline void validate_seg(int seg_reg, int cpl)
@@ -2843,7 +2843,7 @@ void helper_iret_protected(int shift, int next_eip)
     } else {
         helper_ret_protected(shift, 1, 0);
     }
-    env->hflags &= ~HF_NMI_MASK;
+    env->hflags2 &= ~HF2_NMI_MASK;
 #ifdef USE_KQEMU
     if (kqemu_is_ok(env)) {
         CC_OP = CC_OP_EFLAGS;
@@ -2934,7 +2934,11 @@ target_ulong helper_read_crN(int reg)
         val = env->cr[reg];
         break;
     case 8:
-        val = cpu_get_apic_tpr(env);
+        if (!(env->hflags2 & HF2_VINTR_MASK)) {
+            val = cpu_get_apic_tpr(env);
+        } else {
+            val = env->v_tpr;
+        }
         break;
     }
     return val;
@@ -2954,8 +2958,10 @@ void helper_write_crN(int reg, target_ulong t0)
         cpu_x86_update_cr4(env, t0);
         break;
     case 8:
-        cpu_set_apic_tpr(env, t0);
-        env->cr[8] = t0;
+        if (!(env->hflags2 & HF2_VINTR_MASK)) {
+            cpu_set_apic_tpr(env, t0);
+        }
+        env->v_tpr = t0 & 0x0f;
         break;
     default:
         env->cr[reg] = t0;
@@ -2977,13 +2983,6 @@ void helper_clts(void)
     env->cr[0] &= ~CR0_TS_MASK;
     env->hflags &= ~HF_TS_MASK;
 }
-
-#if !defined(CONFIG_USER_ONLY)
-target_ulong helper_movtl_T0_cr8(void)
-{
-    return cpu_get_apic_tpr(env);
-}
-#endif
 
 /* XXX: do more */
 void helper_movl_drN_T0(int reg, target_ulong t0)
@@ -4721,7 +4720,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 #if defined(CONFIG_USER_ONLY)
 
-void helper_vmrun(int aflag)
+void helper_vmrun(int aflag, int next_eip_addend)
 { 
 }
 void helper_vmmcall(void) 
@@ -4791,7 +4790,7 @@ static inline void svm_load_seg_cache(target_phys_addr_t addr,
                            sc->base, sc->limit, sc->flags);
 }
 
-void helper_vmrun(int aflag)
+void helper_vmrun(int aflag, int next_eip_addend)
 {
     target_ulong addr;
     uint32_t event_inj;
@@ -4820,7 +4819,6 @@ void helper_vmrun(int aflag)
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr2), env->cr[2]);
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr3), env->cr[3]);
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr4), env->cr[4]);
-    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr8), env->cr[8]);
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr6), env->dr[6]);
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.dr7), env->dr[7]);
 
@@ -4836,7 +4834,8 @@ void helper_vmrun(int aflag)
     svm_save_seg(env->vm_hsave + offsetof(struct vmcb, save.ds), 
                  &env->segs[R_DS]);
 
-    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip), EIP);
+    stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip),
+             EIP + next_eip_addend);
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp), ESP);
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rax), EAX);
 
@@ -4866,17 +4865,16 @@ void helper_vmrun(int aflag)
     cpu_x86_update_cr3(env, ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr3)));
     env->cr[2] = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr2));
     int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
+    env->hflags2 &= ~(HF2_HIF_MASK | HF2_VINTR_MASK);
     if (int_ctl & V_INTR_MASKING_MASK) {
-        env->cr[8] = int_ctl & V_TPR_MASK;
-        cpu_set_apic_tpr(env, env->cr[8]);
+        env->v_tpr = int_ctl & V_TPR_MASK;
+        env->hflags2 |= HF2_VINTR_MASK;
         if (env->eflags & IF_MASK)
-            env->hflags |= HF_HIF_MASK;
+            env->hflags2 |= HF2_HIF_MASK;
     }
 
-#ifdef TARGET_X86_64
     cpu_load_efer(env, 
                   ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.efer)));
-#endif
     env->eflags = 0;
     load_eflags(ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rflags)),
                 ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
@@ -4912,6 +4910,10 @@ void helper_vmrun(int aflag)
 
     helper_stgi();
 
+    if (int_ctl & V_IRQ_MASK) {
+        env->interrupt_request |= CPU_INTERRUPT_VIRQ;
+    }
+
     /* maybe we need to inject an event */
     event_inj = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj));
     if (event_inj & SVM_EVTINJ_VALID) {
@@ -4931,14 +4933,17 @@ void helper_vmrun(int aflag)
                 env->exception_next_eip = -1;
                 if (loglevel & CPU_LOG_TB_IN_ASM)
                     fprintf(logfile, "INTR");
+                /* XXX: is it always correct ? */
+                do_interrupt(vector, 0, 0, 0, 1);
                 break;
         case SVM_EVTINJ_TYPE_NMI:
-                env->exception_index = vector;
+                env->exception_index = EXCP02_NMI;
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = EIP;
                 if (loglevel & CPU_LOG_TB_IN_ASM)
                     fprintf(logfile, "NMI");
+                cpu_loop_exit();
                 break;
         case SVM_EVTINJ_TYPE_EXEPT:
                 env->exception_index = vector;
@@ -4947,6 +4952,7 @@ void helper_vmrun(int aflag)
                 env->exception_next_eip = -1;
                 if (loglevel & CPU_LOG_TB_IN_ASM)
                     fprintf(logfile, "EXEPT");
+                cpu_loop_exit();
                 break;
         case SVM_EVTINJ_TYPE_SOFT:
                 env->exception_index = vector;
@@ -4955,17 +4961,12 @@ void helper_vmrun(int aflag)
                 env->exception_next_eip = EIP;
                 if (loglevel & CPU_LOG_TB_IN_ASM)
                     fprintf(logfile, "SOFT");
+                cpu_loop_exit();
                 break;
         }
         if (loglevel & CPU_LOG_TB_IN_ASM)
             fprintf(logfile, " %#x %#x\n", env->exception_index, env->error_code);
     }
-    if ((int_ctl & V_IRQ_MASK) || 
-        (env->intercept & (1ULL << (SVM_EXIT_INTR - SVM_EXIT_INTR)))) {
-        env->interrupt_request |= CPU_INTERRUPT_VIRQ;
-    }
-
-    cpu_loop_exit();
 }
 
 void helper_vmmcall(void)
@@ -5049,13 +5050,13 @@ void helper_vmsave(int aflag)
 void helper_stgi(void)
 {
     helper_svm_check_intercept_param(SVM_EXIT_STGI, 0);
-    env->hflags |= HF_GIF_MASK;
+    env->hflags2 |= HF2_GIF_MASK;
 }
 
 void helper_clgi(void)
 {
     helper_svm_check_intercept_param(SVM_EXIT_CLGI, 0);
-    env->hflags &= ~HF_GIF_MASK;
+    env->hflags2 &= ~HF2_GIF_MASK;
 }
 
 void helper_skinit(void)
@@ -5204,11 +5205,12 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr3), env->cr[3]);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.cr4), env->cr[4]);
 
-    if ((int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl))) & V_INTR_MASKING_MASK) {
-        int_ctl &= ~V_TPR_MASK;
-        int_ctl |= env->cr[8] & V_TPR_MASK;
-        stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
-    }
+    int_ctl = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
+    int_ctl &= ~(V_TPR_MASK | V_IRQ_MASK);
+    int_ctl |= env->v_tpr & V_TPR_MASK;
+    if (env->interrupt_request & CPU_INTERRUPT_VIRQ)
+        int_ctl |= V_IRQ_MASK;
+    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
 
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rflags), compute_eflags());
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip), env->eip);
@@ -5219,7 +5221,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
     stb_phys(env->vm_vmcb + offsetof(struct vmcb, save.cpl), env->hflags & HF_CPL_MASK);
 
     /* Reload the host state from vm_hsave */
-    env->hflags &= ~HF_HIF_MASK;
+    env->hflags2 &= ~(HF2_HIF_MASK | HF2_VINTR_MASK);
     env->hflags &= ~HF_SVMI_MASK;
     env->intercept = 0;
     env->intercept_exceptions = 0;
@@ -5234,17 +5236,10 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
     cpu_x86_update_cr0(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr0)) | CR0_PE_MASK);
     cpu_x86_update_cr4(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr4)));
     cpu_x86_update_cr3(env, ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr3)));
-    if (int_ctl & V_INTR_MASKING_MASK) {
-        env->cr[8] = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.cr8));
-        cpu_set_apic_tpr(env, env->cr[8]);
-    }
     /* we need to set the efer after the crs so the hidden flags get
        set properly */
-#ifdef TARGET_X86_64
     cpu_load_efer(env, 
                   ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.efer)));
-#endif
-
     env->eflags = 0;
     load_eflags(ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rflags)),
                 ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
