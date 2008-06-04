@@ -7254,9 +7254,6 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     num_temps = 0;
     memset(temps, 0, sizeof(temps));
 
-    num_temps = 0;
-    memset(temps, 0, sizeof(temps));
-
     pc_start = tb->pc;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
