@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+#include "osdep.h"
+
 #if defined(__x86_64__)
 #define __HAVE_FAST_MULU64__
 static always_inline void mulu64 (uint64_t *plow, uint64_t *phigh,
