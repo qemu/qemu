@@ -55,13 +55,17 @@ static void help(void)
            "Command syntax:\n"
            "  create [-e] [-6] [-b base_image] [-f fmt] filename [size]\n"
            "  commit [-f fmt] filename\n"
-           "  convert [-c] [-e] [-6] [-f fmt] [-O output_fmt] filename [filename2 [...]] output_filename\n"
+           "  convert [-c] [-e] [-6] [-f fmt] [-O output_fmt] [-B output_base_image] filename [filename2 [...]] output_filename\n"
            "  info [-f fmt] filename\n"
            "\n"
            "Command parameters:\n"
            "  'filename' is a disk image filename\n"
            "  'base_image' is the read-only disk image which is used as base for a copy on\n"
            "    write image; the copy on write image only stores the modified data\n"
+           "  'output_base_image' forces the output image to be created as a copy on write\n"
+           "    image of the specified base image; 'output_base_image' should have the same\n"
+           "    content as the input's base image, however the path, image format, etc may\n"
+           "    differ\n"
            "  'fmt' is the disk image format. It is guessed automatically in most cases\n"
            "  'size' is the disk image size in kilobytes. Optional suffixes 'M' (megabyte)\n"
            "    and 'G' (gigabyte) are supported\n"
@@ -350,6 +354,13 @@ static int is_not_zero(const uint8_t *sector, int len)
     return 0;
 }
 
+/*
+ * Returns true iff the first sector pointed to by 'buf' contains at least
+ * a non-NUL byte.
+ *
+ * 'pnum' is set to the number of sectors (including and immediately following
+ * the first one) that are known to be in the same allocated/unallocated state.
+ */
 static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
 {
     int v, i;
@@ -373,7 +384,7 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
 static int img_convert(int argc, char **argv)
 {
     int c, ret, n, n1, bs_n, bs_i, flags, cluster_size, cluster_sectors;
-    const char *fmt, *out_fmt, *out_filename;
+    const char *fmt, *out_fmt, *out_baseimg, *out_filename;
     BlockDriver *drv;
     BlockDriverState **bs, *out_bs;
     int64_t total_sectors, nb_sectors, sector_num, bs_offset;
@@ -384,9 +395,10 @@ static int img_convert(int argc, char **argv)
 
     fmt = NULL;
     out_fmt = "raw";
+    out_baseimg = NULL;
     flags = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:hce6");
+        c = getopt(argc, argv, "f:O:B:hce6");
         if (c == -1)
             break;
         switch(c) {
@@ -398,6 +410,9 @@ static int img_convert(int argc, char **argv)
             break;
         case 'O':
             out_fmt = optarg;
+            break;
+        case 'B':
+            out_baseimg = optarg;
             break;
         case 'c':
             flags |= BLOCK_FLAG_COMPRESS;
@@ -415,6 +430,9 @@ static int img_convert(int argc, char **argv)
     if (bs_n < 1) help();
 
     out_filename = argv[argc - 1];
+
+    if (bs_n > 1 && out_baseimg)
+        error("-B makes no sense when concatenating multiple input images");
         
     bs = calloc(bs_n, sizeof(BlockDriverState *));
     if (!bs)
@@ -441,7 +459,7 @@ static int img_convert(int argc, char **argv)
     if (flags & BLOCK_FLAG_ENCRYPT && flags & BLOCK_FLAG_COMPRESS)
         error("Compression and encryption not supported at the same time");
 
-    ret = bdrv_create(drv, out_filename, total_sectors, NULL, flags);
+    ret = bdrv_create(drv, out_filename, total_sectors, out_baseimg, flags);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting not supported for file format '%s'", fmt);
@@ -520,7 +538,7 @@ static int img_convert(int argc, char **argv)
         /* signal EOF to align */
         bdrv_write_compressed(out_bs, 0, NULL, 0);
     } else {
-        sector_num = 0;
+        sector_num = 0; // total number of sectors converted so far
         for(;;) {
             nb_sectors = total_sectors - sector_num;
             if (nb_sectors <= 0)
@@ -543,6 +561,20 @@ static int img_convert(int argc, char **argv)
             if (n > bs_offset + bs_sectors - sector_num)
                 n = bs_offset + bs_sectors - sector_num;
 
+            /* If the output image is being created as a copy on write image,
+               assume that sectors which are unallocated in the input image
+               are present in both the output's and input's base images (no
+               need to copy them). */
+            if (out_baseimg) {
+               if (!bdrv_is_allocated(bs[bs_i], sector_num - bs_offset, n, &n1)) {
+                  sector_num += n1;
+                  continue;
+               }
+               /* The next 'n1' sectors are allocated in the input image. Copy
+                  only those as they may be followed by unallocated sectors. */
+               n = n1;
+            }
+
             if (bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n) < 0) 
                 error("error while reading");
             /* NOTE: at the same time we convert, we do not write zero
@@ -550,7 +582,10 @@ static int img_convert(int argc, char **argv)
                should add a specific call to have the info to go faster */
             buf1 = buf;
             while (n > 0) {
-                if (is_allocated_sectors(buf1, n, &n1)) {
+                /* If the output image is being created as a copy on write image,
+                   copy all sectors even the ones containing only NUL bytes,
+                   because they may differ from the sectors in the base image. */
+                if (out_baseimg || is_allocated_sectors(buf1, n, &n1)) {
                     if (bdrv_write(out_bs, sector_num, buf1, n1) < 0)
                         error("error while writing");
                 }

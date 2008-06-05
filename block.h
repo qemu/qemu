@@ -99,6 +99,8 @@ int qemu_key_check(BlockDriverState *bs, const char *name);
 
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
+int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+	int *pnum);
 
 #define BDRV_TYPE_HD     0
 #define BDRV_TYPE_CDROM  1
