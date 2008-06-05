@@ -425,6 +425,24 @@ enum {
 /* global register indices */
 static TCGv cpu_env, current_tc_gprs, current_tc_hi, cpu_T[2];
 
+static inline void tcg_gen_helper_0_1i(void *func, TCGv arg)
+{
+    TCGv t = tcg_const_i32(arg);
+
+    tcg_gen_helper_0_1(func, t);
+    tcg_temp_free(t);
+}
+
+static inline void tcg_gen_helper_0_2ii(void *func, TCGv arg1, TCGv arg2)
+{
+    TCGv t1 = tcg_const_i32(arg1);
+    TCGv t2 = tcg_const_i32(arg2);
+
+    tcg_gen_helper_0_2(func, t1, t2);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
+
 typedef struct DisasContext {
     struct TranslationBlock *tb;
     target_ulong pc, saved_pc;
@@ -797,7 +815,7 @@ static always_inline void
 generate_exception_err (DisasContext *ctx, int excp, int err)
 {
     save_cpu_state(ctx, 1);
-    tcg_gen_helper_0_2(do_raise_exception_err, tcg_const_i32(excp), tcg_const_i32(err));
+    tcg_gen_helper_0_2ii(do_raise_exception_err, excp, err);
     tcg_gen_helper_0_0(do_interrupt_restart);
     tcg_gen_exit_tb(0);
 }
@@ -806,7 +824,7 @@ static always_inline void
 generate_exception (DisasContext *ctx, int excp)
 {
     save_cpu_state(ctx, 1);
-    tcg_gen_helper_0_1(do_raise_exception, tcg_const_i32(excp));
+    tcg_gen_helper_0_1i(do_raise_exception, excp);
     tcg_gen_helper_0_0(do_interrupt_restart);
     tcg_gen_exit_tb(0);
 }
