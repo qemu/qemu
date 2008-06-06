@@ -140,9 +140,9 @@ build: $(CRT) $(SYS) $(TESTCASES)
 
 check: $(CRT) $(SYS) $(TESTCASES)
 	@echo -e "\nQEMU simulator."
-	@for case in $(TESTCASES); do \
+	for case in $(TESTCASES); do \
 		echo -n "$$case "; \
-		$(SIM) $$case; \
+		$(SIM) ./$$case; \
 	done
 check-g: $(CRT) $(SYS) $(TESTCASES)
 	@echo -e "\nGDB simulator."

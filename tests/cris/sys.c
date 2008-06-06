@@ -16,7 +16,7 @@ void pass(void) {
 }
 
 void _fail(char *reason) {
-	char s[] = "failed: ";
+	char s[] = "\nfailed: ";
 	int len = mystrlen(reason);
 	write (1, s, sizeof (s) - 1);
 	write (1, reason, len);
@@ -41,8 +41,11 @@ void exit (int status) {
 
 ssize_t write (int fd, const void *buf, size_t count) {
 	int r;
-	asm volatile ("moveq 4, $r9\n" /* NR_write.  */
-		      "break 13\n" : : : "memory");
-	asm volatile ("move.d $r10, %0\n" : "=r" (r));
+	asm ("move.d %0, $r10\n"
+	     "move.d %1, $r11\n"
+	     "move.d %2, $r12\n"
+	     "moveq 4, $r9\n" /* NR_write.  */
+	     "break 13\n" : : "r" (fd), "r" (buf), "r" (count) : "memory");
+	asm ("move.d $r10, %0\n" : "=r" (r));
 	return r;
 }
