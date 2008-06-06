@@ -3788,9 +3788,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         }
         break;
 
+    case 0x82:
+        if (CODE64(s))
+            goto illegal_op;
     case 0x80: /* GRP1 */
     case 0x81:
-    case 0x82:
     case 0x83:
         {
             int val;
