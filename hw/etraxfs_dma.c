@@ -273,6 +273,7 @@ static void channel_load_d(struct fs_dma_ctrl *ctrl, int c)
 				  sizeof ctrl->channels[c].current_d);
 
 	D(dump_d(c, &ctrl->channels[c].current_d));
+	ctrl->channels[c].regs[RW_DATA] = addr;
 	ctrl->channels[c].regs[RW_SAVED_DATA_BUF] =
 		(uint32_t)ctrl->channels[c].current_d.buf;
 }
@@ -561,7 +562,7 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
         switch (addr)
         {
 		case RW_DATA:
-			printf("RW_DATA=%x\n", value);			
+			ctrl->channels[c].regs[addr] = value;
 			break;
 
 		case RW_CFG:
@@ -658,6 +659,13 @@ void etraxfs_dmac_connect_client(void *opaque, int c,
 }
 
 
+static void *etraxfs_dmac;
+void DMA_run(void)
+{
+	if (etraxfs_dmac)
+		etraxfs_dmac_run(etraxfs_dmac);
+}
+
 void *etraxfs_dmac_init(CPUState *env, 
 			target_phys_addr_t base, int nr_channels)
 {
@@ -686,6 +694,8 @@ void *etraxfs_dmac_init(CPUState *env,
 					      ctrl->channels[i].regmap);
 	}
 
+	/* Hax, we only support one DMA controller at a time.  */
+	etraxfs_dmac = ctrl;
 	return ctrl;
   err:
 	qemu_free(ctrl->channels);

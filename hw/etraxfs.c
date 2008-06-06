@@ -44,7 +44,6 @@ void etraxfs_ser_init(CPUState *env, qemu_irq *irq, CharDriverState *chr,
 #define FLASH_SIZE 0x2000000
 #define INTMEM_SIZE (128 * 1024)
 
-static void *etraxfs_dmac;
 static uint32_t bootstrap_pc;
 
 static void main_cpu_reset(void *opaque)
@@ -64,6 +63,7 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
 {
     CPUState *env;
     qemu_irq *pic;
+    void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
     int kernel_size;
     int i;
@@ -138,29 +138,25 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     if (kernel_filename) {
-#if 1
+        uint64_t entry;
         /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis 
            devboard SDK.  */
         kernel_size = load_elf(kernel_filename, 0,
-                               &bootstrap_pc, NULL, NULL);
-#else
-        /* Takes a kimage from the axis devboard SDK.  */
-        kernel_size = load_image(kernel_filename, phys_ram_base + 0x4000);
-        bootstrap_pc = 0x40004000;
-        /* magic for boot.  */
-        env->regs[8] = 0x56902387;
-        env->regs[9] = 0x40004000 + kernel_size;
-#endif
+                               &entry, NULL, NULL);
+        bootstrap_pc = entry;
+        if (kernel_size < 0) {
+            /* Takes a kimage from the axis devboard SDK.  */
+            kernel_size = load_image(kernel_filename, phys_ram_base + 0x4000);
+            bootstrap_pc = 0x40004000;
+            /* magic for boot.  */
+            env->regs[8] = 0x56902387;
+            env->regs[9] = 0x40004000 + kernel_size;
+        }
     }
     env->pc = bootstrap_pc;
 
     printf ("pc =%x\n", env->pc);
     printf ("ram size =%ld\n", ram_size);
-}
-
-void DMA_run(void)
-{
-	etraxfs_dmac_run(etraxfs_dmac);
 }
 
 QEMUMachine bareetraxfs_machine = {
