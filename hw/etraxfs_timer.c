@@ -235,7 +235,7 @@ static inline void timer_watchdog_update(struct fs_timer_t *t, uint32_t value)
 		return;
 
 	D(printf("en=%d new_key=%x oldkey=%x cmd=%d cnt=%d\n", 
-		 wd_en, new_key, wd_key, wd_cmd, wd_cnt));
+		 wd_en, new_key, wd_key, new_cmd, wd_cnt));
 
 	ptimer_set_freq(t->ptimer_wd, 760);
 	if (wd_cnt == 0)
