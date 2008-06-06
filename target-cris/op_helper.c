@@ -202,6 +202,8 @@ static void cris_ccs_rshift(CPUState *env)
 
 void helper_rfe(void)
 {
+	int rflag = env->pregs[PR_CCS] & R_FLAG;
+
 	D(fprintf(logfile, "rfe: erp=%x pid=%x ccs=%x btarget=%x\n", 
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
@@ -210,7 +212,7 @@ void helper_rfe(void)
 	cris_ccs_rshift(env);
 
 	/* RFE sets the P_FLAG only if the R_FLAG is not set.  */
-	if (!(env->pregs[PR_CCS] & R_FLAG))
+	if (!rflag)
 		env->pregs[PR_CCS] |= P_FLAG;
 }
 
