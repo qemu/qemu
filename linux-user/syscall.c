@@ -74,6 +74,11 @@
 
 #if defined(USE_NPTL)
 #include <linux/futex.h>
+#define CLONE_NPTL_FLAGS2 (CLONE_SETTLS | \
+    CLONE_PARENT_SETTID | CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)
+#else
+/* XXX: Hardcode the above values.  */
+#define CLONE_NPTL_FLAGS2 0
 #endif
 
 //#define DEBUG
@@ -2706,6 +2711,48 @@ abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 
 #endif /* defined(TARGET_I386) */
 
+#if defined(USE_NPTL)
+
+#define NEW_STACK_SIZE PTHREAD_STACK_MIN
+
+static pthread_mutex_t clone_lock = PTHREAD_MUTEX_INITIALIZER;
+typedef struct {
+    CPUState *env;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    pthread_t thread;
+    uint32_t tid;
+    abi_ulong child_tidptr;
+    abi_ulong parent_tidptr;
+    sigset_t sigmask;
+} new_thread_info;
+
+static void *clone_func(void *arg)
+{
+    new_thread_info *info = arg;
+    CPUState *env;
+
+    env = info->env;
+    thread_env = env;
+    info->tid = gettid();
+    if (info->child_tidptr)
+        put_user_u32(info->tid, info->child_tidptr);
+    if (info->parent_tidptr)
+        put_user_u32(info->tid, info->parent_tidptr);
+    /* Enable signals.  */
+    sigprocmask(SIG_SETMASK, &info->sigmask, NULL);
+    /* Signal to the parent that we're ready.  */
+    pthread_mutex_lock(&info->mutex);
+    pthread_cond_broadcast(&info->cond);
+    pthread_mutex_unlock(&info->mutex);
+    /* Wait until the parent has finshed initializing the tls state.  */
+    pthread_mutex_lock(&clone_lock);
+    pthread_mutex_unlock(&clone_lock);
+    cpu_loop(env);
+    /* never exits */
+    return NULL;
+}
+#else
 /* this stack is the equivalent of the kernel stack associated with a
    thread/process */
 #define NEW_STACK_SIZE 8192
@@ -2717,24 +2764,27 @@ static int clone_func(void *arg)
     /* never exits */
     return 0;
 }
+#endif
 
 /* do_fork() Must return host values and target errnos (unlike most
    do_*() functions). */
-int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
+static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
+                   abi_ulong parent_tidptr, target_ulong newtls,
+                   abi_ulong child_tidptr)
 {
     int ret;
     TaskState *ts;
     uint8_t *new_stack;
     CPUState *new_env;
+#if defined(USE_NPTL)
+    unsigned int nptl_flags;
+    sigset_t sigmask;
+#endif
 
     if (flags & CLONE_VM) {
 #if defined(USE_NPTL)
-        /* qemu is not threadsafe.  Bail out immediately if application
-           tries to create a thread.  */
-        if (!(flags & CLONE_VFORK)) {
-            gemu_log ("clone(CLONE_VM) not supported\n");
-            return -EINVAL;
-        }
+        new_thread_info info;
+        pthread_attr_t attr;
 #endif
         ts = malloc(sizeof(TaskState) + NEW_STACK_SIZE);
         init_task_state(ts);
@@ -2744,19 +2794,94 @@ int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp)
         /* Init regs that differ from the parent.  */
         cpu_clone_regs(new_env, newsp);
         new_env->opaque = ts;
+#if defined(USE_NPTL)
+        nptl_flags = flags;
+        flags &= ~CLONE_NPTL_FLAGS2;
+
+        /* TODO: Implement CLONE_CHILD_CLEARTID.  */
+        if (nptl_flags & CLONE_SETTLS)
+            cpu_set_tls (new_env, newtls);
+
+        /* Grab a mutex so that thread setup appears atomic.  */
+        pthread_mutex_lock(&clone_lock);
+
+        memset(&info, 0, sizeof(info));
+        pthread_mutex_init(&info.mutex, NULL);
+        pthread_mutex_lock(&info.mutex);
+        pthread_cond_init(&info.cond, NULL);
+        info.env = new_env;
+        if (nptl_flags & CLONE_CHILD_SETTID)
+            info.child_tidptr = child_tidptr;
+        if (nptl_flags & CLONE_PARENT_SETTID)
+            info.parent_tidptr = parent_tidptr;
+
+        ret = pthread_attr_init(&attr);
+        ret = pthread_attr_setstack(&attr, new_stack, NEW_STACK_SIZE);
+        /* It is not safe to deliver signals until the child has finished
+           initializing, so temporarily block all signals.  */
+        sigfillset(&sigmask);
+        sigprocmask(SIG_BLOCK, &sigmask, &info.sigmask);
+
+        ret = pthread_create(&info.thread, &attr, clone_func, &info);
+
+        sigprocmask(SIG_SETMASK, &info.sigmask, NULL);
+        pthread_attr_destroy(&attr);
+        if (ret == 0) {
+            /* Wait for the child to initialize.  */
+            pthread_cond_wait(&info.cond, &info.mutex);
+            ret = info.tid;
+            if (flags & CLONE_PARENT_SETTID)
+                put_user_u32(ret, parent_tidptr);
+        } else {
+            ret = -1;
+        }
+        pthread_mutex_unlock(&info.mutex);
+        pthread_cond_destroy(&info.cond);
+        pthread_mutex_destroy(&info.mutex);
+        pthread_mutex_unlock(&clone_lock);
+#else
+        if (flags & CLONE_NPTL_FLAGS2)
+            return -EINVAL;
+        /* This is probably going to die very quickly, but do it anyway.  */
 #ifdef __ia64__
         ret = __clone2(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
 #else
 	ret = clone(clone_func, new_stack + NEW_STACK_SIZE, flags, new_env);
 #endif
+#endif
     } else {
         /* if no CLONE_VM, we consider it is a fork */
-        if ((flags & ~CSIGNAL) != 0)
+        if ((flags & ~(CSIGNAL | CLONE_NPTL_FLAGS2)) != 0)
             return -EINVAL;
+        fork_start();
         ret = fork();
+#if defined(USE_NPTL)
+        /* There is a race condition here.  The parent process could
+           theoretically read the TID in the child process before the child
+           tid is set.  This would require using either ptrace
+           (not implemented) or having *_tidptr to point at a shared memory
+           mapping.  We can't repeat the spinlock hack used above because
+           the child process gets its own copy of the lock.  */
+        if (ret == 0) {
+            cpu_clone_regs(env, newsp);
+            fork_end(1);
+            /* Child Process.  */
+            if (flags & CLONE_CHILD_SETTID)
+                put_user_u32(gettid(), child_tidptr);
+            if (flags & CLONE_PARENT_SETTID)
+                put_user_u32(gettid(), parent_tidptr);
+            ts = (TaskState *)env->opaque;
+            if (flags & CLONE_SETTLS)
+                cpu_set_tls (env, newtls);
+            /* TODO: Implement CLONE_CHILD_CLEARTID.  */
+        } else {
+            fork_end(0);
+        }
+#else
         if (ret == 0) {
             cpu_clone_regs(env, newsp);
         }
+#endif
     }
     return ret;
 }
@@ -3153,7 +3278,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_brk(arg1);
         break;
     case TARGET_NR_fork:
-        ret = get_errno(do_fork(cpu_env, SIGCHLD, 0));
+        ret = get_errno(do_fork(cpu_env, SIGCHLD, 0, 0, 0, 0));
         break;
 #ifdef TARGET_NR_waitpid
     case TARGET_NR_waitpid:
@@ -4531,7 +4656,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(fsync(arg1));
         break;
     case TARGET_NR_clone:
-        ret = get_errno(do_fork(cpu_env, arg1, arg2));
+        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg4, arg5));
         break;
 #ifdef __NR_exit_group
         /* new thread calls */
@@ -4967,7 +5092,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_vfork
     case TARGET_NR_vfork:
-        ret = get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | SIGCHLD, 0));
+        ret = get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | SIGCHLD,
+                        0, 0, 0, 0));
         break;
 #endif
 #ifdef TARGET_NR_ugetrlimit
