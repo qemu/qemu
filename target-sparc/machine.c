@@ -31,7 +31,8 @@ void cpu_save(QEMUFile *f, void *opaque)
 
     for(i = 0; i < 8; i++)
         qemu_put_betls(f, &env->gregs[i]);
-    for(i = 0; i < NWINDOWS * 16; i++)
+    qemu_put_be32s(f, &env->nwindows);
+    for(i = 0; i < env->nwindows * 16; i++)
         qemu_put_betls(f, &env->regbase[i]);
 
     /* FPU */
@@ -65,9 +66,12 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     int i;
     uint32_t tmp;
 
+    if (version_id != 4)
+        return -EINVAL;
     for(i = 0; i < 8; i++)
         qemu_get_betls(f, &env->gregs[i]);
-    for(i = 0; i < NWINDOWS * 16; i++)
+    qemu_get_be32s(f, &env->nwindows);
+    for(i = 0; i < env->nwindows * 16; i++)
         qemu_get_betls(f, &env->regbase[i]);
 
     /* FPU */

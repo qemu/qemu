@@ -626,11 +626,11 @@ void cpu_loop(CPUARMState *env)
    can be found at http://www.sics.se/~psm/sparcstack.html */
 static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
 {
-    index = (index + cwp * 16) & (16 * NWINDOWS - 1);
+    index = (index + cwp * 16) % (16 * env->nwindows);
     /* wrap handling : if cwp is on the last window, then we use the
        registers 'after' the end */
-    if (index < 8 && env->cwp == (NWINDOWS - 1))
-        index += (16 * NWINDOWS);
+    if (index < 8 && env->cwp == env->nwindows - 1)
+        index += 16 * env->nwindows;
     return index;
 }
 
@@ -656,12 +656,12 @@ static void save_window(CPUSPARCState *env)
 {
 #ifndef TARGET_SPARC64
     unsigned int new_wim;
-    new_wim = ((env->wim >> 1) | (env->wim << (NWINDOWS - 1))) &
-        ((1LL << NWINDOWS) - 1);
-    save_window_offset(env, (env->cwp - 2) & (NWINDOWS - 1));
+    new_wim = ((env->wim >> 1) | (env->wim << (env->nwindows - 1))) &
+        ((1LL << env->nwindows) - 1);
+    save_window_offset(env, cpu_cwp_dec(env, env->cwp - 2));
     env->wim = new_wim;
 #else
-    save_window_offset(env, (env->cwp - 2) & (NWINDOWS - 1));
+    save_window_offset(env, cpu_cwp_dec(env, env->cwp - 2));
     env->cansave++;
     env->canrestore--;
 #endif
@@ -672,11 +672,11 @@ static void restore_window(CPUSPARCState *env)
     unsigned int new_wim, i, cwp1;
     abi_ulong sp_ptr;
 
-    new_wim = ((env->wim << 1) | (env->wim >> (NWINDOWS - 1))) &
-        ((1LL << NWINDOWS) - 1);
+    new_wim = ((env->wim << 1) | (env->wim >> (env->nwindows - 1))) &
+        ((1LL << env->nwindows) - 1);
 
     /* restore the invalid window */
-    cwp1 = (env->cwp + 1) & (NWINDOWS - 1);
+    cwp1 = cpu_cwp_inc(env, env->cwp + 1);
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #if defined(DEBUG_WIN)
     printf("win_underflow: sp_ptr=0x%x load_cwp=%d\n",
@@ -690,8 +690,8 @@ static void restore_window(CPUSPARCState *env)
     env->wim = new_wim;
 #ifdef TARGET_SPARC64
     env->canrestore++;
-    if (env->cleanwin < NWINDOWS - 1)
-	env->cleanwin++;
+    if (env->cleanwin < env->nwindows - 1)
+        env->cleanwin++;
     env->cansave--;
 #endif
 }
@@ -703,14 +703,14 @@ static void flush_windows(CPUSPARCState *env)
     offset = 1;
     for(;;) {
         /* if restore would invoke restore_window(), then we can stop */
-        cwp1 = (env->cwp + offset) & (NWINDOWS - 1);
+        cwp1 = cpu_cwp_inc(env, env->cwp + offset);
         if (env->wim & (1 << cwp1))
             break;
         save_window_offset(env, cwp1);
         offset++;
     }
     /* set wim so that restore will reload the registers */
-    cwp1 = (env->cwp + 1) & (NWINDOWS - 1);
+    cwp1 = cpu_cwp_inc(env, env->cwp + 1);
     env->wim = 1 << cwp1;
 #if defined(DEBUG_WIN)
     printf("flush_windows: nb=%d\n", offset - 1);

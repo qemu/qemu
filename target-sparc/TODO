@@ -6,7 +6,6 @@ CPU common:
  slot next page)
  - Atomical instructions
  - CPU features should match real CPUs (also ASI selection)
- - Allow choosing of NWINDOWS (CPU model specific and as a CPU feature)
 - Optimizations/improvements:
  - Condition code/branch handling like x86, also for FPU?
  - Remove remaining explicit alignment checks

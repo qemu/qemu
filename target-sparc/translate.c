@@ -3442,8 +3442,6 @@ static void disas_sparc_insn(DisasContext * dc)
                                 goto illegal_insn;
                             }
 #else
-                            tcg_gen_andi_tl(cpu_dst, cpu_dst,
-                                            ((1 << NWINDOWS) - 1));
                             tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_dst);
                             tcg_gen_st_i32(cpu_tmp32, cpu_env,
                                            offsetof(CPUSPARCState, wim));
