@@ -1341,10 +1341,20 @@ void cpu_set_log_filename(const char *filename)
 /* mask must never be zero, except for A20 change call */
 void cpu_interrupt(CPUState *env, int mask)
 {
+#if !defined(USE_NPTL)
     TranslationBlock *tb;
     static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
+#endif
 
+    /* FIXME: This is probably not threadsafe.  A different thread could
+       be in the mittle of a read-modify-write operation.  */
     env->interrupt_request |= mask;
+#if defined(USE_NPTL)
+    /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
+       problem and hope the cpu will stop of its own accord.  For userspace
+       emulation this often isn't actually as bad as it sounds.  Often
+       signals are used primarily to interrupt blocking syscalls.  */
+#else
     /* if the cpu is currently executing code, we must unlink it and
        all the potentially executing TB */
     tb = env->current_tb;
@@ -1353,6 +1363,7 @@ void cpu_interrupt(CPUState *env, int mask)
         tb_reset_jump_recursive(tb);
         resetlock(&interrupt_lock);
     }
+#endif
 }
 
 void cpu_reset_interrupt(CPUState *env, int mask)
@@ -2015,7 +2026,6 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
     end = TARGET_PAGE_ALIGN(end);
     if (flags & PAGE_WRITE)
         flags |= PAGE_WRITE_ORG;
-    spin_lock(&tb_lock);
     for(addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
         p = page_find_alloc(addr >> TARGET_PAGE_BITS);
         /* if the write protection is set, then we invalidate the code
@@ -2027,7 +2037,6 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
         }
         p->flags = flags;
     }
-    spin_unlock(&tb_lock);
 }
 
 int page_check_range(target_ulong start, target_ulong len, int flags)

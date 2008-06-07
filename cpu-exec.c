@@ -44,7 +44,6 @@
 #endif
 
 int tb_invalidated_flag;
-static unsigned long next_tb;
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
@@ -92,8 +91,6 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     unsigned int h;
     target_ulong phys_pc, phys_page1, phys_page2, virt_page2;
     uint8_t *tc_ptr;
-
-    spin_lock(&tb_lock);
 
     tb_invalidated_flag = 0;
 
@@ -155,7 +152,6 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
  found:
     /* we add the TB in the virtual pc hash table */
     env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
-    spin_unlock(&tb_lock);
     return tb;
 }
 
@@ -228,14 +224,6 @@ static inline TranslationBlock *tb_find_fast(void)
     if (__builtin_expect(!tb || tb->pc != pc || tb->cs_base != cs_base ||
                          tb->flags != flags, 0)) {
         tb = tb_find_slow(pc, cs_base, flags);
-        /* Note: we do it here to avoid a gcc bug on Mac OS X when
-           doing it in tb_find_slow */
-        if (tb_invalidated_flag) {
-            /* as some TB could have been invalidated because
-               of memory exceptions while generating the code, we
-               must recompute the hash index here */
-            next_tb = 0;
-        }
     }
     return tb;
 }
@@ -249,6 +237,7 @@ int cpu_exec(CPUState *env1)
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
+    unsigned long next_tb;
 
     if (cpu_halted(env1) == EXCP_HALTED)
         return EXCP_HALTED;
@@ -577,7 +566,16 @@ int cpu_exec(CPUState *env1)
 #endif
                 }
 #endif
+                spin_lock(&tb_lock);
                 tb = tb_find_fast();
+                /* Note: we do it here to avoid a gcc bug on Mac OS X when
+                   doing it in tb_find_slow */
+                if (tb_invalidated_flag) {
+                    /* as some TB could have been invalidated because
+                       of memory exceptions while generating the code, we
+                       must recompute the hash index here */
+                    next_tb = 0;
+                }
 #ifdef DEBUG_EXEC
                 if ((loglevel & CPU_LOG_EXEC)) {
                     fprintf(logfile, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
@@ -594,11 +592,10 @@ int cpu_exec(CPUState *env1)
                         (env->kqemu_enabled != 2) &&
 #endif
                         tb->page_addr[1] == -1) {
-                    spin_lock(&tb_lock);
                     tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
-                    spin_unlock(&tb_lock);
                 }
                 }
+                spin_unlock(&tb_lock);
                 tc_ptr = tb->tc_ptr;
                 env->current_tb = tb;
                 /* execute the generated code */

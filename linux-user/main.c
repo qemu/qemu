@@ -26,6 +26,8 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
+/* For tb_lock */
+#include "exec-all.h"
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
@@ -122,6 +124,135 @@ int64_t cpu_get_real_ticks(void)
 }
 
 #endif
+
+#if defined(USE_NPTL)
+/***********************************************************/
+/* Helper routines for implementing atomic operations.  */
+
+/* To implement exclusive operations we force all cpus to syncronise.
+   We don't require a full sync, only that no cpus are executing guest code.
+   The alternative is to map target atomic ops onto host equivalents,
+   which requires quite a lot of per host/target work.  */
+static pthread_mutex_t exclusive_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t exclusive_cond = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t exclusive_resume = PTHREAD_COND_INITIALIZER;
+static int pending_cpus;
+
+/* Make sure everything is in a consistent state for calling fork().  */
+void fork_start(void)
+{
+    mmap_fork_start();
+    pthread_mutex_lock(&tb_lock);
+    pthread_mutex_lock(&exclusive_lock);
+}
+
+void fork_end(int child)
+{
+    if (child) {
+        /* Child processes created by fork() only have a single thread.
+           Discard information about the parent threads.  */
+        first_cpu = thread_env;
+        thread_env->next_cpu = NULL;
+        pending_cpus = 0;
+        pthread_mutex_init(&exclusive_lock, NULL);
+        pthread_cond_init(&exclusive_cond, NULL);
+        pthread_cond_init(&exclusive_resume, NULL);
+        pthread_mutex_init(&tb_lock, NULL);
+    } else {
+        pthread_mutex_unlock(&exclusive_lock);
+        pthread_mutex_unlock(&tb_lock);
+    }
+    mmap_fork_end(child);
+}
+
+/* Wait for pending exclusive operations to complete.  The exclusive lock
+   must be held.  */
+static inline void exclusive_idle(void)
+{
+    while (pending_cpus) {
+        pthread_cond_wait(&exclusive_resume, &exclusive_lock);
+    }
+}
+
+/* Start an exclusive operation.
+   Must only be called from outside cpu_arm_exec.   */
+static inline void start_exclusive(void)
+{
+    CPUState *other;
+    pthread_mutex_lock(&exclusive_lock);
+    exclusive_idle();
+
+    pending_cpus = 1;
+    /* Make all other cpus stop executing.  */
+    for (other = first_cpu; other; other = other->next_cpu) {
+        if (other->running) {
+            pending_cpus++;
+            cpu_interrupt(other, CPU_INTERRUPT_EXIT);
+        }
+    }
+    if (pending_cpus > 1) {
+        pthread_cond_wait(&exclusive_cond, &exclusive_lock);
+    }
+}
+
+/* Finish an exclusive operation.  */
+static inline void end_exclusive(void)
+{
+    pending_cpus = 0;
+    pthread_cond_broadcast(&exclusive_resume);
+    pthread_mutex_unlock(&exclusive_lock);
+}
+
+/* Wait for exclusive ops to finish, and begin cpu execution.  */
+static inline void cpu_exec_start(CPUState *env)
+{
+    pthread_mutex_lock(&exclusive_lock);
+    exclusive_idle();
+    env->running = 1;
+    pthread_mutex_unlock(&exclusive_lock);
+}
+
+/* Mark cpu as not executing, and release pending exclusive ops.  */
+static inline void cpu_exec_end(CPUState *env)
+{
+    pthread_mutex_lock(&exclusive_lock);
+    env->running = 0;
+    if (pending_cpus > 1) {
+        pending_cpus--;
+        if (pending_cpus == 1) {
+            pthread_cond_signal(&exclusive_cond);
+        }
+    }
+    exclusive_idle();
+    pthread_mutex_unlock(&exclusive_lock);
+}
+#else /* if !USE_NPTL */
+/* These are no-ops because we are not threadsafe.  */
+static inline void cpu_exec_start(CPUState *env)
+{
+}
+
+static inline void cpu_exec_end(CPUState *env)
+{
+}
+
+static inline void start_exclusive(void)
+{
+}
+
+static inline void end_exclusive(void)
+{
+}
+
+void fork_start(void)
+{
+}
+
+void fork_end(int child)
+{
+}
+#endif
+
 
 #ifdef TARGET_I386
 /***********************************************************/
@@ -378,8 +509,11 @@ do_kernel_trap(CPUARMState *env)
         /* ??? No-op. Will need to do better for SMP.  */
         break;
     case 0xffff0fc0: /* __kernel_cmpxchg */
-        /* ??? This is not really atomic.  However we don't support
-           threads anyway, so it doesn't realy matter.  */
+         /* XXX: This only works between threads, not between processes.
+            It's probably possible to implement this with native host
+            operations. However things like ldrex/strex are much harder so
+            there's not much point trying.  */
+        start_exclusive();
         cpsr = cpsr_read(env);
         addr = env->regs[2];
         /* FIXME: This should SEGV if the access fails.  */
@@ -396,6 +530,7 @@ do_kernel_trap(CPUARMState *env)
             cpsr &= ~CPSR_C;
         }
         cpsr_write(env, cpsr, CPSR_C);
+        end_exclusive();
         break;
     case 0xffff0fe0: /* __kernel_get_tls */
         env->regs[0] = env->cp15.c13_tls2;
@@ -422,7 +557,9 @@ void cpu_loop(CPUARMState *env)
     uint32_t addr;
 
     for(;;) {
+        cpu_exec_start(env);
         trapnr = cpu_arm_exec(env);
+        cpu_exec_end(env);
         switch(trapnr) {
         case EXCP_UDEF:
             {
@@ -2044,8 +2181,7 @@ void usage(void)
     _exit(1);
 }
 
-/* XXX: currently only used for async signals (see signal.c) */
-CPUState *global_env;
+THREAD CPUState *thread_env;
 
 void init_task_state(TaskState *ts)
 {
@@ -2203,7 +2339,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    global_env = env;
+    thread_env = env;
 
     if (getenv("QEMU_STRACE")) {
         do_strace = 1;

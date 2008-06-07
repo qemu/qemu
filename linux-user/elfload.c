@@ -89,7 +89,7 @@ enum {
 static const char *get_elf_platform(void)
 {
     static char elf_platform[] = "i386";
-    int family = (global_env->cpuid_version >> 8) & 0xff;
+    int family = (thread_env->cpuid_version >> 8) & 0xff;
     if (family > 6)
         family = 6;
     if (family >= 3)
@@ -101,7 +101,7 @@ static const char *get_elf_platform(void)
 
 static uint32_t get_elf_hwcap(void)
 {
-  return global_env->cpuid_features;
+  return thread_env->cpuid_features;
 }
 
 #ifdef TARGET_X86_64
