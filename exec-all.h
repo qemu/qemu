@@ -184,32 +184,37 @@ extern int code_gen_max_blocks;
 #if defined(USE_DIRECT_JUMP)
 
 #if defined(__powerpc__)
+static inline void flush_icache_range(unsigned long start, unsigned long stop);
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
-    uint32_t val, *ptr;
+    /* This must be in concord with INDEX_op_goto_tb inside tcg_out_op */
+    uint32_t *ptr;
     long disp = addr - jmp_addr;
+    unsigned long patch_size;
 
     ptr = (uint32_t *)jmp_addr;
-    val = *ptr;
 
     if ((disp << 6) >> 6 != disp) {
-        uint16_t *p1;
-
-        p1 = (uint16_t *) ptr;
-        *ptr = (val & ~0x03fffffc) | 4;
-        p1[3] = addr >> 16;
-        p1[5] = addr & 0xffff;
+        ptr[0] = 0x3c000000 | (addr >> 16);    /* lis 0,addr@ha */
+        ptr[1] = 0x60000000 | (addr & 0xffff); /* la  0,addr@l(0) */
+        ptr[2] = 0x7c0903a6;                   /* mtctr 0 */
+        ptr[3] = 0x4e800420;                   /* brctr */
+        patch_size = 16;
     } else {
         /* patch the branch destination */
-        val = (val & ~0x03fffffc) | (disp & 0x03fffffc);
-        *ptr = val;
+        if (disp != 16) {
+            *ptr = 0x48000000 | (disp & 0x03fffffc); /* b disp */
+            patch_size = 4;
+        } else {
+            ptr[0] = 0x60000000; /* nop */
+            ptr[1] = 0x60000000;
+            ptr[2] = 0x60000000;
+            ptr[3] = 0x60000000;
+            patch_size = 16;
+        }
     }
     /* flush icache */
-    asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
-    asm volatile ("sync" : : : "memory");
-    asm volatile ("icbi 0,%0" : : "r"(ptr) : "memory");
-    asm volatile ("sync" : : : "memory");
-    asm volatile ("isync" : : : "memory");
+    flush_icache_range(jmp_addr, jmp_addr + patch_size);
 }
 #elif defined(__i386__) || defined(__x86_64__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)

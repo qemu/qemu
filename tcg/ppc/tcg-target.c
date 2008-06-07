@@ -388,7 +388,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     else {
         tcg_out32 (s, ADDIS | RT (ret) | RA (0) | ((arg >> 16) & 0xffff));
         if (arg & 0xffff)
-            tcg_out32 (s, ORI | RT (ret) | RA (ret) | (arg & 0xffff));
+            tcg_out32 (s, ORI | RS (ret) | RA (ret) | (arg & 0xffff));
     }
 }
 
@@ -939,18 +939,14 @@ static void tcg_out_brcond(TCGContext *s, int cond,
             tcg_out32 (s, op | RA (arg1) | RB (arg2));
     }
 
-    if (l->has_value) {
-        tcg_target_long disp;
-
-        disp = (tcg_target_long) s->code_ptr - l->u.value;
-        if (disp != (int16_t) disp)
-            tcg_abort ();
-
+    if (l->has_value)
         tcg_out32 (s, tcg_to_bc[cond] | reloc_pc14_val (s->code_ptr,
                                                         l->u.value));
-    }
     else {
-        tcg_out32 (s, tcg_to_bc[cond]);
+        uint16_t val = *(uint16_t *) &s->code_ptr[2];
+
+        /* Thanks to Andrzej Zaborowski */
+        tcg_out32 (s, tcg_to_bc[cond] | (val & 0xfffc));
         tcg_out_reloc (s, s->code_ptr - 4, R_PPC_REL14, label_index, 0);
     }
 }
@@ -1029,24 +1025,9 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* direct jump method */
-            uint32_t val;
-            uint16_t *p;
 
             s->tb_jmp_offset[args[0]] = s->code_ptr - s->code_buf;
-            /* Thanks to Andrzej Zaborowski for this */
-            val = *(uint32_t *) s->code_ptr & 0x3fffffc;
-
-            tcg_out32 (s, B | val);
-
-            /* For branches outside of LL range
-               This must be in concord with tb_set_jmp_target1 */
-            p = (uint16_t *) s->code_ptr;
-            p[0] = (ADDIS | RT (0) | RA (0)) >> 16;
-            p[2] = (ORI | RT (0) | RA (0)) >> 16;
-            s->code_ptr += 8;
-
-            tcg_out32 (s, MTSPR | RS (0) | CTR);
-            tcg_out32 (s, BCCTR | BO_ALWAYS);
+            s->code_ptr += 16;
         }
         else {
             tcg_abort ();
@@ -1061,7 +1042,10 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
                 tcg_out_b (s, 0, l->u.value);
             }
             else {
-                tcg_out32 (s, B);
+                uint32_t val = *(uint32_t *) s->code_ptr;
+
+                /* Thanks to Andrzej Zaborowski */
+                tcg_out32 (s, B | (val & 0x3fffffc));
                 tcg_out_reloc (s, s->code_ptr - 4, R_PPC_REL24, args[0], 0);
             }
         }
@@ -1222,10 +1206,10 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_div2_i32:
         if (args[0] == args[2] || args[0] == args[3]) {
             tcg_out32 (s, DIVW | TAB (0, args[2], args[3]));
+            tcg_out32 (s, MTSPR | RS (0) | CTR);
             tcg_out32 (s, MULLW | TAB (0, 0, args[3]));
-            tcg_out32 (s, SUBF | TAB (0, 0, args[2]));
-            tcg_out32 (s, DIVW | TAB (args[0], args[2], args[3]));
-            tcg_out_mov (s, args[1], 0);
+            tcg_out32 (s, SUBF | TAB (args[1], 0, args[2]));
+            tcg_out32 (s, MFSPR | RT (args[0]) | CTR);
         }
         else {
             tcg_out32 (s, DIVW | TAB (args[0], args[2], args[3]));
@@ -1236,10 +1220,10 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
     case INDEX_op_divu2_i32:
         if (args[0] == args[2] || args[0] == args[3]) {
             tcg_out32 (s, DIVWU | TAB (0, args[2], args[3]));
+            tcg_out32 (s, MTSPR | RS (0) | CTR);
             tcg_out32 (s, MULLW | TAB (0, 0, args[3]));
-            tcg_out32 (s, SUBF | TAB (0, 0, args[2]));
-            tcg_out32 (s, DIVWU | TAB (args[0], args[2], args[3]));
-            tcg_out_mov (s, args[1], 0);
+            tcg_out32 (s, SUBF | TAB (args[1], 0, args[2]));
+            tcg_out32 (s, MFSPR | RT (args[0]) | CTR);
         }
         else {
             tcg_out32 (s, DIVWU | TAB (args[0], args[2], args[3]));
