@@ -254,6 +254,12 @@ static int oss_open (int in, struct oss_params *req,
         goto err;
     }
 
+    if (!abinfo.fragstotal || !abinfo.fragsize) {
+        AUD_log (AUDIO_CAP, "Returned bogus buffer information(%d, %d) for %s\n",
+                 abinfo.fragstotal, abinfo.fragsize, typ);
+        goto err;
+    }
+
     obt->fmt = fmt;
     obt->nchannels = nchannels;
     obt->freq = freq;
