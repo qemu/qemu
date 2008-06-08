@@ -166,14 +166,19 @@ int kqemu_init(CPUState *env)
                           FILE_SHARE_READ | FILE_SHARE_WRITE,
                           NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
                           NULL);
+    if (kqemu_fd == KQEMU_INVALID_FD) {
+        fprintf(stderr, "Could not open '%s' - QEMU acceleration layer not activated: %lu\n",
+                KQEMU_DEVICE, GetLastError());
+        return -1;
+    }
 #else
     kqemu_fd = open(KQEMU_DEVICE, O_RDWR);
-#endif
     if (kqemu_fd == KQEMU_INVALID_FD) {
         fprintf(stderr, "Could not open '%s' - QEMU acceleration layer not activated: %s\n",
                 KQEMU_DEVICE, strerror(errno));
         return -1;
     }
+#endif
     version = 0;
 #ifdef _WIN32
     DeviceIoControl(kqemu_fd, KQEMU_GET_VERSION, NULL, 0,
