@@ -35,10 +35,7 @@
 #include "audio/audio.h"
 #include "disas.h"
 #include <dirent.h>
-
-#ifdef CONFIG_PROFILER
-#include "qemu-timer.h" /* for ticks_per_sec */
-#endif
+#include "qemu-timer.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -920,14 +917,37 @@ static int get_keycode(const char *key)
     return -1;
 }
 
-static void do_sendkey(const char *string)
+#define MAX_KEYCODES 16
+static uint8_t keycodes[MAX_KEYCODES];
+static int nb_pending_keycodes;
+static QEMUTimer *key_timer;
+
+static void release_keys(void *opaque)
 {
-    uint8_t keycodes[16];
-    int nb_keycodes = 0;
+    int keycode;
+
+    while (nb_pending_keycodes > 0) {
+        nb_pending_keycodes--;
+        keycode = keycodes[nb_pending_keycodes];
+        if (keycode & 0x80)
+            kbd_put_keycode(0xe0);
+        kbd_put_keycode(keycode | 0x80);
+    }
+}
+
+static void do_sendkey(const char *string, int has_hold_time, int hold_time)
+{
     char keyname_buf[16];
     char *separator;
     int keyname_len, keycode, i;
 
+    if (nb_pending_keycodes > 0) {
+        qemu_del_timer(key_timer);
+        release_keys(NULL);
+    }
+    if (!has_hold_time)
+        hold_time = 100;
+    i = 0;
     while (1) {
         separator = strchr(string, '-');
         keyname_len = separator ? separator - string : strlen(string);
@@ -937,7 +957,7 @@ static void do_sendkey(const char *string)
                 term_printf("invalid key: '%s...'\n", keyname_buf);
                 return;
             }
-            if (nb_keycodes == sizeof(keycodes)) {
+            if (i == MAX_KEYCODES) {
                 term_printf("too many keys\n");
                 return;
             }
@@ -947,26 +967,23 @@ static void do_sendkey(const char *string)
                 term_printf("unknown key: '%s'\n", keyname_buf);
                 return;
             }
-            keycodes[nb_keycodes++] = keycode;
+            keycodes[i++] = keycode;
         }
         if (!separator)
             break;
         string = separator + 1;
     }
+    nb_pending_keycodes = i;
     /* key down events */
-    for(i = 0; i < nb_keycodes; i++) {
+    for (i = 0; i < nb_pending_keycodes; i++) {
         keycode = keycodes[i];
         if (keycode & 0x80)
             kbd_put_keycode(0xe0);
         kbd_put_keycode(keycode & 0x7f);
     }
-    /* key up events */
-    for(i = nb_keycodes - 1; i >= 0; i--) {
-        keycode = keycodes[i];
-        if (keycode & 0x80)
-            kbd_put_keycode(0xe0);
-        kbd_put_keycode(keycode | 0x80);
-    }
+    /* delayed key up events */
+    qemu_mod_timer(key_timer,
+                   qemu_get_clock(vm_clock) + ticks_per_sec * hold_time);
 }
 
 static int mouse_button_state;
@@ -1353,8 +1370,8 @@ static term_cmd_t term_cmds[] = {
     { "i", "/ii.", do_ioport_read,
       "/fmt addr", "I/O port read" },
 
-    { "sendkey", "s", do_sendkey,
-      "keys", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1')" },
+    { "sendkey", "si?", do_sendkey,
+      "keys [hold_ms]", "send keys to the VM (e.g. 'sendkey ctrl-alt-f1', default hold time=100 ms)" },
     { "system_reset", "", do_system_reset,
       "", "reset the system" },
     { "system_powerdown", "", do_system_powerdown,
@@ -2638,6 +2655,9 @@ void monitor_init(CharDriverState *hd, int show_banner)
     int i;
 
     if (is_first_init) {
+        key_timer = qemu_new_timer(vm_clock, release_keys, NULL);
+        if (!key_timer)
+            return;
         for (i = 0; i < MAX_MON; i++) {
             monitor_hd[i] = NULL;
         }

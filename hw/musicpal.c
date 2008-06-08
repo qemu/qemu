@@ -1504,12 +1504,6 @@ static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
 
     qemu_add_kbd_event_handler(musicpal_key_event, pic[MP_GPIO_IRQ]);
 
-    /*
-     * Wait a bit to catch menu button during U-Boot start-up
-     * (to trigger emergency update).
-     */
-    sleep(1);
-
     mv88w8618_eth_init(&nd_table[0], MP_ETH_BASE, pic[MP_ETH_IRQ]);
 
     mixer_i2c = musicpal_audio_init(MP_AUDIO_BASE, pic[MP_AUDIO_IRQ]);
