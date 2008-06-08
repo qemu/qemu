@@ -33,7 +33,7 @@
 
 /* samples are always 16bit stereo (4 bytes each, first right then left interleaved) */
 void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int numsamples,
-                   short *bufferpos)
+                   GUSsample *bufferpos)
 {
     /* note that byte registers are stored in the upper half of each voice register! */
     GUSbyte        *gusptr;
@@ -170,8 +170,8 @@ void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int
                 }
 
                 /* mix samples into buffer */
-                *(bufferpos + 2 * sample)     += (short) ((sample1 * PanningPos) >> 4);        /* right */
-                *(bufferpos + 2 * sample + 1) += (short) ((sample1 * (15 - PanningPos)) >> 4); /* left */
+                *(bufferpos + 2 * sample)     += (GUSsample) ((sample1 * PanningPos) >> 4);        /* right */
+                *(bufferpos + 2 * sample + 1) += (GUSsample) ((sample1 * (15 - PanningPos)) >> 4); /* left */
             }
             /* write back voice and volume */
             GUSvoice(wVSRCurrVol)   = Volume32 / 32;
