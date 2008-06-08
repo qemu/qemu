@@ -7476,6 +7476,11 @@ static void mips_tcg_init(void)
     cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
 #endif
 
+    /* register helpers */
+#undef DEF_HELPER
+#define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
+#include "helper.h"
+
     inited = 1;
 }
 
