@@ -95,11 +95,13 @@ unsigned long code_gen_buffer_size;
 unsigned long code_gen_buffer_max_size; 
 uint8_t *code_gen_ptr;
 
+#if !defined(CONFIG_USER_ONLY)
 ram_addr_t phys_ram_size;
 int phys_ram_fd;
 uint8_t *phys_ram_base;
 uint8_t *phys_ram_dirty;
 static ram_addr_t phys_ram_alloc_offset = 0;
+#endif
 
 CPUState *first_cpu;
 /* current CPU in the current thread. It is only valid inside
@@ -137,8 +139,6 @@ typedef struct PhysPageDesc {
 #define L1_SIZE (1 << L1_BITS)
 #define L2_SIZE (1 << L2_BITS)
 
-static void io_mem_init(void);
-
 unsigned long qemu_real_host_page_size;
 unsigned long qemu_host_page_bits;
 unsigned long qemu_host_page_size;
@@ -148,12 +148,14 @@ unsigned long qemu_host_page_mask;
 static PageDesc *l1_map[L1_SIZE];
 PhysPageDesc **l1_phys_map;
 
+#if !defined(CONFIG_USER_ONLY)
+static void io_mem_init(void);
+
 /* io memory support */
 CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 static int io_mem_nb;
-#if defined(CONFIG_SOFTMMU)
 static int io_mem_watch;
 #endif
 
@@ -408,7 +410,9 @@ void cpu_exec_init_all(unsigned long tb_size)
     code_gen_alloc(tb_size);
     code_gen_ptr = code_gen_buffer;
     page_init();
+#if !defined(CONFIG_USER_ONLY)
     io_mem_init();
+#endif
 }
 
 void cpu_exec_init(CPUState *env)
@@ -1536,9 +1540,6 @@ void tlb_flush(CPUState *env, int flush_global)
 
     memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
 
-#if !defined(CONFIG_SOFTMMU)
-    munmap((void *)MMAP_AREA_START, MMAP_AREA_END - MMAP_AREA_START);
-#endif
 #ifdef USE_KQEMU
     if (env->kqemu_enabled) {
         kqemu_flush(env, flush_global);
@@ -1585,10 +1586,6 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
 
     tlb_flush_jmp_cache(env, addr);
 
-#if !defined(CONFIG_SOFTMMU)
-    if (addr < MMAP_AREA_END)
-        munmap((void *)addr, TARGET_PAGE_SIZE);
-#endif
 #ifdef USE_KQEMU
     if (env->kqemu_enabled) {
         kqemu_flush_page(env, addr);
@@ -1674,34 +1671,6 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
 #endif
 #endif
     }
-
-#if !defined(CONFIG_SOFTMMU)
-    /* XXX: this is expensive */
-    {
-        VirtPageDesc *p;
-        int j;
-        target_ulong addr;
-
-        for(i = 0; i < L1_SIZE; i++) {
-            p = l1_virt_map[i];
-            if (p) {
-                addr = i << (TARGET_PAGE_BITS + L2_BITS);
-                for(j = 0; j < L2_SIZE; j++) {
-                    if (p->valid_tag == virt_valid_tag &&
-                        p->phys_addr >= start && p->phys_addr < end &&
-                        (p->prot & PROT_WRITE)) {
-                        if (addr < MMAP_AREA_END) {
-                            mprotect((void *)addr, TARGET_PAGE_SIZE,
-                                     p->prot & ~PROT_WRITE);
-                        }
-                    }
-                    addr += TARGET_PAGE_SIZE;
-                    p++;
-                }
-            }
-        }
-    }
-#endif
 }
 
 static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
@@ -1795,9 +1764,6 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
 #endif
 
     ret = 0;
-#if !defined(CONFIG_SOFTMMU)
-    if (is_softmmu)
-#endif
     {
         if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
             /* IO memory case */
@@ -1857,90 +1823,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
             te->addr_write = -1;
         }
     }
-#if !defined(CONFIG_SOFTMMU)
-    else {
-        if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
-            /* IO access: no mapping is done as it will be handled by the
-               soft MMU */
-            if (!(env->hflags & HF_SOFTMMU_MASK))
-                ret = 2;
-        } else {
-            void *map_addr;
-
-            if (vaddr >= MMAP_AREA_END) {
-                ret = 2;
-            } else {
-                if (prot & PROT_WRITE) {
-                    if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM ||
-#if defined(TARGET_HAS_SMC) || 1
-                        first_tb ||
-#endif
-                        ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM &&
-                         !cpu_physical_memory_is_dirty(pd))) {
-                        /* ROM: we do as if code was inside */
-                        /* if code is present, we only map as read only and save the
-                           original mapping */
-                        VirtPageDesc *vp;
-
-                        vp = virt_page_find_alloc(vaddr >> TARGET_PAGE_BITS, 1);
-                        vp->phys_addr = pd;
-                        vp->prot = prot;
-                        vp->valid_tag = virt_valid_tag;
-                        prot &= ~PAGE_WRITE;
-                    }
-                }
-                map_addr = mmap((void *)vaddr, TARGET_PAGE_SIZE, prot,
-                                MAP_SHARED | MAP_FIXED, phys_ram_fd, (pd & TARGET_PAGE_MASK));
-                if (map_addr == MAP_FAILED) {
-                    cpu_abort(env, "mmap failed when mapped physical address 0x%08x to virtual address 0x%08x\n",
-                              paddr, vaddr);
-                }
-            }
-        }
-    }
-#endif
     return ret;
-}
-
-/* called from signal handler: invalidate the code and unprotect the
-   page. Return TRUE if the fault was succesfully handled. */
-int page_unprotect(target_ulong addr, unsigned long pc, void *puc)
-{
-#if !defined(CONFIG_SOFTMMU)
-    VirtPageDesc *vp;
-
-#if defined(DEBUG_TLB)
-    printf("page_unprotect: addr=0x%08x\n", addr);
-#endif
-    addr &= TARGET_PAGE_MASK;
-
-    /* if it is not mapped, no need to worry here */
-    if (addr >= MMAP_AREA_END)
-        return 0;
-    vp = virt_page_find(addr >> TARGET_PAGE_BITS);
-    if (!vp)
-        return 0;
-    /* NOTE: in this case, validate_tag is _not_ tested as it
-       validates only the code TLB */
-    if (vp->valid_tag != virt_valid_tag)
-        return 0;
-    if (!(vp->prot & PAGE_WRITE))
-        return 0;
-#if defined(DEBUG_TLB)
-    printf("page_unprotect: addr=0x%08x phys_addr=0x%08x prot=%x\n",
-           addr, vp->phys_addr, vp->prot);
-#endif
-    if (mprotect((void *)addr, TARGET_PAGE_SIZE, vp->prot) < 0)
-        cpu_abort(cpu_single_env, "error mprotect addr=0x%lx prot=%d\n",
-                  (unsigned long)addr, vp->prot);
-    /* set the dirty bit */
-    phys_ram_dirty[vp->phys_addr >> TARGET_PAGE_BITS] = 0xff;
-    /* flush the code inside */
-    tb_invalidate_phys_page(vp->phys_addr, pc, puc);
-    return 1;
-#else
-    return 0;
-#endif
 }
 
 #else
@@ -2130,6 +2013,7 @@ static inline void tlb_set_dirty(CPUState *env,
 }
 #endif /* defined(CONFIG_USER_ONLY) */
 
+#if !defined(CONFIG_USER_ONLY)
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              ram_addr_t memory);
 static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
@@ -2387,7 +2271,6 @@ static CPUWriteMemoryFunc *notdirty_mem_write[3] = {
     notdirty_mem_writel,
 };
 
-#if defined(CONFIG_SOFTMMU)
 /* Watchpoint access routines.  Watchpoints are inserted using TLB tricks,
    so these check for a hit then pass through to the normal out-of-line
    phys routines.  */
@@ -2463,7 +2346,6 @@ static CPUWriteMemoryFunc *watch_mem_write[3] = {
     watch_mem_writew,
     watch_mem_writel,
 };
-#endif
 
 static inline uint32_t subpage_readlen (subpage_t *mmio, target_phys_addr_t addr,
                                  unsigned int len)
@@ -2619,10 +2501,8 @@ static void io_mem_init(void)
     cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, error_mem_read, notdirty_mem_write, NULL);
     io_mem_nb = 5;
 
-#if defined(CONFIG_SOFTMMU)
     io_mem_watch = cpu_register_io_memory(-1, watch_mem_read,
                                           watch_mem_write, NULL);
-#endif
     /* alloc dirty bits array */
     phys_ram_dirty = qemu_vmalloc(phys_ram_size >> TARGET_PAGE_BITS);
     memset(phys_ram_dirty, 0xff, phys_ram_size >> TARGET_PAGE_BITS);
@@ -2671,6 +2551,8 @@ CPUReadMemoryFunc **cpu_get_io_memory_read(int io_index)
 {
     return io_mem_read[io_index >> IO_MEM_SHIFT];
 }
+
+#endif /* !defined(CONFIG_USER_ONLY) */
 
 /* physical memory access (slow version, mainly for debug) */
 #if defined(CONFIG_USER_ONLY)

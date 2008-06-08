@@ -24,6 +24,10 @@
 #include "mmu.h"
 #include "helper.h"
 
+#define D(x)
+
+#if !defined(CONFIG_USER_ONLY)
+
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
@@ -37,8 +41,6 @@
 
 #define SHIFT 3
 #include "softmmu_template.h"
-
-#define D(x)
 
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
@@ -77,6 +79,8 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     }
     env = saved_env;
 }
+
+#endif
 
 void helper_raise_exception(uint32_t index)
 {
