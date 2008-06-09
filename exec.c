@@ -263,13 +263,33 @@ static inline PageDesc *page_find_alloc(target_ulong index)
 {
     PageDesc **lp, *p;
 
+#if TARGET_LONG_BITS > 32
+    /* Host memory outside guest VM.  For 32-bit targets we have already
+       excluded high addresses.  */
+    if (index > ((target_ulong)L2_SIZE * L1_SIZE * TARGET_PAGE_SIZE))
+        return NULL;
+#endif
     lp = &l1_map[index >> L2_BITS];
     p = *lp;
     if (!p) {
         /* allocate if not found */
-        p = qemu_malloc(sizeof(PageDesc) * L2_SIZE);
-        memset(p, 0, sizeof(PageDesc) * L2_SIZE);
+#if defined(CONFIG_USER_ONLY)
+        unsigned long addr;
+        size_t len = sizeof(PageDesc) * L2_SIZE;
+        /* Don't use qemu_malloc because it may recurse.  */
+        p = mmap(0, len, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         *lp = p;
+        addr = h2g(p);
+        if (addr == (target_ulong)addr) {
+            page_set_flags(addr & TARGET_PAGE_MASK,
+                           TARGET_PAGE_ALIGN(addr + len),
+                           PAGE_RESERVED); 
+        }
+#else
+        p = qemu_mallocz(sizeof(PageDesc) * L2_SIZE);
+        *lp = p;
+#endif
     }
     return p + (index & (L2_SIZE - 1));
 }
@@ -1912,6 +1932,10 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
         flags |= PAGE_WRITE_ORG;
     for(addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
         p = page_find_alloc(addr >> TARGET_PAGE_BITS);
+        /* We may be called for host regions that are outside guest
+           address space.  */
+        if (!p)
+            return;
         /* if the write protection is set, then we invalidate the code
            inside */
         if (!(p->flags & PAGE_WRITE) &&
