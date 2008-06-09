@@ -735,7 +735,7 @@ static void cris_evaluate_flags(DisasContext *dc)
 			else
 				tcg_gen_andi_tl(cpu_PR[PR_CCS], 
 						cpu_PR[PR_CCS], ~X_FLAG);
-        }
+	        }
 
 		dc->flags_uptodate = 1;
 	}
@@ -1530,7 +1530,6 @@ static unsigned int dec_btstq(DisasContext *dc)
 
 	cris_cc_mask(dc, CC_MASK_NZ);
 
-	t_gen_mov_TN_reg(cpu_T[0], dc->op2);
 	cris_alu(dc, CC_OP_BTST,
 		    cpu_T[0], cpu_R[dc->op2], tcg_const_tl(dc->op1), 4);
 	cris_update_cc_op(dc, CC_OP_FLAGS, 4);
@@ -1968,11 +1967,10 @@ static unsigned int dec_movs_r(DisasContext *dc)
 		    dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZ);
-	t_gen_mov_TN_reg(cpu_T[0], dc->op1);
 	/* Size can only be qi or hi.  */
 	t_gen_sext(cpu_T[1], cpu_R[dc->op1], size);
 	cris_alu(dc, CC_OP_MOVE,
-		    cpu_R[dc->op2], cpu_T[0], cpu_T[1], 4);
+		    cpu_R[dc->op2], cpu_R[dc->op1], cpu_T[1], 4);
 	return 2;
 }
 
@@ -2788,7 +2786,9 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 			break;
 		case 5:
 			/* rfn.  */
-			BUG();
+			cris_evaluate_flags(dc);
+			tcg_gen_helper_0_0(helper_rfn);
+			dc->is_jmp = DISAS_UPDATE;
 			break;
 		case 6:
 			/* break.  */
@@ -3271,12 +3271,20 @@ void cpu_dump_state (CPUState *env, FILE *f,
 CPUCRISState *cpu_cris_init (const char *cpu_model)
 {
 	CPUCRISState *env;
+	static int tcg_initialized = 0;
 	int i;
 
 	env = qemu_mallocz(sizeof(CPUCRISState));
 	if (!env)
 		return NULL;
+
 	cpu_exec_init(env);
+	cpu_reset(env);
+
+	if (tcg_initialized)
+		return env;
+
+	tcg_initialized = 1;
 
 	cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
 #if TARGET_LONG_BITS > HOST_LONG_BITS
@@ -3337,6 +3345,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	TCG_HELPER(helper_movl_sreg_reg);
 	TCG_HELPER(helper_movl_reg_sreg);
 	TCG_HELPER(helper_rfe);
+	TCG_HELPER(helper_rfn);
 
 	TCG_HELPER(helper_evaluate_flags_muls);
 	TCG_HELPER(helper_evaluate_flags_mulu);
@@ -3346,8 +3355,6 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	TCG_HELPER(helper_evaluate_flags_move_2);
 	TCG_HELPER(helper_evaluate_flags);
 	TCG_HELPER(helper_top_evaluate_flags);
-
-	cpu_reset(env);
 	return env;
 }
 
