@@ -1057,7 +1057,13 @@ static void tcg_out_div2 (TCGContext *s, int uns)
 {
     void *label1_ptr, *label2_ptr;
 
-    tcg_out32 (s, CMPLI | BF (7) | RA (3));
+    if (uns)
+        tcg_out32 (s, CMPLI | BF (7) | RA (3));
+    else {
+        tcg_out32 (s, SRAWI | RS (4) | RA (0) | 31);
+        tcg_out32 (s, CMPL | BF (7) | RA (3) | RB (4));
+    }
+
     label1_ptr = s->code_ptr;
     tcg_out32 (s, BC | BI (7, CR_EQ) | BO_COND_TRUE);
 
