@@ -30,16 +30,7 @@
 #include "devices.h"
 #include "boards.h"
 
-#include "etraxfs_dma.h"
-
-/* Init functions for different blocks.  */
-extern qemu_irq *etraxfs_pic_init(CPUState *env, target_phys_addr_t base);
-void etraxfs_timer_init(CPUState *env, qemu_irq *irqs,
-                        target_phys_addr_t base);
-void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
-                       qemu_irq *irq, target_phys_addr_t base);
-void etraxfs_ser_init(CPUState *env, qemu_irq *irq, CharDriverState *chr,
-                      target_phys_addr_t base);
+#include "etraxfs.h"
 
 #define FLASH_SIZE 0x2000000
 #define INTMEM_SIZE (128 * 1024)
@@ -62,7 +53,7 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
                        const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    qemu_irq *pic;
+    struct etraxfs_pic *pic;
     void *etraxfs_dmac;
     struct etraxfs_dma_client *eth[2] = {NULL, NULL};
     int kernel_size;
@@ -110,13 +101,13 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
     etraxfs_dmac = etraxfs_dmac_init(env, 0xb0000000, 10);
     for (i = 0; i < 10; i++) {
         /* On ETRAX, odd numbered channels are inputs.  */
-        etraxfs_dmac_connect(etraxfs_dmac, i, pic + 7 + i, i & 1);
+        etraxfs_dmac_connect(etraxfs_dmac, i, pic->irq + 7 + i, i & 1);
     }
 
     /* Add the two ethernet blocks.  */
-    eth[0] = etraxfs_eth_init(&nd_table[0], env, pic + 25, 0xb0034000);
+    eth[0] = etraxfs_eth_init(&nd_table[0], env, pic->irq + 25, 0xb0034000);
     if (nb_nics > 1)
-        eth[1] = etraxfs_eth_init(&nd_table[1], env, pic + 26, 0xb0036000);
+        eth[1] = etraxfs_eth_init(&nd_table[1], env, pic->irq + 26, 0xb0036000);
 
     /* The DMA Connector block is missing, hardwire things for now.  */
     etraxfs_dmac_connect_client(etraxfs_dmac, 0, eth[0]);
@@ -127,12 +118,12 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* 2 timers.  */
-    etraxfs_timer_init(env, pic + 0x1b, 0xb001e000);
-    etraxfs_timer_init(env, pic + 0x1b, 0xb005e000);
+    etraxfs_timer_init(env, pic->irq + 0x1b, pic->nmi + 1, 0xb001e000);
+    etraxfs_timer_init(env, pic->irq + 0x1b, pic->nmi + 1, 0xb005e000);
 
     for (i = 0; i < 4; i++) {
         if (serial_hds[i]) {
-            etraxfs_ser_init(env, pic + 0x14 + i,
+            etraxfs_ser_init(env, pic->irq + 0x14 + i,
                              serial_hds[i], 0xb0026000 + i * 0x2000);
         }
     }
