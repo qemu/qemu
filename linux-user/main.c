@@ -2183,11 +2183,11 @@ void usage(void)
 
 THREAD CPUState *thread_env;
 
+/* Assumes contents are already zeroed.  */
 void init_task_state(TaskState *ts)
 {
     int i;
  
-    memset(ts, 0, sizeof(TaskState));
     ts->used = 1;
     ts->first_free = ts->sigqueue_table;
     for (i = 0; i < MAX_SIGQUEUE_SIZE - 1; i++) {

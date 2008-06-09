@@ -2787,7 +2787,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         new_thread_info info;
         pthread_attr_t attr;
 #endif
-        ts = malloc(sizeof(TaskState) + NEW_STACK_SIZE);
+        ts = qemu_mallocz(sizeof(TaskState) + NEW_STACK_SIZE);
         init_task_state(ts);
         new_stack = ts->stack;
         /* we create a new CPU instance. */
