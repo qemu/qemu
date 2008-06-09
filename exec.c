@@ -121,7 +121,7 @@ typedef struct PageDesc {
 } PageDesc;
 
 typedef struct PhysPageDesc {
-    /* offset in host memory of the page + io_index in the low 12 bits */
+    /* offset in host memory of the page + io_index in the low bits */
     ram_addr_t phys_offset;
 } PhysPageDesc;
 
@@ -1188,7 +1188,7 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 #endif
 
 /* Add a watchpoint.  */
-int  cpu_watchpoint_insert(CPUState *env, target_ulong addr)
+int cpu_watchpoint_insert(CPUState *env, target_ulong addr, int type)
 {
     int i;
 
@@ -1201,6 +1201,7 @@ int  cpu_watchpoint_insert(CPUState *env, target_ulong addr)
 
     i = env->nb_watchpoints++;
     env->watchpoint[i].vaddr = addr;
+    env->watchpoint[i].type = type;
     tlb_flush_page(env, addr);
     /* FIXME: This flush is needed because of the hack to make memory ops
        terminate the TB.  It can be removed once the proper IO trap and
@@ -1617,7 +1618,7 @@ static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry,
     if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
         addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend;
         if ((addr - start) < length) {
-            tlb_entry->addr_write = (tlb_entry->addr_write & TARGET_PAGE_MASK) | IO_MEM_NOTDIRTY;
+            tlb_entry->addr_write = (tlb_entry->addr_write & TARGET_PAGE_MASK) | TLB_NOTDIRTY;
         }
     }
 }
@@ -1681,7 +1682,7 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
         ram_addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) +
             tlb_entry->addend - (unsigned long)phys_ram_base;
         if (!cpu_physical_memory_is_dirty(ram_addr)) {
-            tlb_entry->addr_write |= IO_MEM_NOTDIRTY;
+            tlb_entry->addr_write |= TLB_NOTDIRTY;
         }
     }
 }
@@ -1704,33 +1705,26 @@ void cpu_tlb_update_dirty(CPUState *env)
 #endif
 }
 
-static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry,
-                                  unsigned long start)
+static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, target_ulong vaddr)
 {
-    unsigned long addr;
-    if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == IO_MEM_NOTDIRTY) {
-        addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend;
-        if (addr == start) {
-            tlb_entry->addr_write = (tlb_entry->addr_write & TARGET_PAGE_MASK) | IO_MEM_RAM;
-        }
-    }
+    if (tlb_entry->addr_write == (vaddr | TLB_NOTDIRTY))
+        tlb_entry->addr_write = vaddr;
 }
 
-/* update the TLB corresponding to virtual page vaddr and phys addr
-   addr so that it is no longer dirty */
-static inline void tlb_set_dirty(CPUState *env,
-                                 unsigned long addr, target_ulong vaddr)
+/* update the TLB corresponding to virtual page vaddr
+   so that it is no longer dirty */
+static inline void tlb_set_dirty(CPUState *env, target_ulong vaddr)
 {
     int i;
 
-    addr &= TARGET_PAGE_MASK;
+    vaddr &= TARGET_PAGE_MASK;
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    tlb_set_dirty1(&env->tlb_table[0][i], addr);
-    tlb_set_dirty1(&env->tlb_table[1][i], addr);
+    tlb_set_dirty1(&env->tlb_table[0][i], vaddr);
+    tlb_set_dirty1(&env->tlb_table[1][i], vaddr);
 #if (NB_MMU_MODES >= 3)
-    tlb_set_dirty1(&env->tlb_table[2][i], addr);
+    tlb_set_dirty1(&env->tlb_table[2][i], vaddr);
 #if (NB_MMU_MODES == 4)
-    tlb_set_dirty1(&env->tlb_table[3][i], addr);
+    tlb_set_dirty1(&env->tlb_table[3][i], vaddr);
 #endif
 #endif
 }
@@ -1747,10 +1741,12 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     unsigned long pd;
     unsigned int index;
     target_ulong address;
+    target_ulong code_address;
     target_phys_addr_t addend;
     int ret;
     CPUTLBEntry *te;
     int i;
+    target_phys_addr_t iotlb;
 
     p = phys_page_find(paddr >> TARGET_PAGE_BITS);
     if (!p) {
@@ -1764,64 +1760,69 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
 #endif
 
     ret = 0;
-    {
-        if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
-            /* IO memory case */
-            address = vaddr | pd;
-            addend = paddr;
-        } else {
-            /* standard memory */
-            address = vaddr;
-            addend = (unsigned long)phys_ram_base + (pd & TARGET_PAGE_MASK);
-        }
+    address = vaddr;
+    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
+        /* IO memory case (romd handled later) */
+        address |= TLB_MMIO;
+    }
+    addend = (unsigned long)phys_ram_base + (pd & TARGET_PAGE_MASK);
+    if ((pd & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
+        /* Normal RAM.  */
+        iotlb = pd & TARGET_PAGE_MASK;
+        if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM)
+            iotlb |= IO_MEM_NOTDIRTY;
+        else
+            iotlb |= IO_MEM_ROM;
+    } else {
+        /* IO handlers are currently passed a phsical address.
+           It would be nice to pass an offset from the base address
+           of that region.  This would avoid having to special case RAM,
+           and avoid full address decoding in every device.
+           We can't use the high bits of pd for this because
+           IO_MEM_ROMD uses these as a ram address.  */
+        iotlb = (pd & ~TARGET_PAGE_MASK) + paddr;
+    }
 
-        /* Make accesses to pages with watchpoints go via the
-           watchpoint trap routines.  */
-        for (i = 0; i < env->nb_watchpoints; i++) {
-            if (vaddr == (env->watchpoint[i].vaddr & TARGET_PAGE_MASK)) {
-                if (address & ~TARGET_PAGE_MASK) {
-                    env->watchpoint[i].addend = 0;
-                    address = vaddr | io_mem_watch;
-                } else {
-                    env->watchpoint[i].addend = pd - paddr +
-                        (unsigned long) phys_ram_base;
-                    /* TODO: Figure out how to make read watchpoints coexist
-                       with code.  */
-                    pd = (pd & TARGET_PAGE_MASK) | io_mem_watch | IO_MEM_ROMD;
-                }
-            }
+    code_address = address;
+    /* Make accesses to pages with watchpoints go via the
+       watchpoint trap routines.  */
+    for (i = 0; i < env->nb_watchpoints; i++) {
+        if (vaddr == (env->watchpoint[i].vaddr & TARGET_PAGE_MASK)) {
+            iotlb = io_mem_watch + paddr;
+            /* TODO: The memory case can be optimized by not trapping
+               reads of pages with a write breakpoint.  */
+            address |= TLB_MMIO;
         }
+    }
 
-        index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-        addend -= vaddr;
-        te = &env->tlb_table[mmu_idx][index];
-        te->addend = addend;
-        if (prot & PAGE_READ) {
-            te->addr_read = address;
-        } else {
-            te->addr_read = -1;
-        }
+    index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    env->iotlb[mmu_idx][index] = iotlb - vaddr;
+    te = &env->tlb_table[mmu_idx][index];
+    te->addend = addend - vaddr;
+    if (prot & PAGE_READ) {
+        te->addr_read = address;
+    } else {
+        te->addr_read = -1;
+    }
 
-        if (prot & PAGE_EXEC) {
-            te->addr_code = address;
+    if (prot & PAGE_EXEC) {
+        te->addr_code = code_address;
+    } else {
+        te->addr_code = -1;
+    }
+    if (prot & PAGE_WRITE) {
+        if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM ||
+            (pd & IO_MEM_ROMD)) {
+            /* Write access calls the I/O callback.  */
+            te->addr_write = address | TLB_MMIO;
+        } else if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM &&
+                   !cpu_physical_memory_is_dirty(pd)) {
+            te->addr_write = address | TLB_NOTDIRTY;
         } else {
-            te->addr_code = -1;
+            te->addr_write = address;
         }
-        if (prot & PAGE_WRITE) {
-            if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_ROM ||
-                (pd & IO_MEM_ROMD)) {
-                /* write access calls the I/O callback */
-                te->addr_write = vaddr |
-                    (pd & ~(TARGET_PAGE_MASK | IO_MEM_ROMD));
-            } else if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM &&
-                       !cpu_physical_memory_is_dirty(pd)) {
-                te->addr_write = vaddr | IO_MEM_NOTDIRTY;
-            } else {
-                te->addr_write = address;
-            }
-        } else {
-            te->addr_write = -1;
-        }
+    } else {
+        te->addr_write = -1;
     }
     return ret;
 }
@@ -2181,11 +2182,10 @@ static CPUWriteMemoryFunc *unassigned_mem_write[3] = {
     unassigned_mem_writeb,
 };
 
-static void notdirty_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void notdirty_mem_writeb(void *opaque, target_phys_addr_t ram_addr,
+                                uint32_t val)
 {
-    unsigned long ram_addr;
     int dirty_flags;
-    ram_addr = addr - (unsigned long)phys_ram_base;
     dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
     if (!(dirty_flags & CODE_DIRTY_FLAG)) {
 #if !defined(CONFIG_USER_ONLY)
@@ -2193,7 +2193,7 @@ static void notdirty_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t 
         dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
 #endif
     }
-    stb_p((uint8_t *)(long)addr, val);
+    stb_p(phys_ram_base + ram_addr, val);
 #ifdef USE_KQEMU
     if (cpu_single_env->kqemu_enabled &&
         (dirty_flags & KQEMU_MODIFY_PAGE_MASK) != KQEMU_MODIFY_PAGE_MASK)
@@ -2204,14 +2204,13 @@ static void notdirty_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t 
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, addr, cpu_single_env->mem_write_vaddr);
+        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_write_vaddr);
 }
 
-static void notdirty_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void notdirty_mem_writew(void *opaque, target_phys_addr_t ram_addr,
+                                uint32_t val)
 {
-    unsigned long ram_addr;
     int dirty_flags;
-    ram_addr = addr - (unsigned long)phys_ram_base;
     dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
     if (!(dirty_flags & CODE_DIRTY_FLAG)) {
 #if !defined(CONFIG_USER_ONLY)
@@ -2219,7 +2218,7 @@ static void notdirty_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t 
         dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
 #endif
     }
-    stw_p((uint8_t *)(long)addr, val);
+    stw_p(phys_ram_base + ram_addr, val);
 #ifdef USE_KQEMU
     if (cpu_single_env->kqemu_enabled &&
         (dirty_flags & KQEMU_MODIFY_PAGE_MASK) != KQEMU_MODIFY_PAGE_MASK)
@@ -2230,14 +2229,13 @@ static void notdirty_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t 
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, addr, cpu_single_env->mem_write_vaddr);
+        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_write_vaddr);
 }
 
-static void notdirty_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void notdirty_mem_writel(void *opaque, target_phys_addr_t ram_addr,
+                                uint32_t val)
 {
-    unsigned long ram_addr;
     int dirty_flags;
-    ram_addr = addr - (unsigned long)phys_ram_base;
     dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
     if (!(dirty_flags & CODE_DIRTY_FLAG)) {
 #if !defined(CONFIG_USER_ONLY)
@@ -2245,7 +2243,7 @@ static void notdirty_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t 
         dirty_flags = phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS];
 #endif
     }
-    stl_p((uint8_t *)(long)addr, val);
+    stl_p(phys_ram_base + ram_addr, val);
 #ifdef USE_KQEMU
     if (cpu_single_env->kqemu_enabled &&
         (dirty_flags & KQEMU_MODIFY_PAGE_MASK) != KQEMU_MODIFY_PAGE_MASK)
@@ -2256,7 +2254,7 @@ static void notdirty_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t 
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, addr, cpu_single_env->mem_write_vaddr);
+        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_write_vaddr);
 }
 
 static CPUReadMemoryFunc *error_mem_read[3] = {
@@ -2271,67 +2269,63 @@ static CPUWriteMemoryFunc *notdirty_mem_write[3] = {
     notdirty_mem_writel,
 };
 
+/* Generate a debug exception if a watchpoint has been hit.  */
+static void check_watchpoint(int offset, int flags)
+{
+    CPUState *env = cpu_single_env;
+    target_ulong vaddr;
+    int i;
+
+    vaddr = (env->mem_write_vaddr & TARGET_PAGE_MASK) + offset;
+    for (i = 0; i < env->nb_watchpoints; i++) {
+        if (vaddr == env->watchpoint[i].vaddr
+                && (env->watchpoint[i].type & flags)) {
+            env->watchpoint_hit = i + 1;
+            cpu_interrupt(env, CPU_INTERRUPT_DEBUG);
+            break;
+        }
+    }
+}
+
 /* Watchpoint access routines.  Watchpoints are inserted using TLB tricks,
    so these check for a hit then pass through to the normal out-of-line
    phys routines.  */
 static uint32_t watch_mem_readb(void *opaque, target_phys_addr_t addr)
 {
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_READ);
     return ldub_phys(addr);
 }
 
 static uint32_t watch_mem_readw(void *opaque, target_phys_addr_t addr)
 {
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_READ);
     return lduw_phys(addr);
 }
 
 static uint32_t watch_mem_readl(void *opaque, target_phys_addr_t addr)
 {
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_READ);
     return ldl_phys(addr);
-}
-
-/* Generate a debug exception if a watchpoint has been hit.
-   Returns the real physical address of the access.  addr will be a host
-   address in case of a RAM location.  */
-static target_ulong check_watchpoint(target_phys_addr_t addr)
-{
-    CPUState *env = cpu_single_env;
-    target_ulong watch;
-    target_ulong retaddr;
-    int i;
-
-    retaddr = addr;
-    for (i = 0; i < env->nb_watchpoints; i++) {
-        watch = env->watchpoint[i].vaddr;
-        if (((env->mem_write_vaddr ^ watch) & TARGET_PAGE_MASK) == 0) {
-            retaddr = addr - env->watchpoint[i].addend;
-            if (((addr ^ watch) & ~TARGET_PAGE_MASK) == 0) {
-                cpu_single_env->watchpoint_hit = i + 1;
-                cpu_interrupt(cpu_single_env, CPU_INTERRUPT_DEBUG);
-                break;
-            }
-        }
-    }
-    return retaddr;
 }
 
 static void watch_mem_writeb(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    addr = check_watchpoint(addr);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_WRITE);
     stb_phys(addr, val);
 }
 
 static void watch_mem_writew(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    addr = check_watchpoint(addr);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_WRITE);
     stw_phys(addr, val);
 }
 
 static void watch_mem_writel(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    addr = check_watchpoint(addr);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_WRITE);
     stl_phys(addr, val);
 }
 
@@ -2501,7 +2495,7 @@ static void io_mem_init(void)
     cpu_register_io_memory(IO_MEM_NOTDIRTY >> IO_MEM_SHIFT, error_mem_read, notdirty_mem_write, NULL);
     io_mem_nb = 5;
 
-    io_mem_watch = cpu_register_io_memory(-1, watch_mem_read,
+    io_mem_watch = cpu_register_io_memory(0, watch_mem_read,
                                           watch_mem_write, NULL);
     /* alloc dirty bits array */
     phys_ram_dirty = qemu_vmalloc(phys_ram_size >> TARGET_PAGE_BITS);

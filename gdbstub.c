@@ -1117,21 +1117,37 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         if (*p == ',')
             p++;
         len = strtoull(p, (char **)&p, 16);
-        if (type == 0 || type == 1) {
+        switch (type) {
+        case 0:
+        case 1:
             if (cpu_breakpoint_insert(env, addr) < 0)
                 goto breakpoint_error;
             put_packet(s, "OK");
+            break;
 #ifndef CONFIG_USER_ONLY
-        } else if (type == 2) {
-            if (cpu_watchpoint_insert(env, addr) < 0)
+        case 2:
+            type = PAGE_WRITE;
+            goto insert_watchpoint;
+        case 3:
+            type = PAGE_READ;
+            goto insert_watchpoint;
+        case 4:
+            type = PAGE_READ | PAGE_WRITE;
+        insert_watchpoint:
+            if (cpu_watchpoint_insert(env, addr, type) < 0)
                 goto breakpoint_error;
             put_packet(s, "OK");
+            break;
 #endif
-        } else {
-        breakpoint_error:
-            put_packet(s, "E22");
+        default:
+            put_packet(s, "");
+            break;
         }
         break;
+    breakpoint_error:
+        put_packet(s, "E22");
+        break;
+
     case 'z':
         type = strtoul(p, (char **)&p, 16);
         if (*p == ',')
@@ -1144,12 +1160,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             cpu_breakpoint_remove(env, addr);
             put_packet(s, "OK");
 #ifndef CONFIG_USER_ONLY
-        } else if (type == 2) {
+        } else if (type >= 2 || type <= 4) {
             cpu_watchpoint_remove(env, addr);
             put_packet(s, "OK");
 #endif
         } else {
-            goto breakpoint_error;
+            put_packet(s, "");
         }
         break;
     case 'q':

@@ -106,16 +106,17 @@ typedef uint64_t target_phys_addr_t;
 #endif
 
 typedef struct CPUTLBEntry {
-    /* bit 31 to TARGET_PAGE_BITS : virtual address
-       bit TARGET_PAGE_BITS-1..IO_MEM_SHIFT : if non zero, memory io
-                                              zone number
+    /* bit TARGET_LONG_BITS to TARGET_PAGE_BITS : virtual address
+       bit TARGET_PAGE_BITS-1..4  : Nonzero for accesses that should not
+                                    go directly to ram.
        bit 3                      : indicates that the entry is invalid
        bit 2..0                   : zero
     */
     target_ulong addr_read;
     target_ulong addr_write;
     target_ulong addr_code;
-    /* addend to virtual address to get physical address */
+    /* Addend to virtual address to get physical address.  IO accesses
+       use the correcponding iotlb value.  */
 #if TARGET_PHYS_ADDR_BITS == 64
     /* on i386 Linux make sure it is aligned */
     target_phys_addr_t addend __attribute__((aligned(8)));
@@ -143,6 +144,7 @@ typedef struct CPUTLBEntry {
     int halted; /* TRUE if the CPU is in suspend state */               \
     /* The meaning of the MMU modes is defined in the target code. */   \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
+    target_phys_addr_t iotlb[NB_MMU_MODES][CPU_TLB_SIZE];               \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
     /* buffer for temporaries in the code generator */                  \
     long temp_buf[CPU_TEMP_BUF_NLONGS];                                 \
@@ -155,7 +157,7 @@ typedef struct CPUTLBEntry {
                                                                         \
     struct {                                                            \
         target_ulong vaddr;                                             \
-        target_phys_addr_t addend;                                      \
+        int type; /* PAGE_READ/PAGE_WRITE */                            \
     } watchpoint[MAX_WATCHPOINTS];                                      \
     int nb_watchpoints;                                                 \
     int watchpoint_hit;                                                 \

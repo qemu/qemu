@@ -202,14 +202,8 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     uint8_t *p;
     uint8_t cmd;
 
-    /* WARNING: when the memory area is in ROMD mode, the offset is a
-       ram offset, not a physical address */
     cmd = value;
-
-    if (pfl->wcycle == 0)
-        offset -= (target_ulong)(long)pfl->storage;
-    else
-        offset -= pfl->base;
+    offset -= pfl->base;
 
     DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d wcycle 0x%x\n",
             __func__, offset, value, width, pfl->wcycle);
