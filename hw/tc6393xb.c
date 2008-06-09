@@ -1,4 +1,12 @@
-/* vim:set shiftwidth=4 ts=4 et: */
+/*
+ * Toshiba TC6393XB I/O Controller.
+ * Found in Sharp Zaurus SL-6000 (tosa) or some
+ * Toshiba e-Series PDAs.
+ *
+ * Most features are currently unsupported!!!
+ *
+ * This code is licensed under the GNU GPL v2.
+ */
 #include "hw.h"
 #include "pxa.h"
 #include "devices.h"
