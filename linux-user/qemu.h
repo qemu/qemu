@@ -233,6 +233,8 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                        abi_ulong new_addr);
 int target_msync(abi_ulong start, abi_ulong len, int flags);
 extern unsigned long last_brk;
+void mmap_lock(void);
+void mmap_unlock(void);
 
 /* user access */
 
@@ -422,5 +424,9 @@ static inline void *lock_user_string(abi_ulong guest_addr)
     (host_ptr = lock_user(type, guest_addr, sizeof(*host_ptr), copy))
 #define unlock_user_struct(host_ptr, guest_addr, copy)		\
     unlock_user(host_ptr, guest_addr, (copy) ? sizeof(*host_ptr) : 0)
+
+#if defined(USE_NPTL)
+#include <pthread.h>
+#endif
 
 #endif /* QEMU_H */

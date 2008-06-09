@@ -1715,6 +1715,7 @@ static void ide_atapi_cmd(IDEState *s)
     case GPCMD_GET_CONFIGURATION:
         {
             uint32_t len;
+            uint8_t index = 0;
 
             /* only feature 0 is supported */
             if (packet[2] != 0 || packet[3] != 0) {
@@ -1725,12 +1726,13 @@ static void ide_atapi_cmd(IDEState *s)
 
             /* XXX: could result in alignment problems in some architectures */
             max_len = ube16_to_cpu(packet + 7);
+
             /*
-             * XXX: avoid overflow for io_buffer if max_len is bigger than the
-             *      size of that buffer (dimensioned to max number of sectors
-             *      to transfer at once)
+             * XXX: avoid overflow for io_buffer if max_len is bigger than
+             *      the size of that buffer (dimensioned to max number of
+             *      sectors to transfer at once)
              *
-             *      Only a problem if the feature/profiles grow exponentially.
+             *      Only a problem if the feature/profiles grow.
              */
             if (max_len > 512) /* XXX: assume 1 sector */
                 max_len = 512;
@@ -1743,22 +1745,17 @@ static void ide_atapi_cmd(IDEState *s)
              * XXX: fails to detect correctly DVDs with less data burned
              *      than what a CD can hold
              */
-            if ((s -> nb_sectors)) {
-                if ((s -> nb_sectors > CD_MAX_SECTORS))
+            if (s -> nb_sectors) {
+                if (s -> nb_sectors > CD_MAX_SECTORS)
                     cpu_to_ube16(buf + 6, MMC_PROFILE_DVD_ROM);
                 else
                     cpu_to_ube16(buf + 6, MMC_PROFILE_CD_ROM);
             }
 
-            len = 8; /* header completed */
-            if (max_len > len) {
-                uint8_t index = 0;
-
-                buf[10] = 0x02 | 0x01; /* persistent and current */
-                len += 4; /* header */
-                len += ide_atapi_set_profile(buf, &index, MMC_PROFILE_DVD_ROM);
-                len += ide_atapi_set_profile(buf, &index, MMC_PROFILE_CD_ROM);
-            }
+            buf[10] = 0x02 | 0x01; /* persistent and current */
+            len = 12; /* headers: 8 + 4 */
+            len += ide_atapi_set_profile(buf, &index, MMC_PROFILE_DVD_ROM);
+            len += ide_atapi_set_profile(buf, &index, MMC_PROFILE_CD_ROM);
             cpu_to_ube32(buf, len - 4); /* data length */
 
             ide_atapi_cmd_reply(s, len, max_len);

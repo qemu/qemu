@@ -24,7 +24,7 @@ TARGET_BASE_ARCH:=sparc
 endif
 TARGET_PATH=$(SRC_PATH)/target-$(TARGET_BASE_ARCH)
 VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
-CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MP -DNEED_CPU_H
+CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H
 #CFLAGS+=-Werror
 BASE_LDFLAGS += -g
 LIBS=
@@ -631,7 +631,7 @@ OBJS+= arm-semi.o
 OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 OBJS+= pflash_cfi01.o gumstix.o
-OBJS+= spitz.o ide.o serial.o nand.o ecc.o
+OBJS+= zaurus.o ide.o serial.o nand.o ecc.o spitz.o tosa.o
 OBJS+= omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 OBJS+= omap2.o omap_dss.o
 OBJS+= palm.o tsc210x.o

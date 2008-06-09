@@ -235,6 +235,7 @@ static void page_init(void)
         FILE *f;
         int n;
 
+        mmap_lock();
         last_brk = (unsigned long)sbrk(0);
         f = fopen("/proc/self/maps", "r");
         if (f) {
@@ -252,6 +253,7 @@ static void page_init(void)
             } while (!feof(f));
             fclose(f);
         }
+        mmap_unlock();
     }
 #endif
 }
@@ -327,6 +329,8 @@ static inline PhysPageDesc *phys_page_find(target_phys_addr_t index)
 static void tlb_protect_code(ram_addr_t ram_addr);
 static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr,
                                     target_ulong vaddr);
+#define mmap_lock() do { } while(0)
+#define mmap_unlock() do { } while(0)
 #endif
 
 #define DEFAULT_CODE_GEN_BUFFER_SIZE (32 * 1024 * 1024)
@@ -1050,6 +1054,9 @@ void tb_link_phys(TranslationBlock *tb,
     unsigned int h;
     TranslationBlock **ptb;
 
+    /* Grab the mmap lock to stop another thread invalidating this TB
+       before we are done.  */
+    mmap_lock();
     /* add in the physical hash table */
     h = tb_phys_hash_func(phys_pc);
     ptb = &tb_phys_hash[h];
@@ -1076,6 +1083,7 @@ void tb_link_phys(TranslationBlock *tb,
 #ifdef DEBUG_TB_CHECK
     tb_page_check();
 #endif
+    mmap_unlock();
 }
 
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
@@ -2003,6 +2011,7 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
     PageDesc *p;
     target_ulong addr;
 
+    /* mmap_lock should already be held.  */
     start = start & TARGET_PAGE_MASK;
     end = TARGET_PAGE_ALIGN(end);
     if (flags & PAGE_WRITE)
@@ -2066,11 +2075,18 @@ int page_unprotect(target_ulong address, unsigned long pc, void *puc)
     PageDesc *p, *p1;
     target_ulong host_start, host_end, addr;
 
+    /* Technically this isn't safe inside a signal handler.  However we
+       know this only ever happens in a synchronous SEGV handler, so in
+       practice it seems to be ok.  */
+    mmap_lock();
+
     host_start = address & qemu_host_page_mask;
     page_index = host_start >> TARGET_PAGE_BITS;
     p1 = page_find(page_index);
-    if (!p1)
+    if (!p1) {
+        mmap_unlock();
         return 0;
+    }
     host_end = host_start + qemu_host_page_size;
     p = p1;
     prot = 0;
@@ -2092,9 +2108,11 @@ int page_unprotect(target_ulong address, unsigned long pc, void *puc)
 #ifdef DEBUG_TB_CHECK
             tb_invalidate_check(address);
 #endif
+            mmap_unlock();
             return 1;
         }
     }
+    mmap_unlock();
     return 0;
 }
 

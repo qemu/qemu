@@ -52,9 +52,6 @@
 //#include <sys/user.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#if defined(USE_NPTL)
-#include <sys/futex.h>
-#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -74,6 +71,10 @@
 #include "linux_loop.h"
 
 #include "qemu.h"
+
+#if defined(USE_NPTL)
+#include <linux/futex.h>
+#endif
 
 //#define DEBUG
 

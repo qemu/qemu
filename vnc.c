@@ -307,14 +307,16 @@ static void vnc_dpy_resize(DisplayState *ds, int w, int h)
     ds->width = w;
     ds->height = h;
     ds->linesize = w * vs->depth;
-    if (vs->csock != -1 && vs->has_resize && size_changed) {
-	vnc_write_u8(vs, 0);  /* msg id */
-	vnc_write_u8(vs, 0);
-	vnc_write_u16(vs, 1); /* number of rects */
-	vnc_framebuffer_update(vs, 0, 0, ds->width, ds->height, -223);
-	vnc_flush(vs);
-	vs->width = ds->width;
-	vs->height = ds->height;
+    if (size_changed) {
+        vs->width = ds->width;
+        vs->height = ds->height;
+        if (vs->csock != -1 && vs->has_resize) {
+            vnc_write_u8(vs, 0);  /* msg id */
+            vnc_write_u8(vs, 0);
+            vnc_write_u16(vs, 1); /* number of rects */
+            vnc_framebuffer_update(vs, 0, 0, ds->width, ds->height, -223);
+            vnc_flush(vs);
+        }
     }
 
     memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));

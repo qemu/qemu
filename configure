@@ -652,7 +652,7 @@ EOF
 # Check host NPTL support
 cat > $TMPC <<EOF
 #include <sched.h>
-#include <sys/futex.h>
+#include <linux/futex.h>
 void foo()
 {
 #if !defined(CLONE_SETTLS) || !defined(FUTEX_WAIT)
