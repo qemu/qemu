@@ -23,6 +23,8 @@
  */
 
 static uint8_t *tb_ret_addr;
+static uint8_t *udiv_addr;
+static uint8_t *div_addr;
 
 #define FAST_PATH
 #if TARGET_PHYS_ADDR_BITS <= 32
@@ -118,7 +120,7 @@ static const int tcg_target_call_oarg_regs[2] = {
 };
 
 static const int tcg_target_callee_save_regs[] = {
-    TCG_REG_R13,                /* sould r13 be saved? */
+    TCG_REG_R13,                /* should r13 be saved? */
     TCG_REG_R14,
     TCG_REG_R15,
     TCG_REG_R16,
@@ -133,6 +135,22 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R29,
     TCG_REG_R30,
     TCG_REG_R31
+};
+
+static const int div_save_regs[] = {
+    TCG_REG_R4,
+    TCG_REG_R5,
+    TCG_REG_R7,
+    TCG_REG_R8,
+    TCG_REG_R9,
+    TCG_REG_R10,
+    TCG_REG_R11,
+    TCG_REG_R12,
+    TCG_REG_R13,                /* should r13 be saved? */
+    TCG_REG_R24,
+    TCG_REG_R25,
+    TCG_REG_R26,
+    TCG_REG_R27,
 };
 
 static uint32_t reloc_pc24_val (void *pc, tcg_target_long target)
@@ -799,9 +817,25 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #endif
 }
 
+static uint64_t ppc_udiv_helper (uint64_t a, uint32_t b)
+{
+    uint64_t rem, quo;
+    quo = a / b;
+    rem = a % b;
+    return (rem << 32) | (uint32_t) quo;
+}
+
+static uint64_t ppc_div_helper (int64_t a, int32_t b)
+{
+    int64_t rem, quo;
+    quo = a / b;
+    rem = a % b;
+    return (rem << 32) | (uint32_t) quo;
+}
+
 void tcg_target_qemu_prologue (TCGContext *s)
 {
-    int i, frame_size;
+    int i, j, frame_size;
 
     frame_size = 0
         + 4                     /* back chain */
@@ -837,6 +871,49 @@ void tcg_target_qemu_prologue (TCGContext *s)
     tcg_out32 (s, MTSPR | RS (0) | LR);
     tcg_out32 (s, ADDI | RT (1) | RA (1) | frame_size);
     tcg_out32 (s, BCLR | BO_ALWAYS);
+
+    /* div trampolines */
+    for (j = 0; j < 2; ++j) {
+        tcg_target_long target;
+
+        frame_size = 8 + ARRAY_SIZE (div_save_regs) * 4;
+        frame_size = (frame_size + 15) & ~15;
+
+        if (j == 0) {
+            target = (tcg_target_long) ppc_udiv_helper;
+            udiv_addr = s->code_ptr;
+        }
+        else {
+            target = (tcg_target_long) ppc_div_helper;
+            div_addr = s->code_ptr;
+        }
+
+        tcg_out32 (s, MFSPR | RT (0) | LR);
+        tcg_out32 (s, STWU | RS (1) | RA (1) | (-frame_size & 0xffff));
+        for (i = 0; i < ARRAY_SIZE (div_save_regs); ++i)
+            tcg_out32 (s, (STW
+                           | RS (div_save_regs[i])
+                           | RA (1)
+                           | (i * 4 + 8)
+                           )
+                );
+        tcg_out32 (s, STW | RS (0) | RA (1) | (frame_size - 4));
+        tcg_out_mov (s, 4, 6);
+        tcg_out_b (s, LK, target);
+        tcg_out_mov (s, 6, 4);
+
+        for (i = 0; i < ARRAY_SIZE (div_save_regs); ++i)
+            tcg_out32 (s, (LWZ
+                           | RT (div_save_regs[i])
+                           | RA (1)
+                           | (i * 4 + 8)
+                           )
+                );
+        tcg_out32 (s, LWZ | RT (0) | RA (1) | (frame_size - 4));
+        tcg_out32 (s, MTSPR | RS (0) | LR);
+        tcg_out32 (s, ADDI | RT (1) | RA (1) | frame_size);
+        tcg_out32 (s, BCLR | BO_ALWAYS);
+    }
 }
 
 static void tcg_out_ld (TCGContext *s, TCGType type, int ret, int arg1,
@@ -1018,41 +1095,6 @@ static void tcg_out_brcond2(TCGContext *s,
     tcg_out_label(s, label_next, (tcg_target_long)s->code_ptr);
 }
 
-static uint64_t __attribute ((used)) ppc_udiv_helper (uint64_t a, uint32_t b)
-{
-    uint64_t rem, quo;
-    quo = a / b;
-    rem = a % b;
-    return (rem << 32) | (uint32_t) quo;
-}
-
-static uint64_t __attribute ((used)) ppc_div_helper (int64_t a, int32_t b)
-{
-    int64_t rem, quo;
-    quo = a / b;
-    rem = a % b;
-    return (rem << 32) | (uint32_t) quo;
-}
-
-#define MAKE_TRAMPOLINE(name)                   \
-extern void name##_trampoline (void);           \
-asm (#name "_trampoline:\n"                     \
-     " mflr 0\n"                                \
-     " addi 1,1,-112\n"                         \
-     " mr   4,6\n"                              \
-     " stmw 7,0(1)\n"                           \
-     " stw  0,108(0)\n"                         \
-     " bl   ppc_" #name "_helper\n"             \
-     " lmw  7,0(1)\n"                           \
-     " lwz  0,108(0)\n"                         \
-     " addi 1,1,112\n"                          \
-     " mtlr 0\n"                                \
-     " blr\n"                                   \
-    )
-
-MAKE_TRAMPOLINE (div);
-MAKE_TRAMPOLINE (udiv);
-
 static void tcg_out_div2 (TCGContext *s, int uns)
 {
     void *label1_ptr, *label2_ptr;
@@ -1067,7 +1109,7 @@ static void tcg_out_div2 (TCGContext *s, int uns)
     label1_ptr = s->code_ptr;
     tcg_out32 (s, BC | BI (7, CR_EQ) | BO_COND_TRUE);
 
-    tcg_out_b (s, LK, (tcg_target_long) (uns ? udiv_trampoline : div_trampoline));
+    tcg_out_b (s, LK, (tcg_target_long) (uns ? udiv_addr : div_addr));
 
     label2_ptr = s->code_ptr;
     tcg_out32 (s, B);
