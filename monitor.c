@@ -982,8 +982,8 @@ static void do_sendkey(const char *string, int has_hold_time, int hold_time)
         kbd_put_keycode(keycode & 0x7f);
     }
     /* delayed key up events */
-    qemu_mod_timer(key_timer,
-                   qemu_get_clock(vm_clock) + ticks_per_sec * hold_time);
+    qemu_mod_timer(key_timer, qemu_get_clock(vm_clock) +
+                    muldiv64(ticks_per_sec, hold_time, 1000));
 }
 
 static int mouse_button_state;
