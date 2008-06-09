@@ -220,6 +220,25 @@ void helper_rfe(void)
 		env->pregs[PR_CCS] |= P_FLAG;
 }
 
+void helper_rfn(void)
+{
+	int rflag = env->pregs[PR_CCS] & R_FLAG;
+
+	D(fprintf(logfile, "rfn: erp=%x pid=%x ccs=%x btarget=%x\n", 
+		 env->pregs[PR_ERP], env->pregs[PR_PID],
+		 env->pregs[PR_CCS],
+		 env->btarget));
+
+	cris_ccs_rshift(env);
+
+	/* Set the P_FLAG only if the R_FLAG is not set.  */
+	if (!rflag)
+		env->pregs[PR_CCS] |= P_FLAG;
+
+    /* Always set the M flag.  */
+    env->pregs[PR_CCS] |= M_FLAG;
+}
+
 void helper_store(uint32_t a0)
 {
 	if (env->pregs[PR_CCS] & P_FLAG )
