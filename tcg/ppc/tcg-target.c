@@ -198,6 +198,10 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 
     ct_str = *pct_str;
     switch (ct_str[0]) {
+    case 'A': case 'B': case 'C': case 'D':
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set_reg(ct->u.regs, 3 + ct_str[0] - 'A');
+        break;
     case 'r':
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
@@ -1014,6 +1018,63 @@ static void tcg_out_brcond2(TCGContext *s,
     tcg_out_label(s, label_next, (tcg_target_long)s->code_ptr);
 }
 
+static uint64_t __attribute ((used)) ppc_udiv_helper (uint64_t a, uint32_t b)
+{
+    uint64_t rem, quo;
+    quo = a / b;
+    rem = a % b;
+    return (rem << 32) | (uint32_t) quo;
+}
+
+static uint64_t __attribute ((used)) ppc_div_helper (int64_t a, int32_t b)
+{
+    int64_t rem, quo;
+    quo = a / b;
+    rem = a % b;
+    return (rem << 32) | (uint32_t) quo;
+}
+
+#define MAKE_TRAMPOLINE(name)                   \
+extern void name##_trampoline (void);           \
+asm (#name "_trampoline:\n"                     \
+     " mflr 0\n"                                \
+     " addi 1,1,-112\n"                         \
+     " mr   4,6\n"                              \
+     " stmw 7,0(1)\n"                           \
+     " stw  0,108(0)\n"                         \
+     " bl   ppc_" #name "_helper\n"             \
+     " lmw  7,0(1)\n"                           \
+     " lwz  0,108(0)\n"                         \
+     " addi 1,1,112\n"                          \
+     " mtlr 0\n"                                \
+     " blr\n"                                   \
+    )
+
+MAKE_TRAMPOLINE (div);
+MAKE_TRAMPOLINE (udiv);
+
+static void tcg_out_div2 (TCGContext *s, int uns)
+{
+    void *label1_ptr, *label2_ptr;
+
+    tcg_out32 (s, CMPLI | BF (7) | RA (3));
+    label1_ptr = s->code_ptr;
+    tcg_out32 (s, BC | BI (7, CR_EQ) | BO_COND_TRUE);
+
+    tcg_out_b (s, LK, (tcg_target_long) (uns ? udiv_trampoline : div_trampoline));
+
+    label2_ptr = s->code_ptr;
+    tcg_out32 (s, B);
+
+    reloc_pc14 (label1_ptr, (tcg_target_long) s->code_ptr);
+
+    tcg_out32 (s, (uns ? DIVWU : DIVW) | TAB (6, 4, 5));
+    tcg_out32 (s, MULLW | TAB (0, 6, 5));
+    tcg_out32 (s, SUBF | TAB (3, 0, 4));
+
+    reloc_pc24 (label2_ptr, (tcg_target_long) s->code_ptr);
+}
+
 static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
                        const int *const_args)
 {
@@ -1204,32 +1265,10 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         }
         break;
     case INDEX_op_div2_i32:
-        if (args[0] == args[2] || args[0] == args[3]) {
-            tcg_out32 (s, DIVW | TAB (0, args[2], args[3]));
-            tcg_out32 (s, MTSPR | RS (0) | CTR);
-            tcg_out32 (s, MULLW | TAB (0, 0, args[3]));
-            tcg_out32 (s, SUBF | TAB (args[1], 0, args[2]));
-            tcg_out32 (s, MFSPR | RT (args[0]) | CTR);
-        }
-        else {
-            tcg_out32 (s, DIVW | TAB (args[0], args[2], args[3]));
-            tcg_out32 (s, MULLW | TAB (0, args[0], args[3]));
-            tcg_out32 (s, SUBF | TAB (args[1], 0, args[2]));
-        }
+        tcg_out_div2 (s, 0);
         break;
     case INDEX_op_divu2_i32:
-        if (args[0] == args[2] || args[0] == args[3]) {
-            tcg_out32 (s, DIVWU | TAB (0, args[2], args[3]));
-            tcg_out32 (s, MTSPR | RS (0) | CTR);
-            tcg_out32 (s, MULLW | TAB (0, 0, args[3]));
-            tcg_out32 (s, SUBF | TAB (args[1], 0, args[2]));
-            tcg_out32 (s, MFSPR | RT (args[0]) | CTR);
-        }
-        else {
-            tcg_out32 (s, DIVWU | TAB (args[0], args[2], args[3]));
-            tcg_out32 (s, MULLW | TAB (0, args[0], args[3]));
-            tcg_out32 (s, SUBF | TAB (args[1], 0, args[2]));
-        }
+        tcg_out_div2 (s, 1);
         break;
 
     case INDEX_op_shl_i32:
@@ -1372,8 +1411,8 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_add_i32, { "r", "r", "ri" } },
     { INDEX_op_mul_i32, { "r", "r", "ri" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
-    { INDEX_op_div2_i32, { "r", "r", "r", "r", "r" } },
-    { INDEX_op_divu2_i32, { "r", "r", "r", "r", "r" } },
+    { INDEX_op_div2_i32, { "D", "A", "B", "1", "C" } },
+    { INDEX_op_divu2_i32, { "D", "A", "B", "1", "C" } },
     { INDEX_op_sub_i32, { "r", "r", "ri" } },
     { INDEX_op_and_i32, { "r", "r", "ri" } },
     { INDEX_op_or_i32, { "r", "r", "ri" } },
