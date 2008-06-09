@@ -23,8 +23,6 @@
  */
 
 static uint8_t *tb_ret_addr;
-static uint8_t *udiv_addr;
-static uint8_t *div_addr;
 
 #define FAST_PATH
 #if TARGET_PHYS_ADDR_BITS <= 32
@@ -135,22 +133,6 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R29,
     TCG_REG_R30,
     TCG_REG_R31
-};
-
-static const int div_save_regs[] = {
-    TCG_REG_R4,
-    TCG_REG_R5,
-    TCG_REG_R7,
-    TCG_REG_R8,
-    TCG_REG_R9,
-    TCG_REG_R10,
-    TCG_REG_R11,
-    TCG_REG_R12,
-    TCG_REG_R13,                /* should r13 be saved? */
-    TCG_REG_R24,
-    TCG_REG_R25,
-    TCG_REG_R26,
-    TCG_REG_R27,
 };
 
 static uint32_t reloc_pc24_val (void *pc, tcg_target_long target)
@@ -817,22 +799,6 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #endif
 }
 
-static uint64_t ppc_udiv_helper (uint64_t a, uint32_t b)
-{
-    uint64_t rem, quo;
-    quo = a / b;
-    rem = a % b;
-    return (rem << 32) | (uint32_t) quo;
-}
-
-static uint64_t ppc_div_helper (int64_t a, int32_t b)
-{
-    int64_t rem, quo;
-    quo = a / b;
-    rem = a % b;
-    return (rem << 32) | (uint32_t) quo;
-}
-
 void tcg_target_qemu_prologue (TCGContext *s)
 {
     int i, j, frame_size;
@@ -871,49 +837,6 @@ void tcg_target_qemu_prologue (TCGContext *s)
     tcg_out32 (s, MTSPR | RS (0) | LR);
     tcg_out32 (s, ADDI | RT (1) | RA (1) | frame_size);
     tcg_out32 (s, BCLR | BO_ALWAYS);
-
-    /* div trampolines */
-    for (j = 0; j < 2; ++j) {
-        tcg_target_long target;
-
-        frame_size = 8 + ARRAY_SIZE (div_save_regs) * 4;
-        frame_size = (frame_size + 15) & ~15;
-
-        if (j == 0) {
-            target = (tcg_target_long) ppc_udiv_helper;
-            udiv_addr = s->code_ptr;
-        }
-        else {
-            target = (tcg_target_long) ppc_div_helper;
-            div_addr = s->code_ptr;
-        }
-
-        tcg_out32 (s, MFSPR | RT (0) | LR);
-        tcg_out32 (s, STWU | RS (1) | RA (1) | (-frame_size & 0xffff));
-        for (i = 0; i < ARRAY_SIZE (div_save_regs); ++i)
-            tcg_out32 (s, (STW
-                           | RS (div_save_regs[i])
-                           | RA (1)
-                           | (i * 4 + 8)
-                           )
-                );
-        tcg_out32 (s, STW | RS (0) | RA (1) | (frame_size - 4));
-        tcg_out_mov (s, 4, 6);
-        tcg_out_b (s, LK, target);
-        tcg_out_mov (s, 6, 4);
-
-        for (i = 0; i < ARRAY_SIZE (div_save_regs); ++i)
-            tcg_out32 (s, (LWZ
-                           | RT (div_save_regs[i])
-                           | RA (1)
-                           | (i * 4 + 8)
-                           )
-                );
-        tcg_out32 (s, LWZ | RT (0) | RA (1) | (frame_size - 4));
-        tcg_out32 (s, MTSPR | RS (0) | LR);
-        tcg_out32 (s, ADDI | RT (1) | RA (1) | frame_size);
-        tcg_out32 (s, BCLR | BO_ALWAYS);
-    }
 }
 
 static void tcg_out_ld (TCGContext *s, TCGType type, int ret, int arg1,
@@ -1095,34 +1018,6 @@ static void tcg_out_brcond2(TCGContext *s,
     tcg_out_label(s, label_next, (tcg_target_long)s->code_ptr);
 }
 
-static void tcg_out_div2 (TCGContext *s, int uns)
-{
-    void *label1_ptr, *label2_ptr;
-
-    if (uns)
-        tcg_out32 (s, CMPLI | BF (7) | RA (3));
-    else {
-        tcg_out32 (s, SRAWI | RS (4) | RA (0) | 31);
-        tcg_out32 (s, CMPL | BF (7) | RA (3) | RB (4));
-    }
-
-    label1_ptr = s->code_ptr;
-    tcg_out32 (s, BC | BI (7, CR_EQ) | BO_COND_TRUE);
-
-    tcg_out_b (s, LK, (tcg_target_long) (uns ? udiv_addr : div_addr));
-
-    label2_ptr = s->code_ptr;
-    tcg_out32 (s, B);
-
-    reloc_pc14 (label1_ptr, (tcg_target_long) s->code_ptr);
-
-    tcg_out32 (s, (uns ? DIVWU : DIVW) | TAB (6, 4, 5));
-    tcg_out32 (s, MULLW | TAB (0, 6, 5));
-    tcg_out32 (s, SUBF | TAB (3, 0, 4));
-
-    reloc_pc24 (label2_ptr, (tcg_target_long) s->code_ptr);
-}
-
 static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
                        const int *const_args)
 {
@@ -1301,6 +1196,27 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         else
             tcg_out32 (s, MULLW | TAB (args[0], args[1], args[2]));
         break;
+
+    case INDEX_op_div_i32:
+        tcg_out32 (s, DIVW | TAB (args[0], args[1], args[2]));
+        break;
+
+    case INDEX_op_divu_i32:
+        tcg_out32 (s, DIVWU | TAB (args[0], args[1], args[2]));
+        break;
+
+    case INDEX_op_rem_i32:
+        tcg_out32 (s, DIVW | TAB (0, args[1], args[2]));
+        tcg_out32 (s, MULLW | TAB (0, 0, args[2]));
+        tcg_out32 (s, SUBF | TAB (args[0], 0, args[1]));
+        break;
+
+    case INDEX_op_remu_i32:
+        tcg_out32 (s, DIVWU | TAB (0, args[1], args[2]));
+        tcg_out32 (s, MULLW | TAB (0, 0, args[2]));
+        tcg_out32 (s, SUBF | TAB (args[0], 0, args[1]));
+        break;
+
     case INDEX_op_mulu2_i32:
         if (args[0] == args[2] || args[0] == args[3]) {
             tcg_out32 (s, MULLW | TAB (0, args[2], args[3]));
@@ -1311,12 +1227,6 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
             tcg_out32 (s, MULLW | TAB (args[0], args[2], args[3]));
             tcg_out32 (s, MULHWU | TAB (args[1], args[2], args[3]));
         }
-        break;
-    case INDEX_op_div2_i32:
-        tcg_out_div2 (s, 0);
-        break;
-    case INDEX_op_divu2_i32:
-        tcg_out_div2 (s, 1);
         break;
 
     case INDEX_op_shl_i32:
@@ -1458,9 +1368,11 @@ static const TCGTargetOpDef ppc_op_defs[] = {
 
     { INDEX_op_add_i32, { "r", "r", "ri" } },
     { INDEX_op_mul_i32, { "r", "r", "ri" } },
+    { INDEX_op_div_i32, { "r", "r", "r" } },
+    { INDEX_op_divu_i32, { "r", "r", "r" } },
+    { INDEX_op_rem_i32, { "r", "r", "r" } },
+    { INDEX_op_remu_i32, { "r", "r", "r" } },
     { INDEX_op_mulu2_i32, { "r", "r", "r", "r" } },
-    { INDEX_op_div2_i32, { "D", "A", "B", "1", "C" } },
-    { INDEX_op_divu2_i32, { "D", "A", "B", "1", "C" } },
     { INDEX_op_sub_i32, { "r", "r", "ri" } },
     { INDEX_op_and_i32, { "r", "r", "ri" } },
     { INDEX_op_or_i32, { "r", "r", "ri" } },
