@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <limits.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
