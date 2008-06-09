@@ -106,6 +106,7 @@ endif
 
 ifeq ($(ARCH),ppc)
 CPPFLAGS+= -D__powerpc__
+OP_CFLAGS+= -mlongcall
 endif
 
 ifeq ($(ARCH),sparc)
