@@ -4767,7 +4767,7 @@ static inline void svm_save_seg(target_phys_addr_t addr,
     stl_phys(addr + offsetof(struct vmcb_seg, limit), 
              sc->limit);
     stw_phys(addr + offsetof(struct vmcb_seg, attrib), 
-             (sc->flags >> 8) | ((sc->flags >> 12) & 0x0f00));
+             ((sc->flags >> 8) & 0xff) | ((sc->flags >> 12) & 0x0f00));
 }
                                 
 static inline void svm_load_seg(target_phys_addr_t addr, SegmentCache *sc)
