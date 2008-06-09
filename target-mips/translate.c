@@ -2583,6 +2583,7 @@ fail:
 }
 
 /* CP0 (MMU and control) */
+#ifndef CONFIG_USER_ONLY
 static inline void gen_mfc0_load32 (TCGv t, target_ulong off)
 {
     TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
@@ -2598,6 +2599,24 @@ static inline void gen_mfc0_load64 (TCGv t, target_ulong off)
 
     tcg_gen_ld_i64(r_tmp, cpu_env, off);
     tcg_gen_trunc_i64_tl(t, r_tmp);
+    tcg_temp_free(r_tmp);
+}
+
+static inline void gen_mtc0_store32 (TCGv t, target_ulong off)
+{
+    TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
+
+    tcg_gen_trunc_tl_i32(r_tmp, t);
+    tcg_gen_st_i32(r_tmp, cpu_env, off);
+    tcg_temp_free(r_tmp);
+}
+
+static inline void gen_mtc0_store64 (TCGv t, target_ulong off)
+{
+    TCGv r_tmp = tcg_temp_new(TCG_TYPE_I64);
+
+    tcg_gen_ext_tl_i64(r_tmp, t);
+    tcg_gen_st_i64(r_tmp, cpu_env, off);
     tcg_temp_free(r_tmp);
 }
 
@@ -2617,17 +2636,17 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_mvpcontrol();
+            tcg_gen_helper_0_0(do_mfc0_mvpcontrol);
             rn = "MVPControl";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_mvpconf0();
+            tcg_gen_helper_0_0(do_mfc0_mvpconf0);
             rn = "MVPConf0";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_mvpconf1();
+            tcg_gen_helper_0_0(do_mfc0_mvpconf1);
             rn = "MVPConf1";
             break;
         default:
@@ -2637,7 +2656,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 1:
         switch (sel) {
         case 0:
-            gen_op_mfc0_random();
+            tcg_gen_helper_0_0(do_mfc0_random);
             rn = "Random";
             break;
         case 1:
@@ -2688,37 +2707,37 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tcstatus();
+            tcg_gen_helper_0_0(do_mfc0_tcstatus);
             rn = "TCStatus";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tcbind();
+            tcg_gen_helper_0_0(do_mfc0_tcbind);
             rn = "TCBind";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tcrestart();
+            tcg_gen_helper_0_0(do_mfc0_tcrestart);
             rn = "TCRestart";
             break;
         case 4:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tchalt();
+            tcg_gen_helper_0_0(do_mfc0_tchalt);
             rn = "TCHalt";
             break;
         case 5:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tccontext();
+            tcg_gen_helper_0_0(do_mfc0_tccontext);
             rn = "TCContext";
             break;
         case 6:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tcschedule();
+            tcg_gen_helper_0_0(do_mfc0_tcschedule);
             rn = "TCSchedule";
             break;
         case 7:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tcschefback();
+            tcg_gen_helper_0_0(do_mfc0_tcschefback);
             rn = "TCScheFBack";
             break;
         default:
@@ -2744,7 +2763,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Context";
             break;
         case 1:
-//            gen_op_mfc0_contextconfig(); /* SmartMIPS ASE */
+//            tcg_gen_helper_0_0(do_mfc0_contextconfig); /* SmartMIPS ASE */
             rn = "ContextConfig";
 //            break;
         default:
@@ -2826,7 +2845,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 9:
         switch (sel) {
         case 0:
-            gen_op_mfc0_count();
+            tcg_gen_helper_0_0(do_mfc0_count);
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -2952,7 +2971,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 17:
         switch (sel) {
         case 0:
-            gen_op_mfc0_lladdr();
+            tcg_gen_helper_0_0(do_mfc0_lladdr);
             rn = "LLAddr";
             break;
         default:
@@ -2962,7 +2981,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 18:
         switch (sel) {
         case 0 ... 7:
-            gen_op_mfc0_watchlo(sel);
+            tcg_gen_helper_0_1i(do_mfc0_watchlo, sel);
             rn = "WatchLo";
             break;
         default:
@@ -2972,7 +2991,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 19:
         switch (sel) {
         case 0 ...7:
-            gen_op_mfc0_watchhi(sel);
+            tcg_gen_helper_0_1i(do_mfc0_watchhi, sel);
             rn = "WatchHi";
             break;
         default:
@@ -3011,23 +3030,23 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 23:
         switch (sel) {
         case 0:
-            gen_op_mfc0_debug(); /* EJTAG support */
+            tcg_gen_helper_0_0(do_mfc0_debug); /* EJTAG support */
             rn = "Debug";
             break;
         case 1:
-//            gen_op_mfc0_tracecontrol(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mfc0_tracecontrol); /* PDtrace support */
             rn = "TraceControl";
 //            break;
         case 2:
-//            gen_op_mfc0_tracecontrol2(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mfc0_tracecontrol2); /* PDtrace support */
             rn = "TraceControl2";
 //            break;
         case 3:
-//            gen_op_mfc0_usertracedata(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mfc0_usertracedata); /* PDtrace support */
             rn = "UserTraceData";
 //            break;
         case 4:
-//            gen_op_mfc0_debug(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mfc0_debug); /* PDtrace support */
             rn = "TraceBPC";
 //            break;
         default:
@@ -3053,31 +3072,31 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Performance0";
             break;
         case 1:
-//            gen_op_mfc0_performance1();
+//            tcg_gen_helper_0_0(do_mfc0_performance1);
             rn = "Performance1";
 //            break;
         case 2:
-//            gen_op_mfc0_performance2();
+//            tcg_gen_helper_0_0(do_mfc0_performance2);
             rn = "Performance2";
 //            break;
         case 3:
-//            gen_op_mfc0_performance3();
+//            tcg_gen_helper_0_0(do_mfc0_performance3);
             rn = "Performance3";
 //            break;
         case 4:
-//            gen_op_mfc0_performance4();
+//            tcg_gen_helper_0_0(do_mfc0_performance4);
             rn = "Performance4";
 //            break;
         case 5:
-//            gen_op_mfc0_performance5();
+//            tcg_gen_helper_0_0(do_mfc0_performance5);
             rn = "Performance5";
 //            break;
         case 6:
-//            gen_op_mfc0_performance6();
+//            tcg_gen_helper_0_0(do_mfc0_performance6);
             rn = "Performance6";
 //            break;
         case 7:
-//            gen_op_mfc0_performance7();
+//            tcg_gen_helper_0_0(do_mfc0_performance7);
             rn = "Performance7";
 //            break;
         default:
@@ -3191,12 +3210,12 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 0:
         switch (sel) {
         case 0:
-            gen_op_mtc0_index();
+            tcg_gen_helper_0_0(do_mtc0_index);
             rn = "Index";
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_mvpcontrol();
+            tcg_gen_helper_0_0(do_mtc0_mvpcontrol);
             rn = "MVPControl";
             break;
         case 2:
@@ -3221,37 +3240,37 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpecontrol();
+            tcg_gen_helper_0_0(do_mtc0_vpecontrol);
             rn = "VPEControl";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeconf0();
+            tcg_gen_helper_0_0(do_mtc0_vpeconf0);
             rn = "VPEConf0";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeconf1();
+            tcg_gen_helper_0_0(do_mtc0_vpeconf1);
             rn = "VPEConf1";
             break;
         case 4:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_yqmask();
+            tcg_gen_helper_0_0(do_mtc0_yqmask);
             rn = "YQMask";
             break;
         case 5:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeschedule();
+            gen_mtc0_store64(cpu_T[0], offsetof(CPUState, CP0_VPESchedule));
             rn = "VPESchedule";
             break;
         case 6:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeschefback();
+            gen_mtc0_store64(cpu_T[0], offsetof(CPUState, CP0_VPEScheFBack));
             rn = "VPEScheFBack";
             break;
         case 7:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeopt();
+            tcg_gen_helper_0_0(do_mtc0_vpeopt);
             rn = "VPEOpt";
             break;
         default:
@@ -3261,42 +3280,42 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-            gen_op_mtc0_entrylo0();
+            tcg_gen_helper_0_0(do_mtc0_entrylo0);
             rn = "EntryLo0";
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcstatus();
+            tcg_gen_helper_0_0(do_mtc0_tcstatus);
             rn = "TCStatus";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcbind();
+            tcg_gen_helper_0_0(do_mtc0_tcbind);
             rn = "TCBind";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcrestart();
+            tcg_gen_helper_0_0(do_mtc0_tcrestart);
             rn = "TCRestart";
             break;
         case 4:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tchalt();
+            tcg_gen_helper_0_0(do_mtc0_tchalt);
             rn = "TCHalt";
             break;
         case 5:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tccontext();
+            tcg_gen_helper_0_0(do_mtc0_tccontext);
             rn = "TCContext";
             break;
         case 6:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcschedule();
+            tcg_gen_helper_0_0(do_mtc0_tcschedule);
             rn = "TCSchedule";
             break;
         case 7:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcschefback();
+            tcg_gen_helper_0_0(do_mtc0_tcschefback);
             rn = "TCScheFBack";
             break;
         default:
@@ -3306,7 +3325,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-            gen_op_mtc0_entrylo1();
+            tcg_gen_helper_0_0(do_mtc0_entrylo1);
             rn = "EntryLo1";
             break;
         default:
@@ -3316,11 +3335,11 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 4:
         switch (sel) {
         case 0:
-            gen_op_mtc0_context();
+            tcg_gen_helper_0_0(do_mtc0_context);
             rn = "Context";
             break;
         case 1:
-//            gen_op_mtc0_contextconfig(); /* SmartMIPS ASE */
+//            tcg_gen_helper_0_0(do_mtc0_contextconfig); /* SmartMIPS ASE */
             rn = "ContextConfig";
 //            break;
         default:
@@ -3330,12 +3349,12 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 5:
         switch (sel) {
         case 0:
-            gen_op_mtc0_pagemask();
+            tcg_gen_helper_0_0(do_mtc0_pagemask);
             rn = "PageMask";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_pagegrain();
+            tcg_gen_helper_0_0(do_mtc0_pagegrain);
             rn = "PageGrain";
             break;
         default:
@@ -3345,32 +3364,32 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 6:
         switch (sel) {
         case 0:
-            gen_op_mtc0_wired();
+            tcg_gen_helper_0_0(do_mtc0_wired);
             rn = "Wired";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf0();
+            tcg_gen_helper_0_0(do_mtc0_srsconf0);
             rn = "SRSConf0";
             break;
         case 2:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf1();
+            tcg_gen_helper_0_0(do_mtc0_srsconf1);
             rn = "SRSConf1";
             break;
         case 3:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf2();
+            tcg_gen_helper_0_0(do_mtc0_srsconf2);
             rn = "SRSConf2";
             break;
         case 4:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf3();
+            tcg_gen_helper_0_0(do_mtc0_srsconf3);
             rn = "SRSConf3";
             break;
         case 5:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf4();
+            tcg_gen_helper_0_0(do_mtc0_srsconf4);
             rn = "SRSConf4";
             break;
         default:
@@ -3381,7 +3400,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_hwrena();
+            tcg_gen_helper_0_0(do_mtc0_hwrena);
             rn = "HWREna";
             break;
         default:
@@ -3395,7 +3414,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 9:
         switch (sel) {
         case 0:
-            gen_op_mtc0_count();
+            tcg_gen_helper_0_0(do_mtc0_count);
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -3408,7 +3427,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 10:
         switch (sel) {
         case 0:
-            gen_op_mtc0_entryhi();
+            tcg_gen_helper_0_0(do_mtc0_entryhi);
             rn = "EntryHi";
             break;
         default:
@@ -3418,7 +3437,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 11:
         switch (sel) {
         case 0:
-            gen_op_mtc0_compare();
+            tcg_gen_helper_0_0(do_mtc0_compare);
             rn = "Compare";
             break;
         /* 6,7 are implementation dependent */
@@ -3431,7 +3450,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 12:
         switch (sel) {
         case 0:
-            gen_op_mtc0_status();
+            tcg_gen_helper_0_0(do_mtc0_status);
             /* BS_STOP isn't good enough here, hflags may have changed. */
             gen_save_pc(ctx->pc + 4);
             ctx->bstate = BS_EXCP;
@@ -3439,21 +3458,21 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_intctl();
+            tcg_gen_helper_0_0(do_mtc0_intctl);
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "IntCtl";
             break;
         case 2:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsctl();
+            tcg_gen_helper_0_0(do_mtc0_srsctl);
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "SRSCtl";
             break;
         case 3:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsmap();
+            gen_mtc0_store32(cpu_T[0], offsetof(CPUState, CP0_SRSMap));
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "SRSMap";
@@ -3465,7 +3484,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 13:
         switch (sel) {
         case 0:
-            gen_op_mtc0_cause();
+            tcg_gen_helper_0_0(do_mtc0_cause);
             rn = "Cause";
             break;
         default:
@@ -3477,7 +3496,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 14:
         switch (sel) {
         case 0:
-            gen_op_mtc0_epc();
+            gen_mtc0_store64(cpu_T[0], offsetof(CPUState, CP0_EPC));
             rn = "EPC";
             break;
         default:
@@ -3492,7 +3511,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_ebase();
+            tcg_gen_helper_0_0(do_mtc0_ebase);
             rn = "EBase";
             break;
         default:
@@ -3502,7 +3521,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 16:
         switch (sel) {
         case 0:
-            gen_op_mtc0_config0();
+            tcg_gen_helper_0_0(do_mtc0_config0);
             rn = "Config";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
@@ -3512,7 +3531,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Config1";
             break;
         case 2:
-            gen_op_mtc0_config2();
+            tcg_gen_helper_0_0(do_mtc0_config2);
             rn = "Config2";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
@@ -3549,7 +3568,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 18:
         switch (sel) {
         case 0 ... 7:
-            gen_op_mtc0_watchlo(sel);
+            tcg_gen_helper_0_1i(do_mtc0_watchlo, sel);
             rn = "WatchLo";
             break;
         default:
@@ -3559,7 +3578,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 19:
         switch (sel) {
         case 0 ... 7:
-            gen_op_mtc0_watchhi(sel);
+            tcg_gen_helper_0_1i(do_mtc0_watchhi, sel);
             rn = "WatchHi";
             break;
         default:
@@ -3571,7 +3590,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 0:
 #if defined(TARGET_MIPS64)
             check_insn(env, ctx, ISA_MIPS3);
-            gen_op_mtc0_xcontext();
+            tcg_gen_helper_0_0(do_mtc0_xcontext);
             rn = "XContext";
             break;
 #endif
@@ -3583,7 +3602,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
        /* Officially reserved, but sel 0 is used for R1x000 framemask */
         switch (sel) {
         case 0:
-            gen_op_mtc0_framemask();
+            tcg_gen_helper_0_0(do_mtc0_framemask);
             rn = "Framemask";
             break;
         default:
@@ -3597,20 +3616,20 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 23:
         switch (sel) {
         case 0:
-            gen_op_mtc0_debug(); /* EJTAG support */
+            tcg_gen_helper_0_0(do_mtc0_debug); /* EJTAG support */
             /* BS_STOP isn't good enough here, hflags may have changed. */
             gen_save_pc(ctx->pc + 4);
             ctx->bstate = BS_EXCP;
             rn = "Debug";
             break;
         case 1:
-//            gen_op_mtc0_tracecontrol(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mtc0_tracecontrol); /* PDtrace support */
             rn = "TraceControl";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
 //            break;
         case 2:
-//            gen_op_mtc0_tracecontrol2(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mtc0_tracecontrol2); /* PDtrace support */
             rn = "TraceControl2";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
@@ -3618,13 +3637,13 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 3:
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
-//            gen_op_mtc0_usertracedata(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mtc0_usertracedata); /* PDtrace support */
             rn = "UserTraceData";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
 //            break;
         case 4:
-//            gen_op_mtc0_debug(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mtc0_debug); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "TraceBPC";
@@ -3636,7 +3655,8 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 24:
         switch (sel) {
         case 0:
-            gen_op_mtc0_depc(); /* EJTAG support */
+            /* EJTAG support */
+            gen_mtc0_store64(cpu_T[0], offsetof(CPUState, CP0_DEPC));
             rn = "DEPC";
             break;
         default:
@@ -3646,35 +3666,35 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 25:
         switch (sel) {
         case 0:
-            gen_op_mtc0_performance0();
+            tcg_gen_helper_0_0(do_mtc0_performance0);
             rn = "Performance0";
             break;
         case 1:
-//            gen_op_mtc0_performance1();
+//            tcg_gen_helper_0_0(do_mtc0_performance1);
             rn = "Performance1";
 //            break;
         case 2:
-//            gen_op_mtc0_performance2();
+//            tcg_gen_helper_0_0(do_mtc0_performance2);
             rn = "Performance2";
 //            break;
         case 3:
-//            gen_op_mtc0_performance3();
+//            tcg_gen_helper_0_0(do_mtc0_performance3);
             rn = "Performance3";
 //            break;
         case 4:
-//            gen_op_mtc0_performance4();
+//            tcg_gen_helper_0_0(do_mtc0_performance4);
             rn = "Performance4";
 //            break;
         case 5:
-//            gen_op_mtc0_performance5();
+//            tcg_gen_helper_0_0(do_mtc0_performance5);
             rn = "Performance5";
 //            break;
         case 6:
-//            gen_op_mtc0_performance6();
+//            tcg_gen_helper_0_0(do_mtc0_performance6);
             rn = "Performance6";
 //            break;
         case 7:
-//            gen_op_mtc0_performance7();
+//            tcg_gen_helper_0_0(do_mtc0_performance7);
             rn = "Performance7";
 //            break;
         default:
@@ -3701,14 +3721,14 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            gen_op_mtc0_taglo();
+            tcg_gen_helper_0_0(do_mtc0_taglo);
             rn = "TagLo";
             break;
         case 1:
         case 3:
         case 5:
         case 7:
-            gen_op_mtc0_datalo();
+            tcg_gen_helper_0_0(do_mtc0_datalo);
             rn = "DataLo";
             break;
         default:
@@ -3721,14 +3741,14 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            gen_op_mtc0_taghi();
+            tcg_gen_helper_0_0(do_mtc0_taghi);
             rn = "TagHi";
             break;
         case 1:
         case 3:
         case 5:
         case 7:
-            gen_op_mtc0_datahi();
+            tcg_gen_helper_0_0(do_mtc0_datahi);
             rn = "DataHi";
             break;
         default:
@@ -3739,7 +3759,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 30:
         switch (sel) {
         case 0:
-            gen_op_mtc0_errorepc();
+            gen_mtc0_store64(cpu_T[0], offsetof(CPUState, CP0_ErrorEPC));
             rn = "ErrorEPC";
             break;
         default:
@@ -3749,7 +3769,8 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 31:
         switch (sel) {
         case 0:
-            gen_op_mtc0_desave(); /* EJTAG support */
+            /* EJTAG support */
+            gen_mtc0_store32(cpu_T[0], offsetof(CPUState, CP0_DESAVE));
             rn = "DESAVE";
             break;
         default:
@@ -3796,17 +3817,17 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_mvpcontrol();
+            tcg_gen_helper_0_0(do_mfc0_mvpcontrol);
             rn = "MVPControl";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_mvpconf0();
+            tcg_gen_helper_0_0(do_mfc0_mvpconf0);
             rn = "MVPConf0";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_mvpconf1();
+            tcg_gen_helper_0_0(do_mfc0_mvpconf1);
             rn = "MVPConf1";
             break;
         default:
@@ -3816,7 +3837,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 1:
         switch (sel) {
         case 0:
-            gen_op_mfc0_random();
+            tcg_gen_helper_0_0(do_mfc0_random);
             rn = "Random";
             break;
         case 1:
@@ -3866,37 +3887,37 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tcstatus();
+            tcg_gen_helper_0_0(do_mfc0_tcstatus);
             rn = "TCStatus";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mfc0_tcbind();
+            tcg_gen_helper_0_0(do_mfc0_tcbind);
             rn = "TCBind";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            gen_op_dmfc0_tcrestart();
+            tcg_gen_helper_0_0(do_dmfc0_tcrestart);
             rn = "TCRestart";
             break;
         case 4:
             check_insn(env, ctx, ASE_MT);
-            gen_op_dmfc0_tchalt();
+            tcg_gen_helper_0_0(do_dmfc0_tchalt);
             rn = "TCHalt";
             break;
         case 5:
             check_insn(env, ctx, ASE_MT);
-            gen_op_dmfc0_tccontext();
+            tcg_gen_helper_0_0(do_dmfc0_tccontext);
             rn = "TCContext";
             break;
         case 6:
             check_insn(env, ctx, ASE_MT);
-            gen_op_dmfc0_tcschedule();
+            tcg_gen_helper_0_0(do_dmfc0_tcschedule);
             rn = "TCSchedule";
             break;
         case 7:
             check_insn(env, ctx, ASE_MT);
-            gen_op_dmfc0_tcschefback();
+            tcg_gen_helper_0_0(do_dmfc0_tcschefback);
             rn = "TCScheFBack";
             break;
         default:
@@ -3920,7 +3941,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Context";
             break;
         case 1:
-//            gen_op_dmfc0_contextconfig(); /* SmartMIPS ASE */
+//            tcg_gen_helper_0_0(do_dmfc0_contextconfig); /* SmartMIPS ASE */
             rn = "ContextConfig";
 //            break;
         default:
@@ -4001,7 +4022,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 9:
         switch (sel) {
         case 0:
-            gen_op_mfc0_count();
+            tcg_gen_helper_0_0(do_mfc0_count);
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -4124,7 +4145,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 17:
         switch (sel) {
         case 0:
-            gen_op_dmfc0_lladdr();
+            tcg_gen_helper_0_0(do_dmfc0_lladdr);
             rn = "LLAddr";
             break;
         default:
@@ -4134,7 +4155,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 18:
         switch (sel) {
         case 0 ... 7:
-            gen_op_dmfc0_watchlo(sel);
+            tcg_gen_helper_0_1i(do_dmfc0_watchlo, sel);
             rn = "WatchLo";
             break;
         default:
@@ -4144,7 +4165,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 19:
         switch (sel) {
         case 0 ... 7:
-            gen_op_mfc0_watchhi(sel);
+            tcg_gen_helper_0_1i(do_mfc0_watchhi, sel);
             rn = "WatchHi";
             break;
         default:
@@ -4180,23 +4201,23 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 23:
         switch (sel) {
         case 0:
-            gen_op_mfc0_debug(); /* EJTAG support */
+            tcg_gen_helper_0_0(do_mfc0_debug); /* EJTAG support */
             rn = "Debug";
             break;
         case 1:
-//            gen_op_dmfc0_tracecontrol(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_dmfc0_tracecontrol); /* PDtrace support */
             rn = "TraceControl";
 //            break;
         case 2:
-//            gen_op_dmfc0_tracecontrol2(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_dmfc0_tracecontrol2); /* PDtrace support */
             rn = "TraceControl2";
 //            break;
         case 3:
-//            gen_op_dmfc0_usertracedata(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_dmfc0_usertracedata); /* PDtrace support */
             rn = "UserTraceData";
 //            break;
         case 4:
-//            gen_op_dmfc0_debug(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_dmfc0_debug); /* PDtrace support */
             rn = "TraceBPC";
 //            break;
         default:
@@ -4221,31 +4242,31 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Performance0";
             break;
         case 1:
-//            gen_op_dmfc0_performance1();
+//            tcg_gen_helper_0_0(do_dmfc0_performance1);
             rn = "Performance1";
 //            break;
         case 2:
-//            gen_op_dmfc0_performance2();
+//            tcg_gen_helper_0_0(do_dmfc0_performance2);
             rn = "Performance2";
 //            break;
         case 3:
-//            gen_op_dmfc0_performance3();
+//            tcg_gen_helper_0_0(do_dmfc0_performance3);
             rn = "Performance3";
 //            break;
         case 4:
-//            gen_op_dmfc0_performance4();
+//            tcg_gen_helper_0_0(do_dmfc0_performance4);
             rn = "Performance4";
 //            break;
         case 5:
-//            gen_op_dmfc0_performance5();
+//            tcg_gen_helper_0_0(do_dmfc0_performance5);
             rn = "Performance5";
 //            break;
         case 6:
-//            gen_op_dmfc0_performance6();
+//            tcg_gen_helper_0_0(do_dmfc0_performance6);
             rn = "Performance6";
 //            break;
         case 7:
-//            gen_op_dmfc0_performance7();
+//            tcg_gen_helper_0_0(do_dmfc0_performance7);
             rn = "Performance7";
 //            break;
         default:
@@ -4358,12 +4379,12 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 0:
         switch (sel) {
         case 0:
-            gen_op_mtc0_index();
+            tcg_gen_helper_0_0(do_mtc0_index);
             rn = "Index";
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_mvpcontrol();
+            tcg_gen_helper_0_0(do_mtc0_mvpcontrol);
             rn = "MVPControl";
             break;
         case 2:
@@ -4388,37 +4409,37 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpecontrol();
+            tcg_gen_helper_0_0(do_mtc0_vpecontrol);
             rn = "VPEControl";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeconf0();
+            tcg_gen_helper_0_0(do_mtc0_vpeconf0);
             rn = "VPEConf0";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeconf1();
+            tcg_gen_helper_0_0(do_mtc0_vpeconf1);
             rn = "VPEConf1";
             break;
         case 4:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_yqmask();
+            tcg_gen_helper_0_0(do_mtc0_yqmask);
             rn = "YQMask";
             break;
         case 5:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeschedule();
+            tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, CP0_VPESchedule));
             rn = "VPESchedule";
             break;
         case 6:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeschefback();
+            tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, CP0_VPEScheFBack));
             rn = "VPEScheFBack";
             break;
         case 7:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_vpeopt();
+            tcg_gen_helper_0_0(do_mtc0_vpeopt);
             rn = "VPEOpt";
             break;
         default:
@@ -4428,42 +4449,42 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-            gen_op_mtc0_entrylo0();
+            tcg_gen_helper_0_0(do_mtc0_entrylo0);
             rn = "EntryLo0";
             break;
         case 1:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcstatus();
+            tcg_gen_helper_0_0(do_mtc0_tcstatus);
             rn = "TCStatus";
             break;
         case 2:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcbind();
+            tcg_gen_helper_0_0(do_mtc0_tcbind);
             rn = "TCBind";
             break;
         case 3:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcrestart();
+            tcg_gen_helper_0_0(do_mtc0_tcrestart);
             rn = "TCRestart";
             break;
         case 4:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tchalt();
+            tcg_gen_helper_0_0(do_mtc0_tchalt);
             rn = "TCHalt";
             break;
         case 5:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tccontext();
+            tcg_gen_helper_0_0(do_mtc0_tccontext);
             rn = "TCContext";
             break;
         case 6:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcschedule();
+            tcg_gen_helper_0_0(do_mtc0_tcschedule);
             rn = "TCSchedule";
             break;
         case 7:
             check_insn(env, ctx, ASE_MT);
-            gen_op_mtc0_tcschefback();
+            tcg_gen_helper_0_0(do_mtc0_tcschefback);
             rn = "TCScheFBack";
             break;
         default:
@@ -4473,7 +4494,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-            gen_op_mtc0_entrylo1();
+            tcg_gen_helper_0_0(do_mtc0_entrylo1);
             rn = "EntryLo1";
             break;
         default:
@@ -4483,11 +4504,11 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 4:
         switch (sel) {
         case 0:
-            gen_op_mtc0_context();
+            tcg_gen_helper_0_0(do_mtc0_context);
             rn = "Context";
             break;
         case 1:
-//           gen_op_mtc0_contextconfig(); /* SmartMIPS ASE */
+//           tcg_gen_helper_0_0(do_mtc0_contextconfig); /* SmartMIPS ASE */
             rn = "ContextConfig";
 //           break;
         default:
@@ -4497,12 +4518,12 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 5:
         switch (sel) {
         case 0:
-            gen_op_mtc0_pagemask();
+            tcg_gen_helper_0_0(do_mtc0_pagemask);
             rn = "PageMask";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_pagegrain();
+            tcg_gen_helper_0_0(do_mtc0_pagegrain);
             rn = "PageGrain";
             break;
         default:
@@ -4512,32 +4533,32 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 6:
         switch (sel) {
         case 0:
-            gen_op_mtc0_wired();
+            tcg_gen_helper_0_0(do_mtc0_wired);
             rn = "Wired";
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf0();
+            tcg_gen_helper_0_0(do_mtc0_srsconf0);
             rn = "SRSConf0";
             break;
         case 2:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf1();
+            tcg_gen_helper_0_0(do_mtc0_srsconf1);
             rn = "SRSConf1";
             break;
         case 3:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf2();
+            tcg_gen_helper_0_0(do_mtc0_srsconf2);
             rn = "SRSConf2";
             break;
         case 4:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf3();
+            tcg_gen_helper_0_0(do_mtc0_srsconf3);
             rn = "SRSConf3";
             break;
         case 5:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsconf4();
+            tcg_gen_helper_0_0(do_mtc0_srsconf4);
             rn = "SRSConf4";
             break;
         default:
@@ -4548,7 +4569,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_hwrena();
+            tcg_gen_helper_0_0(do_mtc0_hwrena);
             rn = "HWREna";
             break;
         default:
@@ -4562,7 +4583,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 9:
         switch (sel) {
         case 0:
-            gen_op_mtc0_count();
+            tcg_gen_helper_0_0(do_mtc0_count);
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -4575,7 +4596,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 10:
         switch (sel) {
         case 0:
-            gen_op_mtc0_entryhi();
+            tcg_gen_helper_0_0(do_mtc0_entryhi);
             rn = "EntryHi";
             break;
         default:
@@ -4585,7 +4606,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 11:
         switch (sel) {
         case 0:
-            gen_op_mtc0_compare();
+            tcg_gen_helper_0_0(do_mtc0_compare);
             rn = "Compare";
             break;
         /* 6,7 are implementation dependent */
@@ -4598,7 +4619,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 12:
         switch (sel) {
         case 0:
-            gen_op_mtc0_status();
+            tcg_gen_helper_0_0(do_mtc0_status);
             /* BS_STOP isn't good enough here, hflags may have changed. */
             gen_save_pc(ctx->pc + 4);
             ctx->bstate = BS_EXCP;
@@ -4606,21 +4627,21 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_intctl();
+            tcg_gen_helper_0_0(do_mtc0_intctl);
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "IntCtl";
             break;
         case 2:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsctl();
+            tcg_gen_helper_0_0(do_mtc0_srsctl);
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "SRSCtl";
             break;
         case 3:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_srsmap();
+            gen_mtc0_store32(cpu_T[0], offsetof(CPUState, CP0_SRSMap));
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "SRSMap";
@@ -4632,7 +4653,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 13:
         switch (sel) {
         case 0:
-            gen_op_mtc0_cause();
+            tcg_gen_helper_0_0(do_mtc0_cause);
             rn = "Cause";
             break;
         default:
@@ -4644,7 +4665,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 14:
         switch (sel) {
         case 0:
-            gen_op_mtc0_epc();
+            tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, CP0_EPC));
             rn = "EPC";
             break;
         default:
@@ -4659,7 +4680,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             break;
         case 1:
             check_insn(env, ctx, ISA_MIPS32R2);
-            gen_op_mtc0_ebase();
+            tcg_gen_helper_0_0(do_mtc0_ebase);
             rn = "EBase";
             break;
         default:
@@ -4669,7 +4690,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 16:
         switch (sel) {
         case 0:
-            gen_op_mtc0_config0();
+            tcg_gen_helper_0_0(do_mtc0_config0);
             rn = "Config";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
@@ -4679,7 +4700,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
             rn = "Config1";
             break;
         case 2:
-            gen_op_mtc0_config2();
+            tcg_gen_helper_0_0(do_mtc0_config2);
             rn = "Config2";
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
@@ -4707,7 +4728,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 18:
         switch (sel) {
         case 0 ... 7:
-            gen_op_mtc0_watchlo(sel);
+            tcg_gen_helper_0_1i(do_mtc0_watchlo, sel);
             rn = "WatchLo";
             break;
         default:
@@ -4717,7 +4738,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 19:
         switch (sel) {
         case 0 ... 7:
-            gen_op_mtc0_watchhi(sel);
+            tcg_gen_helper_0_1i(do_mtc0_watchhi, sel);
             rn = "WatchHi";
             break;
         default:
@@ -4728,7 +4749,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         switch (sel) {
         case 0:
             check_insn(env, ctx, ISA_MIPS3);
-            gen_op_mtc0_xcontext();
+            tcg_gen_helper_0_0(do_mtc0_xcontext);
             rn = "XContext";
             break;
         default:
@@ -4739,7 +4760,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
        /* Officially reserved, but sel 0 is used for R1x000 framemask */
         switch (sel) {
         case 0:
-            gen_op_mtc0_framemask();
+            tcg_gen_helper_0_0(do_mtc0_framemask);
             rn = "Framemask";
             break;
         default:
@@ -4753,32 +4774,32 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 23:
         switch (sel) {
         case 0:
-            gen_op_mtc0_debug(); /* EJTAG support */
+            tcg_gen_helper_0_0(do_mtc0_debug); /* EJTAG support */
             /* BS_STOP isn't good enough here, hflags may have changed. */
             gen_save_pc(ctx->pc + 4);
             ctx->bstate = BS_EXCP;
             rn = "Debug";
             break;
         case 1:
-//            gen_op_mtc0_tracecontrol(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mtc0_tracecontrol); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "TraceControl";
 //            break;
         case 2:
-//            gen_op_mtc0_tracecontrol2(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mtc0_tracecontrol2); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "TraceControl2";
 //            break;
         case 3:
-//            gen_op_mtc0_usertracedata(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mtc0_usertracedata); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "UserTraceData";
 //            break;
         case 4:
-//            gen_op_mtc0_debug(); /* PDtrace support */
+//            tcg_gen_helper_0_0(do_mtc0_debug); /* PDtrace support */
             /* Stop translation as we may have switched the execution mode */
             ctx->bstate = BS_STOP;
             rn = "TraceBPC";
@@ -4790,7 +4811,8 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 24:
         switch (sel) {
         case 0:
-            gen_op_mtc0_depc(); /* EJTAG support */
+            /* EJTAG support */
+            tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, CP0_DEPC));
             rn = "DEPC";
             break;
         default:
@@ -4800,35 +4822,35 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 25:
         switch (sel) {
         case 0:
-            gen_op_mtc0_performance0();
+            tcg_gen_helper_0_0(do_mtc0_performance0);
             rn = "Performance0";
             break;
         case 1:
-//            gen_op_mtc0_performance1();
+//            tcg_gen_helper_0_0(do_mtc0_performance1);
             rn = "Performance1";
 //            break;
         case 2:
-//            gen_op_mtc0_performance2();
+//            tcg_gen_helper_0_0(do_mtc0_performance2);
             rn = "Performance2";
 //            break;
         case 3:
-//            gen_op_mtc0_performance3();
+//            tcg_gen_helper_0_0(do_mtc0_performance3);
             rn = "Performance3";
 //            break;
         case 4:
-//            gen_op_mtc0_performance4();
+//            tcg_gen_helper_0_0(do_mtc0_performance4);
             rn = "Performance4";
 //            break;
         case 5:
-//            gen_op_mtc0_performance5();
+//            tcg_gen_helper_0_0(do_mtc0_performance5);
             rn = "Performance5";
 //            break;
         case 6:
-//            gen_op_mtc0_performance6();
+//            tcg_gen_helper_0_0(do_mtc0_performance6);
             rn = "Performance6";
 //            break;
         case 7:
-//            gen_op_mtc0_performance7();
+//            tcg_gen_helper_0_0(do_mtc0_performance7);
             rn = "Performance7";
 //            break;
         default:
@@ -4855,14 +4877,14 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            gen_op_mtc0_taglo();
+            tcg_gen_helper_0_0(do_mtc0_taglo);
             rn = "TagLo";
             break;
         case 1:
         case 3:
         case 5:
         case 7:
-            gen_op_mtc0_datalo();
+            tcg_gen_helper_0_0(do_mtc0_datalo);
             rn = "DataLo";
             break;
         default:
@@ -4875,14 +4897,14 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            gen_op_mtc0_taghi();
+            tcg_gen_helper_0_0(do_mtc0_taghi);
             rn = "TagHi";
             break;
         case 1:
         case 3:
         case 5:
         case 7:
-            gen_op_mtc0_datahi();
+            tcg_gen_helper_0_0(do_mtc0_datahi);
             rn = "DataHi";
             break;
         default:
@@ -4893,7 +4915,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 30:
         switch (sel) {
         case 0:
-            gen_op_mtc0_errorepc();
+            tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, CP0_ErrorEPC));
             rn = "ErrorEPC";
             break;
         default:
@@ -4903,7 +4925,8 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
     case 31:
         switch (sel) {
         case 0:
-            gen_op_mtc0_desave(); /* EJTAG support */
+            /* EJTAG support */
+            gen_mtc0_store32(cpu_T[0], offsetof(CPUState, CP0_DESAVE));
             rn = "DESAVE";
             break;
         default:
@@ -4951,25 +4974,25 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt,
         case 2:
             switch (sel) {
             case 1:
-                gen_op_mftc0_tcstatus();
+                tcg_gen_helper_0_0(do_mftc0_tcstatus);
                 break;
             case 2:
-                gen_op_mftc0_tcbind();
+                tcg_gen_helper_0_0(do_mftc0_tcbind);
                 break;
             case 3:
-                gen_op_mftc0_tcrestart();
+                tcg_gen_helper_0_0(do_mftc0_tcrestart);
                 break;
             case 4:
-                gen_op_mftc0_tchalt();
+                tcg_gen_helper_0_0(do_mftc0_tchalt);
                 break;
             case 5:
-                gen_op_mftc0_tccontext();
+                tcg_gen_helper_0_0(do_mftc0_tccontext);
                 break;
             case 6:
-                gen_op_mftc0_tcschedule();
+                tcg_gen_helper_0_0(do_mftc0_tcschedule);
                 break;
             case 7:
-                gen_op_mftc0_tcschefback();
+                tcg_gen_helper_0_0(do_mftc0_tcschefback);
                 break;
             default:
                 gen_mfc0(env, ctx, rt, sel);
@@ -4979,7 +5002,7 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt,
         case 10:
             switch (sel) {
             case 0:
-                gen_op_mftc0_entryhi();
+                tcg_gen_helper_0_0(do_mftc0_entryhi);
                 break;
             default:
                 gen_mfc0(env, ctx, rt, sel);
@@ -4988,7 +5011,7 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt,
         case 12:
             switch (sel) {
             case 0:
-                gen_op_mftc0_status();
+                tcg_gen_helper_0_0(do_mftc0_status);
                 break;
             default:
                 gen_mfc0(env, ctx, rt, sel);
@@ -4997,7 +5020,7 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt,
         case 23:
             switch (sel) {
             case 0:
-                gen_op_mftc0_debug();
+                tcg_gen_helper_0_0(do_mftc0_debug);
                 break;
             default:
                 gen_mfc0(env, ctx, rt, sel);
@@ -5010,49 +5033,49 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt,
     } else switch (sel) {
     /* GPR registers. */
     case 0:
-        gen_op_mftgpr(rt);
+        tcg_gen_helper_0_1i(do_mftgpr, rt);
         break;
     /* Auxiliary CPU registers */
     case 1:
         switch (rt) {
         case 0:
-            gen_op_mftlo(0);
+            tcg_gen_helper_0_1i(do_mftlo, 0);
             break;
         case 1:
-            gen_op_mfthi(0);
+            tcg_gen_helper_0_1i(do_mfthi, 0);
             break;
         case 2:
-            gen_op_mftacx(0);
+            tcg_gen_helper_0_1i(do_mftacx, 0);
             break;
         case 4:
-            gen_op_mftlo(1);
+            tcg_gen_helper_0_1i(do_mftlo, 1);
             break;
         case 5:
-            gen_op_mfthi(1);
+            tcg_gen_helper_0_1i(do_mfthi, 1);
             break;
         case 6:
-            gen_op_mftacx(1);
+            tcg_gen_helper_0_1i(do_mftacx, 1);
             break;
         case 8:
-            gen_op_mftlo(2);
+            tcg_gen_helper_0_1i(do_mftlo, 2);
             break;
         case 9:
-            gen_op_mfthi(2);
+            tcg_gen_helper_0_1i(do_mfthi, 2);
             break;
         case 10:
-            gen_op_mftacx(2);
+            tcg_gen_helper_0_1i(do_mftacx, 2);
             break;
         case 12:
-            gen_op_mftlo(3);
+            tcg_gen_helper_0_1i(do_mftlo, 3);
             break;
         case 13:
-            gen_op_mfthi(3);
+            tcg_gen_helper_0_1i(do_mfthi, 3);
             break;
         case 14:
-            gen_op_mftacx(3);
+            tcg_gen_helper_0_1i(do_mftacx, 3);
             break;
         case 16:
-            gen_op_mftdsp();
+            tcg_gen_helper_0_0(do_mftdsp);
             break;
         default:
             goto die;
@@ -5071,7 +5094,7 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt,
         break;
     case 3:
         /* XXX: For now we support only a single FPU context. */
-        gen_op_cfc1(rt);
+        tcg_gen_helper_0_1i(do_cfc1, rt);
         break;
     /* COP2: Not implemented. */
     case 4:
@@ -5115,25 +5138,25 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd,
         case 2:
             switch (sel) {
             case 1:
-                gen_op_mttc0_tcstatus();
+                tcg_gen_helper_0_0(do_mttc0_tcstatus);
                 break;
             case 2:
-                gen_op_mttc0_tcbind();
+                tcg_gen_helper_0_0(do_mttc0_tcbind);
                 break;
             case 3:
-                gen_op_mttc0_tcrestart();
+                tcg_gen_helper_0_0(do_mttc0_tcrestart);
                 break;
             case 4:
-                gen_op_mttc0_tchalt();
+                tcg_gen_helper_0_0(do_mttc0_tchalt);
                 break;
             case 5:
-                gen_op_mttc0_tccontext();
+                tcg_gen_helper_0_0(do_mttc0_tccontext);
                 break;
             case 6:
-                gen_op_mttc0_tcschedule();
+                tcg_gen_helper_0_0(do_mttc0_tcschedule);
                 break;
             case 7:
-                gen_op_mttc0_tcschefback();
+                tcg_gen_helper_0_0(do_mttc0_tcschefback);
                 break;
             default:
                 gen_mtc0(env, ctx, rd, sel);
@@ -5143,7 +5166,7 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd,
         case 10:
             switch (sel) {
             case 0:
-                gen_op_mttc0_entryhi();
+                tcg_gen_helper_0_0(do_mttc0_entryhi);
                 break;
             default:
                 gen_mtc0(env, ctx, rd, sel);
@@ -5152,7 +5175,7 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd,
         case 12:
             switch (sel) {
             case 0:
-                gen_op_mttc0_status();
+                tcg_gen_helper_0_0(do_mttc0_status);
                 break;
             default:
                 gen_mtc0(env, ctx, rd, sel);
@@ -5161,7 +5184,7 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd,
         case 23:
             switch (sel) {
             case 0:
-                gen_op_mttc0_debug();
+                tcg_gen_helper_0_0(do_mttc0_debug);
                 break;
             default:
                 gen_mtc0(env, ctx, rd, sel);
@@ -5174,49 +5197,49 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd,
     } else switch (sel) {
     /* GPR registers. */
     case 0:
-        gen_op_mttgpr(rd);
+        tcg_gen_helper_0_1i(do_mttgpr, rd);
         break;
     /* Auxiliary CPU registers */
     case 1:
         switch (rd) {
         case 0:
-            gen_op_mttlo(0);
+            tcg_gen_helper_0_1i(do_mttlo, 0);
             break;
         case 1:
-            gen_op_mtthi(0);
+            tcg_gen_helper_0_1i(do_mtthi, 0);
             break;
         case 2:
-            gen_op_mttacx(0);
+            tcg_gen_helper_0_1i(do_mttacx, 0);
             break;
         case 4:
-            gen_op_mttlo(1);
+            tcg_gen_helper_0_1i(do_mttlo, 1);
             break;
         case 5:
-            gen_op_mtthi(1);
+            tcg_gen_helper_0_1i(do_mtthi, 1);
             break;
         case 6:
-            gen_op_mttacx(1);
+            tcg_gen_helper_0_1i(do_mttacx, 1);
             break;
         case 8:
-            gen_op_mttlo(2);
+            tcg_gen_helper_0_1i(do_mttlo, 2);
             break;
         case 9:
-            gen_op_mtthi(2);
+            tcg_gen_helper_0_1i(do_mtthi, 2);
             break;
         case 10:
-            gen_op_mttacx(2);
+            tcg_gen_helper_0_1i(do_mttacx, 2);
             break;
         case 12:
-            gen_op_mttlo(3);
+            tcg_gen_helper_0_1i(do_mttlo, 3);
             break;
         case 13:
-            gen_op_mtthi(3);
+            tcg_gen_helper_0_1i(do_mtthi, 3);
             break;
         case 14:
-            gen_op_mttacx(3);
+            tcg_gen_helper_0_1i(do_mttacx, 3);
             break;
         case 16:
-            gen_op_mttdsp();
+            tcg_gen_helper_0_0(do_mttdsp);
             break;
         default:
             goto die;
@@ -5235,7 +5258,7 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd,
         break;
     case 3:
         /* XXX: For now we support only a single FPU context. */
-        gen_op_ctc1(rd);
+        tcg_gen_helper_0_1i(do_ctc1, rd);
         break;
     /* COP2: Not implemented. */
     case 4:
@@ -5380,6 +5403,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
     }
     MIPS_DEBUG("%s %s %d", opn, regnames[rt], rd);
 }
+#endif /* !CONFIG_USER_ONLY */
 
 /* CP1 Branches (before delay slot) */
 static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
@@ -5464,13 +5488,13 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         opn = "mtc1";
         break;
     case OPC_CFC1:
-        gen_op_cfc1(fs);
+        tcg_gen_helper_0_1i(do_cfc1, fs);
         gen_store_gpr(cpu_T[0], rt);
         opn = "cfc1";
         break;
     case OPC_CTC1:
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_ctc1(fs);
+        tcg_gen_helper_0_1i(do_ctc1, fs);
         opn = "ctc1";
         break;
     case OPC_DMFC1:
@@ -6846,12 +6870,12 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             check_insn(env, ctx, ASE_MT);
             gen_load_gpr(cpu_T[0], rt);
             gen_load_gpr(cpu_T[1], rs);
-            gen_op_fork();
+            tcg_gen_helper_0_0(do_fork);
             break;
         case OPC_YIELD:
             check_insn(env, ctx, ASE_MT);
             gen_load_gpr(cpu_T[0], rs);
-            gen_op_yield();
+            tcg_gen_helper_0_0(do_yield);
             gen_store_gpr(cpu_T[0], rd);
             break;
 #if defined(TARGET_MIPS64)
@@ -6921,29 +6945,33 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_DMFC0:
         case OPC_DMTC0:
 #endif
+#ifndef CONFIG_USER_ONLY
             gen_cp0(env, ctx, op1, rt, rd);
+#endif
             break;
         case OPC_C0_FIRST ... OPC_C0_LAST:
+#ifndef CONFIG_USER_ONLY
             gen_cp0(env, ctx, MASK_C0(ctx->opcode), rt, rd);
+#endif
             break;
         case OPC_MFMC0:
             op2 = MASK_MFMC0(ctx->opcode);
             switch (op2) {
             case OPC_DMT:
                 check_insn(env, ctx, ASE_MT);
-                gen_op_dmt();
+                tcg_gen_helper_0_0(do_dmt);
                 break;
             case OPC_EMT:
                 check_insn(env, ctx, ASE_MT);
-                gen_op_emt();
+                tcg_gen_helper_0_0(do_emt);
                 break;
             case OPC_DVPE:
                 check_insn(env, ctx, ASE_MT);
-                gen_op_dvpe();
+                tcg_gen_helper_0_0(do_dvpe);
                 break;
             case OPC_EVPE:
                 check_insn(env, ctx, ASE_MT);
-                gen_op_evpe();
+                tcg_gen_helper_0_0(do_evpe);
                 break;
             case OPC_DI:
                 check_insn(env, ctx, ISA_MIPS32R2);
