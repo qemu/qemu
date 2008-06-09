@@ -78,13 +78,13 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	miss = cris_mmu_translate(&res, env, address, rw, mmu_idx);
 	if (miss)
 	{
-		if (env->exception_index == EXCP_MMU_FAULT)
+		if (env->exception_index == EXCP_BUSFAULT)
 			cpu_abort(env, 
 				  "CRIS: Illegal recursive bus fault."
 				  "addr=%x rw=%d\n",
 				  address, rw);
 
-		env->exception_index = EXCP_MMU_FAULT;
+		env->exception_index = EXCP_BUSFAULT;
 		env->fault_vector = res.bf_vec;
 		r = 1;
 	}
@@ -120,17 +120,20 @@ void do_interrupt(CPUState *env)
 			env->pregs[PR_ERP] = env->pc + 2;
 			break;
 
-		case EXCP_MMU_FAULT:
+		case EXCP_NMI:
+			/* NMI is hardwired to vector zero.  */
+			ex_vec = 0;
+			env->pregs[PR_CCS] &= ~M_FLAG;
+			env->pregs[PR_NRP] = env->pc;
+			break;
+
+		case EXCP_BUSFAULT:
 			ex_vec = env->fault_vector;
 			env->pregs[PR_ERP] = env->pc;
 			break;
 
 		default:
-			/* Is the core accepting interrupts?  */
-			if (!(env->pregs[PR_CCS] & I_FLAG))
-				return;
-			/* The interrupt controller gives us the
-			   vector.  */
+			/* The interrupt controller gives us the vector.  */
 			ex_vec = env->interrupt_vector;
 			/* Normal interrupts are taken between
 			   TB's.  env->pc is valid here.  */

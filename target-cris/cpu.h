@@ -29,12 +29,11 @@
 
 #define ELF_MACHINE	EM_CRIS
 
-#define EXCP_MMU_EXEC    0
-#define EXCP_MMU_READ    1
-#define EXCP_MMU_WRITE   2
-#define EXCP_MMU_FLUSH   3
-#define EXCP_MMU_FAULT   4
-#define EXCP_BREAK      16 /* trap.  */
+#define EXCP_NMI        1
+#define EXCP_GURU       2
+#define EXCP_BUSFAULT   3
+#define EXCP_IRQ        4
+#define EXCP_BREAK      5
 
 /* Register aliases. R0 - R15 */
 #define R_FP  8
@@ -54,11 +53,14 @@
 #define PR_EBP 9
 #define PR_ERP 10
 #define PR_SRP 11
+#define PR_NRP 12
 #define PR_CCS 13
 #define PR_USP 14
 #define PR_SPC 15
 
 /* CPU flags.  */
+#define Q_FLAG 0x80000000
+#define M_FLAG 0x40000000
 #define S_FLAG 0x200
 #define R_FLAG 0x100
 #define P_FLAG 0x80
@@ -154,7 +156,6 @@ typedef struct CPUCRISState {
 		uint32_t lo;
 	} tlbsets[2][4][16];
 
-	int features;
 	int user_mode_only;
 
 	CPU_COMMON

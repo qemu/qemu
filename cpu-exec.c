@@ -501,7 +501,15 @@ int cpu_exec(CPUState *env1)
                         next_tb = 0;
                     }
 #elif defined(TARGET_CRIS)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+                    if (interrupt_request & CPU_INTERRUPT_HARD
+                        && (env->pregs[PR_CCS] & I_FLAG)) {
+                        env->exception_index = EXCP_IRQ;
+                        do_interrupt(env);
+                        next_tb = 0;
+                    }
+                    if (interrupt_request & CPU_INTERRUPT_NMI
+                        && (env->pregs[PR_CCS] & M_FLAG)) {
+                        env->exception_index = EXCP_NMI;
                         do_interrupt(env);
                         next_tb = 0;
                     }
