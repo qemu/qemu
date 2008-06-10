@@ -2595,11 +2595,8 @@ static inline void gen_mfc0_load32 (TCGv t, target_ulong off)
 
 static inline void gen_mfc0_load64 (TCGv t, target_ulong off)
 {
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_I64);
-
-    tcg_gen_ld_i64(r_tmp, cpu_env, off);
-    tcg_gen_trunc_i64_tl(t, r_tmp);
-    tcg_temp_free(r_tmp);
+    tcg_gen_ld_tl(t, cpu_env, off);
+    tcg_gen_ext32s_tl(t, t);
 }
 
 static inline void gen_mtc0_store32 (TCGv t, target_ulong off)
@@ -2613,11 +2610,8 @@ static inline void gen_mtc0_store32 (TCGv t, target_ulong off)
 
 static inline void gen_mtc0_store64 (TCGv t, target_ulong off)
 {
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_I64);
-
-    tcg_gen_ext_tl_i64(r_tmp, t);
-    tcg_gen_st_i64(r_tmp, cpu_env, off);
-    tcg_temp_free(r_tmp);
+    tcg_gen_ext32s_tl(t, t);
+    tcg_gen_st_tl(t, cpu_env, off);
 }
 
 static void gen_mfc0 (CPUState *env, DisasContext *ctx, int reg, int sel)
