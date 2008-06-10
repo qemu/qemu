@@ -125,6 +125,7 @@ endif
 
 ifeq ($(ARCH),ppc)
 CPPFLAGS+= -D__powerpc__
+OP_CFLAGS+= -mlongcall
 endif
 
 ifeq ($(ARCH),sparc)
@@ -414,7 +415,7 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
 endif
 endif
 
-OBJS= main.o syscall.o strace.o mmap.o signal.o path.o osdep.o thunk.o \
+OBJS= main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
       elfload.o linuxload.o uaccess.o
 LIBS+= $(AIOLIBS)
 ifdef TARGET_HAS_BFLT
@@ -471,7 +472,7 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 
 LIBS+=-lmx
 
-OBJS= main.o commpage.o machload.o mmap.o osdep.o signal.o syscall.o thunk.o
+OBJS= main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o
 
 OBJS+= libqemu.a
 
@@ -631,7 +632,7 @@ OBJS+= arm-semi.o
 OBJS+= pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
 OBJS+= pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
 OBJS+= pflash_cfi01.o gumstix.o
-OBJS+= zaurus.o ide.o serial.o nand.o ecc.o spitz.o tosa.o
+OBJS+= zaurus.o ide.o serial.o nand.o ecc.o spitz.o tosa.o tc6393xb.o
 OBJS+= omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o
 OBJS+= omap2.o omap_dss.o
 OBJS+= palm.o tsc210x.o

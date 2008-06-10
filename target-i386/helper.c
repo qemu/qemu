@@ -374,7 +374,7 @@ void cpu_reset(CPUX86State *env)
 #ifdef CONFIG_SOFTMMU
     env->hflags |= HF_SOFTMMU_MASK;
 #endif
-    env->hflags |= HF_GIF_MASK;
+    env->hflags2 |= HF2_GIF_MASK;
 
     cpu_x86_update_cr0(env, 0x60000010);
     env->a20_mask = ~0x0;
@@ -383,16 +383,22 @@ void cpu_reset(CPUX86State *env)
     env->idt.limit = 0xffff;
     env->gdt.limit = 0xffff;
     env->ldt.limit = 0xffff;
-    env->ldt.flags = DESC_P_MASK;
+    env->ldt.flags = DESC_P_MASK | (2 << DESC_TYPE_SHIFT);
     env->tr.limit = 0xffff;
-    env->tr.flags = DESC_P_MASK;
+    env->tr.flags = DESC_P_MASK | (11 < DESC_TYPE_SHIFT);
 
-    cpu_x86_load_seg_cache(env, R_CS, 0xf000, 0xffff0000, 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffff, 0);
-    cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffff, 0);
+    cpu_x86_load_seg_cache(env, R_CS, 0xf000, 0xffff0000, 0xffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK | DESC_R_MASK);
+    cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0xffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+    cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0xffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+    cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+    cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
+    cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffff,
+                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK);
 
     env->eip = 0xfff0;
     env->regs[R_EDX] = env->cpuid_version;

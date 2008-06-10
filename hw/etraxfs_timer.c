@@ -46,6 +46,7 @@
 struct fs_timer_t {
 	CPUState *env;
 	qemu_irq *irq;
+	qemu_irq *nmi;
 	target_phys_addr_t base;
 
 	QEMUBH *bh_t0;
@@ -55,6 +56,8 @@ struct fs_timer_t {
 	ptimer_state *ptimer_t1;
 	ptimer_state *ptimer_wd;
 	struct timeval last;
+
+	int wd_hits;
 
 	/* Control registers.  */
 	uint32_t rw_tmr0_div;
@@ -129,6 +132,7 @@ static void update_ctrl(struct fs_timer_t *t, int tnum)
 	unsigned int freq_hz;
 	unsigned int div;
 	uint32_t ctrl;
+
 	ptimer_state *timer;
 
 	if (tnum == 0) {
@@ -163,8 +167,8 @@ static void update_ctrl(struct fs_timer_t *t, int tnum)
 
 	D(printf ("freq_hz=%d div=%d\n", freq_hz, div));
 	div = div * TIMER_SLOWDOWN;
-	div >>= 15;
-	freq_hz >>= 15;
+	div >>= 10;
+	freq_hz >>= 10;
 	ptimer_set_freq(timer, freq_hz);
 	ptimer_set_limit(timer, div, 0);
 
@@ -216,7 +220,18 @@ static void timer1_hit(void *opaque)
 
 static void watchdog_hit(void *opaque)
 {
-	qemu_system_reset_request();
+	struct fs_timer_t *t = opaque;
+	if (t->wd_hits == 0) {
+		/* real hw gives a single tick before reseting but we are
+		   a bit friendlier to compensate for our slower execution.  */
+		ptimer_set_count(t->ptimer_wd, 10);
+		ptimer_run(t->ptimer_wd, 1);
+		qemu_irq_raise(t->nmi[0]);
+	}
+	else
+		qemu_system_reset_request();
+
+	t->wd_hits++;
 }
 
 static inline void timer_watchdog_update(struct fs_timer_t *t, uint32_t value)
@@ -235,7 +250,12 @@ static inline void timer_watchdog_update(struct fs_timer_t *t, uint32_t value)
 		return;
 
 	D(printf("en=%d new_key=%x oldkey=%x cmd=%d cnt=%d\n", 
-		 wd_en, new_key, wd_key, wd_cmd, wd_cnt));
+		 wd_en, new_key, wd_key, new_cmd, wd_cnt));
+
+	if (t->wd_hits)
+		qemu_irq_lower(t->nmi[0]);
+
+	t->wd_hits = 0;
 
 	ptimer_set_freq(t->ptimer_wd, 760);
 	if (wd_cnt == 0)
@@ -320,7 +340,7 @@ static void etraxfs_timer_reset(void *opaque)
 	qemu_irq_lower(t->irq[0]);
 }
 
-void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, 
+void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, qemu_irq *nmi,
 			target_phys_addr_t base)
 {
 	static struct fs_timer_t *t;
@@ -337,6 +357,7 @@ void etraxfs_timer_init(CPUState *env, qemu_irq *irqs,
 	t->ptimer_t1 = ptimer_init(t->bh_t1);
 	t->ptimer_wd = ptimer_init(t->bh_wd);
 	t->irq = irqs;
+	t->nmi = nmi;
 	t->env = env;
 	t->base = base;
 

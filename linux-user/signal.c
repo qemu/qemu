@@ -425,9 +425,9 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     fprintf(stderr, "qemu: got signal %d\n", sig);
 #endif
     host_to_target_siginfo_noswap(&tinfo, info);
-    if (queue_signal(global_env, sig, &tinfo) == 1) {
+    if (queue_signal(thread_env, sig, &tinfo) == 1) {
         /* interrupt the virtual CPU as soon as possible */
-        cpu_interrupt(global_env, CPU_INTERRUPT_EXIT);
+        cpu_interrupt(thread_env, CPU_INTERRUPT_EXIT);
     }
 }
 

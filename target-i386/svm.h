@@ -205,9 +205,7 @@ struct __attribute__ ((__packed__)) vmcb_save_area {
 	uint64_t sysenter_esp;
 	uint64_t sysenter_eip;
 	uint64_t cr2;
-	/* qemu: cr8 added to reuse this as hsave */
-	uint64_t cr8;
-	uint8_t reserved_6[32 - 8]; /* originally 32 */
+	uint8_t reserved_6[32];
 	uint64_t g_pat;
 	uint64_t dbgctl;
 	uint64_t br_from;

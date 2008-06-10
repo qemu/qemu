@@ -48,28 +48,6 @@ register target_ulong T1 asm(AREG2);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-#if defined(TARGET_MIPS64)
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-void do_dsll (void);
-void do_dsll32 (void);
-void do_dsra (void);
-void do_dsra32 (void);
-void do_dsrl (void);
-void do_dsrl32 (void);
-void do_drotr (void);
-void do_drotr32 (void);
-void do_dsllv (void);
-void do_dsrav (void);
-void do_dsrlv (void);
-void do_drotrv (void);
-void do_dclo (void);
-void do_dclz (void);
-#endif
-#endif
-
-#if HOST_LONG_BITS < 64
-void do_div (void);
-#endif
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_mult (void);
 void do_multu (void);
@@ -92,15 +70,7 @@ void do_mulhiu (void);
 void do_mulshi (void);
 void do_mulshiu (void);
 #endif
-#if defined(TARGET_MIPS64)
-void do_ddiv (void);
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-void do_ddivu (void);
-#endif
-#endif
-void do_mfc0_random(void);
-void do_mfc0_count(void);
-void do_mtc0_entryhi(uint32_t in);
+
 void do_mtc0_status_debug(uint32_t old, uint32_t val);
 void do_mtc0_status_irqraise_debug(void);
 void dump_fpu(CPUState *env);
@@ -132,9 +102,6 @@ void cpu_mips_stop_count(CPUState *env);
 void cpu_mips_update_irq (CPUState *env);
 void cpu_mips_clock_init (CPUState *env);
 void cpu_mips_tlb_flush (CPUState *env, int flush_global);
-
-void do_cfc1 (int reg);
-void do_ctc1 (int reg);
 
 #define FOP_PROTO(op)              \
 void do_float_ ## op ## _s(void);  \

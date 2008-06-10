@@ -45,7 +45,6 @@
 #endif
 
 int tb_invalidated_flag;
-static unsigned long next_tb;
 
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
@@ -93,8 +92,6 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
     unsigned int h;
     target_ulong phys_pc, phys_page1, phys_page2, virt_page2;
     uint8_t *tc_ptr;
-
-    spin_lock(&tb_lock);
 
     tb_invalidated_flag = 0;
 
@@ -156,7 +153,6 @@ static TranslationBlock *tb_find_slow(target_ulong pc,
  found:
     /* we add the TB in the virtual pc hash table */
     env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)] = tb;
-    spin_unlock(&tb_lock);
     return tb;
 }
 
@@ -218,7 +214,7 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_CRIS)
-    flags = env->pregs[PR_CCS] & (U_FLAG | X_FLAG);
+    flags = env->pregs[PR_CCS] & (P_FLAG | U_FLAG | X_FLAG);
     flags |= env->dslot;
     cs_base = 0;
     pc = env->pc;
@@ -229,14 +225,6 @@ static inline TranslationBlock *tb_find_fast(void)
     if (__builtin_expect(!tb || tb->pc != pc || tb->cs_base != cs_base ||
                          tb->flags != flags, 0)) {
         tb = tb_find_slow(pc, cs_base, flags);
-        /* Note: we do it here to avoid a gcc bug on Mac OS X when
-           doing it in tb_find_slow */
-        if (tb_invalidated_flag) {
-            /* as some TB could have been invalidated because
-               of memory exceptions while generating the code, we
-               must recompute the hash index here */
-            next_tb = 0;
-        }
     }
     return tb;
 }
@@ -250,6 +238,7 @@ int cpu_exec(CPUState *env1)
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
+    unsigned long next_tb;
 
     if (cpu_halted(env1) == EXCP_HALTED)
         return EXCP_HALTED;
@@ -369,11 +358,8 @@ int cpu_exec(CPUState *env1)
             next_tb = 0; /* force lookup of first TB */
             for(;;) {
                 interrupt_request = env->interrupt_request;
-                if (__builtin_expect(interrupt_request, 0)
-#if defined(TARGET_I386)
-			&& env->hflags & HF_GIF_MASK
-#endif
-            && likely(!(env->singlestep_enabled & SSTEP_NOIRQ))) {
+                if (__builtin_expect(interrupt_request, 0) &&
+                    likely(!(env->singlestep_enabled & SSTEP_NOIRQ))) {
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         env->exception_index = EXCP_DEBUG;
@@ -389,47 +375,51 @@ int cpu_exec(CPUState *env1)
                     }
 #endif
 #if defined(TARGET_I386)
-                    if ((interrupt_request & CPU_INTERRUPT_SMI) &&
-                        !(env->hflags & HF_SMM_MASK)) {
-                        svm_check_intercept(SVM_EXIT_SMI);
-                        env->interrupt_request &= ~CPU_INTERRUPT_SMI;
-                        do_smm_enter();
-                        next_tb = 0;
-                    } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
-                        !(env->hflags & HF_NMI_MASK)) {
-                        env->interrupt_request &= ~CPU_INTERRUPT_NMI;
-                        env->hflags |= HF_NMI_MASK;
-                        do_interrupt(EXCP02_NMI, 0, 0, 0, 1);
-                        next_tb = 0;
-                    } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                        (env->eflags & IF_MASK || env->hflags & HF_HIF_MASK) &&
-                        !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
-                        int intno;
-                        svm_check_intercept(SVM_EXIT_INTR);
-                        env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
-                        intno = cpu_get_pic_interrupt(env);
-                        if (loglevel & CPU_LOG_TB_IN_ASM) {
-                            fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
-                        }
-                        do_interrupt(intno, 0, 0, 0, 1);
-                        /* ensure that no TB jump will be modified as
-                           the program flow was changed */
-                        next_tb = 0;
+                    if (env->hflags2 & HF2_GIF_MASK) {
+                        if ((interrupt_request & CPU_INTERRUPT_SMI) &&
+                            !(env->hflags & HF_SMM_MASK)) {
+                            svm_check_intercept(SVM_EXIT_SMI);
+                            env->interrupt_request &= ~CPU_INTERRUPT_SMI;
+                            do_smm_enter();
+                            next_tb = 0;
+                        } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
+                                   !(env->hflags2 & HF2_NMI_MASK)) {
+                            env->interrupt_request &= ~CPU_INTERRUPT_NMI;
+                            env->hflags2 |= HF2_NMI_MASK;
+                            do_interrupt(EXCP02_NMI, 0, 0, 0, 1);
+                            next_tb = 0;
+                        } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                                   (((env->hflags2 & HF2_VINTR_MASK) && 
+                                     (env->hflags2 & HF2_HIF_MASK)) ||
+                                    (!(env->hflags2 & HF2_VINTR_MASK) && 
+                                     (env->eflags & IF_MASK && 
+                                      !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
+                            int intno;
+                            svm_check_intercept(SVM_EXIT_INTR);
+                            env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
+                            intno = cpu_get_pic_interrupt(env);
+                            if (loglevel & CPU_LOG_TB_IN_ASM) {
+                                fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
+                            }
+                            do_interrupt(intno, 0, 0, 0, 1);
+                            /* ensure that no TB jump will be modified as
+                               the program flow was changed */
+                            next_tb = 0;
 #if !defined(CONFIG_USER_ONLY)
-                    } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
-                        (env->eflags & IF_MASK) && !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
-                         int intno;
-                         /* FIXME: this should respect TPR */
-                         env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
-                         svm_check_intercept(SVM_EXIT_VINTR);
-                         intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
-                         if (loglevel & CPU_LOG_TB_IN_ASM)
-                             fprintf(logfile, "Servicing virtual hardware INT=0x%02x\n", intno);
-	                 do_interrupt(intno, 0, 0, -1, 1);
-                         stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
-                                  ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_ctl)) & ~V_IRQ_MASK);
-                        next_tb = 0;
+                        } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
+                                   (env->eflags & IF_MASK) && 
+                                   !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
+                            int intno;
+                            /* FIXME: this should respect TPR */
+                            svm_check_intercept(SVM_EXIT_VINTR);
+                            env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+                            intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
+                            if (loglevel & CPU_LOG_TB_IN_ASM)
+                                fprintf(logfile, "Servicing virtual hardware INT=0x%02x\n", intno);
+                            do_interrupt(intno, 0, 0, 0, 1);
+                            next_tb = 0;
 #endif
+                        }
                     }
 #elif defined(TARGET_PPC)
 #if 0
@@ -512,7 +502,15 @@ int cpu_exec(CPUState *env1)
                         next_tb = 0;
                     }
 #elif defined(TARGET_CRIS)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+                    if (interrupt_request & CPU_INTERRUPT_HARD
+                        && (env->pregs[PR_CCS] & I_FLAG)) {
+                        env->exception_index = EXCP_IRQ;
+                        do_interrupt(env);
+                        next_tb = 0;
+                    }
+                    if (interrupt_request & CPU_INTERRUPT_NMI
+                        && (env->pregs[PR_CCS] & M_FLAG)) {
+                        env->exception_index = EXCP_NMI;
                         do_interrupt(env);
                         next_tb = 0;
                     }
@@ -577,7 +575,16 @@ int cpu_exec(CPUState *env1)
 #endif
                 }
 #endif
+                spin_lock(&tb_lock);
                 tb = tb_find_fast();
+                /* Note: we do it here to avoid a gcc bug on Mac OS X when
+                   doing it in tb_find_slow */
+                if (tb_invalidated_flag) {
+                    /* as some TB could have been invalidated because
+                       of memory exceptions while generating the code, we
+                       must recompute the hash index here */
+                    next_tb = 0;
+                }
 #ifdef DEBUG_EXEC
                 if ((loglevel & CPU_LOG_EXEC)) {
                     fprintf(logfile, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
@@ -594,11 +601,10 @@ int cpu_exec(CPUState *env1)
                         (env->kqemu_enabled != 2) &&
 #endif
                         tb->page_addr[1] == -1) {
-                    spin_lock(&tb_lock);
                     tb_add_jump((TranslationBlock *)(next_tb & ~3), next_tb & 3, tb);
-                    spin_unlock(&tb_lock);
                 }
                 }
+                spin_unlock(&tb_lock);
                 tc_ptr = tb->tc_ptr;
                 env->current_tb = tb;
                 /* execute the generated code */

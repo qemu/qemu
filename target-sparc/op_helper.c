@@ -2178,7 +2178,7 @@ void helper_rett(void)
         raise_exception(TT_ILL_INSN);
 
     env->psret = 1;
-    cwp = (env->cwp + 1) & (NWINDOWS - 1);
+    cwp = cpu_cwp_inc(env, env->cwp + 1) ;
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_UNF);
     }
@@ -2399,7 +2399,7 @@ void helper_save(void)
 {
     uint32_t cwp;
 
-    cwp = (env->cwp - 1) & (NWINDOWS - 1);
+    cwp = cpu_cwp_dec(env, env->cwp - 1);
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_OVF);
     }
@@ -2410,7 +2410,7 @@ void helper_restore(void)
 {
     uint32_t cwp;
 
-    cwp = (env->cwp + 1) & (NWINDOWS - 1);
+    cwp = cpu_cwp_inc(env, env->cwp + 1);
     if (env->wim & (1 << cwp)) {
         raise_exception(TT_WIN_UNF);
     }
@@ -2419,7 +2419,7 @@ void helper_restore(void)
 
 void helper_wrpsr(target_ulong new_psr)
 {
-    if ((new_psr & PSR_CWP) >= NWINDOWS)
+    if ((new_psr & PSR_CWP) >= env->nwindows)
         raise_exception(TT_ILL_INSN);
     else
         PUT_PSR(env, new_psr);
@@ -2437,7 +2437,7 @@ void helper_save(void)
 {
     uint32_t cwp;
 
-    cwp = (env->cwp - 1) & (NWINDOWS - 1);
+    cwp = cpu_cwp_dec(env, env->cwp - 1);
     if (env->cansave == 0) {
         raise_exception(TT_SPILL | (env->otherwin != 0 ?
                                     (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
@@ -2458,7 +2458,7 @@ void helper_restore(void)
 {
     uint32_t cwp;
 
-    cwp = (env->cwp + 1) & (NWINDOWS - 1);
+    cwp = cpu_cwp_inc(env, env->cwp + 1);
     if (env->canrestore == 0) {
         raise_exception(TT_FILL | (env->otherwin != 0 ?
                                    (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
@@ -2472,7 +2472,7 @@ void helper_restore(void)
 
 void helper_flushw(void)
 {
-    if (env->cansave != NWINDOWS - 2) {
+    if (env->cansave != env->nwindows - 2) {
         raise_exception(TT_SPILL | (env->otherwin != 0 ?
                                     (TT_WOTHER | ((env->wstate & 0x38) >> 1)):
                                     ((env->wstate & 0x7) << 2)));
@@ -2491,7 +2491,7 @@ void helper_saved(void)
 void helper_restored(void)
 {
     env->canrestore++;
-    if (env->cleanwin < NWINDOWS - 1)
+    if (env->cleanwin < env->nwindows - 1)
         env->cleanwin++;
     if (env->otherwin == 0)
         env->cansave--;
@@ -2622,12 +2622,12 @@ void helper_retry(void)
 void cpu_set_cwp(CPUState *env1, int new_cwp)
 {
     /* put the modified wrap registers at their proper location */
-    if (env1->cwp == (NWINDOWS - 1))
-        memcpy32(env1->regbase, env1->regbase + NWINDOWS * 16);
+    if (env1->cwp == env->nwindows - 1)
+        memcpy32(env1->regbase, env1->regbase + env->nwindows * 16);
     env1->cwp = new_cwp;
     /* put the wrap registers at their temporary location */
-    if (new_cwp == (NWINDOWS - 1))
-        memcpy32(env1->regbase + NWINDOWS * 16, env1->regbase);
+    if (new_cwp == env->nwindows - 1)
+        memcpy32(env1->regbase + env->nwindows * 16, env1->regbase);
     env1->regwptr = env1->regbase + (new_cwp * 16);
 }
 

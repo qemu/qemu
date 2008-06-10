@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include "hw.h"
+#include "etraxfs.h"
 
 #define D(x)
 
@@ -143,7 +144,7 @@ void irq_info(void)
 {
 }
 
-static void etraxfs_pic_handler(void *opaque, int irq, int level)
+static void irq_handler(void *opaque, int irq, int level)
 {	
 	struct fs_pic_state_t *fs = (void *)opaque;
 	CPUState *env = fs->env;
@@ -187,22 +188,56 @@ static void etraxfs_pic_handler(void *opaque, int irq, int level)
 	}
 }
 
-qemu_irq *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
+static void nmi_handler(void *opaque, int irq, int level)
+{	
+	struct fs_pic_state_t *fs = (void *)opaque;
+	CPUState *env = fs->env;
+	uint32_t mask;
+
+	mask = 1 << irq;
+	if (level)
+		fs->r_nmi |= mask;
+	else
+		fs->r_nmi &= ~mask;
+
+	if (fs->r_nmi)
+		cpu_interrupt(env, CPU_INTERRUPT_NMI);
+	else
+		cpu_reset_interrupt(env, CPU_INTERRUPT_NMI);
+}
+
+static void guru_handler(void *opaque, int irq, int level)
+{	
+	struct fs_pic_state_t *fs = (void *)opaque;
+	CPUState *env = fs->env;
+	cpu_abort(env, "%s unsupported exception\n", __func__);
+
+}
+
+
+struct etraxfs_pic *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
 {
-	struct fs_pic_state_t *fs;
-	qemu_irq *pic;
+	struct fs_pic_state_t *fs = NULL;
+	struct etraxfs_pic *pic = NULL;
 	int intr_vect_regs;
 
-	fs = qemu_mallocz(sizeof *fs);
-	if (!fs)
-		return NULL;
-	fs->env = env;
+	pic = qemu_mallocz(sizeof *pic);
+	pic->internal = fs = qemu_mallocz(sizeof *fs);
+	if (!fs || !pic)
+		goto err;
 
-	pic = qemu_allocate_irqs(etraxfs_pic_handler, fs, 30);
+	fs->env = env;
+	pic->irq = qemu_allocate_irqs(irq_handler, fs, 30);
+	pic->nmi = qemu_allocate_irqs(nmi_handler, fs, 2);
+	pic->guru = qemu_allocate_irqs(guru_handler, fs, 1);
 
 	intr_vect_regs = cpu_register_io_memory(0, pic_read, pic_write, fs);
 	cpu_register_physical_memory(base, 0x14, intr_vect_regs);
 	fs->base = base;
 
 	return pic;
+  err:
+	free(pic);
+	free(fs);
+	return NULL;
 }

@@ -46,6 +46,22 @@ void mmap_unlock(void)
         pthread_mutex_unlock(&mmap_mutex);
     }
 }
+
+/* Grab lock to make sure things are in a consistent state after fork().  */
+void mmap_fork_start(void)
+{
+    if (mmap_lock_count)
+        abort();
+    pthread_mutex_lock(&mmap_mutex);
+}
+
+void mmap_fork_end(int child)
+{
+    if (child)
+        pthread_mutex_init(&mmap_mutex, NULL);
+    else
+        pthread_mutex_unlock(&mmap_mutex);
+}
 #else
 /* We aren't threadsafe to start with, so no need to worry about locking.  */
 void mmap_lock(void)
@@ -56,6 +72,52 @@ void mmap_unlock(void)
 {
 }
 #endif
+
+void *qemu_vmalloc(size_t size)
+{
+    void *p;
+    unsigned long addr;
+    mmap_lock();
+    /* Use map and mark the pages as used.  */
+    p = mmap(NULL, size, PROT_READ | PROT_WRITE,
+             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    addr = (unsigned long)p;
+    if (addr == (target_ulong) addr) {
+        /* Allocated region overlaps guest address space.
+           This may recurse.  */
+        page_set_flags(addr & TARGET_PAGE_MASK, TARGET_PAGE_ALIGN(addr + size),
+                       PAGE_RESERVED);
+    }
+
+    mmap_unlock();
+    return p;
+}
+
+void *qemu_malloc(size_t size)
+{
+    char * p;
+    size += 16;
+    p = qemu_vmalloc(size);
+    *(size_t *)p = size;
+    return p + 16;
+}
+
+/* We use map, which is always zero initialized.  */
+void * qemu_mallocz(size_t size)
+{
+    return qemu_malloc(size);
+}
+
+void qemu_free(void *ptr)
+{
+    /* FIXME: We should unmark the reserved pages here.  However this gets
+       complicated when one target page spans multiple host pages, so we
+       don't bother.  */
+    size_t *p;
+    p = (size_t *)((char *)ptr - 16);
+    munmap(p, *p);
+}
 
 /* NOTE: all the constants are the HOST ones, but addresses are target. */
 int target_mprotect(abi_ulong start, abi_ulong len, int prot)

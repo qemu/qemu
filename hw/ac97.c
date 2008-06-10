@@ -158,6 +158,7 @@ typedef struct AC97LinkState {
     SWVoiceIn *voice_pi;
     SWVoiceOut *voice_po;
     SWVoiceIn *voice_mc;
+    int invalid_freq[3];
     uint8_t silence[128];
     uint32_t base[2];
     int bup_flag;
@@ -360,39 +361,61 @@ static void open_voice (AC97LinkState *s, int index, int freq)
     as.fmt = AUD_FMT_S16;
     as.endianness = 0;
 
-    switch (index) {
-    case PI_INDEX:
-        s->voice_pi = AUD_open_in (
-            &s->card,
-            s->voice_pi,
-            "ac97.pi",
-            s,
-            pi_callback,
-            &as
-            );
-        break;
+    if (freq > 0) {
+        s->invalid_freq[index] = 0;
+        switch (index) {
+        case PI_INDEX:
+            s->voice_pi = AUD_open_in (
+                &s->card,
+                s->voice_pi,
+                "ac97.pi",
+                s,
+                pi_callback,
+                &as
+                );
+            break;
 
-    case PO_INDEX:
-        s->voice_po = AUD_open_out (
-            &s->card,
-            s->voice_po,
-            "ac97.po",
-            s,
-            po_callback,
-            &as
-            );
-        break;
+        case PO_INDEX:
+            s->voice_po = AUD_open_out (
+                &s->card,
+                s->voice_po,
+                "ac97.po",
+                s,
+                po_callback,
+                &as
+                );
+            break;
 
-    case MC_INDEX:
-        s->voice_mc = AUD_open_in (
-            &s->card,
-            s->voice_mc,
-            "ac97.mc",
-            s,
-            mc_callback,
-            &as
-            );
-        break;
+        case MC_INDEX:
+            s->voice_mc = AUD_open_in (
+                &s->card,
+                s->voice_mc,
+                "ac97.mc",
+                s,
+                mc_callback,
+                &as
+                );
+            break;
+        }
+    }
+    else {
+        s->invalid_freq[index] = freq;
+        switch (index) {
+        case PI_INDEX:
+            AUD_close_in (&s->card, s->voice_pi);
+            s->voice_pi = NULL;
+            break;
+
+        case PO_INDEX:
+            AUD_close_out (&s->card, s->voice_po);
+            s->voice_po = NULL;
+            break;
+
+        case MC_INDEX:
+            AUD_close_in (&s->card, s->voice_mc);
+            s->voice_mc = NULL;
+            break;
+        }
     }
 }
 
@@ -1064,6 +1087,12 @@ static void transfer_audio (AC97LinkState *s, int index, int elapsed)
 {
     AC97BusMasterRegs *r = &s->bm_regs[index];
     int written = 0, stop = 0;
+
+    if (s->invalid_freq[index]) {
+        AUD_log ("ac97", "attempt to use voice %d with invalid frequency %d\n",
+                 index, s->invalid_freq[index]);
+        return;
+    }
 
     if (r->sr & SR_DCH) {
         if (r->cr & CR_RPBM) {

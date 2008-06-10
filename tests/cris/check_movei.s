@@ -7,8 +7,11 @@
  .include "testutils.inc"
  start
 
+ move.d 0, $r3	
 ; A write that works.  Check that flags are set correspondingly.
  move.d d,r4
+ ;; store to bring it into the tlb with the right prot bits
+ move.d r3,[r4]
  moveq -2,r5
  setf c
  clearf p

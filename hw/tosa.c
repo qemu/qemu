@@ -12,6 +12,7 @@
 #include "pxa.h"
 #include "arm-misc.h"
 #include "sysemu.h"
+#include "devices.h"
 #include "sharpsl.h"
 #include "pcmcia.h"
 #include "block.h"
@@ -30,41 +31,6 @@
 #define TOSA_GPIO_IR_POWERDWN	(TOSA_SCOOP_GPIO_BASE + 2)
 #define TOSA_GPIO_SD_WP			(TOSA_SCOOP_GPIO_BASE + 3)
 #define TOSA_GPIO_PWR_ON		(TOSA_SCOOP_GPIO_BASE + 4)
-
-struct tc6393xb_s {
-    target_phys_addr_t target_base;
-};
-
-static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr)
-{
-    return 3;
-}
-static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr,
-        uint32_t value)
-{
-}
-static void tosa_tc6393xb_register(struct pxa2xx_state_s *cpu)
-{
-    int iomemtype;
-    struct tc6393xb_s *s;
-    CPUReadMemoryFunc *tc6393xb_readfn[] = {
-        tc6393xb_readb,
-        tc6393xb_readb,
-        tc6393xb_readb,
-    };
-    CPUWriteMemoryFunc *tc6393xb_writefn[] = {
-        tc6393xb_writeb,
-        tc6393xb_writeb,
-        tc6393xb_writeb,
-    };
-
-    s = (struct tc6393xb_s *) qemu_mallocz(sizeof(struct tc6393xb_s));
-    s->target_base = 0x10000000;
-
-    iomemtype = cpu_register_io_memory(0, tc6393xb_readfn,
-                    tc6393xb_writefn, s);
-    cpu_register_physical_memory(s->target_base, 0x200000, iomemtype);
-}
 
 static void tosa_microdrive_attach(struct pxa2xx_state_s *cpu)
 {
@@ -132,7 +98,7 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
     cpu_register_physical_memory(0, TOSA_ROM,
                     qemu_ram_alloc(TOSA_ROM) | IO_MEM_ROM);
 
-    tosa_tc6393xb_register(cpu);
+    tc6393xb_init(0x10000000, NULL);
 
     scp0 = scoop_init(cpu, 0, 0x08800000);
     scp1 = scoop_init(cpu, 1, 0x14800040);

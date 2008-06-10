@@ -469,40 +469,49 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     ppc_store_xer(env, tswapl(registers[101]));
 }
 #elif defined (TARGET_SPARC)
+#ifdef TARGET_ABI32
+#define tswap_abi(val) tswap32(val &0xffffffff)
+#else
+#define tswap_abi(val) tswapl(val)
+#endif
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
+#ifdef TARGET_ABI32
+    abi_ulong *registers = (abi_ulong *)mem_buf;
+#else
     target_ulong *registers = (target_ulong *)mem_buf;
+#endif
     int i;
 
     /* fill in g0..g7 */
     for(i = 0; i < 8; i++) {
-        registers[i] = tswapl(env->gregs[i]);
+        registers[i] = tswap_abi(env->gregs[i]);
     }
     /* fill in register window */
     for(i = 0; i < 24; i++) {
-        registers[i + 8] = tswapl(env->regwptr[i]);
+        registers[i + 8] = tswap_abi(env->regwptr[i]);
     }
-#ifndef TARGET_SPARC64
+#if !defined(TARGET_SPARC64) || defined(TARGET_ABI32)
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
-        registers[i + 32] = tswapl(*((uint32_t *)&env->fpr[i]));
+        registers[i + 32] = tswap_abi(*((uint32_t *)&env->fpr[i]));
     }
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
-    registers[64] = tswapl(env->y);
+    registers[64] = tswap_abi(env->y);
     {
-	target_ulong tmp;
+        uint32_t tmp;
 
-	tmp = GET_PSR(env);
-	registers[65] = tswapl(tmp);
+        tmp = GET_PSR(env);
+        registers[65] = tswap32(tmp);
     }
-    registers[66] = tswapl(env->wim);
-    registers[67] = tswapl(env->tbr);
-    registers[68] = tswapl(env->pc);
-    registers[69] = tswapl(env->npc);
-    registers[70] = tswapl(env->fsr);
+    registers[66] = tswap_abi(env->wim);
+    registers[67] = tswap_abi(env->tbr);
+    registers[68] = tswap_abi(env->pc);
+    registers[69] = tswap_abi(env->npc);
+    registers[70] = tswap_abi(env->fsr);
     registers[71] = 0; /* csr */
     registers[72] = 0;
-    return 73 * sizeof(target_ulong);
+    return 73 * sizeof(uint32_t);
 #else
     /* fill in fprs */
     for (i = 0; i < 64; i += 2) {
@@ -527,30 +536,34 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 
 static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
 {
+#ifdef TARGET_ABI32
+    abi_ulong *registers = (abi_ulong *)mem_buf;
+#else
     target_ulong *registers = (target_ulong *)mem_buf;
+#endif
     int i;
 
     /* fill in g0..g7 */
     for(i = 0; i < 7; i++) {
-        env->gregs[i] = tswapl(registers[i]);
+        env->gregs[i] = tswap_abi(registers[i]);
     }
     /* fill in register window */
     for(i = 0; i < 24; i++) {
-        env->regwptr[i] = tswapl(registers[i + 8]);
+        env->regwptr[i] = tswap_abi(registers[i + 8]);
     }
-#ifndef TARGET_SPARC64
+#if !defined(TARGET_SPARC64) || defined(TARGET_ABI32)
     /* fill in fprs */
     for (i = 0; i < 32; i++) {
-        *((uint32_t *)&env->fpr[i]) = tswapl(registers[i + 32]);
+        *((uint32_t *)&env->fpr[i]) = tswap_abi(registers[i + 32]);
     }
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
-    env->y = tswapl(registers[64]);
-    PUT_PSR(env, tswapl(registers[65]));
-    env->wim = tswapl(registers[66]);
-    env->tbr = tswapl(registers[67]);
-    env->pc = tswapl(registers[68]);
-    env->npc = tswapl(registers[69]);
-    env->fsr = tswapl(registers[70]);
+    env->y = tswap_abi(registers[64]);
+    PUT_PSR(env, tswap_abi(registers[65]));
+    env->wim = tswap_abi(registers[66]);
+    env->tbr = tswap_abi(registers[67]);
+    env->pc = tswap_abi(registers[68]);
+    env->npc = tswap_abi(registers[69]);
+    env->fsr = tswap_abi(registers[70]);
 #else
     for (i = 0; i < 64; i += 2) {
         uint64_t tmp;
@@ -574,6 +587,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->y = tswapl(registers[69]);
 #endif
 }
+#undef tswap_abi
 #elif defined (TARGET_ARM)
 static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
 {
@@ -1103,21 +1117,37 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         if (*p == ',')
             p++;
         len = strtoull(p, (char **)&p, 16);
-        if (type == 0 || type == 1) {
+        switch (type) {
+        case 0:
+        case 1:
             if (cpu_breakpoint_insert(env, addr) < 0)
                 goto breakpoint_error;
             put_packet(s, "OK");
+            break;
 #ifndef CONFIG_USER_ONLY
-        } else if (type == 2) {
-            if (cpu_watchpoint_insert(env, addr) < 0)
+        case 2:
+            type = PAGE_WRITE;
+            goto insert_watchpoint;
+        case 3:
+            type = PAGE_READ;
+            goto insert_watchpoint;
+        case 4:
+            type = PAGE_READ | PAGE_WRITE;
+        insert_watchpoint:
+            if (cpu_watchpoint_insert(env, addr, type) < 0)
                 goto breakpoint_error;
             put_packet(s, "OK");
+            break;
 #endif
-        } else {
-        breakpoint_error:
-            put_packet(s, "E22");
+        default:
+            put_packet(s, "");
+            break;
         }
         break;
+    breakpoint_error:
+        put_packet(s, "E22");
+        break;
+
     case 'z':
         type = strtoul(p, (char **)&p, 16);
         if (*p == ',')
@@ -1130,12 +1160,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             cpu_breakpoint_remove(env, addr);
             put_packet(s, "OK");
 #ifndef CONFIG_USER_ONLY
-        } else if (type == 2) {
+        } else if (type >= 2 || type <= 4) {
             cpu_watchpoint_remove(env, addr);
             put_packet(s, "OK");
 #endif
         } else {
-            goto breakpoint_error;
+            put_packet(s, "");
         }
         break;
     case 'q':

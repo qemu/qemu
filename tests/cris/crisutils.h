@@ -4,7 +4,7 @@ static char *tst_cc_loc = NULL;
 do { tst_cc_loc = "test_cc failed at " CURRENT_LOCATION; } while(0)
 
 /* We need a real symbol to signal error.  */
-static void _err(void) {
+void _err(void) {
 	if (!tst_cc_loc)
 		tst_cc_loc = "tst_cc_failed\n";
 	_fail(tst_cc_loc);

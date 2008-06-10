@@ -70,6 +70,7 @@ enum {
 
 /* optional instructions */
 #define TCG_TARGET_HAS_neg_i32
+#define TCG_TARGET_HAS_div_i32
 
 #define TCG_AREG0 TCG_REG_R27
 #define TCG_AREG1 TCG_REG_R24

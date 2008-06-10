@@ -886,6 +886,33 @@ void bdrv_flush(BlockDriverState *bs)
         bdrv_flush(bs->backing_hd);
 }
 
+/*
+ * Returns true iff the specified sector is present in the disk image. Drivers
+ * not implementing the functionality are assumed to not support backing files,
+ * hence all their sectors are reported as allocated.
+ *
+ * 'pnum' is set to the number of sectors (including and immediately following
+ * the specified sector) that are known to be in the same
+ * allocated/unallocated state.
+ *
+ * 'nb_sectors' is the max value 'pnum' should be set to.
+ */
+int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+	int *pnum)
+{
+    int64_t n;
+    if (!bs->drv->bdrv_is_allocated) {
+        if (sector_num >= bs->total_sectors) {
+            *pnum = 0;
+            return 0;
+        }
+        n = bs->total_sectors - sector_num;
+        *pnum = (n < nb_sectors) ? (n) : (nb_sectors);
+        return 1;
+    }
+    return bs->drv->bdrv_is_allocated(bs, sector_num, nb_sectors, pnum);
+}
+
 #ifndef QEMU_IMG
 void bdrv_info(void)
 {

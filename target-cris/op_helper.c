@@ -24,6 +24,10 @@
 #include "mmu.h"
 #include "helper.h"
 
+#define D(x)
+
+#if !defined(CONFIG_USER_ONLY)
+
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
@@ -37,8 +41,6 @@
 
 #define SHIFT 3
 #include "softmmu_template.h"
-
-#define D(x)
 
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
@@ -77,6 +79,8 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     }
     env = saved_env;
 }
+
+#endif
 
 void helper_raise_exception(uint32_t index)
 {
@@ -202,6 +206,8 @@ static void cris_ccs_rshift(CPUState *env)
 
 void helper_rfe(void)
 {
+	int rflag = env->pregs[PR_CCS] & R_FLAG;
+
 	D(fprintf(logfile, "rfe: erp=%x pid=%x ccs=%x btarget=%x\n", 
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
@@ -210,8 +216,27 @@ void helper_rfe(void)
 	cris_ccs_rshift(env);
 
 	/* RFE sets the P_FLAG only if the R_FLAG is not set.  */
-	if (!(env->pregs[PR_CCS] & R_FLAG))
+	if (!rflag)
 		env->pregs[PR_CCS] |= P_FLAG;
+}
+
+void helper_rfn(void)
+{
+	int rflag = env->pregs[PR_CCS] & R_FLAG;
+
+	D(fprintf(logfile, "rfn: erp=%x pid=%x ccs=%x btarget=%x\n", 
+		 env->pregs[PR_ERP], env->pregs[PR_PID],
+		 env->pregs[PR_CCS],
+		 env->btarget));
+
+	cris_ccs_rshift(env);
+
+	/* Set the P_FLAG only if the R_FLAG is not set.  */
+	if (!rflag)
+		env->pregs[PR_CCS] |= P_FLAG;
+
+    /* Always set the M flag.  */
+    env->pregs[PR_CCS] |= M_FLAG;
 }
 
 void helper_store(uint32_t a0)

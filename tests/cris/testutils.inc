@@ -23,7 +23,7 @@ main:
 	.macro	fail
 	.data
 99:
-	.asciz " checkr3 failed"
+	.asciz " checkr3 failed\n"
 	.text
 	move.d	99b, $r10
 	jsr	_fail
@@ -36,7 +36,7 @@ main:
 	nop
 	.data
 99:
-	.asciz "checkr3 failed"
+	.asciz "checkr3 failed\n"
 	.text
 	move.d	99b, $r10
 	jsr	_fail
@@ -79,7 +79,7 @@ main:
 9:
 	.data
 99:
-	.asciz "test_move_cc failed"
+	.asciz "test_move_cc failed\n"
 	.text
 	move.d	99b, $r10
 	jsr	_fail
@@ -108,7 +108,7 @@ main:
 9:
 	.data
 99:
-	.asciz "test_move_cc failed"
+	.asciz "test_move_cc failed\n"
 	.text
 	move.d	99b, $r10
 	jsr	_fail

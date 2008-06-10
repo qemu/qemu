@@ -187,32 +187,37 @@ extern int code_gen_max_blocks;
 #if defined(USE_DIRECT_JUMP)
 
 #if defined(__powerpc__)
+static inline void flush_icache_range(unsigned long start, unsigned long stop);
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
-    uint32_t val, *ptr;
+    /* This must be in concord with INDEX_op_goto_tb inside tcg_out_op */
+    uint32_t *ptr;
     long disp = addr - jmp_addr;
+    unsigned long patch_size;
 
     ptr = (uint32_t *)jmp_addr;
-    val = *ptr;
 
     if ((disp << 6) >> 6 != disp) {
-        uint16_t *p1;
-
-        p1 = (uint16_t *) ptr;
-        *ptr = (val & ~0x03fffffc) | 4;
-        p1[3] = addr >> 16;
-        p1[5] = addr & 0xffff;
+        ptr[0] = 0x3c000000 | (addr >> 16);    /* lis 0,addr@ha */
+        ptr[1] = 0x60000000 | (addr & 0xffff); /* la  0,addr@l(0) */
+        ptr[2] = 0x7c0903a6;                   /* mtctr 0 */
+        ptr[3] = 0x4e800420;                   /* brctr */
+        patch_size = 16;
     } else {
         /* patch the branch destination */
-        val = (val & ~0x03fffffc) | (disp & 0x03fffffc);
-        *ptr = val;
+        if (disp != 16) {
+            *ptr = 0x48000000 | (disp & 0x03fffffc); /* b disp */
+            patch_size = 4;
+        } else {
+            ptr[0] = 0x60000000; /* nop */
+            ptr[1] = 0x60000000;
+            ptr[2] = 0x60000000;
+            ptr[3] = 0x60000000;
+            patch_size = 16;
+        }
     }
     /* flush icache */
-    asm volatile ("dcbst 0,%0" : : "r"(ptr) : "memory");
-    asm volatile ("sync" : : : "memory");
-    asm volatile ("icbi 0,%0" : : "r"(ptr) : "memory");
-    asm volatile ("sync" : : : "memory");
-    asm volatile ("isync" : : : "memory");
+    flush_icache_range(jmp_addr, jmp_addr + patch_size);
 }
 #elif defined(__i386__) || defined(__x86_64__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
@@ -296,232 +301,7 @@ extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 
-#if defined(__hppa__)
-
-typedef int spinlock_t[4];
-
-#define SPIN_LOCK_UNLOCKED { 1, 1, 1, 1 }
-
-static inline void resetlock (spinlock_t *p)
-{
-    (*p)[0] = (*p)[1] = (*p)[2] = (*p)[3] = 1;
-}
-
-#else
-
-typedef int spinlock_t;
-
-#define SPIN_LOCK_UNLOCKED 0
-
-static inline void resetlock (spinlock_t *p)
-{
-    *p = SPIN_LOCK_UNLOCKED;
-}
-
-#endif
-
-#if defined(__powerpc__)
-static inline int testandset (int *p)
-{
-    int ret;
-    __asm__ __volatile__ (
-                          "0:    lwarx %0,0,%1\n"
-                          "      xor. %0,%3,%0\n"
-                          "      bne 1f\n"
-                          "      stwcx. %2,0,%1\n"
-                          "      bne- 0b\n"
-                          "1:    "
-                          : "=&r" (ret)
-                          : "r" (p), "r" (1), "r" (0)
-                          : "cr0", "memory");
-    return ret;
-}
-#elif defined(__i386__)
-static inline int testandset (int *p)
-{
-    long int readval = 0;
-
-    __asm__ __volatile__ ("lock; cmpxchgl %2, %0"
-                          : "+m" (*p), "+a" (readval)
-                          : "r" (1)
-                          : "cc");
-    return readval;
-}
-#elif defined(__x86_64__)
-static inline int testandset (int *p)
-{
-    long int readval = 0;
-
-    __asm__ __volatile__ ("lock; cmpxchgl %2, %0"
-                          : "+m" (*p), "+a" (readval)
-                          : "r" (1)
-                          : "cc");
-    return readval;
-}
-#elif defined(__s390__)
-static inline int testandset (int *p)
-{
-    int ret;
-
-    __asm__ __volatile__ ("0: cs    %0,%1,0(%2)\n"
-			  "   jl    0b"
-			  : "=&d" (ret)
-			  : "r" (1), "a" (p), "0" (*p)
-			  : "cc", "memory" );
-    return ret;
-}
-#elif defined(__alpha__)
-static inline int testandset (int *p)
-{
-    int ret;
-    unsigned long one;
-
-    __asm__ __volatile__ ("0:	mov 1,%2\n"
-			  "	ldl_l %0,%1\n"
-			  "	stl_c %2,%1\n"
-			  "	beq %2,1f\n"
-			  ".subsection 2\n"
-			  "1:	br 0b\n"
-			  ".previous"
-			  : "=r" (ret), "=m" (*p), "=r" (one)
-			  : "m" (*p));
-    return ret;
-}
-#elif defined(__sparc__)
-static inline int testandset (int *p)
-{
-	int ret;
-
-	__asm__ __volatile__("ldstub	[%1], %0"
-			     : "=r" (ret)
-			     : "r" (p)
-			     : "memory");
-
-	return (ret ? 1 : 0);
-}
-#elif defined(__arm__)
-static inline int testandset (int *spinlock)
-{
-    register unsigned int ret;
-    __asm__ __volatile__("swp %0, %1, [%2]"
-                         : "=r"(ret)
-                         : "0"(1), "r"(spinlock));
-
-    return ret;
-}
-#elif defined(__mc68000)
-static inline int testandset (int *p)
-{
-    char ret;
-    __asm__ __volatile__("tas %1; sne %0"
-                         : "=r" (ret)
-                         : "m" (p)
-                         : "cc","memory");
-    return ret;
-}
-#elif defined(__hppa__)
-
-/* Because malloc only guarantees 8-byte alignment for malloc'd data,
-   and GCC only guarantees 8-byte alignment for stack locals, we can't
-   be assured of 16-byte alignment for atomic lock data even if we
-   specify "__attribute ((aligned(16)))" in the type declaration.  So,
-   we use a struct containing an array of four ints for the atomic lock
-   type and dynamically select the 16-byte aligned int from the array
-   for the semaphore.  */
-#define __PA_LDCW_ALIGNMENT 16
-static inline void *ldcw_align (void *p) {
-    unsigned long a = (unsigned long)p;
-    a = (a + __PA_LDCW_ALIGNMENT - 1) & ~(__PA_LDCW_ALIGNMENT - 1);
-    return (void *)a;
-}
-
-static inline int testandset (spinlock_t *p)
-{
-    unsigned int ret;
-    p = ldcw_align(p);
-    __asm__ __volatile__("ldcw 0(%1),%0"
-                         : "=r" (ret)
-                         : "r" (p)
-                         : "memory" );
-    return !ret;
-}
-
-#elif defined(__ia64)
-
-#include <ia64intrin.h>
-
-static inline int testandset (int *p)
-{
-    return __sync_lock_test_and_set (p, 1);
-}
-#elif defined(__mips__)
-static inline int testandset (int *p)
-{
-    int ret;
-
-#if 1
-    __asm__ __volatile__(
-            ".set push\n"
-            ".set mips2\n"
-            "ll %0,%1\n"
-            ".set noreorder\n"
-            "bnez %0,1f\n"
-            "li %0,0\n" /* branch delay slot */
-            "li %0,1\n"
-            "sc %0,%1\n"
-            "1:\n"
-            ".set pop\n"
-            : "=r" (ret), "=m" (*p));
-#else
-    __asm__ __volatile__ (
-	"	.set push		\n"
-	"	.set noat		\n"
-	"	.set mips2		\n"
-	"1:	li	$1, 1		\n"
-	"	ll	%0, %1		\n"
-	"	sc	$1, %1		\n"
-	"	beqz	$1, 1b		\n"
-	"	.set pop		"
-	: "=r" (ret), "+R" (*p)
-	:
-	: "memory");
-#endif
-
-    return ret;
-}
-#else
-#error unimplemented CPU support
-#endif
-
-#if defined(CONFIG_USER_ONLY)
-static inline void spin_lock(spinlock_t *lock)
-{
-    while (testandset(lock));
-}
-
-static inline void spin_unlock(spinlock_t *lock)
-{
-    resetlock(lock);
-}
-
-static inline int spin_trylock(spinlock_t *lock)
-{
-    return !testandset(lock);
-}
-#else
-static inline void spin_lock(spinlock_t *lock)
-{
-}
-
-static inline void spin_unlock(spinlock_t *lock)
-{
-}
-
-static inline int spin_trylock(spinlock_t *lock)
-{
-    return 1;
-}
-#endif
+#include "qemu-lock.h"
 
 extern spinlock_t tb_lock;
 

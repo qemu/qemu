@@ -170,8 +170,9 @@
 #define PG_MODIFIED_MASK (1 << PG_MODIFIED_BIT)
 #define PG_CACHE_MASK    (1 << PG_CACHE_BIT)
 
-/* 2 <= NWINDOWS <= 32. In QEMU it must also be a power of two. */
-#define NWINDOWS  8
+/* 3 <= NWINDOWS <= 32. */
+#define MIN_NWINDOWS 3
+#define MAX_NWINDOWS 32
 
 #if !defined(TARGET_SPARC64)
 #define NB_MMU_MODES 2
@@ -222,8 +223,9 @@ typedef struct CPUSPARCState {
     uint32_t mmu_cxr_mask;
     uint32_t mmu_sfsr_mask;
     uint32_t mmu_trcr_mask;
+    uint32_t nwindows;
     /* NOTE: we allow 8 more registers to handle wrapping */
-    target_ulong regbase[NWINDOWS * 16 + 8];
+    target_ulong regbase[MAX_NWINDOWS * 16 + 8];
 
     CPU_COMMON
 
@@ -330,6 +332,20 @@ void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
 
 #ifndef NO_CPU_IO_DEFS
 void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
+
+static inline int cpu_cwp_inc(CPUSPARCState *env1, int cwp)
+{
+    if (unlikely(cwp >= env1->nwindows))
+        cwp -= env1->nwindows;
+    return cwp;
+}
+
+static inline int cpu_cwp_dec(CPUSPARCState *env1, int cwp)
+{
+    if (unlikely(cwp < 0))
+        cwp += env1->nwindows;
+    return cwp;
+}
 #endif
 
 #define PUT_PSR(env, val) do { int _tmp = val;                          \
@@ -348,9 +364,14 @@ void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
         env->xcc = (_tmp >> 4) << 20;                                   \
         env->psr = (_tmp & 0xf) << 20;                                  \
     } while (0)
-#define GET_CWP64(env) (NWINDOWS - 1 - (env)->cwp)
-#define PUT_CWP64(env, val) \
-    cpu_set_cwp(env, NWINDOWS - 1 - ((val) & (NWINDOWS - 1)))
+#define GET_CWP64(env) (env->nwindows - 1 - (env)->cwp)
+
+static inline void PUT_CWP64(CPUSPARCState *env1, int cwp)
+{
+    if (unlikely(cwp >= env1->nwindows || cwp < 0))
+        cwp = 0;
+    cpu_set_cwp(env1, env1->nwindows - 1 - cwp);
+}
 
 #endif
 

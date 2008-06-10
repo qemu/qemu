@@ -37,6 +37,12 @@ typedef target_long abi_long;
 #include "target_signal.h"
 #include "gdbstub.h"
 
+#if defined(USE_NPTL)
+#define THREAD __thread
+#else
+#define THREAD
+#endif
+
 /* This struct is used to hold certain information about the image.
  * Basically, it replicates in user space what would be certain
  * task_struct fields in the kernel
@@ -184,12 +190,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
                     abi_long arg5, abi_long arg6);
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
-extern CPUState *global_env;
+extern THREAD CPUState *thread_env;
 void cpu_loop(CPUState *env);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
 char *target_strerror(int err);
 int get_osversion(void);
+void fork_start(void);
+void fork_end(int child);
 
 extern int loglevel;
 extern FILE *logfile;
@@ -235,6 +243,10 @@ int target_msync(abi_ulong start, abi_ulong len, int flags);
 extern unsigned long last_brk;
 void mmap_lock(void);
 void mmap_unlock(void);
+#if defined(USE_NPTL)
+void mmap_fork_start(void);
+void mmap_fork_end(int child);
+#endif
 
 /* user access */
 

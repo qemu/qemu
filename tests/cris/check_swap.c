@@ -72,4 +72,5 @@ int main(void)
 {
 	check_swap();
 	pass();
+	return 0;
 }

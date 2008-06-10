@@ -306,7 +306,7 @@ void do_mulshiu (void)
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
-#if defined(CONFIG_USER_ONLY)
+#ifdef CONFIG_USER_ONLY
 void do_mfc0_random (void)
 {
     cpu_abort(env, "mfc0 random\n");
@@ -384,14 +384,660 @@ static const uint32_t configmask[] = {
 #endif
 
 /* CP0 helpers */
+void do_mfc0_mvpcontrol (void)
+{
+    T0 = env->mvp->CP0_MVPControl;
+}
+
+void do_mfc0_mvpconf0 (void)
+{
+    T0 = env->mvp->CP0_MVPConf0;
+}
+
+void do_mfc0_mvpconf1 (void)
+{
+    T0 = env->mvp->CP0_MVPConf1;
+}
+
 void do_mfc0_random (void)
 {
     T0 = (int32_t)cpu_mips_get_random(env);
 }
 
+void do_mfc0_tcstatus (void)
+{
+    T0 = env->CP0_TCStatus[env->current_tc];
+}
+
+void do_mftc0_tcstatus(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCStatus[other_tc];
+}
+
+void do_mfc0_tcbind (void)
+{
+    T0 = env->CP0_TCBind[env->current_tc];
+}
+
+void do_mftc0_tcbind(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCBind[other_tc];
+}
+
+void do_mfc0_tcrestart (void)
+{
+    T0 = env->PC[env->current_tc];
+}
+
+void do_mftc0_tcrestart(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->PC[other_tc];
+}
+
+void do_mfc0_tchalt (void)
+{
+    T0 = env->CP0_TCHalt[env->current_tc];
+}
+
+void do_mftc0_tchalt(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCHalt[other_tc];
+}
+
+void do_mfc0_tccontext (void)
+{
+    T0 = env->CP0_TCContext[env->current_tc];
+}
+
+void do_mftc0_tccontext(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCContext[other_tc];
+}
+
+void do_mfc0_tcschedule (void)
+{
+    T0 = env->CP0_TCSchedule[env->current_tc];
+}
+
+void do_mftc0_tcschedule(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCSchedule[other_tc];
+}
+
+void do_mfc0_tcschefback (void)
+{
+    T0 = env->CP0_TCScheFBack[env->current_tc];
+}
+
+void do_mftc0_tcschefback(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->CP0_TCScheFBack[other_tc];
+}
+
 void do_mfc0_count (void)
 {
     T0 = (int32_t)cpu_mips_get_count(env);
+}
+
+void do_mftc0_entryhi(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
+}
+
+void do_mftc0_status(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    uint32_t tcstatus = env->CP0_TCStatus[other_tc];
+
+    T0 = env->CP0_Status & ~0xf1000018;
+    T0 |= tcstatus & (0xf << CP0TCSt_TCU0);
+    T0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
+    T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
+}
+
+void do_mfc0_lladdr (void)
+{
+    T0 = (int32_t)env->CP0_LLAddr >> 4;
+}
+
+void do_mfc0_watchlo (uint32_t sel)
+{
+    T0 = (int32_t)env->CP0_WatchLo[sel];
+}
+
+void do_mfc0_watchhi (uint32_t sel)
+{
+    T0 = env->CP0_WatchHi[sel];
+}
+
+void do_mfc0_debug (void)
+{
+    T0 = env->CP0_Debug;
+    if (env->hflags & MIPS_HFLAG_DM)
+        T0 |= 1 << CP0DB_DM;
+}
+
+void do_mftc0_debug(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    /* XXX: Might be wrong, check with EJTAG spec. */
+    T0 = (env->CP0_Debug & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
+         (env->CP0_Debug_tcstatus[other_tc] &
+          ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
+}
+
+#if defined(TARGET_MIPS64)
+void do_dmfc0_tcrestart (void)
+{
+    T0 = env->PC[env->current_tc];
+}
+
+void do_dmfc0_tchalt (void)
+{
+    T0 = env->CP0_TCHalt[env->current_tc];
+}
+
+void do_dmfc0_tccontext (void)
+{
+    T0 = env->CP0_TCContext[env->current_tc];
+}
+
+void do_dmfc0_tcschedule (void)
+{
+    T0 = env->CP0_TCSchedule[env->current_tc];
+}
+
+void do_dmfc0_tcschefback (void)
+{
+    T0 = env->CP0_TCScheFBack[env->current_tc];
+}
+
+void do_dmfc0_lladdr (void)
+{
+    T0 = env->CP0_LLAddr >> 4;
+}
+
+void do_dmfc0_watchlo (uint32_t sel)
+{
+    T0 = env->CP0_WatchLo[sel];
+}
+#endif /* TARGET_MIPS64 */
+
+void do_mtc0_index (void)
+{
+    int num = 1;
+    unsigned int tmp = env->tlb->nb_tlb;
+
+    do {
+        tmp >>= 1;
+        num <<= 1;
+    } while (tmp);
+    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 & (num - 1));
+}
+
+void do_mtc0_mvpcontrol (void)
+{
+    uint32_t mask = 0;
+    uint32_t newval;
+
+    if (env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP))
+        mask |= (1 << CP0MVPCo_CPA) | (1 << CP0MVPCo_VPC) |
+                (1 << CP0MVPCo_EVP);
+    if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
+        mask |= (1 << CP0MVPCo_STLB);
+    newval = (env->mvp->CP0_MVPControl & ~mask) | (T0 & mask);
+
+    // TODO: Enable/disable shared TLB, enable/disable VPEs.
+
+    env->mvp->CP0_MVPControl = newval;
+}
+
+void do_mtc0_vpecontrol (void)
+{
+    uint32_t mask;
+    uint32_t newval;
+
+    mask = (1 << CP0VPECo_YSI) | (1 << CP0VPECo_GSI) |
+           (1 << CP0VPECo_TE) | (0xff << CP0VPECo_TargTC);
+    newval = (env->CP0_VPEControl & ~mask) | (T0 & mask);
+
+    /* Yield scheduler intercept not implemented. */
+    /* Gating storage scheduler intercept not implemented. */
+
+    // TODO: Enable/disable TCs.
+
+    env->CP0_VPEControl = newval;
+}
+
+void do_mtc0_vpeconf0 (void)
+{
+    uint32_t mask = 0;
+    uint32_t newval;
+
+    if (env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) {
+        if (env->CP0_VPEConf0 & (1 << CP0VPEC0_VPA))
+            mask |= (0xff << CP0VPEC0_XTC);
+        mask |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
+    }
+    newval = (env->CP0_VPEConf0 & ~mask) | (T0 & mask);
+
+    // TODO: TC exclusive handling due to ERL/EXL.
+
+    env->CP0_VPEConf0 = newval;
+}
+
+void do_mtc0_vpeconf1 (void)
+{
+    uint32_t mask = 0;
+    uint32_t newval;
+
+    if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
+        mask |= (0xff << CP0VPEC1_NCX) | (0xff << CP0VPEC1_NCP2) |
+                (0xff << CP0VPEC1_NCP1);
+    newval = (env->CP0_VPEConf1 & ~mask) | (T0 & mask);
+
+    /* UDI not implemented. */
+    /* CP2 not implemented. */
+
+    // TODO: Handle FPU (CP1) binding.
+
+    env->CP0_VPEConf1 = newval;
+}
+
+void do_mtc0_yqmask (void)
+{
+    /* Yield qualifier inputs not implemented. */
+    env->CP0_YQMask = 0x00000000;
+}
+
+void do_mtc0_vpeopt (void)
+{
+    env->CP0_VPEOpt = T0 & 0x0000ffff;
+}
+
+void do_mtc0_entrylo0 (void)
+{
+    /* Large physaddr (PABITS) not implemented */
+    /* 1k pages not implemented */
+    env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
+}
+
+void do_mtc0_tcstatus (void)
+{
+    uint32_t mask = env->CP0_TCStatus_rw_bitmask;
+    uint32_t newval;
+
+    newval = (env->CP0_TCStatus[env->current_tc] & ~mask) | (T0 & mask);
+
+    // TODO: Sync with CP0_Status.
+
+    env->CP0_TCStatus[env->current_tc] = newval;
+}
+
+void do_mttc0_tcstatus (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    // TODO: Sync with CP0_Status.
+
+    env->CP0_TCStatus[other_tc] = T0;
+}
+
+void do_mtc0_tcbind (void)
+{
+    uint32_t mask = (1 << CP0TCBd_TBE);
+    uint32_t newval;
+
+    if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
+        mask |= (1 << CP0TCBd_CurVPE);
+    newval = (env->CP0_TCBind[env->current_tc] & ~mask) | (T0 & mask);
+    env->CP0_TCBind[env->current_tc] = newval;
+}
+
+void do_mttc0_tcbind (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    uint32_t mask = (1 << CP0TCBd_TBE);
+    uint32_t newval;
+
+    if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
+        mask |= (1 << CP0TCBd_CurVPE);
+    newval = (env->CP0_TCBind[other_tc] & ~mask) | (T0 & mask);
+    env->CP0_TCBind[other_tc] = newval;
+}
+
+void do_mtc0_tcrestart (void)
+{
+    env->PC[env->current_tc] = T0;
+    env->CP0_TCStatus[env->current_tc] &= ~(1 << CP0TCSt_TDS);
+    env->CP0_LLAddr = 0ULL;
+    /* MIPS16 not implemented. */
+}
+
+void do_mttc0_tcrestart (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->PC[other_tc] = T0;
+    env->CP0_TCStatus[other_tc] &= ~(1 << CP0TCSt_TDS);
+    env->CP0_LLAddr = 0ULL;
+    /* MIPS16 not implemented. */
+}
+
+void do_mtc0_tchalt (void)
+{
+    env->CP0_TCHalt[env->current_tc] = T0 & 0x1;
+
+    // TODO: Halt TC / Restart (if allocated+active) TC.
+}
+
+void do_mttc0_tchalt (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    // TODO: Halt TC / Restart (if allocated+active) TC.
+
+    env->CP0_TCHalt[other_tc] = T0;
+}
+
+void do_mtc0_tccontext (void)
+{
+    env->CP0_TCContext[env->current_tc] = T0;
+}
+
+void do_mttc0_tccontext (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_TCContext[other_tc] = T0;
+}
+
+void do_mtc0_tcschedule (void)
+{
+    env->CP0_TCSchedule[env->current_tc] = T0;
+}
+
+void do_mttc0_tcschedule (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_TCSchedule[other_tc] = T0;
+}
+
+void do_mtc0_tcschefback (void)
+{
+    env->CP0_TCScheFBack[env->current_tc] = T0;
+}
+
+void do_mttc0_tcschefback (void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_TCScheFBack[other_tc] = T0;
+}
+
+void do_mtc0_entrylo1 (void)
+{
+    /* Large physaddr (PABITS) not implemented */
+    /* 1k pages not implemented */
+    env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
+}
+
+void do_mtc0_context (void)
+{
+    env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (T0 & ~0x007FFFFF);
+}
+
+void do_mtc0_pagemask (void)
+{
+    /* 1k pages not implemented */
+    env->CP0_PageMask = T0 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
+}
+
+void do_mtc0_pagegrain (void)
+{
+    /* SmartMIPS not implemented */
+    /* Large physaddr (PABITS) not implemented */
+    /* 1k pages not implemented */
+    env->CP0_PageGrain = 0;
+}
+
+void do_mtc0_wired (void)
+{
+    env->CP0_Wired = T0 % env->tlb->nb_tlb;
+}
+
+void do_mtc0_srsconf0 (void)
+{
+    env->CP0_SRSConf0 |= T0 & env->CP0_SRSConf0_rw_bitmask;
+}
+
+void do_mtc0_srsconf1 (void)
+{
+    env->CP0_SRSConf1 |= T0 & env->CP0_SRSConf1_rw_bitmask;
+}
+
+void do_mtc0_srsconf2 (void)
+{
+    env->CP0_SRSConf2 |= T0 & env->CP0_SRSConf2_rw_bitmask;
+}
+
+void do_mtc0_srsconf3 (void)
+{
+    env->CP0_SRSConf3 |= T0 & env->CP0_SRSConf3_rw_bitmask;
+}
+
+void do_mtc0_srsconf4 (void)
+{
+    env->CP0_SRSConf4 |= T0 & env->CP0_SRSConf4_rw_bitmask;
+}
+
+void do_mtc0_hwrena (void)
+{
+    env->CP0_HWREna = T0 & 0x0000000F;
+}
+
+void do_mtc0_count (void)
+{
+    cpu_mips_store_count(env, T0);
+}
+
+void do_mtc0_entryhi (void)
+{
+    target_ulong old, val;
+
+    /* 1k pages not implemented */
+    val = T0 & ((TARGET_PAGE_MASK << 1) | 0xFF);
+#if defined(TARGET_MIPS64)
+    val &= env->SEGMask;
+#endif
+    old = env->CP0_EntryHi;
+    env->CP0_EntryHi = val;
+    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+        uint32_t tcst = env->CP0_TCStatus[env->current_tc] & ~0xff;
+        env->CP0_TCStatus[env->current_tc] = tcst | (val & 0xff);
+    }
+    /* If the ASID changes, flush qemu's TLB.  */
+    if ((old & 0xFF) != (val & 0xFF))
+        cpu_mips_tlb_flush(env, 1);
+}
+
+void do_mttc0_entryhi(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_EntryHi = (env->CP0_EntryHi & 0xff) | (T0 & ~0xff);
+    env->CP0_TCStatus[other_tc] = (env->CP0_TCStatus[other_tc] & ~0xff) | (T0 & 0xff);
+}
+
+void do_mtc0_compare (void)
+{
+    cpu_mips_store_compare(env, T0);
+}
+
+void do_mtc0_status (void)
+{
+    uint32_t val, old;
+    uint32_t mask = env->CP0_Status_rw_bitmask;
+
+    val = T0 & mask;
+    old = env->CP0_Status;
+    env->CP0_Status = (env->CP0_Status & ~mask) | val;
+    compute_hflags(env);
+    if (loglevel & CPU_LOG_EXEC)
+        do_mtc0_status_debug(old, val);
+    cpu_mips_update_irq(env);
+}
+
+void do_mttc0_status(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    uint32_t tcstatus = env->CP0_TCStatus[other_tc];
+
+    env->CP0_Status = T0 & ~0xf1000018;
+    tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (T0 & (0xf << CP0St_CU0));
+    tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((T0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
+    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((T0 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
+    env->CP0_TCStatus[other_tc] = tcstatus;
+}
+
+void do_mtc0_intctl (void)
+{
+    /* vectored interrupts not implemented, no performance counters. */
+    env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (T0 & 0x000002e0);
+}
+
+void do_mtc0_srsctl (void)
+{
+    uint32_t mask = (0xf << CP0SRSCtl_ESS) | (0xf << CP0SRSCtl_PSS);
+    env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (T0 & mask);
+}
+
+void do_mtc0_cause (void)
+{
+    uint32_t mask = 0x00C00300;
+    uint32_t old = env->CP0_Cause;
+
+    if (env->insn_flags & ISA_MIPS32R2)
+        mask |= 1 << CP0Ca_DC;
+
+    env->CP0_Cause = (env->CP0_Cause & ~mask) | (T0 & mask);
+
+    if ((old ^ env->CP0_Cause) & (1 << CP0Ca_DC)) {
+        if (env->CP0_Cause & (1 << CP0Ca_DC))
+            cpu_mips_stop_count(env);
+        else
+            cpu_mips_start_count(env);
+    }
+
+    /* Handle the software interrupt as an hardware one, as they
+       are very similar */
+    if (T0 & CP0Ca_IP_mask) {
+        cpu_mips_update_irq(env);
+    }
+}
+
+void do_mtc0_ebase (void)
+{
+    /* vectored interrupts not implemented */
+    /* Multi-CPU not implemented */
+    env->CP0_EBase = 0x80000000 | (T0 & 0x3FFFF000);
+}
+
+void do_mtc0_config0 (void)
+{
+    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (T0 & 0x00000007);
+}
+
+void do_mtc0_config2 (void)
+{
+    /* tertiary/secondary caches not implemented */
+    env->CP0_Config2 = (env->CP0_Config2 & 0x8FFF0FFF);
+}
+
+void do_mtc0_watchlo (uint32_t sel)
+{
+    /* Watch exceptions for instructions, data loads, data stores
+       not implemented. */
+    env->CP0_WatchLo[sel] = (T0 & ~0x7);
+}
+
+void do_mtc0_watchhi (uint32_t sel)
+{
+    env->CP0_WatchHi[sel] = (T0 & 0x40FF0FF8);
+    env->CP0_WatchHi[sel] &= ~(env->CP0_WatchHi[sel] & T0 & 0x7);
+}
+
+void do_mtc0_xcontext (void)
+{
+    target_ulong mask = (1ULL << (env->SEGBITS - 7)) - 1;
+    env->CP0_XContext = (env->CP0_XContext & mask) | (T0 & ~mask);
+}
+
+void do_mtc0_framemask (void)
+{
+    env->CP0_Framemask = T0; /* XXX */
+}
+
+void do_mtc0_debug (void)
+{
+    env->CP0_Debug = (env->CP0_Debug & 0x8C03FC1F) | (T0 & 0x13300120);
+    if (T0 & (1 << CP0DB_DM))
+        env->hflags |= MIPS_HFLAG_DM;
+    else
+        env->hflags &= ~MIPS_HFLAG_DM;
+}
+
+void do_mttc0_debug(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    /* XXX: Might be wrong, check with EJTAG spec. */
+    env->CP0_Debug_tcstatus[other_tc] = T0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
+    env->CP0_Debug = (env->CP0_Debug & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
+                     (T0 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
+}
+
+void do_mtc0_performance0 (void)
+{
+    env->CP0_Performance0 = T0 & 0x000007ff;
+}
+
+void do_mtc0_taglo (void)
+{
+    env->CP0_TagLo = T0 & 0xFFFFFCF6;
+}
+
+void do_mtc0_datalo (void)
+{
+    env->CP0_DataLo = T0; /* XXX */
+}
+
+void do_mtc0_taghi (void)
+{
+    env->CP0_TagHi = T0; /* XXX */
+}
+
+void do_mtc0_datahi (void)
+{
+    env->CP0_DataHi = T0; /* XXX */
 }
 
 void do_mtc0_status_debug(uint32_t old, uint32_t val)
@@ -412,7 +1058,144 @@ void do_mtc0_status_irqraise_debug(void)
 {
     fprintf(logfile, "Raise pending IRQs\n");
 }
+#endif /* !CONFIG_USER_ONLY */
 
+/* MIPS MT functions */
+void do_mftgpr(uint32_t sel)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->gpr[other_tc][sel];
+}
+
+void do_mftlo(uint32_t sel)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->LO[other_tc][sel];
+}
+
+void do_mfthi(uint32_t sel)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->HI[other_tc][sel];
+}
+
+void do_mftacx(uint32_t sel)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->ACX[other_tc][sel];
+}
+
+void do_mftdsp(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->DSPControl[other_tc];
+}
+
+void do_mttgpr(uint32_t sel)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->gpr[other_tc][sel];
+}
+
+void do_mttlo(uint32_t sel)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->LO[other_tc][sel];
+}
+
+void do_mtthi(uint32_t sel)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->HI[other_tc][sel];
+}
+
+void do_mttacx(uint32_t sel)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->ACX[other_tc][sel];
+}
+
+void do_mttdsp(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    T0 = env->DSPControl[other_tc];
+}
+
+/* MIPS MT functions */
+void do_dmt(void)
+{
+    // TODO
+    T0 = 0;
+    // rt = T0
+}
+
+void do_emt(void)
+{
+    // TODO
+    T0 = 0;
+    // rt = T0
+}
+
+void do_dvpe(void)
+{
+    // TODO
+    T0 = 0;
+    // rt = T0
+}
+
+void do_evpe(void)
+{
+    // TODO
+    T0 = 0;
+    // rt = T0
+}
+
+void do_fork(void)
+{
+    // T0 = rt, T1 = rs
+    T0 = 0;
+    // TODO: store to TC register
+}
+
+void do_yield(void)
+{
+    if (T0 < 0) {
+        /* No scheduling policy implemented. */
+        if (T0 != -2) {
+            if (env->CP0_VPEControl & (1 << CP0VPECo_YSI) &&
+                env->CP0_TCStatus[env->current_tc] & (1 << CP0TCSt_DT)) {
+                env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
+                env->CP0_VPEControl |= 4 << CP0VPECo_EXCPT;
+                do_raise_exception(EXCP_THREAD);
+            }
+        }
+    } else if (T0 == 0) {
+	if (0 /* TODO: TC underflow */) {
+            env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
+            do_raise_exception(EXCP_THREAD);
+        } else {
+            // TODO: Deallocate TC
+        }
+    } else if (T0 > 0) {
+        /* Yield qualifier inputs not implemented. */
+        env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
+        env->CP0_VPEControl |= 2 << CP0VPECo_EXCPT;
+        do_raise_exception(EXCP_THREAD);
+    }
+    T0 = env->CP0_YQMask;
+}
+
+/* CP1 functions */
 void fpu_handle_exception(void)
 {
 #ifdef CONFIG_SOFTFLOAT
@@ -450,6 +1233,7 @@ void fpu_handle_exception(void)
 #endif
 }
 
+#ifndef CONFIG_USER_ONLY
 /* TLB management */
 void cpu_mips_tlb_flush (CPUState *env, int flush_global)
 {
@@ -703,7 +1487,7 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
     else
         do_raise_exception(EXCP_DBE);
 }
-#endif
+#endif /* !CONFIG_USER_ONLY */
 
 /* Complex FPU operations which may need stack space. */
 
@@ -727,7 +1511,7 @@ unsigned int ieee_rm[] = {
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->fpu->fcr31 & 3], &env->fpu->fp_status)
 
-void do_cfc1 (int reg)
+void do_cfc1 (uint32_t reg)
 {
     switch (reg) {
     case 0:
@@ -748,7 +1532,7 @@ void do_cfc1 (int reg)
     }
 }
 
-void do_ctc1 (int reg)
+void do_ctc1 (uint32_t reg)
 {
     switch(reg) {
     case 25:

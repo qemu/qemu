@@ -10,7 +10,7 @@ The following commands are supported:
 @table @option
 @item create [-e] [-6] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
 @item commit [-f @var{fmt}] @var{filename}
-@item convert [-c] [-e] [-6] [-f @var{fmt}] @var{filename} [-O @var{output_fmt}] @var{output_filename}
+@item convert [-c] [-e] [-6] [-f @var{fmt}] [-O @var{output_fmt}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 @item info [-f @var{fmt}] @var{filename}
 @end table
 
@@ -21,7 +21,11 @@ Command parameters:
 @item base_image
 is the read-only disk image which is used as base for a copy on
     write image; the copy on write image only stores the modified data
-
+@item output_base_image
+forces the output image to be created as a copy on write
+image of the specified base image; @code{output_base_image} should have the same
+content as the input's base image, however the path, image format, etc may
+differ
 @item fmt
 is the disk image format. It is guessed automatically in most cases. The following formats are supported:
 

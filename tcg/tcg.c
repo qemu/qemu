@@ -353,7 +353,7 @@ TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
 #if TCG_TARGET_REG_BITS == 32
     if (type == TCG_TYPE_I64) {
         char buf[64];
-        tcg_temp_alloc(s, s->nb_globals + 1);
+        tcg_temp_alloc(s, s->nb_globals + 2);
         ts = &s->temps[s->nb_globals];
         ts->base_type = type;
         ts->type = TCG_TYPE_I32;

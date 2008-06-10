@@ -58,7 +58,7 @@ typedef struct GUSState {
     QEMUSoundCard card;
     int freq;
     int pos, left, shift, irqs;
-    uint16_t *mixbuf;
+    GUSsample *mixbuf;
     uint8_t himem[1024 * 1024 + 32 + 4096];
     int samples;
     SWVoiceOut *voice;
@@ -198,7 +198,7 @@ void GUS_dmarequest (GUSEmuState *der)
 int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 {
     GUSState *s = opaque;
-    int8_t tmpbuf[4096];
+    char tmpbuf[4096];
     int pos = dma_pos, mode, left = dma_len - dma_pos;
 
     ldebug ("read DMA %#x %d\n", dma_pos, dma_len);

@@ -797,7 +797,7 @@ extern CPUState *cpu_single_env;
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);
 
-int cpu_watchpoint_insert(CPUState *env, target_ulong addr);
+int cpu_watchpoint_insert(CPUState *env, target_ulong addr, int type);
 int cpu_watchpoint_remove(CPUState *env, target_ulong addr);
 void cpu_watchpoint_remove_all(CPUState *env);
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc);
@@ -868,20 +868,33 @@ extern uint8_t *phys_ram_dirty;
 extern ram_addr_t ram_size;
 
 /* physical memory access */
-#define TLB_INVALID_MASK   (1 << 3)
-#define IO_MEM_SHIFT       4
+
+/* MMIO pages are identified by a combination of an IO device index and
+   3 flags.  The ROMD code stores the page ram offset in iotlb entry, 
+   so only a limited number of ids are avaiable.  */
+
+#define IO_MEM_SHIFT       3
 #define IO_MEM_NB_ENTRIES  (1 << (TARGET_PAGE_BITS  - IO_MEM_SHIFT))
 
 #define IO_MEM_RAM         (0 << IO_MEM_SHIFT) /* hardcoded offset */
 #define IO_MEM_ROM         (1 << IO_MEM_SHIFT) /* hardcoded offset */
 #define IO_MEM_UNASSIGNED  (2 << IO_MEM_SHIFT)
-#define IO_MEM_NOTDIRTY    (4 << IO_MEM_SHIFT) /* used internally, never use directly */
-/* acts like a ROM when read and like a device when written. As an
-   exception, the write memory callback gets the ram offset instead of
-   the physical address */
+#define IO_MEM_NOTDIRTY    (3 << IO_MEM_SHIFT)
+
+/* Acts like a ROM when read and like a device when written.  */
 #define IO_MEM_ROMD        (1)
 #define IO_MEM_SUBPAGE     (2)
 #define IO_MEM_SUBWIDTH    (4)
+
+/* Flags stored in the low bits of the TLB virtual address.  These are
+   defined so that fast path ram access is all zeros.  */
+/* Zero if TLB entry is valid.  */
+#define TLB_INVALID_MASK   (1 << 3)
+/* Set if TLB entry references a clean RAM page.  The iotlb entry will
+   contain the page physical address.  */
+#define TLB_NOTDIRTY    (1 << 4)
+/* Set if TLB entry is an IO callback.  */
+#define TLB_MMIO        (1 << 5)
 
 typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);

@@ -311,8 +311,6 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     uint8_t cmd = value;
     uint32_t sector_len = pfl->sector_len;
 
-    /* WARNING: when the memory area is in ROMD mode, the offset is a
-       ram offset, not a physical address */
     if (pfl->mode == rom_mode) {
         offset -= (uint32_t)(long)pfl->storage;
     } else {

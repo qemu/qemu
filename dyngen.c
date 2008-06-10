@@ -1963,6 +1963,14 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
                                 break;
                             case R_PPC_REL24:
                                 /* warning: must be at 32 MB distancy */
+                                fprintf(outfile, "{\n"
+                                        "    long disp = (%s - (long)(gen_code_ptr + %d) + %d);\n"
+                                        "    if ((disp << 6) >> 6 != disp) {;\n"
+                                        "        fprintf(stderr, \"Branch target is too far away\\n\");"
+                                        "        abort();\n"
+                                        "    }\n"
+                                        "}\n",
+                                        relname, reloc_offset, addend);
                                 fprintf(outfile, "    *(uint32_t *)(gen_code_ptr + %d) = (*(uint32_t *)(gen_code_ptr + %d) & ~0x03fffffc) | ((%s - (long)(gen_code_ptr + %d) + %d) & 0x03fffffc);\n",
                                         reloc_offset, reloc_offset, relname, reloc_offset, addend);
                                 break;
