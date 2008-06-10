@@ -801,7 +801,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 
 void tcg_target_qemu_prologue (TCGContext *s)
 {
-    int i, j, frame_size;
+    int i, frame_size;
 
     frame_size = 0
         + 4                     /* back chain */
