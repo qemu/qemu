@@ -7386,9 +7386,9 @@ void fpu_dump_state(CPUState *env, FILE *f,
     fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%08x(0x%02x)\n",
                 env->fpu->fcr0, env->fpu->fcr31, is_fpu64, env->fpu->fp_status,
                 get_float_exception_flags(&env->fpu->fp_status));
-    fpu_fprintf(f, "FT0: "); printfpr(&env->fpu->ft0);
-    fpu_fprintf(f, "FT1: "); printfpr(&env->fpu->ft1);
-    fpu_fprintf(f, "FT2: "); printfpr(&env->fpu->ft2);
+    fpu_fprintf(f, "FT0: "); printfpr(&env->ft0);
+    fpu_fprintf(f, "FT1: "); printfpr(&env->ft1);
+    fpu_fprintf(f, "FT2: "); printfpr(&env->ft2);
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
         fpu_fprintf(f, "%3s: ", fregnames[i]);
         printfpr(&env->fpu->fpr[i]);
