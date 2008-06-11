@@ -130,3 +130,75 @@ DEF_HELPER(void, do_yield, (void))
 /* CP1 functions */
 DEF_HELPER(void, do_cfc1, (uint32_t reg))
 DEF_HELPER(void, do_ctc1, (uint32_t reg))
+
+DEF_HELPER(void, do_float_cvtd_s, (void))
+DEF_HELPER(void, do_float_cvtd_w, (void))
+DEF_HELPER(void, do_float_cvtd_l, (void))
+DEF_HELPER(void, do_float_cvtl_d, (void))
+DEF_HELPER(void, do_float_cvtl_s, (void))
+DEF_HELPER(void, do_float_cvtps_pw, (void))
+DEF_HELPER(void, do_float_cvtpw_ps, (void))
+DEF_HELPER(void, do_float_cvts_d, (void))
+DEF_HELPER(void, do_float_cvts_w, (void))
+DEF_HELPER(void, do_float_cvts_l, (void))
+DEF_HELPER(void, do_float_cvts_pl, (void))
+DEF_HELPER(void, do_float_cvts_pu, (void))
+DEF_HELPER(void, do_float_cvtw_s, (void))
+DEF_HELPER(void, do_float_cvtw_d, (void))
+
+DEF_HELPER(void, do_float_addr_ps, (void))
+DEF_HELPER(void, do_float_mulr_ps, (void))
+
+#define FOP_PROTO(op)                            \
+DEF_HELPER(void, do_float_ ## op ## _s, (void))  \
+DEF_HELPER(void, do_float_ ## op ## _d, (void))
+FOP_PROTO(roundl)
+FOP_PROTO(roundw)
+FOP_PROTO(truncl)
+FOP_PROTO(truncw)
+FOP_PROTO(ceill)
+FOP_PROTO(ceilw)
+FOP_PROTO(floorl)
+FOP_PROTO(floorw)
+FOP_PROTO(rsqrt)
+FOP_PROTO(recip)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op)                            \
+DEF_HELPER(void, do_float_ ## op ## _s, (void))  \
+DEF_HELPER(void, do_float_ ## op ## _d, (void))  \
+DEF_HELPER(void, do_float_ ## op ## _ps, (void))
+FOP_PROTO(add)
+FOP_PROTO(sub)
+FOP_PROTO(mul)
+FOP_PROTO(div)
+FOP_PROTO(recip1)
+FOP_PROTO(recip2)
+FOP_PROTO(rsqrt1)
+FOP_PROTO(rsqrt2)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op)                            \
+DEF_HELPER(void, do_cmp_d_ ## op, (long cc))     \
+DEF_HELPER(void, do_cmpabs_d_ ## op, (long cc))  \
+DEF_HELPER(void, do_cmp_s_ ## op, (long cc))     \
+DEF_HELPER(void, do_cmpabs_s_ ## op, (long cc))  \
+DEF_HELPER(void, do_cmp_ps_ ## op, (long cc))    \
+DEF_HELPER(void, do_cmpabs_ps_ ## op, (long cc))
+FOP_PROTO(f)
+FOP_PROTO(un)
+FOP_PROTO(eq)
+FOP_PROTO(ueq)
+FOP_PROTO(olt)
+FOP_PROTO(ult)
+FOP_PROTO(ole)
+FOP_PROTO(ule)
+FOP_PROTO(sf)
+FOP_PROTO(ngle)
+FOP_PROTO(seq)
+FOP_PROTO(ngl)
+FOP_PROTO(lt)
+FOP_PROTO(nge)
+FOP_PROTO(le)
+FOP_PROTO(ngt)
+#undef FOP_PROTO

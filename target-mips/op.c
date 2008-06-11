@@ -377,94 +377,10 @@ void op_dmultu (void)
 
 #define FLOAT_OP(name, p) void OPPROTO op_float_##name##_##p(void)
 
-FLOAT_OP(cvtd, s)
-{
-    CALL_FROM_TB0(do_float_cvtd_s);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvtd, w)
-{
-    CALL_FROM_TB0(do_float_cvtd_w);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvtd, l)
-{
-    CALL_FROM_TB0(do_float_cvtd_l);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvtl, d)
-{
-    CALL_FROM_TB0(do_float_cvtl_d);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvtl, s)
-{
-    CALL_FROM_TB0(do_float_cvtl_s);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
 FLOAT_OP(cvtps, s)
 {
     WT2 = WT0;
     WTH2 = WT1;
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvtps, pw)
-{
-    CALL_FROM_TB0(do_float_cvtps_pw);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvtpw, ps)
-{
-    CALL_FROM_TB0(do_float_cvtpw_ps);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvts, d)
-{
-    CALL_FROM_TB0(do_float_cvts_d);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvts, w)
-{
-    CALL_FROM_TB0(do_float_cvts_w);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvts, l)
-{
-    CALL_FROM_TB0(do_float_cvts_l);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvts, pl)
-{
-    CALL_FROM_TB0(do_float_cvts_pl);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvts, pu)
-{
-    CALL_FROM_TB0(do_float_cvts_pu);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvtw, s)
-{
-    CALL_FROM_TB0(do_float_cvtw_s);
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(cvtw, d)
-{
-    CALL_FROM_TB0(do_float_cvtw_d);
     DEBUG_FPU_STATE();
     FORCE_RET();
 }
@@ -493,35 +409,6 @@ FLOAT_OP(puu, ps)
     DEBUG_FPU_STATE();
     FORCE_RET();
 }
-
-#define FLOAT_ROUNDOP(op, ttype, stype)                    \
-FLOAT_OP(op ## ttype, stype)                               \
-{                                                          \
-    CALL_FROM_TB0(do_float_ ## op ## ttype ## _ ## stype); \
-    DEBUG_FPU_STATE();                                     \
-    FORCE_RET();                                           \
-}
-
-FLOAT_ROUNDOP(round, l, d)
-FLOAT_ROUNDOP(round, l, s)
-FLOAT_ROUNDOP(round, w, d)
-FLOAT_ROUNDOP(round, w, s)
-
-FLOAT_ROUNDOP(trunc, l, d)
-FLOAT_ROUNDOP(trunc, l, s)
-FLOAT_ROUNDOP(trunc, w, d)
-FLOAT_ROUNDOP(trunc, w, s)
-
-FLOAT_ROUNDOP(ceil, l, d)
-FLOAT_ROUNDOP(ceil, l, s)
-FLOAT_ROUNDOP(ceil, w, d)
-FLOAT_ROUNDOP(ceil, w, s)
-
-FLOAT_ROUNDOP(floor, l, d)
-FLOAT_ROUNDOP(floor, l, s)
-FLOAT_ROUNDOP(floor, w, d)
-FLOAT_ROUNDOP(floor, w, s)
-#undef FLOAR_ROUNDOP
 
 FLOAT_OP(movf, d)
 {
@@ -617,66 +504,6 @@ FLOAT_OP(movn, ps)
     DEBUG_FPU_STATE();
     FORCE_RET();
 }
-
-/* operations calling helpers, for s, d and ps */
-#define FLOAT_HOP(name)   \
-FLOAT_OP(name, d)         \
-{                         \
-    CALL_FROM_TB0(do_float_ ## name ## _d);  \
-    DEBUG_FPU_STATE();    \
-    FORCE_RET();          \
-}                         \
-FLOAT_OP(name, s)         \
-{                         \
-    CALL_FROM_TB0(do_float_ ## name ## _s);  \
-    DEBUG_FPU_STATE();    \
-    FORCE_RET();          \
-}                         \
-FLOAT_OP(name, ps)        \
-{                         \
-    CALL_FROM_TB0(do_float_ ## name ## _ps); \
-    DEBUG_FPU_STATE();    \
-    FORCE_RET();          \
-}
-FLOAT_HOP(add)
-FLOAT_HOP(sub)
-FLOAT_HOP(mul)
-FLOAT_HOP(div)
-FLOAT_HOP(recip2)
-FLOAT_HOP(rsqrt2)
-FLOAT_HOP(rsqrt1)
-FLOAT_HOP(recip1)
-#undef FLOAT_HOP
-
-/* operations calling helpers, for s and d */
-#define FLOAT_HOP(name)   \
-FLOAT_OP(name, d)         \
-{                         \
-    CALL_FROM_TB0(do_float_ ## name ## _d);  \
-    DEBUG_FPU_STATE();    \
-    FORCE_RET();          \
-}                         \
-FLOAT_OP(name, s)         \
-{                         \
-    CALL_FROM_TB0(do_float_ ## name ## _s);  \
-    DEBUG_FPU_STATE();    \
-    FORCE_RET();          \
-}
-FLOAT_HOP(rsqrt)
-FLOAT_HOP(recip)
-#undef FLOAT_HOP
-
-/* operations calling helpers, for ps */
-#define FLOAT_HOP(name)   \
-FLOAT_OP(name, ps)        \
-{                         \
-    CALL_FROM_TB0(do_float_ ## name ## _ps); \
-    DEBUG_FPU_STATE();    \
-    FORCE_RET();          \
-}
-FLOAT_HOP(addr)
-FLOAT_HOP(mulr)
-#undef FLOAT_HOP
 
 /* ternary operations */
 #define FLOAT_TERNOP(name1, name2) \
@@ -835,43 +662,6 @@ FLOAT_OP(alnv, ps)
 #endif
 
 extern void dump_fpu_s(CPUState *env);
-
-#define CMP_OP(fmt, op)                                \
-void OPPROTO op_cmp ## _ ## fmt ## _ ## op(void)       \
-{                                                      \
-    CALL_FROM_TB1(do_cmp ## _ ## fmt ## _ ## op, PARAM1); \
-    DEBUG_FPU_STATE();                                 \
-    FORCE_RET();                                       \
-}                                                      \
-void OPPROTO op_cmpabs ## _ ## fmt ## _ ## op(void)    \
-{                                                      \
-    CALL_FROM_TB1(do_cmpabs ## _ ## fmt ## _ ## op, PARAM1); \
-    DEBUG_FPU_STATE();                                 \
-    FORCE_RET();                                       \
-}
-#define CMP_OPS(op)   \
-CMP_OP(d, op)         \
-CMP_OP(s, op)         \
-CMP_OP(ps, op)
-
-CMP_OPS(f)
-CMP_OPS(un)
-CMP_OPS(eq)
-CMP_OPS(ueq)
-CMP_OPS(olt)
-CMP_OPS(ult)
-CMP_OPS(ole)
-CMP_OPS(ule)
-CMP_OPS(sf)
-CMP_OPS(ngle)
-CMP_OPS(seq)
-CMP_OPS(ngl)
-CMP_OPS(lt)
-CMP_OPS(nge)
-CMP_OPS(le)
-CMP_OPS(ngt)
-#undef CMP_OPS
-#undef CMP_OP
 
 void op_bc1f (void)
 {

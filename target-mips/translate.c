@@ -630,28 +630,28 @@ static inline void gen_store_fpr32h (TCGv t, int reg)
     tcg_gen_st_i32(t, current_fpu, 8 * reg + 4 * !FP_ENDIAN_IDX);
 }
 
-#define FOP_CONDS(type, fmt)                                            \
-static GenOpFunc1 * gen_op_cmp ## type ## _ ## fmt ## _table[16] = {    \
-    gen_op_cmp ## type ## _ ## fmt ## _f,                               \
-    gen_op_cmp ## type ## _ ## fmt ## _un,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _eq,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _ueq,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _olt,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _ult,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _ole,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _ule,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _sf,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _ngle,                            \
-    gen_op_cmp ## type ## _ ## fmt ## _seq,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _ngl,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _lt,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _nge,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _le,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _ngt,                             \
-};                                                                      \
-static always_inline void gen_cmp ## type ## _ ## fmt(int n, long cc)   \
-{                                                                       \
-    gen_op_cmp ## type ## _ ## fmt ## _table[n](cc);                    \
+#define FOP_CONDS(type, fmt)                                              \
+static GenOpFunc1 * fcmp ## type ## _ ## fmt ## _table[16] = {            \
+    do_cmp ## type ## _ ## fmt ## _f,                                     \
+    do_cmp ## type ## _ ## fmt ## _un,                                    \
+    do_cmp ## type ## _ ## fmt ## _eq,                                    \
+    do_cmp ## type ## _ ## fmt ## _ueq,                                   \
+    do_cmp ## type ## _ ## fmt ## _olt,                                   \
+    do_cmp ## type ## _ ## fmt ## _ult,                                   \
+    do_cmp ## type ## _ ## fmt ## _ole,                                   \
+    do_cmp ## type ## _ ## fmt ## _ule,                                   \
+    do_cmp ## type ## _ ## fmt ## _sf,                                    \
+    do_cmp ## type ## _ ## fmt ## _ngle,                                  \
+    do_cmp ## type ## _ ## fmt ## _seq,                                   \
+    do_cmp ## type ## _ ## fmt ## _ngl,                                   \
+    do_cmp ## type ## _ ## fmt ## _lt,                                    \
+    do_cmp ## type ## _ ## fmt ## _nge,                                   \
+    do_cmp ## type ## _ ## fmt ## _le,                                    \
+    do_cmp ## type ## _ ## fmt ## _ngt,                                   \
+};                                                                        \
+static inline void gen_cmp ## type ## _ ## fmt(int n, long cc)            \
+{                                                                         \
+    tcg_gen_helper_0_1i(fcmp ## type ## _ ## fmt ## _table[n], cc);       \
 }
 
 FOP_CONDS(, d)
@@ -660,6 +660,7 @@ FOP_CONDS(, s)
 FOP_CONDS(abs, s)
 FOP_CONDS(, ps)
 FOP_CONDS(abs, ps)
+#undef FOP_CONDS
 
 /* Tests */
 #define OP_COND(name, cond)                                   \
@@ -5597,7 +5598,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(0, 16):
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32(fpu32_T[1], ft);
-        gen_op_float_add_s();
+        tcg_gen_helper_0_0(do_float_add_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "add.s";
         optype = BINOP;
@@ -5605,7 +5606,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(1, 16):
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32(fpu32_T[1], ft);
-        gen_op_float_sub_s();
+        tcg_gen_helper_0_0(do_float_sub_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "sub.s";
         optype = BINOP;
@@ -5613,7 +5614,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(2, 16):
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32(fpu32_T[1], ft);
-        gen_op_float_mul_s();
+        tcg_gen_helper_0_0(do_float_mul_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "mul.s";
         optype = BINOP;
@@ -5621,7 +5622,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(3, 16):
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32(fpu32_T[1], ft);
-        gen_op_float_div_s();
+        tcg_gen_helper_0_0(do_float_div_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "div.s";
         optype = BINOP;
@@ -5653,52 +5654,52 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(8, 16):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_roundl_s();
+        tcg_gen_helper_0_0(do_float_roundl_s);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "round.l.s";
         break;
     case FOP(9, 16):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_truncl_s();
+        tcg_gen_helper_0_0(do_float_truncl_s);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "trunc.l.s";
         break;
     case FOP(10, 16):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_ceill_s();
+        tcg_gen_helper_0_0(do_float_ceill_s);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "ceil.l.s";
         break;
     case FOP(11, 16):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_floorl_s();
+        tcg_gen_helper_0_0(do_float_floorl_s);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "floor.l.s";
         break;
     case FOP(12, 16):
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_roundw_s();
+        tcg_gen_helper_0_0(do_float_roundw_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "round.w.s";
         break;
     case FOP(13, 16):
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_truncw_s();
+        tcg_gen_helper_0_0(do_float_truncw_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "trunc.w.s";
         break;
     case FOP(14, 16):
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_ceilw_s();
+        tcg_gen_helper_0_0(do_float_ceilw_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "ceil.w.s";
         break;
     case FOP(15, 16):
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_floorw_s();
+        tcg_gen_helper_0_0(do_float_floorw_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "floor.w.s";
         break;
@@ -5729,14 +5730,14 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(21, 16):
         check_cop1x(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_recip_s();
+        tcg_gen_helper_0_0(do_float_recip_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "recip.s";
         break;
     case FOP(22, 16):
         check_cop1x(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_rsqrt_s();
+        tcg_gen_helper_0_0(do_float_rsqrt_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "rsqrt.s";
         break;
@@ -5744,21 +5745,21 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32(fpu32_T[2], fd);
-        gen_op_float_recip2_s();
+        tcg_gen_helper_0_0(do_float_recip2_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "recip2.s";
         break;
     case FOP(29, 16):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_recip1_s();
+        tcg_gen_helper_0_0(do_float_recip1_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "recip1.s";
         break;
     case FOP(30, 16):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_rsqrt1_s();
+        tcg_gen_helper_0_0(do_float_rsqrt1_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "rsqrt1.s";
         break;
@@ -5766,27 +5767,27 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32(fpu32_T[2], ft);
-        gen_op_float_rsqrt2_s();
+        tcg_gen_helper_0_0(do_float_rsqrt2_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "rsqrt2.s";
         break;
     case FOP(33, 16):
         check_cp1_registers(ctx, fd);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_cvtd_s();
+        tcg_gen_helper_0_0(do_float_cvtd_s);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.d.s";
         break;
     case FOP(36, 16):
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_cvtw_s();
+        tcg_gen_helper_0_0(do_float_cvtw_s);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.w.s";
         break;
     case FOP(37, 16):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_cvtl_s();
+        tcg_gen_helper_0_0(do_float_cvtl_s);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.l.s";
         break;
@@ -5829,7 +5830,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_registers(ctx, fs | ft | fd);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
         gen_load_fpr64(ctx, fpu64_T[1], ft);
-        gen_op_float_add_d();
+        tcg_gen_helper_0_0(do_float_add_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "add.d";
         optype = BINOP;
@@ -5838,7 +5839,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_registers(ctx, fs | ft | fd);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
         gen_load_fpr64(ctx, fpu64_T[1], ft);
-        gen_op_float_sub_d();
+        tcg_gen_helper_0_0(do_float_sub_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "sub.d";
         optype = BINOP;
@@ -5847,7 +5848,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_registers(ctx, fs | ft | fd);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
         gen_load_fpr64(ctx, fpu64_T[1], ft);
-        gen_op_float_mul_d();
+        tcg_gen_helper_0_0(do_float_mul_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "mul.d";
         optype = BINOP;
@@ -5856,7 +5857,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_registers(ctx, fs | ft | fd);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
         gen_load_fpr64(ctx, fpu64_T[1], ft);
-        gen_op_float_div_d();
+        tcg_gen_helper_0_0(do_float_div_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "div.d";
         optype = BINOP;
@@ -5892,56 +5893,56 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(8, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_roundl_d();
+        tcg_gen_helper_0_0(do_float_roundl_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "round.l.d";
         break;
     case FOP(9, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_truncl_d();
+        tcg_gen_helper_0_0(do_float_truncl_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "trunc.l.d";
         break;
     case FOP(10, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_ceill_d();
+        tcg_gen_helper_0_0(do_float_ceill_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "ceil.l.d";
         break;
     case FOP(11, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_floorl_d();
+        tcg_gen_helper_0_0(do_float_floorl_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "floor.l.d";
         break;
     case FOP(12, 17):
         check_cp1_registers(ctx, fs);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_roundw_d();
+        tcg_gen_helper_0_0(do_float_roundw_d);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "round.w.d";
         break;
     case FOP(13, 17):
         check_cp1_registers(ctx, fs);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_truncw_d();
+        tcg_gen_helper_0_0(do_float_truncw_d);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "trunc.w.d";
         break;
     case FOP(14, 17):
         check_cp1_registers(ctx, fs);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_ceilw_d();
+        tcg_gen_helper_0_0(do_float_ceilw_d);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "ceil.w.d";
         break;
     case FOP(15, 17):
         check_cp1_registers(ctx, fs);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_floorw_d();
+        tcg_gen_helper_0_0(do_float_floorw_d);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "floor.w.d";
         break;
@@ -5972,14 +5973,14 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(21, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_recip_d();
+        tcg_gen_helper_0_0(do_float_recip_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "recip.d";
         break;
     case FOP(22, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_rsqrt_d();
+        tcg_gen_helper_0_0(do_float_rsqrt_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "rsqrt.d";
         break;
@@ -5987,21 +5988,21 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
         gen_load_fpr64(ctx, fpu64_T[2], ft);
-        gen_op_float_recip2_d();
+        tcg_gen_helper_0_0(do_float_recip2_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "recip2.d";
         break;
     case FOP(29, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_recip1_d();
+        tcg_gen_helper_0_0(do_float_recip1_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "recip1.d";
         break;
     case FOP(30, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_rsqrt1_d();
+        tcg_gen_helper_0_0(do_float_rsqrt1_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "rsqrt1.d";
         break;
@@ -6009,7 +6010,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
         gen_load_fpr64(ctx, fpu64_T[2], ft);
-        gen_op_float_rsqrt2_d();
+        tcg_gen_helper_0_0(do_float_rsqrt2_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "rsqrt2.d";
         break;
@@ -6045,48 +6046,48 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(32, 17):
         check_cp1_registers(ctx, fs);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_cvts_d();
+        tcg_gen_helper_0_0(do_float_cvts_d);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.d";
         break;
     case FOP(36, 17):
         check_cp1_registers(ctx, fs);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_cvtw_d();
+        tcg_gen_helper_0_0(do_float_cvtw_d);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.w.d";
         break;
     case FOP(37, 17):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_cvtl_d();
+        tcg_gen_helper_0_0(do_float_cvtl_d);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.l.d";
         break;
     case FOP(32, 20):
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_cvts_w();
+        tcg_gen_helper_0_0(do_float_cvts_w);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.w";
         break;
     case FOP(33, 20):
         check_cp1_registers(ctx, fd);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_cvtd_w();
+        tcg_gen_helper_0_0(do_float_cvtd_w);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.d.w";
         break;
     case FOP(32, 21):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_cvts_l();
+        tcg_gen_helper_0_0(do_float_cvts_l);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.l";
         break;
     case FOP(33, 21):
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_cvtd_l();
+        tcg_gen_helper_0_0(do_float_cvtd_l);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.d.l";
         break;
@@ -6094,7 +6095,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_op_float_cvtps_pw();
+        tcg_gen_helper_0_0(do_float_cvtps_pw);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "cvt.ps.pw";
@@ -6105,7 +6106,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         gen_load_fpr32h(fpu32h_T[0], fs);
         gen_load_fpr32(fpu32_T[1], ft);
         gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_op_float_add_ps();
+        tcg_gen_helper_0_0(do_float_add_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "add.ps";
@@ -6116,7 +6117,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         gen_load_fpr32h(fpu32h_T[0], fs);
         gen_load_fpr32(fpu32_T[1], ft);
         gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_op_float_sub_ps();
+        tcg_gen_helper_0_0(do_float_sub_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "sub.ps";
@@ -6127,7 +6128,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         gen_load_fpr32h(fpu32h_T[0], fs);
         gen_load_fpr32(fpu32_T[1], ft);
         gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_op_float_mul_ps();
+        tcg_gen_helper_0_0(do_float_mul_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "mul.ps";
@@ -6204,7 +6205,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         gen_load_fpr32h(fpu32h_T[0], ft);
         gen_load_fpr32(fpu32_T[1], fs);
         gen_load_fpr32h(fpu32h_T[1], fs);
-        gen_op_float_addr_ps();
+        tcg_gen_helper_0_0(do_float_addr_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "addr.ps";
@@ -6215,7 +6216,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         gen_load_fpr32h(fpu32h_T[0], ft);
         gen_load_fpr32(fpu32_T[1], fs);
         gen_load_fpr32h(fpu32h_T[1], fs);
-        gen_op_float_mulr_ps();
+        tcg_gen_helper_0_0(do_float_mulr_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "mulr.ps";
@@ -6226,7 +6227,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         gen_load_fpr32h(fpu32h_T[0], fs);
         gen_load_fpr32(fpu32_T[2], fd);
         gen_load_fpr32h(fpu32h_T[2], fd);
-        gen_op_float_recip2_ps();
+        tcg_gen_helper_0_0(do_float_recip2_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "recip2.ps";
@@ -6235,7 +6236,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_op_float_recip1_ps();
+        tcg_gen_helper_0_0(do_float_recip1_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "recip1.ps";
@@ -6244,7 +6245,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_op_float_rsqrt1_ps();
+        tcg_gen_helper_0_0(do_float_rsqrt1_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "rsqrt1.ps";
@@ -6255,7 +6256,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         gen_load_fpr32h(fpu32h_T[0], fs);
         gen_load_fpr32(fpu32_T[2], ft);
         gen_load_fpr32h(fpu32h_T[2], ft);
-        gen_op_float_rsqrt2_ps();
+        tcg_gen_helper_0_0(do_float_rsqrt2_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "rsqrt2.ps";
@@ -6263,7 +6264,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(32, 22):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_op_float_cvts_pu();
+        tcg_gen_helper_0_0(do_float_cvts_pu);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.pu";
         break;
@@ -6271,7 +6272,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_op_float_cvtpw_ps();
+        tcg_gen_helper_0_0(do_float_cvtpw_ps);
         gen_store_fpr32(fpu32_T[2], fd);
         gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "cvt.pw.ps";
@@ -6279,7 +6280,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(40, 22):
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_cvts_pl();
+        tcg_gen_helper_0_0(do_float_cvts_pl);
         gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.pl";
         break;
