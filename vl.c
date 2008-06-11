@@ -3394,8 +3394,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
 #ifndef _WIN32
 	if (is_unix) {
 	    char path[109];
-	    strncpy(path, uaddr.sun_path, 108);
-	    path[108] = 0;
+	    pstrcpy(path, sizeof(path), uaddr.sun_path);
 	    unlink(path);
 	} else
 #endif
@@ -5075,7 +5074,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     }
 
     if (get_param_value(buf, sizeof(buf), "if", str)) {
-        strncpy(devname, buf, sizeof(devname));
+        pstrcpy(devname, sizeof(devname), buf);
         if (!strcmp(buf, "ide")) {
 	    type = IF_IDE;
             max_devs = MAX_IDE_DEVS;
