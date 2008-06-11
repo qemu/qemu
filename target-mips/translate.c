@@ -7229,7 +7229,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf (logfile, "search pc %d\n", search_pc);
 
     pc_start = tb->pc;
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    /* Leave some spare opc slots for branch handling. */
+    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE - 16;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.tb = tb;
@@ -7254,7 +7255,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf(logfile, "\ntb %p idx %d hflags %04x\n",
                 tb, ctx.mem_idx, ctx.hflags);
 #endif
-    while (ctx.bstate == BS_NONE && gen_opc_ptr < gen_opc_end) {
+    while (ctx.bstate == BS_NONE) {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
                 if (env->breakpoints[j] == ctx.pc) {
@@ -7288,6 +7289,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             break;
 
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
+            break;
+
+        if (gen_opc_ptr >= gen_opc_end)
             break;
 
 #if defined (MIPS_SINGLE_STEP)
