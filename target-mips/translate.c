@@ -840,21 +840,15 @@ static inline void gen_op_addr_add (void)
        See the MIPS64 PRA manual, section 4.10. */
     {
         int l1 = gen_new_label();
+        TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_I32);
 
-        {
-            TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
-
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
-            tcg_gen_andi_i32(r_tmp, r_tmp, MIPS_HFLAG_KSU);
-            tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, MIPS_HFLAG_UM, l1);
-        }
-        {
-            TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
-
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Status));
-            tcg_gen_andi_i32(r_tmp, r_tmp, (1 << CP0St_UX));
-            tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, 0, l1);
-        }
+        tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
+        tcg_gen_andi_i32(r_tmp, r_tmp, MIPS_HFLAG_KSU);
+        tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, MIPS_HFLAG_UM, l1);
+        tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Status));
+        tcg_gen_andi_i32(r_tmp, r_tmp, (1 << CP0St_UX));
+        tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, 0, l1);
+        tcg_temp_free(r_tmp);
         tcg_gen_ext32s_i64(cpu_T[0], cpu_T[0]);
         gen_set_label(l1);
     }
@@ -5542,13 +5536,14 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
     gen_load_gpr(cpu_T[1], rs);
     {
         TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
-        TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
+        TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_I32);
 
         tcg_gen_ld_ptr(r_ptr, cpu_env, offsetof(CPUState, fpu));
         tcg_gen_ld_i32(r_tmp, r_ptr, offsetof(CPUMIPSFPUContext, fcr31));
         tcg_temp_free(r_ptr);
         tcg_gen_andi_i32(r_tmp, r_tmp, ccbit);
         tcg_gen_brcondi_i32(cond, r_tmp, 0, l1);
+        tcg_temp_free(r_tmp);
     }
     tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 
