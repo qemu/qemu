@@ -1941,11 +1941,47 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         opn = "divu";
         break;
     case OPC_MULT:
-        gen_op_mult();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_ext_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_ext_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "mult";
         break;
     case OPC_MULTU:
-        gen_op_multu();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32u_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_extu_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "multu";
         break;
 #if defined(TARGET_MIPS64)
@@ -2003,28 +2039,136 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         opn = "ddivu";
         break;
     case OPC_DMULT:
-        gen_op_dmult();
+        tcg_gen_helper_0_0(do_dmult);
         opn = "dmult";
         break;
     case OPC_DMULTU:
-        gen_op_dmultu();
+        tcg_gen_helper_0_0(do_dmultu);
         opn = "dmultu";
         break;
 #endif
     case OPC_MADD:
-        gen_op_madd();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_ext_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_ext_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            gen_load_LO(cpu_T[0], 0);
+            gen_load_HI(cpu_T[1], 0);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp3, cpu_T[1]);
+            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
+            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
+            tcg_temp_free(r_tmp3);
+            tcg_gen_add_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "madd";
         break;
     case OPC_MADDU:
-        gen_op_maddu();
+       {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32u_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_extu_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            gen_load_LO(cpu_T[0], 0);
+            gen_load_HI(cpu_T[1], 0);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp3, cpu_T[1]);
+            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
+            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
+            tcg_temp_free(r_tmp3);
+            tcg_gen_add_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "maddu";
         break;
     case OPC_MSUB:
-        gen_op_msub();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_ext_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_ext_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            gen_load_LO(cpu_T[0], 0);
+            gen_load_HI(cpu_T[1], 0);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp3, cpu_T[1]);
+            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
+            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
+            tcg_temp_free(r_tmp3);
+            tcg_gen_sub_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "msub";
         break;
     case OPC_MSUBU:
-        gen_op_msubu();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32u_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_extu_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            gen_load_LO(cpu_T[0], 0);
+            gen_load_HI(cpu_T[1], 0);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp3, cpu_T[1]);
+            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
+            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
+            tcg_temp_free(r_tmp3);
+            tcg_gen_sub_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "msubu";
         break;
     default:

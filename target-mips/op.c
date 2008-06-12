@@ -68,18 +68,6 @@
 
 /* 64 bits arithmetic */
 #if TARGET_LONG_BITS > HOST_LONG_BITS
-void op_mult (void)
-{
-    CALL_FROM_TB0(do_mult);
-    FORCE_RET();
-}
-
-void op_multu (void)
-{
-    CALL_FROM_TB0(do_multu);
-    FORCE_RET();
-}
-
 void op_madd (void)
 {
     CALL_FROM_TB0(do_madd);
@@ -214,54 +202,6 @@ static always_inline void set_HI_LOT0 (uint64_t HILO)
     env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
-void op_mult (void)
-{
-    set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-    FORCE_RET();
-}
-
-void op_multu (void)
-{
-    set_HILO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
-    FORCE_RET();
-}
-
-void op_madd (void)
-{
-    int64_t tmp;
-
-    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-    set_HILO((int64_t)get_HILO() + tmp);
-    FORCE_RET();
-}
-
-void op_maddu (void)
-{
-    uint64_t tmp;
-
-    tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
-    set_HILO(get_HILO() + tmp);
-    FORCE_RET();
-}
-
-void op_msub (void)
-{
-    int64_t tmp;
-
-    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-    set_HILO((int64_t)get_HILO() - tmp);
-    FORCE_RET();
-}
-
-void op_msubu (void)
-{
-    uint64_t tmp;
-
-    tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
-    set_HILO(get_HILO() - tmp);
-    FORCE_RET();
-}
-
 /* Multiplication variants of the vr54xx. */
 void op_muls (void)
 {
@@ -348,20 +288,6 @@ void op_mulshiu (void)
 }
 
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-
-#if defined(TARGET_MIPS64)
-void op_dmult (void)
-{
-    CALL_FROM_TB4(muls64, &(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
-    FORCE_RET();
-}
-
-void op_dmultu (void)
-{
-    CALL_FROM_TB4(mulu64, &(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
-    FORCE_RET();
-}
-#endif
 
 /* CP1 functions */
 #if 0

@@ -192,16 +192,6 @@ static always_inline void set_HI_LOT0 (uint64_t HILO)
     env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
-void do_mult (void)
-{
-    set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-}
-
-void do_multu (void)
-{
-    set_HILO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
-}
-
 void do_madd (void)
 {
     int64_t tmp;
@@ -305,6 +295,18 @@ void do_mulshiu (void)
     set_HIT0_LO(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
+
+#ifdef TARGET_MIPS64
+void do_dmult (void)
+{
+    muls64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
+}
+
+void do_dmultu (void)
+{
+    mulu64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
+}
+#endif
 
 #ifdef CONFIG_USER_ONLY
 void do_mfc0_random (void)

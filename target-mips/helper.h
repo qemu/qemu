@@ -11,6 +11,8 @@ DEF_HELPER(void, do_clz, (void))
 #ifdef TARGET_MIPS64
 DEF_HELPER(void, do_dclo, (void))
 DEF_HELPER(void, do_dclz, (void))
+DEF_HELPER(void, do_dmult, (void))
+DEF_HELPER(void, do_dmultu, (void))
 #endif
 
 /* CP0 helpers */

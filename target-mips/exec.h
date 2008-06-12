@@ -49,8 +49,6 @@ register target_ulong T1 asm(AREG2);
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
-void do_mult (void);
-void do_multu (void);
 void do_madd (void);
 void do_maddu (void);
 void do_msub (void);
