@@ -2512,49 +2512,49 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_EXT:
         if (lsb + msb > 31)
             goto fail;
-        gen_op_ext(lsb, msb + 1);
+        tcg_gen_helper_0_2ii(do_ext, lsb, msb + 1);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DEXTM:
         if (lsb + msb > 63)
             goto fail;
-        gen_op_dext(lsb, msb + 1 + 32);
+        tcg_gen_helper_0_2ii(do_dext, lsb, msb + 1 + 32);
         break;
     case OPC_DEXTU:
         if (lsb + msb > 63)
             goto fail;
-        gen_op_dext(lsb + 32, msb + 1);
+        tcg_gen_helper_0_2ii(do_dext, lsb + 32, msb + 1);
         break;
     case OPC_DEXT:
         if (lsb + msb > 63)
             goto fail;
-        gen_op_dext(lsb, msb + 1);
+        tcg_gen_helper_0_2ii(do_dext, lsb, msb + 1);
         break;
 #endif
     case OPC_INS:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_ins(lsb, msb - lsb + 1);
+        tcg_gen_helper_0_2ii(do_ins, lsb, msb - lsb + 1);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DINSM:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_dins(lsb, msb - lsb + 1 + 32);
+        tcg_gen_helper_0_2ii(do_dins, lsb, msb - lsb + 1 + 32);
         break;
     case OPC_DINSU:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_dins(lsb + 32, msb - lsb + 1);
+        tcg_gen_helper_0_2ii(do_dins, lsb + 32, msb - lsb + 1);
         break;
     case OPC_DINS:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_dins(lsb, msb - lsb + 1);
+        tcg_gen_helper_0_2ii(do_dins, lsb, msb - lsb + 1);
         break;
 #endif
     default:
@@ -5348,7 +5348,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         opn = "eret";
         check_insn(env, ctx, ISA_MIPS2);
         save_cpu_state(ctx, 1);
-        gen_op_eret();
+        tcg_gen_helper_0_0(do_eret);
         ctx->bstate = BS_EXCP;
         break;
     case OPC_DERET:
@@ -5359,7 +5359,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             generate_exception(ctx, EXCP_RI);
         } else {
             save_cpu_state(ctx, 1);
-            gen_op_deret();
+            tcg_gen_helper_0_0(do_deret);
             ctx->bstate = BS_EXCP;
         }
         break;
@@ -6792,33 +6792,33 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_SPECIAL3:
-         op1 = MASK_SPECIAL3(ctx->opcode);
-         switch (op1) {
-         case OPC_EXT:
-         case OPC_INS:
-             check_insn(env, ctx, ISA_MIPS32R2);
-             gen_bitops(ctx, op1, rt, rs, sa, rd);
-             break;
-         case OPC_BSHFL:
-             check_insn(env, ctx, ISA_MIPS32R2);
-             op2 = MASK_BSHFL(ctx->opcode);
-             switch (op2) {
-             case OPC_WSBH:
-                 gen_load_gpr(cpu_T[1], rt);
-                 gen_op_wsbh();
-                 break;
-             case OPC_SEB:
-                 gen_load_gpr(cpu_T[1], rt);
-                 tcg_gen_ext8s_tl(cpu_T[0], cpu_T[1]);
-                 break;
-             case OPC_SEH:
-                 gen_load_gpr(cpu_T[1], rt);
-                 tcg_gen_ext16s_tl(cpu_T[0], cpu_T[1]);
-                 break;
-             default:            /* Invalid */
-                 MIPS_INVAL("bshfl");
-                 generate_exception(ctx, EXCP_RI);
-                 break;
+        op1 = MASK_SPECIAL3(ctx->opcode);
+        switch (op1) {
+        case OPC_EXT:
+        case OPC_INS:
+            check_insn(env, ctx, ISA_MIPS32R2);
+            gen_bitops(ctx, op1, rt, rs, sa, rd);
+            break;
+        case OPC_BSHFL:
+            check_insn(env, ctx, ISA_MIPS32R2);
+            op2 = MASK_BSHFL(ctx->opcode);
+            switch (op2) {
+            case OPC_WSBH:
+                gen_load_gpr(cpu_T[1], rt);
+                tcg_gen_helper_0_0(do_wsbh);
+                break;
+            case OPC_SEB:
+                gen_load_gpr(cpu_T[1], rt);
+                tcg_gen_ext8s_tl(cpu_T[0], cpu_T[1]);
+                break;
+            case OPC_SEH:
+                gen_load_gpr(cpu_T[1], rt);
+                tcg_gen_ext16s_tl(cpu_T[0], cpu_T[1]);
+                break;
+            default:            /* Invalid */
+                MIPS_INVAL("bshfl");
+                generate_exception(ctx, EXCP_RI);
+                break;
             }
             gen_store_gpr(cpu_T[0], rd);
             break;
@@ -6827,24 +6827,26 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             switch (rd) {
             case 0:
                 save_cpu_state(ctx, 1);
-                gen_op_rdhwr_cpunum();
+                tcg_gen_helper_0_0(do_rdhwr_cpunum);
                 break;
             case 1:
                 save_cpu_state(ctx, 1);
-                gen_op_rdhwr_synci_step();
+                tcg_gen_helper_0_0(do_rdhwr_synci_step);
                 break;
             case 2:
                 save_cpu_state(ctx, 1);
-                gen_op_rdhwr_cc();
+                tcg_gen_helper_0_0(do_rdhwr_cc);
                 break;
             case 3:
                 save_cpu_state(ctx, 1);
-                gen_op_rdhwr_ccres();
+                tcg_gen_helper_0_0(do_rdhwr_ccres);
                 break;
             case 29:
 #if defined (CONFIG_USER_ONLY)
                 tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUState, tls_value));
                 break;
+#else
+                /* XXX: Some CPUs implement this in hardware. Not supported yet. */
 #endif
             default:            /* Invalid */
                 MIPS_INVAL("rdhwr");
@@ -6879,11 +6881,11 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             switch (op2) {
             case OPC_DSBH:
                 gen_load_gpr(cpu_T[1], rt);
-                gen_op_dsbh();
+                tcg_gen_helper_0_0(do_dsbh);
                 break;
             case OPC_DSHD:
                 gen_load_gpr(cpu_T[1], rt);
-                gen_op_dshd();
+                tcg_gen_helper_0_0(do_dshd);
                 break;
             default:            /* Invalid */
                 MIPS_INVAL("dbshfl");
@@ -6963,14 +6965,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             case OPC_DI:
                 check_insn(env, ctx, ISA_MIPS32R2);
                 save_cpu_state(ctx, 1);
-                gen_op_di();
+                tcg_gen_helper_0_0(do_di);
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
                 break;
             case OPC_EI:
                 check_insn(env, ctx, ISA_MIPS32R2);
                 save_cpu_state(ctx, 1);
-                gen_op_ei();
+                tcg_gen_helper_0_0(do_ei);
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
                 break;

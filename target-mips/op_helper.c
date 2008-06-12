@@ -1348,6 +1348,21 @@ void dump_sc (void)
     }
 }
 
+/* Specials */
+void do_di (void)
+{
+    T0 = env->CP0_Status;
+    env->CP0_Status = T0 & ~(1 << CP0St_IE);
+    cpu_mips_update_irq(env);
+}
+
+void do_ei (void)
+{
+    T0 = env->CP0_Status;
+    env->CP0_Status = T0 | (1 << CP0St_IE);
+    cpu_mips_update_irq(env);
+}
+
 void debug_pre_eret (void)
 {
     fprintf(logfile, "ERET: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
@@ -1374,6 +1389,114 @@ void debug_post_eret (void)
     default: cpu_abort(env, "Invalid MMU mode!\n"); break;
     }
 }
+
+void do_eret (void)
+{
+    if (loglevel & CPU_LOG_EXEC)
+        debug_pre_eret();
+    if (env->CP0_Status & (1 << CP0St_ERL)) {
+        env->PC[env->current_tc] = env->CP0_ErrorEPC;
+        env->CP0_Status &= ~(1 << CP0St_ERL);
+    } else {
+        env->PC[env->current_tc] = env->CP0_EPC;
+        env->CP0_Status &= ~(1 << CP0St_EXL);
+    }
+    compute_hflags(env);
+    if (loglevel & CPU_LOG_EXEC)
+        debug_post_eret();
+    env->CP0_LLAddr = 1;
+}
+
+void do_deret (void)
+{
+    if (loglevel & CPU_LOG_EXEC)
+        debug_pre_eret();
+    env->PC[env->current_tc] = env->CP0_DEPC;
+    env->hflags &= MIPS_HFLAG_DM;
+    compute_hflags(env);
+    if (loglevel & CPU_LOG_EXEC)
+        debug_post_eret();
+    env->CP0_LLAddr = 1;
+}
+
+void do_rdhwr_cpunum(void)
+{
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 0)))
+        T0 = env->CP0_EBase & 0x3ff;
+    else
+        do_raise_exception(EXCP_RI);
+}
+
+void do_rdhwr_synci_step(void)
+{
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 1)))
+        T0 = env->SYNCI_Step;
+    else
+        do_raise_exception(EXCP_RI);
+}
+
+void do_rdhwr_cc(void)
+{
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 2)))
+        T0 = env->CP0_Count;
+    else
+        do_raise_exception(EXCP_RI);
+}
+
+void do_rdhwr_ccres(void)
+{
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 3)))
+        T0 = env->CCRes;
+    else
+        do_raise_exception(EXCP_RI);
+}
+
+/* Bitfield operations. */
+void do_ext(uint32_t pos, uint32_t size)
+{
+    T0 = (int32_t)((T1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0));
+}
+
+void do_ins(uint32_t pos, uint32_t size)
+{
+    target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
+
+    T0 = (int32_t)((T0 & ~mask) | ((T1 << pos) & mask));
+}
+
+void do_wsbh(void)
+{
+    T0 = (int32_t)(((T1 << 8) & ~0x00FF00FF) | ((T1 >> 8) & 0x00FF00FF));
+}
+
+#if defined(TARGET_MIPS64)
+void do_dext(uint32_t pos, uint32_t size)
+{
+    T0 = (T1 >> pos) & ((size < 64) ? ((1ULL << size) - 1) : ~0ULL);
+}
+
+void do_dins(uint32_t pos, uint32_t size)
+{
+    target_ulong mask = ((size < 64) ? ((1ULL << size) - 1) : ~0ULL) << pos;
+
+    T0 = (T0 & ~mask) | ((T1 << pos) & mask);
+}
+
+void do_dsbh(void)
+{
+    T0 = ((T1 << 8) & ~0x00FF00FF00FF00FFULL) | ((T1 >> 8) & 0x00FF00FF00FF00FFULL);
+}
+
+void do_dshd(void)
+{
+    T1 = ((T1 << 16) & ~0x0000FFFF0000FFFFULL) | ((T1 >> 16) & 0x0000FFFF0000FFFFULL);
+    T0 = (T1 << 32) | (T1 >> 32);
+}
+#endif
 
 void do_pmon (int function)
 {

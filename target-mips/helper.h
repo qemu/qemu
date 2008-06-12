@@ -204,5 +204,24 @@ FOP_PROTO(ngt)
 #undef FOP_PROTO
 
 /* Special functions */
+DEF_HELPER(void, do_di, (void))
+DEF_HELPER(void, do_ei, (void))
+DEF_HELPER(void, do_eret, (void))
+DEF_HELPER(void, do_deret, (void))
+DEF_HELPER(void, do_rdhwr_cpunum, (void))
+DEF_HELPER(void, do_rdhwr_synci_step, (void))
+DEF_HELPER(void, do_rdhwr_cc, (void))
+DEF_HELPER(void, do_rdhwr_ccres, (void))
 DEF_HELPER(void, do_pmon, (int function))
 DEF_HELPER(void, do_wait, (void))
+
+/* Bitfield operations. */
+DEF_HELPER(void, do_ext, (uint32_t pos, uint32_t size))
+DEF_HELPER(void, do_ins, (uint32_t pos, uint32_t size))
+DEF_HELPER(void, do_wsbh, (void))
+#ifdef TARGET_MIPS64
+DEF_HELPER(void, do_dext, (uint32_t pos, uint32_t size))
+DEF_HELPER(void, do_dins, (uint32_t pos, uint32_t size))
+DEF_HELPER(void, do_dsbh, (void))
+DEF_HELPER(void, do_dshd, (void))
+#endif
