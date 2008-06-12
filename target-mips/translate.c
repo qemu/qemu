@@ -789,7 +789,11 @@ static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
         ctx->saved_pc = ctx->pc;
     }
     if (ctx->hflags != ctx->saved_hflags) {
-        gen_op_save_state(ctx->hflags);
+        TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
+
+        tcg_gen_movi_i32(r_tmp, ctx->hflags);
+        tcg_gen_st_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
+        tcg_temp_free(r_tmp);
         ctx->saved_hflags = ctx->hflags;
         switch (ctx->hflags & MIPS_HFLAG_BMASK) {
         case MIPS_HFLAG_BR:
@@ -2238,7 +2242,13 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
         }
     }
     save_cpu_state(ctx, 1);
-    gen_op_trap();
+    {
+        int l1 = gen_new_label();
+
+        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
+        tcg_gen_helper_0_1i(do_raise_exception, EXCP_TRAP);
+        gen_set_label(l1);
+    }
     ctx->bstate = BS_STOP;
 }
 
@@ -5316,25 +5326,25 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         opn = "tlbwi";
         if (!env->tlb->do_tlbwi)
             goto die;
-        gen_op_tlbwi();
+        tcg_gen_helper_0_0(env->tlb->do_tlbwi);
         break;
     case OPC_TLBWR:
         opn = "tlbwr";
         if (!env->tlb->do_tlbwr)
             goto die;
-        gen_op_tlbwr();
+        tcg_gen_helper_0_0(env->tlb->do_tlbwr);
         break;
     case OPC_TLBP:
         opn = "tlbp";
         if (!env->tlb->do_tlbp)
             goto die;
-        gen_op_tlbp();
+        tcg_gen_helper_0_0(env->tlb->do_tlbp);
         break;
     case OPC_TLBR:
         opn = "tlbr";
         if (!env->tlb->do_tlbr)
             goto die;
-        gen_op_tlbr();
+        tcg_gen_helper_0_0(env->tlb->do_tlbr);
         break;
     case OPC_ERET:
         opn = "eret";
@@ -5362,7 +5372,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         ctx->pc += 4;
         save_cpu_state(ctx, 1);
         ctx->pc -= 4;
-        gen_op_wait();
+        tcg_gen_helper_0_0(do_wait);
         ctx->bstate = BS_EXCP;
         break;
     default:
@@ -6617,7 +6627,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
         tcg_gen_brcondi_tl(TCG_COND_NE, r_tmp, 0, l1);
         tcg_temp_free(r_tmp);
-        gen_op_save_state(ctx->hflags & ~MIPS_HFLAG_BMASK);
+        {
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I32);
+
+            tcg_gen_movi_i32(r_tmp2, ctx->hflags & ~MIPS_HFLAG_BMASK);
+            tcg_gen_st_i32(r_tmp2, cpu_env, offsetof(CPUState, hflags));
+            tcg_temp_free(r_tmp2);
+        }
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
     }
@@ -6671,7 +6687,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             MIPS_INVAL("PMON / selsl");
             generate_exception(ctx, EXCP_RI);
 #else
-            gen_op_pmon(sa);
+            tcg_gen_helper_0_1i(do_pmon, sa);
 #endif
             break;
         case OPC_SYSCALL:
@@ -6827,7 +6843,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 break;
             case 29:
 #if defined (CONFIG_USER_ONLY)
-                gen_op_tls_value();
+                tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUState, tls_value));
                 break;
 #endif
             default:            /* Invalid */
@@ -7243,7 +7259,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                 if (env->breakpoints[j] == ctx.pc) {
                     save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;
-                    gen_op_debug();
+                    tcg_gen_helper_0_1i(do_raise_exception, EXCP_DEBUG);
                     /* Include the breakpoint location or the tb won't
                      * be flushed when it must be.  */
                     ctx.pc += 4;
@@ -7285,7 +7301,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     }
     if (env->singlestep_enabled) {
         save_cpu_state(&ctx, ctx.bstate == BS_NONE);
-        gen_op_debug();
+        tcg_gen_helper_0_1i(do_raise_exception, EXCP_DEBUG);
     } else {
 	switch (ctx.bstate) {
         case BS_STOP:

@@ -202,3 +202,7 @@ FOP_PROTO(nge)
 FOP_PROTO(le)
 FOP_PROTO(ngt)
 #undef FOP_PROTO
+
+/* Special functions */
+DEF_HELPER(void, do_pmon, (int function))
+DEF_HELPER(void, do_wait, (void))

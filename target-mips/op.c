@@ -651,18 +651,6 @@ FLOAT_OP(alnv, ps)
     FORCE_RET();
 }
 
-#ifdef CONFIG_SOFTFLOAT
-#define clear_invalid() do {                                \
-    int flags = get_float_exception_flags(&env->fpu->fp_status); \
-    flags &= ~float_flag_invalid;                           \
-    set_float_exception_flags(flags, &env->fpu->fp_status); \
-} while(0)
-#else
-#define clear_invalid() do { } while(0)
-#endif
-
-extern void dump_fpu_s(CPUState *env);
-
 void op_bc1f (void)
 {
     T0 = !!(~GET_FP_COND(env->fpu) & (0x1 << PARAM1));
@@ -701,44 +689,7 @@ void op_bc1any4t (void)
     FORCE_RET();
 }
 
-void op_tlbwi (void)
-{
-    CALL_FROM_TB0(env->tlb->do_tlbwi);
-    FORCE_RET();
-}
-
-void op_tlbwr (void)
-{
-    CALL_FROM_TB0(env->tlb->do_tlbwr);
-    FORCE_RET();
-}
-
-void op_tlbp (void)
-{
-    CALL_FROM_TB0(env->tlb->do_tlbp);
-    FORCE_RET();
-}
-
-void op_tlbr (void)
-{
-    CALL_FROM_TB0(env->tlb->do_tlbr);
-    FORCE_RET();
-}
-
 /* Specials */
-#if defined (CONFIG_USER_ONLY)
-void op_tls_value (void)
-{
-    T0 = env->tls_value;
-}
-#endif
-
-void op_pmon (void)
-{
-    CALL_FROM_TB1(do_pmon, PARAM1);
-    FORCE_RET();
-}
-
 void op_di (void)
 {
     T0 = env->CP0_Status;
@@ -752,20 +703,6 @@ void op_ei (void)
     T0 = env->CP0_Status;
     env->CP0_Status = T0 | (1 << CP0St_IE);
     CALL_FROM_TB1(cpu_mips_update_irq, env);
-    FORCE_RET();
-}
-
-void op_trap (void)
-{
-    if (T0) {
-        CALL_FROM_TB1(do_raise_exception, EXCP_TRAP);
-    }
-    FORCE_RET();
-}
-
-void op_debug (void)
-{
-    CALL_FROM_TB1(do_raise_exception, EXCP_DEBUG);
     FORCE_RET();
 }
 
@@ -839,19 +776,6 @@ void op_rdhwr_ccres(void)
         T0 = env->CCRes;
     else
         CALL_FROM_TB1(do_raise_exception, EXCP_RI);
-    FORCE_RET();
-}
-
-void op_save_state (void)
-{
-    env->hflags = PARAM1;
-    FORCE_RET();
-}
-
-void op_wait (void)
-{
-    env->halted = 1;
-    CALL_FROM_TB1(do_raise_exception, EXCP_HLT);
     FORCE_RET();
 }
 

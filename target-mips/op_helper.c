@@ -1401,6 +1401,12 @@ void do_pmon (int function)
     }
 }
 
+void do_wait (void)
+{
+    env->halted = 1;
+    do_raise_exception(EXCP_HLT);
+}
+
 #if !defined(CONFIG_USER_ONLY)
 
 static void do_unaligned_access (target_ulong addr, int is_write, int is_user, void *retaddr);
