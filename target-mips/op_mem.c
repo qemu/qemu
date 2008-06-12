@@ -267,14 +267,3 @@ void glue(op_sdr, MEMSUFFIX) (void)
     FORCE_RET();
 }
 #endif /* TARGET_MIPS64 */
-
-void glue(op_luxc1, MEMSUFFIX) (void)
-{
-    DT0 = glue(ldq, MEMSUFFIX)(T0 & ~0x7);
-    FORCE_RET();
-}
-void glue(op_suxc1, MEMSUFFIX) (void)
-{
-    glue(stq, MEMSUFFIX)(T0 & ~0x7, DT0);
-    FORCE_RET();
-}

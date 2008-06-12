@@ -377,14 +377,6 @@ void op_dmultu (void)
 
 #define FLOAT_OP(name, p) void OPPROTO op_float_##name##_##p(void)
 
-FLOAT_OP(cvtps, s)
-{
-    WT2 = WT0;
-    WTH2 = WT1;
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-
 FLOAT_OP(pll, ps)
 {
     DT2 = ((uint64_t)WT0 << 32) | WT1;
@@ -609,25 +601,6 @@ FLOAT_UNOP(abs)
 FLOAT_UNOP(chs)
 #undef FLOAT_UNOP
 
-FLOAT_OP(mov, d)
-{
-    FDT2 = FDT0;
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(mov, s)
-{
-    FST2 = FST0;
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
-FLOAT_OP(mov, ps)
-{
-    FST2 = FST0;
-    FSTH2 = FSTH0;
-    DEBUG_FPU_STATE();
-    FORCE_RET();
-}
 FLOAT_OP(alnv, ps)
 {
     switch (T0 & 0x7) {

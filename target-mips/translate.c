@@ -960,8 +960,6 @@ OP_LD_TABLE(wl);
 OP_LD_TABLE(wr);
 OP_ST_TABLE(wl);
 OP_ST_TABLE(wr);
-OP_LD_TABLE(uxc1);
-OP_ST_TABLE(uxc1);
 
 #define OP_LD(insn,fname)                                        \
 void inline op_ldst_##insn(DisasContext *ctx)                    \
@@ -5651,8 +5649,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         break;
     case FOP(6, 16):
         gen_load_fpr32(fpu32_T[0], fs);
-        gen_op_float_mov_s();
-        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32(fpu32_T[0], fd);
         opn = "mov.s";
         break;
     case FOP(7, 16):
@@ -5803,9 +5800,12 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         break;
     case FOP(38, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[1], fs);
-        gen_load_fpr32(fpu32_T[0], ft);
-        gen_op_float_cvtps_s();
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        tcg_gen_extu_i32_i64(fpu64_T[0], fpu32_T[0]);
+        tcg_gen_extu_i32_i64(fpu64_T[1], fpu32_T[1]);
+        tcg_gen_shli_i64(fpu64_T[1], fpu64_T[1], 32);
+        tcg_gen_or_i64(fpu64_T[2], fpu64_T[0], fpu64_T[1]);
         gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.ps.s";
         break;
@@ -5889,8 +5889,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(6, 17):
         check_cp1_registers(ctx, fs | fd);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_op_float_mov_d();
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        gen_store_fpr64(ctx, fpu64_T[0], fd);
         opn = "mov.d";
         break;
     case FOP(7, 17):
@@ -6156,9 +6155,8 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         gen_load_fpr32(fpu32_T[0], fs);
         gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_op_float_mov_ps();
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        gen_store_fpr32(fpu32_T[0], fd);
+        gen_store_fpr32h(fpu32h_T[0], fd);
         opn = "mov.ps";
         break;
     case FOP(7, 22):
@@ -6407,7 +6405,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LUXC1:
         check_cp1_64bitmode(ctx);
-        op_ldst(luxc1);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0x7);
+        tcg_gen_qemu_ld64(fpu64_T[0], cpu_T[0], ctx->mem_idx);
         gen_store_fpr64(ctx, fpu64_T[0], fd);
         opn = "luxc1";
         break;
@@ -6429,7 +6428,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     case OPC_SUXC1:
         check_cp1_64bitmode(ctx);
         gen_load_fpr64(ctx, fpu64_T[0], fs);
-        op_ldst(suxc1);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0x7);
+        tcg_gen_qemu_st64(fpu64_T[0], cpu_T[0], ctx->mem_idx);
         opn = "suxc1";
         store = 1;
         break;
