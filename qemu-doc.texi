@@ -175,13 +175,16 @@ Adlib(OPL2) - Yamaha YM3812 compatible chip
 @item
 Gravis Ultrasound GF1 sound card
 @item
+CS4231A compatible sound card
+@item
 PCI UHCI USB controller and a virtual USB hub.
 @end itemize
 
 SMP is supported with up to 255 CPUs.
 
-Note that adlib, ac97 and gus are only available when QEMU was configured
-with --enable-adlib, --enable-ac97 or --enable-gus respectively.
+Note that adlib, ac97, gus and cs4231a are only available when QEMU
+was configured with --enable-adlib, --enable-ac97, --enable-gus or
+--enable-cs4231a respectively.
 
 QEMU uses the PC BIOS from the Bochs project and the Plex86/Bochs LGPL
 VGA BIOS.
@@ -190,6 +193,8 @@ QEMU uses YM3812 emulation by Tatsuyuki Satoh.
 
 QEMU uses GUS emulation(GUSEMU32 @url{http://www.deinmeister.de/gusemu/})
 by Tibor "TS" Schütz.
+
+CS4231A is the chip used in Windows Sound System and GUSMAX products
 
 @c man end
 

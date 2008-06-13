@@ -90,6 +90,7 @@ slirp="yes"
 adlib="no"
 ac97="no"
 gus="no"
+cs4231a="no"
 oss="no"
 dsound="no"
 coreaudio="no"
@@ -288,6 +289,8 @@ for opt do
   ;;
   --enable-gus) gus="yes"
   ;;
+  --enable-cs4231a) cs4231a="yes"
+  ;;
   --disable-kqemu) kqemu="no"
   ;;
   --disable-brlapi) brlapi="no"
@@ -419,6 +422,7 @@ echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
 echo "  --enable-adlib           enable Adlib emulation"
 echo "  --enable-ac97            enable AC97 emulation"
 echo "  --enable-gus             enable Gravis Ultrasound emulation"
+echo "  --enable-cs4231a         enable CS4231A emulation"
 echo "  --enable-coreaudio       enable Coreaudio audio driver"
 echo "  --enable-alsa            enable ALSA audio driver"
 echo "  --enable-esd             enable EsoundD audio driver"
@@ -830,6 +834,7 @@ echo "mingw32 support   $mingw32"
 echo "Adlib support     $adlib"
 echo "AC97 support      $ac97"
 echo "GUS support       $gus"
+echo "CS4231A support   $cs4231a"
 echo "CoreAudio support $coreaudio"
 echo "ALSA support      $alsa"
 echo "EsounD support    $esd"
@@ -1037,6 +1042,10 @@ fi
 if test "$gus" = "yes" ; then
   echo "CONFIG_GUS=yes" >> $config_mak
   echo "#define CONFIG_GUS 1" >> $config_h
+fi
+if test "$cs4231a" = "yes" ; then
+  echo "CONFIG_CS4231A=yes" >> $config_mak
+  echo "#define CONFIG_CS4231A 1" >> $config_h
 fi
 if test "$oss" = "yes" ; then
   echo "CONFIG_OSS=yes" >> $config_mak

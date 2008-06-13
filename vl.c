@@ -7552,6 +7552,16 @@ struct soundhw soundhw[] = {
         { .init_isa = SB16_init }
     },
 
+#ifdef CONFIG_CS4231A
+    {
+        "cs4231a",
+        "CS4231A",
+        0,
+        1,
+        { .init_isa = cs4231a_init }
+    },
+#endif
+
 #ifdef CONFIG_ADLIB
     {
         "adlib",
