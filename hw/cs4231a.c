@@ -601,17 +601,23 @@ static void cs_save(QEMUFile *f, void *opaque)
 {
     CSState *s = opaque;
     unsigned int i;
+    uint32_t val;
 
     for (i = 0; i < CS_REGS; i++)
         qemu_put_be32s(f, &s->regs[i]);
 
     qemu_put_buffer(f, s->dregs, CS_DREGS);
+    val = s->dma_running; qemu_put_be32s(f, &val);
+    val = s->audio_free;  qemu_put_be32s(f, &val);
+    val = s->transferred; qemu_put_be32s(f, &val);
+    val = s->aci_counter; qemu_put_be32s(f, &val);
 }
 
 static int cs_load(QEMUFile *f, void *opaque, int version_id)
 {
     CSState *s = opaque;
     unsigned int i;
+    uint32_t val, dma_running;
 
     if (version_id > 1)
         return -EINVAL;
@@ -620,6 +626,13 @@ static int cs_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_be32s(f, &s->regs[i]);
 
     qemu_get_buffer(f, s->dregs, CS_DREGS);
+
+    qemu_get_be32s(f, &dma_running);
+    qemu_get_be32s(f, &val); s->audio_free  = val;
+    qemu_get_be32s(f, &val); s->transferred = val;
+    qemu_get_be32s(f, &val); s->aci_counter = val;
+    if (dma_running && (s->dregs[Interface_Configuration] & PEN))
+        cs_reset_voices (s, s->dregs[FS_And_Playback_Data_Format]);
     return 0;
 }
 
