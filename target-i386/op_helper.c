@@ -4547,14 +4547,20 @@ void helper_idivq_EAX(target_ulong t0)
 }
 #endif
 
-void helper_hlt(void)
+static void do_hlt(void)
 {
-    helper_svm_check_intercept_param(SVM_EXIT_HLT, 0);
-    
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
     env->halted = 1;
     env->exception_index = EXCP_HLT;
     cpu_loop_exit();
+}
+
+void helper_hlt(int next_eip_addend)
+{
+    helper_svm_check_intercept_param(SVM_EXIT_HLT, 0);
+    EIP += next_eip_addend;
+    
+    do_hlt();
 }
 
 void helper_monitor(target_ulong ptr)
@@ -4565,17 +4571,19 @@ void helper_monitor(target_ulong ptr)
     helper_svm_check_intercept_param(SVM_EXIT_MONITOR, 0);
 }
 
-void helper_mwait(void)
+void helper_mwait(int next_eip_addend)
 {
     if ((uint32_t)ECX != 0)
         raise_exception(EXCP0D_GPF);
     helper_svm_check_intercept_param(SVM_EXIT_MWAIT, 0);
+    EIP += next_eip_addend;
+
     /* XXX: not complete but not completely erroneous */
     if (env->cpu_index != 0 || env->next_cpu != NULL) {
         /* more than one CPU: do not sleep because another CPU may
            wake this one */
     } else {
-        helper_hlt();
+        do_hlt();
     }
 }
 
