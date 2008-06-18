@@ -396,18 +396,26 @@ static void do_eject(int force, const char *filename)
     eject_device(bs, force);
 }
 
-static void do_change_block(const char *device, const char *filename)
+static void do_change_block(const char *device, const char *filename, const char *fmt)
 {
     BlockDriverState *bs;
+    BlockDriver *drv = NULL;
 
     bs = bdrv_find(device);
     if (!bs) {
         term_printf("device not found\n");
         return;
     }
+    if (fmt) {
+        drv = bdrv_find_format(fmt);
+        if (!drv) {
+            term_printf("invalid format %s\n", fmt);
+            return;
+        }
+    }
     if (eject_device(bs, 0) < 0)
         return;
-    bdrv_open(bs, filename, 0);
+    bdrv_open2(bs, filename, 0, drv);
     qemu_key_check(bs, filename);
 }
 
@@ -426,12 +434,12 @@ static void do_change_vnc(const char *target)
     }
 }
 
-static void do_change(const char *device, const char *target)
+static void do_change(const char *device, const char *target, const char *fmt)
 {
     if (strcmp(device, "vnc") == 0) {
 	do_change_vnc(target);
     } else {
-	do_change_block(device, target);
+	do_change_block(device, target, fmt);
     }
 }
 
@@ -1339,8 +1347,8 @@ static term_cmd_t term_cmds[] = {
       "", "quit the emulator" },
     { "eject", "-fB", do_eject,
       "[-f] device", "eject a removable medium (use -f to force it)" },
-    { "change", "BF", do_change,
-      "device filename", "change a removable medium" },
+    { "change", "BFs?", do_change,
+      "device filename [format]", "change a removable medium, optional format" },
     { "screendump", "F", do_screen_dump,
       "filename", "save screen into PPM image 'filename'" },
     { "logfile", "F", do_logfile,
