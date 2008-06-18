@@ -5987,6 +5987,10 @@ static int qemu_savevm_state(QEMUFile *f)
     qemu_put_be64(f, 0); /* total size */
 
     for(se = first_se; se != NULL; se = se->next) {
+	if (se->save_state == NULL)
+	    /* this one has a loader only, for backwards compatibility */
+	    continue;
+
         /* ID string */
         len = strlen(se->idstr);
         qemu_put_byte(f, len);
