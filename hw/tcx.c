@@ -266,6 +266,8 @@ static void tcx24_update_display(void *opaque)
 
     if (ts->ds->depth != 32)
             return;
+    if (ts->ds->width != ts->width || ts->ds->height != ts->height)
+        dpy_resize(ts->ds, ts->width, ts->height);
     page = ts->vram_offset;
     page24 = ts->vram24_offset;
     cpage = ts->cplane_offset;
