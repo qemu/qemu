@@ -1703,7 +1703,25 @@ static always_inline void update_fcr31(void)
         UPDATE_FP_FLAGS(env->fpu->fcr31, tmp);
 }
 
+/* Float support.
+   Single precition routines have a "s" suffix, double precision a
+   "d" suffix, 32bit integer "w", 64bit integer "l", paired single "ps",
+   paired single lower "pl", paired single upper "pu".  */
+
 #define FLOAT_OP(name, p) void do_float_##name##_##p(void)
+
+/* unary operations, modifying fp status  */
+#define FLOAT_UNOP(name)  \
+FLOAT_OP(name, d)         \
+{                         \
+    FDT2 = float64_ ## name(FDT0, &env->fpu->fp_status); \
+}                         \
+FLOAT_OP(name, s)         \
+{                         \
+    FST2 = float32_ ## name(FST0, &env->fpu->fp_status); \
+}
+FLOAT_UNOP(sqrt)
+#undef FLOAT_UNOP
 
 FLOAT_OP(cvtd, s)
 {
@@ -1943,6 +1961,25 @@ FLOAT_OP(floorw, s)
         WT2 = FLOAT_SNAN32;
 }
 
+/* unary operations, not modifying fp status  */
+#define FLOAT_UNOP(name)  \
+FLOAT_OP(name, d)         \
+{                         \
+    FDT2 = float64_ ## name(FDT0);   \
+}                         \
+FLOAT_OP(name, s)         \
+{                         \
+    FST2 = float32_ ## name(FST0);   \
+}                         \
+FLOAT_OP(name, ps)        \
+{                         \
+    FST2 = float32_ ## name(FST0);   \
+    FSTH2 = float32_ ## name(FSTH0); \
+}
+FLOAT_UNOP(abs)
+FLOAT_UNOP(chs)
+#undef FLOAT_UNOP
+
 /* MIPS specific unary operations */
 FLOAT_OP(recip, d)
 {
@@ -2050,6 +2087,56 @@ FLOAT_BINOP(sub)
 FLOAT_BINOP(mul)
 FLOAT_BINOP(div)
 #undef FLOAT_BINOP
+
+/* ternary operations */
+#define FLOAT_TERNOP(name1, name2) \
+FLOAT_OP(name1 ## name2, d)        \
+{                                  \
+    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fpu->fp_status);    \
+    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
+}                                  \
+FLOAT_OP(name1 ## name2, s)        \
+{                                  \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+}                                  \
+FLOAT_OP(name1 ## name2, ps)       \
+{                                  \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fpu->fp_status); \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fpu->fp_status); \
+}
+FLOAT_TERNOP(mul, add)
+FLOAT_TERNOP(mul, sub)
+#undef FLOAT_TERNOP
+
+/* negated ternary operations */
+#define FLOAT_NTERNOP(name1, name2) \
+FLOAT_OP(n ## name1 ## name2, d)    \
+{                                   \
+    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fpu->fp_status);    \
+    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
+    FDT2 = float64_chs(FDT2);       \
+}                                   \
+FLOAT_OP(n ## name1 ## name2, s)    \
+{                                   \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+    FST2 = float32_chs(FST2);       \
+}                                   \
+FLOAT_OP(n ## name1 ## name2, ps)   \
+{                                   \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fpu->fp_status); \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fpu->fp_status); \
+    FST2 = float32_chs(FST2);       \
+    FSTH2 = float32_chs(FSTH2);     \
+}
+FLOAT_NTERNOP(mul, add)
+FLOAT_NTERNOP(mul, sub)
+#undef FLOAT_NTERNOP
 
 /* MIPS specific binary operations */
 FLOAT_OP(recip2, d)
