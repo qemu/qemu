@@ -186,6 +186,8 @@ static void tcx_update_display(void *opaque)
 
     if (ts->ds->depth == 0)
         return;
+    if (ts->ds->width != ts->width || ts->ds->height != ts->height)
+        dpy_resize(ts->ds, ts->width, ts->height);
     page = ts->vram_offset;
     y_start = -1;
     page_min = 0xffffffff;
