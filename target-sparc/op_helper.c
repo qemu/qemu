@@ -2622,12 +2622,12 @@ void helper_retry(void)
 void cpu_set_cwp(CPUState *env1, int new_cwp)
 {
     /* put the modified wrap registers at their proper location */
-    if (env1->cwp == env->nwindows - 1)
-        memcpy32(env1->regbase, env1->regbase + env->nwindows * 16);
+    if (env1->cwp == env1->nwindows - 1)
+        memcpy32(env1->regbase, env1->regbase + env1->nwindows * 16);
     env1->cwp = new_cwp;
     /* put the wrap registers at their temporary location */
-    if (new_cwp == env->nwindows - 1)
-        memcpy32(env1->regbase + env->nwindows * 16, env1->regbase);
+    if (new_cwp == env1->nwindows - 1)
+        memcpy32(env1->regbase + env1->nwindows * 16, env1->regbase);
     env1->regwptr = env1->regbase + (new_cwp * 16);
 }
 
