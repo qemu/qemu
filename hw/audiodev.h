@@ -12,3 +12,6 @@ int GUS_init (AudioState *s, qemu_irq *pic);
 
 /* ac97.c */
 int ac97_init (PCIBus *buf, AudioState *s);
+
+/* cs4231a.c */
+int cs4231a_init (AudioState *s, qemu_irq *pic);

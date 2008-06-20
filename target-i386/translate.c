@@ -6421,8 +6421,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         } else {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_jmp_im(s->pc - s->cs_base);
-            tcg_gen_helper_0_0(helper_hlt);
+            gen_jmp_im(pc_start - s->cs_base);
+            tcg_gen_helper_0_1(helper_hlt, tcg_const_i32(s->pc - pc_start));
             s->is_jmp = 3;
         }
         break;
@@ -6520,6 +6520,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                     if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) ||
                         s->cpl != 0)
                         goto illegal_op;
+                    if (s->cc_op != CC_OP_DYNAMIC)
+                        gen_op_set_cc_op(s->cc_op);
                     gen_jmp_im(pc_start - s->cs_base);
 #ifdef TARGET_X86_64
                     if (s->aflag == 2) {
@@ -6542,8 +6544,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_op_set_cc_op(s->cc_op);
                         s->cc_op = CC_OP_DYNAMIC;
                     }
-                    gen_jmp_im(s->pc - s->cs_base);
-                    tcg_gen_helper_0_0(helper_mwait);
+                    gen_jmp_im(pc_start - s->cs_base);
+                    tcg_gen_helper_0_1(helper_mwait, tcg_const_i32(s->pc - pc_start));
                     gen_eob(s);
                     break;
                 default:

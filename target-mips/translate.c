@@ -424,7 +424,10 @@ enum {
 };
 
 /* global register indices */
-static TCGv cpu_env, current_tc_gprs, current_tc_hi, cpu_T[2];
+static TCGv cpu_env, current_tc_gprs, current_tc_hi, current_fpu, cpu_T[2];
+
+/* FPU TNs, global for now. */
+static TCGv fpu32_T[3], fpu64_T[3], fpu32h_T[3];
 
 static inline void tcg_gen_helper_0_1i(void *func, TCGv arg)
 {
@@ -573,81 +576,98 @@ static inline void gen_store_srsgpr (TCGv t, int reg)
 }
 
 /* Floating point register moves. */
-#define FGEN32(func, NAME)                       \
-static GenOpFunc *NAME ## _table [32] = {        \
-NAME ## 0,  NAME ## 1,  NAME ## 2,  NAME ## 3,   \
-NAME ## 4,  NAME ## 5,  NAME ## 6,  NAME ## 7,   \
-NAME ## 8,  NAME ## 9,  NAME ## 10, NAME ## 11,  \
-NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,  \
-NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,  \
-NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,  \
-NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,  \
-NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,  \
-};                                               \
-static always_inline void func(int n)            \
-{                                                \
-    NAME ## _table[n]();                         \
+static inline void gen_load_fpr32 (TCGv t, int reg)
+{
+    tcg_gen_ld_i32(t, current_fpu, 8 * reg + 4 * FP_ENDIAN_IDX);
 }
 
-FGEN32(gen_op_load_fpr_WT0,  gen_op_load_fpr_WT0_fpr);
-FGEN32(gen_op_store_fpr_WT0, gen_op_store_fpr_WT0_fpr);
+static inline void gen_store_fpr32 (TCGv t, int reg)
+{
+    tcg_gen_st_i32(t, current_fpu, 8 * reg + 4 * FP_ENDIAN_IDX);
+}
 
-FGEN32(gen_op_load_fpr_WT1,  gen_op_load_fpr_WT1_fpr);
-FGEN32(gen_op_store_fpr_WT1, gen_op_store_fpr_WT1_fpr);
+static inline void gen_load_fpr64 (DisasContext *ctx, TCGv t, int reg)
+{
+    if (ctx->hflags & MIPS_HFLAG_F64) {
+        tcg_gen_ld_i64(t, current_fpu, 8 * reg);
+    } else {
+        TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+        TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
 
-FGEN32(gen_op_load_fpr_WT2,  gen_op_load_fpr_WT2_fpr);
-FGEN32(gen_op_store_fpr_WT2, gen_op_store_fpr_WT2_fpr);
+        tcg_gen_ld_i32(r_tmp1, current_fpu, 8 * (reg | 1) + 4 * FP_ENDIAN_IDX);
+        tcg_gen_extu_i32_i64(t, r_tmp1);
+        tcg_gen_shli_i64(t, t, 32);
+        tcg_gen_ld_i32(r_tmp1, current_fpu, 8 * (reg & ~1) + 4 * FP_ENDIAN_IDX);
+        tcg_gen_extu_i32_i64(r_tmp2, r_tmp1);
+        tcg_gen_or_i64(t, t, r_tmp2);
+        tcg_temp_free(r_tmp1);
+        tcg_temp_free(r_tmp2);
+    }
+}
 
-FGEN32(gen_op_load_fpr_DT0,  gen_op_load_fpr_DT0_fpr);
-FGEN32(gen_op_store_fpr_DT0, gen_op_store_fpr_DT0_fpr);
+static inline void gen_store_fpr64 (DisasContext *ctx, TCGv t, int reg)
+{
+    if (ctx->hflags & MIPS_HFLAG_F64) {
+        tcg_gen_st_i64(t, current_fpu, 8 * reg);
+    } else {
+        TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
 
-FGEN32(gen_op_load_fpr_DT1,  gen_op_load_fpr_DT1_fpr);
-FGEN32(gen_op_store_fpr_DT1, gen_op_store_fpr_DT1_fpr);
+        tcg_gen_trunc_i64_i32(r_tmp, t);
+        tcg_gen_st_i32(r_tmp, current_fpu, 8 * (reg & ~1) + 4 * FP_ENDIAN_IDX);
+        tcg_gen_shri_i64(t, t, 32);
+        tcg_gen_trunc_i64_i32(r_tmp, t);
+        tcg_gen_st_i32(r_tmp, current_fpu, 8 * (reg | 1) + 4 * FP_ENDIAN_IDX);
+        tcg_temp_free(r_tmp);
+    }
+}
 
-FGEN32(gen_op_load_fpr_DT2,  gen_op_load_fpr_DT2_fpr);
-FGEN32(gen_op_store_fpr_DT2, gen_op_store_fpr_DT2_fpr);
+static inline void gen_load_fpr32h (TCGv t, int reg)
+{
+    tcg_gen_ld_i32(t, current_fpu, 8 * reg + 4 * !FP_ENDIAN_IDX);
+}
 
-FGEN32(gen_op_load_fpr_WTH0,  gen_op_load_fpr_WTH0_fpr);
-FGEN32(gen_op_store_fpr_WTH0, gen_op_store_fpr_WTH0_fpr);
+static inline void gen_store_fpr32h (TCGv t, int reg)
+{
+    tcg_gen_st_i32(t, current_fpu, 8 * reg + 4 * !FP_ENDIAN_IDX);
+}
 
-FGEN32(gen_op_load_fpr_WTH1,  gen_op_load_fpr_WTH1_fpr);
-FGEN32(gen_op_store_fpr_WTH1, gen_op_store_fpr_WTH1_fpr);
+static inline void get_fp_cond (TCGv t)
+{
+    TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+    TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I32);
 
-FGEN32(gen_op_load_fpr_WTH2,  gen_op_load_fpr_WTH2_fpr);
-FGEN32(gen_op_store_fpr_WTH2, gen_op_store_fpr_WTH2_fpr);
+    tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
+    tcg_gen_shri_i32(r_tmp2, r_tmp1, 24);
+    tcg_gen_andi_i32(r_tmp2, r_tmp2, 0xfe);
+    tcg_gen_shri_i32(r_tmp1, r_tmp1, 23);
+    tcg_gen_andi_i32(r_tmp1, r_tmp1, 0x1);
+    tcg_gen_or_i32(t, r_tmp1, r_tmp2);
+    tcg_temp_free(r_tmp1);
+    tcg_temp_free(r_tmp2);
+}
 
-#define GEN_LOAD_FREG_FTN(FTn, Fn)                                            \
-do {                                                                          \
-    glue(gen_op_load_fpr_, FTn)(Fn);                                          \
-} while (0)
-
-#define GEN_STORE_FTN_FREG(Fn, FTn)                                           \
-do {                                                                          \
-    glue(gen_op_store_fpr_, FTn)(Fn);                                         \
-} while (0)
-
-#define FOP_CONDS(type, fmt)                                            \
-static GenOpFunc1 * gen_op_cmp ## type ## _ ## fmt ## _table[16] = {    \
-    gen_op_cmp ## type ## _ ## fmt ## _f,                               \
-    gen_op_cmp ## type ## _ ## fmt ## _un,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _eq,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _ueq,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _olt,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _ult,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _ole,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _ule,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _sf,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _ngle,                            \
-    gen_op_cmp ## type ## _ ## fmt ## _seq,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _ngl,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _lt,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _nge,                             \
-    gen_op_cmp ## type ## _ ## fmt ## _le,                              \
-    gen_op_cmp ## type ## _ ## fmt ## _ngt,                             \
-};                                                                      \
-static always_inline void gen_cmp ## type ## _ ## fmt(int n, long cc)   \
-{                                                                       \
-    gen_op_cmp ## type ## _ ## fmt ## _table[n](cc);                    \
+#define FOP_CONDS(type, fmt)                                              \
+static GenOpFunc1 * fcmp ## type ## _ ## fmt ## _table[16] = {            \
+    do_cmp ## type ## _ ## fmt ## _f,                                     \
+    do_cmp ## type ## _ ## fmt ## _un,                                    \
+    do_cmp ## type ## _ ## fmt ## _eq,                                    \
+    do_cmp ## type ## _ ## fmt ## _ueq,                                   \
+    do_cmp ## type ## _ ## fmt ## _olt,                                   \
+    do_cmp ## type ## _ ## fmt ## _ult,                                   \
+    do_cmp ## type ## _ ## fmt ## _ole,                                   \
+    do_cmp ## type ## _ ## fmt ## _ule,                                   \
+    do_cmp ## type ## _ ## fmt ## _sf,                                    \
+    do_cmp ## type ## _ ## fmt ## _ngle,                                  \
+    do_cmp ## type ## _ ## fmt ## _seq,                                   \
+    do_cmp ## type ## _ ## fmt ## _ngl,                                   \
+    do_cmp ## type ## _ ## fmt ## _lt,                                    \
+    do_cmp ## type ## _ ## fmt ## _nge,                                   \
+    do_cmp ## type ## _ ## fmt ## _le,                                    \
+    do_cmp ## type ## _ ## fmt ## _ngt,                                   \
+};                                                                        \
+static inline void gen_cmp ## type ## _ ## fmt(int n, long cc)            \
+{                                                                         \
+    tcg_gen_helper_0_1i(fcmp ## type ## _ ## fmt ## _table[n], cc);       \
 }
 
 FOP_CONDS(, d)
@@ -656,6 +676,7 @@ FOP_CONDS(, s)
 FOP_CONDS(abs, s)
 FOP_CONDS(, ps)
 FOP_CONDS(abs, ps)
+#undef FOP_CONDS
 
 /* Tests */
 #define OP_COND(name, cond)                                   \
@@ -784,7 +805,11 @@ static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
         ctx->saved_pc = ctx->pc;
     }
     if (ctx->hflags != ctx->saved_hflags) {
-        gen_op_save_state(ctx->hflags);
+        TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
+
+        tcg_gen_movi_i32(r_tmp, ctx->hflags);
+        tcg_gen_st_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
+        tcg_temp_free(r_tmp);
         ctx->saved_hflags = ctx->hflags;
         switch (ctx->hflags & MIPS_HFLAG_BMASK) {
         case MIPS_HFLAG_BR:
@@ -841,21 +866,15 @@ static inline void gen_op_addr_add (void)
        See the MIPS64 PRA manual, section 4.10. */
     {
         int l1 = gen_new_label();
+        TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_I32);
 
-        {
-            TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
-
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
-            tcg_gen_andi_i32(r_tmp, r_tmp, MIPS_HFLAG_KSU);
-            tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, MIPS_HFLAG_UM, l1);
-        }
-        {
-            TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
-
-            tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Status));
-            tcg_gen_andi_i32(r_tmp, r_tmp, (1 << CP0St_UX));
-            tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, 0, l1);
-        }
+        tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
+        tcg_gen_andi_i32(r_tmp, r_tmp, MIPS_HFLAG_KSU);
+        tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, MIPS_HFLAG_UM, l1);
+        tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Status));
+        tcg_gen_andi_i32(r_tmp, r_tmp, (1 << CP0St_UX));
+        tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, 0, l1);
+        tcg_temp_free(r_tmp);
         tcg_gen_ext32s_i64(cpu_T[0], cpu_T[0]);
         gen_set_label(l1);
     }
@@ -957,12 +976,6 @@ OP_LD_TABLE(wl);
 OP_LD_TABLE(wr);
 OP_ST_TABLE(wl);
 OP_ST_TABLE(wr);
-OP_LD_TABLE(wc1);
-OP_ST_TABLE(wc1);
-OP_LD_TABLE(dc1);
-OP_ST_TABLE(dc1);
-OP_LD_TABLE(uxc1);
-OP_ST_TABLE(uxc1);
 
 #define OP_LD(insn,fname)                                        \
 void inline op_ldst_##insn(DisasContext *ctx)                    \
@@ -1034,26 +1047,6 @@ OP_ST_ATOMIC(sc,st32,0x3);
 OP_ST_ATOMIC(scd,st64,0x7);
 #endif
 #undef OP_ST_ATOMIC
-
-void inline op_ldst_lwc1(DisasContext *ctx)
-{
-    op_ldst(lwc1);
-}
-
-void inline op_ldst_ldc1(DisasContext *ctx)
-{
-    op_ldst(ldc1);
-}
-
-void inline op_ldst_swc1(DisasContext *ctx)
-{
-    op_ldst(swc1);
-}
-
-void inline op_ldst_sdc1(DisasContext *ctx)
-{
-    op_ldst(sdc1);
-}
 
 /* Load and store */
 static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
@@ -1225,23 +1218,23 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
        memory access. */
     switch (opc) {
     case OPC_LWC1:
-        op_ldst_lwc1(ctx);
-        GEN_STORE_FTN_FREG(ft, WT0);
+        tcg_gen_qemu_ld32s(fpu32_T[0], cpu_T[0], ctx->mem_idx);
+        gen_store_fpr32(fpu32_T[0], ft);
         opn = "lwc1";
         break;
     case OPC_SWC1:
-        GEN_LOAD_FREG_FTN(WT0, ft);
-        op_ldst_swc1(ctx);
+        gen_load_fpr32(fpu32_T[0], ft);
+        tcg_gen_qemu_st32(fpu32_T[0], cpu_T[0], ctx->mem_idx);
         opn = "swc1";
         break;
     case OPC_LDC1:
-        op_ldst_ldc1(ctx);
-        GEN_STORE_FTN_FREG(ft, DT0);
+        tcg_gen_qemu_ld64(fpu64_T[0], cpu_T[0], ctx->mem_idx);
+        gen_store_fpr64(ctx, fpu64_T[0], ft);
         opn = "ldc1";
         break;
     case OPC_SDC1:
-        GEN_LOAD_FREG_FTN(DT0, ft);
-        op_ldst_sdc1(ctx);
+        gen_load_fpr64(ctx, fpu64_T[0], ft);
+        tcg_gen_qemu_st64(fpu64_T[0], cpu_T[0], ctx->mem_idx);
         opn = "sdc1";
         break;
     default:
@@ -1964,11 +1957,47 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         opn = "divu";
         break;
     case OPC_MULT:
-        gen_op_mult();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_ext_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_ext_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "mult";
         break;
     case OPC_MULTU:
-        gen_op_multu();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32u_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_extu_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "multu";
         break;
 #if defined(TARGET_MIPS64)
@@ -2026,28 +2055,136 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         opn = "ddivu";
         break;
     case OPC_DMULT:
-        gen_op_dmult();
+        tcg_gen_helper_0_0(do_dmult);
         opn = "dmult";
         break;
     case OPC_DMULTU:
-        gen_op_dmultu();
+        tcg_gen_helper_0_0(do_dmultu);
         opn = "dmultu";
         break;
 #endif
     case OPC_MADD:
-        gen_op_madd();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_ext_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_ext_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            gen_load_LO(cpu_T[0], 0);
+            gen_load_HI(cpu_T[1], 0);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp3, cpu_T[1]);
+            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
+            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
+            tcg_temp_free(r_tmp3);
+            tcg_gen_add_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "madd";
         break;
     case OPC_MADDU:
-        gen_op_maddu();
+       {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32u_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_extu_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            gen_load_LO(cpu_T[0], 0);
+            gen_load_HI(cpu_T[1], 0);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp3, cpu_T[1]);
+            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
+            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
+            tcg_temp_free(r_tmp3);
+            tcg_gen_add_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "maddu";
         break;
     case OPC_MSUB:
-        gen_op_msub();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_ext_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_ext_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            gen_load_LO(cpu_T[0], 0);
+            gen_load_HI(cpu_T[1], 0);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp3, cpu_T[1]);
+            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
+            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
+            tcg_temp_free(r_tmp3);
+            tcg_gen_sub_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "msub";
         break;
     case OPC_MSUBU:
-        gen_op_msubu();
+        {
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_ext32u_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32u_tl(cpu_T[1], cpu_T[1]);
+            tcg_gen_extu_tl_i64(r_tmp1, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[1]);
+            tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
+            gen_load_LO(cpu_T[0], 0);
+            gen_load_HI(cpu_T[1], 0);
+            tcg_gen_extu_tl_i64(r_tmp2, cpu_T[0]);
+            tcg_gen_extu_tl_i64(r_tmp3, cpu_T[1]);
+            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
+            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
+            tcg_temp_free(r_tmp3);
+            tcg_gen_sub_i64(r_tmp1, r_tmp1, r_tmp2);
+            tcg_temp_free(r_tmp2);
+            tcg_gen_trunc_i64_tl(cpu_T[0], r_tmp1);
+            tcg_gen_shri_i64(r_tmp1, r_tmp1, 32);
+            tcg_gen_trunc_i64_tl(cpu_T[1], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_ext32s_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_ext32s_tl(cpu_T[1], cpu_T[1]);
+            gen_store_LO(cpu_T[0], 0);
+            gen_store_HI(cpu_T[1], 0);
+        }
         opn = "msubu";
         break;
     default:
@@ -2263,7 +2400,13 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
         }
     }
     save_cpu_state(ctx, 1);
-    gen_op_trap();
+    {
+        int l1 = gen_new_label();
+
+        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
+        tcg_gen_helper_0_1i(do_raise_exception, EXCP_TRAP);
+        gen_set_label(l1);
+    }
     ctx->bstate = BS_STOP;
 }
 
@@ -2529,49 +2672,49 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_EXT:
         if (lsb + msb > 31)
             goto fail;
-        gen_op_ext(lsb, msb + 1);
+        tcg_gen_helper_0_2ii(do_ext, lsb, msb + 1);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DEXTM:
         if (lsb + msb > 63)
             goto fail;
-        gen_op_dext(lsb, msb + 1 + 32);
+        tcg_gen_helper_0_2ii(do_dext, lsb, msb + 1 + 32);
         break;
     case OPC_DEXTU:
         if (lsb + msb > 63)
             goto fail;
-        gen_op_dext(lsb + 32, msb + 1);
+        tcg_gen_helper_0_2ii(do_dext, lsb + 32, msb + 1);
         break;
     case OPC_DEXT:
         if (lsb + msb > 63)
             goto fail;
-        gen_op_dext(lsb, msb + 1);
+        tcg_gen_helper_0_2ii(do_dext, lsb, msb + 1);
         break;
 #endif
     case OPC_INS:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_ins(lsb, msb - lsb + 1);
+        tcg_gen_helper_0_2ii(do_ins, lsb, msb - lsb + 1);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DINSM:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_dins(lsb, msb - lsb + 1 + 32);
+        tcg_gen_helper_0_2ii(do_dins, lsb, msb - lsb + 1 + 32);
         break;
     case OPC_DINSU:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_dins(lsb + 32, msb - lsb + 1);
+        tcg_gen_helper_0_2ii(do_dins, lsb + 32, msb - lsb + 1);
         break;
     case OPC_DINS:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_dins(lsb, msb - lsb + 1);
+        tcg_gen_helper_0_2ii(do_dins, lsb, msb - lsb + 1);
         break;
 #endif
     default:
@@ -5080,11 +5223,11 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt,
     case 2:
         /* XXX: For now we support only a single FPU context. */
         if (h == 0) {
-            GEN_LOAD_FREG_FTN(WT0, rt);
-            gen_op_mfc1();
+            gen_load_fpr32(fpu32_T[0], rt);
+            tcg_gen_ext_i32_tl(cpu_T[0], fpu32_T[0]);
         } else {
-            GEN_LOAD_FREG_FTN(WTH0, rt);
-            gen_op_mfhc1();
+            gen_load_fpr32h(fpu32h_T[0], rt);
+            tcg_gen_ext_i32_tl(cpu_T[0], fpu32h_T[0]);
         }
         break;
     case 3:
@@ -5244,11 +5387,11 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd,
     case 2:
         /* XXX: For now we support only a single FPU context. */
         if (h == 0) {
-            gen_op_mtc1();
-            GEN_STORE_FTN_FREG(rd, WT0);
+            tcg_gen_trunc_tl_i32(fpu32_T[0], cpu_T[0]);
+            gen_store_fpr32(fpu32_T[0], rd);
         } else {
-            gen_op_mthc1();
-            GEN_STORE_FTN_FREG(rd, WTH0);
+            tcg_gen_trunc_tl_i32(fpu32h_T[0], cpu_T[0]);
+            gen_store_fpr32h(fpu32h_T[0], rd);
         }
         break;
     case 3:
@@ -5341,31 +5484,31 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         opn = "tlbwi";
         if (!env->tlb->do_tlbwi)
             goto die;
-        gen_op_tlbwi();
+        tcg_gen_helper_0_0(env->tlb->do_tlbwi);
         break;
     case OPC_TLBWR:
         opn = "tlbwr";
         if (!env->tlb->do_tlbwr)
             goto die;
-        gen_op_tlbwr();
+        tcg_gen_helper_0_0(env->tlb->do_tlbwr);
         break;
     case OPC_TLBP:
         opn = "tlbp";
         if (!env->tlb->do_tlbp)
             goto die;
-        gen_op_tlbp();
+        tcg_gen_helper_0_0(env->tlb->do_tlbp);
         break;
     case OPC_TLBR:
         opn = "tlbr";
         if (!env->tlb->do_tlbr)
             goto die;
-        gen_op_tlbr();
+        tcg_gen_helper_0_0(env->tlb->do_tlbr);
         break;
     case OPC_ERET:
         opn = "eret";
         check_insn(env, ctx, ISA_MIPS2);
         save_cpu_state(ctx, 1);
-        gen_op_eret();
+        tcg_gen_helper_0_0(do_eret);
         ctx->bstate = BS_EXCP;
         break;
     case OPC_DERET:
@@ -5376,7 +5519,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             generate_exception(ctx, EXCP_RI);
         } else {
             save_cpu_state(ctx, 1);
-            gen_op_deret();
+            tcg_gen_helper_0_0(do_deret);
             ctx->bstate = BS_EXCP;
         }
         break;
@@ -5387,7 +5530,7 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         ctx->pc += 4;
         save_cpu_state(ctx, 1);
         ctx->pc -= 4;
-        gen_op_wait();
+        tcg_gen_helper_0_0(do_wait);
         ctx->bstate = BS_EXCP;
         break;
     default:
@@ -5414,38 +5557,170 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
 
     switch (op) {
     case OPC_BC1F:
-        gen_op_bc1f(cc);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            get_fp_cond(r_tmp1);
+            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_not_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_movi_tl(cpu_T[1], 0x1 << cc);
+            tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_movi_tl(cpu_T[0], 0);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_movi_tl(cpu_T[0], 1);
+            gen_set_label(l2);
+        }
         opn = "bc1f";
         goto not_likely;
     case OPC_BC1FL:
-        gen_op_bc1f(cc);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            get_fp_cond(r_tmp1);
+            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_not_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_movi_tl(cpu_T[1], 0x1 << cc);
+            tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_movi_tl(cpu_T[0], 0);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_movi_tl(cpu_T[0], 1);
+            gen_set_label(l2);
+        }
         opn = "bc1fl";
         goto likely;
     case OPC_BC1T:
-        gen_op_bc1t(cc);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            get_fp_cond(r_tmp1);
+            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_movi_tl(cpu_T[1], 0x1 << cc);
+            tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_movi_tl(cpu_T[0], 0);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_movi_tl(cpu_T[0], 1);
+            gen_set_label(l2);
+        }
         opn = "bc1t";
         goto not_likely;
     case OPC_BC1TL:
-        gen_op_bc1t(cc);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            get_fp_cond(r_tmp1);
+            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_movi_tl(cpu_T[1], 0x1 << cc);
+            tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_movi_tl(cpu_T[0], 0);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_movi_tl(cpu_T[0], 1);
+            gen_set_label(l2);
+        }
         opn = "bc1tl";
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
         tcg_gen_st_tl(cpu_T[0], cpu_env, offsetof(CPUState, bcond));
         break;
     case OPC_BC1FANY2:
-        gen_op_bc1any2f(cc);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            get_fp_cond(r_tmp1);
+            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_not_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_movi_tl(cpu_T[1], 0x3 << cc);
+            tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_movi_tl(cpu_T[0], 0);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_movi_tl(cpu_T[0], 1);
+            gen_set_label(l2);
+        }
         opn = "bc1any2f";
         goto not_likely;
     case OPC_BC1TANY2:
-        gen_op_bc1any2t(cc);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            get_fp_cond(r_tmp1);
+            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_movi_tl(cpu_T[1], 0x3 << cc);
+            tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_movi_tl(cpu_T[0], 0);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_movi_tl(cpu_T[0], 1);
+            gen_set_label(l2);
+        }
         opn = "bc1any2t";
         goto not_likely;
     case OPC_BC1FANY4:
-        gen_op_bc1any4f(cc);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            get_fp_cond(r_tmp1);
+            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_not_tl(cpu_T[0], cpu_T[0]);
+            tcg_gen_movi_tl(cpu_T[1], 0xf << cc);
+            tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_movi_tl(cpu_T[0], 0);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_movi_tl(cpu_T[0], 1);
+            gen_set_label(l2);
+        }
         opn = "bc1any4f";
         goto not_likely;
     case OPC_BC1TANY4:
-        gen_op_bc1any4t(cc);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            get_fp_cond(r_tmp1);
+            tcg_gen_ext_i32_tl(cpu_T[0], r_tmp1);
+            tcg_temp_free(r_tmp1);
+            tcg_gen_movi_tl(cpu_T[1], 0xf << cc);
+            tcg_gen_and_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_movi_tl(cpu_T[0], 0);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_movi_tl(cpu_T[0], 1);
+            gen_set_label(l2);
+        }
         opn = "bc1any4t";
     not_likely:
         ctx->hflags |= MIPS_HFLAG_BC;
@@ -5471,15 +5746,15 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 
     switch (opc) {
     case OPC_MFC1:
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_mfc1();
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_ext_i32_tl(cpu_T[0], fpu32_T[0]);
         gen_store_gpr(cpu_T[0], rt);
         opn = "mfc1";
         break;
     case OPC_MTC1:
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_mtc1();
-        GEN_STORE_FTN_FREG(fs, WT0);
+        tcg_gen_trunc_tl_i32(fpu32_T[0], cpu_T[0]);
+        gen_store_fpr32(fpu32_T[0], fs);
         opn = "mtc1";
         break;
     case OPC_CFC1:
@@ -5493,27 +5768,27 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         opn = "ctc1";
         break;
     case OPC_DMFC1:
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_dmfc1();
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_mov_tl(cpu_T[0], fpu64_T[0]);
         gen_store_gpr(cpu_T[0], rt);
         opn = "dmfc1";
         break;
     case OPC_DMTC1:
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_dmtc1();
-        GEN_STORE_FTN_FREG(fs, DT0);
+        tcg_gen_mov_tl(fpu64_T[0], cpu_T[0]);
+        gen_store_fpr64(ctx, fpu64_T[0], fs);
         opn = "dmtc1";
         break;
     case OPC_MFHC1:
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_mfhc1();
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        tcg_gen_ext_i32_tl(cpu_T[0], fpu32h_T[0]);
         gen_store_gpr(cpu_T[0], rt);
         opn = "mfhc1";
         break;
     case OPC_MTHC1:
         gen_load_gpr(cpu_T[0], rt);
-        gen_op_mthc1();
-        GEN_STORE_FTN_FREG(fs, WTH0);
+        tcg_gen_trunc_tl_i32(fpu32h_T[0], cpu_T[0]);
+        gen_store_fpr32h(fpu32h_T[0], fs);
         opn = "mthc1";
         break;
     default:
@@ -5543,13 +5818,14 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
     gen_load_gpr(cpu_T[1], rs);
     {
         TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
-        TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
+        TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_I32);
 
         tcg_gen_ld_ptr(r_ptr, cpu_env, offsetof(CPUState, fpu));
         tcg_gen_ld_i32(r_tmp, r_ptr, offsetof(CPUMIPSFPUContext, fcr31));
         tcg_temp_free(r_ptr);
         tcg_gen_andi_i32(r_tmp, r_tmp, ccbit);
         tcg_gen_brcondi_i32(cond, r_tmp, 0, l1);
+        tcg_temp_free(r_tmp);
     }
     tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 
@@ -5557,23 +5833,83 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
     gen_store_gpr(cpu_T[0], rd);
 }
 
-#define GEN_MOVCF(fmt)                                                \
-static void glue(gen_movcf_, fmt) (DisasContext *ctx, int cc, int tf) \
-{                                                                     \
-    uint32_t ccbit;                                                   \
-                                                                      \
-    if (cc) {                                                         \
-        ccbit = 1 << (24 + cc);                                       \
-    } else                                                            \
-        ccbit = 1 << 23;                                              \
-    if (!tf)                                                          \
-        glue(gen_op_float_movf_, fmt)(ccbit);                         \
-    else                                                              \
-        glue(gen_op_float_movt_, fmt)(ccbit);                         \
+static inline void gen_movcf_s (int cc, int tf)
+{
+    uint32_t ccbit;
+    int cond;
+    TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+    int l1 = gen_new_label();
+
+    if (cc)
+        ccbit = 1 << (24 + cc);
+    else
+        ccbit = 1 << 23;
+
+    if (tf)
+        cond = TCG_COND_EQ;
+    else
+        cond = TCG_COND_NE;
+
+    tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
+    tcg_gen_andi_i32(r_tmp1, r_tmp1, ccbit);
+    tcg_gen_brcondi_i32(cond, r_tmp1, 0, l1);
+    tcg_gen_movi_i32(fpu32_T[2], fpu32_T[0]);
+    gen_set_label(l1);
+    tcg_temp_free(r_tmp1);
 }
-GEN_MOVCF(d);
-GEN_MOVCF(s);
-#undef GEN_MOVCF
+
+static inline void gen_movcf_d (int cc, int tf)
+{
+    uint32_t ccbit;
+    int cond;
+    TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+    int l1 = gen_new_label();
+
+    if (cc)
+        ccbit = 1 << (24 + cc);
+    else
+        ccbit = 1 << 23;
+
+    if (tf)
+        cond = TCG_COND_EQ;
+    else
+        cond = TCG_COND_NE;
+
+    tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
+    tcg_gen_andi_i32(r_tmp1, r_tmp1, ccbit);
+    tcg_gen_brcondi_i32(cond, r_tmp1, 0, l1);
+    tcg_gen_movi_i64(fpu64_T[2], fpu64_T[0]);
+    gen_set_label(l1);
+    tcg_temp_free(r_tmp1);
+}
+
+static inline void gen_movcf_ps (int cc, int tf)
+{
+    int cond;
+    TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv r_tmp2 = tcg_temp_local_new(TCG_TYPE_I32);
+    int l1 = gen_new_label();
+    int l2 = gen_new_label();
+
+    if (tf)
+        cond = TCG_COND_EQ;
+    else
+        cond = TCG_COND_NE;
+
+    get_fp_cond(r_tmp1);
+    tcg_gen_shri_i32(r_tmp1, r_tmp1, cc);
+    tcg_gen_andi_i32(r_tmp2, r_tmp1, 0x1);
+    tcg_gen_brcondi_i32(cond, r_tmp2, 0, l1);
+    tcg_gen_movi_i32(fpu32_T[2], fpu32_T[0]);
+    gen_set_label(l1);
+    tcg_gen_andi_i32(r_tmp2, r_tmp1, 0x2);
+    tcg_gen_brcondi_i32(cond, r_tmp2, 0, l2);
+    tcg_gen_movi_i32(fpu32h_T[2], fpu32h_T[0]);
+    gen_set_label(l2);
+    tcg_temp_free(r_tmp1);
+    tcg_temp_free(r_tmp2);
+}
+
 
 static void gen_farith (DisasContext *ctx, uint32_t op1,
                         int ft, int fs, int fd, int cc)
@@ -5620,207 +5956,220 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
 
     switch (ctx->opcode & FOP(0x3f, 0x1f)) {
     case FOP(0, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_add_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        tcg_gen_helper_0_0(do_float_add_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "add.s";
         optype = BINOP;
         break;
     case FOP(1, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_sub_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        tcg_gen_helper_0_0(do_float_sub_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "sub.s";
         optype = BINOP;
         break;
     case FOP(2, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_mul_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        tcg_gen_helper_0_0(do_float_mul_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "mul.s";
         optype = BINOP;
         break;
     case FOP(3, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_div_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        tcg_gen_helper_0_0(do_float_div_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "div.s";
         optype = BINOP;
         break;
     case FOP(4, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_sqrt_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_sqrt_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "sqrt.s";
         break;
     case FOP(5, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_abs_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_abs_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "abs.s";
         break;
     case FOP(6, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_mov_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_store_fpr32(fpu32_T[0], fd);
         opn = "mov.s";
         break;
     case FOP(7, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_chs_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_chs_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "neg.s";
         break;
     case FOP(8, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_roundl_s();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_roundl_s);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "round.l.s";
         break;
     case FOP(9, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_truncl_s();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_truncl_s);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "trunc.l.s";
         break;
     case FOP(10, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_ceill_s();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_ceill_s);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "ceil.l.s";
         break;
     case FOP(11, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_floorl_s();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_floorl_s);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "floor.l.s";
         break;
     case FOP(12, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_roundw_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_roundw_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "round.w.s";
         break;
     case FOP(13, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_truncw_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_truncw_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "trunc.w.s";
         break;
     case FOP(14, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_ceilw_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_ceilw_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "ceil.w.s";
         break;
     case FOP(15, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_floorw_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_floorw_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "floor.w.s";
         break;
     case FOP(17, 16):
-        gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        gen_movcf_s(ctx, (ft >> 2) & 0x7, ft & 0x1);
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], fd);
+        gen_movcf_s((ft >> 2) & 0x7, ft & 0x1);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "movcf.s";
         break;
     case FOP(18, 16):
         gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        gen_op_float_movz_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], fd);
+        {
+            int l1 = gen_new_label();
+
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
+            gen_set_label(l1);
+        }
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "movz.s";
         break;
     case FOP(19, 16):
         gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        gen_op_float_movn_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], fd);
+        {
+            int l1 = gen_new_label();
+
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
+            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
+            gen_set_label(l1);
+        }
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "movn.s";
         break;
     case FOP(21, 16):
         check_cop1x(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_recip_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_recip_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "recip.s";
         break;
     case FOP(22, 16):
         check_cop1x(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_rsqrt_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_rsqrt_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "rsqrt.s";
         break;
     case FOP(28, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        gen_op_float_recip2_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], fd);
+        tcg_gen_helper_0_0(do_float_recip2_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "recip2.s";
         break;
     case FOP(29, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_recip1_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_recip1_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "recip1.s";
         break;
     case FOP(30, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_rsqrt1_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_rsqrt1_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "rsqrt1.s";
         break;
     case FOP(31, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT2, ft);
-        gen_op_float_rsqrt2_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], ft);
+        tcg_gen_helper_0_0(do_float_rsqrt2_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "rsqrt2.s";
         break;
     case FOP(33, 16):
         check_cp1_registers(ctx, fd);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvtd_s();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtd_s);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.d.s";
         break;
     case FOP(36, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvtw_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtw_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.w.s";
         break;
     case FOP(37, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvtl_s();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtl_s);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.l.s";
         break;
     case FOP(38, 16):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT1, fs);
-        GEN_LOAD_FREG_FTN(WT0, ft);
-        gen_op_float_cvtps_s();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        tcg_gen_extu_i32_i64(fpu64_T[0], fpu32_T[0]);
+        tcg_gen_extu_i32_i64(fpu64_T[1], fpu32_T[1]);
+        tcg_gen_shli_i64(fpu64_T[1], fpu64_T[1], 32);
+        tcg_gen_or_i64(fpu64_T[2], fpu64_T[0], fpu64_T[1]);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.ps.s";
         break;
     case FOP(48, 16):
@@ -5839,8 +6188,8 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(61, 16):
     case FOP(62, 16):
     case FOP(63, 16):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
         if (ctx->opcode & (1 << 6)) {
             check_cop1x(ctx);
             gen_cmpabs_s(func-48, cc);
@@ -5852,190 +6201,200 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         break;
     case FOP(0, 17):
         check_cp1_registers(ctx, fs | ft | fd);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        gen_op_float_add_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
+        tcg_gen_helper_0_0(do_float_add_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "add.d";
         optype = BINOP;
         break;
     case FOP(1, 17):
         check_cp1_registers(ctx, fs | ft | fd);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        gen_op_float_sub_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
+        tcg_gen_helper_0_0(do_float_sub_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "sub.d";
         optype = BINOP;
         break;
     case FOP(2, 17):
         check_cp1_registers(ctx, fs | ft | fd);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        gen_op_float_mul_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
+        tcg_gen_helper_0_0(do_float_mul_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "mul.d";
         optype = BINOP;
         break;
     case FOP(3, 17):
         check_cp1_registers(ctx, fs | ft | fd);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        gen_op_float_div_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
+        tcg_gen_helper_0_0(do_float_div_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "div.d";
         optype = BINOP;
         break;
     case FOP(4, 17):
         check_cp1_registers(ctx, fs | fd);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_sqrt_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_sqrt_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "sqrt.d";
         break;
     case FOP(5, 17):
         check_cp1_registers(ctx, fs | fd);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_abs_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_abs_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "abs.d";
         break;
     case FOP(6, 17):
         check_cp1_registers(ctx, fs | fd);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_mov_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_store_fpr64(ctx, fpu64_T[0], fd);
         opn = "mov.d";
         break;
     case FOP(7, 17):
         check_cp1_registers(ctx, fs | fd);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_chs_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_chs_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "neg.d";
         break;
     case FOP(8, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_roundl_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_roundl_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "round.l.d";
         break;
     case FOP(9, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_truncl_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_truncl_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "trunc.l.d";
         break;
     case FOP(10, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_ceill_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_ceill_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "ceil.l.d";
         break;
     case FOP(11, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_floorl_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_floorl_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "floor.l.d";
         break;
     case FOP(12, 17):
         check_cp1_registers(ctx, fs);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_roundw_d();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_roundw_d);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "round.w.d";
         break;
     case FOP(13, 17):
         check_cp1_registers(ctx, fs);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_truncw_d();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_truncw_d);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "trunc.w.d";
         break;
     case FOP(14, 17):
         check_cp1_registers(ctx, fs);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_ceilw_d();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_ceilw_d);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "ceil.w.d";
         break;
     case FOP(15, 17):
         check_cp1_registers(ctx, fs);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_floorw_d();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_floorw_d);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "floor.w.d";
         break;
     case FOP(17, 17):
-        gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT2, fd);
-        gen_movcf_d(ctx, (ft >> 2) & 0x7, ft & 0x1);
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[2], fd);
+        gen_movcf_d((ft >> 2) & 0x7, ft & 0x1);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "movcf.d";
         break;
     case FOP(18, 17):
         gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT2, fd);
-        gen_op_float_movz_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[2], fd);
+        {
+            int l1 = gen_new_label();
+
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_mov_i64(fpu64_T[2], fpu64_T[0]);
+            gen_set_label(l1);
+        }
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "movz.d";
         break;
     case FOP(19, 17):
         gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT2, fd);
-        gen_op_float_movn_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[2], fd);
+        {
+            int l1 = gen_new_label();
+
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
+            tcg_gen_mov_i64(fpu64_T[2], fpu64_T[0]);
+            gen_set_label(l1);
+        }
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "movn.d";
         break;
     case FOP(21, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_recip_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_recip_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "recip.d";
         break;
     case FOP(22, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_rsqrt_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_rsqrt_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "rsqrt.d";
         break;
     case FOP(28, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT2, ft);
-        gen_op_float_recip2_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[2], ft);
+        tcg_gen_helper_0_0(do_float_recip2_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "recip2.d";
         break;
     case FOP(29, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_recip1_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_recip1_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "recip1.d";
         break;
     case FOP(30, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_rsqrt1_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_rsqrt1_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "rsqrt1.d";
         break;
     case FOP(31, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT2, ft);
-        gen_op_float_rsqrt2_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[2], ft);
+        tcg_gen_helper_0_0(do_float_rsqrt2_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "rsqrt2.d";
         break;
     case FOP(48, 17):
@@ -6054,8 +6413,8 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(61, 17):
     case FOP(62, 17):
     case FOP(63, 17):
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
         if (ctx->opcode & (1 << 6)) {
             check_cop1x(ctx);
             check_cp1_registers(ctx, fs | ft);
@@ -6069,275 +6428,284 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         break;
     case FOP(32, 17):
         check_cp1_registers(ctx, fs);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_cvts_d();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvts_d);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.d";
         break;
     case FOP(36, 17):
         check_cp1_registers(ctx, fs);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_cvtw_d();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtw_d);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.w.d";
         break;
     case FOP(37, 17):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_cvtl_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtl_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.l.d";
         break;
     case FOP(32, 20):
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvts_w();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvts_w);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.w";
         break;
     case FOP(33, 20):
         check_cp1_registers(ctx, fd);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvtd_w();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtd_w);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.d.w";
         break;
     case FOP(32, 21):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_cvts_l();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvts_l);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.l";
         break;
     case FOP(33, 21):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        gen_op_float_cvtd_l();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtd_l);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "cvt.d.l";
         break;
     case FOP(38, 20):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_float_cvtps_pw();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtps_pw);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "cvt.ps.pw";
         break;
     case FOP(0, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        gen_op_float_add_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        tcg_gen_helper_0_0(do_float_add_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "add.ps";
         break;
     case FOP(1, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        gen_op_float_sub_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        tcg_gen_helper_0_0(do_float_sub_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "sub.ps";
         break;
     case FOP(2, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        gen_op_float_mul_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        tcg_gen_helper_0_0(do_float_mul_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "mul.ps";
         break;
     case FOP(5, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_float_abs_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        tcg_gen_helper_0_0(do_float_abs_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "abs.ps";
         break;
     case FOP(6, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_float_mov_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_store_fpr32(fpu32_T[0], fd);
+        gen_store_fpr32h(fpu32h_T[0], fd);
         opn = "mov.ps";
         break;
     case FOP(7, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_float_chs_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        tcg_gen_helper_0_0(do_float_chs_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "neg.ps";
         break;
     case FOP(17, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        GEN_LOAD_FREG_FTN(WTH2, fd);
-        if (ft & 0x1)
-            gen_op_float_movt_ps ((ft >> 2) & 0x7);
-        else
-            gen_op_float_movf_ps ((ft >> 2) & 0x7);
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], fd);
+        gen_load_fpr32h(fpu32h_T[2], fd);
+        gen_movcf_ps((ft >> 2) & 0x7, ft & 0x1);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "movcf.ps";
         break;
     case FOP(18, 22):
         check_cp1_64bitmode(ctx);
         gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        GEN_LOAD_FREG_FTN(WTH2, fd);
-        gen_op_float_movz_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], fd);
+        gen_load_fpr32h(fpu32h_T[2], fd);
+        {
+            int l1 = gen_new_label();
+
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
+            tcg_gen_mov_i32(fpu32h_T[2], fpu32h_T[0]);
+            gen_set_label(l1);
+        }
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "movz.ps";
         break;
     case FOP(19, 22):
         check_cp1_64bitmode(ctx);
         gen_load_gpr(cpu_T[0], ft);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        GEN_LOAD_FREG_FTN(WTH2, fd);
-        gen_op_float_movn_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], fd);
+        gen_load_fpr32h(fpu32h_T[2], fd);
+        {
+            int l1 = gen_new_label();
+
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
+            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
+            tcg_gen_mov_i32(fpu32h_T[2], fpu32h_T[0]);
+            gen_set_label(l1);
+        }
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "movn.ps";
         break;
     case FOP(24, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, ft);
-        GEN_LOAD_FREG_FTN(WTH0, ft);
-        GEN_LOAD_FREG_FTN(WT1, fs);
-        GEN_LOAD_FREG_FTN(WTH1, fs);
-        gen_op_float_addr_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], ft);
+        gen_load_fpr32h(fpu32h_T[0], ft);
+        gen_load_fpr32(fpu32_T[1], fs);
+        gen_load_fpr32h(fpu32h_T[1], fs);
+        tcg_gen_helper_0_0(do_float_addr_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "addr.ps";
         break;
     case FOP(26, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, ft);
-        GEN_LOAD_FREG_FTN(WTH0, ft);
-        GEN_LOAD_FREG_FTN(WT1, fs);
-        GEN_LOAD_FREG_FTN(WTH1, fs);
-        gen_op_float_mulr_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], ft);
+        gen_load_fpr32h(fpu32h_T[0], ft);
+        gen_load_fpr32(fpu32_T[1], fs);
+        gen_load_fpr32h(fpu32h_T[1], fs);
+        tcg_gen_helper_0_0(do_float_mulr_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "mulr.ps";
         break;
     case FOP(28, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT2, fd);
-        GEN_LOAD_FREG_FTN(WTH2, fd);
-        gen_op_float_recip2_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], fd);
+        gen_load_fpr32h(fpu32h_T[2], fd);
+        tcg_gen_helper_0_0(do_float_recip2_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "recip2.ps";
         break;
     case FOP(29, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_float_recip1_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        tcg_gen_helper_0_0(do_float_recip1_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "recip1.ps";
         break;
     case FOP(30, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_float_rsqrt1_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        tcg_gen_helper_0_0(do_float_rsqrt1_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "rsqrt1.ps";
         break;
     case FOP(31, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT2, ft);
-        GEN_LOAD_FREG_FTN(WTH2, ft);
-        gen_op_float_rsqrt2_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[2], ft);
+        gen_load_fpr32h(fpu32h_T[2], ft);
+        tcg_gen_helper_0_0(do_float_rsqrt2_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "rsqrt2.ps";
         break;
     case FOP(32, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_float_cvts_pu();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvts_pu);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.pu";
         break;
     case FOP(36, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        gen_op_float_cvtpw_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvtpw_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "cvt.pw.ps";
         break;
     case FOP(40, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        gen_op_float_cvts_pl();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_helper_0_0(do_float_cvts_pl);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "cvt.s.pl";
         break;
     case FOP(44, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_pll_ps();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_store_fpr32h(fpu32_T[0], fd);
+        gen_store_fpr32(fpu32_T[1], fd);
         opn = "pll.ps";
         break;
     case FOP(45, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        gen_op_float_plu_ps();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        gen_store_fpr32(fpu32h_T[1], fd);
+        gen_store_fpr32h(fpu32_T[0], fd);
         opn = "plu.ps";
         break;
     case FOP(46, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        gen_op_float_pul_ps();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_store_fpr32(fpu32_T[1], fd);
+        gen_store_fpr32h(fpu32h_T[0], fd);
         opn = "pul.ps";
         break;
     case FOP(47, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        gen_op_float_puu_ps();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        gen_store_fpr32(fpu32h_T[1], fd);
+        gen_store_fpr32h(fpu32h_T[0], fd);
         opn = "puu.ps";
         break;
     case FOP(48, 22):
@@ -6357,10 +6725,10 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(62, 22):
     case FOP(63, 22):
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
         if (ctx->opcode & (1 << 6)) {
             gen_cmpabs_ps(func-48, cc);
             opn = condnames_abs[func-48];
@@ -6408,42 +6776,44 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     switch (opc) {
     case OPC_LWXC1:
         check_cop1x(ctx);
-        op_ldst_lwc1(ctx);
-        GEN_STORE_FTN_FREG(fd, WT0);
+        tcg_gen_qemu_ld32s(fpu32_T[0], cpu_T[0], ctx->mem_idx);
+        gen_store_fpr32(fpu32_T[0], fd);
         opn = "lwxc1";
         break;
     case OPC_LDXC1:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd);
-        op_ldst_ldc1(ctx);
-        GEN_STORE_FTN_FREG(fd, DT0);
+        tcg_gen_qemu_ld64(fpu64_T[0], cpu_T[0], ctx->mem_idx);
+        gen_store_fpr64(ctx, fpu64_T[0], fd);
         opn = "ldxc1";
         break;
     case OPC_LUXC1:
         check_cp1_64bitmode(ctx);
-        op_ldst(luxc1);
-        GEN_STORE_FTN_FREG(fd, DT0);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0x7);
+        tcg_gen_qemu_ld64(fpu64_T[0], cpu_T[0], ctx->mem_idx);
+        gen_store_fpr64(ctx, fpu64_T[0], fd);
         opn = "luxc1";
         break;
     case OPC_SWXC1:
         check_cop1x(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        op_ldst_swc1(ctx);
+        gen_load_fpr32(fpu32_T[0], fs);
+        tcg_gen_qemu_st32(fpu32_T[0], cpu_T[0], ctx->mem_idx);
         opn = "swxc1";
         store = 1;
         break;
     case OPC_SDXC1:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fs);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        op_ldst_sdc1(ctx);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_qemu_st64(fpu64_T[0], cpu_T[0], ctx->mem_idx);
         opn = "sdxc1";
         store = 1;
         break;
     case OPC_SUXC1:
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        op_ldst(suxc1);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], ~0x7);
+        tcg_gen_qemu_st64(fpu64_T[0], cpu_T[0], ctx->mem_idx);
         opn = "suxc1";
         store = 1;
         break;
@@ -6465,138 +6835,160 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
     case OPC_ALNV_PS:
         check_cp1_64bitmode(ctx);
         gen_load_gpr(cpu_T[0], fr);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        gen_op_float_alnv_ps();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0x7);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        {
+            int l1 = gen_new_label();
+            int l2 = gen_new_label();
+
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
+            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
+            tcg_gen_mov_i32(fpu32h_T[2], fpu32h_T[0]);
+            tcg_gen_br(l2);
+            gen_set_label(l1);
+            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 4, l2);
+#ifdef TARGET_WORDS_BIGENDIAN
+            tcg_gen_mov_i32(fpu32h_T[2], fpu32_T[0]);
+            tcg_gen_mov_i32(fpu32_T[2], fpu32h_T[1]);
+#else
+            tcg_gen_mov_i32(fpu32h_T[2], fpu32_T[1]);
+            tcg_gen_mov_i32(fpu32_T[2], fpu32h_T[0]);
+#endif
+            gen_set_label(l2);
+        }
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "alnv.ps";
         break;
     case OPC_MADD_S:
         check_cop1x(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WT2, fr);
-        gen_op_float_muladd_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32(fpu32_T[2], fr);
+        tcg_gen_helper_0_0(do_float_muladd_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "madd.s";
         break;
     case OPC_MADD_D:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd | fs | ft | fr);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        GEN_LOAD_FREG_FTN(DT2, fr);
-        gen_op_float_muladd_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
+        gen_load_fpr64(ctx, fpu64_T[2], fr);
+        tcg_gen_helper_0_0(do_float_muladd_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "madd.d";
         break;
     case OPC_MADD_PS:
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        GEN_LOAD_FREG_FTN(WT2, fr);
-        GEN_LOAD_FREG_FTN(WTH2, fr);
-        gen_op_float_muladd_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        gen_load_fpr32(fpu32_T[2], fr);
+        gen_load_fpr32h(fpu32h_T[2], fr);
+        tcg_gen_helper_0_0(do_float_muladd_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "madd.ps";
         break;
     case OPC_MSUB_S:
         check_cop1x(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WT2, fr);
-        gen_op_float_mulsub_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32(fpu32_T[2], fr);
+        tcg_gen_helper_0_0(do_float_mulsub_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "msub.s";
         break;
     case OPC_MSUB_D:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd | fs | ft | fr);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        GEN_LOAD_FREG_FTN(DT2, fr);
-        gen_op_float_mulsub_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
+        gen_load_fpr64(ctx, fpu64_T[2], fr);
+        tcg_gen_helper_0_0(do_float_mulsub_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "msub.d";
         break;
     case OPC_MSUB_PS:
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        GEN_LOAD_FREG_FTN(WT2, fr);
-        GEN_LOAD_FREG_FTN(WTH2, fr);
-        gen_op_float_mulsub_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        gen_load_fpr32(fpu32_T[2], fr);
+        gen_load_fpr32h(fpu32h_T[2], fr);
+        tcg_gen_helper_0_0(do_float_mulsub_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "msub.ps";
         break;
     case OPC_NMADD_S:
         check_cop1x(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WT2, fr);
-        gen_op_float_nmuladd_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32(fpu32_T[2], fr);
+        tcg_gen_helper_0_0(do_float_nmuladd_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "nmadd.s";
         break;
     case OPC_NMADD_D:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd | fs | ft | fr);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        GEN_LOAD_FREG_FTN(DT2, fr);
-        gen_op_float_nmuladd_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
+        gen_load_fpr64(ctx, fpu64_T[2], fr);
+        tcg_gen_helper_0_0(do_float_nmuladd_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "nmadd.d";
         break;
     case OPC_NMADD_PS:
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        GEN_LOAD_FREG_FTN(WT2, fr);
-        GEN_LOAD_FREG_FTN(WTH2, fr);
-        gen_op_float_nmuladd_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        gen_load_fpr32(fpu32_T[2], fr);
+        gen_load_fpr32h(fpu32h_T[2], fr);
+        tcg_gen_helper_0_0(do_float_nmuladd_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "nmadd.ps";
         break;
     case OPC_NMSUB_S:
         check_cop1x(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WT2, fr);
-        gen_op_float_nmulsub_s();
-        GEN_STORE_FTN_FREG(fd, WT2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32(fpu32_T[2], fr);
+        tcg_gen_helper_0_0(do_float_nmulsub_s);
+        gen_store_fpr32(fpu32_T[2], fd);
         opn = "nmsub.s";
         break;
     case OPC_NMSUB_D:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd | fs | ft | fr);
-        GEN_LOAD_FREG_FTN(DT0, fs);
-        GEN_LOAD_FREG_FTN(DT1, ft);
-        GEN_LOAD_FREG_FTN(DT2, fr);
-        gen_op_float_nmulsub_d();
-        GEN_STORE_FTN_FREG(fd, DT2);
+        gen_load_fpr64(ctx, fpu64_T[0], fs);
+        gen_load_fpr64(ctx, fpu64_T[1], ft);
+        gen_load_fpr64(ctx, fpu64_T[2], fr);
+        tcg_gen_helper_0_0(do_float_nmulsub_d);
+        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "nmsub.d";
         break;
     case OPC_NMSUB_PS:
         check_cp1_64bitmode(ctx);
-        GEN_LOAD_FREG_FTN(WT0, fs);
-        GEN_LOAD_FREG_FTN(WTH0, fs);
-        GEN_LOAD_FREG_FTN(WT1, ft);
-        GEN_LOAD_FREG_FTN(WTH1, ft);
-        GEN_LOAD_FREG_FTN(WT2, fr);
-        GEN_LOAD_FREG_FTN(WTH2, fr);
-        gen_op_float_nmulsub_ps();
-        GEN_STORE_FTN_FREG(fd, WT2);
-        GEN_STORE_FTN_FREG(fd, WTH2);
+        gen_load_fpr32(fpu32_T[0], fs);
+        gen_load_fpr32h(fpu32h_T[0], fs);
+        gen_load_fpr32(fpu32_T[1], ft);
+        gen_load_fpr32h(fpu32h_T[1], ft);
+        gen_load_fpr32(fpu32_T[2], fr);
+        gen_load_fpr32h(fpu32h_T[2], fr);
+        tcg_gen_helper_0_0(do_float_nmulsub_ps);
+        gen_store_fpr32(fpu32_T[2], fd);
+        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "nmsub.ps";
         break;
     default:
@@ -6641,7 +7033,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
         tcg_gen_brcondi_tl(TCG_COND_NE, r_tmp, 0, l1);
         tcg_temp_free(r_tmp);
-        gen_op_save_state(ctx->hflags & ~MIPS_HFLAG_BMASK);
+        {
+            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I32);
+
+            tcg_gen_movi_i32(r_tmp2, ctx->hflags & ~MIPS_HFLAG_BMASK);
+            tcg_gen_st_i32(r_tmp2, cpu_env, offsetof(CPUState, hflags));
+            tcg_temp_free(r_tmp2);
+        }
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
     }
@@ -6695,7 +7093,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             MIPS_INVAL("PMON / selsl");
             generate_exception(ctx, EXCP_RI);
 #else
-            gen_op_pmon(sa);
+            tcg_gen_helper_0_1i(do_pmon, sa);
 #endif
             break;
         case OPC_SYSCALL:
@@ -6800,33 +7198,33 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         }
         break;
     case OPC_SPECIAL3:
-         op1 = MASK_SPECIAL3(ctx->opcode);
-         switch (op1) {
-         case OPC_EXT:
-         case OPC_INS:
-             check_insn(env, ctx, ISA_MIPS32R2);
-             gen_bitops(ctx, op1, rt, rs, sa, rd);
-             break;
-         case OPC_BSHFL:
-             check_insn(env, ctx, ISA_MIPS32R2);
-             op2 = MASK_BSHFL(ctx->opcode);
-             switch (op2) {
-             case OPC_WSBH:
-                 gen_load_gpr(cpu_T[1], rt);
-                 gen_op_wsbh();
-                 break;
-             case OPC_SEB:
-                 gen_load_gpr(cpu_T[1], rt);
-                 tcg_gen_ext8s_tl(cpu_T[0], cpu_T[1]);
-                 break;
-             case OPC_SEH:
-                 gen_load_gpr(cpu_T[1], rt);
-                 tcg_gen_ext16s_tl(cpu_T[0], cpu_T[1]);
-                 break;
-             default:            /* Invalid */
-                 MIPS_INVAL("bshfl");
-                 generate_exception(ctx, EXCP_RI);
-                 break;
+        op1 = MASK_SPECIAL3(ctx->opcode);
+        switch (op1) {
+        case OPC_EXT:
+        case OPC_INS:
+            check_insn(env, ctx, ISA_MIPS32R2);
+            gen_bitops(ctx, op1, rt, rs, sa, rd);
+            break;
+        case OPC_BSHFL:
+            check_insn(env, ctx, ISA_MIPS32R2);
+            op2 = MASK_BSHFL(ctx->opcode);
+            switch (op2) {
+            case OPC_WSBH:
+                gen_load_gpr(cpu_T[1], rt);
+                tcg_gen_helper_0_0(do_wsbh);
+                break;
+            case OPC_SEB:
+                gen_load_gpr(cpu_T[1], rt);
+                tcg_gen_ext8s_tl(cpu_T[0], cpu_T[1]);
+                break;
+            case OPC_SEH:
+                gen_load_gpr(cpu_T[1], rt);
+                tcg_gen_ext16s_tl(cpu_T[0], cpu_T[1]);
+                break;
+            default:            /* Invalid */
+                MIPS_INVAL("bshfl");
+                generate_exception(ctx, EXCP_RI);
+                break;
             }
             gen_store_gpr(cpu_T[0], rd);
             break;
@@ -6835,24 +7233,26 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             switch (rd) {
             case 0:
                 save_cpu_state(ctx, 1);
-                gen_op_rdhwr_cpunum();
+                tcg_gen_helper_0_0(do_rdhwr_cpunum);
                 break;
             case 1:
                 save_cpu_state(ctx, 1);
-                gen_op_rdhwr_synci_step();
+                tcg_gen_helper_0_0(do_rdhwr_synci_step);
                 break;
             case 2:
                 save_cpu_state(ctx, 1);
-                gen_op_rdhwr_cc();
+                tcg_gen_helper_0_0(do_rdhwr_cc);
                 break;
             case 3:
                 save_cpu_state(ctx, 1);
-                gen_op_rdhwr_ccres();
+                tcg_gen_helper_0_0(do_rdhwr_ccres);
                 break;
             case 29:
 #if defined (CONFIG_USER_ONLY)
-                gen_op_tls_value();
+                tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUState, tls_value));
                 break;
+#else
+                /* XXX: Some CPUs implement this in hardware. Not supported yet. */
 #endif
             default:            /* Invalid */
                 MIPS_INVAL("rdhwr");
@@ -6887,11 +7287,11 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             switch (op2) {
             case OPC_DSBH:
                 gen_load_gpr(cpu_T[1], rt);
-                gen_op_dsbh();
+                tcg_gen_helper_0_0(do_dsbh);
                 break;
             case OPC_DSHD:
                 gen_load_gpr(cpu_T[1], rt);
-                gen_op_dshd();
+                tcg_gen_helper_0_0(do_dshd);
                 break;
             default:            /* Invalid */
                 MIPS_INVAL("dbshfl");
@@ -6971,14 +7371,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             case OPC_DI:
                 check_insn(env, ctx, ISA_MIPS32R2);
                 save_cpu_state(ctx, 1);
-                gen_op_di();
+                tcg_gen_helper_0_0(do_di);
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
                 break;
             case OPC_EI:
                 check_insn(env, ctx, ISA_MIPS32R2);
                 save_cpu_state(ctx, 1);
-                gen_op_ei();
+                tcg_gen_helper_0_0(do_ei);
                 /* Stop translation as we may have switched the execution mode */
                 ctx->bstate = BS_STOP;
                 break;
@@ -7235,7 +7635,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf (logfile, "search pc %d\n", search_pc);
 
     pc_start = tb->pc;
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    /* Leave some spare opc slots for branch handling. */
+    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE - 16;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
     ctx.tb = tb;
@@ -7260,13 +7661,13 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf(logfile, "\ntb %p idx %d hflags %04x\n",
                 tb, ctx.mem_idx, ctx.hflags);
 #endif
-    while (ctx.bstate == BS_NONE && gen_opc_ptr < gen_opc_end) {
+    while (ctx.bstate == BS_NONE) {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
                 if (env->breakpoints[j] == ctx.pc) {
                     save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;
-                    gen_op_debug();
+                    tcg_gen_helper_0_1i(do_raise_exception, EXCP_DEBUG);
                     /* Include the breakpoint location or the tb won't
                      * be flushed when it must be.  */
                     ctx.pc += 4;
@@ -7296,13 +7697,19 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
             break;
 
+        if (gen_opc_ptr >= gen_opc_end)
+            break;
+
+        if (gen_opc_ptr >= gen_opc_end)
+            break;
+
 #if defined (MIPS_SINGLE_STEP)
         break;
 #endif
     }
     if (env->singlestep_enabled) {
         save_cpu_state(&ctx, ctx.bstate == BS_NONE);
-        gen_op_debug();
+        tcg_gen_helper_0_1i(do_raise_exception, EXCP_DEBUG);
     } else {
 	switch (ctx.bstate) {
         case BS_STOP:
@@ -7387,9 +7794,9 @@ void fpu_dump_state(CPUState *env, FILE *f,
     fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%08x(0x%02x)\n",
                 env->fpu->fcr0, env->fpu->fcr31, is_fpu64, env->fpu->fp_status,
                 get_float_exception_flags(&env->fpu->fp_status));
-    fpu_fprintf(f, "FT0: "); printfpr(&env->fpu->ft0);
-    fpu_fprintf(f, "FT1: "); printfpr(&env->fpu->ft1);
-    fpu_fprintf(f, "FT2: "); printfpr(&env->fpu->ft2);
+    fpu_fprintf(f, "FT0: "); printfpr(&env->ft0);
+    fpu_fprintf(f, "FT1: "); printfpr(&env->ft1);
+    fpu_fprintf(f, "FT2: "); printfpr(&env->ft2);
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
         fpu_fprintf(f, "%3s: ", fregnames[i]);
         printfpr(&env->fpu->fpr[i]);
@@ -7489,6 +7896,10 @@ static void mips_tcg_init(void)
                                        TCG_AREG0,
                                        offsetof(CPUState, current_tc_hi),
                                        "current_tc_hi");
+    current_fpu = tcg_global_mem_new(TCG_TYPE_PTR,
+                                     TCG_AREG0,
+                                     offsetof(CPUState, fpu),
+                                     "current_fpu");
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
                                   TCG_AREG0, offsetof(CPUState, t0), "T0");
@@ -7503,6 +7914,16 @@ static void mips_tcg_init(void)
 #undef DEF_HELPER
 #define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
 #include "helper.h"
+
+    fpu32_T[0] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft0.w[FP_ENDIAN_IDX]), "WT0");
+    fpu32_T[1] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft1.w[FP_ENDIAN_IDX]), "WT1");
+    fpu32_T[2] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft2.w[FP_ENDIAN_IDX]), "WT2");
+    fpu64_T[0] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0, offsetof(CPUState, ft0.d), "DT0");
+    fpu64_T[1] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0, offsetof(CPUState, ft1.d), "DT1");
+    fpu64_T[2] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0, offsetof(CPUState, ft2.d), "DT2");
+    fpu32h_T[0] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft0.w[!FP_ENDIAN_IDX]), "WTH0");
+    fpu32h_T[1] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft1.w[!FP_ENDIAN_IDX]), "WTH1");
+    fpu32h_T[2] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft2.w[!FP_ENDIAN_IDX]), "WTH2");
 
     inited = 1;
 }

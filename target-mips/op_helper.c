@@ -192,16 +192,6 @@ static always_inline void set_HI_LOT0 (uint64_t HILO)
     env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
-void do_mult (void)
-{
-    set_HILO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-}
-
-void do_multu (void)
-{
-    set_HILO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
-}
-
 void do_madd (void)
 {
     int64_t tmp;
@@ -305,6 +295,18 @@ void do_mulshiu (void)
     set_HIT0_LO(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
+
+#ifdef TARGET_MIPS64
+void do_dmult (void)
+{
+    muls64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
+}
+
+void do_dmultu (void)
+{
+    mulu64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
+}
+#endif
 
 #ifdef CONFIG_USER_ONLY
 void do_mfc0_random (void)
@@ -1372,6 +1374,21 @@ void dump_sc (void)
     }
 }
 
+/* Specials */
+void do_di (void)
+{
+    T0 = env->CP0_Status;
+    env->CP0_Status = T0 & ~(1 << CP0St_IE);
+    cpu_mips_update_irq(env);
+}
+
+void do_ei (void)
+{
+    T0 = env->CP0_Status;
+    env->CP0_Status = T0 | (1 << CP0St_IE);
+    cpu_mips_update_irq(env);
+}
+
 void debug_pre_eret (void)
 {
     fprintf(logfile, "ERET: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
@@ -1399,6 +1416,114 @@ void debug_post_eret (void)
     }
 }
 
+void do_eret (void)
+{
+    if (loglevel & CPU_LOG_EXEC)
+        debug_pre_eret();
+    if (env->CP0_Status & (1 << CP0St_ERL)) {
+        env->PC[env->current_tc] = env->CP0_ErrorEPC;
+        env->CP0_Status &= ~(1 << CP0St_ERL);
+    } else {
+        env->PC[env->current_tc] = env->CP0_EPC;
+        env->CP0_Status &= ~(1 << CP0St_EXL);
+    }
+    compute_hflags(env);
+    if (loglevel & CPU_LOG_EXEC)
+        debug_post_eret();
+    env->CP0_LLAddr = 1;
+}
+
+void do_deret (void)
+{
+    if (loglevel & CPU_LOG_EXEC)
+        debug_pre_eret();
+    env->PC[env->current_tc] = env->CP0_DEPC;
+    env->hflags &= MIPS_HFLAG_DM;
+    compute_hflags(env);
+    if (loglevel & CPU_LOG_EXEC)
+        debug_post_eret();
+    env->CP0_LLAddr = 1;
+}
+
+void do_rdhwr_cpunum(void)
+{
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 0)))
+        T0 = env->CP0_EBase & 0x3ff;
+    else
+        do_raise_exception(EXCP_RI);
+}
+
+void do_rdhwr_synci_step(void)
+{
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 1)))
+        T0 = env->SYNCI_Step;
+    else
+        do_raise_exception(EXCP_RI);
+}
+
+void do_rdhwr_cc(void)
+{
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 2)))
+        T0 = env->CP0_Count;
+    else
+        do_raise_exception(EXCP_RI);
+}
+
+void do_rdhwr_ccres(void)
+{
+    if ((env->hflags & MIPS_HFLAG_CP0) ||
+        (env->CP0_HWREna & (1 << 3)))
+        T0 = env->CCRes;
+    else
+        do_raise_exception(EXCP_RI);
+}
+
+/* Bitfield operations. */
+void do_ext(uint32_t pos, uint32_t size)
+{
+    T0 = (int32_t)((T1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0));
+}
+
+void do_ins(uint32_t pos, uint32_t size)
+{
+    target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
+
+    T0 = (int32_t)((T0 & ~mask) | ((T1 << pos) & mask));
+}
+
+void do_wsbh(void)
+{
+    T0 = (int32_t)(((T1 << 8) & ~0x00FF00FF) | ((T1 >> 8) & 0x00FF00FF));
+}
+
+#if defined(TARGET_MIPS64)
+void do_dext(uint32_t pos, uint32_t size)
+{
+    T0 = (T1 >> pos) & ((size < 64) ? ((1ULL << size) - 1) : ~0ULL);
+}
+
+void do_dins(uint32_t pos, uint32_t size)
+{
+    target_ulong mask = ((size < 64) ? ((1ULL << size) - 1) : ~0ULL) << pos;
+
+    T0 = (T0 & ~mask) | ((T1 << pos) & mask);
+}
+
+void do_dsbh(void)
+{
+    T0 = ((T1 << 8) & ~0x00FF00FF00FF00FFULL) | ((T1 >> 8) & 0x00FF00FF00FF00FFULL);
+}
+
+void do_dshd(void)
+{
+    T1 = ((T1 << 16) & ~0x0000FFFF0000FFFFULL) | ((T1 >> 16) & 0x0000FFFF0000FFFFULL);
+    T0 = (T1 << 32) | (T1 >> 32);
+}
+#endif
+
 void do_pmon (int function)
 {
     function /= 2;
@@ -1423,6 +1548,12 @@ void do_pmon (int function)
         }
         break;
     }
+}
+
+void do_wait (void)
+{
+    env->halted = 1;
+    do_raise_exception(EXCP_HLT);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1596,7 +1727,25 @@ static always_inline void update_fcr31(void)
         UPDATE_FP_FLAGS(env->fpu->fcr31, tmp);
 }
 
+/* Float support.
+   Single precition routines have a "s" suffix, double precision a
+   "d" suffix, 32bit integer "w", 64bit integer "l", paired single "ps",
+   paired single lower "pl", paired single upper "pu".  */
+
 #define FLOAT_OP(name, p) void do_float_##name##_##p(void)
+
+/* unary operations, modifying fp status  */
+#define FLOAT_UNOP(name)  \
+FLOAT_OP(name, d)         \
+{                         \
+    FDT2 = float64_ ## name(FDT0, &env->fpu->fp_status); \
+}                         \
+FLOAT_OP(name, s)         \
+{                         \
+    FST2 = float32_ ## name(FST0, &env->fpu->fp_status); \
+}
+FLOAT_UNOP(sqrt)
+#undef FLOAT_UNOP
 
 FLOAT_OP(cvtd, s)
 {
@@ -1836,6 +1985,25 @@ FLOAT_OP(floorw, s)
         WT2 = FLOAT_SNAN32;
 }
 
+/* unary operations, not modifying fp status  */
+#define FLOAT_UNOP(name)  \
+FLOAT_OP(name, d)         \
+{                         \
+    FDT2 = float64_ ## name(FDT0);   \
+}                         \
+FLOAT_OP(name, s)         \
+{                         \
+    FST2 = float32_ ## name(FST0);   \
+}                         \
+FLOAT_OP(name, ps)        \
+{                         \
+    FST2 = float32_ ## name(FST0);   \
+    FSTH2 = float32_ ## name(FSTH0); \
+}
+FLOAT_UNOP(abs)
+FLOAT_UNOP(chs)
+#undef FLOAT_UNOP
+
 /* MIPS specific unary operations */
 FLOAT_OP(recip, d)
 {
@@ -1943,6 +2111,56 @@ FLOAT_BINOP(sub)
 FLOAT_BINOP(mul)
 FLOAT_BINOP(div)
 #undef FLOAT_BINOP
+
+/* ternary operations */
+#define FLOAT_TERNOP(name1, name2) \
+FLOAT_OP(name1 ## name2, d)        \
+{                                  \
+    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fpu->fp_status);    \
+    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
+}                                  \
+FLOAT_OP(name1 ## name2, s)        \
+{                                  \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+}                                  \
+FLOAT_OP(name1 ## name2, ps)       \
+{                                  \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fpu->fp_status); \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fpu->fp_status); \
+}
+FLOAT_TERNOP(mul, add)
+FLOAT_TERNOP(mul, sub)
+#undef FLOAT_TERNOP
+
+/* negated ternary operations */
+#define FLOAT_NTERNOP(name1, name2) \
+FLOAT_OP(n ## name1 ## name2, d)    \
+{                                   \
+    FDT0 = float64_ ## name1 (FDT0, FDT1, &env->fpu->fp_status);    \
+    FDT2 = float64_ ## name2 (FDT0, FDT2, &env->fpu->fp_status);    \
+    FDT2 = float64_chs(FDT2);       \
+}                                   \
+FLOAT_OP(n ## name1 ## name2, s)    \
+{                                   \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+    FST2 = float32_chs(FST2);       \
+}                                   \
+FLOAT_OP(n ## name1 ## name2, ps)   \
+{                                   \
+    FST0 = float32_ ## name1 (FST0, FST1, &env->fpu->fp_status);    \
+    FSTH0 = float32_ ## name1 (FSTH0, FSTH1, &env->fpu->fp_status); \
+    FST2 = float32_ ## name2 (FST0, FST2, &env->fpu->fp_status);    \
+    FSTH2 = float32_ ## name2 (FSTH0, FSTH2, &env->fpu->fp_status); \
+    FST2 = float32_chs(FST2);       \
+    FSTH2 = float32_chs(FSTH2);     \
+}
+FLOAT_NTERNOP(mul, add)
+FLOAT_NTERNOP(mul, sub)
+#undef FLOAT_NTERNOP
 
 /* MIPS specific binary operations */
 FLOAT_OP(recip2, d)

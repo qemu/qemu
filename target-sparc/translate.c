@@ -3069,8 +3069,10 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
 #ifdef TARGET_SPARC64
                     case 0xd: /* V9 udivx */
-                        gen_trap_ifdivzero_tl(cpu_src2);
-                        tcg_gen_divu_i64(cpu_dst, cpu_src1, cpu_src2);
+                        tcg_gen_mov_tl(cpu_cc_src, cpu_src1);
+                        tcg_gen_mov_tl(cpu_cc_src2, cpu_src2);
+                        gen_trap_ifdivzero_tl(cpu_cc_src2);
+                        tcg_gen_divu_i64(cpu_dst, cpu_cc_src, cpu_cc_src2);
                         break;
 #endif
                     case 0xe:

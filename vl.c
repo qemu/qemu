@@ -3394,8 +3394,7 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
 #ifndef _WIN32
 	if (is_unix) {
 	    char path[109];
-	    strncpy(path, uaddr.sun_path, 108);
-	    path[108] = 0;
+	    pstrcpy(path, sizeof(path), uaddr.sun_path);
 	    unlink(path);
 	} else
 #endif
@@ -5075,7 +5074,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     }
 
     if (get_param_value(buf, sizeof(buf), "if", str)) {
-        strncpy(devname, buf, sizeof(devname));
+        pstrcpy(devname, sizeof(devname), buf);
         if (!strcmp(buf, "ide")) {
 	    type = IF_IDE;
             max_devs = MAX_IDE_DEVS;
@@ -5988,6 +5987,10 @@ static int qemu_savevm_state(QEMUFile *f)
     qemu_put_be64(f, 0); /* total size */
 
     for(se = first_se; se != NULL; se = se->next) {
+	if (se->save_state == NULL)
+	    /* this one has a loader only, for backwards compatibility */
+	    continue;
+
         /* ID string */
         len = strlen(se->idstr);
         qemu_put_byte(f, len);
@@ -7552,6 +7555,16 @@ struct soundhw soundhw[] = {
         1,
         { .init_isa = SB16_init }
     },
+
+#ifdef CONFIG_CS4231A
+    {
+        "cs4231a",
+        "CS4231A",
+        0,
+        1,
+        { .init_isa = cs4231a_init }
+    },
+#endif
 
 #ifdef CONFIG_ADLIB
     {

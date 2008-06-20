@@ -40,16 +40,16 @@
  * SMC (version 0, implementation 2) SS-10SX and SS-20
  */
 
-/* Register offsets */
-#define ECC_MER        0                /* Memory Enable Register */
-#define ECC_MDR        4                /* Memory Delay Register */
-#define ECC_MFSR       8                /* Memory Fault Status Register */
-#define ECC_VCR        12               /* Video Configuration Register */
-#define ECC_MFAR0      16               /* Memory Fault Address Register 0 */
-#define ECC_MFAR1      20               /* Memory Fault Address Register 1 */
-#define ECC_DR         24               /* Diagnostic Register */
-#define ECC_ECR0       28               /* Event Count Register 0 */
-#define ECC_ECR1       32               /* Event Count Register 1 */
+/* Register indexes */
+#define ECC_MER        0               /* Memory Enable Register */
+#define ECC_MDR        1               /* Memory Delay Register */
+#define ECC_MFSR       2               /* Memory Fault Status Register */
+#define ECC_VCR        3               /* Video Configuration Register */
+#define ECC_MFAR0      4               /* Memory Fault Address Register 0 */
+#define ECC_MFAR1      5               /* Memory Fault Address Register 1 */
+#define ECC_DR         6               /* Diagnostic Register */
+#define ECC_ECR0       7               /* Event Count Register 0 */
+#define ECC_ECR1       8               /* Event Count Register 1 */
 
 /* ECC fault control register */
 #define ECC_MER_EE     0x00000001      /* Enable ECC checking */
@@ -129,34 +129,34 @@ static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     ECCState *s = opaque;
 
-    switch (addr & ECC_ADDR_MASK) {
+    switch ((addr & ECC_ADDR_MASK) >> 2) {
     case ECC_MER:
-        s->regs[0] = (s->regs[0] & (ECC_MER_VER | ECC_MER_IMPL)) |
-                     (val & ~(ECC_MER_VER | ECC_MER_IMPL));
+        s->regs[ECC_MER] = (s->regs[ECC_MER] & (ECC_MER_VER | ECC_MER_IMPL)) |
+            (val & ~(ECC_MER_VER | ECC_MER_IMPL));
         DPRINTF("Write memory enable %08x\n", val);
         break;
     case ECC_MDR:
-        s->regs[1] =  val & ECC_MDR_MASK;
+        s->regs[ECC_MDR] =  val & ECC_MDR_MASK;
         DPRINTF("Write memory delay %08x\n", val);
         break;
     case ECC_MFSR:
-        s->regs[2] =  val;
+        s->regs[ECC_MFSR] =  val;
         DPRINTF("Write memory fault status %08x\n", val);
         break;
     case ECC_VCR:
-        s->regs[3] =  val;
+        s->regs[ECC_VCR] =  val;
         DPRINTF("Write slot configuration %08x\n", val);
         break;
     case ECC_DR:
-        s->regs[6] =  val;
+        s->regs[ECC_DR] =  val;
         DPRINTF("Write diagnosiic %08x\n", val);
         break;
     case ECC_ECR0:
-        s->regs[7] =  val;
+        s->regs[ECC_ECR0] =  val;
         DPRINTF("Write event count 1 %08x\n", val);
         break;
     case ECC_ECR1:
-        s->regs[7] =  val;
+        s->regs[ECC_ECR0] =  val;
         DPRINTF("Write event count 2 %08x\n", val);
         break;
     }
@@ -167,41 +167,41 @@ static uint32_t ecc_mem_readl(void *opaque, target_phys_addr_t addr)
     ECCState *s = opaque;
     uint32_t ret = 0;
 
-    switch (addr & ECC_ADDR_MASK) {
+    switch ((addr & ECC_ADDR_MASK) >> 2) {
     case ECC_MER:
-        ret = s->regs[0];
+        ret = s->regs[ECC_MER];
         DPRINTF("Read memory enable %08x\n", ret);
         break;
     case ECC_MDR:
-        ret = s->regs[1];
+        ret = s->regs[ECC_MDR];
         DPRINTF("Read memory delay %08x\n", ret);
         break;
     case ECC_MFSR:
-        ret = s->regs[2];
+        ret = s->regs[ECC_MFSR];
         DPRINTF("Read memory fault status %08x\n", ret);
         break;
     case ECC_VCR:
-        ret = s->regs[3];
+        ret = s->regs[ECC_VCR];
         DPRINTF("Read slot configuration %08x\n", ret);
         break;
     case ECC_MFAR0:
-        ret = s->regs[4];
+        ret = s->regs[ECC_MFAR0];
         DPRINTF("Read memory fault address 0 %08x\n", ret);
         break;
     case ECC_MFAR1:
-        ret = s->regs[5];
+        ret = s->regs[ECC_MFAR1];
         DPRINTF("Read memory fault address 1 %08x\n", ret);
         break;
     case ECC_DR:
-        ret = s->regs[6];
+        ret = s->regs[ECC_DR];
         DPRINTF("Read diagnostic %08x\n", ret);
         break;
     case ECC_ECR0:
-        ret = s->regs[7];
+        ret = s->regs[ECC_ECR0];
         DPRINTF("Read event count 1 %08x\n", ret);
         break;
     case ECC_ECR1:
-        ret = s->regs[7];
+        ret = s->regs[ECC_ECR0];
         DPRINTF("Read event count 2 %08x\n", ret);
         break;
     }
@@ -281,7 +281,6 @@ static void ecc_save(QEMUFile *f, void *opaque)
 static void ecc_reset(void *opaque)
 {
     ECCState *s = opaque;
-    int i;
 
     s->regs[ECC_MER] &= (ECC_MER_VER | ECC_MER_IMPL);
     s->regs[ECC_MER] |= ECC_MER_MRR;
@@ -293,9 +292,6 @@ static void ecc_reset(void *opaque)
     s->regs[ECC_DR] = 0;
     s->regs[ECC_ECR0] = 0;
     s->regs[ECC_ECR1] = 0;
-
-    for (i = 1; i < ECC_NREGS; i++)
-        s->regs[i] = 0;
 }
 
 void * ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)

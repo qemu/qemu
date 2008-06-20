@@ -423,7 +423,7 @@ TCGv tcg_temp_new_internal(TCGType type, int temp_local)
         idx = s->nb_temps;
 #if TCG_TARGET_REG_BITS == 32
         if (type == TCG_TYPE_I64) {
-            tcg_temp_alloc(s, s->nb_temps + 1);
+            tcg_temp_alloc(s, s->nb_temps + 2);
             ts = &s->temps[s->nb_temps];
             ts->base_type = type;
             ts->type = TCG_TYPE_I32;
@@ -1961,7 +1961,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
             break;
         }
         args += def->nb_args;
-    next: ;
+    next:
         if (search_pc >= 0 && search_pc < s->code_ptr - gen_code_buf) {
             return op_index;
         }

@@ -779,8 +779,8 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #if defined(DEBUG_WIN)
-    printf("win_overflow: sp_ptr=0x%x save_cwp=%d\n",
-           (int)sp_ptr, cwp1);
+    printf("win_overflow: sp_ptr=0x" TARGET_ABI_FMT_lx " save_cwp=%d\n",
+           sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
         /* FIXME - what to do if put_user() fails? */
@@ -816,8 +816,8 @@ static void restore_window(CPUSPARCState *env)
     cwp1 = cpu_cwp_inc(env, env->cwp + 1);
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #if defined(DEBUG_WIN)
-    printf("win_underflow: sp_ptr=0x%x load_cwp=%d\n",
-           (int)sp_ptr, cwp1);
+    printf("win_underflow: sp_ptr=0x" TARGET_ABI_FMT_lx " load_cwp=%d\n",
+           sp_ptr, cwp1);
 #endif
     for(i = 0; i < 16; i++) {
         /* FIXME - what to do if get_user() fails? */

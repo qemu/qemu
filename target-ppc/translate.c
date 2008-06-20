@@ -362,7 +362,7 @@ EXTRACT_HELPER(TO, 21, 5);
 EXTRACT_HELPER(CRM, 12, 8);
 EXTRACT_HELPER(FM, 17, 8);
 EXTRACT_HELPER(SR, 16, 4);
-EXTRACT_HELPER(FPIMM, 20, 4);
+EXTRACT_HELPER(FPIMM, 12, 4);
 
 /***                            Jump target decoding                       ***/
 /* Displacement */

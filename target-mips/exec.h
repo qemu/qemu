@@ -21,24 +21,24 @@ register target_ulong T1 asm(AREG2);
 #if defined (USE_HOST_FLOAT_REGS)
 #error "implement me."
 #else
-#define FDT0 (env->fpu->ft0.fd)
-#define FDT1 (env->fpu->ft1.fd)
-#define FDT2 (env->fpu->ft2.fd)
-#define FST0 (env->fpu->ft0.fs[FP_ENDIAN_IDX])
-#define FST1 (env->fpu->ft1.fs[FP_ENDIAN_IDX])
-#define FST2 (env->fpu->ft2.fs[FP_ENDIAN_IDX])
-#define FSTH0 (env->fpu->ft0.fs[!FP_ENDIAN_IDX])
-#define FSTH1 (env->fpu->ft1.fs[!FP_ENDIAN_IDX])
-#define FSTH2 (env->fpu->ft2.fs[!FP_ENDIAN_IDX])
-#define DT0 (env->fpu->ft0.d)
-#define DT1 (env->fpu->ft1.d)
-#define DT2 (env->fpu->ft2.d)
-#define WT0 (env->fpu->ft0.w[FP_ENDIAN_IDX])
-#define WT1 (env->fpu->ft1.w[FP_ENDIAN_IDX])
-#define WT2 (env->fpu->ft2.w[FP_ENDIAN_IDX])
-#define WTH0 (env->fpu->ft0.w[!FP_ENDIAN_IDX])
-#define WTH1 (env->fpu->ft1.w[!FP_ENDIAN_IDX])
-#define WTH2 (env->fpu->ft2.w[!FP_ENDIAN_IDX])
+#define FDT0 (env->ft0.fd)
+#define FDT1 (env->ft1.fd)
+#define FDT2 (env->ft2.fd)
+#define FST0 (env->ft0.fs[FP_ENDIAN_IDX])
+#define FST1 (env->ft1.fs[FP_ENDIAN_IDX])
+#define FST2 (env->ft2.fs[FP_ENDIAN_IDX])
+#define FSTH0 (env->ft0.fs[!FP_ENDIAN_IDX])
+#define FSTH1 (env->ft1.fs[!FP_ENDIAN_IDX])
+#define FSTH2 (env->ft2.fs[!FP_ENDIAN_IDX])
+#define DT0 (env->ft0.d)
+#define DT1 (env->ft1.d)
+#define DT2 (env->ft2.d)
+#define WT0 (env->ft0.w[FP_ENDIAN_IDX])
+#define WT1 (env->ft1.w[FP_ENDIAN_IDX])
+#define WT2 (env->ft2.w[FP_ENDIAN_IDX])
+#define WTH0 (env->ft0.w[!FP_ENDIAN_IDX])
+#define WTH1 (env->ft1.w[!FP_ENDIAN_IDX])
+#define WTH2 (env->ft2.w[!FP_ENDIAN_IDX])
 #endif
 
 #include "cpu.h"
@@ -49,8 +49,6 @@ register target_ulong T1 asm(AREG2);
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
-void do_mult (void);
-void do_multu (void);
 void do_madd (void);
 void do_maddu (void);
 void do_msub (void);
@@ -78,7 +76,6 @@ void fpu_dump_state(CPUState *env, FILE *f,
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);
 void dump_sc (void);
-void do_pmon (int function);
 
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu);
@@ -102,79 +99,6 @@ void cpu_mips_stop_count(CPUState *env);
 void cpu_mips_update_irq (CPUState *env);
 void cpu_mips_clock_init (CPUState *env);
 void cpu_mips_tlb_flush (CPUState *env, int flush_global);
-
-#define FOP_PROTO(op)              \
-void do_float_ ## op ## _s(void);  \
-void do_float_ ## op ## _d(void);
-FOP_PROTO(roundl)
-FOP_PROTO(roundw)
-FOP_PROTO(truncl)
-FOP_PROTO(truncw)
-FOP_PROTO(ceill)
-FOP_PROTO(ceilw)
-FOP_PROTO(floorl)
-FOP_PROTO(floorw)
-FOP_PROTO(rsqrt)
-FOP_PROTO(recip)
-#undef FOP_PROTO
-
-#define FOP_PROTO(op)              \
-void do_float_ ## op ## _s(void);  \
-void do_float_ ## op ## _d(void);  \
-void do_float_ ## op ## _ps(void);
-FOP_PROTO(add)
-FOP_PROTO(sub)
-FOP_PROTO(mul)
-FOP_PROTO(div)
-FOP_PROTO(recip1)
-FOP_PROTO(recip2)
-FOP_PROTO(rsqrt1)
-FOP_PROTO(rsqrt2)
-#undef FOP_PROTO
-
-void do_float_cvtd_s(void);
-void do_float_cvtd_w(void);
-void do_float_cvtd_l(void);
-void do_float_cvtl_d(void);
-void do_float_cvtl_s(void);
-void do_float_cvtps_pw(void);
-void do_float_cvtpw_ps(void);
-void do_float_cvts_d(void);
-void do_float_cvts_w(void);
-void do_float_cvts_l(void);
-void do_float_cvts_pl(void);
-void do_float_cvts_pu(void);
-void do_float_cvtw_s(void);
-void do_float_cvtw_d(void);
-
-void do_float_addr_ps(void);
-void do_float_mulr_ps(void);
-
-#define FOP_PROTO(op)                      \
-void do_cmp_d_ ## op(long cc);             \
-void do_cmpabs_d_ ## op(long cc);          \
-void do_cmp_s_ ## op(long cc);             \
-void do_cmpabs_s_ ## op(long cc);          \
-void do_cmp_ps_ ## op(long cc);            \
-void do_cmpabs_ps_ ## op(long cc);
-
-FOP_PROTO(f)
-FOP_PROTO(un)
-FOP_PROTO(eq)
-FOP_PROTO(ueq)
-FOP_PROTO(olt)
-FOP_PROTO(ult)
-FOP_PROTO(ole)
-FOP_PROTO(ule)
-FOP_PROTO(sf)
-FOP_PROTO(ngle)
-FOP_PROTO(seq)
-FOP_PROTO(ngl)
-FOP_PROTO(lt)
-FOP_PROTO(nge)
-FOP_PROTO(le)
-FOP_PROTO(ngt)
-#undef FOP_PROTO
 
 static always_inline void env_to_regs(void)
 {

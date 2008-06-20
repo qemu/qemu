@@ -525,6 +525,9 @@ endif
 ifdef CONFIG_GUS
 SOUND_HW += gus.o gusemu_hal.o gusemu_mixer.o
 endif
+ifdef CONFIG_CS4231A
+SOUND_HW += cs4231a.o
+endif
 
 ifdef CONFIG_VNC_TLS
 CPPFLAGS += $(CONFIG_VNC_TLS_CFLAGS)
