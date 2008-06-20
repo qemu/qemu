@@ -945,37 +945,6 @@ static always_inline void check_mips_64(DisasContext *ctx)
 }
 
 /* load/store instructions. */
-#if defined(CONFIG_USER_ONLY)
-#define op_ldst(name)        gen_op_##name##_raw()
-#define OP_LD_TABLE(width)
-#define OP_ST_TABLE(width)
-#else
-#define op_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
-#define OP_LD_TABLE(width)                                                    \
-static GenOpFunc *gen_op_l##width[] = {                                       \
-    &gen_op_l##width##_kernel,                                                \
-    &gen_op_l##width##_super,                                                 \
-    &gen_op_l##width##_user,                                                  \
-}
-#define OP_ST_TABLE(width)                                                    \
-static GenOpFunc *gen_op_s##width[] = {                                       \
-    &gen_op_s##width##_kernel,                                                \
-    &gen_op_s##width##_super,                                                 \
-    &gen_op_s##width##_user,                                                  \
-}
-#endif
-
-#if defined(TARGET_MIPS64)
-OP_LD_TABLE(dl);
-OP_LD_TABLE(dr);
-OP_ST_TABLE(dl);
-OP_ST_TABLE(dr);
-#endif
-OP_LD_TABLE(wl);
-OP_LD_TABLE(wr);
-OP_ST_TABLE(wl);
-OP_ST_TABLE(wr);
-
 #define OP_LD(insn,fname)                                        \
 void inline op_ldst_##insn(DisasContext *ctx)                    \
 {                                                                \
@@ -1094,25 +1063,29 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         opn = "scd";
         break;
     case OPC_LDL:
+        save_cpu_state(ctx, 1);
         gen_load_gpr(cpu_T[1], rt);
-        op_ldst(ldl);
+        tcg_gen_helper_0_1i(do_ldl, ctx->mem_idx);
         gen_store_gpr(cpu_T[1], rt);
         opn = "ldl";
         break;
     case OPC_SDL:
+        save_cpu_state(ctx, 1);
         gen_load_gpr(cpu_T[1], rt);
-        op_ldst(sdl);
+        tcg_gen_helper_0_1i(do_sdl, ctx->mem_idx);
         opn = "sdl";
         break;
     case OPC_LDR:
+        save_cpu_state(ctx, 1);
         gen_load_gpr(cpu_T[1], rt);
-        op_ldst(ldr);
+        tcg_gen_helper_0_1i(do_ldr, ctx->mem_idx);
         gen_store_gpr(cpu_T[1], rt);
         opn = "ldr";
         break;
     case OPC_SDR:
+        save_cpu_state(ctx, 1);
         gen_load_gpr(cpu_T[1], rt);
-        op_ldst(sdr);
+        tcg_gen_helper_0_1i(do_sdr, ctx->mem_idx);
         opn = "sdr";
         break;
 #endif
@@ -1157,25 +1130,29 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         opn = "lbu";
         break;
     case OPC_LWL:
+        save_cpu_state(ctx, 1);
 	gen_load_gpr(cpu_T[1], rt);
-        op_ldst(lwl);
+        tcg_gen_helper_0_1i(do_lwl, ctx->mem_idx);
         gen_store_gpr(cpu_T[1], rt);
         opn = "lwl";
         break;
     case OPC_SWL:
+        save_cpu_state(ctx, 1);
         gen_load_gpr(cpu_T[1], rt);
-        op_ldst(swl);
+        tcg_gen_helper_0_1i(do_swl, ctx->mem_idx);
         opn = "swr";
         break;
     case OPC_LWR:
+        save_cpu_state(ctx, 1);
 	gen_load_gpr(cpu_T[1], rt);
-        op_ldst(lwr);
+        tcg_gen_helper_0_1i(do_lwr, ctx->mem_idx);
         gen_store_gpr(cpu_T[1], rt);
         opn = "lwr";
         break;
     case OPC_SWR:
+        save_cpu_state(ctx, 1);
         gen_load_gpr(cpu_T[1], rt);
-        op_ldst(swr);
+        tcg_gen_helper_0_1i(do_swr, ctx->mem_idx);
         opn = "swr";
         break;
     case OPC_LL:

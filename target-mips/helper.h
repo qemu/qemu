@@ -6,6 +6,17 @@ DEF_HELPER(void, do_raise_exception_err, (int excp, int err))
 DEF_HELPER(void, do_raise_exception, (int excp))
 DEF_HELPER(void, do_interrupt_restart, (void))
 
+#ifdef TARGET_MIPS64
+DEF_HELPER(void, do_ldl, (int mem_idx))
+DEF_HELPER(void, do_ldr, (int mem_idx))
+DEF_HELPER(void, do_sdl, (int mem_idx))
+DEF_HELPER(void, do_sdr, (int mem_idx))
+#endif
+DEF_HELPER(void, do_lwl, (int mem_idx))
+DEF_HELPER(void, do_lwr, (int mem_idx))
+DEF_HELPER(void, do_swl, (int mem_idx))
+DEF_HELPER(void, do_swr, (int mem_idx))
+
 DEF_HELPER(void, do_clo, (void))
 DEF_HELPER(void, do_clz, (void))
 #ifdef TARGET_MIPS64

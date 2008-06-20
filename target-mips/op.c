@@ -19,29 +19,3 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#include "config.h"
-#include "exec.h"
-#include "host-utils.h"
-
-#ifndef CALL_FROM_TB0
-#define CALL_FROM_TB0(func) func()
-#endif
-
-/* Load and store */
-#define MEMSUFFIX _raw
-#include "op_mem.c"
-#undef MEMSUFFIX
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_mem.c"
-#undef MEMSUFFIX
-
-#define MEMSUFFIX _super
-#include "op_mem.c"
-#undef MEMSUFFIX
-
-#define MEMSUFFIX _kernel
-#include "op_mem.c"
-#undef MEMSUFFIX
-#endif
