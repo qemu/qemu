@@ -43,25 +43,25 @@ static void add_flagname_to_bitmaps(char *flagname, uint32_t *features,
     /* feature flags taken from "Intel Processor Identification and the CPUID
      * Instruction" and AMD's "CPUID Specification". In cases of disagreement 
      * about feature names, the Linux name is used. */
-    const char *feature_name[] = {
+    static const char *feature_name[] = {
         "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
         "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
         "pat", "pse36", "pn" /* Intel psn */, "clflush" /* Intel clfsh */, NULL, "ds" /* Intel dts */, "acpi", "mmx",
         "fxsr", "sse", "sse2", "ss", "ht" /* Intel htt */, "tm", "ia64", "pbe",
     };
-    const char *ext_feature_name[] = {
+    static const char *ext_feature_name[] = {
        "pni" /* Intel,AMD sse3 */, NULL, NULL, "monitor", "ds_cpl", "vmx", NULL /* Linux smx */, "est",
        "tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
        NULL, NULL, "dca", NULL, NULL, NULL, NULL, "popcnt",
        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     };
-    const char *ext2_feature_name[] = {
+    static const char *ext2_feature_name[] = {
        "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
        "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall", "mttr", "pge", "mca", "cmov",
        "pat", "pse36", NULL, NULL /* Linux mp */, "nx" /* Intel xd */, NULL, "mmxext", "mmx",
        "fxsr", "fxsr_opt" /* AMD ffxsr */, "pdpe1gb" /* AMD Page1GB */, "rdtscp", NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
     };
-    const char *ext3_feature_name[] = {
+    static const char *ext3_feature_name[] = {
        "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */, "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
        "3dnowprefetch", "osvw", NULL /* Linux ibs */, NULL, "skinit", "wdt", NULL, NULL,
        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -127,6 +127,7 @@ typedef struct x86_def_t {
     int stepping;
     uint32_t features, ext_features, ext2_features, ext3_features;
     uint32_t xlevel;
+    char model_id[48];
 } x86_def_t;
 
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
@@ -162,6 +163,7 @@ static x86_def_t x86_defs[] = {
             CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
         .ext3_features = CPUID_EXT3_SVM,
         .xlevel = 0x8000000A,
+        .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
 #endif
     {
@@ -173,6 +175,7 @@ static x86_def_t x86_defs[] = {
         .features = PPRO_FEATURES,
         .ext_features = CPUID_EXT_SSE3,
         .xlevel = 0,
+        .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
     {
         .name = "486",
@@ -222,6 +225,8 @@ static x86_def_t x86_defs[] = {
         .features = PPRO_FEATURES | PPRO_FEATURES | CPUID_PSE36 | CPUID_VME | CPUID_MTRR | CPUID_MCA,
         .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
         .xlevel = 0x80000008,
+        /* XXX: put another string ? */
+        .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
 };
 
@@ -262,7 +267,6 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
                 family = strtol(val, &err, 10);
                 if (!*val || *err || family < 0) {
                     fprintf(stderr, "bad numerical value %s\n", val);
-                    x86_cpu_def = 0;
                     goto error;
                 }
                 x86_cpu_def->family = family;
@@ -271,7 +275,6 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
                 model = strtol(val, &err, 10);
                 if (!*val || *err || model < 0 || model > 0xf) {
                     fprintf(stderr, "bad numerical value %s\n", val);
-                    x86_cpu_def = 0;
                     goto error;
                 }
                 x86_cpu_def->model = model;
@@ -280,18 +283,31 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
                 stepping = strtol(val, &err, 10);
                 if (!*val || *err || stepping < 0 || stepping > 0xf) {
                     fprintf(stderr, "bad numerical value %s\n", val);
-                    x86_cpu_def = 0;
                     goto error;
                 }
                 x86_cpu_def->stepping = stepping;
+            } else if (!strcmp(featurestr, "vendor")) {
+                if (strlen(val) != 12) {
+                    fprintf(stderr, "vendor string must be 12 chars long\n");
+                    goto error;
+                }
+                x86_cpu_def->vendor1 = 0;
+                x86_cpu_def->vendor2 = 0;
+                x86_cpu_def->vendor3 = 0;
+                for(i = 0; i < 4; i++) {
+                    x86_cpu_def->vendor1 |= ((uint8_t)val[i    ]) << (8 * i);
+                    x86_cpu_def->vendor2 |= ((uint8_t)val[i + 4]) << (8 * i);
+                    x86_cpu_def->vendor3 |= ((uint8_t)val[i + 8]) << (8 * i);
+                }
+            } else if (!strcmp(featurestr, "model_id")) {
+                pstrcpy(x86_cpu_def->model_id, sizeof(x86_cpu_def->model_id),
+                        val);
             } else {
                 fprintf(stderr, "unrecognized feature %s\n", featurestr);
-                x86_cpu_def = 0;
                 goto error;
             }
         } else {
             fprintf(stderr, "feature string `%s' not in format (+feature|-feature|feature=xyz)\n", featurestr);
-            x86_cpu_def = 0;
             goto error;
         }
         featurestr = strtok(NULL, ",");
@@ -344,14 +360,16 @@ static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
     env->cpuid_xlevel = def->xlevel;
     env->cpuid_ext3_features = def->ext3_features;
     {
-        const char *model_id = "QEMU Virtual CPU version " QEMU_VERSION;
+        const char *model_id = def->model_id;
         int c, len, i;
+        if (!model_id)
+            model_id = "";
         len = strlen(model_id);
         for(i = 0; i < 48; i++) {
             if (i >= len)
                 c = '\0';
             else
-                c = model_id[i];
+                c = (uint8_t)model_id[i];
             env->cpuid_model[i >> 2] |= c << (8 * (i & 3));
         }
     }
