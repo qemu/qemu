@@ -192,10 +192,10 @@ static int boot_device2nibble(char boot_device)
 
 /* copy/pasted from cmos_init, should be made a general function
  and used there as well */
-int pc_boot_set(const char *boot_device)
+static int pc_boot_set(void *opaque, const char *boot_device)
 {
 #define PC_MAX_BOOT_DEVICES 3
-    RTCState *s = rtc_state;
+    RTCState *s = (RTCState *)opaque;
     int nbds, bds[3] = { 0, };
     int i;
 
@@ -741,8 +741,6 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
         below_4g_mem_size = ram_size;
     }
 
-    qemu_register_boot_set(pc_boot_set);
-
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
@@ -916,6 +914,8 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
     }
 
     rtc_state = rtc_init(0x70, i8259[8]);
+
+    qemu_register_boot_set(pc_boot_set, rtc_state);
 
     register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);

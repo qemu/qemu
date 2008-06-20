@@ -1044,12 +1044,22 @@ static void do_ioport_read(int count, int format, int size, int addr, int has_in
                 suffix, addr, size * 2, val);
 }
 
+/* boot_set handler */
+static QEMUBootSetHandler *qemu_boot_set_handler = NULL;
+static void *boot_opaque;
+
+void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
+{
+    qemu_boot_set_handler = func;
+    boot_opaque = opaque;
+}
+
 static void do_boot_set(const char *bootdevice)
 {
     int res;
 
     if (qemu_boot_set_handler)  {
-        res = qemu_boot_set_handler(bootdevice);
+        res = qemu_boot_set_handler(boot_opaque, bootdevice);
         if (res == 0)
             term_printf("boot device list now set to %s\n", bootdevice);
         else
