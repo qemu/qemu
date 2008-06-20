@@ -149,6 +149,26 @@ void DMA_register_channel (int nchan,
 {
 }
 
+static int nvram_boot_set(void *opaque, const char *boot_device)
+{
+    unsigned int i;
+    uint8_t image[sizeof(ohwcfg_v3_t)];
+    ohwcfg_v3_t *header = (ohwcfg_v3_t *)&image;
+    m48t59_t *nvram = (m48t59_t *)opaque;
+
+    for (i = 0; i < sizeof(image); i++)
+        image[i] = m48t59_read(nvram, i) & 0xff;
+
+    strcpy(header->boot_devices, boot_device);
+    header->nboot_devices = strlen(boot_device) & 0xff;
+    header->crc = cpu_to_be16(OHW_compute_crc(header, 0x00, 0xF8));
+
+    for (i = 0; i < sizeof(image); i++)
+        m48t59_write(nvram, i, image[i]);
+
+    return 0;
+}
+
 extern int nographic;
 
 static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
@@ -230,6 +250,8 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
 
     for (i = 0; i < sizeof(image); i++)
         m48t59_write(nvram, i, image[i]);
+
+    qemu_register_boot_set(nvram_boot_set, nvram);
 }
 
 static void *slavio_intctl;
