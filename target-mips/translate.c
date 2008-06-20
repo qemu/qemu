@@ -2204,59 +2204,59 @@ static void gen_mul_vr54xx (DisasContext *ctx, uint32_t opc,
 
     switch (opc) {
     case OPC_VR54XX_MULS:
-        gen_op_muls();
+        tcg_gen_helper_0_0(do_muls);
         opn = "muls";
 	break;
     case OPC_VR54XX_MULSU:
-        gen_op_mulsu();
+        tcg_gen_helper_0_0(do_mulsu);
         opn = "mulsu";
 	break;
     case OPC_VR54XX_MACC:
-        gen_op_macc();
+        tcg_gen_helper_0_0(do_macc);
         opn = "macc";
 	break;
     case OPC_VR54XX_MACCU:
-        gen_op_maccu();
+        tcg_gen_helper_0_0(do_maccu);
         opn = "maccu";
 	break;
     case OPC_VR54XX_MSAC:
-        gen_op_msac();
+        tcg_gen_helper_0_0(do_msac);
         opn = "msac";
 	break;
     case OPC_VR54XX_MSACU:
-        gen_op_msacu();
+        tcg_gen_helper_0_0(do_msacu);
         opn = "msacu";
 	break;
     case OPC_VR54XX_MULHI:
-        gen_op_mulhi();
+        tcg_gen_helper_0_0(do_mulhi);
         opn = "mulhi";
 	break;
     case OPC_VR54XX_MULHIU:
-        gen_op_mulhiu();
+        tcg_gen_helper_0_0(do_mulhiu);
         opn = "mulhiu";
 	break;
     case OPC_VR54XX_MULSHI:
-        gen_op_mulshi();
+        tcg_gen_helper_0_0(do_mulshi);
         opn = "mulshi";
 	break;
     case OPC_VR54XX_MULSHIU:
-        gen_op_mulshiu();
+        tcg_gen_helper_0_0(do_mulshiu);
         opn = "mulshiu";
 	break;
     case OPC_VR54XX_MACCHI:
-        gen_op_macchi();
+        tcg_gen_helper_0_0(do_macchi);
         opn = "macchi";
 	break;
     case OPC_VR54XX_MACCHIU:
-        gen_op_macchiu();
+        tcg_gen_helper_0_0(do_macchiu);
         opn = "macchiu";
 	break;
     case OPC_VR54XX_MSACHI:
-        gen_op_msachi();
+        tcg_gen_helper_0_0(do_msachi);
         opn = "msachi";
 	break;
     case OPC_VR54XX_MSACHIU:
-        gen_op_msachiu();
+        tcg_gen_helper_0_0(do_msachiu);
         opn = "msachiu";
 	break;
     default:

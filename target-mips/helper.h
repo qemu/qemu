@@ -15,6 +15,21 @@ DEF_HELPER(void, do_dmult, (void))
 DEF_HELPER(void, do_dmultu, (void))
 #endif
 
+DEF_HELPER(void, do_muls, (void))
+DEF_HELPER(void, do_mulsu, (void))
+DEF_HELPER(void, do_macc, (void))
+DEF_HELPER(void, do_maccu, (void))
+DEF_HELPER(void, do_msac, (void))
+DEF_HELPER(void, do_msacu, (void))
+DEF_HELPER(void, do_mulhi, (void))
+DEF_HELPER(void, do_mulhiu, (void))
+DEF_HELPER(void, do_mulshi, (void))
+DEF_HELPER(void, do_mulshiu, (void))
+DEF_HELPER(void, do_macchi, (void))
+DEF_HELPER(void, do_macchiu, (void))
+DEF_HELPER(void, do_msachi, (void))
+DEF_HELPER(void, do_msachiu, (void))
+
 /* CP0 helpers */
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER(void, do_mfc0_mvpcontrol, (void))

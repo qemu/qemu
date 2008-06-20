@@ -168,10 +168,9 @@ void do_dclz (void)
 #endif /* TARGET_MIPS64 */
 
 /* 64 bits arithmetic for 32 bits hosts */
-#if TARGET_LONG_BITS > HOST_LONG_BITS
 static always_inline uint64_t get_HILO (void)
 {
-    return (env->HI[env->current_tc][0] << 32) | (uint32_t)env->LO[env->current_tc][0];
+    return ((uint64_t)(env->HI[env->current_tc][0]) << 32) | (uint32_t)env->LO[env->current_tc][0];
 }
 
 static always_inline void set_HILO (uint64_t HILO)
@@ -192,6 +191,7 @@ static always_inline void set_HI_LOT0 (uint64_t HILO)
     env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
+#if TARGET_LONG_BITS > HOST_LONG_BITS
 void do_madd (void)
 {
     int64_t tmp;
@@ -223,6 +223,7 @@ void do_msubu (void)
     tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
     set_HILO(get_HILO() - tmp);
 }
+#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
 /* Multiplication variants of the vr54xx. */
 void do_muls (void)
@@ -294,7 +295,6 @@ void do_mulshiu (void)
 {
     set_HIT0_LO(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
 }
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
 #ifdef TARGET_MIPS64
 void do_dmult (void)
