@@ -225,7 +225,6 @@ static void GUS_save (QEMUFile *f, void *opaque)
     int32_t val;
     GUSState *s = opaque;
 
-    val = s->freq;    qemu_put_be32s (f, &val);
     val = s->pos;     qemu_put_be32s (f, &val);
     val = s->left;    qemu_put_be32s (f, &val);
     val = s->shift;   qemu_put_be32s (f, &val);
@@ -240,10 +239,9 @@ static int GUS_load (QEMUFile *f, void *opaque, int version_id)
     int32_t val;
     GUSState *s = opaque;
 
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
 
-    qemu_get_be32s (f, &val); s->freq = val;
     qemu_get_be32s (f, &val); s->pos = val;
     qemu_get_be32s (f, &val); s->left = val;
     qemu_get_be32s (f, &val); s->shift = val;
@@ -331,6 +329,6 @@ int GUS_init (AudioState *audio, qemu_irq *pic)
 
     AUD_set_active_out (s->voice, 1);
 
-    register_savevm ("gus", 0, 1, GUS_save, GUS_load, s);
+    register_savevm ("gus", 0, 2, GUS_save, GUS_load, s);
     return 0;
 }
