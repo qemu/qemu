@@ -220,6 +220,40 @@ int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     return dma_len;
 }
 
+static void GUS_save (QEMUFile *f, void *opaque)
+{
+    int32_t val;
+    GUSState *s = opaque;
+
+    val = s->freq;    qemu_put_be32s (f, &val);
+    val = s->pos;     qemu_put_be32s (f, &val);
+    val = s->left;    qemu_put_be32s (f, &val);
+    val = s->shift;   qemu_put_be32s (f, &val);
+    val = s->irqs;    qemu_put_be32s (f, &val);
+    val = s->samples; qemu_put_be32s (f, &val);
+    qemu_put_be64s (f, &s->last_ticks);
+    qemu_put_buffer (f, s->himem, sizeof (s->himem));
+}
+
+static int GUS_load (QEMUFile *f, void *opaque, int version_id)
+{
+    int32_t val;
+    GUSState *s = opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_be32s (f, &val); s->freq = val;
+    qemu_get_be32s (f, &val); s->pos = val;
+    qemu_get_be32s (f, &val); s->left = val;
+    qemu_get_be32s (f, &val); s->shift = val;
+    qemu_get_be32s (f, &val); s->irqs = val;
+    qemu_get_be32s (f, &val); s->samples = val;
+    qemu_get_be64s (f, &s->last_ticks);
+    qemu_get_buffer (f, s->himem, sizeof (s->himem));
+    return 0;
+}
+
 int GUS_init (AudioState *audio, qemu_irq *pic)
 {
     GUSState *s;
@@ -296,5 +330,7 @@ int GUS_init (AudioState *audio, qemu_irq *pic)
     s->pic = pic;
 
     AUD_set_active_out (s->voice, 1);
+
+    register_savevm ("gus", 0, 1, GUS_save, GUS_load, s);
     return 0;
 }
