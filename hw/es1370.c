@@ -936,6 +936,7 @@ static void es1370_save (QEMUFile *f, void *opaque)
     ES1370State *s = opaque;
     size_t i;
 
+    pci_device_save (s->pci_dev, f);
     for (i = 0; i < NB_CHANNELS; ++i) {
         struct chan *d = &s->chan[i];
         qemu_put_be32s (f, &d->shift);
@@ -953,12 +954,17 @@ static void es1370_save (QEMUFile *f, void *opaque)
 
 static int es1370_load (QEMUFile *f, void *opaque, int version_id)
 {
+    int ret;
     uint32_t ctl, sctl;
     ES1370State *s = opaque;
     size_t i;
 
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
+
+    ret = pci_device_load (s->pci_dev, f);
+    if (ret)
+        return ret;
 
     for (i = 0; i < NB_CHANNELS; ++i) {
         struct chan *d = &s->chan[i];
@@ -1056,7 +1062,7 @@ int es1370_init (PCIBus *bus, AudioState *audio)
     s->pci_dev = &d->dev;
 
     pci_register_io_region (&d->dev, 0, 256, PCI_ADDRESS_SPACE_IO, es1370_map);
-    register_savevm ("es1370", 0, 1, es1370_save, es1370_load, s);
+    register_savevm ("es1370", 0, 2, es1370_save, es1370_load, s);
     qemu_register_reset (es1370_on_reset, s);
 
     AUD_register_card (audio, "es1370", &s->card);

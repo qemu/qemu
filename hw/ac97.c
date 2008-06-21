@@ -1190,6 +1190,8 @@ static void ac97_save (QEMUFile *f, void *opaque)
     uint8_t active[LAST_INDEX];
     AC97LinkState *s = opaque;
 
+    pci_device_save (s->pci_dev, f);
+
     qemu_put_be32s (f, &s->glob_cnt);
     qemu_put_be32s (f, &s->glob_sta);
     qemu_put_be32s (f, &s->cas);
@@ -1217,12 +1219,17 @@ static void ac97_save (QEMUFile *f, void *opaque)
 
 static int ac97_load (QEMUFile *f, void *opaque, int version_id)
 {
+    int ret;
     size_t i;
     uint8_t active[LAST_INDEX];
     AC97LinkState *s = opaque;
 
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
+
+    ret = pci_device_load (s->pci_dev, f);
+    if (ret)
+        return ret;
 
     qemu_get_be32s (f, &s->glob_cnt);
     qemu_get_be32s (f, &s->glob_sta);
@@ -1370,7 +1377,7 @@ int ac97_init (PCIBus *bus, AudioState *audio)
 
     pci_register_io_region (&d->dev, 0, 256 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
     pci_register_io_region (&d->dev, 1, 64 * 4, PCI_ADDRESS_SPACE_IO, ac97_map);
-    register_savevm ("ac97", 0, 1, ac97_save, ac97_load, s);
+    register_savevm ("ac97", 0, 2, ac97_save, ac97_load, s);
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card (audio, "ac97", &s->card);
     ac97_on_reset (s);
