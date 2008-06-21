@@ -334,6 +334,8 @@ static int alsa_open (int in, struct alsa_params_req *req,
     }
 
     if (req->buffer_size) {
+        unsigned long obt;
+
         if (size_in_usec) {
             int dir = 0;
             unsigned int btime = req->buffer_size;
@@ -344,6 +346,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
                 &btime,
                 &dir
                 );
+            obt = btime;
         }
         else {
             snd_pcm_uframes_t bsize = req->buffer_size;
@@ -353,15 +356,22 @@ static int alsa_open (int in, struct alsa_params_req *req,
                 hw_params,
                 &bsize
                 );
+            obt = bsize;
         }
         if (err < 0) {
             alsa_logerr2 (err, typ, "Failed to set buffer %s to %d\n",
                           size_in_usec ? "time" : "size", req->buffer_size);
             goto err;
         }
+
+        if (obt - req->buffer_size)
+            dolog ("Requested buffer %s %u was rejected, using %lu\n",
+                   size_in_usec ? "time" : "size", req->buffer_size, obt);
     }
 
     if (req->period_size) {
+        unsigned long obt;
+
         if (size_in_usec) {
             int dir = 0;
             unsigned int ptime = req->period_size;
@@ -372,6 +382,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
                 &ptime,
                 &dir
                 );
+            obt = ptime;
         }
         else {
             snd_pcm_uframes_t psize = req->period_size;
@@ -381,6 +392,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
                 hw_params,
                 &psize
                 );
+            obt = psize;
         }
 
         if (err < 0) {
@@ -388,6 +400,10 @@ static int alsa_open (int in, struct alsa_params_req *req,
                           size_in_usec ? "time" : "size", req->period_size);
             goto err;
         }
+
+        if (obt - req->period_size)
+            dolog ("Requested period %s %u was rejected, using %lu\n",
+                   size_in_usec ? "time" : "size", req->period_size, obt);
     }
 
     err = snd_pcm_hw_params (handle, hw_params);
