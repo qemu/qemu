@@ -1918,7 +1918,6 @@ static void disas_sparc_insn(DisasContext * dc)
 
     // loads and stores
     cpu_addr = cpu_T[0];
-    cpu_val = cpu_T[1];
 
     switch (opc) {
     case 0:                     /* branches/sethi */
@@ -4745,6 +4744,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     cpu_tmp0 = tcg_temp_new(TCG_TYPE_TL);
     cpu_tmp32 = tcg_temp_new(TCG_TYPE_I32);
     cpu_tmp64 = tcg_temp_new(TCG_TYPE_I64);
+    cpu_val = tcg_temp_local_new(TCG_TYPE_TL);
 
     do {
         if (env->nb_breakpoints > 0) {
@@ -4795,6 +4795,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
 
  exit_gen_loop:
+    tcg_temp_free(cpu_val);
     tcg_temp_free(cpu_tmp64);
     tcg_temp_free(cpu_tmp32);
     tcg_temp_free(cpu_tmp0);
@@ -4875,11 +4876,9 @@ void gen_intermediate_code_init(CPUSPARCState *env)
                                      TCG_AREG0, offsetof(CPUState, xcc),
                                      "xcc");
 #endif
-        /* XXX: T0 and T1 should be temporaries */
+        /* XXX: T0 should be a temporary */
         cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
                                       TCG_AREG0, offsetof(CPUState, t0), "T0");
-        cpu_T[1] = tcg_global_mem_new(TCG_TYPE_TL,
-                                      TCG_AREG0, offsetof(CPUState, t1), "T1");
         cpu_cond = tcg_global_mem_new(TCG_TYPE_TL,
                                       TCG_AREG0, offsetof(CPUState, cond),
                                       "cond");
