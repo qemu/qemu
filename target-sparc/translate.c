@@ -38,7 +38,7 @@
                          according to jump_pc[T2] */
 
 /* global register indexes */
-static TCGv cpu_env, cpu_T[2], cpu_regwptr;
+static TCGv cpu_env, cpu_regwptr;
 static TCGv cpu_cc_src, cpu_cc_src2, cpu_cc_dst;
 static TCGv cpu_psr, cpu_fsr, cpu_pc, cpu_npc, cpu_gregs[8];
 static TCGv cpu_cond, cpu_src1, cpu_src2, cpu_dst, cpu_addr, cpu_val;
@@ -1912,12 +1912,8 @@ static void disas_sparc_insn(DisasContext * dc)
 
     rd = GET_FIELD(insn, 2, 6);
 
-    cpu_dst = cpu_T[0];
     cpu_src1 = tcg_temp_new(TCG_TYPE_TL); // const
     cpu_src2 = tcg_temp_new(TCG_TYPE_TL); // const
-
-    // loads and stores
-    cpu_addr = cpu_T[0];
 
     switch (opc) {
     case 0:                     /* branches/sethi */
@@ -4220,7 +4216,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                         save_state(dc, cpu_cond);
                         r_const = tcg_const_i32(7);
-                        tcg_gen_helper_0_2(helper_check_align, cpu_dst,
+                        tcg_gen_helper_0_2(helper_check_align, cpu_addr,
                                            r_const); // XXX remove
                         tcg_temp_free(r_const);
                         ABI32_MASK(cpu_addr);
@@ -4744,7 +4740,12 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     cpu_tmp0 = tcg_temp_new(TCG_TYPE_TL);
     cpu_tmp32 = tcg_temp_new(TCG_TYPE_I32);
     cpu_tmp64 = tcg_temp_new(TCG_TYPE_I64);
+
+    cpu_dst = tcg_temp_local_new(TCG_TYPE_TL);
+
+    // loads and stores
     cpu_val = tcg_temp_local_new(TCG_TYPE_TL);
+    cpu_addr = tcg_temp_local_new(TCG_TYPE_TL);
 
     do {
         if (env->nb_breakpoints > 0) {
@@ -4795,7 +4796,9 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
 
  exit_gen_loop:
+    tcg_temp_free(cpu_addr);
     tcg_temp_free(cpu_val);
+    tcg_temp_free(cpu_dst);
     tcg_temp_free(cpu_tmp64);
     tcg_temp_free(cpu_tmp32);
     tcg_temp_free(cpu_tmp0);
@@ -4876,9 +4879,6 @@ void gen_intermediate_code_init(CPUSPARCState *env)
                                      TCG_AREG0, offsetof(CPUState, xcc),
                                      "xcc");
 #endif
-        /* XXX: T0 should be a temporary */
-        cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
-                                      TCG_AREG0, offsetof(CPUState, t0), "T0");
         cpu_cond = tcg_global_mem_new(TCG_TYPE_TL,
                                       TCG_AREG0, offsetof(CPUState, cond),
                                       "cond");
