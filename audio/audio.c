@@ -549,6 +549,12 @@ static void audio_print_settings (audsettings_t *as)
     case AUD_FMT_U16:
         AUD_log (NULL, "U16");
         break;
+    case AUD_FMT_S32:
+        AUD_log (NULL, "S32");
+        break;
+    case AUD_FMT_U32:
+        AUD_log (NULL, "U32");
+        break;
     default:
         AUD_log (NULL, "invalid(%d)", as->fmt);
         break;
