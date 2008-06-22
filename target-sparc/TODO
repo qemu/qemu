@@ -53,7 +53,6 @@ Sun4m:
 - Unimplemented features/bugs:
  - Hardware devices do not match real boards
  - Floppy does not work
- - Missing keys, sendkey support for all keys
  - CS4231: merge with cs4231a, add DMA
  - Add cg6, bwtwo
  - Arbitrary resolution support

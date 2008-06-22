@@ -904,6 +904,23 @@ static const KeyDef key_defs[] = {
 
     { 0xd2, "insert" },
     { 0xd3, "delete" },
+#if defined(TARGET_SPARC) && !defined(TARGET_SPARC64)
+    { 0xf0, "stop" },
+    { 0xf1, "again" },
+    { 0xf2, "props" },
+    { 0xf3, "undo" },
+    { 0xf4, "front" },
+    { 0xf5, "copy" },
+    { 0xf6, "open" },
+    { 0xf7, "paste" },
+    { 0xf8, "find" },
+    { 0xf9, "cut" },
+    { 0xfa, "lf" },
+    { 0xfb, "help" },
+    { 0xfc, "meta_l" },
+    { 0xfd, "meta_r" },
+    { 0xfe, "compose" },
+#endif
     { 0, NULL },
 };
 
