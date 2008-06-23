@@ -159,7 +159,7 @@ static int nvram_boot_set(void *opaque, const char *boot_device)
     for (i = 0; i < sizeof(image); i++)
         image[i] = m48t59_read(nvram, i) & 0xff;
 
-    strcpy(header->boot_devices, boot_device);
+    strcpy((char *)header->boot_devices, boot_device);
     header->nboot_devices = strlen(boot_device) & 0xff;
     header->crc = cpu_to_be16(OHW_compute_crc(header, 0x00, 0xF8));
 
@@ -187,17 +187,17 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
     memset(image, '\0', sizeof(image));
 
     // Try to match PPC NVRAM
-    strcpy(header->struct_ident, "QEMU_BIOS");
+    strcpy((char *)header->struct_ident, "QEMU_BIOS");
     header->struct_version = cpu_to_be32(3); /* structure v3 */
 
     header->nvram_size = cpu_to_be16(0x2000);
     header->nvram_arch_ptr = cpu_to_be16(sizeof(ohwcfg_v3_t));
     header->nvram_arch_size = cpu_to_be16(sizeof(struct sparc_arch_cfg));
-    strcpy(header->arch, arch);
+    strcpy((char *)header->arch, arch);
     header->nb_cpus = smp_cpus & 0xff;
     header->RAM0_base = 0;
     header->RAM0_size = cpu_to_be64((uint64_t)RAM_size);
-    strcpy(header->boot_devices, boot_devices);
+    strcpy((char *)header->boot_devices, boot_devices);
     header->nboot_devices = strlen(boot_devices) & 0xff;
     header->kernel_image = cpu_to_be64((uint64_t)KERNEL_LOAD_ADDR);
     header->kernel_size = cpu_to_be64((uint64_t)kernel_size);
