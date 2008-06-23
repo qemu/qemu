@@ -366,13 +366,14 @@ static inline int cpu_cwp_dec(CPUSPARCState *env1, int cwp)
     } while (0)
 #define GET_CWP64(env) (env->nwindows - 1 - (env)->cwp)
 
+#ifndef NO_CPU_IO_DEFS
 static inline void PUT_CWP64(CPUSPARCState *env1, int cwp)
 {
     if (unlikely(cwp >= env1->nwindows || cwp < 0))
         cwp = 0;
     cpu_set_cwp(env1, env1->nwindows - 1 - cwp);
 }
-
+#endif
 #endif
 
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
