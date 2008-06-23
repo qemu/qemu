@@ -114,6 +114,7 @@ build_docs="no"
 uname_release=""
 curses="yes"
 nptl="yes"
+mixemu="no"
 
 # OS specific
 targetos=`uname -s`
@@ -337,6 +338,8 @@ for opt do
   ;;
   --disable-nptl) nptl="no"
   ;;
+  --enable-mixemu) mixemu="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -428,6 +431,7 @@ echo "  --enable-alsa            enable ALSA audio driver"
 echo "  --enable-esd             enable EsoundD audio driver"
 echo "  --enable-fmod            enable FMOD audio driver"
 echo "  --enable-dsound          enable DirectSound audio driver"
+echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --disable-curses         disable curses output"
@@ -839,6 +843,7 @@ echo "CoreAudio support $coreaudio"
 echo "ALSA support      $alsa"
 echo "EsounD support    $esd"
 echo "DSound support    $dsound"
+echo "Mixer emulation   $mixemu"
 if test "$fmod" = "yes"; then
     if test -z $fmod_lib || test -z $fmod_inc; then
         echo
@@ -1066,6 +1071,10 @@ fi
 if test "$dsound" = "yes" ; then
   echo "CONFIG_DSOUND=yes" >> $config_mak
   echo "#define CONFIG_DSOUND 1" >> $config_h
+fi
+if test "$mixemu" = "yes" ; then
+  echo "CONFIG_MIXEMU=yes" >> $config_mak
+  echo "#define CONFIG_MIXEMU 1" >> $config_h
 fi
 if test "$fmod" = "yes" ; then
   echo "CONFIG_FMOD=yes" >> $config_mak
