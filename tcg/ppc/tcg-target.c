@@ -118,7 +118,6 @@ static const int tcg_target_call_oarg_regs[2] = {
 };
 
 static const int tcg_target_callee_save_regs[] = {
-    TCG_REG_R13,                /* should r13 be saved? */
     TCG_REG_R14,
     TCG_REG_R15,
     TCG_REG_R16,
