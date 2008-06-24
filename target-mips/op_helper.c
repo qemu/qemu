@@ -1438,13 +1438,11 @@ target_ulong do_evpe(target_ulong t0)
     return t0;
 }
 
-target_ulong do_fork(target_ulong t0, target_ulong t1)
+void do_fork(target_ulong t0, target_ulong t1)
 {
     // t0 = rt, t1 = rs
     t0 = 0;
     // TODO: store to TC register
-
-    return t0;
 }
 
 target_ulong do_yield(target_ulong t0)
@@ -1684,7 +1682,7 @@ void debug_post_eret (void)
     }
 }
 
-void do_eret (target_ulong t0)
+void do_eret (void)
 {
     if (loglevel & CPU_LOG_EXEC)
         debug_pre_eret();
@@ -1701,7 +1699,7 @@ void do_eret (target_ulong t0)
     env->CP0_LLAddr = 1;
 }
 
-void do_deret (target_ulong t0)
+void do_deret (void)
 {
     if (loglevel & CPU_LOG_EXEC)
         debug_pre_eret();
@@ -1918,8 +1916,10 @@ unsigned int ieee_rm[] = {
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->fpu->fcr31 & 3], &env->fpu->fp_status)
 
-target_ulong do_cfc1 (target_ulong t0, uint32_t reg)
+target_ulong do_cfc1 (uint32_t reg)
 {
+    target_ulong t0;
+
     switch (reg) {
     case 0:
         t0 = (int32_t)env->fpu->fcr0;
