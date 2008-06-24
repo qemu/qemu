@@ -142,7 +142,6 @@ struct CPUMIPSState {
     target_ulong PC[MIPS_TC_MAX];
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     target_ulong t0;
-    target_ulong t1;
 #endif
     /* temporary hack for FP globals */
 #ifndef USE_HOST_FLOAT_REGS

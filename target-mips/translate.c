@@ -423,7 +423,7 @@ enum {
 };
 
 /* global register indices */
-static TCGv cpu_env, current_tc_gprs, current_tc_hi, current_fpu, cpu_T[2];
+static TCGv cpu_env, current_tc_gprs, current_tc_hi, current_fpu, cpu_T[1];
 
 /* FPU TNs, global for now. */
 static TCGv fpu32_T[3], fpu64_T[3], fpu32h_T[3];
@@ -8072,11 +8072,8 @@ static void mips_tcg_init(void)
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
                                   TCG_AREG0, offsetof(CPUState, t0), "T0");
-    cpu_T[1] = tcg_global_mem_new(TCG_TYPE_TL,
-                                  TCG_AREG0, offsetof(CPUState, t1), "T1");
 #else
     cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
-    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
 #endif
 
     /* register helpers */
