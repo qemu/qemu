@@ -650,126 +650,127 @@ void cpu_mips_tlb_flush (CPUState *env, int flush_global)
 #else
 
 /* CP0 helpers */
-target_ulong do_mfc0_mvpcontrol (target_ulong t0)
+target_ulong do_mfc0_mvpcontrol (void)
 {
     return env->mvp->CP0_MVPControl;
 }
 
-target_ulong do_mfc0_mvpconf0 (target_ulong t0)
+target_ulong do_mfc0_mvpconf0 (void)
 {
     return env->mvp->CP0_MVPConf0;
 }
 
-target_ulong do_mfc0_mvpconf1 (target_ulong t0)
+target_ulong do_mfc0_mvpconf1 (void)
 {
     return env->mvp->CP0_MVPConf1;
 }
 
-target_ulong do_mfc0_random (target_ulong t0)
+target_ulong do_mfc0_random (void)
 {
     return (int32_t)cpu_mips_get_random(env);
 }
 
-target_ulong do_mfc0_tcstatus (target_ulong t0)
+target_ulong do_mfc0_tcstatus (void)
 {
     return env->CP0_TCStatus[env->current_tc];
 }
 
-target_ulong do_mftc0_tcstatus(target_ulong t0)
+target_ulong do_mftc0_tcstatus(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     return env->CP0_TCStatus[other_tc];
 }
 
-target_ulong do_mfc0_tcbind (target_ulong t0)
+target_ulong do_mfc0_tcbind (void)
 {
     return env->CP0_TCBind[env->current_tc];
 }
 
-target_ulong do_mftc0_tcbind(target_ulong t0)
+target_ulong do_mftc0_tcbind(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     return env->CP0_TCBind[other_tc];
 }
 
-target_ulong do_mfc0_tcrestart (target_ulong t0)
+target_ulong do_mfc0_tcrestart (void)
 {
     return env->PC[env->current_tc];
 }
 
-target_ulong do_mftc0_tcrestart(target_ulong t0)
+target_ulong do_mftc0_tcrestart(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     return env->PC[other_tc];
 }
 
-target_ulong do_mfc0_tchalt (target_ulong t0)
+target_ulong do_mfc0_tchalt (void)
 {
     return env->CP0_TCHalt[env->current_tc];
 }
 
-target_ulong do_mftc0_tchalt(target_ulong t0)
+target_ulong do_mftc0_tchalt(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     return env->CP0_TCHalt[other_tc];
 }
 
-target_ulong do_mfc0_tccontext (target_ulong t0)
+target_ulong do_mfc0_tccontext (void)
 {
     return env->CP0_TCContext[env->current_tc];
 }
 
-target_ulong do_mftc0_tccontext(target_ulong t0)
+target_ulong do_mftc0_tccontext(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     return env->CP0_TCContext[other_tc];
 }
 
-target_ulong do_mfc0_tcschedule (target_ulong t0)
+target_ulong do_mfc0_tcschedule (void)
 {
     return env->CP0_TCSchedule[env->current_tc];
 }
 
-target_ulong do_mftc0_tcschedule(target_ulong t0)
+target_ulong do_mftc0_tcschedule(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     return env->CP0_TCSchedule[other_tc];
 }
 
-target_ulong do_mfc0_tcschefback (target_ulong t0)
+target_ulong do_mfc0_tcschefback (void)
 {
     return env->CP0_TCScheFBack[env->current_tc];
 }
 
-target_ulong do_mftc0_tcschefback(target_ulong t0)
+target_ulong do_mftc0_tcschefback(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     return env->CP0_TCScheFBack[other_tc];
 }
 
-target_ulong do_mfc0_count (target_ulong t0)
+target_ulong do_mfc0_count (void)
 {
     return (int32_t)cpu_mips_get_count(env);
 }
 
-target_ulong do_mftc0_entryhi(target_ulong t0)
+target_ulong do_mftc0_entryhi(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     return (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
 }
 
-target_ulong do_mftc0_status(target_ulong t0)
+target_ulong do_mftc0_status(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     uint32_t tcstatus = env->CP0_TCStatus[other_tc];
+    target_ulong t0;
 
     t0 = env->CP0_Status & ~0xf1000018;
     t0 |= tcstatus & (0xf << CP0TCSt_TCU0);
@@ -779,31 +780,31 @@ target_ulong do_mftc0_status(target_ulong t0)
     return t0;
 }
 
-target_ulong do_mfc0_lladdr (target_ulong t0)
+target_ulong do_mfc0_lladdr (void)
 {
     return (int32_t)env->CP0_LLAddr >> 4;
 }
 
-target_ulong do_mfc0_watchlo (target_ulong t0, uint32_t sel)
+target_ulong do_mfc0_watchlo (uint32_t sel)
 {
     return (int32_t)env->CP0_WatchLo[sel];
 }
 
-target_ulong do_mfc0_watchhi (target_ulong t0, uint32_t sel)
+target_ulong do_mfc0_watchhi (uint32_t sel)
 {
     return env->CP0_WatchHi[sel];
 }
 
-target_ulong do_mfc0_debug (target_ulong t0)
+target_ulong do_mfc0_debug (void)
 {
-    t0 = env->CP0_Debug;
+    target_ulong t0 = env->CP0_Debug;
     if (env->hflags & MIPS_HFLAG_DM)
         t0 |= 1 << CP0DB_DM;
 
     return t0;
 }
 
-target_ulong do_mftc0_debug(target_ulong t0)
+target_ulong do_mftc0_debug(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -814,37 +815,37 @@ target_ulong do_mftc0_debug(target_ulong t0)
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong do_dmfc0_tcrestart (target_ulong t0)
+target_ulong do_dmfc0_tcrestart (void)
 {
     return env->PC[env->current_tc];
 }
 
-target_ulong do_dmfc0_tchalt (target_ulong t0)
+target_ulong do_dmfc0_tchalt (void)
 {
     return env->CP0_TCHalt[env->current_tc];
 }
 
-target_ulong do_dmfc0_tccontext (target_ulong t0)
+target_ulong do_dmfc0_tccontext (void)
 {
     return env->CP0_TCContext[env->current_tc];
 }
 
-target_ulong do_dmfc0_tcschedule (target_ulong t0)
+target_ulong do_dmfc0_tcschedule (void)
 {
     return env->CP0_TCSchedule[env->current_tc];
 }
 
-target_ulong do_dmfc0_tcschefback (target_ulong t0)
+target_ulong do_dmfc0_tcschefback (void)
 {
     return env->CP0_TCScheFBack[env->current_tc];
 }
 
-target_ulong do_dmfc0_lladdr (target_ulong t0)
+target_ulong do_dmfc0_lladdr (void)
 {
     return env->CP0_LLAddr >> 4;
 }
 
-target_ulong do_dmfc0_watchlo (target_ulong t0, uint32_t sel)
+target_ulong do_dmfc0_watchlo (uint32_t sel)
 {
     return env->CP0_WatchLo[sel];
 }

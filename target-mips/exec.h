@@ -10,12 +10,6 @@
 
 register struct CPUMIPSState *env asm(AREG0);
 
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-#define T0 (env->t0)
-#else
-register target_ulong T0 asm(AREG1);
-#endif
-
 #if defined (USE_HOST_FLOAT_REGS)
 #error "implement me."
 #else
