@@ -496,6 +496,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             //s->ti_size = 0;
             s->rregs[ESP_RINTR] = INTR_FC;
             s->rregs[ESP_RSEQ] = 0;
+            s->rregs[ESP_RFLAGS] = 0;
             break;
         case CMD_RESET:
             DPRINTF("Chip reset (%2.2x)\n", val);
