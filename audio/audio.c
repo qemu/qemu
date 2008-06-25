@@ -38,27 +38,7 @@
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
 static struct audio_driver *drvtab[] = {
-#ifdef CONFIG_OSS
-    &oss_audio_driver,
-#endif
-#ifdef CONFIG_ALSA
-    &alsa_audio_driver,
-#endif
-#ifdef CONFIG_COREAUDIO
-    &coreaudio_audio_driver,
-#endif
-#ifdef CONFIG_DSOUND
-    &dsound_audio_driver,
-#endif
-#ifdef CONFIG_FMOD
-    &fmod_audio_driver,
-#endif
-#ifdef CONFIG_SDL
-    &sdl_audio_driver,
-#endif
-#ifdef CONFIG_ESD
-    &esd_audio_driver,
-#endif
+    AUDIO_DRIVERS
     &no_audio_driver,
     &wav_audio_driver
 };
