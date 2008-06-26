@@ -1603,7 +1603,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "%%f%02d:", i);
-        cpu_fprintf(f, " %016lf", env->fpr[i]);
+        cpu_fprintf(f, " %016f", *(float *)&env->fpr[i]);
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }
