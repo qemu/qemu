@@ -3686,7 +3686,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!is_error(ret)) {
 #if defined(TARGET_MIPS)
                 CPUMIPSState *env = (CPUMIPSState*)cpu_env;
-		env->gpr[env->current_tc][3] = host_pipe[1];
+		env->active_tc.gpr[3] = host_pipe[1];
 		ret = host_pipe[0];
 #elif defined(TARGET_SH4)
 		((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];

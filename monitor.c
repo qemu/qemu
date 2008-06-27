@@ -314,7 +314,7 @@ static void do_info_cpus(void)
 #elif defined(TARGET_SPARC)
         term_printf(" pc=0x" TARGET_FMT_lx " npc=0x" TARGET_FMT_lx, env->pc, env->npc);
 #elif defined(TARGET_MIPS)
-        term_printf(" PC=0x" TARGET_FMT_lx, env->PC[env->current_tc]);
+        term_printf(" PC=0x" TARGET_FMT_lx, env->active_tc.PC);
 #endif
         if (env->halted)
             term_printf(" (halted)");

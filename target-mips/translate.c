@@ -424,7 +424,7 @@ enum {
 };
 
 /* global register indices */
-static TCGv cpu_env, current_tc_gprs, current_tc_hi, current_fpu;
+static TCGv cpu_env, current_fpu;
 
 /* FPU TNs, global for now. */
 static TCGv fpu32_T[3], fpu64_T[3], fpu32h_T[3];
@@ -564,40 +564,40 @@ static inline void gen_load_gpr (TCGv t, int reg)
     if (reg == 0)
         tcg_gen_movi_tl(t, 0);
     else
-        tcg_gen_ld_tl(t, current_tc_gprs, sizeof(target_ulong) * reg);
+        tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.gpr) +
+                                  sizeof(target_ulong) * reg);
 }
 
 static inline void gen_store_gpr (TCGv t, int reg)
 {
     if (reg != 0)
-        tcg_gen_st_tl(t, current_tc_gprs, sizeof(target_ulong) * reg);
+        tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.gpr) +
+                                  sizeof(target_ulong) * reg);
 }
 
 /* Moves to/from HI and LO registers.  */
 static inline void gen_load_LO (TCGv t, int reg)
 {
-    tcg_gen_ld_tl(t, current_tc_hi,
-                  offsetof(CPUState, LO)
-                  - offsetof(CPUState, HI)
-                  + sizeof(target_ulong) * reg);
+    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.LO) +
+                              sizeof(target_ulong) * reg);
 }
 
 static inline void gen_store_LO (TCGv t, int reg)
 {
-    tcg_gen_st_tl(t, current_tc_hi,
-                  offsetof(CPUState, LO)
-                  - offsetof(CPUState, HI)
-                  + sizeof(target_ulong) * reg);
+    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.LO) +
+                              sizeof(target_ulong) * reg);
 }
 
 static inline void gen_load_HI (TCGv t, int reg)
 {
-    tcg_gen_ld_tl(t, current_tc_hi, sizeof(target_ulong) * reg);
+    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.HI) +
+                              sizeof(target_ulong) * reg);
 }
 
 static inline void gen_store_HI (TCGv t, int reg)
 {
-    tcg_gen_st_tl(t, current_tc_hi, sizeof(target_ulong) * reg);
+    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.HI) +
+                              sizeof(target_ulong) * reg);
 }
 
 /* Moves to/from shadow registers. */
@@ -806,38 +806,18 @@ OP_CONDZ(ltz, TCG_COND_LT);
 static inline void gen_save_pc(target_ulong pc)
 {
     TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
-    TCGv r_tc_off = tcg_temp_new(TCG_TYPE_I32);
-    TCGv r_tc_off_ptr = tcg_temp_new(TCG_TYPE_PTR);
-    TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
 
     tcg_gen_movi_tl(r_tmp, pc);
-    tcg_gen_ld_i32(r_tc_off, cpu_env, offsetof(CPUState, current_tc));
-    tcg_gen_muli_i32(r_tc_off, r_tc_off, sizeof(target_ulong));
-    tcg_gen_ext_i32_ptr(r_tc_off_ptr, r_tc_off);
-    tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_ptr);
-    tcg_gen_st_tl(r_tmp, r_ptr, offsetof(CPUState, PC));
-    tcg_temp_free(r_tc_off);
-    tcg_temp_free(r_tc_off_ptr);
-    tcg_temp_free(r_ptr);
+    tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, active_tc.PC));
     tcg_temp_free(r_tmp);
 }
 
 static inline void gen_breg_pc(void)
 {
     TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
-    TCGv r_tc_off = tcg_temp_new(TCG_TYPE_I32);
-    TCGv r_tc_off_ptr = tcg_temp_new(TCG_TYPE_PTR);
-    TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
 
     tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, btarget));
-    tcg_gen_ld_i32(r_tc_off, cpu_env, offsetof(CPUState, current_tc));
-    tcg_gen_muli_i32(r_tc_off, r_tc_off, sizeof(target_ulong));
-    tcg_gen_ext_i32_ptr(r_tc_off_ptr, r_tc_off);
-    tcg_gen_add_ptr(r_ptr, cpu_env, r_tc_off_ptr);
-    tcg_gen_st_tl(r_tmp, r_ptr, offsetof(CPUState, PC));
-    tcg_temp_free(r_tc_off);
-    tcg_temp_free(r_tc_off_ptr);
-    tcg_temp_free(r_ptr);
+    tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, active_tc.PC));
     tcg_temp_free(r_tmp);
 }
 
@@ -5203,8 +5183,8 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
     TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
 
     if ((env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) == 0 &&
-        ((env->CP0_TCBind[other_tc] & (0xf << CP0TCBd_CurVPE)) !=
-         (env->CP0_TCBind[env->current_tc] & (0xf << CP0TCBd_CurVPE))))
+        ((env->tcs[other_tc].CP0_TCBind & (0xf << CP0TCBd_CurVPE)) !=
+         (env->active_tc.CP0_TCBind & (0xf << CP0TCBd_CurVPE))))
         tcg_gen_movi_tl(t0, -1);
     else if ((env->CP0_VPEControl & (0xff << CP0VPECo_TargTC)) >
              (env->mvp->CP0_MVPConf0 & (0xff << CP0MVPC0_PTC)))
@@ -5372,8 +5352,8 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd, int rt,
 
     gen_load_gpr(t0, rt);
     if ((env->CP0_VPEConf0 & (1 << CP0VPEC0_MVP)) == 0 &&
-        ((env->CP0_TCBind[other_tc] & (0xf << CP0TCBd_CurVPE)) !=
-         (env->CP0_TCBind[env->current_tc] & (0xf << CP0TCBd_CurVPE))))
+        ((env->tcs[other_tc].CP0_TCBind & (0xf << CP0TCBd_CurVPE)) !=
+         (env->active_tc.CP0_TCBind & (0xf << CP0TCBd_CurVPE))))
         /* NOP */ ;
     else if ((env->CP0_VPEControl & (0xff << CP0VPECo_TargTC)) >
              (env->mvp->CP0_MVPConf0 & (0xff << CP0MVPC0_PTC)))
@@ -7407,19 +7387,19 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 switch (rd) {
                 case 0:
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_rdhwr_cpunum, t0, t0);
+                    tcg_gen_helper_1_0(do_rdhwr_cpunum, t0);
                     break;
                 case 1:
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_rdhwr_synci_step, t0, t0);
+                    tcg_gen_helper_1_0(do_rdhwr_synci_step, t0);
                     break;
                 case 2:
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_rdhwr_cc, t0, t0);
+                    tcg_gen_helper_1_0(do_rdhwr_cc, t0);
                     break;
                 case 3:
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_rdhwr_ccres, t0, t0);
+                    tcg_gen_helper_1_0(do_rdhwr_ccres, t0);
                     break;
                 case 29:
 #if defined (CONFIG_USER_ONLY)
@@ -7569,14 +7549,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 case OPC_DI:
                     check_insn(env, ctx, ISA_MIPS32R2);
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_di, t0, t0);
+                    tcg_gen_helper_1_0(do_di, t0);
                     /* Stop translation as we may have switched the execution mode */
                     ctx->bstate = BS_STOP;
                     break;
                 case OPC_EI:
                     check_insn(env, ctx, ISA_MIPS32R2);
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_ei, t0, t0);
+                    tcg_gen_helper_1_0(do_ei, t0);
                     /* Stop translation as we may have switched the execution mode */
                     ctx->bstate = BS_STOP;
                     break;
@@ -8010,8 +7990,8 @@ void dump_fpu (CPUState *env)
                 "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx
                 " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx
                 " %04x\n",
-                env->PC[env->current_tc], env->HI[env->current_tc][0],
-                env->LO[env->current_tc][0], env->hflags, env->btarget,
+                env->active_tc.PC, env->active_tc.HI[0],
+                env->active_tc.LO[0], env->hflags, env->btarget,
                 env->bcond);
        fpu_dump_state(env, logfile, fprintf, 0);
     }
@@ -8029,18 +8009,18 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 {
     int i;
 
-    if (!SIGN_EXT_P(env->PC[env->current_tc]))
-        cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->PC[env->current_tc]);
-    if (!SIGN_EXT_P(env->HI[env->current_tc][0]))
-        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->HI[env->current_tc][0]);
-    if (!SIGN_EXT_P(env->LO[env->current_tc][0]))
-        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->LO[env->current_tc][0]);
+    if (!SIGN_EXT_P(env->active_tc.PC))
+        cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->active_tc.PC);
+    if (!SIGN_EXT_P(env->active_tc.HI[0]))
+        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->active_tc.HI[0]);
+    if (!SIGN_EXT_P(env->active_tc.LO[0]))
+        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->active_tc.LO[0]);
     if (!SIGN_EXT_P(env->btarget))
         cpu_fprintf(f, "BROKEN: btarget=0x" TARGET_FMT_lx "\n", env->btarget);
 
     for (i = 0; i < 32; i++) {
-        if (!SIGN_EXT_P(env->gpr[env->current_tc][i]))
-            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->gpr[env->current_tc][i]);
+        if (!SIGN_EXT_P(env->active_tc.gpr[i]))
+            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->active_tc.gpr[i]);
     }
 
     if (!SIGN_EXT_P(env->CP0_EPC))
@@ -8057,11 +8037,11 @@ void cpu_dump_state (CPUState *env, FILE *f,
     int i;
 
     cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
-                env->PC[env->current_tc], env->HI[env->current_tc], env->LO[env->current_tc], env->hflags, env->btarget, env->bcond);
+                env->active_tc.PC, env->active_tc.HI, env->active_tc.LO, env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "GPR%02d:", i);
-        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->gpr[env->current_tc][i]);
+        cpu_fprintf(f, " %s " TARGET_FMT_lx, regnames[i], env->active_tc.gpr[i]);
         if ((i & 3) == 3)
             cpu_fprintf(f, "\n");
     }
@@ -8086,14 +8066,6 @@ static void mips_tcg_init(void)
 	return;
 
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
-    current_tc_gprs = tcg_global_mem_new(TCG_TYPE_PTR,
-                                         TCG_AREG0,
-                                         offsetof(CPUState, current_tc_gprs),
-                                         "current_tc_gprs");
-    current_tc_hi = tcg_global_mem_new(TCG_TYPE_PTR,
-                                       TCG_AREG0,
-                                       offsetof(CPUState, current_tc_hi),
-                                       "current_tc_hi");
     current_fpu = tcg_global_mem_new(TCG_TYPE_PTR,
                                      TCG_AREG0,
                                      offsetof(CPUState, fpu),
@@ -8150,11 +8122,11 @@ void cpu_reset (CPUMIPSState *env)
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot,
          * come back to the jump.  */
-        env->CP0_ErrorEPC = env->PC[env->current_tc] - 4;
+        env->CP0_ErrorEPC = env->active_tc.PC - 4;
     } else {
-        env->CP0_ErrorEPC = env->PC[env->current_tc];
+        env->CP0_ErrorEPC = env->active_tc.PC;
     }
-    env->PC[env->current_tc] = (int32_t)0xBFC00000;
+    env->active_tc.PC = (int32_t)0xBFC00000;
     env->CP0_Wired = 0;
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;
@@ -8190,7 +8162,7 @@ void cpu_reset (CPUMIPSState *env)
 void gen_pc_load(CPUState *env, TranslationBlock *tb,
                 unsigned long searched_pc, int pc_pos, void *puc)
 {
-    env->PC[env->current_tc] = gen_opc_pc[pc_pos];
+    env->active_tc.PC = gen_opc_pc[pc_pos];
     env->hflags &= ~MIPS_HFLAG_BMASK;
     env->hflags |= gen_opc_hflags[pc_pos];
 }

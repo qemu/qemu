@@ -1779,8 +1779,8 @@ void cpu_loop(CPUMIPSState *env)
         trapnr = cpu_mips_exec(env);
         switch(trapnr) {
         case EXCP_SYSCALL:
-            syscall_num = env->gpr[env->current_tc][2] - 4000;
-            env->PC[env->current_tc] += 4;
+            syscall_num = env->active_tc.gpr[2] - 4000;
+            env->active_tc.PC += 4;
             if (syscall_num >= sizeof(mips_syscall_args)) {
                 ret = -ENOSYS;
             } else {
@@ -1789,7 +1789,7 @@ void cpu_loop(CPUMIPSState *env)
                 abi_ulong arg5 = 0, arg6 = 0, arg7 = 0, arg8 = 0;
 
                 nb_args = mips_syscall_args[syscall_num];
-                sp_reg = env->gpr[env->current_tc][29];
+                sp_reg = env->active_tc.gpr[29];
                 switch (nb_args) {
                 /* these arguments are taken from the stack */
                 /* FIXME - what to do if get_user() fails? */
@@ -1800,20 +1800,20 @@ void cpu_loop(CPUMIPSState *env)
                 default:
                     break;
                 }
-                ret = do_syscall(env, env->gpr[env->current_tc][2],
-                                 env->gpr[env->current_tc][4],
-                                 env->gpr[env->current_tc][5],
-                                 env->gpr[env->current_tc][6],
-                                 env->gpr[env->current_tc][7],
+                ret = do_syscall(env, env->active_tc.gpr[2],
+                                 env->active_tc.gpr[4],
+                                 env->active_tc.gpr[5],
+                                 env->active_tc.gpr[6],
+                                 env->active_tc.gpr[7],
                                  arg5, arg6/*, arg7, arg8*/);
             }
             if ((unsigned int)ret >= (unsigned int)(-1133)) {
-                env->gpr[env->current_tc][7] = 1; /* error flag */
+                env->active_tc.gpr[7] = 1; /* error flag */
                 ret = -ret;
             } else {
-                env->gpr[env->current_tc][7] = 0; /* error flag */
+                env->active_tc.gpr[7] = 0; /* error flag */
             }
-            env->gpr[env->current_tc][2] = ret;
+            env->active_tc.gpr[2] = ret;
             break;
         case EXCP_TLBL:
         case EXCP_TLBS:
@@ -2568,9 +2568,9 @@ int main(int argc, char **argv)
         int i;
 
         for(i = 0; i < 32; i++) {
-            env->gpr[env->current_tc][i] = regs->regs[i];
+            env->active_tc.gpr[i] = regs->regs[i];
         }
-        env->PC[env->current_tc] = regs->cp0_epc;
+        env->active_tc.PC = regs->cp0_epc;
     }
 #elif defined(TARGET_SH4)
     {

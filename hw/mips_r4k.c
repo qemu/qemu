@@ -91,7 +91,7 @@ static void load_kernel (CPUState *env)
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
-        env->PC[env->current_tc] = entry;
+        env->active_tc.PC = entry;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
@@ -99,7 +99,7 @@ static void load_kernel (CPUState *env)
     }
 
     /* Set SP (needed for some kernels) - normally set by bootloader. */
-    env->gpr[env->current_tc][29] = (entry + (kernel_size & 0xfffffffc)) + 0x1000;
+    env->active_tc.gpr[29] = (entry + (kernel_size & 0xfffffffc)) + 0x1000;
 
     /* load initrd */
     initrd_size = 0;

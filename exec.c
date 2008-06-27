@@ -2167,8 +2167,8 @@ static const char *backtrace(char *buffer, size_t length)
 {
     char *p = buffer;
     if (cpu_single_env) {
-        p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->PC));
-        p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->gpr[31]));
+        p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.PC));
+        p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.gpr[31]));
     } else {
         p += sprintf(p, "[cpu not running]");
     }

@@ -259,7 +259,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         cpu_dump_state(env, logfile, fprintf, 0);
 #endif
         fprintf(logfile, "%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d smmu %d\n",
-                __func__, env->PC[env->current_tc], address, rw, mmu_idx, is_softmmu);
+                __func__, env->active_tc.PC, address, rw, mmu_idx, is_softmmu);
     }
 
     rw &= 1;
@@ -388,7 +388,7 @@ void do_interrupt (CPUState *env)
             name = excp_names[env->exception_index];
 
         fprintf(logfile, "%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
-                __func__, env->PC[env->current_tc], env->CP0_EPC, name);
+                __func__, env->active_tc.PC, env->CP0_EPC, name);
     }
     if (env->exception_index == EXCP_EXT_INTERRUPT &&
         (env->hflags & MIPS_HFLAG_DM))
@@ -402,7 +402,7 @@ void do_interrupt (CPUState *env)
          * (but we assume the pc has always been updated during
          *  code translation).
          */
-        env->CP0_DEPC = env->PC[env->current_tc];
+        env->CP0_DEPC = env->active_tc.PC;
         goto enter_debug_mode;
     case EXCP_DINT:
         env->CP0_Debug |= 1 << CP0DB_DINT;
@@ -422,10 +422,10 @@ void do_interrupt (CPUState *env)
         if (env->hflags & MIPS_HFLAG_BMASK) {
             /* If the exception was raised from a delay slot,
                come back to the jump.  */
-            env->CP0_DEPC = env->PC[env->current_tc] - 4;
+            env->CP0_DEPC = env->active_tc.PC - 4;
             env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
-            env->CP0_DEPC = env->PC[env->current_tc];
+            env->CP0_DEPC = env->active_tc.PC;
         }
     enter_debug_mode:
         env->hflags |= MIPS_HFLAG_DM | MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
@@ -433,7 +433,7 @@ void do_interrupt (CPUState *env)
         /* EJTAG probe trap enable is not implemented... */
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
-        env->PC[env->current_tc] = (int32_t)0xBFC00480;
+        env->active_tc.PC = (int32_t)0xBFC00480;
         break;
     case EXCP_RESET:
         cpu_reset(env);
@@ -448,17 +448,17 @@ void do_interrupt (CPUState *env)
         if (env->hflags & MIPS_HFLAG_BMASK) {
             /* If the exception was raised from a delay slot,
                come back to the jump.  */
-            env->CP0_ErrorEPC = env->PC[env->current_tc] - 4;
+            env->CP0_ErrorEPC = env->active_tc.PC - 4;
             env->hflags &= ~MIPS_HFLAG_BMASK;
         } else {
-            env->CP0_ErrorEPC = env->PC[env->current_tc];
+            env->CP0_ErrorEPC = env->active_tc.PC;
         }
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
         env->hflags |= MIPS_HFLAG_64 | MIPS_HFLAG_CP0;
         env->hflags &= ~(MIPS_HFLAG_KSU);
         if (!(env->CP0_Status & (1 << CP0St_EXL)))
             env->CP0_Cause &= ~(1 << CP0Ca_BD);
-        env->PC[env->current_tc] = (int32_t)0xBFC00000;
+        env->active_tc.PC = (int32_t)0xBFC00000;
         break;
     case EXCP_EXT_INTERRUPT:
         cause = 0;
@@ -563,10 +563,10 @@ void do_interrupt (CPUState *env)
             if (env->hflags & MIPS_HFLAG_BMASK) {
                 /* If the exception was raised from a delay slot,
                    come back to the jump.  */
-                env->CP0_EPC = env->PC[env->current_tc] - 4;
+                env->CP0_EPC = env->active_tc.PC - 4;
                 env->CP0_Cause |= (1 << CP0Ca_BD);
             } else {
-                env->CP0_EPC = env->PC[env->current_tc];
+                env->CP0_EPC = env->active_tc.PC;
                 env->CP0_Cause &= ~(1 << CP0Ca_BD);
             }
             env->CP0_Status |= (1 << CP0St_EXL);
@@ -575,11 +575,11 @@ void do_interrupt (CPUState *env)
         }
         env->hflags &= ~MIPS_HFLAG_BMASK;
         if (env->CP0_Status & (1 << CP0St_BEV)) {
-            env->PC[env->current_tc] = (int32_t)0xBFC00200;
+            env->active_tc.PC = (int32_t)0xBFC00200;
         } else {
-            env->PC[env->current_tc] = (int32_t)(env->CP0_EBase & ~0x3ff);
+            env->active_tc.PC = (int32_t)(env->CP0_EBase & ~0x3ff);
         }
-        env->PC[env->current_tc] += offset;
+        env->active_tc.PC += offset;
         env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
         break;
     default:
@@ -593,7 +593,7 @@ void do_interrupt (CPUState *env)
     if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
         fprintf(logfile, "%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
                 "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
-                __func__, env->PC[env->current_tc], env->CP0_EPC, cause,
+                __func__, env->active_tc.PC, env->CP0_EPC, cause,
                 env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
                 env->CP0_DEPC);
     }
