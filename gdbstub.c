@@ -704,17 +704,17 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     ptr = mem_buf;
     for (i = 0; i < 32; i++)
       {
-        *(target_ulong *)ptr = tswapl(env->gpr[env->current_tc][i]);
+        *(target_ulong *)ptr = tswapl(env->active_tc.gpr[i]);
         ptr += sizeof(target_ulong);
       }
 
     *(target_ulong *)ptr = (int32_t)tswap32(env->CP0_Status);
     ptr += sizeof(target_ulong);
 
-    *(target_ulong *)ptr = tswapl(env->LO[env->current_tc][0]);
+    *(target_ulong *)ptr = tswapl(env->active_tc.LO[0]);
     ptr += sizeof(target_ulong);
 
-    *(target_ulong *)ptr = tswapl(env->HI[env->current_tc][0]);
+    *(target_ulong *)ptr = tswapl(env->active_tc.HI[0]);
     ptr += sizeof(target_ulong);
 
     *(target_ulong *)ptr = tswapl(env->CP0_BadVAddr);
@@ -723,7 +723,7 @@ static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
     *(target_ulong *)ptr = (int32_t)tswap32(env->CP0_Cause);
     ptr += sizeof(target_ulong);
 
-    *(target_ulong *)ptr = tswapl(env->PC[env->current_tc]);
+    *(target_ulong *)ptr = tswapl(env->active_tc.PC);
     ptr += sizeof(target_ulong);
 
     if (env->CP0_Config1 & (1 << CP0C1_FP))
@@ -781,17 +781,17 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     ptr = mem_buf;
     for (i = 0; i < 32; i++)
       {
-        env->gpr[env->current_tc][i] = tswapl(*(target_ulong *)ptr);
+        env->active_tc.gpr[i] = tswapl(*(target_ulong *)ptr);
         ptr += sizeof(target_ulong);
       }
 
     env->CP0_Status = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
-    env->LO[env->current_tc][0] = tswapl(*(target_ulong *)ptr);
+    env->active_tc.LO[0] = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
-    env->HI[env->current_tc][0] = tswapl(*(target_ulong *)ptr);
+    env->active_tc.HI[0] = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
     env->CP0_BadVAddr = tswapl(*(target_ulong *)ptr);
@@ -800,7 +800,7 @@ static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
     env->CP0_Cause = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
-    env->PC[env->current_tc] = tswapl(*(target_ulong *)ptr);
+    env->active_tc.PC = tswapl(*(target_ulong *)ptr);
     ptr += sizeof(target_ulong);
 
     if (env->CP0_Config1 & (1 << CP0C1_FP))
@@ -1003,7 +1003,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #elif defined (TARGET_SH4)
             env->pc = addr;
 #elif defined (TARGET_MIPS)
-            env->PC[env->current_tc] = addr;
+            env->active_tc.PC = addr;
 #elif defined (TARGET_CRIS)
             env->pc = addr;
 #endif
@@ -1040,7 +1040,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 #elif defined (TARGET_SH4)
             env->pc = addr;
 #elif defined (TARGET_MIPS)
-            env->PC[env->current_tc] = addr;
+            env->active_tc.PC = addr;
 #elif defined (TARGET_CRIS)
             env->pc = addr;
 #endif

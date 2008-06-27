@@ -197,7 +197,7 @@ static inline TranslationBlock *tb_find_fast(void)
 #elif defined(TARGET_MIPS)
     flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK);
     cs_base = 0;
-    pc = env->PC[env->current_tc];
+    pc = env->active_tc.PC;
 #elif defined(TARGET_M68K)
     flags = (env->fpcr & M68K_FPCR_PREC)  /* Bit  6 */
             | (env->sr & SR_S)            /* Bit  13 */

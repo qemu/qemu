@@ -87,7 +87,7 @@ static void load_kernel (CPUState *env)
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;
-        env->PC[env->current_tc] = entry;
+        env->active_tc.PC = entry;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);

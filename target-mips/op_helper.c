@@ -89,25 +89,25 @@ target_ulong do_dclz (target_ulong t0)
 /* 64 bits arithmetic for 32 bits hosts */
 static always_inline uint64_t get_HILO (void)
 {
-    return ((uint64_t)(env->HI[env->current_tc][0]) << 32) | (uint32_t)env->LO[env->current_tc][0];
+    return ((uint64_t)(env->active_tc.HI[0]) << 32) | (uint32_t)env->active_tc.LO[0];
 }
 
 static always_inline void set_HILO (uint64_t HILO)
 {
-    env->LO[env->current_tc][0] = (int32_t)HILO;
-    env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
+    env->active_tc.LO[0] = (int32_t)HILO;
+    env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
 static always_inline void set_HIT0_LO (target_ulong t0, uint64_t HILO)
 {
-    env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
-    t0 = env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
+    env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
+    t0 = env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
 static always_inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
 {
-    t0 = env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
-    env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
+    t0 = env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
+    env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
@@ -246,12 +246,12 @@ target_ulong do_mulshiu (target_ulong t0, target_ulong t1)
 #ifdef TARGET_MIPS64
 void do_dmult (target_ulong t0, target_ulong t1)
 {
-    muls64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), t0, t1);
+    muls64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), t0, t1);
 }
 
 void do_dmultu (target_ulong t0, target_ulong t1)
 {
-    mulu64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), t0, t1);
+    mulu64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), t0, t1);
 }
 #endif
 
@@ -672,86 +672,107 @@ target_ulong do_mfc0_random (void)
 
 target_ulong do_mfc0_tcstatus (void)
 {
-    return env->CP0_TCStatus[env->current_tc];
+    return env->active_tc.CP0_TCStatus;
 }
 
 target_ulong do_mftc0_tcstatus(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->CP0_TCStatus[other_tc];
+    if (other_tc == env->current_tc)
+        return env->active_tc.CP0_TCStatus;
+    else
+        return env->tcs[other_tc].CP0_TCStatus;
 }
 
 target_ulong do_mfc0_tcbind (void)
 {
-    return env->CP0_TCBind[env->current_tc];
+    return env->active_tc.CP0_TCBind;
 }
 
 target_ulong do_mftc0_tcbind(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->CP0_TCBind[other_tc];
+    if (other_tc == env->current_tc)
+        return env->active_tc.CP0_TCBind;
+    else
+        return env->tcs[other_tc].CP0_TCBind;
 }
 
 target_ulong do_mfc0_tcrestart (void)
 {
-    return env->PC[env->current_tc];
+    return env->active_tc.PC;
 }
 
 target_ulong do_mftc0_tcrestart(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->PC[other_tc];
+    if (other_tc == env->current_tc)
+        return env->active_tc.PC;
+    else
+        return env->tcs[other_tc].PC;
 }
 
 target_ulong do_mfc0_tchalt (void)
 {
-    return env->CP0_TCHalt[env->current_tc];
+    return env->active_tc.CP0_TCHalt;
 }
 
 target_ulong do_mftc0_tchalt(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->CP0_TCHalt[other_tc];
+    if (other_tc == env->current_tc)
+        return env->active_tc.CP0_TCHalt;
+    else
+        return env->tcs[other_tc].CP0_TCHalt;
 }
 
 target_ulong do_mfc0_tccontext (void)
 {
-    return env->CP0_TCContext[env->current_tc];
+    return env->active_tc.CP0_TCContext;
 }
 
 target_ulong do_mftc0_tccontext(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->CP0_TCContext[other_tc];
+    if (other_tc == env->current_tc)
+        return env->active_tc.CP0_TCContext;
+    else
+        return env->tcs[other_tc].CP0_TCContext;
 }
 
 target_ulong do_mfc0_tcschedule (void)
 {
-    return env->CP0_TCSchedule[env->current_tc];
+    return env->active_tc.CP0_TCSchedule;
 }
 
 target_ulong do_mftc0_tcschedule(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->CP0_TCSchedule[other_tc];
+    if (other_tc == env->current_tc)
+        return env->active_tc.CP0_TCSchedule;
+    else
+        return env->tcs[other_tc].CP0_TCSchedule;
 }
 
 target_ulong do_mfc0_tcschefback (void)
 {
-    return env->CP0_TCScheFBack[env->current_tc];
+    return env->active_tc.CP0_TCScheFBack;
 }
 
 target_ulong do_mftc0_tcschefback(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->CP0_TCScheFBack[other_tc];
+    if (other_tc == env->current_tc)
+        return env->active_tc.CP0_TCScheFBack;
+    else
+        return env->tcs[other_tc].CP0_TCScheFBack;
 }
 
 target_ulong do_mfc0_count (void)
@@ -762,15 +783,26 @@ target_ulong do_mfc0_count (void)
 target_ulong do_mftc0_entryhi(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    int32_t tcstatus;
 
-    return (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
+    if (other_tc == env->current_tc)
+        tcstatus = env->active_tc.CP0_TCStatus;
+    else
+        tcstatus = env->tcs[other_tc].CP0_TCStatus;
+
+    return (env->CP0_EntryHi & ~0xff) | (tcstatus & 0xff);
 }
 
 target_ulong do_mftc0_status(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-    uint32_t tcstatus = env->CP0_TCStatus[other_tc];
     target_ulong t0;
+    int32_t tcstatus;
+
+    if (other_tc == env->current_tc)
+        tcstatus = env->active_tc.CP0_TCStatus;
+    else
+        tcstatus = env->tcs[other_tc].CP0_TCStatus;
 
     t0 = env->CP0_Status & ~0xf1000018;
     t0 |= tcstatus & (0xf << CP0TCSt_TCU0);
@@ -807,37 +839,42 @@ target_ulong do_mfc0_debug (void)
 target_ulong do_mftc0_debug(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    int32_t tcstatus;
+
+    if (other_tc == env->current_tc)
+        tcstatus = env->active_tc.CP0_Debug_tcstatus;
+    else
+        tcstatus = env->tcs[other_tc].CP0_Debug_tcstatus;
 
     /* XXX: Might be wrong, check with EJTAG spec. */
     return (env->CP0_Debug & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
-            (env->CP0_Debug_tcstatus[other_tc] &
-             ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
+            (tcstatus & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
 }
 
 #if defined(TARGET_MIPS64)
 target_ulong do_dmfc0_tcrestart (void)
 {
-    return env->PC[env->current_tc];
+    return env->active_tc.PC;
 }
 
 target_ulong do_dmfc0_tchalt (void)
 {
-    return env->CP0_TCHalt[env->current_tc];
+    return env->active_tc.CP0_TCHalt;
 }
 
 target_ulong do_dmfc0_tccontext (void)
 {
-    return env->CP0_TCContext[env->current_tc];
+    return env->active_tc.CP0_TCContext;
 }
 
 target_ulong do_dmfc0_tcschedule (void)
 {
-    return env->CP0_TCSchedule[env->current_tc];
+    return env->active_tc.CP0_TCSchedule;
 }
 
 target_ulong do_dmfc0_tcschefback (void)
 {
-    return env->CP0_TCScheFBack[env->current_tc];
+    return env->active_tc.CP0_TCScheFBack;
 }
 
 target_ulong do_dmfc0_lladdr (void)
@@ -955,11 +992,11 @@ void do_mtc0_tcstatus (target_ulong t0)
     uint32_t mask = env->CP0_TCStatus_rw_bitmask;
     uint32_t newval;
 
-    newval = (env->CP0_TCStatus[env->current_tc] & ~mask) | (t0 & mask);
+    newval = (env->active_tc.CP0_TCStatus & ~mask) | (t0 & mask);
 
     // TODO: Sync with CP0_Status.
 
-    env->CP0_TCStatus[env->current_tc] = newval;
+    env->active_tc.CP0_TCStatus = newval;
 }
 
 void do_mttc0_tcstatus (target_ulong t0)
@@ -968,7 +1005,10 @@ void do_mttc0_tcstatus (target_ulong t0)
 
     // TODO: Sync with CP0_Status.
 
-    env->CP0_TCStatus[other_tc] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.CP0_TCStatus = t0;
+    else
+        env->tcs[other_tc].CP0_TCStatus = t0;
 }
 
 void do_mtc0_tcbind (target_ulong t0)
@@ -978,8 +1018,8 @@ void do_mtc0_tcbind (target_ulong t0)
 
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (1 << CP0TCBd_CurVPE);
-    newval = (env->CP0_TCBind[env->current_tc] & ~mask) | (t0 & mask);
-    env->CP0_TCBind[env->current_tc] = newval;
+    newval = (env->active_tc.CP0_TCBind & ~mask) | (t0 & mask);
+    env->active_tc.CP0_TCBind = newval;
 }
 
 void do_mttc0_tcbind (target_ulong t0)
@@ -990,14 +1030,19 @@ void do_mttc0_tcbind (target_ulong t0)
 
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (1 << CP0TCBd_CurVPE);
-    newval = (env->CP0_TCBind[other_tc] & ~mask) | (t0 & mask);
-    env->CP0_TCBind[other_tc] = newval;
+    if (other_tc == env->current_tc) {
+        newval = (env->active_tc.CP0_TCBind & ~mask) | (t0 & mask);
+        env->active_tc.CP0_TCBind = newval;
+    } else {
+        newval = (env->tcs[other_tc].CP0_TCBind & ~mask) | (t0 & mask);
+        env->tcs[other_tc].CP0_TCBind = newval;
+    }
 }
 
 void do_mtc0_tcrestart (target_ulong t0)
 {
-    env->PC[env->current_tc] = t0;
-    env->CP0_TCStatus[env->current_tc] &= ~(1 << CP0TCSt_TDS);
+    env->active_tc.PC = t0;
+    env->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
     env->CP0_LLAddr = 0ULL;
     /* MIPS16 not implemented. */
 }
@@ -1006,15 +1051,22 @@ void do_mttc0_tcrestart (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->PC[other_tc] = t0;
-    env->CP0_TCStatus[other_tc] &= ~(1 << CP0TCSt_TDS);
-    env->CP0_LLAddr = 0ULL;
-    /* MIPS16 not implemented. */
+    if (other_tc == env->current_tc) {
+        env->active_tc.PC = t0;
+        env->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
+        env->CP0_LLAddr = 0ULL;
+        /* MIPS16 not implemented. */
+    } else {
+        env->tcs[other_tc].PC = t0;
+        env->tcs[other_tc].CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
+        env->CP0_LLAddr = 0ULL;
+        /* MIPS16 not implemented. */
+    }
 }
 
 void do_mtc0_tchalt (target_ulong t0)
 {
-    env->CP0_TCHalt[env->current_tc] = t0 & 0x1;
+    env->active_tc.CP0_TCHalt = t0 & 0x1;
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 }
@@ -1025,43 +1077,55 @@ void do_mttc0_tchalt (target_ulong t0)
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 
-    env->CP0_TCHalt[other_tc] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.CP0_TCHalt = t0;
+    else
+        env->tcs[other_tc].CP0_TCHalt = t0;
 }
 
 void do_mtc0_tccontext (target_ulong t0)
 {
-    env->CP0_TCContext[env->current_tc] = t0;
+    env->active_tc.CP0_TCContext = t0;
 }
 
 void do_mttc0_tccontext (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->CP0_TCContext[other_tc] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.CP0_TCContext = t0;
+    else
+        env->tcs[other_tc].CP0_TCContext = t0;
 }
 
 void do_mtc0_tcschedule (target_ulong t0)
 {
-    env->CP0_TCSchedule[env->current_tc] = t0;
+    env->active_tc.CP0_TCSchedule = t0;
 }
 
 void do_mttc0_tcschedule (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->CP0_TCSchedule[other_tc] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.CP0_TCSchedule = t0;
+    else
+        env->tcs[other_tc].CP0_TCSchedule = t0;
 }
 
 void do_mtc0_tcschefback (target_ulong t0)
 {
-    env->CP0_TCScheFBack[env->current_tc] = t0;
+    env->active_tc.CP0_TCScheFBack = t0;
 }
 
 void do_mttc0_tcschefback (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->CP0_TCScheFBack[other_tc] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.CP0_TCScheFBack = t0;
+    else
+        env->tcs[other_tc].CP0_TCScheFBack = t0;
 }
 
 void do_mtc0_entrylo1 (target_ulong t0)
@@ -1142,8 +1206,8 @@ void do_mtc0_entryhi (target_ulong t0)
     old = env->CP0_EntryHi;
     env->CP0_EntryHi = val;
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
-        uint32_t tcst = env->CP0_TCStatus[env->current_tc] & ~0xff;
-        env->CP0_TCStatus[env->current_tc] = tcst | (val & 0xff);
+        uint32_t tcst = env->active_tc.CP0_TCStatus & ~0xff;
+        env->active_tc.CP0_TCStatus = tcst | (val & 0xff);
     }
     /* If the ASID changes, flush qemu's TLB.  */
     if ((old & 0xFF) != (val & 0xFF))
@@ -1153,9 +1217,16 @@ void do_mtc0_entryhi (target_ulong t0)
 void do_mttc0_entryhi(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    int32_t tcstatus;
 
     env->CP0_EntryHi = (env->CP0_EntryHi & 0xff) | (t0 & ~0xff);
-    env->CP0_TCStatus[other_tc] = (env->CP0_TCStatus[other_tc] & ~0xff) | (t0 & 0xff);
+    if (other_tc == env->current_tc) {
+        tcstatus = (env->active_tc.CP0_TCStatus & ~0xff) | (t0 & 0xff);
+        env->active_tc.CP0_TCStatus = tcstatus;
+    } else {
+        tcstatus = (env->tcs[other_tc].CP0_TCStatus & ~0xff) | (t0 & 0xff);
+        env->tcs[other_tc].CP0_TCStatus = tcstatus;
+    }
 }
 
 void do_mtc0_compare (target_ulong t0)
@@ -1180,13 +1251,16 @@ void do_mtc0_status (target_ulong t0)
 void do_mttc0_status(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-    uint32_t tcstatus = env->CP0_TCStatus[other_tc];
+    int32_t tcstatus = env->tcs[other_tc].CP0_TCStatus;
 
     env->CP0_Status = t0 & ~0xf1000018;
     tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (t0 & (0xf << CP0St_CU0));
     tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((t0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
     tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((t0 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
-    env->CP0_TCStatus[other_tc] = tcstatus;
+    if (other_tc == env->current_tc)
+        env->active_tc.CP0_TCStatus = tcstatus;
+    else
+        env->tcs[other_tc].CP0_TCStatus = tcstatus;
 }
 
 void do_mtc0_intctl (target_ulong t0)
@@ -1279,9 +1353,13 @@ void do_mtc0_debug (target_ulong t0)
 void do_mttc0_debug(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    uint32_t val = t0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
 
     /* XXX: Might be wrong, check with EJTAG spec. */
-    env->CP0_Debug_tcstatus[other_tc] = t0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
+    if (other_tc == env->current_tc)
+        env->active_tc.CP0_Debug_tcstatus = val;
+    else
+        env->tcs[other_tc].CP0_Debug_tcstatus = val;
     env->CP0_Debug = (env->CP0_Debug & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
                      (t0 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
 }
@@ -1336,70 +1414,100 @@ target_ulong do_mftgpr(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->gpr[other_tc][sel];
+    if (other_tc == env->current_tc)
+        return env->active_tc.gpr[sel];
+    else
+        return env->tcs[other_tc].gpr[sel];
 }
 
 target_ulong do_mftlo(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->LO[other_tc][sel];
+    if (other_tc == env->current_tc)
+        return env->active_tc.LO[sel];
+    else
+        return env->tcs[other_tc].LO[sel];
 }
 
 target_ulong do_mfthi(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->HI[other_tc][sel];
+    if (other_tc == env->current_tc)
+        return env->active_tc.HI[sel];
+    else
+        return env->tcs[other_tc].HI[sel];
 }
 
 target_ulong do_mftacx(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->ACX[other_tc][sel];
+    if (other_tc == env->current_tc)
+        return env->active_tc.ACX[sel];
+    else
+        return env->tcs[other_tc].ACX[sel];
 }
 
 target_ulong do_mftdsp(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    return env->DSPControl[other_tc];
+    if (other_tc == env->current_tc)
+        return env->active_tc.DSPControl;
+    else
+        return env->tcs[other_tc].DSPControl;
 }
 
 void do_mttgpr(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->gpr[other_tc][sel] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.gpr[sel] = t0;
+    else
+        env->tcs[other_tc].gpr[sel] = t0;
 }
 
 void do_mttlo(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->LO[other_tc][sel] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.LO[sel] = t0;
+    else
+        env->tcs[other_tc].LO[sel] = t0;
 }
 
 void do_mtthi(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->HI[other_tc][sel] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.HI[sel] = t0;
+    else
+        env->tcs[other_tc].HI[sel] = t0;
 }
 
 void do_mttacx(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->ACX[other_tc][sel] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.ACX[sel] = t0;
+    else
+        env->tcs[other_tc].ACX[sel] = t0;
 }
 
 void do_mttdsp(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->DSPControl[other_tc] = t0;
+    if (other_tc == env->current_tc)
+        env->active_tc.DSPControl = t0;
+    else
+        env->tcs[other_tc].DSPControl = t0;
 }
 
 /* MIPS MT functions */
@@ -1452,7 +1560,7 @@ target_ulong do_yield(target_ulong t0)
         /* No scheduling policy implemented. */
         if (t0 != -2) {
             if (env->CP0_VPEControl & (1 << CP0VPECo_YSI) &&
-                env->CP0_TCStatus[env->current_tc] & (1 << CP0TCSt_DT)) {
+                env->active_tc.CP0_TCStatus & (1 << CP0TCSt_DT)) {
                 env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
                 env->CP0_VPEControl |= 4 << CP0VPECo_EXCPT;
                 do_raise_exception(EXCP_THREAD);
@@ -1659,7 +1767,7 @@ target_ulong do_ei (target_ulong t0)
 void debug_pre_eret (void)
 {
     fprintf(logfile, "ERET: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
-            env->PC[env->current_tc], env->CP0_EPC);
+            env->active_tc.PC, env->CP0_EPC);
     if (env->CP0_Status & (1 << CP0St_ERL))
         fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
     if (env->hflags & MIPS_HFLAG_DM)
@@ -1670,7 +1778,7 @@ void debug_pre_eret (void)
 void debug_post_eret (void)
 {
     fprintf(logfile, "  =>  PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
-            env->PC[env->current_tc], env->CP0_EPC);
+            env->active_tc.PC, env->CP0_EPC);
     if (env->CP0_Status & (1 << CP0St_ERL))
         fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
     if (env->hflags & MIPS_HFLAG_DM)
@@ -1688,10 +1796,10 @@ void do_eret (void)
     if (loglevel & CPU_LOG_EXEC)
         debug_pre_eret();
     if (env->CP0_Status & (1 << CP0St_ERL)) {
-        env->PC[env->current_tc] = env->CP0_ErrorEPC;
+        env->active_tc.PC = env->CP0_ErrorEPC;
         env->CP0_Status &= ~(1 << CP0St_ERL);
     } else {
-        env->PC[env->current_tc] = env->CP0_EPC;
+        env->active_tc.PC = env->CP0_EPC;
         env->CP0_Status &= ~(1 << CP0St_EXL);
     }
     compute_hflags(env);
@@ -1704,7 +1812,7 @@ void do_deret (void)
 {
     if (loglevel & CPU_LOG_EXEC)
         debug_pre_eret();
-    env->PC[env->current_tc] = env->CP0_DEPC;
+    env->active_tc.PC = env->CP0_DEPC;
     env->hflags &= MIPS_HFLAG_DM;
     compute_hflags(env);
     if (loglevel & CPU_LOG_EXEC)
@@ -1804,21 +1912,21 @@ void do_pmon (int function)
     function /= 2;
     switch (function) {
     case 2: /* TODO: char inbyte(int waitflag); */
-        if (env->gpr[env->current_tc][4] == 0)
-            env->gpr[env->current_tc][2] = -1;
+        if (env->active_tc.gpr[4] == 0)
+            env->active_tc.gpr[2] = -1;
         /* Fall through */
     case 11: /* TODO: char inbyte (void); */
-        env->gpr[env->current_tc][2] = -1;
+        env->active_tc.gpr[2] = -1;
         break;
     case 3:
     case 12:
-        printf("%c", (char)(env->gpr[env->current_tc][4] & 0xFF));
+        printf("%c", (char)(env->active_tc.gpr[4] & 0xFF));
         break;
     case 17:
         break;
     case 158:
         {
-            unsigned char *fmt = (void *)(unsigned long)env->gpr[env->current_tc][4];
+            unsigned char *fmt = (void *)(unsigned long)env->active_tc.gpr[4];
             printf("%s", fmt);
         }
         break;
