@@ -904,6 +904,23 @@ static const KeyDef key_defs[] = {
 
     { 0xd2, "insert" },
     { 0xd3, "delete" },
+#if defined(TARGET_SPARC) && !defined(TARGET_SPARC64)
+    { 0xf0, "stop" },
+    { 0xf1, "again" },
+    { 0xf2, "props" },
+    { 0xf3, "undo" },
+    { 0xf4, "front" },
+    { 0xf5, "copy" },
+    { 0xf6, "open" },
+    { 0xf7, "paste" },
+    { 0xf8, "find" },
+    { 0xf9, "cut" },
+    { 0xfa, "lf" },
+    { 0xfb, "help" },
+    { 0xfc, "meta_l" },
+    { 0xfd, "meta_r" },
+    { 0xfe, "compose" },
+#endif
     { 0, NULL },
 };
 
@@ -1044,12 +1061,22 @@ static void do_ioport_read(int count, int format, int size, int addr, int has_in
                 suffix, addr, size * 2, val);
 }
 
+/* boot_set handler */
+static QEMUBootSetHandler *qemu_boot_set_handler = NULL;
+static void *boot_opaque;
+
+void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
+{
+    qemu_boot_set_handler = func;
+    boot_opaque = opaque;
+}
+
 static void do_boot_set(const char *bootdevice)
 {
     int res;
 
     if (qemu_boot_set_handler)  {
-        res = qemu_boot_set_handler(bootdevice);
+        res = qemu_boot_set_handler(boot_opaque, bootdevice);
         if (res == 0)
             term_printf("boot device list now set to %s\n", bootdevice);
         else

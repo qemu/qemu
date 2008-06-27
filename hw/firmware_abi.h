@@ -139,7 +139,7 @@ OpenBIOS_finish_partition(struct OpenBIOS_nvpart_v1 *header, uint32_t size)
 }
 
 static inline uint32_t
-OpenBIOS_set_var(uint8_t *nvram, uint32_t addr, const unsigned char *str)
+OpenBIOS_set_var(uint8_t *nvram, uint32_t addr, const char *str)
 {
     uint32_t len;
 

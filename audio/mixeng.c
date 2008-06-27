@@ -28,8 +28,6 @@
 #define AUDIO_CAP "mixeng"
 #include "audio_int.h"
 
-#define NOVOL
-
 /* 8 bit */
 #define ENDIAN_CONVERSION natural
 #define ENDIAN_CONVERT(v) (v)

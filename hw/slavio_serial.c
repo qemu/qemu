@@ -529,10 +529,10 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr,
             default:
                 break;
             case MINTR_RST_B:
-                slavio_serial_reset_chn(&serial->chn[1]);
+                slavio_serial_reset_chn(&serial->chn[0]);
                 return;
             case MINTR_RST_A:
-                slavio_serial_reset_chn(&serial->chn[0]);
+                slavio_serial_reset_chn(&serial->chn[1]);
                 return;
             case MINTR_RST_ALL:
                 slavio_serial_reset(serial);
@@ -770,7 +770,7 @@ static const uint8_t e0_keycodes[128] = {
     0, 0, 0, 0, 0, 0, 0, 68, 69, 70, 0, 91, 0, 93, 0, 112,
     113, 114, 94, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 3, 25, 26, 49, 52, 72, 73, 97, 99, 111, 118, 120, 122, 67, 0,
 };
 
 static void sunkbd_event(void *opaque, int ch)

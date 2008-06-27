@@ -37,7 +37,7 @@
 */
 
 /* #define DEBUG */
-#define DEBUG_XLAW
+/* #define DEBUG_XLAW */
 
 static struct {
     int irq;

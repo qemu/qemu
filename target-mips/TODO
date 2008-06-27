@@ -32,7 +32,7 @@ General
 - save/restore of the CPU state is not implemented (see machine.c).
 - Improve cpu state handling:
   Step 1) Collect all the TC state in a single struct, so we need only
-          a single global pointer per TC.
+          a single global pointer for the active TC.
   Step 2) Use only a single TC context as working context, and copy the
           contexts on TC switch. Likewise for FPU contexts.
 
@@ -42,7 +42,8 @@ MIPS64
 
 "Generic" 4Kc system emulation
 ------------------------------
-- Doesn't correspond to any real hardware.
+- Doesn't correspond to any real hardware. Should be removed some day,
+  U-Boot is the last remaining user.
 
 PICA 61 system emulation
 ------------------------
@@ -51,7 +52,7 @@ PICA 61 system emulation
 MALTA system emulation
 ----------------------
 - We fake firmware support instead of doing the real thing
-- Real firmware falls over when trying to init RAM, presumably due
-  to lacking system controller emulation.
+- Real firmware (YAMON) falls over when trying to init RAM, presumably
+  due to lacking system controller emulation.
 - Bonito system controller not implemented
 - MSC1 system controller not implemented

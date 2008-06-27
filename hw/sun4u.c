@@ -68,10 +68,30 @@ void DMA_register_channel (int nchan,
 {
 }
 
+static int nvram_boot_set(void *opaque, const char *boot_device)
+{
+    unsigned int i;
+    uint8_t image[sizeof(ohwcfg_v3_t)];
+    ohwcfg_v3_t *header = (ohwcfg_v3_t *)&image;
+    m48t59_t *nvram = (m48t59_t *)opaque;
+
+    for (i = 0; i < sizeof(image); i++)
+        image[i] = m48t59_read(nvram, i) & 0xff;
+
+    strcpy((char *)header->boot_devices, boot_device);
+    header->nboot_devices = strlen(boot_device) & 0xff;
+    header->crc = cpu_to_be16(OHW_compute_crc(header, 0x00, 0xF8));
+
+    for (i = 0; i < sizeof(image); i++)
+        m48t59_write(nvram, i, image[i]);
+
+    return 0;
+}
+
 extern int nographic;
 
 static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
-                                   const unsigned char *arch,
+                                   const char *arch,
                                    ram_addr_t RAM_size,
                                    const char *boot_devices,
                                    uint32_t kernel_image, uint32_t kernel_size,
@@ -90,17 +110,17 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     memset(image, '\0', sizeof(image));
 
     // Try to match PPC NVRAM
-    strcpy(header->struct_ident, "QEMU_BIOS");
+    strcpy((char *)header->struct_ident, "QEMU_BIOS");
     header->struct_version = cpu_to_be32(3); /* structure v3 */
 
     header->nvram_size = cpu_to_be16(NVRAM_size);
     header->nvram_arch_ptr = cpu_to_be16(sizeof(ohwcfg_v3_t));
     header->nvram_arch_size = cpu_to_be16(sizeof(struct sparc_arch_cfg));
-    strcpy(header->arch, arch);
+    strcpy((char *)header->arch, arch);
     header->nb_cpus = smp_cpus & 0xff;
     header->RAM0_base = 0;
     header->RAM0_size = cpu_to_be64((uint64_t)RAM_size);
-    strcpy(header->boot_devices, boot_devices);
+    strcpy((char *)header->boot_devices, boot_devices);
     header->nboot_devices = strlen(boot_devices) & 0xff;
     header->kernel_image = cpu_to_be64((uint64_t)kernel_image);
     header->kernel_size = cpu_to_be64((uint64_t)kernel_size);
@@ -154,6 +174,8 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
 
     for (i = 0; i < sizeof(image); i++)
         m48t59_write(nvram, i, image[i]);
+
+    qemu_register_boot_set(nvram_boot_set, nvram);
 
     return 0;
 }

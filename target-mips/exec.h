@@ -10,14 +10,6 @@
 
 register struct CPUMIPSState *env asm(AREG0);
 
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-#define T0 (env->t0)
-#define T1 (env->t1)
-#else
-register target_ulong T0 asm(AREG1);
-register target_ulong T1 asm(AREG2);
-#endif
-
 #if defined (USE_HOST_FLOAT_REGS)
 #error "implement me."
 #else
@@ -48,34 +40,12 @@ register target_ulong T1 asm(AREG2);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-void do_madd (void);
-void do_maddu (void);
-void do_msub (void);
-void do_msubu (void);
-void do_muls (void);
-void do_mulsu (void);
-void do_macc (void);
-void do_macchi (void);
-void do_maccu (void);
-void do_macchiu (void);
-void do_msac (void);
-void do_msachi (void);
-void do_msacu (void);
-void do_msachiu (void);
-void do_mulhi (void);
-void do_mulhiu (void);
-void do_mulshi (void);
-void do_mulshiu (void);
-#endif
-
 void do_mtc0_status_debug(uint32_t old, uint32_t val);
 void do_mtc0_status_irqraise_debug(void);
 void dump_fpu(CPUState *env);
 void fpu_dump_state(CPUState *env, FILE *f,
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);
-void dump_sc (void);
 
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu);

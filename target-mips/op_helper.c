@@ -33,7 +33,6 @@ void do_raise_exception_err (uint32_t exception, int error_code)
 #endif
     env->exception_index = exception;
     env->error_code = error_code;
-    T0 = 0;
     cpu_loop_exit();
 }
 
@@ -65,113 +64,32 @@ void do_restore_state (void *pc_ptr)
     }
 }
 
-void do_clo (void)
+target_ulong do_clo (target_ulong t0)
 {
-    T0 = clo32(T0);
+    return clo32(t0);
 }
 
-void do_clz (void)
+target_ulong do_clz (target_ulong t0)
 {
-    T0 = clz32(T0);
+    return clz32(t0);
 }
 
 #if defined(TARGET_MIPS64)
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-/* Those might call libgcc functions.  */
-void do_dsll (void)
+target_ulong do_dclo (target_ulong t0)
 {
-    T0 = T0 << T1;
+    return clo64(t0);
 }
 
-void do_dsll32 (void)
+target_ulong do_dclz (target_ulong t0)
 {
-    T0 = T0 << (T1 + 32);
+    return clz64(t0);
 }
-
-void do_dsra (void)
-{
-    T0 = (int64_t)T0 >> T1;
-}
-
-void do_dsra32 (void)
-{
-    T0 = (int64_t)T0 >> (T1 + 32);
-}
-
-void do_dsrl (void)
-{
-    T0 = T0 >> T1;
-}
-
-void do_dsrl32 (void)
-{
-    T0 = T0 >> (T1 + 32);
-}
-
-void do_drotr (void)
-{
-    target_ulong tmp;
-
-    if (T1) {
-        tmp = T0 << (0x40 - T1);
-        T0 = (T0 >> T1) | tmp;
-    }
-}
-
-void do_drotr32 (void)
-{
-    target_ulong tmp;
-
-    tmp = T0 << (0x40 - (32 + T1));
-    T0 = (T0 >> (32 + T1)) | tmp;
-}
-
-void do_dsllv (void)
-{
-    T0 = T1 << (T0 & 0x3F);
-}
-
-void do_dsrav (void)
-{
-    T0 = (int64_t)T1 >> (T0 & 0x3F);
-}
-
-void do_dsrlv (void)
-{
-    T0 = T1 >> (T0 & 0x3F);
-}
-
-void do_drotrv (void)
-{
-    target_ulong tmp;
-
-    T0 &= 0x3F;
-    if (T0) {
-        tmp = T1 << (0x40 - T0);
-        T0 = (T1 >> T0) | tmp;
-    } else
-        T0 = T1;
-}
-
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-
-void do_dclo (void)
-{
-    T0 = clo64(T0);
-}
-
-void do_dclz (void)
-{
-    T0 = clz64(T0);
-}
-
 #endif /* TARGET_MIPS64 */
 
 /* 64 bits arithmetic for 32 bits hosts */
-#if TARGET_LONG_BITS > HOST_LONG_BITS
 static always_inline uint64_t get_HILO (void)
 {
-    return (env->HI[env->current_tc][0] << 32) | (uint32_t)env->LO[env->current_tc][0];
+    return ((uint64_t)(env->HI[env->current_tc][0]) << 32) | (uint32_t)env->LO[env->current_tc][0];
 }
 
 static always_inline void set_HILO (uint64_t HILO)
@@ -180,133 +98,503 @@ static always_inline void set_HILO (uint64_t HILO)
     env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
-static always_inline void set_HIT0_LO (uint64_t HILO)
+static always_inline void set_HIT0_LO (target_ulong t0, uint64_t HILO)
 {
     env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
-    T0 = env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
+    t0 = env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
-static always_inline void set_HI_LOT0 (uint64_t HILO)
+static always_inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
 {
-    T0 = env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
+    t0 = env->LO[env->current_tc][0] = (int32_t)(HILO & 0xFFFFFFFF);
     env->HI[env->current_tc][0] = (int32_t)(HILO >> 32);
 }
 
-void do_madd (void)
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+void do_madd (target_ulong t0, target_ulong t1)
 {
     int64_t tmp;
 
-    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
+    tmp = ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1);
     set_HILO((int64_t)get_HILO() + tmp);
 }
 
-void do_maddu (void)
+void do_maddu (target_ulong t0, target_ulong t1)
 {
     uint64_t tmp;
 
-    tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
+    tmp = ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1);
     set_HILO(get_HILO() + tmp);
 }
 
-void do_msub (void)
+void do_msub (target_ulong t0, target_ulong t1)
 {
     int64_t tmp;
 
-    tmp = ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
+    tmp = ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1);
     set_HILO((int64_t)get_HILO() - tmp);
 }
 
-void do_msubu (void)
+void do_msubu (target_ulong t0, target_ulong t1)
 {
     uint64_t tmp;
 
-    tmp = ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
+    tmp = ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1);
     set_HILO(get_HILO() - tmp);
-}
-
-/* Multiplication variants of the vr54xx. */
-void do_muls (void)
-{
-    set_HI_LOT0(0 - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
-}
-
-void do_mulsu (void)
-{
-    set_HI_LOT0(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
-}
-
-void do_macc (void)
-{
-    set_HI_LOT0(((int64_t)get_HILO()) + ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
-}
-
-void do_macchi (void)
-{
-    set_HIT0_LO(((int64_t)get_HILO()) + ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
-}
-
-void do_maccu (void)
-{
-    set_HI_LOT0(((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
-}
-
-void do_macchiu (void)
-{
-    set_HIT0_LO(((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
-}
-
-void do_msac (void)
-{
-    set_HI_LOT0(((int64_t)get_HILO()) - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
-}
-
-void do_msachi (void)
-{
-    set_HIT0_LO(((int64_t)get_HILO()) - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
-}
-
-void do_msacu (void)
-{
-    set_HI_LOT0(((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
-}
-
-void do_msachiu (void)
-{
-    set_HIT0_LO(((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
-}
-
-void do_mulhi (void)
-{
-    set_HIT0_LO((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1);
-}
-
-void do_mulhiu (void)
-{
-    set_HIT0_LO((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1);
-}
-
-void do_mulshi (void)
-{
-    set_HIT0_LO(0 - ((int64_t)(int32_t)T0 * (int64_t)(int32_t)T1));
-}
-
-void do_mulshiu (void)
-{
-    set_HIT0_LO(0 - ((uint64_t)(uint32_t)T0 * (uint64_t)(uint32_t)T1));
 }
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
-#ifdef TARGET_MIPS64
-void do_dmult (void)
+/* Multiplication variants of the vr54xx. */
+target_ulong do_muls (target_ulong t0, target_ulong t1)
 {
-    muls64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
+    set_HI_LOT0(t0, 0 - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+
+    return t0;
 }
 
-void do_dmultu (void)
+target_ulong do_mulsu (target_ulong t0, target_ulong t1)
 {
-    mulu64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), T0, T1);
+    set_HI_LOT0(t0, 0 - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_macc (target_ulong t0, target_ulong t1)
+{
+    set_HI_LOT0(t0, ((int64_t)get_HILO()) + ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_macchi (target_ulong t0, target_ulong t1)
+{
+    set_HIT0_LO(t0, ((int64_t)get_HILO()) + ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_maccu (target_ulong t0, target_ulong t1)
+{
+    set_HI_LOT0(t0, ((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_macchiu (target_ulong t0, target_ulong t1)
+{
+    set_HIT0_LO(t0, ((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_msac (target_ulong t0, target_ulong t1)
+{
+    set_HI_LOT0(t0, ((int64_t)get_HILO()) - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_msachi (target_ulong t0, target_ulong t1)
+{
+    set_HIT0_LO(t0, ((int64_t)get_HILO()) - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_msacu (target_ulong t0, target_ulong t1)
+{
+    set_HI_LOT0(t0, ((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_msachiu (target_ulong t0, target_ulong t1)
+{
+    set_HIT0_LO(t0, ((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_mulhi (target_ulong t0, target_ulong t1)
+{
+    set_HIT0_LO(t0, (int64_t)(int32_t)t0 * (int64_t)(int32_t)t1);
+
+    return t0;
+}
+
+target_ulong do_mulhiu (target_ulong t0, target_ulong t1)
+{
+    set_HIT0_LO(t0, (uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1);
+
+    return t0;
+}
+
+target_ulong do_mulshi (target_ulong t0, target_ulong t1)
+{
+    set_HIT0_LO(t0, 0 - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+
+    return t0;
+}
+
+target_ulong do_mulshiu (target_ulong t0, target_ulong t1)
+{
+    set_HIT0_LO(t0, 0 - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+
+    return t0;
+}
+
+#ifdef TARGET_MIPS64
+void do_dmult (target_ulong t0, target_ulong t1)
+{
+    muls64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), t0, t1);
+}
+
+void do_dmultu (target_ulong t0, target_ulong t1)
+{
+    mulu64(&(env->LO[env->current_tc][0]), &(env->HI[env->current_tc][0]), t0, t1);
 }
 #endif
+
+#ifdef TARGET_WORDS_BIGENDIAN
+#define GET_LMASK(v) ((v) & 3)
+#define GET_OFFSET(addr, offset) (addr + (offset))
+#else
+#define GET_LMASK(v) (((v) & 3) ^ 3)
+#define GET_OFFSET(addr, offset) (addr - (offset))
+#endif
+
+target_ulong do_lwl(target_ulong t0, target_ulong t1, int mem_idx)
+{
+    target_ulong tmp;
+
+#ifdef CONFIG_USER_ONLY
+#define ldfun ldub_raw
+#else
+    int (*ldfun)(target_ulong);
+
+    switch (mem_idx)
+    {
+    case 0: ldfun = ldub_kernel; break;
+    case 1: ldfun = ldub_super; break;
+    default:
+    case 2: ldfun = ldub_user; break;
+    }
+#endif
+    tmp = ldfun(t0);
+    t1 = (t1 & 0x00FFFFFF) | (tmp << 24);
+
+    if (GET_LMASK(t0) <= 2) {
+        tmp = ldfun(GET_OFFSET(t0, 1));
+        t1 = (t1 & 0xFF00FFFF) | (tmp << 16);
+    }
+
+    if (GET_LMASK(t0) <= 1) {
+        tmp = ldfun(GET_OFFSET(t0, 2));
+        t1 = (t1 & 0xFFFF00FF) | (tmp << 8);
+    }
+
+    if (GET_LMASK(t0) == 0) {
+        tmp = ldfun(GET_OFFSET(t0, 3));
+        t1 = (t1 & 0xFFFFFF00) | tmp;
+    }
+    return (int32_t)t1;
+}
+
+target_ulong do_lwr(target_ulong t0, target_ulong t1, int mem_idx)
+{
+    target_ulong tmp;
+
+#ifdef CONFIG_USER_ONLY
+#define ldfun ldub_raw
+#else
+    int (*ldfun)(target_ulong);
+
+    switch (mem_idx)
+    {
+    case 0: ldfun = ldub_kernel; break;
+    case 1: ldfun = ldub_super; break;
+    default:
+    case 2: ldfun = ldub_user; break;
+    }
+#endif
+    tmp = ldfun(t0);
+    t1 = (t1 & 0xFFFFFF00) | tmp;
+
+    if (GET_LMASK(t0) >= 1) {
+        tmp = ldfun(GET_OFFSET(t0, -1));
+        t1 = (t1 & 0xFFFF00FF) | (tmp << 8);
+    }
+
+    if (GET_LMASK(t0) >= 2) {
+        tmp = ldfun(GET_OFFSET(t0, -2));
+        t1 = (t1 & 0xFF00FFFF) | (tmp << 16);
+    }
+
+    if (GET_LMASK(t0) == 3) {
+        tmp = ldfun(GET_OFFSET(t0, -3));
+        t1 = (t1 & 0x00FFFFFF) | (tmp << 24);
+    }
+    return (int32_t)t1;
+}
+
+void do_swl(target_ulong t0, target_ulong t1, int mem_idx)
+{
+#ifdef CONFIG_USER_ONLY
+#define stfun stb_raw
+#else
+    void (*stfun)(target_ulong, int);
+
+    switch (mem_idx)
+    {
+    case 0: stfun = stb_kernel; break;
+    case 1: stfun = stb_super; break;
+    default:
+    case 2: stfun = stb_user; break;
+    }
+#endif
+    stfun(t0, (uint8_t)(t1 >> 24));
+
+    if (GET_LMASK(t0) <= 2)
+        stfun(GET_OFFSET(t0, 1), (uint8_t)(t1 >> 16));
+
+    if (GET_LMASK(t0) <= 1)
+        stfun(GET_OFFSET(t0, 2), (uint8_t)(t1 >> 8));
+
+    if (GET_LMASK(t0) == 0)
+        stfun(GET_OFFSET(t0, 3), (uint8_t)t1);
+}
+
+void do_swr(target_ulong t0, target_ulong t1, int mem_idx)
+{
+#ifdef CONFIG_USER_ONLY
+#define stfun stb_raw
+#else
+    void (*stfun)(target_ulong, int);
+
+    switch (mem_idx)
+    {
+    case 0: stfun = stb_kernel; break;
+    case 1: stfun = stb_super; break;
+    default:
+    case 2: stfun = stb_user; break;
+    }
+#endif
+    stfun(t0, (uint8_t)t1);
+
+    if (GET_LMASK(t0) >= 1)
+        stfun(GET_OFFSET(t0, -1), (uint8_t)(t1 >> 8));
+
+    if (GET_LMASK(t0) >= 2)
+        stfun(GET_OFFSET(t0, -2), (uint8_t)(t1 >> 16));
+
+    if (GET_LMASK(t0) == 3)
+        stfun(GET_OFFSET(t0, -3), (uint8_t)(t1 >> 24));
+}
+
+#if defined(TARGET_MIPS64)
+/* "half" load and stores.  We must do the memory access inline,
+   or fault handling won't work.  */
+
+#ifdef TARGET_WORDS_BIGENDIAN
+#define GET_LMASK64(v) ((v) & 7)
+#else
+#define GET_LMASK64(v) (((v) & 7) ^ 7)
+#endif
+
+target_ulong do_ldl(target_ulong t0, target_ulong t1, int mem_idx)
+{
+    uint64_t tmp;
+
+#ifdef CONFIG_USER_ONLY
+#define ldfun ldub_raw
+#else
+    int (*ldfun)(target_ulong);
+
+    switch (mem_idx)
+    {
+    case 0: ldfun = ldub_kernel; break;
+    case 1: ldfun = ldub_super; break;
+    default:
+    case 2: ldfun = ldub_user; break;
+    }
+#endif
+    tmp = ldfun(t0);
+    t1 = (t1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
+
+    if (GET_LMASK64(t0) <= 6) {
+        tmp = ldfun(GET_OFFSET(t0, 1));
+        t1 = (t1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
+    }
+
+    if (GET_LMASK64(t0) <= 5) {
+        tmp = ldfun(GET_OFFSET(t0, 2));
+        t1 = (t1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
+    }
+
+    if (GET_LMASK64(t0) <= 4) {
+        tmp = ldfun(GET_OFFSET(t0, 3));
+        t1 = (t1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
+    }
+
+    if (GET_LMASK64(t0) <= 3) {
+        tmp = ldfun(GET_OFFSET(t0, 4));
+        t1 = (t1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
+    }
+
+    if (GET_LMASK64(t0) <= 2) {
+        tmp = ldfun(GET_OFFSET(t0, 5));
+        t1 = (t1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
+    }
+
+    if (GET_LMASK64(t0) <= 1) {
+        tmp = ldfun(GET_OFFSET(t0, 6));
+        t1 = (t1 & 0xFFFFFFFFFFFF00FFULL) | (tmp << 8);
+    }
+
+    if (GET_LMASK64(t0) == 0) {
+        tmp = ldfun(GET_OFFSET(t0, 7));
+        t1 = (t1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
+    }
+
+    return t1;
+}
+
+target_ulong do_ldr(target_ulong t0, target_ulong t1, int mem_idx)
+{
+    uint64_t tmp;
+
+#ifdef CONFIG_USER_ONLY
+#define ldfun ldub_raw
+#else
+    int (*ldfun)(target_ulong);
+
+    switch (mem_idx)
+    {
+    case 0: ldfun = ldub_kernel; break;
+    case 1: ldfun = ldub_super; break;
+    default:
+    case 2: ldfun = ldub_user; break;
+    }
+#endif
+    tmp = ldfun(t0);
+    t1 = (t1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
+
+    if (GET_LMASK64(t0) >= 1) {
+        tmp = ldfun(GET_OFFSET(t0, -1));
+        t1 = (t1 & 0xFFFFFFFFFFFF00FFULL) | (tmp  << 8);
+    }
+
+    if (GET_LMASK64(t0) >= 2) {
+        tmp = ldfun(GET_OFFSET(t0, -2));
+        t1 = (t1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
+    }
+
+    if (GET_LMASK64(t0) >= 3) {
+        tmp = ldfun(GET_OFFSET(t0, -3));
+        t1 = (t1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
+    }
+
+    if (GET_LMASK64(t0) >= 4) {
+        tmp = ldfun(GET_OFFSET(t0, -4));
+        t1 = (t1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
+    }
+
+    if (GET_LMASK64(t0) >= 5) {
+        tmp = ldfun(GET_OFFSET(t0, -5));
+        t1 = (t1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
+    }
+
+    if (GET_LMASK64(t0) >= 6) {
+        tmp = ldfun(GET_OFFSET(t0, -6));
+        t1 = (t1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
+    }
+
+    if (GET_LMASK64(t0) == 7) {
+        tmp = ldfun(GET_OFFSET(t0, -7));
+        t1 = (t1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
+    }
+
+    return t1;
+}
+
+void do_sdl(target_ulong t0, target_ulong t1, int mem_idx)
+{
+#ifdef CONFIG_USER_ONLY
+#define stfun stb_raw
+#else
+    void (*stfun)(target_ulong, int);
+
+    switch (mem_idx)
+    {
+    case 0: stfun = stb_kernel; break;
+    case 1: stfun = stb_super; break;
+    default:
+    case 2: stfun = stb_user; break;
+    }
+#endif
+    stfun(t0, (uint8_t)(t1 >> 56));
+
+    if (GET_LMASK64(t0) <= 6)
+        stfun(GET_OFFSET(t0, 1), (uint8_t)(t1 >> 48));
+
+    if (GET_LMASK64(t0) <= 5)
+        stfun(GET_OFFSET(t0, 2), (uint8_t)(t1 >> 40));
+
+    if (GET_LMASK64(t0) <= 4)
+        stfun(GET_OFFSET(t0, 3), (uint8_t)(t1 >> 32));
+
+    if (GET_LMASK64(t0) <= 3)
+        stfun(GET_OFFSET(t0, 4), (uint8_t)(t1 >> 24));
+
+    if (GET_LMASK64(t0) <= 2)
+        stfun(GET_OFFSET(t0, 5), (uint8_t)(t1 >> 16));
+
+    if (GET_LMASK64(t0) <= 1)
+        stfun(GET_OFFSET(t0, 6), (uint8_t)(t1 >> 8));
+
+    if (GET_LMASK64(t0) <= 0)
+        stfun(GET_OFFSET(t0, 7), (uint8_t)t1);
+}
+
+void do_sdr(target_ulong t0, target_ulong t1, int mem_idx)
+{
+#ifdef CONFIG_USER_ONLY
+#define stfun stb_raw
+#else
+    void (*stfun)(target_ulong, int);
+
+    switch (mem_idx)
+    {
+    case 0: stfun = stb_kernel; break;
+    case 1: stfun = stb_super; break;
+     default:
+    case 2: stfun = stb_user; break;
+    }
+#endif
+    stfun(t0, (uint8_t)t1);
+
+    if (GET_LMASK64(t0) >= 1)
+        stfun(GET_OFFSET(t0, -1), (uint8_t)(t1 >> 8));
+
+    if (GET_LMASK64(t0) >= 2)
+        stfun(GET_OFFSET(t0, -2), (uint8_t)(t1 >> 16));
+
+    if (GET_LMASK64(t0) >= 3)
+        stfun(GET_OFFSET(t0, -3), (uint8_t)(t1 >> 24));
+
+    if (GET_LMASK64(t0) >= 4)
+        stfun(GET_OFFSET(t0, -4), (uint8_t)(t1 >> 32));
+
+    if (GET_LMASK64(t0) >= 5)
+        stfun(GET_OFFSET(t0, -5), (uint8_t)(t1 >> 40));
+
+    if (GET_LMASK64(t0) >= 6)
+        stfun(GET_OFFSET(t0, -6), (uint8_t)(t1 >> 48));
+
+    if (GET_LMASK64(t0) == 7)
+        stfun(GET_OFFSET(t0, -7), (uint8_t)(t1 >> 56));
+}
+#endif /* TARGET_MIPS64 */
 
 #ifdef CONFIG_USER_ONLY
 void do_mfc0_random (void)
@@ -386,203 +674,208 @@ static const uint32_t configmask[] = {
 #endif
 
 /* CP0 helpers */
-void do_mfc0_mvpcontrol (void)
+target_ulong do_mfc0_mvpcontrol (void)
 {
-    T0 = env->mvp->CP0_MVPControl;
+    return env->mvp->CP0_MVPControl;
 }
 
-void do_mfc0_mvpconf0 (void)
+target_ulong do_mfc0_mvpconf0 (void)
 {
-    T0 = env->mvp->CP0_MVPConf0;
+    return env->mvp->CP0_MVPConf0;
 }
 
-void do_mfc0_mvpconf1 (void)
+target_ulong do_mfc0_mvpconf1 (void)
 {
-    T0 = env->mvp->CP0_MVPConf1;
+    return env->mvp->CP0_MVPConf1;
 }
 
-void do_mfc0_random (void)
+target_ulong do_mfc0_random (void)
 {
-    T0 = (int32_t)cpu_mips_get_random(env);
+    return (int32_t)cpu_mips_get_random(env);
 }
 
-void do_mfc0_tcstatus (void)
+target_ulong do_mfc0_tcstatus (void)
 {
-    T0 = env->CP0_TCStatus[env->current_tc];
+    return env->CP0_TCStatus[env->current_tc];
 }
 
-void do_mftc0_tcstatus(void)
-{
-    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-
-    T0 = env->CP0_TCStatus[other_tc];
-}
-
-void do_mfc0_tcbind (void)
-{
-    T0 = env->CP0_TCBind[env->current_tc];
-}
-
-void do_mftc0_tcbind(void)
+target_ulong do_mftc0_tcstatus(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->CP0_TCBind[other_tc];
+    return env->CP0_TCStatus[other_tc];
 }
 
-void do_mfc0_tcrestart (void)
+target_ulong do_mfc0_tcbind (void)
 {
-    T0 = env->PC[env->current_tc];
+    return env->CP0_TCBind[env->current_tc];
 }
 
-void do_mftc0_tcrestart(void)
-{
-    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-
-    T0 = env->PC[other_tc];
-}
-
-void do_mfc0_tchalt (void)
-{
-    T0 = env->CP0_TCHalt[env->current_tc];
-}
-
-void do_mftc0_tchalt(void)
+target_ulong do_mftc0_tcbind(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->CP0_TCHalt[other_tc];
+    return env->CP0_TCBind[other_tc];
 }
 
-void do_mfc0_tccontext (void)
+target_ulong do_mfc0_tcrestart (void)
 {
-    T0 = env->CP0_TCContext[env->current_tc];
+    return env->PC[env->current_tc];
 }
 
-void do_mftc0_tccontext(void)
-{
-    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-
-    T0 = env->CP0_TCContext[other_tc];
-}
-
-void do_mfc0_tcschedule (void)
-{
-    T0 = env->CP0_TCSchedule[env->current_tc];
-}
-
-void do_mftc0_tcschedule(void)
+target_ulong do_mftc0_tcrestart(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->CP0_TCSchedule[other_tc];
+    return env->PC[other_tc];
 }
 
-void do_mfc0_tcschefback (void)
+target_ulong do_mfc0_tchalt (void)
 {
-    T0 = env->CP0_TCScheFBack[env->current_tc];
+    return env->CP0_TCHalt[env->current_tc];
 }
 
-void do_mftc0_tcschefback(void)
-{
-    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-
-    T0 = env->CP0_TCScheFBack[other_tc];
-}
-
-void do_mfc0_count (void)
-{
-    T0 = (int32_t)cpu_mips_get_count(env);
-}
-
-void do_mftc0_entryhi(void)
+target_ulong do_mftc0_tchalt(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
+    return env->CP0_TCHalt[other_tc];
 }
 
-void do_mftc0_status(void)
+target_ulong do_mfc0_tccontext (void)
+{
+    return env->CP0_TCContext[env->current_tc];
+}
+
+target_ulong do_mftc0_tccontext(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    return env->CP0_TCContext[other_tc];
+}
+
+target_ulong do_mfc0_tcschedule (void)
+{
+    return env->CP0_TCSchedule[env->current_tc];
+}
+
+target_ulong do_mftc0_tcschedule(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    return env->CP0_TCSchedule[other_tc];
+}
+
+target_ulong do_mfc0_tcschefback (void)
+{
+    return env->CP0_TCScheFBack[env->current_tc];
+}
+
+target_ulong do_mftc0_tcschefback(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    return env->CP0_TCScheFBack[other_tc];
+}
+
+target_ulong do_mfc0_count (void)
+{
+    return (int32_t)cpu_mips_get_count(env);
+}
+
+target_ulong do_mftc0_entryhi(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    return (env->CP0_EntryHi & ~0xff) | (env->CP0_TCStatus[other_tc] & 0xff);
+}
+
+target_ulong do_mftc0_status(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     uint32_t tcstatus = env->CP0_TCStatus[other_tc];
+    target_ulong t0;
 
-    T0 = env->CP0_Status & ~0xf1000018;
-    T0 |= tcstatus & (0xf << CP0TCSt_TCU0);
-    T0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
-    T0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
+    t0 = env->CP0_Status & ~0xf1000018;
+    t0 |= tcstatus & (0xf << CP0TCSt_TCU0);
+    t0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
+    t0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
+
+    return t0;
 }
 
-void do_mfc0_lladdr (void)
+target_ulong do_mfc0_lladdr (void)
 {
-    T0 = (int32_t)env->CP0_LLAddr >> 4;
+    return (int32_t)env->CP0_LLAddr >> 4;
 }
 
-void do_mfc0_watchlo (uint32_t sel)
+target_ulong do_mfc0_watchlo (uint32_t sel)
 {
-    T0 = (int32_t)env->CP0_WatchLo[sel];
+    return (int32_t)env->CP0_WatchLo[sel];
 }
 
-void do_mfc0_watchhi (uint32_t sel)
+target_ulong do_mfc0_watchhi (uint32_t sel)
 {
-    T0 = env->CP0_WatchHi[sel];
+    return env->CP0_WatchHi[sel];
 }
 
-void do_mfc0_debug (void)
+target_ulong do_mfc0_debug (void)
 {
-    T0 = env->CP0_Debug;
+    target_ulong t0 = env->CP0_Debug;
     if (env->hflags & MIPS_HFLAG_DM)
-        T0 |= 1 << CP0DB_DM;
+        t0 |= 1 << CP0DB_DM;
+
+    return t0;
 }
 
-void do_mftc0_debug(void)
+target_ulong do_mftc0_debug(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     /* XXX: Might be wrong, check with EJTAG spec. */
-    T0 = (env->CP0_Debug & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
-         (env->CP0_Debug_tcstatus[other_tc] &
-          ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
+    return (env->CP0_Debug & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
+            (env->CP0_Debug_tcstatus[other_tc] &
+             ((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
 }
 
 #if defined(TARGET_MIPS64)
-void do_dmfc0_tcrestart (void)
+target_ulong do_dmfc0_tcrestart (void)
 {
-    T0 = env->PC[env->current_tc];
+    return env->PC[env->current_tc];
 }
 
-void do_dmfc0_tchalt (void)
+target_ulong do_dmfc0_tchalt (void)
 {
-    T0 = env->CP0_TCHalt[env->current_tc];
+    return env->CP0_TCHalt[env->current_tc];
 }
 
-void do_dmfc0_tccontext (void)
+target_ulong do_dmfc0_tccontext (void)
 {
-    T0 = env->CP0_TCContext[env->current_tc];
+    return env->CP0_TCContext[env->current_tc];
 }
 
-void do_dmfc0_tcschedule (void)
+target_ulong do_dmfc0_tcschedule (void)
 {
-    T0 = env->CP0_TCSchedule[env->current_tc];
+    return env->CP0_TCSchedule[env->current_tc];
 }
 
-void do_dmfc0_tcschefback (void)
+target_ulong do_dmfc0_tcschefback (void)
 {
-    T0 = env->CP0_TCScheFBack[env->current_tc];
+    return env->CP0_TCScheFBack[env->current_tc];
 }
 
-void do_dmfc0_lladdr (void)
+target_ulong do_dmfc0_lladdr (void)
 {
-    T0 = env->CP0_LLAddr >> 4;
+    return env->CP0_LLAddr >> 4;
 }
 
-void do_dmfc0_watchlo (uint32_t sel)
+target_ulong do_dmfc0_watchlo (uint32_t sel)
 {
-    T0 = env->CP0_WatchLo[sel];
+    return env->CP0_WatchLo[sel];
 }
 #endif /* TARGET_MIPS64 */
 
-void do_mtc0_index (void)
+void do_mtc0_index (target_ulong t0)
 {
     int num = 1;
     unsigned int tmp = env->tlb->nb_tlb;
@@ -591,10 +884,10 @@ void do_mtc0_index (void)
         tmp >>= 1;
         num <<= 1;
     } while (tmp);
-    env->CP0_Index = (env->CP0_Index & 0x80000000) | (T0 & (num - 1));
+    env->CP0_Index = (env->CP0_Index & 0x80000000) | (t0 & (num - 1));
 }
 
-void do_mtc0_mvpcontrol (void)
+void do_mtc0_mvpcontrol (target_ulong t0)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -604,21 +897,21 @@ void do_mtc0_mvpcontrol (void)
                 (1 << CP0MVPCo_EVP);
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (1 << CP0MVPCo_STLB);
-    newval = (env->mvp->CP0_MVPControl & ~mask) | (T0 & mask);
+    newval = (env->mvp->CP0_MVPControl & ~mask) | (t0 & mask);
 
     // TODO: Enable/disable shared TLB, enable/disable VPEs.
 
     env->mvp->CP0_MVPControl = newval;
 }
 
-void do_mtc0_vpecontrol (void)
+void do_mtc0_vpecontrol (target_ulong t0)
 {
     uint32_t mask;
     uint32_t newval;
 
     mask = (1 << CP0VPECo_YSI) | (1 << CP0VPECo_GSI) |
            (1 << CP0VPECo_TE) | (0xff << CP0VPECo_TargTC);
-    newval = (env->CP0_VPEControl & ~mask) | (T0 & mask);
+    newval = (env->CP0_VPEControl & ~mask) | (t0 & mask);
 
     /* Yield scheduler intercept not implemented. */
     /* Gating storage scheduler intercept not implemented. */
@@ -628,7 +921,7 @@ void do_mtc0_vpecontrol (void)
     env->CP0_VPEControl = newval;
 }
 
-void do_mtc0_vpeconf0 (void)
+void do_mtc0_vpeconf0 (target_ulong t0)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -638,14 +931,14 @@ void do_mtc0_vpeconf0 (void)
             mask |= (0xff << CP0VPEC0_XTC);
         mask |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
     }
-    newval = (env->CP0_VPEConf0 & ~mask) | (T0 & mask);
+    newval = (env->CP0_VPEConf0 & ~mask) | (t0 & mask);
 
     // TODO: TC exclusive handling due to ERL/EXL.
 
     env->CP0_VPEConf0 = newval;
 }
 
-void do_mtc0_vpeconf1 (void)
+void do_mtc0_vpeconf1 (target_ulong t0)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -653,7 +946,7 @@ void do_mtc0_vpeconf1 (void)
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (0xff << CP0VPEC1_NCX) | (0xff << CP0VPEC1_NCP2) |
                 (0xff << CP0VPEC1_NCP1);
-    newval = (env->CP0_VPEConf1 & ~mask) | (T0 & mask);
+    newval = (env->CP0_VPEConf1 & ~mask) | (t0 & mask);
 
     /* UDI not implemented. */
     /* CP2 not implemented. */
@@ -663,57 +956,57 @@ void do_mtc0_vpeconf1 (void)
     env->CP0_VPEConf1 = newval;
 }
 
-void do_mtc0_yqmask (void)
+void do_mtc0_yqmask (target_ulong t0)
 {
     /* Yield qualifier inputs not implemented. */
     env->CP0_YQMask = 0x00000000;
 }
 
-void do_mtc0_vpeopt (void)
+void do_mtc0_vpeopt (target_ulong t0)
 {
-    env->CP0_VPEOpt = T0 & 0x0000ffff;
+    env->CP0_VPEOpt = t0 & 0x0000ffff;
 }
 
-void do_mtc0_entrylo0 (void)
+void do_mtc0_entrylo0 (target_ulong t0)
 {
     /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo0 = T0 & 0x3FFFFFFF;
+    env->CP0_EntryLo0 = t0 & 0x3FFFFFFF;
 }
 
-void do_mtc0_tcstatus (void)
+void do_mtc0_tcstatus (target_ulong t0)
 {
     uint32_t mask = env->CP0_TCStatus_rw_bitmask;
     uint32_t newval;
 
-    newval = (env->CP0_TCStatus[env->current_tc] & ~mask) | (T0 & mask);
+    newval = (env->CP0_TCStatus[env->current_tc] & ~mask) | (t0 & mask);
 
     // TODO: Sync with CP0_Status.
 
     env->CP0_TCStatus[env->current_tc] = newval;
 }
 
-void do_mttc0_tcstatus (void)
+void do_mttc0_tcstatus (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     // TODO: Sync with CP0_Status.
 
-    env->CP0_TCStatus[other_tc] = T0;
+    env->CP0_TCStatus[other_tc] = t0;
 }
 
-void do_mtc0_tcbind (void)
+void do_mtc0_tcbind (target_ulong t0)
 {
     uint32_t mask = (1 << CP0TCBd_TBE);
     uint32_t newval;
 
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (1 << CP0TCBd_CurVPE);
-    newval = (env->CP0_TCBind[env->current_tc] & ~mask) | (T0 & mask);
+    newval = (env->CP0_TCBind[env->current_tc] & ~mask) | (t0 & mask);
     env->CP0_TCBind[env->current_tc] = newval;
 }
 
-void do_mttc0_tcbind (void)
+void do_mttc0_tcbind (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     uint32_t mask = (1 << CP0TCBd_TBE);
@@ -721,99 +1014,99 @@ void do_mttc0_tcbind (void)
 
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (1 << CP0TCBd_CurVPE);
-    newval = (env->CP0_TCBind[other_tc] & ~mask) | (T0 & mask);
+    newval = (env->CP0_TCBind[other_tc] & ~mask) | (t0 & mask);
     env->CP0_TCBind[other_tc] = newval;
 }
 
-void do_mtc0_tcrestart (void)
+void do_mtc0_tcrestart (target_ulong t0)
 {
-    env->PC[env->current_tc] = T0;
+    env->PC[env->current_tc] = t0;
     env->CP0_TCStatus[env->current_tc] &= ~(1 << CP0TCSt_TDS);
     env->CP0_LLAddr = 0ULL;
     /* MIPS16 not implemented. */
 }
 
-void do_mttc0_tcrestart (void)
+void do_mttc0_tcrestart (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->PC[other_tc] = T0;
+    env->PC[other_tc] = t0;
     env->CP0_TCStatus[other_tc] &= ~(1 << CP0TCSt_TDS);
     env->CP0_LLAddr = 0ULL;
     /* MIPS16 not implemented. */
 }
 
-void do_mtc0_tchalt (void)
+void do_mtc0_tchalt (target_ulong t0)
 {
-    env->CP0_TCHalt[env->current_tc] = T0 & 0x1;
+    env->CP0_TCHalt[env->current_tc] = t0 & 0x1;
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 }
 
-void do_mttc0_tchalt (void)
+void do_mttc0_tchalt (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 
-    env->CP0_TCHalt[other_tc] = T0;
+    env->CP0_TCHalt[other_tc] = t0;
 }
 
-void do_mtc0_tccontext (void)
+void do_mtc0_tccontext (target_ulong t0)
 {
-    env->CP0_TCContext[env->current_tc] = T0;
+    env->CP0_TCContext[env->current_tc] = t0;
 }
 
-void do_mttc0_tccontext (void)
-{
-    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-
-    env->CP0_TCContext[other_tc] = T0;
-}
-
-void do_mtc0_tcschedule (void)
-{
-    env->CP0_TCSchedule[env->current_tc] = T0;
-}
-
-void do_mttc0_tcschedule (void)
+void do_mttc0_tccontext (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->CP0_TCSchedule[other_tc] = T0;
+    env->CP0_TCContext[other_tc] = t0;
 }
 
-void do_mtc0_tcschefback (void)
+void do_mtc0_tcschedule (target_ulong t0)
 {
-    env->CP0_TCScheFBack[env->current_tc] = T0;
+    env->CP0_TCSchedule[env->current_tc] = t0;
 }
 
-void do_mttc0_tcschefback (void)
+void do_mttc0_tcschedule (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->CP0_TCScheFBack[other_tc] = T0;
+    env->CP0_TCSchedule[other_tc] = t0;
 }
 
-void do_mtc0_entrylo1 (void)
+void do_mtc0_tcschefback (target_ulong t0)
+{
+    env->CP0_TCScheFBack[env->current_tc] = t0;
+}
+
+void do_mttc0_tcschefback (target_ulong t0)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+
+    env->CP0_TCScheFBack[other_tc] = t0;
+}
+
+void do_mtc0_entrylo1 (target_ulong t0)
 {
     /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo1 = T0 & 0x3FFFFFFF;
+    env->CP0_EntryLo1 = t0 & 0x3FFFFFFF;
 }
 
-void do_mtc0_context (void)
+void do_mtc0_context (target_ulong t0)
 {
-    env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (T0 & ~0x007FFFFF);
+    env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (t0 & ~0x007FFFFF);
 }
 
-void do_mtc0_pagemask (void)
+void do_mtc0_pagemask (target_ulong t0)
 {
     /* 1k pages not implemented */
-    env->CP0_PageMask = T0 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
+    env->CP0_PageMask = t0 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
 }
 
-void do_mtc0_pagegrain (void)
+void do_mtc0_pagegrain (target_ulong t0)
 {
     /* SmartMIPS not implemented */
     /* Large physaddr (PABITS) not implemented */
@@ -821,52 +1114,52 @@ void do_mtc0_pagegrain (void)
     env->CP0_PageGrain = 0;
 }
 
-void do_mtc0_wired (void)
+void do_mtc0_wired (target_ulong t0)
 {
-    env->CP0_Wired = T0 % env->tlb->nb_tlb;
+    env->CP0_Wired = t0 % env->tlb->nb_tlb;
 }
 
-void do_mtc0_srsconf0 (void)
+void do_mtc0_srsconf0 (target_ulong t0)
 {
-    env->CP0_SRSConf0 |= T0 & env->CP0_SRSConf0_rw_bitmask;
+    env->CP0_SRSConf0 |= t0 & env->CP0_SRSConf0_rw_bitmask;
 }
 
-void do_mtc0_srsconf1 (void)
+void do_mtc0_srsconf1 (target_ulong t0)
 {
-    env->CP0_SRSConf1 |= T0 & env->CP0_SRSConf1_rw_bitmask;
+    env->CP0_SRSConf1 |= t0 & env->CP0_SRSConf1_rw_bitmask;
 }
 
-void do_mtc0_srsconf2 (void)
+void do_mtc0_srsconf2 (target_ulong t0)
 {
-    env->CP0_SRSConf2 |= T0 & env->CP0_SRSConf2_rw_bitmask;
+    env->CP0_SRSConf2 |= t0 & env->CP0_SRSConf2_rw_bitmask;
 }
 
-void do_mtc0_srsconf3 (void)
+void do_mtc0_srsconf3 (target_ulong t0)
 {
-    env->CP0_SRSConf3 |= T0 & env->CP0_SRSConf3_rw_bitmask;
+    env->CP0_SRSConf3 |= t0 & env->CP0_SRSConf3_rw_bitmask;
 }
 
-void do_mtc0_srsconf4 (void)
+void do_mtc0_srsconf4 (target_ulong t0)
 {
-    env->CP0_SRSConf4 |= T0 & env->CP0_SRSConf4_rw_bitmask;
+    env->CP0_SRSConf4 |= t0 & env->CP0_SRSConf4_rw_bitmask;
 }
 
-void do_mtc0_hwrena (void)
+void do_mtc0_hwrena (target_ulong t0)
 {
-    env->CP0_HWREna = T0 & 0x0000000F;
+    env->CP0_HWREna = t0 & 0x0000000F;
 }
 
-void do_mtc0_count (void)
+void do_mtc0_count (target_ulong t0)
 {
-    cpu_mips_store_count(env, T0);
+    cpu_mips_store_count(env, t0);
 }
 
-void do_mtc0_entryhi (void)
+void do_mtc0_entryhi (target_ulong t0)
 {
     target_ulong old, val;
 
     /* 1k pages not implemented */
-    val = T0 & ((TARGET_PAGE_MASK << 1) | 0xFF);
+    val = t0 & ((TARGET_PAGE_MASK << 1) | 0xFF);
 #if defined(TARGET_MIPS64)
     val &= env->SEGMask;
 #endif
@@ -881,25 +1174,25 @@ void do_mtc0_entryhi (void)
         cpu_mips_tlb_flush(env, 1);
 }
 
-void do_mttc0_entryhi(void)
+void do_mttc0_entryhi(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    env->CP0_EntryHi = (env->CP0_EntryHi & 0xff) | (T0 & ~0xff);
-    env->CP0_TCStatus[other_tc] = (env->CP0_TCStatus[other_tc] & ~0xff) | (T0 & 0xff);
+    env->CP0_EntryHi = (env->CP0_EntryHi & 0xff) | (t0 & ~0xff);
+    env->CP0_TCStatus[other_tc] = (env->CP0_TCStatus[other_tc] & ~0xff) | (t0 & 0xff);
 }
 
-void do_mtc0_compare (void)
+void do_mtc0_compare (target_ulong t0)
 {
-    cpu_mips_store_compare(env, T0);
+    cpu_mips_store_compare(env, t0);
 }
 
-void do_mtc0_status (void)
+void do_mtc0_status (target_ulong t0)
 {
     uint32_t val, old;
     uint32_t mask = env->CP0_Status_rw_bitmask;
 
-    val = T0 & mask;
+    val = t0 & mask;
     old = env->CP0_Status;
     env->CP0_Status = (env->CP0_Status & ~mask) | val;
     compute_hflags(env);
@@ -908,31 +1201,31 @@ void do_mtc0_status (void)
     cpu_mips_update_irq(env);
 }
 
-void do_mttc0_status(void)
+void do_mttc0_status(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     uint32_t tcstatus = env->CP0_TCStatus[other_tc];
 
-    env->CP0_Status = T0 & ~0xf1000018;
-    tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (T0 & (0xf << CP0St_CU0));
-    tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((T0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
-    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((T0 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
+    env->CP0_Status = t0 & ~0xf1000018;
+    tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (t0 & (0xf << CP0St_CU0));
+    tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((t0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
+    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((t0 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
     env->CP0_TCStatus[other_tc] = tcstatus;
 }
 
-void do_mtc0_intctl (void)
+void do_mtc0_intctl (target_ulong t0)
 {
     /* vectored interrupts not implemented, no performance counters. */
-    env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (T0 & 0x000002e0);
+    env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (t0 & 0x000002e0);
 }
 
-void do_mtc0_srsctl (void)
+void do_mtc0_srsctl (target_ulong t0)
 {
     uint32_t mask = (0xf << CP0SRSCtl_ESS) | (0xf << CP0SRSCtl_PSS);
-    env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (T0 & mask);
+    env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (t0 & mask);
 }
 
-void do_mtc0_cause (void)
+void do_mtc0_cause (target_ulong t0)
 {
     uint32_t mask = 0x00C00300;
     uint32_t old = env->CP0_Cause;
@@ -940,7 +1233,7 @@ void do_mtc0_cause (void)
     if (env->insn_flags & ISA_MIPS32R2)
         mask |= 1 << CP0Ca_DC;
 
-    env->CP0_Cause = (env->CP0_Cause & ~mask) | (T0 & mask);
+    env->CP0_Cause = (env->CP0_Cause & ~mask) | (t0 & mask);
 
     if ((old ^ env->CP0_Cause) & (1 << CP0Ca_DC)) {
         if (env->CP0_Cause & (1 << CP0Ca_DC))
@@ -951,95 +1244,95 @@ void do_mtc0_cause (void)
 
     /* Handle the software interrupt as an hardware one, as they
        are very similar */
-    if (T0 & CP0Ca_IP_mask) {
+    if (t0 & CP0Ca_IP_mask) {
         cpu_mips_update_irq(env);
     }
 }
 
-void do_mtc0_ebase (void)
+void do_mtc0_ebase (target_ulong t0)
 {
     /* vectored interrupts not implemented */
     /* Multi-CPU not implemented */
-    env->CP0_EBase = 0x80000000 | (T0 & 0x3FFFF000);
+    env->CP0_EBase = 0x80000000 | (t0 & 0x3FFFF000);
 }
 
-void do_mtc0_config0 (void)
+void do_mtc0_config0 (target_ulong t0)
 {
-    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (T0 & 0x00000007);
+    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (t0 & 0x00000007);
 }
 
-void do_mtc0_config2 (void)
+void do_mtc0_config2 (target_ulong t0)
 {
     /* tertiary/secondary caches not implemented */
     env->CP0_Config2 = (env->CP0_Config2 & 0x8FFF0FFF);
 }
 
-void do_mtc0_watchlo (uint32_t sel)
+void do_mtc0_watchlo (target_ulong t0, uint32_t sel)
 {
     /* Watch exceptions for instructions, data loads, data stores
        not implemented. */
-    env->CP0_WatchLo[sel] = (T0 & ~0x7);
+    env->CP0_WatchLo[sel] = (t0 & ~0x7);
 }
 
-void do_mtc0_watchhi (uint32_t sel)
+void do_mtc0_watchhi (target_ulong t0, uint32_t sel)
 {
-    env->CP0_WatchHi[sel] = (T0 & 0x40FF0FF8);
-    env->CP0_WatchHi[sel] &= ~(env->CP0_WatchHi[sel] & T0 & 0x7);
+    env->CP0_WatchHi[sel] = (t0 & 0x40FF0FF8);
+    env->CP0_WatchHi[sel] &= ~(env->CP0_WatchHi[sel] & t0 & 0x7);
 }
 
-void do_mtc0_xcontext (void)
+void do_mtc0_xcontext (target_ulong t0)
 {
     target_ulong mask = (1ULL << (env->SEGBITS - 7)) - 1;
-    env->CP0_XContext = (env->CP0_XContext & mask) | (T0 & ~mask);
+    env->CP0_XContext = (env->CP0_XContext & mask) | (t0 & ~mask);
 }
 
-void do_mtc0_framemask (void)
+void do_mtc0_framemask (target_ulong t0)
 {
-    env->CP0_Framemask = T0; /* XXX */
+    env->CP0_Framemask = t0; /* XXX */
 }
 
-void do_mtc0_debug (void)
+void do_mtc0_debug (target_ulong t0)
 {
-    env->CP0_Debug = (env->CP0_Debug & 0x8C03FC1F) | (T0 & 0x13300120);
-    if (T0 & (1 << CP0DB_DM))
+    env->CP0_Debug = (env->CP0_Debug & 0x8C03FC1F) | (t0 & 0x13300120);
+    if (t0 & (1 << CP0DB_DM))
         env->hflags |= MIPS_HFLAG_DM;
     else
         env->hflags &= ~MIPS_HFLAG_DM;
 }
 
-void do_mttc0_debug(void)
+void do_mttc0_debug(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     /* XXX: Might be wrong, check with EJTAG spec. */
-    env->CP0_Debug_tcstatus[other_tc] = T0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
+    env->CP0_Debug_tcstatus[other_tc] = t0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
     env->CP0_Debug = (env->CP0_Debug & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
-                     (T0 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
+                     (t0 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
 }
 
-void do_mtc0_performance0 (void)
+void do_mtc0_performance0 (target_ulong t0)
 {
-    env->CP0_Performance0 = T0 & 0x000007ff;
+    env->CP0_Performance0 = t0 & 0x000007ff;
 }
 
-void do_mtc0_taglo (void)
+void do_mtc0_taglo (target_ulong t0)
 {
-    env->CP0_TagLo = T0 & 0xFFFFFCF6;
+    env->CP0_TagLo = t0 & 0xFFFFFCF6;
 }
 
-void do_mtc0_datalo (void)
+void do_mtc0_datalo (target_ulong t0)
 {
-    env->CP0_DataLo = T0; /* XXX */
+    env->CP0_DataLo = t0; /* XXX */
 }
 
-void do_mtc0_taghi (void)
+void do_mtc0_taghi (target_ulong t0)
 {
-    env->CP0_TagHi = T0; /* XXX */
+    env->CP0_TagHi = t0; /* XXX */
 }
 
-void do_mtc0_datahi (void)
+void do_mtc0_datahi (target_ulong t0)
 {
-    env->CP0_DataHi = T0; /* XXX */
+    env->CP0_DataHi = t0; /* XXX */
 }
 
 void do_mtc0_status_debug(uint32_t old, uint32_t val)
@@ -1063,117 +1356,125 @@ void do_mtc0_status_irqraise_debug(void)
 #endif /* !CONFIG_USER_ONLY */
 
 /* MIPS MT functions */
-void do_mftgpr(uint32_t sel)
+target_ulong do_mftgpr(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->gpr[other_tc][sel];
+    return env->gpr[other_tc][sel];
 }
 
-void do_mftlo(uint32_t sel)
+target_ulong do_mftlo(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->LO[other_tc][sel];
+    return env->LO[other_tc][sel];
 }
 
-void do_mfthi(uint32_t sel)
+target_ulong do_mfthi(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->HI[other_tc][sel];
+    return env->HI[other_tc][sel];
 }
 
-void do_mftacx(uint32_t sel)
+target_ulong do_mftacx(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->ACX[other_tc][sel];
+    return env->ACX[other_tc][sel];
 }
 
-void do_mftdsp(void)
+target_ulong do_mftdsp(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->DSPControl[other_tc];
+    return env->DSPControl[other_tc];
 }
 
-void do_mttgpr(uint32_t sel)
+void do_mttgpr(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->gpr[other_tc][sel];
+    env->gpr[other_tc][sel] = t0;
 }
 
-void do_mttlo(uint32_t sel)
+void do_mttlo(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->LO[other_tc][sel];
+    env->LO[other_tc][sel] = t0;
 }
 
-void do_mtthi(uint32_t sel)
+void do_mtthi(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->HI[other_tc][sel];
+    env->HI[other_tc][sel] = t0;
 }
 
-void do_mttacx(uint32_t sel)
+void do_mttacx(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->ACX[other_tc][sel];
+    env->ACX[other_tc][sel] = t0;
 }
 
-void do_mttdsp(void)
+void do_mttdsp(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
-    T0 = env->DSPControl[other_tc];
+    env->DSPControl[other_tc] = t0;
 }
 
 /* MIPS MT functions */
-void do_dmt(void)
+target_ulong do_dmt(target_ulong t0)
 {
     // TODO
-    T0 = 0;
-    // rt = T0
+    t0 = 0;
+    // rt = t0
+
+    return t0;
 }
 
-void do_emt(void)
+target_ulong do_emt(target_ulong t0)
 {
     // TODO
-    T0 = 0;
-    // rt = T0
+    t0 = 0;
+    // rt = t0
+
+    return t0;
 }
 
-void do_dvpe(void)
+target_ulong do_dvpe(target_ulong t0)
 {
     // TODO
-    T0 = 0;
-    // rt = T0
+    t0 = 0;
+    // rt = t0
+
+    return t0;
 }
 
-void do_evpe(void)
+target_ulong do_evpe(target_ulong t0)
 {
     // TODO
-    T0 = 0;
-    // rt = T0
+    t0 = 0;
+    // rt = t0
+
+    return t0;
 }
 
-void do_fork(void)
+void do_fork(target_ulong t0, target_ulong t1)
 {
-    // T0 = rt, T1 = rs
-    T0 = 0;
+    // t0 = rt, t1 = rs
+    t0 = 0;
     // TODO: store to TC register
 }
 
-void do_yield(void)
+target_ulong do_yield(target_ulong t0)
 {
-    if (T0 < 0) {
+    if (t0 < 0) {
         /* No scheduling policy implemented. */
-        if (T0 != -2) {
+        if (t0 != -2) {
             if (env->CP0_VPEControl & (1 << CP0VPECo_YSI) &&
                 env->CP0_TCStatus[env->current_tc] & (1 << CP0TCSt_DT)) {
                 env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
@@ -1181,20 +1482,20 @@ void do_yield(void)
                 do_raise_exception(EXCP_THREAD);
             }
         }
-    } else if (T0 == 0) {
+    } else if (t0 == 0) {
 	if (0 /* TODO: TC underflow */) {
             env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
             do_raise_exception(EXCP_THREAD);
         } else {
             // TODO: Deallocate TC
         }
-    } else if (T0 > 0) {
+    } else if (t0 > 0) {
         /* Yield qualifier inputs not implemented. */
         env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
         env->CP0_VPEControl |= 2 << CP0VPECo_EXCPT;
         do_raise_exception(EXCP_THREAD);
     }
-    T0 = env->CP0_YQMask;
+    return env->CP0_YQMask;
 }
 
 /* CP1 functions */
@@ -1360,33 +1661,23 @@ void r4k_do_tlbr (void)
 
 #endif /* !CONFIG_USER_ONLY */
 
-void dump_ldst (const unsigned char *func)
-{
-    if (loglevel)
-        fprintf(logfile, "%s => " TARGET_FMT_lx " " TARGET_FMT_lx "\n", __func__, T0, T1);
-}
-
-void dump_sc (void)
-{
-    if (loglevel) {
-        fprintf(logfile, "%s " TARGET_FMT_lx " at " TARGET_FMT_lx " (" TARGET_FMT_lx ")\n", __func__,
-                T1, T0, env->CP0_LLAddr);
-    }
-}
-
 /* Specials */
-void do_di (void)
+target_ulong do_di (target_ulong t0)
 {
-    T0 = env->CP0_Status;
-    env->CP0_Status = T0 & ~(1 << CP0St_IE);
+    t0 = env->CP0_Status;
+    env->CP0_Status = t0 & ~(1 << CP0St_IE);
     cpu_mips_update_irq(env);
+
+    return t0;
 }
 
-void do_ei (void)
+target_ulong do_ei (target_ulong t0)
 {
-    T0 = env->CP0_Status;
-    env->CP0_Status = T0 | (1 << CP0St_IE);
+    t0 = env->CP0_Status;
+    env->CP0_Status = t0 | (1 << CP0St_IE);
     cpu_mips_update_irq(env);
+
+    return t0;
 }
 
 void debug_pre_eret (void)
@@ -1445,82 +1736,90 @@ void do_deret (void)
     env->CP0_LLAddr = 1;
 }
 
-void do_rdhwr_cpunum(void)
+target_ulong do_rdhwr_cpunum(target_ulong t0)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 0)))
-        T0 = env->CP0_EBase & 0x3ff;
+        t0 = env->CP0_EBase & 0x3ff;
     else
         do_raise_exception(EXCP_RI);
+
+    return t0;
 }
 
-void do_rdhwr_synci_step(void)
+target_ulong do_rdhwr_synci_step(target_ulong t0)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 1)))
-        T0 = env->SYNCI_Step;
+        t0 = env->SYNCI_Step;
     else
         do_raise_exception(EXCP_RI);
+
+    return t0;
 }
 
-void do_rdhwr_cc(void)
+target_ulong do_rdhwr_cc(target_ulong t0)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 2)))
-        T0 = env->CP0_Count;
+        t0 = env->CP0_Count;
     else
         do_raise_exception(EXCP_RI);
+
+    return t0;
 }
 
-void do_rdhwr_ccres(void)
+target_ulong do_rdhwr_ccres(target_ulong t0)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 3)))
-        T0 = env->CCRes;
+        t0 = env->CCRes;
     else
         do_raise_exception(EXCP_RI);
+
+    return t0;
 }
 
 /* Bitfield operations. */
-void do_ext(uint32_t pos, uint32_t size)
+target_ulong do_ext(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size)
 {
-    T0 = (int32_t)((T1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0));
+    return (int32_t)((t1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0));
 }
 
-void do_ins(uint32_t pos, uint32_t size)
+target_ulong do_ins(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size)
 {
     target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
 
-    T0 = (int32_t)((T0 & ~mask) | ((T1 << pos) & mask));
+    return (int32_t)((t0 & ~mask) | ((t1 << pos) & mask));
 }
 
-void do_wsbh(void)
+target_ulong do_wsbh(target_ulong t0, target_ulong t1)
 {
-    T0 = (int32_t)(((T1 << 8) & ~0x00FF00FF) | ((T1 >> 8) & 0x00FF00FF));
+    return (int32_t)(((t1 << 8) & ~0x00FF00FF) | ((t1 >> 8) & 0x00FF00FF));
 }
 
 #if defined(TARGET_MIPS64)
-void do_dext(uint32_t pos, uint32_t size)
+target_ulong do_dext(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size)
 {
-    T0 = (T1 >> pos) & ((size < 64) ? ((1ULL << size) - 1) : ~0ULL);
+    return (t1 >> pos) & ((size < 64) ? ((1ULL << size) - 1) : ~0ULL);
 }
 
-void do_dins(uint32_t pos, uint32_t size)
+target_ulong do_dins(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size)
 {
     target_ulong mask = ((size < 64) ? ((1ULL << size) - 1) : ~0ULL) << pos;
 
-    T0 = (T0 & ~mask) | ((T1 << pos) & mask);
+    return (t0 & ~mask) | ((t1 << pos) & mask);
 }
 
-void do_dsbh(void)
+target_ulong do_dsbh(target_ulong t0, target_ulong t1)
 {
-    T0 = ((T1 << 8) & ~0x00FF00FF00FF00FFULL) | ((T1 >> 8) & 0x00FF00FF00FF00FFULL);
+    return ((t1 << 8) & ~0x00FF00FF00FF00FFULL) | ((t1 >> 8) & 0x00FF00FF00FF00FFULL);
 }
 
-void do_dshd(void)
+target_ulong do_dshd(target_ulong t0, target_ulong t1)
 {
-    T1 = ((T1 << 16) & ~0x0000FFFF0000FFFFULL) | ((T1 >> 16) & 0x0000FFFF0000FFFFULL);
-    T0 = (T1 << 32) | (T1 >> 32);
+    t1 = ((t1 << 16) & ~0x0000FFFF0000FFFFULL) | ((t1 >> 16) & 0x0000FFFF0000FFFFULL);
+    return (t1 << 32) | (t1 >> 32);
 }
 #endif
 
@@ -1642,51 +1941,55 @@ unsigned int ieee_rm[] = {
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->fpu->fcr31 & 3], &env->fpu->fp_status)
 
-void do_cfc1 (uint32_t reg)
+target_ulong do_cfc1 (uint32_t reg)
 {
+    target_ulong t0;
+
     switch (reg) {
     case 0:
-        T0 = (int32_t)env->fpu->fcr0;
+        t0 = (int32_t)env->fpu->fcr0;
         break;
     case 25:
-        T0 = ((env->fpu->fcr31 >> 24) & 0xfe) | ((env->fpu->fcr31 >> 23) & 0x1);
+        t0 = ((env->fpu->fcr31 >> 24) & 0xfe) | ((env->fpu->fcr31 >> 23) & 0x1);
         break;
     case 26:
-        T0 = env->fpu->fcr31 & 0x0003f07c;
+        t0 = env->fpu->fcr31 & 0x0003f07c;
         break;
     case 28:
-        T0 = (env->fpu->fcr31 & 0x00000f83) | ((env->fpu->fcr31 >> 22) & 0x4);
+        t0 = (env->fpu->fcr31 & 0x00000f83) | ((env->fpu->fcr31 >> 22) & 0x4);
         break;
     default:
-        T0 = (int32_t)env->fpu->fcr31;
+        t0 = (int32_t)env->fpu->fcr31;
         break;
     }
+
+    return t0;
 }
 
-void do_ctc1 (uint32_t reg)
+void do_ctc1 (target_ulong t0, uint32_t reg)
 {
     switch(reg) {
     case 25:
-        if (T0 & 0xffffff00)
+        if (t0 & 0xffffff00)
             return;
-        env->fpu->fcr31 = (env->fpu->fcr31 & 0x017fffff) | ((T0 & 0xfe) << 24) |
-                     ((T0 & 0x1) << 23);
+        env->fpu->fcr31 = (env->fpu->fcr31 & 0x017fffff) | ((t0 & 0xfe) << 24) |
+                     ((t0 & 0x1) << 23);
         break;
     case 26:
-        if (T0 & 0x007c0000)
+        if (t0 & 0x007c0000)
             return;
-        env->fpu->fcr31 = (env->fpu->fcr31 & 0xfffc0f83) | (T0 & 0x0003f07c);
+        env->fpu->fcr31 = (env->fpu->fcr31 & 0xfffc0f83) | (t0 & 0x0003f07c);
         break;
     case 28:
-        if (T0 & 0x007c0000)
+        if (t0 & 0x007c0000)
             return;
-        env->fpu->fcr31 = (env->fpu->fcr31 & 0xfefff07c) | (T0 & 0x00000f83) |
-                     ((T0 & 0x4) << 22);
+        env->fpu->fcr31 = (env->fpu->fcr31 & 0xfefff07c) | (t0 & 0x00000f83) |
+                     ((t0 & 0x4) << 22);
         break;
     case 31:
-        if (T0 & 0x007c0000)
+        if (t0 & 0x007c0000)
             return;
-        env->fpu->fcr31 = T0;
+        env->fpu->fcr31 = t0;
         break;
     default:
         return;

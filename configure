@@ -24,6 +24,8 @@ cross_prefix=""
 cc="gcc"
 gcc3_search="yes"
 gcc3_list="gcc-3.4.6 gcc-3.4 gcc34 gcc-3.3.6 gcc-3.3 gcc33 gcc-3.2 gcc32"
+audio_drv_list=""
+audio_card_list=""
 host_cc="gcc"
 ar="ar"
 make="make"
@@ -87,16 +89,6 @@ mingw32="no"
 EXESUF=""
 gdbstub="yes"
 slirp="yes"
-adlib="no"
-ac97="no"
-gus="no"
-cs4231a="no"
-oss="no"
-dsound="no"
-coreaudio="no"
-alsa="no"
-esd="no"
-fmod="no"
 fmod_lib=""
 fmod_inc=""
 vnc_tls="yes"
@@ -114,6 +106,7 @@ build_docs="no"
 uname_release=""
 curses="yes"
 nptl="yes"
+mixemu="no"
 
 # OS specific
 targetos=`uname -s`
@@ -132,32 +125,32 @@ if [ "$cpu" = "i386" ] ; then
 fi
 ;;
 GNU/kFreeBSD)
-oss="yes"
+audio_drv_list="oss"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
 ;;
 FreeBSD)
 bsd="yes"
-oss="yes"
+audio_drv_list="oss"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
 ;;
 NetBSD)
 bsd="yes"
-oss="yes"
+audio_drv_list="oss"
 ;;
 OpenBSD)
 bsd="yes"
-oss="yes"
+audio_drv_list="oss"
 ;;
 Darwin)
 bsd="yes"
 darwin="yes"
 darwin_user="yes"
 cocoa="yes"
-coreaudio="yes"
+audio_drv_list="coreaudio"
 OS_CFLAGS="-mdynamic-no-pic"
 OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
 ;;
@@ -190,11 +183,11 @@ SunOS)
         fi
     fi
     if test -f /usr/include/sys/soundcard.h ; then
-        oss=yes
+        audio_drv_list="oss"
     fi
 ;;
 *)
-oss="yes"
+audio_drv_list="oss"
 linux="yes"
 linux_user="yes"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
@@ -263,17 +256,11 @@ for opt do
   ;;
   --disable-sdl) sdl="no"
   ;;
-  --enable-coreaudio) coreaudio="yes"
-  ;;
-  --enable-alsa) alsa="yes"
-  ;;
-  --enable-esd) esd="yes"
-  ;;
-  --enable-dsound) dsound="yes"
-  ;;
-  --enable-fmod) fmod="yes"
-  ;;
   --fmod-lib=*) fmod_lib="$optarg"
+  ;;
+  --audio-card-list=*) audio_card_list="$optarg"
+  ;;
+  --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
   --fmod-inc=*) fmod_inc="$optarg"
   ;;
@@ -283,21 +270,13 @@ for opt do
   ;;
   --disable-slirp) slirp="no"
   ;;
-  --enable-adlib) adlib="yes"
-  ;;
-  --enable-ac97) ac97="yes"
-  ;;
-  --enable-gus) gus="yes"
-  ;;
-  --enable-cs4231a) cs4231a="yes"
-  ;;
   --disable-kqemu) kqemu="no"
   ;;
   --disable-brlapi) brlapi="no"
   ;;
   --enable-profiler) profiler="yes"
   ;;
-  --enable-cocoa) cocoa="yes" ; coreaudio="yes" ; sdl="no"
+  --enable-cocoa) cocoa="yes" ; sdl="no" ;
   ;;
   --disable-gfx-check) check_gfx="no"
   ;;
@@ -336,6 +315,8 @@ for opt do
   --disable-curses) curses="no"
   ;;
   --disable-nptl) nptl="no"
+  ;;
+  --enable-mixemu) mixemu="yes"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -419,15 +400,9 @@ echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
-echo "  --enable-adlib           enable Adlib emulation"
-echo "  --enable-ac97            enable AC97 emulation"
-echo "  --enable-gus             enable Gravis Ultrasound emulation"
-echo "  --enable-cs4231a         enable CS4231A emulation"
-echo "  --enable-coreaudio       enable Coreaudio audio driver"
-echo "  --enable-alsa            enable ALSA audio driver"
-echo "  --enable-esd             enable EsoundD audio driver"
-echo "  --enable-fmod            enable FMOD audio driver"
-echo "  --enable-dsound          enable DirectSound audio driver"
+echo "  --audio-drv-list         set audio drivers list"
+echo "  --audio-card-list        set list of additional emulated audio cards"
+echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --disable-curses         disable curses output"
@@ -721,7 +696,7 @@ else
     # Make sure to disable cocoa if sdl was set
     if test "$sdl" = "yes" ; then
        cocoa="no"
-       coreaudio="no"
+       audio_drv_list="echo $audio_drv_list | sed s,coreaudio,,g"
     fi
 fi # -z $sdl
 
@@ -835,14 +810,9 @@ if test "$sdl" != "no" ; then
 fi
 echo "curses support    $curses"
 echo "mingw32 support   $mingw32"
-echo "Adlib support     $adlib"
-echo "AC97 support      $ac97"
-echo "GUS support       $gus"
-echo "CS4231A support   $cs4231a"
-echo "CoreAudio support $coreaudio"
-echo "ALSA support      $alsa"
-echo "EsounD support    $esd"
-echo "DSound support    $dsound"
+echo "Audio drivers     $audio_drv_list"
+echo "Extra audio cards $audio_card_list"
+echo "Mixer emulation   $mixemu"
 if test "$fmod" = "yes"; then
     if test -z $fmod_lib || test -z $fmod_inc; then
         echo
@@ -1035,47 +1005,25 @@ if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=yes" >> $config_mak
   echo "#define CONFIG_SLIRP 1" >> $config_h
 fi
-if test "$adlib" = "yes" ; then
-  echo "CONFIG_ADLIB=yes" >> $config_mak
-  echo "#define CONFIG_ADLIB 1" >> $config_h
-fi
-if test "$ac97" = "yes" ; then
-  echo "CONFIG_AC97=yes" >> $config_mak
-  echo "#define CONFIG_AC97 1" >> $config_h
-fi
-if test "$gus" = "yes" ; then
-  echo "CONFIG_GUS=yes" >> $config_mak
-  echo "#define CONFIG_GUS 1" >> $config_h
-fi
-if test "$cs4231a" = "yes" ; then
-  echo "CONFIG_CS4231A=yes" >> $config_mak
-  echo "#define CONFIG_CS4231A 1" >> $config_h
-fi
-if test "$oss" = "yes" ; then
-  echo "CONFIG_OSS=yes" >> $config_mak
-  echo "#define CONFIG_OSS 1" >> $config_h
-fi
-if test "$coreaudio" = "yes" ; then
-  echo "CONFIG_COREAUDIO=yes" >> $config_mak
-  echo "#define CONFIG_COREAUDIO 1" >> $config_h
-fi
-if test "$alsa" = "yes" ; then
-  echo "CONFIG_ALSA=yes" >> $config_mak
-  echo "#define CONFIG_ALSA 1" >> $config_h
-fi
-if test "$esd" = "yes" ; then
-  echo "CONFIG_ESD=yes" >> $config_mak
-  echo "#define CONFIG_ESD 1" >> $config_h
-fi
-if test "$dsound" = "yes" ; then
-  echo "CONFIG_DSOUND=yes" >> $config_mak
-  echo "#define CONFIG_DSOUND 1" >> $config_h
-fi
-if test "$fmod" = "yes" ; then
-  echo "CONFIG_FMOD=yes" >> $config_mak
-  echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
-  echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
-  echo "#define CONFIG_FMOD 1" >> $config_h
+for card in $audio_card_list; do
+    def=CONFIG_`echo $card | tr [:lower:] [:upper:]`
+    echo "$def=yes" >> $config_mak
+    echo "#define $def 1" >> $config_h
+done
+echo "#define AUDIO_DRIVERS \\" >> $config_h
+for drv in $audio_drv_list; do
+    echo "    &${drv}_audio_driver, \\" >>$config_h
+    def=CONFIG_`echo $drv | tr [:lower:] [:upper:]`
+    echo "$def=yes" >> $config_mak
+    if test "$drv" == "fmod"; then
+        echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
+        echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
+    fi
+done
+echo "" >>$config_h
+if test "$mixemu" = "yes" ; then
+  echo "CONFIG_MIXEMU=yes" >> $config_mak
+  echo "#define CONFIG_MIXEMU 1" >> $config_h
 fi
 if test "$vnc_tls" = "yes" ; then
   echo "CONFIG_VNC_TLS=yes" >> $config_mak
@@ -1284,28 +1232,22 @@ case "$target_cpu" in
   ;;
   mips|mipsel)
     echo "TARGET_ARCH=mips" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"mips\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
     echo "#define TARGET_ABI_MIPSO32 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   mipsn32|mipsn32el)
     echo "TARGET_ARCH=mipsn32" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"mipsn32\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
     echo "#define TARGET_ABI_MIPSN32 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   mips64|mips64el)
     echo "TARGET_ARCH=mips64" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"mips64\"" >> $config_h
     echo "#define TARGET_MIPS 1" >> $config_h
     echo "#define TARGET_MIPS64 1" >> $config_h
     echo "#define TARGET_ABI_MIPSN64 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   ppc)
     echo "TARGET_ARCH=ppc" >> $config_mak

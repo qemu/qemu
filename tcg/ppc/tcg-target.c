@@ -67,9 +67,20 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 
 static const int tcg_target_reg_alloc_order[] = {
-    TCG_REG_R0,
-    TCG_REG_R1,
-    TCG_REG_R2,
+    TCG_REG_R14,
+    TCG_REG_R15,
+    TCG_REG_R16,
+    TCG_REG_R17,
+    TCG_REG_R18,
+    TCG_REG_R19,
+    TCG_REG_R20,
+    TCG_REG_R21,
+    TCG_REG_R22,
+    TCG_REG_R23,
+    TCG_REG_R28,
+    TCG_REG_R29,
+    TCG_REG_R30,
+    TCG_REG_R31,
     TCG_REG_R3,
     TCG_REG_R4,
     TCG_REG_R5,
@@ -81,24 +92,13 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R11,
     TCG_REG_R12,
     TCG_REG_R13,
-    TCG_REG_R14,
-    TCG_REG_R15,
-    TCG_REG_R16,
-    TCG_REG_R17,
-    TCG_REG_R18,
-    TCG_REG_R19,
-    TCG_REG_R20,
-    TCG_REG_R21,
-    TCG_REG_R22,
-    TCG_REG_R23,
+    TCG_REG_R0,
+    TCG_REG_R1,
+    TCG_REG_R2,
     TCG_REG_R24,
     TCG_REG_R25,
     TCG_REG_R26,
-    TCG_REG_R27,
-    TCG_REG_R28,
-    TCG_REG_R29,
-    TCG_REG_R30,
-    TCG_REG_R31
+    TCG_REG_R27
 };
 
 static const int tcg_target_call_iarg_regs[] = {
@@ -118,7 +118,6 @@ static const int tcg_target_call_oarg_regs[2] = {
 };
 
 static const int tcg_target_callee_save_regs[] = {
-    TCG_REG_R13,                /* should r13 be saved? */
     TCG_REG_R14,
     TCG_REG_R15,
     TCG_REG_R16,

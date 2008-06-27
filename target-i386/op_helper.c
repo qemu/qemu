@@ -1837,6 +1837,8 @@ void helper_cmpxchg8b(target_ulong a0)
         stq(a0, ((uint64_t)ECX << 32) | (uint32_t)EBX);
         eflags |= CC_Z;
     } else {
+        /* always do the store */
+        stq(a0, d); 
         EDX = (uint32_t)(d >> 32);
         EAX = (uint32_t)d;
         eflags &= ~CC_Z;
@@ -1850,6 +1852,8 @@ void helper_cmpxchg16b(target_ulong a0)
     uint64_t d0, d1;
     int eflags;
 
+    if ((a0 & 0xf) != 0)
+        raise_exception(EXCP0D_GPF);
     eflags = cc_table[CC_OP].compute_all();
     d0 = ldq(a0);
     d1 = ldq(a0 + 8);
@@ -1858,6 +1862,9 @@ void helper_cmpxchg16b(target_ulong a0)
         stq(a0 + 8, ECX);
         eflags |= CC_Z;
     } else {
+        /* always do the store */
+        stq(a0, d0); 
+        stq(a0 + 8, d1); 
         EDX = d1;
         EAX = d0;
         eflags &= ~CC_Z;

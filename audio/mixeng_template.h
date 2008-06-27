@@ -31,14 +31,14 @@
 #define HALF (IN_MAX >> 1)
 #endif
 
-#ifdef NOVOL
-#define VOL(a, b) a
-#else
+#ifdef CONFIG_MIXEMU
 #ifdef FLOAT_MIXENG
 #define VOL(a, b) ((a) * (b))
 #else
 #define VOL(a, b) ((a) * (b)) >> 32
 #endif
+#else
+#define VOL(a, b) a
 #endif
 
 #define ET glue (ENDIAN_CONVERSION, glue (_, IN_T))
@@ -113,7 +113,7 @@ static void glue (glue (conv_, ET), _to_stereo)
 {
     st_sample_t *out = dst;
     IN_T *in = (IN_T *) src;
-#ifndef NOVOL
+#ifdef CONFIG_MIXEMU
     if (vol->mute) {
         mixeng_clear (dst, samples);
         return;
@@ -133,7 +133,7 @@ static void glue (glue (conv_, ET), _to_mono)
 {
     st_sample_t *out = dst;
     IN_T *in = (IN_T *) src;
-#ifndef NOVOL
+#ifdef CONFIG_MIXEMU
     if (vol->mute) {
         mixeng_clear (dst, samples);
         return;
