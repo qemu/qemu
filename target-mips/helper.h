@@ -239,14 +239,14 @@ FOP_PROTO(ngt)
 #undef FOP_PROTO
 
 /* Special functions */
-DEF_HELPER(target_ulong, do_di, (target_ulong t0))
-DEF_HELPER(target_ulong, do_ei, (target_ulong t0))
+DEF_HELPER(target_ulong, do_di, (void))
+DEF_HELPER(target_ulong, do_ei, (void))
 DEF_HELPER(void, do_eret, (void))
 DEF_HELPER(void, do_deret, (void))
-DEF_HELPER(target_ulong, do_rdhwr_cpunum, (target_ulong t0))
-DEF_HELPER(target_ulong, do_rdhwr_synci_step, (target_ulong t0))
-DEF_HELPER(target_ulong, do_rdhwr_cc, (target_ulong t0))
-DEF_HELPER(target_ulong, do_rdhwr_ccres, (target_ulong t0))
+DEF_HELPER(target_ulong, do_rdhwr_cpunum, (void))
+DEF_HELPER(target_ulong, do_rdhwr_synci_step, (void))
+DEF_HELPER(target_ulong, do_rdhwr_cc, (void))
+DEF_HELPER(target_ulong, do_rdhwr_ccres, (void))
 DEF_HELPER(void, do_pmon, (int function))
 DEF_HELPER(void, do_wait, (void))
 

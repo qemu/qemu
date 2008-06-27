@@ -1746,18 +1746,20 @@ void r4k_do_tlbr (void)
 #endif /* !CONFIG_USER_ONLY */
 
 /* Specials */
-target_ulong do_di (target_ulong t0)
+target_ulong do_di (void)
 {
-    t0 = env->CP0_Status;
+    target_ulong t0 = env->CP0_Status;
+
     env->CP0_Status = t0 & ~(1 << CP0St_IE);
     cpu_mips_update_irq(env);
 
     return t0;
 }
 
-target_ulong do_ei (target_ulong t0)
+target_ulong do_ei (void)
 {
-    t0 = env->CP0_Status;
+    target_ulong t0 = env->CP0_Status;
+
     env->CP0_Status = t0 | (1 << CP0St_IE);
     cpu_mips_update_irq(env);
 
@@ -1820,48 +1822,48 @@ void do_deret (void)
     env->CP0_LLAddr = 1;
 }
 
-target_ulong do_rdhwr_cpunum(target_ulong t0)
+target_ulong do_rdhwr_cpunum(void)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 0)))
-        t0 = env->CP0_EBase & 0x3ff;
+        return env->CP0_EBase & 0x3ff;
     else
         do_raise_exception(EXCP_RI);
 
-    return t0;
+    return 0;
 }
 
-target_ulong do_rdhwr_synci_step(target_ulong t0)
+target_ulong do_rdhwr_synci_step(void)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 1)))
-        t0 = env->SYNCI_Step;
+        return env->SYNCI_Step;
     else
         do_raise_exception(EXCP_RI);
 
-    return t0;
+    return 0;
 }
 
-target_ulong do_rdhwr_cc(target_ulong t0)
+target_ulong do_rdhwr_cc(void)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 2)))
-        t0 = env->CP0_Count;
+        return env->CP0_Count;
     else
         do_raise_exception(EXCP_RI);
 
-    return t0;
+    return 0;
 }
 
-target_ulong do_rdhwr_ccres(target_ulong t0)
+target_ulong do_rdhwr_ccres(void)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 3)))
-        t0 = env->CCRes;
+        return env->CCRes;
     else
         do_raise_exception(EXCP_RI);
 
-    return t0;
+    return 0;
 }
 
 /* Bitfield operations. */

@@ -7386,19 +7386,19 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 switch (rd) {
                 case 0:
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_rdhwr_cpunum, t0, t0);
+                    tcg_gen_helper_1_0(do_rdhwr_cpunum, t0);
                     break;
                 case 1:
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_rdhwr_synci_step, t0, t0);
+                    tcg_gen_helper_1_0(do_rdhwr_synci_step, t0);
                     break;
                 case 2:
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_rdhwr_cc, t0, t0);
+                    tcg_gen_helper_1_0(do_rdhwr_cc, t0);
                     break;
                 case 3:
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_rdhwr_ccres, t0, t0);
+                    tcg_gen_helper_1_0(do_rdhwr_ccres, t0);
                     break;
                 case 29:
 #if defined (CONFIG_USER_ONLY)
@@ -7548,14 +7548,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 case OPC_DI:
                     check_insn(env, ctx, ISA_MIPS32R2);
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_di, t0, t0);
+                    tcg_gen_helper_1_0(do_di, t0);
                     /* Stop translation as we may have switched the execution mode */
                     ctx->bstate = BS_STOP;
                     break;
                 case OPC_EI:
                     check_insn(env, ctx, ISA_MIPS32R2);
                     save_cpu_state(ctx, 1);
-                    tcg_gen_helper_1_1(do_ei, t0, t0);
+                    tcg_gen_helper_1_0(do_ei, t0);
                     /* Stop translation as we may have switched the execution mode */
                     ctx->bstate = BS_STOP;
                     break;
