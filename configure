@@ -117,15 +117,18 @@ OS_CFLAGS="-mno-cygwin"
 if [ "$cpu" = "i386" ] ; then
     kqemu="yes"
 fi
+audio_possible_drivers="sdl"
 ;;
 MINGW32*)
 mingw32="yes"
 if [ "$cpu" = "i386" ] ; then
     kqemu="yes"
 fi
+audio_possible_drivers="dsound sdl fmod"
 ;;
 GNU/kFreeBSD)
 audio_drv_list="oss"
+audio_possible_drivers="oss sdl esd"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -133,6 +136,7 @@ fi
 FreeBSD)
 bsd="yes"
 audio_drv_list="oss"
+audio_possible_drivers="oss sdl esd"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -140,10 +144,12 @@ fi
 NetBSD)
 bsd="yes"
 audio_drv_list="oss"
+audio_possible_drivers="oss sdl esd"
 ;;
 OpenBSD)
 bsd="yes"
 audio_drv_list="oss"
+audio_possible_drivers="oss sdl esd"
 ;;
 Darwin)
 bsd="yes"
@@ -151,6 +157,7 @@ darwin="yes"
 darwin_user="yes"
 cocoa="yes"
 audio_drv_list="coreaudio"
+audio_possible_drivers="coreaudio sdl fmod"
 OS_CFLAGS="-mdynamic-no-pic"
 OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
 ;;
@@ -185,13 +192,16 @@ SunOS)
     if test -f /usr/include/sys/soundcard.h ; then
         audio_drv_list="oss"
     fi
+    audio_possible_drivers="oss sdl"
 ;;
 *)
 audio_drv_list="oss"
+audio_possible_drivers="oss alsa sdl esd"
 linux="yes"
 linux_user="yes"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
+    audio_possible_drivers="$audio_possible_drivers fmod"
 fi
 ;;
 esac
@@ -258,11 +268,11 @@ for opt do
   ;;
   --fmod-lib=*) fmod_lib="$optarg"
   ;;
+  --fmod-inc=*) fmod_inc="$optarg"
+  ;;
   --audio-card-list=*) audio_card_list="$optarg"
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
-  ;;
-  --fmod-inc=*) fmod_inc="$optarg"
   ;;
   --disable-vnc-tls) vnc_tls="no"
   ;;
@@ -276,7 +286,10 @@ for opt do
   ;;
   --enable-profiler) profiler="yes"
   ;;
-  --enable-cocoa) cocoa="yes" ; sdl="no" ;
+  --enable-cocoa)
+      cocoa="yes" ;
+      sdl="no" ;
+      audio_drv_list="coreaudio `echo $audio_drv_list | sed s,coreaudio,,g`"
   ;;
   --disable-gfx-check) check_gfx="no"
   ;;
@@ -400,8 +413,10 @@ echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
 echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
-echo "  --audio-drv-list         set audio drivers list"
-echo "  --audio-card-list        set list of additional emulated audio cards"
+echo "  --audio-drv-list=LIST    set audio drivers list:"
+echo "                           Available drivers: $audio_possible_drivers"
+echo "  --audio-card-list=LIST   set list of additional emulated audio cards"
+echo "                           Available cards: ac97 adlib cs4231a gus"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
@@ -692,7 +707,7 @@ else
     # Make sure to disable cocoa if sdl was set
     if test "$sdl" = "yes" ; then
        cocoa="no"
-       audio_drv_list="echo $audio_drv_list | sed s,coreaudio,,g"
+       audio_drv_list="`echo $audio_drv_list | sed s,coreaudio,,g`"
     fi
 fi # -z $sdl
 
@@ -707,23 +722,53 @@ if test "$vnc_tls" = "yes" ; then
 fi
 
 ##########################################
-# alsa sound support libraries
+# Sound support libraries probe
 
-if test "$alsa" = "yes" ; then
-  cat > $TMPC << EOF
-#include <alsa/asoundlib.h>
-int main(void) { snd_pcm_t **handle; return snd_pcm_close(*handle); }
+audio_drv_probe()
+{
+    drv=$1
+    hdr=$2
+    lib=$3
+    exp=$4
+    cfl=$5
+        cat > $TMPC << EOF
+#include <$hdr>
+int main(void) { $exp }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lasound 2> /dev/null ; then
-    :
-  else
-    echo
-    echo "Error: Could not find alsa"
-    echo "Make sure to have the alsa libs and headers installed."
-    echo
-    exit 1
-  fi
-fi
+    if $cc $ARCH_CFLAGS $cfl -o $TMPE $TMPC $lib 2> /dev/null ; then
+        :
+    else
+        echo
+        echo "Error: $drv check failed"
+        echo "Make sure to have the $drv libs and headers installed."
+        echo
+        exit 1
+    fi
+}
+
+for drv in $audio_drv_list; do
+    case $drv in
+    alsa)
+    audio_drv_probe $drv alsa/asoundlib.h -lasound \
+        "snd_pcm_t **handle; return snd_pcm_close(*handle);"
+    ;;
+
+    fmod)
+    if test -z $fmod_lib || test -z $fmod_inc; then
+        echo
+        echo "Error: You must specify path to FMOD library and headers"
+        echo "Example: --fmod-inc=/path/include/fmod --fmod-lib=/path/lib/libfmod-3.74.so"
+        echo
+        exit 1
+    fi
+    audio_drv_probe $drv fmod.h $fmod_lib "return FSOUND_GetVersion();" "-I $fmod_inc"
+    ;;
+
+    esd)
+    audio_drv_probe $drv esd.h -lesd 'return esd_play_stream(0, 0, "", 0);'
+    ;;
+    esac
+done
 
 ##########################################
 # BrlAPI probe
@@ -809,20 +854,6 @@ echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
 echo "Extra audio cards $audio_card_list"
 echo "Mixer emulation   $mixemu"
-if test "$fmod" = "yes"; then
-    if test -z $fmod_lib || test -z $fmod_inc; then
-        echo
-        echo "Error: You must specify path to FMOD library and headers"
-        echo "Example: --fmod-inc=/path/include/fmod --fmod-lib=/path/lib/libfmod-3.74.so"
-        echo
-        exit 1
-    fi
-    fmod_support=" (lib='$fmod_lib' include='$fmod_inc')"
-else
-    fmod_support=""
-fi
-echo "FMOD support      $fmod $fmod_support"
-echo "OSS support       $oss"
 echo "VNC TLS support   $vnc_tls"
 if test "$vnc_tls" = "yes" ; then
     echo "    TLS CFLAGS    $vnc_tls_cflags"
