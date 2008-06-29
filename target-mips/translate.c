@@ -464,12 +464,12 @@ static inline void tcg_gen_helper_0_2i(void *func, TCGv arg1, TCGv arg2, TCGv ar
     tcg_temp_free(tmp);
 }
 
-static inline void tcg_gen_helper_0_2ii(void *func, TCGv arg1, TCGv arg2, TCGv arg3, TCGv arg4)
+static inline void tcg_gen_helper_0_1ii(void *func, TCGv arg1, TCGv arg2, TCGv arg3)
 {
-    TCGv tmp1 = tcg_const_i32(arg3);
+    TCGv tmp1 = tcg_const_i32(arg2);
     TCGv tmp2 = tcg_const_i32(arg3);
 
-    tcg_gen_helper_0_4(func, arg1, arg2, tmp1, tmp2);
+    tcg_gen_helper_0_3(func, arg1, tmp1, tmp2);
     tcg_temp_free(tmp1);
     tcg_temp_free(tmp2);
 }
@@ -490,6 +490,16 @@ static inline void tcg_gen_helper_1_1i(void *func, TCGv ret, TCGv arg1, TCGv arg
     tcg_temp_free(tmp);
 }
 
+static inline void tcg_gen_helper_1_1ii(void *func, TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3)
+{
+    TCGv tmp1 = tcg_const_i32(arg2);
+    TCGv tmp2 = tcg_const_i32(arg3);
+
+    tcg_gen_helper_1_3(func, ret, arg1, tmp1, tmp2);
+    tcg_temp_free(tmp1);
+    tcg_temp_free(tmp2);
+}
+
 static inline void tcg_gen_helper_1_2i(void *func, TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3)
 {
     TCGv tmp = tcg_const_i32(arg3);
@@ -501,7 +511,7 @@ static inline void tcg_gen_helper_1_2i(void *func, TCGv ret, TCGv arg1, TCGv arg
 static inline void tcg_gen_helper_1_2ii(void *func, TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, TCGv arg4)
 {
     TCGv tmp1 = tcg_const_i32(arg3);
-    TCGv tmp2 = tcg_const_i32(arg3);
+    TCGv tmp2 = tcg_const_i32(arg4);
 
     tcg_gen_helper_1_4(func, ret, arg1, arg2, tmp1, tmp2);
     tcg_temp_free(tmp1);
@@ -2748,23 +2758,23 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
     case OPC_EXT:
         if (lsb + msb > 31)
             goto fail;
-        tcg_gen_helper_1_2ii(do_ext, t0, t0, t1, lsb, msb + 1);
+        tcg_gen_helper_1_1ii(do_ext, t0, t1, lsb, msb + 1);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DEXTM:
         if (lsb + msb > 63)
             goto fail;
-        tcg_gen_helper_1_2ii(do_dext, t0, t0, t1, lsb, msb + 1 + 32);
+        tcg_gen_helper_1_1ii(do_dext, t0, t1, lsb, msb + 1 + 32);
         break;
     case OPC_DEXTU:
         if (lsb + msb > 63)
             goto fail;
-        tcg_gen_helper_1_2ii(do_dext, t0, t0, t1, lsb + 32, msb + 1);
+        tcg_gen_helper_1_1ii(do_dext, t0, t1, lsb + 32, msb + 1);
         break;
     case OPC_DEXT:
         if (lsb + msb > 63)
             goto fail;
-        tcg_gen_helper_1_2ii(do_dext, t0, t0, t1, lsb, msb + 1);
+        tcg_gen_helper_1_1ii(do_dext, t0, t1, lsb, msb + 1);
         break;
 #endif
     case OPC_INS:
@@ -7388,7 +7398,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 switch (op2) {
                 case OPC_WSBH:
                     gen_load_gpr(t1, rt);
-                    tcg_gen_helper_1_2(do_wsbh, t0, t0, t1);
+                    tcg_gen_helper_1_1(do_wsbh, t0, t1);
                     gen_store_gpr(t0, rd);
                     break;
                 case OPC_SEB:
@@ -7490,11 +7500,11 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 switch (op2) {
                 case OPC_DSBH:
                     gen_load_gpr(t1, rt);
-                    tcg_gen_helper_1_2(do_dsbh, t0, t0, t1);
+                    tcg_gen_helper_1_1(do_dsbh, t0, t1);
                     break;
                 case OPC_DSHD:
                     gen_load_gpr(t1, rt);
-                    tcg_gen_helper_1_2(do_dshd, t0, t0, t1);
+                    tcg_gen_helper_1_1(do_dshd, t0, t1);
                     break;
                 default:            /* Invalid */
                     MIPS_INVAL("dbshfl");

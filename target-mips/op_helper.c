@@ -1867,7 +1867,7 @@ target_ulong do_rdhwr_ccres(void)
 }
 
 /* Bitfield operations. */
-target_ulong do_ext(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size)
+target_ulong do_ext(target_ulong t1, uint32_t pos, uint32_t size)
 {
     return (int32_t)((t1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0));
 }
@@ -1879,13 +1879,13 @@ target_ulong do_ins(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t siz
     return (int32_t)((t0 & ~mask) | ((t1 << pos) & mask));
 }
 
-target_ulong do_wsbh(target_ulong t0, target_ulong t1)
+target_ulong do_wsbh(target_ulong t1)
 {
     return (int32_t)(((t1 << 8) & ~0x00FF00FF) | ((t1 >> 8) & 0x00FF00FF));
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong do_dext(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size)
+target_ulong do_dext(target_ulong t1, uint32_t pos, uint32_t size)
 {
     return (t1 >> pos) & ((size < 64) ? ((1ULL << size) - 1) : ~0ULL);
 }
@@ -1897,12 +1897,12 @@ target_ulong do_dins(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t si
     return (t0 & ~mask) | ((t1 << pos) & mask);
 }
 
-target_ulong do_dsbh(target_ulong t0, target_ulong t1)
+target_ulong do_dsbh(target_ulong t1)
 {
     return ((t1 << 8) & ~0x00FF00FF00FF00FFULL) | ((t1 >> 8) & 0x00FF00FF00FF00FFULL);
 }
 
-target_ulong do_dshd(target_ulong t0, target_ulong t1)
+target_ulong do_dshd(target_ulong t1)
 {
     t1 = ((t1 << 16) & ~0x0000FFFF0000FFFFULL) | ((t1 >> 16) & 0x0000FFFF0000FFFFULL);
     return (t1 << 32) | (t1 >> 32);
