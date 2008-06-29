@@ -2978,6 +2978,7 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    ppc_translate_init();
     env->cpu_model_str = cpu_model;
     cpu_ppc_register_internal(env, def);
     cpu_ppc_reset(env);

@@ -130,17 +130,29 @@ typedef struct CPUTLBEntry {
                    sizeof(target_phys_addr_t))];
 } CPUTLBEntry;
 
+#ifdef WORDS_BIGENDIAN
+typedef struct icount_decr_u16 {
+    uint16_t high;
+    uint16_t low;
+} icount_decr_u16;
+#else
+typedef struct icount_decr_u16 {
+    uint16_t low;
+    uint16_t high;
+} icount_decr_u16;
+#endif
+
 #define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
     /* soft mmu support */                                              \
-    /* in order to avoid passing too many arguments to the memory       \
-       write helpers, we store some rarely used information in the CPU  \
+    /* in order to avoid passing too many arguments to the MMIO         \
+       helpers, we store some rarely used information in the CPU        \
        context) */                                                      \
-    unsigned long mem_write_pc; /* host pc at which the memory was      \
-                                   written */                           \
-    target_ulong mem_write_vaddr; /* target virtual addr at which the   \
-                                     memory was written */              \
+    unsigned long mem_io_pc; /* host pc at which the memory was         \
+                                accessed */                             \
+    target_ulong mem_io_vaddr; /* target virtual addr at which the      \
+                                     memory was accessed */             \
     int halted; /* TRUE if the CPU is in suspend state */               \
     /* The meaning of the MMU modes is defined in the target code. */   \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
@@ -148,6 +160,16 @@ typedef struct CPUTLBEntry {
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
     /* buffer for temporaries in the code generator */                  \
     long temp_buf[CPU_TEMP_BUF_NLONGS];                                 \
+                                                                        \
+    int64_t icount_extra; /* Instructions until next timer event.  */   \
+    /* Number of cycles left, with interrupt flag in high bit.          \
+       This allows a single read-compare-cbranch-write sequence to test \
+       for both decrementer underflow and exceptions.  */               \
+    union {                                                             \
+        uint32_t u32;                                                   \
+        icount_decr_u16 u16;                                            \
+    } icount_decr;                                                      \
+    uint32_t can_do_io; /* nonzero if memory mapped IO is safe.  */     \
                                                                         \
     /* from this point: preserved by CPU reset */                       \
     /* ice debug support */                                             \

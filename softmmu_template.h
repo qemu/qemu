@@ -51,12 +51,18 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                         int mmu_idx,
                                                         void *retaddr);
 static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
-                                              target_ulong addr)
+                                              target_ulong addr,
+                                              void *retaddr)
 {
     DATA_TYPE res;
     int index;
     index = (physaddr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
+    env->mem_io_pc = (unsigned long)retaddr;
+    if (index > (IO_MEM_NOTDIRTY >> IO_MEM_SHIFT)
+            && !can_do_io(env)) {
+        cpu_io_recompile(env, retaddr);
+    }
 
 #if SHIFT <= 2
     res = io_mem_read[index][SHIFT](io_mem_opaque[index], physaddr);
@@ -95,8 +101,9 @@ DATA_TYPE REGPARM glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
+            retaddr = GETPC();
             addend = env->iotlb[mmu_idx][index];
-            res = glue(io_read, SUFFIX)(addend, addr);
+            res = glue(io_read, SUFFIX)(addend, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
             /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
@@ -148,8 +155,9 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
+            retaddr = GETPC();
             addend = env->iotlb[mmu_idx][index];
-            res = glue(io_read, SUFFIX)(addend, addr);
+            res = glue(io_read, SUFFIX)(addend, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             /* slow unaligned access (it spans two pages) */
@@ -194,9 +202,13 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
     int index;
     index = (physaddr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
+    if (index > (IO_MEM_NOTDIRTY >> IO_MEM_SHIFT)
+            && !can_do_io(env)) {
+        cpu_io_recompile(env, retaddr);
+    }
 
-    env->mem_write_vaddr = addr;
-    env->mem_write_pc = (unsigned long)retaddr;
+    env->mem_io_vaddr = addr;
+    env->mem_io_pc = (unsigned long)retaddr;
 #if SHIFT <= 2
     io_mem_write[index][SHIFT](io_mem_opaque[index], physaddr, val);
 #else

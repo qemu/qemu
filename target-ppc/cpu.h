@@ -697,6 +697,7 @@ struct mmu_ctx_t {
 
 /*****************************************************************************/
 CPUPPCState *cpu_ppc_init (const char *cpu_model);
+void ppc_translate_init(void);
 int cpu_ppc_exec (CPUPPCState *s);
 void cpu_ppc_close (CPUPPCState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
@@ -832,6 +833,8 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
         env->gpr[i] = 0;
 }
 #endif
+
+#define CPU_PC_FROM_TB(env, tb) env->nip = tb->pc
 
 #include "cpu-all.h"
 

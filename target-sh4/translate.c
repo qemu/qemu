@@ -56,6 +56,19 @@ enum {
     BS_EXCP     = 3, /* We reached an exception condition */
 };
 
+static TCGv cpu_env;
+
+#include "gen-icount.h"
+
+static void sh4_translate_init()
+{
+    static int done_init = 0;
+    if (done_init)
+        return;
+    cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    done_init = 1;
+}
+
 #ifdef CONFIG_USER_ONLY
 
 #define GEN_OP_LD(width, reg) \
@@ -143,6 +156,7 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model)
     if (!env)
 	return NULL;
     cpu_exec_init(env);
+    sh4_translate_init();
     cpu_sh4_reset(env);
     tlb_flush(env, 1);
     return env;
@@ -1189,6 +1203,8 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     target_ulong pc_start;
     static uint16_t *gen_opc_end;
     int i, ii;
+    int num_insns;
+    int max_insns;
 
     pc_start = tb->pc;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
@@ -1213,6 +1229,11 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 #endif
 
     ii = -1;
+    num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0)
+        max_insns = CF_COUNT_MASK;
+    gen_icount_start();
     while (ctx.bstate == BS_NONE && gen_opc_ptr < gen_opc_end) {
 	if (env->nb_breakpoints > 0) {
 	    for (i = 0; i < env->nb_breakpoints; i++) {
@@ -1235,22 +1256,30 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
             gen_opc_pc[ii] = ctx.pc;
             gen_opc_hflags[ii] = ctx.flags;
             gen_opc_instr_start[ii] = 1;
+            gen_opc_icount[ii] = num_insns;
         }
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+            gen_io_start();
 #if 0
 	fprintf(stderr, "Loading opcode at address 0x%08x\n", ctx.pc);
 	fflush(stderr);
 #endif
 	ctx.opcode = lduw_code(ctx.pc);
 	decode_opc(&ctx);
+        num_insns++;
 	ctx.pc += 2;
 	if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
 	    break;
 	if (env->singlestep_enabled)
 	    break;
+        if (num_insns >= max_insns)
+            break;
 #ifdef SH4_SINGLE_STEP
 	break;
 #endif
     }
+    if (tb->cflags & CF_LAST_IO)
+        gen_io_end();
     if (env->singlestep_enabled) {
         gen_op_debug();
     } else {
@@ -1274,6 +1303,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 	}
     }
 
+    gen_icount_end(tb, num_insns);
     *gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         i = gen_opc_ptr - gen_opc_buf;
@@ -1282,6 +1312,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
             gen_opc_instr_start[ii++] = 0;
     } else {
         tb->size = ctx.pc - pc_start;
+        tb->icount = num_insns;
     }
 
 #ifdef DEBUG_DISAS

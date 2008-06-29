@@ -152,6 +152,11 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 #endif
 
+#define CPU_PC_FROM_TB(env, tb) do { \
+    env->pc = tb->pc; \
+    env->flags = tb->flags; \
+    } while (0)
+
 #include "cpu-all.h"
 
 /* Memory access type */

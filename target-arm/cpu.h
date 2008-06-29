@@ -417,6 +417,8 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 #endif
 
+#define CPU_PC_FROM_TB(env, tb) env->regs[15] = tb->pc
+
 #include "cpu-all.h"
 
 #endif

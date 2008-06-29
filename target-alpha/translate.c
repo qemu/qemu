@@ -43,6 +43,19 @@ struct DisasContext {
     uint32_t amask;
 };
 
+static TCGv cpu_env;
+
+#include "gen-icount.h"
+
+static void alpha_translate_init()
+{
+    static int done_init = 0;
+    if (done_init)
+        return;
+    cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    done_init = 1;
+}
+
 static always_inline void gen_op_nop (void)
 {
 #if defined(GENERATE_NOP)
@@ -1970,6 +1983,8 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     uint16_t *gen_opc_end;
     int j, lj = -1;
     int ret;
+    int num_insns;
+    int max_insns;
 
     pc_start = tb->pc;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
@@ -1981,6 +1996,12 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     ctx.mem_idx = ((env->ps >> 3) & 3);
     ctx.pal_mode = env->ipr[IPR_EXC_ADDR] & 1;
 #endif
+    num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0)
+        max_insns = CF_COUNT_MASK;
+
+    gen_icount_start();
     for (ret = 0; ret == 0;) {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
@@ -1998,8 +2019,11 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
                     gen_opc_instr_start[lj++] = 0;
                 gen_opc_pc[lj] = ctx.pc;
                 gen_opc_instr_start[lj] = 1;
+                gen_opc_icount[lj] = num_insns;
             }
         }
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+            gen_io_start();
 #if defined ALPHA_DEBUG_DISAS
         insn_count++;
         if (logfile != NULL) {
@@ -2014,6 +2038,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
             fprintf(logfile, "opcode %08x %d\n", insn, insn_count);
         }
 #endif
+        num_insns++;
         ctx.pc += 4;
         ret = translate_one(ctxp, insn);
         if (ret != 0)
@@ -2022,7 +2047,8 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
          * generation
          */
         if (((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0) ||
-            (env->singlestep_enabled)) {
+            (env->singlestep_enabled) ||
+            num_insns >= max_insns) {
             break;
         }
 #if defined (DO_SINGLE_STEP)
@@ -2035,8 +2061,11 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
 #if defined (DO_TB_FLUSH)
     gen_op_tb_flush();
 #endif
+    if (tb->cflags & CF_LAST_IO)
+        gen_io_end();
     /* Generate the return instruction */
     tcg_gen_exit_tb(0);
+    gen_icount_end(tb, num_insns);
     *gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         j = gen_opc_ptr - gen_opc_buf;
@@ -2045,6 +2074,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
             gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = ctx.pc - pc_start;
+        tb->icount = num_insns;
     }
 #if defined ALPHA_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
@@ -2079,6 +2109,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     if (!env)
         return NULL;
     cpu_exec_init(env);
+    alpha_translate_init();
     tlb_flush(env, 1);
     /* XXX: should not be hardcoded */
     env->implver = IMPLVER_2106x;

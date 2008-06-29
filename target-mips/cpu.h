@@ -575,4 +575,10 @@ CPUMIPSState *cpu_mips_init(const char *cpu_model);
 uint32_t cpu_mips_get_clock (void);
 int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 
+#define CPU_PC_FROM_TB(env, tb) do { \
+    env->active_tc.PC = tb->pc; \
+    env->hflags &= ~MIPS_HFLAG_BMASK; \
+    env->hflags |= tb->flags & MIPS_HFLAG_BMASK; \
+    } while (0)
+
 #endif /* !defined (__MIPS_CPU_H__) */

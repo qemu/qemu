@@ -64,6 +64,8 @@ static TCGv NULL_QREG;
 /* Used to distinguish stores from bad addressing modes.  */
 static TCGv store_dummy;
 
+#include "gen-icount.h"
+
 void m68k_tcg_init(void)
 {
     char *p;
@@ -2922,6 +2924,8 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     target_ulong pc_start;
     int pc_offset;
     int last_cc_op;
+    int num_insns;
+    int max_insns;
 
     /* generate intermediate code */
     pc_start = tb->pc;
@@ -2940,6 +2944,12 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     dc->is_mem = 0;
     dc->mactmp = NULL_QREG;
     lj = -1;
+    num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0)
+        max_insns = CF_COUNT_MASK;
+
+    gen_icount_start();
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;
@@ -2963,10 +2973,14 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
             }
             gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
+            gen_opc_icount[lj] = num_insns;
         }
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+            gen_io_start();
         last_cc_op = dc->cc_op;
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
+        num_insns++;
 
         /* Terminate the TB on memory ops if watchpoints are present.  */
         /* FIXME: This should be replacd by the deterministic execution
@@ -2975,8 +2989,11 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
             break;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
-             (pc_offset) < (TARGET_PAGE_SIZE - 32));
+             (pc_offset) < (TARGET_PAGE_SIZE - 32) &&
+             num_insns < max_insns);
 
+    if (tb->cflags & CF_LAST_IO)
+        gen_io_end();
     if (__builtin_expect(env->singlestep_enabled, 0)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (!dc->is_jmp) {
@@ -3002,6 +3019,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
             break;
         }
     }
+    gen_icount_end(tb, num_insns);
     *gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
@@ -3019,6 +3037,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
             gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = dc->pc - pc_start;
+        tb->icount = num_insns;
     }
 
     //optimize_flags();

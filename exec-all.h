@@ -27,7 +27,7 @@
 #define DISAS_UPDATE  2 /* cpu state was modified dynamically */
 #define DISAS_TB_JUMP 3 /* only pc was modified statically */
 
-struct TranslationBlock;
+typedef struct TranslationBlock TranslationBlock;
 
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 64
@@ -48,6 +48,7 @@ extern target_ulong gen_opc_pc[OPC_BUF_SIZE];
 extern target_ulong gen_opc_npc[OPC_BUF_SIZE];
 extern uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 extern uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
+extern uint16_t gen_opc_icount[OPC_BUF_SIZE];
 extern target_ulong gen_opc_jump_pc[2];
 extern uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 
@@ -75,6 +76,10 @@ int cpu_restore_state_copy(struct TranslationBlock *tb,
                            CPUState *env, unsigned long searched_pc,
                            void *puc);
 void cpu_resume_from_signal(CPUState *env1, void *puc);
+void cpu_io_recompile(CPUState *env, void *retaddr);
+TranslationBlock *tb_gen_code(CPUState *env, 
+                              target_ulong pc, target_ulong cs_base, int flags,
+                              int cflags);
 void cpu_exec_init(CPUState *env);
 int page_unprotect(target_ulong address, unsigned long pc, void *puc);
 void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t end,
@@ -120,16 +125,15 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 #define USE_DIRECT_JUMP
 #endif
 
-typedef struct TranslationBlock {
+struct TranslationBlock {
     target_ulong pc;   /* simulated PC corresponding to this block (EIP + CS base) */
     target_ulong cs_base; /* CS base for this block */
     uint64_t flags; /* flags defining in which context the code was generated */
     uint16_t size;      /* size of target code for this block (1 <=
                            size <= TARGET_PAGE_SIZE) */
     uint16_t cflags;    /* compile flags */
-#define CF_TB_FP_USED  0x0002 /* fp ops are used in the TB */
-#define CF_FP_USED     0x0004 /* fp ops are used in the TB or in a chained TB */
-#define CF_SINGLE_INSN 0x0008 /* compile only a single instruction */
+#define CF_COUNT_MASK  0x7fff
+#define CF_LAST_IO     0x8000 /* Last insn may be an IO access.  */
 
     uint8_t *tc_ptr;    /* pointer to the translated code */
     /* next matching tb for physical address. */
@@ -153,7 +157,8 @@ typedef struct TranslationBlock {
        jmp_first */
     struct TranslationBlock *jmp_next[2];
     struct TranslationBlock *jmp_first;
-} TranslationBlock;
+    uint32_t icount;
+};
 
 static inline unsigned int tb_jmp_cache_hash_page(target_ulong pc)
 {
@@ -176,9 +181,11 @@ static inline unsigned int tb_phys_hash_func(unsigned long pc)
 }
 
 TranslationBlock *tb_alloc(target_ulong pc);
+void tb_free(TranslationBlock *tb);
 void tb_flush(CPUState *env);
 void tb_link_phys(TranslationBlock *tb,
                   target_ulong phys_pc, target_ulong phys_page2);
+void tb_phys_invalidate(TranslationBlock *tb, target_ulong page_addr);
 
 extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 extern uint8_t *code_gen_ptr;
@@ -362,6 +369,20 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 #endif
     }
     return addr + env1->tlb_table[mmu_idx][page_index].addend - (unsigned long)phys_ram_base;
+}
+
+/* Deterministic execution requires that IO only be performaed on the last
+   instruction of a TB so that interrupts take effect immediately.  */
+static inline int can_do_io(CPUState *env)
+{
+    if (!use_icount)
+        return 1;
+
+    /* If not executing code then assume we are ok.  */
+    if (!env->current_tb)
+        return 1;
+
+    return env->can_do_io != 0;
 }
 #endif
 

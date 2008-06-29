@@ -238,5 +238,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SFR_RW_MM_TLB_LO   env->pregs[PR_SRS]][5
 #define SFR_RW_MM_TLB_HI   env->pregs[PR_SRS]][6
 
+#define CPU_PC_FROM_TB(env, tb) env->pc = tb->pc
+
 #include "cpu-all.h"
 #endif

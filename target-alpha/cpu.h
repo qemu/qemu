@@ -415,4 +415,6 @@ void cpu_loop_exit (void);
 void pal_init (CPUState *env);
 void call_pal (CPUState *env, int palcode);
 
+#define CPU_PC_FROM_TB(env, tb) env->pc = tb->pc
+
 #endif /* !defined (__CPU_ALPHA_H__) */

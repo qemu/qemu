@@ -143,6 +143,9 @@ typedef int TCGv;
 
 #endif /* DEBUG_TCGV */
 
+/* Dummy definition to avoid compiler warnings.  */
+#define TCGV_UNUSED(x) x = MAKE_TCGV(-1)
+
 /* call flags */
 #define TCG_CALL_TYPE_MASK      0x000f
 #define TCG_CALL_TYPE_STD       0x0000 /* standard C call */

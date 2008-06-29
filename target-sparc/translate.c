@@ -49,6 +49,8 @@ static TCGv cpu_xcc;
 /* local register indexes (only used inside old micro ops) */
 static TCGv cpu_tmp0, cpu_tmp32, cpu_tmp64;
 
+#include "gen-icount.h"
+
 typedef struct DisasContext {
     target_ulong pc;    /* current Program Counter: integer or DYNAMIC_PC */
     target_ulong npc;   /* next PC: integer or DYNAMIC_PC or JUMP_PC */
@@ -4720,6 +4722,8 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     uint16_t *gen_opc_end;
     DisasContext dc1, *dc = &dc1;
     int j, lj = -1;
+    int num_insns;
+    int max_insns;
 
     memset(dc, 0, sizeof(DisasContext));
     dc->tb = tb;
@@ -4748,6 +4752,11 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     cpu_val = tcg_temp_local_new(TCG_TYPE_TL);
     cpu_addr = tcg_temp_local_new(TCG_TYPE_TL);
 
+    num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0)
+        max_insns = CF_COUNT_MASK;
+    gen_icount_start();
     do {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
@@ -4772,10 +4781,14 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
                 gen_opc_pc[lj] = dc->pc;
                 gen_opc_npc[lj] = dc->npc;
                 gen_opc_instr_start[lj] = 1;
+                gen_opc_icount[lj] = num_insns;
             }
         }
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+            gen_io_start();
         last_pc = dc->pc;
         disas_sparc_insn(dc);
+        num_insns++;
 
         if (dc->is_br)
             break;
@@ -4794,7 +4807,8 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
             break;
         }
     } while ((gen_opc_ptr < gen_opc_end) &&
-             (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32));
+             (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32) &&
+             num_insns < max_insns);
 
  exit_gen_loop:
     tcg_temp_free(cpu_addr);
@@ -4803,6 +4817,8 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
     tcg_temp_free(cpu_tmp64);
     tcg_temp_free(cpu_tmp32);
     tcg_temp_free(cpu_tmp0);
+    if (tb->cflags & CF_LAST_IO)
+        gen_io_end();
     if (!dc->is_br) {
         if (dc->pc != DYNAMIC_PC &&
             (dc->npc != DYNAMIC_PC && dc->npc != JUMP_PC)) {
@@ -4815,6 +4831,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
             tcg_gen_exit_tb(0);
         }
     }
+    gen_icount_end(tb, num_insns);
     *gen_opc_ptr = INDEX_op_end;
     if (spc) {
         j = gen_opc_ptr - gen_opc_buf;
@@ -4830,6 +4847,7 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         gen_opc_jump_pc[1] = dc->jump_pc[1];
     } else {
         tb->size = last_pc + 4 - pc_start;
+        tb->icount = num_insns;
     }
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {

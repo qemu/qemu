@@ -184,7 +184,7 @@ SMP is supported with up to 255 CPUs.
 
 Note that adlib, ac97, gus and cs4231a are only available when QEMU
 was configured with --audio-card-list option containing the name(s) of
-required cards.
+required card(s).
 
 QEMU uses the PC BIOS from the Bochs project and the Plex86/Bochs LGPL
 VGA BIOS.
@@ -965,6 +965,17 @@ On M68K this implements the "ColdFire GDB" interface used by libgloss.
 
 Note that this allows guest direct access to the host filesystem,
 so should only be used with trusted guest OS.
+
+@item -icount [N|auto]
+Enable virtual instruction counter.  The virtual cpu will execute one
+instruction every 2^N ns of virtual time.  If @code{auto} is specified
+then the virtual cpu speed will be automatically adjusted to keep virtual
+time within a few seconds of real time.
+
+Note that while this option can give deterministic behavior, it does not
+provide cycle accurate emulation.  Modern CPUs contain superscalar out of
+order cores with complex cache hierarchies.  The number of instructions
+executed often has little or no correlation with actual performance.
 @end table
 
 @c man end
