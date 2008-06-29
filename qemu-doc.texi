@@ -974,7 +974,7 @@ time within a few seconds of real time.
 
 Note that while this option can give deterministic behavior, it does not
 provide cycle accurate emulation.  Modern CPUs contain superscalar out of
-order cores with complex cache heirachies.  The number of instructions
+order cores with complex cache hierarchies.  The number of instructions
 executed often has little or no correlation with actual performance.
 @end table
 

@@ -7446,7 +7446,7 @@ static void help(int exitcode)
            "                To see what timers are available use -clock ?\n"
            "-startdate      select initial date of the clock\n"
            "-icount [N|auto]\n"
-           "                Enable virtual instruction counter with 2^N clock ticks per instructon\n"
+           "                Enable virtual instruction counter with 2^N clock ticks per instruction\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"

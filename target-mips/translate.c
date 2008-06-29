@@ -7862,7 +7862,6 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     ctx.mem_idx = ctx.hflags & MIPS_HFLAG_KSU;
 #endif
     num_insns = 0;
-    num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
