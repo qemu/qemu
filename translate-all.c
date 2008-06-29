@@ -38,6 +38,7 @@ uint16_t gen_opc_buf[OPC_BUF_SIZE];
 TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];
 
 target_ulong gen_opc_pc[OPC_BUF_SIZE];
+uint16_t gen_opc_icount[OPC_BUF_SIZE];
 uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 #if defined(TARGET_I386)
 uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
@@ -158,6 +159,13 @@ int cpu_restore_state(TranslationBlock *tb,
     if (gen_intermediate_code_pc(env, tb) < 0)
         return -1;
 
+    if (use_icount) {
+        /* Reset the cycle counter to the start of the block.  */
+        env->icount_decr.u16.low += tb->icount;
+        /* Clear the IO flag.  */
+        env->can_do_io = 0;
+    }
+
     /* find opc index corresponding to search_pc */
     tc_ptr = (unsigned long)tb->tc_ptr;
     if (searched_pc < tc_ptr)
@@ -177,6 +185,7 @@ int cpu_restore_state(TranslationBlock *tb,
     /* now find start of instruction before */
     while (gen_opc_instr_start[j] == 0)
         j--;
+    env->icount_decr.u16.low -= gen_opc_icount[j];
 
     gen_pc_load(env, tb, searched_pc, j, puc);
 

@@ -91,7 +91,12 @@ static void mips_timer_cb (void *opaque)
     if (env->CP0_Cause & (1 << CP0Ca_DC))
         return;
 
+    /* ??? This callback should occur when the counter is exactly equal to
+       the comparator value.  Offset the count by one to avoid immediately
+       retriggering the callback before any virtual time has passed.  */
+    env->CP0_Count++;
     cpu_mips_timer_update(env);
+    env->CP0_Count--;
     if (env->insn_flags & ISA_MIPS32R2)
         env->CP0_Cause |= 1 << CP0Ca_TI;
     qemu_irq_raise(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);

@@ -43,6 +43,19 @@
 /*****************************************************************************/
 /* Code translation helpers                                                  */
 
+static TCGv cpu_env;
+
+#include "gen-icount.h"
+
+void ppc_translate_init(void)
+{
+    int done_init = 0;
+    if (done_init)
+        return;
+    cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    done_init = 1;
+}
+
 #if defined(OPTIMIZE_FPRF_UPDATE)
 static uint16_t *gen_fprf_buf[OPC_BUF_SIZE];
 static uint16_t **gen_fprf_ptr;
@@ -6168,6 +6181,8 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     uint16_t *gen_opc_end;
     int supervisor, little_endian;
     int j, lj = -1;
+    int num_insns;
+    int max_insns;
 
     pc_start = tb->pc;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
@@ -6211,6 +6226,12 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
     /* Single step trace mode */
     msr_se = 1;
 #endif
+    num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0)
+        max_insns = CF_COUNT_MASK;
+
+    gen_icount_start();
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == POWERPC_EXCP_NONE && gen_opc_ptr < gen_opc_end) {
         if (unlikely(env->nb_breakpoints > 0)) {
@@ -6230,6 +6251,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
                     gen_opc_instr_start[lj++] = 0;
                 gen_opc_pc[lj] = ctx.nip;
                 gen_opc_instr_start[lj] = 1;
+                gen_opc_icount[lj] = num_insns;
             }
         }
 #if defined PPC_DEBUG_DISAS
@@ -6239,6 +6261,8 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
                     ctx.nip, supervisor, (int)msr_ir);
         }
 #endif
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+            gen_io_start();
         if (unlikely(little_endian)) {
             ctx.opcode = bswap32(ldl_code(ctx.nip));
         } else {
@@ -6253,6 +6277,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
 #endif
         ctx.nip += 4;
         table = env->opcodes;
+        num_insns++;
         handler = table[opc1(ctx.opcode)];
         if (is_indirect_opcode(handler)) {
             table = ind_table(handler);
@@ -6306,7 +6331,8 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
                      ctx.exception != POWERPC_EXCP_BRANCH)) {
             GEN_EXCP(ctxp, POWERPC_EXCP_TRACE, 0);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
-                            (env->singlestep_enabled))) {
+                            (env->singlestep_enabled) ||
+                            num_insns >= max_insns)) {
             /* if we reach a page boundary or are single stepping, stop
              * generation
              */
@@ -6316,6 +6342,8 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         break;
 #endif
     }
+    if (tb->cflags & CF_LAST_IO)
+        gen_io_end();
     if (ctx.exception == POWERPC_EXCP_NONE) {
         gen_goto_tb(&ctx, 0, ctx.nip);
     } else if (ctx.exception != POWERPC_EXCP_BRANCH) {
@@ -6326,6 +6354,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         /* Generate the return instruction */
         tcg_gen_exit_tb(0);
     }
+    gen_icount_end(tb, num_insns);
     *gen_opc_ptr = INDEX_op_end;
     if (unlikely(search_pc)) {
         j = gen_opc_ptr - gen_opc_buf;
@@ -6334,6 +6363,7 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
             gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = ctx.nip - pc_start;
+        tb->icount = num_insns;
     }
 #if defined(DEBUG_DISAS)
     if (loglevel & CPU_LOG_TB_CPU) {

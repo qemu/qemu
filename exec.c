@@ -107,6 +107,13 @@ CPUState *first_cpu;
 /* current CPU in the current thread. It is only valid inside
    cpu_exec() */
 CPUState *cpu_single_env;
+/* 0 = Do not count executed instructions.
+   1 = Precice instruction counting.
+   2 = Adaptive rate instruction counting.  */
+int use_icount = 0;
+/* Current instruction counter.  While executing translated code this may
+   include some instructions that have not yet been executed.  */
+int64_t qemu_icount;
 
 typedef struct PageDesc {
     /* list of TBs intersecting this ram page */
@@ -633,7 +640,7 @@ static inline void tb_reset_jump(TranslationBlock *tb, int n)
     tb_set_jmp_target(tb, n, (unsigned long)(tb->tc_ptr + tb->tb_next_offset[n]));
 }
 
-static inline void tb_phys_invalidate(TranslationBlock *tb, target_ulong page_addr)
+void tb_phys_invalidate(TranslationBlock *tb, target_ulong page_addr)
 {
     CPUState *env;
     PageDesc *p;
@@ -746,11 +753,9 @@ static void build_page_bitmap(PageDesc *p)
     }
 }
 
-#ifdef TARGET_HAS_PRECISE_SMC
-
-static void tb_gen_code(CPUState *env,
-                        target_ulong pc, target_ulong cs_base, int flags,
-                        int cflags)
+TranslationBlock *tb_gen_code(CPUState *env,
+                              target_ulong pc, target_ulong cs_base,
+                              int flags, int cflags)
 {
     TranslationBlock *tb;
     uint8_t *tc_ptr;
@@ -764,6 +769,8 @@ static void tb_gen_code(CPUState *env,
         tb_flush(env);
         /* cannot fail at this point */
         tb = tb_alloc(pc);
+        /* Don't forget to invalidate previous TB info.  */
+        tb_invalidated_flag = 1;
     }
     tc_ptr = code_gen_ptr;
     tb->tc_ptr = tc_ptr;
@@ -780,8 +787,8 @@ static void tb_gen_code(CPUState *env,
         phys_page2 = get_phys_addr_code(env, virt_page2);
     }
     tb_link_phys(tb, phys_pc, phys_page2);
+    return tb;
 }
-#endif
 
 /* invalidate all TBs which intersect with the target physical page
    starting in range [start;end[. NOTE: start and end must refer to
@@ -836,13 +843,13 @@ void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t 
             if (current_tb_not_found) {
                 current_tb_not_found = 0;
                 current_tb = NULL;
-                if (env->mem_write_pc) {
+                if (env->mem_io_pc) {
                     /* now we have a real cpu fault */
-                    current_tb = tb_find_pc(env->mem_write_pc);
+                    current_tb = tb_find_pc(env->mem_io_pc);
                 }
             }
             if (current_tb == tb &&
-                !(current_tb->cflags & CF_SINGLE_INSN)) {
+                (current_tb->cflags & CF_COUNT_MASK) != 1) {
                 /* If we are modifying the current TB, we must stop
                 its execution. We could be more precise by checking
                 that the modification is after the current PC, but it
@@ -851,7 +858,7 @@ void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t 
 
                 current_tb_modified = 1;
                 cpu_restore_state(current_tb, env,
-                                  env->mem_write_pc, NULL);
+                                  env->mem_io_pc, NULL);
 #if defined(TARGET_I386)
                 current_flags = env->hflags;
                 current_flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
@@ -883,7 +890,7 @@ void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t 
     if (!p->first_tb) {
         invalidate_page_bitmap(p);
         if (is_cpu_write_access) {
-            tlb_unprotect_code_phys(env, start, env->mem_write_vaddr);
+            tlb_unprotect_code_phys(env, start, env->mem_io_vaddr);
         }
     }
 #endif
@@ -893,8 +900,7 @@ void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t 
            modifying the memory. It will ensure that it cannot modify
            itself */
         env->current_tb = NULL;
-        tb_gen_code(env, current_pc, current_cs_base, current_flags,
-                    CF_SINGLE_INSN);
+        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
         cpu_resume_from_signal(env, NULL);
     }
 #endif
@@ -909,7 +915,7 @@ static inline void tb_invalidate_phys_page_fast(target_phys_addr_t start, int le
     if (1) {
         if (loglevel) {
             fprintf(logfile, "modifying code at 0x%x size=%d EIP=%x PC=%08x\n",
-                   cpu_single_env->mem_write_vaddr, len,
+                   cpu_single_env->mem_io_vaddr, len,
                    cpu_single_env->eip,
                    cpu_single_env->eip + (long)cpu_single_env->segs[R_CS].base);
         }
@@ -961,7 +967,7 @@ static void tb_invalidate_phys_page(target_phys_addr_t addr,
         tb = (TranslationBlock *)((long)tb & ~3);
 #ifdef TARGET_HAS_PRECISE_SMC
         if (current_tb == tb &&
-            !(current_tb->cflags & CF_SINGLE_INSN)) {
+            (current_tb->cflags & CF_COUNT_MASK) != 1) {
                 /* If we are modifying the current TB, we must stop
                    its execution. We could be more precise by checking
                    that the modification is after the current PC, but it
@@ -990,8 +996,7 @@ static void tb_invalidate_phys_page(target_phys_addr_t addr,
            modifying the memory. It will ensure that it cannot modify
            itself */
         env->current_tb = NULL;
-        tb_gen_code(env, current_pc, current_cs_base, current_flags,
-                    CF_SINGLE_INSN);
+        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
         cpu_resume_from_signal(env, puc);
     }
 #endif
@@ -1066,6 +1071,17 @@ TranslationBlock *tb_alloc(target_ulong pc)
     tb->pc = pc;
     tb->cflags = 0;
     return tb;
+}
+
+void tb_free(TranslationBlock *tb)
+{
+    /* In practice this is mostly used for single use temorary TB
+       Ignore the hard cases and just back up if this TB happens to
+       be the last one generated.  */
+    if (nb_tbs > 0 && tb == &tbs[nb_tbs - 1]) {
+        code_gen_ptr = tb->tc_ptr;
+        nb_tbs--;
+    }
 }
 
 /* add a new TB and link it to the physical page tables. phys_page2 is
@@ -1369,7 +1385,9 @@ void cpu_interrupt(CPUState *env, int mask)
     TranslationBlock *tb;
     static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
 #endif
+    int old_mask;
 
+    old_mask = env->interrupt_request;
     /* FIXME: This is probably not threadsafe.  A different thread could
        be in the mittle of a read-modify-write operation.  */
     env->interrupt_request |= mask;
@@ -1379,13 +1397,25 @@ void cpu_interrupt(CPUState *env, int mask)
        emulation this often isn't actually as bad as it sounds.  Often
        signals are used primarily to interrupt blocking syscalls.  */
 #else
-    /* if the cpu is currently executing code, we must unlink it and
-       all the potentially executing TB */
-    tb = env->current_tb;
-    if (tb && !testandset(&interrupt_lock)) {
-        env->current_tb = NULL;
-        tb_reset_jump_recursive(tb);
-        resetlock(&interrupt_lock);
+    if (use_icount) {
+        env->icount_decr.u16.high = 0x8000;
+#ifndef CONFIG_USER_ONLY
+        /* CPU_INTERRUPT_EXIT isn't a real interrupt.  It just means
+           an async event happened and we need to process it.  */
+        if (!can_do_io(env)
+            && (mask & ~(old_mask | CPU_INTERRUPT_EXIT)) != 0) {
+            cpu_abort(env, "Raised interrupt while not in I/O function");
+        }
+#endif
+    } else {
+        tb = env->current_tb;
+        /* if the cpu is currently executing code, we must unlink it and
+           all the potentially executing TB */
+        if (tb && !testandset(&interrupt_lock)) {
+            env->current_tb = NULL;
+            tb_reset_jump_recursive(tb);
+            resetlock(&interrupt_lock);
+        }
     }
 #endif
 }
@@ -2227,7 +2257,7 @@ static void notdirty_mem_writeb(void *opaque, target_phys_addr_t ram_addr,
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_write_vaddr);
+        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
 }
 
 static void notdirty_mem_writew(void *opaque, target_phys_addr_t ram_addr,
@@ -2252,7 +2282,7 @@ static void notdirty_mem_writew(void *opaque, target_phys_addr_t ram_addr,
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_write_vaddr);
+        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
 }
 
 static void notdirty_mem_writel(void *opaque, target_phys_addr_t ram_addr,
@@ -2277,7 +2307,7 @@ static void notdirty_mem_writel(void *opaque, target_phys_addr_t ram_addr,
     /* we remove the notdirty callback only if the code has been
        flushed */
     if (dirty_flags == 0xff)
-        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_write_vaddr);
+        tlb_set_dirty(cpu_single_env, cpu_single_env->mem_io_vaddr);
 }
 
 static CPUReadMemoryFunc *error_mem_read[3] = {
@@ -2299,7 +2329,7 @@ static void check_watchpoint(int offset, int flags)
     target_ulong vaddr;
     int i;
 
-    vaddr = (env->mem_write_vaddr & TARGET_PAGE_MASK) + offset;
+    vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
     for (i = 0; i < env->nb_watchpoints; i++) {
         if (vaddr == env->watchpoint[i].vaddr
                 && (env->watchpoint[i].type & flags)) {
@@ -2965,6 +2995,65 @@ int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
         addr += l;
     }
     return 0;
+}
+
+/* in deterministic execution mode, instructions doing device I/Os
+   must be at the end of the TB */
+void cpu_io_recompile(CPUState *env, void *retaddr)
+{
+    TranslationBlock *tb;
+    uint32_t n, cflags;
+    target_ulong pc, cs_base;
+    uint64_t flags;
+
+    tb = tb_find_pc((unsigned long)retaddr);
+    if (!tb) {
+        cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p", 
+                  retaddr);
+    }
+    n = env->icount_decr.u16.low + tb->icount;
+    cpu_restore_state(tb, env, (unsigned long)retaddr, NULL);
+    /* Calculate how many instructions had been executed before the fault
+       occured.  */
+    n = n - env->icount_decr.u16.low;
+    /* Generate a new TB ending on the I/O insn.  */
+    n++;
+    /* On MIPS and SH, delay slot instructions can only be restarted if
+       they were already the first instruction in the TB.  If this is not
+       the first instruction in a TB then re-execute the preceeding
+       branch.  */
+#if defined(TARGET_MIPS)
+    if ((env->hflags & MIPS_HFLAG_BMASK) != 0 && n > 1) {
+        env->active_tc.PC -= 4;
+        env->icount_decr.u16.low++;
+        env->hflags &= ~MIPS_HFLAG_BMASK;
+    }
+#elif defined(TARGET_SH4)
+    if ((env->flags & ((DELAY_SLOT | DELAY_SLOT_CONDITIONAL))) != 0
+            && n > 1) {
+        env->pc -= 2;
+        env->icount_decr.u16.low++;
+        env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+    }
+#endif
+    /* This should never happen.  */
+    if (n > CF_COUNT_MASK)
+        cpu_abort(env, "TB too big during recompile");
+
+    cflags = n | CF_LAST_IO;
+    pc = tb->pc;
+    cs_base = tb->cs_base;
+    flags = tb->flags;
+    tb_phys_invalidate(tb, -1);
+    /* FIXME: In theory this could raise an exception.  In practice
+       we have already translated the block once so it's probably ok.  */
+    tb_gen_code(env, pc, cs_base, flags, cflags);
+    /* TODO: If env->pc != tb->pc (i.e. the failuting instruction was not
+       the first in the TB) then we end up generating a whole new TB and
+       repeating the fault, which is horribly inefficient.
+       Better would be to execute just this insn uncached, or generate a
+       second new TB.  */
+    cpu_resume_from_signal(env, NULL);
 }
 
 void dump_exec_info(FILE *f,

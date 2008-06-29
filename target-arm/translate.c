@@ -84,6 +84,9 @@ static TCGv cpu_V0, cpu_V1, cpu_M0;
 static TCGv cpu_T[2];
 static TCGv cpu_F0s, cpu_F1s, cpu_F0d, cpu_F1d;
 
+#define ICOUNT_TEMP cpu_T[0]
+#include "gen-icount.h"
+
 /* initialize TCG globals.  */
 void arm_translate_init(void)
 {
@@ -8539,6 +8542,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     int j, lj;
     target_ulong pc_start;
     uint32_t next_page_start;
+    int num_insns;
+    int max_insns;
 
     /* generate intermediate code */
     num_temps = 0;
@@ -8575,6 +8580,12 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     cpu_M0 = tcg_temp_new(TCG_TYPE_I64);
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     lj = -1;
+    num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0)
+        max_insns = CF_COUNT_MASK;
+
+    gen_icount_start();
     /* Reset the conditional execution bits immediately. This avoids
        complications trying to do it at the end of the block.  */
     if (env->condexec_bits)
@@ -8625,7 +8636,11 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             }
             gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
+            gen_opc_icount[lj] = num_insns;
         }
+
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+            gen_io_start();
 
         if (env->thumb) {
             disas_thumb_insn(env, dc);
@@ -8659,9 +8674,20 @@ static inline int gen_intermediate_code_internal(CPUState *env,
          * Otherwise the subsequent code could get translated several times.
          * Also stop translation when a page boundary is reached.  This
          * ensures prefech aborts occur at the right place.  */
+        num_insns ++;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
-             dc->pc < next_page_start);
+             dc->pc < next_page_start &&
+             num_insns < max_insns);
+
+    if (tb->cflags & CF_LAST_IO) {
+        if (dc->condjmp) {
+            /* FIXME:  This can theoretically happen with self-modifying
+               code.  */
+            cpu_abort(env, "IO on conditional branch instruction");
+        }
+        gen_io_end();
+    }
 
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
@@ -8726,7 +8752,9 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             dc->condjmp = 0;
         }
     }
+
 done_generating:
+    gen_icount_end(tb, num_insns);
     *gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
@@ -8744,6 +8772,7 @@ done_generating:
             gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = dc->pc - pc_start;
+        tb->icount = num_insns;
     }
     return 0;
 }

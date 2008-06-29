@@ -239,6 +239,14 @@ struct drive_opt {
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
 static int event_pending = 1;
+/* Conversion factor from emulated instrctions to virtual clock ticks.  */
+static int icount_time_shift;
+/* Arbitrarily pick 1MIPS as the minimum alowable speed.  */
+#define MAX_ICOUNT_SHIFT 10
+/* Compensate for varying guest execution speed.  */
+static int64_t qemu_icount_bias;
+QEMUTimer *icount_rt_timer;
+QEMUTimer *icount_vm_timer;
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
@@ -733,8 +741,21 @@ static int64_t get_clock(void)
         return tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000);
     }
 }
-
 #endif
+
+/* Return the virtual CPU time, based on the instruction counter.  */
+static int64_t cpu_get_icount(void)
+{
+    int64_t icount;
+    CPUState *env = cpu_single_env;;
+    icount = qemu_icount;
+    if (env) {
+        if (!can_do_io(env))
+            fprintf(stderr, "Bad clock read\n");
+        icount -= (env->icount_decr.u16.low + env->icount_extra);
+    }
+    return qemu_icount_bias + (icount << icount_time_shift);
+}
 
 /***********************************************************/
 /* guest cycle counter */
@@ -747,6 +768,9 @@ static int cpu_ticks_enabled;
 /* return the host CPU cycle counter and handle stop/restart */
 int64_t cpu_get_ticks(void)
 {
+    if (use_icount) {
+        return cpu_get_icount();
+    }
     if (!cpu_ticks_enabled) {
         return cpu_ticks_offset;
     } else {
@@ -878,6 +902,71 @@ static void rtc_stop_timer(struct qemu_alarm_timer *t);
 
 #endif /* _WIN32 */
 
+/* Correlation between real and virtual time is always going to be
+   farly approximate, so ignore small variation.
+   When the guest is idle real and virtual time will be aligned in
+   the IO wait loop.  */
+#define ICOUNT_WOBBLE (QEMU_TIMER_BASE / 10)
+
+static void icount_adjust(void)
+{
+    int64_t cur_time;
+    int64_t cur_icount;
+    int64_t delta;
+    static int64_t last_delta;
+    /* If the VM is not running, then do nothing.  */
+    if (!vm_running)
+        return;
+
+    cur_time = cpu_get_clock();
+    cur_icount = qemu_get_clock(vm_clock);
+    delta = cur_icount - cur_time;
+    /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
+    if (delta > 0
+        && last_delta + ICOUNT_WOBBLE < delta * 2
+        && icount_time_shift > 0) {
+        /* The guest is getting too far ahead.  Slow time down.  */
+        icount_time_shift--;
+    }
+    if (delta < 0
+        && last_delta - ICOUNT_WOBBLE > delta * 2
+        && icount_time_shift < MAX_ICOUNT_SHIFT) {
+        /* The guest is getting too far behind.  Speed time up.  */
+        icount_time_shift++;
+    }
+    last_delta = delta;
+    qemu_icount_bias = cur_icount - (qemu_icount << icount_time_shift);
+}
+
+static void icount_adjust_rt(void * opaque)
+{
+    qemu_mod_timer(icount_rt_timer,
+                   qemu_get_clock(rt_clock) + 1000);
+    icount_adjust();
+}
+
+static void icount_adjust_vm(void * opaque)
+{
+    qemu_mod_timer(icount_vm_timer,
+                   qemu_get_clock(vm_clock) + QEMU_TIMER_BASE / 10);
+    icount_adjust();
+}
+
+static void init_icount_adjust(void)
+{
+    /* Have both realtime and virtual time triggers for speed adjustment.
+       The realtime trigger catches emulated time passing too slowly,
+       the virtual time trigger catches emulated time passing too fast.
+       Realtime triggers occur even when idle, so use them less frequently
+       than VM triggers.  */
+    icount_rt_timer = qemu_new_timer(rt_clock, icount_adjust_rt, NULL);
+    qemu_mod_timer(icount_rt_timer,
+                   qemu_get_clock(rt_clock) + 1000);
+    icount_vm_timer = qemu_new_timer(vm_clock, icount_adjust_vm, NULL);
+    qemu_mod_timer(icount_vm_timer,
+                   qemu_get_clock(vm_clock) + QEMU_TIMER_BASE / 10);
+}
+
 static struct qemu_alarm_timer alarm_timers[] = {
 #ifndef _WIN32
 #ifdef __linux__
@@ -914,6 +1003,7 @@ static void configure_alarms(char const *opt)
     int count = (sizeof(alarm_timers) / sizeof(*alarm_timers)) - 1;
     char *arg;
     char *name;
+    struct qemu_alarm_timer tmp;
 
     if (!strcmp(opt, "?")) {
         show_available_alarms();
@@ -925,8 +1015,6 @@ static void configure_alarms(char const *opt)
     /* Reorder the array */
     name = strtok(arg, ",");
     while (name) {
-        struct qemu_alarm_timer tmp;
-
         for (i = 0; i < count && alarm_timers[i].name; i++) {
             if (!strcmp(alarm_timers[i].name, name))
                 break;
@@ -954,7 +1042,7 @@ next:
     free(arg);
 
     if (cur) {
-	/* Disable remaining timers */
+        /* Disable remaining timers */
         for (i = cur; i < count; i++)
             alarm_timers[i].name = NULL;
     } else {
@@ -1039,9 +1127,15 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
     *pt = ts;
 
     /* Rearm if necessary  */
-    if ((alarm_timer->flags & ALARM_FLAG_EXPIRED) == 0 &&
-        pt == &active_timers[ts->clock->type])
-        qemu_rearm_alarm_timer(alarm_timer);
+    if (pt == &active_timers[ts->clock->type]) {
+        if ((alarm_timer->flags & ALARM_FLAG_EXPIRED) == 0) {
+            qemu_rearm_alarm_timer(alarm_timer);
+        }
+        /* Interrupt execution to force deadline recalculation.  */
+        if (use_icount && cpu_single_env) {
+            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        }
+    }
 }
 
 int qemu_timer_pending(QEMUTimer *ts)
@@ -1085,7 +1179,11 @@ int64_t qemu_get_clock(QEMUClock *clock)
         return get_clock() / 1000000;
     default:
     case QEMU_TIMER_VIRTUAL:
-        return cpu_get_clock();
+        if (use_icount) {
+            return cpu_get_icount();
+        } else {
+            return cpu_get_clock();
+        }
     }
 }
 
@@ -1184,8 +1282,9 @@ static void host_alarm_handler(int host_signum)
     }
 #endif
     if (alarm_has_dynticks(alarm_timer) ||
-        qemu_timer_expired(active_timers[QEMU_TIMER_VIRTUAL],
-                           qemu_get_clock(vm_clock)) ||
+        (!use_icount &&
+            qemu_timer_expired(active_timers[QEMU_TIMER_VIRTUAL],
+                               qemu_get_clock(vm_clock))) ||
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
 #ifdef _WIN32
@@ -1209,28 +1308,45 @@ static void host_alarm_handler(int host_signum)
     }
 }
 
-static uint64_t qemu_next_deadline(void)
+static int64_t qemu_next_deadline(void)
 {
-    int64_t nearest_delta_us = INT64_MAX;
-    int64_t vmdelta_us;
-
-    if (active_timers[QEMU_TIMER_REALTIME])
-        nearest_delta_us = (active_timers[QEMU_TIMER_REALTIME]->expire_time -
-                            qemu_get_clock(rt_clock))*1000;
+    int64_t delta;
 
     if (active_timers[QEMU_TIMER_VIRTUAL]) {
-        /* round up */
-        vmdelta_us = (active_timers[QEMU_TIMER_VIRTUAL]->expire_time -
-                      qemu_get_clock(vm_clock)+999)/1000;
-        if (vmdelta_us < nearest_delta_us)
-            nearest_delta_us = vmdelta_us;
+        delta = active_timers[QEMU_TIMER_VIRTUAL]->expire_time -
+                     qemu_get_clock(vm_clock);
+    } else {
+        /* To avoid problems with overflow limit this to 2^32.  */
+        delta = INT32_MAX;
     }
 
-    /* Avoid arming the timer to negative, zero, or too low values */
-    if (nearest_delta_us <= MIN_TIMER_REARM_US)
-        nearest_delta_us = MIN_TIMER_REARM_US;
+    if (delta < 0)
+        delta = 0;
 
-    return nearest_delta_us;
+    return delta;
+}
+
+static uint64_t qemu_next_deadline_dyntick(void)
+{
+    int64_t delta;
+    int64_t rtdelta;
+
+    if (use_icount)
+        delta = INT32_MAX;
+    else
+        delta = (qemu_next_deadline() + 999) / 1000;
+
+    if (active_timers[QEMU_TIMER_REALTIME]) {
+        rtdelta = (active_timers[QEMU_TIMER_REALTIME]->expire_time -
+                 qemu_get_clock(rt_clock))*1000;
+        if (rtdelta < delta)
+            delta = rtdelta;
+    }
+
+    if (delta < MIN_TIMER_REARM_US)
+        delta = MIN_TIMER_REARM_US;
+
+    return delta;
 }
 
 #ifndef _WIN32
@@ -1386,7 +1502,7 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
                 !active_timers[QEMU_TIMER_VIRTUAL])
         return;
 
-    nearest_delta_us = qemu_next_deadline();
+    nearest_delta_us = qemu_next_deadline_dyntick();
 
     /* check whether a timer is already running */
     if (timer_gettime(host_timer, &timeout)) {
@@ -1513,7 +1629,7 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
                 !active_timers[QEMU_TIMER_VIRTUAL])
         return;
 
-    nearest_delta_us = qemu_next_deadline();
+    nearest_delta_us = qemu_next_deadline_dyntick();
     nearest_delta_us /= 1000;
 
     timeKillEvent(data->timerId);
@@ -7068,10 +7184,33 @@ static int main_loop(void)
 #ifdef CONFIG_PROFILER
                 ti = profile_getclock();
 #endif
+                if (use_icount) {
+                    int64_t count;
+                    int decr;
+                    qemu_icount -= (env->icount_decr.u16.low + env->icount_extra);
+                    env->icount_decr.u16.low = 0;
+                    env->icount_extra = 0;
+                    count = qemu_next_deadline();
+                    count = (count + (1 << icount_time_shift) - 1)
+                            >> icount_time_shift;
+                    qemu_icount += count;
+                    decr = (count > 0xffff) ? 0xffff : count;
+                    count -= decr;
+                    env->icount_decr.u16.low = decr;
+                    env->icount_extra = count;
+                }
                 ret = cpu_exec(env);
 #ifdef CONFIG_PROFILER
                 qemu_time += profile_getclock() - ti;
 #endif
+                if (use_icount) {
+                    /* Fold pending instructions back into the
+                       instruction counter, and clear the interrupt flag.  */
+                    qemu_icount -= (env->icount_decr.u16.low
+                                    + env->icount_extra);
+                    env->icount_decr.u32 = 0;
+                    env->icount_extra = 0;
+                }
                 next_cpu = env->next_cpu ?: first_cpu;
                 if (event_pending && likely(ret != EXCP_DEBUG)) {
                     ret = EXCP_INTERRUPT;
@@ -7115,10 +7254,46 @@ static int main_loop(void)
             }
             /* If all cpus are halted then wait until the next IRQ */
             /* XXX: use timeout computed from timers */
-            if (ret == EXCP_HALTED)
-                timeout = 10;
-            else
+            if (ret == EXCP_HALTED) {
+                if (use_icount) {
+                    int64_t add;
+                    int64_t delta;
+                    /* Advance virtual time to the next event.  */
+                    if (use_icount == 1) {
+                        /* When not using an adaptive execution frequency
+                           we tend to get badly out of sync with real time,
+                           so just delay for a resonable amount of time.  */
+                        delta = 0;
+                    } else {
+                        delta = cpu_get_icount() - cpu_get_clock();
+                    }
+                    if (delta > 0) {
+                        /* If virtual time is ahead of real time then just
+                           wait for IO.  */
+                        timeout = (delta / 1000000) + 1;
+                    } else {
+                        /* Wait for either IO to occur or the next
+                           timer event.  */
+                        add = qemu_next_deadline();
+                        /* We advance the timer before checking for IO.
+                           Limit the amount we advance so that early IO
+                           activity won't get the guest too far ahead.  */
+                        if (add > 10000000)
+                            add = 10000000;
+                        delta += add;
+                        add = (add + (1 << icount_time_shift) - 1)
+                              >> icount_time_shift;
+                        qemu_icount += add;
+                        timeout = delta / 1000000;
+                        if (timeout < 0)
+                            timeout = 0;
+                    }
+                } else {
+                    timeout = 10;
+                }
+            } else {
                 timeout = 0;
+            }
         } else {
             timeout = 10;
         }
@@ -7270,6 +7445,8 @@ static void help(int exitcode)
            "-clock          force the use of the given methods for timer alarm.\n"
            "                To see what timers are available use -clock ?\n"
            "-startdate      select initial date of the clock\n"
+           "-icount [N|auto]\n"
+           "                Enable virtual instruction counter with 2^N clock ticks per instructon\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -7374,6 +7551,7 @@ enum {
     QEMU_OPTION_clock,
     QEMU_OPTION_startdate,
     QEMU_OPTION_tb_size,
+    QEMU_OPTION_icount,
 };
 
 typedef struct QEMUOption {
@@ -7486,6 +7664,7 @@ const QEMUOption qemu_options[] = {
     { "clock", HAS_ARG, QEMU_OPTION_clock },
     { "startdate", HAS_ARG, QEMU_OPTION_startdate },
     { "tb-size", HAS_ARG, QEMU_OPTION_tb_size },
+    { "icount", HAS_ARG, QEMU_OPTION_icount },
     { NULL },
 };
 
@@ -8310,6 +8489,14 @@ int main(int argc, char **argv)
                 if (tb_size < 0)
                     tb_size = 0;
                 break;
+            case QEMU_OPTION_icount:
+                use_icount = 1;
+                if (strcmp(optarg, "auto") == 0) {
+                    icount_time_shift = -1;
+                } else {
+                    icount_time_shift = strtol(optarg, NULL, 0);
+                }
+                break;
             }
         }
     }
@@ -8395,6 +8582,13 @@ int main(int argc, char **argv)
     init_timers();
     init_timer_alarm();
     qemu_aio_init();
+    if (use_icount && icount_time_shift < 0) {
+        use_icount = 2;
+        /* 125MIPS seems a reasonable initial guess at the guest speed.
+           It will be corrected fairly quickly anyway.  */
+        icount_time_shift = 3;
+        init_icount_adjust();
+    }
 
 #ifdef _WIN32
     socket_init();

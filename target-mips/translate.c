@@ -428,6 +428,8 @@ static TCGv cpu_env, current_fpu;
 /* FPU TNs, global for now. */
 static TCGv fpu32_T[3], fpu64_T[3], fpu32h_T[3];
 
+#include "gen-icount.h"
+
 static inline void tcg_gen_helper_0_i(void *func, TCGv arg)
 {
     TCGv tmp = tcg_const_i32(arg);
@@ -3061,7 +3063,14 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
     case 9:
         switch (sel) {
         case 0:
+            /* Mark as an IO operation because we read the time.  */
+            if (use_icount)
+                gen_io_start();
             tcg_gen_helper_1_0(do_mfc0_count, t0);
+            if (use_icount) {
+                gen_io_end();
+                ctx->bstate = BS_STOP;
+            }
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -3421,6 +3430,9 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
 
     if (sel != 0)
         check_insn(env, ctx, ISA_MIPS32);
+
+    if (use_icount)
+        gen_io_start();
 
     switch (reg) {
     case 0:
@@ -4004,6 +4016,11 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
                 rn, reg, sel);
     }
 #endif
+    /* For simplicitly assume that all writes can cause interrupts.  */
+    if (use_icount) {
+        gen_io_end();
+        ctx->bstate = BS_STOP;
+    }
     return;
 
 die:
@@ -4238,7 +4255,14 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     case 9:
         switch (sel) {
         case 0:
+            /* Mark as an IO operation because we read the time.  */
+            if (use_icount)
+                gen_io_start();
             tcg_gen_helper_1_0(do_mfc0_count, t0);
+            if (use_icount) {
+                gen_io_end();
+                ctx->bstate = BS_STOP;
+            }
             rn = "Count";
             break;
         /* 6,7 are implementation dependent */
@@ -4590,6 +4614,9 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
 
     if (sel != 0)
         check_insn(env, ctx, ISA_MIPS64);
+
+    if (use_icount)
+        gen_io_start();
 
     switch (reg) {
     case 0:
@@ -5161,6 +5188,11 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     }
 #endif
     tcg_temp_free(t0);
+    /* For simplicitly assume that all writes can cause interrupts.  */
+    if (use_icount) {
+        gen_io_end();
+        ctx->bstate = BS_STOP;
+    }
     return;
 
 die:
@@ -7760,6 +7792,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         ctx->hflags &= ~MIPS_HFLAG_BMASK;
         ctx->bstate = BS_BRANCH;
         save_cpu_state(ctx, 0);
+        /* FIXME: Need to clear can_do_io.  */
         switch (hflags) {
         case MIPS_HFLAG_B:
             /* unconditional branch */
@@ -7807,6 +7840,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     int j, lj = -1;
+    int num_insns;
+    int max_insns;
 
     if (search_pc && loglevel)
         fprintf (logfile, "search pc %d\n", search_pc);
@@ -7826,6 +7861,11 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #else
     ctx.mem_idx = ctx.hflags & MIPS_HFLAG_KSU;
 #endif
+    num_insns = 0;
+    num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0)
+        max_insns = CF_COUNT_MASK;
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
         fprintf(logfile, "------------------------------------------------\n");
@@ -7838,6 +7878,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         fprintf(logfile, "\ntb %p idx %d hflags %04x\n",
                 tb, ctx.mem_idx, ctx.hflags);
 #endif
+    gen_icount_start();
     while (ctx.bstate == BS_NONE) {
         if (env->nb_breakpoints > 0) {
             for(j = 0; j < env->nb_breakpoints; j++) {
@@ -7863,10 +7904,14 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
             gen_opc_pc[lj] = ctx.pc;
             gen_opc_hflags[lj] = ctx.hflags & MIPS_HFLAG_BMASK;
             gen_opc_instr_start[lj] = 1;
+            gen_opc_icount[lj] = num_insns;
         }
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+            gen_io_start();
         ctx.opcode = ldl_code(ctx.pc);
         decode_opc(env, &ctx);
         ctx.pc += 4;
+        num_insns++;
 
         if (env->singlestep_enabled)
             break;
@@ -7880,10 +7925,14 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         if (gen_opc_ptr >= gen_opc_end)
             break;
 
+        if (num_insns >= max_insns)
+            break;
 #if defined (MIPS_SINGLE_STEP)
         break;
 #endif
     }
+    if (tb->cflags & CF_LAST_IO)
+        gen_io_end();
     if (env->singlestep_enabled) {
         save_cpu_state(&ctx, ctx.bstate == BS_NONE);
         tcg_gen_helper_0_i(do_raise_exception, EXCP_DEBUG);
@@ -7907,6 +7956,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 	}
     }
 done_generating:
+    gen_icount_end(tb, num_insns);
     *gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
         j = gen_opc_ptr - gen_opc_buf;
@@ -7915,6 +7965,7 @@ done_generating:
             gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = ctx.pc - pc_start;
+        tb->icount = num_insns;
     }
 #ifdef DEBUG_DISAS
 #if defined MIPS_DEBUG_DISAS
