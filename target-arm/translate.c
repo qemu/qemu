@@ -3757,6 +3757,7 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                 } else /* size == 0 */ {
                     if (load) {
+                        TCGV_UNUSED(tmp2);
                         for (n = 0; n < 4; n++) {
                             tmp = gen_ld8u(cpu_T[1], IS_USER(s));
                             gen_op_addl_T1_im(stride);
@@ -3812,6 +3813,8 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     break;
                 case 3:
                     return 1;
+                default: /* Avoid compiler warnings.  */
+                    abort();
                 }
                 gen_op_addl_T1_im(1 << size);
                 tmp2 = new_tmp();
@@ -3854,6 +3857,8 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     case 2:
                         tmp = gen_ld32(cpu_T[1], IS_USER(s));
                         break;
+                    default: /* Avoid compiler warnings.  */
+                        abort();
                     }
                     if (size != 2) {
                         tmp2 = neon_load_reg(rd, pass);
@@ -4856,9 +4861,11 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     NEON_GET_REG(T0, rn, 1);
                     gen_neon_movl_scratch_T0(2);
                 }
+                TCGV_UNUSED(tmp3);
                 for (pass = 0; pass < 2; pass++) {
                     if (src1_wide) {
                         neon_load_reg64(cpu_V0, rn + pass);
+                        TCGV_UNUSED(tmp);
                     } else {
                         if (pass == 1 && rd == rn) {
                             gen_neon_movl_T0_scratch(2);
@@ -4873,6 +4880,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                     if (src2_wide) {
                         neon_load_reg64(cpu_V1, rm + pass);
+                        TCGV_UNUSED(tmp2);
                     } else {
                         if (pass == 1 && rd == rm) {
                             gen_neon_movl_T0_scratch(2);
@@ -5284,6 +5292,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 case 36: case 37: /* VMOVN, VQMOVUN, VQMOVN */
                     if (size == 3)
                         return 1;
+                    TCGV_UNUSED(tmp2);
                     for (pass = 0; pass < 2; pass++) {
                         neon_load_reg64(cpu_V0, rm + pass);
                         tmp = new_tmp();
@@ -6642,6 +6651,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
 
                 /* compute total size */
                 loaded_base = 0;
+                TCGV_UNUSED(loaded_var);
                 n = 0;
                 for(i=0;i<16;i++) {
                     if (insn & (1 << i))
@@ -8339,6 +8349,7 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
                     tcg_gen_addi_i32(addr, addr, 4);
                 }
             }
+            TCGV_UNUSED(tmp);
             if (insn & (1 << 8)) {
                 if (insn & (1 << 11)) {
                     /* pop pc */
