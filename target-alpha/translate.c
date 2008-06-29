@@ -43,11 +43,11 @@ struct DisasContext {
     uint32_t amask;
 };
 
-TCGv cpu_env;
+static TCGv cpu_env;
 
 #include "gen-icount.h"
 
-void alpha_translate_init()
+static void alpha_translate_init()
 {
     static int done_init = 0;
     if (done_init)

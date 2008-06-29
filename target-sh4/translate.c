@@ -60,7 +60,7 @@ static TCGv cpu_env;
 
 #include "gen-icount.h"
 
-void sh4_translate_init()
+static void sh4_translate_init()
 {
     static int done_init = 0;
     if (done_init)

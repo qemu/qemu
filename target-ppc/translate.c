@@ -49,7 +49,7 @@ static TCGv cpu_env;
 
 void ppc_translate_init(void)
 {
-    int done_init = 0;
+    static int done_init = 0;
     if (done_init)
         return;
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
