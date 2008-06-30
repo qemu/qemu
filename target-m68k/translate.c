@@ -2980,7 +2980,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
         num_insns++;
 
         /* Terminate the TB on memory ops if watchpoints are present.  */
-        /* FIXME: This should be replacd by the deterministic execution
+        /* FIXME: This should be replaced by the deterministic execution
          * IRQ raising bits.  */
         if (dc->is_mem && env->nb_watchpoints)
             break;

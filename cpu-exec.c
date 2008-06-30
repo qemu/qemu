@@ -620,7 +620,7 @@ int cpu_exec(CPUState *env1)
                     next_tb = tcg_qemu_tb_exec(tc_ptr);
                     env->current_tb = NULL;
                     if ((next_tb & 3) == 2) {
-                        /* Instruction counter exired.  */
+                        /* Instruction counter expired.  */
                         int insns_left;
                         tb = (TranslationBlock *)(long)(next_tb & ~3);
                         /* Restore PC.  */

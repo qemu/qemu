@@ -3998,7 +3998,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
                 rn, reg, sel);
     }
 #endif
-    /* For simplicitly assume that all writes can cause interrupts.  */
+    /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
         gen_io_end();
         ctx->bstate = BS_STOP;
@@ -5170,7 +5170,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     }
 #endif
     tcg_temp_free(t0);
-    /* For simplicitly assume that all writes can cause interrupts.  */
+    /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
         gen_io_end();
         ctx->bstate = BS_STOP;

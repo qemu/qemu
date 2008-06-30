@@ -3141,7 +3141,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
                 num_insns++;
 		/* Check for delayed branches here. If we do it before
-		   actually genereating any host code, the simulator will just
+		   actually generating any host code, the simulator will just
 		   loop doing nothing for on this program location.  */
 		if (dc->delayed_branch) {
 			dc->delayed_branch--;

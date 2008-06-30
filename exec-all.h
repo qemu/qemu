@@ -372,7 +372,7 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
     return addr + env1->tlb_table[mmu_idx][page_index].addend - (unsigned long)phys_ram_base;
 }
 
-/* Deterministic execution requires that IO only be performaed on the last
+/* Deterministic execution requires that IO only be performed on the last
    instruction of a TB so that interrupts take effect immediately.  */
 static inline int can_do_io(CPUState *env)
 {

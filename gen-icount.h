@@ -1,4 +1,4 @@
-/* Helpewrs for instruction counting code genration.  */
+/* Helpers for instruction counting code generation.  */
 
 static TCGArg *icount_arg;
 static int icount_label;
