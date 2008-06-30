@@ -353,8 +353,8 @@ static void channel_stream_cmd(struct fs_dma_ctrl *ctrl, int c, uint32_t v)
 {
 	unsigned int cmd = v & ((1 << 10) - 1);
 
-	D(printf("%s ch=%d cmd=%x pc=%x\n",
-		 __func__, c, cmd, ctrl->env->pc));
+	D(printf("%s ch=%d cmd=%x\n",
+		 __func__, c, cmd));
 	if (cmd & regk_dma_load_d) {
 		channel_load_d(ctrl, c);
 		if (cmd & regk_dma_burst)
@@ -541,8 +541,8 @@ static uint32_t dma_rinvalid (void *opaque, target_phys_addr_t addr)
 {
         struct fs_dma_ctrl *ctrl = opaque;
         CPUState *env = ctrl->env;
-        cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx
-                  " pc=%x.\n", addr, env->pc);
+        cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx "\n",
+                  addr);
         return 0;
 }
 
@@ -566,8 +566,8 @@ dma_readl (void *opaque, target_phys_addr_t addr)
 
 		default:
 			r = ctrl->channels[c].regs[addr];
-			D(printf ("%s c=%d addr=%x pc=%x\n",
-				  __func__, c, addr, ctrl->env->pc));
+			D(printf ("%s c=%d addr=%x\n",
+				  __func__, c, addr));
 			break;
 	}
 	return r;
@@ -578,8 +578,8 @@ dma_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
         struct fs_dma_ctrl *ctrl = opaque;
         CPUState *env = ctrl->env;
-        cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx
-                  " pc=%x.\n", addr, env->pc);
+        cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx "\n",
+                  addr);
 }
 
 static void
@@ -623,14 +623,12 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 
 		case RW_STREAM_CMD:
 			ctrl->channels[c].regs[addr] = value;
-			D(printf("stream_cmd ch=%d pc=%x\n",
-				 c, ctrl->env->pc));
+			D(printf("stream_cmd ch=%d\n", c));
 			channel_stream_cmd(ctrl, c, value);
 			break;
 
 	        default:
-			D(printf ("%s c=%d %x %x pc=%x\n",
-				  __func__, c, addr, value, ctrl->env->pc));
+			D(printf ("%s c=%d %x %x\n", __func__, c, addr));
 			break;
         }
 }

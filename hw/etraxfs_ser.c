@@ -89,7 +89,7 @@ static void ser_update_irq(struct etrax_serial_t *s)
 static uint32_t ser_readb (void *opaque, target_phys_addr_t addr)
 {
 	D(CPUState *env = opaque);
-	D(printf ("%s %x pc=%x\n", __func__, addr, env->pc));
+	D(printf ("%s %x\n", __func__, addr));
 	return 0;
 }
 
@@ -132,7 +132,7 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 			break;
 
 		default:
-			D(printf ("%s %x p=%x\n", __func__, addr, env->pc));
+			D(printf ("%s %x\n", __func__, addr));
 			break;
 	}
 	return r;
@@ -143,7 +143,7 @@ ser_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	D(struct etrax_serial_t *s = opaque);
 	D(CPUState *env = s->env);
- 	D(printf ("%s %x %x pc=%x\n", __func__, addr, value, env->pc));
+ 	D(printf ("%s %x %x\n", __func__, addr, value));
 }
 static void
 ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
@@ -181,8 +181,7 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 			s->rw_intr_mask = value;
 			break;
 		default:
-			D(printf ("%s %x %x pc=%x\n",
-				  __func__, addr, value, env->pc));
+			D(printf ("%s %x %x\n",  __func__, addr, value));
 			break;
 	}
 	ser_update_irq(s);
