@@ -121,8 +121,8 @@ void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 		if (sreg == 6) {
 			/* Writes to tlb-hi write to mm_cause as a side 
 			   effect.  */
-			env->sregs[SFR_RW_MM_TLB_HI] = T0;
-			env->sregs[SFR_R_MM_CAUSE] = T0;
+			env->sregs[SFR_RW_MM_TLB_HI] = env->regs[reg];
+			env->sregs[SFR_R_MM_CAUSE] = env->regs[reg];
 		}
 		else if (sreg == 5) {
 			uint32_t set;
