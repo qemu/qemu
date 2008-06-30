@@ -37,6 +37,7 @@
 #include "exec-all.h"
 #include "qemu-common.h"
 #include "tcg.h"
+#include "hw/hw.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #endif
@@ -457,6 +458,10 @@ void cpu_exec_init(CPUState *env)
     env->cpu_index = cpu_index;
     env->nb_watchpoints = 0;
     *penv = env;
+#if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
+    register_savevm("cpu", cpu_index, CPU_SAVE_VERSION,
+                    cpu_save, cpu_load, env);
+#endif
 }
 
 static inline void invalidate_page_bitmap(PageDesc *p)

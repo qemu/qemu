@@ -388,6 +388,8 @@ void cpu_check_irqs(CPUSPARCState *env);
 #define cpu_signal_handler cpu_sparc_signal_handler
 #define cpu_list sparc_cpu_list
 
+#define CPU_SAVE_VERSION 4
+
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _user
 #define MMU_MODE1_SUFFIX _kernel

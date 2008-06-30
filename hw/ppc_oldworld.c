@@ -143,7 +143,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
         cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         env->osi_call = vga_osi_call;
         qemu_register_reset(&cpu_ppc_reset, env);
-        register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
         envs[i] = env;
     }
     if (env->nip < 0xFFF80000) {

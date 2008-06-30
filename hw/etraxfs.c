@@ -67,7 +67,6 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
         cpu_model = "crisv32";
     }
     env = cpu_init(cpu_model);
-    register_savevm("cpu", 0, 1, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */

@@ -56,7 +56,6 @@ CPUState *ppc4xx_init (const unsigned char *cpu_model,
     ppc_dcr_init(env, NULL, NULL);
     /* Register qemu callbacks */
     qemu_register_reset(&cpu_ppc_reset, env);
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
 
     return env;
 }

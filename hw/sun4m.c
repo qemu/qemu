@@ -426,7 +426,6 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
             qemu_register_reset(secondary_cpu_reset, env);
             env->halted = 1;
         }
-        register_savevm("cpu", i, 4, cpu_save, cpu_load, env);
         cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
         env->prom_addr = hwdef->slavio_base;
     }
@@ -601,7 +600,6 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     cpu_sparc_set_id(env, 0);
 
     qemu_register_reset(main_cpu_reset, env);
-    register_savevm("cpu", 0, 4, cpu_save, cpu_load, env);
     cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
     env->prom_addr = hwdef->slavio_base;
 
@@ -1413,7 +1411,6 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
             qemu_register_reset(secondary_cpu_reset, env);
             env->halted = 1;
         }
-        register_savevm("cpu", i, 4, cpu_save, cpu_load, env);
         cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
         env->prom_addr = hwdef->slavio_base;
     }

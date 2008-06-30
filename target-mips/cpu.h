@@ -489,6 +489,8 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 #define cpu_signal_handler cpu_mips_signal_handler
 #define cpu_list mips_cpu_list
 
+#define CPU_SAVE_VERSION 3
+
 /* MMU modes definitions. We carefully match the indices with our
    hflags layout. */
 #define MMU_MODE0_SUFFIX _kernel
