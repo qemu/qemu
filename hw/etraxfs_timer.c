@@ -80,8 +80,8 @@ static uint32_t timer_rinvalid (void *opaque, target_phys_addr_t addr)
 {
 	struct fs_timer_t *t = opaque;
 	CPUState *env = t->env;
-	cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
-		  addr, env->pc);
+	cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx
+		  " pc=%x.\n", addr, env->pc);
 	return 0;
 }
 
@@ -120,8 +120,8 @@ timer_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct fs_timer_t *t = opaque;
 	CPUState *env = t->env;
-	cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
-		  addr, env->pc);
+	cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx
+		  " pc=%x.\n", addr, env->pc);
 }
 
 #define TIMER_SLOWDOWN 1
@@ -309,7 +309,7 @@ timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 			t->rw_ack_intr = 0;
 			break;
 		default:
-			printf ("%s %x %x pc=%x\n",
+			printf ("%s " TARGET_FMT_plx " %x pc=%x\n",
 				__func__, addr, value, env->pc);
 			break;
 	}
