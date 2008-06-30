@@ -6382,7 +6382,13 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_jmp_im(pc_start - s->cs_base);
+        if (use_icount)
+            gen_io_start();
         tcg_gen_helper_0_0(helper_rdtsc);
+        if (use_icount) {
+            gen_io_end();
+            gen_jmp(s, s->pc - s->cs_base);
+        }
         break;
     case 0x133: /* rdpmc */
         if (s->cc_op != CC_OP_DYNAMIC)
