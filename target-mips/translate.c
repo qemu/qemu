@@ -7897,9 +7897,6 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         if (gen_opc_ptr >= gen_opc_end)
             break;
 
-        if (gen_opc_ptr >= gen_opc_end)
-            break;
-
         if (num_insns >= max_insns)
             break;
 #if defined (MIPS_SINGLE_STEP)
