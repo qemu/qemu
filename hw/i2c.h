@@ -30,6 +30,7 @@ struct i2c_slave
     /* Remaining fields for internal use by the I2C code.  */
     int address;
     void *next;
+    i2c_bus *bus;
 };
 
 i2c_bus *i2c_init_bus(void);
@@ -41,8 +42,6 @@ void i2c_end_transfer(i2c_bus *bus);
 void i2c_nack(i2c_bus *bus);
 int i2c_send(i2c_bus *bus, uint8_t data);
 int i2c_recv(i2c_bus *bus);
-void i2c_bus_save(QEMUFile *f, i2c_bus *bus);
-void i2c_bus_load(QEMUFile *f, i2c_bus *bus);
 void i2c_slave_save(QEMUFile *f, i2c_slave *dev);
 void i2c_slave_load(QEMUFile *f, i2c_slave *dev);
 
