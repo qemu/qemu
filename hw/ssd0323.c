@@ -44,6 +44,7 @@ enum ssd0323_mode
 
 typedef struct {
     DisplayState *ds;
+    QEMUConsole *console;
 
     int cmd_len;
     int cmd;
@@ -278,12 +279,13 @@ void *ssd0323_init(DisplayState *ds, qemu_irq *cmd_p)
     qemu_irq *cmd;
 
     s = (ssd0323_state *)qemu_mallocz(sizeof(ssd0323_state));
-    s->ds = ds;
-    graphic_console_init(ds, ssd0323_update_display, ssd0323_invalidate_display,
-                         NULL, NULL, s);
-    dpy_resize(s->ds, 128 * MAGNIFY, 64 * MAGNIFY);
     s->col_end = 63;
     s->row_end = 79;
+    s->ds = ds;
+    s->console = graphic_console_init(ds, ssd0323_update_display,
+                                      ssd0323_invalidate_display,
+                                      NULL, NULL, s);
+    qemu_console_resize(s->console, 128 * MAGNIFY, 64 * MAGNIFY);
 
     cmd = qemu_allocate_irqs(ssd0323_cd, s, 1);
     *cmd_p = *cmd;

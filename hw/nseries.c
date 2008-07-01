@@ -1307,7 +1307,9 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
 
         n800_setup_nolo_tags(phys_ram_base + sdram_size);
     }
-
+    /* FIXME: We shouldn't really be doing this here.  The LCD controller
+       will set the size once configured, so this just sets an initial
+       size until the guest activates the display.  */
     dpy_resize(ds, 800, 480);
 }
 

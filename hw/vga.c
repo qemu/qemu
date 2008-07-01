@@ -1155,7 +1155,7 @@ static void vga_draw_text(VGAState *s, int full_update)
         cw != s->last_cw || cheight != s->last_ch) {
         s->last_scr_width = width * cw;
         s->last_scr_height = height * cheight;
-        dpy_resize(s->ds, s->last_scr_width, s->last_scr_height);
+        qemu_console_resize(s->console, s->last_scr_width, s->last_scr_height);
         s->last_width = width;
         s->last_height = height;
         s->last_ch = cheight;
@@ -1499,7 +1499,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
 
     if (disp_width != s->last_width ||
         height != s->last_height) {
-        dpy_resize(s->ds, disp_width, height);
+        qemu_console_resize(s->console, disp_width, height);
         s->last_scr_width = disp_width;
         s->last_scr_height = height;
         s->last_width = disp_width;
@@ -1734,7 +1734,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             cw != s->last_cw || cheight != s->last_ch) {
             s->last_scr_width = width * cw;
             s->last_scr_height = height * cheight;
-            dpy_resize(s->ds, width, height);
+            qemu_console_resize(s->console, width, height);
             s->last_width = width;
             s->last_height = height;
             s->last_ch = cheight;
@@ -1814,7 +1814,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     s->last_width = 60;
     s->last_height = height = 3;
     dpy_cursor(s->ds, -1, -1);
-    dpy_resize(s->ds, s->last_width, height);
+    qemu_console_resize(s->console, s->last_width, height);
 
     for (dst = chardata, i = 0; i < s->last_width * height; i ++)
         console_write_ch(dst ++, ' ');
@@ -2140,8 +2140,8 @@ int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init(s);
 
-    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump,
-                         s->text_update, s);
+    s->console = graphic_console_init(s->ds, s->update, s->invalidate,
+                                      s->screen_dump, s->text_update, s);
 
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
@@ -2165,8 +2165,8 @@ int isa_vga_mm_init(DisplayState *ds, uint8_t *vga_ram_base,
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_mm_init(s, vram_base, ctrl_base, it_shift);
 
-    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump,
-                         s->text_update, s);
+    s->console = graphic_console_init(s->ds, s->update, s->invalidate,
+                                      s->screen_dump, s->text_update, s);
 
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
@@ -2194,8 +2194,8 @@ int pci_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     vga_common_init(s, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init(s);
 
-    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump,
-                         s->text_update, s);
+    s->console = graphic_console_init(s->ds, s->update, s->invalidate,
+                                      s->screen_dump, s->text_update, s);
 
     s->pci_dev = &d->dev;
 

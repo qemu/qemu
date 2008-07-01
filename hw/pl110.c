@@ -30,6 +30,8 @@ enum pl110_bppmode
 typedef struct {
     uint32_t base;
     DisplayState *ds;
+    QEMUConsole *console;
+
     /* The Versatile/PB uses a slightly modified PL110 controller.  */
     int versatile;
     uint32_t timing[4];
@@ -270,7 +272,7 @@ static void pl110_resize(pl110_state *s, int width, int height)
 {
     if (width != s->cols || height != s->rows) {
         if (pl110_enabled(s)) {
-            dpy_resize(s->ds, width, height);
+            qemu_console_resize(s->console, width, height);
         }
     }
     s->cols = width;
@@ -387,7 +389,7 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
         s->cr = val;
         s->bpp = (val >> 1) & 7;
         if (pl110_enabled(s)) {
-            dpy_resize(s->ds, s->cols, s->rows);
+            qemu_console_resize(s->console, s->cols, s->rows);
         }
         break;
     case 10: /* LCDICR */
@@ -425,8 +427,9 @@ void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq,
     s->ds = ds;
     s->versatile = versatile;
     s->irq = irq;
-    graphic_console_init(ds, pl110_update_display, pl110_invalidate_display,
-                         NULL, NULL, s);
+    s->console = graphic_console_init(ds, pl110_update_display,
+                                      pl110_invalidate_display,
+                                      NULL, NULL, s);
     /* ??? Save/restore.  */
     return s;
 }

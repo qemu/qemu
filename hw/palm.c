@@ -275,6 +275,9 @@ static void palmte_init(ram_addr_t ram_size, int vga_ram_size,
         arm_load_kernel(cpu->env, &palmte_binfo);
     }
 
+    /* FIXME: We shouldn't really be doing this here.  The LCD controller
+       will set the size once configured, so this just sets an initial
+       size until the guest activates the display.  */
     dpy_resize(ds, 320, 320);
 }
 

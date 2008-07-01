@@ -57,6 +57,7 @@ struct vmsvga_state_s {
 
 #ifndef EMBED_STDVGA
     DisplayState *ds;
+    QEMUConsole *console;
     int vram_size;
     ram_addr_t vram_offset;
 #endif
@@ -869,7 +870,7 @@ static inline void vmsvga_size(struct vmsvga_state_s *s)
     if (s->new_width != s->width || s->new_height != s->height) {
         s->width = s->new_width;
         s->height = s->new_height;
-        dpy_resize(s->ds, s->width, s->height);
+        qemu_console_resize(s->console, s->width, s->height);
         s->invalidated = 1;
     }
 }
@@ -1122,9 +1123,10 @@ static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
 
     vmsvga_reset(s);
 
-    graphic_console_init(ds, vmsvga_update_display,
-                    vmsvga_invalidate_display, vmsvga_screen_dump,
-                    vmsvga_text_update, s);
+    s->console = graphic_console_init(ds, vmsvga_update_display,
+                                      vmsvga_invalidate_display,
+                                      vmsvga_screen_dump,
+                                      vmsvga_text_update, s);
 
 #ifdef EMBED_STDVGA
     vga_common_init((VGAState *) s, ds,

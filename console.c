@@ -28,6 +28,7 @@
 //#define DEBUG_CONSOLE
 #define DEFAULT_BACKSCROLL 512
 #define MAX_CONSOLES 12
+#define DEFAULT_MONITOR_SIZE "800x600"
 
 #define QEMU_RGBA(r, g, b, a) (((a) << 24) | ((r) << 16) | ((g) << 8) | (b))
 #define QEMU_RGB(r, g, b) QEMU_RGBA(r, g, b, 0xff)
@@ -108,8 +109,7 @@ static int qemu_fifo_read(QEMUFIFO *f, uint8_t *buf, int len1)
 
 typedef enum {
     GRAPHIC_CONSOLE,
-    TEXT_CONSOLE,
-    TEXT_CONSOLE_FIXED_SIZE
+    TEXT_CONSOLE
 } console_type_t;
 
 /* ??? This is mis-named.
@@ -1041,6 +1041,9 @@ void console_select(unsigned int index)
     s = consoles[index];
     if (s) {
         active_console = s;
+        if (s->g_width && s->g_height
+            && (s->g_width != s->ds->width || s->g_height != s->ds->height))
+            dpy_resize(s->ds, s->g_width, s->g_height);
         vga_hw_invalidate();
     }
 }
@@ -1149,18 +1152,6 @@ static void text_console_invalidate(void *opaque)
 {
     TextConsole *s = (TextConsole *) opaque;
 
-    if (s->console_type != GRAPHIC_CONSOLE) {
-        if (s->g_width != s->ds->width ||
-            s->g_height != s->ds->height) {
-            if (s->console_type == TEXT_CONSOLE_FIXED_SIZE)
-                dpy_resize(s->ds, s->g_width, s->g_height);
-            else {
-                s->g_width = s->ds->width;
-                s->g_height = s->ds->height;
-                text_console_resize(s);
-            }
-        }
-    }
     console_refresh(s);
 }
 
@@ -1268,11 +1259,14 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
         return NULL;
-    s = new_console(ds, (p == 0) ? TEXT_CONSOLE : TEXT_CONSOLE_FIXED_SIZE);
+    s = new_console(ds, TEXT_CONSOLE);
     if (!s) {
         free(chr);
         return NULL;
     }
+    if (!p)
+        p = DEFAULT_MONITOR_SIZE;
+
     chr->opaque = s;
     chr->chr_write = console_puts;
     chr->chr_send_event = console_send_event;
@@ -1331,4 +1325,15 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     qemu_chr_reset(chr);
 
     return chr;
+}
+
+void qemu_console_resize(QEMUConsole *console, int width, int height)
+{
+    if (console->g_width != width || console->g_height != height) {
+        console->g_width = width;
+        console->g_height = height;
+        if (active_console == console) {
+            dpy_resize(console->ds, width, height);
+        }
+    }
 }

@@ -121,6 +121,7 @@
     VGA_STATE_COMMON_BOCHS_VBE                                          \
     /* display refresh support */                                       \
     DisplayState *ds;                                                   \
+    QEMUConsole *console;                                               \
     uint32_t font_offsets[2];                                           \
     int graphic_mode;                                                   \
     uint8_t shift_control;                                              \

@@ -758,8 +758,8 @@ typedef struct musicpal_lcd_state {
     int page;
     int page_off;
     DisplayState *ds;
+    QEMUConsole *console;
     uint8_t video_ram[128*64/8];
-    int invalidate;
 } musicpal_lcd_state;
 
 static uint32_t lcd_brightness;
@@ -818,11 +818,6 @@ static void lcd_refresh(void *opaque)
     musicpal_lcd_state *s = opaque;
     int x, y, col;
 
-    if (s->invalidate && (s->ds->width != 128*3 || s->ds->height != 64*3)) {
-        dpy_resize(s->ds, 128*3, 64*3);
-        s->invalidate = 0;
-    }
-
     switch (s->ds->depth) {
     case 0:
         return;
@@ -851,9 +846,6 @@ static void lcd_refresh(void *opaque)
 
 static void lcd_invalidate(void *opaque)
 {
-    musicpal_lcd_state *s = opaque;
-
-    s->invalidate = 1;
 }
 
 static uint32_t musicpal_lcd_read(void *opaque, target_phys_addr_t offset)
@@ -932,12 +924,13 @@ static void musicpal_lcd_init(DisplayState *ds, uint32_t base)
         return;
     s->base = base;
     s->ds = ds;
-    s->invalidate = 1;
     iomemtype = cpu_register_io_memory(0, musicpal_lcd_readfn,
                                        musicpal_lcd_writefn, s);
     cpu_register_physical_memory(base, MP_LCD_SIZE, iomemtype);
 
-    graphic_console_init(ds, lcd_refresh, lcd_invalidate, NULL, NULL, s);
+    s->console = graphic_console_init(ds, lcd_refresh, lcd_invalidate,
+                                      NULL, NULL, s);
+    qemu_console_resize(s->console, 128*3, 64*3);
 }
 
 /* PIC register offsets */
