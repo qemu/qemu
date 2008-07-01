@@ -30,7 +30,11 @@
 #include "mmu.h"
 #include "exec-all.h"
 
+#ifdef DEBUG
+#define D(x) x
+#else
 #define D(x)
+#endif
 
 void cris_mmu_init(CPUState *env)
 {
@@ -95,6 +99,7 @@ static inline void set_field(uint32_t *dst, unsigned int val,
 	*dst |= val;
 }
 
+#ifdef DEBUG
 static void dump_tlb(CPUState *env, int mmu)
 {
 	int set;
@@ -113,6 +118,7 @@ static void dump_tlb(CPUState *env, int mmu)
 		}
 	}
 }
+#endif
 
 /* rw 0 = read, 1 = write, 2 = exec.  */
 static int cris_mmu_translate_page(struct cris_mmu_result_t *res,

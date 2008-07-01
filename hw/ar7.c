@@ -3728,7 +3728,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         fprintf(stderr, "Unable to find CPU definition %s\n", cpu_model);
         exit(1);
     }
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
+
     qemu_register_reset(main_cpu_reset, env);
     ar7_mips_init(env);
 

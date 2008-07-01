@@ -8685,7 +8685,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
         /* Translation stops when a conditional branch is enoutered.
          * Otherwise the subsequent code could get translated several times.
          * Also stop translation when a page boundary is reached.  This
-         * ensures prefech aborts occur at the right place.  */
+         * ensures prefetch aborts occur at the right place.  */
         num_insns ++;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&

@@ -135,4 +135,8 @@ typedef struct SerialState SerialState;
 typedef struct IRQState *qemu_irq;
 struct pcmcia_card_s;
 
+/* CPU save/load.  */
+void cpu_save(QEMUFile *f, void *opaque);
+int cpu_load(QEMUFile *f, void *opaque, int version_id);
+
 #endif

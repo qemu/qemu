@@ -120,7 +120,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     CPUARMState *env = (CPUARMState *)opaque;
     int i;
 
-    if (version_id != ARM_CPU_SAVE_VERSION)
+    if (version_id != CPU_SAVE_VERSION)
         return -EINVAL;
 
     for (i = 0; i < 16; i++) {

@@ -185,7 +185,6 @@ static void mips_init(ram_addr_t ram_size, int vga_ram_size,
     fprintf(stderr, "%s: setting %s endian mode\n",
             __func__, bigendian ? "big" : "little");
 
-    register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */

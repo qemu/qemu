@@ -3076,14 +3076,15 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
 	if (loglevel & CPU_LOG_TB_IN_ASM) {
 		fprintf(logfile,
-			"srch=%d pc=%x %x flg=%llx bt=%x ds=%lld ccs=%x\n"
+			"srch=%d pc=%x %x flg=%llx bt=%x ds=%u ccs=%x\n"
 			"pid=%x usp=%x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n"
 			"%x.%x.%x.%x\n",
-			search_pc, dc->pc, dc->ppc, tb->flags,
-			env->btarget, tb->flags & 7,
+			search_pc, dc->pc, dc->ppc,
+			(unsigned long long)tb->flags,
+			env->btarget, (unsigned)tb->flags & 7,
 			env->pregs[PR_CCS], 
 			env->pregs[PR_PID], env->pregs[PR_USP],
 			env->regs[0], env->regs[1], env->regs[2], env->regs[3],
@@ -3141,7 +3142,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
                 num_insns++;
 		/* Check for delayed branches here. If we do it before
-		   actually genereating any host code, the simulator will just
+		   actually generating any host code, the simulator will just
 		   loop doing nothing for on this program location.  */
 		if (dc->delayed_branch) {
 			dc->delayed_branch--;
@@ -3229,7 +3230,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 		fprintf(logfile, "--------------\n");
 		fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
 		target_disas(logfile, pc_start, dc->pc - pc_start, 0);
-		fprintf(logfile, "\nisize=%d osize=%d\n", 
+		fprintf(logfile, "\nisize=%d osize=%zd\n",
 			dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
 	}
 #endif

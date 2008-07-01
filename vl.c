@@ -239,9 +239,9 @@ struct drive_opt {
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
 static int event_pending = 1;
-/* Conversion factor from emulated instrctions to virtual clock ticks.  */
+/* Conversion factor from emulated instructions to virtual clock ticks.  */
 static int icount_time_shift;
-/* Arbitrarily pick 1MIPS as the minimum alowable speed.  */
+/* Arbitrarily pick 1MIPS as the minimum allowable speed.  */
 #define MAX_ICOUNT_SHIFT 10
 /* Compensate for varying guest execution speed.  */
 static int64_t qemu_icount_bias;
@@ -903,7 +903,7 @@ static void rtc_stop_timer(struct qemu_alarm_timer *t);
 #endif /* _WIN32 */
 
 /* Correlation between real and virtual time is always going to be
-   farly approximate, so ignore small variation.
+   fairly approximate, so ignore small variation.
    When the guest is idle real and virtual time will be aligned in
    the IO wait loop.  */
 #define ICOUNT_WOBBLE (QEMU_TIMER_BASE / 10)
@@ -7262,7 +7262,7 @@ static int main_loop(void)
                     if (use_icount == 1) {
                         /* When not using an adaptive execution frequency
                            we tend to get badly out of sync with real time,
-                           so just delay for a resonable amount of time.  */
+                           so just delay for a reasonable amount of time.  */
                         delta = 0;
                     } else {
                         delta = cpu_get_icount() - cpu_get_clock();

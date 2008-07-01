@@ -36,7 +36,7 @@
 
 //#define MIPS_DEBUG_DISAS
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
-#define MIPS_SINGLE_STEP
+//~ #define MIPS_SINGLE_STEP
 
 /* MIPS major opcodes */
 #define MASK_OP_MAJOR(op)  (op & (0x3F << 26))
@@ -424,7 +424,7 @@ enum {
 };
 
 /* global register indices */
-static TCGv cpu_env, current_fpu;
+static TCGv cpu_env, bcond, btarget, current_fpu;
 
 /* FPU TNs, global for now. */
 static TCGv fpu32_T[3], fpu64_T[3], fpu32h_T[3];
@@ -533,8 +533,7 @@ typedef struct DisasContext {
 
 enum {
     BS_NONE     = 0, /* We go out of the TB without reaching a branch or an
-                      * exception condition
-                      */
+                      * exception condition */
     BS_STOP     = 1, /* We want to stop translation for any reason */
     BS_BRANCH   = 2, /* We reached a branch condition     */
     BS_EXCP     = 3, /* We reached an exception condition */
@@ -824,33 +823,6 @@ static inline void gen_save_pc(target_ulong pc)
     tcg_temp_free(r_tmp);
 }
 
-static inline void gen_breg_pc(void)
-{
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
-
-    tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, btarget));
-    tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, active_tc.PC));
-    tcg_temp_free(r_tmp);
-}
-
-static inline void gen_save_btarget(target_ulong btarget)
-{
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
-
-    tcg_gen_movi_tl(r_tmp, btarget);
-    tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, btarget));
-    tcg_temp_free(r_tmp);
-}
-
-static always_inline void gen_save_breg_target(int reg)
-{
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
-
-    gen_load_gpr(r_tmp, reg);
-    tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, btarget));
-    tcg_temp_free(r_tmp);
-}
-
 static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
 {
 #if defined MIPS_DEBUG_DISAS
@@ -876,7 +848,7 @@ static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
         case MIPS_HFLAG_BC:
         case MIPS_HFLAG_BL:
         case MIPS_HFLAG_B:
-            gen_save_btarget(ctx->btarget);
+            tcg_gen_movi_tl(btarget, ctx->btarget);
             break;
         }
     }
@@ -2506,7 +2478,7 @@ static always_inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong des
 static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
                                 int rs, int rt, int32_t offset)
 {
-    target_ulong btarget = -1;
+    target_ulong btgt = -1;
     int blink = 0;
     int bcond = 0;
     TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
@@ -2536,7 +2508,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             gen_load_gpr(t1, rt);
             bcond = 1;
         }
-        btarget = ctx->pc + 4 + offset;
+        btgt = ctx->pc + 4 + offset;
         break;
     case OPC_BGEZ:
     case OPC_BGEZAL:
@@ -2555,12 +2527,12 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             gen_load_gpr(t0, rs);
             bcond = 1;
         }
-        btarget = ctx->pc + 4 + offset;
+        btgt = ctx->pc + 4 + offset;
         break;
     case OPC_J:
     case OPC_JAL:
         /* Jump to immediate */
-        btarget = ((ctx->pc + 4) & (int32_t)0xF0000000) | (uint32_t)offset;
+        btgt = ((ctx->pc + 4) & (int32_t)0xF0000000) | (uint32_t)offset;
         break;
     case OPC_JR:
     case OPC_JALR:
@@ -2572,7 +2544,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             generate_exception(ctx, EXCP_RI);
             goto out;
         }
-        gen_save_breg_target(rs);
+        gen_load_gpr(btarget, rs);
         break;
     default:
         MIPS_INVAL("branch/jump");
@@ -2626,12 +2598,12 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             goto out;
         case OPC_J:
             ctx->hflags |= MIPS_HFLAG_B;
-            MIPS_DEBUG("j " TARGET_FMT_lx, btarget);
+            MIPS_DEBUG("j " TARGET_FMT_lx, btgt);
             break;
         case OPC_JAL:
             blink = 31;
             ctx->hflags |= MIPS_HFLAG_B;
-            MIPS_DEBUG("jal " TARGET_FMT_lx, btarget);
+            MIPS_DEBUG("jal " TARGET_FMT_lx, btgt);
             break;
         case OPC_JR:
             ctx->hflags |= MIPS_HFLAG_BR;
@@ -2652,80 +2624,80 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         case OPC_BEQ:
             gen_op_eq(t0, t1);
             MIPS_DEBUG("beq %s, %s, " TARGET_FMT_lx,
-                       regnames[rs], regnames[rt], btarget);
+                       regnames[rs], regnames[rt], btgt);
             goto not_likely;
         case OPC_BEQL:
             gen_op_eq(t0, t1);
             MIPS_DEBUG("beql %s, %s, " TARGET_FMT_lx,
-                       regnames[rs], regnames[rt], btarget);
+                       regnames[rs], regnames[rt], btgt);
             goto likely;
         case OPC_BNE:
             gen_op_ne(t0, t1);
             MIPS_DEBUG("bne %s, %s, " TARGET_FMT_lx,
-                       regnames[rs], regnames[rt], btarget);
+                       regnames[rs], regnames[rt], btgt);
             goto not_likely;
         case OPC_BNEL:
             gen_op_ne(t0, t1);
             MIPS_DEBUG("bnel %s, %s, " TARGET_FMT_lx,
-                       regnames[rs], regnames[rt], btarget);
+                       regnames[rs], regnames[rt], btgt);
             goto likely;
         case OPC_BGEZ:
             gen_op_gez(t0);
-            MIPS_DEBUG("bgez %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bgez %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto not_likely;
         case OPC_BGEZL:
             gen_op_gez(t0);
-            MIPS_DEBUG("bgezl %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bgezl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BGEZAL:
             gen_op_gez(t0);
-            MIPS_DEBUG("bgezal %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bgezal %s, " TARGET_FMT_lx, regnames[rs], btgt);
             blink = 31;
             goto not_likely;
         case OPC_BGEZALL:
             gen_op_gez(t0);
             blink = 31;
-            MIPS_DEBUG("bgezall %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bgezall %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BGTZ:
             gen_op_gtz(t0);
-            MIPS_DEBUG("bgtz %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bgtz %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto not_likely;
         case OPC_BGTZL:
             gen_op_gtz(t0);
-            MIPS_DEBUG("bgtzl %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bgtzl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BLEZ:
             gen_op_lez(t0);
-            MIPS_DEBUG("blez %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("blez %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto not_likely;
         case OPC_BLEZL:
             gen_op_lez(t0);
-            MIPS_DEBUG("blezl %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("blezl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BLTZ:
             gen_op_ltz(t0);
-            MIPS_DEBUG("bltz %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bltz %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto not_likely;
         case OPC_BLTZL:
             gen_op_ltz(t0);
-            MIPS_DEBUG("bltzl %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bltzl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BLTZAL:
             gen_op_ltz(t0);
             blink = 31;
-            MIPS_DEBUG("bltzal %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bltzal %s, " TARGET_FMT_lx, regnames[rs], btgt);
         not_likely:
             ctx->hflags |= MIPS_HFLAG_BC;
-            tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, bcond));
+            tcg_gen_trunc_tl_i32(bcond, t0);
             break;
         case OPC_BLTZALL:
             gen_op_ltz(t0);
             blink = 31;
-            MIPS_DEBUG("bltzall %s, " TARGET_FMT_lx, regnames[rs], btarget);
+            MIPS_DEBUG("bltzall %s, " TARGET_FMT_lx, regnames[rs], btgt);
         likely:
             ctx->hflags |= MIPS_HFLAG_BL;
-            tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, bcond));
+            tcg_gen_trunc_tl_i32(bcond, t0);
             break;
         default:
             MIPS_INVAL("conditional branch/jump");
@@ -2734,9 +2706,9 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         }
     }
     MIPS_DEBUG("enter ds: link %d cond %02x target " TARGET_FMT_lx,
-               blink, ctx->hflags, btarget);
+               blink, ctx->hflags, btgt);
 
-    ctx->btarget = btarget;
+    ctx->btarget = btgt;
     if (blink > 0) {
         tcg_gen_movi_tl(t0, ctx->pc + 8);
         gen_store_gpr(t0, blink);
@@ -4027,7 +3999,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
                 rn, reg, sel);
     }
 #endif
-    /* For simplicitly assume that all writes can cause interrupts.  */
+    /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
         gen_io_end();
         ctx->bstate = BS_STOP;
@@ -5199,7 +5171,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     }
 #endif
     tcg_temp_free(t0);
-    /* For simplicitly assume that all writes can cause interrupts.  */
+    /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
         gen_io_end();
         ctx->bstate = BS_STOP;
@@ -5790,7 +5762,7 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
         opn = "bc1tl";
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
-        tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, bcond));
+        tcg_gen_trunc_tl_i32(bcond, t0);
         break;
     case OPC_BC1FANY2:
         {
@@ -5875,7 +5847,7 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
         opn = "bc1any4t";
     not_likely:
         ctx->hflags |= MIPS_HFLAG_BC;
-        tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, bcond));
+        tcg_gen_trunc_tl_i32(bcond, t0);
         break;
     default:
         MIPS_INVAL(opn);
@@ -7210,19 +7182,16 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
     /* Handle blikely not taken case */
     if ((ctx->hflags & MIPS_HFLAG_BMASK) == MIPS_HFLAG_BL) {
-        TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_TL);
         int l1 = gen_new_label();
 
         MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
-        tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
-        tcg_gen_brcondi_tl(TCG_COND_NE, r_tmp, 0, l1);
-        tcg_temp_free(r_tmp);
+        tcg_gen_brcondi_i32(TCG_COND_NE, bcond, 0, l1);
         {
-            TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
 
-            tcg_gen_movi_i32(r_tmp2, ctx->hflags & ~MIPS_HFLAG_BMASK);
-            tcg_gen_st_i32(r_tmp2, cpu_env, offsetof(CPUState, hflags));
-            tcg_temp_free(r_tmp2);
+            tcg_gen_movi_i32(r_tmp, ctx->hflags & ~MIPS_HFLAG_BMASK);
+            tcg_gen_st_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
+            tcg_temp_free(r_tmp);
         }
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
@@ -7819,12 +7788,9 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             /* Conditional branch */
             MIPS_DEBUG("conditional branch");
             {
-                TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_TL);
                 int l1 = gen_new_label();
 
-                tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, bcond));
-                tcg_gen_brcondi_tl(TCG_COND_NE, r_tmp, 0, l1);
-                tcg_temp_free(r_tmp);
+                tcg_gen_brcondi_i32(TCG_COND_NE, bcond, 0, l1);
                 gen_goto_tb(ctx, 1, ctx->pc + 4);
                 gen_set_label(l1);
                 gen_goto_tb(ctx, 0, ctx->btarget);
@@ -7833,7 +7799,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case MIPS_HFLAG_BR:
             /* unconditional branch to register */
             MIPS_DEBUG("branch to register");
-            gen_breg_pc();
+            tcg_gen_st_tl(btarget, cpu_env, offsetof(CPUState, active_tc.PC));
             tcg_gen_exit_tb(0);
             break;
         default:
@@ -8126,6 +8092,10 @@ static void mips_tcg_init(void)
 	return;
 
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    bcond = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                               offsetof(CPUState, bcond), "bcond");
+    btarget = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                 offsetof(CPUState, btarget), "btarget");
     current_fpu = tcg_global_mem_new(TCG_TYPE_PTR,
                                      TCG_AREG0,
                                      offsetof(CPUState, fpu),

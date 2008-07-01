@@ -580,7 +580,6 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
             cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         }
         qemu_register_reset(&cpu_ppc_reset, env);
-        register_savevm("cpu", 0, 3, cpu_save, cpu_load, env);
         envs[i] = env;
     }
 

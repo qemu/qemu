@@ -214,6 +214,7 @@ static inline int fs_channel(target_phys_addr_t base, target_phys_addr_t addr)
 	return (addr - base) >> 13;
 }
 
+#ifdef USE_THIS_DEAD_CODE
 static void channel_load_g(struct fs_dma_ctrl *ctrl, int c)
 {
 	target_phys_addr_t addr = channel_reg(ctrl, c, RW_GROUP);
@@ -227,23 +228,24 @@ static void channel_load_g(struct fs_dma_ctrl *ctrl, int c)
 static void dump_c(int ch, struct dma_descr_context *c)
 {
 	printf("%s ch=%d\n", __func__, ch);
-	printf("next=%x\n", (uint32_t) c->next);
-	printf("saved_data=%x\n", (uint32_t) c->saved_data);
-	printf("saved_data_buf=%x\n", (uint32_t) c->saved_data_buf);
+	printf("next=%p\n", c->next);
+	printf("saved_data=%p\n", c->saved_data);
+	printf("saved_data_buf=%p\n", c->saved_data_buf);
 	printf("eol=%x\n", (uint32_t) c->eol);
 }
 
 static void dump_d(int ch, struct dma_descr_data *d)
 {
 	printf("%s ch=%d\n", __func__, ch);
-	printf("next=%x\n", (uint32_t) d->next);
-	printf("buf=%x\n", (uint32_t) d->buf);
-	printf("after=%x\n", (uint32_t) d->after);
+	printf("next=%p\n", d->next);
+	printf("buf=%p\n", d->buf);
+	printf("after=%p\n", d->after);
 	printf("intr=%x\n", (uint32_t) d->intr);
 	printf("out_eop=%x\n", (uint32_t) d->out_eop);
 	printf("in_eop=%x\n", (uint32_t) d->in_eop);
 	printf("eol=%x\n", (uint32_t) d->eol);
 }
+#endif
 
 static void channel_load_c(struct fs_dma_ctrl *ctrl, int c)
 {
@@ -256,10 +258,10 @@ static void channel_load_c(struct fs_dma_ctrl *ctrl, int c)
 
 	D(dump_c(c, &ctrl->channels[c].current_c));
 	/* I guess this should update the current pos.  */
-	ctrl->channels[c].regs[RW_SAVED_DATA] = 
-		(uint32_t)ctrl->channels[c].current_c.saved_data;
+	ctrl->channels[c].regs[RW_SAVED_DATA] =
+		(uint32_t)(unsigned long)ctrl->channels[c].current_c.saved_data;
 	ctrl->channels[c].regs[RW_SAVED_DATA_BUF] =
-		(uint32_t)ctrl->channels[c].current_c.saved_data_buf;
+		(uint32_t)(unsigned long)ctrl->channels[c].current_c.saved_data_buf;
 }
 
 static void channel_load_d(struct fs_dma_ctrl *ctrl, int c)
@@ -339,20 +341,20 @@ static void channel_continue(struct fs_dma_ctrl *ctrl, int c)
 		D(printf("continue %d ok %p\n", c,
 			 ctrl->channels[c].current_d.next));
 		ctrl->channels[c].regs[RW_SAVED_DATA] =
-			(uint32_t) ctrl->channels[c].current_d.next;
+			(uint32_t)(unsigned long)ctrl->channels[c].current_d.next;
 		channel_load_d(ctrl, c);
 		channel_start(ctrl, c);
 	}
 	ctrl->channels[c].regs[RW_SAVED_DATA_BUF] =
-		(uint32_t) ctrl->channels[c].current_d.buf;
+		(uint32_t)(unsigned long)ctrl->channels[c].current_d.buf;
 }
 
 static void channel_stream_cmd(struct fs_dma_ctrl *ctrl, int c, uint32_t v)
 {
 	unsigned int cmd = v & ((1 << 10) - 1);
 
-	D(printf("%s ch=%d cmd=%x pc=%x\n",
-		 __func__, c, cmd, ctrl->env->pc));
+	D(printf("%s ch=%d cmd=%x\n",
+		 __func__, c, cmd));
 	if (cmd & regk_dma_load_d) {
 		channel_load_d(ctrl, c);
 		if (cmd & regk_dma_burst)
@@ -402,7 +404,7 @@ static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 		 (uint32_t)ctrl->channels[c].current_d.after,
 		 saved_data_buf));
 
-	len = (uint32_t) ctrl->channels[c].current_d.after;
+	len = (uint32_t)(unsigned long) ctrl->channels[c].current_d.after;
 	len -= saved_data_buf;
 
 	if (len > sizeof buf)
@@ -420,7 +422,8 @@ static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 
 	saved_data_buf += len;
 
-	if (saved_data_buf == (uint32_t)ctrl->channels[c].current_d.after) {
+	if (saved_data_buf ==
+	    (uint32_t)(unsigned long)ctrl->channels[c].current_d.after) {
 		/* Done. Step to next.  */
 		if (ctrl->channels[c].current_d.out_eop) {
 			/* TODO: signal eop to the client.  */
@@ -444,10 +447,10 @@ static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 			channel_stop(ctrl, c);
 		} else {
 			ctrl->channels[c].regs[RW_SAVED_DATA] =
-				(uint32_t) ctrl->channels[c].current_d.next;
+				(uint32_t)(unsigned long) ctrl->channels[c].current_d.next;
 			/* Load new descriptor.  */
 			channel_load_d(ctrl, c);
-			saved_data_buf = (uint32_t)
+			saved_data_buf = (uint32_t)(unsigned long)
 				ctrl->channels[c].current_d.buf;
 		}
 
@@ -468,7 +471,7 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 		return 0;
 
 	saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
-	len = (uint32_t) ctrl->channels[c].current_d.after;
+	len = (uint32_t)(unsigned long) ctrl->channels[c].current_d.after;
 	len -= saved_data_buf;
 	
 	if (len > buflen)
@@ -477,7 +480,8 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 	cpu_physical_memory_write (saved_data_buf, buf, len);
 	saved_data_buf += len;
 
-	if (saved_data_buf == (uint32_t)ctrl->channels[c].current_d.after
+	if (saved_data_buf ==
+	    (uint32_t)(unsigned long)ctrl->channels[c].current_d.after
 	    || eop) {
 		uint32_t r_intr = ctrl->channels[c].regs[R_INTR];
 
@@ -485,7 +489,7 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 			 ctrl->channels[c].current_d.after
 			 - ctrl->channels[c].current_d.buf));
 		ctrl->channels[c].current_d.after = 
-			(void *) saved_data_buf;
+			(void *)(unsigned long) saved_data_buf;
 
 		/* Done. Step to next.  */
 		if (ctrl->channels[c].current_d.intr) {
@@ -514,10 +518,10 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 			channel_stop(ctrl, c);
 		} else {
 			ctrl->channels[c].regs[RW_SAVED_DATA] =
-				(uint32_t) ctrl->channels[c].current_d.next;
+				(uint32_t)(unsigned long) ctrl->channels[c].current_d.next;
 			/* Load new descriptor.  */
 			channel_load_d(ctrl, c);
-			saved_data_buf = (uint32_t)
+			saved_data_buf = (uint32_t)(unsigned long)
 				ctrl->channels[c].current_d.buf;
 		}
 	}
@@ -537,8 +541,8 @@ static uint32_t dma_rinvalid (void *opaque, target_phys_addr_t addr)
 {
         struct fs_dma_ctrl *ctrl = opaque;
         CPUState *env = ctrl->env;
-        cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
-                  addr, env->pc);
+        cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx "\n",
+                  addr);
         return 0;
 }
 
@@ -562,8 +566,8 @@ dma_readl (void *opaque, target_phys_addr_t addr)
 
 		default:
 			r = ctrl->channels[c].regs[addr];
-			D(printf ("%s c=%d addr=%x pc=%x\n",
-				  __func__, c, addr, ctrl->env->pc));
+			D(printf ("%s c=%d addr=%x\n",
+				  __func__, c, addr));
 			break;
 	}
 	return r;
@@ -574,8 +578,8 @@ dma_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
         struct fs_dma_ctrl *ctrl = opaque;
         CPUState *env = ctrl->env;
-        cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
-                  addr, env->pc);
+        cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx "\n",
+                  addr);
 }
 
 static void
@@ -619,14 +623,12 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 
 		case RW_STREAM_CMD:
 			ctrl->channels[c].regs[addr] = value;
-			D(printf("stream_cmd ch=%d pc=%x\n",
-				 c, ctrl->env->pc));
+			D(printf("stream_cmd ch=%d\n", c));
 			channel_stream_cmd(ctrl, c, value);
 			break;
 
 	        default:
-			D(printf ("%s c=%d %x %x pc=%x\n",
-				  __func__, c, addr, value, ctrl->env->pc));
+			D(printf ("%s c=%d %x %x\n", __func__, c, addr));
 			break;
         }
 }

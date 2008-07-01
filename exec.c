@@ -38,6 +38,7 @@
 #include "exec-all.h"
 #include "qemu-common.h"
 #include "tcg.h"
+#include "hw/hw.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #endif
@@ -109,7 +110,7 @@ CPUState *first_cpu;
    cpu_exec() */
 CPUState *cpu_single_env;
 /* 0 = Do not count executed instructions.
-   1 = Precice instruction counting.
+   1 = Precise instruction counting.
    2 = Adaptive rate instruction counting.  */
 int use_icount = 0;
 /* Current instruction counter.  While executing translated code this may
@@ -458,6 +459,10 @@ void cpu_exec_init(CPUState *env)
     env->cpu_index = cpu_index;
     env->nb_watchpoints = 0;
     *penv = env;
+#if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
+    register_savevm("cpu", cpu_index, CPU_SAVE_VERSION,
+                    cpu_save, cpu_load, env);
+#endif
 }
 
 static inline void invalidate_page_bitmap(PageDesc *p)
@@ -1076,7 +1081,7 @@ TranslationBlock *tb_alloc(target_ulong pc)
 
 void tb_free(TranslationBlock *tb)
 {
-    /* In practice this is mostly used for single use temorary TB
+    /* In practice this is mostly used for single use temporary TB
        Ignore the hard cases and just back up if this TB happens to
        be the last one generated.  */
     if (nb_tbs > 0 && tb == &tbs[nb_tbs - 1]) {
@@ -1390,7 +1395,7 @@ void cpu_interrupt(CPUState *env, int mask)
 
     old_mask = env->interrupt_request;
     /* FIXME: This is probably not threadsafe.  A different thread could
-       be in the mittle of a read-modify-write operation.  */
+       be in the middle of a read-modify-write operation.  */
     env->interrupt_request |= mask;
 #if defined(USE_NPTL)
     /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
@@ -2193,12 +2198,16 @@ ram_addr_t cpu_get_physical_page_desc(target_phys_addr_t addr)
 #if defined(DEBUG_UNASSIGNED)
 #if defined(TARGET_MIPS)
 #include <assert.h>
+#include <disas.h>
 static const char *backtrace(char *buffer, size_t length)
 {
     char *p = buffer;
     if (cpu_single_env) {
-        p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.PC));
-        p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.gpr[31]));
+        const char *symbol;
+        symbol = lookup_symbol(cpu_single_env->active_tc.PC);
+        p += sprintf(p, "[%s]", symbol);
+        symbol = lookup_symbol(cpu_single_env->active_tc.gpr[31]);
+        p += sprintf(p, "[%s]", symbol);
     } else {
         p += sprintf(p, "[cpu not running]");
     }
@@ -3055,13 +3064,13 @@ void cpu_io_recompile(CPUState *env, void *retaddr)
     n = env->icount_decr.u16.low + tb->icount;
     cpu_restore_state(tb, env, (unsigned long)retaddr, NULL);
     /* Calculate how many instructions had been executed before the fault
-       occured.  */
+       occurred.  */
     n = n - env->icount_decr.u16.low;
     /* Generate a new TB ending on the I/O insn.  */
     n++;
     /* On MIPS and SH, delay slot instructions can only be restarted if
        they were already the first instruction in the TB.  If this is not
-       the first instruction in a TB then re-execute the preceeding
+       the first instruction in a TB then re-execute the preceding
        branch.  */
 #if defined(TARGET_MIPS)
     if ((env->hflags & MIPS_HFLAG_BMASK) != 0 && n > 1) {
@@ -3089,7 +3098,7 @@ void cpu_io_recompile(CPUState *env, void *retaddr)
     /* FIXME: In theory this could raise an exception.  In practice
        we have already translated the block once so it's probably ok.  */
     tb_gen_code(env, pc, cs_base, flags, cflags);
-    /* TODO: If env->pc != tb->pc (i.e. the failuting instruction was not
+    /* TODO: If env->pc != tb->pc (i.e. the faulting instruction was not
        the first in the TB) then we end up generating a whole new TB and
        repeating the fault, which is horribly inefficient.
        Better would be to execute just this insn uncached, or generate a

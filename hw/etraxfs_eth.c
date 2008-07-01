@@ -154,11 +154,13 @@ mdio_attach(struct qemu_mdio *bus, struct qemu_phy *phy, unsigned int addr)
 	bus->devs[addr & 0x1f] = phy;
 }
 
+#ifdef USE_THIS_DEAD_CODE
 static void 
 mdio_detach(struct qemu_mdio *bus, struct qemu_phy *phy, unsigned int addr)
 {
 	bus->devs[addr & 0x1f] = NULL;	
 }
+#endif
 
 static void mdio_read_req(struct qemu_mdio *bus)
 {
@@ -328,15 +330,14 @@ static uint32_t eth_rinvalid (void *opaque, target_phys_addr_t addr)
 {
 	struct fs_eth *eth = opaque;
 	CPUState *env = eth->env;
-	cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
-		  addr, env->pc);
+	cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx "\n",
+		  addr);
 	return 0;
 }
 
 static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
 {
 	struct fs_eth *eth = opaque;
-	D(CPUState *env = eth->env);
 	uint32_t r = 0;
 
 	/* Make addr relative to this instances base.  */
@@ -348,7 +349,7 @@ static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
 			break;
 	default:
 		r = eth->regs[addr];
-		D(printf ("%s %x p=%x\n", __func__, addr, env->pc));
+		D(printf ("%s %x\n", __func__, addr));
 		break;
 	}
 	return r;
@@ -359,8 +360,8 @@ eth_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct fs_eth *eth = opaque;
 	CPUState *env = eth->env;
-	cpu_abort(env, "Unsupported short access. reg=%x pc=%x.\n", 
-		  addr, env->pc);
+	cpu_abort(env, "Unsupported short access. reg=" TARGET_FMT_plx "\n",
+		  addr);
 }
 
 static void eth_update_ma(struct fs_eth *eth, int ma)

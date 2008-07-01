@@ -282,7 +282,6 @@ static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
     bh = qemu_bh_new(hstick_irq, env);
     env->hstick = ptimer_init(bh);
     ptimer_set_period(env->hstick, 1ULL);
-    register_savevm("cpu", 0, 4, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
     main_cpu_reset(env);
 
