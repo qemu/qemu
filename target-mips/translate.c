@@ -757,7 +757,7 @@ FOP_CONDS(abs, ps)
 
 /* Tests */
 #define OP_COND(name, cond)                                   \
-void glue(gen_op_, name) (TCGv t0, TCGv t1)                   \
+static inline void glue(gen_op_, name) (TCGv t0, TCGv t1)     \
 {                                                             \
     int l1 = gen_new_label();                                 \
     int l2 = gen_new_label();                                 \
@@ -778,7 +778,7 @@ OP_COND(ltu, TCG_COND_LTU);
 #undef OP_COND
 
 #define OP_CONDI(name, cond)                                  \
-void glue(gen_op_, name) (TCGv t, target_ulong val)           \
+static inline void glue(gen_op_, name) (TCGv t, target_ulong val) \
 {                                                             \
     int l1 = gen_new_label();                                 \
     int l2 = gen_new_label();                                 \
@@ -795,7 +795,7 @@ OP_CONDI(ltiu, TCG_COND_LTU);
 #undef OP_CONDI
 
 #define OP_CONDZ(name, cond)                                  \
-void glue(gen_op_, name) (TCGv t)                             \
+static inline void glue(gen_op_, name) (TCGv t)               \
 {                                                             \
     int l1 = gen_new_label();                                 \
     int l2 = gen_new_label();                                 \
@@ -822,7 +822,7 @@ static inline void gen_save_pc(target_ulong pc)
     tcg_temp_free(r_tmp);
 }
 
-static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
+static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
 {
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
@@ -853,7 +853,7 @@ static always_inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
     }
 }
 
-static always_inline void restore_cpu_state (CPUState *env, DisasContext *ctx)
+static inline void restore_cpu_state (CPUState *env, DisasContext *ctx)
 {
     ctx->saved_hflags = ctx->hflags;
     switch (ctx->hflags & MIPS_HFLAG_BMASK) {
@@ -867,7 +867,7 @@ static always_inline void restore_cpu_state (CPUState *env, DisasContext *ctx)
     }
 }
 
-static always_inline void
+static inline void
 generate_exception_err (DisasContext *ctx, int excp, int err)
 {
     save_cpu_state(ctx, 1);
@@ -876,7 +876,7 @@ generate_exception_err (DisasContext *ctx, int excp, int err)
     tcg_gen_exit_tb(0);
 }
 
-static always_inline void
+static inline void
 generate_exception (DisasContext *ctx, int excp)
 {
     save_cpu_state(ctx, 1);
@@ -911,13 +911,13 @@ static inline void gen_op_addr_add (TCGv t0, TCGv t1)
 #endif
 }
 
-static always_inline void check_cp0_enabled(DisasContext *ctx)
+static inline void check_cp0_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0)))
         generate_exception_err(ctx, EXCP_CpU, 1);
 }
 
-static always_inline void check_cp1_enabled(DisasContext *ctx)
+static inline void check_cp1_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_FPU)))
         generate_exception_err(ctx, EXCP_CpU, 1);
@@ -927,7 +927,7 @@ static always_inline void check_cp1_enabled(DisasContext *ctx)
    This is associated with the nabla symbol in the MIPS32 and MIPS64
    opcode tables.  */
 
-static always_inline void check_cop1x(DisasContext *ctx)
+static inline void check_cop1x(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_COP1X)))
         generate_exception(ctx, EXCP_RI);
@@ -936,7 +936,7 @@ static always_inline void check_cop1x(DisasContext *ctx)
 /* Verify that the processor is running with 64-bit floating-point
    operations enabled.  */
 
-static always_inline void check_cp1_64bitmode(DisasContext *ctx)
+static inline void check_cp1_64bitmode(DisasContext *ctx)
 {
     if (unlikely(~ctx->hflags & (MIPS_HFLAG_F64 | MIPS_HFLAG_COP1X)))
         generate_exception(ctx, EXCP_RI);
@@ -953,7 +953,7 @@ static always_inline void check_cp1_64bitmode(DisasContext *ctx)
  * Multiple 64 bit wide registers can be checked by calling
  * gen_op_cp1_registers(freg1 | freg2 | ... | fregN);
  */
-void check_cp1_registers(DisasContext *ctx, int regs)
+static inline void check_cp1_registers(DisasContext *ctx, int regs)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_F64) && (regs & 1)))
         generate_exception(ctx, EXCP_RI);
@@ -961,7 +961,7 @@ void check_cp1_registers(DisasContext *ctx, int regs)
 
 /* This code generates a "reserved instruction" exception if the
    CPU does not support the instruction set corresponding to flags. */
-static always_inline void check_insn(CPUState *env, DisasContext *ctx, int flags)
+static inline void check_insn(CPUState *env, DisasContext *ctx, int flags)
 {
     if (unlikely(!(env->insn_flags & flags)))
         generate_exception(ctx, EXCP_RI);
@@ -969,7 +969,7 @@ static always_inline void check_insn(CPUState *env, DisasContext *ctx, int flags
 
 /* This code generates a "reserved instruction" exception if 64-bit
    instructions are not enabled. */
-static always_inline void check_mips_64(DisasContext *ctx)
+static inline void check_mips_64(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_64)))
         generate_exception(ctx, EXCP_RI);
@@ -977,7 +977,7 @@ static always_inline void check_mips_64(DisasContext *ctx)
 
 /* load/store instructions. */
 #define OP_LD(insn,fname)                                        \
-void inline op_ldst_##insn(TCGv t0, DisasContext *ctx)           \
+static inline void op_ldst_##insn(TCGv t0, DisasContext *ctx)    \
 {                                                                \
     tcg_gen_qemu_##fname(t0, t0, ctx->mem_idx);                  \
 }
@@ -993,7 +993,7 @@ OP_LD(ld,ld64);
 #undef OP_LD
 
 #define OP_ST(insn,fname)                                        \
-void inline op_ldst_##insn(TCGv t0, TCGv t1, DisasContext *ctx)  \
+static inline void op_ldst_##insn(TCGv t0, TCGv t1, DisasContext *ctx) \
 {                                                                \
     tcg_gen_qemu_##fname(t1, t0, ctx->mem_idx);                  \
 }
@@ -1006,7 +1006,7 @@ OP_ST(sd,st64);
 #undef OP_ST
 
 #define OP_LD_ATOMIC(insn,fname)                                        \
-void inline op_ldst_##insn(TCGv t0, TCGv t1, DisasContext *ctx)         \
+static inline void op_ldst_##insn(TCGv t0, TCGv t1, DisasContext *ctx)  \
 {                                                                       \
     tcg_gen_mov_tl(t1, t0);                                             \
     tcg_gen_qemu_##fname(t0, t0, ctx->mem_idx);                         \
@@ -1019,7 +1019,7 @@ OP_LD_ATOMIC(lld,ld64);
 #undef OP_LD_ATOMIC
 
 #define OP_ST_ATOMIC(insn,fname,almask)                                 \
-void inline op_ldst_##insn(TCGv t0, TCGv t1, DisasContext *ctx)         \
+static inline void op_ldst_##insn(TCGv t0, TCGv t1, DisasContext *ctx)  \
 {                                                                       \
     TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_TL);                       \
     int l1 = gen_new_label();                                           \
@@ -1213,7 +1213,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
 
 /* Load and store */
 static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
-                      int base, int16_t offset)
+                          int base, int16_t offset)
 {
     const char *opn = "flt_ldst";
     TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
@@ -2459,7 +2459,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t1);
 }
 
-static always_inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
+static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
     TranslationBlock *tb;
     tb = ctx->tb;
@@ -2720,7 +2720,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
 
 /* special3 bitfield operations */
 static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
-                       int rs, int lsb, int msb)
+                        int rs, int lsb, int msb)
 {
     TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
     TCGv t1 = tcg_temp_local_new(TCG_TYPE_TL);
@@ -7808,7 +7808,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     }
 }
 
-static always_inline int
+static inline int
 gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                                 int search_pc)
 {
