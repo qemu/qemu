@@ -140,8 +140,6 @@ static int ads7846_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int ads7846_iid = 0;
-
 struct ads7846_state_s *ads7846_init(qemu_irq penirq)
 {
     struct ads7846_state_s *s;
@@ -162,8 +160,7 @@ struct ads7846_state_s *ads7846_init(qemu_irq penirq)
 
     ads7846_int_update(s);
 
-    register_savevm("ads7846", ads7846_iid ++, 0,
-                    ads7846_save, ads7846_load, s);
+    register_savevm("ads7846", -1, 0, ads7846_save, ads7846_load, s);
 
     return s;
 }

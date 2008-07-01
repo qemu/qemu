@@ -319,8 +319,6 @@ static int nand_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int nand_iid = 0;
-
 /*
  * Chip inputs are CLE, ALE, CE, WP, GND and eight I/O pins.  Chip
  * outputs are R/B and eight I/O pins.
@@ -495,7 +493,7 @@ struct nand_flash_s *nand_init(int manf_id, int chip_id)
         s->storage = (uint8_t *) memset(qemu_malloc(s->pages * pagesize),
                         0xff, s->pages * pagesize);
 
-    register_savevm("nand", nand_iid ++, 0, nand_save, nand_load, s);
+    register_savevm("nand", -1, 0, nand_save, nand_load, s);
 
     return s;
 }
