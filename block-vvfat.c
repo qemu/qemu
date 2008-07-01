@@ -454,8 +454,7 @@ static inline direntry_t* create_long_filename(BDRVVVFATState* s,const char* fil
 
 static char is_free(const direntry_t* direntry)
 {
-    /* return direntry->name[0]==0 ; */
-    return direntry->attributes == 0 || direntry->name[0]==0xe5;
+    return direntry->name[0]==0xe5 || direntry->name[0]==0x00;
 }
 
 static char is_volume_label(const direntry_t* direntry)
