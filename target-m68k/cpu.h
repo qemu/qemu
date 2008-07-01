@@ -103,10 +103,6 @@ typedef struct CPUM68KState {
     /* ??? remove this.  */
     uint32_t t1;
 
-    /* exception/interrupt handling */
-    int interrupt_request;
-    int user_mode_only;
-
     int pending_vector;
     int pending_level;
 

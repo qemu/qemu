@@ -156,10 +156,6 @@ typedef struct CPUARMState {
     int (*get_irq_vector)(struct CPUARMState *);
     void *irq_opaque;
 
-    /* exception/interrupt handling */
-    int interrupt_request;
-    int user_mode_only;
-
     /* VFP coprocessor state.  */
     struct {
         float64 regs[32];

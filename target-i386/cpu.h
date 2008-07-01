@@ -567,8 +567,6 @@ typedef struct CPUX86State {
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers */
     uint32_t smbase;
-    int interrupt_request;
-    int user_mode_only; /* user mode only simulation */
     int old_exception;  /* exception in flight */
 
     CPU_COMMON
@@ -726,7 +724,7 @@ static inline int cpu_get_time_fast(void)
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 
-#define CPU_SAVE_VERSION 5
+#define CPU_SAVE_VERSION 6
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
