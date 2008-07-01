@@ -301,9 +301,9 @@ void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
                 iommu_bad_addr(opaque, page, is_write);
                 return;
             }
-            cpu_physical_memory_write(phys_addr, buf, len);
+            cpu_physical_memory_write(phys_addr, buf, l);
         } else {
-            cpu_physical_memory_read(phys_addr, buf, len);
+            cpu_physical_memory_read(phys_addr, buf, l);
         }
         len -= l;
         buf += l;
