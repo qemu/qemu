@@ -463,7 +463,7 @@ static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
 
     qemu_get_be32s(f, &env->halted);
-    qemu_put_be32s(f, &env->interrupt_request);
+    qemu_get_be32s(f, &env->interrupt_request);
     tlb_flush(env, 1);
 
     return 0;
