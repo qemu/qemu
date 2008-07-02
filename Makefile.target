@@ -270,7 +270,6 @@ libqemu.a: $(LIBOBJS)
 	$(AR) rcs $@ $(LIBOBJS)
 
 translate.o: translate.c cpu.h $(OPC_H)
-translate.o: CFLAGS:=${CFLAGS} -O1 #-fno-unit-at-a-time
 
 translate-all.o: translate-all.c cpu.h $(OPC_H)
 
