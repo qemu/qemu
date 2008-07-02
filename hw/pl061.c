@@ -240,6 +240,62 @@ static CPUWriteMemoryFunc *pl061_writefn[] = {
    pl061_write
 };
 
+static void pl061_save(QEMUFile *f, void *opaque)
+{
+    pl061_state *s = (pl061_state *)opaque;
+
+    qemu_put_be32(f, s->locked);
+    qemu_put_be32(f, s->data);
+    qemu_put_be32(f, s->old_data);
+    qemu_put_be32(f, s->dir);
+    qemu_put_be32(f, s->isense);
+    qemu_put_be32(f, s->ibe);
+    qemu_put_be32(f, s->iev);
+    qemu_put_be32(f, s->im);
+    qemu_put_be32(f, s->istate);
+    qemu_put_be32(f, s->afsel);
+    qemu_put_be32(f, s->dr2r);
+    qemu_put_be32(f, s->dr4r);
+    qemu_put_be32(f, s->dr8r);
+    qemu_put_be32(f, s->odr);
+    qemu_put_be32(f, s->pur);
+    qemu_put_be32(f, s->pdr);
+    qemu_put_be32(f, s->slr);
+    qemu_put_be32(f, s->den);
+    qemu_put_be32(f, s->cr);
+    qemu_put_be32(f, s->float_high);
+}
+
+static int pl061_load(QEMUFile *f, void *opaque, int version_id)
+{
+    pl061_state *s = (pl061_state *)opaque;
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->locked = qemu_get_be32(f);
+    s->data = qemu_get_be32(f);
+    s->old_data = qemu_get_be32(f);
+    s->dir = qemu_get_be32(f);
+    s->isense = qemu_get_be32(f);
+    s->ibe = qemu_get_be32(f);
+    s->iev = qemu_get_be32(f);
+    s->im = qemu_get_be32(f);
+    s->istate = qemu_get_be32(f);
+    s->afsel = qemu_get_be32(f);
+    s->dr2r = qemu_get_be32(f);
+    s->dr4r = qemu_get_be32(f);
+    s->dr8r = qemu_get_be32(f);
+    s->odr = qemu_get_be32(f);
+    s->pur = qemu_get_be32(f);
+    s->pdr = qemu_get_be32(f);
+    s->slr = qemu_get_be32(f);
+    s->den = qemu_get_be32(f);
+    s->cr = qemu_get_be32(f);
+    s->float_high = qemu_get_be32(f);
+
+    return 0;
+}
+
 /* Returns an array of inputs.  */
 qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out)
 {
@@ -256,7 +312,7 @@ qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out)
     if (out)
         *out = s->out;
 
-    /* ??? Save/restore.  */
+    register_savevm("pl061_gpio", -1, 1, pl061_save, pl061_load, s);
     return qemu_allocate_irqs(pl061_set_irq, s, 8);
 }
 

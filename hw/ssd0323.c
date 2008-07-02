@@ -273,6 +273,53 @@ static void ssd0323_cd(void *opaque, int n, int level)
     s->mode = level ? SSD0323_DATA : SSD0323_CMD;
 }
 
+static void ssd0323_save(QEMUFile *f, void *opaque)
+{
+    ssd0323_state *s = (ssd0323_state *)opaque;
+    int i;
+
+    qemu_put_be32(f, s->cmd_len);
+    qemu_put_be32(f, s->cmd);
+    for (i = 0; i < 8; i++)
+        qemu_put_be32(f, s->cmd_data[i]);
+    qemu_put_be32(f, s->row);
+    qemu_put_be32(f, s->row_start);
+    qemu_put_be32(f, s->row_end);
+    qemu_put_be32(f, s->col);
+    qemu_put_be32(f, s->col_start);
+    qemu_put_be32(f, s->col_end);
+    qemu_put_be32(f, s->redraw);
+    qemu_put_be32(f, s->remap);
+    qemu_put_be32(f, s->mode);
+    qemu_put_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+}
+
+static int ssd0323_load(QEMUFile *f, void *opaque, int version_id)
+{
+    ssd0323_state *s = (ssd0323_state *)opaque;
+    int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->cmd_len = qemu_get_be32(f);
+    s->cmd = qemu_get_be32(f);
+    for (i = 0; i < 8; i++)
+        s->cmd_data[i] = qemu_get_be32(f);
+    s->row = qemu_get_be32(f);
+    s->row_start = qemu_get_be32(f);
+    s->row_end = qemu_get_be32(f);
+    s->col = qemu_get_be32(f);
+    s->col_start = qemu_get_be32(f);
+    s->col_end = qemu_get_be32(f);
+    s->redraw = qemu_get_be32(f);
+    s->remap = qemu_get_be32(f);
+    s->mode = qemu_get_be32(f);
+    qemu_get_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+
+    return 0;
+}
+
 void *ssd0323_init(DisplayState *ds, qemu_irq *cmd_p)
 {
     ssd0323_state *s;
@@ -289,6 +336,8 @@ void *ssd0323_init(DisplayState *ds, qemu_irq *cmd_p)
 
     cmd = qemu_allocate_irqs(ssd0323_cd, s, 1);
     *cmd_p = *cmd;
+
+    register_savevm("ssd0323_oled", -1, 1, ssd0323_save, ssd0323_load, s);
 
     return s;
 }

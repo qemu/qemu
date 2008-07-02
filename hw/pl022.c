@@ -244,6 +244,55 @@ static CPUWriteMemoryFunc *pl022_writefn[] = {
    pl022_write
 };
 
+static void pl022_save(QEMUFile *f, void *opaque)
+{
+    pl022_state *s = (pl022_state *)opaque;
+    int i;
+
+    qemu_put_be32(f, s->cr0);
+    qemu_put_be32(f, s->cr1);
+    qemu_put_be32(f, s->bitmask);
+    qemu_put_be32(f, s->sr);
+    qemu_put_be32(f, s->cpsr);
+    qemu_put_be32(f, s->is);
+    qemu_put_be32(f, s->im);
+    qemu_put_be32(f, s->tx_fifo_head);
+    qemu_put_be32(f, s->rx_fifo_head);
+    qemu_put_be32(f, s->tx_fifo_len);
+    qemu_put_be32(f, s->rx_fifo_len);
+    for (i = 0; i < 8; i++) {
+        qemu_put_be16(f, s->tx_fifo[i]);
+        qemu_put_be16(f, s->rx_fifo[i]);
+    }
+}
+
+static int pl022_load(QEMUFile *f, void *opaque, int version_id)
+{
+    pl022_state *s = (pl022_state *)opaque;
+    int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->cr0 = qemu_get_be32(f);
+    s->cr1 = qemu_get_be32(f);
+    s->bitmask = qemu_get_be32(f);
+    s->sr = qemu_get_be32(f);
+    s->cpsr = qemu_get_be32(f);
+    s->is = qemu_get_be32(f);
+    s->im = qemu_get_be32(f);
+    s->tx_fifo_head = qemu_get_be32(f);
+    s->rx_fifo_head = qemu_get_be32(f);
+    s->tx_fifo_len = qemu_get_be32(f);
+    s->rx_fifo_len = qemu_get_be32(f);
+    for (i = 0; i < 8; i++) {
+        s->tx_fifo[i] = qemu_get_be16(f);
+        s->rx_fifo[i] = qemu_get_be16(f);
+    }
+
+    return 0;
+}
+
 void pl022_init(uint32_t base, qemu_irq irq, int (*xfer_cb)(void *, int),
                 void * opaque)
 {
@@ -259,7 +308,7 @@ void pl022_init(uint32_t base, qemu_irq irq, int (*xfer_cb)(void *, int),
     s->xfer_cb = xfer_cb;
     s->opaque = opaque;
     pl022_reset(s);
-    /* ??? Save/restore.  */
+    register_savevm("pl022_ssp", -1, 1, pl022_save, pl022_load, s);
 }
 
 

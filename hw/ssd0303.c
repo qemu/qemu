@@ -261,6 +261,49 @@ static void ssd0303_invalidate_display(void * opaque)
     s->redraw = 1;
 }
 
+static void ssd0303_save(QEMUFile *f, void *opaque)
+{
+    ssd0303_state *s = (ssd0303_state *)opaque;
+
+    qemu_put_be32(f, s->row);
+    qemu_put_be32(f, s->col);
+    qemu_put_be32(f, s->start_line);
+    qemu_put_be32(f, s->mirror);
+    qemu_put_be32(f, s->flash);
+    qemu_put_be32(f, s->enabled);
+    qemu_put_be32(f, s->inverse);
+    qemu_put_be32(f, s->redraw);
+    qemu_put_be32(f, s->mode);
+    qemu_put_be32(f, s->cmd_state);
+    qemu_put_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+
+    i2c_slave_save(f, &s->i2c);
+}
+
+static int ssd0303_load(QEMUFile *f, void *opaque, int version_id)
+{
+    ssd0303_state *s = (ssd0303_state *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->row = qemu_get_be32(f);
+    s->col = qemu_get_be32(f);
+    s->start_line = qemu_get_be32(f);
+    s->mirror = qemu_get_be32(f);
+    s->flash = qemu_get_be32(f);
+    s->enabled = qemu_get_be32(f);
+    s->inverse = qemu_get_be32(f);
+    s->redraw = qemu_get_be32(f);
+    s->mode = qemu_get_be32(f);
+    s->cmd_state = qemu_get_be32(f);
+    qemu_get_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+
+    i2c_slave_load(f, &s->i2c);
+
+    return 0;
+}
+
 void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address)
 {
     ssd0303_state *s;
@@ -274,4 +317,5 @@ void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address)
                                       ssd0303_invalidate_display,
                                       NULL, NULL, s);
     qemu_console_resize(s->console, 96 * MAGNIFY, 16 * MAGNIFY);
+    register_savevm("ssd0303_oled", -1, 1, ssd0303_save, ssd0303_load, s);
 }
