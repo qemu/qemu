@@ -260,8 +260,7 @@ static uint32_t get_queue(void *opaque)
 
 static int slavio_serial_update_irq_chn(ChannelState *s)
 {
-    if ((s->wregs[W_INTR] & INTR_INTALL) && // interrupts enabled
-        (((s->wregs[W_INTR] & INTR_TXINT) && s->txint == 1) ||
+    if ((((s->wregs[W_INTR] & INTR_TXINT) && s->txint == 1) ||
          // tx ints enabled, pending
          ((((s->wregs[W_INTR] & INTR_RXMODEMSK) == INTR_RXINT1ST) ||
            ((s->wregs[W_INTR] & INTR_RXMODEMSK) == INTR_RXINTALL)) &&
