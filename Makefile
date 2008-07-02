@@ -98,6 +98,11 @@ AUDIO_PT = yes
 AUDIO_PT_INT = yes
 AUDIO_OBJS += esdaudio.o
 endif
+ifdef CONFIG_PA
+AUDIO_PT = yes
+AUDIO_PT_INT = yes
+AUDIO_OBJS += paaudio.o
+endif
 ifdef AUDIO_PT
 LDFLAGS += -pthread
 endif

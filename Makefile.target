@@ -270,6 +270,7 @@ libqemu.a: $(LIBOBJS)
 	$(AR) rcs $@ $(LIBOBJS)
 
 translate.o: translate.c cpu.h $(OPC_H)
+translate.o: CFLAGS:=${CFLAGS} -O1 #-fno-unit-at-a-time
 
 translate-all.o: translate-all.c cpu.h $(OPC_H)
 
@@ -479,6 +480,9 @@ LIBS += -lasound
 endif
 ifdef CONFIG_ESD
 LIBS += -lesd
+endif
+ifdef CONFIG_PA
+LIBS += -lpulse-simple
 endif
 ifdef CONFIG_DSOUND
 LIBS += -lole32 -ldxguid

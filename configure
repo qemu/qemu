@@ -196,7 +196,7 @@ SunOS)
 ;;
 *)
 audio_drv_list="oss"
-audio_possible_drivers="oss alsa sdl esd"
+audio_possible_drivers="oss alsa sdl esd pa"
 linux="yes"
 linux_user="yes"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
@@ -767,6 +767,12 @@ for drv in $audio_drv_list; do
     esd)
     audio_drv_probe $drv esd.h -lesd 'return esd_play_stream(0, 0, "", 0);'
     ;;
+
+    pa)
+    audio_drv_probe $drv pulse/simple.h -lpulse-simple \
+        "pa_simple *s = NULL; pa_simple_free(s); return 0;"
+    ;;
+
     esac
 done
 
