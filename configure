@@ -1042,7 +1042,7 @@ for drv in $audio_drv_list; do
     echo "    &${drv}_audio_driver, \\" >>$config_h
     def=CONFIG_`echo $drv | tr '[:lower:]' '[:upper:]'`
     echo "$def=yes" >> $config_mak
-    if test "$drv" == "fmod"; then
+    if test "$drv" = "fmod"; then
         echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
         echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
     fi
