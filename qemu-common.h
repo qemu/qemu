@@ -122,6 +122,7 @@ typedef struct AudioState AudioState;
 typedef struct BlockDriverState BlockDriverState;
 typedef struct DisplayState DisplayState;
 typedef struct TextConsole TextConsole;
+typedef TextConsole QEMUConsole;
 typedef struct CharDriverState CharDriverState;
 typedef struct VLANState VLANState;
 typedef struct QEMUFile QEMUFile;

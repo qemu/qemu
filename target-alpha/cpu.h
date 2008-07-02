@@ -282,11 +282,9 @@ struct CPUAlphaState {
     /* Those resources are used only in Qemu core */
     CPU_COMMON
 
-    int user_mode_only; /* user mode only simulation */
     uint32_t hflags;
 
     int error_code;
-    int interrupt_request;
 
     uint32_t features;
     uint32_t amask;

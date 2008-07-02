@@ -876,8 +876,6 @@ static int menelaus_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int menelaus_iid = 0;
-
 i2c_slave *twl92230_init(i2c_bus *bus, qemu_irq irq)
 {
     struct menelaus_s *s = (struct menelaus_s *)
@@ -894,8 +892,7 @@ i2c_slave *twl92230_init(i2c_bus *bus, qemu_irq irq)
 
     menelaus_reset(&s->i2c);
 
-    register_savevm("menelaus", menelaus_iid ++,
-                    0, menelaus_save, menelaus_load, s);
+    register_savevm("menelaus", -1, 0, menelaus_save, menelaus_load, s);
 
     return &s->i2c;
 }

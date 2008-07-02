@@ -490,8 +490,6 @@ static int lm_kbd_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int lm_kbd_iid = 0;
-
 struct i2c_slave *lm8323_init(i2c_bus *bus, qemu_irq nirq)
 {
     struct lm_kbd_s *s;
@@ -510,8 +508,7 @@ struct i2c_slave *lm8323_init(i2c_bus *bus, qemu_irq nirq)
     lm_kbd_reset(s);
 
     qemu_register_reset((void *) lm_kbd_reset, s);
-    register_savevm("LM8323", lm_kbd_iid ++, 0,
-                    lm_kbd_save, lm_kbd_load, s);
+    register_savevm("LM8323", -1, 0, lm_kbd_save, lm_kbd_load, s);
 
     return &s->i2c;
 }

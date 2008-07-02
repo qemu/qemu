@@ -1466,7 +1466,6 @@ static void pxa2xx_i2c_save(QEMUFile *f, void *opaque)
     qemu_put_8s(f, &s->ibmr);
     qemu_put_8s(f, &s->data);
 
-    i2c_bus_save(f, s->bus);
     i2c_slave_save(f, &s->slave);
 }
 
@@ -1474,12 +1473,14 @@ static int pxa2xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
 {
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
 
+    if (version_id != 1)
+        return -EINVAL;
+
     qemu_get_be16s(f, &s->control);
     qemu_get_be16s(f, &s->status);
     qemu_get_8s(f, &s->ibmr);
     qemu_get_8s(f, &s->data);
 
-    i2c_bus_load(f, s->bus);
     i2c_slave_load(f, &s->slave);
     return 0;
 }
@@ -1488,6 +1489,7 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
                 qemu_irq irq, uint32_t page_size)
 {
     int iomemtype;
+    /* FIXME: Should the slave device really be on a separate bus?  */
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *)
             i2c_slave_init(i2c_init_bus(), 0, sizeof(struct pxa2xx_i2c_s));
 
@@ -1502,7 +1504,7 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
                     pxa2xx_i2c_writefn, s);
     cpu_register_physical_memory(s->base & ~page_size, page_size, iomemtype);
 
-    register_savevm("pxa2xx_i2c", base, 0,
+    register_savevm("pxa2xx_i2c", base, 1,
                     pxa2xx_i2c_save, pxa2xx_i2c_load, s);
 
     return s;

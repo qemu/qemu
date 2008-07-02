@@ -73,6 +73,7 @@ struct blizzard_s {
     uint8_t iformat;
     uint8_t source;
     DisplayState *state;
+    QEMUConsole *console;
     blizzard_fn_t *line_fn_tab[2];
     void *fb;
 
@@ -896,7 +897,7 @@ static void blizzard_update_display(void *opaque)
 
     if (s->x != s->state->width || s->y != s->state->height) {
         s->invalidate = 1;
-        dpy_resize(s->state, s->x, s->y);
+        qemu_console_resize(s->console, s->x, s->y);
     }
 
     if (s->invalidate) {
@@ -993,9 +994,9 @@ void *s1d13745_init(qemu_irq gpio_int, DisplayState *ds)
 
     blizzard_reset(s);
 
-    graphic_console_init(s->state, blizzard_update_display,
-                    blizzard_invalidate_display, blizzard_screen_dump,
-                    NULL, s);
+    s->console = graphic_console_init(s->state, blizzard_update_display,
+                                      blizzard_invalidate_display,
+                                      blizzard_screen_dump, NULL, s);
 
     return s;
 }

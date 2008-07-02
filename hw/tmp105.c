@@ -228,8 +228,6 @@ void tmp105_reset(i2c_slave *i2c)
     tmp105_interrupt_update(s);
 }
 
-static int tmp105_iid = 0;
-
 struct i2c_slave *tmp105_init(i2c_bus *bus, qemu_irq alarm)
 {
     struct tmp105_s *s = (struct tmp105_s *)
@@ -242,8 +240,7 @@ struct i2c_slave *tmp105_init(i2c_bus *bus, qemu_irq alarm)
 
     tmp105_reset(&s->i2c);
 
-    register_savevm("TMP105", tmp105_iid ++, 0,
-                    tmp105_save, tmp105_load, s);
+    register_savevm("TMP105", -1, 0, tmp105_save, tmp105_load, s);
 
     return &s->i2c;
 }

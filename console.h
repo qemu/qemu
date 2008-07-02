@@ -135,6 +135,7 @@ int is_graphic_console(void);
 CharDriverState *text_console_init(DisplayState *ds, const char *p);
 void console_select(unsigned int index);
 void console_color_init(DisplayState *ds);
+void qemu_console_resize(QEMUConsole *console, int width, int height);
 
 /* sdl.c */
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);

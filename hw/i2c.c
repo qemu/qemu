@@ -14,7 +14,30 @@ struct i2c_bus
 {
     i2c_slave *current_dev;
     i2c_slave *dev;
+    int saved_address;
 };
+
+static void i2c_bus_save(QEMUFile *f, void *opaque)
+{
+    i2c_bus *bus = (i2c_bus *)opaque;
+
+    qemu_put_byte(f, bus->current_dev ? bus->current_dev->address : -1);
+}
+
+static int i2c_bus_load(QEMUFile *f, void *opaque, int version_id)
+{
+    i2c_bus *bus = (i2c_bus *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    /* The bus is loaded before attached devices, so load and save the
+       current device id.  Devices will check themselves as loaded.  */
+    bus->saved_address = qemu_get_be32(f);
+    bus->current_dev = NULL;
+
+    return 0;
+}
 
 /* Create a new I2C bus.  */
 i2c_bus *i2c_init_bus(void)
@@ -22,6 +45,7 @@ i2c_bus *i2c_init_bus(void)
     i2c_bus *bus;
 
     bus = (i2c_bus *)qemu_mallocz(sizeof(i2c_bus));
+    register_savevm("i2c_bus", -1, 1, i2c_bus_save, i2c_bus_load, bus);
     return bus;
 }
 
@@ -37,6 +61,7 @@ i2c_slave *i2c_slave_init(i2c_bus *bus, int address, int size)
     dev->address = address;
     dev->next = bus->dev;
     bus->dev = dev;
+    dev->bus = bus;
 
     return dev;
 }
@@ -115,28 +140,6 @@ void i2c_nack(i2c_bus *bus)
     dev->event(dev, I2C_NACK);
 }
 
-void i2c_bus_save(QEMUFile *f, i2c_bus *bus)
-{
-    qemu_put_byte(f, bus->current_dev ? bus->current_dev->address : 0x00);
-}
-
-void i2c_bus_load(QEMUFile *f, i2c_bus *bus)
-{
-    i2c_slave *dev;
-    uint8_t address = qemu_get_byte(f);
-
-    if (address) {
-        for (dev = bus->dev; dev; dev = dev->next)
-            if (dev->address == address) {
-                bus->current_dev = dev;
-                return;
-            }
-
-        fprintf(stderr, "%s: I2C slave with address %02x disappeared\n",
-                __FUNCTION__, address);
-    }
-}
-
 void i2c_slave_save(QEMUFile *f, i2c_slave *dev)
 {
     qemu_put_byte(f, dev->address);
@@ -145,4 +148,6 @@ void i2c_slave_save(QEMUFile *f, i2c_slave *dev)
 void i2c_slave_load(QEMUFile *f, i2c_slave *dev)
 {
     dev->address = qemu_get_byte(f);
+    if (dev->bus->saved_address == dev->address)
+        dev->bus->current_dev = dev;
 }

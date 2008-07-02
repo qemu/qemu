@@ -177,8 +177,6 @@ static int max7310_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int max7310_iid = 0;
-
 static void max7310_gpio_set(void *opaque, int line, int level)
 {
     struct max7310_s *s = (struct max7310_s *) opaque;
@@ -205,8 +203,7 @@ struct i2c_slave *max7310_init(i2c_bus *bus)
 
     max7310_reset(&s->i2c);
 
-    register_savevm("max7310", max7310_iid ++, 0,
-                    max7310_save, max7310_load, s);
+    register_savevm("max7310", -1, 0, max7310_save, max7310_load, s);
 
     return &s->i2c;
 }

@@ -444,6 +444,33 @@ void cpu_exec_init_all(unsigned long tb_size)
 #endif
 }
 
+#if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
+
+#define CPU_COMMON_SAVE_VERSION 1
+
+static void cpu_common_save(QEMUFile *f, void *opaque)
+{
+    CPUState *env = opaque;
+
+    qemu_put_be32s(f, &env->halted);
+    qemu_put_be32s(f, &env->interrupt_request);
+}
+
+static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
+{
+    CPUState *env = opaque;
+
+    if (version_id != CPU_COMMON_SAVE_VERSION)
+        return -EINVAL;
+
+    qemu_get_be32s(f, &env->halted);
+    qemu_get_be32s(f, &env->interrupt_request);
+    tlb_flush(env, 1);
+
+    return 0;
+}
+#endif
+
 void cpu_exec_init(CPUState *env)
 {
     CPUState **penv;
@@ -460,6 +487,8 @@ void cpu_exec_init(CPUState *env)
     env->nb_watchpoints = 0;
     *penv = env;
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
+    register_savevm("cpu_common", cpu_index, CPU_COMMON_SAVE_VERSION,
+                    cpu_common_save, cpu_common_load, env);
     register_savevm("cpu", cpu_index, CPU_SAVE_VERSION,
                     cpu_save, cpu_load, env);
 #endif

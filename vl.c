@@ -6060,6 +6060,8 @@ typedef struct SaveStateEntry {
 
 static SaveStateEntry *first_se;
 
+/* TODO: Individual devices generally have very little idea about the rest
+   of the system, so instance_id should be removed/replaced.  */
 int register_savevm(const char *idstr,
                     int instance_id,
                     int version_id,
@@ -6073,7 +6075,7 @@ int register_savevm(const char *idstr,
     if (!se)
         return -1;
     pstrcpy(se->idstr, sizeof(se->idstr), idstr);
-    se->instance_id = instance_id;
+    se->instance_id = (instance_id == -1) ? 0 : instance_id;
     se->version_id = version_id;
     se->save_state = save_state;
     se->load_state = load_state;
@@ -6082,8 +6084,13 @@ int register_savevm(const char *idstr,
 
     /* add at the end of list */
     pse = &first_se;
-    while (*pse != NULL)
+    while (*pse != NULL) {
+        if (instance_id == -1
+                && strcmp(se->idstr, (*pse)->idstr) == 0
+                && se->instance_id <= (*pse)->instance_id)
+            se->instance_id = (*pse)->instance_id + 1;
         pse = &(*pse)->next;
+    }
     *pse = se;
     return 0;
 }
@@ -7978,7 +7985,7 @@ int main(int argc, char **argv)
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    monitor_device = "vc:800x600";
+    monitor_device = "vc";
 
     serial_devices[0] = "vc:80Cx24C";
     for(i = 1; i < MAX_SERIAL_PORTS; i++)

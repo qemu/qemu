@@ -413,9 +413,7 @@ struct CPUMIPSState {
     /* We waste some space so we can handle shadow registers like TCs. */
     TCState tcs[MIPS_SHADOW_SET_MAX];
     /* Qemu */
-    int interrupt_request;
     int error_code;
-    int user_mode_only; /* user mode only simulation */
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
 #define MIPS_HFLAG_TMASK  0x01FF

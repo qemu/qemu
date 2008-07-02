@@ -1107,8 +1107,6 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int tsc2102_iid = 0;
-
 struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio)
 {
     struct tsc210x_state_s *s;
@@ -1154,7 +1152,7 @@ struct uwire_slave_s *tsc2102_init(qemu_irq pint, AudioState *audio)
         AUD_register_card(s->audio, s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
-    register_savevm(s->name, tsc2102_iid ++, 0,
+    register_savevm(s->name, -1, 0,
                     tsc210x_save, tsc210x_load, s);
 
     return &s->chip;
@@ -1208,8 +1206,7 @@ struct uwire_slave_s *tsc2301_init(qemu_irq penirq, qemu_irq kbirq,
         AUD_register_card(s->audio, s->name, &s->card);
 
     qemu_register_reset((void *) tsc210x_reset, s);
-    register_savevm(s->name, tsc2102_iid ++, 0,
-                    tsc210x_save, tsc210x_load, s);
+    register_savevm(s->name, -1, 0, tsc210x_save, tsc210x_load, s);
 
     return &s->chip;
 }

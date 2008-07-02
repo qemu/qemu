@@ -125,7 +125,6 @@ typedef struct CPUCRISState {
 	/* X flag at the time of cc snapshot.  */
 	int cc_x;
 
-	int interrupt_request;
 	int interrupt_vector;
 	int fault_vector;
 	int trap_vector;
@@ -155,8 +154,6 @@ typedef struct CPUCRISState {
 		uint32_t hi;
 		uint32_t lo;
 	} tlbsets[2][4][16];
-
-	int user_mode_only;
 
 	CPU_COMMON
 } CPUCRISState;

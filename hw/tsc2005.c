@@ -520,8 +520,6 @@ static int tsc2005_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int tsc2005_iid = 0;
-
 void *tsc2005_init(qemu_irq pintdav)
 {
     struct tsc2005_state_s *s;
@@ -551,8 +549,7 @@ void *tsc2005_init(qemu_irq pintdav)
                     "QEMU TSC2005-driven Touchscreen");
 
     qemu_register_reset((void *) tsc2005_reset, s);
-    register_savevm("tsc2005", tsc2005_iid ++, 0,
-                    tsc2005_save, tsc2005_load, s);
+    register_savevm("tsc2005", -1, 0, tsc2005_save, tsc2005_load, s);
 
     return s;
 }

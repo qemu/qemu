@@ -362,6 +362,7 @@ uint32_t do_arm_semihosting(CPUState *env)
                 return (uint32_t)-1;
             ret = set_swi_errno(ts, system(s));
             unlock_user(s, ARG(0), 0);
+            return ret;
         }
     case SYS_ERRNO:
 #ifdef CONFIG_USER_ONLY

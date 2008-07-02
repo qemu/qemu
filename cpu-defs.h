@@ -153,7 +153,8 @@ typedef struct icount_decr_u16 {
                                 accessed */                             \
     target_ulong mem_io_vaddr; /* target virtual addr at which the      \
                                      memory was accessed */             \
-    int halted; /* TRUE if the CPU is in suspend state */               \
+    uint32_t halted; /* Nonzero if the CPU is in suspend state */       \
+    uint32_t interrupt_request;                                         \
     /* The meaning of the MMU modes is defined in the target code. */   \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
     target_phys_addr_t iotlb[NB_MMU_MODES][CPU_TLB_SIZE];               \
@@ -187,6 +188,8 @@ typedef struct icount_decr_u16 {
     /* Core interrupt code */                                           \
     jmp_buf jmp_env;                                                    \
     int exception_index;                                                \
+                                                                        \
+    int user_mode_only;                                                 \
                                                                         \
     void *next_cpu; /* next CPU sharing TB cache */                     \
     int cpu_index; /* CPU index (informative) */                        \

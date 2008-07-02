@@ -36,6 +36,7 @@
 typedef struct TCXState {
     target_phys_addr_t addr;
     DisplayState *ds;
+    QEMUConsole *console;
     uint8_t *vram;
     uint32_t *vram24, *cplane;
     ram_addr_t vram_offset, vram24_offset, cplane_offset;
@@ -186,8 +187,6 @@ static void tcx_update_display(void *opaque)
 
     if (ts->ds->depth == 0)
         return;
-    if (ts->ds->width != ts->width || ts->ds->height != ts->height)
-        dpy_resize(ts->ds, ts->width, ts->height);
     page = ts->vram_offset;
     y_start = -1;
     page_min = 0xffffffff;
@@ -266,8 +265,6 @@ static void tcx24_update_display(void *opaque)
 
     if (ts->ds->depth != 32)
             return;
-    if (ts->ds->width != ts->width || ts->ds->height != ts->height)
-        dpy_resize(ts->ds, ts->width, ts->height);
     page = ts->vram_offset;
     page24 = ts->vram24_offset;
     cpage = ts->cplane_offset;
@@ -541,14 +538,15 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
         s->cplane = (uint32_t *)vram_base;
         s->cplane_offset = vram_offset;
         cpu_register_physical_memory(addr + 0x0a000000ULL, size, vram_offset);
-        graphic_console_init(s->ds, tcx24_update_display,
-                             tcx24_invalidate_display,
-                             tcx24_screen_dump, NULL, s);
+        s->console = graphic_console_init(s->ds, tcx24_update_display,
+                                          tcx24_invalidate_display,
+                                          tcx24_screen_dump, NULL, s);
     } else {
         cpu_register_physical_memory(addr + 0x00300000ULL, TCX_THC_NREGS_8,
                                      dummy_memory);
-        graphic_console_init(s->ds, tcx_update_display, tcx_invalidate_display,
-                             tcx_screen_dump, NULL, s);
+        s->console = graphic_console_init(s->ds, tcx_update_display,
+                                          tcx_invalidate_display,
+                                          tcx_screen_dump, NULL, s);
     }
     // NetBSD writes here even with 8-bit display
     cpu_register_physical_memory(addr + 0x00301000ULL, TCX_THC_NREGS_24,
@@ -557,7 +555,7 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
     register_savevm("tcx", addr, 4, tcx_save, tcx_load, s);
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
-    dpy_resize(s->ds, width, height);
+    qemu_console_resize(s->console, width, height);
 }
 
 static void tcx_screen_dump(void *opaque, const char *filename)

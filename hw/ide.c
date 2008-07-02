@@ -3598,8 +3598,6 @@ static int md_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int md_iid = 0;
-
 static const uint8_t dscm1xxxx_cis[0x14a] = {
     [0x000] = CISTPL_DEVICE,	/* 5V Device Information */
     [0x002] = 0x03,		/* Tuple length = 4 bytes */
@@ -3826,7 +3824,7 @@ struct pcmcia_card_s *dscm1xxxx_init(BlockDriverState *bdrv)
     md->ide->mdata_size = METADATA_SIZE;
     md->ide->mdata_storage = (uint8_t *) qemu_mallocz(METADATA_SIZE);
 
-    register_savevm("microdrive", md_iid ++, 0, md_save, md_load, md);
+    register_savevm("microdrive", -1, 0, md_save, md_load, md);
 
     return &md->card;
 }

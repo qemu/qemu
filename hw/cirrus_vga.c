@@ -3288,8 +3288,8 @@ void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
                     ds, vga_ram_base, vga_ram_offset, vga_ram_size);
     cirrus_init_common(s, device_id, 1);
 
-    graphic_console_init(s->ds, s->update, s->invalidate, s->screen_dump,
-                         s->text_update, s);
+    s->console = graphic_console_init(s->ds, s->update, s->invalidate,
+                                      s->screen_dump, s->text_update, s);
 
     s->pci_dev = (PCIDevice *)d;
 

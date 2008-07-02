@@ -647,7 +647,6 @@ struct CPUPPCState {
     uint32_t flags;
 
     int error_code;
-    int interrupt_request;
     uint32_t pending_interrupts;
 #if !defined(CONFIG_USER_ONLY)
     /* This is the IRQ controller, which is implementation dependant
@@ -671,7 +670,6 @@ struct CPUPPCState {
     opc_handler_t *opcodes[0x40];
 
     /* Those resources are used only in Qemu core */
-    int user_mode_only; /* user mode only simulation */
     target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
     target_ulong hflags_nmsr; /* specific hflags, not comming from MSR */
     int mmu_idx;         /* precomputed MMU index to speed up mem accesses */

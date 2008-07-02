@@ -121,8 +121,6 @@ static int max111x_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int max111x_iid = 0;
-
 static struct max111x_s *max111x_init(qemu_irq cb)
 {
     struct max111x_s *s;
@@ -143,8 +141,7 @@ static struct max111x_s *max111x_init(qemu_irq cb)
     s->input[7] = 0x80;
     s->com = 0;
 
-    register_savevm("max111x", max111x_iid ++, 0,
-                    max111x_save, max111x_load, s);
+    register_savevm("max111x", -1, 0, max111x_save, max111x_load, s);
 
     return s;
 }
