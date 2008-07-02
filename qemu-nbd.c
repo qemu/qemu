@@ -21,7 +21,6 @@
 #include "block_int.h"
 #include "nbd.h"
 
-#include <malloc.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -168,6 +167,7 @@ int main(int argc, char **argv)
         { "partition", 1, 0, 'P' },
         { "snapshot", 0, 0, 's' },
         { "verbose", 0, 0, 'v' },
+        { NULL, 0, 0, 0 }
     };
     int ch;
     int opt_ind = 0;

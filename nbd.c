@@ -388,8 +388,8 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset, o
 	}
 
 	if (len > sizeof(data)) {
-		LOG("len (%u) is larger than max len (%u)",
-		    len, sizeof(data));
+		LOG("len (%u) is larger than max len (%lu)",
+		    len, (unsigned long)sizeof(data));
 		errno = EINVAL;
 		return -1;
 	}

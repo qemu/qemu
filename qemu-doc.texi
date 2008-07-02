@@ -1318,6 +1318,7 @@ snapshots.
 * disk_images_snapshot_mode:: Snapshot mode
 * vm_snapshots::              VM snapshots
 * qemu_img_invocation::       qemu-img Invocation
+* qemu_nbd_invocation::       qemu-nbd Invocation
 * host_drives::               Using host drives
 * disk_images_fat_images::    Virtual FAT disk images
 @end menu
@@ -1399,6 +1400,11 @@ state is not saved or restored properly (in particular USB).
 @subsection @code{qemu-img} Invocation
 
 @include qemu-img.texi
+
+@node qemu_nbd_invocation
+@subsection @code{qemu-nbd} Invocation
+
+@include qemu-nbd.texi
 
 @node host_drives
 @subsection Using host drives
