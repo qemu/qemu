@@ -873,7 +873,7 @@ static void gen_jmp_tb(DisasContext *s, int n, uint32_t dest)
     TranslationBlock *tb;
 
     tb = s->tb;
-    if (__builtin_expect (s->singlestep_enabled, 0)) {
+    if (unlikely(s->singlestep_enabled)) {
         gen_exception(s, dest, EXCP_DEBUG);
     } else if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) ||
                (s->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
@@ -2991,7 +2991,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
-    if (__builtin_expect(env->singlestep_enabled, 0)) {
+    if (unlikely(env->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (!dc->is_jmp) {
             gen_flush_cc_op(dc);

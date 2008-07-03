@@ -224,8 +224,8 @@ static inline TranslationBlock *tb_find_fast(void)
 #error unsupported CPU
 #endif
     tb = env->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
-    if (__builtin_expect(!tb || tb->pc != pc || tb->cs_base != cs_base ||
-                         tb->flags != flags, 0)) {
+    if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
+                 tb->flags != flags)) {
         tb = tb_find_slow(pc, cs_base, flags);
     }
     return tb;
@@ -360,7 +360,7 @@ int cpu_exec(CPUState *env1)
             next_tb = 0; /* force lookup of first TB */
             for(;;) {
                 interrupt_request = env->interrupt_request;
-                if (__builtin_expect(interrupt_request, 0) &&
+                if (unlikely(interrupt_request) &&
                     likely(!(env->singlestep_enabled & SSTEP_NOIRQ))) {
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;

@@ -3393,7 +3393,7 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint32_t dest)
 
 static inline void gen_jmp (DisasContext *s, uint32_t dest)
 {
-    if (__builtin_expect(s->singlestep_enabled, 0)) {
+    if (unlikely(s->singlestep_enabled)) {
         /* An indirect jump so that we still trigger the debug exception.  */
         if (s->thumb)
             dest |= 1;
@@ -8703,7 +8703,7 @@ static inline int gen_intermediate_code_internal(CPUState *env,
     /* At this stage dc->condjmp will only be set when the skipped
        instruction was a conditional branch or trap, and the PC has
        already been written.  */
-    if (__builtin_expect(env->singlestep_enabled, 0)) {
+    if (unlikely(env->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (dc->condjmp) {
             gen_set_condexec(dc);

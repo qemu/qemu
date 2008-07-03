@@ -97,7 +97,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     saved_env = env;
     env = cpu_single_env;
     ret = cpu_arm_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
-    if (__builtin_expect(ret, 0)) {
+    if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
             pc = (unsigned long)retaddr;
