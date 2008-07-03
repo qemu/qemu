@@ -1440,6 +1440,7 @@ static int parse_long_name(long_file_name* lfn,
 	lfn->sequence_number = pointer[0] & 0x3f;
 	lfn->checksum = pointer[13];
 	lfn->name[0] = 0;
+	lfn->name[lfn->sequence_number * 13] = 0;
     } else if ((pointer[0] & 0x3f) != --lfn->sequence_number)
 	return -1;
     else if (pointer[13] != lfn->checksum)
