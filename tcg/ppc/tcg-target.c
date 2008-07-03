@@ -415,7 +415,7 @@ static void tcg_out_b (TCGContext *s, int mask, tcg_target_long target)
 
     disp = target - (tcg_target_long) s->code_ptr;
     if ((disp << 6) >> 6 == disp)
-        tcg_out32 (s, B | disp | mask);
+        tcg_out32 (s, B | (disp & 0x3fffffc) | mask);
     else {
         tcg_out_movi (s, TCG_TYPE_I32, 0, (tcg_target_long) target);
         tcg_out32 (s, MTSPR | RS (0) | CTR);
