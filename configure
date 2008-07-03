@@ -344,7 +344,7 @@ else
 fi
 
 # default flags for all hosts
-CFLAGS="$CFLAGS -Wall -Wshadow -O2 -g -fno-strict-aliasing"
+CFLAGS="$CFLAGS -Wall -Wmissing-noreturn -Wshadow -O2 -g -fno-strict-aliasing"
 LDFLAGS="$LDFLAGS -g"
 if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
