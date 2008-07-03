@@ -56,6 +56,7 @@ static void usage(const char *name)
 "  -c, --connect=DEV    connect FILE to the local NBD device DEV\n"
 "  -d, --disconnect     disconnect the specified device\n"
 "  -e, --shared=NUM     device can be shared by NUM clients (default '1')\n"
+"  -t, --persistent     don't exit on the last connection\n"
 "  -v, --verbose        display extra debugging information\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
@@ -189,7 +190,7 @@ int main(int argc, char **argv)
     char *device = NULL;
     char *socket = NULL;
     char sockpath[128];
-    const char *sopt = "hVbo:p:rsnP:c:dvk:e:";
+    const char *sopt = "hVbo:p:rsnP:c:dvk:e:t";
     struct option lopt[] = {
         { "help", 0, 0, 'h' },
         { "version", 0, 0, 'V' },
@@ -204,6 +205,7 @@ int main(int argc, char **argv)
         { "snapshot", 0, 0, 's' },
         { "nocache", 0, 0, 'n' },
         { "shared", 1, 0, 'e' },
+        { "persistent", 0, 0, 't' },
         { "verbose", 0, 0, 'v' },
         { NULL, 0, 0, 0 }
     };
@@ -222,6 +224,7 @@ int main(int argc, char **argv)
     int i;
     int nb_fds = 0;
     int max_fd;
+    int persistent = 0;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -283,6 +286,9 @@ int main(int argc, char **argv)
                 errx(EINVAL, "Shared device number must be greater than 0\n");
             }
             break;
+	case 't':
+	    persistent = 1;
+	    break;
         case 'v':
             verbose = 1;
             break;
@@ -459,7 +465,7 @@ int main(int argc, char **argv)
                 }
             }
         }
-    } while (nb_fds > 1);
+    } while (persistent || nb_fds > 1);
     qemu_free(data);
 
     close(sharing_fds[0]);

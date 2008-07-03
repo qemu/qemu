@@ -1,4 +1,4 @@
-/*\
+/*
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -15,7 +15,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-\*/
+ */
 
 #include "nbd.h"
 
@@ -31,15 +31,19 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#if defined(QEMU_NBD)
 extern int verbose;
+#else
+static int verbose = 0;
+#endif
+
+#define TRACE(msg, ...) do { \
+    if (verbose) LOG(msg, ## __VA_ARGS__); \
+} while(0)
 
 #define LOG(msg, ...) do { \
     fprintf(stderr, "%s:%s():L%d: " msg "\n", \
             __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__); \
-} while(0)
-
-#define TRACE(msg, ...) do { \
-    if (verbose) LOG(msg, ## __VA_ARGS__); \
 } while(0)
 
 /* This is all part of the "official" NBD API */
@@ -59,10 +63,10 @@ extern int verbose;
 
 /* That's all folks */
 
-#define read_sync(fd, buffer, size) wr_sync(fd, buffer, size, true)
-#define write_sync(fd, buffer, size) wr_sync(fd, buffer, size, false)
+#define read_sync(fd, buffer, size) nbd_wr_sync(fd, buffer, size, true)
+#define write_sync(fd, buffer, size) nbd_wr_sync(fd, buffer, size, false)
 
-static size_t wr_sync(int fd, void *buffer, size_t size, bool do_read)
+size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
 {
     size_t offset = 0;
 
@@ -76,7 +80,7 @@ static size_t wr_sync(int fd, void *buffer, size_t size, bool do_read)
         }
 
         /* recoverable error */
-        if (len == -1 && errno == EAGAIN) {
+        if (len == -1 && (errno == EAGAIN || errno == EINTR)) {
             continue;
         }
 
@@ -96,7 +100,7 @@ static size_t wr_sync(int fd, void *buffer, size_t size, bool do_read)
     return offset;
 }
 
-static int tcp_socket_outgoing(const char *address, uint16_t port)
+int tcp_socket_outgoing(const char *address, uint16_t port)
 {
     int s;
     struct in_addr in;
@@ -404,16 +408,31 @@ int nbd_client(int fd, int csock)
 	return ret;
 }
 
-int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
-             off_t *offset, bool readonly, uint8_t *data, int data_size)
+int nbd_send_request(int csock, struct nbd_request *request)
+{
+	uint8_t buf[4 + 4 + 8 + 8 + 4];
+
+	cpu_to_be32w((uint32_t*)buf, NBD_REQUEST_MAGIC);
+	cpu_to_be32w((uint32_t*)(buf + 4), request->type);
+	cpu_to_be64w((uint64_t*)(buf + 8), request->handle);
+	cpu_to_be64w((uint64_t*)(buf + 16), request->from);
+	cpu_to_be32w((uint32_t*)(buf + 24), request->len);
+
+	TRACE("Sending request to client");
+
+	if (write_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
+		LOG("writing to socket failed");
+		errno = EINVAL;
+		return -1;
+	}
+	return 0;
+}
+
+
+static int nbd_receive_request(int csock, struct nbd_request *request)
 {
 	uint8_t buf[4 + 4 + 8 + 8 + 4];
 	uint32_t magic;
-	uint32_t type;
-	uint64_t from;
-	uint32_t len;
-
-	TRACE("Reading request.");
 
 	if (read_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
 		LOG("read failed");
@@ -422,97 +441,158 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
 	}
 
 	/* Request
-	  [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
-	  [ 4 ..  7]   type    (0 == READ, 1 == WRITE)
-	  [ 8 .. 15]   handle
-	  [16 .. 23]   from
-	  [24 .. 27]   len
+	   [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
+	   [ 4 ..  7]   type    (0 == READ, 1 == WRITE)
+	   [ 8 .. 15]   handle
+	   [16 .. 23]   from
+	   [24 .. 27]   len
 	 */
 
 	magic = be32_to_cpup((uint32_t*)buf);
-	type  = be32_to_cpup((uint32_t*)(buf + 4));
-	from  = be64_to_cpup((uint64_t*)(buf + 16));
-	len   = be32_to_cpup((uint32_t*)(buf + 24));
+	request->type  = be32_to_cpup((uint32_t*)(buf + 4));
+	request->handle = be64_to_cpup((uint64_t*)(buf + 8));
+	request->from  = be64_to_cpup((uint64_t*)(buf + 16));
+	request->len   = be32_to_cpup((uint32_t*)(buf + 24));
 
 	TRACE("Got request: "
 	      "{ magic = 0x%x, .type = %d, from = %" PRIu64" , len = %u }",
-	      magic, type, from, len);
-
+	      magic, request->type, request->from, request->len);
 
 	if (magic != NBD_REQUEST_MAGIC) {
 		LOG("invalid magic (got 0x%x)", magic);
 		errno = EINVAL;
 		return -1;
 	}
+}
 
-	if (len > data_size) {
-		LOG("len (%u) is larger than max len (%u)",
-		    len, data_size);
+int nbd_receive_reply(int csock, struct nbd_reply *reply)
+{
+	uint8_t buf[4 + 4 + 8];
+	uint32_t magic;
+
+	memset(buf, 0xAA, sizeof(buf));
+
+	if (read_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
+		LOG("read failed");
 		errno = EINVAL;
 		return -1;
 	}
 
-	if ((from + len) < from) {
+	/* Reply
+	   [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
+	   [ 4 ..  7]    error   (0 == no error)
+	   [ 7 .. 15]    handle
+	 */
+
+	magic = be32_to_cpup((uint32_t*)buf);
+	reply->error  = be32_to_cpup((uint32_t*)(buf + 4));
+	reply->handle = be64_to_cpup((uint64_t*)(buf + 8));
+
+	TRACE("Got reply: "
+	      "{ magic = 0x%x, .error = %d, handle = %" PRIu64" }",
+	      magic, reply->error, reply->handle);
+
+	if (magic != NBD_REPLY_MAGIC) {
+		LOG("invalid magic (got 0x%x)", magic);
+		errno = EINVAL;
+		return -1;
+	}
+	return 0;
+}
+
+static int nbd_send_reply(int csock, struct nbd_reply *reply)
+{
+	uint8_t buf[4 + 4 + 8];
+
+	/* Reply
+	   [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
+	   [ 4 ..  7]    error   (0 == no error)
+	   [ 7 .. 15]    handle
+	 */
+	cpu_to_be32w((uint32_t*)buf, NBD_REPLY_MAGIC);
+	cpu_to_be32w((uint32_t*)(buf + 4), reply->error);
+	cpu_to_be64w((uint64_t*)(buf + 8), reply->handle);
+
+	TRACE("Sending response to client");
+
+	if (write_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
+		LOG("writing to socket failed");
+		errno = EINVAL;
+		return -1;
+	}
+	return 0;
+}
+
+int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
+             off_t *offset, bool readonly, uint8_t *data, int data_size)
+{
+	struct nbd_request request;
+	struct nbd_reply reply;
+
+	TRACE("Reading request.");
+
+	if (nbd_receive_request(csock, &request) == -1)
+		return -1;
+
+	if (request.len > data_size) {
+		LOG("len (%u) is larger than max len (%u)",
+		    request.len, data_size);
+		errno = EINVAL;
+		return -1;
+	}
+
+	if ((request.from + request.len) < request.from) {
 		LOG("integer overflow detected! "
 		    "you're probably being attacked");
 		errno = EINVAL;
 		return -1;
 	}
 
-	if ((from + len) > size) {
+	if ((request.from + request.len) > size) {
 	        LOG("From: %" PRIu64 ", Len: %u, Size: %" PRIu64
 		    ", Offset: %" PRIu64 "\n",
-		     from, len, size, dev_offset);
+		     request.from, request.len, size, dev_offset);
 		LOG("requested operation past EOF--bad client?");
 		errno = EINVAL;
 		return -1;
 	}
 
-	/* Reply
-	 [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
-	 [ 4 ..  7]    error   (0 == no error)
-         [ 7 .. 15]    handle
-	 */
-	cpu_to_be32w((uint32_t*)buf, NBD_REPLY_MAGIC);
-	cpu_to_be32w((uint32_t*)(buf + 4), 0);
-
 	TRACE("Decoding type");
 
-	switch (type) {
-	case 0:
+	reply.handle = request.handle;
+	reply.error = 0;
+
+	switch (request.type) {
+	case NBD_CMD_READ:
 		TRACE("Request type is READ");
 
-		if (bdrv_read(bs, (from + dev_offset) / 512, data, len / 512) == -1) {
+		if (bdrv_read(bs, (request.from + dev_offset) / 512, data,
+			      request.len / 512) == -1) {
 			LOG("reading from file failed");
 			errno = EINVAL;
 			return -1;
 		}
-		*offset += len;
+		*offset += request.len;
 
-		TRACE("Read %u byte(s)", len);
+		TRACE("Read %u byte(s)", request.len);
 
-		TRACE("Sending OK response");
-
-		if (write_sync(csock, buf, 16) != 16) {
-			LOG("writing to socket failed");
-			errno = EINVAL;
+		if (nbd_send_reply(csock, &reply) == -1)
 			return -1;
-		}
 
 		TRACE("Sending data to client");
 
-		if (write_sync(csock, data, len) != len) {
+		if (write_sync(csock, data, request.len) != request.len) {
 			LOG("writing to socket failed");
 			errno = EINVAL;
 			return -1;
 		}
 		break;
-	case 1:
+	case NBD_CMD_WRITE:
 		TRACE("Request type is WRITE");
 
-		TRACE("Reading %u byte(s)", len);
+		TRACE("Reading %u byte(s)", request.len);
 
-		if (read_sync(csock, data, len) != len) {
+		if (read_sync(csock, data, request.len) != request.len) {
 			LOG("reading from socket failed");
 			errno = EINVAL;
 			return -1;
@@ -520,34 +600,29 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
 
 		if (readonly) {
 			TRACE("Server is read-only, return error");
-
-			cpu_to_be32w((uint32_t*)(buf + 4), 1);
+			reply.error = 1;
 		} else {
 			TRACE("Writing to device");
 
-			if (bdrv_write(bs, (from + dev_offset) / 512, data, len / 512) == -1) {
+			if (bdrv_write(bs, (request.from + dev_offset) / 512,
+				       data, request.len / 512) == -1) {
 				LOG("writing to file failed");
 				errno = EINVAL;
 				return -1;
 			}
 
-			*offset += len;
+			*offset += request.len;
 		}
 
-		TRACE("Sending response to client");
-
-		if (write_sync(csock, buf, 16) != 16) {
-			LOG("writing to socket failed");
-			errno = EINVAL;
+		if (nbd_send_reply(csock, &reply) == -1)
 			return -1;
-		}
 		break;
-	case 2:
+	case NBD_CMD_DISC:
 		TRACE("Request type is DISCONNECT");
 		errno = 0;
 		return 1;
 	default:
-		LOG("invalid request type (%u) received", type);
+		LOG("invalid request type (%u) received", request.type);
 		errno = EINVAL;
 		return -1;
 	}

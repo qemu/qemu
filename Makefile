@@ -42,7 +42,7 @@ recurse-all: $(SUBDIR_RULES)
 BLOCK_OBJS=cutils.o qemu-malloc.o
 BLOCK_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
 BLOCK_OBJS+=block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
-BLOCK_OBJS+=block-qcow2.o block-parallels.o
+BLOCK_OBJS+=block-qcow2.o block-parallels.o block-nbd.o
 
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
@@ -50,7 +50,7 @@ BLOCK_OBJS+=block-qcow2.o block-parallels.o
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
 
-OBJS=$(BLOCK_OBJS)
+OBJS=nbd.o $(BLOCK_OBJS)
 OBJS+=readline.o console.o
 OBJS+=block.o
 
@@ -159,7 +159,7 @@ libqemu_user.a: $(USER_OBJS)
 	rm -f $@ 
 	$(AR) rcs $@ $(USER_OBJS)
 
-QEMU_IMG_BLOCK_OBJS = $(BLOCK_OBJS)
+QEMU_IMG_BLOCK_OBJS = nbd.o $(BLOCK_OBJS)
 ifdef CONFIG_WIN32
 QEMU_IMG_BLOCK_OBJS += qemu-img-block-raw-win32.o
 else
@@ -180,7 +180,7 @@ qemu-img-%.o: %.c
 qemu-nbd-%.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -DQEMU_NBD -c -o $@ $<
 
-qemu-nbd$(EXESUF):  qemu-nbd.o nbd.o qemu-img-block.o \
+qemu-nbd$(EXESUF):  qemu-nbd.o qemu-nbd-nbd.o qemu-img-block.o \
 		    osdep.o qemu-nbd-block-raw-posix.o $(BLOCK_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ -lz $(LIBS)
 
