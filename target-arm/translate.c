@@ -8808,6 +8808,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     int flags)
 {
     int i;
+#if 0
     union {
         uint32_t i;
         float s;
@@ -8819,6 +8820,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
         float64 f64;
         double d;
     } d0;
+#endif
     uint32_t psr;
 
     for(i=0;i<16;i++) {
