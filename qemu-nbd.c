@@ -55,6 +55,7 @@ static void usage(const char *name)
 "  -n, --nocache        disable host cache\n"
 "  -c, --connect=DEV    connect FILE to the local NBD device DEV\n"
 "  -d, --disconnect     disconnect the specified device\n"
+"  -e, --shared=NUM     device can be shared by NUM clients (default '1')\n"
 "  -v, --verbose        display extra debugging information\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
@@ -182,14 +183,13 @@ int main(int argc, char **argv)
     bool disconnect = false;
     const char *bindto = "0.0.0.0";
     int port = 1024;
-    int sock, csock;
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
     off_t fd_size;
     char *device = NULL;
     char *socket = NULL;
     char sockpath[128];
-    const char *sopt = "hVbo:p:rsnP:c:dvk:";
+    const char *sopt = "hVbo:p:rsnP:c:dvk:e:";
     struct option lopt[] = {
         { "help", 0, 0, 'h' },
         { "version", 0, 0, 'V' },
@@ -203,6 +203,7 @@ int main(int argc, char **argv)
         { "disconnect", 0, 0, 'd' },
         { "snapshot", 0, 0, 's' },
         { "nocache", 0, 0, 'n' },
+        { "shared", 1, 0, 'e' },
         { "verbose", 0, 0, 'v' },
         { NULL, 0, 0, 0 }
     };
@@ -212,9 +213,15 @@ int main(int argc, char **argv)
     char *end;
     int flags = 0;
     int partition = -1;
-    int fd;
     int ret;
+    int shared = 1;
     uint8_t *data;
+    fd_set fds;
+    int *sharing_fds;
+    int fd;
+    int i;
+    int nb_fds = 0;
+    int max_fd;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -266,6 +273,15 @@ int main(int argc, char **argv)
             break;
         case 'c':
             device = optarg;
+            break;
+        case 'e':
+            shared = strtol(optarg, &end, 0);
+            if (*end) {
+                errx(EINVAL, "Invalid shared device number '%s'", optarg);
+            }
+            if (shared < 1) {
+                errx(EINVAL, "Shared device number must be greater than 0\n");
+            }
             break;
         case 'v':
             verbose = 1;
@@ -320,8 +336,10 @@ int main(int argc, char **argv)
         errx(errno, "Could not find partition %d", partition);
 
     if (device) {
-	pid_t pid;
-	if (!verbose)
+        pid_t pid;
+        int sock;
+
+        if (!verbose)
             daemon(0, 0);	/* detach client and server */
 
         if (socket == NULL) {
@@ -384,33 +402,69 @@ int main(int argc, char **argv)
         /* children */
     }
 
+    sharing_fds = qemu_malloc((shared + 1) * sizeof(int));
+    if (sharing_fds == NULL)
+        errx(ENOMEM, "Cannot allocate sharing fds");
+
     if (socket) {
-        sock = unix_socket_incoming(socket);
+        sharing_fds[0] = unix_socket_incoming(socket);
     } else {
-        sock = tcp_socket_incoming(bindto, port);
+        sharing_fds[0] = tcp_socket_incoming(bindto, port);
     }
 
-    if (sock == -1)
+    if (sharing_fds[0] == -1)
         return 1;
-
-    csock = accept(sock,
-               (struct sockaddr *)&addr,
-               &addr_len);
-    if (csock == -1)
-        return 1;
-
-    /* new fd_size is calculated by find_partition */
-    if (nbd_negotiate(bs, csock, fd_size) == -1)
-        return 1;
+    max_fd = sharing_fds[0];
+    nb_fds++;
 
     data = qemu_memalign(512, NBD_BUFFER_SIZE);
-    while (nbd_trip(bs, csock, fd_size, dev_offset, &offset, readonly,
-                    data, NBD_BUFFER_SIZE) == 0);
+    if (data == NULL)
+        errx(ENOMEM, "Cannot allocate data buffer");
+
+    do {
+
+        FD_ZERO(&fds);
+        for (i = 0; i < nb_fds; i++)
+            FD_SET(sharing_fds[i], &fds);
+
+        ret = select(max_fd + 1, &fds, NULL, NULL, NULL);
+        if (ret == -1)
+            break;
+
+        if (FD_ISSET(sharing_fds[0], &fds))
+            ret--;
+        for (i = 1; i < nb_fds && ret; i++) {
+            if (FD_ISSET(sharing_fds[i], &fds)) {
+                if (nbd_trip(bs, sharing_fds[i], fd_size, dev_offset,
+                    &offset, readonly, data, NBD_BUFFER_SIZE) != 0) {
+                    close(sharing_fds[i]);
+                    nb_fds--;
+                    sharing_fds[i] = sharing_fds[nb_fds];
+                    i--;
+                }
+                ret--;
+            }
+        }
+        /* new connection ? */
+        if (FD_ISSET(sharing_fds[0], &fds)) {
+            if (nb_fds < shared + 1) {
+                sharing_fds[nb_fds] = accept(sharing_fds[0],
+                                             (struct sockaddr *)&addr,
+                                             &addr_len);
+                if (sharing_fds[nb_fds] != -1 &&
+                    nbd_negotiate(bs, sharing_fds[nb_fds], fd_size) != -1) {
+                        if (sharing_fds[nb_fds] > max_fd)
+                            max_fd = sharing_fds[nb_fds];
+                        nb_fds++;
+                }
+            }
+        }
+    } while (nb_fds > 1);
     qemu_free(data);
 
-    close(csock);
-    close(sock);
+    close(sharing_fds[0]);
     bdrv_close(bs);
+    qemu_free(sharing_fds);
     if (socket)
         unlink(socket);
 

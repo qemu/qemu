@@ -34,6 +34,8 @@ Export Qemu disk image using NBD protocol.
   connect FILE to NBD device DEV
 @item -d, --disconnect
   disconnect the specified device
+@item -e, --shared=NUM
+  device can be shared by NUM clients (default '1')
 @item -v, --verbose
   display extra debugging information
 @item -h, --help
