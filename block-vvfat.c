@@ -1410,7 +1410,12 @@ static void schedule_mkdir(BDRVVVFATState* s, uint32_t cluster, char* path)
 }
 
 typedef struct {
-    unsigned char name[1024];
+    /*
+     * Since the sequence number is at most 0x3f, and the filename
+     * length is at most 13 times the sequence number, the maximal
+     * filename length is 0x3f * 13 bytes.
+     */
+    unsigned char name[0x3f * 13 + 1];
     int checksum, len;
     int sequence_number;
 } long_file_name;
