@@ -27,9 +27,12 @@
 #include "block_int.h"
 
 int tcp_socket_incoming(const char *address, uint16_t port);
+int unix_socket_outgoing(const char *path);
+int unix_socket_incoming(const char *path);
 
 int nbd_negotiate(BlockDriverState *bs, int csock, off_t size);
-int nbd_receive_negotiate(int fd, int csock);
+int nbd_receive_negotiate(int csock, off_t *size, size_t *blocksize);
+int nbd_init(int fd, int csock, off_t size, size_t blocksize);
 int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset, off_t *offset, bool readonly);
 int nbd_client(int fd, int csock);
 int nbd_disconnect(int fd);

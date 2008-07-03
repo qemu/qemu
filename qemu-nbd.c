@@ -1,4 +1,4 @@
-/*\
+/*
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -25,10 +25,14 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <err.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <signal.h>
+
+#define SOCKET_PATH    "/var/lock/qemu-nbd-%s"
 
 int verbose;
 
@@ -41,14 +45,18 @@ static void usage(const char *name)
 "  -p, --port=PORT      port to listen on (default `1024')\n"
 "  -o, --offset=OFFSET  offset into the image\n"
 "  -b, --bind=IFACE     interface to bind to (default `0.0.0.0')\n"
+"  -k, --socket=PATH    path to the unix socket\n"
+"                       (default '"SOCKET_PATH"')\n"
 "  -r, --read-only      export read-only\n"
 "  -P, --partition=NUM  only expose partition NUM\n"
+"  -c, --connect=DEV    connect FILE to the local NBD device DEV\n"
+"  -d, --disconnect     disconnect the specified device\n"
 "  -v, --verbose        display extra debugging information\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
 "\n"
 "Report bugs to <anthony@codemonkey.ws>\n"
-    , name);
+    , name, "DEVICE");
 }
 
 static void version(const char *name)
@@ -144,27 +152,51 @@ static int find_partition(BlockDriverState *bs, int partition,
     return -1;
 }
 
+static void show_parts(const char *device)
+{
+    if (fork() == 0) {
+        int nbd;
+
+        /* linux just needs an open() to trigger
+         * the partition table update
+         * but remember to load the module with max_part != 0 :
+         *     modprobe nbd max_part=63
+         */
+        nbd = open(device, O_RDWR);
+        if (nbd != -1)
+              close(nbd);
+        exit(0);
+    }
+}
+
 int main(int argc, char **argv)
 {
     BlockDriverState *bs;
     off_t dev_offset = 0;
     off_t offset = 0;
     bool readonly = false;
+    bool disconnect = false;
     const char *bindto = "0.0.0.0";
     int port = 1024;
     int sock, csock;
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
     off_t fd_size;
-    const char *sopt = "hVbo:p:rsP:v";
+    char *device = NULL;
+    char *socket = NULL;
+    char sockpath[128];
+    const char *sopt = "hVbo:p:rsP:c:dvk:";
     struct option lopt[] = {
         { "help", 0, 0, 'h' },
         { "version", 0, 0, 'V' },
         { "bind", 1, 0, 'b' },
         { "port", 1, 0, 'p' },
+        { "socket", 1, 0, 'k' },
         { "offset", 1, 0, 'o' },
         { "read-only", 0, 0, 'r' },
         { "partition", 1, 0, 'P' },
+        { "connect", 1, 0, 'c' },
+        { "disconnect", 0, 0, 'd' },
         { "snapshot", 0, 0, 's' },
         { "verbose", 0, 0, 'v' },
         { NULL, 0, 0, 0 }
@@ -175,6 +207,8 @@ int main(int argc, char **argv)
     char *end;
     bool snapshot = false;
     int partition = -1;
+    int fd;
+    int ret;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -213,6 +247,17 @@ int main(int argc, char **argv)
             if (partition < 1 || partition > 8)
                 errx(EINVAL, "Invalid partition %d", partition);
             break;
+        case 'k':
+            socket = optarg;
+            if (socket[0] != '/')
+                errx(EINVAL, "socket path must be absolute\n");
+            break;
+        case 'd':
+            disconnect = true;
+            break;
+        case 'c':
+            device = optarg;
+            break;
         case 'v':
             verbose = 1;
             break;
@@ -236,6 +281,20 @@ int main(int argc, char **argv)
              argv[0]);
     }
 
+    if (disconnect) {
+        fd = open(argv[optind], O_RDWR);
+        if (fd == -1)
+            errx(errno, "Cannot open %s", argv[optind]);
+
+        nbd_disconnect(fd);
+
+        close(fd);
+
+        printf("%s disconnected\n", argv[optind]);
+
+	return 0;
+    }
+
     bdrv_init();
 
     bs = bdrv_new("hda");
@@ -251,7 +310,77 @@ int main(int argc, char **argv)
         find_partition(bs, partition, &dev_offset, &fd_size))
         errx(errno, "Could not find partition %d", partition);
 
-    sock = tcp_socket_incoming(bindto, port);
+    if (device) {
+	pid_t pid;
+	if (!verbose)
+            daemon(0, 0);	/* detach client and server */
+
+        if (socket == NULL) {
+            sprintf(sockpath, SOCKET_PATH, basename(device));
+            socket = sockpath;
+        }
+
+        pid = fork();
+        if (pid < 0)
+            return 1;
+        if (pid != 0) {
+            off_t size;
+            size_t blocksize;
+
+            ret = 0;
+            bdrv_close(bs);
+
+            do {
+                sock = unix_socket_outgoing(socket);
+                if (sock == -1) {
+                    if (errno != ENOENT && errno != ECONNREFUSED)
+                        goto out;
+                    sleep(1);	/* wait children */
+                }
+            } while (sock == -1);
+
+            fd = open(device, O_RDWR);
+            if (fd == -1) {
+                ret = 1;
+                goto out;
+            }
+
+            ret = nbd_receive_negotiate(sock, &size, &blocksize);
+            if (ret == -1) {
+                ret = 1;
+                goto out;
+            }
+
+            ret = nbd_init(fd, sock, size, blocksize);
+            if (ret == -1) {
+                ret = 1;
+                goto out;
+            }
+
+            printf("NBD device %s is now connected to file %s\n",
+                    device, argv[optind]);
+
+	    /* update partition table */
+
+            show_parts(device);
+
+            nbd_client(fd, sock);
+            close(fd);
+ out:
+            kill(pid, SIGTERM);
+            unlink(socket);
+
+            return ret;
+        }
+        /* children */
+    }
+
+    if (socket) {
+        sock = unix_socket_incoming(socket);
+    } else {
+        sock = tcp_socket_incoming(bindto, port);
+    }
+
     if (sock == -1)
         return 1;
 
@@ -270,6 +399,8 @@ int main(int argc, char **argv)
     close(csock);
     close(sock);
     bdrv_close(bs);
+    if (socket)
+        unlink(socket);
 
     return 0;
 }

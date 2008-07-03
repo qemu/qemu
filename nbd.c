@@ -25,6 +25,7 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -183,6 +184,65 @@ error:
     return -1;
 }
 
+int unix_socket_incoming(const char *path)
+{
+    int s;
+    struct sockaddr_un addr;
+    int serrno;
+
+    s = socket(PF_UNIX, SOCK_STREAM, 0);
+    if (s == -1) {
+        return -1;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    pstrcpy(addr.sun_path, sizeof(addr.sun_path), path);
+
+    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+        goto error;
+    }
+
+    if (listen(s, 128) == -1) {
+        goto error;
+    }
+
+    return s;
+error:
+    serrno = errno;
+    close(s);
+    errno = serrno;
+    return -1;
+}
+
+int unix_socket_outgoing(const char *path)
+{
+    int s;
+    struct sockaddr_un addr;
+    int serrno;
+
+    s = socket(PF_UNIX, SOCK_STREAM, 0);
+    if (s == -1) {
+        return -1;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    pstrcpy(addr.sun_path, sizeof(addr.sun_path), path);
+
+    if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+        goto error;
+    }
+
+    return s;
+error:
+    serrno = errno;
+    close(s);
+    errno = serrno;
+    return -1;
+}
+
+
 /* Basic flow
 
    Server         Client
@@ -225,12 +285,10 @@ int nbd_negotiate(BlockDriverState *bs, int csock, off_t size)
 	return 0;
 }
 
-int nbd_receive_negotiate(int fd, int csock)
+int nbd_receive_negotiate(int csock, off_t *size, size_t *blocksize)
 {
 	char buf[8 + 8 + 8 + 128];
 	uint64_t magic;
-	off_t size;
-	size_t blocksize;
 
 	TRACE("Receiving negotation.");
 
@@ -241,8 +299,8 @@ int nbd_receive_negotiate(int fd, int csock)
 	}
 
 	magic = be64_to_cpup((uint64_t*)(buf + 8));
-	size = be64_to_cpup((uint64_t*)(buf + 16));
-	blocksize = 1024;
+	*size = be64_to_cpup((uint64_t*)(buf + 16));
+	*blocksize = 1024;
 
 	TRACE("Magic is %c%c%c%c%c%c%c%c",
 	      isprint(buf[0]) ? buf[0] : '.',
@@ -254,7 +312,7 @@ int nbd_receive_negotiate(int fd, int csock)
 	      isprint(buf[6]) ? buf[6] : '.',
 	      isprint(buf[7]) ? buf[7] : '.');
 	TRACE("Magic is 0x%" PRIx64, magic);
-	TRACE("Size is %" PRIu64, size);
+	TRACE("Size is %" PRIu64, *size);
 
 	if (memcmp(buf, "NBDMAGIC", 8) != 0) {
 		LOG("Invalid magic received");
@@ -269,7 +327,11 @@ int nbd_receive_negotiate(int fd, int csock)
 		errno = EINVAL;
 		return -1;
 	}
+        return 0;
+}
 
+int nbd_init(int fd, int csock, off_t size, size_t blocksize)
+{
 	TRACE("Setting block size to %lu", (unsigned long)blocksize);
 
 	if (ioctl(fd, NBD_SET_BLKSIZE, blocksize) == -1) {
