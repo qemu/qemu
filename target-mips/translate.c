@@ -36,7 +36,7 @@
 
 //#define MIPS_DEBUG_DISAS
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
-//~ #define MIPS_SINGLE_STEP
+#define MIPS_SINGLE_STEP
 
 /* MIPS major opcodes */
 #define MASK_OP_MAJOR(op)  (op & (0x3F << 26))
@@ -8054,13 +8054,13 @@ void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
 #endif
 
 void cpu_dump_state (CPUState *env, FILE *f,
-                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...) __attribute__ ((format (printf, 2, 3))),
                      int flags)
 {
     int i;
 
     cpu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx " %d\n",
-                env->active_tc.PC, env->active_tc.HI, env->active_tc.LO, env->hflags, env->btarget, env->bcond);
+                env->active_tc.PC, env->active_tc.HI[0], env->active_tc.LO[0], env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0)
             cpu_fprintf(f, "GPR%02d:", i);
