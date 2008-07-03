@@ -404,13 +404,9 @@ int nbd_client(int fd, int csock)
 	return ret;
 }
 
-int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset, off_t *offset, bool readonly)
+int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
+             off_t *offset, bool readonly, uint8_t *data, int data_size)
 {
-#ifndef _REENTRANT
-	static uint8_t data[1024 * 1024]; // keep this off of the stack
-#else
-	uint8_t data[1024 * 1024];
-#endif
 	uint8_t buf[4 + 4 + 8 + 8 + 4];
 	uint32_t magic;
 	uint32_t type;
@@ -449,9 +445,9 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset, o
 		return -1;
 	}
 
-	if (len > sizeof(data)) {
-		LOG("len (%u) is larger than max len (%lu)",
-		    len, (unsigned long)sizeof(data));
+	if (len > data_size) {
+		LOG("len (%u) is larger than max len (%u)",
+		    len, data_size);
 		errno = EINVAL;
 		return -1;
 	}

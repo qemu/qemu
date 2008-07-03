@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#ifndef QEMU_IMG
+#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
 #include "qemu-timer.h"
 #include "exec-all.h"
 #endif
@@ -59,7 +59,7 @@
 //#define DEBUG_FLOPPY
 
 //#define DEBUG_BLOCK
-#if defined(DEBUG_BLOCK) && !defined(QEMU_IMG)
+#if defined(DEBUG_BLOCK) && !defined(QEMU_IMG) && !defined(QEMU_NBD)
 #define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (loglevel != 0)	\
     { fprintf(logfile, formatCstr, ##args); fflush(logfile); } } while (0)
 #else
@@ -434,7 +434,7 @@ static int aio_initialized = 0;
 
 static void aio_signal_handler(int signum)
 {
-#ifndef QEMU_IMG
+#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
     CPUState *env = cpu_single_env;
     if (env) {
         /* stop the currently executing cpu because a timer occured */
@@ -544,7 +544,7 @@ void qemu_aio_wait(void)
     sigset_t set;
     int nb_sigs;
 
-#ifndef QEMU_IMG
+#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
     if (qemu_bh_poll())
         return;
 #endif
@@ -586,7 +586,7 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     return acb;
 }
 
-#ifndef QEMU_IMG
+#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
 static void raw_aio_em_cb(void* opaque)
 {
     RawAIOCB *acb = opaque;
@@ -605,7 +605,7 @@ static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
      * If O_DIRECT is used and the buffer is not aligned fall back
      * to synchronous IO.
      */
-#if defined(O_DIRECT) && !defined(QEMU_IMG)
+#if defined(O_DIRECT) && !defined(QEMU_IMG) && !defined(QEMU_NBD)
     BDRVRawState *s = bs->opaque;
 
     if (unlikely(s->aligned_buf != NULL && ((uintptr_t) buf % 512))) {
@@ -638,7 +638,7 @@ static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
      * If O_DIRECT is used and the buffer is not aligned fall back
      * to synchronous IO.
      */
-#if defined(O_DIRECT) && !defined(QEMU_IMG)
+#if defined(O_DIRECT) && !defined(QEMU_IMG) && !defined(QEMU_NBD)
     BDRVRawState *s = bs->opaque;
 
     if (unlikely(s->aligned_buf != NULL && ((uintptr_t) buf % 512))) {
@@ -941,7 +941,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     return 0;
 }
 
-#if defined(__linux__) && !defined(QEMU_IMG)
+#if defined(__linux__) && !defined(QEMU_IMG) && !defined(QEMU_NBD)
 
 /* Note: we do not have a reliable method to detect if the floppy is
    present. The current method is to try to open the floppy at every

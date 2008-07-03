@@ -26,6 +26,10 @@ Export Qemu disk image using NBD protocol.
   export read-only
 @item -P, --partition=NUM
   only expose partition NUM
+@item -s, --snapshot
+  use snapshot file
+@item -n, --nocache
+  disable host cache
 @item -c, --connect
   connect FILE to NBD device DEV
 @item -d, --disconnect

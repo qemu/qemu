@@ -34,6 +34,8 @@
 
 #define SOCKET_PATH    "/var/lock/qemu-nbd-%s"
 
+#define NBD_BUFFER_SIZE (1024*1024)
+
 int verbose;
 
 static void usage(const char *name)
@@ -49,6 +51,8 @@ static void usage(const char *name)
 "                       (default '"SOCKET_PATH"')\n"
 "  -r, --read-only      export read-only\n"
 "  -P, --partition=NUM  only expose partition NUM\n"
+"  -s, --snapshot       use snapshot file\n"
+"  -n, --nocache        disable host cache\n"
 "  -c, --connect=DEV    connect FILE to the local NBD device DEV\n"
 "  -d, --disconnect     disconnect the specified device\n"
 "  -v, --verbose        display extra debugging information\n"
@@ -185,7 +189,7 @@ int main(int argc, char **argv)
     char *device = NULL;
     char *socket = NULL;
     char sockpath[128];
-    const char *sopt = "hVbo:p:rsP:c:dvk:";
+    const char *sopt = "hVbo:p:rsnP:c:dvk:";
     struct option lopt[] = {
         { "help", 0, 0, 'h' },
         { "version", 0, 0, 'V' },
@@ -198,6 +202,7 @@ int main(int argc, char **argv)
         { "connect", 1, 0, 'c' },
         { "disconnect", 0, 0, 'd' },
         { "snapshot", 0, 0, 's' },
+        { "nocache", 0, 0, 'n' },
         { "verbose", 0, 0, 'v' },
         { NULL, 0, 0, 0 }
     };
@@ -205,15 +210,19 @@ int main(int argc, char **argv)
     int opt_ind = 0;
     int li;
     char *end;
-    bool snapshot = false;
+    int flags = 0;
     int partition = -1;
     int fd;
     int ret;
+    uint8_t *data;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
         case 's':
-            snapshot = true;
+            flags |= BDRV_O_SNAPSHOT;
+            break;
+        case 'n':
+            flags |= BDRV_O_DIRECT;
             break;
         case 'b':
             bindto = optarg;
@@ -301,7 +310,7 @@ int main(int argc, char **argv)
     if (bs == NULL)
         return 1;
 
-    if (bdrv_open(bs, argv[optind], snapshot) == -1)
+    if (bdrv_open(bs, argv[optind], flags) == -1)
         return 1;
 
     fd_size = bs->total_sectors * 512;
@@ -394,7 +403,10 @@ int main(int argc, char **argv)
     if (nbd_negotiate(bs, csock, fd_size) == -1)
         return 1;
 
-    while (nbd_trip(bs, csock, fd_size, dev_offset, &offset, readonly) == 0);
+    data = qemu_memalign(512, NBD_BUFFER_SIZE);
+    while (nbd_trip(bs, csock, fd_size, dev_offset, &offset, readonly,
+                    data, NBD_BUFFER_SIZE) == 0);
+    qemu_free(data);
 
     close(csock);
     close(sock);

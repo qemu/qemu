@@ -177,8 +177,11 @@ qemu-img-%.o: %.c
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
+qemu-nbd-%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DQEMU_NBD -c -o $@ $<
+
 qemu-nbd$(EXESUF):  qemu-nbd.o nbd.o qemu-img-block.o \
-		    $(QEMU_IMG_BLOCK_OBJS)
+		    osdep.o qemu-nbd-block-raw-posix.o $(BLOCK_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ -lz $(LIBS)
 
 # dyngen host tool
