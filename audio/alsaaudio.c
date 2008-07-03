@@ -621,7 +621,7 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
     req.nchannels = as->nchannels;
     req.period_size = conf.period_size_out;
     req.buffer_size = conf.buffer_size_out;
-    req.size_in_usec = conf.size_in_usec_in;
+    req.size_in_usec = conf.size_in_usec_out;
 
     if (alsa_open (0, &req, &obt, &handle)) {
         return -1;
