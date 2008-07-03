@@ -827,12 +827,12 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 /* XXX: This value should match the one returned by CPUID
  * and in exec.c */
 #if defined(USE_KQEMU)
-#define PHYS_ADDR_MASK 0xfffff000L
+#define PHYS_ADDR_MASK 0xfffff000LL
 #else
 # if defined(TARGET_X86_64)
-# define PHYS_ADDR_MASK 0xfffffff000L
+# define PHYS_ADDR_MASK 0xfffffff000LL
 # else
-# define PHYS_ADDR_MASK 0xffffff000L
+# define PHYS_ADDR_MASK 0xffffff000LL
 # endif
 #endif
 
