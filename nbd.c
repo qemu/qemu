@@ -463,6 +463,7 @@ static int nbd_receive_request(int csock, struct nbd_request *request)
 		errno = EINVAL;
 		return -1;
 	}
+	return 0;
 }
 
 int nbd_receive_reply(int csock, struct nbd_reply *reply)
