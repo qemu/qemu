@@ -222,32 +222,30 @@ int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 
 static void GUS_save (QEMUFile *f, void *opaque)
 {
-    int32_t val;
     GUSState *s = opaque;
 
-    val = s->pos;     qemu_put_be32s (f, &val);
-    val = s->left;    qemu_put_be32s (f, &val);
-    val = s->shift;   qemu_put_be32s (f, &val);
-    val = s->irqs;    qemu_put_be32s (f, &val);
-    val = s->samples; qemu_put_be32s (f, &val);
-    qemu_put_be64s (f, &s->last_ticks);
+    qemu_put_be32 (f, s->pos);
+    qemu_put_be32 (f, s->left);
+    qemu_put_be32 (f, s->shift);
+    qemu_put_be32 (f, s->irqs);
+    qemu_put_be32 (f, s->samples);
+    qemu_put_be64 (f, s->last_ticks);
     qemu_put_buffer (f, s->himem, sizeof (s->himem));
 }
 
 static int GUS_load (QEMUFile *f, void *opaque, int version_id)
 {
-    int32_t val;
     GUSState *s = opaque;
 
     if (version_id != 2)
         return -EINVAL;
 
-    qemu_get_be32s (f, &val); s->pos = val;
-    qemu_get_be32s (f, &val); s->left = val;
-    qemu_get_be32s (f, &val); s->shift = val;
-    qemu_get_be32s (f, &val); s->irqs = val;
-    qemu_get_be32s (f, &val); s->samples = val;
-    qemu_get_be64s (f, &s->last_ticks);
+    s->pos = qemu_get_be32 (f);
+    s->left = qemu_get_be32 (f);
+    s->shift = qemu_get_be32 (f);
+    s->irqs = qemu_get_be32 (f);
+    s->samples = qemu_get_be32 (f);
+    s->last_ticks = qemu_get_be64 (f);
     qemu_get_buffer (f, s->himem, sizeof (s->himem));
     return 0;
 }
