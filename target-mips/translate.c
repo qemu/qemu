@@ -8021,7 +8021,7 @@ void dump_fpu (CPUState *env)
 
 #if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
 /* Debug help: The architecture requires 32bit code to maintain proper
-   sign-extened values on 64bit machines.  */
+   sign-extended values on 64bit machines.  */
 
 #define SIGN_EXT_P(val) ((((val) & ~0x7fffffff) == 0) || (((val) & ~0x7fffffff) == ~0x7fffffff))
 
