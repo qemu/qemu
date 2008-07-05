@@ -5475,7 +5475,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             case 0x18 ... 0x1b:
                 {
                     int op1, l1;
-                    const static uint8_t fcmov_cc[8] = {
+                    static const uint8_t fcmov_cc[8] = {
                         (JCC_B << 1),
                         (JCC_Z << 1),
                         (JCC_BE << 1),

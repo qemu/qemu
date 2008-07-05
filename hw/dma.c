@@ -450,7 +450,7 @@ static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
 static void dma_init2(struct dma_cont *d, int base, int dshift,
                       int page_base, int pageh_base)
 {
-    const int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
+    static const int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
     int i;
 
     d->dshift = dshift;
