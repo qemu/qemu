@@ -1304,8 +1304,10 @@ void do_mtc0_cause (target_ulong t0)
     uint32_t mask = 0x00C00300;
     uint32_t old = env->CP0_Cause;
 
-    if (env->insn_flags & ISA_MIPS32R2)
+    if (env->insn_flags & ISA_MIPS32R2) {
         mask |= 1 << CP0Ca_DC;
+        mask |= 1 << CP0Ca_PCI;
+    }
 
     env->CP0_Cause = (env->CP0_Cause & ~mask) | (t0 & mask);
 
