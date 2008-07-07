@@ -203,55 +203,57 @@ static void ssd0303_update_display(void *opaque)
     int dest_width;
     uint8_t mask;
 
-    if (s->redraw) {
-        switch (s->ds->depth) {
-        case 0:
-            return;
-        case 15:
-            dest_width = 2;
-            break;
-        case 16:
-            dest_width = 2;
-            break;
-        case 24:
-            dest_width = 3;
-            break;
-        case 32:
-            dest_width = 4;
-            break;
-        default:
-            BADF("Bad color depth\n");
-            return;
+    if (!s->redraw)
+        return;
+
+    switch (s->ds->depth) {
+    case 0:
+        return;
+    case 15:
+        dest_width = 2;
+        break;
+    case 16:
+        dest_width = 2;
+        break;
+    case 24:
+        dest_width = 3;
+        break;
+    case 32:
+        dest_width = 4;
+        break;
+    default:
+        BADF("Bad color depth\n");
+        return;
+    }
+    dest_width *= MAGNIFY;
+    memset(colortab, 0xff, dest_width);
+    memset(colortab + dest_width, 0, dest_width);
+    if (s->flash) {
+        colors[0] = colortab;
+        colors[1] = colortab;
+    } else if (s->inverse) {
+        colors[0] = colortab;
+        colors[1] = colortab + dest_width;
+    } else {
+        colors[0] = colortab + dest_width;
+        colors[1] = colortab;
+    }
+    dest = s->ds->data;
+    for (y = 0; y < 16; y++) {
+        line = (y + s->start_line) & 63;
+        src = s->framebuffer + 132 * (line >> 3) + 36;
+        mask = 1 << (line & 7);
+        for (x = 0; x < 96; x++) {
+            memcpy(dest, colors[(*src & mask) != 0], dest_width);
+            dest += dest_width;
+            src++;
         }
-        dest_width *= MAGNIFY;
-        memset(colortab, 0xff, dest_width);
-        memset(colortab + dest_width, 0, dest_width);
-        if (s->flash) {
-            colors[0] = colortab;
-            colors[1] = colortab;
-        } else if (s->inverse) {
-            colors[0] = colortab;
-            colors[1] = colortab + dest_width;
-        } else {
-            colors[0] = colortab + dest_width;
-            colors[1] = colortab;
-        }
-        dest = s->ds->data;
-        for (y = 0; y < 16; y++) {
-            line = (y + s->start_line) & 63;
-            src = s->framebuffer + 132 * (line >> 3) + 36;
-            mask = 1 << (line & 7);
-            for (x = 0; x < 96; x++) {
-                memcpy(dest, colors[(*src & mask) != 0], dest_width);
-                dest += dest_width;
-                src++;
-            }
-            for (x = 1; x < MAGNIFY; x++) {
-                memcpy(dest, dest - dest_width * 96, dest_width * 96);
-                dest += dest_width * 96;
-            }
+        for (x = 1; x < MAGNIFY; x++) {
+            memcpy(dest, dest - dest_width * 96, dest_width * 96);
+            dest += dest_width * 96;
         }
     }
+    s->redraw = 0;
     dpy_update(s->ds, 0, 0, 96 * MAGNIFY, 16 * MAGNIFY);
 }
 
