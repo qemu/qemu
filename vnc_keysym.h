@@ -289,11 +289,14 @@ static name2keysym_t name2keysym[]={
     /* localized keys */
 {"BackApostrophe", 0xff21},
 {"Muhenkan", 0xff22},
-{"Katakana", 0xff25},
-{"Zenkaku_Hankaku", 0xff29},
+{"Katakana", 0xff27},
+{"Hankaku", 0xff29},
+{"Zenkaku_Hankaku", 0xff2a},
 {"Henkan_Mode_Real", 0xff23},
 {"Henkan_Mode_Ultra", 0xff3e},
 {"backslash_ja", 0xffa5},
+{"Katakana_Real", 0xff25},
+{"Eisu_toggle", 0xff30},
 
 {0,0},
 };
