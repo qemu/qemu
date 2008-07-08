@@ -2,7 +2,7 @@
  * QEMU Block driver for  NBD
  *
  * Copyright (C) 2008 Bull S.A.S.
- *     Author: Laurent Vivier <Laurent.Vivier@bull;net>
+ *     Author: Laurent Vivier <Laurent.Vivier@bull.net>
  *
  * Some parts:
  *    Copyright (C) 2007 Anthony Liguori <anthony@codemonkey.ws>
