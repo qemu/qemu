@@ -1687,6 +1687,16 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             }
             break;
         }
+    case 0x46: // D-cache data
+    case 0x47: // D-cache tag access
+    case 0x4e: // E-cache tag data
+    case 0x66: // I-cache instruction access
+    case 0x67: // I-cache tag access
+    case 0x6e: // I-cache predecode
+    case 0x6f: // I-cache LRU etc.
+    case 0x76: // E-cache tag
+    case 0x7e: // E-cache tag
+        break;
     case 0x59: // D-MMU 8k TSB pointer
     case 0x5a: // D-MMU 64k TSB pointer
     case 0x5b: // D-MMU data pointer
@@ -2039,6 +2049,16 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x5f: // D-MMU demap
     case 0x49: // Interrupt data receive
         // XXX
+        return;
+    case 0x46: // D-cache data
+    case 0x47: // D-cache tag access
+    case 0x4e: // E-cache tag data
+    case 0x66: // I-cache instruction access
+    case 0x67: // I-cache tag access
+    case 0x6e: // I-cache predecode
+    case 0x6f: // I-cache LRU etc.
+    case 0x76: // E-cache tag
+    case 0x7e: // E-cache tag
         return;
     case 0x51: // I-MMU 8k TSB pointer, RO
     case 0x52: // I-MMU 64k TSB pointer, RO
