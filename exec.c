@@ -1432,7 +1432,7 @@ void cpu_interrupt(CPUState *env, int mask)
        signals are used primarily to interrupt blocking syscalls.  */
 #else
     if (use_icount) {
-        env->icount_decr.u16.high = 0x8000;
+        env->icount_decr.u16.high = 0xffff;
 #ifndef CONFIG_USER_ONLY
         /* CPU_INTERRUPT_EXIT isn't a real interrupt.  It just means
            an async event happened and we need to process it.  */
