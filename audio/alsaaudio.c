@@ -58,6 +58,7 @@ static struct {
     int period_size_out_overridden;
     int verbose;
 } conf = {
+    .buffer_size_out = 1024,
     .pcm_name_out = "default",
     .pcm_name_in = "default",
 };
