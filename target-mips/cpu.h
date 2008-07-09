@@ -171,20 +171,14 @@ typedef struct CPUMIPSState CPUMIPSState;
 struct CPUMIPSState {
     TCState active_tc;
 
-    /* temporary hack for FP globals */
-#ifndef USE_HOST_FLOAT_REGS
-    fpr_t ft0;
-    fpr_t ft1;
-    fpr_t ft2;
-#endif
     CPUMIPSMVPContext *mvp;
     CPUMIPSTLBContext *tlb;
     CPUMIPSFPUContext *fpu;
     uint32_t current_tc;
 
     uint32_t SEGBITS;
-    target_ulong SEGMask;
     uint32_t PABITS;
+    target_ulong SEGMask;
     target_ulong PAMask;
 
     int32_t CP0_Index;

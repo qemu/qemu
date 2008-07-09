@@ -159,67 +159,85 @@ DEF_HELPER(target_ulong, do_yield, (target_ulong t0))
 DEF_HELPER(target_ulong, do_cfc1, (uint32_t reg))
 DEF_HELPER(void, do_ctc1, (target_ulong t0, uint32_t reg))
 
-DEF_HELPER(void, do_float_cvtd_s, (void))
-DEF_HELPER(void, do_float_cvtd_w, (void))
-DEF_HELPER(void, do_float_cvtd_l, (void))
-DEF_HELPER(void, do_float_cvtl_d, (void))
-DEF_HELPER(void, do_float_cvtl_s, (void))
-DEF_HELPER(void, do_float_cvtps_pw, (void))
-DEF_HELPER(void, do_float_cvtpw_ps, (void))
-DEF_HELPER(void, do_float_cvts_d, (void))
-DEF_HELPER(void, do_float_cvts_w, (void))
-DEF_HELPER(void, do_float_cvts_l, (void))
-DEF_HELPER(void, do_float_cvts_pl, (void))
-DEF_HELPER(void, do_float_cvts_pu, (void))
-DEF_HELPER(void, do_float_cvtw_s, (void))
-DEF_HELPER(void, do_float_cvtw_d, (void))
+DEF_HELPER(uint64_t, do_float_cvtd_s, (uint32_t fst0))
+DEF_HELPER(uint64_t, do_float_cvtd_w, (uint32_t wt0))
+DEF_HELPER(uint64_t, do_float_cvtd_l, (uint64_t dt0))
+DEF_HELPER(uint64_t, do_float_cvtl_d, (uint64_t fd0))
+DEF_HELPER(uint64_t, do_float_cvtl_s, (uint32_t fst0))
+DEF_HELPER(uint64_t, do_float_cvtps_pw, (uint64_t dt0))
+DEF_HELPER(uint64_t, do_float_cvtpw_ps, (uint64_t fdt0))
+DEF_HELPER(uint32_t, do_float_cvts_d, (uint64_t fd0))
+DEF_HELPER(uint32_t, do_float_cvts_w, (uint32_t wt0))
+DEF_HELPER(uint32_t, do_float_cvts_l, (uint64_t dt0))
+DEF_HELPER(uint32_t, do_float_cvts_pl, (uint32_t wt0))
+DEF_HELPER(uint32_t, do_float_cvts_pu, (uint32_t wth0))
+DEF_HELPER(uint32_t, do_float_cvtw_s, (uint32_t fst0))
+DEF_HELPER(uint32_t, do_float_cvtw_d, (uint64_t fd0))
 
-DEF_HELPER(void, do_float_addr_ps, (void))
-DEF_HELPER(void, do_float_mulr_ps, (void))
+DEF_HELPER(uint64_t, do_float_addr_ps, (uint64_t fdt0, uint64_t fdt1))
+DEF_HELPER(uint64_t, do_float_mulr_ps, (uint64_t fdt0, uint64_t fdt1))
 
-#define FOP_PROTO(op)                            \
-DEF_HELPER(void, do_float_ ## op ## _s, (void))  \
-DEF_HELPER(void, do_float_ ## op ## _d, (void))
+#define FOP_PROTO(op)                                          \
+DEF_HELPER(uint64_t, do_float_ ## op ## l_s, (uint32_t fst0))  \
+DEF_HELPER(uint64_t, do_float_ ## op ## l_d, (uint64_t fdt0))  \
+DEF_HELPER(uint32_t, do_float_ ## op ## w_s, (uint32_t fst0))  \
+DEF_HELPER(uint32_t, do_float_ ## op ## w_d, (uint64_t fdt0))
+FOP_PROTO(round)
+FOP_PROTO(trunc)
+FOP_PROTO(ceil)
+FOP_PROTO(floor)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op)                                          \
+DEF_HELPER(uint32_t, do_float_ ## op ## _s, (uint32_t fst0))   \
+DEF_HELPER(uint64_t, do_float_ ## op ## _d, (uint64_t fdt0))
 FOP_PROTO(sqrt)
-FOP_PROTO(roundl)
-FOP_PROTO(roundw)
-FOP_PROTO(truncl)
-FOP_PROTO(truncw)
-FOP_PROTO(ceill)
-FOP_PROTO(ceilw)
-FOP_PROTO(floorl)
-FOP_PROTO(floorw)
 FOP_PROTO(rsqrt)
 FOP_PROTO(recip)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                            \
-DEF_HELPER(void, do_float_ ## op ## _s, (void))  \
-DEF_HELPER(void, do_float_ ## op ## _d, (void))  \
-DEF_HELPER(void, do_float_ ## op ## _ps, (void))
+#define FOP_PROTO(op)                                          \
+DEF_HELPER(uint32_t, do_float_ ## op ## _s, (uint32_t fst0))   \
+DEF_HELPER(uint64_t, do_float_ ## op ## _d, (uint64_t fdt0))   \
+DEF_HELPER(uint64_t, do_float_ ## op ## _ps, (uint64_t fdt0))
+FOP_PROTO(abs)
+FOP_PROTO(chs)
+FOP_PROTO(recip1)
+FOP_PROTO(rsqrt1)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op)                                                       \
+DEF_HELPER(uint32_t, do_float_ ## op ## _s, (uint32_t fst0, uint32_t fst2)) \
+DEF_HELPER(uint64_t, do_float_ ## op ## _d, (uint64_t fdt0, uint64_t fdt2)) \
+DEF_HELPER(uint64_t, do_float_ ## op ## _ps, (uint64_t fdt0, uint64_t fdt2))
 FOP_PROTO(add)
 FOP_PROTO(sub)
 FOP_PROTO(mul)
 FOP_PROTO(div)
-FOP_PROTO(abs)
-FOP_PROTO(chs)
+FOP_PROTO(recip2)
+FOP_PROTO(rsqrt2)
+#undef FOP_PROTO
+
+#define FOP_PROTO(op)                                                       \
+DEF_HELPER(uint32_t, do_float_ ## op ## _s, (uint32_t fst0, uint32_t fst1,  \
+                                             uint32_t fst2))                \
+DEF_HELPER(uint64_t, do_float_ ## op ## _d, (uint64_t fdt0, uint64_t fdt1,  \
+                                             uint64_t fdt2))                \
+DEF_HELPER(uint64_t, do_float_ ## op ## _ps, (uint64_t fdt0, uint64_t fdt1, \
+                                              uint64_t fdt2))
 FOP_PROTO(muladd)
 FOP_PROTO(mulsub)
 FOP_PROTO(nmuladd)
 FOP_PROTO(nmulsub)
-FOP_PROTO(recip1)
-FOP_PROTO(recip2)
-FOP_PROTO(rsqrt1)
-FOP_PROTO(rsqrt2)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                            \
-DEF_HELPER(void, do_cmp_d_ ## op, (long cc))     \
-DEF_HELPER(void, do_cmpabs_d_ ## op, (long cc))  \
-DEF_HELPER(void, do_cmp_s_ ## op, (long cc))     \
-DEF_HELPER(void, do_cmpabs_s_ ## op, (long cc))  \
-DEF_HELPER(void, do_cmp_ps_ ## op, (long cc))    \
-DEF_HELPER(void, do_cmpabs_ps_ ## op, (long cc))
+#define FOP_PROTO(op)                                                        \
+DEF_HELPER(void, do_cmp_d_ ## op, (uint64_t fdt0, uint64_t fdt1, int cc))    \
+DEF_HELPER(void, do_cmpabs_d_ ## op, (uint64_t fdt0, uint64_t fdt1, int cc)) \
+DEF_HELPER(void, do_cmp_s_ ## op, (uint32_t fst0, uint32_t fst1, int cc))    \
+DEF_HELPER(void, do_cmpabs_s_ ## op, (uint32_t fst0, uint32_t fst1, int cc)) \
+DEF_HELPER(void, do_cmp_ps_ ## op, (uint64_t fdt0, uint64_t fdt1, int cc))   \
+DEF_HELPER(void, do_cmpabs_ps_ ## op, (uint64_t fdt0, uint64_t fdt1, int cc))
 FOP_PROTO(f)
 FOP_PROTO(un)
 FOP_PROTO(eq)
