@@ -385,12 +385,14 @@ static int alsa_open (int in, struct alsa_params_req *req,
             obt = ptime;
         }
         else {
+            int dir = 0;
             snd_pcm_uframes_t psize = req->period_size;
 
-            err = snd_pcm_hw_params_set_buffer_size_near (
+            err = snd_pcm_hw_params_set_period_size_near (
                 handle,
                 hw_params,
-                &psize
+                &psize,
+                &dir
                 );
             obt = psize;
         }
