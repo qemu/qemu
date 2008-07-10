@@ -89,7 +89,19 @@ int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
-uint8_t code_gen_prologue[1024] __attribute__((aligned (32)));
+#if defined(__arm__)
+/* The prologue must be reachable with a direct jump. ARM has a
+ limited branch range (possibly also PPC and SPARC?) so place it in a
+ section close to code segment. */
+#define code_gen_section                                \
+    __attribute__((__section__(".gen_code")))           \
+    __attribute__((aligned (32)))
+#else
+#define code_gen_section                                \
+    __attribute__((aligned (32)))
+#endif
+
+uint8_t code_gen_prologue[1024] code_gen_section;
 uint8_t *code_gen_buffer;
 unsigned long code_gen_buffer_size;
 /* threshold to flush the translated code buffer */
