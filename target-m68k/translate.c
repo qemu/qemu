@@ -36,6 +36,17 @@
 
 //#define DEBUG_DISPATCH 1
 
+/* Fake floating point.  */
+#define TCG_TYPE_F32 TCG_TYPE_I32
+#define TCG_TYPE_F64 TCG_TYPE_I64
+#define tcg_gen_mov_f64 tcg_gen_mov_i64
+#define tcg_gen_qemu_ldf32 tcg_gen_qemu_ld32u
+#define tcg_gen_qemu_ldf64 tcg_gen_qemu_ld64
+#define tcg_gen_qemu_stf32 tcg_gen_qemu_st32
+#define tcg_gen_qemu_stf64 tcg_gen_qemu_st64
+#define gen_helper_pack_32_f32 tcg_gen_mov_i32
+#define gen_helper_pack_f32_32 tcg_gen_mov_i32
+
 #define DEFO32(name, offset) static TCGv QREG_##name;
 #define DEFO64(name, offset) static TCGv QREG_##name;
 #define DEFF64(name, offset) static TCGv QREG_##name;
@@ -91,13 +102,13 @@ void m68k_tcg_init(void)
                                           offsetof(CPUM68KState, aregs[i]), p);
         p += 3;
         sprintf(p, "F%d", i);
-        cpu_fregs[i] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+        cpu_fregs[i] = tcg_global_mem_new(TCG_TYPE_F64, TCG_AREG0,
                                           offsetof(CPUM68KState, fregs[i]), p);
         p += 3;
     }
     for (i = 0; i < 4; i++) {
         sprintf(p, "ACC%d", i);
-        cpu_macc[i] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+        cpu_macc[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
                                          offsetof(CPUM68KState, macc[i]), p);
         p += 5;
     }
@@ -171,17 +182,6 @@ typedef void (*disas_proc)(DisasContext *, uint16_t);
 
 /* FIXME: Remove this.  */
 #define gen_im32(val) tcg_const_i32(val)
-
-/* Fake floating point.  */
-#define TCG_TYPE_F32 TCG_TYPE_I32
-#define TCG_TYPE_F64 TCG_TYPE_I64
-#define tcg_gen_mov_f64 tcg_gen_mov_i64
-#define tcg_gen_qemu_ldf32 tcg_gen_qemu_ld32u
-#define tcg_gen_qemu_ldf64 tcg_gen_qemu_ld64
-#define tcg_gen_qemu_stf32 tcg_gen_qemu_st32
-#define tcg_gen_qemu_stf64 tcg_gen_qemu_st64
-#define gen_helper_pack_32_f32 tcg_gen_mov_i32
-#define gen_helper_pack_f32_32 tcg_gen_mov_i32
 
 #define QMODE_I32 TCG_TYPE_I32
 #define QMODE_I64 TCG_TYPE_I64
