@@ -8620,6 +8620,8 @@ static inline int gen_intermediate_code_internal(CPUState *env,
             /* We always get here via a jump, so know we are not in a
                conditional execution block.  */
             gen_exception(EXCP_EXCEPTION_EXIT);
+            dc->is_jmp = DISAS_UPDATE;
+            break;
         }
 #endif
 
