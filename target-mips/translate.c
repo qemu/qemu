@@ -36,7 +36,7 @@
 
 //#define MIPS_DEBUG_DISAS
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
-#define MIPS_SINGLE_STEP
+//~ #define MIPS_SINGLE_STEP
 
 /* MIPS major opcodes */
 #define MASK_OP_MAJOR(op)  (op & (0x3F << 26))
