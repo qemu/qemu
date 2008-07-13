@@ -44,7 +44,7 @@ uint32_t cpu_mips_get_count (CPUState *env)
            But this will happen only in the main loop, so we check here. */
         int delta = value - env->CP0_Compare;
         if (delta > 0 && !cpu_mips_timer_triggered) {
-            //~ mips_timer_cb(env);
+            mips_timer_cb(env);
         }
     }
     return value;
