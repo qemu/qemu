@@ -1088,7 +1088,7 @@ void qemu_del_timer(QEMUTimer *ts)
     QEMUTimer **pt, *t;
 
     /* NOTE: this code must be signal safe because
-       qemu_timer_expired() can be called from a signal. */
+       qemu_del_timer() can be called from a signal. */
     pt = &active_timers[ts->clock->type];
     for(;;) {
         t = *pt;
@@ -1102,6 +1102,13 @@ void qemu_del_timer(QEMUTimer *ts)
     }
 }
 
+static inline int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
+{
+    if (!timer_head)
+        return 0;
+    return (timer_head->expire_time <= current_time);
+}
+
 /* modify the current timer so that it will be fired when current_time
    >= expire_time. The corresponding callback will be called. */
 void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
@@ -1112,13 +1119,11 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
 
     /* add the timer in the sorted list */
     /* NOTE: this code must be signal safe because
-       qemu_timer_expired() can be called from a signal. */
+       qemu_mod_timer() can be called from a signal. */
     pt = &active_timers[ts->clock->type];
     for(;;) {
         t = *pt;
-        if (!t)
-            break;
-        if (t->expire_time > expire_time)
+        if (!qemu_timer_expired(t, expire_time))
             break;
         pt = &t->next;
     }
@@ -1148,20 +1153,13 @@ int qemu_timer_pending(QEMUTimer *ts)
     return 0;
 }
 
-static inline int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
-{
-    if (!timer_head)
-        return 0;
-    return (timer_head->expire_time <= current_time);
-}
-
 static void qemu_run_timers(QEMUTimer **ptimer_head, int64_t current_time)
 {
     QEMUTimer *ts;
 
     for(;;) {
         ts = *ptimer_head;
-        if (!ts || ts->expire_time > current_time)
+        if (!qemu_timer_expired(ts, current_time))
             break;
         /* remove timer from the list before calling the callback */
         *ptimer_head = ts->next;
