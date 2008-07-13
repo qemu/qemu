@@ -8625,6 +8625,16 @@ int main(int argc, char **argv)
         help(1);
 #endif
 
+    if (!linux_boot && *kernel_cmdline != '\0') {
+        fprintf(stderr, "-append only allowed with -kernel option\n");
+        exit(1);
+    }
+
+    if (!linux_boot && initrd_filename != NULL) {
+        fprintf(stderr, "-initrd only allowed with -kernel option\n");
+        exit(1);
+    }
+
     /* boot to floppy or the default cd if no hard disk defined yet */
     if (!boot_devices[0]) {
         boot_devices = "cad";

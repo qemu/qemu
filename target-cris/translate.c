@@ -3192,7 +3192,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
 	cris_evaluate_flags (dc);
 
-	if (__builtin_expect(env->singlestep_enabled, 0)) {
+	if (unlikely(env->singlestep_enabled)) {
 		tcg_gen_movi_tl(env_pc, npc);
 		t_gen_raise_exception(EXCP_DEBUG);
 	} else {

@@ -20,10 +20,24 @@ Export Qemu disk image using NBD protocol.
   offset into the image
 @item -b, --bind=IFACE
   interface to bind to (default `0.0.0.0')
+@item -k, --socket=PATH
+  Use a unix socket with path PATH
 @item -r, --read-only
   export read-only
 @item -P, --partition=NUM
   only expose partition NUM
+@item -s, --snapshot
+  use snapshot file
+@item -n, --nocache
+  disable host cache
+@item -c, --connect
+  connect FILE to NBD device DEV
+@item -d, --disconnect
+  disconnect the specified device
+@item -e, --shared=NUM
+  device can be shared by NUM clients (default '1')
+@item -t, --persistent
+  don't exit on the last connection
 @item -v, --verbose
   display extra debugging information
 @item -h, --help

@@ -3,15 +3,14 @@
 
 void register_machines(void)
 {
+    qemu_register_machine(&mips_malta_machine);
+    qemu_register_machine(&mips_magnum_machine);
+    qemu_register_machine(&mips_pica61_machine);
+    qemu_register_machine(&mips_mipssim_machine);
+    qemu_register_mips_machines();
 #if !defined(TARGET_MIPS64)
     qemu_register_ar7_machines();
 #endif
-    qemu_register_mips_machines();
-    //~ qemu_register_machine(&mips_machine);
-    qemu_register_machine(&mips_magnum_machine);
-    qemu_register_machine(&mips_malta_machine);
-    qemu_register_machine(&mips_pica61_machine);
-    qemu_register_machine(&mips_mipssim_machine);
 }
 
 void cpu_save(QEMUFile *f, void *opaque)
