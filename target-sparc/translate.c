@@ -4178,12 +4178,11 @@ static void disas_sparc_insn(DisasContext * dc)
             unsigned int xop = GET_FIELD(insn, 7, 12);
 
             cpu_src1 = get_src1(insn, cpu_src1);
-            if (xop == 0x3c || xop == 0x3e)
-            {
+            if (xop == 0x3c || xop == 0x3e) { // V9 casa/casxa
                 rs2 = GET_FIELD(insn, 27, 31);
                 gen_movl_reg_TN(rs2, cpu_src2);
-            }
-            else if (IS_IMM) {       /* immediate */
+                tcg_gen_mov_tl(cpu_addr, cpu_src1);
+            } else if (IS_IMM) {     /* immediate */
                 rs2 = GET_FIELDs(insn, 19, 31);
                 tcg_gen_addi_tl(cpu_addr, cpu_src1, (int)rs2);
             } else {            /* register */
@@ -4615,11 +4614,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_stf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     break;
                 case 0x3c: /* V9 casa */
-                    gen_cas_asi(cpu_val, cpu_addr, cpu_val, insn, rd);
+                    gen_cas_asi(cpu_val, cpu_addr, cpu_src2, insn, rd);
                     gen_movl_TN_reg(rd, cpu_val);
                     break;
                 case 0x3e: /* V9 casxa */
-                    gen_casx_asi(cpu_val, cpu_addr, cpu_val, insn, rd);
+                    gen_casx_asi(cpu_val, cpu_addr, cpu_src2, insn, rd);
                     gen_movl_TN_reg(rd, cpu_val);
                     break;
 #else
