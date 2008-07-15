@@ -98,7 +98,8 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                                    const char *cmdline,
                                    uint32_t initrd_image, uint32_t initrd_size,
                                    uint32_t NVRAM_image,
-                                   int width, int height, int depth)
+                                   int width, int height, int depth,
+                                   const uint8_t *macaddr)
 {
     unsigned int i;
     uint32_t start, end;
@@ -171,6 +172,8 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
 
     end = 0x1fd0;
     OpenBIOS_finish_partition(part_header, end - start);
+
+    Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr, 0x80);
 
     for (i = 0; i < sizeof(image); i++)
         m48t59_write(nvram, i, image[i]);
@@ -396,12 +399,13 @@ static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
     floppy_controller = fdctrl_init(NULL/*6*/, 2, 0, 0x3f0, fd);
     nvram = m48t59_init(NULL/*8*/, 0, 0x0074, NVRAM_SIZE, 59);
     sun4u_NVRAM_set_params(nvram, NVRAM_SIZE, "Sun4u", RAM_size, boot_devices,
-                         KERNEL_LOAD_ADDR, kernel_size,
-                         kernel_cmdline,
-                         INITRD_LOAD_ADDR, initrd_size,
-                         /* XXX: need an option to load a NVRAM image */
-                         0,
-                         graphic_width, graphic_height, graphic_depth);
+                           KERNEL_LOAD_ADDR, kernel_size,
+                           kernel_cmdline,
+                           INITRD_LOAD_ADDR, initrd_size,
+                           /* XXX: need an option to load a NVRAM image */
+                           0,
+                           graphic_width, graphic_height, graphic_depth,
+                           (uint8_t *)&nd_table[0].macaddr);
 
 }
 
