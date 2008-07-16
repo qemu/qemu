@@ -1123,16 +1123,16 @@ static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
 
     vmsvga_reset(s);
 
-    s->console = graphic_console_init(ds, vmsvga_update_display,
-                                      vmsvga_invalidate_display,
-                                      vmsvga_screen_dump,
-                                      vmsvga_text_update, s);
-
 #ifdef EMBED_STDVGA
     vga_common_init((VGAState *) s, ds,
                     vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init((VGAState *) s);
 #endif
+
+    s->console = graphic_console_init(ds, vmsvga_update_display,
+                                      vmsvga_invalidate_display,
+                                      vmsvga_screen_dump,
+                                      vmsvga_text_update, s);
 }
 
 static void pci_vmsvga_save(QEMUFile *f, void *opaque)
