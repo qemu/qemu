@@ -483,6 +483,8 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
 }
 #endif
 
+#define CMD(f)	le32_to_cpu(s->cmd->f)
+
 static inline int vmsvga_fifo_empty(struct vmsvga_state_s *s)
 {
     if (!s->config || !s->enable)
@@ -490,13 +492,18 @@ static inline int vmsvga_fifo_empty(struct vmsvga_state_s *s)
     return (s->cmd->next_cmd == s->cmd->stop);
 }
 
-static inline uint32_t vmsvga_fifo_read(struct vmsvga_state_s *s)
+static inline uint32_t vmsvga_fifo_read_raw(struct vmsvga_state_s *s)
 {
-    uint32_t cmd = s->fifo[s->cmd->stop >> 2];
-    s->cmd->stop += 4;
-    if (s->cmd->stop >= s->cmd->max)
+    uint32_t cmd = s->fifo[CMD(stop) >> 2];
+    s->cmd->stop = cpu_to_le32(CMD(stop) + 4);
+    if (CMD(stop) >= CMD(max))
         s->cmd->stop = s->cmd->min;
     return cmd;
+}
+
+static inline uint32_t vmsvga_fifo_read(struct vmsvga_state_s *s)
+{
+    return le32_to_cpu(vmsvga_fifo_read_raw(s));
 }
 
 static void vmsvga_fifo_run(struct vmsvga_state_s *s)
@@ -552,9 +559,9 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             vmsvga_fifo_read(s);
             cursor.bpp = vmsvga_fifo_read(s);
             for (args = 0; args < SVGA_BITMAP_SIZE(x, y); args ++)
-                cursor.mask[args] = vmsvga_fifo_read(s);
+                cursor.mask[args] = vmsvga_fifo_read_raw(s);
             for (args = 0; args < SVGA_PIXMAP_SIZE(x, y, cursor.bpp); args ++)
-                cursor.image[args] = vmsvga_fifo_read(s);
+                cursor.image[args] = vmsvga_fifo_read_raw(s);
 #ifdef HW_MOUSE_ACCEL
             vmsvga_cursor_define(s, &cursor);
             break;
@@ -788,14 +795,14 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         if (value) {
             s->fifo = (uint32_t *) &s->vram[s->vram_size - SVGA_FIFO_SIZE];
             /* Check range and alignment.  */
-            if ((s->cmd->min | s->cmd->max |
-                        s->cmd->next_cmd | s->cmd->stop) & 3)
+            if ((CMD(min) | CMD(max) |
+                        CMD(next_cmd) | CMD(stop)) & 3)
                 break;
-            if (s->cmd->min < (uint8_t *) s->cmd->fifo - (uint8_t *) s->fifo)
+            if (CMD(min) < (uint8_t *) s->cmd->fifo - (uint8_t *) s->fifo)
                 break;
-            if (s->cmd->max > SVGA_FIFO_SIZE)
+            if (CMD(max) > SVGA_FIFO_SIZE)
                 break;
-            if (s->cmd->max < s->cmd->min + 10 * 1024)
+            if (CMD(max) < CMD(min) + 10 * 1024)
                 break;
         }
         s->config = !!value;
@@ -1189,7 +1196,7 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
 {
     struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
     struct vmsvga_state_s *s = &d->chip;
-    int iomemtype;
+    ram_addr_t iomemtype;
 
     s->vram_base = addr;
 #ifdef DIRECT_VRAM
