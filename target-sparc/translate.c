@@ -2346,6 +2346,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 break;
             } else if (xop == 0x2b) { /* rdtbr / V9 flushw */
 #ifdef TARGET_SPARC64
+                save_state(dc, cpu_cond);
                 tcg_gen_helper_0_0(helper_flushw);
 #else
                 if (!supervisor(dc))
