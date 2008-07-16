@@ -1649,19 +1649,43 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         }
     case 0x51: // I-MMU 8k TSB pointer
     case 0x52: // I-MMU 64k TSB pointer
-    case 0x55: // I-MMU data access
         // XXX
         break;
+    case 0x55: // I-MMU data access
+        {
+            int reg = (addr >> 3) & 0x3f;
+
+            ret = env->itlb_tte[reg];
+            break;
+        }
     case 0x56: // I-MMU tag read
         {
             unsigned int i;
 
             for (i = 0; i < 64; i++) {
                 // Valid, ctx match, vaddr match
-                if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0 &&
-                    env->itlb_tag[i] == addr) {
-                    ret = env->itlb_tag[i];
-                    break;
+                if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
+                    uint64_t mask;
+
+                    switch ((env->itlb_tte[i] >> 61) & 3) {
+                    default:
+                    case 0x0:
+                        mask = 0xffffffffffffffff;
+                        break;
+                    case 0x1:
+                        mask = 0xffffffffffff0fff;
+                        break;
+                    case 0x2:
+                        mask = 0xfffffffffff80fff;
+                        break;
+                    case 0x3:
+                        mask = 0xffffffffffc00fff;
+                        break;
+                    }
+                    if ((env->itlb_tag[i] & mask) == (addr & mask)) {
+                        ret = env->itlb_tte[i];
+                        break;
+                    }
                 }
             }
             break;
@@ -1673,22 +1697,50 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             ret = env->dmmuregs[reg];
             break;
         }
+    case 0x5d: // D-MMU data access
+        {
+            int reg = (addr >> 3) & 0x3f;
+
+            ret = env->dtlb_tte[reg];
+            break;
+        }
     case 0x5e: // D-MMU tag read
         {
             unsigned int i;
 
             for (i = 0; i < 64; i++) {
                 // Valid, ctx match, vaddr match
-                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0 &&
-                    env->dtlb_tag[i] == addr) {
-                    ret = env->dtlb_tag[i];
-                    break;
+                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
+                    uint64_t mask;
+
+                    switch ((env->dtlb_tte[i] >> 61) & 3) {
+                    default:
+                    case 0x0:
+                        mask = 0xffffffffffffffff;
+                        break;
+                    case 0x1:
+                        mask = 0xffffffffffff0fff;
+                        break;
+                    case 0x2:
+                        mask = 0xfffffffffff80fff;
+                        break;
+                    case 0x3:
+                        mask = 0xffffffffffc00fff;
+                        break;
+                    }
+                    if ((env->dtlb_tag[i] & mask) == (addr & mask)) {
+                        ret = env->dtlb_tte[i];
+                        break;
+                    }
                 }
             }
             break;
         }
     case 0x46: // D-cache data
     case 0x47: // D-cache tag access
+    case 0x4b: // E-cache error enable
+    case 0x4c: // E-cache asynchronous fault status
+    case 0x4d: // E-cache asynchronous fault address
     case 0x4e: // E-cache tag data
     case 0x66: // I-cache instruction access
     case 0x67: // I-cache tag access
@@ -1700,7 +1752,6 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x59: // D-MMU 8k TSB pointer
     case 0x5a: // D-MMU 64k TSB pointer
     case 0x5b: // D-MMU data pointer
-    case 0x5d: // D-MMU data access
     case 0x48: // Interrupt dispatch, RO
     case 0x49: // Interrupt data receive
     case 0x7f: // Incoming interrupt vector, RO
@@ -2052,6 +2103,9 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         return;
     case 0x46: // D-cache data
     case 0x47: // D-cache tag access
+    case 0x4b: // E-cache error enable
+    case 0x4c: // E-cache asynchronous fault status
+    case 0x4d: // E-cache asynchronous fault address
     case 0x4e: // E-cache tag data
     case 0x66: // I-cache instruction access
     case 0x67: // I-cache tag access
