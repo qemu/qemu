@@ -1133,6 +1133,12 @@ static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
                                       vmsvga_invalidate_display,
                                       vmsvga_screen_dump,
                                       vmsvga_text_update, s);
+
+#ifdef CONFIG_BOCHS_VBE
+    /* XXX: use optimized standard vga accesses */
+    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+                                 vga_ram_size, vga_ram_offset);
+#endif
 }
 
 static void pci_vmsvga_save(QEMUFile *f, void *opaque)
