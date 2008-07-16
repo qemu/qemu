@@ -655,7 +655,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 
 #ifdef TARGET_SPARC64
 #ifdef DEBUG_PCALL
-static const char * const excp_names[0x50] = {
+static const char * const excp_names[0x80] = {
     [TT_TFAULT] = "Instruction Access Fault",
     [TT_TMISS] = "Instruction Access MMU Miss",
     [TT_CODE_ACCESS] = "Instruction Access Error",
@@ -699,7 +699,7 @@ void do_interrupt(CPUState *env)
         static int count;
         const char *name;
 
-        if (intno < 0 || intno >= 0x180 || (intno > 0x4f && intno < 0x80))
+        if (intno < 0 || intno >= 0x180)
             name = "Unknown";
         else if (intno >= 0x100)
             name = "Trap Instruction";
