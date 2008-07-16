@@ -1225,14 +1225,6 @@ void pci_vmsvga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     s->card.config[0x0c]		= 0x08;		/* Cache line size */
     s->card.config[0x0d]		= 0x40;		/* Latency timer */
     s->card.config[0x0e]		= PCI_CLASS_HEADERTYPE_00h;
-    s->card.config[0x10]		= ((SVGA_IO_BASE >>  0) & 0xff) | 1;
-    s->card.config[0x11]		=  (SVGA_IO_BASE >>  8) & 0xff;
-    s->card.config[0x12]		=  (SVGA_IO_BASE >> 16) & 0xff;
-    s->card.config[0x13]		=  (SVGA_IO_BASE >> 24) & 0xff;
-    s->card.config[0x18]		= (SVGA_MEM_BASE >>  0) & 0xff;
-    s->card.config[0x19]		= (SVGA_MEM_BASE >>  8) & 0xff;
-    s->card.config[0x1a]		= (SVGA_MEM_BASE >> 16) & 0xff;
-    s->card.config[0x1b]		= (SVGA_MEM_BASE >> 24) & 0xff;
     s->card.config[0x2c]		= PCI_VENDOR_ID_VMWARE & 0xff;
     s->card.config[0x2d]		= PCI_VENDOR_ID_VMWARE >> 8;
     s->card.config[0x2e]		= SVGA_PCI_DEVICE_ID & 0xff;
