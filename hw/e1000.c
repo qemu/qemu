@@ -105,6 +105,7 @@ typedef struct E1000State_st {
         char tse;
         char ip;
         char tcp;
+        char cptse;     // current packet tse bit
     } tx;
 
     struct {
@@ -308,7 +309,7 @@ xmit_seg(E1000State *s)
     unsigned int frames = s->tx.tso_frames, css, sofar, n;
     struct e1000_tx *tp = &s->tx;
 
-    if (tp->tse) {
+    if (tp->tse && tp->cptse) {
         css = tp->ipcss;
         DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
                frames, tp->size, css);
@@ -382,37 +383,49 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
             tp->tucso = tp->tucss + (tp->tcp ? 16 : 6);
         }
         return;
-    } else if (dtype == (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D))
+    } else if (dtype == (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D)) {
+        // data descriptor
         tp->sum_needed = le32_to_cpu(dp->upper.data) >> 8;
+        tp->cptse = ( txd_lower & E1000_TXD_CMD_TSE ) ? 1 : 0;
+    } else
+        // legacy descriptor
+        tp->cptse = 0;
 
     addr = le64_to_cpu(dp->buffer_addr);
-    if (tp->tse) {
+    if (tp->tse && tp->cptse) {
         hdr = tp->hdr_len;
         msh = hdr + tp->mss;
+        do {
+            bytes = split_size;
+            if (tp->size + bytes > msh)
+                bytes = msh - tp->size;
+            cpu_physical_memory_read(addr, tp->data + tp->size, bytes);
+            if ((sz = tp->size + bytes) >= hdr && tp->size < hdr)
+                memmove(tp->header, tp->data, hdr);
+            tp->size = sz;
+            addr += bytes;
+            if (sz == msh) {
+                xmit_seg(s);
+                memmove(tp->data, tp->header, hdr);
+                tp->size = hdr;
+            }
+        } while (split_size -= bytes);
+    } else if (!tp->tse && tp->cptse) {
+        // context descriptor TSE is not set, while data descriptor TSE is set
+        DBGOUT(TXERR, "TCP segmentaion Error\n");
+    } else {
+        cpu_physical_memory_read(addr, tp->data + tp->size, split_size);
+        tp->size += split_size;
     }
-    do {
-        bytes = split_size;
-        if (tp->size + bytes > msh)
-            bytes = msh - tp->size;
-        cpu_physical_memory_read(addr, tp->data + tp->size, bytes);
-        if ((sz = tp->size + bytes) >= hdr && tp->size < hdr)
-            memmove(tp->header, tp->data, hdr);
-        tp->size = sz;
-        addr += bytes;
-        if (sz == msh) {
-            xmit_seg(s);
-            memmove(tp->data, tp->header, hdr);
-            tp->size = hdr;
-        }
-    } while (split_size -= bytes);
 
     if (!(txd_lower & E1000_TXD_CMD_EOP))
         return;
-    if (tp->size > hdr)
+    if (!(tp->tse && tp->cptse && tp->size < hdr))
         xmit_seg(s);
     tp->tso_frames = 0;
     tp->sum_needed = 0;
     tp->size = 0;
+    tp->cptse = 0;
 }
 
 static uint32_t
