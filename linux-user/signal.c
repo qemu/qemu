@@ -2755,7 +2755,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* Create the ucontext.  */
     err |= __put_user(0, &frame->uc.uc_flags);
     err |= __put_user(0, (unsigned long *)&frame->uc.uc_link);
-    err |= __put_user((void *)target_sigaltstack_used.ss_sp,
+    err |= __put_user((unsigned long)target_sigaltstack_used.ss_sp,
 		      &frame->uc.uc_stack.ss_sp);
     err |= __put_user(sas_ss_flags(regs->gregs[15]),
 		      &frame->uc.uc_stack.ss_flags);
@@ -2982,11 +2982,11 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 	setup_sigcontext(&frame->sc, env);
 
 	/* Move the stack and setup the arguments for the handler.  */
-	env->regs[R_SP] = (uint32_t) frame;
+	env->regs[R_SP] = (uint32_t) (unsigned long) frame;
 	env->regs[10] = sig;
 	env->pc = (unsigned long) ka->_sa_handler;
 	/* Link SRP so the guest returns through the trampoline.  */
-	env->pregs[PR_SRP] = (uint32_t) &frame->retcode[0];
+	env->pregs[PR_SRP] = (uint32_t) (unsigned long) &frame->retcode[0];
 
 	unlock_user_struct(frame, frame_addr, 1);
 	return;

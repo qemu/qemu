@@ -101,19 +101,19 @@ void do_m68k_simcall(CPUM68KState *env, int nr)
 {
     uint32_t *args;
 
-    args = (uint32_t *)(env->aregs[7] + 4);
+    args = (uint32_t *)(unsigned long)(env->aregs[7] + 4);
     switch (nr) {
     case SYS_EXIT:
         exit(ARG(0));
     case SYS_READ:
-        check_err(env, read(ARG(0), (void *)ARG(1), ARG(2)));
+        check_err(env, read(ARG(0), (void *)(unsigned long)ARG(1), ARG(2)));
         break;
     case SYS_WRITE:
-        check_err(env, write(ARG(0), (void *)ARG(1), ARG(2)));
+        check_err(env, write(ARG(0), (void *)(unsigned long)ARG(1), ARG(2)));
         break;
     case SYS_OPEN:
-        check_err(env, open((char *)ARG(0), translate_openflags(ARG(1)),
-                            ARG(2)));
+        check_err(env, open((char *)(unsigned long)ARG(0),
+                            translate_openflags(ARG(1)), ARG(2)));
         break;
     case SYS_CLOSE:
         {
@@ -142,7 +142,7 @@ void do_m68k_simcall(CPUM68KState *env, int nr)
             struct m86k_sim_stat *p;
             rc = check_err(env, fstat(ARG(0), &s));
             if (rc == 0) {
-                p = (struct m86k_sim_stat *)ARG(1);
+                p = (struct m86k_sim_stat *)(unsigned long)ARG(1);
                 p->sim_st_dev = tswap16(s.st_dev);
                 p->sim_st_ino = tswap16(s.st_ino);
                 p->sim_st_mode = tswap32(s.st_mode);

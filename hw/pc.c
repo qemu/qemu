@@ -550,9 +550,9 @@ static void load_linux(const char *kernel_filename,
 
 #if 0
     fprintf(stderr,
-	    "qemu: real_addr     = %#zx\n"
-	    "qemu: cmdline_addr  = %#zx\n"
-	    "qemu: prot_addr     = %#zx\n",
+	    "qemu: real_addr     = 0x" TARGET_FMT_plx "\n"
+	    "qemu: cmdline_addr  = 0x" TARGET_FMT_plx "\n"
+	    "qemu: prot_addr     = 0x" TARGET_FMT_plx "\n",
 	    real_addr,
 	    cmdline_addr,
 	    prot_addr);
@@ -607,8 +607,8 @@ static void load_linux(const char *kernel_filename,
 	initrd_size = get_file_size(fi);
 	initrd_addr = (initrd_max-initrd_size) & ~4095;
 
-	fprintf(stderr, "qemu: loading initrd (%#x bytes) at %#zx\n",
-		initrd_size, initrd_addr);
+        fprintf(stderr, "qemu: loading initrd (%#x bytes) at 0x" TARGET_FMT_plx
+                "\n", initrd_size, initrd_addr);
 
 	if (!fread_targphys_ok(initrd_addr, initrd_size, fi)) {
 	    fprintf(stderr, "qemu: read error on initial ram disk '%s'\n",
@@ -778,7 +778,8 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
 
     /* above 4giga memory allocation */
     if (above_4g_mem_size > 0) {
-        cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
+        cpu_register_physical_memory((target_phys_addr_t) 0x100000000ULL,
+                                     above_4g_mem_size,
                                      ram_addr + below_4g_mem_size);
     }
 
