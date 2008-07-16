@@ -1137,7 +1137,7 @@ inline static int debug_register_io_memory(int io_index,
 # endif
 
 /* Define when we want to reduce the number of IO regions registered.  */
-# define L4_MUX_HACK
+/*# define L4_MUX_HACK*/
 
 # ifdef L4_MUX_HACK
 #  undef l4_register_io_memory
