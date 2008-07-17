@@ -28,6 +28,7 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       IOReadHandler *fd_read,
                                       IOCanRWHandler *fd_can_read,
                                       void *opaque);
+void qemu_del_vlan_client(VLANClientState *vc);
 int qemu_can_send_packet(VLANClientState *vc);
 void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
 void qemu_handler_true(void *opaque);

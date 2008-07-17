@@ -3870,6 +3870,19 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
     return vc;
 }
 
+void qemu_del_vlan_client(VLANClientState *vc)
+{
+    VLANClientState **pvc = &vc->vlan->first_client;
+
+    while (*pvc != NULL)
+        if (*pvc == vc) {
+            *pvc = vc->next;
+            free(vc);
+            break;
+        } else
+            pvc = &(*pvc)->next;
+}
+
 int qemu_can_send_packet(VLANClientState *vc1)
 {
     VLANState *vlan = vc1->vlan;
