@@ -2022,8 +2022,7 @@ static void nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
 
     qemu_register_reset(nic_reset, s);
 
-    /* XXX: instance number ? */
-    register_savevm(nd->model, 0, 3, nic_save, nic_load, s);
+    register_savevm(nd->model, -1, 3, nic_save, nic_load, s);
 }
 
 typedef struct {
