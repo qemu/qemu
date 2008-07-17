@@ -742,6 +742,14 @@ void do_interrupt(CPUState *env)
         return;
     }
 #endif
+    if (env->tl < MAXTL - 1) {
+        env->tl++;
+    } else {
+        env->pstate |= PS_RED;
+        if (env->tl != MAXTL)
+            env->tl++;
+    }
+    env->tsptr = &env->ts[env->tl];
     env->tsptr->tstate = ((uint64_t)GET_CCR(env) << 32) |
         ((env->asi & 0xff) << 24) | ((env->pstate & 0xf3f) << 8) |
         GET_CWP64(env);
@@ -758,14 +766,6 @@ void do_interrupt(CPUState *env)
         cpu_set_cwp(env, cpu_cwp_inc(env, env->cwp + 1));
     env->tbr &= ~0x7fffULL;
     env->tbr |= ((env->tl > 1) ? 1 << 14 : 0) | (intno << 5);
-    if (env->tl < MAXTL - 1) {
-        env->tl++;
-    } else {
-        env->pstate |= PS_RED;
-        if (env->tl != MAXTL)
-            env->tl++;
-    }
-    env->tsptr = &env->ts[env->tl];
     env->pc = env->tbr;
     env->npc = env->pc + 4;
     env->exception_index = 0;
