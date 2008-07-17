@@ -5475,6 +5475,12 @@ static int usb_device_add(const char *devname)
     } else if (!strcmp(devname, "braille")) {
         dev = usb_baum_init();
 #endif
+    } else if (strstart(devname, "net:", &p)) {
+        int nicidx = strtoul(p, NULL, 0);
+
+        if (nicidx >= nb_nics || strcmp(nd_table[nicidx].model, "usb"))
+            return -1;
+        dev = usb_net_init(&nd_table[nicidx]);
     } else {
         return -1;
     }

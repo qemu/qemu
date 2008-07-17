@@ -567,6 +567,9 @@ available devices.
 Braille device.  This will use BrlAPI to display the braille output on a real
 or fake device.
 
+@item net:nic_num
+Network adapter that supports CDC ethernet and RNDIS protocols.
+
 @end table
 
 @end table
@@ -584,7 +587,7 @@ Qemu can emulate several different models of network card.
 Valid values for @var{type} are
 @code{i82551}, @code{i82557b}, @code{i82559er},
 @code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
-@code{e1000}, @code{smc91c111}, @code{lance} and @code{mcf_fec}.
+@code{e1000}, @code{smc91c111}, @code{lance}, @code{mcf_fec} and @code{usb}.
 Not all devices are supported on all targets.  Use -net nic,model=?
 for a list of available devices for your target.
 
@@ -1707,6 +1710,16 @@ serial converter, faking a Matrix Orbital LCD Display (USB ID 0403:FA00).
 @item braille
 Braille device.  This will use BrlAPI to display the braille output on a real
 or fake device.
+@item net:@var{nic_num}
+Network adapter that supports CDC ethernet and RNDIS protocols.  This must be
+used together with the @code{-net nic,model=usb,...} option (see description),
+where @var{nic_num} specifies the index of the @code{-net nic,...} option
+describing the interface (zero-based).
+For instance, user-mode networking can be used by specifying
+@example
+qemu -net user,vlan=1 -net nic,model=usb,vlan=1 -usbdevice net:0 [...OPTIONS...]
+@end example
+Currently this cannot be used in machines that support PCI NICs.
 @end table
 
 @node host_usb_devices
