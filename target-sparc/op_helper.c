@@ -32,11 +32,21 @@ do { printf("ASI: " fmt , ##args); } while (0)
 #define DPRINTF_ASI(fmt, args...) do {} while (0)
 #endif
 
-#ifdef TARGET_ABI32
-#define ABI32_MASK(addr) do { (addr) &= 0xffffffffULL; } while (0)
+#ifdef TARGET_SPARC64
+#ifndef TARGET_ABI32
+#define AM_CHECK(env1) ((env1)->pstate & PS_AM)
 #else
-#define ABI32_MASK(addr) do {} while (0)
+#define AM_CHECK(env1) (1)
 #endif
+#endif
+
+static inline void address_mask(CPUState *env1, target_ulong *addr)
+{
+#ifdef TARGET_SPARC64
+    if (AM_CHECK(env1))
+        *addr &= 0xffffffffULL;
+#endif
+}
 
 void raise_exception(int tt)
 {
@@ -1381,7 +1391,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
 
     switch (asi) {
     case 0x80: // Primary
@@ -1470,7 +1480,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
 
     /* Convert to little endian */
     switch (asi) {
@@ -2330,7 +2340,7 @@ void helper_stdf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
     stfq_raw(addr, DT0);
 #endif
 }
@@ -2355,7 +2365,7 @@ void helper_lddf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
     DT0 = ldfq_raw(addr);
 #endif
 }
@@ -2389,7 +2399,7 @@ void helper_ldqf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
     u.ll.upper = ldq_raw(addr);
     u.ll.lower = ldq_raw((addr + 8) & 0xffffffffULL);
     QT0 = u.q;
@@ -2426,7 +2436,7 @@ void helper_stqf(target_ulong addr, int mem_idx)
     }
 #else
     u.q = QT0;
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
     stq_raw(addr, u.ll.upper);
     stq_raw((addr + 8) & 0xffffffffULL, u.ll.lower);
 #endif
