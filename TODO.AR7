@@ -1,5 +1,9 @@
 TODO list for AR7 / QEMU
 
+2008-07-14
+
+* Linux 2.6.26 working.
+
 2008-04-01
 
 * Switched to new QEMU code using TCG. Some changes in ar7.c were needed,
