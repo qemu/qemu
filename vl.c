@@ -2141,7 +2141,9 @@ static inline int send_all(int fd, const uint8_t *buf, int len1)
 
 void socket_set_nonblock(int fd)
 {
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    int f;
+    f = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, f | O_NONBLOCK);
 }
 #endif /* !_WIN32 */
 
