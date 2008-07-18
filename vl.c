@@ -6081,7 +6081,9 @@ typedef struct SaveStateEntry {
 static SaveStateEntry *first_se;
 
 /* TODO: Individual devices generally have very little idea about the rest
-   of the system, so instance_id should be removed/replaced.  */
+   of the system, so instance_id should be removed/replaced.
+   Meanwhile pass -1 as instance_id if you do not already have a clearly
+   distinguishing id for all instances of your device class. */
 int register_savevm(const char *idstr,
                     int instance_id,
                     int version_id,
