@@ -2573,7 +2573,6 @@ static CharDriverState *qemu_chr_open_tty(const char *filename)
     int fd;
 
     TFR(fd = open(filename, O_RDWR | O_NONBLOCK));
-    fcntl(fd, F_SETFL, O_NONBLOCK);
     tty_serial_init(fd, 115200, 'N', 8, 1);
     chr = qemu_chr_open_fd(fd, fd);
     if (!chr) {
