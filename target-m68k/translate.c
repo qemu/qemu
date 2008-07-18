@@ -2911,7 +2911,7 @@ static void disas_m68k_insn(CPUState * env, DisasContext *s)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static inline int
+static inline void
 gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
                                int search_pc)
 {
@@ -3039,17 +3039,16 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
     //optimize_flags();
     //expand_target_qops();
-    return 0;
 }
 
-int gen_intermediate_code(CPUState *env, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *env, TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(env, tb, 0);
 }
 
-int gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
+void gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(env, tb, 1);
 }
 
 void cpu_dump_state(CPUState *env, FILE *f,

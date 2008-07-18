@@ -94,9 +94,8 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 #endif
     tcg_func_start(s);
 
-    if (gen_intermediate_code(env, tb) < 0)
-        return -1;
-    
+    gen_intermediate_code(env, tb);
+
     /* generate machine code */
     gen_code_buf = tb->tc_ptr;
     tb->tb_next_offset[0] = 0xffff;
@@ -156,8 +155,7 @@ int cpu_restore_state(TranslationBlock *tb,
 #endif
     tcg_func_start(s);
 
-    if (gen_intermediate_code_pc(env, tb) < 0)
-        return -1;
+    gen_intermediate_code_pc(env, tb);
 
     if (use_icount) {
         /* Reset the cycle counter to the start of the block.  */

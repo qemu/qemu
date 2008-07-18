@@ -4724,8 +4724,8 @@ static void disas_sparc_insn(DisasContext * dc)
 #endif
 }
 
-static inline int gen_intermediate_code_internal(TranslationBlock * tb,
-                                                 int spc, CPUSPARCState *env)
+static inline void gen_intermediate_code_internal(TranslationBlock * tb,
+                                                  int spc, CPUSPARCState *env)
 {
     target_ulong pc_start, last_pc;
     uint16_t *gen_opc_end;
@@ -4869,17 +4869,16 @@ static inline int gen_intermediate_code_internal(TranslationBlock * tb,
         fprintf(logfile, "\n");
     }
 #endif
-    return 0;
 }
 
-int gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
+void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 {
-    return gen_intermediate_code_internal(tb, 0, env);
+    gen_intermediate_code_internal(tb, 0, env);
 }
 
-int gen_intermediate_code_pc(CPUSPARCState * env, TranslationBlock * tb)
+void gen_intermediate_code_pc(CPUSPARCState * env, TranslationBlock * tb)
 {
-    return gen_intermediate_code_internal(tb, 1, env);
+    gen_intermediate_code_internal(tb, 1, env);
 }
 
 void gen_intermediate_code_init(CPUSPARCState *env)
