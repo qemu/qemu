@@ -2204,9 +2204,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     tcg_gen_ext_i32_tl(cpu_dst, cpu_tmp32);
                     break;
                 case 31: // hstick_cmpr
-                    tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_dst);
-                    tcg_gen_st_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, hstick_cmpr));
+                    tcg_gen_ld_tl(cpu_dst, cpu_env,
+                                  offsetof(CPUSPARCState, hstick_cmpr));
                     break;
                 default:
                     goto illegal_insn;
