@@ -208,7 +208,7 @@ static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
 #endif
     switch(val) {
     case KBD_CCMD_READ_MODE:
-        kbd_queue(s, s->mode, 1);
+        kbd_queue(s, s->mode, 0);
         break;
     case KBD_CCMD_WRITE_MODE:
     case KBD_CCMD_WRITE_OBUF:
