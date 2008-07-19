@@ -105,7 +105,6 @@ static void pm_update_sci(PIIX4PMState *s)
     if ((s->pmen & TMROF_EN) && !(pmsts & TMROF_EN)) {
         expire_time = muldiv64(s->tmr_overflow_time, ticks_per_sec, PM_FREQ);
         qemu_mod_timer(s->tmr_timer, expire_time);
-        s->tmr_overflow_time += 0x800000;
     } else {
         qemu_del_timer(s->tmr_timer);
     }
