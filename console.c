@@ -1334,7 +1334,8 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
 
 void qemu_console_resize(QEMUConsole *console, int width, int height)
 {
-    if (console->g_width != width || console->g_height != height) {
+    if (console->g_width != width || console->g_height != height
+        || !console->ds->data) {
         console->g_width = width;
         console->g_height = height;
         if (active_console == console) {
