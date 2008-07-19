@@ -796,7 +796,7 @@ for drv in $audio_drv_list; do
     ;;
 
     *)
-    echo "$audio_possible_drivers" | grep -q "$drv" || {
+    echo "$audio_possible_drivers" | grep -q "\<$drv\>" || {
         echo
         echo "Error: Unknown driver '$drv' selected"
         echo "Possible drivers are: $audio_possible_drivers"
