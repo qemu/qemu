@@ -26,6 +26,7 @@
 #include "qemu-timer.h"
 #include "qemu-char.h"
 #include "flash.h"
+#include "audio/audio.h"
 
 /* GP timers */
 struct omap_gp_timer_s {
@@ -1420,6 +1421,541 @@ void omap_mcspi_attach(struct omap_mcspi_s *s,
     s->ch[chipselect].opaque = opaque;
 }
 
+/* Enhanced Audio Controller (CODEC only) */
+struct omap_eac_s {
+    target_phys_addr_t base;
+    qemu_irq irq;
+
+    uint16_t sysconfig;
+    uint8_t config[4];
+    uint8_t control;
+    uint8_t address;
+    uint16_t data;
+    uint8_t vtol;
+    uint8_t vtsl;
+    uint16_t mixer;
+    uint16_t gain[4];
+    uint8_t att;
+    uint16_t max[7];
+
+    struct {
+        qemu_irq txdrq;
+        qemu_irq rxdrq;
+        uint32_t (*txrx)(void *opaque, uint32_t, int);
+        void *opaque;
+
+#define EAC_BUF_LEN 1024
+        uint32_t rxbuf[EAC_BUF_LEN];
+        int rxlen;
+        int rxavail;
+        uint32_t txbuf[EAC_BUF_LEN];
+        int txlen;
+        int txavail;
+
+        int enable;
+        int rate;
+
+        uint16_t config[4];
+
+        /* These need to be moved to the actual codec */
+        QEMUSoundCard card;
+        SWVoiceIn *in_voice;
+        SWVoiceOut *out_voice;
+        int hw_enable;
+    } codec;
+
+    struct {
+        uint8_t control;
+        uint16_t config;
+    } modem, bt;
+};
+
+static inline void omap_eac_interrupt_update(struct omap_eac_s *s)
+{
+    qemu_set_irq(s->irq, (s->codec.config[1] >> 14) & 1);	/* AURDI */
+}
+
+static inline void omap_eac_in_dmarequest_update(struct omap_eac_s *s)
+{
+    qemu_set_irq(s->codec.rxdrq, s->codec.rxavail + s->codec.rxlen &&
+                    ((s->codec.config[1] >> 12) & 1));		/* DMAREN */
+}
+
+static inline void omap_eac_out_dmarequest_update(struct omap_eac_s *s)
+{
+    qemu_set_irq(s->codec.txdrq, s->codec.txlen < s->codec.txavail &&
+                    ((s->codec.config[1] >> 11) & 1));		/* DMAWEN */
+}
+
+static inline void omap_eac_in_refill(struct omap_eac_s *s)
+{
+    int left, start = 0;
+
+    s->codec.rxlen = MIN(s->codec.rxavail, EAC_BUF_LEN);
+    s->codec.rxavail -= s->codec.rxlen;
+
+    for (left = s->codec.rxlen << 2; left; start = (EAC_BUF_LEN << 2) - left)
+        left -= AUD_read(s->codec.in_voice,
+                        (uint8_t *) s->codec.rxbuf + start, left);
+}
+
+static inline void omap_eac_out_empty(struct omap_eac_s *s)
+{
+    int left, start = 0;
+
+    for (left = s->codec.txlen << 2; left; start = (s->codec.txlen << 2) - left)
+        left -= AUD_write(s->codec.out_voice,
+                        (uint8_t *) s->codec.txbuf + start, left);
+
+    s->codec.txavail -= s->codec.txlen;
+    s->codec.txlen = 0;
+}
+
+static void omap_eac_in_cb(void *opaque, int avail_b)
+{
+    struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+
+    s->codec.rxavail = avail_b >> 2;
+    omap_eac_in_dmarequest_update(s);
+    /* TODO: possibly discard current buffer if overrun */
+}
+
+static void omap_eac_out_cb(void *opaque, int free_b)
+{
+    struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+
+    s->codec.txavail = free_b >> 2;
+    if (s->codec.txlen > s->codec.txavail)
+        s->codec.txlen = s->codec.txavail;
+    omap_eac_out_empty(s);
+    omap_eac_out_dmarequest_update(s);
+}
+
+static void omap_eac_enable_update(struct omap_eac_s *s)
+{
+    s->codec.enable = !(s->codec.config[1] & 1) &&		/* EACPWD */
+            (s->codec.config[1] & 2) &&				/* AUDEN */
+            s->codec.hw_enable;
+}
+
+static const int omap_eac_fsint[4] = {
+    8000,
+    11025,
+    22050,
+    44100,
+};
+
+static const int omap_eac_fsint2[8] = {
+    8000,
+    11025,
+    22050,
+    44100,
+    48000,
+    0, 0, 0,
+};
+
+static const int omap_eac_fsint3[16] = {
+    8000,
+    11025,
+    16000,
+    22050,
+    24000,
+    32000,
+    44100,
+    48000,
+    0, 0, 0, 0, 0, 0, 0, 0,
+};
+
+static void omap_eac_rate_update(struct omap_eac_s *s)
+{
+    int fsint[3];
+
+    fsint[2] = (s->codec.config[3] >> 9) & 0xf;
+    fsint[1] = (s->codec.config[2] >> 0) & 0x7;
+    fsint[0] = (s->codec.config[0] >> 6) & 0x3;
+    if (fsint[2] < 0xf)
+        s->codec.rate = omap_eac_fsint3[fsint[2]];
+    else if (fsint[1] < 0x7)
+        s->codec.rate = omap_eac_fsint2[fsint[1]];
+    else
+        s->codec.rate = omap_eac_fsint[fsint[0]];
+}
+
+static void omap_eac_volume_update(struct omap_eac_s *s)
+{
+    /* TODO */
+}
+
+static void omap_eac_format_update(struct omap_eac_s *s)
+{
+    audsettings_t fmt;
+
+    omap_eac_out_empty(s);
+
+    if (s->codec.in_voice) {
+        AUD_set_active_in(s->codec.in_voice, 0);
+        AUD_close_in(&s->codec.card, s->codec.in_voice);
+        s->codec.in_voice = 0;
+    }
+    if (s->codec.out_voice) {
+        AUD_set_active_out(s->codec.out_voice, 0);
+        AUD_close_out(&s->codec.card, s->codec.out_voice);
+        s->codec.out_voice = 0;
+    }
+
+    omap_eac_enable_update(s);
+    if (!s->codec.enable)
+        return;
+
+    omap_eac_rate_update(s);
+    fmt.endianness = ((s->codec.config[0] >> 8) & 1);		/* LI_BI */
+    fmt.nchannels = ((s->codec.config[0] >> 10) & 1) ? 2 : 1;	/* MN_ST */
+    fmt.freq = s->codec.rate;
+    /* TODO: signedness possibly depends on the CODEC hardware - or
+     * does I2S specify it?  */
+    /* All register writes are 16 bits so we we store 16-bit samples
+     * in the buffers regardless of AGCFR[B8_16] value.  */
+    fmt.fmt = AUD_FMT_U16;
+
+    s->codec.in_voice = AUD_open_in(&s->codec.card, s->codec.in_voice,
+                    "eac.codec.in", s, omap_eac_in_cb, &fmt);
+    s->codec.out_voice = AUD_open_out(&s->codec.card, s->codec.out_voice,
+                    "eac.codec.out", s, omap_eac_out_cb, &fmt);
+
+    omap_eac_volume_update(s);
+
+    AUD_set_active_in(s->codec.in_voice, 1);
+    AUD_set_active_out(s->codec.out_voice, 1);
+}
+
+static void omap_eac_reset(struct omap_eac_s *s)
+{
+    s->sysconfig = 0;
+    s->config[0] = 0x0c;
+    s->config[1] = 0x09;
+    s->config[2] = 0xab;
+    s->config[3] = 0x03;
+    s->control = 0x00;
+    s->address = 0x00;
+    s->data = 0x0000;
+    s->vtol = 0x00;
+    s->vtsl = 0x00;
+    s->mixer = 0x0000;
+    s->gain[0] = 0xe7e7;
+    s->gain[1] = 0x6767;
+    s->gain[2] = 0x6767;
+    s->gain[3] = 0x6767;
+    s->att = 0xce;
+    s->max[0] = 0;
+    s->max[1] = 0;
+    s->max[2] = 0;
+    s->max[3] = 0;
+    s->max[4] = 0;
+    s->max[5] = 0;
+    s->max[6] = 0;
+
+    s->modem.control = 0x00;
+    s->modem.config = 0x0000;
+    s->bt.control = 0x00;
+    s->bt.config = 0x0000;
+    s->codec.config[0] = 0x0649;
+    s->codec.config[1] = 0x0000;
+    s->codec.config[2] = 0x0007;
+    s->codec.config[3] = 0x1ffc;
+    s->codec.rxlen = 0;
+    s->codec.txlen = 0;
+    s->codec.rxavail = 0;
+    s->codec.txavail = 0;
+
+    omap_eac_format_update(s);
+    omap_eac_interrupt_update(s);
+}
+
+static uint32_t omap_eac_read(void *opaque, target_phys_addr_t addr)
+{
+    struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+    int offset = addr - s->base;
+
+    switch (offset) {
+    case 0x000:	/* CPCFR1 */
+        return s->config[0];
+    case 0x004:	/* CPCFR2 */
+        return s->config[1];
+    case 0x008:	/* CPCFR3 */
+        return s->config[2];
+    case 0x00c:	/* CPCFR4 */
+        return s->config[3];
+
+    case 0x010:	/* CPTCTL */
+        return s->control | ((s->codec.rxavail + s->codec.rxlen > 0) << 7) |
+                ((s->codec.txlen < s->codec.txavail) << 5);
+
+    case 0x014:	/* CPTTADR */
+        return s->address;
+    case 0x018:	/* CPTDATL */
+        return s->data & 0xff;
+    case 0x01c:	/* CPTDATH */
+        return s->data >> 8;
+    case 0x020:	/* CPTVSLL */
+        return s->vtol;
+    case 0x024:	/* CPTVSLH */
+        return s->vtsl | (3 << 5);	/* CRDY1 | CRDY2 */
+    case 0x040:	/* MPCTR */
+        return s->modem.control;
+    case 0x044:	/* MPMCCFR */
+        return s->modem.config;
+    case 0x060:	/* BPCTR */
+        return s->bt.control;
+    case 0x064:	/* BPMCCFR */
+        return s->bt.config;
+    case 0x080:	/* AMSCFR */
+        return s->mixer;
+    case 0x084:	/* AMVCTR */
+        return s->gain[0];
+    case 0x088:	/* AM1VCTR */
+        return s->gain[1];
+    case 0x08c:	/* AM2VCTR */
+        return s->gain[2];
+    case 0x090:	/* AM3VCTR */
+        return s->gain[3];
+    case 0x094:	/* ASTCTR */
+        return s->att;
+    case 0x098:	/* APD1LCR */
+        return s->max[0];
+    case 0x09c:	/* APD1RCR */
+        return s->max[1];
+    case 0x0a0:	/* APD2LCR */
+        return s->max[2];
+    case 0x0a4:	/* APD2RCR */
+        return s->max[3];
+    case 0x0a8:	/* APD3LCR */
+        return s->max[4];
+    case 0x0ac:	/* APD3RCR */
+        return s->max[5];
+    case 0x0b0:	/* APD4R */
+        return s->max[6];
+    case 0x0b4:	/* ADWR */
+        /* This should be write-only?  Docs list it as read-only.  */
+        return 0x0000;
+    case 0x0b8:	/* ADRDR */
+        if (likely(s->codec.rxlen > 1))
+            return s->codec.rxbuf[EAC_BUF_LEN - s->codec.rxlen --];
+        else if (s->codec.rxlen) {
+            if (s->codec.rxavail)
+                omap_eac_in_refill(s);
+            else {
+                s->codec.rxlen = 0;
+                omap_eac_in_dmarequest_update(s);
+            }
+            return s->codec.rxbuf[EAC_BUF_LEN - 1];
+        }
+        return 0x0000;
+    case 0x0bc:	/* AGCFR */
+        return s->codec.config[0];
+    case 0x0c0:	/* AGCTR */
+        return s->codec.config[1] | ((s->codec.config[1] & 2) << 14);
+    case 0x0c4:	/* AGCFR2 */
+        return s->codec.config[2];
+    case 0x0c8:	/* AGCFR3 */
+        return s->codec.config[3];
+    case 0x0cc:	/* MBPDMACTR */
+    case 0x0d0:	/* MPDDMARR */
+    case 0x0d8:	/* MPUDMARR */
+    case 0x0e4:	/* BPDDMARR */
+    case 0x0ec:	/* BPUDMARR */
+        return 0x0000;
+
+    case 0x100:	/* VERSION_NUMBER */
+        return 0x0010;
+
+    case 0x104:	/* SYSCONFIG */
+        return s->sysconfig;
+
+    case 0x108:	/* SYSSTATUS */
+        return 1 | 0xe;					/* RESETDONE | stuff */
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
+static void omap_eac_write(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+    int offset = addr - s->base;
+
+    switch (offset) {
+    case 0x098:	/* APD1LCR */
+    case 0x09c:	/* APD1RCR */
+    case 0x0a0:	/* APD2LCR */
+    case 0x0a4:	/* APD2RCR */
+    case 0x0a8:	/* APD3LCR */
+    case 0x0ac:	/* APD3RCR */
+    case 0x0b0:	/* APD4R */
+    case 0x0b8:	/* ADRDR */
+    case 0x0d0:	/* MPDDMARR */
+    case 0x0d8:	/* MPUDMARR */
+    case 0x0e4:	/* BPDDMARR */
+    case 0x0ec:	/* BPUDMARR */
+    case 0x100:	/* VERSION_NUMBER */
+    case 0x108:	/* SYSSTATUS */
+        OMAP_RO_REG(addr);
+        return;
+
+    case 0x000:	/* CPCFR1 */
+        s->config[0] = value & 0xff;
+        omap_eac_format_update(s);
+        break;
+    case 0x004:	/* CPCFR2 */
+        s->config[1] = value & 0xff;
+        omap_eac_format_update(s);
+        break;
+    case 0x008:	/* CPCFR3 */
+        s->config[2] = value & 0xff;
+        omap_eac_format_update(s);
+        break;
+    case 0x00c:	/* CPCFR4 */
+        s->config[3] = value & 0xff;
+        omap_eac_format_update(s);
+        break;
+
+    case 0x010:	/* CPTCTL */
+        /* Assuming TXF and TXE bits are read-only... */
+        s->control = value & 0x5f;
+        omap_eac_interrupt_update(s);
+        break;
+
+    case 0x014:	/* CPTTADR */
+        s->address = value & 0xff;
+        break;
+    case 0x018:	/* CPTDATL */
+        s->data &= 0xff00;
+        s->data |= value & 0xff;
+        break;
+    case 0x01c:	/* CPTDATH */
+        s->data &= 0x00ff;
+        s->data |= value << 8;
+        break;
+    case 0x020:	/* CPTVSLL */
+        s->vtol = value & 0xf8;
+        break;
+    case 0x024:	/* CPTVSLH */
+        s->vtsl = value & 0x9f;
+        break;
+    case 0x040:	/* MPCTR */
+        s->modem.control = value & 0x8f;
+        break;
+    case 0x044:	/* MPMCCFR */
+        s->modem.config = value & 0x7fff;
+        break;
+    case 0x060:	/* BPCTR */
+        s->bt.control = value & 0x8f;
+        break;
+    case 0x064:	/* BPMCCFR */
+        s->bt.config = value & 0x7fff;
+        break;
+    case 0x080:	/* AMSCFR */
+        s->mixer = value & 0x0fff;
+        break;
+    case 0x084:	/* AMVCTR */
+        s->gain[0] = value & 0xffff;
+        break;
+    case 0x088:	/* AM1VCTR */
+        s->gain[1] = value & 0xff7f;
+        break;
+    case 0x08c:	/* AM2VCTR */
+        s->gain[2] = value & 0xff7f;
+        break;
+    case 0x090:	/* AM3VCTR */
+        s->gain[3] = value & 0xff7f;
+        break;
+    case 0x094:	/* ASTCTR */
+        s->att = value & 0xff;
+        break;
+
+    case 0x0b4:	/* ADWR */
+        s->codec.txbuf[s->codec.txlen ++] = value;
+        if (unlikely(s->codec.txlen == EAC_BUF_LEN ||
+                                s->codec.txlen == s->codec.txavail)) {
+            if (s->codec.txavail)
+                omap_eac_out_empty(s);
+            else
+                s->codec.txlen = 0;
+        }
+        break;
+
+    case 0x0bc:	/* AGCFR */
+        s->codec.config[0] = value & 0x07ff;
+        omap_eac_format_update(s);
+        break;
+    case 0x0c0:	/* AGCTR */
+        s->codec.config[1] = value & 0x780f;
+        omap_eac_format_update(s);
+        break;
+    case 0x0c4:	/* AGCFR2 */
+        s->codec.config[2] = value & 0x003f;
+        omap_eac_format_update(s);
+        break;
+    case 0x0c8:	/* AGCFR3 */
+        s->codec.config[3] = value & 0xffff;
+        omap_eac_format_update(s);
+        break;
+    case 0x0cc:	/* MBPDMACTR */
+    case 0x0d4:	/* MPDDMAWR */
+    case 0x0e0:	/* MPUDMAWR */
+    case 0x0e8:	/* BPDDMAWR */
+    case 0x0f0:	/* BPUDMAWR */
+        break;
+
+    case 0x104:	/* SYSCONFIG */
+        if (value & (1 << 1))				/* SOFTRESET */
+            omap_eac_reset(s);
+        s->sysconfig = value & 0x31d;
+        break;
+
+    default:
+        OMAP_BAD_REG(addr);
+        return;
+    }
+}
+
+static CPUReadMemoryFunc *omap_eac_readfn[] = {
+    omap_badwidth_read16,
+    omap_eac_read,
+    omap_badwidth_read16,
+};
+
+static CPUWriteMemoryFunc *omap_eac_writefn[] = {
+    omap_badwidth_write16,
+    omap_eac_write,
+    omap_badwidth_write16,
+};
+
+struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
+                qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk)
+{
+    int iomemtype;
+    struct omap_eac_s *s = (struct omap_eac_s *)
+            qemu_mallocz(sizeof(struct omap_eac_s));
+
+    s->irq = irq;
+    s->codec.rxdrq = *drq ++;
+    s->codec.txdrq = *drq ++;
+    omap_eac_reset(s);
+
+#ifdef HAS_AUDIO
+    /* TODO: do AUD_init globally for machine */
+    AUD_register_card(AUD_init(), "OMAP EAC", &s->codec.card);
+
+    iomemtype = cpu_register_io_memory(0, omap_eac_readfn,
+                    omap_eac_writefn, s);
+    s->base = omap_l4_attach(ta, 0, iomemtype);
+#endif
+
+    return s;
+}
+
 /* STI/XTI (emulation interface) console - reverse engineered only */
 struct omap_sti_s {
     target_phys_addr_t base;
@@ -2566,6 +3102,7 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     case 0x200:	/* CM_FCLKEN1_CORE */
         s->clken[0] = value & 0xbfffffff;
         /* TODO update clocks */
+        /* The EN_EAC bit only gets/puts func_96m_clk.  */
         break;
     case 0x204:	/* CM_FCLKEN2_CORE */
         s->clken[1] = value & 0x00000007;
@@ -2574,6 +3111,7 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     case 0x210:	/* CM_ICLKEN1_CORE */
         s->clken[2] = value & 0xfffffff9;
         /* TODO update clocks */
+        /* The EN_EAC bit only gets/puts core_l4_iclk.  */
         break;
     case 0x214:	/* CM_ICLKEN2_CORE */
         s->clken[3] = value & 0x00000007;
@@ -3969,12 +4507,12 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "mmc_fclk"), omap_findclk(s, "mmc_iclk"));
 
     s->mcspi[0] = omap_mcspi_init(omap_l4ta(s->l4, 35), 4,
-                    s->irq[0][OMAP_INT_24XX_MCSPI1_IRQ], 
+                    s->irq[0][OMAP_INT_24XX_MCSPI1_IRQ],
                     &s->drq[OMAP24XX_DMA_SPI1_TX0],
                     omap_findclk(s, "spi1_fclk"),
                     omap_findclk(s, "spi1_iclk"));
     s->mcspi[1] = omap_mcspi_init(omap_l4ta(s->l4, 36), 2,
-                    s->irq[0][OMAP_INT_24XX_MCSPI2_IRQ], 
+                    s->irq[0][OMAP_INT_24XX_MCSPI2_IRQ],
                     &s->drq[OMAP24XX_DMA_SPI2_TX0],
                     omap_findclk(s, "spi2_fclk"),
                     omap_findclk(s, "spi2_iclk"));
@@ -3991,6 +4529,13 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     s->irq[0][OMAP_INT_24XX_STI], omap_findclk(s, "emul_ck"),
                     serial_hds[0] && serial_hds[1] && serial_hds[2] ?
                     serial_hds[3] : 0);
+
+    s->eac = omap_eac_init(omap_l4ta(s->l4, 32),
+                    s->irq[0][OMAP_INT_24XX_EAC_IRQ],
+                    /* Ten consecutive lines */
+                    &s->drq[OMAP24XX_DMA_EAC_AC_RD],
+                    omap_findclk(s, "func_96m_clk"),
+                    omap_findclk(s, "core_l4_iclk"));
 
     /* All register mappings (includin those not currenlty implemented):
      * SystemControlMod	48000000 - 48000fff

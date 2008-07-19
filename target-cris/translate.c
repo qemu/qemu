@@ -3023,7 +3023,7 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
  */
 
 /* generate intermediate code for basic block 'tb'.  */
-static int
+static void
 gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
                                int search_pc)
 {
@@ -3234,17 +3234,16 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 			dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
 	}
 #endif
-	return 0;
 }
 
-int gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(env, tb, 0);
 }
 
-int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(env, tb, 1);
 }
 
 void cpu_dump_state (CPUState *env, FILE *f,

@@ -7809,7 +7809,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     }
 }
 
-static inline int
+static inline void
 gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
                                 int search_pc)
 {
@@ -7954,18 +7954,16 @@ done_generating:
         fprintf(logfile, "---------------- %d %08x\n", ctx.bstate, ctx.hflags);
     }
 #endif
-
-    return 0;
 }
 
-int gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(env, tb, 0);
 }
 
-int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(env, tb, 1);
 }
 
 void fpu_dump_state(CPUState *env, FILE *f,

@@ -552,6 +552,7 @@ static void ide_identify(IDEState *s)
         put_le16(p + 59, 0x100 | s->mult_sectors);
     put_le16(p + 60, s->nb_sectors);
     put_le16(p + 61, s->nb_sectors >> 16);
+    put_le16(p + 62, 0x07); /* single word dma0-2 supported */
     put_le16(p + 63, 0x07); /* mdma0-2 supported */
     put_le16(p + 65, 120);
     put_le16(p + 66, 120);
@@ -603,6 +604,7 @@ static void ide_atapi_identify(IDEState *s)
 #ifdef USE_DMA_CDROM
     put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
     put_le16(p + 53, 7); /* words 64-70, 54-58, 88 valid */
+    put_le16(p + 62, 7);  /* single word dma0-2 supported */
     put_le16(p + 63, 7);  /* mdma0-2 supported */
     put_le16(p + 64, 0x3f); /* PIO modes supported */
 #else
@@ -2091,14 +2093,22 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 		switch (s->nsector >> 3) {
 		    case 0x00: /* pio default */
 		    case 0x01: /* pio mode */
+			put_le16(s->identify_data + 62,0x07);
+			put_le16(s->identify_data + 63,0x07);
+			put_le16(s->identify_data + 88,0x3f);
+			break;
+                    case 0x02: /* sigle word dma mode*/
+			put_le16(s->identify_data + 62,0x07 | (1 << (val + 8)));
 			put_le16(s->identify_data + 63,0x07);
 			put_le16(s->identify_data + 88,0x3f);
 			break;
 		    case 0x04: /* mdma mode */
+			put_le16(s->identify_data + 62,0x07);
 			put_le16(s->identify_data + 63,0x07 | (1 << (val + 8)));
 			put_le16(s->identify_data + 88,0x3f);
 			break;
 		    case 0x08: /* udma mode */
+			put_le16(s->identify_data + 62,0x07);
 			put_le16(s->identify_data + 63,0x07);
 			put_le16(s->identify_data + 88,0x3f | (1 << (val + 8)));
 			break;

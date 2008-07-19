@@ -2139,7 +2139,9 @@ static inline int send_all(int fd, const uint8_t *buf, int len1)
 
 void socket_set_nonblock(int fd)
 {
-    fcntl(fd, F_SETFL, O_NONBLOCK);
+    int f;
+    f = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, f | O_NONBLOCK);
 }
 #endif /* !_WIN32 */
 
@@ -2569,7 +2571,6 @@ static CharDriverState *qemu_chr_open_tty(const char *filename)
     int fd;
 
     TFR(fd = open(filename, O_RDWR | O_NONBLOCK));
-    fcntl(fd, F_SETFL, O_NONBLOCK);
     tty_serial_init(fd, 115200, 'N', 8, 1);
     chr = qemu_chr_open_fd(fd, fd);
     if (!chr) {
@@ -3866,6 +3867,19 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
         pvc = &(*pvc)->next;
     *pvc = vc;
     return vc;
+}
+
+void qemu_del_vlan_client(VLANClientState *vc)
+{
+    VLANClientState **pvc = &vc->vlan->first_client;
+
+    while (*pvc != NULL)
+        if (*pvc == vc) {
+            *pvc = vc->next;
+            free(vc);
+            break;
+        } else
+            pvc = &(*pvc)->next;
 }
 
 int qemu_can_send_packet(VLANClientState *vc1)
@@ -5473,6 +5487,12 @@ static int usb_device_add(const char *devname)
     } else if (!strcmp(devname, "braille")) {
         dev = usb_baum_init();
 #endif
+    } else if (strstart(devname, "net:", &p)) {
+        int nicidx = strtoul(p, NULL, 0);
+
+        if (nicidx >= nb_nics || strcmp(nd_table[nicidx].model, "usb"))
+            return -1;
+        dev = usb_net_init(&nd_table[nicidx]);
     } else {
         return -1;
     }
@@ -6059,7 +6079,9 @@ typedef struct SaveStateEntry {
 static SaveStateEntry *first_se;
 
 /* TODO: Individual devices generally have very little idea about the rest
-   of the system, so instance_id should be removed/replaced.  */
+   of the system, so instance_id should be removed/replaced.
+   Meanwhile pass -1 as instance_id if you do not already have a clearly
+   distinguishing id for all instances of your device class. */
 int register_savevm(const char *idstr,
                     int instance_id,
                     int version_id,

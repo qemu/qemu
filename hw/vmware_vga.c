@@ -483,6 +483,8 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
 }
 #endif
 
+#define CMD(f)	le32_to_cpu(s->cmd->f)
+
 static inline int vmsvga_fifo_empty(struct vmsvga_state_s *s)
 {
     if (!s->config || !s->enable)
@@ -490,13 +492,18 @@ static inline int vmsvga_fifo_empty(struct vmsvga_state_s *s)
     return (s->cmd->next_cmd == s->cmd->stop);
 }
 
-static inline uint32_t vmsvga_fifo_read(struct vmsvga_state_s *s)
+static inline uint32_t vmsvga_fifo_read_raw(struct vmsvga_state_s *s)
 {
-    uint32_t cmd = s->fifo[s->cmd->stop >> 2];
-    s->cmd->stop += 4;
-    if (s->cmd->stop >= s->cmd->max)
+    uint32_t cmd = s->fifo[CMD(stop) >> 2];
+    s->cmd->stop = cpu_to_le32(CMD(stop) + 4);
+    if (CMD(stop) >= CMD(max))
         s->cmd->stop = s->cmd->min;
     return cmd;
+}
+
+static inline uint32_t vmsvga_fifo_read(struct vmsvga_state_s *s)
+{
+    return le32_to_cpu(vmsvga_fifo_read_raw(s));
 }
 
 static void vmsvga_fifo_run(struct vmsvga_state_s *s)
@@ -552,9 +559,9 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             vmsvga_fifo_read(s);
             cursor.bpp = vmsvga_fifo_read(s);
             for (args = 0; args < SVGA_BITMAP_SIZE(x, y); args ++)
-                cursor.mask[args] = vmsvga_fifo_read(s);
+                cursor.mask[args] = vmsvga_fifo_read_raw(s);
             for (args = 0; args < SVGA_PIXMAP_SIZE(x, y, cursor.bpp); args ++)
-                cursor.image[args] = vmsvga_fifo_read(s);
+                cursor.image[args] = vmsvga_fifo_read_raw(s);
 #ifdef HW_MOUSE_ACCEL
             vmsvga_cursor_define(s, &cursor);
             break;
@@ -788,14 +795,14 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         if (value) {
             s->fifo = (uint32_t *) &s->vram[s->vram_size - SVGA_FIFO_SIZE];
             /* Check range and alignment.  */
-            if ((s->cmd->min | s->cmd->max |
-                        s->cmd->next_cmd | s->cmd->stop) & 3)
+            if ((CMD(min) | CMD(max) |
+                        CMD(next_cmd) | CMD(stop)) & 3)
                 break;
-            if (s->cmd->min < (uint8_t *) s->cmd->fifo - (uint8_t *) s->fifo)
+            if (CMD(min) < (uint8_t *) s->cmd->fifo - (uint8_t *) s->fifo)
                 break;
-            if (s->cmd->max > SVGA_FIFO_SIZE)
+            if (CMD(max) > SVGA_FIFO_SIZE)
                 break;
-            if (s->cmd->max < s->cmd->min + 10 * 1024)
+            if (CMD(max) < CMD(min) + 10 * 1024)
                 break;
         }
         s->config = !!value;
@@ -1123,15 +1130,21 @@ static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
 
     vmsvga_reset(s);
 
+#ifdef EMBED_STDVGA
+    vga_common_init((VGAState *) s, ds,
+                    vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_init((VGAState *) s);
+#endif
+
     s->console = graphic_console_init(ds, vmsvga_update_display,
                                       vmsvga_invalidate_display,
                                       vmsvga_screen_dump,
                                       vmsvga_text_update, s);
 
-#ifdef EMBED_STDVGA
-    vga_common_init((VGAState *) s, ds,
-                    vga_ram_base, vga_ram_offset, vga_ram_size);
-    vga_init((VGAState *) s);
+#ifdef CONFIG_BOCHS_VBE
+    /* XXX: use optimized standard vga accesses */
+    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+                                 vga_ram_size, vga_ram_offset);
 #endif
 }
 
@@ -1183,7 +1196,7 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
 {
     struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
     struct vmsvga_state_s *s = &d->chip;
-    int iomemtype;
+    ram_addr_t iomemtype;
 
     s->vram_base = addr;
 #ifdef DIRECT_VRAM
@@ -1225,14 +1238,6 @@ void pci_vmsvga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     s->card.config[0x0c]		= 0x08;		/* Cache line size */
     s->card.config[0x0d]		= 0x40;		/* Latency timer */
     s->card.config[0x0e]		= PCI_CLASS_HEADERTYPE_00h;
-    s->card.config[0x10]		= ((SVGA_IO_BASE >>  0) & 0xff) | 1;
-    s->card.config[0x11]		=  (SVGA_IO_BASE >>  8) & 0xff;
-    s->card.config[0x12]		=  (SVGA_IO_BASE >> 16) & 0xff;
-    s->card.config[0x13]		=  (SVGA_IO_BASE >> 24) & 0xff;
-    s->card.config[0x18]		= (SVGA_MEM_BASE >>  0) & 0xff;
-    s->card.config[0x19]		= (SVGA_MEM_BASE >>  8) & 0xff;
-    s->card.config[0x1a]		= (SVGA_MEM_BASE >> 16) & 0xff;
-    s->card.config[0x1b]		= (SVGA_MEM_BASE >> 24) & 0xff;
     s->card.config[0x2c]		= PCI_VENDOR_ID_VMWARE & 0xff;
     s->card.config[0x2d]		= PCI_VENDOR_ID_VMWARE >> 8;
     s->card.config[0x2e]		= SVGA_PCI_DEVICE_ID & 0xff;

@@ -754,7 +754,7 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
              s->macaddr[4],
              s->macaddr[5]);
 
-    register_savevm("ne2000", 0, 2, ne2000_save, ne2000_load, s);
+    register_savevm("ne2000", -1, 2, ne2000_save, ne2000_load, s);
 }
 
 /***********************************************************/
@@ -827,6 +827,5 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
              s->macaddr[4],
              s->macaddr[5]);
 
-    /* XXX: instance number ? */
-    register_savevm("ne2000", 0, 3, ne2000_save, ne2000_load, s);
+    register_savevm("ne2000", -1, 3, ne2000_save, ne2000_load, s);
 }

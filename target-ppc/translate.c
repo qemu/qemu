@@ -6171,9 +6171,9 @@ void cpu_dump_statistics (CPUState *env, FILE*f,
 }
 
 /*****************************************************************************/
-static always_inline int gen_intermediate_code_internal (CPUState *env,
-                                                         TranslationBlock *tb,
-                                                         int search_pc)
+static always_inline void gen_intermediate_code_internal (CPUState *env,
+                                                          TranslationBlock *tb,
+                                                          int search_pc)
 {
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
@@ -6379,17 +6379,16 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         fprintf(logfile, "\n");
     }
 #endif
-    return 0;
 }
 
-int gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(env, tb, 0);
 }
 
-int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(env, tb, 1);
 }
 
 void gen_pc_load(CPUState *env, TranslationBlock *tb,

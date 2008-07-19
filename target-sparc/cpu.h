@@ -50,7 +50,6 @@
 #define TT_TRAP     0x80
 #else
 #define TT_TFAULT   0x08
-#define TT_TMISS    0x09
 #define TT_CODE_ACCESS 0x0a
 #define TT_ILL_INSN 0x10
 #define TT_UNIMP_FLUSH TT_ILL_INSN
@@ -61,12 +60,13 @@
 #define TT_CLRWIN   0x24
 #define TT_DIV_ZERO 0x28
 #define TT_DFAULT   0x30
-#define TT_DMISS    0x31
 #define TT_DATA_ACCESS 0x32
 #define TT_DPROT    0x33
 #define TT_UNALIGNED 0x34
 #define TT_PRIV_ACT 0x37
 #define TT_EXTINT   0x40
+#define TT_TMISS    0x64
+#define TT_DMISS    0x68
 #define TT_SPILL    0x80
 #define TT_FILL     0xc0
 #define TT_WOTHER   0x10

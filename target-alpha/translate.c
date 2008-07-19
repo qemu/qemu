@@ -1970,9 +1970,9 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-static always_inline int gen_intermediate_code_internal (CPUState *env,
-                                                         TranslationBlock *tb,
-                                                         int search_pc)
+static always_inline void gen_intermediate_code_internal (CPUState *env,
+                                                          TranslationBlock *tb,
+                                                          int search_pc)
 {
 #if defined ALPHA_DEBUG_DISAS
     static int insn_count;
@@ -2086,18 +2086,16 @@ static always_inline int gen_intermediate_code_internal (CPUState *env,
         fprintf(logfile, "\n");
     }
 #endif
-
-    return 0;
 }
 
-int gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 0);
+    gen_intermediate_code_internal(env, tb, 0);
 }
 
-int gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 {
-    return gen_intermediate_code_internal(env, tb, 1);
+    gen_intermediate_code_internal(env, tb, 1);
 }
 
 CPUAlphaState * cpu_alpha_init (const char *cpu_model)

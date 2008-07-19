@@ -72,6 +72,7 @@
 #include "linux_loop.h"
 
 #include "qemu.h"
+#include "qemu-common.h"
 
 #if defined(USE_NPTL)
 #include <linux/futex.h>

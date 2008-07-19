@@ -738,6 +738,10 @@ struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk);
 void omap_tap_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu);
 
+struct omap_eac_s;
+struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
+                qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk);
+
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
@@ -957,6 +961,8 @@ struct omap_mpu_state_s {
     struct omap_mcspi_s *mcspi[2];
 
     struct omap_dss_s *dss;
+
+    struct omap_eac_s *eac;
 };
 
 /* omap1.c */
@@ -1137,7 +1143,7 @@ inline static int debug_register_io_memory(int io_index,
 # endif
 
 /* Define when we want to reduce the number of IO regions registered.  */
-# define L4_MUX_HACK
+/*# define L4_MUX_HACK*/
 
 # ifdef L4_MUX_HACK
 #  undef l4_register_io_memory

@@ -60,8 +60,8 @@ typedef void (GenOpFunc3)(long, long, long);
 extern FILE *logfile;
 extern int loglevel;
 
-int gen_intermediate_code(CPUState *env, struct TranslationBlock *tb);
-int gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
+void gen_intermediate_code(CPUState *env, struct TranslationBlock *tb);
+void gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
 void gen_pc_load(CPUState *env, struct TranslationBlock *tb,
                  unsigned long searched_pc, int pc_pos, void *puc);
 

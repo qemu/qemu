@@ -32,11 +32,21 @@ do { printf("ASI: " fmt , ##args); } while (0)
 #define DPRINTF_ASI(fmt, args...) do {} while (0)
 #endif
 
-#ifdef TARGET_ABI32
-#define ABI32_MASK(addr) do { (addr) &= 0xffffffffULL; } while (0)
+#ifdef TARGET_SPARC64
+#ifndef TARGET_ABI32
+#define AM_CHECK(env1) ((env1)->pstate & PS_AM)
 #else
-#define ABI32_MASK(addr) do {} while (0)
+#define AM_CHECK(env1) (1)
 #endif
+#endif
+
+static inline void address_mask(CPUState *env1, target_ulong *addr)
+{
+#ifdef TARGET_SPARC64
+    if (AM_CHECK(env1))
+        *addr &= 0xffffffffULL;
+#endif
+}
 
 void raise_exception(int tt)
 {
@@ -1381,7 +1391,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
 
     switch (asi) {
     case 0x80: // Primary
@@ -1470,7 +1480,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
 
     /* Convert to little endian */
     switch (asi) {
@@ -1649,19 +1659,43 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         }
     case 0x51: // I-MMU 8k TSB pointer
     case 0x52: // I-MMU 64k TSB pointer
-    case 0x55: // I-MMU data access
         // XXX
         break;
+    case 0x55: // I-MMU data access
+        {
+            int reg = (addr >> 3) & 0x3f;
+
+            ret = env->itlb_tte[reg];
+            break;
+        }
     case 0x56: // I-MMU tag read
         {
             unsigned int i;
 
             for (i = 0; i < 64; i++) {
                 // Valid, ctx match, vaddr match
-                if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0 &&
-                    env->itlb_tag[i] == addr) {
-                    ret = env->itlb_tag[i];
-                    break;
+                if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
+                    uint64_t mask;
+
+                    switch ((env->itlb_tte[i] >> 61) & 3) {
+                    default:
+                    case 0x0:
+                        mask = 0xffffffffffffffff;
+                        break;
+                    case 0x1:
+                        mask = 0xffffffffffff0fff;
+                        break;
+                    case 0x2:
+                        mask = 0xfffffffffff80fff;
+                        break;
+                    case 0x3:
+                        mask = 0xffffffffffc00fff;
+                        break;
+                    }
+                    if ((env->itlb_tag[i] & mask) == (addr & mask)) {
+                        ret = env->itlb_tte[i];
+                        break;
+                    }
                 }
             }
             break;
@@ -1673,22 +1707,50 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             ret = env->dmmuregs[reg];
             break;
         }
+    case 0x5d: // D-MMU data access
+        {
+            int reg = (addr >> 3) & 0x3f;
+
+            ret = env->dtlb_tte[reg];
+            break;
+        }
     case 0x5e: // D-MMU tag read
         {
             unsigned int i;
 
             for (i = 0; i < 64; i++) {
                 // Valid, ctx match, vaddr match
-                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0 &&
-                    env->dtlb_tag[i] == addr) {
-                    ret = env->dtlb_tag[i];
-                    break;
+                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
+                    uint64_t mask;
+
+                    switch ((env->dtlb_tte[i] >> 61) & 3) {
+                    default:
+                    case 0x0:
+                        mask = 0xffffffffffffffff;
+                        break;
+                    case 0x1:
+                        mask = 0xffffffffffff0fff;
+                        break;
+                    case 0x2:
+                        mask = 0xfffffffffff80fff;
+                        break;
+                    case 0x3:
+                        mask = 0xffffffffffc00fff;
+                        break;
+                    }
+                    if ((env->dtlb_tag[i] & mask) == (addr & mask)) {
+                        ret = env->dtlb_tte[i];
+                        break;
+                    }
                 }
             }
             break;
         }
     case 0x46: // D-cache data
     case 0x47: // D-cache tag access
+    case 0x4b: // E-cache error enable
+    case 0x4c: // E-cache asynchronous fault status
+    case 0x4d: // E-cache asynchronous fault address
     case 0x4e: // E-cache tag data
     case 0x66: // I-cache instruction access
     case 0x67: // I-cache tag access
@@ -1700,7 +1762,6 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x59: // D-MMU 8k TSB pointer
     case 0x5a: // D-MMU 64k TSB pointer
     case 0x5b: // D-MMU data pointer
-    case 0x5d: // D-MMU data access
     case 0x48: // Interrupt dispatch, RO
     case 0x49: // Interrupt data receive
     case 0x7f: // Incoming interrupt vector, RO
@@ -2052,6 +2113,9 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         return;
     case 0x46: // D-cache data
     case 0x47: // D-cache tag access
+    case 0x4b: // E-cache error enable
+    case 0x4c: // E-cache asynchronous fault status
+    case 0x4d: // E-cache asynchronous fault address
     case 0x4e: // E-cache tag data
     case 0x66: // I-cache instruction access
     case 0x67: // I-cache tag access
@@ -2276,7 +2340,7 @@ void helper_stdf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
     stfq_raw(addr, DT0);
 #endif
 }
@@ -2301,7 +2365,7 @@ void helper_lddf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
     DT0 = ldfq_raw(addr);
 #endif
 }
@@ -2335,7 +2399,7 @@ void helper_ldqf(target_ulong addr, int mem_idx)
         break;
     }
 #else
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
     u.ll.upper = ldq_raw(addr);
     u.ll.lower = ldq_raw((addr + 8) & 0xffffffffULL);
     QT0 = u.q;
@@ -2372,7 +2436,7 @@ void helper_stqf(target_ulong addr, int mem_idx)
     }
 #else
     u.q = QT0;
-    ABI32_MASK(addr);
+    address_mask(env, &addr);
     stq_raw(addr, u.ll.upper);
     stq_raw((addr + 8) & 0xffffffffULL, u.ll.lower);
 #endif
@@ -2616,26 +2680,26 @@ void helper_wrpstate(target_ulong new_state)
 
 void helper_done(void)
 {
-    env->tl--;
-    env->tsptr = &env->ts[env->tl];
     env->pc = env->tsptr->tpc;
     env->npc = env->tsptr->tnpc + 4;
     PUT_CCR(env, env->tsptr->tstate >> 32);
     env->asi = (env->tsptr->tstate >> 24) & 0xff;
     change_pstate((env->tsptr->tstate >> 8) & 0xf3f);
     PUT_CWP64(env, env->tsptr->tstate & 0xff);
+    env->tl--;
+    env->tsptr = &env->ts[env->tl];
 }
 
 void helper_retry(void)
 {
-    env->tl--;
-    env->tsptr = &env->ts[env->tl];
     env->pc = env->tsptr->tpc;
     env->npc = env->tsptr->tnpc;
     PUT_CCR(env, env->tsptr->tstate >> 32);
     env->asi = (env->tsptr->tstate >> 24) & 0xff;
     change_pstate((env->tsptr->tstate >> 8) & 0xf3f);
     PUT_CWP64(env, env->tsptr->tstate & 0xff);
+    env->tl--;
+    env->tsptr = &env->ts[env->tl];
 }
 #endif
 

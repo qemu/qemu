@@ -57,7 +57,7 @@ struct n800_s {
 #define N800_MMC2_WP_GPIO		8
 #define N800_UNKNOWN_GPIO0		9	/* out */
 #define N810_MMC2_VIOSD_GPIO		9
-#define N800_UNKNOWN_GPIO1		10	/* out */
+#define N810_HEADSET_AMP_GPIO		10
 #define N800_CAM_TURN_GPIO		12
 #define N810_GPS_RESET_GPIO		12
 #define N800_BLIZZARD_POWERDOWN_GPIO	15
@@ -82,7 +82,7 @@ struct n800_s {
 #define N8X0_MMC_CS_GPIO		96
 #define N8X0_WLAN_PWR_GPIO		97
 #define N8X0_BT_HOST_WKUP_GPIO		98
-#define N800_UNKNOWN_GPIO3		101	/* out */
+#define N810_SPEAKER_AMP_GPIO		101
 #define N810_KB_LOCK_GPIO		102
 #define N800_TSC_TS_GPIO		103
 #define N810_TSC_TS_GPIO		106
@@ -96,6 +96,7 @@ struct n800_s {
 #define N800_UNKNOWN_GPIO4		112	/* out */
 #define N810_SLEEPX_LED_GPIO		112
 #define N800_TSC_RESET_GPIO		118	/* ? */
+#define N810_AIC33_RESET_GPIO		118
 #define N800_TSC_UNKNOWN_GPIO		119	/* out */
 #define N8X0_TMP105_GPIO		125
 

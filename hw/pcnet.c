@@ -1916,7 +1916,7 @@ static void pcnet_common_init(PCNetState *d, NICInfo *nd, const char *info_str)
         d->vc = NULL;
     }
     pcnet_h_reset(d);
-    register_savevm("pcnet", 0, 2, pcnet_save, pcnet_load, d);
+    register_savevm("pcnet", -1, 2, pcnet_save, pcnet_load, d);
 }
 
 /* PCI interface */
