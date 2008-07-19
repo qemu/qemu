@@ -2152,8 +2152,6 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
 
 void helper_ldda_asi(target_ulong addr, int asi, int rd)
 {
-    unsigned int i;
-
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
         || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
