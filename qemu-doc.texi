@@ -675,6 +675,21 @@ qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
 /path/to/linux ubd0=/path/to/root_fs eth0=mcast
 @end example
 
+@item -net vde[,vlan=@var{n}][,sock=@var{socketpath}][,port=@var{n}][,group=@var{groupname}][,mode=@var{octalmode}]
+Connect VLAN @var{n} to PORT @var{n} of a vde switch running on host and
+listening for incoming connections on @var{socketpath}. Use GROUP @var{groupname}
+and MODE @var{octalmode} to change default ownership and permissions for
+communication port. This option is available only if QEMU has been compiled
+with vde support enabled.
+
+Example:
+@example
+# launch vde switch
+vde_switch -F -sock /tmp/myswitch
+# launch QEMU instance
+qemu linux.img -net nic -net vde,sock=/tmp/myswitch
+@end example
+
 @item -net none
 Indicate that no network devices should be configured. It is used to
 override the default configuration (@option{-net nic -net user}) which

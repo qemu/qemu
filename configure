@@ -89,6 +89,7 @@ mingw32="no"
 EXESUF=""
 gdbstub="yes"
 slirp="yes"
+vde="no"
 fmod_lib=""
 fmod_inc=""
 vnc_tls="yes"
@@ -280,6 +281,8 @@ for opt do
   ;;
   --disable-slirp) slirp="no"
   ;;
+  --enable-vde) vde="yes"
+  ;;
   --disable-kqemu) kqemu="no"
   ;;
   --disable-brlapi) brlapi="no"
@@ -432,6 +435,7 @@ echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
+echo "  --enable-vde             enable support for vde network [$vde]"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -722,6 +726,24 @@ if test "$vnc_tls" = "yes" ; then
 fi
 
 ##########################################
+# vde libraries probe
+if test "$vde" = "yes" ; then
+  cat > $TMPC << EOF
+#include <libvdeplug.h>
+int main(void) { struct vde_open_args a = {0, 0, 0} ; return 0;}
+EOF
+    if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+        :
+    else
+        echo
+        echo "Error: VDE check failed"
+        echo "Make sure to have the VDE libs and headers installed."
+        echo
+        exit 1
+    fi
+fi
+
+##########################################
 # Sound support libraries probe
 
 audio_drv_probe()
@@ -874,6 +896,7 @@ echo "Documentation     $build_docs"
 [ ! -z "$uname_release" ] && \
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
+echo "vde support       $vde"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -1037,6 +1060,11 @@ fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=yes" >> $config_mak
   echo "#define CONFIG_SLIRP 1" >> $config_h
+fi
+if test "$vde" = "yes" ; then
+  echo "CONFIG_VDE=yes" >> $config_mak
+  echo "#define CONFIG_VDE 1" >> $config_h
+  echo "VDE_LIBS=-lvdeplug" >> $config_mak
 fi
 for card in $audio_card_list; do
     def=CONFIG_`echo $card | tr '[:lower:]' '[:upper:]'`
