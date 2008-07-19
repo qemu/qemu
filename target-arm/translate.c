@@ -5813,7 +5813,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             /* Coprocessor double register transfer.  */
         } else if ((insn & 0x0f000010) == 0x0e000010) {
             /* Additional coprocessor register transfer.  */
-        } else if ((insn & 0x0ff10010) == 0x01000000) {
+        } else if ((insn & 0x0ff10020) == 0x01000000) {
             uint32_t mask;
             uint32_t val;
             /* cps (privileged) */
@@ -5830,7 +5830,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 if (insn & (1 << 18))
                     val |= mask;
             }
-            if (insn & (1 << 14)) {
+            if (insn & (1 << 17)) {
                 mask |= CPSR_M;
                 val |= (insn & 0x1f);
             }
