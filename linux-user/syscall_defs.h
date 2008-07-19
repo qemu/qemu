@@ -1570,7 +1570,8 @@ struct target_statfs64 {
 	uint32_t	f_namelen;
 	uint32_t	f_spare[6];
 };
-#elif defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+#elif (defined(TARGET_PPC64) || defined(TARGET_X86_64) || \
+       defined(TARGET_SPARC64)) && !defined(TARGET_ABI32)
 struct target_statfs {
 	abi_long f_type;
 	abi_long f_bsize;
