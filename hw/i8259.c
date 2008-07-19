@@ -123,6 +123,8 @@ static int pic_get_irq(PicState *s)
        master, the IRQ coming from the slave is not taken into account
        for the priority computation. */
     mask = s->isr;
+    if (s->special_mask)
+        mask &= ~s->imr;
     if (s->special_fully_nested_mode && s == &s->pics_state->pics[0])
         mask &= ~(1 << 2);
     cur_priority = get_priority(s, mask);
