@@ -2059,7 +2059,7 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
     uint32_t sum; \
     sum = (uint32_t)(uint16_t)(a) + (uint32_t)(uint16_t)(b); \
     RESULT(sum, n, 16); \
-    if ((sum >> 16) == 0) \
+    if ((sum >> 16) == 1) \
         ge |= 3 << (n * 2); \
     } while(0)
 
@@ -2067,8 +2067,8 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
     uint32_t sum; \
     sum = (uint32_t)(uint8_t)(a) + (uint32_t)(uint8_t)(b); \
     RESULT(sum, n, 8); \
-    if ((sum >> 8) == 0) \
-        ge |= 3 << (n * 2); \
+    if ((sum >> 8) == 1) \
+        ge |= 1 << n; \
     } while(0)
 
 #define SUB16(a, b, n) do { \
@@ -2084,7 +2084,7 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
     sum = (uint32_t)(uint8_t)(a) - (uint32_t)(uint8_t)(b); \
     RESULT(sum, n, 8); \
     if ((sum >> 8) == 0) \
-        ge |= 3 << (n * 2); \
+        ge |= 1 << n; \
     } while(0)
 
 #define PFX u
