@@ -296,6 +296,7 @@ libqemu.a: $(LIBOBJS)
 	$(AR) rcs $@ $(LIBOBJS)
 
 translate.o: translate.c cpu.h $(OPC_H)
+translate.o: CFLAGS:=${CFLAGS} -O1 #-fno-unit-at-a-time
 
 translate-all.o: translate-all.c cpu.h $(OPC_H)
 
@@ -511,6 +512,9 @@ endif
 ifdef CONFIG_PA
 LIBS += -lpulse-simple
 endif
+ifdef CONFIG_PA
+LIBS += -lpulse-simple
+endif
 ifdef CONFIG_DSOUND
 LIBS += -lole32 -ldxguid
 endif
@@ -708,7 +712,7 @@ main.o: CFLAGS+=-p
 endif
 
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
 
 endif # !CONFIG_USER_ONLY
 

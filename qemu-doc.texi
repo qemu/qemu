@@ -675,6 +675,21 @@ qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
 /path/to/linux ubd0=/path/to/root_fs eth0=mcast
 @end example
 
+@item -net vde[,vlan=@var{n}][,sock=@var{socketpath}][,port=@var{n}][,group=@var{groupname}][,mode=@var{octalmode}]
+Connect VLAN @var{n} to PORT @var{n} of a vde switch running on host and
+listening for incoming connections on @var{socketpath}. Use GROUP @var{groupname}
+and MODE @var{octalmode} to change default ownership and permissions for
+communication port. This option is available only if QEMU has been compiled
+with vde support enabled.
+
+Example:
+@example
+# launch vde switch
+vde_switch -F -sock /tmp/myswitch
+# launch QEMU instance
+qemu linux.img -net nic -net vde,sock=/tmp/myswitch
+@end example
+
 @item -net none
 Indicate that no network devices should be configured. It is used to
 override the default configuration (@option{-net nic -net user}) which
@@ -1323,6 +1338,7 @@ snapshots.
 * qemu_img_invocation::       qemu-img Invocation
 * host_drives::               Using host drives
 * disk_images_fat_images::    Virtual FAT disk images
+* disk_images_nbd::           NBD access
 @end menu
 
 @node disk_images_quickstart
@@ -1501,6 +1517,40 @@ What you should @emph{never} do:
 @item expect it to work when loadvm'ing ;
 @item write to the FAT directory on the host system while accessing it with the guest system.
 @end itemize
+
+@node disk_images_nbd
+@subsection NBD access
+
+QEMU can access directly to block device exported using the Network Block Device
+protocol.
+
+@example
+qemu linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
+@end example
+
+If the NBD server is located on the same host, you can use an unix socket instead
+of an inet socket:
+
+@example
+qemu linux.img -hdb nbd:unix:/tmp/my_socket
+@end example
+
+In this case, the block device must be exported using qemu-nbd:
+
+@example
+qemu-nbd --socket=/tmp/my_socket my_disk.qcow2
+@end example
+
+The use of qemu-nbd allows to share a disk between several guests:
+@example
+qemu-nbd --socket=/tmp/my_socket --share=2 my_disk.qcow2
+@end example
+
+and then you can use it with two guests:
+@example
+qemu linux1.img -hdb nbd:unix:/tmp/my_socket
+qemu linux2.img -hdb nbd:unix:/tmp/my_socket
+@end example
 
 @node pcsys_network
 @section Network emulation

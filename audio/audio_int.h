@@ -203,6 +203,7 @@ extern struct audio_driver alsa_audio_driver;
 extern struct audio_driver coreaudio_audio_driver;
 extern struct audio_driver dsound_audio_driver;
 extern struct audio_driver esd_audio_driver;
+extern struct audio_driver pa_audio_driver;
 extern volume_t nominal_volume;
 
 void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as);

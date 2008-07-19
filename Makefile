@@ -49,7 +49,7 @@ recurse-all: $(SUBDIR_RULES)
 BLOCK_OBJS=cutils.o qemu-malloc.o
 BLOCK_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
 BLOCK_OBJS+=block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
-BLOCK_OBJS+=block-qcow2.o block-parallels.o
+BLOCK_OBJS+=block-qcow2.o block-parallels.o block-nbd.o
 
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
@@ -57,7 +57,7 @@ BLOCK_OBJS+=block-qcow2.o block-parallels.o
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
 
-OBJS=$(BLOCK_OBJS)
+OBJS=nbd.o $(BLOCK_OBJS)
 OBJS+=readline.o console.o
 OBJS+=block.o
 
@@ -106,6 +106,11 @@ AUDIO_PT = yes
 AUDIO_PT_INT = yes
 AUDIO_OBJS += esdaudio.o
 endif
+ifdef CONFIG_PA
+AUDIO_PT = yes
+AUDIO_PT_INT = yes
+AUDIO_OBJS += paaudio.o
+endif
 ifdef AUDIO_PT
 LDFLAGS += -pthread
 endif
@@ -135,6 +140,8 @@ tcp_subr.o tcp_timer.o udp.o bootp.o debug.o tftp.o
 OBJS+=$(addprefix slirp/, $(SLIRP_OBJS))
 endif
 
+LIBS+=$(VDE_LIBS)
+
 cocoa.o: cocoa.m
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
@@ -162,7 +169,7 @@ libqemu_user.a: $(USER_OBJS)
 	rm -f $@ 
 	$(AR) rcs $@ $(USER_OBJS)
 
-QEMU_IMG_BLOCK_OBJS = $(BLOCK_OBJS)
+QEMU_IMG_BLOCK_OBJS = nbd.o $(BLOCK_OBJS)
 ifdef CONFIG_WIN32
 QEMU_IMG_BLOCK_OBJS += qemu-img-block-raw-win32.o
 else
