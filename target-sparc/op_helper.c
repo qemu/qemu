@@ -1549,7 +1549,8 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 #endif
 
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
+        || ((env->features & CPU_FEATURE_HYPV) && asi >= 0x30 && asi < 0x80
+            && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
@@ -1561,7 +1562,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x88: // Primary LE
     case 0x8a: // Primary no-fault LE
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            if (env->hpstate & HS_PRIV) {
+            if ((env->features & CPU_FEATURE_HYPV) && env->hpstate & HS_PRIV) {
                 switch(size) {
                 case 1:
                     ret = ldub_hypv(addr);
@@ -1837,7 +1838,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     dump_asi("write", addr, asi, size, val);
 #endif
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
+        || ((env->features & CPU_FEATURE_HYPV) && asi >= 0x30 && asi < 0x80
+            && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
     helper_check_align(addr, size - 1);
@@ -1873,7 +1875,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x80: // Primary
     case 0x88: // Primary LE
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            if (env->hpstate & HS_PRIV) {
+            if ((env->features & CPU_FEATURE_HYPV) && env->hpstate & HS_PRIV) {
                 switch(size) {
                 case 1:
                     stb_hypv(addr, val);
@@ -2153,7 +2155,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
 void helper_ldda_asi(target_ulong addr, int asi, int rd)
 {
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
+        || ((env->features & CPU_FEATURE_HYPV) && asi >= 0x30 && asi < 0x80
+            && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
     switch (asi) {
@@ -2726,7 +2729,8 @@ void change_pstate(uint64_t new_pstate)
 
 void helper_wrpstate(target_ulong new_state)
 {
-    change_pstate(new_state & 0xf3f);
+    if (!(env->features & CPU_FEATURE_GL))
+        change_pstate(new_state & 0xf3f);
 }
 
 void helper_done(void)
