@@ -1939,7 +1939,7 @@ static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
     PCNetState *d = (PCNetState *)pci_dev;
 
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_ioport_map addr=0x%08x 0x%08x\n", addr, size);
+    printf("pcnet_mmio_map addr=0x%08x 0x%08x\n", addr, size);
 #endif
 
     cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->mmio_index);
@@ -2034,7 +2034,7 @@ static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
 
     val = pcnet_ioport_readw(opaque, addr & 7);
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_readw addr=" TARGET_FMT_plx " val = 0x%04x\n", addr,
+    printf("lance_mem_readw addr=" TARGET_FMT_plx " val = 0x%04x\n", addr,
            val & 0xffff);
 #endif
 
