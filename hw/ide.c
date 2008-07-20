@@ -351,6 +351,7 @@
 #define ASC_ILLEGAL_OPCODE                   0x20
 #define ASC_LOGICAL_BLOCK_OOR                0x21
 #define ASC_INV_FIELD_IN_CMD_PACKET          0x24
+#define ASC_INCOMPATIBLE_FORMAT              0x30
 #define ASC_MEDIUM_NOT_PRESENT               0x3a
 #define ASC_SAVING_PARAMETERS_NOT_SUPPORTED  0x39
 
@@ -433,6 +434,22 @@ typedef struct IDEState {
     uint8_t *mdata_storage;
     int media_changed;
 } IDEState;
+
+/* XXX: DVDs that could fit on a CD will be reported as a CD */
+static inline int media_present(IDEState *s)
+{
+    return (s->nb_sectors > 0);
+}
+
+static inline int media_is_dvd(IDEState *s)
+{
+    return (media_present(s) && s->nb_sectors > CD_MAX_SECTORS);
+}
+
+static inline int media_is_cd(IDEState *s)
+{
+    return (media_present(s) && s->nb_sectors <= CD_MAX_SECTORS);
+}
 
 #define BM_STATUS_DMAING 0x01
 #define BM_STATUS_ERROR  0x02
@@ -1366,6 +1383,93 @@ static inline uint8_t ide_atapi_set_profile(uint8_t *buf, uint8_t *index,
     return 4;
 }
 
+static int ide_dvd_read_structure(IDEState *s, int format,
+                                  const uint8_t *packet, uint8_t *buf)
+{
+    switch (format) {
+        case 0x0: /* Physical format information */
+            {
+                int layer = packet[6];
+                uint64_t total_sectors;
+
+                if (layer != 0)
+                    return -ASC_INV_FIELD_IN_CMD_PACKET;
+
+                bdrv_get_geometry(s->bs, &total_sectors);
+                total_sectors >>= 2;
+                if (total_sectors == 0)
+                    return -ASC_MEDIUM_NOT_PRESENT;
+
+                buf[4] = 1;   /* DVD-ROM, part version 1 */
+                buf[5] = 0xf; /* 120mm disc, minimum rate unspecified */
+                buf[6] = 1;   /* one layer, read-only (per MMC-2 spec) */
+                buf[7] = 0;   /* default densities */
+
+                /* FIXME: 0x30000 per spec? */
+                cpu_to_ube32(buf + 8, 0); /* start sector */
+                cpu_to_ube32(buf + 12, total_sectors - 1); /* end sector */
+                cpu_to_ube32(buf + 16, total_sectors - 1); /* l0 end sector */
+
+                /* Size of buffer, not including 2 byte size field */
+                cpu_to_be16wu((uint16_t *)buf, 2048 + 2);
+
+                /* 2k data + 4 byte header */
+                return (2048 + 4);
+            }
+
+        case 0x01: /* DVD copyright information */
+            buf[4] = 0; /* no copyright data */
+            buf[5] = 0; /* no region restrictions */
+
+            /* Size of buffer, not including 2 byte size field */
+            cpu_to_be16wu((uint16_t *)buf, 4 + 2);
+
+            /* 4 byte header + 4 byte data */
+            return (4 + 4);
+
+        case 0x03: /* BCA information - invalid field for no BCA info */
+            return -ASC_INV_FIELD_IN_CMD_PACKET;
+
+        case 0x04: /* DVD disc manufacturing information */
+            /* Size of buffer, not including 2 byte size field */
+            cpu_to_be16wu((uint16_t *)buf, 2048 + 2);
+
+            /* 2k data + 4 byte header */
+            return (2048 + 4);
+
+        case 0xff:
+            /*
+             * This lists all the command capabilities above.  Add new ones
+             * in order and update the length and buffer return values.
+             */
+
+            buf[4] = 0x00; /* Physical format */
+            buf[5] = 0x40; /* Not writable, is readable */
+            cpu_to_be16wu((uint16_t *)(buf + 6), 2048 + 4);
+
+            buf[8] = 0x01; /* Copyright info */
+            buf[9] = 0x40; /* Not writable, is readable */
+            cpu_to_be16wu((uint16_t *)(buf + 10), 4 + 4);
+
+            buf[12] = 0x03; /* BCA info */
+            buf[13] = 0x40; /* Not writable, is readable */
+            cpu_to_be16wu((uint16_t *)(buf + 14), 188 + 4);
+
+            buf[16] = 0x04; /* Manufacturing info */
+            buf[17] = 0x40; /* Not writable, is readable */
+            cpu_to_be16wu((uint16_t *)(buf + 18), 2048 + 4);
+
+            /* Size of buffer, not including 2 byte size field */
+            cpu_to_be16wu((uint16_t *)buf, 16 + 2);
+
+            /* data written + 4 byte header */
+            return (16 + 4);
+
+        default: /* TODO: formats beyond DVD-ROM requires */
+            return -ASC_INV_FIELD_IN_CMD_PACKET;
+    }
+}
+
 static void ide_atapi_cmd(IDEState *s)
 {
     const uint8_t *packet;
@@ -1653,42 +1757,48 @@ static void ide_atapi_cmd(IDEState *s)
     case GPCMD_READ_DVD_STRUCTURE:
         {
             int media = packet[1];
-            int layer = packet[6];
-            int format = packet[2];
-            uint64_t total_sectors;
+            int format = packet[7];
+            int ret;
 
-            if (media != 0 || layer != 0)
-            {
-                ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
-                                    ASC_INV_FIELD_IN_CMD_PACKET);
+            max_len = ube16_to_cpu(packet + 8);
+
+            if (format < 0xff) {
+                if (media_is_cd(s)) {
+                    ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
+                                        ASC_INCOMPATIBLE_FORMAT);
+                    break;
+                } else if (!media_present(s)) {
+                    ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
+                                        ASC_INV_FIELD_IN_CMD_PACKET);
+                    break;
+                }
             }
 
+            memset(buf, 0, max_len > IDE_DMA_BUF_SECTORS * 512 + 4 ?
+                   IDE_DMA_BUF_SECTORS * 512 + 4 : max_len);
+
             switch (format) {
-                case 0:
-                    bdrv_get_geometry(s->bs, &total_sectors);
-                    total_sectors >>= 2;
-                    if (total_sectors == 0) {
-                        ide_atapi_cmd_error(s, SENSE_NOT_READY,
-                                            ASC_MEDIUM_NOT_PRESENT);
+                case 0x00 ... 0x7f:
+                case 0xff:
+                    if (media == 0) {
+                        ret = ide_dvd_read_structure(s, format, packet, buf);
+
+                        if (ret < 0)
+                            ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST, -ret);
+                        else
+                            ide_atapi_cmd_reply(s, ret, max_len);
+
                         break;
                     }
+                    /* TODO: BD support, fall through for now */
 
-                    memset(buf, 0, 2052);
-
-                    buf[4] = 1;   // DVD-ROM, part version 1
-                    buf[5] = 0xf; // 120mm disc, maximum rate unspecified
-                    buf[6] = 0;   // one layer, embossed data
-                    buf[7] = 0;
-
-                    cpu_to_ube32(buf + 8, 0);
-                    cpu_to_ube32(buf + 12, total_sectors - 1);
-                    cpu_to_ube32(buf + 16, total_sectors - 1);
-
-                    cpu_to_be16wu((uint16_t *)buf, 2048 + 4);
-
-                    ide_atapi_cmd_reply(s, 2048 + 3, 2048 + 4);
-                    break;
-
+                /* Generic disk structures */
+                case 0x80: /* TODO: AACS volume identifier */
+                case 0x81: /* TODO: AACS media serial number */
+                case 0x82: /* TODO: AACS media identifier */
+                case 0x83: /* TODO: AACS media key block */
+                case 0x90: /* TODO: List of recognized format layers */
+                case 0xc0: /* TODO: Write protection status */
                 default:
                     ide_atapi_cmd_error(s, SENSE_ILLEGAL_REQUEST,
                                         ASC_INV_FIELD_IN_CMD_PACKET);
@@ -1743,16 +1853,11 @@ static void ide_atapi_cmd(IDEState *s)
             /* 
              * the number of sectors from the media tells us which profile
              * to use as current.  0 means there is no media
-             *
-             * XXX: fails to detect correctly DVDs with less data burned
-             *      than what a CD can hold
              */
-            if (s -> nb_sectors) {
-                if (s -> nb_sectors > CD_MAX_SECTORS)
-                    cpu_to_ube16(buf + 6, MMC_PROFILE_DVD_ROM);
-                else
-                    cpu_to_ube16(buf + 6, MMC_PROFILE_CD_ROM);
-            }
+            if (media_is_dvd(s))
+                cpu_to_ube16(buf + 6, MMC_PROFILE_DVD_ROM);
+            else if (media_is_cd(s))
+                cpu_to_ube16(buf + 6, MMC_PROFILE_CD_ROM);
 
             buf[10] = 0x02 | 0x01; /* persistent and current */
             len = 12; /* headers: 8 + 4 */
@@ -1880,9 +1985,7 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case 0:
         break;
     case 1:
-#if !defined(TARGET_MIPS)
 	ide_clear_hob(ide_if);
-#endif
         /* NOTE: data is written to the two drives */
 	ide_if[0].hob_feature = ide_if[0].feature;
 	ide_if[1].hob_feature = ide_if[1].feature;

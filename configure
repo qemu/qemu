@@ -347,7 +347,8 @@ else
 fi
 
 # default flags for all hosts
-CFLAGS="$CFLAGS -Wall -Wmissing-noreturn -Wshadow -O2 -g -fno-strict-aliasing"
+# TODO: CFLAGS="$CFLAGS -Wall -Wmissing-noreturn -Wshadow -O2 -g -fno-strict-aliasing"
+CFLAGS="$CFLAGS -Wall -Wmissing-noreturn -O2 -g -fno-strict-aliasing"
 LDFLAGS="$LDFLAGS -g"
 if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
@@ -1090,7 +1091,7 @@ for drv in $audio_drv_list; do
     echo "    &${drv}_audio_driver, \\" >>$config_h
     def=CONFIG_`echo $drv | tr '[:lower:]' '[:upper:]'`
     echo "$def=yes" >> $config_mak
-    if test "$drv" == "fmod"; then
+    if test "$drv" = "fmod"; then
         echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
         echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
     fi
@@ -1262,13 +1263,13 @@ case "$target_cpu" in
     then
       echo "#define USE_KQEMU 1" >> $config_h
     fi
-    #~ gcc3minver=`$cc --version 2> /dev/null| fgrep "(GCC) 3." | awk '{ print $3 }' | cut -f2 -d.`
-    #~ if test -n "$gcc3minver" && test $gcc3minver -gt 3
-    #~ then
-      #~ echo "HAVE_GT_GCC_3_3=true" >> $config_mak
-    #~ else
-      #~ echo "HAVE_GT_GCC_3_3=false" >> $config_mak
-    #~ fi
+    gcc3minver=`$cc --version 2> /dev/null| fgrep "(GCC) 3." | awk '{ print $3 }' | cut -f2 -d.`
+    if test -n "$gcc3minver" && test $gcc3minver -gt 3
+    then
+      echo "HAVE_GT_GCC_3_3=true" >> $config_mak
+    else
+      echo "HAVE_GT_GCC_3_3=false" >> $config_mak
+    fi
   ;;
   x86_64)
     echo "TARGET_ARCH=x86_64" >> $config_mak

@@ -667,7 +667,7 @@ static inline void stfq_be_p(void *ptr, float64 v)
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
 #define g2h(x) ((void *)((unsigned long)(x) + GUEST_BASE))
-#define h2g(x) ((target_ulong)(x - GUEST_BASE))
+#define h2g(x) ((target_ulong)((unsigned long)(x) - GUEST_BASE))
 
 #define saddr(x) g2h(x)
 #define laddr(x) g2h(x)

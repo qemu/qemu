@@ -10,29 +10,6 @@
 
 register struct CPUMIPSState *env asm(AREG0);
 
-#if defined (USE_HOST_FLOAT_REGS)
-#error "implement me."
-#else
-#define FDT0 (env->ft0.fd)
-#define FDT1 (env->ft1.fd)
-#define FDT2 (env->ft2.fd)
-#define FST0 (env->ft0.fs[FP_ENDIAN_IDX])
-#define FST1 (env->ft1.fs[FP_ENDIAN_IDX])
-#define FST2 (env->ft2.fs[FP_ENDIAN_IDX])
-#define FSTH0 (env->ft0.fs[!FP_ENDIAN_IDX])
-#define FSTH1 (env->ft1.fs[!FP_ENDIAN_IDX])
-#define FSTH2 (env->ft2.fs[!FP_ENDIAN_IDX])
-#define DT0 (env->ft0.d)
-#define DT1 (env->ft1.d)
-#define DT2 (env->ft2.d)
-#define WT0 (env->ft0.w[FP_ENDIAN_IDX])
-#define WT1 (env->ft1.w[FP_ENDIAN_IDX])
-#define WT2 (env->ft2.w[FP_ENDIAN_IDX])
-#define WTH0 (env->ft0.w[!FP_ENDIAN_IDX])
-#define WTH1 (env->ft1.w[!FP_ENDIAN_IDX])
-#define WTH2 (env->ft2.w[!FP_ENDIAN_IDX])
-#endif
-
 #include "cpu.h"
 #include "exec-all.h"
 

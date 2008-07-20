@@ -184,78 +184,80 @@ static void ssd0323_update_display(void *opaque)
     char *p;
     int dest_width;
 
-    if (s->redraw) {
+    if (!s->redraw)
+        return;
+
+    switch (s->ds->depth) {
+    case 0:
+        return;
+    case 15:
+        dest_width = 2;
+        break;
+    case 16:
+        dest_width = 2;
+        break;
+    case 24:
+        dest_width = 3;
+        break;
+    case 32:
+        dest_width = 4;
+        break;
+    default:
+        BADF("Bad color depth\n");
+        return;
+    }
+    p = colortab;
+    for (i = 0; i < 16; i++) {
+        int n;
+        colors[i] = p;
         switch (s->ds->depth) {
-        case 0:
-            return;
         case 15:
-            dest_width = 2;
+            n = i * 2 + (i >> 3);
+            p[0] = n | (n << 5);
+            p[1] = (n << 2) | (n >> 3);
             break;
         case 16:
-            dest_width = 2;
+            n = i * 2 + (i >> 3);
+            p[0] = n | (n << 6) | ((n << 1) & 0x20);
+            p[1] = (n << 3) | (n >> 2);
             break;
         case 24:
-            dest_width = 3;
-            break;
         case 32:
-            dest_width = 4;
+            n = (i << 4) | i;
+            p[0] = p[1] = p[2] = n;
             break;
         default:
             BADF("Bad color depth\n");
             return;
         }
-        p = colortab;
-        for (i = 0; i < 16; i++) {
-            int n;
-            colors[i] = p;
-            switch (s->ds->depth) {
-            case 15:
-                n = i * 2 + (i >> 3);
-                p[0] = n | (n << 5);
-                p[1] = (n << 2) | (n >> 3);
-                break;
-            case 16:
-                n = i * 2 + (i >> 3);
-                p[0] = n | (n << 6) | ((n << 1) & 0x20);
-                p[1] = (n << 3) | (n >> 2);
-                break;
-            case 24:
-            case 32:
-                n = (i << 4) | i;
-                p[0] = p[1] = p[2] = n;
-                break;
-            default:
-                BADF("Bad color depth\n");
-                return;
+        p += dest_width;
+    }
+    /* TODO: Implement row/column remapping.  */
+    dest = s->ds->data;
+    for (y = 0; y < 64; y++) {
+        line = y;
+        src = s->framebuffer + 64 * line;
+        for (x = 0; x < 64; x++) {
+            int val;
+            val = *src >> 4;
+            for (i = 0; i < MAGNIFY; i++) {
+                memcpy(dest, colors[val], dest_width);
+                dest += dest_width;
             }
-            p += dest_width;
+            val = *src & 0xf;
+            for (i = 0; i < MAGNIFY; i++) {
+                memcpy(dest, colors[val], dest_width);
+                dest += dest_width;
+            }
+            src++;
         }
-        /* TODO: Implement row/column remapping.  */
-        dest = s->ds->data;
-        for (y = 0; y < 64; y++) {
-            line = y;
-            src = s->framebuffer + 64 * line;
-            for (x = 0; x < 64; x++) {
-                int val;
-                val = *src >> 4;
-                for (i = 0; i < MAGNIFY; i++) {
-                    memcpy(dest, colors[val], dest_width);
-                    dest += dest_width;
-                }
-                val = *src & 0xf;
-                for (i = 0; i < MAGNIFY; i++) {
-                    memcpy(dest, colors[val], dest_width);
-                    dest += dest_width;
-                }
-                src++;
-            }
-            for (i = 1; i < MAGNIFY; i++) {
-                memcpy(dest, dest - dest_width * MAGNIFY * 128,
-                       dest_width * 128 * MAGNIFY);
-                dest += dest_width * 128 * MAGNIFY;
-            }
+        for (i = 1; i < MAGNIFY; i++) {
+            memcpy(dest, dest - dest_width * MAGNIFY * 128,
+                   dest_width * 128 * MAGNIFY);
+            dest += dest_width * 128 * MAGNIFY;
         }
     }
+    s->redraw = 0;
     dpy_update(s->ds, 0, 0, 128 * MAGNIFY, 64 * MAGNIFY);
 }
 
@@ -271,6 +273,53 @@ static void ssd0323_cd(void *opaque, int n, int level)
     ssd0323_state *s = (ssd0323_state *)opaque;
     DPRINTF("%s mode\n", level ? "Data" : "Command");
     s->mode = level ? SSD0323_DATA : SSD0323_CMD;
+}
+
+static void ssd0323_save(QEMUFile *f, void *opaque)
+{
+    ssd0323_state *s = (ssd0323_state *)opaque;
+    int i;
+
+    qemu_put_be32(f, s->cmd_len);
+    qemu_put_be32(f, s->cmd);
+    for (i = 0; i < 8; i++)
+        qemu_put_be32(f, s->cmd_data[i]);
+    qemu_put_be32(f, s->row);
+    qemu_put_be32(f, s->row_start);
+    qemu_put_be32(f, s->row_end);
+    qemu_put_be32(f, s->col);
+    qemu_put_be32(f, s->col_start);
+    qemu_put_be32(f, s->col_end);
+    qemu_put_be32(f, s->redraw);
+    qemu_put_be32(f, s->remap);
+    qemu_put_be32(f, s->mode);
+    qemu_put_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+}
+
+static int ssd0323_load(QEMUFile *f, void *opaque, int version_id)
+{
+    ssd0323_state *s = (ssd0323_state *)opaque;
+    int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->cmd_len = qemu_get_be32(f);
+    s->cmd = qemu_get_be32(f);
+    for (i = 0; i < 8; i++)
+        s->cmd_data[i] = qemu_get_be32(f);
+    s->row = qemu_get_be32(f);
+    s->row_start = qemu_get_be32(f);
+    s->row_end = qemu_get_be32(f);
+    s->col = qemu_get_be32(f);
+    s->col_start = qemu_get_be32(f);
+    s->col_end = qemu_get_be32(f);
+    s->redraw = qemu_get_be32(f);
+    s->remap = qemu_get_be32(f);
+    s->mode = qemu_get_be32(f);
+    qemu_get_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+
+    return 0;
 }
 
 void *ssd0323_init(DisplayState *ds, qemu_irq *cmd_p)
@@ -289,6 +338,8 @@ void *ssd0323_init(DisplayState *ds, qemu_irq *cmd_p)
 
     cmd = qemu_allocate_irqs(ssd0323_cd, s, 1);
     *cmd_p = *cmd;
+
+    register_savevm("ssd0323_oled", -1, 1, ssd0323_save, ssd0323_load, s);
 
     return s;
 }

@@ -286,6 +286,65 @@ static CPUWriteMemoryFunc *gptm_writefn[] = {
    gptm_write
 };
 
+static void gptm_save(QEMUFile *f, void *opaque)
+{
+    gptm_state *s = (gptm_state *)opaque;
+
+    qemu_put_be32(f, s->config);
+    qemu_put_be32(f, s->mode[0]);
+    qemu_put_be32(f, s->mode[1]);
+    qemu_put_be32(f, s->control);
+    qemu_put_be32(f, s->state);
+    qemu_put_be32(f, s->mask);
+    qemu_put_be32(f, s->mode[0]);
+    qemu_put_be32(f, s->mode[0]);
+    qemu_put_be32(f, s->load[0]);
+    qemu_put_be32(f, s->load[1]);
+    qemu_put_be32(f, s->match[0]);
+    qemu_put_be32(f, s->match[1]);
+    qemu_put_be32(f, s->prescale[0]);
+    qemu_put_be32(f, s->prescale[1]);
+    qemu_put_be32(f, s->match_prescale[0]);
+    qemu_put_be32(f, s->match_prescale[1]);
+    qemu_put_be32(f, s->rtc);
+    qemu_put_be64(f, s->tick[0]);
+    qemu_put_be64(f, s->tick[1]);
+    qemu_put_timer(f, s->timer[0]);
+    qemu_put_timer(f, s->timer[1]);
+}
+
+static int gptm_load(QEMUFile *f, void *opaque, int version_id)
+{
+    gptm_state *s = (gptm_state *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->config = qemu_get_be32(f);
+    s->mode[0] = qemu_get_be32(f);
+    s->mode[1] = qemu_get_be32(f);
+    s->control = qemu_get_be32(f);
+    s->state = qemu_get_be32(f);
+    s->mask = qemu_get_be32(f);
+    s->mode[0] = qemu_get_be32(f);
+    s->mode[0] = qemu_get_be32(f);
+    s->load[0] = qemu_get_be32(f);
+    s->load[1] = qemu_get_be32(f);
+    s->match[0] = qemu_get_be32(f);
+    s->match[1] = qemu_get_be32(f);
+    s->prescale[0] = qemu_get_be32(f);
+    s->prescale[1] = qemu_get_be32(f);
+    s->match_prescale[0] = qemu_get_be32(f);
+    s->match_prescale[1] = qemu_get_be32(f);
+    s->rtc = qemu_get_be32(f);
+    s->tick[0] = qemu_get_be64(f);
+    s->tick[1] = qemu_get_be64(f);
+    qemu_get_timer(f, s->timer[0]);
+    qemu_get_timer(f, s->timer[1]);
+
+    return 0;
+}
+
 static void stellaris_gptm_init(uint32_t base, qemu_irq irq, qemu_irq trigger)
 {
     int iomemtype;
@@ -302,7 +361,7 @@ static void stellaris_gptm_init(uint32_t base, qemu_irq irq, qemu_irq trigger)
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     s->timer[0] = qemu_new_timer(vm_clock, gptm_tick, &s->opaque[0]);
     s->timer[1] = qemu_new_timer(vm_clock, gptm_tick, &s->opaque[1]);
-    /* ??? Save/restore.  */
+    register_savevm("stellaris_gptm", -1, 1, gptm_save, gptm_load, s);
 }
 
 
@@ -452,6 +511,11 @@ static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
+static void ssys_calculate_system_clock(ssys_state *s)
+{
+    system_clock_scale = 5 * (((s->rcc >> 23) & 0xf) + 1);
+}
+
 static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
 {
     ssys_state *s = (ssys_state *)opaque;
@@ -484,7 +548,7 @@ static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
             s->int_status |= (1 << 6);
         }
         s->rcc = value;
-        system_clock_scale = 5 * (((s->rcc >> 23) & 0xf) + 1);
+        ssys_calculate_system_clock(s);
         break;
     case 0x100: /* RCGC0 */
         s->rcgc[0] = value;
@@ -548,6 +612,58 @@ static void ssys_reset(void *opaque)
     s->dcgc[0] = 1;
 }
 
+static void ssys_save(QEMUFile *f, void *opaque)
+{
+    ssys_state *s = (ssys_state *)opaque;
+
+    qemu_put_be32(f, s->pborctl);
+    qemu_put_be32(f, s->ldopctl);
+    qemu_put_be32(f, s->int_mask);
+    qemu_put_be32(f, s->int_status);
+    qemu_put_be32(f, s->resc);
+    qemu_put_be32(f, s->rcc);
+    qemu_put_be32(f, s->rcgc[0]);
+    qemu_put_be32(f, s->rcgc[1]);
+    qemu_put_be32(f, s->rcgc[2]);
+    qemu_put_be32(f, s->scgc[0]);
+    qemu_put_be32(f, s->scgc[1]);
+    qemu_put_be32(f, s->scgc[2]);
+    qemu_put_be32(f, s->dcgc[0]);
+    qemu_put_be32(f, s->dcgc[1]);
+    qemu_put_be32(f, s->dcgc[2]);
+    qemu_put_be32(f, s->clkvclr);
+    qemu_put_be32(f, s->ldoarst);
+}
+
+static int ssys_load(QEMUFile *f, void *opaque, int version_id)
+{
+    ssys_state *s = (ssys_state *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->pborctl = qemu_get_be32(f);
+    s->ldopctl = qemu_get_be32(f);
+    s->int_mask = qemu_get_be32(f);
+    s->int_status = qemu_get_be32(f);
+    s->resc = qemu_get_be32(f);
+    s->rcc = qemu_get_be32(f);
+    s->rcgc[0] = qemu_get_be32(f);
+    s->rcgc[1] = qemu_get_be32(f);
+    s->rcgc[2] = qemu_get_be32(f);
+    s->scgc[0] = qemu_get_be32(f);
+    s->scgc[1] = qemu_get_be32(f);
+    s->scgc[2] = qemu_get_be32(f);
+    s->dcgc[0] = qemu_get_be32(f);
+    s->dcgc[1] = qemu_get_be32(f);
+    s->dcgc[2] = qemu_get_be32(f);
+    s->clkvclr = qemu_get_be32(f);
+    s->ldoarst = qemu_get_be32(f);
+    ssys_calculate_system_clock(s);
+
+    return 0;
+}
+
 static void stellaris_sys_init(uint32_t base, qemu_irq irq,
                                stellaris_board_info * board,
                                uint8_t *macaddr)
@@ -567,7 +683,7 @@ static void stellaris_sys_init(uint32_t base, qemu_irq irq,
                                        ssys_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     ssys_reset(s);
-    /* ??? Save/restore.  */
+    register_savevm("stellaris_sys", -1, 1, ssys_save, ssys_load, s);
 }
 
 
@@ -737,6 +853,37 @@ static CPUWriteMemoryFunc *stellaris_i2c_writefn[] = {
    stellaris_i2c_write
 };
 
+static void stellaris_i2c_save(QEMUFile *f, void *opaque)
+{
+    stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
+
+    qemu_put_be32(f, s->msa);
+    qemu_put_be32(f, s->mcs);
+    qemu_put_be32(f, s->mdr);
+    qemu_put_be32(f, s->mtpr);
+    qemu_put_be32(f, s->mimr);
+    qemu_put_be32(f, s->mris);
+    qemu_put_be32(f, s->mcr);
+}
+
+static int stellaris_i2c_load(QEMUFile *f, void *opaque, int version_id)
+{
+    stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->msa = qemu_get_be32(f);
+    s->mcs = qemu_get_be32(f);
+    s->mdr = qemu_get_be32(f);
+    s->mtpr = qemu_get_be32(f);
+    s->mimr = qemu_get_be32(f);
+    s->mris = qemu_get_be32(f);
+    s->mcr = qemu_get_be32(f);
+
+    return 0;
+}
+
 static void stellaris_i2c_init(uint32_t base, qemu_irq irq, i2c_bus *bus)
 {
     stellaris_i2c_state *s;
@@ -752,6 +899,8 @@ static void stellaris_i2c_init(uint32_t base, qemu_irq irq, i2c_bus *bus)
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
+    register_savevm("stellaris_i2c", -1, 1,
+                    stellaris_i2c_save, stellaris_i2c_load, s);
 }
 
 /* Analogue to Digital Converter.  This is only partially implemented,
@@ -785,6 +934,7 @@ typedef struct
     } fifo[4];
     uint32_t ssmux[4];
     uint32_t ssctl[4];
+    uint32_t noise;
     qemu_irq irq;
 } stellaris_adc_state;
 
@@ -833,17 +983,16 @@ static void stellaris_adc_update(stellaris_adc_state *s)
 static void stellaris_adc_trigger(void *opaque, int irq, int level)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
-    /* Some applications use the ADC as a random number source, so introduce
-       some variation into the signal.  */
-    static uint32_t noise = 0;
 
     if ((s->actss & 1) == 0) {
         return;
     }
 
-    noise = noise * 314159 + 1;
+    /* Some applications use the ADC as a random number source, so introduce
+       some variation into the signal.  */
+    s->noise = s->noise * 314159 + 1;
     /* ??? actual inputs not implemented.  Return an arbitrary value.  */
-    stellaris_adc_fifo_write(s, 0, 0x200 + ((noise >> 16) & 7));
+    stellaris_adc_fifo_write(s, 0, 0x200 + ((s->noise >> 16) & 7));
     s->ris |= 1;
     stellaris_adc_update(s);
 }
@@ -983,6 +1132,61 @@ static CPUWriteMemoryFunc *stellaris_adc_writefn[] = {
    stellaris_adc_write
 };
 
+static void stellaris_adc_save(QEMUFile *f, void *opaque)
+{
+    stellaris_adc_state *s = (stellaris_adc_state *)opaque;
+    int i;
+    int j;
+
+    qemu_put_be32(f, s->actss);
+    qemu_put_be32(f, s->ris);
+    qemu_put_be32(f, s->im);
+    qemu_put_be32(f, s->emux);
+    qemu_put_be32(f, s->ostat);
+    qemu_put_be32(f, s->ustat);
+    qemu_put_be32(f, s->sspri);
+    qemu_put_be32(f, s->sac);
+    for (i = 0; i < 4; i++) {
+        qemu_put_be32(f, s->fifo[i].state);
+        for (j = 0; j < 16; j++) {
+            qemu_put_be32(f, s->fifo[i].data[j]);
+        }
+        qemu_put_be32(f, s->ssmux[i]);
+        qemu_put_be32(f, s->ssctl[i]);
+    }
+    qemu_put_be32(f, s->noise);
+}
+
+static int stellaris_adc_load(QEMUFile *f, void *opaque, int version_id)
+{
+    stellaris_adc_state *s = (stellaris_adc_state *)opaque;
+    int i;
+    int j;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->actss = qemu_get_be32(f);
+    s->ris = qemu_get_be32(f);
+    s->im = qemu_get_be32(f);
+    s->emux = qemu_get_be32(f);
+    s->ostat = qemu_get_be32(f);
+    s->ustat = qemu_get_be32(f);
+    s->sspri = qemu_get_be32(f);
+    s->sac = qemu_get_be32(f);
+    for (i = 0; i < 4; i++) {
+        s->fifo[i].state = qemu_get_be32(f);
+        for (j = 0; j < 16; j++) {
+            s->fifo[i].data[j] = qemu_get_be32(f);
+        }
+        s->ssmux[i] = qemu_get_be32(f);
+        s->ssctl[i] = qemu_get_be32(f);
+    }
+    s->noise = qemu_get_be32(f);
+
+    return 0;
+}
+
 static qemu_irq stellaris_adc_init(uint32_t base, qemu_irq irq)
 {
     stellaris_adc_state *s;
@@ -998,6 +1202,8 @@ static qemu_irq stellaris_adc_init(uint32_t base, qemu_irq irq)
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     stellaris_adc_reset(s);
     qi = qemu_allocate_irqs(stellaris_adc_trigger, s, 1);
+    register_savevm("stellaris_adc", -1, 1,
+                    stellaris_adc_save, stellaris_adc_load, s);
     return qi[0];
 }
 
@@ -1029,6 +1235,25 @@ static int stellaris_ssi_bus_xfer(void *opaque, int val)
     return s->xfer_cb[s->current_dev](s->opaque[s->current_dev], val);
 }
 
+static void stellaris_ssi_bus_save(QEMUFile *f, void *opaque)
+{
+    stellaris_ssi_bus_state *s = (stellaris_ssi_bus_state *)opaque;
+
+    qemu_put_be32(f, s->current_dev);
+}
+
+static int stellaris_ssi_bus_load(QEMUFile *f, void *opaque, int version_id)
+{
+    stellaris_ssi_bus_state *s = (stellaris_ssi_bus_state *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->current_dev = qemu_get_be32(f);
+
+    return 0;
+}
+
 static void *stellaris_ssi_bus_init(qemu_irq *irqp,
                                     ssi_xfer_cb cb0, void *opaque0,
                                     ssi_xfer_cb cb1, void *opaque1)
@@ -1043,6 +1268,8 @@ static void *stellaris_ssi_bus_init(qemu_irq *irqp,
     s->opaque[1] = opaque1;
     qi = qemu_allocate_irqs(stellaris_ssi_bus_select, s, 1);
     *irqp = *qi;
+    register_savevm("stellaris_ssi_bus", -1, 1,
+                    stellaris_ssi_bus_save, stellaris_ssi_bus_load, s);
     return s;
 }
 

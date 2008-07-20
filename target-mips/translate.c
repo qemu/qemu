@@ -426,9 +426,6 @@ enum {
 /* global register indices */
 static TCGv cpu_env, bcond, btarget, current_fpu;
 
-/* FPU TNs, global for now. */
-static TCGv fpu32_T[3], fpu64_T[3], fpu32h_T[3];
-
 #include "gen-icount.h"
 
 static inline void tcg_gen_helper_0_i(void *func, TCGv arg)
@@ -724,36 +721,39 @@ static inline void get_fp_cond (TCGv t)
     tcg_temp_free(r_tmp2);
 }
 
-#define FOP_CONDS(type, fmt)                                              \
-static GenOpFunc1 * fcmp ## type ## _ ## fmt ## _table[16] = {            \
-    do_cmp ## type ## _ ## fmt ## _f,                                     \
-    do_cmp ## type ## _ ## fmt ## _un,                                    \
-    do_cmp ## type ## _ ## fmt ## _eq,                                    \
-    do_cmp ## type ## _ ## fmt ## _ueq,                                   \
-    do_cmp ## type ## _ ## fmt ## _olt,                                   \
-    do_cmp ## type ## _ ## fmt ## _ult,                                   \
-    do_cmp ## type ## _ ## fmt ## _ole,                                   \
-    do_cmp ## type ## _ ## fmt ## _ule,                                   \
-    do_cmp ## type ## _ ## fmt ## _sf,                                    \
-    do_cmp ## type ## _ ## fmt ## _ngle,                                  \
-    do_cmp ## type ## _ ## fmt ## _seq,                                   \
-    do_cmp ## type ## _ ## fmt ## _ngl,                                   \
-    do_cmp ## type ## _ ## fmt ## _lt,                                    \
-    do_cmp ## type ## _ ## fmt ## _nge,                                   \
-    do_cmp ## type ## _ ## fmt ## _le,                                    \
-    do_cmp ## type ## _ ## fmt ## _ngt,                                   \
-};                                                                        \
-static inline void gen_cmp ## type ## _ ## fmt(int n, long cc)            \
-{                                                                         \
-    tcg_gen_helper_0_i(fcmp ## type ## _ ## fmt ## _table[n], cc);        \
+typedef void (fcmp_fun32)(uint32_t, uint32_t, int);
+typedef void (fcmp_fun64)(uint64_t, uint64_t, int);
+
+#define FOP_CONDS(fcmp_fun, type, arg0, arg1, fmt)                            \
+static fcmp_fun * fcmp ## type ## _ ## fmt ## _table[16] = {                  \
+    do_cmp ## type ## _ ## fmt ## _f,                                         \
+    do_cmp ## type ## _ ## fmt ## _un,                                        \
+    do_cmp ## type ## _ ## fmt ## _eq,                                        \
+    do_cmp ## type ## _ ## fmt ## _ueq,                                       \
+    do_cmp ## type ## _ ## fmt ## _olt,                                       \
+    do_cmp ## type ## _ ## fmt ## _ult,                                       \
+    do_cmp ## type ## _ ## fmt ## _ole,                                       \
+    do_cmp ## type ## _ ## fmt ## _ule,                                       \
+    do_cmp ## type ## _ ## fmt ## _sf,                                        \
+    do_cmp ## type ## _ ## fmt ## _ngle,                                      \
+    do_cmp ## type ## _ ## fmt ## _seq,                                       \
+    do_cmp ## type ## _ ## fmt ## _ngl,                                       \
+    do_cmp ## type ## _ ## fmt ## _lt,                                        \
+    do_cmp ## type ## _ ## fmt ## _nge,                                       \
+    do_cmp ## type ## _ ## fmt ## _le,                                        \
+    do_cmp ## type ## _ ## fmt ## _ngt,                                       \
+};                                                                            \
+static inline void gen_cmp ## type ## _ ## fmt(int n, arg0 a, arg1 b, int cc) \
+{                                                                             \
+    tcg_gen_helper_0_2i(fcmp ## type ## _ ## fmt ## _table[n], a, b, cc);     \
 }
 
-FOP_CONDS(, d)
-FOP_CONDS(abs, d)
-FOP_CONDS(, s)
-FOP_CONDS(abs, s)
-FOP_CONDS(, ps)
-FOP_CONDS(abs, ps)
+FOP_CONDS(fcmp_fun64, , uint64_t, uint64_t, d)
+FOP_CONDS(fcmp_fun64, abs, uint64_t, uint64_t, d)
+FOP_CONDS(fcmp_fun32, , uint32_t, uint32_t, s)
+FOP_CONDS(fcmp_fun32, abs, uint32_t, uint32_t, s)
+FOP_CONDS(fcmp_fun64, , uint64_t, uint64_t, ps)
+FOP_CONDS(fcmp_fun64, abs, uint64_t, uint64_t, ps)
 #undef FOP_CONDS
 
 /* Tests */
@@ -1235,23 +1235,43 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
        memory access. */
     switch (opc) {
     case OPC_LWC1:
-        tcg_gen_qemu_ld32s(fpu32_T[0], t0, ctx->mem_idx);
-        gen_store_fpr32(fpu32_T[0], ft);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            tcg_gen_qemu_ld32s(fp0, t0, ctx->mem_idx);
+            gen_store_fpr32(fp0, ft);
+            tcg_temp_free(fp0);
+        }
         opn = "lwc1";
         break;
     case OPC_SWC1:
-        gen_load_fpr32(fpu32_T[0], ft);
-        tcg_gen_qemu_st32(fpu32_T[0], t0, ctx->mem_idx);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, ft);
+            tcg_gen_qemu_st32(fp0, t0, ctx->mem_idx);
+            tcg_temp_free(fp0);
+        }
         opn = "swc1";
         break;
     case OPC_LDC1:
-        tcg_gen_qemu_ld64(fpu64_T[0], t0, ctx->mem_idx);
-        gen_store_fpr64(ctx, fpu64_T[0], ft);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_qemu_ld64(fp0, t0, ctx->mem_idx);
+            gen_store_fpr64(ctx, fp0, ft);
+            tcg_temp_free(fp0);
+        }
         opn = "ldc1";
         break;
     case OPC_SDC1:
-        gen_load_fpr64(ctx, fpu64_T[0], ft);
-        tcg_gen_qemu_st64(fpu64_T[0], t0, ctx->mem_idx);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, ft);
+            tcg_gen_qemu_st64(fp0, t0, ctx->mem_idx);
+            tcg_temp_free(fp0);
+        }
         opn = "sdc1";
         break;
     default:
@@ -2492,7 +2512,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
                     ctx->pc);
 	}
 #endif
-        //~ generate_exception(ctx, EXCP_RI);
+        generate_exception(ctx, EXCP_RI);
         goto out;
     }
 
@@ -5319,11 +5339,17 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
     case 2:
         /* XXX: For now we support only a single FPU context. */
         if (h == 0) {
-            gen_load_fpr32(fpu32_T[0], rt);
-            tcg_gen_ext_i32_tl(t0, fpu32_T[0]);
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, rt);
+            tcg_gen_ext_i32_tl(t0, fp0);
+            tcg_temp_free(fp0);
         } else {
-            gen_load_fpr32h(fpu32h_T[0], rt);
-            tcg_gen_ext_i32_tl(t0, fpu32h_T[0]);
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32h(fp0, rt);
+            tcg_gen_ext_i32_tl(t0, fp0);
+            tcg_temp_free(fp0);
         }
         break;
     case 3:
@@ -5488,11 +5514,17 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd, int rt,
     case 2:
         /* XXX: For now we support only a single FPU context. */
         if (h == 0) {
-            tcg_gen_trunc_tl_i32(fpu32_T[0], t0);
-            gen_store_fpr32(fpu32_T[0], rd);
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            tcg_gen_trunc_tl_i32(fp0, t0);
+            gen_store_fpr32(fp0, rd);
+            tcg_temp_free(fp0);
         } else {
-            tcg_gen_trunc_tl_i32(fpu32h_T[0], t0);
-            gen_store_fpr32h(fpu32h_T[0], rd);
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            tcg_gen_trunc_tl_i32(fp0, t0);
+            gen_store_fpr32h(fp0, rd);
+            tcg_temp_free(fp0);
         }
         break;
     case 3:
@@ -5874,15 +5906,25 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 
     switch (opc) {
     case OPC_MFC1:
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_ext_i32_tl(t0, fpu32_T[0]);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_ext_i32_tl(t0, fp0);
+            tcg_temp_free(fp0);
+	}
         gen_store_gpr(t0, rt);
         opn = "mfc1";
         break;
     case OPC_MTC1:
         gen_load_gpr(t0, rt);
-        tcg_gen_trunc_tl_i32(fpu32_T[0], t0);
-        gen_store_fpr32(fpu32_T[0], fs);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            tcg_gen_trunc_tl_i32(fp0, t0);
+            gen_store_fpr32(fp0, fs);
+            tcg_temp_free(fp0);
+	}
         opn = "mtc1";
         break;
     case OPC_CFC1:
@@ -5896,27 +5938,47 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         opn = "ctc1";
         break;
     case OPC_DMFC1:
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_mov_tl(t0, fpu64_T[0]);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_mov_tl(t0, fp0);
+            tcg_temp_free(fp0);
+	}
         gen_store_gpr(t0, rt);
         opn = "dmfc1";
         break;
     case OPC_DMTC1:
         gen_load_gpr(t0, rt);
-        tcg_gen_mov_tl(fpu64_T[0], t0);
-        gen_store_fpr64(ctx, fpu64_T[0], fs);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_mov_tl(fp0, t0);
+            gen_store_fpr64(ctx, fp0, fs);
+            tcg_temp_free(fp0);
+	}
         opn = "dmtc1";
         break;
     case OPC_MFHC1:
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        tcg_gen_ext_i32_tl(t0, fpu32h_T[0]);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32h(fp0, fs);
+            tcg_gen_ext_i32_tl(t0, fp0);
+            tcg_temp_free(fp0);
+	}
         gen_store_gpr(t0, rt);
         opn = "mfhc1";
         break;
     case OPC_MTHC1:
         gen_load_gpr(t0, rt);
-        tcg_gen_trunc_tl_i32(fpu32h_T[0], t0);
-        gen_store_fpr32h(fpu32h_T[0], fs);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            tcg_gen_trunc_tl_i32(fp0, t0);
+            gen_store_fpr32h(fp0, fs);
+            tcg_temp_free(fp0);
+	}
         opn = "mthc1";
         break;
     default:
@@ -5968,11 +6030,13 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
     tcg_temp_free(t0);
 }
 
-static inline void gen_movcf_s (int cc, int tf)
+static inline void gen_movcf_s (int fs, int fd, int cc, int tf)
 {
     uint32_t ccbit;
     int cond;
-    TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+    TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv fp1 = tcg_temp_local_new(TCG_TYPE_I32);
     int l1 = gen_new_label();
 
     if (cc)
@@ -5985,19 +6049,26 @@ static inline void gen_movcf_s (int cc, int tf)
     else
         cond = TCG_COND_NE;
 
+    gen_load_fpr32(fp0, fs);
+    gen_load_fpr32(fp1, fd);
     tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
     tcg_gen_andi_i32(r_tmp1, r_tmp1, ccbit);
     tcg_gen_brcondi_i32(cond, r_tmp1, 0, l1);
-    tcg_gen_movi_i32(fpu32_T[2], fpu32_T[0]);
+    tcg_gen_movi_i32(fp1, fp0);
+    tcg_temp_free(fp0);
     gen_set_label(l1);
     tcg_temp_free(r_tmp1);
+    gen_store_fpr32(fp1, fd);
+    tcg_temp_free(fp1);
 }
 
-static inline void gen_movcf_d (int cc, int tf)
+static inline void gen_movcf_d (DisasContext *ctx, int fs, int fd, int cc, int tf)
 {
     uint32_t ccbit;
     int cond;
-    TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+    TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I64);
+    TCGv fp1 = tcg_temp_local_new(TCG_TYPE_I64);
     int l1 = gen_new_label();
 
     if (cc)
@@ -6010,19 +6081,28 @@ static inline void gen_movcf_d (int cc, int tf)
     else
         cond = TCG_COND_NE;
 
+    gen_load_fpr64(ctx, fp0, fs);
+    gen_load_fpr64(ctx, fp1, fd);
     tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
     tcg_gen_andi_i32(r_tmp1, r_tmp1, ccbit);
     tcg_gen_brcondi_i32(cond, r_tmp1, 0, l1);
-    tcg_gen_movi_i64(fpu64_T[2], fpu64_T[0]);
+    tcg_gen_movi_i64(fp1, fp0);
+    tcg_temp_free(fp0);
     gen_set_label(l1);
     tcg_temp_free(r_tmp1);
+    gen_store_fpr64(ctx, fp1, fd);
+    tcg_temp_free(fp1);
 }
 
-static inline void gen_movcf_ps (int cc, int tf)
+static inline void gen_movcf_ps (int fs, int fd, int cc, int tf)
 {
     int cond;
     TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_I32);
     TCGv r_tmp2 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv fph0 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv fp1 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv fph1 = tcg_temp_local_new(TCG_TYPE_I32);
     int l1 = gen_new_label();
     int l2 = gen_new_label();
 
@@ -6031,18 +6111,28 @@ static inline void gen_movcf_ps (int cc, int tf)
     else
         cond = TCG_COND_NE;
 
+    gen_load_fpr32(fp0, fs);
+    gen_load_fpr32h(fph0, fs);
+    gen_load_fpr32(fp1, fd);
+    gen_load_fpr32h(fph1, fd);
     get_fp_cond(r_tmp1);
     tcg_gen_shri_i32(r_tmp1, r_tmp1, cc);
     tcg_gen_andi_i32(r_tmp2, r_tmp1, 0x1);
     tcg_gen_brcondi_i32(cond, r_tmp2, 0, l1);
-    tcg_gen_movi_i32(fpu32_T[2], fpu32_T[0]);
+    tcg_gen_movi_i32(fp1, fp0);
+    tcg_temp_free(fp0);
     gen_set_label(l1);
     tcg_gen_andi_i32(r_tmp2, r_tmp1, 0x2);
     tcg_gen_brcondi_i32(cond, r_tmp2, 0, l2);
-    tcg_gen_movi_i32(fpu32h_T[2], fpu32h_T[0]);
+    tcg_gen_movi_i32(fph1, fph0);
+    tcg_temp_free(fph0);
     gen_set_label(l2);
     tcg_temp_free(r_tmp1);
     tcg_temp_free(r_tmp2);
+    gen_store_fpr32(fp1, fd);
+    gen_store_fpr32h(fph1, fd);
+    tcg_temp_free(fp1);
+    tcg_temp_free(fph1);
 }
 
 
@@ -6091,224 +6181,381 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
 
     switch (ctx->opcode & FOP(0x3f, 0x1f)) {
     case FOP(0, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        tcg_gen_helper_0_0(do_float_add_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            tcg_gen_helper_1_2(do_float_add_s, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "add.s";
         optype = BINOP;
         break;
     case FOP(1, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        tcg_gen_helper_0_0(do_float_sub_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            tcg_gen_helper_1_2(do_float_sub_s, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "sub.s";
         optype = BINOP;
         break;
     case FOP(2, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        tcg_gen_helper_0_0(do_float_mul_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            tcg_gen_helper_1_2(do_float_mul_s, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "mul.s";
         optype = BINOP;
         break;
     case FOP(3, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        tcg_gen_helper_0_0(do_float_div_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            tcg_gen_helper_1_2(do_float_div_s, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "div.s";
         optype = BINOP;
         break;
     case FOP(4, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_sqrt_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_sqrt_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "sqrt.s";
         break;
     case FOP(5, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_abs_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_abs_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "abs.s";
         break;
     case FOP(6, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_store_fpr32(fpu32_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "mov.s";
         break;
     case FOP(7, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_chs_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_chs_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "neg.s";
         break;
     case FOP(8, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_roundl_s);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr32(fp32, fs);
+            tcg_gen_helper_1_1(do_float_roundl_s, fp64, fp32);
+            tcg_temp_free(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free(fp64);
+        }
         opn = "round.l.s";
         break;
     case FOP(9, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_truncl_s);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr32(fp32, fs);
+            tcg_gen_helper_1_1(do_float_truncl_s, fp64, fp32);
+            tcg_temp_free(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free(fp64);
+        }
         opn = "trunc.l.s";
         break;
     case FOP(10, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_ceill_s);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr32(fp32, fs);
+            tcg_gen_helper_1_1(do_float_ceill_s, fp64, fp32);
+            tcg_temp_free(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free(fp64);
+        }
         opn = "ceil.l.s";
         break;
     case FOP(11, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_floorl_s);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr32(fp32, fs);
+            tcg_gen_helper_1_1(do_float_floorl_s, fp64, fp32);
+            tcg_temp_free(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free(fp64);
+        }
         opn = "floor.l.s";
         break;
     case FOP(12, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_roundw_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_roundw_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "round.w.s";
         break;
     case FOP(13, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_truncw_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_truncw_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "trunc.w.s";
         break;
     case FOP(14, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_ceilw_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_ceilw_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "ceil.w.s";
         break;
     case FOP(15, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_floorw_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_floorw_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "floor.w.s";
         break;
     case FOP(17, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], fd);
-        gen_movcf_s((ft >> 2) & 0x7, ft & 0x1);
-        gen_store_fpr32(fpu32_T[2], fd);
+        gen_movcf_s(fs, fd, (ft >> 2) & 0x7, ft & 0x1);
         opn = "movcf.s";
         break;
     case FOP(18, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], fd);
         {
             int l1 = gen_new_label();
             TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
             tcg_temp_free(t0);
-            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
+            gen_load_fpr32(fp0, fs);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
             gen_set_label(l1);
         }
-        gen_store_fpr32(fpu32_T[2], fd);
         opn = "movz.s";
         break;
     case FOP(19, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], fd);
         {
             int l1 = gen_new_label();
             TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
             tcg_temp_free(t0);
-            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
+            gen_load_fpr32(fp0, fs);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
             gen_set_label(l1);
         }
-        gen_store_fpr32(fpu32_T[2], fd);
         opn = "movn.s";
         break;
     case FOP(21, 16):
         check_cop1x(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_recip_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_recip_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "recip.s";
         break;
     case FOP(22, 16):
         check_cop1x(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_rsqrt_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_rsqrt_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "rsqrt.s";
         break;
     case FOP(28, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], fd);
-        tcg_gen_helper_0_0(do_float_recip2_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, fd);
+            tcg_gen_helper_1_2(do_float_recip2_s, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "recip2.s";
         break;
     case FOP(29, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_recip1_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_recip1_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "recip1.s";
         break;
     case FOP(30, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_rsqrt1_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_rsqrt1_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "rsqrt1.s";
         break;
     case FOP(31, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], ft);
-        tcg_gen_helper_0_0(do_float_rsqrt2_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            tcg_gen_helper_1_2(do_float_rsqrt2_s, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "rsqrt2.s";
         break;
     case FOP(33, 16):
         check_cp1_registers(ctx, fd);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtd_s);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr32(fp32, fs);
+            tcg_gen_helper_1_1(do_float_cvtd_s, fp64, fp32);
+            tcg_temp_free(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free(fp64);
+        }
         opn = "cvt.d.s";
         break;
     case FOP(36, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtw_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_cvtw_s, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "cvt.w.s";
         break;
     case FOP(37, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtl_s);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr32(fp32, fs);
+            tcg_gen_helper_1_1(do_float_cvtl_s, fp64, fp32);
+            tcg_temp_free(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free(fp64);
+        }
         opn = "cvt.l.s";
         break;
     case FOP(38, 16):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        tcg_gen_extu_i32_i64(fpu64_T[0], fpu32_T[0]);
-        tcg_gen_extu_i32_i64(fpu64_T[1], fpu32_T[1]);
-        tcg_gen_shli_i64(fpu64_T[1], fpu64_T[1], 32);
-        tcg_gen_or_i64(fpu64_T[2], fpu64_T[0], fpu64_T[1]);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp64_0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp64_1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp32_0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp32_1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp32_0, fs);
+            gen_load_fpr32(fp32_1, ft);
+            tcg_gen_extu_i32_i64(fp64_0, fp32_0);
+            tcg_gen_extu_i32_i64(fp64_1, fp32_1);
+            tcg_temp_free(fp32_0);
+            tcg_temp_free(fp32_1);
+            tcg_gen_shli_i64(fp64_1, fp64_1, 32);
+            tcg_gen_or_i64(fp64_0, fp64_0, fp64_1);
+            tcg_temp_free(fp64_1);
+            gen_store_fpr64(ctx, fp64_0, fd);
+            tcg_temp_free(fp64_0);
+        }
         opn = "cvt.ps.s";
         break;
     case FOP(48, 16):
@@ -6327,217 +6574,351 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(61, 16):
     case FOP(62, 16):
     case FOP(63, 16):
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        if (ctx->opcode & (1 << 6)) {
-            check_cop1x(ctx);
-            gen_cmpabs_s(func-48, cc);
-            opn = condnames_abs[func-48];
-        } else {
-            gen_cmp_s(func-48, cc);
-            opn = condnames[func-48];
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            if (ctx->opcode & (1 << 6)) {
+                check_cop1x(ctx);
+                gen_cmpabs_s(func-48, fp0, fp1, cc);
+                opn = condnames_abs[func-48];
+            } else {
+                gen_cmp_s(func-48, fp0, fp1, cc);
+                opn = condnames[func-48];
+            }
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
         }
         break;
     case FOP(0, 17):
         check_cp1_registers(ctx, fs | ft | fd);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        tcg_gen_helper_0_0(do_float_add_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_add_d, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "add.d";
         optype = BINOP;
         break;
     case FOP(1, 17):
         check_cp1_registers(ctx, fs | ft | fd);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        tcg_gen_helper_0_0(do_float_sub_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_sub_d, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "sub.d";
         optype = BINOP;
         break;
     case FOP(2, 17):
         check_cp1_registers(ctx, fs | ft | fd);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        tcg_gen_helper_0_0(do_float_mul_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_mul_d, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "mul.d";
         optype = BINOP;
         break;
     case FOP(3, 17):
         check_cp1_registers(ctx, fs | ft | fd);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        tcg_gen_helper_0_0(do_float_div_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_div_d, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "div.d";
         optype = BINOP;
         break;
     case FOP(4, 17):
         check_cp1_registers(ctx, fs | fd);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_sqrt_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_sqrt_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "sqrt.d";
         break;
     case FOP(5, 17):
         check_cp1_registers(ctx, fs | fd);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_abs_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_abs_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "abs.d";
         break;
     case FOP(6, 17):
         check_cp1_registers(ctx, fs | fd);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_store_fpr64(ctx, fpu64_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "mov.d";
         break;
     case FOP(7, 17):
         check_cp1_registers(ctx, fs | fd);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_chs_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_chs_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "neg.d";
         break;
     case FOP(8, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_roundl_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_roundl_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "round.l.d";
         break;
     case FOP(9, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_truncl_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_truncl_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "trunc.l.d";
         break;
     case FOP(10, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_ceill_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_ceill_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "ceil.l.d";
         break;
     case FOP(11, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_floorl_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_floorl_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "floor.l.d";
         break;
     case FOP(12, 17):
         check_cp1_registers(ctx, fs);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_roundw_d);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp64, fs);
+            tcg_gen_helper_1_1(do_float_roundw_d, fp32, fp64);
+            tcg_temp_free(fp64);
+            gen_store_fpr32(fp32, fd);
+            tcg_temp_free(fp32);
+        }
         opn = "round.w.d";
         break;
     case FOP(13, 17):
         check_cp1_registers(ctx, fs);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_truncw_d);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp64, fs);
+            tcg_gen_helper_1_1(do_float_truncw_d, fp32, fp64);
+            tcg_temp_free(fp64);
+            gen_store_fpr32(fp32, fd);
+            tcg_temp_free(fp32);
+        }
         opn = "trunc.w.d";
         break;
     case FOP(14, 17):
         check_cp1_registers(ctx, fs);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_ceilw_d);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp64, fs);
+            tcg_gen_helper_1_1(do_float_ceilw_d, fp32, fp64);
+            tcg_temp_free(fp64);
+            gen_store_fpr32(fp32, fd);
+            tcg_temp_free(fp32);
+        }
         opn = "ceil.w.d";
         break;
     case FOP(15, 17):
         check_cp1_registers(ctx, fs);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_floorw_d);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp64, fs);
+            tcg_gen_helper_1_1(do_float_floorw_d, fp32, fp64);
+            tcg_temp_free(fp64);
+            gen_store_fpr32(fp32, fd);
+            tcg_temp_free(fp32);
+        }
         opn = "floor.w.d";
         break;
     case FOP(17, 17):
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[2], fd);
-        gen_movcf_d((ft >> 2) & 0x7, ft & 0x1);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        gen_movcf_d(ctx, fs, fd, (ft >> 2) & 0x7, ft & 0x1);
         opn = "movcf.d";
         break;
     case FOP(18, 17):
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[2], fd);
         {
             int l1 = gen_new_label();
             TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I64);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
             tcg_temp_free(t0);
-            tcg_gen_mov_i64(fpu64_T[2], fpu64_T[0]);
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
             gen_set_label(l1);
         }
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "movz.d";
         break;
     case FOP(19, 17):
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[2], fd);
         {
             int l1 = gen_new_label();
             TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I64);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
             tcg_temp_free(t0);
-            tcg_gen_mov_i64(fpu64_T[2], fpu64_T[0]);
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
             gen_set_label(l1);
         }
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
         opn = "movn.d";
         break;
     case FOP(21, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_recip_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_recip_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "recip.d";
         break;
     case FOP(22, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_rsqrt_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_rsqrt_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "rsqrt.d";
         break;
     case FOP(28, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[2], ft);
-        tcg_gen_helper_0_0(do_float_recip2_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_recip2_d, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "recip2.d";
         break;
     case FOP(29, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_recip1_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_recip1_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "recip1.d";
         break;
     case FOP(30, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_rsqrt1_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_rsqrt1_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "rsqrt1.d";
         break;
     case FOP(31, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[2], ft);
-        tcg_gen_helper_0_0(do_float_rsqrt2_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_rsqrt2_d, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "rsqrt2.d";
         break;
     case FOP(48, 17):
@@ -6556,303 +6937,434 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(61, 17):
     case FOP(62, 17):
     case FOP(63, 17):
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        if (ctx->opcode & (1 << 6)) {
-            check_cop1x(ctx);
-            check_cp1_registers(ctx, fs | ft);
-            gen_cmpabs_d(func-48, cc);
-            opn = condnames_abs[func-48];
-        } else {
-            check_cp1_registers(ctx, fs | ft);
-            gen_cmp_d(func-48, cc);
-            opn = condnames[func-48];
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            if (ctx->opcode & (1 << 6)) {
+                check_cop1x(ctx);
+                check_cp1_registers(ctx, fs | ft);
+                gen_cmpabs_d(func-48, fp0, fp1, cc);
+                opn = condnames_abs[func-48];
+            } else {
+                check_cp1_registers(ctx, fs | ft);
+                gen_cmp_d(func-48, fp0, fp1, cc);
+                opn = condnames[func-48];
+            }
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
         }
         break;
     case FOP(32, 17):
         check_cp1_registers(ctx, fs);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvts_d);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp64, fs);
+            tcg_gen_helper_1_1(do_float_cvts_d, fp32, fp64);
+            tcg_temp_free(fp64);
+            gen_store_fpr32(fp32, fd);
+            tcg_temp_free(fp32);
+        }
         opn = "cvt.s.d";
         break;
     case FOP(36, 17):
         check_cp1_registers(ctx, fs);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtw_d);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp64, fs);
+            tcg_gen_helper_1_1(do_float_cvtw_d, fp32, fp64);
+            tcg_temp_free(fp64);
+            gen_store_fpr32(fp32, fd);
+            tcg_temp_free(fp32);
+        }
         opn = "cvt.w.d";
         break;
     case FOP(37, 17):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtl_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_cvtl_d, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "cvt.l.d";
         break;
     case FOP(32, 20):
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvts_w);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_cvts_w, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "cvt.s.w";
         break;
     case FOP(33, 20):
         check_cp1_registers(ctx, fd);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtd_w);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr32(fp32, fs);
+            tcg_gen_helper_1_1(do_float_cvtd_w, fp64, fp32);
+            tcg_temp_free(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free(fp64);
+        }
         opn = "cvt.d.w";
         break;
     case FOP(32, 21):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvts_l);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp32 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp64, fs);
+            tcg_gen_helper_1_1(do_float_cvts_l, fp32, fp64);
+            tcg_temp_free(fp64);
+            gen_store_fpr32(fp32, fd);
+            tcg_temp_free(fp32);
+        }
         opn = "cvt.s.l";
         break;
     case FOP(33, 21):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtd_l);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_cvtd_l, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "cvt.d.l";
         break;
     case FOP(38, 20):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtps_pw);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_cvtps_pw, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "cvt.ps.pw";
         break;
     case FOP(0, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        tcg_gen_helper_0_0(do_float_add_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_add_ps, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "add.ps";
         break;
     case FOP(1, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        tcg_gen_helper_0_0(do_float_sub_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_sub_ps, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "sub.ps";
         break;
     case FOP(2, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        tcg_gen_helper_0_0(do_float_mul_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_mul_ps, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "mul.ps";
         break;
     case FOP(5, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        tcg_gen_helper_0_0(do_float_abs_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_abs_ps, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "abs.ps";
         break;
     case FOP(6, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_store_fpr32(fpu32_T[0], fd);
-        gen_store_fpr32h(fpu32h_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "mov.ps";
         break;
     case FOP(7, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        tcg_gen_helper_0_0(do_float_chs_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_chs_ps, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "neg.ps";
         break;
     case FOP(17, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], fd);
-        gen_load_fpr32h(fpu32h_T[2], fd);
-        gen_movcf_ps((ft >> 2) & 0x7, ft & 0x1);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        gen_movcf_ps(fs, fd, (ft >> 2) & 0x7, ft & 0x1);
         opn = "movcf.ps";
         break;
     case FOP(18, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], fd);
-        gen_load_fpr32h(fpu32h_T[2], fd);
         {
             int l1 = gen_new_label();
             TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
+            TCGv fph0 = tcg_temp_local_new(TCG_TYPE_I32);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
             tcg_temp_free(t0);
-            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
-            tcg_gen_mov_i32(fpu32h_T[2], fpu32h_T[0]);
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32h(fph0, fs);
+            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32h(fph0, fd);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fph0);
             gen_set_label(l1);
         }
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "movz.ps";
         break;
     case FOP(19, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], fd);
-        gen_load_fpr32h(fpu32h_T[2], fd);
         {
             int l1 = gen_new_label();
             TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
+            TCGv fph0 = tcg_temp_local_new(TCG_TYPE_I32);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
             tcg_temp_free(t0);
-            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
-            tcg_gen_mov_i32(fpu32h_T[2], fpu32h_T[0]);
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32h(fph0, fs);
+            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32h(fph0, fd);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fph0);
             gen_set_label(l1);
         }
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "movn.ps";
         break;
     case FOP(24, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], ft);
-        gen_load_fpr32h(fpu32h_T[0], ft);
-        gen_load_fpr32(fpu32_T[1], fs);
-        gen_load_fpr32h(fpu32h_T[1], fs);
-        tcg_gen_helper_0_0(do_float_addr_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, ft);
+            gen_load_fpr64(ctx, fp1, fs);
+            tcg_gen_helper_1_2(do_float_addr_ps, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "addr.ps";
         break;
     case FOP(26, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], ft);
-        gen_load_fpr32h(fpu32h_T[0], ft);
-        gen_load_fpr32(fpu32_T[1], fs);
-        gen_load_fpr32h(fpu32h_T[1], fs);
-        tcg_gen_helper_0_0(do_float_mulr_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, ft);
+            gen_load_fpr64(ctx, fp1, fs);
+            tcg_gen_helper_1_2(do_float_mulr_ps, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "mulr.ps";
         break;
     case FOP(28, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], fd);
-        gen_load_fpr32h(fpu32h_T[2], fd);
-        tcg_gen_helper_0_0(do_float_recip2_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, fd);
+            tcg_gen_helper_1_2(do_float_recip2_ps, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "recip2.ps";
         break;
     case FOP(29, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        tcg_gen_helper_0_0(do_float_recip1_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_recip1_ps, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "recip1.ps";
         break;
     case FOP(30, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        tcg_gen_helper_0_0(do_float_rsqrt1_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_rsqrt1_ps, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "rsqrt1.ps";
         break;
     case FOP(31, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[2], ft);
-        gen_load_fpr32h(fpu32h_T[2], ft);
-        tcg_gen_helper_0_0(do_float_rsqrt2_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            tcg_gen_helper_1_2(do_float_rsqrt2_ps, fp0, fp0, fp1);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "rsqrt2.ps";
         break;
     case FOP(32, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvts_pu);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32h(fp0, fs);
+            tcg_gen_helper_1_1(do_float_cvts_pu, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "cvt.s.pu";
         break;
     case FOP(36, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvtpw_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_helper_1_1(do_float_cvtpw_ps, fp0, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "cvt.pw.ps";
         break;
     case FOP(40, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_helper_0_0(do_float_cvts_pl);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_helper_1_1(do_float_cvts_pl, fp0, fp0);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "cvt.s.pl";
         break;
     case FOP(44, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_store_fpr32h(fpu32_T[0], fd);
-        gen_store_fpr32(fpu32_T[1], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_store_fpr32h(fp0, fd);
+            gen_store_fpr32(fp1, fd);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+        }
         opn = "pll.ps";
         break;
     case FOP(45, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_store_fpr32(fpu32h_T[1], fd);
-        gen_store_fpr32h(fpu32_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32h(fp1, ft);
+            gen_store_fpr32(fp1, fd);
+            gen_store_fpr32h(fp0, fd);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+        }
         opn = "plu.ps";
         break;
     case FOP(46, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_store_fpr32(fpu32_T[1], fd);
-        gen_store_fpr32h(fpu32h_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32h(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_store_fpr32(fp1, fd);
+            gen_store_fpr32h(fp0, fd);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+        }
         opn = "pul.ps";
         break;
     case FOP(47, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_store_fpr32(fpu32h_T[1], fd);
-        gen_store_fpr32h(fpu32h_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32h(fp0, fs);
+            gen_load_fpr32h(fp1, ft);
+            gen_store_fpr32(fp1, fd);
+            gen_store_fpr32h(fp0, fd);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+        }
         opn = "puu.ps";
         break;
     case FOP(48, 22):
@@ -6872,16 +7384,21 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(62, 22):
     case FOP(63, 22):
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        if (ctx->opcode & (1 << 6)) {
-            gen_cmpabs_ps(func-48, cc);
-            opn = condnames_abs[func-48];
-        } else {
-            gen_cmp_ps(func-48, cc);
-            opn = condnames[func-48];
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            if (ctx->opcode & (1 << 6)) {
+                gen_cmpabs_ps(func-48, fp0, fp1, cc);
+                opn = condnames_abs[func-48];
+            } else {
+                gen_cmp_ps(func-48, fp0, fp1, cc);
+                opn = condnames[func-48];
+            }
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
         }
         break;
     default:
@@ -6904,7 +7421,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
 
 /* Coprocessor 3 (FPU) */
 static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
-                           int fd, int fs, int base, int regindex)
+                           int fd, int fs, int base, int index)
 {
     const char *opn = "extended float load/store";
     int store = 0;
@@ -6913,11 +7430,11 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
 
     if (base == 0) {
         gen_load_gpr(t0, index);
-    } else if (regindex == 0) {
+    } else if (index == 0) {
         gen_load_gpr(t0, base);
     } else {
         gen_load_gpr(t0, base);
-        gen_load_gpr(t1, regindex);
+        gen_load_gpr(t1, index);
         gen_op_addr_add(t0, t1);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
@@ -6925,44 +7442,74 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     switch (opc) {
     case OPC_LWXC1:
         check_cop1x(ctx);
-        tcg_gen_qemu_ld32s(fpu32_T[0], t0, ctx->mem_idx);
-        gen_store_fpr32(fpu32_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            tcg_gen_qemu_ld32s(fp0, t0, ctx->mem_idx);
+            gen_store_fpr32(fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "lwxc1";
         break;
     case OPC_LDXC1:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd);
-        tcg_gen_qemu_ld64(fpu64_T[0], t0, ctx->mem_idx);
-        gen_store_fpr64(ctx, fpu64_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_qemu_ld64(fp0, t0, ctx->mem_idx);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "ldxc1";
         break;
     case OPC_LUXC1:
         check_cp1_64bitmode(ctx);
         tcg_gen_andi_tl(t0, t0, ~0x7);
-        tcg_gen_qemu_ld64(fpu64_T[0], t0, ctx->mem_idx);
-        gen_store_fpr64(ctx, fpu64_T[0], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            tcg_gen_qemu_ld64(fp0, t0, ctx->mem_idx);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free(fp0);
+        }
         opn = "luxc1";
         break;
     case OPC_SWXC1:
         check_cop1x(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        tcg_gen_qemu_st32(fpu32_T[0], t0, ctx->mem_idx);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            tcg_gen_qemu_st32(fp0, t0, ctx->mem_idx);
+            tcg_temp_free(fp0);
+        }
         opn = "swxc1";
         store = 1;
         break;
     case OPC_SDXC1:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fs);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        tcg_gen_qemu_st64(fpu64_T[0], t0, ctx->mem_idx);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_qemu_st64(fp0, t0, ctx->mem_idx);
+            tcg_temp_free(fp0);
+        }
         opn = "sdxc1";
         store = 1;
         break;
     case OPC_SUXC1:
         check_cp1_64bitmode(ctx);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
         tcg_gen_andi_tl(t0, t0, ~0x7);
-        tcg_gen_qemu_st64(fpu64_T[0], t0, ctx->mem_idx);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            tcg_gen_qemu_st64(fp0, t0, ctx->mem_idx);
+            tcg_temp_free(fp0);
+        }
         opn = "suxc1";
         store = 1;
         break;
@@ -6976,7 +7523,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t0);
     tcg_temp_free(t1);
     MIPS_DEBUG("%s %s, %s(%s)", opn, fregnames[store ? fs : fd],
-               regnames[regindex], regnames[base]);
+               regnames[index], regnames[base]);
 }
 
 static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
@@ -6989,162 +7536,260 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
         check_cp1_64bitmode(ctx);
         {
             TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
+            TCGv fph0 = tcg_temp_local_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_local_new(TCG_TYPE_I32);
+            TCGv fph1 = tcg_temp_local_new(TCG_TYPE_I32);
             int l1 = gen_new_label();
             int l2 = gen_new_label();
 
             gen_load_gpr(t0, fr);
             tcg_gen_andi_tl(t0, t0, 0x7);
-            gen_load_fpr32(fpu32_T[0], fs);
-            gen_load_fpr32h(fpu32h_T[0], fs);
-            gen_load_fpr32(fpu32_T[1], ft);
-            gen_load_fpr32h(fpu32h_T[1], ft);
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32h(fph0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32h(fph1, ft);
 
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
-            tcg_gen_mov_i32(fpu32_T[2], fpu32_T[0]);
-            tcg_gen_mov_i32(fpu32h_T[2], fpu32h_T[0]);
+            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32h(fph0, fd);
             tcg_gen_br(l2);
             gen_set_label(l1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 4, l2);
             tcg_temp_free(t0);
 #ifdef TARGET_WORDS_BIGENDIAN
-            tcg_gen_mov_i32(fpu32h_T[2], fpu32_T[0]);
-            tcg_gen_mov_i32(fpu32_T[2], fpu32h_T[1]);
+            gen_store_fpr32(fph1, fd);
+            gen_store_fpr32h(fp0, fd);
 #else
-            tcg_gen_mov_i32(fpu32h_T[2], fpu32_T[1]);
-            tcg_gen_mov_i32(fpu32_T[2], fpu32h_T[0]);
+            gen_store_fpr32(fph0, fd);
+            gen_store_fpr32h(fp1, fd);
 #endif
             gen_set_label(l2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fph0);
+            tcg_temp_free(fp1);
+            tcg_temp_free(fph1);
         }
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
         opn = "alnv.ps";
         break;
     case OPC_MADD_S:
         check_cop1x(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32(fpu32_T[2], fr);
-        tcg_gen_helper_0_0(do_float_muladd_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(fp2, fr);
+            tcg_gen_helper_1_3(do_float_muladd_s, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "madd.s";
         break;
     case OPC_MADD_D:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd | fs | ft | fr);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        gen_load_fpr64(ctx, fpu64_T[2], fr);
-        tcg_gen_helper_0_0(do_float_muladd_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_load_fpr64(ctx, fp2, fr);
+            tcg_gen_helper_1_3(do_float_muladd_d, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "madd.d";
         break;
     case OPC_MADD_PS:
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_load_fpr32(fpu32_T[2], fr);
-        gen_load_fpr32h(fpu32h_T[2], fr);
-        tcg_gen_helper_0_0(do_float_muladd_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_load_fpr64(ctx, fp2, fr);
+            tcg_gen_helper_1_3(do_float_muladd_ps, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "madd.ps";
         break;
     case OPC_MSUB_S:
         check_cop1x(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32(fpu32_T[2], fr);
-        tcg_gen_helper_0_0(do_float_mulsub_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(fp2, fr);
+            tcg_gen_helper_1_3(do_float_mulsub_s, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "msub.s";
         break;
     case OPC_MSUB_D:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd | fs | ft | fr);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        gen_load_fpr64(ctx, fpu64_T[2], fr);
-        tcg_gen_helper_0_0(do_float_mulsub_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_load_fpr64(ctx, fp2, fr);
+            tcg_gen_helper_1_3(do_float_mulsub_d, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "msub.d";
         break;
     case OPC_MSUB_PS:
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_load_fpr32(fpu32_T[2], fr);
-        gen_load_fpr32h(fpu32h_T[2], fr);
-        tcg_gen_helper_0_0(do_float_mulsub_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_load_fpr64(ctx, fp2, fr);
+            tcg_gen_helper_1_3(do_float_mulsub_ps, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "msub.ps";
         break;
     case OPC_NMADD_S:
         check_cop1x(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32(fpu32_T[2], fr);
-        tcg_gen_helper_0_0(do_float_nmuladd_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(fp2, fr);
+            tcg_gen_helper_1_3(do_float_nmuladd_s, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "nmadd.s";
         break;
     case OPC_NMADD_D:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd | fs | ft | fr);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        gen_load_fpr64(ctx, fpu64_T[2], fr);
-        tcg_gen_helper_0_0(do_float_nmuladd_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_load_fpr64(ctx, fp2, fr);
+            tcg_gen_helper_1_3(do_float_nmuladd_d, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "nmadd.d";
         break;
     case OPC_NMADD_PS:
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_load_fpr32(fpu32_T[2], fr);
-        gen_load_fpr32h(fpu32h_T[2], fr);
-        tcg_gen_helper_0_0(do_float_nmuladd_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_load_fpr64(ctx, fp2, fr);
+            tcg_gen_helper_1_3(do_float_nmuladd_ps, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "nmadd.ps";
         break;
     case OPC_NMSUB_S:
         check_cop1x(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32(fpu32_T[2], fr);
-        tcg_gen_helper_0_0(do_float_nmulsub_s);
-        gen_store_fpr32(fpu32_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I32);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I32);
+
+            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(fp2, fr);
+            tcg_gen_helper_1_3(do_float_nmulsub_s, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr32(fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "nmsub.s";
         break;
     case OPC_NMSUB_D:
         check_cop1x(ctx);
         check_cp1_registers(ctx, fd | fs | ft | fr);
-        gen_load_fpr64(ctx, fpu64_T[0], fs);
-        gen_load_fpr64(ctx, fpu64_T[1], ft);
-        gen_load_fpr64(ctx, fpu64_T[2], fr);
-        tcg_gen_helper_0_0(do_float_nmulsub_d);
-        gen_store_fpr64(ctx, fpu64_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_load_fpr64(ctx, fp2, fr);
+            tcg_gen_helper_1_3(do_float_nmulsub_d, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "nmsub.d";
         break;
     case OPC_NMSUB_PS:
         check_cp1_64bitmode(ctx);
-        gen_load_fpr32(fpu32_T[0], fs);
-        gen_load_fpr32h(fpu32h_T[0], fs);
-        gen_load_fpr32(fpu32_T[1], ft);
-        gen_load_fpr32h(fpu32h_T[1], ft);
-        gen_load_fpr32(fpu32_T[2], fr);
-        gen_load_fpr32h(fpu32h_T[2], fr);
-        tcg_gen_helper_0_0(do_float_nmulsub_ps);
-        gen_store_fpr32(fpu32_T[2], fd);
-        gen_store_fpr32h(fpu32h_T[2], fd);
+        {
+            TCGv fp0 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp2 = tcg_temp_new(TCG_TYPE_I64);
+
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_load_fpr64(ctx, fp1, ft);
+            gen_load_fpr64(ctx, fp2, fr);
+            tcg_gen_helper_1_3(do_float_nmulsub_ps, fp2, fp0, fp1, fp2);
+            tcg_temp_free(fp0);
+            tcg_temp_free(fp1);
+            gen_store_fpr64(ctx, fp2, fd);
+            tcg_temp_free(fp2);
+        }
         opn = "nmsub.ps";
         break;
     default:
@@ -7993,9 +8638,6 @@ void fpu_dump_state(CPUState *env, FILE *f,
     fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%08x(0x%02x)\n",
                 env->fpu->fcr0, env->fpu->fcr31, is_fpu64, env->fpu->fp_status,
                 get_float_exception_flags(&env->fpu->fp_status));
-    fpu_fprintf(f, "FT0: "); printfpr(&env->ft0);
-    fpu_fprintf(f, "FT1: "); printfpr(&env->ft1);
-    fpu_fprintf(f, "FT2: "); printfpr(&env->ft2);
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
         fpu_fprintf(f, "%3s: ", fregnames[i]);
         printfpr(&env->fpu->fpr[i]);
@@ -8020,7 +8662,7 @@ void dump_fpu (CPUState *env)
 
 #if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
 /* Debug help: The architecture requires 32bit code to maintain proper
-   sign-extened values on 64bit machines.  */
+   sign-extended values on 64bit machines.  */
 
 #define SIGN_EXT_P(val) ((((val) & ~0x7fffffff) == 0) || (((val) & ~0x7fffffff) == ~0x7fffffff))
 
@@ -8101,16 +8743,6 @@ static void mips_tcg_init(void)
 #define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
 #include "helper.h"
 
-    fpu32_T[0] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft0.w[FP_ENDIAN_IDX]), "WT0");
-    fpu32_T[1] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft1.w[FP_ENDIAN_IDX]), "WT1");
-    fpu32_T[2] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft2.w[FP_ENDIAN_IDX]), "WT2");
-    fpu64_T[0] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0, offsetof(CPUState, ft0.d), "DT0");
-    fpu64_T[1] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0, offsetof(CPUState, ft1.d), "DT1");
-    fpu64_T[2] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0, offsetof(CPUState, ft2.d), "DT2");
-    fpu32h_T[0] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft0.w[!FP_ENDIAN_IDX]), "WTH0");
-    fpu32h_T[1] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft1.w[!FP_ENDIAN_IDX]), "WTH1");
-    fpu32h_T[2] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0, offsetof(CPUState, ft2.w[!FP_ENDIAN_IDX]), "WTH2");
-
     inited = 1;
 }
 
@@ -8156,8 +8788,6 @@ void cpu_reset (CPUMIPSState *env)
     /* SMP not implemented */
     env->CP0_EBase = 0x80000000;
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
-    //~ env->CP0_Status = (1 << CP0St_CU0) | (1 << CP0St_BEV);
-    //~ env->CP0_IntCtl = (7 << 29);
     /* vectored interrupts not implemented, timer on int 7,
        no performance counters. */
     env->CP0_IntCtl = 0xe0000000;

@@ -190,6 +190,43 @@ int ssi_sd_xfer(void *opaque, int val)
     return 0xff;
 }
 
+static void ssi_sd_save(QEMUFile *f, void *opaque)
+{
+    ssi_sd_state *s = (ssi_sd_state *)opaque;
+    int i;
+
+    qemu_put_be32(f, s->mode);
+    qemu_put_be32(f, s->cmd);
+    for (i = 0; i < 4; i++)
+        qemu_put_be32(f, s->cmdarg[i]);
+    for (i = 0; i < 5; i++)
+        qemu_put_be32(f, s->response[i]);
+    qemu_put_be32(f, s->arglen);
+    qemu_put_be32(f, s->response_pos);
+    qemu_put_be32(f, s->stopping);
+}
+
+static int ssi_sd_load(QEMUFile *f, void *opaque, int version_id)
+{
+    ssi_sd_state *s = (ssi_sd_state *)opaque;
+    int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->mode = qemu_get_be32(f);
+    s->cmd = qemu_get_be32(f);
+    for (i = 0; i < 4; i++)
+        s->cmdarg[i] = qemu_get_be32(f);
+    for (i = 0; i < 5; i++)
+        s->response[i] = qemu_get_be32(f);
+    s->arglen = qemu_get_be32(f);
+    s->response_pos = qemu_get_be32(f);
+    s->stopping = qemu_get_be32(f);
+
+    return 0;
+}
+
 void *ssi_sd_init(BlockDriverState *bs)
 {
     ssi_sd_state *s;
@@ -197,6 +234,7 @@ void *ssi_sd_init(BlockDriverState *bs)
     s = (ssi_sd_state *)qemu_mallocz(sizeof(ssi_sd_state));
     s->mode = SSI_SD_CMD;
     s->sd = sd_init(bs, 1);
+    register_savevm("ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
     return s;
 }
 

@@ -3341,8 +3341,12 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
             sse_op2 = sse_op_table3[(s->dflag == 2) * 2 + ((b >> 8) - 2)];
-            tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
-            tcg_gen_helper_0_2(sse_op2, cpu_ptr0, cpu_tmp2_i32);
+            if (ot == OT_LONG) {
+                tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
+                tcg_gen_helper_0_2(sse_op2, cpu_ptr0, cpu_tmp2_i32);
+            } else {
+                tcg_gen_helper_0_2(sse_op2, cpu_ptr0, cpu_T[0]);
+            }
             break;
         case 0x02c: /* cvttps2pi */
         case 0x12c: /* cvttpd2pi */
@@ -5476,7 +5480,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             case 0x18 ... 0x1b:
                 {
                     int op1, l1;
-                    const static uint8_t fcmov_cc[8] = {
+                    static const uint8_t fcmov_cc[8] = {
                         (JCC_B << 1),
                         (JCC_Z << 1),
                         (JCC_BE << 1),

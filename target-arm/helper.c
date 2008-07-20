@@ -675,7 +675,7 @@ void do_interrupt_v7m(CPUARMState *env)
     /* ??? Should only do this if Configuration Control Register
        STACKALIGN bit is set.  */
     if (env->regs[13] & 4) {
-        env->regs[13] += 4;
+        env->regs[13] -= 4;
         xpsr |= 0x200;
     }
     /* Switch to the handler mode.  */

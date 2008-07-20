@@ -532,7 +532,76 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                 outbuf[2] = 0x80; /* Readonly.  */
             }
             p += 4;
-            if ((page == 8 || page == 0x3f)) {
+            if (page == 4) {
+                int cylinders, heads, secs;
+
+                /* Rigid disk device geometry page. */
+                p[0] = 4;
+                p[1] = 0x16;
+                /* if a geometry hint is available, use it */
+                bdrv_get_geometry_hint(s->bdrv, &cylinders, &heads, &secs);
+                p[2] = (cylinders >> 16) & 0xff;
+                p[3] = (cylinders >> 8) & 0xff;
+                p[4] = cylinders & 0xff;
+                p[5] = heads & 0xff;
+                /* Write precomp start cylinder, disabled */
+                p[6] = (cylinders >> 16) & 0xff;
+                p[7] = (cylinders >> 8) & 0xff;
+                p[8] = cylinders & 0xff;
+                /* Reduced current start cylinder, disabled */
+                p[9] = (cylinders >> 16) & 0xff;
+                p[10] = (cylinders >> 8) & 0xff;
+                p[11] = cylinders & 0xff;
+                /* Device step rate [ns], 200ns */
+                p[12] = 0;
+                p[13] = 200;
+                /* Landing zone cylinder */
+                p[14] = 0xff;
+                p[15] =  0xff;
+                p[16] = 0xff;
+                /* Medium rotation rate [rpm], 5400 rpm */
+                p[20] = (5400 >> 8) & 0xff;
+                p[21] = 5400 & 0xff;
+                p += 0x16;
+            } else if (page == 5) {
+                int cylinders, heads, secs;
+
+                /* Flexible disk device geometry page. */
+                p[0] = 5;
+                p[1] = 0x1e;
+                /* Transfer rate [kbit/s], 5Mbit/s */
+                p[2] = 5000 >> 8;
+                p[3] = 5000 & 0xff;
+                /* if a geometry hint is available, use it */
+                bdrv_get_geometry_hint(s->bdrv, &cylinders, &heads, &secs);
+                p[4] = heads & 0xff;
+                p[5] = secs & 0xff;
+                p[6] = s->cluster_size * 2;
+                p[8] = (cylinders >> 8) & 0xff;
+                p[9] = cylinders & 0xff;
+                /* Write precomp start cylinder, disabled */
+                p[10] = (cylinders >> 8) & 0xff;
+                p[11] = cylinders & 0xff;
+                /* Reduced current start cylinder, disabled */
+                p[12] = (cylinders >> 8) & 0xff;
+                p[13] = cylinders & 0xff;
+                /* Device step rate [100us], 100us */
+                p[14] = 0;
+                p[15] = 1;
+                /* Device step pulse width [us], 1us */
+                p[16] = 1;
+                /* Device head settle delay [100us], 100us */
+                p[17] = 0;
+                p[18] = 1;
+                /* Motor on delay [0.1s], 0.1s */
+                p[19] = 1;
+                /* Motor off delay [0.1s], 0.1s */
+                p[20] = 1;
+                /* Medium rotation rate [rpm], 5400 rpm */
+                p[28] = (5400 >> 8) & 0xff;
+                p[29] = 5400 & 0xff;
+                p += 0x1e;
+            } else if ((page == 8 || page == 0x3f)) {
                 /* Caching page.  */
                 memset(p,0,20);
                 p[0] = 8;

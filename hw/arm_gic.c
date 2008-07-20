@@ -650,6 +650,79 @@ static void gic_reset(gic_state *s)
 #endif
 }
 
+static void gic_save(QEMUFile *f, void *opaque)
+{
+    gic_state *s = (gic_state *)opaque;
+    int i;
+    int j;
+
+    qemu_put_be32(f, s->enabled);
+    for (i = 0; i < NCPU; i++) {
+        qemu_put_be32(f, s->cpu_enabled[i]);
+#ifndef NVIC
+        qemu_put_be32(f, s->irq_target[i]);
+#endif
+        for (j = 0; j < 32; j++)
+            qemu_put_be32(f, s->priority1[j][i]);
+        for (j = 0; j < GIC_NIRQ; j++)
+            qemu_put_be32(f, s->last_active[j][i]);
+        qemu_put_be32(f, s->priority_mask[i]);
+        qemu_put_be32(f, s->running_irq[i]);
+        qemu_put_be32(f, s->running_priority[i]);
+        qemu_put_be32(f, s->current_pending[i]);
+    }
+    for (i = 0; i < GIC_NIRQ - 32; i++) {
+        qemu_put_be32(f, s->priority2[i]);
+    }
+    for (i = 0; i < GIC_NIRQ; i++) {
+        qemu_put_byte(f, s->irq_state[i].enabled);
+        qemu_put_byte(f, s->irq_state[i].pending);
+        qemu_put_byte(f, s->irq_state[i].active);
+        qemu_put_byte(f, s->irq_state[i].level);
+        qemu_put_byte(f, s->irq_state[i].model);
+        qemu_put_byte(f, s->irq_state[i].trigger);
+    }
+}
+
+static int gic_load(QEMUFile *f, void *opaque, int version_id)
+{
+    gic_state *s = (gic_state *)opaque;
+    int i;
+    int j;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->enabled = qemu_get_be32(f);
+    for (i = 0; i < NCPU; i++) {
+        s->cpu_enabled[i] = qemu_get_be32(f);
+#ifndef NVIC
+        s->irq_target[i] = qemu_get_be32(f);
+#endif
+        for (j = 0; j < 32; j++)
+            s->priority1[j][i] = qemu_get_be32(f);
+        for (j = 0; j < GIC_NIRQ; j++)
+            s->last_active[j][i] = qemu_get_be32(f);
+        s->priority_mask[i] = qemu_get_be32(f);
+        s->running_irq[i] = qemu_get_be32(f);
+        s->running_priority[i] = qemu_get_be32(f);
+        s->current_pending[i] = qemu_get_be32(f);
+    }
+    for (i = 0; i < GIC_NIRQ - 32; i++) {
+        s->priority2[i] = qemu_get_be32(f);
+    }
+    for (i = 0; i < GIC_NIRQ; i++) {
+        s->irq_state[i].enabled = qemu_get_byte(f);
+        s->irq_state[i].pending = qemu_get_byte(f);
+        s->irq_state[i].active = qemu_get_byte(f);
+        s->irq_state[i].level = qemu_get_byte(f);
+        s->irq_state[i].model = qemu_get_byte(f);
+        s->irq_state[i].trigger = qemu_get_byte(f);
+    }
+
+    return 0;
+}
+
 static gic_state *gic_init(uint32_t base, qemu_irq *parent_irq)
 {
     gic_state *s;
@@ -669,5 +742,6 @@ static gic_state *gic_init(uint32_t base, qemu_irq *parent_irq)
                                  iomemtype);
     s->base = base;
     gic_reset(s);
+    register_savevm("arm_gic", -1, 1, gic_save, gic_load, s);
     return s;
 }

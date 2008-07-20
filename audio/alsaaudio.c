@@ -58,6 +58,7 @@ static struct {
     int period_size_out_overridden;
     int verbose;
 } conf = {
+    .buffer_size_out = 1024,
     .pcm_name_out = "default",
     .pcm_name_in = "default",
 };
@@ -67,6 +68,7 @@ struct alsa_params_req {
     snd_pcm_format_t fmt;
     int nchannels;
     int size_in_usec;
+    int override_mask;
     unsigned int buffer_size;
     unsigned int period_size;
 };
@@ -364,7 +366,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
             goto err;
         }
 
-        if (obt - req->buffer_size)
+        if ((req->override_mask & 2) && (obt - req->buffer_size))
             dolog ("Requested buffer %s %u was rejected, using %lu\n",
                    size_in_usec ? "time" : "size", req->buffer_size, obt);
     }
@@ -385,12 +387,14 @@ static int alsa_open (int in, struct alsa_params_req *req,
             obt = ptime;
         }
         else {
+            int dir = 0;
             snd_pcm_uframes_t psize = req->period_size;
 
-            err = snd_pcm_hw_params_set_buffer_size_near (
+            err = snd_pcm_hw_params_set_period_size_near (
                 handle,
                 hw_params,
-                &psize
+                &psize,
+                &dir
                 );
             obt = psize;
         }
@@ -401,7 +405,7 @@ static int alsa_open (int in, struct alsa_params_req *req,
             goto err;
         }
 
-        if (obt - req->period_size)
+        if ((req->override_mask & 1) && (obt - req->period_size))
             dolog ("Requested period %s %u was rejected, using %lu\n",
                    size_in_usec ? "time" : "size", req->period_size, obt);
     }
@@ -621,7 +625,9 @@ static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
     req.nchannels = as->nchannels;
     req.period_size = conf.period_size_out;
     req.buffer_size = conf.buffer_size_out;
-    req.size_in_usec = conf.size_in_usec_in;
+    req.size_in_usec = conf.size_in_usec_out;
+    req.override_mask = !!conf.period_size_out_overridden
+        | (!!conf.buffer_size_out_overridden << 1);
 
     if (alsa_open (0, &req, &obt, &handle)) {
         return -1;
@@ -700,6 +706,8 @@ static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
     req.period_size = conf.period_size_in;
     req.buffer_size = conf.buffer_size_in;
     req.size_in_usec = conf.size_in_usec_in;
+    req.override_mask = !!conf.period_size_in_overridden
+        | (!!conf.buffer_size_in_overridden << 1);
 
     if (alsa_open (1, &req, &obt, &handle)) {
         return -1;

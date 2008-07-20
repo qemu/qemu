@@ -304,11 +304,10 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 {
 #if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
     if (!check_fit_tl(arg, 32) && (arg & ~0xffffffffULL) != 0) {
-        // XXX ret may be I5, need another temp
-        tcg_out_movi_imm32(s, TCG_REG_I5, arg >> 32);
-        tcg_out_arithi(s, TCG_REG_I5, TCG_REG_I5, 32, SHIFT_SLLX);
+        tcg_out_movi_imm32(s, TCG_REG_I4, arg >> 32);
+        tcg_out_arithi(s, TCG_REG_I4, TCG_REG_I4, 32, SHIFT_SLLX);
         tcg_out_movi_imm32(s, ret, arg);
-        tcg_out_arith(s, ret, ret, TCG_REG_I5, ARITH_OR);
+        tcg_out_arith(s, ret, ret, TCG_REG_I4, ARITH_OR);
     } else
 #endif
         tcg_out_movi_imm32(s, ret, arg);
@@ -1137,6 +1136,9 @@ void tcg_target_init(TCGContext *s)
 
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_G0);
+#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_I4); // for internal use
+#endif
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_I5); // for internal use
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_I6);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_I7);

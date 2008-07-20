@@ -75,7 +75,7 @@ int cpu_restore_state(struct TranslationBlock *tb,
 int cpu_restore_state_copy(struct TranslationBlock *tb,
                            CPUState *env, unsigned long searched_pc,
                            void *puc);
-void cpu_resume_from_signal(CPUState *env1, void *puc);
+void cpu_resume_from_signal(CPUState *env1, void *puc) __attribute__((__noreturn__));
 void cpu_io_recompile(CPUState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUState *env, 
                               target_ulong pc, target_ulong cs_base, int flags,
@@ -119,9 +119,6 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 #define USE_DIRECT_JUMP
 #endif
 #if defined(__i386__) && !defined(_WIN32)
-#define USE_DIRECT_JUMP
-#endif
-#if defined(__x86_64__)
 #define USE_DIRECT_JUMP
 #endif
 
@@ -356,8 +353,8 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env1);
-    if (__builtin_expect(env1->tlb_table[mmu_idx][page_index].addr_code !=
-                         (addr & TARGET_PAGE_MASK), 0)) {
+    if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code !=
+                 (addr & TARGET_PAGE_MASK))) {
         ldub_code(addr);
     }
     pd = env1->tlb_table[mmu_idx][page_index].addr_code & ~TARGET_PAGE_MASK;

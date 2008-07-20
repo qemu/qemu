@@ -512,9 +512,6 @@ endif
 ifdef CONFIG_PA
 LIBS += -lpulse-simple
 endif
-ifdef CONFIG_PA
-LIBS += -lpulse-simple
-endif
 ifdef CONFIG_DSOUND
 LIBS += -lole32 -ldxguid
 endif

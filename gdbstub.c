@@ -48,7 +48,7 @@
 #include <signal.h>
 #endif
 
-//~ #define DEBUG_GDB
+//#define DEBUG_GDB
 
 enum RSState {
     RS_IDLE,

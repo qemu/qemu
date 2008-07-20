@@ -203,55 +203,57 @@ static void ssd0303_update_display(void *opaque)
     int dest_width;
     uint8_t mask;
 
-    if (s->redraw) {
-        switch (s->ds->depth) {
-        case 0:
-            return;
-        case 15:
-            dest_width = 2;
-            break;
-        case 16:
-            dest_width = 2;
-            break;
-        case 24:
-            dest_width = 3;
-            break;
-        case 32:
-            dest_width = 4;
-            break;
-        default:
-            BADF("Bad color depth\n");
-            return;
+    if (!s->redraw)
+        return;
+
+    switch (s->ds->depth) {
+    case 0:
+        return;
+    case 15:
+        dest_width = 2;
+        break;
+    case 16:
+        dest_width = 2;
+        break;
+    case 24:
+        dest_width = 3;
+        break;
+    case 32:
+        dest_width = 4;
+        break;
+    default:
+        BADF("Bad color depth\n");
+        return;
+    }
+    dest_width *= MAGNIFY;
+    memset(colortab, 0xff, dest_width);
+    memset(colortab + dest_width, 0, dest_width);
+    if (s->flash) {
+        colors[0] = colortab;
+        colors[1] = colortab;
+    } else if (s->inverse) {
+        colors[0] = colortab;
+        colors[1] = colortab + dest_width;
+    } else {
+        colors[0] = colortab + dest_width;
+        colors[1] = colortab;
+    }
+    dest = s->ds->data;
+    for (y = 0; y < 16; y++) {
+        line = (y + s->start_line) & 63;
+        src = s->framebuffer + 132 * (line >> 3) + 36;
+        mask = 1 << (line & 7);
+        for (x = 0; x < 96; x++) {
+            memcpy(dest, colors[(*src & mask) != 0], dest_width);
+            dest += dest_width;
+            src++;
         }
-        dest_width *= MAGNIFY;
-        memset(colortab, 0xff, dest_width);
-        memset(colortab + dest_width, 0, dest_width);
-        if (s->flash) {
-            colors[0] = colortab;
-            colors[1] = colortab;
-        } else if (s->inverse) {
-            colors[0] = colortab;
-            colors[1] = colortab + dest_width;
-        } else {
-            colors[0] = colortab + dest_width;
-            colors[1] = colortab;
-        }
-        dest = s->ds->data;
-        for (y = 0; y < 16; y++) {
-            line = (y + s->start_line) & 63;
-            src = s->framebuffer + 132 * (line >> 3) + 36;
-            mask = 1 << (line & 7);
-            for (x = 0; x < 96; x++) {
-                memcpy(dest, colors[(*src & mask) != 0], dest_width);
-                dest += dest_width;
-                src++;
-            }
-            for (x = 1; x < MAGNIFY; x++) {
-                memcpy(dest, dest - dest_width * 96, dest_width * 96);
-                dest += dest_width * 96;
-            }
+        for (x = 1; x < MAGNIFY; x++) {
+            memcpy(dest, dest - dest_width * 96, dest_width * 96);
+            dest += dest_width * 96;
         }
     }
+    s->redraw = 0;
     dpy_update(s->ds, 0, 0, 96 * MAGNIFY, 16 * MAGNIFY);
 }
 
@@ -259,6 +261,49 @@ static void ssd0303_invalidate_display(void * opaque)
 {
     ssd0303_state *s = (ssd0303_state *)opaque;
     s->redraw = 1;
+}
+
+static void ssd0303_save(QEMUFile *f, void *opaque)
+{
+    ssd0303_state *s = (ssd0303_state *)opaque;
+
+    qemu_put_be32(f, s->row);
+    qemu_put_be32(f, s->col);
+    qemu_put_be32(f, s->start_line);
+    qemu_put_be32(f, s->mirror);
+    qemu_put_be32(f, s->flash);
+    qemu_put_be32(f, s->enabled);
+    qemu_put_be32(f, s->inverse);
+    qemu_put_be32(f, s->redraw);
+    qemu_put_be32(f, s->mode);
+    qemu_put_be32(f, s->cmd_state);
+    qemu_put_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+
+    i2c_slave_save(f, &s->i2c);
+}
+
+static int ssd0303_load(QEMUFile *f, void *opaque, int version_id)
+{
+    ssd0303_state *s = (ssd0303_state *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->row = qemu_get_be32(f);
+    s->col = qemu_get_be32(f);
+    s->start_line = qemu_get_be32(f);
+    s->mirror = qemu_get_be32(f);
+    s->flash = qemu_get_be32(f);
+    s->enabled = qemu_get_be32(f);
+    s->inverse = qemu_get_be32(f);
+    s->redraw = qemu_get_be32(f);
+    s->mode = qemu_get_be32(f);
+    s->cmd_state = qemu_get_be32(f);
+    qemu_get_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+
+    i2c_slave_load(f, &s->i2c);
+
+    return 0;
 }
 
 void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address)
@@ -274,4 +319,5 @@ void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address)
                                       ssd0303_invalidate_display,
                                       NULL, NULL, s);
     qemu_console_resize(s->console, 96 * MAGNIFY, 16 * MAGNIFY);
+    register_savevm("ssd0303_oled", -1, 1, ssd0303_save, ssd0303_load, s);
 }

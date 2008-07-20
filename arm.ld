@@ -63,6 +63,7 @@ SECTIONS
   . = ALIGN(0x100000) + (. & (0x100000 - 1));
   .data    :
   {
+    *(.gen_code)
     *(.data)
     *(.gnu.linkonce.d*)
     CONSTRUCTORS

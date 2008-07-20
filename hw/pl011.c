@@ -238,6 +238,57 @@ static CPUWriteMemoryFunc *pl011_writefn[] = {
    pl011_write
 };
 
+static void pl011_save(QEMUFile *f, void *opaque)
+{
+    pl011_state *s = (pl011_state *)opaque;
+    int i;
+
+    qemu_put_be32(f, s->readbuff);
+    qemu_put_be32(f, s->flags);
+    qemu_put_be32(f, s->lcr);
+    qemu_put_be32(f, s->cr);
+    qemu_put_be32(f, s->dmacr);
+    qemu_put_be32(f, s->int_enabled);
+    qemu_put_be32(f, s->int_level);
+    for (i = 0; i < 16; i++)
+        qemu_put_be32(f, s->read_fifo[i]);
+    qemu_put_be32(f, s->ilpr);
+    qemu_put_be32(f, s->ibrd);
+    qemu_put_be32(f, s->fbrd);
+    qemu_put_be32(f, s->ifl);
+    qemu_put_be32(f, s->read_pos);
+    qemu_put_be32(f, s->read_count);
+    qemu_put_be32(f, s->read_trigger);
+}
+
+static int pl011_load(QEMUFile *f, void *opaque, int version_id)
+{
+    pl011_state *s = (pl011_state *)opaque;
+    int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->readbuff = qemu_get_be32(f);
+    s->flags = qemu_get_be32(f);
+    s->lcr = qemu_get_be32(f);
+    s->cr = qemu_get_be32(f);
+    s->dmacr = qemu_get_be32(f);
+    s->int_enabled = qemu_get_be32(f);
+    s->int_level = qemu_get_be32(f);
+    for (i = 0; i < 16; i++)
+        s->read_fifo[i] = qemu_get_be32(f);
+    s->ilpr = qemu_get_be32(f);
+    s->ibrd = qemu_get_be32(f);
+    s->fbrd = qemu_get_be32(f);
+    s->ifl = qemu_get_be32(f);
+    s->read_pos = qemu_get_be32(f);
+    s->read_count = qemu_get_be32(f);
+    s->read_trigger = qemu_get_be32(f);
+
+    return 0;
+}
+
 void pl011_init(uint32_t base, qemu_irq irq,
                 CharDriverState *chr, enum pl011_type type)
 {
@@ -260,6 +311,6 @@ void pl011_init(uint32_t base, qemu_irq irq,
         qemu_chr_add_handlers(chr, pl011_can_receive, pl011_receive,
                               pl011_event, s);
     }
-    /* ??? Save/restore.  */
+    register_savevm("pl011_uart", -1, 1, pl011_save, pl011_load, s);
 }
 

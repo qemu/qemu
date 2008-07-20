@@ -368,6 +368,31 @@ static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
     }
 }
 
+static void nvic_save(QEMUFile *f, void *opaque)
+{
+    nvic_state *s = (nvic_state *)opaque;
+
+    qemu_put_be32(f, s->systick.control);
+    qemu_put_be32(f, s->systick.reload);
+    qemu_put_be64(f, s->systick.tick);
+    qemu_put_timer(f, s->systick.timer);
+}
+
+static int nvic_load(QEMUFile *f, void *opaque, int version_id)
+{
+    nvic_state *s = (nvic_state *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->systick.control = qemu_get_be32(f);
+    s->systick.reload = qemu_get_be32(f);
+    s->systick.tick = qemu_get_be64(f);
+    qemu_get_timer(f, s->systick.timer);
+
+    return 0;
+}
+
 qemu_irq *armv7m_nvic_init(CPUState *env)
 {
     nvic_state *s;
@@ -381,5 +406,6 @@ qemu_irq *armv7m_nvic_init(CPUState *env)
     if (env->v7m.nvic)
         cpu_abort(env, "CPU can only have one NVIC\n");
     env->v7m.nvic = s;
+    register_savevm("armv7m_nvic", -1, 1, nvic_save, nvic_load, s);
     return s->gic->in;
 }

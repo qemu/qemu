@@ -415,7 +415,7 @@ static void tcg_out_b (TCGContext *s, int mask, tcg_target_long target)
 
     disp = target - (tcg_target_long) s->code_ptr;
     if ((disp << 6) >> 6 == disp)
-        tcg_out32 (s, B | disp | mask);
+        tcg_out32 (s, B | (disp & 0x3fffffc) | mask);
     else {
         tcg_out_movi (s, TCG_TYPE_I32, 0, (tcg_target_long) target);
         tcg_out32 (s, MTSPR | RS (0) | CTR);
@@ -987,14 +987,11 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
 
     switch (cond) {
     case TCG_COND_EQ:
-        tcg_out_cmp (s, TCG_COND_EQ, args[0], args[2], const_args[2], 6);
-        tcg_out_cmp (s, TCG_COND_EQ, args[1], args[3], const_args[3], 7);
-        tcg_out32 (s, CRAND | BT (7, CR_EQ) | BA (6, CR_EQ) | BB (7, CR_EQ));
-        break;
     case TCG_COND_NE:
-        tcg_out_cmp (s, TCG_COND_NE, args[0], args[2], const_args[2], 6);
-        tcg_out_cmp (s, TCG_COND_NE, args[1], args[3], const_args[3], 7);
-        tcg_out32 (s, CRNAND | BT (7, CR_EQ) | BA (6, CR_EQ) | BB (7, CR_EQ));
+        op = (cond == TCG_COND_EQ) ? CRAND : CRNAND;
+        tcg_out_cmp (s, cond, args[0], args[2], const_args[2], 6);
+        tcg_out_cmp (s, cond, args[1], args[3], const_args[3], 7);
+        tcg_out32 (s, op | BT (7, CR_EQ) | BA (6, CR_EQ) | BB (7, CR_EQ));
         break;
     case TCG_COND_LT:
     case TCG_COND_LE:

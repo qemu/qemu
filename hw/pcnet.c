@@ -1939,7 +1939,7 @@ static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
     PCNetState *d = (PCNetState *)pci_dev;
 
 #ifdef PCNET_DEBUG_IO
-    printf("%s addr=0x%08x 0x%08x\n", __func__, addr, size);
+    printf("pcnet_ioport_map addr=0x%08x 0x%08x\n", addr, size);
 #endif
 
     cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->mmio_index);
