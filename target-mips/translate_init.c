@@ -63,7 +63,7 @@ enum mips_mmu_types {
 };
 
 struct mips_def_t {
-    const unsigned char *name;
+    const char *name;
     int32_t CP0_PRid;
     int32_t CP0_Config0;
     int32_t CP0_Config1;
