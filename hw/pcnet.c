@@ -971,11 +971,12 @@ static void pcnet_rdte_poll(PCNetState *s)
             s->csr[37] = nnrd >> 16;
 #ifdef PCNET_DEBUG
             if (bad) {
-                printf("pcnet: BAD RMD RECORDS AFTER 0x%08x\n",
+                printf("pcnet: BAD RMD RECORDS AFTER 0x" TARGET_FMT_plx "\n",
                        PHYSADDR(s,crda));
             }
         } else {
-            printf("pcnet: BAD RMD RDA=0x%08x\n", PHYSADDR(s,crda));
+            printf("pcnet: BAD RMD RDA=0x" TARGET_FMT_plx "\n",
+                   PHYSADDR(s,crda));
 #endif
         }
     }
@@ -1743,7 +1744,8 @@ static void pcnet_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t va
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_writeb addr=0x%08x val=0x%02x\n", addr, val);
+    printf("pcnet_mmio_writeb addr=0x" TARGET_FMT_plx" val=0x%02x\n", addr,
+           val);
 #endif
     if (!(addr & 0x10))
         pcnet_aprom_writeb(d, addr & 0x0f, val);
@@ -1756,7 +1758,8 @@ static uint32_t pcnet_mmio_readb(void *opaque, target_phys_addr_t addr)
     if (!(addr & 0x10))
         val = pcnet_aprom_readb(d, addr & 0x0f);
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_readb addr=0x%08x val=0x%02x\n", addr, val & 0xff);
+    printf("pcnet_mmio_readb addr=0x" TARGET_FMT_plx " val=0x%02x\n", addr,
+           val & 0xff);
 #endif
     return val;
 }
@@ -1765,7 +1768,8 @@ static void pcnet_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t va
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_writew addr=0x%08x val=0x%04x\n", addr, val);
+    printf("pcnet_mmio_writew addr=0x" TARGET_FMT_plx " val=0x%04x\n", addr,
+           val);
 #endif
     if (addr & 0x10)
         pcnet_ioport_writew(d, addr & 0x0f, val);
@@ -1789,7 +1793,8 @@ static uint32_t pcnet_mmio_readw(void *opaque, target_phys_addr_t addr)
         val |= pcnet_aprom_readb(d, addr);
     }
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_readw addr=0x%08x val = 0x%04x\n", addr, val & 0xffff);
+    printf("pcnet_mmio_readw addr=0x" TARGET_FMT_plx" val = 0x%04x\n", addr,
+           val & 0xffff);
 #endif
     return val;
 }
@@ -1798,7 +1803,8 @@ static void pcnet_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t va
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_writel addr=0x%08x val=0x%08x\n", addr, val);
+    printf("pcnet_mmio_writel addr=0x" TARGET_FMT_plx" val=0x%08x\n", addr,
+           val);
 #endif
     if (addr & 0x10)
         pcnet_ioport_writel(d, addr & 0x0f, val);
@@ -1828,7 +1834,8 @@ static uint32_t pcnet_mmio_readl(void *opaque, target_phys_addr_t addr)
         val |= pcnet_aprom_readb(d, addr);
     }
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_readl addr=0x%08x val=0x%08x\n", addr, val);
+    printf("pcnet_mmio_readl addr=0x" TARGET_FMT_plx " val=0x%08x\n", addr,
+           val);
 #endif
     return val;
 }
@@ -1939,7 +1946,7 @@ static void pcnet_mmio_map(PCIDevice *pci_dev, int region_num,
     PCNetState *d = (PCNetState *)pci_dev;
 
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_ioport_map addr=0x%08x 0x%08x\n", addr, size);
+    printf("pcnet_mmio_map addr=0x%08x 0x%08x\n", addr, size);
 #endif
 
     cpu_register_physical_memory(addr, PCNET_PNPMMIO_SIZE, d->mmio_index);
@@ -2034,7 +2041,7 @@ static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
 
     val = pcnet_ioport_readw(opaque, addr & 7);
 #ifdef PCNET_DEBUG_IO
-    printf("pcnet_mmio_readw addr=" TARGET_FMT_plx " val = 0x%04x\n", addr,
+    printf("lance_mem_readw addr=" TARGET_FMT_plx " val = 0x%04x\n", addr,
            val & 0xffff);
 #endif
 

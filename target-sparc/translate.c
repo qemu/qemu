@@ -2176,6 +2176,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto priv_insn;
                 tcg_gen_helper_1_0(helper_rdpsr, cpu_dst);
 #else
+                CHECK_IU_FEATURE(dc, HYPV);
                 if (!hypervisor(dc))
                     goto priv_insn;
                 rs1 = GET_FIELD(insn, 13, 17);
@@ -2326,11 +2327,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
                     break;
                 case 16: // UA2005 gl
+                    CHECK_IU_FEATURE(dc, GL);
                     tcg_gen_ld_i32(cpu_tmp32, cpu_env,
                                    offsetof(CPUSPARCState, gl));
                     tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
                     break;
                 case 26: // UA2005 strand status
+                    CHECK_IU_FEATURE(dc, HYPV);
                     if (!hypervisor(dc))
                         goto priv_insn;
                     tcg_gen_ld_i32(cpu_tmp32, cpu_env,
@@ -3432,11 +3435,13 @@ static void disas_sparc_insn(DisasContext * dc)
                                                         wstate));
                                 break;
                             case 16: // UA2005 gl
+                                CHECK_IU_FEATURE(dc, GL);
                                 tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
                                 tcg_gen_st_i32(cpu_tmp32, cpu_env,
                                                offsetof(CPUSPARCState, gl));
                                 break;
                             case 26: // UA2005 strand status
+                                CHECK_IU_FEATURE(dc, HYPV);
                                 if (!hypervisor(dc))
                                     goto priv_insn;
                                 tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
@@ -3462,6 +3467,7 @@ static void disas_sparc_insn(DisasContext * dc)
                             tcg_gen_st_tl(cpu_tmp0, cpu_env,
                                           offsetof(CPUSPARCState, tbr));
 #else
+                            CHECK_IU_FEATURE(dc, HYPV);
                             if (!hypervisor(dc))
                                 goto priv_insn;
                             tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
