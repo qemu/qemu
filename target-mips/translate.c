@@ -5998,6 +5998,7 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
     TCGCond cond;
     TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
     TCGv t1 = tcg_temp_local_new(TCG_TYPE_TL);
+    TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_I32);
 
     if (cc)
         ccbit = 1 << (24 + cc);
@@ -6010,17 +6011,11 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
 
     gen_load_gpr(t0, rd);
     gen_load_gpr(t1, rs);
-    {
-        TCGv r_ptr = tcg_temp_new(TCG_TYPE_PTR);
-        TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_I32);
+    tcg_gen_ld_i32(r_tmp, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
+    tcg_gen_andi_i32(r_tmp, r_tmp, ccbit);
+    tcg_gen_brcondi_i32(cond, r_tmp, 0, l1);
+    tcg_temp_free(r_tmp);
 
-        tcg_gen_ld_ptr(r_ptr, cpu_env, offsetof(CPUState, fpu));
-        tcg_gen_ld_i32(r_tmp, r_ptr, offsetof(CPUMIPSFPUContext, fcr31));
-        tcg_temp_free(r_ptr);
-        tcg_gen_andi_i32(r_tmp, r_tmp, ccbit);
-        tcg_gen_brcondi_i32(cond, r_tmp, 0, l1);
-        tcg_temp_free(r_tmp);
-    }
     tcg_gen_mov_tl(t0, t1);
     tcg_temp_free(t1);
 
