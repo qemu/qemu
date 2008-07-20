@@ -22,6 +22,7 @@ DEF_HELPER(target_ulong, helper_array8, (target_ulong pixel_addr, \
 DEF_HELPER(target_ulong, helper_alignaddr, (target_ulong addr, \
                                             target_ulong offset))
 DEF_HELPER(target_ulong, helper_popc, (target_ulong val))
+DEF_HELPER(void, helper_ldda_asi, (target_ulong addr, int asi, int rd))
 DEF_HELPER(void, helper_ldf_asi, (target_ulong addr, int asi, int size, int rd))
 DEF_HELPER(void, helper_stf_asi, (target_ulong addr, int asi, int size, int rd))
 DEF_HELPER(target_ulong, helper_cas_asi, (target_ulong addr, \

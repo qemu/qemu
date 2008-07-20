@@ -185,7 +185,6 @@ static inline uint32_t do_ssat(int32_t val, int shift)
     int32_t top;
     uint32_t mask;
 
-    shift = PARAM1;
     top = val >> shift;
     mask = (1u << shift) - 1;
     if (top > 0) {
@@ -203,7 +202,6 @@ static inline uint32_t do_usat(int32_t val, int shift)
 {
     uint32_t max;
 
-    shift = PARAM1;
     max = (1u << shift) - 1;
     if (val < 0) {
         env->QF = 1;

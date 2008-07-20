@@ -167,10 +167,15 @@ void vga_hw_invalidate(void)
 
 void vga_hw_screen_dump(const char *filename)
 {
-    /* There is currently no was of specifying which screen we want to dump,
+    TextConsole *previous_active_console;
+
+    previous_active_console = active_console;
+    active_console = consoles[0];
+    /* There is currently no way of specifying which screen we want to dump,
        so always dump the dirst one.  */
     if (consoles[0]->hw_screen_dump)
         consoles[0]->hw_screen_dump(consoles[0]->hw, filename);
+    active_console = previous_active_console;
 }
 
 void vga_hw_text_update(console_ch_t *chardata)
@@ -1329,7 +1334,8 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
 
 void qemu_console_resize(QEMUConsole *console, int width, int height)
 {
-    if (console->g_width != width || console->g_height != height) {
+    if (console->g_width != width || console->g_height != height
+        || !console->ds->data) {
         console->g_width = width;
         console->g_height = height;
         if (active_console == console) {

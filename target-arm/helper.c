@@ -65,7 +65,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
         memcpy(env->cp15.c0_c1, arm1136_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c1, arm1136_cp15_c0_c2, 8 * sizeof(uint32_t));
+        memcpy(env->cp15.c0_c2, arm1136_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_cachetype = 0x1dd20d2;
         break;
     case ARM_CPUID_ARM11MPCORE:
@@ -77,7 +77,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
         memcpy(env->cp15.c0_c1, mpcore_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c1, mpcore_cp15_c0_c2, 8 * sizeof(uint32_t));
+        memcpy(env->cp15.c0_c2, mpcore_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_cachetype = 0x1dd20d2;
         break;
     case ARM_CPUID_CORTEXA8:
@@ -93,7 +93,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11110222;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00011100;
         memcpy(env->cp15.c0_c1, cortexa8_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c1, cortexa8_cp15_c0_c2, 8 * sizeof(uint32_t));
+        memcpy(env->cp15.c0_c2, cortexa8_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_cachetype = 0x1dd20d2;
         break;
     case ARM_CPUID_CORTEXM3:
@@ -2060,7 +2060,7 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
     uint32_t sum; \
     sum = (uint32_t)(uint16_t)(a) + (uint32_t)(uint16_t)(b); \
     RESULT(sum, n, 16); \
-    if ((sum >> 16) == 0) \
+    if ((sum >> 16) == 1) \
         ge |= 3 << (n * 2); \
     } while(0)
 
@@ -2068,8 +2068,8 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
     uint32_t sum; \
     sum = (uint32_t)(uint8_t)(a) + (uint32_t)(uint8_t)(b); \
     RESULT(sum, n, 8); \
-    if ((sum >> 8) == 0) \
-        ge |= 3 << (n * 2); \
+    if ((sum >> 8) == 1) \
+        ge |= 1 << n; \
     } while(0)
 
 #define SUB16(a, b, n) do { \
@@ -2085,7 +2085,7 @@ static inline uint8_t sub8_usat(uint8_t a, uint8_t b)
     sum = (uint32_t)(uint8_t)(a) - (uint32_t)(uint8_t)(b); \
     RESULT(sum, n, 8); \
     if ((sum >> 8) == 0) \
-        ge |= 3 << (n * 2); \
+        ge |= 1 << n; \
     } while(0)
 
 #define PFX u

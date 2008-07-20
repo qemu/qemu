@@ -799,6 +799,16 @@ for drv in $audio_drv_list; do
         "pa_simple *s = NULL; pa_simple_free(s); return 0;"
     ;;
 
+    *)
+    echo "$audio_possible_drivers" | grep -q "\<$drv\>" || {
+        echo
+        echo "Error: Unknown driver '$drv' selected"
+        echo "Possible drivers are: $audio_possible_drivers"
+        echo
+        exit 1
+    }
+    ;;
+
     esac
 done
 

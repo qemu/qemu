@@ -1634,12 +1634,15 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             }
             break;
         }
+    case 0x24: // Nucleus quad LDD 128 bit atomic
+    case 0x2c: // Nucleus quad LDD 128 bit atomic LE
+        //  Only ldda allowed
+        raise_exception(TT_ILL_INSN);
+        return 0;
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
     case 0x11: // As if user secondary
     case 0x19: // As if user secondary LE
-    case 0x24: // Nucleus quad LDD 128 bit atomic
-    case 0x2c: // Nucleus quad LDD 128 bit atomic
     case 0x4a: // UPA config
     case 0x81: // Secondary
     case 0x83: // Secondary no-fault
@@ -1943,12 +1946,15 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             }
         }
         return;
+    case 0x24: // Nucleus quad LDD 128 bit atomic
+    case 0x2c: // Nucleus quad LDD 128 bit atomic LE
+        //  Only ldda allowed
+        raise_exception(TT_ILL_INSN);
+        return;
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
     case 0x11: // As if user secondary
     case 0x19: // As if user secondary LE
-    case 0x24: // Nucleus quad LDD 128 bit atomic
-    case 0x2c: // Nucleus quad LDD 128 bit atomic
     case 0x4a: // UPA config
     case 0x81: // Secondary
     case 0x89: // Secondary LE
@@ -2143,6 +2149,51 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     }
 }
 #endif /* CONFIG_USER_ONLY */
+
+void helper_ldda_asi(target_ulong addr, int asi, int rd)
+{
+    if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
+        || (asi >= 0x30 && asi < 0x80 && !(env->hpstate & HS_PRIV)))
+        raise_exception(TT_PRIV_ACT);
+
+    switch (asi) {
+    case 0x24: // Nucleus quad LDD 128 bit atomic
+    case 0x2c: // Nucleus quad LDD 128 bit atomic LE
+        helper_check_align(addr, 0xf);
+        if (rd == 0) {
+            env->gregs[1] = ldq_kernel(addr + 8);
+            if (asi == 0x2c)
+                bswap64s(&env->gregs[1]);
+        } else if (rd < 8) {
+            env->gregs[rd] = ldq_kernel(addr);
+            env->gregs[rd + 1] = ldq_kernel(addr + 8);
+            if (asi == 0x2c) {
+                bswap64s(&env->gregs[rd]);
+                bswap64s(&env->gregs[rd + 1]);
+            }
+        } else {
+            env->regwptr[rd] = ldq_kernel(addr);
+            env->regwptr[rd + 1] = ldq_kernel(addr + 8);
+            if (asi == 0x2c) {
+                bswap64s(&env->regwptr[rd]);
+                bswap64s(&env->regwptr[rd + 1]);
+            }
+        }
+        break;
+    default:
+        helper_check_align(addr, 0x3);
+        if (rd == 0)
+            env->gregs[1] = helper_ld_asi(addr + 4, asi, 4, 0);
+        else if (rd < 8) {
+            env->gregs[rd] = helper_ld_asi(addr, asi, 4, 0);
+            env->gregs[rd + 1] = helper_ld_asi(addr + 4, asi, 4, 0);
+        } else {
+            env->regwptr[rd] = helper_ld_asi(addr, asi, 4, 0);
+            env->regwptr[rd + 1] = helper_ld_asi(addr + 4, asi, 4, 0);
+        }
+        break;
+    }
+}
 
 void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
 {

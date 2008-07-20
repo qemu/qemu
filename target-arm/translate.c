@@ -251,8 +251,8 @@ static void gen_smul_dual(TCGv a, TCGv b)
 {
     TCGv tmp1 = new_tmp();
     TCGv tmp2 = new_tmp();
-    tcg_gen_ext8s_i32(tmp1, a);
-    tcg_gen_ext8s_i32(tmp2, b);
+    tcg_gen_ext16s_i32(tmp1, a);
+    tcg_gen_ext16s_i32(tmp2, b);
     tcg_gen_mul_i32(tmp1, tmp1, tmp2);
     dead_tmp(tmp2);
     tcg_gen_sari_i32(a, a, 16);
@@ -5814,7 +5814,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             /* Coprocessor double register transfer.  */
         } else if ((insn & 0x0f000010) == 0x0e000010) {
             /* Additional coprocessor register transfer.  */
-        } else if ((insn & 0x0ff10010) == 0x01000000) {
+        } else if ((insn & 0x0ff10020) == 0x01000000) {
             uint32_t mask;
             uint32_t val;
             /* cps (privileged) */
@@ -5831,7 +5831,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 if (insn & (1 << 18))
                     val |= mask;
             }
-            if (insn & (1 << 14)) {
+            if (insn & (1 << 17)) {
                 mask |= CPSR_M;
                 val |= (insn & 0x1f);
             }
@@ -5999,10 +5999,11 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_mulxy(tmp, tmp2, sh & 2, sh & 4);
                 dead_tmp(tmp2);
                 if (op1 == 2) {
-                    tmp = tcg_temp_new(TCG_TYPE_I64);
-                    tcg_gen_ext_i32_i64(tmp, cpu_T[0]);
-                    gen_addq(s, tmp, rn, rd);
-                    gen_storeq_reg(s, rn, rd, tmp);
+                    tmp2 = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_ext_i32_i64(tmp2, tmp);
+                    dead_tmp(tmp);
+                    gen_addq(s, tmp2, rn, rd);
+                    gen_storeq_reg(s, rn, rd, tmp2);
                 } else {
                     if (op1 == 0) {
                         tmp2 = load_reg(s, rn);
@@ -6373,18 +6374,22 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         tmp = load_reg(s, rn);
                         tmp2 = load_reg(s, rm);
                         shift = (insn >> 7) & 0x1f;
-                        if (shift)
-                            tcg_gen_shli_i32(tmp2, tmp2, shift);
                         if (insn & (1 << 6)) {
                             /* pkhtb */
+                            if (shift == 0)
+                                shift = 31;
+                            tcg_gen_sari_i32(tmp2, tmp2, shift);
                             tcg_gen_andi_i32(tmp, tmp, 0xffff0000);
                             tcg_gen_ext16u_i32(tmp2, tmp2);
                         } else {
                             /* pkhbt */
+                            if (shift)
+                                tcg_gen_shli_i32(tmp2, tmp2, shift);
                             tcg_gen_ext16u_i32(tmp, tmp);
                             tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
                         }
                         tcg_gen_or_i32(tmp, tmp, tmp2);
+                        dead_tmp(tmp2);
                         store_reg(s, rd, tmp);
                     } else if ((insn & 0x00200020) == 0x00200000) {
                         /* [us]sat */
@@ -6511,17 +6516,17 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                             tmp2 = tcg_temp_new(TCG_TYPE_I64);
                             tcg_gen_ext_i32_i64(tmp2, tmp);
                             dead_tmp(tmp);
-                            gen_addq(s, tmp2, rn, rd);
-                            gen_storeq_reg(s, rn, rd, tmp2);
+                            gen_addq(s, tmp2, rd, rn);
+                            gen_storeq_reg(s, rd, rn, tmp2);
                         } else {
                             /* smuad, smusd, smlad, smlsd */
-                            if (rn != 15)
+                            if (rd != 15)
                               {
-                                tmp2 = load_reg(s, rn);
+                                tmp2 = load_reg(s, rd);
                                 gen_helper_add_setq(tmp, tmp, tmp2);
                                 dead_tmp(tmp2);
                               }
-                            store_reg(s, rd, tmp);
+                            store_reg(s, rn, tmp);
                         }
                     }
                     break;

@@ -1723,20 +1723,15 @@ static inline void gen_swap_asi(TCGv dst, TCGv addr, int insn)
     tcg_gen_trunc_i64_tl(dst, cpu_tmp64);
 }
 
-static inline void gen_ldda_asi(TCGv lo, TCGv hi, TCGv addr, int insn)
+static inline void gen_ldda_asi(TCGv hi, TCGv addr, int insn, int rd)
 {
-    TCGv r_asi, r_size, r_sign;
+    TCGv r_asi, r_rd;
 
     r_asi = gen_get_asi(insn, addr);
-    r_size = tcg_const_i32(8);
-    r_sign = tcg_const_i32(0);
-    tcg_gen_helper_1_4(helper_ld_asi, cpu_tmp64, addr, r_asi, r_size, r_sign);
-    tcg_temp_free(r_sign);
-    tcg_temp_free(r_size);
+    r_rd = tcg_const_i32(rd);
+    tcg_gen_helper_0_3(helper_ldda_asi, addr, r_asi, r_rd);
+    tcg_temp_free(r_rd);
     tcg_temp_free(r_asi);
-    tcg_gen_andi_i64(lo, cpu_tmp64, 0xffffffffULL);
-    tcg_gen_shri_i64(cpu_tmp64, cpu_tmp64, 32);
-    tcg_gen_andi_i64(hi, cpu_tmp64, 0xffffffffULL);
 }
 
 static inline void gen_stda_asi(TCGv hi, TCGv addr, int insn, int rd)
@@ -1823,7 +1818,7 @@ static inline void gen_swap_asi(TCGv dst, TCGv addr, int insn)
     tcg_gen_trunc_i64_tl(dst, cpu_tmp64);
 }
 
-static inline void gen_ldda_asi(TCGv lo, TCGv hi, TCGv addr, int insn)
+static inline void gen_ldda_asi(TCGv hi, TCGv addr, int insn, int rd)
 {
     TCGv r_asi, r_size, r_sign;
 
@@ -1834,9 +1829,11 @@ static inline void gen_ldda_asi(TCGv lo, TCGv hi, TCGv addr, int insn)
     tcg_temp_free(r_sign);
     tcg_temp_free(r_size);
     tcg_temp_free(r_asi);
-    tcg_gen_trunc_i64_tl(lo, cpu_tmp64);
+    tcg_gen_trunc_i64_tl(cpu_tmp0, cpu_tmp64);
+    gen_movl_TN_reg(rd + 1, cpu_tmp0);
     tcg_gen_shri_i64(cpu_tmp64, cpu_tmp64, 32);
     tcg_gen_trunc_i64_tl(hi, cpu_tmp64);
+    gen_movl_TN_reg(rd, hi);
 }
 
 static inline void gen_stda_asi(TCGv hi, TCGv addr, int insn, int rd)
@@ -4311,9 +4308,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (rd & 1)
                         goto illegal_insn;
                     save_state(dc, cpu_cond);
-                    gen_ldda_asi(cpu_tmp0, cpu_val, cpu_addr, insn);
-                    gen_movl_TN_reg(rd + 1, cpu_tmp0);
-                    break;
+                    gen_ldda_asi(cpu_val, cpu_addr, insn, rd);
+                    goto skip_move;
                 case 0x19:      /* load signed byte alternate */
 #ifndef TARGET_SPARC64
                     if (IS_IMM)
@@ -4404,7 +4400,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto illegal_insn;
                 }
                 gen_movl_TN_reg(rd, cpu_val);
-#ifdef TARGET_SPARC64
+#if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
             skip_move: ;
 #endif
             } else if (xop >= 0x20 && xop < 0x24) {
