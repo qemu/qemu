@@ -903,7 +903,7 @@ void cpu_reset(CPUSPARCState *env)
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV;
     env->hpstate = HS_PRIV;
-    env->pc = 0x1fff0000000ULL;
+    env->pc = 0x1fff0000020ULL; // XXX should be different for system_reset
     env->tsptr = &env->ts[env->tl];
 #else
     env->pc = 0;
