@@ -24,6 +24,7 @@
 #include "sysemu.h"
 #include "qemu-timer.h"
 #include "qemu-char.h"
+#include "soc_dma.h"
 /* We use pc-style serial ports.  */
 #include "pc.h"
 
@@ -4703,6 +4704,12 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     s->port[tipb     ].addr_valid = omap_validate_tipb_addr;
     s->port[local    ].addr_valid = omap_validate_local_addr;
     s->port[tipb_mpui].addr_valid = omap_validate_tipb_mpui_addr;
+
+    /* Register SDRAM and SRAM DMA ports for fast transfers.  */
+    soc_dma_port_add_mem_ram(s->dma,
+                    emiff_base, OMAP_EMIFF_BASE, s->sdram_size);
+    soc_dma_port_add_mem_ram(s->dma,
+                    imif_base, OMAP_IMIF_BASE, s->sram_size);
 
     s->timer[0] = omap_mpu_timer_init(0xfffec500,
                     s->irq[0][OMAP_INT_TIMER1],

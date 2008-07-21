@@ -26,6 +26,7 @@
 #include "qemu-timer.h"
 #include "qemu-char.h"
 #include "flash.h"
+#include "soc_dma.h"
 #include "audio/audio.h"
 
 /* GP timers */
@@ -4492,6 +4493,10 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "sdma_iclk"),
                     omap_findclk(s, "sdma_fclk"));
     s->port->addr_valid = omap2_validate_addr;
+
+    /* Register SDRAM and SRAM ports for fast DMA transfers.  */
+    soc_dma_port_add_mem_ram(s->dma, q2_base, OMAP2_Q2_BASE, s->sdram_size);
+    soc_dma_port_add_mem_ram(s->dma, sram_base, OMAP2_SRAM_BASE, s->sram_size);
 
     s->uart[0] = omap2_uart_init(omap_l4ta(s->l4, 19),
                     s->irq[0][OMAP_INT_24XX_UART1_IRQ],
