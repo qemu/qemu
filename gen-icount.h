@@ -1,5 +1,7 @@
 /* Helpers for instruction counting code generation.  */
 
+#include <stddef.h>     /* offsetof */
+
 static TCGArg *icount_arg;
 static int icount_label;
 
