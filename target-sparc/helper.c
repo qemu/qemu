@@ -758,9 +758,23 @@ void do_interrupt(CPUState *env)
     env->tsptr->tpc = env->pc;
     env->tsptr->tnpc = env->npc;
     env->tsptr->tt = intno;
-    if (!(env->features & CPU_FEATURE_GL))
-        change_pstate(PS_PEF | PS_PRIV | PS_AG);
-
+    if (!(env->features & CPU_FEATURE_GL)) {
+        switch (intno) {
+        case TT_IVEC:
+            change_pstate(PS_PEF | PS_PRIV | PS_IG);
+            break;
+        case TT_TFAULT:
+        case TT_TMISS:
+        case TT_DFAULT:
+        case TT_DMISS:
+        case TT_DPROT:
+            change_pstate(PS_PEF | PS_PRIV | PS_MG);
+            break;
+        default:
+            change_pstate(PS_PEF | PS_PRIV | PS_AG);
+            break;
+        }
+    }
     if (intno == TT_CLRWIN)
         cpu_set_cwp(env, cpu_cwp_dec(env, env->cwp - 1));
     else if ((intno & 0x1c0) == TT_SPILL)

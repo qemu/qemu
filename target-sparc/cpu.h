@@ -61,12 +61,13 @@
 #define TT_DIV_ZERO 0x28
 #define TT_DFAULT   0x30
 #define TT_DATA_ACCESS 0x32
-#define TT_DPROT    0x33
 #define TT_UNALIGNED 0x34
 #define TT_PRIV_ACT 0x37
 #define TT_EXTINT   0x40
+#define TT_IVEC     0x60
 #define TT_TMISS    0x64
 #define TT_DMISS    0x68
+#define TT_DPROT    0x6c
 #define TT_SPILL    0x80
 #define TT_FILL     0xc0
 #define TT_WOTHER   0x10
