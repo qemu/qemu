@@ -8175,6 +8175,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 #endif
             break;
         case OPC_MFMC0:
+#ifndef CONFIG_USER_ONLY
             op2 = MASK_MFMC0(ctx->opcode);
             {
                 TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
@@ -8218,6 +8219,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 gen_store_gpr(t0, rt);
                 tcg_temp_free(t0);
             }
+#endif
             break;
         case OPC_RDPGPR:
             check_insn(env, ctx, ISA_MIPS32R2);
@@ -8605,9 +8607,9 @@ void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void fpu_dump_state(CPUState *env, FILE *f,
-                    int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
-                    int flags)
+static void fpu_dump_state(CPUState *env, FILE *f,
+                           int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
+                           int flags)
 {
     int i;
     int is_fpu64 = !!(env->hflags & MIPS_HFLAG_F64);
@@ -8640,29 +8642,16 @@ void fpu_dump_state(CPUState *env, FILE *f,
 #undef printfpr
 }
 
-void dump_fpu (CPUState *env)
-{
-    if (loglevel) {
-        fprintf(logfile,
-                "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx
-                " LO=0x" TARGET_FMT_lx " ds %04x " TARGET_FMT_lx
-                " %04x\n",
-                env->active_tc.PC, env->active_tc.HI[0],
-                env->active_tc.LO[0], env->hflags, env->btarget,
-                env->bcond);
-       fpu_dump_state(env, logfile, fprintf, 0);
-    }
-}
-
 #if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
 /* Debug help: The architecture requires 32bit code to maintain proper
    sign-extended values on 64bit machines.  */
 
 #define SIGN_EXT_P(val) ((((val) & ~0x7fffffff) == 0) || (((val) & ~0x7fffffff) == ~0x7fffffff))
 
-void cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
-                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
-                     int flags)
+static void
+cpu_mips_check_sign_extensions (CPUState *env, FILE *f,
+                                int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                                int flags)
 {
     int i;
 
