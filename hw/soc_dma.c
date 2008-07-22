@@ -49,7 +49,7 @@ static void *fifo_buf;
 static int fifo_size;
 void transfer_fifo2fifo(struct soc_dma_ch_s *ch)
 {
-    if (ch->bytes < fifo_size)
+    if (ch->bytes > fifo_size)
         fifo_buf = realloc(fifo_buf, fifo_size = ch->bytes);
 
     /* Implement as transfer_fifo2linear + transfer_linear2fifo.  */
@@ -251,6 +251,7 @@ struct soc_dma_s *soc_dma_init(int n)
     }
 
     soc_dma_reset(&s->soc);
+    fifo_size = 0;
 
     return &s->soc;
 }
