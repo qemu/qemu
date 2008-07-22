@@ -1,5 +1,5 @@
 /*
- * QEMU Sun4u System Emulator
+ * QEMU Sun4u/Sun4v System Emulator
  *
  * Copyright (c) 2005 Fabrice Bellard
  *
@@ -44,6 +44,10 @@
 #define PROM_FILENAME        "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
+
+struct hwdef {
+    const char * const default_cpu_model;
+};
 
 int DMA_get_channel_mode (int nchan)
 {
@@ -245,11 +249,11 @@ static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
 static fdctrl_t *floppy_controller;
 
-/* Sun4u hardware initialisation */
-static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
-                       const char *boot_devices, DisplayState *ds,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename, const char *cpu_model)
+static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
+                        const char *boot_devices, DisplayState *ds,
+                        const char *kernel_filename, const char *kernel_cmdline,
+                        const char *initrd_filename, const char *cpu_model,
+                        const struct hwdef *hwdef)
 {
     CPUState *env;
     char buf[1024];
@@ -267,8 +271,9 @@ static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
     linux_boot = (kernel_filename != NULL);
 
     /* init CPUs */
-    if (cpu_model == NULL)
-        cpu_model = "TI UltraSparc II";
+    if (!cpu_model)
+        cpu_model = hwdef->default_cpu_model;
+
     env = cpu_init(cpu_model);
     if (!env) {
         fprintf(stderr, "Unable to find Sparc CPU definition\n");
@@ -409,9 +414,47 @@ static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
 
 }
 
+static const struct hwdef hwdefs[] = {
+    /* Sun4u generic PC-like machine */
+    {
+        .default_cpu_model = "TI UltraSparc II",
+    },
+    /* Sun4v generic PC-like machine */
+    {
+        .default_cpu_model = "Sun UltraSparc T1",
+    },
+};
+
+/* Sun4u hardware initialisation */
+static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
+                       const char *boot_devices, DisplayState *ds,
+                       const char *kernel_filename, const char *kernel_cmdline,
+                       const char *initrd_filename, const char *cpu_model)
+{
+    sun4uv_init(RAM_size, vga_ram_size, boot_devices, ds, kernel_filename,
+                kernel_cmdline, initrd_filename, cpu_model, &hwdefs[0]);
+}
+
+/* Sun4v hardware initialisation */
+static void sun4v_init(ram_addr_t RAM_size, int vga_ram_size,
+                       const char *boot_devices, DisplayState *ds,
+                       const char *kernel_filename, const char *kernel_cmdline,
+                       const char *initrd_filename, const char *cpu_model)
+{
+    sun4uv_init(RAM_size, vga_ram_size, boot_devices, ds, kernel_filename,
+                kernel_cmdline, initrd_filename, cpu_model, &hwdefs[1]);
+}
+
 QEMUMachine sun4u_machine = {
     "sun4u",
     "Sun4u platform",
     sun4u_init,
+    PROM_SIZE_MAX + VGA_RAM_SIZE,
+};
+
+QEMUMachine sun4v_machine = {
+    "sun4v",
+    "Sun4v platform",
+    sun4v_init,
     PROM_SIZE_MAX + VGA_RAM_SIZE,
 };

@@ -1116,6 +1116,28 @@ static const sparc_def_t sparc_defs[] = {
         .features = CPU_DEFAULT_FEATURES,
     },
     {
+        .name = "Sun UltraSparc T1",
+        // defined in sparc_ifu_fdp.v and ctu.h
+        .iu_version = ((0x3eULL << 48) | (0x23ULL << 32) | (0x02ULL << 24)
+                       | (MAXTL << 8)),
+        .fpu_version = 0x00000000,
+        .mmu_version = mmu_sun4v,
+        .nwindows = 8,
+        .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_HYPV | CPU_FEATURE_CMT
+        | CPU_FEATURE_GL,
+    },
+    {
+        .name = "Sun UltraSparc T2",
+        // defined in tlu_asi_ctl.v and n2_revid_cust.v
+        .iu_version = ((0x3eULL << 48) | (0x24ULL << 32) | (0x02ULL << 24)
+                       | (MAXTL << 8)),
+        .fpu_version = 0x00000000,
+        .mmu_version = mmu_sun4v,
+        .nwindows = 8,
+        .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_HYPV | CPU_FEATURE_CMT
+        | CPU_FEATURE_GL,
+    },
+    {
         .name = "NEC UltraSparc I",
         .iu_version = ((0x22ULL << 48) | (0x10ULL << 32) | (0x40ULL << 24)
                        | (MAXTL << 8)),
