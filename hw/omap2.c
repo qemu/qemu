@@ -26,6 +26,7 @@
 #include "qemu-timer.h"
 #include "qemu-char.h"
 #include "flash.h"
+#include "soc_dma.h"
 #include "audio/audio.h"
 
 /* GP timers */
@@ -2727,6 +2728,8 @@ struct omap_prcm_s {
 
     uint32_t ev;
     uint32_t evtime[2];
+
+    int dpll_lock, apll_lock[2];
 };
 
 static void omap_prcm_int_update(struct omap_prcm_s *s, int dom)
@@ -2739,6 +2742,7 @@ static uint32_t omap_prcm_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
     int offset = addr - s->base;
+    uint32_t ret;
 
     switch (offset) {
     case 0x000:	/* PRCM_REVISION */
@@ -2922,14 +2926,17 @@ static uint32_t omap_prcm_read(void *opaque, target_phys_addr_t addr)
     case 0x500:	/* CM_CLKEN_PLL */
         return s->clken[9];
     case 0x520:	/* CM_IDLEST_CKGEN */
-        /* Core uses 32-kHz clock */
+        ret = 0x0000070 | (s->apll_lock[0] << 9) | (s->apll_lock[1] << 8);
         if (!(s->clksel[6] & 3))
-            return 0x00000377;
-        /* DPLL not in lock mode, core uses ref_clk */
-        if ((s->clken[9] & 3) != 3)
-            return 0x00000375;
-        /* Core uses DPLL */
-        return 0x00000376;
+            /* Core uses 32-kHz clock */
+            ret |= 3 << 0;
+        else if (!s->dpll_lock)
+            /* DPLL not locked, core uses ref_clk */
+            ret |= 1 << 0;
+        else
+            /* Core uses DPLL */
+            ret |= 2 << 0;
+        return ret;
     case 0x530:	/* CM_AUTOIDLE_PLL */
         return s->clkidle[5];
     case 0x540:	/* CM_CLKSEL1_PLL */
@@ -2974,6 +2981,69 @@ static uint32_t omap_prcm_read(void *opaque, target_phys_addr_t addr)
 
     OMAP_BAD_REG(addr);
     return 0;
+}
+
+static void omap_prcm_apll_update(struct omap_prcm_s *s)
+{
+    int mode[2];
+
+    mode[0] = (s->clken[9] >> 6) & 3;
+    s->apll_lock[0] = (mode[0] == 3);
+    mode[1] = (s->clken[9] >> 2) & 3;
+    s->apll_lock[1] = (mode[1] == 3);
+    /* TODO: update clocks */
+
+    if (mode[0] == 1 || mode[0] == 2 || mode[1] == 1 || mode[2] == 2)
+        fprintf(stderr, "%s: bad EN_54M_PLL or bad EN_96M_PLL\n",
+                        __FUNCTION__);
+}
+
+static void omap_prcm_dpll_update(struct omap_prcm_s *s)
+{
+    omap_clk dpll = omap_findclk(s->mpu, "dpll");
+    omap_clk dpll_x2 = omap_findclk(s->mpu, "dpll");
+    omap_clk core = omap_findclk(s->mpu, "core_clk");
+    int mode = (s->clken[9] >> 0) & 3;
+    int mult, div;
+
+    mult = (s->clksel[5] >> 12) & 0x3ff;
+    div = (s->clksel[5] >> 8) & 0xf;
+    if (mult == 0 || mult == 1)
+        mode = 1;	/* Bypass */
+
+    s->dpll_lock = 0;
+    switch (mode) {
+    case 0:
+        fprintf(stderr, "%s: bad EN_DPLL\n", __FUNCTION__);
+        break;
+    case 1:	/* Low-power bypass mode (Default) */
+    case 2:	/* Fast-relock bypass mode */
+        omap_clk_setrate(dpll, 1, 1);
+        omap_clk_setrate(dpll_x2, 1, 1);
+        break;
+    case 3:	/* Lock mode */
+        s->dpll_lock = 1; /* After 20 FINT cycles (ref_clk / (div + 1)).  */
+
+        omap_clk_setrate(dpll, div + 1, mult);
+        omap_clk_setrate(dpll_x2, div + 1, mult * 2);
+        break;
+    }
+
+    switch ((s->clksel[6] >> 0) & 3) {
+    case 0:
+        omap_clk_reparent(core, omap_findclk(s->mpu, "clk32-kHz"));
+        break;
+    case 1:
+        omap_clk_reparent(core, dpll);
+        break;
+    case 2:
+        /* Default */
+        omap_clk_reparent(core, dpll_x2);
+        break;
+    case 3:
+        fprintf(stderr, "%s: bad CORE_CLK_SRC\n", __FUNCTION__);
+        break;
+    }
 }
 
 static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
@@ -3235,20 +3305,44 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x500:	/* CM_CLKEN_PLL */
-        s->clken[9] = value & 0xcf;
-        /* TODO update clocks */
+        if (value & 0xffffff30)
+            fprintf(stderr, "%s: write 0s in CM_CLKEN_PLL for "
+                            "future compatiblity\n", __FUNCTION__);
+        if ((s->clken[9] ^ value) & 0xcc) {
+            s->clken[9] &= ~0xcc;
+            s->clken[9] |= value & 0xcc;
+            omap_prcm_apll_update(s);
+        }
+        if ((s->clken[9] ^ value) & 3) {
+            s->clken[9] &= ~3;
+            s->clken[9] |= value & 3;
+            omap_prcm_dpll_update(s);
+        }
         break;
     case 0x530:	/* CM_AUTOIDLE_PLL */
         s->clkidle[5] = value & 0x000000cf;
         /* TODO update clocks */
         break;
     case 0x540:	/* CM_CLKSEL1_PLL */
+        if (value & 0xfc4000d7)
+            fprintf(stderr, "%s: write 0s in CM_CLKSEL1_PLL for "
+                            "future compatiblity\n", __FUNCTION__);
+        if ((s->clksel[5] ^ value) & 0x003fff00) {
+            s->clksel[5] = value & 0x03bfff28;
+            omap_prcm_dpll_update(s);
+        }
+        /* TODO update the other clocks */
+
         s->clksel[5] = value & 0x03bfff28;
-        /* TODO update clocks */
         break;
     case 0x544:	/* CM_CLKSEL2_PLL */
-        s->clksel[6] = value & 3;
-        /* TODO update clocks */
+        if (value & ~3)
+            fprintf(stderr, "%s: write 0s in CM_CLKSEL2_PLL[31:2] for "
+                            "future compatiblity\n", __FUNCTION__);
+        if (s->clksel[6] != (value & 3)) {
+            s->clksel[6] = value & 3;
+            omap_prcm_dpll_update(s);
+        }
         break;
 
     case 0x800:	/* CM_FCLKEN_DSP */
@@ -3373,6 +3467,8 @@ static void omap_prcm_reset(struct omap_prcm_s *s)
     s->power[3] = 0x14;
     s->rstctrl[0] = 1;
     s->rst[3] = 1;
+    omap_prcm_apll_update(s);
+    omap_prcm_dpll_update(s);
 }
 
 static void omap_prcm_coldreset(struct omap_prcm_s *s)
@@ -4397,6 +4493,10 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "sdma_iclk"),
                     omap_findclk(s, "sdma_fclk"));
     s->port->addr_valid = omap2_validate_addr;
+
+    /* Register SDRAM and SRAM ports for fast DMA transfers.  */
+    soc_dma_port_add_mem_ram(s->dma, q2_base, OMAP2_Q2_BASE, s->sdram_size);
+    soc_dma_port_add_mem_ram(s->dma, sram_base, OMAP2_SRAM_BASE, s->sram_size);
 
     s->uart[0] = omap2_uart_init(omap_l4ta(s->l4, 19),
                     s->irq[0][OMAP_INT_24XX_UART1_IRQ],

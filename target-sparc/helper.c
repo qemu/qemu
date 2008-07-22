@@ -758,9 +758,23 @@ void do_interrupt(CPUState *env)
     env->tsptr->tpc = env->pc;
     env->tsptr->tnpc = env->npc;
     env->tsptr->tt = intno;
-    if (!(env->features & CPU_FEATURE_GL))
-        change_pstate(PS_PEF | PS_PRIV | PS_AG);
-
+    if (!(env->features & CPU_FEATURE_GL)) {
+        switch (intno) {
+        case TT_IVEC:
+            change_pstate(PS_PEF | PS_PRIV | PS_IG);
+            break;
+        case TT_TFAULT:
+        case TT_TMISS:
+        case TT_DFAULT:
+        case TT_DMISS:
+        case TT_DPROT:
+            change_pstate(PS_PEF | PS_PRIV | PS_MG);
+            break;
+        default:
+            change_pstate(PS_PEF | PS_PRIV | PS_AG);
+            break;
+        }
+    }
     if (intno == TT_CLRWIN)
         cpu_set_cwp(env, cpu_cwp_dec(env, env->cwp - 1));
     else if ((intno & 0x1c0) == TT_SPILL)
@@ -1100,6 +1114,28 @@ static const sparc_def_t sparc_defs[] = {
         .mmu_version = mmu_us_3,
         .nwindows = 8,
         .features = CPU_DEFAULT_FEATURES,
+    },
+    {
+        .name = "Sun UltraSparc T1",
+        // defined in sparc_ifu_fdp.v and ctu.h
+        .iu_version = ((0x3eULL << 48) | (0x23ULL << 32) | (0x02ULL << 24)
+                       | (MAXTL << 8)),
+        .fpu_version = 0x00000000,
+        .mmu_version = mmu_sun4v,
+        .nwindows = 8,
+        .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_HYPV | CPU_FEATURE_CMT
+        | CPU_FEATURE_GL,
+    },
+    {
+        .name = "Sun UltraSparc T2",
+        // defined in tlu_asi_ctl.v and n2_revid_cust.v
+        .iu_version = ((0x3eULL << 48) | (0x24ULL << 32) | (0x02ULL << 24)
+                       | (MAXTL << 8)),
+        .fpu_version = 0x00000000,
+        .mmu_version = mmu_sun4v,
+        .nwindows = 8,
+        .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_HYPV | CPU_FEATURE_CMT
+        | CPU_FEATURE_GL,
     },
     {
         .name = "NEC UltraSparc I",

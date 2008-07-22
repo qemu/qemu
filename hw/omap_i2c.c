@@ -395,6 +395,7 @@ static void omap_i2c_write(void *opaque, target_phys_addr_t addr,
                             (~value >> 9) & 1);			/* TRX */
             s->stat |= nack << 1;				/* NACK */
             s->control &= ~(1 << 0);				/* STT */
+            s->fifo = 0;
             if (nack)
                 s->control &= ~(1 << 1);			/* STP */
             else {

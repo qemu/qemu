@@ -510,18 +510,25 @@ static struct clk clk32k = {
     .parent	= &xtal_osc32k,
 };
 
+static struct clk ref_clk = {
+    .name	= "ref_clk",
+    .flags	= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X | ALWAYS_ENABLED,
+    .rate	= 12000000,	/* 12 MHz or 13 MHz or 19.2 MHz */
+    /*.parent	= sys.xtalin */
+};
+
 static struct clk apll_96m = {
     .name	= "apll_96m",
     .flags	= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X | ALWAYS_ENABLED,
     .rate	= 96000000,
-    /*.parent	= sys.xtalin */
+    /*.parent	= ref_clk */
 };
 
 static struct clk apll_54m = {
     .name	= "apll_54m",
     .flags	= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X | ALWAYS_ENABLED,
     .rate	= 54000000,
-    /*.parent	= sys.xtalin */
+    /*.parent	= ref_clk */
 };
 
 static struct clk sys_clk = {
@@ -541,13 +548,13 @@ static struct clk sleep_clk = {
 static struct clk dpll_ck = {
     .name	= "dpll",
     .flags	= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X | ALWAYS_ENABLED,
-    /*.parent	= sys.xtalin */
+    .parent	= &ref_clk,
 };
 
 static struct clk dpll_x2_ck = {
     .name	= "dpll_x2",
     .flags	= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X | ALWAYS_ENABLED,
-    /*.parent	= sys.xtalin */
+    .parent	= &ref_clk,
 };
 
 static struct clk wdt1_sys_clk = {
@@ -600,7 +607,7 @@ static struct clk sys_clkout2 = {
 static struct clk core_clk = {
     .name	= "core_clk",
     .flags	= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
-    .parent	= &dpll_ck,
+    .parent	= &dpll_x2_ck,	/* Switchable between dpll_ck and clk32k */
 };
 
 static struct clk l3_clk = {
@@ -1009,6 +1016,7 @@ static struct clk *onchip_clks[] = {
 
     /* OMAP 2 */
 
+    &ref_clk,
     &apll_96m,
     &apll_54m,
     &sys_clk,

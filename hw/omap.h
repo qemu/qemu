@@ -417,14 +417,14 @@ enum omap_dma_model {
     omap_dma_4,
 };
 
-struct omap_dma_s;
-struct omap_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
+struct soc_dma_s;
+struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
                 qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
                 enum omap_dma_model model);
-struct omap_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
+struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
                 struct omap_mpu_state_s *mpu, int fifo,
                 int chans, omap_clk iclk, omap_clk fclk);
-void omap_dma_reset(struct omap_dma_s *s);
+void omap_dma_reset(struct soc_dma_s *s);
 
 struct dma_irq_map {
     int ih;
@@ -494,7 +494,7 @@ struct omap_dma_lcd_channel_s {
     ram_addr_t phys_framebuffer[2];
     qemu_irq irq;
     struct omap_mpu_state_s *mpu;
-} *omap_dma_get_lcdch(struct omap_dma_s *s);
+} *omap_dma_get_lcdch(struct soc_dma_s *s);
 
 /*
  * DMA request numbers for OMAP1
@@ -882,7 +882,7 @@ struct omap_mpu_state_s {
     /* MPU private TIPB peripherals */
     struct omap_intr_handler_s *ih[2];
 
-    struct omap_dma_s *dma;
+    struct soc_dma_s *dma;
 
     struct omap_mpu_timer_s *timer[3];
     struct omap_watchdog_timer_s *wdt;

@@ -75,7 +75,7 @@ For system emulation, the following hardware targets are supported:
 @item G3 BW PowerMac (PowerPC processor)
 @item Mac99 PowerMac (PowerPC processor, in progress)
 @item Sun4m/Sun4c/Sun4d (32-bit Sparc processor)
-@item Sun4u (64-bit Sparc processor, in progress)
+@item Sun4u/Sun4v (64-bit Sparc processor, in progress)
 @item Malta board (32-bit and 64-bit MIPS processors)
 @item MIPS Magnum (64-bit MIPS processor)
 @item ARM Integrator/CP (ARM)
@@ -2317,10 +2317,10 @@ Set the emulated machine type. Default is SS-5.
 @node Sparc64 System emulator
 @section Sparc64 System emulator
 
-Use the executable @file{qemu-system-sparc64} to simulate a Sun4u machine.
-The emulator is not usable for anything yet.
+Use the executable @file{qemu-system-sparc64} to simulate a Sun4u or
+Sun4v machine. The emulator is not usable for anything yet.
 
-QEMU emulates the following sun4u peripherals:
+QEMU emulates the following peripherals:
 
 @itemize @minus
 @item
@@ -2331,7 +2331,23 @@ PCI VGA compatible card with VESA Bochs Extensions
 Non Volatile RAM M48T59
 @item
 PC-compatible serial ports
+@item
+2 PCI IDE interfaces with hard disk and CD-ROM support
 @end itemize
+
+@c man begin OPTIONS
+
+The following options are specific to the Sparc64 emulation:
+
+@table @option
+
+@item -M [sun4u|sun4v]
+
+Set the emulated machine type. The default is sun4u.
+
+@end table
+
+@c man end
 
 @node MIPS System emulator
 @section MIPS System emulator

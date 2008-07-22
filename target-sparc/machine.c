@@ -7,6 +7,7 @@ void register_machines(void)
 {
 #ifdef TARGET_SPARC64
     qemu_register_machine(&sun4u_machine);
+    qemu_register_machine(&sun4v_machine);
 #else
     qemu_register_machine(&ss5_machine);
     qemu_register_machine(&ss10_machine);

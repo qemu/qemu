@@ -68,6 +68,7 @@ extern QEMUMachine ss1000_machine, ss2000_machine;
 
 /* sun4u.c */
 extern QEMUMachine sun4u_machine;
+extern QEMUMachine sun4v_machine;
 
 /* integratorcp.c */
 extern QEMUMachine integratorcp_machine;

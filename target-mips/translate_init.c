@@ -95,7 +95,7 @@ struct mips_def_t {
 
 /*****************************************************************************/
 /* MIPS CPU definitions */
-static mips_def_t mips_defs[] =
+static const mips_def_t mips_defs[] =
 {
     {
         .name = "4Kc",
