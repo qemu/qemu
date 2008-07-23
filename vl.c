@@ -260,6 +260,35 @@ QEMUTimer *icount_vm_timer;
 target_phys_addr_t isa_mem_base = 0;
 PicState2 *isa_pic;
 
+static IOPortReadFunc default_ioport_readb, default_ioport_readw, default_ioport_readl;
+static IOPortWriteFunc default_ioport_writeb, default_ioport_writew, default_ioport_writel;
+
+static uint32_t ioport_read(int index, uint32_t address)
+{
+    static IOPortReadFunc *default_func[3] = {
+        default_ioport_readb,
+        default_ioport_readw,
+        default_ioport_readl
+    };
+    IOPortReadFunc *func = ioport_read_table[index][address];
+    if (!func)
+        func = default_func[index];
+    return func(ioport_opaque[address], address);
+}
+
+static void ioport_write(int index, uint32_t address, uint32_t data)
+{
+    static IOPortWriteFunc *default_func[3] = {
+        default_ioport_writeb,
+        default_ioport_writew,
+        default_ioport_writel
+    };
+    IOPortWriteFunc *func = ioport_write_table[index][address];
+    if (!func)
+        func = default_func[index];
+    func(ioport_opaque[address], address, data);
+}
+
 static uint32_t default_ioport_readb(void *opaque, uint32_t address)
 {
 #ifdef DEBUG_UNUSED_IOPORT
@@ -279,17 +308,17 @@ static void default_ioport_writeb(void *opaque, uint32_t address, uint32_t data)
 static uint32_t default_ioport_readw(void *opaque, uint32_t address)
 {
     uint32_t data;
-    data = ioport_read_table[0][address](ioport_opaque[address], address);
+    data = ioport_read(0, address);
     address = (address + 1) & (MAX_IOPORTS - 1);
-    data |= ioport_read_table[0][address](ioport_opaque[address], address) << 8;
+    data |= ioport_read(0, address) << 8;
     return data;
 }
 
 static void default_ioport_writew(void *opaque, uint32_t address, uint32_t data)
 {
-    ioport_write_table[0][address](ioport_opaque[address], address, data & 0xff);
+    ioport_write(0, address, data & 0xff);
     address = (address + 1) & (MAX_IOPORTS - 1);
-    ioport_write_table[0][address](ioport_opaque[address], address, (data >> 8) & 0xff);
+    ioport_write(0, address, (data >> 8) & 0xff);
 }
 
 static uint32_t default_ioport_readl(void *opaque, uint32_t address)
@@ -305,20 +334,6 @@ static void default_ioport_writel(void *opaque, uint32_t address, uint32_t data)
 #ifdef DEBUG_UNUSED_IOPORT
     fprintf(stderr, "unused outl: port=0x%04x data=0x%02x\n", address, data);
 #endif
-}
-
-static void init_ioports(void)
-{
-    int i;
-
-    for(i = 0; i < MAX_IOPORTS; i++) {
-        ioport_read_table[0][i] = default_ioport_readb;
-        ioport_write_table[0][i] = default_ioport_writeb;
-        ioport_read_table[1][i] = default_ioport_readw;
-        ioport_write_table[1][i] = default_ioport_writew;
-        ioport_read_table[2][i] = default_ioport_readl;
-        ioport_write_table[2][i] = default_ioport_writel;
-    }
 }
 
 /* size is the word size in byte */
@@ -394,7 +409,7 @@ void cpu_outb(CPUState *env, int addr, int val)
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "outb: %04x %02x\n", addr, val);
 #endif
-    ioport_write_table[0][addr](ioport_opaque[addr], addr, val);
+    ioport_write(0, addr, val);
 #ifdef USE_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
@@ -407,7 +422,7 @@ void cpu_outw(CPUState *env, int addr, int val)
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "outw: %04x %04x\n", addr, val);
 #endif
-    ioport_write_table[1][addr](ioport_opaque[addr], addr, val);
+    ioport_write(1, addr, val);
 #ifdef USE_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
@@ -420,7 +435,7 @@ void cpu_outl(CPUState *env, int addr, int val)
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "outl: %04x %08x\n", addr, val);
 #endif
-    ioport_write_table[2][addr](ioport_opaque[addr], addr, val);
+    ioport_write(2, addr, val);
 #ifdef USE_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
@@ -430,7 +445,7 @@ void cpu_outl(CPUState *env, int addr, int val)
 int cpu_inb(CPUState *env, int addr)
 {
     int val;
-    val = ioport_read_table[0][addr](ioport_opaque[addr], addr);
+    val = ioport_read(0, addr);
 #ifdef DEBUG_IOPORT
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "inb : %04x %02x\n", addr, val);
@@ -445,7 +460,7 @@ int cpu_inb(CPUState *env, int addr)
 int cpu_inw(CPUState *env, int addr)
 {
     int val;
-    val = ioport_read_table[1][addr](ioport_opaque[addr], addr);
+    val = ioport_read(1, addr);
 #ifdef DEBUG_IOPORT
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "inw : %04x %04x\n", addr, val);
@@ -460,7 +475,7 @@ int cpu_inw(CPUState *env, int addr)
 int cpu_inl(CPUState *env, int addr)
 {
     int val;
-    val = ioport_read_table[2][addr](ioport_opaque[addr], addr);
+    val = ioport_read(2, addr);
 #ifdef DEBUG_IOPORT
     if (loglevel & CPU_LOG_IOPORT)
         fprintf(logfile, "inl : %04x %08x\n", addr, val);
@@ -8831,8 +8846,6 @@ int main(int argc, char **argv)
 
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
     register_savevm("ram", 0, 2, ram_save, ram_load, NULL);
-
-    init_ioports();
 
     /* terminal init */
     memset(&display_state, 0, sizeof(display_state));
