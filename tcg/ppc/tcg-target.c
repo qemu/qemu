@@ -1339,6 +1339,13 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_qemu_st(s, args, 3);
         break;
 
+    case INDEX_op_ext8s_i32:
+        tcg_out32 (s, EXTSB | RS (args[1]) | RA (args[0]));
+        break;
+    case INDEX_op_ext16s_i32:
+        tcg_out32 (s, EXTSH | RS (args[1]) | RA (args[0]));
+        break;
+
     default:
         tcg_dump_ops (s, stderr);
         tcg_abort ();
@@ -1414,6 +1421,9 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_qemu_st32, { "K", "K", "K" } },
     { INDEX_op_qemu_st64, { "M", "M", "M", "M" } },
 #endif
+
+    { INDEX_op_ext8s_i32, { "r", "r" } },
+    { INDEX_op_ext16s_i32, { "r", "r" } },
 
     { -1 },
 };

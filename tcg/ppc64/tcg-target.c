@@ -969,6 +969,8 @@ void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
 static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
                         const int *const_args)
 {
+    int c;
+
     switch (opc) {
     case INDEX_op_exit_tb:
         tcg_out_movi (s, TCG_TYPE_I64, TCG_REG_R3, args[0]);
@@ -1313,6 +1315,21 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
         tcg_out_qemu_st (s, args, 3);
         break;
 
+    case INDEX_op_ext8s_i32:
+    case INDEX_op_ext8s_i64:
+        c = EXTSB;
+        goto gen_ext;
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_ext16s_i64:
+        c = EXTSH;
+        goto gen_ext;
+    case INDEX_op_ext32s_i64:
+        c = EXTSW;
+        goto gen_ext;
+    gen_ext:
+        tcg_out32 (s, c | RS (args[1]) | RA (args[0]));
+        break;
+
     default:
         tcg_dump_ops (s, stderr);
         tcg_abort ();
@@ -1403,6 +1420,12 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_qemu_st16, { "K", "K" } },
     { INDEX_op_qemu_st32, { "K", "K" } },
     { INDEX_op_qemu_st64, { "M", "M", "M" } },
+
+    { INDEX_op_ext8s_i32, { "r", "r" } },
+    { INDEX_op_ext16s_i32, { "r", "r" } },
+    { INDEX_op_ext8s_i64, { "r", "r" } },
+    { INDEX_op_ext16s_i64, { "r", "r" } },
+    { INDEX_op_ext32s_i64, { "r", "r" } },
 
     { -1 },
 };
