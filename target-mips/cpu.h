@@ -445,17 +445,12 @@ struct CPUMIPSState {
     uint32_t CP0_TCStatus_rw_bitmask; /* Read/write bits in CP0_TCStatus */
     int insn_flags; /* Supported instruction set */
 
-#ifdef CONFIG_USER_ONLY
-    target_ulong tls_value;
-#endif
+    target_ulong tls_value; /* For usermode emulation */
 
     CPU_COMMON
 
     const mips_def_t *cpu_model;
-#ifndef CONFIG_USER_ONLY
     void *irq[8];
-#endif
-
     struct QEMUTimer *timer; /* Internal timer */
 };
 
@@ -494,7 +489,6 @@ static inline int cpu_mmu_index (CPUState *env)
     return env->hflags & MIPS_HFLAG_KSU;
 }
 
-#if defined(CONFIG_USER_ONLY)
 static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 {
     if (newsp)
@@ -502,7 +496,6 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
     env->active_tc.gpr[7] = 0;
     env->active_tc.gpr[2] = 0;
 }
-#endif
 
 #include "cpu-all.h"
 
