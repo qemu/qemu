@@ -439,7 +439,6 @@ void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
     }
 }
 
-#ifndef CONFIG_USER_ONLY
 static void no_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1;
@@ -485,21 +484,20 @@ static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
     env->CP0_Random = env->tlb->nb_tlb - 1;
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
 }
-#endif /* CONFIG_USER_ONLY */
 
 static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->fpu = qemu_mallocz(sizeof(CPUMIPSFPUContext));
 
     env->fpu->fcr0 = def->CP1_fcr0;
-#ifdef CONFIG_USER_ONLY
-    if (env->CP0_Config1 & (1 << CP0C1_FP))
-        env->hflags |= MIPS_HFLAG_FPU;
+    if (env->user_mode_only) {
+        if (env->CP0_Config1 & (1 << CP0C1_FP))
+            env->hflags |= MIPS_HFLAG_FPU;
 #ifdef TARGET_MIPS64
-    if (env->fpu->fcr0 & (1 << FCR0_F64))
-        env->hflags |= MIPS_HFLAG_F64;
+        if (env->fpu->fcr0 & (1 << FCR0_F64))
+            env->hflags |= MIPS_HFLAG_F64;
 #endif
-#endif
+    }
 }
 
 static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
@@ -512,15 +510,15 @@ static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
        implemented, 5 TCs implemented. */
     env->mvp->CP0_MVPConf0 = (1 << CP0MVPC0_M) | (1 << CP0MVPC0_TLBS) |
                              (0 << CP0MVPC0_GS) | (1 << CP0MVPC0_PCP) |
-#ifndef CONFIG_USER_ONLY
-                             /* Usermode has no TLB support */
-                             (env->tlb->nb_tlb << CP0MVPC0_PTLBE) |
-#endif
 // TODO: actually do 2 VPEs.
 //                             (1 << CP0MVPC0_TCA) | (0x1 << CP0MVPC0_PVPE) |
 //                             (0x04 << CP0MVPC0_PTC);
                              (1 << CP0MVPC0_TCA) | (0x0 << CP0MVPC0_PVPE) |
                              (0x04 << CP0MVPC0_PTC);
+    /* Usermode has no TLB support */
+    if (!env->user_mode_only)
+        env->mvp->CP0_MVPConf0 |= (env->tlb->nb_tlb << CP0MVPC0_PTLBE);
+
     /* Allocatable CP1 have media extensions, allocatable CP1 have FP support,
        no UDI implemented, no CP2 implemented, 1 CP1 implemented. */
     env->mvp->CP0_MVPConf1 = (1 << CP0MVPC1_CIM) | (1 << CP0MVPC1_CIF) |
@@ -568,9 +566,8 @@ static int cpu_mips_register (CPUMIPSState *env, const mips_def_t *def)
     env->CP0_SRSConf4 = def->CP0_SRSConf4;
     env->insn_flags = def->insn_flags;
 
-#ifndef CONFIG_USER_ONLY
-    mmu_init(env, def);
-#endif
+    if (!env->user_mode_only)
+        mmu_init(env, def);
     fpu_init(env, def);
     mvp_init(env, def);
     return 0;

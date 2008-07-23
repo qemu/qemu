@@ -68,6 +68,13 @@
 #define elf_check_arch(x) ((x) == EM_PPC)
 #define ELF_USES_RELOCA
 
+#elif defined(HOST_PPC64)
+
+#define ELF_CLASS	ELFCLASS64
+#define ELF_ARCH	EM_PPC64
+#define elf_check_arch(x) ((x) == EM_PPC64)
+#define ELF_USES_RELOCA
+
 #elif defined(HOST_S390)
 
 #define ELF_CLASS	ELFCLASS32
@@ -1551,6 +1558,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     }
 #elif defined(HOST_ARM)
     error("dyngen targets not supported on ARM");
+#elif defined(HOST_PPC64)
+    error("dyngen targets not supported on PPC64");
 #else
 #error unsupported CPU
 #endif
@@ -2592,6 +2601,8 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
             }
 #elif defined(HOST_ARM)
     error("dyngen targets not supported on ARM");
+#elif defined(HOST_PPC64)
+    error("dyngen targets not supported on PPC64");
 #else
 #error unsupported CPU
 #endif

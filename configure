@@ -89,7 +89,7 @@ mingw32="no"
 EXESUF=""
 gdbstub="yes"
 slirp="yes"
-vde="no"
+vde="yes"
 fmod_lib=""
 fmod_inc=""
 vnc_tls="yes"
@@ -281,7 +281,7 @@ for opt do
   ;;
   --disable-slirp) slirp="no"
   ;;
-  --enable-vde) vde="yes"
+  --disable-vde) vde="no"
   ;;
   --disable-kqemu) kqemu="no"
   ;;
@@ -436,7 +436,7 @@ echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
-echo "  --enable-vde             enable support for vde network [$vde]"
+echo "  --disable-vde            disable support for vde network"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -642,6 +642,24 @@ if test "$cpu" = "x86_64" \
     hostlongbits="64"
 fi
 
+# ppc specific hostlongbits selection
+if test "$cpu" = "powerpc" ; then
+    cat > $TMPC <<EOF
+int main(void){return sizeof(long);}
+EOF
+
+    if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null; then
+        $TMPE
+        case $? in
+            4) hostlongbits="32";;
+            8) hostlongbits="64";;
+            *) echo "Couldn't determine bits per long value";;
+        esac
+    else
+        echo hostlongbits test failed
+    fi
+fi
+
 # check gcc options support
 cat > $TMPC <<EOF
 int main(void) {
@@ -740,11 +758,7 @@ EOF
     if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
         :
     else
-        echo
-        echo "Error: VDE check failed"
-        echo "Make sure to have the VDE libs and headers installed."
-        echo
-        exit 1
+        vde="no"
     fi
 fi
 
@@ -1004,8 +1018,13 @@ case "$cpu" in
     echo "#define HOST_MIPS64 1" >> $config_h
   ;;
   powerpc)
-    echo "ARCH=ppc" >> $config_mak
-    echo "#define HOST_PPC 1" >> $config_h
+  if test "$hostlongbits" = "32"; then
+      echo "ARCH=ppc" >> $config_mak
+      echo "#define HOST_PPC 1" >> $config_h
+  else
+      echo "ARCH=ppc64" >> $config_mak
+      echo "#define HOST_PPC64 1" >> $config_h
+  fi
   ;;
   s390)
     echo "ARCH=s390" >> $config_mak

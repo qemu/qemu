@@ -191,6 +191,10 @@ extern int code_gen_max_blocks;
 #if defined(USE_DIRECT_JUMP)
 
 #if defined(__powerpc__)
+#if defined(__powerpc64__)
+extern void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
+#define tb_set_jmp_target1 ppc_tb_set_jmp_target
+#else
 static inline void flush_icache_range(unsigned long start, unsigned long stop);
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {
@@ -223,6 +227,7 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
     /* flush icache */
     flush_icache_range(jmp_addr, jmp_addr + patch_size);
 }
+#endif
 #elif defined(__i386__) || defined(__x86_64__)
 static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
 {

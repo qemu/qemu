@@ -87,24 +87,24 @@ target_ulong do_dclz (target_ulong t0)
 #endif /* TARGET_MIPS64 */
 
 /* 64 bits arithmetic for 32 bits hosts */
-static always_inline uint64_t get_HILO (void)
+static inline uint64_t get_HILO (void)
 {
     return ((uint64_t)(env->active_tc.HI[0]) << 32) | (uint32_t)env->active_tc.LO[0];
 }
 
-static always_inline void set_HILO (uint64_t HILO)
+static inline void set_HILO (uint64_t HILO)
 {
     env->active_tc.LO[0] = (int32_t)HILO;
     env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
-static always_inline void set_HIT0_LO (target_ulong t0, uint64_t HILO)
+static inline void set_HIT0_LO (target_ulong t0, uint64_t HILO)
 {
     env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
     t0 = env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
-static always_inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
+static inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
 {
     t0 = env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
     env->active_tc.HI[0] = (int32_t)(HILO >> 32);
@@ -596,59 +596,7 @@ void do_sdr(target_ulong t0, target_ulong t1, int mem_idx)
 }
 #endif /* TARGET_MIPS64 */
 
-#ifdef CONFIG_USER_ONLY
-void do_mfc0_random (void)
-{
-    cpu_abort(env, "mfc0 random\n");
-}
-
-void do_mfc0_count (void)
-{
-    cpu_abort(env, "mfc0 count\n");
-}
-
-void cpu_mips_store_count(CPUState *env, uint32_t value)
-{
-    cpu_abort(env, "mtc0 count\n");
-}
-
-void cpu_mips_store_compare(CPUState *env, uint32_t value)
-{
-    cpu_abort(env, "mtc0 compare\n");
-}
-
-void cpu_mips_start_count(CPUState *env)
-{
-    cpu_abort(env, "start count\n");
-}
-
-void cpu_mips_stop_count(CPUState *env)
-{
-    cpu_abort(env, "stop count\n");
-}
-
-void cpu_mips_update_irq(CPUState *env)
-{
-    cpu_abort(env, "mtc0 status / mtc0 cause\n");
-}
-
-void do_mtc0_status_debug(uint32_t old, uint32_t val)
-{
-    cpu_abort(env, "mtc0 status debug\n");
-}
-
-void do_mtc0_status_irqraise_debug (void)
-{
-    cpu_abort(env, "mtc0 status irqraise debug\n");
-}
-
-void cpu_mips_tlb_flush (CPUState *env, int flush_global)
-{
-    cpu_abort(env, "mips_tlb_flush\n");
-}
-
-#else
-
+#ifndef CONFIG_USER_ONLY
 /* CP0 helpers */
 target_ulong do_mfc0_mvpcontrol (void)
 {
@@ -1584,44 +1532,6 @@ target_ulong do_yield(target_ulong t0)
     return env->CP0_YQMask;
 }
 
-/* CP1 functions */
-void fpu_handle_exception(void)
-{
-#ifdef CONFIG_SOFTFLOAT
-    int flags = get_float_exception_flags(&env->fpu->fp_status);
-    unsigned int cpuflags = 0, enable, cause = 0;
-
-    enable = GET_FP_ENABLE(env->fpu->fcr31);
-
-    /* determine current flags */
-    if (flags & float_flag_invalid) {
-        cpuflags |= FP_INVALID;
-        cause |= FP_INVALID & enable;
-    }
-    if (flags & float_flag_divbyzero) {
-        cpuflags |= FP_DIV0;
-        cause |= FP_DIV0 & enable;
-    }
-    if (flags & float_flag_overflow) {
-        cpuflags |= FP_OVERFLOW;
-        cause |= FP_OVERFLOW & enable;
-    }
-    if (flags & float_flag_underflow) {
-        cpuflags |= FP_UNDERFLOW;
-        cause |= FP_UNDERFLOW & enable;
-    }
-    if (flags & float_flag_inexact) {
-        cpuflags |= FP_INEXACT;
-        cause |= FP_INEXACT & enable;
-    }
-    SET_FP_FLAGS(env->fpu->fcr31, cpuflags);
-    SET_FP_CAUSE(env->fpu->fcr31, cause);
-#else
-    SET_FP_FLAGS(env->fpu->fcr31, 0);
-    SET_FP_CAUSE(env->fpu->fcr31, 0);
-#endif
-}
-
 #ifndef CONFIG_USER_ONLY
 /* TLB management */
 void cpu_mips_tlb_flush (CPUState *env, int flush_global)
@@ -1745,8 +1655,6 @@ void r4k_do_tlbr (void)
                         (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
 }
 
-#endif /* !CONFIG_USER_ONLY */
-
 /* Specials */
 target_ulong do_di (void)
 {
@@ -1823,6 +1731,7 @@ void do_deret (void)
         debug_post_eret();
     env->CP0_LLAddr = 1;
 }
+#endif /* !CONFIG_USER_ONLY */
 
 target_ulong do_rdhwr_cpunum(void)
 {
@@ -2089,7 +1998,7 @@ void do_ctc1 (target_ulong t0, uint32_t reg)
         do_raise_exception(EXCP_FPE);
 }
 
-static always_inline char ieee_ex_to_mips(char xcpt)
+static inline char ieee_ex_to_mips(char xcpt)
 {
     return (xcpt & float_flag_inexact) >> 5 |
            (xcpt & float_flag_underflow) >> 3 |
@@ -2098,7 +2007,7 @@ static always_inline char ieee_ex_to_mips(char xcpt)
            (xcpt & float_flag_invalid) << 4;
 }
 
-static always_inline char mips_ex_to_ieee(char xcpt)
+static inline char mips_ex_to_ieee(char xcpt)
 {
     return (xcpt & FP_INEXACT) << 5 |
            (xcpt & FP_UNDERFLOW) << 3 |
@@ -2107,7 +2016,7 @@ static always_inline char mips_ex_to_ieee(char xcpt)
            (xcpt & FP_INVALID) >> 4;
 }
 
-static always_inline void update_fcr31(void)
+static inline void update_fcr31(void)
 {
     int tmp = ieee_ex_to_mips(get_float_exception_flags(&env->fpu->fp_status));
 

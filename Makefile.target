@@ -371,6 +371,10 @@ ifeq ($(ARCH),ppc)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
+ifeq ($(ARCH),ppc64)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
 ifeq ($(ARCH),s390)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif

@@ -41,8 +41,8 @@ DEF_HELPER(target_ulong, do_macchiu, (target_ulong t0, target_ulong t1))
 DEF_HELPER(target_ulong, do_msachi, (target_ulong t0, target_ulong t1))
 DEF_HELPER(target_ulong, do_msachiu, (target_ulong t0, target_ulong t1))
 
-/* CP0 helpers */
 #ifndef CONFIG_USER_ONLY
+/* CP0 helpers */
 DEF_HELPER(target_ulong, do_mfc0_mvpcontrol, (void))
 DEF_HELPER(target_ulong, do_mfc0_mvpconf0, (void))
 DEF_HELPER(target_ulong, do_mfc0_mvpconf1, (void))
@@ -135,7 +135,6 @@ DEF_HELPER(void, do_mtc0_taglo, (target_ulong t0))
 DEF_HELPER(void, do_mtc0_datalo, (target_ulong t0))
 DEF_HELPER(void, do_mtc0_taghi, (target_ulong t0))
 DEF_HELPER(void, do_mtc0_datahi, (target_ulong t0))
-#endif /* !CONFIG_USER_ONLY */
 
 /* MIPS MT functions */
 DEF_HELPER(target_ulong, do_mftgpr, (target_ulong t0, uint32_t sel))
@@ -152,6 +151,7 @@ DEF_HELPER(target_ulong, do_dmt, (target_ulong t0))
 DEF_HELPER(target_ulong, do_emt, (target_ulong t0))
 DEF_HELPER(target_ulong, do_dvpe, (target_ulong t0))
 DEF_HELPER(target_ulong, do_evpe, (target_ulong t0))
+#endif /* !CONFIG_USER_ONLY */
 DEF_HELPER(void, do_fork, (target_ulong t0, target_ulong t1))
 DEF_HELPER(target_ulong, do_yield, (target_ulong t0))
 
@@ -257,10 +257,12 @@ FOP_PROTO(ngt)
 #undef FOP_PROTO
 
 /* Special functions */
+#ifndef CONFIG_USER_ONLY
 DEF_HELPER(target_ulong, do_di, (void))
 DEF_HELPER(target_ulong, do_ei, (void))
 DEF_HELPER(void, do_eret, (void))
 DEF_HELPER(void, do_deret, (void))
+#endif /* !CONFIG_USER_ONLY */
 DEF_HELPER(target_ulong, do_rdhwr_cpunum, (void))
 DEF_HELPER(target_ulong, do_rdhwr_synci_step, (void))
 DEF_HELPER(target_ulong, do_rdhwr_cc, (void))
