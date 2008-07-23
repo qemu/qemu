@@ -1228,8 +1228,6 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
         break;
 
     case INDEX_op_neg_i32:
-        tcg_out32 (s, TRAP);
-        break;
     case INDEX_op_neg_i64:
         tcg_out32 (s, NEG | RT (args[0]) | RA (args[1]));
         break;
