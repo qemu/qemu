@@ -8626,11 +8626,6 @@ int main(int argc, char **argv)
     }
 
 #ifndef _WIN32
-    if (daemonize && !nographic && vnc_display == NULL) {
-	fprintf(stderr, "Can only daemonize if using -nographic or -vnc\n");
-	daemonize = 0;
-    }
-
     if (daemonize) {
 	pid_t pid;
 
@@ -8668,7 +8663,6 @@ int main(int argc, char **argv)
 	    exit(1);
 
 	umask(027);
-	chdir("/");
 
         signal(SIGTSTP, SIG_IGN);
         signal(SIGTTOU, SIG_IGN);
@@ -8974,6 +8968,7 @@ int main(int argc, char **argv)
 	if (len != 1)
 	    exit(1);
 
+	chdir("/");
 	TFR(fd = open("/dev/null", O_RDWR));
 	if (fd == -1)
 	    exit(1);
