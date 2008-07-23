@@ -89,7 +89,7 @@ static void sdl_resize(DisplayState *ds, int w, int h)
     ds->data = screen->pixels;
     ds->linesize = screen->pitch;
     ds->depth = screen->format->BitsPerPixel;
-    if (screen->format->Bshift > screen->format->Rshift) {
+    if (ds->depth == 32 && screen->format->Rshift == 0) {
         ds->bgr = 1;
     } else {
         ds->bgr = 0;
