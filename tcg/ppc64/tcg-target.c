@@ -1383,7 +1383,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_shr_i64, { "r", "r", "r" } },
     { INDEX_op_sar_i64, { "r", "r", "r" } },
 
-    { INDEX_op_mul_i64, { "r", "r", "ri" } },
+    { INDEX_op_mul_i64, { "r", "r", "r" } },
     { INDEX_op_div_i64, { "r", "r", "r" } },
     { INDEX_op_divu_i64, { "r", "r", "r" } },
     { INDEX_op_rem_i64, { "r", "r", "r" } },
