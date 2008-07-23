@@ -87,24 +87,24 @@ target_ulong do_dclz (target_ulong t0)
 #endif /* TARGET_MIPS64 */
 
 /* 64 bits arithmetic for 32 bits hosts */
-static always_inline uint64_t get_HILO (void)
+static inline uint64_t get_HILO (void)
 {
     return ((uint64_t)(env->active_tc.HI[0]) << 32) | (uint32_t)env->active_tc.LO[0];
 }
 
-static always_inline void set_HILO (uint64_t HILO)
+static inline void set_HILO (uint64_t HILO)
 {
     env->active_tc.LO[0] = (int32_t)HILO;
     env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
-static always_inline void set_HIT0_LO (target_ulong t0, uint64_t HILO)
+static inline void set_HIT0_LO (target_ulong t0, uint64_t HILO)
 {
     env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
     t0 = env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
-static always_inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
+static inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
 {
     t0 = env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
     env->active_tc.HI[0] = (int32_t)(HILO >> 32);
@@ -1996,7 +1996,7 @@ void do_ctc1 (target_ulong t0, uint32_t reg)
         do_raise_exception(EXCP_FPE);
 }
 
-static always_inline char ieee_ex_to_mips(char xcpt)
+static inline char ieee_ex_to_mips(char xcpt)
 {
     return (xcpt & float_flag_inexact) >> 5 |
            (xcpt & float_flag_underflow) >> 3 |
@@ -2005,7 +2005,7 @@ static always_inline char ieee_ex_to_mips(char xcpt)
            (xcpt & float_flag_invalid) << 4;
 }
 
-static always_inline char mips_ex_to_ieee(char xcpt)
+static inline char mips_ex_to_ieee(char xcpt)
 {
     return (xcpt & FP_INEXACT) << 5 |
            (xcpt & FP_UNDERFLOW) << 3 |
@@ -2014,7 +2014,7 @@ static always_inline char mips_ex_to_ieee(char xcpt)
            (xcpt & FP_INVALID) >> 4;
 }
 
-static always_inline void update_fcr31(void)
+static inline void update_fcr31(void)
 {
     int tmp = ieee_ex_to_mips(get_float_exception_flags(&env->fpu->fp_status));
 
