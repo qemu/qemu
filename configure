@@ -637,6 +637,24 @@ if test "$cpu" = "x86_64" \
     hostlongbits="64"
 fi
 
+# ppc specific hostlongbits selection
+if test "$cpu" = "powerpc" ; then
+    cat > $TMPC <<EOF
+int main(void){return sizeof(long);}
+EOF
+
+    if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null; then
+        $TMPE
+        case $? in
+            4) hostlongbits="32";;
+            8) hostlongbits="64";;
+            *) echo "Couldn't determine bits per long value";;
+        esac
+    else
+        echo hostlongbits test failed
+    fi
+fi
+
 # check gcc options support
 cat > $TMPC <<EOF
 int main(void) {
@@ -995,8 +1013,13 @@ case "$cpu" in
     echo "#define HOST_MIPS64 1" >> $config_h
   ;;
   powerpc)
-    echo "ARCH=ppc" >> $config_mak
-    echo "#define HOST_PPC 1" >> $config_h
+  if test "$hostlongbits" = "32"; then
+      echo "ARCH=ppc" >> $config_mak
+      echo "#define HOST_PPC 1" >> $config_h
+  else
+      echo "ARCH=ppc64" >> $config_mak
+      echo "#define HOST_PPC64 1" >> $config_h
+  fi
   ;;
   s390)
     echo "ARCH=s390" >> $config_mak
