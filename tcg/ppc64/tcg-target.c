@@ -773,6 +773,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 void tcg_target_qemu_prologue (TCGContext *s)
 {
     int i, frame_size;
+    uint64_t addr;
 
     frame_size = 0
         + 8                     /* back chain */
@@ -786,6 +787,12 @@ void tcg_target_qemu_prologue (TCGContext *s)
         ;
     frame_size = (frame_size + 15) & ~15;
 
+    /* First emit adhoc function descriptor */
+    addr = (uint64_t) s->code_ptr + 24;
+    tcg_out32 (s, addr >> 32); tcg_out32 (s, addr); /* entry point */
+    s->code_ptr += 16;          /* skip TOC and environment pointer */
+
+    /* Prologue */
     tcg_out32 (s, MFSPR | RT (0) | LR);
     tcg_out32 (s, STDU | RS (1) | RA (1) | (-frame_size & 0xffff));
     for (i = 0; i < ARRAY_SIZE (tcg_target_callee_save_regs); ++i)
@@ -796,10 +803,11 @@ void tcg_target_qemu_prologue (TCGContext *s)
                        )
             );
     tcg_out32 (s, STD | RS (0) | RA (1) | (frame_size + 20));
-    tcg_out32 (s, STD | RS (2) | RA (1) | (frame_size + 40));
 
     tcg_out32 (s, MTSPR | RS (3) | CTR);
     tcg_out32 (s, BCCTR | BO_ALWAYS);
+
+    /* Epilogue */
     tb_ret_addr = s->code_ptr;
 
     for (i = 0; i < ARRAY_SIZE (tcg_target_callee_save_regs); ++i)
@@ -810,7 +818,6 @@ void tcg_target_qemu_prologue (TCGContext *s)
                        )
             );
     tcg_out32 (s, LD | RT (0) | RA (1) | (frame_size + 20));
-    tcg_out32 (s, LD | RT (2) | RA (1) | (frame_size + 40));
     tcg_out32 (s, MTSPR | RS (0) | LR);
     tcg_out32 (s, ADDI | RT (1) | RA (1) | frame_size);
     tcg_out32 (s, BCLR | BO_ALWAYS);
