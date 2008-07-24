@@ -89,6 +89,17 @@ static void sdl_resize(DisplayState *ds, int w, int h)
     ds->data = screen->pixels;
     ds->linesize = screen->pitch;
     ds->depth = screen->format->BitsPerPixel;
+    /* SDL BitsPerPixel never indicates any values other than
+       multiples of 8, so we need to check for strange depths. */
+    if (ds->depth == 16) {
+        uint32_t mask;
+
+        mask = screen->format->Rmask;
+        mask |= screen->format->Gmask;
+        mask |= screen->format->Bmask;
+        if ((mask & 0x8000) == 0)
+            ds->depth = 15;
+    }
     if (ds->depth == 32 && screen->format->Rshift == 0) {
         ds->bgr = 1;
     } else {
