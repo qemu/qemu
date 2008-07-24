@@ -124,19 +124,34 @@ static void tcx_draw_line8(TCXState *s1, uint8_t *d,
     }
 }
 
+/*
+  XXX Could be much more optimal:
+  * detect if line/page/whole screen is in 24 bit mode
+  * if destination is also BGR, use memcpy
+  */
 static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
                                      const uint8_t *s, int width,
                                      const uint32_t *cplane,
                                      const uint32_t *s24)
 {
-    int x;
-    uint8_t val;
+    int x, bgr, r, g, b;
+    uint8_t val, *p8;
     uint32_t *p = (uint32_t *)d;
     uint32_t dval;
 
+    bgr = s1->ds->bgr;
     for(x = 0; x < width; x++, s++, s24++) {
-        if ((bswap32(*cplane++) & 0xff000000) == 0x03000000) { // 24-bit direct
-            dval = bswap32(*s24) & 0x00ffffff;
+        if ((be32_to_cpu(*cplane++) & 0xff000000) == 0x03000000) {
+            // 24-bit direct, BGR order
+            p8 = (uint8_t *)s24;
+            p8++;
+            b = *p8++;
+            g = *p8++;
+            r = *p8++;
+            if (bgr)
+                dval = rgb_to_pixel32bgr(r, g, b);
+            else
+                dval = rgb_to_pixel32(r, g, b);
         } else {
             val = *s;
             dval = s1->palette[val];
