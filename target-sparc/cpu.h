@@ -252,13 +252,15 @@ typedef struct CPUSPARCState {
     float128 qt0, qt1;
     float_status fp_status;
 #if defined(TARGET_SPARC64)
-#define MAXTL 4
+#define MAXTL_MAX 8
+#define MAXTL_MASK (MAXTL_MAX - 1)
     trap_state *tsptr;
-    trap_state ts[MAXTL];
+    trap_state ts[MAXTL_MAX];
     uint32_t xcc;               /* Extended integer condition codes */
     uint32_t asi;
     uint32_t pstate;
     uint32_t tl;
+    uint32_t maxtl;
     uint32_t cansave, canrestore, otherwin, wstate, cleanwin;
     uint64_t agregs[8]; /* alternate general registers */
     uint64_t bgregs[8]; /* backup for normal global registers */
@@ -270,7 +272,7 @@ typedef struct CPUSPARCState {
     uint64_t gsr;
     uint32_t gl; // UA2005
     /* UA 2005 hyperprivileged registers */
-    uint64_t hpstate, htstate[MAXTL], hintp, htba, hver, hstick_cmpr, ssr;
+    uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
     void *hstick; // UA 2005
 #endif
     uint32_t features;
