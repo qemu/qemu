@@ -979,7 +979,7 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 	 * code is true.
 	 */
 	arith_opt = arith_cc(dc) && !dc->flags_uptodate;
-	move_opt = (dc->cc_op == CC_OP_MOVE) && !dc->flags_uptodate;
+	move_opt = (dc->cc_op == CC_OP_MOVE) && dc->flags_uptodate;
 	switch (cond) {
 		case CC_EQ:
 			if (arith_opt || move_opt) {
@@ -3192,7 +3192,8 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	cris_evaluate_flags (dc);
 
 	if (unlikely(env->singlestep_enabled)) {
-		tcg_gen_movi_tl(env_pc, npc);
+		if (dc->is_jmp == DISAS_NEXT)
+			tcg_gen_movi_tl(env_pc, npc);
 		t_gen_raise_exception(EXCP_DEBUG);
 	} else {
 		switch(dc->is_jmp) {
