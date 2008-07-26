@@ -89,9 +89,9 @@ int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
-#if defined(__arm__)
-/* The prologue must be reachable with a direct jump. ARM has a
- limited branch range (possibly also PPC and SPARC?) so place it in a
+#if defined(__arm__) || defined(__sparc_v9__)
+/* The prologue must be reachable with a direct jump. ARM and Sparc64
+ have limited branch ranges (possibly also PPC) so place it in a
  section close to code segment. */
 #define code_gen_section                                \
     __attribute__((__section__(".gen_code")))           \
@@ -410,15 +410,23 @@ void code_gen_alloc(unsigned long tb_size)
 #if defined(__linux__) 
     {
         int flags;
+        void *start = NULL;
+
         flags = MAP_PRIVATE | MAP_ANONYMOUS;
 #if defined(__x86_64__)
         flags |= MAP_32BIT;
         /* Cannot map more than that */
         if (code_gen_buffer_size > (800 * 1024 * 1024))
             code_gen_buffer_size = (800 * 1024 * 1024);
+#elif defined(__sparc_v9__)
+        // Map the buffer below 2G, so we can use direct calls and branches
+        flags |= MAP_FIXED;
+        start = (void *) 0x60000000UL;
+        if (code_gen_buffer_size > (512 * 1024 * 1024))
+            code_gen_buffer_size = (512 * 1024 * 1024);
 #endif
-        code_gen_buffer = mmap(NULL, code_gen_buffer_size,
-                               PROT_WRITE | PROT_READ | PROT_EXEC, 
+        code_gen_buffer = mmap(start, code_gen_buffer_size,
+                               PROT_WRITE | PROT_READ | PROT_EXEC,
                                flags, -1, 0);
         if (code_gen_buffer == MAP_FAILED) {
             fprintf(stderr, "Could not allocate dynamic translator buffer\n");
