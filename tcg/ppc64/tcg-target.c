@@ -217,24 +217,12 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
         break;
-    case 'K':                   /* qemu_st[8..32] constraint */
+    case 'S':                   /* qemu_st constraint */
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32 (ct->u.regs, 0, 0xffffffff);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
-#if TARGET_LONG_BITS == 64
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R6);
-#endif
-        break;
-    case 'M':                   /* qemu_st64 constraint */
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32 (ct->u.regs, 0, 0xffffffff);
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R6);
-        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R7);
         break;
     default:
         return -1;
@@ -1424,10 +1412,10 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_qemu_ld32s, { "r", "L" } },
     { INDEX_op_qemu_ld64, { "r", "L" } },
 
-    { INDEX_op_qemu_st8, { "K", "K" } },
-    { INDEX_op_qemu_st16, { "K", "K" } },
-    { INDEX_op_qemu_st32, { "K", "K" } },
-    { INDEX_op_qemu_st64, { "M", "M", "M" } },
+    { INDEX_op_qemu_st8, { "S", "S" } },
+    { INDEX_op_qemu_st16, { "S", "S" } },
+    { INDEX_op_qemu_st32, { "S", "S" } },
+    { INDEX_op_qemu_st64, { "S", "S", "S" } },
 
     { INDEX_op_ext8s_i32, { "r", "r" } },
     { INDEX_op_ext16s_i32, { "r", "r" } },
