@@ -659,7 +659,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     case 2|4:
         if (bswap) {
             tcg_out32 (s, LWBRX | RT (data_reg) | RB (r0));
-            tcg_out32 (s, EXTSW | RT (data_reg) | RS (data_reg));
+            tcg_out32 (s, EXTSW | RA (data_reg) | RS (data_reg));
         }
         else tcg_out32 (s, LWA | RT (data_reg)| RA (r0));
         break;
