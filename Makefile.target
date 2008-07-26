@@ -121,10 +121,12 @@ ifeq ($(ARCH),sparc)
 endif
 
 ifeq ($(ARCH),sparc64)
-  CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
   OP_CFLAGS+=-mcpu=ultrasparc -m64 -fno-delayed-branch -ffixed-i0
   ifneq ($(CONFIG_SOLARIS),yes)
-    OP_CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
+    CFLAGS+=-ffixed-g5 -ffixed-g6 -ffixed-g7
+    OP_CFLAGS+=-ffixed-g5 -ffixed-g6 -ffixed-g7
+  else
+    CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
   endif
 endif
 

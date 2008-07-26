@@ -146,10 +146,9 @@ extern int printf(const char *, ...);
 #define AREG4 "g6"
 #else
 #ifdef __sparc_v9__
-#define AREG0 "g1"
-#define AREG1 "g4"
-#define AREG2 "g5"
-#define AREG3 "g7"
+#define AREG0 "g5"
+#define AREG1 "g6"
+#define AREG2 "g7"
 #else
 #define AREG0 "g6"
 #define AREG1 "g1"
