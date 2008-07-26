@@ -991,7 +991,7 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
             /* direct jump method */
 
             s->tb_jmp_offset[args[0]] = s->code_ptr - s->code_buf;
-            s->code_ptr += 32;
+            s->code_ptr += 28;
         }
         else {
             tcg_abort ();
