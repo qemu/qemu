@@ -48,6 +48,7 @@ struct sparc_def_t {
     uint32_t mmu_trcr_mask;
     uint32_t features;
     uint32_t nwindows;
+    uint32_t maxtl;
 };
 
 static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
@@ -738,20 +739,20 @@ void do_interrupt(CPUState *env)
     }
 #endif
 #if !defined(CONFIG_USER_ONLY)
-    if (env->tl == MAXTL) {
-        cpu_abort(env, "Trap 0x%04x while trap level is MAXTL, Error state",
-                  env->exception_index);
+    if (env->tl >= env->maxtl) {
+        cpu_abort(env, "Trap 0x%04x while trap level (%d) >= MAXTL (%d),"
+                  " Error state", env->exception_index, env->tl, env->maxtl);
         return;
     }
 #endif
-    if (env->tl < MAXTL - 1) {
+    if (env->tl < env->maxtl - 1) {
         env->tl++;
     } else {
         env->pstate |= PS_RED;
-        if (env->tl != MAXTL)
+        if (env->tl < env->maxtl)
             env->tl++;
     }
-    env->tsptr = &env->ts[env->tl];
+    env->tsptr = &env->ts[env->tl & MAXTL_MASK];
     env->tsptr->tstate = ((uint64_t)GET_CCR(env) << 32) |
         ((env->asi & 0xff) << 24) | ((env->pstate & 0xf3f) << 8) |
         GET_CWP64(env);
@@ -918,7 +919,7 @@ void cpu_reset(CPUSPARCState *env)
     env->pstate = PS_PRIV;
     env->hpstate = HS_PRIV;
     env->pc = 0x1fff0000020ULL; // XXX should be different for system_reset
-    env->tsptr = &env->ts[env->tl];
+    env->tsptr = &env->ts[env->tl & MAXTL_MASK];
 #else
     env->pc = 0;
     env->mmuregs[0] &= ~(MMU_E | MMU_NF);
@@ -950,6 +951,8 @@ static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
     cpu_sparc_set_id(env, 0);
 #else
     env->mmu_version = def->mmu_version;
+    env->maxtl = def->maxtl;
+    env->version |= def->maxtl << 8;
     env->version |= def->nwindows - 1;
 #endif
     return 0;
@@ -991,159 +994,159 @@ static const sparc_def_t sparc_defs[] = {
 #ifdef TARGET_SPARC64
     {
         .name = "Fujitsu Sparc64",
-        .iu_version = ((0x04ULL << 48) | (0x02ULL << 32) | (0ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x04ULL << 48) | (0x02ULL << 32) | (0ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 4,
+        .maxtl = 4,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Fujitsu Sparc64 III",
-        .iu_version = ((0x04ULL << 48) | (0x03ULL << 32) | (0ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x04ULL << 48) | (0x03ULL << 32) | (0ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 5,
+        .maxtl = 4,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Fujitsu Sparc64 IV",
-        .iu_version = ((0x04ULL << 48) | (0x04ULL << 32) | (0ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x04ULL << 48) | (0x04ULL << 32) | (0ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Fujitsu Sparc64 V",
-        .iu_version = ((0x04ULL << 48) | (0x05ULL << 32) | (0x51ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x04ULL << 48) | (0x05ULL << 32) | (0x51ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI UltraSparc I",
-        .iu_version = ((0x17ULL << 48) | (0x10ULL << 32) | (0x40ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x17ULL << 48) | (0x10ULL << 32) | (0x40ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI UltraSparc II",
-        .iu_version = ((0x17ULL << 48) | (0x11ULL << 32) | (0x20ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x17ULL << 48) | (0x11ULL << 32) | (0x20ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI UltraSparc IIi",
-        .iu_version = ((0x17ULL << 48) | (0x12ULL << 32) | (0x91ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x17ULL << 48) | (0x12ULL << 32) | (0x91ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "TI UltraSparc IIe",
-        .iu_version = ((0x17ULL << 48) | (0x13ULL << 32) | (0x14ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x17ULL << 48) | (0x13ULL << 32) | (0x14ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc III",
-        .iu_version = ((0x3eULL << 48) | (0x14ULL << 32) | (0x34ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x3eULL << 48) | (0x14ULL << 32) | (0x34ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc III Cu",
-        .iu_version = ((0x3eULL << 48) | (0x15ULL << 32) | (0x41ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x3eULL << 48) | (0x15ULL << 32) | (0x41ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_3,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc IIIi",
-        .iu_version = ((0x3eULL << 48) | (0x16ULL << 32) | (0x34ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x3eULL << 48) | (0x16ULL << 32) | (0x34ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc IV",
-        .iu_version = ((0x3eULL << 48) | (0x18ULL << 32) | (0x31ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x3eULL << 48) | (0x18ULL << 32) | (0x31ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_4,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc IV+",
-        .iu_version = ((0x3eULL << 48) | (0x19ULL << 32) | (0x22ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x3eULL << 48) | (0x19ULL << 32) | (0x22ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_CMT,
     },
     {
         .name = "Sun UltraSparc IIIi+",
-        .iu_version = ((0x3eULL << 48) | (0x22ULL << 32) | (0ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x3eULL << 48) | (0x22ULL << 32) | (0ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_3,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
     {
         .name = "Sun UltraSparc T1",
         // defined in sparc_ifu_fdp.v and ctu.h
-        .iu_version = ((0x3eULL << 48) | (0x23ULL << 32) | (0x02ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x3eULL << 48) | (0x23ULL << 32) | (0x02ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_sun4v,
         .nwindows = 8,
+        .maxtl = 6,
         .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_HYPV | CPU_FEATURE_CMT
         | CPU_FEATURE_GL,
     },
     {
         .name = "Sun UltraSparc T2",
         // defined in tlu_asi_ctl.v and n2_revid_cust.v
-        .iu_version = ((0x3eULL << 48) | (0x24ULL << 32) | (0x02ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x3eULL << 48) | (0x24ULL << 32) | (0x02ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_sun4v,
         .nwindows = 8,
+        .maxtl = 6,
         .features = CPU_DEFAULT_FEATURES | CPU_FEATURE_HYPV | CPU_FEATURE_CMT
         | CPU_FEATURE_GL,
     },
     {
         .name = "NEC UltraSparc I",
-        .iu_version = ((0x22ULL << 48) | (0x10ULL << 32) | (0x40ULL << 24)
-                       | (MAXTL << 8)),
+        .iu_version = ((0x22ULL << 48) | (0x10ULL << 32) | (0x40ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_us_12,
         .nwindows = 8,
+        .maxtl = 5,
         .features = CPU_DEFAULT_FEATURES,
     },
 #else

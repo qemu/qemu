@@ -2742,7 +2742,7 @@ void helper_done(void)
     change_pstate((env->tsptr->tstate >> 8) & 0xf3f);
     PUT_CWP64(env, env->tsptr->tstate & 0xff);
     env->tl--;
-    env->tsptr = &env->ts[env->tl];
+    env->tsptr = &env->ts[env->tl & MAXTL_MASK];
 }
 
 void helper_retry(void)
@@ -2754,7 +2754,7 @@ void helper_retry(void)
     change_pstate((env->tsptr->tstate >> 8) & 0xf3f);
     PUT_CWP64(env, env->tsptr->tstate & 0xff);
     env->tl--;
-    env->tsptr = &env->ts[env->tl];
+    env->tsptr = &env->ts[env->tl & MAXTL_MASK];
 }
 #endif
 

@@ -653,10 +653,11 @@ EOF
         case $? in
             4) hostlongbits="32";;
             8) hostlongbits="64";;
-            *) echo "Couldn't determine bits per long value";;
+            *) echo "Couldn't determine bits per long value"; exit 1;;
         esac
     else
         echo hostlongbits test failed
+        exit 1
     fi
 fi
 

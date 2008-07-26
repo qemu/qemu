@@ -839,16 +839,34 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         s->tb_next_offset[args[0]] = s->code_ptr - s->code_buf;
         break;
     case INDEX_op_call:
-        if (const_args[0]) {
-            tcg_out32(s, CALL | ((((tcg_target_ulong)args[0]
-                                  - (tcg_target_ulong)s->code_ptr) >> 2)
-                                 & 0x3fffffff));
-            tcg_out_nop(s);
-        } else {
-            tcg_out_ld_ptr(s, TCG_REG_I5, (tcg_target_long)(s->tb_next + args[0]));
-            tcg_out32(s, JMPL | INSN_RD(TCG_REG_O7) | INSN_RS1(TCG_REG_I5) |
-                      INSN_RS2(TCG_REG_G0));
-            tcg_out_nop(s);
+        {
+            unsigned int st_op, ld_op;
+
+#ifdef __arch64__
+            st_op = STX;
+            ld_op = LDX;
+#else
+            st_op = STW;
+            ld_op = LDUW;
+#endif
+            if (const_args[0])
+                tcg_out32(s, CALL | ((((tcg_target_ulong)args[0]
+                                       - (tcg_target_ulong)s->code_ptr) >> 2)
+                                     & 0x3fffffff));
+            else {
+                tcg_out_ld_ptr(s, TCG_REG_I5,
+                               (tcg_target_long)(s->tb_next + args[0]));
+                tcg_out32(s, JMPL | INSN_RD(TCG_REG_O7) | INSN_RS1(TCG_REG_I5) |
+                          INSN_RS2(TCG_REG_G0));
+            }
+            /* Store AREG0 in stack to avoid ugly glibc bugs that mangle
+               global registers */
+            tcg_out_ldst(s, TCG_AREG0, TCG_REG_CALL_STACK,
+                         TCG_TARGET_CALL_STACK_OFFSET - sizeof(long),
+                         st_op); // delay slot
+            tcg_out_ldst(s, TCG_AREG0, TCG_REG_CALL_STACK,
+                         TCG_TARGET_CALL_STACK_OFFSET - sizeof(long),
+                         ld_op);
         }
         break;
     case INDEX_op_jmp:

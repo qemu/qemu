@@ -72,14 +72,15 @@ enum {
 #define TCG_CT_CONST_S13 0x200
 
 /* used for function call generation */
-#define TCG_REG_CALL_STACK TCG_REG_O6
+#define TCG_REG_CALL_STACK TCG_REG_I6
 #ifdef __arch64__
-#define TCG_TARGET_STACK_MINFRAME 176
-#define TCG_TARGET_CALL_STACK_OFFSET (2047 + 176)
+// Reserve space for AREG0
+#define TCG_TARGET_STACK_MINFRAME (176 + 2 * sizeof(long))
+#define TCG_TARGET_CALL_STACK_OFFSET (2047 + TCG_TARGET_STACK_MINFRAME)
 #define TCG_TARGET_STACK_ALIGN 16
 #else
-#define TCG_TARGET_STACK_MINFRAME 92
-#define TCG_TARGET_CALL_STACK_OFFSET 92
+#define TCG_TARGET_STACK_MINFRAME (92 + 2 * sizeof(long))
+#define TCG_TARGET_CALL_STACK_OFFSET TCG_TARGET_STACK_MINFRAME
 #define TCG_TARGET_STACK_ALIGN 8
 #endif
 
@@ -90,7 +91,7 @@ enum {
 //#define TCG_TARGET_HAS_neg_i64
 
 
-/* Note: must be synced with dyngen-exec.h */
+/* Note: must be synced with dyngen-exec.h and Makefile.target */
 #ifdef HOST_SOLARIS
 #define TCG_AREG0 TCG_REG_G2
 #define TCG_AREG1 TCG_REG_G3
@@ -98,10 +99,9 @@ enum {
 #define TCG_AREG3 TCG_REG_G5
 #define TCG_AREG4 TCG_REG_G6
 #elif defined(__sparc_v9__)
-#define TCG_AREG0 TCG_REG_G1
-#define TCG_AREG1 TCG_REG_G4
-#define TCG_AREG2 TCG_REG_G5
-#define TCG_AREG3 TCG_REG_G7
+#define TCG_AREG0 TCG_REG_G5
+#define TCG_AREG1 TCG_REG_G6
+#define TCG_AREG2 TCG_REG_G7
 #else
 #define TCG_AREG0 TCG_REG_G6
 #define TCG_AREG1 TCG_REG_G1

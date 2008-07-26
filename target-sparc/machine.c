@@ -1,5 +1,6 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "qemu-timer.h"
 
 #include "exec-all.h"
 
@@ -56,8 +57,60 @@ void cpu_save(QEMUFile *f, void *opaque)
 #ifndef TARGET_SPARC64
     qemu_put_be32s(f, &env->wim);
     /* MMU */
-    for(i = 0; i < 16; i++)
+    for (i = 0; i < 32; i++)
         qemu_put_be32s(f, &env->mmuregs[i]);
+#else
+    qemu_put_be64s(f, &env->lsu);
+    for (i = 0; i < 16; i++) {
+        qemu_put_be64s(f, &env->immuregs[i]);
+        qemu_put_be64s(f, &env->dmmuregs[i]);
+    }
+    for (i = 0; i < 64; i++) {
+        qemu_put_be64s(f, &env->itlb_tag[i]);
+        qemu_put_be64s(f, &env->itlb_tte[i]);
+        qemu_put_be64s(f, &env->dtlb_tag[i]);
+        qemu_put_be64s(f, &env->dtlb_tte[i]);
+    }
+    qemu_put_be32s(f, &env->mmu_version);
+    for (i = 0; i < MAXTL_MAX; i++) {
+        qemu_put_be64s(f, &env->ts[i].tpc);
+        qemu_put_be64s(f, &env->ts[i].tnpc);
+        qemu_put_be64s(f, &env->ts[i].tstate);
+        qemu_put_be32s(f, &env->ts[i].tt);
+    }
+    qemu_put_be32s(f, &env->xcc);
+    qemu_put_be32s(f, &env->asi);
+    qemu_put_be32s(f, &env->pstate);
+    qemu_put_be32s(f, &env->tl);
+    qemu_put_be32s(f, &env->cansave);
+    qemu_put_be32s(f, &env->canrestore);
+    qemu_put_be32s(f, &env->otherwin);
+    qemu_put_be32s(f, &env->wstate);
+    qemu_put_be32s(f, &env->cleanwin);
+    for (i = 0; i < 8; i++)
+        qemu_put_be64s(f, &env->agregs[i]);
+    for (i = 0; i < 8; i++)
+        qemu_put_be64s(f, &env->bgregs[i]);
+    for (i = 0; i < 8; i++)
+        qemu_put_be64s(f, &env->igregs[i]);
+    for (i = 0; i < 8; i++)
+        qemu_put_be64s(f, &env->mgregs[i]);
+    qemu_put_be64s(f, &env->fprs);
+    qemu_put_be64s(f, &env->tick_cmpr);
+    qemu_put_be64s(f, &env->stick_cmpr);
+    qemu_put_ptimer(f, env->tick);
+    qemu_put_ptimer(f, env->stick);
+    qemu_put_be64s(f, &env->gsr);
+    qemu_put_be32s(f, &env->gl);
+    qemu_put_be64s(f, &env->hpstate);
+    for (i = 0; i < MAXTL_MAX; i++)
+        qemu_put_be64s(f, &env->htstate[i]);
+    qemu_put_be64s(f, &env->hintp);
+    qemu_put_be64s(f, &env->htba);
+    qemu_put_be64s(f, &env->hver);
+    qemu_put_be64s(f, &env->hstick_cmpr);
+    qemu_put_be64s(f, &env->ssr);
+    qemu_get_ptimer(f, env->hstick);
 #endif
 }
 
@@ -67,7 +120,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     int i;
     uint32_t tmp;
 
-    if (version_id != 4)
+    if (version_id != 5)
         return -EINVAL;
     for(i = 0; i < 8; i++)
         qemu_get_betls(f, &env->gregs[i]);
@@ -97,8 +150,61 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 #ifndef TARGET_SPARC64
     qemu_get_be32s(f, &env->wim);
     /* MMU */
-    for(i = 0; i < 16; i++)
+    for (i = 0; i < 32; i++)
         qemu_get_be32s(f, &env->mmuregs[i]);
+#else
+    qemu_get_be64s(f, &env->lsu);
+    for (i = 0; i < 16; i++) {
+        qemu_get_be64s(f, &env->immuregs[i]);
+        qemu_get_be64s(f, &env->dmmuregs[i]);
+    }
+    for (i = 0; i < 64; i++) {
+        qemu_get_be64s(f, &env->itlb_tag[i]);
+        qemu_get_be64s(f, &env->itlb_tte[i]);
+        qemu_get_be64s(f, &env->dtlb_tag[i]);
+        qemu_get_be64s(f, &env->dtlb_tte[i]);
+    }
+    qemu_get_be32s(f, &env->mmu_version);
+    for (i = 0; i < MAXTL_MAX; i++) {
+        qemu_get_be64s(f, &env->ts[i].tpc);
+        qemu_get_be64s(f, &env->ts[i].tnpc);
+        qemu_get_be64s(f, &env->ts[i].tstate);
+        qemu_get_be32s(f, &env->ts[i].tt);
+    }
+    qemu_get_be32s(f, &env->xcc);
+    qemu_get_be32s(f, &env->asi);
+    qemu_get_be32s(f, &env->pstate);
+    qemu_get_be32s(f, &env->tl);
+    env->tsptr = &env->ts[env->tl & MAXTL_MASK];
+    qemu_get_be32s(f, &env->cansave);
+    qemu_get_be32s(f, &env->canrestore);
+    qemu_get_be32s(f, &env->otherwin);
+    qemu_get_be32s(f, &env->wstate);
+    qemu_get_be32s(f, &env->cleanwin);
+    for (i = 0; i < 8; i++)
+        qemu_get_be64s(f, &env->agregs[i]);
+    for (i = 0; i < 8; i++)
+        qemu_get_be64s(f, &env->bgregs[i]);
+    for (i = 0; i < 8; i++)
+        qemu_get_be64s(f, &env->igregs[i]);
+    for (i = 0; i < 8; i++)
+        qemu_get_be64s(f, &env->mgregs[i]);
+    qemu_get_be64s(f, &env->fprs);
+    qemu_get_be64s(f, &env->tick_cmpr);
+    qemu_get_be64s(f, &env->stick_cmpr);
+    qemu_get_ptimer(f, env->tick);
+    qemu_get_ptimer(f, env->stick);
+    qemu_get_be64s(f, &env->gsr);
+    qemu_get_be32s(f, &env->gl);
+    qemu_get_be64s(f, &env->hpstate);
+    for (i = 0; i < MAXTL_MAX; i++)
+        qemu_get_be64s(f, &env->htstate[i]);
+    qemu_get_be64s(f, &env->hintp);
+    qemu_get_be64s(f, &env->htba);
+    qemu_get_be64s(f, &env->hver);
+    qemu_get_be64s(f, &env->hstick_cmpr);
+    qemu_get_be64s(f, &env->ssr);
+    qemu_get_ptimer(f, env->hstick);
 #endif
     tlb_flush(env, 1);
     return 0;

@@ -3528,6 +3528,32 @@ struct omap_sysctl_s {
     uint32_t msuspendmux[5];
 };
 
+static uint32_t omap_sysctl_read8(void *opaque, target_phys_addr_t addr)
+{
+
+    struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
+    int offset = addr - s->base;
+    int pad_offset, byte_offset;
+    int value;
+
+    switch (offset) {
+    case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
+        pad_offset = (offset - 0x30) >> 2;
+        byte_offset = (offset - 0x30) & (4 - 1);
+
+        value = s->padconf[pad_offset];
+        value = (value >> (byte_offset * 8)) & 0xff;
+
+        return value;
+
+    default:
+        break;
+    }
+
+    OMAP_BAD_REG(addr);
+    return 0;
+}
+
 static uint32_t omap_sysctl_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
@@ -3629,6 +3655,31 @@ static uint32_t omap_sysctl_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
+static void omap_sysctl_write8(void *opaque, target_phys_addr_t addr,
+                uint32_t value)
+{
+    struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
+    int offset = addr - s->base;
+    int pad_offset, byte_offset;
+    int prev_value;
+
+    switch (offset) {
+    case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
+        pad_offset = (offset - 0x30) >> 2;
+        byte_offset = (offset - 0x30) & (4 - 1);
+
+        prev_value = s->padconf[pad_offset];
+        prev_value &= ~(0xff << (byte_offset * 8));
+        prev_value |= ((value & 0x1f1f1f1f) << (byte_offset * 8)) & 0x1f1f1f1f;
+        s->padconf[pad_offset] = prev_value;
+        break;
+
+    default:
+        OMAP_BAD_REG(addr);
+        break;
+    }
+}
+
 static void omap_sysctl_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
@@ -3726,13 +3777,13 @@ static void omap_sysctl_write(void *opaque, target_phys_addr_t addr,
 }
 
 static CPUReadMemoryFunc *omap_sysctl_readfn[] = {
-    omap_badwidth_read32,	/* TODO */
+    omap_sysctl_read8,
     omap_badwidth_read32,	/* TODO */
     omap_sysctl_read,
 };
 
 static CPUWriteMemoryFunc *omap_sysctl_writefn[] = {
-    omap_badwidth_write32,	/* TODO */
+    omap_sysctl_write8,
     omap_badwidth_write32,	/* TODO */
     omap_sysctl_write,
 };
@@ -4139,7 +4190,7 @@ static uint32_t omap_gpmc_read(void *opaque, target_phys_addr_t addr)
         cs = (offset - 0x060) / 0x30;
         offset -= cs * 0x30;
         f = s->cs_file + cs;
-        switch (offset - cs * 0x30) {
+        switch (offset) {
             case 0x60:	/* GPMC_CONFIG1 */
                 return f->config[0];
             case 0x64:	/* GPMC_CONFIG2 */

@@ -413,24 +413,9 @@ uint64_t tcg_helper_divu_i64(uint64_t arg1, uint64_t arg2);
 uint64_t tcg_helper_remu_i64(uint64_t arg1, uint64_t arg2);
 
 extern uint8_t code_gen_prologue[];
-#ifdef __powerpc__
-#ifdef __powerpc64__
-#define tcg_qemu_tb_exec(tb_ptr)                                        \
-    ({ unsigned long p;                                                 \
-       asm volatile (                                                   \
-         "mtctr %1\n\t"                                                 \
-         "mr 3,%2\n\t"                                                  \
-         "bctrl\n\t"                                                    \
-         "mr %0,3\n\t"                                                  \
-         : "=r" (p)                                                     \
-         : "r" (code_gen_prologue), "r" (tb_ptr)                        \
-         : "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");        \
-    p;                                                                  \
-    })
-#else
+#if defined(__powerpc__) && !defined(__powerpc64__)
 #define tcg_qemu_tb_exec(tb_ptr) \
     ((long REGPARM __attribute__ ((longcall)) (*)(void *))code_gen_prologue)(tb_ptr)
-#endif
 #else
 #define tcg_qemu_tb_exec(tb_ptr) ((long REGPARM (*)(void *))code_gen_prologue)(tb_ptr)
 #endif

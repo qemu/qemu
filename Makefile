@@ -247,7 +247,7 @@ endif
 	mkdir -p "$(DESTDIR)$(datadir)"
 	set -e; for x in bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
 		video.x openbios-sparc32 openbios-sparc64 pxe-ne2k_pci.bin \
-		pxe-rtl8139.bin pxe-pcnet.bin; do \
+		pxe-rtl8139.bin pxe-pcnet.bin pxe-e1000.bin; do \
 		$(INSTALL) -m 644 $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
 	done
 ifndef CONFIG_WIN32
@@ -361,6 +361,7 @@ tarbin:
         $(datadir)/pxe-ne2k_pci.bin \
 	$(datadir)/pxe-rtl8139.bin \
         $(datadir)/pxe-pcnet.bin \
+	$(datadir)/pxe-e1000.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
 	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-img.1
