@@ -268,7 +268,7 @@ static int tcg_target_const_match (tcg_target_long val,
 #define LD     XO58(  0)
 #define LDX    XO31( 21)
 #define LDU    XO58(  1)
-#define LWA    XO58( 10)
+#define LWA    XO58(  2)
 #define LWAX   XO31(341)
 
 #define ADDI   OPCD( 14)
