@@ -439,7 +439,7 @@ static void tcg_out_movi (TCGContext *s, TCGType type,
             uint16_t h16 = arg >> 16;
             uint16_t l16 = arg;
 
-            tcg_out_movi32 (s, ret, (arg >> 32) + (arg32 < 0));
+            tcg_out_movi32 (s, ret, arg >> 32);
             tcg_out_rld (s, RLDICR, ret, ret, 32, 31);
             if (h16) tcg_out32 (s, ORIS | RS (ret) | RA (ret) | h16);
             if (l16) tcg_out32 (s, ORI | RS (ret) | RA (ret) | l16);
