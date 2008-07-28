@@ -523,7 +523,7 @@ static void *qemu_st_helpers[4] = {
 static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
                               int addr_reg, int s_bits, int offset)
 {
-#ifdef TARGET_LONG_BITS
+#if TARGET_LONG_BITS == 32
     tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
 
     tcg_out32 (s, (RLWINM
