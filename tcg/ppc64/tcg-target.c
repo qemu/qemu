@@ -1104,22 +1104,14 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
 
     case INDEX_op_and_i32:
         if (const_args[2]) {
-            if (!args[2])
-                tcg_out_movi (s, TCG_TYPE_I32, args[0], 0);
+            if ((args[2] & 0xffff) == args[2])
+                tcg_out32 (s, ANDI | RS (args[1]) | RA (args[0]) | args[2]);
+            else if ((args[2] & 0xffff0000) == args[2])
+                tcg_out32 (s, ANDIS | RS (args[1]) | RA (args[0])
+                           | ((args[2] >> 16) & 0xffff));
             else {
-                if ((args[2] & 0xffff) == args[2])
-                    tcg_out32 (s, ANDI | RS (args[1]) | RA (args[0]) | args[2]);
-                else if ((args[2] & 0xffff0000) == args[2])
-                    tcg_out32 (s, ANDIS | RS (args[1]) | RA (args[0])
-                               | ((args[2] >> 16) & 0xffff));
-                else if (args[2] == 0xffffffff) {
-                    if (args[0] != args[1])
-                        tcg_out_mov (s, args[0], args[1]);
-                }
-                else {
-                    tcg_out_movi (s, TCG_TYPE_I32, 0, args[2]);
-                    tcg_out32 (s, AND | SAB (args[1], args[0], 0));
-                }
+                tcg_out_movi (s, TCG_TYPE_I32, 0, args[2]);
+                tcg_out32 (s, AND | SAB (args[1], args[0], 0));
             }
         }
         else
@@ -1127,22 +1119,16 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
         break;
     case INDEX_op_or_i32:
         if (const_args[2]) {
-            if (args[2]) {
-                if (args[2] & 0xffff) {
-                    tcg_out32 (s, ORI | RS (args[1])  | RA (args[0])
-                               | (args[2] & 0xffff));
-                    if (args[2] >> 16)
-                        tcg_out32 (s, ORIS | RS (args[0])  | RA (args[0])
-                                   | ((args[2] >> 16) & 0xffff));
-                }
-                else {
-                    tcg_out32 (s, ORIS | RS (args[1])  | RA (args[0])
+            if (args[2] & 0xffff) {
+                tcg_out32 (s, ORI | RS (args[1]) | RA (args[0])
+                           | (args[2] & 0xffff));
+                if (args[2] >> 16)
+                    tcg_out32 (s, ORIS | RS (args[0])  | RA (args[0])
                                | ((args[2] >> 16) & 0xffff));
-                }
             }
             else {
-                if (args[0] != args[1])
-                    tcg_out_mov (s, args[0], args[1]);
+                tcg_out32 (s, ORIS | RS (args[1])  | RA (args[0])
+                           | ((args[2] >> 16) & 0xffff));
             }
         }
         else
@@ -1150,21 +1136,15 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
         break;
     case INDEX_op_xor_i32:
         if (const_args[2]) {
-            if (args[2]) {
-                if ((args[2] & 0xffff) == args[2])
-                    tcg_out32 (s, XORI | RS (args[1])  | RA (args[0])
-                               | (args[2] & 0xffff));
-                else if ((args[2] & 0xffff0000) == args[2])
-                    tcg_out32 (s, XORIS | RS (args[1])  | RA (args[0])
-                               | ((args[2] >> 16) & 0xffff));
-                else {
-                    tcg_out_movi (s, TCG_TYPE_I32, 0, args[2]);
-                    tcg_out32 (s, XOR | SAB (args[1], args[0], 0));
-                }
-            }
+            if ((args[2] & 0xffff) == args[2])
+                tcg_out32 (s, XORI | RS (args[1])  | RA (args[0])
+                           | (args[2] & 0xffff));
+            else if ((args[2] & 0xffff0000) == args[2])
+                tcg_out32 (s, XORIS | RS (args[1])  | RA (args[0])
+                           | ((args[2] >> 16) & 0xffff));
             else {
-                if (args[0] != args[1])
-                    tcg_out_mov (s, args[0], args[1]);
+                tcg_out_movi (s, TCG_TYPE_I32, 0, args[2]);
+                tcg_out32 (s, XOR | SAB (args[1], args[0], 0));
             }
         }
         else
@@ -1207,34 +1187,28 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
 
     case INDEX_op_shl_i32:
         if (const_args[2]) {
-            if (args[2])
-                tcg_out32 (s, (RLWINM
-                               | RA (args[0])
-                               | RS (args[1])
-                               | SH (args[2])
-                               | MB (0)
-                               | ME (31 - args[2])
-                               )
-                    );
-            else
-                tcg_out_mov (s, args[0], args[1]);
+            tcg_out32 (s, (RLWINM
+                           | RA (args[0])
+                           | RS (args[1])
+                           | SH (args[2])
+                           | MB (0)
+                           | ME (31 - args[2])
+                           )
+                );
         }
         else
             tcg_out32 (s, SLW | SAB (args[1], args[0], args[2]));
         break;
     case INDEX_op_shr_i32:
         if (const_args[2]) {
-            if (args[2])
-                tcg_out32 (s, (RLWINM
-                               | RA (args[0])
-                               | RS (args[1])
-                               | SH (32 - args[2])
-                               | MB (args[2])
-                               | ME (31)
-                               )
-                    );
-            else
-                tcg_out_mov (s, args[0], args[1]);
+            tcg_out32 (s, (RLWINM
+                           | RA (args[0])
+                           | RS (args[1])
+                           | SH (32 - args[2])
+                           | MB (args[2])
+                           | ME (31)
+                           )
+                );
         }
         else
             tcg_out32 (s, SRW | SAB (args[1], args[0], args[2]));
