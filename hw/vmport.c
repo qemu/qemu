@@ -72,6 +72,13 @@ static uint32_t vmport_ioport_read(void *opaque, uint32_t addr)
     return s->func[command](s->opaque[command], addr);
 }
 
+static void vmport_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+{
+    CPUState *env = cpu_single_env;
+
+    env->regs[R_EAX] = vmport_ioport_read(opaque, addr);
+}
+
 static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
 {
     CPUState *env = cpu_single_env;
@@ -89,6 +96,7 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 void vmport_init(void)
 {
     register_ioport_read(0x5658, 1, 4, vmport_ioport_read, &port_state);
+    register_ioport_write(0x5658, 1, 4, vmport_ioport_write, &port_state);
 
     /* Register some generic port commands */
     vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);
