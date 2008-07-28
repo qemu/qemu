@@ -34,8 +34,10 @@ static uint8_t *tb_ret_addr;
 
 #if TARGET_LONG_BITS == 32
 #define LD_ADDR LWZU
+#define CMP_L 0
 #else
 #define LD_ADDR LDU
+#define CMP_L (1<<21)
 #endif
 
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
@@ -588,7 +590,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     tcg_out_tlb_read (s, r0, r1, r2, addr_reg, s_bits,
                       offsetof (CPUState, tlb_table[mem_index][0].addr_read));
 
-    tcg_out32 (s, CMP | BF (7) | RA (r2) | RB (r1));
+    tcg_out32 (s, CMP | BF (7) | RA (r2) | RB (r1) | CMP_L);
 
     label1_ptr = s->code_ptr;
 #ifdef FAST_PATH
@@ -715,7 +717,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     tcg_out_tlb_read (s, r0, r1, r2, addr_reg, opc,
                       offsetof (CPUState, tlb_table[mem_index][0].addr_write));
 
-    tcg_out32 (s, CMP | BF (7) | RA (r2) | RB (r1));
+    tcg_out32 (s, CMP | BF (7) | RA (r2) | RB (r1) | CMP_L);
 
     label1_ptr = s->code_ptr;
 #ifdef FAST_PATH
@@ -882,7 +884,7 @@ static void tcg_out_addi (TCGContext *s, int reg, tcg_target_long val)
 }
 
 static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
-                         int const_arg2, int cr)
+                         int const_arg2, int cr, int arch64)
 {
     int imm;
     uint32_t op;
@@ -939,7 +941,7 @@ static void tcg_out_cmp (TCGContext *s, int cond, TCGArg arg1, TCGArg arg2,
     default:
         tcg_abort ();
     }
-    op |= BF (cr);
+    op |= BF (cr) | (arch64 << 21);
 
     if (imm)
         tcg_out32 (s, op | RA (arg1) | (arg2 & 0xffff));
@@ -971,9 +973,9 @@ static void tcg_out_bc (TCGContext *s, int bc, int label_index)
 
 static void tcg_out_brcond (TCGContext *s, int cond,
                             TCGArg arg1, TCGArg arg2, int const_arg2,
-                            int label_index)
+                            int label_index, int arch64)
 {
-    tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7);
+    tcg_out_cmp (s, cond, arg1, arg2, const_arg2, 7, arch64);
     tcg_out_bc (s, tcg_to_bc[cond], label_index);
 }
 
@@ -1245,8 +1247,11 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
         break;
 
     case INDEX_op_brcond_i32:
+        tcg_out_brcond (s, args[2], args[0], args[1], const_args[1], args[3], 0);
+        break;
+
     case INDEX_op_brcond_i64:
-        tcg_out_brcond (s, args[2], args[0], args[1], const_args[1], args[3]);
+        tcg_out_brcond (s, args[2], args[0], args[1], const_args[1], args[3], 1);
         break;
 
     case INDEX_op_neg_i32:
