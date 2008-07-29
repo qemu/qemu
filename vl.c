@@ -5138,26 +5138,12 @@ static int check_params(char *buf, int buf_size,
     return 0;
 }
 
-
-static int net_client_init(const char *str)
+static int net_client_init(const char *device, const char *p)
 {
-    const char *p;
-    char *q;
-    char device[64];
     char buf[1024];
     int vlan_id, ret;
     VLANState *vlan;
 
-    p = str;
-    q = device;
-    while (*p != '\0' && *p != ',') {
-        if ((q - device) < sizeof(device) - 1)
-            *q++ = *p;
-        p++;
-    }
-    *q = '\0';
-    if (*p == ',')
-        p++;
     vlan_id = 0;
     if (get_param_value(buf, sizeof(buf), "vlan", p)) {
         vlan_id = strtol(buf, NULL, 0);
@@ -5300,6 +5286,26 @@ static int net_client_init(const char *str)
     }
 
     return ret;
+}
+
+static int net_client_parse(const char *str)
+{
+    const char *p;
+    char *q;
+    char device[64];
+
+    p = str;
+    q = device;
+    while (*p != '\0' && *p != ',') {
+        if ((q - device) < sizeof(device) - 1)
+            *q++ = *p;
+        p++;
+    }
+    *q = '\0';
+    if (*p == ',')
+        p++;
+
+    return net_client_init(device, p);
 }
 
 void do_info_network(void)
@@ -5734,11 +5740,12 @@ static int usb_device_add(const char *devname)
         dev = usb_baum_init();
 #endif
     } else if (strstart(devname, "net:", &p)) {
-        int nicidx = strtoul(p, NULL, 0);
+        int nic = nb_nics;
 
-        if (nicidx >= nb_nics || strcmp(nd_table[nicidx].model, "usb"))
+        if (net_client_init("nic", p) < 0)
             return -1;
-        dev = usb_net_init(&nd_table[nicidx]);
+        nd_table[nic].model = "usb";
+        dev = usb_net_init(&nd_table[nic]);
     } else {
         return -1;
     }
@@ -8887,16 +8894,14 @@ int main(int argc, char **argv)
     }
 
     for(i = 0;i < nb_net_clients; i++) {
-        if (net_client_init(net_clients[i]) < 0)
+        if (net_client_parse(net_clients[i]) < 0)
             exit(1);
     }
     for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
         if (vlan->nb_guest_devs == 0 && vlan->nb_host_devs == 0)
             continue;
-        if (vlan->nb_guest_devs == 0) {
-            fprintf(stderr, "Invalid vlan (%d) with no nics\n", vlan->id);
-            exit(1);
-        }
+        if (vlan->nb_guest_devs == 0)
+            fprintf(stderr, "Warning: vlan %d with no nics\n", vlan->id);
         if (vlan->nb_host_devs == 0)
             fprintf(stderr,
                     "Warning: vlan %d is not connected to host network\n",
