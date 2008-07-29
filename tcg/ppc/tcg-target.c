@@ -1015,6 +1015,37 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
     tcg_out_bc (s, (BC | BI (7, CR_EQ) | BO_COND_TRUE), label_index);
 }
 
+void ppc_tb_set_jmp_target (unsigned long jmp_addr, unsigned long addr)
+{
+    uint32_t *ptr;
+    long disp = addr - jmp_addr;
+    unsigned long patch_size;
+
+    ptr = (uint32_t *)jmp_addr;
+
+    if ((disp << 6) >> 6 != disp) {
+        ptr[0] = 0x3c000000 | (addr >> 16);    /* lis 0,addr@ha */
+        ptr[1] = 0x60000000 | (addr & 0xffff); /* la  0,addr@l(0) */
+        ptr[2] = 0x7c0903a6;                   /* mtctr 0 */
+        ptr[3] = 0x4e800420;                   /* brctr */
+        patch_size = 16;
+    } else {
+        /* patch the branch destination */
+        if (disp != 16) {
+            *ptr = 0x48000000 | (disp & 0x03fffffc); /* b disp */
+            patch_size = 4;
+        } else {
+            ptr[0] = 0x60000000; /* nop */
+            ptr[1] = 0x60000000;
+            ptr[2] = 0x60000000;
+            ptr[3] = 0x60000000;
+            patch_size = 16;
+        }
+    }
+    /* flush icache */
+    flush_icache_range(jmp_addr, jmp_addr + patch_size);
+}
+
 static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
                        const int *const_args)
 {
