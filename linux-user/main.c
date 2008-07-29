@@ -709,10 +709,10 @@ void cpu_loop(CPUARMState *env)
             /* just indicate that signals should be handled asap */
             break;
         case EXCP_PREFETCH_ABORT:
-            addr = env->cp15.c6_data;
+            addr = env->cp15.c6_insn;
             goto do_segv;
         case EXCP_DATA_ABORT:
-            addr = env->cp15.c6_insn;
+            addr = env->cp15.c6_data;
             goto do_segv;
         do_segv:
             {
