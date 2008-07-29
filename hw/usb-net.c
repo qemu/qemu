@@ -26,7 +26,7 @@
 #include "qemu-common.h"
 #include "usb.h"
 #include "net.h"
-#include "audio/sys-queue.h"
+#include "sys-queue.h"
 
 /*#define TRAFFIC_DEBUG*/
 /* Thanks to NetChip Technologies for donating this product ID.
