@@ -387,7 +387,7 @@ static inline void gen_cc_V_add_icc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_xori_tl(r_temp, r_temp, -1);
     tcg_gen_xor_tl(cpu_tmp0, src1, dst);
     tcg_gen_and_tl(r_temp, r_temp, cpu_tmp0);
-    tcg_gen_andi_tl(r_temp, r_temp, (1 << 31));
+    tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
     tcg_gen_shri_tl(r_temp, r_temp, 31 - PSR_OVF_SHIFT);
     tcg_gen_trunc_tl_i32(cpu_tmp32, r_temp);
     tcg_temp_free(r_temp);
@@ -424,7 +424,7 @@ static inline void gen_add_tv(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_xori_tl(r_temp, r_temp, -1);
     tcg_gen_xor_tl(cpu_tmp0, src1, dst);
     tcg_gen_and_tl(r_temp, r_temp, cpu_tmp0);
-    tcg_gen_andi_tl(r_temp, r_temp, (1 << 31));
+    tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
     tcg_gen_brcondi_tl(TCG_COND_EQ, r_temp, 0, l1);
     r_const = tcg_const_i32(TT_TOVF);
     tcg_gen_helper_0_1(raise_exception, r_const);
@@ -585,7 +585,7 @@ static inline void gen_cc_V_sub_icc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_xor_tl(r_temp, src1, src2);
     tcg_gen_xor_tl(cpu_tmp0, src1, dst);
     tcg_gen_and_tl(r_temp, r_temp, cpu_tmp0);
-    tcg_gen_andi_tl(r_temp, r_temp, (1 << 31));
+    tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
     tcg_gen_shri_tl(r_temp, r_temp, 31 - PSR_OVF_SHIFT);
     tcg_gen_trunc_tl_i32(cpu_tmp32, r_temp);
     tcg_gen_or_i32(cpu_psr, cpu_psr, cpu_tmp32);
@@ -620,7 +620,7 @@ static inline void gen_sub_tv(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_xor_tl(r_temp, src1, src2);
     tcg_gen_xor_tl(cpu_tmp0, src1, dst);
     tcg_gen_and_tl(r_temp, r_temp, cpu_tmp0);
-    tcg_gen_andi_tl(r_temp, r_temp, (1 << 31));
+    tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
     tcg_gen_brcondi_tl(TCG_COND_EQ, r_temp, 0, l1);
     r_const = tcg_const_i32(TT_TOVF);
     tcg_gen_helper_0_1(raise_exception, r_const);

@@ -33,7 +33,7 @@ static int i2c_bus_load(QEMUFile *f, void *opaque, int version_id)
 
     /* The bus is loaded before attached devices, so load and save the
        current device id.  Devices will check themselves as loaded.  */
-    bus->saved_address = qemu_get_be32(f);
+    bus->saved_address = (int8_t) qemu_get_byte(f);
     bus->current_dev = NULL;
 
     return 0;

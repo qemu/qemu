@@ -50,6 +50,7 @@ struct n800_s {
     struct tusb_s *usb;
     void *retu;
     void *tahvo;
+    void *nand;
 };
 
 /* GPIO pins */
@@ -101,6 +102,7 @@ struct n800_s {
 #define N8X0_TMP105_GPIO		125
 
 /* Config */
+#define BT_UART				0
 #define XLDR_LL_UART			1
 
 /* Addresses on the I2C bus 0 */
@@ -117,6 +119,12 @@ struct n800_s {
 #define N8X0_ONENAND_CS			0
 #define N8X0_USB_ASYNC_CS		1
 #define N8X0_USB_SYNC_CS		4
+
+#define N8X0_BD_ADDR			0x00, 0x1a, 0x89, 0x9e, 0x3e, 0x81
+
+typedef struct {
+    uint8_t b[6];
+} __attribute__((packed)) bdaddr_t;	/* XXX: move to BT headers */
 
 static void n800_mmc_cs_cb(void *opaque, int line, int level)
 {
@@ -135,14 +143,42 @@ static void n8x0_gpio_setup(struct n800_s *s)
     qemu_irq_lower(omap2_gpio_in_get(s->cpu->gpif, N800_BAT_COVER_GPIO)[0]);
 }
 
+#define MAEMO_CAL_HEADER(...)				\
+    'C',  'o',  'n',  'F',  0x02, 0x00, 0x04, 0x00,	\
+    __VA_ARGS__,					\
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+static const uint8_t n8x0_cal_wlan_mac[] = {
+    MAEMO_CAL_HEADER('w', 'l', 'a', 'n', '-', 'm', 'a', 'c')
+    0x1c, 0x00, 0x00, 0x00, 0x47, 0xd6, 0x69, 0xb3,
+    0x30, 0x08, 0xa0, 0x83, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x1a, 0x00, 0x00, 0x00,
+    0x89, 0x00, 0x00, 0x00, 0x9e, 0x00, 0x00, 0x00,
+    0x5d, 0x00, 0x00, 0x00, 0xc1, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t n8x0_cal_bt_id[] = {
+    MAEMO_CAL_HEADER('b', 't', '-', 'i', 'd', 0, 0, 0)
+    0x0a, 0x00, 0x00, 0x00, 0xa3, 0x4b, 0xf6, 0x96,
+    0xa8, 0xeb, 0xb2, 0x41, 0x00, 0x00, 0x00, 0x00,
+    N8X0_BD_ADDR,
+};
+
 static void n8x0_nand_setup(struct n800_s *s)
 {
+    char *otp_region;
+
     /* Either ec40xx or ec48xx are OK for the ID */
     omap_gpmc_attach(s->cpu->gpmc, N8X0_ONENAND_CS, 0, onenand_base_update,
                     onenand_base_unmap,
-                    onenand_init(0xec4800, 1,
-                            omap2_gpio_in_get(s->cpu->gpif,
-                                    N8X0_ONENAND_GPIO)[0]));
+                    (s->nand = onenand_init(0xec4800, 1,
+                                            omap2_gpio_in_get(s->cpu->gpif,
+                                                    N8X0_ONENAND_GPIO)[0])));
+    otp_region = onenand_raw_otp(s->nand);
+
+    memcpy(otp_region + 0x000, n8x0_cal_wlan_mac, sizeof(n8x0_cal_wlan_mac));
+    memcpy(otp_region + 0x800, n8x0_cal_bt_id, sizeof(n8x0_cal_bt_id));
+    /* XXX: in theory should also update the OOB for both pages */
 }
 
 static void n8x0_i2c_setup(struct n800_s *s)
@@ -1048,6 +1084,8 @@ static struct omap_partition_info_s {
     { 0, 0, 0, 0 }
 };
 
+static bdaddr_t n8x0_bd_addr = {{ N8X0_BD_ADDR }};
+
 static int n8x0_atag_setup(void *p, int model)
 {
     uint8_t *b;
@@ -1067,7 +1105,7 @@ static int n8x0_atag_setup(void *p, int model)
 #if 0
     stw_raw(w ++, OMAP_TAG_SERIAL_CONSOLE);	/* u16 tag */
     stw_raw(w ++, 4);				/* u16 len */
-    stw_raw(w ++, XLDR_LL_UART);		/* u8 console_uart */
+    stw_raw(w ++, XLDR_LL_UART + 1);		/* u8 console_uart */
     stw_raw(w ++, 115200);			/* u32 console_speed */
 #endif
 
@@ -1111,8 +1149,8 @@ static int n8x0_atag_setup(void *p, int model)
     stb_raw(b ++, N8X0_BT_WKUP_GPIO);		/* u8 bt_wakeup_gpio */
     stb_raw(b ++, N8X0_BT_HOST_WKUP_GPIO);	/* u8 host_wakeup_gpio */
     stb_raw(b ++, N8X0_BT_RESET_GPIO);		/* u8 reset_gpio */
-    stb_raw(b ++, 1);				/* u8 bt_uart */
-    memset(b, 0, 6);				/* u8 bd_addr[6] */
+    stb_raw(b ++, BT_UART + 1);			/* u8 bt_uart */
+    memcpy(b, &n8x0_bd_addr, 6);		/* u8 bd_addr[6] */
     b += 6;
     stb_raw(b ++, 0x02);			/* u8 bt_sysclk (38.4) */
     w = (void *) b;

@@ -655,3 +655,10 @@ void *onenand_init(uint32_t id, int regshift, qemu_irq irq)
 
     return s;
 }
+
+void *onenand_raw_otp(void *opaque)
+{
+    struct onenand_s *s = (struct onenand_s *) opaque;
+
+    return s->otp;
+}

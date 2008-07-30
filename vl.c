@@ -2462,21 +2462,162 @@ void cfmakeraw (struct termios *termios_p)
 #endif
 
 #if defined(__linux__) || defined(__sun__)
+
+typedef struct {
+    int fd;
+    int connected;
+    int polling;
+    int read_bytes;
+    QEMUTimer *timer;
+} PtyCharDriver;
+
+static void pty_chr_update_read_handler(CharDriverState *chr);
+static void pty_chr_state(CharDriverState *chr, int connected);
+
+static int pty_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    PtyCharDriver *s = chr->opaque;
+
+    if (!s->connected) {
+        /* guest sends data, check for (re-)connect */
+        pty_chr_update_read_handler(chr);
+        return 0;
+    }
+    return unix_write(s->fd, buf, len);
+}
+
+static int pty_chr_read_poll(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    PtyCharDriver *s = chr->opaque;
+
+    s->read_bytes = qemu_chr_can_read(chr);
+    return s->read_bytes;
+}
+
+static void pty_chr_read(void *opaque)
+{
+    CharDriverState *chr = opaque;
+    PtyCharDriver *s = chr->opaque;
+    int size, len;
+    uint8_t buf[1024];
+
+    len = sizeof(buf);
+    if (len > s->read_bytes)
+        len = s->read_bytes;
+    if (len == 0)
+        return;
+    size = read(s->fd, buf, len);
+    if ((size == -1 && errno == EIO) ||
+        (size == 0)) {
+        pty_chr_state(chr, 0);
+        return;
+    }
+    if (size > 0) {
+        pty_chr_state(chr, 1);
+        qemu_chr_read(chr, buf, size);
+    }
+}
+
+static void pty_chr_update_read_handler(CharDriverState *chr)
+{
+    PtyCharDriver *s = chr->opaque;
+
+    qemu_set_fd_handler2(s->fd, pty_chr_read_poll,
+                         pty_chr_read, NULL, chr);
+    s->polling = 1;
+    /*
+     * Short timeout here: just need wait long enougth that qemu makes
+     * it through the poll loop once.  When reconnected we want a
+     * short timeout so we notice it almost instantly.  Otherwise
+     * read() gives us -EIO instantly, making pty_chr_state() reset the
+     * timeout to the normal (much longer) poll interval before the
+     * timer triggers.
+     */
+    qemu_mod_timer(s->timer, qemu_get_clock(rt_clock) + 10);
+}
+
+static void pty_chr_state(CharDriverState *chr, int connected)
+{
+    PtyCharDriver *s = chr->opaque;
+
+    if (!connected) {
+        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+        s->connected = 0;
+        s->polling = 0;
+        /* (re-)connect poll interval for idle guests: once per second.
+         * We check more frequently in case the guests sends data to
+         * the virtual device linked to our pty. */
+        qemu_mod_timer(s->timer, qemu_get_clock(rt_clock) + 1000);
+    } else {
+        if (!s->connected)
+            qemu_chr_reset(chr);
+        s->connected = 1;
+    }
+}
+
+void pty_chr_timer(void *opaque)
+{
+    struct CharDriverState *chr = opaque;
+    PtyCharDriver *s = chr->opaque;
+
+    if (s->connected)
+        return;
+    if (s->polling) {
+        /* If we arrive here without polling being cleared due
+         * read returning -EIO, then we are (re-)connected */
+        pty_chr_state(chr, 1);
+        return;
+    }
+
+    /* Next poll ... */
+    pty_chr_update_read_handler(chr);
+}
+
+static void pty_chr_close(struct CharDriverState *chr)
+{
+    PtyCharDriver *s = chr->opaque;
+
+    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+    close(s->fd);
+    qemu_free(s);
+}
+
 static CharDriverState *qemu_chr_open_pty(void)
 {
+    CharDriverState *chr;
+    PtyCharDriver *s;
     struct termios tty;
-    int master_fd, slave_fd;
+    int slave_fd;
 
-    if (openpty(&master_fd, &slave_fd, NULL, NULL, NULL) < 0) {
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        return NULL;
+    s = qemu_mallocz(sizeof(PtyCharDriver));
+    if (!s) {
+        qemu_free(chr);
+        return NULL;
+    }
+
+    if (openpty(&s->fd, &slave_fd, NULL, NULL, NULL) < 0) {
         return NULL;
     }
 
     /* Set raw attributes on the pty. */
     cfmakeraw(&tty);
     tcsetattr(slave_fd, TCSAFLUSH, &tty);
+    close(slave_fd);
 
-    fprintf(stderr, "char device redirected to %s\n", ptsname(master_fd));
-    return qemu_chr_open_fd(master_fd, master_fd);
+    fprintf(stderr, "char device redirected to %s\n", ptsname(s->fd));
+
+    chr->opaque = s;
+    chr->chr_write = pty_chr_write;
+    chr->chr_update_read_handler = pty_chr_update_read_handler;
+    chr->chr_close = pty_chr_close;
+
+    s->timer = qemu_new_timer(rt_clock, pty_chr_timer, chr);
+
+    return chr;
 }
 
 static void tty_serial_init(int fd, int speed,
@@ -4995,26 +5136,12 @@ static int check_params(char *buf, int buf_size,
     return 0;
 }
 
-
-static int net_client_init(const char *str)
+static int net_client_init(const char *device, const char *p)
 {
-    const char *p;
-    char *q;
-    char device[64];
     char buf[1024];
     int vlan_id, ret;
     VLANState *vlan;
 
-    p = str;
-    q = device;
-    while (*p != '\0' && *p != ',') {
-        if ((q - device) < sizeof(device) - 1)
-            *q++ = *p;
-        p++;
-    }
-    *q = '\0';
-    if (*p == ',')
-        p++;
     vlan_id = 0;
     if (get_param_value(buf, sizeof(buf), "vlan", p)) {
         vlan_id = strtol(buf, NULL, 0);
@@ -5157,6 +5284,26 @@ static int net_client_init(const char *str)
     }
 
     return ret;
+}
+
+static int net_client_parse(const char *str)
+{
+    const char *p;
+    char *q;
+    char device[64];
+
+    p = str;
+    q = device;
+    while (*p != '\0' && *p != ',') {
+        if ((q - device) < sizeof(device) - 1)
+            *q++ = *p;
+        p++;
+    }
+    *q = '\0';
+    if (*p == ',')
+        p++;
+
+    return net_client_init(device, p);
 }
 
 void do_info_network(void)
@@ -5591,11 +5738,12 @@ static int usb_device_add(const char *devname)
         dev = usb_baum_init();
 #endif
     } else if (strstart(devname, "net:", &p)) {
-        int nicidx = strtoul(p, NULL, 0);
+        int nic = nb_nics;
 
-        if (nicidx >= nb_nics || strcmp(nd_table[nicidx].model, "usb"))
+        if (net_client_init("nic", p) < 0)
             return -1;
-        dev = usb_net_init(&nd_table[nicidx]);
+        nd_table[nic].model = "usb";
+        dev = usb_net_init(&nd_table[nic]);
     } else {
         return -1;
     }
@@ -8792,16 +8940,14 @@ int main(int argc, char **argv)
     }
 
     for(i = 0;i < nb_net_clients; i++) {
-        if (net_client_init(net_clients[i]) < 0)
+        if (net_client_parse(net_clients[i]) < 0)
             exit(1);
     }
     for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
         if (vlan->nb_guest_devs == 0 && vlan->nb_host_devs == 0)
             continue;
-        if (vlan->nb_guest_devs == 0) {
-            fprintf(stderr, "Invalid vlan (%d) with no nics\n", vlan->id);
-            exit(1);
-        }
+        if (vlan->nb_guest_devs == 0)
+            fprintf(stderr, "Warning: vlan %d with no nics\n", vlan->id);
         if (vlan->nb_host_devs == 0)
             fprintf(stderr,
                     "Warning: vlan %d is not connected to host network\n",

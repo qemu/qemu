@@ -501,7 +501,7 @@ endif #CONFIG_DARWIN_USER
 # System emulator target
 ifndef CONFIG_USER_ONLY
 
-OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o
+OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o net-checksum.o
 ifdef CONFIG_WIN32
 OBJS+=block-raw-win32.o
 else

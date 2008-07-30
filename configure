@@ -271,7 +271,7 @@ for opt do
   ;;
   --fmod-inc=*) fmod_inc="$optarg"
   ;;
-  --audio-card-list=*) audio_card_list="$optarg"
+  --audio-card-list=*) audio_card_list=`echo "$optarg" | sed -e 's/,/ /g'`
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
@@ -788,6 +788,7 @@ EOF
     fi
 }
 
+audio_drv_list=`echo "$audio_drv_list" | sed -e 's/,/ /g'`
 for drv in $audio_drv_list; do
     case $drv in
     alsa)
