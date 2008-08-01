@@ -8381,9 +8381,6 @@ int main(int argc, char **argv)
                 }
                 break;
             case QEMU_OPTION_nographic:
-                serial_devices[0] = "stdio";
-                parallel_devices[0] = "null";
-                monitor_device = "stdio";
                 nographic = 1;
                 break;
 #ifdef CONFIG_CURSES
@@ -8779,6 +8776,15 @@ int main(int argc, char **argv)
                 break;
             }
         }
+    }
+
+    if (nographic) {
+       if (serial_device_index == 0)
+           serial_devices[0] = "stdio";
+       if (parallel_device_index == 0)
+           parallel_devices[0] = "null";
+       if (strncmp(monitor_device, "vc", 2) == 0)
+           monitor_device = "stdio";
     }
 
 #ifndef _WIN32
