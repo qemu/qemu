@@ -208,6 +208,7 @@ static int img_create(int argc, char **argv)
     uint64_t size;
     const char *p;
     BlockDriver *drv;
+    BlockDriverState *bs;
 
     flags = 0;
     for(;;) {
@@ -237,7 +238,6 @@ static int img_create(int argc, char **argv)
     filename = argv[optind++];
     size = 0;
     if (base_filename) {
-        BlockDriverState *bs;
         bs = bdrv_new_open(base_filename, NULL);
         bdrv_get_geometry(bs, &size);
         size *= 512;
@@ -279,6 +279,9 @@ static int img_create(int argc, char **argv)
             error("Error while formatting");
         }
     }
+    /* to set password */
+    bs = bdrv_new_open(filename, NULL);
+    bdrv_delete(bs);
     return 0;
 }
 
