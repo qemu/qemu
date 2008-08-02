@@ -22,6 +22,9 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#ifdef __sun__
+#include <sys/ioccom.h>
+#endif
 #include <ctype.h>
 #include <inttypes.h>
 #include <sys/socket.h>
