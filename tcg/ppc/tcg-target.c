@@ -25,7 +25,7 @@
 static uint8_t *tb_ret_addr;
 
 #ifdef __APPLE__
-#define LINKAGE_AREA_SIZE 12
+#define LINKAGE_AREA_SIZE 24
 #define BACK_CHAIN_OFFSET 8
 #else
 #define LINKAGE_AREA_SIZE 8
