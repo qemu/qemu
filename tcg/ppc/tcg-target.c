@@ -24,6 +24,14 @@
 
 static uint8_t *tb_ret_addr;
 
+#ifdef __APPLE__
+#define LINKAGE_AREA_SIZE 12
+#define BACK_CHAIN_OFFSET 8
+#else
+#define LINKAGE_AREA_SIZE 8
+#define BACK_CHAIN_OFFSET 4
+#endif
+
 #define FAST_PATH
 #if TARGET_PHYS_ADDR_BITS <= 32
 #define ADDEND_OFFSET 0
@@ -81,6 +89,9 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R29,
     TCG_REG_R30,
     TCG_REG_R31,
+#ifdef __APPLE__
+    TCG_REG_R2,
+#endif
     TCG_REG_R3,
     TCG_REG_R4,
     TCG_REG_R5,
@@ -89,7 +100,9 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R8,
     TCG_REG_R9,
     TCG_REG_R10,
+#ifndef __APPLE__
     TCG_REG_R11,
+#endif
     TCG_REG_R12,
     TCG_REG_R13,
     TCG_REG_R0,
@@ -118,6 +131,10 @@ static const int tcg_target_call_oarg_regs[2] = {
 };
 
 static const int tcg_target_callee_save_regs[] = {
+#ifdef __APPLE__
+    TCG_REG_R11,
+    TCG_REG_R13,
+#endif
     TCG_REG_R14,
     TCG_REG_R15,
     TCG_REG_R16,
@@ -710,7 +727,11 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #else
     tcg_out_mov (s, 3, addr_reg2);
     tcg_out_mov (s, 4, addr_reg);
+#ifdef TCG_TARGET_CALL_ALIGN_ARGS
     ir = 5;
+#else
+    ir = 4;
+#endif
 #endif
 
     switch (opc) {
@@ -734,9 +755,11 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
         tcg_out_mov (s, ir, data_reg);
         break;
     case 3:
-        tcg_out_mov (s, 5, data_reg2);
-        tcg_out_mov (s, 6, data_reg);
-        ir = 6;
+#ifdef TCG_TARGET_CALL_ALIGN_ARGS
+        ir = 5;
+#endif
+        tcg_out_mov (s, ir++, data_reg2);
+        tcg_out_mov (s, ir, data_reg);
         break;
     }
     ir++;
@@ -806,8 +829,7 @@ void tcg_target_qemu_prologue (TCGContext *s)
     int i, frame_size;
 
     frame_size = 0
-        + 4                     /* back chain */
-        + 4                     /* LR */
+        + LINKAGE_AREA_SIZE
         + TCG_STATIC_CALL_ARGS_SIZE
         + ARRAY_SIZE (tcg_target_callee_save_regs) * 4
         ;
@@ -819,10 +841,10 @@ void tcg_target_qemu_prologue (TCGContext *s)
         tcg_out32 (s, (STW
                        | RS (tcg_target_callee_save_regs[i])
                        | RA (1)
-                       | (i * 4 + 8 + TCG_STATIC_CALL_ARGS_SIZE)
+                       | (i * 4 + LINKAGE_AREA_SIZE + TCG_STATIC_CALL_ARGS_SIZE)
                        )
             );
-    tcg_out32 (s, STW | RS (0) | RA (1) | (frame_size + 4));
+    tcg_out32 (s, STW | RS (0) | RA (1) | (frame_size + BACK_CHAIN_OFFSET));
 
     tcg_out32 (s, MTSPR | RS (3) | CTR);
     tcg_out32 (s, BCCTR | BO_ALWAYS);
@@ -832,10 +854,10 @@ void tcg_target_qemu_prologue (TCGContext *s)
         tcg_out32 (s, (LWZ
                        | RT (tcg_target_callee_save_regs[i])
                        | RA (1)
-                       | (i * 4 + 8 + TCG_STATIC_CALL_ARGS_SIZE)
+                       | (i * 4 + LINKAGE_AREA_SIZE + TCG_STATIC_CALL_ARGS_SIZE)
                        )
             );
-    tcg_out32 (s, LWZ | RT (0) | RA (1) | (frame_size + 4));
+    tcg_out32 (s, LWZ | RT (0) | RA (1) | (frame_size + BACK_CHAIN_OFFSET));
     tcg_out32 (s, MTSPR | RS (0) | LR);
     tcg_out32 (s, ADDI | RT (1) | RA (1) | frame_size);
     tcg_out32 (s, BCLR | BO_ALWAYS);
@@ -1438,6 +1460,9 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, 0xffffffff);
     tcg_regset_set32(tcg_target_call_clobber_regs, 0,
                      (1 << TCG_REG_R0) |
+#ifdef __APPLE__
+                     (1 << TCG_REG_R2) |
+#endif
                      (1 << TCG_REG_R3) |
                      (1 << TCG_REG_R4) |
                      (1 << TCG_REG_R5) |
@@ -1453,7 +1478,9 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R1);
+#ifndef __APPLE__
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R2);
+#endif
 
     tcg_add_target_add_op_defs(ppc_op_defs);
 }

@@ -65,8 +65,12 @@ enum {
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_R1
 #define TCG_TARGET_STACK_ALIGN 16
-#define TCG_TARGET_CALL_STACK_OFFSET 8
+#ifdef __APPLE__
+#define TCG_TARGET_CALL_STACK_OFFSET 12
+#else
 #define TCG_TARGET_CALL_ALIGN_ARGS 1
+#define TCG_TARGET_CALL_STACK_OFFSET 8
+#endif
 
 /* optional instructions */
 #define TCG_TARGET_HAS_neg_i32
