@@ -501,7 +501,7 @@ static void lsi_queue_command(LSIState *s)
     DPRINTF("Queueing tag=0x%x\n", s->current_tag);
     if (s->queue_len == s->active_commands) {
         s->queue_len++;
-        s->queue = realloc(s->queue, s->queue_len * sizeof(lsi_queue));
+        s->queue = qemu_realloc(s->queue, s->queue_len * sizeof(lsi_queue));
     }
     p = &s->queue[s->active_commands++];
     p->tag = s->current_tag;
