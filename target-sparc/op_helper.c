@@ -234,7 +234,10 @@ void helper_faligndata(void)
     uint64_t tmp;
 
     tmp = (*((uint64_t *)&DT0)) << ((env->gsr & 7) * 8);
-    tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
+    /* on many architectures a shift of 64 does nothing */
+    if ((env->gsr & 7) != 0) {
+        tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
+    }
     *((uint64_t *)&DT0) = tmp;
 }
 
