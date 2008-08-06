@@ -1641,13 +1641,11 @@ static inline void gen_clear_float_exceptions(void)
 #ifdef TARGET_SPARC64
 static inline TCGv gen_get_asi(int insn, TCGv r_addr)
 {
-    int asi, offset;
+    int asi;
     TCGv r_asi;
 
     if (IS_IMM) {
         r_asi = tcg_temp_new(TCG_TYPE_I32);
-        offset = GET_FIELD(insn, 25, 31);
-        tcg_gen_addi_tl(r_addr, r_addr, offset);
         tcg_gen_ld_i32(r_asi, cpu_env, offsetof(CPUSPARCState, asi));
     } else {
         asi = GET_FIELD(insn, 19, 26);
