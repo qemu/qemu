@@ -2721,6 +2721,37 @@ static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
                 tcsendbreak(s->fd_in, 1);
         }
         break;
+    case CHR_IOCTL_SERIAL_GET_TIOCM:
+        {
+            int sarg = 0;
+            int *targ = (int *)arg;
+            ioctl(s->fd_in, TIOCMGET, &sarg);
+            *targ = 0;
+            if (sarg | TIOCM_CTS)
+                *targ |= CHR_TIOCM_CTS;
+            if (sarg | TIOCM_CAR)
+                *targ |= CHR_TIOCM_CAR;
+            if (sarg | TIOCM_DSR)
+                *targ |= CHR_TIOCM_DSR;
+            if (sarg | TIOCM_RI)
+                *targ |= CHR_TIOCM_RI;
+            if (sarg | TIOCM_DTR)
+                *targ |= CHR_TIOCM_DTR;
+            if (sarg | TIOCM_RTS)
+                *targ |= CHR_TIOCM_RTS;
+        }
+        break;
+    case CHR_IOCTL_SERIAL_SET_TIOCM:
+        {
+            int sarg = *(int *)arg;
+            int targ = 0;
+            if (sarg | CHR_TIOCM_DTR)
+                targ |= TIOCM_DTR;
+            if (sarg | CHR_TIOCM_RTS)
+                targ |= TIOCM_RTS;
+            ioctl(s->fd_in, TIOCMSET, &targ);
+        }
+        break;
     default:
         return -ENOTSUP;
     }

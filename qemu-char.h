@@ -28,6 +28,16 @@ typedef struct {
 #define CHR_IOCTL_PP_EPP_WRITE_ADDR  10
 #define CHR_IOCTL_PP_EPP_WRITE       11
 
+#define CHR_IOCTL_SERIAL_SET_TIOCM   12
+#define CHR_IOCTL_SERIAL_GET_TIOCM   13
+
+#define CHR_TIOCM_CTS	0x020
+#define CHR_TIOCM_CAR	0x040
+#define CHR_TIOCM_DSR	0x100
+#define CHR_TIOCM_RI	0x080
+#define CHR_TIOCM_DTR	0x002
+#define CHR_TIOCM_RTS	0x004
+
 typedef void IOEventHandler(void *opaque, int event);
 
 struct CharDriverState {
