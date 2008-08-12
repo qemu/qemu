@@ -1238,73 +1238,73 @@ static void sbook_init(ram_addr_t RAM_size, int vga_ram_size,
 }
 
 QEMUMachine ss5_machine = {
-    "SS-5",
-    "Sun4m platform, SPARCstation 5",
-    ss5_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SS-5",
+    .desc = "Sun4m platform, SPARCstation 5",
+    .init = ss5_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss10_machine = {
-    "SS-10",
-    "Sun4m platform, SPARCstation 10",
-    ss10_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SS-10",
+    .desc = "Sun4m platform, SPARCstation 10",
+    .init = ss10_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss600mp_machine = {
-    "SS-600MP",
-    "Sun4m platform, SPARCserver 600MP",
-    ss600mp_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SS-600MP",
+    .desc = "Sun4m platform, SPARCserver 600MP",
+    .init = ss600mp_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss20_machine = {
-    "SS-20",
-    "Sun4m platform, SPARCstation 20",
-    ss20_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SS-20",
+    .desc = "Sun4m platform, SPARCstation 20",
+    .init = ss20_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss2_machine = {
-    "SS-2",
-    "Sun4c platform, SPARCstation 2",
-    ss2_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SS-2",
+    .desc = "Sun4c platform, SPARCstation 2",
+    .init = ss2_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine voyager_machine = {
-    "Voyager",
-    "Sun4m platform, SPARCstation Voyager",
-    vger_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "Voyager",
+    .desc = "Sun4m platform, SPARCstation Voyager",
+    .init = vger_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss_lx_machine = {
-    "LX",
-    "Sun4m platform, SPARCstation LX",
-    ss_lx_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "LX",
+    .desc = "Sun4m platform, SPARCstation LX",
+    .init = ss_lx_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss4_machine = {
-    "SS-4",
-    "Sun4m platform, SPARCstation 4",
-    ss4_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SS-4",
+    .desc = "Sun4m platform, SPARCstation 4",
+    .init = ss4_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine scls_machine = {
-    "SPARCClassic",
-    "Sun4m platform, SPARCClassic",
-    scls_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SPARCClassic",
+    .desc = "Sun4m platform, SPARCClassic",
+    .init = scls_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine sbook_machine = {
-    "SPARCbook",
-    "Sun4m platform, SPARCbook",
-    sbook_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SPARCbook",
+    .desc = "Sun4m platform, SPARCbook",
+    .init = sbook_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 static const struct sun4d_hwdef sun4d_hwdefs[] = {
@@ -1538,15 +1538,15 @@ static void ss2000_init(ram_addr_t RAM_size, int vga_ram_size,
 }
 
 QEMUMachine ss1000_machine = {
-    "SS-1000",
-    "Sun4d platform, SPARCserver 1000",
-    ss1000_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SS-1000",
+    .desc = "Sun4d platform, SPARCserver 1000",
+    .init = ss1000_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
 
 QEMUMachine ss2000_machine = {
-    "SS-2000",
-    "Sun4d platform, SPARCcenter 2000",
-    ss2000_init,
-    PROM_SIZE_MAX + TCX_SIZE,
+    .name = "SS-2000",
+    .desc = "Sun4d platform, SPARCcenter 2000",
+    .init = ss2000_init,
+    .ram_require = PROM_SIZE_MAX + TCX_SIZE,
 };
