@@ -1242,6 +1242,7 @@ QEMUMachine ss5_machine = {
     .desc = "Sun4m platform, SPARCstation 5",
     .init = ss5_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine ss10_machine = {
@@ -1249,6 +1250,7 @@ QEMUMachine ss10_machine = {
     .desc = "Sun4m platform, SPARCstation 10",
     .init = ss10_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine ss600mp_machine = {
@@ -1256,6 +1258,7 @@ QEMUMachine ss600mp_machine = {
     .desc = "Sun4m platform, SPARCserver 600MP",
     .init = ss600mp_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine ss20_machine = {
@@ -1263,6 +1266,7 @@ QEMUMachine ss20_machine = {
     .desc = "Sun4m platform, SPARCstation 20",
     .init = ss20_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine ss2_machine = {
@@ -1270,6 +1274,7 @@ QEMUMachine ss2_machine = {
     .desc = "Sun4c platform, SPARCstation 2",
     .init = ss2_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine voyager_machine = {
@@ -1277,6 +1282,7 @@ QEMUMachine voyager_machine = {
     .desc = "Sun4m platform, SPARCstation Voyager",
     .init = vger_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine ss_lx_machine = {
@@ -1284,6 +1290,7 @@ QEMUMachine ss_lx_machine = {
     .desc = "Sun4m platform, SPARCstation LX",
     .init = ss_lx_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine ss4_machine = {
@@ -1291,6 +1298,7 @@ QEMUMachine ss4_machine = {
     .desc = "Sun4m platform, SPARCstation 4",
     .init = ss4_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine scls_machine = {
@@ -1298,6 +1306,7 @@ QEMUMachine scls_machine = {
     .desc = "Sun4m platform, SPARCClassic",
     .init = scls_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine sbook_machine = {
@@ -1305,6 +1314,7 @@ QEMUMachine sbook_machine = {
     .desc = "Sun4m platform, SPARCbook",
     .init = sbook_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 static const struct sun4d_hwdef sun4d_hwdefs[] = {
@@ -1542,6 +1552,7 @@ QEMUMachine ss1000_machine = {
     .desc = "Sun4d platform, SPARCserver 1000",
     .init = ss1000_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine ss2000_machine = {
@@ -1549,4 +1560,5 @@ QEMUMachine ss2000_machine = {
     .desc = "Sun4d platform, SPARCcenter 2000",
     .init = ss2000_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
+    .nodisk_ok = 1,
 };

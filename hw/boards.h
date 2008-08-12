@@ -16,6 +16,7 @@ typedef struct QEMUMachine {
     QEMUMachineInitFunc *init;
 #define RAMSIZE_FIXED	(1 << 0)
     ram_addr_t ram_require;
+    int nodisk_ok;
     struct QEMUMachine *next;
 } QEMUMachine;
 

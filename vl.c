@@ -8879,9 +8879,8 @@ int main(int argc, char **argv)
     linux_boot = (kernel_filename != NULL);
     net_boot = (boot_devices_bitmap >> ('n' - 'a')) & 0xF;
 
-    /* XXX: this should not be: some embedded targets just have flash */
     if (!linux_boot && net_boot == 0 &&
-        nb_drives_opt == 0)
+        !machine->nodisk_ok && nb_drives_opt == 0)
         help(1);
 
     if (!linux_boot && *kernel_cmdline != '\0') {
