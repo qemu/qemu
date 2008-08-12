@@ -189,11 +189,6 @@ static void serial_update_irq(SerialState *s)
 {
     uint8_t tmp_iir = UART_IIR_NO_INT;
 
-    if (!s->ier) {
-        qemu_irq_lower(s->irq);
-        return;
-    }
-
     if ((s->ier & UART_IER_RLSI) && (s->lsr & UART_LSR_INT_ANY)) {
         tmp_iir = UART_IIR_RLSI;
     } else if (s->timeout_ipending) {
