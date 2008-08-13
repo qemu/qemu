@@ -47,9 +47,10 @@ do { printf("usb-serial: " fmt , ##args); } while (0)
 
 /* SET_MDM_CTRL */
 
-#define FTDI_MDM_CTRL	3
 #define FTDI_DTR	1
+#define FTDI_SET_DTR	(FTDI_DTR << 8)
 #define FTDI_RTS	2
+#define FTDI_SET_RTS	(FTDI_RTS << 8)
 
 /* SET_FLOW_CTRL */
 
@@ -99,7 +100,6 @@ typedef struct {
     uint8_t event_chr;
     uint8_t error_chr;
     uint8_t event_trigger;
-    uint8_t lines;
     QEMUSerialSetParams params;
     int latency;        /* ms */
     CharDriverState *cs;
@@ -178,7 +178,6 @@ static void usb_serial_reset(USBSerialState *s)
     s->recv_ptr = 0;
     s->recv_used = 0;
     /* TODO: purge in char driver */
-    s->lines &= ~(FTDI_DTR|FTDI_RTS);
 }
 
 static void usb_serial_handle_reset(USBDevice *dev)
@@ -189,6 +188,27 @@ static void usb_serial_handle_reset(USBDevice *dev)
 
     usb_serial_reset(s);
     /* TODO: Reset char device, send BREAK? */
+}
+
+static uint8_t usb_get_modem_lines(USBSerialState *s)
+{
+    int flags;
+    uint8_t ret;
+
+    if (qemu_chr_ioctl(s->cs, CHR_IOCTL_SERIAL_GET_TIOCM, &flags) == -ENOTSUP)
+        return FTDI_CTS|FTDI_DSR|FTDI_RLSD;
+
+    ret = 0;
+    if (flags & CHR_TIOCM_CTS)
+        ret |= FTDI_CTS;
+    if (flags & CHR_TIOCM_DSR)
+        ret |= FTDI_DSR;
+    if (flags & CHR_TIOCM_RI)
+        ret |= FTDI_RI;
+    if (flags & CHR_TIOCM_CAR)
+        ret |= FTDI_RLSD;
+
+    return ret;
 }
 
 static int usb_serial_handle_control(USBDevice *dev, int request, int value,
@@ -306,8 +326,24 @@ static int usb_serial_handle_control(USBDevice *dev, int request, int value,
         }
         break;
     case DeviceOutVendor | FTDI_SET_MDM_CTRL:
-        s->lines = value & FTDI_MDM_CTRL;
+    {
+        static int flags;
+        qemu_chr_ioctl(s->cs,CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
+        if (value & FTDI_SET_RTS) {
+            if (value & FTDI_RTS)
+                flags |= CHR_TIOCM_RTS;
+            else
+                flags &= ~CHR_TIOCM_RTS;
+        }
+        if (value & FTDI_SET_DTR) {
+            if (value & FTDI_DTR)
+                flags |= CHR_TIOCM_DTR;
+            else
+                flags &= ~CHR_TIOCM_DTR;
+        }
+        qemu_chr_ioctl(s->cs,CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
         break;
+    }
     case DeviceOutVendor | FTDI_SET_FLOW_CTRL:
         /* TODO: ioctl */
         break;
@@ -357,9 +393,9 @@ static int usb_serial_handle_control(USBDevice *dev, int request, int value,
         /* TODO: TX ON/OFF */
         break;
     case DeviceInVendor | FTDI_GET_MDM_ST:
-        /* TODO: return modem status */
-        data[0] = 0;
-        ret = 1;
+        data[0] = usb_get_modem_lines(s) | 1;
+        data[1] = 0;
+        ret = 2;
         break;
     case DeviceOutVendor | FTDI_SET_EVENT_CHR:
         /* TODO: handle it */
@@ -409,8 +445,8 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
             ret = USB_RET_NAK;
             break;
         }
-        /* TODO: Report serial line status */
-        *data++ = 0;
+        *data++ = usb_get_modem_lines(s) | 1;
+        /* We do not have the uart details */
         *data++ = 0;
         len -= 2;
         if (len > s->recv_used)
