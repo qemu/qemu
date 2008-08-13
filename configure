@@ -828,6 +828,10 @@ for drv in $audio_drv_list; do
     }
     ;;
 
+    oss|sdl|core|wav|dsound)
+    # XXX: Probes for CoreAudio, DirectSound, SDL(?)
+    ;;
+
     esac
 done
 
