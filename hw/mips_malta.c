@@ -946,8 +946,9 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine mips_malta_machine = {
-    "malta",
-    "MIPS Malta Core LV",
-    mips_malta_init,
-    VGA_RAM_SIZE + BIOS_SIZE,
+    .name = "malta",
+    .desc = "MIPS Malta Core LV",
+    .init = mips_malta_init,
+    .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
+    .nodisk_ok = 1,
 };

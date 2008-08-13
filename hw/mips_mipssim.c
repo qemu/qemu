@@ -191,8 +191,9 @@ mips_mipssim_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine mips_mipssim_machine = {
-    "mipssim",
-    "MIPS MIPSsim platform",
-    mips_mipssim_init,
-    BIOS_SIZE + VGA_RAM_SIZE /* unused */,
+    .name = "mipssim",
+    .desc = "MIPS MIPSsim platform",
+    .init = mips_mipssim_init,
+    .ram_require = BIOS_SIZE + VGA_RAM_SIZE /* unused */,
+    .nodisk_ok = 1,
 };

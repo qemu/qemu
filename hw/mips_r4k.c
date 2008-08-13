@@ -283,8 +283,9 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine mips_machine = {
-    "mips",
-    "mips r4k platform",
-    mips_r4k_init,
-    VGA_RAM_SIZE + BIOS_SIZE,
+    .name = "mips",
+    .desc = "mips r4k platform",
+    .init = mips_r4k_init,
+    .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
+    .nodisk_ok = 1,
 };
