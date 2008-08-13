@@ -794,6 +794,8 @@ static const KeyDef key_defs[] = {
 
     { 0x38, "alt" },
     { 0xb8, "alt_r" },
+    { 0x64, "altgr" },
+    { 0xe4, "altgr_r" },
     { 0x1d, "ctrl" },
     { 0x9d, "ctrl_r" },
 
