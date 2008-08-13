@@ -125,11 +125,11 @@ dmg_close:
 	        goto dmg_close;
 	    chunk_count = (count-204)/40;
 	    new_size = sizeof(uint64_t) * (s->n_chunks + chunk_count);
-	    s->types = realloc(s->types, new_size/2);
-	    s->offsets = realloc(s->offsets, new_size);
-	    s->lengths = realloc(s->lengths, new_size);
-	    s->sectors = realloc(s->sectors, new_size);
-	    s->sectorcounts = realloc(s->sectorcounts, new_size);
+	    s->types = qemu_realloc(s->types, new_size/2);
+	    s->offsets = qemu_realloc(s->offsets, new_size);
+	    s->lengths = qemu_realloc(s->lengths, new_size);
+	    s->sectors = qemu_realloc(s->sectors, new_size);
+	    s->sectorcounts = qemu_realloc(s->sectorcounts, new_size);
 
 	    for(i=s->n_chunks;i<s->n_chunks+chunk_count;i++) {
 		s->types[i] = read_uint32(s->fd);

@@ -50,7 +50,7 @@ static int fifo_size;
 void transfer_fifo2fifo(struct soc_dma_ch_s *ch)
 {
     if (ch->bytes > fifo_size)
-        fifo_buf = realloc(fifo_buf, fifo_size = ch->bytes);
+        fifo_buf = qemu_realloc(fifo_buf, fifo_size = ch->bytes);
 
     /* Implement as transfer_fifo2linear + transfer_linear2fifo.  */
     ch->io_fn[0](ch->io_opaque[0], fifo_buf, ch->bytes);
@@ -262,7 +262,7 @@ void soc_dma_port_add_fifo(struct soc_dma_s *soc, target_phys_addr_t virt_base,
     struct memmap_entry_s *entry;
     struct dma_s *dma = (struct dma_s *) soc;
 
-    dma->memmap = realloc(dma->memmap, sizeof(*entry) *
+    dma->memmap = qemu_realloc(dma->memmap, sizeof(*entry) *
                     (dma->memmap_size + 1));
     entry = soc_dma_lookup(dma, virt_base);
 
@@ -314,7 +314,7 @@ void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
     struct memmap_entry_s *entry;
     struct dma_s *dma = (struct dma_s *) soc;
 
-    dma->memmap = realloc(dma->memmap, sizeof(*entry) *
+    dma->memmap = qemu_realloc(dma->memmap, sizeof(*entry) *
                     (dma->memmap_size + 1));
     entry = soc_dma_lookup(dma, virt_base);
 

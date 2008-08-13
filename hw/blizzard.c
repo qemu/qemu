@@ -192,7 +192,7 @@ static int blizzard_transfer_setup(struct blizzard_s *s)
     s->data.len = s->bpp * s->data.dx * s->data.dy;
     s->data.pitch = s->data.dx;
     if (s->data.len > s->data.buflen) {
-        s->data.buf = realloc(s->data.buf, s->data.len);
+        s->data.buf = qemu_realloc(s->data.buf, s->data.len);
         s->data.buflen = s->data.len;
     }
     s->data.ptr = s->data.buf;

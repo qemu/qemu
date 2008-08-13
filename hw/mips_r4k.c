@@ -318,16 +318,18 @@ void mipsel_r4k_init (int ram_size, int vga_ram_size, const char *boot_device,
 
 static QEMUMachine mips_machines[] = {
   {
-    "mips",
-    "MIPS r4k platform",
-    mips_r4k_init,
-    VGA_RAM_SIZE + BIOS_SIZE,
+    .name = "mips",
+    .desc = "MIPS r4k platform",
+    .init = mips_r4k_init,
+    .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
+    .nodisk_ok = 1,
   },
   {
-    "mipsel",
-    "MIPS r4k platform (little endian)",
-    mipsel_r4k_init,
-    VGA_RAM_SIZE + BIOS_SIZE,
+    .name = "mipsel",
+    .desc = "MIPS r4k platform (little endian)",
+    .init = mipsel_r4k_init,
+    .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
+    .nodisk_ok = 1,
   },
 };
 

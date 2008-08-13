@@ -1642,13 +1642,11 @@ static inline void gen_clear_float_exceptions(void)
 #ifdef TARGET_SPARC64
 static inline TCGv gen_get_asi(int insn, TCGv r_addr)
 {
-    int asi, offset;
+    int asi;
     TCGv r_asi;
 
     if (IS_IMM) {
         r_asi = tcg_temp_new(TCG_TYPE_I32);
-        offset = GET_FIELD(insn, 25, 31);
-        tcg_gen_addi_tl(r_addr, r_addr, offset);
         tcg_gen_ld_i32(r_asi, cpu_env, offsetof(CPUSPARCState, asi));
     } else {
         asi = GET_FIELD(insn, 19, 26);
@@ -2923,20 +2921,17 @@ static void disas_sparc_insn(DisasContext * dc)
                     if (insn & (1 << 12)) {
                         tcg_gen_shli_i64(cpu_dst, cpu_src1, rs2 & 0x3f);
                     } else {
-                        tcg_gen_andi_i64(cpu_dst, cpu_src1, 0xffffffffULL);
-                        tcg_gen_shli_i64(cpu_dst, cpu_dst, rs2 & 0x1f);
+                        tcg_gen_shli_i64(cpu_dst, cpu_src1, rs2 & 0x1f);
                     }
                 } else {                /* register */
                     rs2 = GET_FIELD(insn, 27, 31);
                     gen_movl_reg_TN(rs2, cpu_src2);
                     if (insn & (1 << 12)) {
                         tcg_gen_andi_i64(cpu_tmp0, cpu_src2, 0x3f);
-                        tcg_gen_shl_i64(cpu_dst, cpu_src1, cpu_tmp0);
                     } else {
                         tcg_gen_andi_i64(cpu_tmp0, cpu_src2, 0x1f);
-                        tcg_gen_andi_i64(cpu_dst, cpu_src1, 0xffffffffULL);
-                        tcg_gen_shl_i64(cpu_dst, cpu_dst, cpu_tmp0);
                     }
+                    tcg_gen_shl_i64(cpu_dst, cpu_src1, cpu_tmp0);
                 }
                 gen_movl_TN_reg(rd, cpu_dst);
             } else if (xop == 0x26) { /* srl, V9 srlx */
@@ -2982,6 +2977,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     } else {
                         tcg_gen_andi_i64(cpu_tmp0, cpu_src2, 0x1f);
                         tcg_gen_andi_i64(cpu_dst, cpu_src1, 0xffffffffULL);
+                        tcg_gen_ext_i32_i64(cpu_dst, cpu_dst);
                         tcg_gen_sar_i64(cpu_dst, cpu_dst, cpu_tmp0);
                     }
                 }

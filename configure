@@ -742,11 +742,18 @@ fi # -z $sdl
 ##########################################
 # VNC TLS detection
 if test "$vnc_tls" = "yes" ; then
-  `pkg-config gnutls` || vnc_tls="no"
-fi
-if test "$vnc_tls" = "yes" ; then
-  vnc_tls_cflags=`pkg-config --cflags gnutls`
-  vnc_tls_libs=`pkg-config --libs gnutls`
+cat > $TMPC <<EOF
+#include <gnutls/gnutls.h>
+int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
+EOF
+    vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
+    vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
+    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $vnc_tls_cflags $TMPC \
+           $vnc_tls_libs 2> /dev/null ; then
+	:
+    else
+	vnc_tls="no"
+    fi
 fi
 
 ##########################################

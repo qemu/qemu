@@ -31,6 +31,10 @@ void cpu_save(QEMUFile *f, void *opaque)
     int i;
     uint32_t tmp;
 
+    // if env->cwp == env->nwindows - 1, this will set the ins of the last
+    // window as the outs of the first window
+    cpu_set_cwp(env, env->cwp);
+
     for(i = 0; i < 8; i++)
         qemu_put_betls(f, &env->gregs[i]);
     qemu_put_be32s(f, &env->nwindows);
@@ -54,6 +58,9 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, tmp);
     qemu_put_betls(f, &env->fsr);
     qemu_put_betls(f, &env->tbr);
+    tmp = env->interrupt_index;
+    qemu_put_be32(f, tmp);
+    qemu_put_be32s(f, &env->pil_in);
 #ifndef TARGET_SPARC64
     qemu_put_be32s(f, &env->wim);
     /* MMU */
@@ -110,7 +117,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be64s(f, &env->hver);
     qemu_put_be64s(f, &env->hstick_cmpr);
     qemu_put_be64s(f, &env->ssr);
-    qemu_get_ptimer(f, env->hstick);
+    qemu_put_ptimer(f, env->hstick);
 #endif
 }
 
@@ -147,6 +154,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     PUT_PSR(env, tmp);
     qemu_get_betls(f, &env->fsr);
     qemu_get_betls(f, &env->tbr);
+    tmp = qemu_get_be32(f);
+    env->interrupt_index = tmp;
+    qemu_get_be32s(f, &env->pil_in);
 #ifndef TARGET_SPARC64
     qemu_get_be32s(f, &env->wim);
     /* MMU */

@@ -38,6 +38,11 @@ void *qemu_malloc(size_t size)
     return malloc(size);
 }
 
+void *qemu_realloc(void *ptr, size_t size)
+{
+    return realloc(ptr, size);
+}
+
 void *qemu_mallocz(size_t size)
 {
     void *ptr;

@@ -31,6 +31,10 @@ endif
 
 LIBS+=$(AIOLIBS)
 
+ifdef CONFIG_SOLARIS
+LIBS+=-lsocket -lnsl -lresolv
+endif
+
 all: $(TOOLS) $(DOCS) recurse-all 
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))

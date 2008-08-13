@@ -446,15 +446,17 @@ static void sun4v_init(ram_addr_t RAM_size, int vga_ram_size,
 }
 
 QEMUMachine sun4u_machine = {
-    "sun4u",
-    "Sun4u platform",
-    sun4u_init,
-    PROM_SIZE_MAX + VGA_RAM_SIZE,
+    .name = "sun4u",
+    .desc = "Sun4u platform",
+    .init = sun4u_init,
+    .ram_require = PROM_SIZE_MAX + VGA_RAM_SIZE,
+    .nodisk_ok = 1,
 };
 
 QEMUMachine sun4v_machine = {
-    "sun4v",
-    "Sun4v platform",
-    sun4v_init,
-    PROM_SIZE_MAX + VGA_RAM_SIZE,
+    .name = "sun4v",
+    .desc = "Sun4v platform",
+    .init = sun4v_init,
+    .ram_require = PROM_SIZE_MAX + VGA_RAM_SIZE,
+    .nodisk_ok = 1,
 };

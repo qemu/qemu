@@ -234,7 +234,10 @@ void helper_faligndata(void)
     uint64_t tmp;
 
     tmp = (*((uint64_t *)&DT0)) << ((env->gsr & 7) * 8);
-    tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
+    /* on many architectures a shift of 64 does nothing */
+    if ((env->gsr & 7) != 0) {
+        tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
+    }
     *((uint64_t *)&DT0) = tmp;
 }
 
@@ -1674,34 +1677,9 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         }
     case 0x56: // I-MMU tag read
         {
-            unsigned int i;
+            int reg = (addr >> 3) & 0x3f;
 
-            for (i = 0; i < 64; i++) {
-                // Valid, ctx match, vaddr match
-                if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                    uint64_t mask;
-
-                    switch ((env->itlb_tte[i] >> 61) & 3) {
-                    default:
-                    case 0x0:
-                        mask = 0xffffffffffffffff;
-                        break;
-                    case 0x1:
-                        mask = 0xffffffffffff0fff;
-                        break;
-                    case 0x2:
-                        mask = 0xfffffffffff80fff;
-                        break;
-                    case 0x3:
-                        mask = 0xffffffffffc00fff;
-                        break;
-                    }
-                    if ((env->itlb_tag[i] & mask) == (addr & mask)) {
-                        ret = env->itlb_tte[i];
-                        break;
-                    }
-                }
-            }
+            ret = env->itlb_tag[reg];
             break;
         }
     case 0x58: // D-MMU regs
@@ -1720,34 +1698,9 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         }
     case 0x5e: // D-MMU tag read
         {
-            unsigned int i;
+            int reg = (addr >> 3) & 0x3f;
 
-            for (i = 0; i < 64; i++) {
-                // Valid, ctx match, vaddr match
-                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
-                    uint64_t mask;
-
-                    switch ((env->dtlb_tte[i] >> 61) & 3) {
-                    default:
-                    case 0x0:
-                        mask = 0xffffffffffffffff;
-                        break;
-                    case 0x1:
-                        mask = 0xffffffffffff0fff;
-                        break;
-                    case 0x2:
-                        mask = 0xfffffffffff80fff;
-                        break;
-                    case 0x3:
-                        mask = 0xffffffffffc00fff;
-                        break;
-                    }
-                    if ((env->dtlb_tag[i] & mask) == (addr & mask)) {
-                        ret = env->dtlb_tte[i];
-                        break;
-                    }
-                }
-            }
+            ret = env->dtlb_tag[reg];
             break;
         }
     case 0x46: // D-cache data

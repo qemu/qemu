@@ -291,8 +291,8 @@ static void vnc_dpy_resize(DisplayState *ds, int w, int h)
     int size_changed;
     VncState *vs = ds->opaque;
 
-    ds->data = realloc(ds->data, w * h * vs->depth);
-    vs->old_data = realloc(vs->old_data, w * h * vs->depth);
+    ds->data = qemu_realloc(ds->data, w * h * vs->depth);
+    vs->old_data = qemu_realloc(vs->old_data, w * h * vs->depth);
 
     if (ds->data == NULL || vs->old_data == NULL) {
 	fprintf(stderr, "vnc: memory allocation failed\n");
@@ -611,7 +611,7 @@ static void buffer_reserve(Buffer *buffer, size_t len)
 {
     if ((buffer->capacity - buffer->offset) < len) {
 	buffer->capacity += (len + 1024);
-	buffer->buffer = realloc(buffer->buffer, buffer->capacity);
+	buffer->buffer = qemu_realloc(buffer->buffer, buffer->capacity);
 	if (buffer->buffer == NULL) {
 	    fprintf(stderr, "vnc: out of memory\n");
 	    exit(1);
