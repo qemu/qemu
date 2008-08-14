@@ -669,7 +669,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
     l2_offset &= ~QCOW_OFLAG_COPIED;
     l2_table = l2_load(bs, l2_offset);
     if (l2_table == NULL)
-        goto out;
+        return 0;
 
     /* find the cluster offset for the given disk offset */
 
