@@ -606,22 +606,77 @@ static uint64_t *l2_allocate(BlockDriverState *bs, int l1_index)
     return l2_table;
 }
 
-static uint64_t get_cluster_offset(BlockDriverState *bs,
-                                   uint64_t offset, int allocate,
-                                   int compressed_size,
-                                   int n_start, int n_end)
+/*
+ * get_cluster_offset
+ *
+ * For a given offset of the disk image, return cluster offset in
+ * qcow2 file.
+ *
+ * Return 1, if the offset is found
+ * Return 0, otherwise.
+ *
+ */
+
+static uint64_t get_cluster_offset(BlockDriverState *bs, uint64_t offset)
+{
+    BDRVQcowState *s = bs->opaque;
+    int l1_index, l2_index;
+    uint64_t l2_offset, *l2_table, cluster_offset;
+
+    /* seek the the l2 offset in the l1 table */
+
+    l1_index = offset >> (s->l2_bits + s->cluster_bits);
+    if (l1_index >= s->l1_size)
+        return 0;
+
+    l2_offset = s->l1_table[l1_index];
+
+    /* seek the l2 table of the given l2 offset */
+
+    if (!l2_offset)
+        return 0;
+
+    /* load the l2 table in memory */
+
+    l2_offset &= ~QCOW_OFLAG_COPIED;
+    l2_table = l2_load(bs, l2_offset);
+    if (l2_table == NULL)
+        return 0;
+
+    /* find the cluster offset for the given disk offset */
+
+    l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
+    cluster_offset = be64_to_cpu(l2_table[l2_index]);
+
+    return cluster_offset & ~QCOW_OFLAG_COPIED;
+}
+
+/*
+ * alloc_cluster_offset
+ *
+ * For a given offset of the disk image, return cluster offset in
+ * qcow2 file.
+ *
+ * If the offset is not found, allocate a new cluster.
+ *
+ * Return the cluster offset if successful,
+ * Return 0, otherwise.
+ *
+ */
+
+static uint64_t alloc_cluster_offset(BlockDriverState *bs,
+                                     uint64_t offset,
+                                     int compressed_size,
+                                     int n_start, int n_end)
 {
     BDRVQcowState *s = bs->opaque;
     int l1_index, l2_index, ret;
-    uint64_t l2_offset, *l2_table, cluster_offset, tmp;
+    uint64_t l2_offset, *l2_table, cluster_offset;
 
     /* seek the the l2 offset in the l1 table */
 
     l1_index = offset >> (s->l2_bits + s->cluster_bits);
     if (l1_index >= s->l1_size) {
-        /* outside l1 table is allowed: we grow the table if needed */
-        if (!allocate)
-            return 0;
         ret = grow_l1_table(bs, l1_index + 1);
         if (ret < 0)
             return 0;
@@ -630,44 +685,30 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
 
     /* seek the l2 table of the given l2 offset */
 
-    if (!l2_offset) {
-        /* the l2 table doesn't exist */
-        if (!allocate)
+    if (l2_offset & QCOW_OFLAG_COPIED) {
+        /* load the l2 table in memory */
+        l2_offset &= ~QCOW_OFLAG_COPIED;
+        l2_table = l2_load(bs, l2_offset);
+        if (l2_table == NULL)
             return 0;
-        /* allocate a new l2 table for this offset */
+    } else {
+        if (l2_offset)
+            free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t));
         l2_table = l2_allocate(bs, l1_index);
         if (l2_table == NULL)
             return 0;
         l2_offset = s->l1_table[l1_index] & ~QCOW_OFLAG_COPIED;
-    } else {
-        /* the l2 table exists */
-        if (!(l2_offset & QCOW_OFLAG_COPIED) && allocate) {
-            /* duplicate the l2 table, and free the old table */
-            free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t));
-            l2_table = l2_allocate(bs, l1_index);
-            if (l2_table == NULL)
-                return 0;
-            l2_offset = s->l1_table[l1_index] & ~QCOW_OFLAG_COPIED;
-        } else {
-            /* load the l2 table in memory */
-            l2_offset &= ~QCOW_OFLAG_COPIED;
-            l2_table = l2_load(bs, l2_offset);
-            if (l2_table == NULL)
-                return 0;
-        }
     }
 
     /* find the cluster offset for the given disk offset */
 
     l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
     cluster_offset = be64_to_cpu(l2_table[l2_index]);
-    if (!cluster_offset) {
-        /* cluster doesn't exist */
-        if (!allocate)
-            return 0;
-    } else if (!(cluster_offset & QCOW_OFLAG_COPIED)) {
-        if (!allocate)
-            return cluster_offset;
+
+    if (cluster_offset & QCOW_OFLAG_COPIED)
+        return cluster_offset & ~QCOW_OFLAG_COPIED;
+
+    if (cluster_offset) {
         /* free the cluster */
         if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
             int nb_csectors;
@@ -678,46 +719,62 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
         } else {
             free_clusters(bs, cluster_offset, s->cluster_size);
         }
-    } else {
-        cluster_offset &= ~QCOW_OFLAG_COPIED;
+    }
+
+    if (compressed_size) {
+        int nb_csectors;
+
+        cluster_offset = alloc_bytes(bs, compressed_size);
+        nb_csectors = ((cluster_offset + compressed_size - 1) >> 9) -
+                      (cluster_offset >> 9);
+
+        cluster_offset |= QCOW_OFLAG_COMPRESSED |
+                          ((uint64_t)nb_csectors << s->csize_shift);
+
+        /* update L2 table */
+
+        /* compressed clusters never have the copied flag */
+
+        l2_table[l2_index] = cpu_to_be64(cluster_offset);
+        if (bdrv_pwrite(s->hd,
+                        l2_offset + l2_index * sizeof(uint64_t),
+                        l2_table + l2_index,
+                        sizeof(uint64_t)) != sizeof(uint64_t))
+            return 0;
+
         return cluster_offset;
     }
 
-    if (allocate == 1) {
-        /* allocate a new cluster */
-        cluster_offset = alloc_clusters(bs, s->cluster_size);
+    /* allocate a new cluster */
 
-        /* we must initialize the cluster content which won't be
-           written */
-        if ((n_end - n_start) < s->cluster_sectors) {
-            uint64_t start_sect;
+    cluster_offset = alloc_clusters(bs, s->cluster_size);
 
-            start_sect = (offset & ~(s->cluster_size - 1)) >> 9;
-            ret = copy_sectors(bs, start_sect,
-                               cluster_offset, 0, n_start);
-            if (ret < 0)
-                return 0;
-            ret = copy_sectors(bs, start_sect,
-                               cluster_offset, n_end, s->cluster_sectors);
-            if (ret < 0)
-                return 0;
-        }
-        tmp = cpu_to_be64(cluster_offset | QCOW_OFLAG_COPIED);
-    } else {
-        int nb_csectors;
-        cluster_offset = alloc_bytes(bs, compressed_size);
-        nb_csectors = ((cluster_offset + compressed_size - 1) >> 9) -
-            (cluster_offset >> 9);
-        cluster_offset |= QCOW_OFLAG_COMPRESSED |
-            ((uint64_t)nb_csectors << s->csize_shift);
-        /* compressed clusters never have the copied flag */
-        tmp = cpu_to_be64(cluster_offset);
+    /* we must initialize the cluster content which won't be
+       written */
+
+    if ((n_end - n_start) < s->cluster_sectors) {
+        uint64_t start_sect;
+
+        start_sect = (offset & ~(s->cluster_size - 1)) >> 9;
+        ret = copy_sectors(bs, start_sect,
+                           cluster_offset, 0, n_start);
+        if (ret < 0)
+            return 0;
+        ret = copy_sectors(bs, start_sect,
+                           cluster_offset, n_end, s->cluster_sectors);
+        if (ret < 0)
+            return 0;
     }
+
     /* update L2 table */
-    l2_table[l2_index] = tmp;
+
+    l2_table[l2_index] = cpu_to_be64(cluster_offset | QCOW_OFLAG_COPIED);
     if (bdrv_pwrite(s->hd,
-                    l2_offset + l2_index * sizeof(tmp), &tmp, sizeof(tmp)) != sizeof(tmp))
+                    l2_offset + l2_index * sizeof(uint64_t),
+                    l2_table + l2_index,
+                    sizeof(uint64_t)) != sizeof(uint64_t))
         return 0;
+
     return cluster_offset;
 }
 
@@ -728,7 +785,7 @@ static int qcow_is_allocated(BlockDriverState *bs, int64_t sector_num,
     int index_in_cluster, n;
     uint64_t cluster_offset;
 
-    cluster_offset = get_cluster_offset(bs, sector_num << 9, 0, 0, 0, 0);
+    cluster_offset = get_cluster_offset(bs, sector_num << 9);
     index_in_cluster = sector_num & (s->cluster_sectors - 1);
     n = s->cluster_sectors - index_in_cluster;
     if (n > nb_sectors)
@@ -810,7 +867,7 @@ static int qcow_read(BlockDriverState *bs, int64_t sector_num,
     uint64_t cluster_offset;
 
     while (nb_sectors > 0) {
-        cluster_offset = get_cluster_offset(bs, sector_num << 9, 0, 0, 0, 0);
+        cluster_offset = get_cluster_offset(bs, sector_num << 9);
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         n = s->cluster_sectors - index_in_cluster;
         if (n > nb_sectors)
@@ -859,9 +916,9 @@ static int qcow_write(BlockDriverState *bs, int64_t sector_num,
         n = s->cluster_sectors - index_in_cluster;
         if (n > nb_sectors)
             n = nb_sectors;
-        cluster_offset = get_cluster_offset(bs, sector_num << 9, 1, 0,
-                                            index_in_cluster,
-                                            index_in_cluster + n);
+        cluster_offset = alloc_cluster_offset(bs, sector_num << 9, 0,
+                                              index_in_cluster,
+                                              index_in_cluster + n);
         if (!cluster_offset)
             return -1;
         if (s->crypt_method) {
@@ -934,8 +991,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
     }
 
     /* prepare next AIO request */
-    acb->cluster_offset = get_cluster_offset(bs, acb->sector_num << 9,
-                                             0, 0, 0, 0);
+    acb->cluster_offset = get_cluster_offset(bs, acb->sector_num << 9);
     index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
     acb->n = s->cluster_sectors - index_in_cluster;
     if (acb->n > acb->nb_sectors)
@@ -1044,9 +1100,9 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     acb->n = s->cluster_sectors - index_in_cluster;
     if (acb->n > acb->nb_sectors)
         acb->n = acb->nb_sectors;
-    cluster_offset = get_cluster_offset(bs, acb->sector_num << 9, 1, 0,
-                                        index_in_cluster,
-                                        index_in_cluster + acb->n);
+    cluster_offset = alloc_cluster_offset(bs, acb->sector_num << 9, 0,
+                                          index_in_cluster,
+                                          index_in_cluster + acb->n);
     if (!cluster_offset || (cluster_offset & 511) != 0) {
         ret = -EIO;
         goto fail;
@@ -1306,8 +1362,8 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
         /* could not compress: write normal cluster */
         qcow_write(bs, sector_num, buf, s->cluster_sectors);
     } else {
-        cluster_offset = get_cluster_offset(bs, sector_num << 9, 2,
-                                            out_len, 0, 0);
+        cluster_offset = alloc_cluster_offset(bs, sector_num << 9,
+                                              out_len, 0, 0);
         cluster_offset &= s->cluster_offset_mask;
         if (bdrv_pwrite(s->hd, cluster_offset, out_buf, out_len) != out_len) {
             qemu_free(out_buf);
