@@ -870,7 +870,7 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     int l2_index, ret;
     uint64_t l2_offset, *l2_table, cluster_offset;
-    int nb_available, nb_clusters, i;
+    int nb_available, nb_clusters, i, j;
     uint64_t start_sect, current;
 
     ret = get_cluster_table(bs, offset, &l2_table, &l2_offset, &l2_index);
@@ -909,32 +909,50 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
     if (cluster_offset & QCOW_OFLAG_COMPRESSED)
         nb_clusters = 1;
 
-    /* how many empty or how many to free ? */
+    /* how many available clusters ? */
 
-    if (!cluster_offset) {
+    i = 0;
+    while (i < nb_clusters) {
 
-        /* how many free clusters ? */
+        i++;
 
-        i = 1;
-        while (i < nb_clusters &&
-               l2_table[l2_index + i] == 0) {
-            i++;
-        }
-        nb_clusters = i;
+        if (!cluster_offset) {
 
-    } else {
+            /* how many free clusters ? */
 
-        /* how many contiguous clusters ? */
+            while (i < nb_clusters) {
+                cluster_offset = l2_table[l2_index + i];
+                if (cluster_offset != 0)
+                    break;
+                i++;
+            }
 
-        for (i = 1; i < nb_clusters; i++) {
-            current = be64_to_cpu(l2_table[l2_index + i]);
-            if (cluster_offset + (i << s->cluster_bits) != current)
+            if ((cluster_offset & QCOW_OFLAG_COPIED) ||
+                (cluster_offset & QCOW_OFLAG_COMPRESSED))
                 break;
-        }
-        nb_clusters = i;
 
-        free_any_clusters(bs, cluster_offset, i);
+        } else {
+
+            /* how many contiguous clusters ? */
+
+            j = 1;
+            current = 0;
+            while (i < nb_clusters) {
+                current = be64_to_cpu(l2_table[l2_index + i]);
+                if (cluster_offset + (j << s->cluster_bits) != current)
+                    break;
+
+                i++;
+                j++;
+            }
+
+            free_any_clusters(bs, cluster_offset, j);
+            if (current)
+                break;
+            cluster_offset = current;
+        }
     }
+    nb_clusters = i;
 
     /* allocate a new cluster */
 
