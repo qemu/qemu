@@ -34,6 +34,10 @@
 #include <termios.h>
 #endif
 
+#ifdef __OpenBSD__
+#define resize_term resizeterm
+#endif
+
 #define FONT_HEIGHT 16
 #define FONT_WIDTH 8
 

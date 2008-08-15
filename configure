@@ -150,6 +150,7 @@ audio_possible_drivers="oss sdl esd"
 ;;
 OpenBSD)
 bsd="yes"
+openbsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
 ;;
@@ -1086,6 +1087,11 @@ EOF
     echo "#define HAVE_BYTESWAP_H 1" >> $config_h
   fi
 fi
+
+if [ "$openbsd" = "yes" ] ; then
+  echo "#define ENOTSUP 4096" >> $config_h
+fi
+
 if test "$darwin" = "yes" ; then
   echo "CONFIG_DARWIN=yes" >> $config_mak
   echo "#define CONFIG_DARWIN 1" >> $config_h

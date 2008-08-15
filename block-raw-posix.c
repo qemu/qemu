@@ -58,6 +58,12 @@
 #include <sys/disk.h>
 #endif
 
+#ifdef __OpenBSD__
+#include <sys/ioctl.h>
+#include <sys/disklabel.h>
+#include <sys/dkio.h>
+#endif
+
 //#define DEBUG_FLOPPY
 
 //#define DEBUG_BLOCK
@@ -745,6 +751,26 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
     return 0;
 }
 
+#ifdef __OpenBSD__
+static int64_t raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd = s->fd;
+    struct stat st;
+
+    if (fstat(fd, &st))
+        return -1;
+    if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
+        struct disklabel dl;
+
+        if (ioctl(fd, DIOCGDINFO, &dl))
+            return -1;
+        return (uint64_t)dl.d_secsize *
+            dl.d_partitions[DISKPART(st.st_rdev)].p_size;
+    } else
+        return st.st_size;
+}
+#else /* !__OpenBSD__ */
 static int64_t  raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -791,6 +817,7 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     }
     return size;
 }
+#endif
 
 static int raw_create(const char *filename, int64_t total_size,
                       const char *backing_file, int flags)

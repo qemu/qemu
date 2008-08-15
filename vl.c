@@ -61,8 +61,11 @@
 #include <arpa/inet.h>
 #ifdef _BSD
 #include <sys/stat.h>
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__OpenBSD__)
 #include <libutil.h>
+#endif
+#ifdef __OpenBSD__
+#include <net/if.h>
 #endif
 #elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
 #include <freebsd/stdlib.h>

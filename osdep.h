@@ -2,6 +2,10 @@
 #define QEMU_OSDEP_H
 
 #include <stdarg.h>
+#ifdef __OpenBSD__
+#include <sys/types.h>
+#include <sys/signal.h>
+#endif
 
 #ifndef glue
 #define xglue(x, y) x ## y
