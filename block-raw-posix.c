@@ -28,7 +28,9 @@
 #endif
 #include "block_int.h"
 #include <assert.h>
+#ifdef CONFIG_AIO
 #include <aio.h>
+#endif
 
 #ifdef CONFIG_COCOA
 #include <paths.h>
@@ -418,6 +420,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
 #endif
 
 
+#ifdef CONFIG_AIO
 /***********************************************************/
 /* Unix AIO using POSIX AIO */
 
@@ -688,6 +691,37 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
+# else /* CONFIG_AIO */
+
+void qemu_aio_init(void)
+{
+}
+
+void qemu_aio_poll(void)
+{
+}
+
+void qemu_aio_flush(void)
+{
+}
+
+void qemu_aio_wait_start(void)
+{
+}
+
+void qemu_aio_wait(void)
+{
+#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
+    qemu_bh_poll();
+#endif
+}
+
+void qemu_aio_wait_end(void)
+{
+}
+
+#endif /* CONFIG_AIO */
+
 static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -792,10 +826,12 @@ BlockDriver bdrv_raw = {
     raw_create,
     raw_flush,
 
+#ifdef CONFIG_AIO
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
     .bdrv_aio_cancel = raw_aio_cancel,
     .aiocb_size = sizeof(RawAIOCB),
+#endif
     .protocol_name = "file",
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
@@ -1144,10 +1180,12 @@ BlockDriver bdrv_host_device = {
     NULL,
     raw_flush,
 
+#ifdef CONFIG_AIO
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
     .bdrv_aio_cancel = raw_aio_cancel,
     .aiocb_size = sizeof(RawAIOCB),
+#endif
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
     .bdrv_getlength = raw_getlength,

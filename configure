@@ -106,6 +106,7 @@ darwin_user="no"
 build_docs="no"
 uname_release=""
 curses="yes"
+aio="yes"
 nptl="yes"
 mixemu="no"
 
@@ -334,6 +335,8 @@ for opt do
   ;;
   --enable-mixemu) mixemu="yes"
   ;;
+  --disable-aio) aio="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -436,6 +439,7 @@ echo "  --fmod-inc               path to FMOD includes"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
+echo "  --disable-aio            disable AIO support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -863,6 +867,19 @@ EOF
   fi
 fi # test "$curses"
 
+##########################################
+# AIO probe
+if test "$aio" = "yes" ; then
+  aio=no
+  cat > $TMPC << EOF
+#include <aio.h>
+int main(void) { return aio_write(NULL); }
+EOF
+  if $cc $ARCH_CFLAGS -o $TMPE $AIOLIBS $TMPC 2> /dev/null ; then
+    aio=yes
+  fi
+fi
+
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
    [ -x "`which pod2man 2>/dev/null`" ]; then
@@ -934,6 +951,7 @@ echo "Documentation     $build_docs"
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "vde support       $vde"
+echo "AIO support       $aio"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -1178,6 +1196,9 @@ if test "$brlapi" = "yes" ; then
   echo "CONFIG_BRLAPI=yes" >> $config_mak
   echo "#define CONFIG_BRLAPI 1" >> $config_h
   echo "BRLAPI_LIBS=-lbrlapi" >> $config_mak
+fi
+if test "$aio" = "yes" ; then
+  echo "#define CONFIG_AIO 1" >> $config_h
 fi
 
 # XXX: suppress that
