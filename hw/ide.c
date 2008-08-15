@@ -2844,6 +2844,23 @@ static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
     }
 }
 
+static void ide_dma_cancel(BMDMAState *bm)
+{
+    if (bm->status & BM_STATUS_DMAING) {
+        bm->status &= ~BM_STATUS_DMAING;
+        /* cancel DMA request */
+        bm->ide_if = NULL;
+        bm->dma_cb = NULL;
+        if (bm->aiocb) {
+#ifdef DEBUG_AIO
+            printf("aio_cancel\n");
+#endif
+            bdrv_aio_cancel(bm->aiocb);
+            bm->aiocb = NULL;
+        }
+    }
+}
+
 static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     BMDMAState *bm = opaque;
@@ -2852,19 +2869,7 @@ static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 #endif
     if (!(val & BM_CMD_START)) {
         /* XXX: do it better */
-        if (bm->status & BM_STATUS_DMAING) {
-            bm->status &= ~BM_STATUS_DMAING;
-            /* cancel DMA request */
-            bm->ide_if = NULL;
-            bm->dma_cb = NULL;
-            if (bm->aiocb) {
-#ifdef DEBUG_AIO
-                printf("aio_cancel\n");
-#endif
-                bdrv_aio_cancel(bm->aiocb);
-                bm->aiocb = NULL;
-            }
-        }
+        ide_dma_cancel(bm);
         bm->cmd = val & 0x09;
     } else {
         if (!(bm->status & BM_STATUS_DMAING)) {
@@ -3188,9 +3193,14 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-static void piix3_reset(PCIIDEState *d)
+static void piix3_reset(void *opaque)
 {
+    PCIIDEState *d = opaque;
     uint8_t *pci_conf = d->dev.config;
+    int i;
+
+    for (i = 0; i < 2; i++)
+        ide_dma_cancel(&d->bmdma[i]);
 
     pci_conf[0x04] = 0x00;
     pci_conf[0x05] = 0x00;
@@ -3224,6 +3234,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
 
+    qemu_register_reset(piix3_reset, d);
     piix3_reset(d);
 
     pci_register_io_region((PCIDevice *)d, 4, 0x10,
@@ -3262,6 +3273,7 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
 
+    qemu_register_reset(piix3_reset, d);
     piix3_reset(d);
 
     pci_register_io_region((PCIDevice *)d, 4, 0x10,
