@@ -1069,15 +1069,15 @@ static void pc_init_isa(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine pc_machine = {
-    "pc",
-    "Standard PC",
-    pc_init_pci,
-    VGA_RAM_SIZE + PC_MAX_BIOS_SIZE,
+    .name = "pc",
+    .desc = "Standard PC",
+    .init = pc_init_pci,
+    .ram_require = VGA_RAM_SIZE + PC_MAX_BIOS_SIZE,
 };
 
 QEMUMachine isapc_machine = {
-    "isapc",
-    "ISA-only PC",
-    pc_init_isa,
-    VGA_RAM_SIZE + PC_MAX_BIOS_SIZE,
+    .name = "isapc",
+    .desc = "ISA-only PC",
+    .init = pc_init_isa,
+    .ram_require = VGA_RAM_SIZE + PC_MAX_BIOS_SIZE,
 };
