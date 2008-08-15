@@ -75,11 +75,11 @@ enum {
 #define TCG_REG_CALL_STACK TCG_REG_I6
 #ifdef __arch64__
 // Reserve space for AREG0
-#define TCG_TARGET_STACK_MINFRAME (176 + 2 * sizeof(long))
+#define TCG_TARGET_STACK_MINFRAME (176 + 2 * (int)sizeof(long))
 #define TCG_TARGET_CALL_STACK_OFFSET (2047 + TCG_TARGET_STACK_MINFRAME)
 #define TCG_TARGET_STACK_ALIGN 16
 #else
-#define TCG_TARGET_STACK_MINFRAME (92 + 2 * sizeof(long))
+#define TCG_TARGET_STACK_MINFRAME (92 + 2 * (int)sizeof(long))
 #define TCG_TARGET_CALL_STACK_OFFSET TCG_TARGET_STACK_MINFRAME
 #define TCG_TARGET_STACK_ALIGN 8
 #endif
