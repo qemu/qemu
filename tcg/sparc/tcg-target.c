@@ -141,9 +141,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O1);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O2);
-        // Internal use
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
         break;
     case 'I':
         ct->ct |= TCG_CT_CONST_S11;
@@ -497,8 +494,8 @@ static const void * const qemu_st_helpers[4] = {
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                             int opc)
 {
-    int addr_reg, data_reg, r0, r1, arg0, arg1, mem_index, s_bits;
-    int target_ld_op, host_ld_op;
+    int addr_reg, data_reg, arg0, arg1, arg2, mem_index, s_bits;
+    int target_ld_op, host_ld_op, sll_op, sra_op;
 #if defined(CONFIG_SOFTMMU)
     uint32_t *label1_ptr, *label2_ptr;
 #endif
@@ -508,10 +505,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     mem_index = *args;
     s_bits = opc & 3;
 
-    r0 = TCG_REG_L0;
-    r1 = TCG_REG_L1;
     arg0 = TCG_REG_O0;
     arg1 = TCG_REG_O1;
+    arg2 = TCG_REG_O2;
 
 #if TARGET_LONG_BITS == 32
     target_ld_op = LDUW;
@@ -521,33 +517,39 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 
 #ifdef __arch64__
     host_ld_op = LDX;
+    sll_op = SHIFT_SLLX;
+    sra_op = SHIFT_SRAX;
 #else
     host_ld_op = LDUW;
+    sll_op = SHIFT_SLL;
+    sra_op = SHIFT_SRA;
 #endif
 
 
 #if defined(CONFIG_SOFTMMU)
-    /* srl addr_reg, x, r1 */
-    tcg_out_arithi(s, r1, addr_reg, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS,
+    /* srl addr_reg, x, arg1 */
+    tcg_out_arithi(s, arg1, addr_reg, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS,
                    SHIFT_SRL);
-    /* and addr_reg, x, r0 */
-    tcg_out_arithi(s, r0, addr_reg, TARGET_PAGE_MASK | ((1 << s_bits) - 1),
+    /* and addr_reg, x, arg0 */
+    tcg_out_arithi(s, arg0, addr_reg, TARGET_PAGE_MASK | ((1 << s_bits) - 1),
                    ARITH_AND);
 
-    /* and r1, x, r1 */
-    tcg_out_andi(s, r1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
+    /* and arg1, x, arg1 */
+    tcg_out_andi(s, arg1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
 
-    /* add r1, x, r1 */
-    tcg_out_addi(s, r1, offsetof(CPUState, tlb_table[mem_index][0].addr_read));
+    /* add arg1, x, arg1 */
+    tcg_out_addi(s, arg1, offsetof(CPUState,
+                                   tlb_table[mem_index][0].addr_read));
 
-    /* add env, r1, r1 */
-    tcg_out_arith(s, r1, TCG_AREG0, r1, ARITH_ADD);
+    /* add env, arg1, arg1 */
+    tcg_out_arith(s, arg1, TCG_AREG0, arg1, ARITH_ADD);
 
-    /* ld [r1], arg1 */
-    tcg_out32(s, target_ld_op | INSN_RD(arg1) | INSN_RS1(r1) | INSN_RS2(TCG_REG_G0));
+    /* ld [arg1], arg2 */
+    tcg_out32(s, target_ld_op | INSN_RD(arg2) | INSN_RS1(arg1) |
+              INSN_RS2(TCG_REG_G0));
 
-    /* subcc r0, arg1, %g0 */
-    tcg_out_arith(s, TCG_REG_G0, r0, arg1, ARITH_SUBCC);
+    /* subcc arg0, arg2, %g0 */
+    tcg_out_arith(s, TCG_REG_G0, arg0, arg2, ARITH_SUBCC);
 
     /* will become:
        be label1 */
@@ -569,25 +571,25 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     switch(opc) {
     case 0 | 4:
         /* sll arg0, 24/56, data_reg */
-        tcg_out_arithi(s, data_reg, arg0, sizeof(tcg_target_long) * 8 - 8,
-                       SHIFT_SLL);
+        tcg_out_arithi(s, data_reg, arg0, (int)sizeof(tcg_target_long) * 8 - 8,
+                       sll_op);
         /* sra data_reg, 24/56, data_reg */
-        tcg_out_arithi(s, data_reg, data_reg, sizeof(tcg_target_long) * 8 - 8,
-                       SHIFT_SRA);
+        tcg_out_arithi(s, data_reg, data_reg,
+                       (int)sizeof(tcg_target_long) * 8 - 8, sra_op);
         break;
     case 1 | 4:
         /* sll arg0, 16/48, data_reg */
-        tcg_out_arithi(s, data_reg, arg0, sizeof(tcg_target_long) * 8 - 16,
-                       SHIFT_SLL);
+        tcg_out_arithi(s, data_reg, arg0,
+                       (int)sizeof(tcg_target_long) * 8 - 16, sll_op);
         /* sra data_reg, 16/48, data_reg */
-        tcg_out_arithi(s, data_reg, data_reg, sizeof(tcg_target_long) * 8 - 16,
-                       SHIFT_SRA);
+        tcg_out_arithi(s, data_reg, data_reg,
+                       (int)sizeof(tcg_target_long) * 8 - 16, sra_op);
         break;
     case 2 | 4:
         /* sll arg0, 32, data_reg */
-        tcg_out_arithi(s, data_reg, arg0, 32, SHIFT_SLL);
+        tcg_out_arithi(s, data_reg, arg0, 32, sll_op);
         /* sra data_reg, 32, data_reg */
-        tcg_out_arithi(s, data_reg, data_reg, 32, SHIFT_SRA);
+        tcg_out_arithi(s, data_reg, data_reg, 32, sra_op);
         break;
     case 0:
     case 1:
@@ -612,67 +614,67 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                    INSN_OFF22((unsigned long)s->code_ptr -
                               (unsigned long)label1_ptr));
 
-    /* ld [r1 + x], r1 */
-    tcg_out_ldst(s, r1, r1, offsetof(CPUTLBEntry, addend) -
+    /* ld [arg1 + x], arg1 */
+    tcg_out_ldst(s, arg1, arg1, offsetof(CPUTLBEntry, addend) -
                  offsetof(CPUTLBEntry, addr_read), host_ld_op);
-    /* add r0, r1, r0 */
-    tcg_out_arith(s, r0, r1, r0, ARITH_ADD);
+    /* add addr_reg, arg1, arg0 */
+    tcg_out_arith(s, arg0, addr_reg, arg1, ARITH_ADD);
 #else
-    r0 = addr_reg;
+    arg0 = addr_reg;
 #endif
 
     switch(opc) {
     case 0:
-        /* ldub [r0], data_reg */
-        tcg_out_ldst(s, data_reg, r0, 0, LDUB);
+        /* ldub [arg0], data_reg */
+        tcg_out_ldst(s, data_reg, arg0, 0, LDUB);
         break;
     case 0 | 4:
-        /* ldsb [r0], data_reg */
-        tcg_out_ldst(s, data_reg, r0, 0, LDSB);
+        /* ldsb [arg0], data_reg */
+        tcg_out_ldst(s, data_reg, arg0, 0, LDSB);
         break;
     case 1:
 #ifdef TARGET_WORDS_BIGENDIAN
-        /* lduh [r0], data_reg */
-        tcg_out_ldst(s, data_reg, r0, 0, LDUH);
+        /* lduh [arg0], data_reg */
+        tcg_out_ldst(s, data_reg, arg0, 0, LDUH);
 #else
-        /* lduha [r0] ASI_PRIMARY_LITTLE, data_reg */
-        tcg_out_ldst_asi(s, data_reg, r0, 0, LDUHA, ASI_PRIMARY_LITTLE);
+        /* lduha [arg0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, arg0, 0, LDUHA, ASI_PRIMARY_LITTLE);
 #endif
         break;
     case 1 | 4:
 #ifdef TARGET_WORDS_BIGENDIAN
-        /* ldsh [r0], data_reg */
-        tcg_out_ldst(s, data_reg, r0, 0, LDSH);
+        /* ldsh [arg0], data_reg */
+        tcg_out_ldst(s, data_reg, arg0, 0, LDSH);
 #else
-        /* ldsha [r0] ASI_PRIMARY_LITTLE, data_reg */
-        tcg_out_ldst_asi(s, data_reg, r0, 0, LDSHA, ASI_PRIMARY_LITTLE);
+        /* ldsha [arg0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, arg0, 0, LDSHA, ASI_PRIMARY_LITTLE);
 #endif
         break;
     case 2:
 #ifdef TARGET_WORDS_BIGENDIAN
-        /* lduw [r0], data_reg */
-        tcg_out_ldst(s, data_reg, r0, 0, LDUW);
+        /* lduw [arg0], data_reg */
+        tcg_out_ldst(s, data_reg, arg0, 0, LDUW);
 #else
-        /* lduwa [r0] ASI_PRIMARY_LITTLE, data_reg */
-        tcg_out_ldst_asi(s, data_reg, r0, 0, LDUWA, ASI_PRIMARY_LITTLE);
+        /* lduwa [arg0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, arg0, 0, LDUWA, ASI_PRIMARY_LITTLE);
 #endif
         break;
     case 2 | 4:
 #ifdef TARGET_WORDS_BIGENDIAN
-        /* ldsw [r0], data_reg */
-        tcg_out_ldst(s, data_reg, r0, 0, LDSW);
+        /* ldsw [arg0], data_reg */
+        tcg_out_ldst(s, data_reg, arg0, 0, LDSW);
 #else
-        /* ldswa [r0] ASI_PRIMARY_LITTLE, data_reg */
-        tcg_out_ldst_asi(s, data_reg, r0, 0, LDSWA, ASI_PRIMARY_LITTLE);
+        /* ldswa [arg0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, arg0, 0, LDSWA, ASI_PRIMARY_LITTLE);
 #endif
         break;
     case 3:
 #ifdef TARGET_WORDS_BIGENDIAN
-        /* ldx [r0], data_reg */
-        tcg_out_ldst(s, data_reg, r0, 0, LDX);
+        /* ldx [arg0], data_reg */
+        tcg_out_ldst(s, data_reg, arg0, 0, LDX);
 #else
-        /* ldxa [r0] ASI_PRIMARY_LITTLE, data_reg */
-        tcg_out_ldst_asi(s, data_reg, r0, 0, LDXA, ASI_PRIMARY_LITTLE);
+        /* ldxa [arg0] ASI_PRIMARY_LITTLE, data_reg */
+        tcg_out_ldst_asi(s, data_reg, arg0, 0, LDXA, ASI_PRIMARY_LITTLE);
 #endif
         break;
     default:
@@ -690,7 +692,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                             int opc)
 {
-    int addr_reg, data_reg, r0, r1, arg0, arg1, arg2, mem_index, s_bits;
+    int addr_reg, data_reg, arg0, arg1, arg2, mem_index, s_bits;
     int target_ld_op, host_ld_op;
 #if defined(CONFIG_SOFTMMU)
     uint32_t *label1_ptr, *label2_ptr;
@@ -702,8 +704,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 
     s_bits = opc;
 
-    r0 = TCG_REG_L0;
-    r1 = TCG_REG_L1;
     arg0 = TCG_REG_O0;
     arg1 = TCG_REG_O1;
     arg2 = TCG_REG_O2;
@@ -721,28 +721,30 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
 
 #if defined(CONFIG_SOFTMMU)
-    /* srl addr_reg, x, r1 */
-    tcg_out_arithi(s, r1, addr_reg, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS,
+    /* srl addr_reg, x, arg1 */
+    tcg_out_arithi(s, arg1, addr_reg, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS,
                    SHIFT_SRL);
 
-    /* and addr_reg, x, r0 */
-    tcg_out_arithi(s, r0, addr_reg, TARGET_PAGE_MASK | ((1 << s_bits) - 1),
+    /* and addr_reg, x, arg0 */
+    tcg_out_arithi(s, arg0, addr_reg, TARGET_PAGE_MASK | ((1 << s_bits) - 1),
                    ARITH_AND);
 
-    /* and r1, x, r1 */
-    tcg_out_andi(s, r1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
+    /* and arg1, x, arg1 */
+    tcg_out_andi(s, arg1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
 
-    /* add r1, x, r1 */
-    tcg_out_addi(s, r1, offsetof(CPUState, tlb_table[mem_index][0].addr_write));
+    /* add arg1, x, arg1 */
+    tcg_out_addi(s, arg1, offsetof(CPUState,
+                                   tlb_table[mem_index][0].addr_write));
 
-    /* add env, r1, r1 */
-    tcg_out_arith(s, r1, TCG_AREG0, r1, ARITH_ADD);
+    /* add env, arg1, arg1 */
+    tcg_out_arith(s, arg1, TCG_AREG0, arg1, ARITH_ADD);
 
-    /* ld [r1], arg1 */
-    tcg_out32(s, target_ld_op | INSN_RD(arg1) | INSN_RS1(r1) | INSN_RS2(TCG_REG_G0));
+    /* ld [arg1], arg2 */
+    tcg_out32(s, target_ld_op | INSN_RD(arg2) | INSN_RS1(arg1) |
+              INSN_RS2(TCG_REG_G0));
 
-    /* subcc r0, arg1, %g0 */
-    tcg_out_arith(s, TCG_REG_G0, r0, arg1, ARITH_SUBCC);
+    /* subcc arg0, arg2, %g0 */
+    tcg_out_arith(s, TCG_REG_G0, arg0, arg2, ARITH_SUBCC);
 
     /* will become:
        be label1 */
@@ -752,40 +754,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     /* mov (delay slot) */
     tcg_out_mov(s, arg0, addr_reg);
 
-    /* arg1 = sign_extend(data_reg); */
-    switch(opc) {
-    case 0 | 4:
-        /* sll data_reg, 24/56, arg1 */
-        tcg_out_arithi(s, arg1, data_reg, sizeof(tcg_target_long) * 8 - 8, SHIFT_SLL);
-        /* sra arg1, 24/56, arg1 */
-        tcg_out_arithi(s, arg1, arg1, sizeof(tcg_target_long) * 8 - 8,
-                       SHIFT_SRA);
-        break;
-    case 1 | 4:
-        /* sll data_reg, 16/48, arg1 */
-        tcg_out_arithi(s, data_reg, arg1, sizeof(tcg_target_long) * 8 - 16, SHIFT_SLL);
-        /* sra arg1, 16/48, arg1 */
-        tcg_out_arithi(s, arg1, arg1, sizeof(tcg_target_long) * 8 - 16,
-                       SHIFT_SRA);
-        break;
-    case 2 | 4:
-        /* sll data_reg, 32, arg1 */
-        tcg_out_arithi(s, data_reg, arg1, 32, SHIFT_SLL);
-        /* sra arg1, 32, arg1 */
-        tcg_out_arithi(s, arg1, arg1, 32, SHIFT_SRA);
-        break;
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    default:
-        /* mov */
-        tcg_out_mov(s, arg1, data_reg);
-        break;
-    }
-
     /* mov */
-    tcg_out_mov(s, arg0, addr_reg);
+    tcg_out_mov(s, arg1, data_reg);
 
     /* XXX: move that code at the end of the TB */
     /* qemu_st_helper[s_bits](arg0, arg1, arg2) */
@@ -808,46 +778,46 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                    INSN_OFF22((unsigned long)s->code_ptr -
                               (unsigned long)label1_ptr));
 
-    /* ld [r1 + x], r1 */
-    tcg_out_ldst(s, arg1, r1, offsetof(CPUTLBEntry, addend) -
+    /* ld [arg1 + x], arg1 */
+    tcg_out_ldst(s, arg1, arg1, offsetof(CPUTLBEntry, addend) -
                  offsetof(CPUTLBEntry, addr_write), host_ld_op);
 
-    /* add r0, r1, r0 */
-    tcg_out_arith(s, r0, arg1, r0, ARITH_ADD);
+    /* add addr_reg, arg1, arg0 */
+    tcg_out_arith(s, arg0, addr_reg, arg1, ARITH_ADD);
 #else
-    r0 = addr_reg;
+    arg0 = addr_reg;
 #endif
 
     switch(opc) {
     case 0:
-        /* stb data_reg, [r0] */
-        tcg_out_ldst(s, data_reg, r0, 0, STB);
+        /* stb data_reg, [arg0] */
+        tcg_out_ldst(s, data_reg, arg0, 0, STB);
         break;
     case 1:
 #ifdef TARGET_WORDS_BIGENDIAN
-        /* sth data_reg, [r0] */
-        tcg_out_ldst(s, data_reg, r0, 0, STH);
+        /* sth data_reg, [arg0] */
+        tcg_out_ldst(s, data_reg, arg0, 0, STH);
 #else
-        /* stha data_reg, [r0] ASI_PRIMARY_LITTLE */
-        tcg_out_ldst_asi(s, data_reg, r0, 0, STHA, ASI_PRIMARY_LITTLE);
+        /* stha data_reg, [arg0] ASI_PRIMARY_LITTLE */
+        tcg_out_ldst_asi(s, data_reg, arg0, 0, STHA, ASI_PRIMARY_LITTLE);
 #endif
         break;
     case 2:
 #ifdef TARGET_WORDS_BIGENDIAN
-        /* stw data_reg, [r0] */
-        tcg_out_ldst(s, data_reg, r0, 0, STW);
+        /* stw data_reg, [arg0] */
+        tcg_out_ldst(s, data_reg, arg0, 0, STW);
 #else
-        /* stwa data_reg, [r0] ASI_PRIMARY_LITTLE */
-        tcg_out_ldst_asi(s, data_reg, r0, 0, STWA, ASI_PRIMARY_LITTLE);
+        /* stwa data_reg, [arg0] ASI_PRIMARY_LITTLE */
+        tcg_out_ldst_asi(s, data_reg, arg0, 0, STWA, ASI_PRIMARY_LITTLE);
 #endif
         break;
     case 3:
 #ifdef TARGET_WORDS_BIGENDIAN
-        /* stx data_reg, [r0] */
-        tcg_out_ldst(s, data_reg, r0, 0, STX);
+        /* stx data_reg, [arg0] */
+        tcg_out_ldst(s, data_reg, arg0, 0, STX);
 #else
-        /* stxa data_reg, [r0] ASI_PRIMARY_LITTLE */
-        tcg_out_ldst_asi(s, data_reg, r0, 0, STXA, ASI_PRIMARY_LITTLE);
+        /* stxa data_reg, [arg0] ASI_PRIMARY_LITTLE */
+        tcg_out_ldst_asi(s, data_reg, arg0, 0, STXA, ASI_PRIMARY_LITTLE);
 #endif
         break;
     default:
@@ -1164,6 +1134,8 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_st16_i64, { "r", "r" } },
     { INDEX_op_st32_i64, { "r", "r" } },
     { INDEX_op_st_i64, { "r", "r" } },
+    { INDEX_op_qemu_ld64, { "L", "L" } },
+    { INDEX_op_qemu_st64, { "L", "L" } },
 
     { INDEX_op_add_i64, { "r", "r", "rJ" } },
     { INDEX_op_mul_i64, { "r", "r", "rJ" } },
