@@ -349,16 +349,19 @@ static inline void gen_cc_NZ_xcc(TCGv dst)
 */
 static inline void gen_cc_C_add_icc(TCGv dst, TCGv src1)
 {
-    TCGv r_temp;
+    TCGv r_temp1, r_temp2;
     int l1;
 
     l1 = gen_new_label();
-    r_temp = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_andi_tl(r_temp, dst, 0xffffffffULL);
-    tcg_gen_brcond_tl(TCG_COND_GEU, dst, src1, l1);
+    r_temp1 = tcg_temp_new(TCG_TYPE_TL);
+    r_temp2 = tcg_temp_new(TCG_TYPE_TL);
+    tcg_gen_andi_tl(r_temp1, dst, 0xffffffffULL);
+    tcg_gen_andi_tl(r_temp2, src1, 0xffffffffULL);
+    tcg_gen_brcond_tl(TCG_COND_GEU, r_temp1, r_temp2, l1);
     tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_CARRY);
     gen_set_label(l1);
-    tcg_temp_free(r_temp);
+    tcg_temp_free(r_temp1);
+    tcg_temp_free(r_temp2);
 }
 
 #ifdef TARGET_SPARC64
