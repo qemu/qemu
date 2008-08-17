@@ -268,8 +268,8 @@ static inline void tcg_out_arith(TCGContext *s, int rd, int rs1, int rs2,
               INSN_RS2(rs2));
 }
 
-static inline void tcg_out_arithi(TCGContext *s, int rd, int rs1, int offset,
-                                  int op)
+static inline void tcg_out_arithi(TCGContext *s, int rd, int rs1,
+                                  uint32_t offset, int op)
 {
     tcg_out32(s, op | INSN_RD(rd) | INSN_RS1(rs1) |
               INSN_IMM13(offset));
@@ -292,7 +292,7 @@ static inline void tcg_out_movi_imm13(TCGContext *s, int ret, uint32_t arg)
 
 static inline void tcg_out_movi_imm32(TCGContext *s, int ret, uint32_t arg)
 {
-    if (check_fit_i32(arg, 12))
+    if (check_fit_tl(arg, 12))
         tcg_out_movi_imm13(s, ret, arg);
     else {
         tcg_out_sethi(s, ret, arg);
@@ -310,9 +310,16 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
         tcg_out_arithi(s, TCG_REG_I4, TCG_REG_I4, 32, SHIFT_SLLX);
         tcg_out_movi_imm32(s, ret, arg);
         tcg_out_arith(s, ret, ret, TCG_REG_I4, ARITH_OR);
-    } else
+    } else if (check_fit_tl(arg, 12))
+        tcg_out_movi_imm13(s, ret, arg);
+    else {
+        tcg_out_sethi(s, ret, arg);
+        if (arg & 0x3ff)
+            tcg_out_arithi(s, ret, ret, arg & 0x3ff, ARITH_OR);
+    }
+#else
+    tcg_out_movi_imm32(s, ret, arg);
 #endif
-        tcg_out_movi_imm32(s, ret, arg);
 }
 
 static inline void tcg_out_ld_raw(TCGContext *s, int ret,
