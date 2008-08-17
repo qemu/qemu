@@ -196,19 +196,6 @@ void tcg_pool_reset(TCGContext *s)
     s->pool_current = NULL;
 }
 
-/* free all the pool */
-void tcg_pool_free(TCGContext *s)
-{
-    TCGPool *p, *p1;
-
-    for(p = s->pool_first; p != NULL; p = p1) {
-        p1 = p->next;
-        qemu_free(p);
-    }
-    s->pool_first = NULL;
-    s->pool_cur = s->pool_end = NULL;
-}
-
 void tcg_context_init(TCGContext *s)
 {
     int op, total_args, n;
@@ -655,7 +642,7 @@ void tcg_gen_shifti_i64(TCGv ret, TCGv arg1,
 }
 #endif
 
-void tcg_reg_alloc_start(TCGContext *s)
+static void tcg_reg_alloc_start(TCGContext *s)
 {
     int i;
     TCGTemp *ts;
@@ -1025,7 +1012,7 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps)
 /* Liveness analysis : update the opc_dead_iargs array to tell if a
    given input arguments is dead. Instructions updating dead
    temporaries are removed. */
-void tcg_liveness_analysis(TCGContext *s)
+static void tcg_liveness_analysis(TCGContext *s)
 {
     int i, op_index, op, nb_args, nb_iargs, nb_oargs, arg, nb_ops;
     TCGArg *args;

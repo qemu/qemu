@@ -154,7 +154,8 @@ void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
         d->sig[i] = tswapl(d1.sig[i]);
 }
 
-void target_to_host_sigset_internal(sigset_t *d, const target_sigset_t *s)
+static void target_to_host_sigset_internal(sigset_t *d,
+                                           const target_sigset_t *s)
 {
     int i;
     sigemptyset(d);
@@ -324,7 +325,7 @@ static inline void free_sigqueue(CPUState *env, struct sigqueue *q)
 }
 
 /* abort execution with signal */
-void __attribute((noreturn)) force_sig(int sig)
+static void __attribute((noreturn)) force_sig(int sig)
 {
     int host_sig;
     host_sig = target_to_host_signal(sig);

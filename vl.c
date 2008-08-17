@@ -2561,7 +2561,7 @@ static void pty_chr_state(CharDriverState *chr, int connected)
     }
 }
 
-void pty_chr_timer(void *opaque)
+static void pty_chr_timer(void *opaque)
 {
     struct CharDriverState *chr = opaque;
     PtyCharDriver *s = chr->opaque;

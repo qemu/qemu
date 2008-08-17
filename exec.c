@@ -386,7 +386,7 @@ static void tlb_unprotect_code_phys(CPUState *env, ram_addr_t ram_addr,
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE];
 #endif
 
-void code_gen_alloc(unsigned long tb_size)
+static void code_gen_alloc(unsigned long tb_size)
 {
 #ifdef USE_STATIC_CODE_GEN_BUFFER
     code_gen_buffer = static_code_gen_buffer;

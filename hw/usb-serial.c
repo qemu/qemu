@@ -483,13 +483,13 @@ static void usb_serial_handle_destroy(USBDevice *dev)
     qemu_free(s);
 }
 
-int usb_serial_can_read(void *opaque)
+static int usb_serial_can_read(void *opaque)
 {
     USBSerialState *s = opaque;
     return RECV_BUF - s->recv_used;
 }
 
-void usb_serial_read(void *opaque, const uint8_t *buf, int size)
+static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
 {
     USBSerialState *s = opaque;
     int first_size = RECV_BUF - s->recv_ptr;
@@ -501,7 +501,7 @@ void usb_serial_read(void *opaque, const uint8_t *buf, int size)
     s->recv_used += size;
 }
 
-void usb_serial_event(void *opaque, int event)
+static void usb_serial_event(void *opaque, int event)
 {
     USBSerialState *s = opaque;
 

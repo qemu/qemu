@@ -107,10 +107,12 @@ int cpu_inl(CPUState *env, int addr)
     return 0;
 }
 
+#if defined(TARGET_I386)
 int cpu_get_pic_interrupt(CPUState *env)
 {
     return -1;
 }
+#endif
 
 /* timers for rdtsc */
 
@@ -2151,7 +2153,7 @@ void cpu_loop (CPUState *env)
 }
 #endif /* TARGET_ALPHA */
 
-void usage(void)
+static void usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
            "usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
