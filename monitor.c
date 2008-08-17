@@ -61,7 +61,7 @@
 typedef struct term_cmd_t {
     const char *name;
     const char *args_type;
-    void (*handler)();
+    void *handler;
     const char *params;
     const char *help;
 } term_cmd_t;
@@ -224,6 +224,7 @@ static void do_commit(const char *device)
 static void do_info(const char *item)
 {
     term_cmd_t *cmd;
+    void (*handler)(void);
 
     if (!item)
         goto help;
@@ -235,7 +236,8 @@ static void do_info(const char *item)
     help_cmd("info");
     return;
  found:
-    cmd->handler();
+    handler = cmd->handler;
+    handler();
 }
 
 static void do_info_version(void)
@@ -2158,6 +2160,17 @@ static void monitor_handle_command(const char *cmdline)
     char buf[1024];
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
+    void (*handler_0)(void);
+    void (*handler_1)(void *arg0);
+    void (*handler_2)(void *arg0, void *arg1);
+    void (*handler_3)(void *arg0, void *arg1, void *arg2);
+    void (*handler_4)(void *arg0, void *arg1, void *arg2, void *arg3);
+    void (*handler_5)(void *arg0, void *arg1, void *arg2, void *arg3,
+                      void *arg4);
+    void (*handler_6)(void *arg0, void *arg1, void *arg2, void *arg3,
+                      void *arg4, void *arg5);
+    void (*handler_7)(void *arg0, void *arg1, void *arg2, void *arg3,
+                      void *arg4, void *arg5, void *arg6);
 
 #ifdef DEBUG
     term_printf("command='%s'\n", cmdline);
@@ -2420,28 +2433,36 @@ static void monitor_handle_command(const char *cmdline)
 
     switch(nb_args) {
     case 0:
-        cmd->handler();
+        handler_0 = cmd->handler;
+        handler_0();
         break;
     case 1:
-        cmd->handler(args[0]);
+        handler_1 = cmd->handler;
+        handler_1(args[0]);
         break;
     case 2:
-        cmd->handler(args[0], args[1]);
+        handler_2 = cmd->handler;
+        handler_2(args[0], args[1]);
         break;
     case 3:
-        cmd->handler(args[0], args[1], args[2]);
+        handler_3 = cmd->handler;
+        handler_3(args[0], args[1], args[2]);
         break;
     case 4:
-        cmd->handler(args[0], args[1], args[2], args[3]);
+        handler_4 = cmd->handler;
+        handler_4(args[0], args[1], args[2], args[3]);
         break;
     case 5:
-        cmd->handler(args[0], args[1], args[2], args[3], args[4]);
+        handler_5 = cmd->handler;
+        handler_5(args[0], args[1], args[2], args[3], args[4]);
         break;
     case 6:
-        cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5]);
+        handler_6 = cmd->handler;
+        handler_6(args[0], args[1], args[2], args[3], args[4], args[5]);
         break;
     case 7:
-        cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+        handler_7 = cmd->handler;
+        handler_7(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
         break;
     default:
         term_printf("unsupported number of arguments: %d\n", nb_args);
