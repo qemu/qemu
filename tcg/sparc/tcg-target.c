@@ -625,8 +625,18 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     /* ld [arg1 + x], arg1 */
     tcg_out_ldst(s, arg1, arg1, offsetof(CPUTLBEntry, addend) -
                  offsetof(CPUTLBEntry, addr_read), HOST_LD_OP);
+
+#if TARGET_LONG_BITS == 32
+    /* and addr_reg, x, arg0 */
+    tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_I5, 0xffffffff);
+    tcg_out_arith(s, arg0, addr_reg, TCG_REG_I5, ARITH_AND);
+    /* add arg0, arg1, arg0 */
+    tcg_out_arith(s, arg0, arg0, arg1, ARITH_ADD);
+#else
     /* add addr_reg, arg1, arg0 */
     tcg_out_arith(s, arg0, addr_reg, arg1, ARITH_ADD);
+#endif
+
 #else
     arg0 = addr_reg;
 #endif
@@ -785,8 +795,17 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     tcg_out_ldst(s, arg1, arg1, offsetof(CPUTLBEntry, addend) -
                  offsetof(CPUTLBEntry, addr_write), HOST_LD_OP);
 
+#if TARGET_LONG_BITS == 32
+    /* and addr_reg, x, arg0 */
+    tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_I5, 0xffffffff);
+    tcg_out_arith(s, arg0, addr_reg, TCG_REG_I5, ARITH_AND);
+    /* add arg0, arg1, arg0 */
+    tcg_out_arith(s, arg0, arg0, arg1, ARITH_ADD);
+#else
     /* add addr_reg, arg1, arg0 */
     tcg_out_arith(s, arg0, addr_reg, arg1, ARITH_ADD);
+#endif
+
 #else
     arg0 = addr_reg;
 #endif
