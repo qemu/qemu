@@ -376,7 +376,6 @@ static int vmdk_open(BlockDriverState *bs, const char *filename, int flags)
     if (parent_open)
         // Parent must be opened as RO.
         flags = BDRV_O_RDONLY;
-    fprintf(stderr, "(VMDK) image open: flags=0x%x filename=%s\n", flags, bs->filename);
 
     ret = bdrv_file_open(&s->hd, filename, flags);
     if (ret < 0)
