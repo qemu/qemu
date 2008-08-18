@@ -596,7 +596,10 @@ static void memory_dump(int count, int format, int wsize,
             env = mon_get_cpu();
             if (!env)
                 break;
-            cpu_memory_rw_debug(env, addr, buf, l, 0);
+            if (cpu_memory_rw_debug(env, addr, buf, l, 0) < 0) {
+                term_printf(" Cannot access memory\n");
+                break;
+            }
         }
         i = 0;
         while (i < l) {
