@@ -566,6 +566,8 @@ static void apic_timer_update(APICState *s, int64_t current_time)
         d = (current_time - s->initial_count_load_time) >>
             s->count_shift;
         if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
+            if (!s->initial_count)
+                goto no_timer;
             d = ((d / ((uint64_t)s->initial_count + 1)) + 1) * ((uint64_t)s->initial_count + 1);
         } else {
             if (d >= s->initial_count)
