@@ -5721,7 +5721,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         bdrv_flags |= BDRV_O_SNAPSHOT;
     if (!cache)
         bdrv_flags |= BDRV_O_DIRECT;
-    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0) {
+    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0 || qemu_key_check(bdrv, file)) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return -1;
@@ -8009,14 +8009,22 @@ int qemu_key_check(BlockDriverState *bs, const char *name)
     return -EPERM;
 }
 
+static BlockDriverState *get_bdrv(int index)
+{
+    if (index > nb_drives)
+        return NULL;
+    return drives_table[index].bdrv;
+}
+
 static void read_passwords(void)
 {
     BlockDriverState *bs;
     int i;
 
-    for(i = 0; i < nb_drives; i++) {
-        bs = drives_table[i].bdrv;
-        qemu_key_check(bs, bdrv_get_device_name(bs));
+    for(i = 0; i < 6; i++) {
+        bs = get_bdrv(i);
+        if (bs)
+            qemu_key_check(bs, bdrv_get_device_name(bs));
     }
 }
 
@@ -8185,7 +8193,6 @@ int main(int argc, char **argv)
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd;
-    int has_monitor;
     const char *monitor_device;
     const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
@@ -9055,8 +9062,6 @@ int main(int argc, char **argv)
     }
 
     /* Maintain compatibility with multiple stdio monitors */
-
-    has_monitor = 0;
     if (!strcmp(monitor_device,"stdio")) {
         for (i = 0; i < MAX_SERIAL_PORTS; i++) {
             const char *devname = serial_devices[i];
@@ -9069,7 +9074,6 @@ int main(int argc, char **argv)
                 break;
             }
         }
-        has_monitor = 1;
     }
     if (monitor_device) {
         monitor_hd = qemu_chr_open(monitor_device);
@@ -9078,7 +9082,6 @@ int main(int argc, char **argv)
             exit(1);
         }
         monitor_init(monitor_hd, !nographic);
-        has_monitor = 1;
     }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
@@ -9139,16 +9142,12 @@ int main(int argc, char **argv)
     }
 #endif
 
-    read_passwords();
-
-    if (has_monitor)
-        monitor_start_input();
-
     if (loadvm)
         do_loadvm(loadvm);
 
     {
         /* XXX: simplify init */
+        read_passwords();
         if (autostart) {
             vm_start();
         }

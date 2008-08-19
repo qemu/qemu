@@ -76,6 +76,8 @@ static term_cmd_t info_cmds[];
 static uint8_t term_outbuf[1024];
 static int term_outbuf_index;
 
+static void monitor_start_input(void);
+
 CPUState *mon_cpu = NULL;
 
 void term_flush(void)
@@ -2683,13 +2685,15 @@ static void term_read(void *opaque, const uint8_t *buf, int size)
         readline_handle_byte(buf[i]);
 }
 
+static void monitor_start_input(void);
+
 static void monitor_handle_command1(void *opaque, const char *cmdline)
 {
     monitor_handle_command(cmdline);
     monitor_start_input();
 }
 
-void monitor_start_input(void)
+static void monitor_start_input(void)
 {
     readline_start("(qemu) ", 0, monitor_handle_command1, NULL);
 }
@@ -2730,6 +2734,8 @@ void monitor_init(CharDriverState *hd, int show_banner)
     hide_banner = !show_banner;
 
     qemu_chr_add_handlers(hd, term_can_read, term_read, term_event, NULL);
+
+    readline_start("", 0, monitor_handle_command1, NULL);
 }
 
 /* XXX: use threads ? */
