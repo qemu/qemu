@@ -121,10 +121,14 @@ static void pic_irq_request(void *opaque, int irq, int level)
     if (!level)
         return;
 
-    while (env) {
-        if (apic_accept_pic_intr(env))
-            apic_local_deliver(env, APIC_LINT0);
-        env = env->next_cpu;
+    if (env->apic_state) {
+        while (env) {
+            if (apic_accept_pic_intr(env))
+                apic_local_deliver(env, APIC_LINT0);
+            env = env->next_cpu;
+        }
+    } else {
+        cpu_interrupt(env, CPU_INTERRUPT_HARD);
     }
 }
 
