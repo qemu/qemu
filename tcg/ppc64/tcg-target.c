@@ -219,14 +219,18 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32 (ct->u.regs, 0, 0xffffffff);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
+#ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
+#endif
         break;
     case 'S':                   /* qemu_st constraint */
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32 (ct->u.regs, 0, 0xffffffff);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
+#ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
+#endif
         break;
     case 'Z':
         ct->ct |= TCG_CT_CONST_U32;
@@ -653,7 +657,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
 #endif
     r0 = addr_reg;
-    r1 = 4;
+    r1 = 3;
 #endif
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -765,7 +769,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #if TARGET_LONG_BITS == 32
     tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
 #endif
-    r1 = 4;
+    r1 = 3;
     r0 = addr_reg;
 #endif
 
