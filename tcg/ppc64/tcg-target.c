@@ -528,7 +528,6 @@ static void *qemu_st_helpers[4] = {
     __stl_mmu,
     __stq_mmu,
 };
-#endif
 
 static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
                               int addr_reg, int s_bits, int offset)
@@ -576,6 +575,7 @@ static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
     }
 #endif
 }
+#endif
 
 static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
