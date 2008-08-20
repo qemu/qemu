@@ -649,6 +649,9 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     /* r0 = env->tlb_table[mem_index][index].addend + addr */
 
 #else  /* !CONFIG_SOFTMMU */
+#if TARGET_LONG_BITS == 32
+    tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
+#endif
     r0 = addr_reg;
 #endif
 
@@ -758,6 +761,9 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     /* r0 = env->tlb_table[mem_index][index].addend + addr */
 
 #else  /* !CONFIG_SOFTMMU */
+#if TARGET_LONG_BITS == 32
+    tcg_out_rld (s, RLDICL, addr_reg, addr_reg, 0, 32);
+#endif
     r1 = 4;
     r0 = addr_reg;
 #endif
