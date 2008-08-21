@@ -46,7 +46,10 @@ recurse-all: $(SUBDIR_RULES)
 BLOCK_OBJS=cutils.o qemu-malloc.o
 BLOCK_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
 BLOCK_OBJS+=block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
-BLOCK_OBJS+=block-qcow2.o block-parallels.o block-nbd.o
+BLOCK_OBJS+=block-qcow2.o block-parallels.o
+ifndef CONFIG_WIN32
+BLOCK_OBJS+=block-nbd.o
+endif
 
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
@@ -54,9 +57,13 @@ BLOCK_OBJS+=block-qcow2.o block-parallels.o block-nbd.o
 # system emulation, i.e. a single QEMU executable should support all
 # CPUs and machines.
 
-OBJS=nbd.o $(BLOCK_OBJS)
+OBJS=$(BLOCK_OBJS)
 OBJS+=readline.o console.o
 OBJS+=block.o
+
+ifndef CONFIG_WIN32
+OBJS+=nbd.o
+endif
 
 OBJS+=irq.o
 OBJS+=i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
@@ -166,11 +173,11 @@ libqemu_user.a: $(USER_OBJS)
 	rm -f $@ 
 	$(AR) rcs $@ $(USER_OBJS)
 
-QEMU_IMG_BLOCK_OBJS = nbd.o $(BLOCK_OBJS)
+QEMU_IMG_BLOCK_OBJS = $(BLOCK_OBJS)
 ifdef CONFIG_WIN32
 QEMU_IMG_BLOCK_OBJS += qemu-img-block-raw-win32.o
 else
-QEMU_IMG_BLOCK_OBJS += qemu-img-block-raw-posix.o
+QEMU_IMG_BLOCK_OBJS += nbd.o qemu-img-block-raw-posix.o
 endif
 
 ######################################################################
