@@ -131,7 +131,7 @@ audio_possible_drivers="dsound sdl fmod"
 ;;
 GNU/kFreeBSD)
 audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd"
+audio_possible_drivers="oss sdl esd pa"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -139,7 +139,7 @@ fi
 FreeBSD)
 bsd="yes"
 audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd"
+audio_possible_drivers="oss sdl esd pa"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
