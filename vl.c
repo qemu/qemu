@@ -5809,22 +5809,15 @@ static int usb_device_add(const char *devname)
     return 0;
 }
 
-static int usb_device_del(const char *devname)
+int usb_device_del_addr(int bus_num, int addr)
 {
     USBPort *port;
     USBPort **lastp;
     USBDevice *dev;
-    int bus_num, addr;
-    const char *p;
 
     if (!used_usb_ports)
         return -1;
 
-    p = strchr(devname, '.');
-    if (!p)
-        return -1;
-    bus_num = strtoul(devname, NULL, 0);
-    addr = strtoul(p + 1, NULL, 0);
     if (bus_num != 0)
         return -1;
 
@@ -5845,6 +5838,23 @@ static int usb_device_del(const char *devname)
     port->next = free_usb_ports;
     free_usb_ports = port;
     return 0;
+}
+
+static int usb_device_del(const char *devname)
+{
+    int bus_num, addr;
+    const char *p;
+
+    if (!used_usb_ports)
+        return -1;
+
+    p = strchr(devname, '.');
+    if (!p)
+        return -1;
+    bus_num = strtoul(devname, NULL, 0);
+    addr = strtoul(p + 1, NULL, 0);
+
+    return usb_device_del_addr(bus_num, addr);
 }
 
 void do_usb_add(const char *devname)

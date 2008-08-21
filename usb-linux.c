@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu-timer.h"
 #include "hw/usb.h"
 #include "console.h"
 
@@ -77,6 +78,7 @@ typedef struct USBHostDevice {
     uint8_t descr[1024];
     int descr_len;
     int urbs_ready;
+    QEMUTimer *timer;
 } USBHostDevice;
 
 typedef struct PendingURB {
@@ -165,7 +167,11 @@ static int usb_host_update_interfaces(USBHostDevice *dev, int configuration)
         }
         config_descr_len = dev->descr[i];
 
-        if (configuration == dev->descr[i + 5])
+#ifdef DEBUG
+	printf("config #%d need %d\n", dev->descr[i + 5], configuration); 
+#endif
+
+        if (configuration < 0 || configuration == dev->descr[i + 5])
             break;
 
         i += config_descr_len;
@@ -230,8 +236,11 @@ static void usb_host_handle_destroy(USBDevice *dev)
 {
     USBHostDevice *s = (USBHostDevice *)dev;
 
+    qemu_del_timer(s->timer);
+
     if (s->fd >= 0)
         close(s->fd);
+
     qemu_free(s);
 }
 
@@ -594,6 +603,22 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     return 0;
 }
 
+static void usb_host_device_check(void *priv)
+{
+    USBHostDevice *s = priv;
+    struct usbdevfs_connectinfo ci;
+    int err;
+
+    err = ioctl(s->fd, USBDEVFS_CONNECTINFO, &ci);
+    if (err < 0) {
+        printf("usb device %d.%d disconnected\n", 0, s->dev.addr);
+	usb_device_del_addr(0, s->dev.addr);
+	return;
+    }
+
+    qemu_mod_timer(s->timer, qemu_get_clock(rt_clock) + 1000);
+}
+
 /* XXX: exclude high speed devices or implement EHCI */
 USBDevice *usb_host_device_open(const char *devname)
 {
@@ -604,24 +629,30 @@ USBDevice *usb_host_device_open(const char *devname)
     int bus_num, addr;
     char product_name[PRODUCT_NAME_SZ];
 
-    dev = qemu_mallocz(sizeof(USBHostDevice));
-    if (!dev)
-        goto fail;
-
-#ifdef DEBUG_ISOCH
-    printf("usb_host_device_open %s\n", devname);
-#endif
     if (usb_host_find_device(&bus_num, &addr,
                              product_name, sizeof(product_name),
                              devname) < 0)
         return NULL;
+
+
+    dev = qemu_mallocz(sizeof(USBHostDevice));
+    if (!dev)
+        goto fail;
+
+    dev->timer = qemu_new_timer(rt_clock, usb_host_device_check, (void *) dev);
+    if (!dev->timer)
+	goto fail;
+
+#ifdef DEBUG
+    printf("usb_host_device_open %s\n", devname);
+#endif
 
     snprintf(buf, sizeof(buf), USBDEVFS_PATH "/%03d/%03d",
              bus_num, addr);
     fd = open(buf, O_RDWR | O_NONBLOCK);
     if (fd < 0) {
         perror(buf);
-        return NULL;
+        goto fail;
     }
 
     /* read the device description */
@@ -645,7 +676,7 @@ USBDevice *usb_host_device_open(const char *devname)
     dev->configuration = 1;
 
     /* XXX - do something about initial configuration */
-    if (!usb_host_update_interfaces(dev, 1))
+    if (!usb_host_update_interfaces(dev, -1))
         goto fail;
 
     ret = ioctl(fd, USBDEVFS_CONNECTINFO, &ci);
@@ -700,11 +731,18 @@ USBDevice *usb_host_device_open(const char *devname)
     fcntl(dev->pipe_fds[1], F_SETFL, O_NONBLOCK);
     qemu_set_fd_handler(dev->pipe_fds[0], urb_completion_pipe_read, NULL, dev);
 #endif
+
+    /* Start the timer to detect disconnect */
+    qemu_mod_timer(dev->timer, qemu_get_clock(rt_clock) + 1000);
+
     dev->urbs_ready = 0;
     return (USBDevice *)dev;
 fail:
-    if (dev)
+    if (dev) {
+	if (dev->timer)
+		qemu_del_timer(dev->timer);
         qemu_free(dev);
+    }
     close(fd);
     return NULL;
 }
