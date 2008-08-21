@@ -166,7 +166,7 @@ static inline void reset_bit(uint32_t *tab, int index)
     tab[i] &= ~mask;
 }
 
-void apic_local_deliver(CPUState *env, int vector)
+static void apic_local_deliver(CPUState *env, int vector)
 {
     APICState *s = env->apic_state;
     uint32_t lvt = s->lvt[vector];
@@ -194,6 +194,27 @@ void apic_local_deliver(CPUState *env, int vector)
             (lvt & APIC_LVT_LEVEL_TRIGGER))
             trigger_mode = APIC_TRIGGER_LEVEL;
         apic_set_irq(s, lvt & 0xff, trigger_mode);
+    }
+}
+
+void apic_deliver_pic_intr(CPUState *env, int level)
+{
+    if (level)
+        apic_local_deliver(env, APIC_LVT_LINT0);
+    else {
+        APICState *s = env->apic_state;
+        uint32_t lvt = s->lvt[APIC_LVT_LINT0];
+
+        switch ((lvt >> 8) & 7) {
+        case APIC_DM_FIXED:
+            if (!(lvt & APIC_LVT_LEVEL_TRIGGER))
+                break;
+            reset_bit(s->irr, lvt & 0xff);
+            /* fall through */
+        case APIC_DM_EXTINT:
+            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+            break;
+        }
     }
 }
 

@@ -40,11 +40,9 @@ void irq_info(void);
 /* APIC */
 typedef struct IOAPICState IOAPICState;
 
-#define APIC_LINT0	3
-
 int apic_init(CPUState *env);
 int apic_accept_pic_intr(CPUState *env);
-void apic_local_deliver(CPUState *env, int vector);
+void apic_deliver_pic_intr(CPUState *env, int level);
 int apic_get_interrupt(CPUState *env);
 IOAPICState *ioapic_init(void);
 void ioapic_set_irq(void *opaque, int vector, int level);
