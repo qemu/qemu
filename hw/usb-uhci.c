@@ -310,6 +310,8 @@ static void uhci_reset(UHCIState *s)
     int i;
     UHCIPort *port;
 
+    dprintf("uhci: full reset\n");
+
     pci_conf = s->dev.config;
 
     pci_conf[0x6a] = 0x01; /* usb clock */
@@ -331,12 +333,13 @@ static void uhci_reset(UHCIState *s)
     uhci_async_cancel_all(s);
 }
 
-#if 1
 static void uhci_save(QEMUFile *f, void *opaque)
 {
     UHCIState *s = opaque;
     uint8_t num_ports = NB_PORTS;
     int i;
+
+    uhci_async_cancel_all(s);
 
     pci_device_save(&s->dev, f);
 
@@ -383,7 +386,6 @@ static int uhci_load(QEMUFile *f, void *opaque, int version_id)
 
     return 0;
 }
-#endif
 
 static void uhci_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
@@ -1009,6 +1011,8 @@ static void uhci_frame_timer(void *opaque)
         qemu_del_timer(s->frame_timer);
         /* set hchalted bit in status - UHCI11D 2.1.2 */
         s->status |= UHCI_STS_HCHALTED;
+
+        dprintf("uhci: halted\n");
         return;
     }
 
@@ -1082,6 +1086,8 @@ void usb_uhci_piix3_init(PCIBus *bus, int devfn)
        to rely on this.  */
     pci_register_io_region(&s->dev, 4, 0x20,
                            PCI_ADDRESS_SPACE_IO, uhci_map);
+
+    register_savevm("uhci", 0, 1, uhci_save, uhci_load, s);
 }
 
 void usb_uhci_piix4_init(PCIBus *bus, int devfn)
