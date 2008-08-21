@@ -59,7 +59,7 @@ typedef struct DisasContext {
     int fpu_enabled;
     int address_mask_32bit;
     struct TranslationBlock *tb;
-    uint32_t features;
+    sparc_def_t *def;
 } DisasContext;
 
 // This function uses non-native bit order
@@ -1905,10 +1905,10 @@ static inline TCGv get_src2(unsigned int insn, TCGv def)
 }
 
 #define CHECK_IU_FEATURE(dc, FEATURE)                      \
-    if (!((dc)->features & CPU_FEATURE_ ## FEATURE))       \
+    if (!((dc)->def->features & CPU_FEATURE_ ## FEATURE))  \
         goto illegal_insn;
 #define CHECK_FPU_FEATURE(dc, FEATURE)                     \
-    if (!((dc)->features & CPU_FEATURE_ ## FEATURE))       \
+    if (!((dc)->def->features & CPU_FEATURE_ ## FEATURE))  \
         goto nfpu_insn;
 
 /* before an instruction, dc->pc must be static */
@@ -4141,7 +4141,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     goto jmp_insn;
 #endif
                 case 0x3b: /* flush */
-                    if (!((dc)->features & CPU_FEATURE_FLUSH))
+                    if (!((dc)->def->features & CPU_FEATURE_FLUSH))
                         goto unimp_flush;
                     tcg_gen_helper_0_1(helper_flush, cpu_dst);
                     break;
@@ -4742,13 +4742,10 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     last_pc = dc->pc;
     dc->npc = (target_ulong) tb->cs_base;
     dc->mem_idx = cpu_mmu_index(env);
-    dc->features = env->features;
-    if ((dc->features & CPU_FEATURE_FLOAT)) {
+    dc->def = env->def;
+    if ((dc->def->features & CPU_FEATURE_FLOAT))
         dc->fpu_enabled = cpu_fpu_enabled(env);
-#if defined(CONFIG_USER_ONLY)
-        dc->features |= CPU_FEATURE_FLOAT128;
-#endif
-    } else
+    else
         dc->fpu_enabled = 0;
 #ifdef TARGET_SPARC64
     dc->address_mask_32bit = env->pstate & PS_AM;

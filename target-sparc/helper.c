@@ -34,23 +34,6 @@
 //#define DEBUG_FEATURES
 //#define DEBUG_PCALL
 
-typedef struct sparc_def_t sparc_def_t;
-
-struct sparc_def_t {
-    const char *name;
-    target_ulong iu_version;
-    uint32_t fpu_version;
-    uint32_t mmu_version;
-    uint32_t mmu_bm;
-    uint32_t mmu_ctpr_mask;
-    uint32_t mmu_cxr_mask;
-    uint32_t mmu_sfsr_mask;
-    uint32_t mmu_trcr_mask;
-    uint32_t features;
-    uint32_t nwindows;
-    uint32_t maxtl;
-};
-
 static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 
 /* Sparc MMU emulation */
@@ -137,7 +120,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
 
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
         // Boot mode: instruction fetches are taken from PROM
-        if (rw == 2 && (env->mmuregs[0] & env->mmu_bm)) {
+        if (rw == 2 && (env->mmuregs[0] & env->def->mmu_bm)) {
             *physical = env->prom_addr | (address & 0x7ffffULL);
             *prot = PAGE_READ | PAGE_EXEC;
             return 0;
@@ -759,7 +742,7 @@ void do_interrupt(CPUState *env)
     env->tsptr->tpc = env->pc;
     env->tsptr->tnpc = env->npc;
     env->tsptr->tt = intno;
-    if (!(env->features & CPU_FEATURE_GL)) {
+    if (!(env->def->features & CPU_FEATURE_GL)) {
         switch (intno) {
         case TT_IVEC:
             change_pstate(PS_PEF | PS_PRIV | PS_IG);
@@ -923,7 +906,7 @@ void cpu_reset(CPUSPARCState *env)
 #else
     env->pc = 0;
     env->mmuregs[0] &= ~(MMU_E | MMU_NF);
-    env->mmuregs[0] |= env->mmu_bm;
+    env->mmuregs[0] |= env->def->mmu_bm;
 #endif
     env->npc = env->pc + 4;
 #endif
@@ -936,17 +919,17 @@ static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
     if (cpu_sparc_find_by_name(def, cpu_model) < 0)
         return -1;
 
-    env->features = def->features;
+    env->def = qemu_mallocz(sizeof(*def));
+    memcpy(env->def, def, sizeof(*def));
+#if defined(CONFIG_USER_ONLY)
+    if ((env->def->features & CPU_FEATURE_FLOAT))
+        env->def->features |= CPU_FEATURE_FLOAT128;
+#endif
     env->cpu_model_str = cpu_model;
     env->version = def->iu_version;
     env->fsr = def->fpu_version;
     env->nwindows = def->nwindows;
 #if !defined(TARGET_SPARC64)
-    env->mmu_bm = def->mmu_bm;
-    env->mmu_ctpr_mask = def->mmu_ctpr_mask;
-    env->mmu_cxr_mask = def->mmu_cxr_mask;
-    env->mmu_sfsr_mask = def->mmu_sfsr_mask;
-    env->mmu_trcr_mask = def->mmu_trcr_mask;
     env->mmuregs[0] |= def->mmu_version;
     cpu_sparc_set_id(env, 0);
 #else
@@ -960,6 +943,7 @@ static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
 
 static void cpu_sparc_close(CPUSPARCState *env)
 {
+    free(env->def);
     free(env);
 }
 

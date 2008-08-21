@@ -1203,15 +1203,15 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                                     (val & 0x00ffffff);
                 // Mappings generated during no-fault mode or MMU
                 // disabled mode are invalid in normal mode
-                if ((oldreg & (MMU_E | MMU_NF | env->mmu_bm)) !=
-                    (env->mmuregs[reg] & (MMU_E | MMU_NF | env->mmu_bm)))
+                if ((oldreg & (MMU_E | MMU_NF | env->def->mmu_bm)) !=
+                    (env->mmuregs[reg] & (MMU_E | MMU_NF | env->def->mmu_bm)))
                     tlb_flush(env, 1);
                 break;
             case 1: // Context Table Pointer Register
-                env->mmuregs[reg] = val & env->mmu_ctpr_mask;
+                env->mmuregs[reg] = val & env->def->mmu_ctpr_mask;
                 break;
             case 2: // Context Register
-                env->mmuregs[reg] = val & env->mmu_cxr_mask;
+                env->mmuregs[reg] = val & env->def->mmu_cxr_mask;
                 if (oldreg != env->mmuregs[reg]) {
                     /* we flush when the MMU context changes because
                        QEMU has no MMU context support */
@@ -1222,10 +1222,10 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
             case 4: // Synchronous Fault Address Register
                 break;
             case 0x10: // TLB Replacement Control Register
-                env->mmuregs[reg] = val & env->mmu_trcr_mask;
+                env->mmuregs[reg] = val & env->def->mmu_trcr_mask;
                 break;
             case 0x13: // Synchronous Fault Status Register with Read and Clear
-                env->mmuregs[3] = val & env->mmu_sfsr_mask;
+                env->mmuregs[3] = val & env->def->mmu_sfsr_mask;
                 break;
             case 0x14: // Synchronous Fault Address Register
                 env->mmuregs[4] = val;
@@ -1552,7 +1552,8 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 #endif
 
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || ((env->features & CPU_FEATURE_HYPV) && asi >= 0x30 && asi < 0x80
+        || ((env->def->features & CPU_FEATURE_HYPV)
+            && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
@@ -1565,7 +1566,8 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x88: // Primary LE
     case 0x8a: // Primary no-fault LE
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            if ((env->features & CPU_FEATURE_HYPV) && env->hpstate & HS_PRIV) {
+            if ((env->def->features & CPU_FEATURE_HYPV)
+                && env->hpstate & HS_PRIV) {
                 switch(size) {
                 case 1:
                     ret = ldub_hypv(addr);
@@ -1791,7 +1793,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     dump_asi("write", addr, asi, size, val);
 #endif
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || ((env->features & CPU_FEATURE_HYPV) && asi >= 0x30 && asi < 0x80
+        || ((env->def->features & CPU_FEATURE_HYPV)
+            && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
@@ -1828,7 +1831,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x80: // Primary
     case 0x88: // Primary LE
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
-            if ((env->features & CPU_FEATURE_HYPV) && env->hpstate & HS_PRIV) {
+            if ((env->def->features & CPU_FEATURE_HYPV)
+                && env->hpstate & HS_PRIV) {
                 switch(size) {
                 case 1:
                     stb_hypv(addr, val);
@@ -2108,7 +2112,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
 void helper_ldda_asi(target_ulong addr, int asi, int rd)
 {
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
-        || ((env->features & CPU_FEATURE_HYPV) && asi >= 0x30 && asi < 0x80
+        || ((env->def->features & CPU_FEATURE_HYPV)
+            && asi >= 0x30 && asi < 0x80
             && !(env->hpstate & HS_PRIV)))
         raise_exception(TT_PRIV_ACT);
 
@@ -2682,7 +2687,7 @@ void change_pstate(uint64_t new_pstate)
 
 void helper_wrpstate(target_ulong new_state)
 {
-    if (!(env->features & CPU_FEATURE_GL))
+    if (!(env->def->features & CPU_FEATURE_GL))
         change_pstate(new_state & 0xf3f);
 }
 
