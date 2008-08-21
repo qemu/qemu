@@ -1,35 +1,17 @@
-? _rombios_.c
-? _rombiosl_.c
-? biossums
-? rombios.s
-? rombios.sym
-? rombios.txt
-? rombios16.bin
-? rombios32.bin
-? rombios32.out
-? rombiosl.s
-? rombiosl.sym
-? rombiosl.txt
-Index: BIOS-bochs-latest
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/BIOS-bochs-latest,v
-retrieving revision 1.173
-diff -u -d -p -r1.173 BIOS-bochs-latest
-Binary files /tmp/cvsItPJ31 and BIOS-bochs-latest differ
-Index: BIOS-bochs-legacy
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/BIOS-bochs-legacy,v
-retrieving revision 1.33
-diff -u -d -p -r1.33 BIOS-bochs-legacy
-Binary files /tmp/cvsMYE2Kz and BIOS-bochs-legacy differ
-Index: rombios.c
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/rombios.c,v
-retrieving revision 1.207
-diff -u -d -p -r1.207 rombios.c
---- rombios.c	21 Apr 2008 14:22:01 -0000	1.207
-+++ rombios.c	28 Apr 2008 07:53:57 -0000
-@@ -4404,22 +4404,25 @@ BX_DEBUG_INT15("case default:\n");
+--- bochs-2.3.7.orig/bios/rombios.h
++++ bochs-2.3.7/bios/rombios.h
+@@ -19,7 +19,7 @@
+ //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
+ 
+ /* define it to include QEMU specific code */
+-//#define BX_QEMU
++#define BX_QEMU
+ 
+ #ifndef LEGACY
+ #  define BX_ROMBIOS32     1
+--- bochs-2.3.7.orig/bios/rombios.c
++++ bochs-2.3.7/bios/rombios.c
+@@ -4404,22 +4404,25 @@
  #endif // BX_USE_PS2_MOUSE
  
  
@@ -58,7 +40,7 @@ diff -u -d -p -r1.207 rombios.c
      write_word(ES, DI+14, 0x0000);
  
      write_word(ES, DI+16, type);
-@@ -4432,7 +4435,9 @@ int15_function32(regs, ES, DS, FLAGS)
+@@ -4432,7 +4435,9 @@
    Bit16u ES, DS, FLAGS;
  {
    Bit32u  extended_memory_size=0; // 64bits long
@@ -68,7 +50,7 @@ diff -u -d -p -r1.207 rombios.c
  
  BX_DEBUG_INT15("int15 AX=%04x\n",regs.u.r16.ax);
  
-@@ -4506,11 +4511,18 @@ ASM_END
+@@ -4506,11 +4511,18 @@
                      extended_memory_size += (1L * 1024 * 1024);
                  }
  
@@ -88,7 +70,7 @@ diff -u -d -p -r1.207 rombios.c
                          regs.u.r32.ebx = 1;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4519,7 +4531,7 @@ ASM_END
+@@ -4519,7 +4531,7 @@
                          break;
                      case 1:
                          set_e820_range(ES, regs.u.r16.di,
@@ -97,7 +79,7 @@ diff -u -d -p -r1.207 rombios.c
                          regs.u.r32.ebx = 2;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4528,7 +4540,7 @@ ASM_END
+@@ -4528,7 +4540,7 @@
                          break;
                      case 2:
                          set_e820_range(ES, regs.u.r16.di,
@@ -106,7 +88,7 @@ diff -u -d -p -r1.207 rombios.c
                          regs.u.r32.ebx = 3;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4539,7 +4551,7 @@ ASM_END
+@@ -4539,7 +4551,7 @@
  #if BX_ROMBIOS32
                          set_e820_range(ES, regs.u.r16.di,
                                         0x00100000L,
@@ -115,7 +97,7 @@ diff -u -d -p -r1.207 rombios.c
                          regs.u.r32.ebx = 4;
  #else
                          set_e820_range(ES, regs.u.r16.di,
-@@ -4555,7 +4567,7 @@ ASM_END
+@@ -4555,7 +4567,7 @@
                      case 4:
                          set_e820_range(ES, regs.u.r16.di,
                                         extended_memory_size - ACPI_DATA_SIZE,
@@ -124,7 +106,7 @@ diff -u -d -p -r1.207 rombios.c
                          regs.u.r32.ebx = 5;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4565,7 +4577,20 @@ ASM_END
+@@ -4565,7 +4577,20 @@
                      case 5:
                          /* 256KB BIOS area at the end of 4 GB */
                          set_e820_range(ES, regs.u.r16.di,
@@ -146,30 +128,9 @@ diff -u -d -p -r1.207 rombios.c
                          regs.u.r32.ebx = 0;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-Index: rombios.h
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/rombios.h,v
-retrieving revision 1.6
-diff -u -d -p -r1.6 rombios.h
---- rombios.h	26 Jan 2008 09:15:27 -0000	1.6
-+++ rombios.h	28 Apr 2008 07:53:57 -0000
-@@ -19,7 +19,7 @@
- //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
- 
- /* define it to include QEMU specific code */
--//#define BX_QEMU
-+#define BX_QEMU
- 
- #ifndef LEGACY
- #  define BX_ROMBIOS32     1
-Index: rombios32.c
-===================================================================
-RCS file: /cvsroot/bochs/bochs/bios/rombios32.c,v
-retrieving revision 1.26
-diff -u -d -p -r1.26 rombios32.c
---- rombios32.c	8 Apr 2008 16:41:18 -0000	1.26
-+++ rombios32.c	28 Apr 2008 07:53:58 -0000
-@@ -478,7 +478,12 @@ void smp_probe(void)
+--- bochs-2.3.7.orig/bios/rombios32.c
++++ bochs-2.3.7/bios/rombios32.c
+@@ -479,7 +479,12 @@
          sipi_vector = AP_BOOT_ADDR >> 12;
          writel(APIC_BASE + APIC_ICR_LOW, 0x000C4600 | sipi_vector);
  
@@ -182,15 +143,3 @@ diff -u -d -p -r1.26 rombios32.c
  
          smp_cpus = readw((void *)CPU_COUNT_ADDR);
      }
-@@ -1423,9 +1428,8 @@ void acpi_bios_init(void)
-     fadt->pm1_evt_len = 4;
-     fadt->pm1_cnt_len = 2;
-     fadt->pm_tmr_len = 4;
--    fadt->plvl2_lat = cpu_to_le16(50);
--    fadt->plvl3_lat = cpu_to_le16(50);
--    fadt->plvl3_lat = cpu_to_le16(50);
-+    fadt->plvl2_lat = cpu_to_le16(0x0fff); // C2 state not supported
-+    fadt->plvl3_lat = cpu_to_le16(0x0fff); // C3 state not supported
-     /* WBINVD + PROC_C1 + PWR_BUTTON + SLP_BUTTON + FIX_RTC */
-     fadt->flags = cpu_to_le32((1 << 0) | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 6));
-     acpi_build_table_header((struct acpi_table_header *)fadt, "FACP",
