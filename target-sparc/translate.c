@@ -3451,6 +3451,9 @@ static void disas_sparc_insn(DisasContext * dc)
                             }
 #else
                             tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
+                            if (dc->def->nwindows != 32)
+                                tcg_gen_andi_tl(cpu_tmp32, cpu_tmp32,
+                                                (1 << dc->def->nwindows) - 1);
                             tcg_gen_st_i32(cpu_tmp32, cpu_env,
                                            offsetof(CPUSPARCState, wim));
 #endif
