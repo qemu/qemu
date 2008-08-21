@@ -20,6 +20,7 @@ typedef uint64_t bfd_vma;
 typedef int64_t bfd_signed_vma;
 typedef uint8_t bfd_byte;
 #define sprintf_vma(s,x) sprintf (s, "%0" PRIx64, x)
+#define snprintf_vma(s,ss,x) snprintf (s, ss, "%0" PRIx64, x)
 
 #define BFD64
 

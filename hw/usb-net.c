@@ -625,7 +625,8 @@ typedef struct USBNetState {
 } USBNetState;
 
 static int ndis_query(USBNetState *s, uint32_t oid,
-                uint8_t *inbuf, unsigned int inlen, uint8_t *outbuf)
+                      uint8_t *inbuf, unsigned int inlen, uint8_t *outbuf,
+                      size_t outlen)
 {
     unsigned int i, count;
 
@@ -680,7 +681,7 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_GEN_VENDOR_DESCRIPTION:
-        strcpy(outbuf, "QEMU USB RNDIS Net");
+        pstrcpy(outbuf, outlen, "QEMU USB RNDIS Net");
         return strlen(outbuf) + 1;
 
     case OID_GEN_VENDOR_DRIVER_VERSION:
@@ -882,7 +883,8 @@ static int rndis_query_response(USBNetState *s,
         return USB_RET_STALL;
 
     infobuflen = ndis_query(s, le32_to_cpu(buf->OID),
-                    bufoffs + (uint8_t *) buf, buflen, infobuf);
+                            bufoffs + (uint8_t *) buf, buflen, infobuf,
+                            sizeof(infobuf));
     resplen = sizeof(rndis_query_cmplt_type) +
             ((infobuflen < 0) ? 0 : infobuflen);
     resp = rndis_queue_response(s, resplen);

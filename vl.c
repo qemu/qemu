@@ -1915,11 +1915,12 @@ static void mux_print_help(CharDriverState *chr)
     char cbuf[50] = "\n\r";
 
     if (term_escape_char > 0 && term_escape_char < 26) {
-        sprintf(cbuf,"\n\r");
-        sprintf(ebuf,"C-%c", term_escape_char - 1 + 'a');
+        snprintf(cbuf, sizeof(cbuf), "\n\r");
+        snprintf(ebuf, sizeof(ebuf), "C-%c", term_escape_char - 1 + 'a');
     } else {
-        sprintf(cbuf,"\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r",
-            term_escape_char);
+        snprintf(cbuf, sizeof(cbuf),
+                 "\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r",
+                 term_escape_char);
     }
     chr->chr_write(chr, (uint8_t *)cbuf, strlen(cbuf));
     for (i = 0; mux_help[i] != NULL; i++) {
@@ -4385,7 +4386,7 @@ static int tap_open(char *ifname, int ifname_size)
  * Allocate TAP device, returns opened fd.
  * Stores dev name in the first arg(must be large enough).
  */
-int tap_alloc(char *dev)
+int tap_alloc(char *dev, size_t dev_size)
 {
     int tap_fd, if_fd, ppa = -1;
     static int ip_fd = 0;
@@ -4498,7 +4499,7 @@ int tap_alloc(char *dev)
       syslog (LOG_ERR, "Can't set multiplexor id");
     }
 
-    sprintf(dev, "tap%d", ppa);
+    snprintf(dev, dev_size, "tap%d", ppa);
     return tap_fd;
 }
 
@@ -4506,7 +4507,7 @@ static int tap_open(char *ifname, int ifname_size)
 {
     char  dev[10]="";
     int fd;
-    if( (fd = tap_alloc(dev)) < 0 ){
+    if( (fd = tap_alloc(dev, sizeof(dev))) < 0 ){
        fprintf(stderr, "Cannot allocate TAP device\n");
        return -1;
     }
@@ -5461,11 +5462,11 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         !strcmp(machine->name, "versatileab")) {
         type = IF_SCSI;
         max_devs = MAX_SCSI_DEVS;
-        strcpy(devname, "scsi");
+        pstrcpy(devname, sizeof(devname), "scsi");
     } else {
         type = IF_IDE;
         max_devs = MAX_IDE_DEVS;
-        strcpy(devname, "ide");
+        pstrcpy(devname, sizeof(devname), "ide");
     }
     media = MEDIA_DISK;
 

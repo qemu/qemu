@@ -1726,7 +1726,8 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             if (!full_update)
                 return;
 
-            sprintf(msg_buffer, "%i x %i Text mode", width, height);
+            snprintf(msg_buffer, sizeof(msg_buffer), "%i x %i Text mode",
+                     width, height);
             break;
         }
 
@@ -1799,14 +1800,15 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             return;
 
         s->get_resolution(s, &width, &height);
-        sprintf(msg_buffer, "%i x %i Graphic mode", width, height);
+        snprintf(msg_buffer, sizeof(msg_buffer), "%i x %i Graphic mode",
+                 width, height);
         break;
     case GMODE_BLANK:
     default:
         if (!full_update)
             return;
 
-        sprintf(msg_buffer, "VGA Blank mode");
+        snprintf(msg_buffer, sizeof(msg_buffer), "VGA Blank mode");
         break;
     }
 

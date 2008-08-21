@@ -153,11 +153,11 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
         return -1;
 
     tmp_str = strstr(desc,"parentCID");
-    strcpy(tmp_desc, tmp_str);
+    pstrcpy(tmp_desc, sizeof(tmp_desc), tmp_str);
     if ((p_name = strstr(desc,"CID")) != 0) {
         p_name += sizeof("CID");
-        sprintf(p_name,"%x\n",cid);
-        strcat(desc,tmp_desc);
+        snprintf(p_name, sizeof(desc) - (p_name - desc), "%x\n", cid);
+        pstrcat(desc, sizeof(desc), tmp_desc);
     }
 
     if (bdrv_pwrite(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
@@ -252,8 +252,8 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
     if ((temp_str = strrchr(real_filename, ':')) != NULL)
         real_filename = temp_str + 1;
 
-    sprintf(s_desc, desc_template, p_cid, p_cid, backing_file
-            , (uint32_t)header.capacity, real_filename);
+    snprintf(s_desc, sizeof(s_desc), desc_template, p_cid, p_cid, backing_file,
+             (uint32_t)header.capacity, real_filename);
 
     /* write the descriptor */
     if (lseek(snp_fd, 0x200, SEEK_SET) == -1)
@@ -349,7 +349,8 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
             path_combine(parent_img_name, sizeof(parent_img_name),
                          filename, s->hd->backing_file);
         } else {
-            strcpy(parent_img_name, s->hd->backing_file);
+            pstrcpy(parent_img_name, sizeof(parent_img_name),
+                    s->hd->backing_file);
         }
 
         s->hd->backing_hd = bdrv_new("");
@@ -790,8 +791,8 @@ static int vmdk_create(const char *filename, int64_t total_size,
         real_filename = temp_str + 1;
     if ((temp_str = strrchr(real_filename, ':')) != NULL)
         real_filename = temp_str + 1;
-    sprintf(desc, desc_template, time(NULL), (unsigned long)total_size,
-            real_filename, (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4), total_size / (63 * 16));
+    snprintf(desc, sizeof(desc), desc_template, time(NULL), (unsigned long)total_size,
+             real_filename, (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4), total_size / (63 * 16));
 
     /* write the descriptor */
     lseek(fd, le64_to_cpu(header.desc_offset) << 9, SEEK_SET);

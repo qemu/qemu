@@ -1733,7 +1733,7 @@ static int check_directory_consistency(BDRVVVFATState *s,
     char path2[PATH_MAX];
 
     assert(path_len < PATH_MAX); /* len was tested before! */
-    strcpy(path2, path);
+    pstrcpy(path2, sizeof(path2), path);
     path2[path_len] = '/';
     path2[path_len + 1] = '\0';
 
@@ -1807,7 +1807,8 @@ DLOG(fprintf(stderr, "check direntry %d: \n", i); print_direntry(direntries + i)
 		fprintf(stderr, "Name too long: %s/%s\n", path, lfn.name);
 		goto fail;
 	    }
-	    strcpy(path2 + path_len + 1, (char*)lfn.name);
+            pstrcpy(path2 + path_len + 1, sizeof(path2) - path_len - 1,
+                    (char*)lfn.name);
 
 	    if (is_directory(direntries + i)) {
 		if (begin_of_direntry(direntries + i) == 0) {
@@ -2372,8 +2373,9 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
 
 			    assert(!strncmp(m->path, mapping->path, l2));
 
-			    strcpy(new_path, mapping->path);
-			    strcpy(new_path + l1, m->path + l2);
+                            pstrcpy(new_path, l + diff + 1, mapping->path);
+                            pstrcpy(new_path + l1, l + diff + 1 - l1,
+                                    m->path + l2);
 
 			    schedule_rename(s, m->begin, new_path);
 			}

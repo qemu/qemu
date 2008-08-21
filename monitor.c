@@ -2251,7 +2251,7 @@ static void monitor_handle_command(const char *cmdline)
                     goto fail;
                 }
                 str = qemu_malloc(strlen(buf) + 1);
-                strcpy(str, buf);
+                pstrcpy(str, sizeof(buf), buf);
                 str_allocated[nb_args] = str;
             add_str:
                 if (nb_args >= MAX_ARGS) {
@@ -2518,7 +2518,7 @@ static void file_completion(const char *input)
     if (!p) {
         input_path_len = 0;
         pstrcpy(file_prefix, sizeof(file_prefix), input);
-        strcpy(path, ".");
+        pstrcpy(path, sizeof(path), ".");
     } else {
         input_path_len = p - input + 1;
         memcpy(path, input, input_path_len);
@@ -2540,13 +2540,15 @@ static void file_completion(const char *input)
             break;
         if (strstart(d->d_name, file_prefix, NULL)) {
             memcpy(file, input, input_path_len);
-            strcpy(file + input_path_len, d->d_name);
+            if (input_path_len < sizeof(file))
+                pstrcpy(file + input_path_len, sizeof(file) - input_path_len,
+                        d->d_name);
             /* stat the file to find out if it's a directory.
              * In that case add a slash to speed up typing long paths
              */
             stat(file, &sb);
             if(S_ISDIR(sb.st_mode))
-                strcat(file, "/");
+                pstrcat(file, sizeof(file), "/");
             add_completion(file);
         }
     }

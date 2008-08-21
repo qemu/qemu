@@ -84,7 +84,7 @@ static int get_dns_addr(struct in_addr *pdns_addr)
 static int get_dns_addr(struct in_addr *pdns_addr)
 {
     char buff[512];
-    char buff2[256];
+    char buff2[257];
     FILE *f;
     int found = 0;
     struct in_addr tmp_addr;
