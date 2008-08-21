@@ -272,7 +272,7 @@ static int usb_host_update_interfaces(USBHostDevice *dev, int configuration)
     }
 
     if (i >= dev->descr_len) {
-        printf("husb: update iface failed. no matching configuration\n");
+        fprintf(stderr, "husb: update iface failed. no matching configuration\n");
         goto fail;
     }
     nb_interfaces = dev->descr[i + 4];
@@ -815,9 +815,6 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr,
         return 0;
 
     for (f = usb_auto_filter; f; f = f->next) {
-        // printf("Auto match: bus_num %d addr %d vid %d pid %d\n",
-	//    bus_num, addr, vendor_id, product_id);
-
 	if (f->bus_num >= 0 && f->bus_num != bus_num)
             continue;
 
@@ -860,8 +857,8 @@ static void usb_host_auto_add(int bus_num, int addr, int vendor_id, int product_
 {
     struct USBAutoFilter *f = qemu_mallocz(sizeof(*f));
     if (!f) {
-        printf("husb: failed to allocate auto filter\n");
-	return;
+        fprintf(stderr, "husb: failed to allocate auto filter\n");
+        return;
     }
 
     f->bus_num = bus_num;
@@ -878,7 +875,7 @@ static void usb_host_auto_add(int bus_num, int addr, int vendor_id, int product_
          */
 	usb_auto_timer = qemu_new_timer(rt_clock, usb_host_auto_timer, NULL);
 	if (!usb_auto_timer) {
-            printf("husb: failed to allocate timer\n");
+            fprintf(stderr, "husb: failed to allocate auto scan timer\n");
             qemu_free(f);
             return;
         }
