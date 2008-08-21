@@ -92,6 +92,7 @@ slirp="yes"
 vde="yes"
 fmod_lib=""
 fmod_inc=""
+oss_lib=""
 vnc_tls="yes"
 bsd="no"
 linux="no"
@@ -153,6 +154,7 @@ bsd="yes"
 openbsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
+oss_lib="-lossaudio"
 ;;
 Darwin)
 bsd="yes"
@@ -272,6 +274,8 @@ for opt do
   --fmod-lib=*) fmod_lib="$optarg"
   ;;
   --fmod-inc=*) fmod_inc="$optarg"
+  ;;
+  --oss-lib=*) oss_lib="$optarg"
   ;;
   --audio-card-list=*) audio_card_list=`echo "$optarg" | sed -e 's/,/ /g'`
   ;;
@@ -437,6 +441,7 @@ echo "  --enable-darwin-user     enable all darwin usermode emulation targets"
 echo "  --disable-darwin-user    disable all darwin usermode emulation targets"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
+echo "  --oss-lib                path to OSS library"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
@@ -823,6 +828,10 @@ for drv in $audio_drv_list; do
         "pa_simple *s = NULL; pa_simple_free(s); return 0;"
     ;;
 
+    oss|sdl|core|wav|dsound)
+    # XXX: Probes for CoreAudio, DirectSound, SDL(?)
+    ;;
+
     *)
     echo "$audio_possible_drivers" | grep -q "\<$drv\>" || {
         echo
@@ -832,11 +841,6 @@ for drv in $audio_drv_list; do
         exit 1
     }
     ;;
-
-    oss|sdl|core|wav|dsound)
-    # XXX: Probes for CoreAudio, DirectSound, SDL(?)
-    ;;
-
     esac
 done
 
@@ -1145,6 +1149,8 @@ for drv in $audio_drv_list; do
     if test "$drv" = "fmod"; then
         echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
         echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
+    elif test "$drv" = "oss"; then
+        echo "CONFIG_OSS_LIB=$oss_lib" >> $config_mak
     fi
 done
 echo "" >>$config_h
