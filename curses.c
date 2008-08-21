@@ -350,8 +350,6 @@ void curses_display_init(DisplayState *ds, int full_screen)
     atexit(curses_atexit);
 
 #ifndef _WIN32
-    signal(SIGINT, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
 #if defined(SIGWINCH) && defined(KEY_RESIZE)
     /* some curses implementations provide a handler, but we
      * want to be sure this is handled regardless of the library */

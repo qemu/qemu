@@ -7621,6 +7621,8 @@ static int main_loop(void)
                 timeout = 0;
             }
         } else {
+            if (shutdown_requested)
+                break;
             timeout = 10;
         }
 #ifdef CONFIG_PROFILER
@@ -8184,6 +8186,26 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 #endif
 
 #define MAX_NET_CLIENTS 32
+
+#ifndef _WIN32
+
+static void termsig_handler(int signal)
+{
+    qemu_system_shutdown_request();
+}
+
+void termsig_setup(void)
+{
+    struct sigaction act;
+
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = termsig_handler;
+    sigaction(SIGINT,  &act, NULL);
+    sigaction(SIGHUP,  &act, NULL);
+    sigaction(SIGTERM, &act, NULL);
+}
+
+#endif
 
 int main(int argc, char **argv)
 {
@@ -9072,6 +9094,11 @@ int main(int argc, char **argv)
         dumb_display_init(ds);
 #endif
     }
+
+#ifndef _WIN32
+    /* must be after terminal init, SDL library changes signal handlers */
+    termsig_setup();
+#endif
 
     /* Maintain compatibility with multiple stdio monitors */
     if (!strcmp(monitor_device,"stdio")) {
