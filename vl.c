@@ -154,8 +154,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #else
 #define DEFAULT_RAM_SIZE 128
 #endif
-/* in ms */
-#define GUI_REFRESH_INTERVAL 30
 
 /* Max number of USB devices that can be specified on the commandline.  */
 #define MAX_USB_CMDLINE 8

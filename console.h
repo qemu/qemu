@@ -9,6 +9,9 @@
 #define MOUSE_EVENT_RBUTTON 0x02
 #define MOUSE_EVENT_MBUTTON 0x04
 
+/* in ms */
+#define GUI_REFRESH_INTERVAL 30
+
 typedef void QEMUPutKBDEvent(void *opaque, int keycode);
 typedef void QEMUPutMouseEvent(void *opaque, int dx, int dy, int dz, int buttons_state);
 
