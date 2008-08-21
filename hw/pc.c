@@ -439,7 +439,7 @@ static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
     hda = drive_get_index(IF_IDE, 0, 0);
     if (hda == -1) {
 	fprintf(stderr, "A disk image must be given for 'hda' when booting "
-		"a Linux kernel\n");
+		"a Linux kernel\n(if you really don't want it, use /dev/zero)\n");
 	exit(1);
     }
 
