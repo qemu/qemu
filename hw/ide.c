@@ -1981,6 +1981,11 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #endif
 
     addr &= 7;
+
+    /* ignore writes to command block while busy with previous command */
+    if (addr != 7 && (ide_if->cur_drive->status & (BUSY_STAT|DRQ_STAT)))
+        return;
+
     switch(addr) {
     case 0:
         break;
@@ -2038,6 +2043,10 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         s = ide_if->cur_drive;
         /* ignore commands to non existant slave */
         if (s != ide_if && !s->bs)
+            break;
+
+        /* Only DEVICE RESET is allowed while BSY or/and DRQ are set */
+        if ((s->status & (BUSY_STAT|DRQ_STAT)) && val != WIN_DEVICE_RESET)
             break;
 
         switch(val) {
@@ -2498,6 +2507,10 @@ static void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
 
+    /* PIO data access allowed only when DRQ bit is set */
+    if (!(s->status & DRQ_STAT))
+        return;
+
     p = s->data_ptr;
     *(uint16_t *)p = le16_to_cpu(val);
     p += 2;
@@ -2511,6 +2524,11 @@ static uint32_t ide_data_readw(void *opaque, uint32_t addr)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
     int ret;
+
+    /* PIO data access allowed only when DRQ bit is set */
+    if (!(s->status & DRQ_STAT))
+        return 0;
+
     p = s->data_ptr;
     ret = cpu_to_le16(*(uint16_t *)p);
     p += 2;
@@ -2525,6 +2543,10 @@ static void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
 
+    /* PIO data access allowed only when DRQ bit is set */
+    if (!(s->status & DRQ_STAT))
+        return;
+
     p = s->data_ptr;
     *(uint32_t *)p = le32_to_cpu(val);
     p += 4;
@@ -2538,6 +2560,10 @@ static uint32_t ide_data_readl(void *opaque, uint32_t addr)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
     int ret;
+
+    /* PIO data access allowed only when DRQ bit is set */
+    if (!(s->status & DRQ_STAT))
+        return 0;
 
     p = s->data_ptr;
     ret = cpu_to_le32(*(uint32_t *)p);
