@@ -5976,6 +5976,8 @@ static void dumb_display_init(DisplayState *ds)
     ds->dpy_update = dumb_update;
     ds->dpy_resize = dumb_resize;
     ds->dpy_refresh = dumb_refresh;
+    ds->gui_timer_interval = 500;
+    ds->idle = 1;
 }
 
 /***********************************************************/

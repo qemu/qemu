@@ -524,9 +524,11 @@ static void sdl_refresh(DisplayState *ds)
                 if (ev->active.gain) {
                     /* Back to default interval */
                     ds->gui_timer_interval = 0;
+                    ds->idle = 0;
                 } else {
                     /* Sleeping interval */
                     ds->gui_timer_interval = 500;
+                    ds->idle = 1;
                 }
             }
             break;
