@@ -3,8 +3,9 @@
  *
  * Copyright (c) 2005 Fabrice Bellard
  *
- * Support for host device auto connect & disconnect
- *       Copyright (c) 2008 Max Krasnyansky
+ * Copyright (c) 2008 Max Krasnyansky
+ *      Support for host device auto connect & disconnect
+ *      Magor rewrite to support fully async operation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -55,12 +56,15 @@ static int usb_host_find_device(int *pbus_num, int *paddr,
                                 const char *devname);
 
 //#define DEBUG
-//#define DEBUG_ISOCH
-//#define USE_ASYNCIO
+
+#ifdef DEBUG
+#define dprintf printf
+#else
+#define dprintf(...)
+#endif
 
 #define USBDEVFS_PATH "/proc/bus/usb"
 #define PRODUCT_NAME_SZ 32
-#define SIG_ISOCOMPLETE (SIGRTMIN+7)
 #define MAX_ENDPOINTS 16
 
 struct sigaction sigact;
@@ -68,21 +72,18 @@ struct sigaction sigact;
 /* endpoint association data */
 struct endp_data {
     uint8_t type;
+    uint8_t halted;
 };
 
-
-
-/* FIXME: move USBPacket to PendingURB */
 typedef struct USBHostDevice {
     USBDevice dev;
-    int fd;
-    int pipe_fds[2];
-    USBPacket *packet;
+    int       fd;
+
+    uint8_t   descr[1024];
+    int       descr_len;
+    int       configuration;
+
     struct endp_data endp_table[MAX_ENDPOINTS];
-    int configuration;
-    uint8_t descr[1024];
-    int descr_len;
-    int urbs_ready;
 
     QEMUTimer *timer;
 
@@ -92,6 +93,26 @@ typedef struct USBHostDevice {
 
     struct USBHostDevice *next;
 } USBHostDevice;
+
+static int is_isoc(USBHostDevice *s, int ep)
+{
+    return s->endp_table[ep - 1].type == USBDEVFS_URB_TYPE_ISO;
+}
+
+static int is_halted(USBHostDevice *s, int ep)
+{
+    return s->endp_table[ep - 1].halted;
+}
+
+static void clear_halt(USBHostDevice *s, int ep)
+{
+    s->endp_table[ep - 1].halted = 0;
+}
+
+static void set_halt(USBHostDevice *s, int ep)
+{
+    s->endp_table[ep - 1].halted = 1;
+}
 
 static USBHostDevice *hostdev_list;
 
@@ -128,64 +149,94 @@ static USBHostDevice *hostdev_find(int bus_num, int addr)
     return NULL;
 }
 
-typedef struct PendingURB {
-    struct usbdevfs_urb *urb;
-    int status;
-    struct PendingURB *next;
-} PendingURB;
-
-static PendingURB *pending_urbs = NULL;
-
-static int add_pending_urb(struct usbdevfs_urb *urb)
+/* 
+ * Async URB state.
+ * We always allocate one isoc descriptor even for bulk transfers
+ * to simplify allocation and casts. 
+ */
+typedef struct AsyncURB
 {
-    PendingURB *purb = qemu_mallocz(sizeof(PendingURB));
-    if (purb) {
-        purb->urb = urb;
-        purb->status = 0;
-        purb->next = pending_urbs;
-        pending_urbs = purb;
-        return 1;
-    }
-    return 0;
+    struct usbdevfs_urb urb;
+    struct usbdevfs_iso_packet_desc isocpd;
+
+    USBPacket     *packet;
+    USBHostDevice *hdev;
+} AsyncURB;
+
+static AsyncURB *async_alloc(void)
+{
+    return (AsyncURB *) qemu_mallocz(sizeof(AsyncURB));
 }
 
-static int del_pending_urb(struct usbdevfs_urb *urb)
+static void async_free(AsyncURB *aurb)
 {
-    PendingURB *purb = pending_urbs;
-    PendingURB *prev = NULL;
+    qemu_free(aurb);
+}
 
-    while (purb && purb->urb != urb) {
-        prev = purb;
-        purb = purb->next;
-    }
+static void async_complete(void *opaque)
+{
+    USBHostDevice *s = opaque;
+    AsyncURB *aurb;
 
-    if (purb && purb->urb == urb) {
-        if (prev) {
-            prev->next = purb->next;
-        } else {
-            pending_urbs = purb->next;
+    while (1) {
+    	USBPacket *p;
+
+	int r = ioctl(s->fd, USBDEVFS_REAPURBNDELAY, &aurb);
+        if (r < 0) {
+            if (errno == EAGAIN)
+                return;
+
+            if (errno == ENODEV) {
+                printf("husb: device %d.%d disconnected\n", s->bus_num, s->addr);
+	        usb_device_del_addr(0, s->dev.addr);
+                return;
+            }
+
+            dprintf("husb: async. reap urb failed errno %d\n", errno);
+            return;
         }
-        qemu_free(purb);
-        return 1;
+
+        p = aurb->packet;
+
+	dprintf("husb: async completed. aurb %p status %d alen %d\n", 
+                aurb, aurb->urb.status, aurb->urb.actual_length);
+
+	if (p) {
+            switch (aurb->urb.status) {
+            case 0:
+                p->len = aurb->urb.actual_length;
+                break;
+
+            case -EPIPE:
+                set_halt(s, p->devep);
+                /* fall through */
+            default:
+                p->len = USB_RET_NAK;
+                break;
+            }
+
+            usb_packet_complete(p);
+	}
+
+        async_free(aurb);
     }
-    return 0;
 }
 
-#ifdef USE_ASYNCIO
-static PendingURB *get_pending_urb(struct usbdevfs_urb *urb)
+static void async_cancel(USBPacket *unused, void *opaque)
 {
-    PendingURB *purb = pending_urbs;
+    AsyncURB *aurb = opaque;
+    USBHostDevice *s = aurb->hdev;
 
-    while (purb && purb->urb != urb) {
-        purb = purb->next;
-    }
+    dprintf("husb: async cancel. aurb %p\n", aurb);
 
-    if (purb && purb->urb == urb) {
-        return purb;
+    /* Mark it as dead (see async_complete above) */
+    aurb->packet = NULL;
+
+    int r = ioctl(s->fd, USBDEVFS_DISCARDURB, aurb);
+    if (r < 0) {
+        dprintf("husb: async. discard urb failed errno %d\n", errno);
     }
-    return NULL;
 }
-#endif
 
 static int usb_host_update_interfaces(USBHostDevice *dev, int configuration)
 {
@@ -204,19 +255,16 @@ static int usb_host_update_interfaces(USBHostDevice *dev, int configuration)
 
     i += dev_descr_len;
     while (i < dev->descr_len) {
-#ifdef DEBUG
-        printf("i is %d, descr_len is %d, dl %d, dt %d\n", i, dev->descr_len,
+        dprintf("husb: i is %d, descr_len is %d, dl %d, dt %d\n", i, dev->descr_len,
                dev->descr[i], dev->descr[i+1]);
-#endif
+
         if (dev->descr[i+1] != USB_DT_CONFIG) {
             i += dev->descr[i];
             continue;
         }
         config_descr_len = dev->descr[i];
 
-#ifdef DEBUG
-	printf("config #%d need %d\n", dev->descr[i + 5], configuration); 
-#endif
+	printf("husb: config #%d need %d\n", dev->descr[i + 5], configuration); 
 
         if (configuration < 0 || configuration == dev->descr[i + 5])
             break;
@@ -225,7 +273,7 @@ static int usb_host_update_interfaces(USBHostDevice *dev, int configuration)
     }
 
     if (i >= dev->descr_len) {
-        printf("usb_host: error - device has no matching configuration\n");
+        printf("husb: update iface failed. no matching configuration\n");
         goto fail;
     }
     nb_interfaces = dev->descr[i + 4];
@@ -251,32 +299,29 @@ static int usb_host_update_interfaces(USBHostDevice *dev, int configuration)
         ret = ioctl(dev->fd, USBDEVFS_CLAIMINTERFACE, &interface);
         if (ret < 0) {
             if (errno == EBUSY) {
-                fprintf(stderr,
-                        "usb_host: warning - device already grabbed\n");
+                printf("husb: update iface. device already grabbed\n");
             } else {
-                perror("USBDEVFS_CLAIMINTERFACE");
+                perror("husb: failed to claim interface");
             }
         fail:
             return 0;
         }
     }
 
-#ifdef DEBUG
-    printf("usb_host: %d interfaces claimed for configuration %d\n",
+    printf("husb: %d interfaces claimed for configuration %d\n",
            nb_interfaces, configuration);
-#endif
 
     return 1;
 }
 
 static void usb_host_handle_reset(USBDevice *dev)
 {
-#if 0
     USBHostDevice *s = (USBHostDevice *)dev;
-    /* USBDEVFS_RESET, but not the first time as it has already be
-       done by the host OS */
+
+    dprintf("husb: reset device %u.%u\n", s->bus_num, s->addr);
+
     ioctl(s->fd, USBDEVFS_RESET);
-#endif
+    usb_host_update_interfaces(s, s->configuration);
 }
 
 static void usb_host_handle_destroy(USBDevice *dev)
@@ -284,8 +329,11 @@ static void usb_host_handle_destroy(USBDevice *dev)
     USBHostDevice *s = (USBHostDevice *)dev;
 
     qemu_del_timer(s->timer);
+    qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
 
     hostdev_unlink(s);
+
+    async_complete(s);
 
     if (s->fd >= 0)
         close(s->fd);
@@ -320,10 +368,7 @@ static int usb_host_handle_control(USBDevice *dev,
         ret = ioctl(s->fd, USBDEVFS_SETINTERFACE, &si);
         usb_linux_update_endp_table(s);
     } else if (request == (DeviceOutRequest | USB_REQ_SET_CONFIGURATION)) {
-#ifdef DEBUG
-        printf("usb_host_handle_control: SET_CONFIGURATION request - "
-               "config %d\n", value & 0xff);
-#endif
+        dprintf("husb: ctrl set config %d\n", value & 0xff);
         if (s->configuration != (value & 0xff)) {
             s->configuration = (value & 0xff);
             intf_update_required = 1;
@@ -339,6 +384,9 @@ static int usb_host_handle_control(USBDevice *dev,
         ct.timeout = 50;
         ct.data = data;
         ret = ioctl(s->fd, USBDEVFS_CONTROL, &ct);
+
+        dprintf("husb: ctrl req 0x%x val 0x%x index %u len %u ret %d\n",
+            ct.bRequest, ct.wValue, ct.wIndex, ct.wLength, ret);
     }
 
     if (ret < 0) {
@@ -350,160 +398,69 @@ static int usb_host_handle_control(USBDevice *dev,
         }
     } else {
         if (intf_update_required) {
-#ifdef DEBUG
-            printf("usb_host_handle_control: updating interfaces\n");
-#endif
+            dprintf("husb: updating interfaces\n");
             usb_host_update_interfaces(s, value & 0xff);
         }
         return ret;
     }
 }
 
-static int usb_host_handle_isoch(USBDevice *dev, USBPacket *p);
-
 static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
 {
-    USBHostDevice *s = (USBHostDevice *)dev;
-    struct usbdevfs_bulktransfer bt;
+    USBHostDevice *s = (USBHostDevice *) dev;
+    AsyncURB *aurb;
+    struct usbdevfs_urb *urb;
     int ret;
-    uint8_t devep = p->devep;
 
-    if (s->endp_table[p->devep - 1].type == USBDEVFS_URB_TYPE_ISO) {
-        return usb_host_handle_isoch(dev, p);
+    aurb = async_alloc();
+    if (!aurb) {
+        dprintf("husb: async malloc failed\n");
+        return USB_RET_NAK;
     }
+    aurb->hdev   = s;
+    aurb->packet = p;
 
-    /* XXX: optimize and handle all data types by looking at the
-       config descriptor */
+    urb = &aurb->urb;
+
     if (p->pid == USB_TOKEN_IN)
-        devep |= 0x80;
-    bt.ep = devep;
-    bt.len = p->len;
-    bt.timeout = 50;
-    bt.data = p->data;
-    ret = ioctl(s->fd, USBDEVFS_BULK, &bt);
-    if (ret < 0) {
-        switch(errno) {
-        case ETIMEDOUT:
+    	urb->endpoint = p->devep | 0x80;
+    else
+    	urb->endpoint = p->devep;
+
+    if (is_halted(s, p->devep)) {
+	ret = ioctl(s->fd, USBDEVFS_CLEAR_HALT, &urb->endpoint);
+        if (ret < 0) {
+            dprintf("husb: failed to clear halt. ep 0x%x errno %d\n", 
+                   urb->endpoint, errno);
             return USB_RET_NAK;
-        case EPIPE:
-        default:
-#ifdef DEBUG
-            printf("handle_data: errno=%d\n", errno);
-#endif
-            return USB_RET_STALL;
         }
-    } else {
-        return ret;
-    }
-}
-
-#ifdef USE_ASYNCIO
-static void urb_completion_pipe_read(void *opaque)
-{
-    USBHostDevice *s = opaque;
-    USBPacket *p = s->packet;
-    PendingURB *pending_urb = NULL;
-    struct usbdevfs_urb *purb = NULL;
-    int len, ret;
-
-    len = read(s->pipe_fds[0], &pending_urb, sizeof(pending_urb));
-    if (len != sizeof(pending_urb)) {
-        printf("urb_completion: error reading pending_urb, len=%d\n", len);
-        return;
+        clear_halt(s, p->devep);
     }
 
-    /* FIXME: handle pending_urb->status */
-    del_pending_urb(pending_urb->urb);
-
-    if (!p) {
-        s->urbs_ready++;
-        return;
-    }
-
-    ret = ioctl(s->fd, USBDEVFS_REAPURBNDELAY, &purb);
-    if (ret < 0) {
-        printf("urb_completion: REAPURBNDELAY ioctl=%d errno=%d\n",
-               ret, errno);
-        return;
-    }
-
-#ifdef DEBUG_ISOCH
-    if (purb == pending_urb->urb) {
-        printf("urb_completion: urb mismatch reaped=%p pending=%p\n",
-               purb, urb);
-    }
-#endif
-
-    p->len = purb->actual_length;
-    usb_packet_complete(p);
-    qemu_free(purb);
-    s->packet = NULL;
-}
-
-static void isoch_done(int signum, siginfo_t *info, void *context)
-{
-    struct usbdevfs_urb *urb = (struct usbdevfs_urb *)info->si_addr;
-    USBHostDevice *s = (USBHostDevice *)urb->usercontext;
-    PendingURB *purb;
-
-    if (info->si_code != SI_ASYNCIO ||
-        info->si_signo != SIG_ISOCOMPLETE) {
-        return;
-    }
-
-    purb = get_pending_urb(urb);
-    if (purb) {
-        purb->status = info->si_errno;
-        write(s->pipe_fds[1], &purb, sizeof(purb));
-    }
-}
-#endif
-
-static int usb_host_handle_isoch(USBDevice *dev, USBPacket *p)
-{
-    USBHostDevice *s = (USBHostDevice *)dev;
-    struct usbdevfs_urb *urb, *purb = NULL;
-    int ret;
-    uint8_t devep = p->devep;
-
-    if (p->pid == USB_TOKEN_IN)
-        devep |= 0x80;
-
-    urb = qemu_mallocz(sizeof(struct usbdevfs_urb) +
-                       sizeof(struct usbdevfs_iso_packet_desc));
-    if (!urb) {
-        printf("usb_host_handle_isoch: malloc failed\n");
-        return 0;
-    }
-
-    urb->type = USBDEVFS_URB_TYPE_ISO;
-    urb->endpoint = devep;
-    urb->status = 0;
-    urb->flags = USBDEVFS_URB_ISO_ASAP;
-    urb->buffer = p->data;
+    urb->buffer        = p->data;
     urb->buffer_length = p->len;
-    urb->actual_length = 0;
-    urb->start_frame = 0;
-    urb->error_count = 0;
-#ifdef USE_ASYNCIO
-    urb->signr = SIG_ISOCOMPLETE;
-#else
-    urb->signr = 0;
-#endif
-    urb->usercontext = s;
-    urb->number_of_packets = 1;
-    urb->iso_frame_desc[0].length = p->len;
-    urb->iso_frame_desc[0].actual_length = 0;
-    urb->iso_frame_desc[0].status = 0;
-    ret = ioctl(s->fd, USBDEVFS_SUBMITURB, urb);
-    if (ret == 0) {
-        if (!add_pending_urb(urb)) {
-            printf("usb_host_handle_isoch: add_pending_urb failed %p\n", urb);
-        }
+
+    if (is_isoc(s, p->devep)) {
+        /* Setup ISOC transfer */
+        urb->type     = USBDEVFS_URB_TYPE_ISO;
+        urb->flags    = USBDEVFS_URB_ISO_ASAP;
+        urb->number_of_packets = 1;
+        urb->iso_frame_desc[0].length = p->len;
     } else {
-        printf("usb_host_handle_isoch: SUBMITURB ioctl=%d errno=%d\n",
-               ret, errno);
-        qemu_free(urb);
+        /* Setup bulk transfer */
+        urb->type     = USBDEVFS_URB_TYPE_BULK;
+    }
+
+    urb->usercontext = s;
+
+    ret = ioctl(s->fd, USBDEVFS_SUBMITURB, urb);
+
+    dprintf("husb: data submit. ep 0x%x len %u aurb %p\n", urb->endpoint, p->len, aurb);
+
+    if (ret < 0) {
+        dprintf("husb: submit failed. errno %d\n", errno);
+        async_free(aurb);
+
         switch(errno) {
         case ETIMEDOUT:
             return USB_RET_NAK;
@@ -512,37 +469,9 @@ static int usb_host_handle_isoch(USBDevice *dev, USBPacket *p)
             return USB_RET_STALL;
         }
     }
-#ifdef USE_ASYNCIO
-    /* FIXME: handle urbs_ready together with sync io
-     * workaround for injecting the signaled urbs into current frame */
-    if (s->urbs_ready > 0) {
-        ret = ioctl(s->fd, USBDEVFS_REAPURBNDELAY, &purb);
-        if (ret == 0) {
-            ret = purb->actual_length;
-            qemu_free(purb);
-            s->urbs_ready--;
-        }
-        return ret;
-    }
-    s->packet = p;
+
+    usb_defer_packet(p, async_cancel, aurb);
     return USB_RET_ASYNC;
-#else
-    ret = ioctl(s->fd, USBDEVFS_REAPURBNDELAY, &purb);
-    if (ret == 0) {
-        if (del_pending_urb(purb)) {
-            ret = purb->actual_length;
-            qemu_free(purb);
-        } else {
-            printf("usb_host_handle_isoch: del_pending_urb failed %p\n", purb);
-        }
-    } else {
-#ifdef DEBUG_ISOCH
-        printf("usb_host_handle_isoch: REAPURBNDELAY ioctl=%d errno=%d\n",
-               ret, errno);
-#endif
-    }
-    return ret;
-#endif
 }
 
 /* returns 1 on problem encountered or 0 for success */
@@ -579,7 +508,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
 
     if (descriptors[i + 1] != USB_DT_CONFIG ||
         descriptors[i + 5] != configuration) {
-        printf("invalid descriptor data - configuration\n");
+        dprintf("invalid descriptor data - configuration\n");
         return 1;
     }
     i += descriptors[i];
@@ -641,10 +570,11 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
                 type = USBDEVFS_URB_TYPE_INTERRUPT;
                 break;
             default:
-                printf("usb_host: malformed endpoint type\n");
+                dprintf("usb_host: malformed endpoint type\n");
                 type = USBDEVFS_URB_TYPE_BULK;
             }
             s->endp_table[(devep & 0xf) - 1].type = type;
+            s->endp_table[(devep & 0xf) - 1].halted = 0;
 
             i += descriptors[i];
         }
@@ -660,7 +590,7 @@ static void usb_host_device_check(void *priv)
 
     err = ioctl(s->fd, USBDEVFS_CONNECTINFO, &ci);
     if (err < 0) {
-        printf("usb device %d.%d disconnected\n", 0, s->dev.addr);
+        printf("husb: device %d.%d disconnected\n", s->bus_num, s->addr);
 	usb_device_del_addr(0, s->dev.addr);
 	return;
     }
@@ -686,9 +616,7 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
     if (!dev->timer)
 	goto fail;
 
-#ifdef DEBUG
-    printf("usb_host_device_open %d.%d\n", bus_num, addr);
-#endif
+    printf("husb: open device %d.%d\n", bus_num, addr);
 
     snprintf(buf, sizeof(buf), USBDEVFS_PATH "/%03d/%03d",
              bus_num, addr);
@@ -701,7 +629,7 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
     /* read the device description */
     dev->descr_len = read(fd, dev->descr, sizeof(dev->descr));
     if (dev->descr_len <= 0) {
-        perror("usb_host_device_open: reading device data failed");
+        perror("husb: reading device data failed");
         goto fail;
     }
 
@@ -728,9 +656,7 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
         goto fail;
     }
 
-#ifdef DEBUG
-    printf("host USB device %d.%d grabbed\n", bus_num, addr);
-#endif
+    printf("husb: grabbed usb device %d.%d\n", bus_num, addr);
 
     ret = usb_linux_update_endp_table(dev);
     if (ret)
@@ -754,34 +680,15 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
         pstrcpy(dev->dev.devname, sizeof(dev->dev.devname),
                 prod_name);
 
-#ifdef USE_ASYNCIO
-    /* set up the signal handlers */
-    sigemptyset(&sigact.sa_mask);
-    sigact.sa_sigaction = isoch_done;
-    sigact.sa_flags = SA_SIGINFO;
-    sigact.sa_restorer = 0;
-    ret = sigaction(SIG_ISOCOMPLETE, &sigact, NULL);
-    if (ret < 0) {
-        perror("usb_host_device_open: sigaction failed");
-        goto fail;
-    }
-
-    if (pipe(dev->pipe_fds) < 0) {
-        perror("usb_host_device_open: pipe creation failed");
-        goto fail;
-    }
-    fcntl(dev->pipe_fds[0], F_SETFL, O_NONBLOCK | O_ASYNC);
-    fcntl(dev->pipe_fds[1], F_SETFL, O_NONBLOCK);
-    qemu_set_fd_handler(dev->pipe_fds[0], urb_completion_pipe_read, NULL, dev);
-#endif
+    /* USB devio uses 'write' flag to check for async completions */
+    qemu_set_fd_handler(dev->fd, NULL, async_complete, dev);
 
     /* Start the timer to detect disconnect */
     qemu_mod_timer(dev->timer, qemu_get_clock(rt_clock) + 1000);
 
     hostdev_link(dev);
 
-    dev->urbs_ready = 0;
-    return (USBDevice *)dev;
+    return (USBDevice *) dev;
 
 fail:
     if (dev) {
@@ -804,7 +711,7 @@ USBDevice *usb_host_device_open(const char *devname)
         return NULL;
 
      if (hostdev_find(bus_num, addr)) {
-        printf("host usb device %d.%d is already open\n", bus_num, addr);
+        term_printf("husb: host usb device %d.%d is already open\n", bus_num, addr);
         return NULL;
      }
 
@@ -844,7 +751,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
 
     f = fopen(USBDEVFS_PATH "/devices", "r");
     if (!f) {
-        term_printf("Could not open %s\n", USBDEVFS_PATH "/devices");
+        term_printf("husb: could not open %s\n", USBDEVFS_PATH "/devices");
         return 0;
     }
     device_count = 0;
@@ -954,7 +861,7 @@ static int usb_host_auto_scan(void *opaque, int bus_num, int addr,
         if (hostdev_find(bus_num, addr))
             return 0;
 
-        printf("Auto open: bus_num %d addr %d\n", bus_num, addr);
+        dprintf("husb: auto open: bus_num %d addr %d\n", bus_num, addr);
 
 	dev = usb_host_device_open_addr(bus_num, addr, product_name);
 	if (dev)
@@ -978,7 +885,7 @@ static void usb_host_auto_add(int bus_num, int addr, int vendor_id, int product_
 {
     struct USBAutoFilter *f = qemu_mallocz(sizeof(*f));
     if (!f) {
-        printf("Failed to allocate auto filter\n");
+        printf("husb: failed to allocate auto filter\n");
 	return;
     }
 
@@ -996,7 +903,7 @@ static void usb_host_auto_add(int bus_num, int addr, int vendor_id, int product_
          */
 	usb_auto_timer = qemu_new_timer(rt_clock, usb_host_auto_timer, NULL);
 	if (!usb_auto_timer) {
-            printf("Failed to allocate timer\n");
+            printf("husb: failed to allocate timer\n");
             qemu_free(f);
             return;
         }
@@ -1005,7 +912,7 @@ static void usb_host_auto_add(int bus_num, int addr, int vendor_id, int product_
         qemu_mod_timer(usb_auto_timer, qemu_get_clock(rt_clock) + 2000);
     }
 
-    printf("Auto filter: bus_num %d addr %d vid %d pid %d\n",
+    dprintf("husb: auto filter: bus_num %d addr %d vid %d pid %d\n",
 	bus_num, addr, vendor_id, product_id);
 
     f->next = usb_auto_filter;
@@ -1173,9 +1080,6 @@ void usb_host_info(void)
 {
     usb_host_scan(NULL, usb_host_info_device);
 }
-
-
-
 
 #else
 
