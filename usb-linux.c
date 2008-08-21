@@ -82,10 +82,9 @@ typedef struct USBHostDevice {
     uint8_t   descr[1024];
     int       descr_len;
     int       configuration;
+    int       closing;
 
     struct endp_data endp_table[MAX_ENDPOINTS];
-
-    QEMUTimer *timer;
 
     /* Host side address */
     int bus_num;
@@ -186,7 +185,7 @@ static void async_complete(void *opaque)
             if (errno == EAGAIN)
                 return;
 
-            if (errno == ENODEV) {
+            if (errno == ENODEV && !s->closing) {
                 printf("husb: device %d.%d disconnected\n", s->bus_num, s->addr);
 	        usb_device_del_addr(0, s->dev.addr);
                 return;
@@ -328,7 +327,8 @@ static void usb_host_handle_destroy(USBDevice *dev)
 {
     USBHostDevice *s = (USBHostDevice *)dev;
 
-    qemu_del_timer(s->timer);
+    s->closing = 1;
+
     qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
 
     hostdev_unlink(s);
@@ -582,22 +582,6 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     return 0;
 }
 
-static void usb_host_device_check(void *priv)
-{
-    USBHostDevice *s = priv;
-    struct usbdevfs_connectinfo ci;
-    int err;
-
-    err = ioctl(s->fd, USBDEVFS_CONNECTINFO, &ci);
-    if (err < 0) {
-        printf("husb: device %d.%d disconnected\n", s->bus_num, s->addr);
-	usb_device_del_addr(0, s->dev.addr);
-	return;
-    }
-
-    qemu_mod_timer(s->timer, qemu_get_clock(rt_clock) + 1000);
-}
-
 static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *prod_name)
 {
     int fd = -1, ret;
@@ -611,10 +595,6 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
 
     dev->bus_num = bus_num;
     dev->addr = addr;
-
-    dev->timer = qemu_new_timer(rt_clock, usb_host_device_check, (void *) dev);
-    if (!dev->timer)
-	goto fail;
 
     printf("husb: open device %d.%d\n", bus_num, addr);
 
@@ -683,19 +663,14 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
     /* USB devio uses 'write' flag to check for async completions */
     qemu_set_fd_handler(dev->fd, NULL, async_complete, dev);
 
-    /* Start the timer to detect disconnect */
-    qemu_mod_timer(dev->timer, qemu_get_clock(rt_clock) + 1000);
-
     hostdev_link(dev);
 
     return (USBDevice *) dev;
 
 fail:
-    if (dev) {
-	if (dev->timer)
-		qemu_del_timer(dev->timer);
+    if (dev)
         qemu_free(dev);
-    }
+
     close(fd);
     return NULL;
 }
