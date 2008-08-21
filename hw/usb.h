@@ -197,6 +197,7 @@ static inline void usb_cancel_packet(USBPacket * p)
     p->cancel_cb(p, p->cancel_opaque);
 }
 
+int usb_device_add_dev(USBDevice *dev);
 int usb_device_del_addr(int bus_num, int addr);
 void usb_attach(USBPort *port, USBDevice *dev);
 int usb_generic_handle_packet(USBDevice *s, USBPacket *p);

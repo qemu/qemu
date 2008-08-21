@@ -3,6 +3,9 @@
  *
  * Copyright (c) 2005 Fabrice Bellard
  *
+ * Support for host device auto connect & disconnect
+ *       Copyright (c) 2008 Max Krasnyansky
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -67,6 +70,8 @@ struct endp_data {
     uint8_t type;
 };
 
+
+
 /* FIXME: move USBPacket to PendingURB */
 typedef struct USBHostDevice {
     USBDevice dev;
@@ -78,8 +83,50 @@ typedef struct USBHostDevice {
     uint8_t descr[1024];
     int descr_len;
     int urbs_ready;
+
     QEMUTimer *timer;
+
+    /* Host side address */
+    int bus_num;
+    int addr;
+
+    struct USBHostDevice *next;
 } USBHostDevice;
+
+static USBHostDevice *hostdev_list;
+
+static void hostdev_link(USBHostDevice *dev)
+{
+    dev->next = hostdev_list;
+    hostdev_list = dev;
+}
+
+static void hostdev_unlink(USBHostDevice *dev)
+{
+    USBHostDevice *pdev = hostdev_list;
+    USBHostDevice **prev = &hostdev_list;
+
+    while (pdev) {
+	if (pdev == dev) {
+            *prev = dev->next;
+            return;
+        }
+
+        prev = &pdev->next;
+        pdev = pdev->next;
+    }
+}
+
+static USBHostDevice *hostdev_find(int bus_num, int addr)
+{
+    USBHostDevice *s = hostdev_list;
+    while (s) {
+        if (s->bus_num == bus_num && s->addr == addr)
+            return s;
+        s = s->next;
+    }
+    return NULL;
+}
 
 typedef struct PendingURB {
     struct usbdevfs_urb *urb;
@@ -237,6 +284,8 @@ static void usb_host_handle_destroy(USBDevice *dev)
     USBHostDevice *s = (USBHostDevice *)dev;
 
     qemu_del_timer(s->timer);
+
+    hostdev_unlink(s);
 
     if (s->fd >= 0)
         close(s->fd);
@@ -619,32 +668,26 @@ static void usb_host_device_check(void *priv)
     qemu_mod_timer(s->timer, qemu_get_clock(rt_clock) + 1000);
 }
 
-/* XXX: exclude high speed devices or implement EHCI */
-USBDevice *usb_host_device_open(const char *devname)
+static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *prod_name)
 {
     int fd = -1, ret;
     USBHostDevice *dev = NULL;
     struct usbdevfs_connectinfo ci;
     char buf[1024];
-    int bus_num, addr;
-    char product_name[PRODUCT_NAME_SZ];
-
-    if (usb_host_find_device(&bus_num, &addr,
-                             product_name, sizeof(product_name),
-                             devname) < 0)
-        return NULL;
-
 
     dev = qemu_mallocz(sizeof(USBHostDevice));
     if (!dev)
         goto fail;
+
+    dev->bus_num = bus_num;
+    dev->addr = addr;
 
     dev->timer = qemu_new_timer(rt_clock, usb_host_device_check, (void *) dev);
     if (!dev->timer)
 	goto fail;
 
 #ifdef DEBUG
-    printf("usb_host_device_open %s\n", devname);
+    printf("usb_host_device_open %d.%d\n", bus_num, addr);
 #endif
 
     snprintf(buf, sizeof(buf), USBDEVFS_PATH "/%03d/%03d",
@@ -704,12 +747,12 @@ USBDevice *usb_host_device_open(const char *devname)
     dev->dev.handle_data = usb_host_handle_data;
     dev->dev.handle_destroy = usb_host_handle_destroy;
 
-    if (product_name[0] == '\0')
+    if (!prod_name || prod_name[0] == '\0')
         snprintf(dev->dev.devname, sizeof(dev->dev.devname),
-                 "host:%s", devname);
+                 "host:%d.%d", bus_num, addr);
     else
         pstrcpy(dev->dev.devname, sizeof(dev->dev.devname),
-                product_name);
+                prod_name);
 
 #ifdef USE_ASYNCIO
     /* set up the signal handlers */
@@ -735,8 +778,11 @@ USBDevice *usb_host_device_open(const char *devname)
     /* Start the timer to detect disconnect */
     qemu_mod_timer(dev->timer, qemu_get_clock(rt_clock) + 1000);
 
+    hostdev_link(dev);
+
     dev->urbs_ready = 0;
     return (USBDevice *)dev;
+
 fail:
     if (dev) {
 	if (dev->timer)
@@ -747,6 +793,24 @@ fail:
     return NULL;
 }
 
+USBDevice *usb_host_device_open(const char *devname)
+{
+    int bus_num, addr;
+    char product_name[PRODUCT_NAME_SZ];
+
+    if (usb_host_find_device(&bus_num, &addr,
+                             product_name, sizeof(product_name),
+                             devname) < 0)
+        return NULL;
+
+     if (hostdev_find(bus_num, addr)) {
+        printf("host usb device %d.%d is already open\n", bus_num, addr);
+        return NULL;
+     }
+
+    return usb_host_device_open_addr(bus_num, addr, product_name);
+}
+ 
 static int get_tag_value(char *buf, int buf_size,
                          const char *str, const char *tag,
                          const char *stopchars)
@@ -846,6 +910,108 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
     return ret;
 }
 
+struct USBAutoFilter {
+    struct USBAutoFilter *next;
+    int bus_num;
+    int addr;
+    int vendor_id;
+    int product_id;
+};
+
+static QEMUTimer *usb_auto_timer;
+static struct USBAutoFilter *usb_auto_filter;
+
+static int usb_host_auto_scan(void *opaque, int bus_num, int addr,
+                     int class_id, int vendor_id, int product_id,
+                     const char *product_name, int speed)
+{
+    struct USBAutoFilter *f;
+    struct USBDevice *dev;
+
+    /* Ignore hubs */
+    if (class_id == 9)
+        return 0;
+
+    for (f = usb_auto_filter; f; f = f->next) {
+        // printf("Auto match: bus_num %d addr %d vid %d pid %d\n",
+	//    bus_num, addr, vendor_id, product_id);
+
+	if (f->bus_num >= 0 && f->bus_num != bus_num)
+            continue;
+
+	if (f->addr >= 0 && f->addr != addr)
+            continue;
+
+	if (f->vendor_id >= 0 && f->vendor_id != vendor_id)
+            continue;
+
+	if (f->product_id >= 0 && f->product_id != product_id)
+            continue;
+
+        /* We got a match */
+
+        /* Allredy attached ? */
+        if (hostdev_find(bus_num, addr))
+            return 0;
+
+        printf("Auto open: bus_num %d addr %d\n", bus_num, addr);
+
+	dev = usb_host_device_open_addr(bus_num, addr, product_name);
+	if (dev)
+	    usb_device_add_dev(dev);
+    }
+
+    return 0;
+}
+
+static void usb_host_auto_timer(void *unused)
+{
+    usb_host_scan(NULL, usb_host_auto_scan);
+    qemu_mod_timer(usb_auto_timer, qemu_get_clock(rt_clock) + 2000);
+}
+
+/*
+ * Add autoconnect filter
+ * -1 means 'any' (device, vendor, etc)
+ */
+static void usb_host_auto_add(int bus_num, int addr, int vendor_id, int product_id)
+{
+    struct USBAutoFilter *f = qemu_mallocz(sizeof(*f));
+    if (!f) {
+        printf("Failed to allocate auto filter\n");
+	return;
+    }
+
+    f->bus_num = bus_num;
+    f->addr    = addr;
+    f->vendor_id  = vendor_id;
+    f->product_id = product_id;
+
+    if (!usb_auto_filter) {
+        /*
+         * First entry. Init and start the monitor.
+         * Right now we're using timer to check for new devices.
+         * If this turns out to be too expensive we can move that into a 
+         * separate thread.
+         */
+	usb_auto_timer = qemu_new_timer(rt_clock, usb_host_auto_timer, NULL);
+	if (!usb_auto_timer) {
+            printf("Failed to allocate timer\n");
+            qemu_free(f);
+            return;
+        }
+
+        /* Check for new devices every two seconds */
+        qemu_mod_timer(usb_auto_timer, qemu_get_clock(rt_clock) + 2000);
+    }
+
+    printf("Auto filter: bus_num %d addr %d vid %d pid %d\n",
+	bus_num, addr, vendor_id, product_id);
+
+    f->next = usb_auto_filter;
+    usb_auto_filter = f;
+}
+
 typedef struct FindDeviceState {
     int vendor_id;
     int product_id;
@@ -887,6 +1053,12 @@ static int usb_host_find_device(int *pbus_num, int *paddr,
     p = strchr(devname, '.');
     if (p) {
         *pbus_num = strtoul(devname, NULL, 0);
+
+        if (*(p + 1) == '*') {
+            usb_host_auto_add(*pbus_num, -1, -1, -1);
+	    return -1;
+	}
+
         *paddr = strtoul(p + 1, NULL, 0);
         fs.bus_num = *pbus_num;
         fs.addr = *paddr;
@@ -898,6 +1070,12 @@ static int usb_host_find_device(int *pbus_num, int *paddr,
     p = strchr(devname, ':');
     if (p) {
         fs.vendor_id = strtoul(devname, NULL, 16);
+
+        if (*(p + 1) == '*') {
+            usb_host_auto_add(-1, -1, fs.vendor_id, -1);
+	    return -1;
+	}
+
         fs.product_id = strtoul(p + 1, NULL, 16);
         ret = usb_host_scan(&fs, usb_host_find_device_scan);
         if (ret) {
@@ -995,6 +1173,9 @@ void usb_host_info(void)
 {
     usb_host_scan(NULL, usb_host_info_device);
 }
+
+
+
 
 #else
 

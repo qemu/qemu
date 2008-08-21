@@ -5747,6 +5747,32 @@ void qemu_register_usb_port(USBPort *port, void *opaque, int index,
     free_usb_ports = port;
 }
 
+int usb_device_add_dev(USBDevice *dev)
+{
+    USBPort *port;
+
+    /* Find a USB port to add the device to.  */
+    port = free_usb_ports;
+    if (!port->next) {
+        USBDevice *hub;
+
+        /* Create a new hub and chain it on.  */
+        free_usb_ports = NULL;
+        port->next = used_usb_ports;
+        used_usb_ports = port;
+
+        hub = usb_hub_init(VM_USB_HUB_SIZE);
+        usb_attach(port, hub);
+        port = free_usb_ports;
+    }
+
+    free_usb_ports = port->next;
+    port->next = used_usb_ports;
+    used_usb_ports = port;
+    usb_attach(port, dev);
+    return 0;
+}
+
 static int usb_device_add(const char *devname)
 {
     const char *p;
@@ -5787,26 +5813,7 @@ static int usb_device_add(const char *devname)
     if (!dev)
         return -1;
 
-    /* Find a USB port to add the device to.  */
-    port = free_usb_ports;
-    if (!port->next) {
-        USBDevice *hub;
-
-        /* Create a new hub and chain it on.  */
-        free_usb_ports = NULL;
-        port->next = used_usb_ports;
-        used_usb_ports = port;
-
-        hub = usb_hub_init(VM_USB_HUB_SIZE);
-        usb_attach(port, hub);
-        port = free_usb_ports;
-    }
-
-    free_usb_ports = port->next;
-    port->next = used_usb_ports;
-    used_usb_ports = port;
-    usb_attach(port, dev);
-    return 0;
+    return usb_device_add_dev(dev);
 }
 
 int usb_device_del_addr(int bus_num, int addr)
@@ -5859,18 +5866,12 @@ static int usb_device_del(const char *devname)
 
 void do_usb_add(const char *devname)
 {
-    int ret;
-    ret = usb_device_add(devname);
-    if (ret < 0)
-        term_printf("Could not add USB device '%s'\n", devname);
+    usb_device_add(devname);
 }
 
 void do_usb_del(const char *devname)
 {
-    int ret;
-    ret = usb_device_del(devname);
-    if (ret < 0)
-        term_printf("Could not remove USB device '%s'\n", devname);
+    usb_device_del(devname);
 }
 
 void usb_info(void)
