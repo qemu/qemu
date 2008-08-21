@@ -222,6 +222,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
         break;
+#ifdef CONFIG_SOFTMMU
     case 'L':                   /* qemu_ld constraint */
         ct->ct |= TCG_CT_REG;
         tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
@@ -247,6 +248,18 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R6);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R7);
         break;
+#else
+    case 'L':
+    case 'K':
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
+        break;
+    case 'M':
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
+        break;
+#endif
     default:
         return -1;
     }
@@ -785,7 +798,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     /* r0 = env->tlb_table[mem_index][index].addend + addr */
 
 #else  /* !CONFIG_SOFTMMU */
-    r1 = 4;
+    r1 = 3;
     r0 = addr_reg;
 #endif
 
