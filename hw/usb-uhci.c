@@ -635,7 +635,7 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
 
     dprintf("uhci: packet enter. pid %s addr 0x%02x ep %d len %d\n",
            pid2str(p->pid), p->devaddr, p->devep, p->len);
-    if (p->pid == USB_TOKEN_OUT)
+    if (p->pid == USB_TOKEN_OUT || p->pid == USB_TOKEN_SETUP)
         dump_data(p->data, p->len);
 
     ret = USB_RET_NODEV;
@@ -755,7 +755,7 @@ out:
 static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *int_mask)
 {
     UHCIAsync *async;
-    int len = 0, max_len, ret = 0;
+    int len = 0, max_len;
     uint8_t pid;
 
     /* Is active ? */
@@ -798,12 +798,13 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     case USB_TOKEN_OUT:
     case USB_TOKEN_SETUP:
         cpu_physical_memory_read(td->buffer, async->buffer, max_len);
-        ret = uhci_broadcast_packet(s, &async->packet);
-        len = max_len;
+        len = uhci_broadcast_packet(s, &async->packet);
+        if (len >= 0)
+            len = max_len;
         break;
 
     case USB_TOKEN_IN:
-        ret = uhci_broadcast_packet(s, &async->packet);
+        len = uhci_broadcast_packet(s, &async->packet);
         break;
 
     default:
@@ -814,17 +815,17 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
         return -1;
     }
  
-    if (ret == USB_RET_ASYNC) {
+    if (len == USB_RET_ASYNC) {
         uhci_async_link(s, async);
         return 2;
     }
 
-    async->packet.len = ret;
+    async->packet.len = len;
 
 done:
-    ret = uhci_complete_td(s, td, async, int_mask);
+    len = uhci_complete_td(s, td, async, int_mask);
     uhci_async_free(s, async);
-    return ret;
+    return len;
 }
 
 static void uhci_async_complete(USBPacket *packet, void *opaque)
