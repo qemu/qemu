@@ -124,6 +124,8 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model);
 int cpu_sh4_exec(CPUSH4State * s);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
+void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+				    uint32_t mem_value);
 
 #include "softfloat.h"
 

@@ -282,6 +282,29 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
     return match;
 }
 
+static int same_tlb_entry_exists(const tlb_t * haystack, uint8_t nbtlb,
+				 const tlb_t * needle)
+{
+    int i;
+    for (i = 0; i < nbtlb; i++)
+        if (!memcmp(&haystack[i], needle, sizeof(tlb_t)))
+	    return 1;
+    return 0;
+}
+
+static void increment_urc(CPUState * env)
+{
+    uint8_t urb, urc;
+
+    /* Increment URC */
+    urb = ((env->mmucr) >> 18) & 0x3f;
+    urc = ((env->mmucr) >> 10) & 0x3f;
+    urc++;
+    if (urc == urb || urc == UTLB_SIZE - 1)
+	urc = 0;
+    env->mmucr = (env->mmucr & 0xffff03ff) | (urc << 10);
+}
+
 /* Find itlb entry - update itlb from utlb if necessary and asked for
    Return entry, MMU_ITLB_MISS, MMU_ITLB_MULTIPLE or MMU_DTLB_MULTIPLE
    Update the itlb from utlb if update is not 0
@@ -313,15 +336,8 @@ int find_itlb_entry(CPUState * env, target_ulong address,
    Return entry, MMU_DTLB_MISS, MMU_DTLB_MULTIPLE */
 int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
 {
-    uint8_t urb, urc;
-
-    /* Increment URC */
-    urb = ((env->mmucr) >> 18) & 0x3f;
-    urc = ((env->mmucr) >> 10) & 0x3f;
-    urc++;
-    if (urc == urb || urc == UTLB_SIZE - 1)
-	urc = 0;
-    env->mmucr = (env->mmucr & 0xffff03ff) | (urc << 10);
+    /* per utlb access */
+    increment_urc(env);
 
     /* Return entry */
     return find_tlb_entry(env, address, env->utlb, UTLB_SIZE, use_asid);
@@ -407,8 +423,21 @@ int get_physical_address(CPUState * env, target_ulong * physical,
 	    return (rw & PAGE_WRITE) ? MMU_DTLB_MISS_WRITE :
 		MMU_DTLB_MISS_READ;
 	}
-	/* Mask upper 3 bits */
-	*physical = address & 0x1FFFFFFF;
+	if (address >= 0x80000000 && address < 0xc0000000) {
+	    /* Mask upper 3 bits for P1 and P2 areas */
+	    *physical = address & 0x1fffffff;
+	} else if (address >= 0xfc000000) {
+	    /*
+	     * Mask upper 3 bits for control registers in P4 area,
+	     * to unify access to control registers via P0-P3 area.
+	     * The addresses for cache store queue, TLB address array
+	     * are not masked.
+	     */
+	*physical = address & 0x1fffffff;
+	} else {
+	    /* access to cache store queue, or TLB address array. */
+	    *physical = address;
+	}
 	*prot = PAGE_READ | PAGE_WRITE;
 	return MMU_OK;
     }
@@ -541,6 +570,77 @@ void cpu_load_tlb(CPUState * env)
     entry->wt   = (uint8_t)cpu_ptel_wt(env->ptel);
     entry->sa   = (uint8_t)cpu_ptea_sa(env->ptea);
     entry->tc   = (uint8_t)cpu_ptea_tc(env->ptea);
+}
+
+void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
+				    uint32_t mem_value)
+{
+    int associate = addr & 0x0000080;
+    uint32_t vpn = (mem_value & 0xfffffc00) >> 10;
+    uint8_t d = (uint8_t)((mem_value & 0x00000200) >> 9);
+    uint8_t v = (uint8_t)((mem_value & 0x00000100) >> 8);
+    uint8_t asid = (uint8_t)(mem_value & 0x000000ff);
+
+    if (associate) {
+        int i;
+	tlb_t * utlb_match_entry = NULL;
+	int needs_tlb_flush = 0;
+
+	/* search UTLB */
+	for (i = 0; i < UTLB_SIZE; i++) {
+            tlb_t * entry = &s->utlb[i];
+            if (!entry->v)
+	        continue;
+
+            if (entry->vpn == vpn && entry->asid == asid) {
+	        if (utlb_match_entry) {
+		    /* Multiple TLB Exception */
+		    s->exception_index = 0x140;
+		    s->tea = addr;
+		    break;
+	        }
+		if (entry->v && !v)
+		    needs_tlb_flush = 1;
+		entry->v = v;
+		entry->d = d;
+	        utlb_match_entry = entry;
+	    }
+	    increment_urc(s); /* per utlb access */
+	}
+
+	/* search ITLB */
+	for (i = 0; i < ITLB_SIZE; i++) {
+            tlb_t * entry = &s->itlb[i];
+            if (entry->vpn == vpn && entry->asid == asid) {
+	        if (entry->v && !v)
+		    needs_tlb_flush = 1;
+	        if (utlb_match_entry)
+		    *entry = *utlb_match_entry;
+	        else
+		    entry->v = v;
+		break;
+	    }
+	}
+
+	if (needs_tlb_flush)
+	    tlb_flush_page(s, vpn << 10);
+        
+    } else {
+        int index = (addr & 0x00003f00) >> 8;
+        tlb_t * entry = &s->utlb[index];
+	if (entry->v) {
+	    /* Overwriting valid entry in utlb. */
+            target_ulong address = entry->vpn << 10;
+	    if (!same_tlb_entry_exists(s->itlb, ITLB_SIZE, entry)) {
+	        tlb_flush_page(s, address);
+	    }
+	}
+	entry->asid = asid;
+	entry->vpn = vpn;
+	entry->d = d;
+	entry->v = v;
+	increment_urc(s);
+    }
 }
 
 #endif
