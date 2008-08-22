@@ -251,7 +251,7 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
     for (i = 0; i < nbtlb; i++) {
 	if (!entries[i].v)
 	    continue;		/* Invalid entry */
-	if (use_asid && entries[i].asid != asid && !entries[i].sh)
+	if (use_asid && entries[i].asid != asid)
 	    continue;		/* Bad ASID */
 #if 0
 	switch (entries[i].sz) {
@@ -320,8 +320,14 @@ int find_itlb_entry(CPUState * env, target_ulong address,
     else if (e == MMU_DTLB_MISS && update) {
 	e = find_tlb_entry(env, address, env->utlb, UTLB_SIZE, use_asid);
 	if (e >= 0) {
+	    tlb_t * ientry;
 	    n = itlb_replacement(env);
-	    env->itlb[n] = env->utlb[e];
+	    ientry = &env->itlb[n];
+	    if (ientry->v) {
+		if (!same_tlb_entry_exists(env->utlb, UTLB_SIZE, ientry))
+		    tlb_flush_page(env, ientry->vpn << 10);
+	    }
+	    *ientry = env->utlb[e];
 	    e = n;
 	} else if (e == MMU_DTLB_MISS)
 	    e = MMU_ITLB_MISS;
@@ -356,7 +362,7 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
     int use_asid, is_code, n;
     tlb_t *matching = NULL;
 
-    use_asid = (env->mmucr & MMUCR_SV) == 0 && (env->sr & SR_MD) == 0;
+    use_asid = (env->mmucr & MMUCR_SV) == 0 || (env->sr & SR_MD) == 0;
     is_code = env->pc == address;	/* Hack */
 
     /* Use a hack to find if this is an instruction or data access */
@@ -539,6 +545,17 @@ void cpu_load_tlb(CPUState * env)
 {
     int n = cpu_mmucr_urc(env->mmucr);
     tlb_t * entry = &env->utlb[n];
+
+    if (entry->v) {
+        /* Overwriting valid entry in utlb. */
+        target_ulong address = entry->vpn << 10;
+	if (!same_tlb_entry_exists(env->itlb, ITLB_SIZE, entry)) {
+	    tlb_flush_page(env, address);
+	}
+    }
+
+    /* per utlb access cannot implemented. */
+    increment_urc(env);
 
     /* Take values into cpu status from registers. */
     entry->asid = (uint8_t)cpu_pteh_asid(env->pteh);

@@ -30,6 +30,7 @@
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "sh_intc.h"
+#include "exec-all.h"
 #include "cpu.h"
 
 #define NB_DEVICES 4
@@ -356,6 +357,9 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
 	s->cpu->mmucr = mem_value;
 	return;
     case SH7750_PTEH_A7:
+        /* If asid changes, clear all registered tlb entries. */
+	if ((s->cpu->pteh & 0xff) != (mem_value & 0xff))
+	    tlb_flush(s->cpu, 1);
 	s->cpu->pteh = mem_value;
 	return;
     case SH7750_PTEL_A7:
