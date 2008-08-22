@@ -298,7 +298,12 @@ void _decode_opc(DisasContext * ctx)
     case 0x0009:		/* nop */
 	return;
     case 0x001b:		/* sleep */
-	assert(0);		/* XXXXX */
+	if (ctx->memidx) {
+		gen_op_sleep();
+	} else {
+		gen_op_raise_illegal_instruction();
+		ctx->bstate = BS_EXCP;
+	}
 	return;
     }
 

@@ -1091,6 +1091,13 @@ void OPPROTO op_debug(void)
     cpu_loop_exit();
 }
 
+void OPPROTO op_sleep(void)
+{
+    env->halted = 1;
+    env->exception_index = EXCP_HLT;
+    cpu_loop_exit();
+}
+
 /* Load and store */
 #define MEMSUFFIX _raw
 #include "op_mem.c"

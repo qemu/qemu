@@ -41,6 +41,7 @@ static inline int cpu_halted(CPUState *env) {
         return 0;
     if (env->interrupt_request & CPU_INTERRUPT_HARD) {
         env->halted = 0;
+        env->intr_at_halt = 1;
         return 0;
     }
     return EXCP_HALTED;

@@ -117,6 +117,7 @@ typedef struct CPUSH4State {
      CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
     tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
     void *intc_handle;
+    int intr_at_halt;		/* SR_BL ignored during sleep */
 } CPUSH4State;
 
 CPUSH4State *cpu_sh4_init(const char *cpu_model);

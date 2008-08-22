@@ -87,9 +87,10 @@ void do_interrupt(CPUState * env)
         if (do_exp && env->exception_index != 0x1e0) {
             env->exception_index = 0x000; /* masked exception -> reset */
         }
-        if (do_irq) {
+        if (do_irq && !env->intr_at_halt) {
             return; /* masked */
         }
+        env->intr_at_halt = 0;
     }
 
     if (do_irq) {
