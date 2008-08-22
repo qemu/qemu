@@ -265,25 +265,41 @@ static void uhci_async_cancel_all(UHCIState *s)
 static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t addr, uint32_t token)
 {
     UHCIAsync *async = s->async_pending;
+    UHCIAsync *match = NULL;
+    int count = 0;
+
+    /*
+     * We're looking for the best match here. ie both td addr and token.
+     * Otherwise we return last good match. ie just token.
+     * It's ok to match just token because it identifies the transaction
+     * rather well, token includes: device addr, endpoint, size, etc.
+     *
+     * Also since we queue async transactions in reverse order by returning
+     * last good match we restores the order.
+     *
+     * It's expected that we wont have a ton of outstanding transactions.
+     * If we ever do we'd want to optimize this algorithm.
+     */
 
     while (async) {
-        if (async->td == addr) {
-            if (async->token == token)
-                return async;
+        if (async->token == token) {
+            /* Good match */
+            match = async;
 
-            /*
-             * TD was reused for a different transfer.
-             * Invalidate the original one asap.
-             */
-            if (async->valid > 0) {
-                async->valid = 0;
-                dprintf("husb: bad reuse. td 0x%x\n", async->td);
+            if (async->td == addr) {
+                /* Best match */
+                break;
             }
         }
 
         async = async->next;
+        count++;
     }
-    return NULL;
+
+    if (count > 64)
+	fprintf(stderr, "uhci: warning lots of async transactions\n");
+
+    return match;
 }
 
 static void uhci_attach(USBPort *port1, USBDevice *dev);
