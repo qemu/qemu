@@ -390,21 +390,27 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x2004:		/* mov.b Rm,@-Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_dec1_rN(REG(B11_8));
+	gen_op_dec1_rN(REG(B11_8));    /* modify register status */
 	gen_op_movl_rN_T1(REG(B11_8));
-	gen_op_stb_T0_T1(ctx);
+	gen_op_inc1_rN(REG(B11_8));    /* recover register status */
+	gen_op_stb_T0_T1(ctx);         /* might cause re-execution */
+	gen_op_dec1_rN(REG(B11_8));    /* modify register status */
 	return;
     case 0x2005:		/* mov.w Rm,@-Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_dec2_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
+	gen_op_inc2_rN(REG(B11_8));
 	gen_op_stw_T0_T1(ctx);
+	gen_op_dec2_rN(REG(B11_8));
 	return;
     case 0x2006:		/* mov.l Rm,@-Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_dec4_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
+	gen_op_inc4_rN(REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
+	gen_op_dec4_rN(REG(B11_8));
 	return;
     case 0x6004:		/* mov.b @Rm+,Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
@@ -570,20 +576,20 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_T1();
-	gen_op_inc4_rN(REG(B11_8));
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macl_T0_T1();
+	gen_op_inc4_rN(REG(B11_8));
 	gen_op_inc4_rN(REG(B7_4));
 	return;
     case 0x400f:		/* mac.w @Rm+,@Rn+ */
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_T1();
-	gen_op_inc2_rN(REG(B11_8));
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macw_T0_T1();
+	gen_op_inc2_rN(REG(B11_8));
 	gen_op_inc2_rN(REG(B7_4));
 	return;
     case 0x0007:		/* mul.l Rm,Rn */
@@ -706,12 +712,16 @@ void _decode_opc(DisasContext * ctx)
 	    gen_op_dec8_rN(REG(B11_8));
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_op_inc8_rN(REG(B11_8));
 	    gen_op_stfq_DT0_T1(ctx);
+	    gen_op_dec8_rN(REG(B11_8));
 	} else {
 	    gen_op_dec4_rN(REG(B11_8));
 	    gen_op_fmov_frN_FT0(FREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_op_inc4_rN(REG(B11_8));
 	    gen_op_stfl_FT0_T1(ctx);
+	    gen_op_dec4_rN(REG(B11_8));
 	}
 	return;
     case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
@@ -947,7 +957,9 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_dec4_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
 	gen_op_movl_rN_T0(ALTREG(B6_4));
+	gen_op_inc4_rN(REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
+	gen_op_dec4_rN(REG(B11_8));
 	return;
     }
 
@@ -1008,7 +1020,9 @@ void _decode_opc(DisasContext * ctx)
     gen_op_##stop##_##reg##_T0 ();				\
     gen_op_dec4_rN (REG(B11_8));				\
     gen_op_movl_rN_T1 (REG(B11_8));				\
+    gen_op_inc4_rN (REG(B11_8));				\
     gen_op_stl_T0_T1 (ctx);					\
+    gen_op_dec4_rN (REG(B11_8));				\
     return;
 	LDST(sr, 0x400e, 0x4007, ldc, 0x0002, 0x4003, stc, ctx->bstate =
 	     BS_STOP;)
