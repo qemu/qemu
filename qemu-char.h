@@ -27,6 +27,7 @@ typedef struct {
 #define CHR_IOCTL_PP_EPP_READ         9
 #define CHR_IOCTL_PP_EPP_WRITE_ADDR  10
 #define CHR_IOCTL_PP_EPP_WRITE       11
+#define CHR_IOCTL_PP_DATA_DIR        12
 
 #define CHR_IOCTL_SERIAL_SET_TIOCM   12
 #define CHR_IOCTL_SERIAL_GET_TIOCM   13

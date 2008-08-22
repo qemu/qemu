@@ -2835,6 +2835,10 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
             return -ENOTSUP;
         *(uint8_t *)arg = b;
         break;
+    case CHR_IOCTL_PP_DATA_DIR:
+        if (ioctl(fd, PPDATADIR, (int *)arg) < 0)
+            return -ENOTSUP;
+        break;
     case CHR_IOCTL_PP_EPP_READ_ADDR:
 	if (pp_hw_mode(drv, IEEE1284_MODE_EPP|IEEE1284_ADDR)) {
 	    struct ParallelIOArg *parg = arg;
