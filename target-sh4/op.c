@@ -592,13 +592,6 @@ void OPPROTO op_shlr16_Rn(void)
     RETURN();
 }
 
-void OPPROTO op_tasb_rN(void)
-{
-    cond_t((env->gregs[PARAM1] & 0xff) == 0);
-    *(int8_t *) &env->gregs[PARAM1] |= 0x80;
-    RETURN();
-}
-
 void OPPROTO op_movl_T0_rN(void)
 {
     env->gregs[PARAM1] = T0;

@@ -1100,7 +1100,12 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_shlr16_Rn(REG(B11_8));
 	return;
     case 0x401b:		/* tas.b @Rn */
-	gen_op_tasb_rN(REG(B11_8));
+	gen_op_movl_rN_T0(REG(B11_8));
+	gen_op_movl_T0_T1();
+	gen_op_ldub_T0_T0(ctx);
+	gen_op_cmp_eq_imm_T0(0);
+	gen_op_or_imm_T0(0x80);
+	gen_op_stb_T0_T1(ctx);
 	return;
     case 0xf00d: /* fsts FPUL,FRn - FPSCR: Nothing */
 	gen_op_movl_fpul_FT0();
