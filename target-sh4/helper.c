@@ -157,6 +157,15 @@ void do_interrupt(CPUState * env)
     env->sgr = env->gregs[15];
     env->sr |= SR_BL | SR_MD | SR_RB;
 
+    if (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
+        /* Branch instruction should be executed again before delay slot. */
+	env->spc -= 2;
+	/* Clear flags for exception/interrupt routine. */
+	env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL | DELAY_SLOT_TRUE);
+    }
+    if (env->flags & DELAY_SLOT_CLEARME)
+        env->flags = 0;
+
     if (do_exp) {
         env->expevt = env->exception_index;
         switch (env->exception_index) {

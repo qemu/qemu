@@ -115,6 +115,10 @@ void cpu_dump_state(CPUState * env, FILE * f,
     int i;
     cpu_fprintf(f, "pc=0x%08x sr=0x%08x pr=0x%08x fpscr=0x%08x\n",
 		env->pc, env->sr, env->pr, env->fpscr);
+    cpu_fprintf(f, "spc=0x%08x ssr=0x%08x gbr=0x%08x vbr=0x%08x\n",
+		env->spc, env->ssr, env->gbr, env->vbr);
+    cpu_fprintf(f, "sgr=0x%08x dbr=0x%08x delayed_pc=0x%08x fpul=0x%08x\n",
+		env->sgr, env->dbr, env->delayed_pc, env->fpul);
     for (i = 0; i < 24; i += 4) {
 	cpu_fprintf(f, "r%d=0x%08x r%d=0x%08x r%d=0x%08x r%d=0x%08x\n",
 		    i, env->gregs[i], i + 1, env->gregs[i + 1],
@@ -1188,6 +1192,11 @@ void decode_opc(DisasContext * ctx)
     if (old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
         if (ctx->flags & DELAY_SLOT_CLEARME) {
             gen_op_store_flags(0);
+        } else {
+	    /* go out of the delay slot */
+	    uint32_t new_flags = ctx->flags;
+	    new_flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+	    gen_op_store_flags(new_flags);
         }
         ctx->flags = 0;
         ctx->bstate = BS_BRANCH;
@@ -1198,6 +1207,10 @@ void decode_opc(DisasContext * ctx)
 	}
 
     }
+
+    /* go into a delay slot */
+    if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL))
+        gen_op_store_flags(ctx->flags);
 }
 
 static inline void
