@@ -83,7 +83,7 @@ struct DisplayState {
     void *opaque;
     struct QEMUTimer *gui_timer;
     uint64_t gui_timer_interval;
-    int idle;
+    int idle; /* there is nothing to update (window invisible), set by vnc/sdl */
 
     void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
     void (*dpy_resize)(struct DisplayState *s, int w, int h);
