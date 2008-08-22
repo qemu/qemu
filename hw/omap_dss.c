@@ -53,7 +53,7 @@ struct omap_dss_s {
         uint32_t control;
         uint32_t config;
         uint32_t capable;
-        uint32_t timing[3];
+        uint32_t timing[4];
         int line;
         uint32_t bg[2];
         uint32_t trans[2];
@@ -148,6 +148,7 @@ void omap_dss_reset(struct omap_dss_s *s)
     s->dispc.timing[0] = 0;
     s->dispc.timing[1] = 0;
     s->dispc.timing[2] = 0;
+    s->dispc.timing[3] = 0;
     s->dispc.line = 0;
     s->dispc.bg[0] = 0;
     s->dispc.bg[1] = 0;

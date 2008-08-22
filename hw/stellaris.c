@@ -1308,8 +1308,8 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     static const int gpio_irq[7] = {0, 1, 2, 3, 4, 30, 31};
 
     qemu_irq *pic;
-    qemu_irq *gpio_in[5];
-    qemu_irq *gpio_out[5];
+    qemu_irq *gpio_in[7];
+    qemu_irq *gpio_out[7];
     qemu_irq adc;
     int sram_size;
     int flash_size;
