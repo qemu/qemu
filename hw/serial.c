@@ -742,8 +742,6 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
         return NULL;
 
     s->base = base;
-    s->irq = irq;
-    s->baudbase = baudbase;
 
     serial_init_core(s, irq, baudbase, chr);
 
