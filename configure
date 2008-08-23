@@ -92,6 +92,7 @@ slirp="yes"
 vde="yes"
 fmod_lib=""
 fmod_inc=""
+oss_lib=""
 vnc_tls="yes"
 bsd="no"
 linux="no"
@@ -106,6 +107,7 @@ darwin_user="no"
 build_docs="no"
 uname_release=""
 curses="yes"
+aio="yes"
 nptl="yes"
 mixemu="no"
 
@@ -129,7 +131,7 @@ audio_possible_drivers="dsound sdl fmod"
 ;;
 GNU/kFreeBSD)
 audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd"
+audio_possible_drivers="oss sdl esd pa"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -137,7 +139,7 @@ fi
 FreeBSD)
 bsd="yes"
 audio_drv_list="oss"
-audio_possible_drivers="oss sdl esd"
+audio_possible_drivers="oss sdl esd pa"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -149,8 +151,10 @@ audio_possible_drivers="oss sdl esd"
 ;;
 OpenBSD)
 bsd="yes"
+openbsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
+oss_lib="-lossaudio"
 ;;
 Darwin)
 bsd="yes"
@@ -271,13 +275,13 @@ for opt do
   ;;
   --fmod-inc=*) fmod_inc="$optarg"
   ;;
+  --oss-lib=*) oss_lib="$optarg"
+  ;;
   --audio-card-list=*) audio_card_list=`echo "$optarg" | sed -e 's/,/ /g'`
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
   --disable-vnc-tls) vnc_tls="no"
-  ;;
-  --enable-mingw32) mingw32="yes" ; cross_prefix="i386-mingw32-" ; linux_user="no"
   ;;
   --disable-slirp) slirp="no"
   ;;
@@ -334,17 +338,12 @@ for opt do
   ;;
   --enable-mixemu) mixemu="yes"
   ;;
+  --disable-aio) aio="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
 done
-
-if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
-    AIOLIBS=
-else
-    # Some Linux architectures (e.g. s390) don't imply -lpthread automatically.
-    AIOLIBS="-lrt -lpthread"
-fi
 
 # default flags for all hosts
 # TODO: CFLAGS="$CFLAGS -Wall -Wmissing-noreturn -Wshadow -O2 -g -fno-strict-aliasing"
@@ -416,7 +415,6 @@ echo "  --static                 enable static build [$static]"
 echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
-echo "  --enable-mingw32         enable Win32 cross compilation with mingw32"
 echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
 echo "  --audio-card-list=LIST   set list of additional emulated audio cards"
@@ -434,9 +432,11 @@ echo "  --enable-darwin-user     enable all darwin usermode emulation targets"
 echo "  --disable-darwin-user    disable all darwin usermode emulation targets"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
+echo "  --oss-lib                path to OSS library"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
+echo "  --disable-aio            disable AIO support"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -458,10 +458,31 @@ else
     exit 1
 fi
 
+# check compiler to see if we're on mingw32
+cat > $TMPC <<EOF
+#include <windows.h>
+#ifndef _WIN32
+#error not windows
+#endif
+int main(void) {}
+EOF
+
+if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC 2> /dev/null ; then
+    mingw32="yes"
+fi
+
 if test "$mingw32" = "yes" ; then
     linux="no"
     EXESUF=".exe"
     oss="no"
+    linux_user="no"
+fi
+
+if [ "$bsd" = "yes" -o "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
+    AIOLIBS=
+else
+    # Some Linux architectures (e.g. s390) don't imply -lpthread automatically.
+    AIOLIBS="-lrt -lpthread"
 fi
 
 # Check for gcc4, error if pre-gcc4
@@ -695,42 +716,35 @@ if test -z "$sdl" ; then
     sdl=no
     sdl_static=no
 
-    if test "$mingw32" = "yes" -a ! -z "$cross_prefix" ; then
-    # win32 cross compilation case
-        sdl_config="i386-mingw32msvc-sdl-config"
-        sdl=yes
-    else
-        # normal SDL probe
 cat > $TMPC << EOF
 #include <SDL.h>
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-        if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /tmp/qemu-$$-sdl-config.log ; then
-            _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
-            if test "$_sdlversion" -lt 121 ; then
-                sdl_too_old=yes
-            else
-                if test "$cocoa" = "no" ; then
-                    sdl=yes
-                fi
+    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /tmp/qemu-$$-sdl-config.log ; then
+        _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
+        if test "$_sdlversion" -lt 121 ; then
+            sdl_too_old=yes
+        else
+            if test "$cocoa" = "no" ; then
+                sdl=yes
+            fi
+        fi
+
+        # static link with sdl ?
+        if test "$sdl" = "yes" ; then
+            aa="no"
+            `$sdl_config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` && aa="yes"
+            sdl_static_libs=`$sdl_config --static-libs 2>/dev/null`
+            if [ "$aa" = "yes" ] ; then
+                sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
             fi
 
-            # static link with sdl ?
-            if test "$sdl" = "yes" ; then
-                aa="no"
-                `$sdl_config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` && aa="yes"
-                sdl_static_libs=`$sdl_config --static-libs 2>/dev/null`
-                if [ "$aa" = "yes" ] ; then
-                    sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
-                fi
-
-                if $cc -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
-                    sdl_static=yes
-                fi
-            fi # static link
-        fi # sdl compile test
-    fi # cross compilation
+            if $cc -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
+                sdl_static=yes
+            fi
+        fi # static link
+    fi # sdl compile test
 else
     # Make sure to disable cocoa if sdl was set
     if test "$sdl" = "yes" ; then
@@ -823,6 +837,10 @@ for drv in $audio_drv_list; do
         "pa_simple *s = NULL; pa_simple_free(s); return 0;"
     ;;
 
+    oss|sdl|core|wav|dsound)
+    # XXX: Probes for CoreAudio, DirectSound, SDL(?)
+    ;;
+
     *)
     echo "$audio_possible_drivers" | grep -q "\<$drv\>" || {
         echo
@@ -832,7 +850,6 @@ for drv in $audio_drv_list; do
         exit 1
     }
     ;;
-
     esac
 done
 
@@ -863,6 +880,19 @@ EOF
     curses=yes
   fi
 fi # test "$curses"
+
+##########################################
+# AIO probe
+if test "$aio" = "yes" ; then
+  aio=no
+  cat > $TMPC << EOF
+#include <aio.h>
+int main(void) { return aio_write(NULL); }
+EOF
+  if $cc $ARCH_CFLAGS -o $TMPE $AIOLIBS $TMPC 2> /dev/null ; then
+    aio=yes
+  fi
+fi
 
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
@@ -935,6 +965,7 @@ echo "Documentation     $build_docs"
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "vde support       $vde"
+echo "AIO support       $aio"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -1069,6 +1100,11 @@ EOF
     echo "#define HAVE_BYTESWAP_H 1" >> $config_h
   fi
 fi
+
+if [ "$openbsd" = "yes" ] ; then
+  echo "#define ENOTSUP 4096" >> $config_h
+fi
+
 if test "$darwin" = "yes" ; then
   echo "CONFIG_DARWIN=yes" >> $config_mak
   echo "#define CONFIG_DARWIN 1" >> $config_h
@@ -1122,6 +1158,8 @@ for drv in $audio_drv_list; do
     if test "$drv" = "fmod"; then
         echo "CONFIG_FMOD_LIB=$fmod_lib" >> $config_mak
         echo "CONFIG_FMOD_INC=$fmod_inc" >> $config_mak
+    elif test "$drv" = "oss"; then
+        echo "CONFIG_OSS_LIB=$oss_lib" >> $config_mak
     fi
 done
 echo "" >>$config_h
@@ -1179,6 +1217,9 @@ if test "$brlapi" = "yes" ; then
   echo "CONFIG_BRLAPI=yes" >> $config_mak
   echo "#define CONFIG_BRLAPI 1" >> $config_h
   echo "BRLAPI_LIBS=-lbrlapi" >> $config_mak
+fi
+if test "$aio" = "yes" ; then
+  echo "#define CONFIG_AIO 1" >> $config_h
 fi
 
 # XXX: suppress that

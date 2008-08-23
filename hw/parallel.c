@@ -129,6 +129,7 @@ static void parallel_ioport_write_hw(void *opaque, uint32_t addr, uint32_t val)
 {
     ParallelState *s = opaque;
     uint8_t parm = val;
+    int dir;
 
     /* Sometimes programs do several writes for timing purposes on old
        HW. Take care not to waste time on writes that do nothing. */
@@ -154,6 +155,17 @@ static void parallel_ioport_write_hw(void *opaque, uint32_t addr, uint32_t val)
         if (s->control == val)
             return;
         pdebug("wc%02x\n", val);
+
+        if ((val & PARA_CTR_DIR) != (s->control & PARA_CTR_DIR)) {
+            if (val & PARA_CTR_DIR) {
+                dir = 1;
+            } else {
+                dir = 0;
+            }
+            qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_DATA_DIR, &dir);
+            parm &= ~PARA_CTR_DIR;
+        }
+
         qemu_chr_ioctl(s->chr, CHR_IOCTL_PP_WRITE_CONTROL, &parm);
         s->control = val;
         break;

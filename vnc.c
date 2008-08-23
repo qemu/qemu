@@ -660,6 +660,7 @@ static int vnc_client_io_error(VncState *vs, int ret, int last_errno)
 	qemu_set_fd_handler2(vs->csock, NULL, NULL, NULL, NULL);
 	closesocket(vs->csock);
 	vs->csock = -1;
+	vs->ds->idle = 1;
 	buffer_reset(&vs->input);
 	buffer_reset(&vs->output);
 	vs->need_update = 0;
@@ -1920,6 +1921,7 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
 static void vnc_connect(VncState *vs)
 {
     VNC_DEBUG("New client on socket %d\n", vs->csock);
+    vs->ds->idle = 0;
     socket_set_nonblock(vs->csock);
     qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
     vnc_write(vs, "RFB 003.008\n", 12);
@@ -1959,6 +1961,7 @@ void vnc_display_init(DisplayState *ds)
 	exit(1);
 
     ds->opaque = vs;
+    ds->idle = 1;
     vnc_state = vs;
     vs->display = NULL;
     vs->password = NULL;

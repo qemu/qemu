@@ -23,6 +23,7 @@
  */
 
 #include <slirp.h>
+#include "qemu-common.h" // for pstrcpy
 
 struct tftp_session {
     int in_use;
@@ -148,8 +149,8 @@ static int tftp_send_oack(struct tftp_session *spt,
     m->m_data += sizeof(struct udpiphdr);
 
     tp->tp_op = htons(TFTP_OACK);
-    n += sprintf(tp->x.tp_buf + n, "%s", key) + 1;
-    n += sprintf(tp->x.tp_buf + n, "%u", value) + 1;
+    n += snprintf(tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%s", key) + 1;
+    n += snprintf(tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%u", value) + 1;
 
     saddr.sin_addr = recv_tp->ip.ip_dst;
     saddr.sin_port = recv_tp->udp.uh_dport;
@@ -189,7 +190,7 @@ static int tftp_send_error(struct tftp_session *spt,
 
   tp->tp_op = htons(TFTP_ERROR);
   tp->x.tp_error.tp_error_code = htons(errorcode);
-  strcpy(tp->x.tp_error.tp_msg, msg);
+  pstrcpy(tp->x.tp_error.tp_msg, sizeof(tp->x.tp_error.tp_msg), msg);
 
   saddr.sin_addr = recv_tp->ip.ip_dst;
   saddr.sin_port = recv_tp->udp.uh_dport;

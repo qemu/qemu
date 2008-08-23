@@ -145,7 +145,7 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             s->pmcntrl = val & ~(SUS_EN);
             if (val & SUS_EN) {
                 /* change suspend type */
-                sus_typ = (val >> 10) & 3;
+                sus_typ = (val >> 10) & 7;
                 switch(sus_typ) {
                 case 0: /* soft power off */
                     qemu_system_shutdown_request();

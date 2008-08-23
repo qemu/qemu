@@ -45,17 +45,17 @@ void irq_info(void)
     /* XXXXX */
 }
 
-void pic_info()
+void pic_info(void)
 {
     /* XXXXX */
 }
 
-void vga_update_display()
+void vga_update_display(void)
 {
     /* XXXXX */
 }
 
-void vga_invalidate_display()
+void vga_invalidate_display(void)
 {
     /* XXXXX */
 }

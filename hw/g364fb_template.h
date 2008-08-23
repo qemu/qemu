@@ -27,11 +27,11 @@ static void glue(g364fb_draw_graphic, BPP)(G364State *s, int full_update)
     uint8_t *data_display, *dd;
 
     data_buffer = s->vram_buffer;
-    w_display = s->last_scr_width * PIXEL_WIDTH / 8;
+    w_display = s->scr_width * PIXEL_WIDTH / 8;
     data_display = s->ds->data;
-    for(i = 0; i < s->last_scr_height; i++) {
+    for(i = 0; i < s->scr_height; i++) {
         dd = data_display;
-        for (j = 0; j < s->last_scr_width; j++, dd += PIXEL_WIDTH / 8, data_buffer++) {
+        for (j = 0; j < s->scr_width; j++, dd += PIXEL_WIDTH / 8, data_buffer++) {
             uint8_t index = *data_buffer;
             *((glue(glue(uint, PIXEL_WIDTH), _t) *)dd) = glue(rgb_to_pixel, BPP)(
                 s->palette[index][0],

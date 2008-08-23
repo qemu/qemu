@@ -1173,10 +1173,10 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         /* parse any 'q' packets here */
         if (!strcmp(p,"qemu.sstepbits")) {
             /* Query Breakpoint bit definitions */
-            sprintf(buf,"ENABLE=%x,NOIRQ=%x,NOTIMER=%x",
-                    SSTEP_ENABLE,
-                    SSTEP_NOIRQ,
-                    SSTEP_NOTIMER);
+            snprintf(buf, sizeof(buf), "ENABLE=%x,NOIRQ=%x,NOTIMER=%x",
+                     SSTEP_ENABLE,
+                     SSTEP_NOIRQ,
+                     SSTEP_NOTIMER);
             put_packet(s, buf);
             break;
         } else if (strncmp(p,"qemu.sstep",10) == 0) {
@@ -1184,7 +1184,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             p += 10;
             if (*p != '=') {
                 /* Display current setting */
-                sprintf(buf,"0x%x", sstep_flags);
+                snprintf(buf, sizeof(buf), "0x%x", sstep_flags);
                 put_packet(s, buf);
                 break;
             }
@@ -1198,12 +1198,12 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         else if (strncmp(p, "Offsets", 7) == 0) {
             TaskState *ts = env->opaque;
 
-            sprintf(buf,
-                    "Text=" TARGET_ABI_FMT_lx ";Data=" TARGET_ABI_FMT_lx
-                    ";Bss=" TARGET_ABI_FMT_lx,
-                    ts->info->code_offset,
-                    ts->info->data_offset,
-                    ts->info->data_offset);
+            snprintf(buf, sizeof(buf),
+                     "Text=" TARGET_ABI_FMT_lx ";Data=" TARGET_ABI_FMT_lx
+                     ";Bss=" TARGET_ABI_FMT_lx,
+                     ts->info->code_offset,
+                     ts->info->data_offset,
+                     ts->info->data_offset);
             put_packet(s, buf);
             break;
         }
@@ -1286,17 +1286,18 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, char *fmt, ...)
             switch (*fmt++) {
             case 'x':
                 addr = va_arg(va, target_ulong);
-                p += sprintf(p, TARGET_FMT_lx, addr);
+                p += snprintf(p, &buf[sizeof(buf)] - p, TARGET_FMT_lx, addr);
                 break;
             case 'l':
                 if (*(fmt++) != 'x')
                     goto bad_format;
                 i64 = va_arg(va, uint64_t);
-                p += sprintf(p, "%" PRIx64, i64);
+                p += snprintf(p, &buf[sizeof(buf)] - p, "%" PRIx64, i64);
                 break;
             case 's':
                 addr = va_arg(va, target_ulong);
-                p += sprintf(p, TARGET_FMT_lx "/%x", addr, va_arg(va, int));
+                p += snprintf(p, &buf[sizeof(buf)] - p, TARGET_FMT_lx "/%x",
+                              addr, va_arg(va, int));
                 break;
             default:
             bad_format:

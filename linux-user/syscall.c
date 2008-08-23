@@ -105,38 +105,38 @@
 #undef _syscall6
 
 #define _syscall0(type,name)		\
-type name (void)			\
+static type name (void)			\
 {					\
 	return syscall(__NR_##name);	\
 }
 
 #define _syscall1(type,name,type1,arg1)		\
-type name (type1 arg1)				\
+static type name (type1 arg1)			\
 {						\
 	return syscall(__NR_##name, arg1);	\
 }
 
 #define _syscall2(type,name,type1,arg1,type2,arg2)	\
-type name (type1 arg1,type2 arg2)			\
+static type name (type1 arg1,type2 arg2)		\
 {							\
 	return syscall(__NR_##name, arg1, arg2);	\
 }
 
 #define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3)	\
-type name (type1 arg1,type2 arg2,type3 arg3)			\
+static type name (type1 arg1,type2 arg2,type3 arg3)		\
 {								\
 	return syscall(__NR_##name, arg1, arg2, arg3);		\
 }
 
 #define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4)	\
-type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4)				\
+static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4)			\
 {										\
 	return syscall(__NR_##name, arg1, arg2, arg3, arg4);			\
 }
 
 #define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,	\
 		  type5,arg5)							\
-type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5)		\
+static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5)	\
 {										\
 	return syscall(__NR_##name, arg1, arg2, arg3, arg4, arg5);		\
 }
@@ -144,7 +144,8 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5)		\
 
 #define _syscall6(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,	\
 		  type5,arg5,type6,arg6)					\
-type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6)	\
+static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
+                  type6 arg6)							\
 {										\
 	return syscall(__NR_##name, arg1, arg2, arg3, arg4, arg5, arg6);	\
 }
@@ -204,8 +205,10 @@ _syscall3(int, sys_getdents, uint, fd, struct dirent *, dirp, uint, count);
 _syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
 #endif
 _syscall2(int, sys_getpriority, int, which, int, who);
+#if !defined (__x86_64__)
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
+#endif
 #if defined(TARGET_NR_linkat) && defined(__NR_linkat)
 _syscall5(int,sys_linkat,int,olddirfd,const char *,oldpath,
 	  int,newdirfd,const char *,newpath,int,flags)
@@ -253,10 +256,11 @@ _syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
 #endif
+#if defined(USE_NPTL)
 #if defined(TARGET_NR_futex) && defined(__NR_futex)
 _syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
           const struct timespec *,timeout,int *,uaddr2,int,val3)
-          
+#endif
 #endif
 
 extern int personality(int);
@@ -2522,8 +2526,8 @@ install:
 }
 
 /* specific and weird i386 syscalls */
-abi_long do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr, 
-                       unsigned long bytecount)
+static abi_long do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr,
+                              unsigned long bytecount)
 {
     abi_long ret;
 
@@ -2544,7 +2548,7 @@ abi_long do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr,
     return ret;
 }
 
-abi_long do_set_thread_area(CPUX86State *env, abi_ulong ptr)
+static abi_long do_set_thread_area(CPUX86State *env, abi_ulong ptr)
 {
     uint64_t *gdt_table = g2h(env->gdt.base);
     struct target_modify_ldt_ldt_s ldt_info;
@@ -2629,7 +2633,7 @@ install:
     return 0;
 }
 
-abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
+static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
 {
     struct target_modify_ldt_ldt_s *target_ldt_info;
     uint64_t *gdt_table = g2h(env->gdt.base);
@@ -2677,7 +2681,7 @@ abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
 }
 
 #ifndef TARGET_ABI32
-abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
+static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 {
     abi_long ret;
     abi_ulong val;
@@ -3150,8 +3154,8 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
    futexes locally would make futexes shared between multiple processes
    tricky.  However they're probably useless because guest atomic
    operations won't work either.  */
-int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
-             target_ulong uaddr2, int val3)
+static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
+                    target_ulong uaddr2, int val3)
 {
     struct timespec ts, *pts;
 

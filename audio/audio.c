@@ -211,8 +211,8 @@ static char *audio_alloc_prefix (const char *s)
         size_t i;
         char *u = r + sizeof (qemu_prefix) - 1;
 
-        strcpy (r, qemu_prefix);
-        strcat (r, s);
+        pstrcpy (r, len + sizeof (qemu_prefix), qemu_prefix);
+        pstrcat (r, len, s);
 
         for (i = 0; i < len; ++i) {
             u[i] = toupper (u[i]);
@@ -430,7 +430,7 @@ static void audio_process_options (const char *prefix,
 {
     char *optname;
     const char qemu_prefix[] = "QEMU_";
-    size_t preflen;
+    size_t preflen, optlen;
 
     if (audio_bug (AUDIO_FUNC, !prefix)) {
         dolog ("prefix = NULL\n");
@@ -458,21 +458,25 @@ static void audio_process_options (const char *prefix,
         /* len of opt->name + len of prefix + size of qemu_prefix
          * (includes trailing zero) + zero + underscore (on behalf of
          * sizeof) */
-        optname = qemu_malloc (len + preflen + sizeof (qemu_prefix) + 1);
+        optlen = len + preflen + sizeof (qemu_prefix) + 1;
+        optname = qemu_malloc (optlen);
         if (!optname) {
             dolog ("Could not allocate memory for option name `%s'\n",
                    opt->name);
             continue;
         }
 
-        strcpy (optname, qemu_prefix);
+        pstrcpy (optname, optlen, qemu_prefix);
+        optlen -= preflen;
 
         /* copy while upper-casing, including trailing zero */
         for (i = 0; i <= preflen; ++i) {
             optname[i + sizeof (qemu_prefix) - 1] = toupper (prefix[i]);
         }
-        strcat (optname, "_");
-        strcat (optname, opt->name);
+        pstrcat (optname, optlen, "_");
+        optlen--;
+        pstrcat (optname, optlen, opt->name);
+        optlen -= len;
 
         def = 1;
         switch (opt->tag) {

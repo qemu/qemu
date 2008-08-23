@@ -82,7 +82,8 @@ static int nvram_boot_set(void *opaque, const char *boot_device)
     for (i = 0; i < sizeof(image); i++)
         image[i] = m48t59_read(nvram, i) & 0xff;
 
-    strcpy((char *)header->boot_devices, boot_device);
+    pstrcpy((char *)header->boot_devices, sizeof(header->boot_devices),
+            boot_device);
     header->nboot_devices = strlen(boot_device) & 0xff;
     header->crc = cpu_to_be16(OHW_compute_crc(header, 0x00, 0xF8));
 
@@ -115,17 +116,19 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     memset(image, '\0', sizeof(image));
 
     // Try to match PPC NVRAM
-    strcpy((char *)header->struct_ident, "QEMU_BIOS");
+    pstrcpy((char *)header->struct_ident, sizeof(header->struct_ident),
+            "QEMU_BIOS");
     header->struct_version = cpu_to_be32(3); /* structure v3 */
 
     header->nvram_size = cpu_to_be16(NVRAM_size);
     header->nvram_arch_ptr = cpu_to_be16(sizeof(ohwcfg_v3_t));
     header->nvram_arch_size = cpu_to_be16(sizeof(struct sparc_arch_cfg));
-    strcpy((char *)header->arch, arch);
+    pstrcpy((char *)header->arch, sizeof(header->arch), arch);
     header->nb_cpus = smp_cpus & 0xff;
     header->RAM0_base = 0;
     header->RAM0_size = cpu_to_be64((uint64_t)RAM_size);
-    strcpy((char *)header->boot_devices, boot_devices);
+    pstrcpy((char *)header->boot_devices, sizeof(header->boot_devices),
+            boot_devices);
     header->nboot_devices = strlen(boot_devices) & 0xff;
     header->kernel_image = cpu_to_be64((uint64_t)kernel_image);
     header->kernel_size = cpu_to_be64((uint64_t)kernel_size);
@@ -156,7 +159,7 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     // Variable partition
     part_header = (struct OpenBIOS_nvpart_v1 *)&image[start];
     part_header->signature = OPENBIOS_PART_SYSTEM;
-    strcpy(part_header->name, "system");
+    pstrcpy(part_header->name, sizeof(part_header->name), "system");
 
     end = start + sizeof(struct OpenBIOS_nvpart_v1);
     for (i = 0; i < nb_prom_envs; i++)
@@ -172,7 +175,7 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     start = end;
     part_header = (struct OpenBIOS_nvpart_v1 *)&image[start];
     part_header->signature = OPENBIOS_PART_FREE;
-    strcpy(part_header->name, "free");
+    pstrcpy(part_header->name, sizeof(part_header->name), "free");
 
     end = 0x1fd0;
     OpenBIOS_finish_partition(part_header, end - start);

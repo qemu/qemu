@@ -61,8 +61,11 @@
 #include <arpa/inet.h>
 #ifdef _BSD
 #include <sys/stat.h>
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__OpenBSD__)
 #include <libutil.h>
+#endif
+#ifdef __OpenBSD__
+#include <net/if.h>
 #endif
 #elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
 #include <freebsd/stdlib.h>
@@ -151,8 +154,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #else
 #define DEFAULT_RAM_SIZE 128
 #endif
-/* in ms */
-#define GUI_REFRESH_INTERVAL 30
 
 /* Max number of USB devices that can be specified on the commandline.  */
 #define MAX_USB_CMDLINE 8
@@ -1910,11 +1911,12 @@ static void mux_print_help(CharDriverState *chr)
     char cbuf[50] = "\n\r";
 
     if (term_escape_char > 0 && term_escape_char < 26) {
-        sprintf(cbuf,"\n\r");
-        sprintf(ebuf,"C-%c", term_escape_char - 1 + 'a');
+        snprintf(cbuf, sizeof(cbuf), "\n\r");
+        snprintf(ebuf, sizeof(ebuf), "C-%c", term_escape_char - 1 + 'a');
     } else {
-        sprintf(cbuf,"\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r",
-            term_escape_char);
+        snprintf(cbuf, sizeof(cbuf),
+                 "\n\rEscape-Char set to Ascii: 0x%02x\n\r\n\r",
+                 term_escape_char);
     }
     chr->chr_write(chr, (uint8_t *)cbuf, strlen(cbuf));
     for (i = 0; mux_help[i] != NULL; i++) {
@@ -2556,7 +2558,7 @@ static void pty_chr_state(CharDriverState *chr, int connected)
     }
 }
 
-void pty_chr_timer(void *opaque)
+static void pty_chr_timer(void *opaque)
 {
     struct CharDriverState *chr = opaque;
     PtyCharDriver *s = chr->opaque;
@@ -2830,6 +2832,10 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
         if (ioctl(fd, PPRSTATUS, &b) < 0)
             return -ENOTSUP;
         *(uint8_t *)arg = b;
+        break;
+    case CHR_IOCTL_PP_DATA_DIR:
+        if (ioctl(fd, PPDATADIR, (int *)arg) < 0)
+            return -ENOTSUP;
         break;
     case CHR_IOCTL_PP_EPP_READ_ADDR:
 	if (pp_hw_mode(drv, IEEE1284_MODE_EPP|IEEE1284_ADDR)) {
@@ -4380,7 +4386,7 @@ static int tap_open(char *ifname, int ifname_size)
  * Allocate TAP device, returns opened fd.
  * Stores dev name in the first arg(must be large enough).
  */
-int tap_alloc(char *dev)
+int tap_alloc(char *dev, size_t dev_size)
 {
     int tap_fd, if_fd, ppa = -1;
     static int ip_fd = 0;
@@ -4493,7 +4499,7 @@ int tap_alloc(char *dev)
       syslog (LOG_ERR, "Can't set multiplexor id");
     }
 
-    sprintf(dev, "tap%d", ppa);
+    snprintf(dev, dev_size, "tap%d", ppa);
     return tap_fd;
 }
 
@@ -4501,7 +4507,7 @@ static int tap_open(char *ifname, int ifname_size)
 {
     char  dev[10]="";
     int fd;
-    if( (fd = tap_alloc(dev)) < 0 ){
+    if( (fd = tap_alloc(dev, sizeof(dev))) < 0 ){
        fprintf(stderr, "Cannot allocate TAP device\n");
        return -1;
     }
@@ -5456,11 +5462,11 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         !strcmp(machine->name, "versatileab")) {
         type = IF_SCSI;
         max_devs = MAX_SCSI_DEVS;
-        strcpy(devname, "scsi");
+        pstrcpy(devname, sizeof(devname), "scsi");
     } else {
         type = IF_IDE;
         max_devs = MAX_IDE_DEVS;
-        strcpy(devname, "ide");
+        pstrcpy(devname, sizeof(devname), "ide");
     }
     media = MEDIA_DISK;
 
@@ -5716,7 +5722,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         bdrv_flags |= BDRV_O_SNAPSHOT;
     if (!cache)
         bdrv_flags |= BDRV_O_DIRECT;
-    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0) {
+    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0 || qemu_key_check(bdrv, file)) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return -1;
@@ -5739,6 +5745,32 @@ void qemu_register_usb_port(USBPort *port, void *opaque, int index,
     port->attach = attach;
     port->next = free_usb_ports;
     free_usb_ports = port;
+}
+
+int usb_device_add_dev(USBDevice *dev)
+{
+    USBPort *port;
+
+    /* Find a USB port to add the device to.  */
+    port = free_usb_ports;
+    if (!port->next) {
+        USBDevice *hub;
+
+        /* Create a new hub and chain it on.  */
+        free_usb_ports = NULL;
+        port->next = used_usb_ports;
+        used_usb_ports = port;
+
+        hub = usb_hub_init(VM_USB_HUB_SIZE);
+        usb_attach(port, hub);
+        port = free_usb_ports;
+    }
+
+    free_usb_ports = port->next;
+    port->next = used_usb_ports;
+    used_usb_ports = port;
+    usb_attach(port, dev);
+    return 0;
 }
 
 static int usb_device_add(const char *devname)
@@ -5781,44 +5813,18 @@ static int usb_device_add(const char *devname)
     if (!dev)
         return -1;
 
-    /* Find a USB port to add the device to.  */
-    port = free_usb_ports;
-    if (!port->next) {
-        USBDevice *hub;
-
-        /* Create a new hub and chain it on.  */
-        free_usb_ports = NULL;
-        port->next = used_usb_ports;
-        used_usb_ports = port;
-
-        hub = usb_hub_init(VM_USB_HUB_SIZE);
-        usb_attach(port, hub);
-        port = free_usb_ports;
-    }
-
-    free_usb_ports = port->next;
-    port->next = used_usb_ports;
-    used_usb_ports = port;
-    usb_attach(port, dev);
-    return 0;
+    return usb_device_add_dev(dev);
 }
 
-static int usb_device_del(const char *devname)
+int usb_device_del_addr(int bus_num, int addr)
 {
     USBPort *port;
     USBPort **lastp;
     USBDevice *dev;
-    int bus_num, addr;
-    const char *p;
 
     if (!used_usb_ports)
         return -1;
 
-    p = strchr(devname, '.');
-    if (!p)
-        return -1;
-    bus_num = strtoul(devname, NULL, 0);
-    addr = strtoul(p + 1, NULL, 0);
     if (bus_num != 0)
         return -1;
 
@@ -5841,20 +5847,31 @@ static int usb_device_del(const char *devname)
     return 0;
 }
 
+static int usb_device_del(const char *devname)
+{
+    int bus_num, addr;
+    const char *p;
+
+    if (!used_usb_ports)
+        return -1;
+
+    p = strchr(devname, '.');
+    if (!p)
+        return -1;
+    bus_num = strtoul(devname, NULL, 0);
+    addr = strtoul(p + 1, NULL, 0);
+
+    return usb_device_del_addr(bus_num, addr);
+}
+
 void do_usb_add(const char *devname)
 {
-    int ret;
-    ret = usb_device_add(devname);
-    if (ret < 0)
-        term_printf("Could not add USB device '%s'\n", devname);
+    usb_device_add(devname);
 }
 
 void do_usb_del(const char *devname)
 {
-    int ret;
-    ret = usb_device_del(devname);
-    if (ret < 0)
-        term_printf("Could not remove USB device '%s'\n", devname);
+    usb_device_del(devname);
 }
 
 void usb_info(void)
@@ -5959,6 +5976,8 @@ static void dumb_display_init(DisplayState *ds)
     ds->dpy_update = dumb_update;
     ds->dpy_resize = dumb_resize;
     ds->dpy_refresh = dumb_refresh;
+    ds->gui_timer_interval = 500;
+    ds->idle = 1;
 }
 
 /***********************************************************/
@@ -7604,6 +7623,8 @@ static int main_loop(void)
                 timeout = 0;
             }
         } else {
+            if (shutdown_requested)
+                break;
             timeout = 10;
         }
 #ifdef CONFIG_PROFILER
@@ -8004,14 +8025,22 @@ int qemu_key_check(BlockDriverState *bs, const char *name)
     return -EPERM;
 }
 
+static BlockDriverState *get_bdrv(int index)
+{
+    if (index > nb_drives)
+        return NULL;
+    return drives_table[index].bdrv;
+}
+
 static void read_passwords(void)
 {
     BlockDriverState *bs;
     int i;
 
-    for(i = 0; i < nb_drives; i++) {
-        bs = drives_table[i].bdrv;
-        qemu_key_check(bs, bdrv_get_device_name(bs));
+    for(i = 0; i < 6; i++) {
+        bs = get_bdrv(i);
+        if (bs)
+            qemu_key_check(bs, bdrv_get_device_name(bs));
     }
 }
 
@@ -8196,6 +8225,26 @@ BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD ul_reason_for_call, LPVOID data)
 }
 #endif
 
+#ifndef _WIN32
+
+static void termsig_handler(int signal)
+{
+    qemu_system_shutdown_request();
+}
+
+void termsig_setup(void)
+{
+    struct sigaction act;
+
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = termsig_handler;
+    sigaction(SIGINT,  &act, NULL);
+    sigaction(SIGHUP,  &act, NULL);
+    sigaction(SIGTERM, &act, NULL);
+}
+
+#endif
+
 int main(int argc, char **argv)
 {
 #ifdef CONFIG_GDBSTUB
@@ -8216,7 +8265,6 @@ int main(int argc, char **argv)
     int optind;
     const char *r, *optarg;
     CharDriverState *monitor_hd;
-    int has_monitor;
     const char *monitor_device;
     const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
@@ -9095,9 +9143,12 @@ int main(int argc, char **argv)
 #endif
     }
 
-    /* Maintain compatibility with multiple stdio monitors */
+#ifndef _WIN32
+    /* must be after terminal init, SDL library changes signal handlers */
+    termsig_setup();
+#endif
 
-    has_monitor = 0;
+    /* Maintain compatibility with multiple stdio monitors */
     if (!strcmp(monitor_device,"stdio")) {
         for (i = 0; i < MAX_SERIAL_PORTS; i++) {
             const char *devname = serial_devices[i];
@@ -9110,7 +9161,6 @@ int main(int argc, char **argv)
                 break;
             }
         }
-        has_monitor = 1;
     }
     if (monitor_device) {
         monitor_hd = qemu_chr_open(monitor_device);
@@ -9119,7 +9169,6 @@ int main(int argc, char **argv)
             exit(1);
         }
         monitor_init(monitor_hd, !nographic);
-        has_monitor = 1;
     }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
@@ -9182,16 +9231,12 @@ int main(int argc, char **argv)
     }
 #endif
 
-    read_passwords();
-
-    if (has_monitor)
-        monitor_start_input();
-
     if (loadvm)
         do_loadvm(loadvm);
 
     {
         /* XXX: simplify init */
+        read_passwords();
         if (autostart) {
             vm_start();
         }

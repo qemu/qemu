@@ -524,6 +524,9 @@ endif
 ifdef CONFIG_FMOD
 LIBS += $(CONFIG_FMOD_LIB)
 endif
+ifdef CONFIG_OSS
+LIBS += $(CONFIG_OSS_LIB)
+endif
 
 SOUND_HW = sb16.o es1370.o
 ifdef CONFIG_AC97
@@ -600,6 +603,7 @@ OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds122
 OBJS+= piix_pci.o parallel.o cirrus_vga.o pcspk.o $(SOUND_HW)
 ifeq ($(TARGET_ARCH), mips)
 OBJS += ar7.o
+OBJS += serial_16450.o
 endif
 OBJS += mipsnet.o
 OBJS += pflash.o

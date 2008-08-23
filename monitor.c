@@ -59,7 +59,7 @@
 typedef struct term_cmd_t {
     const char *name;
     const char *args_type;
-    void (*handler)();
+    void *handler;
     const char *params;
     const char *help;
 } term_cmd_t;
@@ -73,6 +73,8 @@ static const term_cmd_t info_cmds[];
 
 static uint8_t term_outbuf[1024];
 static int term_outbuf_index;
+
+static void monitor_start_input(void);
 
 CPUState *mon_cpu = NULL;
 
@@ -222,6 +224,7 @@ static void do_commit(const char *device)
 static void do_info(const char *item)
 {
     const term_cmd_t *cmd;
+    void (*handler)(void);
 
     if (!item)
         goto help;
@@ -233,7 +236,8 @@ static void do_info(const char *item)
     help_cmd("info");
     return;
  found:
-    cmd->handler();
+    handler = cmd->handler;
+    handler();
 }
 
 static void do_info_version(void)
@@ -594,7 +598,10 @@ static void memory_dump(int count, int format, int wsize,
             env = mon_get_cpu();
             if (!env)
                 break;
-            cpu_memory_rw_debug(env, addr, buf, l, 0);
+            if (cpu_memory_rw_debug(env, addr, buf, l, 0) < 0) {
+                term_printf(" Cannot access memory\n");
+                break;
+            }
         }
         i = 0;
         while (i < l) {
@@ -2157,6 +2164,17 @@ static void monitor_handle_command(const char *cmdline)
     char buf[1024];
     void *str_allocated[MAX_ARGS];
     void *args[MAX_ARGS];
+    void (*handler_0)(void);
+    void (*handler_1)(void *arg0);
+    void (*handler_2)(void *arg0, void *arg1);
+    void (*handler_3)(void *arg0, void *arg1, void *arg2);
+    void (*handler_4)(void *arg0, void *arg1, void *arg2, void *arg3);
+    void (*handler_5)(void *arg0, void *arg1, void *arg2, void *arg3,
+                      void *arg4);
+    void (*handler_6)(void *arg0, void *arg1, void *arg2, void *arg3,
+                      void *arg4, void *arg5);
+    void (*handler_7)(void *arg0, void *arg1, void *arg2, void *arg3,
+                      void *arg4, void *arg5, void *arg6);
 
 #ifdef DEBUG
     term_printf("command='%s'\n", cmdline);
@@ -2232,7 +2250,7 @@ static void monitor_handle_command(const char *cmdline)
                     goto fail;
                 }
                 str = qemu_malloc(strlen(buf) + 1);
-                strcpy(str, buf);
+                pstrcpy(str, sizeof(buf), buf);
                 str_allocated[nb_args] = str;
             add_str:
                 if (nb_args >= MAX_ARGS) {
@@ -2419,28 +2437,36 @@ static void monitor_handle_command(const char *cmdline)
 
     switch(nb_args) {
     case 0:
-        cmd->handler();
+        handler_0 = cmd->handler;
+        handler_0();
         break;
     case 1:
-        cmd->handler(args[0]);
+        handler_1 = cmd->handler;
+        handler_1(args[0]);
         break;
     case 2:
-        cmd->handler(args[0], args[1]);
+        handler_2 = cmd->handler;
+        handler_2(args[0], args[1]);
         break;
     case 3:
-        cmd->handler(args[0], args[1], args[2]);
+        handler_3 = cmd->handler;
+        handler_3(args[0], args[1], args[2]);
         break;
     case 4:
-        cmd->handler(args[0], args[1], args[2], args[3]);
+        handler_4 = cmd->handler;
+        handler_4(args[0], args[1], args[2], args[3]);
         break;
     case 5:
-        cmd->handler(args[0], args[1], args[2], args[3], args[4]);
+        handler_5 = cmd->handler;
+        handler_5(args[0], args[1], args[2], args[3], args[4]);
         break;
     case 6:
-        cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5]);
+        handler_6 = cmd->handler;
+        handler_6(args[0], args[1], args[2], args[3], args[4], args[5]);
         break;
     case 7:
-        cmd->handler(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+        handler_7 = cmd->handler;
+        handler_7(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
         break;
     default:
         term_printf("unsupported number of arguments: %d\n", nb_args);
@@ -2491,7 +2517,7 @@ static void file_completion(const char *input)
     if (!p) {
         input_path_len = 0;
         pstrcpy(file_prefix, sizeof(file_prefix), input);
-        strcpy(path, ".");
+        pstrcpy(path, sizeof(path), ".");
     } else {
         input_path_len = p - input + 1;
         memcpy(path, input, input_path_len);
@@ -2513,13 +2539,15 @@ static void file_completion(const char *input)
             break;
         if (strstart(d->d_name, file_prefix, NULL)) {
             memcpy(file, input, input_path_len);
-            strcpy(file + input_path_len, d->d_name);
+            if (input_path_len < sizeof(file))
+                pstrcpy(file + input_path_len, sizeof(file) - input_path_len,
+                        d->d_name);
             /* stat the file to find out if it's a directory.
              * In that case add a slash to speed up typing long paths
              */
             stat(file, &sb);
             if(S_ISDIR(sb.st_mode))
-                strcat(file, "/");
+                pstrcat(file, sizeof(file), "/");
             add_completion(file);
         }
     }
@@ -2658,13 +2686,15 @@ static void term_read(void *opaque, const uint8_t *buf, int size)
         readline_handle_byte(buf[i]);
 }
 
+static void monitor_start_input(void);
+
 static void monitor_handle_command1(void *opaque, const char *cmdline)
 {
     monitor_handle_command(cmdline);
     monitor_start_input();
 }
 
-void monitor_start_input(void)
+static void monitor_start_input(void)
 {
     readline_start("(qemu) ", 0, monitor_handle_command1, NULL);
 }
@@ -2705,6 +2735,8 @@ void monitor_init(CharDriverState *hd, int show_banner)
     hide_banner = !show_banner;
 
     qemu_chr_add_handlers(hd, term_can_read, term_read, term_event, NULL);
+
+    readline_start("", 0, monitor_handle_command1, NULL);
 }
 
 /* XXX: use threads ? */

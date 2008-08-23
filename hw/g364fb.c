@@ -36,7 +36,6 @@ typedef struct G364State {
     QEMUConsole *console;
     int graphic_mode;
     uint32_t scr_width, scr_height; /* in pixels */
-    uint32_t last_scr_width, last_scr_height; /* in pixels */
 } G364State;
 
 /*
@@ -73,9 +72,6 @@ typedef struct G364State {
 
 static void g364fb_draw_graphic(G364State *s, int full_update)
 {
-    if (s->scr_width == 0 || s->scr_height == 0)
-        return;
-
     switch (s->ds->depth) {
         case 8:
             g364fb_draw_graphic8(s, full_update);
@@ -94,7 +90,7 @@ static void g364fb_draw_graphic(G364State *s, int full_update)
             return;
     }
 
-    dpy_update(s->ds, 0, 0, s->last_scr_width, s->last_scr_height);
+    dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
 }
 
 static void g364fb_draw_blank(G364State *s, int full_update)
@@ -104,17 +100,15 @@ static void g364fb_draw_blank(G364State *s, int full_update)
 
     if (!full_update)
         return;
-    if (s->last_scr_width <= 0 || s->last_scr_height <= 0)
-        return;
 
-    w = s->last_scr_width * ((s->ds->depth + 7) >> 3);
+    w = s->scr_width * ((s->ds->depth + 7) >> 3);
     d = s->ds->data;
-    for(i = 0; i < s->last_scr_height; i++) {
+    for(i = 0; i < s->scr_height; i++) {
         memset(d, 0, w);
         d += s->ds->linesize;
     }
-    dpy_update(s->ds, 0, 0,
-               s->last_scr_width, s->last_scr_height);
+
+    dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
 }
 
 #define GMODE_GRAPH 0
@@ -125,6 +119,9 @@ static void g364fb_update_display(void *opaque)
     G364State *s = opaque;
     int full_update, graphic_mode;
 
+    if (s->scr_width == 0 || s->scr_height == 0)
+        return;
+
     if (s->ctla & CTLA_FORCE_BLANK)
         graphic_mode = GMODE_BLANK;
     else
@@ -132,6 +129,10 @@ static void g364fb_update_display(void *opaque)
     full_update = 0;
     if (graphic_mode != s->graphic_mode) {
         s->graphic_mode = graphic_mode;
+        full_update = 1;
+    }
+    if (s->scr_width != s->ds->width || s->scr_height != s->ds->height) {
+        qemu_console_resize(s->console, s->scr_width, s->scr_height);
         full_update = 1;
     }
     switch(graphic_mode) {
@@ -158,7 +159,6 @@ static void g364fb_reset(void *opaque)
 
     memset(s->palette, 0, sizeof(s->palette));
     s->scr_width = s->scr_height = 0;
-    s->last_scr_width = s->last_scr_height = 0;
     memset(s->vram_buffer, 0, s->vram_size);
     s->graphic_mode = -1; /* force full update */
 }
@@ -266,8 +266,6 @@ static void g364fb_ctrl_writeb(void *opaque, target_phys_addr_t addr, uint32_t v
 #endif
                 break;
         }
-        if (s->scr_width && s->scr_height)
-            qemu_console_resize(s->console, s->scr_width, s->scr_height);
     }
     s->graphic_mode = -1; /* force full update */
 }

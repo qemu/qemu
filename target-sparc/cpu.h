@@ -187,6 +187,54 @@ typedef struct trap_state {
 } trap_state;
 #endif
 
+typedef struct sparc_def_t {
+    const char *name;
+    target_ulong iu_version;
+    uint32_t fpu_version;
+    uint32_t mmu_version;
+    uint32_t mmu_bm;
+    uint32_t mmu_ctpr_mask;
+    uint32_t mmu_cxr_mask;
+    uint32_t mmu_sfsr_mask;
+    uint32_t mmu_trcr_mask;
+    uint32_t features;
+    uint32_t nwindows;
+    uint32_t maxtl;
+} sparc_def_t;
+
+#define CPU_FEATURE_FLOAT    (1 << 0)
+#define CPU_FEATURE_FLOAT128 (1 << 1)
+#define CPU_FEATURE_SWAP     (1 << 2)
+#define CPU_FEATURE_MUL      (1 << 3)
+#define CPU_FEATURE_DIV      (1 << 4)
+#define CPU_FEATURE_FLUSH    (1 << 5)
+#define CPU_FEATURE_FSQRT    (1 << 6)
+#define CPU_FEATURE_FMUL     (1 << 7)
+#define CPU_FEATURE_VIS1     (1 << 8)
+#define CPU_FEATURE_VIS2     (1 << 9)
+#define CPU_FEATURE_FSMULD   (1 << 10)
+#define CPU_FEATURE_HYPV     (1 << 11)
+#define CPU_FEATURE_CMT      (1 << 12)
+#define CPU_FEATURE_GL       (1 << 13)
+#ifndef TARGET_SPARC64
+#define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
+                              CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
+                              CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
+                              CPU_FEATURE_FMUL | CPU_FEATURE_FSMULD)
+#else
+#define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
+                              CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
+                              CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
+                              CPU_FEATURE_FMUL | CPU_FEATURE_VIS1 |   \
+                              CPU_FEATURE_VIS2 | CPU_FEATURE_FSMULD)
+enum {
+    mmu_us_12, // Ultrasparc < III (64 entry TLB)
+    mmu_us_3,  // Ultrasparc III (512 entry TLB)
+    mmu_us_4,  // Ultrasparc IV (several TLBs, 32 and 256MB pages)
+    mmu_sun4v, // T1, T2
+};
+#endif
+
 typedef struct CPUSPARCState {
     target_ulong gregs[8]; /* general registers */
     target_ulong *regwptr; /* pointer to current register window */
@@ -217,11 +265,6 @@ typedef struct CPUSPARCState {
     int      psref;    /* enable fpu */
     target_ulong version;
     int interrupt_index;
-    uint32_t mmu_bm;
-    uint32_t mmu_ctpr_mask;
-    uint32_t mmu_cxr_mask;
-    uint32_t mmu_sfsr_mask;
-    uint32_t mmu_trcr_mask;
     uint32_t nwindows;
     /* NOTE: we allow 8 more registers to handle wrapping */
     target_ulong regbase[MAX_NWINDOWS * 16 + 8];
@@ -275,41 +318,8 @@ typedef struct CPUSPARCState {
     uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
     void *hstick; // UA 2005
 #endif
-    uint32_t features;
+    sparc_def_t *def;
 } CPUSPARCState;
-
-#define CPU_FEATURE_FLOAT    (1 << 0)
-#define CPU_FEATURE_FLOAT128 (1 << 1)
-#define CPU_FEATURE_SWAP     (1 << 2)
-#define CPU_FEATURE_MUL      (1 << 3)
-#define CPU_FEATURE_DIV      (1 << 4)
-#define CPU_FEATURE_FLUSH    (1 << 5)
-#define CPU_FEATURE_FSQRT    (1 << 6)
-#define CPU_FEATURE_FMUL     (1 << 7)
-#define CPU_FEATURE_VIS1     (1 << 8)
-#define CPU_FEATURE_VIS2     (1 << 9)
-#define CPU_FEATURE_FSMULD   (1 << 10)
-#define CPU_FEATURE_HYPV     (1 << 11)
-#define CPU_FEATURE_CMT      (1 << 12)
-#define CPU_FEATURE_GL       (1 << 13)
-#ifndef TARGET_SPARC64
-#define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
-                              CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
-                              CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
-                              CPU_FEATURE_FMUL | CPU_FEATURE_FSMULD)
-#else
-#define CPU_DEFAULT_FEATURES (CPU_FEATURE_FLOAT | CPU_FEATURE_SWAP |  \
-                              CPU_FEATURE_MUL | CPU_FEATURE_DIV |     \
-                              CPU_FEATURE_FLUSH | CPU_FEATURE_FSQRT | \
-                              CPU_FEATURE_FMUL | CPU_FEATURE_VIS1 |   \
-                              CPU_FEATURE_VIS2 | CPU_FEATURE_FSMULD)
-enum {
-    mmu_us_12, // Ultrasparc < III (64 entry TLB)
-    mmu_us_3,  // Ultrasparc III (512 entry TLB)
-    mmu_us_4,  // Ultrasparc IV (several TLBs, 32 and 256MB pages)
-    mmu_sun4v, // T1, T2
-};
-#endif
 
 #if defined(TARGET_SPARC64)
 #define GET_FSR32(env) (env->fsr & 0xcfc1ffff)

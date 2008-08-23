@@ -56,9 +56,10 @@ void *qemu_mallocz(size_t size)
 char *qemu_strdup(const char *str)
 {
     char *ptr;
-    ptr = qemu_malloc(strlen(str) + 1);
+    size_t len = strlen(str);
+    ptr = qemu_malloc(len + 1);
     if (!ptr)
         return NULL;
-    strcpy(ptr, str);
+    pstrcpy(ptr, len, str);
     return ptr;
 }

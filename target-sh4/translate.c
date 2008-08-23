@@ -60,7 +60,7 @@ static TCGv cpu_env;
 
 #include "gen-icount.h"
 
-static void sh4_translate_init()
+static void sh4_translate_init(void)
 {
     static int done_init = 0;
     if (done_init)
@@ -115,6 +115,10 @@ void cpu_dump_state(CPUState * env, FILE * f,
     int i;
     cpu_fprintf(f, "pc=0x%08x sr=0x%08x pr=0x%08x fpscr=0x%08x\n",
 		env->pc, env->sr, env->pr, env->fpscr);
+    cpu_fprintf(f, "spc=0x%08x ssr=0x%08x gbr=0x%08x vbr=0x%08x\n",
+		env->spc, env->ssr, env->gbr, env->vbr);
+    cpu_fprintf(f, "sgr=0x%08x dbr=0x%08x delayed_pc=0x%08x fpul=0x%08x\n",
+		env->sgr, env->dbr, env->delayed_pc, env->fpul);
     for (i = 0; i < 24; i += 4) {
 	cpu_fprintf(f, "r%d=0x%08x r%d=0x%08x r%d=0x%08x r%d=0x%08x\n",
 		    i, env->gregs[i], i + 1, env->gregs[i + 1],
@@ -298,7 +302,12 @@ void _decode_opc(DisasContext * ctx)
     case 0x0009:		/* nop */
 	return;
     case 0x001b:		/* sleep */
-	assert(0);		/* XXXXX */
+	if (ctx->memidx) {
+		gen_op_sleep();
+	} else {
+		gen_op_raise_illegal_instruction();
+		ctx->bstate = BS_EXCP;
+	}
 	return;
     }
 
@@ -381,21 +390,27 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x2004:		/* mov.b Rm,@-Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_dec1_rN(REG(B11_8));
+	gen_op_dec1_rN(REG(B11_8));    /* modify register status */
 	gen_op_movl_rN_T1(REG(B11_8));
-	gen_op_stb_T0_T1(ctx);
+	gen_op_inc1_rN(REG(B11_8));    /* recover register status */
+	gen_op_stb_T0_T1(ctx);         /* might cause re-execution */
+	gen_op_dec1_rN(REG(B11_8));    /* modify register status */
 	return;
     case 0x2005:		/* mov.w Rm,@-Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_dec2_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
+	gen_op_inc2_rN(REG(B11_8));
 	gen_op_stw_T0_T1(ctx);
+	gen_op_dec2_rN(REG(B11_8));
 	return;
     case 0x2006:		/* mov.l Rm,@-Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_dec4_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
+	gen_op_inc4_rN(REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
+	gen_op_dec4_rN(REG(B11_8));
 	return;
     case 0x6004:		/* mov.b @Rm+,Rn */
 	gen_op_movl_rN_T0(REG(B7_4));
@@ -561,20 +576,20 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_T1();
-	gen_op_inc4_rN(REG(B11_8));
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macl_T0_T1();
+	gen_op_inc4_rN(REG(B11_8));
 	gen_op_inc4_rN(REG(B7_4));
 	return;
     case 0x400f:		/* mac.w @Rm+,@Rn+ */
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_T1();
-	gen_op_inc2_rN(REG(B11_8));
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macw_T0_T1();
+	gen_op_inc2_rN(REG(B11_8));
 	gen_op_inc2_rN(REG(B7_4));
 	return;
     case 0x0007:		/* mul.l Rm,Rn */
@@ -697,12 +712,16 @@ void _decode_opc(DisasContext * ctx)
 	    gen_op_dec8_rN(REG(B11_8));
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_op_inc8_rN(REG(B11_8));
 	    gen_op_stfq_DT0_T1(ctx);
+	    gen_op_dec8_rN(REG(B11_8));
 	} else {
 	    gen_op_dec4_rN(REG(B11_8));
 	    gen_op_fmov_frN_FT0(FREG(B7_4));
 	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_op_inc4_rN(REG(B11_8));
 	    gen_op_stfl_FT0_T1(ctx);
+	    gen_op_dec4_rN(REG(B11_8));
 	}
 	return;
     case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
@@ -938,7 +957,9 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_dec4_rN(REG(B11_8));
 	gen_op_movl_rN_T1(REG(B11_8));
 	gen_op_movl_rN_T0(ALTREG(B6_4));
+	gen_op_inc4_rN(REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
+	gen_op_dec4_rN(REG(B11_8));
 	return;
     }
 
@@ -999,7 +1020,9 @@ void _decode_opc(DisasContext * ctx)
     gen_op_##stop##_##reg##_T0 ();				\
     gen_op_dec4_rN (REG(B11_8));				\
     gen_op_movl_rN_T1 (REG(B11_8));				\
+    gen_op_inc4_rN (REG(B11_8));				\
     gen_op_stl_T0_T1 (ctx);					\
+    gen_op_dec4_rN (REG(B11_8));				\
     return;
 	LDST(sr, 0x400e, 0x4007, ldc, 0x0002, 0x4003, stc, ctx->bstate =
 	     BS_STOP;)
@@ -1077,7 +1100,12 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_shlr16_Rn(REG(B11_8));
 	return;
     case 0x401b:		/* tas.b @Rn */
-	gen_op_tasb_rN(REG(B11_8));
+	gen_op_movl_rN_T0(REG(B11_8));
+	gen_op_movl_T0_T1();
+	gen_op_ldub_T0_T0(ctx);
+	gen_op_cmp_eq_imm_T0(0);
+	gen_op_or_imm_T0(0x80);
+	gen_op_stb_T0_T1(ctx);
 	return;
     case 0xf00d: /* fsts FPUL,FRn - FPSCR: Nothing */
 	gen_op_movl_fpul_FT0();
@@ -1183,6 +1211,11 @@ void decode_opc(DisasContext * ctx)
     if (old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
         if (ctx->flags & DELAY_SLOT_CLEARME) {
             gen_op_store_flags(0);
+        } else {
+	    /* go out of the delay slot */
+	    uint32_t new_flags = ctx->flags;
+	    new_flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+	    gen_op_store_flags(new_flags);
         }
         ctx->flags = 0;
         ctx->bstate = BS_BRANCH;
@@ -1193,6 +1226,10 @@ void decode_opc(DisasContext * ctx)
 	}
 
     }
+
+    /* go into a delay slot */
+    if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL))
+        gen_op_store_flags(ctx->flags);
 }
 
 static inline void

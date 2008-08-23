@@ -28,7 +28,9 @@
 #endif
 #include "block_int.h"
 #include <assert.h>
+#ifdef CONFIG_AIO
 #include <aio.h>
+#endif
 
 #ifdef CONFIG_COCOA
 #include <paths.h>
@@ -54,6 +56,12 @@
 #endif
 #ifdef __FreeBSD__
 #include <sys/disk.h>
+#endif
+
+#ifdef __OpenBSD__
+#include <sys/ioctl.h>
+#include <sys/disklabel.h>
+#include <sys/dkio.h>
 #endif
 
 //#define DEBUG_FLOPPY
@@ -418,6 +426,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
 #endif
 
 
+#ifdef CONFIG_AIO
 /***********************************************************/
 /* Unix AIO using POSIX AIO */
 
@@ -688,6 +697,37 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
+# else /* CONFIG_AIO */
+
+void qemu_aio_init(void)
+{
+}
+
+void qemu_aio_poll(void)
+{
+}
+
+void qemu_aio_flush(void)
+{
+}
+
+void qemu_aio_wait_start(void)
+{
+}
+
+void qemu_aio_wait(void)
+{
+#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
+    qemu_bh_poll();
+#endif
+}
+
+void qemu_aio_wait_end(void)
+{
+}
+
+#endif /* CONFIG_AIO */
+
 static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -711,6 +751,26 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
     return 0;
 }
 
+#ifdef __OpenBSD__
+static int64_t raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd = s->fd;
+    struct stat st;
+
+    if (fstat(fd, &st))
+        return -1;
+    if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
+        struct disklabel dl;
+
+        if (ioctl(fd, DIOCGDINFO, &dl))
+            return -1;
+        return (uint64_t)dl.d_secsize *
+            dl.d_partitions[DISKPART(st.st_rdev)].p_size;
+    } else
+        return st.st_size;
+}
+#else /* !__OpenBSD__ */
 static int64_t  raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -757,6 +817,7 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     }
     return size;
 }
+#endif
 
 static int raw_create(const char *filename, int64_t total_size,
                       const char *backing_file, int flags)
@@ -792,10 +853,12 @@ BlockDriver bdrv_raw = {
     raw_create,
     raw_flush,
 
+#ifdef CONFIG_AIO
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
     .bdrv_aio_cancel = raw_aio_cancel,
     .aiocb_size = sizeof(RawAIOCB),
+#endif
     .protocol_name = "file",
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
@@ -1144,10 +1207,12 @@ BlockDriver bdrv_host_device = {
     NULL,
     raw_flush,
 
+#ifdef CONFIG_AIO
     .bdrv_aio_read = raw_aio_read,
     .bdrv_aio_write = raw_aio_write,
     .bdrv_aio_cancel = raw_aio_cancel,
     .aiocb_size = sizeof(RawAIOCB),
+#endif
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
     .bdrv_getlength = raw_getlength,

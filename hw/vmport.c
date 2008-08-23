@@ -26,6 +26,8 @@
 #include "pc.h"
 #include "sysemu.h"
 
+//#define VMPORT_DEBUG
+
 #define VMPORT_CMD_GETVERSION 0x0a
 #define VMPORT_CMD_GETRAMSIZE 0x14
 
@@ -65,7 +67,9 @@ static uint32_t vmport_ioport_read(void *opaque, uint32_t addr)
         return eax;
     if (!s->func[command])
     {
-        printf("vmport: unknown command %x\n", command);
+#ifdef VMPORT_DEBUG
+        fprintf(stderr, "vmport: unknown command %x\n", command);
+#endif
         return eax;
     }
 

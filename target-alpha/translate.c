@@ -47,7 +47,7 @@ static TCGv cpu_env;
 
 #include "gen-icount.h"
 
-static void alpha_translate_init()
+static void alpha_translate_init(void)
 {
     static int done_init = 0;
     if (done_init)

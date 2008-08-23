@@ -3322,9 +3322,7 @@ set_default_mips_dis_options (struct disassemble_info *info)
 }
 
 void
-parse_mips_dis_option (option, len)
-     const char *option;
-     unsigned int len;
+parse_mips_dis_option (const char *option, unsigned int len)
 {
   unsigned int i, optionlen, vallen;
   const char *val;

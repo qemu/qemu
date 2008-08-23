@@ -272,7 +272,7 @@ static void *load_data(int fd, long offset, unsigned int size)
     return data;
 }
 
-int strstart(const char *str, const char *val, const char **ptr)
+static int strstart(const char *str, const char *val, const char **ptr)
 {
     const char *p, *q;
     p = str;
@@ -288,7 +288,7 @@ int strstart(const char *str, const char *val, const char **ptr)
     return 1;
 }
 
-void pstrcpy(char *buf, int buf_size, const char *str)
+static void pstrcpy(char *buf, int buf_size, const char *str)
 {
     int c;
     char *q = buf;
@@ -305,32 +305,32 @@ void pstrcpy(char *buf, int buf_size, const char *str)
     *q = '\0';
 }
 
-void swab16s(uint16_t *p)
+static void swab16s(uint16_t *p)
 {
     *p = bswap16(*p);
 }
 
-void swab32s(uint32_t *p)
+static void swab32s(uint32_t *p)
 {
     *p = bswap32(*p);
 }
 
-void swab32ss(int32_t *p)
+static void swab32ss(int32_t *p)
 {
     *p = bswap32(*p);
 }
 
-void swab64s(uint64_t *p)
+static void swab64s(uint64_t *p)
 {
     *p = bswap64(*p);
 }
 
-void swab64ss(int64_t *p)
+static void swab64ss(int64_t *p)
 {
     *p = bswap64(*p);
 }
 
-uint16_t get16(uint16_t *p)
+static uint16_t get16(uint16_t *p)
 {
     uint16_t val;
     val = *p;
@@ -339,7 +339,7 @@ uint16_t get16(uint16_t *p)
     return val;
 }
 
-uint32_t get32(uint32_t *p)
+static uint32_t get32(uint32_t *p)
 {
     uint32_t val;
     val = *p;
@@ -348,14 +348,14 @@ uint32_t get32(uint32_t *p)
     return val;
 }
 
-void put16(uint16_t *p, uint16_t val)
+static void put16(uint16_t *p, uint16_t val)
 {
     if (do_swap)
         val = bswap16(val);
     *p = val;
 }
 
-void put32(uint32_t *p, uint32_t val)
+static void put32(uint32_t *p, uint32_t val)
 {
     if (do_swap)
         val = bswap32(val);
@@ -378,7 +378,7 @@ uint8_t **sdata;
 struct elfhdr ehdr;
 char *strtab;
 
-int elf_must_swap(struct elfhdr *h)
+static int elf_must_swap(struct elfhdr *h)
 {
   union {
       uint32_t i;
@@ -390,7 +390,7 @@ int elf_must_swap(struct elfhdr *h)
       (swaptest.b[0] == 0);
 }
 
-void elf_swap_ehdr(struct elfhdr *h)
+static void elf_swap_ehdr(struct elfhdr *h)
 {
     swab16s(&h->e_type);			/* Object file type */
     swab16s(&h->	e_machine);		/* Architecture */
@@ -407,7 +407,7 @@ void elf_swap_ehdr(struct elfhdr *h)
     swab16s(&h->	e_shstrndx);		/* Section header string table index */
 }
 
-void elf_swap_shdr(struct elf_shdr *h)
+static void elf_swap_shdr(struct elf_shdr *h)
 {
   swab32s(&h->	sh_name);		/* Section name (string tbl index) */
   swab32s(&h->	sh_type);		/* Section type */
@@ -421,7 +421,7 @@ void elf_swap_shdr(struct elf_shdr *h)
   swabls(&h->	sh_entsize);		/* Entry size if section holds table */
 }
 
-void elf_swap_phdr(struct elf_phdr *h)
+static void elf_swap_phdr(struct elf_phdr *h)
 {
     swab32s(&h->p_type);			/* Segment type */
     swabls(&h->p_offset);		/* Segment file offset */
@@ -433,7 +433,7 @@ void elf_swap_phdr(struct elf_phdr *h)
     swabls(&h->p_align);		/* Segment alignment */
 }
 
-void elf_swap_rel(ELF_RELOC *rel)
+static void elf_swap_rel(ELF_RELOC *rel)
 {
     swabls(&rel->r_offset);
     swabls(&rel->r_info);
@@ -442,8 +442,8 @@ void elf_swap_rel(ELF_RELOC *rel)
 #endif
 }
 
-struct elf_shdr *find_elf_section(struct elf_shdr *shdr, int shnum, const char *shstr,
-                                  const char *name)
+static struct elf_shdr *find_elf_section(struct elf_shdr *shdr, int shnum,
+                                         const char *shstr, const char *name)
 {
     int i;
     const char *shname;
@@ -460,7 +460,7 @@ struct elf_shdr *find_elf_section(struct elf_shdr *shdr, int shnum, const char *
     return NULL;
 }
 
-int find_reloc(int sh_index)
+static int find_reloc(int sh_index)
 {
     struct elf_shdr *sec;
     int i;
@@ -489,7 +489,7 @@ static char *get_sym_name(EXE_SYM *sym)
 }
 
 /* load an elf object file */
-int load_object(const char *filename)
+static int load_object(const char *filename)
 {
     int fd;
     struct elf_shdr *sec, *symtab_sec, *strtab_sec, *text_sec;
@@ -1227,7 +1227,7 @@ int load_object(const char *filename)
 #endif /* CONFIG_FORMAT_MACH */
 
 /* return true if the expression is a label reference */
-int get_reloc_expr(char *name, int name_size, const char *sym_name)
+static int get_reloc_expr(char *name, int name_size, const char *sym_name)
 {
     const char *p;
 
@@ -1294,8 +1294,8 @@ get_plt_index (const char *name, unsigned long addend)
 #define MAX_ARGS 3
 
 /* generate op code */
-void gen_code(const char *name, host_ulong offset, host_ulong size,
-              FILE *outfile, int gen_switch)
+static void gen_code(const char *name, host_ulong offset, host_ulong size,
+                     FILE *outfile, int gen_switch)
 {
     int copy_size = 0;
     uint8_t *p_start, *p_end;
@@ -2630,7 +2630,7 @@ void gen_code(const char *name, host_ulong offset, host_ulong size,
     }
 }
 
-int gen_file(FILE *outfile, int out_type)
+static int gen_file(FILE *outfile, int out_type)
 {
     int i;
     EXE_SYM *sym;
@@ -2742,7 +2742,7 @@ int gen_file(FILE *outfile, int out_type)
     return 0;
 }
 
-void usage(void)
+static void usage(void)
 {
     printf("dyngen (c) 2003 Fabrice Bellard\n"
            "usage: dyngen [-o outfile] [-c] objfile\n"

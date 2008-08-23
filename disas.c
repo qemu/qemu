@@ -341,11 +341,8 @@ static int monitor_disas_is_physical;
 static CPUState *monitor_disas_env;
 
 static int
-monitor_read_memory (memaddr, myaddr, length, info)
-     bfd_vma memaddr;
-     bfd_byte *myaddr;
-     int length;
-     struct disassemble_info *info;
+monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
+                     struct disassemble_info *info)
 {
     if (monitor_disas_is_physical) {
         cpu_physical_memory_rw(memaddr, myaddr, length, 0);

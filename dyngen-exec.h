@@ -32,6 +32,9 @@
    host headers do not allow that. */
 #include <stddef.h>
 
+#ifdef __OpenBSD__
+#include <sys/types.h>
+#else
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
@@ -59,6 +62,7 @@ typedef signed int int32_t;
 typedef signed long int64_t;
 #else
 typedef signed long long int64_t;
+#endif
 #endif
 #endif
 

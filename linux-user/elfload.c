@@ -12,6 +12,15 @@
 #include "qemu.h"
 #include "disas.h"
 
+#ifdef __powerpc64__
+#undef ARCH_DLINFO
+#undef ELF_PLATFORM
+#undef ELF_HWCAP
+#undef ELF_CLASS
+#undef ELF_DATA
+#undef ELF_ARCH
+#endif
+
 /* from personality.h */
 
 /*

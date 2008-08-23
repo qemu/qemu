@@ -1981,6 +1981,11 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #endif
 
     addr &= 7;
+
+    /* ignore writes to command block while busy with previous command */
+    if (addr != 7 && (ide_if->cur_drive->status & (BUSY_STAT|DRQ_STAT)))
+        return;
+
     switch(addr) {
     case 0:
         break;
@@ -2038,6 +2043,10 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         s = ide_if->cur_drive;
         /* ignore commands to non existant slave */
         if (s != ide_if && !s->bs)
+            break;
+
+        /* Only DEVICE RESET is allowed while BSY or/and DRQ are set */
+        if ((s->status & (BUSY_STAT|DRQ_STAT)) && val != WIN_DEVICE_RESET)
             break;
 
         switch(val) {
@@ -2498,6 +2507,10 @@ static void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
 
+    /* PIO data access allowed only when DRQ bit is set */
+    if (!(s->status & DRQ_STAT))
+        return;
+
     p = s->data_ptr;
     *(uint16_t *)p = le16_to_cpu(val);
     p += 2;
@@ -2511,6 +2524,11 @@ static uint32_t ide_data_readw(void *opaque, uint32_t addr)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
     int ret;
+
+    /* PIO data access allowed only when DRQ bit is set */
+    if (!(s->status & DRQ_STAT))
+        return 0;
+
     p = s->data_ptr;
     ret = cpu_to_le16(*(uint16_t *)p);
     p += 2;
@@ -2525,6 +2543,10 @@ static void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
 
+    /* PIO data access allowed only when DRQ bit is set */
+    if (!(s->status & DRQ_STAT))
+        return;
+
     p = s->data_ptr;
     *(uint32_t *)p = le32_to_cpu(val);
     p += 4;
@@ -2538,6 +2560,10 @@ static uint32_t ide_data_readl(void *opaque, uint32_t addr)
     IDEState *s = ((IDEState *)opaque)->cur_drive;
     uint8_t *p;
     int ret;
+
+    /* PIO data access allowed only when DRQ bit is set */
+    if (!(s->status & DRQ_STAT))
+        return 0;
 
     p = s->data_ptr;
     ret = cpu_to_le32(*(uint32_t *)p);
@@ -2844,6 +2870,23 @@ static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
     }
 }
 
+static void ide_dma_cancel(BMDMAState *bm)
+{
+    if (bm->status & BM_STATUS_DMAING) {
+        bm->status &= ~BM_STATUS_DMAING;
+        /* cancel DMA request */
+        bm->ide_if = NULL;
+        bm->dma_cb = NULL;
+        if (bm->aiocb) {
+#ifdef DEBUG_AIO
+            printf("aio_cancel\n");
+#endif
+            bdrv_aio_cancel(bm->aiocb);
+            bm->aiocb = NULL;
+        }
+    }
+}
+
 static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     BMDMAState *bm = opaque;
@@ -2852,19 +2895,7 @@ static void bmdma_cmd_writeb(void *opaque, uint32_t addr, uint32_t val)
 #endif
     if (!(val & BM_CMD_START)) {
         /* XXX: do it better */
-        if (bm->status & BM_STATUS_DMAING) {
-            bm->status &= ~BM_STATUS_DMAING;
-            /* cancel DMA request */
-            bm->ide_if = NULL;
-            bm->dma_cb = NULL;
-            if (bm->aiocb) {
-#ifdef DEBUG_AIO
-                printf("aio_cancel\n");
-#endif
-                bdrv_aio_cancel(bm->aiocb);
-                bm->aiocb = NULL;
-            }
-        }
+        ide_dma_cancel(bm);
         bm->cmd = val & 0x09;
     } else {
         if (!(bm->status & BM_STATUS_DMAING)) {
@@ -3188,9 +3219,14 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
     return 0;
 }
 
-static void piix3_reset(PCIIDEState *d)
+static void piix3_reset(void *opaque)
 {
+    PCIIDEState *d = opaque;
     uint8_t *pci_conf = d->dev.config;
+    int i;
+
+    for (i = 0; i < 2; i++)
+        ide_dma_cancel(&d->bmdma[i]);
 
     pci_conf[0x04] = 0x00;
     pci_conf[0x05] = 0x00;
@@ -3224,6 +3260,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
 
+    qemu_register_reset(piix3_reset, d);
     piix3_reset(d);
 
     pci_register_io_region((PCIDevice *)d, 4, 0x10,
@@ -3262,6 +3299,7 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
 
+    qemu_register_reset(piix3_reset, d);
     piix3_reset(d);
 
     pci_register_io_region((PCIDevice *)d, 4, 0x10,

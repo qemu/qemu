@@ -2,6 +2,10 @@
 #define QEMU_OSDEP_H
 
 #include <stdarg.h>
+#ifdef __OpenBSD__
+#include <sys/types.h>
+#include <sys/signal.h>
+#endif
 
 #ifndef glue
 #define xglue(x, y) x ## y
@@ -18,6 +22,10 @@
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x)   __builtin_expect(!!(x), 0)
 #endif
+
+#define container_of(ptr, type, member) ({                      \
+        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+        (type *)( (char *)__mptr - offsetof(type,member) );})
 
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))

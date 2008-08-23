@@ -5189,7 +5189,6 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
                 rn, reg, sel);
     }
 #endif
-    tcg_temp_free(t0);
     /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
         gen_io_end();
@@ -5198,7 +5197,6 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     return;
 
 die:
-    tcg_temp_free(t0);
 #if defined MIPS_DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "dmtc0 %s (reg %d sel %d)\n",

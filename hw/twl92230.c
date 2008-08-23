@@ -129,7 +129,7 @@ static void menelaus_rtc_hz(void *opaque)
     menelaus_update(s);
 }
 
-void menelaus_reset(i2c_slave *i2c)
+static void menelaus_reset(i2c_slave *i2c)
 {
     struct menelaus_s *s = (struct menelaus_s *) i2c;
     s->reg = 0x00;

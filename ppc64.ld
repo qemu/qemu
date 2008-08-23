@@ -1,16 +1,15 @@
 /* Script for -z combreloc: combine and sort reloc sections */
 OUTPUT_FORMAT("elf64-powerpc", "elf64-powerpc",
-             "elf64-powerpc")
+	      "elf64-powerpc")
 OUTPUT_ARCH(powerpc:common64)
 ENTRY(_start)
-SEARCH_DIR("/usr/powerpc64-unknown-linux-gnu/lib64"); 
-EARCH_DIR("/usr/lib/binutils/powerpc64-unknown-linux-gnu/2.16.164"); 
-EARCH_DIR("/usr/local/lib64"); SEARCH_DIR("/lib64"); SEARCH_DIR("/usr/lib64"); 
-EARCH_DIR("/usr/powerpc64-unknown-linux-gnu/lib"); 
-EARCH_DIR("/usr/lib/binutils/powerpc64-unknown-linux-gnu/2.16.1"); 
-EARCH_DIR("/usr/local/lib"); SEARCH_DIR("/lib"); SEARCH_DIR("/usr/lib");
-/* Do we need any of these for elf?
-   __DYNAMIC = 0;    */
+SEARCH_DIR("/usr/powerpc64-unknown-linux-gnu/lib64");
+SEARCH_DIR("/usr/lib/binutils/powerpc64-unknown-linux-gnu/2.16.164");
+SEARCH_DIR("/usr/local/lib64"); SEARCH_DIR("/lib64"); SEARCH_DIR("/usr/lib64");
+SEARCH_DIR("/usr/powerpc64-unknown-linux-gnu/lib");
+SEARCH_DIR("/usr/lib/binutils/powerpc64-unknown-linux-gnu/2.16.1");
+SEARCH_DIR("/usr/local/lib"); SEARCH_DIR("/lib"); SEARCH_DIR("/usr/lib"); /* Do we
+need any of these for elf? +   __DYNAMIC = 0;    */
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
@@ -63,7 +62,7 @@ SECTIONS
     }
   .rel.plt        : { *(.rel.plt) }
   .rela.plt       : { *(.rela.plt) }
-  .rela.tocbss   : { *(.rela.tocbss) }
+  .rela.tocbss	  : { *(.rela.tocbss) }
   .init           :
   {
     KEEP (*(.init))
@@ -89,19 +88,16 @@ SECTIONS
   .sbss2          : { *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*) }
   .eh_frame_hdr : { *(.eh_frame_hdr) }
   .eh_frame       : ONLY_IF_RO { KEEP (*(.eh_frame)) }
-  .gcc_except_table   : ONLY_IF_RO { KEEP (*(.gcc_except_table)) 
-(.gcc_except_table.*) }
-  /* Adjust the address for the data segment.  We want to adjust up to
-     the same address within the page on the next page up.  */
-  . = ALIGN (0x10000) - ((0x10000 - .) & (0x10000 - 1)); . = 
-ATA_SEGMENT_ALIGN (0x10000, 0x1000);
-  /* Exception handling  */
+  .gcc_except_table   : ONLY_IF_RO { KEEP (*(.gcc_except_table))
+*(.gcc_except_table.*) } /* Adjust the address for the data segment.  We want to
+adjust up to +     the same address within the page on the next page up.  */
+  . = ALIGN (0x10000) - ((0x10000 - .) & (0x10000 - 1)); . = DATA_SEGMENT_ALIGN
+(0x10000, 0x1000);   /* Exception handling  */
   .eh_frame       : ONLY_IF_RW { KEEP (*(.eh_frame)) }
-  .gcc_except_table   : ONLY_IF_RW { KEEP (*(.gcc_except_table)) 
-(.gcc_except_table.*) }
-  /* Thread Local Storage sections  */
-  .tdata         : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
-  .tbss                  : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
+  .gcc_except_table   : ONLY_IF_RW { KEEP (*(.gcc_except_table))
+*(.gcc_except_table.*) }   /* Thread Local Storage sections  */
+  .tdata	  : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
+  .tbss		  : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
   /* Ensure the __preinit_array_start label is properly aligned.  We
      could instead move the label definition inside the section, but
      the linker would then create the section even if it turns out to
@@ -154,9 +150,9 @@ ATA_SEGMENT_ALIGN (0x10000, 0x1000);
     SORT(CONSTRUCTORS)
   }
   .data1          : { *(.data1) }
-  .toc1                 ALIGN(8) : { *(.toc1) }
-  .opd          ALIGN(8) : { KEEP (*(.opd)) }
-  .got         ALIGN(8) : { *(.got .toc) }
+  .toc1		 ALIGN(8) : { *(.toc1) }
+  .opd		 ALIGN(8) : { KEEP (*(.opd)) }
+  .got		ALIGN(8) : { *(.got .toc) }
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
@@ -167,7 +163,7 @@ ATA_SEGMENT_ALIGN (0x10000, 0x1000);
   _edata = .;
   PROVIDE (edata = .);
   __bss_start = .;
-  .tocbss       ALIGN(8) : { *(.tocbss)}
+  .tocbss	 ALIGN(8) : { *(.tocbss)}
   .sbss           :
   {
     PROVIDE (__sbss_start = .);

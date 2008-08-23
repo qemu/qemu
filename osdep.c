@@ -68,7 +68,14 @@ void qemu_vfree(void *ptr)
 
 #if defined(USE_KQEMU)
 
+#ifdef __OpenBSD__
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/mount.h>
+#else
 #include <sys/vfs.h>
+#endif
+
 #include <sys/mman.h>
 #include <fcntl.h>
 
@@ -76,9 +83,14 @@ static void *kqemu_vmalloc(size_t size)
 {
     static int phys_ram_fd = -1;
     static int phys_ram_size = 0;
+    void *ptr;
+
+#ifdef __OpenBSD__ /* no need (?) for a dummy file on OpenBSD */
+    int map_anon = MAP_ANON;
+#else
+    int map_anon = 0;
     const char *tmpdir;
     char phys_ram_file[1024];
-    void *ptr;
 #ifdef HOST_SOLARIS
     struct statvfs stfs;
 #else
@@ -140,9 +152,10 @@ static void *kqemu_vmalloc(size_t size)
     }
     size = (size + 4095) & ~4095;
     ftruncate(phys_ram_fd, phys_ram_size + size);
+#endif /* !__OpenBSD__ */
     ptr = mmap(NULL,
                size,
-               PROT_WRITE | PROT_READ, MAP_SHARED,
+               PROT_WRITE | PROT_READ, map_anon | MAP_SHARED,
                phys_ram_fd, phys_ram_size);
     if (ptr == MAP_FAILED) {
         fprintf(stderr, "Could not map physical memory\n");

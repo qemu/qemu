@@ -9,6 +9,9 @@
 #define MOUSE_EVENT_RBUTTON 0x02
 #define MOUSE_EVENT_MBUTTON 0x04
 
+/* in ms */
+#define GUI_REFRESH_INTERVAL 30
+
 typedef void QEMUPutKBDEvent(void *opaque, int keycode);
 typedef void QEMUPutMouseEvent(void *opaque, int dx, int dy, int dz, int buttons_state);
 
@@ -80,6 +83,7 @@ struct DisplayState {
     void *opaque;
     struct QEMUTimer *gui_timer;
     uint64_t gui_timer_interval;
+    int idle; /* there is nothing to update (window invisible), set by vnc/sdl */
 
     void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
     void (*dpy_resize)(struct DisplayState *s, int w, int h);
@@ -160,7 +164,6 @@ extern uint8_t _translate_keycode(const int key);
    does not need to include console.h  */
 /* monitor.c */
 void monitor_init(CharDriverState *hd, int show_banner);
-void monitor_start_input(void);
 void term_puts(const char *str);
 void term_vprintf(const char *fmt, va_list ap);
 void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
