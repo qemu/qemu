@@ -939,12 +939,8 @@ static void press_key(VncState *vs, int keysym)
     kbd_put_keycode(keysym2scancode(vs->kbd_layout, keysym) | 0x80);
 }
 
-static void do_key_event(VncState *vs, int down, uint32_t sym)
+static void do_key_event(VncState *vs, int down, int keycode, int sym)
 {
-    int keycode;
-
-    keycode = keysym2scancode(vs->kbd_layout, sym & 0xFFFF);
-
     /* QEMU console switch */
     switch(keycode) {
     case 0x2a:                          /* Left Shift */
@@ -1046,9 +1042,23 @@ static void do_key_event(VncState *vs, int down, uint32_t sym)
 
 static void key_event(VncState *vs, int down, uint32_t sym)
 {
+    int keycode;
+
     if (sym >= 'A' && sym <= 'Z' && is_graphic_console())
 	sym = sym - 'A' + 'a';
-    do_key_event(vs, down, sym);
+
+    keycode = keysym2scancode(vs->kbd_layout, sym & 0xFFFF);
+    do_key_event(vs, down, keycode, sym);
+}
+
+static void ext_key_event(VncState *vs, int down,
+                          uint32_t sym, uint16_t keycode)
+{
+    /* if the user specifies a keyboard layout, always use it */
+    if (keyboard_layout)
+        key_event(vs, down, sym);
+    else
+        do_key_event(vs, down, keycode, sym);
 }
 
 static void framebuffer_update_request(VncState *vs, int incremental,
@@ -1078,6 +1088,15 @@ static void framebuffer_update_request(VncState *vs, int incremental,
     }
 }
 
+static void send_ext_key_event_ack(VncState *vs)
+{
+    vnc_write_u8(vs, 0);
+    vnc_write_u8(vs, 0);
+    vnc_write_u16(vs, 1);
+    vnc_framebuffer_update(vs, 0, 0, vs->ds->width, vs->ds->height, -258);
+    vnc_flush(vs);
+}
+
 static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 {
     int i;
@@ -1105,6 +1124,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 	case -257:
 	    vs->has_pointer_type_change = 1;
 	    break;
+        case -258:
+            send_ext_key_event_ack(vs);
+            break;
 	default:
 	    break;
 	}
@@ -1256,6 +1278,24 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
 	client_cut_text(vs, read_u32(data, 4), data + 8);
 	break;
+    case 255:
+        if (len == 1)
+            return 2;
+
+        switch (read_u8(data, 1)) {
+        case 0:
+            if (len == 2)
+                return 12;
+
+            ext_key_event(vs, read_u16(data, 2),
+                          read_u32(data, 4), read_u32(data, 8));
+            break;
+        default:
+            printf("Msg: %d\n", read_u16(data, 0));
+            vnc_client_error(vs);
+            break;
+        }
+        break;
     default:
 	printf("Msg: %d\n", data[0]);
 	vnc_client_error(vs);
@@ -1974,10 +2014,11 @@ void vnc_display_init(DisplayState *ds)
 
     vs->ds = ds;
 
-    if (!keyboard_layout)
-	keyboard_layout = "en-us";
+    if (keyboard_layout)
+        vs->kbd_layout = init_keyboard_layout(keyboard_layout);
+    else
+        vs->kbd_layout = init_keyboard_layout("en-us");
 
-    vs->kbd_layout = init_keyboard_layout(keyboard_layout);
     if (!vs->kbd_layout)
 	exit(1);
 
