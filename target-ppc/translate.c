@@ -43,7 +43,7 @@
 /*****************************************************************************/
 /* Code translation helpers                                                  */
 
-static TCGv cpu_env;
+static TCGv cpu_env, cpu_T[3];
 
 #include "gen-icount.h"
 
@@ -53,6 +53,18 @@ void ppc_translate_init(void)
     if (done_init)
         return;
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+    cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t0), "T0");
+    cpu_T[1] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t1), "T1");
+    cpu_T[2] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t2), "T2");
+#else
+    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
+    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
+    cpu_T[2] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "T2");
+#endif
     done_init = 1;
 }
 
