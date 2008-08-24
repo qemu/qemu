@@ -68,16 +68,16 @@ void do_print_mem_EA (target_ulong EA)
 
 /*****************************************************************************/
 /* Registers load and stores */
-target_ulong do_load_cr (void)
+void do_load_cr (void)
 {
-    return (env->crf[0] << 28) |
-           (env->crf[1] << 24) |
-           (env->crf[2] << 20) |
-           (env->crf[3] << 16) |
-           (env->crf[4] << 12) |
-           (env->crf[5] << 8) |
-           (env->crf[6] << 4) |
-           (env->crf[7] << 0);
+    T0 = (env->crf[0] << 28) |
+        (env->crf[1] << 24) |
+        (env->crf[2] << 20) |
+        (env->crf[3] << 16) |
+        (env->crf[4] << 12) |
+        (env->crf[5] << 8) |
+        (env->crf[6] << 4) |
+        (env->crf[7] << 0);
 }
 
 void do_store_cr (uint32_t mask)
@@ -429,27 +429,27 @@ void do_srad (void)
 }
 #endif
 
-target_ulong do_popcntb (target_ulong t0)
+void do_popcntb (void)
 {
     uint32_t ret;
     int i;
 
     ret = 0;
     for (i = 0; i < 32; i += 8)
-        ret |= ctpop8((t0 >> i) & 0xFF) << i;
-    return ret;
+        ret |= ctpop8((T0 >> i) & 0xFF) << i;
+    T0 = ret;
 }
 
 #if defined(TARGET_PPC64)
-target_ulong do_popcntb_64 (target_ulong t0)
+void do_popcntb_64 (void)
 {
     uint64_t ret;
     int i;
 
     ret = 0;
     for (i = 0; i < 64; i += 8)
-        ret |= ctpop8((t0 >> i) & 0xFF) << i;
-    return ret;
+        ret |= ctpop8((T0 >> i) & 0xFF) << i;
+    T0 = ret;
 }
 #endif
 
@@ -1404,22 +1404,14 @@ void do_fcmpo (void)
 #if !defined (CONFIG_USER_ONLY)
 void cpu_dump_rfi (target_ulong RA, target_ulong msr);
 
-void do_store_msr (target_ulong t0)
+void do_store_msr (void)
 {
-    t0 = hreg_store_msr(env, t0, 0);
-    if (t0 != 0) {
+    T0 = hreg_store_msr(env, T0, 0);
+    if (T0 != 0) {
         env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-        do_raise_exception(t0);
+        do_raise_exception(T0);
     }
 }
-
-#if defined (TARGET_PPC64)
-void do_store_msr_32 (target_ulong t0)
-{
-    t0 = (env->msr & ~0xFFFFFFFFULL) | (t0 & 0xFFFFFFFF);
-    do_store_msr(t0);
-}
-#endif
 
 static always_inline void __do_rfi (target_ulong nip, target_ulong msr,
                                     target_ulong msrm, int keep_msrh)
