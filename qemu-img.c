@@ -699,7 +699,7 @@ static int img_info(int argc, char **argv)
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
     allocated_size = get_allocated_file_size(filename);
     if (allocated_size < 0)
-	sprintf(dsize_buf, "unavailable");
+        snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
     else
         get_human_readable_size(dsize_buf, sizeof(dsize_buf),
                                 allocated_size);
