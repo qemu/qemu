@@ -51,7 +51,6 @@ void glue(do_dcbz_64, MEMSUFFIX) (void);
 void do_print_mem_EA (target_ulong EA);
 
 /* Registers load and stores */
-void do_load_cr (void);
 void do_store_cr (uint32_t mask);
 #if defined(TARGET_PPC64)
 void do_store_pri (int prio);
@@ -87,10 +86,6 @@ void do_subfe_64 (void);
 void do_subfmeo_64 (void);
 void do_subfzeo_64 (void);
 void do_srad (void);
-#endif
-void do_popcntb (void);
-#if defined(TARGET_PPC64)
-void do_popcntb_64 (void);
 #endif
 
 /* Floating-point arithmetic helpers */
@@ -138,7 +133,6 @@ void do_tw (int flags);
 void do_td (int flags);
 #endif
 #if !defined(CONFIG_USER_ONLY)
-void do_store_msr (void);
 void do_rfi (void);
 #if defined(TARGET_PPC64)
 void do_rfid (void);

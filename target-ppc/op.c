@@ -122,24 +122,11 @@
 #define REG 31
 #include "op_template.h"
 
-void OPPROTO op_print_mem_EA (void)
-{
-    do_print_mem_EA(T0);
-    RETURN();
-}
-
 /* PowerPC state maintenance operations */
 /* set_Rc0 */
 void OPPROTO op_set_Rc0 (void)
 {
     env->crf[0] = T0 | xer_so;
-    RETURN();
-}
-
-/* Constants load */
-void OPPROTO op_reset_T0 (void)
-{
-    T0 = 0;
     RETURN();
 }
 
@@ -203,48 +190,9 @@ void OPPROTO op_raise_exception_err (void)
     do_raise_exception_err(PARAM1, PARAM2);
 }
 
-void OPPROTO op_update_nip (void)
-{
-    env->nip = (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_update_nip_64 (void)
-{
-    env->nip = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
 void OPPROTO op_debug (void)
 {
     do_raise_exception(EXCP_DEBUG);
-}
-
-/* Load/store special registers */
-void OPPROTO op_load_cr (void)
-{
-    do_load_cr();
-    RETURN();
-}
-
-void OPPROTO op_store_cr (void)
-{
-    do_store_cr(PARAM1);
-    RETURN();
-}
-
-void OPPROTO op_load_cro (void)
-{
-    T0 = env->crf[PARAM1];
-    RETURN();
-}
-
-void OPPROTO op_store_cro (void)
-{
-    env->crf[PARAM1] = T0;
-    RETURN();
 }
 
 void OPPROTO op_load_xer_cr (void)
@@ -348,27 +296,6 @@ void OPPROTO op_load_asr (void)
 void OPPROTO op_store_asr (void)
 {
     ppc_store_asr(env, T0);
-    RETURN();
-}
-#endif
-
-void OPPROTO op_load_msr (void)
-{
-    T0 = env->msr;
-    RETURN();
-}
-
-void OPPROTO op_store_msr (void)
-{
-    do_store_msr();
-    RETURN();
-}
-
-#if defined (TARGET_PPC64)
-void OPPROTO op_store_msr_32 (void)
-{
-    T0 = (env->msr & ~0xFFFFFFFFULL) | (T0 & 0xFFFFFFFF);
-    do_store_msr();
     RETURN();
 }
 #endif
@@ -1376,20 +1303,6 @@ void OPPROTO op_isel (void)
         T0 = T2;
     RETURN();
 }
-
-void OPPROTO op_popcntb (void)
-{
-    do_popcntb();
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_popcntb_64 (void)
-{
-    do_popcntb_64();
-    RETURN();
-}
-#endif
 
 /***                            Integer logical                            ***/
 /* and */

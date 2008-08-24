@@ -26,6 +26,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "helper.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
 
@@ -65,8 +66,23 @@ void ppc_translate_init(void)
     cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
     cpu_T[2] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "T2");
 #endif
+
+    /* register helpers */
+#undef DEF_HELPER
+#define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
+#include "helper.h"
+
     done_init = 1;
 }
+
+static inline void tcg_gen_helper_0_i(void *func, TCGv arg)
+{
+    TCGv tmp = tcg_const_i32(arg);
+
+    tcg_gen_helper_0_1(func, tmp);
+    tcg_temp_free(tmp);
+}
+
 
 #if defined(OPTIMIZE_FPRF_UPDATE)
 static uint16_t *gen_fprf_buf[OPC_BUF_SIZE];
@@ -249,12 +265,16 @@ static always_inline void gen_optimize_fprf (void)
 
 static always_inline void gen_update_nip (DisasContext *ctx, target_ulong nip)
 {
+    TCGv tmp;
 #if defined(TARGET_PPC64)
     if (ctx->sf_mode)
-        gen_op_update_nip_64(nip >> 32, nip);
+        tmp = tcg_const_i64(nip);
     else
 #endif
-        gen_op_update_nip(nip);
+        tmp = tcg_const_i32((uint32_t)nip);
+
+    tcg_gen_st_tl(tmp, cpu_env, offsetof(CPUState, nip));
+    tcg_temp_free(tmp);
 }
 
 #define GEN_EXCP(ctx, excp, error)                                            \
@@ -1305,7 +1325,7 @@ GEN_HANDLER(xor, 0x1F, 0x1C, 0x09, 0x00000000, PPC_INTEGER)
         gen_op_load_gpr_T1(rB(ctx->opcode));
         gen_op_xor();
     } else {
-        gen_op_reset_T0();
+        tcg_gen_movi_tl(cpu_T[0], 0);
     }
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -1376,10 +1396,10 @@ GEN_HANDLER(popcntb, 0x1F, 0x03, 0x03, 0x0000F801, PPC_POPCNTB)
     gen_op_load_gpr_T0(rS(ctx->opcode));
 #if defined(TARGET_PPC64)
     if (ctx->sf_mode)
-        gen_op_popcntb_64();
+        tcg_gen_helper_1_1(do_popcntb_64, cpu_T[0], cpu_T[0]);
     else
 #endif
-        gen_op_popcntb();
+        tcg_gen_helper_1_1(do_popcntb, cpu_T[0], cpu_T[0]);
     gen_op_store_T0_gpr(rA(ctx->opcode));
 }
 
@@ -2100,7 +2120,7 @@ static always_inline void gen_addr_imm_index (DisasContext *ctx,
             gen_op_addi(simm);
     }
 #ifdef DEBUG_MEMORY_ACCESSES
-    gen_op_print_mem_EA();
+    tcg_gen_helper_0_0(do_print_mem_EA);
 #endif
 }
 
@@ -2114,19 +2134,19 @@ static always_inline void gen_addr_reg_index (DisasContext *ctx)
         gen_op_add();
     }
 #ifdef DEBUG_MEMORY_ACCESSES
-    gen_op_print_mem_EA();
+    tcg_gen_helper_0_0(do_print_mem_EA);
 #endif
 }
 
 static always_inline void gen_addr_register (DisasContext *ctx)
 {
     if (rA(ctx->opcode) == 0) {
-        gen_op_reset_T0();
+        tcg_gen_movi_tl(cpu_T[0], 0);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
     }
 #ifdef DEBUG_MEMORY_ACCESSES
-    gen_op_print_mem_EA();
+    tcg_gen_helper_0_0(do_print_mem_EA);
 #endif
 }
 
@@ -3225,10 +3245,10 @@ GEN_HANDLER(mfcr, 0x1F, 0x13, 0x00, 0x00000801, PPC_MISC)
         crm = CRM(ctx->opcode);
         if (likely((crm ^ (crm - 1)) == 0)) {
             crn = ffs(crm);
-            gen_op_load_cro(7 - crn);
+            tcg_gen_ld8u_tl(cpu_T[0], cpu_env, offsetof(CPUState, crf[7 - crn]));
         }
     } else {
-        gen_op_load_cr();
+        tcg_gen_helper_1_0(do_load_cr, cpu_T[0]);
     }
     gen_op_store_T0_gpr(rD(ctx->opcode));
 }
@@ -3243,7 +3263,7 @@ GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_op_load_msr();
+    tcg_gen_ld_tl(cpu_T[0], cpu_env, offsetof(CPUState, msr));
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
 }
@@ -3327,10 +3347,10 @@ GEN_HANDLER(mtcrf, 0x1F, 0x10, 0x04, 0x00000801, PPC_MISC)
     if (likely((ctx->opcode & 0x00100000) || (crm ^ (crm - 1)) == 0)) {
         crn = ffs(crm);
         gen_op_srli_T0(crn * 4);
-        gen_op_andi_T0(0xF);
-        gen_op_store_cro(7 - crn);
+        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xF);
+        tcg_gen_st8_tl(cpu_T[0], cpu_env, offsetof(CPUState, crf[7 - crn]));
     } else {
-        gen_op_store_cr(crm);
+        tcg_gen_helper_0_i(do_store_cr, crm);
     }
 }
 
@@ -3355,7 +3375,7 @@ GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B)
          *      directly from ppc_store_msr
          */
         gen_update_nip(ctx, ctx->nip);
-        gen_op_store_msr();
+        tcg_gen_helper_0_1(do_store_msr, cpu_T[0]);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
         ctx->exception = POWERPC_EXCP_STOP;
@@ -3385,10 +3405,10 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
         gen_update_nip(ctx, ctx->nip);
 #if defined(TARGET_PPC64)
         if (!ctx->sf_mode)
-            gen_op_store_msr_32();
+            tcg_gen_helper_0_1(do_store_msr_32, cpu_T[0]);
         else
 #endif
-            gen_op_store_msr();
+            tcg_gen_helper_0_1(do_store_msr, cpu_T[0]);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsrd is not always defined as context-synchronizing */
         ctx->exception = POWERPC_EXCP_STOP;
