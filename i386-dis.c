@@ -2826,7 +2826,7 @@ static void
 oappend (s)
      const char *s;
 {
-  pstrcpy (obufp, (size_t)(obufp - obuf), s);
+  pstrcpy (obufp, sizeof(obuf) - (size_t)(obufp - obuf), s);
   obufp += strlen (s);
 }
 
