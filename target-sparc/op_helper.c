@@ -2288,7 +2288,7 @@ target_ulong helper_udiv(target_ulong a, target_ulong b)
     uint64_t x0;
     uint32_t x1;
 
-    x0 = a | ((uint64_t) (env->y) << 32);
+    x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
     x1 = b;
 
     if (x1 == 0) {
@@ -2310,7 +2310,7 @@ target_ulong helper_sdiv(target_ulong a, target_ulong b)
     int64_t x0;
     int32_t x1;
 
-    x0 = a | ((int64_t) (env->y) << 32);
+    x0 = (a & 0xffffffff) | ((int64_t) (env->y) << 32);
     x1 = b;
 
     if (x1 == 0) {
