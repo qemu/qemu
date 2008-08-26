@@ -109,6 +109,10 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "libslirp.h"
 #endif
 
+#if defined(__OpenBSD__)
+#include <util.h>
+#endif
+
 #if defined(CONFIG_VDE)
 #include <libvdeplug.h>
 #endif
@@ -2463,7 +2467,8 @@ void cfmakeraw (struct termios *termios_p)
 }
 #endif
 
-#if defined(__linux__) || defined(__sun__)
+#if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
+    || defined(__NetBSD__) || defined(__OpenBSD__)
 
 typedef struct {
     int fd;
@@ -2591,6 +2596,13 @@ static CharDriverState *qemu_chr_open_pty(void)
     PtyCharDriver *s;
     struct termios tty;
     int slave_fd;
+#if defined(__OpenBSD__)
+    char pty_name[PATH_MAX];
+#define q_ptsname(x) pty_name
+#else
+    char *pty_name = NULL;
+#define q_ptsname(x) ptsname(x)
+#endif
 
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
@@ -2601,7 +2613,7 @@ static CharDriverState *qemu_chr_open_pty(void)
         return NULL;
     }
 
-    if (openpty(&s->fd, &slave_fd, NULL, NULL, NULL) < 0) {
+    if (openpty(&s->fd, &slave_fd, pty_name, NULL, NULL) < 0) {
         return NULL;
     }
 
@@ -2610,7 +2622,7 @@ static CharDriverState *qemu_chr_open_pty(void)
     tcsetattr(slave_fd, TCSAFLUSH, &tty);
     close(slave_fd);
 
-    fprintf(stderr, "char device redirected to %s\n", ptsname(s->fd));
+    fprintf(stderr, "char device redirected to %s\n", q_ptsname(s->fd));
 
     chr->opaque = s;
     chr->chr_write = pty_chr_write;
@@ -3817,7 +3829,8 @@ CharDriverState *qemu_chr_open(const char *filename)
         return qemu_chr_open_pp(filename);
     } else
 #endif
-#if defined(__linux__) || defined(__sun__)
+#if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
+    || defined(__NetBSD__) || defined(__OpenBSD__)
     if (strstart(filename, "/dev/", NULL)) {
         return qemu_chr_open_tty(filename);
     } else

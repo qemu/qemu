@@ -14,11 +14,11 @@ x86                Fabrice Bellard
 ARM                Paul Brook
 SPARC              Blue Swirl
 MIPS               Thiemo Seufer
-PowerPC            Jocelyn Mayer
+PowerPC            ?
 M68K               Paul Brook
 SH4                ?
 CRIS               Edgar E. Iglesias
-Alpha              Jocelyn Mayer
+Alpha              ?
 
 Machines (sorted by CPU):
 -------------------------
@@ -45,10 +45,10 @@ MIPS
   mips_jazz.c             Hervé Poussineau
   mips_mipssim.c          Thiemo Seufer
 PowerPC
-  ppc_prep.c              Jocelyn Mayer
-  ppc_oldworld.c          Jocelyn Mayer, Fabrice Bellard
-  ppc_chrp.c              Jocelyn Mayer, Fabrice Bellard
-  ppc405_boards.c         Jocelyn Mayer
+  ppc_prep.c              ?
+  ppc_oldworld.c          Fabrice Bellard
+  ppc_chrp.c              Fabrice Bellard
+  ppc405_boards.c         ?
 M86K
   mcf5208.c               Paul Brook
   an5206.c                Paul Brook

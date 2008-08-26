@@ -195,12 +195,14 @@ _syscall4(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode,int,flags)
 _syscall4(int,sys_fchmodat,int,dirfd,const char *,pathname,
           mode_t,mode,int,flags)
 #endif
-#if defined(TARGET_NR_fchownat) && defined(__NR_fchownat)
+#if defined(TARGET_NR_fchownat) && defined(__NR_fchownat) && defined(USE_UID16)
 _syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
           uid_t,owner,gid_t,group,int,flags)
 #endif
 _syscall2(int,sys_getcwd1,char *,buf,size_t,size)
+#if TARGET_ABI_BITS == 32
 _syscall3(int, sys_getdents, uint, fd, struct dirent *, dirp, uint, count);
+#endif
 #if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
 _syscall3(int, sys_getdents64, uint, fd, struct dirent64 *, dirp, uint, count);
 #endif
@@ -2548,6 +2550,7 @@ static abi_long do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr,
     return ret;
 }
 
+#if defined(TARGET_I386) && defined(TARGET_ABI32)
 static abi_long do_set_thread_area(CPUX86State *env, abi_ulong ptr)
 {
     uint64_t *gdt_table = g2h(env->gdt.base);
@@ -2679,6 +2682,7 @@ static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
     unlock_user_struct(target_ldt_info, ptr, 1);
     return 0;
 }
+#endif /* TARGET_I386 && TARGET_ABI32 */
 
 #ifndef TARGET_ABI32
 static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)

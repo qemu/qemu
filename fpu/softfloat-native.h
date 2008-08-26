@@ -8,6 +8,11 @@
 #include <fenv.h>
 #endif
 
+#ifdef __OpenBSD__
+/* Get OpenBSD version number */
+#include <sys/param.h>
+#endif
+
 /*
  * Define some C99-7.12.3 classification macros and
  *        some C99-.12.4 for Solaris systems OS less than 10,
@@ -17,7 +22,7 @@
  */
 #if defined(HOST_SOLARIS) && (( HOST_SOLARIS <= 9 ) || ((HOST_SOLARIS >= 10) \
                                                         && (__GNUC__ <= 4))) \
-    || defined(__OpenBSD__)
+    || (defined(__OpenBSD__) && (OpenBSD < 200811))
 /*
  * C99 7.12.3 classification macros
  * and

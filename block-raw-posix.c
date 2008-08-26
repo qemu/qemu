@@ -55,6 +55,7 @@
 #include <linux/fd.h>
 #endif
 #ifdef __FreeBSD__
+#include <signal.h>
 #include <sys/disk.h>
 #endif
 
