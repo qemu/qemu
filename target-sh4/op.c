@@ -946,12 +946,6 @@ void OPPROTO op_tst_imm_rN(void)
     RETURN();
 }
 
-void OPPROTO op_movl_T0_T1(void)
-{
-    T1 = T0;
-    RETURN();
-}
-
 void OPPROTO op_movl_fpul_FT0(void)
 {
     FT0 = *(float32 *)&env->fpul;

@@ -584,7 +584,7 @@ void _decode_opc(DisasContext * ctx)
     case 0x000f:		/* mac.l @Rm+,@Rn+ */
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macl_T0_T1();
@@ -594,7 +594,7 @@ void _decode_opc(DisasContext * ctx)
     case 0x400f:		/* mac.w @Rm+,@Rn+ */
 	gen_op_movl_rN_T0(REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_movl_rN_T0(REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macw_T0_T1();
@@ -813,7 +813,7 @@ void _decode_opc(DisasContext * ctx)
     case 0xcd00:		/* and.b #imm,@(R0,GBR) */
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_addl_GBR_T0();
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_and_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
@@ -865,21 +865,21 @@ void _decode_opc(DisasContext * ctx)
     case 0xc000:		/* mov.b R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0);
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0xc100:		/* mov.w R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0 * 2);
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_stw_T0_T1(ctx);
 	return;
     case 0xc200:		/* mov.l R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0 * 4);
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_stl_T0_T1(ctx);
 	return;
@@ -917,7 +917,7 @@ void _decode_opc(DisasContext * ctx)
     case 0xcf00:		/* or.b #imm,@(R0,GBR) */
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_addl_GBR_T0();
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_or_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
@@ -942,7 +942,7 @@ void _decode_opc(DisasContext * ctx)
     case 0xce00:		/* xor.b #imm,@(R0,GBR) */
 	gen_op_movl_rN_T0(REG(0));
 	gen_op_addl_GBR_T0();
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_xor_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
@@ -1110,7 +1110,7 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x401b:		/* tas.b @Rn */
 	gen_op_movl_rN_T0(REG(B11_8));
-	gen_op_movl_T0_T1();
+	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_cmp_eq_imm_T0(0);
 	gen_op_or_imm_T0(0x80);
