@@ -78,6 +78,24 @@ static void sh4_translate_init(void)
     done_init = 1;
 }
 
+/* General purpose registers moves. */
+static inline void gen_movl_imm_rN(target_ulong arg, int reg)
+{
+    TCGv tmp = tcg_const_tl(arg);
+    tcg_gen_st_tl(tmp, cpu_env, offsetof(CPUState, gregs[reg]));
+    tcg_temp_free(tmp);
+}
+
+static always_inline void gen_movl_T_rN (TCGv t, int reg)
+{
+    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, gregs[reg]));
+}
+
+static always_inline void gen_movl_rN_T (TCGv t, int reg)
+{
+    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, gregs[reg]));
+}
+
 #ifdef CONFIG_USER_ONLY
 
 #define GEN_OP_LD(width, reg) \
@@ -322,29 +340,29 @@ void _decode_opc(DisasContext * ctx)
 
     switch (ctx->opcode & 0xf000) {
     case 0x1000:		/* mov.l Rm,@(disp,Rn) */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_addl_imm_T1(B3_0 * 4);
 	gen_op_stl_T0_T1(ctx);
 	return;
     case 0x5000:		/* mov.l @(disp,Rm),Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_addl_imm_T0(B3_0 * 4);
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0xe000:		/* mov #imm,Rn */
-	gen_op_movl_imm_rN(B7_0s, REG(B11_8));
+	gen_movl_imm_rN(B7_0s, REG(B11_8));
 	return;
     case 0x9000:		/* mov.w @(disp,PC),Rn */
 	tcg_gen_movi_tl(cpu_T[0], ctx->pc + 4 + B7_0 * 2);
 	gen_op_ldw_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0xd000:		/* mov.l @(disp,PC),Rn */
 	tcg_gen_movi_tl(cpu_T[0], (ctx->pc + 4 + B7_0 * 4) & ~3);
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x7000:		/* add #imm,Rn */
 	gen_op_add_imm_rN(B7_0s, REG(B11_8));
@@ -364,312 +382,324 @@ void _decode_opc(DisasContext * ctx)
 
     switch (ctx->opcode & 0xf00f) {
     case 0x6003:		/* mov Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x2000:		/* mov.b Rm,@Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0x2001:		/* mov.w Rm,@Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_stw_T0_T1(ctx);
 	return;
     case 0x2002:		/* mov.l Rm,@Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
 	return;
     case 0x6000:		/* mov.b @Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldb_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x6001:		/* mov.w @Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldw_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x6002:		/* mov.l @Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x2004:		/* mov.b Rm,@-Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_dec1_rN(REG(B11_8));    /* modify register status */
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_inc1_rN(REG(B11_8));    /* recover register status */
 	gen_op_stb_T0_T1(ctx);         /* might cause re-execution */
 	gen_op_dec1_rN(REG(B11_8));    /* modify register status */
 	return;
     case 0x2005:		/* mov.w Rm,@-Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_dec2_rN(REG(B11_8));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_inc2_rN(REG(B11_8));
 	gen_op_stw_T0_T1(ctx);
 	gen_op_dec2_rN(REG(B11_8));
 	return;
     case 0x2006:		/* mov.l Rm,@-Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_dec4_rN(REG(B11_8));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_inc4_rN(REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
 	gen_op_dec4_rN(REG(B11_8));
 	return;
     case 0x6004:		/* mov.b @Rm+,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldb_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	if ( B11_8 != B7_4 )
 		gen_op_inc1_rN(REG(B7_4));
 	return;
     case 0x6005:		/* mov.w @Rm+,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldw_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	if ( B11_8 != B7_4 )
 		gen_op_inc2_rN(REG(B7_4));
 	return;
     case 0x6006:		/* mov.l @Rm+,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	if ( B11_8 != B7_4 )
 		gen_op_inc4_rN(REG(B7_4));
 	return;
     case 0x0004:		/* mov.b Rm,@(R0,Rn) */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_add_rN_T1(REG(0));
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0x0005:		/* mov.w Rm,@(R0,Rn) */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_add_rN_T1(REG(0));
 	gen_op_stw_T0_T1(ctx);
 	return;
     case 0x0006:		/* mov.l Rm,@(R0,Rn) */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_add_rN_T1(REG(0));
 	gen_op_stl_T0_T1(ctx);
 	return;
     case 0x000c:		/* mov.b @(R0,Rm),Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_add_rN_T0(REG(0));
 	gen_op_ldb_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x000d:		/* mov.w @(R0,Rm),Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_add_rN_T0(REG(0));
 	gen_op_ldw_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x000e:		/* mov.l @(R0,Rm),Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_add_rN_T0(REG(0));
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x6008:		/* swap.b Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_swapb_T0();
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x6009:		/* swap.w Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_swapw_T0();
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x200d:		/* xtrct Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_xtrct_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[1], REG(B11_8));
 	return;
     case 0x300c:		/* add Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_add_T0_rN(REG(B11_8));
 	return;
     case 0x300e:		/* addc Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_addc_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[1], REG(B11_8));
 	return;
     case 0x300f:		/* addv Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_addv_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[1], REG(B11_8));
 	return;
     case 0x2009:		/* and Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_and_T0_rN(REG(B11_8));
 	return;
     case 0x3000:		/* cmp/eq Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_cmp_eq_T0_T1();
 	return;
     case 0x3003:		/* cmp/ge Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_cmp_ge_T0_T1();
 	return;
     case 0x3007:		/* cmp/gt Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_cmp_gt_T0_T1();
 	return;
     case 0x3006:		/* cmp/hi Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_cmp_hi_T0_T1();
 	return;
     case 0x3002:		/* cmp/hs Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_cmp_hs_T0_T1();
 	return;
     case 0x200c:		/* cmp/str Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_cmp_str_T0_T1();
 	return;
     case 0x2007:		/* div0s Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_div0s_T0_T1();
 	return;
     case 0x3004:		/* div1 Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_div1_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[1], REG(B11_8));
 	return;
     case 0x300d:		/* dmuls.l Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_dmulsl_T0_T1();
 	return;
     case 0x3005:		/* dmulu.l Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_dmulul_T0_T1();
 	return;
     case 0x600e:		/* exts.b Rm,Rn */
-	gen_op_movb_rN_T0(REG(B7_4));
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
+	tcg_gen_ext8s_tl(cpu_T[0], cpu_T[0]);
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x600f:		/* exts.w Rm,Rn */
-	gen_op_movw_rN_T0(REG(B7_4));
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
+	tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x600c:		/* extu.b Rm,Rn */
-	gen_op_movub_rN_T0(REG(B7_4));
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x600d:		/* extu.w Rm,Rn */
-	gen_op_movuw_rN_T0(REG(B7_4));
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x000f:		/* mac.l @Rm+,@Rn+ */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macl_T0_T1();
 	gen_op_inc4_rN(REG(B11_8));
 	gen_op_inc4_rN(REG(B7_4));
 	return;
     case 0x400f:		/* mac.w @Rm+,@Rn+ */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macw_T0_T1();
 	gen_op_inc2_rN(REG(B11_8));
 	gen_op_inc2_rN(REG(B7_4));
 	return;
     case 0x0007:		/* mul.l Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_mull_T0_T1();
 	return;
     case 0x200f:		/* muls.w Rm,Rn */
-	gen_op_movw_rN_T0(REG(B7_4));
-	gen_op_movw_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
+	tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
+	tcg_gen_andi_tl(cpu_T[1], cpu_T[1], 0xffff);
+	tcg_gen_ext16s_tl(cpu_T[1], cpu_T[1]);
 	gen_op_mulsw_T0_T1();
 	return;
     case 0x200e:		/* mulu.w Rm,Rn */
-	gen_op_movuw_rN_T0(REG(B7_4));
-	gen_op_movuw_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
+	tcg_gen_andi_tl(cpu_T[1], cpu_T[1], 0xffff);
 	gen_op_muluw_T0_T1();
 	return;
     case 0x600b:		/* neg Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_neg_T0();
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x600a:		/* negc Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_negc_T0();
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x6007:		/* not Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_not_T0();
-	gen_op_movl_T0_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x200b:		/* or Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_or_T0_rN(REG(B11_8));
 	return;
     case 0x400c:		/* shad Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_shad_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[1], REG(B11_8));
 	return;
     case 0x400d:		/* shld Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_shld_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[1], REG(B11_8));
 	return;
     case 0x3008:		/* sub Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_sub_T0_rN(REG(B11_8));
 	return;
     case 0x300a:		/* subc Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_subc_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[1], REG(B11_8));
 	return;
     case 0x300b:		/* subv Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_subv_T0_T1();
-	gen_op_movl_T1_rN(REG(B11_8));
+	gen_movl_T_rN(cpu_T[1], REG(B11_8));
 	return;
     case 0x2008:		/* tst Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_tst_T0_T1();
 	return;
     case 0x200a:		/* xor Rm,Rn */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_xor_T0_rN(REG(B11_8));
 	return;
     case 0xf00c: /* fmov {F,D,X}Rm,{F,D,X}Rn - FPSCR: Nothing */
@@ -684,33 +714,33 @@ void _decode_opc(DisasContext * ctx)
     case 0xf00a: /* fmov {F,D,X}Rm,@Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	    gen_op_stfq_DT0_T1(ctx);
 	} else {
 	    gen_op_fmov_frN_FT0(FREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	    gen_op_stfl_FT0_T1(ctx);
 	}
 	return;
     case 0xf008: /* fmov @Rm,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    gen_op_movl_rN_T0(REG(B7_4));
+	    gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	    gen_op_ldfq_T0_DT0(ctx);
 	    gen_op_fmov_DT0_drN(XREG(B11_8));
 	} else {
-	    gen_op_movl_rN_T0(REG(B7_4));
+	    gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	    gen_op_ldfl_T0_FT0(ctx);
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	}
 	return;
     case 0xf009: /* fmov @Rm+,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    gen_op_movl_rN_T0(REG(B7_4));
+	    gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	    gen_op_ldfq_T0_DT0(ctx);
 	    gen_op_fmov_DT0_drN(XREG(B11_8));
 	    gen_op_inc8_rN(REG(B7_4));
 	} else {
-	    gen_op_movl_rN_T0(REG(B7_4));
+	    gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	    gen_op_ldfl_T0_FT0(ctx);
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
 	    gen_op_inc4_rN(REG(B7_4));
@@ -720,14 +750,14 @@ void _decode_opc(DisasContext * ctx)
 	if (ctx->fpscr & FPSCR_SZ) {
 	    gen_op_dec8_rN(REG(B11_8));
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	    gen_op_inc8_rN(REG(B11_8));
 	    gen_op_stfq_DT0_T1(ctx);
 	    gen_op_dec8_rN(REG(B11_8));
 	} else {
 	    gen_op_dec4_rN(REG(B11_8));
 	    gen_op_fmov_frN_FT0(FREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	    gen_op_inc4_rN(REG(B11_8));
 	    gen_op_stfl_FT0_T1(ctx);
 	    gen_op_dec4_rN(REG(B11_8));
@@ -735,12 +765,12 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    gen_op_movl_rN_T0(REG(B7_4));
+	    gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	    gen_op_add_rN_T0(REG(0));
 	    gen_op_ldfq_T0_DT0(ctx);
 	    gen_op_fmov_DT0_drN(XREG(B11_8));
 	} else {
-	    gen_op_movl_rN_T0(REG(B7_4));
+	    gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	    gen_op_add_rN_T0(REG(0));
 	    gen_op_ldfl_T0_FT0(ctx);
 	    gen_op_fmov_FT0_frN(FREG(B11_8));
@@ -749,12 +779,12 @@ void _decode_opc(DisasContext * ctx)
     case 0xf007: /* fmov {F,D,X}Rn,@(R0,Rn) - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
 	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	    gen_op_add_rN_T1(REG(0));
 	    gen_op_stfq_DT0_T1(ctx);
 	} else {
 	    gen_op_fmov_frN_FT0(FREG(B7_4));
-	    gen_op_movl_rN_T1(REG(B11_8));
+	    gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	    gen_op_add_rN_T1(REG(0));
 	    gen_op_stfl_FT0_T1(ctx);
 	}
@@ -811,7 +841,7 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_and_imm_rN(B7_0, REG(0));
 	return;
     case 0xcd00:		/* and.b #imm,@(R0,GBR) */
-	gen_op_movl_rN_T0(REG(0));
+	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_addl_GBR_T0();
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
@@ -841,81 +871,81 @@ void _decode_opc(DisasContext * ctx)
 	ctx->flags |= DELAY_SLOT_CONDITIONAL;
 	return;
     case 0x8800:		/* cmp/eq #imm,R0 */
-	gen_op_movl_rN_T0(REG(0));
+	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_cmp_eq_imm_T0(B7_0s);
 	return;
     case 0xc400:		/* mov.b @(disp,GBR),R0 */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0);
 	gen_op_ldb_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(0));
+	gen_movl_T_rN(cpu_T[0], REG(0));
 	return;
     case 0xc500:		/* mov.w @(disp,GBR),R0 */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0 * 2);
 	gen_op_ldw_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(0));
+	gen_movl_T_rN(cpu_T[0], REG(0));
 	return;
     case 0xc600:		/* mov.l @(disp,GBR),R0 */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0 * 4);
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(0));
+	gen_movl_T_rN(cpu_T[0], REG(0));
 	return;
     case 0xc000:		/* mov.b R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0);
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
-	gen_op_movl_rN_T0(REG(0));
+	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0xc100:		/* mov.w R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0 * 2);
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
-	gen_op_movl_rN_T0(REG(0));
+	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_stw_T0_T1(ctx);
 	return;
     case 0xc200:		/* mov.l R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0 * 4);
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
-	gen_op_movl_rN_T0(REG(0));
+	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_stl_T0_T1(ctx);
 	return;
     case 0x8000:		/* mov.b R0,@(disp,Rn) */
-	gen_op_movl_rN_T0(REG(0));
-	gen_op_movl_rN_T1(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(0));
+	gen_movl_rN_T(cpu_T[1], REG(B7_4));
 	gen_op_addl_imm_T1(B3_0);
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0x8100:		/* mov.w R0,@(disp,Rn) */
-	gen_op_movl_rN_T0(REG(0));
-	gen_op_movl_rN_T1(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(0));
+	gen_movl_rN_T(cpu_T[1], REG(B7_4));
 	gen_op_addl_imm_T1(B3_0 * 2);
 	gen_op_stw_T0_T1(ctx);
 	return;
     case 0x8400:		/* mov.b @(disp,Rn),R0 */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_addl_imm_T0(B3_0);
 	gen_op_ldb_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(0));
+	gen_movl_T_rN(cpu_T[0], REG(0));
 	return;
     case 0x8500:		/* mov.w @(disp,Rn),R0 */
-	gen_op_movl_rN_T0(REG(B7_4));
+	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_addl_imm_T0(B3_0 * 2);
 	gen_op_ldw_T0_T0(ctx);
-	gen_op_movl_T0_rN(REG(0));
+	gen_movl_T_rN(cpu_T[0], REG(0));
 	return;
     case 0xc700:		/* mova @(disp,PC),R0 */
-	gen_op_movl_imm_rN(((ctx->pc & 0xfffffffc) + 4 + B7_0 * 4) & ~3,
+	gen_movl_imm_rN(((ctx->pc & 0xfffffffc) + 4 + B7_0 * 4) & ~3,
 			   REG(0));
 	return;
     case 0xcb00:		/* or #imm,R0 */
 	gen_op_or_imm_rN(B7_0, REG(0));
 	return;
     case 0xcf00:		/* or.b #imm,@(R0,GBR) */
-	gen_op_movl_rN_T0(REG(0));
+	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_addl_GBR_T0();
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
@@ -931,7 +961,7 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_tst_imm_rN(B7_0, REG(0));
 	return;
     case 0xcc00:		/* tst.b #imm,@(R0,GBR) */
-	gen_op_movl_rN_T0(REG(0));
+	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_addl_GBR_T0();
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_tst_imm_T0(B7_0);
@@ -940,7 +970,7 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_xor_imm_rN(B7_0, REG(0));
 	return;
     case 0xce00:		/* xor.b #imm,@(R0,GBR) */
-	gen_op_movl_rN_T0(REG(0));
+	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_addl_GBR_T0();
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
@@ -951,21 +981,23 @@ void _decode_opc(DisasContext * ctx)
 
     switch (ctx->opcode & 0xf08f) {
     case 0x408e:		/* ldc Rm,Rn_BANK */
-	gen_op_movl_rN_rN(REG(B11_8), ALTREG(B6_4));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
+	gen_movl_T_rN(cpu_T[0], ALTREG(B6_4));
 	return;
     case 0x4087:		/* ldc.l @Rm+,Rn_BANK */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
-	gen_op_movl_T0_rN(ALTREG(B6_4));
+	gen_movl_T_rN(cpu_T[0], ALTREG(B6_4));
 	gen_op_inc4_rN(REG(B11_8));
 	return;
     case 0x0082:		/* stc Rm_BANK,Rn */
-	gen_op_movl_rN_rN(ALTREG(B6_4), REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], ALTREG(B6_4));
+	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x4083:		/* stc.l Rm_BANK,@-Rn */
 	gen_op_dec4_rN(REG(B11_8));
-	gen_op_movl_rN_T1(REG(B11_8));
-	gen_op_movl_rN_T0(ALTREG(B6_4));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], ALTREG(B6_4));
 	gen_op_inc4_rN(REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
 	gen_op_dec4_rN(REG(B11_8));
@@ -974,61 +1006,61 @@ void _decode_opc(DisasContext * ctx)
 
     switch (ctx->opcode & 0xf0ff) {
     case 0x0023:		/* braf Rn */
-	CHECK_NOT_DELAY_SLOT gen_op_movl_rN_T0(REG(B11_8));
+	CHECK_NOT_DELAY_SLOT gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_braf_T0(ctx->pc + 4);
 	ctx->flags |= DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x0003:		/* bsrf Rn */
-	CHECK_NOT_DELAY_SLOT gen_op_movl_rN_T0(REG(B11_8));
+	CHECK_NOT_DELAY_SLOT gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_bsrf_T0(ctx->pc + 4);
 	ctx->flags |= DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x4015:		/* cmp/pl Rn */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_cmp_pl_T0();
 	return;
     case 0x4011:		/* cmp/pz Rn */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_cmp_pz_T0();
 	return;
     case 0x4010:		/* dt Rn */
 	gen_op_dt_rN(REG(B11_8));
 	return;
     case 0x402b:		/* jmp @Rn */
-	CHECK_NOT_DELAY_SLOT gen_op_movl_rN_T0(REG(B11_8));
+	CHECK_NOT_DELAY_SLOT gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_jmp_T0();
 	ctx->flags |= DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x400b:		/* jsr @Rn */
-	CHECK_NOT_DELAY_SLOT gen_op_movl_rN_T0(REG(B11_8));
+	CHECK_NOT_DELAY_SLOT gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_jsr_T0(ctx->pc + 4);
 	ctx->flags |= DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
 #define LDST(reg,ldnum,ldpnum,ldop,stnum,stpnum,stop,extrald)	\
   case ldnum:							\
-    gen_op_movl_rN_T0 (REG(B11_8));				\
+    gen_movl_rN_T (cpu_T[0], REG(B11_8));			\
     gen_op_##ldop##_T0_##reg ();				\
     extrald							\
     return;							\
   case ldpnum:							\
-    gen_op_movl_rN_T0 (REG(B11_8));				\
+    gen_movl_rN_T (cpu_T[0], REG(B11_8));			\
     gen_op_ldl_T0_T0 (ctx);					\
     gen_op_inc4_rN (REG(B11_8));				\
     gen_op_##ldop##_T0_##reg ();				\
     extrald							\
     return;							\
   case stnum:							\
-    gen_op_##stop##_##reg##_T0 ();					\
-    gen_op_movl_T0_rN (REG(B11_8));				\
+    gen_op_##stop##_##reg##_T0 ();				\
+    gen_movl_T_rN (cpu_T[0], REG(B11_8));			\
     return;							\
   case stpnum:							\
     gen_op_##stop##_##reg##_T0 ();				\
     gen_op_dec4_rN (REG(B11_8));				\
-    gen_op_movl_rN_T1 (REG(B11_8));				\
+    gen_movl_rN_T (cpu_T[1], REG(B11_8));			\
     gen_op_inc4_rN (REG(B11_8));				\
     gen_op_stl_T0_T1 (ctx);					\
     gen_op_dec4_rN (REG(B11_8));				\
@@ -1047,23 +1079,23 @@ void _decode_opc(DisasContext * ctx)
 	LDST(fpscr, 0x406a, 0x4066, lds, 0x006a, 0x4062, sts, ctx->bstate =
 	     BS_STOP;)
     case 0x00c3:		/* movca.l R0,@Rm */
-	gen_op_movl_rN_T0(REG(0));
-	gen_op_movl_rN_T1(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(0));
+	gen_movl_rN_T(cpu_T[1], REG(B11_8));
 	gen_op_stl_T0_T1(ctx);
 	return;
     case 0x0029:		/* movt Rn */
 	gen_op_movt_rN(REG(B11_8));
 	return;
     case 0x0093:		/* ocbi @Rn */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	return;
     case 0x00a3:		/* ocbp @Rn */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	return;
     case 0x00b3:		/* ocbwb @Rn */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
 	return;
     case 0x0083:		/* pref @Rn */
@@ -1109,7 +1141,7 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_shlr16_Rn(REG(B11_8));
 	return;
     case 0x401b:		/* tas.b @Rn */
-	gen_op_movl_rN_T0(REG(B11_8));
+	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_cmp_eq_imm_T0(0);

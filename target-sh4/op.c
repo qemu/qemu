@@ -401,12 +401,6 @@ void OPPROTO op_jmp_T0(void)
     RETURN();
 }
 
-void OPPROTO op_movl_rN_rN(void)
-{
-    env->gregs[PARAM2] = env->gregs[PARAM1];
-    RETURN();
-}
-
 void OPPROTO op_ldcl_rMplus_rN_bank(void)
 {
     env->gregs[PARAM2] = env->gregs[PARAM1];
@@ -547,84 +541,6 @@ void OPPROTO op_shlr8_Rn(void)
 void OPPROTO op_shlr16_Rn(void)
 {
     env->gregs[PARAM1] >>= 16;
-    RETURN();
-}
-
-void OPPROTO op_movl_T0_rN(void)
-{
-    env->gregs[PARAM1] = T0;
-    RETURN();
-}
-
-void OPPROTO op_movl_T1_rN(void)
-{
-    env->gregs[PARAM1] = T1;
-    RETURN();
-}
-
-void OPPROTO op_movb_rN_T0(void)
-{
-    T0 = (int32_t) (int8_t) (env->gregs[PARAM1] & 0xff);
-    RETURN();
-}
-
-void OPPROTO op_movub_rN_T0(void)
-{
-    T0 = env->gregs[PARAM1] & 0xff;
-    RETURN();
-}
-
-void OPPROTO op_movw_rN_T0(void)
-{
-    T0 = (int32_t) (int16_t) (env->gregs[PARAM1] & 0xffff);
-    RETURN();
-}
-
-void OPPROTO op_movuw_rN_T0(void)
-{
-    T0 = env->gregs[PARAM1] & 0xffff;
-    RETURN();
-}
-
-void OPPROTO op_movl_rN_T0(void)
-{
-    T0 = env->gregs[PARAM1];
-    RETURN();
-}
-
-void OPPROTO op_movb_rN_T1(void)
-{
-    T1 = (int32_t) (int8_t) (env->gregs[PARAM1] & 0xff);
-    RETURN();
-}
-
-void OPPROTO op_movub_rN_T1(void)
-{
-    T1 = env->gregs[PARAM1] & 0xff;
-    RETURN();
-}
-
-void OPPROTO op_movw_rN_T1(void)
-{
-    T1 = (int32_t) (int16_t) (env->gregs[PARAM1] & 0xffff);
-    RETURN();
-}
-
-void OPPROTO op_movuw_rN_T1(void)
-{
-    T1 = env->gregs[PARAM1] & 0xffff;
-    RETURN();
-}
-
-void OPPROTO op_movl_rN_T1(void)
-{
-    T1 = env->gregs[PARAM1];
-    RETURN();
-}
-
-void OPPROTO op_movl_imm_rN(void)
-{
-    env->gregs[PARAM2] = PARAM1;
     RETURN();
 }
 
