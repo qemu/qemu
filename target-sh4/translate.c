@@ -56,7 +56,7 @@ enum {
     BS_EXCP     = 3, /* We reached an exception condition */
 };
 
-static TCGv cpu_env;
+static TCGv cpu_env, cpu_T[2];
 
 #include "gen-icount.h"
 
@@ -66,6 +66,8 @@ static void sh4_translate_init(void)
     if (done_init)
         return;
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
+    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
     done_init = 1;
 }
 
