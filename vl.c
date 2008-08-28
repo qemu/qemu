@@ -8978,9 +8978,10 @@ int main(int argc, char **argv)
     /* init network clients */
     if (nb_net_clients == 0) {
         /* if no clients, we use a default config */
-        net_clients[0] = "nic";
-        net_clients[1] = "user";
-        nb_net_clients = 2;
+        net_clients[nb_net_clients++] = "nic";
+#ifdef CONFIG_SLIRP
+        net_clients[nb_net_clients++] = "user";
+#endif
     }
 
     for(i = 0;i < nb_net_clients; i++) {
