@@ -37,18 +37,6 @@ static inline void cond_t(int cond)
 	clr_t();
 }
 
-void OPPROTO op_movl_imm_T0(void)
-{
-    T0 = (uint32_t) PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_movl_imm_T1(void)
-{
-    T1 = (uint32_t) PARAM1;
-    RETURN();
-}
-
 void OPPROTO op_cmp_eq_imm_T0(void)
 {
     cond_t((int32_t) T0 == (int32_t) PARAM1);

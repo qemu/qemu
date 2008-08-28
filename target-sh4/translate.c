@@ -337,12 +337,12 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_movl_imm_rN(B7_0s, REG(B11_8));
 	return;
     case 0x9000:		/* mov.w @(disp,PC),Rn */
-	gen_op_movl_imm_T0(ctx->pc + 4 + B7_0 * 2);
+	tcg_gen_movi_tl(cpu_T[0], ctx->pc + 4 + B7_0 * 2);
 	gen_op_ldw_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(B11_8));
 	return;
     case 0xd000:		/* mov.l @(disp,PC),Rn */
-	gen_op_movl_imm_T0((ctx->pc + 4 + B7_0 * 4) & ~3);
+	tcg_gen_movi_tl(cpu_T[0], (ctx->pc + 4 + B7_0 * 4) & ~3);
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_movl_T0_rN(REG(B11_8));
 	return;
@@ -1181,14 +1181,14 @@ void _decode_opc(DisasContext * ctx)
 	break;
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
-	    gen_op_movl_imm_T0(0);
+	    tcg_gen_movi_tl(cpu_T[0], 0);
 	    gen_op_fmov_T0_frN(FREG(B11_8));
 	    return;
 	}
 	break;
     case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
-	    gen_op_movl_imm_T0(0x3f800000);
+	    tcg_gen_movi_tl(cpu_T[0], 0x3f800000);
 	    gen_op_fmov_T0_frN(FREG(B11_8));
 	    return;
 	}
