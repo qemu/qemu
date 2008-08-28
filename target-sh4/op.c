@@ -55,36 +55,6 @@ void OPPROTO op_cmp_eq_imm_T0(void)
     RETURN();
 }
 
-void OPPROTO op_cmd_eq_T0_T1(void)
-{
-    cond_t(T0 == T1);
-    RETURN();
-}
-
-void OPPROTO op_cmd_hs_T0_T1(void)
-{
-    cond_t((uint32_t) T0 <= (uint32_t) T1);
-    RETURN();
-}
-
-void OPPROTO op_cmd_ge_T0_T1(void)
-{
-    cond_t((int32_t) T0 <= (int32_t) T1);
-    RETURN();
-}
-
-void OPPROTO op_cmd_hi_T0_T1(void)
-{
-    cond_t((uint32_t) T0 < (uint32_t) T1);
-    RETURN();
-}
-
-void OPPROTO op_cmd_gt_T0_T1(void)
-{
-    cond_t((int32_t) T0 < (int32_t) T1);
-    RETURN();
-}
-
 void OPPROTO op_not_T0(void)
 {
     T0 = ~T0;
