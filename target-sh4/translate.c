@@ -79,21 +79,21 @@ static void sh4_translate_init(void)
 }
 
 /* General purpose registers moves. */
-static inline void gen_movl_imm_rN(target_ulong arg, int reg)
+static inline void gen_movl_imm_rN(uint32_t arg, int reg)
 {
-    TCGv tmp = tcg_const_tl(arg);
-    tcg_gen_st_tl(tmp, cpu_env, offsetof(CPUState, gregs[reg]));
+    TCGv tmp = tcg_const_i32(arg);
+    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, gregs[reg]));
     tcg_temp_free(tmp);
 }
 
 static always_inline void gen_movl_T_rN (TCGv t, int reg)
 {
-    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, gregs[reg]));
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUState, gregs[reg]));
 }
 
 static always_inline void gen_movl_rN_T (TCGv t, int reg)
 {
-    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, gregs[reg]));
+    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUState, gregs[reg]));
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -355,12 +355,12 @@ void _decode_opc(DisasContext * ctx)
 	gen_movl_imm_rN(B7_0s, REG(B11_8));
 	return;
     case 0x9000:		/* mov.w @(disp,PC),Rn */
-	tcg_gen_movi_tl(cpu_T[0], ctx->pc + 4 + B7_0 * 2);
+	tcg_gen_movi_i32(cpu_T[0], ctx->pc + 4 + B7_0 * 2);
 	gen_op_ldw_T0_T0(ctx);
 	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0xd000:		/* mov.l @(disp,PC),Rn */
-	tcg_gen_movi_tl(cpu_T[0], (ctx->pc + 4 + B7_0 * 4) & ~3);
+	tcg_gen_movi_i32(cpu_T[0], (ctx->pc + 4 + B7_0 * 4) & ~3);
 	gen_op_ldl_T0_T0(ctx);
 	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
@@ -585,30 +585,30 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x600e:		/* exts.b Rm,Rn */
 	gen_movl_rN_T(cpu_T[0], REG(B7_4));
-	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
-	tcg_gen_ext8s_tl(cpu_T[0], cpu_T[0]);
+	tcg_gen_andi_i32(cpu_T[0], cpu_T[0], 0xff);
+	tcg_gen_ext8s_i32(cpu_T[0], cpu_T[0]);
 	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x600f:		/* exts.w Rm,Rn */
 	gen_movl_rN_T(cpu_T[0], REG(B7_4));
-	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
-	tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
+	tcg_gen_andi_i32(cpu_T[0], cpu_T[0], 0xffff);
+	tcg_gen_ext16s_i32(cpu_T[0], cpu_T[0]);
 	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x600c:		/* extu.b Rm,Rn */
 	gen_movl_rN_T(cpu_T[0], REG(B7_4));
-	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xff);
+	tcg_gen_andi_i32(cpu_T[0], cpu_T[0], 0xff);
 	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x600d:		/* extu.w Rm,Rn */
 	gen_movl_rN_T(cpu_T[0], REG(B7_4));
-	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
+	tcg_gen_andi_i32(cpu_T[0], cpu_T[0], 0xffff);
 	gen_movl_T_rN(cpu_T[0], REG(B11_8));
 	return;
     case 0x000f:		/* mac.l @Rm+,@Rn+ */
 	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macl_T0_T1();
@@ -618,7 +618,7 @@ void _decode_opc(DisasContext * ctx)
     case 0x400f:		/* mac.w @Rm+,@Rn+ */
 	gen_movl_rN_T(cpu_T[0], REG(B11_8));
 	gen_op_ldl_T0_T0(ctx);
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_movl_rN_T(cpu_T[0], REG(B7_4));
 	gen_op_ldl_T0_T0(ctx);
 	gen_op_macw_T0_T1();
@@ -632,18 +632,18 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x200f:		/* muls.w Rm,Rn */
 	gen_movl_rN_T(cpu_T[0], REG(B7_4));
-	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
-	tcg_gen_ext16s_tl(cpu_T[0], cpu_T[0]);
+	tcg_gen_andi_i32(cpu_T[0], cpu_T[0], 0xffff);
+	tcg_gen_ext16s_i32(cpu_T[0], cpu_T[0]);
 	gen_movl_rN_T(cpu_T[1], REG(B11_8));
-	tcg_gen_andi_tl(cpu_T[1], cpu_T[1], 0xffff);
-	tcg_gen_ext16s_tl(cpu_T[1], cpu_T[1]);
+	tcg_gen_andi_i32(cpu_T[1], cpu_T[1], 0xffff);
+	tcg_gen_ext16s_i32(cpu_T[1], cpu_T[1]);
 	gen_op_mulsw_T0_T1();
 	return;
     case 0x200e:		/* mulu.w Rm,Rn */
 	gen_movl_rN_T(cpu_T[0], REG(B7_4));
-	tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 0xffff);
+	tcg_gen_andi_i32(cpu_T[0], cpu_T[0], 0xffff);
 	gen_movl_rN_T(cpu_T[1], REG(B11_8));
-	tcg_gen_andi_tl(cpu_T[1], cpu_T[1], 0xffff);
+	tcg_gen_andi_i32(cpu_T[1], cpu_T[1], 0xffff);
 	gen_op_muluw_T0_T1();
 	return;
     case 0x600b:		/* neg Rm,Rn */
@@ -843,7 +843,7 @@ void _decode_opc(DisasContext * ctx)
     case 0xcd00:		/* and.b #imm,@(R0,GBR) */
 	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_addl_GBR_T0();
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_and_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
@@ -895,21 +895,21 @@ void _decode_opc(DisasContext * ctx)
     case 0xc000:		/* mov.b R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0);
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0xc100:		/* mov.w R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0 * 2);
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_stw_T0_T1(ctx);
 	return;
     case 0xc200:		/* mov.l R0,@(disp,GBR) */
 	gen_op_stc_gbr_T0();
 	gen_op_addl_imm_T0(B7_0 * 4);
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_stl_T0_T1(ctx);
 	return;
@@ -947,7 +947,7 @@ void _decode_opc(DisasContext * ctx)
     case 0xcf00:		/* or.b #imm,@(R0,GBR) */
 	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_addl_GBR_T0();
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_or_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
@@ -972,7 +972,7 @@ void _decode_opc(DisasContext * ctx)
     case 0xce00:		/* xor.b #imm,@(R0,GBR) */
 	gen_movl_rN_T(cpu_T[0], REG(0));
 	gen_op_addl_GBR_T0();
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_xor_imm_T0(B7_0);
 	gen_op_stb_T0_T1(ctx);
@@ -1142,7 +1142,7 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x401b:		/* tas.b @Rn */
 	gen_movl_rN_T(cpu_T[0], REG(B11_8));
-	tcg_gen_mov_tl(cpu_T[0], cpu_T[1]);
+	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_cmp_eq_imm_T0(0);
 	gen_op_or_imm_T0(0x80);
@@ -1213,14 +1213,14 @@ void _decode_opc(DisasContext * ctx)
 	break;
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
-	    tcg_gen_movi_tl(cpu_T[0], 0);
+	    tcg_gen_movi_i32(cpu_T[0], 0);
 	    gen_op_fmov_T0_frN(FREG(B11_8));
 	    return;
 	}
 	break;
     case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
-	    tcg_gen_movi_tl(cpu_T[0], 0x3f800000);
+	    tcg_gen_movi_i32(cpu_T[0], 0x3f800000);
 	    gen_op_fmov_T0_frN(FREG(B11_8));
 	    return;
 	}
