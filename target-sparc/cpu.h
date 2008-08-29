@@ -337,12 +337,17 @@ typedef struct CPUSPARCState {
     } while (0)
 #endif
 
+/* helper.c */
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);
-void gen_intermediate_code_init(CPUSPARCState *env);
-int cpu_sparc_exec(CPUSPARCState *s);
+void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
                                                  ...));
-void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
+
+/* translate.c */
+void gen_intermediate_code_init(CPUSPARCState *env);
+
+/* cpu-exec.c */
+int cpu_sparc_exec(CPUSPARCState *s);
 
 #define GET_PSR(env) (env->version | (env->psr & PSR_ICC) |             \
                       (env->psref? PSR_EF : 0) |                        \
@@ -352,7 +357,29 @@ void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
                       (env->psret? PSR_ET : 0) | env->cwp)
 
 #ifndef NO_CPU_IO_DEFS
-void cpu_set_cwp(CPUSPARCState *env1, int new_cwp);
+static inline void memcpy32(target_ulong *dst, const target_ulong *src)
+{
+    dst[0] = src[0];
+    dst[1] = src[1];
+    dst[2] = src[2];
+    dst[3] = src[3];
+    dst[4] = src[4];
+    dst[5] = src[5];
+    dst[6] = src[6];
+    dst[7] = src[7];
+}
+
+static inline void cpu_set_cwp(CPUSPARCState *env1, int new_cwp)
+{
+    /* put the modified wrap registers at their proper location */
+    if (env1->cwp == env1->nwindows - 1)
+        memcpy32(env1->regbase, env1->regbase + env1->nwindows * 16);
+    env1->cwp = new_cwp;
+    /* put the wrap registers at their temporary location */
+    if (new_cwp == env1->nwindows - 1)
+        memcpy32(env1->regbase + env1->nwindows * 16, env1->regbase);
+    env1->regwptr = env1->regbase + (new_cwp * 16);
+}
 
 static inline int cpu_cwp_inc(CPUSPARCState *env1, int cwp)
 {
@@ -397,10 +424,9 @@ static inline void PUT_CWP64(CPUSPARCState *env1, int cwp)
 #endif
 #endif
 
-int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
+/* cpu-exec.c */
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi);
-void cpu_check_irqs(CPUSPARCState *env);
 
 #define CPUState CPUSPARCState
 #define cpu_init cpu_sparc_init

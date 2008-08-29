@@ -179,12 +179,3 @@ VIS_CMPHELPER(cmpne);
 #undef F_HELPER_SDQ_0_0
 #undef VIS_HELPER
 #undef VIS_CMPHELPER
-
-void cpu_lock(void);
-void cpu_unlock(void);
-void cpu_loop_exit(void);
-void set_cwp(int new_cwp);
-void change_pstate(uint64_t new_pstate);
-void memcpy32(target_ulong *dst, const target_ulong *src);
-target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev);
-void dump_mmu(CPUState *env);
