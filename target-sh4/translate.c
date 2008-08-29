@@ -60,6 +60,9 @@ enum {
 /* global register indexes */
 static TCGv cpu_env;
 static TCGv cpu_gregs[24];
+static TCGv cpu_pc, cpu_sr, cpu_ssr, cpu_spc, cpu_gbr;
+static TCGv cpu_vbr, cpu_sgr, cpu_dbr, cpu_mach, cpu_macl;
+static TCGv cpu_pr, cpu_fpscr, cpu_fpul;
 
 /* dyngen register indexes */
 static TCGv cpu_T[2];
@@ -89,6 +92,33 @@ static void sh4_translate_init(void)
         cpu_gregs[i] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
                                           offsetof(CPUState, gregs[i]),
                                           gregnames[i]);
+
+    cpu_pc = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                offsetof(CPUState, pc), "PC");
+    cpu_sr = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                offsetof(CPUState, sr), "SR");
+    cpu_ssr = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                 offsetof(CPUState, ssr), "SSR");
+    cpu_spc = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                 offsetof(CPUState, spc), "SPC");
+    cpu_gbr = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                 offsetof(CPUState, gbr), "GBR");
+    cpu_vbr = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                 offsetof(CPUState, vbr), "VBR");
+    cpu_sgr = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                 offsetof(CPUState, sgr), "SGR");
+    cpu_dbr = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                 offsetof(CPUState, dbr), "DBR");
+    cpu_mach = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                  offsetof(CPUState, mach), "MACH");
+    cpu_macl = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                  offsetof(CPUState, macl), "MACL");
+    cpu_pr = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                offsetof(CPUState, pr), "PR");
+    cpu_fpscr = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                   offsetof(CPUState, fpscr), "FPSCR");
+    cpu_fpul = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                  offsetof(CPUState, fpul), "FPUL");
 
     /* register helpers */
 #undef DEF_HELPER
@@ -204,10 +234,10 @@ static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
 	!ctx->singlestep_enabled) {
 	/* Use a direct jump if in same page and singlestep not enabled */
         tcg_gen_goto_tb(n);
-        gen_op_movl_imm_PC(dest);
+        tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_exit_tb((long) tb + n);
     } else {
-        gen_op_movl_imm_PC(dest);
+        tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->singlestep_enabled)
             gen_op_debug();
         tcg_gen_exit_tb(0);
@@ -286,7 +316,7 @@ void _decode_opc(DisasContext * ctx)
 #endif
     switch (ctx->opcode) {
     case 0x0019:		/* div0u */
-	gen_op_div0u();
+	tcg_gen_andi_i32(cpu_sr, cpu_sr, ~(SR_M | SR_Q | SR_T));
 	return;
     case 0x000b:		/* rts */
 	CHECK_NOT_DELAY_SLOT gen_op_rts();
@@ -294,13 +324,14 @@ void _decode_opc(DisasContext * ctx)
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x0028:		/* clrmac */
-	gen_op_clrmac();
+	tcg_gen_movi_i32(cpu_mach, 0);
+	tcg_gen_movi_i32(cpu_macl, 0);
 	return;
     case 0x0048:		/* clrs */
-	gen_op_clrs();
+	tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_S);
 	return;
     case 0x0008:		/* clrt */
-	gen_op_clrt();
+	tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
 	return;
     case 0x0038:		/* ldtlb */
 #if defined(CONFIG_USER_ONLY)
@@ -315,10 +346,10 @@ void _decode_opc(DisasContext * ctx)
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x0058:		/* sets */
-	gen_op_sets();
+	tcg_gen_ori_i32(cpu_sr, cpu_sr, SR_S);
 	return;
     case 0x0018:		/* sett */
-	gen_op_sett();
+	tcg_gen_ori_i32(cpu_sr, cpu_sr, SR_T);
 	return;
     case 0xfbfd:		/* frchg */
 	gen_op_frchg();
@@ -850,7 +881,7 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xcd00:		/* and.b #imm,@(R0,GBR) */
 	tcg_gen_mov_i32(cpu_T[0], cpu_gregs[REG(0)]);
-	gen_op_addl_GBR_T0();
+	tcg_gen_add_i32(cpu_T[0], cpu_T[0], cpu_gbr);
 	tcg_gen_mov_i32(cpu_T[1], cpu_T[0]);
 	gen_op_ldub_T0_T0(ctx);
 	tcg_gen_andi_i32(cpu_T[0], cpu_T[0], B7_0);
@@ -954,14 +985,14 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xcf00:		/* or.b #imm,@(R0,GBR) */
 	tcg_gen_mov_i32(cpu_T[0], cpu_gregs[REG(0)]);
-	gen_op_addl_GBR_T0();
+	tcg_gen_add_i32(cpu_T[0], cpu_T[0], cpu_gbr);
 	tcg_gen_mov_i32(cpu_T[0], cpu_T[1]);
 	gen_op_ldub_T0_T0(ctx);
 	tcg_gen_ori_i32(cpu_T[0], cpu_T[0], B7_0);
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0xc300:		/* trapa #imm */
-	CHECK_NOT_DELAY_SLOT gen_op_movl_imm_PC(ctx->pc);
+	CHECK_NOT_DELAY_SLOT tcg_gen_movi_i32(cpu_pc, ctx->pc);
 	gen_op_trapa(B7_0);
 	ctx->bstate = BS_BRANCH;
 	return;
@@ -970,7 +1001,7 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xcc00:		/* tst.b #imm,@(R0,GBR) */
 	tcg_gen_mov_i32(cpu_T[0], cpu_gregs[REG(0)]);
-	gen_op_addl_GBR_T0();
+	tcg_gen_add_i32(cpu_T[0], cpu_T[0], cpu_gbr);
 	gen_op_ldub_T0_T0(ctx);
 	gen_op_tst_imm_T0(B7_0);
 	return;
@@ -979,7 +1010,7 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xce00:		/* xor.b #imm,@(R0,GBR) */
 	tcg_gen_mov_i32(cpu_T[0], cpu_gregs[REG(0)]);
-	gen_op_addl_GBR_T0();
+	tcg_gen_add_i32(cpu_T[0], cpu_T[0], cpu_gbr);
 	tcg_gen_mov_i32(cpu_T[1], cpu_T[0]);
 	gen_op_ldub_T0_T0(ctx);
 	tcg_gen_xori_i32(cpu_T[0], cpu_T[0], B7_0);
@@ -1096,7 +1127,7 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_stl_T0_T1(ctx);
 	return;
     case 0x0029:		/* movt Rn */
-	gen_op_movt_rN(REG(B11_8));
+	tcg_gen_andi_i32(cpu_gregs[REG(B11_8)], cpu_sr, SR_T);
 	return;
     case 0x0093:		/* ocbi @Rn */
 	tcg_gen_mov_i32(cpu_T[0], cpu_gregs[REG(B11_8)]);
@@ -1329,7 +1360,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 	    for (i = 0; i < env->nb_breakpoints; i++) {
 		if (ctx.pc == env->breakpoints[i]) {
 		    /* We have hit a breakpoint - make sure PC is up-to-date */
-		    gen_op_movl_imm_PC(ctx.pc);
+		    tcg_gen_movi_i32(cpu_pc, ctx.pc);
 		    gen_op_debug();
 		    ctx.bstate = BS_EXCP;
 		    break;

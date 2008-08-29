@@ -107,39 +107,9 @@ void OPPROTO op_rts(void)
     RETURN();
 }
 
-void OPPROTO op_clrmac(void)
-{
-    env->mach = env->macl = 0;
-    RETURN();
-}
-
-void OPPROTO op_clrs(void)
-{
-    env->sr &= ~SR_S;
-    RETURN();
-}
-
-void OPPROTO op_clrt(void)
-{
-    env->sr &= ~SR_T;
-    RETURN();
-}
-
 void OPPROTO op_ldtlb(void)
 {
     helper_ldtlb();
-    RETURN();
-}
-
-void OPPROTO op_sets(void)
-{
-    env->sr |= SR_S;
-    RETURN();
-}
-
-void OPPROTO op_sett(void)
-{
-    env->sr |= SR_T;
     RETURN();
 }
 
@@ -230,12 +200,6 @@ void OPPROTO op_div0s_T0_T1(void)
     else
 	env->sr &= ~SR_M;
     cond_t((T1 ^ T0) & 0x80000000);
-    RETURN();
-}
-
-void OPPROTO op_div0u(void)
-{
-    env->sr &= ~(SR_M | SR_Q | SR_T);
     RETURN();
 }
 
@@ -403,12 +367,6 @@ void OPPROTO op_lds_T0_fpscr(void)
 void OPPROTO op_sts_fpscr_T0(void)
 {
     T0 = env->fpscr & 0x003fffff;
-    RETURN();
-}
-
-void OPPROTO op_movt_rN(void)
-{
-    env->gregs[PARAM1] = env->sr & SR_T;
     RETURN();
 }
 
@@ -676,12 +634,6 @@ void OPPROTO op_movl_FT0_fpul(void)
     RETURN();
 }
 
-void OPPROTO op_movl_imm_PC(void)
-{
-    env->pc = PARAM1;
-    RETURN();
-}
-
 void OPPROTO op_jT(void)
 {
     if (env->sr & SR_T)
@@ -701,12 +653,6 @@ void OPPROTO op_jdelayed(void)
 void OPPROTO op_movl_delayed_pc_PC(void)
 {
     env->pc = env->delayed_pc;
-    RETURN();
-}
-
-void OPPROTO op_addl_GBR_T0(void)
-{
-    T0 += env->gbr;
     RETURN();
 }
 
