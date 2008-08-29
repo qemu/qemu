@@ -37,12 +37,6 @@ static inline void cond_t(int cond)
 	clr_t();
 }
 
-void OPPROTO op_cmp_eq_imm_T0(void)
-{
-    cond_t((int32_t) T0 == (int32_t) PARAM1);
-    RETURN();
-}
-
 void OPPROTO op_bf_s(void)
 {
     env->delayed_pc = PARAM1;
@@ -144,48 +138,12 @@ void OPPROTO op_addv_T0_T1(void)
     RETURN();
 }
 
-void OPPROTO op_cmp_eq_T0_T1(void)
-{
-    cond_t(T1 == T0);
-    RETURN();
-}
-
-void OPPROTO op_cmp_ge_T0_T1(void)
-{
-    cond_t((int32_t) T1 >= (int32_t) T0);
-    RETURN();
-}
-
-void OPPROTO op_cmp_gt_T0_T1(void)
-{
-    cond_t((int32_t) T1 > (int32_t) T0);
-    RETURN();
-}
-
-void OPPROTO op_cmp_hi_T0_T1(void)
-{
-    cond_t((uint32_t) T1 > (uint32_t) T0);
-    RETURN();
-}
-
-void OPPROTO op_cmp_hs_T0_T1(void)
-{
-    cond_t((uint32_t) T1 >= (uint32_t) T0);
-    RETURN();
-}
-
 void OPPROTO op_cmp_str_T0_T1(void)
 {
     cond_t((T0 & 0x000000ff) == (T1 & 0x000000ff) ||
 	   (T0 & 0x0000ff00) == (T1 & 0x0000ff00) ||
 	   (T0 & 0x00ff0000) == (T1 & 0x00ff0000) ||
 	   (T0 & 0xff000000) == (T1 & 0xff000000));
-    RETURN();
-}
-
-void OPPROTO op_tst_T0_T1(void)
-{
-    cond_t((T1 & T0) == 0);
     RETURN();
 }
 
@@ -296,18 +254,6 @@ void OPPROTO op_trapa(void)
     env->tra = PARAM1 << 2;
     env->exception_index = 0x160;
     do_raise_exception();
-    RETURN();
-}
-
-void OPPROTO op_cmp_pl_T0(void)
-{
-    cond_t((int32_t) T0 > 0);
-    RETURN();
-}
-
-void OPPROTO op_cmp_pz_T0(void)
-{
-    cond_t((int32_t) T0 >= 0);
     RETURN();
 }
 
@@ -610,18 +556,6 @@ void OPPROTO op_fmov_T0_frN(void)
     RETURN();
 }
 
-void OPPROTO op_dt_rN(void)
-{
-    cond_t((--env->gregs[PARAM1]) == 0);
-    RETURN();
-}
-
-void OPPROTO op_tst_imm_rN(void)
-{
-    cond_t((env->gregs[PARAM2] & PARAM1) == 0);
-    RETURN();
-}
-
 void OPPROTO op_movl_fpul_FT0(void)
 {
     FT0 = *(float32 *)&env->fpul;
@@ -653,12 +587,6 @@ void OPPROTO op_jdelayed(void)
 void OPPROTO op_movl_delayed_pc_PC(void)
 {
     env->pc = env->delayed_pc;
-    RETURN();
-}
-
-void OPPROTO op_tst_imm_T0(void)
-{
-    cond_t((T0 & PARAM1) == 0);
     RETURN();
 }
 
