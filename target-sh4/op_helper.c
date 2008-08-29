@@ -20,11 +20,6 @@
 #include <assert.h>
 #include "exec.h"
 
-void do_raise_exception(void)
-{
-    cpu_loop_exit();
-}
-
 #ifndef CONFIG_USER_ONLY
 
 #define MMUSUFFIX _mmu
@@ -64,7 +59,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 		cpu_restore_state(tb, env, pc, NULL);
 	    }
 	}
-	do_raise_exception();
+	cpu_loop_exit();
     }
     env = saved_env;
 }
@@ -79,6 +74,38 @@ void helper_ldtlb(void)
 #else
     cpu_load_tlb(env);
 #endif
+}
+
+void helper_raise_illegal_instruction(void)
+{
+    env->exception_index = 0x180;
+    cpu_loop_exit();
+}
+
+void helper_raise_slot_illegal_instruction(void)
+{
+    env->exception_index = 0x1a0;
+    cpu_loop_exit();
+}
+
+void helper_debug(void)
+{
+    env->exception_index = EXCP_DEBUG;
+    cpu_loop_exit();
+}
+
+void helper_sleep(void)
+{
+    env->halted = 1;
+    env->exception_index = EXCP_HLT;
+    cpu_loop_exit();
+}
+
+void helper_trapa(uint32_t tra)
+{
+    env->tra = tra << 2;
+    env->exception_index = 0x160;
+    cpu_loop_exit();
 }
 
 void helper_addc_T0_T1(void)

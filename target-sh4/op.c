@@ -37,12 +37,6 @@ static inline void cond_t(int cond)
 	clr_t();
 }
 
-void OPPROTO op_ldtlb(void)
-{
-    helper_ldtlb();
-    RETURN();
-}
-
 void OPPROTO op_frchg(void)
 {
     env->fpscr ^= FPSCR_FR;
@@ -175,14 +169,6 @@ void OPPROTO op_subc_T0_T1(void)
 void OPPROTO op_subv_T0_T1(void)
 {
     helper_subv_T0_T1();
-    RETURN();
-}
-
-void OPPROTO op_trapa(void)
-{
-    env->tra = PARAM1 << 2;
-    env->exception_index = 0x160;
-    do_raise_exception();
     RETURN();
 }
 
@@ -489,33 +475,6 @@ void OPPROTO op_movl_FT0_fpul(void)
 {
     *(float32 *)&env->fpul = FT0;
     RETURN();
-}
-
-void OPPROTO op_raise_illegal_instruction(void)
-{
-    env->exception_index = 0x180;
-    do_raise_exception();
-    RETURN();
-}
-
-void OPPROTO op_raise_slot_illegal_instruction(void)
-{
-    env->exception_index = 0x1a0;
-    do_raise_exception();
-    RETURN();
-}
-
-void OPPROTO op_debug(void)
-{
-    env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit();
-}
-
-void OPPROTO op_sleep(void)
-{
-    env->halted = 1;
-    env->exception_index = EXCP_HLT;
-    cpu_loop_exit();
 }
 
 /* Load and store */

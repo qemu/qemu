@@ -248,7 +248,7 @@ static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->singlestep_enabled)
-            gen_op_debug();
+            tcg_gen_helper_0_0(helper_debug);
         tcg_gen_exit_tb(0);
     }
 }
@@ -260,7 +260,7 @@ static void gen_jump(DisasContext * ctx)
 	   delayed jump as immediate jump are conditinal jumps */
 	tcg_gen_mov_i32(cpu_pc, cpu_delayed_pc);
 	if (ctx->singlestep_enabled)
-	    gen_op_debug();
+	    tcg_gen_helper_0_0(helper_debug);
 	tcg_gen_exit_tb(0);
     } else {
 	gen_goto_tb(ctx, 0, ctx->delayed_pc);
@@ -368,7 +368,7 @@ static inline void gen_store_flags(uint32_t flags)
 
 #define CHECK_NOT_DELAY_SLOT \
   if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) \
-  {gen_op_raise_slot_illegal_instruction (); ctx->bstate = BS_EXCP; \
+  {tcg_gen_helper_0_0(helper_raise_slot_illegal_instruction); ctx->bstate = BS_EXCP; \
    return;}
 
 void _decode_opc(DisasContext * ctx)
@@ -400,7 +400,7 @@ void _decode_opc(DisasContext * ctx)
 #if defined(CONFIG_USER_ONLY)
 	assert(0);		/* XXXXX */
 #else
-	gen_op_ldtlb();
+	tcg_gen_helper_0_0(helper_ldtlb);
 #endif
 	return;
     case 0x002b:		/* rte */
@@ -428,9 +428,9 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x001b:		/* sleep */
 	if (ctx->memidx) {
-		gen_op_sleep();
+		tcg_gen_helper_0_0(helper_sleep);
 	} else {
-		gen_op_raise_illegal_instruction();
+		tcg_gen_helper_0_0(helper_raise_illegal_instruction);
 		ctx->bstate = BS_EXCP;
 	}
 	return;
@@ -1060,8 +1060,10 @@ void _decode_opc(DisasContext * ctx)
 	gen_op_stb_T0_T1(ctx);
 	return;
     case 0xc300:		/* trapa #imm */
-	CHECK_NOT_DELAY_SLOT tcg_gen_movi_i32(cpu_pc, ctx->pc);
-	gen_op_trapa(B7_0);
+	CHECK_NOT_DELAY_SLOT
+	tcg_gen_movi_i32(cpu_pc, ctx->pc);
+	tcg_gen_movi_i32(cpu_T[0], B7_0);
+	tcg_gen_helper_0_1(helper_trapa, cpu_T[0]);
 	ctx->bstate = BS_BRANCH;
 	return;
     case 0xc800:		/* tst #imm,R0 */
@@ -1355,7 +1357,7 @@ void _decode_opc(DisasContext * ctx)
 
     fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",
 	    ctx->opcode, ctx->pc);
-    gen_op_raise_illegal_instruction();
+    tcg_gen_helper_0_0(helper_raise_illegal_instruction);
     ctx->bstate = BS_EXCP;
 }
 
@@ -1434,7 +1436,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 		if (ctx.pc == env->breakpoints[i]) {
 		    /* We have hit a breakpoint - make sure PC is up-to-date */
 		    tcg_gen_movi_i32(cpu_pc, ctx.pc);
-		    gen_op_debug();
+		    tcg_gen_helper_0_0(helper_debug);
 		    ctx.bstate = BS_EXCP;
 		    break;
 		}
@@ -1475,7 +1477,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
     if (env->singlestep_enabled) {
-        gen_op_debug();
+        tcg_gen_helper_0_0(helper_debug);
     } else {
 	switch (ctx.bstate) {
         case BS_STOP:
