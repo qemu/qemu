@@ -110,48 +110,48 @@
 #endif
 
 /* Fcc */
-#define FSR_RD1        (1<<31)
-#define FSR_RD0        (1<<30)
+#define FSR_RD1        (1ULL << 31)
+#define FSR_RD0        (1ULL << 30)
 #define FSR_RD_MASK    (FSR_RD1 | FSR_RD0)
 #define FSR_RD_NEAREST 0
 #define FSR_RD_ZERO    FSR_RD0
 #define FSR_RD_POS     FSR_RD1
 #define FSR_RD_NEG     (FSR_RD1 | FSR_RD0)
 
-#define FSR_NVM   (1<<27)
-#define FSR_OFM   (1<<26)
-#define FSR_UFM   (1<<25)
-#define FSR_DZM   (1<<24)
-#define FSR_NXM   (1<<23)
+#define FSR_NVM   (1ULL << 27)
+#define FSR_OFM   (1ULL << 26)
+#define FSR_UFM   (1ULL << 25)
+#define FSR_DZM   (1ULL << 24)
+#define FSR_NXM   (1ULL << 23)
 #define FSR_TEM_MASK (FSR_NVM | FSR_OFM | FSR_UFM | FSR_DZM | FSR_NXM)
 
-#define FSR_NVA   (1<<9)
-#define FSR_OFA   (1<<8)
-#define FSR_UFA   (1<<7)
-#define FSR_DZA   (1<<6)
-#define FSR_NXA   (1<<5)
+#define FSR_NVA   (1ULL << 9)
+#define FSR_OFA   (1ULL << 8)
+#define FSR_UFA   (1ULL << 7)
+#define FSR_DZA   (1ULL << 6)
+#define FSR_NXA   (1ULL << 5)
 #define FSR_AEXC_MASK (FSR_NVA | FSR_OFA | FSR_UFA | FSR_DZA | FSR_NXA)
 
-#define FSR_NVC   (1<<4)
-#define FSR_OFC   (1<<3)
-#define FSR_UFC   (1<<2)
-#define FSR_DZC   (1<<1)
-#define FSR_NXC   (1<<0)
+#define FSR_NVC   (1ULL << 4)
+#define FSR_OFC   (1ULL << 3)
+#define FSR_UFC   (1ULL << 2)
+#define FSR_DZC   (1ULL << 1)
+#define FSR_NXC   (1ULL << 0)
 #define FSR_CEXC_MASK (FSR_NVC | FSR_OFC | FSR_UFC | FSR_DZC | FSR_NXC)
 
-#define FSR_FTT2   (1<<16)
-#define FSR_FTT1   (1<<15)
-#define FSR_FTT0   (1<<14)
+#define FSR_FTT2   (1ULL << 16)
+#define FSR_FTT1   (1ULL << 15)
+#define FSR_FTT0   (1ULL << 14)
 #define FSR_FTT_MASK (FSR_FTT2 | FSR_FTT1 | FSR_FTT0)
-#define FSR_FTT_IEEE_EXCP (1 << 14)
-#define FSR_FTT_UNIMPFPOP (3 << 14)
-#define FSR_FTT_SEQ_ERROR (4 << 14)
-#define FSR_FTT_INVAL_FPR (6 << 14)
+#define FSR_FTT_IEEE_EXCP (1ULL << 14)
+#define FSR_FTT_UNIMPFPOP (3ULL << 14)
+#define FSR_FTT_SEQ_ERROR (4ULL << 14)
+#define FSR_FTT_INVAL_FPR (6ULL << 14)
 
 #define FSR_FCC1_SHIFT 11
-#define FSR_FCC1  (1 << FSR_FCC1_SHIFT)
+#define FSR_FCC1  (1ULL << FSR_FCC1_SHIFT)
 #define FSR_FCC0_SHIFT 10
-#define FSR_FCC0  (1 << FSR_FCC0_SHIFT)
+#define FSR_FCC0  (1ULL << FSR_FCC0_SHIFT)
 
 /* MMU */
 #define MMU_E     (1<<0)

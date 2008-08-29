@@ -999,16 +999,14 @@ static inline void gen_op_eval_bvc(TCGv dst, TCGv src)
 static inline void gen_mov_reg_FCC0(TCGv reg, TCGv src,
                                     unsigned int fcc_offset)
 {
-    tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_shri_tl(reg, reg, FSR_FCC0_SHIFT + fcc_offset);
+    tcg_gen_shri_tl(reg, src, FSR_FCC0_SHIFT + fcc_offset);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
 static inline void gen_mov_reg_FCC1(TCGv reg, TCGv src,
                                     unsigned int fcc_offset)
 {
-    tcg_gen_extu_i32_tl(reg, src);
-    tcg_gen_shri_tl(reg, reg, FSR_FCC1_SHIFT + fcc_offset);
+    tcg_gen_shri_tl(reg, src, FSR_FCC1_SHIFT + fcc_offset);
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
