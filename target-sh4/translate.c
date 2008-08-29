@@ -528,7 +528,7 @@ void _decode_opc(DisasContext * ctx)
 	tcg_gen_shli_i32(cpu_T[0], cpu_T[0], 16);
 	tcg_gen_shri_i32(cpu_T[1], cpu_gregs[REG(B11_8)], 16);
 	tcg_gen_andi_i32(cpu_T[1], cpu_T[1], 0xffff);
-	tcg_gen_ori_i32(cpu_gregs[REG(B11_8)], cpu_T[0], cpu_T[1]);
+	tcg_gen_or_i32(cpu_gregs[REG(B11_8)], cpu_T[0], cpu_T[1]);
 	return;
     case 0x300c:		/* add Rm,Rn */
 	tcg_gen_add_i32(cpu_gregs[REG(B11_8)], cpu_gregs[REG(B11_8)], cpu_gregs[REG(B7_4)]);
