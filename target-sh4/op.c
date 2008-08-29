@@ -43,12 +43,6 @@ void OPPROTO op_cmp_eq_imm_T0(void)
     RETURN();
 }
 
-void OPPROTO op_not_T0(void)
-{
-    T0 = ~T0;
-    RETURN();
-}
-
 void OPPROTO op_bf_s(void)
 {
     env->delayed_pc = PARAM1;
@@ -113,18 +107,6 @@ void OPPROTO op_rts(void)
     RETURN();
 }
 
-void OPPROTO op_addl_imm_T0(void)
-{
-    T0 += PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_addl_imm_T1(void)
-{
-    T1 += PARAM1;
-    RETURN();
-}
-
 void OPPROTO op_clrmac(void)
 {
     env->mach = env->macl = 0;
@@ -177,30 +159,6 @@ void OPPROTO op_rte(void)
 {
     env->sr = env->ssr;
     env->delayed_pc = env->spc;
-    RETURN();
-}
-
-void OPPROTO op_swapb_T0(void)
-{
-    T0 = (T0 & 0xffff0000) | ((T0 & 0xff) << 8) | ((T0 >> 8) & 0xff);
-    RETURN();
-}
-
-void OPPROTO op_swapw_T0(void)
-{
-    T0 = ((T0 & 0xffff) << 16) | ((T0 >> 16) & 0xffff);
-    RETURN();
-}
-
-void OPPROTO op_xtrct_T0_T1(void)
-{
-    T1 = ((T0 & 0xffff) << 16) | ((T1 >> 16) & 0xffff);
-    RETURN();
-}
-
-void OPPROTO op_add_T0_T1(void)
-{
-    T1 += T0;
     RETURN();
 }
 
@@ -326,12 +284,6 @@ void OPPROTO op_mulsw_T0_T1(void)
 void OPPROTO op_muluw_T0_T1(void)
 {
     env->macl = (uint32_t)(uint16_t) T0 *(uint32_t)(uint16_t) T1;
-    RETURN();
-}
-
-void OPPROTO op_neg_T0(void)
-{
-    T0 = -T0;
     RETURN();
 }
 
@@ -505,42 +457,6 @@ void OPPROTO op_shlr_Rn(void)
 {
     cond_t(env->gregs[PARAM1] & 1);
     env->gregs[PARAM1] >>= 1;
-    RETURN();
-}
-
-void OPPROTO op_shll2_Rn(void)
-{
-    env->gregs[PARAM1] <<= 2;
-    RETURN();
-}
-
-void OPPROTO op_shll8_Rn(void)
-{
-    env->gregs[PARAM1] <<= 8;
-    RETURN();
-}
-
-void OPPROTO op_shll16_Rn(void)
-{
-    env->gregs[PARAM1] <<= 16;
-    RETURN();
-}
-
-void OPPROTO op_shlr2_Rn(void)
-{
-    env->gregs[PARAM1] >>= 2;
-    RETURN();
-}
-
-void OPPROTO op_shlr8_Rn(void)
-{
-    env->gregs[PARAM1] >>= 8;
-    RETURN();
-}
-
-void OPPROTO op_shlr16_Rn(void)
-{
-    env->gregs[PARAM1] >>= 16;
     RETURN();
 }
 
@@ -736,120 +652,6 @@ void OPPROTO op_fmov_T0_frN(void)
     RETURN();
 }
 
-void OPPROTO op_dec1_rN(void)
-{
-    env->gregs[PARAM1] -= 1;
-    RETURN();
-}
-
-void OPPROTO op_dec2_rN(void)
-{
-    env->gregs[PARAM1] -= 2;
-    RETURN();
-}
-
-void OPPROTO op_dec4_rN(void)
-{
-    env->gregs[PARAM1] -= 4;
-    RETURN();
-}
-
-void OPPROTO op_dec8_rN(void)
-{
-    env->gregs[PARAM1] -= 8;
-    RETURN();
-}
-
-void OPPROTO op_inc1_rN(void)
-{
-    env->gregs[PARAM1] += 1;
-    RETURN();
-}
-
-void OPPROTO op_inc2_rN(void)
-{
-    env->gregs[PARAM1] += 2;
-    RETURN();
-}
-
-void OPPROTO op_inc4_rN(void)
-{
-    env->gregs[PARAM1] += 4;
-    RETURN();
-}
-
-void OPPROTO op_inc8_rN(void)
-{
-    env->gregs[PARAM1] += 8;
-    RETURN();
-}
-
-void OPPROTO op_add_T0_rN(void)
-{
-    env->gregs[PARAM1] += T0;
-    RETURN();
-}
-
-void OPPROTO op_sub_T0_rN(void)
-{
-    env->gregs[PARAM1] -= T0;
-    RETURN();
-}
-
-void OPPROTO op_and_T0_rN(void)
-{
-    env->gregs[PARAM1] &= T0;
-    RETURN();
-}
-
-void OPPROTO op_or_T0_rN(void)
-{
-    env->gregs[PARAM1] |= T0;
-    RETURN();
-}
-
-void OPPROTO op_xor_T0_rN(void)
-{
-    env->gregs[PARAM1] ^= T0;
-    RETURN();
-}
-
-void OPPROTO op_add_rN_T0(void)
-{
-    T0 += env->gregs[PARAM1];
-    RETURN();
-}
-
-void OPPROTO op_add_rN_T1(void)
-{
-    T1 += env->gregs[PARAM1];
-    RETURN();
-}
-
-void OPPROTO op_add_imm_rN(void)
-{
-    env->gregs[PARAM2] += PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_and_imm_rN(void)
-{
-    env->gregs[PARAM2] &= PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_or_imm_rN(void)
-{
-    env->gregs[PARAM2] |= PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_xor_imm_rN(void)
-{
-    env->gregs[PARAM2] ^= PARAM1;
-    RETURN();
-}
-
 void OPPROTO op_dt_rN(void)
 {
     cond_t((--env->gregs[PARAM1]) == 0);
@@ -905,24 +707,6 @@ void OPPROTO op_movl_delayed_pc_PC(void)
 void OPPROTO op_addl_GBR_T0(void)
 {
     T0 += env->gbr;
-    RETURN();
-}
-
-void OPPROTO op_and_imm_T0(void)
-{
-    T0 &= PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_or_imm_T0(void)
-{
-    T0 |= PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_xor_imm_T0(void)
-{
-    T0 ^= PARAM1;
     RETURN();
 }
 
