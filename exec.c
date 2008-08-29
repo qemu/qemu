@@ -286,7 +286,7 @@ static inline PageDesc *page_find_alloc(target_ulong index)
 #if TARGET_LONG_BITS > 32
     /* Host memory outside guest VM.  For 32-bit targets we have already
        excluded high addresses.  */
-    if (index > ((target_ulong)L2_SIZE * L1_SIZE * TARGET_PAGE_SIZE))
+    if (index > ((target_ulong)L2_SIZE * L1_SIZE))
         return NULL;
 #endif
     lp = &l1_map[index >> L2_BITS];
