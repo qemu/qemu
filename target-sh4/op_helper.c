@@ -108,36 +108,37 @@ void helper_trapa(uint32_t tra)
     cpu_loop_exit();
 }
 
-void helper_addc_T0_T1(void)
+uint32_t helper_addc(uint32_t arg0, uint32_t arg1)
 {
     uint32_t tmp0, tmp1;
 
-    tmp1 = T0 + T1;
-    tmp0 = T1;
-    T1 = tmp1 + (env->sr & 1);
+    tmp1 = arg0 + arg1;
+    tmp0 = arg1;
+    arg1 = tmp1 + (env->sr & 1);
     if (tmp0 > tmp1)
 	env->sr |= SR_T;
     else
 	env->sr &= ~SR_T;
-    if (tmp1 > T1)
+    if (tmp1 > arg1)
 	env->sr |= SR_T;
+    return arg1;
 }
 
-void helper_addv_T0_T1(void)
+uint32_t helper_addv(uint32_t arg0, uint32_t arg1)
 {
     uint32_t dest, src, ans;
 
-    if ((int32_t) T1 >= 0)
+    if ((int32_t) arg1 >= 0)
 	dest = 0;
     else
 	dest = 1;
-    if ((int32_t) T0 >= 0)
+    if ((int32_t) arg0 >= 0)
 	src = 0;
     else
 	src = 1;
     src += dest;
-    T1 += T0;
-    if ((int32_t) T1 >= 0)
+    arg1 += arg0;
+    if ((int32_t) arg1 >= 0)
 	ans = 0;
     else
 	ans = 1;
@@ -149,6 +150,7 @@ void helper_addv_T0_T1(void)
 	    env->sr &= ~SR_T;
     } else
 	env->sr &= ~SR_T;
+    return arg1;
 }
 
 #define T (env->sr & SR_T)
@@ -268,30 +270,12 @@ void helper_div1_T0_T1(void)
     //printf("Output: T1=0x%08x M=%d Q=%d T=%d\n", T1, M, Q, T);
 }
 
-void helper_dmulsl_T0_T1()
-{
-    int64_t res;
-
-    res = (int64_t) (int32_t) T0 *(int64_t) (int32_t) T1;
-    env->mach = (res >> 32) & 0xffffffff;
-    env->macl = res & 0xffffffff;
-}
-
-void helper_dmulul_T0_T1()
-{
-    uint64_t res;
-
-    res = (uint64_t) (uint32_t) T0 *(uint64_t) (uint32_t) T1;
-    env->mach = (res >> 32) & 0xffffffff;
-    env->macl = res & 0xffffffff;
-}
-
-void helper_macl_T0_T1()
+void helper_macl(uint32_t arg0, uint32_t arg1)
 {
     int64_t res;
 
     res = ((uint64_t) env->mach << 32) | env->macl;
-    res += (int64_t) (int32_t) T0 *(int64_t) (int32_t) T1;
+    res += (int64_t) (int32_t) arg0 *(int64_t) (int32_t) arg1;
     env->mach = (res >> 32) & 0xffffffff;
     env->macl = res & 0xffffffff;
     if (env->sr & SR_S) {
@@ -302,12 +286,12 @@ void helper_macl_T0_T1()
     }
 }
 
-void helper_macw_T0_T1()
+void helper_macw(uint32_t arg0, uint32_t arg1)
 {
     int64_t res;
 
     res = ((uint64_t) env->mach << 32) | env->macl;
-    res += (int64_t) (int16_t) T0 *(int64_t) (int16_t) T1;
+    res += (int64_t) (int16_t) arg0 *(int64_t) (int16_t) arg1;
     env->mach = (res >> 32) & 0xffffffff;
     env->macl = res & 0xffffffff;
     if (env->sr & SR_S) {
@@ -321,50 +305,52 @@ void helper_macw_T0_T1()
     }
 }
 
-void helper_negc_T0()
+uint32_t helper_negc(uint32_t arg)
 {
     uint32_t temp;
 
-    temp = -T0;
-    T0 = temp - (env->sr & SR_T);
+    temp = -arg;
+    arg = temp - (env->sr & SR_T);
     if (0 < temp)
 	env->sr |= SR_T;
     else
 	env->sr &= ~SR_T;
-    if (temp < T0)
+    if (temp < arg)
 	env->sr |= SR_T;
+    return arg;
 }
 
-void helper_subc_T0_T1()
+uint32_t helper_subc(uint32_t arg0, uint32_t arg1)
 {
     uint32_t tmp0, tmp1;
 
-    tmp1 = T1 - T0;
-    tmp0 = T1;
-    T1 = tmp1 - (env->sr & SR_T);
+    tmp1 = arg1 - arg0;
+    tmp0 = arg1;
+    arg1 = tmp1 - (env->sr & SR_T);
     if (tmp0 < tmp1)
 	env->sr |= SR_T;
     else
 	env->sr &= ~SR_T;
-    if (tmp1 < T1)
+    if (tmp1 < arg1)
 	env->sr |= SR_T;
+    return arg1;
 }
 
-void helper_subv_T0_T1()
+uint32_t helper_subv(uint32_t arg0, uint32_t arg1)
 {
     int32_t dest, src, ans;
 
-    if ((int32_t) T1 >= 0)
+    if ((int32_t) arg1 >= 0)
 	dest = 0;
     else
 	dest = 1;
-    if ((int32_t) T0 >= 0)
+    if ((int32_t) arg0 >= 0)
 	src = 0;
     else
 	src = 1;
     src += dest;
-    T1 -= T0;
-    if ((int32_t) T1 >= 0)
+    arg1 -= arg0;
+    if ((int32_t) arg1 >= 0)
 	ans = 0;
     else
 	ans = 1;
@@ -376,6 +362,7 @@ void helper_subv_T0_T1()
 	    env->sr &= ~SR_T;
     } else
 	env->sr &= ~SR_T;
+    return arg1;
 }
 
 void helper_rotcl(uint32_t * addr)

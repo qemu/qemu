@@ -71,23 +71,12 @@ int find_itlb_entry(CPUState * env, target_ulong address,
 		    int use_asid, int update);
 int find_utlb_entry(CPUState * env, target_ulong address, int use_asid);
 
-void helper_addc_T0_T1(void);
-void helper_addv_T0_T1(void);
 void helper_div1_T0_T1(void);
-void helper_dmulsl_T0_T1(void);
-void helper_dmulul_T0_T1(void);
-void helper_macl_T0_T1(void);
-void helper_macw_T0_T1(void);
-void helper_negc_T0(void);
-void helper_subc_T0_T1(void);
-void helper_subv_T0_T1(void);
 void helper_rotcl(uint32_t * addr);
 void helper_rotcr(uint32_t * addr);
-void helper_ldtlb(void);
 
 void do_interrupt(CPUState * env);
 
 void cpu_loop_exit(void);
-void do_raise_exception(void);
 
 #endif				/* _EXEC_SH4_H */

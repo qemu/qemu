@@ -37,30 +37,6 @@ static inline void cond_t(int cond)
 	clr_t();
 }
 
-void OPPROTO op_frchg(void)
-{
-    env->fpscr ^= FPSCR_FR;
-    RETURN();
-}
-
-void OPPROTO op_fschg(void)
-{
-    env->fpscr ^= FPSCR_SZ;
-    RETURN();
-}
-
-void OPPROTO op_addc_T0_T1(void)
-{
-    helper_addc_T0_T1();
-    RETURN();
-}
-
-void OPPROTO op_addv_T0_T1(void)
-{
-    helper_addv_T0_T1();
-    RETURN();
-}
-
 void OPPROTO op_cmp_str_T0_T1(void)
 {
     cond_t((T0 & 0x000000ff) == (T1 & 0x000000ff) ||
@@ -90,54 +66,6 @@ void OPPROTO op_div1_T0_T1(void)
     RETURN();
 }
 
-void OPPROTO op_dmulsl_T0_T1(void)
-{
-    helper_dmulsl_T0_T1();
-    RETURN();
-}
-
-void OPPROTO op_dmulul_T0_T1(void)
-{
-    helper_dmulul_T0_T1();
-    RETURN();
-}
-
-void OPPROTO op_macl_T0_T1(void)
-{
-    helper_macl_T0_T1();
-    RETURN();
-}
-
-void OPPROTO op_macw_T0_T1(void)
-{
-    helper_macw_T0_T1();
-    RETURN();
-}
-
-void OPPROTO op_mull_T0_T1(void)
-{
-    env->macl = (T0 * T1) & 0xffffffff;
-    RETURN();
-}
-
-void OPPROTO op_mulsw_T0_T1(void)
-{
-    env->macl = (int32_t)(int16_t) T0 *(int32_t)(int16_t) T1;
-    RETURN();
-}
-
-void OPPROTO op_muluw_T0_T1(void)
-{
-    env->macl = (uint32_t)(uint16_t) T0 *(uint32_t)(uint16_t) T1;
-    RETURN();
-}
-
-void OPPROTO op_negc_T0(void)
-{
-    helper_negc_T0();
-    RETURN();
-}
-
 void OPPROTO op_shad_T0_T1(void)
 {
     if ((T0 & 0x80000000) == 0)
@@ -157,25 +85,6 @@ void OPPROTO op_shld_T0_T1(void)
 	T1 = 0;
     else
 	T1 = ((uint32_t) T1) >> ((~T0 & 0x1f) + 1);
-    RETURN();
-}
-
-void OPPROTO op_subc_T0_T1(void)
-{
-    helper_subc_T0_T1();
-    RETURN();
-}
-
-void OPPROTO op_subv_T0_T1(void)
-{
-    helper_subv_T0_T1();
-    RETURN();
-}
-
-void OPPROTO op_ldcl_rMplus_rN_bank(void)
-{
-    env->gregs[PARAM2] = env->gregs[PARAM1];
-    env->gregs[PARAM1] += 4;
     RETURN();
 }
 
@@ -237,7 +146,7 @@ void OPPROTO op_rotcr_Rn(void)
     RETURN();
 }
 
-void OPPROTO op_rotl_Rn(void)
+void OPPROTO op_rotl_Rn(void) 
 {
     cond_t(env->gregs[PARAM1] & 0x80000000);
     env->gregs[PARAM1] = (env->gregs[PARAM1] << 1) | (env->sr & SR_T);
