@@ -758,6 +758,7 @@ void cpu_loop(CPUARMState *env)
 #endif
 
 #ifdef TARGET_SPARC
+#define SPARC64_STACK_BIAS 2047
 
 //#define DEBUG_WIN
 
@@ -780,6 +781,10 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
     abi_ulong sp_ptr;
 
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
+#ifdef TARGET_SPARC64
+    if (sp_ptr & 3)
+        sp_ptr += SPARC64_STACK_BIAS;
+#endif
 #if defined(DEBUG_WIN)
     printf("win_overflow: sp_ptr=0x" TARGET_ABI_FMT_lx " save_cwp=%d\n",
            sp_ptr, cwp1);
@@ -822,6 +827,10 @@ static void restore_window(CPUSPARCState *env)
     /* restore the invalid window */
     cwp1 = cpu_cwp_inc(env, env->cwp + 1);
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
+#ifdef TARGET_SPARC64
+    if (sp_ptr & 3)
+        sp_ptr += SPARC64_STACK_BIAS;
+#endif
 #if defined(DEBUG_WIN)
     printf("win_underflow: sp_ptr=0x" TARGET_ABI_FMT_lx " load_cwp=%d\n",
            sp_ptr, cwp1);
