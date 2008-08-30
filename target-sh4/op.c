@@ -115,27 +115,6 @@ void OPPROTO op_rotr_Rn(void)
     RETURN();
 }
 
-void OPPROTO op_shal_Rn(void)
-{
-    cond_t(env->gregs[PARAM1] & 0x80000000);
-    env->gregs[PARAM1] <<= 1;
-    RETURN();
-}
-
-void OPPROTO op_shar_Rn(void)
-{
-    cond_t(env->gregs[PARAM1] & 1);
-    *(int32_t *)&env->gregs[PARAM1] >>= 1;
-    RETURN();
-}
-
-void OPPROTO op_shlr_Rn(void)
-{
-    cond_t(env->gregs[PARAM1] & 1);
-    env->gregs[PARAM1] >>= 1;
-    RETURN();
-}
-
 void OPPROTO op_fmov_frN_FT0(void)
 {
     FT0 = env->fregs[PARAM1];

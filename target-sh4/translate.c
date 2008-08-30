@@ -1226,13 +1226,19 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x4000:		/* shll Rn */
     case 0x4020:		/* shal Rn */
-	gen_op_shal_Rn(REG(B11_8));
+	tcg_gen_andi_i32(cpu_T[0], cpu_gregs[REG(B11_8)], 0x80000000);
+	gen_cmp_imm(TCG_COND_NE, cpu_T[0], 0);
+	tcg_gen_shli_i32(cpu_gregs[REG(B11_8)], cpu_gregs[REG(B11_8)], 1);
 	return;
     case 0x4021:		/* shar Rn */
-	gen_op_shar_Rn(REG(B11_8));
+	tcg_gen_andi_i32(cpu_T[0], cpu_gregs[REG(B11_8)], 1);
+	gen_cmp_imm(TCG_COND_NE, cpu_T[0], 0);
+	tcg_gen_sari_i32(cpu_gregs[REG(B11_8)], cpu_gregs[REG(B11_8)], 1);
 	return;
     case 0x4001:		/* shlr Rn */
-	gen_op_shlr_Rn(REG(B11_8));
+	tcg_gen_andi_i32(cpu_T[0], cpu_gregs[REG(B11_8)], 1);
+	gen_cmp_imm(TCG_COND_NE, cpu_T[0], 0);
+	tcg_gen_shri_i32(cpu_gregs[REG(B11_8)], cpu_gregs[REG(B11_8)], 1);
 	return;
     case 0x4008:		/* shll2 Rn */
 	tcg_gen_shli_i32(cpu_gregs[REG(B11_8)], cpu_gregs[REG(B11_8)], 2);
