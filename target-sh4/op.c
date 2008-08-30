@@ -88,52 +88,6 @@ void OPPROTO op_shld_T0_T1(void)
     RETURN();
 }
 
-void OPPROTO op_ldc_T0_sr(void)
-{
-    env->sr = T0 & 0x700083f3;
-    RETURN();
-}
-
-void OPPROTO op_stc_sr_T0(void)
-{
-    T0 = env->sr;
-    RETURN();
-}
-
-#define LDSTOPS(target,load,store) \
-void OPPROTO op_##load##_T0_##target (void) \
-{ env ->target = T0;   RETURN(); \
-} \
-void OPPROTO op_##store##_##target##_T0 (void) \
-{ T0 = env->target;   RETURN(); \
-} \
-
-    LDSTOPS(gbr, ldc, stc)
-    LDSTOPS(vbr, ldc, stc)
-    LDSTOPS(ssr, ldc, stc)
-    LDSTOPS(spc, ldc, stc)
-    LDSTOPS(sgr, ldc, stc)
-    LDSTOPS(dbr, ldc, stc)
-    LDSTOPS(mach, lds, sts)
-    LDSTOPS(macl, lds, sts)
-    LDSTOPS(pr, lds, sts)
-    LDSTOPS(fpul, lds, sts)
-
-void OPPROTO op_lds_T0_fpscr(void)
-{
-    env->fpscr = T0 & 0x003fffff;
-    env->fp_status.float_rounding_mode = T0 & 0x01 ?
-      float_round_to_zero : float_round_nearest_even;
-
-    RETURN();
-}
-
-void OPPROTO op_sts_fpscr_T0(void)
-{
-    T0 = env->fpscr & 0x003fffff;
-    RETURN();
-}
-
 void OPPROTO op_rotcl_Rn(void)
 {
     helper_rotcl(&env->gregs[PARAM1]);

@@ -388,3 +388,12 @@ void helper_rotcr(uint32_t * addr)
 	env->sr &= ~SR_T;
     *addr = new;
 }
+
+void helper_ld_fpscr(uint32_t val)
+{
+    env->fpscr = val & 0x003fffff;
+    if (val & 0x01)
+	set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+    else
+	set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+}

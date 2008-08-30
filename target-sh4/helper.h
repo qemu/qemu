@@ -16,3 +16,5 @@ DEF_HELPER(uint32_t, helper_subc, (uint32_t, uint32_t))
 DEF_HELPER(uint32_t, helper_negc, (uint32_t))
 DEF_HELPER(void, helper_macl, (uint32_t, uint32_t))
 DEF_HELPER(void, helper_macw, (uint32_t, uint32_t))
+
+DEF_HELPER(void, helper_ld_fpscr, (uint32_t))
