@@ -27,8 +27,6 @@
 //#include "fpmodule.h"
 //#include "fpmodule.inl"
 
-void SetRoundingMode(const unsigned int opcode);
-
 unsigned int PerformFLT(const unsigned int opcode);
 unsigned int PerformFIX(const unsigned int opcode);
 

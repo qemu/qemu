@@ -8941,8 +8941,6 @@ static void dump_ppc_sprs (CPUPPCState *env)
 #include <stdlib.h>
 #include <string.h>
 
-int fflush (FILE *stream);
-
 /* Opcode types */
 enum {
     PPC_DIRECT   = 0, /* Opcode routine        */

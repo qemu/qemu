@@ -40,5 +40,3 @@ struct target_pt_regs {
 #else
 #define UNAME_MACHINE "armv5tel"
 #endif
-
-uint32_t do_arm_semihosting(CPUState *);

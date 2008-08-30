@@ -128,10 +128,10 @@
 #undef HAVE_SYS_STROPTS_H
 
 /* Define to whatever your compiler thinks inline should be */
-#define inline inline
+//#define inline inline
 
 /* Define to whatever your compiler thinks const should be */
-#define const const
+//#define const const
 
 /* Define if your compiler doesn't like prototypes */
 #undef NO_PROTOTYPES
@@ -170,7 +170,7 @@
 #undef HAVE_SETENV
 
 /* Define if you have index() */
-#undef HAVE_INDEX
+#define HAVE_INDEX
 
 /* Define if you have bcmp() */
 #undef HAVE_BCMP
@@ -182,7 +182,7 @@
 #define HAVE_MEMMOVE
 
 /* Define if you have gethostid */
-#undef HAVE_GETHOSTID
+#define HAVE_GETHOSTID
 
 /* Define if you DON'T have unix-domain sockets */
 #undef NO_UNIX_SOCKETS

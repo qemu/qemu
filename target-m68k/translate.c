@@ -30,6 +30,7 @@
 #include "exec-all.h"
 #include "disas.h"
 #include "tcg-op.h"
+#include "qemu-log.h"
 
 #define GEN_HELPER 1
 #include "helpers.h"
@@ -156,9 +157,6 @@ typedef struct DisasContext {
 /* ??? Fix exceptions.  */
 static void *gen_throws_exception;
 #define gen_last_qop NULL
-
-extern FILE *logfile;
-extern int loglevel;
 
 #define OS_BYTE 0
 #define OS_WORD 1

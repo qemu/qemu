@@ -46,7 +46,6 @@ static inline void regs_to_env(void)
 
 int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                               int mmu_idx, int is_softmmu);
-void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr);
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"

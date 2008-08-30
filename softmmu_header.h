@@ -70,10 +70,6 @@
 #define ADDR_READ addr_read
 #endif
 
-DATA_TYPE REGPARM glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
-                                                         int mmu_idx);
-void REGPARM glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr, DATA_TYPE v, int mmu_idx);
-
 #if (DATA_SIZE <= 4) && (TARGET_LONG_BITS == 32) && defined(__i386__) && \
     (ACCESS_TYPE < NB_MMU_MODES) && defined(ASM_SOFTMMU)
 

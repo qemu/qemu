@@ -269,10 +269,6 @@ extern int personality(int);
 extern int flock(int, int);
 extern int setfsuid(int);
 extern int setfsgid(int);
-extern int setresuid(uid_t, uid_t, uid_t);
-extern int getresuid(uid_t *, uid_t *, uid_t *);
-extern int setresgid(gid_t, gid_t, gid_t);
-extern int getresgid(gid_t *, gid_t *, gid_t *);
 extern int setgroups(int, gid_t *);
 
 #define ERRNO_TABLE_SIZE 1200

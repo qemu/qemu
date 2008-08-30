@@ -477,9 +477,6 @@ void cpu_loop(CPUX86State *env)
 
 #ifdef TARGET_ARM
 
-/* XXX: find a better solution */
-extern void tb_invalidate_page_range(abi_ulong start, abi_ulong end);
-
 static void arm_cache_flush(abi_ulong start, abi_ulong last)
 {
     abi_ulong addr, last1;

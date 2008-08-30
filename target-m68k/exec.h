@@ -44,8 +44,6 @@ int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #include "softmmu_exec.h"
 #endif
 
-void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op);
-
 void cpu_loop_exit(void);
 
 static inline int cpu_halted(CPUState *env) {

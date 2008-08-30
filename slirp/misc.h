@@ -17,7 +17,7 @@ struct ex_list {
 };
 
 extern struct ex_list *exec_list;
-extern u_int curtime, time_fasttimo, last_slowtimo;
+extern u_int time_fasttimo, last_slowtimo;
 
 extern int (*lprint_print) _P((void *, const char *, va_list));
 extern char *lprint_ptr, *lprint_ptr2, **lprint_arg;
