@@ -98,9 +98,7 @@ typedef struct CPUSH4State {
     uint32_t fpscr;		/* floating point status/control register */
     uint32_t fpul;		/* floating point communication register */
 
-    /* temporary float registers */
-    float32 ft0, ft1;
-    float64 dt0, dt1;
+    /* float point status register */
     float_status fp_status;
 
     /* Those belong to the specific unit (SH7750) but are handled here */

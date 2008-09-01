@@ -24,14 +24,6 @@
 #include "dyngen-exec.h"
 
 register struct CPUSH4State *env asm(AREG0);
-register uint32_t T0 asm(AREG1);
-register uint32_t T1 asm(AREG2);
-//register uint32_t T2 asm(AREG3);
-
-#define FT0 (env->ft0)
-#define FT1 (env->ft1)
-#define DT0 (env->dt0)
-#define DT1 (env->dt1)
 
 #include "cpu.h"
 #include "exec-all.h"

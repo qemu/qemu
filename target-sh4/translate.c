@@ -67,9 +67,6 @@ static TCGv cpu_pr, cpu_fpscr, cpu_fpul, cpu_flags;
 /* internal register indexes */
 static TCGv cpu_flags, cpu_delayed_pc;
 
-/* dyngen register indexes */
-static TCGv cpu_T[2];
-
 #include "gen-icount.h"
 
 static void sh4_translate_init(void)
@@ -88,8 +85,6 @@ static void sh4_translate_init(void)
         return;
 
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
-    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_I32, TCG_AREG1, "T0");
-    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_I32, TCG_AREG2, "T1");
 
     for (i = 0; i < 24; i++)
         cpu_gregs[i] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
