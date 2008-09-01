@@ -489,6 +489,12 @@ uint64_t helper_fmul_DT(uint64_t t0, uint64_t t1)
     return *(uint64_t*)(&ret);
 }
 
+uint32_t helper_fneg_T(uint32_t t0)
+{
+    float32 ret = float32_chs(*(float32*)&t0);
+    return *(uint32_t*)(&ret);
+}
+
 uint32_t helper_fsqrt_FT(uint32_t t0)
 {
     float32 ret = float32_sqrt(*(float32*)&t0, &env->fp_status);

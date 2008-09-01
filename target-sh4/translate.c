@@ -1593,7 +1593,13 @@ void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf04d: /* fneg FRn/DRn - FPSCR: Nothing */
-	gen_op_fneg_frN(FREG(B11_8));
+	{
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    gen_load_fpr32(fp, FREG(B11_8));
+	    tcg_gen_helper_1_1(helper_fneg_T, fp, fp);
+	    gen_store_fpr32(fp, FREG(B11_8));
+	    tcg_temp_free(fp);
+	}
 	return;
     case 0xf05d: /* fabs FRn/DRn */
 	if (ctx->fpscr & FPSCR_PR) {

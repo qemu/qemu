@@ -1427,10 +1427,8 @@ case "$target_cpu" in
   ;;
   sh4|sh4eb)
     echo "TARGET_ARCH=sh4" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"sh4\"" >> $config_h
     echo "#define TARGET_SH4 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
     bflt="yes"
   ;;
   sparc)
