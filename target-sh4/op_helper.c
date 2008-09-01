@@ -163,27 +163,27 @@ uint32_t helper_addv(uint32_t arg0, uint32_t arg1)
 #define SETM env->sr |= SR_M
 #define CLRM env->sr &= ~SR_M
 
-void helper_div1_T0_T1(void)
+uint32_t helper_div1(uint32_t arg0, uint32_t arg1)
 {
     uint32_t tmp0, tmp2;
     uint8_t old_q, tmp1 = 0xff;
 
-    //printf("div1 T0=0x%08x T1=0x%08x M=%d Q=%d T=%d\n", T0, T1, M, Q, T);
+    //printf("div1 arg0=0x%08x arg1=0x%08x M=%d Q=%d T=%d\n", arg0, arg1, M, Q, T);
     old_q = Q;
-    if ((0x80000000 & T1) != 0)
+    if ((0x80000000 & arg1) != 0)
 	SETQ;
     else
 	CLRQ;
-    tmp2 = T0;
-    T1 <<= 1;
-    T1 |= T;
+    tmp2 = arg0;
+    arg1 <<= 1;
+    arg1 |= T;
     switch (old_q) {
     case 0:
 	switch (M) {
 	case 0:
-	    tmp0 = T1;
-	    T1 -= tmp2;
-	    tmp1 = T1 > tmp0;
+	    tmp0 = arg1;
+	    arg1 -= tmp2;
+	    tmp1 = arg1 > tmp0;
 	    switch (Q) {
 	    case 0:
 		if (tmp1)
@@ -200,9 +200,9 @@ void helper_div1_T0_T1(void)
 	    }
 	    break;
 	case 1:
-	    tmp0 = T1;
-	    T1 += tmp2;
-	    tmp1 = T1 < tmp0;
+	    tmp0 = arg1;
+	    arg1 += tmp2;
+	    tmp1 = arg1 < tmp0;
 	    switch (Q) {
 	    case 0:
 		if (tmp1 == 0)
@@ -223,9 +223,9 @@ void helper_div1_T0_T1(void)
     case 1:
 	switch (M) {
 	case 0:
-	    tmp0 = T1;
-	    T1 += tmp2;
-	    tmp1 = T1 < tmp0;
+	    tmp0 = arg1;
+	    arg1 += tmp2;
+	    tmp1 = arg1 < tmp0;
 	    switch (Q) {
 	    case 0:
 		if (tmp1)
@@ -242,9 +242,9 @@ void helper_div1_T0_T1(void)
 	    }
 	    break;
 	case 1:
-	    tmp0 = T1;
-	    T1 -= tmp2;
-	    tmp1 = T1 > tmp0;
+	    tmp0 = arg1;
+	    arg1 -= tmp2;
+	    tmp1 = arg1 > tmp0;
 	    switch (Q) {
 	    case 0:
 		if (tmp1 == 0)
@@ -267,7 +267,8 @@ void helper_div1_T0_T1(void)
 	SETT;
     else
 	CLRT;
-    //printf("Output: T1=0x%08x M=%d Q=%d T=%d\n", T1, M, Q, T);
+    //printf("Output: arg1=0x%08x M=%d Q=%d T=%d\n", arg1, M, Q, T);
+    return arg1;
 }
 
 void helper_macl(uint32_t arg0, uint32_t arg1)
@@ -363,30 +364,6 @@ uint32_t helper_subv(uint32_t arg0, uint32_t arg1)
     } else
 	env->sr &= ~SR_T;
     return arg1;
-}
-
-void helper_rotcl(uint32_t * addr)
-{
-    uint32_t new;
-
-    new = (*addr << 1) | (env->sr & SR_T);
-    if (*addr & 0x80000000)
-	env->sr |= SR_T;
-    else
-	env->sr &= ~SR_T;
-    *addr = new;
-}
-
-void helper_rotcr(uint32_t * addr)
-{
-    uint32_t new;
-
-    new = (*addr >> 1) | ((env->sr & SR_T) ? 0x80000000 : 0);
-    if (*addr & 1)
-	env->sr |= SR_T;
-    else
-	env->sr &= ~SR_T;
-    *addr = new;
 }
 
 void helper_ld_fpscr(uint32_t val)

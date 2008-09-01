@@ -71,10 +71,6 @@ int find_itlb_entry(CPUState * env, target_ulong address,
 		    int use_asid, int update);
 int find_utlb_entry(CPUState * env, target_ulong address, int use_asid);
 
-void helper_div1_T0_T1(void);
-void helper_rotcl(uint32_t * addr);
-void helper_rotcr(uint32_t * addr);
-
 void do_interrupt(CPUState * env);
 
 void cpu_loop_exit(void);
