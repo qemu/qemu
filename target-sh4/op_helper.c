@@ -366,6 +366,16 @@ uint32_t helper_subv(uint32_t arg0, uint32_t arg1)
     return arg1;
 }
 
+static inline void set_t(void)
+{
+    env->sr |= SR_T;
+}
+
+static inline void clr_t(void)
+{
+    env->sr &= ~SR_T;
+}
+
 void helper_ld_fpscr(uint32_t val)
 {
     env->fpscr = val & 0x003fffff;
@@ -373,4 +383,142 @@ void helper_ld_fpscr(uint32_t val)
 	set_float_rounding_mode(float_round_to_zero, &env->fp_status);
     else
 	set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+}
+
+uint32_t helper_fabs_FT(uint32_t t0)
+{
+    float32 ret = float32_abs(*(float32*)&t0);
+    return *(uint32_t*)(&ret);
+}
+
+uint64_t helper_fabs_DT(uint64_t t0)
+{
+    float64 ret = float64_abs(*(float64*)&t0);
+    return *(uint64_t*)(&ret);
+}
+
+uint32_t helper_fadd_FT(uint32_t t0, uint32_t t1)
+{
+    float32 ret = float32_add(*(float32*)&t0, *(float32*)&t1, &env->fp_status);
+    return *(uint32_t*)(&ret);
+}
+
+uint64_t helper_fadd_DT(uint64_t t0, uint64_t t1)
+{
+    float64 ret = float64_add(*(float64*)&t0, *(float64*)&t1, &env->fp_status);
+    return *(uint64_t*)(&ret);
+}
+
+void helper_fcmp_eq_FT(uint32_t t0, uint32_t t1)
+{
+    if (float32_compare(*(float32*)&t0, *(float32*)&t1, &env->fp_status) == 0)
+	set_t();
+    else
+	clr_t();
+}
+
+void helper_fcmp_eq_DT(uint64_t t0, uint64_t t1)
+{
+    if (float64_compare(*(float64*)&t0, *(float64*)&t1, &env->fp_status) == 0)
+	set_t();
+    else
+	clr_t();
+}
+
+void helper_fcmp_gt_FT(uint32_t t0, uint32_t t1)
+{
+    if (float32_compare(*(float32*)&t0, *(float32*)&t1, &env->fp_status) == 1)
+	set_t();
+    else
+	clr_t();
+}
+
+void helper_fcmp_gt_DT(uint64_t t0, uint64_t t1)
+{
+    if (float64_compare(*(float64*)&t0, *(float64*)&t1, &env->fp_status) == 1)
+	set_t();
+    else
+	clr_t();
+}
+
+uint64_t helper_fcnvsd_FT_DT(uint32_t t0)
+{
+    float64 ret = float32_to_float64(*(float32*)&t0, &env->fp_status);
+    return *(uint64_t*)(&ret);
+}
+
+uint32_t helper_fcnvds_DT_FT(uint64_t t0)
+{
+    float32 ret = float64_to_float32(*(float64*)&t0, &env->fp_status);
+    return *(uint32_t*)(&ret);
+}
+
+uint32_t helper_fdiv_FT(uint32_t t0, uint32_t t1)
+{
+    float32 ret = float32_div(*(float32*)&t0, *(float32*)&t1, &env->fp_status);
+    return *(uint32_t*)(&ret);
+}
+
+uint64_t helper_fdiv_DT(uint64_t t0, uint64_t t1)
+{
+    float64 ret = float64_div(*(float64*)&t0, *(float64*)&t1, &env->fp_status);
+    return *(uint64_t*)(&ret);
+}
+
+uint32_t helper_float_FT(uint32_t t0)
+{
+    float32 ret = int32_to_float32(t0, &env->fp_status);
+    return *(uint32_t*)(&ret);
+}
+
+uint64_t helper_float_DT(uint32_t t0)
+{
+    float64 ret = int32_to_float64(t0, &env->fp_status);
+    return *(uint64_t*)(&ret);
+}
+
+uint32_t helper_fmul_FT(uint32_t t0, uint32_t t1)
+{
+    float32 ret = float32_mul(*(float32*)&t0, *(float32*)&t1, &env->fp_status);
+    return *(uint32_t*)(&ret);
+}
+
+uint64_t helper_fmul_DT(uint64_t t0, uint64_t t1)
+{
+    float64 ret = float64_mul(*(float64*)&t0, *(float64*)&t1, &env->fp_status);
+    return *(uint64_t*)(&ret);
+}
+
+uint32_t helper_fsqrt_FT(uint32_t t0)
+{
+    float32 ret = float32_sqrt(*(float32*)&t0, &env->fp_status);
+    return *(uint32_t*)(&ret);
+}
+
+uint64_t helper_fsqrt_DT(uint64_t t0)
+{
+    float64 ret = float64_sqrt(*(float64*)&t0, &env->fp_status);
+    return *(uint64_t*)(&ret);
+}
+
+uint32_t helper_fsub_FT(uint32_t t0, uint32_t t1)
+{
+    float32 ret = float32_sub(*(float32*)&t0, *(float32*)&t1, &env->fp_status);
+    return *(uint32_t*)(&ret);
+}
+
+uint64_t helper_fsub_DT(uint64_t t0, uint64_t t1)
+{
+    float64 ret = float64_sub(*(float64*)&t0, *(float64*)&t1, &env->fp_status);
+    return *(uint64_t*)(&ret);
+}
+
+uint32_t helper_ftrc_FT(uint32_t t0)
+{
+    return float32_to_int32_round_to_zero(*(float32*)&t0, &env->fp_status);
+}
+
+uint32_t helper_ftrc_DT(uint64_t t0)
+{
+    return float64_to_int32_round_to_zero(*(float64*)&t0, &env->fp_status);
 }

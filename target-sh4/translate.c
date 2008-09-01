@@ -137,37 +137,6 @@ static void sh4_translate_init(void)
     done_init = 1;
 }
 
-#ifdef CONFIG_USER_ONLY
-
-#define GEN_OP_LD(width, reg) \
-  void gen_op_ld##width##_T0_##reg (DisasContext *ctx) { \
-    gen_op_ld##width##_T0_##reg##_raw(); \
-  }
-#define GEN_OP_ST(width, reg) \
-  void gen_op_st##width##_##reg##_T1 (DisasContext *ctx) { \
-    gen_op_st##width##_##reg##_T1_raw(); \
-  }
-
-#else
-
-#define GEN_OP_LD(width, reg) \
-  void gen_op_ld##width##_T0_##reg (DisasContext *ctx) { \
-    if (ctx->memidx) gen_op_ld##width##_T0_##reg##_kernel(); \
-    else gen_op_ld##width##_T0_##reg##_user();\
-  }
-#define GEN_OP_ST(width, reg) \
-  void gen_op_st##width##_##reg##_T1 (DisasContext *ctx) { \
-    if (ctx->memidx) gen_op_st##width##_##reg##_T1_kernel(); \
-    else gen_op_st##width##_##reg##_T1_user();\
-  }
-
-#endif
-
-GEN_OP_LD(fl, FT0)
-GEN_OP_ST(fl, FT0)
-GEN_OP_LD(fq, DT0)
-GEN_OP_ST(fq, DT0)
-
 void cpu_dump_state(CPUState * env, FILE * f,
 		    int (*cpu_fprintf) (FILE * f, const char *fmt, ...),
 		    int flags)
@@ -358,6 +327,44 @@ static inline void gen_copy_bit_i32(TCGv t0, int p0, TCGv t1, int p1)
         tcg_gen_shli_i32(tmp, tmp, p0 - p1);
     tcg_gen_or_i32(t0, t0, tmp);
 
+    tcg_temp_free(tmp);
+}
+
+
+static inline void gen_load_fpr32(TCGv t, int reg)
+{
+    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUState, fregs[reg]));
+}
+
+static inline void gen_load_fpr64(TCGv t, int reg)
+{
+    TCGv tmp1 = tcg_temp_new(TCG_TYPE_I32);
+    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I64);
+
+    tcg_gen_ld_i32(tmp1, cpu_env, offsetof(CPUState, fregs[reg]));
+    tcg_gen_extu_i32_i64(t, tmp1);
+    tcg_gen_shli_i64(t, t, 32);
+    tcg_gen_ld_i32(tmp1, cpu_env, offsetof(CPUState, fregs[reg + 1]));
+    tcg_gen_extu_i32_i64(tmp2, tmp1);
+    tcg_temp_free(tmp1);
+    tcg_gen_or_i64(t, t, tmp2);
+    tcg_temp_free(tmp2);
+}
+
+static inline void gen_store_fpr32(TCGv t, int reg)
+{
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUState, fregs[reg]));
+}
+
+static inline void gen_store_fpr64 (TCGv t, int reg)
+{
+    TCGv tmp = tcg_temp_new(TCG_TYPE_I32);
+
+    tcg_gen_trunc_i64_i32(tmp, t);
+    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, fregs[reg + 1]));
+    tcg_gen_shri_i64(t, t, 32);
+    tcg_gen_trunc_i64_i32(tmp, t);
+    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, fregs[reg]));
     tcg_temp_free(tmp);
 }
 
@@ -913,88 +920,115 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf00c: /* fmov {F,D,X}Rm,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+	    gen_load_fpr64(fp, XREG(B7_4));
+	    gen_store_fpr64(fp, XREG(B11_8));
+	    tcg_temp_free(fp);
 	} else {
-	    gen_op_fmov_frN_FT0(FREG(B7_4));
-	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    gen_load_fpr32(fp, FREG(B7_4));
+	    gen_store_fpr32(fp, FREG(B11_8));
+	    tcg_temp_free(fp);
 	}
 	return;
     case 0xf00a: /* fmov {F,D,X}Rm,@Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    tcg_gen_mov_i32(cpu_T[1], REG(B11_8));
-	    gen_op_stfq_DT0_T1(ctx);
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+	    gen_load_fpr64(fp, XREG(B7_4));
+	    tcg_gen_qemu_st64(fp, REG(B11_8), ctx->memidx);
+	    tcg_temp_free(fp);
 	} else {
-	    gen_op_fmov_frN_FT0(FREG(B7_4));
-	    tcg_gen_mov_i32(cpu_T[1], REG(B11_8));
-	    gen_op_stfl_FT0_T1(ctx);
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    gen_load_fpr32(fp, FREG(B7_4));
+	    tcg_gen_qemu_st32(fp, REG(B11_8), ctx->memidx);
+	    tcg_temp_free(fp);
 	}
 	return;
     case 0xf008: /* fmov @Rm,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    tcg_gen_mov_i32(cpu_T[0], REG(B7_4));
-	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+	    tcg_gen_qemu_ld64(fp, REG(B7_4), ctx->memidx);
+	    gen_store_fpr64(fp, XREG(B11_8));
+	    tcg_temp_free(fp);
 	} else {
-	    tcg_gen_mov_i32(cpu_T[0], REG(B7_4));
-	    gen_op_ldfl_T0_FT0(ctx);
-	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_qemu_ld32u(fp, REG(B7_4), ctx->memidx);
+	    gen_store_fpr32(fp, FREG(B11_8));
+	    tcg_temp_free(fp);
 	}
 	return;
     case 0xf009: /* fmov @Rm+,{F,D,X}Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    tcg_gen_mov_i32(cpu_T[0], REG(B7_4));
-	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
-	    tcg_gen_addi_i32(REG(B7_4),
-	                     REG(B7_4), 8);
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+	    tcg_gen_qemu_ld64(fp, REG(B7_4), ctx->memidx);
+	    gen_store_fpr64(fp, XREG(B11_8));
+	    tcg_temp_free(fp);
+	    tcg_gen_addi_i32(REG(B7_4),REG(B7_4), 8);
 	} else {
-	    tcg_gen_mov_i32(cpu_T[0], REG(B7_4));
-	    gen_op_ldfl_T0_FT0(ctx);
-	    gen_op_fmov_FT0_frN(FREG(B11_8));
-	    tcg_gen_addi_i32(REG(B7_4),
-	                     REG(B7_4), 4);
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_qemu_ld32u(fp, REG(B7_4), ctx->memidx);
+	    gen_store_fpr32(fp, FREG(B11_8));
+	    tcg_temp_free(fp);
+	    tcg_gen_addi_i32(REG(B7_4), REG(B7_4), 4);
 	}
 	return;
     case 0xf00b: /* fmov {F,D,X}Rm,@-Rn - FPSCR: Nothing */
 	if (ctx->fpscr & FPSCR_SZ) {
-	    tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 8);
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    tcg_gen_mov_i32(cpu_T[1], REG(B11_8));
-	    tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 8);
-	    gen_op_stfq_DT0_T1(ctx);
+	    TCGv addr, fp;
+	    addr = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_subi_i32(addr, REG(B11_8), 8);
+	    fp = tcg_temp_new(TCG_TYPE_I64);
+	    gen_load_fpr64(fp, XREG(B7_4));
+	    tcg_gen_qemu_st64(fp, addr, ctx->memidx);
+	    tcg_temp_free(fp);
+	    tcg_temp_free(addr);
 	    tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 8);
 	} else {
-	    tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 4);
-	    gen_op_fmov_frN_FT0(FREG(B7_4));
-	    tcg_gen_mov_i32(cpu_T[1], REG(B11_8));
-	    tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 4);
-	    gen_op_stfl_FT0_T1(ctx);
+	    TCGv addr, fp;
+	    addr = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_subi_i32(addr, REG(B11_8), 4);
+	    fp = tcg_temp_new(TCG_TYPE_I32);
+	    gen_load_fpr32(fp, FREG(B7_4));
+	    tcg_gen_qemu_st32(fp, addr, ctx->memidx);
+	    tcg_temp_free(fp);
+	    tcg_temp_free(addr);
 	    tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 4);
 	}
 	return;
     case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
-	tcg_gen_add_i32(cpu_T[0], REG(B7_4), REG(0));
-	if (ctx->fpscr & FPSCR_SZ) {
-	    gen_op_ldfq_T0_DT0(ctx);
-	    gen_op_fmov_DT0_drN(XREG(B11_8));
-	} else {
-	    gen_op_ldfl_T0_FT0(ctx);
-	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	{
+	    TCGv addr = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_add_i32(addr, REG(B7_4), REG(0));
+	    if (ctx->fpscr & FPSCR_SZ) {
+		TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+		tcg_gen_qemu_ld64(fp, addr, ctx->memidx);
+		gen_store_fpr64(fp, XREG(B11_8));
+		tcg_temp_free(fp);
+	    } else {
+		TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+		tcg_gen_qemu_ld32u(fp, addr, ctx->memidx);
+		gen_store_fpr32(fp, FREG(B11_8));
+		tcg_temp_free(fp);
+	    }
+	    tcg_temp_free(addr);
 	}
 	return;
     case 0xf007: /* fmov {F,D,X}Rn,@(R0,Rn) - FPSCR: Nothing */
-	if (ctx->fpscr & FPSCR_SZ) {
-	    gen_op_fmov_drN_DT0(XREG(B7_4));
-	    tcg_gen_mov_i32(cpu_T[1], REG(B11_8));
-	    tcg_gen_add_i32(cpu_T[1], cpu_T[1], REG(0));
-	    gen_op_stfq_DT0_T1(ctx);
-	} else {
-	    gen_op_fmov_frN_FT0(FREG(B7_4));
-	    tcg_gen_mov_i32(cpu_T[1], REG(B11_8));
-	    tcg_gen_add_i32(cpu_T[1], cpu_T[1], REG(0));
-	    gen_op_stfl_FT0_T1(ctx);
+	{
+	    TCGv addr = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_add_i32(addr, REG(B11_8), REG(0));
+	    if (ctx->fpscr & FPSCR_SZ) {
+		TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+		gen_load_fpr64(fp, XREG(B7_4));
+		tcg_gen_qemu_st64(fp, addr, ctx->memidx);
+		tcg_temp_free(fp);
+	    } else {
+		TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+		gen_load_fpr32(fp, FREG(B7_4));
+		tcg_gen_qemu_st32(fp, addr, ctx->memidx);
+		tcg_temp_free(fp);
+	    }
+	    tcg_temp_free(addr);
 	}
 	return;
     case 0xf000: /* fadd Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
@@ -1003,43 +1037,71 @@ void _decode_opc(DisasContext * ctx)
     case 0xf003: /* fdiv Rm,Rn - FPSCR: R[PR,Enable.O/U/I]/W[Cause,Flag] */
     case 0xf004: /* fcmp/eq Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
     case 0xf005: /* fcmp/gt Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
-	if (ctx->fpscr & FPSCR_PR) {
-	    if (ctx->opcode & 0x0110)
-		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT1(DREG(B7_4));
-	    gen_op_fmov_drN_DT0(DREG(B11_8));
-	}
-	else {
-	    gen_op_fmov_frN_FT1(FREG(B7_4));
-	    gen_op_fmov_frN_FT0(FREG(B11_8));
-	}
+	{
+	    TCGv fp0, fp1;
 
-	switch (ctx->opcode & 0xf00f) {
-	case 0xf000:		/* fadd Rm,Rn */
-	    ctx->fpscr & FPSCR_PR ? gen_op_fadd_DT() : gen_op_fadd_FT();
-	    break;
-	case 0xf001:		/* fsub Rm,Rn */
-	    ctx->fpscr & FPSCR_PR ? gen_op_fsub_DT() : gen_op_fsub_FT();
-	    break;
-	case 0xf002:		/* fmul Rm,Rn */
-	    ctx->fpscr & FPSCR_PR ? gen_op_fmul_DT() : gen_op_fmul_FT();
-	    break;
-	case 0xf003:		/* fdiv Rm,Rn */
-	    ctx->fpscr & FPSCR_PR ? gen_op_fdiv_DT() : gen_op_fdiv_FT();
-	    break;
-	case 0xf004:		/* fcmp/eq Rm,Rn */
-	    ctx->fpscr & FPSCR_PR ? gen_op_fcmp_eq_DT() : gen_op_fcmp_eq_FT();
-	    return;
-	case 0xf005:		/* fcmp/gt Rm,Rn */
-	    ctx->fpscr & FPSCR_PR ? gen_op_fcmp_gt_DT() : gen_op_fcmp_gt_FT();
-	    return;
-	}
+	    if (ctx->fpscr & FPSCR_PR) {
+		if (ctx->opcode & 0x0110)
+		    break; /* illegal instruction */
+		fp0 = tcg_temp_new(TCG_TYPE_I64);
+		fp1 = tcg_temp_new(TCG_TYPE_I64);
+		gen_load_fpr64(fp0, DREG(B11_8));
+		gen_load_fpr64(fp1, DREG(B7_4));
+	    }
+	    else {
+		fp0 = tcg_temp_new(TCG_TYPE_I32);
+		fp1 = tcg_temp_new(TCG_TYPE_I32);
+		gen_load_fpr32(fp0, FREG(B11_8));
+		gen_load_fpr32(fp1, FREG(B7_4));
+	    }
 
-	if (ctx->fpscr & FPSCR_PR) {
-	    gen_op_fmov_DT0_drN(DREG(B11_8));
-	}
-	else {
-	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	    switch (ctx->opcode & 0xf00f) {
+	    case 0xf000:		/* fadd Rm,Rn */
+		if (ctx->fpscr & FPSCR_PR)
+		    tcg_gen_helper_1_2(helper_fadd_DT, fp0, fp0, fp1);
+		else
+		    tcg_gen_helper_1_2(helper_fadd_FT, fp0, fp0, fp1);
+		break;
+	    case 0xf001:		/* fsub Rm,Rn */
+		if (ctx->fpscr & FPSCR_PR)
+		    tcg_gen_helper_1_2(helper_fsub_DT, fp0, fp0, fp1);
+		else
+		    tcg_gen_helper_1_2(helper_fsub_FT, fp0, fp0, fp1);
+		break;
+	    case 0xf002:		/* fmul Rm,Rn */
+		if (ctx->fpscr & FPSCR_PR)
+		    tcg_gen_helper_1_2(helper_fmul_DT, fp0, fp0, fp1);
+		else
+		    tcg_gen_helper_1_2(helper_fmul_FT, fp0, fp0, fp1);
+		break;
+	    case 0xf003:		/* fdiv Rm,Rn */
+		if (ctx->fpscr & FPSCR_PR)
+		    tcg_gen_helper_1_2(helper_fdiv_DT, fp0, fp0, fp1);
+		else
+		    tcg_gen_helper_1_2(helper_fdiv_FT, fp0, fp0, fp1);
+		break;
+	    case 0xf004:		/* fcmp/eq Rm,Rn */
+		if (ctx->fpscr & FPSCR_PR)
+		    tcg_gen_helper_0_2(helper_fcmp_eq_DT, fp0, fp1);
+		else
+		    tcg_gen_helper_0_2(helper_fcmp_eq_FT, fp0, fp1);
+		return;
+	    case 0xf005:		/* fcmp/gt Rm,Rn */
+		if (ctx->fpscr & FPSCR_PR)
+		    tcg_gen_helper_0_2(helper_fcmp_gt_DT, fp0, fp1);
+		else
+		    tcg_gen_helper_0_2(helper_fcmp_gt_FT, fp0, fp1);
+		return;
+	    }
+
+	    if (ctx->fpscr & FPSCR_PR) {
+		gen_store_fpr64(fp0, DREG(B11_8));
+	    }
+	    else {
+		gen_store_fpr32(fp0, FREG(B11_8));
+	    }
+	    tcg_temp_free(fp1);
+	    tcg_temp_free(fp0);
 	}
 	return;
     }
@@ -1481,35 +1543,53 @@ void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf00d: /* fsts FPUL,FRn - FPSCR: Nothing */
-	gen_op_movl_fpul_FT0();
-	gen_op_fmov_FT0_frN(FREG(B11_8));
+	{
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_mov_i32(fp, cpu_fpul);
+	    gen_store_fpr32(fp, FREG(B11_8));
+	    tcg_temp_free(fp);
+	}
 	return;
     case 0xf01d: /* flds FRm,FPUL - FPSCR: Nothing */
-	gen_op_fmov_frN_FT0(FREG(B11_8));
-	gen_op_movl_FT0_fpul();
+	{
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    gen_load_fpr32(fp, FREG(B11_8));
+	    tcg_gen_mov_i32(cpu_fpul, fp);
+	    tcg_temp_free(fp);
+	}
 	return;
     case 0xf02d: /* float FPUL,FRn/DRn - FPSCR: R[PR,Enable.I]/W[Cause,Flag] */
 	if (ctx->fpscr & FPSCR_PR) {
+	    TCGv fp;
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
-	    gen_op_float_DT();
-	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	    fp = tcg_temp_new(TCG_TYPE_I64);
+	    tcg_gen_helper_1_1(helper_float_DT, fp, cpu_fpul);
+	    gen_store_fpr64(fp, DREG(B11_8));
+	    tcg_temp_free(fp);
 	}
 	else {
-	    gen_op_float_FT();
-	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_helper_1_1(helper_float_FT, fp, cpu_fpul);
+	    gen_store_fpr32(fp, FREG(B11_8));
+	    tcg_temp_free(fp);
 	}
 	return;
     case 0xf03d: /* ftrc FRm/DRm,FPUL - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
 	if (ctx->fpscr & FPSCR_PR) {
+	    TCGv fp;
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(DREG(B11_8));
-	    gen_op_ftrc_DT();
+	    fp = tcg_temp_new(TCG_TYPE_I64);
+	    gen_load_fpr64(fp, DREG(B11_8));
+	    tcg_gen_helper_1_1(helper_ftrc_DT, cpu_fpul, fp);
+	    tcg_temp_free(fp);
 	}
 	else {
-	    gen_op_fmov_frN_FT0(FREG(B11_8));
-	    gen_op_ftrc_FT();
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    gen_load_fpr32(fp, FREG(B11_8));
+	    tcg_gen_helper_1_1(helper_ftrc_FT, cpu_fpul, fp);
+	    tcg_temp_free(fp);
 	}
 	return;
     case 0xf04d: /* fneg FRn/DRn - FPSCR: Nothing */
@@ -1519,53 +1599,69 @@ void _decode_opc(DisasContext * ctx)
 	if (ctx->fpscr & FPSCR_PR) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(DREG(B11_8));
-	    gen_op_fabs_DT();
-	    gen_op_fmov_DT0_drN(DREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+	    gen_load_fpr64(fp, DREG(B11_8));
+	    tcg_gen_helper_1_1(helper_fabs_DT, fp, fp);
+	    gen_store_fpr64(fp, DREG(B11_8));
+	    tcg_temp_free(fp);
 	} else {
-	    gen_op_fmov_frN_FT0(FREG(B11_8));
-	    gen_op_fabs_FT();
-	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    gen_load_fpr32(fp, FREG(B11_8));
+	    tcg_gen_helper_1_1(helper_fabs_FT, fp, fp);
+	    gen_store_fpr32(fp, FREG(B11_8));
+	    tcg_temp_free(fp);
 	}
 	return;
     case 0xf06d: /* fsqrt FRn */
 	if (ctx->fpscr & FPSCR_PR) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
-	    gen_op_fmov_drN_DT0(FREG(B11_8));
-	    gen_op_fsqrt_DT();
-	    gen_op_fmov_DT0_drN(FREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+	    gen_load_fpr64(fp, DREG(B11_8));
+	    tcg_gen_helper_1_1(helper_fsqrt_DT, fp, fp);
+	    gen_store_fpr64(fp, DREG(B11_8));
+	    tcg_temp_free(fp);
 	} else {
-	    gen_op_fmov_frN_FT0(FREG(B11_8));
-	    gen_op_fsqrt_FT();
-	    gen_op_fmov_FT0_frN(FREG(B11_8));
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I32);
+	    gen_load_fpr32(fp, FREG(B11_8));
+	    tcg_gen_helper_1_1(helper_fsqrt_FT, fp, fp);
+	    gen_store_fpr32(fp, FREG(B11_8));
+	    tcg_temp_free(fp);
 	}
 	return;
     case 0xf07d: /* fsrra FRn */
 	break;
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
-	    tcg_gen_movi_i32(cpu_T[0], 0);
-	    gen_op_fmov_T0_frN(FREG(B11_8));
+	    TCGv val = tcg_const_i32(0);
+	    gen_load_fpr32(val, FREG(B11_8));
+	    tcg_temp_free(val);
 	    return;
 	}
 	break;
     case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
-	    tcg_gen_movi_i32(cpu_T[0], 0x3f800000);
-	    gen_op_fmov_T0_frN(FREG(B11_8));
+	    TCGv val = tcg_const_i32(0x3f800000);
+	    gen_load_fpr32(val, FREG(B11_8));
+	    tcg_temp_free(val);
 	    return;
 	}
 	break;
     case 0xf0ad: /* fcnvsd FPUL,DRn */
-	gen_op_movl_fpul_FT0();
-	gen_op_fcnvsd_FT_DT();
-	gen_op_fmov_DT0_drN(DREG(B11_8));
+	{
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+	    tcg_gen_helper_1_1(helper_fcnvsd_FT_DT, fp, cpu_fpul);
+	    gen_store_fpr64(fp, DREG(B11_8));
+	    tcg_temp_free(fp);
+	}
 	return;
     case 0xf0bd: /* fcnvds DRn,FPUL */
-	gen_op_fmov_drN_DT0(DREG(B11_8));
-	gen_op_fcnvds_DT_FT();
-	gen_op_movl_FT0_fpul();
+	{
+	    TCGv fp = tcg_temp_new(TCG_TYPE_I64);
+	    gen_load_fpr64(fp, DREG(B11_8));
+	    tcg_gen_helper_1_1(helper_fcnvds_DT_FT, cpu_fpul, fp);
+	    tcg_temp_free(fp);
+	}
 	return;
     }
 
