@@ -769,8 +769,8 @@ static inline void gen_op_umul(TCGv dst, TCGv src1, TCGv src2)
     r_temp = tcg_temp_new(TCG_TYPE_I64);
     r_temp2 = tcg_temp_new(TCG_TYPE_I64);
 
-    tcg_gen_extu_tl_i64(r_temp, src2);
-    tcg_gen_extu_tl_i64(r_temp2, src1);
+    tcg_gen_extu_i32_i64(r_temp, src2);
+    tcg_gen_extu_i32_i64(r_temp2, src1);
     tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
 
     tcg_gen_shri_i64(r_temp, r_temp2, 32);
@@ -793,8 +793,8 @@ static inline void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
     r_temp = tcg_temp_new(TCG_TYPE_I64);
     r_temp2 = tcg_temp_new(TCG_TYPE_I64);
 
-    tcg_gen_ext_tl_i64(r_temp, src2);
-    tcg_gen_ext_tl_i64(r_temp2, src1);
+    tcg_gen_ext_i32_i64(r_temp, src2);
+    tcg_gen_ext_i32_i64(r_temp2, src1);
     tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
 
     tcg_gen_shri_i64(r_temp, r_temp2, 32);
