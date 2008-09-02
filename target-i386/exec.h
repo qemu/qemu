@@ -31,8 +31,7 @@
 
 register struct CPUX86State *env asm(AREG0);
 
-extern FILE *logfile;
-extern int loglevel;
+#include "qemu-log.h"
 
 #define EAX (env->regs[R_EAX])
 #define ECX (env->regs[R_ECX])
@@ -58,13 +57,10 @@ extern int loglevel;
 #include "cpu.h"
 #include "exec-all.h"
 
-void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                              int is_write, int mmu_idx, int is_softmmu);
-void tlb_fill(target_ulong addr, int is_write, int mmu_idx,
-              void *retaddr);
 void __hidden cpu_lock(void);
 void __hidden cpu_unlock(void);
 void do_interrupt(int intno, int is_int, int error_code,
@@ -120,16 +116,6 @@ static inline void svm_check_intercept(uint32_t type)
 #define floatx_round_to_int floatx80_round_to_int
 #define floatx_compare floatx80_compare
 #define floatx_compare_quiet floatx80_compare_quiet
-#define sin sinl
-#define cos cosl
-#define sqrt sqrtl
-#define pow powl
-#define log logl
-#define tan tanl
-#define atan2 atan2l
-#define floor floorl
-#define ceil ceill
-#define ldexp ldexpl
 #else
 #define floatx_to_int32 float64_to_int32
 #define floatx_to_int64 float64_to_int64
@@ -147,16 +133,6 @@ static inline void svm_check_intercept(uint32_t type)
 #define floatx_compare float64_compare
 #define floatx_compare_quiet float64_compare_quiet
 #endif
-
-extern CPU86_LDouble sin(CPU86_LDouble x);
-extern CPU86_LDouble cos(CPU86_LDouble x);
-extern CPU86_LDouble sqrt(CPU86_LDouble x);
-extern CPU86_LDouble pow(CPU86_LDouble, CPU86_LDouble);
-extern CPU86_LDouble log(CPU86_LDouble x);
-extern CPU86_LDouble tan(CPU86_LDouble x);
-extern CPU86_LDouble atan2(CPU86_LDouble, CPU86_LDouble);
-extern CPU86_LDouble floor(CPU86_LDouble x);
-extern CPU86_LDouble ceil(CPU86_LDouble x);
 
 #define RC_MASK         0xc00
 #define RC_NEAR		0x000

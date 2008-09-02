@@ -1,0 +1,46 @@
+#ifndef DEF_HELPER
+#define DEF_HELPER(ret, name, params) ret name params;
+#endif
+
+DEF_HELPER(void, helper_ldtlb, (void))
+DEF_HELPER(void, helper_raise_illegal_instruction, (void))
+DEF_HELPER(void, helper_raise_slot_illegal_instruction, (void))
+DEF_HELPER(void, helper_debug, (void))
+DEF_HELPER(void, helper_sleep, (void))
+DEF_HELPER(void, helper_trapa, (uint32_t))
+
+DEF_HELPER(uint32_t, helper_addv, (uint32_t, uint32_t))
+DEF_HELPER(uint32_t, helper_addc, (uint32_t, uint32_t))
+DEF_HELPER(uint32_t, helper_subv, (uint32_t, uint32_t))
+DEF_HELPER(uint32_t, helper_subc, (uint32_t, uint32_t))
+DEF_HELPER(uint32_t, helper_negc, (uint32_t))
+DEF_HELPER(uint32_t, helper_div1, (uint32_t, uint32_t))
+DEF_HELPER(void, helper_macl, (uint32_t, uint32_t))
+DEF_HELPER(void, helper_macw, (uint32_t, uint32_t))
+
+DEF_HELPER(void, helper_ld_fpscr, (uint32_t))
+
+DEF_HELPER(uint32_t, helper_fabs_FT, (uint32_t))
+DEF_HELPER(uint64_t, helper_fabs_DT, (uint64_t))
+DEF_HELPER(uint32_t, helper_fadd_FT, (uint32_t, uint32_t))
+DEF_HELPER(uint64_t, helper_fadd_DT, (uint64_t, uint64_t))
+DEF_HELPER(uint64_t, helper_fcnvsd_FT_DT, (uint32_t))
+DEF_HELPER(uint32_t, helper_fcnvds_DT_FT, (uint64_t))
+
+DEF_HELPER(void, helper_fcmp_eq_FT, (uint32_t, uint32_t))
+DEF_HELPER(void, helper_fcmp_eq_DT, (uint64_t, uint64_t))
+DEF_HELPER(void, helper_fcmp_gt_FT, (uint32_t, uint32_t))
+DEF_HELPER(void, helper_fcmp_gt_DT, (uint64_t, uint64_t))
+DEF_HELPER(uint32_t, helper_fdiv_FT, (uint32_t, uint32_t))
+DEF_HELPER(uint64_t, helper_fdiv_DT, (uint64_t, uint64_t))
+DEF_HELPER(uint32_t, helper_float_FT, (uint32_t))
+DEF_HELPER(uint64_t, helper_float_DT, (uint32_t))
+DEF_HELPER(uint32_t, helper_fmul_FT, (uint32_t, uint32_t))
+DEF_HELPER(uint64_t, helper_fmul_DT, (uint64_t, uint64_t))
+DEF_HELPER(uint32_t, helper_fneg_T, (uint32_t))
+DEF_HELPER(uint32_t, helper_fsub_FT, (uint32_t, uint32_t))
+DEF_HELPER(uint64_t, helper_fsub_DT, (uint64_t, uint64_t))
+DEF_HELPER(uint32_t, helper_fsqrt_FT, (uint32_t))
+DEF_HELPER(uint64_t, helper_fsqrt_DT, (uint64_t))
+DEF_HELPER(uint32_t, helper_ftrc_FT, (uint32_t))
+DEF_HELPER(uint32_t, helper_ftrc_DT, (uint64_t))

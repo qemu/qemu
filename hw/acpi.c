@@ -72,7 +72,7 @@ typedef struct PIIX4PMState {
 #define SMBHSTDAT1 0x06
 #define SMBBLKDAT 0x07
 
-PIIX4PMState *pm_state;
+static PIIX4PMState *pm_state;
 
 static uint32_t get_pmtmr(PIIX4PMState *s)
 {
@@ -526,7 +526,9 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 #if defined(TARGET_I386)
 void qemu_system_powerdown(void)
 {
-    if(pm_state->pmen & PWRBTN_EN) {
+    if (!pm_state) {
+        qemu_system_shutdown_request();
+    } else if (pm_state->pmen & PWRBTN_EN) {
         pm_state->pmsts |= PWRBTN_EN;
 	pm_update_sci(pm_state);
     }

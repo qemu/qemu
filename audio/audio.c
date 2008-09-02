@@ -205,7 +205,7 @@ static char *audio_alloc_prefix (const char *s)
     }
 
     len = strlen (s);
-    r = qemu_malloc (len + sizeof (qemu_prefix) + 1);
+    r = qemu_malloc (len + sizeof (qemu_prefix));
 
     if (r) {
         size_t i;

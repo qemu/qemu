@@ -235,8 +235,6 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
 void usb_send_msg(USBDevice *dev, int msg);
 
-void usb_packet_complete(USBPacket *p);
-
 /* usb hub */
 USBDevice *usb_hub_init(int nb_ports);
 

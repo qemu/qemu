@@ -1,3 +1,5 @@
+#ifndef HW_ISA_H
+#define HW_ISA_H
 /* ISA bus */
 
 extern target_phys_addr_t isa_mem_base;
@@ -22,3 +24,4 @@ void DMA_init (int high_page_enable);
 void DMA_register_channel (int nchan,
                            DMA_transfer_handler transfer_handler,
                            void *opaque);
+#endif

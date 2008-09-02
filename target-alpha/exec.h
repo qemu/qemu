@@ -74,8 +74,6 @@ static always_inline void regs_to_env(void)
 
 int cpu_alpha_handle_mmu_fault (CPUState *env, uint64_t address, int rw,
                                 int mmu_idx, int is_softmmu);
-int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
-int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
 
 void do_interrupt (CPUState *env);
 

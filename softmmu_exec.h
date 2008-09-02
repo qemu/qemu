@@ -9,6 +9,8 @@
 #define ldul_executive  ldl_executive
 #define ldul_supervisor ldl_supervisor
 
+#include "softmmu_defs.h"
+
 #define ACCESS_TYPE 0
 #define MEMSUFFIX MMU_MODE0_SUFFIX
 #define DATA_SIZE 1

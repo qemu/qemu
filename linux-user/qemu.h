@@ -199,8 +199,7 @@ int get_osversion(void);
 void fork_start(void);
 void fork_end(int child);
 
-extern int loglevel;
-extern FILE *logfile;
+#include "qemu-log.h"
 
 /* strace.c */
 void print_syscall(int num,

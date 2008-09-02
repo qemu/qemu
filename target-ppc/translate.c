@@ -26,6 +26,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "helper.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
 
@@ -43,7 +44,7 @@
 /*****************************************************************************/
 /* Code translation helpers                                                  */
 
-static TCGv cpu_env;
+static TCGv cpu_env, cpu_T[3];
 
 #include "gen-icount.h"
 
@@ -53,6 +54,24 @@ void ppc_translate_init(void)
     if (done_init)
         return;
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+    cpu_T[0] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t0), "T0");
+    cpu_T[1] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t1), "T1");
+    cpu_T[2] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t2), "T2");
+#else
+    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
+    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
+    cpu_T[2] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "T2");
+#endif
+
+    /* register helpers */
+#undef DEF_HELPER
+#define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
+#include "helper.h"
+
     done_init = 1;
 }
 
@@ -60,26 +79,6 @@ void ppc_translate_init(void)
 static uint16_t *gen_fprf_buf[OPC_BUF_SIZE];
 static uint16_t **gen_fprf_ptr;
 #endif
-
-static always_inline void gen_set_T0 (target_ulong val)
-{
-#if defined(TARGET_PPC64)
-    if (val >> 32)
-        gen_op_set_T0_64(val >> 32, val);
-    else
-#endif
-        gen_op_set_T0(val);
-}
-
-static always_inline void gen_set_T1 (target_ulong val)
-{
-#if defined(TARGET_PPC64)
-    if (val >> 32)
-        gen_op_set_T1_64(val >> 32, val);
-    else
-#endif
-        gen_op_set_T1(val);
-}
 
 #define GEN8(func, NAME)                                                      \
 static GenOpFunc *NAME ## _table [8] = {                                      \
@@ -796,7 +795,7 @@ __GEN_INT_ARITH1_O_64(name##o, opc1, opc2, opc3 | 0x10, type)
 /* add    add.    addo    addo.    */
 static always_inline void gen_op_addo (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addo();
 }
@@ -804,7 +803,7 @@ static always_inline void gen_op_addo (void)
 #define gen_op_add_64 gen_op_add
 static always_inline void gen_op_addo_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addo_64();
 }
@@ -813,13 +812,13 @@ GEN_INT_ARITH2_64 (add,    0x1F, 0x0A, 0x08, PPC_INTEGER);
 /* addc   addc.   addco   addco.   */
 static always_inline void gen_op_addc (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addc();
 }
 static always_inline void gen_op_addco (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addc();
     gen_op_check_addo();
@@ -827,13 +826,13 @@ static always_inline void gen_op_addco (void)
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_addc_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addc_64();
 }
 static always_inline void gen_op_addco_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addc_64();
     gen_op_check_addo_64();
@@ -843,14 +842,14 @@ GEN_INT_ARITH2_64 (addc,   0x1F, 0x0A, 0x00, PPC_INTEGER);
 /* adde   adde.   addeo   addeo.   */
 static always_inline void gen_op_addeo (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_adde();
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_addeo_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_adde_64();
     gen_op_check_addo_64();
 }
@@ -859,13 +858,13 @@ GEN_INT_ARITH2_64 (adde,   0x1F, 0x0A, 0x04, PPC_INTEGER);
 /* addme  addme.  addmeo  addmeo.  */
 static always_inline void gen_op_addme (void)
 {
-    gen_op_move_T1_T0();
+    tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
     gen_op_add_me();
 }
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_addme_64 (void)
 {
-    gen_op_move_T1_T0();
+    tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
     gen_op_add_me_64();
 }
 #endif
@@ -873,13 +872,13 @@ GEN_INT_ARITH1_64 (addme,  0x1F, 0x0A, 0x07, PPC_INTEGER);
 /* addze  addze.  addzeo  addzeo.  */
 static always_inline void gen_op_addze (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add_ze();
     gen_op_check_addc();
 }
 static always_inline void gen_op_addzeo (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add_ze();
     gen_op_check_addc();
     gen_op_check_addo();
@@ -887,13 +886,13 @@ static always_inline void gen_op_addzeo (void)
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_addze_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add_ze();
     gen_op_check_addc_64();
 }
 static always_inline void gen_op_addzeo_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add_ze();
     gen_op_check_addc_64();
     gen_op_check_addo_64();
@@ -985,7 +984,7 @@ GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
     if (rA(ctx->opcode) == 0) {
         /* li case */
-        gen_set_T0(simm);
+        tcg_gen_movi_tl(cpu_T[0], simm);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
         if (likely(simm != 0))
@@ -1000,7 +999,7 @@ GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
     gen_op_load_gpr_T0(rA(ctx->opcode));
     if (likely(simm != 0)) {
-        gen_op_move_T2_T0();
+        tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
         gen_op_addi(simm);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
@@ -1020,7 +1019,7 @@ GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
     gen_op_load_gpr_T0(rA(ctx->opcode));
     if (likely(simm != 0)) {
-        gen_op_move_T2_T0();
+        tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
         gen_op_addi(simm);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
@@ -1041,7 +1040,7 @@ GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
     if (rA(ctx->opcode) == 0) {
         /* lis case */
-        gen_set_T0(simm << 16);
+        tcg_gen_movi_tl(cpu_T[0], simm << 16);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
         if (likely(simm != 0))
@@ -1142,7 +1141,7 @@ GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL)
     uint32_t mask;
 
     if (rA(ctx->opcode) == 0) {
-        gen_set_T0(0);
+        tcg_gen_movi_tl(cpu_T[0], 0);
     } else {
         gen_op_load_gpr_T1(rA(ctx->opcode));
     }
@@ -1662,7 +1661,7 @@ GEN_HANDLER(srawi, 0x1F, 0x18, 0x19, 0x00000000, PPC_INTEGER)
     int mb, me;
     gen_op_load_gpr_T0(rS(ctx->opcode));
     if (SH(ctx->opcode) != 0) {
-        gen_op_move_T1_T0();
+        tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
         mb = 32 - SH(ctx->opcode);
         me = 31;
 #if defined(TARGET_PPC64)
@@ -1692,7 +1691,7 @@ static always_inline void gen_sradi (DisasContext *ctx, int n)
     gen_op_load_gpr_T0(rS(ctx->opcode));
     sh = SH(ctx->opcode) + (n << 5);
     if (sh != 0) {
-        gen_op_move_T1_T0();
+        tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
         mb = 64 - SH(ctx->opcode);
         me = 63;
         mask = MASK(mb, me);
@@ -2081,7 +2080,7 @@ static always_inline void gen_addr_imm_index (DisasContext *ctx,
 
     simm &= ~maskl;
     if (rA(ctx->opcode) == 0) {
-        gen_set_T0(simm);
+        tcg_gen_movi_tl(cpu_T[0], simm);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
         if (likely(simm != 0))
@@ -2804,7 +2803,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
         likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
-        gen_set_T1(dest);
+        tcg_gen_movi_tl(cpu_T[1], dest);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
             gen_op_b_T1_64();
@@ -2813,7 +2812,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
             gen_op_b_T1();
         tcg_gen_exit_tb((long)tb + n);
     } else {
-        gen_set_T1(dest);
+        tcg_gen_movi_tl(cpu_T[1], dest);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
             gen_op_b_T1_64();
@@ -3166,7 +3165,7 @@ GEN_HANDLER(tw, 0x1F, 0x04, 0x00, 0x00000001, PPC_FLOW)
 GEN_HANDLER(twi, 0x03, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
-    gen_set_T1(SIMM(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SIMM(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
     gen_update_nip(ctx, ctx->nip);
     gen_op_tw(TO(ctx->opcode));
@@ -3187,7 +3186,7 @@ GEN_HANDLER(td, 0x1F, 0x04, 0x02, 0x00000001, PPC_64B)
 GEN_HANDLER(tdi, 0x02, 0xFF, 0xFF, 0x00000000, PPC_64B)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
-    gen_set_T1(SIMM(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SIMM(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
     gen_update_nip(ctx, ctx->nip);
     gen_op_td(TO(ctx->opcode));
@@ -4648,7 +4647,7 @@ static always_inline void gen_405_mulladd_insn (DisasContext *ctx,
     if (opc2 & 0x04) {
         /* (n)multiply-and-accumulate (0x0C - 0x0E) */
         gen_op_load_gpr_T2(rt);
-        gen_op_move_T1_T0();
+        tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
         gen_op_405_add_T0_T2();
     }
     if (opc3 & 0x10) {
@@ -5316,7 +5315,7 @@ static always_inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
     target_long simm = rB(ctx->opcode);
 
     if (rA(ctx->opcode) == 0) {
-        gen_set_T0(simm << sh);
+        tcg_gen_movi_tl(cpu_T[0], simm << sh);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
         if (likely(simm != 0))

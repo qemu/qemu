@@ -61,5 +61,3 @@ static inline int cpu_halted(CPUState *env) {
 void cpu_loop_exit(void);
 
 void raise_exception(int);
-
-uint32_t helper_neon_mul_p8(uint32_t op1, uint32_t op2);

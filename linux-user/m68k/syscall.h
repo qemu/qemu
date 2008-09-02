@@ -18,5 +18,4 @@ struct target_pt_regs {
 
 #define UNAME_MACHINE "m68k"
 
-void do_m68k_semihosting(CPUState *, int);
 void do_m68k_simcall(CPUState *, int);

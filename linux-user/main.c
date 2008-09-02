@@ -477,9 +477,6 @@ void cpu_loop(CPUX86State *env)
 
 #ifdef TARGET_ARM
 
-/* XXX: find a better solution */
-extern void tb_invalidate_page_range(abi_ulong start, abi_ulong end);
-
 static void arm_cache_flush(abi_ulong start, abi_ulong last)
 {
     abi_ulong addr, last1;
@@ -758,6 +755,7 @@ void cpu_loop(CPUARMState *env)
 #endif
 
 #ifdef TARGET_SPARC
+#define SPARC64_STACK_BIAS 2047
 
 //#define DEBUG_WIN
 
@@ -780,6 +778,10 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
     abi_ulong sp_ptr;
 
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
+#ifdef TARGET_SPARC64
+    if (sp_ptr & 3)
+        sp_ptr += SPARC64_STACK_BIAS;
+#endif
 #if defined(DEBUG_WIN)
     printf("win_overflow: sp_ptr=0x" TARGET_ABI_FMT_lx " save_cwp=%d\n",
            sp_ptr, cwp1);
@@ -808,15 +810,24 @@ static void save_window(CPUSPARCState *env)
 
 static void restore_window(CPUSPARCState *env)
 {
-    unsigned int new_wim, i, cwp1;
+#ifndef TARGET_SPARC64
+    unsigned int new_wim;
+#endif
+    unsigned int i, cwp1;
     abi_ulong sp_ptr;
 
+#ifndef TARGET_SPARC64
     new_wim = ((env->wim << 1) | (env->wim >> (env->nwindows - 1))) &
         ((1LL << env->nwindows) - 1);
+#endif
 
     /* restore the invalid window */
     cwp1 = cpu_cwp_inc(env, env->cwp + 1);
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
+#ifdef TARGET_SPARC64
+    if (sp_ptr & 3)
+        sp_ptr += SPARC64_STACK_BIAS;
+#endif
 #if defined(DEBUG_WIN)
     printf("win_underflow: sp_ptr=0x" TARGET_ABI_FMT_lx " load_cwp=%d\n",
            sp_ptr, cwp1);
@@ -826,12 +837,13 @@ static void restore_window(CPUSPARCState *env)
         get_user_ual(env->regbase[get_reg_index(env, cwp1, 8 + i)], sp_ptr);
         sp_ptr += sizeof(abi_ulong);
     }
-    env->wim = new_wim;
 #ifdef TARGET_SPARC64
     env->canrestore++;
     if (env->cleanwin < env->nwindows - 1)
         env->cleanwin++;
     env->cansave--;
+#else
+    env->wim = new_wim;
 #endif
 }
 
@@ -843,14 +855,23 @@ static void flush_windows(CPUSPARCState *env)
     for(;;) {
         /* if restore would invoke restore_window(), then we can stop */
         cwp1 = cpu_cwp_inc(env, env->cwp + offset);
+#ifndef TARGET_SPARC64
         if (env->wim & (1 << cwp1))
             break;
+#else
+        if (env->canrestore == 0)
+            break;
+        env->cansave++;
+        env->canrestore--;
+#endif
         save_window_offset(env, cwp1);
         offset++;
     }
-    /* set wim so that restore will reload the registers */
     cwp1 = cpu_cwp_inc(env, env->cwp + 1);
+#ifndef TARGET_SPARC64
+    /* set wim so that restore will reload the registers */
     env->wim = 1 << cwp1;
+#endif
 #if defined(DEBUG_WIN)
     printf("flush_windows: nb=%d\n", offset - 1);
 #endif

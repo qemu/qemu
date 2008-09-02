@@ -439,6 +439,7 @@ void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
     }
 }
 
+#ifndef CONFIG_USER_ONLY
 static void no_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1;
@@ -484,6 +485,7 @@ static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
     env->CP0_Random = env->tlb->nb_tlb - 1;
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
 }
+#endif /* CONFIG_USER_ONLY */
 
 static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 {
@@ -566,8 +568,10 @@ static int cpu_mips_register (CPUMIPSState *env, const mips_def_t *def)
     env->CP0_SRSConf4 = def->CP0_SRSConf4;
     env->insn_flags = def->insn_flags;
 
+#ifndef CONFIG_USER_ONLY
     if (!env->user_mode_only)
         mmu_init(env, def);
+#endif
     fpu_init(env, def);
     mvp_init(env, def);
     return 0;

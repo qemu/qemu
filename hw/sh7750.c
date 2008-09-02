@@ -249,12 +249,12 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
 	return s->cpu->intevt;
     case SH7750_CCR_A7:
 	return s->ccr;
-    case 0x1f000030:		/* Processor version PVR */
-	return 0x00050000;	/* SH7750R */
-    case 0x1f000040:		/* Processor version CVR */
-	return 0x00110000;	/* Minimum caches */
-    case 0x1f000044:		/* Processor version PRR */
-	return 0x00000100;	/* SH7750R */
+    case 0x1f000030:		/* Processor version */
+	return s->cpu->pvr;
+    case 0x1f000040:		/* Cache version */
+	return s->cpu->cvr;
+    case 0x1f000044:		/* Processor revision */
+	return s->cpu->prr;
     default:
 	error_access("long read", addr);
 	assert(0);
@@ -529,14 +529,6 @@ static struct intc_group groups_pci[] = {
 		   PCIC1_PCIDMA0, PCIC1_PCIDMA1, PCIC1_PCIDMA2, PCIC1_PCIDMA3),
 };
 
-#define SH_CPU_SH7750  (1 << 0)
-#define SH_CPU_SH7750S (1 << 1)
-#define SH_CPU_SH7750R (1 << 2)
-#define SH_CPU_SH7751  (1 << 3)
-#define SH_CPU_SH7751R (1 << 4)
-#define SH_CPU_SH7750_ALL (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7750R)
-#define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
-
 /**********************************************************************
  Memory mapped cache and TLB
 **********************************************************************/
@@ -644,7 +636,6 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     SH7750State *s;
     int sh7750_io_memory;
     int sh7750_mm_cache_and_tlb; /* memory mapped cache and tlb */
-    int cpu_model = SH_CPU_SH7751R; /* for now */
 
     s = qemu_mallocz(sizeof(SH7750State));
     s->cpu = cpu;
@@ -664,7 +655,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
 		 _INTC_ARRAY(mask_registers),
 		 _INTC_ARRAY(prio_registers));
 
-    sh_intc_register_sources(&s->intc, 
+    sh_intc_register_sources(&s->intc,
 			     _INTC_ARRAY(vectors),
 			     _INTC_ARRAY(groups));
 
@@ -692,20 +683,20 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
 		sh_intc_source(&s->intc, TMU2_TUNI),
 		sh_intc_source(&s->intc, TMU2_TICPI));
 
-    if (cpu_model & (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7751)) {
-        sh_intc_register_sources(&s->intc, 
+    if (cpu->id & (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7751)) {
+        sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_dma4),
 				 _INTC_ARRAY(groups_dma4));
     }
 
-    if (cpu_model & (SH_CPU_SH7750R | SH_CPU_SH7751R)) {
-        sh_intc_register_sources(&s->intc, 
+    if (cpu->id & (SH_CPU_SH7750R | SH_CPU_SH7751R)) {
+        sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_dma8),
 				 _INTC_ARRAY(groups_dma8));
     }
 
-    if (cpu_model & (SH_CPU_SH7750R | SH_CPU_SH7751 | SH_CPU_SH7751R)) {
-        sh_intc_register_sources(&s->intc, 
+    if (cpu->id & (SH_CPU_SH7750R | SH_CPU_SH7751 | SH_CPU_SH7751R)) {
+        sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_tmu34),
 				 NULL, 0);
         tmu012_init(0x1e100000, 0, s->periph_freq,
@@ -714,14 +705,14 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
 		    NULL, NULL);
     }
 
-    if (cpu_model & (SH_CPU_SH7751_ALL)) {
-        sh_intc_register_sources(&s->intc, 
+    if (cpu->id & (SH_CPU_SH7751_ALL)) {
+        sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_pci),
 				 _INTC_ARRAY(groups_pci));
     }
 
-    if (cpu_model & (SH_CPU_SH7750S | SH_CPU_SH7750R | SH_CPU_SH7751_ALL)) {
-        sh_intc_register_sources(&s->intc, 
+    if (cpu->id & (SH_CPU_SH7750S | SH_CPU_SH7750R | SH_CPU_SH7751_ALL)) {
+        sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_irlm),
 				 NULL, 0);
     }

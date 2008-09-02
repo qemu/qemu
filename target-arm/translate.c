@@ -30,6 +30,7 @@
 #include "exec-all.h"
 #include "disas.h"
 #include "tcg-op.h"
+#include "qemu-log.h"
 
 #define GEN_HELPER 1
 #include "helpers.h"
@@ -72,10 +73,6 @@ typedef struct DisasContext {
    conditional executions state has been updated.  */
 #define DISAS_WFI 4
 #define DISAS_SWI 5
-
-/* XXX: move that elsewhere */
-extern FILE *logfile;
-extern int loglevel;
 
 static TCGv cpu_env;
 /* We reuse the same 64-bit temporaries for efficiency.  */
