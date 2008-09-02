@@ -1392,7 +1392,7 @@ void _decode_opc(DisasContext * ctx)
 	tcg_gen_qemu_st32 (cpu_##reg, addr, ctx->memidx);	\
 	tcg_temp_free(addr);					\
 	tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 4);		\
-    }
+    }								\
     return;
 	LDST(gbr,  0x401e, 0x4017, 0x0012, 0x4013)
 	LDST(vbr,  0x402e, 0x4027, 0x0022, 0x4023)
