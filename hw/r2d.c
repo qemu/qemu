@@ -2,6 +2,7 @@
  * Renesas SH7751R R2D-PLUS emulation
  *
  * Copyright (c) 2007 Magnus Damm
+ * Copyright (c) 2008 Paul Mundt
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,9 +27,118 @@
 #include "sh.h"
 #include "sysemu.h"
 #include "boards.h"
+#include "assert.h"
 
 #define SDRAM_BASE 0x0c000000 /* Physical location of SDRAM: Area 3 */
 #define SDRAM_SIZE 0x04000000
+
+#define PA_POWOFF	0x30
+#define PA_VERREG	0x32
+#define PA_OUTPORT	0x36
+
+typedef struct {
+    target_phys_addr_t base;
+
+    uint16_t bcr;
+    uint16_t irlmon;
+    uint16_t cfctl;
+    uint16_t cfpow;
+    uint16_t dispctl;
+    uint16_t sdmpow;
+    uint16_t rtcce;
+    uint16_t pcicd;
+    uint16_t voyagerrts;
+    uint16_t cfrst;
+    uint16_t admrts;
+    uint16_t extrst;
+    uint16_t cfcdintclr;
+    uint16_t keyctlclr;
+    uint16_t pad0;
+    uint16_t pad1;
+    uint16_t powoff;
+    uint16_t verreg;
+    uint16_t inport;
+    uint16_t outport;
+    uint16_t bverreg;
+} r2d_fpga_t;
+
+static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
+{
+    r2d_fpga_t *s = opaque;
+
+    addr -= s->base;
+
+    switch (addr) {
+    case PA_OUTPORT:
+	return s->outport;
+    case PA_POWOFF:
+	return s->powoff;
+    case PA_VERREG:
+	return 0x10;
+    }
+
+    return 0;
+}
+
+static void
+r2d_fpga_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+{
+    r2d_fpga_t *s = opaque;
+
+    addr -= s->base;
+
+    switch (addr) {
+    case PA_OUTPORT:
+	s->outport = value;
+	break;
+    case PA_POWOFF:
+	s->powoff = value;
+	break;
+    case PA_VERREG:
+	/* Discard writes */
+	break;
+    }
+}
+
+static uint32_t invalid_read(void *opaque, target_phys_addr_t addr)
+{
+    assert(0);
+
+    return 0;
+}
+
+static void invalid_write(void *opaque, target_phys_addr_t addr,
+			  uint32_t mem_value)
+{
+    assert(0);
+}
+
+static CPUReadMemoryFunc *r2d_fpga_readfn[] = {
+    r2d_fpga_read,
+    r2d_fpga_read,
+    invalid_read,
+};
+
+static CPUWriteMemoryFunc *r2d_fpga_writefn[] = {
+    r2d_fpga_write,
+    r2d_fpga_write,
+    invalid_write,
+};
+
+static void r2d_fpga_init(target_phys_addr_t base)
+{
+    int iomemtype;
+    r2d_fpga_t *s;
+
+    s = qemu_mallocz(sizeof(r2d_fpga_t));
+    if (!s)
+	return;
+
+    s->base = base;
+    iomemtype = cpu_register_io_memory(0, r2d_fpga_readfn,
+				       r2d_fpga_writefn, s);
+    cpu_register_physical_memory(base, 0x40, iomemtype);
+}
 
 static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
               const char *boot_device, DisplayState * ds,
@@ -50,6 +160,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     /* Allocate memory space */
     cpu_register_physical_memory(SDRAM_BASE, SDRAM_SIZE, 0);
     /* Register peripherals */
+    r2d_fpga_init(0x04000000);
     s = sh7750_init(env);
     /* Todo: register on board registers */
     {
