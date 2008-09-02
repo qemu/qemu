@@ -27,6 +27,15 @@
 
 #define ELF_MACHINE	EM_SH
 
+/* CPU Subtypes */
+#define SH_CPU_SH7750  (1 << 0)
+#define SH_CPU_SH7750S (1 << 1)
+#define SH_CPU_SH7750R (1 << 2)
+#define SH_CPU_SH7751  (1 << 3)
+#define SH_CPU_SH7751R (1 << 4)
+#define SH_CPU_SH7750_ALL (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7750R)
+#define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"
@@ -80,6 +89,8 @@ typedef struct tlb_t {
 #define NB_MMU_MODES 2
 
 typedef struct CPUSH4State {
+    int id;			/* CPU model */
+
     uint32_t flags;		/* general execution flags */
     uint32_t gregs[24];		/* general registers */
     float32 fregs[32];		/* floating point registers */
@@ -112,6 +123,10 @@ typedef struct CPUSH4State {
     uint32_t expevt;		/* exception event register */
     uint32_t intevt;		/* interrupt event register */
 
+    uint32_t pvr;		/* Processor Version Register */
+    uint32_t prr;		/* Processor Revision Register */
+    uint32_t cvr;		/* Cache Version Register */
+
      CPU_COMMON tlb_t utlb[UTLB_SIZE];	/* unified translation table */
     tlb_t itlb[ITLB_SIZE];	/* instruction translation table */
     void *intc_handle;
@@ -122,6 +137,7 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model);
 int cpu_sh4_exec(CPUSH4State * s);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
+void sh4_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 				    uint32_t mem_value);
 
@@ -132,6 +148,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 #define cpu_exec cpu_sh4_exec
 #define cpu_gen_code cpu_sh4_gen_code
 #define cpu_signal_handler cpu_sh4_signal_handler
+#define cpu_list sh4_cpu_list
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

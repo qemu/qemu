@@ -176,16 +176,75 @@ void cpu_sh4_reset(CPUSH4State * env)
     env->mmucr = 0;
 }
 
+typedef struct {
+    const unsigned char *name;
+    int id;
+    uint32_t pvr;
+    uint32_t prr;
+    uint32_t cvr;
+} sh4_def_t;
+
+static sh4_def_t sh4_defs[] = {
+    {
+	.name = "SH7750R",
+	.id = SH_CPU_SH7750R,
+	.pvr = 0x00050000,
+	.prr = 0x00000100,
+	.cvr = 0x00110000,
+    }, {
+	.name = "SH7751R",
+	.id = SH_CPU_SH7751R,
+	.pvr = 0x04050005,
+	.prr = 0x00000113,
+	.cvr = 0x00110000,	/* Neutered caches, should be 0x20480000 */
+    },
+};
+
+static const sh4_def_t *cpu_sh4_find_by_name(const unsigned char *name)
+{
+    int i;
+
+    if (strcasecmp(name, "any") == 0)
+	return &sh4_defs[0];
+
+    for (i = 0; i < sizeof(sh4_defs) / sizeof(*sh4_defs); i++)
+	if (strcasecmp(name, sh4_defs[i].name) == 0)
+	    return &sh4_defs[i];
+
+    return NULL;
+}
+
+void sh4_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
+{
+    int i;
+
+    for (i = 0; i < sizeof(sh4_defs) / sizeof(*sh4_defs); i++)
+	(*cpu_fprintf)(f, "%s\n", sh4_defs[i].name);
+}
+
+static int cpu_sh4_register(CPUSH4State *env, const sh4_def_t *def)
+{
+    env->pvr = def->pvr;
+    env->prr = def->prr;
+    env->cvr = def->cvr;
+    env->id = def->id;
+}
+
 CPUSH4State *cpu_sh4_init(const char *cpu_model)
 {
     CPUSH4State *env;
+    const sh4_def_t *def;
 
+    def = cpu_sh4_find_by_name(cpu_model);
+    if (!def)
+	return NULL;
     env = qemu_mallocz(sizeof(CPUSH4State));
     if (!env)
 	return NULL;
     cpu_exec_init(env);
     sh4_translate_init();
     cpu_sh4_reset(env);
+    cpu_sh4_register(env, def);
     tlb_flush(env, 1);
     return env;
 }

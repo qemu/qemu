@@ -39,7 +39,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     struct SH7750State *s;
 
     if (!cpu_model)
-        cpu_model = "any";
+        cpu_model = "SH7751R";
 
     env = cpu_init(cpu_model);
     if (!env) {
