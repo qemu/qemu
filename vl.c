@@ -5792,7 +5792,6 @@ static int usb_device_add(const char *devname)
 {
     const char *p;
     USBDevice *dev;
-    USBPort *port;
 
     if (!free_usb_ports)
         return -1;
