@@ -795,7 +795,7 @@ __GEN_INT_ARITH1_O_64(name##o, opc1, opc2, opc3 | 0x10, type)
 /* add    add.    addo    addo.    */
 static always_inline void gen_op_addo (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addo();
 }
@@ -803,7 +803,7 @@ static always_inline void gen_op_addo (void)
 #define gen_op_add_64 gen_op_add
 static always_inline void gen_op_addo_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addo_64();
 }
@@ -812,13 +812,13 @@ GEN_INT_ARITH2_64 (add,    0x1F, 0x0A, 0x08, PPC_INTEGER);
 /* addc   addc.   addco   addco.   */
 static always_inline void gen_op_addc (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addc();
 }
 static always_inline void gen_op_addco (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addc();
     gen_op_check_addo();
@@ -826,13 +826,13 @@ static always_inline void gen_op_addco (void)
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_addc_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addc_64();
 }
 static always_inline void gen_op_addco_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add();
     gen_op_check_addc_64();
     gen_op_check_addo_64();
@@ -842,14 +842,14 @@ GEN_INT_ARITH2_64 (addc,   0x1F, 0x0A, 0x00, PPC_INTEGER);
 /* adde   adde.   addeo   addeo.   */
 static always_inline void gen_op_addeo (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_adde();
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_addeo_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_adde_64();
     gen_op_check_addo_64();
 }
@@ -858,13 +858,13 @@ GEN_INT_ARITH2_64 (adde,   0x1F, 0x0A, 0x04, PPC_INTEGER);
 /* addme  addme.  addmeo  addmeo.  */
 static always_inline void gen_op_addme (void)
 {
-    gen_op_move_T1_T0();
+    tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
     gen_op_add_me();
 }
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_addme_64 (void)
 {
-    gen_op_move_T1_T0();
+    tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
     gen_op_add_me_64();
 }
 #endif
@@ -872,13 +872,13 @@ GEN_INT_ARITH1_64 (addme,  0x1F, 0x0A, 0x07, PPC_INTEGER);
 /* addze  addze.  addzeo  addzeo.  */
 static always_inline void gen_op_addze (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add_ze();
     gen_op_check_addc();
 }
 static always_inline void gen_op_addzeo (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add_ze();
     gen_op_check_addc();
     gen_op_check_addo();
@@ -886,13 +886,13 @@ static always_inline void gen_op_addzeo (void)
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_addze_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add_ze();
     gen_op_check_addc_64();
 }
 static always_inline void gen_op_addzeo_64 (void)
 {
-    gen_op_move_T2_T0();
+    tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
     gen_op_add_ze();
     gen_op_check_addc_64();
     gen_op_check_addo_64();
@@ -999,7 +999,7 @@ GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
     gen_op_load_gpr_T0(rA(ctx->opcode));
     if (likely(simm != 0)) {
-        gen_op_move_T2_T0();
+        tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
         gen_op_addi(simm);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
@@ -1019,7 +1019,7 @@ GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
     gen_op_load_gpr_T0(rA(ctx->opcode));
     if (likely(simm != 0)) {
-        gen_op_move_T2_T0();
+        tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
         gen_op_addi(simm);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
@@ -1661,7 +1661,7 @@ GEN_HANDLER(srawi, 0x1F, 0x18, 0x19, 0x00000000, PPC_INTEGER)
     int mb, me;
     gen_op_load_gpr_T0(rS(ctx->opcode));
     if (SH(ctx->opcode) != 0) {
-        gen_op_move_T1_T0();
+        tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
         mb = 32 - SH(ctx->opcode);
         me = 31;
 #if defined(TARGET_PPC64)
@@ -1691,7 +1691,7 @@ static always_inline void gen_sradi (DisasContext *ctx, int n)
     gen_op_load_gpr_T0(rS(ctx->opcode));
     sh = SH(ctx->opcode) + (n << 5);
     if (sh != 0) {
-        gen_op_move_T1_T0();
+        tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
         mb = 64 - SH(ctx->opcode);
         me = 63;
         mask = MASK(mb, me);
@@ -4647,7 +4647,7 @@ static always_inline void gen_405_mulladd_insn (DisasContext *ctx,
     if (opc2 & 0x04) {
         /* (n)multiply-and-accumulate (0x0C - 0x0E) */
         gen_op_load_gpr_T2(rt);
-        gen_op_move_T1_T0();
+        tcg_gen_mov_tl(cpu_T[1], cpu_T[0]);
         gen_op_405_add_T0_T2();
     }
     if (opc3 & 0x10) {

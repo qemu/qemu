@@ -179,18 +179,6 @@ void OPPROTO op_set_T2 (void)
 }
 #endif
 
-void OPPROTO op_move_T1_T0 (void)
-{
-    T1 = T0;
-    RETURN();
-}
-
-void OPPROTO op_move_T2_T0 (void)
-{
-    T2 = T0;
-    RETURN();
-}
-
 void OPPROTO op_moven_T2_T0 (void)
 {
     T2 = ~T0;
