@@ -136,13 +136,6 @@ void OPPROTO op_set_Rc0 (void)
     RETURN();
 }
 
-/* Constants load */
-void OPPROTO op_moven_T2_T0 (void)
-{
-    T2 = ~T0;
-    RETURN();
-}
-
 /* Generate exceptions */
 void OPPROTO op_raise_exception_err (void)
 {
