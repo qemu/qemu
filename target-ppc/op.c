@@ -137,48 +137,6 @@ void OPPROTO op_set_Rc0 (void)
 }
 
 /* Constants load */
-void OPPROTO op_reset_T0 (void)
-{
-    T0 = 0;
-    RETURN();
-}
-
-void OPPROTO op_set_T0 (void)
-{
-    T0 = (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_set_T0_64 (void)
-{
-    T0 = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
-void OPPROTO op_set_T1 (void)
-{
-    T1 = (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_set_T1_64 (void)
-{
-    T1 = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
-#if 0 // unused
-void OPPROTO op_set_T2 (void)
-{
-    T2 = (uint32_t)PARAM1;
-    RETURN();
-}
-#endif
-
 void OPPROTO op_moven_T2_T0 (void)
 {
     T2 = ~T0;

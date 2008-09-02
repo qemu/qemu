@@ -1292,7 +1292,7 @@ GEN_HANDLER(xor, 0x1F, 0x1C, 0x09, 0x00000000, PPC_INTEGER)
         gen_op_load_gpr_T1(rB(ctx->opcode));
         gen_op_xor();
     } else {
-        gen_op_reset_T0();
+        tcg_gen_movi_tl(cpu_T[0], 0);
     }
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -2108,7 +2108,7 @@ static always_inline void gen_addr_reg_index (DisasContext *ctx)
 static always_inline void gen_addr_register (DisasContext *ctx)
 {
     if (rA(ctx->opcode) == 0) {
-        gen_op_reset_T0();
+        tcg_gen_movi_tl(cpu_T[0], 0);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
     }
@@ -2518,7 +2518,7 @@ GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING)
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_register(ctx);
-    gen_op_set_T1(nb);
+    tcg_gen_movi_tl(cpu_T[1], nb);
     op_ldsts(lswi, start);
 }
 
@@ -2548,7 +2548,7 @@ GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING)
     gen_addr_register(ctx);
     if (nb == 0)
         nb = 32;
-    gen_op_set_T1(nb);
+    tcg_gen_movi_tl(cpu_T[1], nb);
     op_ldsts(stsw, rS(ctx->opcode));
 }
 
@@ -3612,7 +3612,7 @@ GEN_HANDLER(mfsr, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_op_set_T1(SR(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SR(ctx->opcode));
     gen_op_load_sr();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
@@ -3646,7 +3646,7 @@ GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT)
         return;
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_set_T1(SR(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SR(ctx->opcode));
     gen_op_store_sr();
 #endif
 }
@@ -3680,7 +3680,7 @@ GEN_HANDLER2(mfsr_64b, "mfsr", 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT_64B)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_op_set_T1(SR(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SR(ctx->opcode));
     gen_op_load_slb();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
@@ -3715,7 +3715,7 @@ GEN_HANDLER2(mtsr_64b, "mtsr", 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT_64B)
         return;
     }
     gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_set_T1(SR(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SR(ctx->opcode));
     gen_op_store_slb();
 #endif
 }
@@ -3952,7 +3952,7 @@ GEN_HANDLER(dozo, 0x1F, 0x08, 0x18, 0x00000000, PPC_POWER_BR)
 GEN_HANDLER(dozi, 0x09, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
-    gen_op_set_T1(SIMM(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SIMM(ctx->opcode));
     gen_op_POWER_doz();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 }
@@ -4117,7 +4117,7 @@ GEN_HANDLER(sleq, 0x1F, 0x19, 0x06, 0x00000000, PPC_POWER_BR)
 GEN_HANDLER(sliq, 0x1F, 0x18, 0x05, 0x00000000, PPC_POWER_BR)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_set_T1(SH(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SH(ctx->opcode));
     gen_op_POWER_sle();
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -4128,7 +4128,7 @@ GEN_HANDLER(sliq, 0x1F, 0x18, 0x05, 0x00000000, PPC_POWER_BR)
 GEN_HANDLER(slliq, 0x1F, 0x18, 0x07, 0x00000000, PPC_POWER_BR)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_set_T1(SH(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SH(ctx->opcode));
     gen_op_POWER_sleq();
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -4161,7 +4161,7 @@ GEN_HANDLER(slq, 0x1F, 0x18, 0x04, 0x00000000, PPC_POWER_BR)
 GEN_HANDLER(sraiq, 0x1F, 0x18, 0x1D, 0x00000000, PPC_POWER_BR)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_set_T1(SH(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SH(ctx->opcode));
     gen_op_POWER_sraq();
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -4216,7 +4216,7 @@ GEN_HANDLER(sreq, 0x1F, 0x19, 0x16, 0x00000000, PPC_POWER_BR)
 GEN_HANDLER(sriq, 0x1F, 0x18, 0x15, 0x00000000, PPC_POWER_BR)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
-    gen_op_set_T1(SH(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SH(ctx->opcode));
     gen_op_POWER_srq();
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -4228,7 +4228,7 @@ GEN_HANDLER(srliq, 0x1F, 0x18, 0x17, 0x00000000, PPC_POWER_BR)
 {
     gen_op_load_gpr_T0(rS(ctx->opcode));
     gen_op_load_gpr_T1(rB(ctx->opcode));
-    gen_op_set_T1(SH(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SH(ctx->opcode));
     gen_op_POWER_srlq();
     gen_op_store_T0_gpr(rA(ctx->opcode));
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -4776,7 +4776,7 @@ GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_DCR)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_op_set_T0(dcrn);
+    tcg_gen_movi_tl(cpu_T[0], dcrn);
     gen_op_load_dcr();
     gen_op_store_T0_gpr(rD(ctx->opcode));
 #endif
@@ -4794,7 +4794,7 @@ GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_DCR)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_op_set_T0(dcrn);
+    tcg_gen_movi_tl(cpu_T[0], dcrn);
     gen_op_load_gpr_T1(rS(ctx->opcode));
     gen_op_store_dcr();
 #endif
@@ -5158,7 +5158,7 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_set_T0(ctx->opcode & 0x00010000);
+    tcg_gen_movi_tl(cpu_T[0], ctx->opcode & 0x00010000);
     gen_op_wrte();
     /* Stop translation to have a chance to raise an exception
      * if we just set msr_ee to 1
