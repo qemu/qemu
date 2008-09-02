@@ -478,8 +478,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                                  uint8_t *cmd, int lun)
 {
     SCSIDeviceState *s = d->state;
-    uint32_t len;
-    int cmdlen;
+    uint32_t len=0;
+    int cmdlen=0;
     SCSIRequest *r;
     int ret;
 
