@@ -35,7 +35,11 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
+#ifdef _WIN32
+#include <winsock2.h>
+#else
 #include <netinet/in.h>
+#endif
 
 #include "hw.h"
 #include "pci.h"
