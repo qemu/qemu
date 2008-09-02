@@ -80,26 +80,6 @@ static uint16_t *gen_fprf_buf[OPC_BUF_SIZE];
 static uint16_t **gen_fprf_ptr;
 #endif
 
-static always_inline void gen_set_T0 (target_ulong val)
-{
-#if defined(TARGET_PPC64)
-    if (val >> 32)
-        gen_op_set_T0_64(val >> 32, val);
-    else
-#endif
-        gen_op_set_T0(val);
-}
-
-static always_inline void gen_set_T1 (target_ulong val)
-{
-#if defined(TARGET_PPC64)
-    if (val >> 32)
-        gen_op_set_T1_64(val >> 32, val);
-    else
-#endif
-        gen_op_set_T1(val);
-}
-
 #define GEN8(func, NAME)                                                      \
 static GenOpFunc *NAME ## _table [8] = {                                      \
 NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
@@ -1004,7 +984,7 @@ GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
     if (rA(ctx->opcode) == 0) {
         /* li case */
-        gen_set_T0(simm);
+        tcg_gen_movi_tl(cpu_T[0], simm);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
         if (likely(simm != 0))
@@ -1060,7 +1040,7 @@ GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 
     if (rA(ctx->opcode) == 0) {
         /* lis case */
-        gen_set_T0(simm << 16);
+        tcg_gen_movi_tl(cpu_T[0], simm << 16);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
         if (likely(simm != 0))
@@ -1161,7 +1141,7 @@ GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL)
     uint32_t mask;
 
     if (rA(ctx->opcode) == 0) {
-        gen_set_T0(0);
+        tcg_gen_movi_tl(cpu_T[0], 0);
     } else {
         gen_op_load_gpr_T1(rA(ctx->opcode));
     }
@@ -2100,7 +2080,7 @@ static always_inline void gen_addr_imm_index (DisasContext *ctx,
 
     simm &= ~maskl;
     if (rA(ctx->opcode) == 0) {
-        gen_set_T0(simm);
+        tcg_gen_movi_tl(cpu_T[0], simm);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
         if (likely(simm != 0))
@@ -2823,7 +2803,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
         likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
-        gen_set_T1(dest);
+        tcg_gen_movi_tl(cpu_T[1], dest);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
             gen_op_b_T1_64();
@@ -2832,7 +2812,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
             gen_op_b_T1();
         tcg_gen_exit_tb((long)tb + n);
     } else {
-        gen_set_T1(dest);
+        tcg_gen_movi_tl(cpu_T[1], dest);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
             gen_op_b_T1_64();
@@ -3185,7 +3165,7 @@ GEN_HANDLER(tw, 0x1F, 0x04, 0x00, 0x00000001, PPC_FLOW)
 GEN_HANDLER(twi, 0x03, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
-    gen_set_T1(SIMM(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SIMM(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
     gen_update_nip(ctx, ctx->nip);
     gen_op_tw(TO(ctx->opcode));
@@ -3206,7 +3186,7 @@ GEN_HANDLER(td, 0x1F, 0x04, 0x02, 0x00000001, PPC_64B)
 GEN_HANDLER(tdi, 0x02, 0xFF, 0xFF, 0x00000000, PPC_64B)
 {
     gen_op_load_gpr_T0(rA(ctx->opcode));
-    gen_set_T1(SIMM(ctx->opcode));
+    tcg_gen_movi_tl(cpu_T[1], SIMM(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
     gen_update_nip(ctx, ctx->nip);
     gen_op_td(TO(ctx->opcode));
@@ -5335,7 +5315,7 @@ static always_inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
     target_long simm = rB(ctx->opcode);
 
     if (rA(ctx->opcode) == 0) {
-        gen_set_T0(simm << sh);
+        tcg_gen_movi_tl(cpu_T[0], simm << sh);
     } else {
         gen_op_load_gpr_T0(rA(ctx->opcode));
         if (likely(simm != 0))
