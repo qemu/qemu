@@ -156,7 +156,7 @@ enum {
 
 enum dma_ch_state
 {
-	RST = 0,
+	RST = 1,
 	STOPPED = 2,
 	RUNNING = 4
 };
@@ -398,7 +398,7 @@ static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 
 	saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
 
-	D(fprintf(logfile, "ch=%d buf=%x after=%x saved_data_buf=%x\n",
+	D(printf("ch=%d buf=%x after=%x saved_data_buf=%x\n",
 		 c,
 		 (uint32_t)ctrl->channels[c].current_d.buf,
 		 (uint32_t)ctrl->channels[c].current_d.after,
@@ -583,6 +583,17 @@ dma_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 }
 
 static void
+dma_update_state(struct fs_dma_ctrl *ctrl, int c)
+{
+	if ((ctrl->channels[c].regs[RW_CFG] & 1) != 3) {
+		if (ctrl->channels[c].regs[RW_CFG] & 2)
+			ctrl->channels[c].state = STOPPED;
+		if (!(ctrl->channels[c].regs[RW_CFG] & 1))
+			ctrl->channels[c].state = RST;
+	}
+}
+
+static void
 dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
         struct fs_dma_ctrl *ctrl = opaque;
@@ -599,9 +610,13 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 
 		case RW_CFG:
 			ctrl->channels[c].regs[addr] = value;
+			dma_update_state(ctrl, c);
 			break;
 		case RW_CMD:
 			/* continue.  */
+			if (value & ~1)
+				printf("Invalid store to ch=%d RW_CMD %x\n",
+				       c, value);
 			ctrl->channels[c].regs[addr] = value;
 			channel_continue(ctrl, c);
 			break;
@@ -622,6 +637,10 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 			break;
 
 		case RW_STREAM_CMD:
+			if (value & ~1023)
+				printf("Invalid store to ch=%d "
+				       "RW_STREAMCMD %x\n",
+				       c, value);
 			ctrl->channels[c].regs[addr] = value;
 			D(printf("stream_cmd ch=%d\n", c));
 			channel_stream_cmd(ctrl, c, value);
