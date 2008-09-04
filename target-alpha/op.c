@@ -131,12 +131,6 @@ void OPPROTO op_no_op (void)
     RETURN();
 }
 
-void OPPROTO op_tb_flush (void)
-{
-    helper_tb_flush();
-    RETURN();
-}
-
 /* Load and stores */
 #define MEMSUFFIX _raw
 #include "op_mem.h"
@@ -153,13 +147,6 @@ void OPPROTO op_tb_flush (void)
 #define MEMSUFFIX _data
 #include "op_mem.h"
 #endif
-
-/* Special operation for load and store */
-void OPPROTO op_n7 (void)
-{
-    T0 &= ~(uint64_t)0x7;
-    RETURN();
-}
 
 /* Misc */
 void OPPROTO op_excp (void)
@@ -262,18 +249,6 @@ void OPPROTO op_subl (void)
 void OPPROTO op_sublv (void)
 {
     helper_sublv();
-    RETURN();
-}
-
-void OPPROTO op_s4 (void)
-{
-    T0 <<= 2;
-    RETURN();
-}
-
-void OPPROTO op_s8 (void)
-{
-    T0 <<= 3;
     RETURN();
 }
 
@@ -652,19 +627,6 @@ void OPPROTO op_cmplbc (void)
     RETURN();
 }
 
-/* Branches */
-void OPPROTO op_branch (void)
-{
-    env->pc = T0 & ~3;
-    RETURN();
-}
-
-void OPPROTO op_addq1 (void)
-{
-    T1 += T0;
-    RETURN();
-}
-
 #if 0 // Qemu does not know how to do this...
 void OPPROTO op_bcond (void)
 {
@@ -684,27 +646,6 @@ void OPPROTO op_bcond (void)
     RETURN();
 }
 #endif
-
-#if 0 // Qemu does not know how to do this...
-void OPPROTO op_update_pc (void)
-{
-    env->pc = PARAM(1);
-    RETURN();
-}
-#else
-void OPPROTO op_update_pc (void)
-{
-    env->pc = ((uint64_t)PARAM(1) << 32) | (uint64_t)PARAM(2);
-    RETURN();
-}
-#endif
-
-/* Optimization for 32 bits hosts architectures */
-void OPPROTO op_update_pc32 (void)
-{
-    env->pc = (uint64_t)PARAM(1);
-    RETURN();
-}
 
 /* IEEE floating point arithmetic */
 /* S floating (single) */

@@ -35,12 +35,11 @@
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR92C990.txt
  */
 
-#include <netinet/in.h>
-
 #include "hw.h"
 #include "pci.h"
 #include "net.h"
 #include "qemu-timer.h"
+#include "qemu_socket.h"
 
 //#define PCNET_DEBUG
 //#define PCNET_DEBUG_IO

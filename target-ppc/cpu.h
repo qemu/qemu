@@ -27,23 +27,11 @@
 
 #if defined (TARGET_PPC64)
 /* PowerPC 64 definitions */
-typedef uint64_t ppc_gpr_t;
 #define TARGET_LONG_BITS 64
 #define TARGET_PAGE_BITS 12
 
 #else /* defined (TARGET_PPC64) */
 /* PowerPC 32 definitions */
-#if (HOST_LONG_BITS >= 64)
-/* When using 64 bits temporary registers,
- * we can use 64 bits GPR with no extra cost
- * It's even an optimization as this will prevent
- * the compiler to do unuseful masking in the micro-ops.
- */
-typedef uint64_t ppc_gpr_t;
-#else /* (HOST_LONG_BITS >= 64) */
-typedef uint32_t ppc_gpr_t;
-#endif /* (HOST_LONG_BITS >= 64) */
-
 #define TARGET_LONG_BITS 32
 
 #if defined(TARGET_PPCEMB)
@@ -541,26 +529,29 @@ struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
      */
-#if (HOST_LONG_BITS == 32)
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+    target_ulong t0, t1, t2;
+#endif
+#if !defined(TARGET_PPC64)
     /* temporary fixed-point registers
-     * used to emulate 64 bits registers on 32 bits hosts
+     * used to emulate 64 bits registers on 32 bits targets
      */
-    uint64_t t0, t1, t2;
+    uint64_t t0_64, t1_64, t2_64;
 #endif
     ppc_avr_t avr0, avr1, avr2;
 
     /* general purpose registers */
-    ppc_gpr_t gpr[32];
+    target_ulong gpr[32];
 #if !defined(TARGET_PPC64)
     /* Storage for GPR MSB, used by the SPE extension */
-    ppc_gpr_t gprh[32];
+    target_ulong gprh[32];
 #endif
     /* LR */
     target_ulong lr;
     /* CTR */
     target_ulong ctr;
     /* condition register */
-    uint8_t crf[8];
+    uint32_t crf[8];
     /* XER */
     /* XXX: We use only 5 fields, but we want to keep the structure aligned */
     uint8_t xer[8];
@@ -571,7 +562,7 @@ struct CPUPPCState {
     /* machine state register */
     target_ulong msr;
     /* temporary general purpose registers */
-    ppc_gpr_t tgpr[4]; /* Used to speed-up TLB assist handlers */
+    target_ulong tgpr[4]; /* Used to speed-up TLB assist handlers */
 
     /* Floating point execution context */
     /* temporary float registers */
@@ -624,7 +615,7 @@ struct CPUPPCState {
     ppc_avr_t avr[32];
     uint32_t vscr;
     /* SPE registers */
-    ppc_gpr_t spe_acc;
+    target_ulong spe_acc;
     float_status spe_status;
     uint32_t spe_fscr;
 

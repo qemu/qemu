@@ -26,102 +26,6 @@
 #include "helper_regs.h"
 #include "op_helper.h"
 
-#define REG 0
-#include "op_template.h"
-
-#define REG 1
-#include "op_template.h"
-
-#define REG 2
-#include "op_template.h"
-
-#define REG 3
-#include "op_template.h"
-
-#define REG 4
-#include "op_template.h"
-
-#define REG 5
-#include "op_template.h"
-
-#define REG 6
-#include "op_template.h"
-
-#define REG 7
-#include "op_template.h"
-
-#define REG 8
-#include "op_template.h"
-
-#define REG 9
-#include "op_template.h"
-
-#define REG 10
-#include "op_template.h"
-
-#define REG 11
-#include "op_template.h"
-
-#define REG 12
-#include "op_template.h"
-
-#define REG 13
-#include "op_template.h"
-
-#define REG 14
-#include "op_template.h"
-
-#define REG 15
-#include "op_template.h"
-
-#define REG 16
-#include "op_template.h"
-
-#define REG 17
-#include "op_template.h"
-
-#define REG 18
-#include "op_template.h"
-
-#define REG 19
-#include "op_template.h"
-
-#define REG 20
-#include "op_template.h"
-
-#define REG 21
-#include "op_template.h"
-
-#define REG 22
-#include "op_template.h"
-
-#define REG 23
-#include "op_template.h"
-
-#define REG 24
-#include "op_template.h"
-
-#define REG 25
-#include "op_template.h"
-
-#define REG 26
-#include "op_template.h"
-
-#define REG 27
-#include "op_template.h"
-
-#define REG 28
-#include "op_template.h"
-
-#define REG 29
-#include "op_template.h"
-
-#define REG 30
-#include "op_template.h"
-
-#define REG 31
-#include "op_template.h"
-
 void OPPROTO op_print_mem_EA (void)
 {
     do_print_mem_EA(T0);
@@ -136,74 +40,11 @@ void OPPROTO op_set_Rc0 (void)
     RETURN();
 }
 
-/* Constants load */
-void OPPROTO op_reset_T0 (void)
-{
-    T0 = 0;
-    RETURN();
-}
-
-void OPPROTO op_set_T0 (void)
-{
-    T0 = (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_set_T0_64 (void)
-{
-    T0 = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
-void OPPROTO op_set_T1 (void)
-{
-    T1 = (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_set_T1_64 (void)
-{
-    T1 = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
-#if 0 // unused
-void OPPROTO op_set_T2 (void)
-{
-    T2 = (uint32_t)PARAM1;
-    RETURN();
-}
-#endif
-
-void OPPROTO op_moven_T2_T0 (void)
-{
-    T2 = ~T0;
-    RETURN();
-}
-
 /* Generate exceptions */
 void OPPROTO op_raise_exception_err (void)
 {
     do_raise_exception_err(PARAM1, PARAM2);
 }
-
-void OPPROTO op_update_nip (void)
-{
-    env->nip = (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_update_nip_64 (void)
-{
-    env->nip = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
 
 void OPPROTO op_debug (void)
 {
@@ -220,18 +61,6 @@ void OPPROTO op_load_cr (void)
 void OPPROTO op_store_cr (void)
 {
     do_store_cr(PARAM1);
-    RETURN();
-}
-
-void OPPROTO op_load_cro (void)
-{
-    T0 = env->crf[PARAM1];
-    RETURN();
-}
-
-void OPPROTO op_store_cro (void)
-{
-    env->crf[PARAM1] = T0;
     RETURN();
 }
 
@@ -622,8 +451,6 @@ void OPPROTO op_store_fpscr (void)
 }
 
 /* Branch */
-#define EIP env->nip
-
 void OPPROTO op_setlr (void)
 {
     env->lr = (uint32_t)PARAM1;
@@ -634,20 +461,6 @@ void OPPROTO op_setlr (void)
 void OPPROTO op_setlr_64 (void)
 {
     env->lr = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
-void OPPROTO op_b_T1 (void)
-{
-    env->nip = (uint32_t)(T1 & ~3);
-    RETURN();
-}
-
-#if defined (TARGET_PPC64)
-void OPPROTO op_b_T1_64 (void)
-{
-    env->nip = (uint64_t)(T1 & ~3);
     RETURN();
 }
 #endif

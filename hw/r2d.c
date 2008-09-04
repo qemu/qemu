@@ -27,7 +27,6 @@
 #include "sh.h"
 #include "sysemu.h"
 #include "boards.h"
-#include "assert.h"
 
 #define SDRAM_BASE 0x0c000000 /* Physical location of SDRAM: Area 3 */
 #define SDRAM_SIZE 0x04000000
@@ -100,29 +99,16 @@ r2d_fpga_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static uint32_t invalid_read(void *opaque, target_phys_addr_t addr)
-{
-    assert(0);
-
-    return 0;
-}
-
-static void invalid_write(void *opaque, target_phys_addr_t addr,
-			  uint32_t mem_value)
-{
-    assert(0);
-}
-
 static CPUReadMemoryFunc *r2d_fpga_readfn[] = {
     r2d_fpga_read,
     r2d_fpga_read,
-    invalid_read,
+    NULL,
 };
 
 static CPUWriteMemoryFunc *r2d_fpga_writefn[] = {
     r2d_fpga_write,
     r2d_fpga_write,
-    invalid_write,
+    NULL,
 };
 
 static void r2d_fpga_init(target_phys_addr_t base)

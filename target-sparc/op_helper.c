@@ -1402,10 +1402,17 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     address_mask(env, &addr);
 
     switch (asi) {
-    case 0x80: // Primary
     case 0x82: // Primary no-fault
-    case 0x88: // Primary LE
     case 0x8a: // Primary no-fault LE
+        if (page_check_range(addr, size, PAGE_READ) == -1) {
+#ifdef DEBUG_ASI
+            dump_asi("read ", last_addr, asi, size, ret);
+#endif
+            return 0;
+        }
+        // Fall through
+    case 0x80: // Primary
+    case 0x88: // Primary LE
         {
             switch(size) {
             case 1:
@@ -1424,10 +1431,17 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             }
         }
         break;
-    case 0x81: // Secondary
     case 0x83: // Secondary no-fault
-    case 0x89: // Secondary LE
     case 0x8b: // Secondary no-fault LE
+        if (page_check_range(addr, size, PAGE_READ) == -1) {
+#ifdef DEBUG_ASI
+            dump_asi("read ", last_addr, asi, size, ret);
+#endif
+            return 0;
+        }
+        // Fall through
+    case 0x81: // Secondary
+    case 0x89: // Secondary LE
         // XXX
         break;
     default:
@@ -1564,12 +1578,19 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
 
     helper_check_align(addr, size - 1);
     switch (asi) {
+    case 0x82: // Primary no-fault
+    case 0x8a: // Primary no-fault LE
+        if (cpu_get_phys_page_debug(env, addr) == -1ULL) {
+#ifdef DEBUG_ASI
+            dump_asi("read ", last_addr, asi, size, ret);
+#endif
+            return 0;
+        }
+        // Fall through
     case 0x10: // As if user primary
     case 0x18: // As if user primary LE
     case 0x80: // Primary
-    case 0x82: // Primary no-fault
     case 0x88: // Primary LE
-    case 0x8a: // Primary no-fault LE
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
             if ((env->def->features & CPU_FEATURE_HYPV)
                 && env->hpstate & HS_PRIV) {
@@ -1650,15 +1671,22 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         //  Only ldda allowed
         raise_exception(TT_ILL_INSN);
         return 0;
+    case 0x83: // Secondary no-fault
+    case 0x8b: // Secondary no-fault LE
+        if (cpu_get_phys_page_debug(env, addr) == -1ULL) {
+#ifdef DEBUG_ASI
+            dump_asi("read ", last_addr, asi, size, ret);
+#endif
+            return 0;
+        }
+        // Fall through
     case 0x04: // Nucleus
     case 0x0c: // Nucleus Little Endian (LE)
     case 0x11: // As if user secondary
     case 0x19: // As if user secondary LE
     case 0x4a: // UPA config
     case 0x81: // Secondary
-    case 0x83: // Secondary no-fault
     case 0x89: // Secondary LE
-    case 0x8b: // Secondary no-fault LE
         // XXX
         break;
     case 0x45: // LSU

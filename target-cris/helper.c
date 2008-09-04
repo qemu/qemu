@@ -74,7 +74,6 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 
 	D(printf ("%s addr=%x pc=%x rw=%x\n", __func__, address, env->pc, rw));
 	address &= TARGET_PAGE_MASK;
-	prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 	miss = cris_mmu_translate(&res, env, address, rw, mmu_idx);
 	if (miss)
 	{
@@ -92,7 +91,6 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	{
 		phy = res.phy;
 		prot = res.prot;
-		address &= TARGET_PAGE_MASK;
 		r = tlb_set_page(env, address, phy, prot, mmu_idx, is_softmmu);
 	}
 	if (r > 0)

@@ -42,7 +42,7 @@ static always_inline void hreg_store_xer (CPUPPCState *env, target_ulong value)
 /* Swap temporary saved registers with GPRs */
 static always_inline void hreg_swap_gpr_tgpr (CPUPPCState *env)
 {
-    ppc_gpr_t tmp;
+    target_ulong tmp;
 
     tmp = env->gpr[0];
     env->gpr[0] = env->tgpr[0];

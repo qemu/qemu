@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "helper.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
 
@@ -43,16 +44,59 @@ struct DisasContext {
     uint32_t amask;
 };
 
+/* global register indexes */
 static TCGv cpu_env;
+static TCGv cpu_ir[31];
+static TCGv cpu_pc;
+
+/* dyngen register indexes */
+static TCGv cpu_T[3];
+
+/* register names */
+static char cpu_reg_names[5*31];
 
 #include "gen-icount.h"
 
 static void alpha_translate_init(void)
 {
+    int i;
+    char *p;
     static int done_init = 0;
+
     if (done_init)
         return;
+
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+
+#if TARGET_LONG_BITS > HOST_LONG_BITS
+    cpu_T[0] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                  offsetof(CPUState, t0), "T0");
+    cpu_T[1] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                  offsetof(CPUState, t1), "T1");
+    cpu_T[2] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                  offsetof(CPUState, t2), "T2");
+#else
+    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_I64, TCG_AREG1, "T0");
+    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_I64, TCG_AREG2, "T1");
+    cpu_T[2] = tcg_global_reg_new(TCG_TYPE_I64, TCG_AREG3, "T2");
+#endif
+
+    p = cpu_reg_names;
+    for (i = 0; i < 31; i++) {
+        sprintf(p, "ir%d", i);
+        cpu_ir[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                       offsetof(CPUState, ir[i]), p);
+        p += 4;
+    }
+
+    cpu_pc = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                offsetof(CPUState, pc), "pc");
+
+    /* register helpers */
+#undef DEF_HELPER
+#define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
+#include "helper.h"
+
     done_init = 1;
 }
 
@@ -81,50 +125,8 @@ static always_inline void func (int n)                                        \
 
 /* IR moves */
 /* Special hacks for ir31 */
-#define gen_op_load_T0_ir31 gen_op_reset_T0
-#define gen_op_load_T1_ir31 gen_op_reset_T1
-#define gen_op_load_T2_ir31 gen_op_reset_T2
-#define gen_op_store_T0_ir31 gen_op_nop
-#define gen_op_store_T1_ir31 gen_op_nop
-#define gen_op_store_T2_ir31 gen_op_nop
 #define gen_op_cmov_ir31 gen_op_nop
-GEN32(gen_op_load_T0_ir, gen_op_load_T0_ir);
-GEN32(gen_op_load_T1_ir, gen_op_load_T1_ir);
-GEN32(gen_op_load_T2_ir, gen_op_load_T2_ir);
-GEN32(gen_op_store_T0_ir, gen_op_store_T0_ir);
-GEN32(gen_op_store_T1_ir, gen_op_store_T1_ir);
-GEN32(gen_op_store_T2_ir, gen_op_store_T2_ir);
 GEN32(gen_op_cmov_ir, gen_op_cmov_ir);
-
-static always_inline void gen_load_ir (DisasContext *ctx, int irn, int Tn)
-{
-    switch (Tn) {
-    case 0:
-        gen_op_load_T0_ir(irn);
-        break;
-    case 1:
-        gen_op_load_T1_ir(irn);
-        break;
-    case 2:
-        gen_op_load_T2_ir(irn);
-        break;
-    }
-}
-
-static always_inline void gen_store_ir (DisasContext *ctx, int irn, int Tn)
-{
-    switch (Tn) {
-    case 0:
-        gen_op_store_T0_ir(irn);
-        break;
-    case 1:
-        gen_op_store_T1_ir(irn);
-        break;
-    case 2:
-        gen_op_store_T2_ir(irn);
-        break;
-    }
-}
 
 /* FIR moves */
 /* Special hacks for fir31 */
@@ -240,133 +242,6 @@ GEN_ST(s);
 GEN_LD(t);
 GEN_ST(t);
 
-#if defined(__i386__) || defined(__x86_64__)
-static always_inline void gen_op_set_s16_T0 (int16_t imm)
-{
-    gen_op_set_s32_T0((int32_t)imm);
-}
-
-static always_inline void gen_op_set_s16_T1 (int16_t imm)
-{
-    gen_op_set_s32_T1((int32_t)imm);
-}
-
-static always_inline void gen_op_set_u16_T0 (uint16_t imm)
-{
-    gen_op_set_s32_T0((uint32_t)imm);
-}
-
-static always_inline void gen_op_set_u16_T1 (uint16_t imm)
-{
-    gen_op_set_s32_T1((uint32_t)imm);
-}
-#endif
-
-static always_inline void gen_set_sT0 (DisasContext *ctx, int64_t imm)
-{
-    int32_t imm32;
-    int16_t imm16;
-
-    imm32 = imm;
-    if (imm32 == imm) {
-        imm16 = imm;
-        if (imm16 == imm) {
-            if (imm == 0) {
-                gen_op_reset_T0();
-            } else {
-                gen_op_set_s16_T0(imm16);
-            }
-        } else {
-            gen_op_set_s32_T0(imm32);
-        }
-    } else {
-#if 0 // Qemu does not know how to do this...
-        gen_op_set_64_T0(imm);
-#else
-        gen_op_set_64_T0(imm >> 32, imm);
-#endif
-    }
-}
-
-static always_inline void gen_set_sT1 (DisasContext *ctx, int64_t imm)
-{
-    int32_t imm32;
-    int16_t imm16;
-
-    imm32 = imm;
-    if (imm32 == imm) {
-        imm16 = imm;
-        if (imm16 == imm) {
-            if (imm == 0) {
-                gen_op_reset_T1();
-            } else {
-                gen_op_set_s16_T1(imm16);
-            }
-        } else {
-            gen_op_set_s32_T1(imm32);
-        }
-    } else {
-#if 0 // Qemu does not know how to do this...
-        gen_op_set_64_T1(imm);
-#else
-        gen_op_set_64_T1(imm >> 32, imm);
-#endif
-    }
-}
-
-static always_inline void gen_set_uT0 (DisasContext *ctx, uint64_t imm)
-{
-    if (!(imm >> 32)) {
-        if ((!imm >> 16)) {
-            if (imm == 0)
-                gen_op_reset_T0();
-            else
-                gen_op_set_u16_T0(imm);
-        } else {
-            gen_op_set_u32_T0(imm);
-        }
-    } else {
-#if 0 // Qemu does not know how to do this...
-        gen_op_set_64_T0(imm);
-#else
-        gen_op_set_64_T0(imm >> 32, imm);
-#endif
-    }
-}
-
-static always_inline void gen_set_uT1 (DisasContext *ctx, uint64_t imm)
-{
-    if (!(imm >> 32)) {
-        if ((!imm >> 16)) {
-            if (imm == 0)
-                gen_op_reset_T1();
-            else
-                gen_op_set_u16_T1(imm);
-        } else {
-            gen_op_set_u32_T1(imm);
-        }
-    } else {
-#if 0 // Qemu does not know how to do this...
-        gen_op_set_64_T1(imm);
-#else
-        gen_op_set_64_T1(imm >> 32, imm);
-#endif
-    }
-}
-
-static always_inline void gen_update_pc (DisasContext *ctx)
-{
-    if (!(ctx->pc >> 32)) {
-        gen_op_update_pc32(ctx->pc);
-    } else {
-#if 0 // Qemu does not know how to do this...
-        gen_op_update_pc(ctx->pc);
-#else
-        gen_op_update_pc(ctx->pc >> 32, ctx->pc);
-#endif
-    }
-}
-
 static always_inline void _gen_op_bcond (DisasContext *ctx)
 {
 #if 0 // Qemu does not know how to do this...
@@ -379,7 +254,7 @@ static always_inline void _gen_op_bcond (DisasContext *ctx)
 static always_inline void gen_excp (DisasContext *ctx,
                                     int exception, int error_code)
 {
-    gen_update_pc(ctx);
+    tcg_gen_movi_i64(cpu_pc, ctx->pc);
     gen_op_excp(exception, error_code);
 }
 
@@ -397,15 +272,15 @@ static always_inline void gen_load_mem (DisasContext *ctx,
         /* UNOP */
         gen_op_nop();
     } else {
-        gen_load_ir(ctx, rb, 0);
-        if (disp16 != 0) {
-            gen_set_sT1(ctx, disp16);
-            gen_op_addq();
-        }
+        if (rb != 31)
+            tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
+        else
+            tcg_gen_movi_i64(cpu_T[0], disp16);
         if (clear)
-            gen_op_n7();
+            tcg_gen_andi_i64(cpu_T[0], cpu_T[0], ~0x7);
         (*gen_load_op)(ctx);
-        gen_store_ir(ctx, ra, 1);
+        if (ra != 31)
+            tcg_gen_mov_i64(cpu_ir[ra], cpu_T[1]);
     }
 }
 
@@ -414,14 +289,16 @@ static always_inline void gen_store_mem (DisasContext *ctx,
                                          int ra, int rb, int32_t disp16,
                                          int clear)
 {
-    gen_load_ir(ctx, rb, 0);
-    if (disp16 != 0) {
-        gen_set_sT1(ctx, disp16);
-        gen_op_addq();
-    }
+    if (rb != 31)
+        tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
+    else
+        tcg_gen_movi_i64(cpu_T[0], disp16);
     if (clear)
-        gen_op_n7();
-    gen_load_ir(ctx, ra, 1);
+        tcg_gen_andi_i64(cpu_T[0], cpu_T[0], ~0x7);
+    if (ra != 31)
+        tcg_gen_mov_i64(cpu_T[1], cpu_ir[ra]);
+    else
+        tcg_gen_movi_i64(cpu_T[1], 0);
     (*gen_store_op)(ctx);
 }
 
@@ -429,11 +306,10 @@ static always_inline void gen_load_fmem (DisasContext *ctx,
                                          void (*gen_load_fop)(DisasContext *ctx),
                                          int ra, int rb, int32_t disp16)
 {
-    gen_load_ir(ctx, rb, 0);
-    if (disp16 != 0) {
-        gen_set_sT1(ctx, disp16);
-        gen_op_addq();
-    }
+    if (rb != 31)
+        tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
+    else
+        tcg_gen_movi_i64(cpu_T[0], disp16);
     (*gen_load_fop)(ctx);
     gen_store_fir(ctx, ra, 1);
 }
@@ -442,11 +318,10 @@ static always_inline void gen_store_fmem (DisasContext *ctx,
                                           void (*gen_store_fop)(DisasContext *ctx),
                                           int ra, int rb, int32_t disp16)
 {
-    gen_load_ir(ctx, rb, 0);
-    if (disp16 != 0) {
-        gen_set_sT1(ctx, disp16);
-        gen_op_addq();
-    }
+    if (rb != 31)
+        tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
+    else
+        tcg_gen_movi_i64(cpu_T[0], disp16);
     gen_load_fir(ctx, ra, 1);
     (*gen_store_fop)(ctx);
 }
@@ -455,14 +330,11 @@ static always_inline void gen_bcond (DisasContext *ctx,
                                      void (*gen_test_op)(void),
                                      int ra, int32_t disp16)
 {
-    if (disp16 != 0) {
-        gen_set_uT0(ctx, ctx->pc);
-        gen_set_sT1(ctx, disp16 << 2);
-        gen_op_addq1();
-    } else {
-        gen_set_uT1(ctx, ctx->pc);
-    }
-    gen_load_ir(ctx, ra, 0);
+    tcg_gen_movi_i64(cpu_T[1], ctx->pc + (int64_t)(disp16 << 2));
+    if (ra != 31)
+        tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
+    else
+        tcg_gen_movi_i64(cpu_T[0], 0);
     (*gen_test_op)();
     _gen_op_bcond(ctx);
 }
@@ -471,13 +343,7 @@ static always_inline void gen_fbcond (DisasContext *ctx,
                                       void (*gen_test_op)(void),
                                       int ra, int32_t disp16)
 {
-    if (disp16 != 0) {
-        gen_set_uT0(ctx, ctx->pc);
-        gen_set_sT1(ctx, disp16 << 2);
-        gen_op_addq1();
-    } else {
-        gen_set_uT1(ctx, ctx->pc);
-    }
+    tcg_gen_movi_i64(cpu_T[1], ctx->pc + (int64_t)(disp16 << 2));
     gen_load_fir(ctx, ra, 0);
     (*gen_test_op)();
     _gen_op_bcond(ctx);
@@ -488,11 +354,14 @@ static always_inline void gen_arith2 (DisasContext *ctx,
                                       int rb, int rc, int islit, int8_t lit)
 {
     if (islit)
-        gen_set_sT0(ctx, lit);
+        tcg_gen_movi_i64(cpu_T[0], lit);
+    else if (rb != 31)
+        tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
     else
-        gen_load_ir(ctx, rb, 0);
+        tcg_gen_movi_i64(cpu_T[0], 0);
     (*gen_arith_op)();
-    gen_store_ir(ctx, rc, 0);
+    if (rc != 31)
+        tcg_gen_mov_i64(cpu_ir[rc], cpu_T[0]);
 }
 
 static always_inline void gen_arith3 (DisasContext *ctx,
@@ -500,13 +369,19 @@ static always_inline void gen_arith3 (DisasContext *ctx,
                                       int ra, int rb, int rc,
                                       int islit, int8_t lit)
 {
-    gen_load_ir(ctx, ra, 0);
-    if (islit)
-        gen_set_sT1(ctx, lit);
+    if (ra != 31)
+        tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
     else
-        gen_load_ir(ctx, rb, 1);
+        tcg_gen_movi_i64(cpu_T[0], 0);
+    if (islit)
+        tcg_gen_movi_i64(cpu_T[1], lit);
+    else if (rb != 31)
+        tcg_gen_mov_i64(cpu_T[1], cpu_ir[rb]);
+    else
+        tcg_gen_movi_i64(cpu_T[1], 0);
     (*gen_arith_op)();
-    gen_store_ir(ctx, rc, 0);
+    if (rc != 31)
+        tcg_gen_mov_i64(cpu_ir[rc], cpu_T[0]);
 }
 
 static always_inline void gen_cmov (DisasContext *ctx,
@@ -514,11 +389,16 @@ static always_inline void gen_cmov (DisasContext *ctx,
                                     int ra, int rb, int rc,
                                     int islit, int8_t lit)
 {
-    gen_load_ir(ctx, ra, 1);
-    if (islit)
-        gen_set_sT0(ctx, lit);
+    if (ra != 31)
+        tcg_gen_mov_i64(cpu_T[1], cpu_ir[ra]);
     else
-        gen_load_ir(ctx, rb, 0);
+        tcg_gen_movi_i64(cpu_T[1], 0);
+    if (islit)
+        tcg_gen_movi_i64(cpu_T[0], lit);
+    else if (rb != 31)
+        tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+    else
+        tcg_gen_movi_i64(cpu_T[0], 0);
     (*gen_test_op)();
     gen_op_cmov_ir(rc);
 }
@@ -558,64 +438,68 @@ static always_inline void gen_fti (DisasContext *ctx,
 {
     gen_load_fir(ctx, rc, 0);
     (*gen_move_fop)();
-    gen_store_ir(ctx, ra, 0);
+    if (ra != 31)
+        tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
 }
 
 static always_inline void gen_itf (DisasContext *ctx,
                                    void (*gen_move_fop)(void),
                                    int ra, int rc)
 {
-    gen_load_ir(ctx, ra, 0);
+    if (ra != 31)
+        tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
+    else
+        tcg_gen_movi_i64(cpu_T[0], 0);
     (*gen_move_fop)();
     gen_store_fir(ctx, rc, 0);
 }
 
 static always_inline void gen_s4addl (void)
 {
-    gen_op_s4();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
     gen_op_addl();
 }
 
 static always_inline void gen_s4subl (void)
 {
-    gen_op_s4();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
     gen_op_subl();
 }
 
 static always_inline void gen_s8addl (void)
 {
-    gen_op_s8();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
     gen_op_addl();
 }
 
 static always_inline void gen_s8subl (void)
 {
-    gen_op_s8();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
     gen_op_subl();
 }
 
 static always_inline void gen_s4addq (void)
 {
-    gen_op_s4();
-    gen_op_addq();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
+    tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
 }
 
 static always_inline void gen_s4subq (void)
 {
-    gen_op_s4();
-    gen_op_subq();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
+    tcg_gen_sub_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
 }
 
 static always_inline void gen_s8addq (void)
 {
-    gen_op_s8();
-    gen_op_addq();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
+    tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
 }
 
 static always_inline void gen_s8subq (void)
 {
-    gen_op_s8();
-    gen_op_subq();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
+    tcg_gen_sub_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
 }
 
 static always_inline void gen_amask (void)
@@ -700,17 +584,21 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         goto invalid_opc;
     case 0x08:
         /* LDA */
-        gen_load_ir(ctx, rb, 0);
-        gen_set_sT1(ctx, disp16);
-        gen_op_addq();
-        gen_store_ir(ctx, ra, 0);
+        if (ra != 31) {
+            if (rb != 31)
+                tcg_gen_addi_i64(cpu_ir[ra], cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(cpu_ir[ra], disp16);
+        }
         break;
     case 0x09:
         /* LDAH */
-        gen_load_ir(ctx, rb, 0);
-        gen_set_sT1(ctx, disp16 << 16);
-        gen_op_addq();
-        gen_store_ir(ctx, ra, 0);
+        if (ra != 31) {
+            if (rb != 31)
+                tcg_gen_addi_i64(cpu_ir[ra], cpu_ir[rb], disp16 << 16);
+            else
+                tcg_gen_movi_i64(cpu_ir[ra], disp16 << 16);
+        }
         break;
     case 0x0A:
         /* LDBU */
@@ -864,8 +752,12 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                     gen_op_nop();
                 } else {
                     /* MOV */
-                    gen_load_ir(ctx, rb, 0);
-                    gen_store_ir(ctx, rc, 0);
+                    if (rc != 31) {
+                        if (rb != 31)
+                            tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
+                        else
+                            tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    }
                 }
             } else {
                 gen_arith3(ctx, &gen_op_bis, ra, rb, rc, islit, lit);
@@ -914,7 +806,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         case 0x6C:
             /* IMPLVER */
             gen_op_load_implver();
-            gen_store_ir(ctx, rc, 0);
+            if (rc != 31)
+                tcg_gen_mov_i64(cpu_ir[rc], cpu_T[0]);
             break;
         default:
             goto invalid_opc;
@@ -1380,12 +1273,14 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         case 0xC000:
             /* RPCC */
             gen_op_load_pcc();
-            gen_store_ir(ctx, ra, 0);
+            if (ra != 31)
+                tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
             break;
         case 0xE000:
             /* RC */
             gen_op_load_irf();
-            gen_store_ir(ctx, ra, 0);
+            if (ra != 31)
+                tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
             gen_op_clear_irf();
             break;
         case 0xE800:
@@ -1400,7 +1295,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         case 0xF000:
             /* RS */
             gen_op_load_irf();
-            gen_store_ir(ctx, ra, 0);
+            if (ra != 31)
+                tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
             gen_op_set_irf();
             break;
         case 0xF800:
@@ -1419,16 +1315,17 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         if (!ctx->pal_mode)
             goto invalid_opc;
         gen_op_mfpr(insn & 0xFF);
-        gen_store_ir(ctx, ra, 0);
+        if (ra != 31)
+            tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
         break;
 #endif
     case 0x1A:
-        gen_load_ir(ctx, rb, 0);
-        if (ra != 31) {
-            gen_set_uT1(ctx, ctx->pc);
-            gen_store_ir(ctx, ra, 1);
-        }
-        gen_op_branch();
+        if (ra != 31)
+            tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
+        if (rb != 31)
+            tcg_gen_andi_i64(cpu_pc, cpu_ir[rb], ~3);
+        else
+            tcg_gen_movi_i64(cpu_pc, 0);
         /* Those four jumps only differ by the branch prediction hint */
         switch (fn2) {
         case 0x0:
@@ -1453,9 +1350,12 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 #else
         if (!ctx->pal_mode)
             goto invalid_opc;
-        gen_load_ir(ctx, rb, 0);
-        gen_set_sT1(ctx, disp12);
-        gen_op_addq();
+        if (rb != 31)
+            tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+        else
+            tcg_gen_movi_i64(cpu_T[0], 0);
+        tcg_gen_movi_i64(cpu_T[1], disp12);
+        tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
         switch ((insn >> 12) & 0xF) {
         case 0x0:
             /* Longword physical access */
@@ -1536,7 +1436,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             gen_op_restore_mode();
             break;
         }
-        gen_store_ir(ctx, ra, 1);
+        if (ra != 31)
+            tcg_gen_mov_i64(cpu_ir[ra], cpu_T[1]);
         break;
 #endif
     case 0x1C:
@@ -1685,7 +1586,10 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 #else
         if (!ctx->pal_mode)
             goto invalid_opc;
-        gen_load_ir(ctx, ra, 0);
+        if (ra != 31)
+            tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
+        else
+            tcg_gen_movi_i64(cpu_T[0], 0);
         gen_op_mtpr(insn & 0xFF);
         ret = 2;
         break;
@@ -1701,9 +1605,12 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* "Old" alpha */
             gen_op_hw_rei();
         } else {
-            gen_load_ir(ctx, rb, 0);
-            gen_set_uT1(ctx, (((int64_t)insn << 51) >> 51));
-            gen_op_addq();
+            if (ra != 31)
+                tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+            else
+                tcg_gen_movi_i64(cpu_T[0], 0);
+            tcg_gen_movi_i64(cpu_T[1], (((int64_t)insn << 51) >> 51));
+            tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
             gen_op_hw_ret();
         }
         ret = 2;
@@ -1716,10 +1623,14 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 #else
         if (!ctx->pal_mode)
             goto invalid_opc;
-        gen_load_ir(ctx, rb, 0);
-        gen_set_sT1(ctx, disp12);
-        gen_op_addq();
-        gen_load_ir(ctx, ra, 1);
+        if (ra != 31)
+            tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp12);
+        else
+            tcg_gen_movi_i64(cpu_T[0], disp12);
+        if (ra != 31)
+            tcg_gen_mov_i64(cpu_T[1], cpu_ir[ra]);
+        else
+            tcg_gen_movi_i64(cpu_T[1], 0);
         switch ((insn >> 12) & 0xF) {
         case 0x0:
             /* Longword physical access */
@@ -1871,13 +1782,9 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x30:
         /* BR */
-        gen_set_uT0(ctx, ctx->pc);
-        gen_store_ir(ctx, ra, 0);
-        if (disp21 != 0) {
-            gen_set_sT1(ctx, disp21 << 2);
-            gen_op_addq();
-        }
-        gen_op_branch();
+        if (ra != 31)
+            tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
+        tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp21 << 2));
         ret = 1;
         break;
     case 0x31:
@@ -1897,13 +1804,9 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x34:
         /* BSR */
-        gen_set_uT0(ctx, ctx->pc);
-        gen_store_ir(ctx, ra, 0);
-        if (disp21 != 0) {
-            gen_set_sT1(ctx, disp21 << 2);
-            gen_op_addq();
-        }
-        gen_op_branch();
+        if (ra != 31)
+            tcg_gen_movi_i64(cpu_ir[ra], ctx->pc);
+        tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp21 << 2));
         ret = 1;
         break;
     case 0x35:
@@ -2056,10 +1959,10 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
 #endif
     }
     if (ret != 1 && ret != 3) {
-        gen_update_pc(&ctx);
+        tcg_gen_movi_i64(cpu_pc, ctx.pc);
     }
 #if defined (DO_TB_FLUSH)
-    gen_op_tb_flush();
+    tcg_gen_helper_0_0(helper_tb_flush);
 #endif
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();

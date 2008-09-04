@@ -127,7 +127,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 {
 	unsigned int vpage;
 	unsigned int idx;
-	uint32_t lo, hi;
+	uint32_t pid, lo, hi;
 	uint32_t tlb_vpn, tlb_pfn = 0;
 	int tlb_pid, tlb_g, tlb_v, tlb_k, tlb_w, tlb_x;
 	int cfg_v, cfg_k, cfg_w, cfg_x;	
@@ -140,6 +140,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 
 	r_cause = env->sregs[SFR_R_MM_CAUSE];
 	r_cfg = env->sregs[SFR_RW_MM_CFG];
+	pid = env->pregs[PR_PID];
 
 	switch (rw) {
 		case 2: rwcause = CRIS_MMU_ERR_EXEC; mmu = 0; break;
@@ -175,15 +176,14 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		lo = env->tlbsets[mmu][set][idx].lo;
 		hi = env->tlbsets[mmu][set][idx].hi;
 
-		tlb_vpn = EXTRACT_FIELD(hi, 13, 31);
+		tlb_vpn = hi >> 13;
 		tlb_pid = EXTRACT_FIELD(hi, 0, 7);
-		tlb_pfn = EXTRACT_FIELD(lo, 13, 31);
 		tlb_g  = EXTRACT_FIELD(lo, 4, 4);
 
 		D(fprintf(logfile, 
-			 "TLB[%d][%d][%d] v=%x vpage=%x->pfn=%x lo=%x hi=%x\n", 
-			 mmu, set, idx, tlb_vpn, vpage, tlb_pfn, lo, hi));
-		if ((tlb_g || (tlb_pid == (env->pregs[PR_PID] & 0xff)))
+			 "TLB[%d][%d][%d] v=%x vpage=%x lo=%x hi=%x\n", 
+			 mmu, set, idx, tlb_vpn, vpage, lo, hi));
+		if ((tlb_g || (tlb_pid == pid))
 		    && tlb_vpn == vpage) {
 			match = 1;
 			break;
@@ -245,9 +245,6 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		}
 		else
 			D(dump_tlb(env, mmu));
-
-		env->sregs[SFR_RW_MM_TLB_HI] = hi;
-		env->sregs[SFR_RW_MM_TLB_LO] = lo;
 	} else {
 		/* If refill, provide a randomized set.  */
 		set = env->mmu_rand_lfsr & 3;
@@ -277,7 +274,6 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		env->sregs[SFR_R_MM_CAUSE] = r_cause;
 		D(printf("refill vaddr=%x pc=%x\n", vaddr, env->pc));
 	}
-
 
 	D(printf ("%s rw=%d mtch=%d pc=%x va=%x vpn=%x tlbvpn=%x pfn=%x pid=%x"
 		  " %x cause=%x sel=%x sp=%x %x %x\n",
@@ -348,7 +344,7 @@ int cris_mmu_translate(struct cris_mmu_result_t *res,
 
 	if (!cris_mmu_enabled(env->sregs[SFR_RW_GC_CFG])) {
 		res->phy = vaddr;
-		res->prot = PAGE_BITS;		
+		res->prot = PAGE_BITS;
 		goto done;
 	}
 
@@ -361,7 +357,7 @@ int cris_mmu_translate(struct cris_mmu_result_t *res,
 		base = cris_mmu_translate_seg(env, seg);
 		phy = base | (0x0fffffff & vaddr);
 		res->phy = phy;
-		res->prot = PAGE_BITS;		
+		res->prot = PAGE_BITS;
 	}
 	else
 	{
