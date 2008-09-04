@@ -177,34 +177,6 @@ static uint16_t *gen_fprf_buf[OPC_BUF_SIZE];
 static uint16_t **gen_fprf_ptr;
 #endif
 
-#define GEN16(func, NAME)                                                     \
-static GenOpFunc *NAME ## _table [16] = {                                     \
-NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
-NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
-NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
-NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
-};                                                                            \
-static always_inline void func (int n)                                        \
-{                                                                             \
-    NAME ## _table[n]();                                                      \
-}
-
-#define GEN32(func, NAME)                                                     \
-static GenOpFunc *NAME ## _table [32] = {                                     \
-NAME ## 0, NAME ## 1, NAME ## 2, NAME ## 3,                                   \
-NAME ## 4, NAME ## 5, NAME ## 6, NAME ## 7,                                   \
-NAME ## 8, NAME ## 9, NAME ## 10, NAME ## 11,                                 \
-NAME ## 12, NAME ## 13, NAME ## 14, NAME ## 15,                               \
-NAME ## 16, NAME ## 17, NAME ## 18, NAME ## 19,                               \
-NAME ## 20, NAME ## 21, NAME ## 22, NAME ## 23,                               \
-NAME ## 24, NAME ## 25, NAME ## 26, NAME ## 27,                               \
-NAME ## 28, NAME ## 29, NAME ## 30, NAME ## 31,                               \
-};                                                                            \
-static always_inline void func (int n)                                        \
-{                                                                             \
-    NAME ## _table[n]();                                                      \
-}
-
 /* internal defines */
 typedef struct DisasContext {
     struct TranslationBlock *tb;
