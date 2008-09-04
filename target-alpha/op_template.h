@@ -20,11 +20,6 @@
 
 /* Optimized constant loads */
 #if REG < 3
-void OPPROTO glue(op_reset_T, REG) (void)
-{
-    glue(T, REG) = 0;
-    RETURN();
-}
 
 #if !defined(HOST_SPARC) && !defined(HOST_SPARC64)
 void OPPROTO glue(op_reset_FT, REG) (void)
@@ -40,87 +35,10 @@ void OPPROTO glue(op_reset_FT, REG) (void)
 }
 #endif
 
-/* XXX: This can be great on most RISC machines */
-#if !defined(__i386__) && !defined(__x86_64__)
-void OPPROTO glue(op_set_s16_T, REG) (void)
-{
-    glue(T, REG) = (int16_t)PARAM(1);
-    RETURN();
-}
-
-void OPPROTO glue(op_set_u16_T, REG) (void)
-{
-    glue(T, REG) = (uint16_t)PARAM(1);
-    RETURN();
-}
-#endif
-
-void OPPROTO glue(op_set_s32_T, REG) (void)
-{
-    glue(T, REG) = (int32_t)PARAM(1);
-    RETURN();
-}
-
-void OPPROTO glue(op_set_u32_T, REG) (void)
-{
-    glue(T, REG) = (uint32_t)PARAM(1);
-    RETURN();
-}
-
-#if 0 // Qemu does not know how to do this...
-void OPPROTO glue(op_set_64_T, REG) (void)
-{
-    glue(T, REG) = (int64_t)PARAM(1);
-    RETURN();
-}
-#else
-void OPPROTO glue(op_set_64_T, REG) (void)
-{
-    glue(T, REG) = ((int64_t)PARAM(1) << 32) | (int64_t)PARAM(2);
-    RETURN();
-}
-#endif
-
 #endif /* REG < 3 */
 
 /* Fixed-point register moves */
 #if REG < 31
-void OPPROTO glue(op_load_T0_ir, REG) (void)
-{
-    T0 = env->ir[REG];
-    RETURN();
-}
-
-void OPPROTO glue(op_load_T1_ir, REG) (void)
-{
-    T1 = env->ir[REG];
-    RETURN();
-}
-
-void OPPROTO glue(op_load_T2_ir, REG) (void)
-{
-    T2 = env->ir[REG];
-    RETURN();
-}
-
-void OPPROTO glue(op_store_T0_ir, REG) (void)
-{
-    env->ir[REG] = T0;
-    RETURN();
-}
-
-void OPPROTO glue(op_store_T1_ir, REG) (void)
-{
-    env->ir[REG] = T1;
-    RETURN();
-}
-
-void OPPROTO glue(op_store_T2_ir, REG) (void)
-{
-    env->ir[REG] = T2;
-    RETURN();
-}
-
 void OPPROTO glue(op_cmov_ir, REG) (void)
 {
     if (T0)
