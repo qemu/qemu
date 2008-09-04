@@ -18,7 +18,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#if REG <= 7
 /* Condition register moves */
 void OPPROTO glue(op_load_crf_T0_crf, REG) (void)
 {
@@ -37,54 +36,5 @@ void OPPROTO glue(op_store_T0_crf_crf, REG) (void)
     env->crf[REG] = T0;
     RETURN();
 }
-
-#if 0 // Unused
-void OPPROTO glue(op_store_T1_crf_crf, REG) (void)
-{
-    env->crf[REG] = T1;
-    RETURN();
-}
-#endif
-
-#endif /* REG <= 7 */
-
-/* floating point registers moves */
-void OPPROTO glue(op_load_fpr_FT0_fpr, REG) (void)
-{
-    FT0 = env->fpr[REG];
-    RETURN();
-}
-
-void OPPROTO glue(op_store_FT0_fpr_fpr, REG) (void)
-{
-    env->fpr[REG] = FT0;
-    RETURN();
-}
-
-void OPPROTO glue(op_load_fpr_FT1_fpr, REG) (void)
-{
-    FT1 = env->fpr[REG];
-    RETURN();
-}
-
-void OPPROTO glue(op_store_FT1_fpr_fpr, REG) (void)
-{
-    env->fpr[REG] = FT1;
-    RETURN();
-}
-
-void OPPROTO glue(op_load_fpr_FT2_fpr, REG) (void)
-{
-    FT2 = env->fpr[REG];
-    RETURN();
-}
-
-#if 0 // unused
-void OPPROTO glue(op_store_FT2_fpr_fpr, REG) (void)
-{
-    env->fpr[REG] = FT2;
-    RETURN();
-}
-#endif
 
 #undef REG
