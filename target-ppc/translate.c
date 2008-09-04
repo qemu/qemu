@@ -141,11 +141,13 @@ void ppc_translate_init(void)
         sprintf(p, "fp%d", i);
         cpu_fpr[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
                                         offsetof(CPUState, fpr[i]), p);
+        p += (i < 10) ? 4 : 5;
 
         sprintf(p, "avr%dH", i);
         cpu_avrh[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
                                          offsetof(CPUState, avr[i].u64[0]), p);
         p += (i < 10) ? 6 : 7;
+
         sprintf(p, "avr%dL", i);
         cpu_avrl[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
                                          offsetof(CPUState, avr[i].u64[1]), p);
