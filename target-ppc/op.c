@@ -410,16 +410,6 @@ void OPPROTO op_load_fpscr_FT0 (void)
     RETURN();
 }
 
-void OPPROTO op_set_FT0 (void)
-{
-    CPU_DoubleU u;
-
-    u.l.upper = 0;
-    u.l.lower = PARAM1;
-    FT0 = u.d;
-    RETURN();
-}
-
 void OPPROTO op_load_fpscr_T0 (void)
 {
     T0 = (env->fpscr >> PARAM1) & 0xF;

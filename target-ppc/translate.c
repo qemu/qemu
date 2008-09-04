@@ -2094,7 +2094,7 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
     bf = crbD(ctx->opcode) >> 2;
     sh = 7 - bf;
     gen_optimize_fprf();
-    gen_op_set_FT0(FPIMM(ctx->opcode) << (4 * sh));
+    tcg_gen_movi_i64(cpu_FT[0], FPIMM(ctx->opcode) << (4 * sh));
     gen_reset_fpstatus();
     gen_op_store_fpscr(1 << sh);
     if (unlikely(Rc(ctx->opcode) != 0)) {
