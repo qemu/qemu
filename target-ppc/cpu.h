@@ -33,17 +33,7 @@ typedef uint64_t ppc_gpr_t;
 
 #else /* defined (TARGET_PPC64) */
 /* PowerPC 32 definitions */
-#if (HOST_LONG_BITS >= 64)
-/* When using 64 bits temporary registers,
- * we can use 64 bits GPR with no extra cost
- * It's even an optimization as this will prevent
- * the compiler to do unuseful masking in the micro-ops.
- */
-typedef uint64_t ppc_gpr_t;
-#else /* (HOST_LONG_BITS >= 64) */
 typedef uint32_t ppc_gpr_t;
-#endif /* (HOST_LONG_BITS >= 64) */
-
 #define TARGET_LONG_BITS 32
 
 #if defined(TARGET_PPCEMB)
@@ -541,7 +531,7 @@ struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
      */
-#if (HOST_LONG_BITS == 32)
+#if (TARGET_LONG_BITS > HOST_LONG_BITS) || !defined(TARGET_PPC64)
     /* temporary fixed-point registers
      * used to emulate 64 bits registers on 32 bits hosts
      */
