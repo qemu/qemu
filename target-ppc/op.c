@@ -46,20 +46,6 @@ void OPPROTO op_raise_exception_err (void)
     do_raise_exception_err(PARAM1, PARAM2);
 }
 
-void OPPROTO op_update_nip (void)
-{
-    env->nip = (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_update_nip_64 (void)
-{
-    env->nip = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
 void OPPROTO op_debug (void)
 {
     do_raise_exception(EXCP_DEBUG);
@@ -465,8 +451,6 @@ void OPPROTO op_store_fpscr (void)
 }
 
 /* Branch */
-#define EIP env->nip
-
 void OPPROTO op_setlr (void)
 {
     env->lr = (uint32_t)PARAM1;
@@ -477,20 +461,6 @@ void OPPROTO op_setlr (void)
 void OPPROTO op_setlr_64 (void)
 {
     env->lr = ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
-void OPPROTO op_b_T1 (void)
-{
-    env->nip = (uint32_t)(T1 & ~3);
-    RETURN();
-}
-
-#if defined (TARGET_PPC64)
-void OPPROTO op_b_T1_64 (void)
-{
-    env->nip = (uint64_t)(T1 & ~3);
     RETURN();
 }
 #endif

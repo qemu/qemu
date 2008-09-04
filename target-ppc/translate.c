@@ -60,6 +60,7 @@ static TCGv cpu_gprh[32];
 static TCGv cpu_fpr[32];
 static TCGv cpu_avrh[32], cpu_avrl[32];
 static TCGv cpu_crf[8];
+static TCGv cpu_nip;
 
 /* dyngen register indexes */
 static TCGv cpu_T[3];
@@ -163,6 +164,9 @@ void ppc_translate_init(void)
                                          offsetof(CPUState, avr[i].u64[1]), p);
         p += (i < 10) ? 6 : 7;
     }
+
+    cpu_nip = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                 offsetof(CPUState, nip), "nip");
 
     /* register helpers */
 #undef DEF_HELPER
@@ -268,10 +272,10 @@ static always_inline void gen_update_nip (DisasContext *ctx, target_ulong nip)
 {
 #if defined(TARGET_PPC64)
     if (ctx->sf_mode)
-        gen_op_update_nip_64(nip >> 32, nip);
+        tcg_gen_movi_tl(cpu_nip, nip);
     else
 #endif
-        gen_op_update_nip(nip);
+        tcg_gen_movi_tl(cpu_nip, (uint32_t)nip);
 }
 
 #define GEN_EXCP(ctx, excp, error)                                            \
@@ -2836,19 +2840,19 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
         tcg_gen_movi_tl(cpu_T[1], dest);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
-            gen_op_b_T1_64();
+            tcg_gen_andi_tl(cpu_nip, cpu_T[1], ~3);
         else
 #endif
-            gen_op_b_T1();
+            tcg_gen_andi_tl(cpu_nip, cpu_T[1], (uint32_t)~3);
         tcg_gen_exit_tb((long)tb + n);
     } else {
         tcg_gen_movi_tl(cpu_T[1], dest);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
-            gen_op_b_T1_64();
+            tcg_gen_andi_tl(cpu_nip, cpu_T[1], ~3);
         else
 #endif
-            gen_op_b_T1();
+            tcg_gen_andi_tl(cpu_nip, cpu_T[1], (uint32_t)~3);
         if (unlikely(ctx->singlestep_enabled)) {
             if ((ctx->singlestep_enabled &
                  (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
@@ -2969,10 +2973,10 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
             } else {
 #if defined(TARGET_PPC64)
                 if (ctx->sf_mode)
-                    gen_op_b_T1_64();
+                    tcg_gen_andi_tl(cpu_nip, cpu_T[1], ~3);
                 else
 #endif
-                    gen_op_b_T1();
+                    tcg_gen_andi_tl(cpu_nip, cpu_T[1], (uint32_t)~3);
                 goto no_test;
             }
             break;
