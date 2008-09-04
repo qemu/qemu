@@ -148,13 +148,6 @@ void OPPROTO op_no_op (void)
 #include "op_mem.h"
 #endif
 
-/* Special operation for load and store */
-void OPPROTO op_n7 (void)
-{
-    T0 &= ~(uint64_t)0x7;
-    RETURN();
-}
-
 /* Misc */
 void OPPROTO op_excp (void)
 {
@@ -256,18 +249,6 @@ void OPPROTO op_subl (void)
 void OPPROTO op_sublv (void)
 {
     helper_sublv();
-    RETURN();
-}
-
-void OPPROTO op_s4 (void)
-{
-    T0 <<= 2;
-    RETURN();
-}
-
-void OPPROTO op_s8 (void)
-{
-    T0 <<= 3;
     RETURN();
 }
 
@@ -643,19 +624,6 @@ void OPPROTO op_cmplbs (void)
 void OPPROTO op_cmplbc (void)
 {
     T0 = (~T0) & 1;
-    RETURN();
-}
-
-/* Branches */
-void OPPROTO op_branch (void)
-{
-    env->pc = T0 & ~3;
-    RETURN();
-}
-
-void OPPROTO op_addq1 (void)
-{
-    T1 += T0;
     RETURN();
 }
 

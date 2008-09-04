@@ -273,15 +273,11 @@ static always_inline void gen_load_mem (DisasContext *ctx,
         gen_op_nop();
     } else {
         if (rb != 31)
-            tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+            tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
         else
-            tcg_gen_movi_i64(cpu_T[0], 0);
-        if (disp16 != 0) {
-            tcg_gen_movi_i64(cpu_T[1], disp16);
-            gen_op_addq();
-        }
+            tcg_gen_movi_i64(cpu_T[0], disp16);
         if (clear)
-            gen_op_n7();
+            tcg_gen_andi_i64(cpu_T[0], cpu_T[0], ~0x7);
         (*gen_load_op)(ctx);
         if (ra != 31)
             tcg_gen_mov_i64(cpu_ir[ra], cpu_T[1]);
@@ -294,15 +290,11 @@ static always_inline void gen_store_mem (DisasContext *ctx,
                                          int clear)
 {
     if (rb != 31)
-        tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+        tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
     else
-        tcg_gen_movi_i64(cpu_T[0], 0);
-    if (disp16 != 0) {
-        tcg_gen_movi_i64(cpu_T[1], disp16);
-        gen_op_addq();
-    }
+        tcg_gen_movi_i64(cpu_T[0], disp16);
     if (clear)
-        gen_op_n7();
+        tcg_gen_andi_i64(cpu_T[0], cpu_T[0], ~0x7);
     if (ra != 31)
         tcg_gen_mov_i64(cpu_T[1], cpu_ir[ra]);
     else
@@ -315,13 +307,9 @@ static always_inline void gen_load_fmem (DisasContext *ctx,
                                          int ra, int rb, int32_t disp16)
 {
     if (rb != 31)
-        tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+        tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
     else
-        tcg_gen_movi_i64(cpu_T[0], 0);
-    if (disp16 != 0) {
-        tcg_gen_movi_i64(cpu_T[1], disp16);
-        gen_op_addq();
-    }
+        tcg_gen_movi_i64(cpu_T[0], disp16);
     (*gen_load_fop)(ctx);
     gen_store_fir(ctx, ra, 1);
 }
@@ -331,13 +319,9 @@ static always_inline void gen_store_fmem (DisasContext *ctx,
                                           int ra, int rb, int32_t disp16)
 {
     if (rb != 31)
-        tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+        tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
     else
-        tcg_gen_movi_i64(cpu_T[0], 0);
-    if (disp16 != 0) {
-        tcg_gen_movi_i64(cpu_T[1], disp16);
-        gen_op_addq();
-    }
+        tcg_gen_movi_i64(cpu_T[0], disp16);
     gen_load_fir(ctx, ra, 1);
     (*gen_store_fop)(ctx);
 }
@@ -346,13 +330,7 @@ static always_inline void gen_bcond (DisasContext *ctx,
                                      void (*gen_test_op)(void),
                                      int ra, int32_t disp16)
 {
-    if (disp16 != 0) {
-        tcg_gen_movi_i64(cpu_T[0], ctx->pc);
-        tcg_gen_movi_i64(cpu_T[1], disp16 << 2);
-        gen_op_addq1();
-    } else {
-        tcg_gen_movi_i64(cpu_T[1], ctx->pc);
-    }
+    tcg_gen_movi_i64(cpu_T[1], ctx->pc + (int64_t)(disp16 << 2));
     if (ra != 31)
         tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
     else
@@ -365,13 +343,7 @@ static always_inline void gen_fbcond (DisasContext *ctx,
                                       void (*gen_test_op)(void),
                                       int ra, int32_t disp16)
 {
-    if (disp16 != 0) {
-        tcg_gen_movi_i64(cpu_T[0], ctx->pc);
-        tcg_gen_movi_i64(cpu_T[1], disp16 << 2);
-        gen_op_addq1();
-    } else {
-        tcg_gen_movi_i64(cpu_T[1], ctx->pc);
-    }
+    tcg_gen_movi_i64(cpu_T[1], ctx->pc + (int64_t)(disp16 << 2));
     gen_load_fir(ctx, ra, 0);
     (*gen_test_op)();
     _gen_op_bcond(ctx);
@@ -484,50 +456,50 @@ static always_inline void gen_itf (DisasContext *ctx,
 
 static always_inline void gen_s4addl (void)
 {
-    gen_op_s4();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
     gen_op_addl();
 }
 
 static always_inline void gen_s4subl (void)
 {
-    gen_op_s4();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
     gen_op_subl();
 }
 
 static always_inline void gen_s8addl (void)
 {
-    gen_op_s8();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
     gen_op_addl();
 }
 
 static always_inline void gen_s8subl (void)
 {
-    gen_op_s8();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
     gen_op_subl();
 }
 
 static always_inline void gen_s4addq (void)
 {
-    gen_op_s4();
-    gen_op_addq();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
+    tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
 }
 
 static always_inline void gen_s4subq (void)
 {
-    gen_op_s4();
-    gen_op_subq();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 2);
+    tcg_gen_sub_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
 }
 
 static always_inline void gen_s8addq (void)
 {
-    gen_op_s8();
-    gen_op_addq();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
+    tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
 }
 
 static always_inline void gen_s8subq (void)
 {
-    gen_op_s8();
-    gen_op_subq();
+    tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
+    tcg_gen_sub_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
 }
 
 static always_inline void gen_amask (void)
@@ -1383,7 +1355,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         else
             tcg_gen_movi_i64(cpu_T[0], 0);
         tcg_gen_movi_i64(cpu_T[1], disp12);
-        gen_op_addq();
+        tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
         switch ((insn >> 12) & 0xF) {
         case 0x0:
             /* Longword physical access */
@@ -1638,7 +1610,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             else
                 tcg_gen_movi_i64(cpu_T[0], 0);
             tcg_gen_movi_i64(cpu_T[1], (((int64_t)insn << 51) >> 51));
-            gen_op_addq();
+            tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
             gen_op_hw_ret();
         }
         ret = 2;
@@ -1652,11 +1624,9 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         if (!ctx->pal_mode)
             goto invalid_opc;
         if (ra != 31)
-            tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+            tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp12);
         else
-            tcg_gen_movi_i64(cpu_T[0], 0);
-        tcg_gen_movi_i64(cpu_T[1], disp12);
-        gen_op_addq();
+            tcg_gen_movi_i64(cpu_T[0], disp12);
         if (ra != 31)
             tcg_gen_mov_i64(cpu_T[1], cpu_ir[ra]);
         else
