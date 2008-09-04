@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "helper.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
 
@@ -44,15 +45,40 @@ struct DisasContext {
 };
 
 static TCGv cpu_env;
+static TCGv cpu_ir[31];
+static TCGv cpu_pc;
+
+static char cpu_reg_names[5*31];
 
 #include "gen-icount.h"
 
 static void alpha_translate_init(void)
 {
+    int i;
+    char *p;
     static int done_init = 0;
+
     if (done_init)
         return;
+
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+
+    p = cpu_reg_names;
+    for (i = 0; i < 31; i++) {
+        sprintf(p, "ir%d", i);
+        cpu_ir[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                       offsetof(CPUState, ir[i]), p);
+        p += 4;
+    }
+
+    cpu_pc = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                offsetof(CPUState, pc), "pc");
+
+    /* register helpers */
+#undef DEF_HELPER
+#define DEF_HELPER(ret, name, params) tcg_register_helper(name, #name);
+#include "helper.h"
+
     done_init = 1;
 }
 
@@ -124,6 +150,20 @@ static always_inline void gen_store_ir (DisasContext *ctx, int irn, int Tn)
         gen_op_store_T2_ir(irn);
         break;
     }
+}
+
+static inline void get_ir (TCGv t, int reg)
+{
+    if (reg == 31)
+        tcg_gen_movi_i64(t, 0);
+    else
+        tcg_gen_mov_i64(t, cpu_ir[reg]);
+}
+
+static inline void set_ir (TCGv t, int reg)
+{
+    if (reg != 31)
+        tcg_gen_mov_i64(cpu_ir[reg], t);
 }
 
 /* FIR moves */
@@ -354,19 +394,6 @@ static always_inline void gen_set_uT1 (DisasContext *ctx, uint64_t imm)
     }
 }
 
-static always_inline void gen_update_pc (DisasContext *ctx)
-{
-    if (!(ctx->pc >> 32)) {
-        gen_op_update_pc32(ctx->pc);
-    } else {
-#if 0 // Qemu does not know how to do this...
-        gen_op_update_pc(ctx->pc);
-#else
-        gen_op_update_pc(ctx->pc >> 32, ctx->pc);
-#endif
-    }
-}
-
 static always_inline void _gen_op_bcond (DisasContext *ctx)
 {
 #if 0 // Qemu does not know how to do this...
@@ -379,7 +406,7 @@ static always_inline void _gen_op_bcond (DisasContext *ctx)
 static always_inline void gen_excp (DisasContext *ctx,
                                     int exception, int error_code)
 {
-    gen_update_pc(ctx);
+    tcg_gen_movi_i64(cpu_pc, ctx->pc);
     gen_op_excp(exception, error_code);
 }
 
@@ -700,17 +727,23 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         goto invalid_opc;
     case 0x08:
         /* LDA */
-        gen_load_ir(ctx, rb, 0);
-        gen_set_sT1(ctx, disp16);
-        gen_op_addq();
-        gen_store_ir(ctx, ra, 0);
+        {
+            TCGv v = tcg_const_i64(disp16);
+            if (rb != 31)
+                tcg_gen_add_i64(v, cpu_ir[rb], v);
+            set_ir(v, ra);
+            tcg_temp_free(v);
+        }
         break;
     case 0x09:
         /* LDAH */
-        gen_load_ir(ctx, rb, 0);
-        gen_set_sT1(ctx, disp16 << 16);
-        gen_op_addq();
-        gen_store_ir(ctx, ra, 0);
+        {
+            TCGv v = tcg_const_i64(disp16 << 16);
+            if (rb != 31)
+                tcg_gen_add_i64(v, cpu_ir[rb], v);
+            set_ir(v, ra);
+            tcg_temp_free(v);
+        }
         break;
     case 0x0A:
         /* LDBU */
@@ -1871,13 +1904,12 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x30:
         /* BR */
-        gen_set_uT0(ctx, ctx->pc);
-        gen_store_ir(ctx, ra, 0);
-        if (disp21 != 0) {
-            gen_set_sT1(ctx, disp21 << 2);
-            gen_op_addq();
+        if (ra != 31) {
+            TCGv t = tcg_const_i64(ctx->pc);
+            set_ir(t, ra);
+            tcg_temp_free(t);
         }
-        gen_op_branch();
+        tcg_gen_movi_i64(cpu_pc, ctx->pc + (disp21 << 2));
         ret = 1;
         break;
     case 0x31:
@@ -2056,10 +2088,10 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
 #endif
     }
     if (ret != 1 && ret != 3) {
-        gen_update_pc(&ctx);
+        tcg_gen_movi_i64(cpu_pc, ctx.pc);
     }
 #if defined (DO_TB_FLUSH)
-    gen_op_tb_flush();
+    tcg_gen_helper_0_0(helper_tb_flush);
 #endif
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
