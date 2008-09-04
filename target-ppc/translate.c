@@ -90,13 +90,13 @@ void ppc_translate_init(void)
 #endif
 #if !defined(TARGET_PPC64)
     cpu_T64[0] = tcg_global_mem_new(TCG_TYPE_I64,
-                                    TCG_AREG0, offsetof(CPUState, t0),
+                                    TCG_AREG0, offsetof(CPUState, t0_64),
                                     "T0_64");
     cpu_T64[1] = tcg_global_mem_new(TCG_TYPE_I64,
-                                    TCG_AREG0, offsetof(CPUState, t1),
+                                    TCG_AREG0, offsetof(CPUState, t1_64),
                                     "T1_64");
     cpu_T64[2] = tcg_global_mem_new(TCG_TYPE_I64,
-                                    TCG_AREG0, offsetof(CPUState, t2),
+                                    TCG_AREG0, offsetof(CPUState, t2_64),
                                     "T2_64");
 #endif
     
