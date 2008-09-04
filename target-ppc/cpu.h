@@ -551,7 +551,7 @@ struct CPUPPCState {
     /* CTR */
     target_ulong ctr;
     /* condition register */
-    uint8_t crf[8];
+    uint32_t crf[8];
     /* XER */
     /* XXX: We use only 5 fields, but we want to keep the structure aligned */
     uint8_t xer[8];

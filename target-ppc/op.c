@@ -26,30 +26,6 @@
 #include "helper_regs.h"
 #include "op_helper.h"
 
-#define REG 0
-#include "op_template.h"
-
-#define REG 1
-#include "op_template.h"
-
-#define REG 2
-#include "op_template.h"
-
-#define REG 3
-#include "op_template.h"
-
-#define REG 4
-#include "op_template.h"
-
-#define REG 5
-#include "op_template.h"
-
-#define REG 6
-#include "op_template.h"
-
-#define REG 7
-#include "op_template.h"
-
 void OPPROTO op_print_mem_EA (void)
 {
     do_print_mem_EA(T0);
@@ -99,18 +75,6 @@ void OPPROTO op_load_cr (void)
 void OPPROTO op_store_cr (void)
 {
     do_store_cr(PARAM1);
-    RETURN();
-}
-
-void OPPROTO op_load_cro (void)
-{
-    T0 = env->crf[PARAM1];
-    RETURN();
-}
-
-void OPPROTO op_store_cro (void)
-{
-    env->crf[PARAM1] = T0;
     RETURN();
 }
 
