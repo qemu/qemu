@@ -18,45 +18,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/* Altivec registers moves */
-void OPPROTO glue(op_load_avr_A0_avr, REG) (void)
-{
-    AVR0 = env->avr[REG];
-    RETURN();
-}
-
-void OPPROTO glue(op_load_avr_A1_avr, REG) (void)
-{
-    AVR1 = env->avr[REG];
-    RETURN();
-}
-
-void OPPROTO glue(op_load_avr_A2_avr, REG) (void)
-{
-    AVR2 = env->avr[REG];
-    RETURN();
-}
-
-void OPPROTO glue(op_store_A0_avr_avr, REG) (void)
-{
-    env->avr[REG] = AVR0;
-    RETURN();
-}
-
-void OPPROTO glue(op_store_A1_avr_avr, REG) (void)
-{
-    env->avr[REG] = AVR1;
-    RETURN();
-}
-
-#if 0 // unused
-void OPPROTO glue(op_store_A2_avr_avr, REG) (void)
-{
-    env->avr[REG] = AVR2;
-    RETURN();
-}
-#endif
-
 #if REG <= 7
 /* Condition register moves */
 void OPPROTO glue(op_load_crf_T0_crf, REG) (void)

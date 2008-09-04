@@ -46,15 +46,16 @@
 
 /* global register indexes */
 static TCGv cpu_env;
-static char cpu_reg_names[10*3 + 22*4
+static char cpu_reg_names[10*3 + 22*4 /* GPR */
 #if !defined(TARGET_PPC64)
-    + 10*4 + 22*5
+    + 10*4 + 22*5 /* SPE GPRh */
 #endif
-];
+    + 2*(10*6 + 22*7) /* AVRh, AVRl */];
 static TCGv cpu_gpr[32];
 #if !defined(TARGET_PPC64)
 static TCGv cpu_gprh[32];
 #endif
+static TCGv cpu_avrh[32], cpu_avrl[32];
 
 /* dyngen register indexes */
 static TCGv cpu_T[3];
@@ -63,6 +64,7 @@ static TCGv cpu_T[3];
 #else
 static TCGv cpu_T64[3];
 #endif
+static TCGv cpu_AVRh[3], cpu_AVRl[3];
 
 #include "gen-icount.h"
 
@@ -99,7 +101,19 @@ void ppc_translate_init(void)
                                     TCG_AREG0, offsetof(CPUState, t2_64),
                                     "T2_64");
 #endif
-    
+    cpu_AVRh[0] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                     offsetof(CPUState, avr0.u64[0]), "AVR0H");
+    cpu_AVRl[0] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                     offsetof(CPUState, avr0.u64[1]), "AVR0L");
+    cpu_AVRh[1] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                     offsetof(CPUState, avr1.u64[0]), "AVR1H");
+    cpu_AVRl[1] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                     offsetof(CPUState, avr1.u64[1]), "AVR1L");
+    cpu_AVRh[2] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                     offsetof(CPUState, avr2.u64[0]), "AVR2H");
+    cpu_AVRl[2] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                     offsetof(CPUState, avr2.u64[1]), "AVR2L");
+
     p = cpu_reg_names;
     for (i = 0; i < 32; i++) {
         sprintf(p, "r%d", i);
@@ -112,6 +126,15 @@ void ppc_translate_init(void)
                                          offsetof(CPUState, gprh[i]), p);
         p += (i < 10) ? 4 : 5;
 #endif
+
+        sprintf(p, "avr%dH", i);
+        cpu_avrh[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                         offsetof(CPUState, avr[i].u64[0]), p);
+        p += (i < 10) ? 6 : 7;
+        sprintf(p, "avr%dL", i);
+        cpu_avrl[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                         offsetof(CPUState, avr[i].u64[1]), p);
+        p += (i < 10) ? 6 : 7;
     }
 
     /* register helpers */
@@ -5241,15 +5264,16 @@ GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
 
 /***                      Altivec vector extension                         ***/
 /* Altivec registers moves */
-GEN32(gen_op_load_avr_A0, gen_op_load_avr_A0_avr);
-GEN32(gen_op_load_avr_A1, gen_op_load_avr_A1_avr);
-GEN32(gen_op_load_avr_A2, gen_op_load_avr_A2_avr);
 
-GEN32(gen_op_store_A0_avr, gen_op_store_A0_avr_avr);
-GEN32(gen_op_store_A1_avr, gen_op_store_A1_avr_avr);
-#if 0 // unused
-GEN32(gen_op_store_A2_avr, gen_op_store_A2_avr_avr);
-#endif
+static always_inline void gen_load_avr(int t, int reg) {
+    tcg_gen_mov_i64(cpu_AVRh[t], cpu_avrh[reg]);
+    tcg_gen_mov_i64(cpu_AVRl[t], cpu_avrl[reg]);
+}
+
+static always_inline void gen_store_avr(int reg, int t) {
+    tcg_gen_mov_i64(cpu_avrh[reg], cpu_AVRh[t]);
+    tcg_gen_mov_i64(cpu_avrl[reg], cpu_AVRl[t]);
+}
 
 #define op_vr_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
 #define OP_VR_LD_TABLE(name)                                                  \
@@ -5270,7 +5294,7 @@ GEN_HANDLER(l##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)               \
     }                                                                         \
     gen_addr_reg_index(ctx);                                                  \
     op_vr_ldst(vr_l##name);                                                   \
-    gen_op_store_A0_avr(rD(ctx->opcode));                                     \
+    gen_store_avr(rD(ctx->opcode), 0);                                        \
 }
 
 #define GEN_VR_STX(name, opc2, opc3)                                          \
@@ -5281,7 +5305,7 @@ GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)              \
         return;                                                               \
     }                                                                         \
     gen_addr_reg_index(ctx);                                                  \
-    gen_op_load_avr_A0(rS(ctx->opcode));                                      \
+    gen_load_avr(0, rS(ctx->opcode));                                         \
     op_vr_ldst(vr_st##name);                                                  \
 }
 
