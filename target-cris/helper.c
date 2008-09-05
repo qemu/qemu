@@ -89,7 +89,11 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 	}
 	else
 	{
-		phy = res.phy;
+		/*
+		 * Mask off the cache selection bit. The ETRAX busses do not
+		 * see the top bit.
+		 */
+		phy = res.phy & ~0x80000000;
 		prot = res.prot;
 		r = tlb_set_page(env, address, phy, prot, mmu_idx, is_softmmu);
 	}
