@@ -1717,7 +1717,7 @@ DISAS_INSN(mvzs)
         opsize = OS_WORD;
     else
         opsize = OS_BYTE;
-    SRC_EA(src, opsize, (insn & 0x80) != 0, NULL);
+    SRC_EA(src, opsize, (insn & 0x80) == 0, NULL);
     reg = DREG(insn, 9);
     tcg_gen_mov_i32(reg, src);
     gen_logic_cc(s, src);
