@@ -881,13 +881,6 @@ void OPPROTO op_nego_64 (void)
 }
 #endif
 
-/* subtract from */
-void OPPROTO op_subf (void)
-{
-    T0 = T1 - T0;
-    RETURN();
-}
-
 /* subtract from carrying */
 void OPPROTO op_check_subfc (void)
 {

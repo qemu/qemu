@@ -950,10 +950,14 @@ GEN_INT_ARITH2 (mullw,  0x1F, 0x0B, 0x07, PPC_INTEGER);
 /* neg    neg.    nego    nego.    */
 GEN_INT_ARITH1_64 (neg,    0x1F, 0x08, 0x03, PPC_INTEGER);
 /* subf   subf.   subfo   subfo.   */
+static always_inline void gen_op_subf (void)
+{
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
+}
 static always_inline void gen_op_subfo (void)
 {
     tcg_gen_not_tl(cpu_T[2], cpu_T[0]);
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
@@ -961,7 +965,7 @@ static always_inline void gen_op_subfo (void)
 static always_inline void gen_op_subfo_64 (void)
 {
     tcg_gen_not_i64(cpu_T[2], cpu_T[0]);
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_addo_64();
 }
 #endif
@@ -969,26 +973,26 @@ GEN_INT_ARITH2_64 (subf,   0x1F, 0x08, 0x01, PPC_INTEGER);
 /* subfc  subfc.  subfco  subfco.  */
 static always_inline void gen_op_subfc (void)
 {
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_subfc();
 }
 static always_inline void gen_op_subfco (void)
 {
     tcg_gen_not_tl(cpu_T[2], cpu_T[0]);
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_subfc();
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_subfc_64 (void)
 {
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_subfc_64();
 }
 static always_inline void gen_op_subfco_64 (void)
 {
     tcg_gen_not_i64(cpu_T[2], cpu_T[0]);
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_subfc_64();
     gen_op_check_addo_64();
 }
