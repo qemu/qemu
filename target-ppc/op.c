@@ -602,12 +602,6 @@ void OPPROTO op_dec_ctr (void)
 
 /***                           Integer arithmetic                          ***/
 /* add */
-void OPPROTO op_add (void)
-{
-    T0 += T1;
-    RETURN();
-}
-
 void OPPROTO op_check_addo (void)
 {
     xer_ov = (((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
@@ -663,13 +657,6 @@ void OPPROTO op_adde_64 (void)
     RETURN();
 }
 #endif
-
-/* add immediate */
-void OPPROTO op_addi (void)
-{
-    T0 += (int32_t)PARAM1;
-    RETURN();
-}
 
 /* add to minus one extended */
 void OPPROTO op_add_me (void)
