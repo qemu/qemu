@@ -116,7 +116,7 @@ typedef tcg_target_ulong TCGArg;
    Users of tcg_gen_* don't need to know about any of this, and should
    treat TCGv as an opaque type.  */
 
-//#define DEBUG_TCGV 1
+#define DEBUG_TCGV 1
 
 #ifdef DEBUG_TCGV
 
