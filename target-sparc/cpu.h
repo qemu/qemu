@@ -142,7 +142,15 @@
 #define FSR_FTT2   (1ULL << 16)
 #define FSR_FTT1   (1ULL << 15)
 #define FSR_FTT0   (1ULL << 14)
-#define FSR_FTT_MASK (FSR_FTT2 | FSR_FTT1 | FSR_FTT0)
+//gcc warns about constant overflow for ~FSR_FTT_MASK
+//#define FSR_FTT_MASK (FSR_FTT2 | FSR_FTT1 | FSR_FTT0)
+#ifdef TARGET_SPARC64
+#define FSR_FTT_NMASK      0xfffffffffffe3fffULL
+#define FSR_FTT_CEXC_NMASK 0xfffffffffffe3fe0ULL
+#else
+#define FSR_FTT_NMASK      0xfffe3fffULL
+#define FSR_FTT_CEXC_NMASK 0xfffe3fe0ULL
+#endif
 #define FSR_FTT_IEEE_EXCP (1ULL << 14)
 #define FSR_FTT_UNIMPFPOP (3ULL << 14)
 #define FSR_FTT_SEQ_ERROR (4ULL << 14)

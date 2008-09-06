@@ -1602,7 +1602,7 @@ static inline void gen_op_fpexception_im(int fsr_flags)
 {
     TCGv r_const;
 
-    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, ~FSR_FTT_MASK);
+    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_NMASK);
     tcg_gen_ori_tl(cpu_fsr, cpu_fsr, fsr_flags);
     r_const = tcg_const_i32(TT_FP_EXCP);
     tcg_gen_helper_0_1(raise_exception, r_const);
@@ -1628,7 +1628,7 @@ static int gen_trap_ifnofpu(DisasContext *dc, TCGv r_cond)
 
 static inline void gen_op_clear_ieee_excp_and_FTT(void)
 {
-    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, ~(FSR_FTT_MASK | FSR_CEXC_MASK));
+    tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_CEXC_NMASK);
 }
 
 static inline void gen_clear_float_exceptions(void)
