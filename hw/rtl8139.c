@@ -3356,7 +3356,7 @@ static inline int64_t rtl8139_get_next_tctr_time(RTL8139State *s, int64_t curren
     return next_time;
 }
 
-#if RTL8139_ONBOARD_TIMER
+#ifdef RTL8139_ONBOARD_TIMER
 static void rtl8139_timer(void *opaque)
 {
     RTL8139State *s = opaque;
@@ -3456,7 +3456,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     register_savevm("rtl8139", -1, 3, rtl8139_save, rtl8139_load, s);
 
-#if RTL8139_ONBOARD_TIMER
+#ifdef RTL8139_ONBOARD_TIMER
     s->timer = qemu_new_timer(vm_clock, rtl8139_timer, s);
 
     qemu_mod_timer(s->timer,

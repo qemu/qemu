@@ -2259,7 +2259,7 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 #endif
 #ifdef TARGET_SPARC
     do_unassigned_access(addr, 0, 0, 0);
-#elif TARGET_CRIS
+#elif defined(TARGET_CRIS)
     do_unassigned_access(addr, 0, 0, 0);
 #endif
     return 0;
@@ -2272,7 +2272,7 @@ static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_
 #endif
 #ifdef TARGET_SPARC
     do_unassigned_access(addr, 1, 0, 0);
-#elif TARGET_CRIS
+#elif defined(TARGET_CRIS)
     do_unassigned_access(addr, 1, 0, 0);
 #endif
 }

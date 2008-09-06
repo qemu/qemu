@@ -1123,6 +1123,7 @@ typedef struct elf64_note {
   Elf64_Word n_type;	/* Content type */
 } Elf64_Nhdr;
 
+#ifdef ELF_CLASS
 #if ELF_CLASS == ELFCLASS32
 
 #define elfhdr		elf32_hdr
@@ -1164,6 +1165,8 @@ typedef struct elf64_note {
 #  define ELFW(x)  ELF64_ ## x
 # endif
 #endif
+
+#endif /* ELF_CLASS */
 
 
 #endif /* _QEMU_ELF_H */

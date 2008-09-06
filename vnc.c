@@ -35,14 +35,14 @@
 #include "keymaps.c"
 #include "d3des.h"
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 #endif /* CONFIG_VNC_TLS */
 
 // #define _VNC_DEBUG 1
 
-#if _VNC_DEBUG
+#ifdef _VNC_DEBUG
 #define VNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 
 #if CONFIG_VNC_TLS && _VNC_DEBUG >= 2
@@ -93,7 +93,7 @@ enum {
     VNC_AUTH_VENCRYPT = 19
 };
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 enum {
     VNC_WIREMODE_CLEAR,
     VNC_WIREMODE_TLS,
@@ -141,7 +141,7 @@ struct VncState
     char *display;
     char *password;
     int auth;
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
     int subauth;
     int x509verify;
 
@@ -152,7 +152,7 @@ struct VncState
 #endif
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
     int wiremode;
     gnutls_session_t tls_session;
 #endif
@@ -662,7 +662,7 @@ static int vnc_client_io_error(VncState *vs, int ret, int last_errno)
 	buffer_reset(&vs->input);
 	buffer_reset(&vs->output);
 	vs->need_update = 0;
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 	if (vs->tls_session) {
 	    gnutls_deinit(vs->tls_session);
 	    vs->tls_session = NULL;
@@ -684,7 +684,7 @@ static void vnc_client_write(void *opaque)
     long ret;
     VncState *vs = opaque;
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
     if (vs->tls_session) {
 	ret = gnutls_write(vs->tls_session, vs->output.buffer, vs->output.offset);
 	if (ret < 0) {
@@ -722,7 +722,7 @@ static void vnc_client_read(void *opaque)
 
     buffer_reserve(&vs->input, 4096);
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
     if (vs->tls_session) {
 	ret = gnutls_read(vs->tls_session, buffer_end(&vs->input), 4096);
 	if (ret < 0) {
@@ -829,7 +829,7 @@ static uint32_t read_u32(uint8_t *data, size_t offset)
 	    (data[offset + 2] << 8) | data[offset + 3]);
 }
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 static ssize_t vnc_tls_push(gnutls_transport_ptr_t transport,
                             const void *data,
                             size_t len) {
@@ -1439,7 +1439,7 @@ static int start_auth_vnc(VncState *vs)
 }
 
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 #define DH_BITS 1024
 static gnutls_dh_params_t dh_params;
 
@@ -1877,7 +1877,7 @@ static int protocol_client_auth(VncState *vs, uint8_t *data, size_t len)
            VNC_DEBUG("Start VNC auth\n");
            return start_auth_vnc(vs);
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
        case VNC_AUTH_VENCRYPT:
            VNC_DEBUG("Accept VeNCrypt auth\n");;
            return start_auth_vencrypt(vs);
@@ -2030,7 +2030,7 @@ void vnc_display_init(DisplayState *ds)
     vnc_dpy_resize(vs->ds, 640, 400);
 }
 
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 static int vnc_set_x509_credential(VncState *vs,
 				   const char *certdir,
 				   const char *filename,
@@ -2107,7 +2107,7 @@ void vnc_display_close(DisplayState *ds)
 	buffer_reset(&vs->input);
 	buffer_reset(&vs->output);
 	vs->need_update = 0;
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 	if (vs->tls_session) {
 	    gnutls_deinit(vs->tls_session);
 	    vs->tls_session = NULL;
@@ -2116,7 +2116,7 @@ void vnc_display_close(DisplayState *ds)
 #endif /* CONFIG_VNC_TLS */
     }
     vs->auth = VNC_AUTH_INVALID;
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
     vs->subauth = VNC_AUTH_INVALID;
     vs->x509verify = 0;
 #endif
@@ -2152,7 +2152,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
     const char *options;
     int password = 0;
     int reverse = 0;
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
     int tls = 0, x509 = 0;
 #endif
 
@@ -2170,7 +2170,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	    password = 1; /* Require password auth */
 	} else if (strncmp(options, "reverse", 7) == 0) {
 	    reverse = 1;
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 	} else if (strncmp(options, "tls", 3) == 0) {
 	    tls = 1; /* Require TLS */
 	} else if (strncmp(options, "x509", 4) == 0) {
@@ -2208,7 +2208,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
     }
 
     if (password) {
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 	if (tls) {
 	    vs->auth = VNC_AUTH_VENCRYPT;
 	    if (x509) {
@@ -2222,12 +2222,12 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #endif
 	    VNC_DEBUG("Initializing VNC server with password auth\n");
 	    vs->auth = VNC_AUTH_VNC;
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 	    vs->subauth = VNC_AUTH_INVALID;
 	}
 #endif
     } else {
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 	if (tls) {
 	    vs->auth = VNC_AUTH_VENCRYPT;
 	    if (x509) {
@@ -2241,7 +2241,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #endif
 	    VNC_DEBUG("Initializing VNC server with no auth\n");
 	    vs->auth = VNC_AUTH_NONE;
-#if CONFIG_VNC_TLS
+#ifdef CONFIG_VNC_TLS
 	    vs->subauth = VNC_AUTH_INVALID;
 	}
 #endif

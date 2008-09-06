@@ -1598,7 +1598,7 @@ static void usb_ohci_init(OHCIState *ohci, int num_ports, int devfn,
     int i;
 
     if (usb_frame_time == 0) {
-#if OHCI_TIME_WARP
+#ifdef OHCI_TIME_WARP
         usb_frame_time = ticks_per_sec;
         usb_bit_time = muldiv64(1, ticks_per_sec, USB_HZ/1000);
 #else

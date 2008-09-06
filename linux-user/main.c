@@ -282,7 +282,7 @@ static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
     p[1] = tswap32(e2);
 }
 
-#if TARGET_X86_64
+#ifdef TARGET_X86_64
 uint64_t idt_table[512];
 
 static void set_gate64(void *ptr, unsigned int type, unsigned int dpl,
