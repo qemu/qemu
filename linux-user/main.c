@@ -2143,7 +2143,6 @@ void cpu_loop (CPUState *env)
             exit(1);
             break;
         case EXCP_CALL_PAL ... (EXCP_CALL_PALP - 1):
-            fprintf(stderr, "Call to PALcode\n");
             call_pal(env, (trapnr >> 6) | 0x80);
             break;
         case EXCP_CALL_PALP ... (EXCP_CALL_PALE - 1):
