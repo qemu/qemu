@@ -770,9 +770,14 @@ fi
 if test "$vde" = "yes" ; then
   cat > $TMPC << EOF
 #include <libvdeplug.h>
-int main(void) { struct vde_open_args a = {0, 0, 0} ; return 0;}
+int main(void)
+{
+    struct vde_open_args a = {0, 0, 0};
+    vde_open("", "", &a);
+    return 0;
+}
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+    if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lvdeplug 2> /dev/null ; then
         :
     else
         vde="no"
