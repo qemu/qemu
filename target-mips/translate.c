@@ -428,7 +428,8 @@ static TCGv cpu_env, bcond, btarget, current_fpu;
 
 #include "gen-icount.h"
 
-static inline void tcg_gen_helper_0_i(void *func, TCGv arg)
+static inline void tcg_gen_helper_0_i(void *func, uint32_t arg)
+
 {
     TCGv tmp = tcg_const_i32(arg);
 
@@ -436,7 +437,7 @@ static inline void tcg_gen_helper_0_i(void *func, TCGv arg)
     tcg_temp_free(tmp);
 }
 
-static inline void tcg_gen_helper_0_ii(void *func, TCGv arg1, TCGv arg2)
+static inline void tcg_gen_helper_0_ii(void *func, uint32_t arg1, uint32_t arg2)
 {
     TCGv tmp1 = tcg_const_i32(arg1);
     TCGv tmp2 = tcg_const_i32(arg2);
@@ -446,7 +447,7 @@ static inline void tcg_gen_helper_0_ii(void *func, TCGv arg1, TCGv arg2)
     tcg_temp_free(tmp2);
 }
 
-static inline void tcg_gen_helper_0_1i(void *func, TCGv arg1, TCGv arg2)
+static inline void tcg_gen_helper_0_1i(void *func, TCGv arg1, uint32_t arg2)
 {
     TCGv tmp = tcg_const_i32(arg2);
 
@@ -454,7 +455,7 @@ static inline void tcg_gen_helper_0_1i(void *func, TCGv arg1, TCGv arg2)
     tcg_temp_free(tmp);
 }
 
-static inline void tcg_gen_helper_0_2i(void *func, TCGv arg1, TCGv arg2, TCGv arg3)
+static inline void tcg_gen_helper_0_2i(void *func, TCGv arg1, TCGv arg2, uint32_t arg3)
 {
     TCGv tmp = tcg_const_i32(arg3);
 
@@ -462,7 +463,7 @@ static inline void tcg_gen_helper_0_2i(void *func, TCGv arg1, TCGv arg2, TCGv ar
     tcg_temp_free(tmp);
 }
 
-static inline void tcg_gen_helper_0_1ii(void *func, TCGv arg1, TCGv arg2, TCGv arg3)
+static inline void tcg_gen_helper_0_1ii(void *func, TCGv arg1, uint32_t arg2, uint32_t arg3)
 {
     TCGv tmp1 = tcg_const_i32(arg2);
     TCGv tmp2 = tcg_const_i32(arg3);
@@ -472,7 +473,7 @@ static inline void tcg_gen_helper_0_1ii(void *func, TCGv arg1, TCGv arg2, TCGv a
     tcg_temp_free(tmp2);
 }
 
-static inline void tcg_gen_helper_1_i(void *func, TCGv ret, TCGv arg)
+static inline void tcg_gen_helper_1_i(void *func, TCGv ret, uint32_t arg)
 {
     TCGv tmp = tcg_const_i32(arg);
 
@@ -480,7 +481,7 @@ static inline void tcg_gen_helper_1_i(void *func, TCGv ret, TCGv arg)
     tcg_temp_free(tmp);
 }
 
-static inline void tcg_gen_helper_1_1i(void *func, TCGv ret, TCGv arg1, TCGv arg2)
+static inline void tcg_gen_helper_1_1i(void *func, TCGv ret, TCGv arg1, uint32_t arg2)
 {
     TCGv tmp = tcg_const_i32(arg2);
 
@@ -488,7 +489,7 @@ static inline void tcg_gen_helper_1_1i(void *func, TCGv ret, TCGv arg1, TCGv arg
     tcg_temp_free(tmp);
 }
 
-static inline void tcg_gen_helper_1_1ii(void *func, TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3)
+static inline void tcg_gen_helper_1_1ii(void *func, TCGv ret, TCGv arg1, uint32_t arg2, uint32_t arg3)
 {
     TCGv tmp1 = tcg_const_i32(arg2);
     TCGv tmp2 = tcg_const_i32(arg3);
@@ -498,7 +499,7 @@ static inline void tcg_gen_helper_1_1ii(void *func, TCGv ret, TCGv arg1, TCGv ar
     tcg_temp_free(tmp2);
 }
 
-static inline void tcg_gen_helper_1_2i(void *func, TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3)
+static inline void tcg_gen_helper_1_2i(void *func, TCGv ret, TCGv arg1, TCGv arg2, uint32_t arg3)
 {
     TCGv tmp = tcg_const_i32(arg3);
 
@@ -506,7 +507,7 @@ static inline void tcg_gen_helper_1_2i(void *func, TCGv ret, TCGv arg1, TCGv arg
     tcg_temp_free(tmp);
 }
 
-static inline void tcg_gen_helper_1_2ii(void *func, TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, TCGv arg4)
+static inline void tcg_gen_helper_1_2ii(void *func, TCGv ret, TCGv arg1, TCGv arg2, uint32_t arg3, uint32_t arg4)
 {
     TCGv tmp1 = tcg_const_i32(arg3);
     TCGv tmp2 = tcg_const_i32(arg4);
@@ -723,7 +724,7 @@ static inline void get_fp_cond (TCGv t)
 typedef void (fcmp_fun32)(uint32_t, uint32_t, int);
 typedef void (fcmp_fun64)(uint64_t, uint64_t, int);
 
-#define FOP_CONDS(fcmp_fun, type, arg0, arg1, fmt)                            \
+#define FOP_CONDS(fcmp_fun, type, fmt)                                        \
 static fcmp_fun * fcmp ## type ## _ ## fmt ## _table[16] = {                  \
     do_cmp ## type ## _ ## fmt ## _f,                                         \
     do_cmp ## type ## _ ## fmt ## _un,                                        \
@@ -742,17 +743,17 @@ static fcmp_fun * fcmp ## type ## _ ## fmt ## _table[16] = {                  \
     do_cmp ## type ## _ ## fmt ## _le,                                        \
     do_cmp ## type ## _ ## fmt ## _ngt,                                       \
 };                                                                            \
-static inline void gen_cmp ## type ## _ ## fmt(int n, arg0 a, arg1 b, int cc) \
+static inline void gen_cmp ## type ## _ ## fmt(int n, TCGv a, TCGv b, int cc) \
 {                                                                             \
     tcg_gen_helper_0_2i(fcmp ## type ## _ ## fmt ## _table[n], a, b, cc);     \
 }
 
-FOP_CONDS(fcmp_fun64, , uint64_t, uint64_t, d)
-FOP_CONDS(fcmp_fun64, abs, uint64_t, uint64_t, d)
-FOP_CONDS(fcmp_fun32, , uint32_t, uint32_t, s)
-FOP_CONDS(fcmp_fun32, abs, uint32_t, uint32_t, s)
-FOP_CONDS(fcmp_fun64, , uint64_t, uint64_t, ps)
-FOP_CONDS(fcmp_fun64, abs, uint64_t, uint64_t, ps)
+FOP_CONDS(fcmp_fun64, , d)
+FOP_CONDS(fcmp_fun64, abs, d)
+FOP_CONDS(fcmp_fun32, , s)
+FOP_CONDS(fcmp_fun32, abs, s)
+FOP_CONDS(fcmp_fun64, , ps)
+FOP_CONDS(fcmp_fun64, abs, ps)
 #undef FOP_CONDS
 
 /* Tests */
@@ -2499,7 +2500,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
 {
     target_ulong btgt = -1;
     int blink = 0;
-    int bcond = 0;
+    int bcond_compute = 0;
     TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
     TCGv t1 = tcg_temp_local_new(TCG_TYPE_TL);
 
@@ -2525,7 +2526,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         if (rs != rt) {
             gen_load_gpr(t0, rs);
             gen_load_gpr(t1, rt);
-            bcond = 1;
+            bcond_compute = 1;
         }
         btgt = ctx->pc + 4 + offset;
         break;
@@ -2544,7 +2545,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         /* Compare to zero */
         if (rs != 0) {
             gen_load_gpr(t0, rs);
-            bcond = 1;
+            bcond_compute = 1;
         }
         btgt = ctx->pc + 4 + offset;
         break;
@@ -2570,7 +2571,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
         generate_exception(ctx, EXCP_RI);
         goto out;
     }
-    if (bcond == 0) {
+    if (bcond_compute == 0) {
         /* No condition to be computed */
         switch (opc) {
         case OPC_BEQ:     /* rx == rx        */
@@ -6046,7 +6047,7 @@ static inline void gen_movcf_s (int fs, int fd, int cc, int tf)
     tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
     tcg_gen_andi_i32(r_tmp1, r_tmp1, ccbit);
     tcg_gen_brcondi_i32(cond, r_tmp1, 0, l1);
-    tcg_gen_movi_i32(fp1, fp0);
+    tcg_gen_mov_i32(fp1, fp0);
     tcg_temp_free(fp0);
     gen_set_label(l1);
     tcg_temp_free(r_tmp1);
@@ -6078,7 +6079,7 @@ static inline void gen_movcf_d (DisasContext *ctx, int fs, int fd, int cc, int t
     tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
     tcg_gen_andi_i32(r_tmp1, r_tmp1, ccbit);
     tcg_gen_brcondi_i32(cond, r_tmp1, 0, l1);
-    tcg_gen_movi_i64(fp1, fp0);
+    tcg_gen_mov_i64(fp1, fp0);
     tcg_temp_free(fp0);
     gen_set_label(l1);
     tcg_temp_free(r_tmp1);
@@ -6111,12 +6112,12 @@ static inline void gen_movcf_ps (int fs, int fd, int cc, int tf)
     tcg_gen_shri_i32(r_tmp1, r_tmp1, cc);
     tcg_gen_andi_i32(r_tmp2, r_tmp1, 0x1);
     tcg_gen_brcondi_i32(cond, r_tmp2, 0, l1);
-    tcg_gen_movi_i32(fp1, fp0);
+    tcg_gen_mov_i32(fp1, fp0);
     tcg_temp_free(fp0);
     gen_set_label(l1);
     tcg_gen_andi_i32(r_tmp2, r_tmp1, 0x2);
     tcg_gen_brcondi_i32(cond, r_tmp2, 0, l2);
-    tcg_gen_movi_i32(fph1, fph0);
+    tcg_gen_mov_i32(fph1, fph0);
     tcg_temp_free(fph0);
     gen_set_label(l2);
     tcg_temp_free(r_tmp1);

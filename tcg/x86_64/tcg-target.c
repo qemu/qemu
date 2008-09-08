@@ -382,6 +382,12 @@ static inline void tgen_arithi32(TCGContext *s, int c, int r0, int32_t val)
     if (val == (int8_t)val) {
         tcg_out_modrm(s, 0x83, c, r0);
         tcg_out8(s, val);
+    } else if (c == ARITH_AND && val == 0xffu) {
+        /* movzbl */
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXB, r0, r0);
+    } else if (c == ARITH_AND && val == 0xffffu) {
+        /* movzwl */
+        tcg_out_modrm(s, 0xb7 | P_EXT, r0, r0);
     } else {
         tcg_out_modrm(s, 0x81, c, r0);
         tcg_out32(s, val);
@@ -393,6 +399,15 @@ static inline void tgen_arithi64(TCGContext *s, int c, int r0, int64_t val)
     if (val == (int8_t)val) {
         tcg_out_modrm(s, 0x83 | P_REXW, c, r0);
         tcg_out8(s, val);
+    } else if (c == ARITH_AND && val == 0xffu) {
+        /* movzbl */
+        tcg_out_modrm(s, 0xb6 | P_EXT | P_REXW, r0, r0);
+    } else if (c == ARITH_AND && val == 0xffffu) {
+        /* movzwl */
+        tcg_out_modrm(s, 0xb7 | P_EXT | P_REXW, r0, r0);
+    } else if (c == ARITH_AND && val == 0xffffffffu) {
+        /* 32-bit mov zero extends */
+        tcg_out_modrm(s, 0x8b, r0, r0);
     } else if (val == (int32_t)val) {
         tcg_out_modrm(s, 0x81 | P_REXW, c, r0);
         tcg_out32(s, val);
@@ -1070,6 +1085,22 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_modrm(s, 0xf7 | P_REXW, 3, args[0]);
         break;
 
+    case INDEX_op_ext8s_i32:
+        tcg_out_modrm(s, 0xbe | P_EXT | P_REXB, args[0], args[1]);
+        break;
+    case INDEX_op_ext16s_i32:
+        tcg_out_modrm(s, 0xbf | P_EXT, args[0], args[1]);
+        break;
+    case INDEX_op_ext8s_i64:
+        tcg_out_modrm(s, 0xbe | P_EXT | P_REXW, args[0], args[1]);
+        break;
+    case INDEX_op_ext16s_i64:
+        tcg_out_modrm(s, 0xbf | P_EXT | P_REXW, args[0], args[1]);
+        break;
+    case INDEX_op_ext32s_i64:
+        tcg_out_modrm(s, 0x63 | P_REXW, args[0], args[1]);
+        break;
+
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
         break;
@@ -1227,6 +1258,12 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
 
     { INDEX_op_neg_i32, { "r", "0" } },
     { INDEX_op_neg_i64, { "r", "0" } },
+
+    { INDEX_op_ext8s_i32, { "r", "r"} },
+    { INDEX_op_ext16s_i32, { "r", "r"} },
+    { INDEX_op_ext8s_i64, { "r", "r"} },
+    { INDEX_op_ext16s_i64, { "r", "r"} },
+    { INDEX_op_ext32s_i64, { "r", "r"} },
 
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },

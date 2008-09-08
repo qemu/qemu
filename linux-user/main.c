@@ -282,7 +282,7 @@ static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
     p[1] = tswap32(e2);
 }
 
-#if TARGET_X86_64
+#ifdef TARGET_X86_64
 uint64_t idt_table[512];
 
 static void set_gate64(void *ptr, unsigned int type, unsigned int dpl,
@@ -2143,7 +2143,6 @@ void cpu_loop (CPUState *env)
             exit(1);
             break;
         case EXCP_CALL_PAL ... (EXCP_CALL_PALP - 1):
-            fprintf(stderr, "Call to PALcode\n");
             call_pal(env, (trapnr >> 6) | 0x80);
             break;
         case EXCP_CALL_PALP ... (EXCP_CALL_PALE - 1):

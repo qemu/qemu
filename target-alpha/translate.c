@@ -390,15 +390,15 @@ static always_inline void gen_cmov (DisasContext *ctx,
                                     int islit, int8_t lit)
 {
     if (ra != 31)
-        tcg_gen_mov_i64(cpu_T[1], cpu_ir[ra]);
-    else
-        tcg_gen_movi_i64(cpu_T[1], 0);
-    if (islit)
-        tcg_gen_movi_i64(cpu_T[0], lit);
-    else if (rb != 31)
-        tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
+        tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
     else
         tcg_gen_movi_i64(cpu_T[0], 0);
+    if (islit)
+        tcg_gen_movi_i64(cpu_T[1], lit);
+    else if (rb != 31)
+        tcg_gen_mov_i64(cpu_T[1], cpu_ir[rb]);
+    else
+        tcg_gen_movi_i64(cpu_T[1], 0);
     (*gen_test_op)();
     gen_op_cmov_ir(rc);
 }

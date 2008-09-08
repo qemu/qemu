@@ -827,10 +827,14 @@ __GEN_INT_ARITH1_O_64(name##o, opc1, opc2, opc3 | 0x10, type)
 #endif
 
 /* add    add.    addo    addo.    */
+static always_inline void gen_op_add (void)
+{
+    tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
+}
 static always_inline void gen_op_addo (void)
 {
     tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
-    gen_op_add();
+    tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
@@ -838,7 +842,7 @@ static always_inline void gen_op_addo (void)
 static always_inline void gen_op_addo_64 (void)
 {
     tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
-    gen_op_add();
+    tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
     gen_op_check_addo_64();
 }
 #endif
@@ -847,13 +851,13 @@ GEN_INT_ARITH2_64 (add,    0x1F, 0x0A, 0x08, PPC_INTEGER);
 static always_inline void gen_op_addc (void)
 {
     tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
-    gen_op_add();
+    tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
     gen_op_check_addc();
 }
 static always_inline void gen_op_addco (void)
 {
     tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
-    gen_op_add();
+    tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
     gen_op_check_addc();
     gen_op_check_addo();
 }
@@ -861,13 +865,13 @@ static always_inline void gen_op_addco (void)
 static always_inline void gen_op_addc_64 (void)
 {
     tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
-    gen_op_add();
+    tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
     gen_op_check_addc_64();
 }
 static always_inline void gen_op_addco_64 (void)
 {
     tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
-    gen_op_add();
+    tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
     gen_op_check_addc_64();
     gen_op_check_addo_64();
 }
@@ -946,10 +950,14 @@ GEN_INT_ARITH2 (mullw,  0x1F, 0x0B, 0x07, PPC_INTEGER);
 /* neg    neg.    nego    nego.    */
 GEN_INT_ARITH1_64 (neg,    0x1F, 0x08, 0x03, PPC_INTEGER);
 /* subf   subf.   subfo   subfo.   */
+static always_inline void gen_op_subf (void)
+{
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
+}
 static always_inline void gen_op_subfo (void)
 {
     tcg_gen_not_tl(cpu_T[2], cpu_T[0]);
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
@@ -957,7 +965,7 @@ static always_inline void gen_op_subfo (void)
 static always_inline void gen_op_subfo_64 (void)
 {
     tcg_gen_not_i64(cpu_T[2], cpu_T[0]);
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_addo_64();
 }
 #endif
@@ -965,26 +973,26 @@ GEN_INT_ARITH2_64 (subf,   0x1F, 0x08, 0x01, PPC_INTEGER);
 /* subfc  subfc.  subfco  subfco.  */
 static always_inline void gen_op_subfc (void)
 {
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_subfc();
 }
 static always_inline void gen_op_subfco (void)
 {
     tcg_gen_not_tl(cpu_T[2], cpu_T[0]);
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_subfc();
     gen_op_check_addo();
 }
 #if defined(TARGET_PPC64)
 static always_inline void gen_op_subfc_64 (void)
 {
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_subfc_64();
 }
 static always_inline void gen_op_subfco_64 (void)
 {
     tcg_gen_not_i64(cpu_T[2], cpu_T[0]);
-    gen_op_subf();
+    tcg_gen_sub_tl(cpu_T[0], cpu_T[1], cpu_T[0]);
     gen_op_check_subfc_64();
     gen_op_check_addo_64();
 }
@@ -1022,7 +1030,7 @@ GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     } else {
         tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
         if (likely(simm != 0))
-            gen_op_addi(simm);
+            tcg_gen_addi_tl(cpu_T[0], cpu_T[0], simm);
     }
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
 }
@@ -1034,7 +1042,7 @@ GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
     if (likely(simm != 0)) {
         tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
-        gen_op_addi(simm);
+        tcg_gen_addi_tl(cpu_T[0], cpu_T[0], simm);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
             gen_op_check_addc_64();
@@ -1054,7 +1062,7 @@ GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
     if (likely(simm != 0)) {
         tcg_gen_mov_tl(cpu_T[2], cpu_T[0]);
-        gen_op_addi(simm);
+        tcg_gen_addi_tl(cpu_T[0], cpu_T[0], simm);
 #if defined(TARGET_PPC64)
         if (ctx->sf_mode)
             gen_op_check_addc_64();
@@ -1078,7 +1086,7 @@ GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     } else {
         tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
         if (likely(simm != 0))
-            gen_op_addi(simm << 16);
+            tcg_gen_addi_tl(cpu_T[0], cpu_T[0], simm << 16);
     }
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
 }
@@ -2094,7 +2102,7 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
     bf = crbD(ctx->opcode) >> 2;
     sh = 7 - bf;
     gen_optimize_fprf();
-    gen_op_set_FT0(FPIMM(ctx->opcode) << (4 * sh));
+    tcg_gen_movi_i64(cpu_FT[0], FPIMM(ctx->opcode) << (4 * sh));
     gen_reset_fpstatus();
     gen_op_store_fpscr(1 << sh);
     if (unlikely(Rc(ctx->opcode) != 0)) {
@@ -2118,7 +2126,7 @@ static always_inline void gen_addr_imm_index (DisasContext *ctx,
     } else {
         tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
         if (likely(simm != 0))
-            gen_op_addi(simm);
+            tcg_gen_addi_tl(cpu_T[0], cpu_T[0], simm);
     }
 #ifdef DEBUG_MEMORY_ACCESSES
     gen_op_print_mem_EA();
@@ -2132,7 +2140,7 @@ static always_inline void gen_addr_reg_index (DisasContext *ctx)
     } else {
         tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
         tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rB(ctx->opcode)]);
-        gen_op_add();
+        tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
     }
 #ifdef DEBUG_MEMORY_ACCESSES
     gen_op_print_mem_EA();
@@ -2331,7 +2339,7 @@ GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX)
     gen_addr_imm_index(ctx, 0x0F);
     op_ldst(ld);
     tcg_gen_mov_tl(cpu_gpr[rd], cpu_T[1]);
-    gen_op_addi(8);
+    tcg_gen_addi_tl(cpu_T[0], cpu_T[0], 8);
     op_ldst(ld);
     tcg_gen_mov_tl(cpu_gpr[rd + 1], cpu_T[1]);
 #endif
@@ -2427,7 +2435,7 @@ GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B)
         gen_addr_imm_index(ctx, 0x03);
         tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rs]);
         op_ldst(std);
-        gen_op_addi(8);
+        tcg_gen_addi_tl(cpu_T[0], cpu_T[0], 8);
         tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rs + 1]);
         op_ldst(std);
 #endif
@@ -5346,7 +5354,7 @@ static always_inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
     } else {
         tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
         if (likely(simm != 0))
-            gen_op_addi(simm << sh);
+            tcg_gen_addi_tl(cpu_T[0], cpu_T[0], simm << sh);
     }
 }
 

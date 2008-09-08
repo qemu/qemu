@@ -347,7 +347,7 @@ done
 
 # default flags for all hosts
 # TODO: CFLAGS="$CFLAGS -Wall -Wmissing-noreturn -Wshadow -O2 -g -fno-strict-aliasing"
-CFLAGS="$CFLAGS -Wall -Wmissing-noreturn -O2 -g -fno-strict-aliasing"
+CFLAGS="$CFLAGS -Wall -Wundef -O2 -g -fno-strict-aliasing -Wmissing-noreturn"
 LDFLAGS="$LDFLAGS -g"
 if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
@@ -775,9 +775,14 @@ fi
 if test "$vde" = "yes" ; then
   cat > $TMPC << EOF
 #include <libvdeplug.h>
-int main(void) { struct vde_open_args a = {0, 0, 0} ; return 0;}
+int main(void)
+{
+    struct vde_open_args a = {0, 0, 0};
+    vde_open("", "", &a);
+    return 0;
+}
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+    if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lvdeplug 2> /dev/null ; then
         :
     else
         vde="no"

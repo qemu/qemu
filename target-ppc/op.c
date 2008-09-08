@@ -410,16 +410,6 @@ void OPPROTO op_load_fpscr_FT0 (void)
     RETURN();
 }
 
-void OPPROTO op_set_FT0 (void)
-{
-    CPU_DoubleU u;
-
-    u.l.upper = 0;
-    u.l.lower = PARAM1;
-    FT0 = u.d;
-    RETURN();
-}
-
 void OPPROTO op_load_fpscr_T0 (void)
 {
     T0 = (env->fpscr >> PARAM1) & 0xF;
@@ -612,12 +602,6 @@ void OPPROTO op_dec_ctr (void)
 
 /***                           Integer arithmetic                          ***/
 /* add */
-void OPPROTO op_add (void)
-{
-    T0 += T1;
-    RETURN();
-}
-
 void OPPROTO op_check_addo (void)
 {
     xer_ov = (((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
@@ -673,13 +657,6 @@ void OPPROTO op_adde_64 (void)
     RETURN();
 }
 #endif
-
-/* add immediate */
-void OPPROTO op_addi (void)
-{
-    T0 += (int32_t)PARAM1;
-    RETURN();
-}
 
 /* add to minus one extended */
 void OPPROTO op_add_me (void)
@@ -903,13 +880,6 @@ void OPPROTO op_nego_64 (void)
     RETURN();
 }
 #endif
-
-/* subtract from */
-void OPPROTO op_subf (void)
-{
-    T0 = T1 - T0;
-    RETURN();
-}
 
 /* subtract from carrying */
 void OPPROTO op_check_subfc (void)

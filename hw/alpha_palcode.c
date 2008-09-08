@@ -1061,13 +1061,11 @@ void call_pal (CPUState *env, int palcode)
 {
     target_ulong ret;
 
-    printf("%s: palcode %02x\n", __func__, palcode);
     if (logfile != NULL)
         fprintf(logfile, "%s: palcode %02x\n", __func__, palcode);
     switch (palcode) {
     case 0x83:
         /* CALLSYS */
-        printf("CALLSYS n " TARGET_FMT_ld "\n", env->ir[0]);
         if (logfile != NULL)
             fprintf(logfile, "CALLSYS n " TARGET_FMT_ld "\n", env->ir[0]);
         ret = do_syscall(env, env->ir[IR_V0], env->ir[IR_A0], env->ir[IR_A1],
@@ -1083,15 +1081,16 @@ void call_pal (CPUState *env, int palcode)
     case 0x9E:
         /* RDUNIQUE */
         env->ir[IR_V0] = env->unique;
-        printf("RDUNIQUE: " TARGET_FMT_lx "\n", env->unique);
+        if (logfile != NULL)
+            fprintf(logfile, "RDUNIQUE: " TARGET_FMT_lx "\n", env->unique);
         break;
     case 0x9F:
         /* WRUNIQUE */
         env->unique = env->ir[IR_A0];
-        printf("WRUNIQUE: " TARGET_FMT_lx "\n", env->unique);
+        if (logfile != NULL)
+            fprintf(logfile, "WRUNIQUE: " TARGET_FMT_lx "\n", env->unique);
         break;
     default:
-        printf("%s: unhandled palcode %02x\n", __func__, palcode);
         if (logfile != NULL)
             fprintf(logfile, "%s: unhandled palcode %02x\n",
                     __func__, palcode);

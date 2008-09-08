@@ -1069,7 +1069,7 @@ static int usb_net_handle_control(USBDevice *dev, int request, int value,
     case ClassInterfaceOutRequest | USB_CDC_SEND_ENCAPSULATED_COMMAND:
         if (!s->rndis || value || index != 0)
             goto fail;
-#if TRAFFIC_DEBUG
+#ifdef TRAFFIC_DEBUG
         {
             unsigned int i;
             fprintf(stderr, "SEND_ENCAPSULATED_COMMAND:");
@@ -1092,7 +1092,7 @@ static int usb_net_handle_control(USBDevice *dev, int request, int value,
             data[0] = 0;
             ret = 1;
         }
-#if TRAFFIC_DEBUG
+#ifdef TRAFFIC_DEBUG
         {
             unsigned int i;
             fprintf(stderr, "GET_ENCAPSULATED_RESPONSE:");
@@ -1219,7 +1219,7 @@ static int usb_net_handle_statusin(USBNetState *s, USBPacket *p)
     if (!s->rndis_resp.tqh_first)
         ret = USB_RET_NAK;
 
-#if DEBUG
+#ifdef TRAFFIC_DEBUG
     fprintf(stderr, "usbnet: interrupt poll len %u return %d", p->len, ret);
     {
         int i;
@@ -1260,7 +1260,7 @@ static int usb_net_handle_datain(USBNetState *s, USBPacket *p)
         s->in_ptr = s->in_len = 0;
     }
 
-#if TRAFFIC_DEBUG
+#ifdef TRAFFIC_DEBUG
     fprintf(stderr, "usbnet: data in len %u return %d", p->len, ret);
     {
         int i;
@@ -1285,7 +1285,7 @@ static int usb_net_handle_dataout(USBNetState *s, USBPacket *p)
             (struct rndis_packet_msg_type *) s->out_buf;
     uint32_t len;
 
-#if TRAFFIC_DEBUG
+#ifdef TRAFFIC_DEBUG
     fprintf(stderr, "usbnet: data out len %u\n", p->len);
     {
         int i;
