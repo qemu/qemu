@@ -4368,12 +4368,19 @@ static void disas_sparc_insn(DisasContext * dc)
                     tcg_gen_st_i32(cpu_tmp32, cpu_env,
                                    offsetof(CPUState, fpr[rd]));
                     break;
-                case 0x21:      /* load fsr */
+                case 0x21:      /* ldfsr, V9 ldxfsr */
+#ifdef TARGET_SPARC64
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld32u(cpu_tmp32, cpu_addr, dc->mem_idx);
-                    tcg_gen_st_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUState, ft0));
-                    tcg_gen_helper_0_0(helper_ldfsr);
+                    if (rd == 1) {
+                        tcg_gen_qemu_ld64(cpu_tmp64, cpu_addr, dc->mem_idx);
+                        tcg_gen_helper_0_1(helper_ldxfsr, cpu_tmp64);
+                    } else
+#else
+                    {
+                        tcg_gen_qemu_ld32u(cpu_tmp32, cpu_addr, dc->mem_idx);
+                        tcg_gen_helper_0_1(helper_ldfsr, cpu_tmp32);
+                    }
+#endif
                     break;
                 case 0x22:      /* load quad fpreg */
                     {
@@ -4506,11 +4513,19 @@ static void disas_sparc_insn(DisasContext * dc)
                     tcg_gen_qemu_st32(cpu_tmp32, cpu_addr, dc->mem_idx);
                     break;
                 case 0x25: /* stfsr, V9 stxfsr */
+#ifdef TARGET_SPARC64
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_helper_0_0(helper_stfsr);
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUState, ft0));
+                    tcg_gen_ld_i64(cpu_tmp64, cpu_env, offsetof(CPUState, fsr));
+                    if (rd == 1)
+                        tcg_gen_qemu_st64(cpu_tmp64, cpu_addr, dc->mem_idx);
+                    else {
+                        tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp64);
+                        tcg_gen_qemu_st32(cpu_tmp32, cpu_addr, dc->mem_idx);
+                    }
+#else
+                    tcg_gen_ld_i32(cpu_tmp32, cpu_env, offsetof(CPUState, fsr));
                     tcg_gen_qemu_st32(cpu_tmp32, cpu_addr, dc->mem_idx);
+#endif
                     break;
                 case 0x26:
 #ifdef TARGET_SPARC64

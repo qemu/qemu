@@ -1412,7 +1412,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                 env->psrs?'S':'-', env->psrps?'P':'-',
                 env->psret?'E':'-', env->wim);
 #endif
-    cpu_fprintf(f, "fsr: 0x%08x\n", GET_FSR32(env));
+    cpu_fprintf(f, "fsr: 0x%08x\n", env->fsr);
 }
 
 #ifdef TARGET_SPARC64

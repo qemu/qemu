@@ -2487,11 +2487,10 @@ void helper_stqf(target_ulong addr, int mem_idx)
 #endif
 }
 
-void helper_ldfsr(void)
+static inline void set_fsr(void)
 {
     int rnd_mode;
 
-    PUT_FSR32(env, *((uint32_t *) &FT0));
     switch (env->fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
         rnd_mode = float_round_nearest_even;
@@ -2510,10 +2509,19 @@ void helper_ldfsr(void)
     set_float_rounding_mode(rnd_mode, &env->fp_status);
 }
 
-void helper_stfsr(void)
+void helper_ldfsr(uint32_t new_fsr)
 {
-    *((uint32_t *) &FT0) = GET_FSR32(env);
+    env->fsr = (new_fsr & FSR_LDFSR_MASK) | (env->fsr & FSR_LDFSR_OLDMASK);
+    set_fsr();
 }
+
+#ifdef TARGET_SPARC64
+void helper_ldxfsr(uint64_t new_fsr)
+{
+    env->fsr = (new_fsr & FSR_LDXFSR_MASK) | (env->fsr & FSR_LDXFSR_OLDMASK);
+    set_fsr();
+}
+#endif
 
 void helper_debug(void)
 {
