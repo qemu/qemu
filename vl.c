@@ -8210,7 +8210,7 @@ static void termsig_handler(int signal)
     qemu_system_shutdown_request();
 }
 
-void termsig_setup(void)
+static void termsig_setup(void)
 {
     struct sigaction act;
 
