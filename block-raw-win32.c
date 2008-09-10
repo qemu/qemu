@@ -350,15 +350,7 @@ void qemu_aio_init(void)
 {
 }
 
-void qemu_aio_poll(void)
-{
-}
-
 void qemu_aio_flush(void)
-{
-}
-
-void qemu_aio_wait_start(void)
 {
 }
 
@@ -367,10 +359,6 @@ void qemu_aio_wait(void)
 #ifndef QEMU_IMG
     qemu_bh_poll();
 #endif
-}
-
-void qemu_aio_wait_end(void)
-{
 }
 
 BlockDriver bdrv_raw = {

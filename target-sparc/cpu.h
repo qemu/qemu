@@ -147,10 +147,15 @@
 #ifdef TARGET_SPARC64
 #define FSR_FTT_NMASK      0xfffffffffffe3fffULL
 #define FSR_FTT_CEXC_NMASK 0xfffffffffffe3fe0ULL
+#define FSR_LDFSR_OLDMASK  0x0000003f000fc000ULL
+#define FSR_LDXFSR_MASK    0x0000003fcfc00fffULL
+#define FSR_LDXFSR_OLDMASK 0x00000000000fc000ULL
 #else
 #define FSR_FTT_NMASK      0xfffe3fffULL
 #define FSR_FTT_CEXC_NMASK 0xfffe3fe0ULL
+#define FSR_LDFSR_OLDMASK  0x000fc000ULL
 #endif
+#define FSR_LDFSR_MASK     0xcfc00fffULL
 #define FSR_FTT_IEEE_EXCP (1ULL << 14)
 #define FSR_FTT_UNIMPFPOP (3ULL << 14)
 #define FSR_FTT_SEQ_ERROR (4ULL << 14)
@@ -328,22 +333,6 @@ typedef struct CPUSPARCState {
 #endif
     sparc_def_t *def;
 } CPUSPARCState;
-
-#if defined(TARGET_SPARC64)
-#define GET_FSR32(env) (env->fsr & 0xcfc1ffff)
-#define PUT_FSR32(env, val) do { uint32_t _tmp = val;                   \
-        env->fsr = (_tmp & 0xcfc1c3ff) | (env->fsr & 0x3f00000000ULL);  \
-    } while (0)
-#define GET_FSR64(env) (env->fsr & 0x3fcfc1ffffULL)
-#define PUT_FSR64(env, val) do { uint64_t _tmp = val;   \
-        env->fsr = _tmp & 0x3fcfc1c3ffULL;              \
-    } while (0)
-#else
-#define GET_FSR32(env) (env->fsr)
-#define PUT_FSR32(env, val) do { uint32_t _tmp = val;                   \
-        env->fsr = (_tmp & 0xcfc1dfff) | (env->fsr & 0x000e0000);       \
-    } while (0)
-#endif
 
 /* helper.c */
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);

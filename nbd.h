@@ -50,7 +50,7 @@ int tcp_socket_incoming(const char *address, uint16_t port);
 int unix_socket_outgoing(const char *path);
 int unix_socket_incoming(const char *path);
 
-int nbd_negotiate(BlockDriverState *bs, int csock, off_t size);
+int nbd_negotiate(int csock, off_t size);
 int nbd_receive_negotiate(int csock, off_t *size, size_t *blocksize);
 int nbd_init(int fd, int csock, off_t size, size_t blocksize);
 int nbd_send_request(int csock, struct nbd_request *request);

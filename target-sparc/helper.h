@@ -55,8 +55,7 @@ DEF_HELPER(uint64_t, helper_ld_asi, (target_ulong addr, int asi, int size, \
 DEF_HELPER(void, helper_st_asi, (target_ulong addr, uint64_t val, int asi, \
                                  int size))
 #endif
-DEF_HELPER(void, helper_ldfsr, (void))
-DEF_HELPER(void, helper_stfsr, (void))
+DEF_HELPER(void, helper_ldfsr, (uint32_t new_fsr))
 DEF_HELPER(void, helper_check_ieee_exceptions, (void))
 DEF_HELPER(void, helper_clear_float_exceptions, (void))
 DEF_HELPER(void, helper_fabss, (void))
@@ -70,6 +69,7 @@ DEF_HELPER(void, helper_fsqrtq, (void))
 DEF_HELPER(void, helper_fcmpq, (void))
 DEF_HELPER(void, helper_fcmpeq, (void))
 #ifdef TARGET_SPARC64
+DEF_HELPER(void, helper_ldxfsr, (uint64_t new_fsr))
 DEF_HELPER(void, helper_fabsd, (void))
 DEF_HELPER(void, helper_fcmps_fcc1, (void))
 DEF_HELPER(void, helper_fcmpd_fcc1, (void))

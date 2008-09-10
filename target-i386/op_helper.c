@@ -590,6 +590,10 @@ do {\
 #define SET_ESP(val, sp_mask) ESP = (ESP & ~(sp_mask)) | ((val) & (sp_mask))
 #endif
 
+/* in 64-bit machines, this can overflow. So this segment addition macro
+ * can be used to trim the value to 32-bit whenever needed */
+#define SEG_ADDL(ssp, sp, sp_mask) ((uint32_t)((ssp) + (sp & (sp_mask))))
+
 /* XXX: add a is_user flag to have proper security support */
 #define PUSHW(ssp, sp, sp_mask, val)\
 {\
@@ -600,7 +604,7 @@ do {\
 #define PUSHL(ssp, sp, sp_mask, val)\
 {\
     sp -= 4;\
-    stl_kernel((ssp) + (sp & (sp_mask)), (val));\
+    stl_kernel(SEG_ADDL(ssp, sp, sp_mask), (uint32_t)(val));\
 }
 
 #define POPW(ssp, sp, sp_mask, val)\
@@ -611,7 +615,7 @@ do {\
 
 #define POPL(ssp, sp, sp_mask, val)\
 {\
-    val = (uint32_t)ldl_kernel((ssp) + (sp & (sp_mask)));\
+    val = (uint32_t)ldl_kernel(SEG_ADDL(ssp, sp, sp_mask));\
     sp += 4;\
 }
 

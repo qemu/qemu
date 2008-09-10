@@ -264,7 +264,7 @@ error:
                   Request (type == 2)
 */
 
-int nbd_negotiate(BlockDriverState *bs, int csock, off_t size)
+int nbd_negotiate(int csock, off_t size)
 {
 	char buf[8 + 8 + 8 + 128];
 

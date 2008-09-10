@@ -458,7 +458,7 @@ int main(int argc, char **argv)
                                              (struct sockaddr *)&addr,
                                              &addr_len);
                 if (sharing_fds[nb_fds] != -1 &&
-                    nbd_negotiate(bs, sharing_fds[nb_fds], fd_size) != -1) {
+                    nbd_negotiate(sharing_fds[nb_fds], fd_size) != -1) {
                         if (sharing_fds[nb_fds] > max_fd)
                             max_fd = sharing_fds[nb_fds];
                         nb_fds++;

@@ -7480,7 +7480,6 @@ void main_loop_wait(int timeout)
         slirp_select_poll(&rfds, &wfds, &xfds);
     }
 #endif
-    qemu_aio_poll();
 
     if (vm_running) {
         if (likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
@@ -8244,7 +8243,7 @@ static void termsig_handler(int signal)
     qemu_system_shutdown_request();
 }
 
-void termsig_setup(void)
+static void termsig_setup(void)
 {
     struct sigaction act;
 

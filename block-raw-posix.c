@@ -25,8 +25,10 @@
 #if !defined(QEMU_IMG) && !defined(QEMU_NBD)
 #include "qemu-timer.h"
 #include "exec-all.h"
+#include "qemu-char.h"
 #endif
 #include "block_int.h"
+#include "compatfd.h"
 #include <assert.h>
 #ifdef CONFIG_AIO
 #include <aio.h>
@@ -438,52 +440,12 @@ typedef struct RawAIOCB {
     int ret;
 } RawAIOCB;
 
+static int aio_sig_fd = -1;
 static int aio_sig_num = SIGUSR2;
 static RawAIOCB *first_aio; /* AIO issued */
 static int aio_initialized = 0;
 
-static void aio_signal_handler(int signum)
-{
-#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
-    CPUState *env = cpu_single_env;
-    if (env) {
-        /* stop the currently executing cpu because a timer occured */
-        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
-#ifdef USE_KQEMU
-        if (env->kqemu_enabled) {
-            kqemu_cpu_interrupt(env);
-        }
-#endif
-    }
-#endif
-}
-
-void qemu_aio_init(void)
-{
-    struct sigaction act;
-
-    aio_initialized = 1;
-
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0; /* do not restart syscalls to interrupt select() */
-    act.sa_handler = aio_signal_handler;
-    sigaction(aio_sig_num, &act, NULL);
-
-#if defined(__GLIBC__) && defined(__linux__)
-    {
-        /* XXX: aio thread exit seems to hang on RedHat 9 and this init
-           seems to fix the problem. */
-        struct aioinit ai;
-        memset(&ai, 0, sizeof(ai));
-        ai.aio_threads = 1;
-        ai.aio_num = 1;
-        ai.aio_idle_time = 365 * 100000;
-        aio_init(&ai);
-    }
-#endif
-}
-
-void qemu_aio_poll(void)
+static void qemu_aio_poll(void *opaque)
 {
     RawAIOCB *acb, **pacb;
     int ret;
@@ -524,49 +486,66 @@ void qemu_aio_poll(void)
  the_end: ;
 }
 
+void qemu_aio_init(void)
+{
+    sigset_t mask;
+
+    aio_initialized = 1;
+
+    /* Make sure to block AIO signal */
+    sigemptyset(&mask);
+    sigaddset(&mask, aio_sig_num);
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+    
+    aio_sig_fd = qemu_signalfd(&mask);
+#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
+    qemu_set_fd_handler2(aio_sig_fd, NULL, qemu_aio_poll, NULL, NULL);
+#endif
+
+#if defined(__GLIBC__) && defined(__linux__)
+    {
+        /* XXX: aio thread exit seems to hang on RedHat 9 and this init
+           seems to fix the problem. */
+        struct aioinit ai;
+        memset(&ai, 0, sizeof(ai));
+        ai.aio_threads = 1;
+        ai.aio_num = 1;
+        ai.aio_idle_time = 365 * 100000;
+        aio_init(&ai);
+    }
+#endif
+}
+
 /* Wait for all IO requests to complete.  */
 void qemu_aio_flush(void)
 {
-    qemu_aio_wait_start();
-    qemu_aio_poll();
+    qemu_aio_poll(NULL);
     while (first_aio) {
         qemu_aio_wait();
     }
-    qemu_aio_wait_end();
-}
-
-/* wait until at least one AIO was handled */
-static sigset_t wait_oset;
-
-void qemu_aio_wait_start(void)
-{
-    sigset_t set;
-
-    if (!aio_initialized)
-        qemu_aio_init();
-    sigemptyset(&set);
-    sigaddset(&set, aio_sig_num);
-    sigprocmask(SIG_BLOCK, &set, &wait_oset);
 }
 
 void qemu_aio_wait(void)
 {
-    sigset_t set;
-    int nb_sigs;
+    int ret;
 
 #if !defined(QEMU_IMG) && !defined(QEMU_NBD)
     if (qemu_bh_poll())
         return;
 #endif
-    sigemptyset(&set);
-    sigaddset(&set, aio_sig_num);
-    sigwait(&set, &nb_sigs);
-    qemu_aio_poll();
-}
 
-void qemu_aio_wait_end(void)
-{
-    sigprocmask(SIG_SETMASK, &wait_oset, NULL);
+    do {
+        fd_set rdfds;
+
+        FD_ZERO(&rdfds);
+        FD_SET(aio_sig_fd, &rdfds);
+
+        ret = select(aio_sig_fd + 1, &rdfds, NULL, NULL, NULL);
+        if (ret == -1 && errno == EINTR)
+            continue;
+    } while (ret == 0);
+
+    qemu_aio_poll(NULL);
 }
 
 static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
@@ -704,15 +683,7 @@ void qemu_aio_init(void)
 {
 }
 
-void qemu_aio_poll(void)
-{
-}
-
 void qemu_aio_flush(void)
-{
-}
-
-void qemu_aio_wait_start(void)
 {
 }
 
@@ -721,10 +692,6 @@ void qemu_aio_wait(void)
 #if !defined(QEMU_IMG) && !defined(QEMU_NBD)
     qemu_bh_poll();
 #endif
-}
-
-void qemu_aio_wait_end(void)
-{
 }
 
 #endif /* CONFIG_AIO */
