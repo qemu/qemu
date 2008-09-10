@@ -246,51 +246,6 @@ void helper_faligndata(void)
     *((uint64_t *)&DT0) = tmp;
 }
 
-void helper_fnot(void)
-{
-    *(uint64_t *)&DT0 = ~*(uint64_t *)&DT1;
-}
-
-void helper_fnor(void)
-{
-    *(uint64_t *)&DT0 = ~(*(uint64_t *)&DT0 | *(uint64_t *)&DT1);
-}
-
-void helper_for(void)
-{
-    *(uint64_t *)&DT0 |= *(uint64_t *)&DT1;
-}
-
-void helper_fxor(void)
-{
-    *(uint64_t *)&DT0 ^= *(uint64_t *)&DT1;
-}
-
-void helper_fand(void)
-{
-    *(uint64_t *)&DT0 &= *(uint64_t *)&DT1;
-}
-
-void helper_fornot(void)
-{
-    *(uint64_t *)&DT0 = *(uint64_t *)&DT0 | ~*(uint64_t *)&DT1;
-}
-
-void helper_fandnot(void)
-{
-    *(uint64_t *)&DT0 = *(uint64_t *)&DT0 & ~*(uint64_t *)&DT1;
-}
-
-void helper_fnand(void)
-{
-    *(uint64_t *)&DT0 = ~(*(uint64_t *)&DT0 & *(uint64_t *)&DT1);
-}
-
-void helper_fxnor(void)
-{
-    *(uint64_t *)&DT0 ^= ~*(uint64_t *)&DT1;
-}
-
 #ifdef WORDS_BIGENDIAN
 #define VIS_B64(n) b[7 - (n)]
 #define VIS_W64(n) w[3 - (n)]

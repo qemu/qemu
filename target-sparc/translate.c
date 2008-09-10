@@ -3886,10 +3886,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x062: /* VIS I fnor */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT0(DFPREG(rs1));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fnor);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_or_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1)],
+                                   cpu_fpr[DFPREG(rs2)]);
+                    tcg_gen_xori_i32(cpu_fpr[DFPREG(rd)], cpu_tmp32, -1);
+                    tcg_gen_or_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1) + 1],
+                                   cpu_fpr[DFPREG(rs2) + 1]);
+                    tcg_gen_xori_i32(cpu_fpr[DFPREG(rd) + 1], cpu_tmp32, -1);
                     break;
                 case 0x063: /* VIS I fnors */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3898,10 +3900,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x064: /* VIS I fandnot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT1(DFPREG(rs1));
-                    gen_op_load_fpr_DT0(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fandnot);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1)], -1);
+                    tcg_gen_and_i32(cpu_fpr[DFPREG(rd)], cpu_tmp32,
+                                    cpu_fpr[DFPREG(rs2)]);
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1) + 1], -1);
+                    tcg_gen_and_i32(cpu_fpr[DFPREG(rd) + 1], cpu_tmp32,
+                                    cpu_fpr[DFPREG(rs2) + 1]);
                     break;
                 case 0x065: /* VIS I fandnot2s */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3910,9 +3914,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x066: /* VIS I fnot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fnot);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_xori_i32(cpu_fpr[DFPREG(rd)], cpu_fpr[DFPREG(rs2)],
+                                     -1);
+                    tcg_gen_xori_i32(cpu_fpr[DFPREG(rd) + 1],
+                                     cpu_fpr[DFPREG(rs2) + 1], -1);
                     break;
                 case 0x067: /* VIS I fnot2s */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3920,10 +3925,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x068: /* VIS I fandnot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT0(DFPREG(rs1));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fandnot);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs2)], -1);
+                    tcg_gen_and_i32(cpu_fpr[DFPREG(rd)], cpu_tmp32,
+                                    cpu_fpr[DFPREG(rs1)]);
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs2)], -1);
+                    tcg_gen_and_i32(cpu_fpr[DFPREG(rd) + 1], cpu_tmp32,
+                                    cpu_fpr[DFPREG(rs1) + 1]);
                     break;
                 case 0x069: /* VIS I fandnot1s */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3932,9 +3939,10 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x06a: /* VIS I fnot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT1(DFPREG(rs1));
-                    tcg_gen_helper_0_0(helper_fnot);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_xori_i32(cpu_fpr[DFPREG(rd)], cpu_fpr[DFPREG(rs1)],
+                                     -1);
+                    tcg_gen_xori_i32(cpu_fpr[DFPREG(rd) + 1],
+                                     cpu_fpr[DFPREG(rs1) + 1], -1);
                     break;
                 case 0x06b: /* VIS I fnot1s */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3942,10 +3950,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x06c: /* VIS I fxor */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT0(DFPREG(rs1));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fxor);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_xor_i32(cpu_fpr[DFPREG(rd)], cpu_fpr[DFPREG(rs1)],
+                                    cpu_fpr[DFPREG(rs2)]);
+                    tcg_gen_xor_i32(cpu_fpr[DFPREG(rd) + 1],
+                                    cpu_fpr[DFPREG(rs1) + 1],
+                                    cpu_fpr[DFPREG(rs2) + 1]);
                     break;
                 case 0x06d: /* VIS I fxors */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3953,10 +3962,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x06e: /* VIS I fnand */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT0(DFPREG(rs1));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fnand);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_and_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1)],
+                                    cpu_fpr[DFPREG(rs2)]);
+                    tcg_gen_xori_i32(cpu_fpr[DFPREG(rd)], cpu_tmp32, -1);
+                    tcg_gen_and_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1) + 1],
+                                    cpu_fpr[DFPREG(rs2) + 1]);
+                    tcg_gen_xori_i32(cpu_fpr[DFPREG(rd) + 1], cpu_tmp32, -1);
                     break;
                 case 0x06f: /* VIS I fnands */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3965,10 +3976,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x070: /* VIS I fand */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT0(DFPREG(rs1));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fand);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_and_i32(cpu_fpr[DFPREG(rd)], cpu_fpr[DFPREG(rs1)],
+                                    cpu_fpr[DFPREG(rs2)]);
+                    tcg_gen_and_i32(cpu_fpr[DFPREG(rd) + 1],
+                                    cpu_fpr[DFPREG(rs1) + 1],
+                                    cpu_fpr[DFPREG(rs2) + 1]);
                     break;
                 case 0x071: /* VIS I fands */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3976,10 +3988,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x072: /* VIS I fxnor */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT0(DFPREG(rs1));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fxnor);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs2)], -1);
+                    tcg_gen_xor_i32(cpu_fpr[DFPREG(rd)], cpu_tmp32,
+                                    cpu_fpr[DFPREG(rs1)]);
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs2) + 1], -1);
+                    tcg_gen_xor_i32(cpu_fpr[DFPREG(rd) + 1], cpu_tmp32,
+                                    cpu_fpr[DFPREG(rs1) + 1]);
                     break;
                 case 0x073: /* VIS I fxnors */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -3998,10 +4012,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x076: /* VIS I fornot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT1(DFPREG(rs1));
-                    gen_op_load_fpr_DT0(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fornot);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1)], -1);
+                    tcg_gen_or_i32(cpu_fpr[DFPREG(rd)], cpu_tmp32,
+                                   cpu_fpr[DFPREG(rs2)]);
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs1) + 1], -1);
+                    tcg_gen_or_i32(cpu_fpr[DFPREG(rd) + 1], cpu_tmp32,
+                                   cpu_fpr[DFPREG(rs2) + 1]);
                     break;
                 case 0x077: /* VIS I fornot2s */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4019,10 +4035,12 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x07a: /* VIS I fornot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT0(DFPREG(rs1));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_fornot);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs2)], -1);
+                    tcg_gen_or_i32(cpu_fpr[DFPREG(rd)], cpu_tmp32,
+                                   cpu_fpr[DFPREG(rs1)]);
+                    tcg_gen_xori_i32(cpu_tmp32, cpu_fpr[DFPREG(rs2) + 1], -1);
+                    tcg_gen_or_i32(cpu_fpr[DFPREG(rd) + 1], cpu_tmp32,
+                                   cpu_fpr[DFPREG(rs1) + 1]);
                     break;
                 case 0x07b: /* VIS I fornot1s */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4031,10 +4049,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x07c: /* VIS I for */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_op_load_fpr_DT0(DFPREG(rs1));
-                    gen_op_load_fpr_DT1(DFPREG(rs2));
-                    tcg_gen_helper_0_0(helper_for);
-                    gen_op_store_DT0_fpr(DFPREG(rd));
+                    tcg_gen_or_i32(cpu_fpr[DFPREG(rd)], cpu_fpr[DFPREG(rs1)],
+                                   cpu_fpr[DFPREG(rs2)]);
+                    tcg_gen_or_i32(cpu_fpr[DFPREG(rd) + 1],
+                                   cpu_fpr[DFPREG(rs1) + 1],
+                                   cpu_fpr[DFPREG(rs2) + 1]);
                     break;
                 case 0x07d: /* VIS I fors */
                     CHECK_FPU_FEATURE(dc, VIS1);

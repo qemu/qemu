@@ -139,15 +139,6 @@ F_HELPER_0_0(dtox);
 F_HELPER_0_0(qtox);
 F_HELPER_0_0(aligndata);
 
-F_HELPER_0_0(not);
-F_HELPER_0_0(nor);
-F_HELPER_0_0(or);
-F_HELPER_0_0(xor);
-F_HELPER_0_0(and);
-F_HELPER_0_0(ornot);
-F_HELPER_0_0(andnot);
-F_HELPER_0_0(nand);
-F_HELPER_0_0(xnor);
 F_HELPER_0_0(pmerge);
 F_HELPER_0_0(mul8x16);
 F_HELPER_0_0(mul8x16al);

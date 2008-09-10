@@ -39,8 +39,6 @@ Sparc64 CPUs:
  - Full hypervisor support
  - SMP/CMT
  - Sun4v CPUs
-- Optimizations/improvements:
- - Use TCG logic ops for VIS when possible
 
 Sun4:
 - To be added
