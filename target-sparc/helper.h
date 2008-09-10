@@ -138,29 +138,16 @@ F_HELPER_0_0(stox);
 F_HELPER_0_0(dtox);
 F_HELPER_0_0(qtox);
 F_HELPER_0_0(aligndata);
-DEF_HELPER(void, helper_movl_FT0_0, (void))
-DEF_HELPER(void, helper_movl_DT0_0, (void))
-DEF_HELPER(void, helper_movl_FT0_1, (void))
-DEF_HELPER(void, helper_movl_DT0_1, (void))
 
 F_HELPER_0_0(not);
-F_HELPER_0_0(nots);
 F_HELPER_0_0(nor);
-F_HELPER_0_0(nors);
 F_HELPER_0_0(or);
-F_HELPER_0_0(ors);
 F_HELPER_0_0(xor);
-F_HELPER_0_0(xors);
 F_HELPER_0_0(and);
-F_HELPER_0_0(ands);
 F_HELPER_0_0(ornot);
-F_HELPER_0_0(ornots);
 F_HELPER_0_0(andnot);
-F_HELPER_0_0(andnots);
 F_HELPER_0_0(nand);
-F_HELPER_0_0(nands);
 F_HELPER_0_0(xnor);
-F_HELPER_0_0(xnors);
 F_HELPER_0_0(pmerge);
 F_HELPER_0_0(mul8x16);
 F_HELPER_0_0(mul8x16al);
@@ -172,9 +159,9 @@ F_HELPER_0_0(muld8ulx16);
 F_HELPER_0_0(expand);
 #define VIS_HELPER(name)                                 \
     F_HELPER_0_0(name##16);                              \
-    F_HELPER_0_0(name##16s);                             \
+    DEF_HELPER(uint32_t, helper_f ## name ## 16s, (uint32_t src1, uint32_t src2))\
     F_HELPER_0_0(name##32);                              \
-    F_HELPER_0_0(name##32s)
+    DEF_HELPER(uint32_t, helper_f ## name ## 32s, (uint32_t src1, uint32_t src2))
 
 VIS_HELPER(padd);
 VIS_HELPER(psub);

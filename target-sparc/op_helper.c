@@ -246,34 +246,9 @@ void helper_faligndata(void)
     *((uint64_t *)&DT0) = tmp;
 }
 
-void helper_movl_FT0_0(void)
-{
-    *((uint32_t *)&FT0) = 0;
-}
-
-void helper_movl_DT0_0(void)
-{
-    *((uint64_t *)&DT0) = 0;
-}
-
-void helper_movl_FT0_1(void)
-{
-    *((uint32_t *)&FT0) = 0xffffffff;
-}
-
-void helper_movl_DT0_1(void)
-{
-    *((uint64_t *)&DT0) = 0xffffffffffffffffULL;
-}
-
 void helper_fnot(void)
 {
     *(uint64_t *)&DT0 = ~*(uint64_t *)&DT1;
-}
-
-void helper_fnots(void)
-{
-    *(uint32_t *)&FT0 = ~*(uint32_t *)&FT1;
 }
 
 void helper_fnor(void)
@@ -281,19 +256,9 @@ void helper_fnor(void)
     *(uint64_t *)&DT0 = ~(*(uint64_t *)&DT0 | *(uint64_t *)&DT1);
 }
 
-void helper_fnors(void)
-{
-    *(uint32_t *)&FT0 = ~(*(uint32_t *)&FT0 | *(uint32_t *)&FT1);
-}
-
 void helper_for(void)
 {
     *(uint64_t *)&DT0 |= *(uint64_t *)&DT1;
-}
-
-void helper_fors(void)
-{
-    *(uint32_t *)&FT0 |= *(uint32_t *)&FT1;
 }
 
 void helper_fxor(void)
@@ -301,19 +266,9 @@ void helper_fxor(void)
     *(uint64_t *)&DT0 ^= *(uint64_t *)&DT1;
 }
 
-void helper_fxors(void)
-{
-    *(uint32_t *)&FT0 ^= *(uint32_t *)&FT1;
-}
-
 void helper_fand(void)
 {
     *(uint64_t *)&DT0 &= *(uint64_t *)&DT1;
-}
-
-void helper_fands(void)
-{
-    *(uint32_t *)&FT0 &= *(uint32_t *)&FT1;
 }
 
 void helper_fornot(void)
@@ -321,19 +276,9 @@ void helper_fornot(void)
     *(uint64_t *)&DT0 = *(uint64_t *)&DT0 | ~*(uint64_t *)&DT1;
 }
 
-void helper_fornots(void)
-{
-    *(uint32_t *)&FT0 = *(uint32_t *)&FT0 | ~*(uint32_t *)&FT1;
-}
-
 void helper_fandnot(void)
 {
     *(uint64_t *)&DT0 = *(uint64_t *)&DT0 & ~*(uint64_t *)&DT1;
-}
-
-void helper_fandnots(void)
-{
-    *(uint32_t *)&FT0 = *(uint32_t *)&FT0 & ~*(uint32_t *)&FT1;
 }
 
 void helper_fnand(void)
@@ -341,19 +286,9 @@ void helper_fnand(void)
     *(uint64_t *)&DT0 = ~(*(uint64_t *)&DT0 & *(uint64_t *)&DT1);
 }
 
-void helper_fnands(void)
-{
-    *(uint32_t *)&FT0 = ~(*(uint32_t *)&FT0 & *(uint32_t *)&FT1);
-}
-
 void helper_fxnor(void)
 {
     *(uint64_t *)&DT0 ^= ~*(uint64_t *)&DT1;
-}
-
-void helper_fxnors(void)
-{
-    *(uint32_t *)&FT0 ^= ~*(uint32_t *)&FT1;
 }
 
 #ifdef WORDS_BIGENDIAN
@@ -597,17 +532,17 @@ void helper_fexpand(void)
         DT0 = d.d;                                      \
     }                                                   \
                                                         \
-    void name##16s(void)                                \
+    uint32_t name##16s(uint32_t src1, uint32_t src2)    \
     {                                                   \
         vis32 s, d;                                     \
                                                         \
-        s.f = FT0;                                      \
-        d.f = FT1;                                      \
+        s.l = src1;                                     \
+        d.l = src2;                                     \
                                                         \
         d.VIS_W32(0) = F(d.VIS_W32(0), s.VIS_W32(0));   \
         d.VIS_W32(1) = F(d.VIS_W32(1), s.VIS_W32(1));   \
                                                         \
-        FT0 = d.f;                                      \
+        return d.l;                                     \
     }                                                   \
                                                         \
     void name##32(void)                                 \
@@ -623,16 +558,16 @@ void helper_fexpand(void)
         DT0 = d.d;                                      \
     }                                                   \
                                                         \
-    void name##32s(void)                                \
+    uint32_t name##32s(uint32_t src1, uint32_t src2)    \
     {                                                   \
         vis32 s, d;                                     \
                                                         \
-        s.f = FT0;                                      \
-        d.f = FT1;                                      \
+        s.l = src1;                                     \
+        d.l = src2;                                     \
                                                         \
         d.l = F(d.l, s.l);                              \
                                                         \
-        FT0 = d.f;                                      \
+        return d.l;                                     \
     }
 
 #define FADD(a, b) ((a) + (b))
