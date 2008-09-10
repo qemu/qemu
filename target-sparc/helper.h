@@ -115,7 +115,8 @@ F_HELPER_0_0(smuld);
 F_HELPER_0_0(dmulq);
 
 DEF_HELPER(float32, helper_fnegs, (float32 src))
-F_HELPER_DQ_0_0(ito);
+F_HELPER_0_0(itod);
+DEF_HELPER(void, helper_fitoq, (int32_t src))
 
 DEF_HELPER(float32, helper_fitos, (int32_t src))
 
@@ -126,13 +127,13 @@ F_HELPER_SDQ_0_0(xto);
 #endif
 F_HELPER_0_0(dtos);
 F_HELPER_0_0(stod);
-F_HELPER_0_0(qtos);
-F_HELPER_0_0(stoq);
+DEF_HELPER(float32, helper_fqtos, (void))
+DEF_HELPER(void, helper_fstoq, (float32 src))
 F_HELPER_0_0(qtod);
 F_HELPER_0_0(dtoq);
 DEF_HELPER(int32_t, helper_fstoi, (float32 src))
 F_HELPER_0_0(dtoi);
-F_HELPER_0_0(qtoi);
+DEF_HELPER(int32_t, helper_fqtoi, (void))
 #ifdef TARGET_SPARC64
 F_HELPER_0_0(stox);
 F_HELPER_0_0(dtox);

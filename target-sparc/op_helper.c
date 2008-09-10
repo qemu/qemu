@@ -148,9 +148,9 @@ F_HELPER(ito, d)
     DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
 }
 
-F_HELPER(ito, q)
+void helper_fitoq(int32_t src)
 {
-    QT0 = int32_to_float128(*((int32_t *)&FT1), &env->fp_status);
+    QT0 = int32_to_float128(src, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
@@ -182,14 +182,14 @@ void helper_fstod(void)
     DT0 = float32_to_float64(FT1, &env->fp_status);
 }
 
-void helper_fqtos(void)
+float32 helper_fqtos(void)
 {
-    FT0 = float128_to_float32(QT1, &env->fp_status);
+    return float128_to_float32(QT1, &env->fp_status);
 }
 
-void helper_fstoq(void)
+void helper_fstoq(float32 src)
 {
-    QT0 = float32_to_float128(FT1, &env->fp_status);
+    QT0 = float32_to_float128(src, &env->fp_status);
 }
 
 void helper_fqtod(void)
@@ -213,9 +213,9 @@ void helper_fdtoi(void)
     *((int32_t *)&FT0) = float64_to_int32_round_to_zero(DT1, &env->fp_status);
 }
 
-void helper_fqtoi(void)
+int32_t helper_fqtoi(void)
 {
-    *((int32_t *)&FT0) = float128_to_int32_round_to_zero(QT1, &env->fp_status);
+    return float128_to_int32_round_to_zero(QT1, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64

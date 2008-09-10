@@ -2511,9 +2511,9 @@ static void disas_sparc_insn(DisasContext * dc)
                         CHECK_FPU_FEATURE(dc, FLOAT128);
                         gen_op_load_fpr_QT1(QFPREG(rs2));
                         gen_clear_float_exceptions();
-                        tcg_gen_helper_0_0(helper_fqtos);
+                        tcg_gen_helper_1_0(helper_fqtos, cpu_tmp32);
                         tcg_gen_helper_0_0(helper_check_ieee_exceptions);
-                        gen_op_store_FT0_fpr(rd);
+                        tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                         break;
                     case 0xc8:
                         gen_op_load_fpr_FT1(rs2);
@@ -2535,14 +2535,12 @@ static void disas_sparc_insn(DisasContext * dc)
                         break;
                     case 0xcc: /* fitoq */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
-                        gen_op_load_fpr_FT1(rs2);
-                        tcg_gen_helper_0_0(helper_fitoq);
+                        tcg_gen_helper_0_1(helper_fitoq, cpu_fpr[rs2]);
                         gen_op_store_QT0_fpr(QFPREG(rd));
                         break;
                     case 0xcd: /* fstoq */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
-                        gen_op_load_fpr_FT1(rs2);
-                        tcg_gen_helper_0_0(helper_fstoq);
+                        tcg_gen_helper_0_1(helper_fstoq, cpu_fpr[rs2]);
                         gen_op_store_QT0_fpr(QFPREG(rd));
                         break;
                     case 0xce: /* fdtoq */
@@ -2569,9 +2567,9 @@ static void disas_sparc_insn(DisasContext * dc)
                         CHECK_FPU_FEATURE(dc, FLOAT128);
                         gen_op_load_fpr_QT1(QFPREG(rs2));
                         gen_clear_float_exceptions();
-                        tcg_gen_helper_0_0(helper_fqtoi);
+                        tcg_gen_helper_1_0(helper_fqtoi, cpu_tmp32);
                         tcg_gen_helper_0_0(helper_check_ieee_exceptions);
-                        gen_op_store_FT0_fpr(rd);
+                        tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                         break;
 #ifdef TARGET_SPARC64
                     case 0x2: /* V9 fmovd */
