@@ -87,9 +87,9 @@ void helper_check_align(target_ulong addr, uint32_t align)
 #define F_HELPER(name, p) void helper_f##name##p(void)
 
 #define F_BINOP(name)                                           \
-    F_HELPER(name, s)                                           \
+    float32 helper_f ## name ## s (float32 src1, float32 src2)  \
     {                                                           \
-        FT0 = float32_ ## name (FT0, FT1, &env->fp_status);     \
+        return float32_ ## name (src1, src2, &env->fp_status);  \
     }                                                           \
     F_HELPER(name, d)                                           \
     {                                                           \
@@ -120,9 +120,9 @@ void helper_fdmulq(void)
                        &env->fp_status);
 }
 
-F_HELPER(neg, s)
+float32 helper_fnegs(float32 src)
 {
-    FT0 = float32_chs(FT1);
+    return float32_chs(src);
 }
 
 #ifdef TARGET_SPARC64
@@ -138,9 +138,9 @@ F_HELPER(neg, q)
 #endif
 
 /* Integer to float conversion.  */
-F_HELPER(ito, s)
+float32 helper_fitos(int32_t src)
 {
-    FT0 = int32_to_float32(*((int32_t *)&FT1), &env->fp_status);
+    return int32_to_float32(src, &env->fp_status);
 }
 
 F_HELPER(ito, d)
@@ -203,9 +203,9 @@ void helper_fdtoq(void)
 }
 
 /* Float to integer conversion.  */
-void helper_fstoi(void)
+int32_t helper_fstoi(float32 src)
 {
-    *((int32_t *)&FT0) = float32_to_int32_round_to_zero(FT1, &env->fp_status);
+    return float32_to_int32_round_to_zero(src, &env->fp_status);
 }
 
 void helper_fdtoi(void)
@@ -714,9 +714,9 @@ void helper_clear_float_exceptions(void)
     set_float_exception_flags(0, &env->fp_status);
 }
 
-void helper_fabss(void)
+float32 helper_fabss(float32 src)
 {
-    FT0 = float32_abs(FT1);
+    return float32_abs(src);
 }
 
 #ifdef TARGET_SPARC64
@@ -731,9 +731,9 @@ void helper_fabsq(void)
 }
 #endif
 
-void helper_fsqrts(void)
+float32 helper_fsqrts(float32 src)
 {
-    FT0 = float32_sqrt(FT1, &env->fp_status);
+    return float32_sqrt(src, &env->fp_status);
 }
 
 void helper_fsqrtd(void)
@@ -776,41 +776,72 @@ void helper_fsqrtq(void)
         }                                                               \
         env->fsr |= new_fsr;                                            \
     }
+#define GEN_FCMPS(name, size, FS, TRAP)                                 \
+    void glue(helper_, name)(float32 src1, float32 src2)                \
+    {                                                                   \
+        target_ulong new_fsr;                                           \
+                                                                        \
+        env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                     \
+        switch (glue(size, _compare) (src1, src2, &env->fp_status)) {   \
+        case float_relation_unordered:                                  \
+            new_fsr = (FSR_FCC1 | FSR_FCC0) << FS;                      \
+            if ((env->fsr & FSR_NVM) || TRAP) {                         \
+                env->fsr |= new_fsr;                                    \
+                env->fsr |= FSR_NVC;                                    \
+                env->fsr |= FSR_FTT_IEEE_EXCP;                          \
+                raise_exception(TT_FP_EXCP);                            \
+            } else {                                                    \
+                env->fsr |= FSR_NVA;                                    \
+            }                                                           \
+            break;                                                      \
+        case float_relation_less:                                       \
+            new_fsr = FSR_FCC0 << FS;                                   \
+            break;                                                      \
+        case float_relation_greater:                                    \
+            new_fsr = FSR_FCC1 << FS;                                   \
+            break;                                                      \
+        default:                                                        \
+            new_fsr = 0;                                                \
+            break;                                                      \
+        }                                                               \
+        env->fsr |= new_fsr;                                            \
+    }
 
-GEN_FCMP(fcmps, float32, FT0, FT1, 0, 0);
+GEN_FCMPS(fcmps, float32, 0, 0);
 GEN_FCMP(fcmpd, float64, DT0, DT1, 0, 0);
 
-GEN_FCMP(fcmpes, float32, FT0, FT1, 0, 1);
+GEN_FCMPS(fcmpes, float32, 0, 1);
 GEN_FCMP(fcmped, float64, DT0, DT1, 0, 1);
 
 GEN_FCMP(fcmpq, float128, QT0, QT1, 0, 0);
 GEN_FCMP(fcmpeq, float128, QT0, QT1, 0, 1);
 
 #ifdef TARGET_SPARC64
-GEN_FCMP(fcmps_fcc1, float32, FT0, FT1, 22, 0);
+GEN_FCMPS(fcmps_fcc1, float32, 22, 0);
 GEN_FCMP(fcmpd_fcc1, float64, DT0, DT1, 22, 0);
 GEN_FCMP(fcmpq_fcc1, float128, QT0, QT1, 22, 0);
 
-GEN_FCMP(fcmps_fcc2, float32, FT0, FT1, 24, 0);
+GEN_FCMPS(fcmps_fcc2, float32, 24, 0);
 GEN_FCMP(fcmpd_fcc2, float64, DT0, DT1, 24, 0);
 GEN_FCMP(fcmpq_fcc2, float128, QT0, QT1, 24, 0);
 
-GEN_FCMP(fcmps_fcc3, float32, FT0, FT1, 26, 0);
+GEN_FCMPS(fcmps_fcc3, float32, 26, 0);
 GEN_FCMP(fcmpd_fcc3, float64, DT0, DT1, 26, 0);
 GEN_FCMP(fcmpq_fcc3, float128, QT0, QT1, 26, 0);
 
-GEN_FCMP(fcmpes_fcc1, float32, FT0, FT1, 22, 1);
+GEN_FCMPS(fcmpes_fcc1, float32, 22, 1);
 GEN_FCMP(fcmped_fcc1, float64, DT0, DT1, 22, 1);
 GEN_FCMP(fcmpeq_fcc1, float128, QT0, QT1, 22, 1);
 
-GEN_FCMP(fcmpes_fcc2, float32, FT0, FT1, 24, 1);
+GEN_FCMPS(fcmpes_fcc2, float32, 24, 1);
 GEN_FCMP(fcmped_fcc2, float64, DT0, DT1, 24, 1);
 GEN_FCMP(fcmpeq_fcc2, float128, QT0, QT1, 24, 1);
 
-GEN_FCMP(fcmpes_fcc3, float32, FT0, FT1, 26, 1);
+GEN_FCMPS(fcmpes_fcc3, float32, 26, 1);
 GEN_FCMP(fcmped_fcc3, float64, DT0, DT1, 26, 1);
 GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
 #endif
+#undef GEN_FCMPS
 
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY) && \
     defined(DEBUG_MXCC)
@@ -2220,7 +2251,7 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     switch(size) {
     default:
     case 4:
-        *((uint32_t *)&FT0) = val;
+        *((uint32_t *)&env->fpr[rd]) = val;
         break;
     case 8:
         *((int64_t *)&DT0) = val;
@@ -2261,7 +2292,7 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     switch(size) {
     default:
     case 4:
-        val = *((uint32_t *)&FT0);
+        val = *((uint32_t *)&env->fpr[rd]);
         break;
     case 8:
         val = *((int64_t *)&DT0);
