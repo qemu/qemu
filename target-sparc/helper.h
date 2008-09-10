@@ -93,10 +93,6 @@ DEF_HELPER(void, helper_fcmpeq_fcc3, (void))
 #endif
 DEF_HELPER(void, raise_exception, (int tt))
 #define F_HELPER_0_0(name) DEF_HELPER(void, helper_f ## name, (void))
-#define F_HELPER_SDQ_0_0(name)                  \
-    F_HELPER_0_0(name ## s);                    \
-    F_HELPER_0_0(name ## d);                    \
-    F_HELPER_0_0(name ## q)
 #define F_HELPER_DQ_0_0(name)                   \
     F_HELPER_0_0(name ## d);                    \
     F_HELPER_0_0(name ## q)
@@ -111,11 +107,11 @@ DEF_HELPER(float32, helper_fsubs, (float32 src1, float32 src2))
 DEF_HELPER(float32, helper_fmuls, (float32 src1, float32 src2))
 DEF_HELPER(float32, helper_fdivs, (float32 src1, float32 src2))
 
-F_HELPER_0_0(smuld);
+DEF_HELPER(void, helper_fsmuld, (float32 src1, float32 src2))
 F_HELPER_0_0(dmulq);
 
 DEF_HELPER(float32, helper_fnegs, (float32 src))
-F_HELPER_0_0(itod);
+DEF_HELPER(void, helper_fitod, (int32_t src))
 DEF_HELPER(void, helper_fitoq, (int32_t src))
 
 DEF_HELPER(float32, helper_fitos, (int32_t src))
@@ -123,19 +119,20 @@ DEF_HELPER(float32, helper_fitos, (int32_t src))
 #ifdef TARGET_SPARC64
 DEF_HELPER(void, helper_fnegd, (void))
 DEF_HELPER(void, helper_fnegq, (void))
-F_HELPER_SDQ_0_0(xto);
+DEF_HELPER(uint32_t, helper_fxtos, (void))
+F_HELPER_DQ_0_0(xto);
 #endif
-F_HELPER_0_0(dtos);
-F_HELPER_0_0(stod);
+DEF_HELPER(float32, helper_fdtos, (void))
+DEF_HELPER(void, helper_fstod, (float32 src))
 DEF_HELPER(float32, helper_fqtos, (void))
 DEF_HELPER(void, helper_fstoq, (float32 src))
 F_HELPER_0_0(qtod);
 F_HELPER_0_0(dtoq);
 DEF_HELPER(int32_t, helper_fstoi, (float32 src))
-F_HELPER_0_0(dtoi);
+DEF_HELPER(int32_t, helper_fdtoi, (void))
 DEF_HELPER(int32_t, helper_fqtoi, (void))
 #ifdef TARGET_SPARC64
-F_HELPER_0_0(stox);
+DEF_HELPER(void, helper_fstox, (uint32_t src))
 F_HELPER_0_0(dtox);
 F_HELPER_0_0(qtox);
 F_HELPER_0_0(aligndata);

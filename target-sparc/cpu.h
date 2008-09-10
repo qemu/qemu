@@ -303,7 +303,6 @@ typedef struct CPUSPARCState {
     uint64_t prom_addr;
 #endif
     /* temporary float registers */
-    float32 ft0, ft1;
     float64 dt0, dt1;
     float128 qt0, qt1;
     float_status fp_status;

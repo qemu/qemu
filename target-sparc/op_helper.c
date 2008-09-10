@@ -106,10 +106,10 @@ F_BINOP(mul);
 F_BINOP(div);
 #undef F_BINOP
 
-void helper_fsmuld(void)
+void helper_fsmuld(float32 src1, float32 src2)
 {
-    DT0 = float64_mul(float32_to_float64(FT0, &env->fp_status),
-                      float32_to_float64(FT1, &env->fp_status),
+    DT0 = float64_mul(float32_to_float64(src1, &env->fp_status),
+                      float32_to_float64(src2, &env->fp_status),
                       &env->fp_status);
 }
 
@@ -143,9 +143,9 @@ float32 helper_fitos(int32_t src)
     return int32_to_float32(src, &env->fp_status);
 }
 
-F_HELPER(ito, d)
+void helper_fitod(int32_t src)
 {
-    DT0 = int32_to_float64(*((int32_t *)&FT1), &env->fp_status);
+    DT0 = int32_to_float64(src, &env->fp_status);
 }
 
 void helper_fitoq(int32_t src)
@@ -154,9 +154,9 @@ void helper_fitoq(int32_t src)
 }
 
 #ifdef TARGET_SPARC64
-F_HELPER(xto, s)
+float32 helper_fxtos(void)
 {
-    FT0 = int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
+    return int64_to_float32(*((int64_t *)&DT1), &env->fp_status);
 }
 
 F_HELPER(xto, d)
@@ -172,14 +172,14 @@ F_HELPER(xto, q)
 #undef F_HELPER
 
 /* floating point conversion */
-void helper_fdtos(void)
+float32 helper_fdtos(void)
 {
-    FT0 = float64_to_float32(DT1, &env->fp_status);
+    return float64_to_float32(DT1, &env->fp_status);
 }
 
-void helper_fstod(void)
+void helper_fstod(float32 src)
 {
-    DT0 = float32_to_float64(FT1, &env->fp_status);
+    DT0 = float32_to_float64(src, &env->fp_status);
 }
 
 float32 helper_fqtos(void)
@@ -208,9 +208,9 @@ int32_t helper_fstoi(float32 src)
     return float32_to_int32_round_to_zero(src, &env->fp_status);
 }
 
-void helper_fdtoi(void)
+int32_t helper_fdtoi(void)
 {
-    *((int32_t *)&FT0) = float64_to_int32_round_to_zero(DT1, &env->fp_status);
+    return float64_to_int32_round_to_zero(DT1, &env->fp_status);
 }
 
 int32_t helper_fqtoi(void)
@@ -219,9 +219,9 @@ int32_t helper_fqtoi(void)
 }
 
 #ifdef TARGET_SPARC64
-void helper_fstox(void)
+void helper_fstox(float32 src)
 {
-    *((int64_t *)&DT0) = float32_to_int64_round_to_zero(FT1, &env->fp_status);
+    *((int64_t *)&DT0) = float32_to_int64_round_to_zero(src, &env->fp_status);
 }
 
 void helper_fdtox(void)
