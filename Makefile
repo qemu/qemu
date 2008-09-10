@@ -177,7 +177,7 @@ QEMU_IMG_BLOCK_OBJS = $(BLOCK_OBJS)
 ifdef CONFIG_WIN32
 QEMU_IMG_BLOCK_OBJS += qemu-img-block-raw-win32.o
 else
-QEMU_IMG_BLOCK_OBJS += nbd.o qemu-img-block-raw-posix.o
+QEMU_IMG_BLOCK_OBJS += nbd.o qemu-img-block-raw-posix.o compatfd.o
 endif
 
 ######################################################################
@@ -195,7 +195,7 @@ qemu-nbd-%.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -DQEMU_NBD -c -o $@ $<
 
 qemu-nbd$(EXESUF):  qemu-nbd.o qemu-nbd-nbd.o qemu-img-block.o \
-		    osdep.o qemu-nbd-block-raw-posix.o $(BLOCK_OBJS)
+		    osdep.o qemu-nbd-block-raw-posix.o compatfd.o $(BLOCK_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ -lz $(LIBS)
 
 # dyngen host tool

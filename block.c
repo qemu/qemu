@@ -1280,17 +1280,15 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
     BlockDriverAIOCB *acb;
 
     async_ret = NOT_DONE;
-    qemu_aio_wait_start();
     acb = bdrv_aio_read(bs, sector_num, buf, nb_sectors,
                         bdrv_rw_em_cb, &async_ret);
-    if (acb == NULL) {
-        qemu_aio_wait_end();
+    if (acb == NULL)
         return -1;
-    }
+
     while (async_ret == NOT_DONE) {
         qemu_aio_wait();
     }
-    qemu_aio_wait_end();
+
     return async_ret;
 }
 
@@ -1301,17 +1299,13 @@ static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
     BlockDriverAIOCB *acb;
 
     async_ret = NOT_DONE;
-    qemu_aio_wait_start();
     acb = bdrv_aio_write(bs, sector_num, buf, nb_sectors,
                          bdrv_rw_em_cb, &async_ret);
-    if (acb == NULL) {
-        qemu_aio_wait_end();
+    if (acb == NULL)
         return -1;
-    }
     while (async_ret == NOT_DONE) {
         qemu_aio_wait();
     }
-    qemu_aio_wait_end();
     return async_ret;
 }
 
