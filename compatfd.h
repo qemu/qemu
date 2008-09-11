@@ -16,14 +16,10 @@
 
 #include <signal.h>
 
-#if defined(__linux__) && !defined(SYS_signalfd)
-struct signalfd_siginfo {
+struct qemu_signalfd_siginfo {
     uint32_t ssi_signo;
     uint8_t pad[124];
 };
-#else
-#include <linux/signalfd.h>
-#endif
 
 int qemu_signalfd(const sigset_t *mask);
 
