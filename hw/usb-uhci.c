@@ -781,7 +781,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     async = uhci_async_find_td(s, addr, td->token);
     if (async) {
         /* Already submitted */
-        async->valid = 10;
+        async->valid = 32;
 
         if (!async->done)
             return 1;
