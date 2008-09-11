@@ -449,6 +449,30 @@ static void qemu_aio_poll(void *opaque)
 {
     RawAIOCB *acb, **pacb;
     int ret;
+    size_t offset;
+    union {
+        struct qemu_signalfd_siginfo siginfo;
+        char buf[128];
+    } sig;
+
+    /* try to read from signalfd, don't freak out if we can't read anything */
+    offset = 0;
+    while (offset < 128) {
+        ssize_t len;
+
+        len = read(aio_sig_fd, sig.buf + offset, 128 - offset);
+        if (len == -1 && errno == EINTR)
+            continue;
+        if (len == -1 && errno == EAGAIN) {
+            /* there is no natural reason for this to happen,
+             * so we'll spin hard until we get everything just
+             * to be on the safe side. */
+            if (offset > 0)
+                continue;
+        }
+
+        offset += len;
+    }
 
     for(;;) {
         pacb = &first_aio;
@@ -498,6 +522,9 @@ void qemu_aio_init(void)
     sigprocmask(SIG_BLOCK, &mask, NULL);
     
     aio_sig_fd = qemu_signalfd(&mask);
+
+    fcntl(aio_sig_fd, F_SETFL, O_NONBLOCK);
+
 #if !defined(QEMU_IMG) && !defined(QEMU_NBD)
     qemu_set_fd_handler2(aio_sig_fd, NULL, qemu_aio_poll, NULL, NULL);
 #endif
