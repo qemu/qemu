@@ -476,7 +476,11 @@ OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o net-checksum.o
 ifdef CONFIG_WIN32
 OBJS+=block-raw-win32.o
 else
-OBJS+=block-raw-posix.o compatfd.o
+OBJS+=block-raw-posix.o
+endif
+
+ifdef CONFIG_AIO
+OBJS+=compatfd.o
 endif
 
 LIBS+=-lz

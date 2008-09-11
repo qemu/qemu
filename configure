@@ -1220,6 +1220,7 @@ if test "$brlapi" = "yes" ; then
 fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
+  echo "CONFIG_AIO=yes" >> $config_mak
 fi
 
 # XXX: suppress that

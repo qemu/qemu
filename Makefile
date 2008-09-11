@@ -177,7 +177,11 @@ QEMU_IMG_BLOCK_OBJS = $(BLOCK_OBJS)
 ifdef CONFIG_WIN32
 QEMU_IMG_BLOCK_OBJS += qemu-img-block-raw-win32.o
 else
-QEMU_IMG_BLOCK_OBJS += nbd.o qemu-img-block-raw-posix.o compatfd.o
+QEMU_IMG_BLOCK_OBJS += nbd.o qemu-img-block-raw-posix.o
+endif
+
+ifdef CONFIG_AIO
+QEMU_IMG_BLOCK_OBJS += compatfd.o
 endif
 
 ######################################################################

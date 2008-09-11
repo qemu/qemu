@@ -561,6 +561,9 @@ void qemu_aio_wait(void)
         return;
 #endif
 
+    if (!first_aio)
+        return;
+
     do {
         fd_set rdfds;
 

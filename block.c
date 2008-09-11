@@ -1328,6 +1328,8 @@ void bdrv_init(void)
 #ifndef _WIN32
     bdrv_register(&bdrv_nbd);
 #endif
+
+    qemu_aio_init();
 }
 
 void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
