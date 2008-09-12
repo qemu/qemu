@@ -338,6 +338,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
         int64_t total_size;
+        int is_protocol = 0;
 
         /* if snapshot, we create a temporary backing file and open it
            instead of opening 'filename' directly */
@@ -352,10 +353,21 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
             return -1;
         }
         total_size = bdrv_getlength(bs1) >> SECTOR_BITS;
+
+        if (bs1->drv && bs1->drv->protocol_name)
+            is_protocol = 1;
+
         bdrv_delete(bs1);
 
         get_tmp_filename(tmp_filename, sizeof(tmp_filename));
-        realpath(filename, backing_filename);
+
+        /* Real path is meaningless for protocols */
+        if (is_protocol)
+            snprintf(backing_filename, sizeof(backing_filename),
+                     "%s", filename);
+        else
+            realpath(filename, backing_filename);
+
         if (bdrv_create(&bdrv_qcow2, tmp_filename,
                         total_size, backing_filename, 0) < 0) {
             return -1;
