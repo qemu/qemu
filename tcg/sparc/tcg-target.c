@@ -496,6 +496,12 @@ static const void * const qemu_st_helpers[4] = {
 #define TARGET_LD_OP LDX
 #endif
 
+#if TARGET_PHYS_ADDR_BITS == 32
+#define TARGET_ADDEND_LD_OP LDUW
+#else
+#define TARGET_ADDEND_LD_OP LDX
+#endif
+
 #ifdef __arch64__
 #define HOST_LD_OP LDX
 #define HOST_ST_OP STX
@@ -623,7 +629,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 
     /* ld [arg1 + x], arg1 */
     tcg_out_ldst(s, arg1, arg1, offsetof(CPUTLBEntry, addend) -
-                 offsetof(CPUTLBEntry, addr_read), HOST_LD_OP);
+                 offsetof(CPUTLBEntry, addr_read), TARGET_ADDEND_LD_OP);
 
 #if TARGET_LONG_BITS == 32
     /* and addr_reg, x, arg0 */
@@ -792,7 +798,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 
     /* ld [arg1 + x], arg1 */
     tcg_out_ldst(s, arg1, arg1, offsetof(CPUTLBEntry, addend) -
-                 offsetof(CPUTLBEntry, addr_write), HOST_LD_OP);
+                 offsetof(CPUTLBEntry, addr_write), TARGET_ADDEND_LD_OP);
 
 #if TARGET_LONG_BITS == 32
     /* and addr_reg, x, arg0 */
