@@ -697,9 +697,9 @@ static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
     if (!(env->y & 1))
         T1 = 0;
     */
-    tcg_gen_mov_tl(cpu_cc_src, src1);
+    tcg_gen_andi_tl(cpu_cc_src, src1, 0xffffffff);
     tcg_gen_andi_tl(r_temp, cpu_y, 0x1);
-    tcg_gen_mov_tl(cpu_cc_src2, src2);
+    tcg_gen_andi_tl(cpu_cc_src2, src2, 0xffffffff);
     tcg_gen_brcondi_tl(TCG_COND_NE, r_temp, 0, l1);
     tcg_gen_movi_tl(cpu_cc_src2, 0);
     gen_set_label(l1);
@@ -709,6 +709,7 @@ static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_andi_tl(r_temp, cpu_cc_src, 0x1);
     tcg_gen_shli_tl(r_temp, r_temp, 31);
     tcg_gen_shri_tl(cpu_tmp0, cpu_y, 1);
+    tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, 0x7fffffff);
     tcg_gen_or_tl(cpu_tmp0, cpu_tmp0, r_temp);
     tcg_gen_andi_tl(cpu_y, cpu_tmp0, 0xffffffff);
 
