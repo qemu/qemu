@@ -1572,13 +1572,17 @@ static void r4k_fill_tlb (int idx)
 
 void r4k_do_tlbwi (void)
 {
+    int idx;
+
+    idx = (env->CP0_Index & ~0x80000000) % env->tlb->nb_tlb;
+
     /* Discard cached TLB entries.  We could avoid doing this if the
        tlbwi is just upgrading access permissions on the current entry;
        that might be a further win.  */
     r4k_mips_tlb_flush_extra (env, env->tlb->nb_tlb);
 
-    r4k_invalidate_tlb(env, env->CP0_Index % env->tlb->nb_tlb, 0);
-    r4k_fill_tlb(env->CP0_Index % env->tlb->nb_tlb);
+    r4k_invalidate_tlb(env, idx, 0);
+    r4k_fill_tlb(idx);
 }
 
 void r4k_do_tlbwr (void)
@@ -1635,9 +1639,11 @@ void r4k_do_tlbr (void)
 {
     r4k_tlb_t *tlb;
     uint8_t ASID;
+    int idx;
 
     ASID = env->CP0_EntryHi & 0xFF;
-    tlb = &env->tlb->mmu.r4k.tlb[env->CP0_Index % env->tlb->nb_tlb];
+    idx = (env->CP0_Index & ~0x80000000) % env->tlb->nb_tlb;
+    tlb = &env->tlb->mmu.r4k.tlb[idx];
 
     /* If this will change the current ASID, flush qemu's TLB.  */
     if (ASID != tlb->ASID)
