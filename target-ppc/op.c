@@ -1153,33 +1153,6 @@ void OPPROTO op_andc (void)
     RETURN();
 }
 
-/* andi. */
-void OPPROTO op_andi_T0 (void)
-{
-    T0 &= (uint32_t)PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_andi_T1 (void)
-{
-    T1 &= (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_andi_T0_64 (void)
-{
-    T0 &= ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-
-void OPPROTO op_andi_T1_64 (void)
-{
-    T1 &= ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
-
 /* count leading zero */
 void OPPROTO op_cntlzw (void)
 {
