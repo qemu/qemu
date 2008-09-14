@@ -1350,6 +1350,7 @@ static int64_t qemu_next_deadline(void)
     return delta;
 }
 
+#if defined(__linux__) || defined(_WIN32)
 static uint64_t qemu_next_deadline_dyntick(void)
 {
     int64_t delta;
@@ -1372,6 +1373,7 @@ static uint64_t qemu_next_deadline_dyntick(void)
 
     return delta;
 }
+#endif
 
 #ifndef _WIN32
 
