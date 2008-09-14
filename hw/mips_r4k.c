@@ -225,7 +225,6 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
     /* Init CPU internal devices */
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
-    cpu_mips_irqctrl_init();
 
     /* The PIC is attached to the MIPS CPU INT0 pin */
     i8259 = i8259_init(env->irq[2]);

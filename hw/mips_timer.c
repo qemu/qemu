@@ -4,10 +4,6 @@
 
 #define TIMER_FREQ	100 * 1000 * 1000
 
-void cpu_mips_irqctrl_init (void)
-{
-}
-
 /* XXX: do not use a global */
 uint32_t cpu_mips_get_random (CPUState *env)
 {

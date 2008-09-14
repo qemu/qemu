@@ -165,7 +165,6 @@ mips_mipssim_init (ram_addr_t ram_size, int vga_ram_size,
     /* Init CPU internal devices. */
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
-    cpu_mips_irqctrl_init();
 
     /* Register 64 KB of ISA IO space at 0x1fd00000. */
     isa_mmio_init(0x1fd00000, 0x00010000);
