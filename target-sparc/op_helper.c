@@ -1061,7 +1061,7 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
             break;
         case 0x01c00a04: /* MXCC control register */
             if (size == 4)
-                env->mxccregs[3] = (env->mxccregs[0xa] & 0xffffffff00000000ULL)
+                env->mxccregs[3] = (env->mxccregs[3] & 0xffffffff00000000ULL)
                     | val;
             else
                 DPRINTF_MXCC("%08x: unimplemented access size: %d\n", addr,
