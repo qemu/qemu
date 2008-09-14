@@ -110,23 +110,23 @@ static void spr_write_xer (void *opaque, int sprn)
 /* LR */
 static void spr_read_lr (void *opaque, int sprn)
 {
-    gen_op_load_lr();
+    tcg_gen_mov_tl(cpu_T[0], cpu_lr);
 }
 
 static void spr_write_lr (void *opaque, int sprn)
 {
-    gen_op_store_lr();
+    tcg_gen_mov_tl(cpu_lr, cpu_T[0]);
 }
 
 /* CTR */
 static void spr_read_ctr (void *opaque, int sprn)
 {
-    gen_op_load_ctr();
+    tcg_gen_mov_tl(cpu_T[0], cpu_ctr);
 }
 
 static void spr_write_ctr (void *opaque, int sprn)
 {
-    gen_op_store_ctr();
+    tcg_gen_mov_tl(cpu_ctr, cpu_T[0]);
 }
 
 /* User read access to SPR */

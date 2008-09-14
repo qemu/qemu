@@ -233,30 +233,6 @@ void OPPROTO op_mask_spr (void)
     RETURN();
 }
 
-void OPPROTO op_load_lr (void)
-{
-    T0 = env->lr;
-    RETURN();
-}
-
-void OPPROTO op_store_lr (void)
-{
-    env->lr = T0;
-    RETURN();
-}
-
-void OPPROTO op_load_ctr (void)
-{
-    T0 = env->ctr;
-    RETURN();
-}
-
-void OPPROTO op_store_ctr (void)
-{
-    env->ctr = T0;
-    RETURN();
-}
-
 void OPPROTO op_load_tbl (void)
 {
     T0 = cpu_ppc_load_tbl(env);

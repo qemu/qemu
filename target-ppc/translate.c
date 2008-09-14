@@ -61,6 +61,8 @@ static TCGv cpu_fpr[32];
 static TCGv cpu_avrh[32], cpu_avrl[32];
 static TCGv cpu_crf[8];
 static TCGv cpu_nip;
+static TCGv cpu_ctr;
+static TCGv cpu_lr;
 
 /* dyngen register indexes */
 static TCGv cpu_T[3];
@@ -167,6 +169,12 @@ void ppc_translate_init(void)
 
     cpu_nip = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
                                  offsetof(CPUState, nip), "nip");
+
+    cpu_ctr = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                 offsetof(CPUState, ctr), "ctr");
+
+    cpu_lr = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                offsetof(CPUState, lr), "lr");
 
     /* register helpers */
 #undef DEF_HELPER
