@@ -346,7 +346,8 @@ for opt do
 done
 
 # default flags for all hosts
-CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -O2 -g -fno-strict-aliasing"
+CFLAGS="$CFLAGS -O2 -g -fno-strict-aliasing"
+CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings"
 LDFLAGS="$LDFLAGS -g"
 if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
