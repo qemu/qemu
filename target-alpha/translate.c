@@ -351,7 +351,7 @@ static always_inline void gen_fbcond (DisasContext *ctx,
 
 static always_inline void gen_arith2 (DisasContext *ctx,
                                       void (*gen_arith_op)(void),
-                                      int rb, int rc, int islit, int8_t lit)
+                                      int rb, int rc, int islit, uint8_t lit)
 {
     if (islit)
         tcg_gen_movi_i64(cpu_T[0], lit);
@@ -367,7 +367,7 @@ static always_inline void gen_arith2 (DisasContext *ctx,
 static always_inline void gen_arith3 (DisasContext *ctx,
                                       void (*gen_arith_op)(void),
                                       int ra, int rb, int rc,
-                                      int islit, int8_t lit)
+                                      int islit, uint8_t lit)
 {
     if (ra != 31)
         tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
@@ -387,7 +387,7 @@ static always_inline void gen_arith3 (DisasContext *ctx,
 static always_inline void gen_cmov (DisasContext *ctx,
                                     void (*gen_test_op)(void),
                                     int ra, int rb, int rc,
-                                    int islit, int8_t lit)
+                                    int islit, uint8_t lit)
 {
     if (ra != 31)
         tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
