@@ -205,7 +205,7 @@ static void hextomem(uint8_t *mem, const char *buf, int len)
 }
 
 /* return -1 if error, 0 if OK */
-static int put_packet(GDBState *s, char *buf)
+static int put_packet(GDBState *s, const char *buf)
 {
     int len, csum, i;
     uint8_t *p;
@@ -1259,7 +1259,7 @@ static void gdb_vm_stopped(void *opaque, int reason)
     %x  - target_ulong argument printed in hex.
     %lx - 64-bit argument printed in hex.
     %s  - string pointer (target_ulong) and length (int) pair.  */
-void gdb_do_syscall(gdb_syscall_complete_cb cb, char *fmt, ...)
+void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
 {
     va_list va;
     char buf[256];

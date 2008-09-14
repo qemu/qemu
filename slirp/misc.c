@@ -307,7 +307,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 	socklen_t addrlen = sizeof(addr);
 	int opt;
         int master = -1;
-	char *argv[256];
+	const char *argv[256];
 #if 0
 	char buff[256];
 #endif
@@ -411,7 +411,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 		   } while (c);
 
 		argv[i] = 0;
-		execvp(argv[0], argv);
+		execvp(argv[0], (char **)argv);
 
 		/* Ooops, failed, let's tell the user why */
 		  {

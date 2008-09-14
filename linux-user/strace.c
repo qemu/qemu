@@ -13,12 +13,12 @@ int do_strace=0;
 
 struct syscallname {
     int nr;
-    char *name;
-    char *format;
-    void (*call)(struct syscallname *,
+    const char *name;
+    const char *format;
+    void (*call)(const struct syscallname *,
                  abi_long, abi_long, abi_long,
                  abi_long, abi_long, abi_long);
-    void (*result)(struct syscallname *, abi_long);
+    void (*result)(const struct syscallname *, abi_long);
 };
 
 /*
@@ -131,7 +131,7 @@ static long newselect_arg4 = 0;
 static long newselect_arg5 = 0;
 
 static void
-print_newselect(struct syscallname *name,
+print_newselect(const struct syscallname *name,
                 abi_long arg1, abi_long arg2, abi_long arg3,
                 abi_long arg4, abi_long arg5, abi_long arg6)
 {
@@ -155,7 +155,7 @@ print_newselect(struct syscallname *name,
 #endif
 
 static void
-print_semctl(struct syscallname *name,
+print_semctl(const struct syscallname *name,
              abi_long arg1, abi_long arg2, abi_long arg3,
              abi_long arg4, abi_long arg5, abi_long arg6)
 {
@@ -165,7 +165,7 @@ print_semctl(struct syscallname *name,
 }
 
 static void
-print_execve(struct syscallname *name,
+print_execve(const struct syscallname *name,
              abi_long arg1, abi_long arg2, abi_long arg3,
              abi_long arg4, abi_long arg5, abi_long arg6)
 {
@@ -198,14 +198,15 @@ print_execve(struct syscallname *name,
 
 #ifdef TARGET_NR_ipc
 static void
-print_ipc(struct syscallname *name,
+print_ipc(const struct syscallname *name,
           abi_long arg1, abi_long arg2, abi_long arg3,
           abi_long arg4, abi_long arg5, abi_long arg6)
 {
     switch(arg1) {
     case IPCOP_semctl:
-        name->name = "semctl";
-        print_semctl(name,arg2,arg3,arg4,arg5,arg6,0);
+        gemu_log("semctl(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ",", arg1, arg2);
+        print_ipc_cmd(arg3);
+        gemu_log(",0x" TARGET_ABI_FMT_lx ")", arg4);
         break;
     default:
         gemu_log("%s(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ")",
@@ -219,7 +220,7 @@ print_ipc(struct syscallname *name,
  */
 
 static void
-print_syscall_ret_addr(struct syscallname *name, abi_long ret)
+print_syscall_ret_addr(const struct syscallname *name, abi_long ret)
 {
 if( ret == -1 ) {
         gemu_log(" = -1 errno=%d (%s)\n", errno, target_strerror(errno));
@@ -238,7 +239,7 @@ print_syscall_ret_raw(struct syscallname *name, abi_long ret)
 
 #ifdef TARGET_NR__newselect
 static void
-print_syscall_ret_newselect(struct syscallname *name, abi_long ret)
+print_syscall_ret_newselect(const struct syscallname *name, abi_long ret)
 {
     gemu_log(" = 0x" TARGET_ABI_FMT_lx " (", ret);
     print_fdset(newselect_arg1,newselect_arg2);
@@ -256,7 +257,7 @@ print_syscall_ret_newselect(struct syscallname *name, abi_long ret)
  * An array of all of the syscalls we know about
  */
 
-static struct syscallname scnames[] = {
+static const struct syscallname scnames[] = {
 #include "strace.list"
 };
 
@@ -271,7 +272,7 @@ print_syscall(int num,
               abi_long arg4, abi_long arg5, abi_long arg6)
 {
     int i;
-    char *format="%s(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ")";
+    const char *format="%s(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ")";
 
     gemu_log("%d ", getpid() );
 

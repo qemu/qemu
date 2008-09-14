@@ -123,7 +123,7 @@ typedef struct DisasContext {
 	int singlestep_enabled;
 } DisasContext;
 
-static void gen_BUG(DisasContext *dc, char *file, int line)
+static void gen_BUG(DisasContext *dc, const char *file, int line)
 {
 	printf ("BUG: pc=%x %s %d\n", dc->pc, file, line);
 	fprintf (logfile, "BUG: pc=%x %s %d\n", dc->pc, file, line);

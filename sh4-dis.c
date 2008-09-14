@@ -325,7 +325,7 @@ SH4AL-dsp                               SH4A
 
 typedef struct
 {
-  char *name;
+  const char *name;
   sh_arg_type arg[4];
   sh_nibble_type nibbles[9];
   unsigned int arch;
@@ -1386,13 +1386,13 @@ print_insn_ppi (field_b, info)
      int field_b;
      struct disassemble_info *info;
 {
-  static char *sx_tab[] = { "x0", "x1", "a0", "a1" };
-  static char *sy_tab[] = { "y0", "y1", "m0", "m1" };
+  static const char *sx_tab[] = { "x0", "x1", "a0", "a1" };
+  static const char *sy_tab[] = { "y0", "y1", "m0", "m1" };
   fprintf_ftype fprintf_fn = info->fprintf_func;
   void *stream = info->stream;
   unsigned int nib1, nib2, nib3;
   unsigned int altnib1, nib4;
-  char *dc = NULL;
+  const char *dc = NULL;
   const sh_opcode_info *op;
 
   if ((field_b & 0xe800) == 0)
@@ -1405,10 +1405,10 @@ print_insn_ppi (field_b, info)
     }
   if ((field_b & 0xc000) == 0x4000 && (field_b & 0x3000) != 0x1000)
     {
-      static char *du_tab[] = { "x0", "y0", "a0", "a1" };
-      static char *se_tab[] = { "x0", "x1", "y0", "a1" };
-      static char *sf_tab[] = { "y0", "y1", "x0", "a1" };
-      static char *sg_tab[] = { "m0", "m1", "a0", "a1" };
+      static const char *du_tab[] = { "x0", "y0", "a0", "a1" };
+      static const char *se_tab[] = { "x0", "x1", "y0", "a1" };
+      static const char *sf_tab[] = { "y0", "y1", "x0", "a1" };
+      static const char *sg_tab[] = { "m0", "m1", "a0", "a1" };
 
       if (field_b & 0x2000)
 	{

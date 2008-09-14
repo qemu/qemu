@@ -366,19 +366,19 @@ TABLE 5
 /* Get the rounding mode from the opcode. */
 #define getRoundingMode(opcode)		((opcode & MASK_ROUNDING_MODE) >> 5)
 
-static inline const floatx80 getExtendedConstant(const unsigned int nIndex)
+static inline floatx80 getExtendedConstant(const unsigned int nIndex)
 {
    extern const floatx80 floatx80Constant[];
    return floatx80Constant[nIndex];
 }
 
-static inline const float64 getDoubleConstant(const unsigned int nIndex)
+static inline float64 getDoubleConstant(const unsigned int nIndex)
 {
    extern const float64 float64Constant[];
    return float64Constant[nIndex];
 }
 
-static inline const float32 getSingleConstant(const unsigned int nIndex)
+static inline float32 getSingleConstant(const unsigned int nIndex)
 {
    extern const float32 float32Constant[];
    return float32Constant[nIndex];

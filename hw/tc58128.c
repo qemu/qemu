@@ -26,7 +26,7 @@ static tc58128_dev tc58128_devs[2];
 
 #define FLASH_SIZE (16*1024*1024)
 
-void init_dev(tc58128_dev * dev, char *filename)
+static void init_dev(tc58128_dev * dev, const char *filename)
 {
     int ret, blocks;
 
@@ -175,7 +175,7 @@ static sh7750_io_device tc58128 = {
     tc58128_cb			/* Callback */
 };
 
-int tc58128_init(struct SH7750State *s, char *zone1, char *zone2)
+int tc58128_init(struct SH7750State *s, const char *zone1, const char *zone2)
 {
     init_dev(&tc58128_devs[0], zone1);
     init_dev(&tc58128_devs[1], zone2);

@@ -43,6 +43,6 @@ void sh_serial_init (target_phys_addr_t base, int feat,
 		     struct intc_source *bri_source);
 
 /* tc58128.c */
-int tc58128_init(struct SH7750State *s, char *zone1, char *zone2);
+int tc58128_init(struct SH7750State *s, const char *zone1, const char *zone2);
 
 #endif

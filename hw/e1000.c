@@ -949,7 +949,7 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
     E1000State *d;
     uint8_t *pci_conf;
     uint16_t checksum = 0;
-    char *info_str = "e1000";
+    static const char info_str[] = "e1000";
     int i;
 
     d = (E1000State *)pci_register_device(bus, "e1000",

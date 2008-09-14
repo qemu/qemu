@@ -190,7 +190,7 @@ void get_tmp_filename(char *filename, int size)
 void get_tmp_filename(char *filename, int size)
 {
     int fd;
-    char *tmpdir;
+    const char *tmpdir;
     /* XXX: race condition possible */
     tmpdir = getenv("TMPDIR");
     if (!tmpdir)

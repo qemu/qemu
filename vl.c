@@ -1898,7 +1898,7 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     return ret;
 }
 
-static char *mux_help[] = {
+static const char * const mux_help[] = {
     "% h    print this help\n\r",
     "% x    exit emulator\n\r",
     "% s    save disk data back to file (if -snapshot)\n\r",
@@ -1948,7 +1948,7 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
             break;
         case 'x':
             {
-                 char *term =  "QEMU: Terminated\n\r";
+                 const char *term =  "QEMU: Terminated\n\r";
                  chr->chr_write(chr,(uint8_t *)term,strlen(term));
                  exit(0);
                  break;
@@ -3957,6 +3957,7 @@ int parse_host_src_port(struct sockaddr_in *haddr,
     char *str = strdup(input_str);
     char *host_str = str;
     char *src_str;
+    const char *src_str2;
     char *ptr;
 
     /*
@@ -3975,10 +3976,11 @@ int parse_host_src_port(struct sockaddr_in *haddr,
     if (parse_host_port(haddr, host_str) < 0)
         goto fail;
 
+    src_str2 = src_str;
     if (!src_str || *src_str == '\0')
-        src_str = ":0";
+        src_str2 = ":0";
 
-    if (parse_host_port(saddr, src_str) < 0)
+    if (parse_host_port(saddr, src_str2) < 0)
         goto fail;
 
     free(str);
@@ -5164,7 +5166,7 @@ static int get_param_value(char *buf, int buf_size,
 }
 
 static int check_params(char *buf, int buf_size,
-                        char **params, const char *str)
+                        const char * const *params, const char *str)
 {
     const char *p;
     int i;
@@ -5451,9 +5453,10 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     int cache;
     int bdrv_flags;
     char *str = arg->opt;
-    char *params[] = { "bus", "unit", "if", "index", "cyls", "heads",
-                       "secs", "trans", "media", "snapshot", "file",
-                       "cache", "format", NULL };
+    static const char * const params[] = { "bus", "unit", "if", "index",
+                                           "cyls", "heads", "secs", "trans",
+                                           "media", "snapshot", "file",
+                                           "cache", "format", NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
