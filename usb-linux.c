@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2008 Max Krasnyansky
  *      Support for host device auto connect & disconnect
- *      Magor rewrite to support fully async operation
+ *      Major rewrite to support fully async operation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -951,22 +951,51 @@ fail:
     return NULL;
 }
 
+static int usb_host_auto_add(const char *spec);
+static int usb_host_auto_del(const char *spec);
+
 USBDevice *usb_host_device_open(const char *devname)
 {
     int bus_num, addr;
     char product_name[PRODUCT_NAME_SZ];
 
-    if (usb_host_find_device(&bus_num, &addr,
-                             product_name, sizeof(product_name),
+    if (strstr(devname, "auto:")) {
+        usb_host_auto_add(devname);
+        return NULL;
+    }
+
+    if (usb_host_find_device(&bus_num, &addr, product_name, sizeof(product_name),
                              devname) < 0)
         return NULL;
 
-     if (hostdev_find(bus_num, addr)) {
-        term_printf("husb: host usb device %d.%d is already open\n", bus_num, addr);
-        return NULL;
-     }
+    if (hostdev_find(bus_num, addr)) {
+       term_printf("husb: host usb device %d.%d is already open\n", bus_num, addr);
+       return NULL;
+    }
 
     return usb_host_device_open_addr(bus_num, addr, product_name);
+}
+
+int usb_host_device_close(const char *devname)
+{
+    char product_name[PRODUCT_NAME_SZ];
+    int bus_num, addr;
+    USBHostDevice *s;
+
+    if (strstr(devname, "auto:"))
+        return usb_host_auto_del(devname);
+
+    if (usb_host_find_device(&bus_num, &addr, product_name, sizeof(product_name),
+                             devname) < 0)
+        return -1;
+ 
+    s = hostdev_find(bus_num, addr);
+    if (s) {
+        usb_device_del_addr(0, s->dev.addr);
+        return 0;
+    }
+
+    return -1;
 }
  
 static int get_tag_value(char *buf, int buf_size,
@@ -1126,21 +1155,76 @@ static void usb_host_auto_timer(void *unused)
 }
 
 /*
- * Add autoconnect filter
- * -1 means 'any' (device, vendor, etc)
+ * Autoconnect filter
+ * Format:
+ *    auto:bus:dev[:vid:pid]
+ *    auto:bus.dev[:vid:pid]
+ *
+ *    bus  - bus number    (dec, * means any)
+ *    dev  - device number (dec, * means any)
+ *    vid  - vendor id     (hex, * means any)
+ *    pid  - product id    (hex, * means any)
+ *
+ *    See 'lsusb' output.
  */
-static void usb_host_auto_add(int bus_num, int addr, int vendor_id, int product_id)
+static int parse_filter(const char *spec, struct USBAutoFilter *f)
 {
-    struct USBAutoFilter *f = qemu_mallocz(sizeof(*f));
-    if (!f) {
-        fprintf(stderr, "husb: failed to allocate auto filter\n");
-        return;
+    enum { BUS, DEV, VID, PID, DONE };
+    const char *p = spec;
+    int i;
+
+    f->bus_num    = -1;
+    f->addr       = -1;
+    f->vendor_id  = -1;
+    f->product_id = -1;
+
+    for (i = BUS; i < DONE; i++) {
+    	p = strpbrk(p, ":.");
+    	if (!p) break;
+        p++;
+ 
+    	if (*p == '*')
+            continue;
+
+        switch(i) {
+        case BUS: f->bus_num = strtol(p, NULL, 10);    break;
+        case DEV: f->addr    = strtol(p, NULL, 10);    break;
+        case VID: f->vendor_id  = strtol(p, NULL, 16); break;
+        case PID: f->product_id = strtol(p, NULL, 16); break;
+        }
     }
 
-    f->bus_num = bus_num;
-    f->addr    = addr;
-    f->vendor_id  = vendor_id;
-    f->product_id = product_id;
+    if (i < DEV) {
+        fprintf(stderr, "husb: invalid auto filter spec %s\n", spec);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int match_filter(const struct USBAutoFilter *f1, 
+                        const struct USBAutoFilter *f2)
+{
+    return f1->bus_num    == f2->bus_num &&
+           f1->addr       == f2->addr &&
+           f1->vendor_id  == f2->vendor_id &&
+           f1->product_id == f2->product_id;
+}
+
+static int usb_host_auto_add(const char *spec)
+{
+    struct USBAutoFilter filter, *f;
+
+    if (parse_filter(spec, &filter) < 0)
+        return -1;
+
+    f = qemu_mallocz(sizeof(*f));
+    if (!f) {
+        fprintf(stderr, "husb: failed to allocate auto filter\n");
+        return -1;
+    }
+
+    *f = filter; 
 
     if (!usb_auto_filter) {
         /*
@@ -1153,18 +1237,52 @@ static void usb_host_auto_add(int bus_num, int addr, int vendor_id, int product_
 	if (!usb_auto_timer) {
             fprintf(stderr, "husb: failed to allocate auto scan timer\n");
             qemu_free(f);
-            return;
+            return -1;
         }
 
         /* Check for new devices every two seconds */
         qemu_mod_timer(usb_auto_timer, qemu_get_clock(rt_clock) + 2000);
     }
 
-    dprintf("husb: auto filter: bus_num %d addr %d vid %d pid %d\n",
-	bus_num, addr, vendor_id, product_id);
+    dprintf("husb: added auto filter: bus_num %d addr %d vid %d pid %d\n",
+	f->bus_num, f->addr, f->vendor_id, f->product_id);
 
     f->next = usb_auto_filter;
     usb_auto_filter = f;
+
+    return 0;
+}
+
+static int usb_host_auto_del(const char *spec)
+{
+    struct USBAutoFilter *pf = usb_auto_filter;
+    struct USBAutoFilter **prev = &usb_auto_filter;
+    struct USBAutoFilter filter;
+
+    if (parse_filter(spec, &filter) < 0)
+        return -1;
+
+    while (pf) {
+        if (match_filter(pf, &filter)) {
+            dprintf("husb: removed auto filter: bus_num %d addr %d vid %d pid %d\n",
+	             pf->bus_num, pf->addr, pf->vendor_id, pf->product_id);
+
+            *prev = pf->next;
+
+	    if (!usb_auto_filter) {
+                /* No more filters. Stop scanning. */
+                qemu_del_timer(usb_auto_timer);
+                qemu_free_timer(usb_auto_timer);
+            }
+
+            return 0;
+        }
+
+        prev = &pf->next;
+        pf   = pf->next;
+    }
+
+    return -1;
 }
 
 typedef struct FindDeviceState {
@@ -1208,12 +1326,6 @@ static int usb_host_find_device(int *pbus_num, int *paddr,
     p = strchr(devname, '.');
     if (p) {
         *pbus_num = strtoul(devname, NULL, 0);
-
-        if (*(p + 1) == '*') {
-            usb_host_auto_add(*pbus_num, -1, -1, -1);
-	    return -1;
-	}
-
         *paddr = strtoul(p + 1, NULL, 0);
         fs.bus_num = *pbus_num;
         fs.addr = *paddr;
@@ -1222,15 +1334,10 @@ static int usb_host_find_device(int *pbus_num, int *paddr,
             pstrcpy(product_name, product_name_size, fs.product_name);
         return 0;
     }
+
     p = strchr(devname, ':');
     if (p) {
         fs.vendor_id = strtoul(devname, NULL, 16);
-
-        if (*(p + 1) == '*') {
-            usb_host_auto_add(-1, -1, fs.vendor_id, -1);
-	    return -1;
-	}
-
         fs.product_id = strtoul(p + 1, NULL, 16);
         ret = usb_host_scan(&fs, usb_host_find_device_scan);
         if (ret) {
@@ -1324,9 +1431,38 @@ static int usb_host_info_device(void *opaque, int bus_num, int addr,
     return 0;
 }
 
+static void dec2str(int val, char *str)
+{
+    if (val == -1)
+        strcpy(str, "*");
+    else
+        sprintf(str, "%d", val); 
+}
+
+static void hex2str(int val, char *str)
+{
+    if (val == -1)
+        strcpy(str, "*");
+    else
+        sprintf(str, "%x", val);
+}
+
 void usb_host_info(void)
 {
+    struct USBAutoFilter *f;
+
     usb_host_scan(NULL, usb_host_info_device);
+
+    if (usb_auto_filter)
+        term_printf("  Auto filters:\n");
+    for (f = usb_auto_filter; f; f = f->next) {
+        char bus[10], addr[10], vid[10], pid[10];
+        dec2str(f->bus_num, bus);
+        dec2str(f->addr, addr);
+        hex2str(f->vendor_id, vid);
+        hex2str(f->product_id, pid);
+    	term_printf("    Device %s.%s ID %s:%s\n", bus, addr, vid, pid);
+    }
 }
 
 #else
@@ -1342,6 +1478,11 @@ void usb_host_info(void)
 USBDevice *usb_host_device_open(const char *devname)
 {
     return NULL;
+}
+
+int usb_host_device_close(const char *devname)
+{
+    return 0;
 }
 
 #endif

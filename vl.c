@@ -5866,6 +5866,9 @@ static int usb_device_del(const char *devname)
     int bus_num, addr;
     const char *p;
 
+    if (strstart(devname, "host:", &p))
+        return usb_host_device_close(p);
+
     if (!used_usb_ports)
         return -1;
 
