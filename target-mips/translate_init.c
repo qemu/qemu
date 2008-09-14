@@ -417,7 +417,7 @@ static const mips_def_t mips_defs[] =
 #endif
 };
 
-static const mips_def_t *cpu_mips_find_by_name (const unsigned char *name)
+static const mips_def_t *cpu_mips_find_by_name (const char *name)
 {
     int i;
 
