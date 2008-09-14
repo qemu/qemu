@@ -730,6 +730,20 @@ static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val)
     return NULL;
 }
 
+static const char * const cond_name[] =
+{
+    [TCG_COND_EQ] = "eq",
+    [TCG_COND_NE] = "ne",
+    [TCG_COND_LT] = "lt",
+    [TCG_COND_GE] = "ge",
+    [TCG_COND_LE] = "le",
+    [TCG_COND_GT] = "gt",
+    [TCG_COND_LTU] = "ltu",
+    [TCG_COND_GEU] = "geu",
+    [TCG_COND_LEU] = "leu",
+    [TCG_COND_GTU] = "gtu"
+};
+
 void tcg_dump_ops(TCGContext *s, FILE *outfile)
 {
     const uint16_t *opc_ptr;
@@ -841,7 +855,22 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
                 fprintf(outfile, "%s",
                         tcg_get_arg_str_idx(s, buf, sizeof(buf), args[k++]));
             }
-            for(i = 0; i < nb_cargs; i++) {
+            if (c == INDEX_op_brcond_i32
+#if TCG_TARGET_REG_BITS == 32
+                || c == INDEX_op_brcond2_i32
+#elif TCG_TARGET_REG_BITS == 64
+                || c == INDEX_op_brcond_i64
+#endif
+                ) {
+                if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]])
+                    fprintf(outfile, ",%s", cond_name[args[k++]]);
+                else
+                    fprintf(outfile, ",$0x%" TCG_PRIlx, args[k++]);
+                i = 1;
+            }
+            else
+                i = 0;
+            for(; i < nb_cargs; i++) {
                 if (k != 0)
                     fprintf(outfile, ",");
                 arg = args[k++];
