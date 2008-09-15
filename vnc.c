@@ -131,6 +131,7 @@ struct VncState
     int has_resize;
     int has_hextile;
     int has_pointer_type_change;
+    int has_WMVi;
     int absolute;
     int last_x;
     int last_y;
@@ -1144,6 +1145,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
     vs->has_hextile = 0;
     vs->has_resize = 0;
     vs->has_pointer_type_change = 0;
+    vs->has_WMVi = 0;
     vs->absolute = -1;
     vs->ds->dpy_copy = NULL;
 
@@ -1166,6 +1168,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 	    break;
         case -258:
             send_ext_key_event_ack(vs);
+            break;
+        case 0x574D5669:
+            vs->has_WMVi = 1;
             break;
 	default:
 	    break;
@@ -1249,6 +1254,57 @@ static void set_pixel_format(VncState *vs,
     vga_hw_update();
 }
 
+static void pixel_format_message (VncState *vs) {
+    char pad[3] = { 0, 0, 0 };
+
+    vnc_write_u8(vs, vs->depth * 8); /* bits-per-pixel */
+    if (vs->depth == 4) vnc_write_u8(vs, 24); /* depth */
+    else vnc_write_u8(vs, vs->depth * 8); /* depth */
+
+#ifdef WORDS_BIGENDIAN
+    vnc_write_u8(vs, 1);             /* big-endian-flag */
+#else
+    vnc_write_u8(vs, 0);             /* big-endian-flag */
+#endif
+    vnc_write_u8(vs, 1);             /* true-color-flag */
+    if (vs->depth == 4) {
+        vnc_write_u16(vs, 0xFF);     /* red-max */
+        vnc_write_u16(vs, 0xFF);     /* green-max */
+        vnc_write_u16(vs, 0xFF);     /* blue-max */
+        vnc_write_u8(vs, 16);        /* red-shift */
+        vnc_write_u8(vs, 8);         /* green-shift */
+        vnc_write_u8(vs, 0);         /* blue-shift */
+        vs->send_hextile_tile = send_hextile_tile_32;
+    } else if (vs->depth == 2) {
+        vnc_write_u16(vs, 31);       /* red-max */
+        vnc_write_u16(vs, 63);       /* green-max */
+        vnc_write_u16(vs, 31);       /* blue-max */
+        vnc_write_u8(vs, 11);        /* red-shift */
+        vnc_write_u8(vs, 5);         /* green-shift */
+        vnc_write_u8(vs, 0);         /* blue-shift */
+        vs->send_hextile_tile = send_hextile_tile_16;
+    } else if (vs->depth == 1) {
+        /* XXX: change QEMU pixel 8 bit pixel format to match the VNC one ? */
+        vnc_write_u16(vs, 7);        /* red-max */
+        vnc_write_u16(vs, 7);        /* green-max */
+        vnc_write_u16(vs, 3);        /* blue-max */
+        vnc_write_u8(vs, 5);         /* red-shift */
+        vnc_write_u8(vs, 2);         /* green-shift */
+        vnc_write_u8(vs, 0);         /* blue-shift */
+        vs->send_hextile_tile = send_hextile_tile_8;
+    }
+    vs->client_red_max = vs->server_red_max;
+    vs->client_green_max = vs->server_green_max;
+    vs->client_blue_max = vs->server_blue_max;
+    vs->client_red_shift = vs->server_red_shift;
+    vs->client_green_shift = vs->server_green_shift;
+    vs->client_blue_shift = vs->server_blue_shift;
+    vs->pix_bpp = vs->depth * 8;
+    vs->write_pixels = vnc_write_pixels_copy;
+
+    vnc_write(vs, pad, 3);           /* padding */
+}
+
 static void vnc_colordepth(DisplayState *ds, int depth)
 {
     int host_big_endian_flag;
@@ -1305,33 +1361,43 @@ static void vnc_colordepth(DisplayState *ds, int depth)
             return;
     }
 
-    if (vs->pix_bpp == 4 && vs->depth == 4 &&
-            host_big_endian_flag == vs->pix_big_endian &&
-            vs->client_red_max == 0xff && vs->client_green_max == 0xff && vs->client_blue_max == 0xff &&
-            vs->client_red_shift == 16 && vs->client_green_shift == 8 && vs->client_blue_shift == 0) {
-        vs->write_pixels = vnc_write_pixels_copy;
-        vs->send_hextile_tile = send_hextile_tile_32;
-    } else if (vs->pix_bpp == 2 && vs->depth == 2 &&
-            host_big_endian_flag == vs->pix_big_endian &&
-            vs->client_red_max == 31 && vs->client_green_max == 63 && vs->client_blue_max == 31 &&
-            vs->client_red_shift == 11 && vs->client_green_shift == 5 && vs->client_blue_shift == 0) {
-        vs->write_pixels = vnc_write_pixels_copy;
-        vs->send_hextile_tile = send_hextile_tile_16;
-    } else if (vs->pix_bpp == 1 && vs->depth == 1 &&
-            host_big_endian_flag == vs->pix_big_endian &&
-            vs->client_red_max == 7 && vs->client_green_max == 7 && vs->client_blue_max == 3 &&
-            vs->client_red_shift == 5 && vs->client_green_shift == 2 && vs->client_blue_shift == 0) {
-        vs->write_pixels = vnc_write_pixels_copy;
-        vs->send_hextile_tile = send_hextile_tile_8;
+    if (vs->csock != -1 && vs->has_WMVi) {
+        /* Sending a WMVi message to notify the client*/
+        vnc_write_u8(vs, 0);  /* msg id */
+        vnc_write_u8(vs, 0);
+        vnc_write_u16(vs, 1); /* number of rects */
+        vnc_framebuffer_update(vs, 0, 0, ds->width, ds->height, 0x574D5669);
+        pixel_format_message(vs);
+        vnc_flush(vs);
     } else {
-        if (vs->depth == 4) {
-            vs->send_hextile_tile = send_hextile_tile_generic_32;
-        } else if (vs->depth == 2) {
-            vs->send_hextile_tile = send_hextile_tile_generic_16;
+        if (vs->pix_bpp == 4 && vs->depth == 4 &&
+                host_big_endian_flag == vs->pix_big_endian &&
+                vs->client_red_max == 0xff && vs->client_green_max == 0xff && vs->client_blue_max == 0xff &&
+                vs->client_red_shift == 16 && vs->client_green_shift == 8 && vs->client_blue_shift == 0) {
+            vs->write_pixels = vnc_write_pixels_copy;
+            vs->send_hextile_tile = send_hextile_tile_32;
+        } else if (vs->pix_bpp == 2 && vs->depth == 2 &&
+                host_big_endian_flag == vs->pix_big_endian &&
+                vs->client_red_max == 31 && vs->client_green_max == 63 && vs->client_blue_max == 31 &&
+                vs->client_red_shift == 11 && vs->client_green_shift == 5 && vs->client_blue_shift == 0) {
+            vs->write_pixels = vnc_write_pixels_copy;
+            vs->send_hextile_tile = send_hextile_tile_16;
+        } else if (vs->pix_bpp == 1 && vs->depth == 1 &&
+                host_big_endian_flag == vs->pix_big_endian &&
+                vs->client_red_max == 7 && vs->client_green_max == 7 && vs->client_blue_max == 3 &&
+                vs->client_red_shift == 5 && vs->client_green_shift == 2 && vs->client_blue_shift == 0) {
+            vs->write_pixels = vnc_write_pixels_copy;
+            vs->send_hextile_tile = send_hextile_tile_8;
         } else {
-            vs->send_hextile_tile = send_hextile_tile_generic_8;
+            if (vs->depth == 4) {
+                vs->send_hextile_tile = send_hextile_tile_generic_32;
+            } else if (vs->depth == 2) {
+                vs->send_hextile_tile = send_hextile_tile_generic_16;
+            } else {
+                vs->send_hextile_tile = send_hextile_tile_generic_8;
+            }
+            vs->write_pixels = vnc_write_pixels_generic;
         }
-        vs->write_pixels = vnc_write_pixels_generic;
     }
 }
 
@@ -1428,7 +1494,6 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
 static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
 {
-    char pad[3] = { 0, 0, 0 };
     char buf[1024];
     int size;
 
@@ -1437,45 +1502,7 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
     vnc_write_u16(vs, vs->ds->width);
     vnc_write_u16(vs, vs->ds->height);
 
-    vnc_write_u8(vs, vs->depth * 8); /* bits-per-pixel */
-    if (vs->depth == 4) vnc_write_u8(vs, 24); /* depth */
-    else vnc_write_u8(vs, vs->depth * 8); /* depth */
-
-#ifdef WORDS_BIGENDIAN
-    vnc_write_u8(vs, 1);             /* big-endian-flag */
-#else
-    vnc_write_u8(vs, 0);             /* big-endian-flag */
-#endif
-    vnc_write_u8(vs, 1);             /* true-color-flag */
-    if (vs->depth == 4) {
-	vnc_write_u16(vs, 0xFF);     /* red-max */
-	vnc_write_u16(vs, 0xFF);     /* green-max */
-	vnc_write_u16(vs, 0xFF);     /* blue-max */
-	vnc_write_u8(vs, 16);        /* red-shift */
-	vnc_write_u8(vs, 8);         /* green-shift */
-	vnc_write_u8(vs, 0);         /* blue-shift */
-        vs->send_hextile_tile = send_hextile_tile_32;
-    } else if (vs->depth == 2) {
-	vnc_write_u16(vs, 31);       /* red-max */
-	vnc_write_u16(vs, 63);       /* green-max */
-	vnc_write_u16(vs, 31);       /* blue-max */
-	vnc_write_u8(vs, 11);        /* red-shift */
-	vnc_write_u8(vs, 5);         /* green-shift */
-	vnc_write_u8(vs, 0);         /* blue-shift */
-        vs->send_hextile_tile = send_hextile_tile_16;
-    } else if (vs->depth == 1) {
-        /* XXX: change QEMU pixel 8 bit pixel format to match the VNC one ? */
-	vnc_write_u16(vs, 7);        /* red-max */
-	vnc_write_u16(vs, 7);        /* green-max */
-	vnc_write_u16(vs, 3);        /* blue-max */
-	vnc_write_u8(vs, 5);         /* red-shift */
-	vnc_write_u8(vs, 2);         /* green-shift */
-	vnc_write_u8(vs, 0);         /* blue-shift */
-        vs->send_hextile_tile = send_hextile_tile_8;
-    }
-    vs->write_pixels = vnc_write_pixels_copy;
-
-    vnc_write(vs, pad, 3);           /* padding */
+    pixel_format_message(vs);
 
     if (qemu_name)
         size = snprintf(buf, sizeof(buf), "QEMU (%s)", qemu_name);
