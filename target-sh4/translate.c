@@ -48,6 +48,12 @@ typedef struct DisasContext {
     int singlestep_enabled;
 } DisasContext;
 
+#if defined(CONFIG_USER_ONLY)
+#define IS_USER(ctx) 1
+#else
+#define IS_USER(ctx) (!(ctx->sr & SR_MD))
+#endif
+
 enum {
     BS_NONE     = 0, /* We go out of the TB without reaching a branch or an
                       * exception condition
@@ -449,6 +455,13 @@ static inline void gen_store_fpr64 (TCGv t, int reg)
   {tcg_gen_helper_0_0(helper_raise_slot_illegal_instruction); ctx->bstate = BS_EXCP; \
    return;}
 
+#define CHECK_PRIVILEGED                                      \
+  if (IS_USER(ctx)) {                                         \
+      tcg_gen_helper_0_0(helper_raise_illegal_instruction);   \
+      ctx->bstate = BS_EXCP;                                  \
+      return;                                                 \
+  }
+
 void _decode_opc(DisasContext * ctx)
 {
 #if 0
@@ -475,13 +488,11 @@ void _decode_opc(DisasContext * ctx)
 	gen_clr_t();
 	return;
     case 0x0038:		/* ldtlb */
-#if defined(CONFIG_USER_ONLY)
-	assert(0);		/* XXXXX */
-#else
+	CHECK_PRIVILEGED
 	tcg_gen_helper_0_0(helper_ldtlb);
-#endif
 	return;
     case 0x002b:		/* rte */
+	CHECK_PRIVILEGED
 	CHECK_NOT_DELAY_SLOT
 	tcg_gen_mov_i32(cpu_sr, cpu_ssr);
 	tcg_gen_mov_i32(cpu_delayed_pc, cpu_spc);
@@ -505,12 +516,8 @@ void _decode_opc(DisasContext * ctx)
     case 0x0009:		/* nop */
 	return;
     case 0x001b:		/* sleep */
-	if (ctx->memidx) {
-		tcg_gen_helper_0_1(helper_sleep, tcg_const_i32(ctx->pc + 2));
-	} else {
-		tcg_gen_helper_0_0(helper_raise_illegal_instruction);
-		ctx->bstate = BS_EXCP;
-	}
+	CHECK_PRIVILEGED
+	tcg_gen_helper_0_1(helper_sleep, tcg_const_i32(ctx->pc + 2));
 	return;
     }
 
@@ -1351,16 +1358,20 @@ void _decode_opc(DisasContext * ctx)
 
     switch (ctx->opcode & 0xf08f) {
     case 0x408e:		/* ldc Rm,Rn_BANK */
+	CHECK_PRIVILEGED
 	tcg_gen_mov_i32(ALTREG(B6_4), REG(B11_8));
 	return;
     case 0x4087:		/* ldc.l @Rm+,Rn_BANK */
+	CHECK_PRIVILEGED
 	tcg_gen_qemu_ld32s(ALTREG(B6_4), REG(B11_8), ctx->memidx);
 	tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 4);
 	return;
     case 0x0082:		/* stc Rm_BANK,Rn */
+	CHECK_PRIVILEGED
 	tcg_gen_mov_i32(REG(B11_8), ALTREG(B6_4));
 	return;
     case 0x4083:		/* stc.l Rm_BANK,@-Rn */
+	CHECK_PRIVILEGED
 	{
 	    TCGv addr = tcg_temp_new(TCG_TYPE_I32);
 	    tcg_gen_subi_i32(addr, REG(B11_8), 4);
@@ -1408,11 +1419,13 @@ void _decode_opc(DisasContext * ctx)
 	ctx->flags |= DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
-    case 0x400e:		/* lds Rm,SR */
+    case 0x400e:		/* ldc Rm,SR */
+	CHECK_PRIVILEGED
 	tcg_gen_andi_i32(cpu_sr, REG(B11_8), 0x700083f3);
 	ctx->bstate = BS_STOP;
 	return;
-    case 0x4007:		/* lds.l @Rm+,SR */
+    case 0x4007:		/* ldc.l @Rm+,SR */
+	CHECK_PRIVILEGED
 	{
 	    TCGv val = tcg_temp_new(TCG_TYPE_I32);
 	    tcg_gen_qemu_ld32s(val, REG(B11_8), ctx->memidx);
@@ -1422,10 +1435,12 @@ void _decode_opc(DisasContext * ctx)
 	    ctx->bstate = BS_STOP;
 	}
 	return;
-    case 0x0002:		/* sts SR,Rn */
+    case 0x0002:		/* stc SR,Rn */
+	CHECK_PRIVILEGED
 	tcg_gen_mov_i32(REG(B11_8), cpu_sr);
 	return;
-    case 0x4003:		/* sts SR,@-Rn */
+    case 0x4003:		/* stc SR,@-Rn */
+	CHECK_PRIVILEGED
 	{
 	    TCGv addr = tcg_temp_new(TCG_TYPE_I32);
 	    tcg_gen_subi_i32(addr, REG(B11_8), 4);
@@ -1434,18 +1449,22 @@ void _decode_opc(DisasContext * ctx)
 	    tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 4);
 	}
 	return;
-#define LDST(reg,ldnum,ldpnum,stnum,stpnum)			\
+#define LDST(reg,ldnum,ldpnum,stnum,stpnum,prechk)		\
   case ldnum:							\
+    prechk    							\
     tcg_gen_mov_i32 (cpu_##reg, REG(B11_8));			\
     return;							\
   case ldpnum:							\
+    prechk    							\
     tcg_gen_qemu_ld32s (cpu_##reg, REG(B11_8), ctx->memidx);	\
     tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 4);		\
     return;							\
   case stnum:							\
+    prechk    							\
     tcg_gen_mov_i32 (REG(B11_8), cpu_##reg);			\
     return;							\
   case stpnum:							\
+    prechk    							\
     {								\
 	TCGv addr = tcg_temp_new(TCG_TYPE_I32);			\
 	tcg_gen_subi_i32(addr, REG(B11_8), 4);			\
@@ -1454,15 +1473,15 @@ void _decode_opc(DisasContext * ctx)
 	tcg_gen_subi_i32(REG(B11_8), REG(B11_8), 4);		\
     }								\
     return;
-	LDST(gbr,  0x401e, 0x4017, 0x0012, 0x4013)
-	LDST(vbr,  0x402e, 0x4027, 0x0022, 0x4023)
-	LDST(ssr,  0x403e, 0x4037, 0x0032, 0x4033)
-	LDST(spc,  0x404e, 0x4047, 0x0042, 0x4043)
-	LDST(dbr,  0x40fa, 0x40f6, 0x00fa, 0x40f2)
-	LDST(mach, 0x400a, 0x4006, 0x000a, 0x4002)
-	LDST(macl, 0x401a, 0x4016, 0x001a, 0x4012)
-	LDST(pr,   0x402a, 0x4026, 0x002a, 0x4022)
-	LDST(fpul, 0x405a, 0x4056, 0x005a, 0x4052)
+	LDST(gbr,  0x401e, 0x4017, 0x0012, 0x4013, {})
+	LDST(vbr,  0x402e, 0x4027, 0x0022, 0x4023, CHECK_PRIVILEGED)
+	LDST(ssr,  0x403e, 0x4037, 0x0032, 0x4033, CHECK_PRIVILEGED)
+	LDST(spc,  0x404e, 0x4047, 0x0042, 0x4043, CHECK_PRIVILEGED)
+	LDST(dbr,  0x40fa, 0x40f6, 0x00fa, 0x40f2, CHECK_PRIVILEGED)
+	LDST(mach, 0x400a, 0x4006, 0x000a, 0x4002, {})
+	LDST(macl, 0x401a, 0x4016, 0x001a, 0x4012, {})
+	LDST(pr,   0x402a, 0x4026, 0x002a, 0x4022, {})
+	LDST(fpul, 0x405a, 0x4056, 0x005a, 0x4052, {})
     case 0x406a:		/* lds Rm,FPSCR */
 	tcg_gen_helper_0_1(helper_ld_fpscr, REG(B11_8));
 	ctx->bstate = BS_STOP;
