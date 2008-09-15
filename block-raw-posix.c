@@ -1149,6 +1149,11 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 }
 #else
 
+static int fd_open(BlockDriverState *bs)
+{
+    return 0;
+}
+
 static int raw_is_inserted(BlockDriverState *bs)
 {
     return 1;
