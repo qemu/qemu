@@ -37,6 +37,8 @@
 #define SH_SERIAL_FLAG_BRK  (1 << 3)
 #define SH_SERIAL_FLAG_DR   (1 << 4)
 
+#define SH_RX_FIFO_LENGTH (16)
+
 typedef struct {
     uint8_t smr;
     uint8_t brr;
@@ -46,13 +48,16 @@ typedef struct {
     uint16_t fcr;
     uint8_t sptr;
 
-    uint8_t rx_fifo[16]; /* frdr / rdr */
+    uint8_t rx_fifo[SH_RX_FIFO_LENGTH]; /* frdr / rdr */
     uint8_t rx_cnt;
+    uint8_t rx_tail;
+    uint8_t rx_head;
 
     target_phys_addr_t base;
     int freq;
     int feat;
     int flags;
+    int rtrg;
 
     CharDriverState *chr;
 
@@ -62,6 +67,14 @@ typedef struct {
     struct intc_source *tei;
     struct intc_source *bri;
 } sh_serial_state;
+
+static void sh_serial_clear_fifo(sh_serial_state * s)
+{
+    memset(s->rx_fifo, 0, SH_RX_FIFO_LENGTH);
+    s->rx_cnt = 0;
+    s->rx_head = 0;
+    s->rx_tail = 0;
+}
 
 static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
 {
@@ -80,6 +93,7 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
         s->brr = val;
 	return;
     case 0x08: /* SCR */
+        /* TODO : For SH7751, SCIF mask should be 0xfb. */
         s->scr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0xfa : 0xff);
         if (!(val & (1 << 5)))
             s->flags |= SH_SERIAL_FLAG_TEND;
@@ -88,6 +102,9 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
                 sh_intc_toggle_source(s->txi, 0, 1);
             else if (!(val & (1 << 7)) && s->txi->asserted)
                 sh_intc_toggle_source(s->txi, 0, -1);
+        }
+        if (!(val & (1 << 6)) && s->rxi->asserted) {
+	    sh_intc_toggle_source(s->rxi, 0, -1);
         }
         return;
     case 0x0c: /* FTDR / TDR */
@@ -117,12 +134,37 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
                 s->flags &= ~SH_SERIAL_FLAG_RDF;
             if (!(val & (1 << 0)))
                 s->flags &= ~SH_SERIAL_FLAG_DR;
+
+            if (!(val & (1 << 1)) || !(val & (1 << 0))) {
+                if (s->rxi && s->rxi->asserted) {
+                    sh_intc_toggle_source(s->rxi, 0, -1);
+                }
+            }
             return;
         case 0x18: /* FCR */
             s->fcr = val;
+            switch ((val >> 6) & 3) {
+            case 0:
+                s->rtrg = 1;
+                break;
+            case 1:
+                s->rtrg = 4;
+                break;
+            case 2:
+                s->rtrg = 8;
+                break;
+            case 3:
+                s->rtrg = 14;
+                break;
+            }
+            if (val & (1 << 1)) {
+                sh_serial_clear_fifo(s);
+                s->sr &= ~(1 << 1);
+            }
+
             return;
         case 0x20: /* SPTR */
-            s->sptr = val;
+            s->sptr = val & 0xf3;
             return;
         case 0x24: /* LSR */
             return;
@@ -190,9 +232,19 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
             if (s->flags & SH_SERIAL_FLAG_DR)
                 ret |= (1 << 0);
 
-	    if (s->scr & (1 << 5))
+            if (s->scr & (1 << 5))
                 s->flags |= SH_SERIAL_FLAG_TDE | SH_SERIAL_FLAG_TEND;
 
+            break;
+        case 0x14:
+            if (s->rx_cnt > 0) {
+                ret = s->rx_fifo[s->rx_tail++];
+                s->rx_cnt--;
+                if (s->rx_tail == SH_RX_FIFO_LENGTH)
+                    s->rx_tail = 0;
+                if (s->rx_cnt < s->rtrg)
+                    s->flags &= ~SH_SERIAL_FLAG_RDF;
+            }
             break;
 #if 0
         case 0x18:
@@ -219,6 +271,9 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
         case 0x10:
             ret = 0;
             break;
+        case 0x14:
+            ret = s->rx_fifo[0];
+            break;
         case 0x1c:
             ret = s->sptr;
             break;
@@ -240,15 +295,33 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
 
 static int sh_serial_can_receive(sh_serial_state *s)
 {
-    return 0;
+    return s->scr & (1 << 4);
 }
 
 static void sh_serial_receive_byte(sh_serial_state *s, int ch)
 {
+    if (s->feat & SH_SERIAL_FEAT_SCIF) {
+        if (s->rx_cnt < SH_RX_FIFO_LENGTH) {
+            s->rx_fifo[s->rx_head++] = ch;
+            if (s->rx_head == SH_RX_FIFO_LENGTH)
+                s->rx_head = 0;
+            s->rx_cnt++;
+            if (s->rx_cnt >= s->rtrg) {
+                s->flags |= SH_SERIAL_FLAG_RDF;
+                if (s->scr & (1 << 6) && s->rxi) {
+                    sh_intc_toggle_source(s->rxi, 0, 1);
+                }
+            }
+        }
+    } else {
+        s->rx_fifo[0] = ch;
+    }
 }
 
 static void sh_serial_receive_break(sh_serial_state *s)
 {
+    if (s->feat & SH_SERIAL_FEAT_SCIF)
+        s->sr |= (1 << 4);
 }
 
 static int sh_serial_can_receive1(void *opaque)
@@ -313,6 +386,7 @@ void sh_serial_init (target_phys_addr_t base, int feat,
     s->base = base;
     s->feat = feat;
     s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
+    s->rtrg = 1;
 
     s->smr = 0;
     s->brr = 0xff;
@@ -326,7 +400,7 @@ void sh_serial_init (target_phys_addr_t base, int feat,
         s->dr = 0xff;
     }
 
-    s->rx_cnt = 0;
+    sh_serial_clear_fifo(s);
 
     s_io_memory = cpu_register_io_memory(0, sh_serial_readfn,
 					 sh_serial_writefn, s);
