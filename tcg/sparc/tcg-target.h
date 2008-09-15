@@ -79,7 +79,8 @@ enum {
 #define TCG_TARGET_CALL_STACK_OFFSET (2047 + TCG_TARGET_STACK_MINFRAME)
 #define TCG_TARGET_STACK_ALIGN 16
 #else
-#define TCG_TARGET_STACK_MINFRAME (92 + 2 * (int)sizeof(long))
+// AREG0 + one word for alignment
+#define TCG_TARGET_STACK_MINFRAME (92 + (2 + 1) * (int)sizeof(long))
 #define TCG_TARGET_CALL_STACK_OFFSET TCG_TARGET_STACK_MINFRAME
 #define TCG_TARGET_STACK_ALIGN 8
 #endif

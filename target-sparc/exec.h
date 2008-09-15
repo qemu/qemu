@@ -5,8 +5,6 @@
 
 register struct CPUSPARCState *env asm(AREG0);
 
-#define FT0 (env->ft0)
-#define FT1 (env->ft1)
 #define DT0 (env->dt0)
 #define DT1 (env->dt1)
 #define QT0 (env->qt0)

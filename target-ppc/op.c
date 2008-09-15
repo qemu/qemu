@@ -233,30 +233,6 @@ void OPPROTO op_mask_spr (void)
     RETURN();
 }
 
-void OPPROTO op_load_lr (void)
-{
-    T0 = env->lr;
-    RETURN();
-}
-
-void OPPROTO op_store_lr (void)
-{
-    env->lr = T0;
-    RETURN();
-}
-
-void OPPROTO op_load_ctr (void)
-{
-    T0 = env->ctr;
-    RETURN();
-}
-
-void OPPROTO op_store_ctr (void)
-{
-    env->ctr = T0;
-    RETURN();
-}
-
 void OPPROTO op_load_tbl (void)
 {
     T0 = cpu_ppc_load_tbl(env);
@@ -1176,33 +1152,6 @@ void OPPROTO op_andc (void)
     T0 &= ~T1;
     RETURN();
 }
-
-/* andi. */
-void OPPROTO op_andi_T0 (void)
-{
-    T0 &= (uint32_t)PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_andi_T1 (void)
-{
-    T1 &= (uint32_t)PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_andi_T0_64 (void)
-{
-    T0 &= ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-
-void OPPROTO op_andi_T1_64 (void)
-{
-    T1 &= ((uint64_t)PARAM1 << 32) | (uint64_t)PARAM2;
-    RETURN();
-}
-#endif
 
 /* count leading zero */
 void OPPROTO op_cntlzw (void)

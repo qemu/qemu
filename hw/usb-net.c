@@ -1016,7 +1016,7 @@ static void usb_net_handle_reset(USBDevice *dev)
 {
 }
 
-static char *usb_net_stringtable[] = {
+static const char * const usb_net_stringtable[] = {
     [STRING_MANUFACTURER]	= "QEMU",
     [STRING_PRODUCT]		= "RNDIS/QEMU USB Network Device",
     [STRING_ETHADDR]		= "400102030405",

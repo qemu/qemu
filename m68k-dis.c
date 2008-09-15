@@ -546,13 +546,13 @@ extern const int m68k_numopcodes, m68k_numaliases;
 
 /* Local function prototypes.  */
 
-const char * const fpcr_names[] =
+static const char * const fpcr_names[] =
 {
   "", "%fpiar", "%fpsr", "%fpiar/%fpsr", "%fpcr",
   "%fpiar/%fpcr", "%fpsr/%fpcr", "%fpiar/%fpsr/%fpcr"
 };
 
-static char *const reg_names[] =
+static const char *const reg_names[] =
 {
   "%d0", "%d1", "%d2", "%d3", "%d4", "%d5", "%d6", "%d7",
   "%a0", "%a1", "%a2", "%a3", "%a4", "%a5", "%fp", "%sp",
@@ -561,7 +561,7 @@ static char *const reg_names[] =
 
 /* Name of register halves for MAC/EMAC.
    Separate from reg_names since 'spu', 'fpl' look weird.  */
-static char *const reg_half_names[] =
+static const char *const reg_half_names[] =
 {
   "%d0", "%d1", "%d2", "%d3", "%d4", "%d5", "%d6", "%d7",
   "%a0", "%a1", "%a2", "%a3", "%a4", "%a5", "%a6", "%a7",
@@ -991,7 +991,7 @@ print_indexed (int basereg,
 	       disassemble_info *info)
 {
   int word;
-  static char *const scales[] = { "", ":2", ":4", ":8" };
+  static const char *const scales[] = { "", ":2", ":4", ":8" };
   bfd_vma base_disp;
   bfd_vma outer_disp;
   char buf[40];
@@ -1106,7 +1106,7 @@ print_insn_arg (const char *d,
     {
     case 'c':		/* Cache identifier.  */
       {
-        static char *const cacheFieldName[] = { "nc", "dc", "ic", "bc" };
+        static const char *const cacheFieldName[] = { "nc", "dc", "ic", "bc" };
         val = fetch_arg (buffer, place, 2, info);
         (*info->fprintf_func) (info->stream, cacheFieldName[val]);
         break;
@@ -1157,7 +1157,7 @@ print_insn_arg (const char *d,
 	/* FIXME: There's a problem here, different m68k processors call the
 	   same address different names. This table can't get it right
 	   because it doesn't know which processor it's disassembling for.  */
-	static const struct { char *name; int value; } names[]
+	static const struct { const char *name; int value; } names[]
 	  = {{"%sfc", 0x000}, {"%dfc", 0x001}, {"%cacr", 0x002},
 	     {"%tc",  0x003}, {"%itt0",0x004}, {"%itt1", 0x005},
              {"%dtt0",0x006}, {"%dtt1",0x007}, {"%buscr",0x008},
@@ -1201,7 +1201,7 @@ print_insn_arg (const char *d,
     case 'M':
       if (place == 'h')
 	{
-	  static char *const scalefactor_name[] = { "<<", ">>" };
+	  static const char *const scalefactor_name[] = { "<<", ">>" };
 	  val = fetch_arg (buffer, place, 1, info);
 	  (*info->fprintf_func) (info->stream, scalefactor_name[val]);
 	}
@@ -1633,7 +1633,7 @@ print_insn_arg (const char *d,
     case '3':
       {
 	int val = fetch_arg (buffer, place, 5, info);
-	char *name = 0;
+        const char *name = 0;
 
 	switch (val)
 	  {

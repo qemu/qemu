@@ -1887,6 +1887,7 @@ void cpu_loop (CPUState *env)
 
         switch (trapnr) {
         case 0x160:
+            env->pc += 2;
             ret = do_syscall(env,
                              env->gregs[3],
                              env->gregs[4],
@@ -1896,7 +1897,6 @@ void cpu_loop (CPUState *env)
                              env->gregs[0],
                              env->gregs[1]);
             env->gregs[0] = ret;
-            env->pc += 2;
             break;
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */

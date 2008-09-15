@@ -25,7 +25,6 @@ extern void cpu_mips_irq_init_cpu(CPUState *env);
 
 /* mips_timer.c */
 extern void cpu_mips_clock_init(CPUState *);
-extern void cpu_mips_irqctrl_init (void);
 
 /* rc4030.c */
 qemu_irq *rc4030_init(qemu_irq timer, qemu_irq jazz_bus);

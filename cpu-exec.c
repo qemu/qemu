@@ -209,7 +209,10 @@ static inline TranslationBlock *tb_find_fast(void)
     cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_SH4)
-    flags = env->flags;
+    flags = (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL
+                    | DELAY_SLOT_TRUE | DELAY_SLOT_CLEARME))   /* Bits  0- 3 */
+            | (env->fpscr & (FPSCR_FR | FPSCR_SZ | FPSCR_PR))  /* Bits 19-21 */
+            | (env->sr & (SR_MD | SR_RB));                     /* Bits 29-30 */
     cs_base = 0;
     pc = env->pc;
 #elif defined(TARGET_ALPHA)

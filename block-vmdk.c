@@ -119,7 +119,7 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
     BDRVVmdkState *s = bs->opaque;
     char desc[DESC_SIZE];
     uint32_t cid;
-    char *p_name, *cid_str;
+    const char *p_name, *cid_str;
     size_t cid_str_size;
 
     /* the descriptor offset = 0x200 */
@@ -193,7 +193,7 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
     uint32_t gde_entries, gd_size;
     int64_t gd_offset, rgd_offset, capacity, gt_size;
     char p_desc[DESC_SIZE], s_desc[DESC_SIZE], hdr[HEADER_SIZE];
-    char *desc_template =
+    static const char desc_template[] =
     "# Disk DescriptorFile\n"
     "version=1\n"
     "CID=%x\n"
@@ -202,7 +202,7 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
     "parentFileNameHint=\"%s\"\n"
     "\n"
     "# Extent description\n"
-    "RW %lu SPARSE \"%s\"\n"
+    "RW %u SPARSE \"%s\"\n"
     "\n"
     "# The Disk Data Base \n"
     "#DDB\n"
@@ -702,7 +702,7 @@ static int vmdk_create(const char *filename, int64_t total_size,
     int fd, i;
     VMDK4Header header;
     uint32_t tmp, magic, grains, gd_size, gt_size, gt_count;
-    char *desc_template =
+    static const char desc_template[] =
         "# Disk DescriptorFile\n"
         "version=1\n"
         "CID=%x\n"
@@ -791,8 +791,9 @@ static int vmdk_create(const char *filename, int64_t total_size,
         real_filename = temp_str + 1;
     if ((temp_str = strrchr(real_filename, ':')) != NULL)
         real_filename = temp_str + 1;
-    snprintf(desc, sizeof(desc), desc_template, time(NULL), (unsigned long)total_size,
-             real_filename, (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4), total_size / (63 * 16));
+    snprintf(desc, sizeof(desc), desc_template, (unsigned int)time(NULL),
+             (unsigned long)total_size, real_filename,
+             (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4), total_size / (63 * 16));
 
     /* write the descriptor */
     lseek(fd, le64_to_cpu(header.desc_offset) << 9, SEEK_SET);

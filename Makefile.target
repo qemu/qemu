@@ -92,7 +92,8 @@ endif # !CONFIG_WIN32
 endif # !CONFIG_LINUX_USER
 
 # We require -O2 to avoid the stack setup prologue in EXIT_TB
-OP_CFLAGS := -Wall -Wundef -O2 -g -fno-strict-aliasing
+OP_CFLAGS := -O2 -g -fno-strict-aliasing
+OP_CFLAGS += -Wall -Wundef -Wendif-labels -Wwrite-strings
 OP_CFLAGS += -Wshadow
 
 # cc-option
@@ -506,7 +507,11 @@ OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o net-checksum.o
 ifdef CONFIG_WIN32
 OBJS+=block-raw-win32.o
 else
-OBJS+=block-raw-posix.o compatfd.o
+OBJS+=block-raw-posix.o
+endif
+
+ifdef CONFIG_AIO
+OBJS+=compatfd.o
 endif
 
 LIBS+=-lz

@@ -207,12 +207,8 @@ end_error:
 
 #define ICMP_MAXDATALEN (IP_MSS-28)
 void
-icmp_error(msrc, type, code, minsize, message)
-     struct mbuf *msrc;
-     u_char type;
-     u_char code;
-     int minsize;
-     char *message;
+icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
+           const char *message)
 {
   unsigned hlen, shlen, s_ip_len;
   register struct ip *ip;

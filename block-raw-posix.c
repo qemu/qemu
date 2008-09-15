@@ -22,11 +22,8 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
 #include "qemu-timer.h"
-#include "exec-all.h"
 #include "qemu-char.h"
-#endif
 #include "block_int.h"
 #include "compatfd.h"
 #include <assert.h>
@@ -70,7 +67,7 @@
 //#define DEBUG_FLOPPY
 
 //#define DEBUG_BLOCK
-#if defined(DEBUG_BLOCK) && !defined(QEMU_IMG) && !defined(QEMU_NBD)
+#if defined(DEBUG_BLOCK)
 #define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (loglevel != 0)	\
     { fprintf(logfile, formatCstr, ##args); fflush(logfile); } } while (0)
 #else
@@ -99,7 +96,7 @@ typedef struct BDRVRawState {
     int fd_got_error;
     int fd_media_changed;
 #endif
-#if defined(O_DIRECT) && !defined(QEMU_IMG)
+#if defined(O_DIRECT)
     uint8_t* aligned_buf;
 #endif
 } BDRVRawState;
@@ -137,7 +134,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         return ret;
     }
     s->fd = fd;
-#if defined(O_DIRECT) && !defined(QEMU_IMG)
+#if defined(O_DIRECT)
     s->aligned_buf = NULL;
     if (flags & BDRV_O_DIRECT) {
         s->aligned_buf = qemu_memalign(512, ALIGNED_BUFFER_SIZE);
@@ -272,7 +269,7 @@ label__raw_write__success:
 }
 
 
-#if defined(O_DIRECT) && !defined(QEMU_IMG)
+#if defined(O_DIRECT)
 /*
  * offset and count are in bytes and possibly not aligned. For files opened
  * with O_DIRECT, necessary alignments are ensured before calling
@@ -449,6 +446,30 @@ static void qemu_aio_poll(void *opaque)
 {
     RawAIOCB *acb, **pacb;
     int ret;
+    size_t offset;
+    union {
+        struct qemu_signalfd_siginfo siginfo;
+        char buf[128];
+    } sig;
+
+    /* try to read from signalfd, don't freak out if we can't read anything */
+    offset = 0;
+    while (offset < 128) {
+        ssize_t len;
+
+        len = read(aio_sig_fd, sig.buf + offset, 128 - offset);
+        if (len == -1 && errno == EINTR)
+            continue;
+        if (len == -1 && errno == EAGAIN) {
+            /* there is no natural reason for this to happen,
+             * so we'll spin hard until we get everything just
+             * to be on the safe side. */
+            if (offset > 0)
+                continue;
+        }
+
+        offset += len;
+    }
 
     for(;;) {
         pacb = &first_aio;
@@ -498,9 +519,10 @@ void qemu_aio_init(void)
     sigprocmask(SIG_BLOCK, &mask, NULL);
     
     aio_sig_fd = qemu_signalfd(&mask);
-#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
+
+    fcntl(aio_sig_fd, F_SETFL, O_NONBLOCK);
+
     qemu_set_fd_handler2(aio_sig_fd, NULL, qemu_aio_poll, NULL, NULL);
-#endif
 
 #if defined(__GLIBC__) && defined(__linux__)
     {
@@ -529,10 +551,11 @@ void qemu_aio_wait(void)
 {
     int ret;
 
-#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
     if (qemu_bh_poll())
         return;
-#endif
+
+    if (!first_aio)
+        return;
 
     do {
         fd_set rdfds;
@@ -575,14 +598,12 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     return acb;
 }
 
-#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
 static void raw_aio_em_cb(void* opaque)
 {
     RawAIOCB *acb = opaque;
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_aio_release(acb);
 }
-#endif
 
 static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
         int64_t sector_num, uint8_t *buf, int nb_sectors,
@@ -594,7 +615,7 @@ static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
      * If O_DIRECT is used and the buffer is not aligned fall back
      * to synchronous IO.
      */
-#if defined(O_DIRECT) && !defined(QEMU_IMG) && !defined(QEMU_NBD)
+#if defined(O_DIRECT)
     BDRVRawState *s = bs->opaque;
 
     if (unlikely(s->aligned_buf != NULL && ((uintptr_t) buf % 512))) {
@@ -627,7 +648,7 @@ static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
      * If O_DIRECT is used and the buffer is not aligned fall back
      * to synchronous IO.
      */
-#if defined(O_DIRECT) && !defined(QEMU_IMG) && !defined(QEMU_NBD)
+#if defined(O_DIRECT)
     BDRVRawState *s = bs->opaque;
 
     if (unlikely(s->aligned_buf != NULL && ((uintptr_t) buf % 512))) {
@@ -689,9 +710,7 @@ void qemu_aio_flush(void)
 
 void qemu_aio_wait(void)
 {
-#if !defined(QEMU_IMG) && !defined(QEMU_NBD)
     qemu_bh_poll();
-#endif
 }
 
 #endif /* CONFIG_AIO */
@@ -702,7 +721,7 @@ static void raw_close(BlockDriverState *bs)
     if (s->fd >= 0) {
         close(s->fd);
         s->fd = -1;
-#if defined(O_DIRECT) && !defined(QEMU_IMG)
+#if defined(O_DIRECT)
         if (s->aligned_buf != NULL)
             qemu_free(s->aligned_buf);
 #endif
@@ -972,7 +991,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     return 0;
 }
 
-#if defined(__linux__) && !defined(QEMU_IMG) && !defined(QEMU_NBD)
+#if defined(__linux__)
 
 /* Note: we do not have a reliable method to detect if the floppy is
    present. The current method is to try to open the floppy at every
@@ -1022,14 +1041,6 @@ static int fd_open(BlockDriverState *bs)
     s->fd_got_error = 0;
     return 0;
 }
-#else
-static int fd_open(BlockDriverState *bs)
-{
-    return 0;
-}
-#endif
-
-#if defined(__linux__)
 
 static int raw_is_inserted(BlockDriverState *bs)
 {
@@ -1137,6 +1148,11 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
     return ioctl(s->fd, req, buf);
 }
 #else
+
+static int fd_open(BlockDriverState *bs)
+{
+    return 0;
+}
 
 static int raw_is_inserted(BlockDriverState *bs)
 {

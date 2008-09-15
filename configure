@@ -346,8 +346,11 @@ for opt do
 done
 
 # default flags for all hosts
-# TODO: CFLAGS="$CFLAGS -Wall -Wmissing-noreturn -Wshadow -O2 -g -fno-strict-aliasing"
-CFLAGS="$CFLAGS -Wall -Wundef -O2 -g -fno-strict-aliasing -Wmissing-noreturn"
+CFLAGS="$CFLAGS -O2 -g -fno-strict-aliasing"
+CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings"
+# TODO
+#~ CFLAGS += -Wshadow
+CFLAGS="$CFLAGS -Wmissing-noreturn"
 LDFLAGS="$LDFLAGS -g"
 if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
@@ -1225,6 +1228,7 @@ if test "$brlapi" = "yes" ; then
 fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
+  echo "CONFIG_AIO=yes" >> $config_mak
 fi
 
 # XXX: suppress that
@@ -1440,6 +1444,7 @@ case "$target_cpu" in
     echo "#define TARGET_ARCH \"sh4\"" >> $config_h
     echo "#define TARGET_SH4 1" >> $config_h
     bflt="yes"
+    target_nptl="yes"
   ;;
   sparc)
     echo "TARGET_ARCH=sparc" >> $config_mak

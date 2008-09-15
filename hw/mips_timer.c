@@ -13,10 +13,6 @@ static void mips_timer_cb(void *opaque);
 /* Workaround to satisfy Linux c0_compare_int_usable. */
 static int cpu_mips_timer_triggered;
 
-void cpu_mips_irqctrl_init (void)
-{
-}
-
 /* XXX: do not use a global */
 uint32_t cpu_mips_get_random (CPUState *env)
 {

@@ -45,6 +45,8 @@
 #include <malloc.h>
 #endif
 
+#include "qemu_socket.h"
+
 #if defined(_WIN32)
 void *qemu_memalign(size_t alignment, size_t size)
 {
@@ -283,3 +285,28 @@ int qemu_gettimeofday(qemu_timeval *tp)
   return 0;
 }
 #endif /* _WIN32 */
+
+
+#ifdef _WIN32
+void socket_set_nonblock(int fd)
+{
+    unsigned long opt = 1;
+    ioctlsocket(fd, FIONBIO, &opt);
+}
+
+int inet_aton(const char *cp, struct in_addr *ia)
+{
+    uint32_t addr = inet_addr(cp);
+    if (addr == 0xffffffff)
+	return 0;
+    ia->s_addr = addr;
+    return 1;
+}
+#else
+void socket_set_nonblock(int fd)
+{
+    int f;
+    f = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, f | O_NONBLOCK);
+}
+#endif
