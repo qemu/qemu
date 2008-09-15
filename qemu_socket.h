@@ -14,11 +14,15 @@
 #define EINTR       WSAEINTR
 #define EINPROGRESS WSAEINPROGRESS
 
+int inet_aton(const char *cp, struct in_addr *ia);
+
 #else
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <sys/un.h>
 
 #define socket_error() errno

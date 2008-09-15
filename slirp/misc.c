@@ -66,20 +66,6 @@ redir_x(inaddr, start_port, display, screen)
 }
 #endif
 
-#ifndef HAVE_INET_ATON
-int
-inet_aton(cp, ia)
-	const char *cp;
-	struct in_addr *ia;
-{
-	u_int32_t addr = inet_addr(cp);
-	if (addr == 0xffffffff)
-		return 0;
-	ia->s_addr = addr;
-	return 1;
-}
-#endif
-
 /*
  * Get our IP address and put it in our_addr
  */

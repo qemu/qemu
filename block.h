@@ -47,10 +47,8 @@ typedef struct QEMUSnapshotInfo {
                                      bdrv_file_open()) */
 #define BDRV_O_DIRECT      0x0020
 
-#ifndef QEMU_IMG
 void bdrv_info(void);
 void bdrv_info_stats(void);
-#endif
 
 void bdrv_init(void);
 BlockDriver *bdrv_find_format(const char *format_name);

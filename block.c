@@ -22,9 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#ifndef QEMU_IMG
 #include "console.h"
-#endif
 #include "block_int.h"
 
 #ifdef _BSD
@@ -922,7 +920,6 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     return bs->drv->bdrv_is_allocated(bs, sector_num, nb_sectors, pnum);
 }
 
-#ifndef QEMU_IMG
 void bdrv_info(void)
 {
     BlockDriverState *bs;
@@ -980,7 +977,6 @@ void bdrv_info_stats (void)
 		     bs->rd_ops, bs->wr_ops);
     }
 }
-#endif
 
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
@@ -1203,31 +1199,6 @@ void bdrv_aio_cancel(BlockDriverAIOCB *acb)
 /**************************************************************/
 /* async block device emulation */
 
-#ifdef QEMU_IMG
-static BlockDriverAIOCB *bdrv_aio_read_em(BlockDriverState *bs,
-        int64_t sector_num, uint8_t *buf, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
-{
-    int ret;
-    ret = bdrv_read(bs, sector_num, buf, nb_sectors);
-    cb(opaque, ret);
-    return NULL;
-}
-
-static BlockDriverAIOCB *bdrv_aio_write_em(BlockDriverState *bs,
-        int64_t sector_num, const uint8_t *buf, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
-{
-    int ret;
-    ret = bdrv_write(bs, sector_num, buf, nb_sectors);
-    cb(opaque, ret);
-    return NULL;
-}
-
-static void bdrv_aio_cancel_em(BlockDriverAIOCB *acb)
-{
-}
-#else
 static void bdrv_aio_bh_cb(void *opaque)
 {
     BlockDriverAIOCBSync *acb = opaque;
@@ -1273,7 +1244,6 @@ static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
     qemu_bh_cancel(acb->bh);
     qemu_aio_release(acb);
 }
-#endif /* !QEMU_IMG */
 
 /**************************************************************/
 /* sync block device emulation */
@@ -1337,9 +1307,7 @@ void bdrv_init(void)
     bdrv_register(&bdrv_vvfat);
     bdrv_register(&bdrv_qcow2);
     bdrv_register(&bdrv_parallels);
-#ifndef _WIN32
     bdrv_register(&bdrv_nbd);
-#endif
 
     qemu_aio_init();
 }

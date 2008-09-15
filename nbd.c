@@ -21,28 +21,27 @@
 
 #include <errno.h>
 #include <string.h>
+#ifndef _WIN32
 #include <sys/ioctl.h>
+#endif
 #ifdef __sun__
 #include <sys/ioccom.h>
 #endif
 #include <ctype.h>
 #include <inttypes.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 
-#if defined(QEMU_NBD)
-extern int verbose;
-#else
-static int verbose = 0;
-#endif
+#include "qemu_socket.h"
 
+//#define DEBUG_NBD
+
+#ifdef DEBUG_NBD
 #define TRACE(msg, ...) do { \
-    if (verbose) LOG(msg, ## __VA_ARGS__); \
+    LOG(msg, ## __VA_ARGS__); \
 } while(0)
+#else
+#define TRACE(msg, ...) \
+    do { } while (0)
+#endif
 
 #define LOG(msg, ...) do { \
     fprintf(stderr, "%s:%s():L%d: " msg "\n", \
@@ -77,10 +76,13 @@ size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
         ssize_t len;
 
         if (do_read) {
-            len = read(fd, buffer + offset, size - offset);
+            len = recv(fd, buffer + offset, size - offset, 0);
         } else {
-            len = write(fd, buffer + offset, size - offset);
+            len = send(fd, buffer + offset, size - offset, 0);
         }
+
+        if (len == -1)
+            errno = socket_error();
 
         /* recoverable error */
         if (len == -1 && (errno == EAGAIN || errno == EINTR)) {
@@ -108,7 +110,6 @@ int tcp_socket_outgoing(const char *address, uint16_t port)
     int s;
     struct in_addr in;
     struct sockaddr_in addr;
-    int serrno;
 
     s = socket(PF_INET, SOCK_STREAM, 0);
     if (s == -1) {
@@ -136,9 +137,7 @@ int tcp_socket_outgoing(const char *address, uint16_t port)
 
     return s;
 error:
-    serrno = errno;
-    close(s);
-    errno = serrno;
+    closesocket(s);
     return -1;
 }
 
@@ -147,7 +146,6 @@ int tcp_socket_incoming(const char *address, uint16_t port)
     int s;
     struct in_addr in;
     struct sockaddr_in addr;
-    int serrno;
     int opt;
 
     s = socket(PF_INET, SOCK_STREAM, 0);
@@ -185,17 +183,15 @@ int tcp_socket_incoming(const char *address, uint16_t port)
 
     return s;
 error:
-    serrno = errno;
-    close(s);
-    errno = serrno;
+    closesocket(s);
     return -1;
 }
 
+#ifndef _WIN32
 int unix_socket_incoming(const char *path)
 {
     int s;
     struct sockaddr_un addr;
-    int serrno;
 
     s = socket(PF_UNIX, SOCK_STREAM, 0);
     if (s == -1) {
@@ -216,9 +212,7 @@ int unix_socket_incoming(const char *path)
 
     return s;
 error:
-    serrno = errno;
-    close(s);
-    errno = serrno;
+    closesocket(s);
     return -1;
 }
 
@@ -226,7 +220,6 @@ int unix_socket_outgoing(const char *path)
 {
     int s;
     struct sockaddr_un addr;
-    int serrno;
 
     s = socket(PF_UNIX, SOCK_STREAM, 0);
     if (s == -1) {
@@ -243,11 +236,22 @@ int unix_socket_outgoing(const char *path)
 
     return s;
 error:
-    serrno = errno;
-    close(s);
-    errno = serrno;
+    closesocket(s);
     return -1;
 }
+#else
+int unix_socket_incoming(const char *path)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
+int unix_socket_outgoing(const char *path)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+#endif
 
 
 /* Basic flow
@@ -337,6 +341,7 @@ int nbd_receive_negotiate(int csock, off_t *size, size_t *blocksize)
         return 0;
 }
 
+#ifndef _WIN32
 int nbd_init(int fd, int csock, off_t size, size_t blocksize)
 {
 	TRACE("Setting block size to %lu", (unsigned long)blocksize);
@@ -410,6 +415,25 @@ int nbd_client(int fd, int csock)
 	errno = serrno;
 	return ret;
 }
+#else
+int nbd_init(int fd, int csock, off_t size, size_t blocksize)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
+int nbd_disconnect(int fd)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+
+int nbd_client(int fd, int csock)
+{
+    errno = ENOTSUP;
+    return -1;
+}
+#endif
 
 int nbd_send_request(int csock, struct nbd_request *request)
 {

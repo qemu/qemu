@@ -100,10 +100,9 @@
 #include <stropts.h>
 #endif
 #endif
-#else
-#include <winsock2.h>
-int inet_aton(const char *cp, struct in_addr *ia);
 #endif
+
+#include "qemu_socket.h"
 
 #if defined(CONFIG_SLIRP)
 #include "libslirp.h"
@@ -124,8 +123,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #define getopt_long_only getopt_long
 #define memalign(align, size) malloc(size)
 #endif
-
-#include "qemu_socket.h"
 
 #ifdef CONFIG_SDL
 #ifdef __APPLE__
@@ -2133,12 +2130,6 @@ static int send_all(int fd, const uint8_t *buf, int len1)
     return len1 - len;
 }
 
-void socket_set_nonblock(int fd)
-{
-    unsigned long opt = 1;
-    ioctlsocket(fd, FIONBIO, &opt);
-}
-
 #else
 
 static int unix_write(int fd, const uint8_t *buf, int len1)
@@ -2164,13 +2155,6 @@ static int unix_write(int fd, const uint8_t *buf, int len1)
 static inline int send_all(int fd, const uint8_t *buf, int len1)
 {
     return unix_write(fd, buf, len1);
-}
-
-void socket_set_nonblock(int fd)
-{
-    int f;
-    f = fcntl(fd, F_GETFL);
-    fcntl(fd, F_SETFL, f | O_NONBLOCK);
 }
 #endif /* !_WIN32 */
 
