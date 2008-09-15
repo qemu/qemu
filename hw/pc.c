@@ -777,15 +777,27 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
     vmport_init();
 
     /* allocate RAM */
-    ram_addr = qemu_ram_alloc(ram_size);
-    cpu_register_physical_memory(0, below_4g_mem_size, ram_addr);
+    ram_addr = qemu_ram_alloc(0xa0000);
+    cpu_register_physical_memory(0, 0xa0000, ram_addr);
+
+    /* Allocate, even though we won't register, so we don't break the
+     * phys_ram_base + PA assumption. This range includes vga (0xa0000 - 0xc0000),
+     * and some bios areas, which will be registered later
+     */
+    ram_addr = qemu_ram_alloc(0x100000 - 0xa0000);
+    ram_addr = qemu_ram_alloc(below_4g_mem_size - 0x100000);
+    cpu_register_physical_memory(0x100000,
+                 below_4g_mem_size - 0x100000,
+                 ram_addr);
 
     /* above 4giga memory allocation */
     if (above_4g_mem_size > 0) {
-        cpu_register_physical_memory((target_phys_addr_t) 0x100000000ULL,
+        ram_addr = qemu_ram_alloc(above_4g_mem_size);
+        cpu_register_physical_memory(0x100000000ULL,
                                      above_4g_mem_size,
-                                     ram_addr + below_4g_mem_size);
+                                     ram_addr);
     }
+
 
     /* allocate VGA RAM */
     vga_ram_addr = qemu_ram_alloc(vga_ram_size);
