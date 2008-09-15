@@ -2,29 +2,29 @@
 #define CONCAT(a, b) CONCAT_I(a, b)
 #define pixel_t CONCAT(uint, CONCAT(BPP, _t))
 #ifdef GENERIC
-#define NAME generic
+#define NAME CONCAT(generic_, BPP)
 #else
 #define NAME BPP
 #endif
 
 static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
                                              int x, int y, int w, int h,
-                                             uint32_t *last_bg32,
-                                             uint32_t *last_fg32,
+                                             void *last_bg_,
+                                             void *last_fg_,
                                              int *has_bg, int *has_fg)
 {
     uint8_t *row = (vs->ds->data + y * vs->ds->linesize + x * vs->depth);
     pixel_t *irow = (pixel_t *)row;
     int j, i;
-    pixel_t *last_bg = (pixel_t *)last_bg32;
-    pixel_t *last_fg = (pixel_t *)last_fg32;
+    pixel_t *last_bg = (pixel_t *)last_bg_;
+    pixel_t *last_fg = (pixel_t *)last_fg_;
     pixel_t bg = 0;
     pixel_t fg = 0;
     int n_colors = 0;
     int bg_count = 0;
     int fg_count = 0;
     int flags = 0;
-    uint8_t data[(sizeof(pixel_t) + 2) * 16 * 16];
+    uint8_t data[(vs->pix_bpp + 2) * 16 * 16];
     int n_data = 0;
     int n_subtiles = 0;
 
