@@ -1437,6 +1437,7 @@ case "$target_cpu" in
     echo "#define TARGET_ARCH \"sh4\"" >> $config_h
     echo "#define TARGET_SH4 1" >> $config_h
     bflt="yes"
+    target_nptl="yes"
   ;;
   sparc)
     echo "TARGET_ARCH=sparc" >> $config_mak

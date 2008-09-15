@@ -141,6 +141,11 @@ void sh4_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 				    uint32_t mem_value);
 
+static inline void cpu_set_tls(CPUSH4State *env, target_ulong newtls)
+{
+  env->gbr = newtls;
+}
+
 #include "softfloat.h"
 
 #define CPUState CPUSH4State

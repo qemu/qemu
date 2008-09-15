@@ -53,6 +53,7 @@
 //#include <sys/user.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <qemu-common.h>
 
 #define termios host_termios
 #define winsize host_winsize
@@ -4662,7 +4663,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(fsync(arg1));
         break;
     case TARGET_NR_clone:
+#if defined(TARGET_SH4)
+        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
+#else
         ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg4, arg5));
+#endif
         break;
 #ifdef __NR_exit_group
         /* new thread calls */
