@@ -35,10 +35,28 @@
 #include <sys/ioctl.h>
 #include <signal.h>
 
-#include <linux/usb/ch9.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/version.h>
 #include "hw/usb.h"
+
+/* We redefine it to avoid version problems */
+struct usb_ctrltransfer {
+    uint8_t  bRequestType;
+    uint8_t  bRequest;
+    uint16_t wValue;
+    uint16_t wIndex;
+    uint16_t wLength;
+    uint32_t timeout;
+    void *data;
+};
+
+struct usb_ctrlrequest {
+    uint8_t bRequestType;
+    uint8_t bRequest;
+    uint16_t wValue;
+    uint16_t wIndex;
+    uint16_t wLength;
+};
 
 typedef int USBScanFunc(void *opaque, int bus_num, int addr, int class_id,
                         int vendor_id, int product_id,
@@ -710,7 +728,7 @@ static int do_token_out(USBDevice *dev, USBPacket *p)
  *
  * Returns length of the transaction or one of the USB_RET_XXX codes.
  */
-int usb_host_handle_packet(USBDevice *s, USBPacket *p)
+static int usb_host_handle_packet(USBDevice *s, USBPacket *p)
 {
     switch(p->pid) {
     case USB_MSG_ATTACH:
