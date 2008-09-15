@@ -505,7 +505,7 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x001b:		/* sleep */
 	if (ctx->memidx) {
-		tcg_gen_helper_0_0(helper_sleep);
+		tcg_gen_helper_0_1(helper_sleep, tcg_const_i32(ctx->pc + 2));
 	} else {
 		tcg_gen_helper_0_0(helper_raise_illegal_instruction);
 		ctx->bstate = BS_EXCP;
