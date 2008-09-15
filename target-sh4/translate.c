@@ -243,6 +243,7 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model)
 	return NULL;
     cpu_exec_init(env);
     sh4_translate_init();
+    env->cpu_model_str = cpu_model;
     cpu_sh4_reset(env);
     cpu_sh4_register(env, def);
     tlb_flush(env, 1);
