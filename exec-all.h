@@ -256,10 +256,6 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 
 TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) &((type *)0)->field)
-#endif
-
 #if defined(_WIN32)
 #define ASM_DATA_SECTION ".section \".data\"\n"
 #define ASM_PREVIOUS_SECTION ".section .text\n"

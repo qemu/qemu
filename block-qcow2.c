@@ -61,10 +61,6 @@
 
 #define REFCOUNT_SHIFT 1 /* refcount size is 2 bytes */
 
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) &((type *)0)->field)
-#endif
-
 typedef struct QCowHeader {
     uint32_t magic;
     uint32_t version;

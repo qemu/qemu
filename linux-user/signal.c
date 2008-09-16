@@ -549,10 +549,6 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     return ret;
 }
 
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) &((type *)0)->field)
-#endif
-
 static inline int copy_siginfo_to_user(target_siginfo_t *tinfo,
                                        const target_siginfo_t *info)
 {
