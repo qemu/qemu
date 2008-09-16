@@ -65,7 +65,7 @@ void helper_excp (uint32_t excp, uint32_t error)
     cpu_loop_exit();
 }
 
-void helper_amask (void)
+uint64_t helper_amask (uint64_t arg)
 {
     switch (env->implver) {
     case IMPLVER_2106x:
@@ -74,9 +74,10 @@ void helper_amask (void)
     case IMPLVER_21164:
     case IMPLVER_21264:
     case IMPLVER_21364:
-        T0 &= ~env->amask;
+        arg &= ~env->amask;
         break;
     }
+    return arg;
 }
 
 void helper_load_pcc (void)
@@ -210,19 +211,19 @@ void helper_mulqv ()
     T0 = tl;
 }
 
-void helper_ctpop (void)
+uint64_t helper_ctpop (uint64_t arg)
 {
-    T0 = ctpop64(T0);
+    return ctpop64(arg);
 }
 
-void helper_ctlz (void)
+uint64_t helper_ctlz (uint64_t arg)
 {
-    T0 = clz64(T0);
+    return clz64(arg);
 }
 
-void helper_cttz (void)
+uint64_t helper_cttz (uint64_t arg)
 {
-    T0 = ctz64(T0);
+    return ctz64(arg);
 }
 
 static always_inline uint64_t byte_zap (uint64_t op, uint8_t mskb)

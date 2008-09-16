@@ -155,12 +155,6 @@ void OPPROTO op_excp (void)
     RETURN();
 }
 
-void OPPROTO op_load_amask (void)
-{
-    helper_amask();
-    RETURN();
-}
-
 void OPPROTO op_load_pcc (void)
 {
     helper_load_pcc();
@@ -337,37 +331,6 @@ void OPPROTO op_srl (void)
 void OPPROTO op_sra (void)
 {
     T0 = (int64_t)T0 >> T1;
-    RETURN();
-}
-
-void OPPROTO op_sextb (void)
-{
-    T0 = (int64_t)((int8_t)T0);
-    RETURN();
-}
-
-void OPPROTO op_sextw (void)
-{
-    T0 = (int64_t)((int16_t)T0);
-    RETURN();
-
-}
-
-void OPPROTO op_ctpop (void)
-{
-    helper_ctpop();
-    RETURN();
-}
-
-void OPPROTO op_ctlz (void)
-{
-    helper_ctlz();
-    RETURN();
-}
-
-void OPPROTO op_cttz (void)
-{
-    helper_cttz();
     RETURN();
 }
 

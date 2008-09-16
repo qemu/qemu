@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "disas.h"
+#include "host-utils.h"
 #include "helper.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
@@ -349,21 +350,6 @@ static always_inline void gen_fbcond (DisasContext *ctx,
     _gen_op_bcond(ctx);
 }
 
-static always_inline void gen_arith2 (DisasContext *ctx,
-                                      void (*gen_arith_op)(void),
-                                      int rb, int rc, int islit, uint8_t lit)
-{
-    if (islit)
-        tcg_gen_movi_i64(cpu_T[0], lit);
-    else if (rb != 31)
-        tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
-    else
-        tcg_gen_movi_i64(cpu_T[0], 0);
-    (*gen_arith_op)();
-    if (rc != 31)
-        tcg_gen_mov_i64(cpu_ir[rc], cpu_T[0]);
-}
-
 static always_inline void gen_arith3 (DisasContext *ctx,
                                       void (*gen_arith_op)(void),
                                       int ra, int rb, int rc,
@@ -500,12 +486,6 @@ static always_inline void gen_s8subq (void)
 {
     tcg_gen_shli_i64(cpu_T[0], cpu_T[0], 3);
     tcg_gen_sub_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
-}
-
-static always_inline void gen_amask (void)
-{
-    gen_op_load_amask();
-    gen_op_bic();
 }
 
 static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
@@ -793,7 +773,14 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x61:
             /* AMASK */
-            gen_arith2(ctx, &gen_amask, rb, rc, islit, lit);
+            if (likely(rc != 31)) {
+                if (islit)
+                    tcg_gen_movi_i64(cpu_ir[rc], helper_amask(lit));
+                else if (rb != 31)
+                    tcg_gen_helper_1_1(helper_amask, cpu_ir[rc], cpu_ir[rb]);
+                else
+                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            }
             break;
         case 0x64:
             /* CMOVLE */
@@ -1446,19 +1433,40 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* SEXTB */
             if (!(ctx->amask & AMASK_BWX))
                 goto invalid_opc;
-            gen_arith2(ctx, &gen_op_sextb, rb, rc, islit, lit);
+            if (likely(rc != 31)) {
+                if (islit)
+                    tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int8_t)lit));
+                else if (rb != 31)
+                    tcg_gen_ext8s_i64(cpu_ir[rc], cpu_ir[rb]);
+                else
+                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            }
             break;
         case 0x01:
             /* SEXTW */
             if (!(ctx->amask & AMASK_BWX))
                 goto invalid_opc;
-            gen_arith2(ctx, &gen_op_sextw, rb, rc, islit, lit);
+            if (likely(rc != 31)) {
+                if (islit)
+                    tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int16_t)lit));
+                else if (rb != 31)
+                    tcg_gen_ext16s_i64(cpu_ir[rc], cpu_ir[rb]);
+                else
+                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            }
             break;
         case 0x30:
             /* CTPOP */
             if (!(ctx->amask & AMASK_CIX))
                 goto invalid_opc;
-            gen_arith2(ctx, &gen_op_ctpop, rb, rc, 0, 0);
+            if (likely(rc != 31)) {
+                if (islit)
+                    tcg_gen_movi_i64(cpu_ir[rc], ctpop64(lit));
+                else if (rb != 31)
+                    tcg_gen_helper_1_1(helper_ctpop, cpu_ir[rc], cpu_ir[rb]);
+                else
+                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            }
             break;
         case 0x31:
             /* PERR */
@@ -1471,13 +1479,27 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* CTLZ */
             if (!(ctx->amask & AMASK_CIX))
                 goto invalid_opc;
-            gen_arith2(ctx, &gen_op_ctlz, rb, rc, 0, 0);
+            if (likely(rc != 31)) {
+                if (islit)
+                    tcg_gen_movi_i64(cpu_ir[rc], clz64(lit));
+                else if (rb != 31)
+                    tcg_gen_helper_1_1(helper_ctlz, cpu_ir[rc], cpu_ir[rb]);
+                else
+                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            }
             break;
         case 0x33:
             /* CTTZ */
             if (!(ctx->amask & AMASK_CIX))
                 goto invalid_opc;
-            gen_arith2(ctx, &gen_op_cttz, rb, rc, 0, 0);
+            if (likely(rc != 31)) {
+                if (islit)
+                    tcg_gen_movi_i64(cpu_ir[rc], ctz64(lit));
+                else if (rb != 31)
+                    tcg_gen_helper_1_1(helper_cttz, cpu_ir[rc], cpu_ir[rb]);
+                else
+                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+            }
             break;
         case 0x34:
             /* UNPKBW */
