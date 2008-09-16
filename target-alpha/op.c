@@ -198,21 +198,9 @@ void OPPROTO op_clear_irf (void)
 }
 
 /* Arithmetic */
-void OPPROTO op_addq (void)
-{
-    T0 += T1;
-    RETURN();
-}
-
 void OPPROTO op_addqv (void)
 {
     helper_addqv();
-    RETURN();
-}
-
-void OPPROTO op_addl (void)
-{
-    T0 = (int64_t)((int32_t)(T0 + T1));
     RETURN();
 }
 
@@ -222,21 +210,9 @@ void OPPROTO op_addlv (void)
     RETURN();
 }
 
-void OPPROTO op_subq (void)
-{
-    T0 -= T1;
-    RETURN();
-}
-
 void OPPROTO op_subqv (void)
 {
     helper_subqv();
-    RETURN();
-}
-
-void OPPROTO op_subl (void)
-{
-    T0 = (int64_t)((int32_t)(T0 - T1));
     RETURN();
 }
 
@@ -246,21 +222,9 @@ void OPPROTO op_sublv (void)
     RETURN();
 }
 
-void OPPROTO op_mull (void)
-{
-    T0 = (int64_t)((int32_t)T0 * (int32_t)T1);
-    RETURN();
-}
-
 void OPPROTO op_mullv (void)
 {
     helper_mullv();
-    RETURN();
-}
-
-void OPPROTO op_mulq (void)
-{
-    T0 = (int64_t)T0 * (int64_t)T1;
     RETURN();
 }
 
@@ -280,60 +244,6 @@ void OPPROTO op_umulh (void)
 }
 
 /* Logical */
-void OPPROTO op_and (void)
-{
-    T0 &= T1;
-    RETURN();
-}
-
-void OPPROTO op_bic (void)
-{
-    T0 &= ~T1;
-    RETURN();
-}
-
-void OPPROTO op_bis (void)
-{
-    T0 |= T1;
-    RETURN();
-}
-
-void OPPROTO op_eqv (void)
-{
-    T0 ^= ~T1;
-    RETURN();
-}
-
-void OPPROTO op_ornot (void)
-{
-    T0 |= ~T1;
-    RETURN();
-}
-
-void OPPROTO op_xor (void)
-{
-    T0 ^= T1;
-    RETURN();
-}
-
-void OPPROTO op_sll (void)
-{
-    T0 <<= T1;
-    RETURN();
-}
-
-void OPPROTO op_srl (void)
-{
-    T0 >>= T1;
-    RETURN();
-}
-
-void OPPROTO op_sra (void)
-{
-    T0 = (int64_t)T0 >> T1;
-    RETURN();
-}
-
 void OPPROTO op_mskbl (void)
 {
     helper_mskbl();
