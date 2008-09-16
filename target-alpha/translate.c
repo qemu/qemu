@@ -516,7 +516,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         goto invalid_opc;
     case 0x08:
         /* LDA */
-        if (ra != 31) {
+        if (likely(ra != 31)) {
             if (rb != 31)
                 tcg_gen_addi_i64(cpu_ir[ra], cpu_ir[rb], disp16);
             else
@@ -525,7 +525,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x09:
         /* LDAH */
-        if (ra != 31) {
+        if (likely(ra != 31)) {
             if (rb != 31)
                 tcg_gen_addi_i64(cpu_ir[ra], cpu_ir[rb], disp16 << 16);
             else
