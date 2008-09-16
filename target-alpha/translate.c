@@ -54,7 +54,7 @@ static TCGv cpu_pc;
 static TCGv cpu_T[3];
 
 /* register names */
-static char cpu_reg_names[5*31];
+static char cpu_reg_names[10*4+21*5];
 
 #include "gen-icount.h"
 
@@ -87,7 +87,7 @@ static void alpha_translate_init(void)
         sprintf(p, "ir%d", i);
         cpu_ir[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
                                        offsetof(CPUState, ir[i]), p);
-        p += 4;
+        p += (i < 10) ? 4 : 5;
     }
 
     cpu_pc = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
