@@ -468,6 +468,93 @@ static always_inline void gen_itf (DisasContext *ctx,
     gen_store_fir(ctx, rc, 0);
 }
 
+/* EXTWH, EXTWH, EXTLH, EXTQH */
+static always_inline void gen_ext_h(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
+                                    int ra, int rb, int rc,
+                                    int islit, int8_t lit)
+{
+    if (unlikely(rc == 31))
+        return;
+
+    if (ra != 31) {
+        if (islit)
+            tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 64 - ((lit & 7) * 8));
+        else if (rb != 31) {
+            TCGv tmp1, tmp2;
+            tmp1 = tcg_temp_new(TCG_TYPE_I64);
+            tcg_gen_andi_i64(tmp1, cpu_ir[rb], 7);
+            tcg_gen_shli_i64(tmp1, tmp1, 3);
+            tmp2 = tcg_const_i64(64);
+            tcg_gen_sub_i64(tmp1, tmp2, tmp1);
+            tcg_temp_free(tmp2);
+            if (tcg_gen_ext_i64) {
+                tcg_gen_shl_i64(tmp1, cpu_ir[ra], tmp1);
+                tcg_gen_ext_i64(cpu_ir[rc], tmp1);
+            } else
+                tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], tmp1);
+            tcg_temp_free(tmp1);
+        } else
+            tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+    } else
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+}
+
+/* EXTBL, EXTWL, EXTWL, EXTLL, EXTQL */
+static always_inline void gen_ext_l(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
+                                    int ra, int rb, int rc,
+                                    int islit, int8_t lit)
+{
+    if (unlikely(rc == 31))
+        return;
+
+    if (ra != 31) {
+        if (islit)
+            tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], (lit & 7) * 8);
+        else if (rb != 31) {
+            TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+            tcg_gen_andi_i64(tmp, cpu_ir[rb], 7);
+            tcg_gen_shli_i64(tmp, tmp, 3);
+            if (tcg_gen_ext_i64) {
+                tcg_gen_shr_i64(tmp, cpu_ir[ra], tmp);
+                tcg_gen_ext_i64(cpu_ir[rc], tmp);
+            } else
+                tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], tmp);
+            tcg_temp_free(tmp);
+        } else
+            tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+    } else
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+}
+
+/* Code to call byte manipulation helpers, used by:
+   INSWH, INSLH, INSQH, INSBL, INSWL, INSLL, INSQL,
+   MSKWH, MSKLH, MSKQH, MSKBL, MSKWL, MSKLL, MSKQL,
+   ZAP, ZAPNOT
+
+   WARNING: it assumes that when ra31 is used, the result is 0.
+*/
+static always_inline void gen_byte_manipulation(void *helper,
+                                                int ra, int rb, int rc,
+                                                int islit, uint8_t lit)
+{
+    if (unlikely(rc == 31))
+        return;
+
+    if (ra != 31) {
+        if (islit || rb == 31) {
+            TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+            if (islit)
+                tcg_gen_movi_i64(tmp, lit);
+            else
+                tcg_gen_movi_i64(tmp, 0);
+            tcg_gen_helper_1_2(helper, cpu_ir[rc], cpu_ir[ra], tmp);
+            tcg_temp_free(tmp);
+        } else
+            tcg_gen_helper_1_2(helper, cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
+    } else
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+}
+
 static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
@@ -1101,51 +1188,51 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         switch (fn7) {
         case 0x02:
             /* MSKBL */
-            gen_arith3(ctx, &gen_op_mskbl, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_mskbl, ra, rb, rc, islit, lit);
             break;
         case 0x06:
             /* EXTBL */
-            gen_arith3(ctx, &gen_op_extbl, ra, rb, rc, islit, lit);
+            gen_ext_l(&tcg_gen_ext8u_i64, ra, rb, rc, islit, lit);
             break;
         case 0x0B:
             /* INSBL */
-            gen_arith3(ctx, &gen_op_insbl, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_insbl, ra, rb, rc, islit, lit);
             break;
         case 0x12:
             /* MSKWL */
-            gen_arith3(ctx, &gen_op_mskwl, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_mskwl, ra, rb, rc, islit, lit);
             break;
         case 0x16:
             /* EXTWL */
-            gen_arith3(ctx, &gen_op_extwl, ra, rb, rc, islit, lit);
+            gen_ext_l(&tcg_gen_ext16u_i64, ra, rb, rc, islit, lit);
             break;
         case 0x1B:
             /* INSWL */
-            gen_arith3(ctx, &gen_op_inswl, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_inswl, ra, rb, rc, islit, lit);
             break;
         case 0x22:
             /* MSKLL */
-            gen_arith3(ctx, &gen_op_mskll, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_mskll, ra, rb, rc, islit, lit);
             break;
         case 0x26:
             /* EXTLL */
-            gen_arith3(ctx, &gen_op_extll, ra, rb, rc, islit, lit);
+            gen_ext_l(&tcg_gen_ext32u_i64, ra, rb, rc, islit, lit);
             break;
         case 0x2B:
             /* INSLL */
-            gen_arith3(ctx, &gen_op_insll, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_insll, ra, rb, rc, islit, lit);
             break;
         case 0x30:
             /* ZAP */
-            gen_arith3(ctx, &gen_op_zap, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_zap, ra, rb, rc, islit, lit);
             break;
         case 0x31:
             /* ZAPNOT */
-            gen_arith3(ctx, &gen_op_zapnot, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_zapnot, ra, rb, rc, islit, lit);
             break;
         case 0x32:
             /* MSKQL */
-            gen_arith3(ctx, &gen_op_mskql, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_mskql, ra, rb, rc, islit, lit);
             break;
         case 0x34:
             /* SRL */
@@ -1166,7 +1253,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x36:
             /* EXTQL */
-            gen_arith3(ctx, &gen_op_extql, ra, rb, rc, islit, lit);
+            gen_ext_l(NULL, ra, rb, rc, islit, lit);
             break;
         case 0x39:
             /* SLL */
@@ -1187,7 +1274,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x3B:
             /* INSQL */
-            gen_arith3(ctx, &gen_op_insql, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_insql, ra, rb, rc, islit, lit);
             break;
         case 0x3C:
             /* SRA */
@@ -1208,39 +1295,39 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x52:
             /* MSKWH */
-            gen_arith3(ctx, &gen_op_mskwh, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_mskwh, ra, rb, rc, islit, lit);
             break;
         case 0x57:
             /* INSWH */
-            gen_arith3(ctx, &gen_op_inswh, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_inswh, ra, rb, rc, islit, lit);
             break;
         case 0x5A:
             /* EXTWH */
-            gen_arith3(ctx, &gen_op_extwh, ra, rb, rc, islit, lit);
+            gen_ext_h(&tcg_gen_ext16u_i64, ra, rb, rc, islit, lit);
             break;
         case 0x62:
             /* MSKLH */
-            gen_arith3(ctx, &gen_op_msklh, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_msklh, ra, rb, rc, islit, lit);
             break;
         case 0x67:
             /* INSLH */
-            gen_arith3(ctx, &gen_op_inslh, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_inslh, ra, rb, rc, islit, lit);
             break;
         case 0x6A:
             /* EXTLH */
-            gen_arith3(ctx, &gen_op_extlh, ra, rb, rc, islit, lit);
+            gen_ext_h(&tcg_gen_ext16u_i64, ra, rb, rc, islit, lit);
             break;
         case 0x72:
             /* MSKQH */
-            gen_arith3(ctx, &gen_op_mskqh, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_mskqh, ra, rb, rc, islit, lit);
             break;
         case 0x77:
             /* INSQH */
-            gen_arith3(ctx, &gen_op_insqh, ra, rb, rc, islit, lit);
+            gen_byte_manipulation(helper_insqh, ra, rb, rc, islit, lit);
             break;
         case 0x7A:
             /* EXTQH */
-            gen_arith3(ctx, &gen_op_extqh, ra, rb, rc, islit, lit);
+            gen_ext_h(NULL, ra, rb, rc, islit, lit);
             break;
         default:
             goto invalid_opc;
