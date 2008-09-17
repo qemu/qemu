@@ -309,6 +309,8 @@ static void gt64120_pci_mapping(GT64120State *s)
       s->PCI0IO_start = s->regs[GT_PCI0IOLD] << 21;
       s->PCI0IO_length = ((s->regs[GT_PCI0IOHD] + 1) - (s->regs[GT_PCI0IOLD] & 0x7f)) << 21;
       isa_mem_base = s->PCI0IO_start;
+      fprintf(stderr, "start=%08lx, length=%lu\n", s->PCI0IO_start, s->PCI0IO_length);
+      isa_mem_base = s->PCI0IO_start;
       isa_mmio_init(s->PCI0IO_start, s->PCI0IO_length);
     }
 }
@@ -1046,11 +1048,10 @@ static void gt64120_reset(void *opaque)
     s->regs[GT_TC_CONTROL]    = 0x00000000;
 
     /* PCI Internal */
-#ifdef TARGET_WORDS_BIGENDIAN
-    s->regs[GT_PCI0_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI0_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI0_CMD]      = 0;
+    if (s->regs[GT_CPU] & (1 << 12)) {
+      s->regs[GT_PCI0_CMD]    = 0x00010001;
+    }
     s->regs[GT_PCI0_TOR]      = 0x0000070f;
     s->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI0_BS_SCS32] = 0x00fff000;

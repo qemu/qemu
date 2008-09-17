@@ -191,7 +191,7 @@ static void serial_update_irq(SerialState *s)
 
     if ((s->ier & UART_IER_RLSI) && (s->lsr & UART_LSR_INT_ANY)) {
         tmp_iir = UART_IIR_RLSI;
-    } else if (s->timeout_ipending) {
+    } else if ((s->ier & UART_IER_RDI) && s->timeout_ipending) {
         tmp_iir = UART_IIR_CTI;
     } else if ((s->ier & UART_IER_RDI) && (s->lsr & UART_LSR_DR)) {
         if (!(s->fcr & UART_FCR_FE)) {

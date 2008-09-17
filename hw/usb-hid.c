@@ -306,9 +306,9 @@ static const uint8_t qemu_tablet_hid_report_descriptor[] = {
     0x09, 0x30,		/*     Usage (X) */
     0x09, 0x31,		/*     Usage (Y) */
     0x15, 0x00,		/*     Logical Minimum (0) */
-    0x26, 0xfe, 0x7f,	/*     Logical Maximum (0x7fff) */
+    0x26, 0xff, 0x7f,	/*     Logical Maximum (0x7fff) */
     0x35, 0x00,		/*     Physical Minimum (0) */
-    0x46, 0xfe, 0x7f,	/*     Physical Maximum (0x7fff) */
+    0x46, 0xff, 0x7f,	/*     Physical Maximum (0x7fff) */
     0x75, 0x10,		/*     Report Size (16) */
     0x95, 0x02,		/*     Report Count (2) */
     0x81, 0x02,		/*     Input (Data, Variable, Absolute) */

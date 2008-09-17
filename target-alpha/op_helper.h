@@ -20,7 +20,6 @@
 
 void helper_call_pal (uint32_t palcode);
 void helper_excp (uint32_t excp, uint32_t error);
-void helper_amask (void);
 void helper_load_pcc (void);
 void helper_load_implver (void);
 void helper_load_fpcr (void);
@@ -34,9 +33,6 @@ void helper_subqv (void);
 void helper_sublv (void);
 void helper_mullv (void);
 void helper_mulqv (void);
-void helper_ctpop (void);
-void helper_ctlz (void);
-void helper_cttz (void);
 void helper_mskbl (void);
 void helper_extbl (void);
 void helper_insbl (void);

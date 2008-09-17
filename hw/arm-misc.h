@@ -37,7 +37,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info);
 
 /* Multiplication factor to convert from system clock ticks to qemu timer
    ticks.  */
-int system_clock_scale;
+extern int system_clock_scale;
 qemu_irq *armv7m_nvic_init(CPUState *env);
 
 /* stellaris_enent.c */
