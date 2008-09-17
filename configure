@@ -353,6 +353,10 @@ if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
 fi
 
+if ld --version 2>/dev/null | grep -q "GNU ld" ; then
+    LDFLAGS="$LDFLAGS -Wl,--warn-common"
+fi
+
 #
 # If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
 # ARCH_CFLAGS/ARCH_LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
