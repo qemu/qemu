@@ -50,6 +50,8 @@ typedef struct {
 #define SYSTICK_CLKSOURCE (1 << 2)
 #define SYSTICK_COUNTFLAG (1 << 16)
 
+int system_clock_scale;
+
 /* Conversion factor from qemu timer to SysTick frequencies.  */
 static inline int64_t systick_scale(nvic_state *s)
 {

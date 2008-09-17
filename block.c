@@ -54,6 +54,8 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
 static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
                          const uint8_t *buf, int nb_sectors);
 
+BlockDriverState *bdrv_first;
+
 static BlockDriver *first_drv;
 
 int path_is_absolute(const char *path)

@@ -145,6 +145,6 @@ void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
                    void *opaque);
 void qemu_aio_release(void *p);
 
-BlockDriverState *bdrv_first;
+extern BlockDriverState *bdrv_first;
 
 #endif /* BLOCK_INT_H */
