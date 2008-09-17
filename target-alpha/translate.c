@@ -124,11 +124,6 @@ static always_inline void func (int n)                                        \
     NAME ## _table[n]();                                                      \
 }
 
-/* IR moves */
-/* Special hacks for ir31 */
-#define gen_op_cmov_ir31 gen_op_nop
-GEN32(gen_op_cmov_ir, gen_op_cmov_ir);
-
 /* FIR moves */
 /* Special hacks for fir31 */
 #define gen_op_load_FT0_fir31 gen_op_reset_FT0
@@ -328,16 +323,32 @@ static always_inline void gen_store_fmem (DisasContext *ctx,
 }
 
 static always_inline void gen_bcond (DisasContext *ctx,
-                                     void (*gen_test_op)(void),
-                                     int ra, int32_t disp16)
+                                     TCGCond cond,
+                                     int ra, int32_t disp16, int mask)
 {
-    tcg_gen_movi_i64(cpu_T[1], ctx->pc + (int64_t)(disp16 << 2));
-    if (ra != 31)
-        tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
-    else
-        tcg_gen_movi_i64(cpu_T[0], 0);
-    (*gen_test_op)();
-    _gen_op_bcond(ctx);
+    int l1, l2;
+
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+    if (likely(ra != 31)) {
+        if (mask) {
+            TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+            tcg_gen_andi_i64(tmp, cpu_ir[ra], 1);
+            tcg_gen_brcondi_i64(cond, tmp, 0, l1);
+            tcg_temp_free(tmp);
+        } else
+            tcg_gen_brcondi_i64(cond, cpu_ir[ra], 0, l1);
+    } else {
+        /* Very uncommon case - Do not bother to optimize.  */
+        TCGv tmp = tcg_const_i64(0);
+        tcg_gen_brcondi_i64(cond, tmp, 0, l1);
+        tcg_temp_free(tmp);
+    }
+    tcg_gen_movi_i64(cpu_pc, ctx->pc);
+    tcg_gen_br(l2);
+    gen_set_label(l1);
+    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp16 << 2));
+    gen_set_label(l2);
 }
 
 static always_inline void gen_fbcond (DisasContext *ctx,
@@ -371,22 +382,39 @@ static always_inline void gen_arith3 (DisasContext *ctx,
 }
 
 static always_inline void gen_cmov (DisasContext *ctx,
-                                    void (*gen_test_op)(void),
+                                    TCGCond inv_cond,
                                     int ra, int rb, int rc,
-                                    int islit, uint8_t lit)
+                                    int islit, int8_t lit, int mask)
 {
-    if (ra != 31)
-        tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
-    else
-        tcg_gen_movi_i64(cpu_T[0], 0);
+    int l1;
+
+    if (unlikely(rc == 31))
+        return;
+
+    l1 = gen_new_label();
+
+    if (ra != 31) {
+        if (mask) {
+            TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+            tcg_gen_andi_i64(tmp, cpu_ir[ra], 1);
+            tcg_gen_brcondi_i64(inv_cond, tmp, 0, l1);
+            tcg_temp_free(tmp);
+        } else
+            tcg_gen_brcondi_i64(inv_cond, cpu_ir[ra], 0, l1);
+    } else {
+        /* Very uncommon case - Do not bother to optimize.  */
+        TCGv tmp = tcg_const_i64(0);
+        tcg_gen_brcondi_i64(inv_cond, tmp, 0, l1);
+        tcg_temp_free(tmp);
+    }
+
     if (islit)
-        tcg_gen_movi_i64(cpu_T[1], lit);
+        tcg_gen_movi_i64(cpu_ir[rc], lit);
     else if (rb != 31)
-        tcg_gen_mov_i64(cpu_T[1], cpu_ir[rb]);
+        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
     else
-        tcg_gen_movi_i64(cpu_T[1], 0);
-    (*gen_test_op)();
-    gen_op_cmov_ir(rc);
+        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    gen_set_label(l1);
 }
 
 static always_inline void gen_farith2 (DisasContext *ctx,
@@ -933,11 +961,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x14:
             /* CMOVLBS */
-            gen_cmov(ctx, &gen_op_cmplbs, ra, rb, rc, islit, lit);
+            gen_cmov(ctx, TCG_COND_EQ, ra, rb, rc, islit, lit, 1);
             break;
         case 0x16:
             /* CMOVLBC */
-            gen_cmov(ctx, &gen_op_cmplbc, ra, rb, rc, islit, lit);
+            gen_cmov(ctx, TCG_COND_NE, ra, rb, rc, islit, lit, 1);
             break;
         case 0x20:
             /* BIS */
@@ -961,11 +989,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x24:
             /* CMOVEQ */
-            gen_cmov(ctx, &gen_op_cmpeqz, ra, rb, rc, islit, lit);
+            gen_cmov(ctx, TCG_COND_NE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x26:
             /* CMOVNE */
-            gen_cmov(ctx, &gen_op_cmpnez, ra, rb, rc, islit, lit);
+            gen_cmov(ctx, TCG_COND_EQ, ra, rb, rc, islit, lit, 0);
             break;
         case 0x28:
             /* ORNOT */
@@ -1011,11 +1039,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x44:
             /* CMOVLT */
-            gen_cmov(ctx, &gen_op_cmpltz, ra, rb, rc, islit, lit);
+            gen_cmov(ctx, TCG_COND_GE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x46:
             /* CMOVGE */
-            gen_cmov(ctx, &gen_op_cmpgez, ra, rb, rc, islit, lit);
+            gen_cmov(ctx, TCG_COND_LT, ra, rb, rc, islit, lit, 0);
             break;
         case 0x48:
             /* EQV */
@@ -1053,11 +1081,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x64:
             /* CMOVLE */
-            gen_cmov(ctx, &gen_op_cmplez, ra, rb, rc, islit, lit);
+            gen_cmov(ctx, TCG_COND_GT, ra, rb, rc, islit, lit, 0);
             break;
         case 0x66:
             /* CMOVGT */
-            gen_cmov(ctx, &gen_op_cmpgtz, ra, rb, rc, islit, lit);
+            gen_cmov(ctx, TCG_COND_LE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x6C:
             /* IMPLVER */
@@ -2173,42 +2201,42 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x38:
         /* BLBC */
-        gen_bcond(ctx, &gen_op_cmplbc, ra, disp16);
+        gen_bcond(ctx, TCG_COND_EQ, ra, disp16, 1);
         ret = 1;
         break;
     case 0x39:
         /* BEQ */
-        gen_bcond(ctx, &gen_op_cmpeqz, ra, disp16);
+        gen_bcond(ctx, TCG_COND_EQ, ra, disp16, 0);
         ret = 1;
         break;
     case 0x3A:
         /* BLT */
-        gen_bcond(ctx, &gen_op_cmpltz, ra, disp16);
+        gen_bcond(ctx, TCG_COND_LT, ra, disp16, 0);
         ret = 1;
         break;
     case 0x3B:
         /* BLE */
-        gen_bcond(ctx, &gen_op_cmplez, ra, disp16);
+        gen_bcond(ctx, TCG_COND_LE, ra, disp16, 0);
         ret = 1;
         break;
     case 0x3C:
         /* BLBS */
-        gen_bcond(ctx, &gen_op_cmplbs, ra, disp16);
+        gen_bcond(ctx, TCG_COND_NE, ra, disp16, 1);
         ret = 1;
         break;
     case 0x3D:
         /* BNE */
-        gen_bcond(ctx, &gen_op_cmpnez, ra, disp16);
+        gen_bcond(ctx, TCG_COND_NE, ra, disp16, 0);
         ret = 1;
         break;
     case 0x3E:
         /* BGE */
-        gen_bcond(ctx, &gen_op_cmpgez, ra, disp16);
+        gen_bcond(ctx, TCG_COND_GE, ra, disp16, 0);
         ret = 1;
         break;
     case 0x3F:
         /* BGT */
-        gen_bcond(ctx, &gen_op_cmpgtz, ra, disp16);
+        gen_bcond(ctx, TCG_COND_GT, ra, disp16, 0);
         ret = 1;
         break;
     invalid_opc:
