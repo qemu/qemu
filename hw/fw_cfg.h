@@ -3,6 +3,7 @@
 
 #define FW_CFG_SIGNATURE        0x00
 #define FW_CFG_ID               0x01
+#define FW_CFG_UUID             0x02
 #define FW_CFG_MAX_ENTRY        0x10
 
 #define FW_CFG_WRITE_CHANNEL    0x4000

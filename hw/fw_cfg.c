@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
+#include "sysemu.h"
 #include "isa.h"
 #include "fw_cfg.h"
 
@@ -281,6 +282,7 @@ void *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
         cpu_register_physical_memory(data_addr, FW_CFG_SIZE, io_data_memory);
     }
     fw_cfg_add_bytes(s, FW_CFG_SIGNATURE, (uint8_t *)"QEMU", 4);
+    fw_cfg_add_bytes(s, FW_CFG_UUID, qemu_uuid, 16);
     register_savevm("fw_cfg", -1, 1, fw_cfg_save, fw_cfg_load, s);
     qemu_register_reset(fw_cfg_reset, s);
     fw_cfg_reset(s);
