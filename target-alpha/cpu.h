@@ -275,7 +275,7 @@ struct CPUAlphaState {
     /* temporary fixed-point registers
      * used to emulate 64 bits target on 32 bits hosts
      */
-    target_ulong t0, t1, t2;
+    target_ulong t0, t1;
 #endif
     /* */
     double ft0, ft1, ft2;

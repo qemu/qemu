@@ -21,13 +21,6 @@
 void helper_call_pal (uint32_t palcode);
 void helper_load_fpcr (void);
 void helper_store_fpcr (void);
-void helper_addqv (void);
-void helper_addlv (void);
-void helper_subqv (void);
-void helper_sublv (void);
-void helper_mullv (void);
-void helper_mulqv (void);
-void helper_cmpbge (void);
 void helper_cmov_fir (int freg);
 
 double helper_ldff_raw (target_ulong ea);

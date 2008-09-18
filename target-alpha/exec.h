@@ -34,13 +34,11 @@ register struct CPUAlphaState *env asm(AREG0);
 /* no registers can be used */
 #define T0 (env->t0)
 #define T1 (env->t1)
-#define T2 (env->t2)
 
 #else
 
 register uint64_t T0 asm(AREG1);
 register uint64_t T1 asm(AREG2);
-register uint64_t T2 asm(AREG3);
 
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 

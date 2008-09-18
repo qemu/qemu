@@ -163,62 +163,74 @@ uint64_t helper_rc(void)
     return tmp;
 }
 
-void helper_addqv (void)
+uint64_t helper_addqv (uint64_t op1, uint64_t op2)
 {
-    T2 = T0;
-    T0 += T1;
-    if (unlikely((T2 ^ T1 ^ (-1ULL)) & (T2 ^ T0) & (1ULL << 63))) {
+    uint64_t tmp = op1;
+    op1 += op2;
+    if (unlikely((tmp ^ op2 ^ (-1ULL)) & (tmp ^ op1) & (1ULL << 63))) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
+    return op1;
 }
 
-void helper_addlv (void)
+uint64_t helper_addlv (uint64_t op1, uint64_t op2)
 {
-    T2 = T0;
-    T0 = (uint32_t)(T0 + T1);
-    if (unlikely((T2 ^ T1 ^ (-1UL)) & (T2 ^ T0) & (1UL << 31))) {
+    uint64_t tmp = op1;
+    op1 = (uint32_t)(op1 + op2);
+    if (unlikely((tmp ^ op2 ^ (-1UL)) & (tmp ^ op1) & (1UL << 31))) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
+    return op1;
 }
 
-void helper_subqv (void)
+uint64_t helper_subqv (uint64_t op1, uint64_t op2)
 {
-    T2 = T0;
-    T0 -= T1;
-    if (unlikely(((~T2) ^ T0 ^ (-1ULL)) & ((~T2) ^ T1) & (1ULL << 63))) {
+    uint64_t tmp = op1;
+    op1 -= op2;
+    if (unlikely(((~tmp) ^ op1 ^ (-1ULL)) & ((~tmp) ^ op2) & (1ULL << 63))) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
+    return op1;
 }
 
-void helper_sublv (void)
+uint64_t helper_sublv (uint64_t op1, uint64_t op2)
 {
-    T2 = T0;
-    T0 = (uint32_t)(T0 - T1);
-    if (unlikely(((~T2) ^ T0 ^ (-1UL)) & ((~T2) ^ T1) & (1UL << 31))) {
+    uint64_t tmp = op1;
+    op1 = (uint32_t)(op1 - op2);
+    if (unlikely(((~tmp) ^ op1 ^ (-1UL)) & ((~tmp) ^ op2) & (1UL << 31))) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
+    return op1;
 }
 
-void helper_mullv (void)
+uint64_t helper_mullv (uint64_t op1, uint64_t op2)
 {
-    int64_t res = (int64_t)T0 * (int64_t)T1;
+    int64_t res = (int64_t)op1 * (int64_t)op2;
 
     if (unlikely((int32_t)res != res)) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
-    T0 = (int64_t)((int32_t)res);
+    return (int64_t)((int32_t)res);
 }
 
-void helper_mulqv ()
+uint64_t helper_mulqv (uint64_t op1, uint64_t op2)
 {
     uint64_t tl, th;
 
-    muls64(&tl, &th, T0, T1);
+    muls64(&tl, &th, op1, op2);
     /* If th != 0 && th != -1, then we had an overflow */
     if (unlikely((th + 1) > 1)) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
-    T0 = tl;
+    return tl;
+}
+
+uint64_t helper_umulh (uint64_t op1, uint64_t op2)
+{
+    uint64_t tl, th;
+
+    mulu64(&tl, &th, op1, op2);
+    return th;
 }
 
 uint64_t helper_ctpop (uint64_t arg)
@@ -340,19 +352,19 @@ uint64_t helper_insqh(uint64_t val, uint64_t mask)
     return byte_zap(val, ~((0xFF << (mask & 7)) >> 8));
 }
 
-void helper_cmpbge (void)
+uint64_t helper_cmpbge (uint64_t op1, uint64_t op2)
 {
     uint8_t opa, opb, res;
     int i;
 
     res = 0;
     for (i = 0; i < 7; i++) {
-        opa = T0 >> (i * 8);
-        opb = T1 >> (i * 8);
+        opa = op1 >> (i * 8);
+        opb = op2 >> (i * 8);
         if (opa >= opb)
             res |= 1 << i;
     }
-    T0 = res;
+    return res;
 }
 
 void helper_cmov_fir (int freg)

@@ -161,59 +161,7 @@ void OPPROTO op_store_fpcr (void)
     RETURN();
 }
 
-/* Arithmetic */
-void OPPROTO op_addqv (void)
-{
-    helper_addqv();
-    RETURN();
-}
-
-void OPPROTO op_addlv (void)
-{
-    helper_addlv();
-    RETURN();
-}
-
-void OPPROTO op_subqv (void)
-{
-    helper_subqv();
-    RETURN();
-}
-
-void OPPROTO op_sublv (void)
-{
-    helper_sublv();
-    RETURN();
-}
-
-void OPPROTO op_mullv (void)
-{
-    helper_mullv();
-    RETURN();
-}
-
-void OPPROTO op_mulqv (void)
-{
-    helper_mulqv();
-    RETURN();
-}
-
-void OPPROTO op_umulh (void)
-{
-    uint64_t tl, th;
-
-    mulu64(&tl, &th, T0, T1);
-    T0 = th;
-    RETURN();
-}
-
 /* Tests */
-void OPPROTO op_cmpbge (void)
-{
-    helper_cmpbge();
-    RETURN();
-}
-
 #if 0 // Qemu does not know how to do this...
 void OPPROTO op_bcond (void)
 {

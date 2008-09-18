@@ -51,7 +51,7 @@ static TCGv cpu_ir[31];
 static TCGv cpu_pc;
 
 /* dyngen register indexes */
-static TCGv cpu_T[3];
+static TCGv cpu_T[2];
 
 /* register names */
 static char cpu_reg_names[10*4+21*5];
@@ -74,12 +74,9 @@ static void alpha_translate_init(void)
                                   offsetof(CPUState, t0), "T0");
     cpu_T[1] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
                                   offsetof(CPUState, t1), "T1");
-    cpu_T[2] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
-                                  offsetof(CPUState, t2), "T2");
 #else
     cpu_T[0] = tcg_global_reg_new(TCG_TYPE_I64, TCG_AREG1, "T0");
     cpu_T[1] = tcg_global_reg_new(TCG_TYPE_I64, TCG_AREG2, "T1");
-    cpu_T[2] = tcg_global_reg_new(TCG_TYPE_I64, TCG_AREG3, "T2");
 #endif
 
     p = cpu_reg_names;
@@ -367,24 +364,6 @@ static always_inline void gen_fbcond (DisasContext *ctx,
     _gen_op_bcond(ctx);
 }
 
-static always_inline void gen_arith3 (DisasContext *ctx,
-                                      void (*gen_arith_op)(void),
-                                      int ra, int rb, int rc,
-                                      int islit, uint8_t lit)
-{
-    if (ra != 31)
-        tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
-    else
-        tcg_gen_movi_i64(cpu_T[0], 0);
-    if (islit)
-        tcg_gen_movi_i64(cpu_T[1], lit);
-    else
-        tcg_gen_mov_i64(cpu_T[1], cpu_ir[rb]);
-    (*gen_arith_op)();
-    if (rc != 31)
-        tcg_gen_mov_i64(cpu_ir[rc], cpu_T[0]);
-}
-
 static always_inline void gen_cmov (DisasContext *ctx,
                                     TCGCond inv_cond,
                                     int ra, int rb, int rc,
@@ -525,16 +504,10 @@ static always_inline void gen_ext_l(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
         tcg_gen_movi_i64(cpu_ir[rc], 0);
 }
 
-/* Code to call byte manipulation helpers, used by:
-   INSWH, INSLH, INSQH, INSBL, INSWL, INSLL, INSQL,
-   MSKWH, MSKLH, MSKQH, MSKBL, MSKWL, MSKLL, MSKQL,
-   ZAP, ZAPNOT
-
-   WARNING: it assumes that when ra31 is used, the result is 0.
-*/
-static always_inline void gen_byte_manipulation(void *helper,
-                                                int ra, int rb, int rc,
-                                                int islit, uint8_t lit)
+/* Code to call arith3 helpers */
+static always_inline void gen_arith3_helper(void *helper,
+                                            int ra, int rb, int rc,
+                                            int islit, uint8_t lit)
 {
     if (unlikely(rc == 31))
         return;
@@ -546,8 +519,16 @@ static always_inline void gen_byte_manipulation(void *helper,
             tcg_temp_free(tmp);
         } else
             tcg_gen_helper_1_2(helper, cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
-    } else
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+    } else {
+        TCGv tmp1 = tcg_const_i64(0);
+        if (islit) {
+            TCGv tmp2 = tcg_const_i64(lit);
+            tcg_gen_helper_1_2(helper, cpu_ir[rc], tmp1, tmp2);
+            tcg_temp_free(tmp2);
+        } else
+            tcg_gen_helper_1_2(helper, cpu_ir[rc], tmp1, cpu_ir[rb]);
+        tcg_temp_free(tmp1);
+    }
 }
 
 static always_inline void gen_cmp(TCGCond cond,
@@ -791,7 +772,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x0F:
             /* CMPBGE */
-            gen_arith3(ctx, &gen_op_cmpbge, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_cmpbge, ra, rb, rc, islit, lit);
             break;
         case 0x12:
             /* S8ADDL */
@@ -957,11 +938,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x40:
             /* ADDL/V */
-            gen_arith3(ctx, &gen_op_addlv, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_addlv, ra, rb, rc, islit, lit);
             break;
         case 0x49:
             /* SUBL/V */
-            gen_arith3(ctx, &gen_op_sublv, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_sublv, ra, rb, rc, islit, lit);
             break;
         case 0x4D:
             /* CMPLT */
@@ -969,11 +950,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x60:
             /* ADDQ/V */
-            gen_arith3(ctx, &gen_op_addqv, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_addqv, ra, rb, rc, islit, lit);
             break;
         case 0x69:
             /* SUBQ/V */
-            gen_arith3(ctx, &gen_op_subqv, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_subqv, ra, rb, rc, islit, lit);
             break;
         case 0x6D:
             /* CMPLE */
@@ -1138,7 +1119,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         switch (fn7) {
         case 0x02:
             /* MSKBL */
-            gen_byte_manipulation(helper_mskbl, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_mskbl, ra, rb, rc, islit, lit);
             break;
         case 0x06:
             /* EXTBL */
@@ -1146,11 +1127,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x0B:
             /* INSBL */
-            gen_byte_manipulation(helper_insbl, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_insbl, ra, rb, rc, islit, lit);
             break;
         case 0x12:
             /* MSKWL */
-            gen_byte_manipulation(helper_mskwl, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_mskwl, ra, rb, rc, islit, lit);
             break;
         case 0x16:
             /* EXTWL */
@@ -1158,11 +1139,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x1B:
             /* INSWL */
-            gen_byte_manipulation(helper_inswl, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_inswl, ra, rb, rc, islit, lit);
             break;
         case 0x22:
             /* MSKLL */
-            gen_byte_manipulation(helper_mskll, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_mskll, ra, rb, rc, islit, lit);
             break;
         case 0x26:
             /* EXTLL */
@@ -1170,19 +1151,19 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x2B:
             /* INSLL */
-            gen_byte_manipulation(helper_insll, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_insll, ra, rb, rc, islit, lit);
             break;
         case 0x30:
             /* ZAP */
-            gen_byte_manipulation(helper_zap, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_zap, ra, rb, rc, islit, lit);
             break;
         case 0x31:
             /* ZAPNOT */
-            gen_byte_manipulation(helper_zapnot, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_zapnot, ra, rb, rc, islit, lit);
             break;
         case 0x32:
             /* MSKQL */
-            gen_byte_manipulation(helper_mskql, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_mskql, ra, rb, rc, islit, lit);
             break;
         case 0x34:
             /* SRL */
@@ -1222,7 +1203,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x3B:
             /* INSQL */
-            gen_byte_manipulation(helper_insql, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_insql, ra, rb, rc, islit, lit);
             break;
         case 0x3C:
             /* SRA */
@@ -1242,11 +1223,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x52:
             /* MSKWH */
-            gen_byte_manipulation(helper_mskwh, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_mskwh, ra, rb, rc, islit, lit);
             break;
         case 0x57:
             /* INSWH */
-            gen_byte_manipulation(helper_inswh, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_inswh, ra, rb, rc, islit, lit);
             break;
         case 0x5A:
             /* EXTWH */
@@ -1254,11 +1235,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x62:
             /* MSKLH */
-            gen_byte_manipulation(helper_msklh, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_msklh, ra, rb, rc, islit, lit);
             break;
         case 0x67:
             /* INSLH */
-            gen_byte_manipulation(helper_inslh, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_inslh, ra, rb, rc, islit, lit);
             break;
         case 0x6A:
             /* EXTLH */
@@ -1266,11 +1247,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x72:
             /* MSKQH */
-            gen_byte_manipulation(helper_mskqh, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_mskqh, ra, rb, rc, islit, lit);
             break;
         case 0x77:
             /* INSQH */
-            gen_byte_manipulation(helper_insqh, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_insqh, ra, rb, rc, islit, lit);
             break;
         case 0x7A:
             /* EXTQH */
@@ -1309,15 +1290,15 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x30:
             /* UMULH */
-            gen_arith3(ctx, &gen_op_umulh, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_umulh, ra, rb, rc, islit, lit);
             break;
         case 0x40:
             /* MULL/V */
-            gen_arith3(ctx, &gen_op_mullv, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_mullv, ra, rb, rc, islit, lit);
             break;
         case 0x60:
             /* MULQ/V */
-            gen_arith3(ctx, &gen_op_mulqv, ra, rb, rc, islit, lit);
+            gen_arith3_helper(helper_mulqv, ra, rb, rc, islit, lit);
             break;
         default:
             goto invalid_opc;
