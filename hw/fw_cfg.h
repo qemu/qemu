@@ -4,6 +4,10 @@
 #define FW_CFG_SIGNATURE        0x00
 #define FW_CFG_ID               0x01
 #define FW_CFG_UUID             0x02
+#define FW_CFG_RAM_SIZE         0x03
+#define FW_CFG_NOGRAPHIC        0x04
+#define FW_CFG_NB_CPUS          0x05
+#define FW_CFG_MACHINE_ID       0x06
 #define FW_CFG_MAX_ENTRY        0x10
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
