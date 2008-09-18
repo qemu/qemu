@@ -9,12 +9,15 @@ _start:
 	.prologue 0
 	ldq $27,main($29) !literal!1
 	jsr $26,($27)
+	or $0,$0,$16
+	.end _start
 
+	.globl _exit
+_exit:
 	lda $0,1
 	callsys
 
 	call_pal 0
-	.end _start
 
 	.globl write
 write:

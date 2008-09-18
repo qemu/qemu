@@ -31,6 +31,7 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "firmware_abi.h"
+#include "fw_cfg.h"
 
 #define KERNEL_LOAD_ADDR     0x00404000
 #define CMDLINE_ADDR         0x003ff000
@@ -44,9 +45,11 @@
 #define PROM_FILENAME        "openbios-sparc64"
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
+#define BIOS_CFG_IOPORT      0x510
 
 struct hwdef {
     const char * const default_cpu_model;
+    uint16_t machine_id;
 };
 
 int DMA_get_channel_mode (int nchan)
@@ -270,6 +273,7 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
     int drive_index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BlockDriverState *fd[MAX_FD];
+    void *fw_cfg;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -415,16 +419,27 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
                            graphic_width, graphic_height, graphic_depth,
                            (uint8_t *)&nd_table[0].macaddr);
 
+    fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
 }
+
+enum {
+    sun4u_id = 0,
+    sun4v_id = 64,
+};
 
 static const struct hwdef hwdefs[] = {
     /* Sun4u generic PC-like machine */
     {
         .default_cpu_model = "TI UltraSparc II",
+        .machine_id = sun4u_id,
     },
     /* Sun4v generic PC-like machine */
     {
         .default_cpu_model = "Sun UltraSparc T1",
+        .machine_id = sun4v_id,
     },
 };
 

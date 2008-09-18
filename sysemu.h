@@ -8,6 +8,8 @@ extern const char *bios_dir;
 
 extern int vm_running;
 extern const char *qemu_name;
+extern uint8_t qemu_uuid[];
+#define UUID_FMT "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
 
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running);

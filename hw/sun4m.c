@@ -34,6 +34,7 @@
 #include "scsi.h"
 #include "pc.h"
 #include "isa.h"
+#include "fw_cfg.h"
 
 //#define DEBUG_IRQ
 
@@ -78,6 +79,8 @@
 #define PROM_SIZE_MAX        (512 * 1024)
 #define PROM_VADDR           0xffd00000
 #define PROM_FILENAME        "openbios-sparc32"
+#define CFG_ADDR             0xd00000510ULL
+#define FW_CFG_SUN4M_DEPTH   (FW_CFG_ARCH_LOCAL + 0x00)
 
 // Control plane, 8-bit and 24-bit planes
 #define TCX_SIZE             (9 * 1024 * 1024)
@@ -99,7 +102,8 @@ struct hwdef {
     // register bit numbers
     int intctl_g_intr, esp_irq, le_irq, clock_irq, clock1_irq;
     int ser_irq, ms_kb_irq, fd_irq, me_irq, cs_irq, ecc_irq;
-    int machine_id; // For NVRAM
+    uint8_t nvram_machine_id;
+    uint16_t machine_id;
     uint32_t iommu_version;
     uint32_t intbit_to_level[32];
     uint64_t max_mem;
@@ -120,7 +124,8 @@ struct sun4d_hwdef {
     // IRQ numbers are not PIL ones, but SBI register bit numbers
     int esp_irq, le_irq, clock_irq, clock1_irq;
     int ser_irq, ms_kb_irq, me_irq;
-    int machine_id; // For NVRAM
+    uint8_t nvram_machine_id;
+    uint16_t machine_id;
     uint32_t iounit_version;
     uint64_t max_mem;
     const char * const default_cpu_model;
@@ -176,7 +181,7 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
                        const char *boot_devices, ram_addr_t RAM_size,
                        uint32_t kernel_size,
                        int width, int height, int depth,
-                       int machine_id, const char *arch)
+                       int nvram_machine_id, const char *arch)
 {
     unsigned int i;
     uint32_t start, end;
@@ -249,7 +254,8 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
     end = 0x1fd0;
     OpenBIOS_finish_partition(part_header, end - start);
 
-    Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr, machine_id);
+    Sun_init_header((struct Sun_nvram *)&image[0x1fd8], macaddr,
+                    nvram_machine_id);
 
     for (i = 0; i < sizeof(image); i++)
         m48t59_write(nvram, i, image[i]);
@@ -410,6 +416,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     char buf[1024];
     BlockDriverState *fd[MAX_FD];
     int drive_index;
+    void *fw_cfg;
 
     /* init CPUs */
     if (!cpu_model)
@@ -565,11 +572,18 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
 
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
-               graphic_height, graphic_depth, hwdef->machine_id, "Sun4m");
+               graphic_height, graphic_depth, hwdef->nvram_machine_id,
+               "Sun4m");
 
     if (hwdef->ecc_base != (target_phys_addr_t)-1)
         ecc_init(hwdef->ecc_base, slavio_irq[hwdef->ecc_irq],
                  hwdef->ecc_version);
+
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_SUN4M_DEPTH, graphic_depth);
 }
 
 static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
@@ -589,6 +603,7 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     char buf[1024];
     BlockDriverState *fd[MAX_FD];
     int drive_index;
+    void *fw_cfg;
 
     /* init CPU */
     if (!cpu_model)
@@ -714,8 +729,29 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
 
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
-               graphic_height, graphic_depth, hwdef->machine_id, "Sun4c");
+               graphic_height, graphic_depth, hwdef->nvram_machine_id,
+               "Sun4c");
+
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
 }
+
+enum {
+    ss2_id = 0,
+    ss5_id = 32,
+    vger_id,
+    lx_id,
+    ss4_id,
+    scls_id,
+    sbook_id,
+    ss10_id = 64,
+    ss20_id,
+    ss600mp_id,
+    ss1000_id = 96,
+    ss2000_id,
+};
 
 static const struct hwdef hwdefs[] = {
     /* SS-5 */
@@ -751,7 +787,8 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = 5,
-        .machine_id = 0x80,
+        .nvram_machine_id = 0x80,
+        .machine_id = ss5_id,
         .iommu_version = 0x05000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -795,7 +832,8 @@ static const struct hwdef hwdefs[] = {
         .me_irq = 30,
         .cs_irq = -1,
         .ecc_irq = 28,
-        .machine_id = 0x72,
+        .nvram_machine_id = 0x72,
+        .machine_id = ss10_id,
         .iommu_version = 0x03000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -839,7 +877,8 @@ static const struct hwdef hwdefs[] = {
         .me_irq = 30,
         .cs_irq = -1,
         .ecc_irq = 28,
-        .machine_id = 0x71,
+        .nvram_machine_id = 0x71,
+        .machine_id = ss600mp_id,
         .iommu_version = 0x01000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -883,7 +922,8 @@ static const struct hwdef hwdefs[] = {
         .me_irq = 30,
         .cs_irq = -1,
         .ecc_irq = 28,
-        .machine_id = 0x72,
+        .nvram_machine_id = 0x72,
+        .machine_id = ss20_id,
         .iommu_version = 0x13000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -923,7 +963,8 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 1,
         .me_irq = 1,
         .cs_irq = -1,
-        .machine_id = 0x55,
+        .nvram_machine_id = 0x55,
+        .machine_id = ss2_id,
         .max_mem = 0x10000000,
         .default_cpu_model = "Cypress CY7C601",
     },
@@ -960,7 +1001,8 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = -1,
-        .machine_id = 0x80,
+        .nvram_machine_id = 0x80,
+        .machine_id = vger_id,
         .iommu_version = 0x05000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -1002,7 +1044,8 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = -1,
-        .machine_id = 0x80,
+        .nvram_machine_id = 0x80,
+        .machine_id = lx_id,
         .iommu_version = 0x04000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -1044,7 +1087,8 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = 5,
-        .machine_id = 0x80,
+        .nvram_machine_id = 0x80,
+        .machine_id = ss4_id,
         .iommu_version = 0x05000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -1086,7 +1130,8 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = -1,
-        .machine_id = 0x80,
+        .nvram_machine_id = 0x80,
+        .machine_id = scls_id,
         .iommu_version = 0x05000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -1128,7 +1173,8 @@ static const struct hwdef hwdefs[] = {
         .fd_irq = 22,
         .me_irq = 30,
         .cs_irq = -1,
-        .machine_id = 0x80,
+        .nvram_machine_id = 0x80,
+        .machine_id = sbook_id,
         .iommu_version = 0x05000000,
         .intbit_to_level = {
             2, 3, 5, 7, 9, 11, 0, 14,   3, 5, 7, 9, 11, 13, 12, 12,
@@ -1349,7 +1395,8 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .clock1_irq = 10,
         .ms_kb_irq = 12,
         .ser_irq = 12,
-        .machine_id = 0x80,
+        .nvram_machine_id = 0x80,
+        .machine_id = ss1000_id,
         .iounit_version = 0x03000000,
         .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
@@ -1382,7 +1429,8 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
         .clock1_irq = 10,
         .ms_kb_irq = 12,
         .ser_irq = 12,
-        .machine_id = 0x80,
+        .nvram_machine_id = 0x80,
+        .machine_id = ss2000_id,
         .iounit_version = 0x03000000,
         .max_mem = 0xf00000000ULL,
         .default_cpu_model = "TI SuperSparc II",
@@ -1405,6 +1453,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     int ret;
     char buf[1024];
     int drive_index;
+    void *fw_cfg;
 
     /* init CPUs */
     if (!cpu_model)
@@ -1527,7 +1576,13 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
-               graphic_height, graphic_depth, hwdef->machine_id, "Sun4d");
+               graphic_height, graphic_depth, hwdef->nvram_machine_id,
+               "Sun4d");
+
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, hwdef->machine_id);
 }
 
 /* SPARCserver 1000 hardware initialisation */

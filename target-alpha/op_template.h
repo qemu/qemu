@@ -37,15 +37,7 @@ void OPPROTO glue(op_reset_FT, REG) (void)
 
 #endif /* REG < 3 */
 
-/* Fixed-point register moves */
 #if REG < 31
-void OPPROTO glue(op_cmov_ir, REG) (void)
-{
-    if (T0)
-        env->ir[REG] = T1;
-    RETURN();
-}
-
 /* floating point registers moves */
 void OPPROTO glue(op_load_FT0_fir, REG) (void)
 {

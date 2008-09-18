@@ -269,12 +269,13 @@ struct CPUAlphaState {
     uint64_t ps;
     uint64_t unique;
     int saved_mode; /* Used for HW_LD / HW_ST */
+    int intr_flag; /* For RC and RS */
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     /* temporary fixed-point registers
      * used to emulate 64 bits target on 32 bits hosts
      */
-    target_ulong t0, t1, t2;
+    target_ulong t0, t1;
 #endif
     /* */
     double ft0, ft1, ft2;

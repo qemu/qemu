@@ -1071,11 +1071,12 @@ void call_pal (CPUState *env, int palcode)
         ret = do_syscall(env, env->ir[IR_V0], env->ir[IR_A0], env->ir[IR_A1],
                          env->ir[IR_A2], env->ir[IR_A3], env->ir[IR_A4],
                          env->ir[IR_A5]);
-        env->ir[IR_A3] = ret;
-        if (ret > (target_ulong)(-515)) {
-            env->ir[IR_V0] = 1;
+        if (ret >= 0) {
+            env->ir[IR_A3] = 0;
+            env->ir[IR_V0] = ret;
         } else {
-            env->ir[IR_V0] = 0;
+            env->ir[IR_A3] = 1;
+            env->ir[IR_V0] = -ret;
         }
         break;
     case 0x9E:

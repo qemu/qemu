@@ -19,44 +19,8 @@
  */
 
 void helper_call_pal (uint32_t palcode);
-void helper_excp (uint32_t excp, uint32_t error);
-void helper_load_pcc (void);
-void helper_load_implver (void);
 void helper_load_fpcr (void);
 void helper_store_fpcr (void);
-void helper_load_irf (void);
-void helper_set_irf (void);
-void helper_clear_irf (void);
-void helper_addqv (void);
-void helper_addlv (void);
-void helper_subqv (void);
-void helper_sublv (void);
-void helper_mullv (void);
-void helper_mulqv (void);
-void helper_mskbl (void);
-void helper_extbl (void);
-void helper_insbl (void);
-void helper_mskwl (void);
-void helper_extwl (void);
-void helper_inswl (void);
-void helper_mskll (void);
-void helper_extll (void);
-void helper_insll (void);
-void helper_zap (void);
-void helper_zapnot (void);
-void helper_mskql (void);
-void helper_extql (void);
-void helper_insql (void);
-void helper_mskwh (void);
-void helper_inswh (void);
-void helper_extwh (void);
-void helper_msklh (void);
-void helper_inslh (void);
-void helper_extlh (void);
-void helper_mskqh (void);
-void helper_insqh (void);
-void helper_extqh (void);
-void helper_cmpbge (void);
 void helper_cmov_fir (int freg);
 
 double helper_ldff_raw (target_ulong ea);

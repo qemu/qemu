@@ -22,7 +22,6 @@ do { printf("usb-serial: " fmt , ##args); } while (0)
 #endif
 
 #define RECV_BUF 384
-#define SEND_BUF 128        // Not used for now
 
 /* Commands */
 #define FTDI_RESET		0
@@ -94,9 +93,8 @@ typedef struct {
     uint16_t vendorid;
     uint16_t productid;
     uint8_t recv_buf[RECV_BUF];
-    uint8_t recv_ptr;
-    uint8_t recv_used;
-    uint8_t send_buf[SEND_BUF];
+    uint16_t recv_ptr;
+    uint16_t recv_used;
     uint8_t event_chr;
     uint8_t error_chr;
     uint8_t event_trigger;

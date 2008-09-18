@@ -30,11 +30,6 @@ General
   each ASID change. Using the MMU modes to implement ASIDs hinges on
   implementing the global bit efficiently.
 - save/restore of the CPU state is not implemented (see machine.c).
-- Improve cpu state handling:
-  Step 1) Collect all the TC state in a single struct, so we need only
-          a single global pointer for the active TC.
-  Step 2) Use only a single TC context as working context, and copy the
-          contexts on TC switch. Likewise for FPU contexts.
 
 MIPS64
 ------

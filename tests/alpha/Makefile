@@ -5,7 +5,7 @@ AS=$(CROSS)as
 SIM=../../alpha-linux-user/qemu-alpha
 
 CFLAGS=-O
-LINK=$(CC) -v -o $@ crt.o $< -nostdlib
+LINK=$(CC) -o $@ crt.o $< -nostdlib
 
 TESTS=test-cond test-cmov
 
@@ -23,7 +23,10 @@ test-cmov.o: test-cond.c
 test-cmov: test-cmov.o crt.o
 	$(LINK)
 
+check: $(TESTS)
+	for f in $(TESTS); do $(SIM) $$f || exit 1; done
+
 clean:
 	$(RM) *.o *~ hello-alpha $(TESTS)
 
-.PHONY: clean all
+.PHONY: clean all check

@@ -424,7 +424,10 @@ enum {
 };
 
 /* global register indices */
-static TCGv cpu_env, bcond, btarget, current_fpu;
+static TCGv cpu_env, cpu_gpr[32], cpu_PC;
+static TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC], cpu_ACX[MIPS_DSP_ACC];
+static TCGv cpu_dspctrl, bcond, btarget;
+static TCGv fpu_fpr32[32], fpu_fpr32h[32], fpu_fpr64[32], fpu_fcr0, fpu_fcr31;
 
 #include "gen-icount.h"
 
@@ -542,11 +545,32 @@ static const char *regnames[] =
       "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
       "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra", };
 
+static const char *regnames_HI[] =
+    { "HI0", "HI1", "HI2", "HI3", };
+
+static const char *regnames_LO[] =
+    { "LO0", "LO1", "LO2", "LO3", };
+
+static const char *regnames_ACX[] =
+    { "ACX0", "ACX1", "ACX2", "ACX3", };
+
 static const char *fregnames[] =
     { "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
       "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
       "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
       "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", };
+
+static const char *fregnames_64[] =
+    { "F0",  "F1",  "F2",  "F3",  "F4",  "F5",  "F6",  "F7",
+      "F8",  "F9",  "F10", "F11", "F12", "F13", "F14", "F15",
+      "F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23",
+      "F24", "F25", "F26", "F27", "F28", "F29", "F30", "F31", };
+
+static const char *fregnames_h[] =
+    { "h0",  "h1",  "h2",  "h3",  "h4",  "h5",  "h6",  "h7",
+      "h8",  "h9",  "h10", "h11", "h12", "h13", "h14", "h15",
+      "h16", "h17", "h18", "h19", "h20", "h21", "h22", "h23",
+      "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31", };
 
 #ifdef MIPS_DEBUG_DISAS
 #define MIPS_DEBUG(fmt, args...)                                              \
@@ -572,40 +596,44 @@ static inline void gen_load_gpr (TCGv t, int reg)
     if (reg == 0)
         tcg_gen_movi_tl(t, 0);
     else
-        tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.gpr) +
-                                  sizeof(target_ulong) * reg);
+        tcg_gen_mov_tl(t, cpu_gpr[reg]);
 }
 
 static inline void gen_store_gpr (TCGv t, int reg)
 {
     if (reg != 0)
-        tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.gpr) +
-                                  sizeof(target_ulong) * reg);
+        tcg_gen_mov_tl(cpu_gpr[reg], t);
 }
 
 /* Moves to/from HI and LO registers.  */
-static inline void gen_load_LO (TCGv t, int reg)
-{
-    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.LO) +
-                              sizeof(target_ulong) * reg);
-}
-
-static inline void gen_store_LO (TCGv t, int reg)
-{
-    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.LO) +
-                              sizeof(target_ulong) * reg);
-}
-
 static inline void gen_load_HI (TCGv t, int reg)
 {
-    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.HI) +
-                              sizeof(target_ulong) * reg);
+    tcg_gen_mov_tl(t, cpu_HI[reg]);
 }
 
 static inline void gen_store_HI (TCGv t, int reg)
 {
-    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.HI) +
-                              sizeof(target_ulong) * reg);
+    tcg_gen_mov_tl(cpu_HI[reg], t);
+}
+
+static inline void gen_load_LO (TCGv t, int reg)
+{
+    tcg_gen_mov_tl(t, cpu_LO[reg]);
+}
+
+static inline void gen_store_LO (TCGv t, int reg)
+{
+    tcg_gen_mov_tl(cpu_LO[reg], t);
+}
+
+static inline void gen_load_ACX (TCGv t, int reg)
+{
+    tcg_gen_mov_tl(t, cpu_ACX[reg]);
+}
+
+static inline void gen_store_ACX (TCGv t, int reg)
+{
+    tcg_gen_mov_tl(cpu_ACX[reg], t);
 }
 
 /* Moves to/from shadow registers. */
@@ -653,57 +681,48 @@ static inline void gen_store_srsgpr (int from, int to)
 /* Floating point register moves. */
 static inline void gen_load_fpr32 (TCGv t, int reg)
 {
-    tcg_gen_ld_i32(t, current_fpu, 8 * reg + 4 * FP_ENDIAN_IDX);
+    tcg_gen_mov_i32(t, fpu_fpr32[reg]);
 }
 
 static inline void gen_store_fpr32 (TCGv t, int reg)
 {
-    tcg_gen_st_i32(t, current_fpu, 8 * reg + 4 * FP_ENDIAN_IDX);
+    tcg_gen_mov_i32(fpu_fpr32[reg], t);
 }
 
 static inline void gen_load_fpr64 (DisasContext *ctx, TCGv t, int reg)
 {
-    if (ctx->hflags & MIPS_HFLAG_F64) {
-        tcg_gen_ld_i64(t, current_fpu, 8 * reg);
-    } else {
-        TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
+    if (ctx->hflags & MIPS_HFLAG_F64)
+        tcg_gen_mov_i64(t, fpu_fpr64[reg]);
+    else {
         TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
 
-        tcg_gen_ld_i32(r_tmp1, current_fpu, 8 * (reg | 1) + 4 * FP_ENDIAN_IDX);
-        tcg_gen_extu_i32_i64(t, r_tmp1);
+        tcg_gen_extu_i32_i64(t, fpu_fpr32[reg | 1]);
         tcg_gen_shli_i64(t, t, 32);
-        tcg_gen_ld_i32(r_tmp1, current_fpu, 8 * (reg & ~1) + 4 * FP_ENDIAN_IDX);
-        tcg_gen_extu_i32_i64(r_tmp2, r_tmp1);
+        tcg_gen_extu_i32_i64(r_tmp2, fpu_fpr32[reg & ~1]);
         tcg_gen_or_i64(t, t, r_tmp2);
-        tcg_temp_free(r_tmp1);
         tcg_temp_free(r_tmp2);
     }
 }
 
 static inline void gen_store_fpr64 (DisasContext *ctx, TCGv t, int reg)
 {
-    if (ctx->hflags & MIPS_HFLAG_F64) {
-        tcg_gen_st_i64(t, current_fpu, 8 * reg);
-    } else {
-        TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
-
-        tcg_gen_trunc_i64_i32(r_tmp, t);
-        tcg_gen_st_i32(r_tmp, current_fpu, 8 * (reg & ~1) + 4 * FP_ENDIAN_IDX);
+    if (ctx->hflags & MIPS_HFLAG_F64)
+        tcg_gen_mov_i64(fpu_fpr64[reg], t);
+    else {
+        tcg_gen_trunc_i64_i32(fpu_fpr32[reg & ~1], t);
         tcg_gen_shri_i64(t, t, 32);
-        tcg_gen_trunc_i64_i32(r_tmp, t);
-        tcg_gen_st_i32(r_tmp, current_fpu, 8 * (reg | 1) + 4 * FP_ENDIAN_IDX);
-        tcg_temp_free(r_tmp);
+        tcg_gen_trunc_i64_i32(fpu_fpr32[reg | 1], t);
     }
 }
 
 static inline void gen_load_fpr32h (TCGv t, int reg)
 {
-    tcg_gen_ld_i32(t, current_fpu, 8 * reg + 4 * !FP_ENDIAN_IDX);
+    tcg_gen_mov_i32(t, fpu_fpr32h[reg]);
 }
 
 static inline void gen_store_fpr32h (TCGv t, int reg)
 {
-    tcg_gen_st_i32(t, current_fpu, 8 * reg + 4 * !FP_ENDIAN_IDX);
+    tcg_gen_mov_i32(fpu_fpr32h[reg], t);
 }
 
 static inline void get_fp_cond (TCGv t)
@@ -711,10 +730,9 @@ static inline void get_fp_cond (TCGv t)
     TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
     TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I32);
 
-    tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
-    tcg_gen_shri_i32(r_tmp2, r_tmp1, 24);
+    tcg_gen_shri_i32(r_tmp2, fpu_fcr31, 24);
     tcg_gen_andi_i32(r_tmp2, r_tmp2, 0xfe);
-    tcg_gen_shri_i32(r_tmp1, r_tmp1, 23);
+    tcg_gen_shri_i32(r_tmp1, fpu_fcr31, 23);
     tcg_gen_andi_i32(r_tmp1, r_tmp1, 0x1);
     tcg_gen_or_i32(t, r_tmp1, r_tmp2);
     tcg_temp_free(r_tmp1);
@@ -819,7 +837,7 @@ static inline void gen_save_pc(target_ulong pc)
     TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
 
     tcg_gen_movi_tl(r_tmp, pc);
-    tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, active_tc.PC));
+    tcg_gen_mov_tl(cpu_PC, r_tmp);
     tcg_temp_free(r_tmp);
 }
 
@@ -6010,8 +6028,7 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
 
     gen_load_gpr(t0, rd);
     gen_load_gpr(t1, rs);
-    tcg_gen_ld_i32(r_tmp, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
-    tcg_gen_andi_i32(r_tmp, r_tmp, ccbit);
+    tcg_gen_andi_i32(r_tmp, fpu_fcr31, ccbit);
     tcg_gen_brcondi_i32(cond, r_tmp, 0, l1);
     tcg_temp_free(r_tmp);
 
@@ -6044,8 +6061,7 @@ static inline void gen_movcf_s (int fs, int fd, int cc, int tf)
 
     gen_load_fpr32(fp0, fs);
     gen_load_fpr32(fp1, fd);
-    tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
-    tcg_gen_andi_i32(r_tmp1, r_tmp1, ccbit);
+    tcg_gen_andi_i32(r_tmp1, fpu_fcr31, ccbit);
     tcg_gen_brcondi_i32(cond, r_tmp1, 0, l1);
     tcg_gen_mov_i32(fp1, fp0);
     tcg_temp_free(fp0);
@@ -6076,8 +6092,7 @@ static inline void gen_movcf_d (DisasContext *ctx, int fs, int fd, int cc, int t
 
     gen_load_fpr64(ctx, fp0, fs);
     gen_load_fpr64(ctx, fp1, fd);
-    tcg_gen_ld_i32(r_tmp1, current_fpu, offsetof(CPUMIPSFPUContext, fcr31));
-    tcg_gen_andi_i32(r_tmp1, r_tmp1, ccbit);
+    tcg_gen_andi_i32(r_tmp1, fpu_fcr31, ccbit);
     tcg_gen_brcondi_i32(cond, r_tmp1, 0, l1);
     tcg_gen_mov_i64(fp1, fp0);
     tcg_temp_free(fp0);
@@ -8442,7 +8457,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case MIPS_HFLAG_BR:
             /* unconditional branch to register */
             MIPS_DEBUG("branch to register");
-            tcg_gen_st_tl(btarget, cpu_env, offsetof(CPUState, active_tc.PC));
+            tcg_gen_mov_tl(cpu_PC, btarget);
             tcg_gen_exit_tb(0);
             break;
         default:
@@ -8633,11 +8648,11 @@ static void fpu_dump_state(CPUState *env, FILE *f,
 
 
     fpu_fprintf(f, "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%08x(0x%02x)\n",
-                env->fpu->fcr0, env->fpu->fcr31, is_fpu64, env->fpu->fp_status,
-                get_float_exception_flags(&env->fpu->fp_status));
+                env->active_fpu.fcr0, env->active_fpu.fcr31, is_fpu64, env->active_fpu.fp_status,
+                get_float_exception_flags(&env->active_fpu.fp_status));
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
         fpu_fprintf(f, "%3s: ", fregnames[i]);
-        printfpr(&env->fpu->fpr[i]);
+        printfpr(&env->active_fpu.fpr[i]);
     }
 
 #undef printfpr
@@ -8707,6 +8722,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
 
 static void mips_tcg_init(void)
 {
+    int i;
     static int inited;
 
     /* Initialize various static tables. */
@@ -8714,14 +8730,48 @@ static void mips_tcg_init(void)
 	return;
 
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    for (i = 0; i < 32; i++)
+        cpu_gpr[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                        offsetof(CPUState, active_tc.gpr[i]),
+                                        regnames[i]);
+    cpu_PC = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                offsetof(CPUState, active_tc.PC), "PC");
+    for (i = 0; i < MIPS_DSP_ACC; i++) {
+        cpu_HI[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                       offsetof(CPUState, active_tc.HI[i]),
+                                       regnames_HI[i]);
+        cpu_LO[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                       offsetof(CPUState, active_tc.LO[i]),
+                                       regnames_LO[i]);
+        cpu_ACX[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                        offsetof(CPUState, active_tc.ACX[i]),
+                                        regnames_ACX[i]);
+    }
+    cpu_dspctrl = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                     offsetof(CPUState, active_tc.DSPControl),
+                                     "DSPControl");
     bcond = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
                                offsetof(CPUState, bcond), "bcond");
     btarget = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
                                  offsetof(CPUState, btarget), "btarget");
-    current_fpu = tcg_global_mem_new(TCG_TYPE_PTR,
-                                     TCG_AREG0,
-                                     offsetof(CPUState, fpu),
-                                     "current_fpu");
+    for (i = 0; i < 32; i++)
+        fpu_fpr32[i] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                          offsetof(CPUState, active_fpu.fpr[i].w[FP_ENDIAN_IDX]),
+                                          fregnames[i]);
+    for (i = 0; i < 32; i++)
+        fpu_fpr64[i] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                          offsetof(CPUState, active_fpu.fpr[i]),
+                                          fregnames_64[i]);
+    for (i = 0; i < 32; i++)
+        fpu_fpr32h[i] = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                           offsetof(CPUState, active_fpu.fpr[i].w[!FP_ENDIAN_IDX]),
+                                           fregnames_h[i]);
+    fpu_fcr0 = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                   offsetof(CPUState, active_fpu.fcr0),
+                                   "fcr0");
+    fpu_fcr31 = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                   offsetof(CPUState, active_fpu.fcr31),
+                                   "fcr31");
 
     /* register helpers */
 #undef DEF_HELPER
