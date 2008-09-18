@@ -390,7 +390,7 @@ static always_inline void gen_arith3 (DisasContext *ctx,
 static always_inline void gen_cmov (DisasContext *ctx,
                                     TCGCond inv_cond,
                                     int ra, int rb, int rc,
-                                    int islit, int8_t lit, int mask)
+                                    int islit, uint8_t lit, int mask)
 {
     int l1;
 
@@ -477,7 +477,7 @@ static always_inline void gen_itf (DisasContext *ctx,
 /* EXTWH, EXTWH, EXTLH, EXTQH */
 static always_inline void gen_ext_h(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
                                     int ra, int rb, int rc,
-                                    int islit, int8_t lit)
+                                    int islit, uint8_t lit)
 {
     if (unlikely(rc == 31))
         return;
@@ -508,7 +508,7 @@ static always_inline void gen_ext_h(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
 /* EXTBL, EXTWL, EXTWL, EXTLL, EXTQL */
 static always_inline void gen_ext_l(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
                                     int ra, int rb, int rc,
-                                    int islit, int8_t lit)
+                                    int islit, uint8_t lit)
 {
     if (unlikely(rc == 31))
         return;
@@ -567,7 +567,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
     int32_t disp21, disp16, disp12;
     uint16_t fn11, fn16;
     uint8_t opc, ra, rb, rc, sbz, fpfn, fn7, fn2, islit;
-    int8_t lit;
+    uint8_t lit;
     int ret;
 
     /* Decode all instruction fields */
