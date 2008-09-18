@@ -378,10 +378,8 @@ static always_inline void gen_arith3 (DisasContext *ctx,
         tcg_gen_movi_i64(cpu_T[0], 0);
     if (islit)
         tcg_gen_movi_i64(cpu_T[1], lit);
-    else if (rb != 31)
-        tcg_gen_mov_i64(cpu_T[1], cpu_ir[rb]);
     else
-        tcg_gen_movi_i64(cpu_T[1], 0);
+        tcg_gen_mov_i64(cpu_T[1], cpu_ir[rb]);
     (*gen_arith_op)();
     if (rc != 31)
         tcg_gen_mov_i64(cpu_ir[rc], cpu_T[0]);
@@ -416,10 +414,8 @@ static always_inline void gen_cmov (DisasContext *ctx,
 
     if (islit)
         tcg_gen_movi_i64(cpu_ir[rc], lit);
-    else if (rb != 31)
-        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
     else
-        tcg_gen_movi_i64(cpu_ir[rc], 0);
+        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
     gen_set_label(l1);
 }
 
@@ -483,9 +479,12 @@ static always_inline void gen_ext_h(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
         return;
 
     if (ra != 31) {
-        if (islit)
-            tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 64 - ((lit & 7) * 8));
-        else if (rb != 31) {
+        if (islit) {
+            if (lit != 0)
+                tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 64 - ((lit & 7) * 8));
+            else
+                tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+	} else {
             TCGv tmp1, tmp2;
             tmp1 = tcg_temp_new(TCG_TYPE_I64);
             tcg_gen_andi_i64(tmp1, cpu_ir[rb], 7);
@@ -493,14 +492,11 @@ static always_inline void gen_ext_h(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
             tmp2 = tcg_const_i64(64);
             tcg_gen_sub_i64(tmp1, tmp2, tmp1);
             tcg_temp_free(tmp2);
-            if (tcg_gen_ext_i64) {
-                tcg_gen_shl_i64(tmp1, cpu_ir[ra], tmp1);
-                tcg_gen_ext_i64(cpu_ir[rc], tmp1);
-            } else
-                tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], tmp1);
+            tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], tmp1);
             tcg_temp_free(tmp1);
-        } else
-            tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+        }
+        if (tcg_gen_ext_i64)
+            tcg_gen_ext_i64(cpu_ir[rc], cpu_ir[rc]);
     } else
         tcg_gen_movi_i64(cpu_ir[rc], 0);
 }
@@ -514,20 +510,17 @@ static always_inline void gen_ext_l(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
         return;
 
     if (ra != 31) {
-        if (islit)
-            tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], (lit & 7) * 8);
-        else if (rb != 31) {
+        if (islit) {
+                tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], (lit & 7) * 8);
+        } else {
             TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
             tcg_gen_andi_i64(tmp, cpu_ir[rb], 7);
             tcg_gen_shli_i64(tmp, tmp, 3);
-            if (tcg_gen_ext_i64) {
-                tcg_gen_shr_i64(tmp, cpu_ir[ra], tmp);
-                tcg_gen_ext_i64(cpu_ir[rc], tmp);
-            } else
-                tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], tmp);
+            tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], tmp);
             tcg_temp_free(tmp);
-        } else
-            tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+	}
+        if (tcg_gen_ext_i64)
+            tcg_gen_ext_i64(cpu_ir[rc], cpu_ir[rc]);
     } else
         tcg_gen_movi_i64(cpu_ir[rc], 0);
 }
@@ -547,12 +540,8 @@ static always_inline void gen_byte_manipulation(void *helper,
         return;
 
     if (ra != 31) {
-        if (islit || rb == 31) {
-            TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-            if (islit)
-                tcg_gen_movi_i64(tmp, lit);
-            else
-                tcg_gen_movi_i64(tmp, 0);
+        if (islit) {
+            TCGv tmp = tcg_const_i64(lit);
             tcg_gen_helper_1_2(helper, cpu_ir[rc], cpu_ir[ra], tmp);
             tcg_temp_free(tmp);
         } else
@@ -581,10 +570,8 @@ static always_inline void gen_cmp(TCGCond cond,
         tmp = tcg_const_i64(0);
     if (islit)
         tcg_gen_brcondi_i64(cond, tmp, lit, l1);
-    else if (rb != 31)
-        tcg_gen_brcond_i64(cond, tmp, cpu_ir[rb], l1);
     else
-        tcg_gen_brcondi_i64(cond, tmp, 0, l1);
+        tcg_gen_brcond_i64(cond, tmp, cpu_ir[rb], l1);
 
     tcg_gen_movi_i64(cpu_ir[rc], 0);
     tcg_gen_br(l2);
@@ -609,7 +596,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
     rc = insn & 0x1F;
     sbz = (insn >> 13) & 0x07;
     islit = (insn >> 12) & 1;
-    lit = (insn >> 13) & 0xFF;
+    if (rb == 31 && !islit) {
+        islit = 1;
+        lit = 0;
+    } else
+        lit = (insn >> 13) & 0xFF;
     palcode = insn & 0x03FFFFFF;
     disp21 = ((int32_t)((insn & 0x001FFFFF) << 11)) >> 11;
     disp16 = (int16_t)(insn & 0x0000FFFF);
@@ -726,18 +717,15 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                     if (islit) {
                         tcg_gen_addi_i64(cpu_ir[rc], cpu_ir[ra], lit);
                         tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    } else if (rb != 31) {
+                    } else {
                         tcg_gen_add_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                         tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    } else
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[ra]);
+                    }
                 } else {
                     if (islit)
-                        tcg_gen_movi_i64(cpu_ir[rc], (int32_t)lit);
-                    else if (rb != 31)
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rb]);
+                        tcg_gen_movi_i64(cpu_ir[rc], lit);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -745,26 +733,19 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* S4ADDL */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit || rb != 31) {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_shli_i64(tmp, cpu_ir[ra], 2);
-                        if (islit)
-                            tcg_gen_addi_i64(tmp, tmp, lit);
-                        else
-                            tcg_gen_add_i64(tmp, tmp, cpu_ir[rb]);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], tmp);
-                        tcg_temp_free(tmp);
-                    } else {
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 2);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    }
+                    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_shli_i64(tmp, cpu_ir[ra], 2);
+                    if (islit)
+                        tcg_gen_addi_i64(tmp, tmp, lit);
+                    else
+                        tcg_gen_add_i64(tmp, tmp, cpu_ir[rb]);
+                    tcg_gen_ext32s_i64(cpu_ir[rc], tmp);
+                    tcg_temp_free(tmp);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], lit);
-                    else if (rb != 31)
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -772,22 +753,17 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* SUBL */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit) {
+                    if (islit)
                         tcg_gen_subi_i64(cpu_ir[rc], cpu_ir[ra], lit);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    } else if (rb != 31) {
+                    else
                         tcg_gen_sub_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    } else
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[ra]);
+                    tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], -lit);
-                    else if (rb != 31) {
+                    else {
                         tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                         tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    } else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
                 }
             }
             break;
@@ -795,27 +771,21 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* S4SUBL */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit || rb != 31) {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_shli_i64(tmp, cpu_ir[ra], 2);
-                        if (islit)
-                            tcg_gen_subi_i64(tmp, tmp, lit);
-                        else
-                            tcg_gen_sub_i64(tmp, tmp, cpu_ir[rb]);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], tmp);
-                        tcg_temp_free(tmp);
-                    } else {
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 2);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    }
+                    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_shli_i64(tmp, cpu_ir[ra], 2);
+                    if (islit)
+                        tcg_gen_subi_i64(tmp, tmp, lit);
+                    else
+                        tcg_gen_sub_i64(tmp, tmp, cpu_ir[rb]);
+                    tcg_gen_ext32s_i64(cpu_ir[rc], tmp);
+                    tcg_temp_free(tmp);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], -lit);
-                    else if (rb != 31) {
+                    else {
                         tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                         tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    } else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    }
                 }
             }
             break;
@@ -827,26 +797,19 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* S8ADDL */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit || rb != 31) {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_shli_i64(tmp, cpu_ir[ra], 3);
-                        if (islit)
-                            tcg_gen_addi_i64(tmp, tmp, lit);
-                        else
-                            tcg_gen_add_i64(tmp, tmp, cpu_ir[rb]);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], tmp);
-                        tcg_temp_free(tmp);
-                    } else {
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 3);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    }
+                    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_shli_i64(tmp, cpu_ir[ra], 3);
+                    if (islit)
+                        tcg_gen_addi_i64(tmp, tmp, lit);
+                    else
+                        tcg_gen_add_i64(tmp, tmp, cpu_ir[rb]);
+                    tcg_gen_ext32s_i64(cpu_ir[rc], tmp);
+                    tcg_temp_free(tmp);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], lit);
-                    else if (rb != 31)
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -854,27 +817,21 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* S8SUBL */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit || rb != 31) {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_shli_i64(tmp, cpu_ir[ra], 3);
-                        if (islit)
-                            tcg_gen_subi_i64(tmp, tmp, lit);
-                        else
-                            tcg_gen_sub_i64(tmp, tmp, cpu_ir[rb]);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], tmp);
-                        tcg_temp_free(tmp);
-                    } else {
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 3);
-                        tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    }
+                    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_shli_i64(tmp, cpu_ir[ra], 3);
+                    if (islit)
+                        tcg_gen_subi_i64(tmp, tmp, lit);
+                    else
+                       tcg_gen_sub_i64(tmp, tmp, cpu_ir[rb]);
+                    tcg_gen_ext32s_i64(cpu_ir[rc], tmp);
+                    tcg_temp_free(tmp);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], -lit);
-                    else if (rb != 31) {
+                    else
                         tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                         tcg_gen_ext32s_i64(cpu_ir[rc], cpu_ir[rc]);
-                    } else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    }
                 }
             }
             break;
@@ -888,17 +845,13 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_addi_i64(cpu_ir[rc], cpu_ir[ra], lit);
-                    else if (rb != 31)
-                        tcg_gen_add_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                     else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+                        tcg_gen_add_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], lit);
-                    else if (rb != 31)
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -906,23 +859,18 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* S4ADDQ */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit || rb != 31) {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_shli_i64(tmp, cpu_ir[ra], 2);
-                        if (islit)
-                            tcg_gen_addi_i64(cpu_ir[rc], tmp, lit);
-                        else
-                            tcg_gen_add_i64(cpu_ir[rc], tmp, cpu_ir[rb]);
-                        tcg_temp_free(tmp);
-                    } else
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 2);
+                    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_shli_i64(tmp, cpu_ir[ra], 2);
+                    if (islit)
+                        tcg_gen_addi_i64(cpu_ir[rc], tmp, lit);
+                    else
+                        tcg_gen_add_i64(cpu_ir[rc], tmp, cpu_ir[rb]);
+                    tcg_temp_free(tmp);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], lit);
-                    else if (rb != 31)
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -932,17 +880,13 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_subi_i64(cpu_ir[rc], cpu_ir[ra], lit);
-                    else if (rb != 31)
-                        tcg_gen_sub_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                     else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+                        tcg_gen_sub_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], -lit);
-                    else if (rb != 31)
-                        tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -950,23 +894,18 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* S4SUBQ */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit || rb != 31) {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_shli_i64(tmp, cpu_ir[ra], 2);
-                        if (islit)
-                            tcg_gen_subi_i64(cpu_ir[rc], tmp, lit);
-                        else
-                            tcg_gen_sub_i64(cpu_ir[rc], tmp, cpu_ir[rb]);
-                        tcg_temp_free(tmp);
-                    } else
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 2);
+                    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_shli_i64(tmp, cpu_ir[ra], 2);
+                    if (islit)
+                        tcg_gen_subi_i64(cpu_ir[rc], tmp, lit);
+                    else
+                        tcg_gen_sub_i64(cpu_ir[rc], tmp, cpu_ir[rb]);
+                    tcg_temp_free(tmp);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], -lit);
-                    else if (rb != 31)
-                        tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -978,23 +917,18 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* S8ADDQ */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit || rb != 31) {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_shli_i64(tmp, cpu_ir[ra], 3);
-                        if (islit)
-                            tcg_gen_addi_i64(cpu_ir[rc], tmp, lit);
-                        else
-                            tcg_gen_add_i64(cpu_ir[rc], tmp, cpu_ir[rb]);
-                        tcg_temp_free(tmp);
-                    } else
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 3);
+                    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_shli_i64(tmp, cpu_ir[ra], 3);
+                    if (islit)
+                        tcg_gen_addi_i64(cpu_ir[rc], tmp, lit);
+                    else
+                        tcg_gen_add_i64(cpu_ir[rc], tmp, cpu_ir[rb]);
+                    tcg_temp_free(tmp);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], lit);
-                    else if (rb != 31)
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -1002,23 +936,18 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* S8SUBQ */
             if (likely(rc != 31)) {
                 if (ra != 31) {
-                    if (islit || rb != 31) {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_shli_i64(tmp, cpu_ir[ra], 3);
-                        if (islit)
-                            tcg_gen_subi_i64(cpu_ir[rc], tmp, lit);
-                        else
-                            tcg_gen_sub_i64(cpu_ir[rc], tmp, cpu_ir[rb]);
-                        tcg_temp_free(tmp);
-                    } else
-                        tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 3);
+                    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tcg_gen_shli_i64(tmp, cpu_ir[ra], 3);
+                    if (islit)
+                        tcg_gen_subi_i64(cpu_ir[rc], tmp, lit);
+                    else
+                        tcg_gen_sub_i64(cpu_ir[rc], tmp, cpu_ir[rb]);
+                    tcg_temp_free(tmp);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], -lit);
-                    else if (rb != 31)
-                        tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_neg_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -1059,7 +988,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         case 0x00:
             /* AND */
             if (likely(rc != 31)) {
-                if (ra == 31 || (rb == 31 && !islit))
+                if (ra == 31)
                     tcg_gen_movi_i64(cpu_ir[rc], 0);
                 else if (islit)
                     tcg_gen_andi_i64(cpu_ir[rc], cpu_ir[ra], lit);
@@ -1073,13 +1002,12 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_andi_i64(cpu_ir[rc], cpu_ir[ra], ~lit);
-                    else if (rb != 31) {
+                    else {
                         TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
                         tcg_gen_not_i64(tmp, cpu_ir[rb]);
                         tcg_gen_and_i64(cpu_ir[rc], cpu_ir[ra], tmp);
                         tcg_temp_free(tmp);
-                    } else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+                    }
                 } else
                     tcg_gen_movi_i64(cpu_ir[rc], 0);
             }
@@ -1098,17 +1026,13 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_ori_i64(cpu_ir[rc], cpu_ir[ra], lit);
-                    else if (rb != 31)
+		    else
                         tcg_gen_or_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
-                    else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], lit);
-                    else if (rb != 31)
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -1123,9 +1047,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         case 0x28:
             /* ORNOT */
             if (likely(rc != 31)) {
-                if (rb == 31 && !islit)
-                    tcg_gen_movi_i64(cpu_ir[rc], ~0);
-                else if (ra != 31) {
+                if (ra != 31) {
                     if (islit)
                         tcg_gen_ori_i64(cpu_ir[rc], cpu_ir[ra], ~lit);
                     else {
@@ -1148,17 +1070,13 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_xori_i64(cpu_ir[rc], cpu_ir[ra], lit);
-                    else if (rb != 31)
-                        tcg_gen_xor_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                     else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+                        tcg_gen_xor_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], lit);
-                    else if (rb != 31)
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], 0);
+                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -1176,20 +1094,17 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_xori_i64(cpu_ir[rc], cpu_ir[ra], ~lit);
-                    else if (rb != 31) {
+                    else {
                         TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
                         tcg_gen_not_i64(tmp, cpu_ir[rb]);
                         tcg_gen_xor_i64(cpu_ir[rc], cpu_ir[ra], tmp);
                         tcg_temp_free(tmp);
-                    } else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+                    }
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], ~lit);
-                    else if (rb != 31)
-                        tcg_gen_not_i64(cpu_ir[rc], cpu_ir[rb]);
                     else
-                        tcg_gen_movi_i64(cpu_ir[rc], ~0);
+                        tcg_gen_not_i64(cpu_ir[rc], cpu_ir[rb]);
                 }
             }
             break;
@@ -1198,10 +1113,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             if (likely(rc != 31)) {
                 if (islit)
                     tcg_gen_movi_i64(cpu_ir[rc], helper_amask(lit));
-                else if (rb != 31)
-                    tcg_gen_helper_1_1(helper_amask, cpu_ir[rc], cpu_ir[rb]);
                 else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    tcg_gen_helper_1_1(helper_amask, cpu_ir[rc], cpu_ir[rb]);
             }
             break;
         case 0x64:
@@ -1277,13 +1190,12 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_shri_i64(cpu_ir[rc], cpu_ir[ra], lit & 0x3f);
-                    else if (rb != 31) {
+                    else {
                         TCGv shift = tcg_temp_new(TCG_TYPE_I64);
                         tcg_gen_andi_i64(shift, cpu_ir[rb], 0x3f);
                         tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], shift);
                         tcg_temp_free(shift);
-                    } else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+                    }
                 } else
                     tcg_gen_movi_i64(cpu_ir[rc], 0);
             }
@@ -1298,13 +1210,12 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], lit & 0x3f);
-                    else if (rb != 31) {
+                    else {
                         TCGv shift = tcg_temp_new(TCG_TYPE_I64);
                         tcg_gen_andi_i64(shift, cpu_ir[rb], 0x3f);
                         tcg_gen_shl_i64(cpu_ir[rc], cpu_ir[ra], shift);
                         tcg_temp_free(shift);
-                    } else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+                    }
                 } else
                     tcg_gen_movi_i64(cpu_ir[rc], 0);
             }
@@ -1319,13 +1230,12 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_sari_i64(cpu_ir[rc], cpu_ir[ra], lit & 0x3f);
-                    else if (rb != 31) {
+                    else {
                         TCGv shift = tcg_temp_new(TCG_TYPE_I64);
                         tcg_gen_andi_i64(shift, cpu_ir[rb], 0x3f);
                         tcg_gen_sar_i64(cpu_ir[rc], cpu_ir[ra], shift);
                         tcg_temp_free(shift);
-                    } else
-                        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
+                    }
                 } else
                     tcg_gen_movi_i64(cpu_ir[rc], 0);
             }
@@ -1375,7 +1285,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         case 0x00:
             /* MULL */
             if (likely(rc != 31)) {
-                if (ra == 31 || (rb == 31 && !islit))
+                if (ra == 31)
                     tcg_gen_movi_i64(cpu_ir[rc], 0);
                 else {
                     if (islit)
@@ -1389,7 +1299,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         case 0x20:
             /* MULQ */
             if (likely(rc != 31)) {
-                if (ra == 31 || (rb == 31 && !islit))
+                if (ra == 31)
                     tcg_gen_movi_i64(cpu_ir[rc], 0);
                 else if (islit)
                     tcg_gen_muli_i64(cpu_ir[rc], cpu_ir[ra], lit);
@@ -1908,10 +1818,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             if (likely(rc != 31)) {
                 if (islit)
                     tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int8_t)lit));
-                else if (rb != 31)
-                    tcg_gen_ext8s_i64(cpu_ir[rc], cpu_ir[rb]);
                 else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    tcg_gen_ext8s_i64(cpu_ir[rc], cpu_ir[rb]);
             }
             break;
         case 0x01:
@@ -1921,10 +1829,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             if (likely(rc != 31)) {
                 if (islit)
                     tcg_gen_movi_i64(cpu_ir[rc], (int64_t)((int16_t)lit));
-                else if (rb != 31)
-                    tcg_gen_ext16s_i64(cpu_ir[rc], cpu_ir[rb]);
                 else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    tcg_gen_ext16s_i64(cpu_ir[rc], cpu_ir[rb]);
             }
             break;
         case 0x30:
@@ -1934,10 +1840,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             if (likely(rc != 31)) {
                 if (islit)
                     tcg_gen_movi_i64(cpu_ir[rc], ctpop64(lit));
-                else if (rb != 31)
-                    tcg_gen_helper_1_1(helper_ctpop, cpu_ir[rc], cpu_ir[rb]);
                 else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    tcg_gen_helper_1_1(helper_ctpop, cpu_ir[rc], cpu_ir[rb]);
             }
             break;
         case 0x31:
@@ -1954,10 +1858,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             if (likely(rc != 31)) {
                 if (islit)
                     tcg_gen_movi_i64(cpu_ir[rc], clz64(lit));
-                else if (rb != 31)
-                    tcg_gen_helper_1_1(helper_ctlz, cpu_ir[rc], cpu_ir[rb]);
                 else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    tcg_gen_helper_1_1(helper_ctlz, cpu_ir[rc], cpu_ir[rb]);
             }
             break;
         case 0x33:
@@ -1967,10 +1869,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             if (likely(rc != 31)) {
                 if (islit)
                     tcg_gen_movi_i64(cpu_ir[rc], ctz64(lit));
-                else if (rb != 31)
-                    tcg_gen_helper_1_1(helper_cttz, cpu_ir[rc], cpu_ir[rb]);
                 else
-                    tcg_gen_movi_i64(cpu_ir[rc], 0);
+                    tcg_gen_helper_1_1(helper_cttz, cpu_ir[rc], cpu_ir[rb]);
             }
             break;
         case 0x34:
