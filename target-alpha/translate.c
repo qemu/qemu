@@ -209,16 +209,10 @@ static always_inline void gen_st##width (DisasContext *ctx)                   \
     (*gen_op_st##width[ctx->mem_idx])();                                      \
 }
 
-GEN_LD(bu);
-GEN_ST(b);
-GEN_LD(wu);
-GEN_ST(w);
 GEN_LD(l);
 GEN_ST(l);
 GEN_LD(q);
 GEN_ST(q);
-GEN_LD(q_u);
-GEN_ST(q_u);
 GEN_LD(l_l);
 GEN_ST(l_c);
 GEN_LD(q_l);
@@ -661,33 +655,103 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         /* LDBU */
         if (!(ctx->amask & AMASK_BWX))
             goto invalid_opc;
-        gen_load_mem(ctx, &gen_ldbu, ra, rb, disp16, 0);
+        if (likely(ra != 31)) {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(addr, disp16);
+            tcg_gen_qemu_ld8u(cpu_ir[ra], addr, ctx->mem_idx);
+            tcg_temp_free(addr);
+        }
         break;
     case 0x0B:
         /* LDQ_U */
-        gen_load_mem(ctx, &gen_ldq_u, ra, rb, disp16, 1);
+        if (likely(ra != 31)) {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31) {
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+                tcg_gen_andi_i64(addr, addr, ~0x7);
+            } else
+                tcg_gen_movi_i64(addr, disp16 & ~0x7);
+            tcg_gen_qemu_ld64(cpu_ir[ra], addr, ctx->mem_idx);
+            tcg_temp_free(addr);
+        }
         break;
     case 0x0C:
         /* LDWU */
         if (!(ctx->amask & AMASK_BWX))
             goto invalid_opc;
-        gen_load_mem(ctx, &gen_ldwu, ra, rb, disp16, 0);
+        if (likely(ra != 31)) {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(addr, disp16);
+            tcg_gen_qemu_ld16u(cpu_ir[ra], addr, ctx->mem_idx);
+            tcg_temp_free(addr);
+        }
         break;
     case 0x0D:
         /* STW */
-        if (!(ctx->amask & AMASK_BWX))
-            goto invalid_opc;
-        gen_store_mem(ctx, &gen_stw, ra, rb, disp16, 0);
+        {
+            TCGv addr;
+            if (!(ctx->amask & AMASK_BWX))
+                goto invalid_opc;
+            addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(addr, disp16);
+            if (ra != 31)
+                tcg_gen_qemu_st16(cpu_ir[ra], addr, ctx->mem_idx);
+            else {
+                TCGv zero = tcg_const_i64(0);
+                tcg_gen_qemu_st16(zero, addr, ctx->mem_idx);
+                tcg_temp_free(zero);
+            }
+            tcg_temp_free(addr);
+        }
         break;
     case 0x0E:
         /* STB */
-        if (!(ctx->amask & AMASK_BWX))
-            goto invalid_opc;
-        gen_store_mem(ctx, &gen_stb, ra, rb, disp16, 0);
+        {
+            TCGv addr;
+            if (!(ctx->amask & AMASK_BWX))
+                goto invalid_opc;
+            addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(addr, disp16);
+            if (ra != 31)
+                tcg_gen_qemu_st8(cpu_ir[ra], addr, ctx->mem_idx);
+            else {
+                TCGv zero = tcg_const_i64(0);
+                tcg_gen_qemu_st8(zero, addr, ctx->mem_idx);
+                tcg_temp_free(zero);
+            }
+            tcg_temp_free(addr);
+        }
         break;
     case 0x0F:
         /* STQ_U */
-        gen_store_mem(ctx, &gen_stq_u, ra, rb, disp16, 1);
+        {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31) {
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+                tcg_gen_andi_i64(addr, addr, ~0x7);
+            } else
+                tcg_gen_movi_i64(addr, disp16 & ~0x7);
+            if (ra != 31)
+                tcg_gen_qemu_st64(cpu_ir[ra], addr, ctx->mem_idx);
+            else {
+                TCGv zero = tcg_const_i64(0);
+                tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
+                tcg_temp_free(zero);
+            }
+            tcg_temp_free(addr);
+        }
         break;
     case 0x10:
         switch (fn7) {
@@ -2125,11 +2189,27 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x28:
         /* LDL */
-        gen_load_mem(ctx, &gen_ldl, ra, rb, disp16, 0);
+        if (likely(ra != 31)) {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(addr, disp16);
+            tcg_gen_qemu_ld32s(cpu_ir[ra], addr, ctx->mem_idx);
+            tcg_temp_free(addr);
+        }
         break;
     case 0x29:
         /* LDQ */
-        gen_load_mem(ctx, &gen_ldq, ra, rb, disp16, 0);
+        if (likely(ra != 31)) {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(addr, disp16);
+            tcg_gen_qemu_ld64(cpu_ir[ra], addr, ctx->mem_idx);
+            tcg_temp_free(addr);
+        }
         break;
     case 0x2A:
         /* LDL_L */
@@ -2141,11 +2221,39 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x2C:
         /* STL */
-        gen_store_mem(ctx, &gen_stl, ra, rb, disp16, 0);
+        {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(addr, disp16);
+            if (ra != 31)
+                tcg_gen_qemu_st32(cpu_ir[ra], addr, ctx->mem_idx);
+            else {
+                TCGv zero = tcg_const_i64(0);
+                tcg_gen_qemu_st32(zero, addr, ctx->mem_idx);
+                tcg_temp_free(zero);
+            }
+            tcg_temp_free(addr);
+        }
         break;
     case 0x2D:
         /* STQ */
-        gen_store_mem(ctx, &gen_stq, ra, rb, disp16, 0);
+        {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
+            else
+                tcg_gen_movi_i64(addr, disp16);
+            if (ra != 31)
+                tcg_gen_qemu_st64(cpu_ir[ra], addr, ctx->mem_idx);
+            else {
+                TCGv zero = tcg_const_i64(0);
+                tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
+                tcg_temp_free(zero);
+            }
+            tcg_temp_free(addr);
+        }
         break;
     case 0x2E:
         /* STL_C */

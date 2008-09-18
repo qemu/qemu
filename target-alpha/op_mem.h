@@ -80,17 +80,10 @@ void OPPROTO glue(glue(op_st, name), MEMSUFFIX) (void)                        \
     RETURN();                                                                 \
 }
 
-ALPHA_LD_OP(bu, ldub);
-ALPHA_ST_OP(b, stb);
-ALPHA_LD_OP(wu, lduw);
-ALPHA_ST_OP(w, stw);
 ALPHA_LD_OP(l, ldl);
 ALPHA_ST_OP(l, stl);
 ALPHA_LD_OP(q, ldq);
 ALPHA_ST_OP(q, stq);
-
-ALPHA_LD_OP(q_u, ldq);
-ALPHA_ST_OP(q_u, stq);
 
 ALPHA_LD_OP(l_l, ldl_l);
 ALPHA_LD_OP(q_l, ldq_l);
