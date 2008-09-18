@@ -552,7 +552,7 @@ static always_inline void gen_byte_manipulation(void *helper,
 
 static always_inline void gen_cmp(TCGCond cond,
                                   int ra, int rb, int rc,
-                                  int islit, int8_t lit)
+                                  int islit, uint8_t lit)
 {
     int l1, l2;
     TCGv tmp;
