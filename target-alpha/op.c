@@ -208,51 +208,6 @@ void OPPROTO op_umulh (void)
 }
 
 /* Tests */
-void OPPROTO op_cmpult (void)
-{
-    if (T0 < T1)
-        T0 = 1;
-    else
-        T0 = 0;
-    RETURN();
-}
-
-void OPPROTO op_cmpule (void)
-{
-    if (T0 <= T1)
-        T0 = 1;
-    else
-        T0 = 0;
-    RETURN();
-}
-
-void OPPROTO op_cmpeq (void)
-{
-    if (T0 == T1)
-        T0 = 1;
-    else
-        T0 = 0;
-    RETURN();
-}
-
-void OPPROTO op_cmplt (void)
-{
-    if ((int64_t)T0 < (int64_t)T1)
-        T0 = 1;
-    else
-        T0 = 0;
-    RETURN();
-}
-
-void OPPROTO op_cmple (void)
-{
-    if ((int64_t)T0 <= (int64_t)T1)
-        T0 = 1;
-    else
-        T0 = 0;
-    RETURN();
-}
-
 void OPPROTO op_cmpbge (void)
 {
     helper_cmpbge();

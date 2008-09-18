@@ -561,6 +561,38 @@ static always_inline void gen_byte_manipulation(void *helper,
         tcg_gen_movi_i64(cpu_ir[rc], 0);
 }
 
+static always_inline void gen_cmp(TCGCond cond,
+                                  int ra, int rb, int rc,
+                                  int islit, int8_t lit)
+{
+    int l1, l2;
+    TCGv tmp;
+
+    if (unlikely(rc == 31))
+    return;
+
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+
+    if (ra != 31) {
+        tmp = tcg_temp_new(TCG_TYPE_I64);
+        tcg_gen_mov_i64(tmp, cpu_ir[ra]);
+    } else
+        tmp = tcg_const_i64(0);
+    if (islit)
+        tcg_gen_brcondi_i64(cond, tmp, lit, l1);
+    else if (rb != 31)
+        tcg_gen_brcond_i64(cond, tmp, cpu_ir[rb], l1);
+    else
+        tcg_gen_brcondi_i64(cond, tmp, 0, l1);
+
+    tcg_gen_movi_i64(cpu_ir[rc], 0);
+    tcg_gen_br(l2);
+    gen_set_label(l1);
+    tcg_gen_movi_i64(cpu_ir[rc], 1);
+    gen_set_label(l2);
+}
+
 static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 {
     uint32_t palcode;
@@ -848,7 +880,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x1D:
             /* CMPULT */
-            gen_arith3(ctx, &gen_op_cmpult, ra, rb, rc, islit, lit);
+            gen_cmp(TCG_COND_LTU, ra, rb, rc, islit, lit);
             break;
         case 0x20:
             /* ADDQ */
@@ -940,7 +972,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x2D:
             /* CMPEQ */
-            gen_arith3(ctx, &gen_op_cmpeq, ra, rb, rc, islit, lit);
+            gen_cmp(TCG_COND_EQ, ra, rb, rc, islit, lit);
             break;
         case 0x32:
             /* S8ADDQ */
@@ -992,7 +1024,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x3D:
             /* CMPULE */
-            gen_arith3(ctx, &gen_op_cmpule, ra, rb, rc, islit, lit);
+            gen_cmp(TCG_COND_LEU, ra, rb, rc, islit, lit);
             break;
         case 0x40:
             /* ADDL/V */
@@ -1004,7 +1036,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x4D:
             /* CMPLT */
-            gen_arith3(ctx, &gen_op_cmplt, ra, rb, rc, islit, lit);
+            gen_cmp(TCG_COND_LT, ra, rb, rc, islit, lit);
             break;
         case 0x60:
             /* ADDQ/V */
@@ -1016,7 +1048,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x6D:
             /* CMPLE */
-            gen_arith3(ctx, &gen_op_cmple, ra, rb, rc, islit, lit);
+            gen_cmp(TCG_COND_LE, ra, rb, rc, islit, lit);
             break;
         default:
             goto invalid_opc;
