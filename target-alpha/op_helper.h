@@ -19,14 +19,8 @@
  */
 
 void helper_call_pal (uint32_t palcode);
-void helper_excp (uint32_t excp, uint32_t error);
-void helper_load_pcc (void);
-void helper_load_implver (void);
 void helper_load_fpcr (void);
 void helper_store_fpcr (void);
-void helper_load_irf (void);
-void helper_set_irf (void);
-void helper_clear_irf (void);
 void helper_addqv (void);
 void helper_addlv (void);
 void helper_subqv (void);

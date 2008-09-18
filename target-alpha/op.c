@@ -149,24 +149,6 @@ void OPPROTO op_no_op (void)
 #endif
 
 /* Misc */
-void OPPROTO op_excp (void)
-{
-    helper_excp(PARAM(1), PARAM(2));
-    RETURN();
-}
-
-void OPPROTO op_load_pcc (void)
-{
-    helper_load_pcc();
-    RETURN();
-}
-
-void OPPROTO op_load_implver (void)
-{
-    helper_load_implver();
-    RETURN();
-}
-
 void OPPROTO op_load_fpcr (void)
 {
     helper_load_fpcr();
@@ -176,24 +158,6 @@ void OPPROTO op_load_fpcr (void)
 void OPPROTO op_store_fpcr (void)
 {
     helper_store_fpcr();
-    RETURN();
-}
-
-void OPPROTO op_load_irf (void)
-{
-    helper_load_irf();
-    RETURN();
-}
-
-void OPPROTO op_set_irf (void)
-{
-    helper_set_irf();
-    RETURN();
-}
-
-void OPPROTO op_clear_irf (void)
-{
-    helper_clear_irf();
     RETURN();
 }
 

@@ -4,7 +4,12 @@
 
 DEF_HELPER(void, helper_tb_flush, (void))
 
+DEF_HELPER(void, helper_excp, (int, int))
 DEF_HELPER(uint64_t, helper_amask, (uint64_t))
+DEF_HELPER(uint64_t, helper_load_pcc, (void))
+DEF_HELPER(uint64_t, helper_load_implver, (void))
+DEF_HELPER(uint64_t, helper_rc, (void))
+DEF_HELPER(uint64_t, helper_rs, (void))
 
 DEF_HELPER(uint64_t, helper_ctpop, (uint64_t))
 DEF_HELPER(uint64_t, helper_ctlz, (uint64_t))

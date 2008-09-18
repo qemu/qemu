@@ -250,8 +250,14 @@ static always_inline void _gen_op_bcond (DisasContext *ctx)
 static always_inline void gen_excp (DisasContext *ctx,
                                     int exception, int error_code)
 {
+    TCGv tmp1, tmp2;
+
     tcg_gen_movi_i64(cpu_pc, ctx->pc);
-    gen_op_excp(exception, error_code);
+    tmp1 = tcg_const_i32(exception);
+    tmp2 = tcg_const_i32(error_code);
+    tcg_gen_helper_0_2(helper_excp, tmp1, tmp2);
+    tcg_temp_free(tmp2);
+    tcg_temp_free(tmp1);
 }
 
 static always_inline void gen_invalid (DisasContext *ctx)
@@ -1176,9 +1182,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x6C:
             /* IMPLVER */
-            gen_op_load_implver();
             if (rc != 31)
-                tcg_gen_mov_i64(cpu_ir[rc], cpu_T[0]);
+                tcg_gen_helper_1_0(helper_load_implver, cpu_ir[rc]);
             break;
         default:
             goto invalid_opc;
@@ -1699,16 +1704,13 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0xC000:
             /* RPCC */
-            gen_op_load_pcc();
             if (ra != 31)
-                tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
+                tcg_gen_helper_1_0(helper_load_pcc, cpu_ir[ra]);
             break;
         case 0xE000:
             /* RC */
-            gen_op_load_irf();
             if (ra != 31)
-                tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
-            gen_op_clear_irf();
+                tcg_gen_helper_1_0(helper_rc, cpu_ir[ra]);
             break;
         case 0xE800:
             /* ECB */
@@ -1721,10 +1723,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0xF000:
             /* RS */
-            gen_op_load_irf();
             if (ra != 31)
-                tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
-            gen_op_set_irf();
+                tcg_gen_helper_1_0(helper_rs, cpu_ir[ra]);
             break;
         case 0xF800:
             /* WH64 */

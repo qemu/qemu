@@ -58,7 +58,7 @@ void helper_print_mem_EA (target_ulong EA)
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
-void helper_excp (uint32_t excp, uint32_t error)
+void helper_excp (int excp, int error)
 {
     env->exception_index = excp;
     env->error_code = error;
@@ -80,15 +80,15 @@ uint64_t helper_amask (uint64_t arg)
     return arg;
 }
 
-void helper_load_pcc (void)
+uint64_t helper_load_pcc (void)
 {
     /* XXX: TODO */
-    T0 = 0;
+    return 0;
 }
 
-void helper_load_implver (void)
+uint64_t helper_load_implver (void)
 {
-    T0 = env->implver;
+    return env->implver;
 }
 
 void helper_load_fpcr (void)
@@ -137,20 +137,30 @@ void helper_store_fpcr (void)
     }
 }
 
-void helper_load_irf (void)
+spinlock_t intr_cpu_lock = SPIN_LOCK_UNLOCKED;
+
+uint64_t helper_rs(void)
 {
-    /* XXX: TODO */
-    T0 = 0;
+    uint64_t tmp;
+
+    spin_lock(&intr_cpu_lock);
+    tmp = env->intr_flag;
+    env->intr_flag = 1;
+    spin_unlock(&intr_cpu_lock);
+
+    return tmp;
 }
 
-void helper_set_irf (void)
+uint64_t helper_rc(void)
 {
-    /* XXX: TODO */
-}
+    uint64_t tmp;
 
-void helper_clear_irf (void)
-{
-    /* XXX: TODO */
+    spin_lock(&intr_cpu_lock);
+    tmp = env->intr_flag;
+    env->intr_flag = 0;
+    spin_unlock(&intr_cpu_lock);
+
+    return tmp;
 }
 
 void helper_addqv (void)
