@@ -32,6 +32,7 @@
 #include "smbus.h"
 #include "boards.h"
 #include "console.h"
+#include "fw_cfg.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -44,6 +45,7 @@
 
 /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
 #define ACPI_DATA_SIZE       0x10000
+#define BIOS_CFG_IOPORT 0x510
 
 #define MAX_IDE_BUS 2
 
@@ -416,6 +418,8 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 
 static void bochs_bios_init(void)
 {
+    void *fw_cfg;
+
     register_ioport_write(0x400, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x401, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x402, 1, 1, bochs_bios_write, NULL);
@@ -426,6 +430,9 @@ static void bochs_bios_init(void)
     register_ioport_write(0x502, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x500, 1, 1, bochs_bios_write, NULL);
     register_ioport_write(0x503, 1, 1, bochs_bios_write, NULL);
+
+    fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
 }
 
 /* Generate an initial boot sector which sets state and jump to

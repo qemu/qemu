@@ -34,6 +34,7 @@
 #include "scsi.h"
 #include "pc.h"
 #include "isa.h"
+#include "fw_cfg.h"
 
 //#define DEBUG_IRQ
 
@@ -78,6 +79,7 @@
 #define PROM_SIZE_MAX        (512 * 1024)
 #define PROM_VADDR           0xffd00000
 #define PROM_FILENAME        "openbios-sparc32"
+#define CFG_ADDR             0xd00000510ULL
 
 // Control plane, 8-bit and 24-bit planes
 #define TCX_SIZE             (9 * 1024 * 1024)
@@ -410,6 +412,7 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     char buf[1024];
     BlockDriverState *fd[MAX_FD];
     int drive_index;
+    void *fw_cfg;
 
     /* init CPUs */
     if (!cpu_model)
@@ -570,6 +573,9 @@ static void sun4m_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     if (hwdef->ecc_base != (target_phys_addr_t)-1)
         ecc_init(hwdef->ecc_base, slavio_irq[hwdef->ecc_irq],
                  hwdef->ecc_version);
+
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
 }
 
 static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
@@ -589,6 +595,7 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     char buf[1024];
     BlockDriverState *fd[MAX_FD];
     int drive_index;
+    void *fw_cfg;
 
     /* init CPU */
     if (!cpu_model)
@@ -715,6 +722,9 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
                graphic_height, graphic_depth, hwdef->machine_id, "Sun4c");
+
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
 }
 
 static const struct hwdef hwdefs[] = {
@@ -1405,6 +1415,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     int ret;
     char buf[1024];
     int drive_index;
+    void *fw_cfg;
 
     /* init CPUs */
     if (!cpu_model)
@@ -1528,6 +1539,9 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, kernel_cmdline,
                boot_device, RAM_size, kernel_size, graphic_width,
                graphic_height, graphic_depth, hwdef->machine_id, "Sun4d");
+
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
 }
 
 /* SPARCserver 1000 hardware initialisation */

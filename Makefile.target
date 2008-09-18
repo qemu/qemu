@@ -474,6 +474,7 @@ endif #CONFIG_DARWIN_USER
 ifndef CONFIG_USER_ONLY
 
 OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o net-checksum.o
+OBJS+=fw_cfg.o
 ifdef CONFIG_WIN32
 OBJS+=block-raw-win32.o
 else
