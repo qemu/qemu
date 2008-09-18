@@ -423,7 +423,9 @@ enum {
 };
 
 /* global register indices */
-static TCGv cpu_env, bcond, btarget;
+static TCGv cpu_env, cpu_gpr[32], cpu_PC;
+static TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC], cpu_ACX[MIPS_DSP_ACC];
+static TCGv cpu_dspctrl, bcond, btarget;
 static TCGv fpu_fpr32[32], fpu_fpr32h[32], fpu_fpr64[32], fpu_fcr0, fpu_fcr31;
 
 #include "gen-icount.h"
@@ -542,6 +544,15 @@ static const char *regnames[] =
       "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
       "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra", };
 
+static const char *regnames_HI[] =
+    { "HI0", "HI1", "HI2", "HI3", };
+
+static const char *regnames_LO[] =
+    { "LO0", "LO1", "LO2", "LO3", };
+
+static const char *regnames_ACX[] =
+    { "ACX0", "ACX1", "ACX2", "ACX3", };
+
 static const char *fregnames[] =
     { "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
       "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
@@ -584,40 +595,44 @@ static inline void gen_load_gpr (TCGv t, int reg)
     if (reg == 0)
         tcg_gen_movi_tl(t, 0);
     else
-        tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.gpr) +
-                                  sizeof(target_ulong) * reg);
+        tcg_gen_mov_tl(t, cpu_gpr[reg]);
 }
 
 static inline void gen_store_gpr (TCGv t, int reg)
 {
     if (reg != 0)
-        tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.gpr) +
-                                  sizeof(target_ulong) * reg);
+        tcg_gen_mov_tl(cpu_gpr[reg], t);
 }
 
 /* Moves to/from HI and LO registers.  */
-static inline void gen_load_LO (TCGv t, int reg)
-{
-    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.LO) +
-                              sizeof(target_ulong) * reg);
-}
-
-static inline void gen_store_LO (TCGv t, int reg)
-{
-    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.LO) +
-                              sizeof(target_ulong) * reg);
-}
-
 static inline void gen_load_HI (TCGv t, int reg)
 {
-    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, active_tc.HI) +
-                              sizeof(target_ulong) * reg);
+    tcg_gen_mov_tl(t, cpu_HI[reg]);
 }
 
 static inline void gen_store_HI (TCGv t, int reg)
 {
-    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, active_tc.HI) +
-                              sizeof(target_ulong) * reg);
+    tcg_gen_mov_tl(cpu_HI[reg], t);
+}
+
+static inline void gen_load_LO (TCGv t, int reg)
+{
+    tcg_gen_mov_tl(t, cpu_LO[reg]);
+}
+
+static inline void gen_store_LO (TCGv t, int reg)
+{
+    tcg_gen_mov_tl(cpu_LO[reg], t);
+}
+
+static inline void gen_load_ACX (TCGv t, int reg)
+{
+    tcg_gen_mov_tl(t, cpu_ACX[reg]);
+}
+
+static inline void gen_store_ACX (TCGv t, int reg)
+{
+    tcg_gen_mov_tl(cpu_ACX[reg], t);
 }
 
 /* Moves to/from shadow registers. */
@@ -821,7 +836,7 @@ static inline void gen_save_pc(target_ulong pc)
     TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
 
     tcg_gen_movi_tl(r_tmp, pc);
-    tcg_gen_st_tl(r_tmp, cpu_env, offsetof(CPUState, active_tc.PC));
+    tcg_gen_mov_tl(cpu_PC, r_tmp);
     tcg_temp_free(r_tmp);
 }
 
@@ -8441,7 +8456,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case MIPS_HFLAG_BR:
             /* unconditional branch to register */
             MIPS_DEBUG("branch to register");
-            tcg_gen_st_tl(btarget, cpu_env, offsetof(CPUState, active_tc.PC));
+            tcg_gen_mov_tl(cpu_PC, btarget);
             tcg_gen_exit_tb(0);
             break;
         default:
@@ -8714,6 +8729,26 @@ static void mips_tcg_init(void)
 	return;
 
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    for (i = 0; i < 32; i++)
+        cpu_gpr[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                        offsetof(CPUState, active_tc.gpr[i]),
+                                        regnames[i]);
+    cpu_PC = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                offsetof(CPUState, active_tc.PC), "PC");
+    for (i = 0; i < MIPS_DSP_ACC; i++) {
+        cpu_HI[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                       offsetof(CPUState, active_tc.HI[i]),
+                                       regnames_HI[i]);
+        cpu_LO[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                       offsetof(CPUState, active_tc.LO[i]),
+                                       regnames_LO[i]);
+        cpu_ACX[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                        offsetof(CPUState, active_tc.ACX[i]),
+                                        regnames_ACX[i]);
+    }
+    cpu_dspctrl = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
+                                     offsetof(CPUState, active_tc.DSPControl),
+                                     "DSPControl");
     bcond = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
                                offsetof(CPUState, bcond), "bcond");
     btarget = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
