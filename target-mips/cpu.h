@@ -84,9 +84,9 @@ struct CPUMIPSFPUContext {
 #define FCR0_REV 0
     /* fcsr */
     uint32_t fcr31;
-#define SET_FP_COND(num,env)     do { ((env)->fcr31) |= ((num) ? (1 << ((num) + 24)) : (1 << 23)); } while(0)
-#define CLEAR_FP_COND(num,env)   do { ((env)->fcr31) &= ~((num) ? (1 << ((num) + 24)) : (1 << 23)); } while(0)
-#define GET_FP_COND(env)         ((((env)->fcr31 >> 24) & 0xfe) | (((env)->fcr31 >> 23) & 0x1))
+#define SET_FP_COND(num,env)     do { ((env).fcr31) |= ((num) ? (1 << ((num) + 24)) : (1 << 23)); } while(0)
+#define CLEAR_FP_COND(num,env)   do { ((env).fcr31) &= ~((num) ? (1 << ((num) + 24)) : (1 << 23)); } while(0)
+#define GET_FP_COND(env)         ((((env).fcr31 >> 24) & 0xfe) | (((env).fcr31 >> 23) & 0x1))
 #define GET_FP_CAUSE(reg)        (((reg) >> 12) & 0x3f)
 #define GET_FP_ENABLE(reg)       (((reg) >>  7) & 0x1f)
 #define GET_FP_FLAGS(reg)        (((reg) >>  2) & 0x1f)
@@ -132,6 +132,7 @@ typedef struct mips_def_t mips_def_t;
 
 #define MIPS_SHADOW_SET_MAX 16
 #define MIPS_TC_MAX 5
+#define MIPS_FPU_MAX 1
 #define MIPS_DSP_ACC 4
 
 typedef struct TCState TCState;
@@ -170,11 +171,12 @@ struct TCState {
 typedef struct CPUMIPSState CPUMIPSState;
 struct CPUMIPSState {
     TCState active_tc;
+    CPUMIPSFPUContext active_fpu;
 
     CPUMIPSMVPContext *mvp;
     CPUMIPSTLBContext *tlb;
-    CPUMIPSFPUContext *fpu;
     uint32_t current_tc;
+    uint32_t current_fpu;
 
     uint32_t SEGBITS;
     uint32_t PABITS;
@@ -404,6 +406,7 @@ struct CPUMIPSState {
     int32_t CP0_DESAVE;
     /* We waste some space so we can handle shadow registers like TCs. */
     TCState tcs[MIPS_SHADOW_SET_MAX];
+    CPUMIPSFPUContext fpus[MIPS_FPU_MAX];
     /* Qemu */
     int error_code;
     uint32_t hflags;    /* CPU State */

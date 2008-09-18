@@ -86,7 +86,7 @@ static inline void compute_hflags(CPUState *env)
     if (env->CP0_Status & (1 << CP0St_FR))
         env->hflags |= MIPS_HFLAG_F64;
     if (env->insn_flags & ISA_MIPS32R2) {
-        if (env->fpu->fcr0 & (1 << FCR0_F64))
+        if (env->active_fpu.fcr0 & (1 << FCR0_F64))
             env->hflags |= MIPS_HFLAG_COP1X;
     } else if (env->insn_flags & ISA_MIPS32) {
         if (env->hflags & MIPS_HFLAG_64)
