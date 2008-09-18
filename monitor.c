@@ -249,6 +249,15 @@ static void do_info_name(void)
         term_printf("%s\n", qemu_name);
 }
 
+static void do_info_uuid(void)
+{
+    term_printf(UUID_FMT "\n", qemu_uuid[0], qemu_uuid[1], qemu_uuid[2],
+            qemu_uuid[3], qemu_uuid[4], qemu_uuid[5], qemu_uuid[6],
+            qemu_uuid[7], qemu_uuid[8], qemu_uuid[9], qemu_uuid[10],
+            qemu_uuid[11], qemu_uuid[12], qemu_uuid[13], qemu_uuid[14],
+            qemu_uuid[15]);
+}
+
 static void do_info_block(void)
 {
     bdrv_info();
@@ -1497,6 +1506,8 @@ static term_cmd_t info_cmds[] = {
       "", "show the vnc server status"},
     { "name", "", do_info_name,
       "", "show the current VM name" },
+    { "uuid", "", do_info_uuid,
+      "", "show the current VM UUID" },
 #if defined(TARGET_PPC)
     { "cpustats", "", do_info_cpu_stats,
       "", "show CPU statistics", },
