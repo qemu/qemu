@@ -177,7 +177,7 @@ static void pxa2xx_dma_run(struct pxa2xx_dma_state_s *s)
     uint32_t n, size;
     uint32_t width;
     uint32_t length;
-    char buffer[32];
+    uint8_t buffer[32];
     struct pxa2xx_dma_channel_s *ch;
 
     if (s->running ++)

@@ -1305,7 +1305,7 @@ uint32_t NVRAM_get_lword (nvram_t *nvram, uint32_t addr)
 }
 
 void NVRAM_set_string (nvram_t *nvram, uint32_t addr,
-                       const unsigned char *str, uint32_t max)
+                       const char *str, uint32_t max)
 {
     int i;
 
@@ -1366,7 +1366,7 @@ uint16_t NVRAM_compute_crc (nvram_t *nvram, uint32_t start, uint32_t count)
 #define CMDLINE_ADDR 0x017ff000
 
 int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
-                          const unsigned char *arch,
+                          const char *arch,
                           uint32_t RAM_size, int boot_device,
                           uint32_t kernel_image, uint32_t kernel_size,
                           const char *cmdline,
@@ -1387,7 +1387,7 @@ int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
     NVRAM_set_lword(nvram,  0x3C, kernel_size);
     if (cmdline) {
         /* XXX: put the cmdline in NVRAM too ? */
-        strcpy(phys_ram_base + CMDLINE_ADDR, cmdline);
+        strcpy((char *)(phys_ram_base + CMDLINE_ADDR), cmdline);
         NVRAM_set_lword(nvram,  0x40, CMDLINE_ADDR);
         NVRAM_set_lword(nvram,  0x44, strlen(cmdline));
     } else {

@@ -1923,6 +1923,10 @@ struct target_eabi_flock64 {
 #define TARGET_VFAT_IOCTL_READDIR_BOTH    TARGET_IORU('r', 1)
 #define TARGET_VFAT_IOCTL_READDIR_SHORT   TARGET_IORU('r', 2)
 
+#define TARGET_MTIOCTOP        TARGET_IOW('m', 1, struct mtop)
+#define TARGET_MTIOCGET        TARGET_IOR('m', 2, struct mtget)
+#define TARGET_MTIOCPOS        TARGET_IOR('m', 3, struct mtpos)
+
 struct target_sysinfo {
     abi_long uptime;                /* Seconds since boot */
     abi_ulong loads[3];             /* 1, 5, and 15 minute load averages */

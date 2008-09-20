@@ -244,7 +244,7 @@ void do_mulldo (void)
     int64_t th;
     uint64_t tl;
 
-    muls64(&tl, &th, T0, T1);
+    muls64(&tl, (uint64_t *)&th, T0, T1);
     T0 = (int64_t)tl;
     /* If th != 0 && th != -1, then we had an overflow */
     if (likely((uint64_t)(th + 1) <= 1)) {

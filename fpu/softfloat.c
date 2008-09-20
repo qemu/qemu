@@ -4987,7 +4987,7 @@ float128 float128_rem( float128 a, float128 b STATUS_PARAM )
         sub128( aSig0, aSig1, bSig0, bSig1, &aSig0, &aSig1 );
     } while ( 0 <= (sbits64) aSig0 );
     add128(
-        aSig0, aSig1, alternateASig0, alternateASig1, &sigMean0, &sigMean1 );
+        aSig0, aSig1, alternateASig0, alternateASig1, (bits64 *)&sigMean0, &sigMean1 );
     if (    ( sigMean0 < 0 )
          || ( ( ( sigMean0 | sigMean1 ) == 0 ) && ( q & 1 ) ) ) {
         aSig0 = alternateASig0;

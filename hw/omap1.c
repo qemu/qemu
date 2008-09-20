@@ -664,6 +664,7 @@ struct omap_mpu_timer_s {
     uint32_t val;
     int64_t time;
     QEMUTimer *timer;
+    QEMUBH *tick;
     int64_t rate;
     int it_ena;
 
@@ -708,21 +709,15 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
          * ticks.  */
         if (expires > (ticks_per_sec >> 10) || timer->ar)
             qemu_mod_timer(timer->timer, timer->time + expires);
-        else {
-            timer->val = 0;
-            timer->st = 0;
-            if (timer->it_ena)
-                /* Edge-triggered irq */
-                qemu_irq_pulse(timer->irq);
-        }
+        else
+            qemu_bh_schedule(timer->tick);
     } else
         qemu_del_timer(timer->timer);
 }
 
-static void omap_timer_tick(void *opaque)
+static void omap_timer_fire(void *opaque)
 {
-    struct omap_mpu_timer_s *timer = (struct omap_mpu_timer_s *) opaque;
-    omap_timer_sync(timer);
+    struct omap_mpu_timer_s *timer = opaque;
 
     if (!timer->ar) {
         timer->val = 0;
@@ -732,6 +727,14 @@ static void omap_timer_tick(void *opaque)
     if (timer->it_ena)
         /* Edge-triggered irq */
         qemu_irq_pulse(timer->irq);
+}
+
+static void omap_timer_tick(void *opaque)
+{
+    struct omap_mpu_timer_s *timer = (struct omap_mpu_timer_s *) opaque;
+
+    omap_timer_sync(timer);
+    omap_timer_fire(timer);
     omap_timer_update(timer);
 }
 
@@ -835,6 +838,7 @@ struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
     s->clk = clk;
     s->base = base;
     s->timer = qemu_new_timer(vm_clock, omap_timer_tick, s);
+    s->tick = qemu_bh_new(omap_timer_fire, s);
     omap_mpu_timer_reset(s);
     omap_timer_clk_setup(s);
 
@@ -1983,6 +1987,8 @@ struct omap_uart_s {
     SerialState *serial; /* TODO */
     struct omap_target_agent_s *ta;
     target_phys_addr_t base;
+    omap_clk fclk;
+    qemu_irq irq;
 
     uint8_t eblr;
     uint8_t syscontrol;
@@ -2007,6 +2013,9 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
     struct omap_uart_s *s = (struct omap_uart_s *)
             qemu_mallocz(sizeof(struct omap_uart_s));
 
+    s->base = base;
+    s->fclk = fclk;
+    s->irq = irq;
     s->serial = serial_mm_init(base, 2, irq, omap_clk_getrate(fclk)/16,
                                chr ?: qemu_chr_open("null"), 1);
 
@@ -2108,11 +2117,18 @@ struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
                     omap_uart_writefn, s);
 
     s->ta = ta;
-    s->base = base;
 
     cpu_register_physical_memory(s->base + 0x20, 0x100, iomemtype);
 
     return s;
+}
+
+void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr)
+{
+    /* TODO: Should reuse or destroy current s->serial */
+    s->serial = serial_mm_init(s->base, 2, s->irq,
+                    omap_clk_getrate(s->fclk) / 16,
+                    chr ?: qemu_chr_open("null"), 1);
 }
 
 /* MPU Clock/Reset/Power Mode Control */

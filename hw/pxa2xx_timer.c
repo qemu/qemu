@@ -384,8 +384,8 @@ static void pxa2xx_timer_save(QEMUFile *f, void *opaque)
         for (i = 0; i < 8; i ++) {
             qemu_put_be32s(f, &s->tm4[i].tm.value);
             qemu_put_be32(f, s->tm4[i].tm.level);
-            qemu_put_be32s(f, (uint32_t *) &s->tm4[i].oldclock);
-            qemu_put_be32s(f, (uint32_t *) &s->tm4[i].clock);
+            qemu_put_sbe32s(f, &s->tm4[i].oldclock);
+            qemu_put_sbe32s(f, &s->tm4[i].clock);
             qemu_put_be64s(f, &s->tm4[i].lastload);
             qemu_put_be32s(f, &s->tm4[i].freq);
             qemu_put_be32s(f, &s->tm4[i].control);
@@ -418,8 +418,8 @@ static int pxa2xx_timer_load(QEMUFile *f, void *opaque, int version_id)
         for (i = 0; i < 8; i ++) {
             qemu_get_be32s(f, &s->tm4[i].tm.value);
             s->tm4[i].tm.level = qemu_get_be32(f);
-            qemu_get_be32s(f, (uint32_t *) &s->tm4[i].oldclock);
-            qemu_get_be32s(f, (uint32_t *) &s->tm4[i].clock);
+            qemu_get_sbe32s(f, &s->tm4[i].oldclock);
+            qemu_get_sbe32s(f, &s->tm4[i].clock);
             qemu_get_be64s(f, &s->tm4[i].lastload);
             qemu_get_be32s(f, &s->tm4[i].freq);
             qemu_get_be32s(f, &s->tm4[i].control);

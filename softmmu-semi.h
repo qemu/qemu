@@ -37,7 +37,7 @@ static inline void softmmu_tput32(CPUState *env, uint32_t addr, uint32_t val)
 static void *softmmu_lock_user(CPUState *env, uint32_t addr, uint32_t len,
                                int copy)
 {
-    char *p;
+    uint8_t *p;
     /* TODO: Make this something that isn't fixed size.  */
     p = malloc(len);
     if (copy)

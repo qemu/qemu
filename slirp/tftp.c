@@ -149,8 +149,10 @@ static int tftp_send_oack(struct tftp_session *spt,
     m->m_data += sizeof(struct udpiphdr);
 
     tp->tp_op = htons(TFTP_OACK);
-    n += snprintf(tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%s", key) + 1;
-    n += snprintf(tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%u", value) + 1;
+    n += snprintf((char *)tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%s",
+                  key) + 1;
+    n += snprintf((char *)tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%u",
+                  value) + 1;
 
     saddr.sin_addr = recv_tp->ip.ip_dst;
     saddr.sin_port = recv_tp->udp.uh_dport;
@@ -190,7 +192,7 @@ static int tftp_send_error(struct tftp_session *spt,
 
   tp->tp_op = htons(TFTP_ERROR);
   tp->x.tp_error.tp_error_code = htons(errorcode);
-  pstrcpy(tp->x.tp_error.tp_msg, sizeof(tp->x.tp_error.tp_msg), msg);
+  pstrcpy((char *)tp->x.tp_error.tp_msg, sizeof(tp->x.tp_error.tp_msg), msg);
 
   saddr.sin_addr = recv_tp->ip.ip_dst;
   saddr.sin_port = recv_tp->udp.uh_dport;
@@ -325,8 +327,8 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   /* do sanity checks on the filename */
 
   if ((spt->filename[0] != '/')
-      || (spt->filename[strlen(spt->filename) - 1] == '/')
-      ||  strstr(spt->filename, "/../")) {
+      || (spt->filename[strlen((char *)spt->filename) - 1] == '/')
+      ||  strstr((char *)spt->filename, "/../")) {
       tftp_send_error(spt, 2, "Access violation", tp);
       return;
   }
@@ -353,7 +355,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
   while (k < n) {
       const char *key, *value;
 
-      key = src + k;
+      key = (char *)src + k;
       k += strlen(key) + 1;
 
       if (k >= n) {
@@ -361,7 +363,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 	  return;
       }
 
-      value = src + k;
+      value = (char *)src + k;
       k += strlen(value) + 1;
 
       if (strcmp(key, "tsize") == 0) {
