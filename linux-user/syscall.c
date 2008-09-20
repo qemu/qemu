@@ -157,6 +157,7 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_fchmodat __NR_fchmodat
 #define __NR_sys_fchownat __NR_fchownat
 #define __NR_sys_fstatat64 __NR_fstatat64
+#define __NR_sys_futimesat __NR_futimesat
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
@@ -204,6 +205,10 @@ _syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
 #if defined(TARGET_NR_fstatat64) && defined(__NR_fstatat64)
 _syscall4(int,sys_fstatat64,int,dirfd,const char *,pathname,
           struct stat *,buf,int,flags)
+#endif
+#if defined(TARGET_NR_futimesat) && defined(__NR_futimesat)
+_syscall3(int,sys_futimesat,int,dirfd,const char *,pathname,
+         const struct timeval *,times)
 #endif
 _syscall2(int,sys_getcwd1,char *,buf,size_t,size)
 #if TARGET_ABI_BITS == 32
@@ -3662,6 +3667,26 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
         }
         break;
+#if defined(TARGET_NR_futimesat) && defined(__NR_futimesat)
+    case TARGET_NR_futimesat:
+        {
+            struct timeval *tvp, tv[2];
+            if (arg3) {
+                if (copy_from_user_timeval(&tv[0], arg3)
+                    || copy_from_user_timeval(&tv[1],
+                                              arg3 + sizeof(struct target_timeval)))
+                    goto efault;
+                tvp = tv;
+            } else {
+                tvp = NULL;
+            }
+            if (!(p = lock_user_string(arg2)))
+                goto efault;
+            ret = get_errno(sys_futimesat(arg1, path(p), tvp));
+            unlock_user(p, arg2, 0);
+        }
+        break;
+#endif
 #ifdef TARGET_NR_stty
     case TARGET_NR_stty:
         goto unimplemented;
