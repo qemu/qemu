@@ -108,3 +108,9 @@ STRUCT(loop_info64,
        MK_ARRAY(TYPE_CHAR, 64),  /* lo_crypt_name */
        MK_ARRAY(TYPE_CHAR, 32),  /* lo_encrypt_key */
        MK_ARRAY(TYPE_ULONGLONG, 2))  /* lo_init */
+
+/* mag tape ioctls */
+STRUCT(mtop, TYPE_SHORT, TYPE_INT)
+STRUCT(mtget, TYPE_LONG, TYPE_LONG, TYPE_LONG, TYPE_LONG, TYPE_LONG,
+       TYPE_INT, TYPE_INT)
+STRUCT(mtpos, TYPE_LONG)
