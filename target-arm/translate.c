@@ -5946,7 +5946,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
         case 0x5: /* saturating add/subtract */
             rd = (insn >> 12) & 0xf;
             rn = (insn >> 16) & 0xf;
-            tmp = load_reg(s, rn);
+            tmp = load_reg(s, rm);
             tmp2 = load_reg(s, rn);
             if (op1 & 2)
                 gen_helper_double_saturate(tmp2, tmp2);
