@@ -17,12 +17,12 @@ uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr);
 void NVRAM_set_lword (nvram_t *nvram, uint32_t addr, uint32_t value);
 uint32_t NVRAM_get_lword (nvram_t *nvram, uint32_t addr);
 void NVRAM_set_string (nvram_t *nvram, uint32_t addr,
-                       const unsigned char *str, uint32_t max);
+                       const char *str, uint32_t max);
 int NVRAM_get_string (nvram_t *nvram, uint8_t *dst, uint16_t addr, int max);
 void NVRAM_set_crc (nvram_t *nvram, uint32_t addr,
                     uint32_t start, uint32_t count);
 int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
-                          const unsigned char *arch,
+                          const char *arch,
                           uint32_t RAM_size, int boot_device,
                           uint32_t kernel_image, uint32_t kernel_size,
                           const char *cmdline,

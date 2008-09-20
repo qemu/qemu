@@ -947,7 +947,8 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
                               abi_ulong optval_addr, abi_ulong optlen)
 {
     abi_long ret;
-    int len, lv, val;
+    int len, val;
+    socklen_t lv;
 
     switch(level) {
     case TARGET_SOL_SOCKET:

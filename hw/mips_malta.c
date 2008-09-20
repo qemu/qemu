@@ -701,7 +701,8 @@ static int64_t load_kernel (CPUState *env)
     ram_addr_t initrd_offset;
 
     if (load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
-                 &kernel_entry, &kernel_low, &kernel_high) < 0) {
+                 (uint64_t *)&kernel_entry, (uint64_t *)&kernel_low,
+                 (uint64_t *)&kernel_high) < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
                 loaderparams.kernel_filename);
         exit(1);

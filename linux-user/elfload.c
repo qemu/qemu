@@ -1240,7 +1240,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 	}
 
 	if (interp_elf_ex.e_ident[0] != 0x7f ||
-	    	strncmp(&interp_elf_ex.e_ident[1], "ELF",3) != 0) {
+            strncmp((char *)&interp_elf_ex.e_ident[1], "ELF",3) != 0) {
 	    interpreter_type &= ~INTERPRETER_ELF;
 	}
 

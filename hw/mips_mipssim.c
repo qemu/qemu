@@ -61,7 +61,8 @@ static void load_kernel (CPUState *env)
     ram_addr_t initrd_offset;
 
     kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
-                           &entry, &kernel_low, &kernel_high);
+                           (uint64_t *)&entry, (uint64_t *)&kernel_low,
+                           (uint64_t *)&kernel_high);
     if (kernel_size >= 0) {
         if ((entry & ~0x7fffffffULL) == 0x80000000)
             entry = (int32_t)entry;

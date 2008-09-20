@@ -447,7 +447,7 @@ tcp_connect(inso)
 {
 	struct socket *so;
 	struct sockaddr_in addr;
-	int addrlen = sizeof(struct sockaddr_in);
+	socklen_t addrlen = sizeof(struct sockaddr_in);
 	struct tcpcb *tp;
 	int s, opt;
 
@@ -649,7 +649,7 @@ tcp_emu(so, m)
 		{
 			struct socket *tmpso;
 			struct sockaddr_in addr;
-			int addrlen = sizeof(struct sockaddr_in);
+			socklen_t addrlen = sizeof(struct sockaddr_in);
 			struct sbuf *so_rcv = &so->so_rcv;
 
 			memcpy(so_rcv->sb_wptr, m->m_data, m->m_len);

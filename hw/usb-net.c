@@ -681,8 +681,8 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_GEN_VENDOR_DESCRIPTION:
-        pstrcpy(outbuf, outlen, "QEMU USB RNDIS Net");
-        return strlen(outbuf) + 1;
+        pstrcpy((char *)outbuf, outlen, "QEMU USB RNDIS Net");
+        return strlen((char *)outbuf) + 1;
 
     case OID_GEN_VENDOR_DRIVER_VERSION:
         *((le32 *) outbuf) = cpu_to_le32(1);

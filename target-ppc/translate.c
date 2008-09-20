@@ -220,7 +220,7 @@ struct opc_handler_t {
     /* handler */
     void (*handler)(DisasContext *ctx);
 #if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
-    const unsigned char *oname;
+    const char *oname;
 #endif
 #if defined(DO_PPC_STATISTICS)
     uint64_t count;
@@ -347,7 +347,7 @@ typedef struct opcode_t {
     unsigned char pad[1];
 #endif
     opc_handler_t handler;
-    const unsigned char *oname;
+    const char *oname;
 } opcode_t;
 
 /*****************************************************************************/

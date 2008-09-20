@@ -183,7 +183,7 @@ void cpu_sh4_reset(CPUSH4State * env)
 }
 
 typedef struct {
-    const unsigned char *name;
+    const char *name;
     int id;
     uint32_t pvr;
     uint32_t prr;
@@ -206,7 +206,7 @@ static sh4_def_t sh4_defs[] = {
     },
 };
 
-static const sh4_def_t *cpu_sh4_find_by_name(const unsigned char *name)
+static const sh4_def_t *cpu_sh4_find_by_name(const char *name)
 {
     int i;
 

@@ -80,7 +80,7 @@ static void pl080_run(pl080_state *s)
     int src_id;
     int dest_id;
     int size;
-    char buff[4];
+    uint8_t buff[4];
     uint32_t req;
 
     s->tc_mask = 0;

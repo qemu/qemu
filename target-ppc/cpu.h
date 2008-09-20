@@ -303,7 +303,7 @@ struct ppc_spr_t {
     void (*hea_read)(void *opaque, int spr_num);
     void (*hea_write)(void *opaque, int spr_num);
 #endif
-    const unsigned char *name;
+    const char *name;
 };
 
 /* Altivec registers (128 bits) */
@@ -733,7 +733,7 @@ void cpu_ppc_reset (void *opaque);
 
 void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
-const ppc_def_t *cpu_ppc_find_by_name (const unsigned char *name);
+const ppc_def_t *cpu_ppc_find_by_name (const char *name);
 int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
 /* Time-base and decrementer management */
