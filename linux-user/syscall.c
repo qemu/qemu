@@ -5253,7 +5253,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 target_grouplist = lock_user(VERIFY_WRITE, arg2, gidsetsize * 2, 0);
                 if (!target_grouplist)
                     goto efault;
-                for(i = 0;i < gidsetsize; i++)
+                for(i = 0;i < ret; i++)
                     target_grouplist[i] = tswap16(grouplist[i]);
                 unlock_user(target_grouplist, arg2, gidsetsize * 2);
             }
@@ -5407,7 +5407,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     ret = -TARGET_EFAULT;
                     goto fail;
                 }
-                for(i = 0;i < gidsetsize; i++)
+                for(i = 0;i < ret; i++)
                     target_grouplist[i] = tswap32(grouplist[i]);
                 unlock_user(target_grouplist, arg2, gidsetsize * 4);
             }
