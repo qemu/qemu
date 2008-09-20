@@ -5247,6 +5247,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             grouplist = alloca(gidsetsize * sizeof(gid_t));
             ret = get_errno(getgroups(gidsetsize, grouplist));
+            if (gidsetsize == 0)
+                break;
             if (!is_error(ret)) {
                 target_grouplist = lock_user(VERIFY_WRITE, arg2, gidsetsize * 2, 0);
                 if (!target_grouplist)
@@ -5397,6 +5399,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             grouplist = alloca(gidsetsize * sizeof(gid_t));
             ret = get_errno(getgroups(gidsetsize, grouplist));
+            if (gidsetsize == 0)
+                break;
             if (!is_error(ret)) {
                 target_grouplist = lock_user(VERIFY_WRITE, arg2, gidsetsize * 4, 0);
                 if (!target_grouplist) {
