@@ -156,7 +156,7 @@ static inline void omap_gp_timer_trigger(struct omap_gp_timer_s *timer)
 {
     if (timer->pt)
         /* TODO in overflow-and-match mode if the first event to
-         * occurs is the match, don't toggle.  */
+         * occur is the match, don't toggle.  */
         omap_gp_timer_out(timer, !timer->out_val);
     else
         /* TODO inverted pulse on timer->out_val == 1?  */
@@ -2151,12 +2151,12 @@ static void omap_sti_fifo_write(void *opaque, target_phys_addr_t addr,
 
     if (ch == STI_TRACE_CONTROL_CHANNEL) {
         /* Flush channel <i>value</i>.  */
-        qemu_chr_write(s->chr, "\r", 1);
+        qemu_chr_write(s->chr, (const uint8_t *) "\r", 1);
     } else if (ch == STI_TRACE_CONSOLE_CHANNEL || 1) {
         if (value == 0xc0 || value == 0xc3) {
             /* Open channel <i>ch</i>.  */
         } else if (value == 0x00)
-            qemu_chr_write(s->chr, "\n", 1);
+            qemu_chr_write(s->chr, (const uint8_t *) "\n", 1);
         else
             qemu_chr_write(s->chr, &byte, 1);
     }
