@@ -34,7 +34,6 @@ void do_interrupt(CPUState *env);
 
 /* cpu-exec.c */
 void cpu_loop_exit(void);
-int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 
 /* sun4m.c */
 void cpu_check_irqs(CPUSPARCState *env);
