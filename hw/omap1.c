@@ -664,6 +664,7 @@ struct omap_mpu_timer_s {
     uint32_t val;
     int64_t time;
     QEMUTimer *timer;
+    QEMUBH *tick;
     int64_t rate;
     int it_ena;
 
@@ -708,21 +709,15 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
          * ticks.  */
         if (expires > (ticks_per_sec >> 10) || timer->ar)
             qemu_mod_timer(timer->timer, timer->time + expires);
-        else {
-            timer->val = 0;
-            timer->st = 0;
-            if (timer->it_ena)
-                /* Edge-triggered irq */
-                qemu_irq_pulse(timer->irq);
-        }
+        else
+            qemu_bh_schedule(timer->tick);
     } else
         qemu_del_timer(timer->timer);
 }
 
-static void omap_timer_tick(void *opaque)
+static void omap_timer_fire(void *opaque)
 {
-    struct omap_mpu_timer_s *timer = (struct omap_mpu_timer_s *) opaque;
-    omap_timer_sync(timer);
+    struct omap_mpu_timer_s *timer = opaque;
 
     if (!timer->ar) {
         timer->val = 0;
@@ -732,6 +727,14 @@ static void omap_timer_tick(void *opaque)
     if (timer->it_ena)
         /* Edge-triggered irq */
         qemu_irq_pulse(timer->irq);
+}
+
+static void omap_timer_tick(void *opaque)
+{
+    struct omap_mpu_timer_s *timer = (struct omap_mpu_timer_s *) opaque;
+
+    omap_timer_sync(timer);
+    omap_timer_fire(timer);
     omap_timer_update(timer);
 }
 
@@ -835,6 +838,7 @@ struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
     s->clk = clk;
     s->base = base;
     s->timer = qemu_new_timer(vm_clock, omap_timer_tick, s);
+    s->tick = qemu_bh_new(omap_timer_fire, s);
     omap_mpu_timer_reset(s);
     omap_timer_clk_setup(s);
 
