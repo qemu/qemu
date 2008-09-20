@@ -156,6 +156,7 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_faccessat __NR_faccessat
 #define __NR_sys_fchmodat __NR_fchmodat
 #define __NR_sys_fchownat __NR_fchownat
+#define __NR_sys_fstatat64 __NR_fstatat64
 #define __NR_sys_getcwd1 __NR_getcwd
 #define __NR_sys_getdents __NR_getdents
 #define __NR_sys_getdents64 __NR_getdents64
@@ -199,6 +200,10 @@ _syscall4(int,sys_fchmodat,int,dirfd,const char *,pathname,
 #if defined(TARGET_NR_fchownat) && defined(__NR_fchownat) && defined(USE_UID16)
 _syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
           uid_t,owner,gid_t,group,int,flags)
+#endif
+#if defined(TARGET_NR_fstatat64) && defined(__NR_fstatat64)
+_syscall4(int,sys_fstatat64,int,dirfd,const char *,pathname,
+          struct stat *,buf,int,flags)
 #endif
 _syscall2(int,sys_getcwd1,char *,buf,size_t,size)
 #if TARGET_ABI_BITS == 32
@@ -3149,6 +3154,67 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
     return 0;
 }
 
+#ifdef TARGET_NR_stat64
+static inline abi_long host_to_target_stat64(void *cpu_env,
+                                             abi_ulong target_addr,
+                                             struct stat *host_st)
+{
+#ifdef TARGET_ARM
+    if (((CPUARMState *)cpu_env)->eabi) {
+        struct target_eabi_stat64 *target_st;
+
+        if (!lock_user_struct(VERIFY_WRITE, target_st, target_addr, 0))
+            return -TARGET_EFAULT;
+        memset(target_st, 0, sizeof(struct target_eabi_stat64));
+        __put_user(host_st->st_dev, &target_st->st_dev);
+        __put_user(host_st->st_ino, &target_st->st_ino);
+#ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
+        __put_user(host_st->st_ino, &target_st->__st_ino);
+#endif
+        __put_user(host_st->st_mode, &target_st->st_mode);
+        __put_user(host_st->st_nlink, &target_st->st_nlink);
+        __put_user(host_st->st_uid, &target_st->st_uid);
+        __put_user(host_st->st_gid, &target_st->st_gid);
+        __put_user(host_st->st_rdev, &target_st->st_rdev);
+        __put_user(host_st->st_size, &target_st->st_size);
+        __put_user(host_st->st_blksize, &target_st->st_blksize);
+        __put_user(host_st->st_blocks, &target_st->st_blocks);
+        __put_user(host_st->st_atime, &target_st->target_st_atime);
+        __put_user(host_st->st_mtime, &target_st->target_st_mtime);
+        __put_user(host_st->st_ctime, &target_st->target_st_ctime);
+        unlock_user_struct(target_st, target_addr, 1);
+    } else
+#endif
+    {
+        struct target_stat64 *target_st;
+
+        if (!lock_user_struct(VERIFY_WRITE, target_st, target_addr, 0))
+            return -TARGET_EFAULT;
+        memset(target_st, 0, sizeof(struct target_stat64));
+        __put_user(host_st->st_dev, &target_st->st_dev);
+        __put_user(host_st->st_ino, &target_st->st_ino);
+#ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
+        __put_user(host_st->st_ino, &target_st->__st_ino);
+#endif
+        __put_user(host_st->st_mode, &target_st->st_mode);
+        __put_user(host_st->st_nlink, &target_st->st_nlink);
+        __put_user(host_st->st_uid, &target_st->st_uid);
+        __put_user(host_st->st_gid, &target_st->st_gid);
+        __put_user(host_st->st_rdev, &target_st->st_rdev);
+        /* XXX: better use of kernel struct */
+        __put_user(host_st->st_size, &target_st->st_size);
+        __put_user(host_st->st_blksize, &target_st->st_blksize);
+        __put_user(host_st->st_blocks, &target_st->st_blocks);
+        __put_user(host_st->st_atime, &target_st->target_st_atime);
+        __put_user(host_st->st_mtime, &target_st->target_st_mtime);
+        __put_user(host_st->st_ctime, &target_st->target_st_ctime);
+        unlock_user_struct(target_st, target_addr, 1);
+    }
+
+    return 0;
+}
+#endif
+
 #if defined(USE_NPTL)
 /* ??? Using host futex calls even when target atomic operations
    are not really atomic probably breaks things.  However implementing
@@ -5142,7 +5208,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             goto efault;
         ret = get_errno(stat(path(p), &st));
         unlock_user(p, arg1, 0);
-        goto do_stat64;
+        if (!is_error(ret))
+            ret = host_to_target_stat64(cpu_env, arg2, &st);
+        break;
 #endif
 #ifdef TARGET_NR_lstat64
     case TARGET_NR_lstat64:
@@ -5150,67 +5218,24 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             goto efault;
         ret = get_errno(lstat(path(p), &st));
         unlock_user(p, arg1, 0);
-        goto do_stat64;
+        if (!is_error(ret))
+            ret = host_to_target_stat64(cpu_env, arg2, &st);
+        break;
 #endif
 #ifdef TARGET_NR_fstat64
     case TARGET_NR_fstat64:
-        {
-            ret = get_errno(fstat(arg1, &st));
-        do_stat64:
-            if (!is_error(ret)) {
-#ifdef TARGET_ARM
-                if (((CPUARMState *)cpu_env)->eabi) {
-                    struct target_eabi_stat64 *target_st;
-
-                    if (!lock_user_struct(VERIFY_WRITE, target_st, arg2, 0))
-                        goto efault;
-                    memset(target_st, 0, sizeof(struct target_eabi_stat64));
-                    __put_user(st.st_dev, &target_st->st_dev);
-                    __put_user(st.st_ino, &target_st->st_ino);
-#ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
-                    __put_user(st.st_ino, &target_st->__st_ino);
+        ret = get_errno(fstat(arg1, &st));
+        if (!is_error(ret))
+            ret = host_to_target_stat64(cpu_env, arg2, &st);
+        break;
 #endif
-                    __put_user(st.st_mode, &target_st->st_mode);
-                    __put_user(st.st_nlink, &target_st->st_nlink);
-                    __put_user(st.st_uid, &target_st->st_uid);
-                    __put_user(st.st_gid, &target_st->st_gid);
-                    __put_user(st.st_rdev, &target_st->st_rdev);
-                    __put_user(st.st_size, &target_st->st_size);
-                    __put_user(st.st_blksize, &target_st->st_blksize);
-                    __put_user(st.st_blocks, &target_st->st_blocks);
-                    __put_user(st.st_atime, &target_st->target_st_atime);
-                    __put_user(st.st_mtime, &target_st->target_st_mtime);
-                    __put_user(st.st_ctime, &target_st->target_st_ctime);
-                    unlock_user_struct(target_st, arg2, 1);
-                } else
-#endif
-                {
-                    struct target_stat64 *target_st;
-
-                    if (!lock_user_struct(VERIFY_WRITE, target_st, arg2, 0))
-                        goto efault;
-                    memset(target_st, 0, sizeof(struct target_stat64));
-                    __put_user(st.st_dev, &target_st->st_dev);
-                    __put_user(st.st_ino, &target_st->st_ino);
-#ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
-                    __put_user(st.st_ino, &target_st->__st_ino);
-#endif
-                    __put_user(st.st_mode, &target_st->st_mode);
-                    __put_user(st.st_nlink, &target_st->st_nlink);
-                    __put_user(st.st_uid, &target_st->st_uid);
-                    __put_user(st.st_gid, &target_st->st_gid);
-                    __put_user(st.st_rdev, &target_st->st_rdev);
-                    /* XXX: better use of kernel struct */
-                    __put_user(st.st_size, &target_st->st_size);
-                    __put_user(st.st_blksize, &target_st->st_blksize);
-                    __put_user(st.st_blocks, &target_st->st_blocks);
-                    __put_user(st.st_atime, &target_st->target_st_atime);
-                    __put_user(st.st_mtime, &target_st->target_st_mtime);
-                    __put_user(st.st_ctime, &target_st->target_st_ctime);
-                    unlock_user_struct(target_st, arg2, 1);
-                }
-            }
-        }
+#if defined(TARGET_NR_fstatat64) && defined(__NR_fstatat64)
+    case TARGET_NR_fstatat64:
+        if (!(p = lock_user_string(arg2)))
+            goto efault;
+        ret = get_errno(sys_fstatat64(arg1, path(p), &st, arg4));
+        if (!is_error(ret))
+            ret = host_to_target_stat64(cpu_env, arg3, &st);
         break;
 #endif
 #ifdef USE_UID16
