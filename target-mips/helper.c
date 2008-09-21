@@ -304,7 +304,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #if defined(TARGET_MIPS64)
         env->CP0_EntryHi &= env->SEGMask;
         env->CP0_XContext = (env->CP0_XContext & ((~0ULL) << (env->SEGBITS - 7))) |
-                            ((address & 0xC00000000000ULL) >> (env->SEGBITS - 9)) |
+                            ((address & 0xC00000000000ULL) >> (55 - env->SEGBITS)) |
                             ((address & ((1ULL << env->SEGBITS) - 1) & 0xFFFFFFFFFFFFE000ULL) >> 9);
 #endif
         env->exception_index = exception;
