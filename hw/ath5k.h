@@ -509,7 +509,7 @@ typedef struct {
 /*
  * Atheros descriptor
  */
-struct ath_desc {
+struct __attribute__ ((__packed__)) ath_desc {
 	u_int32_t	ds_link;
 	u_int32_t	ds_data;
 	u_int32_t	ds_ctl0;
@@ -524,7 +524,7 @@ struct ath_desc {
 #define ds_rxstat ds_us.rx
 #define ds_txstat ds_us.tx
 
-} __packed;
+};
 
 #define AR5K_RXDESC_INTREQ	0x0020
 
