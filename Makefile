@@ -9,8 +9,8 @@ endif
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
-.PHONY: all clean distclean dvi info install install-doc tar tarbin \
-	speed test html dvi info
+.PHONY: all clean cscope distclean dvi html info install install-doc \
+	recurse-all speed tar tarbin test
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
@@ -39,7 +39,7 @@ ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
-all: $(TOOLS) $(DOCS) recurse-all 
+all: $(TOOLS) $(DOCS) recurse-all
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
@@ -355,7 +355,7 @@ tarbin:
         $(bindir)/qemu-sh4 \
         $(bindir)/qemu-sh4eb \
         $(bindir)/qemu-cris \
-        $(bindir)/qemu-img \
+	$(bindir)/qemu-img \
         $(bindir)/qemu-nbd \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \
