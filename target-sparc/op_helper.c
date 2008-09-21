@@ -2281,11 +2281,6 @@ target_ulong helper_sdiv(target_ulong a, target_ulong b)
     }
 }
 
-uint64_t helper_pack64(target_ulong high, target_ulong low)
-{
-    return ((uint64_t)high << 32) | (uint64_t)(low & 0xffffffff);
-}
-
 void helper_stdf(target_ulong addr, int mem_idx)
 {
     helper_check_align(addr, 7);
