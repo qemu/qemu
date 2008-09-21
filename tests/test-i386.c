@@ -718,8 +718,8 @@ void test_mul(void)
     asm("xor %1, %1\n"\
         "mov $0x12345678, %0\n"\
         #op " %" size "2, %" size "0 ; setz %b1" \
-        : "=r" (res), "=q" (resz)\
-        : "g" (val));\
+        : "=&r" (res), "=&q" (resz)\
+        : "r" (val));\
     printf("%-10s A=" FMTLX " R=" FMTLX " %ld\n", #op, val, res, resz);\
 }
 
