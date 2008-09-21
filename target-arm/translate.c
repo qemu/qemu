@@ -4808,7 +4808,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 neon_store_reg(rd, pass, tmp);
             }
         }
-    } else { /* (insn & 0x00800010 == 0x00800010) */
+    } else { /* (insn & 0x00800010 == 0x00800000) */
         if (size != 3) {
             op = (insn >> 8) & 0xf;
             if ((insn & (1 << 6)) == 0) {
