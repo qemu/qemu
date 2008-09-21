@@ -489,10 +489,12 @@ void test_loop(void)
     };
     int i, res;
 
+#if !defined(__x86_64__)
     TEST_LOOP("jcxz");
     TEST_LOOP("loopw");
     TEST_LOOP("loopzw");
     TEST_LOOP("loopnzw");
+#endif
 
     TEST_LOOP("jecxz");
     TEST_LOOP("loopl");
