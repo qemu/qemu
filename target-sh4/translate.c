@@ -400,15 +400,12 @@ static inline void gen_load_fpr32(TCGv t, int reg)
 static inline void gen_load_fpr64(TCGv t, int reg)
 {
     TCGv tmp1 = tcg_temp_new(TCG_TYPE_I32);
-    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I64);
+    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I32);
 
     tcg_gen_ld_i32(tmp1, cpu_env, offsetof(CPUState, fregs[reg]));
-    tcg_gen_extu_i32_i64(t, tmp1);
-    tcg_gen_shli_i64(t, t, 32);
-    tcg_gen_ld_i32(tmp1, cpu_env, offsetof(CPUState, fregs[reg + 1]));
-    tcg_gen_extu_i32_i64(tmp2, tmp1);
+    tcg_gen_ld_i32(tmp2, cpu_env, offsetof(CPUState, fregs[reg + 1]));
+    tcg_gen_concat_i32_i64(t, tmp2, tmp1);
     tcg_temp_free(tmp1);
-    tcg_gen_or_i64(t, t, tmp2);
     tcg_temp_free(tmp2);
 }
 

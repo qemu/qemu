@@ -489,10 +489,12 @@ void test_loop(void)
     };
     int i, res;
 
+#if !defined(__x86_64__)
     TEST_LOOP("jcxz");
     TEST_LOOP("loopw");
     TEST_LOOP("loopzw");
     TEST_LOOP("loopnzw");
+#endif
 
     TEST_LOOP("jecxz");
     TEST_LOOP("loopl");
@@ -716,8 +718,8 @@ void test_mul(void)
     asm("xor %1, %1\n"\
         "mov $0x12345678, %0\n"\
         #op " %" size "2, %" size "0 ; setz %b1" \
-        : "=r" (res), "=q" (resz)\
-        : "g" (val));\
+        : "=&r" (res), "=&q" (resz)\
+        : "r" (val));\
     printf("%-10s A=" FMTLX " R=" FMTLX " %ld\n", #op, val, res, resz);\
 }
 
