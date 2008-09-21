@@ -2800,6 +2800,10 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
     sigset_t sigmask;
 #endif
 
+    /* Emulate vfork() with fork() */
+    if (flags & CLONE_VFORK)
+        flags &= ~(CLONE_VFORK | CLONE_VM);
+
     if (flags & CLONE_VM) {
 #if defined(USE_NPTL)
         new_thread_info info;
