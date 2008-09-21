@@ -1412,6 +1412,18 @@ static inline void tcg_gen_concat_i32_i64(TCGv dest, TCGv low, TCGv high)
 #endif
 }
 
+static inline void tcg_gen_concat32_i64(TCGv dest, TCGv low, TCGv high)
+{
+#if TCG_TARGET_REG_BITS == 32
+    tcg_gen_concat_i32_i64(dest, low, high);
+#else
+    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+    tcg_gen_shli_i64(tmp, high, 32);
+    tcg_gen_or_i64(dest, low, tmp);
+    tcg_temp_free(tmp);
+#endif
+}
+
 /***************************************/
 /* QEMU specific operations. Their type depend on the QEMU CPU
    type. */
@@ -1664,6 +1676,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_ext16s_tl tcg_gen_ext16s_i64
 #define tcg_gen_ext32u_tl tcg_gen_ext32u_i64
 #define tcg_gen_ext32s_tl tcg_gen_ext32s_i64
+#define tcg_gen_concat_tl_i64 tcg_gen_concat32_i64
 #define tcg_const_tl tcg_const_i64
 #else
 #define TCG_TYPE_TL TCG_TYPE_I32
@@ -1715,6 +1728,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_ext16s_tl tcg_gen_ext16s_i32
 #define tcg_gen_ext32u_tl tcg_gen_mov_i32
 #define tcg_gen_ext32s_tl tcg_gen_mov_i32
+#define tcg_gen_concat_tl_i64 tcg_gen_concat_i32_i64
 #define tcg_const_tl tcg_const_i32
 #endif
 
