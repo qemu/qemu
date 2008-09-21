@@ -304,6 +304,8 @@ dvi: qemu-doc.dvi qemu-tech.dvi
 
 html: qemu-doc.html qemu-tech.html
 
+qemu-doc.dvi qemu-doc.html qemu-doc.info: qemu-img.texi qemu-nbd.texi
+
 VERSION ?= $(shell cat VERSION)
 FILE = qemu-$(VERSION)
 
