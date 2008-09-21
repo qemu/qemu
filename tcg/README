@@ -265,6 +265,10 @@ Convert t1 (32 bit) to t0 (64 bit) and does zero extension
 * trunc_i64_i32 t0, t1
 Truncate t1 (64 bit) to t0 (32 bit)
 
+* concat_i32_i64 t0, t1, t2
+Construct t0 (64-bit) taking the low half from t1 (32 bit) and the high half
+from t2 (32 bit).
+
 ********* Load/Store
 
 * ld_i32/i64 t0, t1, offset

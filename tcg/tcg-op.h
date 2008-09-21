@@ -1395,6 +1395,23 @@ static inline void tcg_gen_discard_i64(TCGv arg)
 }
 #endif
 
+static inline void tcg_gen_concat_i32_i64(TCGv dest, TCGv low, TCGv high)
+{
+#if TCG_TARGET_REG_BITS == 32
+    tcg_gen_mov_i32(dest, low);
+    tcg_gen_mov_i32(TCGV_HIGH(dest), high);
+#else
+    TCGv tmp = tcg_temp_new (TCG_TYPE_I64);
+    /* This extension is only needed for type correctness.
+       We may be able to do better given target specific information.  */
+    tcg_gen_extu_i32_i64(tmp, high);
+    tcg_gen_shli_i64(tmp, tmp, 32);
+    tcg_gen_extu_i32_i64(dest, low);
+    tcg_gen_or_i64(dest, dest, tmp);
+    tcg_temp_free(tmp);
+#endif
+}
+
 /***************************************/
 /* QEMU specific operations. Their type depend on the QEMU CPU
    type. */

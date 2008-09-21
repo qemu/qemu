@@ -693,13 +693,7 @@ static inline void gen_load_fpr64 (DisasContext *ctx, TCGv t, int reg)
     if (ctx->hflags & MIPS_HFLAG_F64)
         tcg_gen_mov_i64(t, fpu_fpr64[reg]);
     else {
-        TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
-
-        tcg_gen_extu_i32_i64(t, fpu_fpr32[reg | 1]);
-        tcg_gen_shli_i64(t, t, 32);
-        tcg_gen_extu_i32_i64(r_tmp2, fpu_fpr32[reg & ~1]);
-        tcg_gen_or_i64(t, t, r_tmp2);
-        tcg_temp_free(r_tmp2);
+        tcg_gen_concat_i32_i64(t, fpu_fpr32[reg & ~1], fpu_fpr32[reg | 1]);
     }
 }
 
@@ -6546,22 +6540,17 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(38, 16):
         check_cp1_64bitmode(ctx);
         {
-            TCGv fp64_0 = tcg_temp_new(TCG_TYPE_I64);
-            TCGv fp64_1 = tcg_temp_new(TCG_TYPE_I64);
+            TCGv fp64 = tcg_temp_new(TCG_TYPE_I64);
             TCGv fp32_0 = tcg_temp_new(TCG_TYPE_I32);
             TCGv fp32_1 = tcg_temp_new(TCG_TYPE_I32);
 
             gen_load_fpr32(fp32_0, fs);
             gen_load_fpr32(fp32_1, ft);
-            tcg_gen_extu_i32_i64(fp64_0, fp32_0);
-            tcg_gen_extu_i32_i64(fp64_1, fp32_1);
-            tcg_temp_free(fp32_0);
+            tcg_gen_concat_i32_i64(fp64, fp32_0, fp32_1);
             tcg_temp_free(fp32_1);
-            tcg_gen_shli_i64(fp64_1, fp64_1, 32);
-            tcg_gen_or_i64(fp64_0, fp64_0, fp64_1);
-            tcg_temp_free(fp64_1);
-            gen_store_fpr64(ctx, fp64_0, fd);
-            tcg_temp_free(fp64_0);
+            tcg_temp_free(fp32_0);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free(fp64);
         }
         opn = "cvt.ps.s";
         break;
