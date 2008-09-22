@@ -2671,6 +2671,21 @@ void helper_retry(void)
     env->tl--;
     env->tsptr = &env->ts[env->tl & MAXTL_MASK];
 }
+
+void helper_set_softint(uint64_t value)
+{
+    env->softint |= (uint32_t)value;
+}
+
+void helper_clear_softint(uint64_t value)
+{
+    env->softint &= (uint32_t)~value;
+}
+
+void helper_write_softint(uint64_t value)
+{
+    env->softint = (uint32_t)value;
+}
 #endif
 
 void helper_flush(target_ulong addr)

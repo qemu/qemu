@@ -329,6 +329,8 @@ typedef struct CPUSPARCState {
     /* UA 2005 hyperprivileged registers */
     uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
     void *hstick; // UA 2005
+    uint32_t softint;
+#define SOFTINT_TIMER 1
 #endif
     sparc_def_t *def;
 } CPUSPARCState;

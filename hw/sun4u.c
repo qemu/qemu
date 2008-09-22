@@ -33,6 +33,15 @@
 #include "firmware_abi.h"
 #include "fw_cfg.h"
 
+//#define DEBUG_IRQ
+
+#ifdef DEBUG_IRQ
+#define DPRINTF(fmt, args...)                           \
+    do { printf("CPUIRQ: " fmt , ##args); } while (0)
+#else
+#define DPRINTF(fmt, args...)
+#endif
+
 #define KERNEL_LOAD_ADDR     0x00404000
 #define CMDLINE_ADDR         0x003ff000
 #define INITRD_LOAD_ADDR     0x00300000
@@ -46,6 +55,8 @@
 #define NVRAM_SIZE           0x2000
 #define MAX_IDE_BUS          2
 #define BIOS_CFG_IOPORT      0x510
+
+#define MAX_PILS 16
 
 struct hwdef {
     const char * const default_cpu_model;
@@ -201,6 +212,50 @@ void irq_info(void)
 {
 }
 
+void cpu_check_irqs(CPUState *env)
+{
+    uint32_t pil = env->pil_in | (env->softint & ~SOFTINT_TIMER) |
+        ((env->softint & SOFTINT_TIMER) << 14);
+
+    if (pil && (env->interrupt_index == 0 ||
+                (env->interrupt_index & ~15) == TT_EXTINT)) {
+        unsigned int i;
+
+        for (i = 15; i > 0; i--) {
+            if (pil & (1 << i)) {
+                int old_interrupt = env->interrupt_index;
+
+                env->interrupt_index = TT_EXTINT | i;
+                if (old_interrupt != env->interrupt_index) {
+                    DPRINTF("Set CPU IRQ %d\n", i);
+                    cpu_interrupt(env, CPU_INTERRUPT_HARD);
+                }
+                break;
+            }
+        }
+    } else if (!pil && (env->interrupt_index & ~15) == TT_EXTINT) {
+        DPRINTF("Reset CPU IRQ %d\n", env->interrupt_index & 15);
+        env->interrupt_index = 0;
+        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+    }
+}
+
+static void cpu_set_irq(void *opaque, int irq, int level)
+{
+    CPUState *env = opaque;
+
+    if (level) {
+        DPRINTF("Raise CPU IRQ %d\n", irq);
+        env->halted = 0;
+        env->pil_in |= 1 << irq;
+        cpu_check_irqs(env);
+    } else {
+        DPRINTF("Lower CPU IRQ %d\n", irq);
+        env->pil_in &= ~(1 << irq);
+        cpu_check_irqs(env);
+    }
+}
+
 void qemu_system_powerdown(void)
 {
 }
@@ -222,6 +277,7 @@ static void tick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
+    env->softint |= SOFTINT_TIMER;
     cpu_interrupt(env, CPU_INTERRUPT_TIMER);
 }
 
@@ -229,6 +285,7 @@ static void stick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
+    env->softint |= SOFTINT_TIMER;
     cpu_interrupt(env, CPU_INTERRUPT_TIMER);
 }
 
@@ -236,11 +293,8 @@ static void hstick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
+    env->softint |= SOFTINT_TIMER;
     cpu_interrupt(env, CPU_INTERRUPT_TIMER);
-}
-
-static void dummy_cpu_set_irq(void *opaque, int irq, int level)
-{
 }
 
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
@@ -383,7 +437,7 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
         pci_nic_init(pci_bus, &nd_table[i], -1);
     }
 
-    irq = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, 32);
+    irq = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
     if (drive_get_max_bus(IF_IDE) >= MAX_IDE_BUS) {
         fprintf(stderr, "qemu: too many IDE bus\n");
         exit(1);
