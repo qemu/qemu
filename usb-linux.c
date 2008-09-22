@@ -1449,20 +1449,20 @@ static int usb_host_info_device(void *opaque, int bus_num, int addr,
     return 0;
 }
 
-static void dec2str(int val, char *str)
+static void dec2str(int val, char *str, size_t size)
 {
     if (val == -1)
-        strcpy(str, "*");
+        snprintf(str, size, "*");
     else
-        sprintf(str, "%d", val); 
+        snprintf(str, size, "%d", val); 
 }
 
-static void hex2str(int val, char *str)
+static void hex2str(int val, char *str, size_t size)
 {
     if (val == -1)
-        strcpy(str, "*");
+        snprintf(str, size, "*");
     else
-        sprintf(str, "%x", val);
+        snprintf(str, size, "%x", val);
 }
 
 void usb_host_info(void)
@@ -1475,10 +1475,10 @@ void usb_host_info(void)
         term_printf("  Auto filters:\n");
     for (f = usb_auto_filter; f; f = f->next) {
         char bus[10], addr[10], vid[10], pid[10];
-        dec2str(f->bus_num, bus);
-        dec2str(f->addr, addr);
-        hex2str(f->vendor_id, vid);
-        hex2str(f->product_id, pid);
+        dec2str(f->bus_num, bus, sizeof(bus));
+        dec2str(f->addr, addr, sizeof(addr));
+        hex2str(f->vendor_id, vid, sizeof(vid));
+        hex2str(f->product_id, pid, sizeof(pid));
     	term_printf("    Device %s.%s ID %s:%s\n", bus, addr, vid, pid);
     }
 }
