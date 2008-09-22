@@ -56,7 +56,7 @@ uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def,
     for (shift = 0; shift < 32; shift += 8) {
         index = (ireg >> shift) & 0xff;
         if (index < maxindex) {
-            tmp = (table[index >> 3] >> (index & 7)) & 0xff;
+            tmp = (table[index >> 3] >> ((index & 7) << 3)) & 0xff;
             val |= tmp << shift;
         } else {
             val |= def & (0xff << shift);
