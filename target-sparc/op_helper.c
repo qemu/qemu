@@ -2199,11 +2199,11 @@ target_ulong helper_cas_asi(target_ulong addr, target_ulong val1,
 {
     target_ulong ret;
 
-    val1 &= 0xffffffffUL;
+    val2 &= 0xffffffffUL;
     ret = helper_ld_asi(addr, asi, 4, 0);
     ret &= 0xffffffffUL;
-    if (val1 == ret)
-        helper_st_asi(addr, val2 & 0xffffffffUL, asi, 4);
+    if (val2 == ret)
+        helper_st_asi(addr, val1 & 0xffffffffUL, asi, 4);
     return ret;
 }
 
@@ -2213,8 +2213,8 @@ target_ulong helper_casx_asi(target_ulong addr, target_ulong val1,
     target_ulong ret;
 
     ret = helper_ld_asi(addr, asi, 8, 0);
-    if (val1 == ret)
-        helper_st_asi(addr, val2, asi, 8);
+    if (val2 == ret)
+        helper_st_asi(addr, val1, asi, 8);
     return ret;
 }
 #endif /* TARGET_SPARC64 */
