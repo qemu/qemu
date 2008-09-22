@@ -51,7 +51,7 @@ BLOCK_OBJS=cutils.o qemu-malloc.o
 BLOCK_OBJS+=block-cow.o block-qcow.o aes.o block-vmdk.o block-cloop.o
 BLOCK_OBJS+=block-dmg.o block-bochs.o block-vpc.o block-vvfat.o
 BLOCK_OBJS+=block-qcow2.o block-parallels.o block-nbd.o
-BLOCK_OBJS+=nbd.o block.o
+BLOCK_OBJS+=nbd.o block.o aio.o
 
 ifdef CONFIG_WIN32
 BLOCK_OBJS += block-raw-win32.o

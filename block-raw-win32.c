@@ -339,19 +339,6 @@ static int raw_create(const char *filename, int64_t total_size,
     return 0;
 }
 
-void qemu_aio_init(void)
-{
-}
-
-void qemu_aio_flush(void)
-{
-}
-
-void qemu_aio_wait(void)
-{
-    qemu_bh_poll();
-}
-
 BlockDriver bdrv_raw = {
     "raw",
     sizeof(BDRVRawState),

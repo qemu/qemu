@@ -101,12 +101,16 @@ typedef struct BDRVRawState {
 #endif
 } BDRVRawState;
 
+static int posix_aio_init(void);
+
 static int fd_open(BlockDriverState *bs);
 
 static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int fd, open_flags, ret;
+
+    posix_aio_init();
 
     s->lseek_err_cnt = 0;
 
@@ -437,13 +441,15 @@ typedef struct RawAIOCB {
     int ret;
 } RawAIOCB;
 
-static int aio_sig_fd = -1;
-static int aio_sig_num = SIGUSR2;
-static RawAIOCB *first_aio; /* AIO issued */
-static int aio_initialized = 0;
-
-static void qemu_aio_poll(void *opaque)
+typedef struct PosixAioState
 {
+    int fd;
+    RawAIOCB *first_aio;
+} PosixAioState;
+
+static void posix_aio_read(void *opaque)
+{
+    PosixAioState *s = opaque;
     RawAIOCB *acb, **pacb;
     int ret;
     size_t offset;
@@ -457,7 +463,7 @@ static void qemu_aio_poll(void *opaque)
     while (offset < 128) {
         ssize_t len;
 
-        len = read(aio_sig_fd, sig.buf + offset, 128 - offset);
+        len = read(s->fd, sig.buf + offset, 128 - offset);
         if (len == -1 && errno == EINTR)
             continue;
         if (len == -1 && errno == EAGAIN) {
@@ -472,7 +478,7 @@ static void qemu_aio_poll(void *opaque)
     }
 
     for(;;) {
-        pacb = &first_aio;
+        pacb = &s->first_aio;
         for(;;) {
             acb = *pacb;
             if (!acb)
@@ -507,25 +513,37 @@ static void qemu_aio_poll(void *opaque)
  the_end: ;
 }
 
-void qemu_aio_init(void)
+static int posix_aio_flush(void *opaque)
+{
+    PosixAioState *s = opaque;
+    return !!s->first_aio;
+}
+
+static PosixAioState *posix_aio_state;
+
+static int posix_aio_init(void)
 {
     sigset_t mask;
+    PosixAioState *s;
+  
+    if (posix_aio_state)
+        return 0;
 
-    if (aio_initialized)
-        return;
-
-    aio_initialized = 1;
+    s = qemu_malloc(sizeof(PosixAioState));
+    if (s == NULL)
+        return -ENOMEM;
 
     /* Make sure to block AIO signal */
     sigemptyset(&mask);
-    sigaddset(&mask, aio_sig_num);
+    sigaddset(&mask, SIGUSR2);
     sigprocmask(SIG_BLOCK, &mask, NULL);
     
-    aio_sig_fd = qemu_signalfd(&mask);
+    s->first_aio = NULL;
+    s->fd = qemu_signalfd(&mask);
 
-    fcntl(aio_sig_fd, F_SETFL, O_NONBLOCK);
+    fcntl(s->fd, F_SETFL, O_NONBLOCK);
 
-    qemu_set_fd_handler2(aio_sig_fd, NULL, qemu_aio_poll, NULL, NULL);
+    qemu_aio_set_fd_handler(s->fd, posix_aio_read, NULL, posix_aio_flush, s);
 
 #if defined(__GLIBC__) && defined(__linux__)
     {
@@ -539,39 +557,9 @@ void qemu_aio_init(void)
         aio_init(&ai);
     }
 #endif
-}
+    posix_aio_state = s;
 
-/* Wait for all IO requests to complete.  */
-void qemu_aio_flush(void)
-{
-    qemu_aio_poll(NULL);
-    while (first_aio) {
-        qemu_aio_wait();
-    }
-}
-
-void qemu_aio_wait(void)
-{
-    int ret;
-
-    if (qemu_bh_poll())
-        return;
-
-    if (!first_aio)
-        return;
-
-    do {
-        fd_set rdfds;
-
-        FD_ZERO(&rdfds);
-        FD_SET(aio_sig_fd, &rdfds);
-
-        ret = select(aio_sig_fd + 1, &rdfds, NULL, NULL, NULL);
-        if (ret == -1 && errno == EINTR)
-            continue;
-    } while (ret == 0);
-
-    qemu_aio_poll(NULL);
+    return 0;
 }
 
 static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
@@ -588,7 +576,7 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     if (!acb)
         return NULL;
     acb->aiocb.aio_fildes = s->fd;
-    acb->aiocb.aio_sigevent.sigev_signo = aio_sig_num;
+    acb->aiocb.aio_sigevent.sigev_signo = SIGUSR2;
     acb->aiocb.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
     acb->aiocb.aio_buf = buf;
     if (nb_sectors < 0)
@@ -596,8 +584,8 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     else
         acb->aiocb.aio_nbytes = nb_sectors * 512;
     acb->aiocb.aio_offset = sector_num * 512;
-    acb->next = first_aio;
-    first_aio = acb;
+    acb->next = posix_aio_state->first_aio;
+    posix_aio_state->first_aio = acb;
     return acb;
 }
 
@@ -688,7 +676,7 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 
     /* remove the callback from the queue */
-    pacb = &first_aio;
+    pacb = &posix_aio_state->first_aio;
     for(;;) {
         if (*pacb == NULL) {
             break;
@@ -701,21 +689,10 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
-# else /* CONFIG_AIO */
-
-void qemu_aio_init(void)
+#else /* CONFIG_AIO */
+static int posix_aio_init(void)
 {
 }
-
-void qemu_aio_flush(void)
-{
-}
-
-void qemu_aio_wait(void)
-{
-    qemu_bh_poll();
-}
-
 #endif /* CONFIG_AIO */
 
 static void raw_close(BlockDriverState *bs)
@@ -920,6 +897,8 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int fd, open_flags, ret;
+
+    posix_aio_init();
 
 #ifdef CONFIG_COCOA
     if (strstart(filename, "/dev/cdrom", NULL)) {
