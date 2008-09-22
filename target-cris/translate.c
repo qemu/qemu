@@ -216,11 +216,11 @@ static inline void t_gen_mov_preg_TN(DisasContext *dc, int r, TCGv tn)
 	else if (r == PR_SRS)
 		tcg_gen_andi_tl(cpu_PR[r], tn, 3);
 	else {
-		tcg_gen_mov_tl(cpu_PR[r], tn);
 		if (r == PR_PID) 
 			tcg_gen_helper_0_1(helper_tlb_flush_pid, tn);
 		else if (r == PR_CCS)
 			dc->cpustate_changed = 1;
+		tcg_gen_mov_tl(cpu_PR[r], tn);
 	}
 }
 
@@ -1223,8 +1223,11 @@ void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
 		else
 			tcg_gen_qemu_ld16u(dst, addr, mem_index);
 	}
-	else {
+	else if (size == 4) {
 		tcg_gen_qemu_ld32u(dst, addr, mem_index);
+	}
+	else if (size == 8) {
+		tcg_gen_qemu_ld64(dst, addr, mem_index);
 	}
 }
 
@@ -1248,7 +1251,6 @@ void gen_store (DisasContext *dc, TCGv addr, TCGv val,
 		return;
 	}
 
-	/* Remember, operands are flipped. CRIS has reversed order.  */
 	if (size == 1)
 		tcg_gen_qemu_st8(val, addr, mem_index);
 	else if (size == 2)
@@ -2548,27 +2550,38 @@ static unsigned int dec_movem_mr(DisasContext *dc)
 {
 	TCGv tmp[16];
 	int i;
+	int nr = dc->op2 + 1;
 
 	DIS(fprintf (logfile, "movem [$r%u%s, $r%u\n", dc->op1,
 		    dc->postinc ? "+]" : "]", dc->op2));
 
-	/* fetch the address into T0 and T1.  */
+	/* There are probably better ways of doing this.  */
 	cris_flush_cc_state(dc);
-	for (i = 0; i <= dc->op2; i++) {
-		tmp[i] = tcg_temp_new(TCG_TYPE_TL);
-		/* Perform the load onto regnum i. Always dword wide.  */
-		tcg_gen_addi_tl(cpu_T[0], cpu_R[dc->op1], i * 4);
+	for (i = 0; i < (nr >> 1); i++) {
+		tmp[i] = tcg_temp_new(TCG_TYPE_I64);
+		tcg_gen_addi_tl(cpu_T[0], cpu_R[dc->op1], i * 8);
+		gen_load(dc, tmp[i], cpu_T[0], 8, 0);
+	}
+	if (nr & 1) {
+		tmp[i] = tcg_temp_new(TCG_TYPE_I32);
+		tcg_gen_addi_tl(cpu_T[0], cpu_R[dc->op1], i * 8);
 		gen_load(dc, tmp[i], cpu_T[0], 4, 0);
 	}
 
-	for (i = 0; i <= dc->op2; i++) {
-		tcg_gen_mov_tl(cpu_R[i], tmp[i]);
+	for (i = 0; i < (nr >> 1); i++) {
+		tcg_gen_trunc_i64_i32(cpu_R[i * 2], tmp[i]);
+		tcg_gen_shri_i64(tmp[i], tmp[i], 32);
+		tcg_gen_trunc_i64_i32(cpu_R[i * 2 + 1], tmp[i]);
+		tcg_temp_free(tmp[i]);
+	}
+	if (nr & 1) {
+		tcg_gen_mov_tl(cpu_R[dc->op2], tmp[i]);
 		tcg_temp_free(tmp[i]);
 	}
 
 	/* writeback the updated pointer value.  */
 	if (dc->postinc)
-		tcg_gen_addi_tl(cpu_R[dc->op1], cpu_R[dc->op1], i * 4);
+		tcg_gen_addi_tl(cpu_R[dc->op1], cpu_R[dc->op1], nr * 4);
 
 	/* gen_load might want to evaluate the previous insns flags.  */
 	cris_cc_mask(dc, 0);
@@ -2948,6 +2961,9 @@ cris_decoder(DisasContext *dc)
 	unsigned int insn_len = 2;
 	int i;
 
+	if (unlikely(loglevel & CPU_LOG_TB_OP))
+		tcg_gen_debug_insn_start(dc->pc);
+
 	/* Load a halfword onto the instruction register.  */
 	dc->ir = lduw_code(dc->pc);
 
@@ -3131,9 +3147,8 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
                 if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
                     gen_io_start();
 		dc->clear_x = 1;
-		if (unlikely(loglevel & CPU_LOG_TB_OP))
-			tcg_gen_debug_insn_start(dc->pc);
-		insn_len = cris_decoder(dc);
+
+		insn_len = cris_decoder(dc);		
 		dc->ppc = dc->pc;
 		dc->pc += insn_len;
 		if (dc->clear_x)
@@ -3357,9 +3372,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	}
 
 	TCG_HELPER(helper_raise_exception);
-	TCG_HELPER(helper_store);
 	TCG_HELPER(helper_dump);
-	TCG_HELPER(helper_dummy);
 
 	TCG_HELPER(helper_tlb_flush_pid);
 	TCG_HELPER(helper_movl_sreg_reg);

@@ -91,18 +91,15 @@ void helper_raise_exception(uint32_t index)
 void helper_tlb_flush_pid(uint32_t pid)
 {
 #if !defined(CONFIG_USER_ONLY)
-	cris_mmu_flush_pid(env, pid);
+	pid &= 0xff;
+	if (pid != (env->pregs[PR_PID] & 0xff))
+		cris_mmu_flush_pid(env, env->pregs[PR_PID]);
 #endif
 }
 
 void helper_dump(uint32_t a0, uint32_t a1, uint32_t a2)
 {
 	(fprintf(logfile, "%s: a0=%x a1=%x\n", __func__, a0, a1)); 
-}
-
-void helper_dummy(void)
-{
-
 }
 
 /* Used by the tlb decoder.  */
@@ -237,15 +234,6 @@ void helper_rfn(void)
 
     /* Always set the M flag.  */
     env->pregs[PR_CCS] |= M_FLAG;
-}
-
-void helper_store(uint32_t a0)
-{
-	if (env->pregs[PR_CCS] & P_FLAG )
-	{
-		cpu_abort(env, "cond_store_failed! pc=%x a0=%x\n",
-			  env->pc, a0);
-	}
 }
 
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
