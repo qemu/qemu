@@ -8981,7 +8981,6 @@ int main(int argc, char **argv)
 
     init_timers();
     init_timer_alarm();
-    qemu_aio_init();
     if (use_icount && icount_time_shift < 0) {
         use_icount = 2;
         /* 125MIPS seems a reasonable initial guess at the guest speed.
