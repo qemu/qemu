@@ -352,6 +352,9 @@ static int scsi_length(uint8_t *cmd, int blocksize, int *cmdlen, uint32_t *len)
     case 0:
         *len = cmd[4];
         *cmdlen = 6;
+        /* length 0 means 256 blocks */
+        if (*len == 0)
+            *len = 256;
         break;
     case 1:
     case 2:
