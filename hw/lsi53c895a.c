@@ -1199,6 +1199,11 @@ again:
         }
     }
     if (insn_processed > 10000 && !s->waiting) {
+        /* Some windows drivers make the device spin waiting for a memory
+           location to change.  If we have been executed a lot of code then
+           assume this is the case and force an unexpected device disconnect.
+           This is apparently sufficient to beat the drivers into submission.
+         */
         if (!(s->sien0 & LSI_SIST0_UDC))
             fprintf(stderr, "inf. loop with UDC masked\n");
         lsi_script_scsi_interrupt(s, LSI_SIST0_UDC, 0);
