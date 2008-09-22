@@ -548,8 +548,8 @@ static int get_blocksize(BlockDriverState *bdrv)
     sg_io_hdr_t io_header;
     int ret;
 
-    memset(cmd, sizeof(cmd), 0);
-    memset(buf, sizeof(buf), 0);
+    memset(cmd, 0, sizeof(cmd));
+    memset(buf, 0, sizeof(buf));
     cmd[0] = READ_CAPACITY;
 
     memset(&io_header, 0, sizeof(io_header));
