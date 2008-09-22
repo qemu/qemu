@@ -11,21 +11,21 @@ Export Qemu disk image using NBD protocol.
 @c man end
 
 @c man begin OPTIONS
-@table @var
-@item filename
+@table @option
+@item @var{filename}
  is a disk image filename
-@item -p, --port=PORT
-  port to listen on (default `1024')
-@item -o, --offset=OFFSET
+@item -p, --port=@var{port}
+  port to listen on (default @samp{1024})
+@item -o, --offset=@var{offset}
   offset into the image
-@item -b, --bind=IFACE
-  interface to bind to (default `0.0.0.0')
-@item -k, --socket=PATH
-  Use a unix socket with path PATH
+@item -b, --bind=@var{iface}
+  interface to bind to (default @samp{0.0.0.0})
+@item -k, --socket=@var{path}
+  Use a unix socket with path @var{path}
 @item -r, --read-only
   export read-only
-@item -P, --partition=NUM
-  only expose partition NUM
+@item -P, --partition=@var{num}
+  only expose partition @var{num}
 @item -s, --snapshot
   use snapshot file
 @item -n, --nocache
@@ -34,8 +34,8 @@ Export Qemu disk image using NBD protocol.
   connect FILE to NBD device DEV
 @item -d, --disconnect
   disconnect the specified device
-@item -e, --shared=NUM
-  device can be shared by NUM clients (default '1')
+@item -e, --shared=@var{num}
+  device can be shared by @var{num} clients (default @samp{1})
 @item -t, --persistent
   don't exit on the last connection
 @item -v, --verbose
