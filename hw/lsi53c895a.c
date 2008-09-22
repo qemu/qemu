@@ -839,9 +839,11 @@ static void lsi_execute_script(LSIState *s)
     uint32_t insn;
     uint32_t addr;
     int opcode;
+    int insn_processed = 0;
 
     s->istat1 |= LSI_ISTAT1_SRUN;
 again:
+    insn_processed++;
     insn = read_dword(s, s->dsp);
     addr = read_dword(s, s->dsp + 4);
     DPRINTF("SCRIPTS dsp=%08x opcode %08x arg %08x\n", s->dsp, insn, addr);
@@ -1196,8 +1198,12 @@ again:
             }
         }
     }
-    /* ??? Need to avoid infinite loops.  */
-    if (s->istat1 & LSI_ISTAT1_SRUN && !s->waiting) {
+    if (insn_processed > 10000 && !s->waiting) {
+        if (!(s->sien0 & LSI_SIST0_UDC))
+            fprintf(stderr, "inf. loop with UDC masked\n");
+        lsi_script_scsi_interrupt(s, LSI_SIST0_UDC, 0);
+        lsi_disconnect(s);
+    } else if (s->istat1 & LSI_ISTAT1_SRUN && !s->waiting) {
         if (s->dcntl & LSI_DCNTL_SSM) {
             lsi_script_dma_interrupt(s, LSI_DSTAT_SSI);
         } else {
