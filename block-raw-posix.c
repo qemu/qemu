@@ -511,6 +511,9 @@ void qemu_aio_init(void)
 {
     sigset_t mask;
 
+    if (aio_initialized)
+        return;
+
     aio_initialized = 1;
 
     /* Make sure to block AIO signal */
