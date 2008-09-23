@@ -44,12 +44,14 @@ do { fprintf(stderr, "scsi-generic: " fmt , ##args); } while (0)
 #include <scsi/sg.h>
 #include <scsi/scsi.h>
 
+#define REWIND 0x01
+#define REPORT_DENSITY_SUPPORT 0x44
 #define LOAD_UNLOAD 0xa6
 #define SET_CD_SPEED 0xbb
 #define BLANK 0xa1
 
 #define SCSI_CMD_BUF_SIZE     16
-#define SCSI_SENSE_BUF_SIZE 32
+#define SCSI_SENSE_BUF_SIZE 96
 
 #define SG_ERR_DRIVER_TIMEOUT 0x06
 #define SG_ERR_DRIVER_SENSE 0x08
@@ -75,6 +77,7 @@ struct SCSIDeviceState
 {
     SCSIRequest *requests;
     BlockDriverState *bdrv;
+    int type;
     int blocksize;
     int lun;
     scsi_completionfn completion;
@@ -163,7 +166,7 @@ static void scsi_command_complete(void *opaque, int ret)
         } else if ((s->driver_status & SG_ERR_DRIVER_SENSE) == 0)
             sense = NO_SENSE;
         else
-            sense = s->sensebuf[2] & 0x0f;
+            sense = s->sensebuf[2];
     }
 
     DPRINTF("Command complete 0x%p tag=0x%x sense=%d\n", r, r->tag, sense);
@@ -273,10 +276,14 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
 
     if (r->cmd[0] == REQUEST_SENSE && s->driver_status & SG_ERR_DRIVER_SENSE)
     {
-        memcpy(r->buf, s->sensebuf, 16);
+        int len = MIN(r->len, SCSI_SENSE_BUF_SIZE);
+        memcpy(r->buf, s->sensebuf, len);
         r->io_header.driver_status = 0;
         r->len = -1;
-        s->completion(s->opaque, SCSI_REASON_DATA, r->tag, 16);
+        DPRINTF("Sense: %d %d %d %d %d %d %d %d\n",
+                r->buf[0], r->buf[1], r->buf[2], r->buf[3],
+                r->buf[4], r->buf[5], r->buf[6], r->buf[7]);
+        s->completion(s->opaque, SCSI_REASON_DATA, r->tag, len);
         return;
     }
 
@@ -434,6 +441,32 @@ static int scsi_length(uint8_t *cmd, int blocksize, int *cmdlen, uint32_t *len)
     return 0;
 }
 
+static int scsi_stream_length(uint8_t *cmd, int blocksize, int *cmdlen, uint32_t *len)
+{
+    switch(cmd[0]) {
+    /* stream commands */
+    case READ_6:
+    case READ_REVERSE:
+    case RECOVER_BUFFERED_DATA:
+    case WRITE_6:
+        *cmdlen = 6;
+        *len = cmd[4] | (cmd[3] << 8) | (cmd[2] << 16);
+        if (cmd[1] & 0x01) /* fixed */
+            *len *= blocksize;
+        break;
+    case REWIND:
+    case START_STOP:
+        *cmdlen = 6;
+        *len = 0;
+        cmd[1] = 0x01;	/* force IMMED, otherwise qemu waits end of command */
+        break;
+    /* generic commands */
+    default:
+        return scsi_length(cmd, blocksize, cmdlen, len);
+    }
+    return 0;
+}
+
 static int is_write(int command)
 {
     switch (command) {
@@ -495,9 +528,16 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         return 0;
     }
 
-    if (scsi_length(cmd, s->blocksize, &cmdlen, &len) == -1) {
-        BADF("Unsupported command length, command %x\n", cmd[0]);
-        return 0;
+    if (s->type == TYPE_TAPE) {
+        if (scsi_stream_length(cmd, s->blocksize, &cmdlen, &len) == -1) {
+            BADF("Unsupported command length, command %x\n", cmd[0]);
+            return 0;
+        }
+     } else {
+        if (scsi_length(cmd, s->blocksize, &cmdlen, &len) == -1) {
+            BADF("Unsupported command length, command %x\n", cmd[0]);
+            return 0;
+        }
     }
 
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x len %d\n", lun, tag,
@@ -633,12 +673,17 @@ SCSIDevice *scsi_generic_init(BlockDriverState *bdrv, int tcq,
     s->completion = completion;
     s->opaque = opaque;
     s->lun = scsiid.lun;
+    s->type = scsiid.scsi_type;
     s->blocksize = get_blocksize(s->bdrv);
     s->driver_status = 0;
     memset(s->sensebuf, 0, sizeof(s->sensebuf));
     /* removable media returns 0 if not present */
-    if (s->blocksize <= 0)
-        s->blocksize = 2048;
+    if (s->blocksize <= 0) {
+        if (s->type == TYPE_ROM || s->type  == TYPE_WORM)
+            s->blocksize = 2048;
+        else
+            s->blocksize = 512;
+    }
 
     /* define function to manage device */
 
