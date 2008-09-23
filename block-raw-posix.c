@@ -545,7 +545,7 @@ static int posix_aio_init(void)
 
     qemu_aio_set_fd_handler(s->fd, posix_aio_read, NULL, posix_aio_flush, s);
 
-#if defined(__GLIBC__) && defined(__linux__)
+#if defined(__linux__) && defined(__GLIBC_PREREQ) && !__GLIBC_PREREQ(2, 4)
     {
         /* XXX: aio thread exit seems to hang on RedHat 9 and this init
            seems to fix the problem. */
