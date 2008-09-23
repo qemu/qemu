@@ -1418,8 +1418,9 @@ static inline void tcg_gen_concat32_i64(TCGv dest, TCGv low, TCGv high)
     tcg_gen_concat_i32_i64(dest, low, high);
 #else
     TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
+    tcg_gen_ext32u_i64(dest, low);
     tcg_gen_shli_i64(tmp, high, 32);
-    tcg_gen_or_i64(dest, low, tmp);
+    tcg_gen_or_i64(dest, dest, tmp);
     tcg_temp_free(tmp);
 #endif
 }
