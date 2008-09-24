@@ -136,6 +136,7 @@ void vga_hw_screen_dump(const char *filename);
 void vga_hw_text_update(console_ch_t *chardata);
 
 int is_graphic_console(void);
+int is_fixedsize_console(void);
 CharDriverState *text_console_init(DisplayState *ds, const char *p);
 void console_select(unsigned int index);
 void console_color_init(DisplayState *ds);

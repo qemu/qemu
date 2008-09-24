@@ -109,7 +109,8 @@ static int qemu_fifo_read(QEMUFIFO *f, uint8_t *buf, int len1)
 
 typedef enum {
     GRAPHIC_CONSOLE,
-    TEXT_CONSOLE
+    TEXT_CONSOLE,
+    TEXT_CONSOLE_FIXED_SIZE
 } console_type_t;
 
 /* ??? This is mis-named.
@@ -1046,7 +1047,7 @@ void console_select(unsigned int index)
     s = consoles[index];
     if (s) {
         active_console = s;
-        if (s->g_width && s->g_height
+        if (s->console_type != TEXT_CONSOLE && s->g_width && s->g_height
             && (s->g_width != s->ds->width || s->g_height != s->ds->height))
             dpy_resize(s->ds, s->g_width, s->g_height);
         vga_hw_invalidate();
@@ -1157,6 +1158,15 @@ static void text_console_invalidate(void *opaque)
 {
     TextConsole *s = (TextConsole *) opaque;
 
+    if (s->g_width != s->ds->width || s->g_height != s->ds->height) {
+        if (s->console_type == TEXT_CONSOLE_FIXED_SIZE)
+            dpy_resize(s->ds, s->g_width, s->g_height);
+        else {
+            s->g_width = s->ds->width;
+            s->g_height = s->ds->height;
+            text_console_resize(s);
+        }
+    }
     console_refresh(s);
 }
 
@@ -1242,6 +1252,11 @@ int is_graphic_console(void)
     return active_console && active_console->console_type == GRAPHIC_CONSOLE;
 }
 
+int is_fixedsize_console(void)
+{
+    return active_console && active_console->console_type != TEXT_CONSOLE;
+}
+
 void console_color_init(DisplayState *ds)
 {
     int i, j;
@@ -1264,14 +1279,11 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     chr = qemu_mallocz(sizeof(CharDriverState));
     if (!chr)
         return NULL;
-    s = new_console(ds, TEXT_CONSOLE);
+    s = new_console(ds, (p == 0) ? TEXT_CONSOLE : TEXT_CONSOLE_FIXED_SIZE);
     if (!s) {
         free(chr);
         return NULL;
     }
-    if (!p)
-        p = DEFAULT_MONITOR_SIZE;
-
     chr->opaque = s;
     chr->chr_write = console_puts;
     chr->chr_send_event = console_send_event;
@@ -1345,7 +1357,8 @@ void qemu_console_resize(QEMUConsole *console, int width, int height)
 }
 
 void qemu_console_copy(QEMUConsole *console, int src_x, int src_y,
-                int dst_x, int dst_y, int w, int h) {
+                int dst_x, int dst_y, int w, int h)
+{
     if (active_console == console) {
         if (console->ds->dpy_copy)
             console->ds->dpy_copy(console->ds,
