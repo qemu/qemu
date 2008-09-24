@@ -2,8 +2,8 @@
 
 include config-host.mak
 
-.PHONY: all clean distclean dvi info install install-doc tar tarbin \
-	speed test html dvi info
+.PHONY: all clean cscope distclean dvi html info install install-doc \
+	recurse-all speed tar tarbin test
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
@@ -32,7 +32,7 @@ ifdef CONFIG_WIN32
 LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
-all: $(TOOLS) $(DOCS) recurse-all 
+all: $(TOOLS) $(DOCS) recurse-all
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
@@ -287,6 +287,8 @@ info: qemu-doc.info qemu-tech.info
 dvi: qemu-doc.dvi qemu-tech.dvi
 
 html: qemu-doc.html qemu-tech.html
+
+qemu-doc.dvi qemu-doc.html qemu-doc.info: qemu-img.texi qemu-nbd.texi
 
 VERSION ?= $(shell cat VERSION)
 FILE = qemu-$(VERSION)
