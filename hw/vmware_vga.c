@@ -384,7 +384,7 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
 
 # ifdef DIRECT_VRAM
     if (s->ds->dpy_copy)
-        s->ds->dpy_copy(s->ds, x0, y0, x1, y1, w, h);
+        qemu_console_copy(s->console, x0, y0, x1, y1, w, h);
     else
 # endif
     {

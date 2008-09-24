@@ -140,6 +140,8 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p);
 void console_select(unsigned int index);
 void console_color_init(DisplayState *ds);
 void qemu_console_resize(QEMUConsole *console, int width, int height);
+void qemu_console_copy(QEMUConsole *console, int src_x, int src_y,
+                int dst_x, int dst_y, int w, int h);
 
 /* sdl.c */
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame);
