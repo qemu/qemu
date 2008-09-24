@@ -917,7 +917,7 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
             /* how many free clusters ? */
 
             while (i < nb_clusters) {
-                cluster_offset = l2_table[l2_index + i];
+                cluster_offset = be64_to_cpu(l2_table[l2_index + i]);
                 if (cluster_offset != 0)
                     break;
                 i++;
