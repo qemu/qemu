@@ -1610,7 +1610,7 @@ static int vnc_tls_initialize(void)
     if (gnutls_dh_params_generate2 (dh_params, DH_BITS) < 0)
 	return 0;
 
-#if _VNC_DEBUG == 2
+#if defined(_VNC_DEBUG) && _VNC_DEBUG >= 2
     gnutls_global_set_log_level(10);
     gnutls_global_set_log_function(vnc_debug_gnutls_log);
 #endif
