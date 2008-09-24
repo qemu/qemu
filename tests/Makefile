@@ -1,4 +1,5 @@
 -include ../config-host.mak
+VPATH=$(SRC_PATH)/tests
 
 CFLAGS=-Wall -O2 -g -fno-strict-aliasing
 #CFLAGS+=-msse2
@@ -33,11 +34,11 @@ test_path: test_path.c
 test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S \
            test-i386.h test-i386-shift.h test-i386-muldiv.h
 	$(CC) -m32 $(CFLAGS) $(LDFLAGS) -static -o $@ \
-              test-i386.c test-i386-code16.S test-i386-vm86.S -lm
+              $(<D)/test-i386.c $(<D)/test-i386-code16.S $(<D)/test-i386-vm86.S -lm
 
 test-x86_64: test-i386.c \
            test-i386.h test-i386-shift.h test-i386-muldiv.h
-	$(CC) -m64 $(CFLAGS) $(LDFLAGS) -static -o $@ test-i386.c -lm
+	$(CC) -m64 $(CFLAGS) $(LDFLAGS) -static -o $@ $(<D)/test-i386.c -lm
 
 ifeq ($(ARCH),i386)
 test: test-i386

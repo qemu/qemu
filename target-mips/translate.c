@@ -2130,7 +2130,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
-            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
 
             tcg_gen_ext32s_tl(t0, t0);
             tcg_gen_ext32s_tl(t1, t1);
@@ -2139,11 +2138,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
             gen_load_LO(t0, 0);
             gen_load_HI(t1, 0);
-            tcg_gen_extu_tl_i64(r_tmp2, t0);
-            tcg_gen_extu_tl_i64(r_tmp3, t1);
-            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
-            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
-            tcg_temp_free(r_tmp3);
+            tcg_gen_concat_tl_i64(r_tmp2, t0, t1);
             tcg_gen_add_i64(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
             tcg_gen_trunc_i64_tl(t0, r_tmp1);
@@ -2161,7 +2156,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
        {
             TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
-            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
 
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
@@ -2170,11 +2164,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
             gen_load_LO(t0, 0);
             gen_load_HI(t1, 0);
-            tcg_gen_extu_tl_i64(r_tmp2, t0);
-            tcg_gen_extu_tl_i64(r_tmp3, t1);
-            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
-            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
-            tcg_temp_free(r_tmp3);
+            tcg_gen_concat_tl_i64(r_tmp2, t0, t1);
             tcg_gen_add_i64(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
             tcg_gen_trunc_i64_tl(t0, r_tmp1);
@@ -2192,7 +2182,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
-            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
 
             tcg_gen_ext32s_tl(t0, t0);
             tcg_gen_ext32s_tl(t1, t1);
@@ -2201,11 +2190,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
             gen_load_LO(t0, 0);
             gen_load_HI(t1, 0);
-            tcg_gen_extu_tl_i64(r_tmp2, t0);
-            tcg_gen_extu_tl_i64(r_tmp3, t1);
-            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
-            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
-            tcg_temp_free(r_tmp3);
+            tcg_gen_concat_tl_i64(r_tmp2, t0, t1);
             tcg_gen_sub_i64(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
             tcg_gen_trunc_i64_tl(t0, r_tmp1);
@@ -2223,7 +2208,6 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I64);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I64);
-            TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I64);
 
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
@@ -2232,11 +2216,7 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
             tcg_gen_mul_i64(r_tmp1, r_tmp1, r_tmp2);
             gen_load_LO(t0, 0);
             gen_load_HI(t1, 0);
-            tcg_gen_extu_tl_i64(r_tmp2, t0);
-            tcg_gen_extu_tl_i64(r_tmp3, t1);
-            tcg_gen_shli_i64(r_tmp3, r_tmp3, 32);
-            tcg_gen_or_i64(r_tmp2, r_tmp2, r_tmp3);
-            tcg_temp_free(r_tmp3);
+            tcg_gen_concat_tl_i64(r_tmp2, t0, t1);
             tcg_gen_sub_i64(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
             tcg_gen_trunc_i64_tl(t0, r_tmp1);

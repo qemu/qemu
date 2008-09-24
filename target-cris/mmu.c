@@ -140,7 +140,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 
 	r_cause = env->sregs[SFR_R_MM_CAUSE];
 	r_cfg = env->sregs[SFR_RW_MM_CFG];
-	pid = env->pregs[PR_PID];
+	pid = env->pregs[PR_PID] & 0xff;
 
 	switch (rw) {
 		case 2: rwcause = CRIS_MMU_ERR_EXEC; mmu = 0; break;
@@ -270,7 +270,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		/* Update RW_MM_CAUSE.  */
 		set_field(&r_cause, rwcause, 8, 2);
 		set_field(&r_cause, vpage, 13, 19);
-		set_field(&r_cause, env->pregs[PR_PID], 0, 8);
+		set_field(&r_cause, pid, 0, 8);
 		env->sregs[SFR_R_MM_CAUSE] = r_cause;
 		D(printf("refill vaddr=%x pc=%x\n", vaddr, env->pc));
 	}
@@ -280,7 +280,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		  __func__, rw, match, env->pc,
 		  vaddr, vpage,
 		  tlb_vpn, tlb_pfn, tlb_pid, 
-		  env->pregs[PR_PID],
+		  pid,
 		  r_cause,
 		  env->sregs[SFR_RW_MM_TLB_SEL],
 		  env->regs[R_SP], env->pregs[PR_USP], env->ksp));
@@ -315,7 +315,7 @@ void cris_mmu_flush_pid(CPUState *env, uint32_t pid)
 
 				/* Kernel protected areas need to be flushed
 				   as well.  */
-				if (tlb_v && !tlb_g) {
+				if (tlb_v && !tlb_g && (tlb_pid == pid || tlb_k)) {
 					vaddr = tlb_vpn << TARGET_PAGE_BITS;
 					D(fprintf(logfile,
 						  "flush pid=%x vaddr=%x\n", 
