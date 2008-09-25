@@ -433,7 +433,7 @@ void cpu_reset(CPUX86State *env)
 
 void cpu_x86_close(CPUX86State *env)
 {
-    free(env);
+    qemu_free(env);
 }
 
 /***********************************************************/
