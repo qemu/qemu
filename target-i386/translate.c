@@ -6505,7 +6505,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         tcg_gen_helper_0_0(helper_rdpmc);
         break;
     case 0x134: /* sysenter */
-        if (CODE64(s))
+        /* For Intel SYSENTER is valid on 64-bit */
+        if (CODE64(s) && cpu_single_env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
             goto illegal_op;
         if (!s->pe) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
@@ -6520,7 +6521,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         }
         break;
     case 0x135: /* sysexit */
-        if (CODE64(s))
+        /* For Intel SYSEXIT is valid on 64-bit */
+        if (CODE64(s) && cpu_single_env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1)
             goto illegal_op;
         if (!s->pe) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
@@ -6530,7 +6532,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 s->cc_op = CC_OP_DYNAMIC;
             }
             gen_jmp_im(pc_start - s->cs_base);
-            tcg_gen_helper_0_0(helper_sysexit);
+            tcg_gen_helper_0_1(helper_sysexit, tcg_const_i32(dflag));
             gen_eob(s);
         }
         break;

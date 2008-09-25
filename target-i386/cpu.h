@@ -549,8 +549,8 @@ typedef struct CPUX86State {
 
     /* sysenter registers */
     uint32_t sysenter_cs;
-    uint32_t sysenter_esp;
-    uint32_t sysenter_eip;
+    target_ulong sysenter_esp;
+    target_ulong sysenter_eip;
     uint64_t efer;
     uint64_t star;
 
@@ -737,7 +737,7 @@ static inline int cpu_get_time_fast(void)
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 
-#define CPU_SAVE_VERSION 6
+#define CPU_SAVE_VERSION 7
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

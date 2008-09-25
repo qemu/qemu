@@ -55,7 +55,7 @@ DEF_HELPER(void, helper_enter_level, (int level, int data32, target_ulong t1))
 DEF_HELPER(void, helper_enter64_level, (int level, int data64, target_ulong t1))
 #endif
 DEF_HELPER(void, helper_sysenter, (void))
-DEF_HELPER(void, helper_sysexit, (void))
+DEF_HELPER(void, helper_sysexit, (int dflag))
 #ifdef TARGET_X86_64
 DEF_HELPER(void, helper_syscall, (int next_eip_addend))
 DEF_HELPER(void, helper_sysret, (int dflag))

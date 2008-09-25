@@ -88,9 +88,9 @@ void cpu_save(QEMUFile *f, void *opaque)
     cpu_put_seg(f, &env->gdt);
     cpu_put_seg(f, &env->idt);
 
-    qemu_put_be32s(f, &env->sysenter_cs);
-    qemu_put_be32s(f, &env->sysenter_esp);
-    qemu_put_be32s(f, &env->sysenter_eip);
+    qemu_put_betls(f, &env->sysenter_cs);
+    qemu_put_betls(f, &env->sysenter_esp);
+    qemu_put_betls(f, &env->sysenter_eip);
 
     qemu_put_betls(f, &env->cr[0]);
     qemu_put_betls(f, &env->cr[2]);
@@ -169,7 +169,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     int32_t a20_mask;
 
     if (version_id != 3 && version_id != 4 && version_id != 5
-        && version_id != 6)
+        && version_id != 6 && version_id != 7)
         return -EINVAL;
     for(i = 0; i < CPU_NB_REGS; i++)
         qemu_get_betls(f, &env->regs[i]);
@@ -244,8 +244,13 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     cpu_get_seg(f, &env->idt);
 
     qemu_get_be32s(f, &env->sysenter_cs);
-    qemu_get_be32s(f, &env->sysenter_esp);
-    qemu_get_be32s(f, &env->sysenter_eip);
+    if (version_id >= 7) {
+        qemu_get_betls(f, &env->sysenter_esp);
+        qemu_get_betls(f, &env->sysenter_eip);
+    } else {
+        qemu_get_be32s(f, &env->sysenter_esp);
+        qemu_get_be32s(f, &env->sysenter_eip);
+    }
 
     qemu_get_betls(f, &env->cr[0]);
     qemu_get_betls(f, &env->cr[2]);
