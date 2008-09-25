@@ -1919,6 +1919,43 @@ void helper_cpuid(void)
         ECX = 0;
         EDX = 0x2c307d;
         break;
+    case 4:
+        /* cache info: needed for Core compatibility */
+        switch (ECX) {
+            case 0: /* L1 dcache info */
+                EAX = 0x0000121;
+                EBX = 0x1c0003f;
+                ECX = 0x000003f;
+                EDX = 0x0000001;
+                break;
+            case 1: /* L1 icache info */
+                EAX = 0x0000122;
+                EBX = 0x1c0003f;
+                ECX = 0x000003f;
+                EDX = 0x0000001;
+                break;
+            case 2: /* L2 cache info */
+                EAX = 0x0000143;
+                EBX = 0x3c0003f;
+                ECX = 0x0000fff;
+                EDX = 0x0000001;
+                break;
+            default: /* end of info */
+                EAX = 0;
+                EBX = 0;
+                ECX = 0;
+                EDX = 0;
+                break;
+        }
+
+        break;
+    case 5:
+        /* mwait info: needed for Core compatibility */
+        EAX = 0; /* Smallest monitor-line size in bytes */
+        EBX = 0; /* Largest monitor-line size in bytes */
+        ECX = CPUID_MWAIT_EMX | CPUID_MWAIT_IBE;
+        EDX = 0;
+        break;
     case 0x80000000:
         EAX = env->cpuid_xlevel;
         EBX = env->cpuid_vendor1;
@@ -3088,6 +3125,12 @@ void helper_wrmsr(void)
         break;
     case MSR_VM_HSAVE_PA:
         env->vm_hsave = val;
+        break;
+    case MSR_IA32_PERF_STATUS:
+        /* tsc_increment_by_tick */ 
+        val = 1000ULL;
+        /* CPU multiplier */
+        val |= (((uint64_t)4ULL) << 40);
         break;
 #ifdef TARGET_X86_64
     case MSR_LSTAR:

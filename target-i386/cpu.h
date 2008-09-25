@@ -242,6 +242,8 @@
 #define MSR_MCG_STATUS                  0x17a
 #define MSR_MCG_CTL                     0x17b
 
+#define MSR_IA32_PERF_STATUS            0x198
+
 #define MSR_PAT                         0x277
 
 #define MSR_EFER                        0xc0000080
@@ -340,6 +342,9 @@
 #define CPUID_VENDOR_AMD_1   0x68747541 /* "Auth" */
 #define CPUID_VENDOR_AMD_2   0x69746e65 /* "enti" */ 
 #define CPUID_VENDOR_AMD_3   0x444d4163 /* "cAMD" */
+
+#define CPUID_MWAIT_IBE     (1 << 1) /* Interrupts can exit capability */
+#define CPUID_MWAIT_EMX     (0 << 1) /* enumeration supported */
 
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
