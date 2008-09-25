@@ -146,9 +146,9 @@ static x86_def_t x86_defs[] = {
     {
         .name = "qemu64",
         .level = 2,
-        .vendor1 = 0x68747541, /* "Auth" */
-        .vendor2 = 0x69746e65, /* "enti" */
-        .vendor3 = 0x444d4163, /* "cAMD" */
+        .vendor1 = CPUID_VENDOR_AMD_1,
+        .vendor2 = CPUID_VENDOR_AMD_2,
+        .vendor3 = CPUID_VENDOR_AMD_3,
         .family = 6,
         .model = 2,
         .stepping = 3,
@@ -347,9 +347,9 @@ static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
         env->cpuid_vendor2 = def->vendor2;
         env->cpuid_vendor3 = def->vendor3;
     } else {
-        env->cpuid_vendor1 = 0x756e6547; /* "Genu" */
-        env->cpuid_vendor2 = 0x49656e69; /* "ineI" */
-        env->cpuid_vendor3 = 0x6c65746e; /* "ntel" */
+        env->cpuid_vendor1 = CPUID_VENDOR_INTEL_1;
+        env->cpuid_vendor2 = CPUID_VENDOR_INTEL_2;
+        env->cpuid_vendor3 = CPUID_VENDOR_INTEL_3;
     }
     env->cpuid_level = def->level;
     env->cpuid_version = (def->family << 8) | (def->model << 4) | def->stepping;
