@@ -1,5 +1,5 @@
 /*
- *  MMX/3DNow!/SSE/SSE2/SSE3/PNI support
+ *  MMX/3DNow!/SSE/SSE2/SSE3/SSSE3/PNI support
  *
  *  Copyright (c) 2005 Fabrice Bellard
  *
@@ -1274,6 +1274,151 @@ void helper_pswapd(MMXReg *d, MMXReg *s)
     *d = r;
 }
 #endif
+
+/* SSSE3 op helpers */
+void glue(helper_pshufb, SUFFIX) (Reg *d, Reg *s)
+{
+    int i;
+    Reg r;
+
+    for (i = 0; i < (8 << SHIFT); i++)
+        r.B(i) = (s->B(i) & 0x80) ? 0 : (d->B(s->B(i) & ((8 << SHIFT) - 1)));
+
+    *d = r;
+}
+
+void glue(helper_phaddw, SUFFIX) (Reg *d, Reg *s)
+{
+    d->W(0) = (int16_t)d->W(0) + (int16_t)d->W(1);
+    d->W(1) = (int16_t)d->W(2) + (int16_t)d->W(3);
+    XMM_ONLY(d->W(2) = (int16_t)d->W(4) + (int16_t)d->W(5));
+    XMM_ONLY(d->W(3) = (int16_t)d->W(6) + (int16_t)d->W(7));
+    d->W((2 << SHIFT) + 0) = (int16_t)s->W(0) + (int16_t)s->W(1);
+    d->W((2 << SHIFT) + 1) = (int16_t)s->W(2) + (int16_t)s->W(3);
+    XMM_ONLY(d->W(6) = (int16_t)s->W(4) + (int16_t)s->W(5));
+    XMM_ONLY(d->W(7) = (int16_t)s->W(6) + (int16_t)s->W(7));
+}
+
+void glue(helper_phaddd, SUFFIX) (Reg *d, Reg *s)
+{
+    d->L(0) = (int32_t)d->L(0) + (int32_t)d->L(1);
+    XMM_ONLY(d->L(1) = (int32_t)d->L(2) + (int32_t)d->L(3));
+    d->L((1 << SHIFT) + 0) = (int32_t)s->L(0) + (int32_t)s->L(1);
+    XMM_ONLY(d->L(3) = (int32_t)s->L(2) + (int32_t)s->L(3));
+}
+
+void glue(helper_phaddsw, SUFFIX) (Reg *d, Reg *s)
+{
+    d->W(0) = satsw((int16_t)d->W(0) + (int16_t)d->W(1));
+    d->W(1) = satsw((int16_t)d->W(2) + (int16_t)d->W(3));
+    XMM_ONLY(d->W(2) = satsw((int16_t)d->W(4) + (int16_t)d->W(5)));
+    XMM_ONLY(d->W(3) = satsw((int16_t)d->W(6) + (int16_t)d->W(7)));
+    d->W((2 << SHIFT) + 0) = satsw((int16_t)s->W(0) + (int16_t)s->W(1));
+    d->W((2 << SHIFT) + 1) = satsw((int16_t)s->W(2) + (int16_t)s->W(3));
+    XMM_ONLY(d->W(6) = satsw((int16_t)s->W(4) + (int16_t)s->W(5)));
+    XMM_ONLY(d->W(7) = satsw((int16_t)s->W(6) + (int16_t)s->W(7)));
+}
+
+void glue(helper_pmaddubsw, SUFFIX) (Reg *d, Reg *s)
+{
+    d->W(0) = satsw((int8_t)s->B( 0) * (uint8_t)d->B( 0) +
+                    (int8_t)s->B( 1) * (uint8_t)d->B( 1));
+    d->W(1) = satsw((int8_t)s->B( 2) * (uint8_t)d->B( 2) +
+                    (int8_t)s->B( 3) * (uint8_t)d->B( 3));
+    d->W(2) = satsw((int8_t)s->B( 4) * (uint8_t)d->B( 4) +
+                    (int8_t)s->B( 5) * (uint8_t)d->B( 5));
+    d->W(3) = satsw((int8_t)s->B( 6) * (uint8_t)d->B( 6) +
+                    (int8_t)s->B( 7) * (uint8_t)d->B( 7));
+#if SHIFT == 1
+    d->W(4) = satsw((int8_t)s->B( 8) * (uint8_t)d->B( 8) +
+                    (int8_t)s->B( 9) * (uint8_t)d->B( 9));
+    d->W(5) = satsw((int8_t)s->B(10) * (uint8_t)d->B(10) +
+                    (int8_t)s->B(11) * (uint8_t)d->B(11));
+    d->W(6) = satsw((int8_t)s->B(12) * (uint8_t)d->B(12) +
+                    (int8_t)s->B(13) * (uint8_t)d->B(13));
+    d->W(7) = satsw((int8_t)s->B(14) * (uint8_t)d->B(14) +
+                    (int8_t)s->B(15) * (uint8_t)d->B(15));
+#endif
+}
+
+void glue(helper_phsubw, SUFFIX) (Reg *d, Reg *s)
+{
+    d->W(0) = (int16_t)d->W(0) - (int16_t)d->W(1);
+    d->W(1) = (int16_t)d->W(2) - (int16_t)d->W(3);
+    XMM_ONLY(d->W(2) = (int16_t)d->W(4) - (int16_t)d->W(5));
+    XMM_ONLY(d->W(3) = (int16_t)d->W(6) - (int16_t)d->W(7));
+    d->W((2 << SHIFT) + 0) = (int16_t)s->W(0) - (int16_t)s->W(1);
+    d->W((2 << SHIFT) + 1) = (int16_t)s->W(2) - (int16_t)s->W(3);
+    XMM_ONLY(d->W(6) = (int16_t)s->W(4) - (int16_t)s->W(5));
+    XMM_ONLY(d->W(7) = (int16_t)s->W(6) - (int16_t)s->W(7));
+}
+
+void glue(helper_phsubd, SUFFIX) (Reg *d, Reg *s)
+{
+    d->L(0) = (int32_t)d->L(0) - (int32_t)d->L(1);
+    XMM_ONLY(d->L(1) = (int32_t)d->L(2) - (int32_t)d->L(3));
+    d->L((1 << SHIFT) + 0) = (int32_t)s->L(0) - (int32_t)s->L(1);
+    XMM_ONLY(d->L(3) = (int32_t)s->L(2) - (int32_t)s->L(3));
+}
+
+void glue(helper_phsubsw, SUFFIX) (Reg *d, Reg *s)
+{
+    d->W(0) = satsw((int16_t)d->W(0) - (int16_t)d->W(1));
+    d->W(1) = satsw((int16_t)d->W(2) - (int16_t)d->W(3));
+    XMM_ONLY(d->W(2) = satsw((int16_t)d->W(4) - (int16_t)d->W(5)));
+    XMM_ONLY(d->W(3) = satsw((int16_t)d->W(6) - (int16_t)d->W(7)));
+    d->W((2 << SHIFT) + 0) = satsw((int16_t)s->W(0) - (int16_t)s->W(1));
+    d->W((2 << SHIFT) + 1) = satsw((int16_t)s->W(2) - (int16_t)s->W(3));
+    XMM_ONLY(d->W(6) = satsw((int16_t)s->W(4) - (int16_t)s->W(5)));
+    XMM_ONLY(d->W(7) = satsw((int16_t)s->W(6) - (int16_t)s->W(7)));
+}
+
+#define FABSB(_, x) x > INT8_MAX  ? -(int8_t ) x : x
+#define FABSW(_, x) x > INT16_MAX ? -(int16_t) x : x
+#define FABSL(_, x) x > INT32_MAX ? -(int32_t) x : x
+SSE_HELPER_B(helper_pabsb, FABSB)
+SSE_HELPER_W(helper_pabsw, FABSW)
+SSE_HELPER_L(helper_pabsd, FABSL)
+
+#define FMULHRSW(d, s) ((int16_t) d * (int16_t) s + 0x4000) >> 15
+SSE_HELPER_W(helper_pmulhrsw, FMULHRSW)
+
+#define FSIGNB(d, s) s <= INT8_MAX  ? s ? d : 0 : -(int8_t ) d
+#define FSIGNW(d, s) s <= INT16_MAX ? s ? d : 0 : -(int16_t) d
+#define FSIGNL(d, s) s <= INT32_MAX ? s ? d : 0 : -(int32_t) d
+SSE_HELPER_B(helper_psignb, FSIGNB)
+SSE_HELPER_W(helper_psignw, FSIGNW)
+SSE_HELPER_L(helper_psignd, FSIGNL)
+
+void glue(helper_palignr, SUFFIX) (Reg *d, Reg *s, int32_t shift)
+{
+    Reg r;
+
+    /* XXX could be checked during translation */
+    if (shift >= (16 << SHIFT)) {
+        r.Q(0) = 0;
+        XMM_ONLY(r.Q(1) = 0);
+    } else {
+        shift <<= 3;
+#define SHR(v, i) (i < 64 && i > -64 ? i > 0 ? v >> (i) : (v << -(i)) : 0)
+#if SHIFT == 0
+        r.Q(0) = SHR(s->Q(0), shift -   0) |
+                 SHR(d->Q(0), shift -  64);
+#else
+        r.Q(0) = SHR(s->Q(0), shift -   0) |
+                 SHR(s->Q(1), shift -  64) |
+                 SHR(d->Q(0), shift - 128) |
+                 SHR(d->Q(1), shift - 192);
+        r.Q(1) = SHR(s->Q(0), shift +  64) |
+                 SHR(s->Q(1), shift -   0) |
+                 SHR(d->Q(0), shift -  64) |
+                 SHR(d->Q(1), shift - 128);
+#endif
+#undef SHR
+    }
+
+    *d = r;
+}
 
 #undef SHIFT
 #undef XMM_ONLY

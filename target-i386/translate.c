@@ -2770,6 +2770,9 @@ static void *sse_op_table1[256][4] = {
     [0xc2] = SSE_FOP(cmpeq),
     [0xc6] = { helper_shufps, helper_shufpd },
 
+    [0x38] = { SSE_SPECIAL, SSE_SPECIAL },  /* SSSE3 */
+    [0x3a] = { SSE_SPECIAL, SSE_SPECIAL },  /* SSSE3 */
+
     /* MMX ops and their SSE extensions */
     [0x60] = MMX_OP2(punpcklbw),
     [0x61] = MMX_OP2(punpcklwd),
@@ -2921,6 +2924,28 @@ static void *sse_op_table5[256] = {
     [0xbf] = helper_pavgb_mmx /* pavgusb */
 };
 
+static void *sse_op_table6[256][2] = {
+    [0x00] = MMX_OP2(pshufb),
+    [0x01] = MMX_OP2(phaddw),
+    [0x02] = MMX_OP2(phaddd),
+    [0x03] = MMX_OP2(phaddsw),
+    [0x04] = MMX_OP2(pmaddubsw),
+    [0x05] = MMX_OP2(phsubw),
+    [0x06] = MMX_OP2(phsubd),
+    [0x07] = MMX_OP2(phsubsw),
+    [0x08] = MMX_OP2(psignb),
+    [0x09] = MMX_OP2(psignw),
+    [0x0a] = MMX_OP2(psignd),
+    [0x0b] = MMX_OP2(pmulhrsw),
+    [0x1c] = MMX_OP2(pabsb),
+    [0x1d] = MMX_OP2(pabsw),
+    [0x1e] = MMX_OP2(pabsd),
+};
+
+static void *sse_op_table7[256][2] = {
+    [0x0f] = MMX_OP2(palignr),
+};
+
 static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
 {
     int b1, op1_offset, op2_offset, is_xmm, val, ot;
@@ -2960,7 +2985,8 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         return;
     }
     if (is_xmm && !(s->flags & HF_OSFXSR_MASK))
-        goto illegal_op;
+        if ((b != 0x38 && b != 0x3a) || (s->prefix & PREFIX_DATA))
+            goto illegal_op;
     if (b == 0x0e) {
         if (!(s->cpuid_ext2_features & CPUID_EXT2_3DNOW))
             goto illegal_op;
@@ -3481,6 +3507,84 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
             reg = ((modrm >> 3) & 7) | rex_r;
             gen_op_mov_reg_T0(OT_LONG, reg);
+            break;
+        case 0x038:
+        case 0x138:
+            if (!(s->cpuid_ext_features & CPUID_EXT_SSSE3))
+                goto illegal_op;
+
+            b = modrm;
+            modrm = ldub_code(s->pc++);
+            rm = modrm & 7;
+            reg = ((modrm >> 3) & 7) | rex_r;
+            mod = (modrm >> 6) & 3;
+
+            sse_op2 = sse_op_table6[b][b1];
+            if (!sse_op2)
+                goto illegal_op;
+
+            if (b1) {
+                op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
+                if (mod == 3) {
+                    op2_offset = offsetof(CPUX86State,xmm_regs[rm | REX_B(s)]);
+                } else {
+                    op2_offset = offsetof(CPUX86State,xmm_t0);
+                    gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                    gen_ldo_env_A0(s->mem_index, op2_offset);
+                }
+            } else {
+                op1_offset = offsetof(CPUX86State,fpregs[reg].mmx);
+                if (mod == 3) {
+                    op2_offset = offsetof(CPUX86State,fpregs[rm].mmx);
+                } else {
+                    op2_offset = offsetof(CPUX86State,mmx_t0);
+                    gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                    gen_ldq_env_A0(s->mem_index, op2_offset);
+                }
+            }
+            tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
+            tcg_gen_addi_ptr(cpu_ptr1, cpu_env, op2_offset);
+            tcg_gen_helper_0_2(sse_op2, cpu_ptr0, cpu_ptr1);
+            break;
+        case 0x03a:
+        case 0x13a:
+            if (!(s->cpuid_ext_features & CPUID_EXT_SSSE3))
+                goto illegal_op;
+
+            b = modrm;
+            modrm = ldub_code(s->pc++);
+            rm = modrm & 7;
+            reg = ((modrm >> 3) & 7) | rex_r;
+            mod = (modrm >> 6) & 3;
+
+            sse_op2 = sse_op_table7[b][b1];
+            if (!sse_op2)
+                goto illegal_op;
+
+            if (b1) {
+                op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
+                if (mod == 3) {
+                    op2_offset = offsetof(CPUX86State,xmm_regs[rm | REX_B(s)]);
+                } else {
+                    op2_offset = offsetof(CPUX86State,xmm_t0);
+                    gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                    gen_ldo_env_A0(s->mem_index, op2_offset);
+                }
+            } else {
+                op1_offset = offsetof(CPUX86State,fpregs[reg].mmx);
+                if (mod == 3) {
+                    op2_offset = offsetof(CPUX86State,fpregs[rm].mmx);
+                } else {
+                    op2_offset = offsetof(CPUX86State,mmx_t0);
+                    gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
+                    gen_ldq_env_A0(s->mem_index, op2_offset);
+                }
+            }
+            val = ldub_code(s->pc++);
+
+            tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
+            tcg_gen_addi_ptr(cpu_ptr1, cpu_env, op2_offset);
+            tcg_gen_helper_0_3(sse_op2, cpu_ptr0, cpu_ptr1, tcg_const_i32(val));
             break;
         default:
             goto illegal_op;
@@ -6987,7 +7091,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_eob(s);
         }
         break;
-    /* MMX/3DNow!/SSE/SSE2/SSE3 support */
+    /* MMX/3DNow!/SSE/SSE2/SSE3/SSSE3 support */
     case 0x1c3: /* MOVNTI reg, mem */
         if (!(s->cpuid_features & CPUID_SSE2))
             goto illegal_op;
@@ -7100,6 +7204,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         s->prefix &= ~(PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA);
     case 0x110 ... 0x117:
     case 0x128 ... 0x12f:
+    case 0x138 ... 0x13a:
     case 0x150 ... 0x177:
     case 0x17c ... 0x17f:
     case 0x1c2:

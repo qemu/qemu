@@ -1,5 +1,5 @@
 /*
- *  MMX/3DNow!/SSE/SSE2/SSE3/PNI support
+ *  MMX/3DNow!/SSE/SSE2/SSE3/SSSE3/PNI support
  *
  *  Copyright (c) 2005 Fabrice Bellard
  *
@@ -250,6 +250,24 @@ DEF_HELPER(void, helper_pfsub, (MMXReg *d, MMXReg *s))
 DEF_HELPER(void, helper_pfsubr, (MMXReg *d, MMXReg *s))
 DEF_HELPER(void, helper_pswapd, (MMXReg *d, MMXReg *s))
 #endif
+
+/* SSSE3 op helpers */
+DEF_HELPER(void, glue(helper_phaddw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_phaddd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_phaddsw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_phsubw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_phsubd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_phsubsw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pabsb, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pabsw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pabsd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmaddubsw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmulhrsw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pshufb, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_psignb, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_psignw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_psignd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_palignr, SUFFIX), (Reg *d, Reg *s, int32_t shift))
 
 #undef SHIFT
 #undef Reg
