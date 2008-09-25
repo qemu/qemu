@@ -1046,8 +1046,8 @@ static void tsc210x_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->pll[0]);
     qemu_put_be16s(f, &s->pll[1]);
     qemu_put_be16s(f, &s->volume);
-    qemu_put_sbe64(f, (s->volume_change - now));
-    qemu_put_sbe64(f, (s->powerdown - now));
+    qemu_put_be64(f, (uint64_t) (s->volume_change - now));
+    qemu_put_be64(f, (uint64_t) (s->powerdown - now));
     qemu_put_byte(f, s->softstep);
     qemu_put_be16s(f, &s->dac_power);
 
@@ -1092,8 +1092,8 @@ static int tsc210x_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->pll[0]);
     qemu_get_be16s(f, &s->pll[1]);
     qemu_get_be16s(f, &s->volume);
-    s->volume_change = qemu_get_sbe64(f) + now;
-    s->powerdown = qemu_get_sbe64(f) + now;
+    s->volume_change = (int64_t) qemu_get_be64(f) + now;
+    s->powerdown = (int64_t) qemu_get_be64(f) + now;
     s->softstep = qemu_get_byte(f);
     qemu_get_be16s(f, &s->dac_power);
 

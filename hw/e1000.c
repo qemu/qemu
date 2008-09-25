@@ -102,8 +102,8 @@ typedef struct E1000State_st {
         uint32_t paylen;
         uint16_t tso_frames;
         char tse;
-        int8_t ip;
-        int8_t tcp;
+        char ip;
+        char tcp;
         char cptse;     // current packet tse bit
     } tx;
 
@@ -824,8 +824,8 @@ nic_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->tx.size);
     qemu_put_be16s(f, &s->tx.tso_frames);
     qemu_put_8s(f, &s->tx.sum_needed);
-    qemu_put_s8s(f, &s->tx.ip);
-    qemu_put_s8s(f, &s->tx.tcp);
+    qemu_put_8s(f, &s->tx.ip);
+    qemu_put_8s(f, &s->tx.tcp);
     qemu_put_buffer(f, s->tx.header, sizeof s->tx.header);
     qemu_put_buffer(f, s->tx.data, sizeof s->tx.data);
     for (i = 0; i < 64; i++)
@@ -849,7 +849,7 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
     if ((ret = pci_device_load(&s->dev, f)) < 0)
         return ret;
     if (version_id == 1)
-        qemu_get_sbe32s(f, &i); /* once some unused instance id */
+        qemu_get_be32s(f, &i); /* once some unused instance id */
     qemu_get_be32s(f, &s->mmio_base);
     qemu_get_be32s(f, &s->rxbuf_size);
     qemu_get_be32s(f, &s->rxbuf_min_shift);
@@ -870,8 +870,8 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->tx.size);
     qemu_get_be16s(f, &s->tx.tso_frames);
     qemu_get_8s(f, &s->tx.sum_needed);
-    qemu_get_s8s(f, &s->tx.ip);
-    qemu_get_s8s(f, &s->tx.tcp);
+    qemu_get_8s(f, &s->tx.ip);
+    qemu_get_8s(f, &s->tx.tcp);
     qemu_get_buffer(f, s->tx.header, sizeof s->tx.header);
     qemu_get_buffer(f, s->tx.data, sizeof s->tx.data);
     for (i = 0; i < 64; i++)

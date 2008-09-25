@@ -185,9 +185,9 @@ static void tmp105_save(QEMUFile *f, void *opaque)
 
     qemu_put_8s(f, &s->pointer);
     qemu_put_8s(f, &s->config);
-    qemu_put_sbe16s(f, &s->temperature);
-    qemu_put_sbe16s(f, &s->limit[0]);
-    qemu_put_sbe16s(f, &s->limit[1]);
+    qemu_put_be16s(f, (uint16_t *) &s->temperature);
+    qemu_put_be16s(f, (uint16_t *) &s->limit[0]);
+    qemu_put_be16s(f, (uint16_t *) &s->limit[1]);
     qemu_put_byte(f, s->alarm);
     s->faults = tmp105_faultq[(s->config >> 3) & 3];		/* F */
 
@@ -204,9 +204,9 @@ static int tmp105_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_8s(f, &s->pointer);
     qemu_get_8s(f, &s->config);
-    qemu_get_sbe16s(f, &s->temperature);
-    qemu_get_sbe16s(f, &s->limit[0]);
-    qemu_get_sbe16s(f, &s->limit[1]);
+    qemu_get_be16s(f, (uint16_t *) &s->temperature);
+    qemu_get_be16s(f, (uint16_t *) &s->limit[0]);
+    qemu_get_be16s(f, (uint16_t *) &s->limit[1]);
     s->alarm = qemu_get_byte(f);
 
     tmp105_interrupt_update(s);

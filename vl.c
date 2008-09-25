@@ -6247,9 +6247,9 @@ void qemu_fclose(QEMUFile *f)
     qemu_free(f);
 }
 
-void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
+void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
-    size_t l;
+    int l;
     while (size > 0) {
         l = IO_BUF_SIZE - f->buf_index;
         if (l > size)
@@ -6263,16 +6263,16 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
     }
 }
 
-void qemu_put_byte(QEMUFile *f, int8_t v)
+void qemu_put_byte(QEMUFile *f, int v)
 {
     f->buf[f->buf_index++] = v;
     if (f->buf_index >= IO_BUF_SIZE)
         qemu_fflush(f);
 }
 
-size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size1)
+int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size1)
 {
-    size_t size, l;
+    int size, l;
 
     size = size1;
     while (size > 0) {
@@ -6293,7 +6293,7 @@ size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size1)
     return size1 - size;
 }
 
-int8_t qemu_get_byte(QEMUFile *f)
+int qemu_get_byte(QEMUFile *f)
 {
     if (f->buf_index >= f->buf_size) {
         qemu_fill_buffer(f);
@@ -6329,13 +6329,13 @@ int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence)
     return pos;
 }
 
-void qemu_put_be16(QEMUFile *f, uint16_t v)
+void qemu_put_be16(QEMUFile *f, unsigned int v)
 {
     qemu_put_byte(f, v >> 8);
     qemu_put_byte(f, v);
 }
 
-void qemu_put_be32(QEMUFile *f, uint32_t v)
+void qemu_put_be32(QEMUFile *f, unsigned int v)
 {
     qemu_put_byte(f, v >> 24);
     qemu_put_byte(f, v >> 16);
@@ -6349,17 +6349,17 @@ void qemu_put_be64(QEMUFile *f, uint64_t v)
     qemu_put_be32(f, v);
 }
 
-uint16_t qemu_get_be16(QEMUFile *f)
+unsigned int qemu_get_be16(QEMUFile *f)
 {
-    uint16_t v;
+    unsigned int v;
     v = qemu_get_byte(f) << 8;
     v |= qemu_get_byte(f);
     return v;
 }
 
-uint32_t qemu_get_be32(QEMUFile *f)
+unsigned int qemu_get_be32(QEMUFile *f)
 {
-    uint32_t v;
+    unsigned int v;
     v = qemu_get_byte(f) << 24;
     v |= qemu_get_byte(f) << 16;
     v |= qemu_get_byte(f) << 8;
