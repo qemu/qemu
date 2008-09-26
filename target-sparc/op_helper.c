@@ -55,20 +55,6 @@ void raise_exception(int tt)
     cpu_loop_exit();
 }
 
-void helper_trap(target_ulong nb_trap)
-{
-    env->exception_index = TT_TRAP + (nb_trap & 0x7f);
-    cpu_loop_exit();
-}
-
-void helper_trapcc(target_ulong nb_trap, target_ulong do_trap)
-{
-    if (do_trap) {
-        env->exception_index = TT_TRAP + (nb_trap & 0x7f);
-        cpu_loop_exit();
-    }
-}
-
 static inline void set_cwp(int new_cwp)
 {
     cpu_set_cwp(env, new_cwp);

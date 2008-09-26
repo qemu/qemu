@@ -93,6 +93,9 @@ typedef struct DisasContext {
 #define QFPREG(r) (r & 0x1c)
 #endif
 
+#define UA2005_HTRAP_MASK 0xff
+#define V8_TRAP_MASK 0x7f
+
 static int sign_extend(int x, int len)
 {
     len = 32 - len;
@@ -2019,9 +2022,16 @@ static void disas_sparc_insn(DisasContext * dc)
                 cond = GET_FIELD(insn, 3, 6);
                 if (cond == 0x8) {
                     save_state(dc, cpu_cond);
-                    tcg_gen_helper_0_1(helper_trap, cpu_dst);
+                    if ((dc->def->features & CPU_FEATURE_HYPV) &&
+                        supervisor(dc))
+                        tcg_gen_andi_tl(cpu_dst, cpu_dst, UA2005_HTRAP_MASK);
+                    else
+                        tcg_gen_andi_tl(cpu_dst, cpu_dst, V8_TRAP_MASK);
+                    tcg_gen_addi_tl(cpu_dst, cpu_dst, TT_TRAP);
+                    tcg_gen_helper_0_1(raise_exception, cpu_dst);
                 } else if (cond != 0) {
                     TCGv r_cond = tcg_temp_new(TCG_TYPE_TL);
+                    int l1;
 #ifdef TARGET_SPARC64
                     /* V9 icc/xcc */
                     int cc = GET_FIELD_SP(insn, 11, 12);
@@ -2037,7 +2047,18 @@ static void disas_sparc_insn(DisasContext * dc)
                     save_state(dc, cpu_cond);
                     gen_cond(r_cond, 0, cond);
 #endif
-                    tcg_gen_helper_0_2(helper_trapcc, cpu_dst, r_cond);
+                    l1 = gen_new_label();
+                    tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
+
+                    if ((dc->def->features & CPU_FEATURE_HYPV) &&
+                        supervisor(dc))
+                        tcg_gen_andi_tl(cpu_dst, cpu_dst, UA2005_HTRAP_MASK);
+                    else
+                        tcg_gen_andi_tl(cpu_dst, cpu_dst, V8_TRAP_MASK);
+                    tcg_gen_addi_tl(cpu_dst, cpu_dst, TT_TRAP);
+                    tcg_gen_helper_0_1(raise_exception, cpu_dst);
+
+                    gen_set_label(l1);
                     tcg_temp_free(r_cond);
                 }
                 gen_op_next_insn();

@@ -38,8 +38,6 @@ DEF_HELPER(void, helper_tick_set_count, (void *opaque, uint64_t count))
 DEF_HELPER(uint64_t, helper_tick_get_count, (void *opaque))
 DEF_HELPER(void, helper_tick_set_limit, (void *opaque, uint64_t limit))
 #endif
-DEF_HELPER(void, helper_trap, (target_ulong nb_trap))
-DEF_HELPER(void, helper_trapcc, (target_ulong nb_trap, target_ulong do_trap))
 DEF_HELPER(void, helper_check_align, (target_ulong addr, uint32_t align))
 DEF_HELPER(void, helper_debug, (void))
 DEF_HELPER(void, helper_save, (void))
