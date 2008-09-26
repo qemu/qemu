@@ -10,6 +10,7 @@
 //#define DEBUG_UNALIGNED
 //#define DEBUG_UNASSIGNED
 //#define DEBUG_ASI
+//#define DEBUG_PCALL
 
 #ifdef DEBUG_MMU
 #define DPRINTF_MMU(fmt, args...) \
@@ -52,20 +53,6 @@ void raise_exception(int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit();
-}
-
-void helper_trap(target_ulong nb_trap)
-{
-    env->exception_index = TT_TRAP + (nb_trap & 0x7f);
-    cpu_loop_exit();
-}
-
-void helper_trapcc(target_ulong nb_trap, target_ulong do_trap)
-{
-    if (do_trap) {
-        env->exception_index = TT_TRAP + (nb_trap & 0x7f);
-        cpu_loop_exit();
-    }
 }
 
 static inline void set_cwp(int new_cwp)
@@ -1512,6 +1499,8 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x18: // As if user primary LE
     case 0x80: // Primary
     case 0x88: // Primary LE
+    case 0xe2: // UA2007 Primary block init
+    case 0xe3: // UA2007 Secondary block init
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
             if ((env->def->features & CPU_FEATURE_HYPV)
                 && env->hpstate & HS_PRIV) {
@@ -1784,6 +1773,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x18: // As if user primary LE
     case 0x80: // Primary
     case 0x88: // Primary LE
+    case 0xe2: // UA2007 Primary block init
+    case 0xe3: // UA2007 Secondary block init
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
             if ((env->def->features & CPU_FEATURE_HYPV)
                 && env->hpstate & HS_PRIV) {
@@ -2159,6 +2150,8 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
 
     helper_check_align(addr, 3);
     switch (asi) {
+    case 0xe0: // UA2007 Block commit store primary (cache flush)
+    case 0xe1: // UA2007 Block commit store secondary (cache flush)
     case 0xf0: // Block store primary
     case 0xf1: // Block store secondary
     case 0xf8: // Block store primary LE
