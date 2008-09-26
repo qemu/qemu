@@ -658,13 +658,12 @@ void cpu_reset(CPUSPARCState *env)
 #ifdef TARGET_SPARC64
     env->pstate = PS_PRIV;
     env->hpstate = HS_PRIV;
-    env->pc = 0x1fff0000020ULL; // XXX should be different for system_reset
     env->tsptr = &env->ts[env->tl & MAXTL_MASK];
 #else
-    env->pc = 0;
     env->mmuregs[0] &= ~(MMU_E | MMU_NF);
     env->mmuregs[0] |= env->def->mmu_bm;
 #endif
+    env->pc = 0;
     env->npc = env->pc + 4;
 #endif
 }
