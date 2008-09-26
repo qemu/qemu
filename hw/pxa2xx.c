@@ -1233,9 +1233,9 @@ static void pxa2xx_rtc_save(QEMUFile *f, void *opaque)
     qemu_put_be32s(f, &s->last_rycr);
     qemu_put_be32s(f, &s->last_swcr);
     qemu_put_be32s(f, &s->last_rtcpicr);
-    qemu_put_sbe64s(f, &s->last_hz);
-    qemu_put_sbe64s(f, &s->last_sw);
-    qemu_put_sbe64s(f, &s->last_pi);
+    qemu_put_be64s(f, (uint64_t *) &s->last_hz);
+    qemu_put_be64s(f, (uint64_t *) &s->last_sw);
+    qemu_put_be64s(f, (uint64_t *) &s->last_pi);
 }
 
 static int pxa2xx_rtc_load(QEMUFile *f, void *opaque, int version_id)
@@ -1257,9 +1257,9 @@ static int pxa2xx_rtc_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &s->last_rycr);
     qemu_get_be32s(f, &s->last_swcr);
     qemu_get_be32s(f, &s->last_rtcpicr);
-    qemu_get_sbe64s(f, &s->last_hz);
-    qemu_get_sbe64s(f, &s->last_sw);
-    qemu_get_sbe64s(f, &s->last_pi);
+    qemu_get_be64s(f, (uint64_t *) &s->last_hz);
+    qemu_get_be64s(f, (uint64_t *) &s->last_sw);
+    qemu_get_be64s(f, (uint64_t *) &s->last_pi);
 
     pxa2xx_rtc_alarm_update(s, s->rtsr);
 

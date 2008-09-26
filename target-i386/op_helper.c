@@ -1919,6 +1919,43 @@ void helper_cpuid(void)
         ECX = 0;
         EDX = 0x2c307d;
         break;
+    case 4:
+        /* cache info: needed for Core compatibility */
+        switch (ECX) {
+            case 0: /* L1 dcache info */
+                EAX = 0x0000121;
+                EBX = 0x1c0003f;
+                ECX = 0x000003f;
+                EDX = 0x0000001;
+                break;
+            case 1: /* L1 icache info */
+                EAX = 0x0000122;
+                EBX = 0x1c0003f;
+                ECX = 0x000003f;
+                EDX = 0x0000001;
+                break;
+            case 2: /* L2 cache info */
+                EAX = 0x0000143;
+                EBX = 0x3c0003f;
+                ECX = 0x0000fff;
+                EDX = 0x0000001;
+                break;
+            default: /* end of info */
+                EAX = 0;
+                EBX = 0;
+                ECX = 0;
+                EDX = 0;
+                break;
+        }
+
+        break;
+    case 5:
+        /* mwait info: needed for Core compatibility */
+        EAX = 0; /* Smallest monitor-line size in bytes */
+        EBX = 0; /* Largest monitor-line size in bytes */
+        ECX = CPUID_MWAIT_EMX | CPUID_MWAIT_IBE;
+        EDX = 0;
+        break;
     case 0x80000000:
         EAX = env->cpuid_xlevel;
         EBX = env->cpuid_vendor1;
@@ -2882,11 +2919,23 @@ void helper_sysenter(void)
     }
     env->eflags &= ~(VM_MASK | IF_MASK | RF_MASK);
     cpu_x86_set_cpl(env, 0);
-    cpu_x86_load_seg_cache(env, R_CS, env->sysenter_cs & 0xfffc,
-                           0, 0xffffffff,
-                           DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                           DESC_S_MASK |
-                           DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
+
+#ifdef TARGET_X86_64
+    if (env->hflags & HF_LMA_MASK) {
+        cpu_x86_load_seg_cache(env, R_CS, env->sysenter_cs & 0xfffc,
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK | DESC_L_MASK);
+    } else
+#endif
+    {
+        cpu_x86_load_seg_cache(env, R_CS, env->sysenter_cs & 0xfffc,
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
+    }
     cpu_x86_load_seg_cache(env, R_SS, (env->sysenter_cs + 8) & 0xfffc,
                            0, 0xffffffff,
                            DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
@@ -2896,7 +2945,7 @@ void helper_sysenter(void)
     EIP = env->sysenter_eip;
 }
 
-void helper_sysexit(void)
+void helper_sysexit(int dflag)
 {
     int cpl;
 
@@ -2905,16 +2954,32 @@ void helper_sysexit(void)
         raise_exception_err(EXCP0D_GPF, 0);
     }
     cpu_x86_set_cpl(env, 3);
-    cpu_x86_load_seg_cache(env, R_CS, ((env->sysenter_cs + 16) & 0xfffc) | 3,
-                           0, 0xffffffff,
-                           DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                           DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
-                           DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
-    cpu_x86_load_seg_cache(env, R_SS, ((env->sysenter_cs + 24) & 0xfffc) | 3,
-                           0, 0xffffffff,
-                           DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
-                           DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
-                           DESC_W_MASK | DESC_A_MASK);
+#ifdef TARGET_X86_64
+    if (dflag == 2) {
+        cpu_x86_load_seg_cache(env, R_CS, ((env->sysenter_cs + 32) & 0xfffc) | 3,
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK | DESC_L_MASK);
+        cpu_x86_load_seg_cache(env, R_SS, ((env->sysenter_cs + 40) & 0xfffc) | 3,
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                               DESC_W_MASK | DESC_A_MASK);
+    } else
+#endif
+    {
+        cpu_x86_load_seg_cache(env, R_CS, ((env->sysenter_cs + 16) & 0xfffc) | 3,
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                               DESC_CS_MASK | DESC_R_MASK | DESC_A_MASK);
+        cpu_x86_load_seg_cache(env, R_SS, ((env->sysenter_cs + 24) & 0xfffc) | 3,
+                               0, 0xffffffff,
+                               DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
+                               DESC_S_MASK | (3 << DESC_DPL_SHIFT) |
+                               DESC_W_MASK | DESC_A_MASK);
+    }
     ESP = ECX;
     EIP = EDX;
 #ifdef USE_KQEMU
@@ -3088,6 +3153,12 @@ void helper_wrmsr(void)
         break;
     case MSR_VM_HSAVE_PA:
         env->vm_hsave = val;
+        break;
+    case MSR_IA32_PERF_STATUS:
+        /* tsc_increment_by_tick */ 
+        val = 1000ULL;
+        /* CPU multiplier */
+        val |= (((uint64_t)4ULL) << 40);
         break;
 #ifdef TARGET_X86_64
     case MSR_LSTAR:

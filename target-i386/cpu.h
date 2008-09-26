@@ -242,6 +242,8 @@
 #define MSR_MCG_STATUS                  0x17a
 #define MSR_MCG_CTL                     0x17b
 
+#define MSR_IA32_PERF_STATUS            0x198
+
 #define MSR_PAT                         0x277
 
 #define MSR_EFER                        0xc0000080
@@ -332,6 +334,17 @@
 #define CPUID_EXT3_OSVW    (1 << 9)
 #define CPUID_EXT3_IBS     (1 << 10)
 #define CPUID_EXT3_SKINIT  (1 << 12)
+
+#define CPUID_VENDOR_INTEL_1 0x756e6547 /* "Genu" */
+#define CPUID_VENDOR_INTEL_2 0x49656e69 /* "ineI" */
+#define CPUID_VENDOR_INTEL_3 0x6c65746e /* "ntel" */
+
+#define CPUID_VENDOR_AMD_1   0x68747541 /* "Auth" */
+#define CPUID_VENDOR_AMD_2   0x69746e65 /* "enti" */ 
+#define CPUID_VENDOR_AMD_3   0x444d4163 /* "cAMD" */
+
+#define CPUID_MWAIT_IBE     (1 << 1) /* Interrupts can exit capability */
+#define CPUID_MWAIT_EMX     (0 << 1) /* enumeration supported */
 
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
@@ -536,8 +549,8 @@ typedef struct CPUX86State {
 
     /* sysenter registers */
     uint32_t sysenter_cs;
-    uint32_t sysenter_esp;
-    uint32_t sysenter_eip;
+    target_ulong sysenter_esp;
+    target_ulong sysenter_eip;
     uint64_t efer;
     uint64_t star;
 
@@ -724,7 +737,7 @@ static inline int cpu_get_time_fast(void)
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 
-#define CPU_SAVE_VERSION 6
+#define CPU_SAVE_VERSION 7
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

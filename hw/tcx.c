@@ -372,9 +372,9 @@ static void tcx_save(QEMUFile *f, void *opaque)
 {
     TCXState *s = opaque;
 
-    qemu_put_be16s(f, &s->height);
-    qemu_put_be16s(f, &s->width);
-    qemu_put_be16s(f, &s->depth);
+    qemu_put_be16s(f, (uint16_t *)&s->height);
+    qemu_put_be16s(f, (uint16_t *)&s->width);
+    qemu_put_be16s(f, (uint16_t *)&s->depth);
     qemu_put_buffer(f, s->r, 256);
     qemu_put_buffer(f, s->g, 256);
     qemu_put_buffer(f, s->b, 256);
@@ -391,13 +391,13 @@ static int tcx_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
 
     if (version_id == 3) {
-        qemu_get_be32s(f, &dummy);
-        qemu_get_be32s(f, &dummy);
-        qemu_get_be32s(f, &dummy);
+        qemu_get_be32s(f, (uint32_t *)&dummy);
+        qemu_get_be32s(f, (uint32_t *)&dummy);
+        qemu_get_be32s(f, (uint32_t *)&dummy);
     }
-    qemu_get_be16s(f, &s->height);
-    qemu_get_be16s(f, &s->width);
-    qemu_get_be16s(f, &s->depth);
+    qemu_get_be16s(f, (uint16_t *)&s->height);
+    qemu_get_be16s(f, (uint16_t *)&s->width);
+    qemu_get_be16s(f, (uint16_t *)&s->depth);
     qemu_get_buffer(f, s->r, 256);
     qemu_get_buffer(f, s->g, 256);
     qemu_get_buffer(f, s->b, 256);

@@ -146,9 +146,9 @@ static x86_def_t x86_defs[] = {
     {
         .name = "qemu64",
         .level = 2,
-        .vendor1 = 0x68747541, /* "Auth" */
-        .vendor2 = 0x69746e65, /* "enti" */
-        .vendor3 = 0x444d4163, /* "cAMD" */
+        .vendor1 = CPUID_VENDOR_AMD_1,
+        .vendor2 = CPUID_VENDOR_AMD_2,
+        .vendor3 = CPUID_VENDOR_AMD_3,
         .family = 6,
         .model = 2,
         .stepping = 3,
@@ -164,6 +164,24 @@ static x86_def_t x86_defs[] = {
         .ext3_features = CPUID_EXT3_SVM,
         .xlevel = 0x8000000A,
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
+    },
+    {
+        .name = "core2duo",
+        /* original is on level 10 */
+        .level = 5,
+        .family = 6,
+        .model = 15,
+        .stepping = 11,
+        /* the original CPU does have many more features that are
+         * not implemented yet */
+        .features = PPRO_FEATURES |
+            CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
+            CPUID_PSE36,
+        .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_SSSE3,
+        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) |
+            CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
+        .xlevel = 0x8000000A,
+        .model_id = "Intel(R) Core(TM)2 Duo CPU     T7700  @ 2.40GHz",
     },
 #endif
     {
@@ -227,6 +245,27 @@ static x86_def_t x86_defs[] = {
         .xlevel = 0x80000008,
         /* XXX: put another string ? */
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
+    },
+    {
+        .name = "atom",
+        /* original is on level 10 */
+        .level = 5,
+        .family = 6,
+        .model = 28,
+        .stepping = 2,
+        .features = PPRO_FEATURES |
+            CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA | CPUID_VME,
+            /* Missing: CPUID_DTS | CPUID_ACPI | CPUID_SS |
+             * CPUID_HT | CPUID_TM | CPUID_PBE */
+            /* Some CPUs got no CPUID_SEP */
+        .ext_features = CPUID_EXT_MONITOR |
+            CPUID_EXT_SSE3 /* PNI */, CPUID_EXT_SSSE3,
+            /* Missing: CPUID_EXT_DSCPL | CPUID_EXT_EST |
+             * CPUID_EXT_TM2 | CPUID_EXT_XTPR */
+        .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | CPUID_EXT2_NX,
+        /* Missing: .ext3_features = CPUID_EXT3_LAHF_LM */
+        .xlevel = 0x8000000A,
+        .model_id = "Intel(R) Atom(TM) CPU N270   @ 1.60GHz",
     },
 };
 
@@ -347,9 +386,9 @@ static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
         env->cpuid_vendor2 = def->vendor2;
         env->cpuid_vendor3 = def->vendor3;
     } else {
-        env->cpuid_vendor1 = 0x756e6547; /* "Genu" */
-        env->cpuid_vendor2 = 0x49656e69; /* "ineI" */
-        env->cpuid_vendor3 = 0x6c65746e; /* "ntel" */
+        env->cpuid_vendor1 = CPUID_VENDOR_INTEL_1;
+        env->cpuid_vendor2 = CPUID_VENDOR_INTEL_2;
+        env->cpuid_vendor3 = CPUID_VENDOR_INTEL_3;
     }
     env->cpuid_level = def->level;
     env->cpuid_version = (def->family << 8) | (def->model << 4) | def->stepping;
@@ -433,7 +472,7 @@ void cpu_reset(CPUX86State *env)
 
 void cpu_x86_close(CPUX86State *env)
 {
-    free(env);
+    qemu_free(env);
 }
 
 /***********************************************************/
