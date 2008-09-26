@@ -10,6 +10,7 @@
 //#define DEBUG_UNALIGNED
 //#define DEBUG_UNASSIGNED
 //#define DEBUG_ASI
+//#define DEBUG_PCALL
 
 #ifdef DEBUG_MMU
 #define DPRINTF_MMU(fmt, args...) \
