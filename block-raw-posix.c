@@ -600,7 +600,6 @@ static int posix_aio_init(void)
     ai.aio_threads = 1;
     ai.aio_num = 1;
     ai.aio_idle_time = 365 * 100000;
-    }
 #endif
     aio_init(&ai);
     posix_aio_state = s;
