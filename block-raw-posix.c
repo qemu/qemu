@@ -84,10 +84,16 @@
    reopen it to see if the disk has been changed */
 #define FD_OPEN_TIMEOUT 1000
 
+/* posix-aio doesn't allow multiple outstanding requests to a single file
+ * descriptor.  we implement a pool of dup()'d file descriptors to work
+ * around this */
+#define RAW_FD_POOL_SIZE	64
+
 typedef struct BDRVRawState {
     int fd;
     int type;
     unsigned int lseek_err_cnt;
+    int fd_pool[RAW_FD_POOL_SIZE];
 #if defined(__linux__)
     /* linux floppy specific */
     int fd_open_flags;
@@ -109,6 +115,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int fd, open_flags, ret;
+    int i;
 
     posix_aio_init();
 
@@ -138,6 +145,8 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         return ret;
     }
     s->fd = fd;
+    for (i = 0; i < RAW_FD_POOL_SIZE; i++)
+        s->fd_pool[i] = -1;
 #if defined(O_DIRECT)
     s->aligned_buf = NULL;
     if (flags & BDRV_O_DIRECT) {
@@ -436,6 +445,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
 
 typedef struct RawAIOCB {
     BlockDriverAIOCB common;
+    int fd;
     struct aiocb aiocb;
     struct RawAIOCB *next;
     int ret;
@@ -446,6 +456,38 @@ typedef struct PosixAioState
     int fd;
     RawAIOCB *first_aio;
 } PosixAioState;
+
+static int raw_fd_pool_get(BDRVRawState *s)
+{
+    int i;
+
+    for (i = 0; i < RAW_FD_POOL_SIZE; i++) {
+        /* already in use */
+        if (s->fd_pool[i] != -1)
+            continue;
+
+        /* try to dup file descriptor */
+        s->fd_pool[i] = dup(s->fd);
+        if (s->fd_pool[i] != -1)
+            return s->fd_pool[i];
+    }
+
+    /* we couldn't dup the file descriptor so just use the main one */
+    return s->fd;
+}
+
+static void raw_fd_pool_put(RawAIOCB *acb)
+{
+    BDRVRawState *s = acb->common.bs->opaque;
+    int i;
+
+    for (i = 0; i < RAW_FD_POOL_SIZE; i++) {
+        if (s->fd_pool[i] == acb->fd) {
+            close(s->fd_pool[i]);
+            s->fd_pool[i] = -1;
+        }
+    }
+}
 
 static void posix_aio_read(void *opaque)
 {
@@ -487,6 +529,7 @@ static void posix_aio_read(void *opaque)
             if (ret == ECANCELED) {
                 /* remove the request */
                 *pacb = acb->next;
+                raw_fd_pool_put(acb);
                 qemu_aio_release(acb);
             } else if (ret != EINPROGRESS) {
                 /* end of aio */
@@ -503,6 +546,7 @@ static void posix_aio_read(void *opaque)
                 *pacb = acb->next;
                 /* call the callback */
                 acb->common.cb(acb->common.opaque, ret);
+                raw_fd_pool_put(acb);
                 qemu_aio_release(acb);
                 break;
             } else {
@@ -577,7 +621,8 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     acb = qemu_aio_get(bs, cb, opaque);
     if (!acb)
         return NULL;
-    acb->aiocb.aio_fildes = s->fd;
+    acb->fd = raw_fd_pool_get(s);
+    acb->aiocb.aio_fildes = acb->fd;
     acb->aiocb.aio_sigevent.sigev_signo = SIGUSR2;
     acb->aiocb.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
     acb->aiocb.aio_buf = buf;
@@ -684,6 +729,7 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
             break;
         } else if (*pacb == acb) {
             *pacb = acb->next;
+            raw_fd_pool_put(acb);
             qemu_aio_release(acb);
             break;
         }
@@ -697,6 +743,18 @@ static int posix_aio_init(void)
 }
 #endif /* CONFIG_AIO */
 
+static void raw_close_fd_pool(BDRVRawState *s)
+{
+    int i;
+
+    for (i = 0; i < RAW_FD_POOL_SIZE; i++) {
+        if (s->fd_pool[i] != -1) {
+            close(s->fd_pool[i]);
+            s->fd_pool[i] = -1;
+        }
+    }
+}
+
 static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -708,6 +766,7 @@ static void raw_close(BlockDriverState *bs)
             qemu_free(s->aligned_buf);
 #endif
     }
+    raw_close_fd_pool(s);
 }
 
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
@@ -898,7 +957,7 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
 static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, open_flags, ret;
+    int fd, open_flags, ret, i;
 
     posix_aio_init();
 
@@ -963,6 +1022,8 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         return ret;
     }
     s->fd = fd;
+    for (i = 0; i < RAW_FD_POOL_SIZE; i++)
+        s->fd_pool[i] = -1;
 #if defined(__linux__)
     /* close fd so that we can reopen it as needed */
     if (s->type == FTYPE_FD) {
@@ -975,7 +1036,6 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 }
 
 #if defined(__linux__)
-
 /* Note: we do not have a reliable method to detect if the floppy is
    present. The current method is to try to open the floppy at every
    I/O and to keep it opened during a few hundreds of ms. */
@@ -991,6 +1051,7 @@ static int fd_open(BlockDriverState *bs)
         (qemu_get_clock(rt_clock) - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
         close(s->fd);
         s->fd = -1;
+        raw_close_fd_pool(s);
 #ifdef DEBUG_FLOPPY
         printf("Floppy closed\n");
 #endif
@@ -1091,6 +1152,7 @@ static int raw_eject(BlockDriverState *bs, int eject_flag)
             if (s->fd >= 0) {
                 close(s->fd);
                 s->fd = -1;
+                raw_close_fd_pool(s);
             }
             fd = open(bs->filename, s->fd_open_flags | O_NONBLOCK);
             if (fd >= 0) {
