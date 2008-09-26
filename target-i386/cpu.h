@@ -344,7 +344,7 @@
 #define CPUID_VENDOR_AMD_3   0x444d4163 /* "cAMD" */
 
 #define CPUID_MWAIT_IBE     (1 << 1) /* Interrupts can exit capability */
-#define CPUID_MWAIT_EMX     (0 << 1) /* enumeration supported */
+#define CPUID_MWAIT_EMX     (1 << 0) /* enumeration supported */
 
 #define EXCP00_DIVZ	0
 #define EXCP01_SSTP	1
