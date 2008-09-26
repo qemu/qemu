@@ -569,7 +569,6 @@ static int posix_aio_init(void)
 {
     sigset_t mask;
     PosixAioState *s;
-    struct aioinit ai;
   
     if (posix_aio_state)
         return 0;
@@ -590,18 +589,24 @@ static int posix_aio_init(void)
 
     qemu_aio_set_fd_handler(s->fd, posix_aio_read, NULL, posix_aio_flush, s);
 
-    memset(&ai, 0, sizeof(ai));
-#if !defined(__linux__) || (defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 4))
-    ai.aio_threads = 5;
-    ai.aio_num = 1;
+#if defined(__linux__)
+    {
+        struct aioinit ai;
+
+        memset(&ai, 0, sizeof(ai));
+#if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 4)
+        ai.aio_threads = 64;
+        ai.aio_num = 64;
 #else
-    /* XXX: aio thread exit seems to hang on RedHat 9 and this init
-       seems to fix the problem. */
-    ai.aio_threads = 1;
-    ai.aio_num = 1;
-    ai.aio_idle_time = 365 * 100000;
+        /* XXX: aio thread exit seems to hang on RedHat 9 and this init
+           seems to fix the problem. */
+        ai.aio_threads = 1;
+        ai.aio_num = 1;
+        ai.aio_idle_time = 365 * 100000;
 #endif
-    aio_init(&ai);
+        aio_init(&ai);
+    }
+#endif
     posix_aio_state = s;
 
     return 0;
