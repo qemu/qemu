@@ -33,35 +33,35 @@ static void *sigwait_compat(void *opaque)
     sigprocmask(SIG_BLOCK, &all, NULL);
 
     do {
-	siginfo_t siginfo;
+        siginfo_t siginfo;
 
-	err = sigwaitinfo(&info->mask, &siginfo);
-	if (err == -1 && errno == EINTR) {
+        err = sigwaitinfo(&info->mask, &siginfo);
+        if (err == -1 && errno == EINTR) {
             err = 0;
             continue;
         }
 
-	if (err > 0) {
-	    char buffer[128];
-	    size_t offset = 0;
+        if (err > 0) {
+            char buffer[128];
+            size_t offset = 0;
 
-	    memcpy(buffer, &err, sizeof(err));
-	    while (offset < sizeof(buffer)) {
-		ssize_t len;
+            memcpy(buffer, &err, sizeof(err));
+            while (offset < sizeof(buffer)) {
+                ssize_t len;
 
-		len = write(info->fd, buffer + offset,
-			    sizeof(buffer) - offset);
-		if (len == -1 && errno == EINTR)
-		    continue;
+                len = write(info->fd, buffer + offset,
+                            sizeof(buffer) - offset);
+                if (len == -1 && errno == EINTR)
+                    continue;
 
-		if (len <= 0) {
-		    err = -1;
-		    break;
-		}
+                if (len <= 0) {
+                    err = -1;
+                    break;
+                }
 
-		offset += len;
-	    }
-	}
+                offset += len;
+            }
+        }
     } while (err >= 0);
 
     return NULL;
@@ -76,13 +76,13 @@ static int qemu_signalfd_compat(const sigset_t *mask)
 
     info = malloc(sizeof(*info));
     if (info == NULL) {
-	errno = ENOMEM;
-	return -1;
+        errno = ENOMEM;
+        return -1;
     }
 
     if (pipe(fds) == -1) {
-	free(info);
-	return -1;
+        free(info);
+        return -1;
     }
 
     memcpy(&info->mask, mask, sizeof(*mask));
@@ -105,7 +105,7 @@ int qemu_signalfd(const sigset_t *mask)
 
     ret = syscall(SYS_signalfd, -1, mask, _NSIG / 8);
     if (!(ret == -1 && errno == ENOSYS))
-	return ret;
+        return ret;
 #endif
 
     return qemu_signalfd_compat(mask);
@@ -118,10 +118,10 @@ int qemu_eventfd(int *fds)
 
     ret = syscall(SYS_eventfd, 0);
     if (ret >= 0) {
-	fds[0] = fds[1] = ret;
-	return 0;
+        fds[0] = fds[1] = ret;
+        return 0;
     } else if (!(ret == -1 && errno == ENOSYS))
-	return ret;
+        return ret;
 #endif
 
     return pipe(fds);
