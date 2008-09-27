@@ -60,7 +60,7 @@ static void curses_update(DisplayState *ds, int x, int y, int w, int h)
 
 static void curses_calc_pad(void)
 {
-    if (is_graphic_console()) {
+    if (is_fixedsize_console()) {
         width = gwidth;
         height = gheight;
     } else {

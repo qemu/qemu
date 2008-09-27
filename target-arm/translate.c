@@ -2808,7 +2808,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         tmp2 = new_tmp();
                         tcg_gen_mov_i32(tmp2, tmp);
                         neon_store_reg(rn, 0, tmp2);
-                        neon_store_reg(rn, 0, tmp);
+                        neon_store_reg(rn, 1, tmp);
                     } else {
                         /* VMOV */
                         switch (size) {
@@ -3815,7 +3815,7 @@ static int disas_neon_ls_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 tmp2 = new_tmp();
                 tcg_gen_mov_i32(tmp2, tmp);
                 neon_store_reg(rd, 0, tmp2);
-                neon_store_reg(rd, 0, tmp);
+                neon_store_reg(rd, 1, tmp);
                 rd += stride;
             }
             stride = (1 << size) * nregs;
@@ -5499,7 +5499,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 }
             } else if ((insn & (1 << 10)) == 0) {
                 /* VTBL, VTBX.  */
-                n = (insn >> 5) & 0x18;
+                n = ((insn >> 5) & 0x18) + 8;
                 if (insn & (1 << 6)) {
                     tmp = neon_load_reg(rd, 0);
                 } else {
@@ -5509,6 +5509,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 tmp2 = neon_load_reg(rm, 0);
                 gen_helper_neon_tbl(tmp2, tmp2, tmp, tcg_const_i32(rn),
                                     tcg_const_i32(n));
+                dead_tmp(tmp);
                 if (insn & (1 << 6)) {
                     tmp = neon_load_reg(rd, 1);
                 } else {
@@ -5519,7 +5520,8 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 gen_helper_neon_tbl(tmp3, tmp3, tmp, tcg_const_i32(rn),
                                     tcg_const_i32(n));
                 neon_store_reg(rd, 0, tmp2);
-                neon_store_reg(rd, 1, tmp2);
+                neon_store_reg(rd, 1, tmp3);
+                dead_tmp(tmp);
             } else if ((insn & 0x380) == 0) {
                 /* VDUP */
                 if (insn & (1 << 19)) {

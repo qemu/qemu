@@ -474,9 +474,9 @@ static void *qemu_st_helpers[4] = {
 
 static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, data_reg, data_reg2, r0, mem_index, s_bits, bswap;
+    int addr_reg, data_reg, data_reg2, r0, r1, mem_index, s_bits, bswap;
 #ifdef CONFIG_SOFTMMU
-    int r1, r2;
+    int r2;
     void *label1_ptr, *label2_ptr;
 #endif
 #if TARGET_LONG_BITS == 64
@@ -599,6 +599,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
 #else  /* !CONFIG_SOFTMMU */
     r0 = addr_reg;
+    r1 = 3;
 #endif
 
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -632,17 +633,9 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
         break;
     case 3:
         if (bswap) {
-            if (r0 == data_reg) {
-                tcg_out32 (s, LWBRX | RT (0) | RB (r0));
-                tcg_out32 (s, ADDI | RT (r0) | RA (r0) |  4);
-                tcg_out32 (s, LWBRX | RT (data_reg2) | RB (r0));
-                tcg_out_mov (s, data_reg, 0);
-            }
-            else {
-                tcg_out32 (s, LWBRX | RT (data_reg) | RB (r0));
-                tcg_out32 (s, ADDI | RT (r0) | RA (r0) |  4);
-                tcg_out32 (s, LWBRX | RT (data_reg2) | RB (r0));
-            }
+            tcg_out32 (s, ADDI | RT (r1) | RA (r0) |  4);
+            tcg_out32 (s, LWBRX | RT (data_reg) | RB (r0));
+            tcg_out32 (s, LWBRX | RT (data_reg2) | RB (r1));
         }
         else {
             if (r0 == data_reg2) {

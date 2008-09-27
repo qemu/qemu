@@ -769,13 +769,13 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
 		      s->cirrus_blt_width, s->cirrus_blt_height);
 
     if (notify)
-	s->ds->dpy_copy(s->ds,
-			sx, sy, dx, dy,
-			s->cirrus_blt_width / depth,
-			s->cirrus_blt_height);
+	qemu_console_copy(s->console,
+			  sx, sy, dx, dy,
+			  s->cirrus_blt_width / depth,
+			  s->cirrus_blt_height);
 
     /* we don't have to notify the display that this portion has
-       changed since dpy_copy implies this */
+       changed since qemu_console_copy implies this */
 
     if (!notify)
 	cirrus_invalidate_region(s, s->cirrus_blt_dstaddr,

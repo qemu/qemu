@@ -10,8 +10,8 @@ Control_L 0x1d
 
 # Translate Super to Windows keys.
 # This is hardcoded. See documentation for details.
-Super_R 0xdb
-Super_L 0xdc
+Super_R 0xdc
+Super_L 0xdb
 
 # Translate Menu to the Windows Application key.
 Menu 0xdd
