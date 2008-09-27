@@ -100,11 +100,11 @@ static int qemu_signalfd_compat(const sigset_t *mask)
 
 int qemu_signalfd(const sigset_t *mask)
 {
-#if defined(SYS_signalfd)
+#if defined(CONFIG_signalfd)
     int ret;
 
     ret = syscall(SYS_signalfd, -1, mask, _NSIG / 8);
-    if (!(ret == -1 && errno == ENOSYS))
+    if (ret != -1)
         return ret;
 #endif
 
@@ -113,15 +113,14 @@ int qemu_signalfd(const sigset_t *mask)
 
 int qemu_eventfd(int *fds)
 {
-#if defined(SYS_eventfd)
+#if defined(CONFIG_eventfd)
     int ret;
 
     ret = syscall(SYS_eventfd, 0);
     if (ret >= 0) {
         fds[0] = fds[1] = ret;
         return 0;
-    } else if (!(ret == -1 && errno == ENOSYS))
-        return ret;
+    }
 #endif
 
     return pipe(fds);

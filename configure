@@ -110,6 +110,8 @@ curses="yes"
 aio="yes"
 nptl="yes"
 mixemu="no"
+signalfd="no"
+eventfd="no"
 
 # OS specific
 targetos=`uname -s`
@@ -901,6 +903,33 @@ EOF
   fi
 fi
 
+##########################################
+# signalfd probe
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <signal.h>
+int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }
+EOF
+
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  signalfd=yes
+fi
+
+##########################################
+# eventfd probe
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
+int main(void) { return syscall(SYS_eventfd, 0); }
+EOF
+
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  eventfd=yes
+fi
+
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
    [ -x "`which pod2man 2>/dev/null`" ]; then
@@ -1228,6 +1257,12 @@ fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
   echo "CONFIG_AIO=yes" >> $config_mak
+fi
+if test "$signalfd" = "yes" ; then
+  echo "#define CONFIG_signalfd 1" >> $config_h
+fi
+if test "$eventfd" = "yes" ; then
+  echo "#define CONFIG_eventfd 1" >> $config_h
 fi
 
 # XXX: suppress that

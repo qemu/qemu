@@ -584,6 +584,10 @@ static int posix_aio_init(void)
     
     s->first_aio = NULL;
     s->fd = qemu_signalfd(&mask);
+    if (s->fd == -1) {
+        fprintf(stderr, "failed to create signalfd\n");
+        return -errno;
+    }
 
     fcntl(s->fd, F_SETFL, O_NONBLOCK);
 
