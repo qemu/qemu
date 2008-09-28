@@ -1292,6 +1292,7 @@ QEMUMachine ss5_machine = {
     .init = ss5_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine ss10_machine = {
@@ -1300,6 +1301,7 @@ QEMUMachine ss10_machine = {
     .init = ss10_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine ss600mp_machine = {
@@ -1308,6 +1310,7 @@ QEMUMachine ss600mp_machine = {
     .init = ss600mp_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine ss20_machine = {
@@ -1316,6 +1319,7 @@ QEMUMachine ss20_machine = {
     .init = ss20_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine ss2_machine = {
@@ -1324,6 +1328,7 @@ QEMUMachine ss2_machine = {
     .init = ss2_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine voyager_machine = {
@@ -1332,6 +1337,7 @@ QEMUMachine voyager_machine = {
     .init = vger_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine ss_lx_machine = {
@@ -1340,6 +1346,7 @@ QEMUMachine ss_lx_machine = {
     .init = ss_lx_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine ss4_machine = {
@@ -1348,6 +1355,7 @@ QEMUMachine ss4_machine = {
     .init = ss4_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine scls_machine = {
@@ -1356,6 +1364,7 @@ QEMUMachine scls_machine = {
     .init = scls_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine sbook_machine = {
@@ -1364,6 +1373,7 @@ QEMUMachine sbook_machine = {
     .init = sbook_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 static const struct sun4d_hwdef sun4d_hwdefs[] = {
@@ -1611,6 +1621,7 @@ QEMUMachine ss1000_machine = {
     .init = ss1000_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine ss2000_machine = {
@@ -1619,4 +1630,5 @@ QEMUMachine ss2000_machine = {
     .init = ss2000_init,
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };

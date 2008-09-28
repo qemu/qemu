@@ -5461,12 +5461,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     index = -1;
     cache = 1;
 
-    if (!strcmp(machine->name, "realview") ||
-        !strcmp(machine->name, "SS-5") ||
-        !strcmp(machine->name, "SS-10") ||
-        !strcmp(machine->name, "SS-600MP") ||
-        !strcmp(machine->name, "versatilepb") ||
-        !strcmp(machine->name, "versatileab")) {
+    if (machine->use_scsi) {
         type = IF_SCSI;
         max_devs = MAX_SCSI_DEVS;
         pstrcpy(devname, sizeof(devname), "scsi");

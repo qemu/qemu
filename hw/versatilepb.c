@@ -316,13 +316,15 @@ static void vab_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine versatilepb_machine = {
-    "versatilepb",
-    "ARM Versatile/PB (ARM926EJ-S)",
-    vpb_init,
+    .name = "versatilepb",
+    .desc = "ARM Versatile/PB (ARM926EJ-S)",
+    .init = vpb_init,
+    .use_scsi = 1,
 };
 
 QEMUMachine versatileab_machine = {
-    "versatileab",
-    "ARM Versatile/AB (ARM926EJ-S)",
-    vab_init,
+    .name = "versatileab",
+    .desc = "ARM Versatile/AB (ARM926EJ-S)",
+    .init = vab_init,
+    .use_scsi = 1,
 };
