@@ -31,6 +31,7 @@
 #include "devices.h"
 #include "flash.h"
 #include "hw.h"
+#include "bt.h"
 
 /* Nokia N8x0 support */
 struct n800_s {
@@ -121,10 +122,6 @@ struct n800_s {
 #define N8X0_USB_SYNC_CS		4
 
 #define N8X0_BD_ADDR			0x00, 0x1a, 0x89, 0x9e, 0x3e, 0x81
-
-typedef struct {
-    uint8_t b[6];
-} __attribute__((packed)) bdaddr_t;	/* XXX: move to BT headers */
 
 static void n800_mmc_cs_cb(void *opaque, int line, int level)
 {

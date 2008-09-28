@@ -116,6 +116,7 @@ typedef int (*DMA_transfer_handler) (void *opaque, int nchan, int pos, int size)
 /* A load of opaque types so that device init declarations don't have to
    pull in all the real definitions.  */
 typedef struct NICInfo NICInfo;
+typedef struct HCIInfo HCIInfo;
 typedef struct AudioState AudioState;
 typedef struct BlockDriverState BlockDriverState;
 typedef struct DisplayState DisplayState;
