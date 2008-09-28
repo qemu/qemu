@@ -81,7 +81,7 @@ OBJS+=scsi-generic.o
 OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o
 OBJS+=usb-serial.o usb-net.o
 OBJS+=sd.o ssi-sd.o
-OBJS+=bt.o
+OBJS+=bt.o bt-host.o
 
 ifdef CONFIG_BRLAPI
 OBJS+= baum.o
@@ -165,6 +165,9 @@ vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
 
 curses.o: curses.c keymaps.c curses_keys.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+bt-host.o: bt-host.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(CONFIG_BLUEZ_CFLAGS) -c -o $@ $<
 
 audio/sdlaudio.o: audio/sdlaudio.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) -c -o $@ $<
