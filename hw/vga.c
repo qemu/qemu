@@ -192,7 +192,7 @@ static void vga_precise_update_retrace_info(VGAState *s)
 
     clocking_mode = (s->sr[0x01] >> 3) & 1;
     clock_sel = (s->msr >> 2) & 3;
-    dots = (s->msr & 1) ? 9 : 8;
+    dots = (s->msr & 1) ? 8 : 9;
 
     chars_per_sec = hz[clock_sel] / dots;
 
@@ -213,12 +213,10 @@ static void vga_precise_update_retrace_info(VGAState *s)
     r->hend = r->hstart + hretr_end_char + 1;
     r->htotal = htotal_chars;
 
+#if 0
     printf("hz=%f\n",
-           (double) ticks_per_sec / (r->ticks_per_char * r->total_chars));
-#if 0 /* def DEBUG_RETRACE */
-    printf("hz=%f\n",
-           (double) ticks_per_sec / (r->ticks_per_char * r->total_chars));
     printf (
+        "hz=%f\n"
         "htotal = %d\n"
         "hretr_start = %d\n"
         "hretr_skew = %d\n"
@@ -232,6 +230,7 @@ static void vga_precise_update_retrace_info(VGAState *s)
         "dots = %d\n"
         "ticks/char = %lld\n"
         "\n",
+        (double) ticks_per_sec / (r->ticks_per_char * r->total_chars),
         htotal_chars,
         hretr_start_char,
         hretr_skew_chars,
@@ -265,11 +264,11 @@ static uint8_t vga_precise_retrace(VGAState *s)
 
         if (cur_line >= r->vstart && cur_line <= r->vend) {
             val |= ST01_V_RETRACE | ST01_DISP_ENABLE;
-        }
-
-        cur_line_char = cur_char % r->htotal;
-        if (cur_line_char >= r->hstart && cur_line_char <= r->hend) {
-            val |= ST01_DISP_ENABLE;
+        } else {
+            cur_line_char = cur_char % r->htotal;
+            if (cur_line_char >= r->hstart && cur_line_char <= r->hend) {
+                val |= ST01_DISP_ENABLE;
+            }
         }
 
         return val;
