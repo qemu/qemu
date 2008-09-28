@@ -7691,6 +7691,8 @@ static void help(int exitcode)
            "                use -soundhw ? to get the list of supported cards\n"
            "                use -soundhw all to enable all of them\n"
 #endif
+           "-vga [std|cirrus|vmware]\n"
+           "                select video card type\n"
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
 #ifdef TARGET_I386
@@ -7769,8 +7771,6 @@ static void help(int exitcode)
            "-no-kqemu       disable KQEMU kernel module usage\n"
 #endif
 #ifdef TARGET_I386
-           "-std-vga        simulate a standard VGA card with VESA Bochs Extensions\n"
-           "                (default is CL-GD5446 PCI VGA)\n"
            "-no-acpi        disable ACPI\n"
 #endif
 #ifdef CONFIG_CURSES
@@ -7861,10 +7861,8 @@ enum {
     QEMU_OPTION_bios,
     QEMU_OPTION_k,
     QEMU_OPTION_localtime,
-    QEMU_OPTION_cirrusvga,
-    QEMU_OPTION_vmsvga,
     QEMU_OPTION_g,
-    QEMU_OPTION_std_vga,
+    QEMU_OPTION_vga,
     QEMU_OPTION_echr,
     QEMU_OPTION_monitor,
     QEMU_OPTION_serial,
@@ -7966,7 +7964,7 @@ const QEMUOption qemu_options[] = {
     { "g", 1, QEMU_OPTION_g },
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
-    { "std-vga", 0, QEMU_OPTION_std_vga },
+    { "vga", HAS_ARG, QEMU_OPTION_vga },
     { "echr", HAS_ARG, QEMU_OPTION_echr },
     { "monitor", HAS_ARG, QEMU_OPTION_monitor },
     { "serial", HAS_ARG, QEMU_OPTION_serial },
@@ -7990,8 +7988,6 @@ const QEMUOption qemu_options[] = {
 
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
-    { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
-    { "vmwarevga", 0, QEMU_OPTION_vmsvga },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "no-shutdown", 0, QEMU_OPTION_no_shutdown },
@@ -8188,6 +8184,27 @@ static void select_soundhw (const char *optarg)
     }
 }
 #endif
+
+static void select_vgahw (const char *p)
+{
+    const char *opts;
+
+    if (strstart(p, "std", &opts)) {
+        cirrus_vga_enabled = 0;
+        vmsvga_enabled = 0;
+    } else if (strstart(p, "cirrus", &opts)) {
+        cirrus_vga_enabled = 1;
+        vmsvga_enabled = 0;
+    } else if (strstart(p, "vmware", &opts)) {
+        cirrus_vga_enabled = 0;
+        vmsvga_enabled = 1;
+    } else {
+    invalid_vga:
+        fprintf(stderr, "Unknown vga type: %s\n", p);
+        exit(1);
+    }
+    if (*opts) goto invalid_vga;
+}
 
 #ifdef _WIN32
 static BOOL WINAPI qemu_ctrl_handler(DWORD type)
@@ -8652,17 +8669,8 @@ int main(int argc, char **argv)
             case QEMU_OPTION_localtime:
                 rtc_utc = 0;
                 break;
-            case QEMU_OPTION_cirrusvga:
-                cirrus_vga_enabled = 1;
-                vmsvga_enabled = 0;
-                break;
-            case QEMU_OPTION_vmsvga:
-                cirrus_vga_enabled = 0;
-                vmsvga_enabled = 1;
-                break;
-            case QEMU_OPTION_std_vga:
-                cirrus_vga_enabled = 0;
-                vmsvga_enabled = 0;
+            case QEMU_OPTION_vga:
+                select_vgahw (optarg);
                 break;
             case QEMU_OPTION_g:
                 {
