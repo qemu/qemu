@@ -741,6 +741,20 @@ static void n8x0_cbus_setup(struct n800_s *s)
     cbus_attach(cbus, s->tahvo = tahvo_init(tahvo_irq, 1));
 }
 
+static void n8x0_uart_setup(struct n800_s *s)
+{
+    CharDriverState *radio = uart_hci_init(
+                    omap2_gpio_in_get(s->cpu->gpif,
+                            N8X0_BT_HOST_WKUP_GPIO)[0]);
+
+    omap2_gpio_out_set(s->cpu->gpif, N8X0_BT_RESET_GPIO,
+                    csrhci_pins_get(radio)[csrhci_pin_reset]);
+    omap2_gpio_out_set(s->cpu->gpif, N8X0_BT_WKUP_GPIO,
+                    csrhci_pins_get(radio)[csrhci_pin_wakeup]);
+
+    omap_uart_attach(s->cpu->uart[BT_UART], radio);
+}
+
 static void n8x0_usb_power_cb(void *opaque, int line, int level)
 {
     struct n800_s *s = opaque;
@@ -1306,6 +1320,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
     n8x0_spi_setup(s);
     n8x0_dss_setup(s, ds);
     n8x0_cbus_setup(s);
+    n8x0_uart_setup(s);
     if (usb_enabled)
         n8x0_usb_setup(s);
 
