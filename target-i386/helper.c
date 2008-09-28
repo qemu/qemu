@@ -247,7 +247,7 @@ static x86_def_t x86_defs[] = {
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
     {
-        .name = "atom",
+        .name = "n270",
         /* original is on level 10 */
         .level = 5,
         .family = 6,
