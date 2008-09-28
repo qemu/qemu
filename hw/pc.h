@@ -108,6 +108,12 @@ void i440fx_init_memory_mappings(PCIDevice *d);
 int piix4_init(PCIBus *bus, int devfn);
 
 /* vga.c */
+enum vga_retrace_method {
+    VGA_RETRACE_DUMB,
+    VGA_RETRACE_PRECISE
+};
+
+extern enum vga_retrace_method vga_retrace_method;
 
 #ifndef TARGET_SPARC
 #define VGA_RAM_SIZE (8192 * 1024)

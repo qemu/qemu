@@ -174,6 +174,7 @@ int nb_drives;
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
 int vga_ram_size;
+enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState display_state;
 int nographic;
 int curses;
@@ -8203,7 +8204,19 @@ static void select_vgahw (const char *p)
         fprintf(stderr, "Unknown vga type: %s\n", p);
         exit(1);
     }
-    if (*opts) goto invalid_vga;
+    while (*opts) {
+        const char *nextopt;
+
+        if (strstart(opts, ",retrace=", &nextopt)) {
+            opts = nextopt;
+            if (strstart(opts, "dumb", &nextopt))
+                vga_retrace_method = VGA_RETRACE_DUMB;
+            else if (strstart(opts, "precise", &nextopt))
+                vga_retrace_method = VGA_RETRACE_PRECISE;
+            else goto invalid_vga;
+        } else goto invalid_vga;
+        opts = nextopt;
+    }
 }
 
 #ifdef _WIN32

@@ -27,6 +27,7 @@
 #include "pci.h"
 #include "vga_int.h"
 #include "pixel_ops.h"
+#include "qemu-timer.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -149,6 +150,139 @@ static uint8_t expand4to8[16];
 
 static void vga_screen_dump(void *opaque, const char *filename);
 
+static void vga_dumb_update_retrace_info(VGAState *s)
+{
+    (void) s;
+}
+
+static void vga_precise_update_retrace_info(VGAState *s)
+{
+    int htotal_chars;
+    int hretr_start_char;
+    int hretr_skew_chars;
+    int hretr_end_char;
+
+    int vtotal_lines;
+    int vretr_start_line;
+    int vretr_end_line;
+
+    int div2, sldiv2, dots;
+    int clocking_mode;
+    int clock_sel;
+    const int hz[] = {25175000, 28322000, 25175000, 25175000};
+    int64_t chars_per_sec;
+    struct vga_precise_retrace *r = &s->retrace_info.precise;
+
+    htotal_chars = s->cr[0x00] + 5;
+    hretr_start_char = s->cr[0x04];
+    hretr_skew_chars = (s->cr[0x05] >> 5) & 3;
+    hretr_end_char = s->cr[0x05] & 0x1f;
+
+    vtotal_lines = (s->cr[0x06]
+                    | (((s->cr[0x07] & 1) | ((s->cr[0x07] >> 4) & 2)) << 8)) + 2
+        ;
+    vretr_start_line = s->cr[0x10]
+        | ((((s->cr[0x07] >> 2) & 1) | ((s->cr[0x07] >> 6) & 2)) << 8)
+        ;
+    vretr_end_line = s->cr[0x11] & 0xf;
+
+
+    div2 = (s->cr[0x17] >> 2) & 1;
+    sldiv2 = (s->cr[0x17] >> 3) & 1;
+
+    clocking_mode = (s->sr[0x01] >> 3) & 1;
+    clock_sel = (s->msr >> 2) & 3;
+    dots = (s->msr & 1) ? 9 : 8;
+
+    chars_per_sec = hz[clock_sel] / dots;
+
+    htotal_chars <<= clocking_mode;
+
+    r->total_chars = vtotal_lines * htotal_chars;
+    r->total_chars = (vretr_start_line + vretr_end_line + 1) * htotal_chars;
+    if (r->freq) {
+        r->ticks_per_char = ticks_per_sec / (r->total_chars * r->freq);
+    } else {
+        r->ticks_per_char = ticks_per_sec / chars_per_sec;
+    }
+
+    r->vstart = vretr_start_line;
+    r->vend = r->vstart + vretr_end_line + 1;
+
+    r->hstart = hretr_start_char + hretr_skew_chars;
+    r->hend = r->hstart + hretr_end_char + 1;
+    r->htotal = htotal_chars;
+
+    printf("hz=%f\n",
+           (double) ticks_per_sec / (r->ticks_per_char * r->total_chars));
+#if 0 /* def DEBUG_RETRACE */
+    printf("hz=%f\n",
+           (double) ticks_per_sec / (r->ticks_per_char * r->total_chars));
+    printf (
+        "htotal = %d\n"
+        "hretr_start = %d\n"
+        "hretr_skew = %d\n"
+        "hretr_end = %d\n"
+        "vtotal = %d\n"
+        "vretr_start = %d\n"
+        "vretr_end = %d\n"
+        "div2 = %d sldiv2 = %d\n"
+        "clocking_mode = %d\n"
+        "clock_sel = %d %d\n"
+        "dots = %d\n"
+        "ticks/char = %lld\n"
+        "\n",
+        htotal_chars,
+        hretr_start_char,
+        hretr_skew_chars,
+        hretr_end_char,
+        vtotal_lines,
+        vretr_start_line,
+        vretr_end_line,
+        div2, sldiv2,
+        clocking_mode,
+        clock_sel,
+        hz[clock_sel],
+        dots,
+        r->ticks_per_char
+        );
+#endif
+}
+
+static uint8_t vga_precise_retrace(VGAState *s)
+{
+    struct vga_precise_retrace *r = &s->retrace_info.precise;
+    uint8_t val = s->st01 & ~(ST01_V_RETRACE | ST01_DISP_ENABLE);
+
+    if (r->total_chars) {
+        int cur_line, cur_line_char, cur_char;
+        int64_t cur_tick;
+
+        cur_tick = qemu_get_clock(vm_clock);
+
+        cur_char = (cur_tick / r->ticks_per_char) % r->total_chars;
+        cur_line = cur_char / r->htotal;
+
+        if (cur_line >= r->vstart && cur_line <= r->vend) {
+            val |= ST01_V_RETRACE | ST01_DISP_ENABLE;
+        }
+
+        cur_line_char = cur_char % r->htotal;
+        if (cur_line_char >= r->hstart && cur_line_char <= r->hend) {
+            val |= ST01_DISP_ENABLE;
+        }
+
+        return val;
+    } else {
+        return s->st01 ^ (ST01_V_RETRACE | ST01_DISP_ENABLE);
+    }
+}
+
+static uint8_t vga_dumb_retrace(VGAState *s)
+{
+    return s->st01 ^ (ST01_V_RETRACE | ST01_DISP_ENABLE);
+}
+
 static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 {
     VGAState *s = opaque;
@@ -228,8 +362,7 @@ static uint32_t vga_ioport_read(void *opaque, uint32_t addr)
         case 0x3ba:
         case 0x3da:
             /* just toggle to fool polling */
-            s->st01 ^= ST01_V_RETRACE | ST01_DISP_ENABLE;
-            val = s->st01;
+            val = s->st01 = s->retrace(s);
             s->ar_flip_flop = 0;
             break;
         default:
@@ -291,6 +424,7 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x3c2:
         s->msr = val & ~0x10;
+        s->update_retrace_info(s);
         break;
     case 0x3c4:
         s->sr_index = val & 7;
@@ -300,6 +434,7 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         printf("vga: write SR%x = 0x%02x\n", s->sr_index, val);
 #endif
         s->sr[s->sr_index] = val & sr_mask[s->sr_index];
+        if (s->sr_index == 1) s->update_retrace_info(s);
         break;
     case 0x3c7:
         s->dac_read_index = val;
@@ -355,6 +490,18 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         default:
             s->cr[s->cr_index] = val;
+            break;
+        }
+
+        switch(s->cr_index) {
+        case 0x00:
+        case 0x04:
+        case 0x05:
+        case 0x06:
+        case 0x07:
+        case 0x11:
+        case 0x17:
+            s->update_retrace_info(s);
             break;
         }
         break;
@@ -2001,6 +2148,18 @@ void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
     s->invalidate = vga_invalidate_display;
     s->screen_dump = vga_screen_dump;
     s->text_update = vga_update_text;
+    switch (vga_retrace_method) {
+    case VGA_RETRACE_DUMB:
+        s->retrace = vga_dumb_retrace;
+        s->update_retrace_info = vga_dumb_update_retrace_info;
+        break;
+
+    case VGA_RETRACE_PRECISE:
+        s->retrace = vga_precise_retrace;
+        s->update_retrace_info = vga_precise_update_retrace_info;
+        memset(&s->retrace_info, 0, sizeof (s->retrace_info));
+        break;
+    }
 }
 
 /* used by both ISA and PCI */
