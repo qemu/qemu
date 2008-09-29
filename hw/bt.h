@@ -115,6 +115,9 @@ struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net);
 /* bt-host.c */
 struct HCIInfo *bt_host_hci(const char *id);
 
+/* bt-vhci.c */
+void bt_vhci_init(struct HCIInfo *info);
+
 /* bt-hci-csr.c */
 enum {
     csrhci_pin_reset,
@@ -166,6 +169,11 @@ enum bt_l2cap_psm_predef {
 
 /* bt-sdp.c */
 void bt_l2cap_sdp_init(struct bt_l2cap_device_s *dev);
+
+/* bt-hid.c */
+struct bt_device_s *bt_mouse_init(struct bt_scatternet_s *net);
+struct bt_device_s *bt_tablet_init(struct bt_scatternet_s *net);
+struct bt_device_s *bt_keyboard_init(struct bt_scatternet_s *net);
 
 /* Link Management Protocol layer defines */
 
