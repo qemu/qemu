@@ -24,27 +24,6 @@
 
 #include "op_helper.h"
 
-#define MEMSUFFIX _raw
-#include "op_helper_mem.h"
-
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _kernel
-#include "op_helper_mem.h"
-
-#define MEMSUFFIX _executive
-#include "op_helper_mem.h"
-
-#define MEMSUFFIX _supervisor
-#include "op_helper_mem.h"
-
-#define MEMSUFFIX _user
-#include "op_helper_mem.h"
-
-/* This is used for pal modes */
-#define MEMSUFFIX _data
-#include "op_helper_mem.h"
-#endif
-
 void helper_tb_flush (void)
 {
     tlb_flush(env, 1);
@@ -91,37 +70,38 @@ uint64_t helper_load_implver (void)
     return env->implver;
 }
 
-void helper_load_fpcr (void)
+uint64_t helper_load_fpcr (void)
 {
-    T0 = 0;
+    uint64_t ret = 0;
 #ifdef CONFIG_SOFTFLOAT
-    T0 |= env->fp_status.float_exception_flags << 52;
+    ret |= env->fp_status.float_exception_flags << 52;
     if (env->fp_status.float_exception_flags)
-        T0 |= 1ULL << 63;
+        ret |= 1ULL << 63;
     env->ipr[IPR_EXC_SUM] &= ~0x3E:
     env->ipr[IPR_EXC_SUM] |= env->fp_status.float_exception_flags << 1;
 #endif
     switch (env->fp_status.float_rounding_mode) {
     case float_round_nearest_even:
-        T0 |= 2ULL << 58;
+        ret |= 2ULL << 58;
         break;
     case float_round_down:
-        T0 |= 1ULL << 58;
+        ret |= 1ULL << 58;
         break;
     case float_round_up:
-        T0 |= 3ULL << 58;
+        ret |= 3ULL << 58;
         break;
     case float_round_to_zero:
         break;
     }
+    return ret;
 }
 
-void helper_store_fpcr (void)
+void helper_store_fpcr (uint64_t val)
 {
 #ifdef CONFIG_SOFTFLOAT
-    set_float_exception_flags((T0 >> 52) & 0x3F, &FP_STATUS);
+    set_float_exception_flags((val >> 52) & 0x3F, &FP_STATUS);
 #endif
-    switch ((T0 >> 58) & 3) {
+    switch ((val >> 58) & 3) {
     case 0:
         set_float_rounding_mode(float_round_to_zero, &FP_STATUS);
         break;
@@ -367,675 +347,647 @@ uint64_t helper_cmpbge (uint64_t op1, uint64_t op2)
     return res;
 }
 
-void helper_cmov_fir (int freg)
+/* Floating point helpers */
+
+/* F floating (VAX) */
+static always_inline uint64_t float32_to_f (float32 fa)
 {
-    if (FT0 != 0)
-        env->fir[freg] = FT1;
-}
+    uint32_t a;
+    uint64_t r, exp, mant, sig;
 
-void helper_sqrts (void)
-{
-    FT0 = float32_sqrt(FT0, &FP_STATUS);
-}
+    a = *(uint32_t*)(&fa);
+    sig = ((uint64_t)a & 0x80000000) << 32;
+    exp = (a >> 23) & 0xff;
+    mant = ((uint64_t)a & 0x007fffff) << 29;
 
-void helper_cpys (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p, q, r;
-
-    p.d = FT0;
-    q.d = FT1;
-    r.i = p.i & 0x8000000000000000ULL;
-    r.i |= q.i & ~0x8000000000000000ULL;
-    FT0 = r.d;
-}
-
-void helper_cpysn (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p, q, r;
-
-    p.d = FT0;
-    q.d = FT1;
-    r.i = (~p.i) & 0x8000000000000000ULL;
-    r.i |= q.i & ~0x8000000000000000ULL;
-    FT0 = r.d;
-}
-
-void helper_cpyse (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p, q, r;
-
-    p.d = FT0;
-    q.d = FT1;
-    r.i = p.i & 0xFFF0000000000000ULL;
-    r.i |= q.i & ~0xFFF0000000000000ULL;
-    FT0 = r.d;
-}
-
-void helper_itofs (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p;
-
-    p.d = FT0;
-    FT0 = int64_to_float32(p.i, &FP_STATUS);
-}
-
-void helper_ftois (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p;
-
-    p.i = float32_to_int64(FT0, &FP_STATUS);
-    FT0 = p.d;
-}
-
-void helper_sqrtt (void)
-{
-    FT0 = float64_sqrt(FT0, &FP_STATUS);
-}
-
-void helper_cmptun (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p;
-
-    p.i = 0;
-    if (float64_is_nan(FT0) || float64_is_nan(FT1))
-        p.i = 0x4000000000000000ULL;
-    FT0 = p.d;
-}
-
-void helper_cmpteq (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p;
-
-    p.i = 0;
-    if (float64_eq(FT0, FT1, &FP_STATUS))
-        p.i = 0x4000000000000000ULL;
-    FT0 = p.d;
-}
-
-void helper_cmptle (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p;
-
-    p.i = 0;
-    if (float64_le(FT0, FT1, &FP_STATUS))
-        p.i = 0x4000000000000000ULL;
-    FT0 = p.d;
-}
-
-void helper_cmptlt (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p;
-
-    p.i = 0;
-    if (float64_lt(FT0, FT1, &FP_STATUS))
-        p.i = 0x4000000000000000ULL;
-    FT0 = p.d;
-}
-
-void helper_itoft (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p;
-
-    p.d = FT0;
-    FT0 = int64_to_float64(p.i, &FP_STATUS);
-}
-
-void helper_ftoit (void)
-{
-    union {
-        double d;
-        uint64_t i;
-    } p;
-
-    p.i = float64_to_int64(FT0, &FP_STATUS);
-    FT0 = p.d;
-}
-
-static always_inline int vaxf_is_valid (float ff)
-{
-    union {
-        float f;
-        uint32_t i;
-    } p;
-    uint32_t exp, mant;
-
-    p.f = ff;
-    exp = (p.i >> 23) & 0xFF;
-    mant = p.i & 0x007FFFFF;
-    if (exp == 0 && ((p.i & 0x80000000) || mant != 0)) {
-        /* Reserved operands / Dirty zero */
-        return 0;
-    }
-
-    return 1;
-}
-
-static always_inline float vaxf_to_ieee32 (float ff)
-{
-    union {
-        float f;
-        uint32_t i;
-    } p;
-    uint32_t exp;
-
-    p.f = ff;
-    exp = (p.i >> 23) & 0xFF;
-    if (exp < 3) {
-        /* Underflow */
-        p.f = 0.0;
-    } else {
-        p.f *= 0.25;
-    }
-
-    return p.f;
-}
-
-static always_inline float ieee32_to_vaxf (float fi)
-{
-    union {
-        float f;
-        uint32_t i;
-    } p;
-    uint32_t exp, mant;
-
-    p.f = fi;
-    exp = (p.i >> 23) & 0xFF;
-    mant = p.i & 0x007FFFFF;
     if (exp == 255) {
         /* NaN or infinity */
-        p.i = 1;
+        r = 1; /* VAX dirty zero */
     } else if (exp == 0) {
         if (mant == 0) {
             /* Zero */
-            p.i = 0;
+            r = 0;
         } else {
             /* Denormalized */
-            p.f *= 2.0;
+            r = sig | ((exp + 1) << 52) | mant;
         }
     } else {
         if (exp >= 253) {
             /* Overflow */
-            p.i = 1;
+            r = 1; /* VAX dirty zero */
         } else {
-            p.f *= 4.0;
+            r = sig | ((exp + 2) << 52);
         }
     }
 
-    return p.f;
+    return r;
 }
 
-void helper_addf (void)
+static always_inline float32 f_to_float32 (uint64_t a)
 {
-    float ft0, ft1, ft2;
+    uint32_t r, exp, mant_sig;
 
-    if (!vaxf_is_valid(FT0) || !vaxf_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxf_to_ieee32(FT0);
-    ft1 = vaxf_to_ieee32(FT1);
-    ft2 = float32_add(ft0, ft1, &FP_STATUS);
-    FT0 = ieee32_to_vaxf(ft2);
-}
+    exp = ((a >> 55) & 0x80) | ((a >> 52) & 0x7f);
+    mant_sig = ((a >> 32) & 0x80000000) | ((a >> 29) & 0x007fffff);
 
-void helper_subf (void)
-{
-    float ft0, ft1, ft2;
-
-    if (!vaxf_is_valid(FT0) || !vaxf_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxf_to_ieee32(FT0);
-    ft1 = vaxf_to_ieee32(FT1);
-    ft2 = float32_sub(ft0, ft1, &FP_STATUS);
-    FT0 = ieee32_to_vaxf(ft2);
-}
-
-void helper_mulf (void)
-{
-    float ft0, ft1, ft2;
-
-    if (!vaxf_is_valid(FT0) || !vaxf_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxf_to_ieee32(FT0);
-    ft1 = vaxf_to_ieee32(FT1);
-    ft2 = float32_mul(ft0, ft1, &FP_STATUS);
-    FT0 = ieee32_to_vaxf(ft2);
-}
-
-void helper_divf (void)
-{
-    float ft0, ft1, ft2;
-
-    if (!vaxf_is_valid(FT0) || !vaxf_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxf_to_ieee32(FT0);
-    ft1 = vaxf_to_ieee32(FT1);
-    ft2 = float32_div(ft0, ft1, &FP_STATUS);
-    FT0 = ieee32_to_vaxf(ft2);
-}
-
-void helper_sqrtf (void)
-{
-    float ft0, ft1;
-
-    if (!vaxf_is_valid(FT0) || !vaxf_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxf_to_ieee32(FT0);
-    ft1 = float32_sqrt(ft0, &FP_STATUS);
-    FT0 = ieee32_to_vaxf(ft1);
-}
-
-void helper_itoff (void)
-{
-    /* XXX: TODO */
-}
-
-static always_inline int vaxg_is_valid (double ff)
-{
-    union {
-        double f;
-        uint64_t i;
-    } p;
-    uint64_t exp, mant;
-
-    p.f = ff;
-    exp = (p.i >> 52) & 0x7FF;
-    mant = p.i & 0x000FFFFFFFFFFFFFULL;
-    if (exp == 0 && ((p.i & 0x8000000000000000ULL) || mant != 0)) {
+    if (unlikely(!exp && mant_sig)) {
         /* Reserved operands / Dirty zero */
-        return 0;
+        helper_excp(EXCP_OPCDEC, 0);
     }
 
-    return 1;
-}
-
-static always_inline double vaxg_to_ieee64 (double fg)
-{
-    union {
-        double f;
-        uint64_t i;
-    } p;
-    uint32_t exp;
-
-    p.f = fg;
-    exp = (p.i >> 52) & 0x7FF;
     if (exp < 3) {
         /* Underflow */
-        p.f = 0.0;
+        r = 0;
     } else {
-        p.f *= 0.25;
+        r = ((exp - 2) << 23) | mant_sig;
     }
 
-    return p.f;
+    return *(float32*)(&a);
 }
 
-static always_inline double ieee64_to_vaxg (double fi)
+uint32_t helper_f_to_memory (uint64_t a)
 {
-    union {
-        double f;
-        uint64_t i;
-    } p;
-    uint64_t mant;
-    uint32_t exp;
+    uint32_t r;
+    r =  (a & 0x00001fffe0000000ull) >> 13;
+    r |= (a & 0x07ffe00000000000ull) >> 45;
+    r |= (a & 0xc000000000000000ull) >> 48;
+    return r;
+}
 
-    p.f = fi;
-    exp = (p.i >> 52) & 0x7FF;
-    mant = p.i & 0x000FFFFFFFFFFFFFULL;
-    if (exp == 255) {
+uint64_t helper_memory_to_f (uint32_t a)
+{
+    uint64_t r;
+    r =  ((uint64_t)(a & 0x0000c000)) << 48;
+    r |= ((uint64_t)(a & 0x003fffff)) << 45;
+    r |= ((uint64_t)(a & 0xffff0000)) << 13;
+    if (!(a & 0x00004000))
+        r |= 0x7ll << 59;
+    return r;
+}
+
+uint64_t helper_addf (uint64_t a, uint64_t b)
+{
+    float32 fa, fb, fr;
+
+    fa = f_to_float32(a);
+    fb = f_to_float32(b);
+    fr = float32_add(fa, fb, &FP_STATUS);
+    return float32_to_f(fr);
+}
+
+uint64_t helper_subf (uint64_t a, uint64_t b)
+{
+    float32 fa, fb, fr;
+
+    fa = f_to_float32(a);
+    fb = f_to_float32(b);
+    fr = float32_sub(fa, fb, &FP_STATUS);
+    return float32_to_f(fr);
+}
+
+uint64_t helper_mulf (uint64_t a, uint64_t b)
+{
+    float32 fa, fb, fr;
+
+    fa = f_to_float32(a);
+    fb = f_to_float32(b);
+    fr = float32_mul(fa, fb, &FP_STATUS);
+    return float32_to_f(fr);
+}
+
+uint64_t helper_divf (uint64_t a, uint64_t b)
+{
+    float32 fa, fb, fr;
+
+    fa = f_to_float32(a);
+    fb = f_to_float32(b);
+    fr = float32_div(fa, fb, &FP_STATUS);
+    return float32_to_f(fr);
+}
+
+uint64_t helper_sqrtf (uint64_t t)
+{
+    float32 ft, fr;
+
+    ft = f_to_float32(t);
+    fr = float32_sqrt(ft, &FP_STATUS);
+    return float32_to_f(fr);
+}
+
+
+/* G floating (VAX) */
+static always_inline uint64_t float64_to_g (float64 fa)
+{
+    uint64_t a, r, exp, mant, sig;
+
+    a = *(uint64_t*)(&fa);
+    sig = a & 0x8000000000000000ull;
+    exp = (a >> 52) & 0x7ff;
+    mant = a & 0x000fffffffffffffull;
+
+    if (exp == 2047) {
         /* NaN or infinity */
-        p.i = 1; /* VAX dirty zero */
+        r = 1; /* VAX dirty zero */
     } else if (exp == 0) {
         if (mant == 0) {
             /* Zero */
-            p.i = 0;
+            r = 0;
         } else {
             /* Denormalized */
-            p.f *= 2.0;
+            r = sig | ((exp + 1) << 52) | mant;
         }
     } else {
         if (exp >= 2045) {
             /* Overflow */
-            p.i = 1; /* VAX dirty zero */
+            r = 1; /* VAX dirty zero */
         } else {
-            p.f *= 4.0;
+            r = sig | ((exp + 2) << 52);
         }
     }
 
-    return p.f;
+    return r;
 }
 
-void helper_addg (void)
+static always_inline float64 g_to_float64 (uint64_t a)
 {
-    double ft0, ft1, ft2;
+    uint64_t r, exp, mant_sig;
 
-    if (!vaxg_is_valid(FT0) || !vaxg_is_valid(FT1)) {
-        /* XXX: TODO */
+    exp = (a >> 52) & 0x7ff;
+    mant_sig = a & 0x800fffffffffffffull;
+
+    if (!exp && mant_sig) {
+        /* Reserved operands / Dirty zero */
+        helper_excp(EXCP_OPCDEC, 0);
     }
-    ft0 = vaxg_to_ieee64(FT0);
-    ft1 = vaxg_to_ieee64(FT1);
-    ft2 = float64_add(ft0, ft1, &FP_STATUS);
-    FT0 = ieee64_to_vaxg(ft2);
-}
 
-void helper_subg (void)
-{
-    double ft0, ft1, ft2;
-
-    if (!vaxg_is_valid(FT0) || !vaxg_is_valid(FT1)) {
-        /* XXX: TODO */
+    if (exp < 3) {
+        /* Underflow */
+        r = 0;
+    } else {
+        r = ((exp - 2) << 52) | mant_sig;
     }
-    ft0 = vaxg_to_ieee64(FT0);
-    ft1 = vaxg_to_ieee64(FT1);
-    ft2 = float64_sub(ft0, ft1, &FP_STATUS);
-    FT0 = ieee64_to_vaxg(ft2);
+
+    return *(float64*)(&a);
 }
 
-void helper_mulg (void)
+uint64_t helper_g_to_memory (uint64_t a)
 {
-    double ft0, ft1, ft2;
-
-    if (!vaxg_is_valid(FT0) || !vaxg_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxg_to_ieee64(FT0);
-    ft1 = vaxg_to_ieee64(FT1);
-    ft2 = float64_mul(ft0, ft1, &FP_STATUS);
-    FT0 = ieee64_to_vaxg(ft2);
+    uint64_t r;
+    r =  (a & 0x000000000000ffffull) << 48;
+    r |= (a & 0x00000000ffff0000ull) << 16;
+    r |= (a & 0x0000ffff00000000ull) >> 16;
+    r |= (a & 0xffff000000000000ull) >> 48;
+    return r;
 }
 
-void helper_divg (void)
+uint64_t helper_memory_to_g (uint64_t a)
 {
-    double ft0, ft1, ft2;
-
-    if (!vaxg_is_valid(FT0) || !vaxg_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxg_to_ieee64(FT0);
-    ft1 = vaxg_to_ieee64(FT1);
-    ft2 = float64_div(ft0, ft1, &FP_STATUS);
-    FT0 = ieee64_to_vaxg(ft2);
+    uint64_t r;
+    r =  (a & 0x000000000000ffffull) << 48;
+    r |= (a & 0x00000000ffff0000ull) << 16;
+    r |= (a & 0x0000ffff00000000ull) >> 16;
+    r |= (a & 0xffff000000000000ull) >> 48;
+    return r;
 }
 
-void helper_sqrtg (void)
+uint64_t helper_addg (uint64_t a, uint64_t b)
 {
-    double ft0, ft1;
+    float64 fa, fb, fr;
 
-    if (!vaxg_is_valid(FT0) || !vaxg_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxg_to_ieee64(FT0);
-    ft1 = float64_sqrt(ft0, &FP_STATUS);
-    FT0 = ieee64_to_vaxg(ft1);
+    fa = g_to_float64(a);
+    fb = g_to_float64(b);
+    fr = float64_add(fa, fb, &FP_STATUS);
+    return float64_to_g(fr);
 }
 
-void helper_cmpgeq (void)
+uint64_t helper_subg (uint64_t a, uint64_t b)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p;
-    double ft0, ft1;
+    float64 fa, fb, fr;
 
-    if (!vaxg_is_valid(FT0) || !vaxg_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxg_to_ieee64(FT0);
-    ft1 = vaxg_to_ieee64(FT1);
-    p.u = 0;
-    if (float64_eq(ft0, ft1, &FP_STATUS))
-        p.u = 0x4000000000000000ULL;
-    FT0 = p.d;
+    fa = g_to_float64(a);
+    fb = g_to_float64(b);
+    fr = float64_sub(fa, fb, &FP_STATUS);
+    return float64_to_g(fr);
 }
 
-void helper_cmpglt (void)
+uint64_t helper_mulg (uint64_t a, uint64_t b)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p;
-    double ft0, ft1;
+    float64 fa, fb, fr;
 
-    if (!vaxg_is_valid(FT0) || !vaxg_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxg_to_ieee64(FT0);
-    ft1 = vaxg_to_ieee64(FT1);
-    p.u = 0;
-    if (float64_lt(ft0, ft1, &FP_STATUS))
-        p.u = 0x4000000000000000ULL;
-    FT0 = p.d;
+    fa = g_to_float64(a);
+    fb = g_to_float64(b);
+    fr = float64_mul(fa, fb, &FP_STATUS);
+    return float64_to_g(fr);
 }
 
-void helper_cmpgle (void)
+uint64_t helper_divg (uint64_t a, uint64_t b)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p;
-    double ft0, ft1;
+    float64 fa, fb, fr;
 
-    if (!vaxg_is_valid(FT0) || !vaxg_is_valid(FT1)) {
-        /* XXX: TODO */
-    }
-    ft0 = vaxg_to_ieee64(FT0);
-    ft1 = vaxg_to_ieee64(FT1);
-    p.u = 0;
-    if (float64_le(ft0, ft1, &FP_STATUS))
-        p.u = 0x4000000000000000ULL;
-    FT0 = p.d;
+    fa = g_to_float64(a);
+    fb = g_to_float64(b);
+    fr = float64_div(fa, fb, &FP_STATUS);
+    return float64_to_g(fr);
 }
 
-void helper_cvtqs (void)
+uint64_t helper_sqrtg (uint64_t a)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p;
+    float64 fa, fr;
 
-    p.d = FT0;
-    FT0 = (float)p.u;
+    fa = g_to_float64(a);
+    fr = float64_sqrt(fa, &FP_STATUS);
+    return float64_to_g(fr);
 }
 
-void helper_cvttq (void)
-{
-    union {
-        double d;
-        uint64_t u;
-    } p;
 
-    p.u = FT0;
-    FT0 = p.d;
+/* S floating (single) */
+static always_inline uint64_t float32_to_s (float32 fa)
+{
+    uint32_t a;
+    uint64_t r;
+
+    a = *(uint32_t*)(&fa);
+
+    r = (((uint64_t)(a & 0xc0000000)) << 32) | (((uint64_t)(a & 0x3fffffff)) << 29);
+    if (((a & 0x7f800000) != 0x7f800000) && (!(a & 0x40000000)))
+        r |= 0x7ll << 59;
+    return r;
 }
 
-void helper_cvtqt (void)
+static always_inline float32 s_to_float32 (uint64_t a)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p;
-
-    p.d = FT0;
-    FT0 = p.u;
+    uint32_t r = ((a >> 32) & 0xc0000000) | ((a >> 29) & 0x3fffffff);
+    return *(float32*)(&r);
 }
 
-void helper_cvtqf (void)
+uint32_t helper_s_to_memory (uint64_t a)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p;
-
-    p.d = FT0;
-    FT0 = ieee32_to_vaxf(p.u);
+    /* Memory format is the same as float32 */
+    float32 fa = s_to_float32(a);
+    return *(uint32_t*)(&fa);
 }
 
-void helper_cvtgf (void)
+uint64_t helper_memory_to_s (uint32_t a)
 {
-    double ft0;
-
-    ft0 = vaxg_to_ieee64(FT0);
-    FT0 = ieee32_to_vaxf(ft0);
+    /* Memory format is the same as float32 */
+    return float32_to_s(*(float32*)(&a));
 }
 
-void helper_cvtgd (void)
+uint64_t helper_adds (uint64_t a, uint64_t b)
 {
-    /* XXX: TODO */
+    float32 fa, fb, fr;
+
+    fa = s_to_float32(a);
+    fb = s_to_float32(b);
+    fr = float32_add(fa, fb, &FP_STATUS);
+    return float32_to_s(fr);
 }
 
-void helper_cvtgq (void)
+uint64_t helper_subs (uint64_t a, uint64_t b)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p;
+    float32 fa, fb, fr;
 
-    p.u = vaxg_to_ieee64(FT0);
-    FT0 = p.d;
+    fa = s_to_float32(a);
+    fb = s_to_float32(b);
+    fr = float32_sub(fa, fb, &FP_STATUS);
+    return float32_to_s(fr);
 }
 
-void helper_cvtqg (void)
+uint64_t helper_muls (uint64_t a, uint64_t b)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p;
+    float32 fa, fb, fr;
 
-    p.d = FT0;
-    FT0 = ieee64_to_vaxg(p.u);
+    fa = s_to_float32(a);
+    fb = s_to_float32(b);
+    fr = float32_mul(fa, fb, &FP_STATUS);
+    return float32_to_s(fr);
 }
 
-void helper_cvtdg (void)
+uint64_t helper_divs (uint64_t a, uint64_t b)
 {
-    /* XXX: TODO */
+    float32 fa, fb, fr;
+
+    fa = s_to_float32(a);
+    fb = s_to_float32(b);
+    fr = float32_div(fa, fb, &FP_STATUS);
+    return float32_to_s(fr);
 }
 
-void helper_cvtlq (void)
+uint64_t helper_sqrts (uint64_t a)
 {
-    union {
-        double d;
-        uint64_t u;
-    } p, q;
+    float32 fa, fr;
 
-    p.d = FT0;
-    q.u = (p.u >> 29) & 0x3FFFFFFF;
-    q.u |= (p.u >> 32);
-    q.u = (int64_t)((int32_t)q.u);
-    FT0 = q.d;
+    fa = s_to_float32(a);
+    fr = float32_sqrt(fa, &FP_STATUS);
+    return float32_to_s(fr);
 }
 
-static always_inline void __helper_cvtql (int s, int v)
-{
-    union {
-        double d;
-        uint64_t u;
-    } p, q;
 
-    p.d = FT0;
-    q.u = ((uint64_t)(p.u & 0xC0000000)) << 32;
-    q.u |= ((uint64_t)(p.u & 0x7FFFFFFF)) << 29;
-    FT0 = q.d;
-    if (v && (int64_t)((int32_t)p.u) != (int64_t)p.u) {
+/* T floating (double) */
+static always_inline float64 t_to_float64 (uint64_t a)
+{
+    /* Memory format is the same as float64 */
+    return *(float64*)(&a);
+}
+
+static always_inline uint64_t float64_to_t (float64 fa)
+{
+    /* Memory format is the same as float64 */
+    return *(uint64*)(&fa);
+}
+
+uint64_t helper_addt (uint64_t a, uint64_t b)
+{
+    float64 fa, fb, fr;
+
+    fa = t_to_float64(a);
+    fb = t_to_float64(b);
+    fr = float64_add(fa, fb, &FP_STATUS);
+    return float64_to_t(fr);
+}
+
+uint64_t helper_subt (uint64_t a, uint64_t b)
+{
+    float64 fa, fb, fr;
+
+    fa = t_to_float64(a);
+    fb = t_to_float64(b);
+    fr = float64_sub(fa, fb, &FP_STATUS);
+    return float64_to_t(fr);
+}
+
+uint64_t helper_mult (uint64_t a, uint64_t b)
+{
+    float64 fa, fb, fr;
+
+    fa = t_to_float64(a);
+    fb = t_to_float64(b);
+    fr = float64_mul(fa, fb, &FP_STATUS);
+    return float64_to_t(fr);
+}
+
+uint64_t helper_divt (uint64_t a, uint64_t b)
+{
+    float64 fa, fb, fr;
+
+    fa = t_to_float64(a);
+    fb = t_to_float64(b);
+    fr = float64_div(fa, fb, &FP_STATUS);
+    return float64_to_t(fr);
+}
+
+uint64_t helper_sqrtt (uint64_t a)
+{
+    float64 fa, fr;
+
+    fa = t_to_float64(a);
+    fr = float64_sqrt(fa, &FP_STATUS);
+    return float64_to_t(fr);
+}
+
+
+/* Sign copy */
+uint64_t helper_cpys(uint64_t a, uint64_t b)
+{
+    return (a & 0x8000000000000000ULL) | (b & ~0x8000000000000000ULL);
+}
+
+uint64_t helper_cpysn(uint64_t a, uint64_t b)
+{
+    return ((~a) & 0x8000000000000000ULL) | (b & ~0x8000000000000000ULL);
+}
+
+uint64_t helper_cpyse(uint64_t a, uint64_t b)
+{
+    return (a & 0xFFF0000000000000ULL) | (b & ~0xFFF0000000000000ULL);
+}
+
+
+/* Comparisons */
+uint64_t helper_cmptun (uint64_t a, uint64_t b)
+{
+    float64 fa, fb;
+
+    fa = t_to_float64(a);
+    fb = t_to_float64(b);
+
+    if (float64_is_nan(fa) || float64_is_nan(fb))
+        return 0x4000000000000000ULL;
+    else
+        return 0;
+}
+
+uint64_t helper_cmpteq(uint64_t a, uint64_t b)
+{
+    float64 fa, fb;
+
+    fa = t_to_float64(a);
+    fb = t_to_float64(b);
+
+    if (float64_eq(fa, fb, &FP_STATUS))
+        return 0x4000000000000000ULL;
+    else
+        return 0;
+}
+
+uint64_t helper_cmptle(uint64_t a, uint64_t b)
+{
+    float64 fa, fb;
+
+    fa = t_to_float64(a);
+    fb = t_to_float64(b);
+
+    if (float64_le(fa, fb, &FP_STATUS))
+        return 0x4000000000000000ULL;
+    else
+        return 0;
+}
+
+uint64_t helper_cmptlt(uint64_t a, uint64_t b)
+{
+    float64 fa, fb;
+
+    fa = t_to_float64(a);
+    fb = t_to_float64(b);
+
+    if (float64_lt(fa, fb, &FP_STATUS))
+        return 0x4000000000000000ULL;
+    else
+        return 0;
+}
+
+uint64_t helper_cmpgeq(uint64_t a, uint64_t b)
+{
+    float64 fa, fb;
+
+    fa = g_to_float64(a);
+    fb = g_to_float64(b);
+
+    if (float64_eq(fa, fb, &FP_STATUS))
+        return 0x4000000000000000ULL;
+    else
+        return 0;
+}
+
+uint64_t helper_cmpgle(uint64_t a, uint64_t b)
+{
+    float64 fa, fb;
+
+    fa = g_to_float64(a);
+    fb = g_to_float64(b);
+
+    if (float64_le(fa, fb, &FP_STATUS))
+        return 0x4000000000000000ULL;
+    else
+        return 0;
+}
+
+uint64_t helper_cmpglt(uint64_t a, uint64_t b)
+{
+    float64 fa, fb;
+
+    fa = g_to_float64(a);
+    fb = g_to_float64(b);
+
+    if (float64_lt(fa, fb, &FP_STATUS))
+        return 0x4000000000000000ULL;
+    else
+        return 0;
+}
+
+uint64_t helper_cmpfeq (uint64_t a)
+{
+    return !(a & 0x7FFFFFFFFFFFFFFFULL);
+}
+
+uint64_t helper_cmpfne (uint64_t a)
+{
+    return (a & 0x7FFFFFFFFFFFFFFFULL);
+}
+
+uint64_t helper_cmpflt (uint64_t a)
+{
+    return (a & 0x8000000000000000ULL) && (a & 0x7FFFFFFFFFFFFFFFULL);
+}
+
+uint64_t helper_cmpfle (uint64_t a)
+{
+    return (a & 0x8000000000000000ULL) || !(a & 0x7FFFFFFFFFFFFFFFULL);
+}
+
+uint64_t helper_cmpfgt (uint64_t a)
+{
+    return !(a & 0x8000000000000000ULL) && (a & 0x7FFFFFFFFFFFFFFFULL);
+}
+
+uint64_t helper_cmpfge (uint64_t a)
+{
+    return !(a & 0x8000000000000000ULL) || !(a & 0x7FFFFFFFFFFFFFFFULL);
+}
+
+
+/* Floating point format conversion */
+uint64_t helper_cvtts (uint64_t a)
+{
+    float64 fa;
+    float32 fr;
+
+    fa = t_to_float64(a);
+    fr = float64_to_float32(fa, &FP_STATUS);
+    return float32_to_s(fr);
+}
+
+uint64_t helper_cvtst (uint64_t a)
+{
+    float32 fa;
+    float64 fr;
+
+    fa = s_to_float32(a);
+    fr = float32_to_float64(fa, &FP_STATUS);
+    return float64_to_t(fr);
+}
+
+uint64_t helper_cvtqs (uint64_t a)
+{
+    float32 fr = int64_to_float32(a, &FP_STATUS);
+    return float32_to_s(fr);
+}
+
+uint64_t helper_cvttq (uint64_t a)
+{
+    float64 fa = t_to_float64(a);
+    return float64_to_int64_round_to_zero(fa, &FP_STATUS);
+}
+
+uint64_t helper_cvtqt (uint64_t a)
+{
+    float64 fr = int64_to_float64(a, &FP_STATUS);
+    return float64_to_t(fr);
+}
+
+uint64_t helper_cvtqf (uint64_t a)
+{
+    float32 fr = int64_to_float32(a, &FP_STATUS);
+    return float32_to_f(fr);
+}
+
+uint64_t helper_cvtgf (uint64_t a)
+{
+    float64 fa;
+    float32 fr;
+
+    fa = g_to_float64(a);
+    fr = float64_to_float32(fa, &FP_STATUS);
+    return float32_to_f(fr);
+}
+
+uint64_t helper_cvtgq (uint64_t a)
+{
+    float64 fa = g_to_float64(a);
+    return float64_to_int64_round_to_zero(fa, &FP_STATUS);
+}
+
+uint64_t helper_cvtqg (uint64_t a)
+{
+    float64 fr;
+    fr = int64_to_float64(a, &FP_STATUS);
+    return float64_to_g(fr);
+}
+
+uint64_t helper_cvtlq (uint64_t a)
+{
+    return (int64_t)((int32_t)((a >> 32) | ((a >> 29) & 0x3FFFFFFF)));
+}
+
+static always_inline uint64_t __helper_cvtql (uint64_t a, int s, int v)
+{
+    uint64_t r;
+
+    r = ((uint64_t)(a & 0xC0000000)) << 32;
+    r |= ((uint64_t)(a & 0x7FFFFFFF)) << 29;
+
+    if (v && (int64_t)((int32_t)r) != (int64_t)r) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
     if (s) {
         /* TODO */
     }
+    return r;
 }
 
-void helper_cvtql (void)
+uint64_t helper_cvtql (uint64_t a)
 {
-    __helper_cvtql(0, 0);
+    return __helper_cvtql(a, 0, 0);
 }
 
-void helper_cvtqlv (void)
+uint64_t helper_cvtqlv (uint64_t a)
 {
-    __helper_cvtql(0, 1);
+    return __helper_cvtql(a, 0, 1);
 }
 
-void helper_cvtqlsv (void)
+uint64_t helper_cvtqlsv (uint64_t a)
 {
-    __helper_cvtql(1, 1);
-}
-
-void helper_cmpfeq (void)
-{
-    if (float64_eq(FT0, FT1, &FP_STATUS))
-        T0 = 1;
-    else
-        T0 = 0;
-}
-
-void helper_cmpfne (void)
-{
-    if (float64_eq(FT0, FT1, &FP_STATUS))
-        T0 = 0;
-    else
-        T0 = 1;
-}
-
-void helper_cmpflt (void)
-{
-    if (float64_lt(FT0, FT1, &FP_STATUS))
-        T0 = 1;
-    else
-        T0 = 0;
-}
-
-void helper_cmpfle (void)
-{
-    if (float64_lt(FT0, FT1, &FP_STATUS))
-        T0 = 1;
-    else
-        T0 = 0;
-}
-
-void helper_cmpfgt (void)
-{
-    if (float64_le(FT0, FT1, &FP_STATUS))
-        T0 = 0;
-    else
-        T0 = 1;
-}
-
-void helper_cmpfge (void)
-{
-    if (float64_lt(FT0, FT1, &FP_STATUS))
-        T0 = 0;
-    else
-        T0 = 1;
+    return __helper_cvtql(a, 1, 1);
 }
 
 #if !defined (CONFIG_USER_ONLY)
@@ -1050,23 +1002,6 @@ void helper_mfpr (int iprn)
 void helper_mtpr (int iprn)
 {
     cpu_alpha_mtpr(env, iprn, T0, NULL);
-}
-#endif
-
-#if defined(HOST_SPARC) || defined(HOST_SPARC64)
-void helper_reset_FT0 (void)
-{
-    FT0 = 0;
-}
-
-void helper_reset_FT1 (void)
-{
-    FT1 = 0;
-}
-
-void helper_reset_FT2 (void)
-{
-    FT2 = 0;
 }
 #endif
 

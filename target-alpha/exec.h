@@ -44,9 +44,6 @@ register uint64_t T1 asm(AREG2);
 
 #define PARAM(n) ((uint64_t)PARAM##n)
 #define SPARAM(n) ((int32_t)PARAM##n)
-#define FT0 (env->ft0)
-#define FT1 (env->ft1)
-#define FT2 (env->ft2)
 #define FP_STATUS (env->fp_status)
 
 #if defined (DEBUG_OP)

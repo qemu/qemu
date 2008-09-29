@@ -277,8 +277,6 @@ struct CPUAlphaState {
      */
     target_ulong t0, t1;
 #endif
-    /* */
-    double ft0, ft1, ft2;
 
     /* Those resources are used only in Qemu core */
     CPU_COMMON

@@ -90,31 +90,4 @@ ALPHA_LD_OP(q_l, ldq_l);
 ALPHA_ST_OP(l_c, stl_c);
 ALPHA_ST_OP(q_c, stq_c);
 
-#define ALPHA_LDF_OP(name, op)                                                \
-void OPPROTO glue(glue(op_ld, name), MEMSUFFIX) (void)                        \
-{                                                                             \
-    print_mem_EA(T0);                                                         \
-    FT1 = glue(op, MEMSUFFIX)(T0);                                            \
-    RETURN();                                                                 \
-}
-
-#define ALPHA_STF_OP(name, op)                                                \
-void OPPROTO glue(glue(op_st, name), MEMSUFFIX) (void)                        \
-{                                                                             \
-    print_mem_EA(T0);                                                         \
-    glue(op, MEMSUFFIX)(T0, FT1);                                             \
-    RETURN();                                                                 \
-}
-
-ALPHA_LDF_OP(t, ldfq);
-ALPHA_STF_OP(t, stfq);
-ALPHA_LDF_OP(s, ldfl);
-ALPHA_STF_OP(s, stfl);
-
-/* VAX floating point */
-ALPHA_LDF_OP(f, helper_ldff);
-ALPHA_STF_OP(f, helper_stff);
-ALPHA_LDF_OP(g, helper_ldfg);
-ALPHA_STF_OP(g, helper_stfg);
-
 #undef MEMSUFFIX

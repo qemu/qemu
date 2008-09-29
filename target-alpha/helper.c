@@ -434,12 +434,6 @@ void cpu_dump_state (CPUState *env, FILE *f,
         if ((i % 3) == 2)
             cpu_fprintf(f, "\n");
     }
-    cpu_fprintf(f, "FT " TARGET_FMT_lx " " TARGET_FMT_lx " " TARGET_FMT_lx,
-                *((uint64_t *)(&env->ft0)), *((uint64_t *)(&env->ft1)),
-                *((uint64_t *)(&env->ft2)));
-    cpu_fprintf(f, "\nMEM " TARGET_FMT_lx " %d %d\n",
-                ldq_raw(0x000000004007df60ULL),
-                (uint8_t *)(&env->ft0), (uint8_t *)(&env->fir[0]));
 }
 
 void cpu_dump_EA (target_ulong EA)
