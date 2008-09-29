@@ -710,13 +710,13 @@ static int vmdk_create(const char *filename, int64_t total_size,
         "createType=\"monolithicSparse\"\n"
         "\n"
         "# Extent description\n"
-        "RW %lu SPARSE \"%s\"\n"
+        "RW %" PRId64 " SPARSE \"%s\"\n"
         "\n"
         "# The Disk Data Base \n"
         "#DDB\n"
         "\n"
         "ddb.virtualHWVersion = \"%d\"\n"
-        "ddb.geometry.cylinders = \"%lu\"\n"
+        "ddb.geometry.cylinders = \"%" PRId64 "\"\n"
         "ddb.geometry.heads = \"16\"\n"
         "ddb.geometry.sectors = \"63\"\n"
         "ddb.adapterType = \"ide\"\n";
@@ -792,8 +792,9 @@ static int vmdk_create(const char *filename, int64_t total_size,
     if ((temp_str = strrchr(real_filename, ':')) != NULL)
         real_filename = temp_str + 1;
     snprintf(desc, sizeof(desc), desc_template, (unsigned int)time(NULL),
-             (unsigned long)total_size, real_filename,
-             (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4), total_size / (63 * 16));
+             total_size, real_filename,
+             (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4),
+             total_size / (int64_t)(63 * 16));
 
     /* write the descriptor */
     lseek(fd, le64_to_cpu(header.desc_offset) << 9, SEEK_SET);

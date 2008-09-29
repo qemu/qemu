@@ -48,6 +48,20 @@ struct NICInfo {
 extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
 
+/* BT HCI info */
+
+struct HCIInfo {
+    int (*bdaddr_set)(struct HCIInfo *hci, const uint8_t *bd_addr);
+    void (*cmd_send)(struct HCIInfo *hci, const uint8_t *data, int len);
+    void (*sco_send)(struct HCIInfo *hci, const uint8_t *data, int len);
+    void (*acl_send)(struct HCIInfo *hci, const uint8_t *data, int len);
+    void *opaque;
+    void (*evt_recv)(void *opaque, const uint8_t *data, int len);
+    void (*acl_recv)(void *opaque, const uint8_t *data, int len);
+};
+
+struct HCIInfo *qemu_next_hci(void);
+
 /* checksumming functions (net-checksum.c) */
 uint32_t net_checksum_add(int len, uint8_t *buf);
 uint16_t net_checksum_finish(uint32_t sum);

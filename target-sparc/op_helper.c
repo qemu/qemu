@@ -1941,6 +1941,8 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         }
     case 0x55: // I-MMU data access
         {
+            // TODO: auto demap
+
             unsigned int i = (addr >> 3) & 0x3f;
 
             env->itlb_tag[i] = env->immuregs[6];
@@ -1948,7 +1950,22 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             return;
         }
     case 0x57: // I-MMU demap
-        // XXX
+        {
+            unsigned int i;
+
+            for (i = 0; i < 64; i++) {
+                if ((env->itlb_tte[i] & 0x8000000000000000ULL) != 0) {
+                    target_ulong mask = 0xffffffffffffe000ULL;
+
+                    mask <<= 3 * ((env->itlb_tte[i] >> 61) & 3);
+                    if ((val & mask) == (env->itlb_tag[i] & mask)) {
+                        env->itlb_tag[i] = 0;
+                        env->itlb_tte[i] = 0;
+                    }
+                    return;
+                }
+            }
+        }
         return;
     case 0x58: // D-MMU regs
         {
@@ -2018,6 +2035,23 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
             return;
         }
     case 0x5f: // D-MMU demap
+        {
+            unsigned int i;
+
+            for (i = 0; i < 64; i++) {
+                if ((env->dtlb_tte[i] & 0x8000000000000000ULL) != 0) {
+                    target_ulong mask = 0xffffffffffffe000ULL;
+
+                    mask <<= 3 * ((env->dtlb_tte[i] >> 61) & 3);
+                    if ((val & mask) == (env->dtlb_tag[i] & mask)) {
+                        env->dtlb_tag[i] = 0;
+                        env->dtlb_tte[i] = 0;
+                    }
+                    return;
+                }
+            }
+        }
+        return;
     case 0x49: // Interrupt data receive
         // XXX
         return;

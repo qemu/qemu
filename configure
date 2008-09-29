@@ -110,6 +110,9 @@ curses="yes"
 aio="yes"
 nptl="yes"
 mixemu="no"
+bluez="yes"
+signalfd="no"
+eventfd="no"
 
 # OS specific
 targetos=`uname -s`
@@ -291,6 +294,8 @@ for opt do
   ;;
   --disable-brlapi) brlapi="no"
   ;;
+  --disable-bluez) bluez="no"
+  ;;
   --enable-profiler) profiler="yes"
   ;;
   --enable-cocoa)
@@ -430,6 +435,7 @@ echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --disable-curses         disable curses output"
+echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --disable-nptl           disable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
 echo "  --disable-system         disable all system emulation targets"
@@ -896,6 +902,16 @@ EOF
 fi # test "$curses"
 
 ##########################################
+# bluez support probe
+if test "$bluez" = "yes" ; then
+  `pkg-config bluez` || bluez="no"
+fi
+if test "$bluez" = "yes" ; then
+  bluez_cflags=`pkg-config --cflags bluez`
+  bluez_libs=`pkg-config --libs bluez`
+fi
+
+##########################################
 # AIO probe
 if test "$aio" = "yes" ; then
   aio=no
@@ -906,6 +922,33 @@ EOF
   if $cc $ARCH_CFLAGS -o $TMPE $AIOLIBS $TMPC 2> /dev/null ; then
     aio=yes
   fi
+fi
+
+##########################################
+# signalfd probe
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <signal.h>
+int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }
+EOF
+
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  signalfd=yes
+fi
+
+##########################################
+# eventfd probe
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
+int main(void) { return syscall(SYS_eventfd, 0); }
+EOF
+
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  eventfd=yes
 fi
 
 # Check if tools are available to build documentation.
@@ -1232,9 +1275,21 @@ if test "$brlapi" = "yes" ; then
   echo "#define CONFIG_BRLAPI 1" >> $config_h
   echo "BRLAPI_LIBS=-lbrlapi" >> $config_mak
 fi
+if test "$bluez" = "yes" ; then
+  echo "CONFIG_BLUEZ=yes" >> $config_mak
+  echo "CONFIG_BLUEZ_CFLAGS=$bluez_cflags" >> $config_mak
+  echo "CONFIG_BLUEZ_LIBS=$bluez_libs" >> $config_mak
+  echo "#define CONFIG_BLUEZ 1" >> $config_h
+fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
   echo "CONFIG_AIO=yes" >> $config_mak
+fi
+if test "$signalfd" = "yes" ; then
+  echo "#define CONFIG_signalfd 1" >> $config_h
+fi
+if test "$eventfd" = "yes" ; then
+  echo "#define CONFIG_eventfd 1" >> $config_h
 fi
 
 # XXX: suppress that

@@ -79,6 +79,25 @@
 #define CH_ATTR_SIZE (160 * 100)
 #define VGA_MAX_HEIGHT 2048
 
+struct vga_precise_retrace {
+    int64_t ticks_per_char;
+    int64_t total_chars;
+    int htotal;
+    int hstart;
+    int hend;
+    int vstart;
+    int vend;
+    int freq;
+};
+
+union vga_retrace {
+    struct vga_precise_retrace precise;
+};
+
+struct VGAState;
+typedef uint8_t (* vga_retrace_fn)(struct VGAState *s);
+typedef void (* vga_update_retrace_info_fn)(struct VGAState *s);
+
 #define VGA_STATE_COMMON                                                \
     uint8_t *vram_ptr;                                                  \
     unsigned long vram_offset;                                          \
@@ -147,7 +166,11 @@
     void (*cursor_draw_line)(struct VGAState *s, uint8_t *d, int y);    \
     /* tell for each page if it has been updated since the last time */ \
     uint32_t last_palette[256];                                         \
-    uint32_t last_ch_attr[CH_ATTR_SIZE]; /* XXX: make it dynamic */
+    uint32_t last_ch_attr[CH_ATTR_SIZE]; /* XXX: make it dynamic */     \
+    /* retrace */                                                       \
+    vga_retrace_fn retrace;                                             \
+    vga_update_retrace_info_fn update_retrace_info;                     \
+    union vga_retrace retrace_info;
 
 
 typedef struct VGAState {

@@ -29,6 +29,7 @@
 #include "hw/audiodev.h"
 #include "hw/isa.h"
 #include "hw/baum.h"
+#include "hw/bt.h"
 #include "net.h"
 #include "console.h"
 #include "sysemu.h"
@@ -174,6 +175,7 @@ int nb_drives;
 /* point to the block driver where the snapshots are managed */
 BlockDriverState *bs_snapshots;
 int vga_ram_size;
+enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState display_state;
 int nographic;
 int curses;
@@ -5358,6 +5360,61 @@ void do_info_network(void)
     }
 }
 
+/***********************************************************/
+/* Bluetooth support */
+static int nb_hcis;
+static int cur_hci;
+static struct HCIInfo *hci_table[MAX_NICS];
+static struct bt_vlan_s {
+    struct bt_scatternet_s net;
+    int id;
+    struct bt_vlan_s *next;
+} *first_bt_vlan;
+
+/* find or alloc a new bluetooth "VLAN" */
+struct bt_scatternet_s *qemu_find_bt_vlan(int id)
+{
+    struct bt_vlan_s **pvlan, *vlan;
+    for (vlan = first_bt_vlan; vlan != NULL; vlan = vlan->next) {
+        if (vlan->id == id)
+            return &vlan->net;
+    }
+    vlan = qemu_mallocz(sizeof(struct bt_vlan_s));
+    vlan->id = id;
+    pvlan = &first_bt_vlan;
+    while (*pvlan != NULL)
+        pvlan = &(*pvlan)->next;
+    *pvlan = vlan;
+    return &vlan->net;
+}
+
+static void null_hci_send(struct HCIInfo *hci, const uint8_t *data, int len)
+{
+}
+
+static int null_hci_addr_set(struct HCIInfo *hci, const uint8_t *bd_addr)
+{
+    return -ENOTSUP;
+}
+
+static struct HCIInfo null_hci = {
+    .cmd_send = null_hci_send,
+    .sco_send = null_hci_send,
+    .acl_send = null_hci_send,
+    .bdaddr_set = null_hci_addr_set,
+};
+
+struct HCIInfo *qemu_next_hci(void)
+{
+    if (cur_hci == nb_hcis)
+        return &null_hci;
+
+    return hci_table[cur_hci++];
+}
+
+/***********************************************************/
+/* QEMU Block devices */
+
 #define HD_ALIAS "index=%d,media=disk"
 #ifdef TARGET_PPC
 #define CDROM_ALIAS "index=1,media=cdrom"
@@ -5458,12 +5515,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     index = -1;
     cache = 1;
 
-    if (!strcmp(machine->name, "realview") ||
-        !strcmp(machine->name, "SS-5") ||
-        !strcmp(machine->name, "SS-10") ||
-        !strcmp(machine->name, "SS-600MP") ||
-        !strcmp(machine->name, "versatilepb") ||
-        !strcmp(machine->name, "versatileab")) {
+    if (machine->use_scsi) {
         type = IF_SCSI;
         max_devs = MAX_SCSI_DEVS;
         pstrcpy(devname, sizeof(devname), "scsi");
@@ -6144,11 +6196,12 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 #define IO_BUF_SIZE 32768
 
 struct QEMUFile {
-    FILE *outfile;
-    BlockDriverState *bs;
-    int is_file;
-    int is_writable;
-    int64_t base_offset;
+    QEMUFilePutBufferFunc *put_buffer;
+    QEMUFileGetBufferFunc *get_buffer;
+    QEMUFileCloseFunc *close;
+    QEMUFileRateLimit *rate_limit;
+    void *opaque;
+
     int64_t buf_offset; /* start of buffer when writing, end of buffer
                            when reading */
     int buf_index;
@@ -6156,58 +6209,198 @@ struct QEMUFile {
     uint8_t buf[IO_BUF_SIZE];
 };
 
+typedef struct QEMUFileFD
+{
+    int fd;
+    QEMUFile *file;
+} QEMUFileFD;
+
+static void fd_put_notify(void *opaque)
+{
+    QEMUFileFD *s = opaque;
+
+    /* Remove writable callback and do a put notify */
+    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+    qemu_file_put_notify(s->file);
+}
+
+static int fd_put_buffer(void *opaque, const uint8_t *buf,
+                         int64_t pos, int size)
+{
+    QEMUFileFD *s = opaque;
+    ssize_t len;
+
+    do {
+        len = write(s->fd, buf, size);
+    } while (len == -1 && errno == EINTR);
+
+    if (len == -1)
+        len = -errno;
+
+    /* When the fd becomes writable again, register a callback to do
+     * a put notify */
+    if (len == -EAGAIN)
+        qemu_set_fd_handler2(s->fd, NULL, NULL, fd_put_notify, s);
+
+    return len;
+}
+
+static int fd_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFileFD *s = opaque;
+    ssize_t len;
+
+    do {
+        len = read(s->fd, buf, size);
+    } while (len == -1 && errno == EINTR);
+
+    if (len == -1)
+        len = -errno;
+
+    return len;
+}
+
+static int fd_close(void *opaque)
+{
+    QEMUFileFD *s = opaque;
+    qemu_free(s);
+    return 0;
+}
+
+QEMUFile *qemu_fopen_fd(int fd)
+{
+    QEMUFileFD *s = qemu_mallocz(sizeof(QEMUFileFD));
+
+    if (s == NULL)
+        return NULL;
+
+    s->fd = fd;
+    s->file = qemu_fopen_ops(s, fd_put_buffer, fd_get_buffer, fd_close, NULL);
+    return s->file;
+}
+
+typedef struct QEMUFileStdio
+{
+    FILE *outfile;
+} QEMUFileStdio;
+
+static void file_put_buffer(void *opaque, const uint8_t *buf,
+                            int64_t pos, int size)
+{
+    QEMUFileStdio *s = opaque;
+    fseek(s->outfile, pos, SEEK_SET);
+    fwrite(buf, 1, size, s->outfile);
+}
+
+static int file_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFileStdio *s = opaque;
+    fseek(s->outfile, pos, SEEK_SET);
+    return fread(buf, 1, size, s->outfile);
+}
+
+static int file_close(void *opaque)
+{
+    QEMUFileStdio *s = opaque;
+    fclose(s->outfile);
+    qemu_free(s);
+    return 0;
+}
+
 QEMUFile *qemu_fopen(const char *filename, const char *mode)
 {
-    QEMUFile *f;
+    QEMUFileStdio *s;
 
-    f = qemu_mallocz(sizeof(QEMUFile));
-    if (!f)
+    s = qemu_mallocz(sizeof(QEMUFileStdio));
+    if (!s)
         return NULL;
-    if (!strcmp(mode, "wb")) {
-        f->is_writable = 1;
-    } else if (!strcmp(mode, "rb")) {
-        f->is_writable = 0;
-    } else {
+
+    s->outfile = fopen(filename, mode);
+    if (!s->outfile)
         goto fail;
-    }
-    f->outfile = fopen(filename, mode);
-    if (!f->outfile)
-        goto fail;
-    f->is_file = 1;
-    return f;
- fail:
-    if (f->outfile)
-        fclose(f->outfile);
-    qemu_free(f);
+
+    if (!strcmp(mode, "wb"))
+        return qemu_fopen_ops(s, file_put_buffer, NULL, file_close, NULL);
+    else if (!strcmp(mode, "rb"))
+        return qemu_fopen_ops(s, NULL, file_get_buffer, file_close, NULL);
+
+fail:
+    if (s->outfile)
+        fclose(s->outfile);
+    qemu_free(s);
     return NULL;
 }
 
-static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_writable)
+typedef struct QEMUFileBdrv
+{
+    BlockDriverState *bs;
+    int64_t base_offset;
+} QEMUFileBdrv;
+
+static void bdrv_put_buffer(void *opaque, const uint8_t *buf,
+                            int64_t pos, int size)
+{
+    QEMUFileBdrv *s = opaque;
+    bdrv_pwrite(s->bs, s->base_offset + pos, buf, size);
+}
+
+static int bdrv_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFileBdrv *s = opaque;
+    return bdrv_pread(s->bs, s->base_offset + pos, buf, size);
+}
+
+static int bdrv_fclose(void *opaque)
+{
+    QEMUFileBdrv *s = opaque;
+    qemu_free(s);
+    return 0;
+}
+
+QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_writable)
+{
+    QEMUFileBdrv *s;
+
+    s = qemu_mallocz(sizeof(QEMUFileBdrv));
+    if (!s)
+        return NULL;
+
+    s->bs = bs;
+    s->base_offset = offset;
+
+    if (is_writable)
+        return qemu_fopen_ops(s, bdrv_put_buffer, NULL, bdrv_fclose, NULL);
+
+    return qemu_fopen_ops(s, NULL, bdrv_get_buffer, bdrv_fclose, NULL);
+}
+
+QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
+                         QEMUFileGetBufferFunc *get_buffer,
+                         QEMUFileCloseFunc *close,
+                         QEMUFileRateLimit *rate_limit)
 {
     QEMUFile *f;
 
     f = qemu_mallocz(sizeof(QEMUFile));
     if (!f)
         return NULL;
-    f->is_file = 0;
-    f->bs = bs;
-    f->is_writable = is_writable;
-    f->base_offset = offset;
+
+    f->opaque = opaque;
+    f->put_buffer = put_buffer;
+    f->get_buffer = get_buffer;
+    f->close = close;
+    f->rate_limit = rate_limit;
+
     return f;
 }
 
 void qemu_fflush(QEMUFile *f)
 {
-    if (!f->is_writable)
+    if (!f->put_buffer)
         return;
+
     if (f->buf_index > 0) {
-        if (f->is_file) {
-            fseek(f->outfile, f->buf_offset, SEEK_SET);
-            fwrite(f->buf, 1, f->buf_index, f->outfile);
-        } else {
-            bdrv_pwrite(f->bs, f->base_offset + f->buf_offset,
-                        f->buf, f->buf_index);
-        }
+        f->put_buffer(f->opaque, f->buf, f->buf_offset, f->buf_index);
         f->buf_offset += f->buf_index;
         f->buf_index = 0;
     }
@@ -6217,32 +6410,31 @@ static void qemu_fill_buffer(QEMUFile *f)
 {
     int len;
 
-    if (f->is_writable)
+    if (!f->get_buffer)
         return;
-    if (f->is_file) {
-        fseek(f->outfile, f->buf_offset, SEEK_SET);
-        len = fread(f->buf, 1, IO_BUF_SIZE, f->outfile);
-        if (len < 0)
-            len = 0;
-    } else {
-        len = bdrv_pread(f->bs, f->base_offset + f->buf_offset,
-                         f->buf, IO_BUF_SIZE);
-        if (len < 0)
-            len = 0;
-    }
+
+    len = f->get_buffer(f->opaque, f->buf, f->buf_offset, IO_BUF_SIZE);
+    if (len < 0)
+        len = 0;
+
     f->buf_index = 0;
     f->buf_size = len;
     f->buf_offset += len;
 }
 
-void qemu_fclose(QEMUFile *f)
+int qemu_fclose(QEMUFile *f)
 {
-    if (f->is_writable)
-        qemu_fflush(f);
-    if (f->is_file) {
-        fclose(f->outfile);
-    }
+    int ret = 0;
+    qemu_fflush(f);
+    if (f->close)
+        ret = f->close(f->opaque);
     qemu_free(f);
+    return ret;
+}
+
+void qemu_file_put_notify(QEMUFile *f)
+{
+    f->put_buffer(f->opaque, NULL, 0, 0);
 }
 
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
@@ -6316,7 +6508,7 @@ int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence)
         /* SEEK_END not supported */
         return -1;
     }
-    if (f->is_writable) {
+    if (f->put_buffer) {
         qemu_fflush(f);
         f->buf_offset = pos;
     } else {
@@ -6325,6 +6517,14 @@ int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence)
         f->buf_size = 0;
     }
     return pos;
+}
+
+int qemu_file_rate_limit(QEMUFile *f)
+{
+    if (f->rate_limit)
+        return f->rate_limit(f->opaque);
+
+    return 0;
 }
 
 void qemu_put_be16(QEMUFile *f, unsigned int v)
@@ -7689,6 +7889,8 @@ static void help(int exitcode)
            "                use -soundhw ? to get the list of supported cards\n"
            "                use -soundhw all to enable all of them\n"
 #endif
+           "-vga [std|cirrus|vmware]\n"
+           "                select video card type\n"
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
 #ifdef TARGET_I386
@@ -7767,8 +7969,6 @@ static void help(int exitcode)
            "-no-kqemu       disable KQEMU kernel module usage\n"
 #endif
 #ifdef TARGET_I386
-           "-std-vga        simulate a standard VGA card with VESA Bochs Extensions\n"
-           "                (default is CL-GD5446 PCI VGA)\n"
            "-no-acpi        disable ACPI\n"
 #endif
 #ifdef CONFIG_CURSES
@@ -7859,10 +8059,8 @@ enum {
     QEMU_OPTION_bios,
     QEMU_OPTION_k,
     QEMU_OPTION_localtime,
-    QEMU_OPTION_cirrusvga,
-    QEMU_OPTION_vmsvga,
     QEMU_OPTION_g,
-    QEMU_OPTION_std_vga,
+    QEMU_OPTION_vga,
     QEMU_OPTION_echr,
     QEMU_OPTION_monitor,
     QEMU_OPTION_serial,
@@ -7964,7 +8162,7 @@ const QEMUOption qemu_options[] = {
     { "g", 1, QEMU_OPTION_g },
 #endif
     { "localtime", 0, QEMU_OPTION_localtime },
-    { "std-vga", 0, QEMU_OPTION_std_vga },
+    { "vga", HAS_ARG, QEMU_OPTION_vga },
     { "echr", HAS_ARG, QEMU_OPTION_echr },
     { "monitor", HAS_ARG, QEMU_OPTION_monitor },
     { "serial", HAS_ARG, QEMU_OPTION_serial },
@@ -7988,8 +8186,6 @@ const QEMUOption qemu_options[] = {
 
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
-    { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
-    { "vmwarevga", 0, QEMU_OPTION_vmsvga },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "no-shutdown", 0, QEMU_OPTION_no_shutdown },
@@ -8186,6 +8382,39 @@ static void select_soundhw (const char *optarg)
     }
 }
 #endif
+
+static void select_vgahw (const char *p)
+{
+    const char *opts;
+
+    if (strstart(p, "std", &opts)) {
+        cirrus_vga_enabled = 0;
+        vmsvga_enabled = 0;
+    } else if (strstart(p, "cirrus", &opts)) {
+        cirrus_vga_enabled = 1;
+        vmsvga_enabled = 0;
+    } else if (strstart(p, "vmware", &opts)) {
+        cirrus_vga_enabled = 0;
+        vmsvga_enabled = 1;
+    } else {
+    invalid_vga:
+        fprintf(stderr, "Unknown vga type: %s\n", p);
+        exit(1);
+    }
+    while (*opts) {
+        const char *nextopt;
+
+        if (strstart(opts, ",retrace=", &nextopt)) {
+            opts = nextopt;
+            if (strstart(opts, "dumb", &nextopt))
+                vga_retrace_method = VGA_RETRACE_DUMB;
+            else if (strstart(opts, "precise", &nextopt))
+                vga_retrace_method = VGA_RETRACE_PRECISE;
+            else goto invalid_vga;
+        } else goto invalid_vga;
+        opts = nextopt;
+    }
+}
 
 #ifdef _WIN32
 static BOOL WINAPI qemu_ctrl_handler(DWORD type)
@@ -8695,17 +8924,8 @@ int main(int argc, char **argv)
             case QEMU_OPTION_localtime:
                 rtc_utc = 0;
                 break;
-            case QEMU_OPTION_cirrusvga:
-                cirrus_vga_enabled = 1;
-                vmsvga_enabled = 0;
-                break;
-            case QEMU_OPTION_vmsvga:
-                cirrus_vga_enabled = 0;
-                vmsvga_enabled = 1;
-                break;
-            case QEMU_OPTION_std_vga:
-                cirrus_vga_enabled = 0;
-                vmsvga_enabled = 0;
+            case QEMU_OPTION_vga:
+                select_vgahw (optarg);
                 break;
             case QEMU_OPTION_g:
                 {
