@@ -4,6 +4,11 @@
  * Copyright (C) 2007 OpenMoko, Inc.
  * Written by Andrzej Zaborowski <andrew@openedhand.com>
  *
+ * Useful definitions taken from BlueZ project's headers.
+ * Copyright (C) 2000-2001  Qualcomm Incorporated
+ * Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
+ * Copyright (C) 2002-2006  Marcel Holtmann <marcel@holtmann.org>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -103,6 +108,12 @@ struct bt_device_s {
 /* bt.c */
 void bt_device_init(struct bt_device_s *dev, struct bt_scatternet_s *net);
 void bt_device_done(struct bt_device_s *dev);
+
+/* bt-hci.c */
+struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net);
+
+/* bt-host.c */
+struct HCIInfo *bt_host_hci(const char *id);
 
 /* bt-hci-csr.c */
 enum {
