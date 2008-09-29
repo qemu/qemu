@@ -88,7 +88,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     cpu_put_seg(f, &env->gdt);
     cpu_put_seg(f, &env->idt);
 
-    qemu_put_betls(f, &env->sysenter_cs);
+    qemu_put_be32s(f, &env->sysenter_cs);
     qemu_put_betls(f, &env->sysenter_esp);
     qemu_put_betls(f, &env->sysenter_eip);
 
