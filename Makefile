@@ -81,7 +81,7 @@ OBJS+=scsi-generic.o
 OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o
 OBJS+=usb-serial.o usb-net.o
 OBJS+=sd.o ssi-sd.o
-OBJS+=bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o
+OBJS+=bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
 
 ifdef CONFIG_BRLAPI
 OBJS+= baum.o
