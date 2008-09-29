@@ -693,7 +693,7 @@ static void sun4c_hw_init(const struct hwdef *hwdef, ram_addr_t RAM_size,
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
 
-    slavio_misc = slavio_misc_init(-1, hwdef->apc_base,
+    slavio_misc = slavio_misc_init(0, hwdef->apc_base,
                                    hwdef->aux1_base, hwdef->aux2_base,
                                    slavio_irq[hwdef->me_irq], env, &fdc_tc);
 
