@@ -1956,6 +1956,27 @@ void helper_cpuid(void)
         ECX = CPUID_MWAIT_EMX | CPUID_MWAIT_IBE;
         EDX = 0;
         break;
+    case 6:
+        /* Thermal and Power Leaf */
+        EAX = 0;
+        EBX = 0;
+        ECX = 0;
+        EDX = 0;
+        break;
+    case 9:
+        /* Direct Cache Access Information Leaf */
+        EAX = 0; /* Bits 0-31 in DCA_CAP MSR */
+        EBX = 0;
+        ECX = 0;
+        EDX = 0;
+        break;
+    case 0xA:
+        /* Architectural Performance Monitoring Leaf */
+        EAX = 0;
+        EBX = 0;
+        ECX = 0;
+        EDX = 0;
+        break;
     case 0x80000000:
         EAX = env->cpuid_xlevel;
         EBX = env->cpuid_vendor1;
