@@ -7,9 +7,36 @@
 
 /* VM Load/Save */
 
+/* This function writes a chunk of data to a file at the given position.
+ * The pos argument can be ignored if the file is only being used for
+ * streaming.  The handler should try to write all of the data it can.
+ */
+typedef void (QEMUFilePutBufferFunc)(void *opaque, const uint8_t *buf,
+                                     int64_t pos, int size);
+
+/* Read a chunk of data from a file at the given position.  The pos argument
+ * can be ignored if the file is only be used for streaming.  The number of
+ * bytes actually read should be returned.
+ */
+typedef int (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
+                                    int64_t pos, int size);
+
+/* Close a file and return an error code */
+typedef int (QEMUFileCloseFunc)(void *opaque);
+
+/* Called to determine if the file has exceeded it's bandwidth allocation.  The
+ * bandwidth capping is a soft limit, not a hard limit.
+ */
+typedef int (QEMUFileRateLimit)(void *opaque);
+
+QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
+                         QEMUFileGetBufferFunc *get_buffer,
+                         QEMUFileCloseFunc *close,
+                         QEMUFileRateLimit *rate_limit);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
+QEMUFile *qemu_fopen_fd(int fd);
 void qemu_fflush(QEMUFile *f);
-void qemu_fclose(QEMUFile *f);
+int qemu_fclose(QEMUFile *f);
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
 void qemu_put_byte(QEMUFile *f, int v);
 void qemu_put_be16(QEMUFile *f, unsigned int v);
@@ -20,6 +47,12 @@ int qemu_get_byte(QEMUFile *f);
 unsigned int qemu_get_be16(QEMUFile *f);
 unsigned int qemu_get_be32(QEMUFile *f);
 uint64_t qemu_get_be64(QEMUFile *f);
+int qemu_file_rate_limit(QEMUFile *f);
+
+/* Try to send any outstanding data.  This function is useful when output is
+ * halted due to rate limiting or EAGAIN errors occur as it can be used to
+ * resume output. */
+void qemu_file_put_notify(QEMUFile *f);
 
 static inline void qemu_put_be64s(QEMUFile *f, const uint64_t *pv)
 {

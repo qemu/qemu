@@ -6198,11 +6198,12 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 #define IO_BUF_SIZE 32768
 
 struct QEMUFile {
-    FILE *outfile;
-    BlockDriverState *bs;
-    int is_file;
-    int is_writable;
-    int64_t base_offset;
+    QEMUFilePutBufferFunc *put_buffer;
+    QEMUFileGetBufferFunc *get_buffer;
+    QEMUFileCloseFunc *close;
+    QEMUFileRateLimit *rate_limit;
+    void *opaque;
+
     int64_t buf_offset; /* start of buffer when writing, end of buffer
                            when reading */
     int buf_index;
@@ -6210,58 +6211,198 @@ struct QEMUFile {
     uint8_t buf[IO_BUF_SIZE];
 };
 
+typedef struct QEMUFileFD
+{
+    int fd;
+    QEMUFile *file;
+} QEMUFileFD;
+
+static void fd_put_notify(void *opaque)
+{
+    QEMUFileFD *s = opaque;
+
+    /* Remove writable callback and do a put notify */
+    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+    qemu_file_put_notify(s->file);
+}
+
+static int fd_put_buffer(void *opaque, const uint8_t *buf,
+                         int64_t pos, int size)
+{
+    QEMUFileFD *s = opaque;
+    ssize_t len;
+
+    do {
+        len = write(s->fd, buf, size);
+    } while (len == -1 && errno == EINTR);
+
+    if (len == -1)
+        len = -errno;
+
+    /* When the fd becomes writable again, register a callback to do
+     * a put notify */
+    if (len == -EAGAIN)
+        qemu_set_fd_handler2(s->fd, NULL, NULL, fd_put_notify, s);
+
+    return len;
+}
+
+static int fd_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFileFD *s = opaque;
+    ssize_t len;
+
+    do {
+        len = read(s->fd, buf, size);
+    } while (len == -1 && errno == EINTR);
+
+    if (len == -1)
+        len = -errno;
+
+    return len;
+}
+
+static int fd_close(void *opaque)
+{
+    QEMUFileFD *s = opaque;
+    qemu_free(s);
+    return 0;
+}
+
+QEMUFile *qemu_fopen_fd(int fd)
+{
+    QEMUFileFD *s = qemu_mallocz(sizeof(QEMUFileFD));
+
+    if (s == NULL)
+        return NULL;
+
+    s->fd = fd;
+    s->file = qemu_fopen_ops(s, fd_put_buffer, fd_get_buffer, fd_close, NULL);
+    return s->file;
+}
+
+typedef struct QEMUFileStdio
+{
+    FILE *outfile;
+} QEMUFileStdio;
+
+static void file_put_buffer(void *opaque, const uint8_t *buf,
+                            int64_t pos, int size)
+{
+    QEMUFileStdio *s = opaque;
+    fseek(s->outfile, pos, SEEK_SET);
+    fwrite(buf, 1, size, s->outfile);
+}
+
+static int file_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFileStdio *s = opaque;
+    fseek(s->outfile, pos, SEEK_SET);
+    return fread(buf, 1, size, s->outfile);
+}
+
+static int file_close(void *opaque)
+{
+    QEMUFileStdio *s = opaque;
+    fclose(s->outfile);
+    qemu_free(s);
+    return 0;
+}
+
 QEMUFile *qemu_fopen(const char *filename, const char *mode)
 {
-    QEMUFile *f;
+    QEMUFileStdio *s;
 
-    f = qemu_mallocz(sizeof(QEMUFile));
-    if (!f)
+    s = qemu_mallocz(sizeof(QEMUFileStdio));
+    if (!s)
         return NULL;
-    if (!strcmp(mode, "wb")) {
-        f->is_writable = 1;
-    } else if (!strcmp(mode, "rb")) {
-        f->is_writable = 0;
-    } else {
+
+    s->outfile = fopen(filename, mode);
+    if (!s->outfile)
         goto fail;
-    }
-    f->outfile = fopen(filename, mode);
-    if (!f->outfile)
-        goto fail;
-    f->is_file = 1;
-    return f;
- fail:
-    if (f->outfile)
-        fclose(f->outfile);
-    qemu_free(f);
+
+    if (!strcmp(mode, "wb"))
+        return qemu_fopen_ops(s, file_put_buffer, NULL, file_close, NULL);
+    else if (!strcmp(mode, "rb"))
+        return qemu_fopen_ops(s, NULL, file_get_buffer, file_close, NULL);
+
+fail:
+    if (s->outfile)
+        fclose(s->outfile);
+    qemu_free(s);
     return NULL;
 }
 
-static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_writable)
+typedef struct QEMUFileBdrv
+{
+    BlockDriverState *bs;
+    int64_t base_offset;
+} QEMUFileBdrv;
+
+static void bdrv_put_buffer(void *opaque, const uint8_t *buf,
+                            int64_t pos, int size)
+{
+    QEMUFileBdrv *s = opaque;
+    bdrv_pwrite(s->bs, s->base_offset + pos, buf, size);
+}
+
+static int bdrv_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFileBdrv *s = opaque;
+    return bdrv_pread(s->bs, s->base_offset + pos, buf, size);
+}
+
+static int bdrv_fclose(void *opaque)
+{
+    QEMUFileBdrv *s = opaque;
+    qemu_free(s);
+    return 0;
+}
+
+QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_writable)
+{
+    QEMUFileBdrv *s;
+
+    s = qemu_mallocz(sizeof(QEMUFileBdrv));
+    if (!s)
+        return NULL;
+
+    s->bs = bs;
+    s->base_offset = offset;
+
+    if (is_writable)
+        return qemu_fopen_ops(s, bdrv_put_buffer, NULL, bdrv_fclose, NULL);
+
+    return qemu_fopen_ops(s, NULL, bdrv_get_buffer, bdrv_fclose, NULL);
+}
+
+QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
+                         QEMUFileGetBufferFunc *get_buffer,
+                         QEMUFileCloseFunc *close,
+                         QEMUFileRateLimit *rate_limit)
 {
     QEMUFile *f;
 
     f = qemu_mallocz(sizeof(QEMUFile));
     if (!f)
         return NULL;
-    f->is_file = 0;
-    f->bs = bs;
-    f->is_writable = is_writable;
-    f->base_offset = offset;
+
+    f->opaque = opaque;
+    f->put_buffer = put_buffer;
+    f->get_buffer = get_buffer;
+    f->close = close;
+    f->rate_limit = rate_limit;
+
     return f;
 }
 
 void qemu_fflush(QEMUFile *f)
 {
-    if (!f->is_writable)
+    if (!f->put_buffer)
         return;
+
     if (f->buf_index > 0) {
-        if (f->is_file) {
-            fseek(f->outfile, f->buf_offset, SEEK_SET);
-            fwrite(f->buf, 1, f->buf_index, f->outfile);
-        } else {
-            bdrv_pwrite(f->bs, f->base_offset + f->buf_offset,
-                        f->buf, f->buf_index);
-        }
+        f->put_buffer(f->opaque, f->buf, f->buf_offset, f->buf_index);
         f->buf_offset += f->buf_index;
         f->buf_index = 0;
     }
@@ -6271,32 +6412,31 @@ static void qemu_fill_buffer(QEMUFile *f)
 {
     int len;
 
-    if (f->is_writable)
+    if (!f->get_buffer)
         return;
-    if (f->is_file) {
-        fseek(f->outfile, f->buf_offset, SEEK_SET);
-        len = fread(f->buf, 1, IO_BUF_SIZE, f->outfile);
-        if (len < 0)
-            len = 0;
-    } else {
-        len = bdrv_pread(f->bs, f->base_offset + f->buf_offset,
-                         f->buf, IO_BUF_SIZE);
-        if (len < 0)
-            len = 0;
-    }
+
+    len = f->get_buffer(f->opaque, f->buf, f->buf_offset, IO_BUF_SIZE);
+    if (len < 0)
+        len = 0;
+
     f->buf_index = 0;
     f->buf_size = len;
     f->buf_offset += len;
 }
 
-void qemu_fclose(QEMUFile *f)
+int qemu_fclose(QEMUFile *f)
 {
-    if (f->is_writable)
-        qemu_fflush(f);
-    if (f->is_file) {
-        fclose(f->outfile);
-    }
+    int ret = 0;
+    qemu_fflush(f);
+    if (f->close)
+        ret = f->close(f->opaque);
     qemu_free(f);
+    return ret;
+}
+
+void qemu_file_put_notify(QEMUFile *f)
+{
+    f->put_buffer(f->opaque, NULL, 0, 0);
 }
 
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
@@ -6370,7 +6510,7 @@ int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence)
         /* SEEK_END not supported */
         return -1;
     }
-    if (f->is_writable) {
+    if (f->put_buffer) {
         qemu_fflush(f);
         f->buf_offset = pos;
     } else {
@@ -6379,6 +6519,14 @@ int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence)
         f->buf_size = 0;
     }
     return pos;
+}
+
+int qemu_file_rate_limit(QEMUFile *f)
+{
+    if (f->rate_limit)
+        return f->rate_limit(f->opaque);
+
+    return 0;
 }
 
 void qemu_put_be16(QEMUFile *f, unsigned int v)
