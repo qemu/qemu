@@ -247,6 +247,7 @@ void usb_host_info(void);
 USBDevice *usb_mouse_init(void);
 USBDevice *usb_tablet_init(void);
 USBDevice *usb_keyboard_init(void);
+void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *));
 
 /* usb-msd.c */
 USBDevice *usb_msd_init(const char *filename);

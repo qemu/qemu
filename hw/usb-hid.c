@@ -67,6 +67,8 @@ typedef struct USBHIDState {
     int protocol;
     int idle;
     int changed;
+    void *datain_opaque;
+    void (*datain)(void *);
 } USBHIDState;
 
 /* mostly the same values as the Bochs USB Mouse device */
@@ -402,6 +404,14 @@ static const uint8_t usb_hid_usage_keys[0x100] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+static void usb_hid_changed(USBHIDState *hs)
+{
+    hs->changed = 1;
+
+    if (hs->datain)
+        hs->datain(hs->datain_opaque);
+}
+
 static void usb_mouse_event(void *opaque,
                             int dx1, int dy1, int dz1, int buttons_state)
 {
@@ -412,7 +422,8 @@ static void usb_mouse_event(void *opaque,
     s->dy += dy1;
     s->dz += dz1;
     s->buttons_state = buttons_state;
-    hs->changed = 1;
+
+    usb_hid_changed(hs);
 }
 
 static void usb_tablet_event(void *opaque,
@@ -425,7 +436,8 @@ static void usb_tablet_event(void *opaque,
     s->y = y;
     s->dz += dz;
     s->buttons_state = buttons_state;
-    hs->changed = 1;
+
+    usb_hid_changed(hs);
 }
 
 static void usb_keyboard_event(void *opaque, int keycode)
@@ -438,8 +450,6 @@ static void usb_keyboard_event(void *opaque, int keycode)
     key = keycode & 0x7f;
     hid_code = usb_hid_usage_keys[key | ((s->modifiers >> 1) & (1 << 7))];
     s->modifiers &= ~(1 << 8);
-
-    hs->changed = 1;
 
     switch (hid_code) {
     case 0x00:
@@ -465,15 +475,23 @@ static void usb_keyboard_event(void *opaque, int keycode)
             if (s->key[i] == hid_code) {
                 s->key[i] = s->key[-- s->keys];
                 s->key[s->keys] = 0x00;
-                return;
+                usb_hid_changed(hs);
+                break;
             }
+        if (i < 0)
+            return;
     } else {
         for (i = s->keys - 1; i >= 0; i --)
             if (s->key[i] == hid_code)
-                return;
-        if (s->keys < sizeof(s->key))
-            s->key[s->keys ++] = hid_code;
+                break;
+        if (i < 0) {
+            if (s->keys < sizeof(s->key))
+                s->key[s->keys ++] = hid_code;
+        } else
+            return;
     }
+
+    usb_hid_changed(hs);
 }
 
 static inline int int_clamp(int val, int vmin, int vmax)
@@ -893,4 +911,12 @@ USBDevice *usb_keyboard_init(void)
     pstrcpy(s->dev.devname, sizeof(s->dev.devname), "QEMU USB Keyboard");
 
     return (USBDevice *) s;
+}
+
+void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *))
+{
+    USBHIDState *s = (USBHIDState *)dev;
+
+    s->datain_opaque = opaque;
+    s->datain = datain;
 }
