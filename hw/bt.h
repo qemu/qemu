@@ -124,6 +124,49 @@ enum {
 qemu_irq *csrhci_pins_get(CharDriverState *chr);
 CharDriverState *uart_hci_init(qemu_irq wakeup);
 
+/* bt-l2cap.c */
+struct bt_l2cap_device_s;
+struct bt_l2cap_conn_params_s;
+struct bt_l2cap_psm_s;
+void bt_l2cap_device_init(struct bt_l2cap_device_s *dev,
+                struct bt_scatternet_s *net);
+void bt_l2cap_device_done(struct bt_l2cap_device_s *dev);
+void bt_l2cap_psm_register(struct bt_l2cap_device_s *dev, int psm,
+                int min_mtu, int (*new_channel)(struct bt_l2cap_device_s *dev,
+                        struct bt_l2cap_conn_params_s *params));
+
+struct bt_l2cap_device_s {
+    struct bt_device_s device;
+    struct bt_l2cap_psm_s *first_psm;
+};
+
+struct bt_l2cap_conn_params_s {
+    /* Input */
+    uint8_t *(*sdu_out)(struct bt_l2cap_conn_params_s *chan, int len);
+    void (*sdu_submit)(struct bt_l2cap_conn_params_s *chan);
+    int remote_mtu;
+    /* Output */
+    void *opaque;
+    void (*sdu_in)(void *opaque, const uint8_t *data, int len);
+    void (*close)(void *opaque);
+};
+
+enum bt_l2cap_psm_predef {
+    BT_PSM_SDP		= 0x0001,
+    BT_PSM_RFCOMM	= 0x0003,
+    BT_PSM_TELEPHONY	= 0x0005,
+    BT_PSM_TCS		= 0x0007,
+    BT_PSM_BNEP		= 0x000f,
+    BT_PSM_HID_CTRL	= 0x0011,
+    BT_PSM_HID_INTR	= 0x0013,
+    BT_PSM_UPNP		= 0x0015,
+    BT_PSM_AVCTP	= 0x0017,
+    BT_PSM_AVDTP	= 0x0019,
+};
+
+/* bt-sdp.c */
+void bt_l2cap_sdp_init(struct bt_l2cap_device_s *dev);
+
 /* Link Management Protocol layer defines */
 
 #define LLID_ACLU_CONT		0x1
@@ -1626,3 +1669,512 @@ struct hci_sco_hdr {
     uint16_t	handle;
     uint8_t	dlen;
 } __attribute__ ((packed));
+
+/* L2CAP layer defines */
+
+enum bt_l2cap_lm_bits {
+    L2CAP_LM_MASTER	= 1 << 0,
+    L2CAP_LM_AUTH	= 1 << 1,
+    L2CAP_LM_ENCRYPT	= 1 << 2,
+    L2CAP_LM_TRUSTED	= 1 << 3,
+    L2CAP_LM_RELIABLE	= 1 << 4,
+    L2CAP_LM_SECURE	= 1 << 5,
+};
+
+enum bt_l2cap_cid_predef {
+    L2CAP_CID_INVALID	= 0x0000,
+    L2CAP_CID_SIGNALLING= 0x0001,
+    L2CAP_CID_GROUP	= 0x0002,
+    L2CAP_CID_ALLOC	= 0x0040,
+};
+
+/* L2CAP command codes */
+enum bt_l2cap_cmd {
+    L2CAP_COMMAND_REJ	= 1,
+    L2CAP_CONN_REQ,
+    L2CAP_CONN_RSP,
+    L2CAP_CONF_REQ,
+    L2CAP_CONF_RSP,
+    L2CAP_DISCONN_REQ,
+    L2CAP_DISCONN_RSP,
+    L2CAP_ECHO_REQ,
+    L2CAP_ECHO_RSP,
+    L2CAP_INFO_REQ,
+    L2CAP_INFO_RSP,
+};
+
+enum bt_l2cap_sar_bits {
+    L2CAP_SAR_NO_SEG	= 0,
+    L2CAP_SAR_START,
+    L2CAP_SAR_END,
+    L2CAP_SAR_CONT,
+};
+
+/* L2CAP structures */
+typedef struct {
+    uint16_t	len;
+    uint16_t	cid;
+    uint8_t	data[0];
+} __attribute__ ((packed)) l2cap_hdr;
+#define L2CAP_HDR_SIZE 4
+
+typedef struct {
+    uint8_t	code;
+    uint8_t	ident;
+    uint16_t	len;
+} __attribute__ ((packed)) l2cap_cmd_hdr;
+#define L2CAP_CMD_HDR_SIZE 4
+
+typedef struct {
+    uint16_t	reason;
+} __attribute__ ((packed)) l2cap_cmd_rej;
+#define L2CAP_CMD_REJ_SIZE 2
+
+typedef struct {
+    uint16_t	dcid;
+    uint16_t	scid;
+} __attribute__ ((packed)) l2cap_cmd_rej_cid;
+#define L2CAP_CMD_REJ_CID_SIZE 4
+
+/* reject reason */
+enum bt_l2cap_rej_reason {
+    L2CAP_REJ_CMD_NOT_UNDERSTOOD = 0,
+    L2CAP_REJ_SIG_TOOBIG,
+    L2CAP_REJ_CID_INVAL,
+};
+
+typedef struct {
+    uint16_t	psm;
+    uint16_t	scid;
+} __attribute__ ((packed)) l2cap_conn_req;
+#define L2CAP_CONN_REQ_SIZE 4
+
+typedef struct {
+    uint16_t	dcid;
+    uint16_t	scid;
+    uint16_t	result;
+    uint16_t	status;
+} __attribute__ ((packed)) l2cap_conn_rsp;
+#define L2CAP_CONN_RSP_SIZE 8
+
+/* connect result */
+enum bt_l2cap_conn_res {
+    L2CAP_CR_SUCCESS	= 0,
+    L2CAP_CR_PEND,
+    L2CAP_CR_BAD_PSM,
+    L2CAP_CR_SEC_BLOCK,
+    L2CAP_CR_NO_MEM,
+};
+
+/* connect status */
+enum bt_l2cap_conn_stat {
+    L2CAP_CS_NO_INFO	= 0,
+    L2CAP_CS_AUTHEN_PEND,
+    L2CAP_CS_AUTHOR_PEND,
+};
+
+typedef struct {
+    uint16_t	dcid;
+    uint16_t	flags;
+    uint8_t	data[0];
+} __attribute__ ((packed)) l2cap_conf_req;
+#define L2CAP_CONF_REQ_SIZE(datalen) (4 + (datalen))
+
+typedef struct {
+    uint16_t	scid;
+    uint16_t	flags;
+    uint16_t	result;
+    uint8_t	data[0];
+} __attribute__ ((packed)) l2cap_conf_rsp;
+#define L2CAP_CONF_RSP_SIZE(datalen) (6 + datalen)
+
+enum bt_l2cap_conf_res {
+    L2CAP_CONF_SUCCESS	= 0,
+    L2CAP_CONF_UNACCEPT,
+    L2CAP_CONF_REJECT,
+    L2CAP_CONF_UNKNOWN,
+};
+
+typedef struct {
+    uint8_t	type;
+    uint8_t	len;
+    uint8_t	val[0];
+} __attribute__ ((packed)) l2cap_conf_opt;
+#define L2CAP_CONF_OPT_SIZE 2
+
+enum bt_l2cap_conf_val {
+    L2CAP_CONF_MTU	= 1,
+    L2CAP_CONF_FLUSH_TO,
+    L2CAP_CONF_QOS,
+    L2CAP_CONF_RFC,
+    L2CAP_CONF_RFC_MODE	= L2CAP_CONF_RFC,
+};
+
+typedef struct {
+    uint8_t	flags;
+    uint8_t	service_type;
+    uint32_t	token_rate;
+    uint32_t	token_bucket_size;
+    uint32_t	peak_bandwidth;
+    uint32_t	latency;
+    uint32_t	delay_variation;
+} __attribute__ ((packed)) l2cap_conf_opt_qos;
+#define L2CAP_CONF_OPT_QOS_SIZE 22
+
+enum bt_l2cap_conf_opt_qos_st {
+    L2CAP_CONF_QOS_NO_TRAFFIC = 0x00,
+    L2CAP_CONF_QOS_BEST_EFFORT,
+    L2CAP_CONF_QOS_GUARANTEED,
+};
+
+#define L2CAP_CONF_QOS_WILDCARD	0xffffffff
+
+enum bt_l2cap_mode {
+    L2CAP_MODE_BASIC	= 0,
+    L2CAP_MODE_RETRANS	= 1,
+    L2CAP_MODE_FLOWCTL	= 2,
+};
+
+typedef struct {
+    uint16_t	dcid;
+    uint16_t	scid;
+} __attribute__ ((packed)) l2cap_disconn_req;
+#define L2CAP_DISCONN_REQ_SIZE 4
+
+typedef struct {
+    uint16_t	dcid;
+    uint16_t	scid;
+} __attribute__ ((packed)) l2cap_disconn_rsp;
+#define L2CAP_DISCONN_RSP_SIZE 4
+
+typedef struct {
+    uint16_t	type;
+} __attribute__ ((packed)) l2cap_info_req;
+#define L2CAP_INFO_REQ_SIZE 2
+
+typedef struct {
+    uint16_t	type;
+    uint16_t	result;
+    uint8_t	data[0];
+} __attribute__ ((packed)) l2cap_info_rsp;
+#define L2CAP_INFO_RSP_SIZE 4
+
+/* info type */
+enum bt_l2cap_info_type {
+    L2CAP_IT_CL_MTU	= 1,
+    L2CAP_IT_FEAT_MASK,
+};
+
+/* info result */
+enum bt_l2cap_info_result {
+    L2CAP_IR_SUCCESS	= 0,
+    L2CAP_IR_NOTSUPP,
+};
+
+/* Service Discovery Protocol defines */
+/* Note that all multibyte values in lower layer protocols (above in this file)
+ * are little-endian while SDP is big-endian.  */
+
+/* Protocol UUIDs */
+enum sdp_proto_uuid {
+    SDP_UUID		= 0x0001,
+    UDP_UUID		= 0x0002,
+    RFCOMM_UUID		= 0x0003,
+    TCP_UUID		= 0x0004,
+    TCS_BIN_UUID	= 0x0005,
+    TCS_AT_UUID		= 0x0006,
+    OBEX_UUID		= 0x0008,
+    IP_UUID		= 0x0009,
+    FTP_UUID		= 0x000a,
+    HTTP_UUID		= 0x000c,
+    WSP_UUID		= 0x000e,
+    BNEP_UUID		= 0x000f,
+    UPNP_UUID		= 0x0010,
+    HIDP_UUID		= 0x0011,
+    HCRP_CTRL_UUID	= 0x0012,
+    HCRP_DATA_UUID	= 0x0014,
+    HCRP_NOTE_UUID	= 0x0016,
+    AVCTP_UUID		= 0x0017,
+    AVDTP_UUID		= 0x0019,
+    CMTP_UUID		= 0x001b,
+    UDI_UUID		= 0x001d,
+    MCAP_CTRL_UUID	= 0x001e,
+    MCAP_DATA_UUID	= 0x001f,
+    L2CAP_UUID		= 0x0100,
+};
+
+/*
+ * Service class identifiers of standard services and service groups
+ */
+enum service_class_id {
+    SDP_SERVER_SVCLASS_ID		= 0x1000,
+    BROWSE_GRP_DESC_SVCLASS_ID		= 0x1001,
+    PUBLIC_BROWSE_GROUP			= 0x1002,
+    SERIAL_PORT_SVCLASS_ID		= 0x1101,
+    LAN_ACCESS_SVCLASS_ID		= 0x1102,
+    DIALUP_NET_SVCLASS_ID		= 0x1103,
+    IRMC_SYNC_SVCLASS_ID		= 0x1104,
+    OBEX_OBJPUSH_SVCLASS_ID		= 0x1105,
+    OBEX_FILETRANS_SVCLASS_ID		= 0x1106,
+    IRMC_SYNC_CMD_SVCLASS_ID		= 0x1107,
+    HEADSET_SVCLASS_ID			= 0x1108,
+    CORDLESS_TELEPHONY_SVCLASS_ID	= 0x1109,
+    AUDIO_SOURCE_SVCLASS_ID		= 0x110a,
+    AUDIO_SINK_SVCLASS_ID		= 0x110b,
+    AV_REMOTE_TARGET_SVCLASS_ID		= 0x110c,
+    ADVANCED_AUDIO_SVCLASS_ID		= 0x110d,
+    AV_REMOTE_SVCLASS_ID		= 0x110e,
+    VIDEO_CONF_SVCLASS_ID		= 0x110f,
+    INTERCOM_SVCLASS_ID			= 0x1110,
+    FAX_SVCLASS_ID			= 0x1111,
+    HEADSET_AGW_SVCLASS_ID		= 0x1112,
+    WAP_SVCLASS_ID			= 0x1113,
+    WAP_CLIENT_SVCLASS_ID		= 0x1114,
+    PANU_SVCLASS_ID			= 0x1115,
+    NAP_SVCLASS_ID			= 0x1116,
+    GN_SVCLASS_ID			= 0x1117,
+    DIRECT_PRINTING_SVCLASS_ID		= 0x1118,
+    REFERENCE_PRINTING_SVCLASS_ID	= 0x1119,
+    IMAGING_SVCLASS_ID			= 0x111a,
+    IMAGING_RESPONDER_SVCLASS_ID	= 0x111b,
+    IMAGING_ARCHIVE_SVCLASS_ID		= 0x111c,
+    IMAGING_REFOBJS_SVCLASS_ID		= 0x111d,
+    HANDSFREE_SVCLASS_ID		= 0x111e,
+    HANDSFREE_AGW_SVCLASS_ID		= 0x111f,
+    DIRECT_PRT_REFOBJS_SVCLASS_ID	= 0x1120,
+    REFLECTED_UI_SVCLASS_ID		= 0x1121,
+    BASIC_PRINTING_SVCLASS_ID		= 0x1122,
+    PRINTING_STATUS_SVCLASS_ID		= 0x1123,
+    HID_SVCLASS_ID			= 0x1124,
+    HCR_SVCLASS_ID			= 0x1125,
+    HCR_PRINT_SVCLASS_ID		= 0x1126,
+    HCR_SCAN_SVCLASS_ID			= 0x1127,
+    CIP_SVCLASS_ID			= 0x1128,
+    VIDEO_CONF_GW_SVCLASS_ID		= 0x1129,
+    UDI_MT_SVCLASS_ID			= 0x112a,
+    UDI_TA_SVCLASS_ID			= 0x112b,
+    AV_SVCLASS_ID			= 0x112c,
+    SAP_SVCLASS_ID			= 0x112d,
+    PBAP_PCE_SVCLASS_ID			= 0x112e,
+    PBAP_PSE_SVCLASS_ID			= 0x112f,
+    PBAP_SVCLASS_ID			= 0x1130,
+    PNP_INFO_SVCLASS_ID			= 0x1200,
+    GENERIC_NETWORKING_SVCLASS_ID	= 0x1201,
+    GENERIC_FILETRANS_SVCLASS_ID	= 0x1202,
+    GENERIC_AUDIO_SVCLASS_ID		= 0x1203,
+    GENERIC_TELEPHONY_SVCLASS_ID	= 0x1204,
+    UPNP_SVCLASS_ID			= 0x1205,
+    UPNP_IP_SVCLASS_ID			= 0x1206,
+    UPNP_PAN_SVCLASS_ID			= 0x1300,
+    UPNP_LAP_SVCLASS_ID			= 0x1301,
+    UPNP_L2CAP_SVCLASS_ID		= 0x1302,
+    VIDEO_SOURCE_SVCLASS_ID		= 0x1303,
+    VIDEO_SINK_SVCLASS_ID		= 0x1304,
+    VIDEO_DISTRIBUTION_SVCLASS_ID	= 0x1305,
+    MDP_SVCLASS_ID			= 0x1400,
+    MDP_SOURCE_SVCLASS_ID		= 0x1401,
+    MDP_SINK_SVCLASS_ID			= 0x1402,
+    APPLE_AGENT_SVCLASS_ID		= 0x2112,
+};
+
+/*
+ * Standard profile descriptor identifiers; note these
+ * may be identical to some of the service classes defined above
+ */
+#define SDP_SERVER_PROFILE_ID		SDP_SERVER_SVCLASS_ID
+#define BROWSE_GRP_DESC_PROFILE_ID	BROWSE_GRP_DESC_SVCLASS_ID
+#define SERIAL_PORT_PROFILE_ID		SERIAL_PORT_SVCLASS_ID
+#define LAN_ACCESS_PROFILE_ID		LAN_ACCESS_SVCLASS_ID
+#define DIALUP_NET_PROFILE_ID		DIALUP_NET_SVCLASS_ID
+#define IRMC_SYNC_PROFILE_ID		IRMC_SYNC_SVCLASS_ID
+#define OBEX_OBJPUSH_PROFILE_ID		OBEX_OBJPUSH_SVCLASS_ID
+#define OBEX_FILETRANS_PROFILE_ID	OBEX_FILETRANS_SVCLASS_ID
+#define IRMC_SYNC_CMD_PROFILE_ID	IRMC_SYNC_CMD_SVCLASS_ID
+#define HEADSET_PROFILE_ID		HEADSET_SVCLASS_ID
+#define CORDLESS_TELEPHONY_PROFILE_ID	CORDLESS_TELEPHONY_SVCLASS_ID
+#define AUDIO_SOURCE_PROFILE_ID		AUDIO_SOURCE_SVCLASS_ID
+#define AUDIO_SINK_PROFILE_ID		AUDIO_SINK_SVCLASS_ID
+#define AV_REMOTE_TARGET_PROFILE_ID	AV_REMOTE_TARGET_SVCLASS_ID
+#define ADVANCED_AUDIO_PROFILE_ID	ADVANCED_AUDIO_SVCLASS_ID
+#define AV_REMOTE_PROFILE_ID		AV_REMOTE_SVCLASS_ID
+#define VIDEO_CONF_PROFILE_ID		VIDEO_CONF_SVCLASS_ID
+#define INTERCOM_PROFILE_ID		INTERCOM_SVCLASS_ID
+#define FAX_PROFILE_ID			FAX_SVCLASS_ID
+#define HEADSET_AGW_PROFILE_ID		HEADSET_AGW_SVCLASS_ID
+#define WAP_PROFILE_ID			WAP_SVCLASS_ID
+#define WAP_CLIENT_PROFILE_ID		WAP_CLIENT_SVCLASS_ID
+#define PANU_PROFILE_ID			PANU_SVCLASS_ID
+#define NAP_PROFILE_ID			NAP_SVCLASS_ID
+#define GN_PROFILE_ID			GN_SVCLASS_ID
+#define DIRECT_PRINTING_PROFILE_ID	DIRECT_PRINTING_SVCLASS_ID
+#define REFERENCE_PRINTING_PROFILE_ID	REFERENCE_PRINTING_SVCLASS_ID
+#define IMAGING_PROFILE_ID		IMAGING_SVCLASS_ID
+#define IMAGING_RESPONDER_PROFILE_ID	IMAGING_RESPONDER_SVCLASS_ID
+#define IMAGING_ARCHIVE_PROFILE_ID	IMAGING_ARCHIVE_SVCLASS_ID
+#define IMAGING_REFOBJS_PROFILE_ID	IMAGING_REFOBJS_SVCLASS_ID
+#define HANDSFREE_PROFILE_ID		HANDSFREE_SVCLASS_ID
+#define HANDSFREE_AGW_PROFILE_ID	HANDSFREE_AGW_SVCLASS_ID
+#define DIRECT_PRT_REFOBJS_PROFILE_ID	DIRECT_PRT_REFOBJS_SVCLASS_ID
+#define REFLECTED_UI_PROFILE_ID		REFLECTED_UI_SVCLASS_ID
+#define BASIC_PRINTING_PROFILE_ID	BASIC_PRINTING_SVCLASS_ID
+#define PRINTING_STATUS_PROFILE_ID	PRINTING_STATUS_SVCLASS_ID
+#define HID_PROFILE_ID			HID_SVCLASS_ID
+#define HCR_PROFILE_ID			HCR_SCAN_SVCLASS_ID
+#define HCR_PRINT_PROFILE_ID		HCR_PRINT_SVCLASS_ID
+#define HCR_SCAN_PROFILE_ID		HCR_SCAN_SVCLASS_ID
+#define CIP_PROFILE_ID			CIP_SVCLASS_ID
+#define VIDEO_CONF_GW_PROFILE_ID	VIDEO_CONF_GW_SVCLASS_ID
+#define UDI_MT_PROFILE_ID		UDI_MT_SVCLASS_ID
+#define UDI_TA_PROFILE_ID		UDI_TA_SVCLASS_ID
+#define AV_PROFILE_ID			AV_SVCLASS_ID
+#define SAP_PROFILE_ID			SAP_SVCLASS_ID
+#define PBAP_PCE_PROFILE_ID		PBAP_PCE_SVCLASS_ID
+#define PBAP_PSE_PROFILE_ID		PBAP_PSE_SVCLASS_ID
+#define PBAP_PROFILE_ID			PBAP_SVCLASS_ID
+#define PNP_INFO_PROFILE_ID		PNP_INFO_SVCLASS_ID
+#define GENERIC_NETWORKING_PROFILE_ID	GENERIC_NETWORKING_SVCLASS_ID
+#define GENERIC_FILETRANS_PROFILE_ID	GENERIC_FILETRANS_SVCLASS_ID
+#define GENERIC_AUDIO_PROFILE_ID	GENERIC_AUDIO_SVCLASS_ID
+#define GENERIC_TELEPHONY_PROFILE_ID	GENERIC_TELEPHONY_SVCLASS_ID
+#define UPNP_PROFILE_ID			UPNP_SVCLASS_ID
+#define UPNP_IP_PROFILE_ID		UPNP_IP_SVCLASS_ID
+#define UPNP_PAN_PROFILE_ID		UPNP_PAN_SVCLASS_ID
+#define UPNP_LAP_PROFILE_ID		UPNP_LAP_SVCLASS_ID
+#define UPNP_L2CAP_PROFILE_ID		UPNP_L2CAP_SVCLASS_ID
+#define VIDEO_SOURCE_PROFILE_ID		VIDEO_SOURCE_SVCLASS_ID
+#define VIDEO_SINK_PROFILE_ID		VIDEO_SINK_SVCLASS_ID
+#define VIDEO_DISTRIBUTION_PROFILE_ID	VIDEO_DISTRIBUTION_SVCLASS_ID
+#define MDP_PROFILE_ID			MDP_SVCLASS_ID
+#define MDP_SOURCE_PROFILE_ID		MDP_SROUCE_SVCLASS_ID
+#define MDP_SINK_PROFILE_ID		MDP_SINK_SVCLASS_ID
+#define APPLE_AGENT_PROFILE_ID		APPLE_AGENT_SVCLASS_ID
+
+/* Data Representation */
+enum bt_sdp_data_type {
+    SDP_DTYPE_NIL	= 0 << 3,
+    SDP_DTYPE_UINT	= 1 << 3,
+    SDP_DTYPE_SINT	= 2 << 3,
+    SDP_DTYPE_UUID	= 3 << 3,
+    SDP_DTYPE_STRING	= 4 << 3,
+    SDP_DTYPE_BOOL	= 5 << 3,
+    SDP_DTYPE_SEQ	= 6 << 3,
+    SDP_DTYPE_ALT	= 7 << 3,
+    SDP_DTYPE_URL	= 8 << 3,
+};
+
+enum bt_sdp_data_size {
+    SDP_DSIZE_1		= 0,
+    SDP_DSIZE_2,
+    SDP_DSIZE_4,
+    SDP_DSIZE_8,
+    SDP_DSIZE_16,
+    SDP_DSIZE_NEXT1,
+    SDP_DSIZE_NEXT2,
+    SDP_DSIZE_NEXT4,
+    SDP_DSIZE_MASK = SDP_DSIZE_NEXT4,
+};
+
+enum bt_sdp_cmd {
+    SDP_ERROR_RSP		= 0x01,
+    SDP_SVC_SEARCH_REQ		= 0x02,
+    SDP_SVC_SEARCH_RSP		= 0x03,
+    SDP_SVC_ATTR_REQ		= 0x04,
+    SDP_SVC_ATTR_RSP		= 0x05,
+    SDP_SVC_SEARCH_ATTR_REQ	= 0x06,
+    SDP_SVC_SEARCH_ATTR_RSP	= 0x07,
+};
+
+enum bt_sdp_errorcode {
+    SDP_INVALID_VERSION		= 0x0001,
+    SDP_INVALID_RECORD_HANDLE	= 0x0002,
+    SDP_INVALID_SYNTAX		= 0x0003,
+    SDP_INVALID_PDU_SIZE	= 0x0004,
+    SDP_INVALID_CSTATE		= 0x0005,
+};
+
+/*
+ * String identifiers are based on the SDP spec stating that
+ * "base attribute id of the primary (universal) language must be 0x0100"
+ *
+ * Other languages should have their own offset; e.g.:
+ * #define XXXLangBase yyyy
+ * #define AttrServiceName_XXX	0x0000+XXXLangBase
+ */
+#define SDP_PRIMARY_LANG_BASE 		0x0100
+
+enum bt_sdp_attribute_id {
+    SDP_ATTR_RECORD_HANDLE			= 0x0000,
+    SDP_ATTR_SVCLASS_ID_LIST			= 0x0001,
+    SDP_ATTR_RECORD_STATE			= 0x0002,
+    SDP_ATTR_SERVICE_ID				= 0x0003,
+    SDP_ATTR_PROTO_DESC_LIST			= 0x0004,
+    SDP_ATTR_BROWSE_GRP_LIST			= 0x0005,
+    SDP_ATTR_LANG_BASE_ATTR_ID_LIST		= 0x0006,
+    SDP_ATTR_SVCINFO_TTL			= 0x0007,
+    SDP_ATTR_SERVICE_AVAILABILITY		= 0x0008,
+    SDP_ATTR_PFILE_DESC_LIST			= 0x0009,
+    SDP_ATTR_DOC_URL				= 0x000a,
+    SDP_ATTR_CLNT_EXEC_URL			= 0x000b,
+    SDP_ATTR_ICON_URL				= 0x000c,
+    SDP_ATTR_ADD_PROTO_DESC_LIST		= 0x000d,
+
+    SDP_ATTR_SVCNAME_PRIMARY			= SDP_PRIMARY_LANG_BASE + 0,
+    SDP_ATTR_SVCDESC_PRIMARY			= SDP_PRIMARY_LANG_BASE + 1,
+    SDP_ATTR_SVCPROV_PRIMARY			= SDP_PRIMARY_LANG_BASE + 2,
+
+    SDP_ATTR_GROUP_ID				= 0x0200,
+    SDP_ATTR_IP_SUBNET				= 0x0200,
+
+    /* SDP */
+    SDP_ATTR_VERSION_NUM_LIST			= 0x0200,
+    SDP_ATTR_SVCDB_STATE			= 0x0201,
+
+    SDP_ATTR_SERVICE_VERSION			= 0x0300,
+    SDP_ATTR_EXTERNAL_NETWORK			= 0x0301,
+    SDP_ATTR_SUPPORTED_DATA_STORES_LIST		= 0x0301,
+    SDP_ATTR_FAX_CLASS1_SUPPORT			= 0x0302,
+    SDP_ATTR_REMOTE_AUDIO_VOLUME_CONTROL	= 0x0302,
+    SDP_ATTR_FAX_CLASS20_SUPPORT		= 0x0303,
+    SDP_ATTR_SUPPORTED_FORMATS_LIST		= 0x0303,
+    SDP_ATTR_FAX_CLASS2_SUPPORT			= 0x0304,
+    SDP_ATTR_AUDIO_FEEDBACK_SUPPORT		= 0x0305,
+    SDP_ATTR_NETWORK_ADDRESS			= 0x0306,
+    SDP_ATTR_WAP_GATEWAY			= 0x0307,
+    SDP_ATTR_HOMEPAGE_URL			= 0x0308,
+    SDP_ATTR_WAP_STACK_TYPE			= 0x0309,
+    SDP_ATTR_SECURITY_DESC			= 0x030a,
+    SDP_ATTR_NET_ACCESS_TYPE			= 0x030b,
+    SDP_ATTR_MAX_NET_ACCESSRATE			= 0x030c,
+    SDP_ATTR_IP4_SUBNET				= 0x030d,
+    SDP_ATTR_IP6_SUBNET				= 0x030e,
+    SDP_ATTR_SUPPORTED_CAPABILITIES		= 0x0310,
+    SDP_ATTR_SUPPORTED_FEATURES			= 0x0311,
+    SDP_ATTR_SUPPORTED_FUNCTIONS		= 0x0312,
+    SDP_ATTR_TOTAL_IMAGING_DATA_CAPACITY	= 0x0313,
+    SDP_ATTR_SUPPORTED_REPOSITORIES		= 0x0314,
+
+    /* PnP Information */
+    SDP_ATTR_SPECIFICATION_ID			= 0x0200,
+    SDP_ATTR_VENDOR_ID				= 0x0201,
+    SDP_ATTR_PRODUCT_ID				= 0x0202,
+    SDP_ATTR_VERSION				= 0x0203,
+    SDP_ATTR_PRIMARY_RECORD			= 0x0204,
+    SDP_ATTR_VENDOR_ID_SOURCE			= 0x0205,
+
+    /* BT HID */
+    SDP_ATTR_DEVICE_RELEASE_NUMBER		= 0x0200,
+    SDP_ATTR_PARSER_VERSION			= 0x0201,
+    SDP_ATTR_DEVICE_SUBCLASS			= 0x0202,
+    SDP_ATTR_COUNTRY_CODE			= 0x0203,
+    SDP_ATTR_VIRTUAL_CABLE			= 0x0204,
+    SDP_ATTR_RECONNECT_INITIATE			= 0x0205,
+    SDP_ATTR_DESCRIPTOR_LIST			= 0x0206,
+    SDP_ATTR_LANG_ID_BASE_LIST			= 0x0207,
+    SDP_ATTR_SDP_DISABLE			= 0x0208,
+    SDP_ATTR_BATTERY_POWER			= 0x0209,
+    SDP_ATTR_REMOTE_WAKEUP			= 0x020a,
+    SDP_ATTR_PROFILE_VERSION			= 0x020b,
+    SDP_ATTR_SUPERVISION_TIMEOUT		= 0x020c,
+    SDP_ATTR_NORMALLY_CONNECTABLE		= 0x020d,
+    SDP_ATTR_BOOT_DEVICE			= 0x020e,
+};
