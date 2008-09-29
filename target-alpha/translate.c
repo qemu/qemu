@@ -31,7 +31,6 @@
 #include "qemu-common.h"
 
 #define DO_SINGLE_STEP
-#define GENERATE_NOP
 #define ALPHA_DEBUG_DISAS
 #define DO_TB_FLUSH
 
@@ -102,13 +101,6 @@ static void alpha_translate_init(void)
 #include "helper.h"
 
     done_init = 1;
-}
-
-static always_inline void gen_op_nop (void)
-{
-#if defined(GENERATE_NOP)
-    gen_op_no_op();
-#endif
 }
 
 /* Memory moves */
@@ -184,10 +176,7 @@ static always_inline void gen_load_mem_dyngen (DisasContext *ctx,
                                         int ra, int rb, int32_t disp16,
                                         int clear)
 {
-    if (ra == 31 && disp16 == 0) {
-        /* UNOP */
-        gen_op_nop();
-    } else {
+    if (ra != 31 || disp16 != 0) {
         if (rb != 31)
             tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
         else
@@ -374,8 +363,7 @@ static always_inline void gen_fbcond (DisasContext *ctx,
     gen_set_label(l2);
 }
 
-static always_inline void gen_cmov (DisasContext *ctx,
-                                    TCGCond inv_cond,
+static always_inline void gen_cmov (TCGCond inv_cond,
                                     int ra, int rb, int rc,
                                     int islit, uint8_t lit, int mask)
 {
@@ -487,7 +475,7 @@ static always_inline void gen_ext_h(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
                 tcg_gen_shli_i64(cpu_ir[rc], cpu_ir[ra], 64 - ((lit & 7) * 8));
             else
                 tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[ra]);
-	} else {
+        } else {
             TCGv tmp1, tmp2;
             tmp1 = tcg_temp_new(TCG_TYPE_I64);
             tcg_gen_andi_i64(tmp1, cpu_ir[rb], 7);
@@ -521,7 +509,7 @@ static always_inline void gen_ext_l(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
             tcg_gen_shli_i64(tmp, tmp, 3);
             tcg_gen_shr_i64(cpu_ir[rc], cpu_ir[ra], tmp);
             tcg_temp_free(tmp);
-	}
+        }
         if (tcg_gen_ext_i64)
             tcg_gen_ext_i64(cpu_ir[rc], cpu_ir[rc]);
     } else
@@ -529,9 +517,9 @@ static always_inline void gen_ext_l(void (*tcg_gen_ext_i64)(TCGv t0, TCGv t1),
 }
 
 /* Code to call arith3 helpers */
-static always_inline void gen_arith3_helper(void *helper,
-                                            int ra, int rb, int rc,
-                                            int islit, uint8_t lit)
+static always_inline void gen_arith3 (void *helper,
+                                      int ra, int rb, int rc,
+                                      int islit, uint8_t lit)
 {
     if (unlikely(rc == 31))
         return;
@@ -792,7 +780,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x0F:
             /* CMPBGE */
-            gen_arith3_helper(helper_cmpbge, ra, rb, rc, islit, lit);
+            gen_arith3(helper_cmpbge, ra, rb, rc, islit, lit);
             break;
         case 0x12:
             /* S8ADDL */
@@ -958,11 +946,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x40:
             /* ADDL/V */
-            gen_arith3_helper(helper_addlv, ra, rb, rc, islit, lit);
+            gen_arith3(helper_addlv, ra, rb, rc, islit, lit);
             break;
         case 0x49:
             /* SUBL/V */
-            gen_arith3_helper(helper_sublv, ra, rb, rc, islit, lit);
+            gen_arith3(helper_sublv, ra, rb, rc, islit, lit);
             break;
         case 0x4D:
             /* CMPLT */
@@ -970,11 +958,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x60:
             /* ADDQ/V */
-            gen_arith3_helper(helper_addqv, ra, rb, rc, islit, lit);
+            gen_arith3(helper_addqv, ra, rb, rc, islit, lit);
             break;
         case 0x69:
             /* SUBQ/V */
-            gen_arith3_helper(helper_subqv, ra, rb, rc, islit, lit);
+            gen_arith3(helper_subqv, ra, rb, rc, islit, lit);
             break;
         case 0x6D:
             /* CMPLE */
@@ -1015,11 +1003,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x14:
             /* CMOVLBS */
-            gen_cmov(ctx, TCG_COND_EQ, ra, rb, rc, islit, lit, 1);
+            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 1);
             break;
         case 0x16:
             /* CMOVLBC */
-            gen_cmov(ctx, TCG_COND_NE, ra, rb, rc, islit, lit, 1);
+            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 1);
             break;
         case 0x20:
             /* BIS */
@@ -1027,7 +1015,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_ori_i64(cpu_ir[rc], cpu_ir[ra], lit);
-		    else
+        	    else
                         tcg_gen_or_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                 } else {
                     if (islit)
@@ -1039,11 +1027,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x24:
             /* CMOVEQ */
-            gen_cmov(ctx, TCG_COND_NE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_NE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x26:
             /* CMOVNE */
-            gen_cmov(ctx, TCG_COND_EQ, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_EQ, ra, rb, rc, islit, lit, 0);
             break;
         case 0x28:
             /* ORNOT */
@@ -1083,11 +1071,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x44:
             /* CMOVLT */
-            gen_cmov(ctx, TCG_COND_GE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_GE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x46:
             /* CMOVGE */
-            gen_cmov(ctx, TCG_COND_LT, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_LT, ra, rb, rc, islit, lit, 0);
             break;
         case 0x48:
             /* EQV */
@@ -1120,11 +1108,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x64:
             /* CMOVLE */
-            gen_cmov(ctx, TCG_COND_GT, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_GT, ra, rb, rc, islit, lit, 0);
             break;
         case 0x66:
             /* CMOVGT */
-            gen_cmov(ctx, TCG_COND_LE, ra, rb, rc, islit, lit, 0);
+            gen_cmov(TCG_COND_LE, ra, rb, rc, islit, lit, 0);
             break;
         case 0x6C:
             /* IMPLVER */
@@ -1139,7 +1127,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         switch (fn7) {
         case 0x02:
             /* MSKBL */
-            gen_arith3_helper(helper_mskbl, ra, rb, rc, islit, lit);
+            gen_arith3(helper_mskbl, ra, rb, rc, islit, lit);
             break;
         case 0x06:
             /* EXTBL */
@@ -1147,11 +1135,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x0B:
             /* INSBL */
-            gen_arith3_helper(helper_insbl, ra, rb, rc, islit, lit);
+            gen_arith3(helper_insbl, ra, rb, rc, islit, lit);
             break;
         case 0x12:
             /* MSKWL */
-            gen_arith3_helper(helper_mskwl, ra, rb, rc, islit, lit);
+            gen_arith3(helper_mskwl, ra, rb, rc, islit, lit);
             break;
         case 0x16:
             /* EXTWL */
@@ -1159,11 +1147,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x1B:
             /* INSWL */
-            gen_arith3_helper(helper_inswl, ra, rb, rc, islit, lit);
+            gen_arith3(helper_inswl, ra, rb, rc, islit, lit);
             break;
         case 0x22:
             /* MSKLL */
-            gen_arith3_helper(helper_mskll, ra, rb, rc, islit, lit);
+            gen_arith3(helper_mskll, ra, rb, rc, islit, lit);
             break;
         case 0x26:
             /* EXTLL */
@@ -1171,19 +1159,19 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x2B:
             /* INSLL */
-            gen_arith3_helper(helper_insll, ra, rb, rc, islit, lit);
+            gen_arith3(helper_insll, ra, rb, rc, islit, lit);
             break;
         case 0x30:
             /* ZAP */
-            gen_arith3_helper(helper_zap, ra, rb, rc, islit, lit);
+            gen_arith3(helper_zap, ra, rb, rc, islit, lit);
             break;
         case 0x31:
             /* ZAPNOT */
-            gen_arith3_helper(helper_zapnot, ra, rb, rc, islit, lit);
+            gen_arith3(helper_zapnot, ra, rb, rc, islit, lit);
             break;
         case 0x32:
             /* MSKQL */
-            gen_arith3_helper(helper_mskql, ra, rb, rc, islit, lit);
+            gen_arith3(helper_mskql, ra, rb, rc, islit, lit);
             break;
         case 0x34:
             /* SRL */
@@ -1223,7 +1211,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x3B:
             /* INSQL */
-            gen_arith3_helper(helper_insql, ra, rb, rc, islit, lit);
+            gen_arith3(helper_insql, ra, rb, rc, islit, lit);
             break;
         case 0x3C:
             /* SRA */
@@ -1243,11 +1231,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x52:
             /* MSKWH */
-            gen_arith3_helper(helper_mskwh, ra, rb, rc, islit, lit);
+            gen_arith3(helper_mskwh, ra, rb, rc, islit, lit);
             break;
         case 0x57:
             /* INSWH */
-            gen_arith3_helper(helper_inswh, ra, rb, rc, islit, lit);
+            gen_arith3(helper_inswh, ra, rb, rc, islit, lit);
             break;
         case 0x5A:
             /* EXTWH */
@@ -1255,11 +1243,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x62:
             /* MSKLH */
-            gen_arith3_helper(helper_msklh, ra, rb, rc, islit, lit);
+            gen_arith3(helper_msklh, ra, rb, rc, islit, lit);
             break;
         case 0x67:
             /* INSLH */
-            gen_arith3_helper(helper_inslh, ra, rb, rc, islit, lit);
+            gen_arith3(helper_inslh, ra, rb, rc, islit, lit);
             break;
         case 0x6A:
             /* EXTLH */
@@ -1267,11 +1255,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x72:
             /* MSKQH */
-            gen_arith3_helper(helper_mskqh, ra, rb, rc, islit, lit);
+            gen_arith3(helper_mskqh, ra, rb, rc, islit, lit);
             break;
         case 0x77:
             /* INSQH */
-            gen_arith3_helper(helper_insqh, ra, rb, rc, islit, lit);
+            gen_arith3(helper_insqh, ra, rb, rc, islit, lit);
             break;
         case 0x7A:
             /* EXTQH */
@@ -1310,15 +1298,15 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x30:
             /* UMULH */
-            gen_arith3_helper(helper_umulh, ra, rb, rc, islit, lit);
+            gen_arith3(helper_umulh, ra, rb, rc, islit, lit);
             break;
         case 0x40:
             /* MULL/V */
-            gen_arith3_helper(helper_mullv, ra, rb, rc, islit, lit);
+            gen_arith3(helper_mullv, ra, rb, rc, islit, lit);
             break;
         case 0x60:
             /* MULQ/V */
-            gen_arith3_helper(helper_mulqv, ra, rb, rc, islit, lit);
+            gen_arith3(helper_mulqv, ra, rb, rc, islit, lit);
             break;
         default:
             goto invalid_opc;
@@ -2397,7 +2385,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     }
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-	target_disas(logfile, pc_start, ctx.pc - pc_start, 1);
+        target_disas(logfile, pc_start, ctx.pc - pc_start, 1);
         fprintf(logfile, "\n");
     }
 #endif

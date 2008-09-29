@@ -43,5 +43,4 @@ void helper_mfpr (int iprn);
 void helper_mtpr (int iprn);
 void helper_ld_phys_to_virt (void);
 void helper_st_phys_to_virt (void);
-void helper_tb_flush (void);
 

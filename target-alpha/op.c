@@ -25,15 +25,6 @@
 #include "host-utils.h"
 #include "op_helper.h"
 
-/* Debug stuff */
-void OPPROTO op_no_op (void)
-{
-#if !defined (DEBUG_OP)
-    __asm__ __volatile__("nop" : : : "memory");
-#endif
-    RETURN();
-}
-
 /* Load and stores */
 #define MEMSUFFIX _raw
 #include "op_mem.h"
