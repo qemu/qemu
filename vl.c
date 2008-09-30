@@ -7831,8 +7831,10 @@ static int main_loop(void)
                 timeout = 0;
             }
         } else {
-            if (shutdown_requested)
+            if (shutdown_requested) {
+                ret = EXCP_INTERRUPT;
                 break;
+            }
             timeout = 10;
         }
 #ifdef CONFIG_PROFILER

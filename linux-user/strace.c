@@ -178,7 +178,7 @@ print_execve(const struct syscallname *name,
     unlock_user(s, arg1, 0);
 
     for (arg_ptr_addr = arg2; ; arg_ptr_addr += sizeof(abi_ulong)) {
-        abi_ulong *arg_ptr, arg_addr, s_addr;
+        abi_ulong *arg_ptr, arg_addr;
 
 	arg_ptr = lock_user(VERIFY_READ, arg_ptr_addr, sizeof(abi_ulong), 1);
         if (!arg_ptr)
@@ -189,7 +189,7 @@ print_execve(const struct syscallname *name,
             break;
         if ((s = lock_user_string(arg_addr))) {
             gemu_log("\"%s\",", s);
-            unlock_user(s, s_addr, 0);
+            unlock_user(s, arg_addr, 0);
         }
     }
 
