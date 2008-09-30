@@ -3175,12 +3175,6 @@ void helper_wrmsr(void)
     case MSR_VM_HSAVE_PA:
         env->vm_hsave = val;
         break;
-    case MSR_IA32_PERF_STATUS:
-        /* tsc_increment_by_tick */ 
-        val = 1000ULL;
-        /* CPU multiplier */
-        val |= (((uint64_t)4ULL) << 40);
-        break;
 #ifdef TARGET_X86_64
     case MSR_LSTAR:
         env->lstar = val;
@@ -3237,6 +3231,12 @@ void helper_rdmsr(void)
         break;
     case MSR_VM_HSAVE_PA:
         val = env->vm_hsave;
+        break;
+    case MSR_IA32_PERF_STATUS:
+        /* tsc_increment_by_tick */
+        val = 1000ULL;
+        /* CPU multiplier */
+        val |= (((uint64_t)4ULL) << 40);
         break;
 #ifdef TARGET_X86_64
     case MSR_LSTAR:
