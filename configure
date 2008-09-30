@@ -1425,10 +1425,8 @@ case "$target_cpu" in
   ;;
   alpha)
     echo "TARGET_ARCH=alpha" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"alpha\"" >> $config_h
     echo "#define TARGET_ALPHA 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   arm|armeb)
     echo "TARGET_ARCH=arm" >> $config_mak

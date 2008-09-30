@@ -51,9 +51,6 @@ static TCGv cpu_fir[31];
 static TCGv cpu_pc;
 static TCGv cpu_lock;
 
-/* dyngen register indexes */
-static TCGv cpu_T[2];
-
 /* register names */
 static char cpu_reg_names[10*4+21*5 + 10*5+21*6];
 
@@ -69,16 +66,6 @@ static void alpha_translate_init(void)
         return;
 
     cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
-
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-    cpu_T[0] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
-                                  offsetof(CPUState, t0), "T0");
-    cpu_T[1] = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
-                                  offsetof(CPUState, t1), "T1");
-#else
-    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_I64, TCG_AREG1, "T0");
-    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_I64, TCG_AREG2, "T1");
-#endif
 
     p = cpu_reg_names;
     for (i = 0; i < 31; i++) {
@@ -106,56 +93,6 @@ static void alpha_translate_init(void)
 
     done_init = 1;
 }
-
-/* Memory moves */
-#if defined(CONFIG_USER_ONLY)
-#define OP_LD_TABLE(width)                                                    \
-static GenOpFunc *gen_op_ld##width[] = {                                      \
-    &gen_op_ld##width##_raw,                                                  \
-}
-#define OP_ST_TABLE(width)                                                    \
-static GenOpFunc *gen_op_st##width[] = {                                      \
-    &gen_op_st##width##_raw,                                                  \
-}
-#else
-#define OP_LD_TABLE(width)                                                    \
-static GenOpFunc *gen_op_ld##width[] = {                                      \
-    &gen_op_ld##width##_kernel,                                               \
-    &gen_op_ld##width##_executive,                                            \
-    &gen_op_ld##width##_supervisor,                                           \
-    &gen_op_ld##width##_user,                                                 \
-}
-#define OP_ST_TABLE(width)                                                    \
-static GenOpFunc *gen_op_st##width[] = {                                      \
-    &gen_op_st##width##_kernel,                                               \
-    &gen_op_st##width##_executive,                                            \
-    &gen_op_st##width##_supervisor,                                           \
-    &gen_op_st##width##_user,                                                 \
-}
-#endif
-
-#define GEN_LD(width)                                                         \
-OP_LD_TABLE(width);                                                           \
-static always_inline void gen_ld##width (DisasContext *ctx)                   \
-{                                                                             \
-    (*gen_op_ld##width[ctx->mem_idx])();                                      \
-}
-
-#define GEN_ST(width)                                                         \
-OP_ST_TABLE(width);                                                           \
-static always_inline void gen_st##width (DisasContext *ctx)                   \
-{                                                                             \
-    (*gen_op_st##width[ctx->mem_idx])();                                      \
-}
-
-GEN_LD(l);
-GEN_ST(l);
-GEN_LD(q);
-GEN_ST(q);
-GEN_LD(l_l);
-GEN_ST(l_c);
-GEN_LD(q_l);
-GEN_ST(q_c);
 
 static always_inline void gen_excp (DisasContext *ctx,
                                     int exception, int error_code)
@@ -1027,7 +964,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_ori_i64(cpu_ir[rc], cpu_ir[ra], lit);
-        	    else
+                    else
                         tcg_gen_or_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                 } else {
                     if (islit)
@@ -1701,9 +1638,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 #else
         if (!ctx->pal_mode)
             goto invalid_opc;
-        gen_op_mfpr(insn & 0xFF);
-        if (ra != 31)
-            tcg_gen_mov_i64(cpu_ir[ra], cpu_T[0]);
+        if (ra != 31) {
+            TCGv tmp = tcg_const_i32(insn & 0xFF);
+            tcg_gen_helper_1_2(helper_mfpr, cpu_ir[ra], tmp, cpu_ir[ra]);
+            tcg_temp_free(tmp);
+        }
         break;
 #endif
     case 0x1A:
@@ -1737,94 +1676,94 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 #else
         if (!ctx->pal_mode)
             goto invalid_opc;
-        if (rb != 31)
-            tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
-        else
-            tcg_gen_movi_i64(cpu_T[0], 0);
-        tcg_gen_movi_i64(cpu_T[1], disp12);
-        tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
-        switch ((insn >> 12) & 0xF) {
-        case 0x0:
-            /* Longword physical access */
-            gen_op_ldl_raw();
-            break;
-        case 0x1:
-            /* Quadword physical access */
-            gen_op_ldq_raw();
-            break;
-        case 0x2:
-            /* Longword physical access with lock */
-            gen_op_ldl_l_raw();
-            break;
-        case 0x3:
-            /* Quadword physical access with lock */
-            gen_op_ldq_l_raw();
-            break;
-        case 0x4:
-            /* Longword virtual PTE fetch */
-            gen_op_ldl_kernel();
-            break;
-        case 0x5:
-            /* Quadword virtual PTE fetch */
-            gen_op_ldq_kernel();
-            break;
-        case 0x6:
-            /* Invalid */
-            goto invalid_opc;
-        case 0x7:
-            /* Invalid */
-            goto invalid_opc;
-        case 0x8:
-            /* Longword virtual access */
-            gen_op_ld_phys_to_virt();
-            gen_op_ldl_raw();
-            break;
-        case 0x9:
-            /* Quadword virtual access */
-            gen_op_ld_phys_to_virt();
-            gen_op_ldq_raw();
-            break;
-        case 0xA:
-            /* Longword virtual access with protection check */
-            gen_ldl(ctx);
-            break;
-        case 0xB:
-            /* Quadword virtual access with protection check */
-            gen_ldq(ctx);
-            break;
-        case 0xC:
-            /* Longword virtual access with altenate access mode */
-            gen_op_set_alt_mode();
-            gen_op_ld_phys_to_virt();
-            gen_op_ldl_raw();
-            gen_op_restore_mode();
-            break;
-        case 0xD:
-            /* Quadword virtual access with altenate access mode */
-            gen_op_set_alt_mode();
-            gen_op_ld_phys_to_virt();
-            gen_op_ldq_raw();
-            gen_op_restore_mode();
-            break;
-        case 0xE:
-            /* Longword virtual access with alternate access mode and
-             * protection checks
-             */
-            gen_op_set_alt_mode();
-            gen_op_ldl_data();
-            gen_op_restore_mode();
-            break;
-        case 0xF:
-            /* Quadword virtual access with alternate access mode and
-             * protection checks
-             */
-            gen_op_set_alt_mode();
-            gen_op_ldq_data();
-            gen_op_restore_mode();
-            break;
+        if (ra != 31) {
+            TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp12);
+            else
+                tcg_gen_movi_i64(addr, disp12);
+            switch ((insn >> 12) & 0xF) {
+            case 0x0:
+                /* Longword physical access */
+                tcg_gen_helper_0_2(helper_ldl_raw, cpu_ir[ra], addr);
+                break;
+            case 0x1:
+                /* Quadword physical access */
+                tcg_gen_helper_0_2(helper_ldq_raw, cpu_ir[ra], addr);
+                break;
+            case 0x2:
+                /* Longword physical access with lock */
+                tcg_gen_helper_0_2(helper_ldl_l_raw, cpu_ir[ra], addr);
+                break;
+            case 0x3:
+                /* Quadword physical access with lock */
+                tcg_gen_helper_0_2(helper_ldq_l_raw, cpu_ir[ra], addr);
+                break;
+            case 0x4:
+                /* Longword virtual PTE fetch */
+                tcg_gen_helper_0_2(helper_ldl_kernel, cpu_ir[ra], addr);
+                break;
+            case 0x5:
+                /* Quadword virtual PTE fetch */
+                tcg_gen_helper_0_2(helper_ldq_kernel, cpu_ir[ra], addr);
+                break;
+            case 0x6:
+                /* Incpu_ir[ra]id */
+                goto incpu_ir[ra]id_opc;
+            case 0x7:
+                /* Incpu_ir[ra]id */
+                goto incpu_ir[ra]id_opc;
+            case 0x8:
+                /* Longword virtual access */
+                tcg_gen_helper_1_1(helper_st_virt_to_phys, addr, addr);
+                tcg_gen_helper_0_2(helper_ldl_raw, cpu_ir[ra], addr);
+                break;
+            case 0x9:
+                /* Quadword virtual access */
+                tcg_gen_helper_1_1(helper_st_virt_to_phys, addr, addr);
+                tcg_gen_helper_0_2(helper_ldq_raw, cpu_ir[ra], addr);
+                break;
+            case 0xA:
+                /* Longword virtual access with protection check */
+                tcg_gen_qemu_ld32s(cpu_ir[ra], addr, ctx->flags);
+                break;
+            case 0xB:
+                /* Quadword virtual access with protection check */
+                tcg_gen_qemu_ld64(cpu_ir[ra], addr, ctx->flags);
+                break;
+            case 0xC:
+                /* Longword virtual access with altenate access mode */
+                tcg_gen_helper_0_0(helper_set_alt_mode);
+                tcg_gen_helper_1_1(helper_st_virt_to_phys, addr, addr);
+                tcg_gen_helper_0_2(helper_ldl_raw, cpu_ir[ra], addr);
+                tcg_gen_helper_0_0(helper_restore_mode);
+                break;
+            case 0xD:
+                /* Quadword virtual access with altenate access mode */
+                tcg_gen_helper_0_0(helper_set_alt_mode);
+                tcg_gen_helper_1_1(helper_st_virt_to_phys, addr, addr);
+                tcg_gen_helper_0_2(helper_ldq_raw, cpu_ir[ra], addr);
+                tcg_gen_helper_0_0(helper_restore_mode);
+                break;
+            case 0xE:
+                /* Longword virtual access with alternate access mode and
+                 * protection checks
+                 */
+                tcg_gen_helper_0_0(helper_set_alt_mode);
+                tcg_gen_helper_0_2(helper_ldl_data, cpu_ir[ra], addr);
+                tcg_gen_helper_0_0(helper_restore_mode);
+                break;
+            case 0xF:
+                /* Quadword virtual access with alternate access mode and
+                 * protection checks
+                 */
+                tcg_gen_helper_0_0(helper_set_alt_mode);
+                tcg_gen_helper_0_2(helper_ldq_data, cpu_ir[ra], addr);
+                tcg_gen_helper_0_0(helper_restore_mode);
+                break;
+            }
+            tcg_temp_free(addr);
         }
-        if (ra != 31)
-            tcg_gen_mov_i64(cpu_ir[ra], cpu_T[1]);
         break;
 #endif
     case 0x1C:
@@ -2014,12 +1953,18 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 #else
         if (!ctx->pal_mode)
             goto invalid_opc;
-        if (ra != 31)
-            tcg_gen_mov_i64(cpu_T[0], cpu_ir[ra]);
-        else
-            tcg_gen_movi_i64(cpu_T[0], 0);
-        gen_op_mtpr(insn & 0xFF);
-        ret = 2;
+        else {
+            TCGv tmp1 = tcg_const_i32(insn & 0xFF);
+            if (ra != 31)
+                tcg_gen_helper(helper_mtpr, tmp1, cpu_ir[ra]);
+            else {
+                TCGv tmp2 = tcg_const_i64(0);
+                tcg_gen_helper(helper_mtpr, tmp1, tmp2);
+                tcg_temp_free(tmp2);
+            }
+            tcg_temp_free(tmp1);
+            ret = 2;
+        }
         break;
 #endif
     case 0x1E:
@@ -2031,15 +1976,17 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             goto invalid_opc;
         if (rb == 31) {
             /* "Old" alpha */
-            gen_op_hw_rei();
+            tcg_gen_helper_0_0(helper_hw_rei);
         } else {
-            if (ra != 31)
-                tcg_gen_mov_i64(cpu_T[0], cpu_ir[rb]);
-            else
-                tcg_gen_movi_i64(cpu_T[0], 0);
-            tcg_gen_movi_i64(cpu_T[1], (((int64_t)insn << 51) >> 51));
-            tcg_gen_add_i64(cpu_T[0], cpu_T[0], cpu_T[1]);
-            gen_op_hw_ret();
+            TCGv tmp;
+
+            if (ra != 31) {
+                tmp = tcg_temp_new(TCG_TYPE_I64);
+                tcg_gen_addi_i64(tmp, cpu_ir[rb], (((int64_t)insn << 51) >> 51));
+            } else
+                tmp = tcg_const_i64(((int64_t)insn << 51) >> 51);
+            tcg_gen_helper_0_1(helper_hw_ret, tmp);
+            tcg_temp_free(tmp);
         }
         ret = 2;
         break;
@@ -2051,79 +1998,88 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
 #else
         if (!ctx->pal_mode)
             goto invalid_opc;
-        if (ra != 31)
-            tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp12);
-        else
-            tcg_gen_movi_i64(cpu_T[0], disp12);
-        if (ra != 31)
-            tcg_gen_mov_i64(cpu_T[1], cpu_ir[ra]);
-        else
-            tcg_gen_movi_i64(cpu_T[1], 0);
-        switch ((insn >> 12) & 0xF) {
-        case 0x0:
-            /* Longword physical access */
-            gen_op_stl_raw();
-            break;
-        case 0x1:
-            /* Quadword physical access */
-            gen_op_stq_raw();
-            break;
-        case 0x2:
-            /* Longword physical access with lock */
-            gen_op_stl_c_raw();
-            break;
-        case 0x3:
-            /* Quadword physical access with lock */
-            gen_op_stq_c_raw();
-            break;
-        case 0x4:
-            /* Longword virtual access */
-            gen_op_st_phys_to_virt();
-            gen_op_stl_raw();
-            break;
-        case 0x5:
-            /* Quadword virtual access */
-            gen_op_st_phys_to_virt();
-            gen_op_stq_raw();
-            break;
-        case 0x6:
-            /* Invalid */
-            goto invalid_opc;
-        case 0x7:
-            /* Invalid */
-            goto invalid_opc;
-        case 0x8:
-            /* Invalid */
-            goto invalid_opc;
-        case 0x9:
-            /* Invalid */
-            goto invalid_opc;
-        case 0xA:
-            /* Invalid */
-            goto invalid_opc;
-        case 0xB:
-            /* Invalid */
-            goto invalid_opc;
-        case 0xC:
-            /* Longword virtual access with alternate access mode */
-            gen_op_set_alt_mode();
-            gen_op_st_phys_to_virt();
-            gen_op_ldl_raw();
-            gen_op_restore_mode();
-            break;
-        case 0xD:
-            /* Quadword virtual access with alternate access mode */
-            gen_op_set_alt_mode();
-            gen_op_st_phys_to_virt();
-            gen_op_ldq_raw();
-            gen_op_restore_mode();
-            break;
-        case 0xE:
-            /* Invalid */
-            goto invalid_opc;
-        case 0xF:
-            /* Invalid */
-            goto invalid_opc;
+        else {
+            TCGv addr, val;
+            addr = tcg_temp_new(TCG_TYPE_I64);
+            if (rb != 31)
+                tcg_gen_addi_i64(addr, cpu_ir[rb], disp12);
+            else
+                tcg_gen_movi_i64(addr, disp12);
+            if (ra != 31)
+                val = cpu_ir[ra];
+            else {
+                val = tcg_temp_new(TCG_TYPE_I64);
+                tcg_gen_movi_i64(val, 0);
+            }
+            switch ((insn >> 12) & 0xF) {
+            case 0x0:
+                /* Longword physical access */
+                tcg_gen_helper_0_2(helper_stl_raw, val, addr);
+                break;
+            case 0x1:
+                /* Quadword physical access */
+                tcg_gen_helper_0_2(helper_stq_raw, val, addr);
+                break;
+            case 0x2:
+                /* Longword physical access with lock */
+                tcg_gen_helper_1_2(helper_stl_c_raw, val, val, addr);
+                break;
+            case 0x3:
+                /* Quadword physical access with lock */
+                tcg_gen_helper_1_2(helper_stq_c_raw, val, val, addr);
+                break;
+            case 0x4:
+                /* Longword virtual access */
+                tcg_gen_helper_1_1(helper_st_virt_to_phys, addr, addr);
+                tcg_gen_helper_0_2(helper_stl_raw, val, addr);
+                break;
+            case 0x5:
+                /* Quadword virtual access */
+                tcg_gen_helper_1_1(helper_st_virt_to_phys, addr, addr);
+                tcg_gen_helper_0_2(helper_stq_raw, val, addr);
+                break;
+            case 0x6:
+                /* Invalid */
+                goto invalid_opc;
+            case 0x7:
+                /* Invalid */
+                goto invalid_opc;
+            case 0x8:
+                /* Invalid */
+                goto invalid_opc;
+            case 0x9:
+                /* Invalid */
+                goto invalid_opc;
+            case 0xA:
+                /* Invalid */
+                goto invalid_opc;
+            case 0xB:
+                /* Invalid */
+                goto invalid_opc;
+            case 0xC:
+                /* Longword virtual access with alternate access mode */
+                tcg_gen_helper_0_0(helper_set_alt_mode);
+                tcg_gen_helper_1_1(helper_st_virt_to_phys, addr, addr);
+                tcg_gen_helper_0_2(helper_stl_raw, val, addr);
+                tcg_gen_helper_0_0(helper_restore_mode);
+                break;
+            case 0xD:
+                /* Quadword virtual access with alternate access mode */
+                tcg_gen_helper_0_0(helper_set_alt_mode);
+                tcg_gen_helper_1_1(helper_st_virt_to_phys, addr, addr);
+                tcg_gen_helper_0_2(helper_stl_raw, val, addr);
+                tcg_gen_helper_0_0(helper_restore_mode);
+                break;
+            case 0xE:
+                /* Invalid */
+                goto invalid_opc;
+            case 0xF:
+                /* Invalid */
+                goto invalid_opc;
+            }
+            if (ra != 31)
+                tcg_temp_free(val);
+            tcg_temp_free(addr);
         }
         ret = 2;
         break;

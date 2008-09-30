@@ -29,28 +29,9 @@
 
 register struct CPUAlphaState *env asm(AREG0);
 
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-
-/* no registers can be used */
-#define T0 (env->t0)
-#define T1 (env->t1)
-
-#else
-
-register uint64_t T0 asm(AREG1);
-register uint64_t T1 asm(AREG2);
-
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-
 #define PARAM(n) ((uint64_t)PARAM##n)
 #define SPARAM(n) ((int32_t)PARAM##n)
 #define FP_STATUS (env->fp_status)
-
-#if defined (DEBUG_OP)
-#define RETURN() __asm__ __volatile__("nop" : : : "memory");
-#else
-#define RETURN() __asm__ __volatile__("" : : : "memory");
-#endif
 
 #include "cpu.h"
 #include "exec-all.h"

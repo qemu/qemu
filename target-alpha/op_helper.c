@@ -22,17 +22,9 @@
 #include "host-utils.h"
 #include "softfloat.h"
 
-#include "op_helper.h"
-
 void helper_tb_flush (void)
 {
     tlb_flush(env, 1);
-}
-
-void cpu_dump_EA (target_ulong EA);
-void helper_print_mem_EA (target_ulong EA)
-{
-    cpu_dump_EA(EA);
 }
 
 /*****************************************************************************/
@@ -990,19 +982,48 @@ uint64_t helper_cvtqlsv (uint64_t a)
     return __helper_cvtql(a, 1, 1);
 }
 
+/* PALcode support special instructions */
 #if !defined (CONFIG_USER_ONLY)
-void helper_mfpr (int iprn)
+void helper_hw_rei (void)
 {
-    uint64_t val;
-
-    if (cpu_alpha_mfpr(env, iprn, &val) == 0)
-        T0 = val;
+    env->pc = env->ipr[IPR_EXC_ADDR] & ~3;
+    env->ipr[IPR_EXC_ADDR] = env->ipr[IPR_EXC_ADDR] & 1;
+    /* XXX: re-enable interrupts and memory mapping */
 }
 
-void helper_mtpr (int iprn)
+void helper_hw_ret (uint64_t a)
 {
-    cpu_alpha_mtpr(env, iprn, T0, NULL);
+    env->pc = a & ~3;
+    env->ipr[IPR_EXC_ADDR] = a & 1;
+    /* XXX: re-enable interrupts and memory mapping */
 }
+
+uint64_t helper_mfpr (int iprn, uint64_t val)
+{
+    uint64_t tmp;
+
+    if (cpu_alpha_mfpr(env, iprn, &tmp) == 0)
+        val = tmp;
+
+    return val;
+}
+
+void helper_mtpr (int iprn, uint64_t val)
+{
+    cpu_alpha_mtpr(env, iprn, val, NULL);
+}
+
+void helper_set_alt_mode (void)
+{
+    env->saved_mode = env->ps & 0xC;
+    env->ps = (env->ps & ~0xC) | (env->ipr[IPR_ALT_MODE] & 0xC);
+}
+
+void helper_restore_mode (void)
+{
+    env->ps = (env->ps & ~0xC) | env->saved_mode;
+}
+
 #endif
 
 /*****************************************************************************/
@@ -1013,48 +1034,130 @@ void helper_mtpr (int iprn)
  *      Hopefully, we emulate the PALcode, then we should never see
  *      HW_LD / HW_ST instructions.
  */
-void helper_ld_phys_to_virt (void)
+uint64_t helper_ld_virt_to_phys (uint64_t virtaddr)
 {
     uint64_t tlb_addr, physaddr;
     int index, mmu_idx;
     void *retaddr;
 
     mmu_idx = cpu_mmu_index(env);
-    index = (T0 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    index = (virtaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_table[mmu_idx][index].addr_read;
-    if ((T0 & TARGET_PAGE_MASK) ==
+    if ((virtaddr & TARGET_PAGE_MASK) ==
         (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = T0 + env->tlb_table[mmu_idx][index].addend;
+        physaddr = virtaddr + env->tlb_table[mmu_idx][index].addend;
     } else {
         /* the page is not in the TLB : fill it */
         retaddr = GETPC();
-        tlb_fill(T0, 0, mmu_idx, retaddr);
+        tlb_fill(virtaddr, 0, mmu_idx, retaddr);
         goto redo;
     }
-    T0 = physaddr;
+    return physaddr;
 }
 
-void helper_st_phys_to_virt (void)
+uint64_t helper_st_virt_to_phys (uint64_t virtaddr)
 {
     uint64_t tlb_addr, physaddr;
     int index, mmu_idx;
     void *retaddr;
 
     mmu_idx = cpu_mmu_index(env);
-    index = (T0 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    index = (virtaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
  redo:
     tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
-    if ((T0 & TARGET_PAGE_MASK) ==
+    if ((virtaddr & TARGET_PAGE_MASK) ==
         (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        physaddr = T0 + env->tlb_table[mmu_idx][index].addend;
+        physaddr = virtaddr + env->tlb_table[mmu_idx][index].addend;
     } else {
         /* the page is not in the TLB : fill it */
         retaddr = GETPC();
-        tlb_fill(T0, 1, mmu_idx, retaddr);
+        tlb_fill(virtaddr, 1, mmu_idx, retaddr);
         goto redo;
     }
-    T0 = physaddr;
+    return physaddr;
+}
+
+void helper_ldl_raw(uint64_t t0, uint64_t t1)
+{
+    ldl_raw(t1, t0);
+}
+
+void helper_ldq_raw(uint64_t t0, uint64_t t1)
+{
+    ldq_raw(t1, t0);
+}
+
+void helper_ldl_l_raw(uint64_t t0, uint64_t t1)
+{
+    env->lock = t1;
+    ldl_raw(t1, t0);
+}
+
+void helper_ldq_l_raw(uint64_t t0, uint64_t t1)
+{
+    env->lock = t1;
+    ldl_raw(t1, t0);
+}
+
+void helper_ldl_kernel(uint64_t t0, uint64_t t1)
+{
+    ldl_kernel(t1, t0);
+}
+
+void helper_ldq_kernel(uint64_t t0, uint64_t t1)
+{
+    ldq_kernel(t1, t0);
+}
+
+void helper_ldl_data(uint64_t t0, uint64_t t1)
+{
+    ldl_data(t1, t0);
+}
+
+void helper_ldq_data(uint64_t t0, uint64_t t1)
+{
+    ldq_data(t1, t0);
+}
+
+void helper_stl_raw(uint64_t t0, uint64_t t1)
+{
+    stl_raw(t1, t0);
+}
+
+void helper_stq_raw(uint64_t t0, uint64_t t1)
+{
+    stq_raw(t1, t0);
+}
+
+uint64_t helper_stl_c_raw(uint64_t t0, uint64_t t1)
+{
+    uint64_t ret;
+
+    if (t1 == env->lock) {
+        stl_raw(t1, t0);
+        ret = 0;
+    } else
+        ret = 1;
+
+    env->lock = 1;
+
+    return ret;
+}
+
+uint64_t helper_stq_c_raw(uint64_t t0, uint64_t t1)
+{
+    uint64_t ret;
+
+    if (t1 == env->lock) {
+        stq_raw(t1, t0);
+        ret = 0;
+    } else
+        ret = 1;
+
+    env->lock = 1;
+
+    return ret;
 }
 
 #define MMUSUFFIX _mmu
