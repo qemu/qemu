@@ -15,6 +15,7 @@ TMPC="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.c"
 TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
 TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}"
 TMPS="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.S"
+TMPI="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.i"
 
 # default parameters
 prefix=""
@@ -673,17 +674,8 @@ fi
 
 # ppc specific hostlongbits selection
 if test "$cpu" = "powerpc" ; then
-    cat > $TMPC <<EOF
-int main(void){return sizeof(long);}
-EOF
-
-    if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null; then
-        $TMPE
-        case $? in
-            4) hostlongbits="32";;
-            8) hostlongbits="64";;
-            *) echo "Couldn't determine bits per long value"; exit 1;;
-        esac
+    if $cc $ARCH_CFLAGS -dM -E - -o $TMPI 2>/dev/null </dev/null; then
+        grep -q __powerpc64__ $TMPI && hostlongbits=64
     else
         echo hostlongbits test failed
         exit 1
@@ -1604,4 +1596,4 @@ if test "$source_path_used" = "yes" ; then
     done
 fi
 
-rm -f $TMPO $TMPC $TMPE $TMPS
+rm -f $TMPO $TMPC $TMPE $TMPS $TMPI
