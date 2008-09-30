@@ -49,6 +49,7 @@ static TCGv cpu_env;
 static TCGv cpu_ir[31];
 static TCGv cpu_fir[31];
 static TCGv cpu_pc;
+static TCGv cpu_lock;
 
 /* dyngen register indexes */
 static TCGv cpu_T[2];
@@ -94,6 +95,9 @@ static void alpha_translate_init(void)
 
     cpu_pc = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
                                 offsetof(CPUState, pc), "pc");
+
+    cpu_lock = tcg_global_mem_new(TCG_TYPE_I64, TCG_AREG0,
+                                  offsetof(CPUState, lock), "lock");
 
     /* register helpers */
 #undef DEF_HELPER
@@ -171,24 +175,6 @@ static always_inline void gen_invalid (DisasContext *ctx)
     gen_excp(ctx, EXCP_OPCDEC, 0);
 }
 
-static always_inline void gen_load_mem_dyngen (DisasContext *ctx,
-                                        void (*gen_load_op)(DisasContext *ctx),
-                                        int ra, int rb, int32_t disp16,
-                                        int clear)
-{
-    if (ra != 31 || disp16 != 0) {
-        if (rb != 31)
-            tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
-        else
-            tcg_gen_movi_i64(cpu_T[0], disp16);
-        if (clear)
-            tcg_gen_andi_i64(cpu_T[0], cpu_T[0], ~0x7);
-        (*gen_load_op)(ctx);
-        if (ra != 31)
-            tcg_gen_mov_i64(cpu_ir[ra], cpu_T[1]);
-    }
-}
-
 static always_inline void gen_qemu_ldf (TCGv t0, TCGv t1, int flags)
 {
     TCGv tmp = tcg_temp_new(TCG_TYPE_I32);
@@ -211,6 +197,18 @@ static always_inline void gen_qemu_lds (TCGv t0, TCGv t1, int flags)
     tcg_gen_qemu_ld32u(tmp, t1, flags);
     tcg_gen_helper_1_1(helper_memory_to_s, t0, tmp);
     tcg_temp_free(tmp);
+}
+
+static always_inline void gen_qemu_ldl_l (TCGv t0, TCGv t1, int flags)
+{
+    tcg_gen_mov_i64(cpu_lock, t1);
+    tcg_gen_qemu_ld32s(t0, t1, flags);
+}
+
+static always_inline void gen_qemu_ldq_l (TCGv t0, TCGv t1, int flags)
+{
+    tcg_gen_mov_i64(cpu_lock, t1);
+    tcg_gen_qemu_ld64(t0, t1, flags);
 }
 
 static always_inline void gen_load_mem (DisasContext *ctx,
@@ -240,24 +238,6 @@ static always_inline void gen_load_mem (DisasContext *ctx,
     tcg_temp_free(addr);
 }
 
-static always_inline void gen_store_mem_dyngen (DisasContext *ctx,
-                                         void (*gen_store_op)(DisasContext *ctx),
-                                         int ra, int rb, int32_t disp16,
-                                         int clear)
-{
-    if (rb != 31)
-        tcg_gen_addi_i64(cpu_T[0], cpu_ir[rb], disp16);
-    else
-        tcg_gen_movi_i64(cpu_T[0], disp16);
-    if (clear)
-        tcg_gen_andi_i64(cpu_T[0], cpu_T[0], ~0x7);
-    if (ra != 31)
-        tcg_gen_mov_i64(cpu_T[1], cpu_ir[ra]);
-    else
-        tcg_gen_movi_i64(cpu_T[1], 0);
-    (*gen_store_op)(ctx);
-}
-
 static always_inline void gen_qemu_stf (TCGv t0, TCGv t1, int flags)
 {
     TCGv tmp = tcg_temp_new(TCG_TYPE_I32);
@@ -280,6 +260,38 @@ static always_inline void gen_qemu_sts (TCGv t0, TCGv t1, int flags)
     tcg_gen_helper_1_1(helper_s_to_memory, tmp, t0);
     tcg_gen_qemu_st32(tmp, t1, flags);
     tcg_temp_free(tmp);
+}
+
+static always_inline void gen_qemu_stl_c (TCGv t0, TCGv t1, int flags)
+{
+    int l1, l2;
+
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+    tcg_gen_brcond_i64(TCG_COND_NE, cpu_lock, t1, l1);
+    tcg_gen_qemu_st32(t0, t1, flags);
+    tcg_gen_movi_i64(t0, 0);
+    tcg_gen_br(l2);
+    gen_set_label(l1);
+    tcg_gen_movi_i64(t0, 1);
+    gen_set_label(l2);
+    tcg_gen_movi_i64(cpu_lock, -1);
+}
+
+static always_inline void gen_qemu_stq_c (TCGv t0, TCGv t1, int flags)
+{
+    int l1, l2;
+
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+    tcg_gen_brcond_i64(TCG_COND_NE, cpu_lock, t1, l1);
+    tcg_gen_qemu_st64(t0, t1, flags);
+    tcg_gen_movi_i64(t0, 0);
+    tcg_gen_br(l2);
+    gen_set_label(l1);
+    tcg_gen_movi_i64(t0, 1);
+    gen_set_label(l2);
+    tcg_gen_movi_i64(cpu_lock, -1);
 }
 
 static always_inline void gen_store_mem (DisasContext *ctx,
@@ -2158,11 +2170,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x2A:
         /* LDL_L */
-        gen_load_mem_dyngen(ctx, &gen_ldl_l, ra, rb, disp16, 0);
+        gen_load_mem(ctx, &gen_qemu_ldl_l, ra, rb, disp16, 0, 0);
         break;
     case 0x2B:
         /* LDQ_L */
-        gen_load_mem_dyngen(ctx, &gen_ldq_l, ra, rb, disp16, 0);
+        gen_load_mem(ctx, &gen_qemu_ldq_l, ra, rb, disp16, 0, 0);
         break;
     case 0x2C:
         /* STL */
@@ -2174,11 +2186,11 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x2E:
         /* STL_C */
-        gen_store_mem_dyngen(ctx, &gen_stl_c, ra, rb, disp16, 0);
+        gen_store_mem(ctx, &gen_qemu_stl_c, ra, rb, disp16, 0, 0);
         break;
     case 0x2F:
         /* STQ_C */
-        gen_store_mem_dyngen(ctx, &gen_stq_c, ra, rb, disp16, 0);
+        gen_store_mem(ctx, &gen_qemu_stq_c, ra, rb, disp16, 0, 0);
         break;
     case 0x30:
         /* BR */
