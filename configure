@@ -900,8 +900,18 @@ if test "$bluez" = "yes" ; then
   `pkg-config bluez` || bluez="no"
 fi
 if test "$bluez" = "yes" ; then
+  cat > $TMPC << EOF
+#include <bluetooth/bluetooth.h>
+int main(void) { return bt_error(0); }
+EOF
   bluez_cflags=`pkg-config --cflags bluez`
   bluez_libs=`pkg-config --libs bluez`
+  if $cc $ARCH_CFLAGS -o $TMPE ${OS_FLAGS} $bluez_cflags $TMPC \
+      $bluez_libs 2> /dev/null ; then
+    :
+  else
+    bluez="no"
+  fi
 fi
 
 ##########################################
