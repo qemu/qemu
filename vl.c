@@ -5375,7 +5375,7 @@ static struct bt_vlan_s {
 } *first_bt_vlan;
 
 /* find or alloc a new bluetooth "VLAN" */
-struct bt_scatternet_s *qemu_find_bt_vlan(int id)
+static struct bt_scatternet_s *qemu_find_bt_vlan(int id)
 {
     struct bt_vlan_s **pvlan, *vlan;
     for (vlan = first_bt_vlan; vlan != NULL; vlan = vlan->next) {
@@ -6360,7 +6360,7 @@ static int bdrv_fclose(void *opaque)
     return 0;
 }
 
-QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_writable)
+static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_writable)
 {
     QEMUFileBdrv *s;
 

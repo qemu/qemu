@@ -37,7 +37,7 @@
 
 #define CURSES_KEYS         KEY_MAX     /* KEY_MAX defined in <curses.h> */
 
-int curses2keycode[CURSES_KEYS] = {
+static int curses2keycode[CURSES_KEYS] = {
     [0 ... (CURSES_KEYS - 1)] = -1,
 
     [0x01b] = 1, /* Escape */
@@ -216,7 +216,7 @@ int curses2keycode[CURSES_KEYS] = {
 
 };
 
-int curses2keysym[CURSES_KEYS] = {
+static int curses2keysym[CURSES_KEYS] = {
     [0 ... (CURSES_KEYS - 1)] = -1,
 
     ['\n'] = '\n',

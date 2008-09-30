@@ -783,7 +783,7 @@ e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
             (8 * (addr & 3))) & 0xffff;
 }
 
-int mac_regtosave[] = {
+static int mac_regtosave[] = {
     CTRL,	EECD,	EERD,	GPRC,	GPTC,	ICR,	ICS,	IMC,	IMS,
     LEDCTL,	MANC,	MDIC,	MPC,	PBA,	RCTL,	RDBAH,	RDBAL,	RDH,
     RDLEN,	RDT,	STATUS,	SWSM,	TCTL,	TDBAH,	TDBAL,	TDH,	TDLEN,
@@ -791,7 +791,7 @@ int mac_regtosave[] = {
 };
 enum { MAC_NSAVE = sizeof mac_regtosave/sizeof *mac_regtosave };
 
-struct {
+static struct {
     int size;
     int array0;
 } mac_regarraystosave[] = { {32, RA}, {128, MTA} };
