@@ -3048,10 +3048,6 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
 #endif
             gen_op_btest_T1(ctx->nip);
     no_test:
-        if (ctx->singlestep_enabled & GDBSTUB_SINGLE_STEP) {
-            gen_update_nip(ctx, ctx->nip);
-            gen_op_debug();
-        }
         tcg_gen_exit_tb(0);
     }
 }
