@@ -738,6 +738,14 @@ static inline void ide_abort_command(IDEState *s)
     s->error = ABRT_ERR;
 }
 
+static inline void ide_dma_submit_check(IDEState *s,
+          BlockDriverCompletionFunc *dma_cb, BMDMAState *bm)
+{
+    if (bm->aiocb)
+	return;
+    dma_cb(bm, -1);
+}
+
 static inline void ide_set_irq(IDEState *s)
 {
     BMDMAState *bm = s->bmdma;
@@ -954,6 +962,7 @@ static void ide_read_dma_cb(void *opaque, int ret)
 #endif
     bm->aiocb = bdrv_aio_read(s->bs, sector_num, s->io_buffer, n,
                               ide_read_dma_cb, bm);
+    ide_dma_submit_check(s, ide_read_dma_cb, bm);
 }
 
 static void ide_sector_read_dma(IDEState *s)
@@ -1065,6 +1074,7 @@ static void ide_write_dma_cb(void *opaque, int ret)
 #endif
     bm->aiocb = bdrv_aio_write(s->bs, sector_num, s->io_buffer, n,
                                ide_write_dma_cb, bm);
+    ide_dma_submit_check(s, ide_write_dma_cb, bm);
 }
 
 static void ide_sector_write_dma(IDEState *s)
