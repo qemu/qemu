@@ -34,7 +34,7 @@ do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
 #define SENSE_HARDWARE_ERROR  4
 #define SENSE_ILLEGAL_REQUEST 5
 
-#define SCSI_DMA_BUF_SIZE    65536
+#define SCSI_DMA_BUF_SIZE    131072
 
 typedef struct SCSIRequest {
     SCSIDeviceState *dev;
