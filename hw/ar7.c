@@ -3130,6 +3130,8 @@ static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
         ar7_io_memwrite(opaque, addr, value);
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
         ar7_io_memwrite(opaque, addr, value);
+#else
+# warning("TODO: missing code")
 #endif
     } else {
         ar7_io_memwrite(opaque, addr, value);
@@ -3162,6 +3164,8 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
+#else
+# warning("TODO: missing code")
 #endif
     } else {
         logout("addr=0x%08x, val=0x%02x\n", (unsigned)addr, value & 0xff);
@@ -3186,6 +3190,8 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
             //~ UNEXPECTED();
             ar7_io_memwrite(opaque, addr - 2, value);
             break;
+#else
+# warning("TODO: missing code")
 #endif
         default:
             assert(0);
@@ -3206,6 +3212,8 @@ static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
       case 2:
           value >>= 16;
           break;
+#else
+# warning("TODO: missing code")
 #endif
       default:
           assert(0);
