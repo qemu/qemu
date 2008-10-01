@@ -798,7 +798,11 @@ void OPPROTO op_mulli (void)
 /* multiply low word */
 void OPPROTO op_mullw (void)
 {
+#if defined(TARGET_PPC64)
+    T0 = (int64_t)(int32_t)T0 * (int64_t)(int32_t)T1;
+#else
     T0 = (int32_t)(T0 * T1);
+#endif
     RETURN();
 }
 

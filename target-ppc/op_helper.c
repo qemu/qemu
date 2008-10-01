@@ -227,7 +227,7 @@ void do_divduo (void)
 
 void do_mullwo (void)
 {
-    int64_t res = (int64_t)T0 * (int64_t)T1;
+    int64_t res = (int64_t)(int32_t)T0 * (int64_t)(int32_t)T1;
 
     if (likely((int32_t)res == res)) {
         xer_ov = 0;
