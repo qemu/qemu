@@ -32,6 +32,10 @@
 
 #include "config-host.h"
 
+#if !defined(O_BINARY)
+# define O_BINARY 0
+#endif
+
 /* NOTE: we test CONFIG_WIN32 instead of _WIN32 to enabled cross
    compilation */
 #if defined(CONFIG_WIN32)
@@ -498,7 +502,7 @@ static int load_object(const char *filename)
     char *shstr;
     ELF_RELOC *rel;
 
-    fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
         error("can't open file '%s'", filename);
 
@@ -718,11 +722,7 @@ int load_object(const char *filename)
     const char *p;
     int aux_size, j;
 
-    fd = open(filename, O_RDONLY
-#ifdef _WIN32
-              | O_BINARY
-#endif
-              );
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
         error("can't open file '%s'", filename);
 
@@ -1095,7 +1095,7 @@ int load_object(const char *filename)
 	EXE_SYM *sym;
 	struct nlist *syment;
 
-	fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
         error("can't open file '%s'", filename);
 

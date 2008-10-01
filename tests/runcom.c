@@ -13,6 +13,10 @@
 #include <linux/unistd.h>
 #include <asm/vm86.h>
 
+#if !defined(O_BINARY)
+# define O_BINARY 0
+#endif
+
 //#define SIGTEST
 
 #undef __syscall_return
@@ -101,7 +105,7 @@ int main(int argc, char **argv)
 #endif
 
     /* load the MSDOS .com executable */
-    fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
         perror(filename);
         exit(1);

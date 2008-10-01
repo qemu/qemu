@@ -10,6 +10,10 @@
 
 #include "qemu.h"
 
+#if !defined(O_BINARY)
+# define O_BINARY 0
+#endif
+
 #define NGROUPS 32
 
 /* ??? This should really be somewhere else.  */
@@ -164,7 +168,7 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
     bprm.p = TARGET_PAGE_SIZE*MAX_ARG_PAGES-sizeof(unsigned int);
     for (i=0 ; i<MAX_ARG_PAGES ; i++)       /* clear page-table */
             bprm.page[i] = 0;
-    retval = open(filename, O_RDONLY);
+    retval = open(filename, O_RDONLY | O_BINARY);
     if (retval < 0)
         return retval;
     bprm.fd = retval;

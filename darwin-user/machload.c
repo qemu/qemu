@@ -36,6 +36,10 @@
 #include <mach-o/reloc.h>
 #include <mach-o/ppc/reloc.h>
 
+#if !defined(O_BINARY)
+# define O_BINARY 0
+#endif
+
 //#define DEBUG_MACHLOAD
 
 #ifdef DEBUG_MACHLOAD
@@ -467,7 +471,7 @@ int load_object(const char *filename, struct target_pt_regs * regs, void ** mh)
     struct nlist     *symtab_std, *syment;
     char            *strtab;
 
-    fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
         qerror("can't open file '%s'", filename);
 
