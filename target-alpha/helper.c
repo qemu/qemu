@@ -436,13 +436,3 @@ void cpu_dump_state (CPUState *env, FILE *f,
     }
 }
 
-void cpu_dump_EA (target_ulong EA)
-{
-    FILE *f;
-
-    if (logfile)
-        f = logfile;
-    else
-        f = stdout;
-    fprintf(f, "Memory access at address " TARGET_FMT_lx "\n", EA);
-}

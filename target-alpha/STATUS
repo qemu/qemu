@@ -5,18 +5,13 @@ cpu.h           : CPU definitions globally exported
 exec.h          : CPU definitions used only for translated code execution
 helper.c        : helpers that can be called either by the translated code
                   or the Qemu core, including the exception handler.
-op.c            : Alpha dedicated micro-operations used by the code translator
-op_helper.c     : helpers that can be called only from micro-operations
-op_helper.h     : micro-operations helpers prototypes
-op_helper_mem.h : micro-operations templates
-                  for load and stores accesses helpers
-op_mem.h        : micro-operations templates for load and stores accesses
-op_template.h   : micro-operation templates for register moves
+op_helper.c     : helpers that can be called only from TCG
+helper.h        : TCG helpers prototypes
 translate.c     : Alpha instructions to micro-operations translator
 
 Code translator status:
 The Alpha CPU instruction emulation should be quite complete with the
-limitation that the VAX floating-point load and stores are not implemented.
+limitation that the VAX floating-point load and stores are not tested.
 The 4 MMU modes are implemented.
 
 Linux user mode emulation status:

@@ -36,7 +36,7 @@ typedef struct {
     uint8_t macaddr[6];
 } BOOTPClient;
 
-BOOTPClient bootp_clients[NB_ADDR];
+static BOOTPClient bootp_clients[NB_ADDR];
 
 const char *bootp_filename;
 

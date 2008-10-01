@@ -87,7 +87,7 @@ struct bt_hci_link_s {
 };
 
 /* LMP layer emulation */
-void bt_submit_lmp(struct bt_device_s *bt, int length, uint8_t *data)
+static void bt_submit_lmp(struct bt_device_s *bt, int length, uint8_t *data)
 {
     int resp, resplen, error, op, tr;
     uint8_t respdata[17];
@@ -2134,7 +2134,7 @@ static int bt_hci_bdaddr_set(struct HCIInfo *info, const uint8_t *bd_addr)
     return 0;
 }
 
-void bt_hci_done(struct HCIInfo *info);
+static void bt_hci_done(struct HCIInfo *info);
 static void bt_hci_destroy(struct bt_device_s *dev)
 {
     struct bt_hci_s *hci = hci_from_device(dev);
@@ -2181,7 +2181,7 @@ struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net)
     return &s->info;
 }
 
-void bt_hci_done(struct HCIInfo *info)
+static void bt_hci_done(struct HCIInfo *info)
 {
     struct bt_hci_s *hci = hci_from_info(info);
     int handle;

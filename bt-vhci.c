@@ -25,9 +25,7 @@
 #include "net.h"
 #include "hw/bt.h"
 
-#include <sys/uio.h>
-
-#define VHCI_DEV	"/dev/vhci" 
+#define VHCI_DEV	"/dev/vhci"
 #define VHCI_UDEV	"/dev/hci_vhci"
 
 struct bt_vhci_s {

@@ -24,17 +24,18 @@
 #include "sysemu.h"
 #include "net.h"
 
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/uio.h>
-#ifdef CONFIG_BLUEZ
-# include <bluetooth/bluetooth.h>
-# include <bluetooth/hci.h>
-# include <bluetooth/hci_lib.h>
-#else
-# include "hw/bt.h"
-# define HCI_MAX_FRAME_SIZE	1028
-#endif
+#ifndef _WIN32
+# include <errno.h>
+# include <sys/ioctl.h>
+# include <sys/uio.h>
+# ifdef CONFIG_BLUEZ
+#  include <bluetooth/bluetooth.h>
+#  include <bluetooth/hci.h>
+#  include <bluetooth/hci_lib.h>
+# else
+#  include "hw/bt.h"
+#  define HCI_MAX_FRAME_SIZE	1028
+# endif
 
 struct bt_host_hci_s {
     struct HCIInfo hci;
@@ -154,7 +155,7 @@ struct HCIInfo *bt_host_hci(const char *id)
 {
     struct bt_host_hci_s *s;
     int fd = -1;
-#ifdef CONFIG_BLUEZ
+# ifdef CONFIG_BLUEZ
     int dev_id = hci_devid(id);
     struct hci_filter flt;
 
@@ -166,7 +167,7 @@ struct HCIInfo *bt_host_hci(const char *id)
     fd = hci_open_dev(dev_id);
 
     /* XXX: can we ensure nobody else has the device opened?  */
-#endif
+# endif
 
     if (fd < 0) {
         fprintf(stderr, "qemu: Can't open `%s': %s (%i)\n",
@@ -174,7 +175,7 @@ struct HCIInfo *bt_host_hci(const char *id)
         return 0;
     }
 
-#ifdef CONFIG_BLUEZ
+# ifdef CONFIG_BLUEZ
     hci_filter_clear(&flt);
     hci_filter_all_ptypes(&flt);
     hci_filter_all_events(&flt);
@@ -183,7 +184,7 @@ struct HCIInfo *bt_host_hci(const char *id)
         fprintf(stderr, "qemu: Can't set HCI filter on socket (%i)\n", errno);
         return 0;
     }
-#endif
+# endif
 
     s = qemu_mallocz(sizeof(struct bt_host_hci_s));
     s->fd = fd;
@@ -196,3 +197,11 @@ struct HCIInfo *bt_host_hci(const char *id)
 
     return &s->hci;
 }
+#else
+struct HCIInfo *bt_host_hci(const char *id)
+{
+    fprintf(stderr, "qemu: bluetooth passthrough not supported (yet)\n", errno);
+
+    return 0;
+}
+#endif
