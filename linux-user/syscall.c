@@ -5576,7 +5576,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         goto unimplemented;
 #ifdef TARGET_NR_mincore
     case TARGET_NR_mincore:
-        goto unimplemented;
+        {
+            void *a;
+            ret = -TARGET_EFAULT;
+            if (!(a = lock_user(VERIFY_READ, arg1,arg2, 0)))
+                goto efault;
+            if (!(p = lock_user_string(arg3)))
+                goto mincore_fail;
+            ret = get_errno(mincore(a, arg2, p));
+            unlock_user(p, arg3, ret);
+            mincore_fail:
+            unlock_user(a, arg1, 0);
+        }
+        break;
 #endif
 #ifdef TARGET_NR_arm_fadvise64_64
     case TARGET_NR_arm_fadvise64_64:
