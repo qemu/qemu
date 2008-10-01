@@ -860,6 +860,9 @@ static const KeyDef key_defs[] = {
     { 0x30, "b" },
     { 0x31, "n" },
     { 0x32, "m" },
+    { 0x33, "comma" },
+    { 0x34, "dot" },
+    { 0x35, "slash" },
 
     { 0x37, "asterisk" },
 
