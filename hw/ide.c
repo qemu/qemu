@@ -817,6 +817,11 @@ static void ide_set_sector(IDEState *s, int64_t sector_num)
     }
 }
 
+static void ide_rw_error(IDEState *s) {
+    ide_abort_command(s);
+    ide_set_irq(s);
+}
+
 static void ide_sector_read(IDEState *s)
 {
     int64_t sector_num;
@@ -836,11 +841,23 @@ static void ide_sector_read(IDEState *s)
         if (n > s->req_nb_sectors)
             n = s->req_nb_sectors;
         ret = bdrv_read(s->bs, sector_num, s->io_buffer, n);
+        if (ret != 0) {
+            ide_rw_error(s);
+            return;
+        }
         ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_read);
         ide_set_irq(s);
         ide_set_sector(s, sector_num + n);
         s->nsector -= n;
     }
+}
+
+static void ide_dma_error(IDEState *s)
+{
+    ide_transfer_stop(s);
+    s->error = ABRT_ERR;
+    s->status = READY_STAT | ERR_STAT;
+    ide_set_irq(s);
 }
 
 /* return 0 if buffer completed */
@@ -891,13 +908,17 @@ static int dma_buf_rw(BMDMAState *bm, int is_write)
     return 1;
 }
 
-/* XXX: handle errors */
 static void ide_read_dma_cb(void *opaque, int ret)
 {
     BMDMAState *bm = opaque;
     IDEState *s = bm->ide_if;
     int n;
     int64_t sector_num;
+
+    if (ret < 0) {
+	ide_dma_error(s);
+	return;
+    }
 
     n = s->io_buffer_size >> 9;
     sector_num = ide_get_sector(s);
@@ -963,6 +984,11 @@ static void ide_sector_write(IDEState *s)
     if (n > s->req_nb_sectors)
         n = s->req_nb_sectors;
     ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
+    if (ret != 0) {
+	ide_rw_error(s);
+	return;
+    }
+
     s->nsector -= n;
     if (s->nsector == 0) {
         /* no more sectors to write */
@@ -992,13 +1018,17 @@ static void ide_sector_write(IDEState *s)
     }
 }
 
-/* XXX: handle errors */
 static void ide_write_dma_cb(void *opaque, int ret)
 {
     BMDMAState *bm = opaque;
     IDEState *s = bm->ide_if;
     int n;
     int64_t sector_num;
+
+    if (ret < 0) {
+	ide_dma_error(s);
+	return;
+    }
 
     n = s->io_buffer_size >> 9;
     sector_num = ide_get_sector(s);
