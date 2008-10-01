@@ -109,7 +109,7 @@ static int fls_bit(uint32_t value)
 {
     unsigned int ret = 0;
 
-#if defined(HOST_I386)
+#if defined(HOST_I386) || defined(HOST_X86_64)
     __asm__ __volatile__ ("bsr %1, %0\n" : "+r" (ret) : "rm" (value));
     return ret;
 #else
@@ -130,7 +130,7 @@ static int ffs_bit(uint32_t value)
 {
     unsigned int ret = 0;
 
-#if defined(HOST_I386)
+#if defined(HOST_I386) || defined(HOST_X86_64)
     __asm__ __volatile__ ("bsf %1, %0\n" : "+r" (ret) : "rm" (value));
     return ret;
 #else
