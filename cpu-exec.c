@@ -48,7 +48,7 @@ int tb_invalidated_flag;
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
-void cpu_loop_exit(void)
+void __attribute((noreturn)) cpu_loop_exit(void)
 {
     /* NOTE: the register at this point must be saved by hand because
        longjmp restore them */

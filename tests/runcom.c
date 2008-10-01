@@ -29,7 +29,7 @@ _syscall2(int, vm86, int, func, struct vm86plus_struct *, v86)
 
 #define COM_BASE_ADDR    0x10100
 
-void usage(void)
+static void __attribute((noreturn)) usage(void)
 {
     printf("runcom version 0.1 (c) 2003 Fabrice Bellard\n"
            "usage: runcom file.com\n"
