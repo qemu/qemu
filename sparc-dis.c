@@ -67,7 +67,7 @@ struct sparc_opcode_arch {
   short supported;
 };
 
-extern const struct sparc_opcode_arch sparc_opcode_archs[];
+static const struct sparc_opcode_arch sparc_opcode_archs[];
 
 /* Return the bitmask of supported architectures for ARCH.  */
 #define SPARC_OPCODE_SUPPORTED(ARCH) (sparc_opcode_archs[ARCH].supported)
@@ -212,13 +212,14 @@ The following chars are unused: (note: ,[] are used as punctuation)
 #define RS1_G0  RS1(~0)
 #define RS2_G0  RS2(~0)
 
-extern const struct sparc_opcode sparc_opcodes[];
-extern const int sparc_num_opcodes;
+static const struct sparc_opcode sparc_opcodes[];
+static const int sparc_num_opcodes;
 
-extern const char *sparc_decode_asi PARAMS ((int));
-extern const char *sparc_decode_membar PARAMS ((int));
-extern const char *sparc_decode_prefetch PARAMS ((int));
-extern const char *sparc_decode_sparclet_cpreg PARAMS ((int));
+static const char *sparc_decode_asi_v8 PARAMS ((int));
+static const char *sparc_decode_asi_v9 PARAMS ((int));
+static const char *sparc_decode_membar PARAMS ((int));
+static const char *sparc_decode_prefetch PARAMS ((int));
+static const char *sparc_decode_sparclet_cpreg PARAMS ((int));
 
 /* Some defines to make life easy.  */
 #define MASK_V6         SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V6)
@@ -262,7 +263,7 @@ extern const char *sparc_decode_sparclet_cpreg PARAMS ((int));
 /* Table of opcode architectures.
    The order is defined in opcode/sparc.h.  */
 
-const struct sparc_opcode_arch sparc_opcode_archs[] = {
+static const struct sparc_opcode_arch sparc_opcode_archs[] = {
   { "v6", MASK_V6 },
   { "v7", MASK_V6 | MASK_V7 },
   { "v8", MASK_V6 | MASK_V7 | MASK_V8 },
@@ -349,7 +350,7 @@ const struct sparc_opcode_arch sparc_opcode_archs[] = {
 { opcode,       F3(2, op3, 1), F3(~2, ~op3, ~1),                "1,i,d", 0, arch_mask }, \
 { opcode,       F3(2, op3, 1), F3(~2, ~op3, ~1),                "i,1,d", 0, arch_mask }
 
-const struct sparc_opcode sparc_opcodes[] = {
+static const struct sparc_opcode sparc_opcodes[] = {
 
 { "ld", F3(3, 0x00, 0), F3(~3, ~0x00, ~0),              "[1+2],d", 0, v6 },
 { "ld", F3(3, 0x00, 0), F3(~3, ~0x00, ~0)|RS2_G0,       "[1],d", 0, v6 }, /* ld [rs1+%g0],d */
@@ -2030,7 +2031,7 @@ IMPDEP ("impdep2", 0x37),
 
 };
 
-const int sparc_num_opcodes = ((sizeof sparc_opcodes)/(sizeof sparc_opcodes[0]));
+static const int sparc_num_opcodes = ((sizeof sparc_opcodes)/(sizeof sparc_opcodes[0]));
 
 /* Utilities for argument parsing.  */
 
