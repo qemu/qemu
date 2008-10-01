@@ -69,10 +69,6 @@ struct sparc_opcode_arch {
 
 extern const struct sparc_opcode_arch sparc_opcode_archs[];
 
-/* Given architecture name, look up it's sparc_opcode_arch_val value.  */
-extern enum sparc_opcode_arch_val sparc_opcode_lookup_arch
-  PARAMS ((const char *));
-
 /* Return the bitmask of supported architectures for ARCH.  */
 #define SPARC_OPCODE_SUPPORTED(ARCH) (sparc_opcode_archs[ARCH].supported)
 
@@ -219,13 +215,9 @@ The following chars are unused: (note: ,[] are used as punctuation)
 extern const struct sparc_opcode sparc_opcodes[];
 extern const int sparc_num_opcodes;
 
-extern int sparc_encode_asi PARAMS ((const char *));
 extern const char *sparc_decode_asi PARAMS ((int));
-extern int sparc_encode_membar PARAMS ((const char *));
 extern const char *sparc_decode_membar PARAMS ((int));
-extern int sparc_encode_prefetch PARAMS ((const char *));
 extern const char *sparc_decode_prefetch PARAMS ((int));
-extern int sparc_encode_sparclet_cpreg PARAMS ((const char *));
 extern const char *sparc_decode_sparclet_cpreg PARAMS ((int));
 
 /* Some defines to make life easy.  */
@@ -285,23 +277,6 @@ const struct sparc_opcode_arch sparc_opcode_archs[] = {
   { NULL, 0 }
 };
 
-/* Given NAME, return it's architecture entry.  */
-
-enum sparc_opcode_arch_val
-sparc_opcode_lookup_arch (name)
-     const char *name;
-{
-  const struct sparc_opcode_arch *p;
-
-  for (p = &sparc_opcode_archs[0]; p->name; ++p)
-    {
-      if (strcmp (name, p->name) == 0)
-        return (enum sparc_opcode_arch_val) (p - &sparc_opcode_archs[0]);
-    }
-
-  return SPARC_OPCODE_ARCH_BAD;
-}
-
 /* Branch condition field.  */
 #define COND(x)         (((x)&0xf)<<25)
 
@@ -2067,22 +2042,7 @@ typedef struct
 
 /* Look up NAME in TABLE.  */
 
-static int lookup_name PARAMS ((const arg *, const char *));
 static const char *lookup_value PARAMS ((const arg *, int));
-
-static int
-lookup_name (table, name)
-     const arg *table;
-     const char *name;
-{
-  const arg *p;
-
-  for (p = table; p->name; ++p)
-    if (strcmp (name, p->name) == 0)
-      return p->value;
-
-  return -1;
-}
 
 /* Look up VALUE in TABLE.  */
 
@@ -2218,15 +2178,6 @@ static const arg membar_table[] =
   { 0, 0 }
 };
 
-/* Return the value for membar arg NAME, or -1 if not found.  */
-
-int
-sparc_encode_membar (name)
-     const char *name;
-{
-  return lookup_name (membar_table, name);
-}
-
 /* Return the name for membar value VALUE or NULL if not found.  */
 
 const char *
@@ -2248,15 +2199,6 @@ static const arg prefetch_table[] =
   { 16, "#invalidate" },
   { 0, 0 }
 };
-
-/* Return the value for prefetch arg NAME, or -1 if not found.  */
-
-int
-sparc_encode_prefetch (name)
-     const char *name;
-{
-  return lookup_name (prefetch_table, name);
-}
 
 /* Return the name for prefetch value VALUE or NULL if not found.  */
 
@@ -2280,15 +2222,6 @@ static const arg sparclet_cpreg_table[] =
   { 6, "%ccrstr" },
   { 0, 0 }
 };
-
-/* Return the value for sparclet cpreg arg NAME, or -1 if not found.  */
-
-int
-sparc_encode_sparclet_cpreg (name)
-     const char *name;
-{
-  return lookup_name (sparclet_cpreg_table, name);
-}
 
 /* Return the name for sparclet cpreg value VALUE or NULL if not found.  */
 
