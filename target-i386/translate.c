@@ -3452,6 +3452,7 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         case 0x1c5:
             if (mod != 3)
                 goto illegal_op;
+            ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
             val = ldub_code(s->pc++);
             if (b1) {
                 val &= 7;
@@ -3465,7 +3466,7 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
                                 offsetof(CPUX86State,fpregs[rm].mmx.MMX_W(val)));
             }
             reg = ((modrm >> 3) & 7) | rex_r;
-            gen_op_mov_reg_T0(OT_LONG, reg);
+            gen_op_mov_reg_T0(ot, reg);
             break;
         case 0x1d6: /* movq ea, xmm */
             if (mod != 3) {
