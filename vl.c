@@ -166,20 +166,20 @@
 
 const char *bios_dir = CONFIG_QEMU_SHAREDIR;
 const char *bios_name = NULL;
-void *ioport_opaque[MAX_IOPORTS];
-IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
-IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
+static void *ioport_opaque[MAX_IOPORTS];
+static IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
+static IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
 /* Note: drives_table[MAX_DRIVES] is a dummy block driver if none available
    to store the VM snapshots */
 DriveInfo drives_table[MAX_DRIVES+1];
 int nb_drives;
 /* point to the block driver where the snapshots are managed */
-BlockDriverState *bs_snapshots;
-int vga_ram_size;
+static BlockDriverState *bs_snapshots;
+static int vga_ram_size;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static DisplayState display_state;
 int nographic;
-int curses;
+static int curses;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 ram_addr_t ram_size;
@@ -199,8 +199,8 @@ int graphic_width = 800;
 int graphic_height = 600;
 int graphic_depth = 15;
 #endif
-int full_screen = 0;
-int no_frame = 0;
+static int full_screen = 0;
+static int no_frame = 0;
 int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
@@ -238,8 +238,8 @@ int alt_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 #endif
-int nb_drives_opt;
-struct drive_opt {
+static int nb_drives_opt;
+static struct drive_opt {
     const char *file;
     char opt[1024];
 } drives_opt[MAX_DRIVES];
@@ -253,8 +253,8 @@ static int icount_time_shift;
 #define MAX_ICOUNT_SHIFT 10
 /* Compensate for varying guest execution speed.  */
 static int64_t qemu_icount_bias;
-QEMUTimer *icount_rt_timer;
-QEMUTimer *icount_vm_timer;
+static QEMUTimer *icount_rt_timer;
+static QEMUTimer *icount_vm_timer;
 
 uint8_t qemu_uuid[16];
 
@@ -4214,7 +4214,7 @@ static void net_slirp_redir(const char *redir_str)
 
 #ifndef _WIN32
 
-char smb_dir[1024];
+static char smb_dir[1024];
 
 static void erase_dir(char *dir_name)
 {
@@ -8104,7 +8104,7 @@ typedef struct QEMUOption {
     int index;
 } QEMUOption;
 
-const QEMUOption qemu_options[] = {
+static const QEMUOption qemu_options[] = {
     { "h", 0, QEMU_OPTION_h },
     { "help", 0, QEMU_OPTION_h },
 
