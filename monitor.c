@@ -2330,8 +2330,8 @@ static void monitor_handle_command(const char *cmdline)
                         /* for 'i', not specifying a size gives -1 as size */
                         if (size < 0)
                             size = default_fmt_size;
+                        default_fmt_size = size;
                     }
-                    default_fmt_size = size;
                     default_fmt_format = format;
                 } else {
                     count = 1;
