@@ -261,7 +261,7 @@ TAGS:
 
 cscope:
 	rm -f ./cscope.*
-	find . -name "*.[ch]" -print > ./cscope.files
+	find . -name "*.[ch]" -print | sed 's,^\./,,' > ./cscope.files
 	cscope -b
 
 # documentation
