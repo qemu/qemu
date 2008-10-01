@@ -151,10 +151,8 @@ void do_addmeo (void)
     T0 += xer_ca + (-1);
     xer_ov = ((uint32_t)T1 & ((uint32_t)T1 ^ (uint32_t)T0)) >> 31;
     xer_so |= xer_ov;
-    if (likely(T1 != 0))
+    if (likely((uint32_t)T1 != 0))
         xer_ca = 1;
-    else
-        xer_ca = 0;
 }
 
 #if defined(TARGET_PPC64)
@@ -164,10 +162,8 @@ void do_addmeo_64 (void)
     T0 += xer_ca + (-1);
     xer_ov = ((uint64_t)T1 & ((uint64_t)T1 ^ (uint64_t)T0)) >> 63;
     xer_so |= xer_ov;
-    if (likely(T1 != 0))
+    if (likely((uint64_t)T1 != 0))
         xer_ca = 1;
-    else
-        xer_ca = 0;
 }
 #endif
 
@@ -312,8 +308,6 @@ void do_subfmeo (void)
     xer_so |= xer_ov;
     if (likely((uint32_t)T1 != UINT32_MAX))
         xer_ca = 1;
-    else
-        xer_ca = 0;
 }
 
 #if defined(TARGET_PPC64)
@@ -325,8 +319,6 @@ void do_subfmeo_64 (void)
     xer_so |= xer_ov;
     if (likely((uint64_t)T1 != UINT64_MAX))
         xer_ca = 1;
-    else
-        xer_ca = 0;
 }
 #endif
 
