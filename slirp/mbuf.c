@@ -17,8 +17,6 @@
 
 #include <slirp.h>
 
-struct	mbuf *mbutl;
-char	*mclrefcnt;
 int mbuf_alloced = 0;
 struct mbuf m_freelist, m_usedlist;
 #define MBUF_THRESH 30
