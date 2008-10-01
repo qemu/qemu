@@ -5578,6 +5578,27 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_mincore:
         goto unimplemented;
 #endif
+#ifdef TARGET_NR_arm_fadvise64_64
+    case TARGET_NR_arm_fadvise64_64:
+	{
+		/*
+		 * arm_fadvise64_64 looks like fadvise64_64 but
+		 * with different argument order
+		 */
+		abi_long temp;
+		temp = arg3;
+		arg3 = arg4;
+		arg4 = temp;
+	}
+#endif
+#if defined(TARGET_NR_fadvise64_64) || defined(TARGET_NR_arm_fadvise64_64)
+#ifdef TARGET_NR_fadvise64_64
+    case TARGET_NR_fadvise64_64:
+#endif
+        /* This is a hint, so ignoring and returning success is ok.  */
+	ret = get_errno(0);
+	break;
+#endif
 #ifdef TARGET_NR_madvise
     case TARGET_NR_madvise:
         /* A straight passthrough may not be safe because qemu sometimes
