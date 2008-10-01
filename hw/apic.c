@@ -458,6 +458,11 @@ static void apic_init_ipi(APICState *s)
     s->initial_count = 0;
     s->initial_count_load_time = 0;
     s->next_time = 0;
+
+    cpu_reset(s->cpu_env);
+
+    if (!(s->apicbase & MSR_IA32_APICBASE_BSP))
+        s->cpu_env->halted = 1;
 }
 
 /* send a SIPI message to the CPU to start it */
