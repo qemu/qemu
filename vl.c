@@ -6226,8 +6226,8 @@ static void fd_put_notify(void *opaque)
     qemu_file_put_notify(s->file);
 }
 
-static int fd_put_buffer(void *opaque, const uint8_t *buf,
-                         int64_t pos, int size)
+static void fd_put_buffer(void *opaque, const uint8_t *buf,
+                          int64_t pos, int size)
 {
     QEMUFileFD *s = opaque;
     ssize_t len;
@@ -6243,8 +6243,6 @@ static int fd_put_buffer(void *opaque, const uint8_t *buf,
      * a put notify */
     if (len == -EAGAIN)
         qemu_set_fd_handler2(s->fd, NULL, NULL, fd_put_notify, s);
-
-    return len;
 }
 
 static int fd_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
