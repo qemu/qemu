@@ -177,6 +177,9 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_unlinkat __NR_unlinkat
 #define __NR_sys_utimensat __NR_utimensat
 #define __NR_sys_futex __NR_futex
+#define __NR_sys_inotify_init __NR_inotify_init
+#define __NR_sys_inotify_add_watch __NR_inotify_add_watch
+#define __NR_sys_inotify_rm_watch __NR_inotify_rm_watch
 
 #if defined(__alpha__) || defined (__ia64__) || defined(__x86_64__)
 #define __NR__llseek __NR_lseek
@@ -269,6 +272,15 @@ _syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
 #if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
+#endif
+#if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
+_syscall0(int,sys_inotify_init)
+#endif
+#if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
+_syscall3(int,sys_inotify_add_watch,int,fd,const char *,pathname,uint32_t,mask)
+#endif
+#if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
+_syscall2(int,sys_inotify_rm_watch,int,fd,uint32_t,wd)
 #endif
 #if defined(USE_NPTL)
 #if defined(TARGET_NR_futex) && defined(__NR_futex)
@@ -5872,6 +5884,23 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(USE_NPTL)
     case TARGET_NR_futex:
         ret = do_futex(arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+#endif
+#ifdef TARGET_NR_inotify_init
+    case TARGET_NR_inotify_init:
+        ret = get_errno(sys_inotify_init());
+        break;
+#endif
+#ifdef TARGET_NR_inotify_add_watch
+    case TARGET_NR_inotify_add_watch:
+        p = lock_user_string(arg2);
+        ret = get_errno(sys_inotify_add_watch(arg1, path(p), arg3));
+        unlock_user(p, arg2, 0);
+        break;
+#endif
+#ifdef TARGET_NR_inotify_rm_watch
+    case TARGET_NR_inotify_rm_watch:
+        ret = get_errno(sys_inotify_rm_watch(arg1, arg2));
         break;
 #endif
 
