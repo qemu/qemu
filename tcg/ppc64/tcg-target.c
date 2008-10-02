@@ -303,6 +303,7 @@ static int tcg_target_const_match (tcg_target_long val,
 
 #define RLDICL XO30(  0)
 #define RLDICR XO30(  1)
+#define RLDIMI XO30(  3)
 
 #define BCLR   XO19( 16)
 #define BCCTR  XO19(528)
@@ -691,11 +692,10 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
         break;
     case 3:
         if (bswap) {
-            tcg_out32 (s, LWBRX | RT (0) | RB (r0));
-            tcg_out32 (s, ADDI | RT (r1) | RA (r0) | 4);
-            tcg_out32 (s, LWBRX | RT (data_reg) | RB (r1));
-            tcg_out_rld (s, RLDICR, data_reg, data_reg, 32, 31);
-            tcg_out32 (s, OR | SAB (0, data_reg, data_reg));
+            tcg_out_movi32 (s, 0, 4);
+            tcg_out32 (s, LWBRX | RT (data_reg) | RB (r0));
+            tcg_out32 (s, LWBRX | RT (      r1) | RA (r0));
+            tcg_out_rld (s, RLDIMI, data_reg, r1, 32, 0);
         }
         else tcg_out32 (s, LD | RT (data_reg) | RA (r0));
         break;
