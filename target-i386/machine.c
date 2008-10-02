@@ -102,7 +102,7 @@ void cpu_save(QEMUFile *f, void *opaque)
 
     /* MMU */
     a20_mask = (int32_t) env->a20_mask;
-    qemu_put_be32s(f, &a20_mask);
+    qemu_put_sbe32s(f, &a20_mask);
 
     /* XMM */
     qemu_put_be32s(f, &env->mxcsr);
@@ -261,7 +261,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_betls(f, &env->dr[i]);
 
     /* MMU */
-    qemu_get_be32s(f, &a20_mask);
+    qemu_get_sbe32s(f, &a20_mask);
     env->a20_mask = a20_mask;
 
     qemu_get_be32s(f, &env->mxcsr);
