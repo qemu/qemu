@@ -2030,7 +2030,7 @@ typedef struct {
   unsigned value;
 } key_value_t;
 
-const key_value_t devicetable[] = {
+static const key_value_t devicetable[] = {
   {"i82551", i82551},
   {"i82557a", i82557A},
   {"i82557b", i82557B},
