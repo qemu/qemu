@@ -569,7 +569,7 @@ static CPUReadMemoryFunc *esp_mem_read[3] = {
 static CPUWriteMemoryFunc *esp_mem_write[3] = {
     esp_mem_writeb,
     NULL,
-    NULL,
+    esp_mem_writeb,
 };
 
 static void esp_save(QEMUFile *f, void *opaque)
