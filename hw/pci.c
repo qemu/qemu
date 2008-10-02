@@ -515,7 +515,7 @@ typedef struct {
     const char *desc;
 } pci_class_desc;
 
-static pci_class_desc pci_class_descriptions[] =
+static const pci_class_desc pci_class_descriptions[] =
 {
     { 0x0100, "SCSI controller"},
     { 0x0101, "IDE controller"},
@@ -559,7 +559,7 @@ static void pci_info_device(PCIDevice *d)
 {
     int i, class;
     PCIIORegion *r;
-    pci_class_desc *desc;
+    const pci_class_desc *desc;
 
     term_printf("  Bus %2d, device %3d, function %d:\n",
            d->bus->bus_num, d->devfn >> 3, d->devfn & 7);
