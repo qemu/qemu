@@ -3768,19 +3768,19 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     drive_index = drive_get_index(IF_PFLASH, 0, 0);
     if (drive_index != -1) {
         flash_size = bdrv_getlength(drives_table[drive_index].bdrv);
+        if (flash_size > 0) {
+            const uint32_t address = 0x10000000;
+            pflash_t *pf;
+            flash_offset = qemu_ram_alloc(flash_size);
+            pf = pflash_device_register(address, flash_offset,
+                                        drives_table[drive_index].bdrv,
+                                        flash_size, 2,
+                                        flash_manufacturer, flash_type);
+        }
     } else {
         flash_size = load_image(buf, phys_ram_base + flash_offset);
     }
     fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
-    if (flash_size > 0) {
-        const uint32_t address = 0x10000000;
-        pflash_t *pf;
-        flash_offset = qemu_ram_alloc(flash_size);
-        pf = pflash_device_register(address, flash_offset,
-                                    drives_table[drive_index].bdrv,
-                                    flash_size, 2,
-                                    flash_manufacturer, flash_type);
-    }
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
     flash_offset = qemu_ram_alloc(4 * KiB);
