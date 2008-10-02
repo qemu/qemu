@@ -309,10 +309,10 @@ const char *lookup_symbol(target_ulong orig_addr)
     struct syminfo *s;
     target_ulong addr;
 
+    /* Adresses in syminfos are 32 bit values. */
+    orig_addr &= 0xffffffff;
+
     for (s = syminfos; s; s = s->next) {
-#if defined(TARGET_MIPS64)
-        Elf64_Sym *sym64 = s->disas_symtab;
-#endif
 	sym = s->disas_symtab;
 	for (i = 0; i < s->disas_num_syms; i++) {
 	    if (sym[i].st_shndx == SHN_UNDEF
