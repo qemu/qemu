@@ -8845,7 +8845,7 @@ int main(int argc, char **argv)
             case QEMU_OPTION_d:
                 {
                     int mask;
-                    CPULogItem *item;
+                    const CPULogItem *item;
 
                     mask = cpu_str_to_log_mask(optarg);
                     if (!mask) {

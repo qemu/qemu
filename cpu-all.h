@@ -797,7 +797,7 @@ typedef struct CPULogItem {
     const char *help;
 } CPULogItem;
 
-extern CPULogItem cpu_log_items[];
+extern const CPULogItem cpu_log_items[];
 
 void cpu_set_log(int log_flags);
 void cpu_set_log_filename(const char *filename);

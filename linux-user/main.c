@@ -2252,7 +2252,7 @@ int main(int argc, char **argv)
             break;
         } else if (!strcmp(r, "d")) {
             int mask;
-            CPULogItem *item;
+            const CPULogItem *item;
 
 	    if (optind >= argc)
 		break;
