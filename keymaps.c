@@ -24,7 +24,7 @@
 
 static int get_keysym(const char *name)
 {
-    name2keysym_t *p;
+    const name2keysym_t *p;
     for(p = name2keysym; p->name != NULL; p++) {
         if (!strcmp(p->name, name))
             return p->keysym;
