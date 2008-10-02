@@ -109,7 +109,7 @@ static int fls_bit(uint32_t value)
 {
     unsigned int ret = 0;
 
-#if defined(HOST_I386)
+#if defined(HOST_I386) || defined(HOST_X86_64)
     __asm__ __volatile__ ("bsr %1, %0\n" : "+r" (ret) : "rm" (value));
     return ret;
 #else
@@ -130,7 +130,7 @@ static int ffs_bit(uint32_t value)
 {
     unsigned int ret = 0;
 
-#if defined(HOST_I386)
+#if defined(HOST_I386) || defined(HOST_X86_64)
     __asm__ __volatile__ ("bsf %1, %0\n" : "+r" (ret) : "rm" (value));
     return ret;
 #else
@@ -458,6 +458,11 @@ static void apic_init_ipi(APICState *s)
     s->initial_count = 0;
     s->initial_count_load_time = 0;
     s->next_time = 0;
+
+    cpu_reset(s->cpu_env);
+
+    if (!(s->apicbase & MSR_IA32_APICBASE_BSP))
+        s->cpu_env->halted = 1;
 }
 
 /* send a SIPI message to the CPU to start it */

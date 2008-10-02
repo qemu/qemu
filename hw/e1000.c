@@ -102,8 +102,8 @@ typedef struct E1000State_st {
         uint32_t paylen;
         uint16_t tso_frames;
         char tse;
-        char ip;
-        char tcp;
+        int8_t ip;
+        int8_t tcp;
         char cptse;     // current packet tse bit
     } tx;
 
@@ -131,7 +131,7 @@ enum {
 };
 
 enum { PHY_R = 1, PHY_W = 2, PHY_RW = PHY_R | PHY_W };
-static char phy_regcap[0x20] = {
+static const char phy_regcap[0x20] = {
     [PHY_STATUS] = PHY_R,	[M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
     [PHY_ID1] = PHY_R,		[M88E1000_PHY_SPEC_CTRL] = PHY_RW,
     [PHY_CTRL] = PHY_RW,	[PHY_1000T_CTRL] = PHY_RW,
@@ -783,7 +783,7 @@ e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
             (8 * (addr & 3))) & 0xffff;
 }
 
-static int mac_regtosave[] = {
+static const int mac_regtosave[] = {
     CTRL,	EECD,	EERD,	GPRC,	GPTC,	ICR,	ICS,	IMC,	IMS,
     LEDCTL,	MANC,	MDIC,	MPC,	PBA,	RCTL,	RDBAH,	RDBAL,	RDH,
     RDLEN,	RDT,	STATUS,	SWSM,	TCTL,	TDBAH,	TDBAL,	TDH,	TDLEN,
@@ -791,7 +791,7 @@ static int mac_regtosave[] = {
 };
 enum { MAC_NSAVE = sizeof mac_regtosave/sizeof *mac_regtosave };
 
-static struct {
+static const struct {
     int size;
     int array0;
 } mac_regarraystosave[] = { {32, RA}, {128, MTA} };
@@ -824,8 +824,8 @@ nic_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->tx.size);
     qemu_put_be16s(f, &s->tx.tso_frames);
     qemu_put_8s(f, &s->tx.sum_needed);
-    qemu_put_8s(f, &s->tx.ip);
-    qemu_put_8s(f, &s->tx.tcp);
+    qemu_put_s8s(f, &s->tx.ip);
+    qemu_put_s8s(f, &s->tx.tcp);
     qemu_put_buffer(f, s->tx.header, sizeof s->tx.header);
     qemu_put_buffer(f, s->tx.data, sizeof s->tx.data);
     for (i = 0; i < 64; i++)
@@ -849,7 +849,7 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
     if ((ret = pci_device_load(&s->dev, f)) < 0)
         return ret;
     if (version_id == 1)
-        qemu_get_be32s(f, &i); /* once some unused instance id */
+        qemu_get_sbe32s(f, &i); /* once some unused instance id */
     qemu_get_be32s(f, &s->mmio_base);
     qemu_get_be32s(f, &s->rxbuf_size);
     qemu_get_be32s(f, &s->rxbuf_min_shift);
@@ -870,8 +870,8 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->tx.size);
     qemu_get_be16s(f, &s->tx.tso_frames);
     qemu_get_8s(f, &s->tx.sum_needed);
-    qemu_get_8s(f, &s->tx.ip);
-    qemu_get_8s(f, &s->tx.tcp);
+    qemu_get_s8s(f, &s->tx.ip);
+    qemu_get_s8s(f, &s->tx.tcp);
     qemu_get_buffer(f, s->tx.header, sizeof s->tx.header);
     qemu_get_buffer(f, s->tx.data, sizeof s->tx.data);
     for (i = 0; i < 64; i++)
@@ -887,7 +887,7 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static uint16_t e1000_eeprom_template[64] = {
+static const uint16_t e1000_eeprom_template[64] = {
     0x0000, 0x0000, 0x0000, 0x0000,      0xffff, 0x0000,      0x0000, 0x0000,
     0x3000, 0x1000, 0x6403, E1000_DEVID, 0x8086, E1000_DEVID, 0x8086, 0x3040,
     0x0008, 0x2000, 0x7e14, 0x0048,      0x1000, 0x00d8,      0x0000, 0x2700,
@@ -898,7 +898,7 @@ static uint16_t e1000_eeprom_template[64] = {
     0xffff, 0xffff, 0xffff, 0xffff,      0xffff, 0xffff,      0xffff, 0x0000,
 };
 
-static uint16_t phy_reg_init[] = {
+static const uint16_t phy_reg_init[] = {
     [PHY_CTRL] = 0x1140,			[PHY_STATUS] = 0x796d, // link initially up
     [PHY_ID1] = 0x141,				[PHY_ID2] = PHY_ID2_INIT,
     [PHY_1000T_CTRL] = 0x0e00,			[M88E1000_PHY_SPEC_CTRL] = 0x360,
@@ -907,7 +907,7 @@ static uint16_t phy_reg_init[] = {
     [M88E1000_PHY_SPEC_STATUS] = 0xac00,
 };
 
-static uint32_t mac_reg_init[] = {
+static const uint32_t mac_reg_init[] = {
     [PBA] =     0x00100030,
     [LEDCTL] =  0x602,
     [CTRL] =    E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |

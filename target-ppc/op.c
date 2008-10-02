@@ -640,8 +640,6 @@ void OPPROTO op_add_me (void)
     T0 += xer_ca + (-1);
     if (likely((uint32_t)T1 != 0))
         xer_ca = 1;
-    else
-        xer_ca = 0;
     RETURN();
 }
 
@@ -651,8 +649,6 @@ void OPPROTO op_add_me_64 (void)
     T0 += xer_ca + (-1);
     if (likely((uint64_t)T1 != 0))
         xer_ca = 1;
-    else
-        xer_ca = 0;
     RETURN();
 }
 #endif
@@ -798,7 +794,11 @@ void OPPROTO op_mulli (void)
 /* multiply low word */
 void OPPROTO op_mullw (void)
 {
+#if defined(TARGET_PPC64)
+    T0 = (int64_t)(int32_t)T0 * (int64_t)(int32_t)T1;
+#else
     T0 = (int32_t)(T0 * T1);
+#endif
     RETURN();
 }
 
@@ -926,8 +926,6 @@ void OPPROTO op_subfme (void)
     T0 = ~T0 + xer_ca - 1;
     if (likely((uint32_t)T0 != UINT32_MAX))
         xer_ca = 1;
-    else
-        xer_ca = 0;
     RETURN();
 }
 
@@ -937,8 +935,6 @@ void OPPROTO op_subfme_64 (void)
     T0 = ~T0 + xer_ca - 1;
     if (likely((uint64_t)T0 != UINT64_MAX))
         xer_ca = 1;
-    else
-        xer_ca = 0;
     RETURN();
 }
 #endif

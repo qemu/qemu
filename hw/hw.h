@@ -39,11 +39,27 @@ void qemu_fflush(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
 void qemu_put_byte(QEMUFile *f, int v);
+
+static inline void qemu_put_ubyte(QEMUFile *f, unsigned int v)
+{
+    qemu_put_byte(f, (int)v);
+}
+
+#define qemu_put_sbyte qemu_put_byte
+
 void qemu_put_be16(QEMUFile *f, unsigned int v);
 void qemu_put_be32(QEMUFile *f, unsigned int v);
 void qemu_put_be64(QEMUFile *f, uint64_t v);
 int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size);
 int qemu_get_byte(QEMUFile *f);
+
+static inline unsigned int qemu_get_ubyte(QEMUFile *f)
+{
+    return (unsigned int)qemu_get_byte(f);
+}
+
+#define qemu_get_sbyte qemu_get_byte
+
 unsigned int qemu_get_be16(QEMUFile *f);
 unsigned int qemu_get_be32(QEMUFile *f);
 uint64_t qemu_get_be64(QEMUFile *f);
@@ -94,17 +110,106 @@ static inline void qemu_get_8s(QEMUFile *f, uint8_t *pv)
     *pv = qemu_get_byte(f);
 }
 
+// Signed versions for type safety
+static inline void qemu_put_sbuffer(QEMUFile *f, const int8_t *buf, int size)
+{
+    qemu_put_buffer(f, (const uint8_t *)buf, size);
+}
+
+static inline void qemu_put_sbe16(QEMUFile *f, int v)
+{
+    qemu_put_be16(f, (unsigned int)v);
+}
+
+static inline void qemu_put_sbe32(QEMUFile *f, int v)
+{
+    qemu_put_be32(f, (unsigned int)v);
+}
+
+static inline void qemu_put_sbe64(QEMUFile *f, int64_t v)
+{
+    qemu_put_be64(f, (uint64_t)v);
+}
+
+static inline size_t qemu_get_sbuffer(QEMUFile *f, int8_t *buf, int size)
+{
+    return qemu_get_buffer(f, (uint8_t *)buf, size);
+}
+
+static inline int qemu_get_sbe16(QEMUFile *f)
+{
+    return (int)qemu_get_be16(f);
+}
+
+static inline int qemu_get_sbe32(QEMUFile *f)
+{
+    return (int)qemu_get_be32(f);
+}
+
+static inline int64_t qemu_get_sbe64(QEMUFile *f)
+{
+    return (int64_t)qemu_get_be64(f);
+}
+
+static inline void qemu_put_s8s(QEMUFile *f, const int8_t *pv)
+{
+    qemu_put_8s(f, (const uint8_t *)pv);
+}
+
+static inline void qemu_put_sbe16s(QEMUFile *f, const int16_t *pv)
+{
+    qemu_put_be16s(f, (const uint16_t *)pv);
+}
+
+static inline void qemu_put_sbe32s(QEMUFile *f, const int32_t *pv)
+{
+    qemu_put_be32s(f, (const uint32_t *)pv);
+}
+
+static inline void qemu_put_sbe64s(QEMUFile *f, const int64_t *pv)
+{
+    qemu_put_be64s(f, (const uint64_t *)pv);
+}
+
+static inline void qemu_get_s8s(QEMUFile *f, int8_t *pv)
+{
+    qemu_get_8s(f, (uint8_t *)pv);
+}
+
+static inline void qemu_get_sbe16s(QEMUFile *f, int16_t *pv)
+{
+    qemu_get_be16s(f, (uint16_t *)pv);
+}
+
+static inline void qemu_get_sbe32s(QEMUFile *f, int32_t *pv)
+{
+    qemu_get_be32s(f, (uint32_t *)pv);
+}
+
+static inline void qemu_get_sbe64s(QEMUFile *f, int64_t *pv)
+{
+    qemu_get_be64s(f, (uint64_t *)pv);
+}
+
 #ifdef NEED_CPU_H
 #if TARGET_LONG_BITS == 64
 #define qemu_put_betl qemu_put_be64
 #define qemu_get_betl qemu_get_be64
 #define qemu_put_betls qemu_put_be64s
 #define qemu_get_betls qemu_get_be64s
+#define qemu_put_sbetl qemu_put_sbe64
+#define qemu_get_sbetl qemu_get_sbe64
+#define qemu_put_sbetls qemu_put_sbe64s
+#define qemu_get_sbetls qemu_get_sbe64s
 #else
 #define qemu_put_betl qemu_put_be32
 #define qemu_get_betl qemu_get_be32
 #define qemu_put_betls qemu_put_be32s
 #define qemu_get_betls qemu_get_be32s
+#define qemu_put_sbetl qemu_put_sbe32
+#define qemu_get_sbetl qemu_get_sbe32
+#define qemu_put_sbetls qemu_put_sbe32s
+#define qemu_get_sbetls qemu_get_sbe32s
 #endif
 #endif
 

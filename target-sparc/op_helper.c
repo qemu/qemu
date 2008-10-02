@@ -811,7 +811,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             break;
         }
         DPRINTF_MXCC("asi = %d, size = %d, sign = %d, "
-                     "addr = %08x -> ret = %08x,"
+                     "addr = %08x -> ret = %" PRIx64 ","
                      "addr = %08x\n", asi, size, sign, last_addr, ret, addr);
 #ifdef DEBUG_MXCC
         dump_mxcc(env);
@@ -1074,8 +1074,8 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                          size);
             break;
         }
-        DPRINTF_MXCC("asi = %d, size = %d, addr = %08x, val = %08x\n", asi,
-                     size, addr, val);
+        DPRINTF_MXCC("asi = %d, size = %d, addr = %08x, val = %" PRIx64 "\n",
+                     asi, size, addr, val);
 #ifdef DEBUG_MXCC
         dump_mxcc(env);
 #endif
