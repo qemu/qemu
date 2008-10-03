@@ -34,6 +34,7 @@
  * - vlynq emulation only very rudimentary
  * - ethernet not stable
  * - much more
+ * - ar7.cpu_env is not needed
  *
  * Interrupts:
  *                 CPU0
@@ -385,8 +386,9 @@ const char *mips_backtrace(void)
 {
     static char buffer[256];
     char *p = buffer;
-    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->active_tc.PC));
-    p += sprintf(p, "[%s]", lookup_symbol(ar7.cpu_env->active_tc.gpr[31]));
+    assert(ar7.cpu_env == 0 || cpu_single_env == ar7.cpu_env);
+    p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.PC));
+    p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.gpr[31]));
     assert((p - buffer) < sizeof(buffer));
     return buffer;
 }
