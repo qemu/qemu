@@ -340,6 +340,12 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model);
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
 void sparc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt,
                                                  ...));
+void cpu_lock(void);
+void cpu_unlock(void);
+int cpu_sparc_handle_mmu_fault(CPUSPARCState *env1, target_ulong address, int rw,
+                               int mmu_idx, int is_softmmu);
+target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev);
+void dump_mmu(CPUSPARCState *env);
 
 /* translate.c */
 void gen_intermediate_code_init(CPUSPARCState *env);
@@ -491,5 +497,8 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
     } while(0)
 
 #include "cpu-all.h"
+
+/* sum4m.c, sun4u.c */
+void cpu_check_irqs(CPUSPARCState *env);
 
 #endif
