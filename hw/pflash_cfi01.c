@@ -111,8 +111,8 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
     else if (pfl->width == 4)
         boff = boff >> 2;
 
-    DPRINTF("%s: reading offset " TARGET_FMT_lx " under cmd %02x\n",
-            __func__, boff, pfl->cmd);
+    DPRINTF("%s: reading offset " TARGET_FMT_lx " under cmd %02x width %d\n",
+            __func__, offset, pfl->cmd, width);
 
     switch (pfl->cmd) {
     case 0x00:
@@ -205,7 +205,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     cmd = value;
     offset -= pfl->base;
 
-    DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d wcycle 0x%x\n",
+    DPRINTF("%s: writing offset " TARGET_FMT_lx " value %08x width %d wcycle 0x%x\n",
             __func__, offset, value, width, pfl->wcycle);
 
     /* Set the device in I/O access mode */
