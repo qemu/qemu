@@ -154,6 +154,7 @@ print_newselect(const struct syscallname *name,
 }
 #endif
 
+#ifdef TARGET_NR_semctl
 static void
 print_semctl(const struct syscallname *name,
              abi_long arg1, abi_long arg2, abi_long arg3,
@@ -163,6 +164,7 @@ print_semctl(const struct syscallname *name,
     print_ipc_cmd(arg3);
     gemu_log(",0x" TARGET_ABI_FMT_lx ")", arg4);
 }
+#endif
 
 static void
 print_execve(const struct syscallname *name,
