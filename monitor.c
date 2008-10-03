@@ -370,7 +370,7 @@ static void do_info_cpu_stats (void)
 }
 #endif
 
-static void do_quit(void)
+static void __attribute__((__noreturn__)) do_quit(void)
 {
     exit(0);
 }
@@ -1869,7 +1869,7 @@ static const MonitorDef monitor_defs[] = {
     { NULL },
 };
 
-static void expr_error(const char *fmt)
+static void __attribute__((__noreturn__)) expr_error(const char *fmt)
 {
     term_printf(fmt);
     term_printf("\n");
