@@ -267,7 +267,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
         case 0x20: /* Block erase */
         case 0x28:
             if (cmd == 0xd0) { /* confirm */
-                pfl->wcycle = 1;
+                pfl->wcycle = 0;
                 pfl->status |= 0x80;
             } else if (cmd == 0xff) { /* read array mode */
                 goto reset_flash;
