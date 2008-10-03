@@ -309,6 +309,21 @@ static void hstick_irq(void *opaque)
     cpu_interrupt(env, CPU_INTERRUPT_TIMER);
 }
 
+void cpu_tick_set_count(void *opaque, uint64_t count)
+{
+    ptimer_set_count(opaque, -count);
+}
+
+uint64_t cpu_tick_get_count(void *opaque)
+{
+    return -ptimer_get_count(opaque);
+}
+
+void cpu_tick_set_limit(void *opaque, uint64_t limit)
+{
+    ptimer_set_limit(opaque, -limit, 0);
+}
+
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
 static const int ide_iobase2[2] = { 0x3f6, 0x376 };
 static const int ide_irq[2] = { 14, 15 };
