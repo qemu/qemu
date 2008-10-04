@@ -108,8 +108,6 @@ static int nvram_boot_set(void *opaque, const char *boot_device)
     return 0;
 }
 
-extern int nographic;
-
 static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                                    const char *arch,
                                    ram_addr_t RAM_size,

@@ -78,6 +78,7 @@ extern int vmsvga_enabled;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
+extern int nographic;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
 extern int alt_grab;

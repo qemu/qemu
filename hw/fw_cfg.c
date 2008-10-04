@@ -259,7 +259,6 @@ void *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 {
     FWCfgState *s;
     int io_ctl_memory, io_data_memory;
-    extern int nographic;
 
     s = qemu_mallocz(sizeof(FWCfgState));
     if (!s)
