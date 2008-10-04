@@ -7470,6 +7470,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         tcg_gen_helper_1_2(helper_popcnt,
                 cpu_T[0], cpu_T[0], tcg_const_i32(ot));
         gen_op_mov_reg_T0(ot, reg);
+
+        s->cc_op = CC_OP_EFLAGS;
         break;
     case 0x10e ... 0x10f:
         /* 3DNow! instructions, ignore prefixes */
