@@ -1481,7 +1481,7 @@ void glue(name, SUFFIX) (Reg *d, Reg *s, uint32_t imm)\
 /* SSE4.1 op helpers */
 #define FBLENDVB(d, s, m) (m & 0x80) ? s : d
 #define FBLENDVPS(d, s, m) (m & 0x80000000) ? s : d
-#define FBLENDVPD(d, s, m) (m & 0x8000000000000000) ? s : d
+#define FBLENDVPD(d, s, m) (m & 0x8000000000000000LL) ? s : d
 SSE_HELPER_V(helper_pblendvb, B, 16, FBLENDVB)
 SSE_HELPER_V(helper_blendvps, L, 4, FBLENDVPS)
 SSE_HELPER_V(helper_blendvpd, Q, 2, FBLENDVPD)

@@ -3568,16 +3568,15 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             reg = ((modrm >> 3) & 7) | rex_r;
             gen_op_mov_reg_T0(OT_LONG, reg);
             break;
-        case 0x038:
         case 0x138:
+            if (s->prefix & PREFIX_REPNZ)
+                goto crc32;
+        case 0x038:
             b = modrm;
             modrm = ldub_code(s->pc++);
             rm = modrm & 7;
             reg = ((modrm >> 3) & 7) | rex_r;
             mod = (modrm >> 6) & 3;
-
-            if (s->prefix & PREFIX_REPNZ)
-                goto crc32;
 
             sse_op2 = sse_op_table6[b].op[b1];
             if (!sse_op2)
