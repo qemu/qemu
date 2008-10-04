@@ -1,7 +1,8 @@
 /*
- *  MMX/3DNow!/SSE/SSE2/SSE3/SSSE3/PNI support
+ *  MMX/3DNow!/SSE/SSE2/SSE3/SSSE3/SSE4/PNI support
  *
  *  Copyright (c) 2005 Fabrice Bellard
+ *  Copyright (c) 2008 Intel Corporation  <andrew.zaborowski@intel.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -1419,6 +1420,621 @@ void glue(helper_palignr, SUFFIX) (Reg *d, Reg *s, int32_t shift)
 
     *d = r;
 }
+
+#define XMM0 env->xmm_regs[0]
+
+#if SHIFT == 1
+#define SSE_HELPER_V(name, elem, num, F)\
+void glue(name, SUFFIX) (Reg *d, Reg *s)\
+{\
+    d->elem(0) = F(d->elem(0), s->elem(0), XMM0.elem(0));\
+    d->elem(1) = F(d->elem(1), s->elem(1), XMM0.elem(1));\
+    if (num > 2) {\
+        d->elem(2) = F(d->elem(2), s->elem(2), XMM0.elem(2));\
+        d->elem(3) = F(d->elem(3), s->elem(3), XMM0.elem(3));\
+        if (num > 4) {\
+            d->elem(4) = F(d->elem(4), s->elem(4), XMM0.elem(4));\
+            d->elem(5) = F(d->elem(5), s->elem(5), XMM0.elem(5));\
+            d->elem(6) = F(d->elem(6), s->elem(6), XMM0.elem(6));\
+            d->elem(7) = F(d->elem(7), s->elem(7), XMM0.elem(7));\
+            if (num > 8) {\
+                d->elem(8) = F(d->elem(8), s->elem(8), XMM0.elem(8));\
+                d->elem(9) = F(d->elem(9), s->elem(9), XMM0.elem(9));\
+                d->elem(10) = F(d->elem(10), s->elem(10), XMM0.elem(10));\
+                d->elem(11) = F(d->elem(11), s->elem(11), XMM0.elem(11));\
+                d->elem(12) = F(d->elem(12), s->elem(12), XMM0.elem(12));\
+                d->elem(13) = F(d->elem(13), s->elem(13), XMM0.elem(13));\
+                d->elem(14) = F(d->elem(14), s->elem(14), XMM0.elem(14));\
+                d->elem(15) = F(d->elem(15), s->elem(15), XMM0.elem(15));\
+            }\
+        }\
+    }\
+}
+
+#define SSE_HELPER_I(name, elem, num, F)\
+void glue(name, SUFFIX) (Reg *d, Reg *s, uint32_t imm)\
+{\
+    d->elem(0) = F(d->elem(0), s->elem(0), ((imm >> 0) & 1));\
+    d->elem(1) = F(d->elem(1), s->elem(1), ((imm >> 1) & 1));\
+    if (num > 2) {\
+        d->elem(2) = F(d->elem(2), s->elem(2), ((imm >> 2) & 1));\
+        d->elem(3) = F(d->elem(3), s->elem(3), ((imm >> 3) & 1));\
+        if (num > 4) {\
+            d->elem(4) = F(d->elem(4), s->elem(4), ((imm >> 4) & 1));\
+            d->elem(5) = F(d->elem(5), s->elem(5), ((imm >> 5) & 1));\
+            d->elem(6) = F(d->elem(6), s->elem(6), ((imm >> 6) & 1));\
+            d->elem(7) = F(d->elem(7), s->elem(7), ((imm >> 7) & 1));\
+            if (num > 8) {\
+                d->elem(8) = F(d->elem(8), s->elem(8), ((imm >> 8) & 1));\
+                d->elem(9) = F(d->elem(9), s->elem(9), ((imm >> 9) & 1));\
+                d->elem(10) = F(d->elem(10), s->elem(10), ((imm >> 10) & 1));\
+                d->elem(11) = F(d->elem(11), s->elem(11), ((imm >> 11) & 1));\
+                d->elem(12) = F(d->elem(12), s->elem(12), ((imm >> 12) & 1));\
+                d->elem(13) = F(d->elem(13), s->elem(13), ((imm >> 13) & 1));\
+                d->elem(14) = F(d->elem(14), s->elem(14), ((imm >> 14) & 1));\
+                d->elem(15) = F(d->elem(15), s->elem(15), ((imm >> 15) & 1));\
+            }\
+        }\
+    }\
+}
+
+/* SSE4.1 op helpers */
+#define FBLENDVB(d, s, m) (m & 0x80) ? s : d
+#define FBLENDVPS(d, s, m) (m & 0x80000000) ? s : d
+#define FBLENDVPD(d, s, m) (m & 0x8000000000000000) ? s : d
+SSE_HELPER_V(helper_pblendvb, B, 16, FBLENDVB)
+SSE_HELPER_V(helper_blendvps, L, 4, FBLENDVPS)
+SSE_HELPER_V(helper_blendvpd, Q, 2, FBLENDVPD)
+
+void glue(helper_ptest, SUFFIX) (Reg *d, Reg *s)
+{
+    uint64_t zf = (s->Q(0) &  d->Q(0)) | (s->Q(1) &  d->Q(1));
+    uint64_t cf = (s->Q(0) & ~d->Q(0)) | (s->Q(1) & ~d->Q(1));
+
+    CC_SRC = (zf ? 0 : CC_Z) | (cf ? 0 : CC_C);
+}
+
+#define SSE_HELPER_F(name, elem, num, F)\
+void glue(name, SUFFIX) (Reg *d, Reg *s)\
+{\
+    d->elem(0) = F(0);\
+    d->elem(1) = F(1);\
+    d->elem(2) = F(2);\
+    d->elem(3) = F(3);\
+    if (num > 3) {\
+        d->elem(4) = F(4);\
+        d->elem(5) = F(5);\
+        if (num > 5) {\
+            d->elem(6) = F(6);\
+            d->elem(7) = F(7);\
+        }\
+    }\
+}
+
+SSE_HELPER_F(helper_pmovsxbw, W, 8, (int8_t) s->B)
+SSE_HELPER_F(helper_pmovsxbd, L, 4, (int8_t) s->B)
+SSE_HELPER_F(helper_pmovsxbq, Q, 2, (int8_t) s->B)
+SSE_HELPER_F(helper_pmovsxwd, L, 4, (int16_t) s->W)
+SSE_HELPER_F(helper_pmovsxwq, Q, 2, (int16_t) s->W)
+SSE_HELPER_F(helper_pmovsxdq, Q, 2, (int32_t) s->L)
+SSE_HELPER_F(helper_pmovzxbw, W, 8, s->B)
+SSE_HELPER_F(helper_pmovzxbd, L, 4, s->B)
+SSE_HELPER_F(helper_pmovzxbq, Q, 2, s->B)
+SSE_HELPER_F(helper_pmovzxwd, L, 4, s->W)
+SSE_HELPER_F(helper_pmovzxwq, Q, 2, s->W)
+SSE_HELPER_F(helper_pmovzxdq, Q, 2, s->L)
+
+void glue(helper_pmuldq, SUFFIX) (Reg *d, Reg *s)
+{
+    d->Q(0) = (int64_t) (int32_t) d->L(0) * (int32_t) s->L(0);
+    d->Q(1) = (int64_t) (int32_t) d->L(2) * (int32_t) s->L(2);
+}
+
+#define FCMPEQQ(d, s) d == s ? -1 : 0
+SSE_HELPER_Q(helper_pcmpeqq, FCMPEQQ)
+
+void glue(helper_packusdw, SUFFIX) (Reg *d, Reg *s)
+{
+    d->W(0) = satuw((int32_t) d->L(0));
+    d->W(1) = satuw((int32_t) d->L(1));
+    d->W(2) = satuw((int32_t) d->L(2));
+    d->W(3) = satuw((int32_t) d->L(3));
+    d->W(4) = satuw((int32_t) s->L(0));
+    d->W(5) = satuw((int32_t) s->L(1));
+    d->W(6) = satuw((int32_t) s->L(2));
+    d->W(7) = satuw((int32_t) s->L(3));
+}
+
+#define FMINSB(d, s) MIN((int8_t) d, (int8_t) s)
+#define FMINSD(d, s) MIN((int32_t) d, (int32_t) s)
+#define FMAXSB(d, s) MAX((int8_t) d, (int8_t) s)
+#define FMAXSD(d, s) MAX((int32_t) d, (int32_t) s)
+SSE_HELPER_B(helper_pminsb, FMINSB)
+SSE_HELPER_L(helper_pminsd, FMINSD)
+SSE_HELPER_W(helper_pminuw, MIN)
+SSE_HELPER_L(helper_pminud, MIN)
+SSE_HELPER_B(helper_pmaxsb, FMAXSB)
+SSE_HELPER_L(helper_pmaxsd, FMAXSD)
+SSE_HELPER_W(helper_pmaxuw, MAX)
+SSE_HELPER_L(helper_pmaxud, MAX)
+
+#define FMULLD(d, s) (int32_t) d * (int32_t) s
+SSE_HELPER_L(helper_pmulld, FMULLD)
+
+void glue(helper_phminposuw, SUFFIX) (Reg *d, Reg *s)
+{
+    int idx = 0;
+
+    if (s->W(1) < s->W(idx))
+        idx = 1;
+    if (s->W(2) < s->W(idx))
+        idx = 2;
+    if (s->W(3) < s->W(idx))
+        idx = 3;
+    if (s->W(4) < s->W(idx))
+        idx = 4;
+    if (s->W(5) < s->W(idx))
+        idx = 5;
+    if (s->W(6) < s->W(idx))
+        idx = 6;
+    if (s->W(7) < s->W(idx))
+        idx = 7;
+
+    d->Q(1) = 0;
+    d->L(1) = 0;
+    d->W(1) = idx;
+    d->W(0) = s->W(idx);
+}
+
+void glue(helper_roundps, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
+{
+    signed char prev_rounding_mode;
+
+    prev_rounding_mode = env->sse_status.float_rounding_mode;
+    if (!(mode & (1 << 2)))
+        switch (mode & 3) {
+        case 0:
+            set_float_rounding_mode(float_round_nearest_even, &env->sse_status);
+            break;
+        case 1:
+            set_float_rounding_mode(float_round_down, &env->sse_status);
+            break;
+        case 2:
+            set_float_rounding_mode(float_round_up, &env->sse_status);
+            break;
+        case 3:
+            set_float_rounding_mode(float_round_to_zero, &env->sse_status);
+            break;
+        }
+
+    d->L(0) = float64_round_to_int(s->L(0), &env->sse_status);
+    d->L(1) = float64_round_to_int(s->L(1), &env->sse_status);
+    d->L(2) = float64_round_to_int(s->L(2), &env->sse_status);
+    d->L(3) = float64_round_to_int(s->L(3), &env->sse_status);
+
+#if 0 /* TODO */
+    if (mode & (1 << 3))
+        set_float_exception_flags(
+                        get_float_exception_flags(&env->sse_status) &
+                        ~float_flag_inexact,
+                        &env->sse_status);
+#endif
+    env->sse_status.float_rounding_mode = prev_rounding_mode;
+}
+
+void glue(helper_roundpd, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
+{
+    signed char prev_rounding_mode;
+
+    prev_rounding_mode = env->sse_status.float_rounding_mode;
+    if (!(mode & (1 << 2)))
+        switch (mode & 3) {
+        case 0:
+            set_float_rounding_mode(float_round_nearest_even, &env->sse_status);
+            break;
+        case 1:
+            set_float_rounding_mode(float_round_down, &env->sse_status);
+            break;
+        case 2:
+            set_float_rounding_mode(float_round_up, &env->sse_status);
+            break;
+        case 3:
+            set_float_rounding_mode(float_round_to_zero, &env->sse_status);
+            break;
+        }
+
+    d->Q(0) = float64_round_to_int(s->Q(0), &env->sse_status);
+    d->Q(1) = float64_round_to_int(s->Q(1), &env->sse_status);
+
+#if 0 /* TODO */
+    if (mode & (1 << 3))
+        set_float_exception_flags(
+                        get_float_exception_flags(&env->sse_status) &
+                        ~float_flag_inexact,
+                        &env->sse_status);
+#endif
+    env->sse_status.float_rounding_mode = prev_rounding_mode;
+}
+
+void glue(helper_roundss, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
+{
+    signed char prev_rounding_mode;
+
+    prev_rounding_mode = env->sse_status.float_rounding_mode;
+    if (!(mode & (1 << 2)))
+        switch (mode & 3) {
+        case 0:
+            set_float_rounding_mode(float_round_nearest_even, &env->sse_status);
+            break;
+        case 1:
+            set_float_rounding_mode(float_round_down, &env->sse_status);
+            break;
+        case 2:
+            set_float_rounding_mode(float_round_up, &env->sse_status);
+            break;
+        case 3:
+            set_float_rounding_mode(float_round_to_zero, &env->sse_status);
+            break;
+        }
+
+    d->L(0) = float64_round_to_int(s->L(0), &env->sse_status);
+
+#if 0 /* TODO */
+    if (mode & (1 << 3))
+        set_float_exception_flags(
+                        get_float_exception_flags(&env->sse_status) &
+                        ~float_flag_inexact,
+                        &env->sse_status);
+#endif
+    env->sse_status.float_rounding_mode = prev_rounding_mode;
+}
+
+void glue(helper_roundsd, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
+{
+    signed char prev_rounding_mode;
+
+    prev_rounding_mode = env->sse_status.float_rounding_mode;
+    if (!(mode & (1 << 2)))
+        switch (mode & 3) {
+        case 0:
+            set_float_rounding_mode(float_round_nearest_even, &env->sse_status);
+            break;
+        case 1:
+            set_float_rounding_mode(float_round_down, &env->sse_status);
+            break;
+        case 2:
+            set_float_rounding_mode(float_round_up, &env->sse_status);
+            break;
+        case 3:
+            set_float_rounding_mode(float_round_to_zero, &env->sse_status);
+            break;
+        }
+
+    d->Q(0) = float64_round_to_int(s->Q(0), &env->sse_status);
+
+#if 0 /* TODO */
+    if (mode & (1 << 3))
+        set_float_exception_flags(
+                        get_float_exception_flags(&env->sse_status) &
+                        ~float_flag_inexact,
+                        &env->sse_status);
+#endif
+    env->sse_status.float_rounding_mode = prev_rounding_mode;
+}
+
+#define FBLENDP(d, s, m) m ? s : d
+SSE_HELPER_I(helper_blendps, L, 4, FBLENDP)
+SSE_HELPER_I(helper_blendpd, Q, 2, FBLENDP)
+SSE_HELPER_I(helper_pblendw, W, 8, FBLENDP)
+
+void glue(helper_dpps, SUFFIX) (Reg *d, Reg *s, uint32_t mask)
+{
+    float32 iresult = 0 /*float32_zero*/;
+
+    if (mask & (1 << 4))
+        iresult = float32_add(iresult,
+                        float32_mul(d->L(0), s->L(0), &env->sse_status),
+                        &env->sse_status);
+    if (mask & (1 << 5))
+        iresult = float32_add(iresult,
+                        float32_mul(d->L(1), s->L(1), &env->sse_status),
+                        &env->sse_status);
+    if (mask & (1 << 6))
+        iresult = float32_add(iresult,
+                        float32_mul(d->L(2), s->L(2), &env->sse_status),
+                        &env->sse_status);
+    if (mask & (1 << 7))
+        iresult = float32_add(iresult,
+                        float32_mul(d->L(3), s->L(3), &env->sse_status),
+                        &env->sse_status);
+    d->L(0) = (mask & (1 << 0)) ? iresult : 0 /*float32_zero*/;
+    d->L(1) = (mask & (1 << 1)) ? iresult : 0 /*float32_zero*/;
+    d->L(2) = (mask & (1 << 2)) ? iresult : 0 /*float32_zero*/;
+    d->L(3) = (mask & (1 << 3)) ? iresult : 0 /*float32_zero*/;
+}
+
+void glue(helper_dppd, SUFFIX) (Reg *d, Reg *s, uint32_t mask)
+{
+    float64 iresult = 0 /*float64_zero*/;
+
+    if (mask & (1 << 4))
+        iresult = float64_add(iresult,
+                        float64_mul(d->Q(0), s->Q(0), &env->sse_status),
+                        &env->sse_status);
+    if (mask & (1 << 5))
+        iresult = float64_add(iresult,
+                        float64_mul(d->Q(1), s->Q(1), &env->sse_status),
+                        &env->sse_status);
+    d->Q(0) = (mask & (1 << 0)) ? iresult : 0 /*float64_zero*/;
+    d->Q(1) = (mask & (1 << 1)) ? iresult : 0 /*float64_zero*/;
+}
+
+void glue(helper_mpsadbw, SUFFIX) (Reg *d, Reg *s, uint32_t offset)
+{
+    int s0 = (offset & 3) << 2;
+    int d0 = (offset & 4) << 0;
+    int i;
+    Reg r;
+
+    for (i = 0; i < 8; i++, d0++) {
+        r.W(i) = 0;
+        r.W(i) += abs1(d->B(d0 + 0) - s->B(s0 + 0));
+        r.W(i) += abs1(d->B(d0 + 1) - s->B(s0 + 1));
+        r.W(i) += abs1(d->B(d0 + 2) - s->B(s0 + 2));
+        r.W(i) += abs1(d->B(d0 + 3) - s->B(s0 + 3));
+    }
+
+    *d = r;
+}
+
+/* SSE4.2 op helpers */
+/* it's unclear whether signed or unsigned */
+#define FCMPGTQ(d, s) d > s ? -1 : 0
+SSE_HELPER_Q(helper_pcmpgtq, FCMPGTQ)
+
+static inline int pcmp_elen(int reg, uint32_t ctrl)
+{
+    int val;
+
+    /* Presence of REX.W is indicated by a bit higher than 7 set */
+    if (ctrl >> 8)
+        val = abs1((int64_t) env->regs[reg]);
+    else
+        val = abs1((int32_t) env->regs[reg]);
+
+    if (ctrl & 1) {
+        if (val > 8)
+            return 8;
+    } else
+        if (val > 16)
+            return 16;
+
+    return val;
+}
+
+static inline int pcmp_ilen(Reg *r, uint8_t ctrl)
+{
+    int val = 0;
+
+    if (ctrl & 1) {
+        while (val < 8 && r->W(val))
+            val++;
+    } else
+        while (val < 16 && r->B(val))
+            val++;
+
+    return val;
+}
+
+static inline int pcmp_val(Reg *r, uint8_t ctrl, int i)
+{
+    switch ((ctrl >> 0) & 3) {
+    case 0:
+        return r->B(i);
+    case 1:
+        return r->W(i);
+    case 2:
+        return (int8_t) r->B(i);
+    case 3:
+    default:
+        return (int16_t) r->W(i);
+    }
+}
+
+static inline unsigned pcmpxstrx(Reg *d, Reg *s,
+                int8_t ctrl, int valids, int validd)
+{
+    unsigned int res = 0;
+    int v;
+    int j, i;
+    int upper = (ctrl & 1) ? 7 : 15;
+
+    valids--;
+    validd--;
+
+    CC_SRC = (valids < upper ? CC_Z : 0) | (validd < upper ? CC_S : 0);
+
+    switch ((ctrl >> 2) & 3) {
+    case 0:
+        for (j = valids; j >= 0; j--) {
+            res <<= 1;
+            v = pcmp_val(s, ctrl, j);
+            for (i = validd; i >= 0; i--)
+                res |= (v == pcmp_val(d, ctrl, i));
+        }
+        break;
+    case 1:
+        for (j = valids; j >= 0; j--) {
+            res <<= 1;
+            v = pcmp_val(s, ctrl, j);
+            for (i = ((validd - 1) | 1); i >= 0; i -= 2)
+                res |= (pcmp_val(d, ctrl, i - 0) <= v &&
+                        pcmp_val(d, ctrl, i - 1) >= v);
+        }
+        break;
+    case 2:
+        res = (2 << (upper - MAX(valids, validd))) - 1;
+        res <<= MAX(valids, validd) - MIN(valids, validd);
+        for (i = MIN(valids, validd); i >= 0; i--) {
+            res <<= 1;
+            v = pcmp_val(s, ctrl, i);
+            res |= (v == pcmp_val(d, ctrl, i));
+        }
+        break;
+    case 3:
+        for (j = valids - validd; j >= 0; j--) {
+            res <<= 1;
+            res |= 1;
+            for (i = MIN(upper - j, validd); i >= 0; i--)
+                res &= (pcmp_val(s, ctrl, i + j) == pcmp_val(d, ctrl, i));
+        }
+        break;
+    }
+
+    switch ((ctrl >> 4) & 3) {
+    case 1:
+        res ^= (2 << upper) - 1;
+        break;
+    case 3:
+        res ^= (2 << valids) - 1;
+        break;
+    }
+
+    if (res)
+       CC_SRC |= CC_C;
+    if (res & 1)
+       CC_SRC |= CC_O;
+
+    return res;
+}
+
+static inline int rffs1(unsigned int val)
+{
+    int ret = 1, hi;
+
+    for (hi = sizeof(val) * 4; hi; hi /= 2)
+        if (val >> hi) {
+            val >>= hi;
+            ret += hi;
+        }
+
+    return ret;
+}
+
+static inline int ffs1(unsigned int val)
+{
+    int ret = 1, hi;
+
+    for (hi = sizeof(val) * 4; hi; hi /= 2)
+        if (val << hi) {
+            val <<= hi;
+            ret += hi;
+        }
+
+    return ret;
+}
+
+void glue(helper_pcmpestri, SUFFIX) (Reg *d, Reg *s, uint32_t ctrl)
+{
+    unsigned int res = pcmpxstrx(d, s, ctrl,
+                    pcmp_elen(R_EDX, ctrl),
+                    pcmp_elen(R_EAX, ctrl));
+
+    if (res)
+        env->regs[R_ECX] = ((ctrl & (1 << 6)) ? rffs1 : ffs1)(res) - 1;
+    else
+        env->regs[R_ECX] = 16 >> (ctrl & (1 << 0));
+}
+
+void glue(helper_pcmpestrm, SUFFIX) (Reg *d, Reg *s, uint32_t ctrl)
+{
+    int i;
+    unsigned int res = pcmpxstrx(d, s, ctrl,
+                    pcmp_elen(R_EDX, ctrl),
+                    pcmp_elen(R_EAX, ctrl));
+
+    if ((ctrl >> 6) & 1) {
+        if (ctrl & 1)
+            for (i = 0; i <= 8; i--, res >>= 1)
+                d->W(i) = (res & 1) ? ~0 : 0;
+        else
+            for (i = 0; i <= 16; i--, res >>= 1)
+                d->B(i) = (res & 1) ? ~0 : 0;
+    } else {
+        d->Q(1) = 0;
+        d->Q(0) = res;
+    }
+}
+
+void glue(helper_pcmpistri, SUFFIX) (Reg *d, Reg *s, uint32_t ctrl)
+{
+    unsigned int res = pcmpxstrx(d, s, ctrl,
+                    pcmp_ilen(s, ctrl),
+                    pcmp_ilen(d, ctrl));
+
+    if (res)
+        env->regs[R_ECX] = ((ctrl & (1 << 6)) ? rffs1 : ffs1)(res) - 1;
+    else
+        env->regs[R_ECX] = 16 >> (ctrl & (1 << 0));
+}
+
+void glue(helper_pcmpistrm, SUFFIX) (Reg *d, Reg *s, uint32_t ctrl)
+{
+    int i;
+    unsigned int res = pcmpxstrx(d, s, ctrl,
+                    pcmp_ilen(s, ctrl),
+                    pcmp_ilen(d, ctrl));
+
+    if ((ctrl >> 6) & 1) {
+        if (ctrl & 1)
+            for (i = 0; i <= 8; i--, res >>= 1)
+                d->W(i) = (res & 1) ? ~0 : 0;
+        else
+            for (i = 0; i <= 16; i--, res >>= 1)
+                d->B(i) = (res & 1) ? ~0 : 0;
+    } else {
+        d->Q(1) = 0;
+        d->Q(0) = res;
+    }
+}
+
+#define CRCPOLY        0x1edc6f41
+#define CRCPOLY_BITREV 0x82f63b78
+target_ulong helper_crc32(uint32_t crc1, target_ulong msg, uint32_t len)
+{
+    target_ulong crc = (msg & ((target_ulong) -1 >>
+                            (TARGET_LONG_BITS - len))) ^ crc1;
+
+    while (len--)
+        crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_BITREV : 0);
+
+    return crc;
+}
+
+#define POPMASK(i)     ((target_ulong) -1 / ((1LL << (1 << i)) + 1))
+#define POPCOUNT(n, i) (n & POPMASK(i)) + ((n >> (1 << i)) & POPMASK(i))
+target_ulong helper_popcnt(target_ulong n, uint32_t type)
+{
+    CC_SRC = n ? 0 : CC_Z;
+
+    n = POPCOUNT(n, 0);
+    n = POPCOUNT(n, 1);
+    n = POPCOUNT(n, 2);
+    n = POPCOUNT(n, 3);
+    if (type == 1)
+        return n & 0xff;
+
+    n = POPCOUNT(n, 4);
+#ifndef TARGET_X86_64
+    return n;
+#else
+    if (type == 2)
+        return n & 0xff;
+
+    return POPCOUNT(n, 5);
+#endif
+}
+#endif
 
 #undef SHIFT
 #undef XMM_ONLY
