@@ -82,10 +82,10 @@
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #endif
 
-TranslationBlock *tbs;
+static TranslationBlock *tbs;
 int code_gen_max_blocks;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
-int nb_tbs;
+static int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
@@ -102,10 +102,10 @@ spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 #endif
 
 uint8_t code_gen_prologue[1024] code_gen_section;
-uint8_t *code_gen_buffer;
-unsigned long code_gen_buffer_size;
+static uint8_t *code_gen_buffer;
+static unsigned long code_gen_buffer_size;
 /* threshold to flush the translated code buffer */
-unsigned long code_gen_buffer_max_size; 
+static unsigned long code_gen_buffer_max_size;
 uint8_t *code_gen_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -166,7 +166,7 @@ unsigned long qemu_host_page_mask;
 
 /* XXX: for system emulation, it could just be an array */
 static PageDesc *l1_map[L1_SIZE];
-PhysPageDesc **l1_phys_map;
+static PhysPageDesc **l1_phys_map;
 
 #if !defined(CONFIG_USER_ONLY)
 static void io_mem_init(void);
@@ -637,7 +637,7 @@ static void tb_page_check(void)
     }
 }
 
-void tb_jmp_check(TranslationBlock *tb)
+static void tb_jmp_check(TranslationBlock *tb)
 {
     TranslationBlock *tb1;
     unsigned int n1;

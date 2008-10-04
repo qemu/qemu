@@ -7359,7 +7359,7 @@ void qemu_bh_delete(QEMUBH *bh)
 /***********************************************************/
 /* machine registration */
 
-QEMUMachine *first_machine = NULL;
+static QEMUMachine *first_machine = NULL;
 
 int qemu_register_machine(QEMUMachine *m)
 {
