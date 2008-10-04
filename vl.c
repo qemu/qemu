@@ -151,6 +151,8 @@
 
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
+//#define DEBUG_NET
+//#define DEBUG_SLIRP
 
 #ifdef TARGET_PPC
 #define DEFAULT_RAM_SIZE 144
@@ -3861,7 +3863,7 @@ void qemu_chr_close(CharDriverState *chr)
 /***********************************************************/
 /* network device redirectors */
 
-__attribute__ (( unused ))
+#if defined(DEBUG_NET) || defined(DEBUG_SLIRP)
 static void hex_dump(FILE *f, const uint8_t *buf, int size)
 {
     int len, i, j, c;
@@ -3887,6 +3889,7 @@ static void hex_dump(FILE *f, const uint8_t *buf, int size)
         fprintf(f, "\n");
     }
 }
+#endif
 
 static int parse_macaddr(uint8_t *macaddr, const char *p)
 {
@@ -4105,7 +4108,7 @@ void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
     VLANState *vlan = vc1->vlan;
     VLANClientState *vc;
 
-#if 0
+#ifdef DEBUG_NET
     printf("vlan %d send:\n", vlan->id);
     hex_dump(stdout, buf, size);
 #endif
@@ -4130,7 +4133,7 @@ int slirp_can_output(void)
 
 void slirp_output(const uint8_t *pkt, int pkt_len)
 {
-#if 0
+#ifdef DEBUG_SLIRP
     printf("slirp output:\n");
     hex_dump(stdout, pkt, pkt_len);
 #endif
@@ -4141,7 +4144,7 @@ void slirp_output(const uint8_t *pkt, int pkt_len)
 
 static void slirp_receive(void *opaque, const uint8_t *buf, int size)
 {
-#if 0
+#ifdef DEBUG_SLIRP
     printf("slirp input:\n");
     hex_dump(stdout, buf, size);
 #endif
