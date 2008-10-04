@@ -337,6 +337,9 @@ Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.  Optionally,
 a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
 gigabytes respectively.
 
+@item -cpu @var{model}
+Select CPU model (-cpu ? for list and additional feature selection)
+
 @item -smp @var{n}
 Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
 CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
@@ -1838,7 +1841,7 @@ the protocol limits passwords to 8 characters it should not be considered
 to provide high security. The password can be fairly easily brute-forced by
 a client making repeat connections. For this reason, a VNC server using password
 authentication should be restricted to only listen on the loopback interface
-or UNIX domain sockets. Password ayuthentication is requested with the @code{password}
+or UNIX domain sockets. Password authentication is requested with the @code{password}
 option, and then once QEMU is running the password is set with the monitor. Until
 the monitor is used to set the password all clients will be rejected.
 
@@ -2256,14 +2259,37 @@ More information is available at
 @node Sparc32 System emulator
 @section Sparc32 System emulator
 
-Use the executable @file{qemu-system-sparc} to simulate a SPARCstation
-5, SPARCstation 10, SPARCstation 20, SPARCserver 600MP (sun4m
-architecture), SPARCstation 2 (sun4c architecture), SPARCserver 1000,
-or SPARCcenter 2000 (sun4d architecture). The emulation is somewhat
-complete.  SMP up to 16 CPUs is supported, but Linux limits the number
-of usable CPUs to 4.
+Use the executable @file{qemu-system-sparc} to simulate the following
+Sun4m architecture machines:
+@itemize @minus
+@item
+SPARCstation 4
+@item
+SPARCstation 5
+@item
+SPARCstation 10
+@item
+SPARCstation 20
+@item
+SPARCserver 600MP
+@item
+SPARCstation LX
+@item
+SPARCstation Voyager
+@item
+SPARCclassic
+@item
+SPARCbook
+@end itemize
 
-QEMU emulates the following sun4m/sun4d peripherals:
+The emulation is somewhat complete. SMP up to 16 CPUs is supported,
+but Linux limits the number of usable CPUs to 4.
+
+It's also possible to simulate a SPARCstation 2 (sun4c architecture),
+SPARCserver 1000, or SPARCcenter 2000 (sun4d architecture), but these
+emulators are not usable yet.
+
+QEMU emulates the following sun4m/sun4c/sun4d peripherals:
 
 @itemize @minus
 @item
@@ -2273,7 +2299,7 @@ TCX Frame buffer
 @item
 Lance (Am7990) Ethernet
 @item
-Non Volatile RAM M48T08
+Non Volatile RAM M48T02/M48T08
 @item
 Slave I/O: timers, interrupt controllers, Zilog serial ports, keyboard
 and power/reset logic
@@ -2295,8 +2321,10 @@ firmware implementation. The goal is to implement a 100% IEEE
 1275-1994 (referred to as Open Firmware) compliant firmware.
 
 A sample Linux 2.6 series kernel and ram disk image are available on
-the QEMU web site. Please note that currently NetBSD, OpenBSD or
-Solaris kernels don't work.
+the QEMU web site. There are still issues with NetBSD and OpenBSD, but
+some kernel versions work. Please note that currently Solaris kernels
+don't work probably due to interface issues between OpenBIOS and
+Solaris.
 
 @c man begin OPTIONS
 
@@ -2318,7 +2346,7 @@ qemu-system-sparc -prom-env 'auto-boot?=false' \
  -prom-env 'boot-device=sd(0,2,0):d' -prom-env 'boot-args=linux single'
 @end example
 
-@item -M [SS-5|SS-10|SS-20|SS-600MP|SS-2|SS-1000|SS-2000]
+@item -M [SS-4|SS-5|SS-10|SS-20|SS-600MP|LX|Voyager|SPARCClassic|SPARCbook|SS-2|SS-1000|SS-2000]
 
 Set the emulated machine type. Default is SS-5.
 
@@ -2329,8 +2357,10 @@ Set the emulated machine type. Default is SS-5.
 @node Sparc64 System emulator
 @section Sparc64 System emulator
 
-Use the executable @file{qemu-system-sparc64} to simulate a Sun4u or
-Sun4v machine. The emulator is not usable for anything yet.
+Use the executable @file{qemu-system-sparc64} to simulate a Sun4u
+(UltraSPARC PC-like machine), Sun4v (T1 PC-like machine), or generic
+Niagara (T1) machine. The emulator is not usable for anything yet, but
+it can launch some kernels.
 
 QEMU emulates the following peripherals:
 
@@ -2340,11 +2370,15 @@ UltraSparc IIi APB PCI Bridge
 @item
 PCI VGA compatible card with VESA Bochs Extensions
 @item
+PS/2 mouse and keyboard
+@item
 Non Volatile RAM M48T59
 @item
 PC-compatible serial ports
 @item
 2 PCI IDE interfaces with hard disk and CD-ROM support
+@item
+Floppy disk
 @end itemize
 
 @c man begin OPTIONS
@@ -2353,7 +2387,15 @@ The following options are specific to the Sparc64 emulation:
 
 @table @option
 
-@item -M [sun4u|sun4v]
+@item -prom-env string
+
+Set OpenBIOS variables in NVRAM, for example:
+
+@example
+qemu-system-sparc64 -prom-env 'auto-boot?=false'
+@end example
+
+@item -M [sun4u|sun4v|Niagara]
 
 Set the emulated machine type. The default is sun4u.
 
@@ -2810,7 +2852,7 @@ qemu-i386 /usr/local/qemu-i386/wine/bin/wine \
 @subsection Command line options
 
 @example
-usage: qemu-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
+usage: qemu-i386 [-h] [-d] [-L path] [-s size] [-cpu model] [-g port] program [arguments...]
 @end example
 
 @table @option
@@ -2820,6 +2862,8 @@ Print the help
 Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
 @item -s size
 Set the x86 stack size in bytes (default=524288)
+@item -cpu model
+Select CPU model (-cpu ? for list and additional feature selection)
 @end table
 
 Debug options:
@@ -2829,6 +2873,8 @@ Debug options:
 Activate log (logfile=/tmp/qemu.log)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
+@item -g port
+Wait gdb connection to port
 @end table
 
 Environment variables:
@@ -2855,6 +2901,8 @@ configurations), and arm-uclinux bFLT format binaries.
 coldfire uClinux bFLT format binaries.
 
 The binary format is detected automatically.
+
+@command{qemu-sparc} can execute Sparc32 binaries (Sparc32 CPU, 32 bit ABI).
 
 @command{qemu-sparc32plus} can execute Sparc32 and SPARC32PLUS binaries
 (Sparc64 CPU, 32 bit ABI).
