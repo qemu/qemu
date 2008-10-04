@@ -27,9 +27,7 @@
 #include "pc.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
-
-extern int loglevel;
-extern FILE *logfile;
+#include "qemu-log.h"
 
 #define DEBUG_OPBA
 #define DEBUG_SDRAM

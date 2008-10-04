@@ -15,6 +15,7 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "flash.h"
+#include "qemu-log.h"
 
 #ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
@@ -34,8 +35,6 @@ static const int ide_irq[2] = { 14, 15 };
 
 static int serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
 static int serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
-
-extern FILE *logfile;
 
 static PITState *pit; /* PIT i8254 */
 

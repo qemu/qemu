@@ -36,6 +36,7 @@
 #include "sysemu.h"
 #include "audio/audio.h"
 #include "boards.h"
+#include "qemu-log.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -58,8 +59,6 @@
 #define ENVP_ENTRY_SIZE	 	256
 
 #define MAX_IDE_BUS 2
-
-extern FILE *logfile;
 
 typedef struct {
     uint32_t leds;

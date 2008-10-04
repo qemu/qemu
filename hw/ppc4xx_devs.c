@@ -25,9 +25,7 @@
 #include "ppc.h"
 #include "ppc4xx.h"
 #include "sysemu.h"
-
-extern int loglevel;
-extern FILE *logfile;
+#include "qemu-log.h"
 
 //#define DEBUG_MMIO
 //#define DEBUG_UNASSIGNED

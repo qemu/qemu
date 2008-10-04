@@ -26,12 +26,10 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "nvram.h"
+#include "qemu-log.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
-
-extern FILE *logfile;
-extern int loglevel;
 
 static void cpu_ppc_tb_stop (CPUState *env);
 static void cpu_ppc_tb_start (CPUState *env);
