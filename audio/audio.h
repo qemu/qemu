@@ -87,9 +87,6 @@ typedef struct QEMUAudioTimeStamp {
     uint64_t old_ts;
 } QEMUAudioTimeStamp;
 
-int wav_start_capture (CaptureState *s, const char *path, int freq,
-                       int bits, int nchannels);
-
 void AUD_vlog (const char *cap, const char *fmt, va_list ap);
 void AUD_log (const char *cap, const char *fmt, ...)
 #ifdef __GNUC__
