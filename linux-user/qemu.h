@@ -247,6 +247,9 @@ void mmap_fork_start(void);
 void mmap_fork_end(int child);
 #endif
 
+/* main.c */
+extern unsigned long x86_stack_size;
+
 /* user access */
 
 #define VERIFY_READ 0
