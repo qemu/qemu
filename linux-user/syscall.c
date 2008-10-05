@@ -2139,7 +2139,7 @@ typedef struct IOCTLEntry {
 
 #define MAX_STRUCT_SIZE 4096
 
-IOCTLEntry ioctl_entries[] = {
+static IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, types...) \
     { TARGET_ ## cmd, cmd, #cmd, access, { types } },
 #include "ioctls.h"
