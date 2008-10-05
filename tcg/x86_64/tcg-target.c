@@ -21,7 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-const char *tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
+
+#ifndef NDEBUG
+static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%rax",
     "%rcx",
     "%rdx",
@@ -39,8 +41,9 @@ const char *tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r14",
     "%r15",
 };
+#endif
 
-int tcg_target_reg_alloc_order[] = {
+static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_RDI,
     TCG_REG_RSI,
     TCG_REG_RDX,
@@ -59,7 +62,7 @@ int tcg_target_reg_alloc_order[] = {
     TCG_REG_R15,
 };
 
-const int tcg_target_call_iarg_regs[6] = { 
+static const int tcg_target_call_iarg_regs[6] = {
     TCG_REG_RDI,
     TCG_REG_RSI,
     TCG_REG_RDX,
@@ -68,7 +71,7 @@ const int tcg_target_call_iarg_regs[6] = {
     TCG_REG_R9,
 };
 
-const int tcg_target_call_oarg_regs[2] = { 
+static const int tcg_target_call_oarg_regs[2] = {
     TCG_REG_RAX, 
     TCG_REG_RDX 
 };

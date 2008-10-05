@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%g0",
     "%g1",
@@ -56,6 +57,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%i6",
     "%i7",
 };
+#endif
 
 static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_L0,
