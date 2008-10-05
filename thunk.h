@@ -155,8 +155,8 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
 #endif /* NO_THUNK_TYPE_SIZE */
 
 unsigned int target_to_host_bitmask(unsigned int x86_mask,
-                                    bitmask_transtbl * trans_tbl);
+                                    const bitmask_transtbl * trans_tbl);
 unsigned int host_to_target_bitmask(unsigned int alpha_mask,
-                                    bitmask_transtbl * trans_tbl);
+                                    const bitmask_transtbl * trans_tbl);
 
 #endif

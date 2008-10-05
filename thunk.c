@@ -249,9 +249,9 @@ const argtype *thunk_convert(void *dst, const void *src,
  * between X86 and Alpha formats...
  */
 unsigned int target_to_host_bitmask(unsigned int x86_mask,
-                                    bitmask_transtbl * trans_tbl)
+                                    const bitmask_transtbl * trans_tbl)
 {
-    bitmask_transtbl *	btp;
+    const bitmask_transtbl *btp;
     unsigned int	alpha_mask = 0;
 
     for(btp = trans_tbl; btp->x86_mask && btp->alpha_mask; btp++) {
@@ -263,9 +263,9 @@ unsigned int target_to_host_bitmask(unsigned int x86_mask,
 }
 
 unsigned int host_to_target_bitmask(unsigned int alpha_mask,
-                                    bitmask_transtbl * trans_tbl)
+                                    const bitmask_transtbl * trans_tbl)
 {
-    bitmask_transtbl *	btp;
+    const bitmask_transtbl *btp;
     unsigned int	x86_mask = 0;
 
     for(btp = trans_tbl; btp->x86_mask && btp->alpha_mask; btp++) {

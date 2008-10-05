@@ -2230,7 +2230,7 @@ static abi_long do_ioctl(int fd, abi_long cmd, abi_long arg)
     return ret;
 }
 
-bitmask_transtbl iflag_tbl[] = {
+static const bitmask_transtbl iflag_tbl[] = {
         { TARGET_IGNBRK, TARGET_IGNBRK, IGNBRK, IGNBRK },
         { TARGET_BRKINT, TARGET_BRKINT, BRKINT, BRKINT },
         { TARGET_IGNPAR, TARGET_IGNPAR, IGNPAR, IGNPAR },
@@ -2248,7 +2248,7 @@ bitmask_transtbl iflag_tbl[] = {
         { 0, 0, 0, 0 }
 };
 
-bitmask_transtbl oflag_tbl[] = {
+static const bitmask_transtbl oflag_tbl[] = {
 	{ TARGET_OPOST, TARGET_OPOST, OPOST, OPOST },
 	{ TARGET_OLCUC, TARGET_OLCUC, OLCUC, OLCUC },
 	{ TARGET_ONLCR, TARGET_ONLCR, ONLCR, ONLCR },
@@ -2276,7 +2276,7 @@ bitmask_transtbl oflag_tbl[] = {
 	{ 0, 0, 0, 0 }
 };
 
-bitmask_transtbl cflag_tbl[] = {
+static const bitmask_transtbl cflag_tbl[] = {
 	{ TARGET_CBAUD, TARGET_B0, CBAUD, B0 },
 	{ TARGET_CBAUD, TARGET_B50, CBAUD, B50 },
 	{ TARGET_CBAUD, TARGET_B75, CBAUD, B75 },
@@ -2311,7 +2311,7 @@ bitmask_transtbl cflag_tbl[] = {
 	{ 0, 0, 0, 0 }
 };
 
-bitmask_transtbl lflag_tbl[] = {
+static const bitmask_transtbl lflag_tbl[] = {
 	{ TARGET_ISIG, TARGET_ISIG, ISIG, ISIG },
 	{ TARGET_ICANON, TARGET_ICANON, ICANON, ICANON },
 	{ TARGET_XCASE, TARGET_XCASE, XCASE, XCASE },
