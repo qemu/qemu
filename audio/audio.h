@@ -170,4 +170,7 @@ uint32_t lsbindex (uint32_t u);
 #define audio_MAX(a, b) ((a)<(b)?(b):(a))
 #endif
 
+int wav_start_capture (CaptureState *s, const char *path, int freq,
+                       int bits, int nchannels);
+
 #endif  /* audio.h */

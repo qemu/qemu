@@ -1337,9 +1337,6 @@ static void do_stop_capture (int n)
 }
 
 #ifdef HAS_AUDIO
-int wav_start_capture (CaptureState *s, const char *path, int freq,
-                       int bits, int nchannels);
-
 static void do_wav_capture (const char *path,
                             int has_freq, int freq,
                             int has_bits, int bits,
