@@ -29,9 +29,7 @@
 #include "sysemu.h"
 #include "block.h"
 #include "boards.h"
-
-extern int loglevel;
-extern FILE *logfile;
+#include "qemu-log.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
 #undef BIOS_SIZE

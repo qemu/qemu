@@ -228,7 +228,7 @@ void sh4_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 	(*cpu_fprintf)(f, "%s\n", sh4_defs[i].name);
 }
 
-static int cpu_sh4_register(CPUSH4State *env, const sh4_def_t *def)
+static void cpu_sh4_register(CPUSH4State *env, const sh4_def_t *def)
 {
     env->pvr = def->pvr;
     env->prr = def->prr;

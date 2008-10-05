@@ -487,7 +487,7 @@ struct audio_option qpa_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-struct audio_pcm_ops qpa_pcm_ops = {
+static const struct audio_pcm_ops qpa_pcm_ops = {
     qpa_init_out,
     qpa_fini_out,
     qpa_run_out,

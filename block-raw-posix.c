@@ -748,6 +748,7 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
 #else /* CONFIG_AIO */
 static int posix_aio_init(void)
 {
+    return 0;
 }
 #endif /* CONFIG_AIO */
 

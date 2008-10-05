@@ -2651,7 +2651,8 @@ void helper_iret_real(int shift)
         POPW(ssp, sp, sp_mask, new_eflags);
     }
     ESP = (ESP & ~sp_mask) | (sp & sp_mask);
-    load_seg_vm(R_CS, new_cs);
+    env->segs[R_CS].selector = new_cs;
+    env->segs[R_CS].base = (new_cs << 4);
     env->eip = new_eip;
     if (env->eflags & VM_MASK)
         eflags_mask = TF_MASK | AC_MASK | ID_MASK | IF_MASK | RF_MASK | NT_MASK;

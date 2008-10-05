@@ -36,6 +36,7 @@
 #include "sysemu.h"
 #include "audio/audio.h"
 #include "boards.h"
+#include "qemu-log.h"
 
 #define BIOS_SIZE (16 * MiB)
 
@@ -60,8 +61,6 @@
 #define ENVP_ENTRY_SIZE	 	256
 
 #define MAX_IDE_BUS 2
-
-extern FILE *logfile;
 
 //~ #define DEBUG
 

@@ -545,8 +545,6 @@ static inline void memcpy_fromfs(void * to, const void * from, unsigned long n)
 	memcpy(to, from, n);
 }
 
-extern unsigned long x86_stack_size;
-
 static int load_aout_interp(void * exptr, int interp_fd);
 
 #ifdef BSWAP_NEEDED

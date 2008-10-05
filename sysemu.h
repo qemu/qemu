@@ -78,6 +78,7 @@ extern int vmsvga_enabled;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
+extern int nographic;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
 extern int alt_grab;
@@ -87,7 +88,6 @@ extern int cursor_hide;
 extern int graphic_rotate;
 extern int no_quit;
 extern int semihosting_enabled;
-extern int autostart;
 extern int old_param;
 extern const char *bootp_filename;
 

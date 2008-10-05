@@ -2119,7 +2119,7 @@ enum {
 #undef STRUCT
 #undef STRUCT_SPECIAL
 
-#define STRUCT(name, list...) const argtype struct_ ## name ## _def[] = { list, TYPE_NULL };
+#define STRUCT(name, list...) static const argtype struct_ ## name ## _def[] = { list, TYPE_NULL };
 #define STRUCT_SPECIAL(name)
 #include "syscall_types.h"
 #undef STRUCT
@@ -2139,7 +2139,7 @@ typedef struct IOCTLEntry {
 
 #define MAX_STRUCT_SIZE 4096
 
-IOCTLEntry ioctl_entries[] = {
+static IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, types...) \
     { TARGET_ ## cmd, cmd, #cmd, access, { types } },
 #include "ioctls.h"
@@ -2230,7 +2230,7 @@ static abi_long do_ioctl(int fd, abi_long cmd, abi_long arg)
     return ret;
 }
 
-bitmask_transtbl iflag_tbl[] = {
+static const bitmask_transtbl iflag_tbl[] = {
         { TARGET_IGNBRK, TARGET_IGNBRK, IGNBRK, IGNBRK },
         { TARGET_BRKINT, TARGET_BRKINT, BRKINT, BRKINT },
         { TARGET_IGNPAR, TARGET_IGNPAR, IGNPAR, IGNPAR },
@@ -2248,7 +2248,7 @@ bitmask_transtbl iflag_tbl[] = {
         { 0, 0, 0, 0 }
 };
 
-bitmask_transtbl oflag_tbl[] = {
+static const bitmask_transtbl oflag_tbl[] = {
 	{ TARGET_OPOST, TARGET_OPOST, OPOST, OPOST },
 	{ TARGET_OLCUC, TARGET_OLCUC, OLCUC, OLCUC },
 	{ TARGET_ONLCR, TARGET_ONLCR, ONLCR, ONLCR },
@@ -2276,7 +2276,7 @@ bitmask_transtbl oflag_tbl[] = {
 	{ 0, 0, 0, 0 }
 };
 
-bitmask_transtbl cflag_tbl[] = {
+static const bitmask_transtbl cflag_tbl[] = {
 	{ TARGET_CBAUD, TARGET_B0, CBAUD, B0 },
 	{ TARGET_CBAUD, TARGET_B50, CBAUD, B50 },
 	{ TARGET_CBAUD, TARGET_B75, CBAUD, B75 },
@@ -2311,7 +2311,7 @@ bitmask_transtbl cflag_tbl[] = {
 	{ 0, 0, 0, 0 }
 };
 
-bitmask_transtbl lflag_tbl[] = {
+static const bitmask_transtbl lflag_tbl[] = {
 	{ TARGET_ISIG, TARGET_ISIG, ISIG, ISIG },
 	{ TARGET_ICANON, TARGET_ICANON, ICANON, ICANON },
 	{ TARGET_XCASE, TARGET_XCASE, XCASE, XCASE },
@@ -2398,7 +2398,7 @@ static void host_to_target_termios (void *dst, const void *src)
     target->c_cc[TARGET_VEOL2] = host->c_cc[VEOL2];
 }
 
-StructEntry struct_termios_def = {
+static const StructEntry struct_termios_def = {
     .convert = { host_to_target_termios, target_to_host_termios },
     .size = { sizeof(struct target_termios), sizeof(struct host_termios) },
     .align = { __alignof__(struct target_termios), __alignof__(struct host_termios) },

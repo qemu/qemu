@@ -151,6 +151,8 @@
 
 #define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
+//#define DEBUG_NET
+//#define DEBUG_SLIRP
 
 #ifdef TARGET_PPC
 #define DEFAULT_RAM_SIZE 144
@@ -228,7 +230,6 @@ int daemonize = 0;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
-int autostart = 1;
 #ifdef TARGET_ARM
 int old_param = 0;
 #endif
@@ -3859,7 +3860,7 @@ void qemu_chr_close(CharDriverState *chr)
 /***********************************************************/
 /* network device redirectors */
 
-__attribute__ (( unused ))
+#if defined(DEBUG_NET) || defined(DEBUG_SLIRP)
 static void hex_dump(FILE *f, const uint8_t *buf, int size)
 {
     int len, i, j, c;
@@ -3885,6 +3886,7 @@ static void hex_dump(FILE *f, const uint8_t *buf, int size)
         fprintf(f, "\n");
     }
 }
+#endif
 
 static int parse_macaddr(uint8_t *macaddr, const char *p)
 {
@@ -4103,7 +4105,7 @@ void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
     VLANState *vlan = vc1->vlan;
     VLANClientState *vc;
 
-#if 0
+#ifdef DEBUG_NET
     printf("vlan %d send:\n", vlan->id);
     hex_dump(stdout, buf, size);
 #endif
@@ -4128,7 +4130,7 @@ int slirp_can_output(void)
 
 void slirp_output(const uint8_t *pkt, int pkt_len)
 {
-#if 0
+#ifdef DEBUG_SLIRP
     printf("slirp output:\n");
     hex_dump(stdout, pkt, pkt_len);
 #endif
@@ -4139,7 +4141,7 @@ void slirp_output(const uint8_t *pkt, int pkt_len)
 
 static void slirp_receive(void *opaque, const uint8_t *buf, int size)
 {
-#if 0
+#ifdef DEBUG_SLIRP
     printf("slirp input:\n");
     hex_dump(stdout, buf, size);
 #endif
@@ -7357,7 +7359,7 @@ void qemu_bh_delete(QEMUBH *bh)
 /***********************************************************/
 /* machine registration */
 
-QEMUMachine *first_machine = NULL;
+static QEMUMachine *first_machine = NULL;
 
 int qemu_register_machine(QEMUMachine *m)
 {
@@ -8533,6 +8535,7 @@ int main(int argc, char **argv)
     int tb_size;
     const char *pid_file = NULL;
     VLANState *vlan;
+    int autostart;
 
     LIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
@@ -8611,7 +8614,8 @@ int main(int argc, char **argv)
     nb_nics = 0;
 
     tb_size = 0;
-    
+    autostart= 1;
+
     optind = 1;
     for(;;) {
         if (optind >= argc)

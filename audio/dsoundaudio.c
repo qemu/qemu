@@ -1057,7 +1057,7 @@ static struct audio_option dsound_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-static struct audio_pcm_ops dsound_pcm_ops = {
+static const struct audio_pcm_ops dsound_pcm_ops = {
     dsound_init_out,
     dsound_fini_out,
     dsound_run_out,

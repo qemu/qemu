@@ -109,8 +109,7 @@ void cpu_loop(CPUState *env);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
 
-extern int loglevel;
-extern FILE *logfile;
+#include "qemu-log.h"
 
 /* commpage.c */
 void commpage_init(void);

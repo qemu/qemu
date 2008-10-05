@@ -54,7 +54,7 @@ struct emulated_sigaction {
                              first signal, we put it here */
 };
 
-struct sigaltstack target_sigaltstack_used = {
+static struct sigaltstack target_sigaltstack_used = {
     0, 0, SA_DISABLE
 };
 

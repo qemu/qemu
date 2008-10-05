@@ -108,8 +108,6 @@ static int nvram_boot_set(void *opaque, const char *boot_device)
     return 0;
 }
 
-extern int nographic;
-
 static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
                                    const char *arch,
                                    ram_addr_t RAM_size,
@@ -307,6 +305,21 @@ static void hstick_irq(void *opaque)
 
     env->softint |= SOFTINT_TIMER;
     cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+}
+
+void cpu_tick_set_count(void *opaque, uint64_t count)
+{
+    ptimer_set_count(opaque, -count);
+}
+
+uint64_t cpu_tick_get_count(void *opaque)
+{
+    return -ptimer_get_count(opaque);
+}
+
+void cpu_tick_set_limit(void *opaque, uint64_t limit)
+{
+    ptimer_set_limit(opaque, -limit, 0);
 }
 
 static const int ide_iobase[2] = { 0x1f0, 0x170 };

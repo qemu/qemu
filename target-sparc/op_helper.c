@@ -3086,3 +3086,27 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 }
 #endif
 
+#ifdef TARGET_SPARC64
+void helper_tick_set_count(void *opaque, uint64_t count)
+{
+#if !defined(CONFIG_USER_ONLY)
+    cpu_tick_set_count(opaque, count);
+#endif
+}
+
+uint64_t helper_tick_get_count(void *opaque)
+{
+#if !defined(CONFIG_USER_ONLY)
+    return cpu_tick_get_count(opaque);
+#else
+    return 0;
+#endif
+}
+
+void helper_tick_set_limit(void *opaque, uint64_t limit)
+{
+#if !defined(CONFIG_USER_ONLY)
+    cpu_tick_set_limit(opaque, limit);
+#endif
+}
+#endif

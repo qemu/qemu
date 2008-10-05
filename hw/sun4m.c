@@ -175,8 +175,6 @@ static int nvram_boot_set(void *opaque, const char *boot_device)
     return 0;
 }
 
-extern int nographic;
-
 static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
                        const char *boot_devices, ram_addr_t RAM_size,
                        uint32_t kernel_size,

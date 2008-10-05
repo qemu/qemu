@@ -39,6 +39,7 @@ static uint8_t *tb_ret_addr;
 #define ADDEND_OFFSET 4
 #endif
 
+#ifndef NDEBUG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r0",
     "r1",
@@ -73,6 +74,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r30",
     "r31"
 };
+#endif
 
 static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R14,

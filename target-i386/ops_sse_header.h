@@ -1,5 +1,5 @@
 /*
- *  MMX/3DNow!/SSE/SSE2/SSE3/SSSE3/PNI support
+ *  MMX/3DNow!/SSE/SSE2/SSE3/SSSE3/SSE4/PNI support
  *
  *  Copyright (c) 2005 Fabrice Bellard
  *
@@ -268,6 +268,61 @@ DEF_HELPER(void, glue(helper_psignb, SUFFIX), (Reg *d, Reg *s))
 DEF_HELPER(void, glue(helper_psignw, SUFFIX), (Reg *d, Reg *s))
 DEF_HELPER(void, glue(helper_psignd, SUFFIX), (Reg *d, Reg *s))
 DEF_HELPER(void, glue(helper_palignr, SUFFIX), (Reg *d, Reg *s, int32_t shift))
+
+/* SSE4.1 op helpers */
+#if SHIFT == 1
+DEF_HELPER(void, glue(helper_pblendvb, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_blendvps, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_blendvpd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_ptest, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovsxbw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovsxbd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovsxbq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovsxwd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovsxwq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovsxdq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovzxbw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovzxbd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovzxbq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovzxwd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovzxwq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmovzxdq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmuldq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pcmpeqq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_packusdw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pminsb, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pminsd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pminuw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pminud, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmaxsb, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmaxsd, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmaxuw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmaxud, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pmulld, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_phminposuw, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_roundps, SUFFIX), (Reg *d, Reg *s, uint32_t mode))
+DEF_HELPER(void, glue(helper_roundpd, SUFFIX), (Reg *d, Reg *s, uint32_t mode))
+DEF_HELPER(void, glue(helper_roundss, SUFFIX), (Reg *d, Reg *s, uint32_t mode))
+DEF_HELPER(void, glue(helper_roundsd, SUFFIX), (Reg *d, Reg *s, uint32_t mode))
+DEF_HELPER(void, glue(helper_blendps, SUFFIX), (Reg *d, Reg *s, uint32_t imm))
+DEF_HELPER(void, glue(helper_blendpd, SUFFIX), (Reg *d, Reg *s, uint32_t imm))
+DEF_HELPER(void, glue(helper_pblendw, SUFFIX), (Reg *d, Reg *s, uint32_t imm))
+DEF_HELPER(void, glue(helper_dpps, SUFFIX), (Reg *d, Reg *s, uint32_t mask))
+DEF_HELPER(void, glue(helper_dppd, SUFFIX), (Reg *d, Reg *s, uint32_t mask))
+DEF_HELPER(void, glue(helper_mpsadbw, SUFFIX), (Reg *d, Reg *s, uint32_t off))
+#endif
+
+/* SSE4.2 op helpers */
+#if SHIFT == 1
+DEF_HELPER(void, glue(helper_pcmpgtq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER(void, glue(helper_pcmpestri, SUFFIX), (Reg *d, Reg *s, uint32_t ctl))
+DEF_HELPER(void, glue(helper_pcmpestrm, SUFFIX), (Reg *d, Reg *s, uint32_t ctl))
+DEF_HELPER(void, glue(helper_pcmpistri, SUFFIX), (Reg *d, Reg *s, uint32_t ctl))
+DEF_HELPER(void, glue(helper_pcmpistrm, SUFFIX), (Reg *d, Reg *s, uint32_t ctl))
+DEF_HELPER(target_ulong, helper_crc32,
+                (uint32_t crc1, target_ulong msg, uint32_t len))
+DEF_HELPER(target_ulong, helper_popcnt, (target_ulong n, uint32_t type))
+#endif
 
 #undef SHIFT
 #undef Reg
