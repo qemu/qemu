@@ -2119,7 +2119,7 @@ enum {
 #undef STRUCT
 #undef STRUCT_SPECIAL
 
-#define STRUCT(name, list...) const argtype struct_ ## name ## _def[] = { list, TYPE_NULL };
+#define STRUCT(name, list...) static const argtype struct_ ## name ## _def[] = { list, TYPE_NULL };
 #define STRUCT_SPECIAL(name)
 #include "syscall_types.h"
 #undef STRUCT
