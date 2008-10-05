@@ -180,7 +180,7 @@ static int io_mem_watch;
 #endif
 
 /* log support */
-const char *logfilename = "/tmp/qemu.log";
+static const char *logfilename = "/tmp/qemu.log";
 FILE *logfile;
 int loglevel;
 static int log_append = 0;
