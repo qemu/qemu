@@ -31,7 +31,7 @@
 
 //#define DEBUG_SIGNAL
 
-struct target_sigaltstack target_sigaltstack_used = {
+static struct target_sigaltstack target_sigaltstack_used = {
     .ss_sp = 0,
     .ss_size = 0,
     .ss_flags = TARGET_SS_DISABLE,
