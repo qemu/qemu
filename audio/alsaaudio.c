@@ -917,7 +917,7 @@ static struct audio_option alsa_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-static struct audio_pcm_ops alsa_pcm_ops = {
+static const struct audio_pcm_ops alsa_pcm_ops = {
     alsa_init_out,
     alsa_fini_out,
     alsa_run_out,

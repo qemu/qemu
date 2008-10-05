@@ -145,7 +145,7 @@ static void no_audio_fini (void *opaque)
     (void) opaque;
 }
 
-static struct audio_pcm_ops no_pcm_ops = {
+static const struct audio_pcm_ops no_pcm_ops = {
     no_init_out,
     no_fini_out,
     no_run_out,

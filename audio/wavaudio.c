@@ -218,7 +218,7 @@ static void wav_audio_fini (void *opaque)
     ldebug ("wav_fini");
 }
 
-struct audio_option wav_options[] = {
+static struct audio_option wav_options[] = {
     {"FREQUENCY", AUD_OPT_INT, &conf.settings.freq,
      "Frequency", NULL, 0},
 
@@ -233,7 +233,7 @@ struct audio_option wav_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-struct audio_pcm_ops wav_pcm_ops = {
+static const struct audio_pcm_ops wav_pcm_ops = {
     wav_init_out,
     wav_fini_out,
     wav_run_out,

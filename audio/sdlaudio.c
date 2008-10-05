@@ -423,7 +423,7 @@ static struct audio_option sdl_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-static struct audio_pcm_ops sdl_pcm_ops = {
+static const struct audio_pcm_ops sdl_pcm_ops = {
     sdl_init_out,
     sdl_fini_out,
     sdl_run_out,
