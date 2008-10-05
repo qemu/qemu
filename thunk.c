@@ -113,7 +113,8 @@ void thunk_register_struct(int id, const char *name, const argtype *types)
     }
 }
 
-void thunk_register_struct_direct(int id, const char *name, StructEntry *se1)
+void thunk_register_struct_direct(int id, const char *name,
+                                  const StructEntry *se1)
 {
     StructEntry *se;
     se = struct_entries + id;

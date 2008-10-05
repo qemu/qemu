@@ -68,7 +68,8 @@ typedef struct bitmask_transtbl {
 } bitmask_transtbl;
 
 void thunk_register_struct(int id, const char *name, const argtype *types);
-void thunk_register_struct_direct(int id, const char *name, StructEntry *se1);
+void thunk_register_struct_direct(int id, const char *name,
+                                  const StructEntry *se1);
 const argtype *thunk_convert(void *dst, const void *src,
                              const argtype *type_ptr, int to_host);
 #ifndef NO_THUNK_TYPE_SIZE

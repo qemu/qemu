@@ -2398,7 +2398,7 @@ static void host_to_target_termios (void *dst, const void *src)
     target->c_cc[TARGET_VEOL2] = host->c_cc[VEOL2];
 }
 
-StructEntry struct_termios_def = {
+static const StructEntry struct_termios_def = {
     .convert = { host_to_target_termios, target_to_host_termios },
     .size = { sizeof(struct target_termios), sizeof(struct host_termios) },
     .align = { __alignof__(struct target_termios), __alignof__(struct host_termios) },
