@@ -449,6 +449,7 @@ static inline int opsize_bytes(int opsize)
     case OS_DOUBLE: return 8;
     default:
         qemu_assert(0, "bad operand size");
+        return 0;
     }
 }
 
