@@ -230,7 +230,6 @@ int daemonize = 0;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
-int autostart = 1;
 #ifdef TARGET_ARM
 int old_param = 0;
 #endif
@@ -8502,6 +8501,7 @@ int main(int argc, char **argv)
     int tb_size;
     const char *pid_file = NULL;
     VLANState *vlan;
+    int autostart;
 
     LIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
@@ -8573,7 +8573,8 @@ int main(int argc, char **argv)
     nb_nics = 0;
 
     tb_size = 0;
-    
+    autostart= 1;
+
     optind = 1;
     for(;;) {
         if (optind >= argc)
