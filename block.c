@@ -895,6 +895,16 @@ void bdrv_flush(BlockDriverState *bs)
         bdrv_flush(bs->backing_hd);
 }
 
+void bdrv_flush_all(void)
+{
+    BlockDriverState *bs;
+
+    for (bs = bdrv_first; bs != NULL; bs = bs->next)
+        if (bs->drv && !bdrv_is_read_only(bs) && 
+            (!bdrv_is_removable(bs) || bdrv_is_inserted(bs)))
+            bdrv_flush(bs);
+}
+
 /*
  * Returns true iff the specified sector is present in the disk image. Drivers
  * not implementing the functionality are assumed to not support backing files,
