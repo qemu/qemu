@@ -2694,10 +2694,27 @@ static void term_read(void *opaque, const uint8_t *buf, int size)
         readline_handle_byte(buf[i]);
 }
 
+static int monitor_suspended;
+
 static void monitor_handle_command1(void *opaque, const char *cmdline)
 {
     monitor_handle_command(cmdline);
-    monitor_start_input();
+    if (!monitor_suspended)
+        monitor_start_input();
+    else
+        monitor_suspended = 2;
+}
+
+void monitor_suspend(void)
+{
+    monitor_suspended = 1;
+}
+
+void monitor_resume(void)
+{
+    if (monitor_suspended == 2)
+        monitor_start_input();
+    monitor_suspended = 0;
 }
 
 static void monitor_start_input(void)
