@@ -520,7 +520,7 @@ static struct audio_option coreaudio_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-static const struct audio_pcm_ops coreaudio_pcm_ops = {
+static struct audio_pcm_ops coreaudio_pcm_ops = {
     coreaudio_init_out,
     coreaudio_fini_out,
     coreaudio_run_out,

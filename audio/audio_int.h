@@ -81,7 +81,7 @@ typedef struct HWVoiceOut {
     int samples;
     LIST_HEAD (sw_out_listhead, SWVoiceOut) sw_head;
     LIST_HEAD (sw_cap_listhead, SWVoiceCap) cap_head;
-    const struct audio_pcm_ops *pcm_ops;
+    struct audio_pcm_ops *pcm_ops;
     LIST_ENTRY (HWVoiceOut) entries;
 } HWVoiceOut;
 
@@ -99,7 +99,7 @@ typedef struct HWVoiceIn {
 
     int samples;
     LIST_HEAD (sw_in_listhead, SWVoiceIn) sw_head;
-    const struct audio_pcm_ops *pcm_ops;
+    struct audio_pcm_ops *pcm_ops;
     LIST_ENTRY (HWVoiceIn) entries;
 } HWVoiceIn;
 
@@ -140,7 +140,7 @@ struct audio_driver {
     struct audio_option *options;
     void *(*init) (void);
     void (*fini) (void *);
-    const struct audio_pcm_ops *pcm_ops;
+    struct audio_pcm_ops *pcm_ops;
     int can_be_default;
     int max_voices_out;
     int max_voices_in;

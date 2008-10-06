@@ -566,7 +566,7 @@ struct audio_option qesd_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-static const struct audio_pcm_ops qesd_pcm_ops = {
+static struct audio_pcm_ops qesd_pcm_ops = {
     qesd_init_out,
     qesd_fini_out,
     qesd_run_out,
