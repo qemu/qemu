@@ -175,6 +175,8 @@ void term_flush(void);
 void term_print_help(void);
 void monitor_readline(const char *prompt, int is_password,
                       char *buf, int buf_size);
+void monitor_suspend(void);
+void monitor_resume(void);
 
 /* readline.c */
 typedef void ReadLineFunc(void *opaque, const char *str);

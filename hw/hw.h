@@ -217,6 +217,7 @@ int64_t qemu_ftell(QEMUFile *f);
 int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence);
 
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
+typedef int SaveLiveStateHandler(QEMUFile *f, int stage, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
 int register_savevm(const char *idstr,
@@ -225,6 +226,14 @@ int register_savevm(const char *idstr,
                     SaveStateHandler *save_state,
                     LoadStateHandler *load_state,
                     void *opaque);
+
+int register_savevm_live(const char *idstr,
+                         int instance_id,
+                         int version_id,
+                         SaveLiveStateHandler *save_live_state,
+                         SaveStateHandler *save_state,
+                         LoadStateHandler *load_state,
+                         void *opaque);
 
 typedef void QEMUResetHandler(void *opaque);
 

@@ -657,7 +657,7 @@ static struct audio_option fmod_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-static const struct audio_pcm_ops fmod_pcm_ops = {
+static struct audio_pcm_ops fmod_pcm_ops = {
     fmod_init_out,
     fmod_fini_out,
     fmod_run_out,

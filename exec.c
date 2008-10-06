@@ -39,6 +39,7 @@
 #include "qemu-common.h"
 #include "tcg.h"
 #include "hw/hw.h"
+#include "osdep.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #endif
@@ -114,6 +115,7 @@ ram_addr_t phys_ram_size;
 int phys_ram_fd;
 uint8_t *phys_ram_base;
 uint8_t *phys_ram_dirty;
+static int in_migration;
 static ram_addr_t phys_ram_alloc_offset = 0;
 #endif
 
@@ -1810,6 +1812,17 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     }
 }
 
+int cpu_physical_memory_set_dirty_tracking(int enable)
+{
+    in_migration = enable;
+    return 0;
+}
+
+int cpu_physical_memory_get_dirty_tracking(void)
+{
+    return in_migration;
+}
+
 static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
 {
     ram_addr_t ram_addr;
@@ -2331,10 +2344,30 @@ static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
     //~ vm_stop(0);
 #endif /* TARGET_MIPS */
 #endif
-#ifdef TARGET_SPARC
-    do_unassigned_access(addr, 0, 0, 0);
-#elif defined(TARGET_CRIS)
-    do_unassigned_access(addr, 0, 0, 0);
+#if defined(TARGET_SPARC) || defined(TARGET_CRIS)
+    do_unassigned_access(addr, 0, 0, 0, 1);
+#endif
+    return 0;
+}
+
+static uint32_t unassigned_mem_readw(void *opaque, target_phys_addr_t addr)
+{
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
+#endif
+#if defined(TARGET_SPARC) || defined(TARGET_CRIS)
+    do_unassigned_access(addr, 0, 0, 0, 2);
+#endif
+    return 0;
+}
+
+static uint32_t unassigned_mem_readl(void *opaque, target_phys_addr_t addr)
+{
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
+#endif
+#if defined(TARGET_SPARC) || defined(TARGET_CRIS)
+    do_unassigned_access(addr, 0, 0, 0, 4);
 #endif
     return 0;
 }
@@ -2347,23 +2380,41 @@ static void unassigned_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_
             addr, val, backtrace(buffer, sizeof(buffer)));
     //~ vm_stop(0);
 #endif
-#ifdef TARGET_SPARC
-    do_unassigned_access(addr, 1, 0, 0);
-#elif defined(TARGET_CRIS)
-    do_unassigned_access(addr, 1, 0, 0);
+#if defined(TARGET_SPARC) || defined(TARGET_CRIS)
+    do_unassigned_access(addr, 1, 0, 0, 1);
+#endif
+}
+
+static void unassigned_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%x\n", addr, val);
+#endif
+#if defined(TARGET_SPARC) || defined(TARGET_CRIS)
+    do_unassigned_access(addr, 1, 0, 0, 2);
+#endif
+}
+
+static void unassigned_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%x\n", addr, val);
+#endif
+#if defined(TARGET_SPARC) || defined(TARGET_CRIS)
+    do_unassigned_access(addr, 1, 0, 0, 4);
 #endif
 }
 
 static CPUReadMemoryFunc *unassigned_mem_read[3] = {
     unassigned_mem_readb,
-    unassigned_mem_readb,
-    unassigned_mem_readb,
+    unassigned_mem_readw,
+    unassigned_mem_readl,
 };
 
 static CPUWriteMemoryFunc *unassigned_mem_write[3] = {
     unassigned_mem_writeb,
-    unassigned_mem_writeb,
-    unassigned_mem_writeb,
+    unassigned_mem_writew,
+    unassigned_mem_writel,
 };
 
 static void notdirty_mem_writeb(void *opaque, target_phys_addr_t ram_addr,
@@ -3009,9 +3060,19 @@ void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
     } else {
-        ptr = phys_ram_base + (pd & TARGET_PAGE_MASK) +
-            (addr & ~TARGET_PAGE_MASK);
+        unsigned long addr1 = (pd & TARGET_PAGE_MASK) + (addr & ~TARGET_PAGE_MASK);
+        ptr = phys_ram_base + addr1;
         stl_p(ptr, val);
+
+        if (unlikely(in_migration)) {
+            if (!cpu_physical_memory_is_dirty(addr1)) {
+                /* invalidate code */
+                tb_invalidate_phys_page_range(addr1, addr1 + 4, 0);
+                /* set dirty bit */
+                phys_ram_dirty[addr1 >> TARGET_PAGE_BITS] |=
+                    (0xff & ~CODE_DIRTY_FLAG);
+            }
+        }
     }
 }
 

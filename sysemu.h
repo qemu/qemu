@@ -50,6 +50,12 @@ void do_info_snapshots(void);
 
 void main_loop_wait(int timeout);
 
+int qemu_savevm_state_begin(QEMUFile *f);
+int qemu_savevm_state_iterate(QEMUFile *f);
+int qemu_savevm_state_complete(QEMUFile *f);
+int qemu_savevm_state(QEMUFile *f);
+int qemu_loadvm_state(QEMUFile *f);
+
 /* Polling handling */
 
 /* return TRUE if no sleep should be done afterwards */

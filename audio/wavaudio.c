@@ -233,7 +233,7 @@ static struct audio_option wav_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-static const struct audio_pcm_ops wav_pcm_ops = {
+static struct audio_pcm_ops wav_pcm_ops = {
     wav_init_out,
     wav_fini_out,
     wav_run_out,

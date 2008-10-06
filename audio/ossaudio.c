@@ -751,7 +751,7 @@ static struct audio_option oss_options[] = {
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
-static const struct audio_pcm_ops oss_pcm_ops = {
+static struct audio_pcm_ops oss_pcm_ops = {
     oss_init_out,
     oss_fini_out,
     oss_run_out,

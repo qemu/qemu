@@ -331,7 +331,7 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
     pd = env1->tlb_table[mmu_idx][page_index].addr_code & ~TARGET_PAGE_MASK;
     if (pd > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
 #if defined(TARGET_SPARC) || defined(TARGET_MIPS)
-        do_unassigned_access(addr, 0, 1, 0);
+        do_unassigned_access(addr, 0, 1, 0, 4);
 #else
         cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
 #endif

@@ -237,10 +237,10 @@ void helper_rfn(void)
 }
 
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi)
+                          int is_asi, int size)
 {
-	D(printf("%s addr=%x w=%d ex=%d asi=%d\n", 
-		__func__, addr, is_write, is_exec, is_asi));
+	D(printf("%s addr=%x w=%d ex=%d asi=%d, size=%d\n",
+		__func__, addr, is_write, is_exec, is_asi, size));
 }
 
 static void evaluate_flags_writeback(uint32_t flags)
