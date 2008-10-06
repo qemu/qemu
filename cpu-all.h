@@ -904,8 +904,10 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
 int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
 
-#define VGA_DIRTY_FLAG  0x01
-#define CODE_DIRTY_FLAG 0x02
+#define VGA_DIRTY_FLAG       0x01
+#define CODE_DIRTY_FLAG      0x02
+#define KQEMU_DIRTY_FLAG     0x04
+#define MIGRATION_DIRTY_FLAG 0x08
 
 /* read dirty bit (return 0 or 1) */
 static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
@@ -927,6 +929,10 @@ static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
                                      int dirty_flags);
 void cpu_tlb_update_dirty(CPUState *env);
+
+int cpu_physical_memory_set_dirty_tracking(int enable);
+
+int cpu_physical_memory_get_dirty_tracking(void);
 
 void dump_exec_info(FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
