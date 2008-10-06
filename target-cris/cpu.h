@@ -168,7 +168,7 @@ void do_interrupt(CPUCRISState *env);
 int cpu_cris_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi);
+                          int is_asi, int size);
 
 enum {
     CC_OP_DYNAMIC, /* Use env->cc_op  */

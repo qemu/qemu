@@ -430,7 +430,7 @@ static inline void PUT_CWP64(CPUSPARCState *env1, int cwp)
 
 /* cpu-exec.c */
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi);
+                          int is_asi, int size);
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #define CPUState CPUSPARCState

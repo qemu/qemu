@@ -1911,7 +1911,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 }
 
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int unused)
+                          int unused, int size)
 {
     if (is_exec)
         do_raise_exception(EXCP_IBE);

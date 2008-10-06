@@ -950,7 +950,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         break;
     case 8: /* User code access, XXX */
     default:
-        do_unassigned_access(addr, 0, 0, asi);
+        do_unassigned_access(addr, 0, 0, asi, size);
         ret = 0;
         break;
     }
@@ -1284,7 +1284,7 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
     case 8: /* User code access, XXX */
     case 9: /* Supervisor code access, XXX */
     default:
-        do_unassigned_access(addr, 1, 0, asi);
+        do_unassigned_access(addr, 1, 0, asi, size);
         break;
     }
 #ifdef DEBUG_ASI
@@ -1464,7 +1464,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x8a: // Primary no-fault LE, RO
     case 0x8b: // Secondary no-fault LE, RO
     default:
-        do_unassigned_access(addr, 1, 0, 1);
+        do_unassigned_access(addr, 1, 0, 1, size);
         return;
     }
 }
@@ -1675,7 +1675,7 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x5f: // D-MMU demap, WO
     case 0x77: // Interrupt vector, WO
     default:
-        do_unassigned_access(addr, 0, 0, 1);
+        do_unassigned_access(addr, 0, 0, 1, size);
         ret = 0;
         break;
     }
@@ -2082,7 +2082,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
     case 0x8a: // Primary no-fault LE, RO
     case 0x8b: // Secondary no-fault LE, RO
     default:
-        do_unassigned_access(addr, 1, 0, 1);
+        do_unassigned_access(addr, 1, 0, 1, size);
         return;
     }
 }
@@ -3025,7 +3025,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 #ifndef TARGET_SPARC64
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi)
+                          int is_asi, int size)
 {
     CPUState *saved_env;
 
@@ -3035,14 +3035,15 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
     env = cpu_single_env;
 #ifdef DEBUG_UNASSIGNED
     if (is_asi)
-        printf("Unassigned mem %s access to " TARGET_FMT_plx
+        printf("Unassigned mem %s access of %d byte%s to " TARGET_FMT_plx
                " asi 0x%02x from " TARGET_FMT_lx "\n",
-               is_exec ? "exec" : is_write ? "write" : "read", addr, is_asi,
-               env->pc);
+               is_exec ? "exec" : is_write ? "write" : "read", size,
+               size == 1 ? "" : "s", addr, is_asi, env->pc);
     else
-        printf("Unassigned mem %s access to " TARGET_FMT_plx " from "
-               TARGET_FMT_lx "\n",
-               is_exec ? "exec" : is_write ? "write" : "read", addr, env->pc);
+        printf("Unassigned mem %s access of %d byte%s to " TARGET_FMT_plx
+               " from " TARGET_FMT_lx "\n",
+               is_exec ? "exec" : is_write ? "write" : "read", size,
+               size == 1 ? "" : "s", addr, env->pc);
 #endif
     if (env->mmuregs[3]) /* Fault status register */
         env->mmuregs[3] = 1; /* overflow (not read before another fault) */
@@ -3066,7 +3067,7 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
 }
 #else
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int is_asi)
+                          int is_asi, int size)
 {
 #ifdef DEBUG_UNASSIGNED
     CPUState *saved_env;

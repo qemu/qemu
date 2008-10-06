@@ -470,7 +470,7 @@ void r4k_do_tlbr (void);
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int unused);
+                          int unused, int size);
 
 #define CPUState CPUMIPSState
 #define cpu_init cpu_mips_init
