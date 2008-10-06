@@ -6579,6 +6579,8 @@ typedef struct SaveStateEntry {
     char idstr[256];
     int instance_id;
     int version_id;
+    int section_id;
+    SaveLiveStateHandler *save_live_state;
     SaveStateHandler *save_state;
     LoadStateHandler *load_state;
     void *opaque;
@@ -6591,14 +6593,16 @@ static SaveStateEntry *first_se;
    of the system, so instance_id should be removed/replaced.
    Meanwhile pass -1 as instance_id if you do not already have a clearly
    distinguishing id for all instances of your device class. */
-int register_savevm(const char *idstr,
-                    int instance_id,
-                    int version_id,
-                    SaveStateHandler *save_state,
-                    LoadStateHandler *load_state,
-                    void *opaque)
+int register_savevm_live(const char *idstr,
+                         int instance_id,
+                         int version_id,
+                         SaveLiveStateHandler *save_live_state,
+                         SaveStateHandler *save_state,
+                         LoadStateHandler *load_state,
+                         void *opaque)
 {
     SaveStateEntry *se, **pse;
+    static int global_section_id;
 
     se = qemu_malloc(sizeof(SaveStateEntry));
     if (!se)
@@ -6606,6 +6610,8 @@ int register_savevm(const char *idstr,
     pstrcpy(se->idstr, sizeof(se->idstr), idstr);
     se->instance_id = (instance_id == -1) ? 0 : instance_id;
     se->version_id = version_id;
+    se->section_id = global_section_id++;
+    se->save_live_state = save_live_state;
     se->save_state = save_state;
     se->load_state = load_state;
     se->opaque = opaque;
@@ -6624,24 +6630,43 @@ int register_savevm(const char *idstr,
     return 0;
 }
 
-#define QEMU_VM_FILE_MAGIC   0x5145564d
-#define QEMU_VM_FILE_VERSION 0x00000002
+int register_savevm(const char *idstr,
+                    int instance_id,
+                    int version_id,
+                    SaveStateHandler *save_state,
+                    LoadStateHandler *load_state,
+                    void *opaque)
+{
+    return register_savevm_live(idstr, instance_id, version_id,
+                                NULL, save_state, load_state, opaque);
+}
 
-static int qemu_savevm_state(QEMUFile *f)
+#define QEMU_VM_FILE_MAGIC           0x5145564d
+#define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
+#define QEMU_VM_FILE_VERSION         0x00000003
+
+#define QEMU_VM_EOF                  0x00
+#define QEMU_VM_SECTION_START        0x01
+#define QEMU_VM_SECTION_PART         0x02
+#define QEMU_VM_SECTION_END          0x03
+#define QEMU_VM_SECTION_FULL         0x04
+
+int qemu_savevm_state_begin(QEMUFile *f)
 {
     SaveStateEntry *se;
-    int len, ret;
-    int64_t cur_pos, len_pos, total_len_pos;
 
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
-    total_len_pos = qemu_ftell(f);
-    qemu_put_be64(f, 0); /* total size */
 
-    for(se = first_se; se != NULL; se = se->next) {
-	if (se->save_state == NULL)
-	    /* this one has a loader only, for backwards compatibility */
-	    continue;
+    for (se = first_se; se != NULL; se = se->next) {
+        int len;
+
+        if (se->save_live_state == NULL)
+            continue;
+
+        /* Section type */
+        qemu_put_byte(f, QEMU_VM_SECTION_START);
+        qemu_put_be32(f, se->section_id);
 
         /* ID string */
         len = strlen(se->idstr);
@@ -6651,24 +6676,98 @@ static int qemu_savevm_state(QEMUFile *f)
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        /* record size: filled later */
-        len_pos = qemu_ftell(f);
-        qemu_put_be32(f, 0);
-        se->save_state(f, se->opaque);
-
-        /* fill record size */
-        cur_pos = qemu_ftell(f);
-        len = cur_pos - len_pos - 4;
-        qemu_fseek(f, len_pos, SEEK_SET);
-        qemu_put_be32(f, len);
-        qemu_fseek(f, cur_pos, SEEK_SET);
+        se->save_live_state(f, QEMU_VM_SECTION_START, se->opaque);
     }
-    cur_pos = qemu_ftell(f);
-    qemu_fseek(f, total_len_pos, SEEK_SET);
-    qemu_put_be64(f, cur_pos - total_len_pos - 8);
-    qemu_fseek(f, cur_pos, SEEK_SET);
 
-    ret = 0;
+    return 0;
+}
+
+int qemu_savevm_state_iterate(QEMUFile *f)
+{
+    SaveStateEntry *se;
+    int ret = 0;
+
+    for (se = first_se; se != NULL; se = se->next) {
+        if (se->save_live_state == NULL)
+            continue;
+
+        /* Section type */
+        qemu_put_byte(f, QEMU_VM_SECTION_PART);
+        qemu_put_be32(f, se->section_id);
+
+        ret |= se->save_live_state(f, QEMU_VM_SECTION_PART, se->opaque);
+    }
+
+    if (ret)
+        return 1;
+
+    return 0;
+}
+
+int qemu_savevm_state_complete(QEMUFile *f)
+{
+    SaveStateEntry *se;
+
+    for (se = first_se; se != NULL; se = se->next) {
+        if (se->save_live_state == NULL)
+            continue;
+
+        /* Section type */
+        qemu_put_byte(f, QEMU_VM_SECTION_END);
+        qemu_put_be32(f, se->section_id);
+
+        se->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
+    }
+
+    for(se = first_se; se != NULL; se = se->next) {
+        int len;
+
+	if (se->save_state == NULL)
+	    continue;
+
+        /* Section type */
+        qemu_put_byte(f, QEMU_VM_SECTION_FULL);
+        qemu_put_be32(f, se->section_id);
+
+        /* ID string */
+        len = strlen(se->idstr);
+        qemu_put_byte(f, len);
+        qemu_put_buffer(f, (uint8_t *)se->idstr, len);
+
+        qemu_put_be32(f, se->instance_id);
+        qemu_put_be32(f, se->version_id);
+
+        se->save_state(f, se->opaque);
+    }
+
+    qemu_put_byte(f, QEMU_VM_EOF);
+
+    return 0;
+}
+
+int qemu_savevm_state(QEMUFile *f)
+{
+    int saved_vm_running;
+    int ret;
+
+    saved_vm_running = vm_running;
+    vm_stop(0);
+
+    ret = qemu_savevm_state_begin(f);
+    if (ret < 0)
+        goto out;
+
+    do {
+        ret = qemu_savevm_state_iterate(f);
+        if (ret < 0)
+            goto out;
+    } while (ret == 1);
+
+    ret = qemu_savevm_state_complete(f);
+
+out:
+    if (saved_vm_running)
+        vm_start();
     return ret;
 }
 
@@ -6684,23 +6783,20 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
     return NULL;
 }
 
-static int qemu_loadvm_state(QEMUFile *f)
+typedef struct LoadStateEntry {
+    SaveStateEntry *se;
+    int section_id;
+    int version_id;
+    struct LoadStateEntry *next;
+} LoadStateEntry;
+
+static int qemu_loadvm_state_v2(QEMUFile *f)
 {
     SaveStateEntry *se;
     int len, ret, instance_id, record_len, version_id;
     int64_t total_len, end_pos, cur_pos;
-    unsigned int v;
     char idstr[256];
 
-    v = qemu_get_be32(f);
-    if (v != QEMU_VM_FILE_MAGIC)
-        goto fail;
-    v = qemu_get_be32(f);
-    if (v != QEMU_VM_FILE_VERSION) {
-    fail:
-        ret = -1;
-        goto the_end;
-    }
     total_len = qemu_get_be64(f);
     end_pos = total_len + qemu_ftell(f);
     for(;;) {
@@ -6712,10 +6808,6 @@ static int qemu_loadvm_state(QEMUFile *f)
         instance_id = qemu_get_be32(f);
         version_id = qemu_get_be32(f);
         record_len = qemu_get_be32(f);
-#if 0
-        printf("idstr=%s instance=0x%x version=%d len=%d\n",
-               idstr, instance_id, version_id, record_len);
-#endif
         cur_pos = qemu_ftell(f);
         se = find_se(idstr, instance_id);
         if (!se) {
@@ -6731,8 +6823,104 @@ static int qemu_loadvm_state(QEMUFile *f)
         /* always seek to exact end of record */
         qemu_fseek(f, cur_pos + record_len, SEEK_SET);
     }
+    return 0;
+}
+
+int qemu_loadvm_state(QEMUFile *f)
+{
+    LoadStateEntry *first_le = NULL;
+    uint8_t section_type;
+    unsigned int v;
+    int ret;
+
+    v = qemu_get_be32(f);
+    if (v != QEMU_VM_FILE_MAGIC)
+        return -EINVAL;
+
+    v = qemu_get_be32(f);
+    if (v == QEMU_VM_FILE_VERSION_COMPAT)
+        return qemu_loadvm_state_v2(f);
+    if (v != QEMU_VM_FILE_VERSION)
+        return -ENOTSUP;
+
+    while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
+        uint32_t instance_id, version_id, section_id;
+        LoadStateEntry *le;
+        SaveStateEntry *se;
+        char idstr[257];
+        int len;
+
+        switch (section_type) {
+        case QEMU_VM_SECTION_START:
+        case QEMU_VM_SECTION_FULL:
+            /* Read section start */
+            section_id = qemu_get_be32(f);
+            len = qemu_get_byte(f);
+            qemu_get_buffer(f, (uint8_t *)idstr, len);
+            idstr[len] = 0;
+            instance_id = qemu_get_be32(f);
+            version_id = qemu_get_be32(f);
+
+            /* Find savevm section */
+            se = find_se(idstr, instance_id);
+            if (se == NULL) {
+                fprintf(stderr, "Unknown savevm section or instance '%s' %d\n", idstr, instance_id);
+                ret = -EINVAL;
+                goto out;
+            }
+
+            /* Validate version */
+            if (version_id > se->version_id) {
+                fprintf(stderr, "savevm: unsupported version %d for '%s' v%d\n",
+                        version_id, idstr, se->version_id);
+                ret = -EINVAL;
+                goto out;
+            }
+
+            /* Add entry */
+            le = qemu_mallocz(sizeof(*le));
+            if (le == NULL) {
+                ret = -ENOMEM;
+                goto out;
+            }
+
+            le->se = se;
+            le->section_id = section_id;
+            le->version_id = version_id;
+            le->next = first_le;
+            first_le = le;
+
+            le->se->load_state(f, le->se->opaque, le->version_id);
+            break;
+        case QEMU_VM_SECTION_PART:
+        case QEMU_VM_SECTION_END:
+            section_id = qemu_get_be32(f);
+
+            for (le = first_le; le && le->section_id != section_id; le = le->next);
+            if (le == NULL) {
+                fprintf(stderr, "Unknown savevm section %d\n", section_id);
+                ret = -EINVAL;
+                goto out;
+            }
+
+            le->se->load_state(f, le->se->opaque, le->version_id);
+            break;
+        default:
+            fprintf(stderr, "Unknown savevm section type %d\n", section_type);
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
     ret = 0;
- the_end:
+
+out:
+    while (first_le) {
+        LoadStateEntry *le = first_le;
+        first_le = first_le->next;
+        qemu_free(le);
+    }
+
     return ret;
 }
 
