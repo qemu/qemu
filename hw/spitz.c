@@ -1010,29 +1010,29 @@ static void terrier_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine akitapda_machine = {
-    "akita",
-    "Akita PDA (PXA270)",
-    akita_init,
-    SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .name = "akita",
+    .desc = "Akita PDA (PXA270)",
+    .init = akita_init,
+    .ram_require = SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };
 
 QEMUMachine spitzpda_machine = {
-    "spitz",
-    "Spitz PDA (PXA270)",
-    spitz_init,
-    SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .name = "spitz",
+    .desc = "Spitz PDA (PXA270)",
+    .init = spitz_init,
+    .ram_require = SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };
 
 QEMUMachine borzoipda_machine = {
-    "borzoi",
-    "Borzoi PDA (PXA270)",
-    borzoi_init,
-    SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .name = "borzoi",
+    .desc = "Borzoi PDA (PXA270)",
+    .init = borzoi_init,
+    .ram_require = SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };
 
 QEMUMachine terrierpda_machine = {
-    "terrier",
-    "Terrier PDA (PXA270)",
-    terrier_init,
-    SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .name = "terrier",
+    .desc = "Terrier PDA (PXA270)",
+    .init = terrier_init,
+    .ram_require = SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };

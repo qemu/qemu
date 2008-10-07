@@ -1413,15 +1413,15 @@ static void lm3s6965evb_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine lm3s811evb_machine = {
-    "lm3s811evb",
-    "Stellaris LM3S811EVB",
-    lm3s811evb_init,
-    (64 * 1024 + 8 * 1024) | RAMSIZE_FIXED,
+    .name = "lm3s811evb",
+    .desc = "Stellaris LM3S811EVB",
+    .init = lm3s811evb_init,
+    .ram_require = (64 * 1024 + 8 * 1024) | RAMSIZE_FIXED,
 };
 
 QEMUMachine lm3s6965evb_machine = {
-    "lm3s6965evb",
-    "Stellaris LM3S6965EVB",
-    lm3s6965evb_init,
-    (256 * 1024 + 64 * 1024) | RAMSIZE_FIXED,
+    .name = "lm3s6965evb",
+    .desc = "Stellaris LM3S6965EVB",
+    .init = lm3s6965evb_init,
+    .ram_require = (256 * 1024 + 64 * 1024) | RAMSIZE_FIXED,
 };

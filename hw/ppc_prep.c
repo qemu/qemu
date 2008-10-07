@@ -758,8 +758,8 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine prep_machine = {
-    "prep",
-    "PowerPC PREP platform",
-    ppc_prep_init,
-    BIOS_SIZE + VGA_RAM_SIZE,
+    .name = "prep",
+    .desc = "PowerPC PREP platform",
+    .init = ppc_prep_init,
+    .ram_require = BIOS_SIZE + VGA_RAM_SIZE,
 };

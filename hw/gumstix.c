@@ -122,15 +122,15 @@ static void verdex_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine connex_machine = {
-    "connex",
-    "Gumstix Connex (PXA255)",
-    connex_init,
-    (0x05000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
+    .name = "connex",
+    .desc = "Gumstix Connex (PXA255)",
+    .init = connex_init,
+    .ram_require = (0x05000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };
 
 QEMUMachine verdex_machine = {
-    "verdex",
-    "Gumstix Verdex (PXA270)",
-    verdex_init,
-    (0x12000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
+    .name = "verdex",
+    .desc = "Gumstix Verdex (PXA270)",
+    .init = verdex_init,
+    .ram_require = (0x12000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };

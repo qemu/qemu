@@ -366,8 +366,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine heathrow_machine = {
-    "g3bw",
-    "Heathrow based PowerMAC",
-    ppc_heathrow_init,
-    BIOS_SIZE + VGA_RAM_SIZE,
+    .name = "g3bw",
+    .desc = "Heathrow based PowerMAC",
+    .init = ppc_heathrow_init,
+    .ram_require = BIOS_SIZE + VGA_RAM_SIZE,
 };

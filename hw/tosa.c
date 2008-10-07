@@ -119,8 +119,8 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine tosapda_machine = {
-    "tosa",
-    "Tosa PDA (PXA255)",
-    tosa_init,
-    TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .name = "tosa",
+    .desc = "Tosa PDA (PXA255)",
+    .init = tosa_init,
+    .ram_require = TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
 };

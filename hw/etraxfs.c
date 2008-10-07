@@ -141,8 +141,8 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine bareetraxfs_machine = {
-    "bareetraxfs",
-    "Bare ETRAX FS board",
-    bareetraxfs_init,
-    0x8000000,
+    .name = "bareetraxfs",
+    .desc = "Bare ETRAX FS board",
+    .init = bareetraxfs_init,
+    .ram_require = 0x8000000,
 };

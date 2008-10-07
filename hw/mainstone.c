@@ -144,9 +144,9 @@ static void mainstone_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine mainstone2_machine = {
-    "mainstone",
-    "Mainstone II (PXA27x)",
-    mainstone_init,
-    (MAINSTONE_RAM + MAINSTONE_ROM + 2 * MAINSTONE_FLASH +
-     PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
+    .name = "mainstone",
+    .desc = "Mainstone II (PXA27x)",
+    .init = mainstone_init,
+    .ram_require = (MAINSTONE_RAM + MAINSTONE_ROM + 2 * MAINSTONE_FLASH +
+		    PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };

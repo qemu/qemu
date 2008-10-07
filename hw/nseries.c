@@ -1404,15 +1404,15 @@ static void n810_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine n800_machine = {
-    "n800",
-    "Nokia N800 tablet aka. RX-34 (OMAP2420)",
-    n800_init,
-    (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
+    .name = "n800",
+    .desc = "Nokia N800 tablet aka. RX-34 (OMAP2420)",
+    .init = n800_init,
+    .ram_require = (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
 };
 
 QEMUMachine n810_machine = {
-    "n810",
-    "Nokia N810 tablet aka. RX-44 (OMAP2420)",
-    n810_init,
-    (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
+    .name = "n810",
+    .desc = "Nokia N810 tablet aka. RX-44 (OMAP2420)",
+    .init = n810_init,
+    .ram_require = (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
 };

@@ -164,8 +164,8 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine r2d_machine = {
-    "r2d",
-    "r2d-plus board",
-    r2d_init,
-    SDRAM_SIZE | RAMSIZE_FIXED
+    .name = "r2d",
+    .desc = "r2d-plus board",
+    .init = r2d_init,
+    .ram_require = SDRAM_SIZE | RAMSIZE_FIXED,
 };

@@ -108,8 +108,8 @@ static void shix_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine shix_machine = {
-    "shix",
-    "shix card",
-    shix_init,
-    (0x00004000 + 0x01000000 + 0x01000000) | RAMSIZE_FIXED
+    .name = "shix",
+    .desc = "shix card",
+    .init = shix_init,
+    .ram_require = (0x00004000 + 0x01000000 + 0x01000000) | RAMSIZE_FIXED,
 };

@@ -1509,8 +1509,8 @@ static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine musicpal_machine = {
-    "musicpal",
-    "Marvell 88w8618 / MusicPal (ARM926EJ-S)",
-    musicpal_init,
-    MP_RAM_DEFAULT_SIZE + MP_SRAM_SIZE + MP_FLASH_SIZE_MAX + RAMSIZE_FIXED
+    .name = "musicpal",
+    .desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)",
+    .init = musicpal_init,
+    .ram_require = MP_RAM_DEFAULT_SIZE + MP_SRAM_SIZE + MP_FLASH_SIZE_MAX + RAMSIZE_FIXED,
 };

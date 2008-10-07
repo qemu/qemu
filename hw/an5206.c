@@ -88,8 +88,8 @@ static void an5206_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine an5206_machine = {
-    "an5206",
-    "Arnewsh 5206",
-    an5206_init,
-    512,
+    .name = "an5206",
+    .desc = "Arnewsh 5206",
+    .init = an5206_init,
+    .ram_require = 512,
 };

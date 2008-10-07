@@ -331,8 +331,8 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine core99_machine = {
-    "mac99",
-    "Mac99 based PowerMAC",
-    ppc_core99_init,
-    BIOS_SIZE + VGA_RAM_SIZE,
+    .name = "mac99",
+    .desc = "Mac99 based PowerMAC",
+    .init = ppc_core99_init,
+    .ram_require = BIOS_SIZE + VGA_RAM_SIZE,
 };

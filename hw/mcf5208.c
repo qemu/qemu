@@ -305,8 +305,8 @@ static void mcf5208evb_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine mcf5208evb_machine = {
-    "mcf5208evb",
-    "MCF5206EVB",
-    mcf5208evb_init,
-    16384,
+    .name = "mcf5208evb",
+    .desc = "MCF5206EVB",
+    .init = mcf5208evb_init,
+    .ram_require = 16384,
 };

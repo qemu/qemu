@@ -63,7 +63,7 @@ static void dummy_m68k_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine dummy_m68k_machine = {
-    "dummy",
-    "Dummy board",
-    dummy_m68k_init,
+    .name = "dummy",
+    .desc = "Dummy board",
+    .init = dummy_m68k_init,
 };
