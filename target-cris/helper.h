@@ -2,6 +2,7 @@
 
 void TCG_HELPER_PROTO helper_raise_exception(uint32_t index);
 void TCG_HELPER_PROTO helper_tlb_flush_pid(uint32_t pid);
+void TCG_HELPER_PROTO helper_spc_write(uint32_t pid);
 void TCG_HELPER_PROTO helper_dump(uint32_t a0, uint32_t a1, uint32_t a2);
 void TCG_HELPER_PROTO helper_rfe(void);
 void TCG_HELPER_PROTO helper_rfn(void);

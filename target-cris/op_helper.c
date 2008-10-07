@@ -97,6 +97,14 @@ void helper_tlb_flush_pid(uint32_t pid)
 #endif
 }
 
+void helper_spc_write(uint32_t new_spc)
+{
+#if !defined(CONFIG_USER_ONLY)
+	tlb_flush_page(env, env->pregs[PR_SPC]);
+	tlb_flush_page(env, new_spc);
+#endif
+}
+
 void helper_dump(uint32_t a0, uint32_t a1, uint32_t a2)
 {
 	(fprintf(logfile, "%s: a0=%x a1=%x\n", __func__, a0, a1)); 

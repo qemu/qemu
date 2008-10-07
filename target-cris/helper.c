@@ -119,7 +119,7 @@ void do_interrupt(CPUState *env)
 			/* These exceptions are genereated by the core itself.
 			   ERP should point to the insn following the brk.  */
 			ex_vec = env->trap_vector;
-			env->pregs[PR_ERP] = env->pc + 2;
+			env->pregs[PR_ERP] = env->pc;
 			break;
 
 		case EXCP_NMI:

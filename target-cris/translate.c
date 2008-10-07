@@ -41,7 +41,7 @@
 
 #define DISAS_CRIS 0
 #if DISAS_CRIS
-#define DIS(x) x
+#define DIS(x) if (loglevel & CPU_LOG_TB_IN_ASM) x
 #else
 #define DIS(x)
 #endif
@@ -218,6 +218,8 @@ static inline void t_gen_mov_preg_TN(DisasContext *dc, int r, TCGv tn)
 	else {
 		if (r == PR_PID) 
 			tcg_gen_helper_0_1(helper_tlb_flush_pid, tn);
+		if (dc->tb_flags & S_FLAG && r == PR_SPC) 
+			tcg_gen_helper_0_1(helper_spc_write, tn);
 		else if (r == PR_CCS)
 			dc->cpustate_changed = 1;
 		tcg_gen_mov_tl(cpu_PR[r], tn);
@@ -1377,8 +1379,6 @@ static int dec_prep_move_m(DisasContext *dc, int s_ext, int memsize,
 		} else
 			imm = ldl_code(dc->pc + 2);
 			
-		DIS(fprintf (logfile, "imm=%x rd=%d sext=%d ms=%d\n",
-			     imm, rd, s_ext, memsize));
 		tcg_gen_movi_tl(dst, imm);
 		dc->postinc = 0;
 	} else {
@@ -2063,7 +2063,7 @@ static unsigned int dec_setclrf(DisasContext *dc)
 
     /* User space is not allowed to touch these. Silently ignore.  */
 	if (dc->tb_flags & U_FLAG) {
-		flags &= ~(I_FLAG | U_FLAG);
+		flags &= ~(S_FLAG | I_FLAG | U_FLAG);
 	}
 
 	if (flags & X_FLAG) {
@@ -2082,6 +2082,9 @@ static unsigned int dec_setclrf(DisasContext *dc)
 			dc->is_jmp = DISAS_UPDATE;
 			dc->cpustate_changed = 1;
 		}
+	}
+	if (flags & S_FLAG) {
+		dc->cpustate_changed = 1;
 	}
 
 
@@ -2784,9 +2787,6 @@ static unsigned int dec_basc_im(DisasContext *dc)
 
 static unsigned int dec_rfe_etc(DisasContext *dc)
 {
-	DIS(fprintf (logfile, "rfe_etc opc=%x pc=0x%x op1=%d op2=%d\n",
-		    dc->opcode, dc->pc, dc->op1, dc->op2));
-
 	cris_cc_mask(dc, 0);
 
 	if (dc->op2 == 15) /* ignore halt.  */
@@ -2795,19 +2795,29 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 	switch (dc->op2 & 7) {
 		case 2:
 			/* rfe.  */
+			DIS(fprintf(logfile, "rfe\n"));
 			cris_evaluate_flags(dc);
 			tcg_gen_helper_0_0(helper_rfe);
 			dc->is_jmp = DISAS_UPDATE;
 			break;
 		case 5:
 			/* rfn.  */
+			DIS(fprintf(logfile, "rfn\n"));
 			cris_evaluate_flags(dc);
 			tcg_gen_helper_0_0(helper_rfn);
 			dc->is_jmp = DISAS_UPDATE;
 			break;
 		case 6:
+			DIS(fprintf(logfile, "break %d\n", dc->op1));
+			cris_evaluate_flags (dc);
 			/* break.  */
-			tcg_gen_movi_tl(env_pc, dc->pc);
+			if (dc->op1 == 8) {
+				/* TODO: Find out whats special with brk8.  */
+				tcg_gen_movi_tl(env_pc, dc->pc);
+			}
+			else
+				tcg_gen_movi_tl(env_pc, dc->pc + 2);
+
 			/* Breaks start at 16 in the exception vector.  */
 			t_gen_mov_env_TN(trap_vector, 
 					 tcg_const_tl(dc->op1 + 16));
@@ -2984,6 +2994,22 @@ cris_decoder(DisasContext *dc)
 		}
 	}
 
+#if defined(CONFIG_USER_ONLY)
+	/* Single-stepping ?  */
+	if (dc->tb_flags & S_FLAG) {
+		int l1;
+
+		l1 = gen_new_label();
+		tcg_gen_brcondi_tl(TCG_COND_NE,
+				   cpu_PR[PR_SPC], tcg_const_tl(dc->pc), l1);
+		/* We treat SPC as a break with an odd trap vector.  */
+		cris_evaluate_flags (dc);
+		t_gen_mov_env_TN(trap_vector, tcg_const_tl(3));
+		tcg_gen_movi_tl(env_pc, dc->pc + insn_len);
+		t_gen_raise_exception(EXCP_BREAK);
+		gen_set_label(l1);
+	}
+#endif
 	return insn_len;
 }
 
@@ -3080,7 +3106,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	dc->cc_size_uptodate = -1;
 
 	/* Decode TB flags.  */
-	dc->tb_flags = tb->flags & (P_FLAG | U_FLAG | X_FLAG);
+	dc->tb_flags = tb->flags & (S_FLAG | P_FLAG | U_FLAG | X_FLAG);
 	dc->delayed_branch = !!(tb->flags & 7);
 	if (dc->delayed_branch)
 		dc->jmp = JMP_INDIRECT;
@@ -3108,7 +3134,8 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 			env->regs[10], env->regs[11],
 			env->regs[12], env->regs[13],
 			env->regs[14], env->regs[15]);
-		
+		fprintf(logfile, "--------------\n");
+		fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
 	}
 
 	next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -3139,10 +3166,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 		}
 
 		/* Pretty disas.  */
-		DIS(fprintf(logfile, "%x ", dc->pc));
-		if (search_pc) {
-			DIS(fprintf(logfile, "%x ", dc->pc));
-		}
+		DIS(fprintf(logfile, "%8.8x:\t", dc->pc));
 
                 if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
                     gen_io_start();
@@ -3241,13 +3265,13 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	}
 
 #ifdef DEBUG_DISAS
+#if !DISAS_CRIS
 	if (loglevel & CPU_LOG_TB_IN_ASM) {
-		fprintf(logfile, "--------------\n");
-		fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
 		target_disas(logfile, pc_start, dc->pc - pc_start, 0);
 		fprintf(logfile, "\nisize=%d osize=%zd\n",
 			dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
 	}
+#endif
 #endif
 }
 
