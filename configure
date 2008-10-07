@@ -85,6 +85,7 @@ case "$cpu" in
   ;;
 esac
 gprof="no"
+sparse="no"
 bigendian="no"
 mingw32="no"
 EXESUF=""
@@ -285,6 +286,10 @@ for opt do
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
+  --enable-sparse) sparse="yes"
+  ;;
+  --disable-sparse) sparse="no"
+  ;;
   --disable-vnc-tls) vnc_tls="no"
   ;;
   --disable-slirp) slirp="no"
@@ -422,6 +427,7 @@ echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
+echo "  --disable-sparse         disable sparse checker"
 echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
@@ -530,6 +536,10 @@ EOF
 	    exit 1;
 	fi
     fi
+fi
+
+if test ! -x "$(which cgcc 2>/dev/null)"; then
+    sparse="no"
 fi
 
 #
@@ -987,6 +997,7 @@ echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
 echo "gprof enabled     $gprof"
+echo "sparse enabled    $sparse"
 echo "profiler          $profiler"
 echo "static build      $static"
 echo "-Werror enabled   $werror"
@@ -1135,6 +1146,11 @@ case "$cpu" in
     exit 1
   ;;
 esac
+if test "$sparse" = "yes" ; then
+  echo "CC      := REAL_CC=\"\$(CC)\" cgcc"       >> $config_mak
+  echo "HOST_CC := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_mak
+  echo "CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_mak
+fi
 if test "$bigendian" = "yes" ; then
   echo "WORDS_BIGENDIAN=yes" >> $config_mak
   echo "#define WORDS_BIGENDIAN 1" >> $config_h
