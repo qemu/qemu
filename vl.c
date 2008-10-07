@@ -213,13 +213,6 @@ int usb_enabled = 0;
 static VLANState *first_vlan;
 int smp_cpus = 1;
 const char *vnc_display;
-#if defined(TARGET_SPARC)
-#define MAX_CPUS 16
-#elif defined(TARGET_I386)
-#define MAX_CPUS 255
-#else
-#define MAX_CPUS 1
-#endif
 int acpi_enabled = 1;
 int fd_bootchk = 1;
 int no_reboot = 0;
@@ -9195,7 +9188,7 @@ int main(int argc, char **argv)
                 break;
             case QEMU_OPTION_smp:
                 smp_cpus = atoi(optarg);
-                if (smp_cpus < 1 || smp_cpus > MAX_CPUS) {
+                if (smp_cpus < 1) {
                     fprintf(stderr, "Invalid number of CPUs\n");
                     exit(1);
                 }
@@ -9310,6 +9303,13 @@ int main(int argc, char **argv)
                 break;
             }
         }
+    }
+
+    if (smp_cpus > machine->max_cpus) {
+        fprintf(stderr, "Number of SMP cpus requested (%d), exceeds max cpus "
+                "supported by machine `%s' (%d)\n", smp_cpus,  machine->name,
+                machine->max_cpus);
+        exit(1);
     }
 
     if (nographic) {

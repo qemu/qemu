@@ -1513,4 +1513,5 @@ QEMUMachine musicpal_machine = {
     .desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)",
     .init = musicpal_init,
     .ram_require = MP_RAM_DEFAULT_SIZE + MP_SRAM_SIZE + MP_FLASH_SIZE_MAX + RAMSIZE_FIXED,
+    .max_cpus = 1,
 };

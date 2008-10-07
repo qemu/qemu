@@ -1408,6 +1408,7 @@ QEMUMachine n800_machine = {
     .desc = "Nokia N800 tablet aka. RX-34 (OMAP2420)",
     .init = n800_init,
     .ram_require = (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
+    .max_cpus = 1,
 };
 
 QEMUMachine n810_machine = {
@@ -1415,4 +1416,5 @@ QEMUMachine n810_machine = {
     .desc = "Nokia N810 tablet aka. RX-44 (OMAP2420)",
     .init = n810_init,
     .ram_require = (0x08000000 + 0x00010000 + OMAP242X_SRAM_SIZE) | RAMSIZE_FIXED,
+    .max_cpus = 1,
 };

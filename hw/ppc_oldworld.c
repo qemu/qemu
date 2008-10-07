@@ -370,4 +370,5 @@ QEMUMachine heathrow_machine = {
     .desc = "Heathrow based PowerMAC",
     .init = ppc_heathrow_init,
     .ram_require = BIOS_SIZE + VGA_RAM_SIZE,
+    .max_cpus = 1,
 };

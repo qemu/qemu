@@ -544,4 +544,5 @@ QEMUMachine integratorcp_machine = {
     .desc = "ARM Integrator/CP (ARM926EJ-S)",
     .init = integratorcp_init,
     .ram_require = 0x100000,
+    .max_cpus = 1,
 };

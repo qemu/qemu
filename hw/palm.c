@@ -286,4 +286,5 @@ QEMUMachine palmte_machine = {
     .desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)",
     .init = palmte_init,
     .ram_require = (0x02000000 + 0x00800000 + OMAP15XX_SRAM_SIZE) | RAMSIZE_FIXED,
+    .max_cpus = 1,
 };

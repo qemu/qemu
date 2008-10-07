@@ -126,6 +126,7 @@ QEMUMachine connex_machine = {
     .desc = "Gumstix Connex (PXA255)",
     .init = connex_init,
     .ram_require = (0x05000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
+    .max_cpus = 1,
 };
 
 QEMUMachine verdex_machine = {
@@ -133,4 +134,5 @@ QEMUMachine verdex_machine = {
     .desc = "Gumstix Verdex (PXA270)",
     .init = verdex_init,
     .ram_require = (0x12000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
+    .max_cpus = 1,
 };

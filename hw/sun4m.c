@@ -1291,6 +1291,7 @@ QEMUMachine ss5_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine ss10_machine = {
@@ -1300,6 +1301,7 @@ QEMUMachine ss10_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine ss600mp_machine = {
@@ -1309,6 +1311,7 @@ QEMUMachine ss600mp_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine ss20_machine = {
@@ -1318,6 +1321,7 @@ QEMUMachine ss20_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine ss2_machine = {
@@ -1327,6 +1331,7 @@ QEMUMachine ss2_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine voyager_machine = {
@@ -1336,6 +1341,7 @@ QEMUMachine voyager_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine ss_lx_machine = {
@@ -1345,6 +1351,7 @@ QEMUMachine ss_lx_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine ss4_machine = {
@@ -1354,6 +1361,7 @@ QEMUMachine ss4_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine scls_machine = {
@@ -1363,6 +1371,7 @@ QEMUMachine scls_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine sbook_machine = {
@@ -1372,6 +1381,7 @@ QEMUMachine sbook_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 static const struct sun4d_hwdef sun4d_hwdefs[] = {
@@ -1620,6 +1630,7 @@ QEMUMachine ss1000_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };
 
 QEMUMachine ss2000_machine = {
@@ -1629,4 +1640,5 @@ QEMUMachine ss2000_machine = {
     .ram_require = PROM_SIZE_MAX + TCX_SIZE,
     .nodisk_ok = 1,
     .use_scsi = 1,
+    .max_cpus = 16,
 };

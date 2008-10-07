@@ -1014,6 +1014,7 @@ QEMUMachine akitapda_machine = {
     .desc = "Akita PDA (PXA270)",
     .init = akita_init,
     .ram_require = SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .max_cpus = 1,
 };
 
 QEMUMachine spitzpda_machine = {
@@ -1021,6 +1022,7 @@ QEMUMachine spitzpda_machine = {
     .desc = "Spitz PDA (PXA270)",
     .init = spitz_init,
     .ram_require = SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .max_cpus = 1,
 };
 
 QEMUMachine borzoipda_machine = {
@@ -1028,6 +1030,7 @@ QEMUMachine borzoipda_machine = {
     .desc = "Borzoi PDA (PXA270)",
     .init = borzoi_init,
     .ram_require = SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .max_cpus = 1,
 };
 
 QEMUMachine terrierpda_machine = {
@@ -1035,4 +1038,5 @@ QEMUMachine terrierpda_machine = {
     .desc = "Terrier PDA (PXA270)",
     .init = terrier_init,
     .ram_require = SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .max_cpus = 1,
 };

@@ -18,6 +18,7 @@ typedef struct QEMUMachine {
     ram_addr_t ram_require;
     int nodisk_ok;
     int use_scsi;
+    int max_cpus;
     struct QEMUMachine *next;
 } QEMUMachine;
 

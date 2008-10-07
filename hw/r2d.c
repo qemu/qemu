@@ -168,4 +168,5 @@ QEMUMachine r2d_machine = {
     .desc = "r2d-plus board",
     .init = r2d_init,
     .ram_require = SDRAM_SIZE | RAMSIZE_FIXED,
+    .max_cpus = 1,
 };
