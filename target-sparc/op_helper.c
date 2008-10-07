@@ -450,10 +450,10 @@ void helper_fexpand(void)
 
     s.l = (uint32_t)(*(uint64_t *)&DT0 & 0xffffffff);
     d.d = DT1;
-    d.VIS_L64(0) = s.VIS_W32(0) << 4;
-    d.VIS_L64(1) = s.VIS_W32(1) << 4;
-    d.VIS_L64(2) = s.VIS_W32(2) << 4;
-    d.VIS_L64(3) = s.VIS_W32(3) << 4;
+    d.VIS_W64(0) = s.VIS_B32(0) << 4;
+    d.VIS_W64(1) = s.VIS_B32(1) << 4;
+    d.VIS_W64(2) = s.VIS_B32(2) << 4;
+    d.VIS_W64(3) = s.VIS_B32(3) << 4;
 
     DT0 = d.d;
 }
