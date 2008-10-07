@@ -61,21 +61,21 @@
 #define CC_MASK_NZVC 0xf
 #define CC_MASK_RNZV 0x10e
 
-TCGv cpu_env;
-TCGv cpu_T[2];
-TCGv cpu_R[16];
-TCGv cpu_PR[16];
-TCGv cc_x;
-TCGv cc_src;
-TCGv cc_dest;
-TCGv cc_result;
-TCGv cc_op;
-TCGv cc_size;
-TCGv cc_mask;
+static TCGv cpu_env;
+static TCGv cpu_T[2];
+static TCGv cpu_R[16];
+static TCGv cpu_PR[16];
+static TCGv cc_x;
+static TCGv cc_src;
+static TCGv cc_dest;
+static TCGv cc_result;
+static TCGv cc_op;
+static TCGv cc_size;
+static TCGv cc_mask;
 
-TCGv env_btaken;
-TCGv env_btarget;
-TCGv env_pc;
+static TCGv env_btaken;
+static TCGv env_btarget;
+static TCGv env_pc;
 
 #include "gen-icount.h"
 
@@ -130,14 +130,14 @@ static void gen_BUG(DisasContext *dc, const char *file, int line)
 	cpu_abort(dc->env, "%s:%d\n", file, line);
 }
 
-const char *regnames[] =
+static const char *regnames[] =
 {
 	"$r0", "$r1", "$r2", "$r3",
 	"$r4", "$r5", "$r6", "$r7",
 	"$r8", "$r9", "$r10", "$r11",
 	"$r12", "$r13", "$sp", "$acr",
 };
-const char *pregnames[] =
+static const char *pregnames[] =
 {
 	"$bz", "$vr", "$pid", "$srs",
 	"$wz", "$exs", "$eda", "$mof",
@@ -146,7 +146,7 @@ const char *pregnames[] =
 };
 
 /* We need this table to handle preg-moves with implicit width.  */
-int preg_sizes[] = {
+static int preg_sizes[] = {
 	1, /* bz.  */
 	1, /* vr.  */
 	4, /* pid.  */
@@ -1203,8 +1203,8 @@ static inline void cris_prepare_jmp (DisasContext *dc, unsigned int type)
 		tcg_gen_movi_tl(env_btaken, 1);
 }
 
-void gen_load(DisasContext *dc, TCGv dst, TCGv addr, 
-	      unsigned int size, int sign)
+static void gen_load(DisasContext *dc, TCGv dst, TCGv addr, 
+		     unsigned int size, int sign)
 {
 	int mem_index = cpu_mmu_index(dc->env);
 
@@ -1233,8 +1233,8 @@ void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
 	}
 }
 
-void gen_store (DisasContext *dc, TCGv addr, TCGv val,
-		unsigned int size)
+static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
+		       unsigned int size)
 {
 	int mem_index = cpu_mmu_index(dc->env);
 
@@ -1409,7 +1409,7 @@ static int dec_prep_alu_m(DisasContext *dc, int s_ext, int memsize)
 #if DISAS_CRIS
 static const char *cc_name(int cc)
 {
-	static char *cc_names[16] = {
+	static const char *cc_names[16] = {
 		"cc", "cs", "ne", "eq", "vc", "vs", "pl", "mi",
 		"ls", "hi", "ge", "lt", "gt", "le", "a", "p"
 	};
@@ -2854,7 +2854,7 @@ static unsigned int dec_null(DisasContext *dc)
 	return 2;
 }
 
-struct decoder_info {
+static struct decoder_info {
 	struct {
 		uint32_t bits;
 		uint32_t mask;
