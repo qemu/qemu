@@ -7,6 +7,10 @@
  *      Support for host device auto connect & disconnect
  *      Major rewrite to support fully async operation
  *
+ * Copyright 2008 TJ <linux@tjworld.net>
+ *      Added flexible support for /dev/bus/usb /sys/bus/usb/devices in addition
+ *      to the legacy /proc/bus/usb USB device discovery and handling
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -72,9 +76,20 @@ static int usb_host_find_device(int *pbus_num, int *paddr,
 #define dprintf(...)
 #endif
 
-#define USBDEVFS_PATH "/proc/bus/usb"
+#define USBPROCBUS_PATH "/proc/bus/usb"
 #define PRODUCT_NAME_SZ 32
 #define MAX_ENDPOINTS 16
+#define USBDEVBUS_PATH "/dev/bus/usb"
+#define USBSYSBUS_PATH "/sys/bus/usb"
+
+static char *usb_host_device_path;
+
+#define USB_FS_NONE 0
+#define USB_FS_PROC 1
+#define USB_FS_DEV 2
+#define USB_FS_SYS 3
+
+static int usb_fs_type;
 
 /* endpoint association data */
 struct endp_data {
@@ -890,13 +905,18 @@ static USBDevice *usb_host_device_open_addr(int bus_num, int addr, const char *p
 
     printf("husb: open device %d.%d\n", bus_num, addr);
 
-    snprintf(buf, sizeof(buf), USBDEVFS_PATH "/%03d/%03d",
+    if (!usb_host_device_path) {
+        perror("husb: USB Host Device Path not set");
+        goto fail;
+    }
+    snprintf(buf, sizeof(buf), "%s/%03d/%03d", usb_host_device_path,
              bus_num, addr);
     fd = open(buf, O_RDWR | O_NONBLOCK);
     if (fd < 0) {
         perror(buf);
         goto fail;
     }
+    dprintf("husb: opened %s\n", buf);
 
     /* read the device description */
     dev->descr_len = read(fd, dev->descr, sizeof(dev->descr));
@@ -1038,23 +1058,33 @@ static int get_tag_value(char *buf, int buf_size,
     return q - buf;
 }
 
-static int usb_host_scan(void *opaque, USBScanFunc *func)
+/*
+ * Use /proc/bus/usb/devices or /dev/bus/usb/devices file to determine
+ * host's USB devices. This is legacy support since many distributions
+ * are moving to /sys/bus/usb
+ */
+static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
 {
-    FILE *f;
+    FILE *f = 0;
     char line[1024];
     char buf[1024];
     int bus_num, addr, speed, device_count, class_id, product_id, vendor_id;
-    int ret;
     char product_name[512];
+    int ret = 0;
 
-    f = fopen(USBDEVFS_PATH "/devices", "r");
-    if (!f) {
-        term_printf("husb: could not open %s\n", USBDEVFS_PATH "/devices");
-        return 0;
+    if (!usb_host_device_path) {
+        perror("husb: USB Host Device Path not set");
+        goto the_end;
     }
+    snprintf(line, sizeof(line), "%s/devices", usb_host_device_path);
+    f = fopen(line, "r");
+    if (!f) {
+        perror("husb: cannot open devices file");
+        goto the_end;
+    }
+
     device_count = 0;
     bus_num = addr = speed = class_id = product_id = vendor_id = 0;
-    ret = 0;
     for(;;) {
         if (fgets(line, sizeof(line), f) == NULL)
             break;
@@ -1111,7 +1141,185 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
                    product_id, product_name, speed);
     }
  the_end:
-    fclose(f);
+    if (f)
+        fclose(f);
+    return ret;
+}
+
+/*
+ * Read sys file-system device file
+ *
+ * @line address of buffer to put file contents in
+ * @line_size size of line
+ * @device_file path to device file (printf format string)
+ * @device_name device being opened (inserted into device_file)
+ *
+ * @return 0 failed, 1 succeeded ('line' contains data)
+ */
+static int usb_host_read_file(char *line, size_t line_size, const char *device_file, const char *device_name)
+{
+    FILE *f;
+    int ret = 0;
+    char filename[PATH_MAX];
+
+    snprintf(filename, PATH_MAX, device_file, device_name);
+    f = fopen(filename, "r");
+    if (f) {
+        fgets(line, line_size, f);
+        fclose(f);
+        ret = 1;
+    } else {
+        term_printf("husb: could not open %s\n", filename);
+    }
+
+    return ret;
+}
+
+/*
+ * Use /sys/bus/usb/devices/ directory to determine host's USB
+ * devices.
+ *
+ * This code is based on Robert Schiele's original patches posted to
+ * the Novell bug-tracker https://bugzilla.novell.com/show_bug.cgi?id=241950
+ */
+static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
+{
+    DIR *dir = 0;
+    char line[1024];
+    int bus_num, addr, speed, class_id, product_id, vendor_id;
+    int ret = 0;
+    char product_name[512];
+    struct dirent *de;
+
+    dir = opendir(USBSYSBUS_PATH "/devices");
+    if (!dir) {
+        perror("husb: cannot open devices directory");
+        goto the_end;
+    }
+
+    while ((de = readdir(dir))) {
+        if (de->d_name[0] != '.' && !strchr(de->d_name, ':')) {
+            char *tmpstr = de->d_name;
+            if (!strncmp(de->d_name, "usb", 3))
+                tmpstr += 3;
+            bus_num = atoi(tmpstr);
+
+            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/devnum", de->d_name))
+                goto the_end;
+            if (sscanf(line, "%d", &addr) != 1)
+                goto the_end;
+
+            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/bDeviceClass", de->d_name))
+                goto the_end;
+            if (sscanf(line, "%x", &class_id) != 1)
+                goto the_end;
+
+            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/idVendor", de->d_name))
+                goto the_end;
+            if (sscanf(line, "%x", &vendor_id) != 1)
+                goto the_end;
+
+            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/idProduct", de->d_name))
+                goto the_end;
+            if (sscanf(line, "%x", &product_id) != 1)
+                goto the_end;
+
+            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/product", de->d_name)) {
+                *product_name = 0;
+            } else {
+                if (strlen(line) > 0)
+                    line[strlen(line) - 1] = '\0';
+                pstrcpy(product_name, sizeof(product_name), line);
+            }
+
+            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/speed", de->d_name))
+                goto the_end;
+            if (!strcmp(line, "480\n"))
+                speed = USB_SPEED_HIGH;
+            else if (!strcmp(line, "1.5\n"))
+                speed = USB_SPEED_LOW;
+            else
+                speed = USB_SPEED_FULL;
+
+            ret = func(opaque, bus_num, addr, class_id, vendor_id,
+                       product_id, product_name, speed);
+            if (ret)
+                goto the_end;
+        }
+    }
+ the_end:
+    if (dir)
+        closedir(dir);
+    return ret;
+}
+
+/*
+ * Determine how to access the host's USB devices and call the
+ * specific support function.
+ */
+static int usb_host_scan(void *opaque, USBScanFunc *func)
+{
+    FILE *f = 0;
+    DIR *dir = 0;
+    int ret = 0;
+    const char *devices = "/devices";
+    const char *opened = "husb: opened %s%s\n";
+    const char *fs_type[] = {"unknown", "proc", "dev", "sys"};
+    char devpath[PATH_MAX];
+
+    /* only check the host once */
+    if (!usb_fs_type) {
+        f = fopen(USBPROCBUS_PATH "/devices", "r");
+        if (f) {
+            /* devices found in /proc/bus/usb/ */
+            strcpy(devpath, USBPROCBUS_PATH);
+            usb_fs_type = USB_FS_PROC;
+            fclose(f);
+            dprintf(opened, USBPROCBUS_PATH, devices);
+        }
+        /* try additional methods if an access method hasn't been found yet */
+        f = fopen(USBDEVBUS_PATH "/devices", "r");
+        if (!usb_fs_type && f) {
+            /* devices found in /dev/bus/usb/ */
+            strcpy(devpath, USBDEVBUS_PATH);
+            usb_fs_type = USB_FS_DEV;
+            fclose(f);
+            dprintf(opened, USBDEVBUS_PATH, devices);
+        }
+        dir = opendir(USBSYSBUS_PATH "/devices");
+        if (!usb_fs_type && dir) {
+            /* devices found in /dev/bus/usb/ (yes - not a mistake!) */
+            strcpy(devpath, USBDEVBUS_PATH);
+            usb_fs_type = USB_FS_SYS;
+            closedir(dir);
+            dprintf(opened, USBSYSBUS_PATH, devices);
+        } else {
+            term_printf("husb: unable to access USB devices\n");
+            goto the_end;
+        }
+
+        /* the module setting (used later for opening devices) */
+        usb_host_device_path = qemu_mallocz(strlen(devpath)+1);
+        if (usb_host_device_path) {
+            strcpy(usb_host_device_path, devpath);
+            term_printf("husb: using %s file-system with %s\n", fs_type[usb_fs_type], usb_host_device_path);
+        } else {
+            /* out of memory? */
+            perror("husb: unable to allocate memory for device path");
+            goto the_end;
+        }
+    }
+
+    switch (usb_fs_type) {
+    case USB_FS_PROC:
+    case USB_FS_DEV:
+        ret = usb_host_scan_dev(opaque, func);
+        break;
+    case USB_FS_SYS:
+        ret = usb_host_scan_sys(opaque, func);
+        break;
+    }
+ the_end:
     return ret;
 }
 
