@@ -26,6 +26,10 @@ struct QEMUBH
     void *opaque;
 };
 
+void qemu_service_io(void)
+{
+}
+
 void term_printf(const char *fmt, ...)
 {
 }

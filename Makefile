@@ -59,10 +59,6 @@ else
 BLOCK_OBJS += block-raw-posix.o
 endif
 
-ifdef CONFIG_AIO
-BLOCK_OBJS += compatfd.o
-endif
-
 ######################################################################
 # libqemu_common.a: Target independent part of system emulation. The
 # long term path is to suppress *all* target specific code in case of

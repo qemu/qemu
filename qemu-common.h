@@ -139,4 +139,7 @@ struct pcmcia_card_s;
 void cpu_save(QEMUFile *f, void *opaque);
 int cpu_load(QEMUFile *f, void *opaque, int version_id);
 
+/* Force QEMU to stop what it's doing and service IO */
+void qemu_service_io(void);
+
 #endif

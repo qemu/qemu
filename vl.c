@@ -7475,6 +7475,19 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+void qemu_service_io(void)
+{
+    CPUState *env = cpu_single_env;
+    if (env) {
+        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+#ifdef USE_KQEMU
+        if (env->kqemu_enabled) {
+            kqemu_cpu_interrupt(env);
+        }
+#endif
+    }
+}
+
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */
 

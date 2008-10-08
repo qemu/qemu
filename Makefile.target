@@ -481,10 +481,6 @@ else
 OBJS+=block-raw-posix.o
 endif
 
-ifdef CONFIG_AIO
-OBJS+=compatfd.o
-endif
-
 LIBS+=-lz
 ifdef CONFIG_ALSA
 LIBS += -lasound
