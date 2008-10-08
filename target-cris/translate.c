@@ -2994,14 +2994,13 @@ cris_decoder(DisasContext *dc)
 		}
 	}
 
-#if defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
 	/* Single-stepping ?  */
 	if (dc->tb_flags & S_FLAG) {
 		int l1;
 
 		l1 = gen_new_label();
-		tcg_gen_brcondi_tl(TCG_COND_NE,
-				   cpu_PR[PR_SPC], tcg_const_tl(dc->pc), l1);
+		tcg_gen_brcondi_tl(TCG_COND_NE, cpu_PR[PR_SPC], dc->pc, l1);
 		/* We treat SPC as a break with an odd trap vector.  */
 		cris_evaluate_flags (dc);
 		t_gen_mov_env_TN(trap_vector, tcg_const_tl(3));
