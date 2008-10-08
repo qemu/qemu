@@ -1966,7 +1966,6 @@ void cpu_loop (CPUState *env)
                              env->pregs[7], 
                              env->pregs[11]);
             env->regs[10] = ret;
-            env->pc += 2;
             break;
         case EXCP_DEBUG:
             {
