@@ -320,6 +320,7 @@ QEMUMachine versatilepb_machine = {
     .desc = "ARM Versatile/PB (ARM926EJ-S)",
     .init = vpb_init,
     .use_scsi = 1,
+    .max_cpus = 1,
 };
 
 QEMUMachine versatileab_machine = {
@@ -327,4 +328,5 @@ QEMUMachine versatileab_machine = {
     .desc = "ARM Versatile/AB (ARM926EJ-S)",
     .init = vab_init,
     .use_scsi = 1,
+    .max_cpus = 1,
 };

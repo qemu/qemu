@@ -85,6 +85,7 @@ case "$cpu" in
   ;;
 esac
 gprof="no"
+sparse="no"
 bigendian="no"
 mingw32="no"
 EXESUF=""
@@ -112,8 +113,6 @@ aio="yes"
 nptl="yes"
 mixemu="no"
 bluez="yes"
-signalfd="no"
-eventfd="no"
 
 # OS specific
 targetos=`uname -s`
@@ -285,6 +284,10 @@ for opt do
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
+  --enable-sparse) sparse="yes"
+  ;;
+  --disable-sparse) sparse="no"
+  ;;
   --disable-vnc-tls) vnc_tls="no"
   ;;
   --disable-slirp) slirp="no"
@@ -425,6 +428,8 @@ echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
+echo "  --enable-sparse          enable sparse checker"
+echo "  --disable-sparse         disable sparse checker (default)"
 echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
@@ -533,6 +538,10 @@ EOF
 	    exit 1;
 	fi
     fi
+fi
+
+if test ! -x "$(which cgcc 2>/dev/null)"; then
+    sparse="no"
 fi
 
 #
@@ -926,33 +935,6 @@ EOF
   fi
 fi
 
-##########################################
-# signalfd probe
-cat > $TMPC << EOF
-#define _GNU_SOURCE
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <signal.h>
-int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }
-EOF
-
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
-  signalfd=yes
-fi
-
-##########################################
-# eventfd probe
-cat > $TMPC << EOF
-#define _GNU_SOURCE
-#include <unistd.h>
-#include <sys/syscall.h>
-int main(void) { return syscall(SYS_eventfd, 0); }
-EOF
-
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
-  eventfd=yes
-fi
-
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
    [ -x "`which pod2man 2>/dev/null`" ]; then
@@ -994,6 +976,7 @@ echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
 echo "gprof enabled     $gprof"
+echo "sparse enabled    $sparse"
 echo "profiler          $profiler"
 echo "static build      $static"
 echo "-Werror enabled   $werror"
@@ -1142,6 +1125,11 @@ case "$cpu" in
     exit 1
   ;;
 esac
+if test "$sparse" = "yes" ; then
+  echo "CC      := REAL_CC=\"\$(CC)\" cgcc"       >> $config_mak
+  echo "HOST_CC := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_mak
+  echo "CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_mak
+fi
 if test "$bigendian" = "yes" ; then
   echo "WORDS_BIGENDIAN=yes" >> $config_mak
   echo "#define WORDS_BIGENDIAN 1" >> $config_h
@@ -1286,12 +1274,6 @@ fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
   echo "CONFIG_AIO=yes" >> $config_mak
-fi
-if test "$signalfd" = "yes" ; then
-  echo "#define CONFIG_signalfd 1" >> $config_h
-fi
-if test "$eventfd" = "yes" ; then
-  echo "#define CONFIG_eventfd 1" >> $config_h
 fi
 
 # XXX: suppress that
