@@ -143,6 +143,9 @@ void do_interrupt(CPUState *env)
 			break;
 	}
 
+	/* Fill in the IDX field.  */
+	env->pregs[PR_EXS] = (ex_vec & 0xff) << 8;
+
 	if (env->dslot) {
 		D(fprintf(logfile, "excp isr=%x PC=%x ds=%d SP=%x"
 			  " ERP=%x pid=%x ccs=%x cc=%d %x\n",

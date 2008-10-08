@@ -196,10 +196,6 @@ static inline void t_gen_mov_TN_preg(TCGv tn, int r)
 		tcg_gen_mov_tl(tn, tcg_const_tl(0));
 	else if (r == PR_VR)
 		tcg_gen_mov_tl(tn, tcg_const_tl(32));
-	else if (r == PR_EXS) {
-		printf("read from EXS!\n");
-		tcg_gen_mov_tl(tn, cpu_PR[r]);
-	}
 	else if (r == PR_EDA) {
 		printf("read from EDA!\n");
 		tcg_gen_mov_tl(tn, cpu_PR[r]);
@@ -2811,12 +2807,7 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 			DIS(fprintf(logfile, "break %d\n", dc->op1));
 			cris_evaluate_flags (dc);
 			/* break.  */
-			if (dc->op1 == 8) {
-				/* TODO: Find out whats special with brk8.  */
-				tcg_gen_movi_tl(env_pc, dc->pc);
-			}
-			else
-				tcg_gen_movi_tl(env_pc, dc->pc + 2);
+			tcg_gen_movi_tl(env_pc, dc->pc + 2);
 
 			/* Breaks start at 16 in the exception vector.  */
 			t_gen_mov_env_TN(trap_vector, 
@@ -3005,6 +2996,7 @@ cris_decoder(DisasContext *dc)
 		cris_evaluate_flags (dc);
 		t_gen_mov_env_TN(trap_vector, tcg_const_tl(3));
 		tcg_gen_movi_tl(env_pc, dc->pc + insn_len);
+		tcg_gen_movi_tl(cpu_PR[PR_SPC], dc->pc + insn_len);
 		t_gen_raise_exception(EXCP_BREAK);
 		gen_set_label(l1);
 	}
