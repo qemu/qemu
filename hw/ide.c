@@ -2308,8 +2308,15 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break;
         case WIN_DIAGNOSE:
             ide_set_signature(s);
-            s->status = READY_STAT | SEEK_STAT;
-            s->error = 0x01;
+            if (s->is_cdrom)
+                s->status = 0; /* ATAPI spec (v6) section 9.10 defines packet
+                                * devices to return a clear status register
+                                * with READY_STAT *not* set. */
+            else
+                s->status = READY_STAT | SEEK_STAT;
+            s->error = 0x01; /* Device 0 passed, Device 1 passed or not
+                              * present. 
+                              */
             ide_set_irq(s);
             break;
         case WIN_SRST:
