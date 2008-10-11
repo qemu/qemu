@@ -977,11 +977,15 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 	env->regs[n] = tmp;
     }
 
-    /* FIXME: Should other regs be writable?  */
+    if (n >= 21 && n < 32) {
+	env->pregs[n - 16] = tmp;
+    }
+
+    /* FIXME: Should support function regs be writable?  */
     switch (n) {
     case 16: return 1;
     case 17: return 1;
-    case 18: return 4;
+    case 18: env->pregs[PR_PID] = tmp; break;
     case 19: return 1;
     case 20: return 2;
     case 32: env->pc = tmp; break;
