@@ -716,6 +716,23 @@ else
 fi
 
 ##########################################
+# zlib check
+
+cat > $TMPC << EOF
+#include <zlib.h>
+int main(void) { zlibVersion(); return 0; }
+EOF
+if $cc $CFLAGS $LDFLAGS -o $TMPE $TMPC -lz 2> /dev/null ; then
+    :
+else
+    echo
+    echo "Error: zlib check failed"
+    echo "Make sure to have the zlib libs and headers installed."
+    echo
+    exit 1
+fi
+
+##########################################
 # SDL probe
 
 sdl_too_old=no
