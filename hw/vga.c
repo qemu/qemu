@@ -199,7 +199,6 @@ static void vga_precise_update_retrace_info(VGAState *s)
     htotal_chars <<= clocking_mode;
 
     r->total_chars = vtotal_lines * htotal_chars;
-    r->total_chars = (vretr_start_line + vretr_end_line + 1) * htotal_chars;
     if (r->freq) {
         r->ticks_per_char = ticks_per_sec / (r->total_chars * r->freq);
     } else {
@@ -214,7 +213,6 @@ static void vga_precise_update_retrace_info(VGAState *s)
     r->htotal = htotal_chars;
 
 #if 0
-    printf("hz=%f\n",
     printf (
         "hz=%f\n"
         "htotal = %d\n"
