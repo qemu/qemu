@@ -4008,6 +4008,7 @@ static QEMUMachine mips_machines[] = {
     .init = mips_ar7_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
   {
     .name = "ar7-amd",
@@ -4015,6 +4016,7 @@ static QEMUMachine mips_machines[] = {
     .init = ar7_amd_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
   {
     .name = "tnetd7200",
@@ -4022,6 +4024,7 @@ static QEMUMachine mips_machines[] = {
     .init = mips_tnetd7200_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
   {
     .name = "tnetd7300",
@@ -4029,6 +4032,7 @@ static QEMUMachine mips_machines[] = {
     .init = mips_tnetd7300_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
 #if defined(TARGET_WORDS_BIGENDIAN)
   {
@@ -4037,6 +4041,7 @@ static QEMUMachine mips_machines[] = {
     .init = zyxel_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
 #else
   {
@@ -4045,6 +4050,7 @@ static QEMUMachine mips_machines[] = {
     .init = fbox4_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
   {
     .name = "fbox-8mb",
@@ -4052,6 +4058,7 @@ static QEMUMachine mips_machines[] = {
     .init = fbox8_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
   {
     .name = "sinus-basic-se",
@@ -4059,6 +4066,7 @@ static QEMUMachine mips_machines[] = {
     .init = sinus_basic_se_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
   {
     .name = "sinus-se",
@@ -4066,6 +4074,7 @@ static QEMUMachine mips_machines[] = {
     .init = sinus_se_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
   {
     .name = "sinus-basic-3",
@@ -4073,6 +4082,7 @@ static QEMUMachine mips_machines[] = {
     .init = sinus_basic_3_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
   {
     .name = "speedport",
@@ -4080,6 +4090,7 @@ static QEMUMachine mips_machines[] = {
     .init = speedport_init,
     .ram_require = RAMSIZE,
     .nodisk_ok = 1,
+    .max_cpus = 1,
   },
 #endif
 };
