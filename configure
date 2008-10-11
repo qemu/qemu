@@ -1386,6 +1386,7 @@ elfload32="no"
 target_nptl="no"
 interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_cpu/g"`
 echo "#define CONFIG_QEMU_PREFIX \"$interp_prefix1\"" >> $config_h
+gdb_xml_files=""
 
 case "$target_cpu" in
   i386)
@@ -1425,6 +1426,7 @@ case "$target_cpu" in
     echo "#define TARGET_ARM 1" >> $config_h
     bflt="yes"
     target_nptl="yes"
+    gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
   ;;
   cris)
     echo "TARGET_ARCH=cris" >> $config_mak
@@ -1436,6 +1438,7 @@ case "$target_cpu" in
     echo "#define TARGET_ARCH \"m68k\"" >> $config_h
     echo "#define TARGET_M68K 1" >> $config_h
     bflt="yes"
+    gdb_xml_files="cf-core.xml cf-fp.xml"
   ;;
   mips|mipsel)
     echo "TARGET_ARCH=mips" >> $config_mak
@@ -1545,6 +1548,13 @@ if test "$target_darwin_user" = "yes" ; then
   echo "CONFIG_DARWIN_USER=yes" >> $config_mak
   echo "#define CONFIG_DARWIN_USER 1" >> $config_h
 fi
+list=""
+if test ! -z "$gdb_xml_files" ; then
+  for x in $gdb_xml_files; do
+    list="$list $source_path/gdb-xml/$x"
+  done
+fi
+echo "TARGET_XML_FILES=$list" >> $config_mak
 
 if test "$target_cpu" = "arm" \
      -o "$target_cpu" = "armeb" \

@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "config.h"
+#include "qemu-common.h"
 #ifdef CONFIG_USER_ONLY
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,11 +30,12 @@
 
 #include "qemu.h"
 #else
-#include "qemu-common.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "gdbstub.h"
 #endif
+
+#define MAX_PACKET_LENGTH 4096
 
 #include "qemu_socket.h"
 #ifdef _WIN32
@@ -50,6 +52,15 @@
 
 //#define DEBUG_GDB
 
+typedef struct GDBRegisterState {
+    int base_reg;
+    int num_regs;
+    gdb_reg_cb get_reg;
+    gdb_reg_cb set_reg;
+    const char *xml;
+    struct GDBRegisterState *next;
+} GDBRegisterState;
+
 enum RSState {
     RS_IDLE,
     RS_GETLINE,
@@ -60,10 +71,10 @@ enum RSState {
 typedef struct GDBState {
     CPUState *env; /* current CPU */
     enum RSState state; /* parsing state */
-    char line_buf[4096];
+    char line_buf[MAX_PACKET_LENGTH];
     int line_buf_index;
     int line_csum;
-    uint8_t last_packet[4100];
+    uint8_t last_packet[MAX_PACKET_LENGTH + 4];
     int last_packet_len;
     int signal;
 #ifdef CONFIG_USER_ONLY
@@ -78,6 +89,11 @@ typedef struct GDBState {
  * make single stepping like an ICE HW step.
  */
 static int sstep_flags = SSTEP_ENABLE|SSTEP_NOIRQ|SSTEP_NOTIMER;
+
+/* This is an ugly hack to cope with both new and old gdb.
+   If gdb sends qXfer:features:read then assume we're talking to a newish
+   gdb that understands target descriptions.  */
+static int gdb_has_xml;
 
 #ifdef CONFIG_USER_ONLY
 /* XXX: This is not thread safe.  Do we care?  */
@@ -205,19 +221,14 @@ static void hextomem(uint8_t *mem, const char *buf, int len)
 }
 
 /* return -1 if error, 0 if OK */
-static int put_packet(GDBState *s, const char *buf)
+static int put_packet_binary(GDBState *s, const char *buf, int len)
 {
-    int len, csum, i;
+    int csum, i;
     uint8_t *p;
-
-#ifdef DEBUG_GDB
-    printf("reply='%s'\n", buf);
-#endif
 
     for(;;) {
         p = s->last_packet;
         *(p++) = '$';
-        len = strlen(buf);
         memcpy(p, buf, len);
         p += len;
         csum = 0;
@@ -244,522 +255,539 @@ static int put_packet(GDBState *s, const char *buf)
     return 0;
 }
 
+/* return -1 if error, 0 if OK */
+static int put_packet(GDBState *s, const char *buf)
+{
+#ifdef DEBUG_GDB
+    printf("reply='%s'\n", buf);
+#endif
+
+    return put_packet_binary(s, buf, strlen(buf));
+}
+
+/* The GDB remote protocol transfers values in target byte order.  This means
+   we can use the raw memory access routines to access the value buffer.
+   Conveniently, these also handle the case where the buffer is mis-aligned.
+ */
+#define GET_REG8(val) do { \
+    stb_p(mem_buf, val); \
+    return 1; \
+    } while(0)
+#define GET_REG16(val) do { \
+    stw_p(mem_buf, val); \
+    return 2; \
+    } while(0)
+#define GET_REG32(val) do { \
+    stl_p(mem_buf, val); \
+    return 4; \
+    } while(0)
+#define GET_REG64(val) do { \
+    stq_p(mem_buf, val); \
+    return 8; \
+    } while(0)
+
+#if TARGET_LONG_BITS == 64
+#define GET_REGL(val) GET_REG64(val)
+#define ldtul_p(addr) ldq_p(addr)
+#else
+#define GET_REGL(val) GET_REG32(val)
+#define ldtul_p(addr) ldl_p(addr)
+#endif
+
 #if defined(TARGET_I386)
 
 #ifdef TARGET_X86_64
-static const uint8_t gdb_x86_64_regs[16] = {
+static const int gpr_map[16] = {
     R_EAX, R_EBX, R_ECX, R_EDX, R_ESI, R_EDI, R_EBP, R_ESP,
-    8, 9, 10, 11, 12, 13, 14, 15,
+    8, 9, 10, 11, 12, 13, 14, 15
 };
-#endif
-
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
-{
-    int i, fpus, nb_regs;
-    uint8_t *p;
-
-    p = mem_buf;
-#ifdef TARGET_X86_64
-    if (env->hflags & HF_CS64_MASK) {
-        nb_regs = 16;
-        for(i = 0; i < 16; i++) {
-            *(uint64_t *)p = tswap64(env->regs[gdb_x86_64_regs[i]]);
-            p += 8;
-        }
-        *(uint64_t *)p = tswap64(env->eip);
-        p += 8;
-    } else
-#endif
-    {
-        nb_regs = 8;
-        for(i = 0; i < 8; i++) {
-            *(uint32_t *)p = tswap32(env->regs[i]);
-            p += 4;
-        }
-        *(uint32_t *)p = tswap32(env->eip);
-        p += 4;
-    }
-
-    *(uint32_t *)p = tswap32(env->eflags);
-    p += 4;
-    *(uint32_t *)p = tswap32(env->segs[R_CS].selector);
-    p += 4;
-    *(uint32_t *)p = tswap32(env->segs[R_SS].selector);
-    p += 4;
-    *(uint32_t *)p = tswap32(env->segs[R_DS].selector);
-    p += 4;
-    *(uint32_t *)p = tswap32(env->segs[R_ES].selector);
-    p += 4;
-    *(uint32_t *)p = tswap32(env->segs[R_FS].selector);
-    p += 4;
-    *(uint32_t *)p = tswap32(env->segs[R_GS].selector);
-    p += 4;
-    for(i = 0; i < 8; i++) {
-        /* XXX: convert floats */
-#ifdef USE_X86LDOUBLE
-        memcpy(p, &env->fpregs[i], 10);
 #else
-        memset(p, 0, 10);
+static const int gpr_map[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 #endif
-        p += 10;
+
+#define NUM_CORE_REGS (CPU_NB_REGS * 2 + 25)
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < CPU_NB_REGS) {
+        GET_REGL(env->regs[gpr_map[n]]);
+    } else if (n >= CPU_NB_REGS + 8 && n < CPU_NB_REGS + 16) {
+        /* FIXME: byteswap float values.  */
+#ifdef USE_X86LDOUBLE
+        memcpy(mem_buf, &env->fpregs[n - (CPU_NB_REGS + 8)], 10);
+#else
+        memset(mem_buf, 0, 10);
+#endif
+        return 10;
+    } else if (n >= CPU_NB_REGS + 24) {
+        n -= CPU_NB_REGS + 24;
+        if (n < CPU_NB_REGS) {
+            stq_p(mem_buf, env->xmm_regs[n].XMM_Q(0));
+            stq_p(mem_buf + 8, env->xmm_regs[n].XMM_Q(1));
+            return 16;
+        } else if (n == CPU_NB_REGS) {
+            GET_REG32(env->mxcsr);
+        } 
+    } else {
+        n -= CPU_NB_REGS;
+        switch (n) {
+        case 0: GET_REGL(env->eip);
+        case 1: GET_REG32(env->eflags);
+        case 2: GET_REG32(env->segs[R_CS].selector);
+        case 3: GET_REG32(env->segs[R_SS].selector);
+        case 4: GET_REG32(env->segs[R_DS].selector);
+        case 5: GET_REG32(env->segs[R_ES].selector);
+        case 6: GET_REG32(env->segs[R_FS].selector);
+        case 7: GET_REG32(env->segs[R_GS].selector);
+        /* 8...15 x87 regs.  */
+        case 16: GET_REG32(env->fpuc);
+        case 17: GET_REG32((env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11);
+        case 18: GET_REG32(0); /* ftag */
+        case 19: GET_REG32(0); /* fiseg */
+        case 20: GET_REG32(0); /* fioff */
+        case 21: GET_REG32(0); /* foseg */
+        case 22: GET_REG32(0); /* fooff */
+        case 23: GET_REG32(0); /* fop */
+        /* 24+ xmm regs.  */
+        }
     }
-    *(uint32_t *)p = tswap32(env->fpuc); /* fctrl */
-    p += 4;
-    fpus = (env->fpus & ~0x3800) | (env->fpstt & 0x7) << 11;
-    *(uint32_t *)p = tswap32(fpus); /* fstat */
-    p += 4;
-    *(uint32_t *)p = 0; /* ftag */
-    p += 4;
-    *(uint32_t *)p = 0; /* fiseg */
-    p += 4;
-    *(uint32_t *)p = 0; /* fioff */
-    p += 4;
-    *(uint32_t *)p = 0; /* foseg */
-    p += 4;
-    *(uint32_t *)p = 0; /* fooff */
-    p += 4;
-    *(uint32_t *)p = 0; /* fop */
-    p += 4;
-    for(i = 0; i < nb_regs; i++) {
-        *(uint64_t *)p = tswap64(env->xmm_regs[i].XMM_Q(0));
-        p += 8;
-        *(uint64_t *)p = tswap64(env->xmm_regs[i].XMM_Q(1));
-        p += 8;
-    }
-    *(uint32_t *)p = tswap32(env->mxcsr);
-    p += 4;
-    return p - mem_buf;
+    return 0;
 }
 
-static inline void cpu_gdb_load_seg(CPUState *env, const uint8_t **pp, 
-                                    int sreg)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int i)
 {
-    const uint8_t *p;
-    uint32_t sel;
-    p = *pp;
-    sel = tswap32(*(uint32_t *)p);
-    p += 4;
-    if (sel != env->segs[sreg].selector) {
+    uint32_t tmp;
+
+    if (i < CPU_NB_REGS) {
+        env->regs[gpr_map[i]] = ldtul_p(mem_buf);
+        return sizeof(target_ulong);
+    } else if (i >= CPU_NB_REGS + 8 && i < CPU_NB_REGS + 16) {
+        i -= CPU_NB_REGS + 8;
+#ifdef USE_X86LDOUBLE
+        memcpy(&env->fpregs[i], mem_buf, 10);
+#endif
+        return 10;
+    } else if (i >= CPU_NB_REGS + 24) {
+        i -= CPU_NB_REGS + 24;
+        if (i < CPU_NB_REGS) {
+            env->xmm_regs[i].XMM_Q(0) = ldq_p(mem_buf);
+            env->xmm_regs[i].XMM_Q(1) = ldq_p(mem_buf + 8);
+            return 16;
+        } else if (i == CPU_NB_REGS) {
+            env->mxcsr = ldl_p(mem_buf);
+            return 4;
+        }
+    } else {
+        i -= CPU_NB_REGS;
+        switch (i) {
+        case 0: env->eip = ldtul_p(mem_buf); return sizeof(target_ulong);
+        case 1: env->eflags = ldl_p(mem_buf); return 4;
 #if defined(CONFIG_USER_ONLY)
-        cpu_x86_load_seg(env, sreg, sel);
+#define LOAD_SEG(index, sreg)\
+            tmp = ldl_p(mem_buf);\
+            if (tmp != env->segs[sreg].selector)\
+                cpu_x86_load_seg(env, sreg, tmp);
 #else
-        /* XXX: do it with a debug function which does not raise an
-           exception */
+/* FIXME: Honor segment registers.  Needs to avoid raising an exception
+   when the selector is invalid.  */
+#define LOAD_SEG(index, sreg) do {} while(0)
 #endif
-    }
-    *pp = p;
-}
-
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
-{
-    const uint8_t *p = mem_buf;
-    int i, nb_regs;
-    uint16_t fpus;
-
-#ifdef TARGET_X86_64
-    if (env->hflags & HF_CS64_MASK) {
-        nb_regs = 16;
-        for(i = 0; i < 16; i++) {
-            env->regs[gdb_x86_64_regs[i]] = tswap64(*(uint64_t *)p);
-            p += 8;
+        case 2: LOAD_SEG(10, R_CS); return 4;
+        case 3: LOAD_SEG(11, R_SS); return 4;
+        case 4: LOAD_SEG(12, R_DS); return 4;
+        case 5: LOAD_SEG(13, R_ES); return 4;
+        case 6: LOAD_SEG(14, R_FS); return 4;
+        case 7: LOAD_SEG(15, R_GS); return 4;
+        /* 8...15 x87 regs.  */
+        case 16: env->fpuc = ldl_p(mem_buf); return 4;
+        case 17:
+                 tmp = ldl_p(mem_buf);
+                 env->fpstt = (tmp >> 11) & 7;
+                 env->fpus = tmp & ~0x3800;
+                 return 4;
+        case 18: /* ftag */ return 4;
+        case 19: /* fiseg */ return 4;
+        case 20: /* fioff */ return 4;
+        case 21: /* foseg */ return 4;
+        case 22: /* fooff */ return 4;
+        case 23: /* fop */ return 4;
+        /* 24+ xmm regs.  */
         }
-        env->eip = tswap64(*(uint64_t *)p);
-        p += 8;
-    } else
-#endif
-    {
-        nb_regs = 8;
-        for(i = 0; i < 8; i++) {
-            env->regs[i] = tswap32(*(uint32_t *)p);
-            p += 4;
-        }
-        env->eip = tswap32(*(uint32_t *)p);
-        p += 4;
     }
-    env->eflags = tswap32(*(uint32_t *)p);
-    p += 4;
-    cpu_gdb_load_seg(env, &p, R_CS);
-    cpu_gdb_load_seg(env, &p, R_SS);
-    cpu_gdb_load_seg(env, &p, R_DS);
-    cpu_gdb_load_seg(env, &p, R_ES);
-    cpu_gdb_load_seg(env, &p, R_FS);
-    cpu_gdb_load_seg(env, &p, R_GS);
-    
-    /* FPU state */
-    for(i = 0; i < 8; i++) {
-        /* XXX: convert floats */
-#ifdef USE_X86LDOUBLE
-        memcpy(&env->fpregs[i], p, 10);
-#endif
-        p += 10;
-    }
-    env->fpuc = tswap32(*(uint32_t *)p); /* fctrl */
-    p += 4;
-    fpus = tswap32(*(uint32_t *)p);
-    p += 4;
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
-    p += 4 * 6;
-    
-    if (size >= ((p - mem_buf) + 16 * nb_regs + 4)) {
-        /* SSE state */
-        for(i = 0; i < nb_regs; i++) {
-            env->xmm_regs[i].XMM_Q(0) = tswap64(*(uint64_t *)p);
-            p += 8;
-            env->xmm_regs[i].XMM_Q(1) = tswap64(*(uint64_t *)p);
-            p += 8;
-        }
-        env->mxcsr = tswap32(*(uint32_t *)p);
-        p += 4;
-    }
+    /* Unrecognised register.  */
+    return 0;
 }
 
 #elif defined (TARGET_PPC)
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+
+#define NUM_CORE_REGS 71
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    uint32_t *registers = (uint32_t *)mem_buf, tmp;
-    int i;
-
-    /* fill in gprs */
-    for(i = 0; i < 32; i++) {
-        registers[i] = tswapl(env->gpr[i]);
+    if (n < 32) {
+        /* gprs */
+        GET_REGL(env->gpr[n]);
+    } else if (n < 64) {
+        /* fprs */
+        stfq_p(mem_buf, env->fpr[n]);
+        return 8;
+    } else {
+        switch (n) {
+        case 64: GET_REGL(env->nip);
+        case 65: GET_REGL(env->msr);
+        case 66:
+            {
+                uint32_t cr = 0;
+                int i;
+                for (i = 0; i < 8; i++)
+                    cr |= env->crf[i] << (32 - ((i + 1) * 4));
+                GET_REG32(cr);
+            }
+        case 67: GET_REGL(env->lr);
+        case 68: GET_REGL(env->ctr);
+        case 69: GET_REG32(ppc_load_xer(env));
+        case 70: GET_REG32(0); /* fpscr */
+        }
     }
-    /* fill in fprs */
-    for (i = 0; i < 32; i++) {
-        registers[(i * 2) + 32] = tswapl(*((uint32_t *)&env->fpr[i]));
-	registers[(i * 2) + 33] = tswapl(*((uint32_t *)&env->fpr[i] + 1));
-    }
-    /* nip, msr, ccr, lnk, ctr, xer, mq */
-    registers[96] = tswapl(env->nip);
-    registers[97] = tswapl(env->msr);
-    tmp = 0;
-    for (i = 0; i < 8; i++)
-        tmp |= env->crf[i] << (32 - ((i + 1) * 4));
-    registers[98] = tswapl(tmp);
-    registers[99] = tswapl(env->lr);
-    registers[100] = tswapl(env->ctr);
-    registers[101] = tswapl(ppc_load_xer(env));
-    registers[102] = 0;
-
-    return 103 * 4;
+    return 0;
 }
 
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    uint32_t *registers = (uint32_t *)mem_buf;
-    int i;
-
-    /* fill in gprs */
-    for (i = 0; i < 32; i++) {
-        env->gpr[i] = tswapl(registers[i]);
+    if (n < 32) {
+        /* gprs */
+        env->gpr[n] = ldtul_p(mem_buf);
+        return sizeof(target_ulong);
+    } else if (n < 64) {
+        /* fprs */
+        env->fpr[n] = ldfq_p(mem_buf);
+        return 8;
+    } else {
+        switch (n) {
+        case 64:
+            env->nip = ldtul_p(mem_buf);
+            return sizeof(target_ulong);
+        case 65:
+            ppc_store_msr(env, ldtul_p(mem_buf));
+            return sizeof(target_ulong);
+        case 66:
+            {
+                uint32_t cr = ldl_p(mem_buf);
+                int i;
+                for (i = 0; i < 8; i++)
+                    env->crf[i] = (cr >> (32 - ((i + 1) * 4))) & 0xF;
+                return 4;
+            }
+        case 67:
+            env->lr = ldtul_p(mem_buf);
+            return sizeof(target_ulong);
+        case 68:
+            env->ctr = ldtul_p(mem_buf);
+            return sizeof(target_ulong);
+        case 69:
+            ppc_store_xer(env, ldl_p(mem_buf));
+            return 4;
+        case 70:
+            /* fpscr */
+            return 4;
+        }
     }
-    /* fill in fprs */
-    for (i = 0; i < 32; i++) {
-        *((uint32_t *)&env->fpr[i]) = tswapl(registers[(i * 2) + 32]);
-	*((uint32_t *)&env->fpr[i] + 1) = tswapl(registers[(i * 2) + 33]);
-    }
-    /* nip, msr, ccr, lnk, ctr, xer, mq */
-    env->nip = tswapl(registers[96]);
-    ppc_store_msr(env, tswapl(registers[97]));
-    registers[98] = tswapl(registers[98]);
-    for (i = 0; i < 8; i++)
-        env->crf[i] = (registers[98] >> (32 - ((i + 1) * 4))) & 0xF;
-    env->lr = tswapl(registers[99]);
-    env->ctr = tswapl(registers[100]);
-    ppc_store_xer(env, tswapl(registers[101]));
+    return 0;
 }
+
 #elif defined (TARGET_SPARC)
-#ifdef TARGET_ABI32
-#define tswap_abi(val) tswap32(val &0xffffffff)
-#else
-#define tswap_abi(val) tswapl(val)
-#endif
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
-{
-#ifdef TARGET_ABI32
-    abi_ulong *registers = (abi_ulong *)mem_buf;
-#else
-    target_ulong *registers = (target_ulong *)mem_buf;
-#endif
-    int i;
 
-    /* fill in g0..g7 */
-    for(i = 0; i < 8; i++) {
-        registers[i] = tswap_abi(env->gregs[i]);
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
+#define NUM_CORE_REGS 86
+#else
+#define NUM_CORE_REGS 73
+#endif
+
+#ifdef TARGET_ABI32
+#define GET_REGA(val) GET_REG32(val)
+#else
+#define GET_REGA(val) GET_REGL(val)
+#endif
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 8) {
+        /* g0..g7 */
+        GET_REGA(env->gregs[n]);
     }
-    /* fill in register window */
-    for(i = 0; i < 24; i++) {
-        registers[i + 8] = tswap_abi(env->regwptr[i]);
+    if (n < 32) {
+        /* register window */
+        GET_REGA(env->regwptr[n - 8]);
     }
-#if !defined(TARGET_SPARC64) || defined(TARGET_ABI32)
-    /* fill in fprs */
-    for (i = 0; i < 32; i++) {
-        registers[i + 32] = tswap_abi(*((uint32_t *)&env->fpr[i]));
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    if (n < 64) {
+        /* fprs */
+        GET_REG32(*((uint32_t *)&env->fpr[n - 32]));
     }
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
-    registers[64] = tswap_abi(env->y);
-    {
-        uint32_t tmp;
-
-        tmp = GET_PSR(env);
-        registers[65] = tswap32(tmp);
+    switch (n) {
+    case 64: GET_REGA(env->y);
+    case 65: GET_REGA(GET_PSR(env));
+    case 66: GET_REGA(env->wim);
+    case 67: GET_REGA(env->tbr);
+    case 68: GET_REGA(env->pc);
+    case 69: GET_REGA(env->npc);
+    case 70: GET_REGA(env->fsr);
+    case 71: GET_REGA(0); /* csr */
+    case 72: GET_REGA(0);
     }
-    registers[66] = tswap_abi(env->wim);
-    registers[67] = tswap_abi(env->tbr);
-    registers[68] = tswap_abi(env->pc);
-    registers[69] = tswap_abi(env->npc);
-    registers[70] = tswap_abi(env->fsr);
-    registers[71] = 0; /* csr */
-    registers[72] = 0;
-    return 73 * sizeof(uint32_t);
 #else
-    /* fill in fprs */
-    for (i = 0; i < 64; i += 2) {
-	uint64_t tmp;
-
-        tmp = ((uint64_t)*(uint32_t *)&env->fpr[i]) << 32;
-        tmp |= *(uint32_t *)&env->fpr[i + 1];
-        registers[i / 2 + 32] = tswap64(tmp);
+    if (n < 64) {
+        /* f0-f31 */
+        GET_REG32(*((uint32_t *)&env->fpr[n - 32]));
     }
-    registers[64] = tswapl(env->pc);
-    registers[65] = tswapl(env->npc);
-    registers[66] = tswapl(((uint64_t)GET_CCR(env) << 32) |
+    if (n < 80) {
+        /* f32-f62 (double width, even numbers only) */
+        uint64_t val;
+
+        val = (uint64_t)*((uint32_t *)&env->fpr[(n - 64) * 2 + 32]) << 32;
+        val |= *((uint32_t *)&env->fpr[(n - 64) * 2 + 33]);
+        GET_REG64(val);
+    }
+    switch (n) {
+    case 80: GET_REGL(env->pc);
+    case 81: GET_REGL(env->npc);
+    case 82: GET_REGL(((uint64_t)GET_CCR(env) << 32) |
                            ((env->asi & 0xff) << 24) |
                            ((env->pstate & 0xfff) << 8) |
                            GET_CWP64(env));
-    registers[67] = tswapl(env->fsr);
-    registers[68] = tswapl(env->fprs);
-    registers[69] = tswapl(env->y);
-    return 70 * sizeof(target_ulong);
+    case 83: GET_REGL(env->fsr);
+    case 84: GET_REGL(env->fprs);
+    case 85: GET_REGL(env->y);
+    }
 #endif
+    return 0;
 }
 
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-#ifdef TARGET_ABI32
-    abi_ulong *registers = (abi_ulong *)mem_buf;
+#if defined(TARGET_ABI32)
+    abi_ulong tmp;
+
+    tmp = ldl_p(mem_buf);
 #else
-    target_ulong *registers = (target_ulong *)mem_buf;
+    target_ulong tmp;
+
+    tmp = ldtul_p(mem_buf);
 #endif
-    int i;
 
-    /* fill in g0..g7 */
-    for(i = 0; i < 7; i++) {
-        env->gregs[i] = tswap_abi(registers[i]);
+    if (n < 8) {
+        /* g0..g7 */
+        env->gregs[n] = tmp;
+    } else if (n < 32) {
+        /* register window */
+        env->regwptr[n - 8] = tmp;
     }
-    /* fill in register window */
-    for(i = 0; i < 24; i++) {
-        env->regwptr[i] = tswap_abi(registers[i + 8]);
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    else if (n < 64) {
+        /* fprs */
+        *((uint32_t *)&env->fpr[n - 32]) = tmp;
+    } else {
+        /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
+        switch (n) {
+        case 64: env->y = tmp; break;
+        case 65: PUT_PSR(env, tmp); break;
+        case 66: env->wim = tmp; break;
+        case 67: env->tbr = tmp; break;
+        case 68: env->pc = tmp; break;
+        case 69: env->npc = tmp; break;
+        case 70: env->fsr = tmp; break;
+        default: return 0;
+        }
     }
-#if !defined(TARGET_SPARC64) || defined(TARGET_ABI32)
-    /* fill in fprs */
-    for (i = 0; i < 32; i++) {
-        *((uint32_t *)&env->fpr[i]) = tswap_abi(registers[i + 32]);
-    }
-    /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
-    env->y = tswap_abi(registers[64]);
-    PUT_PSR(env, tswap_abi(registers[65]));
-    env->wim = tswap_abi(registers[66]);
-    env->tbr = tswap_abi(registers[67]);
-    env->pc = tswap_abi(registers[68]);
-    env->npc = tswap_abi(registers[69]);
-    env->fsr = tswap_abi(registers[70]);
+    return 4;
 #else
-    for (i = 0; i < 64; i += 2) {
-        uint64_t tmp;
+    else if (n < 64) {
+        /* f0-f31 */
+        uint32_t fpr;
 
-        tmp = tswap64(registers[i / 2 + 32]);
-	*((uint32_t *)&env->fpr[i]) = tmp >> 32;
-	*((uint32_t *)&env->fpr[i + 1]) = tmp & 0xffffffff;
+        env->fpr[n] = ldfl_p(mem_buf);
+        return 4;
+    } else if (n < 80) {
+        /* f32-f62 (double width, even numbers only) */
+        *((uint32_t *)&env->fpr[(n - 64) * 2 + 32]) = tmp >> 32;
+        *((uint32_t *)&env->fpr[(n - 64) * 2 + 33]) = tmp;
+    } else {
+        switch (n) {
+        case 80: env->pc = tmp; break;
+        case 81: env->npc = tmp; break;
+        case 82:
+	    PUT_CCR(env, tmp >> 32);
+	    env->asi = (tmp >> 24) & 0xff;
+	    env->pstate = (tmp >> 8) & 0xfff;
+	    PUT_CWP64(env, tmp & 0xff);
+	    break;
+        case 83: env->fsr = tmp; break;
+        case 84: env->fprs = tmp; break;
+        case 85: env->y = tmp; break;
+        default: return 0;
+        }
     }
-    env->pc = tswapl(registers[64]);
-    env->npc = tswapl(registers[65]);
-    {
-        uint64_t tmp = tswapl(registers[66]);
-
-        PUT_CCR(env, tmp >> 32);
-        env->asi = (tmp >> 24) & 0xff;
-        env->pstate = (tmp >> 8) & 0xfff;
-        PUT_CWP64(env, tmp & 0xff);
-    }
-    env->fsr = tswapl(registers[67]);
-    env->fprs = tswapl(registers[68]);
-    env->y = tswapl(registers[69]);
+    return 8;
 #endif
 }
-#undef tswap_abi
 #elif defined (TARGET_ARM)
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+
+/* Old gdb always expect FPA registers.  Newer (xml-aware) gdb only expect
+   whatever the target description contains.  Due to a historical mishap
+   the FPA registers appear in between core integer regs and the CPSR.
+   We hack round this by giving the FPA regs zero size when talking to a
+   newer gdb.  */
+#define NUM_CORE_REGS 26
+#define GDB_CORE_XML "arm-core.xml"
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    int i;
-    uint8_t *ptr;
-
-    ptr = mem_buf;
-    /* 16 core integer registers (4 bytes each).  */
-    for (i = 0; i < 16; i++)
-      {
-        *(uint32_t *)ptr = tswapl(env->regs[i]);
-        ptr += 4;
-      }
-    /* 8 FPA registers (12 bytes each), FPS (4 bytes).
-       Not yet implemented.  */
-    memset (ptr, 0, 8 * 12 + 4);
-    ptr += 8 * 12 + 4;
-    /* CPSR (4 bytes).  */
-    *(uint32_t *)ptr = tswapl (cpsr_read(env));
-    ptr += 4;
-
-    return ptr - mem_buf;
+    if (n < 16) {
+        /* Core integer register.  */
+        GET_REG32(env->regs[n]);
+    }
+    if (n < 24) {
+        /* FPA registers.  */
+        if (gdb_has_xml)
+            return 0;
+        memset(mem_buf, 0, 12);
+        return 12;
+    }
+    switch (n) {
+    case 24:
+        /* FPA status register.  */
+        if (gdb_has_xml)
+            return 0;
+        GET_REG32(0);
+    case 25:
+        /* CPSR */
+        GET_REG32(cpsr_read(env));
+    }
+    /* Unknown register.  */
+    return 0;
 }
 
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    int i;
-    uint8_t *ptr;
+    uint32_t tmp;
 
-    ptr = mem_buf;
-    /* Core integer registers.  */
-    for (i = 0; i < 16; i++)
-      {
-        env->regs[i] = tswapl(*(uint32_t *)ptr);
-        ptr += 4;
-      }
-    /* Ignore FPA regs and scr.  */
-    ptr += 8 * 12 + 4;
-    cpsr_write (env, tswapl(*(uint32_t *)ptr), 0xffffffff);
+    tmp = ldl_p(mem_buf);
+
+    /* Mask out low bit of PC to workaround gdb bugs.  This will probably
+       cause problems if we ever implement the Jazelle DBX extensions.  */
+    if (n == 15)
+        tmp &= ~1;
+
+    if (n < 16) {
+        /* Core integer register.  */
+        env->regs[n] = tmp;
+        return 4;
+    }
+    if (n < 24) { /* 16-23 */
+        /* FPA registers (ignored).  */
+        if (gdb_has_xml)
+            return 0;
+        return 12;
+    }
+    switch (n) {
+    case 24:
+        /* FPA status register (ignored).  */
+        if (gdb_has_xml)
+            return 0;
+        return 4;
+    case 25:
+        /* CPSR */
+        cpsr_write (env, tmp, 0xffffffff);
+        return 4;
+    }
+    /* Unknown register.  */
+    return 0;
 }
+
 #elif defined (TARGET_M68K)
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+
+#define NUM_CORE_REGS 18
+
+#define GDB_CORE_XML "cf-core.xml"
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    int i;
-    uint8_t *ptr;
-    CPU_DoubleU u;
-
-    ptr = mem_buf;
-    /* D0-D7 */
-    for (i = 0; i < 8; i++) {
-        *(uint32_t *)ptr = tswapl(env->dregs[i]);
-        ptr += 4;
+    if (n < 8) {
+        /* D0-D7 */
+        GET_REG32(env->dregs[n]);
+    } else if (n < 16) {
+        /* A0-A7 */
+        GET_REG32(env->aregs[n - 8]);
+    } else {
+	switch (n) {
+        case 16: GET_REG32(env->sr);
+        case 17: GET_REG32(env->pc);
+        }
     }
-    /* A0-A7 */
-    for (i = 0; i < 8; i++) {
-        *(uint32_t *)ptr = tswapl(env->aregs[i]);
-        ptr += 4;
-    }
-    *(uint32_t *)ptr = tswapl(env->sr);
-    ptr += 4;
-    *(uint32_t *)ptr = tswapl(env->pc);
-    ptr += 4;
-    /* F0-F7.  The 68881/68040 have 12-bit extended precision registers.
-       ColdFire has 8-bit double precision registers.  */
-    for (i = 0; i < 8; i++) {
-        u.d = env->fregs[i];
-        *(uint32_t *)ptr = tswap32(u.l.upper);
-        *(uint32_t *)ptr = tswap32(u.l.lower);
-    }
-    /* FP control regs (not implemented).  */
-    memset (ptr, 0, 3 * 4);
-    ptr += 3 * 4;
-
-    return ptr - mem_buf;
+    /* FP registers not included here because they vary between
+       ColdFire and m68k.  Use XML bits for these.  */
+    return 0;
 }
 
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    int i;
-    uint8_t *ptr;
-    CPU_DoubleU u;
+    uint32_t tmp;
 
-    ptr = mem_buf;
-    /* D0-D7 */
-    for (i = 0; i < 8; i++) {
-        env->dregs[i] = tswapl(*(uint32_t *)ptr);
-        ptr += 4;
+    tmp = ldl_p(mem_buf);
+
+    if (n < 8) {
+        /* D0-D7 */
+        env->dregs[n] = tmp;
+    } else if (n < 8) {
+        /* A0-A7 */
+        env->aregs[n - 8] = tmp;
+    } else {
+        switch (n) {
+        case 16: env->sr = tmp; break;
+        case 17: env->pc = tmp; break;
+        default: return 0;
+        }
     }
-    /* A0-A7 */
-    for (i = 0; i < 8; i++) {
-        env->aregs[i] = tswapl(*(uint32_t *)ptr);
-        ptr += 4;
-    }
-    env->sr = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
-    env->pc = tswapl(*(uint32_t *)ptr);
-    ptr += 4;
-    /* F0-F7.  The 68881/68040 have 12-bit extended precision registers.
-       ColdFire has 8-bit double precision registers.  */
-    for (i = 0; i < 8; i++) {
-        u.l.upper = tswap32(*(uint32_t *)ptr);
-        u.l.lower = tswap32(*(uint32_t *)ptr);
-        env->fregs[i] = u.d;
-    }
-    /* FP control regs (not implemented).  */
-    ptr += 3 * 4;
+    return 4;
 }
 #elif defined (TARGET_MIPS)
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+
+#define NUM_CORE_REGS 73
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    int i;
-    uint8_t *ptr;
-
-    ptr = mem_buf;
-    for (i = 0; i < 32; i++)
-      {
-        *(target_ulong *)ptr = tswapl(env->active_tc.gpr[i]);
-        ptr += sizeof(target_ulong);
-      }
-
-    *(target_ulong *)ptr = (int32_t)tswap32(env->CP0_Status);
-    ptr += sizeof(target_ulong);
-
-    *(target_ulong *)ptr = tswapl(env->active_tc.LO[0]);
-    ptr += sizeof(target_ulong);
-
-    *(target_ulong *)ptr = tswapl(env->active_tc.HI[0]);
-    ptr += sizeof(target_ulong);
-
-    *(target_ulong *)ptr = tswapl(env->CP0_BadVAddr);
-    ptr += sizeof(target_ulong);
-
-    *(target_ulong *)ptr = (int32_t)tswap32(env->CP0_Cause);
-    ptr += sizeof(target_ulong);
-
-    *(target_ulong *)ptr = tswapl(env->active_tc.PC);
-    ptr += sizeof(target_ulong);
-
-    if (env->CP0_Config1 & (1 << CP0C1_FP))
-      {
-        for (i = 0; i < 32; i++)
-          {
+    if (n < 32) {
+        GET_REGL(env->active_tc.gpr[n]);
+    }
+    if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+        if (n >= 38 && n < 70) {
             if (env->CP0_Status & (1 << CP0St_FR))
-              *(target_ulong *)ptr = tswapl(env->active_fpu.fpr[i].d);
+		GET_REGL(env->active_fpu.fpr[n - 38].d);
             else
-              *(target_ulong *)ptr = tswap32(env->active_fpu.fpr[i].w[FP_ENDIAN_IDX]);
-            ptr += sizeof(target_ulong);
-          }
+		GET_REGL(env->active_fpu.fpr[n - 38].w[FP_ENDIAN_IDX]);
+        }
+        switch (n) {
+        case 70: GET_REGL((int32_t)env->active_fpu.fcr31);
+        case 71: GET_REGL((int32_t)env->active_fpu.fcr0);
+        }
+    }
+    switch (n) {
+    case 32: GET_REGL((int32_t)env->CP0_Status);
+    case 33: GET_REGL(env->active_tc.LO[0]);
+    case 34: GET_REGL(env->active_tc.HI[0]);
+    case 35: GET_REGL(env->CP0_BadVAddr);
+    case 36: GET_REGL((int32_t)env->CP0_Cause);
+    case 37: GET_REGL(env->active_tc.PC);
+    case 72: GET_REGL(0); /* fp */
+    case 89: GET_REGL((int32_t)env->CP0_PRid);
+    }
+    if (n >= 73 && n <= 88) {
+	/* 16 embedded regs.  */
+	GET_REGL(0);
+    }
 
-        *(target_ulong *)ptr = (int32_t)tswap32(env->active_fpu.fcr31);
-        ptr += sizeof(target_ulong);
-
-        *(target_ulong *)ptr = (int32_t)tswap32(env->active_fpu.fcr0);
-        ptr += sizeof(target_ulong);
-      }
-
-    /* "fp", pseudo frame pointer. Not yet implemented in gdb. */
-    *(target_ulong *)ptr = 0;
-    ptr += sizeof(target_ulong);
-
-    /* Registers for embedded use, we just pad them. */
-    for (i = 0; i < 16; i++)
-      {
-        *(target_ulong *)ptr = 0;
-        ptr += sizeof(target_ulong);
-      }
-
-    /* Processor ID. */
-    *(target_ulong *)ptr = (int32_t)tswap32(env->CP0_PRid);
-    ptr += sizeof(target_ulong);
-
-    return ptr - mem_buf;
+    return 0;
 }
 
 /* convert MIPS rounding mode in FCR31 to IEEE library */
@@ -773,202 +801,355 @@ static unsigned int ieee_rm[] =
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3], &env->active_fpu.fp_status)
 
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-    int i;
-    uint8_t *ptr;
+    target_ulong tmp;
 
-    ptr = mem_buf;
-    for (i = 0; i < 32; i++)
-      {
-        env->active_tc.gpr[i] = tswapl(*(target_ulong *)ptr);
-        ptr += sizeof(target_ulong);
-      }
+    tmp = ldtul_p(mem_buf);
 
-    env->CP0_Status = tswapl(*(target_ulong *)ptr);
-    ptr += sizeof(target_ulong);
-
-    env->active_tc.LO[0] = tswapl(*(target_ulong *)ptr);
-    ptr += sizeof(target_ulong);
-
-    env->active_tc.HI[0] = tswapl(*(target_ulong *)ptr);
-    ptr += sizeof(target_ulong);
-
-    env->CP0_BadVAddr = tswapl(*(target_ulong *)ptr);
-    ptr += sizeof(target_ulong);
-
-    env->CP0_Cause = tswapl(*(target_ulong *)ptr);
-    ptr += sizeof(target_ulong);
-
-    env->active_tc.PC = tswapl(*(target_ulong *)ptr);
-    ptr += sizeof(target_ulong);
-
-    if (env->CP0_Config1 & (1 << CP0C1_FP))
-      {
-        for (i = 0; i < 32; i++)
-          {
+    if (n < 32) {
+        env->active_tc.gpr[n] = tmp;
+        return sizeof(target_ulong);
+    }
+    if (env->CP0_Config1 & (1 << CP0C1_FP)
+            && n >= 38 && n < 73) {
+        if (n < 70) {
             if (env->CP0_Status & (1 << CP0St_FR))
-              env->active_fpu.fpr[i].d = tswapl(*(target_ulong *)ptr);
+              env->active_fpu.fpr[n - 38].d = tmp;
             else
-              env->active_fpu.fpr[i].w[FP_ENDIAN_IDX] = tswapl(*(target_ulong *)ptr);
-            ptr += sizeof(target_ulong);
-          }
-
-        env->active_fpu.fcr31 = tswapl(*(target_ulong *)ptr) & 0xFF83FFFF;
-        ptr += sizeof(target_ulong);
-
-        /* The remaining registers are assumed to be read-only. */
-
-        /* set rounding mode */
-        RESTORE_ROUNDING_MODE;
-
+              env->active_fpu.fpr[n - 38].w[FP_ENDIAN_IDX] = tmp;
+        }
+        switch (n) {
+        case 70:
+            env->active_fpu.fcr31 = tmp & 0xFF83FFFF;
+            /* set rounding mode */
+            RESTORE_ROUNDING_MODE;
 #ifndef CONFIG_SOFTFLOAT
-        /* no floating point exception for native float */
-        SET_FP_ENABLE(env->fcr31, 0);
+            /* no floating point exception for native float */
+            SET_FP_ENABLE(env->active_fpu.fcr31, 0);
 #endif
-      }
+            break;
+        case 71: env->active_fpu.fcr0 = tmp; break;
+        }
+        return sizeof(target_ulong);
+    }
+    switch (n) {
+    case 32: env->CP0_Status = tmp; break;
+    case 33: env->active_tc.LO[0] = tmp; break;
+    case 34: env->active_tc.HI[0] = tmp; break;
+    case 35: env->CP0_BadVAddr = tmp; break;
+    case 36: env->CP0_Cause = tmp; break;
+    case 37: env->active_tc.PC = tmp; break;
+    case 72: /* fp, ignored */ break;
+    default: 
+	if (n > 89)
+	    return 0;
+	/* Other registers are readonly.  Ignore writes.  */
+	break;
+    }
+
+    return sizeof(target_ulong);
 }
 #elif defined (TARGET_SH4)
 
 /* Hint: Use "set architecture sh4" in GDB to see fpu registers */
+/* FIXME: We should use XML for this.  */
 
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+#define NUM_CORE_REGS 59
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-  uint32_t *ptr = (uint32_t *)mem_buf;
-  int i;
+    if (n < 8) {
+        if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
+            GET_REGL(env->gregs[n + 16]);
+        } else {
+            GET_REGL(env->gregs[n]);
+        }
+    } else if (n < 16) {
+        GET_REGL(env->gregs[n - 8]);
+    } else if (n >= 25 && n < 41) {
+	GET_REGL(env->fregs[(n - 25) + ((env->fpscr & FPSCR_FR) ? 16 : 0)]);
+    } else if (n >= 43 && n < 51) {
+	GET_REGL(env->gregs[n - 43]);
+    } else if (n >= 51 && n < 59) {
+	GET_REGL(env->gregs[n - (51 - 16)]);
+    }
+    switch (n) {
+    case 16: GET_REGL(env->pc);
+    case 17: GET_REGL(env->pr);
+    case 18: GET_REGL(env->gbr);
+    case 19: GET_REGL(env->vbr);
+    case 20: GET_REGL(env->mach);
+    case 21: GET_REGL(env->macl);
+    case 22: GET_REGL(env->sr);
+    case 23: GET_REGL(env->fpul);
+    case 24: GET_REGL(env->fpscr);
+    case 41: GET_REGL(env->ssr);
+    case 42: GET_REGL(env->spc);
+    }
 
-#define SAVE(x) *ptr++=tswapl(x)
-  if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
-      for (i = 0; i < 8; i++) SAVE(env->gregs[i + 16]);
-  } else {
-      for (i = 0; i < 8; i++) SAVE(env->gregs[i]);
-  }
-  for (i = 8; i < 16; i++) SAVE(env->gregs[i]);
-  SAVE (env->pc);
-  SAVE (env->pr);
-  SAVE (env->gbr);
-  SAVE (env->vbr);
-  SAVE (env->mach);
-  SAVE (env->macl);
-  SAVE (env->sr);
-  SAVE (env->fpul);
-  SAVE (env->fpscr);
-  for (i = 0; i < 16; i++)
-      SAVE(env->fregs[i + ((env->fpscr & FPSCR_FR) ? 16 : 0)]);
-  SAVE (env->ssr);
-  SAVE (env->spc);
-  for (i = 0; i < 8; i++) SAVE(env->gregs[i]);
-  for (i = 0; i < 8; i++) SAVE(env->gregs[i + 16]);
-  return ((uint8_t *)ptr - mem_buf);
+    return 0;
 }
 
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-  uint32_t *ptr = (uint32_t *)mem_buf;
-  int i;
+    uint32_t tmp;
 
-#define LOAD(x) (x)=*ptr++;
-  if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
-      for (i = 0; i < 8; i++) LOAD(env->gregs[i + 16]);
-  } else {
-      for (i = 0; i < 8; i++) LOAD(env->gregs[i]);
-  }
-  for (i = 8; i < 16; i++) LOAD(env->gregs[i]);
-  LOAD (env->pc);
-  LOAD (env->pr);
-  LOAD (env->gbr);
-  LOAD (env->vbr);
-  LOAD (env->mach);
-  LOAD (env->macl);
-  LOAD (env->sr);
-  LOAD (env->fpul);
-  LOAD (env->fpscr);
-  for (i = 0; i < 16; i++)
-      LOAD(env->fregs[i + ((env->fpscr & FPSCR_FR) ? 16 : 0)]);
-  LOAD (env->ssr);
-  LOAD (env->spc);
-  for (i = 0; i < 8; i++) LOAD(env->gregs[i]);
-  for (i = 0; i < 8; i++) LOAD(env->gregs[i + 16]);
+    tmp = ldl_p(mem_buf);
+
+    if (n < 8) {
+        if ((env->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB)) {
+            env->gregs[n + 16] = tmp;
+        } else {
+            env->gregs[n] = tmp;
+        }
+	return 4;
+    } else if (n < 16) {
+        env->gregs[n - 8] = tmp;
+	return 4;
+    } else if (n >= 25 && n < 41) {
+	env->fregs[(n - 25) + ((env->fpscr & FPSCR_FR) ? 16 : 0)] = tmp;
+    } else if (n >= 43 && n < 51) {
+	env->gregs[n - 43] = tmp;
+	return 4;
+    } else if (n >= 51 && n < 59) {
+	env->gregs[n - (51 - 16)] = tmp;
+	return 4;
+    }
+    switch (n) {
+    case 16: env->pc = tmp;
+    case 17: env->pr = tmp;
+    case 18: env->gbr = tmp;
+    case 19: env->vbr = tmp;
+    case 20: env->mach = tmp;
+    case 21: env->macl = tmp;
+    case 22: env->sr = tmp;
+    case 23: env->fpul = tmp;
+    case 24: env->fpscr = tmp;
+    case 41: env->ssr = tmp;
+    case 42: env->spc = tmp;
+    default: return 0;
+    }
+
+    return 4;
 }
 #elif defined (TARGET_CRIS)
 
-static int cris_save_32 (unsigned char *d, uint32_t value)
+#define NUM_CORE_REGS 49
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-	*d++ = (value);
-	*d++ = (value >>= 8);
-	*d++ = (value >>= 8);
-	*d++ = (value >>= 8);
-	return 4;
-}
-static int cris_save_16 (unsigned char *d, uint32_t value)
-{
-	*d++ = (value);
-	*d++ = (value >>= 8);
-	return 2;
-}
-static int cris_save_8 (unsigned char *d, uint32_t value)
-{
-	*d++ = (value);
-	return 1;
-}
+    uint8_t srs;
 
-/* FIXME: this will bug on archs not supporting unaligned word accesses.  */
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
-{
-  uint8_t *ptr = mem_buf;
-  uint8_t srs;
-  int i;
+    srs = env->pregs[PR_SRS];
+    if (n < 16) {
+	GET_REG32(env->regs[n]);
+    }
 
-  for (i = 0; i < 16; i++)
-	  ptr += cris_save_32 (ptr, env->regs[i]);
+    if (n >= 21 && n < 32) {
+	GET_REG32(env->pregs[n - 16]);
+    }
+    if (n >= 33 && n < 49) {
+	GET_REG32(env->sregs[srs][n - 33]);
+    }
+    switch (n) {
+    case 16: GET_REG8(env->pregs[0]);
+    case 17: GET_REG8(env->pregs[1]);
+    case 18: GET_REG32(env->pregs[2]);
+    case 19: GET_REG8(srs);
+    case 20: GET_REG16(env->pregs[4]);
+    case 32: GET_REG32(env->pc);
+    }
 
-  srs = env->pregs[PR_SRS];
-
-  ptr += cris_save_8 (ptr, env->pregs[0]);
-  ptr += cris_save_8 (ptr, env->pregs[1]);
-  ptr += cris_save_32 (ptr, env->pregs[2]);
-  ptr += cris_save_8 (ptr, srs);
-  ptr += cris_save_16 (ptr, env->pregs[4]);
-
-  for (i = 5; i < 16; i++)
-	  ptr += cris_save_32 (ptr, env->pregs[i]);
-
-  ptr += cris_save_32 (ptr, env->pc);
-
-  for (i = 0; i < 16; i++)
-	  ptr += cris_save_32 (ptr, env->sregs[srs][i]);
-
-  return ((uint8_t *)ptr - mem_buf);
+    return 0;
 }
 
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
-  uint32_t *ptr = (uint32_t *)mem_buf;
-  int i;
+    uint32_t tmp;
 
-#define LOAD(x) (x)=*ptr++;
-  for (i = 0; i < 16; i++) LOAD(env->regs[i]);
-  LOAD (env->pc);
+    if (n > 49)
+	return 0;
+
+    tmp = ldl_p(mem_buf);
+
+    if (n < 16) {
+	env->regs[n] = tmp;
+    }
+
+    /* FIXME: Should other regs be writable?  */
+    switch (n) {
+    case 16: return 1;
+    case 17: return 1;
+    case 18: return 4;
+    case 19: return 1;
+    case 20: return 2;
+    case 32: env->pc = tmp; break;
+    }
+
+    return 4;
 }
 #else
-static int cpu_gdb_read_registers(CPUState *env, uint8_t *mem_buf)
+
+#define NUM_CORE_REGS 0
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 {
     return 0;
 }
 
-static void cpu_gdb_write_registers(CPUState *env, uint8_t *mem_buf, int size)
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 {
+    return 0;
 }
 
 #endif
+
+static int num_g_regs = NUM_CORE_REGS;
+
+#ifdef GDB_CORE_XML
+/* Encode data using the encoding for 'x' packets.  */
+static int memtox(char *buf, const char *mem, int len)
+{
+    char *p = buf;
+    char c;
+
+    while (len--) {
+        c = *(mem++);
+        switch (c) {
+        case '#': case '$': case '*': case '}':
+            *(p++) = '}';
+            *(p++) = c ^ 0x20;
+            break;
+        default:
+            *(p++) = c;
+            break;
+        }
+    }
+    return p - buf;
+}
+
+const char *get_feature_xml(CPUState *env, const char *p, const char **newp)
+{
+    extern const char *const xml_builtin[][2];
+    size_t len;
+    int i;
+    const char *name;
+    static char target_xml[1024];
+
+    len = 0;
+    while (p[len] && p[len] != ':')
+        len++;
+    *newp = p + len;
+
+    name = NULL;
+    if (strncmp(p, "target.xml", len) == 0) {
+        /* Generate the XML description for this CPU.  */
+        if (!target_xml[0]) {
+            GDBRegisterState *r;
+
+            sprintf(target_xml,
+                    "<?xml version=\"1.0\"?>"
+                    "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">"
+                    "<target>"
+                    "<xi:include href=\"%s\"/>",
+                    GDB_CORE_XML);
+
+            for (r = env->gdb_regs; r; r = r->next) {
+                strcat(target_xml, "<xi:include href=\"");
+                strcat(target_xml, r->xml);
+                strcat(target_xml, "\"/>");
+            }
+            strcat(target_xml, "</target>");
+        }
+        return target_xml;
+    }
+    for (i = 0; ; i++) {
+        name = xml_builtin[i][0];
+        if (!name || (strncmp(name, p, len) == 0 && strlen(name) == len))
+            break;
+    }
+    return name ? xml_builtin[i][1] : NULL;
+}
+#endif
+
+static int gdb_read_register(CPUState *env, uint8_t *mem_buf, int reg)
+{
+    GDBRegisterState *r;
+
+    if (reg < NUM_CORE_REGS)
+        return cpu_gdb_read_register(env, mem_buf, reg);
+
+    for (r = env->gdb_regs; r; r = r->next) {
+        if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
+            return r->get_reg(env, mem_buf, reg - r->base_reg);
+        }
+    }
+    return 0;
+}
+
+static int gdb_write_register(CPUState *env, uint8_t *mem_buf, int reg)
+{
+    GDBRegisterState *r;
+
+    if (reg < NUM_CORE_REGS)
+        return cpu_gdb_write_register(env, mem_buf, reg);
+
+    for (r = env->gdb_regs; r; r = r->next) {
+        if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
+            return r->set_reg(env, mem_buf, reg - r->base_reg);
+        }
+    }
+    return 0;
+}
+
+/* Register a supplemental set of CPU registers.  If g_pos is nonzero it
+   specifies the first register number and these registers are included in
+   a standard "g" packet.  Direction is relative to gdb, i.e. get_reg is
+   gdb reading a CPU register, and set_reg is gdb modifying a CPU register.
+ */
+
+void gdb_register_coprocessor(CPUState * env,
+                             gdb_reg_cb get_reg, gdb_reg_cb set_reg,
+                             int num_regs, const char *xml, int g_pos)
+{
+    GDBRegisterState *s;
+    GDBRegisterState **p;
+    static int last_reg = NUM_CORE_REGS;
+
+    s = (GDBRegisterState *)qemu_mallocz(sizeof(GDBRegisterState));
+    s->base_reg = last_reg;
+    s->num_regs = num_regs;
+    s->get_reg = get_reg;
+    s->set_reg = set_reg;
+    s->xml = xml;
+    p = &env->gdb_regs;
+    while (*p) {
+        /* Check for duplicates.  */
+        if (strcmp((*p)->xml, xml) == 0)
+            return;
+        p = &(*p)->next;
+    }
+    /* Add to end of list.  */
+    last_reg += num_regs;
+    *p = s;
+    if (g_pos) {
+        if (g_pos != s->base_reg) {
+            fprintf(stderr, "Error: Bad gdb register numbering for '%s'\n"
+                    "Expected %d got %d\n", xml, g_pos, s->base_reg);
+        } else {
+            num_g_regs = last_reg;
+        }
+    }
+}
 
 static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 {
     const char *p;
     int ch, reg_size, type;
-    char buf[4096];
-    uint8_t mem_buf[4096];
-    uint32_t *registers;
+    char buf[MAX_PACKET_LENGTH];
+    uint8_t mem_buf[MAX_PACKET_LENGTH];
+    uint8_t *registers;
     target_ulong addr, len;
 
 #ifdef DEBUG_GDB
@@ -1073,15 +1254,23 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         }
         break;
     case 'g':
-        reg_size = cpu_gdb_read_registers(env, mem_buf);
-        memtohex(buf, mem_buf, reg_size);
+        len = 0;
+        for (addr = 0; addr < num_g_regs; addr++) {
+            reg_size = gdb_read_register(env, mem_buf + len, addr);
+            len += reg_size;
+        }
+        memtohex(buf, mem_buf, len);
         put_packet(s, buf);
         break;
     case 'G':
-        registers = (void *)mem_buf;
+        registers = mem_buf;
         len = strlen(p) / 2;
         hextomem((uint8_t *)registers, p, len);
-        cpu_gdb_write_registers(env, mem_buf, len);
+        for (addr = 0; addr < num_g_regs && len > 0; addr++) {
+            reg_size = gdb_write_register(env, registers, addr);
+            len -= reg_size;
+            registers += reg_size;
+        }
         put_packet(s, "OK");
         break;
     case 'm':
@@ -1108,6 +1297,32 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             put_packet(s, "E14");
         else
             put_packet(s, "OK");
+        break;
+    case 'p':
+        /* Older gdb are really dumb, and don't use 'g' if 'p' is avaialable.
+           This works, but can be very slow.  Anything new enough to
+           understand XML also knows how to use this properly.  */
+        if (!gdb_has_xml)
+            goto unknown_command;
+        addr = strtoull(p, (char **)&p, 16);
+        reg_size = gdb_read_register(env, mem_buf, addr);
+        if (reg_size) {
+            memtohex(buf, mem_buf, reg_size);
+            put_packet(s, buf);
+        } else {
+            put_packet(s, "E14");
+        }
+        break;
+    case 'P':
+        if (!gdb_has_xml)
+            goto unknown_command;
+        addr = strtoull(p, (char **)&p, 16);
+        if (*p == '=')
+            p++;
+        reg_size = strlen(p) / 2;
+        hextomem(mem_buf, p, reg_size);
+        gdb_write_register(env, mem_buf, addr);
+        put_packet(s, "OK");
         break;
     case 'Z':
         type = strtoul(p, (char **)&p, 16);
@@ -1208,8 +1423,59 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             break;
         }
 #endif
-        /* Fall through.  */
+        if (strncmp(p, "Supported", 9) == 0) {
+            sprintf(buf, "PacketSize=%x", MAX_PACKET_LENGTH);
+#ifdef GDB_CORE_XML
+            strcat(buf, ";qXfer:features:read+");
+#endif
+            put_packet(s, buf);
+            break;
+        }
+#ifdef GDB_CORE_XML
+        if (strncmp(p, "Xfer:features:read:", 19) == 0) {
+            const char *xml;
+            target_ulong total_len;
+
+            gdb_has_xml = 1;
+            p += 19;
+            xml = get_feature_xml(env, p, &p);
+            if (!xml) {
+                sprintf(buf, "E00");
+                put_packet(s, buf);
+                break;
+            }
+
+            if (*p == ':')
+                p++;
+            addr = strtoul(p, (char **)&p, 16);
+            if (*p == ',')
+                p++;
+            len = strtoul(p, (char **)&p, 16);
+
+            total_len = strlen(xml);
+            if (addr > total_len) {
+                sprintf(buf, "E00");
+                put_packet(s, buf);
+                break;
+            }
+            if (len > (MAX_PACKET_LENGTH - 5) / 2)
+                len = (MAX_PACKET_LENGTH - 5) / 2;
+            if (len < total_len - addr) {
+                buf[0] = 'm';
+                len = memtox(buf + 1, xml + addr, len);
+            } else {
+                buf[0] = 'l';
+                len = memtox(buf + 1, xml + addr, total_len - addr);
+            }
+            put_packet_binary(s, buf, len + 1);
+            break;
+        }
+#endif
+        /* Unrecognised 'q' command.  */
+        goto unknown_command;
+
     default:
+    unknown_command:
         /* put empty packet */
         buf[0] = '\0';
         put_packet(s, buf);
@@ -1487,6 +1753,7 @@ static void gdb_accept(void *opaque)
     memset (s, 0, sizeof (GDBState));
     s->env = first_cpu; /* XXX: allow to change CPU */
     s->fd = fd;
+    gdb_has_xml = 0;
 
     gdb_syscall_state = s;
 
@@ -1536,7 +1803,9 @@ int gdbserver_start(int port)
 #else
 static int gdb_chr_can_receive(void *opaque)
 {
-  return 1;
+  /* We can handle an arbitrarily large amount of data.
+   Pick the maximum packet size, which is as good as anything.  */
+  return MAX_PACKET_LENGTH;
 }
 
 static void gdb_chr_receive(void *opaque, const uint8_t *buf, int size)
@@ -1555,6 +1824,7 @@ static void gdb_chr_event(void *opaque, int event)
     case CHR_EVENT_RESET:
         vm_stop(EXCP_INTERRUPT);
         gdb_syscall_state = opaque;
+        gdb_has_xml = 0;
         break;
     default:
         break;

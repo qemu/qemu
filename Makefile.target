@@ -418,7 +418,7 @@ OBJS+= m68k-sim.o m68k-semi.o
 endif
 
 ifdef CONFIG_GDBSTUB
-OBJS+=gdbstub.o
+OBJS+=gdbstub.o gdbstub-xml.o
 endif
 
 OBJS+= libqemu.a
@@ -456,7 +456,7 @@ OBJS= main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o
 OBJS+= libqemu.a
 
 ifdef CONFIG_GDBSTUB
-OBJS+=gdbstub.o
+OBJS+=gdbstub.o gdbstub-xml.o
 endif
 
 # Note: this is a workaround. The real fix is to avoid compiling
@@ -626,7 +626,7 @@ OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 OBJS+= m68k-semi.o dummy_m68k.o
 endif
 ifdef CONFIG_GDBSTUB
-OBJS+=gdbstub.o
+OBJS+=gdbstub.o gdbstub-xml.o
 endif
 ifdef CONFIG_COCOA
 COCOA_LIBS=-F/System/Library/Frameworks -framework Cocoa -framework IOKit
@@ -673,6 +673,14 @@ $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
 
 endif # !CONFIG_USER_ONLY
+
+gdbstub-xml.c: $(TARGET_XML_FILES) feature_to_c.sh
+	rm -f $@
+ifeq ($(TARGET_XML_FILES),)
+	echo > $@
+else
+	$(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES)
+endif
 
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<

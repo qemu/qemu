@@ -26,6 +26,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "qemu-common.h"
+#include "gdbstub.h"
 
 #include "helpers.h"
 
@@ -52,6 +53,33 @@ static m68k_def_t m68k_cpu_defs[] = {
     {"any", M68K_CPUID_ANY},
     {NULL, 0},
 };
+
+static int fpu_gdb_get_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 8) {
+        stfq_p(mem_buf, env->fregs[n]);
+        return 8;
+    }
+    if (n < 11) {
+        /* FP control registers (not implemented)  */
+        memset(mem_buf, 0, 4);
+        return 4;
+    }
+    return 0;
+}
+
+static int fpu_gdb_set_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 8) {
+        env->fregs[n] = ldfq_p(mem_buf);
+        return 8;
+    }
+    if (n < 11) {
+        /* FP control registers (not implemented)  */
+        return 4;
+    }
+    return 0;
+}
 
 static void m68k_set_feature(CPUM68KState *env, int feature)
 {
@@ -105,6 +133,11 @@ static int cpu_m68k_set_model(CPUM68KState *env, const char *name)
     }
 
     register_m68k_insns(env);
+    if (m68k_feature (env, M68K_FEATURE_CF_FPU)) {
+        gdb_register_coprocessor(env, fpu_gdb_get_reg, fpu_gdb_set_reg,
+                                 11, "cf-fp.xml", 18);
+    }
+    /* TODO: Add [E]MAC registers.  */
     return 0;
 }
 

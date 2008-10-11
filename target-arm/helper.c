@@ -173,6 +173,58 @@ void cpu_reset(CPUARMState *env)
     tlb_flush(env, 1);
 }
 
+static int vfp_gdb_get_reg(CPUState *env, uint8_t *buf, int reg)
+{
+    int nregs;
+
+    /* VFP data registers are always little-endian.  */
+    nregs = arm_feature(env, ARM_FEATURE_VFP3) ? 32 : 16;
+    if (reg < nregs) {
+        stfq_le_p(buf, env->vfp.regs[reg]);
+        return 8;
+    }
+    if (arm_feature(env, ARM_FEATURE_NEON)) {
+        /* Aliases for Q regs.  */
+        nregs += 16;
+        if (reg < nregs) {
+            stfq_le_p(buf, env->vfp.regs[(reg - 32) * 2]);
+            stfq_le_p(buf + 8, env->vfp.regs[(reg - 32) * 2 + 1]);
+            return 16;
+        }
+    }
+    switch (reg - nregs) {
+    case 0: stl_p(buf, env->vfp.xregs[ARM_VFP_FPSID]); return 4;
+    case 1: stl_p(buf, env->vfp.xregs[ARM_VFP_FPSCR]); return 4;
+    case 2: stl_p(buf, env->vfp.xregs[ARM_VFP_FPEXC]); return 4;
+    }
+    return 0;
+}
+
+static int vfp_gdb_set_reg(CPUState *env, uint8_t *buf, int reg)
+{
+    int nregs;
+
+    nregs = arm_feature(env, ARM_FEATURE_VFP3) ? 32 : 16;
+    if (reg < nregs) {
+        env->vfp.regs[reg] = ldfq_le_p(buf);
+        return 8;
+    }
+    if (arm_feature(env, ARM_FEATURE_NEON)) {
+        nregs += 16;
+        if (reg < nregs) {
+            env->vfp.regs[(reg - 32) * 2] = ldfq_le_p(buf);
+            env->vfp.regs[(reg - 32) * 2 + 1] = ldfq_le_p(buf + 8);
+            return 16;
+        }
+    }
+    switch (reg - nregs) {
+    case 0: env->vfp.xregs[ARM_VFP_FPSID] = ldl_p(buf); return 4;
+    case 1: env->vfp.xregs[ARM_VFP_FPSCR] = ldl_p(buf); return 4;
+    case 2: env->vfp.xregs[ARM_VFP_FPEXC] = ldl_p(buf); return 4;
+    }
+    return 0;
+}
+
 CPUARMState *cpu_arm_init(const char *cpu_model)
 {
     CPUARMState *env;
@@ -194,6 +246,16 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
     env->cpu_model_str = cpu_model;
     env->cp15.c0_cpuid = id;
     cpu_reset(env);
+    if (arm_feature(env, ARM_FEATURE_NEON)) {
+        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+                                 51, "arm-neon.xml", 0);
+    } else if (arm_feature(env, ARM_FEATURE_VFP3)) {
+        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+                                 35, "arm-vfp3.xml", 0);
+    } else if (arm_feature(env, ARM_FEATURE_VFP)) {
+        gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
+                                 19, "arm-vfp.xml", 0);
+    }
     return env;
 }
 
