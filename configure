@@ -722,7 +722,7 @@ cat > $TMPC << EOF
 #include <zlib.h>
 int main(void) { zlibVersion(); return 0; }
 EOF
-if $cc $CFLAGS $LDFLAGS -o $TMPE $TMPC -lz 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lz 2> /dev/null ; then
     :
 else
     echo
@@ -924,7 +924,7 @@ int main(void) { return bt_error(0); }
 EOF
   bluez_cflags=`pkg-config --cflags bluez`
   bluez_libs=`pkg-config --libs bluez`
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_FLAGS} $bluez_cflags $TMPC \
+  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $bluez_cflags $TMPC \
       $bluez_libs 2> /dev/null ; then
     :
   else
