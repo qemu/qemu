@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2008 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.arm.neon">
+  <vector id="neon_uint8x8" type="uint8" count="8"/>
+  <vector id="neon_uint16x4" type="uint16" count="4"/>
+  <vector id="neon_uint32x2" type="uint32" count="2"/>
+  <vector id="neon_float32x2" type="ieee_single" count="2"/>
+  <union id="neon_d">
+    <field name="u8" type="neon_uint8x8"/>
+    <field name="u16" type="neon_uint16x4"/>
+    <field name="u32" type="neon_uint32x2"/>
+    <field name="u64" type="uint64"/>
+    <field name="f32" type="neon_float32x2"/>
+    <field name="f64" type="ieee_double"/>
+  </union>
+  <vector id="neon_uint8x16" type="uint8" count="16"/>
+  <vector id="neon_uint16x8" type="uint16" count="8"/>
+  <vector id="neon_uint32x4" type="uint32" count="4"/>
+  <vector id="neon_uint64x2" type="uint64" count="2"/>
+  <vector id="neon_float32x4" type="ieee_single" count="4"/>
+  <vector id="neon_float64x2" type="ieee_double" count="2"/>
+  <union id="neon_q">
+    <field name="u8" type="neon_uint8x16"/>
+    <field name="u16" type="neon_uint16x8"/>
+    <field name="u32" type="neon_uint32x4"/>
+    <field name="u64" type="neon_uint64x2"/>
+    <field name="f32" type="neon_float32x4"/>
+    <field name="f64" type="neon_float64x2"/>
+  </union>
+  <reg name="d0" bitsize="64" type="neon_d"/>
+  <reg name="d1" bitsize="64" type="neon_d"/>
+  <reg name="d2" bitsize="64" type="neon_d"/>
+  <reg name="d3" bitsize="64" type="neon_d"/>
+  <reg name="d4" bitsize="64" type="neon_d"/>
+  <reg name="d5" bitsize="64" type="neon_d"/>
+  <reg name="d6" bitsize="64" type="neon_d"/>
+  <reg name="d7" bitsize="64" type="neon_d"/>
+  <reg name="d8" bitsize="64" type="neon_d"/>
+  <reg name="d9" bitsize="64" type="neon_d"/>
+  <reg name="d10" bitsize="64" type="neon_d"/>
+  <reg name="d11" bitsize="64" type="neon_d"/>
+  <reg name="d12" bitsize="64" type="neon_d"/>
+  <reg name="d13" bitsize="64" type="neon_d"/>
+  <reg name="d14" bitsize="64" type="neon_d"/>
+  <reg name="d15" bitsize="64" type="neon_d"/>
+  <reg name="d16" bitsize="64" type="neon_d"/>
+  <reg name="d17" bitsize="64" type="neon_d"/>
+  <reg name="d18" bitsize="64" type="neon_d"/>
+  <reg name="d19" bitsize="64" type="neon_d"/>
+  <reg name="d20" bitsize="64" type="neon_d"/>
+  <reg name="d21" bitsize="64" type="neon_d"/>
+  <reg name="d22" bitsize="64" type="neon_d"/>
+  <reg name="d23" bitsize="64" type="neon_d"/>
+  <reg name="d24" bitsize="64" type="neon_d"/>
+  <reg name="d25" bitsize="64" type="neon_d"/>
+  <reg name="d26" bitsize="64" type="neon_d"/>
+  <reg name="d27" bitsize="64" type="neon_d"/>
+  <reg name="d28" bitsize="64" type="neon_d"/>
+  <reg name="d29" bitsize="64" type="neon_d"/>
+  <reg name="d30" bitsize="64" type="neon_d"/>
+  <reg name="d31" bitsize="64" type="neon_d"/>
+
+  <reg name="q0" bitsize="128" type="neon_q"/>
+  <reg name="q1" bitsize="128" type="neon_q"/>
+  <reg name="q2" bitsize="128" type="neon_q"/>
+  <reg name="q3" bitsize="128" type="neon_q"/>
+  <reg name="q4" bitsize="128" type="neon_q"/>
+  <reg name="q5" bitsize="128" type="neon_q"/>
+  <reg name="q6" bitsize="128" type="neon_q"/>
+  <reg name="q7" bitsize="128" type="neon_q"/>
+  <reg name="q8" bitsize="128" type="neon_q"/>
+  <reg name="q9" bitsize="128" type="neon_q"/>
+  <reg name="q10" bitsize="128" type="neon_q"/>
+  <reg name="q10" bitsize="128" type="neon_q"/>
+  <reg name="q12" bitsize="128" type="neon_q"/>
+  <reg name="q13" bitsize="128" type="neon_q"/>
+  <reg name="q14" bitsize="128" type="neon_q"/>
+  <reg name="q15" bitsize="128" type="neon_q"/>
+
+  <reg name="fpsid" bitsize="32" type="int" group="float"/>
+  <reg name="fpscr" bitsize="32" type="int" group="float"/>
+  <reg name="fpexc" bitsize="32" type="int" group="float"/>
+</feature>

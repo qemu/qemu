@@ -34,6 +34,9 @@ do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
 #define SENSE_HARDWARE_ERROR  4
 #define SENSE_ILLEGAL_REQUEST 5
 
+#define STATUS_GOOD            0
+#define STATUS_CHECK_CONDITION 2
+
 #define SCSI_DMA_BUF_SIZE    131072
 
 typedef struct SCSIRequest {
@@ -124,15 +127,15 @@ static SCSIRequest *scsi_find_request(SCSIDeviceState *s, uint32_t tag)
 }
 
 /* Helper function for command completion.  */
-static void scsi_command_complete(SCSIRequest *r, int sense)
+static void scsi_command_complete(SCSIRequest *r, int status, int sense)
 {
     SCSIDeviceState *s = r->dev;
     uint32_t tag;
-    DPRINTF("Command complete tag=0x%x sense=%d\n", r->tag, sense);
+    DPRINTF("Command complete tag=0x%x status=%d sense=%d\n", r->tag, status, sense);
     s->sense = sense;
     tag = r->tag;
     scsi_remove_request(r);
-    s->completion(s->opaque, SCSI_REASON_DONE, tag, sense);
+    s->completion(s->opaque, SCSI_REASON_DONE, tag, status);
 }
 
 /* Cancel a pending data transfer.  */
@@ -157,7 +160,8 @@ static void scsi_read_complete(void * opaque, int ret)
 
     if (ret) {
         DPRINTF("IO error\n");
-        scsi_command_complete(r, SENSE_HARDWARE_ERROR);
+        s->completion(s->opaque, SCSI_REASON_DATA, r->tag, 0);
+        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_NO_SENSE);
         return;
     }
     DPRINTF("Data ready tag=0x%x len=%d\n", r->tag, r->buf_len);
@@ -176,7 +180,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
     if (!r) {
         BADF("Bad read tag 0x%x\n", tag);
         /* ??? This is the wrong error.  */
-        scsi_command_complete(r, SENSE_HARDWARE_ERROR);
+        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
         return;
     }
     if (r->sector_count == (uint32_t)-1) {
@@ -187,7 +191,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
     }
     DPRINTF("Read sector_count=%d\n", r->sector_count);
     if (r->sector_count == 0) {
-        scsi_command_complete(r, SENSE_NO_SENSE);
+        scsi_command_complete(r, STATUS_GOOD, SENSE_NO_SENSE);
         return;
     }
 
@@ -199,7 +203,7 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
     r->aiocb = bdrv_aio_read(s->bdrv, r->sector, r->dma_buf, n,
                              scsi_read_complete, r);
     if (r->aiocb == NULL)
-        scsi_command_complete(r, SENSE_HARDWARE_ERROR);
+        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
     r->sector += n;
     r->sector_count -= n;
 }
@@ -217,7 +221,7 @@ static void scsi_write_complete(void * opaque, int ret)
 
     r->aiocb = NULL;
     if (r->sector_count == 0) {
-        scsi_command_complete(r, SENSE_NO_SENSE);
+        scsi_command_complete(r, STATUS_GOOD, SENSE_NO_SENSE);
     } else {
         len = r->sector_count * 512;
         if (len > SCSI_DMA_BUF_SIZE) {
@@ -241,7 +245,7 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
     r = scsi_find_request(s, tag);
     if (!r) {
         BADF("Bad write tag 0x%x\n", tag);
-        scsi_command_complete(r, SENSE_HARDWARE_ERROR);
+        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
         return 1;
     }
     if (r->aiocb)
@@ -251,7 +255,8 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
         r->aiocb = bdrv_aio_write(s->bdrv, r->sector, r->dma_buf, n,
                                   scsi_write_complete, r);
         if (r->aiocb == NULL)
-            scsi_command_complete(r, SENSE_HARDWARE_ERROR);
+            scsi_command_complete(r, STATUS_CHECK_CONDITION,
+                                  SENSE_HARDWARE_ERROR);
         r->sector += n;
         r->sector_count -= n;
     } else {
@@ -344,7 +349,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     if (lun || buf[1] >> 5) {
         /* Only LUN 0 supported.  */
         DPRINTF("Unimplemented LUN %d\n", lun ? lun : buf[1] >> 5);
-        goto fail;
+        if (command != 0x03 && command != 0x12) /* REQUEST SENSE and INQUIRY */
+            goto fail;
     }
     switch (command) {
     case 0x0:
@@ -487,7 +493,10 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             }
         }
 	memset(outbuf, 0, 36);
-	if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
+
+        if (lun || buf[1] >> 5) {
+            outbuf[0] = 0x7f;	/* LUN not supported */
+	} else if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM) {
 	    outbuf[0] = 5;
             outbuf[1] = 0x80;
 	    memcpy(&outbuf[16], "QEMU CD-ROM    ", 16);
@@ -670,7 +679,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             outbuf[7] = 0;
             r->buf_len = 8;
         } else {
-            scsi_command_complete(r, SENSE_NOT_READY);
+            scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_NOT_READY);
             return 0;
         }
 	break;
@@ -754,14 +763,17 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         outbuf[3] = 8;
         r->buf_len = 16;
         break;
+    case 0x2f:
+        DPRINTF("Verify (sector %d, count %d)\n", lba, len);
+        break;
     default:
 	DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
     fail:
-        scsi_command_complete(r, SENSE_ILLEGAL_REQUEST);
+        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_ILLEGAL_REQUEST);
 	return 0;
     }
     if (r->sector_count == 0 && r->buf_len == 0) {
-        scsi_command_complete(r, SENSE_NO_SENSE);
+        scsi_command_complete(r, STATUS_GOOD, SENSE_NO_SENSE);
     }
     len = r->sector_count * 512 + r->buf_len;
     if (is_write) {

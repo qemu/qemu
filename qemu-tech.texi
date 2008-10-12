@@ -33,11 +33,12 @@
 
 @menu
 * intro_features::        Features
-* intro_x86_emulation::   x86 emulation
+* intro_x86_emulation::   x86 and x86-64 emulation
 * intro_arm_emulation::   ARM emulation
 * intro_mips_emulation::  MIPS emulation
 * intro_ppc_emulation::   PowerPC emulation
-* intro_sparc_emulation:: SPARC emulation
+* intro_sparc_emulation:: Sparc32 and Sparc64 emulation
+* intro_other_emulation:: Other CPU emulation
 @end menu
 
 @node intro_features
@@ -51,17 +52,17 @@ QEMU has two operating modes:
 @itemize @minus
 
 @item
-Full system emulation. In this mode, QEMU emulates a full system
-(usually a PC), including a processor and various peripherals. It can
-be used to launch an different Operating System without rebooting the
-PC or to debug system code.
+Full system emulation. In this mode (full platform virtualization),
+QEMU emulates a full system (usually a PC), including a processor and
+various peripherals. It can be used to launch several different
+Operating Systems at once without rebooting the host machine or to
+debug system code.
 
 @item
-User mode emulation (Linux host only). In this mode, QEMU can launch
-Linux processes compiled for one CPU on another CPU. It can be used to
-launch the Wine Windows API emulator (@url{http://www.winehq.org}) or
-to ease cross-compilation and cross-debugging.
-
+User mode emulation. In this mode (application level virtualization),
+QEMU can launch processes compiled for one CPU on another CPU, however
+the Operating Systems must match. This can be used for example to ease
+cross-compilation and cross-debugging.
 @end itemize
 
 As QEMU requires no host kernel driver to run, it is very safe and
@@ -75,7 +76,10 @@ QEMU generic features:
 
 @item Using dynamic translation to native code for reasonable speed.
 
-@item Working on x86 and PowerPC hosts. Being tested on ARM, Sparc32, Alpha and S390.
+@item
+Working on x86, x86_64 and PowerPC32/64 hosts. Being tested on ARM,
+HPPA, Sparc32 and Sparc64. Previous versions had some support for
+Alpha and S390 hosts, but TCG (see below) doesn't support those yet.
 
 @item Self-modifying code support.
 
@@ -84,6 +88,10 @@ QEMU generic features:
 @item The virtual CPU is a library (@code{libqemu}) which can be used
 in other projects (look at @file{qemu/tests/qruncom.c} to have an
 example of user mode @code{libqemu} usage).
+
+@item
+Floating point library supporting both full software emulation and
+native host FPU instructions.
 
 @end itemize
 
@@ -96,20 +104,47 @@ QEMU user mode emulation features:
 @item Accurate signal handling by remapping host signals to target signals.
 @end itemize
 
+Linux user emulator (Linux host only) can be used to launch the Wine
+Windows API emulator (@url{http://www.winehq.org}). A Darwin user
+emulator (Darwin hosts only) exists and a BSD user emulator for BSD
+hosts is under development. It would also be possible to develop a
+similar user emulator for Solaris.
+
 QEMU full system emulation features:
 @itemize
-@item QEMU can either use a full software MMU for maximum portability or use the host system call mmap() to simulate the target MMU.
+@item
+QEMU uses a full software MMU for maximum portability.
+
+@item
+QEMU can optionally use an in-kernel accelerator, like kqemu and
+kvm. The accelerators execute some of the guest code natively, while
+continuing to emulate the rest of the machine.
+
+@item
+Various hardware devices can be emulated and in some cases, host
+devices (e.g. serial and parallel ports, USB, drives) can be used
+transparently by the guest Operating System. Host device passthrough
+can be used for talking to external physical peripherals (e.g. a
+webcam, modem or tape drive).
+
+@item
+Symmetric multiprocessing (SMP) even on a host with a single CPU. On a
+SMP host system, QEMU can use only one CPU fully due to difficulty in
+implementing atomic memory accesses efficiently.
+
 @end itemize
 
 @node intro_x86_emulation
-@section x86 emulation
+@section x86 and x86-64 emulation
 
 QEMU x86 target features:
 
 @itemize
 
 @item The virtual x86 CPU supports 16 bit and 32 bit addressing with segmentation.
-LDT/GDT and IDT are emulated. VM86 mode is also supported to run DOSEMU.
+LDT/GDT and IDT are emulated. VM86 mode is also supported to run
+DOSEMU. There is some support for MMX/3DNow!, SSE, SSE2, SSE3, SSSE3,
+and SSE4 as well as x86-64 SVM.
 
 @item Support of host page sizes bigger than 4KB in user mode emulation.
 
@@ -124,19 +159,13 @@ Current QEMU limitations:
 
 @itemize
 
-@item No SSE/MMX support (yet).
-
-@item No x86-64 support.
+@item Limited x86-64 support.
 
 @item IPC syscalls are missing.
 
 @item The x86 segment limits and access rights are not tested at every
 memory access (yet). Hopefully, very few OSes seem to rely on that for
 normal use.
-
-@item On non x86 host CPUs, @code{double}s are used instead of the non standard
-10 byte @code{long double}s of x86 for floating point emulation to get
-maximum performances.
 
 @end itemize
 
@@ -193,7 +222,7 @@ FPU and MMU.
 @end itemize
 
 @node intro_sparc_emulation
-@section SPARC emulation
+@section Sparc32 and Sparc64 emulation
 
 @itemize
 
@@ -216,8 +245,26 @@ Current QEMU limitations:
 
 @item Atomic instructions are not correctly implemented.
 
-@item Sparc64 emulators are not usable for anything yet.
+@item There are still some problems with Sparc64 emulators.
 
+@end itemize
+
+@node intro_other_emulation
+@section Other CPU emulation
+
+In addition to the above, QEMU supports emulation of other CPUs with
+varying levels of success. These are:
+
+@itemize
+
+@item
+Alpha
+@item
+CRIS
+@item
+M68k
+@item
+SH4
 @end itemize
 
 @node QEMU Internals
@@ -226,7 +273,6 @@ Current QEMU limitations:
 @menu
 * QEMU compared to other emulators::
 * Portable dynamic translation::
-* Register allocation::
 * Condition code optimisations::
 * CPU state optimisations::
 * Translation cache::
@@ -234,6 +280,7 @@ Current QEMU limitations:
 * Self-modifying code and translated code invalidation::
 * Exception support::
 * MMU emulation::
+* Device emulation::
 * Hardware interrupts::
 * User emulation specific details::
 * Bibliography::
@@ -273,18 +320,22 @@ patches. However, user mode Linux requires heavy kernel patches while
 QEMU accepts unpatched Linux kernels. The price to pay is that QEMU is
 slower.
 
-The new Plex86 [8] PC virtualizer is done in the same spirit as the
-qemu-fast system emulator. It requires a patched Linux kernel to work
-(you cannot launch the same kernel on your PC), but the patches are
-really small. As it is a PC virtualizer (no emulation is done except
-for some privileged instructions), it has the potential of being
-faster than QEMU. The downside is that a complicated (and potentially
-unsafe) host kernel patch is needed.
+The Plex86 [8] PC virtualizer is done in the same spirit as the now
+obsolete qemu-fast system emulator. It requires a patched Linux kernel
+to work (you cannot launch the same kernel on your PC), but the
+patches are really small. As it is a PC virtualizer (no emulation is
+done except for some privileged instructions), it has the potential of
+being faster than QEMU. The downside is that a complicated (and
+potentially unsafe) host kernel patch is needed.
 
 The commercial PC Virtualizers (VMWare [9], VirtualPC [10], TwoOStwo
 [11]) are faster than QEMU, but they all need specific, proprietary
 and potentially unsafe host drivers. Moreover, they are unable to
 provide cycle exact simulation as an emulator can.
+
+VirtualBox [12], Xen [13] and KVM [14] are based on QEMU. QEMU-SystemC
+[15] uses QEMU to simulate a system where some hardware devices are
+developed in SystemC.
 
 @node Portable dynamic translation
 @section Portable dynamic translation
@@ -295,63 +346,51 @@ are very complicated and highly CPU dependent. QEMU uses some tricks
 which make it relatively easily portable and simple while achieving good
 performances.
 
-The basic idea is to split every x86 instruction into fewer simpler
-instructions. Each simple instruction is implemented by a piece of C
-code (see @file{target-i386/op.c}). Then a compile time tool
-(@file{dyngen}) takes the corresponding object file (@file{op.o})
-to generate a dynamic code generator which concatenates the simple
-instructions to build a function (see @file{op.h:dyngen_code()}).
-
-In essence, the process is similar to [1], but more work is done at
-compile time.
-
-A key idea to get optimal performances is that constant parameters can
-be passed to the simple operations. For that purpose, dummy ELF
-relocations are generated with gcc for each constant parameter. Then,
-the tool (@file{dyngen}) can locate the relocations and generate the
-appriopriate C code to resolve them when building the dynamic code.
-
-That way, QEMU is no more difficult to port than a dynamic linker.
-
-To go even faster, GCC static register variables are used to keep the
-state of the virtual CPU.
-
-@node Register allocation
-@section Register allocation
-
-Since QEMU uses fixed simple instructions, no efficient register
-allocation can be done. However, because RISC CPUs have a lot of
-register, most of the virtual CPU state can be put in registers without
-doing complicated register allocation.
+After the release of version 0.9.1, QEMU switched to a new method of
+generating code, Tiny Code Generator or TCG. TCG relaxes the
+dependency on the exact version of the compiler used. The basic idea
+is to split every target instruction into a couple of RISC-like TCG
+ops (see @code{target-i386/translate.c}). Some optimizations can be
+performed at this stage, including liveness analysis and trivial
+constant expression evaluation. TCG ops are then implemented in the
+host CPU back end, also known as TCG target (see
+@code{tcg/i386/tcg-target.c}). For more information, please take a
+look at @code{tcg/README}.
 
 @node Condition code optimisations
 @section Condition code optimisations
 
-Good CPU condition codes emulation (@code{EFLAGS} register on x86) is a
-critical point to get good performances. QEMU uses lazy condition code
-evaluation: instead of computing the condition codes after each x86
-instruction, it just stores one operand (called @code{CC_SRC}), the
-result (called @code{CC_DST}) and the type of operation (called
-@code{CC_OP}).
+Lazy evaluation of CPU condition codes (@code{EFLAGS} register on x86)
+is important for CPUs where every instruction sets the condition
+codes. It tends to be less important on conventional RISC systems
+where condition codes are only updated when explicitly requested.
+
+Instead of computing the condition codes after each x86 instruction,
+QEMU just stores one operand (called @code{CC_SRC}), the result
+(called @code{CC_DST}) and the type of operation (called
+@code{CC_OP}). When the condition codes are needed, the condition
+codes can be calculated using this information. In addition, an
+optimized calculation can be performed for some instruction types like
+conditional branches.
 
 @code{CC_OP} is almost never explicitly set in the generated code
 because it is known at translation time.
 
-In order to increase performances, a backward pass is performed on the
-generated simple instructions (see
-@code{target-i386/translate.c:optimize_flags()}). When it can be proved that
-the condition codes are not needed by the next instructions, no
-condition codes are computed at all.
+The lazy condition code evaluation is used on x86, m68k and cris. ARM
+uses a simplified variant for the N and Z flags.
 
 @node CPU state optimisations
 @section CPU state optimisations
 
-The x86 CPU has many internal states which change the way it evaluates
-instructions. In order to achieve a good speed, the translation phase
-considers that some state information of the virtual x86 CPU cannot
-change in it. For example, if the SS, DS and ES segments have a zero
-base, then the translator does not even generate an addition for the
-segment base.
+The target CPUs have many internal states which change the way it
+evaluates instructions. In order to achieve a good speed, the
+translation phase considers that some state information of the virtual
+CPU cannot change in it. The state is recorded in the Translation
+Block (TB). If the state changes (e.g. privilege level), a new TB will
+be generated and the previous TB won't be used anymore until the state
+matches the state recorded in the previous TB. For example, if the SS,
+DS and ES segments have a zero base, then the translator does not even
+generate an addition for the segment base.
 
 [The FPU stack pointer register is not handled that way yet].
 
@@ -388,28 +427,20 @@ instruction cache invalidation is signaled by the application when code
 is modified.
 
 When translated code is generated for a basic block, the corresponding
-host page is write protected if it is not already read-only (with the
-system call @code{mprotect()}). Then, if a write access is done to the
-page, Linux raises a SEGV signal. QEMU then invalidates all the
-translated code in the page and enables write accesses to the page.
+host page is write protected if it is not already read-only. Then, if
+a write access is done to the page, Linux raises a SEGV signal. QEMU
+then invalidates all the translated code in the page and enables write
+accesses to the page.
 
 Correct translated code invalidation is done efficiently by maintaining
 a linked list of every translated block contained in a given page. Other
 linked lists are also maintained to undo direct block chaining.
 
-Although the overhead of doing @code{mprotect()} calls is important,
-most MSDOS programs can be emulated at reasonnable speed with QEMU and
-DOSEMU.
-
-Note that QEMU also invalidates pages of translated code when it detects
-that memory mappings are modified with @code{mmap()} or @code{munmap()}.
-
-When using a software MMU, the code invalidation is more efficient: if
-a given code page is invalidated too often because of write accesses,
-then a bitmap representing all the code inside the page is
-built. Every store into that page checks the bitmap to see if the code
-really needs to be invalidated. It avoids invalidating the code when
-only data is modified in the page.
+On RISC targets, correctly written software uses memory barriers and
+cache flushes, so some of the protection above would not be
+necessary. However, QEMU still requires that the generated code always
+matches the target instructions in memory in order to handle
+exceptions correctly.
 
 @node Exception support
 @section Exception support
@@ -418,10 +449,9 @@ longjmp() is used when an exception such as division by zero is
 encountered.
 
 The host SIGSEGV and SIGBUS signal handlers are used to get invalid
-memory accesses. The exact CPU state can be retrieved because all the
-x86 registers are stored in fixed host registers. The simulated program
-counter is found by retranslating the corresponding basic block and by
-looking where the host program counter was at the exception point.
+memory accesses. The simulated program counter is found by
+retranslating the corresponding basic block and by looking where the
+host program counter was at the exception point.
 
 The virtual CPU cannot retrieve the exact @code{EFLAGS} register because
 in some cases it is not computed because of condition code
@@ -431,15 +461,10 @@ still be restarted in any cases.
 @node MMU emulation
 @section MMU emulation
 
-For system emulation, QEMU uses the mmap() system call to emulate the
-target CPU MMU. It works as long the emulated OS does not use an area
-reserved by the host OS (such as the area above 0xc0000000 on x86
-Linux).
-
-In order to be able to launch any OS, QEMU also supports a soft
-MMU. In that mode, the MMU virtual to physical address translation is
-done at every memory access. QEMU uses an address translation cache to
-speed up the translation.
+For system emulation QEMU supports a soft MMU. In that mode, the MMU
+virtual to physical address translation is done at every memory
+access. QEMU uses an address translation cache to speed up the
+translation.
 
 In order to avoid flushing the translated code each time the MMU
 mappings change, QEMU uses a physically indexed translation cache. It
@@ -447,6 +472,33 @@ means that each basic block is indexed with its physical address.
 
 When MMU mappings change, only the chaining of the basic blocks is
 reset (i.e. a basic block can no longer jump directly to another one).
+
+@node Device emulation
+@section Device emulation
+
+Systems emulated by QEMU are organized by boards. At initialization
+phase, each board instantiates a number of CPUs, devices, RAM and
+ROM. Each device in turn can assign I/O ports or memory areas (for
+MMIO) to its handlers. When the emulation starts, an access to the
+ports or MMIO memory areas assigned to the device causes the
+corresponding handler to be called.
+
+RAM and ROM are handled more optimally, only the offset to the host
+memory needs to be added to the guest address.
+
+The video RAM of VGA and other display cards is special: it can be
+read or written directly like RAM, but write accesses cause the memory
+to be marked with VGA_DIRTY flag as well.
+
+QEMU supports some device classes like serial and parallel ports, USB,
+drives and network devices, by providing APIs for easier connection to
+the generic, higher level implementations. The API hides the
+implementation details from the devices, like native device use or
+advanced block device formats like QCOW.
+
+Usually the devices implement a reset method and register support for
+saving and loading of the device state. The devices can also use
+timers, especially together with the use of bottom halves (BHs).
 
 @node Hardware interrupts
 @section Hardware interrupts
@@ -513,9 +565,9 @@ it is not very useful, it is an important test to show the power of the
 emulator.
 
 Achieving self-virtualization is not easy because there may be address
-space conflicts. QEMU solves this problem by being an executable ELF
-shared object as the ld-linux.so ELF interpreter. That way, it can be
-relocated at load time.
+space conflicts. QEMU user emulators solve this problem by being an
+executable ELF shared object as the ld-linux.so ELF interpreter. That
+way, it can be relocated at load time.
 
 @node Bibliography
 @section Bibliography
@@ -567,6 +619,22 @@ The VirtualPC PC virtualizer.
 @item [11]
 @url{http://www.twoostwo.org/},
 The TwoOStwo PC virtualizer.
+
+@item [12]
+@url{http://virtualbox.org/},
+The VirtualBox PC virtualizer.
+
+@item [13]
+@url{http://www.xen.org/},
+The Xen hypervisor.
+
+@item [14]
+@url{http://kvm.qumranet.com/kvmwiki/Front_Page},
+Kernel Based Virtual Machine (KVM).
+
+@item [15]
+@url{http://www.greensocs.com/projects/QEMUSystemC},
+QEMU-SystemC, a hardware co-simulator.
 
 @end table
 

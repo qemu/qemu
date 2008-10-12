@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2008 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.coldfire.core">
+  <reg name="d0" bitsize="32"/>
+  <reg name="d1" bitsize="32"/>
+  <reg name="d2" bitsize="32"/>
+  <reg name="d3" bitsize="32"/>
+  <reg name="d4" bitsize="32"/>
+  <reg name="d5" bitsize="32"/>
+  <reg name="d6" bitsize="32"/>
+  <reg name="d7" bitsize="32"/>
+  <reg name="a0" bitsize="32" type="data_ptr"/>
+  <reg name="a1" bitsize="32" type="data_ptr"/>
+  <reg name="a2" bitsize="32" type="data_ptr"/>
+  <reg name="a3" bitsize="32" type="data_ptr"/>
+  <reg name="a4" bitsize="32" type="data_ptr"/>
+  <reg name="a5" bitsize="32" type="data_ptr"/>
+  <reg name="fp" bitsize="32" type="data_ptr"/>
+  <reg name="sp" bitsize="32" type="data_ptr"/>
+
+  <reg name="ps" bitsize="32"/>
+  <reg name="pc" bitsize="32" type="code_ptr"/>
+
+</feature>

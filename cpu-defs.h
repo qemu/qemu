@@ -185,6 +185,8 @@ typedef struct icount_decr_u16 {
     int nb_watchpoints;                                                 \
     int watchpoint_hit;                                                 \
                                                                         \
+    struct GDBRegisterState *gdb_regs;                                  \
+                                                                        \
     /* Core interrupt code */                                           \
     jmp_buf jmp_env;                                                    \
     int exception_index;                                                \

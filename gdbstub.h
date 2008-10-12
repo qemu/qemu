@@ -15,5 +15,10 @@ int gdbserver_start(int);
 #else
 int gdbserver_start(const char *port);
 #endif
+/* Get or set a register.  Returns the size of the register.  */
+typedef int (*gdb_reg_cb)(CPUState *env, uint8_t *buf, int reg);
+void gdb_register_coprocessor(CPUState *env,
+                              gdb_reg_cb get_reg, gdb_reg_cb set_reg,
+                              int num_regs, const char *xml, int g_pos);
 
 #endif
