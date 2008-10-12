@@ -683,7 +683,9 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x6008:		/* swap.b Rm,Rn */
 	{
-	    TCGv high, low;
+	    TCGv highw, high, low;
+	    highw = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_andi_i32(highw, REG(B7_4), 0xffff0000);
 	    high = tcg_temp_new(TCG_TYPE_I32);
 	    tcg_gen_ext8u_i32(high, REG(B7_4));
 	    tcg_gen_shli_i32(high, high, 8);
@@ -691,6 +693,7 @@ void _decode_opc(DisasContext * ctx)
 	    tcg_gen_shri_i32(low, REG(B7_4), 8);
 	    tcg_gen_ext8u_i32(low, low);
 	    tcg_gen_or_i32(REG(B11_8), high, low);
+	    tcg_gen_or_i32(REG(B11_8), REG(B11_8), highw);
 	    tcg_temp_free(low);
 	    tcg_temp_free(high);
 	}
