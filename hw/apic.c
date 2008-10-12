@@ -104,15 +104,14 @@ static void apic_init_ipi(APICState *s);
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode);
 static void apic_update_irq(APICState *s);
 
-/* Find first bit starting from msb. Return 0 if value = 0 */
+/* Find first bit starting from msb */
 static int fls_bit(uint32_t value)
 {
+#if defined(__GNUC__)
+    return 31 - __builtin_clz(value);
+#else
     unsigned int ret = 0;
 
-#if defined(HOST_I386) || defined(HOST_X86_64)
-    __asm__ __volatile__ ("bsr %1, %0\n" : "+r" (ret) : "rm" (value));
-    return ret;
-#else
     if (value > 0xffff)
         value >>= 16, ret = 16;
     if (value > 0xff)
@@ -125,15 +124,14 @@ static int fls_bit(uint32_t value)
 #endif
 }
 
-/* Find first bit starting from lsb. Return 0 if value = 0 */
+/* Find first bit starting from lsb */
 static int ffs_bit(uint32_t value)
 {
+#if defined(__GNUC__)
+    return __builtin_ffs(value) - 1;
+#else
     unsigned int ret = 0;
 
-#if defined(HOST_I386) || defined(HOST_X86_64)
-    __asm__ __volatile__ ("bsf %1, %0\n" : "+r" (ret) : "rm" (value));
-    return ret;
-#else
     if (!value)
         return 0;
     if (!(value & 0xffff))
