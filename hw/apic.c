@@ -107,7 +107,7 @@ static void apic_update_irq(APICState *s);
 /* Find first bit starting from msb */
 static int fls_bit(uint32_t value)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     return 31 - __builtin_clz(value);
 #else
     unsigned int ret = 0;
@@ -127,7 +127,7 @@ static int fls_bit(uint32_t value)
 /* Find first bit starting from lsb */
 static int ffs_bit(uint32_t value)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     return __builtin_ffs(value) - 1;
 #else
     unsigned int ret = 0;

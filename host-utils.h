@@ -51,7 +51,7 @@ void mulu64(uint64_t *phigh, uint64_t *plow, uint64_t a, uint64_t b);
 
 static always_inline int clz32(uint32_t val)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     if (val)
         return __builtin_clz(val);
     else
@@ -93,7 +93,7 @@ static always_inline int clo32(uint32_t val)
 
 static always_inline int clz64(uint64_t val)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     if (val)
         return __builtin_clzll(val);
     else
@@ -118,7 +118,7 @@ static always_inline int clo64(uint64_t val)
 
 static always_inline int ctz32 (uint32_t val)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     if (val)
         return __builtin_ctz(val);
     else
@@ -162,7 +162,7 @@ static always_inline int cto32 (uint32_t val)
 
 static always_inline int ctz64 (uint64_t val)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     if (val)
         return __builtin_ctz(val);
     else
@@ -206,7 +206,7 @@ static always_inline int ctpop16 (uint16_t val)
 
 static always_inline int ctpop32 (uint32_t val)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     return __builtin_popcount(val);
 #else
     val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
@@ -221,7 +221,7 @@ static always_inline int ctpop32 (uint32_t val)
 
 static always_inline int ctpop64 (uint64_t val)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     return __builtin_popcountll(val);
 #else
     val = (val & 0x5555555555555555ULL) + ((val >>  1) & 0x5555555555555555ULL);
