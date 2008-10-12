@@ -1867,6 +1867,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
     if (env->singlestep_enabled) {
+        tcg_gen_movi_i32(cpu_pc, ctx.pc);
         tcg_gen_helper_0_0(helper_debug);
     } else {
 	switch (ctx.bstate) {
