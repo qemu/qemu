@@ -6186,6 +6186,45 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 }
 #endif
 
+#define SELF_ANNOUNCE_ROUNDS 5
+#define ETH_P_EXPERIMENTAL 0x01F1 /* just a number */
+//#define ETH_P_EXPERIMENTAL 0x0012 /* make it the size of the packet */
+#define EXPERIMENTAL_MAGIC 0xf1f23f4f
+
+static int announce_self_create(uint8_t *buf, 
+				uint8_t *mac_addr)
+{
+    uint32_t magic = EXPERIMENTAL_MAGIC;
+    uint16_t proto = htons(ETH_P_EXPERIMENTAL);
+
+    /* FIXME: should we send a different packet (arp/rarp/ping)? */
+
+    memset(buf, 0xff, 6);         /* h_dst */
+    memcpy(buf + 6, mac_addr, 6); /* h_src */
+    memcpy(buf + 12, &proto, 2);  /* h_proto */
+    memcpy(buf + 14, &magic, 4);  /* magic */
+
+    return 18; /* len */
+}
+
+void qemu_announce_self(void)
+{
+    int i, j, len;
+    VLANState *vlan;
+    VLANClientState *vc;
+    uint8_t buf[256];
+
+    for (i = 0; i < nb_nics; i++) {
+        len = announce_self_create(buf, nd_table[i].macaddr);
+        vlan = nd_table[i].vlan;
+        for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
+            if (vc->fd_read == tap_receive)  /* send only if tap */
+                for (j=0; j < SELF_ANNOUNCE_ROUNDS; j++)
+                    vc->fd_read(vc->opaque, buf, len);
+        }
+    }
+}
+
 /***********************************************************/
 /* savevm/loadvm support */
 
