@@ -5761,7 +5761,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_NR_readahead
     case TARGET_NR_readahead:
-        goto unimplemented;
+#if TARGET_ABI_BITS == 32
+#ifdef TARGET_ARM
+        if (((CPUARMState *)cpu_env)->eabi)
+        {
+            arg2 = arg3;
+            arg3 = arg4;
+            arg4 = arg5;
+        }
+#endif
+        ret = get_errno(readahead(arg1, ((off64_t)arg3 << 32) | arg2, arg4));
+#else
+        ret = get_errno(readahead(arg1, arg2, arg3));
+#endif
+        break;
 #endif
 #ifdef TARGET_NR_setxattr
     case TARGET_NR_setxattr:
