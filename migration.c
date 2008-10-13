@@ -22,12 +22,32 @@ static MigrationState *current_migration;
 
 void qemu_start_incoming_migration(const char *uri)
 {
-    fprintf(stderr, "unknown migration protocol: %s\n", uri);
+    const char *p;
+
+    if (strstart(uri, "tcp:", &p))
+        tcp_start_incoming_migration(p);
+    else
+        fprintf(stderr, "unknown migration protocol: %s\n", uri);
 }
 
 void do_migrate(int detach, const char *uri)
 {
-    term_printf("unknown migration protocol: %s\n", uri);
+    MigrationState *s = NULL;
+    const char *p;
+
+    if (strstart(uri, "tcp:", &p))
+	s = tcp_start_outgoing_migration(p, max_throttle, detach);
+    else
+        term_printf("unknown migration protocol: %s\n", uri);
+
+    if (s == NULL)
+	term_printf("migration failed\n");
+    else {
+	if (current_migration)
+	    current_migration->release(current_migration);
+
+	current_migration = s;
+    }
 }
 
 void do_migrate_cancel(void)

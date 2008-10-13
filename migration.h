@@ -39,5 +39,11 @@ void do_migrate_set_speed(const char *value);
 
 void do_info_migrate(void);
 
+int tcp_start_incoming_migration(const char *host_port);
+
+MigrationState *tcp_start_outgoing_migration(const char *host_port,
+					     int64_t bandwidth_limit,
+					     int detach);
+
 #endif
 
