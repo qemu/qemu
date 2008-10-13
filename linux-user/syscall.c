@@ -1611,7 +1611,6 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
 }
 #endif
 
-#ifdef TARGET_NR_ipc
 #define N_SHM_REGIONS	32
 
 static struct shm_region {
@@ -1845,20 +1844,26 @@ static inline abi_long do_semctl(int first, int second, int third,
 
 struct target_msqid_ds
 {
-  struct target_ipc_perm msg_perm;
-  abi_ulong msg_stime;
-  abi_ulong __unused1;
-  abi_ulong msg_rtime;
-  abi_ulong __unused2;
-  abi_ulong msg_ctime;
-  abi_ulong __unused3;
-  abi_ulong __msg_cbytes;
-  abi_ulong msg_qnum;
-  abi_ulong msg_qbytes;
-  abi_ulong msg_lspid;
-  abi_ulong msg_lrpid;
-  abi_ulong __unused4;
-  abi_ulong __unused5;
+    struct target_ipc_perm msg_perm;
+    abi_ulong msg_stime;
+#if TARGET_ABI_BITS == 32
+    abi_ulong __unused1;
+#endif
+    abi_ulong msg_rtime;
+#if TARGET_ABI_BITS == 32
+    abi_ulong __unused2;
+#endif
+    abi_ulong msg_ctime;
+#if TARGET_ABI_BITS == 32
+    abi_ulong __unused3;
+#endif
+    abi_ulong __msg_cbytes;
+    abi_ulong msg_qnum;
+    abi_ulong msg_qbytes;
+    abi_ulong msg_lspid;
+    abi_ulong msg_lrpid;
+    abi_ulong __unused4;
+    abi_ulong __unused5;
 };
 
 static inline abi_long target_to_host_msqid_ds(struct msqid_ds *host_md,
@@ -1868,7 +1873,8 @@ static inline abi_long target_to_host_msqid_ds(struct msqid_ds *host_md,
 
     if (!lock_user_struct(VERIFY_READ, target_md, target_addr, 1))
         return -TARGET_EFAULT;
-    target_to_host_ipc_perm(&(host_md->msg_perm),target_addr);
+    if (target_to_host_ipc_perm(&(host_md->msg_perm),target_addr))
+        return -TARGET_EFAULT;
     host_md->msg_stime = tswapl(target_md->msg_stime);
     host_md->msg_rtime = tswapl(target_md->msg_rtime);
     host_md->msg_ctime = tswapl(target_md->msg_ctime);
@@ -1888,7 +1894,8 @@ static inline abi_long host_to_target_msqid_ds(abi_ulong target_addr,
 
     if (!lock_user_struct(VERIFY_WRITE, target_md, target_addr, 0))
         return -TARGET_EFAULT;
-    host_to_target_ipc_perm(target_addr,&(host_md->msg_perm));
+    if (host_to_target_ipc_perm(target_addr,&(host_md->msg_perm)))
+        return -TARGET_EFAULT;
     target_md->msg_stime = tswapl(host_md->msg_stime);
     target_md->msg_rtime = tswapl(host_md->msg_rtime);
     target_md->msg_ctime = tswapl(host_md->msg_ctime);
@@ -1901,26 +1908,69 @@ static inline abi_long host_to_target_msqid_ds(abi_ulong target_addr,
     return 0;
 }
 
-static inline abi_long do_msgctl(int first, int second, abi_long ptr)
+struct target_msginfo {
+    int msgpool;
+    int msgmap;
+    int msgmax;
+    int msgmnb;
+    int msgmni;
+    int msgssz;
+    int msgtql;
+    unsigned short int msgseg;
+};
+
+static inline abi_long host_to_target_msginfo(abi_ulong target_addr,
+                                              struct msginfo *host_msginfo)
+{
+    struct target_msginfo *target_msginfo;
+    if (!lock_user_struct(VERIFY_WRITE, target_msginfo, target_addr, 0))
+        return -TARGET_EFAULT;
+    __put_user(host_msginfo->msgpool, &target_msginfo->msgpool);
+    __put_user(host_msginfo->msgmap, &target_msginfo->msgmap);
+    __put_user(host_msginfo->msgmax, &target_msginfo->msgmax);
+    __put_user(host_msginfo->msgmnb, &target_msginfo->msgmnb);
+    __put_user(host_msginfo->msgmni, &target_msginfo->msgmni);
+    __put_user(host_msginfo->msgssz, &target_msginfo->msgssz);
+    __put_user(host_msginfo->msgtql, &target_msginfo->msgtql);
+    __put_user(host_msginfo->msgseg, &target_msginfo->msgseg);
+    unlock_user_struct(target_msginfo, target_addr, 1);
+}
+
+static inline abi_long do_msgctl(int msgid, int cmd, abi_long ptr)
 {
     struct msqid_ds dsarg;
-    int cmd = second&0xff;
-    abi_long ret = 0;
-    switch( cmd ) {
+    struct msginfo msginfo;
+    abi_long ret = -TARGET_EINVAL;
+
+    cmd &= 0xff;
+
+    switch (cmd) {
     case IPC_STAT:
     case IPC_SET:
-        target_to_host_msqid_ds(&dsarg,ptr);
-        ret = get_errno(msgctl(first, cmd, &dsarg));
-        host_to_target_msqid_ds(ptr,&dsarg);
-    default:
-        ret = get_errno(msgctl(first, cmd, &dsarg));
+    case MSG_STAT:
+        if (target_to_host_msqid_ds(&dsarg,ptr))
+            return -TARGET_EFAULT;
+        ret = get_errno(msgctl(msgid, cmd, &dsarg));
+        if (host_to_target_msqid_ds(ptr,&dsarg))
+            return -TARGET_EFAULT;
+        break;
+    case IPC_RMID:
+        ret = get_errno(msgctl(msgid, cmd, NULL));
+        break;
+    case IPC_INFO:
+    case MSG_INFO:
+        ret = get_errno(msgctl(msgid, cmd, (struct msqid_ds *)&msginfo));
+        if (host_to_target_msginfo(ptr, &msginfo))
+            return -TARGET_EFAULT;
+        break;
     }
+
     return ret;
 }
 
 struct target_msgbuf {
-	abi_ulong mtype;
-	char	mtext[1];
+    abi_long mtype;
+    char	mtext[1];
 };
 
 static inline abi_long do_msgsnd(int msqid, abi_long msgp,
@@ -1933,8 +1983,8 @@ static inline abi_long do_msgsnd(int msqid, abi_long msgp,
     if (!lock_user_struct(VERIFY_READ, target_mb, msgp, 0))
         return -TARGET_EFAULT;
     host_mb = malloc(msgsz+sizeof(long));
-    host_mb->mtype = tswapl(target_mb->mtype);
-    memcpy(host_mb->mtext,target_mb->mtext,msgsz);
+    host_mb->mtype = (abi_long) tswapl(target_mb->mtype);
+    memcpy(host_mb->mtext, target_mb->mtext, msgsz);
     ret = get_errno(msgsnd(msqid, host_mb, msgsz, msgflg));
     free(host_mb);
     unlock_user_struct(target_mb, msgp, 0);
@@ -1943,7 +1993,7 @@ static inline abi_long do_msgsnd(int msqid, abi_long msgp,
 }
 
 static inline abi_long do_msgrcv(int msqid, abi_long msgp,
-                                 unsigned int msgsz, int msgtype,
+                                 unsigned int msgsz, abi_long msgtyp,
                                  int msgflg)
 {
     struct target_msgbuf *target_mb;
@@ -1953,8 +2003,10 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
 
     if (!lock_user_struct(VERIFY_WRITE, target_mb, msgp, 0))
         return -TARGET_EFAULT;
+
     host_mb = malloc(msgsz+sizeof(long));
-    ret = get_errno(msgrcv(msqid, host_mb, msgsz, 1, msgflg));
+    ret = get_errno(msgrcv(msqid, host_mb, msgsz, tswapl(msgtyp), msgflg));
+
     if (ret > 0) {
         abi_ulong target_mtext_addr = msgp + sizeof(abi_ulong);
         target_mtext = lock_user(VERIFY_WRITE, target_mtext_addr, ret, 0);
@@ -1962,9 +2014,10 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
             ret = -TARGET_EFAULT;
             goto end;
         }
-    	memcpy(target_mb->mtext, host_mb->mtext, ret);
+        memcpy(target_mb->mtext, host_mb->mtext, ret);
         unlock_user(target_mtext, target_mtext_addr, ret);
     }
+
     target_mb->mtype = tswapl(host_mb->mtype);
     free(host_mb);
 
@@ -1974,6 +2027,7 @@ end:
     return ret;
 }
 
+#ifdef TARGET_NR_ipc
 /* ??? This only works with linear mappings.  */
 /* do_ipc() must return target values and target errnos. */
 static abi_long do_ipc(unsigned int call, int first,
@@ -2006,34 +2060,41 @@ static abi_long do_ipc(unsigned int call, int first,
         ret = -TARGET_ENOSYS;
         break;
 
-	case IPCOP_msgget:
-		ret = get_errno(msgget(first, second));
-		break;
+    case IPCOP_msgget:
+        ret = get_errno(msgget(first, second));
+        break;
 
-	case IPCOP_msgsnd:
-		ret = do_msgsnd(first, ptr, second, third);
-		break;
+    case IPCOP_msgsnd:
+        ret = do_msgsnd(first, ptr, second, third);
+        break;
 
-	case IPCOP_msgctl:
-        	ret = do_msgctl(first, second, ptr);
-		break;
+    case IPCOP_msgctl:
+        ret = do_msgctl(first, second, ptr);
+        break;
 
-	case IPCOP_msgrcv:
-                {
-                      /* XXX: this code is not correct */
-                      struct ipc_kludge
-                      {
-                              void *__unbounded msgp;
-                              long int msgtyp;
-                      };
+    case IPCOP_msgrcv:
+        switch (version) {
+        case 0:
+            {
+                struct target_ipc_kludge {
+                    abi_long msgp;
+                    abi_long msgtyp;
+                } *tmp;
 
-                      struct ipc_kludge *foo = (struct ipc_kludge *)g2h(ptr);
-                      struct msgbuf *msgp = (struct msgbuf *) foo->msgp;
-
-                      ret = do_msgrcv(first, (long)msgp, second, 0, third);
-
+                if (!lock_user_struct(VERIFY_READ, tmp, ptr, 1)) {
+                    ret = -TARGET_EFAULT;
+                    break;
                 }
-		break;
+
+                ret = do_msgrcv(first, tmp->msgp, second, tmp->msgtyp, third);
+
+                unlock_user_struct(tmp, ptr, 0);
+                break;
+            }
+        default:
+            ret = do_msgrcv(first, ptr, second, fifth, third);
+        }
+        break;
 
     case IPCOP_shmat:
         {
