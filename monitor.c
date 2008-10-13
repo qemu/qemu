@@ -36,6 +36,7 @@
 #include "disas.h"
 #include <dirent.h>
 #include "qemu-timer.h"
+#include "migration.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -1454,6 +1455,12 @@ static const term_cmd_t term_cmds[] = {
     { "nmi", "i", do_inject_nmi,
       "cpu", "inject an NMI on the given CPU", },
 #endif
+    { "migrate", "-ds", do_migrate,
+      "[-d] uri", "migrate to URI (using -d to not wait for completion)" },
+    { "migrate_cancel", "", do_migrate_cancel,
+      "", "cancel the current VM migration" },
+    { "migrate_set_speed", "s", do_migrate_set_speed,
+      "value", "set maximum speed (in bytes) for migrations" },
     { NULL, NULL, },
 };
 
@@ -1516,6 +1523,7 @@ static const term_cmd_t info_cmds[] = {
     { "slirp", "", do_info_slirp,
       "", "show SLIRP statistics", },
 #endif
+    { "migrate", "", do_info_migrate, "", "show migration status" },
     { NULL, NULL, },
 };
 

@@ -38,6 +38,7 @@
 #include "qemu-char.h"
 #include "block.h"
 #include "audio/audio.h"
+#include "migration.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -3364,7 +3365,6 @@ static void udp_chr_update_read_handler(CharDriverState *chr)
     }
 }
 
-int parse_host_port(struct sockaddr_in *saddr, const char *str);
 #ifndef _WIN32
 static int parse_unix_path(struct sockaddr_un *uaddr, const char *str);
 #endif
@@ -6766,6 +6766,8 @@ int qemu_savevm_state(QEMUFile *f)
     saved_vm_running = vm_running;
     vm_stop(0);
 
+    bdrv_flush_all();
+
     ret = qemu_savevm_state_begin(f);
     if (ret < 0)
         goto out;
@@ -8338,6 +8340,7 @@ enum {
     QEMU_OPTION_tb_size,
     QEMU_OPTION_icount,
     QEMU_OPTION_uuid,
+    QEMU_OPTION_incoming,
 };
 
 typedef struct QEMUOption {
@@ -8450,6 +8453,7 @@ static const QEMUOption qemu_options[] = {
     { "startdate", HAS_ARG, QEMU_OPTION_startdate },
     { "tb-size", HAS_ARG, QEMU_OPTION_tb_size },
     { "icount", HAS_ARG, QEMU_OPTION_icount },
+    { "incoming", HAS_ARG, QEMU_OPTION_incoming },
     { NULL },
 };
 
@@ -8742,6 +8746,7 @@ int main(int argc, char **argv)
     const char *pid_file = NULL;
     VLANState *vlan;
     int autostart;
+    const char *incoming = NULL;
 
     LIST_INIT (&vm_change_state_head);
 #ifndef _WIN32
@@ -9349,6 +9354,9 @@ int main(int argc, char **argv)
                     icount_time_shift = strtol(optarg, NULL, 0);
                 }
                 break;
+            case QEMU_OPTION_incoming:
+                incoming = optarg;
+                break;
             }
         }
     }
@@ -9690,6 +9698,11 @@ int main(int argc, char **argv)
 
     if (loadvm)
         do_loadvm(loadvm);
+
+    if (incoming) {
+        autostart = 0; /* fixme how to deal with -daemonize */
+        qemu_start_incoming_migration(incoming);
+    }
 
     {
         /* XXX: simplify init */
