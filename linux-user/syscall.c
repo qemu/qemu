@@ -4829,6 +4829,27 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 	ret = do_ipc(arg1, arg2, arg3, arg4, arg5, arg6);
 	break;
 #endif
+
+#ifdef TARGET_NR_msgctl
+    case TARGET_NR_msgctl:
+        ret = do_msgctl(arg1, arg2, arg3);
+        break;
+#endif
+#ifdef TARGET_NR_msgget
+    case TARGET_NR_msgget:
+        ret = get_errno(msgget(arg1, arg2));
+        break;
+#endif
+#ifdef TARGET_NR_msgrcv
+    case TARGET_NR_msgrcv:
+        ret = do_msgrcv(arg1, arg2, arg3, arg4, arg5);
+        break;
+#endif
+#ifdef TARGET_NR_msgsnd
+    case TARGET_NR_msgsnd:
+        ret = do_msgsnd(arg1, arg2, arg3, arg4);
+        break;
+#endif
     case TARGET_NR_fsync:
         ret = get_errno(fsync(arg1));
         break;
