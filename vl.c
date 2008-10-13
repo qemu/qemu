@@ -733,7 +733,7 @@ static int use_rt_clock;
 static void init_get_clock(void)
 {
     use_rt_clock = 0;
-#if defined(__linux__)
+#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000)
     {
         struct timespec ts;
         if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
@@ -745,7 +745,7 @@ static void init_get_clock(void)
 
 static int64_t get_clock(void)
 {
-#if defined(__linux__)
+#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000)
     if (use_rt_clock) {
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
