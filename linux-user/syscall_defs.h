@@ -1963,6 +1963,21 @@ struct target_sysinfo {
     char _f[20-2*sizeof(abi_long)-sizeof(int)]; /* Padding: libc5 uses this.. */
 };
 
+struct linux_dirent {
+    long            d_ino;
+    unsigned long   d_off;
+    unsigned short  d_reclen;
+    char            d_name[256]; /* We must not include limits.h! */
+};
+
+struct linux_dirent64 {
+    uint64_t        d_ino;
+    int64_t         d_off;
+    unsigned short  d_reclen;
+    unsigned char   d_type;
+    char            d_name[256];
+};
+
 #include "socket.h"
 
 #include "errno_defs.h"
