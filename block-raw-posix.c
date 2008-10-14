@@ -73,6 +73,11 @@
 #define DEBUG_BLOCK_PRINT(formatCstr, args...)
 #endif
 
+/* OS X does not have O_DSYNC */
+#ifndef O_DSYNC
+#define O_SYNC
+#endif
+
 /* Approximate O_DIRECT with O_DSYNC if O_DIRECT isn't available */
 #ifndef O_DIRECT
 #define O_DIRECT O_DSYNC
