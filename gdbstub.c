@@ -604,8 +604,6 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 #else
     else if (n < 64) {
         /* f0-f31 */
-        uint32_t fpr;
-
         env->fpr[n] = ldfl_p(mem_buf);
         return 4;
     } else if (n < 80) {
