@@ -267,12 +267,27 @@ These options have the same definition as they have in @option{-hdachs}.
 @item snapshot=@var{snapshot}
 @var{snapshot} is "on" or "off" and allows to enable snapshot for given drive (see @option{-snapshot}).
 @item cache=@var{cache}
-@var{cache} is "on" or "off" and allows to disable host cache to access data.
+@var{cache} is "none", "writeback", or "writethrough" and controls how the host cache is used to access block data.
 @item format=@var{format}
 Specify which disk @var{format} will be used rather than detecting
 the format.  Can be used to specifiy format=raw to avoid interpreting
 an untrusted format header.
 @end table
+
+By default, writethrough caching is used for all block device.  This means that
+the host page cache will be used to read and write data but write notification
+will be sent to the guest only when the data has been reported as written by
+the storage subsystem.
+
+Writeback caching will report data writes as completed as soon as the data is
+present in the host page cache.  This is safe as long as you trust your host.
+If your host crashes or loses power, then the guest may experience data
+corruption.  When using the @option{-snapshot} option, writeback caching is
+used by default.
+
+The host page can be avoided entirely with @option{cache=none}.  This will
+attempt to do disk IO directly to the guests memory.  QEMU may still perform
+an internal copy of the data.
 
 Instead of @option{-cdrom} you can use:
 @example

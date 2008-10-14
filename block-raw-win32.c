@@ -104,8 +104,10 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 #else
     overlapped = FILE_ATTRIBUTE_NORMAL;
 #endif
-    if (flags & BDRV_O_DIRECT)
+    if ((flags & BDRV_O_NOCACHE))
         overlapped |= FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH;
+    else if (!(flags & BDRV_O_CACHE_WB))
+        overlapped |= FILE_FLAG_WRITE_THROUGH;
     s->hfile = CreateFile(filename, access_flags,
                           FILE_SHARE_READ, NULL,
                           create_flags, overlapped, NULL);
@@ -440,8 +442,10 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 #else
     overlapped = FILE_ATTRIBUTE_NORMAL;
 #endif
-    if (flags & BDRV_O_DIRECT)
+    if ((flags & BDRV_O_NOCACHE))
         overlapped |= FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH;
+    else if (!(flags & BDRV_O_CACHE_WB))
+        overlapped |= FILE_FLAG_WRITE_THROUGH;
     s->hfile = CreateFile(filename, access_flags,
                           FILE_SHARE_READ, NULL,
                           create_flags, overlapped, NULL);

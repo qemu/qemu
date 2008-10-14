@@ -395,12 +395,12 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     /* Note: for compatibility, we open disk image files as RDWR, and
        RDONLY as fallback */
     if (!(flags & BDRV_O_FILE))
-        open_flags = BDRV_O_RDWR | (flags & BDRV_O_DIRECT);
+        open_flags = BDRV_O_RDWR | (flags & BDRV_O_CACHE_MASK);
     else
         open_flags = flags & ~(BDRV_O_FILE | BDRV_O_SNAPSHOT);
     ret = drv->bdrv_open(bs, filename, open_flags);
     if ((ret == -EACCES || ret == -EPERM) && !(flags & BDRV_O_FILE)) {
-        ret = drv->bdrv_open(bs, filename, BDRV_O_RDONLY);
+        ret = drv->bdrv_open(bs, filename, open_flags & ~BDRV_O_RDWR);
         bs->read_only = 1;
     }
     if (ret < 0) {
@@ -427,7 +427,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         }
         path_combine(backing_filename, sizeof(backing_filename),
                      filename, bs->backing_file);
-        if (bdrv_open(bs->backing_hd, backing_filename, 0) < 0)
+        if (bdrv_open(bs->backing_hd, backing_filename, open_flags) < 0)
             goto fail;
     }
 

@@ -5648,10 +5648,12 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     }
 
     if (get_param_value(buf, sizeof(buf), "cache", str)) {
-        if (!strcmp(buf, "off"))
+        if (!strcmp(buf, "off") || !strcmp(buf, "none"))
             cache = 0;
-        else if (!strcmp(buf, "on"))
+        else if (!strcmp(buf, "writethrough"))
             cache = 1;
+        else if (!strcmp(buf, "writeback"))
+            cache = 2;
         else {
            fprintf(stderr, "qemu: invalid cache option\n");
            return -1;
@@ -5770,10 +5772,14 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     if (!file[0])
         return 0;
     bdrv_flags = 0;
-    if (snapshot)
+    if (snapshot) {
         bdrv_flags |= BDRV_O_SNAPSHOT;
-    if (!cache)
-        bdrv_flags |= BDRV_O_DIRECT;
+        cache = 2; /* always use write-back with snapshot */
+    }
+    if (cache == 0) /* no caching */
+        bdrv_flags |= BDRV_O_NOCACHE;
+    else if (cache == 2) /* write-back */
+        bdrv_flags |= BDRV_O_CACHE_WB;
     if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0 || qemu_key_check(bdrv, file)) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
@@ -8145,7 +8151,7 @@ static void help(int exitcode)
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
 	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
            "       [,cyls=c,heads=h,secs=s[,trans=t]][,snapshot=on|off]\n"
-           "       [,cache=on|off][,format=f]\n"
+           "       [,cache=writethrough|writeback|none][,format=f]\n"
 	   "                use 'file' as a drive image\n"
            "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"

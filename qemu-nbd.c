@@ -232,7 +232,7 @@ int main(int argc, char **argv)
             flags |= BDRV_O_SNAPSHOT;
             break;
         case 'n':
-            flags |= BDRV_O_DIRECT;
+            flags |= BDRV_O_NOCACHE;
             break;
         case 'b':
             bindto = optarg;

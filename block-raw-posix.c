@@ -73,6 +73,11 @@
 #define DEBUG_BLOCK_PRINT(formatCstr, args...)
 #endif
 
+/* Approximate O_DIRECT with O_DSYNC if O_DIRECT isn't available */
+#ifndef O_DIRECT
+#define O_DIRECT O_DSYNC
+#endif
+
 #define FTYPE_FILE   0
 #define FTYPE_CD     1
 #define FTYPE_FD     2
@@ -101,9 +106,7 @@ typedef struct BDRVRawState {
     int fd_got_error;
     int fd_media_changed;
 #endif
-#if defined(O_DIRECT)
     uint8_t* aligned_buf;
-#endif
 } BDRVRawState;
 
 static int posix_aio_init(void);
@@ -129,10 +132,13 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     }
     if (flags & BDRV_O_CREAT)
         open_flags |= O_CREAT | O_TRUNC;
-#ifdef O_DIRECT
-    if (flags & BDRV_O_DIRECT)
+
+    /* Use O_DSYNC for write-through caching, no flags for write-back caching,
+     * and O_DIRECT for no caching. */
+    if ((flags & BDRV_O_NOCACHE))
         open_flags |= O_DIRECT;
-#endif
+    else if (!(flags & BDRV_O_CACHE_WB))
+        open_flags |= O_DSYNC;
 
     s->type = FTYPE_FILE;
 
@@ -146,9 +152,8 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     s->fd = fd;
     for (i = 0; i < RAW_FD_POOL_SIZE; i++)
         s->fd_pool[i] = -1;
-#if defined(O_DIRECT)
     s->aligned_buf = NULL;
-    if (flags & BDRV_O_DIRECT) {
+    if ((flags & BDRV_O_NOCACHE)) {
         s->aligned_buf = qemu_memalign(512, ALIGNED_BUFFER_SIZE);
         if (s->aligned_buf == NULL) {
             ret = -errno;
@@ -156,7 +161,6 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
             return ret;
         }
     }
-#endif
     return 0;
 }
 
@@ -281,7 +285,6 @@ label__raw_write__success:
 }
 
 
-#if defined(O_DIRECT)
 /*
  * offset and count are in bytes and possibly not aligned. For files opened
  * with O_DIRECT, necessary alignments are ensured before calling
@@ -431,12 +434,6 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
     }
     return raw_pwrite_aligned(bs, offset, buf, count) + sum;
 }
-
-#else
-#define raw_pread raw_pread_aligned
-#define raw_pwrite raw_pwrite_aligned
-#endif
-
 
 #ifdef CONFIG_AIO
 /***********************************************************/
@@ -661,7 +658,6 @@ static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
      * If O_DIRECT is used and the buffer is not aligned fall back
      * to synchronous IO.
      */
-#if defined(O_DIRECT)
     BDRVRawState *s = bs->opaque;
 
     if (unlikely(s->aligned_buf != NULL && ((uintptr_t) buf % 512))) {
@@ -672,7 +668,6 @@ static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
         qemu_bh_schedule(bh);
         return &acb->common;
     }
-#endif
 
     acb = raw_aio_setup(bs, sector_num, buf, nb_sectors, cb, opaque);
     if (!acb)
@@ -694,7 +689,6 @@ static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
      * If O_DIRECT is used and the buffer is not aligned fall back
      * to synchronous IO.
      */
-#if defined(O_DIRECT)
     BDRVRawState *s = bs->opaque;
 
     if (unlikely(s->aligned_buf != NULL && ((uintptr_t) buf % 512))) {
@@ -705,7 +699,6 @@ static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
         qemu_bh_schedule(bh);
         return &acb->common;
     }
-#endif
 
     acb = raw_aio_setup(bs, sector_num, (uint8_t*)buf, nb_sectors, cb, opaque);
     if (!acb)
@@ -770,10 +763,8 @@ static void raw_close(BlockDriverState *bs)
     if (s->fd >= 0) {
         close(s->fd);
         s->fd = -1;
-#if defined(O_DIRECT)
         if (s->aligned_buf != NULL)
             qemu_free(s->aligned_buf);
-#endif
     }
     raw_close_fd_pool(s);
 }
@@ -1003,10 +994,12 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         open_flags |= O_RDONLY;
         bs->read_only = 1;
     }
-#ifdef O_DIRECT
-    if (flags & BDRV_O_DIRECT)
+    /* Use O_DSYNC for write-through caching, no flags for write-back caching,
+     * and O_DIRECT for no caching. */
+    if ((flags & BDRV_O_NOCACHE))
         open_flags |= O_DIRECT;
-#endif
+    else if (!(flags & BDRV_O_CACHE_WB))
+        open_flags |= O_DSYNC;
 
     s->type = FTYPE_FILE;
 #if defined(__linux__)
