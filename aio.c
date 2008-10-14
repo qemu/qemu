@@ -126,6 +126,9 @@ void qemu_aio_wait(void)
 
         walking_handlers = 1;
 
+        FD_ZERO(&rdfds);
+        FD_ZERO(&wrfds);
+
         /* fill fd sets */
         LIST_FOREACH(node, &aio_handlers, node) {
             /* If there aren't pending AIO operations, don't invoke callbacks.

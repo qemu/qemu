@@ -2026,7 +2026,10 @@ void helper_cpuid(void)
 #if defined(USE_KQEMU)
             EAX = 0x00000020;	/* 32 bits physical */
 #else
-            EAX = 0x00000024;	/* 36 bits physical */
+            if (env->cpuid_features & CPUID_PSE36)
+                EAX = 0x00000024; /* 36 bits physical */
+            else
+                EAX = 0x00000020; /* 32 bits physical */
 #endif
         }
         EBX = 0;

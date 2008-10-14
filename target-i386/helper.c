@@ -183,7 +183,7 @@ static x86_def_t x86_defs[] = {
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_SSSE3,
         .ext2_features = CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         /* Missing: .ext3_features = CPUID_EXT3_LAHF_LM */
-        .xlevel = 0x8000000A,
+        .xlevel = 0x80000008,
         .model_id = "Intel(R) Core(TM)2 Duo CPU     T7700  @ 2.40GHz",
     },
 #endif
@@ -197,6 +197,25 @@ static x86_def_t x86_defs[] = {
         .ext_features = CPUID_EXT_SSE3,
         .xlevel = 0,
         .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
+    },
+    {
+        .name = "coreduo",
+        .level = 10,
+        .family = 6,
+        .model = 14,
+        .stepping = 8,
+        /* The original CPU also implements these features:
+               CPUID_DTS, CPUID_ACPI, CPUID_SS, CPUID_HT,
+               CPUID_TM, CPUID_PBE */
+        .features = PPRO_FEATURES | CPUID_VME |
+            CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA,
+        /* The original CPU also implements these ext features:
+               CPUID_EXT_VMX, CPUID_EXT_EST, CPUID_EXT_TM2, CPUID_EXT_XTPR,
+               CPUID_EXT_PDCM */
+        .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR,
+        .ext2_features = CPUID_EXT2_NX,
+        .xlevel = 0x80000008,
+        .model_id = "Genuine Intel(R) CPU           T2600  @ 2.16GHz",
     },
     {
         .name = "486",

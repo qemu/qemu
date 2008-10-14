@@ -48,6 +48,8 @@ void do_loadvm(const char *name);
 void do_delvm(const char *name);
 void do_info_snapshots(void);
 
+void qemu_announce_self(void);
+
 void main_loop_wait(int timeout);
 
 int qemu_savevm_state_begin(QEMUFile *f);

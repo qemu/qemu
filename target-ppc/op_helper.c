@@ -60,12 +60,6 @@ void do_raise_exception (uint32_t exception)
     do_raise_exception_err(exception, 0);
 }
 
-void cpu_dump_EA (target_ulong EA);
-void do_print_mem_EA (target_ulong EA)
-{
-    cpu_dump_EA(EA);
-}
-
 /*****************************************************************************/
 /* Registers load and stores */
 void do_load_cr (void)

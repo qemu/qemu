@@ -26,12 +26,6 @@
 #include "helper_regs.h"
 #include "op_helper.h"
 
-void OPPROTO op_print_mem_EA (void)
-{
-    do_print_mem_EA(T0);
-    RETURN();
-}
-
 /* PowerPC state maintenance operations */
 /* set_Rc0 */
 void OPPROTO op_set_Rc0 (void)

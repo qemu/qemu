@@ -683,7 +683,9 @@ void _decode_opc(DisasContext * ctx)
 	return;
     case 0x6008:		/* swap.b Rm,Rn */
 	{
-	    TCGv high, low;
+	    TCGv highw, high, low;
+	    highw = tcg_temp_new(TCG_TYPE_I32);
+	    tcg_gen_andi_i32(highw, REG(B7_4), 0xffff0000);
 	    high = tcg_temp_new(TCG_TYPE_I32);
 	    tcg_gen_ext8u_i32(high, REG(B7_4));
 	    tcg_gen_shli_i32(high, high, 8);
@@ -691,6 +693,7 @@ void _decode_opc(DisasContext * ctx)
 	    tcg_gen_shri_i32(low, REG(B7_4), 8);
 	    tcg_gen_ext8u_i32(low, low);
 	    tcg_gen_or_i32(REG(B11_8), high, low);
+	    tcg_gen_or_i32(REG(B11_8), REG(B11_8), highw);
 	    tcg_temp_free(low);
 	    tcg_temp_free(high);
 	}
@@ -1512,6 +1515,17 @@ void _decode_opc(DisasContext * ctx)
     case 0x00c3:		/* movca.l R0,@Rm */
 	tcg_gen_qemu_st32(REG(0), REG(B11_8), ctx->memidx);
 	return;
+    case 0x40a9:
+	/* MOVUA.L @Rm,R0 (Rm) -> R0
+	   Load non-boundary-aligned data */
+	tcg_gen_qemu_ld32u(REG(0), REG(B11_8), ctx->memidx);
+	return;
+    case 0x40e9:
+	/* MOVUA.L @Rm+,R0   (Rm) -> R0, Rm + 4 -> Rm
+	   Load non-boundary-aligned data */
+	tcg_gen_qemu_ld32u(REG(0), REG(B11_8), ctx->memidx);
+	tcg_gen_addi_i32(REG(B11_8), REG(B11_8), 4);
+	return;
     case 0x0029:		/* movt Rn */
 	tcg_gen_andi_i32(REG(B11_8), cpu_sr, SR_T);
 	return;
@@ -1864,6 +1878,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
     if (env->singlestep_enabled) {
+        tcg_gen_movi_i32(cpu_pc, ctx.pc);
         tcg_gen_helper_0_0(helper_debug);
     } else {
 	switch (ctx.bstate) {
