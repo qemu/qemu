@@ -2899,19 +2899,6 @@ void ppc_hw_interrupt (CPUPPCState *env)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-void cpu_dump_EA (target_ulong EA)
-{
-    FILE *f;
-
-    if (logfile) {
-        f = logfile;
-    } else {
-        f = stdout;
-        return;
-    }
-    fprintf(f, "Memory access at address " ADDRX "\n", EA);
-}
-
 void cpu_dump_rfi (target_ulong RA, target_ulong msr)
 {
     FILE *f;
