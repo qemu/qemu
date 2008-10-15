@@ -3759,6 +3759,7 @@ GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE)
     }
     EA = tcg_temp_new(TCG_TYPE_TL);
     gen_addr_reg_index(EA, ctx);
+    val = tcg_temp_new(TCG_TYPE_TL);
     /* XXX: specification says this should be treated as a store by the MMU */
     gen_qemu_ld8u(val, EA, ctx->mem_idx);
     gen_qemu_st8(val, EA, ctx->mem_idx);
