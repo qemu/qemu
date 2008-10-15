@@ -20,111 +20,6 @@
 
 #include "op_mem_access.h"
 
-/***                             Integer load                              ***/
-#define PPC_LD_OP(name, op)                                                   \
-void OPPROTO glue(glue(op_l, name), MEMSUFFIX) (void)                         \
-{                                                                             \
-    T1 = glue(op, MEMSUFFIX)((uint32_t)T0);                                   \
-    RETURN();                                                                 \
-}
-
-#if defined(TARGET_PPC64)
-#define PPC_LD_OP_64(name, op)                                                \
-void OPPROTO glue(glue(glue(op_l, name), _64), MEMSUFFIX) (void)              \
-{                                                                             \
-    T1 = glue(op, MEMSUFFIX)((uint64_t)T0);                                   \
-    RETURN();                                                                 \
-}
-#endif
-
-#define PPC_ST_OP(name, op)                                                   \
-void OPPROTO glue(glue(op_st, name), MEMSUFFIX) (void)                        \
-{                                                                             \
-    glue(op, MEMSUFFIX)((uint32_t)T0, T1);                                    \
-    RETURN();                                                                 \
-}
-
-#if defined(TARGET_PPC64)
-#define PPC_ST_OP_64(name, op)                                                \
-void OPPROTO glue(glue(glue(op_st, name), _64), MEMSUFFIX) (void)             \
-{                                                                             \
-    glue(op, MEMSUFFIX)((uint64_t)T0, T1);                                    \
-    RETURN();                                                                 \
-}
-#endif
-
-PPC_LD_OP(bz, ldu8);
-PPC_LD_OP(ha, lds16);
-PPC_LD_OP(hz, ldu16);
-PPC_LD_OP(wz, ldu32);
-#if defined(TARGET_PPC64)
-PPC_LD_OP(wa, lds32);
-PPC_LD_OP(d, ldu64);
-PPC_LD_OP_64(bz, ldu8);
-PPC_LD_OP_64(ha, lds16);
-PPC_LD_OP_64(hz, ldu16);
-PPC_LD_OP_64(wz, ldu32);
-PPC_LD_OP_64(wa, lds32);
-PPC_LD_OP_64(d, ldu64);
-#endif
-
-PPC_LD_OP(ha_le, lds16r);
-PPC_LD_OP(hz_le, ldu16r);
-PPC_LD_OP(wz_le, ldu32r);
-#if defined(TARGET_PPC64)
-PPC_LD_OP(wa_le, lds32r);
-PPC_LD_OP(d_le, ldu64r);
-PPC_LD_OP_64(ha_le, lds16r);
-PPC_LD_OP_64(hz_le, ldu16r);
-PPC_LD_OP_64(wz_le, ldu32r);
-PPC_LD_OP_64(wa_le, lds32r);
-PPC_LD_OP_64(d_le, ldu64r);
-#endif
-
-/***                              Integer store                            ***/
-PPC_ST_OP(b, st8);
-PPC_ST_OP(h, st16);
-PPC_ST_OP(w, st32);
-#if defined(TARGET_PPC64)
-PPC_ST_OP(d, st64);
-PPC_ST_OP_64(b, st8);
-PPC_ST_OP_64(h, st16);
-PPC_ST_OP_64(w, st32);
-PPC_ST_OP_64(d, st64);
-#endif
-
-PPC_ST_OP(h_le, st16r);
-PPC_ST_OP(w_le, st32r);
-#if defined(TARGET_PPC64)
-PPC_ST_OP(d_le, st64r);
-PPC_ST_OP_64(h_le, st16r);
-PPC_ST_OP_64(w_le, st32r);
-PPC_ST_OP_64(d_le, st64r);
-#endif
-
-/***                Integer load and store with byte reverse               ***/
-PPC_LD_OP(hbr, ldu16r);
-PPC_LD_OP(wbr, ldu32r);
-PPC_ST_OP(hbr, st16r);
-PPC_ST_OP(wbr, st32r);
-#if defined(TARGET_PPC64)
-PPC_LD_OP_64(hbr, ldu16r);
-PPC_LD_OP_64(wbr, ldu32r);
-PPC_ST_OP_64(hbr, st16r);
-PPC_ST_OP_64(wbr, st32r);
-#endif
-
-PPC_LD_OP(hbr_le, ldu16);
-PPC_LD_OP(wbr_le, ldu32);
-PPC_ST_OP(hbr_le, st16);
-PPC_ST_OP(wbr_le, st32);
-#if defined(TARGET_PPC64)
-PPC_LD_OP_64(hbr_le, ldu16);
-PPC_LD_OP_64(wbr_le, ldu32);
-PPC_ST_OP_64(hbr_le, st16);
-PPC_ST_OP_64(wbr_le, st32);
-#endif
-
 /***                    Integer load and store multiple                    ***/
 void OPPROTO glue(op_lmw, MEMSUFFIX) (void)
 {
@@ -985,12 +880,10 @@ _PPC_SPE_ST_OP_64(name, op)
 _PPC_SPE_ST_OP(name, op)
 #endif
 
-#if !defined(TARGET_PPC64)
 PPC_SPE_LD_OP(dd, ldu64);
 PPC_SPE_ST_OP(dd, st64);
 PPC_SPE_LD_OP(dd_le, ldu64r);
 PPC_SPE_ST_OP(dd_le, st64r);
-#endif
 static always_inline uint64_t glue(spe_ldw, MEMSUFFIX) (target_ulong EA)
 {
     uint64_t ret;
@@ -1135,7 +1028,6 @@ static always_inline void glue(spe_stwho_le, MEMSUFFIX) (target_ulong EA,
     glue(st16r, MEMSUFFIX)(EA + 2, data);
 }
 PPC_SPE_ST_OP(who_le, spe_stwho_le);
-#if !defined(TARGET_PPC64)
 static always_inline void glue(spe_stwwo, MEMSUFFIX) (target_ulong EA,
                                                       uint64_t data)
 {
@@ -1148,7 +1040,6 @@ static always_inline void glue(spe_stwwo_le, MEMSUFFIX) (target_ulong EA,
     glue(st32r, MEMSUFFIX)(EA, data);
 }
 PPC_SPE_ST_OP(wwo_le, spe_stwwo_le);
-#endif
 static always_inline uint64_t glue(spe_lh, MEMSUFFIX) (target_ulong EA)
 {
     uint16_t tmp;
