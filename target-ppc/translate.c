@@ -5723,6 +5723,23 @@ static always_inline void gen_##name (DisasContext *ctx)                      \
     gen_store_gpr64(rD(ctx->opcode), cpu_T64[0]);                             \
 }
 
+#define GEN_SPEOP_TCG_ARITH2(name)                                            \
+static always_inline void gen_##name (DisasContext *ctx)                      \
+{                                                                             \
+    if (unlikely(!ctx->spe_enabled)) {                                        \
+        GEN_EXCP_NO_AP(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    TCGv t0 = tcg_temp_new(TCG_TYPE_I64);                                     \
+    TCGv t1 = tcg_temp_new(TCG_TYPE_I64);                                     \
+    gen_load_gpr64(t0, rA(ctx->opcode));                                      \
+    gen_load_gpr64(t1, rB(ctx->opcode));                                      \
+    gen_op_##name(t0, t1);                                                    \
+    gen_store_gpr64(rD(ctx->opcode), t0);                                     \
+    tcg_temp_free(t0);                                                        \
+    tcg_temp_free(t1);                                                        \
+}
+
 #define GEN_SPEOP_ARITH1(name)                                                \
 static always_inline void gen_##name (DisasContext *ctx)                      \
 {                                                                             \
@@ -5749,14 +5766,59 @@ static always_inline void gen_##name (DisasContext *ctx)                      \
 }
 
 /* Logical */
-GEN_SPEOP_ARITH2(evand);
-GEN_SPEOP_ARITH2(evandc);
-GEN_SPEOP_ARITH2(evxor);
-GEN_SPEOP_ARITH2(evor);
-GEN_SPEOP_ARITH2(evnor);
-GEN_SPEOP_ARITH2(eveqv);
-GEN_SPEOP_ARITH2(evorc);
-GEN_SPEOP_ARITH2(evnand);
+static always_inline void gen_op_evand (TCGv t0, TCGv t1)
+{
+    tcg_gen_and_i64(t0, t0, t1);
+}
+
+static always_inline void gen_op_evandc (TCGv t0, TCGv t1)
+{
+    tcg_gen_not_i64(t1, t1);
+    tcg_gen_and_i64(t0, t0, t1);
+}
+
+static always_inline void gen_op_evxor (TCGv t0, TCGv t1)
+{
+    tcg_gen_xor_i64(t0, t0, t1);
+}
+
+static always_inline void gen_op_evor (TCGv t0, TCGv t1)
+{
+    tcg_gen_or_i64(t0, t0, t1);
+}
+
+static always_inline void gen_op_evnor (TCGv t0, TCGv t1)
+{
+    tcg_gen_or_i64(t0, t0, t1);
+    tcg_gen_not_i64(t0, t0);
+}
+
+static always_inline void gen_op_eveqv (TCGv t0, TCGv t1)
+{
+    tcg_gen_xor_i64(t0, t0, t1);
+    tcg_gen_not_i64(t0, t0);
+}
+
+static always_inline void gen_op_evorc (TCGv t0, TCGv t1)
+{
+    tcg_gen_not_i64(t1, t1);
+    tcg_gen_or_i64(t0, t0, t1);
+}
+
+static always_inline void gen_op_evnand (TCGv t0, TCGv t1)
+{
+    tcg_gen_and_i64(t0, t0, t1);
+    tcg_gen_not_i64(t0, t0);
+}
+
+GEN_SPEOP_TCG_ARITH2(evand);
+GEN_SPEOP_TCG_ARITH2(evandc);
+GEN_SPEOP_TCG_ARITH2(evxor);
+GEN_SPEOP_TCG_ARITH2(evor);
+GEN_SPEOP_TCG_ARITH2(evnor);
+GEN_SPEOP_TCG_ARITH2(eveqv);
+GEN_SPEOP_TCG_ARITH2(evorc);
+GEN_SPEOP_TCG_ARITH2(evnand);
 GEN_SPEOP_ARITH2(evsrwu);
 GEN_SPEOP_ARITH2(evsrws);
 GEN_SPEOP_ARITH2(evslw);

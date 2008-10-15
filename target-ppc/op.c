@@ -2507,54 +2507,6 @@ void OPPROTO op_evcntlsw (void)
     RETURN();
 }
 
-void OPPROTO op_evand (void)
-{
-    T0_64 &= T1_64;
-    RETURN();
-}
-
-void OPPROTO op_evandc (void)
-{
-    T0_64 &= ~T1_64;
-    RETURN();
-}
-
-void OPPROTO op_evor (void)
-{
-    T0_64 |= T1_64;
-    RETURN();
-}
-
-void OPPROTO op_evxor (void)
-{
-    T0_64 ^= T1_64;
-    RETURN();
-}
-
-void OPPROTO op_eveqv (void)
-{
-    T0_64 = ~(T0_64 ^ T1_64);
-    RETURN();
-}
-
-void OPPROTO op_evnor (void)
-{
-    T0_64 = ~(T0_64 | T1_64);
-    RETURN();
-}
-
-void OPPROTO op_evorc (void)
-{
-    T0_64 |= ~T1_64;
-    RETURN();
-}
-
-void OPPROTO op_evnand (void)
-{
-    T0_64 = ~(T0_64 & T1_64);
-    RETURN();
-}
-
 void OPPROTO op_evsrws (void)
 {
     do_evsrws();
