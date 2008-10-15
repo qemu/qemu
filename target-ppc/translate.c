@@ -5293,7 +5293,7 @@ static always_inline void gen_store_gpr64(int reg, TCGv t) {
     tcg_gen_mov_i64(cpu_gpr[reg], t);
 #else
     tcg_gen_trunc_i64_i32(cpu_gpr[reg], t);
-    TCGv tmp = tcg_temp_local_new(TCG_TYPE_I64);
+    TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
     tcg_gen_shri_i64(tmp, t, 32);
     tcg_gen_trunc_i64_i32(cpu_gprh[reg], tmp);
     tcg_temp_free(tmp);
