@@ -5316,17 +5316,16 @@ static always_inline void gen_speundef (DisasContext *ctx)
 }
 
 /* SPE load and stores */
-static always_inline void gen_addr_spe_imm_index (DisasContext *ctx, int sh)
+static always_inline void gen_addr_spe_imm_index (TCGv EA, DisasContext *ctx, int sh)
 {
     target_long simm = rB(ctx->opcode);
 
-    if (rA(ctx->opcode) == 0) {
-        tcg_gen_movi_tl(cpu_T[0], simm << sh);
-    } else {
-        tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-        if (likely(simm != 0))
-            tcg_gen_addi_tl(cpu_T[0], cpu_T[0], simm << sh);
-    }
+    if (rA(ctx->opcode) == 0)
+        tcg_gen_movi_tl(EA, simm << sh);
+    else if (likely(simm != 0))
+        tcg_gen_addi_tl(EA, cpu_gpr[rA(ctx->opcode)], simm << sh);
+    else
+        tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
 }
 
 #define op_spe_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
@@ -5346,7 +5345,7 @@ static always_inline void gen_evl##name (DisasContext *ctx)                   \
         GEN_EXCP_NO_AP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    gen_addr_spe_imm_index(ctx, sh);                                          \
+    gen_addr_spe_imm_index(cpu_T[0], ctx, sh);                                \
     op_spe_ldst(spe_l##name);                                                 \
     gen_store_gpr64(rD(ctx->opcode), cpu_T64[1]);                             \
 }
@@ -5375,7 +5374,7 @@ static always_inline void gen_evst##name (DisasContext *ctx)                  \
         GEN_EXCP_NO_AP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    gen_addr_spe_imm_index(ctx, sh);                                          \
+    gen_addr_spe_imm_index(cpu_T[0], ctx, sh);                                \
     gen_load_gpr64(cpu_T64[1], rS(ctx->opcode));                              \
     op_spe_ldst(spe_st##name);                                                \
 }
