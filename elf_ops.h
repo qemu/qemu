@@ -169,6 +169,9 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
         syms[i].st_value &= ~(target_ulong)1;
 #endif
     }
+#if defined(CONFIG_REDUCE_SYMBOL_TABLE)
+    syms = qemu_realloc(syms, nsyms * sizeof(*syms));
+#endif
 
 #if defined(CONFIG_BINARY_SYMBOL_SEARCH)
     qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
