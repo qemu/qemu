@@ -1,6 +1,3 @@
-#define CONFIG_BINARY_SYMBOL_SEARCH
-#define CONFIG_REDUCE_SYMBOL_TABLE
-
 static void glue(bswap_ehdr, SZ)(struct elfhdr *ehdr)
 {
     bswap16s(&ehdr->e_type);			/* Object file type */
@@ -63,7 +60,6 @@ static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table,
     return NULL;
 }
 
-#if defined(CONFIG_BINARY_SYMBOL_SEARCH)
 static int glue(symfind, SZ)(const void *s0, const void *s1)
 {
     struct elf_sym *key = (struct elf_sym *)s0;
@@ -76,13 +72,11 @@ static int glue(symfind, SZ)(const void *s0, const void *s1)
     }
     return result;
 }
-#endif
 
 static const char *glue(lookup_symbol, SZ)(struct syminfo *s, target_ulong orig_addr)
 {
     struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
 
-#if defined(CONFIG_BINARY_SYMBOL_SEARCH)
     // binary search
     struct elf_sym key;
     struct elf_sym *sym;
@@ -93,23 +87,10 @@ static const char *glue(lookup_symbol, SZ)(struct syminfo *s, target_ulong orig_
     if (sym != 0) {
         return s->disas_strtab + sym->st_name;
     }
-#else
-    // linear search
-    unsigned int i;
-    for (i = 0; i < s->disas_num_syms; i++) {
-        target_ulong addr;
-
-        addr = syms[i].st_value;
-        if (orig_addr >= addr
-            && orig_addr < addr + syms[i].st_size)
-            return s->disas_strtab + syms[i].st_name;
-    }
-#endif
 
     return "";
 }
 
-#if defined(CONFIG_BINARY_SYMBOL_SEARCH)
 static int glue(symcmp, SZ)(const void *s0, const void *s1)
 {
     struct elf_sym *sym0 = (struct elf_sym *)s0;
@@ -118,7 +99,6 @@ static int glue(symcmp, SZ)(const void *s0, const void *s1)
         ? -1
         : ((sym0->st_value > sym1->st_value) ? 1 : 0);
 }
-#endif
 
 static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
 {
@@ -151,7 +131,6 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
     for (i = 0; i < nsyms; i++) {
         if (must_swab)
             glue(bswap_sym, SZ)(&syms[i]);
-#if defined(CONFIG_REDUCE_SYMBOL_TABLE)
         // Throw away entries which we do not need.
         // This reduces a typical table size from 1764487 to 11656 entries.
         while ((syms[i].st_shndx == SHN_UNDEF ||
@@ -161,19 +140,14 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
             if (must_swab)
                 glue(bswap_sym, SZ)(&syms[i]);
         }
-#endif
 #if defined(TARGET_ARM) || defined (TARGET_MIPS)
         /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
         syms[i].st_value &= ~(target_ulong)1;
 #endif
     }
-#if defined(CONFIG_REDUCE_SYMBOL_TABLE)
     syms = qemu_realloc(syms, nsyms * sizeof(*syms));
-#endif
 
-#if defined(CONFIG_BINARY_SYMBOL_SEARCH)
     qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
-#endif
 
     /* String table */
     if (symtab->sh_link >= ehdr->e_shnum)
