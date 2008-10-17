@@ -251,9 +251,6 @@ static void *load_at(int fd, int offset, int size)
     return ptr;
 }
 
-#define CONFIG_BINARY_SYMBOL_SEARCH
-#define CONFIG_REDUCE_SYMBOL_TABLE
-
 #define ELF_CLASS   ELFCLASS32
 #include "elf.h"
 

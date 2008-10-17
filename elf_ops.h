@@ -1,3 +1,6 @@
+#define CONFIG_BINARY_SYMBOL_SEARCH
+#define CONFIG_REDUCE_SYMBOL_TABLE
+
 static void glue(bswap_ehdr, SZ)(struct elfhdr *ehdr)
 {
     bswap16s(&ehdr->e_type);			/* Object file type */
@@ -107,15 +110,10 @@ static const char *glue(lookup_symbol, SZ)(struct syminfo *s, target_ulong orig_
 }
 
 #if defined(CONFIG_BINARY_SYMBOL_SEARCH)
-#include <assert.h>
 static int glue(symcmp, SZ)(const void *s0, const void *s1)
 {
     struct elf_sym *sym0 = (struct elf_sym *)s0;
     struct elf_sym *sym1 = (struct elf_sym *)s1;
-    if (sym1->st_shndx == SHN_UNDEF || sym1->st_shndx >= SHN_LORESERVE ||
-            ELF_ST_TYPE(sym1->st_info) != STT_FUNC) {
-        assert(0);
-    }
     return (sym0->st_value < sym1->st_value)
         ? -1
         : ((sym0->st_value > sym1->st_value) ? 1 : 0);

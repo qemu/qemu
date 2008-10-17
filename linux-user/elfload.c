@@ -1022,25 +1022,25 @@ static void load_symbols(struct elfhdr *hdr, int fd)
  found:
     /* Now know where the strtab and symtab are.  Snarf them. */
     s = malloc(sizeof(*s));
-    s->disas_symtab = malloc(symtab.sh_size);
+    s->disas_symtab.elf32 = malloc(symtab.sh_size);
 #if (ELF_CLASS == ELFCLASS64)
     syms32 = malloc(symtab.sh_size / sizeof(struct elf_sym)
                     * sizeof(struct elf32_sym));
 #endif
     s->disas_strtab = strings = malloc(strtab.sh_size);
-    if (!s->disas_symtab || !s->disas_strtab)
+    if (!s->disas_symtab.elf32 || !s->disas_strtab)
 	return;
 
     lseek(fd, symtab.sh_offset, SEEK_SET);
-    if (read(fd, s->disas_symtab, symtab.sh_size) != symtab.sh_size)
+    if (read(fd, s->disas_symtab.elf32, symtab.sh_size) != symtab.sh_size)
 	return;
 
     for (i = 0; i < symtab.sh_size / sizeof(struct elf_sym); i++) {
 #ifdef BSWAP_NEEDED
-	bswap_sym(s->disas_symtab + sizeof(struct elf_sym)*i);
+	bswap_sym(s->disas_symtab.elf32 + sizeof(struct elf_sym)*i);
 #endif
 #if (ELF_CLASS == ELFCLASS64)
-        sym = s->disas_symtab + sizeof(struct elf_sym)*i;
+        sym = s->disas_symtab.elf32 + sizeof(struct elf_sym)*i;
         syms32[i].st_name = sym->st_name;
         syms32[i].st_info = sym->st_info;
         syms32[i].st_other = sym->st_other;
@@ -1051,8 +1051,8 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     }
 
 #if (ELF_CLASS == ELFCLASS64)
-    free(s->disas_symtab);
-    s->disas_symtab = syms32;
+    free(s->disas_symtab.elf32);
+    s->disas_symtab.elf32 = syms32;
 #endif
     lseek(fd, strtab.sh_offset, SEEK_SET);
     if (read(fd, strings, strtab.sh_size) != strtab.sh_size)
