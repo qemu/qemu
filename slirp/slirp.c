@@ -16,7 +16,11 @@ static const uint8_t special_ethaddr[6] = {
     0x52, 0x54, 0x00, 0x12, 0x35, 0x00
 };
 
+/* ARP cache for the guest IP addresses (XXX: allow many entries) */
 uint8_t client_ethaddr[6];
+static struct in_addr client_ipaddr;
+
+static const uint8_t zero_ethaddr[6] = { 0, 0, 0, 0, 0, 0 };
 
 int do_slowtimo;
 int link_up;
@@ -597,6 +601,13 @@ static void arp_input(const uint8_t *pkt, int pkt_len)
             slirp_output(arp_reply, sizeof(arp_reply));
         }
         break;
+    case ARPOP_REPLY:
+        /* reply to request of client mac address ? */
+        if (!memcmp(client_ethaddr, zero_ethaddr, ETH_ALEN) &&
+            !memcmp(ah->ar_sip, &client_ipaddr.s_addr, 4)) {
+            memcpy(client_ethaddr, ah->ar_sha, ETH_ALEN);
+        }
+        break;
     default:
         break;
     }
@@ -641,14 +652,47 @@ void if_encap(const uint8_t *ip_data, int ip_data_len)
 
     if (ip_data_len + ETH_HLEN > sizeof(buf))
         return;
+    
+    if (!memcmp(client_ethaddr, zero_ethaddr, ETH_ALEN)) {
+        uint8_t arp_req[ETH_HLEN + sizeof(struct arphdr)];
+        struct ethhdr *reh = (struct ethhdr *)arp_req;
+        struct arphdr *rah = (struct arphdr *)(arp_req + ETH_HLEN);
+        const struct ip *iph = (const struct ip *)ip_data;
 
-    memcpy(eh->h_dest, client_ethaddr, ETH_ALEN);
-    memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 1);
-    /* XXX: not correct */
-    eh->h_source[5] = CTL_ALIAS;
-    eh->h_proto = htons(ETH_P_IP);
-    memcpy(buf + sizeof(struct ethhdr), ip_data, ip_data_len);
-    slirp_output(buf, ip_data_len + ETH_HLEN);
+        /* If the client addr is not known, there is no point in
+           sending the packet to it. Normally the sender should have
+           done an ARP request to get its MAC address. Here we do it
+           in place of sending the packet and we hope that the sender
+           will retry sending its packet. */
+        memset(reh->h_dest, 0xff, ETH_ALEN);
+        memcpy(reh->h_source, special_ethaddr, ETH_ALEN - 1);
+        reh->h_source[5] = CTL_ALIAS;
+        reh->h_proto = htons(ETH_P_ARP);
+        rah->ar_hrd = htons(1);
+        rah->ar_pro = htons(ETH_P_IP);
+        rah->ar_hln = ETH_ALEN;
+        rah->ar_pln = 4;
+        rah->ar_op = htons(ARPOP_REQUEST);
+        /* source hw addr */
+        memcpy(rah->ar_sha, special_ethaddr, ETH_ALEN - 1);
+        rah->ar_sha[5] = CTL_ALIAS;
+        /* source IP */
+        memcpy(rah->ar_sip, &alias_addr, 4);
+        /* target hw addr (none) */
+        memset(rah->ar_tha, 0, ETH_ALEN);
+        /* target IP */
+        memcpy(rah->ar_tip, &iph->ip_dst, 4);
+        client_ipaddr = iph->ip_dst;
+        slirp_output(arp_req, sizeof(arp_req));
+    } else {
+        memcpy(eh->h_dest, client_ethaddr, ETH_ALEN);
+        memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 1);
+        /* XXX: not correct */
+        eh->h_source[5] = CTL_ALIAS;
+        eh->h_proto = htons(ETH_P_IP);
+        memcpy(buf + sizeof(struct ethhdr), ip_data, ip_data_len);
+        slirp_output(buf, ip_data_len + ETH_HLEN);
+    }
 }
 
 int slirp_redir(int is_udp, int host_port,
