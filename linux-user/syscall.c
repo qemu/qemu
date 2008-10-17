@@ -1934,6 +1934,7 @@ static inline abi_long host_to_target_msginfo(abi_ulong target_addr,
     __put_user(host_msginfo->msgtql, &target_msginfo->msgtql);
     __put_user(host_msginfo->msgseg, &target_msginfo->msgseg);
     unlock_user_struct(target_msginfo, target_addr, 1);
+    return 0;
 }
 
 static inline abi_long do_msgctl(int msgid, int cmd, abi_long ptr)
