@@ -1293,7 +1293,8 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
             usb_fs_type = USB_FS_SYS;
             closedir(dir);
             dprintf(opened, USBSYSBUS_PATH, devices);
-        } else {
+        }
+        if (!usb_fs_type) {
             term_printf("husb: unable to access USB devices\n");
             goto the_end;
         }
