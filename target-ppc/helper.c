@@ -2124,16 +2124,6 @@ void do_store_sr (CPUPPCState *env, int srnum, target_ulong value)
 }
 #endif /* !defined (CONFIG_USER_ONLY) */
 
-target_ulong ppc_load_xer (CPUPPCState *env)
-{
-    return hreg_load_xer(env);
-}
-
-void ppc_store_xer (CPUPPCState *env, target_ulong value)
-{
-    hreg_store_xer(env, value);
-}
-
 /* GDBstub can read and write MSR... */
 void ppc_store_msr (CPUPPCState *env, target_ulong value)
 {

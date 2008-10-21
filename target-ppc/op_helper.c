@@ -119,9 +119,9 @@ void do_adde (void)
     T0 += T1 + xer_ca;
     if (likely(!((uint32_t)T0 < (uint32_t)T2 ||
                  (xer_ca == 1 && (uint32_t)T0 == (uint32_t)T2)))) {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     } else {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     }
 }
 
@@ -132,32 +132,42 @@ void do_adde_64 (void)
     T0 += T1 + xer_ca;
     if (likely(!((uint64_t)T0 < (uint64_t)T2 ||
                  (xer_ca == 1 && (uint64_t)T0 == (uint64_t)T2)))) {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     } else {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     }
 }
 #endif
 
 void do_addmeo (void)
 {
+    int ov;
     T1 = T0;
     T0 += xer_ca + (-1);
-    xer_ov = ((uint32_t)T1 & ((uint32_t)T1 ^ (uint32_t)T0)) >> 31;
-    xer_so |= xer_ov;
+    ov = ((uint32_t)T1 & ((uint32_t)T1 ^ (uint32_t)T0)) >> 31;
+    if (ov) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
+    } else {
+        env->xer &= ~(1 << XER_OV);
+    }
     if (likely((uint32_t)T1 != 0))
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
 }
 
 #if defined(TARGET_PPC64)
 void do_addmeo_64 (void)
 {
+    int ov;
     T1 = T0;
     T0 += xer_ca + (-1);
-    xer_ov = ((uint64_t)T1 & ((uint64_t)T1 ^ (uint64_t)T0)) >> 63;
-    xer_so |= xer_ov;
+    ov = ((uint64_t)T1 & ((uint64_t)T1 ^ (uint64_t)T0)) >> 63;
+    if (ov) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
+    } else {
+        env->xer &= ~(1 << XER_OV);
+    }
     if (likely((uint64_t)T1 != 0))
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
 }
 #endif
 
@@ -165,13 +175,12 @@ void do_divwo (void)
 {
     if (likely(!(((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
                  (int32_t)T1 == 0))) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
         T0 = (int32_t)T0 / (int32_t)T1;
     } else {
-        xer_ov = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
         T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
     }
-    xer_so |= xer_ov;
 }
 
 #if defined(TARGET_PPC64)
@@ -179,24 +188,22 @@ void do_divdo (void)
 {
     if (likely(!(((int64_t)T0 == INT64_MIN && (int64_t)T1 == (int64_t)-1LL) ||
                  (int64_t)T1 == 0))) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
         T0 = (int64_t)T0 / (int64_t)T1;
     } else {
-        xer_ov = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
         T0 = UINT64_MAX * ((uint64_t)T0 >> 63);
     }
-    xer_so |= xer_ov;
 }
 #endif
 
 void do_divwuo (void)
 {
     if (likely((uint32_t)T1 != 0)) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
         T0 = (uint32_t)T0 / (uint32_t)T1;
     } else {
-        xer_ov = 1;
-        xer_so = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
         T0 = 0;
     }
 }
@@ -205,11 +212,10 @@ void do_divwuo (void)
 void do_divduo (void)
 {
     if (likely((uint64_t)T1 != 0)) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
         T0 = (uint64_t)T0 / (uint64_t)T1;
     } else {
-        xer_ov = 1;
-        xer_so = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
         T0 = 0;
     }
 }
@@ -220,10 +226,9 @@ void do_mullwo (void)
     int64_t res = (int64_t)(int32_t)T0 * (int64_t)(int32_t)T1;
 
     if (likely((int32_t)res == res)) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
     } else {
-        xer_ov = 1;
-        xer_so = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     }
     T0 = (int32_t)res;
 }
@@ -238,22 +243,20 @@ void do_mulldo (void)
     T0 = (int64_t)tl;
     /* If th != 0 && th != -1, then we had an overflow */
     if (likely((uint64_t)(th + 1) <= 1)) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
     } else {
-        xer_ov = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     }
-    xer_so |= xer_ov;
 }
 #endif
 
 void do_nego (void)
 {
     if (likely((int32_t)T0 != INT32_MIN)) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
         T0 = -(int32_t)T0;
     } else {
-        xer_ov = 1;
-        xer_so = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     }
 }
 
@@ -261,11 +264,10 @@ void do_nego (void)
 void do_nego_64 (void)
 {
     if (likely((int64_t)T0 != INT64_MIN)) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
         T0 = -(int64_t)T0;
     } else {
-        xer_ov = 1;
-        xer_so = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     }
 }
 #endif
@@ -275,9 +277,9 @@ void do_subfe (void)
     T0 = T1 + ~T0 + xer_ca;
     if (likely((uint32_t)T0 >= (uint32_t)T1 &&
                (xer_ca == 0 || (uint32_t)T0 != (uint32_t)T1))) {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     } else {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     }
 }
 
@@ -287,61 +289,81 @@ void do_subfe_64 (void)
     T0 = T1 + ~T0 + xer_ca;
     if (likely((uint64_t)T0 >= (uint64_t)T1 &&
                (xer_ca == 0 || (uint64_t)T0 != (uint64_t)T1))) {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     } else {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     }
 }
 #endif
 
 void do_subfmeo (void)
 {
+    int ov;
     T1 = T0;
     T0 = ~T0 + xer_ca - 1;
-    xer_ov = ((uint32_t)~T1 & ((uint32_t)~T1 ^ (uint32_t)T0)) >> 31;
-    xer_so |= xer_ov;
+    ov = ((uint32_t)~T1 & ((uint32_t)~T1 ^ (uint32_t)T0)) >> 31;
+    if (ov) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
+    } else {
+        env->xer &= ~(1 << XER_OV);
+    }
     if (likely((uint32_t)T1 != UINT32_MAX))
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
 }
 
 #if defined(TARGET_PPC64)
 void do_subfmeo_64 (void)
 {
+    int ov;
     T1 = T0;
     T0 = ~T0 + xer_ca - 1;
-    xer_ov = ((uint64_t)~T1 & ((uint64_t)~T1 ^ (uint64_t)T0)) >> 63;
-    xer_so |= xer_ov;
+    ov = ((uint64_t)~T1 & ((uint64_t)~T1 ^ (uint64_t)T0)) >> 63;
+    if (ov) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
+    } else {
+        env->xer &= ~(1 << XER_OV);
+    }
     if (likely((uint64_t)T1 != UINT64_MAX))
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
 }
 #endif
 
 void do_subfzeo (void)
 {
+    int ov;
     T1 = T0;
     T0 = ~T0 + xer_ca;
-    xer_ov = (((uint32_t)~T1 ^ UINT32_MAX) &
-              ((uint32_t)(~T1) ^ (uint32_t)T0)) >> 31;
-    xer_so |= xer_ov;
-    if (likely((uint32_t)T0 >= (uint32_t)~T1)) {
-        xer_ca = 0;
+    ov = (((uint32_t)~T1 ^ UINT32_MAX) &
+          ((uint32_t)(~T1) ^ (uint32_t)T0)) >> 31;
+    if (ov) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     } else {
-        xer_ca = 1;
+        env->xer &= ~(1 << XER_OV);
+    }
+    if (likely((uint32_t)T0 >= (uint32_t)~T1)) {
+        env->xer &= ~(1 << XER_CA);
+    } else {
+        env->xer |= (1 << XER_CA);
     }
 }
 
 #if defined(TARGET_PPC64)
 void do_subfzeo_64 (void)
 {
+    int ov;
     T1 = T0;
     T0 = ~T0 + xer_ca;
-    xer_ov = (((uint64_t)~T1 ^  UINT64_MAX) &
-              ((uint64_t)(~T1) ^ (uint64_t)T0)) >> 63;
-    xer_so |= xer_ov;
-    if (likely((uint64_t)T0 >= (uint64_t)~T1)) {
-        xer_ca = 0;
+    ov = (((uint64_t)~T1 ^  UINT64_MAX) &
+          ((uint64_t)(~T1) ^ (uint64_t)T0)) >> 63;
+    if (ov) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     } else {
-        xer_ca = 1;
+        env->xer &= ~(1 << XER_OV);
+    }
+    if (likely((uint64_t)T0 >= (uint64_t)~T1)) {
+        env->xer &= ~(1 << XER_CA);
+    } else {
+        env->xer |= (1 << XER_CA);
     }
 }
 #endif
@@ -367,20 +389,20 @@ void do_sraw (void)
         if (likely((uint32_t)T1 != 0)) {
             ret = (int32_t)T0 >> (T1 & 0x1fUL);
             if (likely(ret >= 0 || ((int32_t)T0 & ((1 << T1) - 1)) == 0)) {
-                xer_ca = 0;
+                env->xer &= ~(1 << XER_CA);
             } else {
-                xer_ca = 1;
+                env->xer |= (1 << XER_CA);
             }
         } else {
             ret = T0;
-            xer_ca = 0;
+            env->xer &= ~(1 << XER_CA);
         }
     } else {
         ret = UINT32_MAX * ((uint32_t)T0 >> 31);
         if (likely(ret >= 0 || ((uint32_t)T0 & ~0x80000000UL) == 0)) {
-            xer_ca = 0;
+            env->xer &= ~(1 << XER_CA);
         } else {
-            xer_ca = 1;
+            env->xer |= (1 << XER_CA);
         }
     }
     T0 = ret;
@@ -395,20 +417,20 @@ void do_srad (void)
         if (likely((uint64_t)T1 != 0)) {
             ret = (int64_t)T0 >> (T1 & 0x3FUL);
             if (likely(ret >= 0 || ((int64_t)T0 & ((1 << T1) - 1)) == 0)) {
-                xer_ca = 0;
+                env->xer &= ~(1 << XER_CA);
             } else {
-                xer_ca = 1;
+                env->xer |= (1 << XER_CA);
             }
         } else {
             ret = T0;
-            xer_ca = 0;
+            env->xer &= ~(1 << XER_CA);
         }
     } else {
         ret = UINT64_MAX * ((uint64_t)T0 >> 63);
         if (likely(ret >= 0 || ((uint64_t)T0 & ~0x8000000000000000ULL) == 0)) {
-            xer_ca = 0;
+            env->xer &= ~(1 << XER_CA);
         } else {
-            xer_ca = 1;
+            env->xer |= (1 << XER_CA);
         }
     }
     T0 = ret;
@@ -1478,14 +1500,13 @@ void do_POWER_abso (void)
 {
     if ((int32_t)T0 == INT32_MIN) {
         T0 = INT32_MAX;
-        xer_ov = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     } else if ((int32_t)T0 < 0) {
         T0 = -T0;
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
     } else {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
     }
-    xer_so |= xer_ov;
 }
 
 void do_POWER_clcs (void)
@@ -1538,19 +1559,18 @@ void do_POWER_divo (void)
         (int32_t)T1 == 0) {
         T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
-        xer_ov = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     } else {
         tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
         env->spr[SPR_MQ] = tmp % T1;
         tmp /= (int32_t)T1;
         if (tmp > (int64_t)INT32_MAX || tmp < (int64_t)INT32_MIN) {
-            xer_ov = 1;
+            env->xer |= (1 << XER_OV) | (1 << XER_SO);
         } else {
-            xer_ov = 0;
+            env->xer &= ~(1 << XER_OV);
         }
         T0 = tmp;
     }
-    xer_so |= xer_ov;
 }
 
 void do_POWER_divs (void)
@@ -1571,13 +1591,12 @@ void do_POWER_divso (void)
         (int32_t)T1 == 0) {
         T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
         env->spr[SPR_MQ] = 0;
-        xer_ov = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     } else {
         T0 = (int32_t)T0 / (int32_t)T1;
         env->spr[SPR_MQ] = (int32_t)T0 % (int32_t)T1;
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
     }
-    xer_so |= xer_ov;
 }
 
 void do_POWER_dozo (void)
@@ -1587,14 +1606,13 @@ void do_POWER_dozo (void)
         T0 = T1 - T0;
         if (((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
             ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)) {
-            xer_ov = 1;
-            xer_so = 1;
+            env->xer |= (1 << XER_OV) | (1 << XER_SO);
         } else {
-            xer_ov = 0;
+            env->xer &= ~(1 << XER_OV);
         }
     } else {
         T0 = 0;
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
     }
 }
 
@@ -1621,10 +1639,9 @@ void do_POWER_mulo (void)
     env->spr[SPR_MQ] = tmp >> 32;
     T0 = tmp;
     if (tmp >> 32 != ((uint64_t)T0 >> 16) * ((uint64_t)T1 >> 16)) {
-        xer_ov = 1;
-        xer_so = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     } else {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
     }
 }
 

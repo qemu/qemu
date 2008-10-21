@@ -553,8 +553,7 @@ struct CPUPPCState {
     /* condition register */
     uint32_t crf[8];
     /* XER */
-    /* XXX: We use only 5 fields, but we want to keep the structure aligned */
-    uint8_t xer[8];
+    target_ulong xer;
     /* Reservation address */
     target_ulong reserve;
 
@@ -831,16 +830,16 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 
 /*****************************************************************************/
 /* Registers definitions */
-#define XER_SO 31
-#define XER_OV 30
-#define XER_CA 29
-#define XER_CMP 8
-#define XER_BC  0
-#define xer_so  env->xer[4]
-#define xer_ov  env->xer[6]
-#define xer_ca  env->xer[2]
-#define xer_cmp env->xer[1]
-#define xer_bc  env->xer[0]
+#define XER_SO  31
+#define XER_OV  30
+#define XER_CA  29
+#define XER_CMP  8
+#define XER_BC   0
+#define xer_so  ((env->xer >> XER_SO)  &    1)
+#define xer_ov  ((env->xer >> XER_OV)  &    1)
+#define xer_ca  ((env->xer >> XER_CA)  &    1)
+#define xer_cmp ((env->xer >> XER_CMP) & 0xFF)
+#define xer_bc  ((env->xer >> XER_BC)  & 0x7F)
 
 /* SPR definitions */
 #define SPR_MQ                (0x000)

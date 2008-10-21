@@ -21,24 +21,6 @@
 #if !defined(__HELPER_REGS_H__)
 #define __HELPER_REGS_H__
 
-static always_inline target_ulong hreg_load_xer (CPUPPCState *env)
-{
-    return (xer_so << XER_SO) |
-        (xer_ov << XER_OV) |
-        (xer_ca << XER_CA) |
-        (xer_bc << XER_BC) |
-        (xer_cmp << XER_CMP);
-}
-
-static always_inline void hreg_store_xer (CPUPPCState *env, target_ulong value)
-{
-    xer_so = (value >> XER_SO) & 0x01;
-    xer_ov = (value >> XER_OV) & 0x01;
-    xer_ca = (value >> XER_CA) & 0x01;
-    xer_cmp = (value >> XER_CMP) & 0xFF;
-    xer_bc = (value >> XER_BC) & 0x7F;
-}
-
 /* Swap temporary saved registers with GPRs */
 static always_inline void hreg_swap_gpr_tgpr (CPUPPCState *env)
 {

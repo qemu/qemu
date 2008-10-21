@@ -58,49 +58,6 @@ void OPPROTO op_store_cr (void)
     RETURN();
 }
 
-void OPPROTO op_load_xer_cr (void)
-{
-    T0 = (xer_so << 3) | (xer_ov << 2) | (xer_ca << 1);
-    RETURN();
-}
-
-void OPPROTO op_clear_xer_ov (void)
-{
-    xer_so = 0;
-    xer_ov = 0;
-    RETURN();
-}
-
-void OPPROTO op_clear_xer_ca (void)
-{
-    xer_ca = 0;
-    RETURN();
-}
-
-void OPPROTO op_load_xer_bc (void)
-{
-    T1 = xer_bc;
-    RETURN();
-}
-
-void OPPROTO op_store_xer_bc (void)
-{
-    xer_bc = T0;
-    RETURN();
-}
-
-void OPPROTO op_load_xer (void)
-{
-    T0 = hreg_load_xer(env);
-    RETURN();
-}
-
-void OPPROTO op_store_xer (void)
-{
-    hreg_store_xer(env, T0);
-    RETURN();
-}
-
 #if defined(TARGET_PPC64)
 void OPPROTO op_store_pri (void)
 {
@@ -574,18 +531,26 @@ void OPPROTO op_dec_ctr (void)
 /* add */
 void OPPROTO op_check_addo (void)
 {
-    xer_ov = (((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
+    int ov = (((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
               ((uint32_t)T2 ^ (uint32_t)T0)) >> 31;
-    xer_so |= xer_ov;
+    if (ov) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
+    } else {
+        env->xer &= ~(1 << XER_OV);
+    }
     RETURN();
 }
 
 #if defined(TARGET_PPC64)
 void OPPROTO op_check_addo_64 (void)
 {
-    xer_ov = (((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
+    int ov = (((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
               ((uint64_t)T2 ^ (uint64_t)T0)) >> 63;
-    xer_so |= xer_ov;
+    if (ov) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
+    } else {
+        env->xer &= ~(1 << XER_OV);
+    }
     RETURN();
 }
 #endif
@@ -594,9 +559,9 @@ void OPPROTO op_check_addo_64 (void)
 void OPPROTO op_check_addc (void)
 {
     if (likely((uint32_t)T0 >= (uint32_t)T2)) {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     } else {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     }
     RETURN();
 }
@@ -605,9 +570,9 @@ void OPPROTO op_check_addc (void)
 void OPPROTO op_check_addc_64 (void)
 {
     if (likely((uint64_t)T0 >= (uint64_t)T2)) {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     } else {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     }
     RETURN();
 }
@@ -633,7 +598,7 @@ void OPPROTO op_add_me (void)
 {
     T0 += xer_ca + (-1);
     if (likely((uint32_t)T1 != 0))
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     RETURN();
 }
 
@@ -642,7 +607,7 @@ void OPPROTO op_add_me_64 (void)
 {
     T0 += xer_ca + (-1);
     if (likely((uint64_t)T1 != 0))
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     RETURN();
 }
 #endif
@@ -855,9 +820,9 @@ void OPPROTO op_nego_64 (void)
 void OPPROTO op_check_subfc (void)
 {
     if (likely((uint32_t)T0 > (uint32_t)T1)) {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     } else {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     }
     RETURN();
 }
@@ -866,9 +831,9 @@ void OPPROTO op_check_subfc (void)
 void OPPROTO op_check_subfc_64 (void)
 {
     if (likely((uint64_t)T0 > (uint64_t)T1)) {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     } else {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     }
     RETURN();
 }
@@ -894,9 +859,9 @@ void OPPROTO op_subfic (void)
 {
     T0 = (int32_t)PARAM1 + ~T0 + 1;
     if ((uint32_t)T0 <= (uint32_t)PARAM1) {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     } else {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     }
     RETURN();
 }
@@ -906,9 +871,9 @@ void OPPROTO op_subfic_64 (void)
 {
     T0 = (int64_t)PARAM1 + ~T0 + 1;
     if ((uint64_t)T0 <= (uint64_t)PARAM1) {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     } else {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     }
     RETURN();
 }
@@ -919,7 +884,7 @@ void OPPROTO op_subfme (void)
 {
     T0 = ~T0 + xer_ca - 1;
     if (likely((uint32_t)T0 != UINT32_MAX))
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     RETURN();
 }
 
@@ -928,7 +893,7 @@ void OPPROTO op_subfme_64 (void)
 {
     T0 = ~T0 + xer_ca - 1;
     if (likely((uint64_t)T0 != UINT64_MAX))
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     RETURN();
 }
 #endif
@@ -953,9 +918,9 @@ void OPPROTO op_subfze (void)
     T1 = ~T0;
     T0 = T1 + xer_ca;
     if ((uint32_t)T0 < (uint32_t)T1) {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     } else {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     }
     RETURN();
 }
@@ -966,9 +931,9 @@ void OPPROTO op_subfze_64 (void)
     T1 = ~T0;
     T0 = T1 + xer_ca;
     if ((uint64_t)T0 < (uint64_t)T1) {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     } else {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     }
     RETURN();
 }
@@ -1317,9 +1282,9 @@ void OPPROTO op_srawi (void)
 
     T0 = (int32_t)T0 >> PARAM1;
     if ((int32_t)T1 < 0 && (T1 & mask) != 0) {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     } else {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     }
     RETURN();
 }
@@ -1331,9 +1296,9 @@ void OPPROTO op_sradi (void)
 
     T0 = (int64_t)T0 >> PARAM1;
     if ((int64_t)T1 < 0 && ((uint64_t)T1 & mask) != 0) {
-        xer_ca = 1;
+        env->xer |= (1 << XER_CA);
     } else {
-        xer_ca = 0;
+        env->xer &= ~(1 << XER_CA);
     }
     RETURN();
 }
@@ -1975,7 +1940,7 @@ void OPPROTO op_POWER_nabso (void)
     /* nabs never overflows */
     if (T0 > 0)
         T0 = -T0;
-    xer_ov = 0;
+    env->xer &= ~(1 << XER_OV);
     RETURN();
 }
 
@@ -2189,10 +2154,9 @@ void OPPROTO op_405_check_sat (void)
 void OPPROTO op_405_check_ovu (void)
 {
     if (likely(T0 >= T2)) {
-        xer_ov = 0;
+        env->xer &= ~(1 << XER_OV);
     } else {
-        xer_ov = 1;
-        xer_so = 1;
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
     }
     RETURN();
 }

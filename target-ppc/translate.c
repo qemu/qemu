@@ -62,6 +62,7 @@ static TCGv cpu_crf[8];
 static TCGv cpu_nip;
 static TCGv cpu_ctr;
 static TCGv cpu_lr;
+static TCGv cpu_xer;
 
 /* dyngen register indexes */
 static TCGv cpu_T[3];
@@ -174,6 +175,9 @@ void ppc_translate_init(void)
 
     cpu_lr = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
                                 offsetof(CPUState, lr), "lr");
+
+    cpu_xer = tcg_global_mem_new(TCG_TYPE_I32, TCG_AREG0,
+                                 offsetof(CPUState, xer), "xer");
 
     /* register helpers */
 #undef DEF_HELPER
@@ -1057,7 +1061,7 @@ GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 #endif
             gen_op_check_addc();
     } else {
-        gen_op_clear_xer_ca();
+        tcg_gen_andi_i32(cpu_xer, cpu_xer, ~(1 << XER_CA));
     }
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
 }
@@ -1077,7 +1081,7 @@ GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 #endif
             gen_op_check_addc();
     } else {
-        gen_op_clear_xer_ca();
+        tcg_gen_andi_i32(cpu_xer, cpu_xer, ~(1 << XER_CA));
     }
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
     gen_set_Rc0(ctx);
@@ -2852,7 +2856,7 @@ GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_STRING)
     if (ra == 0) {
         ra = rb;
     }
-    gen_op_load_xer_bc();
+    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
     op_ldstsx(lswx, rD(ctx->opcode), ra, rb);
 }
 
@@ -2876,7 +2880,7 @@ GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING)
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
     gen_addr_reg_index(cpu_T[0], ctx);
-    gen_op_load_xer_bc();
+    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
     op_ldsts(stsw, rS(ctx->opcode));
 }
 
@@ -3509,10 +3513,9 @@ GEN_HANDLER(tdi, 0x02, 0xFF, 0xFF, 0x00000000, PPC_64B)
 /* mcrxr */
 GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC)
 {
-    gen_op_load_xer_cr();
-    tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_T[0], 0xf);
-    gen_op_clear_xer_ov();
-    gen_op_clear_xer_ca();
+    tcg_gen_trunc_tl_i32(cpu_crf[crfD(ctx->opcode)], cpu_xer);
+    tcg_gen_shri_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)], XER_CA);
+    tcg_gen_andi_i32(cpu_xer, cpu_xer, ~(1 << XER_SO | 1 << XER_OV | 1 << XER_CA));
 }
 
 /* mfcr */
@@ -4310,10 +4313,12 @@ GEN_HANDLER(lscbx, 0x1F, 0x15, 0x08, 0x00000000, PPC_POWER_BR)
     }
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_op_load_xer_bc();
-    gen_op_load_xer_cmp();
+    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
+    tcg_gen_shri_tl(cpu_T[2], cpu_xer, XER_CMP);
+    tcg_gen_andi_tl(cpu_T[2], cpu_T[2], 0xFF);
     op_POWER_lscbx(rD(ctx->opcode), ra, rb);
-    gen_op_store_xer_bc();
+    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~0x7F);
+    tcg_gen_or_tl(cpu_xer, cpu_xer, cpu_T[0]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx);
 }
@@ -5500,7 +5505,8 @@ GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC)
     tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rB(ctx->opcode)]);
     gen_op_440_dlmzb();
     tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_T[0]);
-    gen_op_store_xer_bc();
+    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~0x7F);
+    tcg_gen_or_tl(cpu_xer, cpu_xer, cpu_T[0]);
     if (Rc(ctx->opcode)) {
         gen_op_440_dlmzb_update_Rc();
         tcg_gen_andi_i32(cpu_crf[0], cpu_T[0], 0xf);
@@ -6391,7 +6397,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
     int i;
 
     cpu_fprintf(f, "NIP " ADDRX "   LR " ADDRX " CTR " ADDRX " XER %08x\n",
-                env->nip, env->lr, env->ctr, hreg_load_xer(env));
+                env->nip, env->lr, env->ctr, env->xer);
     cpu_fprintf(f, "MSR " ADDRX " HID0 " ADDRX "  HF " ADDRX " idx %d\n",
                 env->msr, env->spr[SPR_HID0], env->hflags, env->mmu_idx);
 #if !defined(NO_TIMER_DUMP)
