@@ -3276,25 +3276,17 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
 {
     TranslationBlock *tb;
     tb = ctx->tb;
+#if defined(TARGET_PPC64)
+    if (!ctx->sf_mode)
+        dest = (uint32_t) dest;
+#endif
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) &&
         likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
-        tcg_gen_movi_tl(cpu_T[1], dest);
-#if defined(TARGET_PPC64)
-        if (ctx->sf_mode)
-            tcg_gen_andi_tl(cpu_nip, cpu_T[1], ~3);
-        else
-#endif
-            tcg_gen_andi_tl(cpu_nip, cpu_T[1], (uint32_t)~3);
+        tcg_gen_movi_tl(cpu_nip, dest & ~3);
         tcg_gen_exit_tb((long)tb + n);
     } else {
-        tcg_gen_movi_tl(cpu_T[1], dest);
-#if defined(TARGET_PPC64)
-        if (ctx->sf_mode)
-            tcg_gen_andi_tl(cpu_nip, cpu_T[1], ~3);
-        else
-#endif
-            tcg_gen_andi_tl(cpu_nip, cpu_T[1], (uint32_t)~3);
+        tcg_gen_movi_tl(cpu_nip, dest & ~3);
         if (unlikely(ctx->singlestep_enabled)) {
             if ((ctx->singlestep_enabled &
                  (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
@@ -3316,11 +3308,11 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
 static always_inline void gen_setlr (DisasContext *ctx, target_ulong nip)
 {
 #if defined(TARGET_PPC64)
-    if (ctx->sf_mode != 0 && (nip >> 32))
-        gen_op_setlr_64(ctx->nip >> 32, ctx->nip);
+    if (ctx->sf_mode == 0)
+        tcg_gen_movi_tl(cpu_lr, (uint32_t)nip);
     else
 #endif
-        gen_op_setlr(ctx->nip);
+        tcg_gen_movi_tl(cpu_lr, nip);
 }
 
 /* b ba bl bla */
@@ -3340,10 +3332,6 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
         target = ctx->nip + li - 4;
     else
         target = li;
-#if defined(TARGET_PPC64)
-    if (!ctx->sf_mode)
-        target = (uint32_t)target;
-#endif
     if (LK(ctx->opcode))
         gen_setlr(ctx, ctx->nip);
     gen_goto_tb(ctx, 0, target);
@@ -3355,141 +3343,80 @@ GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW)
 
 static always_inline void gen_bcond (DisasContext *ctx, int type)
 {
-    target_ulong target = 0;
-    target_ulong li;
     uint32_t bo = BO(ctx->opcode);
-    uint32_t bi = BI(ctx->opcode);
-    uint32_t mask;
+    int l1 = gen_new_label();
+    TCGv target;
 
     ctx->exception = POWERPC_EXCP_BRANCH;
-    if ((bo & 0x4) == 0)
-        gen_op_dec_ctr();
-    switch(type) {
-    case BCOND_IM:
-        li = (target_long)((int16_t)(BD(ctx->opcode)));
-        if (likely(AA(ctx->opcode) == 0)) {
-            target = ctx->nip + li - 4;
-        } else {
-            target = li;
-        }
-#if defined(TARGET_PPC64)
-        if (!ctx->sf_mode)
-            target = (uint32_t)target;
-#endif
-        break;
-    case BCOND_CTR:
-        gen_op_movl_T1_ctr();
-        break;
-    default:
-    case BCOND_LR:
-        gen_op_movl_T1_lr();
-        break;
+    if (type == BCOND_LR || type == BCOND_CTR) {
+        target = tcg_temp_local_new(TCG_TYPE_TL);
+        if (type == BCOND_CTR)
+            tcg_gen_mov_tl(target, cpu_ctr);
+        else
+            tcg_gen_mov_tl(target, cpu_lr);
     }
     if (LK(ctx->opcode))
         gen_setlr(ctx, ctx->nip);
-    if (bo & 0x10) {
-        /* No CR condition */
-        switch (bo & 0x6) {
-        case 0:
-#if defined(TARGET_PPC64)
-            if (ctx->sf_mode)
-                gen_op_test_ctr_64();
-            else
-#endif
-                gen_op_test_ctr();
-            break;
-        case 2:
-#if defined(TARGET_PPC64)
-            if (ctx->sf_mode)
-                gen_op_test_ctrz_64();
-            else
-#endif
-                gen_op_test_ctrz();
-            break;
-        default:
-        case 4:
-        case 6:
-            if (type == BCOND_IM) {
-                gen_goto_tb(ctx, 0, target);
-                return;
-            } else {
-#if defined(TARGET_PPC64)
-                if (ctx->sf_mode)
-                    tcg_gen_andi_tl(cpu_nip, cpu_T[1], ~3);
-                else
-#endif
-                    tcg_gen_andi_tl(cpu_nip, cpu_T[1], (uint32_t)~3);
-                goto no_test;
-            }
-            break;
+    l1 = gen_new_label();
+    if ((bo & 0x4) == 0) {
+        /* Decrement and test CTR */
+        TCGv temp = tcg_temp_new(TCG_TYPE_TL);
+        if (unlikely(type == BCOND_CTR)) {
+            GEN_EXCP_INVAL(ctx);
+            return;
         }
-    } else {
-        mask = 1 << (3 - (bi & 0x03));
-        tcg_gen_mov_i32(cpu_T[0], cpu_crf[bi >> 2]);
-        if (bo & 0x8) {
-            switch (bo & 0x6) {
-            case 0:
+        tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
 #if defined(TARGET_PPC64)
-                if (ctx->sf_mode)
-                    gen_op_test_ctr_true_64(mask);
-                else
+        if (!ctx->sf_mode)
+            tcg_gen_ext32u_tl(temp, cpu_ctr);
+        else
 #endif
-                    gen_op_test_ctr_true(mask);
-                break;
-            case 2:
-#if defined(TARGET_PPC64)
-                if (ctx->sf_mode)
-                    gen_op_test_ctrz_true_64(mask);
-                else
-#endif
-                    gen_op_test_ctrz_true(mask);
-                break;
-            default:
-            case 4:
-            case 6:
-                gen_op_test_true(mask);
-                break;
-            }
+            tcg_gen_mov_tl(temp, cpu_ctr);
+        if (bo & 0x2) {
+            tcg_gen_brcondi_tl(TCG_COND_NE, temp, 0, l1);
         } else {
-            switch (bo & 0x6) {
-            case 0:
-#if defined(TARGET_PPC64)
-                if (ctx->sf_mode)
-                    gen_op_test_ctr_false_64(mask);
-                else
-#endif
-                    gen_op_test_ctr_false(mask);
-                break;
-            case 2:
-#if defined(TARGET_PPC64)
-                if (ctx->sf_mode)
-                    gen_op_test_ctrz_false_64(mask);
-                else
-#endif
-                    gen_op_test_ctrz_false(mask);
-                break;
-            default:
-            case 4:
-            case 6:
-                gen_op_test_false(mask);
-                break;
-            }
+            tcg_gen_brcondi_tl(TCG_COND_EQ, temp, 0, l1);
+        }
+    }
+    if ((bo & 0x10) == 0) {
+        /* Test CR */
+        uint32_t bi = BI(ctx->opcode);
+        uint32_t mask = 1 << (3 - (bi & 0x03));
+        TCGv temp = tcg_temp_new(TCG_TYPE_I32);
+
+        if (bo & 0x8) {
+            tcg_gen_andi_i32(temp, cpu_crf[bi >> 2], mask);
+            tcg_gen_brcondi_i32(TCG_COND_EQ, temp, 0, l1);
+        } else {
+            tcg_gen_andi_i32(temp, cpu_crf[bi >> 2], mask);
+            tcg_gen_brcondi_i32(TCG_COND_NE, temp, 0, l1);
         }
     }
     if (type == BCOND_IM) {
-        int l1 = gen_new_label();
-        gen_op_jz_T0(l1);
-        gen_goto_tb(ctx, 0, target);
+
+        target_ulong li = (target_long)((int16_t)(BD(ctx->opcode)));
+        if (likely(AA(ctx->opcode) == 0)) {
+            gen_goto_tb(ctx, 0, ctx->nip + li - 4);
+        } else {
+            gen_goto_tb(ctx, 0, li);
+        }
         gen_set_label(l1);
         gen_goto_tb(ctx, 1, ctx->nip);
     } else {
 #if defined(TARGET_PPC64)
-        if (ctx->sf_mode)
-            gen_op_btest_T1_64(ctx->nip >> 32, ctx->nip);
+        if (!(ctx->sf_mode))
+            tcg_gen_andi_tl(cpu_nip, target, (uint32_t)~3);
         else
 #endif
-            gen_op_btest_T1(ctx->nip);
-    no_test:
+            tcg_gen_andi_tl(cpu_nip, target, ~3);
+        tcg_gen_exit_tb(0);
+        gen_set_label(l1);
+#if defined(TARGET_PPC64)
+        if (!(ctx->sf_mode))
+            tcg_gen_movi_tl(cpu_nip, (uint32_t)ctx->nip);
+        else
+#endif
+            tcg_gen_movi_tl(cpu_nip, ctx->nip);
         tcg_gen_exit_tb(0);
     }
 }
