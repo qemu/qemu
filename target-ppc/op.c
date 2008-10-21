@@ -37,15 +37,6 @@ void OPPROTO op_debug (void)
     do_raise_exception(EXCP_DEBUG);
 }
 
-/* Load/store special registers */
-#if defined(TARGET_PPC64)
-void OPPROTO op_store_pri (void)
-{
-    do_store_pri(PARAM1);
-    RETURN();
-}
-#endif
-
 #if !defined(CONFIG_USER_ONLY)
 /* Segment registers load and store */
 void OPPROTO op_load_sr (void)
@@ -921,133 +912,11 @@ void OPPROTO op_subfzeo_64 (void)
 }
 #endif
 
-void OPPROTO op_popcntb (void)
-{
-    do_popcntb();
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_popcntb_64 (void)
-{
-    do_popcntb_64();
-    RETURN();
-}
-#endif
-
 /***                            Integer logical                            ***/
-/* and */
-void OPPROTO op_and (void)
-{
-    T0 &= T1;
-    RETURN();
-}
-
-/* andc */
-void OPPROTO op_andc (void)
-{
-    T0 &= ~T1;
-    RETURN();
-}
-
-/* count leading zero */
-void OPPROTO op_cntlzw (void)
-{
-    do_cntlzw();
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_cntlzd (void)
-{
-    do_cntlzd();
-    RETURN();
-}
-#endif
-
-/* eqv */
-void OPPROTO op_eqv (void)
-{
-    T0 = ~(T0 ^ T1);
-    RETURN();
-}
-
-/* extend sign byte */
-void OPPROTO op_extsb (void)
-{
-#if defined (TARGET_PPC64)
-    T0 = (int64_t)((int8_t)T0);
-#else
-    T0 = (int32_t)((int8_t)T0);
-#endif
-    RETURN();
-}
-
-/* extend sign half word */
-void OPPROTO op_extsh (void)
-{
-#if defined (TARGET_PPC64)
-    T0 = (int64_t)((int16_t)T0);
-#else
-    T0 = (int32_t)((int16_t)T0);
-#endif
-    RETURN();
-}
-
-#if defined (TARGET_PPC64)
-void OPPROTO op_extsw (void)
-{
-    T0 = (int64_t)((int32_t)T0);
-    RETURN();
-}
-#endif
-
-/* nand */
-void OPPROTO op_nand (void)
-{
-    T0 = ~(T0 & T1);
-    RETURN();
-}
-
-/* nor */
-void OPPROTO op_nor (void)
-{
-    T0 = ~(T0 | T1);
-    RETURN();
-}
-
 /* or */
 void OPPROTO op_or (void)
 {
     T0 |= T1;
-    RETURN();
-}
-
-/* orc */
-void OPPROTO op_orc (void)
-{
-    T0 |= ~T1;
-    RETURN();
-}
-
-/* ori */
-void OPPROTO op_ori (void)
-{
-    T0 |= (uint32_t)PARAM1;
-    RETURN();
-}
-
-/* xor */
-void OPPROTO op_xor (void)
-{
-    T0 ^= T1;
-    RETURN();
-}
-
-/* xori */
-void OPPROTO op_xori (void)
-{
-    T0 ^= (uint32_t)PARAM1;
     RETURN();
 }
 
@@ -1079,121 +948,12 @@ void OPPROTO op_rotli64_T0 (void)
 #endif
 
 /***                             Integer shift                             ***/
-/* shift left word */
-void OPPROTO op_slw (void)
-{
-    if (T1 & 0x20) {
-        T0 = 0;
-    } else {
-        T0 = (uint32_t)(T0 << T1);
-    }
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_sld (void)
-{
-    if (T1 & 0x40) {
-        T0 = 0;
-    } else {
-        T0 = T0 << T1;
-    }
-    RETURN();
-}
-#endif
-
-/* shift right algebraic word */
-void OPPROTO op_sraw (void)
-{
-    do_sraw();
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_srad (void)
-{
-    do_srad();
-    RETURN();
-}
-#endif
-
-/* shift right algebraic word immediate */
-void OPPROTO op_srawi (void)
-{
-    uint32_t mask = (uint32_t)PARAM2;
-
-    T0 = (int32_t)T0 >> PARAM1;
-    if ((int32_t)T1 < 0 && (T1 & mask) != 0) {
-        env->xer |= (1 << XER_CA);
-    } else {
-        env->xer &= ~(1 << XER_CA);
-    }
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_sradi (void)
-{
-    uint64_t mask = ((uint64_t)PARAM2 << 32) | (uint64_t)PARAM3;
-
-    T0 = (int64_t)T0 >> PARAM1;
-    if ((int64_t)T1 < 0 && ((uint64_t)T1 & mask) != 0) {
-        env->xer |= (1 << XER_CA);
-    } else {
-        env->xer &= ~(1 << XER_CA);
-    }
-    RETURN();
-}
-#endif
-
 /* shift right word */
-void OPPROTO op_srw (void)
-{
-    if (T1 & 0x20) {
-        T0 = 0;
-    } else {
-        T0 = (uint32_t)T0 >> T1;
-    }
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_srd (void)
-{
-    if (T1 & 0x40) {
-        T0 = 0;
-    } else {
-        T0 = (uint64_t)T0 >> T1;
-    }
-    RETURN();
-}
-#endif
-
-void OPPROTO op_sl_T0_T1 (void)
-{
-    T0 = T0 << T1;
-    RETURN();
-}
-
 void OPPROTO op_sli_T0 (void)
 {
     T0 = T0 << PARAM1;
     RETURN();
 }
-
-void OPPROTO op_srl_T0_T1 (void)
-{
-    T0 = (uint32_t)T0 >> T1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_srl_T0_T1_64 (void)
-{
-    T0 = (uint32_t)T0 >> T1;
-    RETURN();
-}
-#endif
 
 void OPPROTO op_srli_T0 (void)
 {
@@ -1214,14 +974,6 @@ void OPPROTO op_srli_T1 (void)
     T1 = (uint32_t)T1 >> PARAM1;
     RETURN();
 }
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_srli_T1_64 (void)
-{
-    T1 = (uint64_t)T1 >> PARAM1;
-    RETURN();
-}
-#endif
 
 /***                       Floating-Point arithmetic                       ***/
 /* fadd - fadd. */
