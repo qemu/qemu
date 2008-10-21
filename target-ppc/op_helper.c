@@ -62,25 +62,25 @@ void do_raise_exception (uint32_t exception)
 
 /*****************************************************************************/
 /* Registers load and stores */
-void do_load_cr (void)
+uint32_t helper_load_cr (void)
 {
-    T0 = (env->crf[0] << 28) |
-        (env->crf[1] << 24) |
-        (env->crf[2] << 20) |
-        (env->crf[3] << 16) |
-        (env->crf[4] << 12) |
-        (env->crf[5] << 8) |
-        (env->crf[6] << 4) |
-        (env->crf[7] << 0);
+    return (env->crf[0] << 28) |
+           (env->crf[1] << 24) |
+           (env->crf[2] << 20) |
+           (env->crf[3] << 16) |
+           (env->crf[4] << 12) |
+           (env->crf[5] << 8) |
+           (env->crf[6] << 4) |
+           (env->crf[7] << 0);
 }
 
-void do_store_cr (uint32_t mask)
+void helper_store_cr (target_ulong val, uint32_t mask)
 {
     int i, sh;
 
     for (i = 0, sh = 7; i < 8; i++, sh--) {
         if (mask & (1 << sh))
-            env->crf[i] = (T0 >> (sh * 4)) & 0xFUL;
+            env->crf[i] = (val >> (sh * 4)) & 0xFUL;
     }
 }
 
@@ -1364,27 +1364,32 @@ void do_fsel (void)
         FT0 = FT2;
 }
 
-void do_fcmpu (void)
+uint32_t helper_fcmpu (void)
 {
+    uint32_t ret = 0;
+
     if (unlikely(float64_is_signaling_nan(FT0) ||
                  float64_is_signaling_nan(FT1))) {
         /* sNaN comparison */
         fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else {
         if (float64_lt(FT0, FT1, &env->fp_status)) {
-            T0 = 0x08UL;
+            ret = 0x08UL;
         } else if (!float64_le(FT0, FT1, &env->fp_status)) {
-            T0 = 0x04UL;
+            ret = 0x04UL;
         } else {
-            T0 = 0x02UL;
+            ret = 0x02UL;
         }
     }
     env->fpscr &= ~(0x0F << FPSCR_FPRF);
-    env->fpscr |= T0 << FPSCR_FPRF;
+    env->fpscr |= ret << FPSCR_FPRF;
+    return ret;
 }
 
-void do_fcmpo (void)
+uint32_t helper_fcmpo (void)
 {
+    uint32_t ret = 0;
+
     if (unlikely(float64_is_nan(FT0) ||
                  float64_is_nan(FT1))) {
         if (float64_is_signaling_nan(FT0) ||
@@ -1398,15 +1403,16 @@ void do_fcmpo (void)
         }
     } else {
         if (float64_lt(FT0, FT1, &env->fp_status)) {
-            T0 = 0x08UL;
+            ret = 0x08UL;
         } else if (!float64_le(FT0, FT1, &env->fp_status)) {
-            T0 = 0x04UL;
+            ret = 0x04UL;
         } else {
-            T0 = 0x02UL;
+            ret = 0x02UL;
         }
     }
     env->fpscr &= ~(0x0F << FPSCR_FPRF);
-    env->fpscr |= T0 << FPSCR_FPRF;
+    env->fpscr |= ret << FPSCR_FPRF;
+    return ret;
 }
 
 #if !defined (CONFIG_USER_ONLY)

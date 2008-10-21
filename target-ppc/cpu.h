@@ -829,7 +829,13 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #include "cpu-all.h"
 
 /*****************************************************************************/
-/* Registers definitions */
+/* CRF definitions */
+#define CRF_LT  3
+#define CRF_GT  2
+#define CRF_EQ  1
+#define CRF_SO  0
+
+/* XER definitions */
 #define XER_SO  31
 #define XER_OV  30
 #define XER_CA  29

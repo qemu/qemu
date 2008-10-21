@@ -26,14 +26,6 @@
 #include "helper_regs.h"
 #include "op_helper.h"
 
-/* PowerPC state maintenance operations */
-/* set_Rc0 */
-void OPPROTO op_set_Rc0 (void)
-{
-    env->crf[0] = T0 | xer_so;
-    RETURN();
-}
-
 /* Generate exceptions */
 void OPPROTO op_raise_exception_err (void)
 {
@@ -46,18 +38,6 @@ void OPPROTO op_debug (void)
 }
 
 /* Load/store special registers */
-void OPPROTO op_load_cr (void)
-{
-    do_load_cr();
-    RETURN();
-}
-
-void OPPROTO op_store_cr (void)
-{
-    do_store_cr(PARAM1);
-    RETURN();
-}
-
 #if defined(TARGET_PPC64)
 void OPPROTO op_store_pri (void)
 {
@@ -334,18 +314,6 @@ void OPPROTO op_load_fpscr_FT0 (void)
     u.l.upper = 0;
     u.l.lower = env->fpscr;
     FT0 = u.d;
-    RETURN();
-}
-
-void OPPROTO op_load_fpscr_T0 (void)
-{
-    T0 = (env->fpscr >> PARAM1) & 0xF;
-    RETURN();
-}
-
-void OPPROTO op_load_fpcc (void)
-{
-    T0 = fpscr_fpcc;
     RETURN();
 }
 
@@ -953,132 +921,6 @@ void OPPROTO op_subfzeo_64 (void)
 }
 #endif
 
-/***                           Integer comparison                          ***/
-/* compare */
-void OPPROTO op_cmp (void)
-{
-    if ((int32_t)T0 < (int32_t)T1) {
-        T0 = 0x08;
-    } else if ((int32_t)T0 > (int32_t)T1) {
-        T0 = 0x04;
-    } else {
-        T0 = 0x02;
-    }
-    T0 |= xer_so;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_cmp_64 (void)
-{
-    if ((int64_t)T0 < (int64_t)T1) {
-        T0 = 0x08;
-    } else if ((int64_t)T0 > (int64_t)T1) {
-        T0 = 0x04;
-    } else {
-        T0 = 0x02;
-    }
-    T0 |= xer_so;
-    RETURN();
-}
-#endif
-
-/* compare immediate */
-void OPPROTO op_cmpi (void)
-{
-    if ((int32_t)T0 < (int32_t)PARAM1) {
-        T0 = 0x08;
-    } else if ((int32_t)T0 > (int32_t)PARAM1) {
-        T0 = 0x04;
-    } else {
-        T0 = 0x02;
-    }
-    T0 |= xer_so;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_cmpi_64 (void)
-{
-    if ((int64_t)T0 < (int64_t)((int32_t)PARAM1)) {
-        T0 = 0x08;
-    } else if ((int64_t)T0 > (int64_t)((int32_t)PARAM1)) {
-        T0 = 0x04;
-    } else {
-        T0 = 0x02;
-    }
-    T0 |= xer_so;
-    RETURN();
-}
-#endif
-
-/* compare logical */
-void OPPROTO op_cmpl (void)
-{
-    if ((uint32_t)T0 < (uint32_t)T1) {
-        T0 = 0x08;
-    } else if ((uint32_t)T0 > (uint32_t)T1) {
-        T0 = 0x04;
-    } else {
-        T0 = 0x02;
-    }
-    T0 |= xer_so;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_cmpl_64 (void)
-{
-    if ((uint64_t)T0 < (uint64_t)T1) {
-        T0 = 0x08;
-    } else if ((uint64_t)T0 > (uint64_t)T1) {
-        T0 = 0x04;
-    } else {
-        T0 = 0x02;
-    }
-    T0 |= xer_so;
-    RETURN();
-}
-#endif
-
-/* compare logical immediate */
-void OPPROTO op_cmpli (void)
-{
-    if ((uint32_t)T0 < (uint32_t)PARAM1) {
-        T0 = 0x08;
-    } else if ((uint32_t)T0 > (uint32_t)PARAM1) {
-        T0 = 0x04;
-    } else {
-        T0 = 0x02;
-    }
-    T0 |= xer_so;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_cmpli_64 (void)
-{
-    if ((uint64_t)T0 < (uint64_t)PARAM1) {
-        T0 = 0x08;
-    } else if ((uint64_t)T0 > (uint64_t)PARAM1) {
-        T0 = 0x04;
-    } else {
-        T0 = 0x02;
-    }
-    T0 |= xer_so;
-    RETURN();
-}
-#endif
-
-void OPPROTO op_isel (void)
-{
-    if (T0)
-        T0 = T1;
-    else
-        T0 = T2;
-    RETURN();
-}
-
 void OPPROTO op_popcntb (void)
 {
     do_popcntb();
@@ -1339,12 +1181,6 @@ void OPPROTO op_sli_T0 (void)
     RETURN();
 }
 
-void OPPROTO op_sli_T1 (void)
-{
-    T1 = T1 << PARAM1;
-    RETURN();
-}
-
 void OPPROTO op_srl_T0_T1 (void)
 {
     T0 = (uint32_t)T0 >> T1;
@@ -1576,21 +1412,6 @@ void OPPROTO op_frip (void)
 void OPPROTO op_frim (void)
 {
     do_frim();
-    RETURN();
-}
-
-/***                         Floating-Point compare                        ***/
-/* fcmpu */
-void OPPROTO op_fcmpu (void)
-{
-    do_fcmpu();
-    RETURN();
-}
-
-/* fcmpo */
-void OPPROTO op_fcmpo (void)
-{
-    do_fcmpo();
     RETURN();
 }
 
