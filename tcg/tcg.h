@@ -385,6 +385,8 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile);
 void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
 TCGv tcg_const_i32(int32_t val);
 TCGv tcg_const_i64(int64_t val);
+TCGv tcg_const_local_i32(int32_t val);
+TCGv tcg_const_local_i64(int64_t val);
 
 #if TCG_TARGET_REG_BITS == 32
 #define tcg_const_ptr tcg_const_i32
