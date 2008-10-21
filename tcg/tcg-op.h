@@ -1425,6 +1425,96 @@ static inline void tcg_gen_concat32_i64(TCGv dest, TCGv low, TCGv high)
 #endif
 }
 
+static inline void tcg_gen_andc_i32(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I32);
+    tcg_gen_not_i32(t0, arg2);
+    tcg_gen_and_i32(ret, arg1, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_andc_i64(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I64);
+    tcg_gen_not_i64(t0, arg2);
+    tcg_gen_and_i64(ret, arg1, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_eqv_i32(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I32);
+    tcg_gen_xor_i32(t0, arg1, arg2);
+    tcg_gen_not_i32(ret, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_eqv_i64(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I64);
+    tcg_gen_xor_i64(t0, arg1, arg2);
+    tcg_gen_not_i64(ret, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_nand_i32(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I32);
+    tcg_gen_and_i32(t0, arg1, arg2);
+    tcg_gen_not_i32(ret, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_nand_i64(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I64);
+    tcg_gen_and_i64(t0, arg1, arg2);
+    tcg_gen_not_i64(ret, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_nor_i32(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I32);
+    tcg_gen_or_i32(t0, arg1, arg2);
+    tcg_gen_not_i32(ret, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_nor_i64(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I64);
+    tcg_gen_or_i64(t0, arg1, arg2);
+    tcg_gen_not_i64(ret, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_orc_i32(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I32);
+    tcg_gen_not_i32(t0, arg2);
+    tcg_gen_or_i32(ret, arg1, t0);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_orc_i64(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t0;
+    t0 = tcg_temp_new(TCG_TYPE_I64);
+    tcg_gen_not_i64(t0, arg2);
+    tcg_gen_or_i64(ret, arg1, t0);
+    tcg_temp_free(t0);
+}
+
 /***************************************/
 /* QEMU specific operations. Their type depend on the QEMU CPU
    type. */
@@ -1678,6 +1768,11 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_ext32u_tl tcg_gen_ext32u_i64
 #define tcg_gen_ext32s_tl tcg_gen_ext32s_i64
 #define tcg_gen_concat_tl_i64 tcg_gen_concat32_i64
+#define tcg_gen_andc_tl tcg_gen_andc_i64
+#define tcg_gen_eqv_tl tcg_gen_eqv_i64
+#define tcg_gen_nand_tl tcg_gen_nand_i64
+#define tcg_gen_nor_tl tcg_gen_nor_i64
+#define tcg_gen_orc_tl tcg_gen_orc_i64
 #define tcg_const_tl tcg_const_i64
 #else
 #define TCG_TYPE_TL TCG_TYPE_I32
@@ -1730,6 +1825,11 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_ext32u_tl tcg_gen_mov_i32
 #define tcg_gen_ext32s_tl tcg_gen_mov_i32
 #define tcg_gen_concat_tl_i64 tcg_gen_concat_i32_i64
+#define tcg_gen_andc_tl tcg_gen_andc_i32
+#define tcg_gen_eqv_tl tcg_gen_eqv_i32
+#define tcg_gen_nand_tl tcg_gen_nand_i32
+#define tcg_gen_nor_tl tcg_gen_nor_i32
+#define tcg_gen_orc_tl tcg_gen_orc_i32
 #define tcg_const_tl tcg_const_i32
 #endif
 
