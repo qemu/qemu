@@ -14,11 +14,8 @@ struct syminfo *syminfos = NULL;
 /* Get LENGTH bytes from info's buffer, at target address memaddr.
    Transfer them to myaddr.  */
 int
-buffer_read_memory (memaddr, myaddr, length, info)
-     bfd_vma memaddr;
-     bfd_byte *myaddr;
-     int length;
-     struct disassemble_info *info;
+buffer_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
+                   struct disassemble_info *info)
 {
     if (memaddr < info->buffer_vma
         || memaddr + length > info->buffer_vma + info->buffer_length)
@@ -46,10 +43,7 @@ target_read_memory (bfd_vma memaddr,
 /* Print an error message.  We can assume that this is in response to
    an error return from buffer_read_memory.  */
 void
-perror_memory (status, memaddr, info)
-     int status;
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+perror_memory (int status, bfd_vma memaddr, struct disassemble_info *info)
 {
   if (status != EIO)
     /* Can't happen.  */
@@ -69,9 +63,7 @@ perror_memory (status, memaddr, info)
    addresses).  */
 
 void
-generic_print_address (addr, info)
-     bfd_vma addr;
-     struct disassemble_info *info;
+generic_print_address (bfd_vma addr, struct disassemble_info *info)
 {
     (*info->fprintf_func) (info->stream, "0x%" PRIx64, addr);
 }
@@ -79,9 +71,7 @@ generic_print_address (addr, info)
 /* Just return the given address.  */
 
 int
-generic_symbol_at_address (addr, info)
-     bfd_vma addr;
-     struct disassemble_info * info;
+generic_symbol_at_address (bfd_vma addr, struct disassemble_info *info)
 {
   return 1;
 }
