@@ -40,7 +40,7 @@
 #define ENABLE_ARCH_6T2   arm_feature(env, ARM_FEATURE_THUMB2)
 #define ENABLE_ARCH_7     arm_feature(env, ARM_FEATURE_V7)
 
-#define ARCH(x) if (!ENABLE_ARCH_##x) goto illegal_op;
+#define ARCH(x) do { if (!ENABLE_ARCH_##x) goto illegal_op; } while(0)
 
 /* internal defines */
 typedef struct DisasContext {
@@ -6225,11 +6225,35 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     rd = (insn >> 12) & 0xf;
                     if (insn & (1 << 23)) {
                         /* load/store exclusive */
+                        op1 = (insn >> 21) & 0x3;
+                        if (op1)
+                            ARCH(6T2);
+                        else
+                            ARCH(6);
                         gen_movl_T1_reg(s, rn);
                         addr = cpu_T[1];
                         if (insn & (1 << 20)) {
                             gen_helper_mark_exclusive(cpu_env, cpu_T[1]);
-                            tmp = gen_ld32(addr, IS_USER(s));
+                            switch (op1) {
+                            case 0: /* ldrex */
+                                tmp = gen_ld32(addr, IS_USER(s));
+                                break;
+                            case 1: /* ldrexd */
+                                tmp = gen_ld32(addr, IS_USER(s));
+                                store_reg(s, rd, tmp);
+                                tcg_gen_addi_i32(addr, addr, 4);
+                                tmp = gen_ld32(addr, IS_USER(s));
+                                rd++;
+                                break;
+                            case 2: /* ldrexb */
+                                tmp = gen_ld8u(addr, IS_USER(s));
+                                break;
+                            case 3: /* ldrexh */
+                                tmp = gen_ld16u(addr, IS_USER(s));
+                                break;
+                            default:
+                                abort();
+                            }
                             store_reg(s, rd, tmp);
                         } else {
                             int label = gen_new_label();
@@ -6238,7 +6262,25 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                             tcg_gen_brcondi_i32(TCG_COND_NE, cpu_T[0],
                                                 0, label);
                             tmp = load_reg(s,rm);
-                            gen_st32(tmp, cpu_T[1], IS_USER(s));
+                            switch (op1) {
+                            case 0:  /*  strex */
+                                gen_st32(tmp, addr, IS_USER(s));
+                                break;
+                            case 1: /*  strexd */
+                                gen_st32(tmp, addr, IS_USER(s));
+                                tcg_gen_addi_i32(addr, addr, 4);
+                                tmp = load_reg(s, rm + 1);
+                                gen_st32(tmp, addr, IS_USER(s));
+                                break;
+                            case 2: /*  strexb */
+                                gen_st8(tmp, addr, IS_USER(s));
+                                break;
+                            case 3: /* strexh */
+                                gen_st16(tmp, addr, IS_USER(s));
+                                break;
+                            default:
+                                abort();
+                            }
                             gen_set_label(label);
                             gen_movl_reg_T0(s, rd);
                         }
