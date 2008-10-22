@@ -177,7 +177,7 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
     return -1;
 }
 
-static int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
+static int glue(load_elf, SZ)(int fd, int64_t address_offset,
                               int must_swab, uint64_t *pentry,
                               uint64_t *lowaddr, uint64_t *highaddr)
 {
@@ -229,7 +229,9 @@ static int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
                 if (read(fd, data, ph->p_filesz) != ph->p_filesz)
                     goto fail;
             }
-            addr = ph->p_vaddr + virt_to_phys_addend;
+            /* address_offset is hack for kernel images that are
+               linked at the wrong physical address.  */
+            addr = ph->p_paddr + address_offset;
 
             cpu_physical_memory_write_rom(addr, data, mem_size);
 

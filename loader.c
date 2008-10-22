@@ -282,7 +282,7 @@ static void *load_at(int fd, int offset, int size)
 #include "elf_ops.h"
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
-int load_elf(const char *filename, int64_t virt_to_phys_addend,
+int load_elf(const char *filename, int64_t address_offset,
              uint64_t *pentry, uint64_t *lowaddr, uint64_t *highaddr)
 {
     int fd, data_order, host_data_order, must_swab, ret;
@@ -317,10 +317,10 @@ int load_elf(const char *filename, int64_t virt_to_phys_addend,
 
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
-        ret = load_elf64(fd, virt_to_phys_addend, must_swab, pentry,
+        ret = load_elf64(fd, address_offset, must_swab, pentry,
                          lowaddr, highaddr);
     } else {
-        ret = load_elf32(fd, virt_to_phys_addend, must_swab, pentry,
+        ret = load_elf32(fd, address_offset, must_swab, pentry,
                          lowaddr, highaddr);
     }
 

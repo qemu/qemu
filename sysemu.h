@@ -160,7 +160,7 @@ extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr); /* deprecated */
 int load_image_targphys(const char *filename, target_phys_addr_t, int max_sz);
-int load_elf(const char *filename, int64_t virt_to_phys_addend,
+int load_elf(const char *filename, int64_t address_offset,
              uint64_t *pentry, uint64_t *lowaddr, uint64_t *highaddr);
 int load_aout(const char *filename, target_phys_addr_t addr, int max_sz);
 int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
