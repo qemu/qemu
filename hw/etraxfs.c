@@ -122,17 +122,16 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
         uint64_t entry;
         /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis 
            devboard SDK.  */
-        kernel_size = load_elf(kernel_filename, 0,
+        kernel_size = load_elf(kernel_filename, -0x80000000LL,
                                &entry, NULL, NULL);
         bootstrap_pc = entry;
         if (kernel_size < 0) {
             /* Takes a kimage from the axis devboard SDK.  */
             kernel_size = load_image(kernel_filename, phys_ram_base + 0x4000);
             bootstrap_pc = 0x40004000;
-            /* magic for boot.  */
-            env->regs[8] = 0x56902387;
             env->regs[9] = 0x40004000 + kernel_size;
         }
+        env->regs[8] = 0x56902387; /* RAM init magic.  */
     }
     env->pc = bootstrap_pc;
 
