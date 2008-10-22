@@ -1334,9 +1334,11 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
         case 2:
             if (arm_feature(env, ARM_FEATURE_XSCALE))
                 goto bad_reg;
-            env->cp15.c1_coproc = val;
-            /* ??? Is this safe when called from within a TB?  */
-            tb_flush(env);
+            if (env->cp15.c1_coproc != val) {
+                env->cp15.c1_coproc = val;
+                /* ??? Is this safe when called from within a TB?  */
+                tb_flush(env);
+            }
             break;
         default:
             goto bad_reg;
