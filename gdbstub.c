@@ -445,7 +445,7 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
             }
         case 67: GET_REGL(env->lr);
         case 68: GET_REGL(env->ctr);
-        case 69: GET_REG32(ppc_load_xer(env));
+        case 69: GET_REGL(env->xer);
         case 70: GET_REG32(0); /* fpscr */
         }
     }
@@ -485,8 +485,8 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
             env->ctr = ldtul_p(mem_buf);
             return sizeof(target_ulong);
         case 69:
-            ppc_store_xer(env, ldl_p(mem_buf));
-            return 4;
+            env->xer = ldtul_p(mem_buf);
+            return sizeof(target_ulong);
         case 70:
             /* fpscr */
             return 4;

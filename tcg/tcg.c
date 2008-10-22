@@ -475,6 +475,22 @@ TCGv tcg_const_i64(int64_t val)
     return t0;
 }
 
+TCGv tcg_const_local_i32(int32_t val)
+{
+    TCGv t0;
+    t0 = tcg_temp_local_new(TCG_TYPE_I32);
+    tcg_gen_movi_i32(t0, val);
+    return t0;
+}
+
+TCGv tcg_const_local_i64(int64_t val)
+{
+    TCGv t0;
+    t0 = tcg_temp_local_new(TCG_TYPE_I64);
+    tcg_gen_movi_i64(t0, val);
+    return t0;
+}
+
 void tcg_register_helper(void *func, const char *name)
 {
     TCGContext *s = &tcg_ctx;

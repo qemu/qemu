@@ -1019,6 +1019,7 @@ static const char *lookup_symbolxx(struct syminfo *s, target_ulong orig_addr)
     return "";
 }
 
+/* FIXME: This should use elf_ops.h  */
 static int symcmp(const void *s0, const void *s1)
 {
     struct elf_sym *sym0 = (struct elf_sym *)s0;
@@ -1075,23 +1076,26 @@ static void load_symbols(struct elfhdr *hdr, int fd)
 
     nsyms = symtab.sh_size / sizeof(struct elf_sym);
 
-    for (i = 0; i < nsyms; i++) {
+    i = 0;
+    while (i < nsyms) {
 #ifdef BSWAP_NEEDED
         bswap_sym(syms + i);
 #endif
         // Throw away entries which we do not need.
-        while ((syms[i].st_shndx == SHN_UNDEF ||
+        if (syms[i].st_shndx == SHN_UNDEF ||
                 syms[i].st_shndx >= SHN_LORESERVE ||
-                ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) && i < --nsyms) {
-            syms[i] = syms[nsyms];
-#ifdef BSWAP_NEEDED
-            bswap_sym(syms + i);
-#endif
+                ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) {
+            nsyms--;
+            if (i < nsyms) {
+                syms[i] = syms[nsyms];
+            }
+            continue;
         }
 #if defined(TARGET_ARM) || defined (TARGET_MIPS)
         /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
         syms[i].st_value &= ~(target_ulong)1;
 #endif
+        i++;
     }
     syms = realloc(syms, nsyms * sizeof(*syms));
 

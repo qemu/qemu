@@ -2037,10 +2037,10 @@ void helper_cpuid(void)
         EDX = 0;
         break;
     case 0x8000000A:
-        EAX = 0x00000001;
-        EBX = 0;
+        EAX = 0x00000001; /* SVM Revision */
+        EBX = 0x00000010; /* nr of ASIDs */
         ECX = 0;
-        EDX = 0;
+        EDX = 0; /* optional features */
         break;
     default:
         /* reserved values: zero */

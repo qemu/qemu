@@ -99,12 +99,12 @@ static void spr_write_clear (void *opaque, int sprn)
 /* XER */
 static void spr_read_xer (void *opaque, int sprn)
 {
-    gen_op_load_xer();
+    tcg_gen_mov_tl(cpu_T[0], cpu_xer);
 }
 
 static void spr_write_xer (void *opaque, int sprn)
 {
-    gen_op_store_xer();
+    tcg_gen_mov_tl(cpu_xer, cpu_T[0]);
 }
 
 /* LR */

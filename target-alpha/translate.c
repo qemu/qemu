@@ -940,12 +940,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_andi_i64(cpu_ir[rc], cpu_ir[ra], ~lit);
-                    else {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_not_i64(tmp, cpu_ir[rb]);
-                        tcg_gen_and_i64(cpu_ir[rc], cpu_ir[ra], tmp);
-                        tcg_temp_free(tmp);
-                    }
+                    else
+                        tcg_gen_andc_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                 } else
                     tcg_gen_movi_i64(cpu_ir[rc], 0);
             }
@@ -988,12 +984,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_ori_i64(cpu_ir[rc], cpu_ir[ra], ~lit);
-                    else {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_not_i64(tmp, cpu_ir[rb]);
-                        tcg_gen_or_i64(cpu_ir[rc], cpu_ir[ra], tmp);
-                        tcg_temp_free(tmp);
-                    }
+                    else
+                        tcg_gen_orc_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], ~lit);
@@ -1032,12 +1024,8 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 if (ra != 31) {
                     if (islit)
                         tcg_gen_xori_i64(cpu_ir[rc], cpu_ir[ra], ~lit);
-                    else {
-                        TCGv tmp = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_not_i64(tmp, cpu_ir[rb]);
-                        tcg_gen_xor_i64(cpu_ir[rc], cpu_ir[ra], tmp);
-                        tcg_temp_free(tmp);
-                    }
+                    else
+                        tcg_gen_eqv_i64(cpu_ir[rc], cpu_ir[ra], cpu_ir[rb]);
                 } else {
                     if (islit)
                         tcg_gen_movi_i64(cpu_ir[rc], ~lit);

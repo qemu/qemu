@@ -205,6 +205,26 @@ t0=t1^t2
 
 t0=~t1
 
+* andc_i32/i64 t0, t1, t2
+
+t0=t1&~t2
+
+* eqv_i32/i64 t0, t1, t2
+
+t0=~(t1^t2)
+
+* nand_i32/i64 t0, t1, t2
+
+t0=~(t1&t2)
+
+* nor_i32/i64 t0, t1, t2
+
+t0=~(t1|t2)
+
+* orc_i32/i64 t0, t1, t2
+
+t0=t1|~t2
+
 ********* Shifts
 
 * shl_i32/i64 t0, t1, t2

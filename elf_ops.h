@@ -76,8 +76,6 @@ static int glue(symfind, SZ)(const void *s0, const void *s1)
 static const char *glue(lookup_symbol, SZ)(struct syminfo *s, target_ulong orig_addr)
 {
     struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
-
-    // binary search
     struct elf_sym key;
     struct elf_sym *sym;
 
@@ -128,22 +126,26 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
 
     nsyms = symtab->sh_size / sizeof(struct elf_sym);
 
-    for (i = 0; i < nsyms; i++) {
+    i = 0;
+    while (i < nsyms) {
         if (must_swab)
             glue(bswap_sym, SZ)(&syms[i]);
-        // Throw away entries which we do not need.
-        // This reduces a typical table size from 1764487 to 11656 entries.
-        while ((syms[i].st_shndx == SHN_UNDEF ||
+        /* We are only interested in function symbols.
+           Throw everything else away.  */
+        if (syms[i].st_shndx == SHN_UNDEF ||
                 syms[i].st_shndx >= SHN_LORESERVE ||
-                ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) && i < --nsyms) {
-            syms[i] = syms[nsyms];
-            if (must_swab)
-                glue(bswap_sym, SZ)(&syms[i]);
+                ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) {
+            nsyms--;
+            if (i < nsyms) {
+                syms[i] = syms[nsyms];
+            }
+            continue;
         }
 #if defined(TARGET_ARM) || defined (TARGET_MIPS)
         /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
         syms[i].st_value &= ~(target_ulong)1;
 #endif
+        i++;
     }
     syms = qemu_realloc(syms, nsyms * sizeof(*syms));
 
@@ -175,7 +177,7 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
     return -1;
 }
 
-static int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
+static int glue(load_elf, SZ)(int fd, int64_t address_offset,
                               int must_swab, uint64_t *pentry,
                               uint64_t *lowaddr, uint64_t *highaddr)
 {
@@ -227,7 +229,9 @@ static int glue(load_elf, SZ)(int fd, int64_t virt_to_phys_addend,
                 if (read(fd, data, ph->p_filesz) != ph->p_filesz)
                     goto fail;
             }
-            addr = ph->p_vaddr + virt_to_phys_addend;
+            /* address_offset is hack for kernel images that are
+               linked at the wrong physical address.  */
+            addr = ph->p_paddr + address_offset;
 
             cpu_physical_memory_write_rom(addr, data, mem_size);
 
