@@ -303,33 +303,17 @@ void disas(FILE *out, void *code, unsigned long size)
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */
 const char *lookup_symbol(target_ulong orig_addr)
 {
-    unsigned int i;
-    /* Hack, because we know this is x86. */
-    Elf32_Sym *sym;
+    const char *symbol = "";
     struct syminfo *s;
-    target_ulong addr;
 
     for (s = syminfos; s; s = s->next) {
-	sym = s->disas_symtab;
-	for (i = 0; i < s->disas_num_syms; i++) {
-	    if (sym[i].st_shndx == SHN_UNDEF
-		|| sym[i].st_shndx >= SHN_LORESERVE)
-		continue;
-
-	    if (ELF_ST_TYPE(sym[i].st_info) != STT_FUNC)
-		continue;
-
-	    addr = sym[i].st_value;
-#if defined(TARGET_ARM) || defined (TARGET_MIPS)
-            /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
-            addr &= ~(target_ulong)1;
-#endif
-	    if (orig_addr >= addr
-		&& orig_addr < addr + sym[i].st_size)
-		return s->disas_strtab + sym[i].st_name;
-	}
+        symbol = s->lookup_symbol(s, orig_addr);
+        if (symbol[0] != '\0') {
+            break;
+        }
     }
-    return "";
+
+    return symbol;
 }
 
 #if !defined(CONFIG_USER_ONLY)

@@ -984,80 +984,134 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
 	return ((abi_ulong) interp_elf_ex->e_entry) + load_addr;
 }
 
+static int symfind(const void *s0, const void *s1)
+{
+    struct elf_sym *key = (struct elf_sym *)s0;
+    struct elf_sym *sym = (struct elf_sym *)s1;
+    int result = 0;
+    if (key->st_value < sym->st_value) {
+        result = -1;
+    } else if (key->st_value > sym->st_value + sym->st_size) {
+        result = 1;
+    }
+    return result;
+}
+
+static const char *lookup_symbolxx(struct syminfo *s, target_ulong orig_addr)
+{
+#if ELF_CLASS == ELFCLASS32
+    struct elf_sym *syms = s->disas_symtab.elf32;
+#else
+    struct elf_sym *syms = s->disas_symtab.elf64;
+#endif
+
+    // binary search
+    struct elf_sym key;
+    struct elf_sym *sym;
+
+    key.st_value = orig_addr;
+
+    sym = bsearch(&key, syms, s->disas_num_syms, sizeof(*syms), symfind);
+    if (sym != 0) {
+        return s->disas_strtab + sym->st_name;
+    }
+
+    return "";
+}
+
+/* FIXME: This should use elf_ops.h  */
+static int symcmp(const void *s0, const void *s1)
+{
+    struct elf_sym *sym0 = (struct elf_sym *)s0;
+    struct elf_sym *sym1 = (struct elf_sym *)s1;
+    return (sym0->st_value < sym1->st_value)
+        ? -1
+        : ((sym0->st_value > sym1->st_value) ? 1 : 0);
+}
+
 /* Best attempt to load symbols from this ELF object. */
 static void load_symbols(struct elfhdr *hdr, int fd)
 {
-    unsigned int i;
+    unsigned int i, nsyms;
     struct elf_shdr sechdr, symtab, strtab;
     char *strings;
     struct syminfo *s;
-#if (ELF_CLASS == ELFCLASS64)
-    // Disas uses 32 bit symbols
-    struct elf32_sym *syms32 = NULL;
-    struct elf_sym *sym;
-#endif
+    struct elf_sym *syms;
 
     lseek(fd, hdr->e_shoff, SEEK_SET);
     for (i = 0; i < hdr->e_shnum; i++) {
-	if (read(fd, &sechdr, sizeof(sechdr)) != sizeof(sechdr))
-	    return;
+        if (read(fd, &sechdr, sizeof(sechdr)) != sizeof(sechdr))
+            return;
 #ifdef BSWAP_NEEDED
-	bswap_shdr(&sechdr);
+        bswap_shdr(&sechdr);
 #endif
-	if (sechdr.sh_type == SHT_SYMTAB) {
-	    symtab = sechdr;
-	    lseek(fd, hdr->e_shoff
-		  + sizeof(sechdr) * sechdr.sh_link, SEEK_SET);
-	    if (read(fd, &strtab, sizeof(strtab))
-		!= sizeof(strtab))
-		return;
+        if (sechdr.sh_type == SHT_SYMTAB) {
+            symtab = sechdr;
+            lseek(fd, hdr->e_shoff
+                  + sizeof(sechdr) * sechdr.sh_link, SEEK_SET);
+            if (read(fd, &strtab, sizeof(strtab))
+                != sizeof(strtab))
+                return;
 #ifdef BSWAP_NEEDED
-	    bswap_shdr(&strtab);
+            bswap_shdr(&strtab);
 #endif
-	    goto found;
-	}
+            goto found;
+        }
     }
     return; /* Shouldn't happen... */
 
  found:
     /* Now know where the strtab and symtab are.  Snarf them. */
     s = malloc(sizeof(*s));
-    s->disas_symtab = malloc(symtab.sh_size);
-#if (ELF_CLASS == ELFCLASS64)
-    syms32 = malloc(symtab.sh_size / sizeof(struct elf_sym)
-                    * sizeof(struct elf32_sym));
-#endif
+    syms = malloc(symtab.sh_size);
+    if (!syms)
+        return;
     s->disas_strtab = strings = malloc(strtab.sh_size);
-    if (!s->disas_symtab || !s->disas_strtab)
-	return;
+    if (!s->disas_strtab)
+        return;
 
     lseek(fd, symtab.sh_offset, SEEK_SET);
-    if (read(fd, s->disas_symtab, symtab.sh_size) != symtab.sh_size)
-	return;
+    if (read(fd, syms, symtab.sh_size) != symtab.sh_size)
+        return;
 
-    for (i = 0; i < symtab.sh_size / sizeof(struct elf_sym); i++) {
+    nsyms = symtab.sh_size / sizeof(struct elf_sym);
+
+    i = 0;
+    while (i < nsyms) {
 #ifdef BSWAP_NEEDED
-	bswap_sym(s->disas_symtab + sizeof(struct elf_sym)*i);
+        bswap_sym(syms + i);
 #endif
-#if (ELF_CLASS == ELFCLASS64)
-        sym = s->disas_symtab + sizeof(struct elf_sym)*i;
-        syms32[i].st_name = sym->st_name;
-        syms32[i].st_info = sym->st_info;
-        syms32[i].st_other = sym->st_other;
-        syms32[i].st_shndx = sym->st_shndx;
-        syms32[i].st_value = sym->st_value & 0xffffffff;
-        syms32[i].st_size = sym->st_size & 0xffffffff;
+        // Throw away entries which we do not need.
+        if (syms[i].st_shndx == SHN_UNDEF ||
+                syms[i].st_shndx >= SHN_LORESERVE ||
+                ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) {
+            nsyms--;
+            if (i < nsyms) {
+                syms[i] = syms[nsyms];
+            }
+            continue;
+        }
+#if defined(TARGET_ARM) || defined (TARGET_MIPS)
+        /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
+        syms[i].st_value &= ~(target_ulong)1;
 #endif
+        i++;
     }
+    syms = realloc(syms, nsyms * sizeof(*syms));
 
-#if (ELF_CLASS == ELFCLASS64)
-    free(s->disas_symtab);
-    s->disas_symtab = syms32;
-#endif
+    qsort(syms, nsyms, sizeof(*syms), symcmp);
+
     lseek(fd, strtab.sh_offset, SEEK_SET);
     if (read(fd, strings, strtab.sh_size) != strtab.sh_size)
-	return;
-    s->disas_num_syms = symtab.sh_size / sizeof(struct elf_sym);
+        return;
+    s->disas_num_syms = nsyms;
+#if ELF_CLASS == ELFCLASS32
+    s->disas_symtab.elf32 = syms;
+    s->lookup_symbol = lookup_symbolxx;
+#else
+    s->disas_symtab.elf64 = syms;
+    s->lookup_symbol = lookup_symbolxx;
+#endif
     s->next = syminfos;
     syminfos = s;
 }

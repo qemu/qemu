@@ -60,13 +60,48 @@ static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table,
     return NULL;
 }
 
+static int glue(symfind, SZ)(const void *s0, const void *s1)
+{
+    struct elf_sym *key = (struct elf_sym *)s0;
+    struct elf_sym *sym = (struct elf_sym *)s1;
+    int result = 0;
+    if (key->st_value < sym->st_value) {
+        result = -1;
+    } else if (key->st_value > sym->st_value + sym->st_size) {
+        result = 1;
+    }
+    return result;
+}
+
+static const char *glue(lookup_symbol, SZ)(struct syminfo *s, target_ulong orig_addr)
+{
+    struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
+    struct elf_sym key;
+    struct elf_sym *sym;
+
+    key.st_value = orig_addr;
+
+    sym = bsearch(&key, syms, s->disas_num_syms, sizeof(*syms), glue(symfind, SZ));
+    if (sym != 0) {
+        return s->disas_strtab + sym->st_name;
+    }
+
+    return "";
+}
+
+static int glue(symcmp, SZ)(const void *s0, const void *s1)
+{
+    struct elf_sym *sym0 = (struct elf_sym *)s0;
+    struct elf_sym *sym1 = (struct elf_sym *)s1;
+    return (sym0->st_value < sym1->st_value)
+        ? -1
+        : ((sym0->st_value > sym1->st_value) ? 1 : 0);
+}
+
 static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
 {
     struct elf_shdr *symtab, *strtab, *shdr_table = NULL;
     struct elf_sym *syms = NULL;
-#if (SZ == 64)
-    struct elf32_sym *syms32 = NULL;
-#endif
     struct syminfo *s;
     int nsyms, i;
     char *str = NULL;
@@ -90,21 +125,32 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
         goto fail;
 
     nsyms = symtab->sh_size / sizeof(struct elf_sym);
-#if (SZ == 64)
-    syms32 = qemu_mallocz(nsyms * sizeof(struct elf32_sym));
-#endif
-    for (i = 0; i < nsyms; i++) {
+
+    i = 0;
+    while (i < nsyms) {
         if (must_swab)
             glue(bswap_sym, SZ)(&syms[i]);
-#if (SZ == 64)
-	syms32[i].st_name = syms[i].st_name;
-	syms32[i].st_info = syms[i].st_info;
-	syms32[i].st_other = syms[i].st_other;
-	syms32[i].st_shndx = syms[i].st_shndx;
-	syms32[i].st_value = syms[i].st_value & 0xffffffff;
-	syms32[i].st_size = syms[i].st_size & 0xffffffff;
+        /* We are only interested in function symbols.
+           Throw everything else away.  */
+        if (syms[i].st_shndx == SHN_UNDEF ||
+                syms[i].st_shndx >= SHN_LORESERVE ||
+                ELF_ST_TYPE(syms[i].st_info) != STT_FUNC) {
+            nsyms--;
+            if (i < nsyms) {
+                syms[i] = syms[nsyms];
+            }
+            continue;
+        }
+#if defined(TARGET_ARM) || defined (TARGET_MIPS)
+        /* The bottom address bit marks a Thumb or MIPS16 symbol.  */
+        syms[i].st_value &= ~(target_ulong)1;
 #endif
+        i++;
     }
+    syms = qemu_realloc(syms, nsyms * sizeof(*syms));
+
+    qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
+
     /* String table */
     if (symtab->sh_link >= ehdr->e_shnum)
         goto fail;
@@ -112,16 +158,12 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
 
     str = load_at(fd, strtab->sh_offset, strtab->sh_size);
     if (!str)
-	goto fail;
+        goto fail;
 
     /* Commit */
     s = qemu_mallocz(sizeof(*s));
-#if (SZ == 64)
-    s->disas_symtab = syms32;
-    qemu_free(syms);
-#else
-    s->disas_symtab = syms;
-#endif
+    s->lookup_symbol = glue(lookup_symbol, SZ);
+    glue(s->disas_symtab.elf, SZ) = syms;
     s->disas_num_syms = nsyms;
     s->disas_strtab = str;
     s->next = syminfos;
@@ -129,9 +171,6 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab)
     qemu_free(shdr_table);
     return 0;
  fail:
-#if (SZ == 64)
-    qemu_free(syms32);
-#endif
     qemu_free(syms);
     qemu_free(str);
     qemu_free(shdr_table);
