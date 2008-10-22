@@ -119,11 +119,13 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     if (kernel_filename) {
-        uint64_t entry;
+        uint64_t entry, high;
+        int kcmdline_len;
+
         /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis 
            devboard SDK.  */
         kernel_size = load_elf(kernel_filename, -0x80000000LL,
-                               &entry, NULL, NULL);
+                               &entry, NULL, &high);
         bootstrap_pc = entry;
         if (kernel_size < 0) {
             /* Takes a kimage from the axis devboard SDK.  */
@@ -132,6 +134,17 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
             env->regs[9] = 0x40004000 + kernel_size;
         }
         env->regs[8] = 0x56902387; /* RAM init magic.  */
+
+        if (kernel_cmdline && (kcmdline_len = strlen(kernel_cmdline))) {
+            if (kcmdline_len > 256) {
+                fprintf(stderr, "Too long CRIS kernel cmdline (max 256)\n");
+                exit(1);
+            }
+            pstrcpy_targphys(high, 256, kernel_cmdline);
+            /* Let the kernel know we are modifying the cmdline.  */
+            env->regs[10] = 0x87109563;
+            env->regs[11] = high;
+        }
     }
     env->pc = bootstrap_pc;
 
