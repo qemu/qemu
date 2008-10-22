@@ -6227,7 +6227,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         /* load/store exclusive */
                         op1 = (insn >> 21) & 0x3;
                         if (op1)
-                            ARCH(6T2);
+                            ARCH(6K);
                         else
                             ARCH(6);
                         gen_movl_T1_reg(s, rn);
