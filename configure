@@ -360,6 +360,8 @@ CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings"
 # TODO
 #~ CFLAGS += -Wshadow
 CFLAGS="$CFLAGS -Wmissing-noreturn"
+CFLAGS="$CFLAGS -Wmissing-prototypes"
+CFLAGS="$CFLAGS -Wstrict-prototypes"
 LDFLAGS="$LDFLAGS -g"
 if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
@@ -598,9 +600,6 @@ mips-softmmu \
 mipsel-softmmu \
 mips64-softmmu \
 mips64el-softmmu \
-ppc-softmmu \
-ppcemb-softmmu \
-ppc64-softmmu \
 sh4-softmmu \
 sh4eb-softmmu \
 sparc-softmmu \
@@ -618,9 +617,6 @@ cris-linux-user \
 m68k-linux-user \
 mips-linux-user \
 mipsel-linux-user \
-ppc-linux-user \
-ppc64-linux-user \
-ppc64abi32-linux-user \
 sh4-linux-user \
 sh4eb-linux-user \
 sparc-linux-user \
