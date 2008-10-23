@@ -18,6 +18,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef _EXEC_ALL_H_
+#define _EXEC_ALL_H_
 /* allow to see translation results - the slowdown should be negligible, so we leave it */
 #define DEBUG_DISAS
 
@@ -384,4 +386,5 @@ static inline int kqemu_is_ok(CPUState *env)
              (env->eflags & IOPL_MASK) != IOPL_MASK)));
 }
 
+#endif
 #endif
