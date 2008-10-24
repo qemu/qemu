@@ -283,7 +283,7 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
         dprintf("connect failed\n");
         close(s->fd);
         qemu_free(s);
-	s = NULL;
+        return NULL;
     } else if (ret >= 0)
         tcp_connect_migrate(s);
 
