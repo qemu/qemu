@@ -6252,43 +6252,43 @@ struct QEMUFile {
     int has_error;
 };
 
-typedef struct QEMUFileFD
+typedef struct QEMUFileSocket
 {
     int fd;
     QEMUFile *file;
-} QEMUFileFD;
+} QEMUFileSocket;
 
-static int fd_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
-    QEMUFileFD *s = opaque;
+    QEMUFileSocket *s = opaque;
     ssize_t len;
 
     do {
-        len = read(s->fd, buf, size);
-    } while (len == -1 && errno == EINTR);
+        len = recv(s->fd, buf, size, 0);
+    } while (len == -1 && socket_error() == EINTR);
 
     if (len == -1)
-        len = -errno;
+        len = -socket_error();
 
     return len;
 }
 
-static int fd_close(void *opaque)
+static int socket_close(void *opaque)
 {
-    QEMUFileFD *s = opaque;
+    QEMUFileSocket *s = opaque;
     qemu_free(s);
     return 0;
 }
 
-QEMUFile *qemu_fopen_fd(int fd)
+QEMUFile *qemu_fopen_socket(int fd)
 {
-    QEMUFileFD *s = qemu_mallocz(sizeof(QEMUFileFD));
+    QEMUFileSocket *s = qemu_mallocz(sizeof(QEMUFileSocket));
 
     if (s == NULL)
         return NULL;
 
     s->fd = fd;
-    s->file = qemu_fopen_ops(s, NULL, fd_get_buffer, fd_close, NULL);
+    s->file = qemu_fopen_ops(s, NULL, socket_get_buffer, socket_close, NULL);
     return s->file;
 }
 

@@ -34,7 +34,7 @@ QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
                          QEMUFileCloseFunc *close,
                          QEMUFileRateLimit *rate_limit);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
-QEMUFile *qemu_fopen_fd(int fd);
+QEMUFile *qemu_fopen_socket(int fd);
 void qemu_fflush(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
