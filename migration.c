@@ -36,17 +36,17 @@ void do_migrate(int detach, const char *uri)
     const char *p;
 
     if (strstart(uri, "tcp:", &p))
-	s = tcp_start_outgoing_migration(p, max_throttle, detach);
+        s = tcp_start_outgoing_migration(p, max_throttle, detach);
     else
         term_printf("unknown migration protocol: %s\n", uri);
 
     if (s == NULL)
-	term_printf("migration failed\n");
+        term_printf("migration failed\n");
     else {
-	if (current_migration)
-	    current_migration->release(current_migration);
+        if (current_migration)
+            current_migration->release(current_migration);
 
-	current_migration = s;
+        current_migration = s;
     }
 }
 
@@ -55,7 +55,7 @@ void do_migrate_cancel(void)
     MigrationState *s = current_migration;
 
     if (s)
-	s->cancel(s);
+        s->cancel(s);
 }
 
 void do_migrate_set_speed(const char *value)
@@ -66,13 +66,13 @@ void do_migrate_set_speed(const char *value)
     d = strtod(value, &ptr);
     switch (*ptr) {
     case 'G': case 'g':
-	d *= 1024;
+        d *= 1024;
     case 'M': case 'm':
-	d *= 1024;
+        d *= 1024;
     case 'K': case 'k':
-	d *= 1024;
+        d *= 1024;
     default:
-	break;
+        break;
     }
 
     max_throttle = (uint32_t)d;
@@ -83,21 +83,21 @@ void do_info_migrate(void)
     MigrationState *s = current_migration;
     
     if (s) {
-	term_printf("Migration status: ");
-	switch (s->get_status(s)) {
-	case MIG_STATE_ACTIVE:
-	    term_printf("active\n");
-	    break;
-	case MIG_STATE_COMPLETED:
-	    term_printf("completed\n");
-	    break;
-	case MIG_STATE_ERROR:
-	    term_printf("failed\n");
-	    break;
-	case MIG_STATE_CANCELLED:
-	    term_printf("cancelled\n");
-	    break;
-	}
+        term_printf("Migration status: ");
+        switch (s->get_status(s)) {
+        case MIG_STATE_ACTIVE:
+            term_printf("active\n");
+            break;
+        case MIG_STATE_COMPLETED:
+            term_printf("completed\n");
+            break;
+        case MIG_STATE_ERROR:
+            term_printf("failed\n");
+            break;
+        case MIG_STATE_CANCELLED:
+            term_printf("cancelled\n");
+            break;
+        }
     }
 }
 
