@@ -322,10 +322,6 @@ struct fs_eth
 	uint8_t macaddr[2][6];
 	uint32_t regs[FS_ETH_MAX_REGS];
 
-	unsigned char rx_fifo[1536];
-	int rx_fifo_len;
-	int rx_fifo_pos;
-
 	struct etraxfs_dma_client *dma_out;
 	struct etraxfs_dma_client *dma_in;
 
@@ -523,15 +519,7 @@ static int eth_match_groupaddr(struct fs_eth *eth, const unsigned char *sa)
 
 static int eth_can_receive(void *opaque)
 {
-	struct fs_eth *eth = opaque;
-	int r;
-
-	r = eth->rx_fifo_len == 0;
-	if (!r) {
-		/* TODO: signal fifo overrun.  */
-		printf("PACKET LOSS!\n");
-	}
-	return r;
+	return 1;
 }
 
 static void eth_receive(void *opaque, const uint8_t *buf, int size)
@@ -556,38 +544,8 @@ static void eth_receive(void *opaque, const uint8_t *buf, int size)
 	    && !eth_match_groupaddr(eth, buf))
 		return;
 
-	if (size > sizeof(eth->rx_fifo)) {
-		/* TODO: signal error.	*/
-	} else if (eth->rx_fifo_len) {
-		/* FIFO overrun.  */
-	} else {
-		memcpy(eth->rx_fifo, buf, size);
-		/* +4, HW passes the CRC to sw.	 */
-		eth->rx_fifo_len = size + 4;
-		eth->rx_fifo_pos = 0;
-	}
-}
-
-static void eth_rx_pull(void *opaque)
-{
-	struct fs_eth *eth = opaque;
-	int len;
-	if (eth->rx_fifo_len) {		
-		D(printf("%s %d\n", __func__, eth->rx_fifo_len));
-#if 0
-		{
-			int i;
-			for (i = 0; i < 32; i++)
-				printf("%2.2x", eth->rx_fifo[i]);
-			printf("\n");
-		}
-#endif
-		len = etraxfs_dmac_input(eth->dma_in,
-					 eth->rx_fifo + eth->rx_fifo_pos, 
-					 eth->rx_fifo_len, 1);
-		eth->rx_fifo_len -= len;
-		eth->rx_fifo_pos += len;
-	}
+	/* FIXME: Find another way to pass on the fake csum.  */
+	etraxfs_dmac_input(eth->dma_in, (void *)buf, size + 4, 1);
 }
 
 static int eth_tx_push(void *opaque, unsigned char *buf, int len)
@@ -628,7 +586,7 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	dma[0].client.push = eth_tx_push;
 	dma[0].client.opaque = eth;
 	dma[1].client.opaque = eth;
-	dma[1].client.pull = eth_rx_pull;
+	dma[1].client.pull = NULL;
 
 	eth->env = env;
 	eth->base = base;
