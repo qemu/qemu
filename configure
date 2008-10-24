@@ -953,7 +953,7 @@ fi
 
 if test "$mingw32" = "yes" ; then
   if test -z "$prefix" ; then
-      prefix="/c/Program Files/Qemu"
+      prefix="c:\\\\Program Files\\\\Qemu"
   fi
   mansuffix=""
   datasuffix=""

@@ -6224,9 +6224,8 @@ void qemu_announce_self(void)
         len = announce_self_create(buf, nd_table[i].macaddr);
         vlan = nd_table[i].vlan;
         for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
-            if (vc->fd_read == tap_receive)  /* send only if tap */
-                for (j=0; j < SELF_ANNOUNCE_ROUNDS; j++)
-                    vc->fd_read(vc->opaque, buf, len);
+            for (j=0; j < SELF_ANNOUNCE_ROUNDS; j++)
+                vc->fd_read(vc->opaque, buf, len);
         }
     }
 }

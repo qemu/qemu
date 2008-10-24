@@ -84,7 +84,7 @@ static ssize_t fd_put_buffer(void *opaque, const void *data, size_t size)
     ssize_t ret;
 
     do {
-        ret = write(s->fd, data, size);
+        ret = send(s->fd, data, size, 0);
     } while (ret == -1 && errno == EINTR);
 
     if (ret == -1)
@@ -262,7 +262,7 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
 	return NULL;
     }
 
-    fcntl(s->fd, F_SETFL, O_NONBLOCK);
+    socket_set_nonblock(s->fd);
 
     if (s->detach == 1) {
         dprintf("detaching from monitor\n");
