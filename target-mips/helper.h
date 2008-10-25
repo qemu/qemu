@@ -2,8 +2,8 @@
 #define DEF_HELPER(ret, name, params) ret name params;
 #endif
 
-DEF_HELPER(void, do_raise_exception_err, (int excp, int err))
-DEF_HELPER(void, do_raise_exception, (int excp))
+DEF_HELPER(void, do_raise_exception_err, (uint32_t excp, int err))
+DEF_HELPER(void, do_raise_exception, (uint32_t excp))
 DEF_HELPER(void, do_interrupt_restart, (void))
 
 #ifdef TARGET_MIPS64
