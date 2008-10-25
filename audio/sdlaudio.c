@@ -29,6 +29,8 @@
 #ifndef _WIN32
 #ifdef __sun__
 #define _POSIX_PTHREAD_SEMANTICS 1
+#elif defined(__OpenBSD__)
+#include <pthread.h>
 #endif
 #include <signal.h>
 #endif
