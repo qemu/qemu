@@ -4444,7 +4444,7 @@ int tap_alloc(char *dev, size_t dev_size)
 	syslog(LOG_ERR, "Can't get flags\n");
 
     snprintf (actual_name, 32, "tap%d", ppa);
-    strncpy (ifr.lifr_name, actual_name, sizeof (ifr.lifr_name));
+    pstrcpy(ifr.lifr_name, sizeof(ifr.lifr_name), actual_name);
 
     ifr.lifr_ppa = ppa;
     /* Assign ppa according to the unit number returned by tun device */
@@ -4487,7 +4487,7 @@ int tap_alloc(char *dev, size_t dev_size)
     close (if_fd);
 
     memset(&ifr, 0x0, sizeof(ifr));
-    strncpy (ifr.lifr_name, actual_name, sizeof (ifr.lifr_name));
+    pstrcpy(ifr.lifr_name, sizeof(ifr.lifr_name), actual_name);
     ifr.lifr_ip_muxid  = ip_muxid;
     ifr.lifr_arp_muxid = arp_muxid;
 
@@ -5359,6 +5359,7 @@ void do_info_network(void)
 static int nb_hcis;
 static int cur_hci;
 static struct HCIInfo *hci_table[MAX_NICS];
+#if 0
 static struct bt_vlan_s {
     struct bt_scatternet_s net;
     int id;
@@ -5381,6 +5382,7 @@ static struct bt_scatternet_s *qemu_find_bt_vlan(int id)
     *pvlan = vlan;
     return &vlan->net;
 }
+#endif
 
 static void null_hci_send(struct HCIInfo *hci, const uint8_t *data, int len)
 {
@@ -6222,9 +6224,8 @@ void qemu_announce_self(void)
         len = announce_self_create(buf, nd_table[i].macaddr);
         vlan = nd_table[i].vlan;
         for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
-            if (vc->fd_read == tap_receive)  /* send only if tap */
-                for (j=0; j < SELF_ANNOUNCE_ROUNDS; j++)
-                    vc->fd_read(vc->opaque, buf, len);
+            for (j=0; j < SELF_ANNOUNCE_ROUNDS; j++)
+                vc->fd_read(vc->opaque, buf, len);
         }
     }
 }
@@ -6251,43 +6252,43 @@ struct QEMUFile {
     int has_error;
 };
 
-typedef struct QEMUFileFD
+typedef struct QEMUFileSocket
 {
     int fd;
     QEMUFile *file;
-} QEMUFileFD;
+} QEMUFileSocket;
 
-static int fd_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
-    QEMUFileFD *s = opaque;
+    QEMUFileSocket *s = opaque;
     ssize_t len;
 
     do {
-        len = read(s->fd, buf, size);
-    } while (len == -1 && errno == EINTR);
+        len = recv(s->fd, buf, size, 0);
+    } while (len == -1 && socket_error() == EINTR);
 
     if (len == -1)
-        len = -errno;
+        len = -socket_error();
 
     return len;
 }
 
-static int fd_close(void *opaque)
+static int socket_close(void *opaque)
 {
-    QEMUFileFD *s = opaque;
+    QEMUFileSocket *s = opaque;
     qemu_free(s);
     return 0;
 }
 
-QEMUFile *qemu_fopen_fd(int fd)
+QEMUFile *qemu_fopen_socket(int fd)
 {
-    QEMUFileFD *s = qemu_mallocz(sizeof(QEMUFileFD));
+    QEMUFileSocket *s = qemu_mallocz(sizeof(QEMUFileSocket));
 
     if (s == NULL)
         return NULL;
 
     s->fd = fd;
-    s->file = qemu_fopen_ops(s, NULL, fd_get_buffer, fd_close, NULL);
+    s->file = qemu_fopen_ops(s, NULL, socket_get_buffer, socket_close, NULL);
     return s->file;
 }
 

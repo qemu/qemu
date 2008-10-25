@@ -4993,7 +4993,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 		    if (tnamelen > 256)
                         tnamelen = 256;
                     /* XXX: may not be correct */
-		    strncpy(tde->d_name, de->d_name, tnamelen);
+                    pstrcpy(tde->d_name, tnamelen, de->d_name);
                     de = (struct linux_dirent *)((char *)de + reclen);
                     len -= reclen;
                     tde = (struct target_dirent *)((char *)tde + treclen);

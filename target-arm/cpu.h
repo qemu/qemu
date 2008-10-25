@@ -107,7 +107,9 @@ typedef struct CPUARMState {
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint32_t c2_base0; /* MMU translation table base 0.  */
         uint32_t c2_base1; /* MMU translation table base 1.  */
-        uint32_t c2_mask; /* MMU translation table base mask.  */
+        uint32_t c2_control; /* MMU translation table base control.  */
+        uint32_t c2_mask; /* MMU translation table base selection mask.  */
+        uint32_t c2_base_mask; /* MMU translation table base 0 mask. */
         uint32_t c2_data; /* MPU data cachable bits.  */
         uint32_t c2_insn; /* MPU instruction cachable bits.  */
         uint32_t c3; /* MMU domain access control register

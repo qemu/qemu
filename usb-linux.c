@@ -76,6 +76,8 @@ static int usb_host_find_device(int *pbus_num, int *paddr,
 #define dprintf(...)
 #endif
 
+#define USBDBG_DEVOPENED "husb: opened %s/devices\n"
+
 #define USBPROCBUS_PATH "/proc/bus/usb"
 #define PRODUCT_NAME_SZ 32
 #define MAX_ENDPOINTS 16
@@ -1262,8 +1264,6 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
     FILE *f = 0;
     DIR *dir = 0;
     int ret = 0;
-    const char *devices = "/devices";
-    const char *opened = "husb: opened %s%s\n";
     const char *fs_type[] = {"unknown", "proc", "dev", "sys"};
     char devpath[PATH_MAX];
 
@@ -1275,7 +1275,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
             strcpy(devpath, USBPROCBUS_PATH);
             usb_fs_type = USB_FS_PROC;
             fclose(f);
-            dprintf(opened, USBPROCBUS_PATH, devices);
+            dprintf(USBDBG_DEVOPENED, USBPROCBUS_PATH);
             goto found_devices;
         }
         /* try additional methods if an access method hasn't been found yet */
@@ -1285,7 +1285,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
             strcpy(devpath, USBDEVBUS_PATH);
             usb_fs_type = USB_FS_DEV;
             fclose(f);
-            dprintf(opened, USBDEVBUS_PATH, devices);
+            dprintf(USBDBG_DEVOPENED, USBDEVBUS_PATH);
             goto found_devices;
         }
         dir = opendir(USBSYSBUS_PATH "/devices");
@@ -1294,7 +1294,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
             strcpy(devpath, USBDEVBUS_PATH);
             usb_fs_type = USB_FS_SYS;
             closedir(dir);
-            dprintf(opened, USBSYSBUS_PATH, devices);
+            dprintf(USBDBG_DEVOPENED, USBSYSBUS_PATH);
             goto found_devices;
         }
     found_devices:

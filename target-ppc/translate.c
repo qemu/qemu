@@ -1315,7 +1315,7 @@ GEN_HANDLER(cntlzw, 0x1F, 0x1A, 0x00, 0x00000000, PPC_INTEGER)
 {
     tcg_gen_helper_1_1(helper_cntlzw, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
-        gen_set_Rc0(ctx, cpu_gpr[rS(ctx->opcode)]);
+        gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
 }
 /* eqv & eqv. */
 GEN_LOGICAL2(eqv, tcg_gen_eqv_tl, 0x08, PPC_INTEGER);
@@ -3450,7 +3450,7 @@ GEN_HANDLER(name, 0x13, 0x01, opc, 0x00000001, PPC_INTEGER)                   \
     else if (sh < 0)                                                          \
         tcg_gen_shli_i32(temp1, cpu_crf[crbA(ctx->opcode) >> 2], -sh);        \
     else                                                                      \
-        tcg_gen_mov_i32(temp1, cpu_crf[crbB(ctx->opcode) >> 2]);              \
+        tcg_gen_mov_i32(temp1, cpu_crf[crbA(ctx->opcode) >> 2]);              \
     temp2 = tcg_temp_new(TCG_TYPE_I32);                                       \
     sh = (crbD(ctx->opcode) & 0x03) - (crbB(ctx->opcode) & 0x03);             \
     if (sh > 0)                                                               \
