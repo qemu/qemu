@@ -1814,7 +1814,7 @@ static void bt_submit_hci(struct HCIInfo *info,
 
         if (hci->device.lmp_name)
             free((void *) hci->device.lmp_name);
-        hci->device.lmp_name = strndup(PARAM(change_local_name, name),
+        hci->device.lmp_name = pstrdup(PARAM(change_local_name, name),
                         sizeof(PARAM(change_local_name, name)));
         bt_hci_event_complete_status(hci, HCI_SUCCESS);
         break;
