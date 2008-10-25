@@ -2337,7 +2337,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	    if (start && (!end || (start < end))) {
 		int len = end ? end-(start+1) : strlen(start+1);
 		char *path = qemu_malloc(len+1);
-		strncpy(path, start+1, len);
+
+                pstrcpy(path, len, start + 1);
 		path[len] = '\0';
 		VNC_DEBUG("Trying certificate path '%s'\n", path);
 		if (vnc_set_x509_credential_dir(vs, path) < 0) {

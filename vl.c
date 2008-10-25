@@ -4446,7 +4446,7 @@ int tap_alloc(char *dev, size_t dev_size)
 	syslog(LOG_ERR, "Can't get flags\n");
 
     snprintf (actual_name, 32, "tap%d", ppa);
-    strncpy (ifr.lifr_name, actual_name, sizeof (ifr.lifr_name));
+    pstrcpy(ifr.lifr_name, sizeof(ifr.lifr_name), actual_name);
 
     ifr.lifr_ppa = ppa;
     /* Assign ppa according to the unit number returned by tun device */
@@ -4489,7 +4489,7 @@ int tap_alloc(char *dev, size_t dev_size)
     close (if_fd);
 
     memset(&ifr, 0x0, sizeof(ifr));
-    strncpy (ifr.lifr_name, actual_name, sizeof (ifr.lifr_name));
+    pstrcpy(ifr.lifr_name, sizeof(ifr.lifr_name), actual_name);
     ifr.lifr_ip_muxid  = ip_muxid;
     ifr.lifr_arp_muxid = arp_muxid;
 
