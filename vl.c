@@ -5361,6 +5361,7 @@ void do_info_network(void)
 static int nb_hcis;
 static int cur_hci;
 static struct HCIInfo *hci_table[MAX_NICS];
+#if 0
 static struct bt_vlan_s {
     struct bt_scatternet_s net;
     int id;
@@ -5383,6 +5384,7 @@ static struct bt_scatternet_s *qemu_find_bt_vlan(int id)
     *pvlan = vlan;
     return &vlan->net;
 }
+#endif
 
 static void null_hci_send(struct HCIInfo *hci, const uint8_t *data, int len)
 {
