@@ -173,7 +173,7 @@ static void tcp_wait_for_connect(void *opaque)
 {
     FdMigrationState *s = opaque;
     int val, ret;
-    int valsize = sizeof(val);
+    socklen_t valsize = sizeof(val);
 
     dprintf("connect completed\n");
     do {
