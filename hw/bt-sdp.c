@@ -254,7 +254,7 @@ static ssize_t sdp_attr_get(struct bt_l2cap_sdp_state_s *sdp,
     /* Perform the search */
     if (len < 7)
         return -SDP_INVALID_SYNTAX;
-    memcpy(&handle, req, 6);
+    memcpy(&handle, req, 4);
     req += 4;
     len -= 4;
 
