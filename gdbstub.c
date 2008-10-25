@@ -1050,12 +1050,12 @@ const char *get_feature_xml(CPUState *env, const char *p, const char **newp)
         if (!target_xml[0]) {
             GDBRegisterState *r;
 
-            sprintf(target_xml,
-                    "<?xml version=\"1.0\"?>"
-                    "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">"
-                    "<target>"
-                    "<xi:include href=\"%s\"/>",
-                    GDB_CORE_XML);
+            snprintf(target_xml, sizeof(target_xml),
+                     "<?xml version=\"1.0\"?>"
+                     "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">"
+                     "<target>"
+                     "<xi:include href=\"%s\"/>",
+                     GDB_CORE_XML);
 
             for (r = env->gdb_regs; r; r = r->next) {
                 strcat(target_xml, "<xi:include href=\"");
@@ -1426,7 +1426,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         }
 #endif
         if (strncmp(p, "Supported", 9) == 0) {
-            sprintf(buf, "PacketSize=%x", MAX_PACKET_LENGTH);
+            snprintf(buf, sizeof(buf), "PacketSize=%x", MAX_PACKET_LENGTH);
 #ifdef GDB_CORE_XML
             strcat(buf, ";qXfer:features:read+");
 #endif
@@ -1442,7 +1442,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
             p += 19;
             xml = get_feature_xml(env, p, &p);
             if (!xml) {
-                sprintf(buf, "E00");
+                snprintf(buf, sizeof(buf), "E00");
                 put_packet(s, buf);
                 break;
             }
@@ -1456,7 +1456,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 
             total_len = strlen(xml);
             if (addr > total_len) {
-                sprintf(buf, "E00");
+                snprintf(buf, sizeof(buf), "E00");
                 put_packet(s, buf);
                 break;
             }
