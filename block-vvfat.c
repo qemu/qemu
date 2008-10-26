@@ -625,7 +625,7 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
 
     entry=array_get_next(&(s->directory));
     memset(entry->name,0x20,11);
-    pstrcpy((char*)entry->name, i, filename);
+    memcpy(entry->name, filename, i);
 
     if(j > 0)
 	for (i = 0; i < 3 && filename[j+1+i]; i++)
