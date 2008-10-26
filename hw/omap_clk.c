@@ -1101,7 +1101,7 @@ void omap_clk_adduser(struct clk *clk, qemu_irq user)
 
 /* If a clock is allowed to idle, it is disabled automatically when
  * all of clock domains using it are disabled.  */
-int omap_clk_is_idle(struct clk *clk)
+static int omap_clk_is_idle(struct clk *clk)
 {
     struct clk *chld;
 

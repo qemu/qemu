@@ -283,7 +283,7 @@ static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
 }
 
 #ifdef TARGET_X86_64
-uint64_t idt_table[512];
+static uint64_t idt_table[512];
 
 static void set_gate64(void *ptr, unsigned int type, unsigned int dpl,
                        uint64_t addr, unsigned int sel)
@@ -303,7 +303,7 @@ static void set_idt(int n, unsigned int dpl)
     set_gate64(idt_table + n * 2, 0, dpl, 0, 0);
 }
 #else
-uint64_t idt_table[256];
+static uint64_t idt_table[256];
 
 static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
                      uint32_t addr, unsigned int sel)

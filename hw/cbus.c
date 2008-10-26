@@ -435,7 +435,8 @@ void retu_key_event(void *retu, int state)
         s->status |= 1 << 5;
 }
 
-void retu_head_event(void *retu, int state)
+#if 0
+static void retu_head_event(void *retu, int state)
 {
     struct cbus_slave_s *slave = (struct cbus_slave_s *) retu;
     struct cbus_retu_s *s = (struct cbus_retu_s *) slave->opaque;
@@ -452,7 +453,7 @@ void retu_head_event(void *retu, int state)
         s->result[retu_adc_head_det] = 123;
 }
 
-void retu_hook_event(void *retu, int state)
+static void retu_hook_event(void *retu, int state)
 {
     struct cbus_slave_s *slave = (struct cbus_slave_s *) retu;
     struct cbus_retu_s *s = (struct cbus_retu_s *) slave->opaque;
@@ -468,6 +469,7 @@ void retu_hook_event(void *retu, int state)
     else
         s->result[retu_adc_hook_det] = 123;
 }
+#endif
 
 /* Tahvo/Betty */
 struct cbus_tahvo_s {

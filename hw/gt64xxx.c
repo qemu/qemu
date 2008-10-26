@@ -891,7 +891,6 @@ static int pci_gt64120_map_irq(PCIDevice *pci_dev, int irq_num)
     }
 }
 
-extern PCIDevice *piix4_dev;
 static int pci_irq_levels[4];
 
 static void pci_gt64120_set_irq(qemu_irq *pic, int irq_num, int level)

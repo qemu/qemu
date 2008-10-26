@@ -51,7 +51,7 @@ static struct {
     1024
 };
 
-struct SDLAudioState {
+static struct SDLAudioState {
     int exit;
     SDL_mutex *mutex;
     SDL_sem *sem;

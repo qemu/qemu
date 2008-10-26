@@ -155,12 +155,12 @@ static void scoop_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-CPUReadMemoryFunc *scoop_readfn[] = {
+static CPUReadMemoryFunc *scoop_readfn[] = {
     scoop_readb,
     scoop_readb,
     scoop_readb,
 };
-CPUWriteMemoryFunc *scoop_writefn[] = {
+static CPUWriteMemoryFunc *scoop_writefn[] = {
     scoop_writeb,
     scoop_writeb,
     scoop_writeb,
@@ -252,7 +252,7 @@ struct scoop_info_s *scoop_init(struct pxa2xx_state_s *cpu,
 
 #define MAGIC_CHG(a, b, c, d)	((d << 24) | (c << 16) | (b << 8) | a)
 
-struct __attribute__ ((__packed__)) sl_param_info {
+static struct __attribute__ ((__packed__)) sl_param_info {
     uint32_t comadj_keyword;
     int32_t comadj;
 

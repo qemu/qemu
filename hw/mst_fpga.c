@@ -168,12 +168,12 @@ mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 	}
 }
 
-CPUReadMemoryFunc *mst_fpga_readfn[] = {
+static CPUReadMemoryFunc *mst_fpga_readfn[] = {
 	mst_fpga_readb,
 	mst_fpga_readb,
 	mst_fpga_readb,
 };
-CPUWriteMemoryFunc *mst_fpga_writefn[] = {
+static CPUWriteMemoryFunc *mst_fpga_writefn[] = {
 	mst_fpga_writeb,
 	mst_fpga_writeb,
 	mst_fpga_writeb,

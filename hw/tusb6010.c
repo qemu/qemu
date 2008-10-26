@@ -25,6 +25,7 @@
 #include "usb.h"
 #include "omap.h"
 #include "irq.h"
+#include "devices.h"
 
 struct tusb_s {
     int iomemtype[2];

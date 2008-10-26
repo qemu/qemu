@@ -756,7 +756,7 @@ static void gen_test_cc(int cc, int label)
     dead_tmp(tmp);
 }
 
-const uint8_t table_logic_cc[16] = {
+static const uint8_t table_logic_cc[16] = {
     1, /* and */
     1, /* xor */
     0, /* sub */

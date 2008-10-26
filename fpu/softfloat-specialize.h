@@ -37,12 +37,6 @@ these four paragraphs for those parts of this code that are retained.
 #endif
 
 /*----------------------------------------------------------------------------
-| Underflow tininess-detection mode, statically initialized to default value.
-| (The declaration in `softfloat.h' must match the `int8' type here.)
-*----------------------------------------------------------------------------*/
-int8 float_detect_tininess = float_tininess_after_rounding;
-
-/*----------------------------------------------------------------------------
 | Raises the exceptions specified by `flags'.  Floating-point traps can be
 | defined here if desired.  It is currently not possible for such a trap
 | to substitute a result value.  If traps are not implemented, this routine

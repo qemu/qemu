@@ -2181,7 +2181,7 @@ static const arg membar_table[] =
 
 /* Return the name for membar value VALUE or NULL if not found.  */
 
-const char *
+static const char *
 sparc_decode_membar (value)
      int value;
 {
@@ -2203,7 +2203,7 @@ static const arg prefetch_table[] =
 
 /* Return the name for prefetch value VALUE or NULL if not found.  */
 
-const char *
+static const char *
 sparc_decode_prefetch (value)
      int value;
 {
@@ -2226,7 +2226,7 @@ static const arg sparclet_cpreg_table[] =
 
 /* Return the name for sparclet cpreg value VALUE or NULL if not found.  */
 
-const char *
+static const char *
 sparc_decode_sparclet_cpreg (value)
      int value;
 {

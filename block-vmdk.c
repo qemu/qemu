@@ -322,7 +322,7 @@ static void vmdk_parent_close(BlockDriverState *bs)
         bdrv_close(bs->backing_hd);
 }
 
-int parent_open = 0;
+static int parent_open = 0;
 static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
 {
     BDRVVmdkState *s = bs->opaque;

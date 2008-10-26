@@ -36,7 +36,7 @@
 
 #define NBD_BUFFER_SIZE (1024*1024)
 
-int verbose;
+static int verbose;
 
 static void usage(const char *name)
 {

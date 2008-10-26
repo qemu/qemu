@@ -102,8 +102,8 @@ static abi_ulong copy_strings(abi_ulong p, int n, char **s)
     return p;
 }
 
-int target_pread(int fd, abi_ulong ptr, abi_ulong len,
-                 abi_ulong offset)
+static int target_pread(int fd, abi_ulong ptr, abi_ulong len,
+                        abi_ulong offset)
 {
     void *buf;
     int ret;
@@ -336,7 +336,7 @@ failed:
 /****************************************************************************/
 
 /* ??? This does not handle endianness correctly.  */
-void old_reloc(struct lib_info *libinfo, uint32_t rl)
+static void old_reloc(struct lib_info *libinfo, uint32_t rl)
 {
 #ifdef DEBUG
 	char *segment[] = { "TEXT", "DATA", "BSS", "*UNKNOWN*" };

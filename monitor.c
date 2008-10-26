@@ -75,7 +75,7 @@ static int term_outbuf_index;
 
 static void monitor_start_input(void);
 
-CPUState *mon_cpu = NULL;
+static CPUState *mon_cpu = NULL;
 
 void term_flush(void)
 {

@@ -128,7 +128,7 @@ enum {
     IRQ_INTERNAL = 0x02,
     IRQ_TIMER    = 0x04,
     IRQ_SPECIAL  = 0x08,
-} IRQ_src_type;
+};
 
 typedef struct IRQ_queue_t {
     uint32_t queue[BF_WIDTH(MAX_IRQ)];

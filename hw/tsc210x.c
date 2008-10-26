@@ -26,6 +26,7 @@
 #include "qemu-timer.h"
 #include "console.h"
 #include "omap.h"	/* For struct i2s_codec_s and struct uwire_slave_s */
+#include "devices.h"
 
 #define TSC_DATA_REGISTERS_PAGE		0x0
 #define TSC_CONTROL_REGISTERS_PAGE	0x1

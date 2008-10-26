@@ -105,6 +105,7 @@ void i440fx_set_smm(PCIDevice *d, int val);
 int piix3_init(PCIBus *bus, int devfn);
 void i440fx_init_memory_mappings(PCIDevice *d);
 
+extern PCIDevice *piix4_dev;
 int piix4_init(PCIBus *bus, int devfn);
 
 /* vga.c */

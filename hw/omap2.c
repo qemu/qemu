@@ -2174,7 +2174,7 @@ static CPUWriteMemoryFunc *omap_sti_fifo_writefn[] = {
     omap_badwidth_write8,
 };
 
-struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
+static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
                 target_phys_addr_t channel_base, qemu_irq irq, omap_clk clk,
                 CharDriverState *chr)
 {
