@@ -34,7 +34,9 @@
 #undef EDI
 #undef EIP
 #include <signal.h>
+#ifdef __linux__
 #include <sys/ucontext.h>
+#endif
 #endif
 
 #if defined(__sparc__) && !defined(HOST_SOLARIS)
@@ -66,7 +68,11 @@ void cpu_loop_exit(void)
 void cpu_resume_from_signal(CPUState *env1, void *puc)
 {
 #if !defined(CONFIG_SOFTMMU)
+#ifdef __linux__
     struct ucontext *uc = puc;
+#elif defined(__OpenBSD__)
+    struct sigcontext *uc = puc;
+#endif
 #endif
 
     env = env1;
@@ -76,7 +82,11 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
 #if !defined(CONFIG_SOFTMMU)
     if (puc) {
         /* XXX: use siglongjmp ? */
+#ifdef __linux__
         sigprocmask(SIG_SETMASK, &uc->uc_sigmask, NULL);
+#elif defined(__OpenBSD__)
+        sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
+#endif
     }
 #endif
     longjmp(env->jmp_env, 1);
@@ -1328,9 +1338,15 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     /* XXX: is there a standard glibc define ? */
     unsigned long pc = regs[1];
 #else
+#ifdef __linux__
     struct sigcontext *sc = puc;
     unsigned long pc = sc->sigc_regs.tpc;
     void *sigmask = (void *)sc->sigc_mask;
+#elif defined(__OpenBSD__)
+    struct sigcontext *uc = puc;
+    unsigned long pc = uc->sc_pc;
+    void *sigmask = (void *)(long)uc->sc_mask;
+#endif
 #endif
 
     /* XXX: need kernel patch to get write flag faster */

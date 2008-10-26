@@ -2759,6 +2759,7 @@ Two on-chip UARTs.
 * Supported Operating Systems ::
 * Linux User space emulator::
 * Mac OS X/Darwin User space emulator ::
+* BSD User space emulator ::
 @end menu
 
 @node Supported Operating Systems
@@ -2771,6 +2772,8 @@ The following OS are supported in user space emulation:
 Linux (referred as qemu-linux-user)
 @item
 Mac OS X/Darwin (referred as qemu-darwin-user)
+@item
+BSD (referred as qemu-bsd-user)
 @end itemize
 
 @node Linux User space emulator
@@ -2999,6 +3002,68 @@ Print the help
 Set the library root path (default=/)
 @item -s size
 Set the stack size in bytes (default=524288)
+@end table
+
+Debug options:
+
+@table @option
+@item -d
+Activate log (logfile=/tmp/qemu.log)
+@item -p pagesize
+Act as if the host page size was 'pagesize' bytes
+@end table
+
+@node BSD User space emulator
+@section BSD User space emulator
+
+@menu
+* BSD Status::
+* BSD Quick Start::
+* BSD Command line options::
+@end menu
+
+@node BSD Status
+@subsection BSD Status
+
+@itemize @minus
+@item
+target Sparc64 on Sparc64: Some trivial programs work.
+@end itemize
+
+@node BSD Quick Start
+@subsection Quick Start
+
+In order to launch a BSD process, QEMU needs the process executable
+itself and all the target dynamic libraries used by it.
+
+@itemize
+
+@item On Sparc64, you can just try to launch any process by using the native
+libraries:
+
+@example
+qemu-sparc64 /bin/ls
+@end example
+
+@end itemize
+
+@node BSD Command line options
+@subsection Command line options
+
+@example
+usage: qemu-sparc64 [-h] [-d] [-L path] [-s size] [-bsd type] program [arguments...]
+@end example
+
+@table @option
+@item -h
+Print the help
+@item -L path
+Set the library root path (default=/)
+@item -s size
+Set the stack size in bytes (default=524288)
+@item -bsd type
+Set the type of the emulated BSD Operating system. Valid values are
+FreeBSD, NetBSD and OpenBSD (default).
 @end table
 
 Debug options:

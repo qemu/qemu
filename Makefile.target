@@ -470,6 +470,111 @@ $(QEMU_PROG): $(OBJS)
 endif #CONFIG_DARWIN_USER
 
 #########################################################
+# BSD user emulator target
+
+ifdef CONFIG_BSD_USER
+
+VPATH+=:$(SRC_PATH)/bsd-user
+CPPFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
+
+ifdef CONFIG_STATIC
+LDFLAGS+=-static
+endif
+
+ifeq ($(ARCH),i386)
+ifdef TARGET_GPROF
+USE_I386_LD=y
+endif
+ifdef CONFIG_STATIC
+USE_I386_LD=y
+endif
+ifdef USE_I386_LD
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+else
+# WARNING: this LDFLAGS is _very_ tricky : qemu is an ELF shared object
+# that the kernel ELF loader considers as an executable. I think this
+# is the simplest way to make it self virtualizable!
+LDFLAGS+=-Wl,-shared
+endif
+endif
+
+ifeq ($(ARCH),x86_64)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),ppc)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),ppc64)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),s390)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),sparc)
+# -static is used to avoid g1/g3 usage by the dynamic linker
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld -static
+endif
+
+ifeq ($(ARCH),sparc64)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),alpha)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),ia64)
+LDFLAGS+=-Wl,-G0 -Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),arm)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),m68k)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+
+ifeq ($(ARCH),mips)
+ifeq ($(WORDS_BIGENDIAN),yes)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+else
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
+endif
+endif
+
+ifeq ($(ARCH),mips64)
+ifeq ($(WORDS_BIGENDIAN),yes)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+else
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
+endif
+endif
+
+OBJS= main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o
+OBJS+= uaccess.o
+
+OBJS+= libqemu.a
+
+ifdef CONFIG_GDBSTUB
+OBJS+=gdbstub.o
+endif
+
+# Note: this is a workaround. The real fix is to avoid compiling
+# cpu_signal_handler() in cpu-exec.c.
+signal.o: signal.c
+	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+$(QEMU_PROG): $(OBJS) ../libqemu_user.a
+	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+
+endif #CONFIG_BSD_USER
+
+#########################################################
 # System emulator target
 ifndef CONFIG_USER_ONLY
 

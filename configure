@@ -106,6 +106,7 @@ check_gcc="yes"
 softmmu="yes"
 linux_user="no"
 darwin_user="no"
+bsd_user="no"
 build_docs="no"
 uname_release=""
 curses="yes"
@@ -218,6 +219,7 @@ if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
     make="gmake"
   fi
+  bsd_user="yes"
 fi
 
 # find source path
@@ -322,6 +324,10 @@ for opt do
   --disable-darwin-user) darwin_user="no"
   ;;
   --enable-darwin-user) darwin_user="yes"
+  ;;
+  --disable-bsd-user) bsd_user="no"
+  ;;
+  --enable-bsd-user) bsd_user="yes"
   ;;
   --enable-uname-release=*) uname_release="$optarg"
   ;;
@@ -446,6 +452,8 @@ echo "  --enable-linux-user      enable all linux usermode emulation targets"
 echo "  --disable-linux-user     disable all linux usermode emulation targets"
 echo "  --enable-darwin-user     enable all darwin usermode emulation targets"
 echo "  --disable-darwin-user    disable all darwin usermode emulation targets"
+echo "  --enable-bsd-user        enable all BSD usermode emulation targets"
+echo "  --disable-bsd-user       disable all BSD usermode emulation targets"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --oss-lib                path to OSS library"
@@ -492,6 +500,7 @@ if test "$mingw32" = "yes" ; then
     EXESUF=".exe"
     oss="no"
     linux_user="no"
+    bsd_user="no"
 fi
 
 if [ "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
@@ -628,6 +637,12 @@ sparc32plus-linux-user \
 # the following are Darwin specific
     if [ "$darwin_user" = "yes" ] ; then
         target_list="$target_list i386-darwin-user ppc-darwin-user"
+    fi
+# the following are BSD specific
+    if [ "$bsd_user" = "yes" ] ; then
+        target_list="${target_list}\
+sparc64-bsd-user \
+"
     fi
 else
     target_list=`echo "$target_list" | sed -e 's/,/ /g'`
@@ -1329,6 +1344,7 @@ target_softmmu="no"
 target_user_only="no"
 target_linux_user="no"
 target_darwin_user="no"
+target_bsd_user="no"
 case "$target" in
   ${target_cpu}-softmmu)
     target_softmmu="yes"
@@ -1340,6 +1356,10 @@ case "$target" in
   ${target_cpu}-darwin-user)
     target_user_only="yes"
     target_darwin_user="yes"
+    ;;
+  ${target_cpu}-bsd-user)
+    target_user_only="yes"
+    target_bsd_user="yes"
     ;;
   *)
     echo "ERROR: Target '$target' not recognised"
@@ -1363,7 +1383,7 @@ test -f $config_h && mv $config_h ${config_h}~
 mkdir -p $target_dir
 mkdir -p $target_dir/fpu
 mkdir -p $target_dir/tcg
-if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" ; then
+if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
   mkdir -p $target_dir/nwfpe
 fi
 
@@ -1583,6 +1603,10 @@ fi
 if test "$target_user_only" = "yes" -a "$elfload32" = "yes"; then
   echo "TARGET_HAS_ELFLOAD32=yes" >> $config_mak
   echo "#define TARGET_HAS_ELFLOAD32 1" >> $config_h
+fi
+if test "$target_bsd_user" = "yes" ; then
+  echo "CONFIG_BSD_USER=yes" >> $config_mak
+  echo "#define CONFIG_BSD_USER 1" >> $config_h
 fi
 
 test -f ${config_h}~ && cmp -s $config_h ${config_h}~ && mv ${config_h}~ $config_h
