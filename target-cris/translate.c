@@ -3347,41 +3347,41 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
 #endif
 
-	cc_x = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	cc_x = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 				  offsetof(CPUState, cc_x), "cc_x");
-	cc_src = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	cc_src = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 				    offsetof(CPUState, cc_src), "cc_src");
-	cc_dest = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	cc_dest = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 				     offsetof(CPUState, cc_dest),
 				     "cc_dest");
-	cc_result = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	cc_result = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 				       offsetof(CPUState, cc_result),
 				       "cc_result");
-	cc_op = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	cc_op = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 				   offsetof(CPUState, cc_op), "cc_op");
-	cc_size = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	cc_size = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 				     offsetof(CPUState, cc_size),
 				     "cc_size");
-	cc_mask = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	cc_mask = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 				     offsetof(CPUState, cc_mask),
 				     "cc_mask");
 
-	env_pc = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0, 
+	env_pc = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0, 
 				    offsetof(CPUState, pc),
 				    "pc");
-	env_btarget = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	env_btarget = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 					 offsetof(CPUState, btarget),
 					 "btarget");
-	env_btaken = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+	env_btaken = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 					 offsetof(CPUState, btaken),
 					 "btaken");
 	for (i = 0; i < 16; i++) {
-		cpu_R[i] = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+		cpu_R[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 					      offsetof(CPUState, regs[i]),
 					      regnames[i]);
 	}
 	for (i = 0; i < 16; i++) {
-		cpu_PR[i] = tcg_global_mem_new(TCG_TYPE_PTR, TCG_AREG0,
+		cpu_PR[i] = tcg_global_mem_new(TCG_TYPE_TL, TCG_AREG0,
 					       offsetof(CPUState, pregs[i]),
 					       pregnames[i]);
 	}
