@@ -229,41 +229,52 @@ static inline void t_gen_raise_exception(uint32_t index)
 
 static void t_gen_lsl(TCGv d, TCGv a, TCGv b)
 {
-	int l1;
+	TCGv t0, t_31;
 
-	l1 = gen_new_label();
-	/* Speculative shift. */
+	t0 = tcg_temp_new(TCG_TYPE_TL);
+	t_31 = tcg_temp_new(TCG_TYPE_TL);
 	tcg_gen_shl_tl(d, a, b);
-	tcg_gen_brcondi_tl(TCG_COND_LEU, b, 31, l1);
-	/* Clear dst if shift operands were to large.  */
-	tcg_gen_movi_tl(d, 0);
-	gen_set_label(l1);
+
+	tcg_gen_movi_tl(t_31, 31);
+	tcg_gen_sub_tl(t0, t_31, b);
+	tcg_gen_sar_tl(t0, t0, t_31);
+	tcg_gen_and_tl(t0, t0, d);
+	tcg_gen_xor_tl(d, d, t0);
+	tcg_temp_free(t0);
+	tcg_temp_free(t_31);
 }
 
 static void t_gen_lsr(TCGv d, TCGv a, TCGv b)
 {
-	int l1;
+	TCGv t0, t_31;
 
-	l1 = gen_new_label();
-	/* Speculative shift. */
+	t0 = tcg_temp_new(TCG_TYPE_TL);
+	t_31 = tcg_temp_new(TCG_TYPE_TL);
 	tcg_gen_shr_tl(d, a, b);
-	tcg_gen_brcondi_tl(TCG_COND_LEU, b, 31, l1);
-	/* Clear dst if shift operands were to large.  */
-	tcg_gen_movi_tl(d, 0);
-	gen_set_label(l1);
+
+	tcg_gen_movi_tl(t_31, 31);
+	tcg_gen_sub_tl(t0, t_31, b);
+	tcg_gen_sar_tl(t0, t0, t_31);
+	tcg_gen_and_tl(t0, t0, d);
+	tcg_gen_xor_tl(d, d, t0);
+	tcg_temp_free(t0);
+	tcg_temp_free(t_31);
 }
 
 static void t_gen_asr(TCGv d, TCGv a, TCGv b)
 {
-	int l1;
+	TCGv t0, t_31;
 
-	l1 = gen_new_label();
-	/* Speculative shift. */
+	t0 = tcg_temp_new(TCG_TYPE_TL);
+	t_31 = tcg_temp_new(TCG_TYPE_TL);
 	tcg_gen_sar_tl(d, a, b);
-	tcg_gen_brcondi_tl(TCG_COND_LEU, b, 31, l1);
-	/* Clear dst if shift operands were to large.  */
-	tcg_gen_sar_tl(d, a, tcg_const_tl(30));
-	gen_set_label(l1);
+
+	tcg_gen_movi_tl(t_31, 31);
+	tcg_gen_sub_tl(t0, t_31, b);
+	tcg_gen_sar_tl(t0, t0, t_31);
+	tcg_gen_or_tl(d, d, t0);
+	tcg_temp_free(t0);
+	tcg_temp_free(t_31);
 }
 
 /* 64-bit signed mul, lower result in d and upper in d2.  */
@@ -1777,20 +1788,20 @@ static unsigned int dec_cmp_r(DisasContext *dc)
 
 static unsigned int dec_abs_r(DisasContext *dc)
 {
-	int l1;
+	TCGv t0;
 
 	DIS(fprintf (logfile, "abs $r%u, $r%u\n",
 		    dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
-	dec_prep_move_r(dc, dc->op1, dc->op2, 4, 0, cpu_T[1]);
 
-	/* TODO: consider a branch free approach.  */
-	l1 = gen_new_label();
-	tcg_gen_brcondi_tl(TCG_COND_GE, cpu_T[1], 0, l1);
-	tcg_gen_neg_tl(cpu_T[1], cpu_T[1]);
-	gen_set_label(l1);
+	t0 = tcg_temp_new(TCG_TYPE_TL);
+	tcg_gen_sari_tl(t0, cpu_R[dc->op1], 31);
+	tcg_gen_xor_tl(cpu_R[dc->op2], cpu_R[dc->op1], t0);
+	tcg_gen_sub_tl(cpu_R[dc->op2], cpu_R[dc->op2], t0);
+	tcg_temp_free(t0);
+
 	cris_alu(dc, CC_OP_MOVE,
-		    cpu_R[dc->op2], cpu_R[dc->op2], cpu_T[1], 4);
+		    cpu_R[dc->op2], cpu_R[dc->op2], cpu_R[dc->op2], 4);
 	return 2;
 }
 
