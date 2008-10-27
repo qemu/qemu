@@ -36,12 +36,12 @@ void Atheros_WLAN_init_frame(Atheros_WLANState *s, struct mac80211_frame *frame)
 
 int Atheros_WLAN_dumpFrame(struct mac80211_frame *frame, int frame_len, char *filename);
 
-struct mac80211_frame *Atheros_WLAN_create_beacon_frame();
-struct mac80211_frame *Atheros_WLAN_create_probe_response();
-struct mac80211_frame *Atheros_WLAN_create_authentication();
-struct mac80211_frame *Atheros_WLAN_create_deauthentication();
-struct mac80211_frame *Atheros_WLAN_create_association_response();
-struct mac80211_frame *Atheros_WLAN_create_disassociation();
+struct mac80211_frame *Atheros_WLAN_create_beacon_frame(void);
+struct mac80211_frame *Atheros_WLAN_create_probe_response(void);
+struct mac80211_frame *Atheros_WLAN_create_authentication(void);
+struct mac80211_frame *Atheros_WLAN_create_deauthentication(void);
+struct mac80211_frame *Atheros_WLAN_create_association_response(void);
+struct mac80211_frame *Atheros_WLAN_create_disassociation(void);
 struct mac80211_frame *Atheros_WLAN_create_data_reply(Atheros_WLANState *s, struct mac80211_frame *incoming);
 struct mac80211_frame *Atheros_WLAN_create_data_packet(Atheros_WLANState *s, const uint8_t *buf, int size);
 
