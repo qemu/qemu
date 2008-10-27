@@ -1410,7 +1410,7 @@ GEN_HANDLER(xor, 0x1F, 0x1C, 0x09, 0x00000000, PPC_INTEGER)
 {
     /* Optimisation for "set to zero" case */
     if (rS(ctx->opcode) != rB(ctx->opcode))
-	tcg_gen_xor_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+        tcg_gen_xor_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
     else
         tcg_gen_movi_tl(cpu_gpr[rA(ctx->opcode)], 0);
     if (unlikely(Rc(ctx->opcode) != 0))
@@ -2484,7 +2484,7 @@ static always_inline void gen_qemu_ld64(TCGv t0, TCGv t1, int flags)
 {
     gen_qemu_ld64_ppc64(t0, t1, flags);
     if (unlikely(flags & 1))
-	tcg_gen_bswap_i64(t0, t0);
+        tcg_gen_bswap_i64(t0, t0);
 }
 
 static always_inline void gen_qemu_st8(TCGv t0, TCGv t1, int flags)
@@ -2531,7 +2531,7 @@ static always_inline void gen_qemu_st64(TCGv t0, TCGv t1, int flags)
         TCGv temp = tcg_temp_new(TCG_TYPE_I64);
         tcg_gen_bswap_i64(temp, t0);
         gen_qemu_st64_ppc64(temp, t1, flags);
-	tcg_temp_free(temp);
+        tcg_temp_free(temp);
     } else
         gen_qemu_st64_ppc64(t0, t1, flags);
 }
@@ -2614,7 +2614,7 @@ static always_inline void gen_qemu_st16(TCGv t0, TCGv t1, int flags)
         tcg_gen_ext16u_i32(temp, t0);
         tcg_gen_bswap16_i32(temp, temp);
         gen_qemu_st16_ppc32(temp, t1, flags >> 1);
-	tcg_temp_free(temp);
+        tcg_temp_free(temp);
     } else
         gen_qemu_st16_ppc32(t0, t1, flags >> 1);
 }
@@ -2625,7 +2625,7 @@ static always_inline void gen_qemu_st32(TCGv t0, TCGv t1, int flags)
         TCGv temp = tcg_temp_new(TCG_TYPE_I32);
         tcg_gen_bswap_i32(temp, t0);
         gen_qemu_st32_ppc32(temp, t1, flags >> 1);
-	tcg_temp_free(temp);
+        tcg_temp_free(temp);
     } else
         gen_qemu_st32_ppc32(t0, t1, flags >> 1);
 }
@@ -2636,7 +2636,7 @@ static always_inline void gen_qemu_st64(TCGv t0, TCGv t1, int flags)
         TCGv temp = tcg_temp_new(TCG_TYPE_I64);
         tcg_gen_bswap_i64(temp, t0);
         gen_qemu_st64_ppc32(temp, t1, flags >> 1);
-	tcg_temp_free(temp);
+        tcg_temp_free(temp);
     } else
         gen_qemu_st64_ppc32(t0, t1, flags >> 1);
 }
