@@ -1928,6 +1928,7 @@ static unsigned int dec_swap_r(DisasContext *dc)
 		t_gen_swapr(t0, t0);
 	cris_alu(dc, CC_OP_MOVE,
 		    cpu_R[dc->op1], cpu_R[dc->op1], t0, 4);
+	tcg_temp_free(t0);
 	return 2;
 }
 
@@ -1954,6 +1955,7 @@ static unsigned int dec_addi_r(DisasContext *dc)
 	t0 = tcg_temp_new(TCG_TYPE_TL);
 	tcg_gen_shl_tl(t0, cpu_R[dc->op2], tcg_const_tl(dc->zzsize));
 	tcg_gen_add_tl(cpu_R[dc->op1], cpu_R[dc->op1], t0);
+	tcg_temp_free(t0);
 	return 2;
 }
 
@@ -1966,7 +1968,7 @@ static unsigned int dec_addi_acr(DisasContext *dc)
 	t0 = tcg_temp_new(TCG_TYPE_TL);
 	tcg_gen_shl_tl(t0, cpu_R[dc->op2], tcg_const_tl(dc->zzsize));
 	tcg_gen_add_tl(cpu_R[R_ACR], cpu_R[dc->op1], t0);
-
+	tcg_temp_free(t0);
 	return 2;
 }
 
