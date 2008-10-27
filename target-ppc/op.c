@@ -752,63 +752,7 @@ void OPPROTO op_subfzeo_64 (void)
 }
 #endif
 
-/***                            Integer logical                            ***/
-/* or */
-void OPPROTO op_or (void)
-{
-    T0 |= T1;
-    RETURN();
-}
-
-/***                             Integer rotate                            ***/
-void OPPROTO op_rotl32_T0_T1 (void)
-{
-    T0 = rotl32(T0, T1 & 0x1F);
-    RETURN();
-}
-
-void OPPROTO op_rotli32_T0 (void)
-{
-    T0 = rotl32(T0, PARAM1);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_rotl64_T0_T1 (void)
-{
-    T0 = rotl64(T0, T1 & 0x3F);
-    RETURN();
-}
-
-void OPPROTO op_rotli64_T0 (void)
-{
-    T0 = rotl64(T0, PARAM1);
-    RETURN();
-}
-#endif
-
 /***                             Integer shift                             ***/
-/* shift right word */
-void OPPROTO op_sli_T0 (void)
-{
-    T0 = T0 << PARAM1;
-    RETURN();
-}
-
-void OPPROTO op_srli_T0 (void)
-{
-    T0 = (uint32_t)T0 >> PARAM1;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_srli_T0_64 (void)
-{
-    T0 = (uint64_t)T0 >> PARAM1;
-    RETURN();
-}
-#endif
-
 void OPPROTO op_srli_T1 (void)
 {
     T1 = (uint32_t)T1 >> PARAM1;
