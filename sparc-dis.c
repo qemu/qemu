@@ -5,23 +5,28 @@
 
 /* include/opcode/sparc.h */
 
-/* Print SPARC instructions.
-   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2002 Free Software Foundation, Inc.
+/* Definitions for opcode table for the sparc.
+   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2002,
+   2003, 2005 Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This file is part of GAS, the GNU Assembler, GDB, the GNU debugger, and
+   the GNU Binutils.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GAS/GDB is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   GAS/GDB is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with GAS or GDB; see the file COPYING. If not, write to
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
+
 #include <stdlib.h>
 #include "dis-asm.h"
 
@@ -40,17 +45,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    The values are indices into `sparc_opcode_archs' defined in sparc-opc.c.
    Don't change this without updating sparc-opc.c.  */
 
-enum sparc_opcode_arch_val {
+enum sparc_opcode_arch_val
+{
   SPARC_OPCODE_ARCH_V6 = 0,
   SPARC_OPCODE_ARCH_V7,
   SPARC_OPCODE_ARCH_V8,
   SPARC_OPCODE_ARCH_SPARCLET,
   SPARC_OPCODE_ARCH_SPARCLITE,
-  /* v9 variants must appear last */
+  /* V9 variants must appear last.  */
   SPARC_OPCODE_ARCH_V9,
-  SPARC_OPCODE_ARCH_V9A, /* v9 with ultrasparc additions */
-  SPARC_OPCODE_ARCH_V9B, /* v9 with ultrasparc and cheetah additions */
-  SPARC_OPCODE_ARCH_BAD /* error return from sparc_opcode_lookup_arch */
+  SPARC_OPCODE_ARCH_V9A, /* V9 with ultrasparc additions.  */
+  SPARC_OPCODE_ARCH_V9B, /* V9 with ultrasparc and cheetah additions.  */
+  SPARC_OPCODE_ARCH_BAD  /* Error return from sparc_opcode_lookup_arch.  */
 };
 
 /* The highest architecture in the table.  */
@@ -65,14 +71,15 @@ enum sparc_opcode_arch_val {
 
 /* Table of cpu variants.  */
 
-struct sparc_opcode_arch {
+typedef struct sparc_opcode_arch
+{
   const char *name;
   /* Mask of sparc_opcode_arch_val's supported.
      EG: For v7 this would be
      (SPARC_OPCODE_ARCH_MASK (..._V6) | SPARC_OPCODE_ARCH_MASK (..._V7)).
      These are short's because sparc_opcode.architecture is.  */
   short supported;
-};
+} sparc_opcode_arch;
 
 static const struct sparc_opcode_arch sparc_opcode_archs[];
 
@@ -82,44 +89,43 @@ static const struct sparc_opcode_arch sparc_opcode_archs[];
 /* Non-zero if ARCH1 conflicts with ARCH2.
    IE: ARCH1 as a supported bit set that ARCH2 doesn't, and vice versa.  */
 #define SPARC_OPCODE_CONFLICT_P(ARCH1, ARCH2) \
-(((SPARC_OPCODE_SUPPORTED (ARCH1) & SPARC_OPCODE_SUPPORTED (ARCH2)) \
-  != SPARC_OPCODE_SUPPORTED (ARCH1)) \
- && ((SPARC_OPCODE_SUPPORTED (ARCH1) & SPARC_OPCODE_SUPPORTED (ARCH2)) \
+ (((SPARC_OPCODE_SUPPORTED (ARCH1) & SPARC_OPCODE_SUPPORTED (ARCH2)) \
+   != SPARC_OPCODE_SUPPORTED (ARCH1)) \
+  && ((SPARC_OPCODE_SUPPORTED (ARCH1) & SPARC_OPCODE_SUPPORTED (ARCH2)) \
      != SPARC_OPCODE_SUPPORTED (ARCH2)))
 
 /* Structure of an opcode table entry.  */
 
-struct sparc_opcode {
+typedef struct sparc_opcode
+{
   const char *name;
-  unsigned long match;  /* Bits that must be set. */
-  unsigned long lose;   /* Bits that must not be set. */
+  unsigned long match;  /* Bits that must be set.  */
+  unsigned long lose;   /* Bits that must not be set.  */
   const char *args;
-  /* This was called "delayed" in versions before the flags. */
+  /* This was called "delayed" in versions before the flags.  */
   char flags;
   short architecture;   /* Bitmask of sparc_opcode_arch_val's.  */
-};
+} sparc_opcode;
 
-#define F_DELAYED       1       /* Delayed branch */
-#define F_ALIAS         2       /* Alias for a "real" instruction */
-#define F_UNBR          4       /* Unconditional branch */
-#define F_CONDBR        8       /* Conditional branch */
-#define F_JSR           16      /* Subroutine call */
-#define F_FLOAT         32      /* Floating point instruction (not a branch) */
-#define F_FBR           64      /* Floating point branch */
+#define F_DELAYED       1       /* Delayed branch.  */
+#define F_ALIAS         2       /* Alias for a "real" instruction.  */
+#define F_UNBR          4       /* Unconditional branch.  */
+#define F_CONDBR        8       /* Conditional branch.  */
+#define F_JSR           16      /* Subroutine call.  */
+#define F_FLOAT         32      /* Floating point instruction (not a branch).  */
+#define F_FBR           64      /* Floating point branch.  */
 /* FIXME: Add F_ANACHRONISTIC flag for v9.  */
 
-/*
+/* All sparc opcodes are 32 bits, except for the `set' instruction (really a
+   macro), which is 64 bits. It is handled as a special case.
 
-All sparc opcodes are 32 bits, except for the `set' instruction (really a
-macro), which is 64 bits. It is handled as a special case.
+   The match component is a mask saying which bits must match a particular
+   opcode in order for an instruction to be an instance of that opcode.
 
-The match component is a mask saying which bits must match a particular
-opcode in order for an instruction to be an instance of that opcode.
+   The args component is a string containing one character for each operand of the
+   instruction.
 
-The args component is a string containing one character for each operand of the
-instruction.
-
-Kinds of operands:
+   Kinds of operands:
         #       Number used by optimizer.       It is ignored.
         1       rs1 register.
         2       rs2 register.
@@ -187,48 +193,77 @@ Kinds of operands:
         _       Ancillary state register in rd (v9a)
         /       Ancillary state register in rs1 (v9a)
 
-The following chars are unused: (note: ,[] are used as punctuation)
-[45]
+  The following chars are unused: (note: ,[] are used as punctuation)
+  [45].  */
 
-*/
+#define OP2(x)          (((x) & 0x7) << 22)  /* Op2 field of format2 insns.  */
+#define OP3(x)          (((x) & 0x3f) << 19) /* Op3 field of format3 insns.  */
+#define OP(x)           ((unsigned) ((x) & 0x3) << 30) /* Op field of all insns.  */
+#define OPF(x)          (((x) & 0x1ff) << 5) /* Opf field of float insns.  */
+#define OPF_LOW5(x)     OPF ((x) & 0x1f)     /* V9.  */
+#define F3F(x, y, z)    (OP (x) | OP3 (y) | OPF (z)) /* Format3 float insns.  */
+#define F3I(x)          (((x) & 0x1) << 13)  /* Immediate field of format 3 insns.  */
+#define F2(x, y)        (OP (x) | OP2(y))    /* Format 2 insns.  */
+#define F3(x, y, z)     (OP (x) | OP3(y) | F3I(z)) /* Format3 insns.  */
+#define F1(x)           (OP (x))
+#define DISP30(x)       ((x) & 0x3fffffff)
+#define ASI(x)          (((x) & 0xff) << 5)  /* Asi field of format3 insns.  */
+#define RS2(x)          ((x) & 0x1f)         /* Rs2 field.  */
+#define SIMM13(x)       ((x) & 0x1fff)       /* Simm13 field.  */
+#define RD(x)           (((x) & 0x1f) << 25) /* Destination register field.  */
+#define RS1(x)          (((x) & 0x1f) << 14) /* Rs1 field.  */
+#define ASI_RS2(x)      (SIMM13 (x))
+#define MEMBAR(x)       ((x) & 0x7f)
+#define SLCPOP(x)       (((x) & 0x7f) << 6)  /* Sparclet cpop.  */
 
-#define OP2(x)          (((x)&0x7) << 22) /* op2 field of format2 insns */
-#define OP3(x)          (((x)&0x3f) << 19) /* op3 field of format3 insns */
-#define OP(x)           ((unsigned)((x)&0x3) << 30) /* op field of all insns */
-#define OPF(x)          (((x)&0x1ff) << 5) /* opf field of float insns */
-#define OPF_LOW5(x)     OPF((x)&0x1f) /* v9 */
-#define F3F(x, y, z)    (OP(x) | OP3(y) | OPF(z)) /* format3 float insns */
-#define F3I(x)          (((x)&0x1) << 13) /* immediate field of format 3 insns */
-#define F2(x, y)        (OP(x) | OP2(y)) /* format 2 insns */
-#define F3(x, y, z)     (OP(x) | OP3(y) | F3I(z)) /* format3 insns */
-#define F1(x)           (OP(x))
-#define DISP30(x)       ((x)&0x3fffffff)
-#define ASI(x)          (((x)&0xff) << 5) /* asi field of format3 insns */
-#define RS2(x)          ((x)&0x1f) /* rs2 field */
-#define SIMM13(x)       ((x)&0x1fff) /* simm13 field */
-#define RD(x)           (((x)&0x1f) << 25) /* destination register field */
-#define RS1(x)          (((x)&0x1f) << 14) /* rs1 field */
-#define ASI_RS2(x)      (SIMM13(x))
-#define MEMBAR(x)       ((x)&0x7f)
-#define SLCPOP(x)       (((x)&0x7f) << 6) /* sparclet cpop */
-
-#define ANNUL   (1<<29)
-#define BPRED   (1<<19) /* v9 */
-#define IMMED   F3I(1)
-#define RD_G0   RD(~0)
-#define RS1_G0  RS1(~0)
-#define RS2_G0  RS2(~0)
+#define ANNUL   (1 << 29)
+#define BPRED   (1 << 19)       /* V9.  */
+#define IMMED   F3I (1)
+#define RD_G0   RD (~0)
+#define RS1_G0  RS1 (~0)
+#define RS2_G0  RS2 (~0)
 
 static const struct sparc_opcode sparc_opcodes[];
 static const int sparc_num_opcodes;
 
-static const char *sparc_decode_asi_v8 PARAMS ((int));
-static const char *sparc_decode_asi_v9 PARAMS ((int));
-static const char *sparc_decode_membar PARAMS ((int));
-static const char *sparc_decode_prefetch PARAMS ((int));
-static const char *sparc_decode_sparclet_cpreg PARAMS ((int));
+static const char *sparc_decode_asi_v8 (int);
+static const char *sparc_decode_asi_v9 (int);
+static const char *sparc_decode_membar (int);
+static const char *sparc_decode_prefetch (int);
+static const char *sparc_decode_sparclet_cpreg (int);
+
+/* Local Variables:
+   fill-column: 131
+   comment-column: 0
+   End: */
 
 /* opcodes/sparc-opc.c */
+
+/* Table of opcodes for the sparc.
+   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2002, 2004, 2005
+   Free Software Foundation, Inc.
+
+   This file is part of the BFD library.
+
+   BFD is free software; you can redistribute it and/or modify it under
+   the terms of the GNU General Public License as published by the Free
+   Software Foundation; either version 2, or (at your option) any later
+   version.
+
+   BFD is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or
+   FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+   for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this software; see the file COPYING.  If not, write to
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
+
+/* FIXME-someday: perhaps the ,a's and such should be embedded in the
+   instruction's name rather than the args.  This would make gas faster, pinsn
+   slower, but would mess up some macros a bit.  xoxorich. */
 
 /* Some defines to make life easy.  */
 #define MASK_V6         SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V6)
@@ -244,7 +279,7 @@ static const char *sparc_decode_sparclet_cpreg PARAMS ((int));
 
 #define v6              (MASK_V6 | MASK_V7 | MASK_V8 | MASK_SPARCLET \
                          | MASK_SPARCLITE | MASK_V9 | MASK_V9A | MASK_V9B)
-/* v6 insns not supported on the sparclet */
+/* v6 insns not supported on the sparclet.  */
 #define v6notlet        (MASK_V6 | MASK_V7 | MASK_V8 \
                          | MASK_SPARCLITE | MASK_V9 | MASK_V9A | MASK_V9B)
 #define v7              (MASK_V7 | MASK_V8 | MASK_SPARCLET \
@@ -262,17 +297,18 @@ static const char *sparc_decode_sparclet_cpreg PARAMS ((int));
 #define v9              (MASK_V9 | MASK_V9A | MASK_V9B)
 #define v9a             (MASK_V9A | MASK_V9B)
 #define v9b             (MASK_V9B)
-/* v6 insns not supported by v9 */
+/* v6 insns not supported by v9.  */
 #define v6notv9         (MASK_V6 | MASK_V7 | MASK_V8 \
                          | MASK_SPARCLET | MASK_SPARCLITE)
 /* v9a instructions which would appear to be aliases to v9's impdep's
-   otherwise */
+   otherwise.  */
 #define v9notv9a        (MASK_V9)
 
 /* Table of opcode architectures.
    The order is defined in opcode/sparc.h.  */
 
-static const struct sparc_opcode_arch sparc_opcode_archs[] = {
+static const struct sparc_opcode_arch sparc_opcode_archs[] =
+{
   { "v6", MASK_V6 },
   { "v7", MASK_V6 | MASK_V7 },
   { "v8", MASK_V6 | MASK_V7 | MASK_V8 },
@@ -288,69 +324,67 @@ static const struct sparc_opcode_arch sparc_opcode_archs[] = {
 };
 
 /* Branch condition field.  */
-#define COND(x)         (((x)&0xf)<<25)
+#define COND(x)         (((x) & 0xf) << 25)
 
 /* v9: Move (MOVcc and FMOVcc) condition field.  */
-#define MCOND(x,i_or_f) ((((i_or_f)&1)<<18)|(((x)>>11)&(0xf<<14))) /* v9 */
+#define MCOND(x,i_or_f) ((((i_or_f) & 1) << 18) | (((x) >> 11) & (0xf << 14))) /* v9 */
 
 /* v9: Move register (MOVRcc and FMOVRcc) condition field.  */
-#define RCOND(x)        (((x)&0x7)<<10) /* v9 */
+#define RCOND(x)        (((x) & 0x7) << 10)     /* v9 */
 
-#define CONDA   (COND(0x8))
-#define CONDCC  (COND(0xd))
-#define CONDCS  (COND(0x5))
-#define CONDE   (COND(0x1))
-#define CONDG   (COND(0xa))
-#define CONDGE  (COND(0xb))
-#define CONDGU  (COND(0xc))
-#define CONDL   (COND(0x3))
-#define CONDLE  (COND(0x2))
-#define CONDLEU (COND(0x4))
-#define CONDN   (COND(0x0))
-#define CONDNE  (COND(0x9))
-#define CONDNEG (COND(0x6))
-#define CONDPOS (COND(0xe))
-#define CONDVC  (COND(0xf))
-#define CONDVS  (COND(0x7))
+#define CONDA   (COND (0x8))
+#define CONDCC  (COND (0xd))
+#define CONDCS  (COND (0x5))
+#define CONDE   (COND (0x1))
+#define CONDG   (COND (0xa))
+#define CONDGE  (COND (0xb))
+#define CONDGU  (COND (0xc))
+#define CONDL   (COND (0x3))
+#define CONDLE  (COND (0x2))
+#define CONDLEU (COND (0x4))
+#define CONDN   (COND (0x0))
+#define CONDNE  (COND (0x9))
+#define CONDNEG (COND (0x6))
+#define CONDPOS (COND (0xe))
+#define CONDVC  (COND (0xf))
+#define CONDVS  (COND (0x7))
 
 #define CONDNZ  CONDNE
 #define CONDZ   CONDE
 #define CONDGEU CONDCC
 #define CONDLU  CONDCS
 
-#define FCONDA          (COND(0x8))
-#define FCONDE          (COND(0x9))
-#define FCONDG          (COND(0x6))
-#define FCONDGE         (COND(0xb))
-#define FCONDL          (COND(0x4))
-#define FCONDLE         (COND(0xd))
-#define FCONDLG         (COND(0x2))
-#define FCONDN          (COND(0x0))
-#define FCONDNE         (COND(0x1))
-#define FCONDO          (COND(0xf))
-#define FCONDU          (COND(0x7))
-#define FCONDUE         (COND(0xa))
-#define FCONDUG         (COND(0x5))
-#define FCONDUGE        (COND(0xc))
-#define FCONDUL         (COND(0x3))
-#define FCONDULE        (COND(0xe))
+#define FCONDA          (COND (0x8))
+#define FCONDE          (COND (0x9))
+#define FCONDG          (COND (0x6))
+#define FCONDGE         (COND (0xb))
+#define FCONDL          (COND (0x4))
+#define FCONDLE         (COND (0xd))
+#define FCONDLG         (COND (0x2))
+#define FCONDN          (COND (0x0))
+#define FCONDNE         (COND (0x1))
+#define FCONDO          (COND (0xf))
+#define FCONDU          (COND (0x7))
+#define FCONDUE         (COND (0xa))
+#define FCONDUG         (COND (0x5))
+#define FCONDUGE        (COND (0xc))
+#define FCONDUL         (COND (0x3))
+#define FCONDULE        (COND (0xe))
 
 #define FCONDNZ FCONDNE
 #define FCONDZ  FCONDE
 
-#define ICC (0) /* v9 */
-#define XCC (1<<12) /* v9 */
-#define FCC(x)  (((x)&0x3)<<11) /* v9 */
-#define FBFCC(x)        (((x)&0x3)<<20) /* v9 */
+#define ICC             (0)     /* v9 */
+#define XCC             (1 << 12) /* v9 */
+#define FCC(x)          (((x) & 0x3) << 11) /* v9 */
+#define FBFCC(x)        (((x) & 0x3) << 20)     /* v9 */
 
 /* The order of the opcodes in the table is significant:
 
         * The assembler requires that all instances of the same mnemonic must
         be consecutive. If they aren't, the assembler will bomb at runtime.
 
-        * The disassembler should not care about the order of the opcodes.
-
-*/
+        * The disassembler should not care about the order of the opcodes.  */
 
 /* Entries for commutative arithmetic operations.  */
 /* ??? More entries can make use of this.  */
@@ -881,6 +915,10 @@ static const struct sparc_opcode sparc_opcodes[] = {
 { "retry",      F3(2, 0x3e, 0)|RD(1), F3(~2, ~0x3e, ~0)|RD(~1)|RS1_G0|SIMM13(~0),       "", 0, v9 },
 { "saved",      F3(2, 0x31, 0)|RD(0), F3(~2, ~0x31, ~0)|RD(~0)|RS1_G0|SIMM13(~0),       "", 0, v9 },
 { "restored",   F3(2, 0x31, 0)|RD(1), F3(~2, ~0x31, ~0)|RD(~1)|RS1_G0|SIMM13(~0),       "", 0, v9 },
+{ "allclean",   F3(2, 0x31, 0)|RD(2), F3(~2, ~0x31, ~0)|RD(~2)|RS1_G0|SIMM13(~0),       "", 0, v9 },
+{ "otherw",     F3(2, 0x31, 0)|RD(3), F3(~2, ~0x31, ~0)|RD(~3)|RS1_G0|SIMM13(~0),       "", 0, v9 },
+{ "normalw",    F3(2, 0x31, 0)|RD(4), F3(~2, ~0x31, ~0)|RD(~4)|RS1_G0|SIMM13(~0),       "", 0, v9 },
+{ "invalw",     F3(2, 0x31, 0)|RD(5), F3(~2, ~0x31, ~0)|RD(~5)|RS1_G0|SIMM13(~0),       "", 0, v9 },
 { "sir",        F3(2, 0x30, 1)|RD(0xf), F3(~2, ~0x30, ~1)|RD(~0xf)|RS1_G0,              "i", 0, v9 },
 
 { "flush",      F3(2, 0x3b, 0), F3(~2, ~0x3b, ~0)|ASI(~0),      "1+2", 0, v8 },
@@ -1066,6 +1104,13 @@ static const struct sparc_opcode sparc_opcodes[] = {
 { "wrpr",       F3(2, 0x32, 1),         F3(~2, ~0x32, ~1),              "1,i,!", 0, v9 }, /* wrpr r1,i,%priv */
 { "wrpr",       F3(2, 0x32, 1),         F3(~2, ~0x32, ~1),              "i,1,!", F_ALIAS, v9 }, /* wrpr i,r1,%priv */
 { "wrpr",       F3(2, 0x32, 1),         F3(~2, ~0x32, ~1)|RS1(~0),      "i,!", 0, v9 },   /* wrpr i,%priv */
+
+{ "rdhpr",      F3(2, 0x29, 0),         F3(~2, ~0x29, ~0)|SIMM13(~0),   "$,d", 0, v9 },   /* rdhpr %hpriv,r */
+{ "wrhpr",      F3(2, 0x33, 0),         F3(~2, ~0x33, ~0),              "1,2,%", 0, v9 }, /* wrhpr r1,r2,%hpriv */
+{ "wrhpr",      F3(2, 0x33, 0),         F3(~2, ~0x33, ~0)|SIMM13(~0),   "1,%", 0, v9 },   /* wrhpr r1,%hpriv */
+{ "wrhpr",      F3(2, 0x33, 1),         F3(~2, ~0x33, ~1),              "1,i,%", 0, v9 }, /* wrhpr r1,i,%hpriv */
+{ "wrhpr",      F3(2, 0x33, 1),         F3(~2, ~0x33, ~1),              "i,1,%", F_ALIAS, v9 }, /* wrhpr i,r1,%hpriv */
+{ "wrhpr",      F3(2, 0x33, 1),         F3(~2, ~0x33, ~1)|RS1(~0),      "i,%", 0, v9 },   /* wrhpr i,%hpriv */
 
 /* ??? This group seems wrong.  A three operand move?  */
 { "mov",        F3(2, 0x30, 0), F3(~2, ~0x30, ~0)|ASI(~0),              "1,2,m", F_ALIAS, v8 }, /* wr r,r,%asrX */
@@ -1458,110 +1503,72 @@ cond ("bz",     "tz",   CONDZ, F_CONDBR|F_ALIAS), /* for e */
 #define FM_DF 2         /* v9 */
 #define FM_QF 3         /* v9 */
 
-#define fmovicc(opcode, fpsize, cond, flags) /* v9 */ \
-{ opcode, F3F(2, 0x35, 0x100+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x100+fpsize))|MCOND(~cond,~0),  "z,f,g", flags, v9 }, \
-{ opcode, F3F(2, 0x35, 0x180+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x180+fpsize))|MCOND(~cond,~0),  "Z,f,g", flags, v9 }
+#define fmoviccx(opcode, fpsize, args, cond, flags) /* v9 */ \
+{ opcode, F3F(2, 0x35, 0x100+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x100+fpsize))|MCOND(~cond,~0),  "z," args, flags, v9 }, \
+{ opcode, F3F(2, 0x35, 0x180+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x180+fpsize))|MCOND(~cond,~0),  "Z," args, flags, v9 }
 
-#define fmovfcc(opcode, fpsize, fcond, flags) /* v9 */ \
-{ opcode, F3F(2, 0x35, 0x000+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x000+fpsize))|MCOND(~fcond,~0), "6,f,g", flags, v9 }, \
-{ opcode, F3F(2, 0x35, 0x040+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x040+fpsize))|MCOND(~fcond,~0), "7,f,g", flags, v9 }, \
-{ opcode, F3F(2, 0x35, 0x080+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x080+fpsize))|MCOND(~fcond,~0), "8,f,g", flags, v9 }, \
-{ opcode, F3F(2, 0x35, 0x0c0+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x0c0+fpsize))|MCOND(~fcond,~0), "9,f,g", flags, v9 }
+#define fmovfccx(opcode, fpsize, args, fcond, flags) /* v9 */ \
+{ opcode, F3F(2, 0x35, 0x000+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x000+fpsize))|MCOND(~fcond,~0), "6," args, flags, v9 }, \
+{ opcode, F3F(2, 0x35, 0x040+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x040+fpsize))|MCOND(~fcond,~0), "7," args, flags, v9 }, \
+{ opcode, F3F(2, 0x35, 0x080+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x080+fpsize))|MCOND(~fcond,~0), "8," args, flags, v9 }, \
+{ opcode, F3F(2, 0x35, 0x0c0+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x0c0+fpsize))|MCOND(~fcond,~0), "9," args, flags, v9 }
 
 /* FIXME: use fmovicc/fmovfcc? */ /* v9 */
-#define fmovcc(opcode, fpsize, cond, fcond, flags) /* v9 */ \
-{ opcode, F3F(2, 0x35, 0x100+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x100+fpsize))|MCOND(~cond,~0),  "z,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x000+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x000+fpsize))|MCOND(~fcond,~0), "6,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x180+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x180+fpsize))|MCOND(~cond,~0),  "Z,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x040+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x040+fpsize))|MCOND(~fcond,~0), "7,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x080+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x080+fpsize))|MCOND(~fcond,~0), "8,f,g", flags | F_FLOAT, v9 }, \
-{ opcode, F3F(2, 0x35, 0x0c0+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x0c0+fpsize))|MCOND(~fcond,~0), "9,f,g", flags | F_FLOAT, v9 }
+#define fmovccx(opcode, fpsize, args, cond, fcond, flags) /* v9 */ \
+{ opcode, F3F(2, 0x35, 0x100+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x100+fpsize))|MCOND(~cond,~0),  "z," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x000+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x000+fpsize))|MCOND(~fcond,~0), "6," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x180+fpsize)|MCOND(cond,0),  F3F(~2, ~0x35, ~(0x180+fpsize))|MCOND(~cond,~0),  "Z," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x040+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x040+fpsize))|MCOND(~fcond,~0), "7," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x080+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x080+fpsize))|MCOND(~fcond,~0), "8," args, flags | F_FLOAT, v9 }, \
+{ opcode, F3F(2, 0x35, 0x0c0+fpsize)|MCOND(fcond,0), F3F(~2, ~0x35, ~(0x0c0+fpsize))|MCOND(~fcond,~0), "9," args, flags | F_FLOAT, v9 }
 
-/* v9 */ fmovcc  ("fmovda",     FM_DF, CONDA, FCONDA, 0),
-/* v9 */ fmovcc  ("fmovqa",     FM_QF, CONDA, FCONDA, 0),
-/* v9 */ fmovcc  ("fmovsa",     FM_SF, CONDA, FCONDA, 0),
-/* v9 */ fmovicc ("fmovdcc",    FM_DF, CONDCC, 0),
-/* v9 */ fmovicc ("fmovqcc",    FM_QF, CONDCC, 0),
-/* v9 */ fmovicc ("fmovscc",    FM_SF, CONDCC, 0),
-/* v9 */ fmovicc ("fmovdcs",    FM_DF, CONDCS, 0),
-/* v9 */ fmovicc ("fmovqcs",    FM_QF, CONDCS, 0),
-/* v9 */ fmovicc ("fmovscs",    FM_SF, CONDCS, 0),
-/* v9 */ fmovcc  ("fmovde",     FM_DF, CONDE, FCONDE, 0),
-/* v9 */ fmovcc  ("fmovqe",     FM_QF, CONDE, FCONDE, 0),
-/* v9 */ fmovcc  ("fmovse",     FM_SF, CONDE, FCONDE, 0),
-/* v9 */ fmovcc  ("fmovdg",     FM_DF, CONDG, FCONDG, 0),
-/* v9 */ fmovcc  ("fmovqg",     FM_QF, CONDG, FCONDG, 0),
-/* v9 */ fmovcc  ("fmovsg",     FM_SF, CONDG, FCONDG, 0),
-/* v9 */ fmovcc  ("fmovdge",    FM_DF, CONDGE, FCONDGE, 0),
-/* v9 */ fmovcc  ("fmovqge",    FM_QF, CONDGE, FCONDGE, 0),
-/* v9 */ fmovcc  ("fmovsge",    FM_SF, CONDGE, FCONDGE, 0),
-/* v9 */ fmovicc ("fmovdgeu",   FM_DF, CONDGEU, F_ALIAS),
-/* v9 */ fmovicc ("fmovqgeu",   FM_QF, CONDGEU, F_ALIAS),
-/* v9 */ fmovicc ("fmovsgeu",   FM_SF, CONDGEU, F_ALIAS),
-/* v9 */ fmovicc ("fmovdgu",    FM_DF, CONDGU, 0),
-/* v9 */ fmovicc ("fmovqgu",    FM_QF, CONDGU, 0),
-/* v9 */ fmovicc ("fmovsgu",    FM_SF, CONDGU, 0),
-/* v9 */ fmovcc  ("fmovdl",     FM_DF, CONDL, FCONDL, 0),
-/* v9 */ fmovcc  ("fmovql",     FM_QF, CONDL, FCONDL, 0),
-/* v9 */ fmovcc  ("fmovsl",     FM_SF, CONDL, FCONDL, 0),
-/* v9 */ fmovcc  ("fmovdle",    FM_DF, CONDLE, FCONDLE, 0),
-/* v9 */ fmovcc  ("fmovqle",    FM_QF, CONDLE, FCONDLE, 0),
-/* v9 */ fmovcc  ("fmovsle",    FM_SF, CONDLE, FCONDLE, 0),
-/* v9 */ fmovicc ("fmovdleu",   FM_DF, CONDLEU, 0),
-/* v9 */ fmovicc ("fmovqleu",   FM_QF, CONDLEU, 0),
-/* v9 */ fmovicc ("fmovsleu",   FM_SF, CONDLEU, 0),
-/* v9 */ fmovfcc ("fmovdlg",    FM_DF, FCONDLG, 0),
-/* v9 */ fmovfcc ("fmovqlg",    FM_QF, FCONDLG, 0),
-/* v9 */ fmovfcc ("fmovslg",    FM_SF, FCONDLG, 0),
-/* v9 */ fmovicc ("fmovdlu",    FM_DF, CONDLU, F_ALIAS),
-/* v9 */ fmovicc ("fmovqlu",    FM_QF, CONDLU, F_ALIAS),
-/* v9 */ fmovicc ("fmovslu",    FM_SF, CONDLU, F_ALIAS),
-/* v9 */ fmovcc  ("fmovdn",     FM_DF, CONDN, FCONDN, 0),
-/* v9 */ fmovcc  ("fmovqn",     FM_QF, CONDN, FCONDN, 0),
-/* v9 */ fmovcc  ("fmovsn",     FM_SF, CONDN, FCONDN, 0),
-/* v9 */ fmovcc  ("fmovdne",    FM_DF, CONDNE, FCONDNE, 0),
-/* v9 */ fmovcc  ("fmovqne",    FM_QF, CONDNE, FCONDNE, 0),
-/* v9 */ fmovcc  ("fmovsne",    FM_SF, CONDNE, FCONDNE, 0),
-/* v9 */ fmovicc ("fmovdneg",   FM_DF, CONDNEG, 0),
-/* v9 */ fmovicc ("fmovqneg",   FM_QF, CONDNEG, 0),
-/* v9 */ fmovicc ("fmovsneg",   FM_SF, CONDNEG, 0),
-/* v9 */ fmovcc  ("fmovdnz",    FM_DF, CONDNZ, FCONDNZ, F_ALIAS),
-/* v9 */ fmovcc  ("fmovqnz",    FM_QF, CONDNZ, FCONDNZ, F_ALIAS),
-/* v9 */ fmovcc  ("fmovsnz",    FM_SF, CONDNZ, FCONDNZ, F_ALIAS),
-/* v9 */ fmovfcc ("fmovdo",     FM_DF, FCONDO, 0),
-/* v9 */ fmovfcc ("fmovqo",     FM_QF, FCONDO, 0),
-/* v9 */ fmovfcc ("fmovso",     FM_SF, FCONDO, 0),
-/* v9 */ fmovicc ("fmovdpos",   FM_DF, CONDPOS, 0),
-/* v9 */ fmovicc ("fmovqpos",   FM_QF, CONDPOS, 0),
-/* v9 */ fmovicc ("fmovspos",   FM_SF, CONDPOS, 0),
-/* v9 */ fmovfcc ("fmovdu",     FM_DF, FCONDU, 0),
-/* v9 */ fmovfcc ("fmovqu",     FM_QF, FCONDU, 0),
-/* v9 */ fmovfcc ("fmovsu",     FM_SF, FCONDU, 0),
-/* v9 */ fmovfcc ("fmovdue",    FM_DF, FCONDUE, 0),
-/* v9 */ fmovfcc ("fmovque",    FM_QF, FCONDUE, 0),
-/* v9 */ fmovfcc ("fmovsue",    FM_SF, FCONDUE, 0),
-/* v9 */ fmovfcc ("fmovdug",    FM_DF, FCONDUG, 0),
-/* v9 */ fmovfcc ("fmovqug",    FM_QF, FCONDUG, 0),
-/* v9 */ fmovfcc ("fmovsug",    FM_SF, FCONDUG, 0),
-/* v9 */ fmovfcc ("fmovduge",   FM_DF, FCONDUGE, 0),
-/* v9 */ fmovfcc ("fmovquge",   FM_QF, FCONDUGE, 0),
-/* v9 */ fmovfcc ("fmovsuge",   FM_SF, FCONDUGE, 0),
-/* v9 */ fmovfcc ("fmovdul",    FM_DF, FCONDUL, 0),
-/* v9 */ fmovfcc ("fmovqul",    FM_QF, FCONDUL, 0),
-/* v9 */ fmovfcc ("fmovsul",    FM_SF, FCONDUL, 0),
-/* v9 */ fmovfcc ("fmovdule",   FM_DF, FCONDULE, 0),
-/* v9 */ fmovfcc ("fmovqule",   FM_QF, FCONDULE, 0),
-/* v9 */ fmovfcc ("fmovsule",   FM_SF, FCONDULE, 0),
-/* v9 */ fmovicc ("fmovdvc",    FM_DF, CONDVC, 0),
-/* v9 */ fmovicc ("fmovqvc",    FM_QF, CONDVC, 0),
-/* v9 */ fmovicc ("fmovsvc",    FM_SF, CONDVC, 0),
-/* v9 */ fmovicc ("fmovdvs",    FM_DF, CONDVS, 0),
-/* v9 */ fmovicc ("fmovqvs",    FM_QF, CONDVS, 0),
-/* v9 */ fmovicc ("fmovsvs",    FM_SF, CONDVS, 0),
-/* v9 */ fmovcc  ("fmovdz",     FM_DF, CONDZ, FCONDZ, F_ALIAS),
-/* v9 */ fmovcc  ("fmovqz",     FM_QF, CONDZ, FCONDZ, F_ALIAS),
-/* v9 */ fmovcc  ("fmovsz",     FM_SF, CONDZ, FCONDZ, F_ALIAS),
+#define fmovicc(suffix, cond, flags) /* v9 */ \
+fmoviccx("fmovd" suffix, FM_DF, "B,H", cond, flags),            \
+fmoviccx("fmovq" suffix, FM_QF, "R,J", cond, flags),            \
+fmoviccx("fmovs" suffix, FM_SF, "f,g", cond, flags)
 
+#define fmovfcc(suffix, fcond, flags) /* v9 */ \
+fmovfccx("fmovd" suffix, FM_DF, "B,H", fcond, flags),           \
+fmovfccx("fmovq" suffix, FM_QF, "R,J", fcond, flags),           \
+fmovfccx("fmovs" suffix, FM_SF, "f,g", fcond, flags)
+
+#define fmovcc(suffix, cond, fcond, flags) /* v9 */ \
+fmovccx("fmovd" suffix, FM_DF, "B,H", cond, fcond, flags),      \
+fmovccx("fmovq" suffix, FM_QF, "R,J", cond, fcond, flags),      \
+fmovccx("fmovs" suffix, FM_SF, "f,g", cond, fcond, flags)
+
+/* v9 */ fmovcc  ("a", CONDA, FCONDA, 0),
+/* v9 */ fmovicc ("cc", CONDCC, 0),
+/* v9 */ fmovicc ("cs", CONDCS, 0),
+/* v9 */ fmovcc  ("e", CONDE, FCONDE, 0),
+/* v9 */ fmovcc  ("g", CONDG, FCONDG, 0),
+/* v9 */ fmovcc  ("ge", CONDGE, FCONDGE, 0),
+/* v9 */ fmovicc ("geu", CONDGEU, F_ALIAS),
+/* v9 */ fmovicc ("gu", CONDGU, 0),
+/* v9 */ fmovcc  ("l", CONDL, FCONDL, 0),
+/* v9 */ fmovcc  ("le", CONDLE, FCONDLE, 0),
+/* v9 */ fmovicc ("leu", CONDLEU, 0),
+/* v9 */ fmovfcc ("lg", FCONDLG, 0),
+/* v9 */ fmovicc ("lu", CONDLU, F_ALIAS),
+/* v9 */ fmovcc  ("n", CONDN, FCONDN, 0),
+/* v9 */ fmovcc  ("ne", CONDNE, FCONDNE, 0),
+/* v9 */ fmovicc ("neg", CONDNEG, 0),
+/* v9 */ fmovcc  ("nz", CONDNZ, FCONDNZ, F_ALIAS),
+/* v9 */ fmovfcc ("o", FCONDO, 0),
+/* v9 */ fmovicc ("pos", CONDPOS, 0),
+/* v9 */ fmovfcc ("u", FCONDU, 0),
+/* v9 */ fmovfcc ("ue", FCONDUE, 0),
+/* v9 */ fmovfcc ("ug", FCONDUG, 0),
+/* v9 */ fmovfcc ("uge", FCONDUGE, 0),
+/* v9 */ fmovfcc ("ul", FCONDUL, 0),
+/* v9 */ fmovfcc ("ule", FCONDULE, 0),
+/* v9 */ fmovicc ("vc", CONDVC, 0),
+/* v9 */ fmovicc ("vs", CONDVS, 0),
+/* v9 */ fmovcc  ("z", CONDZ, FCONDZ, F_ALIAS),
+
+#undef fmoviccx /* v9 */
+#undef fmovfccx /* v9 */
+#undef fmovccx /* v9 */
 #undef fmovicc /* v9 */
 #undef fmovfcc /* v9 */
 #undef fmovcc /* v9 */
@@ -1571,13 +1578,13 @@ cond ("bz",     "tz",   CONDZ, F_CONDBR|F_ALIAS), /* for e */
 
 /* Coprocessor branches.  */
 #define CBR(opcode, mask, lose, flags, arch) \
- { opcode, (mask), ANNUL|(lose), "l",    flags|F_DELAYED, arch }, \
- { opcode, (mask)|ANNUL, (lose), ",a l", flags|F_DELAYED, arch }
+ { opcode, (mask), ANNUL | (lose), "l",    flags | F_DELAYED, arch }, \
+ { opcode, (mask) | ANNUL, (lose), ",a l", flags | F_DELAYED, arch }
 
 /* Floating point branches.  */
 #define FBR(opcode, mask, lose, flags) \
- { opcode, (mask), ANNUL|(lose), "l",    flags|F_DELAYED|F_FBR, v6 }, \
- { opcode, (mask)|ANNUL, (lose), ",a l", flags|F_DELAYED|F_FBR, v6 }
+ { opcode, (mask), ANNUL | (lose), "l",    flags | F_DELAYED | F_FBR, v6 }, \
+ { opcode, (mask) | ANNUL, (lose), ",a l", flags | F_DELAYED | F_FBR, v6 }
 
 /* V9 extended floating point branches.  */
 #define FBRX(opcode, mask, lose, flags) /* v9 */ \
@@ -1710,17 +1717,17 @@ CONDFC  ("fbule", "cb013", 0xe, F_CONDBR),
 { "fstoi",      F3F(2, 0x34, 0x0d1), F3F(~2, ~0x34, ~0x0d1)|RS1_G0, "f,g", F_FLOAT, v6 },
 { "fqtoi",      F3F(2, 0x34, 0x0d3), F3F(~2, ~0x34, ~0x0d3)|RS1_G0, "R,g", F_FLOAT, v8 },
 
-{ "fdtox",      F3F(2, 0x34, 0x082), F3F(~2, ~0x34, ~0x082)|RS1_G0, "B,g", F_FLOAT, v9 },
-{ "fstox",      F3F(2, 0x34, 0x081), F3F(~2, ~0x34, ~0x081)|RS1_G0, "f,g", F_FLOAT, v9 },
-{ "fqtox",      F3F(2, 0x34, 0x083), F3F(~2, ~0x34, ~0x083)|RS1_G0, "R,g", F_FLOAT, v9 },
+{ "fdtox",      F3F(2, 0x34, 0x082), F3F(~2, ~0x34, ~0x082)|RS1_G0, "B,H", F_FLOAT, v9 },
+{ "fstox",      F3F(2, 0x34, 0x081), F3F(~2, ~0x34, ~0x081)|RS1_G0, "f,H", F_FLOAT, v9 },
+{ "fqtox",      F3F(2, 0x34, 0x083), F3F(~2, ~0x34, ~0x083)|RS1_G0, "R,H", F_FLOAT, v9 },
 
 { "fitod",      F3F(2, 0x34, 0x0c8), F3F(~2, ~0x34, ~0x0c8)|RS1_G0, "f,H", F_FLOAT, v6 },
 { "fitos",      F3F(2, 0x34, 0x0c4), F3F(~2, ~0x34, ~0x0c4)|RS1_G0, "f,g", F_FLOAT, v6 },
 { "fitoq",      F3F(2, 0x34, 0x0cc), F3F(~2, ~0x34, ~0x0cc)|RS1_G0, "f,J", F_FLOAT, v8 },
 
-{ "fxtod",      F3F(2, 0x34, 0x088), F3F(~2, ~0x34, ~0x088)|RS1_G0, "f,H", F_FLOAT, v9 },
-{ "fxtos",      F3F(2, 0x34, 0x084), F3F(~2, ~0x34, ~0x084)|RS1_G0, "f,g", F_FLOAT, v9 },
-{ "fxtoq",      F3F(2, 0x34, 0x08c), F3F(~2, ~0x34, ~0x08c)|RS1_G0, "f,J", F_FLOAT, v9 },
+{ "fxtod",      F3F(2, 0x34, 0x088), F3F(~2, ~0x34, ~0x088)|RS1_G0, "B,H", F_FLOAT, v9 },
+{ "fxtos",      F3F(2, 0x34, 0x084), F3F(~2, ~0x34, ~0x084)|RS1_G0, "B,g", F_FLOAT, v9 },
+{ "fxtoq",      F3F(2, 0x34, 0x08c), F3F(~2, ~0x34, ~0x08c)|RS1_G0, "B,J", F_FLOAT, v9 },
 
 { "fdtoq",      F3F(2, 0x34, 0x0ce), F3F(~2, ~0x34, ~0x0ce)|RS1_G0, "B,J", F_FLOAT, v8 },
 { "fdtos",      F3F(2, 0x34, 0x0c6), F3F(~2, ~0x34, ~0x0c6)|RS1_G0, "B,g", F_FLOAT, v6 },
@@ -2050,16 +2057,10 @@ typedef struct
   const char *name;
 } arg;
 
-/* Look up NAME in TABLE.  */
-
-static const char *lookup_value PARAMS ((const arg *, int));
-
 /* Look up VALUE in TABLE.  */
 
 static const char *
-lookup_value (table, value)
-     const arg *table;
-     int value;
+lookup_value (const arg *table, int value)
 {
   const arg *p;
 
@@ -2067,7 +2068,7 @@ lookup_value (table, value)
     if (value == p->value)
       return p->name;
 
-  return (char *) 0;
+  return NULL;
 }
 
 /* Handle ASI's.  */
@@ -2191,8 +2192,7 @@ static const arg membar_table[] =
 /* Return the name for membar value VALUE or NULL if not found.  */
 
 static const char *
-sparc_decode_membar (value)
-     int value;
+sparc_decode_membar (int value)
 {
   return lookup_value (membar_table, value);
 }
@@ -2213,8 +2213,7 @@ static const arg prefetch_table[] =
 /* Return the name for prefetch value VALUE or NULL if not found.  */
 
 static const char *
-sparc_decode_prefetch (value)
-     int value;
+sparc_decode_prefetch (int value)
 {
   return lookup_value (prefetch_table, value);
 }
@@ -2236,8 +2235,7 @@ static const arg sparclet_cpreg_table[] =
 /* Return the name for sparclet cpreg value VALUE or NULL if not found.  */
 
 static const char *
-sparc_decode_sparclet_cpreg (value)
-     int value;
+sparc_decode_sparclet_cpreg (int value)
 {
   return lookup_value (sparclet_cpreg_table, value);
 }
@@ -2245,6 +2243,25 @@ sparc_decode_sparclet_cpreg (value)
 #undef MASK_V9
 
 /* opcodes/sparc-dis.c */
+
+/* Print SPARC instructions.
+   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /* Bitmask of v9 architectures.  */
 #define MASK_V9 ((1 << SPARC_OPCODE_ARCH_V9) \
@@ -2256,7 +2273,7 @@ sparc_decode_sparclet_cpreg (value)
 #define V9_P(insn) (((insn)->architecture & MASK_V9) != 0)
 
 /* The sorted opcode table.  */
-static const struct sparc_opcode **sorted_opcodes;
+static const sparc_opcode **sorted_opcodes;
 
 /* For faster lookup, after insns are sorted they are hashed.  */
 /* ??? I think there is room for even more improvement.  */
@@ -2268,17 +2285,13 @@ static const struct sparc_opcode **sorted_opcodes;
 static const int opcode_bits[4] = { 0x01c00000, 0x0, 0x01f80000, 0x01f80000 };
 #define HASH_INSN(INSN) \
   ((((INSN) >> 24) & 0xc0) | (((INSN) & opcode_bits[((INSN) >> 30) & 3]) >> 19))
-struct opcode_hash {
-  struct opcode_hash *next;
-  const struct sparc_opcode *opcode;
-};
-static struct opcode_hash *opcode_hash_table[HASH_SIZE];
+typedef struct sparc_opcode_hash
+{
+  struct sparc_opcode_hash *next;
+  const sparc_opcode *opcode;
+} sparc_opcode_hash;
 
-static void build_hash_table
-  PARAMS ((const struct sparc_opcode **, struct opcode_hash **, int));
-static int is_delayed_branch PARAMS ((unsigned long));
-static int compare_opcodes PARAMS ((const void *, const void *));
-static int compute_arch_mask PARAMS ((unsigned long));
+static sparc_opcode_hash *opcode_hash_table[HASH_SIZE];
 
 /* Sign-extend a value which is N bits long.  */
 #define SEX(value, bits) \
@@ -2310,8 +2323,19 @@ static const char * const v9_priv_reg_names[] =
 {
   "tpc", "tnpc", "tstate", "tt", "tick", "tba", "pstate", "tl",
   "pil", "cwp", "cansave", "canrestore", "cleanwin", "otherwin",
-  "wstate", "fq"
+  "wstate", "fq", "gl"
   /* "ver" - special cased */
+};
+
+/* These are ordered according to there register number in
+   rdhpr and wrhpr insns.  */
+static const char * const v9_hpriv_reg_names[] =
+{
+  "hpstate", "htstate", "resv2", "hintp", "resv4", "htba", "hver",
+  "resv7", "resv8", "resv9", "resv10", "resv11", "resv12", "resv13",
+  "resv14", "resv15", "resv16", "resv17", "resv18", "resv19", "resv20",
+  "resv21", "resv22", "resv23", "resv24", "resv25", "resv26", "resv27",
+  "resv28", "resv29", "resv30", "hstick_cmpr"
 };
 
 /* These are ordered according to there register number in
@@ -2325,21 +2349,21 @@ static const char * const v9a_asr_reg_names[] =
 /* Macros used to extract instruction fields.  Not all fields have
    macros defined here, only those which are actually used.  */
 
-#define X_RD(i) (((i) >> 25) & 0x1f)
-#define X_RS1(i) (((i) >> 14) & 0x1f)
-#define X_LDST_I(i) (((i) >> 13) & 1)
-#define X_ASI(i) (((i) >> 5) & 0xff)
-#define X_RS2(i) (((i) >> 0) & 0x1f)
-#define X_IMM(i,n) (((i) >> 0) & ((1 << (n)) - 1))
-#define X_SIMM(i,n) SEX (X_IMM ((i), (n)), (n))
-#define X_DISP22(i) (((i) >> 0) & 0x3fffff)
-#define X_IMM22(i) X_DISP22 (i)
-#define X_DISP30(i) (((i) >> 0) & 0x3fffffff)
+#define X_RD(i)      (((i) >> 25) & 0x1f)
+#define X_RS1(i)     (((i) >> 14) & 0x1f)
+#define X_LDST_I(i)  (((i) >> 13) & 1)
+#define X_ASI(i)     (((i) >> 5) & 0xff)
+#define X_RS2(i)     (((i) >> 0) & 0x1f)
+#define X_IMM(i,n)   (((i) >> 0) & ((1 << (n)) - 1))
+#define X_SIMM(i,n)  SEX (X_IMM ((i), (n)), (n))
+#define X_DISP22(i)  (((i) >> 0) & 0x3fffff)
+#define X_IMM22(i)   X_DISP22 (i)
+#define X_DISP30(i)  (((i) >> 0) & 0x3fffffff)
 
 /* These are for v9.  */
-#define X_DISP16(i) (((((i) >> 20) & 3) << 14) | (((i) >> 0) & 0x3fff))
-#define X_DISP19(i) (((i) >> 0) & 0x7ffff)
-#define X_MEMBAR(i) ((i) & 0x7f)
+#define X_DISP16(i)  (((((i) >> 20) & 3) << 14) | (((i) >> 0) & 0x3fff))
+#define X_DISP19(i)  (((i) >> 0) & 0x7ffff)
+#define X_MEMBAR(i)  ((i) & 0x7f)
 
 /* Here is the union which was used to extract instruction fields
    before the shift and mask macros were written.
@@ -2397,23 +2421,22 @@ static const char * const v9a_asr_reg_names[] =
            unsigned int adisp30:30;
            #define      disp30  call.adisp30
          } call;
-     };
-
-   */
+     };  */
 
 /* Nonzero if INSN is the opcode for a delayed branch.  */
+
 static int
-is_delayed_branch (insn)
-     unsigned long insn;
+is_delayed_branch (unsigned long insn)
 {
-  struct opcode_hash *op;
+  sparc_opcode_hash *op;
 
   for (op = opcode_hash_table[HASH_INSN (insn)]; op; op = op->next)
     {
-      const struct sparc_opcode *opcode = op->opcode;
+      const sparc_opcode *opcode = op->opcode;
+
       if ((opcode->match & insn) == opcode->match
           && (opcode->lose & insn) == 0)
-        return (opcode->flags & F_DELAYED);
+        return opcode->flags & F_DELAYED;
     }
   return 0;
 }
@@ -2424,567 +2447,10 @@ is_delayed_branch (insn)
    to compare_opcodes.  */
 static unsigned int current_arch_mask;
 
-/* Print one instruction from MEMADDR on INFO->STREAM.
-
-   We suffix the instruction with a comment that gives the absolute
-   address involved, as well as its symbolic form, if the instruction
-   is preceded by a findable `sethi' and it either adds an immediate
-   displacement to that register, or it is an `add' or `or' instruction
-   on that register.  */
-
-int
-print_insn_sparc (memaddr, info)
-     bfd_vma memaddr;
-     disassemble_info *info;
-{
-  FILE *stream = info->stream;
-  bfd_byte buffer[4];
-  unsigned long insn;
-  register struct opcode_hash *op;
-  /* Nonzero of opcode table has been initialized.  */
-  static int opcodes_initialized = 0;
-  /* bfd mach number of last call.  */
-  static unsigned long current_mach = 0;
-  bfd_vma (*getword) PARAMS ((const unsigned char *));
-
-  if (!opcodes_initialized
-      || info->mach != current_mach)
-    {
-      int i;
-
-      current_arch_mask = compute_arch_mask (info->mach);
-
-      if (!opcodes_initialized)
-        sorted_opcodes = (const struct sparc_opcode **)
-            malloc (sparc_num_opcodes * sizeof (struct sparc_opcode *));
-      /* Reset the sorted table so we can resort it.  */
-      for (i = 0; i < sparc_num_opcodes; ++i)
-        sorted_opcodes[i] = &sparc_opcodes[i];
-      qsort ((char *) sorted_opcodes, sparc_num_opcodes,
-             sizeof (sorted_opcodes[0]), compare_opcodes);
-
-      build_hash_table (sorted_opcodes, opcode_hash_table, sparc_num_opcodes);
-      current_mach = info->mach;
-      opcodes_initialized = 1;
-    }
-
-  {
-    int status =
-      (*info->read_memory_func) (memaddr, buffer, sizeof (buffer), info);
-    if (status != 0)
-      {
-        (*info->memory_error_func) (status, memaddr, info);
-        return -1;
-      }
-  }
-
-  /* On SPARClite variants such as DANlite (sparc86x), instructions
-     are always big-endian even when the machine is in little-endian mode. */
-  if (info->endian == BFD_ENDIAN_BIG || info->mach == bfd_mach_sparc_sparclite)
-    getword = bfd_getb32;
-  else
-    getword = bfd_getl32;
-
-  insn = getword (buffer);
-
-  info->insn_info_valid = 1;                    /* We do return this info */
-  info->insn_type = dis_nonbranch;              /* Assume non branch insn */
-  info->branch_delay_insns = 0;                 /* Assume no delay */
-  info->target = 0;                             /* Assume no target known */
-
-  for (op = opcode_hash_table[HASH_INSN (insn)]; op; op = op->next)
-    {
-      const struct sparc_opcode *opcode = op->opcode;
-
-      /* If the insn isn't supported by the current architecture, skip it.  */
-      if (! (opcode->architecture & current_arch_mask))
-        continue;
-
-      if ((opcode->match & insn) == opcode->match
-          && (opcode->lose & insn) == 0)
-        {
-          /* Nonzero means that we have found an instruction which has
-             the effect of adding or or'ing the imm13 field to rs1.  */
-          int imm_added_to_rs1 = 0;
-          int imm_ored_to_rs1 = 0;
-
-          /* Nonzero means that we have found a plus sign in the args
-             field of the opcode table.  */
-          int found_plus = 0;
-
-          /* Nonzero means we have an annulled branch.  */
-          int is_annulled = 0;
-
-          /* Do we have an `add' or `or' instruction combining an
-             immediate with rs1?  */
-          if (opcode->match == 0x80102000) /* or */
-            imm_ored_to_rs1 = 1;
-          if (opcode->match == 0x80002000) /* add */
-            imm_added_to_rs1 = 1;
-
-          if (X_RS1 (insn) != X_RD (insn)
-              && strchr (opcode->args, 'r') != 0)
-              /* Can't do simple format if source and dest are different.  */
-              continue;
-          if (X_RS2 (insn) != X_RD (insn)
-              && strchr (opcode->args, 'O') != 0)
-              /* Can't do simple format if source and dest are different.  */
-              continue;
-
-          (*info->fprintf_func) (stream, opcode->name);
-
-          {
-            register const char *s;
-
-            if (opcode->args[0] != ',')
-              (*info->fprintf_func) (stream, " ");
-            for (s = opcode->args; *s != '\0'; ++s)
-              {
-                while (*s == ',')
-                  {
-                    (*info->fprintf_func) (stream, ",");
-                    ++s;
-                    switch (*s) {
-                    case 'a':
-                      (*info->fprintf_func) (stream, "a");
-                      is_annulled = 1;
-                      ++s;
-                      continue;
-                    case 'N':
-                      (*info->fprintf_func) (stream, "pn");
-                      ++s;
-                      continue;
-
-                    case 'T':
-                      (*info->fprintf_func) (stream, "pt");
-                      ++s;
-                      continue;
-
-                    default:
-                      break;
-                    }           /* switch on arg */
-                  }             /* while there are comma started args */
-
-                (*info->fprintf_func) (stream, " ");
-
-                switch (*s)
-                  {
-                  case '+':
-                    found_plus = 1;
-
-                    /* note fall-through */
-                  default:
-                    (*info->fprintf_func) (stream, "%c", *s);
-                    break;
-
-                  case '#':
-                    (*info->fprintf_func) (stream, "0");
-                    break;
-
-#define reg(n)  (*info->fprintf_func) (stream, "%%%s", reg_names[n])
-                  case '1':
-                  case 'r':
-                    reg (X_RS1 (insn));
-                    break;
-
-                  case '2':
-                  case 'O':
-                    reg (X_RS2 (insn));
-                    break;
-
-                  case 'd':
-                    reg (X_RD (insn));
-                    break;
-#undef  reg
-
-#define freg(n)         (*info->fprintf_func) (stream, "%%%s", freg_names[n])
-#define fregx(n)        (*info->fprintf_func) (stream, "%%%s", freg_names[((n) & ~1) | (((n) & 1) << 5)])
-                  case 'e':
-                    freg (X_RS1 (insn));
-                    break;
-                  case 'v':     /* double/even */
-                  case 'V':     /* quad/multiple of 4 */
-                    fregx (X_RS1 (insn));
-                    break;
-
-                  case 'f':
-                    freg (X_RS2 (insn));
-                    break;
-                  case 'B':     /* double/even */
-                  case 'R':     /* quad/multiple of 4 */
-                    fregx (X_RS2 (insn));
-                    break;
-
-                  case 'g':
-                    freg (X_RD (insn));
-                    break;
-                  case 'H':     /* double/even */
-                  case 'J':     /* quad/multiple of 4 */
-                    fregx (X_RD (insn));
-                    break;
-#undef  freg
-#undef  fregx
-
-#define creg(n) (*info->fprintf_func) (stream, "%%c%u", (unsigned int) (n))
-                  case 'b':
-                    creg (X_RS1 (insn));
-                    break;
-
-                  case 'c':
-                    creg (X_RS2 (insn));
-                    break;
-
-                  case 'D':
-                    creg (X_RD (insn));
-                    break;
-#undef  creg
-
-                  case 'h':
-                    (*info->fprintf_func) (stream, "%%hi(%#x)",
-                                           ((unsigned) 0xFFFFFFFF
-                                            & ((int) X_IMM22 (insn) << 10)));
-                    break;
-
-                  case 'i':     /* 13 bit immediate */
-                  case 'I':     /* 11 bit immediate */
-                  case 'j':     /* 10 bit immediate */
-                    {
-                      int imm;
-
-                      if (*s == 'i')
-                        imm = X_SIMM (insn, 13);
-                      else if (*s == 'I')
-                        imm = X_SIMM (insn, 11);
-                      else
-                        imm = X_SIMM (insn, 10);
-
-                      /* Check to see whether we have a 1+i, and take
-                         note of that fact.
-
-                         Note: because of the way we sort the table,
-                         we will be matching 1+i rather than i+1,
-                         so it is OK to assume that i is after +,
-                         not before it.  */
-                      if (found_plus)
-                        imm_added_to_rs1 = 1;
-
-                      if (imm <= 9)
-                        (*info->fprintf_func) (stream, "%d", imm);
-                      else
-                        (*info->fprintf_func) (stream, "%#x", imm);
-                    }
-                    break;
-
-                  case 'X':     /* 5 bit unsigned immediate */
-                  case 'Y':     /* 6 bit unsigned immediate */
-                    {
-                      int imm = X_IMM (insn, *s == 'X' ? 5 : 6);
-
-                      if (imm <= 9)
-                        (info->fprintf_func) (stream, "%d", imm);
-                      else
-                        (info->fprintf_func) (stream, "%#x", (unsigned) imm);
-                    }
-                    break;
-
-                  case '3':
-                    (info->fprintf_func) (stream, "%d", X_IMM (insn, 3));
-                    break;
-
-                  case 'K':
-                    {
-                      int mask = X_MEMBAR (insn);
-                      int bit = 0x40, printed_one = 0;
-                      const char *name;
-
-                      if (mask == 0)
-                        (info->fprintf_func) (stream, "0");
-                      else
-                        while (bit)
-                          {
-                            if (mask & bit)
-                              {
-                                if (printed_one)
-                                  (info->fprintf_func) (stream, "|");
-                                name = sparc_decode_membar (bit);
-                                (info->fprintf_func) (stream, "%s", name);
-                                printed_one = 1;
-                              }
-                            bit >>= 1;
-                          }
-                      break;
-                    }
-
-                  case 'k':
-                    info->target = memaddr + SEX (X_DISP16 (insn), 16) * 4;
-                    (*info->print_address_func) (info->target, info);
-                    break;
-
-                  case 'G':
-                    info->target = memaddr + SEX (X_DISP19 (insn), 19) * 4;
-                    (*info->print_address_func) (info->target, info);
-                    break;
-
-                  case '6':
-                  case '7':
-                  case '8':
-                  case '9':
-                    (*info->fprintf_func) (stream, "%%fcc%c", *s - '6' + '0');
-                    break;
-
-                  case 'z':
-                    (*info->fprintf_func) (stream, "%%icc");
-                    break;
-
-                  case 'Z':
-                    (*info->fprintf_func) (stream, "%%xcc");
-                    break;
-
-                  case 'E':
-                    (*info->fprintf_func) (stream, "%%ccr");
-                    break;
-
-                  case 's':
-                    (*info->fprintf_func) (stream, "%%fprs");
-                    break;
-
-                  case 'o':
-                    (*info->fprintf_func) (stream, "%%asi");
-                    break;
-
-                  case 'W':
-                    (*info->fprintf_func) (stream, "%%tick");
-                    break;
-
-                  case 'P':
-                    (*info->fprintf_func) (stream, "%%pc");
-                    break;
-
-                  case '?':
-                    if (X_RS1 (insn) == 31)
-                      (*info->fprintf_func) (stream, "%%ver");
-                    else if ((unsigned) X_RS1 (insn) < 16)
-                      (*info->fprintf_func) (stream, "%%%s",
-                                             v9_priv_reg_names[X_RS1 (insn)]);
-                    else
-                      (*info->fprintf_func) (stream, "%%reserved");
-                    break;
-
-                  case '!':
-                    if ((unsigned) X_RD (insn) < 15)
-                      (*info->fprintf_func) (stream, "%%%s",
-                                             v9_priv_reg_names[X_RD (insn)]);
-                    else
-                      (*info->fprintf_func) (stream, "%%reserved");
-                    break;
-
-                  case '/':
-                    if (X_RS1 (insn) < 16 || X_RS1 (insn) > 25)
-                      (*info->fprintf_func) (stream, "%%reserved");
-                    else
-                      (*info->fprintf_func) (stream, "%%%s",
-                                             v9a_asr_reg_names[X_RS1 (insn)-16]);
-                    break;
-
-                  case '_':
-                    if (X_RD (insn) < 16 || X_RD (insn) > 25)
-                      (*info->fprintf_func) (stream, "%%reserved");
-                    else
-                      (*info->fprintf_func) (stream, "%%%s",
-                                             v9a_asr_reg_names[X_RD (insn)-16]);
-                    break;
-
-                  case '*':
-                    {
-                      const char *name = sparc_decode_prefetch (X_RD (insn));
-
-                      if (name)
-                        (*info->fprintf_func) (stream, "%s", name);
-                      else
-                        (*info->fprintf_func) (stream, "%d", X_RD (insn));
-                      break;
-                    }
-
-                  case 'M':
-                    (*info->fprintf_func) (stream, "%%asr%d", X_RS1 (insn));
-                    break;
-
-                  case 'm':
-                    (*info->fprintf_func) (stream, "%%asr%d", X_RD (insn));
-                    break;
-
-                  case 'L':
-                    info->target = memaddr + SEX (X_DISP30 (insn), 30) * 4;
-                    (*info->print_address_func) (info->target, info);
-                    break;
-
-                  case 'n':
-                    (*info->fprintf_func)
-                      (stream, "%#x", SEX (X_DISP22 (insn), 22));
-                    break;
-
-                  case 'l':
-                    info->target = memaddr + SEX (X_DISP22 (insn), 22) * 4;
-                    (*info->print_address_func) (info->target, info);
-                    break;
-
-                  case 'A':
-                    {
-                      const char *name;
-
-                      if ((info->mach == bfd_mach_sparc_v8plusa) ||
-                          ((info->mach >= bfd_mach_sparc_v9) &&
-                           (info->mach <= bfd_mach_sparc_v9b)))
-                        name = sparc_decode_asi_v9 (X_ASI (insn));
-                      else
-                        name = sparc_decode_asi_v8 (X_ASI (insn));
-
-                      if (name)
-                        (*info->fprintf_func) (stream, "%s", name);
-                      else
-                        (*info->fprintf_func) (stream, "(%d)", X_ASI (insn));
-                      break;
-                    }
-
-                  case 'C':
-                    (*info->fprintf_func) (stream, "%%csr");
-                    break;
-
-                  case 'F':
-                    (*info->fprintf_func) (stream, "%%fsr");
-                    break;
-
-                  case 'p':
-                    (*info->fprintf_func) (stream, "%%psr");
-                    break;
-
-                  case 'q':
-                    (*info->fprintf_func) (stream, "%%fq");
-                    break;
-
-                  case 'Q':
-                    (*info->fprintf_func) (stream, "%%cq");
-                    break;
-
-                  case 't':
-                    (*info->fprintf_func) (stream, "%%tbr");
-                    break;
-
-                  case 'w':
-                    (*info->fprintf_func) (stream, "%%wim");
-                    break;
-
-                  case 'x':
-                    (*info->fprintf_func) (stream, "%d",
-                                           ((X_LDST_I (insn) << 8)
-                                            + X_ASI (insn)));
-                    break;
-
-                  case 'y':
-                    (*info->fprintf_func) (stream, "%%y");
-                    break;
-
-                  case 'u':
-                  case 'U':
-                    {
-                      int val = *s == 'U' ? X_RS1 (insn) : X_RD (insn);
-                      const char *name = sparc_decode_sparclet_cpreg (val);
-
-                      if (name)
-                        (*info->fprintf_func) (stream, "%s", name);
-                      else
-                        (*info->fprintf_func) (stream, "%%cpreg(%d)", val);
-                      break;
-                    }
-                  }
-              }
-          }
-
-          /* If we are adding or or'ing something to rs1, then
-             check to see whether the previous instruction was
-             a sethi to the same register as in the sethi.
-             If so, attempt to print the result of the add or
-             or (in this context add and or do the same thing)
-             and its symbolic value.  */
-          if (imm_ored_to_rs1 || imm_added_to_rs1)
-            {
-              unsigned long prev_insn;
-              int errcode;
-
-              errcode =
-                (*info->read_memory_func)
-                  (memaddr - 4, buffer, sizeof (buffer), info);
-              prev_insn = getword (buffer);
-
-              if (errcode == 0)
-                {
-                  /* If it is a delayed branch, we need to look at the
-                     instruction before the delayed branch.  This handles
-                     sequences such as
-
-                     sethi %o1, %hi(_foo), %o1
-                     call _printf
-                     or %o1, %lo(_foo), %o1
-                     */
-
-                  if (is_delayed_branch (prev_insn))
-                    {
-                      errcode = (*info->read_memory_func)
-                        (memaddr - 8, buffer, sizeof (buffer), info);
-                      prev_insn = getword (buffer);
-                    }
-                }
-
-              /* If there was a problem reading memory, then assume
-                 the previous instruction was not sethi.  */
-              if (errcode == 0)
-                {
-                  /* Is it sethi to the same register?  */
-                  if ((prev_insn & 0xc1c00000) == 0x01000000
-                      && X_RD (prev_insn) == X_RS1 (insn))
-                    {
-                      (*info->fprintf_func) (stream, "\t! ");
-                      info->target =
-                        ((unsigned) 0xFFFFFFFF
-                         & ((int) X_IMM22 (prev_insn) << 10));
-                      if (imm_added_to_rs1)
-                        info->target += X_SIMM (insn, 13);
-                      else
-                        info->target |= X_SIMM (insn, 13);
-                      (*info->print_address_func) (info->target, info);
-                      info->insn_type = dis_dref;
-                      info->data_size = 4;  /* FIXME!!! */
-                    }
-                }
-            }
-
-          if (opcode->flags & (F_UNBR|F_CONDBR|F_JSR))
-            {
-                /* FIXME -- check is_annulled flag */
-              if (opcode->flags & F_UNBR)
-                info->insn_type = dis_branch;
-              if (opcode->flags & F_CONDBR)
-                info->insn_type = dis_condbranch;
-              if (opcode->flags & F_JSR)
-                info->insn_type = dis_jsr;
-              if (opcode->flags & F_DELAYED)
-                info->branch_delay_insns = 1;
-            }
-
-          return sizeof (buffer);
-        }
-    }
-
-  info->insn_type = dis_noninsn;        /* Mark as non-valid instruction */
-  (*info->fprintf_func) (stream, _("unknown"));
-  return sizeof (buffer);
-}
-
 /* Given BFD mach number, return a mask of SPARC_OPCODE_ARCH_FOO values.  */
 
 static int
-compute_arch_mask (mach)
-     unsigned long mach;
+compute_arch_mask (unsigned long mach)
 {
   switch (mach)
     {
@@ -3016,10 +2482,10 @@ compute_arch_mask (mach)
 /* Compare opcodes A and B.  */
 
 static int
-compare_opcodes (const void *a, const void *b)
+compare_opcodes (const void * a, const void * b)
 {
-  struct sparc_opcode *op0 = * (struct sparc_opcode **) a;
-  struct sparc_opcode *op1 = * (struct sparc_opcode **) b;
+  sparc_opcode *op0 = * (sparc_opcode **) a;
+  sparc_opcode *op1 = * (sparc_opcode **) b;
   unsigned long int match0 = op0->match, match1 = op1->match;
   unsigned long int lose0 = op0->lose, lose1 = op1->lose;
   register unsigned int i;
@@ -3094,6 +2560,7 @@ compare_opcodes (const void *a, const void *b)
   /* Our first aesthetic ground is that aliases defer to real insns.  */
   {
     int alias_diff = (op0->flags & F_ALIAS) - (op1->flags & F_ALIAS);
+
     if (alias_diff != 0)
       /* Put the one that isn't an alias first.  */
       return alias_diff;
@@ -3104,7 +2571,7 @@ compare_opcodes (const void *a, const void *b)
   i = strcmp (op0->name, op1->name);
   if (i)
     {
-      if (op0->flags & F_ALIAS) /* If they're both aliases, be arbitrary. */
+      if (op0->flags & F_ALIAS) /* If they're both aliases, be arbitrary.  */
         return i;
       else
         fprintf (stderr,
@@ -3116,6 +2583,7 @@ compare_opcodes (const void *a, const void *b)
   /* Fewer arguments are preferred.  */
   {
     int length_diff = strlen (op0->args) - strlen (op1->args);
+
     if (length_diff != 0)
       /* Put the one with fewer arguments first.  */
       return length_diff;
@@ -3162,14 +2630,13 @@ compare_opcodes (const void *a, const void *b)
    OPCODE_TABLE is a sorted list of pointers into the opcode table.  */
 
 static void
-build_hash_table (opcode_table, hash_table, num_opcodes)
-     const struct sparc_opcode **opcode_table;
-     struct opcode_hash **hash_table;
-     int num_opcodes;
+build_hash_table (const sparc_opcode **opcode_table,
+                  sparc_opcode_hash **hash_table,
+                  int num_opcodes)
 {
-  register int i;
+  int i;
   int hash_count[HASH_SIZE];
-  static struct opcode_hash *hash_buf = NULL;
+  static sparc_opcode_hash *hash_buf = NULL;
 
   /* Start at the end of the table and work backwards so that each
      chain is sorted.  */
@@ -3178,11 +2645,12 @@ build_hash_table (opcode_table, hash_table, num_opcodes)
   memset (hash_count, 0, HASH_SIZE * sizeof (hash_count[0]));
   if (hash_buf != NULL)
     free (hash_buf);
-  hash_buf = (struct opcode_hash *) malloc (sizeof (struct opcode_hash) * num_opcodes);
+  hash_buf = malloc (sizeof (* hash_buf) * num_opcodes);
   for (i = num_opcodes - 1; i >= 0; --i)
     {
-      register int hash = HASH_INSN (opcode_table[i]->match);
-      register struct opcode_hash *h = &hash_buf[i];
+      int hash = HASH_INSN (opcode_table[i]->match);
+      sparc_opcode_hash *h = &hash_buf[i];
+
       h->next = hash_table[hash];
       h->opcode = opcode_table[i];
       hash_table[hash] = h;
@@ -3207,4 +2675,584 @@ build_hash_table (opcode_table, hash_table, num_opcodes)
             min_count, max_count, (double) total / HASH_SIZE);
   }
 #endif
+}
+
+/* Print one instruction from MEMADDR on INFO->STREAM.
+
+   We suffix the instruction with a comment that gives the absolute
+   address involved, as well as its symbolic form, if the instruction
+   is preceded by a findable `sethi' and it either adds an immediate
+   displacement to that register, or it is an `add' or `or' instruction
+   on that register.  */
+
+int
+print_insn_sparc (bfd_vma memaddr, disassemble_info *info)
+{
+  FILE *stream = info->stream;
+  bfd_byte buffer[4];
+  unsigned long insn;
+  sparc_opcode_hash *op;
+  /* Nonzero of opcode table has been initialized.  */
+  static int opcodes_initialized = 0;
+  /* bfd mach number of last call.  */
+  static unsigned long current_mach = 0;
+  bfd_vma (*getword) (const unsigned char *);
+
+  if (!opcodes_initialized
+      || info->mach != current_mach)
+    {
+      int i;
+
+      current_arch_mask = compute_arch_mask (info->mach);
+
+      if (!opcodes_initialized)
+        sorted_opcodes =
+          malloc (sparc_num_opcodes * sizeof (sparc_opcode *));
+      /* Reset the sorted table so we can resort it.  */
+      for (i = 0; i < sparc_num_opcodes; ++i)
+        sorted_opcodes[i] = &sparc_opcodes[i];
+      qsort ((char *) sorted_opcodes, sparc_num_opcodes,
+             sizeof (sorted_opcodes[0]), compare_opcodes);
+
+      build_hash_table (sorted_opcodes, opcode_hash_table, sparc_num_opcodes);
+      current_mach = info->mach;
+      opcodes_initialized = 1;
+    }
+
+  {
+    int status =
+      (*info->read_memory_func) (memaddr, buffer, sizeof (buffer), info);
+
+    if (status != 0)
+      {
+        (*info->memory_error_func) (status, memaddr, info);
+        return -1;
+      }
+  }
+
+  /* On SPARClite variants such as DANlite (sparc86x), instructions
+     are always big-endian even when the machine is in little-endian mode.  */
+  if (info->endian == BFD_ENDIAN_BIG || info->mach == bfd_mach_sparc_sparclite)
+    getword = bfd_getb32;
+  else
+    getword = bfd_getl32;
+
+  insn = getword (buffer);
+
+  info->insn_info_valid = 1;                    /* We do return this info.  */
+  info->insn_type = dis_nonbranch;              /* Assume non branch insn.  */
+  info->branch_delay_insns = 0;                 /* Assume no delay.  */
+  info->target = 0;                             /* Assume no target known.  */
+
+  for (op = opcode_hash_table[HASH_INSN (insn)]; op; op = op->next)
+    {
+      const sparc_opcode *opcode = op->opcode;
+
+      /* If the insn isn't supported by the current architecture, skip it.  */
+      if (! (opcode->architecture & current_arch_mask))
+        continue;
+
+      if ((opcode->match & insn) == opcode->match
+          && (opcode->lose & insn) == 0)
+        {
+          /* Nonzero means that we have found an instruction which has
+             the effect of adding or or'ing the imm13 field to rs1.  */
+          int imm_added_to_rs1 = 0;
+          int imm_ored_to_rs1 = 0;
+
+          /* Nonzero means that we have found a plus sign in the args
+             field of the opcode table.  */
+          int found_plus = 0;
+
+          /* Nonzero means we have an annulled branch.  */
+          int is_annulled = 0;
+
+          /* Do we have an `add' or `or' instruction combining an
+             immediate with rs1?  */
+          if (opcode->match == 0x80102000) /* or */
+            imm_ored_to_rs1 = 1;
+          if (opcode->match == 0x80002000) /* add */
+            imm_added_to_rs1 = 1;
+
+          if (X_RS1 (insn) != X_RD (insn)
+              && strchr (opcode->args, 'r') != 0)
+              /* Can't do simple format if source and dest are different.  */
+              continue;
+          if (X_RS2 (insn) != X_RD (insn)
+              && strchr (opcode->args, 'O') != 0)
+              /* Can't do simple format if source and dest are different.  */
+              continue;
+
+          (*info->fprintf_func) (stream, opcode->name);
+
+          {
+            const char *s;
+
+            if (opcode->args[0] != ',')
+              (*info->fprintf_func) (stream, " ");
+
+            for (s = opcode->args; *s != '\0'; ++s)
+              {
+                while (*s == ',')
+                  {
+                    (*info->fprintf_func) (stream, ",");
+                    ++s;
+                    switch (*s)
+                      {
+                      case 'a':
+                        (*info->fprintf_func) (stream, "a");
+                        is_annulled = 1;
+                        ++s;
+                        continue;
+                      case 'N':
+                        (*info->fprintf_func) (stream, "pn");
+                        ++s;
+                        continue;
+
+                      case 'T':
+                        (*info->fprintf_func) (stream, "pt");
+                        ++s;
+                        continue;
+
+                      default:
+                        break;
+                      }
+                  }
+
+                (*info->fprintf_func) (stream, " ");
+
+                switch (*s)
+                  {
+                  case '+':
+                    found_plus = 1;
+                    /* Fall through.  */
+
+                  default:
+                    (*info->fprintf_func) (stream, "%c", *s);
+                    break;
+
+                  case '#':
+                    (*info->fprintf_func) (stream, "0");
+                    break;
+
+#define reg(n)  (*info->fprintf_func) (stream, "%%%s", reg_names[n])
+                  case '1':
+                  case 'r':
+                    reg (X_RS1 (insn));
+                    break;
+
+                  case '2':
+                  case 'O':
+                    reg (X_RS2 (insn));
+                    break;
+
+                  case 'd':
+                    reg (X_RD (insn));
+                    break;
+#undef  reg
+
+#define freg(n)         (*info->fprintf_func) (stream, "%%%s", freg_names[n])
+#define fregx(n)        (*info->fprintf_func) (stream, "%%%s", freg_names[((n) & ~1) | (((n) & 1) << 5)])
+                  case 'e':
+                    freg (X_RS1 (insn));
+                    break;
+                  case 'v':     /* Double/even.  */
+                  case 'V':     /* Quad/multiple of 4.  */
+                    fregx (X_RS1 (insn));
+                    break;
+
+                  case 'f':
+                    freg (X_RS2 (insn));
+                    break;
+                  case 'B':     /* Double/even.  */
+                  case 'R':     /* Quad/multiple of 4.  */
+                    fregx (X_RS2 (insn));
+                    break;
+
+                  case 'g':
+                    freg (X_RD (insn));
+                    break;
+                  case 'H':     /* Double/even.  */
+                  case 'J':     /* Quad/multiple of 4.  */
+                    fregx (X_RD (insn));
+                    break;
+#undef  freg
+#undef  fregx
+
+#define creg(n) (*info->fprintf_func) (stream, "%%c%u", (unsigned int) (n))
+                  case 'b':
+                    creg (X_RS1 (insn));
+                    break;
+
+                  case 'c':
+                    creg (X_RS2 (insn));
+                    break;
+
+                  case 'D':
+                    creg (X_RD (insn));
+                    break;
+#undef  creg
+
+                  case 'h':
+                    (*info->fprintf_func) (stream, "%%hi(%#x)",
+                                           ((unsigned) 0xFFFFFFFF
+                                            & ((int) X_IMM22 (insn) << 10)));
+                    break;
+
+                  case 'i':     /* 13 bit immediate.  */
+                  case 'I':     /* 11 bit immediate.  */
+                  case 'j':     /* 10 bit immediate.  */
+                    {
+                      int imm;
+
+                      if (*s == 'i')
+                        imm = X_SIMM (insn, 13);
+                      else if (*s == 'I')
+                        imm = X_SIMM (insn, 11);
+                      else
+                        imm = X_SIMM (insn, 10);
+
+                      /* Check to see whether we have a 1+i, and take
+                         note of that fact.
+
+                         Note: because of the way we sort the table,
+                         we will be matching 1+i rather than i+1,
+                         so it is OK to assume that i is after +,
+                         not before it.  */
+                      if (found_plus)
+                        imm_added_to_rs1 = 1;
+
+                      if (imm <= 9)
+                        (*info->fprintf_func) (stream, "%d", imm);
+                      else
+                        (*info->fprintf_func) (stream, "%#x", imm);
+                    }
+                    break;
+
+                  case 'X':     /* 5 bit unsigned immediate.  */
+                  case 'Y':     /* 6 bit unsigned immediate.  */
+                    {
+                      int imm = X_IMM (insn, *s == 'X' ? 5 : 6);
+
+                      if (imm <= 9)
+                        (info->fprintf_func) (stream, "%d", imm);
+                      else
+                        (info->fprintf_func) (stream, "%#x", (unsigned) imm);
+                    }
+                    break;
+
+                  case '3':
+                    (info->fprintf_func) (stream, "%ld", X_IMM (insn, 3));
+                    break;
+
+                  case 'K':
+                    {
+                      int mask = X_MEMBAR (insn);
+                      int bit = 0x40, printed_one = 0;
+                      const char *name;
+
+                      if (mask == 0)
+                        (info->fprintf_func) (stream, "0");
+                      else
+                        while (bit)
+                          {
+                            if (mask & bit)
+                              {
+                                if (printed_one)
+                                  (info->fprintf_func) (stream, "|");
+                                name = sparc_decode_membar (bit);
+                                (info->fprintf_func) (stream, "%s", name);
+                                printed_one = 1;
+                              }
+                            bit >>= 1;
+                          }
+                      break;
+                    }
+
+                  case 'k':
+                    info->target = memaddr + SEX (X_DISP16 (insn), 16) * 4;
+                    (*info->print_address_func) (info->target, info);
+                    break;
+
+                  case 'G':
+                    info->target = memaddr + SEX (X_DISP19 (insn), 19) * 4;
+                    (*info->print_address_func) (info->target, info);
+                    break;
+
+                  case '6':
+                  case '7':
+                  case '8':
+                  case '9':
+                    (*info->fprintf_func) (stream, "%%fcc%c", *s - '6' + '0');
+                    break;
+
+                  case 'z':
+                    (*info->fprintf_func) (stream, "%%icc");
+                    break;
+
+                  case 'Z':
+                    (*info->fprintf_func) (stream, "%%xcc");
+                    break;
+
+                  case 'E':
+                    (*info->fprintf_func) (stream, "%%ccr");
+                    break;
+
+                  case 's':
+                    (*info->fprintf_func) (stream, "%%fprs");
+                    break;
+
+                  case 'o':
+                    (*info->fprintf_func) (stream, "%%asi");
+                    break;
+
+                  case 'W':
+                    (*info->fprintf_func) (stream, "%%tick");
+                    break;
+
+                  case 'P':
+                    (*info->fprintf_func) (stream, "%%pc");
+                    break;
+
+                  case '?':
+                    if (X_RS1 (insn) == 31)
+                      (*info->fprintf_func) (stream, "%%ver");
+                    else if ((unsigned) X_RS1 (insn) < 17)
+                      (*info->fprintf_func) (stream, "%%%s",
+                                             v9_priv_reg_names[X_RS1 (insn)]);
+                    else
+                      (*info->fprintf_func) (stream, "%%reserved");
+                    break;
+
+                  case '!':
+                    if ((unsigned) X_RD (insn) < 17)
+                      (*info->fprintf_func) (stream, "%%%s",
+                                             v9_priv_reg_names[X_RD (insn)]);
+                    else
+                      (*info->fprintf_func) (stream, "%%reserved");
+                    break;
+
+                  case '$':
+                    if ((unsigned) X_RS1 (insn) < 32)
+                      (*info->fprintf_func) (stream, "%%%s",
+                                             v9_hpriv_reg_names[X_RS1 (insn)]);
+                    else
+                      (*info->fprintf_func) (stream, "%%reserved");
+                    break;
+
+                  case '%':
+                    if ((unsigned) X_RD (insn) < 32)
+                      (*info->fprintf_func) (stream, "%%%s",
+                                             v9_hpriv_reg_names[X_RD (insn)]);
+                    else
+                      (*info->fprintf_func) (stream, "%%reserved");
+                    break;
+
+                  case '/':
+                    if (X_RS1 (insn) < 16 || X_RS1 (insn) > 25)
+                      (*info->fprintf_func) (stream, "%%reserved");
+                    else
+                      (*info->fprintf_func) (stream, "%%%s",
+                                             v9a_asr_reg_names[X_RS1 (insn)-16]);
+                    break;
+
+                  case '_':
+                    if (X_RD (insn) < 16 || X_RD (insn) > 25)
+                      (*info->fprintf_func) (stream, "%%reserved");
+                    else
+                      (*info->fprintf_func) (stream, "%%%s",
+                                             v9a_asr_reg_names[X_RD (insn)-16]);
+                    break;
+
+                  case '*':
+                    {
+                      const char *name = sparc_decode_prefetch (X_RD (insn));
+
+                      if (name)
+                        (*info->fprintf_func) (stream, "%s", name);
+                      else
+                        (*info->fprintf_func) (stream, "%ld", X_RD (insn));
+                      break;
+                    }
+
+                  case 'M':
+                    (*info->fprintf_func) (stream, "%%asr%ld", X_RS1 (insn));
+                    break;
+
+                  case 'm':
+                    (*info->fprintf_func) (stream, "%%asr%ld", X_RD (insn));
+                    break;
+
+                  case 'L':
+                    info->target = memaddr + SEX (X_DISP30 (insn), 30) * 4;
+                    (*info->print_address_func) (info->target, info);
+                    break;
+
+                  case 'n':
+                    (*info->fprintf_func)
+                      (stream, "%#x", SEX (X_DISP22 (insn), 22));
+                    break;
+
+                  case 'l':
+                    info->target = memaddr + SEX (X_DISP22 (insn), 22) * 4;
+                    (*info->print_address_func) (info->target, info);
+                    break;
+
+                  case 'A':
+                    {
+                      const char *name;
+
+                      if ((info->mach == bfd_mach_sparc_v8plusa) ||
+                          ((info->mach >= bfd_mach_sparc_v9) &&
+                           (info->mach <= bfd_mach_sparc_v9b)))
+                        name = sparc_decode_asi_v9 (X_ASI (insn));
+                      else
+                        name = sparc_decode_asi_v8 (X_ASI (insn));
+
+                      if (name)
+                        (*info->fprintf_func) (stream, "%s", name);
+                      else
+                        (*info->fprintf_func) (stream, "(%ld)", X_ASI (insn));
+                      break;
+                    }
+
+                  case 'C':
+                    (*info->fprintf_func) (stream, "%%csr");
+                    break;
+
+                  case 'F':
+                    (*info->fprintf_func) (stream, "%%fsr");
+                    break;
+
+                  case 'p':
+                    (*info->fprintf_func) (stream, "%%psr");
+                    break;
+
+                  case 'q':
+                    (*info->fprintf_func) (stream, "%%fq");
+                    break;
+
+                  case 'Q':
+                    (*info->fprintf_func) (stream, "%%cq");
+                    break;
+
+                  case 't':
+                    (*info->fprintf_func) (stream, "%%tbr");
+                    break;
+
+                  case 'w':
+                    (*info->fprintf_func) (stream, "%%wim");
+                    break;
+
+                  case 'x':
+                    (*info->fprintf_func) (stream, "%ld",
+                                           ((X_LDST_I (insn) << 8)
+                                            + X_ASI (insn)));
+                    break;
+
+                  case 'y':
+                    (*info->fprintf_func) (stream, "%%y");
+                    break;
+
+                  case 'u':
+                  case 'U':
+                    {
+                      int val = *s == 'U' ? X_RS1 (insn) : X_RD (insn);
+                      const char *name = sparc_decode_sparclet_cpreg (val);
+
+                      if (name)
+                        (*info->fprintf_func) (stream, "%s", name);
+                      else
+                        (*info->fprintf_func) (stream, "%%cpreg(%d)", val);
+                      break;
+                    }
+                  }
+              }
+          }
+
+          /* If we are adding or or'ing something to rs1, then
+             check to see whether the previous instruction was
+             a sethi to the same register as in the sethi.
+             If so, attempt to print the result of the add or
+             or (in this context add and or do the same thing)
+             and its symbolic value.  */
+          if (imm_ored_to_rs1 || imm_added_to_rs1)
+            {
+              unsigned long prev_insn;
+              int errcode;
+
+              if (memaddr >= 4)
+                errcode =
+                  (*info->read_memory_func)
+                  (memaddr - 4, buffer, sizeof (buffer), info);
+              else
+                errcode = 1;
+
+              prev_insn = getword (buffer);
+
+              if (errcode == 0)
+                {
+                  /* If it is a delayed branch, we need to look at the
+                     instruction before the delayed branch.  This handles
+                     sequences such as:
+
+                     sethi %o1, %hi(_foo), %o1
+                     call _printf
+                     or %o1, %lo(_foo), %o1  */
+
+                  if (is_delayed_branch (prev_insn))
+                    {
+                      if (memaddr >= 8)
+                        errcode = (*info->read_memory_func)
+                          (memaddr - 8, buffer, sizeof (buffer), info);
+                      else
+                        errcode = 1;
+
+                      prev_insn = getword (buffer);
+                    }
+                }
+
+              /* If there was a problem reading memory, then assume
+                 the previous instruction was not sethi.  */
+              if (errcode == 0)
+                {
+                  /* Is it sethi to the same register?  */
+                  if ((prev_insn & 0xc1c00000) == 0x01000000
+                      && X_RD (prev_insn) == X_RS1 (insn))
+                    {
+                      (*info->fprintf_func) (stream, "\t! ");
+                      info->target =
+                        ((unsigned) 0xFFFFFFFF
+                         & ((int) X_IMM22 (prev_insn) << 10));
+                      if (imm_added_to_rs1)
+                        info->target += X_SIMM (insn, 13);
+                      else
+                        info->target |= X_SIMM (insn, 13);
+                      (*info->print_address_func) (info->target, info);
+                      info->insn_type = dis_dref;
+                      info->data_size = 4;  /* FIXME!!! */
+                    }
+                }
+            }
+
+          if (opcode->flags & (F_UNBR|F_CONDBR|F_JSR))
+            {
+                /* FIXME -- check is_annulled flag.  */
+              if (opcode->flags & F_UNBR)
+                info->insn_type = dis_branch;
+              if (opcode->flags & F_CONDBR)
+                info->insn_type = dis_condbranch;
+              if (opcode->flags & F_JSR)
+                info->insn_type = dis_jsr;
+              if (opcode->flags & F_DELAYED)
+                info->branch_delay_insns = 1;
+            }
+
+          return sizeof (buffer);
+        }
+    }
+
+  info->insn_type = dis_noninsn;        /* Mark as non-valid instruction.  */
+  (*info->fprintf_func) (stream, _("unknown"));
+  return sizeof (buffer);
 }
