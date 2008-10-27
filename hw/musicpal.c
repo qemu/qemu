@@ -236,7 +236,7 @@ static i2c_interface *mixer_i2c;
 /* Wolfson 8750 I2C address */
 #define MP_WM_ADDR              0x34
 
-const char audio_name[] = "mv88w8618";
+static const char audio_name[] = "mv88w8618";
 
 typedef struct musicpal_audio_state {
     uint32_t base;

@@ -806,10 +806,12 @@ clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
 }
 
 /* Specific helpers for POWER & PowerPC 601 RTC */
-clk_setup_cb cpu_ppc601_rtc_init (CPUState *env)
+#if 0
+static clk_setup_cb cpu_ppc601_rtc_init (CPUState *env)
 {
     return cpu_ppc_tb_init(env, 7812500);
 }
+#endif
 
 void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value)
 {
@@ -1343,7 +1345,7 @@ static uint16_t NVRAM_crc_update (uint16_t prev, uint16_t value)
     return tmp;
 }
 
-uint16_t NVRAM_compute_crc (nvram_t *nvram, uint32_t start, uint32_t count)
+static uint16_t NVRAM_compute_crc (nvram_t *nvram, uint32_t start, uint32_t count)
 {
     uint32_t i;
     uint16_t crc = 0xFFFF;

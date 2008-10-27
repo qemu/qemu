@@ -129,7 +129,7 @@ typedef struct KBDState {
     int it_shift;
 } KBDState;
 
-KBDState kbd_state;
+static KBDState kbd_state;
 
 /* update irq and KBD_STAT_[MOUSE_]OBF */
 /* XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be

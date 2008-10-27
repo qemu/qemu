@@ -2500,7 +2500,7 @@ static bitmask_transtbl fcntl_flags_tbl[] = {
 #if defined(TARGET_I386)
 
 /* NOTE: there is really one LDT for all the threads */
-uint8_t *ldt_table;
+static uint8_t *ldt_table;
 
 static abi_long read_ldt(abi_ulong ptr, unsigned long bytecount)
 {

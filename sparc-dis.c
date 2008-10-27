@@ -1,3 +1,10 @@
+/*
+ * These files from binutils are concatenated:
+ * include/opcode/sparc.h, opcodes/sparc-opc.c, opcodes/sparc-dis.c
+ */
+
+/* include/opcode/sparc.h */
+
 /* Print SPARC instructions.
    Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
    2000, 2002 Free Software Foundation, Inc.
@@ -220,6 +227,8 @@ static const char *sparc_decode_asi_v9 PARAMS ((int));
 static const char *sparc_decode_membar PARAMS ((int));
 static const char *sparc_decode_prefetch PARAMS ((int));
 static const char *sparc_decode_sparclet_cpreg PARAMS ((int));
+
+/* opcodes/sparc-opc.c */
 
 /* Some defines to make life easy.  */
 #define MASK_V6         SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V6)
@@ -2181,7 +2190,7 @@ static const arg membar_table[] =
 
 /* Return the name for membar value VALUE or NULL if not found.  */
 
-const char *
+static const char *
 sparc_decode_membar (value)
      int value;
 {
@@ -2203,7 +2212,7 @@ static const arg prefetch_table[] =
 
 /* Return the name for prefetch value VALUE or NULL if not found.  */
 
-const char *
+static const char *
 sparc_decode_prefetch (value)
      int value;
 {
@@ -2226,7 +2235,7 @@ static const arg sparclet_cpreg_table[] =
 
 /* Return the name for sparclet cpreg value VALUE or NULL if not found.  */
 
-const char *
+static const char *
 sparc_decode_sparclet_cpreg (value)
      int value;
 {
@@ -2234,6 +2243,8 @@ sparc_decode_sparclet_cpreg (value)
 }
 
 #undef MASK_V9
+
+/* opcodes/sparc-dis.c */
 
 /* Bitmask of v9 architectures.  */
 #define MASK_V9 ((1 << SPARC_OPCODE_ARCH_V9) \

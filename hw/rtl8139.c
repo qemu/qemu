@@ -1255,7 +1255,7 @@ static void rtl8139_reset(RTL8139State *s)
     RTL8139TallyCounters_clear(&s->tally_counters);
 }
 
-void RTL8139TallyCounters_clear(RTL8139TallyCounters* counters)
+static void RTL8139TallyCounters_clear(RTL8139TallyCounters* counters)
 {
     counters->TxOk = 0;
     counters->RxOk = 0;

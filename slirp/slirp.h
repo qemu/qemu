@@ -270,8 +270,8 @@ void lprint _P((const char *, ...));
 # define insque_32 insque
 # define remque_32 remque
 #else
- inline void insque_32 _P((void *, void *));
- inline void remque_32 _P((void *));
+ void insque_32 _P((void *, void *));
+ void remque_32 _P((void *));
 #endif
 
 #ifndef _WIN32

@@ -87,6 +87,7 @@ struct bt_hci_link_s {
 };
 
 /* LMP layer emulation */
+#if 0
 static void bt_submit_lmp(struct bt_device_s *bt, int length, uint8_t *data)
 {
     int resp, resplen, error, op, tr;
@@ -386,7 +387,7 @@ static void bt_submit_lmp(struct bt_device_s *bt, int length, uint8_t *data)
     respdata[0] |= tr;
 }
 
-void bt_submit_raw_acl(struct bt_piconet_s *net, int length, uint8_t *data)
+static void bt_submit_raw_acl(struct bt_piconet_s *net, int length, uint8_t *data)
 {
     struct bt_device_s *slave;
     if (length < 1)
@@ -411,6 +412,7 @@ void bt_submit_raw_acl(struct bt_piconet_s *net, int length, uint8_t *data)
         break;
     }
 }
+#endif
 
 /* HCI layer emulation */
 
@@ -1118,7 +1120,7 @@ static void bt_hci_mode_tick(void *opaque)
     bt_hci_lmp_mode_change_master(hci, link, acl_active, 0);
 }
 
-void bt_hci_reset(struct bt_hci_s *hci)
+static void bt_hci_reset(struct bt_hci_s *hci)
 {
     hci->acl_len = 0;
     hci->last_cmd = 0;

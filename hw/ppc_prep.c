@@ -84,9 +84,11 @@ static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 /* ISA IO ports bridge */
 #define PPC_IO_BASE 0x80000000
 
+#if 0
 /* Speaker port 0x61 */
-int speaker_data_on;
-int dummy_refresh_clock;
+static int speaker_data_on;
+static int dummy_refresh_clock;
+#endif
 
 static void speaker_ioport_write (void *opaque, uint32_t addr, uint32_t val)
 {
@@ -518,13 +520,13 @@ static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-CPUWriteMemoryFunc *PPC_prep_io_write[] = {
+static CPUWriteMemoryFunc *PPC_prep_io_write[] = {
     &PPC_prep_io_writeb,
     &PPC_prep_io_writew,
     &PPC_prep_io_writel,
 };
 
-CPUReadMemoryFunc *PPC_prep_io_read[] = {
+static CPUReadMemoryFunc *PPC_prep_io_read[] = {
     &PPC_prep_io_readb,
     &PPC_prep_io_readw,
     &PPC_prep_io_readl,

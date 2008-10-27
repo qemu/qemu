@@ -63,8 +63,8 @@ TCGOpDef tcg_op_defs[] = {
 #undef DEF2
 };
 
-TCGRegSet tcg_target_available_regs[2];
-TCGRegSet tcg_target_call_clobber_regs;
+static TCGRegSet tcg_target_available_regs[2];
+static TCGRegSet tcg_target_call_clobber_regs;
 
 /* XXX: move that inside the context */
 uint16_t *gen_opc_ptr;

@@ -210,7 +210,7 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
 
 /* PIIX3 PCI to ISA bridge */
 
-PCIDevice *piix3_dev;
+static PCIDevice *piix3_dev;
 PCIDevice *piix4_dev;
 
 /* just used for simpler irq handling. */

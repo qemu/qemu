@@ -96,7 +96,7 @@ const CPU86_LDouble f15rk[7] =
 
 /* broken thread support */
 
-spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
+static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
 
 void helper_lock(void)
 {

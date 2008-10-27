@@ -23,20 +23,20 @@
 #include "qemu-timer.h"
 #include "soc_dma.h"
 
-void transfer_mem2mem(struct soc_dma_ch_s *ch)
+static void transfer_mem2mem(struct soc_dma_ch_s *ch)
 {
     memcpy(ch->paddr[0], ch->paddr[1], ch->bytes);
     ch->paddr[0] += ch->bytes;
     ch->paddr[1] += ch->bytes;
 }
 
-void transfer_mem2fifo(struct soc_dma_ch_s *ch)
+static void transfer_mem2fifo(struct soc_dma_ch_s *ch)
 {
     ch->io_fn[1](ch->io_opaque[1], ch->paddr[0], ch->bytes);
     ch->paddr[0] += ch->bytes;
 }
 
-void transfer_fifo2mem(struct soc_dma_ch_s *ch)
+static void transfer_fifo2mem(struct soc_dma_ch_s *ch)
 {
     ch->io_fn[0](ch->io_opaque[0], ch->paddr[1], ch->bytes);
     ch->paddr[1] += ch->bytes;
@@ -47,7 +47,7 @@ void transfer_fifo2mem(struct soc_dma_ch_s *ch)
  * oprating systems may not need to use them.  */
 static void *fifo_buf;
 static int fifo_size;
-void transfer_fifo2fifo(struct soc_dma_ch_s *ch)
+static void transfer_fifo2fifo(struct soc_dma_ch_s *ch)
 {
     if (ch->bytes > fifo_size)
         fifo_buf = qemu_realloc(fifo_buf, fifo_size = ch->bytes);

@@ -106,7 +106,7 @@ struct nand_flash_s {
 # include "nand.c"
 
 /* Information based on Linux drivers/mtd/nand/nand_ids.c */
-struct nand_info_s {
+static const struct nand_info_s {
     int size;
     int width;
     int page_shift;

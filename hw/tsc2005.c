@@ -23,6 +23,7 @@
 #include "hw.h"
 #include "qemu-timer.h"
 #include "console.h"
+#include "devices.h"
 
 #define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - (p ? 12 : 10)))
 
@@ -319,7 +320,7 @@ static void tsc2005_reset(struct tsc2005_state_s *s)
     tsc2005_pin_update(s);
 }
 
-uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
+static uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
 {
     struct tsc2005_state_s *s = opaque;
     uint32_t ret = 0;

@@ -459,7 +459,7 @@ static inline void gen_store_fpr64 (TCGv t, int reg)
       return;                                                 \
   }
 
-void _decode_opc(DisasContext * ctx)
+static void _decode_opc(DisasContext * ctx)
 {
 #if 0
     fprintf(stderr, "Translating opcode 0x%04x\n", ctx->opcode);
@@ -1762,7 +1762,7 @@ void _decode_opc(DisasContext * ctx)
     ctx->bstate = BS_EXCP;
 }
 
-void decode_opc(DisasContext * ctx)
+static void decode_opc(DisasContext * ctx)
 {
     uint32_t old_flags = ctx->flags;
 
