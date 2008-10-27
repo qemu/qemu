@@ -973,7 +973,7 @@ static int arith_cc(DisasContext *dc)
 	return 0;
 }
 
-static void gen_tst_cc (DisasContext *dc, int cond)
+static void gen_tst_cc (DisasContext *dc, TCGv cc, int cond)
 {
 	int arith_opt, move_opt;
 
@@ -996,46 +996,46 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 				   non-zero otherwise T0 should be zero.  */
 				int l1;
 				l1 = gen_new_label();
-				tcg_gen_movi_tl(cpu_T[0], 0);
+				tcg_gen_movi_tl(cc, 0);
 				tcg_gen_brcondi_tl(TCG_COND_NE, cc_result, 
 						   0, l1);
-				tcg_gen_movi_tl(cpu_T[0], 1);
+				tcg_gen_movi_tl(cc, 1);
 				gen_set_label(l1);
 			}
 			else {
 				cris_evaluate_flags(dc);
-				tcg_gen_andi_tl(cpu_T[0], 
+				tcg_gen_andi_tl(cc, 
 						cpu_PR[PR_CCS], Z_FLAG);
 			}
 			break;
 		case CC_NE:
 			if (arith_opt || move_opt)
-				tcg_gen_mov_tl(cpu_T[0], cc_result);
+				tcg_gen_mov_tl(cc, cc_result);
 			else {
 				cris_evaluate_flags(dc);
-				tcg_gen_xori_tl(cpu_T[0], cpu_PR[PR_CCS],
+				tcg_gen_xori_tl(cc, cpu_PR[PR_CCS],
 						Z_FLAG);
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], Z_FLAG);
+				tcg_gen_andi_tl(cc, cc, Z_FLAG);
 			}
 			break;
 		case CC_CS:
 			cris_evaluate_flags(dc);
-			tcg_gen_andi_tl(cpu_T[0], cpu_PR[PR_CCS], C_FLAG);
+			tcg_gen_andi_tl(cc, cpu_PR[PR_CCS], C_FLAG);
 			break;
 		case CC_CC:
 			cris_evaluate_flags(dc);
-			tcg_gen_xori_tl(cpu_T[0], cpu_PR[PR_CCS], C_FLAG);
-			tcg_gen_andi_tl(cpu_T[0], cpu_T[0], C_FLAG);
+			tcg_gen_xori_tl(cc, cpu_PR[PR_CCS], C_FLAG);
+			tcg_gen_andi_tl(cc, cc, C_FLAG);
 			break;
 		case CC_VS:
 			cris_evaluate_flags(dc);
-			tcg_gen_andi_tl(cpu_T[0], cpu_PR[PR_CCS], V_FLAG);
+			tcg_gen_andi_tl(cc, cpu_PR[PR_CCS], V_FLAG);
 			break;
 		case CC_VC:
 			cris_evaluate_flags(dc);
-			tcg_gen_xori_tl(cpu_T[0], cpu_PR[PR_CCS],
+			tcg_gen_xori_tl(cc, cpu_PR[PR_CCS],
 					V_FLAG);
-			tcg_gen_andi_tl(cpu_T[0], cpu_T[0], V_FLAG);
+			tcg_gen_andi_tl(cc, cc, V_FLAG);
 			break;
 		case CC_PL:
 			if (arith_opt || move_opt) {
@@ -1046,13 +1046,13 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 				else if (dc->cc_size == 2)
 					bits = 15;	
 
-				tcg_gen_shri_tl(cpu_T[0], cc_result, bits);
-				tcg_gen_xori_tl(cpu_T[0], cpu_T[0], 1);
+				tcg_gen_shri_tl(cc, cc_result, bits);
+				tcg_gen_xori_tl(cc, cc, 1);
 			} else {
 				cris_evaluate_flags(dc);
-				tcg_gen_xori_tl(cpu_T[0], cpu_PR[PR_CCS],
+				tcg_gen_xori_tl(cc, cpu_PR[PR_CCS],
 						N_FLAG);
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], N_FLAG);
+				tcg_gen_andi_tl(cc, cc, N_FLAG);
 			}
 			break;
 		case CC_MI:
@@ -1064,17 +1064,17 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 				else if (dc->cc_size == 2)
 					bits = 15;	
 
-				tcg_gen_shri_tl(cpu_T[0], cc_result, 31);
+				tcg_gen_shri_tl(cc, cc_result, 31);
 			}
 			else {
 				cris_evaluate_flags(dc);
-				tcg_gen_andi_tl(cpu_T[0], cpu_PR[PR_CCS],
+				tcg_gen_andi_tl(cc, cpu_PR[PR_CCS],
 						N_FLAG);
 			}
 			break;
 		case CC_LS:
 			cris_evaluate_flags(dc);
-			tcg_gen_andi_tl(cpu_T[0], cpu_PR[PR_CCS],
+			tcg_gen_andi_tl(cc, cpu_PR[PR_CCS],
 					C_FLAG | Z_FLAG);
 			break;
 		case CC_HI:
@@ -1086,9 +1086,9 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 				tcg_gen_xori_tl(tmp, cpu_PR[PR_CCS],
 						C_FLAG | Z_FLAG);
 				/* Overlay the C flag on top of the Z.  */
-				tcg_gen_shli_tl(cpu_T[0], tmp, 2);
-				tcg_gen_and_tl(cpu_T[0], tmp, cpu_T[0]);
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], Z_FLAG);
+				tcg_gen_shli_tl(cc, tmp, 2);
+				tcg_gen_and_tl(cc, tmp, cc);
+				tcg_gen_andi_tl(cc, cc, Z_FLAG);
 
 				tcg_temp_free(tmp);
 			}
@@ -1096,19 +1096,19 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 		case CC_GE:
 			cris_evaluate_flags(dc);
 			/* Overlay the V flag on top of the N.  */
-			tcg_gen_shli_tl(cpu_T[0], cpu_PR[PR_CCS], 2);
-			tcg_gen_xor_tl(cpu_T[0],
-				       cpu_PR[PR_CCS], cpu_T[0]);
-			tcg_gen_andi_tl(cpu_T[0], cpu_T[0], N_FLAG);
-			tcg_gen_xori_tl(cpu_T[0], cpu_T[0], N_FLAG);
+			tcg_gen_shli_tl(cc, cpu_PR[PR_CCS], 2);
+			tcg_gen_xor_tl(cc,
+				       cpu_PR[PR_CCS], cc);
+			tcg_gen_andi_tl(cc, cc, N_FLAG);
+			tcg_gen_xori_tl(cc, cc, N_FLAG);
 			break;
 		case CC_LT:
 			cris_evaluate_flags(dc);
 			/* Overlay the V flag on top of the N.  */
-			tcg_gen_shli_tl(cpu_T[0], cpu_PR[PR_CCS], 2);
-			tcg_gen_xor_tl(cpu_T[0],
-				       cpu_PR[PR_CCS], cpu_T[0]);
-			tcg_gen_andi_tl(cpu_T[0], cpu_T[0], N_FLAG);
+			tcg_gen_shli_tl(cc, cpu_PR[PR_CCS], 2);
+			tcg_gen_xor_tl(cc,
+				       cpu_PR[PR_CCS], cc);
+			tcg_gen_andi_tl(cc, cc, N_FLAG);
 			break;
 		case CC_GT:
 			cris_evaluate_flags(dc);
@@ -1127,8 +1127,8 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 
 				tcg_gen_xor_tl(n, n, cpu_PR[PR_CCS]);
 				tcg_gen_xori_tl(n, n, 2);
-				tcg_gen_and_tl(cpu_T[0], z, n);
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 2);
+				tcg_gen_and_tl(cc, z, n);
+				tcg_gen_andi_tl(cc, cc, 2);
 
 				tcg_temp_free(n);
 				tcg_temp_free(z);
@@ -1148,8 +1148,8 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 				tcg_gen_shri_tl(z, cpu_PR[PR_CCS], 1);
 
 				tcg_gen_xor_tl(n, n, cpu_PR[PR_CCS]);
-				tcg_gen_or_tl(cpu_T[0], z, n);
-				tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 2);
+				tcg_gen_or_tl(cc, z, n);
+				tcg_gen_andi_tl(cc, cc, 2);
 
 				tcg_temp_free(n);
 				tcg_temp_free(z);
@@ -1157,10 +1157,10 @@ static void gen_tst_cc (DisasContext *dc, int cond)
 			break;
 		case CC_P:
 			cris_evaluate_flags(dc);
-			tcg_gen_andi_tl(cpu_T[0], cpu_PR[PR_CCS], P_FLAG);
+			tcg_gen_andi_tl(cc, cpu_PR[PR_CCS], P_FLAG);
 			break;
 		case CC_A:
-			tcg_gen_movi_tl(cpu_T[0], 1);
+			tcg_gen_movi_tl(cc, 1);
 			break;
 		default:
 			BUG();
@@ -1188,8 +1188,7 @@ static void cris_prepare_cc_branch (DisasContext *dc,
 	if (cond != CC_A)
 	{
 		dc->jmp = JMP_INDIRECT;
-		gen_tst_cc (dc, cond);
-		tcg_gen_mov_tl(env_btaken, cpu_T[0]);
+		gen_tst_cc (dc, env_btaken, cond);
 		tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
 	} else {
 		/* Allow chaining.  */
@@ -1623,11 +1622,9 @@ static unsigned int dec_scc_r(DisasContext *dc)
 	{
 		int l1;
 
-		gen_tst_cc (dc, cond);
-
+		gen_tst_cc (dc, cpu_R[dc->op1], cond);
 		l1 = gen_new_label();
-		tcg_gen_movi_tl(cpu_R[dc->op1], 0);
-		tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_T[0], 0, l1);
+		tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_R[dc->op1], 0, l1);
 		tcg_gen_movi_tl(cpu_R[dc->op1], 1);
 		gen_set_label(l1);
 	}
