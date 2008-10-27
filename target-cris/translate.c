@@ -1330,7 +1330,7 @@ static inline void do_postinc (DisasContext *dc, int size)
 }
 
 static inline void dec_prep_move_r(DisasContext *dc, int rs, int rd,
-			    int size, int s_ext, TCGv dst)
+				   int size, int s_ext, TCGv dst)
 {
 	if (s_ext)
 		t_gen_sext(dst, cpu_R[rs], size);
@@ -1603,10 +1603,14 @@ static unsigned int dec_move_r(DisasContext *dc)
 		cris_update_result(dc, cpu_R[dc->op2]);
 	}
 	else {
-		dec_prep_move_r(dc, dc->op1, dc->op2, size, 0, cpu_T[1]);
+		TCGv t0;
+
+		t0 = tcg_temp_new(TCG_TYPE_TL);
+		dec_prep_move_r(dc, dc->op1, dc->op2, size, 0, t0);
 		cris_alu(dc, CC_OP_MOVE,
 			 cpu_R[dc->op2],
-			 cpu_R[dc->op2], cpu_T[1], size);
+			 cpu_R[dc->op2], t0, size);
+		tcg_temp_free(t0);
 	}
 	return 2;
 }
