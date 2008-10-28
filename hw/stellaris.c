@@ -1417,7 +1417,6 @@ QEMUMachine lm3s811evb_machine = {
     .desc = "Stellaris LM3S811EVB",
     .init = lm3s811evb_init,
     .ram_require = (64 * 1024 + 8 * 1024) | RAMSIZE_FIXED,
-    .max_cpus = 1,
 };
 
 QEMUMachine lm3s6965evb_machine = {
@@ -1425,5 +1424,4 @@ QEMUMachine lm3s6965evb_machine = {
     .desc = "Stellaris LM3S6965EVB",
     .init = lm3s6965evb_init,
     .ram_require = (256 * 1024 + 64 * 1024) | RAMSIZE_FIXED,
-    .max_cpus = 1,
 };

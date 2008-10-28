@@ -66,5 +66,4 @@ QEMUMachine dummy_m68k_machine = {
     .name = "dummy",
     .desc = "Dummy board",
     .init = dummy_m68k_init,
-    .max_cpus = 1,
 };

@@ -309,5 +309,4 @@ QEMUMachine mcf5208evb_machine = {
     .desc = "MCF5206EVB",
     .init = mcf5208evb_init,
     .ram_require = 16384,
-    .max_cpus = 1,
 };

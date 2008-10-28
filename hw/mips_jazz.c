@@ -278,7 +278,6 @@ QEMUMachine mips_magnum_machine = {
     .init = mips_magnum_init,
     .ram_require = MAGNUM_BIOS_SIZE + VGA_RAM_SIZE,
     .nodisk_ok = 1,
-    .max_cpus = 1,
 };
 
 QEMUMachine mips_pica61_machine = {
@@ -287,5 +286,4 @@ QEMUMachine mips_pica61_machine = {
     .init = mips_pica61_init,
     .ram_require = MAGNUM_BIOS_SIZE + VGA_RAM_SIZE,
     .nodisk_ok = 1,
-    .max_cpus = 1,
 };
