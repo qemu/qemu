@@ -152,6 +152,7 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 }
 
 
+#define __NR_sys_exit __NR_exit
 #define __NR_sys_uname __NR_uname
 #define __NR_sys_faccessat __NR_faccessat
 #define __NR_sys_fchmodat __NR_fchmodat
@@ -193,6 +194,7 @@ static int gettid(void) {
     return -ENOSYS;
 }
 #endif
+_syscall1(int,sys_exit,int,status)
 _syscall1(int,sys_uname,struct new_utsname *,buf)
 #if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
 _syscall4(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode,int,flags)
@@ -3395,7 +3397,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
         gdb_exit(cpu_env, arg1);
         /* XXX: should free thread stack and CPU env */
-        _exit(arg1);
+        sys_exit(arg1);
         ret = 0; /* avoid warning */
         break;
     case TARGET_NR_read:
