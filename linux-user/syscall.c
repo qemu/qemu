@@ -1160,7 +1160,7 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
 static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
                                int flags, int send)
 {
-    abi_long ret;
+    abi_long ret, len;
     struct target_msghdr *msgp;
     struct msghdr msg;
     int count;
@@ -1199,8 +1199,12 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
             ret = get_errno(sendmsg(fd, &msg, flags));
     } else {
         ret = get_errno(recvmsg(fd, &msg, flags));
-        if (!is_error(ret))
+        if (!is_error(ret)) {
+            len = ret;
             ret = host_to_target_cmsg(msgp, &msg);
+            if (!is_error(ret))
+                ret = len;
+        }
     }
     unlock_iovec(vec, target_vec, count, !send);
     unlock_user_struct(msgp, target_msg, send ? 0 : 1);
