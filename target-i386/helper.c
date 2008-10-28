@@ -281,7 +281,7 @@ static x86_def_t x86_defs[] = {
              * CPUID_HT | CPUID_TM | CPUID_PBE */
             /* Some CPUs got no CPUID_SEP */
         .ext_features = CPUID_EXT_MONITOR |
-            CPUID_EXT_SSE3 /* PNI */, CPUID_EXT_SSSE3,
+            CPUID_EXT_SSE3 /* PNI */ | CPUID_EXT_SSSE3,
             /* Missing: CPUID_EXT_DSCPL | CPUID_EXT_EST |
              * CPUID_EXT_TM2 | CPUID_EXT_XTPR */
         .ext2_features = (PPRO_FEATURES & 0x0183F3FF) | CPUID_EXT2_NX,
