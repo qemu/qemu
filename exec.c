@@ -2081,12 +2081,13 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
     target_ulong end;
     target_ulong addr;
 
+    if (start + len < start)
+        /* we've wrapped around */
+        return -1;
+
     end = TARGET_PAGE_ALIGN(start+len); /* must do before we loose bits in the next step */
     start = start & TARGET_PAGE_MASK;
 
-    if( end < start )
-        /* we've wrapped around */
-        return -1;
     for(addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
         p = page_find(addr >> TARGET_PAGE_BITS);
         if( !p )
