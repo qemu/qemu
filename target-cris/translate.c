@@ -231,10 +231,9 @@ static void t_gen_lsl(TCGv d, TCGv a, TCGv b)
 	TCGv t0, t_31;
 
 	t0 = tcg_temp_new(TCG_TYPE_TL);
-	t_31 = tcg_temp_new(TCG_TYPE_TL);
+	t_31 = tcg_const_tl(31);
 	tcg_gen_shl_tl(d, a, b);
 
-	tcg_gen_movi_tl(t_31, 31);
 	tcg_gen_sub_tl(t0, t_31, b);
 	tcg_gen_sar_tl(t0, t0, t_31);
 	tcg_gen_and_tl(t0, t0, d);
@@ -929,15 +928,16 @@ static void cris_alu(DisasContext *dc, int op,
 
 	if (op == CC_OP_BOUND || op == CC_OP_BTST)
 		tmp = tcg_temp_local_new(TCG_TYPE_TL);
-	else
-		tmp = tcg_temp_new(TCG_TYPE_TL);
 
 	if (op == CC_OP_CMP) {
+		tmp = tcg_temp_new(TCG_TYPE_TL);
 		writeback = 0;
 	} else if (size == 4) {
 		tmp = d;
 		writeback = 0;
-	}
+	} else
+		tmp = tcg_temp_new(TCG_TYPE_TL);
+
 
 	cris_pre_alu_update_cc(dc, op, op_a, op_b, size);
 	cris_alu_op_exec(dc, op, tmp, op_a, op_b, size);
