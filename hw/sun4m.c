@@ -99,7 +99,7 @@ struct sun4m_hwdef {
     long vram_size, nvram_size;
     // IRQ numbers are not PIL ones, but master interrupt controller
     // register bit numbers
-    int intctl_g_intr, esp_irq, le_irq, clock_irq, clock1_irq;
+    int esp_irq, le_irq, clock_irq, clock1_irq;
     int ser_irq, ms_kb_irq, fd_irq, me_irq, cs_irq, ecc_irq;
     uint8_t nvram_machine_id;
     uint16_t machine_id;
@@ -135,12 +135,12 @@ struct sun4c_hwdef {
     target_phys_addr_t intctl_base, counter_base, nvram_base, ms_kb_base;
     target_phys_addr_t serial_base, fd_base;
     target_phys_addr_t idreg_base, dma_base, esp_base, le_base;
-    target_phys_addr_t tcx_base, cs_base, apc_base, aux1_base, aux2_base;
+    target_phys_addr_t tcx_base, aux1_base;
     long vram_size, nvram_size;
     // IRQ numbers are not PIL ones, but master interrupt controller
     // register bit numbers
-    int intctl_g_intr, esp_irq, le_irq, clock_irq, clock1_irq;
-    int ser_irq, ms_kb_irq, fd_irq, me_irq, cs_irq;
+    int esp_irq, le_irq, clock_irq, clock1_irq;
+    int ser_irq, ms_kb_irq, fd_irq, me_irq;
     uint8_t nvram_machine_id;
     uint16_t machine_id;
     uint32_t iommu_version;
@@ -1440,7 +1440,6 @@ static const struct sun4c_hwdef sun4c_hwdefs[] = {
     {
         .iommu_base   = 0xf8000000,
         .tcx_base     = 0xfe000000,
-        .cs_base      = -1,
         .slavio_base  = 0xf6000000,
         .intctl_base  = 0xf5000000,
         .counter_base = 0xf3000000,
@@ -1451,9 +1450,7 @@ static const struct sun4c_hwdef sun4c_hwdefs[] = {
         .dma_base     = 0xf8400000,
         .esp_base     = 0xf8800000,
         .le_base      = 0xf8c00000,
-        .apc_base     = -1,
         .aux1_base    = 0xf7400003,
-        .aux2_base    = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x800,
         .esp_irq = 2,
@@ -1464,7 +1461,6 @@ static const struct sun4c_hwdef sun4c_hwdefs[] = {
         .ser_irq = 1,
         .fd_irq = 1,
         .me_irq = 1,
-        .cs_irq = -1,
         .nvram_machine_id = 0x55,
         .machine_id = ss2_id,
         .max_mem = 0x10000000,
@@ -1579,8 +1575,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
 
-    slavio_misc = slavio_misc_init(0, hwdef->apc_base,
-                                   hwdef->aux1_base, hwdef->aux2_base,
+    slavio_misc = slavio_misc_init(0, -1, hwdef->aux1_base, -1,
                                    slavio_irq[hwdef->me_irq], env, &fdc_tc);
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
