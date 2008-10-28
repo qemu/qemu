@@ -1064,7 +1064,7 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
 {
     struct target_iovec *target_vec;
     abi_ulong base;
-    int i, j;
+    int i;
 
     target_vec = lock_user(VERIFY_READ, target_addr, count * sizeof(struct target_iovec), 1);
     if (!target_vec)
@@ -1074,8 +1074,8 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
         vec[i].iov_len = tswapl(target_vec[i].iov_len);
         if (vec[i].iov_len != 0) {
             vec[i].iov_base = lock_user(type, base, vec[i].iov_len, copy);
-            if (!vec[i].iov_base && vec[i].iov_len) 
-                goto fail;
+            /* Don't check lock_user return value. We must call writev even
+               if a element has invalid base address. */
         } else {
             /* zero length pointer is ignored */
             vec[i].iov_base = NULL;
@@ -1083,14 +1083,6 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
     }
     unlock_user (target_vec, target_addr, 0);
     return 0;
- fail:
-    /* failure - unwind locks */
-    for (j = 0; j < i; j++) {
-        base = tswapl(target_vec[j].iov_base);
-        unlock_user(vec[j].iov_base, base, 0);
-    }
-    unlock_user (target_vec, target_addr, 0);
-    return -TARGET_EFAULT;
 }
 
 static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
@@ -1104,8 +1096,10 @@ static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     if (!target_vec)
         return -TARGET_EFAULT;
     for(i = 0;i < count; i++) {
-        base = tswapl(target_vec[i].iov_base);
-        unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
+        if (target_vec[i].iov_base) {
+            base = tswapl(target_vec[i].iov_base);
+            unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
+        }
     }
     unlock_user (target_vec, target_addr, 0);
 
