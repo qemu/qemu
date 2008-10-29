@@ -248,8 +248,8 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_betls(f, &env->sysenter_esp);
         qemu_get_betls(f, &env->sysenter_eip);
     } else {
-        qemu_get_be32s(f, &env->sysenter_esp);
-        qemu_get_be32s(f, &env->sysenter_eip);
+        env->sysenter_esp = qemu_get_be32(f);
+        env->sysenter_eip = qemu_get_be32(f);
     }
 
     qemu_get_betls(f, &env->cr[0]);
