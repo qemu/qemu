@@ -479,7 +479,7 @@ static int unix_write(int fd, const uint8_t *buf, int len1)
     return len1 - len;
 }
 
-inline int send_all(int fd, const uint8_t *buf, int len1)
+int send_all(int fd, const uint8_t *buf, int len1)
 {
     return unix_write(fd, buf, len1);
 }
