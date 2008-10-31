@@ -2510,13 +2510,6 @@ static void dumb_resize(DisplayState *ds, int w, int h)
 {
 }
 
-static void dumb_refresh(DisplayState *ds)
-{
-#if defined(CONFIG_SDL)
-    vga_hw_update();
-#endif
-}
-
 static void dumb_display_init(DisplayState *ds)
 {
     ds->data = NULL;
@@ -2524,8 +2517,8 @@ static void dumb_display_init(DisplayState *ds)
     ds->depth = 0;
     ds->dpy_update = dumb_update;
     ds->dpy_resize = dumb_resize;
-    ds->dpy_refresh = dumb_refresh;
-    ds->gui_timer_interval = 500;
+    ds->dpy_refresh = NULL;
+    ds->gui_timer_interval = 0;
     ds->idle = 1;
 }
 
