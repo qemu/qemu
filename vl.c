@@ -179,7 +179,7 @@ int nb_drives;
 static BlockDriverState *bs_snapshots;
 static int vga_ram_size;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
-static DisplayState display_state;
+DisplayState display_state;
 int nographic;
 static int curses;
 const char* keyboard_layout = NULL;
@@ -251,8 +251,6 @@ static QEMUTimer *icount_rt_timer;
 static QEMUTimer *icount_vm_timer;
 
 uint8_t qemu_uuid[16];
-
-#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 /***********************************************************/
 /* x86 ISA bus support */
@@ -1877,7 +1875,7 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                 int64_t ti;
                 int secs;
 
-                ti = get_clock();
+                ti = qemu_get_clock(rt_clock);
                 if (term_timestamps_start == -1)
                     term_timestamps_start = ti;
                 ti -= term_timestamps_start;
@@ -1906,7 +1904,7 @@ static const char * const mux_help[] = {
     NULL
 };
 
-static int term_escape_char = 0x01; /* ctrl-a is used for escape */
+int term_escape_char = 0x01; /* ctrl-a is used for escape */
 static void mux_print_help(CharDriverState *chr)
 {
     int i, j;
@@ -2105,7 +2103,7 @@ static int socket_init(void)
     return 0;
 }
 
-static int send_all(int fd, const uint8_t *buf, int len1)
+int send_all(int fd, const uint8_t *buf, int len1)
 {
     int ret, len;
 
@@ -2150,7 +2148,7 @@ static int unix_write(int fd, const uint8_t *buf, int len1)
     return len1 - len;
 }
 
-static inline int send_all(int fd, const uint8_t *buf, int len1)
+inline int send_all(int fd, const uint8_t *buf, int len1)
 {
     return unix_write(fd, buf, len1);
 }
@@ -2169,7 +2167,7 @@ static int stdio_nb_clients = 0;
 static int fd_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
     FDCharDriver *s = chr->opaque;
-    return unix_write(s->fd_out, buf, len);
+    return send_all(s->fd_out, buf, len);
 }
 
 static int fd_chr_read_poll(void *opaque)
@@ -2476,7 +2474,7 @@ static int pty_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
         pty_chr_update_read_handler(chr);
         return 0;
     }
-    return unix_write(s->fd, buf, len);
+    return send_all(s->fd, buf, len);
 }
 
 static int pty_chr_read_poll(void *opaque)
@@ -3368,13 +3366,6 @@ static void udp_chr_update_read_handler(CharDriverState *chr)
     }
 }
 
-#ifndef _WIN32
-static int parse_unix_path(struct sockaddr_un *uaddr, const char *str);
-#endif
-int parse_host_src_port(struct sockaddr_in *haddr,
-                        struct sockaddr_in *saddr,
-                        const char *str);
-
 static CharDriverState *qemu_chr_open_udp(const char *def)
 {
     CharDriverState *chr = NULL;
@@ -4034,7 +4025,7 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
 }
 
 #ifndef _WIN32
-static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
+int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 {
     const char *p;
     int len;

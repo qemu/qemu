@@ -98,7 +98,7 @@ extern int no_quit;
 extern int semihosting_enabled;
 extern int old_param;
 extern const char *bootp_filename;
-
+extern DisplayState display_state;
 
 #ifdef USE_KQEMU
 extern int kqemu_allowed;
@@ -154,6 +154,8 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 #define MAX_PARALLEL_PORTS 3
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
+
+#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 #ifdef NEED_CPU_H
 /* loader.c */

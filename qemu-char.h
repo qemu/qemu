@@ -78,6 +78,8 @@ void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len);
 void qemu_chr_accept_input(CharDriverState *s);
 void qemu_chr_info(void);
 
+extern int term_escape_char;
+
 /* async I/O support */
 
 int qemu_set_fd_handler2(int fd,
