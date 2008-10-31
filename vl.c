@@ -8182,7 +8182,7 @@ static int main_loop(void)
                             timeout = 0;
                     }
                 } else {
-                    timeout = 10;
+                    timeout = 5000;
                 }
             } else {
                 timeout = 0;
@@ -8192,7 +8192,7 @@ static int main_loop(void)
                 ret = EXCP_INTERRUPT;
                 break;
             }
-            timeout = 10;
+            timeout = 5000;
         }
 #ifdef CONFIG_PROFILER
         ti = profile_getclock();
