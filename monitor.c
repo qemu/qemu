@@ -1469,6 +1469,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show the version of qemu" },
     { "network", "", do_info_network,
       "", "show the network state" },
+    { "chardev", "", qemu_chr_info,
+      "", "show the character devices" },
     { "block", "", do_info_block,
       "", "show the block devices" },
     { "blockstats", "", do_info_blockstats,

@@ -1,6 +1,7 @@
 #ifndef QEMU_CHAR_H
 #define QEMU_CHAR_H
 
+#include "sys-queue.h"
 /* character device */
 
 #define CHR_EVENT_BREAK 0 /* serial break char */
@@ -55,9 +56,12 @@ struct CharDriverState {
     void *opaque;
     int focus;
     QEMUBH *bh;
+    char *label;
+    char *filename;
+    TAILQ_ENTRY(CharDriverState) next;
 };
 
-CharDriverState *qemu_chr_open(const char *filename);
+CharDriverState *qemu_chr_open(const char *label, const char *filename);
 void qemu_chr_close(CharDriverState *chr);
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
 int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len);
@@ -72,6 +76,7 @@ void qemu_chr_reset(CharDriverState *s);
 int qemu_chr_can_read(CharDriverState *s);
 void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len);
 void qemu_chr_accept_input(CharDriverState *s);
+void qemu_chr_info(void);
 
 /* async I/O support */
 

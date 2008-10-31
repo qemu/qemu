@@ -2581,7 +2581,7 @@ static CharDriverState *qemu_chr_open_pty(void)
     CharDriverState *chr;
     PtyCharDriver *s;
     struct termios tty;
-    int slave_fd;
+    int slave_fd, len;
 #if defined(__OpenBSD__)
     char pty_name[PATH_MAX];
 #define q_ptsname(x) pty_name
@@ -2608,6 +2608,9 @@ static CharDriverState *qemu_chr_open_pty(void)
     tcsetattr(slave_fd, TCSAFLUSH, &tty);
     close(slave_fd);
 
+    len = strlen(q_ptsname(s->fd)) + 5;
+    chr->filename = qemu_malloc(len);
+    snprintf(chr->filename, len, "pty:%s", q_ptsname(s->fd));
     fprintf(stderr, "char device redirected to %s\n", q_ptsname(s->fd));
 
     chr->opaque = s;
@@ -3767,88 +3770,113 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     return NULL;
 }
 
-CharDriverState *qemu_chr_open(const char *filename)
+static TAILQ_HEAD(CharDriverStateHead, CharDriverState) chardevs
+= TAILQ_HEAD_INITIALIZER(chardevs);
+
+CharDriverState *qemu_chr_open(const char *label, const char *filename)
 {
     const char *p;
+    CharDriverState *chr;
 
     if (!strcmp(filename, "vc")) {
-        return text_console_init(&display_state, 0);
-    } else if (strstart(filename, "vc:", &p)) {
-        return text_console_init(&display_state, p);
-    } else if (!strcmp(filename, "null")) {
-        return qemu_chr_open_null();
+        chr = text_console_init(&display_state, 0);
+    } else
+    if (strstart(filename, "vc:", &p)) {
+        chr = text_console_init(&display_state, p);
+    } else
+    if (!strcmp(filename, "null")) {
+        chr = qemu_chr_open_null();
     } else
     if (strstart(filename, "tcp:", &p)) {
-        return qemu_chr_open_tcp(p, 0, 0);
+        chr = qemu_chr_open_tcp(p, 0, 0);
     } else
     if (strstart(filename, "telnet:", &p)) {
-        return qemu_chr_open_tcp(p, 1, 0);
+        chr = qemu_chr_open_tcp(p, 1, 0);
     } else
     if (strstart(filename, "udp:", &p)) {
-        return qemu_chr_open_udp(p);
+        chr = qemu_chr_open_udp(p);
     } else
     if (strstart(filename, "mon:", &p)) {
-        CharDriverState *drv = qemu_chr_open(p);
-        if (drv) {
-            drv = qemu_chr_open_mux(drv);
-            monitor_init(drv, !nographic);
-            return drv;
+        chr = qemu_chr_open(label, p);
+        if (chr) {
+            chr = qemu_chr_open_mux(chr);
+            monitor_init(chr, !nographic);
+        } else {
+            printf("Unable to open driver: %s\n", p);
         }
-        printf("Unable to open driver: %s\n", p);
-        return 0;
     } else
 #ifndef _WIN32
     if (strstart(filename, "unix:", &p)) {
-	return qemu_chr_open_tcp(p, 0, 1);
+	chr = qemu_chr_open_tcp(p, 0, 1);
     } else if (strstart(filename, "file:", &p)) {
-        return qemu_chr_open_file_out(p);
+        chr = qemu_chr_open_file_out(p);
     } else if (strstart(filename, "pipe:", &p)) {
-        return qemu_chr_open_pipe(p);
+        chr = qemu_chr_open_pipe(p);
     } else if (!strcmp(filename, "pty")) {
-        return qemu_chr_open_pty();
+        chr = qemu_chr_open_pty();
     } else if (!strcmp(filename, "stdio")) {
-        return qemu_chr_open_stdio();
+        chr = qemu_chr_open_stdio();
     } else
 #if defined(__linux__)
     if (strstart(filename, "/dev/parport", NULL)) {
-        return qemu_chr_open_pp(filename);
+        chr = qemu_chr_open_pp(filename);
     } else
 #endif
 #if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
     || defined(__NetBSD__) || defined(__OpenBSD__)
     if (strstart(filename, "/dev/", NULL)) {
-        return qemu_chr_open_tty(filename);
+        chr = qemu_chr_open_tty(filename);
     } else
 #endif
 #else /* !_WIN32 */
     if (strstart(filename, "COM", NULL)) {
-        return qemu_chr_open_win(filename);
+        chr = qemu_chr_open_win(filename);
     } else
     if (strstart(filename, "pipe:", &p)) {
-        return qemu_chr_open_win_pipe(p);
+        chr = qemu_chr_open_win_pipe(p);
     } else
     if (strstart(filename, "con:", NULL)) {
-        return qemu_chr_open_win_con(filename);
+        chr = qemu_chr_open_win_con(filename);
     } else
     if (strstart(filename, "file:", &p)) {
-        return qemu_chr_open_win_file_out(p);
+        chr = qemu_chr_open_win_file_out(p);
     } else
 #endif
 #ifdef CONFIG_BRLAPI
     if (!strcmp(filename, "braille")) {
-        return chr_baum_init();
+        chr = chr_baum_init();
     } else
 #endif
     {
-        return NULL;
+        chr = NULL;
     }
+
+    if (chr) {
+        if (!chr->filename)
+            chr->filename = qemu_strdup(filename);
+        chr->label = qemu_strdup(label);
+        TAILQ_INSERT_TAIL(&chardevs, chr, next);
+    }
+    return chr;
 }
 
 void qemu_chr_close(CharDriverState *chr)
 {
+    TAILQ_REMOVE(&chardevs, chr, next);
     if (chr->chr_close)
         chr->chr_close(chr);
+    qemu_free(chr->filename);
+    qemu_free(chr->label);
     qemu_free(chr);
+}
+
+void qemu_chr_info(void)
+{
+    CharDriverState *chr;
+
+    TAILQ_FOREACH(chr, &chardevs, next) {
+        term_printf("%s: filename=%s\n", chr->label, chr->filename);
+    }
 }
 
 /***********************************************************/
@@ -9689,7 +9717,7 @@ int main(int argc, char **argv)
         }
     }
     if (monitor_device) {
-        monitor_hd = qemu_chr_open(monitor_device);
+        monitor_hd = qemu_chr_open("monitor", monitor_device);
         if (!monitor_hd) {
             fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
             exit(1);
@@ -9700,7 +9728,9 @@ int main(int argc, char **argv)
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         const char *devname = serial_devices[i];
         if (devname && strcmp(devname, "none")) {
-            serial_hds[i] = qemu_chr_open(devname);
+            char label[32];
+            snprintf(label, sizeof(label), "serial%d", i);
+            serial_hds[i] = qemu_chr_open(label, devname);
             if (!serial_hds[i]) {
                 fprintf(stderr, "qemu: could not open serial device '%s'\n",
                         devname);
@@ -9714,7 +9744,9 @@ int main(int argc, char **argv)
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         const char *devname = parallel_devices[i];
         if (devname && strcmp(devname, "none")) {
-            parallel_hds[i] = qemu_chr_open(devname);
+            char label[32];
+            snprintf(label, sizeof(label), "parallel%d", i);
+            parallel_hds[i] = qemu_chr_open(label, devname);
             if (!parallel_hds[i]) {
                 fprintf(stderr, "qemu: could not open parallel device '%s'\n",
                         devname);

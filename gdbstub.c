@@ -1852,7 +1852,7 @@ int gdbserver_start(const char *port)
         port = gdbstub_port_name;
     }
 
-    chr = qemu_chr_open(port);
+    chr = qemu_chr_open("gdb", port);
     if (!chr)
         return -1;
 
