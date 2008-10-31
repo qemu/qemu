@@ -70,6 +70,12 @@ typedef void QEMUBHFunc(void *opaque);
 
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule(QEMUBH *bh);
+/* Bottom halfs that are scheduled from a bottom half handler are instantly
+ * invoked.  This can create an infinite loop if a bottom half handler
+ * schedules itself.  qemu_bh_schedule_idle() avoids this infinite loop by
+ * ensuring that the bottom half isn't executed until the next main loop
+ * iteration.
+ */
 void qemu_bh_schedule_idle(QEMUBH *bh);
 void qemu_bh_cancel(QEMUBH *bh);
 void qemu_bh_delete(QEMUBH *bh);
