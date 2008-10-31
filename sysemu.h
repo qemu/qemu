@@ -193,4 +193,11 @@ void do_usb_add(const char *devname);
 void do_usb_del(const char *devname);
 void usb_info(void);
 
+const char *get_opt_name(char *buf, int buf_size, const char *p);
+const char *get_opt_value(char *buf, int buf_size, const char *p);
+int get_param_value(char *buf, int buf_size,
+                    const char *tag, const char *str);
+int check_params(char *buf, int buf_size,
+                 const char * const *params, const char *str);
+
 #endif

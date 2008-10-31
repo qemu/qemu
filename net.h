@@ -69,4 +69,13 @@ uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
                              uint8_t *addrs, uint8_t *buf);
 void net_checksum_calculate(uint8_t *data, int length);
 
+/* from net.c */
+int net_client_init(const char *device, const char *p);
+int net_client_parse(const char *str);
+void net_slirp_smb(const char *exported_dir);
+void net_slirp_redir(const char *redir_str);
+void net_cleanup(void);
+int slirp_is_inited(void);
+void net_client_check(void);
+
 #endif
