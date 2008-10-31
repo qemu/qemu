@@ -1165,7 +1165,17 @@ typedef struct QCowAIOCB {
     uint64_t cluster_offset;
     uint8_t *cluster_data;
     BlockDriverAIOCB *hd_aiocb;
+    QEMUBH *bh;
 } QCowAIOCB;
+
+static void qcow_aio_read_cb(void *opaque, int ret);
+static void qcow_aio_read_bh(void *opaque)
+{
+    QCowAIOCB *acb = opaque;
+    qemu_bh_delete(acb->bh);
+    acb->bh = NULL;
+    qcow_aio_read_cb(opaque, 0);
+}
 
 static void qcow_aio_read_cb(void *opaque, int ret)
 {
@@ -1182,7 +1192,6 @@ static void qcow_aio_read_cb(void *opaque, int ret)
         return;
     }
 
- redo:
     /* post process the read buffer */
     if (!acb->cluster_offset) {
         /* nothing to do */
@@ -1223,12 +1232,30 @@ static void qcow_aio_read_cb(void *opaque, int ret)
                 if (acb->hd_aiocb == NULL)
                     goto fail;
             } else {
-                goto redo;
+		if (acb->bh) {
+		    ret = -EIO;
+		    goto fail;
+		}
+		acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
+		if (!acb->bh) {
+		    ret = -EIO;
+		    goto fail;
+		}
+		qemu_bh_schedule(acb->bh);
             }
         } else {
             /* Note: in this case, no need to wait */
             memset(acb->buf, 0, 512 * acb->n);
-            goto redo;
+	    if (acb->bh) {
+		ret = -EIO;
+		goto fail;
+	    }
+	    acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
+	    if (!acb->bh) {
+		ret = -EIO;
+		goto fail;
+	    }
+	    qemu_bh_schedule(acb->bh);
         }
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
@@ -1236,7 +1263,16 @@ static void qcow_aio_read_cb(void *opaque, int ret)
             goto fail;
         memcpy(acb->buf,
                s->cluster_cache + index_in_cluster * 512, 512 * acb->n);
-        goto redo;
+	if (acb->bh) {
+	    ret = -EIO;
+	    goto fail;
+	}
+	acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
+	if (!acb->bh) {
+	    ret = -EIO;
+	    goto fail;
+	}
+	qemu_bh_schedule(acb->bh);
     } else {
         if ((acb->cluster_offset & 511) != 0) {
             ret = -EIO;
