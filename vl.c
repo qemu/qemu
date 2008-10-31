@@ -6140,6 +6140,7 @@ int qemu_set_fd_handler(int fd,
     return qemu_set_fd_handler2(fd, NULL, fd_read, fd_write, opaque);
 }
 
+#ifdef _WIN32
 /***********************************************************/
 /* Polling handling */
 
@@ -6177,7 +6178,6 @@ void qemu_del_polling_cb(PollingFunc *func, void *opaque)
     }
 }
 
-#ifdef _WIN32
 /***********************************************************/
 /* Wait objects support */
 typedef struct WaitObjects {
@@ -7688,6 +7688,26 @@ void qemu_bh_delete(QEMUBH *bh)
     bh->deleted = 1;
 }
 
+static void qemu_bh_update_timeout(int *timeout)
+{
+    QEMUBH *bh;
+
+    for (bh = first_bh; bh; bh = bh->next) {
+        if (!bh->deleted && bh->scheduled) {
+            if (bh->idle) {
+                /* idle bottom halves will be polled at least
+                 * every 10ms */
+                *timeout = MIN(10, *timeout);
+            } else {
+                /* non-idle bottom halves will be executed
+                 * immediately */
+                *timeout = 0;
+                break;
+            }
+        }
+    }
+}
+
 /***********************************************************/
 /* machine registration */
 
@@ -7890,15 +7910,10 @@ void qemu_system_powerdown_request(void)
         cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
 }
 
-void main_loop_wait(int timeout)
-{
-    IOHandlerRecord *ioh;
-    fd_set rfds, wfds, xfds;
-    int ret, nfds;
 #ifdef _WIN32
-    int ret2, i;
-#endif
-    struct timeval tv;
+void host_main_loop_wait(int *timeout)
+{
+    int ret, ret2, i;
     PollingEntry *pe;
 
 
@@ -7907,12 +7922,11 @@ void main_loop_wait(int timeout)
     for(pe = first_polling_entry; pe != NULL; pe = pe->next) {
         ret |= pe->func(pe->opaque);
     }
-#ifdef _WIN32
     if (ret == 0) {
         int err;
         WaitObjects *w = &wait_objects;
 
-        ret = WaitForMultipleObjects(w->num, w->events, FALSE, timeout);
+        ret = WaitForMultipleObjects(w->num, w->events, FALSE, *timeout);
         if (WAIT_OBJECT_0 + 0 <= ret && ret <= WAIT_OBJECT_0 + w->num - 1) {
             if (w->func[ret - WAIT_OBJECT_0])
                 w->func[ret - WAIT_OBJECT_0](w->opaque[ret - WAIT_OBJECT_0]);
@@ -7937,7 +7951,26 @@ void main_loop_wait(int timeout)
             fprintf(stderr, "WaitForMultipleObjects error %d %d\n", ret, err);
         }
     }
+
+    *timeout = 0;
+}
+#else
+void host_main_loop_wait(int *timeout)
+{
+}
 #endif
+
+void main_loop_wait(int timeout)
+{
+    IOHandlerRecord *ioh;
+    fd_set rfds, wfds, xfds;
+    int ret, nfds;
+    struct timeval tv;
+
+    qemu_bh_update_timeout(&timeout);
+
+    host_main_loop_wait(&timeout);
+
     /* poll any events */
     /* XXX: separate device handlers from system ones */
     nfds = -1;
@@ -7961,12 +7994,9 @@ void main_loop_wait(int timeout)
         }
     }
 
-    tv.tv_sec = 0;
-#ifdef _WIN32
-    tv.tv_usec = 0;
-#else
-    tv.tv_usec = timeout * 1000;
-#endif
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+
 #if defined(CONFIG_SLIRP)
     if (slirp_inited) {
         slirp_select_fill(&nfds, &rfds, &wfds, &xfds);

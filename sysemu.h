@@ -58,6 +58,7 @@ int qemu_savevm_state_complete(QEMUFile *f);
 int qemu_savevm_state(QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
 
+#ifdef _WIN32
 /* Polling handling */
 
 /* return TRUE if no sleep should be done afterwards */
@@ -66,7 +67,6 @@ typedef int PollingFunc(void *opaque);
 int qemu_add_polling_cb(PollingFunc *func, void *opaque);
 void qemu_del_polling_cb(PollingFunc *func, void *opaque);
 
-#ifdef _WIN32
 /* Wait objects handling */
 typedef void WaitObjectFunc(void *opaque);
 
