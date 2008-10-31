@@ -78,6 +78,8 @@ enum {
 
 };
 
+static void DMA_run (void);
+
 static int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
 
 static void write_page (void *opaque, uint32_t nport, uint32_t data)
@@ -214,6 +216,7 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
             d->status &= ~(1 << (ichan + 4));
         }
         d->status &= ~(1 << ichan);
+        DMA_run();
         break;
 
     case 0x0a:                  /* single mask */
@@ -221,6 +224,7 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
             d->mask |= 1 << (data & 3);
         else
             d->mask &= ~(1 << (data & 3));
+        DMA_run();
         break;
 
     case 0x0b:                  /* mode */
@@ -255,10 +259,12 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 
     case 0x0e:                  /* clear mask for all channels */
         d->mask = 0;
+        DMA_run();
         break;
 
     case 0x0f:                  /* write mask for all channels */
         d->mask = data;
+        DMA_run();
         break;
 
     default:
@@ -310,6 +316,7 @@ void DMA_hold_DREQ (int nchan)
     ichan = nchan & 3;
     linfo ("held cont=%d chan=%d\n", ncont, ichan);
     dma_controllers[ncont].status |= 1 << (ichan + 4);
+    DMA_run();
 }
 
 void DMA_release_DREQ (int nchan)
@@ -320,6 +327,7 @@ void DMA_release_DREQ (int nchan)
     ichan = nchan & 3;
     linfo ("released cont=%d chan=%d\n", ncont, ichan);
     dma_controllers[ncont].status &= ~(1 << (ichan + 4));
+    DMA_run();
 }
 
 static void channel_run (int ncont, int ichan)
@@ -347,10 +355,13 @@ static void channel_run (int ncont, int ichan)
     ldebug ("dma_pos %d size %d\n", n, (r->base[COUNT] + 1) << ncont);
 }
 
-void DMA_run (void)
+static QEMUBH *dma_bh;
+
+static void DMA_run (void)
 {
     struct dma_cont *d;
     int icont, ichan;
+    int rearm = 0;
 
     d = dma_controllers;
 
@@ -360,10 +371,20 @@ void DMA_run (void)
 
             mask = 1 << ichan;
 
-            if ((0 == (d->mask & mask)) && (0 != (d->status & (mask << 4))))
+            if ((0 == (d->mask & mask)) && (0 != (d->status & (mask << 4)))) {
                 channel_run (icont, ichan);
+                rearm = 1;
+            }
         }
     }
+
+    if (rearm)
+        qemu_bh_schedule_idle(dma_bh);
+}
+
+static void DMA_run_bh(void *unused)
+{
+    DMA_run();
 }
 
 void DMA_register_channel (int nchan,
@@ -534,6 +555,9 @@ static int dma_load (QEMUFile *f, void *opaque, int version_id)
         qemu_get_8s (f, &r->dack);
         qemu_get_8s (f, &r->eop);
     }
+
+    DMA_run();
+
     return 0;
 }
 
@@ -545,4 +569,6 @@ void DMA_init (int high_page_enable)
               high_page_enable ? 0x488 : -1);
     register_savevm ("dma", 0, 1, dma_save, dma_load, &dma_controllers[0]);
     register_savevm ("dma", 1, 1, dma_save, dma_load, &dma_controllers[1]);
+
+    dma_bh = qemu_bh_new(DMA_run_bh, NULL);
 }

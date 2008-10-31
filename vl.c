@@ -7983,8 +7983,6 @@ void main_loop_wait(int timeout)
         if (likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
         qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
                         qemu_get_clock(vm_clock));
-        /* run dma transfers, if any */
-        DMA_run();
     }
 
     /* real time timers */

@@ -35,11 +35,6 @@
 #define BIOS_FILENAME "shix_bios.bin"
 #define BIOS_ADDRESS 0xA0000000
 
-void DMA_run(void)
-{
-    /* XXXXX */
-}
-
 void irq_info(void)
 {
     /* XXXXX */

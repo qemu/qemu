@@ -24,6 +24,8 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include "hw.h"
+#include "qemu-common.h"
+#include "sysemu.h"
 
 #include "etraxfs_dma.h"
 
@@ -190,6 +192,8 @@ struct fs_dma_ctrl
 
 	int nr_channels;
 	struct fs_dma_channel *channels;
+
+        QEMUBH *bh;
 };
 
 static inline uint32_t channel_reg(struct fs_dma_ctrl *ctrl, int c, int reg)
@@ -712,11 +716,12 @@ void etraxfs_dmac_connect_client(void *opaque, int c,
 }
 
 
-static void *etraxfs_dmac;
-void DMA_run(void)
+static void DMA_run(void *opaque)
 {
-	if (etraxfs_dmac)
-		etraxfs_dmac_run(etraxfs_dmac);
+    struct fs_dma_ctrl *etraxfs_dmac = opaque;
+    if (vm_running)
+        etraxfs_dmac_run(etraxfs_dmac);
+    qemu_bh_schedule_idle(etraxfs_dmac->bh);
 }
 
 void *etraxfs_dmac_init(CPUState *env, 
@@ -728,6 +733,9 @@ void *etraxfs_dmac_init(CPUState *env,
 	ctrl = qemu_mallocz(sizeof *ctrl);
 	if (!ctrl)
 		return NULL;
+
+        ctrl->bh = qemu_bh_new(DMA_run, ctrl);
+        qemu_bh_schedule_idle(ctrl->bh);
 
 	ctrl->base = base;
 	ctrl->env = env;
@@ -747,8 +755,6 @@ void *etraxfs_dmac_init(CPUState *env,
 					      ctrl->channels[i].regmap);
 	}
 
-	/* Hax, we only support one DMA controller at a time.  */
-	etraxfs_dmac = ctrl;
 	return ctrl;
   err:
 	qemu_free(ctrl->channels);

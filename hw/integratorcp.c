@@ -15,10 +15,6 @@
 #include "arm-misc.h"
 #include "net.h"
 
-void DMA_run (void)
-{
-}
-
 typedef struct {
     uint32_t flash_offset;
     uint32_t cm_osc;

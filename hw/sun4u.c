@@ -79,7 +79,6 @@ int DMA_write_memory (int nchan, void *buf, int pos, int size)
 void DMA_hold_DREQ (int nchan) {}
 void DMA_release_DREQ (int nchan) {}
 void DMA_schedule(int nchan) {}
-void DMA_run (void) {}
 void DMA_init (int high_page_enable) {}
 void DMA_register_channel (int nchan,
                            DMA_transfer_handler transfer_handler,
