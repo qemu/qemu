@@ -222,25 +222,19 @@ target_ulong helper_srad (target_ulong value, target_ulong shift)
 
 target_ulong helper_popcntb (target_ulong val)
 {
-    uint32_t ret;
-    int i;
-
-    ret = 0;
-    for (i = 0; i < 32; i += 8)
-        ret |= ctpop8((val >> i) & 0xFF) << i;
-    return ret;
+    val = (val & 0x55555555) + ((val >>  1) & 0x55555555);
+    val = (val & 0x33333333) + ((val >>  2) & 0x33333333);
+    val = (val & 0x0f0f0f0f) + ((val >>  4) & 0x0f0f0f0f);
+    return val;
 }
 
 #if defined(TARGET_PPC64)
 target_ulong helper_popcntb_64 (target_ulong val)
 {
-    uint64_t ret;
-    int i;
-
-    ret = 0;
-    for (i = 0; i < 64; i += 8)
-        ret |= ctpop8((val >> i) & 0xFF) << i;
-    return ret;
+    val = (val & 0x5555555555555555ULL) + ((val >>  1) & 0x5555555555555555ULL);
+    val = (val & 0x3333333333333333ULL) + ((val >>  2) & 0x3333333333333333ULL);
+    val = (val & 0x0f0f0f0f0f0f0f0fULL) + ((val >>  4) & 0x0f0f0f0f0f0f0f0fULL);
+    return val;
 }
 #endif
 
