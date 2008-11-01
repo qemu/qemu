@@ -3255,7 +3255,7 @@ static void ar7_serial_init(CPUState * env)
      */
     unsigned uart_index;
     if (serial_hds[1] == 0) {
-        serial_hds[1] = qemu_chr_open("vc:80Cx24C");
+        serial_hds[1] = qemu_chr_open("serial1", "vc:80Cx24C");
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     for (uart_index = 0; uart_index < 2; uart_index++) {
@@ -3450,22 +3450,20 @@ static void ar7_display_event(void *opaque, int event)
     //~ if (event == CHR_EVENT_BREAK)
 }
 
-static void ar7_display_init(CPUState *env, const char *devname)
+static void ar7_display_init(CPUState *env)
 {
-    ar7.gpio_display = qemu_chr_open(devname);
+    ar7.gpio_display = qemu_chr_open("gpio", "vc:400x300");
     qemu_chr_add_handlers(ar7.gpio_display, ar7_display_can_receive,
                           ar7_display_receive, ar7_display_event, 0);
-    if (!strcmp(devname, "vc")) {
-        qemu_chr_printf(ar7.gpio_display,
-                        "\e[1;1HGPIO Status"
-                        "\e[2;1H0         1         2         3"
-                        "\e[3;1H01234567890123456789012345678901"
-                        "\e[10;1H* lan * wlan * online * dsl * power"
-                        "\e[12;1HPress 'r' to toggle the reset button");
-        ar7_gpio_display();
-    }
+    qemu_chr_printf(ar7.gpio_display,
+                    "\e[1;1HGPIO Status"
+                    "\e[2;1H0         1         2         3"
+                    "\e[3;1H01234567890123456789012345678901"
+                    "\e[10;1H* lan * wlan * online * dsl * power"
+                    "\e[12;1HPress 'r' to toggle the reset button");
+    ar7_gpio_display();
 
-    malta_display.display = qemu_chr_open("vc:320x200");
+    malta_display.display = qemu_chr_open("led display", "vc:320x200");
     qemu_chr_printf(malta_display.display, "\e[HMalta LEDBAR\r\n");
     qemu_chr_printf(malta_display.display, "+--------+\r\n");
     qemu_chr_printf(malta_display.display, "+        +\r\n");
@@ -3551,7 +3549,7 @@ static void ar7_init(CPUState * env)
     ar7.cpu_env = env;
 
     ar7_serial_init(env);
-    ar7_display_init(env, "vc");
+    ar7_display_init(env);
     ar7_nic_init();
     vlynq_tnetw1130_init();
 
