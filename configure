@@ -98,6 +98,7 @@ oss_lib=""
 vnc_tls="yes"
 bsd="no"
 linux="no"
+solaris="no"
 kqemu="no"
 profiler="no"
 cocoa="no"
@@ -368,8 +369,10 @@ if test "$werror" = "yes" ; then
 CFLAGS="$CFLAGS -Werror"
 fi
 
-if ld --version 2>/dev/null | grep -q "GNU ld" ; then
-    LDFLAGS="$LDFLAGS -Wl,--warn-common"
+if test "$solaris" = "no" ; then
+    if ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
+        LDFLAGS="$LDFLAGS -Wl,--warn-common"
+    fi
 fi
 
 #
