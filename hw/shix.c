@@ -35,11 +35,6 @@
 #define BIOS_FILENAME "shix_bios.bin"
 #define BIOS_ADDRESS 0xA0000000
 
-void DMA_run(void)
-{
-    /* XXXXX */
-}
-
 void irq_info(void)
 {
     /* XXXXX */
@@ -112,5 +107,4 @@ QEMUMachine shix_machine = {
     .desc = "shix card",
     .init = shix_init,
     .ram_require = (0x00004000 + 0x01000000 + 0x01000000) | RAMSIZE_FIXED,
-    .max_cpus = 1,
 };

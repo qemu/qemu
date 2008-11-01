@@ -521,6 +521,8 @@ USBDevice *usb_serial_init(const char *filename)
     USBSerialState *s;
     CharDriverState *cdrv;
     unsigned short vendorid = 0x0403, productid = 0x6001;
+    char label[32];
+    static int index;
 
     while (*filename && *filename != ':') {
         const char *p;
@@ -555,7 +557,8 @@ USBDevice *usb_serial_init(const char *filename)
     if (!s)
         return NULL;
 
-    cdrv = qemu_chr_open(filename);
+    snprintf(label, sizeof(label), "usbserial%d", index++);
+    cdrv = qemu_chr_open(label, filename);
     if (!cdrv)
         goto fail;
     s->cs = cdrv;

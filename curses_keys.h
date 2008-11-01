@@ -192,7 +192,7 @@ static const int curses2keycode[CURSES_KEYS] = {
     [0x014] = 20 | CNTRL, /* Control + t */
     [0x019] = 21 | CNTRL, /* Control + y */
     [0x015] = 22 | CNTRL, /* Control + u */
-    [0x009] = 23 | CNTRL, /* Control + i */
+    /* Control + i collides with Tab */
     [0x00f] = 24 | CNTRL, /* Control + o */
     [0x010] = 25 | CNTRL, /* Control + p */
 

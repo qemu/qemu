@@ -152,6 +152,7 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 }
 
 
+#define __NR_sys_exit __NR_exit
 #define __NR_sys_uname __NR_uname
 #define __NR_sys_faccessat __NR_faccessat
 #define __NR_sys_fchmodat __NR_fchmodat
@@ -193,6 +194,7 @@ static int gettid(void) {
     return -ENOSYS;
 }
 #endif
+_syscall1(int,sys_exit,int,status)
 _syscall1(int,sys_uname,struct new_utsname *,buf)
 #if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
 _syscall4(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode,int,flags)
@@ -1062,7 +1064,7 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
 {
     struct target_iovec *target_vec;
     abi_ulong base;
-    int i, j;
+    int i;
 
     target_vec = lock_user(VERIFY_READ, target_addr, count * sizeof(struct target_iovec), 1);
     if (!target_vec)
@@ -1072,8 +1074,8 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
         vec[i].iov_len = tswapl(target_vec[i].iov_len);
         if (vec[i].iov_len != 0) {
             vec[i].iov_base = lock_user(type, base, vec[i].iov_len, copy);
-            if (!vec[i].iov_base && vec[i].iov_len) 
-                goto fail;
+            /* Don't check lock_user return value. We must call writev even
+               if a element has invalid base address. */
         } else {
             /* zero length pointer is ignored */
             vec[i].iov_base = NULL;
@@ -1081,14 +1083,6 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
     }
     unlock_user (target_vec, target_addr, 0);
     return 0;
- fail:
-    /* failure - unwind locks */
-    for (j = 0; j < i; j++) {
-        base = tswapl(target_vec[j].iov_base);
-        unlock_user(vec[j].iov_base, base, 0);
-    }
-    unlock_user (target_vec, target_addr, 0);
-    return -TARGET_EFAULT;
 }
 
 static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
@@ -1102,8 +1096,10 @@ static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     if (!target_vec)
         return -TARGET_EFAULT;
     for(i = 0;i < count; i++) {
-        base = tswapl(target_vec[i].iov_base);
-        unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
+        if (target_vec[i].iov_base) {
+            base = tswapl(target_vec[i].iov_base);
+            unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
+        }
     }
     unlock_user (target_vec, target_addr, 0);
 
@@ -1164,7 +1160,7 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
 static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
                                int flags, int send)
 {
-    abi_long ret;
+    abi_long ret, len;
     struct target_msghdr *msgp;
     struct msghdr msg;
     int count;
@@ -1203,8 +1199,12 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
             ret = get_errno(sendmsg(fd, &msg, flags));
     } else {
         ret = get_errno(recvmsg(fd, &msg, flags));
-        if (!is_error(ret))
+        if (!is_error(ret)) {
+            len = ret;
             ret = host_to_target_cmsg(msgp, &msg);
+            if (!is_error(ret))
+                ret = len;
+        }
     }
     unlock_iovec(vec, target_vec, count, !send);
     unlock_user_struct(msgp, target_msg, send ? 0 : 1);
@@ -3395,7 +3395,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
         gdb_exit(cpu_env, arg1);
         /* XXX: should free thread stack and CPU env */
-        _exit(arg1);
+        sys_exit(arg1);
         ret = 0; /* avoid warning */
         break;
     case TARGET_NR_read:

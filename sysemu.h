@@ -58,6 +58,7 @@ int qemu_savevm_state_complete(QEMUFile *f);
 int qemu_savevm_state(QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
 
+#ifdef _WIN32
 /* Polling handling */
 
 /* return TRUE if no sleep should be done afterwards */
@@ -66,7 +67,6 @@ typedef int PollingFunc(void *opaque);
 int qemu_add_polling_cb(PollingFunc *func, void *opaque);
 void qemu_del_polling_cb(PollingFunc *func, void *opaque);
 
-#ifdef _WIN32
 /* Wait objects handling */
 typedef void WaitObjectFunc(void *opaque);
 
@@ -98,7 +98,7 @@ extern int no_quit;
 extern int semihosting_enabled;
 extern int old_param;
 extern const char *bootp_filename;
-
+extern DisplayState display_state;
 
 #ifdef USE_KQEMU
 extern int kqemu_allowed;
@@ -155,6 +155,8 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
+#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
+
 #ifdef NEED_CPU_H
 /* loader.c */
 int get_image_size(const char *filename);
@@ -190,5 +192,12 @@ extern struct soundhw soundhw[];
 void do_usb_add(const char *devname);
 void do_usb_del(const char *devname);
 void usb_info(void);
+
+const char *get_opt_name(char *buf, int buf_size, const char *p);
+const char *get_opt_value(char *buf, int buf_size, const char *p);
+int get_param_value(char *buf, int buf_size,
+                    const char *tag, const char *str);
+int check_params(char *buf, int buf_size,
+                 const char * const *params, const char *str);
 
 #endif

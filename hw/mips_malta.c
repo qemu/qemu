@@ -454,7 +454,7 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
     cpu_register_physical_memory(base, 0x900, malta);
     cpu_register_physical_memory(base + 0xa00, 0x100000 - 0xa00, malta);
 
-    s->display = qemu_chr_open("vc:320x200");
+    s->display = qemu_chr_open("fpga", "vc:320x200");
     qemu_chr_printf(s->display, "\e[HMalta LEDBAR\r\n");
     qemu_chr_printf(s->display, "+--------+\r\n");
     qemu_chr_printf(s->display, "+        +\r\n");
@@ -465,7 +465,7 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
     qemu_chr_printf(s->display, "+        +\r\n");
     qemu_chr_printf(s->display, "+--------+\r\n");
 
-    uart_chr = qemu_chr_open("vc:80Cx24C");
+    uart_chr = qemu_chr_open("cbus", "vc:80Cx24C");
     qemu_chr_printf(uart_chr, "CBUS UART\r\n");
     s->uart =
         serial_mm_init(base + 0x900, 3, env->irq[2], 230400, uart_chr, 1);
@@ -951,7 +951,7 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     i8042_init(i8259[1], i8259[12], 0x60);
     rtc_state = rtc_init(0x70, i8259[8]);
     if (serial_hds[1] == 0) {
-        serial_hds[1] = qemu_chr_open("vc");
+        serial_hds[1] = qemu_chr_open("serial1", "vc");
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     if (serial_hds[0])
@@ -988,7 +988,6 @@ QEMUMachine mips_malta_machine = {
     .init = mips_malta_init,
     .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
     .nodisk_ok = 1,
-    .max_cpus = 1,
 };
 
 

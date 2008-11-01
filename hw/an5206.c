@@ -24,10 +24,6 @@ void irq_info(void)
 {
 }
 
-void DMA_run (void)
-{
-}
-
 /* Board init.  */
 
 static void an5206_init(ram_addr_t ram_size, int vga_ram_size,
@@ -92,5 +88,4 @@ QEMUMachine an5206_machine = {
     .desc = "Arnewsh 5206",
     .init = an5206_init,
     .ram_require = 512,
-    .max_cpus = 1,
 };

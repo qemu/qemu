@@ -202,5 +202,4 @@ QEMUMachine realview_machine = {
     .init = realview_init,
     .ram_require = 0x1000,
     .use_scsi = 1,
-    .max_cpus = 1,
 };

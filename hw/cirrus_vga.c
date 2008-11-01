@@ -785,15 +785,14 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
 
 static int cirrus_bitblt_videotovideo_copy(CirrusVGAState * s)
 {
+    if (BLTUNSAFE(s))
+        return 0;
+
     if (s->ds->dpy_copy) {
 	cirrus_do_copy(s, s->cirrus_blt_dstaddr - s->start_addr,
 		       s->cirrus_blt_srcaddr - s->start_addr,
 		       s->cirrus_blt_width, s->cirrus_blt_height);
     } else {
-
-    if (BLTUNSAFE(s))
-        return 0;
-
 	(*s->cirrus_rop) (s, s->vram_ptr +
                 (s->cirrus_blt_dstaddr & s->cirrus_addr_mask),
 			  s->vram_ptr +

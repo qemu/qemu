@@ -20,17 +20,8 @@
  */
 #include "dyngen-exec.h"
 
-#if 1
 register struct CPUCRISState *env asm(AREG0);
-/* This is only used for tb lookup.  */
-register uint32_t T0 asm(AREG1);
-register uint32_t T1 asm(AREG2);
-#else
-struct CPUCRISState *env;
-/* This is only used for tb lookup.  */
-uint32_t T0;
-uint32_t T1;
-#endif
+
 #include "cpu.h"
 #include "exec-all.h"
 

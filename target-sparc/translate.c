@@ -298,7 +298,7 @@ static inline void gen_cc_NZ_icc(TCGv dst)
     tcg_gen_brcondi_tl(TCG_COND_NE, r_temp, 0, l1);
     tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_ZERO);
     gen_set_label(l1);
-    tcg_gen_ext_i32_tl(r_temp, dst);
+    tcg_gen_ext32s_tl(r_temp, dst);
     tcg_gen_brcondi_tl(TCG_COND_GE, r_temp, 0, l2);
     tcg_gen_ori_i32(cpu_psr, cpu_psr, PSR_NEG);
     gen_set_label(l2);
@@ -746,8 +746,8 @@ static inline void gen_op_umul(TCGv dst, TCGv src1, TCGv src2)
     r_temp = tcg_temp_new(TCG_TYPE_I64);
     r_temp2 = tcg_temp_new(TCG_TYPE_I64);
 
-    tcg_gen_extu_i32_i64(r_temp, src2);
-    tcg_gen_extu_i32_i64(r_temp2, src1);
+    tcg_gen_extu_tl_i64(r_temp, src2);
+    tcg_gen_extu_tl_i64(r_temp2, src1);
     tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
 
     tcg_gen_shri_i64(r_temp, r_temp2, 32);
@@ -769,8 +769,8 @@ static inline void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
     r_temp = tcg_temp_new(TCG_TYPE_I64);
     r_temp2 = tcg_temp_new(TCG_TYPE_I64);
 
-    tcg_gen_ext_i32_i64(r_temp, src2);
-    tcg_gen_ext_i32_i64(r_temp2, src1);
+    tcg_gen_ext_tl_i64(r_temp, src2);
+    tcg_gen_ext_tl_i64(r_temp2, src1);
     tcg_gen_mul_i64(r_temp2, r_temp, r_temp2);
 
     tcg_gen_shri_i64(r_temp, r_temp2, 32);
@@ -2205,9 +2205,10 @@ static void disas_sparc_insn(DisasContext * dc)
                         r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
                         tcg_gen_ld_ptr(r_tsptr, cpu_env,
                                        offsetof(CPUState, tsptr));
-                        tcg_gen_ld_tl(cpu_tmp0, r_tsptr,
+                        tcg_gen_ld_tl(cpu_tmp32, r_tsptr,
                                       offsetof(trap_state, tpc));
                         tcg_temp_free(r_tsptr);
+                        tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
                     }
                     break;
                 case 1: // tnpc
@@ -2315,7 +2316,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_IU_FEATURE(dc, HYPV);
                     if (!hypervisor(dc))
                         goto priv_insn;
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_ssr);
+                    tcg_gen_mov_tl(cpu_tmp0, cpu_ssr);
                     break;
                 case 31: // ver
                     tcg_gen_mov_tl(cpu_tmp0, cpu_ver);
@@ -3028,7 +3029,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         tcg_gen_sari_i64(cpu_dst, cpu_src1, rs2 & 0x3f);
                     } else {
                         tcg_gen_andi_i64(cpu_dst, cpu_src1, 0xffffffffULL);
-                        tcg_gen_ext_i32_i64(cpu_dst, cpu_dst);
+                        tcg_gen_ext32s_i64(cpu_dst, cpu_dst);
                         tcg_gen_sari_i64(cpu_dst, cpu_dst, rs2 & 0x1f);
                     }
                 } else {                /* register */
@@ -3040,7 +3041,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     } else {
                         tcg_gen_andi_i64(cpu_tmp0, cpu_src2, 0x1f);
                         tcg_gen_andi_i64(cpu_dst, cpu_src1, 0xffffffffULL);
-                        tcg_gen_ext_i32_i64(cpu_dst, cpu_dst);
+                        tcg_gen_ext32s_i64(cpu_dst, cpu_dst);
                         tcg_gen_sar_i64(cpu_dst, cpu_dst, cpu_tmp0);
                     }
                 }
@@ -3426,7 +3427,8 @@ static void disas_sparc_insn(DisasContext * dc)
                                     r_tsptr = tcg_temp_new(TCG_TYPE_PTR);
                                     tcg_gen_ld_ptr(r_tsptr, cpu_env,
                                                    offsetof(CPUState, tsptr));
-                                    tcg_gen_st_i32(cpu_tmp0, r_tsptr,
+                                    tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
+                                    tcg_gen_st_i32(cpu_tmp32, r_tsptr,
                                                    offsetof(trap_state, tt));
                                     tcg_temp_free(r_tsptr);
                                 }
@@ -3507,7 +3509,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                 CHECK_IU_FEATURE(dc, HYPV);
                                 if (!hypervisor(dc))
                                     goto priv_insn;
-                                tcg_gen_trunc_tl_i32(cpu_ssr, cpu_tmp0);
+                                tcg_gen_mov_tl(cpu_ssr, cpu_tmp0);
                                 break;
                             default:
                                 goto illegal_insn;
@@ -4305,9 +4307,9 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_IU_FEATURE(dc, SWAP);
                     gen_movl_reg_TN(rd, cpu_val);
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld32u(cpu_tmp32, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld32u(cpu_tmp0, cpu_addr, dc->mem_idx);
                     tcg_gen_qemu_st32(cpu_val, cpu_addr, dc->mem_idx);
-                    tcg_gen_extu_i32_tl(cpu_val, cpu_tmp32);
+                    tcg_gen_mov_tl(cpu_val, cpu_tmp0);
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
                 case 0x10:      /* load word alternate */
@@ -4452,7 +4454,8 @@ static void disas_sparc_insn(DisasContext * dc)
                 switch (xop) {
                 case 0x20:      /* load fpreg */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld32u(cpu_fpr[rd], cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld32u(cpu_tmp0, cpu_addr, dc->mem_idx);
+                    tcg_gen_trunc_tl_i32(cpu_fpr[rd], cpu_tmp0);
                     break;
                 case 0x21:      /* ldfsr, V9 ldxfsr */
 #ifdef TARGET_SPARC64
@@ -4591,7 +4594,8 @@ static void disas_sparc_insn(DisasContext * dc)
                 switch (xop) {
                 case 0x24: /* store fpreg */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_st32(cpu_fpr[rd], cpu_addr, dc->mem_idx);
+                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_fpr[rd]);
+                    tcg_gen_qemu_st32(cpu_tmp0, cpu_addr, dc->mem_idx);
                     break;
                 case 0x25: /* stfsr, V9 stxfsr */
 #ifdef TARGET_SPARC64
@@ -4599,10 +4603,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     tcg_gen_ld_i64(cpu_tmp64, cpu_env, offsetof(CPUState, fsr));
                     if (rd == 1)
                         tcg_gen_qemu_st64(cpu_tmp64, cpu_addr, dc->mem_idx);
-                    else {
-                        tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp64);
-                        tcg_gen_qemu_st32(cpu_tmp32, cpu_addr, dc->mem_idx);
-                    }
+                    else
+                        tcg_gen_qemu_st32(cpu_tmp64, cpu_addr, dc->mem_idx);
 #else
                     tcg_gen_ld_i32(cpu_tmp32, cpu_env, offsetof(CPUState, fsr));
                     tcg_gen_qemu_st32(cpu_tmp32, cpu_addr, dc->mem_idx);

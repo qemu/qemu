@@ -15,10 +15,6 @@
 #include "arm-misc.h"
 #include "net.h"
 
-void DMA_run (void)
-{
-}
-
 typedef struct {
     uint32_t flash_offset;
     uint32_t cm_osc;
@@ -544,5 +540,4 @@ QEMUMachine integratorcp_machine = {
     .desc = "ARM Integrator/CP (ARM926EJ-S)",
     .init = integratorcp_init,
     .ram_require = 0x100000,
-    .max_cpus = 1,
 };

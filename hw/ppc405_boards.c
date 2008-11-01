@@ -359,7 +359,6 @@ QEMUMachine ref405ep_machine = {
     .desc = "ref405ep",
     .init = ref405ep_init,
     .ram_require = (128 * 1024 * 1024 + 4096 + 512 * 1024 + BIOS_SIZE) | RAMSIZE_FIXED,
-    .max_cpus = 1,
 };
 
 /*****************************************************************************/

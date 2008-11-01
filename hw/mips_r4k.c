@@ -322,7 +322,6 @@ static QEMUMachine mips_machines[] = {
     .init = mips_r4k_init,
     .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
     .nodisk_ok = 1,
-    .max_cpus = 1,
   },
   {
     .name = "mipsel",

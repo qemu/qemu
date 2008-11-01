@@ -28,9 +28,15 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #define socket_error() errno
 #define closesocket(s) close(s)
 
+int parse_unix_path(struct sockaddr_un *uaddr, const char *str);
+
 #endif /* !_WIN32 */
 
 void socket_set_nonblock(int fd);
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
+int parse_host_src_port(struct sockaddr_in *haddr,
+                        struct sockaddr_in *saddr,
+                        const char *str);
+int send_all(int fd, const uint8_t *buf, int len1);
 
 #endif /* QEMU_SOCKET_H */

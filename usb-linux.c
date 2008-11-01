@@ -788,7 +788,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
 {
     uint8_t *descriptors;
     uint8_t devep, type, configuration, alt_interface;
-    struct usbdevfs_ctrltransfer ct;
+    struct usb_ctrltransfer ct;
     int interface, ret, length, i;
 
     ct.bRequestType = USB_DIR_IN;

@@ -344,7 +344,7 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
         if ((end_name - p_name) > sizeof (s->hd->backing_file) - 1)
             return -1;
 
-        pstrcpy(s->hd->backing_file, end_name - p_name, p_name);
+        pstrcpy(s->hd->backing_file, end_name - p_name + 1, p_name);
         if (stat(s->hd->backing_file, &file_buf) != 0) {
             path_combine(parent_img_name, sizeof(parent_img_name),
                          filename, s->hd->backing_file);
