@@ -61,38 +61,6 @@ void do_store_fpscr (uint32_t mask);
 target_ulong ppc_load_dump_spr (int sprn);
 void ppc_store_dump_spr (int sprn, target_ulong val);
 
-/* Integer arithmetic helpers */
-void do_adde (void);
-void do_addmeo (void);
-void do_divwo (void);
-void do_divwuo (void);
-void do_mullwo (void);
-void do_nego (void);
-void do_subfe (void);
-void do_subfmeo (void);
-void do_subfzeo (void);
-void do_cntlzw (void);
-#if defined(TARGET_PPC64)
-void do_cntlzd (void);
-#endif
-void do_sraw (void);
-#if defined(TARGET_PPC64)
-void do_adde_64 (void);
-void do_addmeo_64 (void);
-void do_divdo (void);
-void do_divduo (void);
-void do_mulldo (void);
-void do_nego_64 (void);
-void do_subfe_64 (void);
-void do_subfmeo_64 (void);
-void do_subfzeo_64 (void);
-void do_srad (void);
-#endif
-void do_popcntb (void);
-#if defined(TARGET_PPC64)
-void do_popcntb_64 (void);
-#endif
-
 /* Floating-point arithmetic helpers */
 void do_compute_fprf (int set_class);
 #ifdef CONFIG_SOFTFLOAT

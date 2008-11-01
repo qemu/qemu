@@ -8,6 +8,12 @@ DEF_HELPER(uint32_t, helper_fcmpu, (void))
 DEF_HELPER(uint32_t, helper_load_cr, (void))
 DEF_HELPER(void, helper_store_cr, (target_ulong, uint32_t))
 
+#if defined(TARGET_PPC64)
+DEF_HELPER(uint64_t, helper_mulhd, (uint64_t, uint64_t))
+DEF_HELPER(uint64_t, helper_mulhdu, (uint64_t, uint64_t))
+DEF_HELPER(uint64_t, helper_mulldo, (uint64_t, uint64_t))
+#endif
+
 DEF_HELPER(target_ulong, helper_cntlzw, (target_ulong t))
 DEF_HELPER(target_ulong, helper_popcntb, (target_ulong val))
 DEF_HELPER(target_ulong, helper_sraw, (target_ulong, target_ulong))

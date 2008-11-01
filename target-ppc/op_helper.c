@@ -113,258 +113,39 @@ void ppc_store_dump_spr (int sprn, target_ulong val)
 
 /*****************************************************************************/
 /* Fixed point operations helpers */
-void do_adde (void)
-{
-    T2 = T0;
-    T0 += T1 + xer_ca;
-    if (likely(!((uint32_t)T0 < (uint32_t)T2 ||
-                 (xer_ca == 1 && (uint32_t)T0 == (uint32_t)T2)))) {
-        env->xer &= ~(1 << XER_CA);
-    } else {
-        env->xer |= (1 << XER_CA);
-    }
-}
-
 #if defined(TARGET_PPC64)
-void do_adde_64 (void)
-{
-    T2 = T0;
-    T0 += T1 + xer_ca;
-    if (likely(!((uint64_t)T0 < (uint64_t)T2 ||
-                 (xer_ca == 1 && (uint64_t)T0 == (uint64_t)T2)))) {
-        env->xer &= ~(1 << XER_CA);
-    } else {
-        env->xer |= (1 << XER_CA);
-    }
-}
-#endif
 
-void do_addmeo (void)
+/* multiply high word */
+uint64_t helper_mulhd (uint64_t arg1, uint64_t arg2)
 {
-    int ov;
-    T1 = T0;
-    T0 += xer_ca + (-1);
-    ov = ((uint32_t)T1 & ((uint32_t)T1 ^ (uint32_t)T0)) >> 31;
-    if (ov) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-    if (likely((uint32_t)T1 != 0))
-        env->xer |= (1 << XER_CA);
+    uint64_t tl, th;
+
+    muls64(&tl, &th, arg1, arg2);
+    return th;
 }
 
-#if defined(TARGET_PPC64)
-void do_addmeo_64 (void)
+/* multiply high word unsigned */
+uint64_t helper_mulhdu (uint64_t arg1, uint64_t arg2)
 {
-    int ov;
-    T1 = T0;
-    T0 += xer_ca + (-1);
-    ov = ((uint64_t)T1 & ((uint64_t)T1 ^ (uint64_t)T0)) >> 63;
-    if (ov) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-    if (likely((uint64_t)T1 != 0))
-        env->xer |= (1 << XER_CA);
-}
-#endif
+    uint64_t tl, th;
 
-void do_divwo (void)
-{
-    if (likely(!(((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-                 (int32_t)T1 == 0))) {
-        env->xer &= ~(1 << XER_OV);
-        T0 = (int32_t)T0 / (int32_t)T1;
-    } else {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
-    }
+    mulu64(&tl, &th, arg1, arg2);
+    return th;
 }
 
-#if defined(TARGET_PPC64)
-void do_divdo (void)
-{
-    if (likely(!(((int64_t)T0 == INT64_MIN && (int64_t)T1 == (int64_t)-1LL) ||
-                 (int64_t)T1 == 0))) {
-        env->xer &= ~(1 << XER_OV);
-        T0 = (int64_t)T0 / (int64_t)T1;
-    } else {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-        T0 = UINT64_MAX * ((uint64_t)T0 >> 63);
-    }
-}
-#endif
-
-void do_divwuo (void)
-{
-    if (likely((uint32_t)T1 != 0)) {
-        env->xer &= ~(1 << XER_OV);
-        T0 = (uint32_t)T0 / (uint32_t)T1;
-    } else {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-        T0 = 0;
-    }
-}
-
-#if defined(TARGET_PPC64)
-void do_divduo (void)
-{
-    if (likely((uint64_t)T1 != 0)) {
-        env->xer &= ~(1 << XER_OV);
-        T0 = (uint64_t)T0 / (uint64_t)T1;
-    } else {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-        T0 = 0;
-    }
-}
-#endif
-
-void do_mullwo (void)
-{
-    int64_t res = (int64_t)(int32_t)T0 * (int64_t)(int32_t)T1;
-
-    if (likely((int32_t)res == res)) {
-        env->xer &= ~(1 << XER_OV);
-    } else {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    }
-    T0 = (int32_t)res;
-}
-
-#if defined(TARGET_PPC64)
-void do_mulldo (void)
+uint64_t helper_mulldo (uint64_t arg1, uint64_t arg2)
 {
     int64_t th;
     uint64_t tl;
 
-    muls64(&tl, (uint64_t *)&th, T0, T1);
-    T0 = (int64_t)tl;
+    muls64(&tl, (uint64_t *)&th, arg1, arg2);
     /* If th != 0 && th != -1, then we had an overflow */
     if (likely((uint64_t)(th + 1) <= 1)) {
         env->xer &= ~(1 << XER_OV);
     } else {
         env->xer |= (1 << XER_OV) | (1 << XER_SO);
     }
-}
-#endif
-
-void do_nego (void)
-{
-    if (likely((int32_t)T0 != INT32_MIN)) {
-        env->xer &= ~(1 << XER_OV);
-        T0 = -(int32_t)T0;
-    } else {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    }
-}
-
-#if defined(TARGET_PPC64)
-void do_nego_64 (void)
-{
-    if (likely((int64_t)T0 != INT64_MIN)) {
-        env->xer &= ~(1 << XER_OV);
-        T0 = -(int64_t)T0;
-    } else {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    }
-}
-#endif
-
-void do_subfe (void)
-{
-    T0 = T1 + ~T0 + xer_ca;
-    if (likely((uint32_t)T0 >= (uint32_t)T1 &&
-               (xer_ca == 0 || (uint32_t)T0 != (uint32_t)T1))) {
-        env->xer &= ~(1 << XER_CA);
-    } else {
-        env->xer |= (1 << XER_CA);
-    }
-}
-
-#if defined(TARGET_PPC64)
-void do_subfe_64 (void)
-{
-    T0 = T1 + ~T0 + xer_ca;
-    if (likely((uint64_t)T0 >= (uint64_t)T1 &&
-               (xer_ca == 0 || (uint64_t)T0 != (uint64_t)T1))) {
-        env->xer &= ~(1 << XER_CA);
-    } else {
-        env->xer |= (1 << XER_CA);
-    }
-}
-#endif
-
-void do_subfmeo (void)
-{
-    int ov;
-    T1 = T0;
-    T0 = ~T0 + xer_ca - 1;
-    ov = ((uint32_t)~T1 & ((uint32_t)~T1 ^ (uint32_t)T0)) >> 31;
-    if (ov) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-    if (likely((uint32_t)T1 != UINT32_MAX))
-        env->xer |= (1 << XER_CA);
-}
-
-#if defined(TARGET_PPC64)
-void do_subfmeo_64 (void)
-{
-    int ov;
-    T1 = T0;
-    T0 = ~T0 + xer_ca - 1;
-    ov = ((uint64_t)~T1 & ((uint64_t)~T1 ^ (uint64_t)T0)) >> 63;
-    if (ov) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-    if (likely((uint64_t)T1 != UINT64_MAX))
-        env->xer |= (1 << XER_CA);
-}
-#endif
-
-void do_subfzeo (void)
-{
-    int ov;
-    T1 = T0;
-    T0 = ~T0 + xer_ca;
-    ov = (((uint32_t)~T1 ^ UINT32_MAX) &
-          ((uint32_t)(~T1) ^ (uint32_t)T0)) >> 31;
-    if (ov) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-    if (likely((uint32_t)T0 >= (uint32_t)~T1)) {
-        env->xer &= ~(1 << XER_CA);
-    } else {
-        env->xer |= (1 << XER_CA);
-    }
-}
-
-#if defined(TARGET_PPC64)
-void do_subfzeo_64 (void)
-{
-    int ov;
-    T1 = T0;
-    T0 = ~T0 + xer_ca;
-    ov = (((uint64_t)~T1 ^  UINT64_MAX) &
-          ((uint64_t)(~T1) ^ (uint64_t)T0)) >> 63;
-    if (ov) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-    if (likely((uint64_t)T0 >= (uint64_t)~T1)) {
-        env->xer &= ~(1 << XER_CA);
-    } else {
-        env->xer |= (1 << XER_CA);
-    }
+    return (int64_t)tl;
 }
 #endif
 
