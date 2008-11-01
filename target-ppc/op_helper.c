@@ -1510,18 +1510,6 @@ void do_op_602_mfrom (void)
 
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
-void do_405_check_sat (void)
-{
-    if (!likely((((uint32_t)T1 ^ (uint32_t)T2) >> 31) ||
-                !(((uint32_t)T0 ^ (uint32_t)T2) >> 31))) {
-        /* Saturate result */
-        if (T2 >> 31) {
-            T0 = INT32_MIN;
-        } else {
-            T0 = INT32_MAX;
-        }
-    }
-}
 
 /* XXX: to be improved to check access rights when in user-mode */
 void do_load_dcr (void)

@@ -326,34 +326,6 @@ void OPPROTO op_store_fpscr (void)
     RETURN();
 }
 
-/***                           Integer arithmetic                          ***/
-/* add */
-void OPPROTO op_check_addo (void)
-{
-    int ov = (((uint32_t)T2 ^ (uint32_t)T1 ^ UINT32_MAX) &
-              ((uint32_t)T2 ^ (uint32_t)T0)) >> 31;
-    if (ov) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_check_addo_64 (void)
-{
-    int ov = (((uint64_t)T2 ^ (uint64_t)T1 ^ UINT64_MAX) &
-              ((uint64_t)T2 ^ (uint64_t)T0)) >> 63;
-    if (ov) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-    RETURN();
-}
-#endif
-
 /***                             Integer shift                             ***/
 void OPPROTO op_srli_T1 (void)
 {
@@ -1062,73 +1034,6 @@ void OPPROTO op_602_mfrom (void)
 #endif
 
 /* PowerPC 4xx specific micro-ops */
-void OPPROTO op_405_add_T0_T2 (void)
-{
-    T0 = (int32_t)T0 + (int32_t)T2;
-    RETURN();
-}
-
-void OPPROTO op_405_mulchw (void)
-{
-    T0 = ((int16_t)T0) * ((int16_t)(T1 >> 16));
-    RETURN();
-}
-
-void OPPROTO op_405_mulchwu (void)
-{
-    T0 = ((uint16_t)T0) * ((uint16_t)(T1 >> 16));
-    RETURN();
-}
-
-void OPPROTO op_405_mulhhw (void)
-{
-    T0 = ((int16_t)(T0 >> 16)) * ((int16_t)(T1 >> 16));
-    RETURN();
-}
-
-void OPPROTO op_405_mulhhwu (void)
-{
-    T0 = ((uint16_t)(T0 >> 16)) * ((uint16_t)(T1 >> 16));
-    RETURN();
-}
-
-void OPPROTO op_405_mullhw (void)
-{
-    T0 = ((int16_t)T0) * ((int16_t)T1);
-    RETURN();
-}
-
-void OPPROTO op_405_mullhwu (void)
-{
-    T0 = ((uint16_t)T0) * ((uint16_t)T1);
-    RETURN();
-}
-
-void OPPROTO op_405_check_sat (void)
-{
-    do_405_check_sat();
-    RETURN();
-}
-
-void OPPROTO op_405_check_ovu (void)
-{
-    if (likely(T0 >= T2)) {
-        env->xer &= ~(1 << XER_OV);
-    } else {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    }
-    RETURN();
-}
-
-void OPPROTO op_405_check_satu (void)
-{
-    if (unlikely(T0 < T2)) {
-        /* Saturate result */
-        T0 = UINT32_MAX;
-    }
-    RETURN();
-}
-
 void OPPROTO op_load_dcr (void)
 {
     do_load_dcr();
