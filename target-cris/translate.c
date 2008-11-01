@@ -951,7 +951,7 @@ static void cris_alu(DisasContext *dc, int op,
 			tcg_gen_andi_tl(d, d, ~0xffff);
 		tcg_gen_or_tl(d, d, tmp);
 	}
-	if (tmp != d)
+	if (GET_TCGV(tmp) != GET_TCGV(d))
 		tcg_temp_free(tmp);
 }
 
