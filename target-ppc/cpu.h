@@ -724,8 +724,6 @@ target_ulong do_load_sr (CPUPPCState *env, int srnum);
 #endif
 void do_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
-target_ulong ppc_load_xer (CPUPPCState *env);
-void ppc_store_xer (CPUPPCState *env, target_ulong value);
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void cpu_ppc_reset (void *opaque);
