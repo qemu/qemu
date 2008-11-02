@@ -377,6 +377,13 @@ static inline void tcg_gen_sub_i32(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_gen_op3(INDEX_op_sub_i32, ret, arg1, arg2);
 }
 
+static inline void tcg_gen_subfi_i32(TCGv ret, int32_t arg1, TCGv arg2)
+{
+    TCGv t0 = tcg_const_i32(arg1);
+    tcg_gen_sub_i32(ret, t0, arg2);
+    tcg_temp_free(t0);
+}
+
 static inline void tcg_gen_subi_i32(TCGv ret, TCGv arg1, int32_t arg2)
 {
     /* some cases can be optimized here */
@@ -1063,6 +1070,13 @@ static inline void tcg_gen_muli_i64(TCGv ret, TCGv arg1, int64_t arg2)
     tcg_temp_free(t0);
 }
 
+static inline void tcg_gen_subfi_i64(TCGv ret, int64_t arg1, TCGv arg2)
+{
+    TCGv t0 = tcg_const_i64(arg1);
+    tcg_gen_sub_i64(ret, t0, arg2);
+    tcg_temp_free(t0);
+}
+
 static inline void tcg_gen_subi_i64(TCGv ret, TCGv arg1, int64_t arg2)
 {
     /* some cases can be optimized here */
@@ -1725,6 +1739,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_addi_tl tcg_gen_addi_i64
 #define tcg_gen_sub_tl tcg_gen_sub_i64
 #define tcg_gen_neg_tl tcg_gen_neg_i64
+#define tcg_gen_subfi_tl tcg_gen_subi_i64
 #define tcg_gen_subi_tl tcg_gen_subi_i64
 #define tcg_gen_and_tl tcg_gen_and_i64
 #define tcg_gen_andi_tl tcg_gen_andi_i64
@@ -1783,6 +1798,7 @@ static inline void tcg_gen_qemu_st64(TCGv arg, TCGv addr, int mem_index)
 #define tcg_gen_addi_tl tcg_gen_addi_i32
 #define tcg_gen_sub_tl tcg_gen_sub_i32
 #define tcg_gen_neg_tl tcg_gen_neg_i32
+#define tcg_gen_subfi_tl tcg_gen_subfi_i32
 #define tcg_gen_subi_tl tcg_gen_subi_i32
 #define tcg_gen_and_tl tcg_gen_and_i32
 #define tcg_gen_andi_tl tcg_gen_andi_i32
