@@ -360,6 +360,12 @@ static void secondary_cpu_reset(void *opaque)
     env->halted = 1;
 }
 
+static void cpu_halt_signal(void *opaque, int irq, int level)
+{
+    if (level && cpu_single_env)
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
+}
+
 static unsigned long sun4m_load_kernel(const char *kernel_filename,
                                        const char *initrd_filename,
                                        ram_addr_t RAM_size)
@@ -426,6 +432,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     qemu_irq *fdc_tc;
+    qemu_irq *cpu_halt;
     unsigned long prom_offset, kernel_size;
     int ret;
     char buf[1024];
@@ -547,9 +554,10 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
 
+    cpu_halt = qemu_allocate_irqs(cpu_halt_signal, NULL, 1);
     slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->apc_base,
                                    hwdef->aux1_base, hwdef->aux2_base,
-                                   slavio_irq[hwdef->me_irq], envs[0],
+                                   slavio_irq[hwdef->me_irq], cpu_halt[0],
                                    &fdc_tc);
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
@@ -1575,7 +1583,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
                        serial_hds[1], serial_hds[0]);
 
     slavio_misc = slavio_misc_init(0, -1, hwdef->aux1_base, -1,
-                                   slavio_irq[hwdef->me_irq], env, &fdc_tc);
+                                   slavio_irq[hwdef->me_irq], NULL, &fdc_tc);
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */

@@ -50,7 +50,7 @@ typedef struct MiscState {
     uint8_t diag, mctrl;
     uint32_t sysctrl;
     uint16_t leds;
-    CPUState *env;
+    qemu_irq cpu_halt;
     qemu_irq fdc_tc;
 } MiscState;
 
@@ -256,7 +256,7 @@ static void apc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     MiscState *s = opaque;
 
     MISC_DPRINTF("Write power management %2.2x\n", val & 0xff);
-    cpu_interrupt(s->env, CPU_INTERRUPT_HALT);
+    qemu_irq_raise(s->cpu_halt);
 }
 
 static uint32_t apc_mem_readb(void *opaque, target_phys_addr_t addr)
@@ -417,7 +417,7 @@ static int slavio_misc_load(QEMUFile *f, void *opaque, int version_id)
 void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
                        target_phys_addr_t aux1_base,
                        target_phys_addr_t aux2_base, qemu_irq irq,
-                       CPUState *env, qemu_irq **fdc_tc)
+                       qemu_irq cpu_halt, qemu_irq **fdc_tc)
 {
     int io;
     MiscState *s;
@@ -471,7 +471,7 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
     }
 
     s->irq = irq;
-    s->env = env;
+    s->cpu_halt = cpu_halt;
     *fdc_tc = &s->fdc_tc;
 
     register_savevm("slavio_misc", base, 1, slavio_misc_save, slavio_misc_load,
