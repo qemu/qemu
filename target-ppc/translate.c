@@ -2012,7 +2012,7 @@ GEN_HANDLER(srawi, 0x1F, 0x18, 0x19, 0x00000000, PPC_INTEGER)
 /* srw & srw. */
 GEN_HANDLER(srw, 0x1F, 0x18, 0x10, 0x00000000, PPC_INTEGER)
 {
-    TCGv temp;
+    TCGv temp, temp2;
     int l1, l2;
     l1 = gen_new_label();
     l2 = gen_new_label();
@@ -2024,8 +2024,10 @@ GEN_HANDLER(srw, 0x1F, 0x18, 0x10, 0x00000000, PPC_INTEGER)
     tcg_gen_br(l2);
     gen_set_label(l1);
     tcg_gen_andi_tl(temp, cpu_gpr[rB(ctx->opcode)], 0x3f);
-    tcg_gen_shr_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], temp);
-    tcg_gen_ext32u_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+    temp2 = tcg_temp_new(TCG_TYPE_TL);
+    tcg_gen_ext32u_tl(temp2, cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_shr_tl(cpu_gpr[rA(ctx->opcode)], temp2, temp);
+    tcg_temp_free(temp2);
     gen_set_label(l2);
     tcg_temp_free(temp);
     if (unlikely(Rc(ctx->opcode) != 0))
