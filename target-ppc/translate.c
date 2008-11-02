@@ -1747,7 +1747,7 @@ GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 GEN_HANDLER(rlwnm, 0x17, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
     uint32_t mb, me;
-    TCGv t0, t1, t2, t3;
+    TCGv t0, t1, t2;
 
     mb = MB(ctx->opcode);
     me = ME(ctx->opcode);
@@ -1757,9 +1757,7 @@ GEN_HANDLER(rlwnm, 0x17, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
     tcg_gen_ext32u_tl(t1, cpu_gpr[rS(ctx->opcode)]);
     t2 = tcg_temp_new(TCG_TYPE_TL);
     tcg_gen_shl_tl(t2, t1, t0);
-    t3 = tcg_const_tl(32);
-    tcg_gen_sub_tl(t0, t3, t0);
-    tcg_temp_free(t3);
+    tcg_gen_subfi_tl(t0, 32, t0);
     tcg_gen_shr_tl(t1, t1, t0);
     tcg_temp_free(t0);
     tcg_gen_or_tl(t2, t2, t1);
@@ -1872,7 +1870,7 @@ GEN_PPC64_R4(rldic, 0x1E, 0x04);
 static always_inline void gen_rldnm (DisasContext *ctx, uint32_t mb,
                                      uint32_t me)
 {
-    TCGv t0, t1, t2;
+    TCGv t0, t1;
 
     mb = MB(ctx->opcode);
     me = ME(ctx->opcode);
@@ -1880,9 +1878,7 @@ static always_inline void gen_rldnm (DisasContext *ctx, uint32_t mb,
     tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3f);
     t1 = tcg_temp_new(TCG_TYPE_TL);
     tcg_gen_shl_tl(t1, cpu_gpr[rS(ctx->opcode)], t0);
-    t2 = tcg_const_tl(32);
-    tcg_gen_sub_tl(t0, t2, t0);
-    tcg_temp_free(t2);
+    tcg_gen_subfi_tl(t0, 64, t0);
     tcg_gen_shr_tl(t0, cpu_gpr[rS(ctx->opcode)], t0);
     tcg_gen_or_tl(t1, t1, t0);
     tcg_temp_free(t0);
