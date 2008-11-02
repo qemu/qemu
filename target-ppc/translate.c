@@ -1959,12 +1959,11 @@ GEN_HANDLER(slw, 0x1F, 0x18, 0x00, 0x00000000, PPC_INTEGER)
     l2 = gen_new_label();
 
     t0 = tcg_temp_local_new(TCG_TYPE_TL);
-    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x20);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
+    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3f);
+    tcg_gen_brcondi_tl(TCG_COND_LT, t0, 0x20, l1);
     tcg_gen_movi_tl(cpu_gpr[rA(ctx->opcode)], 0);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3f);
     tcg_gen_shl_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], t0);
     tcg_gen_ext32u_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
     gen_set_label(l2);
@@ -2018,12 +2017,11 @@ GEN_HANDLER(srw, 0x1F, 0x18, 0x10, 0x00000000, PPC_INTEGER)
     l2 = gen_new_label();
 
     t0 = tcg_temp_local_new(TCG_TYPE_TL);
-    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x20);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
+    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3f);
+    tcg_gen_brcondi_tl(TCG_COND_LT, t0, 0x20, l1);
     tcg_gen_movi_tl(cpu_gpr[rA(ctx->opcode)], 0);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x3f);
     t1 = tcg_temp_new(TCG_TYPE_TL);
     tcg_gen_ext32u_tl(t1, cpu_gpr[rS(ctx->opcode)]);
     tcg_gen_shr_tl(cpu_gpr[rA(ctx->opcode)], t1, t0);
@@ -2043,12 +2041,11 @@ GEN_HANDLER(sld, 0x1F, 0x1B, 0x00, 0x00000000, PPC_64B)
     l2 = gen_new_label();
 
     t0 = tcg_temp_local_new(TCG_TYPE_TL);
-    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x40);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
+    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x7f);
+    tcg_gen_brcondi_tl(TCG_COND_LT, t0, 0x40, l1);
     tcg_gen_movi_tl(cpu_gpr[rA(ctx->opcode)], 0);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x7f);
     tcg_gen_shl_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], t0);
     gen_set_label(l2);
     tcg_temp_free(t0);
@@ -2106,12 +2103,11 @@ GEN_HANDLER(srd, 0x1F, 0x1B, 0x10, 0x00000000, PPC_64B)
     l2 = gen_new_label();
 
     t0 = tcg_temp_local_new(TCG_TYPE_TL);
-    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x40);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
+    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x7f);
+    tcg_gen_brcondi_tl(TCG_COND_LT, t0, 0x40, l1);
     tcg_gen_movi_tl(cpu_gpr[rA(ctx->opcode)], 0);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_andi_tl(t0, cpu_gpr[rB(ctx->opcode)], 0x7f);
     tcg_gen_shr_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], t0);
     gen_set_label(l2);
     tcg_temp_free(t0);
