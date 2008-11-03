@@ -225,7 +225,7 @@ t0=~(t1|t2)
 
 t0=t1|~t2
 
-********* Shifts
+********* Shifts/Rotates
 
 * shl_i32/i64 t0, t1, t2
 
@@ -238,6 +238,14 @@ t0=t1 >> t2 (unsigned). Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
 * sar_i32/i64 t0, t1, t2
 
 t0=t1 >> t2 (signed). Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+
+* rotl_i32/i64 t0, t1, t2
+
+Rotation of t2 bits to the left. Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+
+* rotr_i32/i64 t0, t1, t2
+
+Rotation of t2 bits to the right. Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
 
 ********* Misc
 
