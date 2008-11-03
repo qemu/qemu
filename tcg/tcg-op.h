@@ -1055,21 +1055,6 @@ static inline void tcg_gen_addi_i64(TCGv ret, TCGv arg1, int64_t arg2)
     }
 }
 
-static inline void tcg_gen_brcondi_i64(int cond, TCGv arg1, int64_t arg2, 
-                                       int label_index)
-{
-    TCGv t0 = tcg_const_i64(arg2);
-    tcg_gen_brcond_i64(cond, arg1, t0, label_index);
-    tcg_temp_free(t0);
-}
-
-static inline void tcg_gen_muli_i64(TCGv ret, TCGv arg1, int64_t arg2)
-{
-    TCGv t0 = tcg_const_i64(arg2);
-    tcg_gen_mul_i64(ret, arg1, t0);
-    tcg_temp_free(t0);
-}
-
 static inline void tcg_gen_subfi_i64(TCGv ret, int64_t arg1, TCGv arg2)
 {
     TCGv t0 = tcg_const_i64(arg1);
@@ -1088,6 +1073,21 @@ static inline void tcg_gen_subi_i64(TCGv ret, TCGv arg1, int64_t arg2)
         tcg_temp_free(t0);
     }
 }
+static inline void tcg_gen_brcondi_i64(int cond, TCGv arg1, int64_t arg2,
+                                       int label_index)
+{
+    TCGv t0 = tcg_const_i64(arg2);
+    tcg_gen_brcond_i64(cond, arg1, t0, label_index);
+    tcg_temp_free(t0);
+}
+
+static inline void tcg_gen_muli_i64(TCGv ret, TCGv arg1, int64_t arg2)
+{
+    TCGv t0 = tcg_const_i64(arg2);
+    tcg_gen_mul_i64(ret, arg1, t0);
+    tcg_temp_free(t0);
+}
+
 
 /***************************************/
 /* optional operations */
