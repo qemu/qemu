@@ -3057,9 +3057,9 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     break;
                 case 3: /* nmsc: -fd - (fn * fm)  */
                     gen_vfp_mul(dp);
-                    gen_mov_F1_vreg(dp, rd);
-                    gen_vfp_add(dp);
                     gen_vfp_neg(dp);
+                    gen_mov_F1_vreg(dp, rd);
+                    gen_vfp_sub(dp);
                     break;
                 case 4: /* mul: fn * fm */
                     gen_vfp_mul(dp);
