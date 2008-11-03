@@ -156,6 +156,7 @@ static void glue(pxa2xx_draw_line16t_, BITS)(uint32_t *palette,
         g = (data & 0x1f) << 3;
         data >>= 5;
         r = (data & 0x1f) << 3;
+        data >>= 5;
         if (data & 1)
             SKIP_PIXEL(dest);
         else
