@@ -1622,7 +1622,7 @@ static inline void tcg_gen_rotri_i64(TCGv ret, TCGv arg1, int64_t arg2)
 {
     /* some cases can be optimized here */
     if (arg2 == 0) {
-        tcg_gen_mov_i32(ret, arg1);
+        tcg_gen_mov_i64(ret, arg1);
     } else {
         tcg_gen_rotli_i64(ret, arg1, 64 - arg2);
     }
