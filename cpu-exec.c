@@ -623,6 +623,14 @@ int cpu_exec(CPUState *env1)
                 }
                 spin_unlock(&tb_lock);
                 env->current_tb = tb;
+
+                /* cpu_interrupt might be called while translating the
+                   TB, but before it is linked into a potentially
+                   infinite loop and becomes env->current_tb. Avoid
+                   starting execution if there is a pending interrupt. */
+                if (unlikely (env->interrupt_request & CPU_INTERRUPT_EXIT))
+                    env->current_tb = NULL;
+
                 while (env->current_tb) {
                     tc_ptr = tb->tc_ptr;
                 /* execute the generated code */
