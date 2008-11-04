@@ -1455,17 +1455,11 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
             if (env->insn_flags & ISA_MIPS32R2) {
                 if (uimm != 0) {
                     TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
-                    TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I32);
 
                     tcg_gen_trunc_tl_i32(r_tmp1, t0);
-                    tcg_gen_movi_i32(r_tmp2, 0x20);
-                    tcg_gen_subi_i32(r_tmp2, r_tmp2, uimm);
-                    tcg_gen_shl_i32(r_tmp2, r_tmp1, r_tmp2);
-                    tcg_gen_shri_i32(r_tmp1, r_tmp1, uimm);
-                    tcg_gen_or_i32(r_tmp1, r_tmp1, r_tmp2);
+                    tcg_gen_rotri_i32(r_tmp1, r_tmp1, uimm);
                     tcg_gen_ext_i32_tl(t0, r_tmp1);
                     tcg_temp_free(r_tmp1);
-                    tcg_temp_free(r_tmp2);
                 }
                 opn = "rotr";
             } else {
@@ -1500,14 +1494,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
             /* drotr is decoded as dsrl on non-R2 CPUs */
             if (env->insn_flags & ISA_MIPS32R2) {
                 if (uimm != 0) {
-                    TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
-
-                    tcg_gen_movi_tl(r_tmp1, 0x40);
-                    tcg_gen_subi_tl(r_tmp1, r_tmp1, uimm);
-                    tcg_gen_shl_tl(r_tmp1, t0, r_tmp1);
-                    tcg_gen_shri_tl(t0, t0, uimm);
-                    tcg_gen_or_tl(t0, t0, r_tmp1);
-                    tcg_temp_free(r_tmp1);
+                    tcg_gen_rotri_tl(t0, t0, uimm);
                 }
                 opn = "drotr";
             } else {
@@ -1538,18 +1525,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         case 1:
             /* drotr32 is decoded as dsrl32 on non-R2 CPUs */
             if (env->insn_flags & ISA_MIPS32R2) {
-                TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
-                TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
-
-                tcg_gen_movi_tl(r_tmp1, 0x40);
-                tcg_gen_movi_tl(r_tmp2, 32);
-                tcg_gen_addi_tl(r_tmp2, r_tmp2, uimm);
-                tcg_gen_sub_tl(r_tmp1, r_tmp1, r_tmp2);
-                tcg_gen_shl_tl(r_tmp1, t0, r_tmp1);
-                tcg_gen_shr_tl(t0, t0, r_tmp2);
-                tcg_gen_or_tl(t0, t0, r_tmp1);
-                tcg_temp_free(r_tmp1);
-                tcg_temp_free(r_tmp2);
+                tcg_gen_rotri_tl(t0, t0, uimm + 32);
                 opn = "drotr32";
             } else {
                 tcg_gen_shri_tl(t0, t0, uimm + 32);
@@ -1809,19 +1785,12 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
                 {
                     TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_I32);
                     TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_I32);
-                    TCGv r_tmp3 = tcg_temp_new(TCG_TYPE_I32);
 
                     tcg_gen_trunc_tl_i32(r_tmp1, t0);
                     tcg_gen_trunc_tl_i32(r_tmp2, t1);
-                    tcg_gen_movi_i32(r_tmp3, 0x20);
-                    tcg_gen_sub_i32(r_tmp3, r_tmp3, r_tmp1);
-                    tcg_gen_shl_i32(r_tmp3, r_tmp2, r_tmp3);
-                    tcg_gen_shr_i32(r_tmp1, r_tmp2, r_tmp1);
-                    tcg_gen_or_i32(r_tmp1, r_tmp1, r_tmp3);
-                    tcg_gen_ext_i32_tl(t0, r_tmp1);
+                    tcg_gen_rotr_i32(r_tmp1, r_tmp1, r_tmp2);
                     tcg_temp_free(r_tmp1);
                     tcg_temp_free(r_tmp2);
-                    tcg_temp_free(r_tmp3);
                     tcg_gen_br(l2);
                 }
                 gen_set_label(l1);
@@ -1869,14 +1838,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
                 tcg_gen_andi_tl(t0, t0, 0x3f);
                 tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
                 {
-                    TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
-
-                    tcg_gen_movi_tl(r_tmp1, 0x40);
-                    tcg_gen_sub_tl(r_tmp1, r_tmp1, t0);
-                    tcg_gen_shl_tl(r_tmp1, t1, r_tmp1);
-                    tcg_gen_shr_tl(t0, t1, t0);
-                    tcg_gen_or_tl(t0, t0, r_tmp1);
-                    tcg_temp_free(r_tmp1);
+                    tcg_gen_rotr_tl(t0, t1, t0);
                     tcg_gen_br(l2);
                 }
                 gen_set_label(l1);
