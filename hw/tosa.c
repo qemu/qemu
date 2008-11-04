@@ -25,6 +25,7 @@
 #define TOSA_GPIO_ON_RESET		(19)
 #define TOSA_GPIO_CF_IRQ		(21)	/* CF slot0 Ready */
 #define TOSA_GPIO_CF_CD			(13)
+#define TOSA_GPIO_TC6393XB_INT  (15)
 #define TOSA_GPIO_JC_CF_IRQ		(36)	/* CF slot1 Ready */
 
 #define TOSA_SCOOP_GPIO_BASE	1
@@ -131,7 +132,7 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
     cpu_register_physical_memory(0, TOSA_ROM,
                     qemu_ram_alloc(TOSA_ROM) | IO_MEM_ROM);
 
-    tc6393xb_init(0x10000000, NULL);
+    tc6393xb_init(0x10000000, pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_TC6393XB_INT]);
 
     scp0 = scoop_init(cpu, 0, 0x08800000);
     scp1 = scoop_init(cpu, 1, 0x14800040);
