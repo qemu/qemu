@@ -10,6 +10,15 @@
 #include "hw.h"
 #include "pxa.h"
 #include "devices.h"
+#include "flash.h"
+
+#define IRQ_TC6393_NAND		0
+#define IRQ_TC6393_MMC		1
+#define IRQ_TC6393_OHCI		2
+#define IRQ_TC6393_SERIAL	3
+#define IRQ_TC6393_FB		4
+
+#define	TC6393XB_NR_IRQS	8
 
 #define TC6393XB_GPIOS  16
 
@@ -40,8 +49,37 @@
 #define SCR_CONFIG	0xfc		/* b Configuration Control */
 #define SCR_DEBUG	0xff		/* b Debug		*/
 
+#define NAND_CFG_COMMAND    0x04    /* w Command        */
+#define NAND_CFG_BASE       0x10    /* l Control Base Address */
+#define NAND_CFG_INTP       0x3d    /* b Interrupt Pin  */
+#define NAND_CFG_INTE       0x48    /* b Int Enable     */
+#define NAND_CFG_EC         0x4a    /* b Event Control  */
+#define NAND_CFG_ICC        0x4c    /* b Internal Clock Control */
+#define NAND_CFG_ECCC       0x5b    /* b ECC Control    */
+#define NAND_CFG_NFTC       0x60    /* b NAND Flash Transaction Control */
+#define NAND_CFG_NFM        0x61    /* b NAND Flash Monitor */
+#define NAND_CFG_NFPSC      0x62    /* b NAND Flash Power Supply Control */
+#define NAND_CFG_NFDC       0x63    /* b NAND Flash Detect Control */
+
+#define NAND_DATA   0x00        /* l Data       */
+#define NAND_MODE   0x04        /* b Mode       */
+#define NAND_STATUS 0x05        /* b Status     */
+#define NAND_ISR    0x06        /* b Interrupt Status */
+#define NAND_IMR    0x07        /* b Interrupt Mask */
+
+#define NAND_MODE_WP        0x80
+#define NAND_MODE_CE        0x10
+#define NAND_MODE_ALE       0x02
+#define NAND_MODE_CLE       0x01
+#define NAND_MODE_ECC_MASK  0x60
+#define NAND_MODE_ECC_EN    0x20
+#define NAND_MODE_ECC_READ  0x40
+#define NAND_MODE_ECC_RST   0x60
+
 struct tc6393xb_s {
     target_phys_addr_t target_base;
+    qemu_irq irq;
+    qemu_irq *sub_irqs;
     struct {
         uint8_t ISR;
         uint8_t IMR;
@@ -71,6 +109,16 @@ struct tc6393xb_s {
     uint32_t prev_level;
     qemu_irq handler[TC6393XB_GPIOS];
     qemu_irq *gpio_in;
+
+    struct {
+        uint8_t mode;
+        uint8_t isr;
+        uint8_t imr;
+    } nand;
+    int nand_enable;
+    uint32_t nand_phys;
+    struct nand_flash_s *flash;
+    struct ecc_state_s ecc;
 };
 
 qemu_irq *tc6393xb_gpio_in_get(struct tc6393xb_s *s)
@@ -116,6 +164,17 @@ static void tc6393xb_gpio_handler_update(struct tc6393xb_s *s)
     s->prev_level = level;
 }
 
+static void tc6393xb_sub_irq(void *opaque, int line, int level) {
+    struct tc6393xb_s *s = opaque;
+    uint8_t isr = s->scr.ISR;
+    if (level)
+        isr |= 1 << line;
+    else
+        isr &= ~(1 << line);
+    s->scr.ISR = isr;
+    qemu_set_irq(s->irq, isr & s->scr.IMR);
+}
+
 #define SCR_REG_B(N)                            \
     case SCR_ ##N: return s->scr.N
 #define SCR_REG_W(N)                            \
@@ -131,10 +190,8 @@ static void tc6393xb_gpio_handler_update(struct tc6393xb_s *s)
     case SCR_ ##N(1): return s->scr.N[1];       \
     case SCR_ ##N(2): return s->scr.N[2]
 
-static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t tc6393xb_scr_readb(struct tc6393xb_s *s, target_phys_addr_t addr)
 {
-    struct tc6393xb_s *s = opaque;
-    addr -= s->target_base;
     switch (addr) {
         case SCR_REVID:
             return 3;
@@ -171,7 +228,7 @@ static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr)
         SCR_REG_B(CONFIG);
         SCR_REG_B(DEBUG);
     }
-    fprintf(stderr, "tc6393xb: unhandled read at %08x\n", (uint32_t) addr);
+    fprintf(stderr, "tc6393xb_scr: unhandled read at %08x\n", (uint32_t) addr);
     return 0;
 }
 #undef SCR_REG_B
@@ -180,24 +237,22 @@ static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr)
 #undef SCR_REG_A
 
 #define SCR_REG_B(N)                                \
-    case SCR_ ##N: s->scr.N = value; break;
+    case SCR_ ##N: s->scr.N = value; return;
 #define SCR_REG_W(N)                                \
-    case SCR_ ##N: s->scr.N = (s->scr.N & ~0xff) | (value & 0xff); break; \
-    case SCR_ ##N + 1: s->scr.N = (s->scr.N & 0xff) | (value << 8); break
+    case SCR_ ##N: s->scr.N = (s->scr.N & ~0xff) | (value & 0xff); return; \
+    case SCR_ ##N + 1: s->scr.N = (s->scr.N & 0xff) | (value << 8); return
 #define SCR_REG_L(N)                                \
-    case SCR_ ##N: s->scr.N = (s->scr.N & ~0xff) | (value & 0xff); break;   \
-    case SCR_ ##N + 1: s->scr.N = (s->scr.N & ~(0xff << 8)) | (value & (0xff << 8)); break;     \
-    case SCR_ ##N + 2: s->scr.N = (s->scr.N & ~(0xff << 16)) | (value & (0xff << 16)); break;   \
-    case SCR_ ##N + 3: s->scr.N = (s->scr.N & ~(0xff << 24)) | (value & (0xff << 24)); break;
+    case SCR_ ##N: s->scr.N = (s->scr.N & ~0xff) | (value & 0xff); return;   \
+    case SCR_ ##N + 1: s->scr.N = (s->scr.N & ~(0xff << 8)) | (value & (0xff << 8)); return;     \
+    case SCR_ ##N + 2: s->scr.N = (s->scr.N & ~(0xff << 16)) | (value & (0xff << 16)); return;   \
+    case SCR_ ##N + 3: s->scr.N = (s->scr.N & ~(0xff << 24)) | (value & (0xff << 24)); return;
 #define SCR_REG_A(N)                                \
-    case SCR_ ##N(0): s->scr.N[0] = value; break;   \
-    case SCR_ ##N(1): s->scr.N[1] = value; break;   \
-    case SCR_ ##N(2): s->scr.N[2] = value; break
+    case SCR_ ##N(0): s->scr.N[0] = value; return;   \
+    case SCR_ ##N(1): s->scr.N[1] = value; return;   \
+    case SCR_ ##N(2): s->scr.N[2] = value; return
 
-static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void tc6393xb_scr_writeb(struct tc6393xb_s *s, target_phys_addr_t addr, uint32_t value)
 {
-    struct tc6393xb_s *s = opaque;
-    addr -= s->target_base;
     switch (addr) {
         SCR_REG_B(ISR);
         SCR_REG_B(IMR);
@@ -212,13 +267,13 @@ static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr, uint32_t valu
         case SCR_GPO_DSR(2):
             s->gpio_level = (s->gpio_level & ~(0xff << ((addr - SCR_GPO_DSR(0))*8))) | ((value & 0xff) << ((addr - SCR_GPO_DSR(0))*8));
             tc6393xb_gpio_handler_update(s);
-            break;
+            return;
         case SCR_GPO_DOECR(0):
         case SCR_GPO_DOECR(1):
         case SCR_GPO_DOECR(2):
             s->gpio_dir = (s->gpio_dir & ~(0xff << ((addr - SCR_GPO_DOECR(0))*8))) | ((value & 0xff) << ((addr - SCR_GPO_DOECR(0))*8));
             tc6393xb_gpio_handler_update(s);
-            break;
+            return;
         SCR_REG_A(GP_IARCR);
         SCR_REG_A(GP_IARLCR);
         SCR_REG_A(GPI_BCR);
@@ -233,16 +288,154 @@ static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr, uint32_t valu
         SCR_REG_W(MCR);
         SCR_REG_B(CONFIG);
         SCR_REG_B(DEBUG);
-        default:
-            fprintf(stderr, "tc6393xb: unhandled write at %08x: %02x\n",
-					(uint32_t) addr, value & 0xff);
-            break;
     }
+    fprintf(stderr, "tc6393xb_scr: unhandled write at %08x: %02x\n",
+					(uint32_t) addr, value & 0xff);
 }
 #undef SCR_REG_B
 #undef SCR_REG_W
 #undef SCR_REG_L
 #undef SCR_REG_A
+
+static void tc6393xb_nand_irq(struct tc6393xb_s *s) {
+    qemu_set_irq(s->sub_irqs[IRQ_TC6393_NAND],
+            (s->nand.imr & 0x80) && (s->nand.imr & s->nand.isr));
+}
+
+static uint32_t tc6393xb_nand_cfg_readb(struct tc6393xb_s *s, target_phys_addr_t addr) {
+    switch (addr) {
+        case NAND_CFG_COMMAND:
+            return s->nand_enable ? 2 : 0;
+        case NAND_CFG_BASE:
+        case NAND_CFG_BASE + 1:
+        case NAND_CFG_BASE + 2:
+        case NAND_CFG_BASE + 3:
+            return s->nand_phys >> (addr - NAND_CFG_BASE);
+    }
+    fprintf(stderr, "tc6393xb_nand_cfg: unhandled read at %08x\n", (uint32_t) addr);
+    return 0;
+}
+static void tc6393xb_nand_cfg_writeb(struct tc6393xb_s *s, target_phys_addr_t addr, uint32_t value) {
+    switch (addr) {
+        case NAND_CFG_COMMAND:
+            s->nand_enable = (value & 0x2);
+            return;
+        case NAND_CFG_BASE:
+        case NAND_CFG_BASE + 1:
+        case NAND_CFG_BASE + 2:
+        case NAND_CFG_BASE + 3:
+            s->nand_phys &= ~(0xff << ((addr - NAND_CFG_BASE) * 8));
+            s->nand_phys |= (value & 0xff) << ((addr - NAND_CFG_BASE) * 8);
+            return;
+    }
+    fprintf(stderr, "tc6393xb_nand_cfg: unhandled write at %08x: %02x\n",
+					(uint32_t) addr, value & 0xff);
+}
+
+static uint32_t tc6393xb_nand_readb(struct tc6393xb_s *s, target_phys_addr_t addr) {
+    switch (addr) {
+        case NAND_DATA + 0:
+        case NAND_DATA + 1:
+        case NAND_DATA + 2:
+        case NAND_DATA + 3:
+            return nand_getio(s->flash);
+        case NAND_MODE:
+            return s->nand.mode;
+        case NAND_STATUS:
+            return 0x14;
+        case NAND_ISR:
+            return s->nand.isr;
+        case NAND_IMR:
+            return s->nand.imr;
+    }
+    fprintf(stderr, "tc6393xb_nand: unhandled read at %08x\n", (uint32_t) addr);
+    return 0;
+}
+static void tc6393xb_nand_writeb(struct tc6393xb_s *s, target_phys_addr_t addr, uint32_t value) {
+//    fprintf(stderr, "tc6393xb_nand: write at %08x: %02x\n",
+//					(uint32_t) addr, value & 0xff);
+    switch (addr) {
+        case NAND_DATA + 0:
+        case NAND_DATA + 1:
+        case NAND_DATA + 2:
+        case NAND_DATA + 3:
+            nand_setio(s->flash, value);
+            s->nand.isr &= 1;
+            tc6393xb_nand_irq(s);
+            return;
+        case NAND_MODE:
+            s->nand.mode = value;
+            nand_setpins(s->flash,
+                    value & NAND_MODE_CLE,
+                    value & NAND_MODE_ALE,
+                    !(value & NAND_MODE_CE),
+                    value & NAND_MODE_WP,
+                    0); // FIXME: gnd
+            switch (value & NAND_MODE_ECC_MASK) {
+                case NAND_MODE_ECC_RST:
+                    ecc_reset(&s->ecc);
+                    break;
+                case NAND_MODE_ECC_READ:
+                    // FIXME
+                    break;
+                case NAND_MODE_ECC_EN:
+                    ecc_reset(&s->ecc);
+            }
+            return;
+        case NAND_ISR:
+            s->nand.isr = value;
+            tc6393xb_nand_irq(s);
+            return;
+        case NAND_IMR:
+            s->nand.imr = value;
+            tc6393xb_nand_irq(s);
+            return;
+    }
+    fprintf(stderr, "tc6393xb_nand: unhandled write at %08x: %02x\n",
+					(uint32_t) addr, value & 0xff);
+}
+
+static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr) {
+    struct tc6393xb_s *s = opaque;
+    addr -= s->target_base;
+
+    switch (addr >> 8) {
+        case 0:
+            return tc6393xb_scr_readb(s, addr & 0xff);
+        case 1:
+            return tc6393xb_nand_cfg_readb(s, addr & 0xff);
+    };
+
+    if ((addr &~0xff) == s->nand_phys && s->nand_enable) {
+//        return tc6393xb_nand_readb(s, addr & 0xff);
+        uint8_t d = tc6393xb_nand_readb(s, addr & 0xff);
+//        fprintf(stderr, "tc6393xb_nand: read at %08x: %02hhx\n", (uint32_t) addr, d);
+        return d;
+    }
+
+//    fprintf(stderr, "tc6393xb: unhandled read at %08x\n", (uint32_t) addr);
+    return 0;
+}
+
+static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr, uint32_t value) {
+    struct tc6393xb_s *s = opaque;
+    addr -= s->target_base;
+
+    switch (addr >> 8) {
+        case 0:
+            tc6393xb_scr_writeb(s, addr & 0xff, value);
+            return;
+        case 1:
+            tc6393xb_nand_cfg_writeb(s, addr & 0xff, value);
+            return;
+    };
+
+    if ((addr &~0xff) == s->nand_phys && s->nand_enable)
+        tc6393xb_nand_writeb(s, addr & 0xff, value);
+    else
+        fprintf(stderr, "tc6393xb: unhandled write at %08x: %02x\n",
+					(uint32_t) addr, value & 0xff);
+}
 
 static uint32_t tc6393xb_readw(void *opaque, target_phys_addr_t addr)
 {
@@ -289,7 +482,12 @@ struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq)
 
     s = (struct tc6393xb_s *) qemu_mallocz(sizeof(struct tc6393xb_s));
     s->target_base = base;
+    s->irq = irq;
     s->gpio_in = qemu_allocate_irqs(tc6393xb_gpio_set, s, TC6393XB_GPIOS);
+
+    s->sub_irqs = qemu_allocate_irqs(tc6393xb_sub_irq, s, TC6393XB_NR_IRQS);
+
+    s->flash = nand_init(NAND_MFR_TOSHIBA, 0x76);
 
     iomemtype = cpu_register_io_memory(0, tc6393xb_readfn,
                     tc6393xb_writefn, s);
