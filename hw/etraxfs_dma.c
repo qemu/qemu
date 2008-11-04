@@ -406,7 +406,8 @@ static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 			 (uint32_t)ctrl->channels[c].current_d.after,
 			 saved_data_buf));
 
-		len = (uint32_t)ctrl->channels[c].current_d.after;
+		len = (uint32_t)(unsigned long)
+			ctrl->channels[c].current_d.after;
 		len -= saved_data_buf;
 
 		if (len > sizeof buf)
@@ -426,8 +427,8 @@ static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 
 		saved_data_buf += len;
 
-		if (saved_data_buf ==
-		    (uint32_t)ctrl->channels[c].current_d.after) {
+		if (saved_data_buf == (uint32_t)(unsigned long)
+				ctrl->channels[c].current_d.after) {
 			/* Done. Step to next.  */
 			if (ctrl->channels[c].current_d.out_eop) {
 				/* TODO: signal eop to the client.  */
@@ -451,7 +452,8 @@ static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 				channel_stop(ctrl, c);
 			} else {
 				ctrl->channels[c].regs[RW_SAVED_DATA] =
-					(uint32_t)ctrl->channels[c].current_d.next;
+					(uint32_t)(unsigned long)ctrl->
+						channels[c].current_d.next;
 				/* Load new descriptor.  */
 				channel_load_d(ctrl, c);
 				saved_data_buf = (uint32_t)(unsigned long)
@@ -477,7 +479,7 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 		return 0;
 
 	saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
-	len = (uint32_t)ctrl->channels[c].current_d.after;
+	len = (uint32_t)(unsigned long)ctrl->channels[c].current_d.after;
 	len -= saved_data_buf;
 	
 	if (len > buflen)
@@ -487,7 +489,7 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 	saved_data_buf += len;
 
 	if (saved_data_buf ==
-	    (uint32_t)ctrl->channels[c].current_d.after
+	    (uint32_t)(unsigned long)ctrl->channels[c].current_d.after
 	    || eop) {
 		uint32_t r_intr = ctrl->channels[c].regs[R_INTR];
 
@@ -524,10 +526,11 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 			channel_stop(ctrl, c);
 		} else {
 			ctrl->channels[c].regs[RW_SAVED_DATA] =
-				(uint32_t)ctrl->channels[c].current_d.next;
+				(uint32_t)(unsigned long)ctrl->
+					channels[c].current_d.next;
 			/* Load new descriptor.  */
 			channel_load_d(ctrl, c);
-			saved_data_buf = (uint32_t)
+			saved_data_buf = (uint32_t)(unsigned long)
 				ctrl->channels[c].current_d.buf;
 		}
 	}
