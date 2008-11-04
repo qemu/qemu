@@ -46,7 +46,6 @@ struct scoop_info_s {
     uint16_t irr;
     uint16_t imr;
     uint16_t isr;
-    uint16_t gprr;
 };
 
 #define SCOOP_MCR	0x00
@@ -99,9 +98,8 @@ static uint32_t scoop_readb(void *opaque, target_phys_addr_t addr)
     case SCOOP_GPCR:
         return s->gpio_dir;
     case SCOOP_GPWR:
-        return s->gpio_level;
     case SCOOP_GPRR:
-        return s->gprr;
+        return s->gpio_level;
     default:
         zaurus_printf("Bad register offset " REG_FMT "\n", addr);
     }
@@ -144,11 +142,9 @@ static void scoop_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
         scoop_gpio_handler_update(s);
         break;
     case SCOOP_GPWR:
+    case SCOOP_GPRR:	/* GPRR is probably R/O in real HW */
         s->gpio_level = value & s->gpio_dir;
         scoop_gpio_handler_update(s);
-        break;
-    case SCOOP_GPRR:
-        s->gprr = value;
         break;
     default:
         zaurus_printf("Bad register offset " REG_FMT "\n", addr);
@@ -205,11 +201,11 @@ static void scoop_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &s->irr);
     qemu_put_be16s(f, &s->imr);
     qemu_put_be16s(f, &s->isr);
-    qemu_put_be16s(f, &s->gprr);
 }
 
 static int scoop_load(QEMUFile *f, void *opaque, int version_id)
 {
+    uint16_t dummy;
     struct scoop_info_s *s = (struct scoop_info_s *) opaque;
     qemu_get_be16s(f, &s->status);
     qemu_get_be16s(f, &s->power);
@@ -222,7 +218,8 @@ static int scoop_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be16s(f, &s->irr);
     qemu_get_be16s(f, &s->imr);
     qemu_get_be16s(f, &s->isr);
-    qemu_get_be16s(f, &s->gprr);
+    if (version_id < 1)
+	    qemu_get_be16s(f, &dummy);
 
     return 0;
 }
@@ -243,7 +240,7 @@ struct scoop_info_s *scoop_init(struct pxa2xx_state_s *cpu,
     iomemtype = cpu_register_io_memory(0, scoop_readfn,
                     scoop_writefn, s);
     cpu_register_physical_memory(s->target_base, 0x1000, iomemtype);
-    register_savevm("scoop", instance, 0, scoop_save, scoop_load, s);
+    register_savevm("scoop", instance, 1, scoop_save, scoop_load, s);
 
     return s;
 }
