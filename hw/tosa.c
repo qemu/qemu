@@ -38,6 +38,7 @@
 #define TOSA_GPIO_BT_LED		(TOSA_SCOOP_JC_GPIO_BASE + 0)
 #define TOSA_GPIO_NOTE_LED		(TOSA_SCOOP_JC_GPIO_BASE + 1)
 #define TOSA_GPIO_CHRG_ERR_LED		(TOSA_SCOOP_JC_GPIO_BASE + 2)
+#define TOSA_GPIO_TC6393XB_L3V_ON	(TOSA_SCOOP_JC_GPIO_BASE + 5)
 #define TOSA_GPIO_WLAN_LED		(TOSA_SCOOP_JC_GPIO_BASE + 7)
 
 #define	DAC_BASE	0x4e
@@ -84,7 +85,8 @@ static void tosa_out_switch(void *opaque, int line, int level)
 
 static void tosa_gpio_setup(struct pxa2xx_state_s *cpu,
                 struct scoop_info_s *scp0,
-                struct scoop_info_s *scp1)
+                struct scoop_info_s *scp1,
+                struct tc6393xb_s *tmio)
 {
     qemu_irq *outsignals = qemu_allocate_irqs(tosa_out_switch, cpu, 4);
     /* MMC/SD host */
@@ -108,6 +110,8 @@ static void tosa_gpio_setup(struct pxa2xx_state_s *cpu,
     scoop_gpio_out_set(scp1, TOSA_GPIO_NOTE_LED, outsignals[1]);
     scoop_gpio_out_set(scp1, TOSA_GPIO_CHRG_ERR_LED, outsignals[2]);
     scoop_gpio_out_set(scp1, TOSA_GPIO_WLAN_LED, outsignals[3]);
+
+    scoop_gpio_out_set(scp1, TOSA_GPIO_TC6393XB_L3V_ON, tc6393xb_l3v_get(tmio));
 }
 
 static uint32_t tosa_ssp_read(void *opaque)
@@ -198,9 +202,10 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
                 const char *initrd_filename, const char *cpu_model)
 {
     struct pxa2xx_state_s *cpu;
+    struct tc6393xb_s *tmio;
     struct scoop_info_s *scp0, *scp1;
 
-    if (ram_size < (TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE)) {
+    if (ram_size < (TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE + TC6393XB_RAM)) {
         fprintf(stderr, "This platform requires %i bytes of memory\n",
                 TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE);
         exit(1);
@@ -214,12 +219,14 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
     cpu_register_physical_memory(0, TOSA_ROM,
                     qemu_ram_alloc(TOSA_ROM) | IO_MEM_ROM);
 
-    tc6393xb_init(0x10000000, pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_TC6393XB_INT]);
+    tmio = tc6393xb_init(0x10000000,
+            pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_TC6393XB_INT],
+            ds);
 
     scp0 = scoop_init(cpu, 0, 0x08800000);
     scp1 = scoop_init(cpu, 1, 0x14800040);
 
-    tosa_gpio_setup(cpu, scp0, scp1);
+    tosa_gpio_setup(cpu, scp0, scp1, tmio);
 
     tosa_microdrive_attach(cpu);
 
@@ -240,5 +247,5 @@ QEMUMachine tosapda_machine = {
     .name = "tosa",
     .desc = "Tosa PDA (PXA255)",
     .init = tosa_init,
-    .ram_require = TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED,
+    .ram_require = TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED + TC6393XB_RAM,
 };

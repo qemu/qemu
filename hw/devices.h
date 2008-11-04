@@ -66,9 +66,11 @@ void tusb6010_power(struct tusb_s *s, int on);
 
 /* tc6393xb.c */
 struct tc6393xb_s;
-struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq);
+#define TC6393XB_RAM	0x110000 /* amount of ram for Video and USB */
+struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq, DisplayState *ds);
 void tc6393xb_gpio_out_set(struct tc6393xb_s *s, int line,
                     qemu_irq handler);
 qemu_irq *tc6393xb_gpio_in_get(struct tc6393xb_s *s);
+qemu_irq tc6393xb_l3v_get(struct tc6393xb_s *s);
 
 #endif

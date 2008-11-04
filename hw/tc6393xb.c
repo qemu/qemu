@@ -11,6 +11,8 @@
 #include "pxa.h"
 #include "devices.h"
 #include "flash.h"
+#include "console.h"
+#include "pixel_ops.h"
 
 #define IRQ_TC6393_NAND		0
 #define IRQ_TC6393_MMC		1
@@ -119,6 +121,14 @@ struct tc6393xb_s {
     uint32_t nand_phys;
     struct nand_flash_s *flash;
     struct ecc_state_s ecc;
+
+    DisplayState *ds;
+    QEMUConsole *console;
+    ram_addr_t vram_addr;
+    uint32_t scr_width, scr_height; /* in pixels */
+    qemu_irq l3v;
+    unsigned blank : 1,
+             blanked : 1;
 };
 
 qemu_irq *tc6393xb_gpio_in_get(struct tc6393xb_s *s)
@@ -162,6 +172,18 @@ static void tc6393xb_gpio_handler_update(struct tc6393xb_s *s)
     }
 
     s->prev_level = level;
+}
+
+qemu_irq tc6393xb_l3v_get(struct tc6393xb_s *s)
+{
+    return s->l3v;
+}
+
+static void tc6393xb_l3v(void *opaque, int line, int level)
+{
+    struct tc6393xb_s *s = opaque;
+    s->blank = !level;
+    fprintf(stderr, "L3V: %d\n", level);
 }
 
 static void tc6393xb_sub_irq(void *opaque, int line, int level) {
@@ -395,6 +417,85 @@ static void tc6393xb_nand_writeb(struct tc6393xb_s *s, target_phys_addr_t addr, 
 					(uint32_t) addr, value & 0xff);
 }
 
+#define BITS 8
+#include "tc6393xb_template.h"
+#define BITS 15
+#include "tc6393xb_template.h"
+#define BITS 16
+#include "tc6393xb_template.h"
+#define BITS 24
+#include "tc6393xb_template.h"
+#define BITS 32
+#include "tc6393xb_template.h"
+
+static void tc6393xb_draw_graphic(struct tc6393xb_s *s, int full_update)
+{
+    switch (s->ds->depth) {
+        case 8:
+            tc6393xb_draw_graphic8(s);
+            break;
+        case 15:
+            tc6393xb_draw_graphic15(s);
+            break;
+        case 16:
+            tc6393xb_draw_graphic16(s);
+            break;
+        case 24:
+            tc6393xb_draw_graphic24(s);
+            break;
+        case 32:
+            tc6393xb_draw_graphic32(s);
+            break;
+        default:
+            printf("tc6393xb: unknown depth %d\n", s->ds->depth);
+            return;
+    }
+
+    dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
+}
+
+static void tc6393xb_draw_blank(struct tc6393xb_s *s, int full_update)
+{
+    int i, w;
+    uint8_t *d;
+
+    if (!full_update)
+        return;
+
+    w = s->scr_width * ((s->ds->depth + 7) >> 3);
+    d = s->ds->data;
+    for(i = 0; i < s->scr_height; i++) {
+        memset(d, 0, w);
+        d += s->ds->linesize;
+    }
+
+    dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
+}
+
+static void tc6393xb_update_display(void *opaque)
+{
+    struct tc6393xb_s *s = opaque;
+    int full_update;
+
+    if (s->scr_width == 0 || s->scr_height == 0)
+        return;
+
+    full_update = 0;
+    if (s->blanked != s->blank) {
+        s->blanked = s->blank;
+        full_update = 1;
+    }
+    if (s->scr_width != s->ds->width || s->scr_height != s->ds->height) {
+        qemu_console_resize(s->console, s->scr_width, s->scr_height);
+        full_update = 1;
+    }
+    if (s->blanked)
+        tc6393xb_draw_blank(s, full_update);
+    else
+        tc6393xb_draw_graphic(s, full_update);
+}
+
+
 static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr) {
     struct tc6393xb_s *s = opaque;
     addr -= s->target_base;
@@ -465,7 +566,7 @@ static void tc6393xb_writel(void *opaque, target_phys_addr_t addr, uint32_t valu
     tc6393xb_writeb(opaque, addr + 3, value >> 24);
 }
 
-struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq)
+struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq, DisplayState *ds)
 {
     int iomemtype;
     struct tc6393xb_s *s;
@@ -485,13 +586,30 @@ struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq)
     s->irq = irq;
     s->gpio_in = qemu_allocate_irqs(tc6393xb_gpio_set, s, TC6393XB_GPIOS);
 
+    s->l3v = *qemu_allocate_irqs(tc6393xb_l3v, s, 1);
+    s->blanked = 1;
+
     s->sub_irqs = qemu_allocate_irqs(tc6393xb_sub_irq, s, TC6393XB_NR_IRQS);
 
     s->flash = nand_init(NAND_MFR_TOSHIBA, 0x76);
 
     iomemtype = cpu_register_io_memory(0, tc6393xb_readfn,
                     tc6393xb_writefn, s);
-    cpu_register_physical_memory(s->target_base, 0x200000, iomemtype);
+    cpu_register_physical_memory(s->target_base, 0x10000, iomemtype);
+
+    if (ds) {
+        s->ds = ds;
+        s->vram_addr = qemu_ram_alloc(0x100000);
+        cpu_register_physical_memory(s->target_base + 0x100000, 0x100000, s->vram_addr);
+        s->scr_width = 480;
+        s->scr_height = 640;
+        s->console = graphic_console_init(ds,
+                tc6393xb_update_display,
+                NULL, /* invalidate */
+                NULL, /* screen_dump */
+                NULL, /* text_update */
+                s);
+    }
 
     return s;
 }
