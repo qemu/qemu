@@ -17,6 +17,7 @@
 #include "pcmcia.h"
 #include "block.h"
 #include "boards.h"
+#include "i2c.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000
@@ -38,6 +39,10 @@
 #define TOSA_GPIO_NOTE_LED		(TOSA_SCOOP_JC_GPIO_BASE + 1)
 #define TOSA_GPIO_CHRG_ERR_LED		(TOSA_SCOOP_JC_GPIO_BASE + 2)
 #define TOSA_GPIO_WLAN_LED		(TOSA_SCOOP_JC_GPIO_BASE + 7)
+
+#define	DAC_BASE	0x4e
+#define DAC_CH1		0
+#define DAC_CH2		1
 
 static void tosa_microdrive_attach(struct pxa2xx_state_s *cpu)
 {
@@ -105,6 +110,83 @@ static void tosa_gpio_setup(struct pxa2xx_state_s *cpu,
     scoop_gpio_out_set(scp1, TOSA_GPIO_WLAN_LED, outsignals[3]);
 }
 
+static uint32_t tosa_ssp_read(void *opaque)
+{
+    return 0;
+}
+
+static void tosa_ssp_write(void *opaque, uint32_t value)
+{
+    fprintf(stderr, "TG: %d %02x\n", value >> 5, value & 0x1f);
+}
+
+struct tosa_dac_i2c {
+    i2c_slave i2c;
+    int len;
+    char buf[3];
+};
+
+static int tosa_dac_send(i2c_slave *i2c, uint8_t data)
+{
+    struct tosa_dac_i2c *s = (struct tosa_dac_i2c *)i2c;
+    s->buf[s->len] = data;
+    if (s->len ++ > 2) {
+#ifdef VERBOSE
+        fprintf(stderr, "%s: message too long (%i bytes)\n", __FUNCTION__, s->len);
+#endif
+        return 1;
+    }
+
+    if (s->len == 2) {
+        fprintf(stderr, "dac: channel %d value 0x%02x\n",
+                s->buf[0], s->buf[1]);
+    }
+
+    return 0;
+}
+
+static void tosa_dac_event(i2c_slave *i2c, enum i2c_event event)
+{
+    struct tosa_dac_i2c *s = (struct tosa_dac_i2c *)i2c;
+    s->len = 0;
+    switch (event) {
+    case I2C_START_SEND:
+        break;
+    case I2C_START_RECV:
+        printf("%s: recv not supported!!!\n", __FUNCTION__);
+        break;
+    case I2C_FINISH:
+#ifdef VERBOSE
+        if (s->len < 2)
+            printf("%s: message too short (%i bytes)\n", __FUNCTION__, s->len);
+        if (s->len > 2)
+            printf("%s: message too long\n", __FUNCTION__);
+#endif
+        break;
+    default:
+        break;
+    }
+}
+
+int tosa_dac_recv(i2c_slave *s)
+{
+    printf("%s: recv not supported!!!\n", __FUNCTION__);
+    return -1;
+}
+
+static void tosa_tg_init(struct pxa2xx_state_s *cpu)
+{
+    struct i2c_bus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
+    struct i2c_slave *dac = i2c_slave_init(bus, 0, sizeof(struct tosa_dac_i2c));
+    dac->send = tosa_dac_send;
+    dac->event = tosa_dac_event;
+    dac->recv = tosa_dac_recv;
+    i2c_set_slave_address(dac, DAC_BASE);
+    pxa2xx_ssp_attach(cpu->ssp[1], tosa_ssp_read,
+                    tosa_ssp_write, cpu);
+}
+
+
 static struct arm_boot_info tosa_binfo = {
     .loader_start = PXA2XX_SDRAM_BASE,
     .ram_size = 0x04000000,
@@ -140,6 +222,8 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
     tosa_gpio_setup(cpu, scp0, scp1);
 
     tosa_microdrive_attach(cpu);
+
+    tosa_tg_init(cpu);
 
     /* Setup initial (reset) machine state */
     cpu->env->regs[15] = tosa_binfo.loader_start;
