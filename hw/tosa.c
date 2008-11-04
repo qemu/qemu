@@ -27,10 +27,16 @@
 #define TOSA_GPIO_CF_CD			(13)
 #define TOSA_GPIO_JC_CF_IRQ		(36)	/* CF slot1 Ready */
 
-#define TOSA_SCOOP_GPIO_BASE	0
+#define TOSA_SCOOP_GPIO_BASE	1
 #define TOSA_GPIO_IR_POWERDWN	(TOSA_SCOOP_GPIO_BASE + 2)
 #define TOSA_GPIO_SD_WP			(TOSA_SCOOP_GPIO_BASE + 3)
 #define TOSA_GPIO_PWR_ON		(TOSA_SCOOP_GPIO_BASE + 4)
+
+#define TOSA_SCOOP_JC_GPIO_BASE		1
+#define TOSA_GPIO_BT_LED		(TOSA_SCOOP_JC_GPIO_BASE + 0)
+#define TOSA_GPIO_NOTE_LED		(TOSA_SCOOP_JC_GPIO_BASE + 1)
+#define TOSA_GPIO_CHRG_ERR_LED		(TOSA_SCOOP_JC_GPIO_BASE + 2)
+#define TOSA_GPIO_WLAN_LED		(TOSA_SCOOP_JC_GPIO_BASE + 7)
 
 static void tosa_microdrive_attach(struct pxa2xx_state_s *cpu)
 {
@@ -48,10 +54,33 @@ static void tosa_microdrive_attach(struct pxa2xx_state_s *cpu)
     }
 }
 
+static void tosa_out_switch(void *opaque, int line, int level)
+{
+    switch (line) {
+        case 0:
+            fprintf(stderr, "blue LED %s.\n", level ? "on" : "off");
+            break;
+        case 1:
+            fprintf(stderr, "green LED %s.\n", level ? "on" : "off");
+            break;
+        case 2:
+            fprintf(stderr, "amber LED %s.\n", level ? "on" : "off");
+            break;
+        case 3:
+            fprintf(stderr, "wlan LED %s.\n", level ? "on" : "off");
+            break;
+        default:
+            fprintf(stderr, "Uhandled out event: %d = %d\n", line, level);
+            break;
+    }
+}
+
+
 static void tosa_gpio_setup(struct pxa2xx_state_s *cpu,
                 struct scoop_info_s *scp0,
                 struct scoop_info_s *scp1)
 {
+    qemu_irq *outsignals = qemu_allocate_irqs(tosa_out_switch, cpu, 4);
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc,
                     scoop_gpio_in_get(scp0)[TOSA_GPIO_SD_WP],
@@ -69,6 +98,10 @@ static void tosa_gpio_setup(struct pxa2xx_state_s *cpu,
                         pxa2xx_gpio_in_get(cpu->gpio)[TOSA_GPIO_JC_CF_IRQ],
                         NULL);
 
+    scoop_gpio_out_set(scp1, TOSA_GPIO_BT_LED, outsignals[0]);
+    scoop_gpio_out_set(scp1, TOSA_GPIO_NOTE_LED, outsignals[1]);
+    scoop_gpio_out_set(scp1, TOSA_GPIO_CHRG_ERR_LED, outsignals[2]);
+    scoop_gpio_out_set(scp1, TOSA_GPIO_WLAN_LED, outsignals[3]);
 }
 
 static struct arm_boot_info tosa_binfo = {
