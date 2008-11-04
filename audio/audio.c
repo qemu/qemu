@@ -84,7 +84,7 @@ static struct {
         }
     },
 
-    { 0 },                      /* period */
+    { 250 },                    /* period */
     0,                          /* plive */
     0                           /* log_to_monitor */
 };
