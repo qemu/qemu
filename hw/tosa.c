@@ -127,7 +127,7 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
     if (!cpu_model)
         cpu_model = "pxa255";
 
-    cpu = pxa255_init(tosa_binfo.ram_size, ds);
+    cpu = pxa255_init(tosa_binfo.ram_size, NULL);
 
     cpu_register_physical_memory(0, TOSA_ROM,
                     qemu_ram_alloc(TOSA_ROM) | IO_MEM_ROM);
