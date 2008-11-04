@@ -673,7 +673,7 @@ static CPUWriteMemoryFunc *dma_write[] = {
 	&dma_writel,
 };
 
-void etraxfs_dmac_run(void *opaque)
+static void etraxfs_dmac_run(void *opaque)
 {
 	struct fs_dma_ctrl *ctrl = opaque;
 	int i;
