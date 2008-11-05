@@ -344,7 +344,8 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
     m48t59_t *nvram;
     int ret, linux_boot;
     unsigned int i;
-    long prom_offset, initrd_size, kernel_size;
+    ram_addr_t ram_offset, prom_offset, vga_ram_offset;
+    long initrd_size, kernel_size;
     PCIBus *pci_bus;
     QEMUBH *bh;
     qemu_irq *irq;
@@ -387,9 +388,10 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
     env->npc = env->pc + 4;
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, RAM_size, 0);
+    ram_offset = qemu_ram_alloc(RAM_size);
+    cpu_register_physical_memory(0, RAM_size, ram_offset);
 
-    prom_offset = RAM_size + vga_ram_size;
+    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
     cpu_register_physical_memory(hwdef->prom_addr,
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE) &
                                  TARGET_PAGE_MASK,
@@ -451,8 +453,9 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
     }
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, NULL);
     isa_mem_base = VGA_BASE;
-    pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + RAM_size, RAM_size,
-                        vga_ram_size);
+    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
+    pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + vga_ram_offset,
+                        vga_ram_offset, vga_ram_size);
 
     i = 0;
     if (hwdef->console_serial_base) {

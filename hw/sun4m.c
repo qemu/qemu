@@ -433,7 +433,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *esp_reset, *le_reset;
     qemu_irq *fdc_tc;
     qemu_irq *cpu_halt;
-    unsigned long prom_offset, kernel_size;
+    ram_addr_t ram_offset, prom_offset, tcx_offset, idreg_offset;
+    unsigned long kernel_size;
     int ret;
     char buf[1024];
     BlockDriverState *fd[MAX_FD];
@@ -474,10 +475,11 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                 (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);
     }
-    cpu_register_physical_memory(0, RAM_size, 0);
+    ram_offset = qemu_ram_alloc(RAM_size);
+    cpu_register_physical_memory(0, RAM_size, ram_offset);
 
     /* load boot prom */
-    prom_offset = RAM_size + hwdef->vram_size;
+    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
     cpu_register_physical_memory(hwdef->slavio_base,
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) &
                                  TARGET_PAGE_MASK,
@@ -494,7 +496,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                 buf);
         exit(1);
     }
-    prom_offset += (ret + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
 
     /* set up devices */
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
@@ -507,8 +508,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     if (hwdef->idreg_base != (target_phys_addr_t)-1) {
         static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
 
+        idreg_offset = qemu_ram_alloc(sizeof(idreg_data));
         cpu_register_physical_memory(hwdef->idreg_base, sizeof(idreg_data),
-                                     prom_offset | IO_MEM_ROM);
+                                     idreg_offset | IO_MEM_ROM);
         cpu_physical_memory_write_rom(hwdef->idreg_base, idreg_data,
                                       sizeof(idreg_data));
     }
@@ -527,7 +529,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_init(ds, hwdef->tcx_base, phys_ram_base + RAM_size, RAM_size,
+    tcx_offset = qemu_ram_alloc(hwdef->vram_size);
+    tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
     if (nd_table[0].model == NULL
@@ -1260,7 +1263,8 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_irqs[MAX_CPUS], *sbi_irq, *sbi_cpu_irq,
         *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
-    unsigned long prom_offset, kernel_size;
+    ram_addr_t ram_offset, prom_offset, tcx_offset;
+    unsigned long kernel_size;
     int ret;
     char buf[1024];
     int drive_index;
@@ -1299,10 +1303,11 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
                 (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);
     }
-    cpu_register_physical_memory(0, RAM_size, 0);
+    ram_offset = qemu_ram_alloc(RAM_size);
+    cpu_register_physical_memory(0, RAM_size, ram_offset);
 
     /* load boot prom */
-    prom_offset = RAM_size + hwdef->vram_size;
+    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
     cpu_register_physical_memory(hwdef->slavio_base,
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) &
                                  TARGET_PAGE_MASK,
@@ -1339,7 +1344,8 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_init(ds, hwdef->tcx_base, phys_ram_base + RAM_size, RAM_size,
+    tcx_offset = qemu_ram_alloc(hwdef->vram_size);
+    tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
     if (nd_table[0].model == NULL
@@ -1481,7 +1487,8 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_irqs, *slavio_irq, *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     qemu_irq *fdc_tc;
-    unsigned long prom_offset, kernel_size;
+    ram_addr_t ram_offset, prom_offset, tcx_offset;
+    unsigned long kernel_size;
     int ret;
     char buf[1024];
     BlockDriverState *fd[MAX_FD];
@@ -1512,10 +1519,11 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
                 (unsigned int)(hwdef->max_mem / (1024 * 1024)));
         exit(1);
     }
-    cpu_register_physical_memory(0, RAM_size, 0);
+    ram_offset = qemu_ram_alloc(RAM_size);
+    cpu_register_physical_memory(0, RAM_size, ram_offset);
 
     /* load boot prom */
-    prom_offset = RAM_size + hwdef->vram_size;
+    prom_offset = qemu_ram_alloc(PROM_SIZE_MAX);
     cpu_register_physical_memory(hwdef->slavio_base,
                                  (PROM_SIZE_MAX + TARGET_PAGE_SIZE - 1) &
                                  TARGET_PAGE_MASK,
@@ -1532,7 +1540,6 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
                 buf);
         exit(1);
     }
-    prom_offset += (ret + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
 
     /* set up devices */
     slavio_intctl = sun4c_intctl_init(hwdef->intctl_base,
@@ -1552,7 +1559,8 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_init(ds, hwdef->tcx_base, phys_ram_base + RAM_size, RAM_size,
+    tcx_offset = qemu_ram_alloc(hwdef->vram_size);
+    tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
     if (nd_table[0].model == NULL
