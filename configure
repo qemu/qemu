@@ -1447,8 +1447,10 @@ interp_prefix1=`echo "$interp_prefix" | sed "s/%M/$target_cpu/g"`
 echo "#define CONFIG_QEMU_PREFIX \"$interp_prefix1\"" >> $config_h
 gdb_xml_files=""
 
-# FIXME allow i386 to build on x86_64 and vice versa
-if test "$kvm" = "yes" -a "$target_cpu" != "$cpu" ; then
+# Make sure the target and host cpus are compatible
+if test "$kvm" = "yes" -a ! \( "$target_cpu" = "$cpu" -o \
+  \( "$target_cpu" = "x86_64" -a "$cpu" = "i386"   \) -o \
+  \( "$target_cpu" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
   kvm="no"
 fi
 # Disable KVM for linux-user
@@ -1468,7 +1470,7 @@ case "$target_cpu" in
     if test "$kvm" = "yes" ; then
       echo "CONFIG_KVM=yes" >> $config_mak
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
-      echo "#define CONFIG_KVM" >> $config_h
+      echo "#define CONFIG_KVM 1" >> $config_h
     fi
     gcc3minver=`$cc --version 2> /dev/null| fgrep "(GCC) 3." | awk '{ print $3 }' | cut -f2 -d.`
     if test -n "$gcc3minver" && test $gcc3minver -gt 3
