@@ -116,6 +116,7 @@ nptl="yes"
 mixemu="no"
 bluez="yes"
 kvm="yes"
+kerneldir=""
 
 # OS specific
 targetos=`uname -s`
@@ -359,6 +360,8 @@ for opt do
   ;;
   --disable-aio) aio="no"
   ;;
+  --kerneldir=*) kerneldir="$optarg"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -468,6 +471,7 @@ echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
 echo "  --disable-aio            disable AIO support"
+echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -968,8 +972,11 @@ if test "$kvm" = "yes" ; then
 #endif
 int main(void) { return 0; }
 EOF
-  # FIXME make this configurable
-  kvm_cflags=-I/lib/modules/`uname -r`/build/include
+  if test "$kerneldir" != "" ; then
+      kvm_cflags=-I"$kerneldir"/include
+  else
+      kvm_cflags=""
+  fi
   if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $kvm_cflags $TMPC \
       2>/dev/null ; then
     :
