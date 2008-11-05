@@ -885,7 +885,9 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 #define MIN_TIMER_REARM_US 250
 
 static struct qemu_alarm_timer *alarm_timer;
+#ifndef _WIN32
 static int alarm_timer_rfd, alarm_timer_wfd;
+#endif
 
 #ifdef _WIN32
 
@@ -1306,14 +1308,14 @@ static void host_alarm_handler(int host_signum)
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
         CPUState *env = next_cpu;
-        static const char byte = 0;
 
 #ifdef _WIN32
         struct qemu_alarm_win32 *data = ((struct qemu_alarm_timer*)dwUser)->priv;
         SetEvent(data->host_alarm);
-#endif
-
+#else
+        static const char byte = 0;
         write(alarm_timer_wfd, &byte, sizeof(byte));
+#endif
         alarm_timer->flags |= ALARM_FLAG_EXPIRED;
 
         if (env) {
@@ -1601,6 +1603,34 @@ static void unix_stop_timer(struct qemu_alarm_timer *t)
 
 #endif /* !defined(_WIN32) */
 
+static void try_to_rearm_timer(void *opaque)
+{
+    struct qemu_alarm_timer *t = opaque;
+#ifndef _WIN32
+    ssize_t len;
+
+    /* Drain the notify pipe */
+    do {
+        char buffer[512];
+        len = read(alarm_timer_rfd, buffer, sizeof(buffer));
+    } while ((len == -1 && errno == EINTR) || len > 0);
+#endif
+
+    /* vm time timers */
+    if (vm_running && likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
+        qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
+                        qemu_get_clock(vm_clock));
+
+    /* real time timers */
+    qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
+                    qemu_get_clock(rt_clock));
+
+    if (t->flags & ALARM_FLAG_EXPIRED) {
+        alarm_timer->flags &= ~ALARM_FLAG_EXPIRED;
+        qemu_rearm_alarm_timer(alarm_timer);
+    }
+}
+
 #ifdef _WIN32
 
 static int win32_start_timer(struct qemu_alarm_timer *t)
@@ -1643,7 +1673,7 @@ static int win32_start_timer(struct qemu_alarm_timer *t)
         return -1;
     }
 
-    qemu_add_wait_object(data->host_alarm, NULL, NULL);
+    qemu_add_wait_object(data->host_alarm, try_to_rearm_timer, t);
 
     return 0;
 }
@@ -1689,36 +1719,12 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 
 #endif /* _WIN32 */
 
-static void try_to_rearm_timer(void *opaque)
-{
-    struct qemu_alarm_timer *t = opaque;
-    ssize_t len;
-
-    /* Drain the notify pipe */
-    do {
-        char buffer[512];
-        len = read(alarm_timer_rfd, buffer, sizeof(buffer));
-    } while ((len == -1 && errno == EINTR) || len > 0);
-
-    /* vm time timers */
-    if (vm_running && likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
-        qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
-                        qemu_get_clock(vm_clock));
-
-    /* real time timers */
-    qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
-                    qemu_get_clock(rt_clock));
-
-    if (t->flags & ALARM_FLAG_EXPIRED) {
-        alarm_timer->flags &= ~ALARM_FLAG_EXPIRED;
-        qemu_rearm_alarm_timer(alarm_timer);
-    }
-}
-
 static int init_timer_alarm(void)
 {
     struct qemu_alarm_timer *t = NULL;
     int i, err = -1;
+
+#ifndef _WIN32
     int fds[2];
 
     err = pipe(fds);
@@ -1735,6 +1741,7 @@ static int init_timer_alarm(void)
 
     alarm_timer_rfd = fds[0];
     alarm_timer_wfd = fds[1];
+#endif
 
     for (i = 0; alarm_timers[i].name; i++) {
         t = &alarm_timers[i];
@@ -1749,16 +1756,20 @@ static int init_timer_alarm(void)
         goto fail;
     }
 
+#ifndef _WIN32
     qemu_set_fd_handler2(alarm_timer_rfd, NULL,
                          try_to_rearm_timer, NULL, t);
+#endif
 
     alarm_timer = t;
 
     return 0;
 
 fail:
+#ifndef _WIN32
     close(fds[0]);
     close(fds[1]);
+#endif
     return err;
 }
 
