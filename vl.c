@@ -1700,6 +1700,15 @@ static void try_to_rearm_timer(void *opaque)
         len = read(alarm_timer_rfd, buffer, sizeof(buffer));
     } while ((len == -1 && errno == EINTR) || len > 0);
 
+    /* vm time timers */
+    if (vm_running && likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
+        qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
+                        qemu_get_clock(vm_clock));
+
+    /* real time timers */
+    qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
+                    qemu_get_clock(rt_clock));
+
     if (t->flags & ALARM_FLAG_EXPIRED) {
         alarm_timer->flags &= ~ALARM_FLAG_EXPIRED;
         qemu_rearm_alarm_timer(alarm_timer);
@@ -4550,16 +4559,6 @@ void main_loop_wait(int timeout)
         slirp_select_poll(&rfds, &wfds, &xfds);
     }
 #endif
-
-    if (vm_running) {
-        if (likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
-        qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
-                        qemu_get_clock(vm_clock));
-    }
-
-    /* real time timers */
-    qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
-                    qemu_get_clock(rt_clock));
 
     /* Check bottom-halves last in case any of the earlier events triggered
        them.  */
