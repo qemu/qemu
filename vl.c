@@ -885,6 +885,7 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 #define MIN_TIMER_REARM_US 250
 
 static struct qemu_alarm_timer *alarm_timer;
+static int alarm_timer_rfd, alarm_timer_wfd;
 
 #ifdef _WIN32
 
@@ -1304,12 +1305,15 @@ static void host_alarm_handler(int host_signum)
                                qemu_get_clock(vm_clock))) ||
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
+        CPUState *env = next_cpu;
+        static const char byte = 0;
+
 #ifdef _WIN32
         struct qemu_alarm_win32 *data = ((struct qemu_alarm_timer*)dwUser)->priv;
         SetEvent(data->host_alarm);
 #endif
-        CPUState *env = next_cpu;
 
+        write(alarm_timer_wfd, &byte, sizeof(byte));
         alarm_timer->flags |= ALARM_FLAG_EXPIRED;
 
         if (env) {
@@ -1674,6 +1678,20 @@ static void init_timer_alarm(void)
 {
     struct qemu_alarm_timer *t = NULL;
     int i, err = -1;
+    int fds[2];
+
+    if (pipe(fds) < 0) {
+    fail:
+        perror("creating timer pipe");
+        exit(1);
+    }
+    for (i = 0; i < 2; i++) {
+        int flags = fcntl(fds[i], F_GETFL);
+        if (flags == -1 || fcntl(fds[i], F_SETFL, flags | O_NONBLOCK))
+            goto fail;
+    }
+    alarm_timer_rfd = fds[0];
+    alarm_timer_wfd = fds[1];
 
     for (i = 0; alarm_timers[i].name; i++) {
         t = &alarm_timers[i];
@@ -4426,8 +4444,9 @@ void main_loop_wait(int timeout)
 
     /* poll any events */
     /* XXX: separate device handlers from system ones */
-    nfds = -1;
+    nfds = alarm_timer_rfd;
     FD_ZERO(&rfds);
+    FD_SET(alarm_timer_rfd, &rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&xfds);
     for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
@@ -4501,6 +4520,11 @@ void main_loop_wait(int timeout)
                     qemu_get_clock(rt_clock));
 
     if (alarm_timer->flags & ALARM_FLAG_EXPIRED) {
+        char byte;
+        do {
+            ret = read(alarm_timer_rfd, &byte, sizeof(byte));
+        } while (ret != -1 || errno != EAGAIN);
+
         alarm_timer->flags &= ~(ALARM_FLAG_EXPIRED);
         qemu_rearm_alarm_timer(alarm_timer);
     }
