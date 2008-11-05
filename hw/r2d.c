@@ -25,11 +25,14 @@
 
 #include "hw.h"
 #include "sh.h"
+#include "devices.h"
 #include "sysemu.h"
 #include "boards.h"
 
 #define SDRAM_BASE 0x0c000000 /* Physical location of SDRAM: Area 3 */
 #define SDRAM_SIZE 0x04000000
+
+#define SM501_VRAM_SIZE 0x800000
 
 #define PA_POWOFF	0x30
 #define PA_VERREG	0x32
@@ -133,6 +136,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
 {
     CPUState *env;
     struct SH7750State *s;
+    ram_addr_t sdram_addr, sm501_vga_ram_addr;
 
     if (!cpu_model)
         cpu_model = "SH7751R";
@@ -144,10 +148,14 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* Allocate memory space */
-    cpu_register_physical_memory(SDRAM_BASE, SDRAM_SIZE, 0);
+    sdram_addr = qemu_ram_alloc(SDRAM_SIZE);
+    cpu_register_physical_memory(SDRAM_BASE, SDRAM_SIZE, sdram_addr);
     /* Register peripherals */
     r2d_fpga_init(0x04000000);
     s = sh7750_init(env);
+    sm501_vga_ram_addr = qemu_ram_alloc(SM501_VRAM_SIZE);
+    sm501_init(ds, 0x10000000, sm501_vga_ram_addr, SM501_VRAM_SIZE,
+	       serial_hds[2]);
     /* Todo: register on board registers */
     {
       int kernel_size;
@@ -167,5 +175,5 @@ QEMUMachine r2d_machine = {
     .name = "r2d",
     .desc = "r2d-plus board",
     .init = r2d_init,
-    .ram_require = SDRAM_SIZE | RAMSIZE_FIXED,
+    .ram_require = (SDRAM_SIZE + SM501_VRAM_SIZE) | RAMSIZE_FIXED,
 };
