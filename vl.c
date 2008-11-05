@@ -1374,6 +1374,21 @@ static uint64_t qemu_next_deadline_dyntick(void)
 
 #ifndef _WIN32
 
+/* Sets a specific flag */
+static int fcntl_setfl(int fd, int flag)
+{
+    int flags;
+
+    flags = fcntl(fd, F_GETFL);
+    if (flags == -1)
+        return -errno;
+
+    if (fcntl(fd, F_SETFL, flags | flag) == -1)
+        return -errno;
+
+    return 0;
+}
+
 #if defined(__linux__)
 
 #define RTC_FREQ 1024
@@ -1388,7 +1403,7 @@ static void enable_sigio_timer(int fd)
     act.sa_handler = host_alarm_handler;
 
     sigaction(SIGIO, &act, NULL);
-    fcntl(fd, F_SETFL, O_ASYNC);
+    fcntl_setfl(fd, O_ASYNC);
     fcntl(fd, F_SETOWN, getpid());
 }
 
@@ -1674,22 +1689,24 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 
 #endif /* _WIN32 */
 
-static void init_timer_alarm(void)
+static int init_timer_alarm(void)
 {
     struct qemu_alarm_timer *t = NULL;
     int i, err = -1;
     int fds[2];
 
-    if (pipe(fds) < 0) {
-    fail:
-        perror("creating timer pipe");
-        exit(1);
-    }
-    for (i = 0; i < 2; i++) {
-        int flags = fcntl(fds[i], F_GETFL);
-        if (flags == -1 || fcntl(fds[i], F_SETFL, flags | O_NONBLOCK))
-            goto fail;
-    }
+    err = pipe(fds);
+    if (err == -1)
+        return -errno;
+
+    err = fcntl_setfl(fds[0], O_NONBLOCK);
+    if (err < 0)
+        goto fail;
+
+    err = fcntl_setfl(fds[1], O_NONBLOCK);
+    if (err < 0)
+        goto fail;
+
     alarm_timer_rfd = fds[0];
     alarm_timer_wfd = fds[1];
 
@@ -1702,12 +1719,18 @@ static void init_timer_alarm(void)
     }
 
     if (err) {
-        fprintf(stderr, "Unable to find any suitable alarm timer.\n");
-        fprintf(stderr, "Terminating\n");
-        exit(1);
+        err = -ENOENT;
+        goto fail;
     }
 
     alarm_timer = t;
+
+    return 1;
+
+fail:
+    close(fds[0]);
+    close(fds[1]);
+    return err;
 }
 
 static void quit_timers(void)
@@ -6075,7 +6098,10 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IOLBF, 0);
 
     init_timers();
-    init_timer_alarm();
+    if (init_timer_alarm() < 0) {
+        fprintf(stderr, "could not initialize alarm timer\n");
+        exit(1);
+    }
     if (use_icount && icount_time_shift < 0) {
         use_icount = 2;
         /* 125MIPS seems a reasonable initial guess at the guest speed.
