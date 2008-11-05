@@ -39,6 +39,7 @@
 #include "block.h"
 #include "audio/audio.h"
 #include "migration.h"
+#include "kvm.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -4782,6 +4783,9 @@ static void help(int exitcode)
            "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n"
            "-no-kqemu       disable KQEMU kernel module usage\n"
 #endif
+#ifdef CONFIG_KVM
+           "-enable-kvm     enable KVM full virtualization support\n"
+#endif
 #ifdef TARGET_I386
            "-no-acpi        disable ACPI\n"
 #endif
@@ -4887,6 +4891,7 @@ enum {
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
     QEMU_OPTION_kernel_kqemu,
+    QEMU_OPTION_enable_kvm,
     QEMU_OPTION_win2k_hack,
     QEMU_OPTION_usb,
     QEMU_OPTION_usbdevice,
@@ -4972,6 +4977,9 @@ static const QEMUOption qemu_options[] = {
 #ifdef USE_KQEMU
     { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
     { "kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu },
+#endif
+#ifdef CONFIG_KVM
+    { "enable-kvm", 0, QEMU_OPTION_enable_kvm },
 #endif
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
     { "g", 1, QEMU_OPTION_g },
@@ -5794,6 +5802,14 @@ int main(int argc, char **argv)
                 kqemu_allowed = 2;
                 break;
 #endif
+#ifdef CONFIG_KVM
+            case QEMU_OPTION_enable_kvm:
+                kvm_allowed = 1;
+#ifdef USE_KQEMU
+                kqemu_allowed = 0;
+#endif
+                break;
+#endif
             case QEMU_OPTION_usb:
                 usb_enabled = 1;
                 break;
@@ -5927,6 +5943,14 @@ int main(int argc, char **argv)
             }
         }
     }
+
+#if defined(CONFIG_KVM) && defined(USE_KQEMU)
+    if (kvm_allowed && kqemu_allowed) {
+        fprintf(stderr,
+                "You can not enable both KVM and kqemu at the same time\n");
+        exit(1);
+    }
+#endif
 
     machine->max_cpus = machine->max_cpus ?: 1; /* Default to UP */
     if (smp_cpus > machine->max_cpus) {
@@ -6226,6 +6250,16 @@ int main(int argc, char **argv)
             }
             if (strstart(devname, "vc", 0))
                 qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
+        }
+    }
+
+    if (kvm_enabled()) {
+        int ret;
+
+        ret = kvm_init(smp_cpus);
+        if (ret < 0) {
+            fprintf(stderr, "failed to initialize KVM\n");
+            exit(1);
         }
     }
 

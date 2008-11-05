@@ -183,6 +183,9 @@ CFLAGS+=-I/opt/SUNWspro/prod/include/cc
 endif
 endif
 
+kvm.o: CFLAGS+=$(KVM_CFLAGS)
+kvm-all.o: CFLAGS+=$(KVM_CFLAGS)
+
 all: $(PROGS)
 
 #########################################################
@@ -581,6 +584,9 @@ ifndef CONFIG_USER_ONLY
 OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o net-checksum.o
 OBJS+=fw_cfg.o aio.o buffered_file.o migration.o migration-tcp.o qemu-char.o
 OBJS+=net.o
+ifdef CONFIG_KVM
+OBJS+=kvm.o kvm-all.o
+endif
 ifdef CONFIG_WIN32
 OBJS+=block-raw-win32.o
 else

@@ -22,6 +22,7 @@
 #include "exec.h"
 #include "disas.h"
 #include "tcg.h"
+#include "kvm.h"
 
 #if !defined(CONFIG_SOFTMMU)
 #undef EAX
@@ -370,6 +371,19 @@ int cpu_exec(CPUState *env1)
                 }
             }
 #endif
+
+            if (kvm_enabled()) {
+                int ret;
+                ret = kvm_cpu_exec(env);
+                if ((env->interrupt_request & CPU_INTERRUPT_EXIT)) {
+                    env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
+                    env->exception_index = EXCP_INTERRUPT;
+                    cpu_loop_exit();
+                } else if (env->halted) {
+                    cpu_loop_exit();
+                } else
+                    longjmp(env->jmp_env, 1);
+            }
 
             next_tb = 0; /* force lookup of first TB */
             for(;;) {

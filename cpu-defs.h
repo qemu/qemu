@@ -142,6 +142,9 @@ typedef struct icount_decr_u16 {
 } icount_decr_u16;
 #endif
 
+struct kvm_run;
+struct KVMState;
+
 #define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
@@ -199,6 +202,9 @@ typedef struct icount_decr_u16 {
     /* user data */                                                     \
     void *opaque;                                                       \
                                                                         \
-    const char *cpu_model_str;
+    const char *cpu_model_str;                                          \
+    struct KVMState *kvm_state;                                         \
+    struct kvm_run *kvm_run;                                            \
+    int kvm_fd;
 
 #endif

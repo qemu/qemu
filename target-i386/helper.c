@@ -29,6 +29,7 @@
 #include "exec-all.h"
 #include "svm.h"
 #include "qemu-common.h"
+#include "kvm.h"
 
 //#define DEBUG_MMU
 
@@ -115,6 +116,8 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 #ifdef USE_KQEMU
     kqemu_init(env);
 #endif
+    if (kvm_enabled())
+        kvm_init_vcpu(env);
     return env;
 }
 
@@ -1288,6 +1291,40 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 #endif /* !CONFIG_USER_ONLY */
 
+#if defined(CONFIG_KVM)
+static void host_cpuid(uint32_t function, uint32_t *eax, uint32_t *ebx,
+                       uint32_t *ecx, uint32_t *edx)
+{
+    uint32_t vec[4];
+
+#ifdef __x86_64__
+    asm volatile("cpuid"
+		 : "=a"(vec[0]), "=b"(vec[1]),
+		   "=c"(vec[2]), "=d"(vec[3])
+		 : "0"(function) : "cc");
+#else
+    asm volatile("pusha \n\t"
+		 "cpuid \n\t"
+		 "mov %%eax, 0(%1) \n\t"
+		 "mov %%ebx, 4(%1) \n\t"
+		 "mov %%ecx, 8(%1) \n\t"
+		 "mov %%edx, 12(%1) \n\t"
+		 "popa"
+		 : : "a"(function), "S"(vec)
+		 : "memory", "cc");
+#endif
+
+    if (eax)
+	*eax = vec[0];
+    if (ebx)
+	*ebx = vec[1];
+    if (ecx)
+	*ecx = vec[2];
+    if (edx)
+	*edx = vec[3];
+}
+#endif
+
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx)
@@ -1307,12 +1344,23 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
         *ebx = env->cpuid_vendor1;
         *edx = env->cpuid_vendor2;
         *ecx = env->cpuid_vendor3;
+
+        /* sysenter isn't supported on compatibility mode on AMD.  and syscall
+         * isn't supported in compatibility mode on Intel.  so advertise the
+         * actuall cpu, and say goodbye to migration between different vendors
+         * is you use compatibility mode. */
+        if (kvm_enabled())
+            host_cpuid(0, NULL, ebx, ecx, edx);
         break;
     case 1:
         *eax = env->cpuid_version;
         *ebx = (env->cpuid_apic_id << 24) | 8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
         *ecx = env->cpuid_ext_features;
         *edx = env->cpuid_features;
+
+        /* "Hypervisor present" bit required for Microsoft SVVP */
+        if (kvm_enabled())
+            *ecx |= (1 << 31);
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
@@ -1390,6 +1438,31 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
         *ebx = 0;
         *ecx = env->cpuid_ext3_features;
         *edx = env->cpuid_ext2_features;
+
+        if (kvm_enabled()) {
+            uint32_t h_eax, h_edx;
+
+            host_cpuid(0x80000001, &h_eax, NULL, NULL, &h_edx);
+
+            /* disable CPU features that the host does not support */
+
+            /* long mode */
+            if ((h_edx & 0x20000000) == 0 /* || !lm_capable_kernel */)
+                *edx &= ~0x20000000;
+            /* syscall */
+            if ((h_edx & 0x00000800) == 0)
+                *edx &= ~0x00000800;
+            /* nx */
+            if ((h_edx & 0x00100000) == 0)
+                *edx &= ~0x00100000;
+
+            /* disable CPU features that KVM cannot support */
+
+            /* svm */
+            *ecx &= ~4UL;
+            /* 3dnow */
+            *edx = ~0xc0000000;
+        }
         break;
     case 0x80000002:
     case 0x80000003:

@@ -587,6 +587,8 @@ typedef struct CPUX86State {
     target_ulong kernelgsbase;
 #endif
 
+    uint64_t tsc;
+
     uint64_t pat;
 
     /* exception/interrupt handling */
@@ -617,6 +619,10 @@ typedef struct CPUX86State {
     int kqemu_enabled;
     int last_io_time;
 #endif
+
+    /* For KVM */
+    uint64_t interrupt_bitmap[256 / 64];
+
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct APICState *apic_state;

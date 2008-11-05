@@ -37,6 +37,7 @@
 #include <dirent.h>
 #include "qemu-timer.h"
 #include "migration.h"
+#include "kvm.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -1263,6 +1264,19 @@ static void do_info_kqemu(void)
 #endif
 }
 
+static void do_info_kvm(void)
+{
+#ifdef CONFIG_KVM
+    term_printf("kvm support: ");
+    if (kvm_enabled())
+	term_printf("enabled\n");
+    else
+	term_printf("disabled\n");
+#else
+    term_printf("kvm support: not compiled\n");
+#endif
+}
+
 #ifdef CONFIG_PROFILER
 
 int64_t kqemu_time;
@@ -1497,6 +1511,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show dynamic compiler info", },
     { "kqemu", "", do_info_kqemu,
       "", "show kqemu information", },
+    { "kvm", "", do_info_kvm,
+      "", "show kvm information", },
     { "usb", "", usb_info,
       "", "show guest USB devices", },
     { "usbhost", "", usb_host_info,
