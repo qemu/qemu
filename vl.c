@@ -1689,6 +1689,23 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 
 #endif /* _WIN32 */
 
+static void try_to_rearm_timer(void *opaque)
+{
+    struct qemu_alarm_timer *t = opaque;
+    ssize_t len;
+
+    /* Drain the notify pipe */
+    do {
+        char buffer[512];
+        len = read(alarm_timer_rfd, buffer, sizeof(buffer));
+    } while ((len == -1 && errno == EINTR) || len > 0);
+
+    if (t->flags & ALARM_FLAG_EXPIRED) {
+        alarm_timer->flags &= ~ALARM_FLAG_EXPIRED;
+        qemu_rearm_alarm_timer(alarm_timer);
+    }
+}
+
 static int init_timer_alarm(void)
 {
     struct qemu_alarm_timer *t = NULL;
@@ -1723,9 +1740,12 @@ static int init_timer_alarm(void)
         goto fail;
     }
 
+    qemu_set_fd_handler2(alarm_timer_rfd, NULL,
+                         try_to_rearm_timer, NULL, t);
+
     alarm_timer = t;
 
-    return 1;
+    return 0;
 
 fail:
     close(fds[0]);
@@ -4467,9 +4487,8 @@ void main_loop_wait(int timeout)
 
     /* poll any events */
     /* XXX: separate device handlers from system ones */
-    nfds = alarm_timer_rfd;
+    nfds = -1;
     FD_ZERO(&rfds);
-    FD_SET(alarm_timer_rfd, &rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&xfds);
     for(ioh = first_io_handler; ioh != NULL; ioh = ioh->next) {
@@ -4541,16 +4560,6 @@ void main_loop_wait(int timeout)
     /* real time timers */
     qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
                     qemu_get_clock(rt_clock));
-
-    if (alarm_timer->flags & ALARM_FLAG_EXPIRED) {
-        char byte;
-        do {
-            ret = read(alarm_timer_rfd, &byte, sizeof(byte));
-        } while (ret != -1 || errno != EAGAIN);
-
-        alarm_timer->flags &= ~(ALARM_FLAG_EXPIRED);
-        qemu_rearm_alarm_timer(alarm_timer);
-    }
 
     /* Check bottom-halves last in case any of the earlier events triggered
        them.  */
