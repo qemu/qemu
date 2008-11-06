@@ -40,25 +40,23 @@ typedef struct FdMigrationState
     do { } while (0)
 #endif
 
-int debug_me = 0;
-
 static void tcp_cleanup(FdMigrationState *s)
 {
-    if (s->detach == 2) {
-        monitor_resume();
-        s->detach = 0;
-    }
-
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
 
     if (s->file) {
-        debug_me = 1;
         dprintf("closing file\n");
         qemu_fclose(s->file);
     }
 
     if (s->fd != -1)
         close(s->fd);
+
+    /* Don't resume monitor until we've flushed all of the buffers */
+    if (s->detach == 2) {
+        monitor_resume();
+        s->detach = 0;
+    }
 
     s->fd = -1;
 }
