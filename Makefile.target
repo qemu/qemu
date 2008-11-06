@@ -397,6 +397,12 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
 endif
 endif
 
+# profiling code
+ifdef TARGET_GPROF
+LDFLAGS+=-p
+CFLAGS+=-p
+endif
+
 OBJS= main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
       elfload.o linuxload.o uaccess.o
 LIBS+= $(AIOLIBS)
