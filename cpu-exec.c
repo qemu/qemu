@@ -59,10 +59,6 @@ void cpu_loop_exit(void)
     longjmp(env->jmp_env, 1);
 }
 
-#if !(defined(TARGET_SPARC) || defined(TARGET_SH4) || defined(TARGET_M68K))
-#define reg_T2
-#endif
-
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
