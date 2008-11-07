@@ -648,7 +648,7 @@ static const uint8_t broadcast_macaddr[6] =
 /* Debugging codes */
 #ifdef  DEBUG_E100
 
-static void e100_dump(char *comment, uint8_t *info, int len)
+static void e100_dump(const char *comment, const uint8_t *info, int len)
 {
     int i;
 
@@ -707,7 +707,7 @@ static void eeprom_trace(int eedo, int di, int dir, int next_op, int clr)
 
     if ( clr )
     {
-        char *opname = NULL;
+        const char *opname = NULL;
 
         switch ( etd.op )
         {
@@ -757,7 +757,7 @@ static void eeprom_trace(int eedo, int di, int dir, int next_op, int clr)
 
 #define INT_NAME(x) \
     ({  \
-     char *name = NULL; \
+     const char *name = NULL; \
      switch (x) \
      {  \
      case INT_FCP:  \
@@ -788,7 +788,7 @@ static void eeprom_trace(int eedo, int di, int dir, int next_op, int clr)
      })
 
 #else
-static void e100_dump(char *comment, uint8_t *info, int len) {}
+static void e100_dump(const char *comment, const uint8_t *info, int len) {}
 static void eeprom_trace(int eedo, int di, int dir, int next_op, int clr) {}
 #endif
 
