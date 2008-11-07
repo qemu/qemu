@@ -844,7 +844,7 @@ static void ide_sector_read(IDEState *s)
         ide_transfer_stop(s);
     } else {
 #if defined(DEBUG_IDE)
-        printf("read sector=%Ld\n", sector_num);
+        printf("read sector=%" PRId64 "\n", sector_num);
 #endif
         if (n > s->req_nb_sectors)
             n = s->req_nb_sectors;
@@ -987,7 +987,7 @@ static void ide_sector_write(IDEState *s)
     s->status = READY_STAT | SEEK_STAT;
     sector_num = ide_get_sector(s);
 #if defined(DEBUG_IDE)
-    printf("write sector=%Ld\n", sector_num);
+    printf("write sector=%" PRId64 "\n", sector_num);
 #endif
     n = s->nsector;
     if (n > s->req_nb_sectors)
