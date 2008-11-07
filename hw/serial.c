@@ -342,9 +342,9 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     SerialState *s = opaque;
 
     addr -= s->base;
+    addr >>= s->it_shift;
     //~ fprintf(stderr, "%s(%p,0x%08x)\n", __func__, opaque, addr);
 
-    addr &= 7;
 #ifdef DEBUG_SERIAL
     printf("serial: write addr=0x%02x val=0x%02x\n", addr, val);
 #endif
@@ -494,9 +494,10 @@ static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
     uint32_t ret;
 
     addr -= s->base;
-    //~ fprintf(stderr, "%s(%p,0x%08x)\n", __func__, opaque, addr);
+    addr >>= s->it_shift;
 
-    addr &= 7;
+  //~ fprintf(stderr, "%s(%p,0x%08x)\n", __func__, opaque, addr);
+
     switch(addr) {
     default:
     case 0:
@@ -731,6 +732,11 @@ static void serial_init_core(SerialState *s, qemu_irq irq, int baudbase,
 
 }
 
+void serial_frequency(SerialState *s, uint32_t frequency)
+{
+    s->baudbase = frequency;
+}
+
 /* If fd is zero, it means that the serial device uses the console */
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          CharDriverState *chr)
@@ -745,6 +751,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
         return NULL;
 
     s->base = base;
+    s->it_shift = 0;
 
     serial_init_core(s, irq, baudbase, chr);
 
@@ -762,8 +769,8 @@ uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
 
-    //~ fprintf(stderr, "%s(%p,0x%02x)\n", __func__, opaque, (addr - s->base) >> s->it_shift);
-    return serial_ioport_read(s, (addr - s->base) >> s->it_shift) & 0xFF;
+    //~ fprintf(stderr, "%s(%p,0x%02x)\n", __func__, opaque, addr);
+    return serial_ioport_read(s, addr) & 0xFF;
 }
 
 void serial_mm_writeb (void *opaque,
@@ -771,8 +778,8 @@ void serial_mm_writeb (void *opaque,
 {
     SerialState *s = opaque;
 
-    //~ fprintf(stderr, "%s(%p,0x%02x)\n", __func__, opaque, (addr - s->base) >> s->it_shift);
-    serial_ioport_write(s, (addr - s->base) >> s->it_shift, value & 0xFF);
+    //~ fprintf(stderr, "%s(%p,0x%02x)\n", __func__, opaque, addr);
+    serial_ioport_write(s, addr, value & 0xFF);
 }
 
 uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr)
@@ -780,7 +787,7 @@ uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr)
     SerialState *s = opaque;
     uint32_t val;
 
-    val = serial_ioport_read(s, (addr - s->base) >> s->it_shift) & 0xFFFF;
+    val = serial_ioport_read(s, addr) & 0xFFFF;
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
 #endif
@@ -794,7 +801,7 @@ void serial_mm_writew (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
-    serial_ioport_write(s, (addr - s->base) >> s->it_shift, value & 0xFFFF);
+    serial_ioport_write(s, addr, value & 0xFFFF);
 }
 
 uint32_t serial_mm_readl (void *opaque, target_phys_addr_t addr)
@@ -802,7 +809,7 @@ uint32_t serial_mm_readl (void *opaque, target_phys_addr_t addr)
     SerialState *s = opaque;
     uint32_t val;
 
-    val = serial_ioport_read(s, (addr - s->base) >> s->it_shift);
+    val = serial_ioport_read(s, addr);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
@@ -816,7 +823,7 @@ void serial_mm_writel (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
-    serial_ioport_write(s, (addr - s->base) >> s->it_shift, value);
+    serial_ioport_write(s, addr, value);
 }
 
 static CPUReadMemoryFunc *serial_mm_read[] = {

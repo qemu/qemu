@@ -716,7 +716,6 @@ OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds122
 OBJS+= piix_pci.o parallel.o cirrus_vga.o pcspk.o $(SOUND_HW)
 ifeq ($(TARGET_ARCH), mips)
 OBJS += ar7.o
-OBJS += serial_16450.o
 endif
 OBJS += mipsnet.o
 OBJS += pflash.o

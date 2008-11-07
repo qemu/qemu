@@ -1585,6 +1585,7 @@ static uint32_t ar7_cpmac_read(unsigned cpmac_index, unsigned offset)
     return val;
 }
 
+#if 0
 /* Table of CRCs of all 8-bit messages. */
 static uint32_t crc_table[256];
 
@@ -1628,10 +1629,11 @@ static uint32_t update_crc(uint32_t crc, const uint8_t * buf, int len)
 }
 
 /* Return the CRC of the bytes buf[0..len-1]. */
-uint32_t fcs(const uint8_t * buf, int len)
+static uint32_t fcs(const uint8_t * buf, int len)
 {
     return update_crc(0xffffffffL, buf, len) ^ 0xffffffffL;
 }
+#endif
 
 static void statusreg_inc(unsigned cpmac_index, unsigned offset)
 {
@@ -2332,7 +2334,13 @@ static const char *const uart_write_names[] = {
 
 #define UART_MEM_TO_IO(addr)    (((addr) - AVALANCHE_UART0_BASE) / 4)
 
-static const int uart_interrupt[] = { INTERRUPT_SERIAL0, INTERRUPT_SERIAL1 };
+static const target_phys_addr_t uart_base[] = {
+  AVALANCHE_UART0_BASE, AVALANCHE_UART1_BASE
+};
+
+static const int uart_interrupt[] = {
+  INTERRUPT_SERIAL0, INTERRUPT_SERIAL1
+};
 
 /* Status of DLAB bit. */
 static uint32_t dlab[2];
@@ -2354,7 +2362,7 @@ static uint32_t uart_read(unsigned uart_index, uint32_t addr)
         reg -= UART_MEM_TO_IO(AVALANCHE_UART1_BASE);
     }
     assert(reg < 8);
-    val = serial_read(ar7.serial[uart_index], reg);
+    val = serial_mm_readb(ar7.serial[uart_index], addr);
     //~ if (reg != 5) {
         TRACE(UART, logout("uart%u[%s]=0x%08x\n", uart_index,
             uart_read_names[uart_name_index(uart_index, reg)], val));
@@ -2377,7 +2385,7 @@ static void uart_write(unsigned uart_index, uint32_t addr, uint32_t val)
     if (reg == 3) {
         dlab[uart_index] = (val & 0x80);
     }
-    serial_write(ar7.serial[uart_index], reg, val);
+    serial_mm_writeb(ar7.serial[uart_index], addr, val);
 }
 
 /*****************************************************************************
@@ -2744,7 +2752,7 @@ typedef struct {
     uint32_t prescale;          /* 0x1c */
 } wdtimer_t;
 
-void watchdog_trigger(void)
+static void watchdog_trigger(void)
 {
     wdtimer_t *wdt = (wdtimer_t *) & av.watchdog;
     if (wdt->disable == 0) {
@@ -3259,14 +3267,14 @@ static void ar7_serial_init(CPUState * env)
         qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
     }
     for (uart_index = 0; uart_index < 2; uart_index++) {
-        ar7.serial[uart_index] = serial_16550_init(0,
-            AR7_PRIMARY_IRQ(uart_interrupt[uart_index]),
-            serial_hds[uart_index]);
+        ar7.serial[uart_index] = serial_mm_init(uart_base[uart_index], 2,
+            AR7_PRIMARY_IRQ(uart_interrupt[uart_index]), io_frequency,
+            serial_hds[uart_index], 0);
         serial_frequency(ar7.serial[uart_index], io_frequency / 16);
     }
 
     /* Set special init values. */
-    serial_write(ar7.serial[0], 5, 0x20);
+    serial_mm_writeb(ar7.serial[0], AVALANCHE_UART0_BASE + (5 << 2), 0x20);
 
     /* Select 1st serial console as default (because we don't have VGA). */
     console_select(1);
