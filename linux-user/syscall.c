@@ -54,6 +54,9 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <qemu-common.h>
+#ifdef HAVE_GPROF
+#include <sys/gmon.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -4864,6 +4867,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef __NR_exit_group
         /* new thread calls */
     case TARGET_NR_exit_group:
+#ifdef HAVE_GPROF
+        _mcleanup();
+#endif
         gdb_exit(cpu_env, arg1);
         ret = get_errno(exit_group(arg1));
         break;

@@ -23,6 +23,7 @@
 #include "sysemu.h"
 #include "i2c.h"
 #include "smbus.h"
+#include "kvm.h"
 
 //#define DEBUG
 
@@ -500,6 +501,12 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     register_ioport_read(0xb2, 2, 1, pm_smi_readb, s);
 
     register_ioport_write(ACPI_DBG_IO_ADDR, 4, 4, acpi_dbg_writel, s);
+
+    if (kvm_enabled()) {
+        /* Mark SMM as already inited to prevent SMM from running.  KVM does not
+         * support SMM mode. */
+        pci_conf[0x5B] = 0x02;
+    }
 
     /* XXX: which specification is used ? The i82731AB has different
        mappings */

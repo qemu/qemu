@@ -22,6 +22,7 @@
 #include "exec.h"
 #include "disas.h"
 #include "tcg.h"
+#include "kvm.h"
 
 #if !defined(CONFIG_SOFTMMU)
 #undef EAX
@@ -57,10 +58,6 @@ void __attribute((noreturn)) cpu_loop_exit(void)
     regs_to_env();
     longjmp(env->jmp_env, 1);
 }
-
-#if !(defined(TARGET_SPARC) || defined(TARGET_SH4) || defined(TARGET_M68K))
-#define reg_T2
-#endif
 
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
@@ -371,11 +368,30 @@ int cpu_exec(CPUState *env1)
             }
 #endif
 
+            if (kvm_enabled()) {
+                int ret;
+                ret = kvm_cpu_exec(env);
+                if ((env->interrupt_request & CPU_INTERRUPT_EXIT)) {
+                    env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
+                    env->exception_index = EXCP_INTERRUPT;
+                    cpu_loop_exit();
+                } else if (env->halted) {
+                    cpu_loop_exit();
+                } else
+                    longjmp(env->jmp_env, 1);
+            }
+
             next_tb = 0; /* force lookup of first TB */
             for(;;) {
                 interrupt_request = env->interrupt_request;
-                if (unlikely(interrupt_request) &&
-                    likely(!(env->singlestep_enabled & SSTEP_NOIRQ))) {
+                if (unlikely(interrupt_request)) {
+                    if (unlikely(env->singlestep_enabled & SSTEP_NOIRQ)) {
+                        /* Mask out external interrupts for this step. */
+                        interrupt_request &= ~(CPU_INTERRUPT_HARD |
+                                               CPU_INTERRUPT_FIQ |
+                                               CPU_INTERRUPT_SMI |
+                                               CPU_INTERRUPT_NMI);
+                    }
                     if (interrupt_request & CPU_INTERRUPT_DEBUG) {
                         env->interrupt_request &= ~CPU_INTERRUPT_DEBUG;
                         env->exception_index = EXCP_DEBUG;
@@ -623,6 +639,14 @@ int cpu_exec(CPUState *env1)
                 }
                 spin_unlock(&tb_lock);
                 env->current_tb = tb;
+
+                /* cpu_interrupt might be called while translating the
+                   TB, but before it is linked into a potentially
+                   infinite loop and becomes env->current_tb. Avoid
+                   starting execution if there is a pending interrupt. */
+                if (unlikely (env->interrupt_request & CPU_INTERRUPT_EXIT))
+                    env->current_tb = NULL;
+
                 while (env->current_tb) {
                     tc_ptr = tb->tc_ptr;
                 /* execute the generated code */

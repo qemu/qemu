@@ -225,7 +225,7 @@ t0=~(t1|t2)
 
 t0=t1|~t2
 
-********* Shifts
+********* Shifts/Rotates
 
 * shl_i32/i64 t0, t1, t2
 
@@ -238,6 +238,14 @@ t0=t1 >> t2 (unsigned). Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
 * sar_i32/i64 t0, t1, t2
 
 t0=t1 >> t2 (signed). Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+
+* rotl_i32/i64 t0, t1, t2
+
+Rotation of t2 bits to the left. Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
+
+* rotr_i32/i64 t0, t1, t2
+
+Rotation of t2 bits to the right. Undefined behavior if t2 < 0 or t2 >= 32 (resp 64)
 
 ********* Misc
 
@@ -381,6 +389,11 @@ the 32 bit values in 64 bit registers.
 GCC like constraints are used to define the constraints of every
 instruction. Memory constraints are not supported in this
 version. Aliases are specified in the input operands as for GCC.
+
+The same register may be used for both an input and an output, even when
+they are not explicitly aliased.  If an op expands to multiple target
+instructions then care must be taken to avoid clobbering input values.
+GCC style "early clobber" outputs are not currently supported.
 
 A target can define specific register or constant constraints. If an
 operation uses a constant input constraint which does not allow all

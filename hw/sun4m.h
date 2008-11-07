@@ -58,7 +58,7 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
 void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
                        target_phys_addr_t aux1_base,
                        target_phys_addr_t aux2_base, qemu_irq irq,
-                       CPUState *env, qemu_irq **fdc_tc);
+                       qemu_irq cpu_halt, qemu_irq **fdc_tc);
 void slavio_set_power_fail(void *opaque, int power_failing);
 
 /* cs4231.c */

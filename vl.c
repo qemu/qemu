@@ -39,6 +39,7 @@
 #include "block.h"
 #include "audio/audio.h"
 #include "migration.h"
+#include "kvm.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -54,26 +55,31 @@
 #include <termios.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <net/if.h>
+#if defined(__NetBSD__)
+#include <net/if_tap.h>
+#endif
+#ifdef __linux__
+#include <linux/if_tun.h>
+#endif
+#include <arpa/inet.h>
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#include <arpa/inet.h>
 #ifdef _BSD
 #include <sys/stat.h>
-#if !defined(__APPLE__) && !defined(__OpenBSD__)
+#ifdef __FreeBSD__
 #include <libutil.h>
-#endif
-#ifdef __OpenBSD__
-#include <net/if.h>
+#else
+#include <util.h>
 #endif
 #elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
 #include <freebsd/stdlib.h>
 #else
 #ifdef __linux__
-#include <linux/if.h>
-#include <linux/if_tun.h>
 #include <pty.h>
 #include <malloc.h>
 #include <linux/rtc.h>
@@ -884,6 +890,9 @@ static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 #define MIN_TIMER_REARM_US 250
 
 static struct qemu_alarm_timer *alarm_timer;
+#ifndef _WIN32
+static int alarm_timer_rfd, alarm_timer_wfd;
+#endif
 
 #ifdef _WIN32
 
@@ -1301,12 +1310,15 @@ static void host_alarm_handler(int host_signum)
                                qemu_get_clock(vm_clock))) ||
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
+        CPUState *env = next_cpu;
+
 #ifdef _WIN32
         struct qemu_alarm_win32 *data = ((struct qemu_alarm_timer*)dwUser)->priv;
         SetEvent(data->host_alarm);
+#else
+        static const char byte = 0;
+        write(alarm_timer_wfd, &byte, sizeof(byte));
 #endif
-        CPUState *env = next_cpu;
-
         alarm_timer->flags |= ALARM_FLAG_EXPIRED;
 
         if (env) {
@@ -1367,6 +1379,21 @@ static uint64_t qemu_next_deadline_dyntick(void)
 
 #ifndef _WIN32
 
+/* Sets a specific flag */
+static int fcntl_setfl(int fd, int flag)
+{
+    int flags;
+
+    flags = fcntl(fd, F_GETFL);
+    if (flags == -1)
+        return -errno;
+
+    if (fcntl(fd, F_SETFL, flags | flag) == -1)
+        return -errno;
+
+    return 0;
+}
+
 #if defined(__linux__)
 
 #define RTC_FREQ 1024
@@ -1381,7 +1408,7 @@ static void enable_sigio_timer(int fd)
     act.sa_handler = host_alarm_handler;
 
     sigaction(SIGIO, &act, NULL);
-    fcntl(fd, F_SETFL, O_ASYNC);
+    fcntl_setfl(fd, O_ASYNC);
     fcntl(fd, F_SETOWN, getpid());
 }
 
@@ -1579,6 +1606,34 @@ static void unix_stop_timer(struct qemu_alarm_timer *t)
 
 #endif /* !defined(_WIN32) */
 
+static void try_to_rearm_timer(void *opaque)
+{
+    struct qemu_alarm_timer *t = opaque;
+#ifndef _WIN32
+    ssize_t len;
+
+    /* Drain the notify pipe */
+    do {
+        char buffer[512];
+        len = read(alarm_timer_rfd, buffer, sizeof(buffer));
+    } while ((len == -1 && errno == EINTR) || len > 0);
+#endif
+
+    /* vm time timers */
+    if (vm_running && likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
+        qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
+                        qemu_get_clock(vm_clock));
+
+    /* real time timers */
+    qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
+                    qemu_get_clock(rt_clock));
+
+    if (t->flags & ALARM_FLAG_EXPIRED) {
+        alarm_timer->flags &= ~ALARM_FLAG_EXPIRED;
+        qemu_rearm_alarm_timer(alarm_timer);
+    }
+}
+
 #ifdef _WIN32
 
 static int win32_start_timer(struct qemu_alarm_timer *t)
@@ -1621,7 +1676,7 @@ static int win32_start_timer(struct qemu_alarm_timer *t)
         return -1;
     }
 
-    qemu_add_wait_object(data->host_alarm, NULL, NULL);
+    qemu_add_wait_object(data->host_alarm, try_to_rearm_timer, t);
 
     return 0;
 }
@@ -1667,10 +1722,29 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
 
 #endif /* _WIN32 */
 
-static void init_timer_alarm(void)
+static int init_timer_alarm(void)
 {
     struct qemu_alarm_timer *t = NULL;
     int i, err = -1;
+
+#ifndef _WIN32
+    int fds[2];
+
+    err = pipe(fds);
+    if (err == -1)
+        return -errno;
+
+    err = fcntl_setfl(fds[0], O_NONBLOCK);
+    if (err < 0)
+        goto fail;
+
+    err = fcntl_setfl(fds[1], O_NONBLOCK);
+    if (err < 0)
+        goto fail;
+
+    alarm_timer_rfd = fds[0];
+    alarm_timer_wfd = fds[1];
+#endif
 
     for (i = 0; alarm_timers[i].name; i++) {
         t = &alarm_timers[i];
@@ -1681,12 +1755,25 @@ static void init_timer_alarm(void)
     }
 
     if (err) {
-        fprintf(stderr, "Unable to find any suitable alarm timer.\n");
-        fprintf(stderr, "Terminating\n");
-        exit(1);
+        err = -ENOENT;
+        goto fail;
     }
 
+#ifndef _WIN32
+    qemu_set_fd_handler2(alarm_timer_rfd, NULL,
+                         try_to_rearm_timer, NULL, t);
+#endif
+
     alarm_timer = t;
+
+    return 0;
+
+fail:
+#ifndef _WIN32
+    close(fds[0]);
+    close(fds[1]);
+#endif
+    return err;
 }
 
 static void quit_timers(void)
@@ -4487,21 +4574,6 @@ void main_loop_wait(int timeout)
     }
 #endif
 
-    if (vm_running) {
-        if (likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
-        qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
-                        qemu_get_clock(vm_clock));
-    }
-
-    /* real time timers */
-    qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
-                    qemu_get_clock(rt_clock));
-
-    if (alarm_timer->flags & ALARM_FLAG_EXPIRED) {
-        alarm_timer->flags &= ~(ALARM_FLAG_EXPIRED);
-        qemu_rearm_alarm_timer(alarm_timer);
-    }
-
     /* Check bottom-halves last in case any of the earlier events triggered
        them.  */
     qemu_bh_poll();
@@ -4780,6 +4852,9 @@ static void help(int exitcode)
            "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n"
            "-no-kqemu       disable KQEMU kernel module usage\n"
 #endif
+#ifdef CONFIG_KVM
+           "-enable-kvm     enable KVM full virtualization support\n"
+#endif
 #ifdef TARGET_I386
            "-no-acpi        disable ACPI\n"
 #endif
@@ -4885,6 +4960,7 @@ enum {
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
     QEMU_OPTION_kernel_kqemu,
+    QEMU_OPTION_enable_kvm,
     QEMU_OPTION_win2k_hack,
     QEMU_OPTION_usb,
     QEMU_OPTION_usbdevice,
@@ -4970,6 +5046,9 @@ static const QEMUOption qemu_options[] = {
 #ifdef USE_KQEMU
     { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
     { "kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu },
+#endif
+#ifdef CONFIG_KVM
+    { "enable-kvm", 0, QEMU_OPTION_enable_kvm },
 #endif
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
     { "g", 1, QEMU_OPTION_g },
@@ -5837,6 +5916,14 @@ int main(int argc, char **argv)
                 kqemu_allowed = 2;
                 break;
 #endif
+#ifdef CONFIG_KVM
+            case QEMU_OPTION_enable_kvm:
+                kvm_allowed = 1;
+#ifdef USE_KQEMU
+                kqemu_allowed = 0;
+#endif
+                break;
+#endif
             case QEMU_OPTION_usb:
                 usb_enabled = 1;
                 break;
@@ -5971,6 +6058,14 @@ int main(int argc, char **argv)
         }
     }
 
+#if defined(CONFIG_KVM) && defined(USE_KQEMU)
+    if (kvm_allowed && kqemu_allowed) {
+        fprintf(stderr,
+                "You can not enable both KVM and kqemu at the same time\n");
+        exit(1);
+    }
+#endif
+
     machine->max_cpus = machine->max_cpus ?: 1; /* Default to UP */
     if (smp_cpus > machine->max_cpus) {
         fprintf(stderr, "Number of SMP cpus requested (%d), exceeds max cpus "
@@ -6071,7 +6166,10 @@ int main(int argc, char **argv)
     setvbuf(stderr, NULL, _IOLBF, 0);
 
     init_timers();
-    init_timer_alarm();
+    if (init_timer_alarm() < 0) {
+        fprintf(stderr, "could not initialize alarm timer\n");
+        exit(1);
+    }
     if (use_icount && icount_time_shift < 0) {
         use_icount = 2;
         /* 125MIPS seems a reasonable initial guess at the guest speed.
@@ -6270,6 +6368,16 @@ int main(int argc, char **argv)
             }
             if (strstart(devname, "vc", 0))
                 qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
+        }
+    }
+
+    if (kvm_enabled()) {
+        int ret;
+
+        ret = kvm_init(smp_cpus);
+        if (ret < 0) {
+            fprintf(stderr, "failed to initialize KVM\n");
+            exit(1);
         }
     }
 

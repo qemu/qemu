@@ -200,7 +200,7 @@ struct HCIInfo *bt_host_hci(const char *id)
 #else
 struct HCIInfo *bt_host_hci(const char *id)
 {
-    fprintf(stderr, "qemu: bluetooth passthrough not supported (yet)\n", errno);
+    fprintf(stderr, "qemu: bluetooth passthrough not supported (yet)\n");
 
     return 0;
 }

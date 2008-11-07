@@ -40,6 +40,7 @@
 #include "tcg.h"
 #include "hw/hw.h"
 #include "osdep.h"
+#include "kvm.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #endif
@@ -234,7 +235,6 @@ static void page_init(void)
 #ifdef _WIN32
     {
         SYSTEM_INFO system_info;
-        DWORD old_protect;
 
         GetSystemInfo(&system_info);
         qemu_real_host_page_size = system_info.dwPageSize;
@@ -2213,6 +2213,9 @@ void cpu_register_physical_memory(target_phys_addr_t start_addr,
         kqemu_set_phys_mem(start_addr, size, phys_offset);
     }
 #endif
+    if (kvm_enabled())
+        kvm_set_phys_mem(start_addr, size, phys_offset);
+
     size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + (target_phys_addr_t)size;
 

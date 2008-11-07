@@ -159,9 +159,11 @@
 #define HF_MP_MASK           (1 << HF_MP_SHIFT)
 #define HF_EM_MASK           (1 << HF_EM_SHIFT)
 #define HF_TS_MASK           (1 << HF_TS_SHIFT)
+#define HF_IOPL_MASK         (3 << HF_IOPL_SHIFT)
 #define HF_LMA_MASK          (1 << HF_LMA_SHIFT)
 #define HF_CS64_MASK         (1 << HF_CS64_SHIFT)
 #define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
+#define HF_VM_MASK           (1 << HF_VM_SHIFT)
 #define HF_SMM_MASK          (1 << HF_SMM_SHIFT)
 #define HF_SVME_MASK         (1 << HF_SVME_SHIFT)
 #define HF_SVMI_MASK         (1 << HF_SVMI_SHIFT)
@@ -177,6 +179,9 @@
 #define HF2_HIF_MASK          (1 << HF2_HIF_SHIFT) 
 #define HF2_NMI_MASK          (1 << HF2_NMI_SHIFT)
 #define HF2_VINTR_MASK        (1 << HF2_VINTR_SHIFT)
+
+#define CR0_PE_SHIFT 0
+#define CR0_MP_SHIFT 1
 
 #define CR0_PE_MASK  (1 << 0)
 #define CR0_MP_MASK  (1 << 1)
@@ -196,7 +201,8 @@
 #define CR4_PAE_MASK  (1 << 5)
 #define CR4_PGE_MASK  (1 << 7)
 #define CR4_PCE_MASK  (1 << 8)
-#define CR4_OSFXSR_MASK (1 << 9)
+#define CR4_OSFXSR_SHIFT 9
+#define CR4_OSFXSR_MASK (1 << CR4_OSFXSR_SHIFT)
 #define CR4_OSXMMEXCPT_MASK  (1 << 10)
 
 #define PG_PRESENT_BIT	0
@@ -229,6 +235,7 @@
 #define PG_ERROR_RSVD_MASK 0x08
 #define PG_ERROR_I_D_MASK  0x10
 
+#define MSR_IA32_TSC                    0x10
 #define MSR_IA32_APICBASE               0x1b
 #define MSR_IA32_APICBASE_BSP           (1<<8)
 #define MSR_IA32_APICBASE_ENABLE        (1<<11)
@@ -580,6 +587,8 @@ typedef struct CPUX86State {
     target_ulong kernelgsbase;
 #endif
 
+    uint64_t tsc;
+
     uint64_t pat;
 
     /* exception/interrupt handling */
@@ -610,6 +619,10 @@ typedef struct CPUX86State {
     int kqemu_enabled;
     int last_io_time;
 #endif
+
+    /* For KVM */
+    uint64_t interrupt_bitmap[256 / 64];
+
     /* in order to simplify APIC support, we leave this pointer to the
        user */
     struct APICState *apic_state;
@@ -722,6 +735,10 @@ void cpu_smm_update(CPUX86State *env);
 
 /* will be suppressed */
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
+
+void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
+                   uint32_t *eax, uint32_t *ebx,
+                   uint32_t *ecx, uint32_t *edx);
 
 /* used to debug */
 #define X86_DUMP_FPU  0x0001 /* dump FPU state too */
