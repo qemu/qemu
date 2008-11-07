@@ -234,9 +234,13 @@ static always_inline void gen_qemu_stq_c (TCGv t0, TCGv t1, int flags)
 static always_inline void gen_store_mem (DisasContext *ctx,
                                          void (*tcg_gen_qemu_store)(TCGv t0, TCGv t1, int flags),
                                          int ra, int rb, int32_t disp16,
-                                         int fp, int clear)
+                                         int fp, int clear, int local)
 {
     TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+    if (local)
+        addr = tcg_temp_local_new(TCG_TYPE_I64);
+    else
+        addr = tcg_temp_new(TCG_TYPE_I64);
     if (rb != 31) {
         tcg_gen_addi_i64(addr, cpu_ir[rb], disp16);
         if (clear)
@@ -252,7 +256,11 @@ static always_inline void gen_store_mem (DisasContext *ctx,
         else
             tcg_gen_qemu_store(cpu_ir[ra], addr, ctx->mem_idx);
     } else {
-        TCGv zero = tcg_const_i64(0);
+        TCGv zero;
+        if (local)
+            zero = tcg_const_local_i64(0);
+        else
+            zero = tcg_const_i64(0);
         tcg_gen_qemu_store(zero, addr, ctx->mem_idx);
         tcg_temp_free(zero);
     }
@@ -636,15 +644,15 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x0D:
         /* STW */
-        gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st16, ra, rb, disp16, 0, 0, 0);
         break;
     case 0x0E:
         /* STB */
-        gen_store_mem(ctx, &tcg_gen_qemu_st8, ra, rb, disp16, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st8, ra, rb, disp16, 0, 0, 0);
         break;
     case 0x0F:
         /* STQ_U */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 1);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 1, 0);
         break;
     case 0x10:
         switch (fn7) {
@@ -2090,19 +2098,19 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x24:
         /* STF */
-        gen_store_mem(ctx, &gen_qemu_stf, ra, rb, disp16, 1, 0);
+        gen_store_mem(ctx, &gen_qemu_stf, ra, rb, disp16, 1, 0, 0);
         break;
     case 0x25:
         /* STG */
-        gen_store_mem(ctx, &gen_qemu_stg, ra, rb, disp16, 1, 0);
+        gen_store_mem(ctx, &gen_qemu_stg, ra, rb, disp16, 1, 0, 0);
         break;
     case 0x26:
         /* STS */
-        gen_store_mem(ctx, &gen_qemu_sts, ra, rb, disp16, 1, 0);
+        gen_store_mem(ctx, &gen_qemu_sts, ra, rb, disp16, 1, 0, 0);
         break;
     case 0x27:
         /* STT */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 1, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 1, 0, 0);
         break;
     case 0x28:
         /* LDL */
@@ -2122,19 +2130,19 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x2C:
         /* STL */
-        gen_store_mem(ctx, &tcg_gen_qemu_st32, ra, rb, disp16, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st32, ra, rb, disp16, 0, 0, 0);
         break;
     case 0x2D:
         /* STQ */
-        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 0);
+        gen_store_mem(ctx, &tcg_gen_qemu_st64, ra, rb, disp16, 0, 0, 0);
         break;
     case 0x2E:
         /* STL_C */
-        gen_store_mem(ctx, &gen_qemu_stl_c, ra, rb, disp16, 0, 0);
+        gen_store_mem(ctx, &gen_qemu_stl_c, ra, rb, disp16, 0, 0, 1);
         break;
     case 0x2F:
         /* STQ_C */
-        gen_store_mem(ctx, &gen_qemu_stq_c, ra, rb, disp16, 0, 0);
+        gen_store_mem(ctx, &gen_qemu_stq_c, ra, rb, disp16, 0, 0, 1);
         break;
     case 0x30:
         /* BR */

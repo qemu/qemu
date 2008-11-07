@@ -434,5 +434,6 @@ void cpu_dump_state (CPUState *env, FILE *f,
         if ((i % 3) == 2)
             cpu_fprintf(f, "\n");
     }
+    cpu_fprintf(f, "\nlock     " TARGET_FMT_lx "\n", env->lock);
 }
 
