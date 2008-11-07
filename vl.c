@@ -55,26 +55,31 @@
 #include <termios.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <net/if.h>
+#if defined(__NetBSD__)
+#include <net/if_tap.h>
+#endif
+#ifdef __linux__
+#include <linux/if_tun.h>
+#endif
+#include <arpa/inet.h>
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#include <arpa/inet.h>
 #ifdef _BSD
 #include <sys/stat.h>
-#if !defined(__APPLE__) && !defined(__OpenBSD__)
+#ifdef __FreeBSD__
 #include <libutil.h>
-#endif
-#ifdef __OpenBSD__
-#include <net/if.h>
+#else
+#include <util.h>
 #endif
 #elif defined (__GLIBC__) && defined (__FreeBSD_kernel__)
 #include <freebsd/stdlib.h>
 #else
 #ifdef __linux__
-#include <linux/if.h>
-#include <linux/if_tun.h>
 #include <pty.h>
 #include <malloc.h>
 #include <linux/rtc.h>
