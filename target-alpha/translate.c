@@ -207,10 +207,10 @@ static always_inline void gen_qemu_stl_c (TCGv t0, TCGv t1, int flags)
     l2 = gen_new_label();
     tcg_gen_brcond_i64(TCG_COND_NE, cpu_lock, t1, l1);
     tcg_gen_qemu_st32(t0, t1, flags);
-    tcg_gen_movi_i64(t0, 0);
+    tcg_gen_movi_i64(t0, 1);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_movi_i64(t0, 1);
+    tcg_gen_movi_i64(t0, 0);
     gen_set_label(l2);
     tcg_gen_movi_i64(cpu_lock, -1);
 }
@@ -223,10 +223,10 @@ static always_inline void gen_qemu_stq_c (TCGv t0, TCGv t1, int flags)
     l2 = gen_new_label();
     tcg_gen_brcond_i64(TCG_COND_NE, cpu_lock, t1, l1);
     tcg_gen_qemu_st64(t0, t1, flags);
-    tcg_gen_movi_i64(t0, 0);
+    tcg_gen_movi_i64(t0, 1);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_movi_i64(t0, 1);
+    tcg_gen_movi_i64(t0, 0);
     gen_set_label(l2);
     tcg_gen_movi_i64(cpu_lock, -1);
 }
