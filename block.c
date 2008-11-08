@@ -527,14 +527,6 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
     if (!drv)
         return -ENOMEDIUM;
 
-    if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
-            memcpy(buf, bs->boot_sector_data, 512);
-        sector_num++;
-        nb_sectors--;
-        buf += 512;
-        if (nb_sectors == 0)
-            return 0;
-    }
     if (drv->bdrv_pread) {
         int ret, len;
         len = nb_sectors * 512;
@@ -567,9 +559,6 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
         return -ENOMEDIUM;
     if (bs->read_only)
         return -EACCES;
-    if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
-        memcpy(bs->boot_sector_data, buf, 512);
-    }
     if (drv->bdrv_pwrite) {
         int ret, len;
         len = nb_sectors * 512;
@@ -748,16 +737,6 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     else
         length = length >> SECTOR_BITS;
     *nb_sectors_ptr = length;
-}
-
-/* force a given boot sector. */
-void bdrv_set_boot_sector(BlockDriverState *bs, const uint8_t *data, int size)
-{
-    bs->boot_sector_enabled = 1;
-    if (size > 512)
-        size = 512;
-    memcpy(bs->boot_sector_data, data, size);
-    memset(bs->boot_sector_data + size, 0, 512 - size);
 }
 
 void bdrv_set_geometry_hint(BlockDriverState *bs,
@@ -1155,14 +1134,6 @@ BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
     if (!drv)
         return NULL;
 
-    /* XXX: we assume that nb_sectors == 0 is suppored by the async read */
-    if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
-        memcpy(buf, bs->boot_sector_data, 512);
-        sector_num++;
-        nb_sectors--;
-        buf += 512;
-    }
-
     ret = drv->bdrv_aio_read(bs, sector_num, buf, nb_sectors, cb, opaque);
 
     if (ret) {
@@ -1185,9 +1156,6 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
         return NULL;
     if (bs->read_only)
         return NULL;
-    if (sector_num == 0 && bs->boot_sector_enabled && nb_sectors > 0) {
-        memcpy(bs->boot_sector_data, buf, 512);
-    }
 
     ret = drv->bdrv_aio_write(bs, sector_num, buf, nb_sectors, cb, opaque);
 
