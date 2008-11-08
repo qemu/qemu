@@ -97,7 +97,16 @@ void ppc_translate_init(void)
 #else
     cpu_T[0] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG1, "T0");
     cpu_T[1] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG2, "T1");
+#ifdef HOST_I386
+    /* XXX: This is a temporary workaround for i386.
+     *      On i386 qemu_st32 runs out of registers.
+     *      The proper fix is to remove cpu_T.
+     */
+    cpu_T[2] = tcg_global_mem_new(TCG_TYPE_TL,
+                                  TCG_AREG0, offsetof(CPUState, t2), "T2");
+#else
     cpu_T[2] = tcg_global_reg_new(TCG_TYPE_TL, TCG_AREG3, "T2");
+#endif
 #endif
 #if !defined(TARGET_PPC64)
     cpu_T64[0] = tcg_global_mem_new(TCG_TYPE_I64,
