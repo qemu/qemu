@@ -1137,7 +1137,7 @@ static void bt_hci_reset(struct bt_hci_s *hci)
     hci->device.inquiry_scan = 0;
     hci->device.page_scan = 0;
     if (hci->device.lmp_name)
-        free((void *) hci->device.lmp_name);
+        qemu_free((void *) hci->device.lmp_name);
     hci->device.lmp_name = 0;
     hci->device.class[0] = 0x00;
     hci->device.class[1] = 0x00;
@@ -1815,8 +1815,8 @@ static void bt_submit_hci(struct HCIInfo *info,
         LENGTH_CHECK(change_local_name);
 
         if (hci->device.lmp_name)
-            free((void *) hci->device.lmp_name);
-        hci->device.lmp_name = strndup(PARAM(change_local_name, name),
+            qemu_free((void *) hci->device.lmp_name);
+        hci->device.lmp_name = qemu_strndup(PARAM(change_local_name, name),
                         sizeof(PARAM(change_local_name, name)));
         bt_hci_event_complete_status(hci, HCI_SUCCESS);
         break;
@@ -2191,7 +2191,7 @@ static void bt_hci_done(struct HCIInfo *info)
     bt_device_done(&hci->device);
 
     if (hci->device.lmp_name)
-        free((void *) hci->device.lmp_name);
+        qemu_free((void *) hci->device.lmp_name);
 
     /* Be gentle and send DISCONNECT to all connected peers and those
      * currently waiting for us to accept or reject a connection request.

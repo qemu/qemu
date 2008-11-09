@@ -60,6 +60,20 @@ char *qemu_strdup(const char *str)
     ptr = qemu_malloc(len + 1);
     if (!ptr)
         return NULL;
-    pstrcpy(ptr, len + 1, str);
+    memcpy(ptr, str, len + 1);
     return ptr;
+}
+
+char *qemu_strndup(const char *str, size_t size)
+{
+    const char *end = memchr(str, 0, size);
+    char *new;
+
+    if (end)
+        size = end - str;
+
+    new = qemu_malloc(size + 1);
+    new[size] = 0;
+
+    return memcpy(new, str, size);
 }
