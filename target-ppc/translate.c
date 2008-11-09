@@ -858,6 +858,7 @@ GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL)
     gen_set_label(l1);
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
     gen_set_label(l2);
+    tcg_temp_free(t0);
 }
 
 /***                           Integer arithmetic                          ***/
@@ -911,15 +912,21 @@ static always_inline void gen_op_arith_compute_ca(DisasContext *ctx, TCGv arg1, 
         } else {
             tcg_gen_brcond_tl(TCG_COND_GEU, t0, t1, l1);
         }
+        tcg_gen_ori_tl(cpu_xer, cpu_xer, 1 << XER_CA);
+        gen_set_label(l1);
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
     } else
 #endif
-    if (sub) {
-        tcg_gen_brcond_tl(TCG_COND_GTU, arg1, arg2, l1);
-    } else {
-        tcg_gen_brcond_tl(TCG_COND_GEU, arg1, arg2, l1);
+    {
+        if (sub) {
+            tcg_gen_brcond_tl(TCG_COND_GTU, arg1, arg2, l1);
+        } else {
+            tcg_gen_brcond_tl(TCG_COND_GEU, arg1, arg2, l1);
+        }
+        tcg_gen_ori_tl(cpu_xer, cpu_xer, 1 << XER_CA);
+        gen_set_label(l1);
     }
-    tcg_gen_ori_tl(cpu_xer, cpu_xer, 1 << XER_CA);
-    gen_set_label(l1);
 }
 
 /* Common add function */
@@ -1230,8 +1237,8 @@ GEN_HANDLER(mullwo, 0x1F, 0x0B, 0x17, 0x00000000, PPC_INTEGER)
     int l1;
     TCGv t0, t1;
 
-    t0 = tcg_temp_local_new(TCG_TYPE_I64);
-    t1 = tcg_temp_local_new(TCG_TYPE_I64);
+    t0 = tcg_temp_new(TCG_TYPE_I64);
+    t1 = tcg_temp_new(TCG_TYPE_I64);
     l1 = gen_new_label();
     /* Start with XER OV disabled, the most likely case */
     tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
@@ -1253,6 +1260,8 @@ GEN_HANDLER(mullwo, 0x1F, 0x0B, 0x17, 0x00000000, PPC_INTEGER)
 #endif
     tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
     gen_set_label(l1);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -2034,8 +2043,8 @@ static always_inline void gen_sradi (DisasContext *ctx, int n)
         TCGv t0;
         l1 = gen_new_label();
         l2 = gen_new_label();
+        t0 = tcg_temp_local_new(TCG_TYPE_TL);
         tcg_gen_brcondi_tl(TCG_COND_GE, cpu_gpr[rS(ctx->opcode)], 0, l1);
-        t0 = tcg_temp_new(TCG_TYPE_TL);
         tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], (1ULL << sh) - 1);
         tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
         tcg_gen_ori_tl(cpu_xer, cpu_xer, 1 << XER_CA);
@@ -2043,6 +2052,7 @@ static always_inline void gen_sradi (DisasContext *ctx, int n)
         gen_set_label(l1);
         tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_CA));
         gen_set_label(l2);
+        tcg_temp_free(t0);
         tcg_gen_sari_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)], sh);
     } else {
         tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
