@@ -782,6 +782,62 @@ connect to the guest telnet server.
 
 @end table
 
+Bluetooth(R) options:
+@table @option
+
+@item -bt hci[...]
+Defines the function of the corresponding Bluetooth HCI.  -bt options
+are matched with the HCIs present in the chosen machine type.  For
+example when emulating a machine with only one HCI built into it, only
+the first @code{-bt hci[...]} option is valid and defines the HCI's
+logic.  The Transport Layer is decided by the machine type.  Currently
+the machines @code{n800} and @code{n810} have one HCI and all other
+machines have none.
+
+@anchor{bt-hcis}
+The following three types are recognized:
+
+@table @code
+@item -bt hci,null
+(default) The corresponding Bluetooth HCI assumes no internal logic
+and will not respond to any HCI commands or emit events.
+
+@item -bt hci,host[:@var{id}]
+(@code{bluez} only) The corresponding HCI passes commands / events
+to / from the physical HCI identified by the name @var{id} (default:
+@code{hci0}) on the computer running QEMU.  Only available on @code{bluez}
+capable systems like Linux.
+
+@item -bt hci[,vlan=@var{n}]
+Add a virtual, standard HCI that will participate in the Bluetooth
+scatternet @var{n} (default @code{0}).  Similarly to @option{-net}
+VLANs, devices inside a bluetooth network @var{n} can only communicate
+with other devices in the same network (scatternet).
+@end table
+
+@item -bt vhci[,vlan=@var{n}]
+(Linux-host only) Create a HCI in scatternet @var{n} (default 0) attached
+to the host bluetooth stack instead of to the emulated target.  This
+allows the host and target machines to participate in a common scatternet
+and communicate.  Requires the Linux @code{vhci} driver installed.  Can
+be used as following:
+
+@example
+qemu [...OPTIONS...] -bt hci,vlan=5 -bt vhci,vlan=5
+@end example
+
+@item -bt device:@var{dev}[,vlan=@var{n}]
+Emulate a bluetooth device @var{dev} and place it in network @var{n}
+(default @code{0}).  QEMU can only emulate one type of bluetooth devices
+currently:
+
+@table @code
+@item keyboard
+Virtual wireless keyboard implementing the HIDP bluetooth profile.
+@end table
+
+@end table
+
 Linux boot specific: When using these options, you can use a given
 Linux kernel without installing it in the disk image. It can be useful
 for easier testing of various kernels.
@@ -1767,6 +1823,15 @@ For instance, user-mode networking can be used with
 qemu [...OPTIONS...] -net user,vlan=0 -usbdevice net:vlan=0
 @end example
 Currently this cannot be used in machines that support PCI NICs.
+@item bt[:@var{hci-type}]
+Bluetooth dongle whose type is specified in the same format as with
+the @option{-bt hci} option, @pxref{bt-hcis,,allowed HCI types}.  If
+no type is given, the HCI logic corresponds to @code{-bt hci,vlan=0}.
+This USB device implements the USB Transport Layer of HCI.  Example
+usage:
+@example
+qemu [...OPTIONS...] -usbdevice bt:hci,vlan=3 -bt device:keyboard,vlan=3
+@end example
 @end table
 
 @node host_usb_devices
@@ -2663,6 +2728,8 @@ through I@math{^2}C bus
 Secure Digital card connected to OMAP MMC/SD host
 @item
 Three OMAP on-chip UARTs and on-chip STI debugging console
+@item
+A Bluetooth(R) transciever and HCI connected to an UART
 @item
 Mentor Graphics "Inventra" dual-role USB controller embedded in a TI
 TUSB6010 chip - only USB host mode is supported

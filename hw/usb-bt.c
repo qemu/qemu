@@ -623,6 +623,8 @@ USBDevice *usb_bt_init(HCIInfo *hci)
 {
     struct USBBtState *s;
 
+    if (!hci)
+        return NULL;
     s = qemu_mallocz(sizeof(struct USBBtState));
     if (!s)
         return NULL;
