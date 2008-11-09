@@ -908,7 +908,7 @@ static always_inline void gen_op_arith_compute_ca(DisasContext *ctx, TCGv arg1, 
         tcg_gen_ext32u_tl(t1, arg2);
         if (sub) {
             tcg_gen_brcond_tl(TCG_COND_GTU, t0, t1, l1);
-	} else {
+        } else {
             tcg_gen_brcond_tl(TCG_COND_GEU, t0, t1, l1);
         }
     } else
@@ -3488,7 +3488,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
         tcg_gen_movi_tl(cpu_nip, dest & ~3);
         if (unlikely(ctx->singlestep_enabled)) {
             if ((ctx->singlestep_enabled &
-                 (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
+                (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
                 ctx->exception == POWERPC_EXCP_BRANCH) {
                 target_ulong tmp = ctx->nip;
                 ctx->nip = dest;
@@ -3592,7 +3592,6 @@ static always_inline void gen_bcond (DisasContext *ctx, int type)
         }
     }
     if (type == BCOND_IM) {
-
         target_ulong li = (target_long)((int16_t)(BD(ctx->opcode)));
         if (likely(AA(ctx->opcode) == 0)) {
             gen_goto_tb(ctx, 0, ctx->nip + li - 4);
@@ -5291,7 +5290,7 @@ static always_inline void gen_405_mulladd_insn (DisasContext *ctx,
                 tcg_gen_brcondi_tl(TCG_COND_GE, t1, 0, l1);
                 tcg_gen_xor_tl(t1, cpu_gpr[rt], t0);
                 tcg_gen_brcondi_tl(TCG_COND_LT, t1, 0, l1);
-		if (opc3 & 0x02) {
+                if (opc3 & 0x02) {
                     /* Saturate */
                     tcg_gen_sari_tl(t0, cpu_gpr[rt], 31);
                     tcg_gen_xori_tl(t0, t0, 0x7fffffff);
@@ -5299,7 +5298,7 @@ static always_inline void gen_405_mulladd_insn (DisasContext *ctx,
             } else {
                 /* Unsigned */
                 tcg_gen_brcond_tl(TCG_COND_GEU, t0, t1, l1);
-		if (opc3 & 0x02) {
+                if (opc3 & 0x02) {
                     /* Saturate */
                     tcg_gen_movi_tl(t0, UINT32_MAX);
                 }
