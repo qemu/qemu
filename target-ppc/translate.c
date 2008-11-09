@@ -1234,20 +1234,9 @@ GEN_HANDLER(mulhwu, 0x1F, 0x0B, 0x00, 0x00000400, PPC_INTEGER)
 /* mullw  mullw. */
 GEN_HANDLER(mullw, 0x1F, 0x0B, 0x07, 0x00000000, PPC_INTEGER)
 {
-#if defined(TARGET_PPC64)
-    TCGv t0, t1;
-    t0 = tcg_temp_new(TCG_TYPE_TL);
-    t1 = tcg_temp_new(TCG_TYPE_TL);
-    tcg_gen_ext32s_tl(t0, cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_ext32s_tl(t1, cpu_gpr[rB(ctx->opcode)]);
-    tcg_gen_mul_tl(t0, t0, t1);
-    tcg_temp_free(t0);
-    tcg_gen_ext32s_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t1);
-#else
     tcg_gen_mul_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
                    cpu_gpr[rB(ctx->opcode)]);
-#endif
+    tcg_gen_ext32s_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rD(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
