@@ -1304,7 +1304,7 @@ static always_inline void gen_op_arith_neg (DisasContext *ctx, TCGv ret, TCGv ar
     TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
 #if defined(TARGET_PPC64)
     if (ctx->sf_mode) {
-        tcg_gen_movi_tl(t0, arg1);
+        tcg_gen_mov_tl(t0, arg1);
         tcg_gen_brcondi_tl(TCG_COND_EQ, t0, INT64_MIN, l1);
     } else
 #endif
