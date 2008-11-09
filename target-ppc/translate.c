@@ -1067,33 +1067,22 @@ GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 static always_inline void gen_op_arith_divw (DisasContext *ctx, TCGv ret, TCGv arg1, TCGv arg2,
                                              int sign, int compute_ov)
 {
-    int l1, l2, l3;
-    TCGv t0, t1, t2;
+    int l1 = gen_new_label();
+    int l2 = gen_new_label();
+    TCGv t0 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv t1 = tcg_temp_local_new(TCG_TYPE_I32);
 
-#if defined(TARGET_PPC64)
-    t0 = tcg_temp_local_new(TCG_TYPE_I32);
-    t1 = t0;
-    t2 = tcg_temp_local_new(TCG_TYPE_I32);
-    tcg_gen_trunc_i64_i32(t1, arg1);
-    tcg_gen_trunc_i64_i32(t2, arg2);
-#else
-    t0 = ret;
-    t1 = arg1;
-    t2 = arg2;
-#endif
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    tcg_gen_brcondi_i32(TCG_COND_EQ, t2, 0, l1);
+    tcg_gen_trunc_tl_i32(t0, arg1);
+    tcg_gen_trunc_tl_i32(t1, arg2);
+    tcg_gen_brcondi_i32(TCG_COND_EQ, t1, 0, l1);
     if (sign) {
-        l3 = gen_new_label();
-        tcg_gen_brcondi_i32(TCG_COND_NE, t2, -1, l3);
-        tcg_gen_brcondi_i32(TCG_COND_EQ, t1, INT32_MIN, l1);
+        int l3 = gen_new_label();
+        tcg_gen_brcondi_i32(TCG_COND_NE, t1, -1, l3);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, t0, INT32_MIN, l1);
         gen_set_label(l3);
-    }
-    if (sign) {
-        tcg_gen_div_i32(t0, t1, t2);
+        tcg_gen_div_i32(t0, t0, t1);
     } else {
-        tcg_gen_divu_i32(t0, t1, t2);
+        tcg_gen_divu_i32(t0, t0, t1);
     }
     if (compute_ov) {
         tcg_gen_andi_tl(cpu_xer, cpu_xer, ~(1 << XER_OV));
@@ -1101,7 +1090,7 @@ static always_inline void gen_op_arith_divw (DisasContext *ctx, TCGv ret, TCGv a
     tcg_gen_br(l2);
     gen_set_label(l1);
     if (sign) {
-        tcg_gen_sari_i32(t0, t1, 31);
+        tcg_gen_sari_i32(t0, t0, 31);
     } else {
         tcg_gen_movi_i32(t0, 0);
     }
@@ -1109,10 +1098,9 @@ static always_inline void gen_op_arith_divw (DisasContext *ctx, TCGv ret, TCGv a
         tcg_gen_ori_tl(cpu_xer, cpu_xer, (1 << XER_OV) | (1 << XER_SO));
     }
     gen_set_label(l2);
-#if defined(TARGET_PPC64)
-    tcg_gen_extu_i32_i64(ret, t0);
+    tcg_gen_extu_i32_tl(ret, t0);
     tcg_temp_free(t0);
-#endif
+    tcg_temp_free(t1);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, ret);
 }
@@ -1131,22 +1119,18 @@ GEN_INT_ARITH_DIVW(divwuo, 0x1E, 0, 1);
 GEN_INT_ARITH_DIVW(divw, 0x0F, 1, 0);
 GEN_INT_ARITH_DIVW(divwo, 0x1F, 1, 1);
 #if defined(TARGET_PPC64)
-static always_inline void gen_op_divd (DisasContext *ctx, TCGv ret, TCGv arg1, TCGv arg2,
-                                       int sign, int compute_ov)
+static always_inline void gen_op_arith_divd (DisasContext *ctx, TCGv ret, TCGv arg1, TCGv arg2,
+                                             int sign, int compute_ov)
 {
-    int l1, l2, l3;
-
-    l1 = gen_new_label();
-    l2 = gen_new_label();
+    int l1 = gen_new_label();
+    int l2 = gen_new_label();
 
     tcg_gen_brcondi_i64(TCG_COND_EQ, arg2, 0, l1);
     if (sign) {
-        l3 = gen_new_label();
+        int l3 = gen_new_label();
         tcg_gen_brcondi_i64(TCG_COND_NE, arg2, -1, l3);
         tcg_gen_brcondi_i64(TCG_COND_EQ, arg1, INT64_MIN, l1);
         gen_set_label(l3);
-    }
-    if (sign) {
         tcg_gen_div_i64(ret, arg1, arg2);
     } else {
         tcg_gen_divu_i64(ret, arg1, arg2);
@@ -1171,9 +1155,9 @@ static always_inline void gen_op_divd (DisasContext *ctx, TCGv ret, TCGv arg1, T
 #define GEN_INT_ARITH_DIVD(name, opc3, sign, compute_ov)                      \
 GEN_HANDLER(name, 0x1F, 0x09, opc3, 0x00000000, PPC_64B)                      \
 {                                                                             \
-    gen_op_arith_divw(ctx, cpu_gpr[rD(ctx->opcode)],                          \
-                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],      \
-                     sign, compute_ov);                                       \
+    gen_op_arith_divd(ctx, cpu_gpr[rD(ctx->opcode)],                          \
+                      cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],     \
+                      sign, compute_ov);                                      \
 }
 /* divwu  divwu.  divwuo  divwuo.   */
 GEN_INT_ARITH_DIVD(divdu, 0x0E, 0, 0);
