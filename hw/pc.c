@@ -438,30 +438,45 @@ static void bochs_bios_init(void)
 
 /* Generate an initial boot sector which sets state and jump to
    a specified vector */
-static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
+static void generate_bootsect(uint8_t *option_rom,
+                              uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
 {
-    uint8_t bootsect[512], *p;
+    uint8_t rom[512], *p, *reloc;
+    uint8_t sum;
     int i;
-    int hda;
 
-    hda = drive_get_index(IF_IDE, 0, 0);
-    if (hda == -1) {
-	fprintf(stderr, "A disk image must be given for 'hda' when booting "
-		"a Linux kernel\n(if you really don't want it, use /dev/zero)\n");
-	exit(1);
-    }
+    memset(rom, 0, sizeof(rom));
 
-    memset(bootsect, 0, sizeof(bootsect));
+    p = rom;
+    /* Make sure we have an option rom signature */
+    *p++ = 0x55;
+    *p++ = 0xaa;
 
-    /* Copy the MSDOS partition table if possible */
-    bdrv_read(drives_table[hda].bdrv, 0, bootsect, 1);
+    /* ROM size in sectors*/
+    *p++ = 1;
 
-    /* Make sure we have a partition signature */
-    bootsect[510] = 0x55;
-    bootsect[511] = 0xaa;
+    /* Hook int19 */
 
+    *p++ = 0x50;		/* push ax */
+    *p++ = 0x1e;		/* push ds */
+    *p++ = 0x31; *p++ = 0xc0;	/* xor ax, ax */
+    *p++ = 0x8e; *p++ = 0xd8;	/* mov ax, ds */
+
+    *p++ = 0xc7; *p++ = 0x06;   /* movvw _start,0x64 */
+    *p++ = 0x64; *p++ = 0x00;
+    reloc = p;
+    *p++ = 0x00; *p++ = 0x00;
+
+    *p++ = 0x8c; *p++ = 0x0e;   /* mov cs,0x66 */
+    *p++ = 0x66; *p++ = 0x00;
+
+    *p++ = 0x1f;		/* pop ds */
+    *p++ = 0x58;		/* pop ax */
+    *p++ = 0xcb;		/* lret */
+    
     /* Actual code */
-    p = bootsect;
+    *reloc = (p - rom);
+
     *p++ = 0xfa;		/* CLI */
     *p++ = 0xfc;		/* CLD */
 
@@ -491,7 +506,13 @@ static void generate_bootsect(uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
     *p++ = segs[1];		/* CS */
     *p++ = segs[1] >> 8;
 
-    bdrv_set_boot_sector(drives_table[hda].bdrv, bootsect, sizeof(bootsect));
+    /* sign rom */
+    sum = 0;
+    for (i = 0; i < (sizeof(rom) - 1); i++)
+        sum += rom[i];
+    rom[sizeof(rom) - 1] = -sum;
+
+    memcpy(option_rom, rom, sizeof(rom));
 }
 
 static long get_file_size(FILE *f)
@@ -508,7 +529,8 @@ static long get_file_size(FILE *f)
     return size;
 }
 
-static void load_linux(const char *kernel_filename,
+static void load_linux(uint8_t *option_rom,
+                       const char *kernel_filename,
 		       const char *initrd_filename,
 		       const char *kernel_cmdline)
 {
@@ -658,7 +680,7 @@ static void load_linux(const char *kernel_filename,
     memset(gpr, 0, sizeof gpr);
     gpr[4] = cmdline_addr-real_addr-16;	/* SP (-16 is paranoia) */
 
-    generate_bootsect(gpr, seg, 0);
+    generate_bootsect(option_rom, gpr, seg, 0);
 }
 
 static void main_cpu_reset(void *opaque)
@@ -862,6 +884,15 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
         int size, offset;
 
         offset = 0;
+        if (linux_boot) {
+            option_rom_offset = qemu_ram_alloc(TARGET_PAGE_SIZE);
+            load_linux(phys_ram_base + option_rom_offset,
+                       kernel_filename, initrd_filename, kernel_cmdline);
+            cpu_register_physical_memory(0xd0000, TARGET_PAGE_SIZE,
+                                         option_rom_offset | IO_MEM_ROM);
+            offset = TARGET_PAGE_SIZE;
+        }
+
         for (i = 0; i < nb_option_roms; i++) {
             size = get_image_size(option_rom[i]);
             if (size < 0) {
@@ -890,9 +921,6 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
                                  bios_size, bios_offset | IO_MEM_ROM);
 
     bochs_bios_init();
-
-    if (linux_boot)
-	load_linux(kernel_filename, initrd_filename, kernel_cmdline);
 
     cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);
     i8259 = i8259_init(cpu_irq[0]);

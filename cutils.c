@@ -50,18 +50,6 @@ char *pstrcat(char *buf, int buf_size, const char *s)
     return buf;
 }
 
-/* strdup with a limit */
-char *pstrdup(const char *str, size_t buf_size)
-{
-    size_t len;
-    char *buf;
-
-    len = MIN(buf_size, strlen(str));
-    buf = qemu_malloc(len);
-    pstrcpy(buf, len, str);
-    return buf;
-}
-
 int strstart(const char *str, const char *val, const char **ptr)
 {
     const char *p, *q;

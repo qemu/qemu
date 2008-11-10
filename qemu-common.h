@@ -92,7 +92,6 @@ int qemu_timedate_diff(struct tm *tm);
 /* cutils.c */
 void pstrcpy(char *buf, int buf_size, const char *str);
 char *pstrcat(char *buf, int buf_size, const char *s);
-char *pstrdup(const char *str, size_t buf_size);
 int strstart(const char *str, const char *val, const char **ptr);
 int stristart(const char *str, const char *val, const char **ptr);
 time_t mktimegm(struct tm *tm);
@@ -102,6 +101,7 @@ void *qemu_realloc(void *ptr, size_t size);
 void *qemu_mallocz(size_t size);
 void qemu_free(void *ptr);
 char *qemu_strdup(const char *str);
+char *qemu_strndup(const char *str, size_t size);
 
 void *get_mmap_addr(unsigned long size);
 
