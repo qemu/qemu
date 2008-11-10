@@ -2565,12 +2565,16 @@ static abi_long write_ldt(CPUX86State *env,
     }
     /* allocate the LDT */
     if (!ldt_table) {
-        ldt_table = malloc(TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
-        if (!ldt_table)
+        env->ldt.base = target_mmap(0,
+                                    TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE,
+                                    PROT_READ|PROT_WRITE,
+                                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+        if (env->ldt.base == -1)
             return -TARGET_ENOMEM;
-        memset(ldt_table, 0, TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
-        env->ldt.base = h2g((unsigned long)ldt_table);
+        memset(g2h(env->ldt.base), 0,
+               TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
         env->ldt.limit = 0xffff;
+        ldt_table = g2h(env->ldt.base);
     }
 
     /* NOTE: same code as Linux kernel */

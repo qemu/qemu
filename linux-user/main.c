@@ -23,6 +23,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "qemu.h"
 #include "qemu-common.h"
@@ -282,9 +283,8 @@ static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
     p[1] = tswap32(e2);
 }
 
+static uint64_t *idt_table;
 #ifdef TARGET_X86_64
-static uint64_t idt_table[512];
-
 static void set_gate64(void *ptr, unsigned int type, unsigned int dpl,
                        uint64_t addr, unsigned int sel)
 {
@@ -303,8 +303,6 @@ static void set_idt(int n, unsigned int dpl)
     set_gate64(idt_table + n * 2, 0, dpl, 0, 0);
 }
 #else
-static uint64_t idt_table[256];
-
 static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
                      uint32_t addr, unsigned int sel)
 {
@@ -2465,8 +2463,15 @@ int main(int argc, char **argv)
 #endif
 
     /* linux interrupt setup */
-    env->idt.base = h2g(idt_table);
-    env->idt.limit = sizeof(idt_table) - 1;
+#ifndef TARGET_ABI32
+    env->idt.limit = 511;
+#else
+    env->idt.limit = 255;
+#endif
+    env->idt.base = target_mmap(0, sizeof(uint64_t) * (env->idt.limit + 1),
+                                PROT_READ|PROT_WRITE,
+                                MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    idt_table = g2h(env->idt.base);
     set_idt(0, 0);
     set_idt(1, 0);
     set_idt(2, 0);
@@ -2492,9 +2497,11 @@ int main(int argc, char **argv)
     /* linux segment setup */
     {
         uint64_t *gdt_table;
-        gdt_table = qemu_mallocz(sizeof(uint64_t) * TARGET_GDT_ENTRIES);
-        env->gdt.base = h2g((unsigned long)gdt_table);
+        env->gdt.base = target_mmap(0, sizeof(uint64_t) * TARGET_GDT_ENTRIES,
+                                    PROT_READ|PROT_WRITE,
+                                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
         env->gdt.limit = sizeof(uint64_t) * TARGET_GDT_ENTRIES - 1;
+        gdt_table = g2h(env->gdt.base);
 #ifdef TARGET_ABI32
         write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
                  DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
