@@ -890,7 +890,6 @@ static int init_directories(BDRVVVFATState* s,
     s->path = mapping->path;
 
     for (i = 0, cluster = 0; i < s->mapping.next; i++) {
-	int j;
 	/* MS-DOS expects the FAT to be 0 for the root directory
 	 * (except for the media byte). */
 	/* LATER TODO: still true for FAT32? */
@@ -923,19 +922,24 @@ static int init_directories(BDRVVVFATState* s,
 
 	assert(mapping->begin < mapping->end);
 
-	/* fix fat for entry */
-	if (fix_fat) {
-	    for(j = mapping->begin; j < mapping->end - 1; j++)
-		fat_set(s, j, j+1);
-	    fat_set(s, mapping->end - 1, s->max_fat_value);
-	}
-
 	/* next free cluster */
 	cluster = mapping->end;
 
 	if(cluster > s->cluster_count) {
-	    fprintf(stderr,"Directory does not fit in FAT%d\n",s->fat_type);
-	    return -1;
+	    fprintf(stderr,"Directory does not fit in FAT%d (capacity %s)\n",
+		    s->fat_type,
+		    s->fat_type == 12 ? s->sector_count == 2880 ? "1.44 MB"
+								: "2.88 MB"
+				      : "504MB");
+	    return -EINVAL;
+	}
+
+	/* fix fat for entry */
+	if (fix_fat) {
+	    int j;
+	    for(j = mapping->begin; j < mapping->end - 1; j++)
+		fat_set(s, j, j+1);
+	    fat_set(s, mapping->end - 1, s->max_fat_value);
 	}
     }
 
