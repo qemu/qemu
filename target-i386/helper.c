@@ -337,7 +337,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
             } else if (!strcmp(featurestr, "model")) {
                 char *err;
                 model = strtol(val, &err, 10);
-                if (!*val || *err || model < 0 || model > 0xf) {
+                if (!*val || *err || model < 0 || model > 0xff) {
                     fprintf(stderr, "bad numerical value %s\n", val);
                     goto error;
                 }
@@ -416,7 +416,12 @@ static int cpu_x86_register (CPUX86State *env, const char *cpu_model)
         env->cpuid_vendor3 = CPUID_VENDOR_INTEL_3;
     }
     env->cpuid_level = def->level;
-    env->cpuid_version = (def->family << 8) | (def->model << 4) | def->stepping;
+    if (def->family > 0x0f)
+        env->cpuid_version = 0xf00 | ((def->family - 0x0f) << 20);
+    else
+        env->cpuid_version = def->family << 8;
+    env->cpuid_version |= ((def->model & 0xf) << 4) | ((def->model >> 4) << 16);
+    env->cpuid_version |= def->stepping;
     env->cpuid_features = def->features;
     env->pat = 0x0007040600070406ULL;
     env->cpuid_ext_features = def->ext_features;
