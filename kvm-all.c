@@ -298,6 +298,11 @@ int kvm_cpu_exec(CPUState *env)
         }
     } while (ret > 0);
 
+    if ((env->interrupt_request & CPU_INTERRUPT_EXIT)) {
+        env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
+        env->exception_index = EXCP_INTERRUPT;
+    }
+
     return ret;
 }
 
