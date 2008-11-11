@@ -21,24 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw/hw.h"
-#include "hw/boards.h"
-#include "hw/usb.h"
-#include "hw/pcmcia.h"
-#include "hw/pc.h"
-#include "hw/audiodev.h"
-#include "hw/isa.h"
-#include "hw/baum.h"
-#include "hw/bt.h"
+#include "qemu-common.h"
 #include "net.h"
 #include "console.h"
 #include "sysemu.h"
-#include "gdbstub.h"
 #include "qemu-timer.h"
 #include "qemu-char.h"
-#include "block.h"
 #include "audio/audio.h"
-#include "migration.h"
 
 #include <unistd.h>
 #include <fcntl.h>

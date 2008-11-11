@@ -78,6 +78,8 @@ OBJS+=usb.o usb-hub.o usb-linux.o usb-hid.o usb-msd.o usb-wacom.o
 OBJS+=usb-serial.o usb-net.o
 OBJS+=sd.o ssi-sd.o
 OBJS+=bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
+OBJS+=buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
+OBJS+=qemu-char.o aio.o net-checksum.o
 
 ifdef CONFIG_BRLAPI
 OBJS+= baum.o
@@ -86,6 +88,8 @@ endif
 
 ifdef CONFIG_WIN32
 OBJS+=tap-win32.o
+else
+OBJS+=migration-exec.o
 endif
 
 AUDIO_OBJS = audio.o noaudio.o wavaudio.o mixeng.o
