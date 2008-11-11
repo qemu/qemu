@@ -6314,32 +6314,32 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(18, 16):
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
             TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
-            tcg_temp_free(t0);
             gen_load_fpr32(fp0, fs);
             gen_store_fpr32(fp0, fd);
             tcg_temp_free(fp0);
             gen_set_label(l1);
+            tcg_temp_free(t0);
         }
         opn = "movz.s";
         break;
     case FOP(19, 16):
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
             TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-            tcg_temp_free(t0);
             gen_load_fpr32(fp0, fs);
             gen_store_fpr32(fp0, fd);
             tcg_temp_free(fp0);
             gen_set_label(l1);
+            tcg_temp_free(t0);
         }
         opn = "movn.s";
         break;
@@ -6733,32 +6733,32 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(18, 17):
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
             TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I64);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
-            tcg_temp_free(t0);
             gen_load_fpr64(ctx, fp0, fs);
             gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free(fp0);
             gen_set_label(l1);
+            tcg_temp_free(t0);
         }
         opn = "movz.d";
         break;
     case FOP(19, 17):
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
             TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I64);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-            tcg_temp_free(t0);
             gen_load_fpr64(ctx, fp0, fs);
             gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free(fp0);
             gen_set_label(l1);
+            tcg_temp_free(t0);
         }
         opn = "movn.d";
         break;
@@ -7068,13 +7068,12 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
             TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
             TCGv fph0 = tcg_temp_local_new(TCG_TYPE_I32);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
-            tcg_temp_free(t0);
             gen_load_fpr32(fp0, fs);
             gen_load_fpr32h(fph0, fs);
             gen_store_fpr32(fp0, fd);
@@ -7082,6 +7081,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
             tcg_temp_free(fp0);
             tcg_temp_free(fph0);
             gen_set_label(l1);
+            tcg_temp_free(t0);
         }
         opn = "movz.ps";
         break;
@@ -7089,13 +7089,12 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
             TCGv fp0 = tcg_temp_local_new(TCG_TYPE_I32);
             TCGv fph0 = tcg_temp_local_new(TCG_TYPE_I32);
 
             gen_load_gpr(t0, ft);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-            tcg_temp_free(t0);
             gen_load_fpr32(fp0, fs);
             gen_load_fpr32h(fph0, fs);
             gen_store_fpr32(fp0, fd);
@@ -7103,6 +7102,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
             tcg_temp_free(fp0);
             tcg_temp_free(fph0);
             gen_set_label(l1);
+            tcg_temp_free(t0);
         }
         opn = "movn.ps";
         break;
