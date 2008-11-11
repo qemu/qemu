@@ -2964,6 +2964,12 @@ struct QEMUFile {
     int has_error;
 };
 
+typedef struct QEMUFilePopen
+{
+    FILE *popen_file;
+    QEMUFile *file;
+} QEMUFilePopen;
+
 typedef struct QEMUFileSocket
 {
     int fd;
@@ -2990,6 +2996,64 @@ static int socket_close(void *opaque)
     QEMUFileSocket *s = opaque;
     qemu_free(s);
     return 0;
+}
+
+static int popen_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFilePopen *s = opaque;
+    return fwrite(buf, 1, size, s->popen_file);
+}
+
+static int popen_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+{
+    QEMUFilePopen *s = opaque;
+    return fread(buf, 1, size, s->popen_file);
+}
+
+static int popen_close(void *opaque)
+{
+    QEMUFilePopen *s = opaque;
+    pclose(s->popen_file);
+    qemu_free(s);
+    return 0;
+}
+
+QEMUFile *qemu_popen(FILE *popen_file, const char *mode)
+{
+    QEMUFilePopen *s;
+
+    if (popen_file == NULL || mode == NULL || (mode[0] != 'r' && mode[0] != 'w') || mode[1] != 0) {
+        fprintf(stderr, "qemu_popen: Argument validity check failed\n");
+        return NULL;
+    }
+
+    s = qemu_mallocz(sizeof(QEMUFilePopen));
+    if (!s) {
+        fprintf(stderr, "qemu_popen: malloc failed\n");
+        return NULL;
+    }
+
+    s->popen_file = popen_file;
+
+    if(mode[0] == 'r') {
+        s->file = qemu_fopen_ops(s, NULL, popen_get_buffer, popen_close, NULL);
+    } else {
+        s->file = qemu_fopen_ops(s, popen_put_buffer, NULL, popen_close, NULL);
+    }
+    fprintf(stderr, "qemu_popen: returning result of qemu_fopen_ops\n");
+    return s->file;
+}
+
+QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
+{
+    FILE *popen_file;
+
+    popen_file = popen(command, mode);
+    if(popen_file == NULL) {
+        return NULL;
+    }
+
+    return qemu_popen(popen_file, mode);
 }
 
 QEMUFile *qemu_fopen_socket(int fd)

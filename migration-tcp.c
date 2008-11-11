@@ -22,16 +22,6 @@
 
 //#define DEBUG_MIGRATION_TCP
 
-typedef struct FdMigrationState
-{
-    MigrationState mig_state;
-    QEMUFile *file;
-    int64_t bandwidth_limit;
-    int fd;
-    int detach;
-    int state;
-} FdMigrationState;
-
 #ifdef DEBUG_MIGRATION_TCP
 #define dprintf(fmt, ...) \
     do { printf("migration-tcp: " fmt, ## __VA_ARGS__); } while (0)
@@ -40,64 +30,19 @@ typedef struct FdMigrationState
     do { } while (0)
 #endif
 
-static void tcp_cleanup(FdMigrationState *s)
+static int socket_errno(FdMigrationState *s)
 {
-    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-
-    if (s->file) {
-        dprintf("closing file\n");
-        qemu_fclose(s->file);
-    }
-
-    if (s->fd != -1)
-        close(s->fd);
-
-    /* Don't resume monitor until we've flushed all of the buffers */
-    if (s->detach == 2) {
-        monitor_resume();
-        s->detach = 0;
-    }
-
-    s->fd = -1;
+    return (s->get_error(s));
 }
 
-static void tcp_error(FdMigrationState *s)
+static int socket_write(FdMigrationState *s, const void * buf, size_t size)
 {
-    dprintf("setting error state\n");
-    s->state = MIG_STATE_ERROR;
-    tcp_cleanup(s);
+    return send(s->fd, buf, size, 0);
 }
 
-static void fd_put_notify(void *opaque)
+static int tcp_close(FdMigrationState *s)
 {
-    FdMigrationState *s = opaque;
-
-    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-    qemu_file_put_notify(s->file);
-}
-
-static ssize_t fd_put_buffer(void *opaque, const void *data, size_t size)
-{
-    FdMigrationState *s = opaque;
-    ssize_t ret;
-
-    do {
-        ret = send(s->fd, data, size, 0);
-    } while (ret == -1 && (socket_error() == EINTR || socket_error() == EWOULDBLOCK));
-
-    if (ret == -1)
-        ret = -socket_error();
-
-    if (ret == -EAGAIN)
-        qemu_set_fd_handler2(s->fd, NULL, NULL, fd_put_notify, s);
-
-    return ret;
-}
-
-static int fd_close(void *opaque)
-{
-    FdMigrationState *s = opaque;
-    dprintf("fd_close\n");
+    dprintf("tcp_close\n");
     if (s->fd != -1) {
         close(s->fd);
         s->fd = -1;
@@ -105,67 +50,6 @@ static int fd_close(void *opaque)
     return 0;
 }
 
-static void fd_wait_for_unfreeze(void *opaque)
-{
-    FdMigrationState *s = opaque;
-    int ret;
-
-    dprintf("wait for unfreeze\n");
-    if (s->state != MIG_STATE_ACTIVE)
-        return;
-
-    do {
-        fd_set wfds;
-
-        FD_ZERO(&wfds);
-        FD_SET(s->fd, &wfds);
-
-        ret = select(s->fd + 1, NULL, &wfds, NULL, NULL);
-    } while (ret == -1 && socket_error() == EINTR);
-}
-
-static void fd_put_ready(void *opaque)
-{
-    FdMigrationState *s = opaque;
-
-    if (s->state != MIG_STATE_ACTIVE) {
-        dprintf("put_ready returning because of non-active state\n");
-        return;
-    }
-
-    dprintf("iterate\n");
-    if (qemu_savevm_state_iterate(s->file) == 1) {
-        dprintf("done iterating\n");
-        vm_stop(0);
-
-        bdrv_flush_all();
-        qemu_savevm_state_complete(s->file);
-        s->state = MIG_STATE_COMPLETED;
-        tcp_cleanup(s);
-    }
-}
-
-static void tcp_connect_migrate(FdMigrationState *s)
-{
-    int ret;
-
-    s->file = qemu_fopen_ops_buffered(s,
-                                      s->bandwidth_limit,
-                                      fd_put_buffer,
-                                      fd_put_ready,
-                                      fd_wait_for_unfreeze,
-                                      fd_close);
-
-    dprintf("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->file);
-    if (ret < 0) {
-        dprintf("failed, %d\n", ret);
-        tcp_error(s);
-        return;
-    }
-
-    fd_put_ready(s);
-}
 
 static void tcp_wait_for_connect(void *opaque)
 {
@@ -176,60 +60,21 @@ static void tcp_wait_for_connect(void *opaque)
     dprintf("connect completed\n");
     do {
         ret = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, &val, &valsize);
-    } while (ret == -1 && socket_error() == EINTR);
+    } while (ret == -1 && (s->get_error(s)) == EINTR);
 
     if (ret < 0) {
-        tcp_error(s);
+        migrate_fd_error(s);
         return;
     }
 
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
 
     if (val == 0)
-        tcp_connect_migrate(s);
+        migrate_fd_connect(s);
     else {
         dprintf("error connecting %d\n", val);
-        tcp_error(s);
+        migrate_fd_error(s);
     }
-}
-
-static FdMigrationState *to_fms(MigrationState *mig_state)
-{
-    return container_of(mig_state, FdMigrationState, mig_state);
-}
-
-static int tcp_get_status(MigrationState *mig_state)
-{
-    FdMigrationState *s = to_fms(mig_state);
-
-    return s->state;
-}
-
-static void tcp_cancel(MigrationState *mig_state)
-{
-    FdMigrationState *s = to_fms(mig_state);
-
-    if (s->state != MIG_STATE_ACTIVE)
-        return;
-
-    dprintf("cancelling migration\n");
-
-    s->state = MIG_STATE_CANCELLED;
-
-    tcp_cleanup(s);
-}
-
-static void tcp_release(MigrationState *mig_state)
-{
-    FdMigrationState *s = to_fms(mig_state);
-
-    dprintf("releasing state\n");
-   
-    if (s->state == MIG_STATE_ACTIVE) {
-        s->state = MIG_STATE_CANCELLED;
-        tcp_cleanup(s);
-    }
-    free(s);
 }
 
 MigrationState *tcp_start_outgoing_migration(const char *host_port,
@@ -247,9 +92,12 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
     if (s == NULL)
         return NULL;
 
-    s->mig_state.cancel = tcp_cancel;
-    s->mig_state.get_status = tcp_get_status;
-    s->mig_state.release = tcp_release;
+    s->get_error = socket_errno;
+    s->write = socket_write;
+    s->close = tcp_close;
+    s->mig_state.cancel = migrate_fd_cancel;
+    s->mig_state.get_status = migrate_fd_get_status;
+    s->mig_state.release = migrate_fd_release;
 
     s->state = MIG_STATE_ACTIVE;
     s->detach = !async;
@@ -271,7 +119,7 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
     do {
         ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));
         if (ret == -1)
-            ret = -socket_error();
+            ret = -(s->get_error(s));
 
         if (ret == -EINPROGRESS || ret == -EWOULDBLOCK)
             qemu_set_fd_handler2(s->fd, NULL, NULL, tcp_wait_for_connect, s);
@@ -283,7 +131,7 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
         qemu_free(s);
         return NULL;
     } else if (ret >= 0)
-        tcp_connect_migrate(s);
+        migrate_fd_connect(s);
 
     return &s->mig_state;
 }

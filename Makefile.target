@@ -596,7 +596,7 @@ endif
 ifdef CONFIG_WIN32
 OBJS+=block-raw-win32.o
 else
-OBJS+=block-raw-posix.o
+OBJS+=block-raw-posix.o migration-exec.o
 endif
 
 LIBS+=-lz
