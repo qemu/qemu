@@ -1957,32 +1957,11 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
 {
     CharDriverState *chr = NULL;
     TCPCharDriver *s = NULL;
-    int fd = -1, ret, err, val;
+    int fd = -1, offset = 0;
     int is_listen = 0;
     int is_waitconnect = 1;
     int do_nodelay = 0;
     const char *ptr;
-    struct sockaddr_in saddr;
-#ifndef _WIN32
-    struct sockaddr_un uaddr;
-#endif
-    struct sockaddr *addr;
-    socklen_t addrlen;
-
-#ifndef _WIN32
-    if (is_unix) {
-	addr = (struct sockaddr *)&uaddr;
-	addrlen = sizeof(uaddr);
-	if (parse_unix_path(&uaddr, host_str) < 0)
-	    goto fail;
-    } else
-#endif
-    {
-	addr = (struct sockaddr *)&saddr;
-	addrlen = sizeof(saddr);
-	if (parse_host_port(&saddr, host_str) < 0)
-	    goto fail;
-    }
 
     ptr = host_str;
     while((ptr = strchr(ptr,','))) {
@@ -1993,6 +1972,8 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
             is_waitconnect = 0;
         } else if (!strncmp(ptr,"nodelay",6)) {
             do_nodelay = 1;
+        } else if (!strncmp(ptr,"to=",3)) {
+            /* nothing, inet_listen() parses this one */;
         } else {
             printf("Unknown option: %s\n", ptr);
             goto fail;
@@ -2008,13 +1989,31 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     if (!s)
         goto fail;
 
-#ifndef _WIN32
-    if (is_unix)
-	fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    else
-#endif
-	fd = socket(PF_INET, SOCK_STREAM, 0);
-
+    if (is_listen) {
+        chr->filename = qemu_malloc(256);
+        if (is_unix) {
+            strcpy(chr->filename, "unix:");
+        } else if (is_telnet) {
+            strcpy(chr->filename, "telnet:");
+        } else {
+            strcpy(chr->filename, "tcp:");
+        }
+        offset = strlen(chr->filename);
+    }
+    if (is_unix) {
+        if (is_listen) {
+            fd = unix_listen(host_str, chr->filename + offset, 256 - offset);
+        } else {
+            fd = unix_connect(host_str);
+        }
+    } else {
+        if (is_listen) {
+            fd = inet_listen(host_str, chr->filename + offset, 256 - offset,
+                             SOCK_STREAM, 0);
+        } else {
+            fd = inet_connect(host_str, SOCK_STREAM);
+        }
+    }
     if (fd < 0)
         goto fail;
 
@@ -2032,61 +2031,20 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     chr->chr_close = tcp_chr_close;
 
     if (is_listen) {
-        /* allow fast reuse */
-#ifndef _WIN32
-	if (is_unix) {
-	    char path[109];
-	    pstrcpy(path, sizeof(path), uaddr.sun_path);
-	    unlink(path);
-	} else
-#endif
-	{
-	    val = 1;
-	    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char *)&val, sizeof(val));
-	}
-
-        ret = bind(fd, addr, addrlen);
-        if (ret < 0)
-            goto fail;
-
-        ret = listen(fd, 0);
-        if (ret < 0)
-            goto fail;
-
         s->listen_fd = fd;
         qemu_set_fd_handler(s->listen_fd, tcp_chr_accept, NULL, chr);
         if (is_telnet)
             s->do_telnetopt = 1;
     } else {
-        for(;;) {
-            ret = connect(fd, addr, addrlen);
-            if (ret < 0) {
-                err = socket_error();
-                if (err == EINTR || err == EWOULDBLOCK) {
-                } else if (err == EINPROGRESS) {
-                    break;
-#ifdef _WIN32
-                } else if (err == WSAEALREADY) {
-                    break;
-#endif
-                } else {
-                    goto fail;
-                }
-            } else {
-                s->connected = 1;
-                break;
-            }
-        }
+        s->connected = 1;
         s->fd = fd;
         socket_set_nodelay(fd);
-        if (s->connected)
-            tcp_chr_connect(chr);
-        else
-            qemu_set_fd_handler(s->fd, NULL, tcp_chr_connect, chr);
+        tcp_chr_connect(chr);
     }
 
     if (is_listen && is_waitconnect) {
-        printf("QEMU waiting for connection on: %s\n", host_str);
+        printf("QEMU waiting for connection on: %s\n",
+               chr->filename ? chr->filename : host_str);
         tcp_chr_accept(chr);
         socket_set_nonblock(s->listen_fd);
     }
