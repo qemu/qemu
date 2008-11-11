@@ -1059,7 +1059,7 @@ void pal_init (CPUState *env)
 
 void call_pal (CPUState *env, int palcode)
 {
-    target_ulong ret;
+    target_long ret;
 
     if (logfile != NULL)
         fprintf(logfile, "%s: palcode %02x\n", __func__, palcode);
