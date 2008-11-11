@@ -2139,8 +2139,6 @@ static void vnc_listen_read(void *opaque)
     }
 }
 
-extern int parse_host_port(struct sockaddr_in *saddr, const char *str);
-
 void vnc_display_init(DisplayState *ds)
 {
     VncState *vs;
@@ -2291,18 +2289,11 @@ int vnc_display_password(DisplayState *ds, const char *password)
 
 int vnc_display_open(DisplayState *ds, const char *display)
 {
-    struct sockaddr *addr;
-    struct sockaddr_in iaddr;
-#ifndef _WIN32
-    struct sockaddr_un uaddr;
-    const char *p;
-#endif
-    int reuse_addr, ret;
-    socklen_t addrlen;
     VncState *vs = ds ? (VncState *)ds->opaque : vnc_state;
     const char *options;
     int password = 0;
     int reverse = 0;
+    int to_port = 0;
 #ifdef CONFIG_VNC_TLS
     int tls = 0, x509 = 0;
 #endif
@@ -2321,6 +2312,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	    password = 1; /* Require password auth */
 	} else if (strncmp(options, "reverse", 7) == 0) {
 	    reverse = 1;
+	} else if (strncmp(options, "to=", 3) == 0) {
+            to_port = atoi(options+3) + 5900;
 #ifdef CONFIG_VNC_TLS
 	} else if (strncmp(options, "tls", 3) == 0) {
 	    tls = 1; /* Require TLS */
@@ -2398,67 +2391,14 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	}
 #endif
     }
-#ifndef _WIN32
-    if (strstart(display, "unix:", &p)) {
-	addr = (struct sockaddr *)&uaddr;
-	addrlen = sizeof(uaddr);
-
-	vs->lsock = socket(PF_UNIX, SOCK_STREAM, 0);
-	if (vs->lsock == -1) {
-	    fprintf(stderr, "Could not create socket\n");
-	    free(vs->display);
-	    vs->display = NULL;
-	    return -1;
-	}
-
-	uaddr.sun_family = AF_UNIX;
-	memset(uaddr.sun_path, 0, 108);
-	snprintf(uaddr.sun_path, 108, "%s", p);
-
-	if (!reverse) {
-	    unlink(uaddr.sun_path);
-	}
-    } else
-#endif
-    {
-	addr = (struct sockaddr *)&iaddr;
-	addrlen = sizeof(iaddr);
-
-	if (parse_host_port(&iaddr, display) < 0) {
-	    fprintf(stderr, "Could not parse VNC address\n");
-	    free(vs->display);
-	    vs->display = NULL;
-	    return -1;
-	}
-
-	iaddr.sin_port = htons(ntohs(iaddr.sin_port) + (reverse ? 0 : 5900));
-
-	vs->lsock = socket(PF_INET, SOCK_STREAM, 0);
-	if (vs->lsock == -1) {
-	    fprintf(stderr, "Could not create socket\n");
-	    free(vs->display);
-	    vs->display = NULL;
-	    return -1;
-	}
-
-	reuse_addr = 1;
-	ret = setsockopt(vs->lsock, SOL_SOCKET, SO_REUSEADDR,
-			 (const char *)&reuse_addr, sizeof(reuse_addr));
-	if (ret == -1) {
-	    fprintf(stderr, "setsockopt() failed\n");
-	    close(vs->lsock);
-	    vs->lsock = -1;
-	    free(vs->display);
-	    vs->display = NULL;
-	    return -1;
-	}
-    }
 
     if (reverse) {
-        if (connect(vs->lsock, addr, addrlen) == -1) {
-            fprintf(stderr, "Connection to VNC client failed\n");
-            close(vs->lsock);
-            vs->lsock = -1;
+        /* connect to viewer */
+        if (strncmp(display, "unix:", 5) == 0)
+            vs->lsock = unix_connect(display+5);
+        else
+            vs->lsock = inet_connect(display, SOCK_STREAM);
+        if (-1 == vs->lsock) {
             free(vs->display);
             vs->display = NULL;
             return -1;
@@ -2466,26 +2406,25 @@ int vnc_display_open(DisplayState *ds, const char *display)
             vs->csock = vs->lsock;
             vs->lsock = -1;
             vnc_connect(vs);
-            return 0;
         }
-    }
+        return 0;
 
-    if (bind(vs->lsock, addr, addrlen) == -1) {
-	fprintf(stderr, "bind() failed\n");
-	close(vs->lsock);
-	vs->lsock = -1;
-	free(vs->display);
-	vs->display = NULL;
-	return -1;
-    }
-
-    if (listen(vs->lsock, 1) == -1) {
-	fprintf(stderr, "listen() failed\n");
-	close(vs->lsock);
-	vs->lsock = -1;
-	free(vs->display);
-	vs->display = NULL;
-	return -1;
+    } else {
+        /* listen for connects */
+        char *dpy;
+        dpy = qemu_malloc(256);
+        if (strncmp(display, "unix:", 5) == 0) {
+            strcpy(dpy, "unix:");
+            vs->lsock = unix_listen(display, dpy+5, 256-5);
+        } else {
+            vs->lsock = inet_listen(display, dpy, 256, SOCK_STREAM, 5900);
+        }
+        if (-1 == vs->lsock) {
+            free(dpy);
+        } else {
+            free(vs->display);
+            vs->display = dpy;
+        }
     }
 
     return qemu_set_fd_handler2(vs->lsock, vnc_listen_poll, vnc_listen_read, NULL, vs);
