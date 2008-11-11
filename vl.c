@@ -1403,7 +1403,7 @@ static int fcntl_setfl(int fd, int flag)
 
 #define RTC_FREQ 1024
 
-static void enable_sigio_timer(int fd)
+void enable_sigio_timer(int fd)
 {
     struct sigaction act;
 
