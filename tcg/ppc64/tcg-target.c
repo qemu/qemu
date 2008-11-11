@@ -497,6 +497,17 @@ static void tcg_out_ldst (TCGContext *s, int ret, int addr,
     }
 }
 
+static void tcg_out_ldsta (TCGContext *s, int ret, int addr,
+                           int offset, int op1, int op2)
+{
+    if (offset == (int16_t) (offset & ~3))
+        tcg_out32 (s, op1 | RT (ret) | RA (addr) | (offset & 0xffff));
+    else {
+        tcg_out_movi (s, TCG_TYPE_I64, 0, offset);
+        tcg_out32 (s, op2 | RT (ret) | RA (addr) | RB (0));
+    }
+}
+
 static void tcg_out_b (TCGContext *s, int mask, tcg_target_long target)
 {
     tcg_target_long disp;
@@ -860,7 +871,7 @@ static void tcg_out_ld (TCGContext *s, TCGType type, int ret, int arg1,
     if (type == TCG_TYPE_I32)
         tcg_out_ldst (s, ret, arg1, arg2, LWZ, LWZX);
     else
-        tcg_out_ldst (s, ret, arg1, arg2, LD, LDX);
+        tcg_out_ldsta (s, ret, arg1, arg2, LD, LDX);
 }
 
 static void tcg_out_st (TCGContext *s, TCGType type, int arg, int arg1,
@@ -869,7 +880,7 @@ static void tcg_out_st (TCGContext *s, TCGType type, int arg, int arg1,
     if (type == TCG_TYPE_I32)
         tcg_out_ldst (s, arg, arg1, arg2, STW, STWX);
     else
-        tcg_out_ldst (s, arg, arg1, arg2, STD, STDX);
+        tcg_out_ldsta (s, arg, arg1, arg2, STD, STDX);
 }
 
 static void ppc_addi32 (TCGContext *s, int rt, int ra, tcg_target_long si)
@@ -1088,10 +1099,10 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
         tcg_out_ldst (s, args[0], args[1], args[2], LWZ, LWZX);
         break;
     case INDEX_op_ld32s_i64:
-        tcg_out_ldst (s, args[0], args[1], args[2], LWA, LWAX);
+        tcg_out_ldsta (s, args[0], args[1], args[2], LWA, LWAX);
         break;
     case INDEX_op_ld_i64:
-        tcg_out_ldst (s, args[0], args[1], args[2], LD, LDX);
+        tcg_out_ldsta (s, args[0], args[1], args[2], LD, LDX);
         break;
     case INDEX_op_st8_i32:
     case INDEX_op_st8_i64:
@@ -1106,7 +1117,7 @@ static void tcg_out_op (TCGContext *s, int opc, const TCGArg *args,
         tcg_out_ldst (s, args[0], args[1], args[2], STW, STWX);
         break;
     case INDEX_op_st_i64:
-        tcg_out_ldst (s, args[0], args[1], args[2], STD, STDX);
+        tcg_out_ldsta (s, args[0], args[1], args[2], STD, STDX);
         break;
 
     case INDEX_op_add_i32:
