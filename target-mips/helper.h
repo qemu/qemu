@@ -270,13 +270,9 @@ DEF_HELPER(target_ulong, do_rdhwr_ccres, (void))
 DEF_HELPER(void, do_pmon, (int function))
 DEF_HELPER(void, do_wait, (void))
 
-/* Bitfield operations. */
-DEF_HELPER(target_ulong, do_ext, (target_ulong t1, uint32_t pos, uint32_t size))
-DEF_HELPER(target_ulong, do_ins, (target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size))
+/* Bit shuffle operations. */
 DEF_HELPER(target_ulong, do_wsbh, (target_ulong t1))
 #ifdef TARGET_MIPS64
-DEF_HELPER(target_ulong, do_dext, (target_ulong t1, uint32_t pos, uint32_t size))
-DEF_HELPER(target_ulong, do_dins, (target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size))
 DEF_HELPER(target_ulong, do_dsbh, (target_ulong t1))
 DEF_HELPER(target_ulong, do_dshd, (target_ulong t1))
 #endif

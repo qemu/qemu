@@ -2682,57 +2682,80 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
 static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
                         int rs, int lsb, int msb)
 {
-    TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
-    TCGv t1 = tcg_temp_local_new(TCG_TYPE_TL);
+    TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
+    TCGv t1 = tcg_temp_new(TCG_TYPE_TL);
+    target_ulong mask;
 
     gen_load_gpr(t1, rs);
     switch (opc) {
     case OPC_EXT:
         if (lsb + msb > 31)
             goto fail;
-        tcg_gen_helper_1_1ii(do_ext, t0, t1, lsb, msb + 1);
+        tcg_gen_shri_tl(t0, t1, lsb);
+        if (msb != 31) {
+            tcg_gen_andi_tl(t0, t0, (1 << (msb + 1)) - 1);
+        } else {
+            tcg_gen_ext32s_tl(t0, t0);
+        }
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DEXTM:
-        if (lsb + msb > 63)
-            goto fail;
-        tcg_gen_helper_1_1ii(do_dext, t0, t1, lsb, msb + 1 + 32);
+        tcg_gen_shri_tl(t0, t1, lsb);
+        if (msb != 31) {
+            tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1 + 32)) - 1);
+        }
         break;
     case OPC_DEXTU:
-        if (lsb + msb > 63)
-            goto fail;
-        tcg_gen_helper_1_1ii(do_dext, t0, t1, lsb + 32, msb + 1);
+        tcg_gen_shri_tl(t0, t1, lsb + 32);
+        tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
         break;
     case OPC_DEXT:
-        if (lsb + msb > 63)
-            goto fail;
-        tcg_gen_helper_1_1ii(do_dext, t0, t1, lsb, msb + 1);
+        tcg_gen_shri_tl(t0, t1, lsb);
+        tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
         break;
 #endif
     case OPC_INS:
         if (lsb > msb)
             goto fail;
+        mask = ((msb - lsb + 1 < 32) ? ((1 << (msb - lsb + 1)) - 1) : ~0) << lsb;
         gen_load_gpr(t0, rt);
-        tcg_gen_helper_1_2ii(do_ins, t0, t0, t1, lsb, msb - lsb + 1);
+        tcg_gen_andi_tl(t0, t0, ~mask);
+        tcg_gen_shli_tl(t1, t1, lsb);
+        tcg_gen_andi_tl(t1, t1, mask);
+        tcg_gen_or_tl(t0, t0, t1);
+        tcg_gen_ext32s_tl(t0, t0);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DINSM:
         if (lsb > msb)
             goto fail;
+        mask = ((msb - lsb + 1 + 32 < 64) ? ((1ULL << (msb - lsb + 1 + 32)) - 1) : ~0ULL) << lsb;
         gen_load_gpr(t0, rt);
-        tcg_gen_helper_1_2ii(do_dins, t0, t0, t1, lsb, msb - lsb + 1 + 32);
+        tcg_gen_andi_tl(t0, t0, ~mask);
+        tcg_gen_shli_tl(t1, t1, lsb);
+        tcg_gen_andi_tl(t1, t1, mask);
+        tcg_gen_or_tl(t0, t0, t1);
         break;
     case OPC_DINSU:
         if (lsb > msb)
             goto fail;
+        mask = ((1ULL << (msb - lsb + 1)) - 1) << lsb;
         gen_load_gpr(t0, rt);
-        tcg_gen_helper_1_2ii(do_dins, t0, t0, t1, lsb + 32, msb - lsb + 1);
+        tcg_gen_andi_tl(t0, t0, ~mask);
+        tcg_gen_shli_tl(t1, t1, lsb + 32);
+        tcg_gen_andi_tl(t1, t1, mask);
+        tcg_gen_or_tl(t0, t0, t1);
         break;
     case OPC_DINS:
         if (lsb > msb)
             goto fail;
         gen_load_gpr(t0, rt);
-        tcg_gen_helper_1_2ii(do_dins, t0, t0, t1, lsb, msb - lsb + 1);
+        mask = ((1ULL << (msb - lsb + 1)) - 1) << lsb;
+        gen_load_gpr(t0, rt);
+        tcg_gen_andi_tl(t0, t0, ~mask);
+        tcg_gen_shli_tl(t1, t1, lsb);
+        tcg_gen_andi_tl(t1, t1, mask);
+        tcg_gen_or_tl(t0, t0, t1);
         break;
 #endif
     default:
