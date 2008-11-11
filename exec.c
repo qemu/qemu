@@ -231,16 +231,7 @@ static void page_init(void)
 {
     /* NOTE: we can always suppose that qemu_host_page_size >=
        TARGET_PAGE_SIZE */
-#ifdef _WIN32
-    {
-        SYSTEM_INFO system_info;
-
-        GetSystemInfo(&system_info);
-        qemu_real_host_page_size = system_info.dwPageSize;
-    }
-#else
-    qemu_real_host_page_size = getpagesize();
-#endif
+    qemu_real_host_page_size = qemu_getpagesize();
     if (qemu_host_page_size == 0)
         qemu_host_page_size = qemu_real_host_page_size;
     if (qemu_host_page_size < TARGET_PAGE_SIZE)

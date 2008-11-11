@@ -72,6 +72,7 @@
 void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_vmalloc(size_t size);
 void qemu_vfree(void *ptr);
+long qemu_getpagesize(void);
 
 int qemu_create_pidfile(const char *filename);
 
