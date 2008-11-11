@@ -1333,7 +1333,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
     switch (opc) {
     case OPC_ADDI:
         {
-            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1341,24 +1341,21 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_ext32s_tl(r_tmp1, t0);
             tcg_gen_addi_tl(t0, r_tmp1, uimm);
 
-            tcg_gen_xori_tl(r_tmp1, r_tmp1, uimm);
-            tcg_gen_xori_tl(r_tmp1, r_tmp1, -1);
+            tcg_gen_xori_tl(r_tmp1, r_tmp1, ~uimm);
             tcg_gen_xori_tl(r_tmp2, t0, uimm);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
-            tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
-            tcg_temp_free(r_tmp1);
+            tcg_gen_brcondi_tl(TCG_COND_GE, r_tmp1, 0, l1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
+            tcg_temp_free(r_tmp1);
 
             tcg_gen_ext32s_tl(t0, t0);
         }
         opn = "addi";
         break;
     case OPC_ADDIU:
-        tcg_gen_ext32s_tl(t0, t0);
         tcg_gen_addi_tl(t0, t0, uimm);
         tcg_gen_ext32s_tl(t0, t0);
         opn = "addiu";
@@ -1366,7 +1363,7 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
 #if defined(TARGET_MIPS64)
     case OPC_DADDI:
         {
-            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1374,17 +1371,15 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_mov_tl(r_tmp1, t0);
             tcg_gen_addi_tl(t0, t0, uimm);
 
-            tcg_gen_xori_tl(r_tmp1, r_tmp1, uimm);
-            tcg_gen_xori_tl(r_tmp1, r_tmp1, -1);
+            tcg_gen_xori_tl(r_tmp1, r_tmp1, ~uimm);
             tcg_gen_xori_tl(r_tmp2, t0, uimm);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
-            tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
-            tcg_temp_free(r_tmp1);
+            tcg_gen_brcondi_tl(TCG_COND_GE, r_tmp1, 0, l1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
+            tcg_temp_free(r_tmp1);
         }
         opn = "daddi";
         break;
@@ -1417,7 +1412,6 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "lui";
         break;
     case OPC_SLL:
-        tcg_gen_ext32u_tl(t0, t0);
         tcg_gen_shli_tl(t0, t0, uimm);
         tcg_gen_ext32s_tl(t0, t0);
         opn = "sll";
@@ -1425,15 +1419,17 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
     case OPC_SRA:
         tcg_gen_ext32s_tl(t0, t0);
         tcg_gen_sari_tl(t0, t0, uimm);
-        tcg_gen_ext32s_tl(t0, t0);
         opn = "sra";
         break;
     case OPC_SRL:
         switch ((ctx->opcode >> 21) & 0x1f) {
         case 0:
-            tcg_gen_ext32u_tl(t0, t0);
-            tcg_gen_shri_tl(t0, t0, uimm);
-            tcg_gen_ext32s_tl(t0, t0);
+            if (uimm != 0) {
+                tcg_gen_ext32u_tl(t0, t0);
+                tcg_gen_shri_tl(t0, t0, uimm);
+            } else {
+                tcg_gen_ext32s_tl(t0, t0);
+            }
             opn = "srl";
             break;
         case 1:
@@ -1449,9 +1445,12 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
                 }
                 opn = "rotr";
             } else {
-                tcg_gen_ext32u_tl(t0, t0);
-                tcg_gen_shri_tl(t0, t0, uimm);
-                tcg_gen_ext32s_tl(t0, t0);
+                if (uimm != 0) {
+                    tcg_gen_ext32u_tl(t0, t0);
+                    tcg_gen_shri_tl(t0, t0, uimm);
+                } else {
+                    tcg_gen_ext32s_tl(t0, t0);
+                }
                 opn = "srl";
             }
             break;
@@ -1562,7 +1561,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
     switch (opc) {
     case OPC_ADD:
         {
-            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1576,27 +1575,24 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp2, t0, t1);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
-            tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
-            tcg_temp_free(r_tmp1);
+            tcg_gen_brcondi_tl(TCG_COND_GE, r_tmp1, 0, l1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
+            tcg_temp_free(r_tmp1);
 
             tcg_gen_ext32s_tl(t0, t0);
         }
         opn = "add";
         break;
     case OPC_ADDU:
-        tcg_gen_ext32s_tl(t0, t0);
-        tcg_gen_ext32s_tl(t1, t1);
         tcg_gen_add_tl(t0, t0, t1);
         tcg_gen_ext32s_tl(t0, t0);
         opn = "addu";
         break;
     case OPC_SUB:
         {
-            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1609,20 +1605,17 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp1, r_tmp1, t0);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
-            tcg_gen_shri_tl(r_tmp1, r_tmp1, 31);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
-            tcg_temp_free(r_tmp1);
+            tcg_gen_brcondi_tl(TCG_COND_GE, r_tmp1, 0, l1);
             /* operands of different sign, first operand and result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
+            tcg_temp_free(r_tmp1);
 
             tcg_gen_ext32s_tl(t0, t0);
         }
         opn = "sub";
         break;
     case OPC_SUBU:
-        tcg_gen_ext32s_tl(t0, t0);
-        tcg_gen_ext32s_tl(t1, t1);
         tcg_gen_sub_tl(t0, t0, t1);
         tcg_gen_ext32s_tl(t0, t0);
         opn = "subu";
@@ -1630,7 +1623,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
 #if defined(TARGET_MIPS64)
     case OPC_DADD:
         {
-            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1643,12 +1636,11 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp2, t0, t1);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
-            tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
-            tcg_temp_free(r_tmp1);
+            tcg_gen_brcondi_tl(TCG_COND_GE, r_tmp1, 0, l1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
+            tcg_temp_free(r_tmp1);
         }
         opn = "dadd";
         break;
@@ -1658,7 +1650,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
     case OPC_DSUB:
         {
-            TCGv r_tmp1 = tcg_temp_local_new(TCG_TYPE_TL);
+            TCGv r_tmp1 = tcg_temp_new(TCG_TYPE_TL);
             TCGv r_tmp2 = tcg_temp_new(TCG_TYPE_TL);
             int l1 = gen_new_label();
 
@@ -1670,12 +1662,11 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_xor_tl(r_tmp1, r_tmp1, t0);
             tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
             tcg_temp_free(r_tmp2);
-            tcg_gen_shri_tl(r_tmp1, r_tmp1, 63);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, r_tmp1, 0, l1);
-            tcg_temp_free(r_tmp1);
+            tcg_gen_brcondi_tl(TCG_COND_GE, r_tmp1, 0, l1);
             /* operands of different sign, first operand and result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
+            tcg_temp_free(r_tmp1);
         }
         opn = "dsub";
         break;
@@ -1710,8 +1701,6 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "xor";
         break;
     case OPC_MUL:
-        tcg_gen_ext32s_tl(t0, t0);
-        tcg_gen_ext32s_tl(t1, t1);
         tcg_gen_mul_tl(t0, t0, t1);
         tcg_gen_ext32s_tl(t0, t0);
         opn = "mul";
@@ -1737,8 +1726,6 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "movz";
         goto print;
     case OPC_SLLV:
-        tcg_gen_ext32u_tl(t0, t0);
-        tcg_gen_ext32u_tl(t1, t1);
         tcg_gen_andi_tl(t0, t0, 0x1f);
         tcg_gen_shl_tl(t0, t1, t0);
         tcg_gen_ext32s_tl(t0, t0);
@@ -1748,7 +1735,6 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         tcg_gen_ext32s_tl(t1, t1);
         tcg_gen_andi_tl(t0, t0, 0x1f);
         tcg_gen_sar_tl(t0, t1, t0);
-        tcg_gen_ext32s_tl(t0, t0);
         opn = "srav";
         break;
     case OPC_SRLV:
