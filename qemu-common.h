@@ -29,6 +29,7 @@
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
+#define WINVER 0x0501  /* needed for ipv6 bits */
 #include <windows.h>
 #define fsync _commit
 #define lseek _lseeki64

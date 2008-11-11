@@ -442,7 +442,7 @@ static CharDriverState *qemu_chr_open_mux(CharDriverState *drv)
 
 
 #ifdef _WIN32
-int send_all(int fd, const uint8_t *buf, int len1)
+int send_all(int fd, const void *buf, int len1)
 {
     int ret, len;
 
@@ -487,7 +487,7 @@ static int unix_write(int fd, const uint8_t *buf, int len1)
     return len1 - len;
 }
 
-int send_all(int fd, const uint8_t *buf, int len1)
+int send_all(int fd, const void *buf, int len1)
 {
     return unix_write(fd, buf, len1);
 }
