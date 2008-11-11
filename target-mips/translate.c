@@ -1045,13 +1045,13 @@ static inline void op_ldst_##insn(TCGv t0, TCGv t1, DisasContext *ctx)  \
     gen_set_label(l1);                                                  \
     tcg_gen_ld_tl(r_tmp, cpu_env, offsetof(CPUState, CP0_LLAddr));      \
     tcg_gen_brcond_tl(TCG_COND_NE, t0, r_tmp, l2);                      \
-    tcg_temp_free(r_tmp);                                               \
     tcg_gen_qemu_##fname(t1, t0, ctx->mem_idx);                         \
     tcg_gen_movi_tl(t0, 1);                                             \
     tcg_gen_br(l3);                                                     \
     gen_set_label(l2);                                                  \
     tcg_gen_movi_tl(t0, 0);                                             \
     gen_set_label(l3);                                                  \
+    tcg_temp_free(r_tmp);                                               \
 }
 OP_ST_ATOMIC(sc,st32,0x3);
 #if defined(TARGET_MIPS64)
