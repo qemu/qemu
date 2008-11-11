@@ -5179,25 +5179,25 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
         case 2:
             switch (sel) {
             case 1:
-                tcg_gen_helper_1_1(do_mftc0_tcstatus, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_tcstatus, t0);
                 break;
             case 2:
-                tcg_gen_helper_1_1(do_mftc0_tcbind, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_tcbind, t0);
                 break;
             case 3:
-                tcg_gen_helper_1_1(do_mftc0_tcrestart, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_tcrestart, t0);
                 break;
             case 4:
-                tcg_gen_helper_1_1(do_mftc0_tchalt, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_tchalt, t0);
                 break;
             case 5:
-                tcg_gen_helper_1_1(do_mftc0_tccontext, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_tccontext, t0);
                 break;
             case 6:
-                tcg_gen_helper_1_1(do_mftc0_tcschedule, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_tcschedule, t0);
                 break;
             case 7:
-                tcg_gen_helper_1_1(do_mftc0_tcschefback, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_tcschefback, t0);
                 break;
             default:
                 gen_mfc0(env, ctx, t0, rt, sel);
@@ -5207,7 +5207,7 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
         case 10:
             switch (sel) {
             case 0:
-                tcg_gen_helper_1_1(do_mftc0_entryhi, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_entryhi, t0);
                 break;
             default:
                 gen_mfc0(env, ctx, t0, rt, sel);
@@ -5216,7 +5216,7 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
         case 12:
             switch (sel) {
             case 0:
-                tcg_gen_helper_1_1(do_mftc0_status, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_status, t0);
                 break;
             default:
                 gen_mfc0(env, ctx, t0, rt, sel);
@@ -5225,7 +5225,7 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
         case 23:
             switch (sel) {
             case 0:
-                tcg_gen_helper_1_1(do_mftc0_debug, t0, t0);
+                tcg_gen_helper_1_0(do_mftc0_debug, t0);
                 break;
             default:
                 gen_mfc0(env, ctx, t0, rt, sel);
@@ -5238,49 +5238,49 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
     } else switch (sel) {
     /* GPR registers. */
     case 0:
-        tcg_gen_helper_1_1i(do_mftgpr, t0, t0, rt);
+        tcg_gen_helper_1_i(do_mftgpr, t0, rt);
         break;
     /* Auxiliary CPU registers */
     case 1:
         switch (rt) {
         case 0:
-            tcg_gen_helper_1_1i(do_mftlo, t0, t0, 0);
+            tcg_gen_helper_1_i(do_mftlo, t0, 0);
             break;
         case 1:
-            tcg_gen_helper_1_1i(do_mfthi, t0, t0, 0);
+            tcg_gen_helper_1_i(do_mfthi, t0, 0);
             break;
         case 2:
-            tcg_gen_helper_1_1i(do_mftacx, t0, t0, 0);
+            tcg_gen_helper_1_i(do_mftacx, t0, 0);
             break;
         case 4:
-            tcg_gen_helper_1_1i(do_mftlo, t0, t0, 1);
+            tcg_gen_helper_1_i(do_mftlo, t0, 1);
             break;
         case 5:
-            tcg_gen_helper_1_1i(do_mfthi, t0, t0, 1);
+            tcg_gen_helper_1_i(do_mfthi, t0, 1);
             break;
         case 6:
-            tcg_gen_helper_1_1i(do_mftacx, t0, t0, 1);
+            tcg_gen_helper_1_i(do_mftacx, t0, 1);
             break;
         case 8:
-            tcg_gen_helper_1_1i(do_mftlo, t0, t0, 2);
+            tcg_gen_helper_1_i(do_mftlo, t0, 2);
             break;
         case 9:
-            tcg_gen_helper_1_1i(do_mfthi, t0, t0, 2);
+            tcg_gen_helper_1_i(do_mfthi, t0, 2);
             break;
         case 10:
-            tcg_gen_helper_1_1i(do_mftacx, t0, t0, 2);
+            tcg_gen_helper_1_i(do_mftacx, t0, 2);
             break;
         case 12:
-            tcg_gen_helper_1_1i(do_mftlo, t0, t0, 3);
+            tcg_gen_helper_1_i(do_mftlo, t0, 3);
             break;
         case 13:
-            tcg_gen_helper_1_1i(do_mfthi, t0, t0, 3);
+            tcg_gen_helper_1_i(do_mfthi, t0, 3);
             break;
         case 14:
-            tcg_gen_helper_1_1i(do_mftacx, t0, t0, 3);
+            tcg_gen_helper_1_i(do_mftacx, t0, 3);
             break;
         case 16:
-            tcg_gen_helper_1_1(do_mftdsp, t0, t0);
+            tcg_gen_helper_1_0(do_mftdsp, t0);
             break;
         default:
             goto die;

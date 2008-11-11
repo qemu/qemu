@@ -1358,7 +1358,7 @@ void do_mtc0_status_irqraise_debug(void)
 #endif /* !CONFIG_USER_ONLY */
 
 /* MIPS MT functions */
-target_ulong do_mftgpr(target_ulong t0, uint32_t sel)
+target_ulong do_mftgpr(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1368,7 +1368,7 @@ target_ulong do_mftgpr(target_ulong t0, uint32_t sel)
         return env->tcs[other_tc].gpr[sel];
 }
 
-target_ulong do_mftlo(target_ulong t0, uint32_t sel)
+target_ulong do_mftlo(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1378,7 +1378,7 @@ target_ulong do_mftlo(target_ulong t0, uint32_t sel)
         return env->tcs[other_tc].LO[sel];
 }
 
-target_ulong do_mfthi(target_ulong t0, uint32_t sel)
+target_ulong do_mfthi(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1388,7 +1388,7 @@ target_ulong do_mfthi(target_ulong t0, uint32_t sel)
         return env->tcs[other_tc].HI[sel];
 }
 
-target_ulong do_mftacx(target_ulong t0, uint32_t sel)
+target_ulong do_mftacx(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1398,7 +1398,7 @@ target_ulong do_mftacx(target_ulong t0, uint32_t sel)
         return env->tcs[other_tc].ACX[sel];
 }
 
-target_ulong do_mftdsp(target_ulong t0)
+target_ulong do_mftdsp(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
