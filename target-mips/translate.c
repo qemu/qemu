@@ -894,7 +894,7 @@ generate_exception (DisasContext *ctx, int excp)
 }
 
 /* Addresses computation */
-static inline void gen_op_addr_add (TCGv t0, TCGv t1)
+static inline void gen_op_addr_add (DisasContext *ctx, TCGv t0, TCGv t1)
 {
     tcg_gen_add_tl(t0, t0, t1);
 
@@ -902,19 +902,16 @@ static inline void gen_op_addr_add (TCGv t0, TCGv t1)
     /* For compatibility with 32-bit code, data reference in user mode
        with Status_UX = 0 should be casted to 32-bit and sign extended.
        See the MIPS64 PRA manual, section 4.10. */
-    {
+    if ((ctx->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_UM) {
         int l1 = gen_new_label();
-        TCGv r_tmp = tcg_temp_local_new(TCG_TYPE_I32);
+        TCGv r_tmp = tcg_temp_new(TCG_TYPE_I32);
 
-        tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
-        tcg_gen_andi_i32(r_tmp, r_tmp, MIPS_HFLAG_KSU);
-        tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, MIPS_HFLAG_UM, l1);
         tcg_gen_ld_i32(r_tmp, cpu_env, offsetof(CPUState, CP0_Status));
         tcg_gen_andi_i32(r_tmp, r_tmp, (1 << CP0St_UX));
         tcg_gen_brcondi_i32(TCG_COND_NE, r_tmp, 0, l1);
-        tcg_temp_free(r_tmp);
         tcg_gen_ext32s_i64(t0, t0);
         gen_set_label(l1);
+        tcg_temp_free(r_tmp);
     }
 #endif
 }
@@ -1070,7 +1067,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     } else {
         gen_load_gpr(t0, base);
         tcg_gen_movi_tl(t1, offset);
-        gen_op_addr_add(t0, t1);
+        gen_op_addr_add(ctx, t0, t1);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
@@ -1235,7 +1232,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
 
         gen_load_gpr(t0, base);
         tcg_gen_movi_tl(t1, offset);
-        gen_op_addr_add(t0, t1);
+        gen_op_addr_add(ctx, t0, t1);
         tcg_temp_free(t1);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
@@ -7369,7 +7366,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     } else {
         gen_load_gpr(t0, base);
         gen_load_gpr(t1, index);
-        gen_op_addr_add(t0, t1);
+        gen_op_addr_add(ctx, t0, t1);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
