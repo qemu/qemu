@@ -66,14 +66,6 @@ void qemu_vfree(void *ptr)
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-long qemu_getpagesize(void)
-{
-    SYSTEM_INFO system_info;
-
-    GetSystemInfo(&system_info);
-    return system_info.dwPageSize;
-}
-
 #else
 
 #if defined(USE_KQEMU)
@@ -198,11 +190,6 @@ void *qemu_memalign(size_t alignment, size_t size)
 #endif
 }
 
-long qemu_getpagesize(void)
-{
-    return sysconf(_SC_PAGESIZE);
-}
-
 /* alloc shared memory pages */
 void *qemu_vmalloc(size_t size)
 {
@@ -213,7 +200,7 @@ void *qemu_vmalloc(size_t size)
 #ifdef _BSD
     return valloc(size);
 #else
-    return memalign(qemu_getpagesize(), size);
+    return memalign(getpagesize(), size);
 #endif
 }
 
