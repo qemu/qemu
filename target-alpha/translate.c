@@ -30,9 +30,9 @@
 #include "tcg-op.h"
 #include "qemu-common.h"
 
-#define DO_SINGLE_STEP
+/* #define DO_SINGLE_STEP */
 #define ALPHA_DEBUG_DISAS
-#define DO_TB_FLUSH
+/* #define DO_TB_FLUSH */
 
 typedef struct DisasContext DisasContext;
 struct DisasContext {
