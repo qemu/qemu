@@ -2771,6 +2771,60 @@ fail:
     tcg_temp_free(t1);
 }
 
+static void gen_bshfl (DisasContext *ctx, uint32_t op2, int rt, int rd)
+{
+    TCGv t0 = tcg_temp_new(TCG_TYPE_TL);
+    TCGv t1 = tcg_temp_new(TCG_TYPE_TL);
+
+    gen_load_gpr(t1, rt);
+    switch (op2) {
+    case OPC_WSBH:
+        tcg_gen_shri_tl(t0, t1, 8);
+        tcg_gen_andi_tl(t0, t0, 0x00FF00FF);
+        tcg_gen_shli_tl(t1, t1, 8);
+        tcg_gen_andi_tl(t1, t1, ~0x00FF00FF);
+        tcg_gen_or_tl(t0, t0, t1);
+        tcg_gen_ext32s_tl(t0, t0);
+        break;
+    case OPC_SEB:
+        tcg_gen_ext8s_tl(t0, t1);
+        break;
+    case OPC_SEH:
+        tcg_gen_ext16s_tl(t0, t1);
+        break;
+#if defined(TARGET_MIPS64)
+    case OPC_DSBH:
+        gen_load_gpr(t1, rt);
+        tcg_gen_shri_tl(t0, t1, 8);
+        tcg_gen_andi_tl(t0, t0, 0x00FF00FF00FF00FFULL);
+        tcg_gen_shli_tl(t1, t1, 8);
+        tcg_gen_andi_tl(t1, t1, ~0x00FF00FF00FF00FFULL);
+        tcg_gen_or_tl(t0, t0, t1);
+        break;
+    case OPC_DSHD:
+        gen_load_gpr(t1, rt);
+        tcg_gen_shri_tl(t0, t1, 16);
+        tcg_gen_andi_tl(t0, t0, 0x0000FFFF0000FFFFULL);
+        tcg_gen_shli_tl(t1, t1, 16);
+        tcg_gen_andi_tl(t1, t1, ~0x0000FFFF0000FFFFULL);
+        tcg_gen_or_tl(t1, t0, t1);
+        tcg_gen_shri_tl(t0, t1, 32);
+        tcg_gen_shli_tl(t1, t1, 32);
+        tcg_gen_or_tl(t0, t0, t1);
+        break;
+#endif
+    default:
+        MIPS_INVAL("bsfhl");
+        generate_exception(ctx, EXCP_RI);
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+        return;
+    }
+    gen_store_gpr(t0, rd);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
 #ifndef CONFIG_USER_ONLY
 /* CP0 (MMU and control) */
 static inline void gen_mfc0_load32 (TCGv t, target_ulong off)
@@ -7953,34 +8007,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_BSHFL:
             check_insn(env, ctx, ISA_MIPS32R2);
             op2 = MASK_BSHFL(ctx->opcode);
-            {
-                TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
-                TCGv t1 = tcg_temp_local_new(TCG_TYPE_TL);
-
-                switch (op2) {
-                case OPC_WSBH:
-                    gen_load_gpr(t1, rt);
-                    tcg_gen_helper_1_1(do_wsbh, t0, t1);
-                    gen_store_gpr(t0, rd);
-                    break;
-                case OPC_SEB:
-                    gen_load_gpr(t1, rt);
-                    tcg_gen_ext8s_tl(t0, t1);
-                    gen_store_gpr(t0, rd);
-                    break;
-                case OPC_SEH:
-                    gen_load_gpr(t1, rt);
-                    tcg_gen_ext16s_tl(t0, t1);
-                    gen_store_gpr(t0, rd);
-                    break;
-                default:            /* Invalid */
-                    MIPS_INVAL("bshfl");
-                    generate_exception(ctx, EXCP_RI);
-                    break;
-                }
-                tcg_temp_free(t0);
-                tcg_temp_free(t1);
-            }
+            gen_bshfl(ctx, op2, rt, rd);
             break;
         case OPC_RDHWR:
             check_insn(env, ctx, ISA_MIPS32R2);
@@ -8056,28 +8083,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             check_insn(env, ctx, ISA_MIPS64R2);
             check_mips_64(ctx);
             op2 = MASK_DBSHFL(ctx->opcode);
-            {
-                TCGv t0 = tcg_temp_local_new(TCG_TYPE_TL);
-                TCGv t1 = tcg_temp_local_new(TCG_TYPE_TL);
-
-                switch (op2) {
-                case OPC_DSBH:
-                    gen_load_gpr(t1, rt);
-                    tcg_gen_helper_1_1(do_dsbh, t0, t1);
-                    break;
-                case OPC_DSHD:
-                    gen_load_gpr(t1, rt);
-                    tcg_gen_helper_1_1(do_dshd, t0, t1);
-                    break;
-                default:            /* Invalid */
-                    MIPS_INVAL("dbshfl");
-                    generate_exception(ctx, EXCP_RI);
-                    break;
-                }
-                gen_store_gpr(t0, rd);
-                tcg_temp_free(t0);
-                tcg_temp_free(t1);
-            }
+            gen_bshfl(ctx, op2, rt, rd);
             break;
 #endif
         default:            /* Invalid */

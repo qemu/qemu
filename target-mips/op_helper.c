@@ -1781,25 +1781,6 @@ target_ulong do_rdhwr_ccres(void)
     return 0;
 }
 
-/* Bit shuffle operations. */
-target_ulong do_wsbh(target_ulong t1)
-{
-    return (int32_t)(((t1 << 8) & ~0x00FF00FF) | ((t1 >> 8) & 0x00FF00FF));
-}
-
-#if defined(TARGET_MIPS64)
-target_ulong do_dsbh(target_ulong t1)
-{
-    return ((t1 << 8) & ~0x00FF00FF00FF00FFULL) | ((t1 >> 8) & 0x00FF00FF00FF00FFULL);
-}
-
-target_ulong do_dshd(target_ulong t1)
-{
-    t1 = ((t1 << 16) & ~0x0000FFFF0000FFFFULL) | ((t1 >> 16) & 0x0000FFFF0000FFFFULL);
-    return (t1 << 32) | (t1 >> 32);
-}
-#endif
-
 void do_pmon (int function)
 {
     function /= 2;

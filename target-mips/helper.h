@@ -269,10 +269,3 @@ DEF_HELPER(target_ulong, do_rdhwr_cc, (void))
 DEF_HELPER(target_ulong, do_rdhwr_ccres, (void))
 DEF_HELPER(void, do_pmon, (int function))
 DEF_HELPER(void, do_wait, (void))
-
-/* Bit shuffle operations. */
-DEF_HELPER(target_ulong, do_wsbh, (target_ulong t1))
-#ifdef TARGET_MIPS64
-DEF_HELPER(target_ulong, do_dsbh, (target_ulong t1))
-DEF_HELPER(target_ulong, do_dshd, (target_ulong t1))
-#endif
