@@ -1,5 +1,9 @@
 include config.mak
 
+ifndef CONFIG_DYNGEN_OP
+CC=$(HOST_CC)
+endif
+
 TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
 TARGET_BASE_ARCH:=i386
