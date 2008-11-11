@@ -1464,7 +1464,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x2C:
             /* XXX: incorrect */
-            if (fn11 == 0x2AC) {
+            if (fn11 == 0x2AC || fn11 == 0x6AC) {
                 /* CVTST */
                 gen_farith2(&helper_cvtst, rb, rc);
             } else {
