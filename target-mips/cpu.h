@@ -411,7 +411,7 @@ struct CPUMIPSState {
     int error_code;
     uint32_t hflags;    /* CPU State */
     /* TMASK defines different execution modes */
-#define MIPS_HFLAG_TMASK  0x01FF
+#define MIPS_HFLAG_TMASK  0x03FF
 #define MIPS_HFLAG_MODE   0x0007 /* execution modes                    */
     /* The KSU flags must be the lowest bits in hflags. The flag order
        must be the same as defined for CP0 Status. This allows to use
@@ -430,15 +430,16 @@ struct CPUMIPSState {
        and RSQRT.D.  */
 #define MIPS_HFLAG_COP1X  0x0080 /* COP1X instructions enabled         */
 #define MIPS_HFLAG_RE     0x0100 /* Reversed endianness                */
+#define MIPS_HFLAG_UX     0x0200 /* 64-bit user mode                   */
     /* If translation is interrupted between the branch instruction and
      * the delay slot, record what type of branch it is so that we can
      * resume translation properly.  It might be possible to reduce
      * this from three bits to two.  */
-#define MIPS_HFLAG_BMASK  0x0e00
-#define MIPS_HFLAG_B      0x0200 /* Unconditional branch               */
-#define MIPS_HFLAG_BC     0x0400 /* Conditional branch                 */
-#define MIPS_HFLAG_BL     0x0600 /* Likely branch                      */
-#define MIPS_HFLAG_BR     0x0800 /* branch to register (can't link TB) */
+#define MIPS_HFLAG_BMASK  0x1C00
+#define MIPS_HFLAG_B      0x0400 /* Unconditional branch               */
+#define MIPS_HFLAG_BC     0x0800 /* Conditional branch                 */
+#define MIPS_HFLAG_BL     0x0C00 /* Likely branch                      */
+#define MIPS_HFLAG_BR     0x1000 /* branch to register (can't link TB) */
     target_ulong btarget;        /* Jump / branch target               */
     int bcond;                   /* Branch condition (if needed)       */
 
