@@ -827,11 +827,7 @@ OP_CONDZ(ltz, TCG_COND_LT);
 
 static inline void gen_save_pc(target_ulong pc)
 {
-    TCGv r_tmp = tcg_temp_new(TCG_TYPE_TL);
-
-    tcg_gen_movi_tl(r_tmp, pc);
-    tcg_gen_mov_tl(cpu_PC, r_tmp);
-    tcg_temp_free(r_tmp);
+    tcg_gen_movi_tl(cpu_PC, pc);
 }
 
 static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
