@@ -3609,6 +3609,8 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
         default:
             goto die;
         }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 12:
         switch (sel) {
@@ -4791,6 +4793,8 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
         default:
             goto die;
         }
+        /* Stop translation as we may have switched the execution mode */
+        ctx->bstate = BS_STOP;
         break;
     case 12:
         switch (sel) {
