@@ -236,7 +236,7 @@ static always_inline void gen_store_mem (DisasContext *ctx,
                                          int ra, int rb, int32_t disp16,
                                          int fp, int clear, int local)
 {
-    TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+    TCGv addr;
     if (local)
         addr = tcg_temp_local_new(TCG_TYPE_I64);
     else
