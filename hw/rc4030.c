@@ -70,11 +70,11 @@ typedef struct rc4030State
 static void set_next_tick(rc4030State *s)
 {
     qemu_irq_lower(s->timer_irq);
-    uint32_t hz;
+    uint32_t tm_hz;
 
-    hz = 1000 / (s->itr + 1);
+    tm_hz = 1000 / (s->itr + 1);
 
-    qemu_mod_timer(s->periodic_timer, qemu_get_clock(vm_clock) + ticks_per_sec / hz);
+    qemu_mod_timer(s->periodic_timer, qemu_get_clock(vm_clock) + ticks_per_sec / tm_hz);
 }
 
 /* called for accesses to rc4030 */

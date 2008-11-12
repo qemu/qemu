@@ -169,7 +169,7 @@ static void vga_precise_update_retrace_info(VGAState *s)
     int div2, sldiv2, dots;
     int clocking_mode;
     int clock_sel;
-    const int hz[] = {25175000, 28322000, 25175000, 25175000};
+    const int clk_hz[] = {25175000, 28322000, 25175000, 25175000};
     int64_t chars_per_sec;
     struct vga_precise_retrace *r = &s->retrace_info.precise;
 
@@ -194,7 +194,7 @@ static void vga_precise_update_retrace_info(VGAState *s)
     clock_sel = (s->msr >> 2) & 3;
     dots = (s->msr & 1) ? 8 : 9;
 
-    chars_per_sec = hz[clock_sel] / dots;
+    chars_per_sec = clk_hz[clock_sel] / dots;
 
     htotal_chars <<= clocking_mode;
 
@@ -239,7 +239,7 @@ static void vga_precise_update_retrace_info(VGAState *s)
         div2, sldiv2,
         clocking_mode,
         clock_sel,
-        hz[clock_sel],
+        clk_hz[clock_sel],
         dots,
         r->ticks_per_char
         );

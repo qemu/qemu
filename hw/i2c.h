@@ -68,7 +68,7 @@ void wm8750_dac_dat(void *opaque, uint32_t sample);
 uint32_t wm8750_adc_dat(void *opaque);
 void *wm8750_dac_buffer(void *opaque, int samples);
 void wm8750_dac_commit(void *opaque);
-void wm8750_set_bclk_in(void *opaque, int hz);
+void wm8750_set_bclk_in(void *opaque, int new_hz);
 
 /* ssd0303.c */
 void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address);
