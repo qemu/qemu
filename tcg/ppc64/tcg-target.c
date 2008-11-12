@@ -901,7 +901,7 @@ static void ppc_addi64 (TCGContext *s, int rt, int ra, tcg_target_long si)
 {
     /* XXX: suboptimal */
     if (si == (int16_t) si
-        || (((uint64_t) si >> 31) == 0) && (si & 0x8000) == 0)
+        || ((((uint64_t) si >> 31) == 0) && (si & 0x8000) == 0))
         ppc_addi32 (s, rt, ra, si);
     else {
         tcg_out_movi (s, TCG_TYPE_I64, 0, si);
