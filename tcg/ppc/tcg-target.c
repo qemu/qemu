@@ -26,10 +26,10 @@ static uint8_t *tb_ret_addr;
 
 #ifdef __APPLE__
 #define LINKAGE_AREA_SIZE 24
-#define BACK_CHAIN_OFFSET 8
+#define LR_OFFSET 8
 #else
 #define LINKAGE_AREA_SIZE 8
-#define BACK_CHAIN_OFFSET 4
+#define LR_OFFSET 4
 #endif
 
 #define FAST_PATH
@@ -845,7 +845,7 @@ void tcg_target_qemu_prologue (TCGContext *s)
                        | (i * 4 + LINKAGE_AREA_SIZE + TCG_STATIC_CALL_ARGS_SIZE)
                        )
             );
-    tcg_out32 (s, STW | RS (0) | RA (1) | (frame_size + BACK_CHAIN_OFFSET));
+    tcg_out32 (s, STW | RS (0) | RA (1) | (frame_size + LR_OFFSET));
 
     tcg_out32 (s, MTSPR | RS (3) | CTR);
     tcg_out32 (s, BCCTR | BO_ALWAYS);
@@ -858,7 +858,7 @@ void tcg_target_qemu_prologue (TCGContext *s)
                        | (i * 4 + LINKAGE_AREA_SIZE + TCG_STATIC_CALL_ARGS_SIZE)
                        )
             );
-    tcg_out32 (s, LWZ | RT (0) | RA (1) | (frame_size + BACK_CHAIN_OFFSET));
+    tcg_out32 (s, LWZ | RT (0) | RA (1) | (frame_size + LR_OFFSET));
     tcg_out32 (s, MTSPR | RS (0) | LR);
     tcg_out32 (s, ADDI | RT (1) | RA (1) | frame_size);
     tcg_out32 (s, BCLR | BO_ALWAYS);
