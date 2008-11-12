@@ -941,6 +941,7 @@ static CharDriverState *qemu_chr_open_pty(void)
     }
 
     /* Set raw attributes on the pty. */
+    tcgetattr(slave_fd, &tty);
     cfmakeraw(&tty);
     tcsetattr(slave_fd, TCSAFLUSH, &tty);
     close(slave_fd);
