@@ -32,7 +32,7 @@
 
 static int socket_errno(FdMigrationState *s)
 {
-    return (s->get_error(s));
+    return socket_error();
 }
 
 static int socket_write(FdMigrationState *s, const void * buf, size_t size)

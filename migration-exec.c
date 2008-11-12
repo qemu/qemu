@@ -85,6 +85,7 @@ MigrationState *exec_start_outgoing_migration(const char *command,
 
     s->opaque = qemu_popen(f, "w");
 
+    s->close = exec_close;
     s->get_error = file_errno;
     s->write = file_write;
     s->mig_state.cancel = migrate_fd_cancel;
