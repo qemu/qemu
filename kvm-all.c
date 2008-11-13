@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <stdarg.h>
 
 #include <linux/kvm.h>
 
@@ -79,8 +80,7 @@ int kvm_init_vcpu(CPUState *env)
 
     dprintf("kvm_init_vcpu\n");
 
-    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU,
-                       (void *)(unsigned long)env->cpu_index);
+    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, env->cpu_index);
     if (ret < 0) {
         dprintf("kvm_create_vcpu failed\n");
         goto err;
@@ -156,7 +156,7 @@ int kvm_init(int smp_cpus)
      * just use a user allocated buffer so we can use phys_ram_base
      * unmodified.  Make sure we have a sufficiently modern version of KVM.
      */
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, (void *)KVM_CAP_USER_MEMORY);
+    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_USER_MEMORY);
     if (ret <= 0) {
         if (ret == 0)
             ret = -EINVAL;
@@ -345,33 +345,51 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
     /* FIXME deal with errors */
 }
 
-int kvm_ioctl(KVMState *s, int type, void *data)
+int kvm_ioctl(KVMState *s, int type, ...)
 {
     int ret;
+    void *arg;
+    va_list ap;
 
-    ret = ioctl(s->fd, type, data);
+    va_start(ap, type);
+    arg = va_arg(ap, void *);
+    va_end(ap);
+
+    ret = ioctl(s->fd, type, arg);
     if (ret == -1)
         ret = -errno;
 
     return ret;
 }
 
-int kvm_vm_ioctl(KVMState *s, int type, void *data)
+int kvm_vm_ioctl(KVMState *s, int type, ...)
 {
     int ret;
+    void *arg;
+    va_list ap;
 
-    ret = ioctl(s->vmfd, type, data);
+    va_start(ap, type);
+    arg = va_arg(ap, void *);
+    va_end(ap);
+
+    ret = ioctl(s->vmfd, type, arg);
     if (ret == -1)
         ret = -errno;
 
     return ret;
 }
 
-int kvm_vcpu_ioctl(CPUState *env, int type, void *data)
+int kvm_vcpu_ioctl(CPUState *env, int type, ...)
 {
     int ret;
+    void *arg;
+    va_list ap;
 
-    ret = ioctl(env->kvm_fd, type, data);
+    va_start(ap, type);
+    arg = va_arg(ap, void *);
+    va_end(ap);
+
+    ret = ioctl(env->kvm_fd, type, arg);
     if (ret == -1)
         ret = -errno;
 

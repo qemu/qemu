@@ -130,7 +130,7 @@ int kvm_arch_init(KVMState *s, int smp_cpus)
      * versions of KVM just assumed that it would be at the end of physical
      * memory but that doesn't work with more than 4GB of memory.  We simply
      * refuse to work with those older versions of KVM. */
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, (void *)KVM_CAP_SET_TSS_ADDR);
+    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_SET_TSS_ADDR);
     if (ret <= 0) {
         fprintf(stderr, "kvm does not support KVM_CAP_SET_TSS_ADDR\n");
         return ret;
@@ -140,7 +140,7 @@ int kvm_arch_init(KVMState *s, int smp_cpus)
      * as unavaible memory.  FIXME, need to ensure the e820 map deals with
      * this?
      */
-    return kvm_vm_ioctl(s, KVM_SET_TSS_ADDR, (void *)0xfffbd000);
+    return kvm_vm_ioctl(s, KVM_SET_TSS_ADDR, 0xfffbd000);
 }
                     
 static void set_v8086_seg(struct kvm_segment *lhs, const SegmentCache *rhs)
