@@ -1360,7 +1360,7 @@ void do_mtc0_status_irqraise_debug(void)
 #endif /* !CONFIG_USER_ONLY */
 
 /* MIPS MT functions */
-target_ulong do_mftgpr(target_ulong t0, uint32_t sel)
+target_ulong do_mftgpr(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1370,7 +1370,7 @@ target_ulong do_mftgpr(target_ulong t0, uint32_t sel)
         return env->tcs[other_tc].gpr[sel];
 }
 
-target_ulong do_mftlo(target_ulong t0, uint32_t sel)
+target_ulong do_mftlo(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1380,7 +1380,7 @@ target_ulong do_mftlo(target_ulong t0, uint32_t sel)
         return env->tcs[other_tc].LO[sel];
 }
 
-target_ulong do_mfthi(target_ulong t0, uint32_t sel)
+target_ulong do_mfthi(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1390,7 +1390,7 @@ target_ulong do_mfthi(target_ulong t0, uint32_t sel)
         return env->tcs[other_tc].HI[sel];
 }
 
-target_ulong do_mftacx(target_ulong t0, uint32_t sel)
+target_ulong do_mftacx(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1400,7 +1400,7 @@ target_ulong do_mftacx(target_ulong t0, uint32_t sel)
         return env->tcs[other_tc].ACX[sel];
 }
 
-target_ulong do_mftdsp(target_ulong t0)
+target_ulong do_mftdsp(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1782,49 +1782,6 @@ target_ulong do_rdhwr_ccres(void)
 
     return 0;
 }
-
-/* Bitfield operations. */
-target_ulong do_ext(target_ulong t1, uint32_t pos, uint32_t size)
-{
-    return (int32_t)((t1 >> pos) & ((size < 32) ? ((1 << size) - 1) : ~0));
-}
-
-target_ulong do_ins(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size)
-{
-    target_ulong mask = ((size < 32) ? ((1 << size) - 1) : ~0) << pos;
-
-    return (int32_t)((t0 & ~mask) | ((t1 << pos) & mask));
-}
-
-target_ulong do_wsbh(target_ulong t1)
-{
-    return (int32_t)(((t1 << 8) & ~0x00FF00FF) | ((t1 >> 8) & 0x00FF00FF));
-}
-
-#if defined(TARGET_MIPS64)
-target_ulong do_dext(target_ulong t1, uint32_t pos, uint32_t size)
-{
-    return (t1 >> pos) & ((size < 64) ? ((1ULL << size) - 1) : ~0ULL);
-}
-
-target_ulong do_dins(target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size)
-{
-    target_ulong mask = ((size < 64) ? ((1ULL << size) - 1) : ~0ULL) << pos;
-
-    return (t0 & ~mask) | ((t1 << pos) & mask);
-}
-
-target_ulong do_dsbh(target_ulong t1)
-{
-    return ((t1 << 8) & ~0x00FF00FF00FF00FFULL) | ((t1 >> 8) & 0x00FF00FF00FF00FFULL);
-}
-
-target_ulong do_dshd(target_ulong t1)
-{
-    t1 = ((t1 << 16) & ~0x0000FFFF0000FFFFULL) | ((t1 >> 16) & 0x0000FFFF0000FFFFULL);
-    return (t1 << 32) | (t1 >> 32);
-}
-#endif
 
 void do_pmon (int function)
 {

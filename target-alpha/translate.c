@@ -30,9 +30,9 @@
 #include "tcg-op.h"
 #include "qemu-common.h"
 
-#define DO_SINGLE_STEP
+/* #define DO_SINGLE_STEP */
 #define ALPHA_DEBUG_DISAS
-#define DO_TB_FLUSH
+/* #define DO_TB_FLUSH */
 
 typedef struct DisasContext DisasContext;
 struct DisasContext {
@@ -236,7 +236,7 @@ static always_inline void gen_store_mem (DisasContext *ctx,
                                          int ra, int rb, int32_t disp16,
                                          int fp, int clear, int local)
 {
-    TCGv addr = tcg_temp_new(TCG_TYPE_I64);
+    TCGv addr;
     if (local)
         addr = tcg_temp_local_new(TCG_TYPE_I64);
     else
@@ -1464,7 +1464,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0x2C:
             /* XXX: incorrect */
-            if (fn11 == 0x2AC) {
+            if (fn11 == 0x2AC || fn11 == 0x6AC) {
                 /* CVTST */
                 gen_farith2(&helper_cvtst, rb, rc);
             } else {

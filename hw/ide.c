@@ -351,6 +351,7 @@
 #define ASC_ILLEGAL_OPCODE                   0x20
 #define ASC_LOGICAL_BLOCK_OOR                0x21
 #define ASC_INV_FIELD_IN_CMD_PACKET          0x24
+#define ASC_MEDIUM_MAY_HAVE_CHANGED          0x28
 #define ASC_INCOMPATIBLE_FORMAT              0x30
 #define ASC_MEDIUM_NOT_PRESENT               0x3a
 #define ASC_SAVING_PARAMETERS_NOT_SUPPORTED  0x39
@@ -1106,6 +1107,17 @@ static void ide_atapi_cmd_error(IDEState *s, int sense_key, int asc)
     ide_set_irq(s);
 }
 
+static void ide_atapi_cmd_check_status(IDEState *s)
+{
+#ifdef DEBUG_IDE_ATAPI
+    printf("atapi_cmd_check_status\n");
+#endif
+    s->error = MC_ERR | (SENSE_UNIT_ATTENTION << 4);
+    s->status = ERR_STAT;
+    s->nsector = 0;
+    ide_set_irq(s);
+}
+
 static inline void cpu_to_ube16(uint8_t *buf, int val)
 {
     buf[0] = val >> 8;
@@ -1528,6 +1540,14 @@ static void ide_atapi_cmd(IDEState *s)
         printf("\n");
     }
 #endif
+    /* If there's a UNIT_ATTENTION condition pending, only
+       REQUEST_SENSE and INQUIRY commands are allowed to complete. */
+    if (s->sense_key == SENSE_UNIT_ATTENTION &&
+	s->io_buffer[0] != GPCMD_REQUEST_SENSE &&
+	s->io_buffer[0] != GPCMD_INQUIRY) {
+	ide_atapi_cmd_check_status(s);
+	return;
+    }
     switch(s->io_buffer[0]) {
     case GPCMD_TEST_UNIT_READY:
         if (bdrv_is_inserted(s->bs)) {
@@ -1623,6 +1643,8 @@ static void ide_atapi_cmd(IDEState *s)
         buf[2] = s->sense_key;
         buf[7] = 10;
         buf[12] = s->asc;
+        if (s->sense_key == SENSE_UNIT_ATTENTION)
+            s->sense_key = SENSE_NONE;
         ide_atapi_cmd_reply(s, 18, max_len);
         break;
     case GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL:
@@ -1974,9 +1996,13 @@ static void cdrom_change_cb(void *opaque)
     IDEState *s = opaque;
     uint64_t nb_sectors;
 
-    /* XXX: send interrupt too */
     bdrv_get_geometry(s->bs, &nb_sectors);
     s->nb_sectors = nb_sectors;
+
+    s->sense_key = SENSE_UNIT_ATTENTION;
+    s->asc = ASC_MEDIUM_MAY_HAVE_CHANGED;
+
+    ide_set_irq(s);
 }
 
 static void ide_cmd_lba48_transform(IDEState *s, int lba48)

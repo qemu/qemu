@@ -23,3 +23,6 @@ DEF_HELPER(target_ulong, helper_popcntb_64, (target_ulong val))
 DEF_HELPER(target_ulong, helper_srad, (target_ulong, target_ulong))
 #endif
 
+DEF_HELPER(uint32_t, helper_cntlsw32, (uint32_t))
+DEF_HELPER(uint32_t, helper_cntlzw32, (uint32_t))
+DEF_HELPER(uint32_t, helper_brinc, (uint32_t, uint32_t))

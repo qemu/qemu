@@ -832,10 +832,14 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 
 /*****************************************************************************/
 /* CRF definitions */
-#define CRF_LT  3
-#define CRF_GT  2
-#define CRF_EQ  1
-#define CRF_SO  0
+#define CRF_LT        3
+#define CRF_GT        2
+#define CRF_EQ        1
+#define CRF_SO        0
+#define CRF_CH        (1 << 4)
+#define CRF_CL        (1 << 3)
+#define CRF_CH_OR_CL  (1 << 2)
+#define CRF_CH_AND_CL (1 << 1)
 
 /* XER definitions */
 #define XER_SO  31

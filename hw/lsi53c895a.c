@@ -209,6 +209,7 @@ typedef struct {
     uint8_t mbox0;
     uint8_t mbox1;
     uint8_t dfifo;
+    uint8_t ctest2;
     uint8_t ctest3;
     uint8_t ctest4;
     uint8_t ctest5;
@@ -280,6 +281,7 @@ static void lsi_soft_reset(LSIState *s)
     s->mbox0 = 0;
     s->mbox1 = 0;
     s->dfifo = 0;
+    s->ctest2 = 0;
     s->ctest3 = 0;
     s->ctest4 = 0;
     s->ctest5 = 0;
@@ -890,6 +892,7 @@ again:
             break;
         case PHASE_DI:
             s->waiting = 2;
+            s->current_dma_len = s->dbc;
             lsi_do_dma(s, 0);
             if (s->waiting)
                 s->waiting = 3;
@@ -1279,7 +1282,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
     case 0x19: /* CTEST1 */
         return 0;
     case 0x1a: /* CTEST2 */
-        tmp = LSI_CTEST2_DACK | LSI_CTEST2_CM;
+        tmp = s->ctest2 | LSI_CTEST2_DACK | LSI_CTEST2_CM;
         if (s->istat0 & LSI_ISTAT0_SIGP) {
             s->istat0 &= ~LSI_ISTAT0_SIGP;
             tmp |= LSI_CTEST2_SIGP;
@@ -1327,6 +1330,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         s->sist1 = 0;
         lsi_update_irq(s);
         return tmp;
+    case 0x46: /* MACNTL */
+        return 0x0f;
     case 0x47: /* GPCNTL0 */
         return 0x0f;
     case 0x48: /* STIME0 */
@@ -1440,6 +1445,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
            SCRIPTS register move instructions are.  */
         s->sfbr = val;
         break;
+    case 0x0a: case 0x0b: 
+        /* Openserver writes to these readonly registers on startup */
+	return;    
     case 0x0c: case 0x0d: case 0x0e: case 0x0f:
         /* Linux writes to these readonly registers on startup.  */
         return;
@@ -1469,6 +1477,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case 0x17: /* MBOX1 */
         s->mbox1 = val;
         break;
+    case 0x1a: /* CTEST2 */
+	s->ctest2 = val & LSI_CTEST2_PCICIE;
+	break;
     case 0x1b: /* CTEST3 */
         s->ctest3 = val & 0x0f;
         break;
@@ -1869,12 +1880,21 @@ void *lsi_scsi_init(PCIBus *bus, int devfn)
         return NULL;
     }
 
+    /* PCI Vendor ID (word) */
     s->pci_dev.config[0x00] = 0x00;
     s->pci_dev.config[0x01] = 0x10;
+    /* PCI device ID (word) */
     s->pci_dev.config[0x02] = 0x12;
     s->pci_dev.config[0x03] = 0x00;
+    /* PCI base class code */
     s->pci_dev.config[0x0b] = 0x01;
-    s->pci_dev.config[0x3d] = 0x01; /* interrupt pin 1 */
+    /* PCI subsystem ID */
+    s->pci_dev.config[0x2e] = 0x00;
+    s->pci_dev.config[0x2f] = 0x10;
+    /* PCI latency timer = 255 */
+    s->pci_dev.config[0x0d] = 0xff;
+    /* Interrupt pin 1 */
+    s->pci_dev.config[0x3d] = 0x01;
 
     s->mmio_io_addr = cpu_register_io_memory(0, lsi_mmio_readfn,
                                              lsi_mmio_writefn, s);

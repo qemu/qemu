@@ -157,44 +157,44 @@ struct target_termios {
 #define TARGET_PENDIN	0x20000000
 #define TARGET_IEXTEN	0x00000400
 
-#define TARGET_FIOCLEX		_IO('f', 1)
-#define TARGET_FIONCLEX	_IO('f', 2)
-#define TARGET_FIOASYNC	_IOW('f', 125, int)
-#define TARGET_FIONBIO		_IOW('f', 126, int)
-#define TARGET_FIONREAD	_IOR('f', 127, int)
+#define TARGET_FIOCLEX		TARGET_IO('f', 1)
+#define TARGET_FIONCLEX	TARGET_IO('f', 2)
+#define TARGET_FIOASYNC	TARGET_IOW('f', 125, int)
+#define TARGET_FIONBIO		TARGET_IOW('f', 126, int)
+#define TARGET_FIONREAD	TARGET_IOR('f', 127, int)
 #define TARGET_TIOCINQ		FIONREAD
-#define TARGET_FIOQSIZE	_IOR('f', 128, loff_t)
+#define TARGET_FIOQSIZE	TARGET_IOR('f', 128, loff_t)
 
-#define TARGET_TIOCGETP	_IOR('t', 8, struct sgttyb)
-#define TARGET_TIOCSETP	_IOW('t', 9, struct sgttyb)
-#define TARGET_TIOCSETN	_IOW('t', 10, struct sgttyb)	/* TIOCSETP wo flush */
+#define TARGET_TIOCGETP	TARGET_IOR('t', 8, struct target_sgttyb)
+#define TARGET_TIOCSETP	TARGET_IOW('t', 9, struct target_sgttyb)
+#define TARGET_TIOCSETN	TARGET_IOW('t', 10, struct target_sgttyb)	/* TIOCSETP wo flush */
 
-#define TARGET_TIOCSETC	_IOW('t', 17, struct tchars)
-#define TARGET_TIOCGETC	_IOR('t', 18, struct tchars)
-#define TARGET_TCGETS		_IOR('t', 19, struct termios)
-#define TARGET_TCSETS		_IOW('t', 20, struct termios)
-#define TARGET_TCSETSW		_IOW('t', 21, struct termios)
-#define TARGET_TCSETSF		_IOW('t', 22, struct termios)
+#define TARGET_TIOCSETC	TARGET_IOW('t', 17, struct target_tchars)
+#define TARGET_TIOCGETC	TARGET_IOR('t', 18, struct target_tchars)
+#define TARGET_TCGETS		TARGET_IOR('t', 19, struct target_termios)
+#define TARGET_TCSETS		TARGET_IOW('t', 20, struct target_termios)
+#define TARGET_TCSETSW		TARGET_IOW('t', 21, struct target_termios)
+#define TARGET_TCSETSF		TARGET_IOW('t', 22, struct target_termios)
 
-#define TARGET_TCGETA		_IOR('t', 23, struct termio)
-#define TARGET_TCSETA		_IOW('t', 24, struct termio)
-#define TARGET_TCSETAW		_IOW('t', 25, struct termio)
-#define TARGET_TCSETAF		_IOW('t', 28, struct termio)
+#define TARGET_TCGETA		TARGET_IOR('t', 23, struct target_termio)
+#define TARGET_TCSETA		TARGET_IOW('t', 24, struct target_termio)
+#define TARGET_TCSETAW		TARGET_IOW('t', 25, struct target_termio)
+#define TARGET_TCSETAF		TARGET_IOW('t', 28, struct target_termio)
 
-#define TARGET_TCSBRK		_IO('t', 29)
-#define TARGET_TCXONC		_IO('t', 30)
-#define TARGET_TCFLSH		_IO('t', 31)
+#define TARGET_TCSBRK		TARGET_IO('t', 29)
+#define TARGET_TCXONC		TARGET_IO('t', 30)
+#define TARGET_TCFLSH		TARGET_IO('t', 31)
 
-#define TARGET_TIOCSWINSZ	_IOW('t', 103, struct winsize)
-#define TARGET_TIOCGWINSZ	_IOR('t', 104, struct winsize)
-#define	TARGET_TIOCSTART	_IO('t', 110)		/* start output, like ^Q */
-#define	TARGET_TIOCSTOP	_IO('t', 111)		/* stop output, like ^S */
-#define TARGET_TIOCOUTQ        _IOR('t', 115, int)     /* output queue size */
+#define TARGET_TIOCSWINSZ	TARGET_IOW('t', 103, struct target_winsize)
+#define TARGET_TIOCGWINSZ	TARGET_IOR('t', 104, struct target_winsize)
+#define	TARGET_TIOCSTART	TARGET_IO('t', 110)		/* start output, like ^Q */
+#define	TARGET_TIOCSTOP	TARGET_IO('t', 111)		/* stop output, like ^S */
+#define TARGET_TIOCOUTQ        TARGET_IOR('t', 115, int)     /* output queue size */
 
-#define TARGET_TIOCGLTC	_IOR('t', 116, struct ltchars)
-#define TARGET_TIOCSLTC	_IOW('t', 117, struct ltchars)
-#define TARGET_TIOCSPGRP	_IOW('t', 118, int)
-#define TARGET_TIOCGPGRP	_IOR('t', 119, int)
+#define TARGET_TIOCGLTC	TARGET_IOR('t', 116, struct target_ltchars)
+#define TARGET_TIOCSLTC	TARGET_IOW('t', 117, struct target_ltchars)
+#define TARGET_TIOCSPGRP	TARGET_IOW('t', 118, int)
+#define TARGET_TIOCGPGRP	TARGET_IOR('t', 119, int)
 
 #define TARGET_TIOCEXCL	0x540C
 #define TARGET_TIOCNXCL	0x540D
@@ -243,8 +243,8 @@ struct target_termios {
 #define TARGET_TIOCSBRK	0x5427  /* BSD compatibility */
 #define TARGET_TIOCCBRK	0x5428  /* BSD compatibility */
 #define TARGET_TIOCGSID	0x5429  /* Return the session ID of FD */
-#define TARGET_TIOCGPTN	_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
-#define TARGET_TIOCSPTLCK	_IOW('T',0x31, int)  /* Lock/unlock Pty */
+#define TARGET_TIOCGPTN	TARGET_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
+#define TARGET_TIOCSPTLCK	TARGET_IOW('T',0x31, int)  /* Lock/unlock Pty */
 
 #define TARGET_TIOCSERCONFIG	0x5453
 #define TARGET_TIOCSERGWILD	0x5454

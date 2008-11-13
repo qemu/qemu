@@ -66,7 +66,8 @@ static inline int cpu_halted(CPUState *env)
 static inline void compute_hflags(CPUState *env)
 {
     env->hflags &= ~(MIPS_HFLAG_COP1X | MIPS_HFLAG_64 | MIPS_HFLAG_CP0 |
-                     MIPS_HFLAG_F64 | MIPS_HFLAG_FPU | MIPS_HFLAG_KSU);
+                     MIPS_HFLAG_F64 | MIPS_HFLAG_FPU | MIPS_HFLAG_KSU |
+                     MIPS_HFLAG_UX);
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
         !(env->CP0_Status & (1 << CP0St_ERL)) &&
         !(env->hflags & MIPS_HFLAG_DM)) {
@@ -77,6 +78,8 @@ static inline void compute_hflags(CPUState *env)
         (env->CP0_Status & (1 << CP0St_PX)) ||
         (env->CP0_Status & (1 << CP0St_UX)))
         env->hflags |= MIPS_HFLAG_64;
+    if (env->CP0_Status & (1 << CP0St_UX))
+        env->hflags |= MIPS_HFLAG_UX;
 #endif
     if ((env->CP0_Status & (1 << CP0St_CU0)) ||
         !(env->hflags & MIPS_HFLAG_KSU))

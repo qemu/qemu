@@ -617,9 +617,8 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifndef CONFIG_USER_ONLY
 
-OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o net-checksum.o
-OBJS+=fw_cfg.o aio.o buffered_file.o migration.o migration-tcp.o qemu-char.o
-OBJS+=net.o
+OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o
+OBJS+=fw_cfg.o
 ifdef CONFIG_KVM
 OBJS+=kvm.o kvm-all.o
 endif

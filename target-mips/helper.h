@@ -137,11 +137,11 @@ DEF_HELPER(void, do_mtc0_taghi, (target_ulong t0))
 DEF_HELPER(void, do_mtc0_datahi, (target_ulong t0))
 
 /* MIPS MT functions */
-DEF_HELPER(target_ulong, do_mftgpr, (target_ulong t0, uint32_t sel))
-DEF_HELPER(target_ulong, do_mftlo, (target_ulong t0, uint32_t sel))
-DEF_HELPER(target_ulong, do_mfthi, (target_ulong t0, uint32_t sel))
-DEF_HELPER(target_ulong, do_mftacx, (target_ulong t0, uint32_t sel))
-DEF_HELPER(target_ulong, do_mftdsp, (target_ulong t0))
+DEF_HELPER(target_ulong, do_mftgpr, (uint32_t sel))
+DEF_HELPER(target_ulong, do_mftlo, (uint32_t sel))
+DEF_HELPER(target_ulong, do_mfthi, (uint32_t sel))
+DEF_HELPER(target_ulong, do_mftacx, (uint32_t sel))
+DEF_HELPER(target_ulong, do_mftdsp, (void))
 DEF_HELPER(void, do_mttgpr, (target_ulong t0, uint32_t sel))
 DEF_HELPER(void, do_mttlo, (target_ulong t0, uint32_t sel))
 DEF_HELPER(void, do_mtthi, (target_ulong t0, uint32_t sel))
@@ -269,14 +269,3 @@ DEF_HELPER(target_ulong, do_rdhwr_cc, (void))
 DEF_HELPER(target_ulong, do_rdhwr_ccres, (void))
 DEF_HELPER(void, do_pmon, (int function))
 DEF_HELPER(void, do_wait, (void))
-
-/* Bitfield operations. */
-DEF_HELPER(target_ulong, do_ext, (target_ulong t1, uint32_t pos, uint32_t size))
-DEF_HELPER(target_ulong, do_ins, (target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size))
-DEF_HELPER(target_ulong, do_wsbh, (target_ulong t1))
-#ifdef TARGET_MIPS64
-DEF_HELPER(target_ulong, do_dext, (target_ulong t1, uint32_t pos, uint32_t size))
-DEF_HELPER(target_ulong, do_dins, (target_ulong t0, target_ulong t1, uint32_t pos, uint32_t size))
-DEF_HELPER(target_ulong, do_dsbh, (target_ulong t1))
-DEF_HELPER(target_ulong, do_dshd, (target_ulong t1))
-#endif

@@ -1624,22 +1624,28 @@ static always_inline uint32_t word_reverse (uint32_t val)
 }
 
 #define MASKBITS 16 // Random value - to be fixed (implementation dependant)
-void do_brinc (void)
+target_ulong helper_brinc (target_ulong arg1, target_ulong arg2)
 {
     uint32_t a, b, d, mask;
 
     mask = UINT32_MAX >> (32 - MASKBITS);
-    a = T0 & mask;
-    b = T1 & mask;
+    a = arg1 & mask;
+    b = arg2 & mask;
     d = word_reverse(1 + word_reverse(a | ~b));
-    T0 = (T0 & ~mask) | (d & b);
+    return (arg1 & ~mask) | (d & b);
 }
 
-#define DO_SPE_OP2(name)                                                      \
-void do_ev##name (void)                                                       \
-{                                                                             \
-    T0_64 = ((uint64_t)_do_e##name(T0_64 >> 32, T1_64 >> 32) << 32) |         \
-        (uint64_t)_do_e##name(T0_64, T1_64);                                  \
+uint32_t helper_cntlsw32 (uint32_t val)
+{
+    if (val & 0x80000000)
+        return clz32(~val);
+    else
+        return clz32(val);
+}
+
+uint32_t helper_cntlzw32 (uint32_t val)
+{
+    return clz32(val);
 }
 
 #define DO_SPE_OP1(name)                                                      \
@@ -1649,110 +1655,11 @@ void do_ev##name (void)                                                       \
         (uint64_t)_do_e##name(T0_64);                                         \
 }
 
-/* Fixed-point vector arithmetic */
-static always_inline uint32_t _do_eabs (uint32_t val)
-{
-    if ((val & 0x80000000) && val != 0x80000000)
-        val -= val;
-
-    return val;
-}
-
-static always_inline uint32_t _do_eaddw (uint32_t op1, uint32_t op2)
-{
-    return op1 + op2;
-}
-
-static always_inline int _do_ecntlsw (uint32_t val)
-{
-    if (val & 0x80000000)
-        return clz32(~val);
-    else
-        return clz32(val);
-}
-
-static always_inline int _do_ecntlzw (uint32_t val)
-{
-    return clz32(val);
-}
-
-static always_inline uint32_t _do_eneg (uint32_t val)
-{
-    if (val != 0x80000000)
-        val -= val;
-
-    return val;
-}
-
-static always_inline uint32_t _do_erlw (uint32_t op1, uint32_t op2)
-{
-    return rotl32(op1, op2);
-}
-
-static always_inline uint32_t _do_erndw (uint32_t val)
-{
-    return (val + 0x000080000000) & 0xFFFF0000;
-}
-
-static always_inline uint32_t _do_eslw (uint32_t op1, uint32_t op2)
-{
-    /* No error here: 6 bits are used */
-    return op1 << (op2 & 0x3F);
-}
-
-static always_inline int32_t _do_esrws (int32_t op1, uint32_t op2)
-{
-    /* No error here: 6 bits are used */
-    return op1 >> (op2 & 0x3F);
-}
-
-static always_inline uint32_t _do_esrwu (uint32_t op1, uint32_t op2)
-{
-    /* No error here: 6 bits are used */
-    return op1 >> (op2 & 0x3F);
-}
-
-static always_inline uint32_t _do_esubfw (uint32_t op1, uint32_t op2)
-{
-    return op2 - op1;
-}
-
-/* evabs */
-DO_SPE_OP1(abs);
-/* evaddw */
-DO_SPE_OP2(addw);
-/* evcntlsw */
-DO_SPE_OP1(cntlsw);
-/* evcntlzw */
-DO_SPE_OP1(cntlzw);
-/* evneg */
-DO_SPE_OP1(neg);
-/* evrlw */
-DO_SPE_OP2(rlw);
-/* evrnd */
-DO_SPE_OP1(rndw);
-/* evslw */
-DO_SPE_OP2(slw);
-/* evsrws */
-DO_SPE_OP2(srws);
-/* evsrwu */
-DO_SPE_OP2(srwu);
-/* evsubfw */
-DO_SPE_OP2(subfw);
-
-/* evsel is a little bit more complicated... */
-static always_inline uint32_t _do_esel (uint32_t op1, uint32_t op2, int n)
-{
-    if (n)
-        return op1;
-    else
-        return op2;
-}
-
-void do_evsel (void)
-{
-    T0_64 = ((uint64_t)_do_esel(T0_64 >> 32, T1_64 >> 32, T0 >> 3) << 32) |
-        (uint64_t)_do_esel(T0_64, T1_64, (T0 >> 2) & 1);
+#define DO_SPE_OP2(name)                                                      \
+void do_ev##name (void)                                                       \
+{                                                                             \
+    T0_64 = ((uint64_t)_do_e##name(T0_64 >> 32, T1_64 >> 32) << 32) |         \
+        (uint64_t)_do_e##name(T0_64, T1_64);                                  \
 }
 
 /* Fixed-point vector comparisons */
@@ -1768,41 +1675,6 @@ static always_inline uint32_t _do_evcmp_merge (int t0, int t1)
 {
     return (t0 << 3) | (t1 << 2) | ((t0 | t1) << 1) | (t0 & t1);
 }
-static always_inline int _do_ecmpeq (uint32_t op1, uint32_t op2)
-{
-    return op1 == op2 ? 1 : 0;
-}
-
-static always_inline int _do_ecmpgts (int32_t op1, int32_t op2)
-{
-    return op1 > op2 ? 1 : 0;
-}
-
-static always_inline int _do_ecmpgtu (uint32_t op1, uint32_t op2)
-{
-    return op1 > op2 ? 1 : 0;
-}
-
-static always_inline int _do_ecmplts (int32_t op1, int32_t op2)
-{
-    return op1 < op2 ? 1 : 0;
-}
-
-static always_inline int _do_ecmpltu (uint32_t op1, uint32_t op2)
-{
-    return op1 < op2 ? 1 : 0;
-}
-
-/* evcmpeq */
-DO_SPE_CMP(cmpeq);
-/* evcmpgts */
-DO_SPE_CMP(cmpgts);
-/* evcmpgtu */
-DO_SPE_CMP(cmpgtu);
-/* evcmplts */
-DO_SPE_CMP(cmplts);
-/* evcmpltu */
-DO_SPE_CMP(cmpltu);
 
 /* Single precision floating-point conversions from/to integer */
 static always_inline uint32_t _do_efscfsi (int32_t val)

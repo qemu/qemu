@@ -318,6 +318,8 @@ static inline void channel_start(struct fs_dma_ctrl *ctrl, int c)
 		ctrl->channels[c].state = RUNNING;
 	} else
 		printf("WARNING: starting DMA ch %d with no client\n", c);
+
+        qemu_bh_schedule_idle(ctrl->bh);
 }
 
 static void channel_continue(struct fs_dma_ctrl *ctrl, int c)
@@ -391,13 +393,16 @@ static void channel_update_irq(struct fs_dma_ctrl *ctrl, int c)
                 qemu_irq_lower(ctrl->channels[c].irq[0]);
 }
 
-static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
+static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 {
 	uint32_t len;
 	uint32_t saved_data_buf;
 	unsigned char buf[2 * 1024];
 
-	while (ctrl->channels[c].eol != 1) {
+	if (ctrl->channels[c].eol)
+		return 0;
+
+	do {
 		saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
 
 		D(printf("ch=%d buf=%x after=%x saved_data_buf=%x\n",
@@ -466,7 +471,8 @@ static void channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 			D(dump_d(c, &ctrl->channels[c].current_d));
 		}
 		ctrl->channels[c].regs[RW_SAVED_DATA_BUF] = saved_data_buf;
-	}
+	} while (!ctrl->channels[c].eol);
+	return 1;
 }
 
 static int channel_in_process(struct fs_dma_ctrl *ctrl, int c, 
@@ -539,11 +545,14 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 	return len;
 }
 
-static inline void channel_in_run(struct fs_dma_ctrl *ctrl, int c)
+static inline int channel_in_run(struct fs_dma_ctrl *ctrl, int c)
 {
-	if (ctrl->channels[c].client->client.pull)
+	if (ctrl->channels[c].client->client.pull) {
 		ctrl->channels[c].client->client.pull(
 			ctrl->channels[c].client->client.opaque);
+		return 1;
+	} else
+		return 0;
 }
 
 static uint32_t dma_rinvalid (void *opaque, target_phys_addr_t addr)
@@ -673,7 +682,7 @@ static CPUWriteMemoryFunc *dma_write[] = {
 	&dma_writel,
 };
 
-static void etraxfs_dmac_run(void *opaque)
+static int etraxfs_dmac_run(void *opaque)
 {
 	struct fs_dma_ctrl *ctrl = opaque;
 	int i;
@@ -685,13 +694,14 @@ static void etraxfs_dmac_run(void *opaque)
 	{
 		if (ctrl->channels[i].state == RUNNING)
 		{
-			p++;
-			if (ctrl->channels[i].input)
-				channel_in_run(ctrl, i);
-			else
-				channel_out_run(ctrl, i);
+			if (ctrl->channels[i].input) {
+				p += channel_in_run(ctrl, i);
+			} else {
+				p += channel_out_run(ctrl, i);
+			}
 		}
 	}
+	return p;
 }
 
 int etraxfs_dmac_input(struct etraxfs_dma_client *client, 
@@ -722,9 +732,13 @@ void etraxfs_dmac_connect_client(void *opaque, int c,
 static void DMA_run(void *opaque)
 {
     struct fs_dma_ctrl *etraxfs_dmac = opaque;
+    int p = 1;
+
     if (vm_running)
-        etraxfs_dmac_run(etraxfs_dmac);
-    qemu_bh_schedule_idle(etraxfs_dmac->bh);
+        p = etraxfs_dmac_run(etraxfs_dmac);
+
+    if (p)
+        qemu_bh_schedule_idle(etraxfs_dmac->bh);
 }
 
 void *etraxfs_dmac_init(CPUState *env, 
@@ -738,7 +752,6 @@ void *etraxfs_dmac_init(CPUState *env,
 		return NULL;
 
         ctrl->bh = qemu_bh_new(DMA_run, ctrl);
-        qemu_bh_schedule_idle(ctrl->bh);
 
 	ctrl->base = base;
 	ctrl->env = env;

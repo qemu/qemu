@@ -43,11 +43,11 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
 struct KVMState;
 typedef struct KVMState KVMState;
 
-int kvm_ioctl(KVMState *s, int type, void *data);
+int kvm_ioctl(KVMState *s, int type, ...);
 
-int kvm_vm_ioctl(KVMState *s, int type, void *data);
+int kvm_vm_ioctl(KVMState *s, int type, ...);
 
-int kvm_vcpu_ioctl(CPUState *env, int type, void *data);
+int kvm_vcpu_ioctl(CPUState *env, int type, ...);
 
 /* Arch specific hooks */
 
