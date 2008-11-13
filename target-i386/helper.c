@@ -1466,7 +1466,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
             /* svm */
             *ecx &= ~4UL;
             /* 3dnow */
-            *edx = ~0xc0000000;
+            *edx &= ~0xc0000000;
         }
         break;
     case 0x80000002:
