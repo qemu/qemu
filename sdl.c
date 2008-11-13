@@ -25,7 +25,7 @@
 #include "console.h"
 #include "sysemu.h"
 
-#include <SDL.h>
+#include <SDL/SDL.h>
 
 #ifndef _WIN32
 #include <signal.h>
