@@ -309,6 +309,8 @@ static void pstrcpy(char *buf, int buf_size, const char *str)
     *q = '\0';
 }
 
+#if defined(CONFIG_FORMAT_ELF)
+
 static void swab16s(uint16_t *p)
 {
     *p = bswap16(*p);
@@ -343,6 +345,8 @@ static uint16_t get16(uint16_t *p)
     return val;
 }
 
+#endif /* CONFIG_FORMAT_ELF */
+
 static uint32_t get32(uint32_t *p)
 {
     uint32_t val;
@@ -351,6 +355,8 @@ static uint32_t get32(uint32_t *p)
         val = bswap32(val);
     return val;
 }
+
+#if defined(CONFIG_FORMAT_ELF)
 
 static void put16(uint16_t *p, uint16_t val)
 {
@@ -365,6 +371,8 @@ static void put32(uint32_t *p, uint32_t val)
         val = bswap32(val);
     *p = val;
 }
+
+#endif /* CONFIG_FORMAT_ELF */
 
 /* executable information */
 EXE_SYM *symtab;
@@ -623,7 +631,7 @@ int data_shndx;
 #define T_FUNCTION  0x20
 #define C_EXTERNAL  2
 
-void sym_ent_name(struct external_syment *ext_sym, EXE_SYM *sym)
+static void sym_ent_name(struct external_syment *ext_sym, EXE_SYM *sym)
 {
     char *q;
     int c, i, len;
@@ -649,7 +657,7 @@ void sym_ent_name(struct external_syment *ext_sym, EXE_SYM *sym)
     }
 }
 
-char *name_for_dotdata(struct coff_rel *rel)
+static char *name_for_dotdata(struct coff_rel *rel)
 {
 	int i;
 	struct coff_sym *sym;
@@ -690,7 +698,7 @@ static host_ulong get_rel_offset(EXE_RELOC *rel)
     return rel->r_offset;
 }
 
-struct external_scnhdr *find_coff_section(struct external_scnhdr *shdr, int shnum, const char *name)
+static struct external_scnhdr *find_coff_section(struct external_scnhdr *shdr, int shnum, const char *name)
 {
     int i;
     const char *shname;
@@ -708,7 +716,7 @@ struct external_scnhdr *find_coff_section(struct external_scnhdr *shdr, int shnu
 }
 
 /* load a coff object file */
-int load_object(const char *filename)
+static int load_object(const char *filename)
 {
     int fd;
     struct external_scnhdr *sec, *text_sec, *data_sec;
@@ -2742,7 +2750,7 @@ static int gen_file(FILE *outfile, int out_type)
     return 0;
 }
 
-static void usage(void)
+static void __attribute__((__noreturn__)) usage(void)
 {
     printf("dyngen (c) 2003 Fabrice Bellard\n"
            "usage: dyngen [-o outfile] [-c] objfile\n"

@@ -54,7 +54,6 @@
 #include <stdio.h>              /* fprintf */
 
 #include <zlib.h>               /* crc32 */
-#include <netinet/in.h>         /* htonl */
 
 #include "hw.h"
 #include "boards.h"

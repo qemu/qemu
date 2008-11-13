@@ -1272,8 +1272,9 @@ static int timer_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 #ifdef _WIN32
-void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
-                                 DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2)
+static void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
+                                        DWORD_PTR dwUser,
+                                        DWORD_PTR dw1, DWORD_PTR dw2)
 #else
 static void host_alarm_handler(int host_signum)
 #endif
@@ -4591,7 +4592,7 @@ void qemu_system_powerdown_request(void)
 }
 
 #ifdef _WIN32
-void host_main_loop_wait(int *timeout)
+static void host_main_loop_wait(int *timeout)
 {
     int ret, ret2, i;
     PollingEntry *pe;
@@ -4635,7 +4636,7 @@ void host_main_loop_wait(int *timeout)
     *timeout = 0;
 }
 #else
-void host_main_loop_wait(int *timeout)
+static void host_main_loop_wait(int *timeout)
 {
 }
 #endif
@@ -4871,7 +4872,7 @@ static int main_loop(void)
     return ret;
 }
 
-static void help(int exitcode)
+static void __attribute__((__noreturn__)) help(int exitcode)
 {
     printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"

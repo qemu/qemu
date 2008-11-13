@@ -81,7 +81,7 @@ int qemu_set_fd_handler2(int fd,
 
 int64_t qemu_get_clock(QEMUClock *clock)
 {
-    struct timeval tv;
+    qemu_timeval tv;
     qemu_gettimeofday(&tv);
     return (tv.tv_sec * 1000000000LL + (tv.tv_usec * 1000)) / 1000000;
 }
