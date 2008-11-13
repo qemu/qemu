@@ -1296,10 +1296,10 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-#if defined(CONFIG_KVM)
 static void host_cpuid(uint32_t function, uint32_t *eax, uint32_t *ebx,
                        uint32_t *ecx, uint32_t *edx)
 {
+#if defined(CONFIG_KVM)
     uint32_t vec[4];
 
 #ifdef __x86_64__
@@ -1327,8 +1327,8 @@ static void host_cpuid(uint32_t function, uint32_t *eax, uint32_t *ebx,
 	*ecx = vec[2];
     if (edx)
 	*edx = vec[3];
-}
 #endif
+}
 
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
                    uint32_t *eax, uint32_t *ebx,
