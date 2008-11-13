@@ -34,11 +34,11 @@
  */
 
 #include <assert.h>
-#include <arpa/inet.h>
 
 #include "hw.h"
 #include "pci.h"
 #include "net.h"
+#include "qemu_socket.h"
 
 enum
 {
