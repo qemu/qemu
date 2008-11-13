@@ -1,8 +1,8 @@
 /**
  * QEMU WLAN access point emulation
- * 
+ *
  * Copyright (c) 2008 Clemens Kolbitsch
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -27,6 +27,11 @@
  *
  */
 
+#include "config-host.h"
+
+#if defined(CONFIG_WIN32)
+#warning("not compiled for Windows host")
+#else
 
 #include "hw.h"
 #include "pci.h"
@@ -176,7 +181,7 @@ struct mac80211_frame *Atheros_WLAN_create_probe_response()
 
 	i = 0;
 	buf = (unsigned char*)frame->data_and_fcs;
-	
+
 	/*
 	 * Fixed params... typical AP params (12 byte)
 	 *
@@ -188,7 +193,7 @@ struct mac80211_frame *Atheros_WLAN_create_probe_response()
 	buf[i++] = 0x8d; buf[i++] = 0x61; buf[i++] = 0xa5; buf[i++] = 0x18;
 	buf[i++] = 0x00; buf[i++] = 0x00; buf[i++] = 0x00; buf[i++] = 0x00;
 	buf[i++] = 0x64; buf[i++] = 0x00; buf[i++] = 0x01; buf[i++] = 0x00;
-	
+
 	FRAME_INSERT(IEEE80211_BEACON_PARAM_SSID);
 	FRAME_INSERT(4);	// length
 	FRAME_INSERT('Q');	// SSID
@@ -206,7 +211,7 @@ struct mac80211_frame *Atheros_WLAN_create_probe_response()
 	FRAME_INSERT(0x30);
 	FRAME_INSERT(0x48);
 	FRAME_INSERT(0x6c);
-	
+
 	FRAME_INSERT(IEEE80211_BEACON_PARAM_CHANNEL);
 	FRAME_INSERT(1);	// length
 	FRAME_INSERT(0x09);
@@ -232,7 +237,7 @@ struct mac80211_frame *Atheros_WLAN_create_authentication()
 	frame->frame_control.type = IEEE80211_TYPE_MGT;
 	frame->frame_control.sub_type = IEEE80211_TYPE_MGT_SUBTYPE_AUTHENTICATION;
 	frame->frame_control.flags = 0;
-	frame->duration_id = 314;	
+	frame->duration_id = 314;
 	frame->sequence_control.fragment_number = 0;
 
 	i = 0;
@@ -479,3 +484,4 @@ int Atheros_WLAN_dumpFrame(struct mac80211_frame *frame, int frame_len, char *fi
         return 0;
 }
 
+#endif /* CONFIG_WIN32 */

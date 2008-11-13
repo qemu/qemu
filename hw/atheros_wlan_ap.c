@@ -1,8 +1,8 @@
 /**
  * QEMU WLAN access point emulation
- * 
+ *
  * Copyright (c) 2008 Clemens Kolbitsch
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -27,13 +27,17 @@
  *
  */
 
+#include "config-host.h"
+
+#if defined(CONFIG_WIN32)
+#warning("not compiled for Windows host")
+#else
 
 #include "hw.h"
 #include "pci.h"
 #include "pc.h"
 #include "net.h"
 #include "qemu-timer.h"
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -477,7 +481,7 @@ void Atheros_WLAN_handleRxBuffer(Atheros_WLANState *s, struct mac80211_frame *fr
 	 */
 	cpu_physical_memory_write((target_phys_addr_t)s->receive_queue_address, (uint8_t*)&desc, sizeof(desc));
 	cpu_physical_memory_write((target_phys_addr_t)desc.ds_data, (uint8_t*)frame, sizeof(struct mac80211_frame));
-	
+
 	/*
 	 * Set address to next position
 	 * in single-linked list
@@ -500,7 +504,7 @@ void Atheros_WLAN_handleRxBuffer(Atheros_WLANState *s, struct mac80211_frame *fr
 	 */
 	s->receive_queue_address =
 		((++s->receive_queue_count) > MAX_CONCURRENT_RX_FRAMES)
-			? NULL 
+			? NULL
 			: (uint32_t *)desc.ds_link;
 
 
@@ -583,7 +587,7 @@ void Atheros_WLAN_handleTxBuffer(Atheros_WLANState *s, uint32_t queue)
 		desc.ds_hw[1] = 0x1b;
 		desc.ds_hw[2] = 0xab640001;
 		desc.ds_hw[3] = 0x4a019;
-	
+
 		/*
 		 *
 		 * struct ath5k_tx_status *tx_status = (struct ath5k_tx_status*)&desc.ds_hw[2];
@@ -763,9 +767,4 @@ void Atheros_WLAN_handle_frame(Atheros_WLANState *s, struct mac80211_frame *fram
 	}
 }
 
-
-
-
-
-
-
+#endif /* CONFIG_WIN32 */

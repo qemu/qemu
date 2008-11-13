@@ -1,8 +1,8 @@
 /**
  * QEMU WLAN device emulation
- * 
+ *
  * Copyright (c) 2008 Clemens Kolbitsch
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -28,11 +28,16 @@
  */
 
 
+#include "config-host.h"
+
+#if defined(CONFIG_WIN32)
+#warning("not compiled for Windows host")
+#else
+
 #include "hw.h"
 #include "pci.h"
 #include "pc.h"
 #include "net.h"
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -122,7 +127,7 @@ void updateFrequency(Atheros_WLANState *s)
 	{
 		if (Atheros_WLAN_frequency_data[i].value1 != s->current_frequency_partial_data[0])
 			continue;
-		
+
 		if (Atheros_WLAN_frequency_data[i].value2 != s->current_frequency_partial_data[1])
 			continue;
 
@@ -166,7 +171,7 @@ static uint32_t Atheros_WLAN_mmio_readb(void *opaque, target_phys_addr_t addr)
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
 	DEBUG_PRINT(("mmio_readb %u\n", addr));
 	DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
-	
+
 	return 0;
 }
 
@@ -318,7 +323,7 @@ static uint32_t mm_readl(Atheros_WLANState *s, target_phys_addr_t addr)
 			DEBUG_PRINT(("secondary irq status\n"));
 			break;
 
-			
+
 		/*
 		 * According to the openHAL source
 		 * documentation this is also read-and-clear
@@ -353,7 +358,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			{
 				/* ath5k_hw.c: 613 */
 				DEBUG_PRINT(("reset device (MAC + PCI)\n"));
-				
+
 				/*
 				 * claim device is inited
 				 */
@@ -364,7 +369,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			{
 				/* ath5k_hw.c: 613 */
 				DEBUG_PRINT(("reset device (MAC + PCI + ?)\n"));
-				
+
 				/*
 				 * claim device is inited
 				 */
@@ -375,7 +380,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			{
 				/* ath5k_hw.c: 626 */
 				DEBUG_PRINT(("reset device (generic)\n"));
-				
+
 				/*
 				 * warm-start device
 				 */
@@ -466,7 +471,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 
 		case AR5K_QCU_TXE:
 			/* ath5k_hw.c: 1423ff */
-			
+
 			/* enable specified queue (nr in val) */
 			val = FASTBINLOG(val);
 
@@ -481,7 +486,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 				DEBUG_PRINT(("unknown queue 0x%x (%u)\n", val, val));
 			}
 			break;
-		
+
 		case AR5K_QCU_TXD:
 			/* ath5k_hw.c: 1423ff */
 
@@ -505,7 +510,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			break;
 
 		case AR5K_CFG:
-			
+
 			if (val == AR5K_INIT_CFG)
 			{
 				/* ath5k_hw.c: 1261 */
@@ -517,7 +522,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 		case AR5K_TXCFG:
 			/* ath5k_hw.c: 1122 */
 			DEBUG_PRINT(("Setting transmit queue size to %u byte\n", (1 << (val+2)) ));
-			
+
 			s->transmit_queue_size = (1 << (val+2));
 			break;
 
@@ -549,7 +554,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			}
 			else if (val == AR5K_CR_SWI)	// unknown...
 			{
-				
+
 				DEBUG_PRINT(("Undefined TX/RX en/disable CR_SWI\n"));
 			}
 			else
@@ -606,13 +611,13 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			 * transmit buffer's PHYSICAL address!!
 			 */
 			DEBUG_PRINT(("Setting a transmit queue to address 0x%x (%u)\n", val, val));
-			
+
 			/*
 			 * This address will be queried again
 			 * later... store it!!
 			 */
 			SET_MEM_L(s->mem, addr, val);
-			
+
 			addr -= AR5K_QCU_TXDP_BASE;
 			addr /= 4;
 			if (addr >= 0 && addr < 16)
@@ -656,7 +661,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 		case AR5K_QUEUE_QCUMASK(15):
 			DEBUG_PRINT(("ath5k_hw_reset_tx_queue for queue x (%u)\n", val));
 			break;
-			
+
 		case AR5K_QUEUE_DFS_RETRY_LIMIT(0):
 		case AR5K_QUEUE_DFS_RETRY_LIMIT(1):
 		case AR5K_QUEUE_DFS_RETRY_LIMIT(2):
@@ -675,7 +680,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 		case AR5K_QUEUE_DFS_RETRY_LIMIT(15):
 			DEBUG_PRINT(("setting retry-limit for queue x to 0x%x (%u)\n", val, val));
 			break;
-		
+
 		case AR5K_QUEUE_DFS_LOCAL_IFS(0):
 		case AR5K_QUEUE_DFS_LOCAL_IFS(1):
 		case AR5K_QUEUE_DFS_LOCAL_IFS(2):
@@ -694,7 +699,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 		case AR5K_QUEUE_DFS_LOCAL_IFS(15):
 			DEBUG_PRINT(("setting interframe space for queue x to 0x%x (%u)\n", val, val));
 			break;
-			
+
 		case AR5K_QUEUE_MISC(0):
 		case AR5K_QUEUE_MISC(1):
 		case AR5K_QUEUE_MISC(2):
@@ -719,7 +724,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			if (val == AR5K_SLEEP_CTL_SLE_WAKE)
 			{
 				DEBUG_PRINT(("waking up device\n"));
-				
+
 				/*
 				 * yes, we are awake
 				 *
@@ -744,16 +749,16 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 				DEBUG_PRINT(("unknown SLEEP command %u\n", val));
 			}
 			break;
-				
+
 		case AR5K_PHY_PLL:
 			/*
 			 * ...set the PHY operating mode after reset
 			 */
-			 
+
 			/* ath5k_hw.c: 632 */
 			DEBUG_PRINT(("setting PHY operating mode (PLL)\n"));
 			break;
-			
+
 		case AR5K_PHY_MODE:
 			/*
 			 * ...set the PHY operating mode after reset
@@ -761,7 +766,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 
 			/* ath5k_hw.c: 635 */
 			DEBUG_PRINT(("setting PHY operating mode (mode)\n"));
-			break;		
+			break;
 
 		case AR5K_PHY_TURBO:
 			/*
@@ -771,7 +776,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			/* ath5k_hw.c: 636 */
 			DEBUG_PRINT(("setting PHY operating mode (turbo)\n"));
 			break;
-		
+
 
 /******************************************************************
  *
@@ -829,12 +834,12 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 
 				// SET_MEM_L(s->mem, 0x9c00, 0x8e026023);
 				SET_MEM_L(s->mem, 0x9c00, 0x8e000000);
-				
+
 				SET_MEM_L(s->mem, 0x9c00, 0x4c047000);
 			}
-			
+
 			break;
-			
+
 		/*
 		 * Setting frequency is different for AR5210/AR5211/AR5212
 		 *
@@ -856,7 +861,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			s->current_frequency_partial_data[0] = val;
 			updateFrequency(s);
 			break;
-		
+
 		case AR5K_PHY(0x34):
 //  			fprintf(stderr, "0x%04x => 0x%08x (34)\n", addr, val);
 			SET_MEM_L(s->mem, addr, val);
@@ -926,17 +931,17 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			/*
 			 * Set simple BSSID mask on 5212
 			 */
-			 
+
 			/* ath5k_hw.c: 2420 */
 			DEBUG_PRINT(("setting bssid mask\n"));
 			break;
-			
+
 		case AR5K_BSS_ID0:
 		case AR5K_BSS_ID1:
 			/*
 			 * Set BSSID which triggers the "SME Join" operation
 			 */
-			
+
 			/* ath5k_hw.c: 2432 & 2433 */
 			DEBUG_PRINT(("setting bssid : %c%c%c%c \n", (val << 24) >> 24, (val << 16) >> 24, (val << 8) >> 24, val >> 24));
 			break;
@@ -948,23 +953,23 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			 * if there are more than one chip present, this
 			 * call defines which chip is to be used!
 			 */
-			
+
 			/* ath5k_hw.c: 2358 */
 			DEBUG_PRINT(("a set to client | ap | monitor mode is coming for station %u\n", val));
-			
+
 			// ext
 			SET_MEM_L(s->mem, addr, val);
-			
+
 			break;
-		
+
 		case AR5K_STA_ID1:
 			/*
 			 * seems to have a double-meaning:
 			 *
 			 * setting client mode AND power mode
 			 */
-			 
-			/* ath5k_hw.c: 619 */			
+
+			/* ath5k_hw.c: 619 */
 			DEBUG_PRINT(("setting power mode\n"));
 			SET_MEM_L(s->mem, AR5K_STA_ID1, val);
 			SET_MEM_L(s->mem, AR5K_STA_ID0, 0x800a1100);
@@ -1006,10 +1011,10 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			 * EEPROM uses an initialization of
 			 * the address at this location
 			 */
-			 
+
 			/* ath5k_hw.c: 1738 */
 			DEBUG_PRINT(("there will be an access to the EEPROM at %p\n", (unsigned long*)val));
-			
+
 			/*
 			 * set the data that will be returned
 			 * after calling AR5K_EEPROM_CMD=READ
@@ -1046,7 +1051,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 					 *
 					 * on my AR5212 it is 0
 					 */
-					 
+
 					/* ath5k_hw.c: 2023 */
 					WRITE_EEPROM(s->mem, 0);
 					break;
@@ -1126,7 +1131,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			if (val & AR5K_EEPROM_CMD_READ)
 			{
 				DEBUG_PRINT(("the EEPROM access will be READ\n"));
-				
+
 				/*
 				 * tell the device the read was successful
 				 */
@@ -1172,7 +1177,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 			{
 				SET_MEM_L(s->mem, addr, val);
 			}
-			
+
 			if ((addr >= AR5K_PCU_MIN) &&
 				(addr <= AR5K_PCU_MAX))
 			{
@@ -1186,3 +1191,4 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 	}
 }
 
+#endif /* CONFIG_WIN32 */

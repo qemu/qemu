@@ -646,8 +646,10 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
         pci_eepro100_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "rtl8139") == 0) {
         pci_rtl8139_init(bus, nd, devfn);
+#if !defined(CONFIG_WIN32)
     } else if (strncmp(nd->model, "atheros_wlan", 12) == 0) {
         pci_Atheros_WLAN_init(bus, nd, devfn);
+#endif
     } else if (strcmp(nd->model, "pcnet") == 0) {
         pci_pcnet_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "tnetw1130") == 0) {

@@ -1,8 +1,8 @@
 /**
  * QEMU WLAN device emulation
- * 
+ *
  * Copyright (c) 2008 Clemens Kolbitsch
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -27,11 +27,16 @@
  *
  */
 
+#include "config-host.h"
+
+#if defined(CONFIG_WIN32)
+#warning("not compiled for Windows host")
+#else
+
 #include "hw.h"
 #include "pci.h"
 #include "pc.h"
 #include "net.h"
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -105,7 +110,7 @@ void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
 	s = &d->Atheros_WLAN;
 
 	snprintf(nd_model, sizeof(nd_model), "%s", nd->model);
-	
+
 
 	// skip "atheros_wlan"
 	// if it had not been part of nd->model, this
@@ -152,7 +157,7 @@ void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
 		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_MacBook);
 
 		memcpy(pci_conf, Atheros_WLAN_pci_config_MacBook, 256);
-		
+
 		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of Mac Book!!\n"));
 
 		// skip "_MacBook"
@@ -164,7 +169,7 @@ void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
 		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
 		memcpy(pci_conf, Atheros_WLAN_pci_config_AR5001XPlus, 256);
-		
+
 		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of AR5001X+ (e.g. Toshiba A100)!!\n"));
 
 		// skip "_AR5001XPlus"
@@ -176,7 +181,7 @@ void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
 		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
 		memcpy(pci_conf, Atheros_WLAN_pci_config_JOHN, 256);
-		
+
 		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of John!!\n"));
 
 		// skip "_John"
@@ -188,7 +193,7 @@ void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
 		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
 		memcpy(pci_conf, Atheros_WLAN_pci_config_TP_Link_WN651G, 64);
-		
+
 		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of TP-Link WN651G!!\n"));
 
 		// skip "_TPLinkWN651G"
@@ -346,3 +351,5 @@ void pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn)
 
 	Atheros_WLAN_reset(nd, s);
 }
+
+#endif /* CONFIG_WIN32 */
