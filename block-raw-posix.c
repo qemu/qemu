@@ -497,15 +497,17 @@ static void posix_aio_read(void *opaque)
     int ret;
     ssize_t len;
 
-    do {
-        char byte;
+    /* read all bytes from signal pipe */
+    for (;;) {
+        char bytes[16];
 
-        len = read(s->rfd, &byte, 1);
+        len = read(s->rfd, bytes, sizeof(bytes));
         if (len == -1 && errno == EINTR)
-            continue;
-        if (len == -1 && errno == EAGAIN)
-            break;
-    } while (len == -1);
+            continue; /* try again */
+        if (len == sizeof(bytes))
+            continue; /* more to read */
+        break;
+    }
 
     for(;;) {
         pacb = &s->first_aio;
@@ -591,6 +593,7 @@ static int posix_aio_init(void)
     s->rfd = fds[0];
     s->wfd = fds[1];
 
+    fcntl(s->rfd, F_SETFL, O_NONBLOCK);
     fcntl(s->wfd, F_SETFL, O_NONBLOCK);
 
     qemu_aio_set_fd_handler(s->rfd, posix_aio_read, NULL, posix_aio_flush, s);
