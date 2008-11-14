@@ -5533,6 +5533,30 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(getuid());
         break;
 #endif
+
+#if defined(TARGET_NR_getxuid) && defined(TARGET_ALPHA)
+   /* Alpha specific */
+    case TARGET_NR_getxuid:
+	 {
+	    uid_t euid;
+	    euid=geteuid();
+	    ((CPUAlphaState *)cpu_env)->ir[IR_A4]=euid;
+	 }
+        ret = get_errno(getuid());
+        break;
+#endif
+#if defined(TARGET_NR_getxgid) && defined(TARGET_ALPHA)
+   /* Alpha specific */
+    case TARGET_NR_getxgid:
+	 {
+	    uid_t egid;
+	    egid=getegid();
+	    ((CPUAlphaState *)cpu_env)->ir[IR_A4]=egid;
+	 }
+        ret = get_errno(getgid());
+        break;
+#endif
+
 #ifdef TARGET_NR_getgid32
     case TARGET_NR_getgid32:
         ret = get_errno(getgid());
