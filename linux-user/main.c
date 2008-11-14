@@ -1283,20 +1283,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(env, "Instruction TLB exception while in user mode. "
                       "Aborting\n");
             break;
-        case POWERPC_EXCP_DEBUG:    /* Debug interrupt                       */
-            /* XXX: check this */
-            {
-                int sig;
-
-                sig = gdb_handlesig(env, TARGET_SIGTRAP);
-                if (sig) {
-                    info.si_signo = sig;
-                    info.si_errno = 0;
-                    info.si_code = TARGET_TRAP_BRKPT;
-                    queue_signal(env, info.si_signo, &info);
-                  }
-            }
-            break;
         case POWERPC_EXCP_SPEU:     /* SPE/embedded floating-point unavail.  */
             EXCP_DUMP(env, "No SPE/floating-point instruction allowed\n");
             info.si_signo = TARGET_SIGILL;
@@ -1452,6 +1438,19 @@ void cpu_loop(CPUPPCState *env)
 #if 0
             printf("syscall returned 0x%08x (%d)\n", ret, ret);
 #endif
+            break;
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig(env, TARGET_SIGTRAP);
+                if (sig) {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(env, info.si_signo, &info);
+                  }
+            }
             break;
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
