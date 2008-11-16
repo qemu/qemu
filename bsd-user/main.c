@@ -180,7 +180,11 @@ void cpu_loop(CPUSPARCState *env, enum BSDType bsd_type)
         trapnr = cpu_sparc_exec (env);
 
         switch (trapnr) {
+#ifndef TARGET_SPARC64
+        case 0x80:
+#else
         case 0x100:
+#endif
             syscall_nr = env->gregs[1];
 #if defined(TARGET_SPARC)
             syscall_nr &= ~(SYSCALL_G7RFLAG | SYSCALL_G2RFLAG);
