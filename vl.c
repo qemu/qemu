@@ -209,7 +209,9 @@ int graphic_height = 600;
 int graphic_depth = 15;
 #endif
 static int full_screen = 0;
+#ifdef CONFIG_SDL
 static int no_frame = 0;
+#endif
 int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
