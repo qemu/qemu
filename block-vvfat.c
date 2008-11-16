@@ -1056,7 +1056,7 @@ DLOG(if (stderr == NULL) {
 
     i = strrchr(dirname, ':') - dirname;
     assert(i >= 3);
-    if (dirname[i-2] == ':' && isalpha(dirname[i-1]))
+    if (dirname[i-2] == ':' && qemu_isalpha(dirname[i-1]))
 	/* workaround for DOS drive names */
 	dirname += i-1;
     else

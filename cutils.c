@@ -72,7 +72,7 @@ int stristart(const char *str, const char *val, const char **ptr)
     p = str;
     q = val;
     while (*q != '\0') {
-        if (toupper(*p) != toupper(*q))
+        if (qemu_toupper(*p) != qemu_toupper(*q))
             return 0;
         p++;
         q++;

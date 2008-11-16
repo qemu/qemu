@@ -215,7 +215,7 @@ static char *audio_alloc_prefix (const char *s)
         pstrcat (r, len + sizeof (qemu_prefix), s);
 
         for (i = 0; i < len; ++i) {
-            u[i] = toupper (u[i]);
+            u[i] = qemu_toupper(u[i]);
         }
     }
     return r;
@@ -470,7 +470,7 @@ static void audio_process_options (const char *prefix,
 
         /* copy while upper-casing, including trailing zero */
         for (i = 0; i <= preflen; ++i) {
-            optname[i + sizeof (qemu_prefix) - 1] = toupper (prefix[i]);
+            optname[i + sizeof (qemu_prefix) - 1] = qemu_toupper(prefix[i]);
         }
         pstrcat (optname, optlen, "_");
         pstrcat (optname, optlen, opt->name);
