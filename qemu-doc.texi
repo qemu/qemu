@@ -114,13 +114,13 @@ have to install it. Otherwise, see @ref{compilation}.
 @section Windows
 
 Download the experimental binary installer at
-@url{http://www.free.oszoo.org/@/download.html}.
+@url{http://www.free.oszoo.org/download.html}.
 
 @node install_mac
 @section Mac OS X
 
 Download the experimental binary installer at
-@url{http://www.free.oszoo.org/@/download.html}.
+@url{http://www.free.oszoo.org/download.html}.
 
 @node QEMU PC System emulator
 @chapter QEMU PC System emulator
@@ -2923,7 +2923,7 @@ qemu-i386 /usr/local/qemu-i386/bin/ls-i386
 (@file{qemu-XXX-i386-wine.tar.gz} on the QEMU web page).
 
 @item Configure Wine on your account. Look at the provided script
-@file{/usr/local/qemu-i386/@/bin/wine-conf.sh}. Your previous
+@file{/usr/local/qemu-i386/bin/wine-conf.sh}. Your previous
 @code{$@{HOME@}/.wine} directory is saved to @code{$@{HOME@}/.wine.org}.
 
 @item Then you can try the example @file{putty.exe}:
@@ -3198,7 +3198,7 @@ instructions in the download section and the FAQ.
 
 @item Download
 the MinGW development library of SDL 1.2.x
-(@file{SDL-devel-1.2.x-@/mingw32.tar.gz}) from
+(@file{SDL-devel-1.2.x/mingw32.tar.gz}) from
 @url{http://www.libsdl.org}. Unpack it in a temporary place, and
 unpack the archive @file{i386-mingw32msvc.tar.gz} in the MinGW tool
 directory. Edit the @file{sdl-config} script so that it gives the

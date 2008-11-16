@@ -592,7 +592,7 @@ by Kevin Lawton et al.
 x86 emulator on Alpha-Linux.
 
 @item [5]
-@url{http://www.usenix.org/publications/library/proceedings/usenix-nt97/@/full_papers/chernoff/chernoff.pdf},
+@url{http://www.usenix.org/publications/library/proceedings/usenix-nt97/full_papers/chernoff/chernoff.pdf},
 DIGITAL FX!32: Running 32-Bit x86 Applications on Alpha NT, by Anton
 Chernoff and Ray Hookway.
 
