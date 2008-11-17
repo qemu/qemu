@@ -1,20 +1,22 @@
-#define TCG_HELPER_PROTO
+#include "def-helper.h"
 
-void TCG_HELPER_PROTO helper_raise_exception(uint32_t index);
-void TCG_HELPER_PROTO helper_tlb_flush_pid(uint32_t pid);
-void TCG_HELPER_PROTO helper_spc_write(uint32_t pid);
-void TCG_HELPER_PROTO helper_dump(uint32_t a0, uint32_t a1, uint32_t a2);
-void TCG_HELPER_PROTO helper_rfe(void);
-void TCG_HELPER_PROTO helper_rfn(void);
+DEF_HELPER_1(raise_exception, void, i32)
+DEF_HELPER_1(tlb_flush_pid, void, i32)
+DEF_HELPER_1(spc_write, void, i32)
+DEF_HELPER_3(dump, void, i32, i32, i32)
+DEF_HELPER_0(rfe, void);
+DEF_HELPER_0(rfn, void);
 
-void TCG_HELPER_PROTO helper_movl_sreg_reg (uint32_t sreg, uint32_t reg);
-void TCG_HELPER_PROTO helper_movl_reg_sreg (uint32_t reg, uint32_t sreg);
+DEF_HELPER_2(movl_sreg_reg, void, i32, i32)
+DEF_HELPER_2(movl_reg_sreg, void, i32, i32)
 
-void TCG_HELPER_PROTO helper_evaluate_flags_muls(void);
-void TCG_HELPER_PROTO helper_evaluate_flags_mulu(void);
-void TCG_HELPER_PROTO helper_evaluate_flags_mcp(void);
-void TCG_HELPER_PROTO helper_evaluate_flags_alu_4(void);
-void TCG_HELPER_PROTO helper_evaluate_flags_move_4 (void);
-void TCG_HELPER_PROTO helper_evaluate_flags_move_2 (void);
-void TCG_HELPER_PROTO helper_evaluate_flags (void);
-void TCG_HELPER_PROTO helper_top_evaluate_flags(void);
+DEF_HELPER_0(evaluate_flags_muls, void)
+DEF_HELPER_0(evaluate_flags_mulu, void)
+DEF_HELPER_0(evaluate_flags_mcp, void)
+DEF_HELPER_0(evaluate_flags_alu_4, void)
+DEF_HELPER_0(evaluate_flags_move_4, void)
+DEF_HELPER_0(evaluate_flags_move_2, void)
+DEF_HELPER_0(evaluate_flags, void)
+DEF_HELPER_0(top_evaluate_flags, void)
+
+#include "def-helper.h"

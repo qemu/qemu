@@ -268,7 +268,7 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     if (buf[0] == '\0') {
         saddr->sin_addr.s_addr = 0;
     } else {
-        if (isdigit(buf[0])) {
+        if (qemu_isdigit(buf[0])) {
             if (!inet_aton(buf, &saddr->sin_addr))
                 return -1;
         } else {

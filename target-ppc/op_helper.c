@@ -19,6 +19,7 @@
  */
 #include "exec.h"
 #include "host-utils.h"
+#include "helper.h"
 
 #include "helper_regs.h"
 #include "op_helper.h"
@@ -62,7 +63,7 @@ void do_raise_exception (uint32_t exception)
 
 /*****************************************************************************/
 /* Registers load and stores */
-uint32_t helper_load_cr (void)
+target_ulong helper_load_cr (void)
 {
     return (env->crf[0] << 28) |
            (env->crf[1] << 24) |

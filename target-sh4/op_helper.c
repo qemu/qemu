@@ -19,6 +19,7 @@
  */
 #include <assert.h>
 #include "exec.h"
+#include "helper.h"
 
 #ifndef CONFIG_USER_ONLY
 

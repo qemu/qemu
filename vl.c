@@ -209,7 +209,9 @@ int graphic_height = 600;
 int graphic_depth = 15;
 #endif
 static int full_screen = 0;
+#ifdef CONFIG_SDL
 static int no_frame = 0;
+#endif
 int no_quit = 0;
 CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
@@ -1524,21 +1526,21 @@ static int dynticks_start_timer(struct qemu_alarm_timer *t)
         return -1;
     }
 
-    t->priv = (void *)host_timer;
+    t->priv = (void *)(long)host_timer;
 
     return 0;
 }
 
 static void dynticks_stop_timer(struct qemu_alarm_timer *t)
 {
-    timer_t host_timer = (timer_t)t->priv;
+    timer_t host_timer = (timer_t)(long)t->priv;
 
     timer_delete(host_timer);
 }
 
 static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
 {
-    timer_t host_timer = (timer_t)t->priv;
+    timer_t host_timer = (timer_t)(long)t->priv;
     struct itimerspec timeout;
     int64_t nearest_delta_us = INT64_MAX;
     int64_t current_us;

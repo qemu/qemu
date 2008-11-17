@@ -169,7 +169,7 @@ static void term_backword(void)
 
     /* find first word (backwards) */
     while (start > 0) {
-        if (!isspace(term_cmd_buf[start])) {
+        if (!qemu_isspace(term_cmd_buf[start])) {
             break;
         }
 
@@ -178,7 +178,7 @@ static void term_backword(void)
 
     /* find first space (backwards) */
     while (start > 0) {
-        if (isspace(term_cmd_buf[start])) {
+        if (qemu_isspace(term_cmd_buf[start])) {
             ++start;
             break;
         }

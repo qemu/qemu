@@ -21,6 +21,7 @@
 #include "exec.h"
 #include "host-utils.h"
 #include "softfloat.h"
+#include "helper.h"
 
 void helper_tb_flush (void)
 {

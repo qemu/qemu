@@ -780,8 +780,6 @@ typedef struct CCTable {
     int (*compute_c)(void);  /* return the C flag */
 } CCTable;
 
-extern CCTable cc_table[];
-
 #if defined(CONFIG_USER_ONLY)
 static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 {

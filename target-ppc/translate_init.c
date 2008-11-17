@@ -9458,7 +9458,7 @@ const ppc_def_t *cpu_ppc_find_by_name (const char *name)
         p = name;
     check_pvr:
         for (i = 0; i < 8; i++) {
-            if (!isxdigit(*p++))
+            if (!qemu_isxdigit(*p++))
                 break;
         }
         if (i == 8)

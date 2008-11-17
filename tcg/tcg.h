@@ -114,7 +114,11 @@ typedef tcg_target_ulong TCGArg;
    expecially on targets with braindamaged ABIs (e.g. i386).
    We use plain int by default to avoid this runtime overhead.
    Users of tcg_gen_* don't need to know about any of this, and should
-   treat TCGv as an opaque type.  */
+   treat TCGv as an opaque type.
+   In additon we do typechecking for different types of variables.  TCGv_i32
+   and TCGv_i64 are 32/64-bit variables respectively.  TCGv and TCGv_ptr
+   are aliases for target_ulong and host pointer sized values respectively.
+ */
 
 //#define DEBUG_TCGV 1
 
@@ -123,28 +127,42 @@ typedef tcg_target_ulong TCGArg;
 typedef struct
 {
     int n;
-} TCGv;
+} TCGv_i32;
 
-#define MAKE_TCGV(i) __extension__ \
-  ({ TCGv make_tcgv_tmp = {i}; make_tcgv_tmp;})
-#define GET_TCGV(t) ((t).n)
+typedef struct
+{
+    int n;
+} TCGv_i64;
+
+#define MAKE_TCGV_I32(i) __extension__                  \
+    ({ TCGv_i32 make_tcgv_tmp = {i}; make_tcgv_tmp;})
+#define MAKE_TCGV_I64(i) __extension__                  \
+    ({ TCGv_i64 make_tcgv_tmp = {i}; make_tcgv_tmp;})
+#define GET_TCGV_I32(t) ((t).n)
+#define GET_TCGV_I64(t) ((t).n)
 #if TCG_TARGET_REG_BITS == 32
-#define TCGV_HIGH(t) MAKE_TCGV(GET_TCGV(t) + 1)
+#define TCGV_LOW(t) MAKE_TCGV_I32(GET_TCGV_I64(t))
+#define TCGV_HIGH(t) MAKE_TCGV_I32(GET_TCGV_I64(t) + 1)
 #endif
 
 #else /* !DEBUG_TCGV */
 
-typedef int TCGv;
-#define MAKE_TCGV(x) (x)
-#define GET_TCGV(t) (t)
+typedef int TCGv_i32;
+typedef int TCGv_i64;
+#define MAKE_TCGV_I32(x) (x)
+#define MAKE_TCGV_I64(x) (x)
+#define GET_TCGV_I32(t) (t)
+#define GET_TCGV_I64(t) (t)
 #if TCG_TARGET_REG_BITS == 32
+#define TCGV_LOW(t) (t)
 #define TCGV_HIGH(t) ((t) + 1)
 #endif
 
 #endif /* DEBUG_TCGV */
 
 /* Dummy definition to avoid compiler warnings.  */
-#define TCGV_UNUSED(x) x = MAKE_TCGV(-1)
+#define TCGV_UNUSED_I32(x) x = MAKE_TCGV_I32(-1)
+#define TCGV_UNUSED_I64(x) x = MAKE_TCGV_I64(-1)
 
 /* call flags */
 #define TCG_CALL_TYPE_MASK      0x000f
@@ -158,7 +176,7 @@ typedef int TCGv;
 #define TCG_CALL_PURE           0x0010 
 
 /* used to align parameters */
-#define TCG_CALL_DUMMY_TCGV     MAKE_TCGV(-1)
+#define TCG_CALL_DUMMY_TCGV     MAKE_TCGV_I32(-1)
 #define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
 
 typedef enum {
@@ -301,22 +319,39 @@ int dyngen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
 
 void tcg_set_frame(TCGContext *s, int reg,
                    tcg_target_long start, tcg_target_long size);
-TCGv tcg_global_reg_new(TCGType type, int reg, const char *name);
-TCGv tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2, 
-                              const char *name);
-TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
-                        const char *name);
-TCGv tcg_temp_new_internal(TCGType type, int temp_local);
-static inline TCGv tcg_temp_new(TCGType type)
+TCGv_i64 tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2,
+                                  const char *name);
+
+TCGv_i32 tcg_global_reg_new_i32(int reg, const char *name);
+TCGv_i32 tcg_global_mem_new_i32(int reg, tcg_target_long offset,
+                                const char *name);
+TCGv_i32 tcg_temp_new_internal_i32(int temp_local);
+static inline TCGv_i32 tcg_temp_new_i32(void)
 {
-    return tcg_temp_new_internal(type, 0);
+    return tcg_temp_new_internal_i32(0);
 }
-static inline TCGv tcg_temp_local_new(TCGType type)
+static inline TCGv_i32 tcg_temp_local_new_i32(void)
 {
-    return tcg_temp_new_internal(type, 1);
+    return tcg_temp_new_internal_i32(1);
 }
-void tcg_temp_free(TCGv arg);
-char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGv arg);
+void tcg_temp_free_i32(TCGv_i32 arg);
+char *tcg_get_arg_str_i32(TCGContext *s, char *buf, int buf_size, TCGv_i32 arg);
+
+TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name);
+TCGv_i64 tcg_global_mem_new_i64(int reg, tcg_target_long offset,
+                                const char *name);
+TCGv_i64 tcg_temp_new_internal_i64(int temp_local);
+static inline TCGv_i64 tcg_temp_new_i64(void)
+{
+    return tcg_temp_new_internal_i64(0);
+}
+static inline TCGv_i64 tcg_temp_local_new_i64(void)
+{
+    return tcg_temp_new_internal_i64(1);
+}
+void tcg_temp_free_i64(TCGv_i64 arg);
+char *tcg_get_arg_str_i64(TCGContext *s, char *buf, int buf_size, TCGv_i64 arg);
+
 void tcg_dump_info(FILE *f,
                    int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
@@ -370,33 +405,44 @@ do {\
 
 void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 
-void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
-                  unsigned int nb_rets, const TCGv *rets,
-                  unsigned int nb_params, const TCGv *args1);
-void tcg_gen_shifti_i64(TCGv ret, TCGv arg1, 
-                        int c, int right, int arith);
-
-/* only used for debugging purposes */
-void tcg_register_helper(void *func, const char *name);
-#define TCG_HELPER(func) tcg_register_helper(func, #func)
-const char *tcg_helper_get_name(TCGContext *s, void *func);
-void tcg_dump_ops(TCGContext *s, FILE *outfile);
-
-void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
-TCGv tcg_const_i32(int32_t val);
-TCGv tcg_const_i64(int64_t val);
-TCGv tcg_const_local_i32(int32_t val);
-TCGv tcg_const_local_i64(int64_t val);
-
 #if TCG_TARGET_REG_BITS == 32
 #define tcg_const_ptr tcg_const_i32
 #define tcg_add_ptr tcg_add_i32
 #define tcg_sub_ptr tcg_sub_i32
+#define TCGv_ptr TCGv_i32
+#define GET_TCGV_PTR GET_TCGV_I32
+#define tcg_global_reg_new_ptr tcg_global_reg_new_i32
+#define tcg_global_mem_new_ptr tcg_global_mem_new_i32
+#define tcg_temp_new_ptr tcg_temp_new_i32
+#define tcg_temp_free_ptr tcg_temp_free_i32
 #else
 #define tcg_const_ptr tcg_const_i64
 #define tcg_add_ptr tcg_add_i64
 #define tcg_sub_ptr tcg_sub_i64
+#define TCGv_ptr TCGv_i64
+#define GET_TCGV_PTR GET_TCGV_I64
+#define tcg_global_reg_new_ptr tcg_global_reg_new_i64
+#define tcg_global_mem_new_ptr tcg_global_mem_new_i64
+#define tcg_temp_new_ptr tcg_temp_new_i64
+#define tcg_temp_free_ptr tcg_temp_free_i64
 #endif
+
+void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
+                   int sizemask, TCGArg ret, int nargs, TCGArg *args);
+
+void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
+                        int c, int right, int arith);
+
+/* only used for debugging purposes */
+void tcg_register_helper(void *func, const char *name);
+const char *tcg_helper_get_name(TCGContext *s, void *func);
+void tcg_dump_ops(TCGContext *s, FILE *outfile);
+
+void dump_ops(const uint16_t *opc_buf, const TCGArg *opparam_buf);
+TCGv_i32 tcg_const_i32(int32_t val);
+TCGv_i64 tcg_const_i64(int64_t val);
+TCGv_i32 tcg_const_local_i32(int32_t val);
+TCGv_i64 tcg_const_local_i64(int64_t val);
 
 void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type, 
                    int label_index, long addend);

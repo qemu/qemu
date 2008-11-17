@@ -1,138 +1,54 @@
-#ifndef DEF_HELPER
-#define DEF_HELPER(name, ret, args) ret glue(helper_,name) args;
-#endif
+#include "def-helper.h"
 
-#ifdef GEN_HELPER
-#define DEF_HELPER_0_0(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name(void) \
-{ \
-    tcg_gen_helper_0_0(helper_##name); \
-}
-#define DEF_HELPER_0_1(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name(TCGv arg1) \
-{ \
-    tcg_gen_helper_0_1(helper_##name, arg1); \
-}
-#define DEF_HELPER_0_2(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name(TCGv arg1, TCGv arg2) \
-{ \
-    tcg_gen_helper_0_2(helper_##name, arg1, arg2); \
-}
-#define DEF_HELPER_0_3(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name( \
-    TCGv arg1, TCGv arg2, TCGv arg3) \
-{ \
-    tcg_gen_helper_0_3(helper_##name, arg1, arg2, arg3); \
-}
-#define DEF_HELPER_1_0(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name(TCGv ret) \
-{ \
-    tcg_gen_helper_1_0(helper_##name, ret); \
-}
-#define DEF_HELPER_1_1(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name(TCGv ret, TCGv arg1) \
-{ \
-    tcg_gen_helper_1_1(helper_##name, ret, arg1); \
-}
-#define DEF_HELPER_1_2(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name(TCGv ret, TCGv arg1, TCGv arg2) \
-{ \
-    tcg_gen_helper_1_2(helper_##name, ret, arg1, arg2); \
-}
-#define DEF_HELPER_1_3(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name(TCGv ret, \
-    TCGv arg1, TCGv arg2, TCGv arg3) \
-{ \
-    tcg_gen_helper_1_3(helper_##name, ret, arg1, arg2, arg3); \
-}
-#define DEF_HELPER_1_4(name, ret, args) \
-DEF_HELPER(name, ret, args) \
-static inline void gen_helper_##name(TCGv ret, \
-    TCGv arg1, TCGv arg2, TCGv arg3, TCGv arg4) \
-{ \
-    tcg_gen_helper_1_4(helper_##name, ret, arg1, arg2, arg3, arg4); \
-}
-#else /* !GEN_HELPER */
-#define DEF_HELPER_0_0 DEF_HELPER
-#define DEF_HELPER_0_1 DEF_HELPER
-#define DEF_HELPER_0_2 DEF_HELPER
-#define DEF_HELPER_0_3 DEF_HELPER
-#define DEF_HELPER_1_0 DEF_HELPER
-#define DEF_HELPER_1_1 DEF_HELPER
-#define DEF_HELPER_1_2 DEF_HELPER
-#define DEF_HELPER_1_3 DEF_HELPER
-#define DEF_HELPER_1_4 DEF_HELPER
-#define HELPER(x) glue(helper_,x)
-#endif
+DEF_HELPER_1(bitrev, i32, i32)
+DEF_HELPER_1(ff1, i32, i32)
+DEF_HELPER_2(sats, i32, i32, i32)
+DEF_HELPER_2(divu, void, env, i32)
+DEF_HELPER_2(divs, void, env, i32)
+DEF_HELPER_3(addx_cc, i32, env, i32, i32)
+DEF_HELPER_3(subx_cc, i32, env, i32, i32)
+DEF_HELPER_3(shl_cc, i32, env, i32, i32)
+DEF_HELPER_3(shr_cc, i32, env, i32, i32)
+DEF_HELPER_3(sar_cc, i32, env, i32, i32)
+DEF_HELPER_2(xflag_lt, i32, i32, i32)
+DEF_HELPER_2(set_sr, void, env, i32)
+DEF_HELPER_3(movec, void, env, i32, i32)
 
-DEF_HELPER_1_1(bitrev, uint32_t, (uint32_t))
-DEF_HELPER_1_1(ff1, uint32_t, (uint32_t))
-DEF_HELPER_1_2(sats, uint32_t, (uint32_t, uint32_t))
-DEF_HELPER_0_2(divu, void, (CPUState *, uint32_t))
-DEF_HELPER_0_2(divs, void, (CPUState *, uint32_t))
-DEF_HELPER_1_3(addx_cc, uint32_t, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_1_3(subx_cc, uint32_t, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_1_3(shl_cc, uint32_t, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_1_3(shr_cc, uint32_t, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_1_3(sar_cc, uint32_t, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_1_2(xflag_lt, uint32_t, (uint32_t, uint32_t))
-DEF_HELPER_0_2(set_sr, void, (CPUState *, uint32_t))
-DEF_HELPER_0_3(movec, void, (CPUState *, uint32_t, uint32_t))
+DEF_HELPER_2(f64_to_i32, f32, env, f64)
+DEF_HELPER_2(f64_to_f32, f32, env, f64)
+DEF_HELPER_2(i32_to_f64, f64, env, i32)
+DEF_HELPER_2(f32_to_f64, f64, env, f32)
+DEF_HELPER_2(iround_f64, f64, env, f64)
+DEF_HELPER_2(itrunc_f64, f64, env, f64)
+DEF_HELPER_2(sqrt_f64, f64, env, f64)
+DEF_HELPER_1(abs_f64, f64, f64)
+DEF_HELPER_1(chs_f64, f64, f64)
+DEF_HELPER_3(add_f64, f64, env, f64, f64)
+DEF_HELPER_3(sub_f64, f64, env, f64, f64)
+DEF_HELPER_3(mul_f64, f64, env, f64, f64)
+DEF_HELPER_3(div_f64, f64, env, f64, f64)
+DEF_HELPER_3(sub_cmp_f64, f64, env, f64, f64)
+DEF_HELPER_2(compare_f64, i32, env, f64)
 
-DEF_HELPER_1_2(f64_to_i32, float32, (CPUState *, float64))
-DEF_HELPER_1_2(f64_to_f32, float32, (CPUState *, float64))
-DEF_HELPER_1_2(i32_to_f64, float64, (CPUState *, uint32_t))
-DEF_HELPER_1_2(f32_to_f64, float64, (CPUState *, float32))
-DEF_HELPER_1_2(iround_f64, float64, (CPUState *, float64))
-DEF_HELPER_1_2(itrunc_f64, float64, (CPUState *, float64))
-DEF_HELPER_1_2(sqrt_f64, float64, (CPUState *, float64))
-DEF_HELPER_1_1(abs_f64, float64, (float64))
-DEF_HELPER_1_1(chs_f64, float64, (float64))
-DEF_HELPER_1_3(add_f64, float64, (CPUState *, float64, float64))
-DEF_HELPER_1_3(sub_f64, float64, (CPUState *, float64, float64))
-DEF_HELPER_1_3(mul_f64, float64, (CPUState *, float64, float64))
-DEF_HELPER_1_3(div_f64, float64, (CPUState *, float64, float64))
-DEF_HELPER_1_3(sub_cmp_f64, float64, (CPUState *, float64, float64))
-DEF_HELPER_1_2(compare_f64, uint32_t, (CPUState *, float64))
+DEF_HELPER_3(mac_move, void, env, i32, i32)
+DEF_HELPER_3(macmulf, i64, env, i32, i32)
+DEF_HELPER_3(macmuls, i64, env, i32, i32)
+DEF_HELPER_3(macmulu, i64, env, i32, i32)
+DEF_HELPER_2(macsats, void, env, i32)
+DEF_HELPER_2(macsatu, void, env, i32)
+DEF_HELPER_2(macsatf, void, env, i32)
+DEF_HELPER_2(mac_set_flags, void, env, i32)
+DEF_HELPER_2(set_macsr, void, env, i32)
+DEF_HELPER_2(get_macf, i32, env, i64)
+DEF_HELPER_1(get_macs, i32, i64)
+DEF_HELPER_1(get_macu, i32, i64)
+DEF_HELPER_2(get_mac_extf, i32, env, i32)
+DEF_HELPER_2(get_mac_exti, i32, env, i32)
+DEF_HELPER_3(set_mac_extf, void, env, i32, i32)
+DEF_HELPER_3(set_mac_exts, void, env, i32, i32)
+DEF_HELPER_3(set_mac_extu, void, env, i32, i32)
 
-DEF_HELPER_0_3(mac_move, void, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_1_3(macmulf, uint64_t, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_1_3(macmuls, uint64_t, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_1_3(macmulu, uint64_t, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_0_2(macsats, void, (CPUState *, uint32_t))
-DEF_HELPER_0_2(macsatu, void, (CPUState *, uint32_t))
-DEF_HELPER_0_2(macsatf, void, (CPUState *, uint32_t))
-DEF_HELPER_0_2(mac_set_flags, void, (CPUState *, uint32_t))
-DEF_HELPER_0_2(set_macsr, void, (CPUState *, uint32_t))
-DEF_HELPER_1_2(get_macf, uint32_t, (CPUState *, uint64_t))
-DEF_HELPER_1_1(get_macs, uint32_t, (uint64_t))
-DEF_HELPER_1_1(get_macu, uint32_t, (uint64_t))
-DEF_HELPER_1_2(get_mac_extf, uint32_t, (CPUState *, uint32_t))
-DEF_HELPER_1_2(get_mac_exti, uint32_t, (CPUState *, uint32_t))
-DEF_HELPER_0_3(set_mac_extf, void, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_0_3(set_mac_exts, void, (CPUState *, uint32_t, uint32_t))
-DEF_HELPER_0_3(set_mac_extu, void, (CPUState *, uint32_t, uint32_t))
+DEF_HELPER_2(flush_flags, void, env, i32)
+DEF_HELPER_1(raise_exception, void, i32)
 
-DEF_HELPER_0_2(flush_flags, void, (CPUState *, uint32_t))
-DEF_HELPER_0_1(raise_exception, void, (uint32_t))
-
-#undef DEF_HELPER
-#undef DEF_HELPER_0_0
-#undef DEF_HELPER_0_1
-#undef DEF_HELPER_0_2
-#undef DEF_HELPER_0_3
-#undef DEF_HELPER_1_0
-#undef DEF_HELPER_1_1
-#undef DEF_HELPER_1_2
-#undef DEF_HELPER_1_3
-#undef DEF_HELPER_1_4
-#undef GEN_HELPER
-#undef DEF_HELPER
+#include "def-helper.h"

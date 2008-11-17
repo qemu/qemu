@@ -8,9 +8,9 @@
  */
 
 #ifdef ARITH_GE
-#define GE_ARG , uint32_t *gep
+#define GE_ARG , void *gep
 #define DECLARE_GE uint32_t ge = 0
-#define SET_GE *gep = ge
+#define SET_GE *(uint32_t *)gep = ge
 #else
 #define GE_ARG
 #define DECLARE_GE do{}while(0)
