@@ -82,11 +82,17 @@
 
 #define AR7_PRIMARY_IRQ(num)    ar7.primary_irq[(num) - MIPS_EXCEPTION_OFFSET]
 
+/* physical address of flash memory */
+#define FLASH_ADDR 0x10000000
+
 /* physical address of kernel */
 #define KERNEL_LOAD_ADDR 0x14000000
 
 /* physical address of kernel parameters */
 #define INITRD_LOAD_ADDR 0x14700000
+
+/* physical address of 4 KiB internal ROM */
+#define PROM_ADDR 0x1fc00000
 
 #define K1(physaddr) ((physaddr) + 0x80000000)
 
@@ -450,7 +456,6 @@ static const char *offset2name(const offset_name_t *o2n, unsigned offset)
 }
 
 #if defined(DEBUG_AR7)
-//~ static 
 
 #define SET_TRACEFLAG(name) \
     do { \
@@ -3585,11 +3590,12 @@ static int64_t load_kernel (CPUState *env)
 {
     uint64_t kernel_addr = 0;
     uint64_t kernel_low, kernel_high;
-    ram_addr_t ram_offset = 0;
     int kernel_size;
     kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND, &kernel_addr, &kernel_low, &kernel_high);
     if (kernel_size < 0) {
-        kernel_size = load_image(loaderparams.kernel_filename, phys_ram_base + ram_offset);
+        kernel_size = load_image_targphys(loaderparams.kernel_filename,
+                                          KERNEL_LOAD_ADDR,
+                                          loaderparams.ram_size);
         kernel_addr = K1(KERNEL_LOAD_ADDR);
     }
     if (kernel_size > 0 && kernel_size < loaderparams.ram_size) {
@@ -3618,7 +3624,8 @@ static int64_t load_kernel (CPUState *env)
         int argc;
         uint32_t *argv;
         uint32_t *arg0;
-        target_ulong size = load_image(loaderparams.kernel_cmdline, address);
+        target_ulong size = load_image_targphys(loaderparams.kernel_cmdline,
+                                                INITRD_LOAD_ADDR, 1 * KiB);
         target_ulong i;
         if (size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load kernel parameters '%s'\n",
@@ -3712,13 +3719,13 @@ static void main_cpu_reset(void *opaque)
 
 static void mips_ar7_common_init (ram_addr_t machine_ram_size,
                     uint16_t flash_manufacturer, uint16_t flash_type,
+                    int flash_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
     CPUState *env;
     int drive_index;
-    int flash_size;
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
 
@@ -3774,25 +3781,35 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
     drive_index = drive_get_index(IF_PFLASH, 0, 0);
     if (drive_index != -1) {
-        flash_size = bdrv_getlength(drives_table[drive_index].bdrv);
-        if (flash_size > 0) {
-            const uint32_t address = 0x10000000;
-            pflash_t *pf;
+        pflash_t *pf;
+        int64_t image_size = bdrv_getlength(drives_table[drive_index].bdrv);
+        if (image_size > 0) {
+            flash_size = image_size;
             flash_offset = qemu_ram_alloc(flash_size);
-            pf = pflash_device_register(address, flash_offset,
+            pf = pflash_device_register(FLASH_ADDR, flash_offset,
                                         drives_table[drive_index].bdrv,
+                                        flash_size, 2,
+                                        flash_manufacturer, flash_type);
+        } else {
+            pf = pflash_device_register(FLASH_ADDR, flash_offset,
+                                        0,
                                         flash_size, 2,
                                         flash_manufacturer, flash_type);
         }
     } else {
-        flash_size = load_image(buf, phys_ram_base + flash_offset);
+        pflash_t *pf;
+        pf = pflash_device_register(FLASH_ADDR, flash_offset,
+                                    0,
+                                    flash_size, 2,
+                                    flash_manufacturer, flash_type);
+        flash_size = load_image_targphys(buf, FLASH_ADDR, flash_size);
     }
     fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
     flash_offset = qemu_ram_alloc(4 * KiB);
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "mips_bios.bin");
-    flash_size = load_image(buf, phys_ram_base + flash_offset);
+    flash_size = load_image_targphys(buf, PROM_ADDR, 4 * KiB);
     if ((flash_size > 0) && (flash_size <= 4 * KiB)) {
         fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
     } else {
@@ -3803,10 +3820,10 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         };
         fprintf(stderr, "QEMU: Warning, could not load MIPS bios '%s'.\n"
                 "QEMU added a jump instruction to flash start.\n", buf);
-        memcpy (phys_ram_base + flash_offset, jump, sizeof(jump));
+        cpu_physical_memory_write_rom(PROM_ADDR, jump, sizeof(jump));
         flash_size = 4 * KiB;
     }
-    cpu_register_physical_memory((uint32_t)(0x1fc00000),
+    cpu_register_physical_memory((uint32_t)(PROM_ADDR),
                                  flash_size, flash_offset | IO_MEM_ROM);
 
     if (kernel_filename) {
@@ -3847,9 +3864,9 @@ static void mips_ar7_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_ST, 0x2249,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249, 2 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
 }
 
 static void ar7_amd_init(ram_addr_t machine_ram_size, int vga_ram_size,
@@ -3857,9 +3874,10 @@ static void ar7_amd_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_AMD, AM29LV160DB,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size,
+                         MANUFACTURER_AMD, AM29LV160DB, 2 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
 }
 
 static void mips_tnetd7200_init(ram_addr_t machine_ram_size, int vga_ram_size,
@@ -3867,9 +3885,9 @@ static void mips_tnetd7200_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_ST, 0x2249,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249, 2 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
     reg_write(av.gpio, GPIO_CVR, 0x0002002b);
 }
 
@@ -3878,9 +3896,9 @@ static void mips_tnetd7300_init(ram_addr_t machine_ram_size, int vga_ram_size,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_ST, 0x2249,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size, MANUFACTURER_ST, 0x2249, 2 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
 }
 
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -3896,9 +3914,10 @@ static void zyxel_init(ram_addr_t machine_ram_size, int vga_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 8 * MiB;
     }
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size,
+                         MANUFACTURER_INTEL, I28F160C3B, 2 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
 }
 
 #else
@@ -3914,9 +3933,10 @@ static void fbox4_init(ram_addr_t machine_ram_size, int vga_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size,
+                         MANUFACTURER_MACRONIX, MX29LV320CT, 4 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
 }
 
 static void fbox8_init(ram_addr_t machine_ram_size, int vga_ram_size,
@@ -3930,9 +3950,10 @@ static void fbox8_init(ram_addr_t machine_ram_size, int vga_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_MACRONIX, MX29LV640BT,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size,
+                         MANUFACTURER_MACRONIX, MX29LV640BT, 8 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
 }
 
 static void sinus_basic_3_init(ram_addr_t machine_ram_size, int vga_ram_size,
@@ -3946,9 +3967,10 @@ static void sinus_basic_3_init(ram_addr_t machine_ram_size, int vga_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_004A, ES29LV160DB,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size,
+                         MANUFACTURER_004A, ES29LV160DB, 2 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
 }
 
 static void sinus_basic_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
@@ -3962,9 +3984,10 @@ static void sinus_basic_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size,
+                         MANUFACTURER_INTEL, I28F160C3B, 2 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
 }
 
 static void sinus_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
@@ -3978,9 +4001,10 @@ static void sinus_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 16 * MiB;
     }
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_INTEL, I28F160C3B,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size,
+                         MANUFACTURER_INTEL, I28F160C3B, 2 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
     /* Emulate external phy 0. */
     ar7.phyaddr = 0;
 }
@@ -3996,9 +4020,10 @@ static void speedport_init(ram_addr_t machine_ram_size, int vga_ram_size,
     if (machine_ram_size == 128 * MiB) {
         machine_ram_size = 32 * MiB;
     }
-    mips_ar7_common_init (machine_ram_size, MANUFACTURER_MACRONIX, MX29LV320CT,
-                          kernel_filename, kernel_cmdline, initrd_filename,
-                          cpu_model);
+    mips_ar7_common_init(machine_ram_size,
+                         MANUFACTURER_MACRONIX, MX29LV320CT, 4 * MiB,
+                         kernel_filename, kernel_cmdline, initrd_filename,
+                         cpu_model);
     reg_write(av.gpio, GPIO_CVR, 0x0002002b);
 }
 
