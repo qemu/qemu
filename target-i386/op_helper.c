@@ -116,7 +116,7 @@ void helper_write_eflags(target_ulong t0, uint32_t update_mask)
 target_ulong helper_read_eflags(void)
 {
     uint32_t eflags;
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     eflags |= (DF & DF_MASK);
     eflags |= env->eflags & ~(VM_MASK | RF_MASK);
     return eflags;
@@ -1718,7 +1718,7 @@ void helper_aaa(void)
     int al, ah, af;
     int eflags;
 
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     af = eflags & CC_A;
     al = EAX & 0xff;
     ah = (EAX >> 8) & 0xff;
@@ -1743,7 +1743,7 @@ void helper_aas(void)
     int al, ah, af;
     int eflags;
 
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     af = eflags & CC_A;
     al = EAX & 0xff;
     ah = (EAX >> 8) & 0xff;
@@ -1767,7 +1767,7 @@ void helper_daa(void)
     int al, af, cf;
     int eflags;
 
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     cf = eflags & CC_C;
     af = eflags & CC_A;
     al = EAX & 0xff;
@@ -1795,7 +1795,7 @@ void helper_das(void)
     int al, al1, af, cf;
     int eflags;
 
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     cf = eflags & CC_C;
     af = eflags & CC_A;
     al = EAX & 0xff;
@@ -1824,7 +1824,7 @@ void helper_das(void)
 void helper_into(int next_eip_addend)
 {
     int eflags;
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     if (eflags & CC_O) {
         raise_interrupt(EXCP04_INTO, 1, 0, next_eip_addend);
     }
@@ -1835,7 +1835,7 @@ void helper_cmpxchg8b(target_ulong a0)
     uint64_t d;
     int eflags;
 
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     d = ldq(a0);
     if (d == (((uint64_t)EDX << 32) | (uint32_t)EAX)) {
         stq(a0, ((uint64_t)ECX << 32) | (uint32_t)EBX);
@@ -1858,7 +1858,7 @@ void helper_cmpxchg16b(target_ulong a0)
 
     if ((a0 & 0xf) != 0)
         raise_exception(EXCP0D_GPF);
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     d0 = ldq(a0);
     d1 = ldq(a0 + 8);
     if (d0 == EAX && d1 == EDX) {
@@ -3132,7 +3132,7 @@ target_ulong helper_lsl(target_ulong selector1)
     int rpl, dpl, cpl, type;
 
     selector = selector1 & 0xffff;
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     if (load_segment(&e1, &e2, selector) != 0)
         goto fail;
     rpl = selector & 3;
@@ -3174,7 +3174,7 @@ target_ulong helper_lar(target_ulong selector1)
     int rpl, dpl, cpl, type;
 
     selector = selector1 & 0xffff;
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     if ((selector & 0xfffc) == 0)
         goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
@@ -3220,7 +3220,7 @@ void helper_verr(target_ulong selector1)
     int rpl, dpl, cpl;
 
     selector = selector1 & 0xffff;
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     if ((selector & 0xfffc) == 0)
         goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
@@ -3253,7 +3253,7 @@ void helper_verw(target_ulong selector1)
     int rpl, dpl, cpl;
 
     selector = selector1 & 0xffff;
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     if ((selector & 0xfffc) == 0)
         goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
@@ -3543,7 +3543,7 @@ void helper_fcomi_ST0_FT0(void)
     int ret;
 
     ret = floatx_compare(ST0, FT0, &env->fp_status);
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
     CC_SRC = eflags;
     FORCE_RET();
@@ -3555,7 +3555,7 @@ void helper_fucomi_ST0_FT0(void)
     int ret;
 
     ret = floatx_compare_quiet(ST0, FT0, &env->fp_status);
-    eflags = cc_table[CC_OP].compute_all();
+    eflags = helper_cc_compute_all(CC_OP);
     eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
     CC_SRC = eflags;
     FORCE_RET();
@@ -5278,9 +5278,9 @@ void helper_emms(void)
 }
 
 /* XXX: suppress */
-void helper_movq(uint64_t *d, uint64_t *s)
+void helper_movq(void *d, void *s)
 {
-    *d = *s;
+    *(uint64_t *)d = *(uint64_t *)s;
 }
 
 #define SHIFT 0
@@ -5350,71 +5350,144 @@ static int compute_c_eflags(void)
     return CC_SRC & CC_C;
 }
 
-CCTable cc_table[CC_OP_NB] = {
-    [CC_OP_DYNAMIC] = { /* should never happen */ },
+uint32_t helper_cc_compute_all(int op)
+{
+    switch (op) {
+    default: /* should never happen */ return 0;
 
-    [CC_OP_EFLAGS] = { compute_all_eflags, compute_c_eflags },
+    case CC_OP_EFLAGS: return compute_all_eflags();
 
-    [CC_OP_MULB] = { compute_all_mulb, compute_c_mull },
-    [CC_OP_MULW] = { compute_all_mulw, compute_c_mull },
-    [CC_OP_MULL] = { compute_all_mull, compute_c_mull },
+    case CC_OP_MULB: return compute_all_mulb();
+    case CC_OP_MULW: return compute_all_mulw();
+    case CC_OP_MULL: return compute_all_mull();
 
-    [CC_OP_ADDB] = { compute_all_addb, compute_c_addb },
-    [CC_OP_ADDW] = { compute_all_addw, compute_c_addw  },
-    [CC_OP_ADDL] = { compute_all_addl, compute_c_addl  },
+    case CC_OP_ADDB: return compute_all_addb();
+    case CC_OP_ADDW: return compute_all_addw();
+    case CC_OP_ADDL: return compute_all_addl();
 
-    [CC_OP_ADCB] = { compute_all_adcb, compute_c_adcb },
-    [CC_OP_ADCW] = { compute_all_adcw, compute_c_adcw  },
-    [CC_OP_ADCL] = { compute_all_adcl, compute_c_adcl  },
+    case CC_OP_ADCB: return compute_all_adcb();
+    case CC_OP_ADCW: return compute_all_adcw();
+    case CC_OP_ADCL: return compute_all_adcl();
 
-    [CC_OP_SUBB] = { compute_all_subb, compute_c_subb  },
-    [CC_OP_SUBW] = { compute_all_subw, compute_c_subw  },
-    [CC_OP_SUBL] = { compute_all_subl, compute_c_subl  },
+    case CC_OP_SUBB: return compute_all_subb();
+    case CC_OP_SUBW: return compute_all_subw();
+    case CC_OP_SUBL: return compute_all_subl();
 
-    [CC_OP_SBBB] = { compute_all_sbbb, compute_c_sbbb  },
-    [CC_OP_SBBW] = { compute_all_sbbw, compute_c_sbbw  },
-    [CC_OP_SBBL] = { compute_all_sbbl, compute_c_sbbl  },
+    case CC_OP_SBBB: return compute_all_sbbb();
+    case CC_OP_SBBW: return compute_all_sbbw();
+    case CC_OP_SBBL: return compute_all_sbbl();
 
-    [CC_OP_LOGICB] = { compute_all_logicb, compute_c_logicb },
-    [CC_OP_LOGICW] = { compute_all_logicw, compute_c_logicw },
-    [CC_OP_LOGICL] = { compute_all_logicl, compute_c_logicl },
+    case CC_OP_LOGICB: return compute_all_logicb();
+    case CC_OP_LOGICW: return compute_all_logicw();
+    case CC_OP_LOGICL: return compute_all_logicl();
 
-    [CC_OP_INCB] = { compute_all_incb, compute_c_incl },
-    [CC_OP_INCW] = { compute_all_incw, compute_c_incl },
-    [CC_OP_INCL] = { compute_all_incl, compute_c_incl },
+    case CC_OP_INCB: return compute_all_incb();
+    case CC_OP_INCW: return compute_all_incw();
+    case CC_OP_INCL: return compute_all_incl();
 
-    [CC_OP_DECB] = { compute_all_decb, compute_c_incl },
-    [CC_OP_DECW] = { compute_all_decw, compute_c_incl },
-    [CC_OP_DECL] = { compute_all_decl, compute_c_incl },
+    case CC_OP_DECB: return compute_all_decb();
+    case CC_OP_DECW: return compute_all_decw();
+    case CC_OP_DECL: return compute_all_decl();
 
-    [CC_OP_SHLB] = { compute_all_shlb, compute_c_shlb },
-    [CC_OP_SHLW] = { compute_all_shlw, compute_c_shlw },
-    [CC_OP_SHLL] = { compute_all_shll, compute_c_shll },
+    case CC_OP_SHLB: return compute_all_shlb();
+    case CC_OP_SHLW: return compute_all_shlw();
+    case CC_OP_SHLL: return compute_all_shll();
 
-    [CC_OP_SARB] = { compute_all_sarb, compute_c_sarl },
-    [CC_OP_SARW] = { compute_all_sarw, compute_c_sarl },
-    [CC_OP_SARL] = { compute_all_sarl, compute_c_sarl },
+    case CC_OP_SARB: return compute_all_sarb();
+    case CC_OP_SARW: return compute_all_sarw();
+    case CC_OP_SARL: return compute_all_sarl();
 
 #ifdef TARGET_X86_64
-    [CC_OP_MULQ] = { compute_all_mulq, compute_c_mull },
+    case CC_OP_MULQ: return compute_all_mulq();
 
-    [CC_OP_ADDQ] = { compute_all_addq, compute_c_addq  },
+    case CC_OP_ADDQ: return compute_all_addq();
 
-    [CC_OP_ADCQ] = { compute_all_adcq, compute_c_adcq  },
+    case CC_OP_ADCQ: return compute_all_adcq();
 
-    [CC_OP_SUBQ] = { compute_all_subq, compute_c_subq  },
+    case CC_OP_SUBQ: return compute_all_subq();
 
-    [CC_OP_SBBQ] = { compute_all_sbbq, compute_c_sbbq  },
+    case CC_OP_SBBQ: return compute_all_sbbq();
 
-    [CC_OP_LOGICQ] = { compute_all_logicq, compute_c_logicq },
+    case CC_OP_LOGICQ: return compute_all_logicq();
 
-    [CC_OP_INCQ] = { compute_all_incq, compute_c_incl },
+    case CC_OP_INCQ: return compute_all_incq();
 
-    [CC_OP_DECQ] = { compute_all_decq, compute_c_incl },
+    case CC_OP_DECQ: return compute_all_decq();
 
-    [CC_OP_SHLQ] = { compute_all_shlq, compute_c_shlq },
+    case CC_OP_SHLQ: return compute_all_shlq();
 
-    [CC_OP_SARQ] = { compute_all_sarq, compute_c_sarl },
+    case CC_OP_SARQ: return compute_all_sarq();
 #endif
-};
+    }
+}
 
+uint32_t helper_cc_compute_c(int op)
+{
+    switch (op) {
+    default: /* should never happen */ return 0;
+
+    case CC_OP_EFLAGS: return compute_c_eflags();
+
+    case CC_OP_MULB: return compute_c_mull();
+    case CC_OP_MULW: return compute_c_mull();
+    case CC_OP_MULL: return compute_c_mull();
+
+    case CC_OP_ADDB: return compute_c_addb();
+    case CC_OP_ADDW: return compute_c_addw();
+    case CC_OP_ADDL: return compute_c_addl();
+
+    case CC_OP_ADCB: return compute_c_adcb();
+    case CC_OP_ADCW: return compute_c_adcw();
+    case CC_OP_ADCL: return compute_c_adcl();
+
+    case CC_OP_SUBB: return compute_c_subb();
+    case CC_OP_SUBW: return compute_c_subw();
+    case CC_OP_SUBL: return compute_c_subl();
+
+    case CC_OP_SBBB: return compute_c_sbbb();
+    case CC_OP_SBBW: return compute_c_sbbw();
+    case CC_OP_SBBL: return compute_c_sbbl();
+
+    case CC_OP_LOGICB: return compute_c_logicb();
+    case CC_OP_LOGICW: return compute_c_logicw();
+    case CC_OP_LOGICL: return compute_c_logicl();
+
+    case CC_OP_INCB: return compute_c_incl();
+    case CC_OP_INCW: return compute_c_incl();
+    case CC_OP_INCL: return compute_c_incl();
+
+    case CC_OP_DECB: return compute_c_incl();
+    case CC_OP_DECW: return compute_c_incl();
+    case CC_OP_DECL: return compute_c_incl();
+
+    case CC_OP_SHLB: return compute_c_shlb();
+    case CC_OP_SHLW: return compute_c_shlw();
+    case CC_OP_SHLL: return compute_c_shll();
+
+    case CC_OP_SARB: return compute_c_sarl();
+    case CC_OP_SARW: return compute_c_sarl();
+    case CC_OP_SARL: return compute_c_sarl();
+
+#ifdef TARGET_X86_64
+    case CC_OP_MULQ: return compute_c_mull();
+
+    case CC_OP_ADDQ: return compute_c_addq();
+
+    case CC_OP_ADCQ: return compute_c_adcq();
+
+    case CC_OP_SUBQ: return compute_c_subq();
+
+    case CC_OP_SBBQ: return compute_c_sbbq();
+
+    case CC_OP_LOGICQ: return compute_c_logicq();
+
+    case CC_OP_INCQ: return compute_c_incl();
+
+    case CC_OP_DECQ: return compute_c_incl();
+
+    case CC_OP_SHLQ: return compute_c_shlq();
+
+    case CC_OP_SARQ: return compute_c_sarl();
+#endif
+    }
+}

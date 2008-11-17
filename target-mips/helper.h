@@ -1,215 +1,218 @@
-#ifndef DEF_HELPER
-#define DEF_HELPER(ret, name, params) ret name params;
-#endif
+#include "def-helper.h"
 
-DEF_HELPER(void, do_raise_exception_err, (int excp, int err))
-DEF_HELPER(void, do_raise_exception, (int excp))
-DEF_HELPER(void, do_interrupt_restart, (void))
+/* FIXME: We should rename the helper functions and remove this hack.  */
+#undef HELPER
+#define HELPER(name) do_##name
+
+
+DEF_HELPER_2(raise_exception_err, void, i32, int)
+DEF_HELPER_1(raise_exception, void, i32)
+DEF_HELPER_0(interrupt_restart, void)
 
 #ifdef TARGET_MIPS64
-DEF_HELPER(target_ulong, do_ldl, (target_ulong t0, target_ulong t1, int mem_idx))
-DEF_HELPER(target_ulong, do_ldr, (target_ulong t0, target_ulong t1, int mem_idx))
-DEF_HELPER(void, do_sdl, (target_ulong t0, target_ulong t1, int mem_idx))
-DEF_HELPER(void, do_sdr, (target_ulong t0, target_ulong t1, int mem_idx))
+DEF_HELPER_3(ldl, tl, tl, tl, int)
+DEF_HELPER_3(ldr, tl, tl, tl, int)
+DEF_HELPER_3(sdl, void, tl, tl, int)
+DEF_HELPER_3(sdr, void, tl, tl, int)
 #endif
-DEF_HELPER(target_ulong, do_lwl, (target_ulong t0, target_ulong t1, int mem_idx))
-DEF_HELPER(target_ulong, do_lwr, (target_ulong t0, target_ulong t1, int mem_idx))
-DEF_HELPER(void, do_swl, (target_ulong t0, target_ulong t1, int mem_idx))
-DEF_HELPER(void, do_swr, (target_ulong t0, target_ulong t1, int mem_idx))
+DEF_HELPER_3(lwl, tl, tl, tl, int)
+DEF_HELPER_3(lwr, tl, tl, tl, int)
+DEF_HELPER_3(swl, void, tl, tl, int)
+DEF_HELPER_3(swr, void, tl, tl, int)
 
-DEF_HELPER(target_ulong, do_clo, (target_ulong t0))
-DEF_HELPER(target_ulong, do_clz, (target_ulong t0))
+DEF_HELPER_1(clo, tl, tl)
+DEF_HELPER_1(clz, tl, tl)
 #ifdef TARGET_MIPS64
-DEF_HELPER(target_ulong, do_dclo, (target_ulong t0))
-DEF_HELPER(target_ulong, do_dclz, (target_ulong t0))
-DEF_HELPER(void, do_dmult, (target_ulong t0, target_ulong t1))
-DEF_HELPER(void, do_dmultu, (target_ulong t0, target_ulong t1))
+DEF_HELPER_1(dclo, tl, tl)
+DEF_HELPER_1(dclz, tl, tl)
+DEF_HELPER_2(dmult, void, tl, tl)
+DEF_HELPER_2(dmultu, void, tl, tl)
 #endif
 
-DEF_HELPER(target_ulong, do_muls, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_mulsu, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_macc, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_maccu, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_msac, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_msacu, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_mulhi, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_mulhiu, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_mulshi, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_mulshiu, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_macchi, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_macchiu, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_msachi, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_msachiu, (target_ulong t0, target_ulong t1))
+DEF_HELPER_2(muls, tl, tl, tl)
+DEF_HELPER_2(mulsu, tl, tl, tl)
+DEF_HELPER_2(macc, tl, tl, tl)
+DEF_HELPER_2(maccu, tl, tl, tl)
+DEF_HELPER_2(msac, tl, tl, tl)
+DEF_HELPER_2(msacu, tl, tl, tl)
+DEF_HELPER_2(mulhi, tl, tl, tl)
+DEF_HELPER_2(mulhiu, tl, tl, tl)
+DEF_HELPER_2(mulshi, tl, tl, tl)
+DEF_HELPER_2(mulshiu, tl, tl, tl)
+DEF_HELPER_2(macchi, tl, tl, tl)
+DEF_HELPER_2(macchiu, tl, tl, tl)
+DEF_HELPER_2(msachi, tl, tl, tl)
+DEF_HELPER_2(msachiu, tl, tl, tl)
 
 #ifndef CONFIG_USER_ONLY
 /* CP0 helpers */
-DEF_HELPER(target_ulong, do_mfc0_mvpcontrol, (void))
-DEF_HELPER(target_ulong, do_mfc0_mvpconf0, (void))
-DEF_HELPER(target_ulong, do_mfc0_mvpconf1, (void))
-DEF_HELPER(target_ulong, do_mfc0_random, (void))
-DEF_HELPER(target_ulong, do_mfc0_tcstatus, (void))
-DEF_HELPER(target_ulong, do_mftc0_tcstatus, (void))
-DEF_HELPER(target_ulong, do_mfc0_tcbind, (void))
-DEF_HELPER(target_ulong, do_mftc0_tcbind, (void))
-DEF_HELPER(target_ulong, do_mfc0_tcrestart, (void))
-DEF_HELPER(target_ulong, do_mftc0_tcrestart, (void))
-DEF_HELPER(target_ulong, do_mfc0_tchalt, (void))
-DEF_HELPER(target_ulong, do_mftc0_tchalt, (void))
-DEF_HELPER(target_ulong, do_mfc0_tccontext, (void))
-DEF_HELPER(target_ulong, do_mftc0_tccontext, (void))
-DEF_HELPER(target_ulong, do_mfc0_tcschedule, (void))
-DEF_HELPER(target_ulong, do_mftc0_tcschedule, (void))
-DEF_HELPER(target_ulong, do_mfc0_tcschefback, (void))
-DEF_HELPER(target_ulong, do_mftc0_tcschefback, (void))
-DEF_HELPER(target_ulong, do_mfc0_count, (void))
-DEF_HELPER(target_ulong, do_mftc0_entryhi, (void))
-DEF_HELPER(target_ulong, do_mftc0_status, (void))
-DEF_HELPER(target_ulong, do_mfc0_lladdr, (void))
-DEF_HELPER(target_ulong, do_mfc0_watchlo, (uint32_t sel))
-DEF_HELPER(target_ulong, do_mfc0_watchhi, (uint32_t sel))
-DEF_HELPER(target_ulong, do_mfc0_debug, (void))
-DEF_HELPER(target_ulong, do_mftc0_debug, (void))
+DEF_HELPER_0(mfc0_mvpcontrol, tl)
+DEF_HELPER_0(mfc0_mvpconf0, tl)
+DEF_HELPER_0(mfc0_mvpconf1, tl)
+DEF_HELPER_0(mfc0_random, tl)
+DEF_HELPER_0(mfc0_tcstatus, tl)
+DEF_HELPER_0(mftc0_tcstatus, tl)
+DEF_HELPER_0(mfc0_tcbind, tl)
+DEF_HELPER_0(mftc0_tcbind, tl)
+DEF_HELPER_0(mfc0_tcrestart, tl)
+DEF_HELPER_0(mftc0_tcrestart, tl)
+DEF_HELPER_0(mfc0_tchalt, tl)
+DEF_HELPER_0(mftc0_tchalt, tl)
+DEF_HELPER_0(mfc0_tccontext, tl)
+DEF_HELPER_0(mftc0_tccontext, tl)
+DEF_HELPER_0(mfc0_tcschedule, tl)
+DEF_HELPER_0(mftc0_tcschedule, tl)
+DEF_HELPER_0(mfc0_tcschefback, tl)
+DEF_HELPER_0(mftc0_tcschefback, tl)
+DEF_HELPER_0(mfc0_count, tl)
+DEF_HELPER_0(mftc0_entryhi, tl)
+DEF_HELPER_0(mftc0_status, tl)
+DEF_HELPER_0(mfc0_lladdr, tl)
+DEF_HELPER_1(mfc0_watchlo, tl, i32)
+DEF_HELPER_1(mfc0_watchhi, tl, i32)
+DEF_HELPER_0(mfc0_debug, tl)
+DEF_HELPER_0(mftc0_debug, tl)
 #ifdef TARGET_MIPS64
-DEF_HELPER(target_ulong, do_dmfc0_tcrestart, (void))
-DEF_HELPER(target_ulong, do_dmfc0_tchalt, (void))
-DEF_HELPER(target_ulong, do_dmfc0_tccontext, (void))
-DEF_HELPER(target_ulong, do_dmfc0_tcschedule, (void))
-DEF_HELPER(target_ulong, do_dmfc0_tcschefback, (void))
-DEF_HELPER(target_ulong, do_dmfc0_lladdr, (void))
-DEF_HELPER(target_ulong, do_dmfc0_watchlo, (uint32_t sel))
+DEF_HELPER_0(dmfc0_tcrestart, tl)
+DEF_HELPER_0(dmfc0_tchalt, tl)
+DEF_HELPER_0(dmfc0_tccontext, tl)
+DEF_HELPER_0(dmfc0_tcschedule, tl)
+DEF_HELPER_0(dmfc0_tcschefback, tl)
+DEF_HELPER_0(dmfc0_lladdr, tl)
+DEF_HELPER_1(dmfc0_watchlo, tl, i32)
 #endif /* TARGET_MIPS64 */
 
-DEF_HELPER(void, do_mtc0_index, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_mvpcontrol, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_vpecontrol, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_vpeconf0, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_vpeconf1, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_yqmask, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_vpeopt, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_entrylo0, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_tcstatus, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_tcstatus, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_tcbind, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_tcbind, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_tcrestart, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_tcrestart, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_tchalt, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_tchalt, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_tccontext, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_tccontext, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_tcschedule, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_tcschedule, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_tcschefback, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_tcschefback, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_entrylo1, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_context, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_pagemask, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_pagegrain, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_wired, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_srsconf0, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_srsconf1, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_srsconf2, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_srsconf3, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_srsconf4, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_hwrena, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_count, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_entryhi, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_entryhi, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_compare, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_status, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_status, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_intctl, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_srsctl, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_cause, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_ebase, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_config0, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_config2, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_watchlo, (target_ulong t0, uint32_t sel))
-DEF_HELPER(void, do_mtc0_watchhi, (target_ulong t0, uint32_t sel))
-DEF_HELPER(void, do_mtc0_xcontext, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_framemask, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_debug, (target_ulong t0))
-DEF_HELPER(void, do_mttc0_debug, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_performance0, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_taglo, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_datalo, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_taghi, (target_ulong t0))
-DEF_HELPER(void, do_mtc0_datahi, (target_ulong t0))
+DEF_HELPER_1(mtc0_index, void, tl)
+DEF_HELPER_1(mtc0_mvpcontrol, void, tl)
+DEF_HELPER_1(mtc0_vpecontrol, void, tl)
+DEF_HELPER_1(mtc0_vpeconf0, void, tl)
+DEF_HELPER_1(mtc0_vpeconf1, void, tl)
+DEF_HELPER_1(mtc0_yqmask, void, tl)
+DEF_HELPER_1(mtc0_vpeopt, void, tl)
+DEF_HELPER_1(mtc0_entrylo0, void, tl)
+DEF_HELPER_1(mtc0_tcstatus, void, tl)
+DEF_HELPER_1(mttc0_tcstatus, void, tl)
+DEF_HELPER_1(mtc0_tcbind, void, tl)
+DEF_HELPER_1(mttc0_tcbind, void, tl)
+DEF_HELPER_1(mtc0_tcrestart, void, tl)
+DEF_HELPER_1(mttc0_tcrestart, void, tl)
+DEF_HELPER_1(mtc0_tchalt, void, tl)
+DEF_HELPER_1(mttc0_tchalt, void, tl)
+DEF_HELPER_1(mtc0_tccontext, void, tl)
+DEF_HELPER_1(mttc0_tccontext, void, tl)
+DEF_HELPER_1(mtc0_tcschedule, void, tl)
+DEF_HELPER_1(mttc0_tcschedule, void, tl)
+DEF_HELPER_1(mtc0_tcschefback, void, tl)
+DEF_HELPER_1(mttc0_tcschefback, void, tl)
+DEF_HELPER_1(mtc0_entrylo1, void, tl)
+DEF_HELPER_1(mtc0_context, void, tl)
+DEF_HELPER_1(mtc0_pagemask, void, tl)
+DEF_HELPER_1(mtc0_pagegrain, void, tl)
+DEF_HELPER_1(mtc0_wired, void, tl)
+DEF_HELPER_1(mtc0_srsconf0, void, tl)
+DEF_HELPER_1(mtc0_srsconf1, void, tl)
+DEF_HELPER_1(mtc0_srsconf2, void, tl)
+DEF_HELPER_1(mtc0_srsconf3, void, tl)
+DEF_HELPER_1(mtc0_srsconf4, void, tl)
+DEF_HELPER_1(mtc0_hwrena, void, tl)
+DEF_HELPER_1(mtc0_count, void, tl)
+DEF_HELPER_1(mtc0_entryhi, void, tl)
+DEF_HELPER_1(mttc0_entryhi, void, tl)
+DEF_HELPER_1(mtc0_compare, void, tl)
+DEF_HELPER_1(mtc0_status, void, tl)
+DEF_HELPER_1(mttc0_status, void, tl)
+DEF_HELPER_1(mtc0_intctl, void, tl)
+DEF_HELPER_1(mtc0_srsctl, void, tl)
+DEF_HELPER_1(mtc0_cause, void, tl)
+DEF_HELPER_1(mtc0_ebase, void, tl)
+DEF_HELPER_1(mtc0_config0, void, tl)
+DEF_HELPER_1(mtc0_config2, void, tl)
+DEF_HELPER_2(mtc0_watchlo, void, tl, i32)
+DEF_HELPER_2(mtc0_watchhi, void, tl, i32)
+DEF_HELPER_1(mtc0_xcontext, void, tl)
+DEF_HELPER_1(mtc0_framemask, void, tl)
+DEF_HELPER_1(mtc0_debug, void, tl)
+DEF_HELPER_1(mttc0_debug, void, tl)
+DEF_HELPER_1(mtc0_performance0, void, tl)
+DEF_HELPER_1(mtc0_taglo, void, tl)
+DEF_HELPER_1(mtc0_datalo, void, tl)
+DEF_HELPER_1(mtc0_taghi, void, tl)
+DEF_HELPER_1(mtc0_datahi, void, tl)
 
 /* MIPS MT functions */
-DEF_HELPER(target_ulong, do_mftgpr, (uint32_t sel))
-DEF_HELPER(target_ulong, do_mftlo, (uint32_t sel))
-DEF_HELPER(target_ulong, do_mfthi, (uint32_t sel))
-DEF_HELPER(target_ulong, do_mftacx, (uint32_t sel))
-DEF_HELPER(target_ulong, do_mftdsp, (void))
-DEF_HELPER(void, do_mttgpr, (target_ulong t0, uint32_t sel))
-DEF_HELPER(void, do_mttlo, (target_ulong t0, uint32_t sel))
-DEF_HELPER(void, do_mtthi, (target_ulong t0, uint32_t sel))
-DEF_HELPER(void, do_mttacx, (target_ulong t0, uint32_t sel))
-DEF_HELPER(void, do_mttdsp, (target_ulong t0))
-DEF_HELPER(target_ulong, do_dmt, (target_ulong t0))
-DEF_HELPER(target_ulong, do_emt, (target_ulong t0))
-DEF_HELPER(target_ulong, do_dvpe, (target_ulong t0))
-DEF_HELPER(target_ulong, do_evpe, (target_ulong t0))
+DEF_HELPER_1(mftgpr, tl, i32);
+DEF_HELPER_1(mftlo, tl, i32)
+DEF_HELPER_1(mfthi, tl, i32)
+DEF_HELPER_1(mftacx, tl, i32)
+DEF_HELPER_0(mftdsp, tl)
+DEF_HELPER_2(mttgpr, void, tl, i32)
+DEF_HELPER_2(mttlo, void, tl, i32)
+DEF_HELPER_2(mtthi, void, tl, i32)
+DEF_HELPER_2(mttacx, void, tl, i32)
+DEF_HELPER_1(mttdsp, void, tl)
+DEF_HELPER_1(dmt, tl, tl)
+DEF_HELPER_1(emt, tl, tl)
+DEF_HELPER_1(dvpe, tl, tl)
+DEF_HELPER_1(evpe, tl, tl)
 #endif /* !CONFIG_USER_ONLY */
-DEF_HELPER(void, do_fork, (target_ulong t0, target_ulong t1))
-DEF_HELPER(target_ulong, do_yield, (target_ulong t0))
+DEF_HELPER_2(fork, void, tl, tl)
+DEF_HELPER_1(yield, tl, tl)
 
 /* CP1 functions */
-DEF_HELPER(target_ulong, do_cfc1, (uint32_t reg))
-DEF_HELPER(void, do_ctc1, (target_ulong t0, uint32_t reg))
+DEF_HELPER_1(cfc1, tl, i32)
+DEF_HELPER_2(ctc1, void, tl, i32)
 
-DEF_HELPER(uint64_t, do_float_cvtd_s, (uint32_t fst0))
-DEF_HELPER(uint64_t, do_float_cvtd_w, (uint32_t wt0))
-DEF_HELPER(uint64_t, do_float_cvtd_l, (uint64_t dt0))
-DEF_HELPER(uint64_t, do_float_cvtl_d, (uint64_t fd0))
-DEF_HELPER(uint64_t, do_float_cvtl_s, (uint32_t fst0))
-DEF_HELPER(uint64_t, do_float_cvtps_pw, (uint64_t dt0))
-DEF_HELPER(uint64_t, do_float_cvtpw_ps, (uint64_t fdt0))
-DEF_HELPER(uint32_t, do_float_cvts_d, (uint64_t fd0))
-DEF_HELPER(uint32_t, do_float_cvts_w, (uint32_t wt0))
-DEF_HELPER(uint32_t, do_float_cvts_l, (uint64_t dt0))
-DEF_HELPER(uint32_t, do_float_cvts_pl, (uint32_t wt0))
-DEF_HELPER(uint32_t, do_float_cvts_pu, (uint32_t wth0))
-DEF_HELPER(uint32_t, do_float_cvtw_s, (uint32_t fst0))
-DEF_HELPER(uint32_t, do_float_cvtw_d, (uint64_t fd0))
+DEF_HELPER_1(float_cvtd_s, i64, i32)
+DEF_HELPER_1(float_cvtd_w, i64, i32)
+DEF_HELPER_1(float_cvtd_l, i64, i64)
+DEF_HELPER_1(float_cvtl_d, i64, i64)
+DEF_HELPER_1(float_cvtl_s, i64, i32)
+DEF_HELPER_1(float_cvtps_pw, i64, i64)
+DEF_HELPER_1(float_cvtpw_ps, i64, i64)
+DEF_HELPER_1(float_cvts_d, i32, i64)
+DEF_HELPER_1(float_cvts_w, i32, i32)
+DEF_HELPER_1(float_cvts_l, i32, i64)
+DEF_HELPER_1(float_cvts_pl, i32, i32)
+DEF_HELPER_1(float_cvts_pu, i32, i32)
+DEF_HELPER_1(float_cvtw_s, i32, i32)
+DEF_HELPER_1(float_cvtw_d, i32, i64)
 
-DEF_HELPER(uint64_t, do_float_addr_ps, (uint64_t fdt0, uint64_t fdt1))
-DEF_HELPER(uint64_t, do_float_mulr_ps, (uint64_t fdt0, uint64_t fdt1))
+DEF_HELPER_2(float_addr_ps, i64, i64, i64)
+DEF_HELPER_2(float_mulr_ps, i64, i64, i64)
 
-#define FOP_PROTO(op)                                          \
-DEF_HELPER(uint64_t, do_float_ ## op ## l_s, (uint32_t fst0))  \
-DEF_HELPER(uint64_t, do_float_ ## op ## l_d, (uint64_t fdt0))  \
-DEF_HELPER(uint32_t, do_float_ ## op ## w_s, (uint32_t fst0))  \
-DEF_HELPER(uint32_t, do_float_ ## op ## w_d, (uint64_t fdt0))
+#define FOP_PROTO(op)                       \
+DEF_HELPER_1(float_ ## op ## l_s, i64, i32) \
+DEF_HELPER_1(float_ ## op ## l_d, i64, i64) \
+DEF_HELPER_1(float_ ## op ## w_s, i32, i32) \
+DEF_HELPER_1(float_ ## op ## w_d, i32, i64)
 FOP_PROTO(round)
 FOP_PROTO(trunc)
 FOP_PROTO(ceil)
 FOP_PROTO(floor)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                                          \
-DEF_HELPER(uint32_t, do_float_ ## op ## _s, (uint32_t fst0))   \
-DEF_HELPER(uint64_t, do_float_ ## op ## _d, (uint64_t fdt0))
+#define FOP_PROTO(op)                       \
+DEF_HELPER_1(float_ ## op ## _s, i32, i32)  \
+DEF_HELPER_1(float_ ## op ## _d, i64, i64)
 FOP_PROTO(sqrt)
 FOP_PROTO(rsqrt)
 FOP_PROTO(recip)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                                          \
-DEF_HELPER(uint32_t, do_float_ ## op ## _s, (uint32_t fst0))   \
-DEF_HELPER(uint64_t, do_float_ ## op ## _d, (uint64_t fdt0))   \
-DEF_HELPER(uint64_t, do_float_ ## op ## _ps, (uint64_t fdt0))
+#define FOP_PROTO(op)                       \
+DEF_HELPER_1(float_ ## op ## _s, i32, i32)  \
+DEF_HELPER_1(float_ ## op ## _d, i64, i64)  \
+DEF_HELPER_1(float_ ## op ## _ps, i64, i64)
 FOP_PROTO(abs)
 FOP_PROTO(chs)
 FOP_PROTO(recip1)
 FOP_PROTO(rsqrt1)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                                                       \
-DEF_HELPER(uint32_t, do_float_ ## op ## _s, (uint32_t fst0, uint32_t fst2)) \
-DEF_HELPER(uint64_t, do_float_ ## op ## _d, (uint64_t fdt0, uint64_t fdt2)) \
-DEF_HELPER(uint64_t, do_float_ ## op ## _ps, (uint64_t fdt0, uint64_t fdt2))
+#define FOP_PROTO(op)                             \
+DEF_HELPER_2(float_ ## op ## _s, i32, i32, i32)   \
+DEF_HELPER_2(float_ ## op ## _d, i64, i64, i64)   \
+DEF_HELPER_2(float_ ## op ## _ps, i64, i64, i64)
 FOP_PROTO(add)
 FOP_PROTO(sub)
 FOP_PROTO(mul)
@@ -218,26 +221,23 @@ FOP_PROTO(recip2)
 FOP_PROTO(rsqrt2)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                                                       \
-DEF_HELPER(uint32_t, do_float_ ## op ## _s, (uint32_t fst0, uint32_t fst1,  \
-                                             uint32_t fst2))                \
-DEF_HELPER(uint64_t, do_float_ ## op ## _d, (uint64_t fdt0, uint64_t fdt1,  \
-                                             uint64_t fdt2))                \
-DEF_HELPER(uint64_t, do_float_ ## op ## _ps, (uint64_t fdt0, uint64_t fdt1, \
-                                              uint64_t fdt2))
+#define FOP_PROTO(op)                                 \
+DEF_HELPER_3(float_ ## op ## _s, i32, i32, i32, i32)  \
+DEF_HELPER_3(float_ ## op ## _d, i64, i64, i64, i64)  \
+DEF_HELPER_3(float_ ## op ## _ps, i64, i64, i64, i64)
 FOP_PROTO(muladd)
 FOP_PROTO(mulsub)
 FOP_PROTO(nmuladd)
 FOP_PROTO(nmulsub)
 #undef FOP_PROTO
 
-#define FOP_PROTO(op)                                                        \
-DEF_HELPER(void, do_cmp_d_ ## op, (uint64_t fdt0, uint64_t fdt1, int cc))    \
-DEF_HELPER(void, do_cmpabs_d_ ## op, (uint64_t fdt0, uint64_t fdt1, int cc)) \
-DEF_HELPER(void, do_cmp_s_ ## op, (uint32_t fst0, uint32_t fst1, int cc))    \
-DEF_HELPER(void, do_cmpabs_s_ ## op, (uint32_t fst0, uint32_t fst1, int cc)) \
-DEF_HELPER(void, do_cmp_ps_ ## op, (uint64_t fdt0, uint64_t fdt1, int cc))   \
-DEF_HELPER(void, do_cmpabs_ps_ ## op, (uint64_t fdt0, uint64_t fdt1, int cc))
+#define FOP_PROTO(op)                               \
+DEF_HELPER_3(cmp_d_ ## op, void, i64, i64, int)     \
+DEF_HELPER_3(cmpabs_d_ ## op, void, i64, i64, int)  \
+DEF_HELPER_3(cmp_s_ ## op, void, i32, i32, int)     \
+DEF_HELPER_3(cmpabs_s_ ## op, void, i32, i32, int)  \
+DEF_HELPER_3(cmp_ps_ ## op, void, i64, i64, int)    \
+DEF_HELPER_3(cmpabs_ps_ ## op, void, i64, i64, int)
 FOP_PROTO(f)
 FOP_PROTO(un)
 FOP_PROTO(eq)
@@ -258,14 +258,20 @@ FOP_PROTO(ngt)
 
 /* Special functions */
 #ifndef CONFIG_USER_ONLY
-DEF_HELPER(target_ulong, do_di, (void))
-DEF_HELPER(target_ulong, do_ei, (void))
-DEF_HELPER(void, do_eret, (void))
-DEF_HELPER(void, do_deret, (void))
+DEF_HELPER_0(tlbwi, void)
+DEF_HELPER_0(tlbwr, void)
+DEF_HELPER_0(tlbp, void)
+DEF_HELPER_0(tlbr, void)
+DEF_HELPER_0(di, tl)
+DEF_HELPER_0(ei, tl)
+DEF_HELPER_0(eret, void)
+DEF_HELPER_0(deret, void)
 #endif /* !CONFIG_USER_ONLY */
-DEF_HELPER(target_ulong, do_rdhwr_cpunum, (void))
-DEF_HELPER(target_ulong, do_rdhwr_synci_step, (void))
-DEF_HELPER(target_ulong, do_rdhwr_cc, (void))
-DEF_HELPER(target_ulong, do_rdhwr_ccres, (void))
-DEF_HELPER(void, do_pmon, (int function))
-DEF_HELPER(void, do_wait, (void))
+DEF_HELPER_0(rdhwr_cpunum, tl)
+DEF_HELPER_0(rdhwr_synci_step, tl)
+DEF_HELPER_0(rdhwr_cc, tl)
+DEF_HELPER_0(rdhwr_ccres, tl)
+DEF_HELPER_1(pmon, void, int)
+DEF_HELPER_0(wait, void)
+
+#include "def-helper.h"

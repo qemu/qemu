@@ -25,99 +25,106 @@
 #define SUFFIX _xmm
 #endif
 
-DEF_HELPER(void, glue(helper_psrlw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psraw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psllw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psrld, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psrad, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pslld, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psrlq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psllq, SUFFIX), (Reg *d, Reg *s))
+#define dh_alias_Reg ptr
+#define dh_alias_XMMReg ptr
+#define dh_alias_MMXReg ptr
+#define dh_ctype_Reg Reg *
+#define dh_ctype_XMMReg XMMReg *
+#define dh_ctype_MMXReg MMXReg *
+
+DEF_HELPER_2(glue(psrlw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psraw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psllw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psrld, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psrad, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pslld, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psrlq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psllq, SUFFIX), void, Reg, Reg)
 
 #if SHIFT == 1
-DEF_HELPER(void, glue(helper_psrldq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pslldq, SUFFIX), (Reg *d, Reg *s))
+DEF_HELPER_2(glue(psrldq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pslldq, SUFFIX), void, Reg, Reg)
 #endif
 
 #define SSE_HELPER_B(name, F)\
-    DEF_HELPER(void, glue(name, SUFFIX), (Reg *d, Reg *s))
+    DEF_HELPER_2(glue(name, SUFFIX), void, Reg, Reg)
 
 #define SSE_HELPER_W(name, F)\
-    DEF_HELPER(void, glue(name, SUFFIX), (Reg *d, Reg *s))
+    DEF_HELPER_2(glue(name, SUFFIX), void, Reg, Reg)
 
 #define SSE_HELPER_L(name, F)\
-    DEF_HELPER(void, glue(name, SUFFIX), (Reg *d, Reg *s))
+    DEF_HELPER_2(glue(name, SUFFIX), void, Reg, Reg)
 
 #define SSE_HELPER_Q(name, F)\
-    DEF_HELPER(void, glue(name, SUFFIX), (Reg *d, Reg *s))
+    DEF_HELPER_2(glue(name, SUFFIX), void, Reg, Reg)
 
-SSE_HELPER_B(helper_paddb, FADD)
-SSE_HELPER_W(helper_paddw, FADD)
-SSE_HELPER_L(helper_paddl, FADD)
-SSE_HELPER_Q(helper_paddq, FADD)
+SSE_HELPER_B(paddb, FADD)
+SSE_HELPER_W(paddw, FADD)
+SSE_HELPER_L(paddl, FADD)
+SSE_HELPER_Q(paddq, FADD)
 
-SSE_HELPER_B(helper_psubb, FSUB)
-SSE_HELPER_W(helper_psubw, FSUB)
-SSE_HELPER_L(helper_psubl, FSUB)
-SSE_HELPER_Q(helper_psubq, FSUB)
+SSE_HELPER_B(psubb, FSUB)
+SSE_HELPER_W(psubw, FSUB)
+SSE_HELPER_L(psubl, FSUB)
+SSE_HELPER_Q(psubq, FSUB)
 
-SSE_HELPER_B(helper_paddusb, FADDUB)
-SSE_HELPER_B(helper_paddsb, FADDSB)
-SSE_HELPER_B(helper_psubusb, FSUBUB)
-SSE_HELPER_B(helper_psubsb, FSUBSB)
+SSE_HELPER_B(paddusb, FADDUB)
+SSE_HELPER_B(paddsb, FADDSB)
+SSE_HELPER_B(psubusb, FSUBUB)
+SSE_HELPER_B(psubsb, FSUBSB)
 
-SSE_HELPER_W(helper_paddusw, FADDUW)
-SSE_HELPER_W(helper_paddsw, FADDSW)
-SSE_HELPER_W(helper_psubusw, FSUBUW)
-SSE_HELPER_W(helper_psubsw, FSUBSW)
+SSE_HELPER_W(paddusw, FADDUW)
+SSE_HELPER_W(paddsw, FADDSW)
+SSE_HELPER_W(psubusw, FSUBUW)
+SSE_HELPER_W(psubsw, FSUBSW)
 
-SSE_HELPER_B(helper_pminub, FMINUB)
-SSE_HELPER_B(helper_pmaxub, FMAXUB)
+SSE_HELPER_B(pminub, FMINUB)
+SSE_HELPER_B(pmaxub, FMAXUB)
 
-SSE_HELPER_W(helper_pminsw, FMINSW)
-SSE_HELPER_W(helper_pmaxsw, FMAXSW)
+SSE_HELPER_W(pminsw, FMINSW)
+SSE_HELPER_W(pmaxsw, FMAXSW)
 
-SSE_HELPER_Q(helper_pand, FAND)
-SSE_HELPER_Q(helper_pandn, FANDN)
-SSE_HELPER_Q(helper_por, FOR)
-SSE_HELPER_Q(helper_pxor, FXOR)
+SSE_HELPER_Q(pand, FAND)
+SSE_HELPER_Q(pandn, FANDN)
+SSE_HELPER_Q(por, FOR)
+SSE_HELPER_Q(pxor, FXOR)
 
-SSE_HELPER_B(helper_pcmpgtb, FCMPGTB)
-SSE_HELPER_W(helper_pcmpgtw, FCMPGTW)
-SSE_HELPER_L(helper_pcmpgtl, FCMPGTL)
+SSE_HELPER_B(pcmpgtb, FCMPGTB)
+SSE_HELPER_W(pcmpgtw, FCMPGTW)
+SSE_HELPER_L(pcmpgtl, FCMPGTL)
 
-SSE_HELPER_B(helper_pcmpeqb, FCMPEQ)
-SSE_HELPER_W(helper_pcmpeqw, FCMPEQ)
-SSE_HELPER_L(helper_pcmpeql, FCMPEQ)
+SSE_HELPER_B(pcmpeqb, FCMPEQ)
+SSE_HELPER_W(pcmpeqw, FCMPEQ)
+SSE_HELPER_L(pcmpeql, FCMPEQ)
 
-SSE_HELPER_W(helper_pmullw, FMULLW)
+SSE_HELPER_W(pmullw, FMULLW)
 #if SHIFT == 0
-SSE_HELPER_W(helper_pmulhrw, FMULHRW)
+SSE_HELPER_W(pmulhrw, FMULHRW)
 #endif
-SSE_HELPER_W(helper_pmulhuw, FMULHUW)
-SSE_HELPER_W(helper_pmulhw, FMULHW)
+SSE_HELPER_W(pmulhuw, FMULHUW)
+SSE_HELPER_W(pmulhw, FMULHW)
 
-SSE_HELPER_B(helper_pavgb, FAVG)
-SSE_HELPER_W(helper_pavgw, FAVG)
+SSE_HELPER_B(pavgb, FAVG)
+SSE_HELPER_W(pavgw, FAVG)
 
-DEF_HELPER(void, glue(helper_pmuludq, SUFFIX) , (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmaddwd, SUFFIX) , (Reg *d, Reg *s))
+DEF_HELPER_2(glue(pmuludq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmaddwd, SUFFIX), void, Reg, Reg)
 
-DEF_HELPER(void, glue(helper_psadbw, SUFFIX) , (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_maskmov, SUFFIX) , (Reg *d, Reg *s, target_ulong a0))
-DEF_HELPER(void, glue(helper_movl_mm_T0, SUFFIX) , (Reg *d, uint32_t val))
+DEF_HELPER_2(glue(psadbw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_3(glue(maskmov, SUFFIX), void, Reg, Reg, tl)
+DEF_HELPER_2(glue(movl_mm_T0, SUFFIX), void, Reg, i32)
 #ifdef TARGET_X86_64
-DEF_HELPER(void, glue(helper_movq_mm_T0, SUFFIX) , (Reg *d, uint64_t val))
+DEF_HELPER_2(glue(movq_mm_T0, SUFFIX), void, Reg, i64)
 #endif
 
 #if SHIFT == 0
-DEF_HELPER(void, glue(helper_pshufw, SUFFIX) , (Reg *d, Reg *s, int order))
+DEF_HELPER_3(glue(pshufw, SUFFIX), void, Reg, Reg, int)
 #else
-DEF_HELPER(void, helper_shufps, (Reg *d, Reg *s, int order))
-DEF_HELPER(void, helper_shufpd, (Reg *d, Reg *s, int order))
-DEF_HELPER(void, glue(helper_pshufd, SUFFIX) , (Reg *d, Reg *s, int order))
-DEF_HELPER(void, glue(helper_pshuflw, SUFFIX) , (Reg *d, Reg *s, int order))
-DEF_HELPER(void, glue(helper_pshufhw, SUFFIX) , (Reg *d, Reg *s, int order))
+DEF_HELPER_3(shufps, void, Reg, Reg, int)
+DEF_HELPER_3(shufpd, void, Reg, Reg, int)
+DEF_HELPER_3(glue(pshufd, SUFFIX), void, Reg, Reg, int)
+DEF_HELPER_3(glue(pshuflw, SUFFIX), void, Reg, Reg, int)
+DEF_HELPER_3(glue(pshufhw, SUFFIX), void, Reg, Reg, int)
 #endif
 
 #if SHIFT == 1
@@ -125,10 +132,10 @@ DEF_HELPER(void, glue(helper_pshufhw, SUFFIX) , (Reg *d, Reg *s, int order))
 /* XXX: not accurate */
 
 #define SSE_HELPER_S(name, F)\
-    DEF_HELPER(void, helper_ ## name ## ps , (Reg *d, Reg *s))        \
-    DEF_HELPER(void, helper_ ## name ## ss , (Reg *d, Reg *s))        \
-    DEF_HELPER(void, helper_ ## name ## pd , (Reg *d, Reg *s))        \
-    DEF_HELPER(void, helper_ ## name ## sd , (Reg *d, Reg *s))
+    DEF_HELPER_2(name ## ps , void, Reg, Reg)        \
+    DEF_HELPER_2(name ## ss , void, Reg, Reg)        \
+    DEF_HELPER_2(name ## pd , void, Reg, Reg)        \
+    DEF_HELPER_2(name ## sd , void, Reg, Reg)
 
 SSE_HELPER_S(add, FPU_ADD)
 SSE_HELPER_S(sub, FPU_SUB)
@@ -139,60 +146,60 @@ SSE_HELPER_S(max, FPU_MAX)
 SSE_HELPER_S(sqrt, FPU_SQRT)
 
 
-DEF_HELPER(void, helper_cvtps2pd, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_cvtpd2ps, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_cvtss2sd, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_cvtsd2ss, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_cvtdq2ps, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_cvtdq2pd, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_cvtpi2ps, (XMMReg *d, MMXReg *s))
-DEF_HELPER(void, helper_cvtpi2pd, (XMMReg *d, MMXReg *s))
-DEF_HELPER(void, helper_cvtsi2ss, (XMMReg *d, uint32_t val))
-DEF_HELPER(void, helper_cvtsi2sd, (XMMReg *d, uint32_t val))
+DEF_HELPER_2(cvtps2pd, void, Reg, Reg)
+DEF_HELPER_2(cvtpd2ps, void, Reg, Reg)
+DEF_HELPER_2(cvtss2sd, void, Reg, Reg)
+DEF_HELPER_2(cvtsd2ss, void, Reg, Reg)
+DEF_HELPER_2(cvtdq2ps, void, Reg, Reg)
+DEF_HELPER_2(cvtdq2pd, void, Reg, Reg)
+DEF_HELPER_2(cvtpi2ps, void, XMMReg, MMXReg)
+DEF_HELPER_2(cvtpi2pd, void, XMMReg, MMXReg)
+DEF_HELPER_2(cvtsi2ss, void, XMMReg, i32)
+DEF_HELPER_2(cvtsi2sd, void, XMMReg, i32)
 
 #ifdef TARGET_X86_64
-DEF_HELPER(void, helper_cvtsq2ss, (XMMReg *d, uint64_t val))
-DEF_HELPER(void, helper_cvtsq2sd, (XMMReg *d, uint64_t val))
+DEF_HELPER_2(cvtsq2ss, void, XMMReg, i64)
+DEF_HELPER_2(cvtsq2sd, void, XMMReg, i64)
 #endif
 
-DEF_HELPER(void, helper_cvtps2dq, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_cvtpd2dq, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_cvtps2pi, (MMXReg *d, XMMReg *s))
-DEF_HELPER(void, helper_cvtpd2pi, (MMXReg *d, XMMReg *s))
-DEF_HELPER(int32_t, helper_cvtss2si, (XMMReg *s))
-DEF_HELPER(int32_t, helper_cvtsd2si, (XMMReg *s))
+DEF_HELPER_2(cvtps2dq, void, XMMReg, XMMReg)
+DEF_HELPER_2(cvtpd2dq, void, XMMReg, XMMReg)
+DEF_HELPER_2(cvtps2pi, void, MMXReg, XMMReg)
+DEF_HELPER_2(cvtpd2pi, void, MMXReg, XMMReg)
+DEF_HELPER_1(cvtss2si, s32, XMMReg)
+DEF_HELPER_1(cvtsd2si, s32, XMMReg)
 #ifdef TARGET_X86_64
-DEF_HELPER(int64_t, helper_cvtss2sq, (XMMReg *s))
-DEF_HELPER(int64_t, helper_cvtsd2sq, (XMMReg *s))
+DEF_HELPER_1(cvtss2sq, s64, XMMReg)
+DEF_HELPER_1(cvtsd2sq, s64, XMMReg)
 #endif
 
-DEF_HELPER(void, helper_cvttps2dq, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_cvttpd2dq, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_cvttps2pi, (MMXReg *d, XMMReg *s))
-DEF_HELPER(void, helper_cvttpd2pi, (MMXReg *d, XMMReg *s))
-DEF_HELPER(int32_t, helper_cvttss2si, (XMMReg *s))
-DEF_HELPER(int32_t, helper_cvttsd2si, (XMMReg *s))
+DEF_HELPER_2(cvttps2dq, void, XMMReg, XMMReg)
+DEF_HELPER_2(cvttpd2dq, void, XMMReg, XMMReg)
+DEF_HELPER_2(cvttps2pi, void, MMXReg, XMMReg)
+DEF_HELPER_2(cvttpd2pi, void, MMXReg, XMMReg)
+DEF_HELPER_1(cvttss2si, s32, XMMReg)
+DEF_HELPER_1(cvttsd2si, s32, XMMReg)
 #ifdef TARGET_X86_64
-DEF_HELPER(int64_t, helper_cvttss2sq, (XMMReg *s))
-DEF_HELPER(int64_t, helper_cvttsd2sq, (XMMReg *s))
+DEF_HELPER_1(cvttss2sq, s64, XMMReg)
+DEF_HELPER_1(cvttsd2sq, s64, XMMReg)
 #endif
 
-DEF_HELPER(void, helper_rsqrtps, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_rsqrtss, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_rcpps, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_rcpss, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_haddps, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_haddpd, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_hsubps, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_hsubpd, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_addsubps, (XMMReg *d, XMMReg *s))
-DEF_HELPER(void, helper_addsubpd, (XMMReg *d, XMMReg *s))
+DEF_HELPER_2(rsqrtps, void, XMMReg, XMMReg)
+DEF_HELPER_2(rsqrtss, void, XMMReg, XMMReg)
+DEF_HELPER_2(rcpps, void, XMMReg, XMMReg)
+DEF_HELPER_2(rcpss, void, XMMReg, XMMReg)
+DEF_HELPER_2(haddps, void, XMMReg, XMMReg)
+DEF_HELPER_2(haddpd, void, XMMReg, XMMReg)
+DEF_HELPER_2(hsubps, void, XMMReg, XMMReg)
+DEF_HELPER_2(hsubpd, void, XMMReg, XMMReg)
+DEF_HELPER_2(addsubps, void, XMMReg, XMMReg)
+DEF_HELPER_2(addsubpd, void, XMMReg, XMMReg)
 
 #define SSE_HELPER_CMP(name, F)\
-    DEF_HELPER(void, helper_ ## name ## ps , (Reg *d, Reg *s))        \
-    DEF_HELPER(void, helper_ ## name ## ss , (Reg *d, Reg *s))        \
-    DEF_HELPER(void, helper_ ## name ## pd , (Reg *d, Reg *s))        \
-    DEF_HELPER(void, helper_ ## name ## sd , (Reg *d, Reg *s))
+    DEF_HELPER_2( name ## ps , void, Reg, Reg)        \
+    DEF_HELPER_2( name ## ss , void, Reg, Reg)        \
+    DEF_HELPER_2( name ## pd , void, Reg, Reg)        \
+    DEF_HELPER_2( name ## sd , void, Reg, Reg)
 
 SSE_HELPER_CMP(cmpeq, FPU_CMPEQ)
 SSE_HELPER_CMP(cmplt, FPU_CMPLT)
@@ -203,125 +210,124 @@ SSE_HELPER_CMP(cmpnlt, FPU_CMPNLT)
 SSE_HELPER_CMP(cmpnle, FPU_CMPNLE)
 SSE_HELPER_CMP(cmpord, FPU_CMPORD)
 
-DEF_HELPER(void, helper_ucomiss, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_comiss, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_ucomisd, (Reg *d, Reg *s))
-DEF_HELPER(void, helper_comisd, (Reg *d, Reg *s))
-DEF_HELPER(uint32_t, helper_movmskps, (Reg *s))
-DEF_HELPER(uint32_t, helper_movmskpd, (Reg *s))
+DEF_HELPER_2(ucomiss, void, Reg, Reg)
+DEF_HELPER_2(comiss, void, Reg, Reg)
+DEF_HELPER_2(ucomisd, void, Reg, Reg)
+DEF_HELPER_2(comisd, void, Reg, Reg)
+DEF_HELPER_1(movmskps, i32, Reg)
+DEF_HELPER_1(movmskpd, i32, Reg)
 #endif
 
-DEF_HELPER(uint32_t, glue(helper_pmovmskb, SUFFIX), (Reg *s))
-DEF_HELPER(void, glue(helper_packsswb, SUFFIX) , (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_packuswb, SUFFIX) , (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_packssdw, SUFFIX) , (Reg *d, Reg *s))
+DEF_HELPER_1(glue(pmovmskb, SUFFIX), i32, Reg)
+DEF_HELPER_2(glue(packsswb, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(packuswb, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(packssdw, SUFFIX), void, Reg, Reg)
 #define UNPCK_OP(base_name, base)                               \
-    DEF_HELPER(void, glue(helper_punpck ## base_name ## bw, SUFFIX) , (Reg *d, Reg *s)) \
-    DEF_HELPER(void, glue(helper_punpck ## base_name ## wd, SUFFIX) , (Reg *d, Reg *s)) \
-    DEF_HELPER(void, glue(helper_punpck ## base_name ## dq, SUFFIX) , (Reg *d, Reg *s))
+    DEF_HELPER_2(glue(punpck ## base_name ## bw, SUFFIX) , void, Reg, Reg) \
+    DEF_HELPER_2(glue(punpck ## base_name ## wd, SUFFIX) , void, Reg, Reg) \
+    DEF_HELPER_2(glue(punpck ## base_name ## dq, SUFFIX) , void, Reg, Reg)
 
 UNPCK_OP(l, 0)
 UNPCK_OP(h, 1)
 
 #if SHIFT == 1
-DEF_HELPER(void, glue(helper_punpcklqdq, SUFFIX) , (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_punpckhqdq, SUFFIX) , (Reg *d, Reg *s))
+DEF_HELPER_2(glue(punpcklqdq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(punpckhqdq, SUFFIX), void, Reg, Reg)
 #endif
 
 /* 3DNow! float ops */
 #if SHIFT == 0
-DEF_HELPER(void, helper_pi2fd, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pi2fw, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pf2id, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pf2iw, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfacc, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfadd, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfcmpeq, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfcmpge, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfcmpgt, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfmax, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfmin, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfmul, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfnacc, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfpnacc, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfrcp, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfrsqrt, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfsub, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pfsubr, (MMXReg *d, MMXReg *s))
-DEF_HELPER(void, helper_pswapd, (MMXReg *d, MMXReg *s))
+DEF_HELPER_2(pi2fd, void, MMXReg, MMXReg)
+DEF_HELPER_2(pi2fw, void, MMXReg, MMXReg)
+DEF_HELPER_2(pf2id, void, MMXReg, MMXReg)
+DEF_HELPER_2(pf2iw, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfacc, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfadd, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfcmpeq, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfcmpge, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfcmpgt, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfmax, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfmin, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfmul, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfnacc, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfpnacc, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfrcp, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfrsqrt, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfsub, void, MMXReg, MMXReg)
+DEF_HELPER_2(pfsubr, void, MMXReg, MMXReg)
+DEF_HELPER_2(pswapd, void, MMXReg, MMXReg)
 #endif
 
 /* SSSE3 op helpers */
-DEF_HELPER(void, glue(helper_phaddw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_phaddd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_phaddsw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_phsubw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_phsubd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_phsubsw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pabsb, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pabsw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pabsd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmaddubsw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmulhrsw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pshufb, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psignb, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psignw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_psignd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_palignr, SUFFIX), (Reg *d, Reg *s, int32_t shift))
+DEF_HELPER_2(glue(phaddw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(phaddd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(phaddsw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(phsubw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(phsubd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(phsubsw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pabsb, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pabsw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pabsd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmaddubsw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmulhrsw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pshufb, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psignb, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psignw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(psignd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_3(glue(palignr, SUFFIX), void, Reg, Reg, s32)
 
 /* SSE4.1 op helpers */
 #if SHIFT == 1
-DEF_HELPER(void, glue(helper_pblendvb, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_blendvps, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_blendvpd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_ptest, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovsxbw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovsxbd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovsxbq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovsxwd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovsxwq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovsxdq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovzxbw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovzxbd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovzxbq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovzxwd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovzxwq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmovzxdq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmuldq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pcmpeqq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_packusdw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pminsb, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pminsd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pminuw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pminud, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmaxsb, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmaxsd, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmaxuw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmaxud, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pmulld, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_phminposuw, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_roundps, SUFFIX), (Reg *d, Reg *s, uint32_t mode))
-DEF_HELPER(void, glue(helper_roundpd, SUFFIX), (Reg *d, Reg *s, uint32_t mode))
-DEF_HELPER(void, glue(helper_roundss, SUFFIX), (Reg *d, Reg *s, uint32_t mode))
-DEF_HELPER(void, glue(helper_roundsd, SUFFIX), (Reg *d, Reg *s, uint32_t mode))
-DEF_HELPER(void, glue(helper_blendps, SUFFIX), (Reg *d, Reg *s, uint32_t imm))
-DEF_HELPER(void, glue(helper_blendpd, SUFFIX), (Reg *d, Reg *s, uint32_t imm))
-DEF_HELPER(void, glue(helper_pblendw, SUFFIX), (Reg *d, Reg *s, uint32_t imm))
-DEF_HELPER(void, glue(helper_dpps, SUFFIX), (Reg *d, Reg *s, uint32_t mask))
-DEF_HELPER(void, glue(helper_dppd, SUFFIX), (Reg *d, Reg *s, uint32_t mask))
-DEF_HELPER(void, glue(helper_mpsadbw, SUFFIX), (Reg *d, Reg *s, uint32_t off))
+DEF_HELPER_2(glue(pblendvb, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(blendvps, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(blendvpd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(ptest, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovsxbw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovsxbd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovsxbq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovsxwd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovsxwq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovsxdq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovzxbw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovzxbd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovzxbq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovzxwd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovzxwq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmovzxdq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmuldq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pcmpeqq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(packusdw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pminsb, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pminsd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pminuw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pminud, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmaxsb, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmaxsd, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmaxuw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmaxud, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(pmulld, SUFFIX), void, Reg, Reg)
+DEF_HELPER_2(glue(phminposuw, SUFFIX), void, Reg, Reg)
+DEF_HELPER_3(glue(roundps, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(roundpd, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(roundss, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(roundsd, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(blendps, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(blendpd, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(pblendw, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(dpps, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(dppd, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(mpsadbw, SUFFIX), void, Reg, Reg, i32)
 #endif
 
 /* SSE4.2 op helpers */
 #if SHIFT == 1
-DEF_HELPER(void, glue(helper_pcmpgtq, SUFFIX), (Reg *d, Reg *s))
-DEF_HELPER(void, glue(helper_pcmpestri, SUFFIX), (Reg *d, Reg *s, uint32_t ctl))
-DEF_HELPER(void, glue(helper_pcmpestrm, SUFFIX), (Reg *d, Reg *s, uint32_t ctl))
-DEF_HELPER(void, glue(helper_pcmpistri, SUFFIX), (Reg *d, Reg *s, uint32_t ctl))
-DEF_HELPER(void, glue(helper_pcmpistrm, SUFFIX), (Reg *d, Reg *s, uint32_t ctl))
-DEF_HELPER(target_ulong, helper_crc32,
-                (uint32_t crc1, target_ulong msg, uint32_t len))
-DEF_HELPER(target_ulong, helper_popcnt, (target_ulong n, uint32_t type))
+DEF_HELPER_2(glue(pcmpgtq, SUFFIX), void, Reg, Reg)
+DEF_HELPER_3(glue(pcmpestri, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(pcmpestrm, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(pcmpistri, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(glue(pcmpistrm, SUFFIX), void, Reg, Reg, i32)
+DEF_HELPER_3(crc32, tl, i32, tl, i32)
+DEF_HELPER_2(popcnt, tl, tl, i32)
 #endif
 
 #undef SHIFT

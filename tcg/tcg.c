@@ -267,7 +267,8 @@ static inline void tcg_temp_alloc(TCGContext *s, int n)
         tcg_abort();
 }
 
-TCGv tcg_global_reg_new(TCGType type, int reg, const char *name)
+static inline int tcg_global_reg_new_internal(TCGType type, int reg,
+                                              const char *name)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
@@ -289,13 +290,29 @@ TCGv tcg_global_reg_new(TCGType type, int reg, const char *name)
     ts->name = name;
     s->nb_globals++;
     tcg_regset_set_reg(s->reserved_regs, reg);
-    return MAKE_TCGV(idx);
+    return idx;
+}
+
+TCGv_i32 tcg_global_reg_new_i32(int reg, const char *name)
+{
+    int idx;
+
+    idx = tcg_global_reg_new_internal(TCG_TYPE_I32, reg, name);
+    return MAKE_TCGV_I32(idx);
+}
+
+TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name)
+{
+    int idx;
+
+    idx = tcg_global_reg_new_internal(TCG_TYPE_I64, reg, name);
+    return MAKE_TCGV_I64(idx);
 }
 
 #if TCG_TARGET_REG_BITS == 32
 /* temporary hack to avoid register shortage for tcg_qemu_st64() */
-TCGv tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2, 
-                              const char *name)
+TCGv_i64 tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2,
+                                  const char *name)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
@@ -325,12 +342,13 @@ TCGv tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2,
     ts->name = strdup(buf);
 
     s->nb_globals += 2;
-    return MAKE_TCGV(idx);
+    return MAKE_TCGV_I64(idx);
 }
 #endif
 
-TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
-                        const char *name)
+static inline int tcg_global_mem_new_internal(TCGType type, int reg,
+                                              tcg_target_long offset,
+                                              const char *name)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
@@ -386,10 +404,28 @@ TCGv tcg_global_mem_new(TCGType type, int reg, tcg_target_long offset,
         ts->name = name;
         s->nb_globals++;
     }
-    return MAKE_TCGV(idx);
+    return idx;
 }
 
-TCGv tcg_temp_new_internal(TCGType type, int temp_local)
+TCGv_i32 tcg_global_mem_new_i32(int reg, tcg_target_long offset,
+                                const char *name)
+{
+    int idx;
+
+    idx = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
+    return MAKE_TCGV_I32(idx);
+}
+
+TCGv_i64 tcg_global_mem_new_i64(int reg, tcg_target_long offset,
+                                const char *name)
+{
+    int idx;
+
+    idx = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
+    return MAKE_TCGV_I64(idx);
+}
+
+static inline int tcg_temp_new_internal(TCGType type, int temp_local)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
@@ -437,14 +473,29 @@ TCGv tcg_temp_new_internal(TCGType type, int temp_local)
             s->nb_temps++;
         }
     }
-    return MAKE_TCGV(idx);
+    return idx;
 }
 
-void tcg_temp_free(TCGv arg)
+TCGv_i32 tcg_temp_new_internal_i32(int temp_local)
+{
+    int idx;
+
+    idx = tcg_temp_new_internal(TCG_TYPE_I32, temp_local);
+    return MAKE_TCGV_I32(idx);
+}
+
+TCGv_i64 tcg_temp_new_internal_i64(int temp_local)
+{
+    int idx;
+
+    idx = tcg_temp_new_internal(TCG_TYPE_I64, temp_local);
+    return MAKE_TCGV_I64(idx);
+}
+
+static inline void tcg_temp_free_internal(int idx)
 {
     TCGContext *s = &tcg_ctx;
     TCGTemp *ts;
-    int idx = GET_TCGV(arg);
     int k;
 
     assert(idx >= s->nb_globals && idx < s->nb_temps);
@@ -458,35 +509,44 @@ void tcg_temp_free(TCGv arg)
     s->first_free_temp[k] = idx;
 }
 
-
-TCGv tcg_const_i32(int32_t val)
+void tcg_temp_free_i32(TCGv_i32 arg)
 {
-    TCGv t0;
-    t0 = tcg_temp_new(TCG_TYPE_I32);
+    tcg_temp_free_internal(GET_TCGV_I32(arg));
+}
+
+void tcg_temp_free_i64(TCGv_i64 arg)
+{
+    tcg_temp_free_internal(GET_TCGV_I64(arg));
+}
+
+TCGv_i32 tcg_const_i32(int32_t val)
+{
+    TCGv_i32 t0;
+    t0 = tcg_temp_new_i32();
     tcg_gen_movi_i32(t0, val);
     return t0;
 }
 
-TCGv tcg_const_i64(int64_t val)
+TCGv_i64 tcg_const_i64(int64_t val)
 {
-    TCGv t0;
-    t0 = tcg_temp_new(TCG_TYPE_I64);
+    TCGv_i64 t0;
+    t0 = tcg_temp_new_i64();
     tcg_gen_movi_i64(t0, val);
     return t0;
 }
 
-TCGv tcg_const_local_i32(int32_t val)
+TCGv_i32 tcg_const_local_i32(int32_t val)
 {
-    TCGv t0;
-    t0 = tcg_temp_local_new(TCG_TYPE_I32);
+    TCGv_i32 t0;
+    t0 = tcg_temp_local_new_i32();
     tcg_gen_movi_i32(t0, val);
     return t0;
 }
 
-TCGv tcg_const_local_i64(int64_t val)
+TCGv_i64 tcg_const_local_i64(int64_t val)
 {
-    TCGv t0;
-    t0 = tcg_temp_local_new(TCG_TYPE_I64);
+    TCGv_i64 t0;
+    t0 = tcg_temp_local_new_i64();
     tcg_gen_movi_i64(t0, val);
     return t0;
 }
@@ -510,150 +570,128 @@ void tcg_register_helper(void *func, const char *name)
     s->nb_helpers++;
 }
 
-static inline TCGType tcg_get_base_type(TCGContext *s, TCGv arg)
-{
-    return s->temps[GET_TCGV(arg)].base_type;
-}
-
-static void tcg_gen_call_internal(TCGContext *s, TCGv func, 
-                                  unsigned int flags,
-                                  unsigned int nb_rets, const TCGv *rets,
-                                  unsigned int nb_params, const TCGv *params)
-{
-    int i;
-    *gen_opc_ptr++ = INDEX_op_call;
-    *gen_opparam_ptr++ = (nb_rets << 16) | (nb_params + 1);
-    for(i = 0; i < nb_rets; i++) {
-        *gen_opparam_ptr++ = GET_TCGV(rets[i]);
-    }
-    for(i = 0; i < nb_params; i++) {
-        *gen_opparam_ptr++ = GET_TCGV(params[i]);
-    }
-    *gen_opparam_ptr++ = GET_TCGV(func);
-
-    *gen_opparam_ptr++ = flags;
-    /* total parameters, needed to go backward in the instruction stream */
-    *gen_opparam_ptr++ = 1 + nb_rets + nb_params + 3;
-}
-
-
-#if TCG_TARGET_REG_BITS < 64
 /* Note: we convert the 64 bit args to 32 bit and do some alignment
    and endian swap. Maybe it would be better to do the alignment
    and endian swap in tcg_reg_alloc_call(). */
-void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
-                  unsigned int nb_rets, const TCGv *rets,
-                  unsigned int nb_params, const TCGv *args1)
+void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
+                   int sizemask, TCGArg ret, int nargs, TCGArg *args)
 {
-    TCGv ret, *args2, rets_2[2], arg;
-    int j, i, call_type;
-
-    if (nb_rets == 1) {
-        ret = rets[0];
-        if (tcg_get_base_type(s, ret) == TCG_TYPE_I64) {
-            nb_rets = 2;
-#ifdef TCG_TARGET_WORDS_BIGENDIAN
-            rets_2[0] = TCGV_HIGH(ret);
-            rets_2[1] = ret;
-#else
-            rets_2[0] = ret;
-            rets_2[1] = TCGV_HIGH(ret);
-#endif
-            rets = rets_2;
-        }
-    }
-    args2 = alloca((nb_params * 3) * sizeof(TCGv));
-    j = 0;
+    int call_type;
+    int i;
+    int real_args;
+    int nb_rets;
+    TCGArg *nparam;
+    *gen_opc_ptr++ = INDEX_op_call;
+    nparam = gen_opparam_ptr++;
     call_type = (flags & TCG_CALL_TYPE_MASK);
-    for(i = 0; i < nb_params; i++) {
-        arg = args1[i];
-        if (tcg_get_base_type(s, arg) == TCG_TYPE_I64) {
+    if (ret != TCG_CALL_DUMMY_ARG) {
+#if TCG_TARGET_REG_BITS < 64
+        if (sizemask & 1) {
+#ifdef TCG_TARGET_WORDS_BIGENDIAN
+            *gen_opparam_ptr++ = ret + 1;
+            *gen_opparam_ptr++ = ret;
+#else
+            *gen_opparam_ptr++ = ret;
+            *gen_opparam_ptr++ = ret + 1;
+#endif
+            nb_rets = 2;
+        } else
+#endif
+        {
+            *gen_opparam_ptr++ = ret;
+            nb_rets = 1;
+        }
+    } else {
+        nb_rets = 0;
+    }
+    real_args = 0;
+    for (i = 0; i < nargs; i++) {
+#if TCG_TARGET_REG_BITS < 64
+        if (sizemask & (2 << i)) {
 #ifdef TCG_TARGET_I386
             /* REGPARM case: if the third parameter is 64 bit, it is
                allocated on the stack */
-            if (j == 2 && call_type == TCG_CALL_TYPE_REGPARM) {
+            if (i == 2 && call_type == TCG_CALL_TYPE_REGPARM) {
                 call_type = TCG_CALL_TYPE_REGPARM_2;
                 flags = (flags & ~TCG_CALL_TYPE_MASK) | call_type;
             }
-            args2[j++] = arg;
-            args2[j++] = TCGV_HIGH(arg);
-#else
+#endif
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
             /* some targets want aligned 64 bit args */
-            if (j & 1) {
-                args2[j++] = TCG_CALL_DUMMY_ARG;
+            if (i & 1) {
+                *gen_opparam_ptr++ = TCG_CALL_DUMMY_ARG;
             }
 #endif
 #ifdef TCG_TARGET_WORDS_BIGENDIAN
-            args2[j++] = TCGV_HIGH(arg);
-            args2[j++] = arg;
+            *gen_opparam_ptr++ = args[i] + 1;
+            *gen_opparam_ptr++ = args[i];
 #else
-            args2[j++] = arg;
-            args2[j++] = TCGV_HIGH(arg);
+            *gen_opparam_ptr++ = args[i];
+            *gen_opparam_ptr++ = args[i] + 1;
 #endif
+            real_args += 2;
+        } else
 #endif
-        } else {
-            args2[j++] = arg;
+        {
+            *gen_opparam_ptr++ = args[i];
+            real_args++;
         }
     }
-    tcg_gen_call_internal(s, func, flags, 
-                          nb_rets, rets, j, args2);
+    *gen_opparam_ptr++ = GET_TCGV_PTR(func);
+
+    *gen_opparam_ptr++ = flags;
+
+    *nparam = (nb_rets << 16) | (real_args + 1);
+
+    /* total parameters, needed to go backward in the instruction stream */
+    *gen_opparam_ptr++ = 1 + nb_rets + real_args + 3;
 }
-#else
-void tcg_gen_call(TCGContext *s, TCGv func, unsigned int flags,
-                  unsigned int nb_rets, const TCGv *rets,
-                  unsigned int nb_params, const TCGv *args1)
-{
-    tcg_gen_call_internal(s, func, flags, 
-                          nb_rets, rets, nb_params, args1);
-}
-#endif
 
 #if TCG_TARGET_REG_BITS == 32
-void tcg_gen_shifti_i64(TCGv ret, TCGv arg1, 
+void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
                         int c, int right, int arith)
 {
     if (c == 0) {
-        tcg_gen_mov_i32(ret, arg1);
+        tcg_gen_mov_i32(TCGV_LOW(ret), TCGV_LOW(arg1));
         tcg_gen_mov_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1));
     } else if (c >= 32) {
         c -= 32;
         if (right) {
             if (arith) {
-                tcg_gen_sari_i32(ret, TCGV_HIGH(arg1), c);
+                tcg_gen_sari_i32(TCGV_LOW(ret), TCGV_HIGH(arg1), c);
                 tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), 31);
             } else {
-                tcg_gen_shri_i32(ret, TCGV_HIGH(arg1), c);
+                tcg_gen_shri_i32(TCGV_LOW(ret), TCGV_HIGH(arg1), c);
                 tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
             }
         } else {
-            tcg_gen_shli_i32(TCGV_HIGH(ret), arg1, c);
-            tcg_gen_movi_i32(ret, 0);
+            tcg_gen_shli_i32(TCGV_HIGH(ret), TCGV_LOW(arg1), c);
+            tcg_gen_movi_i32(TCGV_LOW(ret), 0);
         }
     } else {
-        TCGv t0, t1;
+        TCGv_i32 t0, t1;
 
-        t0 = tcg_temp_new(TCG_TYPE_I32);
-        t1 = tcg_temp_new(TCG_TYPE_I32);
+        t0 = tcg_temp_new_i32();
+        t1 = tcg_temp_new_i32();
         if (right) {
             tcg_gen_shli_i32(t0, TCGV_HIGH(arg1), 32 - c);
             if (arith)
                 tcg_gen_sari_i32(t1, TCGV_HIGH(arg1), c);
-            else 
+            else
                 tcg_gen_shri_i32(t1, TCGV_HIGH(arg1), c);
-            tcg_gen_shri_i32(ret, arg1, c); 
-            tcg_gen_or_i32(ret, ret, t0);
+            tcg_gen_shri_i32(TCGV_LOW(ret), TCGV_LOW(arg1), c);
+            tcg_gen_or_i32(TCGV_LOW(ret), TCGV_LOW(ret), t0);
             tcg_gen_mov_i32(TCGV_HIGH(ret), t1);
         } else {
-            tcg_gen_shri_i32(t0, arg1, 32 - c);
+            tcg_gen_shri_i32(t0, TCGV_LOW(arg1), 32 - c);
             /* Note: ret can be the same as arg1, so we use t1 */
-            tcg_gen_shli_i32(t1, arg1, c); 
+            tcg_gen_shli_i32(t1, TCGV_LOW(arg1), c);
             tcg_gen_shli_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), c);
             tcg_gen_or_i32(TCGV_HIGH(ret), TCGV_HIGH(ret), t0);
-            tcg_gen_mov_i32(ret, t1);
+            tcg_gen_mov_i32(TCGV_LOW(ret), t1);
         }
-        tcg_temp_free(t0);
-        tcg_temp_free(t1);
+        tcg_temp_free_i32(t0);
+        tcg_temp_free_i32(t1);
     }
 }
 #endif
@@ -698,9 +736,14 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
     return buf;
 }
 
-char *tcg_get_arg_str(TCGContext *s, char *buf, int buf_size, TCGv arg)
+char *tcg_get_arg_str_i32(TCGContext *s, char *buf, int buf_size, TCGv_i32 arg)
 {
-    return tcg_get_arg_str_idx(s, buf, buf_size, GET_TCGV(arg));
+    return tcg_get_arg_str_idx(s, buf, buf_size, GET_TCGV_I32(arg));
+}
+
+char *tcg_get_arg_str_i64(TCGContext *s, char *buf, int buf_size, TCGv_i64 arg)
+{
+    return tcg_get_arg_str_idx(s, buf, buf_size, GET_TCGV_I32(arg));
 }
 
 static int helper_cmp(const void *p1, const void *p2)

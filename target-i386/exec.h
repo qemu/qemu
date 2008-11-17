@@ -290,7 +290,7 @@ extern const uint8_t rclb_table[32];
 
 static inline uint32_t compute_eflags(void)
 {
-    return env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
+    return env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
 }
 
 /* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */

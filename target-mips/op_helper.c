@@ -22,6 +22,7 @@
 
 #include "host-utils.h"
 
+#include "helper.h"
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
@@ -1657,6 +1658,26 @@ void r4k_do_tlbr (void)
                         (tlb->C0 << 3) | (tlb->PFN[0] >> 6);
     env->CP0_EntryLo1 = tlb->G | (tlb->V1 << 1) | (tlb->D1 << 2) |
                         (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
+}
+
+void do_tlbwi(void)
+{
+    env->tlb->do_tlbwi();
+}
+
+void do_tlbwr(void)
+{
+    env->tlb->do_tlbwr();
+}
+
+void do_tlbp(void)
+{
+    env->tlb->do_tlbp();
+}
+
+void do_tlbr(void)
+{
+    env->tlb->do_tlbr();
 }
 
 /* Specials */

@@ -30,6 +30,7 @@
 #include "svm.h"
 #include "qemu-common.h"
 #include "kvm.h"
+#include "helper.h"
 
 //#define DEBUG_MMU
 

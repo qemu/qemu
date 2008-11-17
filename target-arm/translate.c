@@ -31,6 +31,7 @@
 #include "tcg-op.h"
 #include "qemu-log.h"
 
+#include "helpers.h"
 #define GEN_HELPER 1
 #include "helpers.h"
 
@@ -73,13 +74,14 @@ typedef struct DisasContext {
 #define DISAS_WFI 4
 #define DISAS_SWI 5
 
-static TCGv cpu_env;
+static TCGv_ptr cpu_env;
 /* We reuse the same 64-bit temporaries for efficiency.  */
-static TCGv cpu_V0, cpu_V1, cpu_M0;
+static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
 
 /* FIXME:  These should be removed.  */
 static TCGv cpu_T[2];
-static TCGv cpu_F0s, cpu_F1s, cpu_F0d, cpu_F1d;
+static TCGv cpu_F0s, cpu_F1s;
+static TCGv_i64 cpu_F0d, cpu_F1d;
 
 #define ICOUNT_TEMP cpu_T[0]
 #include "gen-icount.h"
@@ -87,10 +89,13 @@ static TCGv cpu_F0s, cpu_F1s, cpu_F0d, cpu_F1d;
 /* initialize TCG globals.  */
 void arm_translate_init(void)
 {
-    cpu_env = tcg_global_reg_new(TCG_TYPE_PTR, TCG_AREG0, "env");
+    cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
-    cpu_T[0] = tcg_global_reg_new(TCG_TYPE_I32, TCG_AREG1, "T0");
-    cpu_T[1] = tcg_global_reg_new(TCG_TYPE_I32, TCG_AREG2, "T1");
+    cpu_T[0] = tcg_global_reg_new_i32(TCG_AREG1, "T0");
+    cpu_T[1] = tcg_global_reg_new_i32(TCG_AREG2, "T1");
+
+#define GEN_HELPER 2
+#include "helpers.h"
 }
 
 /* The code generator doesn't like lots of temporaries, so maintain our own
@@ -100,16 +105,16 @@ static int num_temps;
 static TCGv temps[MAX_TEMPS];
 
 /* Allocate a temporary variable.  */
-static TCGv new_tmp(void)
+static TCGv_i32 new_tmp(void)
 {
     TCGv tmp;
     if (num_temps == MAX_TEMPS)
         abort();
 
-    if (GET_TCGV(temps[num_temps]))
+    if (GET_TCGV_I32(temps[num_temps]))
       return temps[num_temps++];
 
-    tmp = tcg_temp_new(TCG_TYPE_I32);
+    tmp = tcg_temp_new_i32();
     temps[num_temps++] = tmp;
     return tmp;
 }
@@ -120,11 +125,11 @@ static void dead_tmp(TCGv tmp)
     int i;
     num_temps--;
     i = num_temps;
-    if (GET_TCGV(temps[i]) == GET_TCGV(tmp))
+    if (TCGV_EQUAL(temps[i], tmp))
         return;
 
     /* Shuffle this temp to the last slot.  */
-    while (GET_TCGV(temps[i]) != GET_TCGV(tmp))
+    while (!TCGV_EQUAL(temps[i], tmp))
         i--;
     while (i < num_temps) {
         temps[i] = temps[i + 1];
@@ -324,10 +329,10 @@ static void gen_roundqd(TCGv a, TCGv b)
 /* FIXME: Most targets have native widening multiplication.
    It would be good to use that instead of a full wide multiply.  */
 /* 32x32->64 multiply.  Marks inputs as dead.  */
-static TCGv gen_mulu_i64_i32(TCGv a, TCGv b)
+static TCGv_i64 gen_mulu_i64_i32(TCGv a, TCGv b)
 {
-    TCGv tmp1 = tcg_temp_new(TCG_TYPE_I64);
-    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I64);
+    TCGv_i64 tmp1 = tcg_temp_new_i64();
+    TCGv_i64 tmp2 = tcg_temp_new_i64();
 
     tcg_gen_extu_i32_i64(tmp1, a);
     dead_tmp(a);
@@ -337,10 +342,10 @@ static TCGv gen_mulu_i64_i32(TCGv a, TCGv b)
     return tmp1;
 }
 
-static TCGv gen_muls_i64_i32(TCGv a, TCGv b)
+static TCGv_i64 gen_muls_i64_i32(TCGv a, TCGv b)
 {
-    TCGv tmp1 = tcg_temp_new(TCG_TYPE_I64);
-    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I64);
+    TCGv_i64 tmp1 = tcg_temp_new_i64();
+    TCGv_i64 tmp2 = tcg_temp_new_i64();
 
     tcg_gen_ext_i32_i64(tmp1, a);
     dead_tmp(a);
@@ -353,8 +358,8 @@ static TCGv gen_muls_i64_i32(TCGv a, TCGv b)
 /* Unsigned 32x32->64 multiply.  */
 static void gen_op_mull_T0_T1(void)
 {
-    TCGv tmp1 = tcg_temp_new(TCG_TYPE_I64);
-    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I64);
+    TCGv_i64 tmp1 = tcg_temp_new_i64();
+    TCGv_i64 tmp2 = tcg_temp_new_i64();
 
     tcg_gen_extu_i32_i64(tmp1, cpu_T[0]);
     tcg_gen_extu_i32_i64(tmp2, cpu_T[1]);
@@ -367,8 +372,8 @@ static void gen_op_mull_T0_T1(void)
 /* Signed 32x32->64 multiply.  */
 static void gen_imull(TCGv a, TCGv b)
 {
-    TCGv tmp1 = tcg_temp_new(TCG_TYPE_I64);
-    TCGv tmp2 = tcg_temp_new(TCG_TYPE_I64);
+    TCGv_i64 tmp1 = tcg_temp_new_i64();
+    TCGv_i64 tmp2 = tcg_temp_new_i64();
 
     tcg_gen_ext_i32_i64(tmp1, a);
     tcg_gen_ext_i32_i64(tmp2, b);
@@ -580,17 +585,17 @@ static inline void gen_arm_shift_reg(TCGv var, int shiftop,
     }
 static void gen_arm_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
 {
-    TCGv tmp;
+    TCGv_ptr tmp;
 
     switch (op1) {
 #define gen_pas_helper(name) glue(gen_helper_,name)(a, a, b, tmp)
     case 1:
-        tmp = tcg_temp_new(TCG_TYPE_PTR);
+        tmp = tcg_temp_new_ptr();
         tcg_gen_addi_ptr(tmp, cpu_env, offsetof(CPUState, GE));
         PAS_OP(s)
         break;
     case 5:
-        tmp = tcg_temp_new(TCG_TYPE_PTR);
+        tmp = tcg_temp_new_ptr();
         tcg_gen_addi_ptr(tmp, cpu_env, offsetof(CPUState, GE));
         PAS_OP(u)
         break;
@@ -625,17 +630,17 @@ static void gen_arm_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
     }
 static void gen_thumb2_parallel_addsub(int op1, int op2, TCGv a, TCGv b)
 {
-    TCGv tmp;
+    TCGv_ptr tmp;
 
     switch (op1) {
 #define gen_pas_helper(name) glue(gen_helper_,name)(a, a, b, tmp)
     case 0:
-        tmp = tcg_temp_new(TCG_TYPE_PTR);
+        tmp = tcg_temp_new_ptr();
         tcg_gen_addi_ptr(tmp, cpu_env, offsetof(CPUState, GE));
         PAS_OP(s)
         break;
     case 4:
-        tmp = tcg_temp_new(TCG_TYPE_PTR);
+        tmp = tcg_temp_new_ptr();
         tcg_gen_addi_ptr(tmp, cpu_env, offsetof(CPUState, GE));
         PAS_OP(u)
         break;
@@ -1181,12 +1186,12 @@ static void neon_store_reg(int reg, int pass, TCGv var)
     dead_tmp(var);
 }
 
-static inline void neon_load_reg64(TCGv var, int reg)
+static inline void neon_load_reg64(TCGv_i64 var, int reg)
 {
     tcg_gen_ld_i64(var, cpu_env, vfp_reg_offset(1, reg));
 }
 
-static inline void neon_store_reg64(TCGv var, int reg)
+static inline void neon_store_reg64(TCGv_i64 var, int reg)
 {
     tcg_gen_st_i64(var, cpu_env, vfp_reg_offset(1, reg));
 }
@@ -1222,12 +1227,12 @@ static inline void gen_mov_vreg_F0(int dp, int reg)
 
 #define ARM_CP_RW_BIT	(1 << 20)
 
-static inline void iwmmxt_load_reg(TCGv var, int reg)
+static inline void iwmmxt_load_reg(TCGv_i64 var, int reg)
 {
     tcg_gen_ld_i64(var, cpu_env, offsetof(CPUState, iwmmxt.regs[reg]));
 }
 
-static inline void iwmmxt_store_reg(TCGv var, int reg)
+static inline void iwmmxt_store_reg(TCGv_i64 var, int reg)
 {
     tcg_gen_st_i64(var, cpu_env, offsetof(CPUState, iwmmxt.regs[reg]));
 }
@@ -3907,7 +3912,7 @@ static void gen_neon_bsl(TCGv dest, TCGv t, TCGv f, TCGv c)
     tcg_gen_or_i32(dest, t, f);
 }
 
-static inline void gen_neon_narrow(int size, TCGv dest, TCGv src)
+static inline void gen_neon_narrow(int size, TCGv dest, TCGv_i64 src)
 {
     switch (size) {
     case 0: gen_helper_neon_narrow_u8(dest, src); break;
@@ -3917,7 +3922,7 @@ static inline void gen_neon_narrow(int size, TCGv dest, TCGv src)
     }
 }
 
-static inline void gen_neon_narrow_sats(int size, TCGv dest, TCGv src)
+static inline void gen_neon_narrow_sats(int size, TCGv dest, TCGv_i64 src)
 {
     switch (size) {
     case 0: gen_helper_neon_narrow_sat_s8(dest, cpu_env, src); break;
@@ -3927,7 +3932,7 @@ static inline void gen_neon_narrow_sats(int size, TCGv dest, TCGv src)
     }
 }
 
-static inline void gen_neon_narrow_satu(int size, TCGv dest, TCGv src)
+static inline void gen_neon_narrow_satu(int size, TCGv dest, TCGv_i64 src)
 {
     switch (size) {
     case 0: gen_helper_neon_narrow_sat_u8(dest, cpu_env, src); break;
@@ -3971,7 +3976,7 @@ static inline void gen_neon_shift_narrow(int size, TCGv var, TCGv shift,
     }
 }
 
-static inline void gen_neon_widen(TCGv dest, TCGv src, int size, int u)
+static inline void gen_neon_widen(TCGv_i64 dest, TCGv src, int size, int u)
 {
     if (u) {
         switch (size) {
@@ -4011,7 +4016,7 @@ static inline void gen_neon_subl(int size)
     }
 }
 
-static inline void gen_neon_negl(TCGv var, int size)
+static inline void gen_neon_negl(TCGv_i64 var, int size)
 {
     switch (size) {
     case 0: gen_helper_neon_negl_u16(var, var); break;
@@ -4021,7 +4026,7 @@ static inline void gen_neon_negl(TCGv var, int size)
     }
 }
 
-static inline void gen_neon_addl_saturate(TCGv op0, TCGv op1, int size)
+static inline void gen_neon_addl_saturate(TCGv_i64 op0, TCGv_i64 op1, int size)
 {
     switch (size) {
     case 1: gen_helper_neon_addl_saturate_s32(op0, cpu_env, op0, op1); break;
@@ -4030,9 +4035,9 @@ static inline void gen_neon_addl_saturate(TCGv op0, TCGv op1, int size)
     }
 }
 
-static inline void gen_neon_mull(TCGv dest, TCGv a, TCGv b, int size, int u)
+static inline void gen_neon_mull(TCGv_i64 dest, TCGv a, TCGv b, int size, int u)
 {
-    TCGv tmp;
+    TCGv_i64 tmp;
 
     switch ((size << 1) | u) {
     case 0: gen_helper_neon_mull_s8(dest, a, b); break;
@@ -4076,6 +4081,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
     TCGv tmp;
     TCGv tmp2;
     TCGv tmp3;
+    TCGv_i64 tmp64;
 
     if (!vfp_enabled(env))
       return 1;
@@ -4632,12 +4638,15 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     imm = (uint16_t)shift;
                     imm |= imm << 16;
                     tmp2 = tcg_const_i32(imm);
+                    TCGV_UNUSED_I64(tmp64);
                     break;
                 case 2:
                     imm = (uint32_t)shift;
                     tmp2 = tcg_const_i32(imm);
+                    TCGV_UNUSED_I64(tmp64);
                 case 3:
-                    tmp2 = tcg_const_i64(shift);
+                    tmp64 = tcg_const_i64(shift);
+                    TCGV_UNUSED(tmp2);
                     break;
                 default:
                     abort();
@@ -4648,14 +4657,14 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         neon_load_reg64(cpu_V0, rm + pass);
                         if (q) {
                           if (u)
-                            gen_helper_neon_rshl_u64(cpu_V0, cpu_V0, tmp2);
+                            gen_helper_neon_rshl_u64(cpu_V0, cpu_V0, tmp64);
                           else
-                            gen_helper_neon_rshl_s64(cpu_V0, cpu_V0, tmp2);
+                            gen_helper_neon_rshl_s64(cpu_V0, cpu_V0, tmp64);
                         } else {
                           if (u)
-                            gen_helper_neon_shl_u64(cpu_V0, cpu_V0, tmp2);
+                            gen_helper_neon_shl_u64(cpu_V0, cpu_V0, tmp64);
                           else
-                            gen_helper_neon_shl_s64(cpu_V0, cpu_V0, tmp2);
+                            gen_helper_neon_shl_s64(cpu_V0, cpu_V0, tmp64);
                         }
                     } else {
                         tmp = neon_load_reg(rm + pass, 0);
@@ -5130,16 +5139,16 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         neon_load_reg64(cpu_V1, rm);
                     }
                 } else if (q) {
-                    tmp = tcg_temp_new(TCG_TYPE_I64);
+                    tmp64 = tcg_temp_new_i64();
                     if (imm < 8) {
                         neon_load_reg64(cpu_V0, rn);
-                        neon_load_reg64(tmp, rn + 1);
+                        neon_load_reg64(tmp64, rn + 1);
                     } else {
                         neon_load_reg64(cpu_V0, rn + 1);
-                        neon_load_reg64(tmp, rm);
+                        neon_load_reg64(tmp64, rm);
                     }
                     tcg_gen_shri_i64(cpu_V0, cpu_V0, (imm & 7) * 8);
-                    tcg_gen_shli_i64(cpu_V1, tmp, 64 - ((imm & 7) * 8));
+                    tcg_gen_shli_i64(cpu_V1, tmp64, 64 - ((imm & 7) * 8));
                     tcg_gen_or_i64(cpu_V0, cpu_V0, cpu_V1);
                     if (imm < 8) {
                         neon_load_reg64(cpu_V1, rm);
@@ -5148,13 +5157,14 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         imm -= 8;
                     }
                     tcg_gen_shli_i64(cpu_V1, cpu_V1, 64 - (imm * 8));
-                    tcg_gen_shri_i64(tmp, tmp, imm * 8);
-                    tcg_gen_or_i64(cpu_V1, cpu_V1, tmp);
+                    tcg_gen_shri_i64(tmp64, tmp64, imm * 8);
+                    tcg_gen_or_i64(cpu_V1, cpu_V1, tmp64);
                 } else {
+                    /* BUGFIX */
                     neon_load_reg64(cpu_V0, rn);
-                    tcg_gen_shri_i32(cpu_V0, cpu_V0, imm * 8);
+                    tcg_gen_shri_i64(cpu_V0, cpu_V0, imm * 8);
                     neon_load_reg64(cpu_V1, rm);
-                    tcg_gen_shli_i32(cpu_V1, cpu_V1, 64 - (imm * 8));
+                    tcg_gen_shli_i64(cpu_V1, cpu_V1, 64 - (imm * 8));
                     tcg_gen_or_i64(cpu_V0, cpu_V0, cpu_V1);
                 }
                 neon_store_reg64(cpu_V0, rd);
@@ -5578,7 +5588,7 @@ static int disas_coproc_insn(CPUState * env, DisasContext *s, uint32_t insn)
 
 
 /* Store a 64-bit value to a register pair.  Clobbers val.  */
-static void gen_storeq_reg(DisasContext *s, int rlow, int rhigh, TCGv val)
+static void gen_storeq_reg(DisasContext *s, int rlow, int rhigh, TCGv_i64 val)
 {
     TCGv tmp;
     tmp = new_tmp();
@@ -5591,13 +5601,13 @@ static void gen_storeq_reg(DisasContext *s, int rlow, int rhigh, TCGv val)
 }
 
 /* load a 32-bit value from a register and perform a 64-bit accumulate.  */
-static void gen_addq_lo(DisasContext *s, TCGv val, int rlow)
+static void gen_addq_lo(DisasContext *s, TCGv_i64 val, int rlow)
 {
-    TCGv tmp;
+    TCGv_i64 tmp;
     TCGv tmp2;
 
     /* Load value and extend to 64 bits.  */
-    tmp = tcg_temp_new(TCG_TYPE_I64);
+    tmp = tcg_temp_new_i64();
     tmp2 = load_reg(s, rlow);
     tcg_gen_extu_i32_i64(tmp, tmp2);
     dead_tmp(tmp2);
@@ -5605,16 +5615,16 @@ static void gen_addq_lo(DisasContext *s, TCGv val, int rlow)
 }
 
 /* load and add a 64-bit value from a register pair.  */
-static void gen_addq(DisasContext *s, TCGv val, int rlow, int rhigh)
+static void gen_addq(DisasContext *s, TCGv_i64 val, int rlow, int rhigh)
 {
-    TCGv tmp;
+    TCGv_i64 tmp;
     TCGv tmpl;
     TCGv tmph;
 
     /* Load 64-bit value rd:rn.  */
     tmpl = load_reg(s, rlow);
     tmph = load_reg(s, rhigh);
-    tmp = tcg_temp_new(TCG_TYPE_I64);
+    tmp = tcg_temp_new_i64();
     tcg_gen_concat_i32_i64(tmp, tmpl, tmph);
     dead_tmp(tmpl);
     dead_tmp(tmph);
@@ -5622,7 +5632,7 @@ static void gen_addq(DisasContext *s, TCGv val, int rlow, int rhigh)
 }
 
 /* Set N and Z flags from a 64-bit value.  */
-static void gen_logicq_cc(TCGv val)
+static void gen_logicq_cc(TCGv_i64 val)
 {
     TCGv tmp = new_tmp();
     gen_helper_logicq_cc(tmp, val);
@@ -5637,6 +5647,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
     TCGv tmp2;
     TCGv tmp3;
     TCGv addr;
+    TCGv_i64 tmp64;
 
     insn = ldl_code(s->pc);
     s->pc += 4;
@@ -5971,10 +5982,10 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     tcg_gen_sari_i32(tmp2, tmp2, 16);
                 else
                     gen_sxth(tmp2);
-                tmp2 = gen_muls_i64_i32(tmp, tmp2);
-                tcg_gen_shri_i64(tmp2, tmp2, 16);
+                tmp64 = gen_muls_i64_i32(tmp, tmp2);
+                tcg_gen_shri_i64(tmp64, tmp64, 16);
                 tmp = new_tmp();
-                tcg_gen_trunc_i64_i32(tmp, tmp2);
+                tcg_gen_trunc_i64_i32(tmp, tmp64);
                 if ((sh & 2) == 0) {
                     tmp2 = load_reg(s, rn);
                     gen_helper_add_setq(tmp, tmp, tmp2);
@@ -5988,11 +5999,11 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_mulxy(tmp, tmp2, sh & 2, sh & 4);
                 dead_tmp(tmp2);
                 if (op1 == 2) {
-                    tmp2 = tcg_temp_new(TCG_TYPE_I64);
-                    tcg_gen_ext_i32_i64(tmp2, tmp);
+                    tmp64 = tcg_temp_new_i64();
+                    tcg_gen_ext_i32_i64(tmp64, tmp);
                     dead_tmp(tmp);
-                    gen_addq(s, tmp2, rn, rd);
-                    gen_storeq_reg(s, rn, rd, tmp2);
+                    gen_addq(s, tmp64, rn, rd);
+                    gen_storeq_reg(s, rn, rd, tmp64);
                 } else {
                     if (op1 == 0) {
                         tmp2 = load_reg(s, rn);
@@ -6205,19 +6216,19 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         tmp = load_reg(s, rs);
                         tmp2 = load_reg(s, rm);
                         if (insn & (1 << 22))
-                            tmp = gen_muls_i64_i32(tmp, tmp2);
+                            tmp64 = gen_muls_i64_i32(tmp, tmp2);
                         else
-                            tmp = gen_mulu_i64_i32(tmp, tmp2);
+                            tmp64 = gen_mulu_i64_i32(tmp, tmp2);
                         if (insn & (1 << 21)) /* mult accumulate */
-                            gen_addq(s, tmp, rn, rd);
+                            gen_addq(s, tmp64, rn, rd);
                         if (!(insn & (1 << 23))) { /* double accumulate */
                             ARCH(6);
-                            gen_addq_lo(s, tmp, rn);
-                            gen_addq_lo(s, tmp, rd);
+                            gen_addq_lo(s, tmp64, rn);
+                            gen_addq_lo(s, tmp64, rd);
                         }
                         if (insn & (1 << 20))
-                            gen_logicq_cc(tmp);
-                        gen_storeq_reg(s, rn, rd, tmp);
+                            gen_logicq_cc(tmp64);
+                        gen_storeq_reg(s, rn, rd, tmp64);
                         break;
                     }
                 } else {
@@ -6515,12 +6526,12 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     tmp2 = load_reg(s, rs);
                     if (insn & (1 << 20)) {
                         /* Signed multiply most significant [accumulate].  */
-                        tmp2 = gen_muls_i64_i32(tmp, tmp2);
+                        tmp64 = gen_muls_i64_i32(tmp, tmp2);
                         if (insn & (1 << 5))
-                            tcg_gen_addi_i64(tmp2, tmp2, 0x80000000u);
-                        tcg_gen_shri_i64(tmp2, tmp2, 32);
+                            tcg_gen_addi_i64(tmp64, tmp64, 0x80000000u);
+                        tcg_gen_shri_i64(tmp64, tmp64, 32);
                         tmp = new_tmp();
-                        tcg_gen_trunc_i64_i32(tmp, tmp2);
+                        tcg_gen_trunc_i64_i32(tmp, tmp64);
                         if (rn != 15) {
                             tmp2 = load_reg(s, rn);
                             if (insn & (1 << 6)) {
@@ -6544,11 +6555,11 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         dead_tmp(tmp2);
                         if (insn & (1 << 22)) {
                             /* smlald, smlsld */
-                            tmp2 = tcg_temp_new(TCG_TYPE_I64);
-                            tcg_gen_ext_i32_i64(tmp2, tmp);
+                            tmp64 = tcg_temp_new_i64();
+                            tcg_gen_ext_i32_i64(tmp64, tmp);
                             dead_tmp(tmp);
-                            gen_addq(s, tmp2, rd, rn);
-                            gen_storeq_reg(s, rd, rn, tmp2);
+                            gen_addq(s, tmp64, rd, rn);
+                            gen_storeq_reg(s, rd, rn, tmp64);
                         } else {
                             /* smuad, smusd, smlad, smlsd */
                             if (rd != 15)
@@ -6917,6 +6928,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
     TCGv tmp2;
     TCGv tmp3;
     TCGv addr;
+    TCGv_i64 tmp64;
     int op;
     int shiftop;
     int conds;
@@ -7393,10 +7405,10 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     tcg_gen_sari_i32(tmp2, tmp2, 16);
                 else
                     gen_sxth(tmp2);
-                tmp2 = gen_muls_i64_i32(tmp, tmp2);
-                tcg_gen_shri_i64(tmp2, tmp2, 16);
+                tmp64 = gen_muls_i64_i32(tmp, tmp2);
+                tcg_gen_shri_i64(tmp64, tmp64, 16);
                 tmp = new_tmp();
-                tcg_gen_trunc_i64_i32(tmp, tmp2);
+                tcg_gen_trunc_i64_i32(tmp, tmp64);
                 if (rs != 15)
                   {
                     tmp2 = load_reg(s, rs);
@@ -7460,36 +7472,38 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     tcg_gen_add_i32(tmp, tmp, tmp2);
                 }
                 dead_tmp(tmp2);
-                tmp2 = tcg_temp_new(TCG_TYPE_I64);
-                gen_addq(s, tmp, rs, rd);
-                gen_storeq_reg(s, rs, rd, tmp);
+                /* BUGFIX */
+                tmp64 = tcg_temp_new_i64();
+                tcg_gen_ext_i32_i64(tmp64, tmp);
+                dead_tmp(tmp);
+                gen_addq(s, tmp64, rs, rd);
+                gen_storeq_reg(s, rs, rd, tmp64);
             } else {
                 if (op & 0x20) {
                     /* Unsigned 64-bit multiply  */
-                    tmp = gen_mulu_i64_i32(tmp, tmp2);
+                    tmp64 = gen_mulu_i64_i32(tmp, tmp2);
                 } else {
                     if (op & 8) {
                         /* smlalxy */
                         gen_mulxy(tmp, tmp2, op & 2, op & 1);
                         dead_tmp(tmp2);
-                        tmp2 = tcg_temp_new(TCG_TYPE_I64);
-                        tcg_gen_ext_i32_i64(tmp2, tmp);
+                        tmp64 = tcg_temp_new_i64();
+                        tcg_gen_ext_i32_i64(tmp64, tmp);
                         dead_tmp(tmp);
-                        tmp = tmp2;
                     } else {
                         /* Signed 64-bit multiply  */
-                        tmp = gen_muls_i64_i32(tmp, tmp2);
+                        tmp64 = gen_muls_i64_i32(tmp, tmp2);
                     }
                 }
                 if (op & 4) {
                     /* umaal */
-                    gen_addq_lo(s, tmp, rs);
-                    gen_addq_lo(s, tmp, rd);
+                    gen_addq_lo(s, tmp64, rs);
+                    gen_addq_lo(s, tmp64, rd);
                 } else if (op & 0x40) {
                     /* 64-bit accumulate.  */
-                    gen_addq(s, tmp, rs, rd);
+                    gen_addq(s, tmp64, rs, rd);
                 }
-                gen_storeq_reg(s, rs, rd, tmp);
+                gen_storeq_reg(s, rs, rd, tmp64);
             }
             break;
         }
@@ -8618,14 +8632,14 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         dc->user = (env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR;
     }
 #endif
-    cpu_F0s = tcg_temp_new(TCG_TYPE_I32);
-    cpu_F1s = tcg_temp_new(TCG_TYPE_I32);
-    cpu_F0d = tcg_temp_new(TCG_TYPE_I64);
-    cpu_F1d = tcg_temp_new(TCG_TYPE_I64);
+    cpu_F0s = tcg_temp_new_i32();
+    cpu_F1s = tcg_temp_new_i32();
+    cpu_F0d = tcg_temp_new_i64();
+    cpu_F1d = tcg_temp_new_i64();
     cpu_V0 = cpu_F0d;
     cpu_V1 = cpu_F1d;
     /* FIXME: cpu_M0 can probably be the same as cpu_V0.  */
-    cpu_M0 = tcg_temp_new(TCG_TYPE_I64);
+    cpu_M0 = tcg_temp_new_i64();
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     lj = -1;
     num_insns = 0;

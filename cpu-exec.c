@@ -345,7 +345,7 @@ int cpu_exec(CPUState *env1)
 #ifdef USE_KQEMU
             if (kqemu_is_ok(env) && env->interrupt_request == 0) {
                 int ret;
-                env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
+                env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
                 ret = kqemu_cpu_exec(env);
                 /* put eflags in CPU temporary format */
                 CC_SRC = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
@@ -571,7 +571,7 @@ int cpu_exec(CPUState *env1)
                     /* restore flags in standard format */
                     regs_to_env();
 #if defined(TARGET_I386)
-                    env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
+                    env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
                     cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_ARM)
@@ -695,7 +695,7 @@ int cpu_exec(CPUState *env1)
 
 #if defined(TARGET_I386)
     /* restore flags in standard format */
-    env->eflags = env->eflags | cc_table[CC_OP].compute_all() | (DF & DF_MASK);
+    env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
 #elif defined(TARGET_ARM)
     /* XXX: Save/restore host fpu exception state?.  */
 #elif defined(TARGET_SPARC)
