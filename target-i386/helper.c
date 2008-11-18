@@ -34,8 +34,6 @@
 
 //#define DEBUG_MMU
 
-static int cpu_x86_register (CPUX86State *env, const char *cpu_model);
-
 static void add_flagname_to_bitmaps(char *flagname, uint32_t *features, 
                                     uint32_t *ext_features, 
                                     uint32_t *ext2_features, 
@@ -91,35 +89,6 @@ static void add_flagname_to_bitmaps(char *flagname, uint32_t *features,
             return;
         }
     fprintf(stderr, "CPU feature %s not found\n", flagname);
-}
-
-CPUX86State *cpu_x86_init(const char *cpu_model)
-{
-    CPUX86State *env;
-    static int inited;
-
-    env = qemu_mallocz(sizeof(CPUX86State));
-    if (!env)
-        return NULL;
-    cpu_exec_init(env);
-    env->cpu_model_str = cpu_model;
-
-    /* init various static tables */
-    if (!inited) {
-        inited = 1;
-        optimize_flags_init();
-    }
-    if (cpu_x86_register(env, cpu_model) < 0) {
-        cpu_x86_close(env);
-        return NULL;
-    }
-    cpu_reset(env);
-#ifdef USE_KQEMU
-    kqemu_init(env);
-#endif
-    if (kvm_enabled())
-        kvm_init_vcpu(env);
-    return env;
 }
 
 typedef struct x86_def_t {
@@ -499,6 +468,12 @@ void cpu_reset(CPUX86State *env)
     env->fpuc = 0x37f;
 
     env->mxcsr = 0x1f80;
+
+    memset(env->dr, 0, sizeof(env->dr));
+    env->dr[6] = DR6_FIXED_1;
+    env->dr[7] = DR7_FIXED_1;
+    cpu_breakpoint_remove_all(env, BP_CPU);
+    cpu_watchpoint_remove_all(env, BP_CPU);
 }
 
 void cpu_x86_close(CPUX86State *env)
@@ -1295,6 +1270,105 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     paddr = (pte & TARGET_PAGE_MASK) + page_offset;
     return paddr;
 }
+
+void hw_breakpoint_insert(CPUState *env, int index)
+{
+    int type, err = 0;
+
+    switch (hw_breakpoint_type(env->dr[7], index)) {
+    case 0:
+        if (hw_breakpoint_enabled(env->dr[7], index))
+            err = cpu_breakpoint_insert(env, env->dr[index], BP_CPU,
+                                        &env->cpu_breakpoint[index]);
+        break;
+    case 1:
+        type = BP_CPU | BP_MEM_WRITE;
+        goto insert_wp;
+    case 2:
+         /* No support for I/O watchpoints yet */
+        break;
+    case 3:
+        type = BP_CPU | BP_MEM_ACCESS;
+    insert_wp:
+        err = cpu_watchpoint_insert(env, env->dr[index],
+                                    hw_breakpoint_len(env->dr[7], index),
+                                    type, &env->cpu_watchpoint[index]);
+        break;
+    }
+    if (err)
+        env->cpu_breakpoint[index] = NULL;
+}
+
+void hw_breakpoint_remove(CPUState *env, int index)
+{
+    if (!env->cpu_breakpoint[index])
+        return;
+    switch (hw_breakpoint_type(env->dr[7], index)) {
+    case 0:
+        if (hw_breakpoint_enabled(env->dr[7], index))
+            cpu_breakpoint_remove_by_ref(env, env->cpu_breakpoint[index]);
+        break;
+    case 1:
+    case 3:
+        cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[index]);
+        break;
+    case 2:
+        /* No support for I/O watchpoints yet */
+        break;
+    }
+}
+
+int check_hw_breakpoints(CPUState *env, int force_dr6_update)
+{
+    target_ulong dr6;
+    int reg, type;
+    int hit_enabled = 0;
+
+    dr6 = env->dr[6] & ~0xf;
+    for (reg = 0; reg < 4; reg++) {
+        type = hw_breakpoint_type(env->dr[7], reg);
+        if ((type == 0 && env->dr[reg] == env->eip) ||
+            ((type & 1) && env->cpu_watchpoint[reg] &&
+             (env->cpu_watchpoint[reg]->flags & BP_WATCHPOINT_HIT))) {
+            dr6 |= 1 << reg;
+            if (hw_breakpoint_enabled(env->dr[7], reg))
+                hit_enabled = 1;
+        }
+    }
+    if (hit_enabled || force_dr6_update)
+        env->dr[6] = dr6;
+    return hit_enabled;
+}
+
+static CPUDebugExcpHandler *prev_debug_excp_handler;
+
+void raise_exception(int exception_index);
+
+static void breakpoint_handler(CPUState *env)
+{
+    CPUBreakpoint *bp;
+
+    if (env->watchpoint_hit) {
+        if (env->watchpoint_hit->flags & BP_CPU) {
+            env->watchpoint_hit = NULL;
+            if (check_hw_breakpoints(env, 0))
+                raise_exception(EXCP01_DB);
+            else
+                cpu_resume_from_signal(env, NULL);
+        }
+    } else {
+        for (bp = env->breakpoints; bp != NULL; bp = bp->next)
+            if (bp->pc == env->eip) {
+                if (bp->flags & BP_CPU) {
+                    check_hw_breakpoints(env, 1);
+                    raise_exception(EXCP01_DB);
+                }
+                break;
+            }
+    }
+    if (prev_debug_excp_handler)
+        prev_debug_excp_handler(env);
+}
 #endif /* !CONFIG_USER_ONLY */
 
 static void host_cpuid(uint32_t function, uint32_t *eax, uint32_t *ebx,
@@ -1531,4 +1605,37 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
         *edx = 0;
         break;
     }
+}
+
+CPUX86State *cpu_x86_init(const char *cpu_model)
+{
+    CPUX86State *env;
+    static int inited;
+
+    env = qemu_mallocz(sizeof(CPUX86State));
+    if (!env)
+        return NULL;
+    cpu_exec_init(env);
+    env->cpu_model_str = cpu_model;
+
+    /* init various static tables */
+    if (!inited) {
+        inited = 1;
+        optimize_flags_init();
+#ifndef CONFIG_USER_ONLY
+        prev_debug_excp_handler =
+            cpu_set_debug_excp_handler(breakpoint_handler);
+#endif
+    }
+    if (cpu_x86_register(env, cpu_model) < 0) {
+        cpu_x86_close(env);
+        return NULL;
+    }
+    cpu_reset(env);
+#ifdef USE_KQEMU
+    kqemu_init(env);
+#endif
+    if (kvm_enabled())
+        kvm_init_vcpu(env);
+    return env;
 }

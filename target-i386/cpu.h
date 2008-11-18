@@ -205,6 +205,16 @@
 #define CR4_OSFXSR_MASK (1 << CR4_OSFXSR_SHIFT)
 #define CR4_OSXMMEXCPT_MASK  (1 << 10)
 
+#define DR6_BD          (1 << 13)
+#define DR6_BS          (1 << 14)
+#define DR6_BT          (1 << 15)
+#define DR6_FIXED_1     0xffff0ff0
+
+#define DR7_GD          (1 << 13)
+#define DR7_TYPE_SHIFT  16
+#define DR7_LEN_SHIFT   18
+#define DR7_FIXED_1     0x00000400
+
 #define PG_PRESENT_BIT	0
 #define PG_RW_BIT	1
 #define PG_USER_BIT	2
@@ -362,7 +372,7 @@
 #define CPUID_MWAIT_EMX     (1 << 0) /* enumeration supported */
 
 #define EXCP00_DIVZ	0
-#define EXCP01_SSTP	1
+#define EXCP01_DB	1
 #define EXCP02_NMI	2
 #define EXCP03_INT3	3
 #define EXCP04_INTO	4
@@ -596,6 +606,10 @@ typedef struct CPUX86State {
     int exception_is_int;
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers */
+    union {
+        CPUBreakpoint *cpu_breakpoint[4];
+        CPUWatchpoint *cpu_watchpoint[4];
+    }; /* break/watchpoints for dr[0..3] */
     uint32_t smbase;
     int old_exception;  /* exception in flight */
 
@@ -788,6 +802,26 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
     env->regs[R_EAX] = 0;
 }
 #endif
+
+static inline int hw_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return (dr7 >> (index * 2)) & 3;
+}
+
+static inline int hw_breakpoint_type(unsigned long dr7, int index)
+{
+    return (dr7 >> (DR7_TYPE_SHIFT + (index * 2))) & 3;
+}
+
+static inline int hw_breakpoint_len(unsigned long dr7, int index)
+{
+    int len = ((dr7 >> (DR7_LEN_SHIFT + (index * 2))) & 3);
+    return (len == 2) ? 8 : len + 1;
+}
+
+void hw_breakpoint_insert(CPUState *env, int index);
+void hw_breakpoint_remove(CPUState *env, int index);
+int check_hw_breakpoints(CPUState *env, int force_dr6_update);
 
 #include "cpu-all.h"
 #include "exec-all.h"

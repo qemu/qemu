@@ -403,7 +403,7 @@ void cpu_loop(CPUX86State *env)
                 queue_signal(env, info.si_signo, &info);
             }
             break;
-        case EXCP01_SSTP:
+        case EXCP01_DB:
         case EXCP03_INT3:
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
@@ -413,7 +413,7 @@ void cpu_loop(CPUX86State *env)
             {
                 info.si_signo = SIGTRAP;
                 info.si_errno = 0;
-                if (trapnr == EXCP01_SSTP) {
+                if (trapnr == EXCP01_DB) {
                     info.si_code = TARGET_TRAP_BRKPT;
                     info._sifields._sigfault._addr = env->eip;
                 } else {

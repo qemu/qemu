@@ -496,6 +496,17 @@ static void switch_tss(int tss_selector,
         /* XXX: different exception if CALL ? */
         raise_exception_err(EXCP0D_GPF, 0);
     }
+
+#ifndef CONFIG_USER_ONLY
+    /* reset local breakpoints */
+    if (env->dr[7] & 0x55) {
+        for (i = 0; i < 4; i++) {
+            if (hw_breakpoint_enabled(env->dr[7], i) == 0x1)
+                hw_breakpoint_remove(env, i);
+        }
+        env->dr[7] &= ~0x55;
+    }
+#endif
 }
 
 /* check if Port I/O is allowed in TSS */
@@ -1879,8 +1890,11 @@ void helper_cmpxchg16b(target_ulong a0)
 
 void helper_single_step(void)
 {
-    env->dr[6] |= 0x4000;
-    raise_exception(EXCP01_SSTP);
+#ifndef CONFIG_USER_ONLY
+    check_hw_breakpoints(env, 1);
+    env->dr[6] |= DR6_BS;
+#endif
+    raise_exception(EXCP01_DB);
 }
 
 void helper_cpuid(void)
@@ -2868,6 +2882,10 @@ target_ulong helper_read_crN(int reg)
 void helper_write_crN(int reg, target_ulong t0)
 {
 }
+
+void helper_movl_drN_T0(int reg, target_ulong t0)
+{
+}
 #else
 target_ulong helper_read_crN(int reg)
 {
@@ -2913,6 +2931,24 @@ void helper_write_crN(int reg, target_ulong t0)
         break;
     }
 }
+
+void helper_movl_drN_T0(int reg, target_ulong t0)
+{
+    int i;
+
+    if (reg < 4) {
+        hw_breakpoint_remove(env, reg);
+        env->dr[reg] = t0;
+        hw_breakpoint_insert(env, reg);
+    } else if (reg == 7) {
+        for (i = 0; i < 4; i++)
+            hw_breakpoint_remove(env, i);
+        env->dr[7] = t0;
+        for (i = 0; i < 4; i++)
+            hw_breakpoint_insert(env, i);
+    } else
+        env->dr[reg] = t0;
+}
 #endif
 
 void helper_lmsw(target_ulong t0)
@@ -2927,12 +2963,6 @@ void helper_clts(void)
 {
     env->cr[0] &= ~CR0_TS_MASK;
     env->hflags &= ~HF_TS_MASK;
-}
-
-/* XXX: do more */
-void helper_movl_drN_T0(int reg, target_ulong t0)
-{
-    env->dr[reg] = t0;
 }
 
 void helper_invlpg(target_ulong addr)
