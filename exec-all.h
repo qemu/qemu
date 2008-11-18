@@ -387,4 +387,8 @@ static inline int kqemu_is_ok(CPUState *env)
 }
 
 #endif
+
+typedef void (CPUDebugExcpHandler)(CPUState *env);
+
+CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
 #endif

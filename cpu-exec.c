@@ -183,6 +183,16 @@ static inline TranslationBlock *tb_find_fast(void)
     return tb;
 }
 
+static CPUDebugExcpHandler *debug_excp_handler;
+
+CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
+{
+    CPUDebugExcpHandler *old_handler = debug_excp_handler;
+
+    debug_excp_handler = handler;
+    return old_handler;
+}
+
 static void cpu_handle_debug_exception(CPUState *env)
 {
     CPUWatchpoint *wp;
@@ -190,6 +200,9 @@ static void cpu_handle_debug_exception(CPUState *env)
     if (!env->watchpoint_hit)
         for (wp = env->watchpoints; wp != NULL; wp = wp->next)
             wp->flags &= ~BP_WATCHPOINT_HIT;
+
+    if (debug_excp_handler)
+        debug_excp_handler(env);
 }
 
 /* main execution loop */
