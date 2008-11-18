@@ -50,6 +50,9 @@ static KVMSlot *kvm_alloc_slot(KVMState *s)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(s->slots); i++) {
+        /* KVM private memory slots */
+        if (i >= 8 && i < 12)
+            continue;
         if (s->slots[i].memory_size == 0)
             return &s->slots[i];
     }
@@ -327,10 +330,45 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
 
             kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, mem);
         } else if (start_addr >= mem->guest_phys_addr &&
-                   (start_addr + size) <= (mem->guest_phys_addr + mem->memory_size))
-            return;
-    }
+                   (start_addr + size) <= (mem->guest_phys_addr +
+                                           mem->memory_size)) {
+            KVMSlot slot;
+            target_phys_addr_t mem_start;
+            ram_addr_t mem_size, mem_offset;
 
+            /* Not splitting */
+            if ((phys_offset - (start_addr - mem->guest_phys_addr)) == 
+                ((uint8_t *)mem->userspace_addr - phys_ram_base))
+                return;
+
+            /* unregister whole slot */
+            memcpy(&slot, mem, sizeof(slot));
+            mem->memory_size = 0;
+            kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, mem);
+
+            /* register prefix slot */
+            mem_start = slot.guest_phys_addr;
+            mem_size = start_addr - slot.guest_phys_addr;
+            mem_offset = (uint8_t *)slot.userspace_addr - phys_ram_base;
+            if (mem_size)
+                kvm_set_phys_mem(mem_start, mem_size, mem_offset);
+
+            /* register new slot */
+            kvm_set_phys_mem(start_addr, size, phys_offset);
+
+            /* register suffix slot */
+            mem_start = start_addr + size;
+            mem_offset += mem_size + size;
+            mem_size = slot.memory_size - mem_size - size;
+            if (mem_size)
+                kvm_set_phys_mem(mem_start, mem_size, mem_offset);
+
+            return;
+        } else {
+            printf("Registering overlapping slot\n");
+            abort();
+        }
+    }
     /* KVM does not need to know about this memory */
     if (flags >= IO_MEM_UNASSIGNED)
         return;
