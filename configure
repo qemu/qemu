@@ -32,7 +32,7 @@ ar="ar"
 make="make"
 install="install"
 strip="strip"
-cpu=`uname -m`
+cpu=`test $(uname -s) = AIX && uname -p || uname -m`
 target_list=""
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
@@ -68,7 +68,7 @@ case "$cpu" in
   mips64)
     cpu="mips64"
   ;;
-  "Power Macintosh"|ppc|ppc64)
+  "Power Macintosh"|ppc|ppc64|powerpc)
     cpu="powerpc"
   ;;
   s390*)
@@ -117,6 +117,7 @@ mixemu="no"
 bluez="yes"
 kvm="yes"
 kerneldir=""
+aix="no"
 
 # OS specific
 targetos=`uname -s`
@@ -205,6 +206,10 @@ SunOS)
         audio_drv_list="oss"
     fi
     audio_possible_drivers="oss sdl"
+;;
+AIX)
+aix="yes"
+make="gmake"
 ;;
 *)
 audio_drv_list="oss"
@@ -1220,6 +1225,12 @@ if test "$darwin" = "yes" ; then
   echo "CONFIG_DARWIN=yes" >> $config_mak
   echo "#define CONFIG_DARWIN 1" >> $config_h
 fi
+
+if test "$aix" = "yes" ; then
+  echo "CONFIG_AIX=yes" >> $config_mak
+  echo "#define CONFIG_AIX 1" >> $config_h
+fi
+
 if test "$solaris" = "yes" ; then
   echo "CONFIG_SOLARIS=yes" >> $config_mak
   echo "#define HOST_SOLARIS $solarisrev" >> $config_h

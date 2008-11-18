@@ -780,6 +780,12 @@ static int tap_open(char *ifname, int ifname_size)
     fcntl(fd, F_SETFL, O_NONBLOCK);
     return fd;
 }
+#elif defined (_AIX)
+static int tap_open(char *ifname, int ifname_size)
+{
+    fprintf (stderr, "no tap on AIX\n");
+    return -1;
+}
 #else
 static int tap_open(char *ifname, int ifname_size)
 {
@@ -1441,6 +1447,7 @@ int net_client_init(const char *device, const char *p)
         vlan->nb_host_devs++;
         ret = tap_win32_init(vlan, ifname);
     } else
+#elif defined (_AIX)
 #else
     if (!strcmp(device, "tap")) {
         char ifname[64];

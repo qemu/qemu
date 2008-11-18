@@ -37,6 +37,9 @@
 #ifdef _WIN32
 #include <malloc.h>
 #endif
+#ifdef _AIX
+#include <alloca.h>
+#endif
 
 #include "config.h"
 #include "qemu-common.h"

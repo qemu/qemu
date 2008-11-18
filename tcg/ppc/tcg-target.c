@@ -27,6 +27,9 @@ static uint8_t *tb_ret_addr;
 #ifdef __APPLE__
 #define LINKAGE_AREA_SIZE 24
 #define LR_OFFSET 8
+#elif defined _AIX
+#define LINKAGE_AREA_SIZE 52
+#define LR_OFFSET 8
 #else
 #define LINKAGE_AREA_SIZE 8
 #define LR_OFFSET 4
@@ -135,6 +138,9 @@ static const int tcg_target_call_oarg_regs[2] = {
 static const int tcg_target_callee_save_regs[] = {
 #ifdef __APPLE__
     TCG_REG_R11,
+    TCG_REG_R13,
+#endif
+#ifdef _AIX
     TCG_REG_R13,
 #endif
     TCG_REG_R14,
@@ -455,6 +461,24 @@ static void tcg_out_b (TCGContext *s, int mask, tcg_target_long target)
     }
 }
 
+#ifdef _AIX
+static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg)
+{
+    int reg;
+
+    if (const_arg) {
+        reg = 2;
+        tcg_out_movi (s, TCG_TYPE_I32, reg, arg);
+    }
+    else reg = arg;
+
+    tcg_out32 (s, LWZ | RT (0) | RA (reg));
+    tcg_out32 (s, MTSPR | RA (0) | CTR);
+    tcg_out32 (s, LWZ | RT (2) | RA (reg) | 4);
+    tcg_out32 (s, BCCTR | BO_ALWAYS | LK);
+}
+#endif
+
 #if defined(CONFIG_SOFTMMU)
 
 #include "../../softmmu_defs.h"
@@ -548,7 +572,11 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     tcg_out_movi (s, TCG_TYPE_I32, 5, mem_index);
 #endif
 
+#ifdef _AIX
+    tcg_out_call (s, (tcg_target_long) qemu_ld_helpers[s_bits], 1);
+#else
     tcg_out_b (s, LK, (tcg_target_long) qemu_ld_helpers[s_bits]);
+#endif
     switch (opc) {
     case 0|4:
         tcg_out32 (s, EXTSB | RA (data_reg) | RS (3));
@@ -766,7 +794,11 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     ir++;
 
     tcg_out_movi (s, TCG_TYPE_I32, ir, mem_index);
+#ifdef _AIX
+    tcg_out_call (s, (tcg_target_long) qemu_st_helpers[opc], 1);
+#else
     tcg_out_b (s, LK, (tcg_target_long) qemu_st_helpers[opc]);
+#endif
     label2_ptr = s->code_ptr;
     tcg_out32 (s, B);
 
@@ -836,6 +868,16 @@ void tcg_target_qemu_prologue (TCGContext *s)
         ;
     frame_size = (frame_size + 15) & ~15;
 
+#ifdef _AIX
+    {
+        uint32_t addr;
+
+        /* First emit adhoc function descriptor */
+        addr = (uint32_t) s->code_ptr + 12;
+        tcg_out32 (s, addr);        /* entry point */
+        s->code_ptr += 8;           /* skip TOC and environment pointer */
+    }
+#endif
     tcg_out32 (s, MFSPR | RT (0) | LR);
     tcg_out32 (s, STWU | RS (1) | RA (1) | (-frame_size & 0xffff));
     for (i = 0; i < ARRAY_SIZE (tcg_target_callee_save_regs); ++i)
@@ -1106,6 +1148,9 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         }
         break;
     case INDEX_op_call:
+#ifdef _AIX
+        tcg_out_call (s, args[0], const_args[0]);
+#else
         if (const_args[0]) {
             tcg_out_b (s, LK, args[0]);
         }
@@ -1113,6 +1158,7 @@ static void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
             tcg_out32 (s, MTSPR | RS (args[0]) | LR);
             tcg_out32 (s, BCLR | BO_ALWAYS | LK);
         }
+#endif
         break;
     case INDEX_op_jmp:
         if (const_args[0]) {
