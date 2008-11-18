@@ -1301,14 +1301,21 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
                           int flags, CPUWatchpoint **watchpoint)
 {
+    target_ulong len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
+    /* sanity checks: allow power-of-2 lengths, deny unaligned watchpoints */
+    if ((len != 1 && len != 2 && len != 4 && len != 8) || (addr & ~len_mask)) {
+        fprintf(stderr, "qemu: tried to set invalid watchpoint at "
+                TARGET_FMT_lx ", len=" TARGET_FMT_lu "\n", addr, len);
+        return -EINVAL;
+    }
     wp = qemu_malloc(sizeof(*wp));
     if (!wp)
         return -ENOBUFS;
 
     wp->vaddr = addr;
-    wp->len_mask = 0;
+    wp->len_mask = len_mask;
     wp->flags = flags;
 
     wp->next = env->watchpoints;
@@ -1332,10 +1339,12 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
 int cpu_watchpoint_remove(CPUState *env, target_ulong addr, target_ulong len,
                           int flags)
 {
+    target_ulong len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
     for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
-        if (addr == wp->vaddr && flags == wp->flags) {
+        if (addr == wp->vaddr && len_mask == wp->len_mask
+                && flags == wp->flags) {
             cpu_watchpoint_remove_by_ref(env, wp);
             return 0;
         }
@@ -2494,7 +2503,7 @@ static CPUWriteMemoryFunc *notdirty_mem_write[3] = {
 };
 
 /* Generate a debug exception if a watchpoint has been hit.  */
-static void check_watchpoint(int offset, int flags)
+static void check_watchpoint(int offset, int len_mask, int flags)
 {
     CPUState *env = cpu_single_env;
     target_ulong vaddr;
@@ -2502,7 +2511,8 @@ static void check_watchpoint(int offset, int flags)
 
     vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
     for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
-        if (vaddr == wp->vaddr && (wp->flags & flags)) {
+        if ((vaddr == (wp->vaddr & len_mask) ||
+             (vaddr & wp->len_mask) == wp->vaddr) && (wp->flags & flags)) {
             env->watchpoint_hit = wp;
             cpu_interrupt(env, CPU_INTERRUPT_DEBUG);
             break;
@@ -2515,40 +2525,40 @@ static void check_watchpoint(int offset, int flags)
    phys routines.  */
 static uint32_t watch_mem_readb(void *opaque, target_phys_addr_t addr)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, BP_MEM_READ);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x0, BP_MEM_READ);
     return ldub_phys(addr);
 }
 
 static uint32_t watch_mem_readw(void *opaque, target_phys_addr_t addr)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, BP_MEM_READ);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x1, BP_MEM_READ);
     return lduw_phys(addr);
 }
 
 static uint32_t watch_mem_readl(void *opaque, target_phys_addr_t addr)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, BP_MEM_READ);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x3, BP_MEM_READ);
     return ldl_phys(addr);
 }
 
 static void watch_mem_writeb(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, BP_MEM_WRITE);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x0, BP_MEM_WRITE);
     stb_phys(addr, val);
 }
 
 static void watch_mem_writew(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, BP_MEM_WRITE);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x1, BP_MEM_WRITE);
     stw_phys(addr, val);
 }
 
 static void watch_mem_writel(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, BP_MEM_WRITE);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x3, BP_MEM_WRITE);
     stl_phys(addr, val);
 }
 
