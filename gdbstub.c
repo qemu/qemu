@@ -1493,6 +1493,7 @@ static void gdb_vm_stopped(void *opaque, int reason)
 {
     GDBState *s = opaque;
     char buf[256];
+    const char *type;
     int ret;
 
     if (s->state == RS_SYSCALL)
@@ -1503,8 +1504,20 @@ static void gdb_vm_stopped(void *opaque, int reason)
 
     if (reason == EXCP_DEBUG) {
         if (s->env->watchpoint_hit) {
-            snprintf(buf, sizeof(buf), "T%02xwatch:" TARGET_FMT_lx ";",
-                     SIGTRAP,
+            switch (s->env->watchpoint[s->env->watchpoint_hit - 1].type &
+                    (PAGE_READ | PAGE_WRITE)) {
+            case PAGE_READ:
+                type = "r";
+                break;
+            case PAGE_READ | PAGE_WRITE:
+                type = "a";
+                break;
+            default:
+                type = "";
+                break;
+            }
+            snprintf(buf, sizeof(buf), "T%02x%swatch:" TARGET_FMT_lx ";",
+                     SIGTRAP, type,
                      s->env->watchpoint[s->env->watchpoint_hit - 1].vaddr);
             put_packet(s, buf);
             s->env->watchpoint_hit = 0;
