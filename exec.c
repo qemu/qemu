@@ -1340,7 +1340,7 @@ int cpu_watchpoint_remove(CPUState *env, target_ulong addr, target_ulong len,
 
     for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
         if (addr == wp->vaddr && len_mask == wp->len_mask
-                && flags == wp->flags) {
+                && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
             cpu_watchpoint_remove_by_ref(env, wp);
             return 0;
         }
@@ -2519,21 +2519,26 @@ static void check_watchpoint(int offset, int len_mask, int flags)
     for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
         if ((vaddr == (wp->vaddr & len_mask) ||
              (vaddr & wp->len_mask) == wp->vaddr) && (wp->flags & flags)) {
-            env->watchpoint_hit = wp;
-            tb = tb_find_pc(env->mem_io_pc);
-            if (!tb) {
-                cpu_abort(env, "check_watchpoint: could not find TB for pc=%p",
-                         (void *)env->mem_io_pc);
+            wp->flags |= BP_WATCHPOINT_HIT;
+            if (!env->watchpoint_hit) {
+                env->watchpoint_hit = wp;
+                tb = tb_find_pc(env->mem_io_pc);
+                if (!tb) {
+                    cpu_abort(env, "check_watchpoint: could not find TB for "
+                              "pc=%p", (void *)env->mem_io_pc);
+                }
+                cpu_restore_state(tb, env, env->mem_io_pc, NULL);
+                tb_phys_invalidate(tb, -1);
+                if (wp->flags & BP_STOP_BEFORE_ACCESS) {
+                    env->exception_index = EXCP_DEBUG;
+                } else {
+                    cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
+                    tb_gen_code(env, pc, cs_base, cpu_flags, 1);
+                }
+                cpu_resume_from_signal(env, NULL);
             }
-            cpu_restore_state(tb, env, env->mem_io_pc, NULL);
-            tb_phys_invalidate(tb, -1);
-            if (wp->flags & BP_STOP_BEFORE_ACCESS) {
-                env->exception_index = EXCP_DEBUG;
-            } else {
-                cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
-                tb_gen_code(env, pc, cs_base, cpu_flags, 1);
-            }
-            cpu_resume_from_signal(env, NULL);
+        } else {
+            wp->flags &= ~BP_WATCHPOINT_HIT;
         }
     }
 }

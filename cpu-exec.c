@@ -183,6 +183,15 @@ static inline TranslationBlock *tb_find_fast(void)
     return tb;
 }
 
+static void cpu_handle_debug_exception(CPUState *env)
+{
+    CPUWatchpoint *wp;
+
+    if (!env->watchpoint_hit)
+        for (wp = env->watchpoints; wp != NULL; wp = wp->next)
+            wp->flags &= ~BP_WATCHPOINT_HIT;
+}
+
 /* main execution loop */
 
 int cpu_exec(CPUState *env1)
@@ -237,6 +246,8 @@ int cpu_exec(CPUState *env1)
                 if (env->exception_index >= EXCP_INTERRUPT) {
                     /* exit request from the cpu execution loop */
                     ret = env->exception_index;
+                    if (ret == EXCP_DEBUG)
+                        cpu_handle_debug_exception(env);
                     break;
                 } else if (env->user_mode_only) {
                     /* if user mode only, we simulate a fake exception
