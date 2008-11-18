@@ -510,4 +510,20 @@ static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
     env->npc = tb->cs_base;
 }
 
+static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+                                        target_ulong *cs_base, int *flags)
+{
+    *pc = env->pc;
+    *cs_base = env->npc;
+#ifdef TARGET_SPARC64
+    // AM . Combined FPU enable bits . PRIV . DMMU enabled . IMMU enabled
+    *flags = ((env->pstate & PS_AM) << 2)
+        | (((env->pstate & PS_PEF) >> 1) | ((env->fprs & FPRS_FEF) << 2))
+        | (env->pstate & PS_PRIV) | ((env->lsu & (DMMU_E | IMMU_E)) >> 2);
+#else
+    // FPU enable . Supervisor
+    *flags = (env->psref << 4) | env->psrs;
+#endif
+}
+
 #endif

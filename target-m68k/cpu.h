@@ -239,4 +239,14 @@ static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
     env->pc = tb->pc;
 }
 
+static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+                                        target_ulong *cs_base, int *flags)
+{
+    *pc = env->pc;
+    *cs_base = 0;
+    *flags = (env->fpcr & M68K_FPCR_PREC)       /* Bit  6 */
+            | (env->sr & SR_S)                  /* Bit  13 */
+            | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
+}
+
 #endif

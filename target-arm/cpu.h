@@ -423,4 +423,17 @@ static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
     env->regs[15] = tb->pc;
 }
 
+static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+                                        target_ulong *cs_base, int *flags)
+{
+    *pc = env->regs[15];
+    *cs_base = 0;
+    *flags = env->thumb | (env->vfp.vec_len << 1)
+            | (env->vfp.vec_stride << 4) | (env->condexec_bits << 8);
+    if ((env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR)
+        *flags |= (1 << 6);
+    if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30))
+        *flags |= (1 << 7);
+}
+
 #endif
