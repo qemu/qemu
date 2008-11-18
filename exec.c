@@ -412,7 +412,7 @@ static void code_gen_alloc(unsigned long tb_size)
         /* in user mode, phys_ram_size is not meaningful */
         code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
 #else
-        /* XXX: needs ajustments */
+        /* XXX: needs adjustments */
         code_gen_buffer_size = (int)(phys_ram_size / 4);
 #endif
     }
