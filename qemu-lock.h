@@ -63,12 +63,11 @@ static inline int testandset (int *p)
 {
     int ret;
     __asm__ __volatile__ (
-                          "0:    lwarx %0,0,%1\n"
+                          "      lwarx %0,0,%1\n"
                           "      xor. %0,%3,%0\n"
-                          "      bne 1f\n"
+                          "      bne $+12\n"
                           "      stwcx. %2,0,%1\n"
-                          "      bne- 0b\n"
-                          "1:    "
+                          "      bne- $-16\n"
                           : "=&r" (ret)
                           : "r" (p), "r" (1), "r" (0)
                           : "cr0", "memory");
