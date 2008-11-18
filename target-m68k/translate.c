@@ -3027,12 +3027,6 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
         num_insns++;
-
-        /* Terminate the TB on memory ops if watchpoints are present.  */
-        /* FIXME: This should be replaced by the deterministic execution
-         * IRQ raising bits.  */
-        if (dc->is_mem && env->watchpoints)
-            break;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32) &&

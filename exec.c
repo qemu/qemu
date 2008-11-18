@@ -1325,10 +1325,6 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
     env->watchpoints = wp;
 
     tlb_flush_page(env, addr);
-    /* FIXME: This flush is needed because of the hack to make memory ops
-       terminate the TB.  It can be removed once the proper IO trap and
-       re-execute bits are in.  */
-    tb_flush(env);
 
     if (watchpoint)
         *watchpoint = wp;

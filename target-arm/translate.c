@@ -8729,12 +8729,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
             gen_set_label(dc->condlabel);
             dc->condjmp = 0;
         }
-        /* Terminate the TB on memory ops if watchpoints are present.  */
-        /* FIXME: This should be replacd by the deterministic execution
-         * IRQ raising bits.  */
-        if (dc->is_mem && env->watchpoints)
-            break;
-
         /* Translation stops when a conditional branch is enoutered.
          * Otherwise the subsequent code could get translated several times.
          * Also stop translation when a page boundary is reached.  This
