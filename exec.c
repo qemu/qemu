@@ -1312,7 +1312,7 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
     }
     wp = qemu_malloc(sizeof(*wp));
     if (!wp)
-        return -ENOBUFS;
+        return -ENOMEM;
 
     wp->vaddr = addr;
     wp->len_mask = len_mask;
@@ -1397,7 +1397,7 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
 
     bp = qemu_malloc(sizeof(*bp));
     if (!bp)
-        return -ENOBUFS;
+        return -ENOMEM;
 
     bp->pc = pc;
     bp->flags = flags;
