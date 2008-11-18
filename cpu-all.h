@@ -768,6 +768,7 @@ void cpu_reset_interrupt(CPUState *env, int mask);
 #define BP_STOP_BEFORE_ACCESS 0x04
 #define BP_WATCHPOINT_HIT     0x08
 #define BP_GDB                0x10
+#define BP_CPU                0x20
 
 int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
                           CPUBreakpoint **breakpoint);

@@ -1302,7 +1302,7 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
                           int flags, CPUWatchpoint **watchpoint)
 {
     target_ulong len_mask = ~(len - 1);
-    CPUWatchpoint *wp;
+    CPUWatchpoint *wp, *prev_wp;
 
     /* sanity checks: allow power-of-2 lengths, deny unaligned watchpoints */
     if ((len != 1 && len != 2 && len != 4 && len != 8) || (addr & ~len_mask)) {
@@ -1318,11 +1318,26 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
     wp->len_mask = len_mask;
     wp->flags = flags;
 
-    wp->next = env->watchpoints;
-    wp->prev = NULL;
+    /* keep all GDB-injected watchpoints in front */
+    if (!(flags & BP_GDB) && env->watchpoints) {
+        prev_wp = env->watchpoints;
+        while (prev_wp->next != NULL && (prev_wp->next->flags & BP_GDB))
+            prev_wp = prev_wp->next;
+    } else {
+        prev_wp = NULL;
+    }
+
+    /* Insert new watchpoint */
+    if (prev_wp) {
+        wp->next = prev_wp->next;
+        prev_wp->next = wp;
+    } else {
+        wp->next = env->watchpoints;
+        env->watchpoints = wp;
+    }
     if (wp->next)
         wp->next->prev = wp;
-    env->watchpoints = wp;
+    wp->prev = prev_wp;
 
     tlb_flush_page(env, addr);
 
@@ -1378,7 +1393,7 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
                           CPUBreakpoint **breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    CPUBreakpoint *bp;
+    CPUBreakpoint *bp, *prev_bp;
 
     bp = qemu_malloc(sizeof(*bp));
     if (!bp)
@@ -1387,11 +1402,26 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
     bp->pc = pc;
     bp->flags = flags;
 
-    bp->next = env->breakpoints;
-    bp->prev = NULL;
+    /* keep all GDB-injected breakpoints in front */
+    if (!(flags & BP_GDB) && env->breakpoints) {
+        prev_bp = env->breakpoints;
+        while (prev_bp->next != NULL && (prev_bp->next->flags & BP_GDB))
+            prev_bp = prev_bp->next;
+    } else {
+        prev_bp = NULL;
+    }
+
+    /* Insert new breakpoint */
+    if (prev_bp) {
+        bp->next = prev_bp->next;
+        prev_bp->next = bp;
+    } else {
+        bp->next = env->breakpoints;
+        env->breakpoints = bp;
+    }
     if (bp->next)
         bp->next->prev = bp;
-    env->breakpoints = bp;
+    bp->prev = prev_bp;
 
     breakpoint_invalidate(env, pc);
 
