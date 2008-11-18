@@ -4778,6 +4778,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     target_ulong pc_start, last_pc;
     uint16_t *gen_opc_end;
     DisasContext dc1, *dc = &dc1;
+    CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
     int max_insns;
@@ -4815,9 +4816,9 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         max_insns = CF_COUNT_MASK;
     gen_icount_start();
     do {
-        if (env->nb_breakpoints > 0) {
-            for(j = 0; j < env->nb_breakpoints; j++) {
-                if (env->breakpoints[j] == dc->pc) {
+        if (unlikely(env->breakpoints)) {
+            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+                if (bp->pc == dc->pc) {
                     if (dc->pc != pc_start)
                         save_state(dc, cpu_cond);
                     gen_helper_debug();

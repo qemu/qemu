@@ -1145,10 +1145,70 @@ void gdb_register_coprocessor(CPUState * env,
     }
 }
 
+/* GDB breakpoint/watchpoint types */
+#define GDB_BREAKPOINT_SW        0
+#define GDB_BREAKPOINT_HW        1
+#define GDB_WATCHPOINT_WRITE     2
+#define GDB_WATCHPOINT_READ      3
+#define GDB_WATCHPOINT_ACCESS    4
+
+#ifndef CONFIG_USER_ONLY
+static const int xlat_gdb_type[] = {
+    [GDB_WATCHPOINT_WRITE]  = BP_GDB | BP_MEM_WRITE,
+    [GDB_WATCHPOINT_READ]   = BP_GDB | BP_MEM_READ,
+    [GDB_WATCHPOINT_ACCESS] = BP_GDB | BP_MEM_ACCESS,
+};
+#endif
+
+static int gdb_breakpoint_insert(CPUState *env, target_ulong addr,
+                                 target_ulong len, int type)
+{
+    switch (type) {
+    case GDB_BREAKPOINT_SW:
+    case GDB_BREAKPOINT_HW:
+        return cpu_breakpoint_insert(env, addr, BP_GDB, NULL);
+#ifndef CONFIG_USER_ONLY
+    case GDB_WATCHPOINT_WRITE:
+    case GDB_WATCHPOINT_READ:
+    case GDB_WATCHPOINT_ACCESS:
+        return cpu_watchpoint_insert(env, addr, len, xlat_gdb_type[type],
+                                     NULL);
+#endif
+    default:
+        return -ENOSYS;
+    }
+}
+
+static int gdb_breakpoint_remove(CPUState *env, target_ulong addr,
+                                 target_ulong len, int type)
+{
+    switch (type) {
+    case GDB_BREAKPOINT_SW:
+    case GDB_BREAKPOINT_HW:
+        return cpu_breakpoint_remove(env, addr, BP_GDB);
+#ifndef CONFIG_USER_ONLY
+    case GDB_WATCHPOINT_WRITE:
+    case GDB_WATCHPOINT_READ:
+    case GDB_WATCHPOINT_ACCESS:
+        return cpu_watchpoint_remove(env, addr, len, xlat_gdb_type[type]);
+#endif
+    default:
+        return -ENOSYS;
+    }
+}
+
+static void gdb_breakpoint_remove_all(CPUState *env)
+{
+    cpu_breakpoint_remove_all(env, BP_GDB);
+#ifndef CONFIG_USER_ONLY
+    cpu_watchpoint_remove_all(env, BP_GDB);
+#endif
+}
+
 static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
 {
     const char *p;
-    int ch, reg_size, type;
+    int ch, reg_size, type, res;
     char buf[MAX_PACKET_LENGTH];
     uint8_t mem_buf[MAX_PACKET_LENGTH];
     uint8_t *registers;
@@ -1168,8 +1228,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
          * because gdb is doing and initial connect and the state
          * should be cleaned up.
          */
-        cpu_breakpoint_remove_all(env);
-        cpu_watchpoint_remove_all(env);
+        gdb_breakpoint_remove_all(env);
         break;
     case 'c':
         if (*p != '\0') {
@@ -1203,8 +1262,7 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         exit(0);
     case 'D':
         /* Detach packet */
-        cpu_breakpoint_remove_all(env);
-        cpu_watchpoint_remove_all(env);
+        gdb_breakpoint_remove_all(env);
         gdb_continue(s);
         put_packet(s, "OK");
         break;
@@ -1327,44 +1385,6 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         put_packet(s, "OK");
         break;
     case 'Z':
-        type = strtoul(p, (char **)&p, 16);
-        if (*p == ',')
-            p++;
-        addr = strtoull(p, (char **)&p, 16);
-        if (*p == ',')
-            p++;
-        len = strtoull(p, (char **)&p, 16);
-        switch (type) {
-        case 0:
-        case 1:
-            if (cpu_breakpoint_insert(env, addr) < 0)
-                goto breakpoint_error;
-            put_packet(s, "OK");
-            break;
-#ifndef CONFIG_USER_ONLY
-        case 2:
-            type = PAGE_WRITE;
-            goto insert_watchpoint;
-        case 3:
-            type = PAGE_READ;
-            goto insert_watchpoint;
-        case 4:
-            type = PAGE_READ | PAGE_WRITE;
-        insert_watchpoint:
-            if (cpu_watchpoint_insert(env, addr, type) < 0)
-                goto breakpoint_error;
-            put_packet(s, "OK");
-            break;
-#endif
-        default:
-            put_packet(s, "");
-            break;
-        }
-        break;
-    breakpoint_error:
-        put_packet(s, "E22");
-        break;
-
     case 'z':
         type = strtoul(p, (char **)&p, 16);
         if (*p == ',')
@@ -1373,17 +1393,16 @@ static int gdb_handle_packet(GDBState *s, CPUState *env, const char *line_buf)
         if (*p == ',')
             p++;
         len = strtoull(p, (char **)&p, 16);
-        if (type == 0 || type == 1) {
-            cpu_breakpoint_remove(env, addr);
-            put_packet(s, "OK");
-#ifndef CONFIG_USER_ONLY
-        } else if (type >= 2 || type <= 4) {
-            cpu_watchpoint_remove(env, addr);
-            put_packet(s, "OK");
-#endif
-        } else {
+        if (ch == 'Z')
+            res = gdb_breakpoint_insert(env, addr, len, type);
+        else
+            res = gdb_breakpoint_remove(env, addr, len, type);
+        if (res >= 0)
+             put_packet(s, "OK");
+        else if (res == -ENOSYS)
             put_packet(s, "");
-        }
+        else
+            put_packet(s, "E22");
         break;
     case 'q':
     case 'Q':
@@ -1504,12 +1523,11 @@ static void gdb_vm_stopped(void *opaque, int reason)
 
     if (reason == EXCP_DEBUG) {
         if (s->env->watchpoint_hit) {
-            switch (s->env->watchpoint[s->env->watchpoint_hit - 1].type &
-                    (PAGE_READ | PAGE_WRITE)) {
-            case PAGE_READ:
+            switch (s->env->watchpoint_hit->flags & BP_MEM_ACCESS) {
+            case BP_MEM_READ:
                 type = "r";
                 break;
-            case PAGE_READ | PAGE_WRITE:
+            case BP_MEM_ACCESS:
                 type = "a";
                 break;
             default:
@@ -1517,10 +1535,9 @@ static void gdb_vm_stopped(void *opaque, int reason)
                 break;
             }
             snprintf(buf, sizeof(buf), "T%02x%swatch:" TARGET_FMT_lx ";",
-                     SIGTRAP, type,
-                     s->env->watchpoint[s->env->watchpoint_hit - 1].vaddr);
+                     SIGTRAP, type, s->env->watchpoint_hit->vaddr);
             put_packet(s, buf);
-            s->env->watchpoint_hit = 0;
+            s->env->watchpoint_hit = NULL;
             return;
         }
 	tb_flush(s->env);

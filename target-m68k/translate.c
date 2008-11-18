@@ -2965,6 +2965,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 {
     DisasContext dc1, *dc = &dc1;
     uint16_t *gen_opc_end;
+    CPUBreakpoint *bp;
     int j, lj;
     target_ulong pc_start;
     int pc_offset;
@@ -2998,9 +2999,9 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;
-        if (env->nb_breakpoints > 0) {
-            for(j = 0; j < env->nb_breakpoints; j++) {
-                if (env->breakpoints[j] == dc->pc) {
+        if (unlikely(env->breakpoints)) {
+            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+                if (bp->pc == dc->pc) {
                     gen_exception(dc, dc->pc, EXCP_DEBUG);
                     dc->is_jmp = DISAS_JUMP;
                     break;
@@ -3030,7 +3031,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
         /* Terminate the TB on memory ops if watchpoints are present.  */
         /* FIXME: This should be replaced by the deterministic execution
          * IRQ raising bits.  */
-        if (dc->is_mem && env->nb_watchpoints)
+        if (dc->is_mem && env->watchpoints)
             break;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&

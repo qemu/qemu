@@ -7170,6 +7170,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     int supervisor, little_endian;
+    CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
     int max_insns;
@@ -7224,9 +7225,9 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     gen_icount_start();
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == POWERPC_EXCP_NONE && gen_opc_ptr < gen_opc_end) {
-        if (unlikely(env->nb_breakpoints > 0)) {
-            for (j = 0; j < env->nb_breakpoints; j++) {
-                if (env->breakpoints[j] == ctx.nip) {
+        if (unlikely(env->breakpoints)) {
+            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+                if (bp->pc == ctx.nip) {
                     gen_update_nip(&ctx, ctx.nip);
                     gen_op_debug();
                     break;

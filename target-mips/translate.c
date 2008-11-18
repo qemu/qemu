@@ -8246,6 +8246,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     DisasContext ctx;
     target_ulong pc_start;
     uint16_t *gen_opc_end;
+    CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
     int max_insns;
@@ -8285,9 +8286,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #endif
     gen_icount_start();
     while (ctx.bstate == BS_NONE) {
-        if (env->nb_breakpoints > 0) {
-            for(j = 0; j < env->nb_breakpoints; j++) {
-                if (env->breakpoints[j] == ctx.pc) {
+        if (unlikely(env->breakpoints)) {
+            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+                if (bp->pc == ctx.pc) {
                     save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;
                     gen_helper_0i(raise_exception, EXCP_DEBUG);

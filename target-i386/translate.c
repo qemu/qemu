@@ -7522,6 +7522,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr;
     uint16_t *gen_opc_end;
+    CPUBreakpoint *bp;
     int j, lj, cflags;
     uint64_t flags;
     target_ulong pc_start;
@@ -7605,9 +7606,9 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 
     gen_icount_start();
     for(;;) {
-        if (env->nb_breakpoints > 0) {
-            for(j = 0; j < env->nb_breakpoints; j++) {
-                if (env->breakpoints[j] == pc_ptr) {
+        if (unlikely(env->breakpoints)) {
+            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+                if (bp->pc == pc_ptr) {
                     gen_debug(dc, pc_ptr - dc->cs_base);
                     break;
                 }

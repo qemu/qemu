@@ -3187,10 +3187,11 @@ cris_decoder(DisasContext *dc)
 
 static void check_breakpoint(CPUState *env, DisasContext *dc)
 {
-	int j;
-	if (env->nb_breakpoints > 0) {
-		for(j = 0; j < env->nb_breakpoints; j++) {
-			if (env->breakpoints[j] == dc->pc) {
+	CPUBreakpoint *bp;
+
+	if (unlikely(env->breakpoints)) {
+		for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+			if (bp->pc == dc->pc) {
 				cris_evaluate_flags (dc);
 				tcg_gen_movi_tl(env_pc, dc->pc);
 				t_gen_raise_exception(EXCP_DEBUG);

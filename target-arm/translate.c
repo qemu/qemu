@@ -8600,6 +8600,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
                                                   int search_pc)
 {
     DisasContext dc1, *dc = &dc1;
+    CPUBreakpoint *bp;
     uint16_t *gen_opc_end;
     int j, lj;
     target_ulong pc_start;
@@ -8676,9 +8677,9 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         }
 #endif
 
-        if (env->nb_breakpoints > 0) {
-            for(j = 0; j < env->nb_breakpoints; j++) {
-                if (env->breakpoints[j] == dc->pc) {
+        if (unlikely(env->breakpoints)) {
+            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+                if (bp->pc == dc->pc) {
                     gen_set_condexec(dc);
                     gen_set_pc_im(dc->pc);
                     gen_exception(EXCP_DEBUG);
@@ -8731,7 +8732,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         /* Terminate the TB on memory ops if watchpoints are present.  */
         /* FIXME: This should be replacd by the deterministic execution
          * IRQ raising bits.  */
-        if (dc->is_mem && env->nb_watchpoints)
+        if (dc->is_mem && env->watchpoints)
             break;
 
         /* Translation stops when a conditional branch is enoutered.
