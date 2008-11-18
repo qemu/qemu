@@ -318,6 +318,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #endif
 
 #include "cpu-all.h"
+#include "exec-all.h"
 
 enum {
     FEATURE_ASN    = 0x00000001,
@@ -416,6 +417,9 @@ void call_pal (CPUState *env);
 void call_pal (CPUState *env, int palcode);
 #endif
 
-#define CPU_PC_FROM_TB(env, tb) env->pc = tb->pc
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+}
 
 #endif /* !defined (__CPU_ALPHA_H__) */

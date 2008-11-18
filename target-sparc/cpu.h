@@ -491,12 +491,8 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 #endif
 
-#define CPU_PC_FROM_TB(env, tb) do { \
-    env->pc = tb->pc; \
-    env->npc = tb->cs_base; \
-    } while(0)
-
 #include "cpu-all.h"
+#include "exec-all.h"
 
 /* sum4m.c, sun4u.c */
 void cpu_check_irqs(CPUSPARCState *env);
@@ -507,5 +503,11 @@ void cpu_tick_set_count(void *opaque, uint64_t count);
 uint64_t cpu_tick_get_count(void *opaque);
 void cpu_tick_set_limit(void *opaque, uint64_t limit);
 #endif
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+    env->npc = tb->cs_base;
+}
 
 #endif

@@ -173,12 +173,8 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 #endif
 
-#define CPU_PC_FROM_TB(env, tb) do { \
-    env->pc = tb->pc; \
-    env->flags = tb->flags; \
-    } while (0)
-
 #include "cpu-all.h"
+#include "exec-all.h"
 
 /* Memory access type */
 enum {
@@ -268,5 +264,11 @@ static inline int cpu_ptel_pr (uint32_t ptel)
 #define cpu_ptea_sa(ptea) ((ptea) & PTEA_SA_MASK)
 #define PTEA_TC        (1 << 3)
 #define cpu_ptea_tc(ptea) (((ptea) & PTEA_TC) >> 3)
+
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->pc = tb->pc;
+    env->flags = tb->flags;
+}
 
 #endif				/* _CPU_SH4_H */

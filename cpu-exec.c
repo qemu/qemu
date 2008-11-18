@@ -110,7 +110,7 @@ static void cpu_exec_nocache(int max_cycles, TranslationBlock *orig_tb)
     if ((next_tb & 3) == 2) {
         /* Restore PC.  This may happen if async event occurs before
            the TB starts executing.  */
-        CPU_PC_FROM_TB(env, tb);
+        cpu_pc_from_tb(env, tb);
     }
     tb_phys_invalidate(tb, -1);
     tb_free(tb);
@@ -654,7 +654,7 @@ int cpu_exec(CPUState *env1)
                         int insns_left;
                         tb = (TranslationBlock *)(long)(next_tb & ~3);
                         /* Restore PC.  */
-                        CPU_PC_FROM_TB(env, tb);
+                        cpu_pc_from_tb(env, tb);
                         insns_left = env->icount_decr.u32;
                         if (env->icount_extra && insns_left >= 0) {
                             /* Refill decrementer and continue execution.  */
