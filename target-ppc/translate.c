@@ -3066,7 +3066,7 @@ void always_inline gen_qemu_st32r(TCGv t0, TCGv t1, int flags)
     tcg_gen_bswap_i32(temp, temp);
     tcg_gen_extu_i32_tl(t2, temp);
     tcg_temp_free_i32(temp);
-    gen_qemu_st16(t2, t1, flags);
+    gen_qemu_st32(t2, t1, flags);
     tcg_temp_free(t2);
 }
 GEN_STX(32r, 0x16, 0x14, PPC_INTEGER);
