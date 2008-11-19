@@ -61,7 +61,6 @@ register target_ulong T2 asm(AREG3);
 
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)
-#define FT2 (env->ft2)
 
 #if defined (DEBUG_OP)
 # define RETURN() __asm__ __volatile__("nop" : : : "memory");

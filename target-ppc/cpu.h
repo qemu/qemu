@@ -571,7 +571,6 @@ struct CPUPPCState {
     /* temporary float registers */
     float64 ft0;
     float64 ft1;
-    float64 ft2;
     float_status fp_status;
     /* floating point registers */
     float64 fpr[32];
