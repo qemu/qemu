@@ -243,31 +243,31 @@ static always_inline void gen_reset_fpstatus (void)
 #endif
 }
 
-static always_inline void gen_compute_fprf (TCGv arg, int set_fprf, int set_rc)
+static always_inline void gen_compute_fprf (TCGv_i64 arg, int set_fprf, int set_rc)
 {
-    TCGv t0 = tcg_temp_new_i32();
+    TCGv_i32 t0 = tcg_temp_new_i32();
 
     if (set_fprf != 0) {
         /* This case might be optimized later */
 #if defined(OPTIMIZE_FPRF_UPDATE)
         *gen_fprf_ptr++ = gen_opc_ptr;
 #endif
-        tcg_gen_movi_tl(t0, 1);
+        tcg_gen_movi_i32(t0, 1);
         gen_helper_compute_fprf(t0, arg, t0);
         if (unlikely(set_rc)) {
-            tcg_gen_movi_i32(cpu_crf[1], t0);
+            tcg_gen_mov_i32(cpu_crf[1], t0);
         }
         gen_helper_float_check_status();
     } else if (unlikely(set_rc)) {
         /* We always need to compute fpcc */
-        tcg_gen_movi_tl(t0, 0);
+        tcg_gen_movi_i32(t0, 0);
         gen_helper_compute_fprf(t0, arg, t0);
-        tcg_gen_movi_i32(cpu_crf[1], t0);
+        tcg_gen_mov_i32(cpu_crf[1], t0);
         if (set_fprf)
             gen_helper_float_check_status();
     }
 
-    tcg_temp_free(t0);
+    tcg_temp_free_i32(t0);
 }
 
 static always_inline void gen_optimize_fprf (void)
@@ -2385,9 +2385,9 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
     gen_reset_fpstatus();
     /* XXX: we pretend we can only do IEEE floating-point computations */
     if (likely(crb != FPSCR_FEX && crb != FPSCR_VX && crb != FPSCR_NI)) {
-        TCGv t0 = tcg_const_tl(crb);
+        TCGv_i32 t0 = tcg_const_i32(crb);
         gen_helper_fpscr_setbit(t0);
-        tcg_temp_free(t0);
+        tcg_temp_free_i32(t0);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
@@ -2399,7 +2399,7 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
 /* mtfsf */
 GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
 {
-    TCGv t0;
+    TCGv_i32 t0;
 
     if (unlikely(!ctx->fpu_enabled)) {
         GEN_EXCP_NO_FP(ctx);
@@ -2409,7 +2409,7 @@ GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
     gen_reset_fpstatus();
     t0 = tcg_const_i32(FM(ctx->opcode));
     gen_helper_store_fpscr(cpu_fpr[rB(ctx->opcode)], t0);
-    tcg_temp_free(t0);
+    tcg_temp_free_i32(t0);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
@@ -2421,7 +2421,8 @@ GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
 GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 {
     int bf, sh;
-    TCGv t0, t1;
+    TCGv_i64 t0;
+    TCGv_i32 t1;
 
     if (unlikely(!ctx->fpu_enabled)) {
         GEN_EXCP_NO_FP(ctx);
@@ -2431,11 +2432,11 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
     sh = 7 - bf;
     gen_optimize_fprf();
     gen_reset_fpstatus();
-    t0 = tcg_const_tl(FPIMM(ctx->opcode) << (4 * sh));
+    t0 = tcg_const_i64(FPIMM(ctx->opcode) << (4 * sh));
     t1 = tcg_const_i32(1 << sh);
     gen_helper_store_fpscr(t0, t1);
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
