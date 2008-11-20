@@ -3823,7 +3823,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         cpu_physical_memory_write_rom(PROM_ADDR, jump, sizeof(jump));
         flash_size = 4 * KiB;
     }
-    cpu_register_physical_memory((uint32_t)(PROM_ADDR),
+    cpu_register_physical_memory(PROM_ADDR,
                                  flash_size, flash_offset | IO_MEM_ROM);
 
     if (kernel_filename) {
