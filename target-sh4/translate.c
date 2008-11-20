@@ -1670,15 +1670,13 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
 	    tcg_gen_movi_i32(cpu_fregs[FREG(B11_8)], 0);
-	    return;
 	}
-	break;
+	return;
     case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
 	if (!(ctx->fpscr & FPSCR_PR)) {
 	    tcg_gen_movi_i32(cpu_fregs[FREG(B11_8)], 0x3f800000);
-	    return;
 	}
-	break;
+	return;
     case 0xf0ad: /* fcnvsd FPUL,DRn */
 	{
 	    TCGv_i64 fp = tcg_temp_new_i64();
