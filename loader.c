@@ -479,9 +479,9 @@ int load_uimage(const char *filename, target_ulong *ep, target_ulong *loadaddr,
     if (hdr->ih_magic != IH_MAGIC)
         goto out;
 
-    /* TODO: Implement Multi-File images.  */
-    if (hdr->ih_type == IH_TYPE_MULTI) {
-        fprintf(stderr, "Unable to load multi-file u-boot images\n");
+    /* TODO: Implement other image types.  */
+    if (hdr->ih_type != IH_TYPE_KERNEL) {
+        fprintf(stderr, "Can only load u-boot image type \"kernel\"\n");
         goto out;
     }
 
@@ -498,7 +498,7 @@ int load_uimage(const char *filename, target_ulong *ep, target_ulong *loadaddr,
 
     /* TODO: Check CPU type.  */
     if (is_linux) {
-        if (hdr->ih_type == IH_TYPE_KERNEL && hdr->ih_os == IH_OS_LINUX)
+        if (hdr->ih_os == IH_OS_LINUX)
             *is_linux = 1;
         else
             *is_linux = 0;
