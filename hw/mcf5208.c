@@ -290,7 +290,7 @@ static void mcf5208evb_init(ram_addr_t ram_size, int vga_ram_size,
     kernel_size = load_elf(kernel_filename, 0, &elf_entry, NULL, NULL);
     entry = elf_entry;
     if (kernel_size < 0) {
-        kernel_size = load_uboot(kernel_filename, &entry, NULL);
+        kernel_size = load_uboot(kernel_filename, &entry, NULL, NULL);
     }
     if (kernel_size < 0) {
         kernel_size = load_image(kernel_filename, phys_ram_base);

@@ -456,7 +456,8 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
 }
 
 /* Load a U-Boot image.  */
-int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
+int load_uboot(const char *filename, target_ulong *ep, target_ulong *loadaddr,
+               int *is_linux)
 {
     int fd;
     int size;
@@ -532,6 +533,9 @@ int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
     }
 
     cpu_physical_memory_write_rom(hdr->ih_load, data, hdr->ih_size);
+
+    if (loadaddr)
+        *loadaddr = hdr->ih_load;
 
     ret = hdr->ih_size;
 

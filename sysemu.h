@@ -165,7 +165,8 @@ int load_image_targphys(const char *filename, target_phys_addr_t, int max_sz);
 int load_elf(const char *filename, int64_t address_offset,
              uint64_t *pentry, uint64_t *lowaddr, uint64_t *highaddr);
 int load_aout(const char *filename, target_phys_addr_t addr, int max_sz);
-int load_uboot(const char *filename, target_ulong *ep, int *is_linux);
+int load_uboot(const char *filename, target_ulong *ep, target_ulong *loadaddr,
+               int *is_linux);
 
 int fread_targphys(target_phys_addr_t dst_addr, size_t nbytes, FILE *f);
 int fread_targphys_ok(target_phys_addr_t dst_addr, size_t nbytes, FILE *f);

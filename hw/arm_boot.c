@@ -205,7 +205,8 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
     kernel_size = load_elf(info->kernel_filename, 0, &elf_entry, NULL, NULL);
     entry = elf_entry;
     if (kernel_size < 0) {
-        kernel_size = load_uboot(info->kernel_filename, &entry, &is_linux);
+        kernel_size = load_uboot(info->kernel_filename, &entry, NULL,
+                                 &is_linux);
     }
     if (kernel_size < 0) {
         kernel_size = load_image(info->kernel_filename,
