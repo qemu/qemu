@@ -54,8 +54,15 @@ pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
         case MANUFACTURER_SPANSION:
 #endif
         case MANUFACTURER_004A:  /* Which manufacturer is this? */
+#if 0
             pf = pflash_amd_register(base, off, bs, blocksize, nblocks, width,
                     flash_manufacturer, flash_type, id2, id3);
+#else
+            pf = pflash_cfi02_register(base, off, bs, blocksize, nblocks,
+                    1, width,
+                    flash_manufacturer, flash_type, id2, id3,
+                    0, 0);
+#endif
             break;
         case MANUFACTURER_INTEL:
             pf = pflash_cfi01_register(base, off, bs, blocksize, nblocks, width,
@@ -64,7 +71,7 @@ pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
         default:
             /* TODO: fix new parameters (0) */
             pf = pflash_cfi02_register(base, off, bs, blocksize, nblocks,
-                    0, width,
+                    1, width,
                     flash_manufacturer, flash_type, id2, id3,
                     0, 0);
     }
