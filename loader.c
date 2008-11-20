@@ -456,8 +456,8 @@ static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
 }
 
 /* Load a U-Boot image.  */
-int load_uboot(const char *filename, target_ulong *ep, target_ulong *loadaddr,
-               int *is_linux)
+int load_uimage(const char *filename, target_ulong *ep, target_ulong *loadaddr,
+                int *is_linux)
 {
     int fd;
     int size;
