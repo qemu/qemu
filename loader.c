@@ -354,6 +354,7 @@ int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
     uboot_image_header_t h;
     uboot_image_header_t *hdr = &h;
     uint8_t *data = NULL;
+    int ret = -1;
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
@@ -361,23 +362,23 @@ int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
 
     size = read(fd, hdr, sizeof(uboot_image_header_t));
     if (size < 0)
-        goto fail;
+        goto out;
 
     bswap_uboot_header(hdr);
 
     if (hdr->ih_magic != IH_MAGIC)
-        goto fail;
+        goto out;
 
     /* TODO: Implement Multi-File images.  */
     if (hdr->ih_type == IH_TYPE_MULTI) {
         fprintf(stderr, "Unable to load multi-file u-boot images\n");
-        goto fail;
+        goto out;
     }
 
     /* TODO: Implement compressed images.  */
     if (hdr->ih_comp != IH_COMP_NONE) {
         fprintf(stderr, "Unable to load compressed u-boot images\n");
-        goto fail;
+        goto out;
     }
 
     /* TODO: Check CPU type.  */
@@ -391,20 +392,20 @@ int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
     *ep = hdr->ih_ep;
     data = qemu_malloc(hdr->ih_size);
     if (!data)
-        goto fail;
+        goto out;
 
     if (read(fd, data, hdr->ih_size) != hdr->ih_size) {
         fprintf(stderr, "Error reading file\n");
-        goto fail;
+        goto out;
     }
 
     cpu_physical_memory_write_rom(hdr->ih_load, data, hdr->ih_size);
 
-    return hdr->ih_size;
+    ret = hdr->ih_size;
 
-fail:
+out:
     if (data)
         qemu_free(data);
     close(fd);
-    return -1;
+    return ret;
 }
