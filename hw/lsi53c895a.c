@@ -482,7 +482,7 @@ static void lsi_do_dma(LSIState *s, int out)
     else if (s->sbms)
         addr |= ((uint64_t)s->sbms << 32);
 
-    DPRINTF("DMA addr=0x%" TARGET_FMT_plx " len=%d\n", addr, count);
+    DPRINTF("DMA addr=0x" TARGET_FMT_plx " len=%d\n", addr, count);
     s->csbc += count;
     s->dnad += count;
     s->dbc -= count;
