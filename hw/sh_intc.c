@@ -73,6 +73,14 @@ void sh_intc_toggle_source(struct intc_source *source,
   }
 }
 
+void sh_intc_set_irq (void *opaque, int n, int level)
+{
+  struct intc_desc *desc = opaque;
+  struct intc_source *source = &(desc->sources[n]);
+
+  sh_intc_toggle_source(source, 0, level ? 1 : -1);  
+}
+
 int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
 {
     unsigned int i;
@@ -428,6 +436,8 @@ int sh_intc_init(struct intc_desc *desc,
 
         source->parent = desc;
     }
+
+    desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
  
     desc->iomemtype = cpu_register_io_memory(0, sh_intc_readfn,
 					     sh_intc_writefn, desc);

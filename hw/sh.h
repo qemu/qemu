@@ -28,8 +28,8 @@ int sh7750_register_io_device(struct SH7750State *s,
 #define TMU012_FEAT_3CHAN  (1 << 1)
 #define TMU012_FEAT_EXTCLK (1 << 2)
 void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
-		 struct intc_source *ch0_irq, struct intc_source *ch1_irq,
-		 struct intc_source *ch2_irq0, struct intc_source *ch2_irq1);
+		 qemu_irq ch0_irq, qemu_irq ch1_irq,
+		 qemu_irq ch2_irq0, qemu_irq ch2_irq1);
 
 
 /* sh_serial.c */
