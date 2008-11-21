@@ -61,11 +61,11 @@ typedef struct {
 
     CharDriverState *chr;
 
-    struct intc_source *eri;
-    struct intc_source *rxi;
-    struct intc_source *txi;
-    struct intc_source *tei;
-    struct intc_source *bri;
+    qemu_irq eri;
+    qemu_irq rxi;
+    qemu_irq txi;
+    qemu_irq tei;
+    qemu_irq bri;
 } sh_serial_state;
 
 static void sh_serial_clear_fifo(sh_serial_state * s)
@@ -98,13 +98,10 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
         if (!(val & (1 << 5)))
             s->flags |= SH_SERIAL_FLAG_TEND;
         if ((s->feat & SH_SERIAL_FEAT_SCIF) && s->txi) {
-            if ((val & (1 << 7)) && !(s->txi->asserted))
-                sh_intc_toggle_source(s->txi, 0, 1);
-            else if (!(val & (1 << 7)) && s->txi->asserted)
-                sh_intc_toggle_source(s->txi, 0, -1);
+	    qemu_set_irq(s->txi, val & (1 << 7));
         }
-        if (!(val & (1 << 6)) && s->rxi->asserted) {
-	    sh_intc_toggle_source(s->rxi, 0, -1);
+        if (!(val & (1 << 6))) {
+	    qemu_set_irq(s->rxi, 0);
         }
         return;
     case 0x0c: /* FTDR / TDR */
@@ -136,8 +133,8 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
                 s->flags &= ~SH_SERIAL_FLAG_DR;
 
             if (!(val & (1 << 1)) || !(val & (1 << 0))) {
-                if (s->rxi && s->rxi->asserted) {
-                    sh_intc_toggle_source(s->rxi, 0, -1);
+                if (s->rxi) {
+                    qemu_set_irq(s->rxi, 0);
                 }
             }
             return;
@@ -309,7 +306,7 @@ static void sh_serial_receive_byte(sh_serial_state *s, int ch)
             if (s->rx_cnt >= s->rtrg) {
                 s->flags |= SH_SERIAL_FLAG_RDF;
                 if (s->scr & (1 << 6) && s->rxi) {
-                    sh_intc_toggle_source(s->rxi, 0, 1);
+                    qemu_set_irq(s->rxi, 1);
                 }
             }
         }
@@ -370,11 +367,11 @@ static CPUWriteMemoryFunc *sh_serial_writefn[] = {
 
 void sh_serial_init (target_phys_addr_t base, int feat,
 		     uint32_t freq, CharDriverState *chr,
-		     struct intc_source *eri_source,
-		     struct intc_source *rxi_source,
-		     struct intc_source *txi_source,
-		     struct intc_source *tei_source,
-		     struct intc_source *bri_source)
+		     qemu_irq eri_source,
+		     qemu_irq rxi_source,
+		     qemu_irq txi_source,
+		     qemu_irq tei_source,
+		     qemu_irq bri_source)
 {
     sh_serial_state *s;
     int s_io_memory;

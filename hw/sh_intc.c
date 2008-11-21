@@ -78,7 +78,10 @@ void sh_intc_set_irq (void *opaque, int n, int level)
   struct intc_desc *desc = opaque;
   struct intc_source *source = &(desc->sources[n]);
 
-  sh_intc_toggle_source(source, 0, level ? 1 : -1);  
+  if (level && !source->asserted)
+    sh_intc_toggle_source(source, 0, 1);
+  else if (!level && source->asserted)
+    sh_intc_toggle_source(source, 0, -1);
 }
 
 int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
