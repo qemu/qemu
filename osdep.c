@@ -75,7 +75,9 @@ void qemu_vfree(void *ptr)
 #include <sys/types.h>
 #include <sys/mount.h>
 #else
+#ifndef __FreeBSD__
 #include <sys/vfs.h>
+#endif
 #endif
 
 #include <sys/mman.h>
@@ -87,7 +89,8 @@ static void *kqemu_vmalloc(size_t size)
     static int phys_ram_size = 0;
     void *ptr;
 
-#ifdef __OpenBSD__ /* no need (?) for a dummy file on OpenBSD */
+/* no need (?) for a dummy file on OpenBSD/FreeBSD */
+#if defined(__OpenBSD__) || defined(__FreeBSD__)
     int map_anon = MAP_ANON;
 #else
     int map_anon = 0;
@@ -154,7 +157,7 @@ static void *kqemu_vmalloc(size_t size)
     }
     size = (size + 4095) & ~4095;
     ftruncate(phys_ram_fd, phys_ram_size + size);
-#endif /* !__OpenBSD__ */
+#endif /* !(__OpenBSD__ || __FreeBSD__) */
     ptr = mmap(NULL,
                size,
                PROT_WRITE | PROT_READ, map_anon | MAP_SHARED,
