@@ -505,6 +505,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 
 #include "cpu-all.h"
+#include "exec-all.h"
 
 /* Memory access type :
  * may be needed for precise access rights control and precise exceptions.
@@ -566,10 +567,19 @@ CPUMIPSState *cpu_mips_init(const char *cpu_model);
 uint32_t cpu_mips_get_clock (void);
 int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 
-#define CPU_PC_FROM_TB(env, tb) do { \
-    env->active_tc.PC = tb->pc; \
-    env->hflags &= ~MIPS_HFLAG_BMASK; \
-    env->hflags |= tb->flags & MIPS_HFLAG_BMASK; \
-    } while (0)
+static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+{
+    env->active_tc.PC = tb->pc;
+    env->hflags &= ~MIPS_HFLAG_BMASK;
+    env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
+}
+
+static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+                                        target_ulong *cs_base, int *flags)
+{
+    *pc = env->active_tc.PC;
+    *cs_base = 0;
+    *flags = env->hflags & (MIPS_HFLAG_TMASK | MIPS_HFLAG_BMASK);
+}
 
 #endif /* !defined (__MIPS_CPU_H__) */

@@ -20,11 +20,36 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
+ * Gunzip functionality in this file is derived from u-boot:
+ *
+ * (C) Copyright 2008 Semihalf
+ *
+ * (C) Copyright 2000-2005
+ * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
  */
+
 #include "qemu-common.h"
 #include "disas.h"
 #include "sysemu.h"
 #include "uboot_image.h"
+
+#include <zlib.h>
 
 /* return the size or -1 if error */
 int get_image_size(const char *filename)
@@ -344,15 +369,101 @@ static void bswap_uboot_header(uboot_image_header_t *hdr)
 #endif
 }
 
-/* Load a U-Boot image.  */
-int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
-{
 
+#define ZALLOC_ALIGNMENT	16
+
+static void *zalloc(void *x, unsigned items, unsigned size)
+{
+    void *p;
+
+    size *= items;
+    size = (size + ZALLOC_ALIGNMENT - 1) & ~(ZALLOC_ALIGNMENT - 1);
+
+    p = qemu_malloc(size);
+
+    return (p);
+}
+
+static void zfree(void *x, void *addr, unsigned nb)
+{
+    qemu_free(addr);
+}
+
+
+#define HEAD_CRC	2
+#define EXTRA_FIELD	4
+#define ORIG_NAME	8
+#define COMMENT		0x10
+#define RESERVED	0xe0
+
+#define DEFLATED	8
+
+/* This is the maximum in uboot, so if a uImage overflows this, it would
+ * overflow on real hardware too. */
+#define UBOOT_MAX_GUNZIP_BYTES 0x800000
+
+static ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src,
+                      size_t srclen)
+{
+    z_stream s;
+    ssize_t dstbytes;
+    int r, i, flags;
+
+    /* skip header */
+    i = 10;
+    flags = src[3];
+    if (src[2] != DEFLATED || (flags & RESERVED) != 0) {
+        puts ("Error: Bad gzipped data\n");
+        return -1;
+    }
+    if ((flags & EXTRA_FIELD) != 0)
+        i = 12 + src[10] + (src[11] << 8);
+    if ((flags & ORIG_NAME) != 0)
+        while (src[i++] != 0)
+            ;
+    if ((flags & COMMENT) != 0)
+        while (src[i++] != 0)
+            ;
+    if ((flags & HEAD_CRC) != 0)
+        i += 2;
+    if (i >= srclen) {
+        puts ("Error: gunzip out of data in header\n");
+        return -1;
+    }
+
+    s.zalloc = zalloc;
+    s.zfree = (free_func)zfree;
+
+    r = inflateInit2(&s, -MAX_WBITS);
+    if (r != Z_OK) {
+        printf ("Error: inflateInit2() returned %d\n", r);
+        return (-1);
+    }
+    s.next_in = src + i;
+    s.avail_in = srclen - i;
+    s.next_out = dst;
+    s.avail_out = dstlen;
+    r = inflate(&s, Z_FINISH);
+    if (r != Z_OK && r != Z_STREAM_END) {
+        printf ("Error: inflate() returned %d\n", r);
+        return -1;
+    }
+    dstbytes = s.next_out - (unsigned char *) dst;
+    inflateEnd(&s);
+
+    return dstbytes;
+}
+
+/* Load a U-Boot image.  */
+int load_uimage(const char *filename, target_ulong *ep, target_ulong *loadaddr,
+                int *is_linux)
+{
     int fd;
     int size;
     uboot_image_header_t h;
     uboot_image_header_t *hdr = &h;
     uint8_t *data = NULL;
+    int ret = -1;
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
@@ -360,28 +471,33 @@ int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
 
     size = read(fd, hdr, sizeof(uboot_image_header_t));
     if (size < 0)
-        goto fail;
+        goto out;
 
     bswap_uboot_header(hdr);
 
     if (hdr->ih_magic != IH_MAGIC)
-        goto fail;
+        goto out;
 
-    /* TODO: Implement Multi-File images.  */
-    if (hdr->ih_type == IH_TYPE_MULTI) {
-        fprintf(stderr, "Unable to load multi-file u-boot images\n");
-        goto fail;
+    /* TODO: Implement other image types.  */
+    if (hdr->ih_type != IH_TYPE_KERNEL) {
+        fprintf(stderr, "Can only load u-boot image type \"kernel\"\n");
+        goto out;
     }
 
-    /* TODO: Implement compressed images.  */
-    if (hdr->ih_comp != IH_COMP_NONE) {
-        fprintf(stderr, "Unable to load compressed u-boot images\n");
-        goto fail;
+    switch (hdr->ih_comp) {
+    case IH_COMP_NONE:
+    case IH_COMP_GZIP:
+        break;
+    default:
+        fprintf(stderr,
+                "Unable to load u-boot images with compression type %d\n",
+                hdr->ih_comp);
+        goto out;
     }
 
     /* TODO: Check CPU type.  */
     if (is_linux) {
-        if (hdr->ih_type == IH_TYPE_KERNEL && hdr->ih_os == IH_OS_LINUX)
+        if (hdr->ih_os == IH_OS_LINUX)
             *is_linux = 1;
         else
             *is_linux = 0;
@@ -390,20 +506,41 @@ int load_uboot(const char *filename, target_ulong *ep, int *is_linux)
     *ep = hdr->ih_ep;
     data = qemu_malloc(hdr->ih_size);
     if (!data)
-        goto fail;
+        goto out;
 
     if (read(fd, data, hdr->ih_size) != hdr->ih_size) {
         fprintf(stderr, "Error reading file\n");
-        goto fail;
+        goto out;
+    }
+
+    if (hdr->ih_comp == IH_COMP_GZIP) {
+        uint8_t *compressed_data;
+        size_t max_bytes;
+        ssize_t bytes;
+
+        compressed_data = data;
+        max_bytes = UBOOT_MAX_GUNZIP_BYTES;
+        data = qemu_malloc(max_bytes);
+
+        bytes = gunzip(data, max_bytes, compressed_data, hdr->ih_size);
+        qemu_free(compressed_data);
+        if (bytes < 0) {
+            fprintf(stderr, "Unable to decompress gzipped image!\n");
+            goto out;
+        }
+        hdr->ih_size = bytes;
     }
 
     cpu_physical_memory_write_rom(hdr->ih_load, data, hdr->ih_size);
 
-    return hdr->ih_size;
+    if (loadaddr)
+        *loadaddr = hdr->ih_load;
 
-fail:
+    ret = hdr->ih_size;
+
+out:
     if (data)
         qemu_free(data);
     close(fd);
-    return -1;
+    return ret;
 }

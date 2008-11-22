@@ -3719,6 +3719,7 @@ static int main_loop(void)
                 ret = EXCP_INTERRUPT;
             }
             if (unlikely(ret == EXCP_DEBUG)) {
+                gdb_set_stop_cpu(cur_cpu);
                 vm_stop(EXCP_DEBUG);
             }
             /* If all cpus are halted then wait until the next IRQ */

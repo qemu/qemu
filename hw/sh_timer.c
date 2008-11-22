@@ -36,7 +36,7 @@ typedef struct {
     int old_level;
     int feat;
     int enabled;
-    struct intc_source *irq;
+    qemu_irq irq;
 } sh_timer_state;
 
 /* Check all active timers, and schedule the next timer interrupt. */
@@ -46,7 +46,7 @@ static void sh_timer_update(sh_timer_state *s)
     int new_level = s->int_level && (s->tcr & TIMER_TCR_UNIE);
 
     if (new_level != s->old_level)
-      sh_intc_toggle_source(s->irq, 0, new_level ? 1 : -1);
+      qemu_set_irq (s->irq, new_level);
 
     s->old_level = s->int_level;
     s->int_level = new_level;
@@ -185,7 +185,7 @@ static void sh_timer_tick(void *opaque)
     sh_timer_update(s);
 }
 
-static void *sh_timer_init(uint32_t freq, int feat, struct intc_source *irq)
+static void *sh_timer_init(uint32_t freq, int feat, qemu_irq irq)
 {
     sh_timer_state *s;
     QEMUBH *bh;
@@ -307,8 +307,8 @@ static CPUWriteMemoryFunc *tmu012_writefn[] = {
 };
 
 void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
-		 struct intc_source *ch0_irq, struct intc_source *ch1_irq,
-		 struct intc_source *ch2_irq0, struct intc_source *ch2_irq1)
+		 qemu_irq ch0_irq, qemu_irq ch1_irq,
+		 qemu_irq ch2_irq0, qemu_irq ch2_irq1)
 {
     int iomemtype;
     tmu012_state *s;

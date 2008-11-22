@@ -82,8 +82,6 @@ typedef uint64_t target_phys_addr_t;
 #define EXCP_HLT        0x10001 /* hlt instruction reached */
 #define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
 #define EXCP_HALTED     0x10003 /* cpu is halted (waiting for external event) */
-#define MAX_BREAKPOINTS 32
-#define MAX_WATCHPOINTS 32
 
 #define TB_JMP_CACHE_BITS 12
 #define TB_JMP_CACHE_SIZE (1 << TB_JMP_CACHE_BITS)
@@ -145,6 +143,19 @@ typedef struct icount_decr_u16 {
 struct kvm_run;
 struct KVMState;
 
+typedef struct CPUBreakpoint {
+    target_ulong pc;
+    int flags; /* BP_* */
+    struct CPUBreakpoint *prev, *next;
+} CPUBreakpoint;
+
+typedef struct CPUWatchpoint {
+    target_ulong vaddr;
+    target_ulong len_mask;
+    int flags; /* BP_* */
+    struct CPUWatchpoint *prev, *next;
+} CPUWatchpoint;
+
 #define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
@@ -177,16 +188,11 @@ struct KVMState;
                                                                         \
     /* from this point: preserved by CPU reset */                       \
     /* ice debug support */                                             \
-    target_ulong breakpoints[MAX_BREAKPOINTS];                          \
-    int nb_breakpoints;                                                 \
+    CPUBreakpoint *breakpoints;                                         \
     int singlestep_enabled;                                             \
                                                                         \
-    struct {                                                            \
-        target_ulong vaddr;                                             \
-        int type; /* PAGE_READ/PAGE_WRITE */                            \
-    } watchpoint[MAX_WATCHPOINTS];                                      \
-    int nb_watchpoints;                                                 \
-    int watchpoint_hit;                                                 \
+    CPUWatchpoint *watchpoints;                                         \
+    CPUWatchpoint *watchpoint_hit;                                      \
                                                                         \
     struct GDBRegisterState *gdb_regs;                                  \
                                                                         \

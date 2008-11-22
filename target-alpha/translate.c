@@ -2340,6 +2340,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     target_ulong pc_start;
     uint32_t insn;
     uint16_t *gen_opc_end;
+    CPUBreakpoint *bp;
     int j, lj = -1;
     int ret;
     int num_insns;
@@ -2362,9 +2363,9 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
 
     gen_icount_start();
     for (ret = 0; ret == 0;) {
-        if (env->nb_breakpoints > 0) {
-            for(j = 0; j < env->nb_breakpoints; j++) {
-                if (env->breakpoints[j] == ctx.pc) {
+        if (unlikely(env->breakpoints)) {
+            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+                if (bp->pc == ctx.pc) {
                     gen_excp(&ctx, EXCP_DEBUG, 0);
                     break;
                 }

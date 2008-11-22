@@ -538,7 +538,6 @@ void cpu_exec_init(CPUState *env)
         cpu_index++;
     }
     env->cpu_index = cpu_index;
-    env->nb_watchpoints = 0;
     *penv = env;
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
     register_savevm("cpu_common", cpu_index, CPU_COMMON_SAVE_VERSION,
@@ -887,12 +886,19 @@ TranslationBlock *tb_gen_code(CPUState *env,
 void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t end,
                                    int is_cpu_write_access)
 {
-    int n, current_tb_modified, current_tb_not_found, current_flags;
+    TranslationBlock *tb, *tb_next, *saved_tb;
     CPUState *env = cpu_single_env;
-    PageDesc *p;
-    TranslationBlock *tb, *tb_next, *current_tb, *saved_tb;
     target_ulong tb_start, tb_end;
-    target_ulong current_pc, current_cs_base;
+    PageDesc *p;
+    int n;
+#ifdef TARGET_HAS_PRECISE_SMC
+    int current_tb_not_found = is_cpu_write_access;
+    TranslationBlock *current_tb = NULL;
+    int current_tb_modified = 0;
+    target_ulong current_pc = 0;
+    target_ulong current_cs_base = 0;
+    int current_flags = 0;
+#endif /* TARGET_HAS_PRECISE_SMC */
 
     p = page_find(start >> TARGET_PAGE_BITS);
     if (!p)
@@ -906,12 +912,6 @@ void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t 
 
     /* we remove all the TBs in the range [start, end[ */
     /* XXX: see if in some cases it could be faster to invalidate all the code */
-    current_tb_not_found = is_cpu_write_access;
-    current_tb_modified = 0;
-    current_tb = NULL; /* avoid warning */
-    current_pc = 0; /* avoid warning */
-    current_cs_base = 0; /* avoid warning */
-    current_flags = 0; /* avoid warning */
     tb = p->first_tb;
     while (tb != NULL) {
         n = (long)tb & 3;
@@ -948,14 +948,8 @@ void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t 
                 current_tb_modified = 1;
                 cpu_restore_state(current_tb, env,
                                   env->mem_io_pc, NULL);
-#if defined(TARGET_I386)
-                current_flags = env->hflags;
-                current_flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
-                current_cs_base = (target_ulong)env->segs[R_CS].base;
-                current_pc = current_cs_base + env->eip;
-#else
-#error unsupported CPU
-#endif
+                cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
+                                     &current_flags);
             }
 #endif /* TARGET_HAS_PRECISE_SMC */
             /* we need to do that to handle the case where a signal
@@ -1028,12 +1022,16 @@ static inline void tb_invalidate_phys_page_fast(target_phys_addr_t start, int le
 static void tb_invalidate_phys_page(target_phys_addr_t addr,
                                     unsigned long pc, void *puc)
 {
-    int n, current_flags, current_tb_modified;
-    target_ulong current_pc, current_cs_base;
+    TranslationBlock *tb;
     PageDesc *p;
-    TranslationBlock *tb, *current_tb;
+    int n;
 #ifdef TARGET_HAS_PRECISE_SMC
+    TranslationBlock *current_tb = NULL;
     CPUState *env = cpu_single_env;
+    int current_tb_modified = 0;
+    target_ulong current_pc = 0;
+    target_ulong current_cs_base = 0;
+    int current_flags = 0;
 #endif
 
     addr &= TARGET_PAGE_MASK;
@@ -1041,11 +1039,6 @@ static void tb_invalidate_phys_page(target_phys_addr_t addr,
     if (!p)
         return;
     tb = p->first_tb;
-    current_tb_modified = 0;
-    current_tb = NULL;
-    current_pc = 0; /* avoid warning */
-    current_cs_base = 0; /* avoid warning */
-    current_flags = 0; /* avoid warning */
 #ifdef TARGET_HAS_PRECISE_SMC
     if (tb && pc != 0) {
         current_tb = tb_find_pc(pc);
@@ -1065,14 +1058,8 @@ static void tb_invalidate_phys_page(target_phys_addr_t addr,
 
             current_tb_modified = 1;
             cpu_restore_state(current_tb, env, pc, puc);
-#if defined(TARGET_I386)
-            current_flags = env->hflags;
-            current_flags |= (env->eflags & (IOPL_MASK | TF_MASK | VM_MASK));
-            current_cs_base = (target_ulong)env->segs[R_CS].base;
-            current_pc = current_cs_base + env->eip;
-#else
-#error unsupported CPU
-#endif
+            cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
+                                 &current_flags);
         }
 #endif /* TARGET_HAS_PRECISE_SMC */
         tb_phys_invalidate(tb, addr);
@@ -1312,107 +1299,185 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
 #endif
 
 /* Add a watchpoint.  */
-int cpu_watchpoint_insert(CPUState *env, target_ulong addr, int type)
+int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
+                          int flags, CPUWatchpoint **watchpoint)
 {
-    int i;
+    target_ulong len_mask = ~(len - 1);
+    CPUWatchpoint *wp, *prev_wp;
 
-    for (i = 0; i < env->nb_watchpoints; i++) {
-        if (addr == env->watchpoint[i].vaddr)
-            return 0;
+    /* sanity checks: allow power-of-2 lengths, deny unaligned watchpoints */
+    if ((len != 1 && len != 2 && len != 4 && len != 8) || (addr & ~len_mask)) {
+        fprintf(stderr, "qemu: tried to set invalid watchpoint at "
+                TARGET_FMT_lx ", len=" TARGET_FMT_lu "\n", addr, len);
+        return -EINVAL;
     }
-    if (env->nb_watchpoints >= MAX_WATCHPOINTS)
-        return -1;
+    wp = qemu_malloc(sizeof(*wp));
+    if (!wp)
+        return -ENOMEM;
 
-    i = env->nb_watchpoints++;
-    env->watchpoint[i].vaddr = addr;
-    env->watchpoint[i].type = type;
+    wp->vaddr = addr;
+    wp->len_mask = len_mask;
+    wp->flags = flags;
+
+    /* keep all GDB-injected watchpoints in front */
+    if (!(flags & BP_GDB) && env->watchpoints) {
+        prev_wp = env->watchpoints;
+        while (prev_wp->next != NULL && (prev_wp->next->flags & BP_GDB))
+            prev_wp = prev_wp->next;
+    } else {
+        prev_wp = NULL;
+    }
+
+    /* Insert new watchpoint */
+    if (prev_wp) {
+        wp->next = prev_wp->next;
+        prev_wp->next = wp;
+    } else {
+        wp->next = env->watchpoints;
+        env->watchpoints = wp;
+    }
+    if (wp->next)
+        wp->next->prev = wp;
+    wp->prev = prev_wp;
+
     tlb_flush_page(env, addr);
-    /* FIXME: This flush is needed because of the hack to make memory ops
-       terminate the TB.  It can be removed once the proper IO trap and
-       re-execute bits are in.  */
-    tb_flush(env);
-    return i;
+
+    if (watchpoint)
+        *watchpoint = wp;
+    return 0;
 }
 
-/* Remove a watchpoint.  */
-int cpu_watchpoint_remove(CPUState *env, target_ulong addr)
+/* Remove a specific watchpoint.  */
+int cpu_watchpoint_remove(CPUState *env, target_ulong addr, target_ulong len,
+                          int flags)
 {
-    int i;
+    target_ulong len_mask = ~(len - 1);
+    CPUWatchpoint *wp;
 
-    for (i = 0; i < env->nb_watchpoints; i++) {
-        if (addr == env->watchpoint[i].vaddr) {
-            env->nb_watchpoints--;
-            env->watchpoint[i] = env->watchpoint[env->nb_watchpoints];
-            tlb_flush_page(env, addr);
+    for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
+        if (addr == wp->vaddr && len_mask == wp->len_mask
+                && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
+            cpu_watchpoint_remove_by_ref(env, wp);
             return 0;
         }
     }
-    return -1;
+    return -ENOENT;
 }
 
-/* Remove all watchpoints. */
-void cpu_watchpoint_remove_all(CPUState *env) {
-    int i;
+/* Remove a specific watchpoint by reference.  */
+void cpu_watchpoint_remove_by_ref(CPUState *env, CPUWatchpoint *watchpoint)
+{
+    if (watchpoint->next)
+        watchpoint->next->prev = watchpoint->prev;
+    if (watchpoint->prev)
+        watchpoint->prev->next = watchpoint->next;
+    else
+        env->watchpoints = watchpoint->next;
 
-    for (i = 0; i < env->nb_watchpoints; i++) {
-        tlb_flush_page(env, env->watchpoint[i].vaddr);
-    }
-    env->nb_watchpoints = 0;
+    tlb_flush_page(env, watchpoint->vaddr);
+
+    qemu_free(watchpoint);
 }
 
-/* add a breakpoint. EXCP_DEBUG is returned by the CPU loop if a
-   breakpoint is reached */
-int cpu_breakpoint_insert(CPUState *env, target_ulong pc)
+/* Remove all matching watchpoints.  */
+void cpu_watchpoint_remove_all(CPUState *env, int mask)
+{
+    CPUWatchpoint *wp;
+
+    for (wp = env->watchpoints; wp != NULL; wp = wp->next)
+        if (wp->flags & mask)
+            cpu_watchpoint_remove_by_ref(env, wp);
+}
+
+/* Add a breakpoint.  */
+int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
+                          CPUBreakpoint **breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    int i;
+    CPUBreakpoint *bp, *prev_bp;
 
-    for(i = 0; i < env->nb_breakpoints; i++) {
-        if (env->breakpoints[i] == pc)
+    bp = qemu_malloc(sizeof(*bp));
+    if (!bp)
+        return -ENOMEM;
+
+    bp->pc = pc;
+    bp->flags = flags;
+
+    /* keep all GDB-injected breakpoints in front */
+    if (!(flags & BP_GDB) && env->breakpoints) {
+        prev_bp = env->breakpoints;
+        while (prev_bp->next != NULL && (prev_bp->next->flags & BP_GDB))
+            prev_bp = prev_bp->next;
+    } else {
+        prev_bp = NULL;
+    }
+
+    /* Insert new breakpoint */
+    if (prev_bp) {
+        bp->next = prev_bp->next;
+        prev_bp->next = bp;
+    } else {
+        bp->next = env->breakpoints;
+        env->breakpoints = bp;
+    }
+    if (bp->next)
+        bp->next->prev = bp;
+    bp->prev = prev_bp;
+
+    breakpoint_invalidate(env, pc);
+
+    if (breakpoint)
+        *breakpoint = bp;
+    return 0;
+#else
+    return -ENOSYS;
+#endif
+}
+
+/* Remove a specific breakpoint.  */
+int cpu_breakpoint_remove(CPUState *env, target_ulong pc, int flags)
+{
+#if defined(TARGET_HAS_ICE)
+    CPUBreakpoint *bp;
+
+    for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+        if (bp->pc == pc && bp->flags == flags) {
+            cpu_breakpoint_remove_by_ref(env, bp);
             return 0;
+        }
     }
-
-    if (env->nb_breakpoints >= MAX_BREAKPOINTS)
-        return -1;
-    env->breakpoints[env->nb_breakpoints++] = pc;
-
-    breakpoint_invalidate(env, pc);
-    return 0;
+    return -ENOENT;
 #else
-    return -1;
+    return -ENOSYS;
 #endif
 }
 
-/* remove all breakpoints */
-void cpu_breakpoint_remove_all(CPUState *env) {
-#if defined(TARGET_HAS_ICE)
-    int i;
-    for(i = 0; i < env->nb_breakpoints; i++) {
-        breakpoint_invalidate(env, env->breakpoints[i]);
-    }
-    env->nb_breakpoints = 0;
-#endif
-}
-
-/* remove a breakpoint */
-int cpu_breakpoint_remove(CPUState *env, target_ulong pc)
+/* Remove a specific breakpoint by reference.  */
+void cpu_breakpoint_remove_by_ref(CPUState *env, CPUBreakpoint *breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    int i;
-    for(i = 0; i < env->nb_breakpoints; i++) {
-        if (env->breakpoints[i] == pc)
-            goto found;
-    }
-    return -1;
- found:
-    env->nb_breakpoints--;
-    if (i < env->nb_breakpoints)
-      env->breakpoints[i] = env->breakpoints[env->nb_breakpoints];
+    if (breakpoint->next)
+        breakpoint->next->prev = breakpoint->prev;
+    if (breakpoint->prev)
+        breakpoint->prev->next = breakpoint->next;
+    else
+        env->breakpoints = breakpoint->next;
 
-    breakpoint_invalidate(env, pc);
-    return 0;
-#else
-    return -1;
+    breakpoint_invalidate(env, breakpoint->pc);
+
+    qemu_free(breakpoint);
+#endif
+}
+
+/* Remove all matching breakpoints. */
+void cpu_breakpoint_remove_all(CPUState *env, int mask)
+{
+#if defined(TARGET_HAS_ICE)
+    CPUBreakpoint *bp;
+
+    for (bp = env->breakpoints; bp != NULL; bp = bp->next)
+        if (bp->flags & mask)
+            cpu_breakpoint_remove_by_ref(env, bp);
 #endif
 }
 
@@ -1894,7 +1959,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     target_phys_addr_t addend;
     int ret;
     CPUTLBEntry *te;
-    int i;
+    CPUWatchpoint *wp;
     target_phys_addr_t iotlb;
 
     p = phys_page_find(paddr >> TARGET_PAGE_BITS);
@@ -1935,8 +2000,8 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     code_address = address;
     /* Make accesses to pages with watchpoints go via the
        watchpoint trap routines.  */
-    for (i = 0; i < env->nb_watchpoints; i++) {
-        if (vaddr == (env->watchpoint[i].vaddr & TARGET_PAGE_MASK)) {
+    for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
+        if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
             iotlb = io_mem_watch + paddr;
             /* TODO: The memory case can be optimized by not trapping
                reads of pages with a write breakpoint.  */
@@ -2517,19 +2582,46 @@ static CPUWriteMemoryFunc * const notdirty_mem_write[3] = {
 };
 
 /* Generate a debug exception if a watchpoint has been hit.  */
-static void check_watchpoint(int offset, int flags)
+static void check_watchpoint(int offset, int len_mask, int flags)
 {
     CPUState *env = cpu_single_env;
+    target_ulong pc, cs_base;
+    TranslationBlock *tb;
     target_ulong vaddr;
-    int i;
+    CPUWatchpoint *wp;
+    int cpu_flags;
 
+    if (env->watchpoint_hit) {
+        /* We re-entered the check after replacing the TB. Now raise
+         * the debug interrupt so that is will trigger after the
+         * current instruction. */
+        cpu_interrupt(env, CPU_INTERRUPT_DEBUG);
+        return;
+    }
     vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
-    for (i = 0; i < env->nb_watchpoints; i++) {
-        if (vaddr == env->watchpoint[i].vaddr
-                && (env->watchpoint[i].type & flags)) {
-            env->watchpoint_hit = i + 1;
-            cpu_interrupt(env, CPU_INTERRUPT_DEBUG);
-            break;
+    for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
+        if ((vaddr == (wp->vaddr & len_mask) ||
+             (vaddr & wp->len_mask) == wp->vaddr) && (wp->flags & flags)) {
+            wp->flags |= BP_WATCHPOINT_HIT;
+            if (!env->watchpoint_hit) {
+                env->watchpoint_hit = wp;
+                tb = tb_find_pc(env->mem_io_pc);
+                if (!tb) {
+                    cpu_abort(env, "check_watchpoint: could not find TB for "
+                              "pc=%p", (void *)env->mem_io_pc);
+                }
+                cpu_restore_state(tb, env, env->mem_io_pc, NULL);
+                tb_phys_invalidate(tb, -1);
+                if (wp->flags & BP_STOP_BEFORE_ACCESS) {
+                    env->exception_index = EXCP_DEBUG;
+                } else {
+                    cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
+                    tb_gen_code(env, pc, cs_base, cpu_flags, 1);
+                }
+                cpu_resume_from_signal(env, NULL);
+            }
+        } else {
+            wp->flags &= ~BP_WATCHPOINT_HIT;
         }
     }
 }
@@ -2539,40 +2631,40 @@ static void check_watchpoint(int offset, int flags)
    phys routines.  */
 static uint32_t watch_mem_readb(void *opaque, target_phys_addr_t addr)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_READ);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x0, BP_MEM_READ);
     return ldub_phys(addr);
 }
 
 static uint32_t watch_mem_readw(void *opaque, target_phys_addr_t addr)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_READ);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x1, BP_MEM_READ);
     return lduw_phys(addr);
 }
 
 static uint32_t watch_mem_readl(void *opaque, target_phys_addr_t addr)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_READ);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x3, BP_MEM_READ);
     return ldl_phys(addr);
 }
 
 static void watch_mem_writeb(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_WRITE);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x0, BP_MEM_WRITE);
     stb_phys(addr, val);
 }
 
 static void watch_mem_writew(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_WRITE);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x1, BP_MEM_WRITE);
     stw_phys(addr, val);
 }
 
 static void watch_mem_writel(void *opaque, target_phys_addr_t addr,
                              uint32_t val)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, PAGE_WRITE);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x3, BP_MEM_WRITE);
     stl_phys(addr, val);
 }
 

@@ -43,12 +43,13 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
     env->exception_index = 0;
     switch (rw) {
     case 0:
-	env->tea = address;
         env->exception_index = 0x0a0;
         break;
     case 1:
-	env->tea = address;
         env->exception_index = 0x0c0;
+        break;
+    case 2:
+        env->exception_index = 0x0a0;
         break;
     }
     return 1;
@@ -72,6 +73,9 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 #define MMU_DTLB_VIOLATION_WRITE (-8)
 #define MMU_DTLB_MULTIPLE        (-9)
 #define MMU_DTLB_MISS            (-10)
+#define MMU_IADDR_ERROR          (-11)
+#define MMU_DADDR_ERROR_READ     (-12)
+#define MMU_DADDR_ERROR_WRITE    (-13)
 
 void do_interrupt(CPUState * env)
 {
@@ -353,20 +357,19 @@ int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
    Return MMU_OK, MMU_DTLB_MISS_READ, MMU_DTLB_MISS_WRITE,
    MMU_DTLB_INITIAL_WRITE, MMU_DTLB_VIOLATION_READ,
    MMU_DTLB_VIOLATION_WRITE, MMU_ITLB_MISS,
-   MMU_ITLB_MULTIPLE, MMU_ITLB_VIOLATION
+   MMU_ITLB_MULTIPLE, MMU_ITLB_VIOLATION,
+   MMU_IADDR_ERROR, MMU_DADDR_ERROR_READ, MMU_DADDR_ERROR_WRITE.
 */
 static int get_mmu_address(CPUState * env, target_ulong * physical,
 			   int *prot, target_ulong address,
 			   int rw, int access_type)
 {
-    int use_asid, is_code, n;
+    int use_asid, n;
     tlb_t *matching = NULL;
 
     use_asid = (env->mmucr & MMUCR_SV) == 0 || (env->sr & SR_MD) == 0;
-    is_code = env->pc == address;	/* Hack */
 
-    /* Use a hack to find if this is an instruction or data access */
-    if (env->pc == address && !(rw & PAGE_WRITE)) {
+    if (rw == 2) {
 	n = find_itlb_entry(env, address, use_asid, 1);
 	if (n >= 0) {
 	    matching = &env->itlb[n];
@@ -382,13 +385,13 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
 	    switch ((matching->pr << 1) | ((env->sr & SR_MD) ? 1 : 0)) {
 	    case 0:		/* 000 */
 	    case 2:		/* 010 */
-		n = (rw & PAGE_WRITE) ? MMU_DTLB_VIOLATION_WRITE :
+		n = (rw == 1) ? MMU_DTLB_VIOLATION_WRITE :
 		    MMU_DTLB_VIOLATION_READ;
 		break;
 	    case 1:		/* 001 */
 	    case 4:		/* 100 */
 	    case 5:		/* 101 */
-		if (rw & PAGE_WRITE)
+		if (rw == 1)
 		    n = MMU_DTLB_VIOLATION_WRITE;
 		else
 		    *prot = PAGE_READ;
@@ -396,18 +399,18 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
 	    case 3:		/* 011 */
 	    case 6:		/* 110 */
 	    case 7:		/* 111 */
-		*prot = rw & (PAGE_READ | PAGE_WRITE);
+		*prot = (rw == 1)? PAGE_WRITE : PAGE_READ;
 		break;
 	    }
 	} else if (n == MMU_DTLB_MISS) {
-	    n = (rw & PAGE_WRITE) ? MMU_DTLB_MISS_WRITE :
+	    n = (rw == 1) ? MMU_DTLB_MISS_WRITE :
 		MMU_DTLB_MISS_READ;
 	}
     }
     if (n >= 0) {
 	*physical = ((matching->ppn << 10) & ~(matching->size - 1)) |
 	    (address & (matching->size - 1));
-	if ((rw & PAGE_WRITE) & !matching->d)
+	if ((rw == 1) & !matching->d)
 	    n = MMU_DTLB_INITIAL_WRITE;
 	else
 	    n = MMU_OK;
@@ -426,8 +429,12 @@ int get_physical_address(CPUState * env, target_ulong * physical,
 	    && (address < 0xe0000000 || address > 0xe4000000)) {
 	    /* Unauthorized access in user mode (only store queues are available) */
 	    fprintf(stderr, "Unauthorized access\n");
-	    return (rw & PAGE_WRITE) ? MMU_DTLB_MISS_WRITE :
-		MMU_DTLB_MISS_READ;
+	    if (rw == 0)
+		return MMU_DADDR_ERROR_READ;
+	    else if (rw == 1)
+		return MMU_DADDR_ERROR_WRITE;
+	    else
+		return MMU_IADDR_ERROR;
 	}
 	if (address >= 0x80000000 && address < 0xc0000000) {
 	    /* Mask upper 3 bits for P1 and P2 areas */
@@ -465,27 +472,6 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
     target_ulong physical, page_offset, page_size;
     int prot, ret, access_type;
 
-    switch (rw) {
-    case 0:
-        rw = PAGE_READ;
-        break;
-    case 1:
-        rw = PAGE_WRITE;
-        break;
-    case 2: /* READ_ACCESS_TYPE == 2 defined in softmmu_template.h */
-        rw = PAGE_READ;
-        break;
-    default:
-        /* fatal error */
-        assert(0);
-    }
-
-    /* XXXXX */
-#if 0
-    fprintf(stderr, "%s pc %08x ad %08x rw %d mmu_idx %d smmu %d\n",
-	    __func__, env->pc, address, rw, mmu_idx, is_softmmu);
-#endif
-
     access_type = ACCESS_INT;
     ret =
 	get_physical_address(env, &physical, &prot, address, rw,
@@ -517,6 +503,13 @@ int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 	case MMU_DTLB_VIOLATION_WRITE:
 	    env->exception_index = 0x0c0;
 	    break;
+	case MMU_IADDR_ERROR:
+	case MMU_DADDR_ERROR_READ:
+	    env->exception_index = 0x0c0;
+	    break;
+	case MMU_DADDR_ERROR_WRITE:
+	    env->exception_index = 0x100;
+	    break;
 	default:
 	    assert(0);
 	}
@@ -537,7 +530,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
     target_ulong physical;
     int prot;
 
-    get_physical_address(env, &physical, &prot, addr, PAGE_READ, 0);
+    get_physical_address(env, &physical, &prot, addr, 0, 0);
     return physical;
 }
 

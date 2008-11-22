@@ -56,49 +56,8 @@ void do_store_cr (uint32_t mask);
 #if defined(TARGET_PPC64)
 void do_store_pri (int prio);
 #endif
-void do_fpscr_setbit (int bit);
-void do_store_fpscr (uint32_t mask);
 target_ulong ppc_load_dump_spr (int sprn);
 void ppc_store_dump_spr (int sprn, target_ulong val);
-
-/* Floating-point arithmetic helpers */
-void do_compute_fprf (int set_class);
-#ifdef CONFIG_SOFTFLOAT
-void do_float_check_status (void);
-#endif
-#if USE_PRECISE_EMULATION
-void do_fadd (void);
-void do_fsub (void);
-void do_fmul (void);
-void do_fdiv (void);
-#endif
-void do_fsqrt (void);
-void do_fre (void);
-void do_fres (void);
-void do_frsqrte (void);
-void do_fsel (void);
-#if USE_PRECISE_EMULATION
-void do_fmadd (void);
-void do_fmsub (void);
-#endif
-void do_fnmadd (void);
-void do_fnmsub (void);
-#if USE_PRECISE_EMULATION
-void do_frsp (void);
-#endif
-void do_fctiw (void);
-void do_fctiwz (void);
-#if defined(TARGET_PPC64)
-void do_fcfid (void);
-void do_fctid (void);
-void do_fctidz (void);
-#endif
-void do_frin (void);
-void do_friz (void);
-void do_frip (void);
-void do_frim (void);
-void do_fcmpu (void);
-void do_fcmpo (void);
 
 /* Misc */
 void do_tw (int flags);
@@ -167,26 +126,6 @@ void do_store_403_pb (int num);
 #endif
 
 /* SPE extension helpers */
-void do_brinc (void);
-/* Fixed-point vector helpers */
-void do_evabs (void);
-void do_evaddw (void);
-void do_evcntlsw (void);
-void do_evcntlzw (void);
-void do_evneg (void);
-void do_evrlw (void);
-void do_evsel (void);
-void do_evrndw (void);
-void do_evslw (void);
-void do_evsrws (void);
-void do_evsrwu (void);
-void do_evsubfw (void);
-void do_evcmpeq (void);
-void do_evcmpgts (void);
-void do_evcmpgtu (void);
-void do_evcmplts (void);
-void do_evcmpltu (void);
-
 /* Single precision floating-point helpers */
 void do_efscmplt (void);
 void do_efscmpgt (void);

@@ -32,7 +32,7 @@ ar="ar"
 make="make"
 install="install"
 strip="strip"
-cpu=`uname -m`
+cpu=`test $(uname -s) = AIX && uname -p || uname -m`
 target_list=""
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
@@ -68,7 +68,7 @@ case "$cpu" in
   mips64)
     cpu="mips64"
   ;;
-  "Power Macintosh"|ppc|ppc64)
+  "Power Macintosh"|ppc|ppc64|powerpc)
     cpu="powerpc"
   ;;
   s390*)
@@ -117,6 +117,7 @@ mixemu="no"
 bluez="yes"
 kvm="yes"
 kerneldir=""
+aix="no"
 
 # OS specific
 targetos=`uname -s`
@@ -147,6 +148,7 @@ FreeBSD)
 bsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd pa"
+aiolib="-lpthread"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -155,6 +157,8 @@ NetBSD)
 bsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
+oss_lib="-lossaudio"
+aio_lib="-lrt -lpthread"
 ;;
 OpenBSD)
 bsd="yes"
@@ -162,6 +166,7 @@ openbsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
 oss_lib="-lossaudio"
+aio_lib="-lpthread"
 ;;
 Darwin)
 bsd="yes"
@@ -172,6 +177,7 @@ audio_drv_list="coreaudio"
 audio_possible_drivers="coreaudio sdl fmod"
 OS_CFLAGS="-mdynamic-no-pic"
 OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
+aio_lib="-lpthread"
 ;;
 SunOS)
     solaris="yes"
@@ -206,11 +212,16 @@ SunOS)
     fi
     audio_possible_drivers="oss sdl"
 ;;
+AIX)
+aix="yes"
+make="gmake"
+;;
 *)
 audio_drv_list="oss"
 audio_possible_drivers="oss alsa sdl esd pa"
 linux="yes"
 linux_user="yes"
+usb="linux"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
     audio_possible_drivers="$audio_possible_drivers fmod"
@@ -221,6 +232,7 @@ esac
 if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
     make="gmake"
+    usb="bsd"
   fi
   bsd_user="yes"
 fi
@@ -522,7 +534,7 @@ fi
 if [ "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
     AIOLIBS=
 elif [ "$bsd" = "yes" ]; then
-    AIOLIBS="-lpthread"
+    AIOLIBS="$aio_lib"
 else
     # Some Linux architectures (e.g. s390) don't imply -lpthread automatically.
     AIOLIBS="-lrt -lpthread"
@@ -1223,6 +1235,12 @@ if test "$darwin" = "yes" ; then
   echo "CONFIG_DARWIN=yes" >> $config_mak
   echo "#define CONFIG_DARWIN 1" >> $config_h
 fi
+
+if test "$aix" = "yes" ; then
+  echo "CONFIG_AIX=yes" >> $config_mak
+  echo "#define CONFIG_AIX 1" >> $config_h
+fi
+
 if test "$solaris" = "yes" ; then
   echo "CONFIG_SOLARIS=yes" >> $config_mak
   echo "#define HOST_SOLARIS $solarisrev" >> $config_h
@@ -1351,6 +1369,19 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 echo "#define CONFIG_UNAME_RELEASE \"$uname_release\"" >> $config_h
+
+# USB host support
+case "$usb" in
+linux)
+  echo "HOST_USB=linux" >> $config_mak
+;;
+bsd)
+  echo "HOST_USB=bsd" >> $config_mak
+;;
+*)
+  echo "HOST_USB=stub" >> $config_mak
+;;
+esac
 
 tools=
 if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then

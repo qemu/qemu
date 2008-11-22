@@ -259,6 +259,10 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
 
     for(i = 0; i < 8; i++)
         qemu_get_betls(f, &env->dr[i]);
+    cpu_breakpoint_remove_all(env, BP_CPU);
+    cpu_watchpoint_remove_all(env, BP_CPU);
+    for (i = 0; i < 4; i++)
+        hw_breakpoint_insert(env, i);
 
     /* MMU */
     qemu_get_sbe32s(f, &a20_mask);

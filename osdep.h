@@ -46,7 +46,9 @@
 #define always_inline inline
 #else
 #define always_inline __attribute__ (( always_inline )) __inline__
+#ifdef __OPTIMIZE__
 #define inline always_inline
+#endif
 #endif
 #else
 #define inline always_inline

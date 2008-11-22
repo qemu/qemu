@@ -345,13 +345,13 @@ uint64_t helper_cmpbge (uint64_t op1, uint64_t op2)
 /* F floating (VAX) */
 static always_inline uint64_t float32_to_f (float32 fa)
 {
-    uint32_t a;
     uint64_t r, exp, mant, sig;
+    CPU_FloatU a;
 
-    a = *(uint32_t*)(&fa);
-    sig = ((uint64_t)a & 0x80000000) << 32;
-    exp = (a >> 23) & 0xff;
-    mant = ((uint64_t)a & 0x007fffff) << 29;
+    a.f = fa;
+    sig = ((uint64_t)a.l & 0x80000000) << 32;
+    exp = (a.l >> 23) & 0xff;
+    mant = ((uint64_t)a.l & 0x007fffff) << 29;
 
     if (exp == 255) {
         /* NaN or infinity */
@@ -378,7 +378,8 @@ static always_inline uint64_t float32_to_f (float32 fa)
 
 static always_inline float32 f_to_float32 (uint64_t a)
 {
-    uint32_t r, exp, mant_sig;
+    uint32_t exp, mant_sig;
+    CPU_FloatU r;
 
     exp = ((a >> 55) & 0x80) | ((a >> 52) & 0x7f);
     mant_sig = ((a >> 32) & 0x80000000) | ((a >> 29) & 0x007fffff);
@@ -390,12 +391,12 @@ static always_inline float32 f_to_float32 (uint64_t a)
 
     if (exp < 3) {
         /* Underflow */
-        r = 0;
+        r.l = 0;
     } else {
-        r = ((exp - 2) << 23) | mant_sig;
+        r.l = ((exp - 2) << 23) | mant_sig;
     }
 
-    return *(float32*)(&a);
+    return r.f;
 }
 
 uint32_t helper_f_to_memory (uint64_t a)
@@ -471,12 +472,13 @@ uint64_t helper_sqrtf (uint64_t t)
 /* G floating (VAX) */
 static always_inline uint64_t float64_to_g (float64 fa)
 {
-    uint64_t a, r, exp, mant, sig;
+    uint64_t r, exp, mant, sig;
+    CPU_DoubleU a;
 
-    a = *(uint64_t*)(&fa);
-    sig = a & 0x8000000000000000ull;
-    exp = (a >> 52) & 0x7ff;
-    mant = a & 0x000fffffffffffffull;
+    a.d = fa;
+    sig = a.ll & 0x8000000000000000ull;
+    exp = (a.ll >> 52) & 0x7ff;
+    mant = a.ll & 0x000fffffffffffffull;
 
     if (exp == 2047) {
         /* NaN or infinity */
@@ -503,7 +505,8 @@ static always_inline uint64_t float64_to_g (float64 fa)
 
 static always_inline float64 g_to_float64 (uint64_t a)
 {
-    uint64_t r, exp, mant_sig;
+    uint64_t exp, mant_sig;
+    CPU_DoubleU r;
 
     exp = (a >> 52) & 0x7ff;
     mant_sig = a & 0x800fffffffffffffull;
@@ -515,12 +518,12 @@ static always_inline float64 g_to_float64 (uint64_t a)
 
     if (exp < 3) {
         /* Underflow */
-        r = 0;
+        r.ll = 0;
     } else {
-        r = ((exp - 2) << 52) | mant_sig;
+        r.ll = ((exp - 2) << 52) | mant_sig;
     }
 
-    return *(float64*)(&a);
+    return r.d;
 }
 
 uint64_t helper_g_to_memory (uint64_t a)
@@ -596,21 +599,22 @@ uint64_t helper_sqrtg (uint64_t a)
 /* S floating (single) */
 static always_inline uint64_t float32_to_s (float32 fa)
 {
-    uint32_t a;
+    CPU_FloatU a;
     uint64_t r;
 
-    a = *(uint32_t*)(&fa);
+    a.f = fa;
 
-    r = (((uint64_t)(a & 0xc0000000)) << 32) | (((uint64_t)(a & 0x3fffffff)) << 29);
-    if (((a & 0x7f800000) != 0x7f800000) && (!(a & 0x40000000)))
+    r = (((uint64_t)(a.l & 0xc0000000)) << 32) | (((uint64_t)(a.l & 0x3fffffff)) << 29);
+    if (((a.l & 0x7f800000) != 0x7f800000) && (!(a.l & 0x40000000)))
         r |= 0x7ll << 59;
     return r;
 }
 
 static always_inline float32 s_to_float32 (uint64_t a)
 {
-    uint32_t r = ((a >> 32) & 0xc0000000) | ((a >> 29) & 0x3fffffff);
-    return *(float32*)(&r);
+    CPU_FloatU r;
+    r.l = ((a >> 32) & 0xc0000000) | ((a >> 29) & 0x3fffffff);
+    return r.f;
 }
 
 uint32_t helper_s_to_memory (uint64_t a)
@@ -680,13 +684,17 @@ uint64_t helper_sqrts (uint64_t a)
 static always_inline float64 t_to_float64 (uint64_t a)
 {
     /* Memory format is the same as float64 */
-    return *(float64*)(&a);
+    CPU_DoubleU r;
+    r.ll = a;
+    return r.d;
 }
 
 static always_inline uint64_t float64_to_t (float64 fa)
 {
     /* Memory format is the same as float64 */
-    return *(uint64*)(&fa);
+    CPU_DoubleU r;
+    r.d = fa;
+    return r.ll;
 }
 
 uint64_t helper_addt (uint64_t a, uint64_t b)

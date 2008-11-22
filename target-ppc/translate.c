@@ -75,7 +75,7 @@ static TCGv cpu_T[3];
 #else
 static TCGv_i64 cpu_T64[3];
 #endif
-static TCGv_i64 cpu_FT[3];
+static TCGv_i64 cpu_FT[2];
 static TCGv_i64 cpu_AVRh[3], cpu_AVRl[3];
 
 #include "gen-icount.h"
@@ -120,8 +120,6 @@ void ppc_translate_init(void)
                                        offsetof(CPUState, ft0), "FT0");
     cpu_FT[1] = tcg_global_mem_new_i64(TCG_AREG0,
                                        offsetof(CPUState, ft1), "FT1");
-    cpu_FT[2] = tcg_global_mem_new_i64(TCG_AREG0,
-                                       offsetof(CPUState, ft2), "FT2");
 
     cpu_AVRh[0] = tcg_global_mem_new_i64(TCG_AREG0,
                                      offsetof(CPUState, avr0.u64[0]), "AVR0H");
@@ -245,27 +243,31 @@ static always_inline void gen_reset_fpstatus (void)
 #endif
 }
 
-static always_inline void gen_compute_fprf (int set_fprf, int set_rc)
+static always_inline void gen_compute_fprf (TCGv_i64 arg, int set_fprf, int set_rc)
 {
+    TCGv_i32 t0 = tcg_temp_new_i32();
+
     if (set_fprf != 0) {
         /* This case might be optimized later */
 #if defined(OPTIMIZE_FPRF_UPDATE)
         *gen_fprf_ptr++ = gen_opc_ptr;
 #endif
-        gen_op_compute_fprf(1);
+        tcg_gen_movi_i32(t0, 1);
+        gen_helper_compute_fprf(t0, arg, t0);
         if (unlikely(set_rc)) {
-            tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_T[0]);
-            tcg_gen_andi_i32(cpu_crf[1], cpu_crf[1], 0xf);
+            tcg_gen_mov_i32(cpu_crf[1], t0);
         }
-        gen_op_float_check_status();
+        gen_helper_float_check_status();
     } else if (unlikely(set_rc)) {
         /* We always need to compute fpcc */
-        gen_op_compute_fprf(0);
-        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_T[0]);
-        tcg_gen_andi_i32(cpu_crf[1], cpu_crf[1], 0xf);
+        tcg_gen_movi_i32(t0, 0);
+        gen_helper_compute_fprf(t0, arg, t0);
+        tcg_gen_mov_i32(cpu_crf[1], t0);
         if (set_fprf)
-            gen_op_float_check_status();
+            gen_helper_float_check_status();
     }
+
+    tcg_temp_free_i32(t0);
 }
 
 static always_inline void gen_optimize_fprf (void)
@@ -291,10 +293,14 @@ static always_inline void gen_update_nip (DisasContext *ctx, target_ulong nip)
 
 #define GEN_EXCP(ctx, excp, error)                                            \
 do {                                                                          \
+    TCGv_i32 t0 = tcg_const_i32(excp);                                        \
+    TCGv_i32 t1 = tcg_const_i32(error);                                       \
     if ((ctx)->exception == POWERPC_EXCP_NONE) {                              \
         gen_update_nip(ctx, (ctx)->nip);                                      \
     }                                                                         \
-    gen_op_raise_exception_err((excp), (error));                              \
+    gen_helper_raise_exception_err(t0, t1);                                   \
+    tcg_temp_free_i32(t0);                                                    \
+    tcg_temp_free_i32(t1);                                                    \
     ctx->exception = (excp);                                                  \
 } while (0)
 
@@ -2096,16 +2102,14 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, 0x00000000, type)                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rA(ctx->opcode)]);                     \
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rC(ctx->opcode)]);                     \
-    tcg_gen_mov_i64(cpu_FT[2], cpu_fpr[rB(ctx->opcode)]);                     \
     gen_reset_fpstatus();                                                     \
-    gen_op_f##op();                                                           \
+    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],      \
+                     cpu_fpr[rC(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);     \
     if (isfloat) {                                                            \
-        gen_op_frsp();                                                        \
+        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);  \
     }                                                                         \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
-    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], set_fprf,                      \
+                     Rc(ctx->opcode) != 0);                                   \
 }
 
 #define GEN_FLOAT_ACB(name, op2, set_fprf, type)                              \
@@ -2119,15 +2123,14 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)                             \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rA(ctx->opcode)]);                     \
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rB(ctx->opcode)]);                     \
     gen_reset_fpstatus();                                                     \
-    gen_op_f##op();                                                           \
+    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],      \
+                     cpu_fpr[rB(ctx->opcode)]);                               \
     if (isfloat) {                                                            \
-        gen_op_frsp();                                                        \
+        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);  \
     }                                                                         \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
-    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)],                                \
+                     set_fprf, Rc(ctx->opcode) != 0);                         \
 }
 #define GEN_FLOAT_AB(name, op2, inval, set_fprf, type)                        \
 _GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
@@ -2140,15 +2143,14 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, inval, type)                             \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rA(ctx->opcode)]);                     \
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rC(ctx->opcode)]);                     \
     gen_reset_fpstatus();                                                     \
-    gen_op_f##op();                                                           \
+    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],      \
+                       cpu_fpr[rC(ctx->opcode)]);                             \
     if (isfloat) {                                                            \
-        gen_op_frsp();                                                        \
+        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);  \
     }                                                                         \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
-    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)],                                \
+                     set_fprf, Rc(ctx->opcode) != 0);                         \
 }
 #define GEN_FLOAT_AC(name, op2, inval, set_fprf, type)                        \
 _GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
@@ -2161,11 +2163,10 @@ GEN_HANDLER(f##name, 0x3F, op2, op3, 0x001F0000, type)                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rB(ctx->opcode)]);                     \
     gen_reset_fpstatus();                                                     \
-    gen_op_f##name();                                                         \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
-    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
+    gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);   \
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)],                                \
+                     set_fprf, Rc(ctx->opcode) != 0);                         \
 }
 
 #define GEN_FLOAT_BS(name, op1, op2, set_fprf, type)                          \
@@ -2175,11 +2176,10 @@ GEN_HANDLER(f##name, op1, op2, 0xFF, 0x001F07C0, type)                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rB(ctx->opcode)]);                     \
     gen_reset_fpstatus();                                                     \
-    gen_op_f##name();                                                         \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
-    gen_compute_fprf(set_fprf, Rc(ctx->opcode) != 0);                         \
+    gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);   \
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)],                                \
+                     set_fprf, Rc(ctx->opcode) != 0);                         \
 }
 
 /* fadd - fadds */
@@ -2199,12 +2199,17 @@ GEN_FLOAT_BS(res, 0x3B, 0x18, 1, PPC_FLOAT_FRES);
 GEN_FLOAT_BS(rsqrte, 0x3F, 0x1A, 1, PPC_FLOAT_FRSQRTE);
 
 /* frsqrtes */
-static always_inline void gen_op_frsqrtes (void)
+GEN_HANDLER(frsqrtes, 0x3B, 0x1A, 0xFF, 0x001F07C0, PPC_FLOAT_FRSQRTES)
 {
-    gen_op_frsqrte();
-    gen_op_frsp();
+    if (unlikely(!ctx->fpu_enabled)) {
+        GEN_EXCP_NO_FP(ctx);
+        return;
+    }
+    gen_reset_fpstatus();
+    gen_helper_frsqrte(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 1, Rc(ctx->opcode) != 0);
 }
-GEN_FLOAT_BS(rsqrtes, 0x3B, 0x1A, 1, PPC_FLOAT_FRSQRTES);
 
 /* fsel */
 _GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, 0, PPC_FLOAT_FSEL);
@@ -2218,11 +2223,9 @@ GEN_HANDLER(fsqrt, 0x3F, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rB(ctx->opcode)]);
     gen_reset_fpstatus();
-    gen_op_fsqrt();
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);
-    gen_compute_fprf(1, Rc(ctx->opcode) != 0);
+    gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 1, Rc(ctx->opcode) != 0);
 }
 
 GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
@@ -2231,12 +2234,10 @@ GEN_HANDLER(fsqrts, 0x3B, 0x16, 0xFF, 0x001F07C0, PPC_FLOAT_FSQRT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rB(ctx->opcode)]);
     gen_reset_fpstatus();
-    gen_op_fsqrt();
-    gen_op_frsp();
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);
-    gen_compute_fprf(1, Rc(ctx->opcode) != 0);
+    gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 1, Rc(ctx->opcode) != 0);
 }
 
 /***                     Floating-Point multiply-and-add                   ***/
@@ -2282,11 +2283,10 @@ GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rA(ctx->opcode)]);
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rB(ctx->opcode)]);
     gen_reset_fpstatus();
-    gen_helper_fcmpo(cpu_crf[crfD(ctx->opcode)]);
-    gen_op_float_check_status();
+    gen_helper_fcmpo(cpu_crf[crfD(ctx->opcode)],
+                     cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    gen_helper_float_check_status();
 }
 
 /* fcmpu */
@@ -2296,11 +2296,10 @@ GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rA(ctx->opcode)]);
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rB(ctx->opcode)]);
     gen_reset_fpstatus();
-    gen_helper_fcmpu(cpu_crf[crfD(ctx->opcode)]);
-    gen_op_float_check_status();
+    gen_helper_fcmpu(cpu_crf[crfD(ctx->opcode)],
+                     cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    gen_helper_float_check_status();
 }
 
 /***                         Floating-point move                           ***/
@@ -2316,9 +2315,8 @@ GEN_HANDLER(fmr, 0x3F, 0x08, 0x02, 0x001F0000, PPC_FLOAT)
         GEN_EXCP_NO_FP(ctx);
         return;
     }
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rB(ctx->opcode)]);
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);
-    gen_compute_fprf(0, Rc(ctx->opcode) != 0);
+    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
 }
 
 /* fnabs */
@@ -2342,7 +2340,7 @@ GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT)
     bfa = 4 * (7 - crfS(ctx->opcode));
     tcg_gen_shri_i32(cpu_crf[crfD(ctx->opcode)], cpu_fpscr, bfa);
     tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)], 0xf);
-    gen_op_fpscr_resetbit(~(0xF << bfa));
+    tcg_gen_andi_i32(cpu_fpscr, cpu_fpscr, ~(0xF << bfa));
 }
 
 /* mffs */
@@ -2354,9 +2352,8 @@ GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT)
     }
     gen_optimize_fprf();
     gen_reset_fpstatus();
-    gen_op_load_fpscr_FT0();
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);
-    gen_compute_fprf(0, Rc(ctx->opcode) != 0);
+    tcg_gen_extu_i32_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpscr);
+    gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
 }
 
 /* mtfsb0 */
@@ -2372,7 +2369,7 @@ GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
     gen_optimize_fprf();
     gen_reset_fpstatus();
     if (likely(crb != 30 && crb != 29))
-        gen_op_fpscr_resetbit(~(1 << crb));
+        tcg_gen_andi_i32(cpu_fpscr, cpu_fpscr, ~(1 << crb));
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
@@ -2391,37 +2388,45 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
     gen_optimize_fprf();
     gen_reset_fpstatus();
     /* XXX: we pretend we can only do IEEE floating-point computations */
-    if (likely(crb != FPSCR_FEX && crb != FPSCR_VX && crb != FPSCR_NI))
-        gen_op_fpscr_setbit(crb);
+    if (likely(crb != FPSCR_FEX && crb != FPSCR_VX && crb != FPSCR_NI)) {
+        TCGv_i32 t0 = tcg_const_i32(crb);
+        gen_helper_fpscr_setbit(t0);
+        tcg_temp_free_i32(t0);
+    }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
     /* We can raise a differed exception */
-    gen_op_float_check_status();
+    gen_helper_float_check_status();
 }
 
 /* mtfsf */
 GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
 {
+    TCGv_i32 t0;
+
     if (unlikely(!ctx->fpu_enabled)) {
         GEN_EXCP_NO_FP(ctx);
         return;
     }
     gen_optimize_fprf();
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rB(ctx->opcode)]);
     gen_reset_fpstatus();
-    gen_op_store_fpscr(FM(ctx->opcode));
+    t0 = tcg_const_i32(FM(ctx->opcode));
+    gen_helper_store_fpscr(cpu_fpr[rB(ctx->opcode)], t0);
+    tcg_temp_free_i32(t0);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
     /* We can raise a differed exception */
-    gen_op_float_check_status();
+    gen_helper_float_check_status();
 }
 
 /* mtfsfi */
 GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
 {
     int bf, sh;
+    TCGv_i64 t0;
+    TCGv_i32 t1;
 
     if (unlikely(!ctx->fpu_enabled)) {
         GEN_EXCP_NO_FP(ctx);
@@ -2430,14 +2435,17 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
     bf = crbD(ctx->opcode) >> 2;
     sh = 7 - bf;
     gen_optimize_fprf();
-    tcg_gen_movi_i64(cpu_FT[0], FPIMM(ctx->opcode) << (4 * sh));
     gen_reset_fpstatus();
-    gen_op_store_fpscr(1 << sh);
+    t0 = tcg_const_i64(FPIMM(ctx->opcode) << (4 * sh));
+    t1 = tcg_const_i32(1 << sh);
+    gen_helper_store_fpscr(t0, t1);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
     /* We can raise a differed exception */
-    gen_op_float_check_status();
+    gen_helper_float_check_status();
 }
 
 /***                           Addressing modes                            ***/
@@ -3066,7 +3074,7 @@ void always_inline gen_qemu_st32r(TCGv t0, TCGv t1, int flags)
     tcg_gen_bswap_i32(temp, temp);
     tcg_gen_extu_i32_tl(t2, temp);
     tcg_temp_free_i32(temp);
-    gen_qemu_st16(t2, t1, flags);
+    gen_qemu_st32(t2, t1, flags);
     tcg_temp_free(t2);
 }
 GEN_STX(32r, 0x16, 0x14, PPC_INTEGER);
@@ -3466,7 +3474,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
             }
             if (ctx->singlestep_enabled & GDBSTUB_SINGLE_STEP) {
                 gen_update_nip(ctx, dest);
-                gen_op_debug();
+                gen_helper_raise_debug();
             }
         }
         tcg_gen_exit_tb(0);
@@ -7170,6 +7178,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     target_ulong pc_start;
     uint16_t *gen_opc_end;
     int supervisor, little_endian;
+    CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
     int max_insns;
@@ -7224,11 +7233,11 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     gen_icount_start();
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == POWERPC_EXCP_NONE && gen_opc_ptr < gen_opc_end) {
-        if (unlikely(env->nb_breakpoints > 0)) {
-            for (j = 0; j < env->nb_breakpoints; j++) {
-                if (env->breakpoints[j] == ctx.nip) {
+        if (unlikely(env->breakpoints)) {
+            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+                if (bp->pc == ctx.nip) {
                     gen_update_nip(&ctx, ctx.nip);
-                    gen_op_debug();
+                    gen_helper_raise_debug();
                     break;
                 }
             }
@@ -7339,7 +7348,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     } else if (ctx.exception != POWERPC_EXCP_BRANCH) {
         if (unlikely(env->singlestep_enabled)) {
             gen_update_nip(&ctx, ctx.nip);
-            gen_op_debug();
+            gen_helper_raise_debug();
         }
         /* Generate the return instruction */
         tcg_gen_exit_tb(0);

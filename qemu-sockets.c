@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include "qemu_socket.h"
+#include "qemu-common.h" /* for qemu_isdigit */
 
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0
@@ -120,7 +121,7 @@ int inet_listen(const char *str, char *ostr, int olen,
             return -1;
         }
         ai.ai_family = PF_INET6;
-    } else if (isdigit(str[0])) {
+    } else if (qemu_isdigit(str[0])) {
         /* IPv4 addr */
         if (2 != sscanf(str,"%64[0-9.]:%32[^,]%n",addr,port,&pos)) {
             fprintf(stderr, "%s: ipv4 parse error (%s)\n",
@@ -244,7 +245,7 @@ int inet_connect(const char *str, int socktype)
             return -1;
         }
         ai.ai_family = PF_INET6;
-    } else if (isdigit(str[0])) {
+    } else if (qemu_isdigit(str[0])) {
         /* IPv4 addr */
         if (2 != sscanf(str,"%64[0-9.]:%32[^,]",addr,port)) {
             fprintf(stderr, "%s: ipv4 parse error (%s)\n",

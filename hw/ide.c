@@ -1603,7 +1603,9 @@ static void ide_atapi_cmd(IDEState *s)
                     buf[10] = 0x00;
                     buf[11] = 0x00;
 
-                    buf[12] = 0x70;
+                    /* Claim PLAY_AUDIO capability (0x01) since some Linux
+                       code checks for this to automount media. */
+                    buf[12] = 0x71;
                     buf[13] = 3 << 5;
                     buf[14] = (1 << 0) | (1 << 3) | (1 << 5);
                     if (bdrv_is_locked(s->bs))

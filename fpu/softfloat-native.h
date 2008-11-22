@@ -8,8 +8,7 @@
 #include <fenv.h>
 #endif
 
-#ifdef __OpenBSD__
-/* Get OpenBSD version number */
+#if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <sys/param.h>
 #endif
 
@@ -34,6 +33,25 @@
 #if defined(__OpenBSD__)
 #define unordered(x, y) (isnan(x) || isnan(y))
 #endif
+
+#ifdef __NetBSD__
+#ifndef isgreater
+#define isgreater(x, y)		__builtin_isgreater(x, y)
+#endif
+#ifndef isgreaterequal
+#define isgreaterequal(x, y)	__builtin_isgreaterequal(x, y)
+#endif
+#ifndef isless
+#define isless(x, y)		__builtin_isless(x, y)
+#endif
+#ifndef islessequal
+#define islessequal(x, y)	__builtin_islessequal(x, y)
+#endif
+#ifndef isunordered
+#define isunordered(x, y)	__builtin_isunordered(x, y)
+#endif
+#endif
+
 
 #define isnormal(x)             (fpclass(x) >= FP_NZERO)
 #define isgreater(x, y)         ((!unordered(x, y)) && ((x) > (y)))
