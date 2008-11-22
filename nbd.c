@@ -314,14 +314,14 @@ int nbd_receive_negotiate(int csock, off_t *size, size_t *blocksize)
 	*blocksize = 1024;
 
 	TRACE("Magic is %c%c%c%c%c%c%c%c",
-	      isprint(buf[0]) ? buf[0] : '.',
-	      isprint(buf[1]) ? buf[1] : '.',
-	      isprint(buf[2]) ? buf[2] : '.',
-	      isprint(buf[3]) ? buf[3] : '.',
-	      isprint(buf[4]) ? buf[4] : '.',
-	      isprint(buf[5]) ? buf[5] : '.',
-	      isprint(buf[6]) ? buf[6] : '.',
-	      isprint(buf[7]) ? buf[7] : '.');
+	      qemu_isprint(buf[0]) ? buf[0] : '.',
+	      qemu_isprint(buf[1]) ? buf[1] : '.',
+	      qemu_isprint(buf[2]) ? buf[2] : '.',
+	      qemu_isprint(buf[3]) ? buf[3] : '.',
+	      qemu_isprint(buf[4]) ? buf[4] : '.',
+	      qemu_isprint(buf[5]) ? buf[5] : '.',
+	      qemu_isprint(buf[6]) ? buf[6] : '.',
+	      qemu_isprint(buf[7]) ? buf[7] : '.');
 	TRACE("Magic is 0x%" PRIx64, magic);
 	TRACE("Size is %" PRIu64, *size);
 

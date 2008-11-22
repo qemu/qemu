@@ -668,7 +668,7 @@ int tap_alloc(char *dev, size_t dev_size)
 
     if( *dev ){
        ptr = dev;
-       while( *ptr && !isdigit((int)*ptr) ) ptr++;
+       while( *ptr && !qemu_isdigit((int)*ptr) ) ptr++;
        ppa = atoi(ptr);
     }
 
