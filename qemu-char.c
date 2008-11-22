@@ -63,6 +63,8 @@
 #include <sys/stat.h>
 #ifdef __FreeBSD__
 #include <libutil.h>
+#include <dev/ppbus/ppi.h>
+#include <dev/ppbus/ppbconf.h>
 #else
 #include <util.h>
 #endif
@@ -1269,6 +1271,65 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
 }
 #endif /* __linux__ */
 
+#if defined(__FreeBSD__)
+static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
+{
+    int fd = (int)chr->opaque;
+    uint8_t b;
+
+    switch(cmd) {
+    case CHR_IOCTL_PP_READ_DATA:
+        if (ioctl(fd, PPIGDATA, &b) < 0)
+            return -ENOTSUP;
+        *(uint8_t *)arg = b;
+        break;
+    case CHR_IOCTL_PP_WRITE_DATA:
+        b = *(uint8_t *)arg;
+        if (ioctl(fd, PPISDATA, &b) < 0)
+            return -ENOTSUP;
+        break;
+    case CHR_IOCTL_PP_READ_CONTROL:
+        if (ioctl(fd, PPIGCTRL, &b) < 0)
+            return -ENOTSUP;
+        *(uint8_t *)arg = b;
+        break;
+    case CHR_IOCTL_PP_WRITE_CONTROL:
+        b = *(uint8_t *)arg;
+        if (ioctl(fd, PPISCTRL, &b) < 0)
+            return -ENOTSUP;
+        break;
+    case CHR_IOCTL_PP_READ_STATUS:
+        if (ioctl(fd, PPIGSTATUS, &b) < 0)
+            return -ENOTSUP;
+        *(uint8_t *)arg = b;
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
+static CharDriverState *qemu_chr_open_pp(const char *filename)
+{
+    CharDriverState *chr;
+    int fd;
+
+    fd = open(filename, O_RDWR);
+    if (fd < 0)
+        return NULL;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr) {
+        close(fd);
+        return NULL;
+    }
+    chr->opaque = (void *)fd;
+    chr->chr_write = null_chr_write;
+    chr->chr_ioctl = pp_ioctl;
+    return chr;
+}
+#endif
+
 #else /* _WIN32 */
 
 typedef struct {
@@ -2108,6 +2169,10 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename)
     } else
 #if defined(__linux__)
     if (strstart(filename, "/dev/parport", NULL)) {
+        chr = qemu_chr_open_pp(filename);
+    } else
+#elif defined(__FreeBSD__)
+    if (strstart(filename, "/dev/ppi", NULL)) {
         chr = qemu_chr_open_pp(filename);
     } else
 #endif
