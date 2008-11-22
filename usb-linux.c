@@ -34,7 +34,6 @@
 #include "qemu-timer.h"
 #include "console.h"
 
-#if defined(__linux__)
 #include <dirent.h>
 #include <sys/ioctl.h>
 #include <signal.h>
@@ -1697,25 +1696,3 @@ void usb_host_info(void)
     	term_printf("    Device %s.%s ID %s:%s\n", bus, addr, vid, pid);
     }
 }
-
-#else
-
-#include "hw/usb.h"
-
-void usb_host_info(void)
-{
-    term_printf("USB host devices not supported\n");
-}
-
-/* XXX: modify configure to compile the right host driver */
-USBDevice *usb_host_device_open(const char *devname)
-{
-    return NULL;
-}
-
-int usb_host_device_close(const char *devname)
-{
-    return 0;
-}
-
-#endif

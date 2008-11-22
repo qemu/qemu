@@ -221,6 +221,7 @@ audio_drv_list="oss"
 audio_possible_drivers="oss alsa sdl esd pa"
 linux="yes"
 linux_user="yes"
+usb="linux"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
     audio_possible_drivers="$audio_possible_drivers fmod"
@@ -231,6 +232,7 @@ esac
 if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
     make="gmake"
+    usb="bsd"
   fi
   bsd_user="yes"
 fi
@@ -1364,6 +1366,19 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 echo "#define CONFIG_UNAME_RELEASE \"$uname_release\"" >> $config_h
+
+# USB host support
+case "$usb" in
+linux)
+  echo "HOST_USB=linux" >> $config_mak
+;;
+bsd)
+  echo "HOST_USB=bsd" >> $config_mak
+;;
+*)
+  echo "HOST_USB=stub" >> $config_mak
+;;
+esac
 
 tools=
 if test `expr "$target_list" : ".*softmmu.*"` != 0 ; then
