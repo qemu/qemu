@@ -1,5 +1,8 @@
 #include "def-helper.h"
 
+DEF_HELPER_2(raise_exception_err, void, i32, i32)
+DEF_HELPER_0(raise_debug, void)
+
 DEF_HELPER_2(fcmpo, i32, i64, i64)
 DEF_HELPER_2(fcmpu, i32, i64, i64)
 

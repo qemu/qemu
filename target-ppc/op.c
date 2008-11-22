@@ -26,17 +26,6 @@
 #include "helper_regs.h"
 #include "op_helper.h"
 
-/* Generate exceptions */
-void OPPROTO op_raise_exception_err (void)
-{
-    do_raise_exception_err(PARAM1, PARAM2);
-}
-
-void OPPROTO op_debug (void)
-{
-    do_raise_exception(EXCP_DEBUG);
-}
-
 #if !defined(CONFIG_USER_ONLY)
 /* Segment registers load and store */
 void OPPROTO op_load_sr (void)

@@ -94,8 +94,8 @@ static always_inline target_ulong rotl64 (target_ulong i, int n)
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-void do_raise_exception_err (uint32_t exception, int error_code);
-void do_raise_exception (uint32_t exception);
+void raise_exception_err (CPUState *env, int exception, int error_code);
+void raise_exception (CPUState *env, int exception);
 
 int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong vaddr,
                           int rw, int access_type);

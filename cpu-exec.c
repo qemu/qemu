@@ -918,7 +918,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
         sigprocmask(SIG_SETMASK, old_set, NULL);
-        do_raise_exception_err(env->exception_index, env->error_code);
+        raise_exception_err(env, env->exception_index, env->error_code);
     } else {
         /* activate soft MMU for this block */
         cpu_resume_from_signal(env, puc);

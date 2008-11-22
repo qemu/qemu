@@ -293,10 +293,14 @@ static always_inline void gen_update_nip (DisasContext *ctx, target_ulong nip)
 
 #define GEN_EXCP(ctx, excp, error)                                            \
 do {                                                                          \
+    TCGv_i32 t0 = tcg_const_i32(excp);                                        \
+    TCGv_i32 t1 = tcg_const_i32(error);                                       \
     if ((ctx)->exception == POWERPC_EXCP_NONE) {                              \
         gen_update_nip(ctx, (ctx)->nip);                                      \
     }                                                                         \
-    gen_op_raise_exception_err((excp), (error));                              \
+    gen_helper_raise_exception_err(t0, t1);                                   \
+    tcg_temp_free_i32(t0);                                                    \
+    tcg_temp_free_i32(t1);                                                    \
     ctx->exception = (excp);                                                  \
 } while (0)
 
@@ -3470,7 +3474,7 @@ static always_inline void gen_goto_tb (DisasContext *ctx, int n,
             }
             if (ctx->singlestep_enabled & GDBSTUB_SINGLE_STEP) {
                 gen_update_nip(ctx, dest);
-                gen_op_debug();
+                gen_helper_raise_debug();
             }
         }
         tcg_gen_exit_tb(0);
@@ -7233,7 +7237,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
             for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
                 if (bp->pc == ctx.nip) {
                     gen_update_nip(&ctx, ctx.nip);
-                    gen_op_debug();
+                    gen_helper_raise_debug();
                     break;
                 }
             }
@@ -7344,7 +7348,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     } else if (ctx.exception != POWERPC_EXCP_BRANCH) {
         if (unlikely(env->singlestep_enabled)) {
             gen_update_nip(&ctx, ctx.nip);
-            gen_op_debug();
+            gen_helper_raise_debug();
         }
         /* Generate the return instruction */
         tcg_gen_exit_tb(0);
