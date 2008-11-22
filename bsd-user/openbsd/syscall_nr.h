@@ -193,3 +193,33 @@
 #define TARGET_OPENBSD_NR_statfs      307
 #define TARGET_OPENBSD_NR_fstatfs     308
 #define TARGET_OPENBSD_NR_fhstatfs    309
+
+/* syscall flags from machine/trap.h */
+
+/*      $OpenBSD: trap.h,v 1.4 2008/07/04 22:04:37 kettenis Exp $       */
+/*      $NetBSD: trap.h,v 1.4 1999/06/07 05:28:04 eeh Exp $ */
+
+/*
+ * Copyright (c) 1996-1999 Eduardo Horvath
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR  ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR  BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ */
+#define TARGET_OPENBSD_SYSCALL_G2RFLAG 0x400   /* on success, return to %g2 rather than npc */
+#define TARGET_OPENBSD_SYSCALL_G7RFLAG 0x800   /* use %g7 as above (deprecated) */

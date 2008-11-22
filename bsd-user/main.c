@@ -186,9 +186,6 @@ void cpu_loop(CPUSPARCState *env, enum BSDType bsd_type)
         case 0x100:
 #endif
             syscall_nr = env->gregs[1];
-#if defined(TARGET_SPARC)
-            syscall_nr &= ~(SYSCALL_G7RFLAG | SYSCALL_G2RFLAG);
-#endif
             if (bsd_type == target_freebsd)
                 ret = do_freebsd_syscall(env, syscall_nr,
                                          env->regwptr[0], env->regwptr[1],
@@ -199,11 +196,16 @@ void cpu_loop(CPUSPARCState *env, enum BSDType bsd_type)
                                         env->regwptr[0], env->regwptr[1],
                                         env->regwptr[2], env->regwptr[3],
                                         env->regwptr[4], env->regwptr[5]);
-            else //if (bsd_type == target_openbsd)
+            else { //if (bsd_type == target_openbsd)
+#if defined(TARGET_SPARC64)
+                syscall_nr &= ~(TARGET_OPENBSD_SYSCALL_G7RFLAG |
+                                TARGET_OPENBSD_SYSCALL_G2RFLAG);
+#endif
                 ret = do_openbsd_syscall(env, syscall_nr,
                                          env->regwptr[0], env->regwptr[1],
                                          env->regwptr[2], env->regwptr[3],
                                          env->regwptr[4], env->regwptr[5]);
+            }
             if ((unsigned int)ret >= (unsigned int)(-515)) {
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
                 env->xcc |= PSR_CARRY;
@@ -219,11 +221,13 @@ void cpu_loop(CPUSPARCState *env, enum BSDType bsd_type)
             }
             env->regwptr[0] = ret;
             /* next instruction */
-#if defined(TARGET_SPARC)
-            if (env->gregs[1] & SYSCALL_G2RFLAG) {
+#if defined(TARGET_SPARC64)
+            if (bsd_type == target_openbsd &&
+                env->gregs[1] & TARGET_OPENBSD_SYSCALL_G2RFLAG) {
                 env->pc = env->gregs[2];
                 env->npc = env->pc + 4;
-            } else if (env->gregs[1] & SYSCALL_G7RFLAG) {
+            } else if (bsd_type == target_openbsd &&
+                       env->gregs[1] & TARGET_OPENBSD_SYSCALL_G7RFLAG) {
                 env->pc = env->gregs[7];
                 env->npc = env->pc + 4;
             } else {
