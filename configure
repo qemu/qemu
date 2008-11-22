@@ -148,6 +148,7 @@ FreeBSD)
 bsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd pa"
+aiolib="-lpthread"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -156,6 +157,8 @@ NetBSD)
 bsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
+oss_lib="-lossaudio"
+aio_lib="-lrt -lpthread"
 ;;
 OpenBSD)
 bsd="yes"
@@ -163,6 +166,7 @@ openbsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
 oss_lib="-lossaudio"
+aio_lib="-lpthread"
 ;;
 Darwin)
 bsd="yes"
@@ -173,6 +177,7 @@ audio_drv_list="coreaudio"
 audio_possible_drivers="coreaudio sdl fmod"
 OS_CFLAGS="-mdynamic-no-pic"
 OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
+aio_lib="-lpthread"
 ;;
 SunOS)
     solaris="yes"
@@ -522,7 +527,7 @@ fi
 if [ "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
     AIOLIBS=
 elif [ "$bsd" = "yes" ]; then
-    AIOLIBS="-lpthread"
+    AIOLIBS="$aio_lib"
 else
     # Some Linux architectures (e.g. s390) don't imply -lpthread automatically.
     AIOLIBS="-lrt -lpthread"
