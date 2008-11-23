@@ -67,6 +67,7 @@ static TCGv cpu_ctr;
 static TCGv cpu_lr;
 static TCGv cpu_xer;
 static TCGv_i32 cpu_fpscr;
+static TCGv_i32 cpu_access_type;
 
 /* dyngen register indexes */
 static TCGv cpu_T[3];
@@ -186,6 +187,9 @@ void ppc_translate_init(void)
     cpu_fpscr = tcg_global_mem_new_i32(TCG_AREG0,
                                        offsetof(CPUState, fpscr), "fpscr");
 
+    cpu_access_type = tcg_global_mem_new_i32(TCG_AREG0,
+                                             offsetof(CPUState, access_type), "access_type");
+
     /* register helpers */
 #define GEN_HELPER 2
 #include "helper.h"
@@ -279,6 +283,11 @@ static always_inline void gen_optimize_fprf (void)
         *ptr = INDEX_op_nop1;
     gen_fprf_ptr = gen_fprf_buf;
 #endif
+}
+
+static always_inline void gen_set_access_type(int access_type)
+{
+    tcg_gen_movi_i32(cpu_access_type, access_type);
 }
 
 static always_inline void gen_update_nip (DisasContext *ctx, target_ulong nip)
@@ -2780,6 +2789,7 @@ static always_inline void gen_qemu_st32(TCGv arg0, TCGv arg1, int flags)
 GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type)                          \
 {                                                                             \
     TCGv EA = tcg_temp_new();                                                 \
+    gen_set_access_type(ACCESS_INT);                                          \
     gen_addr_imm_index(EA, ctx, 0);                                           \
     gen_qemu_##ldop(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_temp_free(EA);                                                        \
@@ -2795,6 +2805,7 @@ GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type)                       \
         return;                                                               \
     }                                                                         \
     EA = tcg_temp_new();                                                      \
+    gen_set_access_type(ACCESS_INT);                                          \
     if (type == PPC_64B)                                                      \
         gen_addr_imm_index(EA, ctx, 0x03);                                    \
     else                                                                      \
@@ -2814,6 +2825,7 @@ GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type)                     \
         return;                                                               \
     }                                                                         \
     EA = tcg_temp_new();                                                      \
+    gen_set_access_type(ACCESS_INT);                                          \
     gen_addr_reg_index(EA, ctx);                                              \
     gen_qemu_##ldop(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
@@ -2824,6 +2836,7 @@ GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type)                     \
 GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type)                      \
 {                                                                             \
     TCGv EA = tcg_temp_new();                                                 \
+    gen_set_access_type(ACCESS_INT);                                          \
     gen_addr_reg_index(EA, ctx);                                              \
     gen_qemu_##ldop(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_temp_free(EA);                                                        \
@@ -2863,6 +2876,7 @@ GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B)
         }
     }
     EA = tcg_temp_new();
+    gen_set_access_type(ACCESS_INT);
     gen_addr_imm_index(EA, ctx, 0x03);
     if (ctx->opcode & 0x02) {
         /* lwa (lwau is undefined) */
@@ -2901,6 +2915,7 @@ GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX)
         return;
     }
     EA = tcg_temp_new();
+    gen_set_access_type(ACCESS_INT);
     gen_addr_imm_index(EA, ctx, 0x0F);
     gen_qemu_ld64(cpu_gpr[rd], EA, ctx->mem_idx);
     tcg_gen_addi_tl(EA, EA, 8);
@@ -2915,6 +2930,7 @@ GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX)
 GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type)                          \
 {                                                                             \
     TCGv EA = tcg_temp_new();                                                 \
+    gen_set_access_type(ACCESS_INT);                                          \
     gen_addr_imm_index(EA, ctx, 0);                                           \
     gen_qemu_##stop(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_temp_free(EA);                                                        \
@@ -2929,6 +2945,7 @@ GEN_HANDLER(stop##u, opc, 0xFF, 0xFF, 0x00000000, type)                       \
         return;                                                               \
     }                                                                         \
     EA = tcg_temp_new();                                                      \
+    gen_set_access_type(ACCESS_INT);                                          \
     if (type == PPC_64B)                                                      \
         gen_addr_imm_index(EA, ctx, 0x03);                                    \
     else                                                                      \
@@ -2947,6 +2964,7 @@ GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type)                     \
         return;                                                               \
     }                                                                         \
     EA = tcg_temp_new();                                                      \
+    gen_set_access_type(ACCESS_INT);                                          \
     gen_addr_reg_index(EA, ctx);                                              \
     gen_qemu_##stop(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
@@ -2957,6 +2975,7 @@ GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type)                     \
 GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type)                      \
 {                                                                             \
     TCGv EA = tcg_temp_new();                                                 \
+    gen_set_access_type(ACCESS_INT);                                          \
     gen_addr_reg_index(EA, ctx);                                              \
     gen_qemu_##stop(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_temp_free(EA);                                                        \
@@ -3002,6 +3021,7 @@ GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B)
             return;
         }
         EA = tcg_temp_new();
+        gen_set_access_type(ACCESS_INT);
         gen_addr_imm_index(EA, ctx, 0x03);
         gen_qemu_st64(cpu_gpr[rs], EA, ctx->mem_idx);
         tcg_gen_addi_tl(EA, EA, 8);
@@ -3017,6 +3037,7 @@ GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B)
             }
         }
         EA = tcg_temp_new();
+        gen_set_access_type(ACCESS_INT);
         gen_addr_imm_index(EA, ctx, 0x03);
         gen_qemu_st64(cpu_gpr[rs], EA, ctx->mem_idx);
         if (Rc(ctx->opcode))
@@ -3240,6 +3261,7 @@ GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
+    gen_set_access_type(ACCESS_RES);
     gen_addr_reg_index(cpu_T[0], ctx);
     op_lwarx();
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[1]);
@@ -3250,6 +3272,7 @@ GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
+    gen_set_access_type(ACCESS_RES);
     gen_addr_reg_index(cpu_T[0], ctx);
     tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
     op_stwcx();
@@ -3270,6 +3293,7 @@ GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
+    gen_set_access_type(ACCESS_RES);
     gen_addr_reg_index(cpu_T[0], ctx);
     op_ldarx();
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[1]);
@@ -3280,6 +3304,7 @@ GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
+    gen_set_access_type(ACCESS_RES);
     gen_addr_reg_index(cpu_T[0], ctx);
     tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
     op_stdcx();
@@ -3307,6 +3332,7 @@ GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, type)                      \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
     gen_addr_imm_index(cpu_T[0], ctx, 0);                                     \
     op_ldst(l##width);                                                        \
     tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
@@ -3323,6 +3349,7 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
         GEN_EXCP_INVAL(ctx);                                                  \
         return;                                                               \
     }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
     gen_addr_imm_index(cpu_T[0], ctx, 0);                                     \
     op_ldst(l##width);                                                        \
     tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
@@ -3340,6 +3367,7 @@ GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                  \
         GEN_EXCP_INVAL(ctx);                                                  \
         return;                                                               \
     }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
     gen_addr_reg_index(cpu_T[0], ctx);                                        \
     op_ldst(l##width);                                                        \
     tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
@@ -3353,6 +3381,7 @@ GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, type)                  \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
     gen_addr_reg_index(cpu_T[0], ctx);                                        \
     op_ldst(l##width);                                                        \
     tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
@@ -3378,6 +3407,7 @@ GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, type)                     \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
     gen_addr_imm_index(cpu_T[0], ctx, 0);                                     \
     tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);                     \
     op_ldst(st##width);                                                       \
@@ -3394,6 +3424,7 @@ GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                  \
         GEN_EXCP_INVAL(ctx);                                                  \
         return;                                                               \
     }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
     gen_addr_imm_index(cpu_T[0], ctx, 0);                                     \
     tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);                     \
     op_ldst(st##width);                                                       \
@@ -3411,6 +3442,7 @@ GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                 \
         GEN_EXCP_INVAL(ctx);                                                  \
         return;                                                               \
     }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
     gen_addr_reg_index(cpu_T[0], ctx);                                        \
     tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);                     \
     op_ldst(st##width);                                                       \
@@ -3424,6 +3456,7 @@ GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, type)                 \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
     gen_addr_reg_index(cpu_T[0], ctx);                                        \
     tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);                     \
     op_ldst(st##width);                                                       \
@@ -4011,6 +4044,7 @@ GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03C00001, PPC_CACHE)
 {
     /* XXX: specification says this is treated as a load by the MMU */
     TCGv t0 = tcg_temp_new();
+    gen_set_access_type(ACCESS_CACHE);
     gen_addr_reg_index(t0, ctx);
     gen_qemu_ld8u(t0, t0, ctx->mem_idx);
     tcg_temp_free(t0);
@@ -4028,6 +4062,7 @@ GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE)
         return;
     }
     EA = tcg_temp_new();
+    gen_set_access_type(ACCESS_CACHE);
     gen_addr_reg_index(EA, ctx);
     val = tcg_temp_new();
     /* XXX: specification says this should be treated as a store by the MMU */
@@ -4043,6 +4078,7 @@ GEN_HANDLER(dcbst, 0x1F, 0x16, 0x01, 0x03E00001, PPC_CACHE)
 {
     /* XXX: specification say this is treated as a load by the MMU */
     TCGv t0 = tcg_temp_new();
+    gen_set_access_type(ACCESS_CACHE);
     gen_addr_reg_index(t0, ctx);
     gen_qemu_ld8u(t0, t0, ctx->mem_idx);
     tcg_temp_free(t0);
@@ -4428,6 +4464,7 @@ static GenOpFunc *gen_op_ecowx[NB_MEM_FUNCS] = {
 GEN_HANDLER(eciwx, 0x1F, 0x16, 0x0D, 0x00000001, PPC_EXTERN)
 {
     /* Should check EAR[E] & alignment ! */
+    gen_set_access_type(ACCESS_RES);
     gen_addr_reg_index(cpu_T[0], ctx);
     op_eciwx();
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
@@ -5512,6 +5549,7 @@ GEN_HANDLER(dcread, 0x1F, 0x06, 0x0F, 0x00000001, PPC_4xx_COMMON)
         return;
     }
     EA = tcg_temp_new();
+    gen_set_access_type(ACCESS_CACHE);
     gen_addr_reg_index(EA, ctx);
     val = tcg_temp_new();
     gen_qemu_ld32u(val, EA, ctx->mem_idx);
@@ -7630,41 +7668,5 @@ void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
 void gen_pc_load(CPUState *env, TranslationBlock *tb,
                 unsigned long searched_pc, int pc_pos, void *puc)
 {
-    int type, c;
-    /* for PPC, we need to look at the micro operation to get the
-     * access type */
     env->nip = gen_opc_pc[pc_pos];
-    c = gen_opc_buf[pc_pos];
-    switch(c) {
-#if defined(CONFIG_USER_ONLY)
-#define CASE3(op)\
-    case INDEX_op_ ## op ## _raw
-#else
-#define CASE3(op)\
-    case INDEX_op_ ## op ## _user:\
-    case INDEX_op_ ## op ## _kernel:\
-    case INDEX_op_ ## op ## _hypv
-#endif
-
-    CASE3(stfd):
-    CASE3(stfs):
-    CASE3(lfd):
-    CASE3(lfs):
-        type = ACCESS_FLOAT;
-        break;
-    CASE3(lwarx):
-        type = ACCESS_RES;
-        break;
-    CASE3(stwcx):
-        type = ACCESS_RES;
-        break;
-    CASE3(eciwx):
-    CASE3(ecowx):
-        type = ACCESS_EXT;
-        break;
-    default:
-        type = ACCESS_INT;
-        break;
-    }
-    env->access_type = type;
 }
