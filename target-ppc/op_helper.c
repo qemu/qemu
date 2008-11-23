@@ -237,6 +237,24 @@ target_ulong helper_popcntb_64 (target_ulong val)
 
 /*****************************************************************************/
 /* Floating point operations helpers */
+uint64_t helper_float32_to_float64(uint32_t arg)
+{
+    CPU_FloatU f;
+    CPU_DoubleU d;
+    f.l = arg;
+    d.d = float32_to_float64(f.f, &env->fp_status);
+    return d.ll;
+}
+
+uint32_t helper_float64_to_float32(uint64_t arg)
+{
+    CPU_FloatU f;
+    CPU_DoubleU d;
+    d.ll = arg;
+    f.f = float64_to_float32(d.d, &env->fp_status);
+    return f.l;
+}
+
 static always_inline int fpisneg (float64 d)
 {
     CPU_DoubleU u;

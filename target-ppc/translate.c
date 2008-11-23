@@ -2524,17 +2524,6 @@ static always_inline void gen_addr_register (TCGv EA,
 #endif
 
 /***                             Integer load                              ***/
-#define op_ldst(name)        (*gen_op_##name[ctx->mem_idx])()
-#define OP_LD_TABLE(width)                                                    \
-static GenOpFunc *gen_op_l##width[NB_MEM_FUNCS] = {                           \
-    GEN_MEM_FUNCS(l##width),                                                  \
-};
-#define OP_ST_TABLE(width)                                                    \
-static GenOpFunc *gen_op_st##width[NB_MEM_FUNCS] = {                          \
-    GEN_MEM_FUNCS(st##width),                                                 \
-};
-
-
 #if defined(TARGET_PPC64)
 #define GEN_QEMU_LD_PPC64(width)                                                 \
 static always_inline void gen_qemu_ld##width##_ppc64(TCGv t0, TCGv t1, int flags)\
@@ -2700,10 +2689,10 @@ static always_inline void gen_qemu_st64(TCGv arg0, TCGv arg1, int flags)
 
 
 #else /* defined(TARGET_PPC64) */
-#define GEN_QEMU_LD_PPC32(width)                                                 \
-static always_inline void gen_qemu_ld##width##_ppc32(TCGv arg0, TCGv arg1, int flags)\
-{                                                                                \
-    tcg_gen_qemu_ld##width(arg0, arg1, flags >> 1);                                  \
+#define GEN_QEMU_LD_PPC32(width)                                                      \
+static always_inline void gen_qemu_ld##width##_ppc32(TCGv arg0, TCGv arg1, int flags) \
+{                                                                                     \
+    tcg_gen_qemu_ld##width(arg0, arg1, flags >> 1);                                   \
 }
 GEN_QEMU_LD_PPC32(8u)
 GEN_QEMU_LD_PPC32(8s)
@@ -2711,15 +2700,23 @@ GEN_QEMU_LD_PPC32(16u)
 GEN_QEMU_LD_PPC32(16s)
 GEN_QEMU_LD_PPC32(32u)
 GEN_QEMU_LD_PPC32(32s)
+static always_inline void gen_qemu_ld64_ppc32(TCGv_i64 arg0, TCGv arg1, int flags)
+{
+    tcg_gen_qemu_ld64(arg0, arg1, flags >> 1);
+}
 
-#define GEN_QEMU_ST_PPC32(width)                                                 \
-static always_inline void gen_qemu_st##width##_ppc32(TCGv arg0, TCGv arg1, int flags)\
-{                                                                                \
-    tcg_gen_qemu_st##width(arg0, arg1, flags >> 1);                                  \
+#define GEN_QEMU_ST_PPC32(width)                                                      \
+static always_inline void gen_qemu_st##width##_ppc32(TCGv arg0, TCGv arg1, int flags) \
+{                                                                                     \
+    tcg_gen_qemu_st##width(arg0, arg1, flags >> 1);                                   \
 }
 GEN_QEMU_ST_PPC32(8)
 GEN_QEMU_ST_PPC32(16)
 GEN_QEMU_ST_PPC32(32)
+static always_inline void gen_qemu_st64_ppc32(TCGv_i64 arg0, TCGv arg1, int flags)
+{
+    tcg_gen_qemu_st64(arg0, arg1, flags >> 1);
+}
 
 static always_inline void gen_qemu_ld8u(TCGv arg0, TCGv arg1, int flags)
 {
@@ -2755,6 +2752,13 @@ static always_inline void gen_qemu_ld32u(TCGv arg0, TCGv arg1, int flags)
         tcg_gen_bswap_i32(arg0, arg0);
 }
 
+static always_inline void gen_qemu_ld64(TCGv_i64 arg0, TCGv arg1, int flags)
+{
+    gen_qemu_ld64_ppc32(arg0, arg1, flags);
+    if (unlikely(flags & 1))
+        tcg_gen_bswap_i64(arg0, arg0);
+}
+
 static always_inline void gen_qemu_st8(TCGv arg0, TCGv arg1, int flags)
 {
     gen_qemu_st8_ppc32(arg0, arg1, flags);
@@ -2783,6 +2787,16 @@ static always_inline void gen_qemu_st32(TCGv arg0, TCGv arg1, int flags)
         gen_qemu_st32_ppc32(arg0, arg1, flags);
 }
 
+static always_inline void gen_qemu_st64(TCGv_i64 arg0, TCGv arg1, int flags)
+{
+    if (unlikely(flags & 1)) {
+        TCGv_i64 temp = tcg_temp_new_i64();
+        tcg_gen_bswap_i64(temp, arg0);
+        gen_qemu_st64_ppc32(temp, arg1, flags);
+        tcg_temp_free_i64(temp);
+    } else
+        gen_qemu_st64_ppc32(arg0, arg1, flags);
+}
 #endif
 
 #define GEN_LD(name, ldop, opc, type)                                         \
@@ -3325,40 +3339,25 @@ GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT)
 }
 
 /***                         Floating-point load                           ***/
-#define GEN_LDF(width, opc, type)                                             \
-GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, type)                      \
+#define GEN_LDF(name, ldop, opc, type)                                        \
+GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type)                          \
 {                                                                             \
+    TCGv EA;                                                                  \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
     gen_set_access_type(ACCESS_FLOAT);                                        \
-    gen_addr_imm_index(cpu_T[0], ctx, 0);                                     \
-    op_ldst(l##width);                                                        \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_imm_index(EA, ctx, 0);                                           \
+    gen_qemu_##ldop(cpu_fpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
+    tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_LDUF(width, opc, type)                                            \
-GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
+#define GEN_LDUF(name, ldop, opc, type)                                       \
+GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type)                       \
 {                                                                             \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        GEN_EXCP_NO_FP(ctx);                                                  \
-        return;                                                               \
-    }                                                                         \
-    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
-        GEN_EXCP_INVAL(ctx);                                                  \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ACCESS_FLOAT);                                        \
-    gen_addr_imm_index(cpu_T[0], ctx, 0);                                     \
-    op_ldst(l##width);                                                        \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_T[0]);                       \
-}
-
-#define GEN_LDUXF(width, opc, type)                                           \
-GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                  \
-{                                                                             \
+    TCGv EA;                                                                  \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
@@ -3368,72 +3367,90 @@ GEN_HANDLER(l##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                  \
         return;                                                               \
     }                                                                         \
     gen_set_access_type(ACCESS_FLOAT);                                        \
-    gen_addr_reg_index(cpu_T[0], ctx);                                        \
-    op_ldst(l##width);                                                        \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_T[0]);                       \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_imm_index(EA, ctx, 0);                                           \
+    gen_qemu_##ldop(cpu_fpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
+    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
+    tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_LDXF(width, opc2, opc3, type)                                     \
-GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, type)                  \
+#define GEN_LDUXF(name, ldop, opc, type)                                      \
+GEN_HANDLER(name##ux, 0x1F, 0x17, opc, 0x00000001, type)                      \
 {                                                                             \
+    TCGv EA;                                                                  \
+    if (unlikely(!ctx->fpu_enabled)) {                                        \
+        GEN_EXCP_NO_FP(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
+        GEN_EXCP_INVAL(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_reg_index(EA, ctx);                                              \
+    gen_qemu_##ldop(cpu_fpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
+    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
+    tcg_temp_free(EA);                                                        \
+}
+
+#define GEN_LDXF(name, ldop, opc2, opc3, type)                                \
+GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type)                      \
+{                                                                             \
+    TCGv EA;                                                                  \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
     gen_set_access_type(ACCESS_FLOAT);                                        \
-    gen_addr_reg_index(cpu_T[0], ctx);                                        \
-    op_ldst(l##width);                                                        \
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);                     \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_reg_index(EA, ctx);                                              \
+    gen_qemu_##ldop(cpu_fpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
+    tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_LDFS(width, op, type)                                             \
-OP_LD_TABLE(width);                                                           \
-GEN_LDF(width, op | 0x20, type);                                              \
-GEN_LDUF(width, op | 0x21, type);                                             \
-GEN_LDUXF(width, op | 0x01, type);                                            \
-GEN_LDXF(width, 0x17, op | 0x00, type)
+#define GEN_LDFS(name, ldop, op, type)                                        \
+GEN_LDF(name, ldop, op | 0x20, type);                                         \
+GEN_LDUF(name, ldop, op | 0x21, type);                                        \
+GEN_LDUXF(name, ldop, op | 0x01, type);                                       \
+GEN_LDXF(name, ldop, 0x17, op | 0x00, type)
 
-/* lfd lfdu lfdux lfdx */
-GEN_LDFS(fd, 0x12, PPC_FLOAT);
-/* lfs lfsu lfsux lfsx */
-GEN_LDFS(fs, 0x10, PPC_FLOAT);
+static always_inline void gen_qemu_ld32fs(TCGv_i64 arg1, TCGv arg2, int flags)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    gen_qemu_ld32u(t0, arg2, flags);
+    tcg_gen_trunc_tl_i32(t1, t0);
+    tcg_temp_free(t0);
+    gen_helper_float32_to_float64(arg1, t1);
+    tcg_temp_free_i32(t1);
+}
+
+ /* lfd lfdu lfdux lfdx */
+GEN_LDFS(lfd, ld64, 0x12, PPC_FLOAT);
+ /* lfs lfsu lfsux lfsx */
+GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT);
 
 /***                         Floating-point store                          ***/
-#define GEN_STF(width, opc, type)                                             \
-GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, type)                     \
+#define GEN_STF(name, stop, opc, type)                                        \
+GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type)                          \
 {                                                                             \
+    TCGv EA;                                                                  \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
     gen_set_access_type(ACCESS_FLOAT);                                        \
-    gen_addr_imm_index(cpu_T[0], ctx, 0);                                     \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);                     \
-    op_ldst(st##width);                                                       \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_imm_index(EA, ctx, 0);                                           \
+    gen_qemu_##stop(cpu_fpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
+    tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_STUF(width, opc, type)                                            \
-GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                  \
+#define GEN_STUF(name, stop, opc, type)                                       \
+GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type)                       \
 {                                                                             \
-    if (unlikely(!ctx->fpu_enabled)) {                                        \
-        GEN_EXCP_NO_FP(ctx);                                                  \
-        return;                                                               \
-    }                                                                         \
-    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
-        GEN_EXCP_INVAL(ctx);                                                  \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ACCESS_FLOAT);                                        \
-    gen_addr_imm_index(cpu_T[0], ctx, 0);                                     \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);                     \
-    op_ldst(st##width);                                                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_T[0]);                       \
-}
-
-#define GEN_STUXF(width, opc, type)                                           \
-GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                 \
-{                                                                             \
+    TCGv EA;                                                                  \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
@@ -3443,41 +3460,80 @@ GEN_HANDLER(st##width##ux, 0x1F, 0x17, opc, 0x00000001, type)                 \
         return;                                                               \
     }                                                                         \
     gen_set_access_type(ACCESS_FLOAT);                                        \
-    gen_addr_reg_index(cpu_T[0], ctx);                                        \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);                     \
-    op_ldst(st##width);                                                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_T[0]);                       \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_imm_index(EA, ctx, 0);                                           \
+    gen_qemu_##stop(cpu_fpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
+    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
+    tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_STXF(width, opc2, opc3, type)                                     \
-GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, type)                 \
+#define GEN_STUXF(name, stop, opc, type)                                      \
+GEN_HANDLER(name##ux, 0x1F, 0x17, opc, 0x00000001, type)                      \
 {                                                                             \
+    TCGv EA;                                                                  \
+    if (unlikely(!ctx->fpu_enabled)) {                                        \
+        GEN_EXCP_NO_FP(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
+        GEN_EXCP_INVAL(ctx);                                                  \
+        return;                                                               \
+    }                                                                         \
+    gen_set_access_type(ACCESS_FLOAT);                                        \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_reg_index(EA, ctx);                                              \
+    gen_qemu_##stop(cpu_fpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
+    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
+    tcg_temp_free(EA);                                                        \
+}
+
+#define GEN_STXF(name, stop, opc2, opc3, type)                                \
+GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type)                      \
+{                                                                             \
+    TCGv EA;                                                                  \
     if (unlikely(!ctx->fpu_enabled)) {                                        \
         GEN_EXCP_NO_FP(ctx);                                                  \
         return;                                                               \
     }                                                                         \
     gen_set_access_type(ACCESS_FLOAT);                                        \
-    gen_addr_reg_index(cpu_T[0], ctx);                                        \
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);                     \
-    op_ldst(st##width);                                                       \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_reg_index(EA, ctx);                                              \
+    gen_qemu_##stop(cpu_fpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
+    tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_STFS(width, op, type)                                             \
-OP_ST_TABLE(width);                                                           \
-GEN_STF(width, op | 0x20, type);                                              \
-GEN_STUF(width, op | 0x21, type);                                             \
-GEN_STUXF(width, op | 0x01, type);                                            \
-GEN_STXF(width, 0x17, op | 0x00, type)
+#define GEN_STFS(name, stop, op, type)                                        \
+GEN_STF(name, stop, op | 0x20, type);                                         \
+GEN_STUF(name, stop, op | 0x21, type);                                        \
+GEN_STUXF(name, stop, op | 0x01, type);                                       \
+GEN_STXF(name, stop, 0x17, op | 0x00, type)
+
+static always_inline void gen_qemu_st32fs(TCGv_i64 arg1, TCGv arg2, int flags)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv t1 = tcg_temp_new();
+    gen_helper_float64_to_float32(t0, arg1);
+    tcg_gen_extu_i32_tl(t1, t0);
+    tcg_temp_free_i32(t0);
+    gen_qemu_st32(t1, arg2, flags);
+    tcg_temp_free(t1);
+}
 
 /* stfd stfdu stfdux stfdx */
-GEN_STFS(fd, 0x16, PPC_FLOAT);
+GEN_STFS(stfd, st64, 0x16, PPC_FLOAT);
 /* stfs stfsu stfsux stfsx */
-GEN_STFS(fs, 0x14, PPC_FLOAT);
+GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT);
 
 /* Optional: */
+static always_inline void gen_qemu_st32fiw(TCGv_i64 arg1, TCGv arg2, int flags)
+{
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_trunc_i64_tl(t0, arg1),
+    gen_qemu_st32(t0, arg2, flags);
+    tcg_temp_free(t0);
+}
 /* stfiwx */
-OP_ST_TABLE(fiw);
-GEN_STXF(fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX);
+GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX);
 
 /***                                Branch                                 ***/
 static always_inline void gen_goto_tb (DisasContext *ctx, int n,

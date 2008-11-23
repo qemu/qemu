@@ -35,6 +35,8 @@ DEF_HELPER_0(reset_fpstatus, void)
 DEF_HELPER_2(compute_fprf, i32, i64, i32)
 DEF_HELPER_2(store_fpscr, void, i64, i32)
 DEF_HELPER_1(fpscr_setbit, void, i32)
+DEF_HELPER_1(float64_to_float32, i32, i64)
+DEF_HELPER_1(float32_to_float64, i64, i32)
 
 DEF_HELPER_1(fctiw, i64, i64)
 DEF_HELPER_1(fctiwz, i64, i64)
