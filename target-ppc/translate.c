@@ -2776,17 +2776,17 @@ static always_inline void gen_qemu_st32(TCGv arg0, TCGv arg1, int flags)
 
 #endif
 
-#define GEN_LD(width, opc, type)                                              \
-GEN_HANDLER(l##width, opc, 0xFF, 0xFF, 0x00000000, type)                      \
+#define GEN_LD(name, ldop, opc, type)                                         \
+GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type)                          \
 {                                                                             \
-    TCGv EA = tcg_temp_new();                                      \
+    TCGv EA = tcg_temp_new();                                                 \
     gen_addr_imm_index(EA, ctx, 0);                                           \
-    gen_qemu_ld##width(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);           \
+    gen_qemu_##ldop(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_LDU(width, opc, type)                                             \
-GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
+#define GEN_LDU(name, ldop, opc, type)                                        \
+GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type)                       \
 {                                                                             \
     TCGv EA;                                                                  \
     if (unlikely(rA(ctx->opcode) == 0 ||                                      \
@@ -2794,18 +2794,18 @@ GEN_HANDLER(l##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                   \
         GEN_EXCP_INVAL(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    EA = tcg_temp_new();                                           \
+    EA = tcg_temp_new();                                                      \
     if (type == PPC_64B)                                                      \
         gen_addr_imm_index(EA, ctx, 0x03);                                    \
     else                                                                      \
         gen_addr_imm_index(EA, ctx, 0);                                       \
-    gen_qemu_ld##width(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);           \
+    gen_qemu_##ldop(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_LDUX(width, opc2, opc3, type)                                     \
-GEN_HANDLER(l##width##ux, 0x1F, opc2, opc3, 0x00000001, type)                 \
+#define GEN_LDUX(name, ldop, opc2, opc3, type)                                \
+GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type)                     \
 {                                                                             \
     TCGv EA;                                                                  \
     if (unlikely(rA(ctx->opcode) == 0 ||                                      \
@@ -2813,45 +2813,45 @@ GEN_HANDLER(l##width##ux, 0x1F, opc2, opc3, 0x00000001, type)                 \
         GEN_EXCP_INVAL(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    EA = tcg_temp_new();                                           \
+    EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(EA, ctx);                                              \
-    gen_qemu_ld##width(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);           \
+    gen_qemu_##ldop(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_LDX(width, opc2, opc3, type)                                      \
-GEN_HANDLER(l##width##x, 0x1F, opc2, opc3, 0x00000001, type)                  \
+#define GEN_LDX(name, ldop, opc2, opc3, type)                                 \
+GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type)                      \
 {                                                                             \
-    TCGv EA = tcg_temp_new();                                      \
+    TCGv EA = tcg_temp_new();                                                 \
     gen_addr_reg_index(EA, ctx);                                              \
-    gen_qemu_ld##width(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);           \
+    gen_qemu_##ldop(cpu_gpr[rD(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_LDS(width, op, type)                                              \
-GEN_LD(width, op | 0x20, type);                                               \
-GEN_LDU(width, op | 0x21, type);                                              \
-GEN_LDUX(width, 0x17, op | 0x01, type);                                       \
-GEN_LDX(width, 0x17, op | 0x00, type)
+#define GEN_LDS(name, ldop, op, type)                                         \
+GEN_LD(name, ldop, op | 0x20, type);                                          \
+GEN_LDU(name, ldop, op | 0x21, type);                                         \
+GEN_LDUX(name, ldop, 0x17, op | 0x01, type);                                  \
+GEN_LDX(name, ldop, 0x17, op | 0x00, type)
 
 /* lbz lbzu lbzux lbzx */
-GEN_LDS(8u, 0x02, PPC_INTEGER);
+GEN_LDS(lbz, ld8u, 0x02, PPC_INTEGER);
 /* lha lhau lhaux lhax */
-GEN_LDS(16s, 0x0A, PPC_INTEGER);
+GEN_LDS(lha, ld16s, 0x0A, PPC_INTEGER);
 /* lhz lhzu lhzux lhzx */
-GEN_LDS(16u, 0x08, PPC_INTEGER);
+GEN_LDS(lhz, ld16u, 0x08, PPC_INTEGER);
 /* lwz lwzu lwzux lwzx */
-GEN_LDS(32u, 0x00, PPC_INTEGER);
+GEN_LDS(lwz, ld32u, 0x00, PPC_INTEGER);
 #if defined(TARGET_PPC64)
 /* lwaux */
-GEN_LDUX(32s, 0x15, 0x0B, PPC_64B);
+GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B);
 /* lwax */
-GEN_LDX(32s, 0x15, 0x0A, PPC_64B);
+GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B);
 /* ldux */
-GEN_LDUX(64, 0x15, 0x01, PPC_64B);
+GEN_LDUX(ld, ld64, 0x15, 0x01, PPC_64B);
 /* ldx */
-GEN_LDX(64, 0x15, 0x00, PPC_64B);
+GEN_LDX(ld, ld64, 0x15, 0x00, PPC_64B);
 GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B)
 {
     TCGv EA;
@@ -2911,72 +2911,72 @@ GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX)
 #endif
 
 /***                              Integer store                            ***/
-#define GEN_ST(width, opc, type)                                              \
-GEN_HANDLER(st##width, opc, 0xFF, 0xFF, 0x00000000, type)                     \
+#define GEN_ST(name, stop, opc, type)                                         \
+GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type)                          \
 {                                                                             \
-    TCGv EA = tcg_temp_new();                                      \
+    TCGv EA = tcg_temp_new();                                                 \
     gen_addr_imm_index(EA, ctx, 0);                                           \
-    gen_qemu_st##width(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);       \
+    gen_qemu_##stop(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_STU(width, opc, type)                                             \
-GEN_HANDLER(st##width##u, opc, 0xFF, 0xFF, 0x00000000, type)                  \
+#define GEN_STU(name, stop, opc, type)                                        \
+GEN_HANDLER(stop##u, opc, 0xFF, 0xFF, 0x00000000, type)                       \
 {                                                                             \
     TCGv EA;                                                                  \
     if (unlikely(rA(ctx->opcode) == 0)) {                                     \
         GEN_EXCP_INVAL(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    EA = tcg_temp_new();                                           \
+    EA = tcg_temp_new();                                                      \
     if (type == PPC_64B)                                                      \
         gen_addr_imm_index(EA, ctx, 0x03);                                    \
     else                                                                      \
         gen_addr_imm_index(EA, ctx, 0);                                       \
-    gen_qemu_st##width(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);           \
+    gen_qemu_##stop(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_STUX(width, opc2, opc3, type)                                     \
-GEN_HANDLER(st##width##ux, 0x1F, opc2, opc3, 0x00000001, type)                \
+#define GEN_STUX(name, stop, opc2, opc3, type)                                \
+GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type)                     \
 {                                                                             \
     TCGv EA;                                                                  \
     if (unlikely(rA(ctx->opcode) == 0)) {                                     \
         GEN_EXCP_INVAL(ctx);                                                  \
         return;                                                               \
     }                                                                         \
-    EA = tcg_temp_new();                                           \
+    EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(EA, ctx);                                              \
-    gen_qemu_st##width(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);           \
+    gen_qemu_##stop(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_STX(width, opc2, opc3, type)                                      \
-GEN_HANDLER(st##width##x, 0x1F, opc2, opc3, 0x00000001, type)                 \
+#define GEN_STX(name, stop, opc2, opc3, type)                                 \
+GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type)                      \
 {                                                                             \
-    TCGv EA = tcg_temp_new();                                      \
+    TCGv EA = tcg_temp_new();                                                 \
     gen_addr_reg_index(EA, ctx);                                              \
-    gen_qemu_st##width(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);           \
+    gen_qemu_##stop(cpu_gpr[rS(ctx->opcode)], EA, ctx->mem_idx);              \
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_STS(width, op, type)                                              \
-GEN_ST(width, op | 0x20, type);                                               \
-GEN_STU(width, op | 0x21, type);                                              \
-GEN_STUX(width, 0x17, op | 0x01, type);                                       \
-GEN_STX(width, 0x17, op | 0x00, type)
+#define GEN_STS(name, stop, op, type)                                         \
+GEN_ST(name, stop, op | 0x20, type);                                          \
+GEN_STU(name, stop, op | 0x21, type);                                         \
+GEN_STUX(name, stop, 0x17, op | 0x01, type);                                  \
+GEN_STX(name, stop, 0x17, op | 0x00, type)
 
 /* stb stbu stbux stbx */
-GEN_STS(8, 0x06, PPC_INTEGER);
+GEN_STS(stb, st8, 0x06, PPC_INTEGER);
 /* sth sthu sthux sthx */
-GEN_STS(16, 0x0C, PPC_INTEGER);
+GEN_STS(sth, st16, 0x0C, PPC_INTEGER);
 /* stw stwu stwux stwx */
-GEN_STS(32, 0x04, PPC_INTEGER);
+GEN_STS(stw, st32, 0x04, PPC_INTEGER);
 #if defined(TARGET_PPC64)
-GEN_STUX(64, 0x15, 0x05, PPC_64B);
-GEN_STX(64, 0x15, 0x04, PPC_64B);
+GEN_STUX(std, st64, 0x15, 0x05, PPC_64B);
+GEN_STX(std, st64, 0x15, 0x04, PPC_64B);
 GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B)
 {
     int rs;
@@ -3036,7 +3036,7 @@ void always_inline gen_qemu_ld16ur(TCGv t0, TCGv t1, int flags)
     tcg_gen_extu_i32_tl(t0, temp);
     tcg_temp_free_i32(temp);
 }
-GEN_LDX(16ur, 0x16, 0x18, PPC_INTEGER);
+GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER);
 
 /* lwbrx */
 void always_inline gen_qemu_ld32ur(TCGv t0, TCGv t1, int flags)
@@ -3048,7 +3048,7 @@ void always_inline gen_qemu_ld32ur(TCGv t0, TCGv t1, int flags)
     tcg_gen_extu_i32_tl(t0, temp);
     tcg_temp_free_i32(temp);
 }
-GEN_LDX(32ur, 0x16, 0x10, PPC_INTEGER);
+GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 
 /* sthbrx */
 void always_inline gen_qemu_st16r(TCGv t0, TCGv t1, int flags)
@@ -3063,7 +3063,7 @@ void always_inline gen_qemu_st16r(TCGv t0, TCGv t1, int flags)
     gen_qemu_st16(t2, t1, flags);
     tcg_temp_free(t2);
 }
-GEN_STX(16r, 0x16, 0x1C, PPC_INTEGER);
+GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER);
 
 /* stwbrx */
 void always_inline gen_qemu_st32r(TCGv t0, TCGv t1, int flags)
@@ -3077,7 +3077,7 @@ void always_inline gen_qemu_st32r(TCGv t0, TCGv t1, int flags)
     gen_qemu_st32(t2, t1, flags);
     tcg_temp_free(t2);
 }
-GEN_STX(32r, 0x16, 0x14, PPC_INTEGER);
+GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER);
 
 /***                    Integer load and store multiple                    ***/
 #define op_ldstm(name, reg) (*gen_op_##name[ctx->mem_idx])(reg)
