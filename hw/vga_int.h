@@ -129,6 +129,7 @@ typedef void (* vga_update_retrace_info_fn)(struct VGAState *s);
     int dac_8bit;                                                       \
     uint8_t palette[768];                                               \
     int32_t bank_offset;                                                \
+    int vga_io_memory;                                             \
     int (*get_bpp)(struct VGAState *s);                                 \
     void (*get_offsets)(struct VGAState *s,                             \
                         uint32_t *pline_offset,                         \

@@ -3117,7 +3117,7 @@ static int cirrus_vga_load(QEMUFile *f, void *opaque, int version_id)
 
 static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
 {
-    int vga_io_memory, i;
+    int i;
     static int inited;
 
     if (!inited) {
@@ -3156,10 +3156,10 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
     register_ioport_read(0x3ba, 1, 1, vga_ioport_read, s);
     register_ioport_read(0x3da, 1, 1, vga_ioport_read, s);
 
-    vga_io_memory = cpu_register_io_memory(0, cirrus_vga_mem_read,
+    s->vga_io_memory = cpu_register_io_memory(0, cirrus_vga_mem_read,
                                            cirrus_vga_mem_write, s);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000,
-                                 vga_io_memory);
+                                 s->vga_io_memory);
 
     s->sr[0x06] = 0x0f;
     if (device_id == CIRRUS_ID_CLGD5446) {
