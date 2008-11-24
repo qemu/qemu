@@ -650,7 +650,7 @@ static void pxa2xx_palette_parse(struct pxa2xx_lcdc_s *s, int ch, int bpp)
             }
             break;
         }
-        switch (s->ds->depth) {
+        switch (ds_get_bits_per_pixel(s->ds)) {
         case 8:
             *dest = rgb_to_pixel8(r, g, b) | alpha;
             break;
@@ -693,7 +693,7 @@ static void pxa2xx_lcdc_dma0_redraw_horiz(struct pxa2xx_lcdc_s *s,
     else if (s->bpp > pxa_lcdc_8bpp)
         src_width *= 2;
 
-    dest = s->ds->data;
+    dest = ds_get_data(s->ds);
     dest_width = s->xres * s->dest_width;
 
     addr = (ram_addr_t) (fb - phys_ram_base);
@@ -750,7 +750,7 @@ static void pxa2xx_lcdc_dma0_redraw_vert(struct pxa2xx_lcdc_s *s,
         src_width *= 2;
 
     dest_width = s->yres * s->dest_width;
-    dest = s->ds->data + dest_width * (s->xres - 1);
+    dest = ds_get_data(s->ds) + dest_width * (s->xres - 1);
 
     addr = (ram_addr_t) (fb - phys_ram_base);
     start = addr + s->yres * src_width;
@@ -1006,7 +1006,7 @@ struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq,
                                       pxa2xx_invalidate_display,
                                       pxa2xx_screen_dump, NULL, s);
 
-    switch (s->ds->depth) {
+    switch (ds_get_bits_per_pixel(s->ds)) {
     case 0:
         s->dest_width = 0;
         break;

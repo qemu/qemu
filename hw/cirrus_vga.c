@@ -2321,9 +2321,9 @@ static void cirrus_cursor_draw_line(VGAState *s1, uint8_t *d1, int scr_y)
     color1 = s->rgb_to_pixel(c6_to_8(palette[0xf * 3]),
                              c6_to_8(palette[0xf * 3 + 1]),
                              c6_to_8(palette[0xf * 3 + 2]));
-    bpp = ((s->ds->depth + 7) >> 3);
+    bpp = ((ds_get_bits_per_pixel(s->ds) + 7) >> 3);
     d1 += x1 * bpp;
-    switch(s->ds->depth) {
+    switch(ds_get_bits_per_pixel(s->ds)) {
     default:
         break;
     case 8:

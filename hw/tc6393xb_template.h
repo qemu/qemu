@@ -46,12 +46,12 @@ static void glue(tc6393xb_draw_graphic, BITS)(struct tc6393xb_s *s)
 
     data_buffer = (uint16_t*)(phys_ram_base + s->vram_addr);
     w_display = s->scr_width * BITS / 8;
-    data_display = s->ds->data;
+    data_display = ds_get_data(s->ds);
     for(i = 0; i < s->scr_height; i++) {
 #if (BITS == 16)
         memcpy(data_display, data_buffer, s->scr_width * 2);
         data_buffer += s->scr_width;
-        data_display += s->ds->linesize;
+        data_display += ds_get_linesize(s->ds);
 #else
         int j;
         for (j = 0; j < s->scr_width; j++, data_display += BITS / 8, data_buffer++) {

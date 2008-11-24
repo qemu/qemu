@@ -187,7 +187,7 @@ static void ssd0323_update_display(void *opaque)
     if (!s->redraw)
         return;
 
-    switch (s->ds->depth) {
+    switch (ds_get_bits_per_pixel(s->ds)) {
     case 0:
         return;
     case 15:
@@ -210,7 +210,7 @@ static void ssd0323_update_display(void *opaque)
     for (i = 0; i < 16; i++) {
         int n;
         colors[i] = p;
-        switch (s->ds->depth) {
+        switch (ds_get_bits_per_pixel(s->ds)) {
         case 15:
             n = i * 2 + (i >> 3);
             p[0] = n | (n << 5);
@@ -233,7 +233,7 @@ static void ssd0323_update_display(void *opaque)
         p += dest_width;
     }
     /* TODO: Implement row/column remapping.  */
-    dest = s->ds->data;
+    dest = ds_get_data(s->ds);
     for (y = 0; y < 64; y++) {
         line = y;
         src = s->framebuffer + 64 * line;

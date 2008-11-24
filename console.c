@@ -190,7 +190,7 @@ static unsigned int vga_get_color(DisplayState *ds, unsigned int rgba)
 {
     unsigned int r, g, b, color;
 
-    switch(ds->depth) {
+    switch(ds_get_bits_per_pixel(ds)) {
 #if 0
     case 8:
         r = (rgba >> 16) & 0xff;
@@ -227,9 +227,9 @@ static void vga_fill_rect (DisplayState *ds,
     uint8_t *d, *d1;
     int x, y, bpp;
 
-    bpp = (ds->depth + 7) >> 3;
-    d1 = ds->data +
-        ds->linesize * posy + bpp * posx;
+    bpp = (ds_get_bits_per_pixel(ds) + 7) >> 3;
+    d1 = ds_get_data(ds) +
+        ds_get_linesize(ds) * posy + bpp * posx;
     for (y = 0; y < height; y++) {
         d = d1;
         switch(bpp) {
@@ -252,7 +252,7 @@ static void vga_fill_rect (DisplayState *ds,
             }
             break;
         }
-        d1 += ds->linesize;
+        d1 += ds_get_linesize(ds);
     }
 }
 
@@ -263,27 +263,27 @@ static void vga_bitblt(DisplayState *ds, int xs, int ys, int xd, int yd, int w, 
     uint8_t *d;
     int wb, y, bpp;
 
-    bpp = (ds->depth + 7) >> 3;
+    bpp = (ds_get_bits_per_pixel(ds) + 7) >> 3;
     wb = w * bpp;
     if (yd <= ys) {
-        s = ds->data +
-            ds->linesize * ys + bpp * xs;
-        d = ds->data +
-            ds->linesize * yd + bpp * xd;
+        s = ds_get_data(ds) +
+            ds_get_linesize(ds) * ys + bpp * xs;
+        d = ds_get_data(ds) +
+            ds_get_linesize(ds) * yd + bpp * xd;
         for (y = 0; y < h; y++) {
             memmove(d, s, wb);
-            d += ds->linesize;
-            s += ds->linesize;
+            d += ds_get_linesize(ds);
+            s += ds_get_linesize(ds);
         }
     } else {
-        s = ds->data +
-            ds->linesize * (ys + h - 1) + bpp * xs;
-        d = ds->data +
-            ds->linesize * (yd + h - 1) + bpp * xd;
+        s = ds_get_data(ds) +
+            ds_get_linesize(ds) * (ys + h - 1) + bpp * xs;
+        d = ds_get_data(ds) +
+            ds_get_linesize(ds) * (yd + h - 1) + bpp * xd;
        for (y = 0; y < h; y++) {
             memmove(d, s, wb);
-            d -= ds->linesize;
-            s -= ds->linesize;
+            d -= ds_get_linesize(ds);
+            s -= ds_get_linesize(ds);
         }
     }
 }
@@ -373,7 +373,7 @@ static const uint32_t color_table_rgb[2][8] = {
 
 static inline unsigned int col_expand(DisplayState *ds, unsigned int col)
 {
-    switch(ds->depth) {
+    switch(ds_get_bits_per_pixel(ds)) {
     case 8:
         col |= col << 8;
         col |= col << 16;
@@ -443,13 +443,13 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
         bgcol = color_table[t_attrib->bold][t_attrib->bgcol];
     }
 
-    bpp = (ds->depth + 7) >> 3;
-    d = ds->data +
-        ds->linesize * y * FONT_HEIGHT + bpp * x * FONT_WIDTH;
-    linesize = ds->linesize;
+    bpp = (ds_get_bits_per_pixel(ds) + 7) >> 3;
+    d = ds_get_data(ds) +
+        ds_get_linesize(ds) * y * FONT_HEIGHT + bpp * x * FONT_WIDTH;
+    linesize = ds_get_linesize(ds);
     font_ptr = vgafont16 + FONT_HEIGHT * ch;
     xorcol = bgcol ^ fgcol;
-    switch(ds->depth) {
+    switch(ds_get_bits_per_pixel(ds)) {
     case 8:
         for(i = 0; i < FONT_HEIGHT; i++) {
             font_data = *font_ptr++;
@@ -543,7 +543,7 @@ static void update_xy(TextConsole *s, int x, int y)
     int y1, y2;
 
     if (s == active_console) {
-        if (!s->ds->depth) {
+        if (!ds_get_bits_per_pixel(s->ds)) {
             text_update_xy(s, x, y);
             return;
         }
@@ -570,7 +570,7 @@ static void console_show_cursor(TextConsole *s, int show)
     if (s == active_console) {
         int x = s->x;
 
-        if (!s->ds->depth) {
+        if (!ds_get_bits_per_pixel(s->ds)) {
             s->cursor_invalidate = 1;
             return;
         }
@@ -604,7 +604,7 @@ static void console_refresh(TextConsole *s)
 
     if (s != active_console)
         return;
-    if (!s->ds->depth) {
+    if (!ds_get_bits_per_pixel(s->ds)) {
         s->text_x[0] = 0;
         s->text_y[0] = 0;
         s->text_x[1] = s->width - 1;
@@ -613,7 +613,7 @@ static void console_refresh(TextConsole *s)
         return;
     }
 
-    vga_fill_rect(s->ds, 0, 0, s->ds->width, s->ds->height,
+    vga_fill_rect(s->ds, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds),
                   color_table[0][COLOR_BLACK]);
     y1 = s->y_displayed;
     for(y = 0; y < s->height; y++) {
@@ -626,7 +626,7 @@ static void console_refresh(TextConsole *s)
         if (++y1 == s->total_height)
             y1 = 0;
     }
-    dpy_update(s->ds, 0, 0, s->ds->width, s->ds->height);
+    dpy_update(s->ds, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds));
     console_show_cursor(s, 1);
 }
 
@@ -689,7 +689,7 @@ static void console_put_lf(TextConsole *s)
             c++;
         }
         if (s == active_console && s->y_displayed == s->y_base) {
-            if (!s->ds->depth) {
+            if (!ds_get_bits_per_pixel(s->ds)) {
                 s->text_x[0] = 0;
                 s->text_y[0] = 0;
                 s->text_x[1] = s->width - 1;
@@ -1048,7 +1048,7 @@ void console_select(unsigned int index)
     if (s) {
         active_console = s;
         if (s->console_type != TEXT_CONSOLE && s->g_width && s->g_height
-            && (s->g_width != s->ds->width || s->g_height != s->ds->height))
+            && (s->g_width != ds_get_width(s->ds) || s->g_height != ds_get_height(s->ds)))
             dpy_resize(s->ds, s->g_width, s->g_height);
         vga_hw_invalidate();
     }
@@ -1158,12 +1158,12 @@ static void text_console_invalidate(void *opaque)
 {
     TextConsole *s = (TextConsole *) opaque;
 
-    if (s->g_width != s->ds->width || s->g_height != s->ds->height) {
+    if (s->g_width != ds_get_width(s->ds) || s->g_height != ds_get_height(s->ds)) {
         if (s->console_type == TEXT_CONSOLE_FIXED_SIZE)
             dpy_resize(s->ds, s->g_width, s->g_height);
         else {
-            s->g_width = s->ds->width;
-            s->g_height = s->ds->height;
+            s->g_width = ds_get_width(s->ds);
+            s->g_height = ds_get_height(s->ds);
             text_console_resize(s);
         }
     }
@@ -1302,8 +1302,8 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     s->total_height = DEFAULT_BACKSCROLL;
     s->x = 0;
     s->y = 0;
-    width = s->ds->width;
-    height = s->ds->height;
+    width = ds_get_width(s->ds);
+    height = ds_get_height(s->ds);
     if (p != 0) {
         width = strtoul(p, (char **)&p, 10);
         if (*p == 'C') {
@@ -1347,7 +1347,7 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
 void qemu_console_resize(QEMUConsole *console, int width, int height)
 {
     if (console->g_width != width || console->g_height != height
-        || !console->ds->data) {
+        || !ds_get_data(console->ds)) {
         console->g_width = width;
         console->g_height = height;
         if (active_console == console) {

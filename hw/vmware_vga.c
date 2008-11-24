@@ -319,7 +319,7 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     width = s->bypp * w;
     start = s->bypp * x + bypl * y;
     src = s->vram + start;
-    dst = s->ds->data + start;
+    dst = ds_get_data(s->ds) + start;
 
     for (; line > 0; line --, src += bypl, dst += bypl)
         memcpy(dst, src, width);
@@ -331,7 +331,7 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
 static inline void vmsvga_update_screen(struct vmsvga_state_s *s)
 {
 #ifndef DIRECT_VRAM
-    memcpy(s->ds->data, s->vram, s->bypp * s->width * s->height);
+    memcpy(ds_get_data(s->ds), s->vram, s->bypp * s->width * s->height);
 #endif
 
     dpy_update(s->ds, 0, 0, s->width, s->height);
@@ -373,7 +373,7 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
                 int x0, int y0, int x1, int y1, int w, int h)
 {
 # ifdef DIRECT_VRAM
-    uint8_t *vram = s->ds->data;
+    uint8_t *vram = ds_get_data(s->ds);
 # else
     uint8_t *vram = s->vram;
 # endif
@@ -410,7 +410,7 @@ static inline void vmsvga_fill_rect(struct vmsvga_state_s *s,
                 uint32_t c, int x, int y, int w, int h)
 {
 # ifdef DIRECT_VRAM
-    uint8_t *vram = s->ds->data;
+    uint8_t *vram = ds_get_data(s->ds);
 # else
     uint8_t *vram = s->vram;
 # endif
@@ -915,7 +915,7 @@ static void vmsvga_reset(struct vmsvga_state_s *s)
     s->width = -1;
     s->height = -1;
     s->svgaid = SVGA_ID;
-    s->depth = s->ds->depth ? s->ds->depth : 24;
+    s->depth = ds_get_bits_per_pixel(s->ds) ? ds_get_bits_per_pixel(s->ds) : 24;
     s->bypp = (s->depth + 7) >> 3;
     s->cursor.on = 0;
     s->redraw_fifo_first = 0;
@@ -976,7 +976,7 @@ static void vmsvga_screen_dump(void *opaque, const char *filename)
     }
 
     if (s->depth == 32) {
-        ppm_save(filename, s->vram, s->width, s->height, s->ds->linesize);
+        ppm_save(filename, s->vram, s->width, s->height, ds_get_linesize(s->ds));
     }
 }
 
@@ -994,7 +994,7 @@ static uint32_t vmsvga_vram_readb(void *opaque, target_phys_addr_t addr)
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     addr -= s->vram_base;
     if (addr < s->fb_size)
-        return *(uint8_t *) (s->ds->data + addr);
+        return *(uint8_t *) (ds_get_data(s->ds) + addr);
     else
         return *(uint8_t *) (s->vram + addr);
 }
@@ -1004,7 +1004,7 @@ static uint32_t vmsvga_vram_readw(void *opaque, target_phys_addr_t addr)
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     addr -= s->vram_base;
     if (addr < s->fb_size)
-        return *(uint16_t *) (s->ds->data + addr);
+        return *(uint16_t *) (ds_get_data(s->ds) + addr);
     else
         return *(uint16_t *) (s->vram + addr);
 }
@@ -1014,7 +1014,7 @@ static uint32_t vmsvga_vram_readl(void *opaque, target_phys_addr_t addr)
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     addr -= s->vram_base;
     if (addr < s->fb_size)
-        return *(uint32_t *) (s->ds->data + addr);
+        return *(uint32_t *) (ds_get_data(s->ds) + addr);
     else
         return *(uint32_t *) (s->vram + addr);
 }
@@ -1025,7 +1025,7 @@ static void vmsvga_vram_writeb(void *opaque, target_phys_addr_t addr,
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     addr -= s->vram_base;
     if (addr < s->fb_size)
-        *(uint8_t *) (s->ds->data + addr) = value;
+        *(uint8_t *) (ds_get_data(s->ds) + addr) = value;
     else
         *(uint8_t *) (s->vram + addr) = value;
 }
@@ -1036,7 +1036,7 @@ static void vmsvga_vram_writew(void *opaque, target_phys_addr_t addr,
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     addr -= s->vram_base;
     if (addr < s->fb_size)
-        *(uint16_t *) (s->ds->data + addr) = value;
+        *(uint16_t *) (ds_get_data(s->ds) + addr) = value;
     else
         *(uint16_t *) (s->vram + addr) = value;
 }
@@ -1047,7 +1047,7 @@ static void vmsvga_vram_writel(void *opaque, target_phys_addr_t addr,
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
     addr -= s->vram_base;
     if (addr < s->fb_size)
-        *(uint32_t *) (s->ds->data + addr) = value;
+        *(uint32_t *) (ds_get_data(s->ds) + addr) = value;
     else
         *(uint32_t *) (s->vram + addr) = value;
 }

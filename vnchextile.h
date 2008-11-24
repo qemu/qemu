@@ -13,7 +13,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
                                              void *last_fg_,
                                              int *has_bg, int *has_fg)
 {
-    uint8_t *row = (vs->ds->data + y * vs->ds->linesize + x * vs->depth);
+    uint8_t *row = (ds_get_data(vs->ds) + y * ds_get_linesize(vs->ds) + x * vs->depth);
     pixel_t *irow = (pixel_t *)row;
     int j, i;
     pixel_t *last_bg = (pixel_t *)last_bg_;
@@ -57,7 +57,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	}
 	if (n_colors > 2)
 	    break;
-	irow += vs->ds->linesize / sizeof(pixel_t);
+	irow += ds_get_linesize(vs->ds) / sizeof(pixel_t);
     }
 
     if (n_colors > 1 && fg_count > bg_count) {
@@ -105,7 +105,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 		n_data += 2;
 		n_subtiles++;
 	    }
-	    irow += vs->ds->linesize / sizeof(pixel_t);
+	    irow += ds_get_linesize(vs->ds) / sizeof(pixel_t);
 	}
 	break;
     case 3:
@@ -161,7 +161,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 		n_data += 2;
 		n_subtiles++;
 	    }
-	    irow += vs->ds->linesize / sizeof(pixel_t);
+	    irow += ds_get_linesize(vs->ds) / sizeof(pixel_t);
 	}
 
 	/* A SubrectsColoured subtile invalidates the foreground color */
@@ -198,7 +198,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
     } else {
 	for (j = 0; j < h; j++) {
 	    vs->write_pixels(vs, row, w * vs->depth);
-	    row += vs->ds->linesize;
+	    row += ds_get_linesize(vs->ds);
 	}
     }
 }
