@@ -334,21 +334,6 @@ void OPPROTO op_store_excp_vector (void)
 }
 #endif
 
-/* Trap word */
-void OPPROTO op_tw (void)
-{
-    do_tw(PARAM1);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_td (void)
-{
-    do_td(PARAM1);
-    RETURN();
-}
-#endif
-
 #if !defined(CONFIG_USER_ONLY)
 /* tlbia */
 void OPPROTO op_tlbia (void)

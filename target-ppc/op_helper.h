@@ -60,10 +60,6 @@ target_ulong ppc_load_dump_spr (int sprn);
 void ppc_store_dump_spr (int sprn, target_ulong val);
 
 /* Misc */
-void do_tw (int flags);
-#if defined(TARGET_PPC64)
-void do_td (int flags);
-#endif
 #if !defined(CONFIG_USER_ONLY)
 void do_store_msr (void);
 void do_rfi (void);

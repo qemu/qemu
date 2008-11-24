@@ -1424,25 +1424,25 @@ void do_hrfid (void)
 #endif
 #endif
 
-void do_tw (int flags)
+void helper_tw (target_ulong arg1, target_ulong arg2, uint32_t flags)
 {
-    if (!likely(!(((int32_t)T0 < (int32_t)T1 && (flags & 0x10)) ||
-                  ((int32_t)T0 > (int32_t)T1 && (flags & 0x08)) ||
-                  ((int32_t)T0 == (int32_t)T1 && (flags & 0x04)) ||
-                  ((uint32_t)T0 < (uint32_t)T1 && (flags & 0x02)) ||
-                  ((uint32_t)T0 > (uint32_t)T1 && (flags & 0x01))))) {
+    if (!likely(!(((int32_t)arg1 < (int32_t)arg2 && (flags & 0x10)) ||
+                  ((int32_t)arg1 > (int32_t)arg2 && (flags & 0x08)) ||
+                  ((int32_t)arg1 == (int32_t)arg2 && (flags & 0x04)) ||
+                  ((uint32_t)arg1 < (uint32_t)arg2 && (flags & 0x02)) ||
+                  ((uint32_t)arg1 > (uint32_t)arg2 && (flags & 0x01))))) {
         raise_exception_err(env, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
     }
 }
 
 #if defined(TARGET_PPC64)
-void do_td (int flags)
+void helper_td (target_ulong arg1, target_ulong arg2, uint32_t flags)
 {
-    if (!likely(!(((int64_t)T0 < (int64_t)T1 && (flags & 0x10)) ||
-                  ((int64_t)T0 > (int64_t)T1 && (flags & 0x08)) ||
-                  ((int64_t)T0 == (int64_t)T1 && (flags & 0x04)) ||
-                  ((uint64_t)T0 < (uint64_t)T1 && (flags & 0x02)) ||
-                  ((uint64_t)T0 > (uint64_t)T1 && (flags & 0x01)))))
+    if (!likely(!(((int64_t)arg1 < (int64_t)arg2 && (flags & 0x10)) ||
+                  ((int64_t)arg1 > (int64_t)arg2 && (flags & 0x08)) ||
+                  ((int64_t)arg1 == (int64_t)arg2 && (flags & 0x04)) ||
+                  ((uint64_t)arg1 < (uint64_t)arg2 && (flags & 0x02)) ||
+                  ((uint64_t)arg1 > (uint64_t)arg2 && (flags & 0x01)))))
         raise_exception_err(env, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
 }
 #endif

@@ -2,6 +2,10 @@
 
 DEF_HELPER_2(raise_exception_err, void, i32, i32)
 DEF_HELPER_0(raise_debug, void)
+DEF_HELPER_3(tw, void, tl, tl, i32)
+#if defined(TARGET_PPC64)
+DEF_HELPER_3(td, void, tl, tl, i32)
+#endif
 
 DEF_HELPER_2(fcmpo, i32, i64, i64)
 DEF_HELPER_2(fcmpu, i32, i64, i64)
