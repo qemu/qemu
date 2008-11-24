@@ -542,7 +542,6 @@ struct CPUPPCState {
      */
     uint64_t t0_64, t1_64, t2_64;
 #endif
-    ppc_avr_t avr0, avr1, avr2;
 
     /* general purpose registers */
     target_ulong gpr[32];

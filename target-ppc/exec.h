@@ -54,10 +54,6 @@ register target_ulong T2 asm(AREG3);
 #define T1_64 T1
 #define T2_64 T2
 #endif
-/* Provision for Altivec */
-#define AVR0 (env->avr0)
-#define AVR1 (env->avr1)
-#define AVR2 (env->avr2)
 
 #define FT0 (env->ft0)
 #define FT1 (env->ft1)

@@ -642,66 +642,6 @@ void OPPROTO glue(op_POWER2_stfq_le, MEMSUFFIX) (void)
     RETURN();
 }
 
-/* Altivec vector extension */
-#if defined(WORDS_BIGENDIAN)
-#define VR_DWORD0 0
-#define VR_DWORD1 1
-#else
-#define VR_DWORD0 1
-#define VR_DWORD1 0
-#endif
-void OPPROTO glue(op_vr_lvx, MEMSUFFIX) (void)
-{
-    AVR0.u64[VR_DWORD0] = glue(ldu64, MEMSUFFIX)((uint32_t)T0);
-    AVR0.u64[VR_DWORD1] = glue(ldu64, MEMSUFFIX)((uint32_t)T0 + 8);
-}
-
-void OPPROTO glue(op_vr_lvx_le, MEMSUFFIX) (void)
-{
-    AVR0.u64[VR_DWORD1] = glue(ldu64r, MEMSUFFIX)((uint32_t)T0);
-    AVR0.u64[VR_DWORD0] = glue(ldu64r, MEMSUFFIX)((uint32_t)T0 + 8);
-}
-
-void OPPROTO glue(op_vr_stvx, MEMSUFFIX) (void)
-{
-    glue(st64, MEMSUFFIX)((uint32_t)T0, AVR0.u64[VR_DWORD0]);
-    glue(st64, MEMSUFFIX)((uint32_t)T0 + 8, AVR0.u64[VR_DWORD1]);
-}
-
-void OPPROTO glue(op_vr_stvx_le, MEMSUFFIX) (void)
-{
-    glue(st64r, MEMSUFFIX)((uint32_t)T0, AVR0.u64[VR_DWORD1]);
-    glue(st64r, MEMSUFFIX)((uint32_t)T0 + 8, AVR0.u64[VR_DWORD0]);
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_vr_lvx_64, MEMSUFFIX) (void)
-{
-    AVR0.u64[VR_DWORD0] = glue(ldu64, MEMSUFFIX)((uint64_t)T0);
-    AVR0.u64[VR_DWORD1] = glue(ldu64, MEMSUFFIX)((uint64_t)T0 + 8);
-}
-
-void OPPROTO glue(op_vr_lvx_le_64, MEMSUFFIX) (void)
-{
-    AVR0.u64[VR_DWORD1] = glue(ldu64r, MEMSUFFIX)((uint64_t)T0);
-    AVR0.u64[VR_DWORD0] = glue(ldu64r, MEMSUFFIX)((uint64_t)T0 + 8);
-}
-
-void OPPROTO glue(op_vr_stvx_64, MEMSUFFIX) (void)
-{
-    glue(st64, MEMSUFFIX)((uint64_t)T0, AVR0.u64[VR_DWORD0]);
-    glue(st64, MEMSUFFIX)((uint64_t)T0 + 8, AVR0.u64[VR_DWORD1]);
-}
-
-void OPPROTO glue(op_vr_stvx_le_64, MEMSUFFIX) (void)
-{
-    glue(st64r, MEMSUFFIX)((uint64_t)T0, AVR0.u64[VR_DWORD1]);
-    glue(st64r, MEMSUFFIX)((uint64_t)T0 + 8, AVR0.u64[VR_DWORD0]);
-}
-#endif
-#undef VR_DWORD0
-#undef VR_DWORD1
-
 /* SPE extension */
 #define _PPC_SPE_LD_OP(name, op)                                              \
 void OPPROTO glue(glue(op_spe_l, name), MEMSUFFIX) (void)                     \
