@@ -102,6 +102,11 @@ typedef void (* vga_update_retrace_info_fn)(struct VGAState *s);
     uint8_t *vram_ptr;                                                  \
     ram_addr_t vram_offset;                                             \
     unsigned int vram_size;                                             \
+    uint32_t lfb_addr;                                                  \
+    uint32_t lfb_end;                                                   \
+    uint32_t map_addr;                                                  \
+    uint32_t map_end;                                                   \
+    uint32_t lfb_vram_mapped; /* whether 0xa0000 is mapped as ram */    \
     unsigned long bios_offset;                                          \
     unsigned int bios_size;                                             \
     target_phys_addr_t base_ctrl;                                       \
@@ -189,6 +194,10 @@ static inline int c6_to_8(int v)
 void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
                      ram_addr_t vga_ram_offset, int vga_ram_size);
 void vga_init(VGAState *s);
+
+void vga_dirty_log_start(VGAState *s);
+void vga_dirty_log_stop(VGAState *s);
+
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
 void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val);
 void vga_invalidate_scanlines(VGAState *s, int y1, int y2);

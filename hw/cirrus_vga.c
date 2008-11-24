@@ -31,6 +31,7 @@
 #include "pci.h"
 #include "console.h"
 #include "vga_int.h"
+#include "kvm.h"
 
 /*
  * TODO:
@@ -1228,6 +1229,12 @@ static void cirrus_update_bank_ptr(CirrusVGAState * s, unsigned bank_index)
     }
 
     if (limit > 0) {
+        /* Thinking about changing bank base? First, drop the dirty bitmap information
+         * on the current location, otherwise we lose this pointer forever */
+        if (s->lfb_vram_mapped) {
+            target_phys_addr_t base_addr = isa_mem_base + 0xa0000 + bank_index * 0x8000;
+            cpu_physical_sync_dirty_bitmap(base_addr, base_addr + 0x8000);
+        }
 	s->cirrus_bank_base[bank_index] = offset;
 	s->cirrus_bank_limit[bank_index] = limit;
     } else {
@@ -1356,6 +1363,7 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 	s->hw_cursor_y = (reg_value << 3) | (reg_index >> 5);
 	break;
     case 0x07:			// Extended Sequencer Mode
+    cirrus_update_memory_access(s);
     case 0x08:			// EEPROM Control
     case 0x09:			// Scratch Register 0
     case 0x0a:			// Scratch Register 1
@@ -1528,6 +1536,7 @@ cirrus_hook_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 	s->gr[reg_index] = reg_value;
 	cirrus_update_bank_ptr(s, 0);
 	cirrus_update_bank_ptr(s, 1);
+        cirrus_update_memory_access(s);
         break;
     case 0x0B:
 	s->gr[reg_index] = reg_value;
@@ -2618,6 +2627,52 @@ static CPUWriteMemoryFunc *cirrus_linear_bitblt_write[3] = {
     cirrus_linear_bitblt_writel,
 };
 
+static void map_linear_vram(CirrusVGAState *s)
+{
+
+    if (!s->map_addr && s->lfb_addr && s->lfb_end) {
+        s->map_addr = s->lfb_addr;
+        s->map_end = s->lfb_end;
+        cpu_register_physical_memory(s->map_addr, s->map_end - s->map_addr, s->vram_offset);
+        vga_dirty_log_start((VGAState *)s);
+    }
+
+    if (!s->map_addr)
+        return;
+
+    s->lfb_vram_mapped = 0;
+
+    if (!(s->cirrus_srcptr != s->cirrus_srcptr_end)
+        && !((s->sr[0x07] & 0x01) == 0)
+        && !((s->gr[0x0B] & 0x14) == 0x14)
+        && !(s->gr[0x0B] & 0x02)) {
+
+        cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x8000,
+                                    (s->vram_offset + s->cirrus_bank_base[0]) | IO_MEM_RAM);
+        cpu_register_physical_memory(isa_mem_base + 0xa8000, 0x8000,
+                                    (s->vram_offset + s->cirrus_bank_base[1]) | IO_MEM_RAM);
+
+        s->lfb_vram_mapped = 1;
+        vga_dirty_log_start((VGAState *)s);
+    }
+    else {
+        cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x8000, s->vga_io_memory);
+        cpu_register_physical_memory(isa_mem_base + 0xa8000, 0x8000, s->vga_io_memory);
+    }
+
+}
+
+static void unmap_linear_vram(CirrusVGAState *s)
+{
+    if (s->map_addr && s->lfb_addr && s->lfb_end) {
+        vga_dirty_log_stop((VGAState *)s);
+        s->map_addr = s->map_end = 0;
+    }
+
+    cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x20000,
+                                 s->vga_io_memory);
+}
+
 /* Compute the memory access functions */
 static void cirrus_update_memory_access(CirrusVGAState *s)
 {
@@ -2636,11 +2691,13 @@ static void cirrus_update_memory_access(CirrusVGAState *s)
 
 	mode = s->gr[0x05] & 0x7;
 	if (mode < 4 || mode > 5 || ((s->gr[0x0B] & 0x4) == 0)) {
+            map_linear_vram(s);
             s->cirrus_linear_write[0] = cirrus_linear_mem_writeb;
             s->cirrus_linear_write[1] = cirrus_linear_mem_writew;
             s->cirrus_linear_write[2] = cirrus_linear_mem_writel;
         } else {
         generic_io:
+            unmap_linear_vram(s);
             s->cirrus_linear_write[0] = cirrus_linear_writeb;
             s->cirrus_linear_write[1] = cirrus_linear_writew;
             s->cirrus_linear_write[2] = cirrus_linear_writel;
@@ -3102,6 +3159,7 @@ static int cirrus_vga_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &s->hw_cursor_x);
     qemu_get_be32s(f, &s->hw_cursor_y);
 
+    cirrus_update_memory_access(s);
     /* force refresh */
     s->graphic_mode = -1;
     cirrus_update_bank_ptr(s, 0);
@@ -3261,6 +3319,13 @@ static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
 				 s->cirrus_linear_io_addr);
     cpu_register_physical_memory(addr + 0x1000000, 0x400000,
 				 s->cirrus_linear_bitblt_io_addr);
+
+    s->map_addr = s->map_end = 0;
+    s->lfb_addr = addr & TARGET_PAGE_MASK;
+    s->lfb_end = ((addr + VGA_RAM_SIZE) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
+    /* account for overflow */
+    if (s->lfb_end < addr + VGA_RAM_SIZE)
+        s->lfb_end = addr + VGA_RAM_SIZE;
 }
 
 static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,

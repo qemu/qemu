@@ -1887,6 +1887,12 @@ int cpu_physical_memory_get_dirty_tracking(void)
     return in_migration;
 }
 
+void cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr, target_phys_addr_t end_addr)
+{
+    if (kvm_enabled())
+        kvm_physical_sync_dirty_bitmap(start_addr, end_addr);
+}
+
 static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
 {
     ram_addr_t ram_addr;
