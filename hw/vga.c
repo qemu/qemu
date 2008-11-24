@@ -2105,7 +2105,7 @@ static void vga_map(PCIDevice *pci_dev, int region_num,
 }
 
 void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
-                     unsigned long vga_ram_offset, int vga_ram_size)
+                     ram_addr_t vga_ram_offset, int vga_ram_size)
 {
     int i, j, v, b;
 

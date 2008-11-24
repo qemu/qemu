@@ -3231,7 +3231,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
  ***************************************/
 
 void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
-                         unsigned long vga_ram_offset, int vga_ram_size)
+                         ram_addr_t vga_ram_offset, int vga_ram_size)
 {
     CirrusVGAState *s;
 
@@ -3273,7 +3273,7 @@ static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
 }
 
 void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
-                         unsigned long vga_ram_offset, int vga_ram_size)
+                         ram_addr_t vga_ram_offset, int vga_ram_size)
 {
     PCICirrusVGAState *d;
     uint8_t *pci_conf;

@@ -134,9 +134,9 @@ int isa_vga_mm_init(DisplayState *ds, uint8_t *vga_ram_base,
 
 /* cirrus_vga.c */
 void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
-                         unsigned long vga_ram_offset, int vga_ram_size);
+                         ram_addr_t vga_ram_offset, int vga_ram_size);
 void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
-                         unsigned long vga_ram_offset, int vga_ram_size);
+                         ram_addr_t vga_ram_offset, int vga_ram_size);
 
 /* ide.c */
 void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
