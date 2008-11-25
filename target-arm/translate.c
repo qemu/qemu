@@ -8677,8 +8677,8 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         }
 #endif
 
-        if (unlikely(env->breakpoints)) {
-            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+        if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
+            TAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     gen_set_condexec(dc);
                     gen_set_pc_im(dc->pc);

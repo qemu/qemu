@@ -8286,8 +8286,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 #endif
     gen_icount_start();
     while (ctx.bstate == BS_NONE) {
-        if (unlikely(env->breakpoints)) {
-            for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+        if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
+            TAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == ctx.pc) {
                     save_cpu_state(&ctx, 1);
                     ctx.bstate = BS_BRANCH;

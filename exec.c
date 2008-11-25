@@ -537,6 +537,8 @@ void cpu_exec_init(CPUState *env)
         cpu_index++;
     }
     env->cpu_index = cpu_index;
+    TAILQ_INIT(&env->breakpoints);
+    TAILQ_INIT(&env->watchpoints);
     *penv = env;
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
     register_savevm("cpu_common", cpu_index, CPU_COMMON_SAVE_VERSION,
@@ -1302,7 +1304,7 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
                           int flags, CPUWatchpoint **watchpoint)
 {
     target_ulong len_mask = ~(len - 1);
-    CPUWatchpoint *wp, *prev_wp;
+    CPUWatchpoint *wp;
 
     /* sanity checks: allow power-of-2 lengths, deny unaligned watchpoints */
     if ((len != 1 && len != 2 && len != 4 && len != 8) || (addr & ~len_mask)) {
@@ -1319,25 +1321,10 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
     wp->flags = flags;
 
     /* keep all GDB-injected watchpoints in front */
-    if (!(flags & BP_GDB) && env->watchpoints) {
-        prev_wp = env->watchpoints;
-        while (prev_wp->next != NULL && (prev_wp->next->flags & BP_GDB))
-            prev_wp = prev_wp->next;
-    } else {
-        prev_wp = NULL;
-    }
-
-    /* Insert new watchpoint */
-    if (prev_wp) {
-        wp->next = prev_wp->next;
-        prev_wp->next = wp;
-    } else {
-        wp->next = env->watchpoints;
-        env->watchpoints = wp;
-    }
-    if (wp->next)
-        wp->next->prev = wp;
-    wp->prev = prev_wp;
+    if (flags & BP_GDB)
+        TAILQ_INSERT_HEAD(&env->watchpoints, wp, entry);
+    else
+        TAILQ_INSERT_TAIL(&env->watchpoints, wp, entry);
 
     tlb_flush_page(env, addr);
 
@@ -1353,7 +1340,7 @@ int cpu_watchpoint_remove(CPUState *env, target_ulong addr, target_ulong len,
     target_ulong len_mask = ~(len - 1);
     CPUWatchpoint *wp;
 
-    for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
+    TAILQ_FOREACH(wp, &env->watchpoints, entry) {
         if (addr == wp->vaddr && len_mask == wp->len_mask
                 && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
             cpu_watchpoint_remove_by_ref(env, wp);
@@ -1366,12 +1353,7 @@ int cpu_watchpoint_remove(CPUState *env, target_ulong addr, target_ulong len,
 /* Remove a specific watchpoint by reference.  */
 void cpu_watchpoint_remove_by_ref(CPUState *env, CPUWatchpoint *watchpoint)
 {
-    if (watchpoint->next)
-        watchpoint->next->prev = watchpoint->prev;
-    if (watchpoint->prev)
-        watchpoint->prev->next = watchpoint->next;
-    else
-        env->watchpoints = watchpoint->next;
+    TAILQ_REMOVE(&env->watchpoints, watchpoint, entry);
 
     tlb_flush_page(env, watchpoint->vaddr);
 
@@ -1381,11 +1363,12 @@ void cpu_watchpoint_remove_by_ref(CPUState *env, CPUWatchpoint *watchpoint)
 /* Remove all matching watchpoints.  */
 void cpu_watchpoint_remove_all(CPUState *env, int mask)
 {
-    CPUWatchpoint *wp;
+    CPUWatchpoint *wp, *next;
 
-    for (wp = env->watchpoints; wp != NULL; wp = wp->next)
+    TAILQ_FOREACH_SAFE(wp, &env->watchpoints, entry, next) {
         if (wp->flags & mask)
             cpu_watchpoint_remove_by_ref(env, wp);
+    }
 }
 
 /* Add a breakpoint.  */
@@ -1393,7 +1376,7 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
                           CPUBreakpoint **breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    CPUBreakpoint *bp, *prev_bp;
+    CPUBreakpoint *bp;
 
     bp = qemu_malloc(sizeof(*bp));
     if (!bp)
@@ -1403,25 +1386,10 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
     bp->flags = flags;
 
     /* keep all GDB-injected breakpoints in front */
-    if (!(flags & BP_GDB) && env->breakpoints) {
-        prev_bp = env->breakpoints;
-        while (prev_bp->next != NULL && (prev_bp->next->flags & BP_GDB))
-            prev_bp = prev_bp->next;
-    } else {
-        prev_bp = NULL;
-    }
-
-    /* Insert new breakpoint */
-    if (prev_bp) {
-        bp->next = prev_bp->next;
-        prev_bp->next = bp;
-    } else {
-        bp->next = env->breakpoints;
-        env->breakpoints = bp;
-    }
-    if (bp->next)
-        bp->next->prev = bp;
-    bp->prev = prev_bp;
+    if (flags & BP_GDB)
+        TAILQ_INSERT_HEAD(&env->breakpoints, bp, entry);
+    else
+        TAILQ_INSERT_TAIL(&env->breakpoints, bp, entry);
 
     breakpoint_invalidate(env, pc);
 
@@ -1439,7 +1407,7 @@ int cpu_breakpoint_remove(CPUState *env, target_ulong pc, int flags)
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
 
-    for (bp = env->breakpoints; bp != NULL; bp = bp->next) {
+    TAILQ_FOREACH(bp, &env->breakpoints, entry) {
         if (bp->pc == pc && bp->flags == flags) {
             cpu_breakpoint_remove_by_ref(env, bp);
             return 0;
@@ -1455,12 +1423,7 @@ int cpu_breakpoint_remove(CPUState *env, target_ulong pc, int flags)
 void cpu_breakpoint_remove_by_ref(CPUState *env, CPUBreakpoint *breakpoint)
 {
 #if defined(TARGET_HAS_ICE)
-    if (breakpoint->next)
-        breakpoint->next->prev = breakpoint->prev;
-    if (breakpoint->prev)
-        breakpoint->prev->next = breakpoint->next;
-    else
-        env->breakpoints = breakpoint->next;
+    TAILQ_REMOVE(&env->breakpoints, breakpoint, entry);
 
     breakpoint_invalidate(env, breakpoint->pc);
 
@@ -1472,11 +1435,12 @@ void cpu_breakpoint_remove_by_ref(CPUState *env, CPUBreakpoint *breakpoint)
 void cpu_breakpoint_remove_all(CPUState *env, int mask)
 {
 #if defined(TARGET_HAS_ICE)
-    CPUBreakpoint *bp;
+    CPUBreakpoint *bp, *next;
 
-    for (bp = env->breakpoints; bp != NULL; bp = bp->next)
+    TAILQ_FOREACH_SAFE(bp, &env->breakpoints, entry, next) {
         if (bp->flags & mask)
             cpu_breakpoint_remove_by_ref(env, bp);
+    }
 #endif
 }
 
@@ -2005,7 +1969,7 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
     code_address = address;
     /* Make accesses to pages with watchpoints go via the
        watchpoint trap routines.  */
-    for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
+    TAILQ_FOREACH(wp, &env->watchpoints, entry) {
         if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
             iotlb = io_mem_watch + paddr;
             /* TODO: The memory case can be optimized by not trapping
@@ -2552,7 +2516,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
         return;
     }
     vaddr = (env->mem_io_vaddr & TARGET_PAGE_MASK) + offset;
-    for (wp = env->watchpoints; wp != NULL; wp = wp->next) {
+    TAILQ_FOREACH(wp, &env->watchpoints, entry) {
         if ((vaddr == (wp->vaddr & len_mask) ||
              (vaddr & wp->len_mask) == wp->vaddr) && (wp->flags & flags)) {
             wp->flags |= BP_WATCHPOINT_HIT;
