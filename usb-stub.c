@@ -30,6 +30,8 @@
  * THE SOFTWARE.
  */
 
+#include "qemu-common.h"
+#include "console.h"
 #include "hw/usb.h"
 
 void usb_host_info(void)
