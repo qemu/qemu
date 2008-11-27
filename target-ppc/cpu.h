@@ -561,9 +561,6 @@ struct CPUPPCState {
     target_ulong tgpr[4]; /* Used to speed-up TLB assist handlers */
 
     /* Floating point execution context */
-    /* temporary float registers */
-    float64 ft0;
-    float64 ft1;
     float_status fp_status;
     /* floating point registers */
     float64 fpr[32];

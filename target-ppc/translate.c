@@ -71,7 +71,6 @@ static TCGv_i32 cpu_access_type;
 
 /* dyngen register indexes */
 static TCGv cpu_T[3];
-static TCGv_i64 cpu_FT[2];
 
 #include "gen-icount.h"
 
@@ -102,11 +101,6 @@ void ppc_translate_init(void)
     cpu_T[2] = tcg_global_reg_new(TCG_AREG3, "T2");
 #endif
 #endif
-
-    cpu_FT[0] = tcg_global_mem_new_i64(TCG_AREG0,
-                                       offsetof(CPUState, ft0), "FT0");
-    cpu_FT[1] = tcg_global_mem_new_i64(TCG_AREG0,
-                                       offsetof(CPUState, ft1), "FT1");
 
     p = cpu_reg_names;
 
@@ -5102,134 +5096,121 @@ GEN_HANDLER(rfsvc, 0x13, 0x12, 0x02, 0x03FFF0001, PPC_POWER)
 
 /* POWER2 specific instructions */
 /* Quad manipulation (load/store two floats at a time) */
-/* Original POWER2 is 32 bits only, define 64 bits ops as 32 bits ones */
-#define op_POWER2_lfq() (*gen_op_POWER2_lfq[ctx->mem_idx])()
-#define op_POWER2_stfq() (*gen_op_POWER2_stfq[ctx->mem_idx])()
-#define gen_op_POWER2_lfq_64_raw        gen_op_POWER2_lfq_raw
-#define gen_op_POWER2_lfq_64_user       gen_op_POWER2_lfq_user
-#define gen_op_POWER2_lfq_64_kernel     gen_op_POWER2_lfq_kernel
-#define gen_op_POWER2_lfq_64_hypv       gen_op_POWER2_lfq_hypv
-#define gen_op_POWER2_lfq_le_64_raw     gen_op_POWER2_lfq_le_raw
-#define gen_op_POWER2_lfq_le_64_user    gen_op_POWER2_lfq_le_user
-#define gen_op_POWER2_lfq_le_64_kernel  gen_op_POWER2_lfq_le_kernel
-#define gen_op_POWER2_lfq_le_64_hypv    gen_op_POWER2_lfq_le_hypv
-#define gen_op_POWER2_stfq_64_raw       gen_op_POWER2_stfq_raw
-#define gen_op_POWER2_stfq_64_user      gen_op_POWER2_stfq_user
-#define gen_op_POWER2_stfq_64_kernel    gen_op_POWER2_stfq_kernel
-#define gen_op_POWER2_stfq_64_hypv      gen_op_POWER2_stfq_hypv
-#define gen_op_POWER2_stfq_le_64_raw    gen_op_POWER2_stfq_le_raw
-#define gen_op_POWER2_stfq_le_64_user   gen_op_POWER2_stfq_le_user
-#define gen_op_POWER2_stfq_le_64_kernel gen_op_POWER2_stfq_le_kernel
-#define gen_op_POWER2_stfq_le_64_hypv   gen_op_POWER2_stfq_le_hypv
-static GenOpFunc *gen_op_POWER2_lfq[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(POWER2_lfq),
-};
-static GenOpFunc *gen_op_POWER2_stfq[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(POWER2_stfq),
-};
 
 /* lfq */
 GEN_HANDLER(lfq, 0x38, 0xFF, 0xFF, 0x00000003, PPC_POWER2)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(cpu_T[0], ctx, 0);
-    op_POWER2_lfq();
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode) + 1], cpu_FT[1]);
+    int rd = rD(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    gen_addr_imm_index(t0, ctx, 0);
+    gen_qemu_ld64(cpu_fpr[rd], t0, ctx->mem_idx);
+    tcg_gen_addi_tl(t0, t0, 8);
+    gen_qemu_ld64(cpu_fpr[(rd + 1) % 32], t0, ctx->mem_idx);
+    tcg_temp_free(t0);
 }
 
 /* lfqu */
 GEN_HANDLER(lfqu, 0x39, 0xFF, 0xFF, 0x00000003, PPC_POWER2)
 {
     int ra = rA(ctx->opcode);
-
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(cpu_T[0], ctx, 0);
-    op_POWER2_lfq();
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode) + 1], cpu_FT[1]);
+    int rd = rD(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    gen_addr_imm_index(t0, ctx, 0);
+    gen_qemu_ld64(cpu_fpr[rd], t0, ctx->mem_idx);
+    tcg_gen_addi_tl(t1, t0, 8);
+    gen_qemu_ld64(cpu_fpr[(rd + 1) % 32], t1, ctx->mem_idx);
     if (ra != 0)
-        tcg_gen_mov_tl(cpu_gpr[ra], cpu_T[0]);
+        tcg_gen_mov_tl(cpu_gpr[ra], t0);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 }
 
 /* lfqux */
 GEN_HANDLER(lfqux, 0x1F, 0x17, 0x19, 0x00000001, PPC_POWER2)
 {
     int ra = rA(ctx->opcode);
-
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_POWER2_lfq();
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode) + 1], cpu_FT[1]);
+    int rd = rD(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    gen_qemu_ld64(cpu_fpr[rd], t0, ctx->mem_idx);
+    tcg_gen_addi_tl(t1, t0, 8);
+    gen_qemu_ld64(cpu_fpr[(rd + 1) % 32], t1, ctx->mem_idx);
     if (ra != 0)
-        tcg_gen_mov_tl(cpu_gpr[ra], cpu_T[0]);
+        tcg_gen_mov_tl(cpu_gpr[ra], t0);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 }
 
 /* lfqx */
 GEN_HANDLER(lfqx, 0x1F, 0x17, 0x18, 0x00000001, PPC_POWER2)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_POWER2_lfq();
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode)], cpu_FT[0]);
-    tcg_gen_mov_i64(cpu_fpr[rD(ctx->opcode) + 1], cpu_FT[1]);
+    int rd = rD(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    gen_qemu_ld64(cpu_fpr[rd], t0, ctx->mem_idx);
+    tcg_gen_addi_tl(t0, t0, 8);
+    gen_qemu_ld64(cpu_fpr[(rd + 1) % 32], t0, ctx->mem_idx);
+    tcg_temp_free(t0);
 }
 
 /* stfq */
 GEN_HANDLER(stfq, 0x3C, 0xFF, 0xFF, 0x00000003, PPC_POWER2)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(cpu_T[0], ctx, 0);
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rS(ctx->opcode) + 1]);
-    op_POWER2_stfq();
+    int rd = rD(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    gen_addr_imm_index(t0, ctx, 0);
+    gen_qemu_st64(cpu_fpr[rd], t0, ctx->mem_idx);
+    tcg_gen_addi_tl(t0, t0, 8);
+    gen_qemu_st64(cpu_fpr[(rd + 1) % 32], t0, ctx->mem_idx);
+    tcg_temp_free(t0);
 }
 
 /* stfqu */
 GEN_HANDLER(stfqu, 0x3D, 0xFF, 0xFF, 0x00000003, PPC_POWER2)
 {
     int ra = rA(ctx->opcode);
-
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(cpu_T[0], ctx, 0);
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rS(ctx->opcode) + 1]);
-    op_POWER2_stfq();
+    int rd = rD(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    gen_addr_imm_index(t0, ctx, 0);
+    gen_qemu_st64(cpu_fpr[rd], t0, ctx->mem_idx);
+    tcg_gen_addi_tl(t1, t0, 8);
+    gen_qemu_st64(cpu_fpr[(rd + 1) % 32], t1, ctx->mem_idx);
     if (ra != 0)
-        tcg_gen_mov_tl(cpu_gpr[ra], cpu_T[0]);
+        tcg_gen_mov_tl(cpu_gpr[ra], t0);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 }
 
 /* stfqux */
 GEN_HANDLER(stfqux, 0x1F, 0x17, 0x1D, 0x00000001, PPC_POWER2)
 {
     int ra = rA(ctx->opcode);
-
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rS(ctx->opcode) + 1]);
-    op_POWER2_stfq();
+    int rd = rD(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    gen_qemu_st64(cpu_fpr[rd], t0, ctx->mem_idx);
+    tcg_gen_addi_tl(t1, t0, 8);
+    gen_qemu_st64(cpu_fpr[(rd + 1) % 32], t1, ctx->mem_idx);
     if (ra != 0)
-        tcg_gen_mov_tl(cpu_gpr[ra], cpu_T[0]);
+        tcg_gen_mov_tl(cpu_gpr[ra], t0);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 }
 
 /* stfqx */
 GEN_HANDLER(stfqx, 0x1F, 0x17, 0x1C, 0x00000001, PPC_POWER2)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_mov_i64(cpu_FT[0], cpu_fpr[rS(ctx->opcode)]);
-    tcg_gen_mov_i64(cpu_FT[1], cpu_fpr[rS(ctx->opcode) + 1]);
-    op_POWER2_stfq();
+    int rd = rD(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    gen_qemu_st64(cpu_fpr[rd], t0, ctx->mem_idx);
+    tcg_gen_addi_tl(t0, t0, 8);
+    gen_qemu_st64(cpu_fpr[(rd + 1) % 32], t0, ctx->mem_idx);
+    tcg_temp_free(t0);
 }
 
 /* BookE specific instructions */

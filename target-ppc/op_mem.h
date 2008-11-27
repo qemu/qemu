@@ -616,30 +616,4 @@ void OPPROTO glue(op_POWER_lscbx, MEMSUFFIX) (void)
     RETURN();
 }
 
-/* POWER2 quad load and store */
-/* XXX: TAGs are not managed */
-void OPPROTO glue(op_POWER2_lfq, MEMSUFFIX) (void)
-{
-    glue(do_POWER2_lfq, MEMSUFFIX)();
-    RETURN();
-}
-
-void glue(op_POWER2_lfq_le, MEMSUFFIX) (void)
-{
-    glue(do_POWER2_lfq_le, MEMSUFFIX)();
-    RETURN();
-}
-
-void OPPROTO glue(op_POWER2_stfq, MEMSUFFIX) (void)
-{
-    glue(do_POWER2_stfq, MEMSUFFIX)();
-    RETURN();
-}
-
-void OPPROTO glue(op_POWER2_stfq_le, MEMSUFFIX) (void)
-{
-    glue(do_POWER2_stfq_le, MEMSUFFIX)();
-    RETURN();
-}
-
 #undef MEMSUFFIX
