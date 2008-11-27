@@ -361,10 +361,15 @@ int queue_signal(CPUState *env, int sig, target_siginfo_t *info)
     k = &ts->sigtab[sig - 1];
     handler = sigact_table[sig - 1]._sa_handler;
     if (handler == TARGET_SIG_DFL) {
+        if (sig == TARGET_SIGTSTP || sig == TARGET_SIGTTIN || sig == TARGET_SIGTTOU) {
+            kill(getpid(),SIGSTOP);
+            return 0;
+        } else
         /* default handler : ignore some signal. The other are fatal */
         if (sig != TARGET_SIGCHLD &&
             sig != TARGET_SIGURG &&
-            sig != TARGET_SIGWINCH) {
+            sig != TARGET_SIGWINCH &&
+            sig != TARGET_SIGCONT) {
             force_sig(sig);
         } else {
             return 0; /* indicate ignored */
