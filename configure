@@ -118,6 +118,7 @@ bluez="yes"
 kvm="yes"
 kerneldir=""
 aix="no"
+blobs="yes"
 
 # OS specific
 targetos=`uname -s`
@@ -372,6 +373,8 @@ for opt do
   ;;
   --disable-aio) aio="no"
   ;;
+  --disable-blobs) blobs="no"
+  ;;
   --kerneldir=*) kerneldir="$optarg"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
@@ -483,6 +486,7 @@ echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
 echo "  --disable-aio            disable AIO support"
+echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
@@ -1083,6 +1087,7 @@ echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "vde support       $vde"
 echo "AIO support       $aio"
+echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 
 if test $sdl_too_old = "yes"; then
@@ -1356,6 +1361,9 @@ fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
   echo "CONFIG_AIO=yes" >> $config_mak
+fi
+if test "$blobs" = "yes" ; then
+  echo "INSTALL_BLOBS=yes" >> $config_mak
 fi
 
 # XXX: suppress that
