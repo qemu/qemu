@@ -6569,16 +6569,10 @@ static always_inline void gen_evmergelohi (DisasContext *ctx)
 }
 static always_inline void gen_evsplati (DisasContext *ctx)
 {
-    int32_t imm = (int32_t)(rA(ctx->opcode) << 11) >> 27;
+    uint64_t imm = ((int32_t)(rA(ctx->opcode) << 11)) >> 27;
 
 #if defined(TARGET_PPC64)
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
-    tcg_gen_movi_tl(t0, imm);
-    tcg_gen_shri_tl(t1, t0, 32);
-    tcg_gen_or_tl(cpu_gpr[rD(ctx->opcode)], t0, t1);
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
+    tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], (imm << 32) | imm);
 #else
     tcg_gen_movi_i32(cpu_gpr[rD(ctx->opcode)], imm);
     tcg_gen_movi_i32(cpu_gprh[rD(ctx->opcode)], imm);
@@ -6586,16 +6580,10 @@ static always_inline void gen_evsplati (DisasContext *ctx)
 }
 static always_inline void gen_evsplatfi (DisasContext *ctx)
 {
-    uint32_t imm = rA(ctx->opcode) << 11;
+    uint64_t imm = rA(ctx->opcode) << 11;
 
 #if defined(TARGET_PPC64)
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
-    tcg_gen_movi_tl(t0, imm);
-    tcg_gen_shri_tl(t1, t0, 32);
-    tcg_gen_or_tl(cpu_gpr[rD(ctx->opcode)], t0, t1);
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
+    tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], (imm << 32) | imm);
 #else
     tcg_gen_movi_i32(cpu_gpr[rD(ctx->opcode)], imm);
     tcg_gen_movi_i32(cpu_gprh[rD(ctx->opcode)], imm);
