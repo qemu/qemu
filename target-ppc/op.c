@@ -914,35 +914,3 @@ void OPPROTO op_store_booke_tsr (void)
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-/* SPE extension */
-void OPPROTO op_splatw_T1_64 (void)
-{
-    T1_64 = (T1_64 << 32) | (T1_64 & 0x00000000FFFFFFFFULL);
-    RETURN();
-}
-
-void OPPROTO op_extsh_T1_64 (void)
-{
-    T1_64 = (int32_t)((int16_t)T1_64);
-    RETURN();
-}
-
-void OPPROTO op_sli16_T1_64 (void)
-{
-    T1_64 = T1_64 << 16;
-    RETURN();
-}
-
-void OPPROTO op_sli32_T1_64 (void)
-{
-    T1_64 = T1_64 << 32;
-    RETURN();
-}
-
-void OPPROTO op_srli32_T1_64 (void)
-{
-    T1_64 = T1_64 >> 32;
-    RETURN();
-}
-
-

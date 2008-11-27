@@ -536,12 +536,6 @@ struct CPUPPCState {
 #if (TARGET_LONG_BITS > HOST_LONG_BITS) || defined(HOST_I386)
     target_ulong t2;
 #endif
-#if !defined(TARGET_PPC64)
-    /* temporary fixed-point registers
-     * used to emulate 64 bits registers on 32 bits targets
-     */
-    uint64_t t0_64, t1_64, t2_64;
-#endif
 
     /* general purpose registers */
     target_ulong gpr[32];
