@@ -4350,11 +4350,13 @@ static void tcg_cpu_exec(void)
         }
         if (cpu_can_run(env))
             ret = qemu_cpu_exec(env);
+#ifndef CONFIG_GDBSTUB
         if (ret == EXCP_DEBUG) {
             gdb_set_stop_cpu(env);
             debug_requested = 1;
             break;
         }
+#endif
     }
 }
 
