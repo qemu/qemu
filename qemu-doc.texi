@@ -616,13 +616,15 @@ Use the user mode network stack which requires no administrator
 privilege to run.  @option{hostname=name} can be used to specify the client
 hostname reported by the builtin DHCP server.
 
-@item -net tap[,vlan=@var{n}][,fd=@var{h}][,ifname=@var{name}][,script=@var{file}]
+@item -net tap[,vlan=@var{n}][,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}]
 Connect the host TAP network interface @var{name} to VLAN @var{n} and
 use the network script @var{file} to configure it. The default
 network script is @file{/etc/qemu-ifup}. Use @option{script=no} to
-disable script execution. If @var{name} is not
-provided, the OS automatically provides one. @option{fd}=@var{h} can be
-used to specify the handle of an already opened host TAP interface. Example:
+disable script execution. If @var{name} is not provided, the OS automatically
+provides one. Use network script @var{dfile} to deconfigure the interface. Use
+@option{downscript=no} to disable script execution. @option{fd}=@var{h} can be
+used to specify the handle of an already opened host TAP interface.
+Example:
 
 @example
 qemu linux.img -net nic -net tap
