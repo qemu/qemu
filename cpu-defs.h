@@ -115,7 +115,7 @@ typedef struct CPUTLBEntry {
     target_ulong addr_write;
     target_ulong addr_code;
     /* Addend to virtual address to get physical address.  IO accesses
-       use the correcponding iotlb value.  */
+       use the corresponding iotlb value.  */
 #if TARGET_PHYS_ADDR_BITS == 64
     /* on i386 Linux make sure it is aligned */
     target_phys_addr_t addend __attribute__((aligned(8)));
