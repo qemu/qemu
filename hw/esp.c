@@ -537,6 +537,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             break;
         case CMD_ENSEL:
             DPRINTF("Enable selection (%2.2x)\n", val);
+            s->rregs[ESP_RINTR] = 0;
             break;
         default:
             ESP_ERROR("Unhandled ESP command (%2.2x)\n", val);
