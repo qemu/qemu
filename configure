@@ -17,6 +17,8 @@ TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}"
 TMPS="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.S"
 TMPI="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.i"
 
+trap "rm -f $TMPC $TMPO $TMPE $TMPS $TMPI; exit" 0 2 3 15
+
 # default parameters
 prefix=""
 interp_prefix="/usr/gnemul/qemu-%M"
@@ -1727,5 +1729,3 @@ if test "$source_path_used" = "yes" ; then
         ln -s $source_path/$f $f
     done
 fi
-
-rm -f $TMPO $TMPC $TMPE $TMPS $TMPI
