@@ -16,8 +16,9 @@ TMPO="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.o"
 TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}"
 TMPS="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.S"
 TMPI="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.i"
+TMPSDLLOG="${TMPDIR1}/qemu-conf-sdl-$$-${RANDOM}.log"
 
-trap "rm -f $TMPC $TMPO $TMPE $TMPS $TMPI; exit" 0 2 3 15
+trap "rm -f $TMPC $TMPO $TMPE $TMPS $TMPI $TMPSDLLOG; exit" 0 2 3 15
 
 # default parameters
 prefix=""
@@ -791,7 +792,7 @@ cat > $TMPC << EOF
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> /tmp/qemu-$$-sdl-config.log ; then
+    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> $TMPSDLLOG ; then
         _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
         if test "$_sdlversion" -lt 121 ; then
             sdl_too_old=yes
@@ -1095,11 +1096,10 @@ echo "KVM support       $kvm"
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
 fi
-if [ -s /tmp/qemu-$$-sdl-config.log ]; then
+if [ -s $TMPSDLLOG ]; then
   echo "The error log from compiling the libSDL test is: "
-  cat /tmp/qemu-$$-sdl-config.log
+  cat $TMPSDLLOG
 fi
-rm -f /tmp/qemu-$$-sdl-config.log
 #if test "$sdl_static" = "no"; then
 #  echo "WARNING: cannot compile statically with SDL - qemu-fast won't have a graphical output"
 #fi
