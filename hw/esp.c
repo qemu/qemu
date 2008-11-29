@@ -144,8 +144,6 @@ struct ESPState {
 
 #define CFG1_RESREPT 0x40
 
-#define CFG2_MASK 0x15
-
 #define TCHI_FAS100A 0x4
 
 static void esp_raise_irq(ESPState *s)
@@ -552,10 +550,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         break;
     case ESP_WCCF ... ESP_WTEST:
         break;
-    case ESP_CFG2:
-        s->rregs[saddr] = val & CFG2_MASK;
-        break;
-    case ESP_CFG3 ... ESP_RES4:
+    case ESP_CFG2 ... ESP_RES4:
         s->rregs[saddr] = val;
         break;
     default:
