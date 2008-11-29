@@ -167,16 +167,16 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
     uint32_t dmalen;
     int target;
 
-    dmalen = s->rregs[ESP_TCLO] | (s->rregs[ESP_TCMID] << 8);
     target = s->wregs[ESP_WBUSID] & BUSID_DID;
-    DPRINTF("get_cmd: len %d target %d\n", dmalen, target);
     if (s->dma) {
+        dmalen = s->rregs[ESP_TCLO] | (s->rregs[ESP_TCMID] << 8);
         s->dma_memory_read(s->dma_opaque, buf, dmalen);
     } else {
+        dmalen = s->ti_size;
+        memcpy(buf, s->ti_buf, dmalen);
         buf[0] = 0;
-        memcpy(&buf[1], s->ti_buf, dmalen);
-        dmalen++;
     }
+    DPRINTF("get_cmd: len %d target %d\n", dmalen, target);
 
     s->ti_size = 0;
     s->ti_rptr = 0;
