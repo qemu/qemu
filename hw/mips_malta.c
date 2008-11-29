@@ -978,8 +978,13 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     network_init(pci_bus);
 
     /* Optional PCI video card */
-    pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + ram_size,
+    if (vmsvga_enabled) {
+        pci_vmsvga_init(pci_bus, ds, phys_ram_base + ram_size,
                         ram_size, vga_ram_size);
+    } else {
+        pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + ram_size,
+                            ram_size, vga_ram_size);
+    }
 }
 
 QEMUMachine mips_malta_machine = {
