@@ -621,8 +621,9 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
 #endif
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
             /* some targets want aligned 64 bit args */
-            if (i & 1) {
+            if (real_args & 1) {
                 *gen_opparam_ptr++ = TCG_CALL_DUMMY_ARG;
+                real_args++;
             }
 #endif
 #ifdef TCG_TARGET_WORDS_BIGENDIAN
