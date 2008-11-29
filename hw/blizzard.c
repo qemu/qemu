@@ -166,7 +166,7 @@ static void blizzard_window(struct blizzard_s *s)
         s->my[1] = s->data.y + s->data.dy;
 
     bypp[0] = s->bpp;
-    bypp[1] = (s->state->depth + 7) >> 3;
+    bypp[1] = (ds_get_bits_per_pixel(s->state) + 7) >> 3;
     bypl[0] = bypp[0] * s->data.pitch;
     bypl[1] = bypp[1] * s->x;
     bypl[2] = bypp[0] * s->data.dx;
@@ -895,7 +895,7 @@ static void blizzard_update_display(void *opaque)
     if (!s->enable)
         return;
 
-    if (s->x != s->state->width || s->y != s->state->height) {
+    if (s->x != ds_get_width(s->state) || s->y != ds_get_height(s->state)) {
         s->invalidate = 1;
         qemu_console_resize(s->console, s->x, s->y);
     }
@@ -904,8 +904,8 @@ static void blizzard_update_display(void *opaque)
         s->invalidate = 0;
 
         if (s->blank) {
-            bypp = (s->state->depth + 7) >> 3;
-            memset(s->state->data, 0, bypp * s->x * s->y);
+            bypp = (ds_get_bits_per_pixel(s->state) + 7) >> 3;
+            memset(ds_get_data(s->state), 0, bypp * s->x * s->y);
             return;
         }
 
@@ -918,12 +918,12 @@ static void blizzard_update_display(void *opaque)
     if (s->mx[1] <= s->mx[0])
         return;
 
-    bypp = (s->state->depth + 7) >> 3;
+    bypp = (ds_get_bits_per_pixel(s->state) + 7) >> 3;
     bypl = bypp * s->x;
     bwidth = bypp * (s->mx[1] - s->mx[0]);
     y = s->my[0];
     src = s->fb + bypl * y + bypp * s->mx[0];
-    dst = s->state->data + bypl * y + bypp * s->mx[0];
+    dst = ds_get_data(s->state) + bypl * y + bypp * s->mx[0];
     for (; y < s->my[1]; y ++, src += bypl, dst += bypl)
         memcpy(dst, src, bwidth);
 
@@ -940,8 +940,8 @@ static void blizzard_screen_dump(void *opaque, const char *filename) {
     struct blizzard_s *s = (struct blizzard_s *) opaque;
 
     blizzard_update_display(opaque);
-    if (s && s->state->data)
-        ppm_save(filename, s->state->data, s->x, s->y, s->state->linesize);
+    if (s && ds_get_data(s->state))
+        ppm_save(filename, ds_get_data(s->state), s->x, s->y, ds_get_linesize(s->state));
 }
 
 #define DEPTH 8
@@ -962,7 +962,7 @@ void *s1d13745_init(qemu_irq gpio_int, DisplayState *ds)
     s->state = ds;
     s->fb = qemu_malloc(0x180000);
 
-    switch (s->state->depth) {
+    switch (ds_get_bits_per_pixel(s->state)) {
     case 0:
         s->line_fn_tab[0] = s->line_fn_tab[1] =
                 qemu_mallocz(sizeof(blizzard_fn_t) * 0x10);

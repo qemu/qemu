@@ -114,6 +114,31 @@ static inline void dpy_cursor(DisplayState *s, int x, int y)
         s->dpy_text_cursor(s, x, y);
 }
 
+static inline int ds_get_linesize(DisplayState *ds)
+{
+    return ds->linesize;
+}
+
+static inline uint8_t* ds_get_data(DisplayState *ds)
+{
+    return ds->data;
+}
+
+static inline int ds_get_width(DisplayState *ds)
+{
+    return ds->width;
+}
+
+static inline int ds_get_height(DisplayState *ds)
+{
+    return ds->height;
+}
+
+static inline int ds_get_bits_per_pixel(DisplayState *ds)
+{
+    return ds->depth;
+}
+
 typedef unsigned long console_ch_t;
 static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 {

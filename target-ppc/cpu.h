@@ -536,13 +536,6 @@ struct CPUPPCState {
 #if (TARGET_LONG_BITS > HOST_LONG_BITS) || defined(HOST_I386)
     target_ulong t2;
 #endif
-#if !defined(TARGET_PPC64)
-    /* temporary fixed-point registers
-     * used to emulate 64 bits registers on 32 bits targets
-     */
-    uint64_t t0_64, t1_64, t2_64;
-#endif
-    ppc_avr_t avr0, avr1, avr2;
 
     /* general purpose registers */
     target_ulong gpr[32];
@@ -568,9 +561,6 @@ struct CPUPPCState {
     target_ulong tgpr[4]; /* Used to speed-up TLB assist handlers */
 
     /* Floating point execution context */
-    /* temporary float registers */
-    float64 ft0;
-    float64 ft1;
     float_status fp_status;
     /* floating point registers */
     float64 fpr[32];

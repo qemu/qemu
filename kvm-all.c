@@ -2,9 +2,11 @@
  * QEMU KVM support
  *
  * Copyright IBM, Corp. 2008
+ *           Red Hat, Inc. 2008
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
+ *  Glauber Costa     <gcosta@redhat.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -40,6 +42,8 @@ typedef struct KVMSlot
     int slot;
     int flags;
 } KVMSlot;
+
+typedef struct kvm_dirty_log KVMDirtyLog;
 
 int kvm_allowed = 0;
 
@@ -82,6 +86,20 @@ static KVMSlot *kvm_lookup_slot(KVMState *s, target_phys_addr_t start_addr)
     return NULL;
 }
 
+static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
+{
+    struct kvm_userspace_memory_region mem;
+
+    mem.slot = slot->slot;
+    mem.guest_phys_addr = slot->start_addr;
+    mem.memory_size = slot->memory_size;
+    mem.userspace_addr = (unsigned long)phys_ram_base + slot->phys_offset;
+    mem.flags = slot->flags;
+
+    return kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
+}
+
+
 int kvm_init_vcpu(CPUState *env)
 {
     KVMState *s = kvm_state;
@@ -117,6 +135,97 @@ int kvm_init_vcpu(CPUState *env)
 
 err:
     return ret;
+}
+
+/*
+ * dirty pages logging control
+ */
+static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr, target_phys_addr_t end_addr,
+                                      unsigned flags,
+                                      unsigned mask)
+{
+    KVMState *s = kvm_state;
+    KVMSlot *mem = kvm_lookup_slot(s, phys_addr);
+    if (mem == NULL)  {
+            dprintf("invalid parameters %llx-%llx\n", phys_addr, end_addr);
+            return -EINVAL;
+    }
+
+    flags = (mem->flags & ~mask) | flags;
+    /* Nothing changed, no need to issue ioctl */
+    if (flags == mem->flags)
+            return 0;
+
+    mem->flags = flags;
+
+    return kvm_set_user_memory_region(s, mem);
+}
+
+int kvm_log_start(target_phys_addr_t phys_addr, target_phys_addr_t end_addr)
+{
+        return kvm_dirty_pages_log_change(phys_addr, end_addr,
+                                          KVM_MEM_LOG_DIRTY_PAGES,
+                                          KVM_MEM_LOG_DIRTY_PAGES);
+}
+
+int kvm_log_stop(target_phys_addr_t phys_addr, target_phys_addr_t end_addr)
+{
+        return kvm_dirty_pages_log_change(phys_addr, end_addr,
+                                          0,
+                                          KVM_MEM_LOG_DIRTY_PAGES);
+}
+
+/**
+ * kvm_physical_sync_dirty_bitmap - Grab dirty bitmap from kernel space
+ * This function updates qemu's dirty bitmap using cpu_physical_memory_set_dirty().
+ * This means all bits are set to dirty.
+ *
+ * @start_add: start of logged region. This is what we use to search the memslot
+ * @end_addr: end of logged region.
+ */
+void kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr, target_phys_addr_t end_addr)
+{
+    KVMState *s = kvm_state;
+    KVMDirtyLog d;
+    KVMSlot *mem = kvm_lookup_slot(s, start_addr);
+    unsigned long alloc_size;
+    ram_addr_t addr;
+    target_phys_addr_t phys_addr = start_addr;
+
+    dprintf("sync addr: %llx into %lx\n", start_addr, mem->phys_offset);
+    if (mem == NULL) {
+            fprintf(stderr, "BUG: %s: invalid parameters\n", __func__);
+            return;
+    }
+
+    alloc_size = mem->memory_size >> TARGET_PAGE_BITS / sizeof(d.dirty_bitmap);
+    d.dirty_bitmap = qemu_mallocz(alloc_size);
+
+    if (d.dirty_bitmap == NULL) {
+        dprintf("Could not allocate dirty bitmap\n");
+        return;
+    }
+
+    d.slot = mem->slot;
+    dprintf("slot %d, phys_addr %llx, uaddr: %llx\n",
+            d.slot, mem->start_addr, mem->phys_offset);
+
+    if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
+        dprintf("ioctl failed %d\n", errno);
+        goto out;
+    }
+
+    phys_addr = start_addr;
+    for (addr = mem->phys_offset; phys_addr < end_addr; phys_addr+= TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
+        unsigned long *bitmap = (unsigned long *)d.dirty_bitmap;
+        unsigned nr = (phys_addr - start_addr) >> TARGET_PAGE_BITS;
+        unsigned word = nr / (sizeof(*bitmap) * 8);
+        unsigned bit = nr % (sizeof(*bitmap) * 8);
+        if ((bitmap[word] >> bit) & 1)
+            cpu_physical_memory_set_dirty(addr);
+    }
+out:
+    qemu_free(d.dirty_bitmap);
 }
 
 int kvm_init(int smp_cpus)
@@ -314,19 +423,6 @@ int kvm_cpu_exec(CPUState *env)
     }
 
     return ret;
-}
-
-static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
-{
-    struct kvm_userspace_memory_region mem;
-
-    mem.slot = slot->slot;
-    mem.guest_phys_addr = slot->start_addr;
-    mem.memory_size = slot->memory_size;
-    mem.userspace_addr = (unsigned long)phys_ram_base + slot->phys_offset;
-    mem.flags = slot->flags;
-
-    return kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
 }
 
 void kvm_set_phys_mem(target_phys_addr_t start_addr,

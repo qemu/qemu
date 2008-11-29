@@ -321,7 +321,7 @@ static void vnc_dpy_resize(DisplayState *ds, int w, int h)
     }
 
     memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
-    memset(vs->old_data, 42, vs->ds->linesize * vs->ds->height);
+    memset(vs->old_data, 42, ds_get_linesize(vs->ds) * ds_get_height(vs->ds));
 }
 
 /* fastest code */
@@ -414,10 +414,10 @@ static void send_framebuffer_update_raw(VncState *vs, int x, int y, int w, int h
 
     vnc_framebuffer_update(vs, x, y, w, h, 0);
 
-    row = vs->ds->data + y * vs->ds->linesize + x * vs->depth;
+    row = ds_get_data(vs->ds) + y * ds_get_linesize(vs->ds) + x * vs->depth;
     for (i = 0; i < h; i++) {
 	vs->write_pixels(vs, row, w * vs->depth);
-	row += vs->ds->linesize;
+	row += ds_get_linesize(vs->ds);
     }
 }
 
@@ -495,7 +495,7 @@ static void vnc_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int dst_
     uint8_t *dst_row;
     char *old_row;
     int y = 0;
-    int pitch = ds->linesize;
+    int pitch = ds_get_linesize(ds);
     VncState *vs = ds->opaque;
 
     vnc_update_client(vs);
@@ -505,11 +505,11 @@ static void vnc_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int dst_
 	pitch = -pitch;
     }
 
-    src = (ds->linesize * (src_y + y) + vs->depth * src_x);
-    dst = (ds->linesize * (dst_y + y) + vs->depth * dst_x);
+    src = (ds_get_linesize(ds) * (src_y + y) + vs->depth * src_x);
+    dst = (ds_get_linesize(ds) * (dst_y + y) + vs->depth * dst_x);
 
-    src_row = ds->data + src;
-    dst_row = ds->data + dst;
+    src_row = ds_get_data(ds) + src;
+    dst_row = ds_get_data(ds) + dst;
     old_row = vs->old_data + dst;
 
     for (y = 0; y < h; y++) {
@@ -563,7 +563,7 @@ static void vnc_update_client(void *opaque)
 
 	/* Walk through the dirty map and eliminate tiles that
 	   really aren't dirty */
-	row = vs->ds->data;
+	row = ds_get_data(vs->ds);
 	old_row = vs->old_data;
 
 	for (y = 0; y < vs->height; y++) {
@@ -575,7 +575,7 @@ static void vnc_update_client(void *opaque)
 		ptr = row;
 		old_ptr = (char*)old_row;
 
-		for (x = 0; x < vs->ds->width; x += 16) {
+		for (x = 0; x < ds_get_width(vs->ds); x += 16) {
 		    if (memcmp(old_ptr, ptr, 16 * vs->depth) == 0) {
 			vnc_clear_bit(vs->dirty_row[y], (x / 16));
 		    } else {
@@ -588,8 +588,8 @@ static void vnc_update_client(void *opaque)
 		}
 	    }
 
-	    row += vs->ds->linesize;
-	    old_row += vs->ds->linesize;
+	    row += ds_get_linesize(vs->ds);
+	    old_row += ds_get_linesize(vs->ds);
 	}
 
 	if (!has_dirty) {
@@ -918,7 +918,7 @@ static void check_pointer_type_change(VncState *vs, int absolute)
 	vnc_write_u8(vs, 0);
 	vnc_write_u16(vs, 1);
 	vnc_framebuffer_update(vs, absolute, 0,
-			       vs->ds->width, vs->ds->height, -257);
+			       ds_get_width(vs->ds), ds_get_height(vs->ds), -257);
 	vnc_flush(vs);
     }
     vs->absolute = absolute;
@@ -941,8 +941,8 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
 	dz = 1;
 
     if (vs->absolute) {
-	kbd_mouse_event(x * 0x7FFF / (vs->ds->width - 1),
-			y * 0x7FFF / (vs->ds->height - 1),
+	kbd_mouse_event(x * 0x7FFF / (ds_get_width(vs->ds) - 1),
+			y * 0x7FFF / (ds_get_height(vs->ds) - 1),
 			dz, buttons);
     } else if (vs->has_pointer_type_change) {
 	x -= 0x7FFF;
@@ -1106,25 +1106,25 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 				       int x_position, int y_position,
 				       int w, int h)
 {
-    if (x_position > vs->ds->width)
-        x_position = vs->ds->width;
-    if (y_position > vs->ds->height)
-        y_position = vs->ds->height;
-    if (x_position + w >= vs->ds->width)
-        w = vs->ds->width  - x_position;
-    if (y_position + h >= vs->ds->height)
-        h = vs->ds->height - y_position;
+    if (x_position > ds_get_width(vs->ds))
+        x_position = ds_get_width(vs->ds);
+    if (y_position > ds_get_height(vs->ds))
+        y_position = ds_get_height(vs->ds);
+    if (x_position + w >= ds_get_width(vs->ds))
+        w = ds_get_width(vs->ds)  - x_position;
+    if (y_position + h >= ds_get_height(vs->ds))
+        h = ds_get_height(vs->ds) - y_position;
 
     int i;
     vs->need_update = 1;
     if (!incremental) {
-	char *old_row = vs->old_data + y_position * vs->ds->linesize;
+	char *old_row = vs->old_data + y_position * ds_get_linesize(vs->ds);
 
 	for (i = 0; i < h; i++) {
             vnc_set_bits(vs->dirty_row[y_position + i],
-                         (vs->ds->width / 16), VNC_DIRTY_WORDS);
-	    memset(old_row, 42, vs->ds->width * vs->depth);
-	    old_row += vs->ds->linesize;
+                         (ds_get_width(vs->ds) / 16), VNC_DIRTY_WORDS);
+	    memset(old_row, 42, ds_get_width(vs->ds) * vs->depth);
+	    old_row += ds_get_linesize(vs->ds);
 	}
     }
 }
@@ -1134,7 +1134,7 @@ static void send_ext_key_event_ack(VncState *vs)
     vnc_write_u8(vs, 0);
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1);
-    vnc_framebuffer_update(vs, 0, 0, vs->ds->width, vs->ds->height, -258);
+    vnc_framebuffer_update(vs, 0, 0, ds_get_width(vs->ds), ds_get_height(vs->ds), -258);
     vnc_flush(vs);
 }
 
@@ -1497,10 +1497,10 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
     char buf[1024];
     int size;
 
-    vs->width = vs->ds->width;
-    vs->height = vs->ds->height;
-    vnc_write_u16(vs, vs->ds->width);
-    vnc_write_u16(vs, vs->ds->height);
+    vs->width = ds_get_width(vs->ds);
+    vs->height = ds_get_height(vs->ds);
+    vnc_write_u16(vs, ds_get_width(vs->ds));
+    vnc_write_u16(vs, ds_get_height(vs->ds));
 
     pixel_format_message(vs);
 
@@ -2116,7 +2116,7 @@ static void vnc_connect(VncState *vs)
     vnc_write(vs, "RFB 003.008\n", 12);
     vnc_flush(vs);
     vnc_read_when(vs, protocol_version, 12);
-    memset(vs->old_data, 0, vs->ds->linesize * vs->ds->height);
+    memset(vs->old_data, 0, ds_get_linesize(vs->ds) * ds_get_height(vs->ds));
     memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
     vs->has_resize = 0;
     vs->has_hextile = 0;

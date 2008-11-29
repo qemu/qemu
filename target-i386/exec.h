@@ -74,9 +74,6 @@ void raise_exception(int exception_index);
 void do_smm_enter(void);
 void __hidden cpu_loop_exit(void);
 
-void OPPROTO op_movl_eflags_T0(void);
-void OPPROTO op_movl_T0_eflags(void);
-
 /* n must be a constant to be efficient */
 static inline target_long lshift(target_long x, int n)
 {

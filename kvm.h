@@ -38,6 +38,10 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
                       ram_addr_t size,
                       ram_addr_t phys_offset);
 
+void kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr, target_phys_addr_t end_addr);
+
+int kvm_log_start(target_phys_addr_t phys_addr, target_phys_addr_t len);
+int kvm_log_stop(target_phys_addr_t phys_addr, target_phys_addr_t len);
 /* internal API */
 
 struct KVMState;

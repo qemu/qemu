@@ -309,48 +309,4 @@ void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb)
     T0 = i;
 }
 
-/* XXX: TAGs are not managed */
-void glue(do_POWER2_lfq, MEMSUFFIX) (void)
-{
-    FT0 = glue(ldfq, MEMSUFFIX)((uint32_t)T0);
-    FT1 = glue(ldfq, MEMSUFFIX)((uint32_t)(T0 + 4));
-}
-
-static always_inline float64 glue(ldfqr, MEMSUFFIX) (target_ulong EA)
-{
-    CPU_DoubleU u;
-
-    u.d = glue(ldfq, MEMSUFFIX)(EA);
-    u.ll = bswap64(u.ll);
-
-    return u.d;
-}
-
-void glue(do_POWER2_lfq_le, MEMSUFFIX) (void)
-{
-    FT0 = glue(ldfqr, MEMSUFFIX)((uint32_t)(T0 + 4));
-    FT1 = glue(ldfqr, MEMSUFFIX)((uint32_t)T0);
-}
-
-void glue(do_POWER2_stfq, MEMSUFFIX) (void)
-{
-    glue(stfq, MEMSUFFIX)((uint32_t)T0, FT0);
-    glue(stfq, MEMSUFFIX)((uint32_t)(T0 + 4), FT1);
-}
-
-static always_inline void glue(stfqr, MEMSUFFIX) (target_ulong EA, float64 d)
-{
-    CPU_DoubleU u;
-
-    u.d = d;
-    u.ll = bswap64(u.ll);
-    glue(stfq, MEMSUFFIX)(EA, u.d);
-}
-
-void glue(do_POWER2_stfq_le, MEMSUFFIX) (void)
-{
-    glue(stfqr, MEMSUFFIX)((uint32_t)(T0 + 4), FT0);
-    glue(stfqr, MEMSUFFIX)((uint32_t)T0, FT1);
-}
-
 #undef MEMSUFFIX

@@ -17,6 +17,8 @@ TMPE="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}"
 TMPS="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.S"
 TMPI="${TMPDIR1}/qemu-conf-${RANDOM}-$$-${RANDOM}.i"
 
+trap "rm -f $TMPC $TMPO $TMPE $TMPS $TMPI; exit" 0 2 3 15
+
 # default parameters
 prefix=""
 interp_prefix="/usr/gnemul/qemu-%M"
@@ -118,6 +120,7 @@ bluez="yes"
 kvm="yes"
 kerneldir=""
 aix="no"
+blobs="yes"
 
 # OS specific
 targetos=`uname -s`
@@ -148,7 +151,7 @@ FreeBSD)
 bsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd pa"
-aiolib="-lpthread"
+aio_lib="-lpthread"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -372,6 +375,8 @@ for opt do
   ;;
   --disable-aio) aio="no"
   ;;
+  --disable-blobs) blobs="no"
+  ;;
   --kerneldir=*) kerneldir="$optarg"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
@@ -488,6 +493,7 @@ echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
 echo "  --disable-aio            disable AIO support"
+echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
@@ -1086,6 +1092,7 @@ echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "vde support       $vde"
 echo "AIO support       $aio"
+echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 
 if test $sdl_too_old = "yes"; then
@@ -1359,6 +1366,9 @@ fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
   echo "CONFIG_AIO=yes" >> $config_mak
+fi
+if test "$blobs" = "yes" ; then
+  echo "INSTALL_BLOBS=yes" >> $config_mak
 fi
 
 # XXX: suppress that
@@ -1722,5 +1732,3 @@ if test "$source_path_used" = "yes" ; then
         ln -s $source_path/$f $f
     done
 fi
-
-rm -f $TMPO $TMPC $TMPE $TMPS $TMPI

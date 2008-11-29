@@ -27,6 +27,7 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
+#include "bsd-mman.h"
 
 //#define DEBUG_MMAP
 
@@ -223,7 +224,7 @@ static int mmap_frag(abi_ulong real_start,
     if (!(flags & MAP_ANON)) {
         /* msync() won't work here, so we return an error if write is
            possible while it is a shared mapping */
-        if ((flags & MAP_FLAGMASK) == MAP_SHARED &&
+        if ((flags & TARGET_BSD_MAP_FLAGMASK) == MAP_SHARED &&
             (prot & PROT_WRITE))
             return -EINVAL;
 
@@ -323,7 +324,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             printf("MAP_FIXED ");
         if (flags & MAP_ANON)
             printf("MAP_ANON ");
-        switch(flags & MAP_FLAGMASK) {
+        switch(flags & TARGET_BSD_MAP_FLAGMASK) {
         case MAP_PRIVATE:
             printf("MAP_PRIVATE ");
             break;
@@ -331,7 +332,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             printf("MAP_SHARED ");
             break;
         default:
-            printf("[MAP_FLAGMASK=0x%x] ", flags & MAP_FLAGMASK);
+            printf("[MAP_FLAGMASK=0x%x] ", flags & TARGET_BSD_MAP_FLAGMASK);
             break;
         }
         printf("fd=%d offset=" TARGET_FMT_lx "\n", fd, offset);
@@ -396,7 +397,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             (offset & ~qemu_host_page_mask) != (start & ~qemu_host_page_mask)) {
             /* msync() won't work here, so we return an error if write is
                possible while it is a shared mapping */
-            if ((flags & MAP_FLAGMASK) == MAP_SHARED &&
+            if ((flags & TARGET_BSD_MAP_FLAGMASK) == MAP_SHARED &&
                 (prot & PROT_WRITE)) {
                 errno = EINVAL;
                 goto fail;

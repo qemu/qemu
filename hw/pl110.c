@@ -124,7 +124,7 @@ static void pl110_update_display(void *opaque)
     if (!pl110_enabled(s))
         return;
 
-    switch (s->ds->depth) {
+    switch (ds_get_bits_per_pixel(s->ds)) {
     case 0:
         return;
     case 8:
@@ -190,7 +190,7 @@ static void pl110_update_display(void *opaque)
     if (base > 0x80000000)
         base -= 0x80000000;
     src = phys_ram_base + base;
-    dest = s->ds->data;
+    dest = ds_get_data(s->ds);
     first = -1;
     addr = base;
 
@@ -249,7 +249,7 @@ static void pl110_update_pallette(pl110_state *s, int n)
         b = (raw & 0x1f) << 3;
         /* The I bit is ignored.  */
         raw >>= 6;
-        switch (s->ds->depth) {
+        switch (ds_get_bits_per_pixel(s->ds)) {
         case 8:
             s->pallette[n] = rgb_to_pixel8(r, g, b);
             break;

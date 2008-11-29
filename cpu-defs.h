@@ -28,6 +28,7 @@
 #include <setjmp.h>
 #include <inttypes.h>
 #include "osdep.h"
+#include "sys-queue.h"
 
 #ifndef TARGET_LONG_BITS
 #error TARGET_LONG_BITS must be defined before including this header
@@ -114,7 +115,7 @@ typedef struct CPUTLBEntry {
     target_ulong addr_write;
     target_ulong addr_code;
     /* Addend to virtual address to get physical address.  IO accesses
-       use the correcponding iotlb value.  */
+       use the corresponding iotlb value.  */
 #if TARGET_PHYS_ADDR_BITS == 64
     /* on i386 Linux make sure it is aligned */
     target_phys_addr_t addend __attribute__((aligned(8)));
@@ -146,14 +147,14 @@ struct KVMState;
 typedef struct CPUBreakpoint {
     target_ulong pc;
     int flags; /* BP_* */
-    struct CPUBreakpoint *prev, *next;
+    TAILQ_ENTRY(CPUBreakpoint) entry;
 } CPUBreakpoint;
 
 typedef struct CPUWatchpoint {
     target_ulong vaddr;
     target_ulong len_mask;
     int flags; /* BP_* */
-    struct CPUWatchpoint *prev, *next;
+    TAILQ_ENTRY(CPUWatchpoint) entry;
 } CPUWatchpoint;
 
 #define CPU_TEMP_BUF_NLONGS 128
@@ -188,10 +189,10 @@ typedef struct CPUWatchpoint {
                                                                         \
     /* from this point: preserved by CPU reset */                       \
     /* ice debug support */                                             \
-    CPUBreakpoint *breakpoints;                                         \
+    TAILQ_HEAD(breakpoints_head, CPUBreakpoint) breakpoints;            \
     int singlestep_enabled;                                             \
                                                                         \
-    CPUWatchpoint *watchpoints;                                         \
+    TAILQ_HEAD(watchpoints_head, CPUWatchpoint) watchpoints;            \
     CPUWatchpoint *watchpoint_hit;                                      \
                                                                         \
     struct GDBRegisterState *gdb_regs;                                  \

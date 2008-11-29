@@ -125,7 +125,7 @@ static void omap_update_display(void *opaque)
     uint8_t *s, *d;
 
     if (!omap_lcd || omap_lcd->plm == 1 ||
-                    !omap_lcd->enable || !omap_lcd->state->depth)
+                    !omap_lcd->enable || !ds_get_bits_per_pixel(omap_lcd->state))
         return;
 
     frame_offset = 0;
@@ -145,25 +145,25 @@ static void omap_update_display(void *opaque)
     /* Colour depth */
     switch ((omap_lcd->palette[0] >> 12) & 7) {
     case 1:
-        draw_line = draw_line_table2[omap_lcd->state->depth];
+        draw_line = draw_line_table2[ds_get_bits_per_pixel(omap_lcd->state)];
         bpp = 2;
         break;
 
     case 2:
-        draw_line = draw_line_table4[omap_lcd->state->depth];
+        draw_line = draw_line_table4[ds_get_bits_per_pixel(omap_lcd->state)];
         bpp = 4;
         break;
 
     case 3:
-        draw_line = draw_line_table8[omap_lcd->state->depth];
+        draw_line = draw_line_table8[ds_get_bits_per_pixel(omap_lcd->state)];
         bpp = 8;
         break;
 
     case 4 ... 7:
         if (!omap_lcd->tft)
-            draw_line = draw_line_table12[omap_lcd->state->depth];
+            draw_line = draw_line_table12[ds_get_bits_per_pixel(omap_lcd->state)];
         else
-            draw_line = draw_line_table16[omap_lcd->state->depth];
+            draw_line = draw_line_table16[ds_get_bits_per_pixel(omap_lcd->state)];
         bpp = 16;
         break;
 
@@ -174,8 +174,8 @@ static void omap_update_display(void *opaque)
 
     /* Resolution */
     width = omap_lcd->width;
-    if (width != omap_lcd->state->width ||
-            omap_lcd->height != omap_lcd->state->height) {
+    if (width != ds_get_width(omap_lcd->state) ||
+            omap_lcd->height != ds_get_height(omap_lcd->state)) {
         qemu_console_resize(omap_lcd->console,
                             omap_lcd->width, omap_lcd->height);
         omap_lcd->invalidate = 1;
@@ -202,7 +202,7 @@ static void omap_update_display(void *opaque)
     if (omap_lcd->dma->dual)
         omap_lcd->dma->current_frame ^= 1;
 
-    if (!omap_lcd->state->depth)
+    if (!ds_get_bits_per_pixel(omap_lcd->state))
         return;
 
     line = 0;
@@ -217,8 +217,8 @@ static void omap_update_display(void *opaque)
     step = width * bpp >> 3;
     scanline = frame_base + step * line;
     s = (uint8_t *) (phys_ram_base + scanline);
-    d = omap_lcd->state->data;
-    linesize = omap_lcd->state->linesize;
+    d = ds_get_data(omap_lcd->state);
+    linesize = ds_get_linesize(omap_lcd->state);
 
     dirty[0] = dirty[1] =
             cpu_physical_memory_get_dirty(scanline, VGA_DIRTY_FLAG);
@@ -293,10 +293,10 @@ static int ppm_save(const char *filename, uint8_t *data,
 static void omap_screen_dump(void *opaque, const char *filename) {
     struct omap_lcd_panel_s *omap_lcd = opaque;
     omap_update_display(opaque);
-    if (omap_lcd && omap_lcd->state->data)
-        ppm_save(filename, omap_lcd->state->data,
+    if (omap_lcd && ds_get_data(omap_lcd->state))
+        ppm_save(filename, ds_get_data(omap_lcd->state),
                 omap_lcd->width, omap_lcd->height,
-                omap_lcd->state->linesize);
+                ds_get_linesize(omap_lcd->state));
 }
 
 static void omap_invalidate_display(void *opaque) {

@@ -44,23 +44,6 @@ register target_ulong T1 asm(AREG2);
 register target_ulong T2 asm(AREG3);
 #define TDX "%016lx"
 #endif
-/* We may, sometime, need 64 bits registers on 32 bits targets */
-#if !defined(TARGET_PPC64)
-#define T0_64 (env->t0_64)
-#define T1_64 (env->t1_64)
-#define T2_64 (env->t2_64)
-#else
-#define T0_64 T0
-#define T1_64 T1
-#define T2_64 T2
-#endif
-/* Provision for Altivec */
-#define AVR0 (env->avr0)
-#define AVR1 (env->avr1)
-#define AVR2 (env->avr2)
-
-#define FT0 (env->ft0)
-#define FT1 (env->ft1)
 
 #if defined (DEBUG_OP)
 # define RETURN() __asm__ __volatile__("nop" : : : "memory")

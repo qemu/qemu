@@ -72,7 +72,7 @@ typedef struct G364State {
 
 static void g364fb_draw_graphic(G364State *s, int full_update)
 {
-    switch (s->ds->depth) {
+    switch (ds_get_bits_per_pixel(s->ds)) {
         case 8:
             g364fb_draw_graphic8(s, full_update);
             break;
@@ -86,7 +86,7 @@ static void g364fb_draw_graphic(G364State *s, int full_update)
             g364fb_draw_graphic32(s, full_update);
             break;
         default:
-            printf("g364fb: unknown depth %d\n", s->ds->depth);
+            printf("g364fb: unknown depth %d\n", ds_get_bits_per_pixel(s->ds));
             return;
     }
 
@@ -101,11 +101,11 @@ static void g364fb_draw_blank(G364State *s, int full_update)
     if (!full_update)
         return;
 
-    w = s->scr_width * ((s->ds->depth + 7) >> 3);
-    d = s->ds->data;
+    w = s->scr_width * ((ds_get_bits_per_pixel(s->ds) + 7) >> 3);
+    d = ds_get_data(s->ds);
     for(i = 0; i < s->scr_height; i++) {
         memset(d, 0, w);
-        d += s->ds->linesize;
+        d += ds_get_linesize(s->ds);
     }
 
     dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
@@ -131,7 +131,7 @@ static void g364fb_update_display(void *opaque)
         s->graphic_mode = graphic_mode;
         full_update = 1;
     }
-    if (s->scr_width != s->ds->width || s->scr_height != s->ds->height) {
+    if (s->scr_width != ds_get_width(s->ds) || s->scr_height != ds_get_height(s->ds)) {
         qemu_console_resize(s->console, s->scr_width, s->scr_height);
         full_update = 1;
     }

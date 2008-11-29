@@ -206,7 +206,7 @@ static void ssd0303_update_display(void *opaque)
     if (!s->redraw)
         return;
 
-    switch (s->ds->depth) {
+    switch (ds_get_bits_per_pixel(s->ds)) {
     case 0:
         return;
     case 15:
@@ -238,7 +238,7 @@ static void ssd0303_update_display(void *opaque)
         colors[0] = colortab + dest_width;
         colors[1] = colortab;
     }
-    dest = s->ds->data;
+    dest = ds_get_data(s->ds);
     for (y = 0; y < 16; y++) {
         line = (y + s->start_line) & 63;
         src = s->framebuffer + 132 * (line >> 3) + 36;

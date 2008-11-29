@@ -1364,7 +1364,7 @@ static void breakpoint_handler(CPUState *env)
                 cpu_resume_from_signal(env, NULL);
         }
     } else {
-        for (bp = env->breakpoints; bp != NULL; bp = bp->next)
+        TAILQ_FOREACH(bp, &env->breakpoints, entry)
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
                     check_hw_breakpoints(env, 1);

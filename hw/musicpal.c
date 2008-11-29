@@ -801,7 +801,7 @@ static inline void glue(set_lcd_pixel, depth) \
         (musicpal_lcd_state *s, int x, int y, type col) \
 { \
     int dx, dy; \
-    type *pixel = &((type *) s->ds->data)[(y * 128 * 3 + x) * 3]; \
+    type *pixel = &((type *) ds_get_data(s->ds))[(y * 128 * 3 + x) * 3]; \
 \
     for (dy = 0; dy < 3; dy++, pixel += 127 * 3) \
         for (dx = 0; dx < 3; dx++, pixel++) \
@@ -818,7 +818,7 @@ static void lcd_refresh(void *opaque)
     musicpal_lcd_state *s = opaque;
     int x, y, col;
 
-    switch (s->ds->depth) {
+    switch (ds_get_bits_per_pixel(s->ds)) {
     case 0:
         return;
 #define LCD_REFRESH(depth, func) \
@@ -838,7 +838,7 @@ static void lcd_refresh(void *opaque)
     LCD_REFRESH(32, (s->ds->bgr ? rgb_to_pixel32bgr : rgb_to_pixel32))
     default:
         cpu_abort(cpu_single_env, "unsupported colour depth %i\n",
-                  s->ds->depth);
+                  ds_get_bits_per_pixel(s->ds));
     }
 
     dpy_update(s->ds, 0, 0, 128*3, 64*3);
