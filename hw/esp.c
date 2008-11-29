@@ -44,8 +44,11 @@ do { printf("ESP: " fmt , ##args); } while (0)
 #define DPRINTF(fmt, args...) do {} while (0)
 #endif
 
+#define ESP_ERROR(fmt, args...) \
+do { printf("ESP ERROR: %s: " fmt, __func__ , ##args); } while (0)
+
 #define ESP_REGS 16
-#define TI_BUFSZ 32
+#define TI_BUFSZ 16
 
 typedef struct ESPState ESPState;
 
@@ -120,14 +123,16 @@ struct ESPState {
 #define STAT_DI 0x01
 #define STAT_CD 0x02
 #define STAT_ST 0x03
-#define STAT_MI 0x06
-#define STAT_MO 0x07
+#define STAT_MO 0x06
+#define STAT_MI 0x07
 #define STAT_PIO_MASK 0x06
 
 #define STAT_TC 0x10
 #define STAT_PE 0x20
 #define STAT_GE 0x40
 #define STAT_INT 0x80
+
+#define BUSID_DID 0x07
 
 #define INTR_FC 0x08
 #define INTR_BS 0x10
@@ -165,7 +170,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
     int target;
 
     dmalen = s->rregs[ESP_TCLO] | (s->rregs[ESP_TCMID] << 8);
-    target = s->wregs[ESP_WBUSID] & 7;
+    target = s->wregs[ESP_WBUSID] & BUSID_DID;
     DPRINTF("get_cmd: len %d target %d\n", dmalen, target);
     if (s->dma) {
         s->dma_memory_read(s->dma_opaque, buf, dmalen);
@@ -318,7 +323,7 @@ static void esp_do_dma(ESPState *s)
         } else {
             s->current_dev->read_data(s->current_dev, 0);
             /* If there is still data to be read from the device then
-               complete the DMA operation immeriately.  Otherwise defer
+               complete the DMA operation immediately.  Otherwise defer
                until the scsi layer has completed.  */
             if (s->dma_left == 0 && s->ti_size > 0) {
                 esp_dma_done(s);
@@ -407,6 +412,8 @@ static void esp_reset(void *opaque)
     s->ti_wptr = 0;
     s->dma = 0;
     s->do_cmd = 0;
+
+    s->rregs[ESP_CFG1] = 7;
 }
 
 static void parent_esp_reset(void *opaque, int irq, int level)
@@ -427,8 +434,8 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
         if (s->ti_size > 0) {
             s->ti_size--;
             if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
-                /* Data in/out.  */
-                fprintf(stderr, "esp: PIO data read not implemented\n");
+                /* Data out.  */
+                ESP_ERROR("PIO data read not implemented\n");
                 s->rregs[ESP_FIFO] = 0;
             } else {
                 s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
@@ -467,11 +474,8 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     case ESP_FIFO:
         if (s->do_cmd) {
             s->cmdbuf[s->cmdlen++] = val & 0xff;
-        } else if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
-            uint8_t buf;
-            buf = val & 0xff;
-            s->ti_size--;
-            fprintf(stderr, "esp: PIO data write not implemented\n");
+        } else if (s->ti_size == TI_BUFSZ - 1) {
+            ESP_ERROR("fifo overrun\n");
         } else {
             s->ti_size++;
             s->ti_buf[s->ti_wptr++] = val & 0xff;
@@ -537,7 +541,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             DPRINTF("Enable selection (%2.2x)\n", val);
             break;
         default:
-            DPRINTF("Unhandled ESP command (%2.2x)\n", val);
+            ESP_ERROR("Unhandled ESP command (%2.2x)\n", val);
             break;
         }
         break;
@@ -555,7 +559,8 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         s->rregs[saddr] = val;
         break;
     default:
-        break;
+        ESP_ERROR("invalid write of 0x%02x at [0x%x]\n", val, saddr);
+        return;
     }
     s->wregs[saddr] = val;
 }
@@ -620,6 +625,8 @@ void esp_scsi_attach(void *opaque, BlockDriverState *bd, int id)
 
     if (id < 0) {
         for (id = 0; id < ESP_MAX_DEVS; id++) {
+            if (id == (s->rregs[ESP_CFG1] & 0x7))
+                continue;
             if (s->scsi_dev[id] == NULL)
                 break;
         }
