@@ -2490,37 +2490,6 @@ static always_inline void gen_check_align (DisasContext *ctx, TCGv EA, int mask)
     tcg_temp_free(t0);
 }
 
-#if defined(TARGET_PPC64)
-#define _GEN_MEM_FUNCS(name, mode)                                            \
-    &gen_op_##name##_##mode,                                                  \
-    &gen_op_##name##_le_##mode,                                               \
-    &gen_op_##name##_64_##mode,                                               \
-    &gen_op_##name##_le_64_##mode
-#else
-#define _GEN_MEM_FUNCS(name, mode)                                            \
-    &gen_op_##name##_##mode,                                                  \
-    &gen_op_##name##_le_##mode
-#endif
-#if defined(CONFIG_USER_ONLY)
-#if defined(TARGET_PPC64)
-#define NB_MEM_FUNCS 4
-#else
-#define NB_MEM_FUNCS 2
-#endif
-#define GEN_MEM_FUNCS(name)                                                   \
-    _GEN_MEM_FUNCS(name, raw)
-#else
-#if defined(TARGET_PPC64)
-#define NB_MEM_FUNCS 12
-#else
-#define NB_MEM_FUNCS 6
-#endif
-#define GEN_MEM_FUNCS(name)                                                   \
-    _GEN_MEM_FUNCS(name, user),                                               \
-    _GEN_MEM_FUNCS(name, kernel),                                             \
-    _GEN_MEM_FUNCS(name, hypv)
-#endif
-
 /***                             Integer load                              ***/
 #if defined(TARGET_PPC64)
 #define GEN_QEMU_LD_PPC64(width)                                                 \
@@ -4427,32 +4396,28 @@ GEN_HANDLER(slbie, 0x1F, 0x12, 0x0D, 0x03FF0001, PPC_SLBI)
 
 /***                              External control                         ***/
 /* Optional: */
-#define op_eciwx() (*gen_op_eciwx[ctx->mem_idx])()
-#define op_ecowx() (*gen_op_ecowx[ctx->mem_idx])()
-static GenOpFunc *gen_op_eciwx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(eciwx),
-};
-static GenOpFunc *gen_op_ecowx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(ecowx),
-};
-
 /* eciwx */
 GEN_HANDLER(eciwx, 0x1F, 0x16, 0x0D, 0x00000001, PPC_EXTERN)
 {
-    /* Should check EAR[E] & alignment ! */
+    /* Should check EAR[E] ! */
+    TCGv t0 = tcg_temp_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_eciwx();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x03);
+    gen_qemu_ld32u(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx);
+    tcg_temp_free(t0);
 }
 
 /* ecowx */
 GEN_HANDLER(ecowx, 0x1F, 0x16, 0x09, 0x00000001, PPC_EXTERN)
 {
-    /* Should check EAR[E] & alignment ! */
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    op_ecowx();
+    /* Should check EAR[E] ! */
+    TCGv t0 = tcg_temp_new();
+    gen_set_access_type(ACCESS_RES);
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x03);
+    gen_qemu_st32(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx);
+    tcg_temp_free(t0);
 }
 
 /* PowerPC 601 specific instructions */

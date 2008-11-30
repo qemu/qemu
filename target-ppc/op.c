@@ -257,22 +257,6 @@ void OPPROTO op_srli_T1 (void)
     RETURN();
 }
 
-/* Load and store */
-#define MEMSUFFIX _raw
-#include "op_helper.h"
-#include "op_mem.h"
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_helper.h"
-#include "op_mem.h"
-#define MEMSUFFIX _kernel
-#include "op_helper.h"
-#include "op_mem.h"
-#define MEMSUFFIX _hypv
-#include "op_helper.h"
-#include "op_mem.h"
-#endif
-
 /* Return from interrupt */
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_rfi (void)
