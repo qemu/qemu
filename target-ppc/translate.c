@@ -3732,7 +3732,7 @@ GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_rfi();
+    gen_helper_rfi();
     GEN_SYNC(ctx);
 #endif
 }
@@ -3748,7 +3748,7 @@ GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_rfid();
+    gen_helper_rfid();
     GEN_SYNC(ctx);
 #endif
 }
@@ -3763,7 +3763,7 @@ GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64H)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_hrfid();
+    gen_helper_hrfid();
     GEN_SYNC(ctx);
 #endif
 }
@@ -4964,7 +4964,7 @@ GEN_HANDLER(rfsvc, 0x13, 0x12, 0x02, 0x03FFF0001, PPC_POWER)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_POWER_rfsvc();
+    gen_helper_rfsvc();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5508,7 +5508,7 @@ GEN_HANDLER2(rfci_40x, "rfci", 0x13, 0x13, 0x01, 0x03FF8001, PPC_40x_EXCP)
         return;
     }
     /* Restore CPU state */
-    gen_op_40x_rfci();
+    gen_helper_40x_rfci();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5523,7 +5523,7 @@ GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE)
         return;
     }
     /* Restore CPU state */
-    gen_op_rfci();
+    gen_helper_rfci();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5540,7 +5540,7 @@ GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_RFDI)
         return;
     }
     /* Restore CPU state */
-    gen_op_rfdi();
+    gen_helper_rfdi();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5556,7 +5556,7 @@ GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_RFMCI)
         return;
     }
     /* Restore CPU state */
-    gen_op_rfmci();
+    gen_helper_rfmci();
     GEN_SYNC(ctx);
 #endif
 }

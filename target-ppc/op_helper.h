@@ -21,8 +21,6 @@
 void do_print_mem_EA (target_ulong EA);
 
 /* Registers load and stores */
-void do_load_cr (void);
-void do_store_cr (uint32_t mask);
 #if defined(TARGET_PPC64)
 void do_store_pri (int prio);
 #endif
@@ -32,11 +30,6 @@ void ppc_store_dump_spr (int sprn, target_ulong val);
 /* Misc */
 #if !defined(CONFIG_USER_ONLY)
 void do_store_msr (void);
-void do_rfi (void);
-#if defined(TARGET_PPC64)
-void do_rfid (void);
-void do_hrfid (void);
-#endif
 #endif
 
 /* POWER / PowerPC 601 specific helpers */
@@ -51,7 +44,6 @@ void do_POWER_maskg (void);
 void do_POWER_mulo (void);
 #if !defined(CONFIG_USER_ONLY)
 void do_POWER_rac (void);
-void do_POWER_rfsvc (void);
 void do_store_hid0_601 (void);
 #endif
 
@@ -65,10 +57,6 @@ void do_440_tlbwe (int word);
 void do_load_dcr (void);
 void do_store_dcr (void);
 #if !defined(CONFIG_USER_ONLY)
-void do_40x_rfci (void);
-void do_rfci (void);
-void do_rfdi (void);
-void do_rfmci (void);
 void do_4xx_tlbre_lo (void);
 void do_4xx_tlbre_hi (void);
 void do_4xx_tlbwe_lo (void);

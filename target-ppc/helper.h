@@ -6,6 +6,18 @@ DEF_HELPER_3(tw, void, tl, tl, i32)
 #if defined(TARGET_PPC64)
 DEF_HELPER_3(td, void, tl, tl, i32)
 #endif
+#if !defined(CONFIG_USER_ONLY)
+DEF_HELPER_0(rfi, void)
+DEF_HELPER_0(rfsvc, void)
+DEF_HELPER_0(40x_rfci, void)
+DEF_HELPER_0(rfci, void)
+DEF_HELPER_0(rfdi, void)
+DEF_HELPER_0(rfmci, void)
+#if defined(TARGET_PPC64)
+DEF_HELPER_0(rfid, void)
+DEF_HELPER_0(hrfid, void)
+#endif
+#endif
 
 DEF_HELPER_2(lmw, void, tl, i32)
 DEF_HELPER_2(stmw, void, tl, i32)
@@ -16,10 +28,6 @@ DEF_HELPER_1(dcbz, void, tl)
 DEF_HELPER_1(dcbz_970, void, tl)
 DEF_HELPER_1(icbi, void, tl)
 DEF_HELPER_4(lscbx, tl, tl, i32, i32, i32)
-
-
-DEF_HELPER_2(fcmpo, i32, i64, i64)
-DEF_HELPER_2(fcmpu, i32, i64, i64)
 
 DEF_HELPER_0(load_cr, tl)
 DEF_HELPER_2(store_cr, void, tl, i32)
@@ -52,6 +60,9 @@ DEF_HELPER_2(store_fpscr, void, i64, i32)
 DEF_HELPER_1(fpscr_setbit, void, i32)
 DEF_HELPER_1(float64_to_float32, i32, i64)
 DEF_HELPER_1(float32_to_float64, i64, i32)
+
+DEF_HELPER_2(fcmpo, i32, i64, i64)
+DEF_HELPER_2(fcmpu, i32, i64, i64)
 
 DEF_HELPER_1(fctiw, i64, i64)
 DEF_HELPER_1(fctiwz, i64, i64)

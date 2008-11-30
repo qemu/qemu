@@ -259,26 +259,6 @@ void OPPROTO op_srli_T1 (void)
 
 /* Return from interrupt */
 #if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_rfi (void)
-{
-    do_rfi();
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_rfid (void)
-{
-    do_rfid();
-    RETURN();
-}
-
-void OPPROTO op_hrfid (void)
-{
-    do_hrfid();
-    RETURN();
-}
-#endif
-
 /* Exception vectors */
 void OPPROTO op_store_excp_prefix (void)
 {
@@ -637,12 +617,6 @@ void OPPROTO op_POWER_rac (void)
     do_POWER_rac();
     RETURN();
 }
-
-void OPPROTO op_POWER_rfsvc (void)
-{
-    do_POWER_rfsvc();
-    RETURN();
-}
 #endif
 
 /* PowerPC 4xx specific micro-ops */
@@ -659,33 +633,6 @@ void OPPROTO op_store_dcr (void)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-/* Return from critical interrupt :
- * same as rfi, except nip & MSR are loaded from SRR2/3 instead of SRR0/1
- */
-void OPPROTO op_40x_rfci (void)
-{
-    do_40x_rfci();
-    RETURN();
-}
-
-void OPPROTO op_rfci (void)
-{
-    do_rfci();
-    RETURN();
-}
-
-void OPPROTO op_rfdi (void)
-{
-    do_rfdi();
-    RETURN();
-}
-
-void OPPROTO op_rfmci (void)
-{
-    do_rfmci();
-    RETURN();
-}
-
 void OPPROTO op_wrte (void)
 {
     /* We don't call do_store_msr here as we won't trigger

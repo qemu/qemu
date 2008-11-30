@@ -1618,7 +1618,7 @@ void do_store_msr (void)
     }
 }
 
-static always_inline void __do_rfi (target_ulong nip, target_ulong msr,
+static always_inline void do_rfi (target_ulong nip, target_ulong msr,
                                     target_ulong msrm, int keep_msrh)
 {
 #if defined(TARGET_PPC64)
@@ -1647,23 +1647,23 @@ static always_inline void __do_rfi (target_ulong nip, target_ulong msr,
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
-void do_rfi (void)
+void helper_rfi (void)
 {
-    __do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-             ~((target_ulong)0xFFFF0000), 1);
+    do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+           ~((target_ulong)0xFFFF0000), 1);
 }
 
 #if defined(TARGET_PPC64)
-void do_rfid (void)
+void helper_rfid (void)
 {
-    __do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-             ~((target_ulong)0xFFFF0000), 0);
+    do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+           ~((target_ulong)0xFFFF0000), 0);
 }
 
-void do_hrfid (void)
+void helper_hrfid (void)
 {
-    __do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
-             ~((target_ulong)0xFFFF0000), 0);
+    do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
+           ~((target_ulong)0xFFFF0000), 0);
 }
 #endif
 #endif
@@ -1859,9 +1859,9 @@ void do_POWER_rac (void)
     env->nb_BATs = nb_BATs;
 }
 
-void do_POWER_rfsvc (void)
+void helper_rfsvc (void)
 {
-    __do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
+    do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
 }
 
 void do_store_hid0_601 (void)
@@ -1959,28 +1959,28 @@ void do_store_dcr (void)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void do_40x_rfci (void)
+void helper_40x_rfci (void)
 {
-    __do_rfi(env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3],
-             ~((target_ulong)0xFFFF0000), 0);
+    do_rfi(env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3],
+           ~((target_ulong)0xFFFF0000), 0);
 }
 
-void do_rfci (void)
+void helper_rfci (void)
 {
-    __do_rfi(env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
-             ~((target_ulong)0x3FFF0000), 0);
+    do_rfi(env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
+           ~((target_ulong)0x3FFF0000), 0);
 }
 
-void do_rfdi (void)
+void helper_rfdi (void)
 {
-    __do_rfi(env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
-             ~((target_ulong)0x3FFF0000), 0);
+    do_rfi(env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
+           ~((target_ulong)0x3FFF0000), 0);
 }
 
-void do_rfmci (void)
+void helper_rfmci (void)
 {
-    __do_rfi(env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
-             ~((target_ulong)0x3FFF0000), 0);
+    do_rfi(env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
+           ~((target_ulong)0x3FFF0000), 0);
 }
 
 void do_load_403_pb (int num)
