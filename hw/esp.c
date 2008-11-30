@@ -517,6 +517,8 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         case CMD_ICCS:
             DPRINTF("Initiator Command Complete Sequence (%2.2x)\n", val);
             write_response(s);
+            s->rregs[ESP_RINTR] = INTR_FC;
+            s->rregs[ESP_RSTAT] |= STAT_MI;
             break;
         case CMD_MSGACC:
             DPRINTF("Message Accepted (%2.2x)\n", val);
