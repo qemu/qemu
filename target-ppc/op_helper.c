@@ -24,21 +24,6 @@
 #include "helper_regs.h"
 #include "op_helper.h"
 
-#define MEMSUFFIX _raw
-#include "op_helper.h"
-#include "op_helper_mem.h"
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_helper.h"
-#include "op_helper_mem.h"
-#define MEMSUFFIX _kernel
-#include "op_helper.h"
-#include "op_helper_mem.h"
-#define MEMSUFFIX _hypv
-#include "op_helper.h"
-#include "op_helper_mem.h"
-#endif
-
 //#define DEBUG_OP
 //#define DEBUG_EXCEPTIONS
 //#define DEBUG_SOFTWARE_TLB
@@ -327,6 +312,45 @@ void helper_icbi(target_ulong addr)
     }
 #endif
     tb_invalidate_page_range(addr, addr + env->icache_line_size);
+}
+
+// XXX: to be tested
+target_ulong helper_lscbx (target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
+{
+    int i, c, d;
+#ifdef CONFIG_USER_ONLY
+#define ldfun ldub_raw
+#else
+    int (*ldfun)(target_ulong);
+
+    switch (env->mmu_idx) {
+    default:
+    case 0: ldfun = ldub_user;
+        break;
+    case 1: ldfun = ldub_kernel;
+        break;
+    case 2: ldfun = ldub_hypv;
+        break;
+    }
+#endif
+    d = 24;
+    for (i = 0; i < xer_bc; i++) {
+        c = ldfun((uint32_t)addr++);
+        /* ra (if not 0) and rb are never modified */
+        if (likely(reg != rb && (ra == 0 || reg != ra))) {
+            env->gpr[reg] = (env->gpr[reg] & ~(0xFF << d)) | (c << d);
+        }
+        if (unlikely(c == xer_cmp))
+            break;
+        if (likely(d != 0)) {
+            d -= 8;
+        } else {
+            d = 24;
+            reg++;
+            reg = reg & 0x1F;
+        }
+    }
+    return i;
 }
 
 /*****************************************************************************/

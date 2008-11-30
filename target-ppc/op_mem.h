@@ -303,15 +303,4 @@ void OPPROTO glue(op_ecowx_le_64, MEMSUFFIX) (void)
 }
 #endif
 
-/* XXX: those micro-ops need tests ! */
-/* PowerPC 601 specific instructions (POWER bridge) */
-void OPPROTO glue(op_POWER_lscbx, MEMSUFFIX) (void)
-{
-    /* When byte count is 0, do nothing */
-    if (likely(T1 != 0)) {
-        glue(do_POWER_lscbx, MEMSUFFIX)(PARAM1, PARAM2, PARAM3);
-    }
-    RETURN();
-}
-
 #undef MEMSUFFIX

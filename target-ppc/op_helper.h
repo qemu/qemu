@@ -18,17 +18,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#if defined(MEMSUFFIX)
-
-/* Memory load/store helpers */
-void glue(do_POWER_lscbx, MEMSUFFIX) (int dest, int ra, int rb);
-void glue(do_POWER2_lfq, MEMSUFFIX) (void);
-void glue(do_POWER2_lfq_le, MEMSUFFIX) (void);
-void glue(do_POWER2_stfq, MEMSUFFIX) (void);
-void glue(do_POWER2_stfq_le, MEMSUFFIX) (void);
-
-#else
-
 void do_print_mem_EA (target_ulong EA);
 
 /* Registers load and stores */
@@ -93,6 +82,4 @@ void do_440_dlmzb (void);
 #if !defined(CONFIG_USER_ONLY)
 void do_load_403_pb (int num);
 void do_store_403_pb (int num);
-#endif
-
 #endif

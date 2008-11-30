@@ -4526,47 +4526,26 @@ GEN_HANDLER(dozi, 0x09, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR)
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
 }
 
-/* As lscbx load from memory byte after byte, it's always endian safe.
- * Original POWER is 32 bits only, define 64 bits ops as 32 bits ones
- */
-#define op_POWER_lscbx(start, ra, rb)                                         \
-(*gen_op_POWER_lscbx[ctx->mem_idx])(start, ra, rb)
-#define gen_op_POWER_lscbx_64_raw       gen_op_POWER_lscbx_raw
-#define gen_op_POWER_lscbx_64_user      gen_op_POWER_lscbx_user
-#define gen_op_POWER_lscbx_64_kernel    gen_op_POWER_lscbx_kernel
-#define gen_op_POWER_lscbx_64_hypv      gen_op_POWER_lscbx_hypv
-#define gen_op_POWER_lscbx_le_raw       gen_op_POWER_lscbx_raw
-#define gen_op_POWER_lscbx_le_user      gen_op_POWER_lscbx_user
-#define gen_op_POWER_lscbx_le_kernel    gen_op_POWER_lscbx_kernel
-#define gen_op_POWER_lscbx_le_hypv      gen_op_POWER_lscbx_hypv
-#define gen_op_POWER_lscbx_le_64_raw    gen_op_POWER_lscbx_raw
-#define gen_op_POWER_lscbx_le_64_user   gen_op_POWER_lscbx_user
-#define gen_op_POWER_lscbx_le_64_kernel gen_op_POWER_lscbx_kernel
-#define gen_op_POWER_lscbx_le_64_hypv   gen_op_POWER_lscbx_hypv
-static GenOpFunc3 *gen_op_POWER_lscbx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(POWER_lscbx),
-};
-
 /* lscbx - lscbx. */
 GEN_HANDLER(lscbx, 0x1F, 0x15, 0x08, 0x00000000, PPC_POWER_BR)
 {
-    int ra = rA(ctx->opcode);
-    int rb = rB(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_const_i32(rD(ctx->opcode));
+    TCGv_i32 t2 = tcg_const_i32(rA(ctx->opcode));
+    TCGv_i32 t3 = tcg_const_i32(rB(ctx->opcode));
 
-    gen_addr_reg_index(cpu_T[0], ctx);
-    if (ra == 0) {
-        ra = rb;
-    }
+    gen_addr_reg_index(t0, ctx);
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
-    tcg_gen_shri_tl(cpu_T[2], cpu_xer, XER_CMP);
-    tcg_gen_andi_tl(cpu_T[2], cpu_T[2], 0xFF);
-    op_POWER_lscbx(rD(ctx->opcode), ra, rb);
+    gen_helper_lscbx(t0, t0, t1, t2, t3);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t3);
     tcg_gen_andi_tl(cpu_xer, cpu_xer, ~0x7F);
-    tcg_gen_or_tl(cpu_xer, cpu_xer, cpu_T[0]);
+    tcg_gen_or_tl(cpu_xer, cpu_xer, t0);
     if (unlikely(Rc(ctx->opcode) != 0))
-        gen_set_Rc0(ctx, cpu_T[0]);
+        gen_set_Rc0(ctx, t0);
+    tcg_temp_free(t0);
 }
 
 /* maskg - maskg. */

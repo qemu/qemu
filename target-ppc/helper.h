@@ -15,6 +15,8 @@ DEF_HELPER_3(stsw, void, tl, i32, i32)
 DEF_HELPER_1(dcbz, void, tl)
 DEF_HELPER_1(dcbz_970, void, tl)
 DEF_HELPER_1(icbi, void, tl)
+DEF_HELPER_4(lscbx, tl, tl, i32, i32, i32)
+
 
 DEF_HELPER_2(fcmpo, i32, i64, i64)
 DEF_HELPER_2(fcmpu, i32, i64, i64)
