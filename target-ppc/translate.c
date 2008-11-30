@@ -3118,43 +3118,6 @@ GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 }
 
 /***                    Integer load and store strings                     ***/
-#define op_ldsts(name, start) (*gen_op_##name[ctx->mem_idx])(start)
-#define op_ldstsx(name, rd, ra, rb) (*gen_op_##name[ctx->mem_idx])(rd, ra, rb)
-/* string load & stores are by definition endian-safe */
-#define gen_op_lswi_le_raw       gen_op_lswi_raw
-#define gen_op_lswi_le_user      gen_op_lswi_user
-#define gen_op_lswi_le_kernel    gen_op_lswi_kernel
-#define gen_op_lswi_le_hypv      gen_op_lswi_hypv
-#define gen_op_lswi_le_64_raw    gen_op_lswi_raw
-#define gen_op_lswi_le_64_user   gen_op_lswi_user
-#define gen_op_lswi_le_64_kernel gen_op_lswi_kernel
-#define gen_op_lswi_le_64_hypv   gen_op_lswi_hypv
-static GenOpFunc1 *gen_op_lswi[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(lswi),
-};
-#define gen_op_lswx_le_raw       gen_op_lswx_raw
-#define gen_op_lswx_le_user      gen_op_lswx_user
-#define gen_op_lswx_le_kernel    gen_op_lswx_kernel
-#define gen_op_lswx_le_hypv      gen_op_lswx_hypv
-#define gen_op_lswx_le_64_raw    gen_op_lswx_raw
-#define gen_op_lswx_le_64_user   gen_op_lswx_user
-#define gen_op_lswx_le_64_kernel gen_op_lswx_kernel
-#define gen_op_lswx_le_64_hypv   gen_op_lswx_hypv
-static GenOpFunc3 *gen_op_lswx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(lswx),
-};
-#define gen_op_stsw_le_raw       gen_op_stsw_raw
-#define gen_op_stsw_le_user      gen_op_stsw_user
-#define gen_op_stsw_le_kernel    gen_op_stsw_kernel
-#define gen_op_stsw_le_hypv      gen_op_stsw_hypv
-#define gen_op_stsw_le_64_raw    gen_op_stsw_raw
-#define gen_op_stsw_le_64_user   gen_op_stsw_user
-#define gen_op_stsw_le_64_kernel gen_op_stsw_kernel
-#define gen_op_stsw_le_64_hypv   gen_op_stsw_hypv
-static GenOpFunc1 *gen_op_stsw[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(stsw),
-};
-
 /* lswi */
 /* PowerPC32 specification says we must generate an exception if
  * rA is in the range of registers to be loaded.
@@ -3163,6 +3126,8 @@ static GenOpFunc1 *gen_op_stsw[NB_MEM_FUNCS] = {
  */
 GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING)
 {
+    TCGv t0;
+    TCGv_i32 t1, t2;
     int nb = NB(ctx->opcode);
     int start = rD(ctx->opcode);
     int ra = rA(ctx->opcode);
@@ -3180,49 +3145,67 @@ GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING)
     }
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_register(cpu_T[0], ctx);
-    tcg_gen_movi_tl(cpu_T[1], nb);
-    op_ldsts(lswi, start);
+    t0 = tcg_temp_new();
+    gen_addr_register(t0, ctx);
+    t1 = tcg_const_i32(nb);
+    t2 = tcg_const_i32(start);
+    gen_helper_lsw(t0, t1, t2);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
 }
 
 /* lswx */
 GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_STRING)
 {
-    int ra = rA(ctx->opcode);
-    int rb = rB(ctx->opcode);
-
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_const_i32(rD(ctx->opcode));
+    TCGv_i32 t2 = tcg_const_i32(rA(ctx->opcode));
+    TCGv_i32 t3 = tcg_const_i32(rB(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    if (ra == 0) {
-        ra = rb;
-    }
-    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
-    op_ldstsx(lswx, rD(ctx->opcode), ra, rb);
+    gen_addr_reg_index(t0, ctx);
+    gen_helper_lswx(t0, t1, t2, t3);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t3);
 }
 
 /* stswi */
 GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING)
 {
     int nb = NB(ctx->opcode);
-
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1;
+    TCGv_i32 t2 = tcg_const_i32(rS(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_register(cpu_T[0], ctx);
+    gen_addr_register(t0, ctx);
     if (nb == 0)
         nb = 32;
-    tcg_gen_movi_tl(cpu_T[1], nb);
-    op_ldsts(stsw, rS(ctx->opcode));
+    t1 = tcg_const_i32(nb);
+    gen_helper_stsw(t0, t1, t2);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
 }
 
 /* stswx */
 GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING)
 {
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_const_i32(rS(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
-    op_ldsts(stsw, rS(ctx->opcode));
+    gen_addr_reg_index(t0, ctx);
+    tcg_gen_trunc_tl_i32(t1, cpu_xer);
+    tcg_gen_andi_i32(t1, t1, 0x7F);
+    gen_helper_stsw(t0, t1, t2);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
 }
 
 /***                        Memory synchronisation                         ***/

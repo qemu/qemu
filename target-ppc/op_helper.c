@@ -170,6 +170,99 @@ void helper_stmw (target_ulong addr, uint32_t reg)
     }
 }
 
+void helper_lsw(target_ulong addr, uint32_t nb, uint32_t reg)
+{
+    int sh;
+#ifdef CONFIG_USER_ONLY
+#define ldfunl ldl_raw
+#define ldfunb ldub_raw
+#else
+    int (*ldfunl)(target_ulong);
+    int (*ldfunb)(target_ulong);
+
+    switch (env->mmu_idx) {
+    default:
+    case 0:
+        ldfunl = ldl_user;
+        ldfunb = ldub_user;
+        break;
+    case 1:
+        ldfunl = ldl_kernel;
+        ldfunb = ldub_kernel;
+        break;
+    case 2:
+        ldfunl = ldl_hypv;
+        ldfunb = ldub_hypv;
+        break;
+    }
+#endif
+    for (; nb > 3; nb -= 4, addr += 4) {
+        env->gpr[reg] = ldfunl(get_addr(addr));
+        reg = (reg + 1) % 32;
+    }
+    if (unlikely(nb > 0)) {
+        env->gpr[reg] = 0;
+        for (sh = 24; nb > 0; nb--, addr++, sh -= 8) {
+            env->gpr[reg] |= ldfunb(get_addr(addr)) << sh;
+        }
+    }
+}
+/* PPC32 specification says we must generate an exception if
+ * rA is in the range of registers to be loaded.
+ * In an other hand, IBM says this is valid, but rA won't be loaded.
+ * For now, I'll follow the spec...
+ */
+void helper_lswx(target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
+{
+    if (likely(xer_bc != 0)) {
+        if (unlikely((ra != 0 && reg < ra && (reg + xer_bc) > ra) ||
+                     (reg < rb && (reg + xer_bc) > rb))) {
+            raise_exception_err(env, POWERPC_EXCP_PROGRAM,
+                                POWERPC_EXCP_INVAL |
+                                POWERPC_EXCP_INVAL_LSWX);
+        } else {
+            helper_lsw(addr, xer_bc, reg);
+        }
+    }
+}
+
+void helper_stsw(target_ulong addr, uint32_t nb, uint32_t reg)
+{
+    int sh;
+#ifdef CONFIG_USER_ONLY
+#define stfunl stl_raw
+#define stfunb stb_raw
+#else
+    void (*stfunl)(target_ulong, int);
+    void (*stfunb)(target_ulong, int);
+
+    switch (env->mmu_idx) {
+    default:
+    case 0:
+        stfunl = stl_user;
+        stfunb = stb_user;
+        break;
+    case 1:
+        stfunl = stl_kernel;
+        stfunb = stb_kernel;
+        break;
+    case 2:
+        stfunl = stl_hypv;
+        stfunb = stb_hypv;
+        break;
+    }
+#endif
+
+    for (; nb > 3; nb -= 4, addr += 4) {
+        stfunl(get_addr(addr), env->gpr[reg]);
+        reg = (reg + 1) % 32;
+    }
+    if (unlikely(nb > 0)) {
+        for (sh = 24; nb > 0; nb--, addr++, sh -= 8)
+            stfunb(get_addr(addr), (env->gpr[reg] >> sh) & 0xFF);
+    }
+}
+
 static void do_dcbz(target_ulong addr, int dcache_line_size)
 {
     target_long mask = get_addr(~(dcache_line_size - 1));
