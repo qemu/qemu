@@ -109,6 +109,69 @@ void ppc_store_dump_spr (int sprn, target_ulong val)
 }
 
 /*****************************************************************************/
+/* Memory load and stores */
+
+static always_inline target_ulong get_addr(target_ulong addr)
+{
+#if defined(TARGET_PPC64)
+        if (msr_sf)
+            return addr;
+        else
+#endif
+            return (uint32_t)addr;
+}
+
+void helper_lmw (target_ulong addr, uint32_t reg)
+{
+#ifdef CONFIG_USER_ONLY
+#define ldfun ldl_raw
+#else
+    int (*ldfun)(target_ulong);
+
+    switch (env->mmu_idx) {
+    default:
+    case 0: ldfun = ldl_user;
+        break;
+    case 1: ldfun = ldl_kernel;
+        break;
+    case 2: ldfun = ldl_hypv;
+        break;
+    }
+#endif
+    for (; reg < 32; reg++, addr += 4) {
+        if (msr_le)
+            env->gpr[reg] = bswap32(ldfun(get_addr(addr)));
+        else
+            env->gpr[reg] = ldfun(get_addr(addr));
+    }
+}
+
+void helper_stmw (target_ulong addr, uint32_t reg)
+{
+#ifdef CONFIG_USER_ONLY
+#define stfun stl_raw
+#else
+    void (*stfun)(target_ulong, int);
+
+    switch (env->mmu_idx) {
+    default:
+    case 0: stfun = stl_user;
+        break;
+    case 1: stfun = stl_kernel;
+        break;
+    case 2: stfun = stl_hypv;
+        break;
+    }
+#endif
+    for (; reg < 32; reg++, addr += 4) {
+        if (msr_le)
+            stfun(get_addr(addr), bswap32((uint32_t)env->gpr[reg]));
+        else
+            stfun(get_addr(addr), (uint32_t)env->gpr[reg]);
+    }
+}
+
+/*****************************************************************************/
 /* Fixed point operations helpers */
 #if defined(TARGET_PPC64)
 

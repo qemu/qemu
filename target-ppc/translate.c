@@ -3092,30 +3092,30 @@ void always_inline gen_qemu_st32r(TCGv t0, TCGv t1, int flags)
 GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER);
 
 /***                    Integer load and store multiple                    ***/
-#define op_ldstm(name, reg) (*gen_op_##name[ctx->mem_idx])(reg)
-static GenOpFunc1 *gen_op_lmw[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(lmw),
-};
-static GenOpFunc1 *gen_op_stmw[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(stmw),
-};
-
 /* lmw */
 GEN_HANDLER(lmw, 0x2E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_const_i32(rD(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(cpu_T[0], ctx, 0);
-    op_ldstm(lmw, rD(ctx->opcode));
+    gen_addr_imm_index(t0, ctx, 0);
+    gen_helper_lmw(t0, t1);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
 }
 
 /* stmw */
 GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_const_i32(rS(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(cpu_T[0], ctx, 0);
-    op_ldstm(stmw, rS(ctx->opcode));
+    gen_addr_imm_index(t0, ctx, 0);
+    gen_helper_stmw(t0, t1);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
 }
 
 /***                    Integer load and store strings                     ***/

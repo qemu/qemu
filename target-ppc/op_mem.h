@@ -20,63 +20,6 @@
 
 #include "op_mem_access.h"
 
-/***                    Integer load and store multiple                    ***/
-void OPPROTO glue(op_lmw, MEMSUFFIX) (void)
-{
-    glue(do_lmw, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_lmw_64, MEMSUFFIX) (void)
-{
-    glue(do_lmw_64, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-#endif
-
-void OPPROTO glue(op_lmw_le, MEMSUFFIX) (void)
-{
-    glue(do_lmw_le, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_lmw_le_64, MEMSUFFIX) (void)
-{
-    glue(do_lmw_le_64, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-#endif
-
-void OPPROTO glue(op_stmw, MEMSUFFIX) (void)
-{
-    glue(do_stmw, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_stmw_64, MEMSUFFIX) (void)
-{
-    glue(do_stmw_64, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-#endif
-
-void OPPROTO glue(op_stmw_le, MEMSUFFIX) (void)
-{
-    glue(do_stmw_le, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_stmw_le_64, MEMSUFFIX) (void)
-{
-    glue(do_stmw_le_64, MEMSUFFIX)(PARAM1);
-    RETURN();
-}
-#endif
-
 /***                    Integer load and store strings                     ***/
 void OPPROTO glue(op_lswi, MEMSUFFIX) (void)
 {
