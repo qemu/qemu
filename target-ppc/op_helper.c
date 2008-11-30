@@ -56,7 +56,6 @@ void helper_raise_debug (void)
     raise_exception(env, EXCP_DEBUG);
 }
 
-
 /*****************************************************************************/
 /* Registers load and stores */
 target_ulong helper_load_cr (void)
@@ -169,6 +168,46 @@ void helper_stmw (target_ulong addr, uint32_t reg)
         else
             stfun(get_addr(addr), (uint32_t)env->gpr[reg]);
     }
+}
+
+static void do_dcbz(target_ulong addr, int dcache_line_size)
+{
+    target_long mask = get_addr(~(dcache_line_size - 1));
+    int i;
+#ifdef CONFIG_USER_ONLY
+#define stfun stl_raw
+#else
+    void (*stfun)(target_ulong, int);
+
+    switch (env->mmu_idx) {
+    default:
+    case 0: stfun = stl_user;
+        break;
+    case 1: stfun = stl_kernel;
+        break;
+    case 2: stfun = stl_hypv;
+        break;
+    }
+#endif
+    addr &= mask;
+    for (i = 0 ; i < dcache_line_size ; i += 4) {
+        stfun(addr + i , 0);
+    }
+    if ((env->reserve & mask) == addr)
+        env->reserve = (target_ulong)-1ULL;
+}
+
+void helper_dcbz(target_ulong addr)
+{
+    do_dcbz(addr, env->dcache_line_size);
+}
+
+void helper_dcbz_970(target_ulong addr)
+{
+    if (((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1)
+        do_dcbz(addr, 32);
+    else
+        do_dcbz(addr, env->dcache_line_size);
 }
 
 /*****************************************************************************/
@@ -1218,7 +1257,6 @@ uint64_t helper_fnmsub (uint64_t arg1, uint64_t arg2, uint64_t arg3)
     }
     return farg1.ll;
 }
-
 
 /* frsp - frsp. */
 uint64_t helper_frsp (uint64_t arg)

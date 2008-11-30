@@ -273,23 +273,6 @@ void OPPROTO op_srli_T1 (void)
 #include "op_mem.h"
 #endif
 
-/* Special op to check and maybe clear reservation */
-void OPPROTO op_check_reservation (void)
-{
-    if ((uint32_t)env->reserve == (uint32_t)(T0 & ~0x00000003))
-        env->reserve = (target_ulong)-1ULL;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_check_reservation_64 (void)
-{
-    if ((uint64_t)env->reserve == (uint64_t)(T0 & ~0x00000003))
-        env->reserve = (target_ulong)-1ULL;
-    RETURN();
-}
-#endif
-
 /* Return from interrupt */
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_rfi (void)

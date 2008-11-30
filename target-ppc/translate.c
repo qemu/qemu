@@ -199,7 +199,6 @@ typedef struct DisasContext {
     int spe_enabled;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
-    int dcache_line_size;
 } DisasContext;
 
 struct opc_handler_t {
@@ -4142,95 +4141,27 @@ GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x02000001, PPC_CACHE)
 }
 
 /* dcbz */
-#define op_dcbz(n) (*gen_op_dcbz[n][ctx->mem_idx])()
-static GenOpFunc *gen_op_dcbz[4][NB_MEM_FUNCS] = {
-    /* 32 bytes cache line size */
-    {
-#define gen_op_dcbz_l32_le_raw        gen_op_dcbz_l32_raw
-#define gen_op_dcbz_l32_le_user       gen_op_dcbz_l32_user
-#define gen_op_dcbz_l32_le_kernel     gen_op_dcbz_l32_kernel
-#define gen_op_dcbz_l32_le_hypv       gen_op_dcbz_l32_hypv
-#define gen_op_dcbz_l32_le_64_raw     gen_op_dcbz_l32_64_raw
-#define gen_op_dcbz_l32_le_64_user    gen_op_dcbz_l32_64_user
-#define gen_op_dcbz_l32_le_64_kernel  gen_op_dcbz_l32_64_kernel
-#define gen_op_dcbz_l32_le_64_hypv    gen_op_dcbz_l32_64_hypv
-        GEN_MEM_FUNCS(dcbz_l32),
-    },
-    /* 64 bytes cache line size */
-    {
-#define gen_op_dcbz_l64_le_raw        gen_op_dcbz_l64_raw
-#define gen_op_dcbz_l64_le_user       gen_op_dcbz_l64_user
-#define gen_op_dcbz_l64_le_kernel     gen_op_dcbz_l64_kernel
-#define gen_op_dcbz_l64_le_hypv       gen_op_dcbz_l64_hypv
-#define gen_op_dcbz_l64_le_64_raw     gen_op_dcbz_l64_64_raw
-#define gen_op_dcbz_l64_le_64_user    gen_op_dcbz_l64_64_user
-#define gen_op_dcbz_l64_le_64_kernel  gen_op_dcbz_l64_64_kernel
-#define gen_op_dcbz_l64_le_64_hypv    gen_op_dcbz_l64_64_hypv
-        GEN_MEM_FUNCS(dcbz_l64),
-    },
-    /* 128 bytes cache line size */
-    {
-#define gen_op_dcbz_l128_le_raw       gen_op_dcbz_l128_raw
-#define gen_op_dcbz_l128_le_user      gen_op_dcbz_l128_user
-#define gen_op_dcbz_l128_le_kernel    gen_op_dcbz_l128_kernel
-#define gen_op_dcbz_l128_le_hypv      gen_op_dcbz_l128_hypv
-#define gen_op_dcbz_l128_le_64_raw    gen_op_dcbz_l128_64_raw
-#define gen_op_dcbz_l128_le_64_user   gen_op_dcbz_l128_64_user
-#define gen_op_dcbz_l128_le_64_kernel gen_op_dcbz_l128_64_kernel
-#define gen_op_dcbz_l128_le_64_hypv   gen_op_dcbz_l128_64_hypv
-        GEN_MEM_FUNCS(dcbz_l128),
-    },
-    /* tunable cache line size */
-    {
-#define gen_op_dcbz_le_raw            gen_op_dcbz_raw
-#define gen_op_dcbz_le_user           gen_op_dcbz_user
-#define gen_op_dcbz_le_kernel         gen_op_dcbz_kernel
-#define gen_op_dcbz_le_hypv           gen_op_dcbz_hypv
-#define gen_op_dcbz_le_64_raw         gen_op_dcbz_64_raw
-#define gen_op_dcbz_le_64_user        gen_op_dcbz_64_user
-#define gen_op_dcbz_le_64_kernel      gen_op_dcbz_64_kernel
-#define gen_op_dcbz_le_64_hypv        gen_op_dcbz_64_hypv
-        GEN_MEM_FUNCS(dcbz),
-    },
-};
-
-static always_inline void handler_dcbz (DisasContext *ctx,
-                                        int dcache_line_size)
-{
-    int n;
-
-    switch (dcache_line_size) {
-    case 32:
-        n = 0;
-        break;
-    case 64:
-        n = 1;
-        break;
-    case 128:
-        n = 2;
-        break;
-    default:
-        n = 3;
-        break;
-    }
-    op_dcbz(n);
-}
-
 GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE_DCBZ)
 {
-    gen_addr_reg_index(cpu_T[0], ctx);
-    handler_dcbz(ctx, ctx->dcache_line_size);
-    gen_op_check_reservation();
+    TCGv t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    gen_helper_dcbz(t0);
+    tcg_temp_free(t0);
 }
 
 GEN_HANDLER2(dcbz_970, "dcbz", 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT)
 {
-    gen_addr_reg_index(cpu_T[0], ctx);
+    TCGv t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     if (ctx->opcode & 0x00200000)
-        handler_dcbz(ctx, ctx->dcache_line_size);
+        gen_helper_dcbz(t0);
     else
-        handler_dcbz(ctx, -1);
-    gen_op_check_reservation();
+        gen_helper_dcbz_970(t0);
+    tcg_temp_free(t0);
 }
 
 /* icbi */
@@ -7563,7 +7494,6 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
 #else
     ctx.mem_idx = (supervisor << 1) | little_endian;
 #endif
-    ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
     if ((env->flags & POWERPC_FLAG_SPE) && msr_spe)
         ctx.spe_enabled = msr_spe;
