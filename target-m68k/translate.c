@@ -503,7 +503,7 @@ static inline TCGv gen_extend(TCGv val, int opsize, int sign)
 }
 
 /* Generate code for an "effective address".  Does not adjust the base
-   register for autoincrememnt addressing modes.  */
+   register for autoincrement addressing modes.  */
 static TCGv gen_lea(DisasContext *s, uint16_t insn, int opsize)
 {
     TCGv reg;

@@ -7,7 +7,7 @@
 
 #include "dis-asm.h"
 
-/* **** foatformat.h from sourceware.org CVS 2005-08-14.  */
+/* **** floatformat.h from sourceware.org CVS 2005-08-14.  */
 /* IEEE floating point support declarations, for GDB, the GNU Debugger.
    Copyright 1991, 1994, 1995, 1997, 2000, 2003 Free Software Foundation, Inc.
 
