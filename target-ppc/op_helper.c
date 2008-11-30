@@ -107,88 +107,35 @@ static always_inline target_ulong get_addr(target_ulong addr)
 
 void helper_lmw (target_ulong addr, uint32_t reg)
 {
-#ifdef CONFIG_USER_ONLY
-#define ldfun ldl_raw
-#else
-    int (*ldfun)(target_ulong);
-
-    switch (env->mmu_idx) {
-    default:
-    case 0: ldfun = ldl_user;
-        break;
-    case 1: ldfun = ldl_kernel;
-        break;
-    case 2: ldfun = ldl_hypv;
-        break;
-    }
-#endif
     for (; reg < 32; reg++, addr += 4) {
         if (msr_le)
-            env->gpr[reg] = bswap32(ldfun(get_addr(addr)));
+            env->gpr[reg] = bswap32(ldl(get_addr(addr)));
         else
-            env->gpr[reg] = ldfun(get_addr(addr));
+            env->gpr[reg] = ldl(get_addr(addr));
     }
 }
 
 void helper_stmw (target_ulong addr, uint32_t reg)
 {
-#ifdef CONFIG_USER_ONLY
-#define stfun stl_raw
-#else
-    void (*stfun)(target_ulong, int);
-
-    switch (env->mmu_idx) {
-    default:
-    case 0: stfun = stl_user;
-        break;
-    case 1: stfun = stl_kernel;
-        break;
-    case 2: stfun = stl_hypv;
-        break;
-    }
-#endif
     for (; reg < 32; reg++, addr += 4) {
         if (msr_le)
-            stfun(get_addr(addr), bswap32((uint32_t)env->gpr[reg]));
+            stl(get_addr(addr), bswap32((uint32_t)env->gpr[reg]));
         else
-            stfun(get_addr(addr), (uint32_t)env->gpr[reg]);
+            stl(get_addr(addr), (uint32_t)env->gpr[reg]);
     }
 }
 
 void helper_lsw(target_ulong addr, uint32_t nb, uint32_t reg)
 {
     int sh;
-#ifdef CONFIG_USER_ONLY
-#define ldfunl ldl_raw
-#define ldfunb ldub_raw
-#else
-    int (*ldfunl)(target_ulong);
-    int (*ldfunb)(target_ulong);
-
-    switch (env->mmu_idx) {
-    default:
-    case 0:
-        ldfunl = ldl_user;
-        ldfunb = ldub_user;
-        break;
-    case 1:
-        ldfunl = ldl_kernel;
-        ldfunb = ldub_kernel;
-        break;
-    case 2:
-        ldfunl = ldl_hypv;
-        ldfunb = ldub_hypv;
-        break;
-    }
-#endif
     for (; nb > 3; nb -= 4, addr += 4) {
-        env->gpr[reg] = ldfunl(get_addr(addr));
+        env->gpr[reg] = ldl(get_addr(addr));
         reg = (reg + 1) % 32;
     }
     if (unlikely(nb > 0)) {
         env->gpr[reg] = 0;
         for (sh = 24; nb > 0; nb--, addr++, sh -= 8) {
-            env->gpr[reg] |= ldfunb(get_addr(addr)) << sh;
+            env->gpr[reg] |= ldub(get_addr(addr)) << sh;
         }
     }
 }
@@ -214,37 +161,13 @@ void helper_lswx(target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
 void helper_stsw(target_ulong addr, uint32_t nb, uint32_t reg)
 {
     int sh;
-#ifdef CONFIG_USER_ONLY
-#define stfunl stl_raw
-#define stfunb stb_raw
-#else
-    void (*stfunl)(target_ulong, int);
-    void (*stfunb)(target_ulong, int);
-
-    switch (env->mmu_idx) {
-    default:
-    case 0:
-        stfunl = stl_user;
-        stfunb = stb_user;
-        break;
-    case 1:
-        stfunl = stl_kernel;
-        stfunb = stb_kernel;
-        break;
-    case 2:
-        stfunl = stl_hypv;
-        stfunb = stb_hypv;
-        break;
-    }
-#endif
-
     for (; nb > 3; nb -= 4, addr += 4) {
-        stfunl(get_addr(addr), env->gpr[reg]);
+        stl(get_addr(addr), env->gpr[reg]);
         reg = (reg + 1) % 32;
     }
     if (unlikely(nb > 0)) {
         for (sh = 24; nb > 0; nb--, addr++, sh -= 8)
-            stfunb(get_addr(addr), (env->gpr[reg] >> sh) & 0xFF);
+            stb(get_addr(addr), (env->gpr[reg] >> sh) & 0xFF);
     }
 }
 
@@ -252,24 +175,9 @@ static void do_dcbz(target_ulong addr, int dcache_line_size)
 {
     target_long mask = get_addr(~(dcache_line_size - 1));
     int i;
-#ifdef CONFIG_USER_ONLY
-#define stfun stl_raw
-#else
-    void (*stfun)(target_ulong, int);
-
-    switch (env->mmu_idx) {
-    default:
-    case 0: stfun = stl_user;
-        break;
-    case 1: stfun = stl_kernel;
-        break;
-    case 2: stfun = stl_hypv;
-        break;
-    }
-#endif
     addr &= mask;
     for (i = 0 ; i < dcache_line_size ; i += 4) {
-        stfun(addr + i , 0);
+        stl(addr + i , 0);
     }
     if ((env->reserve & mask) == addr)
         env->reserve = (target_ulong)-1ULL;
@@ -298,19 +206,7 @@ void helper_icbi(target_ulong addr)
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
      */
-#ifdef CONFIG_USER_ONLY
-    tmp = ldl_raw(addr);
-#else
-    switch (env->mmu_idx) {
-    default:
-    case 0: tmp = ldl_user(addr);
-        break;
-    case 1: tmp = ldl_kernel(addr);
-        break;
-    case 2: tmp = ldl_hypv(addr);
-        break;
-    }
-#endif
+    tmp = ldl(addr);
     tb_invalidate_page_range(addr, addr + env->icache_line_size);
 }
 
@@ -318,24 +214,9 @@ void helper_icbi(target_ulong addr)
 target_ulong helper_lscbx (target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
 {
     int i, c, d;
-#ifdef CONFIG_USER_ONLY
-#define ldfun ldub_raw
-#else
-    int (*ldfun)(target_ulong);
-
-    switch (env->mmu_idx) {
-    default:
-    case 0: ldfun = ldub_user;
-        break;
-    case 1: ldfun = ldub_kernel;
-        break;
-    case 2: ldfun = ldub_hypv;
-        break;
-    }
-#endif
     d = 24;
     for (i = 0; i < xer_bc; i++) {
-        c = ldfun((uint32_t)addr++);
+        c = ldub((uint32_t)addr++);
         /* ra (if not 0) and rb are never modified */
         if (likely(reg != rb && (ra == 0 || reg != ra))) {
             env->gpr[reg] = (env->gpr[reg] & ~(0xFF << d)) | (c << d);
