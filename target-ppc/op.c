@@ -684,15 +684,6 @@ void OPPROTO op_POWER_rfsvc (void)
 }
 #endif
 
-/* PowerPC 602 specific instruction */
-#if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_602_mfrom (void)
-{
-    do_op_602_mfrom();
-    RETURN();
-}
-#endif
-
 /* PowerPC 4xx specific micro-ops */
 void OPPROTO op_load_dcr (void)
 {

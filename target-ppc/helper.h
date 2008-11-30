@@ -144,6 +144,8 @@ DEF_HELPER_1(load_6xx_tlbd, void, tl)
 DEF_HELPER_1(load_6xx_tlbi, void, tl)
 DEF_HELPER_1(load_74xx_tlbd, void, tl)
 DEF_HELPER_1(load_74xx_tlbi, void, tl)
+
+DEF_HELPER_1(602_mfrom, tl, tl)
 #endif
 
 #include "def-helper.h"

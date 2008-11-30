@@ -1645,19 +1645,19 @@ void do_store_hid0_601 (void)
 /* mfrom is the most crazy instruction ever seen, imho ! */
 /* Real implementation uses a ROM table. Do the same */
 #define USE_MFROM_ROM_TABLE
-void do_op_602_mfrom (void)
+target_ulong helper_602_mfrom (target_ulong arg)
 {
-    if (likely(T0 < 602)) {
+    if (likely(arg < 602)) {
 #if defined(USE_MFROM_ROM_TABLE)
 #include "mfrom_table.c"
-        T0 = mfrom_ROM_table[T0];
+        return mfrom_ROM_table[T0];
 #else
         double d;
         /* Extremly decomposed:
-         *                    -T0 / 256
-         * T0 = 256 * log10(10          + 1.0) + 0.5
+         *                      -arg / 256
+         * return 256 * log10(10           + 1.0) + 0.5
          */
-        d = T0;
+        d = arg;
         d = float64_div(d, 256, &env->fp_status);
         d = float64_chs(d);
         d = exp10(d); // XXX: use float emulation function
@@ -1665,10 +1665,10 @@ void do_op_602_mfrom (void)
         d = log10(d); // XXX: use float emulation function
         d = float64_mul(d, 256, &env->fp_status);
         d = float64_add(d, 0.5, &env->fp_status);
-        T0 = float64_round_to_int(d, &env->fp_status);
+        return float64_round_to_int(d, &env->fp_status);
 #endif
     } else {
-        T0 = 0;
+        return 0;
     }
 }
 
