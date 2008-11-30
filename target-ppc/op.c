@@ -378,34 +378,6 @@ void OPPROTO op_slbie_64 (void)
 #endif
 #endif
 
-#if !defined(CONFIG_USER_ONLY)
-/* PowerPC 602/603/755 software TLB load instructions */
-void OPPROTO op_6xx_tlbld (void)
-{
-    do_load_6xx_tlb(0);
-    RETURN();
-}
-
-void OPPROTO op_6xx_tlbli (void)
-{
-    do_load_6xx_tlb(1);
-    RETURN();
-}
-
-/* PowerPC 74xx software TLB load instructions */
-void OPPROTO op_74xx_tlbld (void)
-{
-    do_load_74xx_tlb(0);
-    RETURN();
-}
-
-void OPPROTO op_74xx_tlbli (void)
-{
-    do_load_74xx_tlb(1);
-    RETURN();
-}
-#endif
-
 /* 601 specific */
 void OPPROTO op_load_601_rtcl (void)
 {

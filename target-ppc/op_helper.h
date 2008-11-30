@@ -67,8 +67,6 @@ void do_rfi (void);
 void do_rfid (void);
 void do_hrfid (void);
 #endif
-void do_load_6xx_tlb (int is_code);
-void do_load_74xx_tlb (int is_code);
 #endif
 
 /* POWER / PowerPC 601 specific helpers */

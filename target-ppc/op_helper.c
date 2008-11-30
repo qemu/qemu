@@ -2460,7 +2460,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 /* Software driven TLBs management */
 /* PowerPC 602/603 software TLB load instructions helpers */
-void do_load_6xx_tlb (int is_code)
+static void helper_load_6xx_tlb (target_ulong new_EPN, int is_code)
 {
     target_ulong RPN, CMP, EPN;
     int way;
@@ -2482,11 +2482,22 @@ void do_load_6xx_tlb (int is_code)
     }
 #endif
     /* Store this TLB */
-    ppc6xx_tlb_store(env, (uint32_t)(T0 & TARGET_PAGE_MASK),
+    ppc6xx_tlb_store(env, (uint32_t)(new_EPN & TARGET_PAGE_MASK),
                      way, is_code, CMP, RPN);
 }
 
-void do_load_74xx_tlb (int is_code)
+void helper_load_6xx_tlbd (target_ulong EPN)
+{
+    helper_load_6xx_tlb(EPN, 0);
+}
+
+void helper_load_6xx_tlbi (target_ulong EPN)
+{
+    helper_load_6xx_tlb(EPN, 1);
+}
+
+/* PowerPC 74xx software TLB load instructions helpers */
+static void helper_load_74xx_tlb (target_ulong new_EPN, int is_code)
 {
     target_ulong RPN, CMP, EPN;
     int way;
@@ -2503,8 +2514,18 @@ void do_load_74xx_tlb (int is_code)
     }
 #endif
     /* Store this TLB */
-    ppc6xx_tlb_store(env, (uint32_t)(T0 & TARGET_PAGE_MASK),
+    ppc6xx_tlb_store(env, (uint32_t)(new_EPN & TARGET_PAGE_MASK),
                      way, is_code, CMP, RPN);
+}
+
+void helper_load_74xx_tlbd (target_ulong EPN)
+{
+    helper_load_74xx_tlb(EPN, 0);
+}
+
+void helper_load_74xx_tlbi (target_ulong EPN)
+{
+    helper_load_74xx_tlb(EPN, 1);
 }
 
 static always_inline target_ulong booke_tlb_to_page_size (int size)

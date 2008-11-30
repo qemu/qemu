@@ -4965,8 +4965,7 @@ GEN_HANDLER2(tlbld_6xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_6xx_tlbld();
+    gen_helper_load_6xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -4980,8 +4979,7 @@ GEN_HANDLER2(tlbli_6xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_6xx_tlbli();
+    gen_helper_load_6xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -4996,8 +4994,7 @@ GEN_HANDLER2(tlbld_74xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_74xx_tlbld();
+    gen_helper_load_74xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5011,8 +5008,7 @@ GEN_HANDLER2(tlbli_74xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_74xx_tlbli();
+    gen_helper_load_74xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 

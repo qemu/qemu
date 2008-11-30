@@ -139,4 +139,11 @@ DEF_HELPER_2(efdcmplt, i32, i64, i64)
 DEF_HELPER_2(efdcmpgt, i32, i64, i64)
 DEF_HELPER_2(efdcmpeq, i32, i64, i64)
 
+#if !defined(CONFIG_USER_ONLY)
+DEF_HELPER_1(load_6xx_tlbd, void, tl)
+DEF_HELPER_1(load_6xx_tlbi, void, tl)
+DEF_HELPER_1(load_74xx_tlbd, void, tl)
+DEF_HELPER_1(load_74xx_tlbi, void, tl)
+#endif
+
 #include "def-helper.h"
