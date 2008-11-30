@@ -3143,7 +3143,7 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
         }
         break;
     case 22:
-        /* ignored */
+        tcg_gen_movi_tl(t0, 0); /* unimplemented */
         rn = "'Diagnostic"; /* implementation dependent */
         break;
     case 23:
@@ -3223,12 +3223,13 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
         }
         break;
     case 26:
-       rn = "ECC";
-       break;
+        tcg_gen_movi_tl(t0, 0); /* unimplemented */
+        rn = "ECC";
+        break;
     case 27:
         switch (sel) {
-        /* ignored */
         case 0 ... 3:
+            tcg_gen_movi_tl(t0, 0); /* unimplemented */
             rn = "CacheErr";
             break;
         default:
@@ -4329,7 +4330,7 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
         }
         break;
     case 22:
-        /* ignored */
+        tcg_gen_movi_tl(t0, 0); /* unimplemented */
         rn = "'Diagnostic"; /* implementation dependent */
         break;
     case 23:
@@ -4408,12 +4409,14 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
         }
         break;
     case 26:
-       rn = "ECC";
-       break;
+        tcg_gen_movi_tl(t0, 0); /* unimplemented */
+        rn = "ECC";
+        break;
     case 27:
         switch (sel) {
         /* ignored */
         case 0 ... 3:
+            tcg_gen_movi_tl(t0, 0); /* unimplemented */
             rn = "CacheErr";
             break;
         default:
@@ -7975,7 +7978,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                 case OPC_EMT:
                     check_insn(env, ctx, ASE_MT);
                     gen_helper_emt(t0, t0);
-                     break;
+                    break;
                 case OPC_DVPE:
                     check_insn(env, ctx, ASE_MT);
                     gen_helper_dvpe(t0, t0);
