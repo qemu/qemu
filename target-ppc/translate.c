@@ -66,6 +66,7 @@ static TCGv cpu_nip;
 static TCGv cpu_ctr;
 static TCGv cpu_lr;
 static TCGv cpu_xer;
+static TCGv cpu_reserve;
 static TCGv_i32 cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
@@ -160,6 +161,9 @@ void ppc_translate_init(void)
 
     cpu_xer = tcg_global_mem_new(TCG_AREG0,
                                  offsetof(CPUState, xer), "xer");
+
+    cpu_reserve = tcg_global_mem_new(TCG_AREG0,
+                                     offsetof(CPUState, reserve), "reserve");
 
     cpu_fpscr = tcg_global_mem_new_i32(TCG_AREG0,
                                        offsetof(CPUState, fpscr), "fpscr");
@@ -2468,6 +2472,24 @@ static always_inline void gen_addr_register (TCGv EA,
         tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
 }
 
+static always_inline void gen_check_align (DisasContext *ctx, TCGv EA, int mask)
+{
+    int l1 = gen_new_label();
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1, t2;
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    tcg_gen_andi_tl(t0, EA, mask);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
+    t1 = tcg_const_i32(POWERPC_EXCP_ALIGN);
+    t2 = tcg_const_i32(0);
+    gen_helper_raise_exception_err(t1, t2);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    gen_set_label(l1);
+    tcg_temp_free(t0);
+}
+
 #if defined(TARGET_PPC64)
 #define _GEN_MEM_FUNCS(name, mode)                                            \
     &gen_op_##name##_##mode,                                                  \
@@ -3220,67 +3242,79 @@ GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM)
     GEN_STOP(ctx);
 }
 
-#define op_lwarx() (*gen_op_lwarx[ctx->mem_idx])()
-#define op_stwcx() (*gen_op_stwcx[ctx->mem_idx])()
-static GenOpFunc *gen_op_lwarx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(lwarx),
-};
-static GenOpFunc *gen_op_stwcx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(stwcx),
-};
-
 /* lwarx */
 GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
+    TCGv t0 = tcg_temp_local_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_lwarx();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[1]);
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x03);
+#if defined(TARGET_PPC64)
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
+#endif
+    gen_qemu_ld32u(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx);
+    tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_temp_free(t0);
 }
 
 /* stwcx. */
 GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
+    int l1 = gen_new_label();
+    TCGv t0 = tcg_temp_local_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    op_stwcx();
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x03);
+#if defined(TARGET_PPC64)
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
+#endif
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
+    tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
+    tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
+    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
+    gen_qemu_st32(cpu_gpr[rS(ctx->opcode)], t0, ctx->mem_idx);
+    gen_set_label(l1);
+    tcg_gen_movi_tl(cpu_reserve, -1);
+    tcg_temp_free(t0);
 }
 
 #if defined(TARGET_PPC64)
-#define op_ldarx() (*gen_op_ldarx[ctx->mem_idx])()
-#define op_stdcx() (*gen_op_stdcx[ctx->mem_idx])()
-static GenOpFunc *gen_op_ldarx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(ldarx),
-};
-static GenOpFunc *gen_op_stdcx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(stdcx),
-};
-
 /* ldarx */
 GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
+    TCGv t0 = tcg_temp_local_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_ldarx();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[1]);
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x07);
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
+    gen_qemu_ld64(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx);
+    tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_temp_free(t0);
 }
 
 /* stdcx. */
 GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
+    int l1 = gen_new_label();
+    TCGv t0 = tcg_temp_local_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    op_stdcx();
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x07);
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
+    tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
+    tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
+    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
+    gen_qemu_st64(cpu_gpr[rS(ctx->opcode)], t0, ctx->mem_idx);
+    gen_set_label(l1);
+    tcg_gen_movi_tl(cpu_reserve, -1);
+    tcg_temp_free(t0);
 }
 #endif /* defined(TARGET_PPC64) */
 
