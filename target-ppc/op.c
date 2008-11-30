@@ -491,12 +491,6 @@ void OPPROTO op_POWER_dozo (void)
     RETURN();
 }
 
-void OPPROTO op_load_xer_cmp (void)
-{
-    T2 = xer_cmp;
-    RETURN();
-}
-
 void OPPROTO op_POWER_maskg (void)
 {
     do_POWER_maskg();
