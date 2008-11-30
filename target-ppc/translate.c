@@ -3310,8 +3310,10 @@ GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC)
 /* wait */
 GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT)
 {
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    tcg_gen_st_i32(t0, cpu_env, offsetof(CPUState, halted));
+    tcg_temp_free_i32(t0);
     /* Stop translation, as the CPU is supposed to sleep from now */
-    gen_op_wait();
     GEN_EXCP(ctx, EXCP_HLT, 1);
 }
 

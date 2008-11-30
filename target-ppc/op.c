@@ -290,12 +290,6 @@ void OPPROTO op_check_reservation_64 (void)
 }
 #endif
 
-void OPPROTO op_wait (void)
-{
-    env->halted = 1;
-    RETURN();
-}
-
 /* Return from interrupt */
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_rfi (void)

@@ -85,11 +85,6 @@ void do_POWER_rfsvc (void);
 void do_store_hid0_601 (void);
 #endif
 
-/* PowerPC 602 specific helper */
-#if !defined(CONFIG_USER_ONLY)
-void do_op_602_mfrom (void);
-#endif
-
 /* PowerPC 440 specific helpers */
 #if !defined(CONFIG_USER_ONLY)
 void do_440_tlbre (int word);
