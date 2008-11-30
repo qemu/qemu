@@ -29,7 +29,6 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 void do_interrupt (CPUState *env);
 void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra);
 
-void cpu_loop_exit(void);
 void do_raise_exception_err (uint32_t exception, int error_code);
 void do_raise_exception (uint32_t exception);
 

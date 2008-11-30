@@ -82,6 +82,7 @@ TranslationBlock *tb_gen_code(CPUState *env,
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
 void cpu_exec_init(CPUState *env);
+void cpu_loop_exit(void);
 int page_unprotect(target_ulong address, unsigned long pc, void *puc);
 void tb_invalidate_phys_page_range(target_phys_addr_t start, target_phys_addr_t end,
                                    int is_cpu_write_access);

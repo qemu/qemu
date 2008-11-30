@@ -72,7 +72,6 @@ void raise_interrupt(int intno, int is_int, int error_code,
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
 void do_smm_enter(void);
-void __hidden cpu_loop_exit(void);
 
 /* n must be a constant to be efficient */
 static inline target_long lshift(target_long x, int n)

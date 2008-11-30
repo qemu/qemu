@@ -45,8 +45,6 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 void cpu_cris_flush_flags(CPUCRISState *env, int cc_op);
 void helper_movec(CPUCRISState *env, int reg, uint32_t val);
 
-void cpu_loop_exit(void);
-
 static inline int cpu_halted(CPUState *env) {
 	if (!env->halted)
 		return 0;

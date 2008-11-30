@@ -65,6 +65,4 @@ int find_utlb_entry(CPUState * env, target_ulong address, int use_asid);
 
 void do_interrupt(CPUState * env);
 
-void cpu_loop_exit(void);
-
 #endif				/* _EXEC_SH4_H */
