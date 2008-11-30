@@ -170,4 +170,6 @@ DEF_HELPER_1(load_74xx_tlbi, void, tl)
 DEF_HELPER_1(602_mfrom, tl, tl)
 #endif
 
+DEF_HELPER_3(dlmzb, tl, tl, tl, i32)
+
 #include "def-helper.h"

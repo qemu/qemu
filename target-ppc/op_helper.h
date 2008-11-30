@@ -63,9 +63,6 @@ void do_4xx_tlbwe_lo (void);
 void do_4xx_tlbwe_hi (void);
 #endif
 
-/* PowerPC 440 specific helpers */
-void do_440_dlmzb (void);
-
 /* PowerPC 403 specific helpers */
 #if !defined(CONFIG_USER_ONLY)
 void do_load_403_pb (int num);

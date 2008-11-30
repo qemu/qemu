@@ -5747,17 +5747,10 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE)
 /* dlmzb */
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC)
 {
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_440_dlmzb();
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_T[0]);
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~0x7F);
-    tcg_gen_or_tl(cpu_xer, cpu_xer, cpu_T[0]);
-    if (Rc(ctx->opcode)) {
-        gen_op_440_dlmzb_update_Rc();
-        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_T[0]);
-        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 0xf);
-    }
+    TCGv_i32 t0 = tcg_const_i32(Rc(ctx->opcode));
+    gen_helper_dlmzb(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)],
+                     cpu_gpr[rB(ctx->opcode)], t0);
+    tcg_temp_free_i32(t0);
 }
 
 /* mbar replaces eieio on 440 */

@@ -1999,24 +1999,39 @@ void do_store_403_pb (int num)
 #endif
 
 /* 440 specific */
-void do_440_dlmzb (void)
+target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_Rc)
 {
     target_ulong mask;
     int i;
 
     i = 1;
     for (mask = 0xFF000000; mask != 0; mask = mask >> 8) {
-        if ((T0 & mask) == 0)
+        if ((high & mask) == 0) {
+            if (update_Rc) {
+                env->crf[0] = 0x4;
+            }
             goto done;
+        }
         i++;
     }
     for (mask = 0xFF000000; mask != 0; mask = mask >> 8) {
-        if ((T1 & mask) == 0)
-            break;
+        if ((low & mask) == 0) {
+            if (update_Rc) {
+                env->crf[0] = 0x8;
+            }
+            goto done;
+        }
         i++;
     }
+    if (update_Rc) {
+        env->crf[0] = 0x2;
+    }
  done:
-    T0 = i;
+    env->xer = (env->xer & ~0x7F) | i;
+    if (update_Rc) {
+        env->crf[0] |= xer_so;
+    }
+    return i;
 }
 
 /*****************************************************************************/

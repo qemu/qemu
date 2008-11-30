@@ -706,23 +706,6 @@ void OPPROTO op_4xx_tlbwe_hi (void)
 
 /* SPR micro-ops */
 /* 440 specific */
-void OPPROTO op_440_dlmzb (void)
-{
-    do_440_dlmzb();
-    RETURN();
-}
-
-void OPPROTO op_440_dlmzb_update_Rc (void)
-{
-    if (T0 == 8)
-        T0 = 0x2;
-    else if (T0 < 4)
-        T0 = 0x4;
-    else
-        T0 = 0x8;
-    RETURN();
-}
-
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_store_pir (void)
 {
