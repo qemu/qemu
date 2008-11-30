@@ -452,7 +452,6 @@ int send_all(int fd, const void *buf, int len1)
     while (len > 0) {
         ret = send(fd, buf, len, 0);
         if (ret < 0) {
-            int errno;
             errno = WSAGetLastError();
             if (errno != WSAEWOULDBLOCK) {
                 return -1;
