@@ -314,21 +314,6 @@ void OPPROTO glue(op_stdcx_le_64, MEMSUFFIX) (void)
 }
 #endif
 
-/* Instruction cache block invalidate */
-void OPPROTO glue(op_icbi, MEMSUFFIX) (void)
-{
-    glue(do_icbi, MEMSUFFIX)();
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO glue(op_icbi_64, MEMSUFFIX) (void)
-{
-    glue(do_icbi_64, MEMSUFFIX)();
-    RETURN();
-}
-#endif
-
 /* External access */
 void OPPROTO glue(op_eciwx, MEMSUFFIX) (void)
 {

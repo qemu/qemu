@@ -210,6 +210,32 @@ void helper_dcbz_970(target_ulong addr)
         do_dcbz(addr, env->dcache_line_size);
 }
 
+void helper_icbi(target_ulong addr)
+{
+    uint32_t tmp;
+
+    addr = get_addr(addr & ~(env->dcache_line_size - 1));
+    /* Invalidate one cache line :
+     * PowerPC specification says this is to be treated like a load
+     * (not a fetch) by the MMU. To be sure it will be so,
+     * do the load "by hand".
+     */
+#ifdef CONFIG_USER_ONLY
+    tmp = ldl_raw(addr);
+#else
+    switch (env->mmu_idx) {
+    default:
+    case 0: tmp = ldl_user(addr);
+        break;
+    case 1: tmp = ldl_kernel(addr);
+        break;
+    case 2: tmp = ldl_hypv(addr);
+        break;
+    }
+#endif
+    tb_invalidate_page_range(addr, addr + env->icache_line_size);
+}
+
 /*****************************************************************************/
 /* Fixed point operations helpers */
 #if defined(TARGET_PPC64)

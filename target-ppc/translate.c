@@ -4165,25 +4165,14 @@ GEN_HANDLER2(dcbz_970, "dcbz", 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT)
 }
 
 /* icbi */
-#define op_icbi() (*gen_op_icbi[ctx->mem_idx])()
-#define gen_op_icbi_le_raw       gen_op_icbi_raw
-#define gen_op_icbi_le_user      gen_op_icbi_user
-#define gen_op_icbi_le_kernel    gen_op_icbi_kernel
-#define gen_op_icbi_le_hypv      gen_op_icbi_hypv
-#define gen_op_icbi_le_64_raw    gen_op_icbi_64_raw
-#define gen_op_icbi_le_64_user   gen_op_icbi_64_user
-#define gen_op_icbi_le_64_kernel gen_op_icbi_64_kernel
-#define gen_op_icbi_le_64_hypv   gen_op_icbi_64_hypv
-static GenOpFunc *gen_op_icbi[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(icbi),
-};
-
 GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE_ICBI)
 {
+    TCGv t0 = tcg_temp_new();
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_icbi();
+    gen_addr_reg_index(t0, ctx);
+    gen_helper_icbi(t0);
+    tcg_temp_free(t0);
 }
 
 /* Optional: */
