@@ -40,9 +40,10 @@ static void m5208_timer_update(m5208_timer_state *s)
         qemu_irq_lower(s->irq);
 }
 
-static void m5208_timer_write(m5208_timer_state *s, int offset,
+static void m5208_timer_write(void *opaque, target_phys_addr_t offset,
                               uint32_t value)
 {
+    m5208_timer_state *s = (m5208_timer_state *)opaque;
     int prescale;
     int limit;
     switch (offset) {
@@ -88,8 +89,9 @@ static void m5208_timer_write(m5208_timer_state *s, int offset,
     case 4:
         break;
     default:
-        /* Should never happen.  */
-        abort();
+        cpu_abort(cpu_single_env, "m5208_timer_write: Bad offset 0x%x\n",
+                  (int)offset);
+        break;
     }
     m5208_timer_update(s);
 }
@@ -101,31 +103,39 @@ static void m5208_timer_trigger(void *opaque)
     m5208_timer_update(s);
 }
 
-typedef struct {
-    m5208_timer_state timer[2];
-} m5208_sys_state;
+static uint32_t m5208_timer_read(void *opaque, target_phys_addr_t addr)
+{
+    m5208_timer_state *s = (m5208_timer_state *)opaque;
+    switch (addr) {
+    case 0:
+        return s->pcsr;
+    case 2:
+        return s->pmr;
+    case 4:
+        return ptimer_get_count(s->timer);
+    default:
+        cpu_abort(cpu_single_env, "m5208_timer_read: Bad offset 0x%x\n",
+                  (int)addr);
+        return 0;
+    }
+}
+
+static CPUReadMemoryFunc *m5208_timer_readfn[] = {
+   m5208_timer_read,
+   m5208_timer_read,
+   m5208_timer_read
+};
+
+static CPUWriteMemoryFunc *m5208_timer_writefn[] = {
+   m5208_timer_write,
+   m5208_timer_write,
+   m5208_timer_write
+};
 
 static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
 {
-    m5208_sys_state *s = (m5208_sys_state *)opaque;
     switch (addr) {
-    /* PIT0 */
-    case 0xfc080000:
-        return s->timer[0].pcsr;
-    case 0xfc080002:
-        return s->timer[0].pmr;
-    case 0xfc080004:
-        return ptimer_get_count(s->timer[0].timer);
-    /* PIT1 */
-    case 0xfc084000:
-        return s->timer[1].pcsr;
-    case 0xfc084002:
-        return s->timer[1].pmr;
-    case 0xfc084004:
-        return ptimer_get_count(s->timer[1].timer);
-
-    /* SDRAM Controller.  */
-    case 0xfc0a8110: /* SDCS0 */
+    case 0x110: /* SDCS0 */
         {
             int n;
             for (n = 0; n < 32; n++) {
@@ -134,7 +144,7 @@ static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
             }
             return (n - 1)  | 0x40000000;
         }
-    case 0xfc0a8114: /* SDCS1 */
+    case 0x114: /* SDCS1 */
         return 0;
 
     default:
@@ -147,25 +157,8 @@ static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
 static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
                             uint32_t value)
 {
-    m5208_sys_state *s = (m5208_sys_state *)opaque;
-    switch (addr) {
-    /* PIT0 */
-    case 0xfc080000:
-    case 0xfc080002:
-    case 0xfc080004:
-        m5208_timer_write(&s->timer[0], addr & 0xf, value);
-        return;
-    /* PIT1 */
-    case 0xfc084000:
-    case 0xfc084002:
-    case 0xfc084004:
-        m5208_timer_write(&s->timer[1], addr & 0xf, value);
-        return;
-    default:
-        cpu_abort(cpu_single_env, "m5208_sys_write: Bad offset 0x%x\n",
-                  (int)addr);
-        break;
-    }
+    cpu_abort(cpu_single_env, "m5208_sys_write: Bad offset 0x%x\n",
+              (int)addr);
 }
 
 static CPUReadMemoryFunc *m5208_sys_readfn[] = {
@@ -183,22 +176,24 @@ static CPUWriteMemoryFunc *m5208_sys_writefn[] = {
 static void mcf5208_sys_init(qemu_irq *pic)
 {
     int iomemtype;
-    m5208_sys_state *s;
+    m5208_timer_state *s;
     QEMUBH *bh;
     int i;
 
-    s = (m5208_sys_state *)qemu_mallocz(sizeof(m5208_sys_state));
     iomemtype = cpu_register_io_memory(0, m5208_sys_readfn,
-                                       m5208_sys_writefn, s);
+                                       m5208_sys_writefn, NULL);
     /* SDRAMC.  */
     cpu_register_physical_memory(0xfc0a8000, 0x00004000, iomemtype);
     /* Timers.  */
     for (i = 0; i < 2; i++) {
-        bh = qemu_bh_new(m5208_timer_trigger, &s->timer[i]);
-        s->timer[i].timer = ptimer_init(bh);
+        s = (m5208_timer_state *)qemu_mallocz(sizeof(m5208_timer_state));
+        bh = qemu_bh_new(m5208_timer_trigger, s);
+        s->timer = ptimer_init(bh);
+        iomemtype = cpu_register_io_memory(0, m5208_timer_readfn,
+                                           m5208_timer_writefn, s);
         cpu_register_physical_memory(0xfc080000 + 0x4000 * i, 0x00004000,
                                      iomemtype);
-        s->timer[i].irq = pic[4 + i];
+        s->irq = pic[4 + i];
     }
 }
 

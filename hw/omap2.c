@@ -36,7 +36,6 @@ struct omap_gp_timer_s {
     qemu_irq in;
     qemu_irq out;
     omap_clk clk;
-    target_phys_addr_t base;
     QEMUTimer *timer;
     QEMUTimer *match;
     struct omap_target_agent_s *ta;
@@ -269,9 +268,8 @@ static void omap_gp_timer_reset(struct omap_gp_timer_s *s)
 static uint32_t omap_gp_timer_readw(void *opaque, target_phys_addr_t addr)
 {
     struct omap_gp_timer_s *s = (struct omap_gp_timer_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* TIDR */
         return 0x21;
 
@@ -357,9 +355,8 @@ static void omap_gp_timer_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_gp_timer_s *s = (struct omap_gp_timer_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* TIDR */
     case 0x14:	/* TISTAT */
     case 0x34:	/* TWPS */
@@ -489,7 +486,7 @@ struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
 
     iomemtype = l4_register_io_memory(0, omap_gp_timer_readfn,
                     omap_gp_timer_writefn, s);
-    s->base = omap_l4_attach(ta, 0, iomemtype);
+    omap_l4_attach(ta, 0, iomemtype);
 
     return s;
 }
@@ -507,9 +504,8 @@ static void omap_synctimer_reset(struct omap_synctimer_s *s)
 static uint32_t omap_synctimer_readw(void *opaque, target_phys_addr_t addr)
 {
     struct omap_synctimer_s *s = (struct omap_synctimer_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* 32KSYNCNT_REV */
         return 0x21;
 
@@ -559,13 +555,12 @@ void omap_synctimer_init(struct omap_target_agent_s *ta,
     struct omap_synctimer_s *s = &mpu->synctimer;
 
     omap_synctimer_reset(s);
-    s->base = omap_l4_attach(ta, 0, l4_register_io_memory(0,
-                            omap_synctimer_readfn, omap_synctimer_writefn, s));
+    omap_l4_attach(ta, 0, l4_register_io_memory(0,
+                      omap_synctimer_readfn, omap_synctimer_writefn, s));
 }
 
 /* General-Purpose Interface of OMAP2 */
 struct omap2_gpio_s {
-    target_phys_addr_t base;
     qemu_irq irq[2];
     qemu_irq wkup;
     qemu_irq *in;
@@ -668,9 +663,8 @@ static void omap_gpio_module_reset(struct omap2_gpio_s *s)
 static uint32_t omap_gpio_module_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap2_gpio_s *s = (struct omap2_gpio_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* GPIO_REVISION */
         return 0x18;
 
@@ -742,11 +736,10 @@ static void omap_gpio_module_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap2_gpio_s *s = (struct omap2_gpio_s *) opaque;
-    int offset = addr - s->base;
     uint32_t diff;
     int ln;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* GPIO_REVISION */
     case 0x14:	/* GPIO_SYSSTATUS */
     case 0x38:	/* GPIO_DATAIN */
@@ -889,12 +882,10 @@ static uint32_t omap_gpio_module_readp(void *opaque, target_phys_addr_t addr)
 static void omap_gpio_module_writep(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct omap2_gpio_s *s = (struct omap2_gpio_s *) opaque;
-    int offset = addr - s->base;
     uint32_t cur = 0;
     uint32_t mask = 0xffff;
 
-    switch (offset & ~3) {
+    switch (addr & ~3) {
     case 0x00:	/* GPIO_REVISION */
     case 0x14:	/* GPIO_SYSSTATUS */
     case 0x38:	/* GPIO_DATAIN */
@@ -964,14 +955,13 @@ static void omap_gpio_module_init(struct omap2_gpio_s *s,
 
     iomemtype = l4_register_io_memory(0, omap_gpio_module_readfn,
                     omap_gpio_module_writefn, s);
-    s->base = omap_l4_attach(ta, region, iomemtype);
+    omap_l4_attach(ta, region, iomemtype);
 }
 
 struct omap_gpif_s {
     struct omap2_gpio_s module[5];
     int modules;
 
-    target_phys_addr_t topbase;
     int autoidle;
     int gpo;
 };
@@ -990,9 +980,8 @@ static void omap_gpif_reset(struct omap_gpif_s *s)
 static uint32_t omap_gpif_top_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_gpif_s *s = (struct omap_gpif_s *) opaque;
-    int offset = addr - s->topbase;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* IPGENERICOCPSPL_REVISION */
         return 0x18;
 
@@ -1020,9 +1009,8 @@ static void omap_gpif_top_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_gpif_s *s = (struct omap_gpif_s *) opaque;
-    int offset = addr - s->topbase;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* IPGENERICOCPSPL_REVISION */
     case 0x14:	/* IPGENERICOCPSPL_SYSSTATUS */
     case 0x18:	/* IPGENERICOCPSPL_IRQSTATUS */
@@ -1075,7 +1063,7 @@ struct omap_gpif_s *omap2_gpio_init(struct omap_target_agent_s *ta,
 
     iomemtype = l4_register_io_memory(0, omap_gpif_top_readfn,
                     omap_gpif_top_writefn, s);
-    s->topbase = omap_l4_attach(ta, 1, iomemtype);
+    omap_l4_attach(ta, 1, iomemtype);
 
     return s;
 }
@@ -1097,7 +1085,6 @@ void omap2_gpio_out_set(struct omap_gpif_s *s, int line, qemu_irq handler)
 
 /* Multichannel SPI */
 struct omap_mcspi_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     int chnum;
 
@@ -1206,11 +1193,10 @@ static void omap_mcspi_reset(struct omap_mcspi_s *s)
 static uint32_t omap_mcspi_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mcspi_s *s = (struct omap_mcspi_s *) opaque;
-    int offset = addr - s->base;
     int ch = 0;
     uint32_t ret;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* MCSPI_REVISION */
         return 0x91;
 
@@ -1277,10 +1263,9 @@ static void omap_mcspi_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mcspi_s *s = (struct omap_mcspi_s *) opaque;
-    int offset = addr - s->base;
     int ch = 0;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* MCSPI_REVISION */
     case 0x14:	/* MCSPI_SYSSTATUS */
     case 0x30:	/* MCSPI_CHSTAT0 */
@@ -1405,7 +1390,7 @@ struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
 
     iomemtype = l4_register_io_memory(0, omap_mcspi_readfn,
                     omap_mcspi_writefn, s);
-    s->base = omap_l4_attach(ta, 0, iomemtype);
+    omap_l4_attach(ta, 0, iomemtype);
 
     return s;
 }
@@ -1424,7 +1409,6 @@ void omap_mcspi_attach(struct omap_mcspi_s *s,
 
 /* Enhanced Audio Controller (CODEC only) */
 struct omap_eac_s {
-    target_phys_addr_t base;
     qemu_irq irq;
 
     uint16_t sysconfig;
@@ -1719,10 +1703,9 @@ static void omap_eac_reset(struct omap_eac_s *s)
 static uint32_t omap_eac_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_eac_s *s = (struct omap_eac_s *) opaque;
-    int offset = addr - s->base;
     uint32_t ret;
 
-    switch (offset) {
+    switch (addr) {
     case 0x000:	/* CPCFR1 */
         return s->config[0];
     case 0x004:	/* CPCFR2 */
@@ -1832,9 +1815,8 @@ static void omap_eac_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_eac_s *s = (struct omap_eac_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x098:	/* APD1LCR */
     case 0x09c:	/* APD1RCR */
     case 0x0a0:	/* APD2LCR */
@@ -1999,7 +1981,7 @@ struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 
     iomemtype = cpu_register_io_memory(0, omap_eac_readfn,
                     omap_eac_writefn, s);
-    s->base = omap_l4_attach(ta, 0, iomemtype);
+    omap_l4_attach(ta, 0, iomemtype);
 #endif
 
     return s;
@@ -2007,8 +1989,6 @@ struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 
 /* STI/XTI (emulation interface) console - reverse engineered only */
 struct omap_sti_s {
-    target_phys_addr_t base;
-    target_phys_addr_t channel_base;
     qemu_irq irq;
     CharDriverState *chr;
 
@@ -2042,9 +2022,8 @@ static void omap_sti_reset(struct omap_sti_s *s)
 static uint32_t omap_sti_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_sti_s *s = (struct omap_sti_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* STI_REVISION */
         return 0x10;
 
@@ -2080,9 +2059,8 @@ static void omap_sti_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_sti_s *s = (struct omap_sti_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* STI_REVISION */
     case 0x14:	/* STI_SYSSTATUS / STI_RX_STATUS / XTI_SYSSTATUS */
         OMAP_RO_REG(addr);
@@ -2145,8 +2123,7 @@ static void omap_sti_fifo_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_sti_s *s = (struct omap_sti_s *) opaque;
-    int offset = addr - s->channel_base;
-    int ch = offset >> 6;
+    int ch = addr >> 6;
     uint8_t byte = value;
 
     if (ch == STI_TRACE_CONTROL_CHANNEL) {
@@ -2189,12 +2166,11 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 
     iomemtype = l4_register_io_memory(0, omap_sti_readfn,
                     omap_sti_writefn, s);
-    s->base = omap_l4_attach(ta, 0, iomemtype);
+    omap_l4_attach(ta, 0, iomemtype);
 
     iomemtype = cpu_register_io_memory(0, omap_sti_fifo_readfn,
                     omap_sti_fifo_writefn, s);
-    s->channel_base = channel_base;
-    cpu_register_physical_memory(s->channel_base, 0x10000, iomemtype);
+    cpu_register_physical_memory(channel_base, 0x10000, iomemtype);
 
     return s;
 }
@@ -2331,9 +2307,8 @@ struct omap_l4_s *omap_l4_init(target_phys_addr_t base, int ta_num)
 static uint32_t omap_l4ta_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
-    target_phys_addr_t reg = addr - s->base;
 
-    switch (reg) {
+    switch (addr) {
     case 0x00:	/* COMPONENT */
         return s->component;
 
@@ -2352,9 +2327,8 @@ static void omap_l4ta_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
-    target_phys_addr_t reg = addr - s->base;
 
-    switch (reg) {
+    switch (addr) {
     case 0x00:	/* COMPONENT */
     case 0x28:	/* AGENT_STATUS */
         OMAP_RO_REG(addr);
@@ -2656,9 +2630,8 @@ target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
 static uint32_t omap_tap_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    target_phys_addr_t reg = addr - s->tap_base;
 
-    switch (reg) {
+    switch (addr) {
     case 0x204:	/* IDCODE_reg */
         switch (s->mpu_model) {
         case omap2420:
@@ -2739,13 +2712,12 @@ static CPUWriteMemoryFunc *omap_tap_writefn[] = {
 void omap_tap_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu)
 {
-    mpu->tap_base = omap_l4_attach(ta, 0, l4_register_io_memory(0,
+    omap_l4_attach(ta, 0, l4_register_io_memory(0,
                             omap_tap_readfn, omap_tap_writefn, mpu));
 }
 
 /* Power, Reset, and Clock Management */
 struct omap_prcm_s {
-    target_phys_addr_t base;
     qemu_irq irq[3];
     struct omap_mpu_state_s *mpu;
 
@@ -2789,10 +2761,9 @@ static void omap_prcm_int_update(struct omap_prcm_s *s, int dom)
 static uint32_t omap_prcm_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
-    int offset = addr - s->base;
     uint32_t ret;
 
-    switch (offset) {
+    switch (addr) {
     case 0x000:	/* PRCM_REVISION */
         return 0x10;
 
@@ -2849,7 +2820,7 @@ static uint32_t omap_prcm_read(void *opaque, target_phys_addr_t addr)
     case 0x0f4:	/* GENERAL_PURPOSE18 */
     case 0x0f8:	/* GENERAL_PURPOSE19 */
     case 0x0fc:	/* GENERAL_PURPOSE20 */
-        return s->scratch[(offset - 0xb0) >> 2];
+        return s->scratch[(addr - 0xb0) >> 2];
 
     case 0x140:	/* CM_CLKSEL_MPU */
         return s->clksel[0];
@@ -3098,9 +3069,8 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x000:	/* PRCM_REVISION */
     case 0x054:	/* PRCM_VOLTST */
     case 0x084:	/* PRCM_CLKCFG_STATUS */
@@ -3185,7 +3155,7 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     case 0x0f4:	/* GENERAL_PURPOSE18 */
     case 0x0f8:	/* GENERAL_PURPOSE19 */
     case 0x0fc:	/* GENERAL_PURPOSE20 */
-        s->scratch[(offset - 0xb0) >> 2] = value;
+        s->scratch[(addr - 0xb0) >> 2] = value;
         break;
 
     case 0x140:	/* CM_CLKSEL_MPU */
@@ -3557,7 +3527,7 @@ struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
 
     iomemtype = l4_register_io_memory(0, omap_prcm_readfn,
                     omap_prcm_writefn, s);
-    s->base = omap_l4_attach(ta, 0, iomemtype);
+    omap_l4_attach(ta, 0, iomemtype);
     omap_l4_attach(ta, 1, iomemtype);
 
     return s;
@@ -3565,7 +3535,6 @@ struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
 
 /* System and Pinout control */
 struct omap_sysctl_s {
-    target_phys_addr_t base;
     struct omap_mpu_state_s *mpu;
 
     uint32_t sysconfig;
@@ -3580,14 +3549,13 @@ static uint32_t omap_sysctl_read8(void *opaque, target_phys_addr_t addr)
 {
 
     struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
-    int offset = addr - s->base;
     int pad_offset, byte_offset;
     int value;
 
-    switch (offset) {
+    switch (addr) {
     case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
-        pad_offset = (offset - 0x30) >> 2;
-        byte_offset = (offset - 0x30) & (4 - 1);
+        pad_offset = (addr - 0x30) >> 2;
+        byte_offset = (addr - 0x30) & (4 - 1);
 
         value = s->padconf[pad_offset];
         value = (value >> (byte_offset * 8)) & 0xff;
@@ -3605,9 +3573,8 @@ static uint32_t omap_sysctl_read8(void *opaque, target_phys_addr_t addr)
 static uint32_t omap_sysctl_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x000:	/* CONTROL_REVISION */
         return 0x20;
 
@@ -3615,7 +3582,7 @@ static uint32_t omap_sysctl_read(void *opaque, target_phys_addr_t addr)
         return s->sysconfig;
 
     case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
-        return s->padconf[(offset - 0x30) >> 2];
+        return s->padconf[(addr - 0x30) >> 2];
 
     case 0x270:	/* CONTROL_DEBOBS */
         return s->obs;
@@ -3707,14 +3674,13 @@ static void omap_sysctl_write8(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
-    int offset = addr - s->base;
     int pad_offset, byte_offset;
     int prev_value;
 
-    switch (offset) {
+    switch (addr) {
     case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
-        pad_offset = (offset - 0x30) >> 2;
-        byte_offset = (offset - 0x30) & (4 - 1);
+        pad_offset = (addr - 0x30) >> 2;
+        byte_offset = (addr - 0x30) & (4 - 1);
 
         prev_value = s->padconf[pad_offset];
         prev_value &= ~(0xff << (byte_offset * 8));
@@ -3732,9 +3698,8 @@ static void omap_sysctl_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x000:	/* CONTROL_REVISION */
     case 0x2a4:	/* CONTROL_MSUSPENDMUX_5 */
     case 0x2c0:	/* CONTROL_PSA_VALUE */
@@ -3769,7 +3734,7 @@ static void omap_sysctl_write(void *opaque, target_phys_addr_t addr,
 
     case 0x030 ... 0x140:	/* CONTROL_PADCONF - only used in the POP */
         /* XXX: should check constant bits */
-        s->padconf[(offset - 0x30) >> 2] = value & 0x1f1f1f1f;
+        s->padconf[(addr - 0x30) >> 2] = value & 0x1f1f1f1f;
         break;
 
     case 0x270:	/* CONTROL_DEBOBS */
@@ -3932,7 +3897,7 @@ struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
 
     iomemtype = l4_register_io_memory(0, omap_sysctl_readfn,
                     omap_sysctl_writefn, s);
-    s->base = omap_l4_attach(ta, 0, iomemtype);
+    omap_l4_attach(ta, 0, iomemtype);
     omap_l4_attach(ta, 0, iomemtype);
 
     return s;
@@ -3940,8 +3905,6 @@ struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
 
 /* SDRAM Controller Subsystem */
 struct omap_sdrc_s {
-    target_phys_addr_t base;
-
     uint8_t config;
 };
 
@@ -3953,9 +3916,8 @@ static void omap_sdrc_reset(struct omap_sdrc_s *s)
 static uint32_t omap_sdrc_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_sdrc_s *s = (struct omap_sdrc_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* SDRC_REVISION */
         return 0x20;
 
@@ -4005,9 +3967,8 @@ static void omap_sdrc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_sdrc_s *s = (struct omap_sdrc_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* SDRC_REVISION */
     case 0x14:	/* SDRC_SYSSTATUS */
     case 0x48:	/* SDRC_ERR_ADDR */
@@ -4077,19 +4038,17 @@ struct omap_sdrc_s *omap_sdrc_init(target_phys_addr_t base)
     struct omap_sdrc_s *s = (struct omap_sdrc_s *)
             qemu_mallocz(sizeof(struct omap_sdrc_s));
 
-    s->base = base;
     omap_sdrc_reset(s);
 
     iomemtype = cpu_register_io_memory(0, omap_sdrc_readfn,
                     omap_sdrc_writefn, s);
-    cpu_register_physical_memory(s->base, 0x1000, iomemtype);
+    cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     return s;
 }
 
 /* General-Purpose Memory Controller */
 struct omap_gpmc_s {
-    target_phys_addr_t base;
     qemu_irq irq;
 
     uint8_t sysconfig;
@@ -4201,11 +4160,10 @@ static void omap_gpmc_reset(struct omap_gpmc_s *s)
 static uint32_t omap_gpmc_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
-    int offset = addr - s->base;
     int cs;
     struct omap_gpmc_cs_file_s *f;
 
-    switch (offset) {
+    switch (addr) {
     case 0x000:	/* GPMC_REVISION */
         return 0x20;
 
@@ -4235,10 +4193,10 @@ static uint32_t omap_gpmc_read(void *opaque, target_phys_addr_t addr)
         return 0x001;
 
     case 0x060 ... 0x1d4:
-        cs = (offset - 0x060) / 0x30;
-        offset -= cs * 0x30;
+        cs = (addr - 0x060) / 0x30;
+        addr -= cs * 0x30;
         f = s->cs_file + cs;
-        switch (offset) {
+        switch (addr) {
             case 0x60:	/* GPMC_CONFIG1 */
                 return f->config[0];
             case 0x64:	/* GPMC_CONFIG2 */
@@ -4277,7 +4235,7 @@ static uint32_t omap_gpmc_read(void *opaque, target_phys_addr_t addr)
     case 0x1fc:	/* GPMC_ECC_SIZE_CONFIG */
         return s->ecc_cfg;
     case 0x200 ... 0x220:	/* GPMC_ECC_RESULT */
-        cs = (offset & 0x1f) >> 2;
+        cs = (addr & 0x1f) >> 2;
         /* TODO: check correctness */
         return
                 ((s->ecc[cs].cp    &  0x07) <<  0) |
@@ -4300,11 +4258,10 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
-    int offset = addr - s->base;
     int cs;
     struct omap_gpmc_cs_file_s *f;
 
-    switch (offset) {
+    switch (addr) {
     case 0x000:	/* GPMC_REVISION */
     case 0x014:	/* GPMC_SYSSTATUS */
     case 0x054:	/* GPMC_STATUS */
@@ -4347,10 +4304,10 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x060 ... 0x1d4:
-        cs = (offset - 0x060) / 0x30;
-        offset -= cs * 0x30;
+        cs = (addr - 0x060) / 0x30;
+        addr -= cs * 0x30;
         f = s->cs_file + cs;
-        switch (offset) {
+        switch (addr) {
             case 0x60:	/* GPMC_CONFIG1 */
                 f->config[0] = value & 0xffef3e13;
                 break;
@@ -4455,12 +4412,11 @@ struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq)
     struct omap_gpmc_s *s = (struct omap_gpmc_s *)
             qemu_mallocz(sizeof(struct omap_gpmc_s));
 
-    s->base = base;
     omap_gpmc_reset(s);
 
     iomemtype = cpu_register_io_memory(0, omap_gpmc_readfn,
                     omap_gpmc_writefn, s);
-    cpu_register_physical_memory(s->base, 0x1000, iomemtype);
+    cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     return s;
 }

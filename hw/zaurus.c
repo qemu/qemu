@@ -31,7 +31,6 @@
 /* SCOOP devices */
 
 struct scoop_info_s {
-    target_phys_addr_t target_base;
     qemu_irq handler[16];
     qemu_irq *in;
     uint16_t status;
@@ -76,7 +75,6 @@ static inline void scoop_gpio_handler_update(struct scoop_info_s *s) {
 static uint32_t scoop_readb(void *opaque, target_phys_addr_t addr)
 {
     struct scoop_info_s *s = (struct scoop_info_s *) opaque;
-    addr -= s->target_base;
 
     switch (addr) {
     case SCOOP_MCR:
@@ -110,7 +108,6 @@ static uint32_t scoop_readb(void *opaque, target_phys_addr_t addr)
 static void scoop_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     struct scoop_info_s *s = (struct scoop_info_s *) opaque;
-    addr -= s->target_base;
     value &= 0xffff;
 
     switch (addr) {
@@ -234,12 +231,11 @@ struct scoop_info_s *scoop_init(struct pxa2xx_state_s *cpu,
             qemu_mallocz(sizeof(struct scoop_info_s));
     memset(s, 0, sizeof(struct scoop_info_s));
 
-    s->target_base = target_base;
     s->status = 0x02;
     s->in = qemu_allocate_irqs(scoop_gpio_set, s, 16);
     iomemtype = cpu_register_io_memory(0, scoop_readfn,
                     scoop_writefn, s);
-    cpu_register_physical_memory(s->target_base, 0x1000, iomemtype);
+    cpu_register_physical_memory(target_base, 0x1000, iomemtype);
     register_savevm("scoop", instance, 1, scoop_save, scoop_load, s);
 
     return s;

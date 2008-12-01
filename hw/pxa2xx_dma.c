@@ -25,7 +25,6 @@ typedef void (*pxa2xx_dma_handler_t)(void *opaque, int irq, int level);
 
 struct pxa2xx_dma_state_s {
     pxa2xx_dma_handler_t handler;
-    target_phys_addr_t base;
     qemu_irq irq;
 
     uint32_t stopintr;
@@ -257,7 +256,6 @@ static uint32_t pxa2xx_dma_read(void *opaque, target_phys_addr_t offset)
 {
     struct pxa2xx_dma_state_s *s = (struct pxa2xx_dma_state_s *) opaque;
     unsigned int channel;
-    offset -= s->base;
 
     switch (offset) {
     case DRCMR64 ... DRCMR74:
@@ -313,7 +311,6 @@ static void pxa2xx_dma_write(void *opaque,
 {
     struct pxa2xx_dma_state_s *s = (struct pxa2xx_dma_state_s *) opaque;
     unsigned int channel;
-    offset -= s->base;
 
     switch (offset) {
     case DRCMR64 ... DRCMR74:
@@ -498,7 +495,6 @@ static struct pxa2xx_dma_state_s *pxa2xx_dma_init(target_phys_addr_t base,
 
     s->channels = channels;
     s->chan = qemu_mallocz(sizeof(struct pxa2xx_dma_channel_s) * s->channels);
-    s->base = base;
     s->irq = irq;
     s->handler = (pxa2xx_dma_handler_t) pxa2xx_dma_request;
     s->req = qemu_mallocz(sizeof(uint8_t) * PXA2XX_DMA_NUM_REQUESTS);

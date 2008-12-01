@@ -35,7 +35,6 @@ do { printf("pl031: " fmt , ##args); } while (0)
 typedef struct {
     QEMUTimer *timer;
     qemu_irq irq;
-    uint32_t base;
 
     uint64_t start_time;
     uint32_t tick_offset;
@@ -97,8 +96,6 @@ static uint32_t pl031_read(void *opaque, target_phys_addr_t offset)
 {
     pl031_state *s = (pl031_state *)opaque;
 
-    offset -= s->base;
-
     if (offset >= 0xfe0  &&  offset < 0x1000)
         return pl031_id[(offset - 0xfe0) >> 2];
 
@@ -136,7 +133,6 @@ static void pl031_write(void * opaque, target_phys_addr_t offset,
 {
     pl031_state *s = (pl031_state *)opaque;
 
-    offset -= s->base;
 
     switch (offset) {
     case RTC_LR:
@@ -207,7 +203,6 @@ void pl031_init(uint32_t base, qemu_irq irq)
 
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
 
-    s->base = base;
     s->irq  = irq;
     /* ??? We assume vm_clock is zero at this point.  */
     qemu_get_timedate(&tm, 0);

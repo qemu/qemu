@@ -25,7 +25,6 @@ gic_get_current_cpu(void)
 static uint32_t realview_gic_cpu_read(void *opaque, target_phys_addr_t offset)
 {
     gic_state *s = (gic_state *)opaque;
-    offset -= s->base;
     return gic_cpu_read(s, gic_get_current_cpu(), offset);
 }
 
@@ -33,7 +32,6 @@ static void realview_gic_cpu_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
     gic_state *s = (gic_state *)opaque;
-    offset -= s->base;
     gic_cpu_write(s, gic_get_current_cpu(), offset, value);
 }
 
@@ -54,7 +52,7 @@ qemu_irq *realview_gic_init(uint32_t base, qemu_irq parent_irq)
     gic_state *s;
     int iomemtype;
 
-    s = gic_init(base, &parent_irq);
+    s = gic_init(base + 0x1000, &parent_irq);
     if (!s)
         return NULL;
     iomemtype = cpu_register_io_memory(0, realview_gic_cpu_readfn,

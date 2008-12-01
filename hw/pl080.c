@@ -37,7 +37,6 @@ typedef struct {
 } pl080_channel;
 
 typedef struct {
-    uint32_t base;
     uint8_t tc_int;
     uint8_t tc_mask;
     uint8_t err_int;
@@ -187,7 +186,6 @@ static uint32_t pl080_read(void *opaque, target_phys_addr_t offset)
     uint32_t i;
     uint32_t mask;
 
-    offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000) {
         if (s->nchannels == 8) {
             return pl080_id[(offset - 0xfe0) >> 2];
@@ -255,7 +253,6 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
     pl080_state *s = (pl080_state *)opaque;
     int i;
 
-    offset -= s->base;
     if (offset >= 0x100 && offset < 0x200) {
         i = (offset & 0xe0) >> 5;
         if (i >= s->nchannels)
@@ -334,7 +331,6 @@ void *pl080_init(uint32_t base, qemu_irq irq, int nchannels)
     iomemtype = cpu_register_io_memory(0, pl080_readfn,
                                        pl080_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->base = base;
     s->irq = irq;
     s->nchannels = nchannels;
     /* ??? Save/restore.  */

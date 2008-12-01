@@ -114,7 +114,6 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define PAGE_MASK       (PAGE_SIZE - 1)
 
 typedef struct IOMMUState {
-    target_phys_addr_t addr;
     uint32_t regs[IOMMU_NREGS];
     target_phys_addr_t iostart;
     uint32_t version;
@@ -127,7 +126,7 @@ static uint32_t iommu_mem_readl(void *opaque, target_phys_addr_t addr)
     target_phys_addr_t saddr;
     uint32_t ret;
 
-    saddr = (addr - s->addr) >> 2;
+    saddr = addr >> 2;
     switch (saddr) {
     default:
         ret = s->regs[saddr];
@@ -148,7 +147,7 @@ static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
     IOMMUState *s = opaque;
     target_phys_addr_t saddr;
 
-    saddr = (addr - s->addr) >> 2;
+    saddr = addr >> 2;
     DPRINTF("write reg[%d] = %x\n", (int)saddr, val);
     switch (saddr) {
     case IOMMU_CTRL:
@@ -358,7 +357,6 @@ void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
     if (!s)
         return NULL;
 
-    s->addr = addr;
     s->version = version;
     s->irq = irq;
 

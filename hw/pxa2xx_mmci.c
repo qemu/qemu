@@ -12,7 +12,6 @@
 #include "sd.h"
 
 struct pxa2xx_mmci_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     void *dma;
 
@@ -216,7 +215,6 @@ static uint32_t pxa2xx_mmci_read(void *opaque, target_phys_addr_t offset)
 {
     struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
     uint32_t ret;
-    offset -= s->base;
 
     switch (offset) {
     case MMC_STRPCL:
@@ -279,7 +277,6 @@ static void pxa2xx_mmci_write(void *opaque,
                 target_phys_addr_t offset, uint32_t value)
 {
     struct pxa2xx_mmci_s *s = (struct pxa2xx_mmci_s *) opaque;
-    offset -= s->base;
 
     switch (offset) {
     case MMC_STRPCL:
@@ -529,7 +526,6 @@ struct pxa2xx_mmci_s *pxa2xx_mmci_init(target_phys_addr_t base,
     struct pxa2xx_mmci_s *s;
 
     s = (struct pxa2xx_mmci_s *) qemu_mallocz(sizeof(struct pxa2xx_mmci_s));
-    s->base = base;
     s->irq = irq;
     s->dma = dma;
 

@@ -46,7 +46,6 @@ struct m48t59_t {
     /* Hardware parameters */
     qemu_irq IRQ;
     int mem_index;
-    target_phys_addr_t mem_base;
     uint32_t io_base;
     uint16_t size;
     /* RTC management */
@@ -514,7 +513,6 @@ static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t59_t *NVRAM = opaque;
 
-    addr -= NVRAM->mem_base;
     m48t59_write(NVRAM, addr, value & 0xff);
 }
 
@@ -522,7 +520,6 @@ static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t59_t *NVRAM = opaque;
 
-    addr -= NVRAM->mem_base;
     m48t59_write(NVRAM, addr, (value >> 8) & 0xff);
     m48t59_write(NVRAM, addr + 1, value & 0xff);
 }
@@ -531,7 +528,6 @@ static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     m48t59_t *NVRAM = opaque;
 
-    addr -= NVRAM->mem_base;
     m48t59_write(NVRAM, addr, (value >> 24) & 0xff);
     m48t59_write(NVRAM, addr + 1, (value >> 16) & 0xff);
     m48t59_write(NVRAM, addr + 2, (value >> 8) & 0xff);
@@ -543,7 +539,6 @@ static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
     m48t59_t *NVRAM = opaque;
     uint32_t retval;
 
-    addr -= NVRAM->mem_base;
     retval = m48t59_read(NVRAM, addr);
     return retval;
 }
@@ -553,7 +548,6 @@ static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
     m48t59_t *NVRAM = opaque;
     uint32_t retval;
 
-    addr -= NVRAM->mem_base;
     retval = m48t59_read(NVRAM, addr) << 8;
     retval |= m48t59_read(NVRAM, addr + 1);
     return retval;
@@ -564,7 +558,6 @@ static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
     m48t59_t *NVRAM = opaque;
     uint32_t retval;
 
-    addr -= NVRAM->mem_base;
     retval = m48t59_read(NVRAM, addr) << 24;
     retval |= m48t59_read(NVRAM, addr + 1) << 16;
     retval |= m48t59_read(NVRAM, addr + 2) << 8;
@@ -636,7 +629,6 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
     }
     s->IRQ = IRQ;
     s->size = size;
-    s->mem_base = mem_base;
     s->io_base = io_base;
     s->addr = 0;
     s->type = type;

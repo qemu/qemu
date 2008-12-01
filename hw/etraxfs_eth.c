@@ -314,7 +314,6 @@ struct fs_eth
 {
 	CPUState *env;
 	qemu_irq *irq;
-	target_phys_addr_t base;
 	VLANClientState *vc;
 	int ethregs;
 
@@ -375,8 +374,6 @@ static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
 	struct fs_eth *eth = opaque;
 	uint32_t r = 0;
 
-	/* Make addr relative to this instances base.  */
-	addr -= eth->base;
 	switch (addr) {
 		case R_STAT:
 			/* Attach an MDIO/PHY abstraction.  */
@@ -428,8 +425,6 @@ eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct fs_eth *eth = opaque;
 
-	/* Make addr relative to this instances base.  */
-	addr -= eth->base;
 	switch (addr)
 	{
 		case RW_MA0_LO:
@@ -589,7 +584,6 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	dma[1].client.pull = NULL;
 
 	eth->env = env;
-	eth->base = base;
 	eth->irq = irq;
 	eth->dma_out = dma;
 	eth->dma_in = dma + 1;

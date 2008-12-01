@@ -103,7 +103,6 @@ static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
     uint8_t *p;
 
     ret = -1;
-    offset -= pfl->base;
     boff = offset & 0xFF; /* why this here ?? */
 
     if (pfl->width == 2)
@@ -203,7 +202,6 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
     uint8_t cmd;
 
     cmd = value;
-    offset -= pfl->base;
 
     DPRINTF("%s: writing offset " TARGET_FMT_lx " value %08x width %d wcycle 0x%x\n",
             __func__, offset, value, width, pfl->wcycle);

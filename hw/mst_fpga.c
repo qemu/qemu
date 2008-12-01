@@ -14,7 +14,6 @@
 /* Mainstone FPGA for extern irqs */
 #define FPGA_GPIO_PIN	0
 #define MST_NUM_IRQS	16
-#define MST_BASE		MST_FPGA_PHYS
 #define MST_LEDDAT1		0x10
 #define MST_LEDDAT2		0x14
 #define MST_LEDCTRL		0x40
@@ -29,7 +28,6 @@
 #define MST_PCMCIA1		0xe4
 
 typedef struct mst_irq_state{
-	target_phys_addr_t target_base;
 	qemu_irq *parent;
 	qemu_irq *pins;
 
@@ -83,7 +81,6 @@ static uint32_t
 mst_fpga_readb(void *opaque, target_phys_addr_t addr)
 {
 	mst_irq_state *s = (mst_irq_state *) opaque;
-	addr -= s->target_base;
 
 	switch (addr) {
 	case MST_LEDDAT1:
@@ -121,7 +118,6 @@ static void
 mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	mst_irq_state *s = (mst_irq_state *) opaque;
-	addr -= s->target_base;
 	value &= 0xffffffff;
 
 	switch (addr) {
@@ -231,7 +227,6 @@ qemu_irq *mst_irq_init(struct pxa2xx_state_s *cpu, uint32_t base, int irq)
 
 	if (!s)
 		return NULL;
-	s->target_base = base;
 	s->parent = &cpu->pic[irq];
 
 	/* alloc the external 16 irqs */
@@ -240,7 +235,7 @@ qemu_irq *mst_irq_init(struct pxa2xx_state_s *cpu, uint32_t base, int irq)
 
 	iomemtype = cpu_register_io_memory(0, mst_fpga_readfn,
 		mst_fpga_writefn, s);
-	cpu_register_physical_memory(MST_BASE, 0x00100000, iomemtype);
+	cpu_register_physical_memory(base, 0x00100000, iomemtype);
 	register_savevm("mainstone_fpga", 0, 0, mst_fpga_save, mst_fpga_load, s);
 	return qi;
 }

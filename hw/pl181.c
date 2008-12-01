@@ -24,7 +24,6 @@ do { printf("pl181: " fmt , ##args); } while (0)
 
 typedef struct {
     SDState *card;
-    uint32_t base;
     uint32_t clock;
     uint32_t power;
     uint32_t cmdarg;
@@ -261,7 +260,6 @@ static uint32_t pl181_read(void *opaque, target_phys_addr_t offset)
     pl181_state *s = (pl181_state *)opaque;
     uint32_t tmp;
 
-    offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000) {
         return pl181_id[(offset - 0xfe0) >> 2];
     }
@@ -344,7 +342,6 @@ static void pl181_write(void *opaque, target_phys_addr_t offset,
 {
     pl181_state *s = (pl181_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x00: /* Power */
         s->power = value & 0xff;
@@ -457,7 +454,6 @@ void pl181_init(uint32_t base, BlockDriverState *bd,
     iomemtype = cpu_register_io_memory(0, pl181_readfn,
                                        pl181_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->base = base;
     s->card = sd_init(bd, 0);
     s->irq[0] = irq0;
     s->irq[1] = irq1;

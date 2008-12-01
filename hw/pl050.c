@@ -13,7 +13,6 @@
 
 typedef struct {
     void *dev;
-    uint32_t base;
     uint32_t cr;
     uint32_t clk;
     uint32_t last;
@@ -47,7 +46,6 @@ static void pl050_update(void *opaque, int level)
 static uint32_t pl050_read(void *opaque, target_phys_addr_t offset)
 {
     pl050_state *s = (pl050_state *)opaque;
-    offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000)
         return pl050_id[(offset - 0xfe0) >> 2];
 
@@ -90,7 +88,6 @@ static void pl050_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
     pl050_state *s = (pl050_state *)opaque;
-    offset -= s->base;
     switch (offset >> 2) {
     case 0: /* KMICR */
         s->cr = value;
@@ -134,7 +131,6 @@ void pl050_init(uint32_t base, qemu_irq irq, int is_mouse)
     iomemtype = cpu_register_io_memory(0, pl050_readfn,
                                        pl050_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->base = base;
     s->irq = irq;
     s->is_mouse = is_mouse;
     if (is_mouse)

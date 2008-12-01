@@ -387,8 +387,8 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
                                                          slavio_intctl_mem_read,
                                                          slavio_intctl_mem_write,
                                                          s);
-        cpu_register_physical_memory(addr + i * TARGET_PAGE_SIZE, INTCTL_SIZE,
-                                     slavio_intctl_io_memory);
+        cpu_register_physical_memory_offset(addr + i * TARGET_PAGE_SIZE,
+                INTCTL_SIZE, slavio_intctl_io_memory, i * TARGET_PAGE_SIZE);
         s->cpu_irqs[i] = parent_irq[i];
     }
 

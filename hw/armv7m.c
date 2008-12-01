@@ -14,11 +14,11 @@
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
 /* Get the byte address of the real memory for a bitband acess.  */
-static inline uint32_t bitband_addr(uint32_t addr)
+static inline uint32_t bitband_addr(void * opaque, uint32_t addr)
 {
     uint32_t res;
 
-    res = addr & 0xe0000000;
+    res = *(uint32_t *)opaque;
     res |= (addr & 0x1ffffff) >> 5;
     return res;
 
@@ -27,7 +27,7 @@ static inline uint32_t bitband_addr(uint32_t addr)
 static uint32_t bitband_readb(void *opaque, target_phys_addr_t offset)
 {
     uint8_t v;
-    cpu_physical_memory_read(bitband_addr(offset), &v, 1);
+    cpu_physical_memory_read(bitband_addr(opaque, offset), &v, 1);
     return (v & (1 << ((offset >> 2) & 7))) != 0;
 }
 
@@ -37,7 +37,7 @@ static void bitband_writeb(void *opaque, target_phys_addr_t offset,
     uint32_t addr;
     uint8_t mask;
     uint8_t v;
-    addr = bitband_addr(offset);
+    addr = bitband_addr(opaque, offset);
     mask = (1 << ((offset >> 2) & 7));
     cpu_physical_memory_read(addr, &v, 1);
     if (value & 1)
@@ -52,7 +52,7 @@ static uint32_t bitband_readw(void *opaque, target_phys_addr_t offset)
     uint32_t addr;
     uint16_t mask;
     uint16_t v;
-    addr = bitband_addr(offset) & ~1;
+    addr = bitband_addr(opaque, offset) & ~1;
     mask = (1 << ((offset >> 2) & 15));
     mask = tswap16(mask);
     cpu_physical_memory_read(addr, (uint8_t *)&v, 2);
@@ -65,7 +65,7 @@ static void bitband_writew(void *opaque, target_phys_addr_t offset,
     uint32_t addr;
     uint16_t mask;
     uint16_t v;
-    addr = bitband_addr(offset) & ~1;
+    addr = bitband_addr(opaque, offset) & ~1;
     mask = (1 << ((offset >> 2) & 15));
     mask = tswap16(mask);
     cpu_physical_memory_read(addr, (uint8_t *)&v, 2);
@@ -81,7 +81,7 @@ static uint32_t bitband_readl(void *opaque, target_phys_addr_t offset)
     uint32_t addr;
     uint32_t mask;
     uint32_t v;
-    addr = bitband_addr(offset) & ~3;
+    addr = bitband_addr(opaque, offset) & ~3;
     mask = (1 << ((offset >> 2) & 31));
     mask = tswap32(mask);
     cpu_physical_memory_read(addr, (uint8_t *)&v, 4);
@@ -94,7 +94,7 @@ static void bitband_writel(void *opaque, target_phys_addr_t offset,
     uint32_t addr;
     uint32_t mask;
     uint32_t v;
-    addr = bitband_addr(offset) & ~3;
+    addr = bitband_addr(opaque, offset) & ~3;
     mask = (1 << ((offset >> 2) & 31));
     mask = tswap32(mask);
     cpu_physical_memory_read(addr, (uint8_t *)&v, 4);
@@ -120,10 +120,14 @@ static CPUWriteMemoryFunc *bitband_writefn[] = {
 static void armv7m_bitband_init(void)
 {
     int iomemtype;
+    static uint32_t bitband1_offset = 0x20000000;
+    static uint32_t bitband2_offset = 0x40000000;
 
     iomemtype = cpu_register_io_memory(0, bitband_readfn, bitband_writefn,
-                                       NULL);
+                                       &bitband1_offset);
     cpu_register_physical_memory(0x22000000, 0x02000000, iomemtype);
+    iomemtype = cpu_register_io_memory(0, bitband_readfn, bitband_writefn,
+                                       &bitband2_offset);
     cpu_register_physical_memory(0x42000000, 0x02000000, iomemtype);
 }
 

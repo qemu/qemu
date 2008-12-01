@@ -38,7 +38,6 @@ static uint8_t integrator_spd[128] = {
 static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
-    offset -= 0x10000000;
     if (offset >= 0x100 && offset < 0x200) {
         /* CM_SPD */
         if (offset >= 0x180)
@@ -141,7 +140,6 @@ static void integratorcm_write(void *opaque, target_phys_addr_t offset,
                                uint32_t value)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
-    offset -= 0x10000000;
     switch (offset >> 2) {
     case 2: /* CM_OSC */
         if (s->cm_lock == 0xa05f)
@@ -268,7 +266,6 @@ static void integratorcm_init(int memsz)
 
 typedef struct icp_pic_state
 {
-  uint32_t base;
   uint32_t level;
   uint32_t irq_enabled;
   uint32_t fiq_enabled;
@@ -300,7 +297,6 @@ static uint32_t icp_pic_read(void *opaque, target_phys_addr_t offset)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
 
-    offset -= s->base;
     switch (offset >> 2) {
     case 0: /* IRQ_STATUS */
         return s->level & s->irq_enabled;
@@ -329,7 +325,6 @@ static void icp_pic_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
-    offset -= s->base;
 
     switch (offset >> 2) {
     case 2: /* IRQ_ENABLESET */
@@ -386,7 +381,6 @@ static qemu_irq *icp_pic_init(uint32_t base,
     if (!s)
         return NULL;
     qi = qemu_allocate_irqs(icp_pic_set_irq, s, 32);
-    s->base = base;
     s->parent_irq = parent_irq;
     s->parent_fiq = parent_fiq;
     iomemtype = cpu_register_io_memory(0, icp_pic_readfn,
@@ -397,14 +391,8 @@ static qemu_irq *icp_pic_init(uint32_t base,
 }
 
 /* CP control registers.  */
-typedef struct {
-    uint32_t base;
-} icp_control_state;
-
 static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
 {
-    icp_control_state *s = (icp_control_state *)opaque;
-    offset -= s->base;
     switch (offset >> 2) {
     case 0: /* CP_IDFIELD */
         return 0x41034003;
@@ -424,8 +412,6 @@ static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
 static void icp_control_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
-    icp_control_state *s = (icp_control_state *)opaque;
-    offset -= s->base;
     switch (offset >> 2) {
     case 1: /* CP_FLASHPROG */
     case 2: /* CP_INTREG */
@@ -452,13 +438,10 @@ static CPUWriteMemoryFunc *icp_control_writefn[] = {
 static void icp_control_init(uint32_t base)
 {
     int iomemtype;
-    icp_control_state *s;
 
-    s = (icp_control_state *)qemu_mallocz(sizeof(icp_control_state));
     iomemtype = cpu_register_io_memory(0, icp_control_readfn,
-                                       icp_control_writefn, s);
+                                       icp_control_writefn, NULL);
     cpu_register_physical_memory(base, 0x00800000, iomemtype);
-    s->base = base;
     /* ??? Save/restore.  */
 }
 

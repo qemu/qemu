@@ -125,7 +125,6 @@ struct SerialState {
     qemu_irq irq;
     CharDriverState *chr;
     int last_break_enable;
-    target_phys_addr_t base;
     int it_shift;
     int baudbase;
     int tsr_retry;
@@ -750,7 +749,7 @@ uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     SerialState *s = opaque;
 
-    return serial_ioport_read(s, (addr - s->base) >> s->it_shift) & 0xFF;
+    return serial_ioport_read(s, addr >> s->it_shift) & 0xFF;
 }
 
 void serial_mm_writeb (void *opaque,
@@ -758,7 +757,7 @@ void serial_mm_writeb (void *opaque,
 {
     SerialState *s = opaque;
 
-    serial_ioport_write(s, (addr - s->base) >> s->it_shift, value & 0xFF);
+    serial_ioport_write(s, addr >> s->it_shift, value & 0xFF);
 }
 
 uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr)
@@ -766,7 +765,7 @@ uint32_t serial_mm_readw (void *opaque, target_phys_addr_t addr)
     SerialState *s = opaque;
     uint32_t val;
 
-    val = serial_ioport_read(s, (addr - s->base) >> s->it_shift) & 0xFFFF;
+    val = serial_ioport_read(s, addr >> s->it_shift) & 0xFFFF;
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
 #endif
@@ -780,7 +779,7 @@ void serial_mm_writew (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap16(value);
 #endif
-    serial_ioport_write(s, (addr - s->base) >> s->it_shift, value & 0xFFFF);
+    serial_ioport_write(s, addr >> s->it_shift, value & 0xFFFF);
 }
 
 uint32_t serial_mm_readl (void *opaque, target_phys_addr_t addr)
@@ -788,7 +787,7 @@ uint32_t serial_mm_readl (void *opaque, target_phys_addr_t addr)
     SerialState *s = opaque;
     uint32_t val;
 
-    val = serial_ioport_read(s, (addr - s->base) >> s->it_shift);
+    val = serial_ioport_read(s, addr >> s->it_shift);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
@@ -802,7 +801,7 @@ void serial_mm_writel (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
-    serial_ioport_write(s, (addr - s->base) >> s->it_shift, value);
+    serial_ioport_write(s, addr >> s->it_shift, value);
 }
 
 static CPUReadMemoryFunc *serial_mm_read[] = {
@@ -828,7 +827,6 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     if (!s)
         return NULL;
 
-    s->base = base;
     s->it_shift = it_shift;
 
     serial_init_core(s, irq, baudbase, chr);

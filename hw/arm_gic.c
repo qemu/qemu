@@ -23,14 +23,12 @@ do { printf("arm_gic: " fmt , ##args); } while (0)
 #ifdef NVIC
 static const uint8_t gic_id[] =
 { 0x00, 0xb0, 0x1b, 0x00, 0x0d, 0xe0, 0x05, 0xb1 };
-#define GIC_DIST_OFFSET 0
 /* The NVIC has 16 internal vectors.  However these are not exposed
    through the normal GIC interface.  */
 #define GIC_BASE_IRQ    32
 #else
 static const uint8_t gic_id[] =
 { 0x90, 0x13, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
-#define GIC_DIST_OFFSET 0x1000
 #define GIC_BASE_IRQ    0
 #endif
 
@@ -76,7 +74,6 @@ typedef struct gic_irq_state
 
 typedef struct gic_state
 {
-    uint32_t base;
     qemu_irq parent_irq[NCPU];
     int enabled;
     int cpu_enabled[NCPU];
@@ -252,7 +249,6 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
 
     cpu = gic_get_current_cpu();
     cm = 1 << cpu;
-    offset -= s->base + GIC_DIST_OFFSET;
     if (offset < 0x100) {
 #ifndef NVIC
         if (offset == 0)
@@ -365,7 +361,7 @@ static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
 #ifdef NVIC
     gic_state *s = (gic_state *)opaque;
     uint32_t addr;
-    addr = offset - s->base;
+    addr = offset;
     if (addr < 0x100 || addr > 0xd00)
         return nvic_readl(s->nvic, addr);
 #endif
@@ -383,7 +379,6 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     int cpu;
 
     cpu = gic_get_current_cpu();
-    offset -= s->base + GIC_DIST_OFFSET;
     if (offset < 0x100) {
 #ifdef NVIC
         goto bad_reg;
@@ -526,13 +521,13 @@ static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
     gic_state *s = (gic_state *)opaque;
 #ifdef NVIC
     uint32_t addr;
-    addr = offset - s->base;
+    addr = offset;
     if (addr < 0x100 || (addr > 0xd00 && addr != 0xf00)) {
         nvic_writel(s->nvic, addr, value);
         return;
     }
 #endif
-    if (offset - s->base == GIC_DIST_OFFSET + 0xf00) {
+    if (offset == 0xf00) {
         int cpu;
         int irq;
         int mask;
@@ -723,7 +718,7 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static gic_state *gic_init(uint32_t base, qemu_irq *parent_irq)
+static gic_state *gic_init(uint32_t dist_base, qemu_irq *parent_irq)
 {
     gic_state *s;
     int iomemtype;
@@ -738,9 +733,8 @@ static gic_state *gic_init(uint32_t base, qemu_irq *parent_irq)
     }
     iomemtype = cpu_register_io_memory(0, gic_dist_readfn,
                                        gic_dist_writefn, s);
-    cpu_register_physical_memory(base + GIC_DIST_OFFSET, 0x00001000,
+    cpu_register_physical_memory(dist_base, 0x00001000,
                                  iomemtype);
-    s->base = base;
     gic_reset(s);
     register_savevm("arm_gic", -1, 1, gic_save, gic_load, s);
     return s;

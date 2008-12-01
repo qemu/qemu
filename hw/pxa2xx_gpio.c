@@ -13,7 +13,6 @@
 #define PXA2XX_GPIO_BANKS	4
 
 struct pxa2xx_gpio_info_s {
-    target_phys_addr_t base;
     qemu_irq *pic;
     int lines;
     CPUState *cpu_env;
@@ -140,7 +139,6 @@ static uint32_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset)
     struct pxa2xx_gpio_info_s *s = (struct pxa2xx_gpio_info_s *) opaque;
     uint32_t ret;
     int bank;
-    offset -= s->base;
     if (offset >= 0x200)
         return 0;
 
@@ -193,7 +191,6 @@ static void pxa2xx_gpio_write(void *opaque,
 {
     struct pxa2xx_gpio_info_s *s = (struct pxa2xx_gpio_info_s *) opaque;
     int bank;
-    offset -= s->base;
     if (offset >= 0x200)
         return;
 
@@ -308,7 +305,6 @@ struct pxa2xx_gpio_info_s *pxa2xx_gpio_init(target_phys_addr_t base,
     s = (struct pxa2xx_gpio_info_s *)
             qemu_mallocz(sizeof(struct pxa2xx_gpio_info_s));
     memset(s, 0, sizeof(struct pxa2xx_gpio_info_s));
-    s->base = base;
     s->pic = pic;
     s->lines = lines;
     s->cpu_env = env;

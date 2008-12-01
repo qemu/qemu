@@ -53,7 +53,6 @@ typedef struct {
     uint8_t rx_tail;
     uint8_t rx_head;
 
-    target_phys_addr_t base;
     int freq;
     int feat;
     int flags;
@@ -82,8 +81,8 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
     unsigned char ch;
 
 #ifdef DEBUG_SERIAL
-    printf("sh_serial: write base=0x%08lx offs=0x%02x val=0x%02x\n",
-	   (unsigned long) s->base, offs, val);
+    printf("sh_serial: write offs=0x%02x val=0x%02x\n",
+	   offs, val);
 #endif
     switch(offs) {
     case 0x00: /* SMR */
@@ -278,8 +277,8 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
 #endif
     }
 #ifdef DEBUG_SERIAL
-    printf("sh_serial: read base=0x%08lx offs=0x%02x val=0x%x\n",
-	   (unsigned long) s->base, offs, ret);
+    printf("sh_serial: read offs=0x%02x val=0x%x\n",
+	   offs, ret);
 #endif
 
     if (ret & ~((1 << 16) - 1)) {
@@ -343,14 +342,14 @@ static void sh_serial_event(void *opaque, int event)
 static uint32_t sh_serial_read (void *opaque, target_phys_addr_t addr)
 {
     sh_serial_state *s = opaque;
-    return sh_serial_ioport_read(s, addr - s->base);
+    return sh_serial_ioport_read(s, addr);
 }
 
 static void sh_serial_write (void *opaque,
                              target_phys_addr_t addr, uint32_t value)
 {
     sh_serial_state *s = opaque;
-    sh_serial_ioport_write(s, addr - s->base, value);
+    sh_serial_ioport_write(s, addr, value);
 }
 
 static CPUReadMemoryFunc *sh_serial_readfn[] = {
@@ -380,7 +379,6 @@ void sh_serial_init (target_phys_addr_t base, int feat,
     if (!s)
         return;
 
-    s->base = base;
     s->feat = feat;
     s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
     s->rtrg = 1;

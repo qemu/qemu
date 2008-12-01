@@ -431,11 +431,14 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
         io = cpu_register_io_memory(0, slavio_misc_mem_read,
                                     slavio_misc_mem_write, s);
         // Slavio control
-        cpu_register_physical_memory(base + MISC_CFG, MISC_SIZE, io);
+        cpu_register_physical_memory_offset(base + MISC_CFG, MISC_SIZE, io,
+                                            MISC_CFG);
         // Diagnostics
-        cpu_register_physical_memory(base + MISC_DIAG, MISC_SIZE, io);
+        cpu_register_physical_memory_offset(base + MISC_DIAG, MISC_SIZE, io,
+                                            MISC_DIAG);
         // Modem control
-        cpu_register_physical_memory(base + MISC_MDM, MISC_SIZE, io);
+        cpu_register_physical_memory_offset(base + MISC_MDM, MISC_SIZE, io,
+                                            MISC_MDM);
 
         /* 16 bit registers */
         io = cpu_register_io_memory(0, slavio_led_mem_read,

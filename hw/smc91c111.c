@@ -17,7 +17,6 @@
 #define NUM_PACKETS 4
 
 typedef struct {
-    uint32_t base;
     VLANClientState *vc;
     uint16_t tcr;
     uint16_t rcr;
@@ -249,7 +248,6 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
 {
     smc91c111_state *s = (smc91c111_state *)opaque;
 
-    offset -= s->base;
     if (offset == 14) {
         s->bank = value;
         return;
@@ -422,7 +420,6 @@ static uint32_t smc91c111_readb(void *opaque, target_phys_addr_t offset)
 {
     smc91c111_state *s = (smc91c111_state *)opaque;
 
-    offset -= s->base;
     if (offset == 14) {
         return s->bank;
     }
@@ -571,10 +568,9 @@ static void smc91c111_writew(void *opaque, target_phys_addr_t offset,
 static void smc91c111_writel(void *opaque, target_phys_addr_t offset,
                              uint32_t value)
 {
-    smc91c111_state *s = (smc91c111_state *)opaque;
     /* 32-bit writes to offset 0xc only actually write to the bank select
        register (offset 0xe)  */
-    if (offset != s->base + 0xc)
+    if (offset != 0xc)
         smc91c111_writew(opaque, offset, value & 0xffff);
     smc91c111_writew(opaque, offset + 2, value >> 16);
 }
@@ -703,7 +699,6 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     iomemtype = cpu_register_io_memory(0, smc91c111_readfn,
                                        smc91c111_writefn, s);
     cpu_register_physical_memory(base, 16, iomemtype);
-    s->base = base;
     s->irq = irq;
     memcpy(s->macaddr, nd->macaddr, 6);
 

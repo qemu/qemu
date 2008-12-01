@@ -2263,7 +2263,7 @@ static uint32_t vga_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     VGAState *s = opaque;
 
-    return vga_ioport_read(s, (addr - s->base_ctrl) >> s->it_shift) & 0xff;
+    return vga_ioport_read(s, addr >> s->it_shift) & 0xff;
 }
 
 static void vga_mm_writeb (void *opaque,
@@ -2271,14 +2271,14 @@ static void vga_mm_writeb (void *opaque,
 {
     VGAState *s = opaque;
 
-    vga_ioport_write(s, (addr - s->base_ctrl) >> s->it_shift, value & 0xff);
+    vga_ioport_write(s, addr >> s->it_shift, value & 0xff);
 }
 
 static uint32_t vga_mm_readw (void *opaque, target_phys_addr_t addr)
 {
     VGAState *s = opaque;
 
-    return vga_ioport_read(s, (addr - s->base_ctrl) >> s->it_shift) & 0xffff;
+    return vga_ioport_read(s, addr >> s->it_shift) & 0xffff;
 }
 
 static void vga_mm_writew (void *opaque,
@@ -2286,14 +2286,14 @@ static void vga_mm_writew (void *opaque,
 {
     VGAState *s = opaque;
 
-    vga_ioport_write(s, (addr - s->base_ctrl) >> s->it_shift, value & 0xffff);
+    vga_ioport_write(s, addr >> s->it_shift, value & 0xffff);
 }
 
 static uint32_t vga_mm_readl (void *opaque, target_phys_addr_t addr)
 {
     VGAState *s = opaque;
 
-    return vga_ioport_read(s, (addr - s->base_ctrl) >> s->it_shift);
+    return vga_ioport_read(s, addr >> s->it_shift);
 }
 
 static void vga_mm_writel (void *opaque,
@@ -2301,7 +2301,7 @@ static void vga_mm_writel (void *opaque,
 {
     VGAState *s = opaque;
 
-    vga_ioport_write(s, (addr - s->base_ctrl) >> s->it_shift, value);
+    vga_ioport_write(s, addr >> s->it_shift, value);
 }
 
 static CPUReadMemoryFunc *vga_mm_read_ctrl[] = {
@@ -2321,7 +2321,6 @@ static void vga_mm_init(VGAState *s, target_phys_addr_t vram_base,
 {
     int s_ioport_ctrl, vga_io_memory;
 
-    s->base_ctrl = ctrl_base;
     s->it_shift = it_shift;
     s_ioport_ctrl = cpu_register_io_memory(0, vga_mm_read_ctrl, vga_mm_write_ctrl, s);
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write, s);

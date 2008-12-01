@@ -95,7 +95,6 @@ struct omap_intr_handler_bank_s {
 struct omap_intr_handler_s {
     qemu_irq *pins;
     qemu_irq parent_intr[2];
-    target_phys_addr_t base;
     unsigned char nbanks;
     int level_only;
 
@@ -202,7 +201,7 @@ static void omap_set_intr_noedge(void *opaque, int irq, int req)
 static uint32_t omap_inth_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
-    int i, offset = addr - s->base;
+    int i, offset = addr;
     int bank_no = offset >> 8;
     int line_no;
     struct omap_intr_handler_bank_s *bank = &s->bank[bank_no];
@@ -280,7 +279,7 @@ static void omap_inth_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
-    int i, offset = addr - s->base;
+    int i, offset = addr;
     int bank_no = offset >> 8;
     struct omap_intr_handler_bank_s *bank = &s->bank[bank_no];
     offset &= 0xff;
@@ -420,7 +419,6 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
 
     s->parent_intr[0] = parent_irq;
     s->parent_intr[1] = parent_fiq;
-    s->base = base;
     s->nbanks = nbanks;
     s->pins = qemu_allocate_irqs(omap_set_intr, s, nbanks * 32);
     if (pins)
@@ -430,7 +428,7 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, omap_inth_readfn,
                     omap_inth_writefn, s);
-    cpu_register_physical_memory(s->base, size, iomemtype);
+    cpu_register_physical_memory(base, size, iomemtype);
 
     return s;
 }
@@ -438,7 +436,7 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
 static uint32_t omap2_inth_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr;
     int bank_no, line_no;
     struct omap_intr_handler_bank_s *bank = 0;
 
@@ -516,7 +514,7 @@ static void omap2_inth_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
-    int offset = addr - s->base;
+    int offset = addr;
     int bank_no, line_no;
     struct omap_intr_handler_bank_s *bank = 0;
 
@@ -640,7 +638,6 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
 
     s->parent_intr[0] = parent_irq;
     s->parent_intr[1] = parent_fiq;
-    s->base = base;
     s->nbanks = nbanks;
     s->level_only = 1;
     s->pins = qemu_allocate_irqs(omap_set_intr_noedge, s, nbanks * 32);
@@ -651,7 +648,7 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, omap2_inth_readfn,
                     omap2_inth_writefn, s);
-    cpu_register_physical_memory(s->base, size, iomemtype);
+    cpu_register_physical_memory(base, size, iomemtype);
 
     return s;
 }
@@ -660,7 +657,6 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
 struct omap_mpu_timer_s {
     qemu_irq irq;
     omap_clk clk;
-    target_phys_addr_t base;
     uint32_t val;
     int64_t time;
     QEMUTimer *timer;
@@ -757,9 +753,8 @@ static void omap_timer_clk_setup(struct omap_mpu_timer_s *timer)
 static uint32_t omap_mpu_timer_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpu_timer_s *s = (struct omap_mpu_timer_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* CNTL_TIMER */
         return (s->enable << 5) | (s->ptv << 2) | (s->ar << 1) | s->st;
 
@@ -778,9 +773,8 @@ static void omap_mpu_timer_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mpu_timer_s *s = (struct omap_mpu_timer_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* CNTL_TIMER */
         omap_timer_sync(s);
         s->enable = (value >> 5) & 1;
@@ -836,7 +830,6 @@ struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
 
     s->irq = irq;
     s->clk = clk;
-    s->base = base;
     s->timer = qemu_new_timer(vm_clock, omap_timer_tick, s);
     s->tick = qemu_bh_new(omap_timer_fire, s);
     omap_mpu_timer_reset(s);
@@ -844,7 +837,7 @@ struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, omap_mpu_timer_readfn,
                     omap_mpu_timer_writefn, s);
-    cpu_register_physical_memory(s->base, 0x100, iomemtype);
+    cpu_register_physical_memory(base, 0x100, iomemtype);
 
     return s;
 }
@@ -861,9 +854,8 @@ struct omap_watchdog_timer_s {
 static uint32_t omap_wd_timer_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_watchdog_timer_s *s = (struct omap_watchdog_timer_s *) opaque;
-    int offset = addr - s->timer.base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* CNTL_TIMER */
         return (s->timer.ptv << 9) | (s->timer.ar << 8) |
                 (s->timer.st << 7) | (s->free << 1);
@@ -883,9 +875,8 @@ static void omap_wd_timer_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_watchdog_timer_s *s = (struct omap_watchdog_timer_s *) opaque;
-    int offset = addr - s->timer.base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* CNTL_TIMER */
         omap_timer_sync(&s->timer);
         s->timer.ptv = (value >> 9) & 7;
@@ -963,14 +954,13 @@ struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
 
     s->timer.irq = irq;
     s->timer.clk = clk;
-    s->timer.base = base;
     s->timer.timer = qemu_new_timer(vm_clock, omap_timer_tick, &s->timer);
     omap_wd_timer_reset(s);
     omap_timer_clk_setup(&s->timer);
 
     iomemtype = cpu_register_io_memory(0, omap_wd_timer_readfn,
                     omap_wd_timer_writefn, s);
-    cpu_register_physical_memory(s->timer.base, 0x100, iomemtype);
+    cpu_register_physical_memory(base, 0x100, iomemtype);
 
     return s;
 }
@@ -1066,14 +1056,13 @@ struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
 
     s->timer.irq = irq;
     s->timer.clk = clk;
-    s->timer.base = base;
     s->timer.timer = qemu_new_timer(vm_clock, omap_timer_tick, &s->timer);
     omap_os_timer_reset(s);
     omap_timer_clk_setup(&s->timer);
 
     iomemtype = cpu_register_io_memory(0, omap_os_timer_readfn,
                     omap_os_timer_writefn, s);
-    cpu_register_physical_memory(s->timer.base, 0x800, iomemtype);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
 
     return s;
 }
@@ -1082,13 +1071,12 @@ struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
 static uint32_t omap_ulpd_pm_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->ulpd_pm_base;
     uint16_t ret;
 
-    switch (offset) {
+    switch (addr) {
     case 0x14:	/* IT_STATUS */
-        ret = s->ulpd_pm_regs[offset >> 2];
-        s->ulpd_pm_regs[offset >> 2] = 0;
+        ret = s->ulpd_pm_regs[addr >> 2];
+        s->ulpd_pm_regs[addr >> 2] = 0;
         qemu_irq_lower(s->irq[1][OMAP_INT_GAUGE_32K]);
         return ret;
 
@@ -1113,7 +1101,7 @@ static uint32_t omap_ulpd_pm_read(void *opaque, target_phys_addr_t addr)
     case 0x48:	/* LOCL_TIME */
     case 0x4c:	/* APLL_CTRL */
     case 0x50:	/* POWER_CTRL */
-        return s->ulpd_pm_regs[offset >> 2];
+        return s->ulpd_pm_regs[addr >> 2];
     }
 
     OMAP_BAD_REG(addr);
@@ -1146,13 +1134,12 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->ulpd_pm_base;
     int64_t now, ticks;
     int div, mult;
     static const int bypass_div[4] = { 1, 2, 4, 4 };
     uint16_t diff;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* COUNTER_32_LSB */
     case 0x04:	/* COUNTER_32_MSB */
     case 0x08:	/* COUNTER_HIGH_FREQ_LSB */
@@ -1164,7 +1151,7 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
 
     case 0x10:	/* GAUGING_CTRL */
         /* Bits 0 and 1 seem to be confused in the OMAP 310 TRM */
-        if ((s->ulpd_pm_regs[offset >> 2] ^ value) & 1) {
+        if ((s->ulpd_pm_regs[addr >> 2] ^ value) & 1) {
             now = qemu_get_clock(vm_clock);
 
             if (value & 1)
@@ -1190,7 +1177,7 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
                 qemu_irq_raise(s->irq[1][OMAP_INT_GAUGE_32K]);
             }
         }
-        s->ulpd_pm_regs[offset >> 2] = value;
+        s->ulpd_pm_regs[addr >> 2] = value;
         break;
 
     case 0x18:	/* Reserved */
@@ -1203,18 +1190,18 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
     case 0x38:	/* COUNTER_32_FIQ */
     case 0x48:	/* LOCL_TIME */
     case 0x50:	/* POWER_CTRL */
-        s->ulpd_pm_regs[offset >> 2] = value;
+        s->ulpd_pm_regs[addr >> 2] = value;
         break;
 
     case 0x30:	/* CLOCK_CTRL */
-        diff = s->ulpd_pm_regs[offset >> 2] ^ value;
-        s->ulpd_pm_regs[offset >> 2] = value & 0x3f;
+        diff = s->ulpd_pm_regs[addr >> 2] ^ value;
+        s->ulpd_pm_regs[addr >> 2] = value & 0x3f;
         omap_ulpd_clk_update(s, diff, value);
         break;
 
     case 0x34:	/* SOFT_REQ */
-        diff = s->ulpd_pm_regs[offset >> 2] ^ value;
-        s->ulpd_pm_regs[offset >> 2] = value & 0x1f;
+        diff = s->ulpd_pm_regs[addr >> 2] ^ value;
+        s->ulpd_pm_regs[addr >> 2] = value & 0x1f;
         omap_ulpd_req_update(s, diff, value);
         break;
 
@@ -1223,8 +1210,8 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
          * omitted altogether, probably a typo.  */
         /* This register has identical semantics with DPLL(1:3) control
          * registers, see omap_dpll_write() */
-        diff = s->ulpd_pm_regs[offset >> 2] & value;
-        s->ulpd_pm_regs[offset >> 2] = value & 0x2fff;
+        diff = s->ulpd_pm_regs[addr >> 2] & value;
+        s->ulpd_pm_regs[addr >> 2] = value & 0x2fff;
         if (diff & (0x3ff << 2)) {
             if (value & (1 << 4)) {			/* PLL_ENABLE */
                 div = ((value >> 5) & 3) + 1;		/* PLL_DIV */
@@ -1237,17 +1224,17 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
         }
 
         /* Enter the desired mode.  */
-        s->ulpd_pm_regs[offset >> 2] =
-                (s->ulpd_pm_regs[offset >> 2] & 0xfffe) |
-                ((s->ulpd_pm_regs[offset >> 2] >> 4) & 1);
+        s->ulpd_pm_regs[addr >> 2] =
+                (s->ulpd_pm_regs[addr >> 2] & 0xfffe) |
+                ((s->ulpd_pm_regs[addr >> 2] >> 4) & 1);
 
         /* Act as if the lock is restored.  */
-        s->ulpd_pm_regs[offset >> 2] |= 2;
+        s->ulpd_pm_regs[addr >> 2] |= 2;
         break;
 
     case 0x4c:	/* APLL_CTRL */
-        diff = s->ulpd_pm_regs[offset >> 2] & value;
-        s->ulpd_pm_regs[offset >> 2] = value & 0xf;
+        diff = s->ulpd_pm_regs[addr >> 2] & value;
+        s->ulpd_pm_regs[addr >> 2] = value & 0xf;
         if (diff & (1 << 0))				/* APLL_NDPLL_SWITCH */
             omap_clk_reparent(omap_findclk(s, "ck_48m"), omap_findclk(s,
                                     (value & (1 << 0)) ? "apll" : "dpll4"));
@@ -1303,8 +1290,7 @@ static void omap_ulpd_pm_init(target_phys_addr_t base,
     int iomemtype = cpu_register_io_memory(0, omap_ulpd_pm_readfn,
                     omap_ulpd_pm_writefn, mpu);
 
-    mpu->ulpd_pm_base = base;
-    cpu_register_physical_memory(mpu->ulpd_pm_base, 0x800, iomemtype);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
     omap_ulpd_pm_reset(mpu);
 }
 
@@ -1312,13 +1298,12 @@ static void omap_ulpd_pm_init(target_phys_addr_t base,
 static uint32_t omap_pin_cfg_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->pin_cfg_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* FUNC_MUX_CTRL_0 */
     case 0x04:	/* FUNC_MUX_CTRL_1 */
     case 0x08:	/* FUNC_MUX_CTRL_2 */
-        return s->func_mux_ctrl[offset >> 2];
+        return s->func_mux_ctrl[addr >> 2];
 
     case 0x0c:	/* COMP_MODE_CTRL_0 */
         return s->comp_mode_ctrl[0];
@@ -1334,13 +1319,13 @@ static uint32_t omap_pin_cfg_read(void *opaque, target_phys_addr_t addr)
     case 0x30:	/* FUNC_MUX_CTRL_B */
     case 0x34:	/* FUNC_MUX_CTRL_C */
     case 0x38:	/* FUNC_MUX_CTRL_D */
-        return s->func_mux_ctrl[(offset >> 2) - 1];
+        return s->func_mux_ctrl[(addr >> 2) - 1];
 
     case 0x40:	/* PULL_DWN_CTRL_0 */
     case 0x44:	/* PULL_DWN_CTRL_1 */
     case 0x48:	/* PULL_DWN_CTRL_2 */
     case 0x4c:	/* PULL_DWN_CTRL_3 */
-        return s->pull_dwn_ctrl[(offset & 0xf) >> 2];
+        return s->pull_dwn_ctrl[(addr & 0xf) >> 2];
 
     case 0x50:	/* GATE_INH_CTRL_0 */
         return s->gate_inh_ctrl[0];
@@ -1416,24 +1401,23 @@ static void omap_pin_cfg_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->pin_cfg_base;
     uint32_t diff;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* FUNC_MUX_CTRL_0 */
-        diff = s->func_mux_ctrl[offset >> 2] ^ value;
-        s->func_mux_ctrl[offset >> 2] = value;
+        diff = s->func_mux_ctrl[addr >> 2] ^ value;
+        s->func_mux_ctrl[addr >> 2] = value;
         omap_pin_funcmux0_update(s, diff, value);
         return;
 
     case 0x04:	/* FUNC_MUX_CTRL_1 */
-        diff = s->func_mux_ctrl[offset >> 2] ^ value;
-        s->func_mux_ctrl[offset >> 2] = value;
+        diff = s->func_mux_ctrl[addr >> 2] ^ value;
+        s->func_mux_ctrl[addr >> 2] = value;
         omap_pin_funcmux1_update(s, diff, value);
         return;
 
     case 0x08:	/* FUNC_MUX_CTRL_2 */
-        s->func_mux_ctrl[offset >> 2] = value;
+        s->func_mux_ctrl[addr >> 2] = value;
         return;
 
     case 0x0c:	/* COMP_MODE_CTRL_0 */
@@ -1454,14 +1438,14 @@ static void omap_pin_cfg_write(void *opaque, target_phys_addr_t addr,
     case 0x30:	/* FUNC_MUX_CTRL_B */
     case 0x34:	/* FUNC_MUX_CTRL_C */
     case 0x38:	/* FUNC_MUX_CTRL_D */
-        s->func_mux_ctrl[(offset >> 2) - 1] = value;
+        s->func_mux_ctrl[(addr >> 2) - 1] = value;
         return;
 
     case 0x40:	/* PULL_DWN_CTRL_0 */
     case 0x44:	/* PULL_DWN_CTRL_1 */
     case 0x48:	/* PULL_DWN_CTRL_2 */
     case 0x4c:	/* PULL_DWN_CTRL_3 */
-        s->pull_dwn_ctrl[(offset & 0xf) >> 2] = value;
+        s->pull_dwn_ctrl[(addr & 0xf) >> 2] = value;
         return;
 
     case 0x50:	/* GATE_INH_CTRL_0 */
@@ -1521,8 +1505,7 @@ static void omap_pin_cfg_init(target_phys_addr_t base,
     int iomemtype = cpu_register_io_memory(0, omap_pin_cfg_readfn,
                     omap_pin_cfg_writefn, mpu);
 
-    mpu->pin_cfg_base = base;
-    cpu_register_physical_memory(mpu->pin_cfg_base, 0x800, iomemtype);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
     omap_pin_cfg_reset(mpu);
 }
 
@@ -1591,19 +1574,18 @@ static void omap_id_init(struct omap_mpu_state_s *mpu)
 {
     int iomemtype = cpu_register_io_memory(0, omap_id_readfn,
                     omap_id_writefn, mpu);
-    cpu_register_physical_memory(0xfffe1800, 0x800, iomemtype);
-    cpu_register_physical_memory(0xfffed400, 0x100, iomemtype);
+    cpu_register_physical_memory_offset(0xfffe1800, 0x800, iomemtype, 0xfffe1800);
+    cpu_register_physical_memory_offset(0xfffed400, 0x100, iomemtype, 0xfffed400);
     if (!cpu_is_omap15xx(mpu))
-        cpu_register_physical_memory(0xfffe2000, 0x800, iomemtype);
+        cpu_register_physical_memory_offset(0xfffe2000, 0x800, iomemtype, 0xfffe2000);
 }
 
 /* MPUI Control (Dummy) */
 static uint32_t omap_mpui_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->mpui_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* CTRL */
         return s->mpui_ctrl;
     case 0x04:	/* DEBUG_ADDR */
@@ -1631,9 +1613,8 @@ static void omap_mpui_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->mpui_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* CTRL */
         s->mpui_ctrl = value & 0x007fffff;
         break;
@@ -1677,15 +1658,13 @@ static void omap_mpui_init(target_phys_addr_t base,
     int iomemtype = cpu_register_io_memory(0, omap_mpui_readfn,
                     omap_mpui_writefn, mpu);
 
-    mpu->mpui_base = base;
-    cpu_register_physical_memory(mpu->mpui_base, 0x100, iomemtype);
+    cpu_register_physical_memory(base, 0x100, iomemtype);
 
     omap_mpui_reset(mpu);
 }
 
 /* TIPB Bridges */
 struct omap_tipb_bridge_s {
-    target_phys_addr_t base;
     qemu_irq abort;
 
     int width_intr;
@@ -1698,9 +1677,8 @@ struct omap_tipb_bridge_s {
 static uint32_t omap_tipb_bridge_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_tipb_bridge_s *s = (struct omap_tipb_bridge_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* TIPB_CNTL */
         return s->control;
     case 0x04:	/* TIPB_BUS_ALLOC */
@@ -1725,9 +1703,8 @@ static void omap_tipb_bridge_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_tipb_bridge_s *s = (struct omap_tipb_bridge_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* TIPB_CNTL */
         s->control = value & 0xffff;
         break;
@@ -1785,12 +1762,11 @@ struct omap_tipb_bridge_s *omap_tipb_bridge_init(target_phys_addr_t base,
             qemu_mallocz(sizeof(struct omap_tipb_bridge_s));
 
     s->abort = abort_irq;
-    s->base = base;
     omap_tipb_bridge_reset(s);
 
     iomemtype = cpu_register_io_memory(0, omap_tipb_bridge_readfn,
                     omap_tipb_bridge_writefn, s);
-    cpu_register_physical_memory(s->base, 0x100, iomemtype);
+    cpu_register_physical_memory(base, 0x100, iomemtype);
 
     return s;
 }
@@ -1799,10 +1775,9 @@ struct omap_tipb_bridge_s *omap_tipb_bridge_init(target_phys_addr_t base,
 static uint32_t omap_tcmi_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->tcmi_base;
     uint32_t ret;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* IMIF_PRIO */
     case 0x04:	/* EMIFS_PRIO */
     case 0x08:	/* EMIFF_PRIO */
@@ -1817,11 +1792,11 @@ static uint32_t omap_tcmi_read(void *opaque, target_phys_addr_t addr)
     case 0x30:	/* TIMEOUT3 */
     case 0x3c:	/* EMIFF_SDRAM_CONFIG_2 */
     case 0x40:	/* EMIFS_CFG_DYN_WAIT */
-        return s->tcmi_regs[offset >> 2];
+        return s->tcmi_regs[addr >> 2];
 
     case 0x20:	/* EMIFF_SDRAM_CONFIG */
-        ret = s->tcmi_regs[offset >> 2];
-        s->tcmi_regs[offset >> 2] &= ~1; /* XXX: Clear SLRF on SDRAM access */
+        ret = s->tcmi_regs[addr >> 2];
+        s->tcmi_regs[addr >> 2] &= ~1; /* XXX: Clear SLRF on SDRAM access */
         /* XXX: We can try using the VGA_DIRTY flag for this */
         return ret;
     }
@@ -1834,9 +1809,8 @@ static void omap_tcmi_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->tcmi_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* IMIF_PRIO */
     case 0x04:	/* EMIFS_PRIO */
     case 0x08:	/* EMIFF_PRIO */
@@ -1851,10 +1825,10 @@ static void omap_tcmi_write(void *opaque, target_phys_addr_t addr,
     case 0x30:	/* TIMEOUT3 */
     case 0x3c:	/* EMIFF_SDRAM_CONFIG_2 */
     case 0x40:	/* EMIFS_CFG_DYN_WAIT */
-        s->tcmi_regs[offset >> 2] = value;
+        s->tcmi_regs[addr >> 2] = value;
         break;
     case 0x0c:	/* EMIFS_CONFIG */
-        s->tcmi_regs[offset >> 2] = (value & 0xf) | (1 << 4);
+        s->tcmi_regs[addr >> 2] = (value & 0xf) | (1 << 4);
         break;
 
     default:
@@ -1899,8 +1873,7 @@ static void omap_tcmi_init(target_phys_addr_t base,
     int iomemtype = cpu_register_io_memory(0, omap_tcmi_readfn,
                     omap_tcmi_writefn, mpu);
 
-    mpu->tcmi_base = base;
-    cpu_register_physical_memory(mpu->tcmi_base, 0x100, iomemtype);
+    cpu_register_physical_memory(base, 0x100, iomemtype);
     omap_tcmi_reset(mpu);
 }
 
@@ -1908,9 +1881,8 @@ static void omap_tcmi_init(target_phys_addr_t base,
 static uint32_t omap_dpll_read(void *opaque, target_phys_addr_t addr)
 {
     struct dpll_ctl_s *s = (struct dpll_ctl_s *) opaque;
-    int offset = addr - s->base;
 
-    if (offset == 0x00)	/* CTL_REG */
+    if (addr == 0x00)	/* CTL_REG */
         return s->mode;
 
     OMAP_BAD_REG(addr);
@@ -1922,11 +1894,10 @@ static void omap_dpll_write(void *opaque, target_phys_addr_t addr,
 {
     struct dpll_ctl_s *s = (struct dpll_ctl_s *) opaque;
     uint16_t diff;
-    int offset = addr - s->base;
     static const int bypass_div[4] = { 1, 2, 4, 4 };
     int div, mult;
 
-    if (offset == 0x00) {	/* CTL_REG */
+    if (addr == 0x00) {	/* CTL_REG */
         /* See omap_ulpd_pm_write() too */
         diff = s->mode & value;
         s->mode = value & 0x2fff;
@@ -1975,18 +1946,17 @@ static void omap_dpll_init(struct dpll_ctl_s *s, target_phys_addr_t base,
     int iomemtype = cpu_register_io_memory(0, omap_dpll_readfn,
                     omap_dpll_writefn, s);
 
-    s->base = base;
     s->dpll = clk;
     omap_dpll_reset(s);
 
-    cpu_register_physical_memory(s->base, 0x100, iomemtype);
+    cpu_register_physical_memory(base, 0x100, iomemtype);
 }
 
 /* UARTs */
 struct omap_uart_s {
+    target_phys_addr_t base;
     SerialState *serial; /* TODO */
     struct omap_target_agent_s *ta;
-    target_phys_addr_t base;
     omap_clk fclk;
     qemu_irq irq;
 
@@ -2025,9 +1995,9 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
 static uint32_t omap_uart_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_uart_s *s = (struct omap_uart_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    addr &= 0xff;
+    switch (addr) {
     case 0x20:	/* MDR1 */
         return s->mdr[0];
     case 0x24:	/* MDR2 */
@@ -2058,9 +2028,9 @@ static void omap_uart_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_uart_s *s = (struct omap_uart_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    addr &= 0xff;
+    switch (addr) {
     case 0x20:	/* MDR1 */
         s->mdr[0] = value & 0x7f;
         break;
@@ -2118,7 +2088,7 @@ struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
 
     s->ta = ta;
 
-    cpu_register_physical_memory(s->base + 0x20, 0x100, iomemtype);
+    cpu_register_physical_memory(base + 0x20, 0x100, iomemtype);
 
     return s;
 }
@@ -2135,9 +2105,8 @@ void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr)
 static uint32_t omap_clkm_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->clkm.mpu_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* ARM_CKCTL */
         return s->clkm.arm_ckctl;
 
@@ -2333,7 +2302,6 @@ static void omap_clkm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->clkm.mpu_base;
     uint16_t diff;
     omap_clk clk;
     static const char *clkschemename[8] = {
@@ -2341,7 +2309,7 @@ static void omap_clkm_write(void *opaque, target_phys_addr_t addr,
         "mix mode 1", "mix mode 2", "bypass mode", "mix mode 3", "mix mode 4",
     };
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* ARM_CKCTL */
         diff = s->clkm.arm_ckctl ^ value;
         s->clkm.arm_ckctl = value & 0x7fff;
@@ -2423,9 +2391,8 @@ static CPUWriteMemoryFunc *omap_clkm_writefn[] = {
 static uint32_t omap_clkdsp_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->clkm.dsp_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x04:	/* DSP_IDLECT1 */
         return s->clkm.dsp_idlect1;
 
@@ -2464,10 +2431,9 @@ static void omap_clkdsp_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
-    int offset = addr - s->clkm.dsp_base;
     uint16_t diff;
 
-    switch (offset) {
+    switch (addr) {
     case 0x04:	/* DSP_IDLECT1 */
         diff = s->clkm.dsp_idlect1 ^ value;
         s->clkm.dsp_idlect1 = value & 0x01f7;
@@ -2536,21 +2502,18 @@ static void omap_clkm_init(target_phys_addr_t mpu_base,
         cpu_register_io_memory(0, omap_clkdsp_readfn, omap_clkdsp_writefn, s),
     };
 
-    s->clkm.mpu_base = mpu_base;
-    s->clkm.dsp_base = dsp_base;
     s->clkm.arm_idlect1 = 0x03ff;
     s->clkm.arm_idlect2 = 0x0100;
     s->clkm.dsp_idlect1 = 0x0002;
     omap_clkm_reset(s);
     s->clkm.cold_start = 0x3a;
 
-    cpu_register_physical_memory(s->clkm.mpu_base, 0x100, iomemtype[0]);
-    cpu_register_physical_memory(s->clkm.dsp_base, 0x1000, iomemtype[1]);
+    cpu_register_physical_memory(mpu_base, 0x100, iomemtype[0]);
+    cpu_register_physical_memory(dsp_base, 0x1000, iomemtype[1]);
 }
 
 /* MPU I/O */
 struct omap_mpuio_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     qemu_irq kbd_irq;
     qemu_irq *in;
@@ -2783,7 +2746,6 @@ struct omap_mpuio_s *omap_mpuio_init(target_phys_addr_t base,
     struct omap_mpuio_s *s = (struct omap_mpuio_s *)
             qemu_mallocz(sizeof(struct omap_mpuio_s));
 
-    s->base = base;
     s->irq = gpio_int;
     s->kbd_irq = kbd_int;
     s->wakeup = wakeup;
@@ -2792,7 +2754,7 @@ struct omap_mpuio_s *omap_mpuio_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, omap_mpuio_readfn,
                     omap_mpuio_writefn, s);
-    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
 
     omap_clk_adduser(clk, qemu_allocate_irqs(omap_mpuio_onoff, s, 1)[0]);
 
@@ -2827,7 +2789,6 @@ void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down)
 
 /* General-Purpose I/O */
 struct omap_gpio_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     qemu_irq *in;
     qemu_irq handler[16];
@@ -2984,14 +2945,13 @@ struct omap_gpio_s *omap_gpio_init(target_phys_addr_t base,
     struct omap_gpio_s *s = (struct omap_gpio_s *)
             qemu_mallocz(sizeof(struct omap_gpio_s));
 
-    s->base = base;
     s->irq = irq;
     s->in = qemu_allocate_irqs(omap_gpio_set, s, 16);
     omap_gpio_reset(s);
 
     iomemtype = cpu_register_io_memory(0, omap_gpio_readfn,
                     omap_gpio_writefn, s);
-    cpu_register_physical_memory(s->base, 0x1000, iomemtype);
+    cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     return s;
 }
@@ -3010,7 +2970,6 @@ void omap_gpio_out_set(struct omap_gpio_s *s, int line, qemu_irq handler)
 
 /* MicroWire Interface */
 struct omap_uwire_s {
-    target_phys_addr_t base;
     qemu_irq txirq;
     qemu_irq rxirq;
     qemu_irq txdrq;
@@ -3155,7 +3114,6 @@ struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
     struct omap_uwire_s *s = (struct omap_uwire_s *)
             qemu_mallocz(sizeof(struct omap_uwire_s));
 
-    s->base = base;
     s->txirq = irq[0];
     s->rxirq = irq[1];
     s->txdrq = dma;
@@ -3163,7 +3121,7 @@ struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, omap_uwire_readfn,
                     omap_uwire_writefn, s);
-    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
 
     return s;
 }
@@ -3364,7 +3322,6 @@ static void omap_pwt_init(target_phys_addr_t base, struct omap_mpu_state_s *s,
 
 /* Real-time Clock module */
 struct omap_rtc_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     qemu_irq alarm;
     QEMUTimer *clk;
@@ -3775,7 +3732,6 @@ struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
     struct omap_rtc_s *s = (struct omap_rtc_s *)
             qemu_mallocz(sizeof(struct omap_rtc_s));
 
-    s->base = base;
     s->irq = irq[0];
     s->alarm = irq[1];
     s->clk = qemu_new_timer(rt_clock, omap_rtc_tick, s);
@@ -3784,14 +3740,13 @@ struct omap_rtc_s *omap_rtc_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, omap_rtc_readfn,
                     omap_rtc_writefn, s);
-    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
 
     return s;
 }
 
 /* Multi-channel Buffered Serial Port interfaces */
 struct omap_mcbsp_s {
-    target_phys_addr_t base;
     qemu_irq txirq;
     qemu_irq rxirq;
     qemu_irq txdrq;
@@ -4295,7 +4250,6 @@ struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
     struct omap_mcbsp_s *s = (struct omap_mcbsp_s *)
             qemu_mallocz(sizeof(struct omap_mcbsp_s));
 
-    s->base = base;
     s->txirq = irq[0];
     s->rxirq = irq[1];
     s->txdrq = dma[0];
@@ -4306,7 +4260,7 @@ struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, omap_mcbsp_readfn,
                     omap_mcbsp_writefn, s);
-    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
 
     return s;
 }
@@ -4340,7 +4294,6 @@ void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, struct i2s_codec_s *slave)
 
 /* LED Pulse Generators */
 struct omap_lpg_s {
-    target_phys_addr_t base;
     QEMUTimer *tm;
 
     uint8_t control;
@@ -4473,14 +4426,13 @@ struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
     struct omap_lpg_s *s = (struct omap_lpg_s *)
             qemu_mallocz(sizeof(struct omap_lpg_s));
 
-    s->base = base;
     s->tm = qemu_new_timer(rt_clock, omap_lpg_tick, s);
 
     omap_lpg_reset(s);
 
     iomemtype = cpu_register_io_memory(0, omap_lpg_readfn,
                     omap_lpg_writefn, s);
-    cpu_register_physical_memory(s->base, 0x800, iomemtype);
+    cpu_register_physical_memory(base, 0x800, iomemtype);
 
     omap_clk_adduser(clk, qemu_allocate_irqs(omap_lpg_clk_update, s, 1)[0]);
 

@@ -433,6 +433,7 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
                                    malta_fpga_write, s);
 
     cpu_register_physical_memory(base, 0x900, malta);
+    /* 0xa00 is less than a page, so will still get the right offsets.  */
     cpu_register_physical_memory(base + 0xa00, 0x100000 - 0xa00, malta);
 
     s->display = qemu_chr_open("fpga", "vc:320x200");

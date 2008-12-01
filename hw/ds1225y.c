@@ -30,7 +30,6 @@
 
 typedef struct ds1225y_t
 {
-    target_phys_addr_t mem_base;
     uint32_t chip_size;
     QEMUFile *file;
     uint8_t *contents;
@@ -41,14 +40,9 @@ typedef struct ds1225y_t
 static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
 {
     ds1225y_t *s = opaque;
-    int64_t pos;
     uint32_t val;
 
-    pos = addr - s->mem_base;
-    if (pos >= s->chip_size)
-        pos -= s->chip_size;
-
-    val = s->contents[pos];
+    val = s->contents[addr];
 
 #ifdef DEBUG_NVRAM
     printf("nvram: read 0x%x at " TARGET_FMT_lx "\n", val, addr);
@@ -77,16 +71,14 @@ static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
 static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     ds1225y_t *s = opaque;
-    int64_t pos;
 
 #ifdef DEBUG_NVRAM
     printf("nvram: write 0x%x at " TARGET_FMT_lx "\n", val, addr);
 #endif
 
-    pos = addr - s->mem_base;
-    s->contents[pos] = val & 0xff;
+    s->contents[addr] = val & 0xff;
     if (s->file) {
-        qemu_fseek(s->file, pos, SEEK_SET);
+        qemu_fseek(s->file, addr, SEEK_SET);
         qemu_put_byte(s->file, (int)val);
         qemu_fflush(s->file);
     }
@@ -117,7 +109,7 @@ static void nvram_writeb_protected (void *opaque, target_phys_addr_t addr, uint3
         return;
     }
 
-    nvram_writeb(opaque, addr - s->chip_size, val);
+    nvram_writeb(opaque, addr, val);
 }
 
 static void nvram_writew_protected (void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -167,7 +159,6 @@ void *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
     if (!s->contents) {
         return NULL;
     }
-    s->mem_base = mem_base;
     s->protection = 7;
 
     /* Read current file */

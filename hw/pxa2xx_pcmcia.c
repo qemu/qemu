@@ -14,9 +14,6 @@
 struct pxa2xx_pcmcia_s {
     struct pcmcia_socket_s slot;
     struct pcmcia_card_s *card;
-    target_phys_addr_t common_base;
-    target_phys_addr_t attr_base;
-    target_phys_addr_t io_base;
 
     qemu_irq irq;
     qemu_irq cd_irq;
@@ -28,7 +25,6 @@ static uint32_t pxa2xx_pcmcia_common_read(void *opaque,
     struct pxa2xx_pcmcia_s *s = (struct pxa2xx_pcmcia_s *) opaque;
 
     if (s->slot.attached) {
-        offset -= s->common_base;
         return s->card->common_read(s->card->state, offset);
     }
 
@@ -41,7 +37,6 @@ static void pxa2xx_pcmcia_common_write(void *opaque,
     struct pxa2xx_pcmcia_s *s = (struct pxa2xx_pcmcia_s *) opaque;
 
     if (s->slot.attached) {
-        offset -= s->common_base;
         s->card->common_write(s->card->state, offset, value);
     }
 }
@@ -52,7 +47,6 @@ static uint32_t pxa2xx_pcmcia_attr_read(void *opaque,
     struct pxa2xx_pcmcia_s *s = (struct pxa2xx_pcmcia_s *) opaque;
 
     if (s->slot.attached) {
-        offset -= s->attr_base;
         return s->card->attr_read(s->card->state, offset);
     }
 
@@ -65,7 +59,6 @@ static void pxa2xx_pcmcia_attr_write(void *opaque,
     struct pxa2xx_pcmcia_s *s = (struct pxa2xx_pcmcia_s *) opaque;
 
     if (s->slot.attached) {
-        offset -= s->attr_base;
         s->card->attr_write(s->card->state, offset, value);
     }
 }
@@ -76,7 +69,6 @@ static uint32_t pxa2xx_pcmcia_io_read(void *opaque,
     struct pxa2xx_pcmcia_s *s = (struct pxa2xx_pcmcia_s *) opaque;
 
     if (s->slot.attached) {
-        offset -= s->io_base;
         return s->card->io_read(s->card->state, offset);
     }
 
@@ -89,7 +81,6 @@ static void pxa2xx_pcmcia_io_write(void *opaque,
     struct pxa2xx_pcmcia_s *s = (struct pxa2xx_pcmcia_s *) opaque;
 
     if (s->slot.attached) {
-        offset -= s->io_base;
         s->card->io_write(s->card->state, offset, value);
     }
 }
@@ -148,24 +139,21 @@ struct pxa2xx_pcmcia_s *pxa2xx_pcmcia_init(target_phys_addr_t base)
             qemu_mallocz(sizeof(struct pxa2xx_pcmcia_s));
 
     /* Socket I/O Memory Space */
-    s->io_base = base | 0x00000000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_io_readfn,
                     pxa2xx_pcmcia_io_writefn, s);
-    cpu_register_physical_memory(s->io_base, 0x04000000, iomemtype);
+    cpu_register_physical_memory(base | 0x00000000, 0x04000000, iomemtype);
 
     /* Then next 64 MB is reserved */
 
     /* Socket Attribute Memory Space */
-    s->attr_base = base | 0x08000000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_attr_readfn,
                     pxa2xx_pcmcia_attr_writefn, s);
-    cpu_register_physical_memory(s->attr_base, 0x04000000, iomemtype);
+    cpu_register_physical_memory(base | 0x08000000, 0x04000000, iomemtype);
 
     /* Socket Common Memory Space */
-    s->common_base = base | 0x0c000000;
     iomemtype = cpu_register_io_memory(0, pxa2xx_pcmcia_common_readfn,
                     pxa2xx_pcmcia_common_writefn, s);
-    cpu_register_physical_memory(s->common_base, 0x04000000, iomemtype);
+    cpu_register_physical_memory(base | 0x0c000000, 0x04000000, iomemtype);
 
     if (base == 0x30000000)
         s->slot.slot_string = "PXA PC Card Socket 1";

@@ -57,7 +57,6 @@ typedef struct gptm_state {
     uint32_t rtc;
     int64_t tick[2];
     struct gptm_state *opaque[2];
-    uint32_t base;
     QEMUTimer *timer[2];
     /* The timers have an alternate output used to trigger the ADC.  */
     qemu_irq trigger;
@@ -148,7 +147,6 @@ static uint32_t gptm_read(void *opaque, target_phys_addr_t offset)
 {
     gptm_state *s = (gptm_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x00: /* CFG */
         return s->config;
@@ -198,7 +196,6 @@ static void gptm_write(void *opaque, target_phys_addr_t offset, uint32_t value)
     gptm_state *s = (gptm_state *)opaque;
     uint32_t oldval;
 
-    offset -= s->base;
     /* The timers should be disabled before changing the configuration.
        We take advantage of this and defer everything until the timer
        is enabled.  */
@@ -351,7 +348,6 @@ static void stellaris_gptm_init(uint32_t base, qemu_irq irq, qemu_irq trigger)
     gptm_state *s;
 
     s = (gptm_state *)qemu_mallocz(sizeof(gptm_state));
-    s->base = base;
     s->irq = irq;
     s->trigger = trigger;
     s->opaque[0] = s->opaque[1] = s;
@@ -368,7 +364,6 @@ static void stellaris_gptm_init(uint32_t base, qemu_irq irq, qemu_irq trigger)
 /* System controller.  */
 
 typedef struct {
-    uint32_t base;
     uint32_t pborctl;
     uint32_t ldopctl;
     uint32_t int_status;
@@ -433,7 +428,6 @@ static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
 {
     ssys_state *s = (ssys_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x000: /* DID0 */
         return s->board->did0;
@@ -520,7 +514,6 @@ static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
 {
     ssys_state *s = (ssys_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x030: /* PBORCTL */
         s->pborctl = value & 0xffff;
@@ -672,7 +665,6 @@ static void stellaris_sys_init(uint32_t base, qemu_irq irq,
     ssys_state *s;
 
     s = (ssys_state *)qemu_mallocz(sizeof(ssys_state));
-    s->base = base;
     s->irq = irq;
     s->board = board;
     /* Most devices come preprogrammed with a MAC address in the user data. */
@@ -692,7 +684,6 @@ static void stellaris_sys_init(uint32_t base, qemu_irq irq,
 typedef struct {
     i2c_bus *bus;
     qemu_irq irq;
-    uint32_t base;
     uint32_t msa;
     uint32_t mcs;
     uint32_t mdr;
@@ -714,7 +705,6 @@ static uint32_t stellaris_i2c_read(void *opaque, target_phys_addr_t offset)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x00: /* MSA */
         return s->msa;
@@ -753,7 +743,6 @@ static void stellaris_i2c_write(void *opaque, target_phys_addr_t offset,
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x00: /* MSA */
         s->msa = value & 0xff;
@@ -890,7 +879,6 @@ static void stellaris_i2c_init(uint32_t base, qemu_irq irq, i2c_bus *bus)
     int iomemtype;
 
     s = (stellaris_i2c_state *)qemu_mallocz(sizeof(stellaris_i2c_state));
-    s->base = base;
     s->irq = irq;
     s->bus = bus;
 
@@ -919,7 +907,6 @@ static void stellaris_i2c_init(uint32_t base, qemu_irq irq, i2c_bus *bus)
 
 typedef struct
 {
-    uint32_t base;
     uint32_t actss;
     uint32_t ris;
     uint32_t im;
@@ -1013,7 +1000,6 @@ static uint32_t stellaris_adc_read(void *opaque, target_phys_addr_t offset)
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
 
     /* TODO: Implement this.  */
-    offset -= s->base;
     if (offset >= 0x40 && offset < 0xc0) {
         int n;
         n = (offset - 0x40) >> 5;
@@ -1062,7 +1048,6 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
 
     /* TODO: Implement this.  */
-    offset -= s->base;
     if (offset >= 0x40 && offset < 0xc0) {
         int n;
         n = (offset - 0x40) >> 5;
@@ -1194,7 +1179,6 @@ static qemu_irq stellaris_adc_init(uint32_t base, qemu_irq irq)
     qemu_irq *qi;
 
     s = (stellaris_adc_state *)qemu_mallocz(sizeof(stellaris_adc_state));
-    s->base = base;
     s->irq = irq;
 
     iomemtype = cpu_register_io_memory(0, stellaris_adc_readfn,

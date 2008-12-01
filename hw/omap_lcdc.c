@@ -23,7 +23,6 @@
 #include "omap.h"
 
 struct omap_lcd_panel_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     DisplayState *state;
     QEMUConsole *console;
@@ -366,9 +365,8 @@ static void omap_lcd_update(struct omap_lcd_panel_s *s) {
 static uint32_t omap_lcdc_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* LCD_CONTROL */
         return (s->tft << 23) | (s->plm << 20) |
                 (s->tft << 7) | (s->interrupts << 3) |
@@ -400,9 +398,8 @@ static void omap_lcdc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
-    int offset = addr - s->base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* LCD_CONTROL */
         s->plm = (value >> 20) & 3;
         s->tft = (value >> 7) & 1;
@@ -485,7 +482,6 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
 
     s->irq = irq;
     s->dma = dma;
-    s->base = base;
     s->state = ds;
     s->imif_base = imif_base;
     s->emiff_base = emiff_base;
@@ -493,7 +489,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
 
     iomemtype = cpu_register_io_memory(0, omap_lcdc_readfn,
                     omap_lcdc_writefn, s);
-    cpu_register_physical_memory(s->base, 0x100, iomemtype);
+    cpu_register_physical_memory(base, 0x100, iomemtype);
 
     s->console = graphic_console_init(ds, omap_update_display,
                                       omap_invalidate_display,

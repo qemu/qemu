@@ -66,7 +66,6 @@ enum ohci_type {
 typedef struct {
     qemu_irq irq;
     enum ohci_type type;
-    target_phys_addr_t mem_base;
     int mem;
     int num_ports;
     const char *name;
@@ -1362,8 +1361,6 @@ static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
 {
     OHCIState *ohci = ptr;
 
-    addr -= ohci->mem_base;
-
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
         fprintf(stderr, "usb-ohci: Mis-aligned read\n");
@@ -1459,8 +1456,6 @@ static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
 static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
 {
     OHCIState *ohci = ptr;
-
-    addr -= ohci->mem_base;
 
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
@@ -1638,7 +1633,6 @@ static void ohci_mapfunc(PCIDevice *pci_dev, int i,
             uint32_t addr, uint32_t size, int type)
 {
     OHCIPCIState *ohci = (OHCIPCIState *)pci_dev;
-    ohci->state.mem_base = addr;
     cpu_register_physical_memory(addr, size, ohci->state.mem);
 }
 
@@ -1678,7 +1672,6 @@ void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,
 
     usb_ohci_init(ohci, num_ports, devfn, irq,
                   OHCI_TYPE_PXA, "OHCI USB");
-    ohci->mem_base = base;
 
-    cpu_register_physical_memory(ohci->mem_base, 0x1000, ohci->mem);
+    cpu_register_physical_memory(base, 0x1000, ohci->mem);
 }

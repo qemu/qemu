@@ -112,7 +112,6 @@ static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
 
     DPRINTF("%s: offset " TARGET_FMT_lx "\n", __func__, offset);
     ret = -1;
-    offset -= pfl->base;
     if (pfl->rom_mode) {
         /* Lazy reset of to ROMD mode */
         if (pfl->wcycle == 0)
@@ -241,7 +240,6 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     }
     DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d %d\n", __func__,
             offset, value, width, pfl->wcycle);
-    offset -= pfl->base;
     offset &= pfl->chip_len - 1;
 
     DPRINTF("%s: offset " TARGET_FMT_lx " %08x %d\n", __func__,

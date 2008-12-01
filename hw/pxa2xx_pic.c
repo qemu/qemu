@@ -31,7 +31,6 @@
 #define PXA2XX_PIC_SRCS	40
 
 struct pxa2xx_pic_state_s {
-    target_phys_addr_t base;
     CPUState *cpu_env;
     uint32_t int_enabled[2];
     uint32_t int_pending[2];
@@ -117,7 +116,6 @@ static inline uint32_t pxa2xx_pic_highest(struct pxa2xx_pic_state_s *s) {
 static uint32_t pxa2xx_pic_mem_read(void *opaque, target_phys_addr_t offset)
 {
     struct pxa2xx_pic_state_s *s = (struct pxa2xx_pic_state_s *) opaque;
-    offset -= s->base;
 
     switch (offset) {
     case ICIP:	/* IRQ Pending register */
@@ -158,7 +156,6 @@ static void pxa2xx_pic_mem_write(void *opaque, target_phys_addr_t offset,
                 uint32_t value)
 {
     struct pxa2xx_pic_state_s *s = (struct pxa2xx_pic_state_s *) opaque;
-    offset -= s->base;
 
     switch (offset) {
     case ICMR:	/* Mask register */
@@ -207,7 +204,6 @@ static const int pxa2xx_cp_reg_map[0x10] = {
 
 static uint32_t pxa2xx_pic_cp_read(void *opaque, int op2, int reg, int crm)
 {
-    struct pxa2xx_pic_state_s *s = (struct pxa2xx_pic_state_s *) opaque;
     target_phys_addr_t offset;
 
     if (pxa2xx_cp_reg_map[reg] == -1) {
@@ -215,14 +211,13 @@ static uint32_t pxa2xx_pic_cp_read(void *opaque, int op2, int reg, int crm)
         return 0;
     }
 
-    offset = s->base + pxa2xx_cp_reg_map[reg];
+    offset = pxa2xx_cp_reg_map[reg];
     return pxa2xx_pic_mem_read(opaque, offset);
 }
 
 static void pxa2xx_pic_cp_write(void *opaque, int op2, int reg, int crm,
                 uint32_t value)
 {
-    struct pxa2xx_pic_state_s *s = (struct pxa2xx_pic_state_s *) opaque;
     target_phys_addr_t offset;
 
     if (pxa2xx_cp_reg_map[reg] == -1) {
@@ -230,7 +225,7 @@ static void pxa2xx_pic_cp_write(void *opaque, int op2, int reg, int crm,
         return;
     }
 
-    offset = s->base + pxa2xx_cp_reg_map[reg];
+    offset = pxa2xx_cp_reg_map[reg];
     pxa2xx_pic_mem_write(opaque, offset, value);
 }
 
@@ -293,7 +288,6 @@ qemu_irq *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
         return NULL;
 
     s->cpu_env = env;
-    s->base = base;
 
     s->int_pending[0] = 0;
     s->int_pending[1] = 0;
