@@ -2419,6 +2419,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
         }
         if (-1 == vs->lsock) {
             free(dpy);
+            return -1;
         } else {
             free(vs->display);
             vs->display = dpy;
