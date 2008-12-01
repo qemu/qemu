@@ -64,7 +64,7 @@
 
 #define qemu_printf printf
 
-#if defined (__GNUC__) && defined (__GNUC_MINOR_)
+#if defined (__GNUC__) && defined (__GNUC_MINOR__)
 # define QEMU_GNUC_PREREQ(maj, min) \
          ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
 #else
