@@ -160,7 +160,7 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     CPUM68KState *env;
     static int inited;
 
-    env = malloc(sizeof(CPUM68KState));
+    env = qemu_mallocz(sizeof(CPUM68KState));
     if (!env)
         return NULL;
     cpu_exec_init(env);
