@@ -1499,12 +1499,12 @@ void glue(name, SUFFIX) (Reg *d, Reg *s)\
 {\
     d->elem(0) = F(0);\
     d->elem(1) = F(1);\
-    d->elem(2) = F(2);\
-    d->elem(3) = F(3);\
-    if (num > 3) {\
-        d->elem(4) = F(4);\
-        d->elem(5) = F(5);\
-        if (num > 5) {\
+    if (num > 2) {\
+        d->elem(2) = F(2);\
+        d->elem(3) = F(3);\
+        if (num > 4) {\
+            d->elem(4) = F(4);\
+            d->elem(5) = F(5);\
             d->elem(6) = F(6);\
             d->elem(7) = F(7);\
         }\
