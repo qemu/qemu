@@ -2246,6 +2246,7 @@ static void vnc_connect(VncState *vs)
     vs->has_hextile = 0;
     vs->ds->dpy_copy = NULL;
     vnc_update_client(vs);
+    reset_keys(vs);
 }
 
 static void vnc_listen_read(void *opaque)
