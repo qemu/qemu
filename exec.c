@@ -437,7 +437,7 @@ static void code_gen_alloc(unsigned long tb_size)
         if (code_gen_buffer_size > (512 * 1024 * 1024))
             code_gen_buffer_size = (512 * 1024 * 1024);
 #elif defined(__arm__)
-        /* Map the buffer below 64M, so we can use direct calls and branches */
+        /* Map the buffer below 32M, so we can use direct calls and branches */
         flags |= MAP_FIXED;
         start = (void *) 0x01000000UL;
         if (code_gen_buffer_size > 16 * 1024 * 1024)
