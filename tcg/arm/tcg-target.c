@@ -295,10 +295,19 @@ static inline void tcg_out_dat_reg2(TCGContext *s,
                 int cond, int opc0, int opc1, int rd0, int rd1,
                 int rn0, int rn1, int rm0, int rm1, int shift)
 {
-    tcg_out32(s, (cond << 28) | (0 << 25) | (opc0 << 21) | (1 << 20) |
-                    (rn0 << 16) | (rd0 << 12) | shift | rm0);
-    tcg_out32(s, (cond << 28) | (0 << 25) | (opc1 << 21) |
-                    (rn1 << 16) | (rd1 << 12) | shift | rm1);
+    if (rd0 == rn1 || rd0 == rm1) {
+        tcg_out32(s, (cond << 28) | (0 << 25) | (opc0 << 21) | (1 << 20) |
+                        (rn0 << 16) | (8 << 12) | shift | rm0);
+        tcg_out32(s, (cond << 28) | (0 << 25) | (opc1 << 21) |
+                        (rn1 << 16) | (rd1 << 12) | shift | rm1);
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
+                        rd0, 0, TCG_REG_R8, SHIFT_IMM_LSL(0));
+    } else {
+        tcg_out32(s, (cond << 28) | (0 << 25) | (opc0 << 21) | (1 << 20) |
+                        (rn0 << 16) | (rd0 << 12) | shift | rm0);
+        tcg_out32(s, (cond << 28) | (0 << 25) | (opc1 << 21) |
+                        (rn1 << 16) | (rd1 << 12) | shift | rm1);
+    }
 }
 
 static inline void tcg_out_dat_imm(TCGContext *s,
