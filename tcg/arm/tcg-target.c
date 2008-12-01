@@ -1232,19 +1232,24 @@ static inline void tcg_out_op(TCGContext *s, int opc,
         if (args[0] >> 8)
             tcg_out32(s, args[0]);
 #else
-        if (args[0] >> 8)
-            tcg_out_ld32_12(s, COND_AL, 0, 15, 0);
-        else
-            tcg_out_dat_imm(s, COND_AL, ARITH_MOV, 0, 0, args[0]);
-        tcg_out_goto(s, COND_AL, (tcg_target_ulong) tb_ret_addr);
-        if (args[0] >> 8)
-            tcg_out32(s, args[0]);
+        {
+            uint8_t *ld_ptr = s->code_ptr;
+            if (args[0] >> 8)
+                tcg_out_ld32_12(s, COND_AL, 0, 15, 0);
+            else
+                tcg_out_dat_imm(s, COND_AL, ARITH_MOV, 0, 0, args[0]);
+            tcg_out_goto(s, COND_AL, (tcg_target_ulong) tb_ret_addr);
+            if (args[0] >> 8) {
+                *ld_ptr = (uint8_t) (s->code_ptr - ld_ptr) - 8;
+                tcg_out32(s, args[0]);
+            }
+        }
 #endif
         break;
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* Direct jump method */
-#if 1
+#if defined(USE_DIRECT_JUMP)
             s->tb_jmp_offset[args[0]] = s->code_ptr - s->code_buf;
             tcg_out_b(s, COND_AL, 8);
 #else
