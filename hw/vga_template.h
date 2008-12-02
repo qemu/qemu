@@ -327,16 +327,6 @@ static void glue(vga_draw_line8_, DEPTH)(VGAState *s1, uint8_t *d,
     palette = s1->last_palette;
     width >>= 3;
     for(x = 0; x < width; x++) {
-#if defined(TARGET_WORDS_BIGENDIAN)
-        ((PIXEL_TYPE *)d)[3] = palette[s[0]];
-        ((PIXEL_TYPE *)d)[2] = palette[s[1]];
-        ((PIXEL_TYPE *)d)[1] = palette[s[2]];
-        ((PIXEL_TYPE *)d)[0] = palette[s[3]];
-        ((PIXEL_TYPE *)d)[7] = palette[s[4]];
-        ((PIXEL_TYPE *)d)[6] = palette[s[5]];
-        ((PIXEL_TYPE *)d)[5] = palette[s[6]];
-        ((PIXEL_TYPE *)d)[4] = palette[s[7]];
-#else
         ((PIXEL_TYPE *)d)[0] = palette[s[0]];
         ((PIXEL_TYPE *)d)[1] = palette[s[1]];
         ((PIXEL_TYPE *)d)[2] = palette[s[2]];
@@ -345,7 +335,6 @@ static void glue(vga_draw_line8_, DEPTH)(VGAState *s1, uint8_t *d,
         ((PIXEL_TYPE *)d)[5] = palette[s[5]];
         ((PIXEL_TYPE *)d)[6] = palette[s[6]];
         ((PIXEL_TYPE *)d)[7] = palette[s[7]];
-#endif
         d += BPP * 8;
         s += 8;
     }
