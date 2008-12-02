@@ -55,8 +55,7 @@ typedef struct MiscState {
 } MiscState;
 
 #define MISC_SIZE 1
-#define SYSCTRL_MAXADDR 3
-#define SYSCTRL_SIZE (SYSCTRL_MAXADDR + 1)
+#define SYSCTRL_SIZE 4
 #define LED_MAXADDR 1
 #define LED_SIZE (LED_MAXADDR + 1)
 
@@ -112,62 +111,96 @@ void slavio_set_power_fail(void *opaque, int power_failing)
     slavio_misc_update_irq(s);
 }
 
-static void slavio_misc_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                   uint32_t val)
+static void slavio_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
+                                  uint32_t val)
 {
     MiscState *s = opaque;
 
-    switch (addr & MISC_MASK) {
-    case MISC_CFG:
-        MISC_DPRINTF("Write config %2.2x\n", val & 0xff);
-        s->config = val & 0xff;
-        slavio_misc_update_irq(s);
-        break;
-    case MISC_DIAG:
-        MISC_DPRINTF("Write diag %2.2x\n", val & 0xff);
-        s->diag = val & 0xff;
-        break;
-    case MISC_MDM:
-        MISC_DPRINTF("Write modem control %2.2x\n", val & 0xff);
-        s->mctrl = val & 0xff;
-        break;
-    default:
-        break;
-    }
+    MISC_DPRINTF("Write config %2.2x\n", val & 0xff);
+    s->config = val & 0xff;
+    slavio_misc_update_irq(s);
 }
 
-static uint32_t slavio_misc_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t slavio_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
 
-    switch (addr & MISC_MASK) {
-    case MISC_CFG:
-        ret = s->config;
-        MISC_DPRINTF("Read config %2.2x\n", ret);
-        break;
-    case MISC_DIAG:
-        ret = s->diag;
-        MISC_DPRINTF("Read diag %2.2x\n", ret);
-        break;
-    case MISC_MDM:
-        ret = s->mctrl;
-        MISC_DPRINTF("Read modem control %2.2x\n", ret);
-        break;
-    default:
-        break;
-    }
+    ret = s->config;
+    MISC_DPRINTF("Read config %2.2x\n", ret);
     return ret;
 }
 
-static CPUReadMemoryFunc *slavio_misc_mem_read[3] = {
-    slavio_misc_mem_readb,
+static CPUReadMemoryFunc *slavio_cfg_mem_read[3] = {
+    slavio_cfg_mem_readb,
     NULL,
     NULL,
 };
 
-static CPUWriteMemoryFunc *slavio_misc_mem_write[3] = {
-    slavio_misc_mem_writeb,
+static CPUWriteMemoryFunc *slavio_cfg_mem_write[3] = {
+    slavio_cfg_mem_writeb,
+    NULL,
+    NULL,
+};
+
+static void slavio_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
+                                   uint32_t val)
+{
+    MiscState *s = opaque;
+
+    MISC_DPRINTF("Write diag %2.2x\n", val & 0xff);
+    s->diag = val & 0xff;
+}
+
+static uint32_t slavio_diag_mem_readb(void *opaque, target_phys_addr_t addr)
+{
+    MiscState *s = opaque;
+    uint32_t ret = 0;
+
+    ret = s->diag;
+    MISC_DPRINTF("Read diag %2.2x\n", ret);
+    return ret;
+}
+
+static CPUReadMemoryFunc *slavio_diag_mem_read[3] = {
+    slavio_diag_mem_readb,
+    NULL,
+    NULL,
+};
+
+static CPUWriteMemoryFunc *slavio_diag_mem_write[3] = {
+    slavio_diag_mem_writeb,
+    NULL,
+    NULL,
+};
+
+static void slavio_mdm_mem_writeb(void *opaque, target_phys_addr_t addr,
+                                  uint32_t val)
+{
+    MiscState *s = opaque;
+
+    MISC_DPRINTF("Write modem control %2.2x\n", val & 0xff);
+    s->mctrl = val & 0xff;
+}
+
+static uint32_t slavio_mdm_mem_readb(void *opaque, target_phys_addr_t addr)
+{
+    MiscState *s = opaque;
+    uint32_t ret = 0;
+
+    ret = s->mctrl;
+    MISC_DPRINTF("Read modem control %2.2x\n", ret);
+    return ret;
+}
+
+static CPUReadMemoryFunc *slavio_mdm_mem_read[3] = {
+    slavio_mdm_mem_readb,
+    NULL,
+    NULL,
+};
+
+static CPUWriteMemoryFunc *slavio_mdm_mem_write[3] = {
+    slavio_mdm_mem_writeb,
     NULL,
     NULL,
 };
@@ -282,10 +315,9 @@ static CPUWriteMemoryFunc *apc_mem_write[3] = {
 static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
-    uint32_t ret = 0, saddr;
+    uint32_t ret = 0;
 
-    saddr = addr & SYSCTRL_MAXADDR;
-    switch (saddr) {
+    switch (addr) {
     case 0:
         ret = s->sysctrl;
         break;
@@ -301,12 +333,10 @@ static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
                                       uint32_t val)
 {
     MiscState *s = opaque;
-    uint32_t saddr;
 
-    saddr = addr & SYSCTRL_MAXADDR;
     MISC_DPRINTF("Write system control reg 0x" TARGET_FMT_plx " =  %x\n", addr,
                  val);
-    switch (saddr) {
+    switch (addr) {
     case 0:
         if (val & SYS_RESET) {
             s->sysctrl = SYS_RESETSTAT;
@@ -333,10 +363,9 @@ static CPUWriteMemoryFunc *slavio_sysctrl_mem_write[3] = {
 static uint32_t slavio_led_mem_readw(void *opaque, target_phys_addr_t addr)
 {
     MiscState *s = opaque;
-    uint32_t ret = 0, saddr;
+    uint32_t ret = 0;
 
-    saddr = addr & LED_MAXADDR;
-    switch (saddr) {
+    switch (addr) {
     case 0:
         ret = s->leds;
         break;
@@ -352,12 +381,10 @@ static void slavio_led_mem_writew(void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
 {
     MiscState *s = opaque;
-    uint32_t saddr;
 
-    saddr = addr & LED_MAXADDR;
     MISC_DPRINTF("Write diagnostic LED reg 0x" TARGET_FMT_plx " =  %x\n", addr,
                  val);
-    switch (saddr) {
+    switch (addr) {
     case 0:
         s->leds = val;
         break;
@@ -428,17 +455,21 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
 
     if (base) {
         /* 8 bit registers */
-        io = cpu_register_io_memory(0, slavio_misc_mem_read,
-                                    slavio_misc_mem_write, s);
+
         // Slavio control
-        cpu_register_physical_memory_offset(base + MISC_CFG, MISC_SIZE, io,
-                                            MISC_CFG);
+        io = cpu_register_io_memory(0, slavio_cfg_mem_read,
+                                    slavio_cfg_mem_write, s);
+        cpu_register_physical_memory(base + MISC_CFG, MISC_SIZE, io);
+
         // Diagnostics
-        cpu_register_physical_memory_offset(base + MISC_DIAG, MISC_SIZE, io,
-                                            MISC_DIAG);
+        io = cpu_register_io_memory(0, slavio_diag_mem_read,
+                                    slavio_diag_mem_write, s);
+        cpu_register_physical_memory(base + MISC_DIAG, MISC_SIZE, io);
+
         // Modem control
-        cpu_register_physical_memory_offset(base + MISC_MDM, MISC_SIZE, io,
-                                            MISC_MDM);
+        io = cpu_register_io_memory(0, slavio_mdm_mem_read,
+                                    slavio_mdm_mem_write, s);
+        cpu_register_physical_memory(base + MISC_MDM, MISC_SIZE, io);
 
         /* 16 bit registers */
         io = cpu_register_io_memory(0, slavio_led_mem_read,
