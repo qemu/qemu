@@ -1186,7 +1186,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
 
     acb->hd_aiocb = NULL;
     if (ret < 0) {
-    fail:
+fail:
         acb->common.cb(acb->common.opaque, ret);
         qemu_aio_release(acb);
         return;
@@ -1232,30 +1232,30 @@ static void qcow_aio_read_cb(void *opaque, int ret)
                 if (acb->hd_aiocb == NULL)
                     goto fail;
             } else {
-		if (acb->bh) {
-		    ret = -EIO;
-		    goto fail;
-		}
-		acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
-		if (!acb->bh) {
-		    ret = -EIO;
-		    goto fail;
-		}
-		qemu_bh_schedule(acb->bh);
+                if (acb->bh) {
+                    ret = -EIO;
+                    goto fail;
+                }
+                acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
+                if (!acb->bh) {
+                    ret = -EIO;
+                    goto fail;
+                }
+                qemu_bh_schedule(acb->bh);
             }
         } else {
             /* Note: in this case, no need to wait */
             memset(acb->buf, 0, 512 * acb->n);
-	    if (acb->bh) {
-		ret = -EIO;
-		goto fail;
-	    }
-	    acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
-	    if (!acb->bh) {
-		ret = -EIO;
-		goto fail;
-	    }
-	    qemu_bh_schedule(acb->bh);
+            if (acb->bh) {
+                ret = -EIO;
+                goto fail;
+            }
+            acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
+            if (!acb->bh) {
+                ret = -EIO;
+                goto fail;
+            }
+            qemu_bh_schedule(acb->bh);
         }
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
@@ -1263,16 +1263,16 @@ static void qcow_aio_read_cb(void *opaque, int ret)
             goto fail;
         memcpy(acb->buf,
                s->cluster_cache + index_in_cluster * 512, 512 * acb->n);
-	if (acb->bh) {
-	    ret = -EIO;
-	    goto fail;
-	}
-	acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
-	if (!acb->bh) {
-	    ret = -EIO;
-	    goto fail;
-	}
-	qemu_bh_schedule(acb->bh);
+        if (acb->bh) {
+            ret = -EIO;
+            goto fail;
+        }
+        acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
+        if (!acb->bh) {
+            ret = -EIO;
+            goto fail;
+        }
+        qemu_bh_schedule(acb->bh);
     } else {
         if ((acb->cluster_offset & 511) != 0) {
             ret = -EIO;
@@ -1551,7 +1551,7 @@ static int qcow_make_empty(BlockDriverState *bs)
 
     memset(s->l1_table, 0, l1_length);
     if (bdrv_pwrite(s->hd, s->l1_table_offset, s->l1_table, l1_length) < 0)
-	return -1;
+        return -1;
     ret = bdrv_truncate(s->hd, s->l1_table_offset + l1_length);
     if (ret < 0)
         return ret;
