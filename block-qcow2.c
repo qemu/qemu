@@ -1177,6 +1177,20 @@ static void qcow_aio_read_bh(void *opaque)
     qcow_aio_read_cb(opaque, 0);
 }
 
+static int qcow_schedule_bh(QEMUBHFunc *cb, QCowAIOCB *acb)
+{
+    if (acb->bh)
+        return -EIO;
+
+    acb->bh = qemu_bh_new(cb, acb);
+    if (!acb->bh)
+        return -EIO;
+
+    qemu_bh_schedule(acb->bh);
+
+    return 0;
+}
+
 static void qcow_aio_read_cb(void *opaque, int ret)
 {
     QCowAIOCB *acb = opaque;
@@ -1232,30 +1246,16 @@ fail:
                 if (acb->hd_aiocb == NULL)
                     goto fail;
             } else {
-                if (acb->bh) {
-                    ret = -EIO;
+                ret = qcow_schedule_bh(qcow_aio_read_bh, acb);
+                if (ret < 0)
                     goto fail;
-                }
-                acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
-                if (!acb->bh) {
-                    ret = -EIO;
-                    goto fail;
-                }
-                qemu_bh_schedule(acb->bh);
             }
         } else {
             /* Note: in this case, no need to wait */
             memset(acb->buf, 0, 512 * acb->n);
-            if (acb->bh) {
-                ret = -EIO;
+            ret = qcow_schedule_bh(qcow_aio_read_bh, acb);
+            if (ret < 0)
                 goto fail;
-            }
-            acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
-            if (!acb->bh) {
-                ret = -EIO;
-                goto fail;
-            }
-            qemu_bh_schedule(acb->bh);
         }
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
@@ -1263,16 +1263,9 @@ fail:
             goto fail;
         memcpy(acb->buf,
                s->cluster_cache + index_in_cluster * 512, 512 * acb->n);
-        if (acb->bh) {
-            ret = -EIO;
+        ret = qcow_schedule_bh(qcow_aio_read_bh, acb);
+        if (ret < 0)
             goto fail;
-        }
-        acb->bh = qemu_bh_new(qcow_aio_read_bh, acb);
-        if (!acb->bh) {
-            ret = -EIO;
-            goto fail;
-        }
-        qemu_bh_schedule(acb->bh);
     } else {
         if ((acb->cluster_offset & 511) != 0) {
             ret = -EIO;
