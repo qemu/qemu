@@ -1973,7 +1973,6 @@ int tlb_set_page_exec(CPUState *env, target_ulong vaddr,
            IO_MEM_ROMD uses these as a ram address.  */
         iotlb = (pd & ~TARGET_PAGE_MASK);
         if (p) {
-            /* FIXME: What if this isn't page aligned?  */
             iotlb += p->region_offset;
         } else {
             iotlb += paddr;
@@ -2307,7 +2306,7 @@ void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
             if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM ||
                 (phys_offset & IO_MEM_ROMD)) {
                 phys_offset += TARGET_PAGE_SIZE;
-            }else {
+            } else {
                 target_phys_addr_t start_addr2, end_addr2;
                 int need_subpage = 0;
 
