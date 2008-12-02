@@ -647,7 +647,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
         for(i = 0; i < 4; i++)
             cpu_fprintf(f, "DR%d=%016" PRIx64 " ", i, env->dr[i]);
         cpu_fprintf(f, "\nDR6=%016" PRIx64 " DR7=%016" PRIx64 "\n",
-                    env->dr[6], env->cr[7]);
+                    env->dr[6], env->dr[7]);
     } else
 #endif
     {
@@ -681,7 +681,7 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     (uint32_t)env->cr[4]);
         for(i = 0; i < 4; i++)
             cpu_fprintf(f, "DR%d=%08x ", i, env->dr[i]);
-        cpu_fprintf(f, "\nDR6=%08x DR7=%08x\n", env->dr[6], env->cr[7]);
+        cpu_fprintf(f, "\nDR6=%08x DR7=%08x\n", env->dr[6], env->dr[7]);
     }
     if (flags & X86_DUMP_CCOP) {
         if ((unsigned)env->cc_op < CC_OP_NB)
