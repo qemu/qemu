@@ -429,8 +429,7 @@ static int grow_l1_table(BlockDriverState *bs, int min_size)
     int new_l1_size, new_l1_size2, ret, i;
     uint64_t *new_l1_table;
     uint64_t new_l1_table_offset;
-    uint64_t data64;
-    uint32_t data32;
+    uint8_t data[12];
 
     new_l1_size = s->l1_size;
     if (min_size <= new_l1_size)
@@ -460,13 +459,10 @@ static int grow_l1_table(BlockDriverState *bs, int min_size)
         new_l1_table[i] = be64_to_cpu(new_l1_table[i]);
 
     /* set new table */
-    data64 = cpu_to_be64(new_l1_table_offset);
-    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, l1_table_offset),
-                    &data64, sizeof(data64)) != sizeof(data64))
-        goto fail;
-    data32 = cpu_to_be32(new_l1_size);
-    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, l1_size),
-                    &data32, sizeof(data32)) != sizeof(data32))
+    cpu_to_be32w((uint32_t*)data, new_l1_size);
+    cpu_to_be64w((uint64_t*)(data + 4), new_l1_table_offset);
+    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, l1_size), data,
+                sizeof(data)) != sizeof(data))
         goto fail;
     qemu_free(s->l1_table);
     free_clusters(bs, s->l1_table_offset, s->l1_size * sizeof(uint64_t));
@@ -2281,8 +2277,7 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
     int new_table_size, new_table_size2, refcount_table_clusters, i, ret;
     uint64_t *new_table;
     int64_t table_offset;
-    uint64_t data64;
-    uint32_t data32;
+    uint8_t data[12];
     int old_table_size;
     int64_t old_table_offset;
 
@@ -2321,13 +2316,10 @@ static int grow_refcount_table(BlockDriverState *bs, int min_size)
     for(i = 0; i < s->refcount_table_size; i++)
         be64_to_cpus(&new_table[i]);
 
-    data64 = cpu_to_be64(table_offset);
+    cpu_to_be64w((uint64_t*)data, table_offset);
+    cpu_to_be32w((uint32_t*)(data + 8), refcount_table_clusters);
     if (bdrv_pwrite(s->hd, offsetof(QCowHeader, refcount_table_offset),
-                    &data64, sizeof(data64)) != sizeof(data64))
-        goto fail;
-    data32 = cpu_to_be32(refcount_table_clusters);
-    if (bdrv_pwrite(s->hd, offsetof(QCowHeader, refcount_table_clusters),
-                    &data32, sizeof(data32)) != sizeof(data32))
+                    data, sizeof(data)) != sizeof(data))
         goto fail;
     qemu_free(s->refcount_table);
     old_table_offset = s->refcount_table_offset;
