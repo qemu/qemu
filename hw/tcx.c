@@ -437,15 +437,13 @@ static uint32_t tcx_dac_readl(void *opaque, target_phys_addr_t addr)
 static void tcx_dac_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     TCXState *s = opaque;
-    uint32_t saddr;
 
-    saddr = (addr & (TCX_DAC_NREGS - 1)) >> 2;
-    switch (saddr) {
+    switch (addr) {
     case 0:
         s->dac_index = val >> 24;
         s->dac_state = 0;
         break;
-    case 1:
+    case 4:
         switch (s->dac_state) {
         case 0:
             s->r[s->dac_index] = val >> 24;

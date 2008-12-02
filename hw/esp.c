@@ -425,7 +425,7 @@ static uint32_t esp_mem_readb(void *opaque, target_phys_addr_t addr)
     ESPState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr >> s->it_shift) & (ESP_REGS - 1);
+    saddr = addr >> s->it_shift;
     DPRINTF("read reg[%d]: 0x%2.2x\n", saddr, s->rregs[saddr]);
     switch (saddr) {
     case ESP_FIFO:
@@ -461,7 +461,7 @@ static void esp_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     ESPState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr >> s->it_shift) & (ESP_REGS - 1);
+    saddr = addr >> s->it_shift;
     DPRINTF("write reg[%d]: 0x%2.2x -> 0x%2.2x\n", saddr, s->wregs[saddr],
             val);
     switch (saddr) {

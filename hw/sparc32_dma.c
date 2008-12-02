@@ -45,7 +45,6 @@ do { printf("DMA: " fmt , ##args); } while (0)
 
 #define DMA_REGS 4
 #define DMA_SIZE (4 * sizeof(uint32_t))
-#define DMA_MAXADDR (DMA_SIZE - 1)
 
 #define DMA_VER 0xa0000000
 #define DMA_INTR 1
@@ -157,7 +156,7 @@ static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
     DMAState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & DMA_MAXADDR) >> 2;
+    saddr = addr >> 2;
     DPRINTF("read dmareg " TARGET_FMT_plx ": 0x%8.8x\n", addr,
             s->dmaregs[saddr]);
 
@@ -169,7 +168,7 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     DMAState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & DMA_MAXADDR) >> 2;
+    saddr = addr >> 2;
     DPRINTF("write dmareg " TARGET_FMT_plx ": 0x%8.8x -> 0x%8.8x\n", addr,
             s->dmaregs[saddr], val);
     switch (saddr) {

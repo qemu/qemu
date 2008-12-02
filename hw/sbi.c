@@ -46,7 +46,6 @@ typedef struct SBIState {
 } SBIState;
 
 #define SBI_SIZE (SBI_NREGS * 4)
-#define SBI_MASK (SBI_SIZE - 1)
 
 static void sbi_check_interrupts(void *opaque)
 {
@@ -65,7 +64,7 @@ static uint32_t sbi_mem_readl(void *opaque, target_phys_addr_t addr)
     SBIState *s = opaque;
     uint32_t saddr, ret;
 
-    saddr = (addr & SBI_MASK) >> 2;
+    saddr = addr >> 2;
     switch (saddr) {
     default:
         ret = s->regs[saddr];
@@ -81,7 +80,7 @@ static void sbi_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     SBIState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & SBI_MASK) >> 2;
+    saddr = addr >> 2;
     DPRINTF("write system reg 0x" TARGET_FMT_plx " = %x\n", addr, val);
     switch (saddr) {
     default:
