@@ -601,6 +601,34 @@ static uint64_t *l2_allocate(BlockDriverState *bs, int l1_index)
     return l2_table;
 }
 
+static int size_to_clusters(BDRVQcowState *s, int64_t size)
+{
+    return (size + (s->cluster_size - 1)) >> s->cluster_bits;
+}
+
+static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
+        uint64_t *l2_table, uint64_t mask)
+{
+    int i;
+    uint64_t offset = be64_to_cpu(l2_table[0]) & ~mask;
+
+    for (i = 0; i < nb_clusters; i++)
+        if (offset + i * cluster_size != (be64_to_cpu(l2_table[i]) & ~mask))
+            break;
+
+	return i;
+}
+
+static int count_contiguous_free_clusters(uint64_t nb_clusters, uint64_t *l2_table)
+{
+    int i = 0;
+
+    while(nb_clusters-- && l2_table[i] == 0)
+        i++;
+
+    return i;
+}
+
 /*
  * get_cluster_offset
  *
@@ -622,9 +650,9 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
 {
     BDRVQcowState *s = bs->opaque;
     int l1_index, l2_index;
-    uint64_t l2_offset, *l2_table, cluster_offset, next;
-    int l1_bits;
-    int index_in_cluster, nb_available, nb_needed;
+    uint64_t l2_offset, *l2_table, cluster_offset;
+    int l1_bits, c;
+    int index_in_cluster, nb_available, nb_needed, nb_clusters;
 
     index_in_cluster = (offset >> 9) & (s->cluster_sectors - 1);
     nb_needed = *num + index_in_cluster;
@@ -632,7 +660,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
     l1_bits = s->l2_bits + s->cluster_bits;
 
     /* compute how many bytes there are between the offset and
-     * and the end of the l1 entry
+     * the end of the l1 entry
      */
 
     nb_available = (1 << l1_bits) - (offset & ((1 << l1_bits) - 1));
@@ -667,38 +695,25 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
 
     l2_index = (offset >> s->cluster_bits) & (s->l2_size - 1);
     cluster_offset = be64_to_cpu(l2_table[l2_index]);
-    nb_available = s->cluster_sectors;
-    l2_index++;
+    nb_clusters = size_to_clusters(s, nb_needed << 9);
 
     if (!cluster_offset) {
-
-       /* how many empty clusters ? */
-
-       while (nb_available < nb_needed && !l2_table[l2_index]) {
-           l2_index++;
-           nb_available += s->cluster_sectors;
-       }
+        /* how many empty clusters ? */
+        c = count_contiguous_free_clusters(nb_clusters, &l2_table[l2_index]);
     } else {
+        /* how many allocated clusters ? */
+        c = count_contiguous_clusters(nb_clusters, s->cluster_size,
+                &l2_table[l2_index], QCOW_OFLAG_COPIED);
+    }
 
-       /* how many allocated clusters ? */
-
-       cluster_offset &= ~QCOW_OFLAG_COPIED;
-       while (nb_available < nb_needed) {
-           next = be64_to_cpu(l2_table[l2_index]) & ~QCOW_OFLAG_COPIED;
-           if (next != cluster_offset + (nb_available << 9))
-               break;
-           l2_index++;
-           nb_available += s->cluster_sectors;
-       }
-   }
-
+   nb_available = (c * s->cluster_sectors);
 out:
     if (nb_available > nb_needed)
         nb_available = nb_needed;
 
     *num = nb_available - index_in_cluster;
 
-    return cluster_offset;
+    return cluster_offset & ~QCOW_OFLAG_COPIED;
 }
 
 /*
@@ -862,15 +877,15 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     int l2_index, ret;
     uint64_t l2_offset, *l2_table, cluster_offset;
-    int nb_available, nb_clusters, i, j;
-    uint64_t start_sect, current;
+    int nb_available, nb_clusters, i = 0;
+    uint64_t start_sect;
 
     ret = get_cluster_table(bs, offset, &l2_table, &l2_offset, &l2_index);
     if (ret == 0)
         return 0;
 
-    nb_clusters = ((n_end << 9) + s->cluster_size - 1) >>
-                  s->cluster_bits;
+    nb_clusters = size_to_clusters(s, n_end << 9);
+
     if (nb_clusters > s->l2_size - l2_index)
             nb_clusters = s->l2_size - l2_index;
 
@@ -879,13 +894,8 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
     /* We keep all QCOW_OFLAG_COPIED clusters */
 
     if (cluster_offset & QCOW_OFLAG_COPIED) {
-
-        for (i = 1; i < nb_clusters; i++) {
-            current = be64_to_cpu(l2_table[l2_index + i]);
-            if (cluster_offset + (i << s->cluster_bits) != current)
-                break;
-        }
-        nb_clusters = i;
+        nb_clusters = count_contiguous_clusters(nb_clusters, s->cluster_size,
+                &l2_table[l2_index], 0);
 
         nb_available = nb_clusters << (s->cluster_bits - 9);
         if (nb_available > n_end)
@@ -903,46 +913,27 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
 
     /* how many available clusters ? */
 
-    i = 0;
     while (i < nb_clusters) {
+        int j;
+        i += count_contiguous_free_clusters(nb_clusters - i,
+                &l2_table[l2_index + i]);
 
-        i++;
+        cluster_offset = be64_to_cpu(l2_table[l2_index + i]);
 
-        if (!cluster_offset) {
-
-            /* how many free clusters ? */
-
-            while (i < nb_clusters) {
-                cluster_offset = be64_to_cpu(l2_table[l2_index + i]);
-                if (cluster_offset != 0)
-                    break;
-                i++;
-            }
-
-            if ((cluster_offset & QCOW_OFLAG_COPIED) ||
+        if ((cluster_offset & QCOW_OFLAG_COPIED) ||
                 (cluster_offset & QCOW_OFLAG_COMPRESSED))
-                break;
+            break;
 
-        } else {
+        j = count_contiguous_clusters(nb_clusters - i, s->cluster_size,
+                &l2_table[l2_index + i], 0);
 
-            /* how many contiguous clusters ? */
-
-            j = 1;
-            current = 0;
-            while (i < nb_clusters) {
-                current = be64_to_cpu(l2_table[l2_index + i]);
-                if (cluster_offset + (j << s->cluster_bits) != current)
-                    break;
-
-                i++;
-                j++;
-            }
-
+        if (j)
             free_any_clusters(bs, cluster_offset, j);
-            if (current)
-                break;
-            cluster_offset = current;
-        }
+
+        i += j;
+
+        if(be64_to_cpu(l2_table[l2_index + i]))
+            break;
     }
     nb_clusters = i;
 
@@ -2194,26 +2185,19 @@ static int64_t alloc_clusters_noref(BlockDriverState *bs, int64_t size)
     BDRVQcowState *s = bs->opaque;
     int i, nb_clusters;
 
-    nb_clusters = (size + s->cluster_size - 1) >> s->cluster_bits;
-    for(;;) {
-        if (get_refcount(bs, s->free_cluster_index) == 0) {
-            s->free_cluster_index++;
-            for(i = 1; i < nb_clusters; i++) {
-                if (get_refcount(bs, s->free_cluster_index) != 0)
-                    goto not_found;
-                s->free_cluster_index++;
-            }
-#ifdef DEBUG_ALLOC2
-            printf("alloc_clusters: size=%lld -> %lld\n",
-                   size,
-                   (s->free_cluster_index - nb_clusters) << s->cluster_bits);
-#endif
-            return (s->free_cluster_index - nb_clusters) << s->cluster_bits;
-        } else {
-        not_found:
-            s->free_cluster_index++;
-        }
+    nb_clusters = size_to_clusters(s, size);
+retry:
+    for(i = 0; i < nb_clusters; i++) {
+        int64_t i = s->free_cluster_index++;
+        if (get_refcount(bs, i) != 0)
+            goto retry;
     }
+#ifdef DEBUG_ALLOC2
+    printf("alloc_clusters: size=%lld -> %lld\n",
+            size,
+            (s->free_cluster_index - nb_clusters) << s->cluster_bits);
+#endif
+    return (s->free_cluster_index - nb_clusters) << s->cluster_bits;
 }
 
 static int64_t alloc_clusters(BlockDriverState *bs, int64_t size)
@@ -2548,7 +2532,7 @@ static void check_refcounts(BlockDriverState *bs)
     uint16_t *refcount_table;
 
     size = bdrv_getlength(s->hd);
-    nb_clusters = (size + s->cluster_size - 1) >> s->cluster_bits;
+    nb_clusters = size_to_clusters(s, size);
     refcount_table = qemu_mallocz(nb_clusters * sizeof(uint16_t));
 
     /* header */
@@ -2600,7 +2584,7 @@ static void dump_refcounts(BlockDriverState *bs)
     int refcount;
 
     size = bdrv_getlength(s->hd);
-    nb_clusters = (size + s->cluster_size - 1) >> s->cluster_bits;
+    nb_clusters = size_to_clusters(s, size);
     for(k = 0; k < nb_clusters;) {
         k1 = k;
         refcount = get_refcount(bs, k);
