@@ -679,7 +679,7 @@ OBJS+= heathrow_pic.o grackle_pci.o ppc_oldworld.o
 # NewWorld PowerMac
 OBJS+= unin_pci.o ppc_chrp.o
 # PowerPC 4xx boards
-OBJS+= pflash_cfi02.o ppc4xx_devs.o ppc405_uc.o ppc405_boards.o
+OBJS+= pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 endif
 ifeq ($(TARGET_BASE_ARCH), mips)
 OBJS+= mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o

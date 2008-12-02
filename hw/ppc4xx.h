@@ -25,6 +25,8 @@
 #if !defined(PPC_4XX_H)
 #define PPC_4XX_H
 
+#include "pci.h"
+
 /* PowerPC 4xx core initialization */
 CPUState *ppc4xx_init (const char *cpu_model,
                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
@@ -45,5 +47,11 @@ enum {
 };
 qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
                        uint32_t dcr_base, int has_ssr, int has_vr);
+
+PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
+                        target_phys_addr_t config_space,
+                        target_phys_addr_t int_ack,
+                        target_phys_addr_t special_cycle,
+                        target_phys_addr_t registers);
 
 #endif /* !defined(PPC_4XX_H) */
