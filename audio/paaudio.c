@@ -95,7 +95,7 @@ static void *qpa_thread_out (void *arg)
         while (to_mix) {
             int error;
             int chunk = audio_MIN (to_mix, hw->samples - rpos);
-            st_sample_t *src = hw->mix_buf + rpos;
+            struct st_sample *src = hw->mix_buf + rpos;
 
             hw->clip (pa->pcm_buf, src, chunk);
 
@@ -295,11 +295,11 @@ static audfmt_e pa_to_audfmt (pa_sample_format_t fmt, int *endianness)
     }
 }
 
-static int qpa_init_out (HWVoiceOut *hw, audsettings_t *as)
+static int qpa_init_out (HWVoiceOut *hw, struct audsettings *as)
 {
     int error;
     static pa_sample_spec ss;
-    audsettings_t obt_as = *as;
+    struct audsettings obt_as = *as;
     PAVoiceOut *pa = (PAVoiceOut *) hw;
 
     ss.format = audfmt_to_pa (as->fmt, as->endianness);
@@ -349,11 +349,11 @@ static int qpa_init_out (HWVoiceOut *hw, audsettings_t *as)
     return -1;
 }
 
-static int qpa_init_in (HWVoiceIn *hw, audsettings_t *as)
+static int qpa_init_in (HWVoiceIn *hw, struct audsettings *as)
 {
     int error;
     static pa_sample_spec ss;
-    audsettings_t obt_as = *as;
+    struct audsettings obt_as = *as;
     PAVoiceIn *pa = (PAVoiceIn *) hw;
 
     ss.format = audfmt_to_pa (as->fmt, as->endianness);

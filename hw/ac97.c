@@ -354,7 +354,7 @@ static uint16_t mixer_load (AC97LinkState *s, uint32_t i)
 
 static void open_voice (AC97LinkState *s, int index, int freq)
 {
-    audsettings_t as;
+    struct audsettings as;
 
     as.freq = freq;
     as.nchannels = 2;

@@ -37,7 +37,7 @@ typedef struct WAVVoiceOut {
 } WAVVoiceOut;
 
 static struct {
-    audsettings_t settings;
+    struct audsettings settings;
     const char *wav_path;
 } conf = {
     {
@@ -54,7 +54,7 @@ static int wav_run_out (HWVoiceOut *hw)
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
     int rpos, live, decr, samples;
     uint8_t *dst;
-    st_sample_t *src;
+    struct st_sample *src;
     int64_t now = qemu_get_clock (vm_clock);
     int64_t ticks = now - wav->old_ticks;
     int64_t bytes = (ticks * hw->info.bytes_per_second) / ticks_per_sec;
@@ -109,7 +109,7 @@ static void le_store (uint8_t *buf, uint32_t val, int len)
     }
 }
 
-static int wav_init_out (HWVoiceOut *hw, audsettings_t *as)
+static int wav_init_out (HWVoiceOut *hw, struct audsettings *as)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
     int bits16 = 0, stereo = 0;
@@ -119,7 +119,7 @@ static int wav_init_out (HWVoiceOut *hw, audsettings_t *as)
         0x02, 0x00, 0x44, 0xac, 0x00, 0x00, 0x10, 0xb1, 0x02, 0x00, 0x04,
         0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00
     };
-    audsettings_t wav_as = conf.settings;
+    struct audsettings wav_as = conf.settings;
 
     (void) as;
 

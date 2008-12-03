@@ -201,7 +201,7 @@ static void aux_timer (void *opaque)
 static void continue_dma8 (SB16State *s)
 {
     if (s->freq > 0) {
-        audsettings_t as;
+        struct audsettings as;
 
         s->audio_free = 0;
 
@@ -346,7 +346,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
     }
 
     if (s->freq) {
-        audsettings_t as;
+        struct audsettings as;
 
         s->audio_free = 0;
 
@@ -833,7 +833,7 @@ static void complete (SB16State *s)
 
 static void legacy_reset (SB16State *s)
 {
-    audsettings_t as;
+    struct audsettings as;
 
     s->freq = 11025;
     s->fmt_signed = 0;
@@ -1375,7 +1375,7 @@ static int SB_load (QEMUFile *f, void *opaque, int version_id)
 
     if (s->dma_running) {
         if (s->freq) {
-            audsettings_t as;
+            struct audsettings as;
 
             s->audio_free = 0;
 

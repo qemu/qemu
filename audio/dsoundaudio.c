@@ -47,7 +47,7 @@ static struct {
     int set_primary;
     int bufsize_in;
     int bufsize_out;
-    audsettings_t settings;
+    struct audsettings settings;
     int latency_millis;
 } conf = {
     1,
@@ -68,7 +68,7 @@ typedef struct {
     LPDIRECTSOUND dsound;
     LPDIRECTSOUNDCAPTURE dsound_capture;
     LPDIRECTSOUNDBUFFER dsound_primary_buffer;
-    audsettings_t settings;
+    struct audsettings settings;
 } dsound;
 
 static dsound glob_dsound;
@@ -307,7 +307,8 @@ static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb)
     return -1;
 }
 
-static int waveformat_from_audio_settings (WAVEFORMATEX *wfx, audsettings_t *as)
+static int waveformat_from_audio_settings (WAVEFORMATEX *wfx,
+                                           struct audsettings *as)
 {
     memset (wfx, 0, sizeof (*wfx));
 
@@ -346,7 +347,8 @@ static int waveformat_from_audio_settings (WAVEFORMATEX *wfx, audsettings_t *as)
     return 0;
 }
 
-static int waveformat_to_audio_settings (WAVEFORMATEX *wfx, audsettings_t *as)
+static int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
+                                         struct audsettings *as)
 {
     if (wfx->wFormatTag != WAVE_FORMAT_PCM) {
         dolog ("Invalid wave format, tag is not PCM, but %d\n",
@@ -448,8 +450,8 @@ static void dsound_write_sample (HWVoiceOut *hw, uint8_t *dst, int dst_len)
     int src_len1 = dst_len;
     int src_len2 = 0;
     int pos = hw->rpos + dst_len;
-    st_sample_t *src1 = hw->mix_buf + hw->rpos;
-    st_sample_t *src2 = NULL;
+    struct st_sample *src1 = hw->mix_buf + hw->rpos;
+    struct st_sample *src2 = NULL;
 
     if (pos > hw->samples) {
         src_len1 = hw->samples - hw->rpos;

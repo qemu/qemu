@@ -76,7 +76,7 @@ typedef struct HWVoiceOut {
     int rpos;
     uint64_t ts_helper;
 
-    st_sample_t *mix_buf;
+    struct st_sample *mix_buf;
 
     int samples;
     LIST_HEAD (sw_out_listhead, SWVoiceOut) sw_head;
@@ -95,7 +95,7 @@ typedef struct HWVoiceIn {
     int total_samples_captured;
     uint64_t ts_helper;
 
-    st_sample_t *conv_buf;
+    struct st_sample *conv_buf;
 
     int samples;
     LIST_HEAD (sw_in_listhead, SWVoiceIn) sw_head;
@@ -107,14 +107,14 @@ struct SWVoiceOut {
     struct audio_pcm_info info;
     t_sample *conv;
     int64_t ratio;
-    st_sample_t *buf;
+    struct st_sample *buf;
     void *rate;
     int total_hw_samples_mixed;
     int active;
     int empty;
     HWVoiceOut *hw;
     char *name;
-    volume_t vol;
+    struct mixeng_volume vol;
     struct audio_callback callback;
     LIST_ENTRY (SWVoiceOut) entries;
 };
@@ -125,11 +125,11 @@ struct SWVoiceIn {
     int64_t ratio;
     void *rate;
     int total_hw_samples_acquired;
-    st_sample_t *buf;
+    struct st_sample *buf;
     f_sample *clip;
     HWVoiceIn *hw;
     char *name;
-    volume_t vol;
+    struct mixeng_volume vol;
     struct audio_callback callback;
     LIST_ENTRY (SWVoiceIn) entries;
 };
@@ -149,13 +149,13 @@ struct audio_driver {
 };
 
 struct audio_pcm_ops {
-    int  (*init_out)(HWVoiceOut *hw, audsettings_t *as);
+    int  (*init_out)(HWVoiceOut *hw, struct audsettings *as);
     void (*fini_out)(HWVoiceOut *hw);
     int  (*run_out) (HWVoiceOut *hw);
     int  (*write)   (SWVoiceOut *sw, void *buf, int size);
     int  (*ctl_out) (HWVoiceOut *hw, int cmd, ...);
 
-    int  (*init_in) (HWVoiceIn *hw, audsettings_t *as);
+    int  (*init_in) (HWVoiceIn *hw, struct audsettings *as);
     void (*fini_in) (HWVoiceIn *hw);
     int  (*run_in)  (HWVoiceIn *hw);
     int  (*read)    (SWVoiceIn *sw, void *buf, int size);
@@ -204,9 +204,9 @@ extern struct audio_driver coreaudio_audio_driver;
 extern struct audio_driver dsound_audio_driver;
 extern struct audio_driver esd_audio_driver;
 extern struct audio_driver pa_audio_driver;
-extern volume_t nominal_volume;
+extern struct mixeng_volume nominal_volume;
 
-void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as);
+void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as);
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);
 
 int  audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int len);

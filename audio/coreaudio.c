@@ -233,7 +233,7 @@ static OSStatus audioDeviceIOProc(
     HWVoiceOut *hw = hwptr;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hwptr;
     int rpos, live;
-    st_sample_t *src;
+    struct st_sample *src;
 #ifndef FLOAT_MIXENG
 #ifdef RECIPROCAL
     const float scale = 1.f / UINT_MAX;
@@ -289,7 +289,7 @@ static int coreaudio_write (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int coreaudio_init_out (HWVoiceOut *hw, audsettings_t *as)
+static int coreaudio_init_out (HWVoiceOut *hw, struct audsettings *as)
 {
     OSStatus status;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;

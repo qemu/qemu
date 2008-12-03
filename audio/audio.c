@@ -47,7 +47,7 @@ struct fixed_settings {
     int enabled;
     int nb_voices;
     int greedy;
-    audsettings_t settings;
+    struct audsettings settings;
 };
 
 static struct {
@@ -91,7 +91,7 @@ static struct {
 
 static AudioState glob_audio_state;
 
-volume_t nominal_volume = {
+struct mixeng_volume nominal_volume = {
     0,
 #ifdef FLOAT_MIXENG
     1.0,
@@ -513,7 +513,7 @@ static void audio_process_options (const char *prefix,
     }
 }
 
-static void audio_print_settings (audsettings_t *as)
+static void audio_print_settings (struct audsettings *as)
 {
     dolog ("frequency=%d nchannels=%d fmt=", as->freq, as->nchannels);
 
@@ -556,7 +556,7 @@ static void audio_print_settings (audsettings_t *as)
     AUD_log (NULL, "\n");
 }
 
-static int audio_validate_settings (audsettings_t *as)
+static int audio_validate_settings (struct audsettings *as)
 {
     int invalid;
 
@@ -580,7 +580,7 @@ static int audio_validate_settings (audsettings_t *as)
     return invalid ? -1 : 0;
 }
 
-static int audio_pcm_info_eq (struct audio_pcm_info *info, audsettings_t *as)
+static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *as)
 {
     int bits = 8, sign = 0;
 
@@ -609,7 +609,7 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, audsettings_t *as)
         && info->swap_endianness == (as->endianness != AUDIO_HOST_ENDIANNESS);
 }
 
-void audio_pcm_init_info (struct audio_pcm_info *info, audsettings_t *as)
+void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 {
     int bits = 8, sign = 0, shift = 0;
 
@@ -704,8 +704,8 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
 /*
  * Capture
  */
-static void noop_conv (st_sample_t *dst, const void *src,
-                       int samples, volume_t *vol)
+static void noop_conv (struct st_sample *dst, const void *src,
+                       int samples, struct mixeng_volume *vol)
 {
     (void) src;
     (void) dst;
@@ -715,7 +715,7 @@ static void noop_conv (st_sample_t *dst, const void *src,
 
 static CaptureVoiceOut *audio_pcm_capture_find_specific (
     AudioState *s,
-    audsettings_t *as
+    struct audsettings *as
     )
 {
     CaptureVoiceOut *cap;
@@ -891,7 +891,7 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
 {
     HWVoiceIn *hw = sw->hw;
     int samples, live, ret = 0, swlim, isamp, osamp, rpos, total = 0;
-    st_sample_t *src, *dst = sw->buf;
+    struct st_sample *src, *dst = sw->buf;
 
     rpos = audio_pcm_sw_get_rpos_in (sw) % hw->samples;
 
@@ -1442,7 +1442,7 @@ static void audio_run_capture (AudioState *s)
         while (live) {
             int left = hw->samples - rpos;
             int to_capture = audio_MIN (live, left);
-            st_sample_t *src;
+            struct st_sample *src;
             struct capture_callback *cb;
 
             src = hw->mix_buf + rpos;
@@ -1812,7 +1812,7 @@ AudioState *AUD_init (void)
 
 CaptureVoiceOut *AUD_add_capture (
     AudioState *s,
-    audsettings_t *as,
+    struct audsettings *as,
     struct audio_capture_ops *ops,
     void *cb_opaque
     )
@@ -1863,7 +1863,7 @@ CaptureVoiceOut *AUD_add_capture (
         /* XXX find a more elegant way */
         hw->samples = 4096 * 4;
         hw->mix_buf = audio_calloc (AUDIO_FUNC, hw->samples,
-                                    sizeof (st_sample_t));
+                                    sizeof (struct st_sample));
         if (!hw->mix_buf) {
             dolog ("Could not allocate capture mix buffer (%d samples)\n",
                    hw->samples);

@@ -44,26 +44,26 @@
 #define ET glue (ENDIAN_CONVERSION, glue (_, IN_T))
 
 #ifdef FLOAT_MIXENG
-static real_t inline glue (conv_, ET) (IN_T v)
+static mixeng_real inline glue (conv_, ET) (IN_T v)
 {
     IN_T nv = ENDIAN_CONVERT (v);
 
 #ifdef RECIPROCAL
 #ifdef SIGNED
-    return nv * (1.f / (real_t) (IN_MAX - IN_MIN));
+    return nv * (1.f / (mixeng_real) (IN_MAX - IN_MIN));
 #else
-    return (nv - HALF) * (1.f / (real_t) IN_MAX);
+    return (nv - HALF) * (1.f / (mixeng_real) IN_MAX);
 #endif
 #else  /* !RECIPROCAL */
 #ifdef SIGNED
-    return nv / (real_t) (IN_MAX - IN_MIN);
+    return nv / (mixeng_real) (IN_MAX - IN_MIN);
 #else
-    return (nv - HALF) / (real_t) IN_MAX;
+    return (nv - HALF) / (mixeng_real) IN_MAX;
 #endif
 #endif
 }
 
-static IN_T inline glue (clip_, ET) (real_t v)
+static IN_T inline glue (clip_, ET) (mixeng_real v)
 {
     if (v >= 0.5) {
         return IN_MAX;
@@ -109,9 +109,9 @@ static inline IN_T glue (clip_, ET) (int64_t v)
 #endif
 
 static void glue (glue (conv_, ET), _to_stereo)
-    (st_sample_t *dst, const void *src, int samples, volume_t *vol)
+    (struct st_sample *dst, const void *src, int samples, struct mixeng_volume *vol)
 {
-    st_sample_t *out = dst;
+    struct st_sample *out = dst;
     IN_T *in = (IN_T *) src;
 #ifdef CONFIG_MIXEMU
     if (vol->mute) {
@@ -129,9 +129,9 @@ static void glue (glue (conv_, ET), _to_stereo)
 }
 
 static void glue (glue (conv_, ET), _to_mono)
-    (st_sample_t *dst, const void *src, int samples, volume_t *vol)
+    (struct st_sample *dst, const void *src, int samples, struct mixeng_volume *vol)
 {
-    st_sample_t *out = dst;
+    struct st_sample *out = dst;
     IN_T *in = (IN_T *) src;
 #ifdef CONFIG_MIXEMU
     if (vol->mute) {
@@ -150,9 +150,9 @@ static void glue (glue (conv_, ET), _to_mono)
 }
 
 static void glue (glue (clip_, ET), _from_stereo)
-    (void *dst, const st_sample_t *src, int samples)
+    (void *dst, const struct st_sample *src, int samples)
 {
-    const st_sample_t *in = src;
+    const struct st_sample *in = src;
     IN_T *out = (IN_T *) dst;
     while (samples--) {
         *out++ = glue (clip_, ET) (in->l);
@@ -162,9 +162,9 @@ static void glue (glue (clip_, ET), _from_stereo)
 }
 
 static void glue (glue (clip_, ET), _from_mono)
-    (void *dst, const st_sample_t *src, int samples)
+    (void *dst, const struct st_sample *src, int samples)
 {
-    const st_sample_t *in = src;
+    const struct st_sample *in = src;
     IN_T *out = (IN_T *) dst;
     while (samples--) {
         *out++ = glue (clip_, ET) (in->l + in->r);

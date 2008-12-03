@@ -290,7 +290,7 @@ struct rate {
     uint64_t opos;
     uint64_t opos_inc;
     uint32_t ipos;              /* position in the input stream (integer) */
-    st_sample_t ilast;          /* last sample in the input stream */
+    struct st_sample ilast;          /* last sample in the input stream */
 };
 
 /*
@@ -329,7 +329,7 @@ void st_rate_stop (void *opaque)
     qemu_free (opaque);
 }
 
-void mixeng_clear (st_sample_t *buf, int len)
+void mixeng_clear (struct st_sample *buf, int len)
 {
-    memset (buf, 0, len * sizeof (st_sample_t));
+    memset (buf, 0, len * sizeof (struct st_sample));
 }

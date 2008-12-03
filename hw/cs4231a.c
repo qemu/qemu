@@ -268,7 +268,7 @@ static void cs_audio_callback (void *opaque, int free)
 static void cs_reset_voices (CSState *s, uint32_t val)
 {
     int xtal;
-    audsettings_t as;
+    struct audsettings as;
 
 #ifdef DEBUG_XLAW
     if (val == 0 || val == 32)

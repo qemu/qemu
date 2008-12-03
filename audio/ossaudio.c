@@ -294,7 +294,7 @@ static int oss_run_out (HWVoiceOut *hw)
     int err, rpos, live, decr;
     int samples;
     uint8_t *dst;
-    st_sample_t *src;
+    struct st_sample *src;
     struct audio_buf_info abinfo;
     struct count_info cntinfo;
     int bufsize;
@@ -434,7 +434,7 @@ static void oss_fini_out (HWVoiceOut *hw)
     }
 }
 
-static int oss_init_out (HWVoiceOut *hw, audsettings_t *as)
+static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     struct oss_params req, obt;
@@ -442,7 +442,7 @@ static int oss_init_out (HWVoiceOut *hw, audsettings_t *as)
     int err;
     int fd;
     audfmt_e effective_fmt;
-    audsettings_t obt_as;
+    struct audsettings obt_as;
 
     oss->fd = -1;
 
@@ -576,7 +576,7 @@ static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static int oss_init_in (HWVoiceIn *hw, audsettings_t *as)
+static int oss_init_in (HWVoiceIn *hw, struct audsettings *as)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
     struct oss_params req, obt;
@@ -584,7 +584,7 @@ static int oss_init_in (HWVoiceIn *hw, audsettings_t *as)
     int err;
     int fd;
     audfmt_e effective_fmt;
-    audsettings_t obt_as;
+    struct audsettings obt_as;
 
     oss->fd = -1;
 

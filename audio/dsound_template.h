@@ -174,16 +174,16 @@ static void dsound_fini_out (HWVoiceOut *hw)
 }
 
 #ifdef DSBTYPE_IN
-static int dsound_init_in (HWVoiceIn *hw, audsettings_t *as)
+static int dsound_init_in (HWVoiceIn *hw, struct audsettings *as)
 #else
-static int dsound_init_out (HWVoiceOut *hw, audsettings_t *as)
+static int dsound_init_out (HWVoiceOut *hw, struct audsettings *as)
 #endif
 {
     int err;
     HRESULT hr;
     dsound *s = &glob_dsound;
     WAVEFORMATEX wfx;
-    audsettings_t obt_as;
+    struct audsettings obt_as;
 #ifdef DSBTYPE_IN
     const char *typ = "ADC";
     DSoundVoiceIn *ds = (DSoundVoiceIn *) hw;

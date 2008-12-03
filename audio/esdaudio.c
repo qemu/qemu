@@ -115,7 +115,7 @@ static void *qesd_thread_out (void *arg)
         while (to_mix) {
             ssize_t written;
             int chunk = audio_MIN (to_mix, hw->samples - rpos);
-            st_sample_t *src = hw->mix_buf + rpos;
+            struct st_sample *src = hw->mix_buf + rpos;
 
             hw->clip (esd->pcm_buf, src, chunk);
 
@@ -188,10 +188,10 @@ static int qesd_write (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int qesd_init_out (HWVoiceOut *hw, audsettings_t *as)
+static int qesd_init_out (HWVoiceOut *hw, struct audsettings *as)
 {
     ESDVoiceOut *esd = (ESDVoiceOut *) hw;
-    audsettings_t obt_as = *as;
+    struct audsettings obt_as = *as;
     int esdfmt = ESD_STREAM | ESD_PLAY;
     int err;
     sigset_t set, old_set;
@@ -421,10 +421,10 @@ static int qesd_read (SWVoiceIn *sw, void *buf, int len)
     return audio_pcm_sw_read (sw, buf, len);
 }
 
-static int qesd_init_in (HWVoiceIn *hw, audsettings_t *as)
+static int qesd_init_in (HWVoiceIn *hw, struct audsettings *as)
 {
     ESDVoiceIn *esd = (ESDVoiceIn *) hw;
-    audsettings_t obt_as = *as;
+    struct audsettings obt_as = *as;
     int esdfmt = ESD_STREAM | ESD_RECORD;
     int err;
     sigset_t set, old_set;

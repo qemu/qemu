@@ -27,15 +27,15 @@
  * Processed signed long samples from ibuf to obuf.
  * Return number of samples processed.
  */
-void NAME (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,
+void NAME (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
            int *isamp, int *osamp)
 {
     struct rate *rate = opaque;
-    st_sample_t *istart, *iend;
-    st_sample_t *ostart, *oend;
-    st_sample_t ilast, icur, out;
+    struct st_sample *istart, *iend;
+    struct st_sample *ostart, *oend;
+    struct st_sample ilast, icur, out;
 #ifdef FLOAT_MIXENG
-    real_t t;
+    mixeng_real t;
 #else
     int64_t t;
 #endif
@@ -84,7 +84,7 @@ void NAME (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,
 #ifdef RECIPROCAL
         t = (rate->opos & UINT_MAX) * (1.f / UINT_MAX);
 #else
-        t = (rate->opos & UINT_MAX) / (real_t) UINT_MAX;
+        t = (rate->opos & UINT_MAX) / (mixeng_real) UINT_MAX;
 #endif
         out.l = (ilast.l * (1.0 - t)) + icur.l * t;
         out.r = (ilast.r * (1.0 - t)) + icur.r * t;

@@ -170,9 +170,9 @@ static void wm8750_vol_update(struct wm8750_s *s)
 static void wm8750_set_format(struct wm8750_s *s)
 {
     int i;
-    audsettings_t in_fmt;
-    audsettings_t out_fmt;
-    audsettings_t monoout_fmt;
+    struct audsettings in_fmt;
+    struct audsettings out_fmt;
+    struct audsettings monoout_fmt;
 
     wm8750_out_flush(s);
 
