@@ -257,67 +257,8 @@ void OPPROTO op_srli_T1 (void)
     RETURN();
 }
 
-/* Load and store */
-#define MEMSUFFIX _raw
-#include "op_helper.h"
-#include "op_mem.h"
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_helper.h"
-#include "op_mem.h"
-#define MEMSUFFIX _kernel
-#include "op_helper.h"
-#include "op_mem.h"
-#define MEMSUFFIX _hypv
-#include "op_helper.h"
-#include "op_mem.h"
-#endif
-
-/* Special op to check and maybe clear reservation */
-void OPPROTO op_check_reservation (void)
-{
-    if ((uint32_t)env->reserve == (uint32_t)(T0 & ~0x00000003))
-        env->reserve = (target_ulong)-1ULL;
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_check_reservation_64 (void)
-{
-    if ((uint64_t)env->reserve == (uint64_t)(T0 & ~0x00000003))
-        env->reserve = (target_ulong)-1ULL;
-    RETURN();
-}
-#endif
-
-void OPPROTO op_wait (void)
-{
-    env->halted = 1;
-    RETURN();
-}
-
 /* Return from interrupt */
 #if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_rfi (void)
-{
-    do_rfi();
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_rfid (void)
-{
-    do_rfid();
-    RETURN();
-}
-
-void OPPROTO op_hrfid (void)
-{
-    do_hrfid();
-    RETURN();
-}
-#endif
-
 /* Exception vectors */
 void OPPROTO op_store_excp_prefix (void)
 {
@@ -376,34 +317,6 @@ void OPPROTO op_slbie_64 (void)
     RETURN();
 }
 #endif
-#endif
-
-#if !defined(CONFIG_USER_ONLY)
-/* PowerPC 602/603/755 software TLB load instructions */
-void OPPROTO op_6xx_tlbld (void)
-{
-    do_load_6xx_tlb(0);
-    RETURN();
-}
-
-void OPPROTO op_6xx_tlbli (void)
-{
-    do_load_6xx_tlb(1);
-    RETURN();
-}
-
-/* PowerPC 74xx software TLB load instructions */
-void OPPROTO op_74xx_tlbld (void)
-{
-    do_load_74xx_tlb(0);
-    RETURN();
-}
-
-void OPPROTO op_74xx_tlbli (void)
-{
-    do_load_74xx_tlb(1);
-    RETURN();
-}
 #endif
 
 /* 601 specific */
@@ -516,12 +429,6 @@ void OPPROTO op_POWER_doz (void)
 void OPPROTO op_POWER_dozo (void)
 {
     do_POWER_dozo();
-    RETURN();
-}
-
-void OPPROTO op_load_xer_cmp (void)
-{
-    T2 = xer_cmp;
     RETURN();
 }
 
@@ -710,21 +617,6 @@ void OPPROTO op_POWER_rac (void)
     do_POWER_rac();
     RETURN();
 }
-
-void OPPROTO op_POWER_rfsvc (void)
-{
-    do_POWER_rfsvc();
-    RETURN();
-}
-#endif
-
-/* PowerPC 602 specific instruction */
-#if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_602_mfrom (void)
-{
-    do_op_602_mfrom();
-    RETURN();
-}
 #endif
 
 /* PowerPC 4xx specific micro-ops */
@@ -741,33 +633,6 @@ void OPPROTO op_store_dcr (void)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-/* Return from critical interrupt :
- * same as rfi, except nip & MSR are loaded from SRR2/3 instead of SRR0/1
- */
-void OPPROTO op_40x_rfci (void)
-{
-    do_40x_rfci();
-    RETURN();
-}
-
-void OPPROTO op_rfci (void)
-{
-    do_rfci();
-    RETURN();
-}
-
-void OPPROTO op_rfdi (void)
-{
-    do_rfdi();
-    RETURN();
-}
-
-void OPPROTO op_rfmci (void)
-{
-    do_rfmci();
-    RETURN();
-}
-
 void OPPROTO op_wrte (void)
 {
     /* We don't call do_store_msr here as we won't trigger
@@ -841,23 +706,6 @@ void OPPROTO op_4xx_tlbwe_hi (void)
 
 /* SPR micro-ops */
 /* 440 specific */
-void OPPROTO op_440_dlmzb (void)
-{
-    do_440_dlmzb();
-    RETURN();
-}
-
-void OPPROTO op_440_dlmzb_update_Rc (void)
-{
-    if (T0 == 8)
-        T0 = 0x2;
-    else if (T0 < 4)
-        T0 = 0x4;
-    else
-        T0 = 0x8;
-    RETURN();
-}
-
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_store_pir (void)
 {

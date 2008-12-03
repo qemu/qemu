@@ -26,7 +26,6 @@
 #include "ppc_mac.h"
 
 struct MacIONVRAMState {
-    target_phys_addr_t mem_base;
     target_phys_addr_t size;
     int mem_index;
     uint8_t data[0x2000];
@@ -62,7 +61,6 @@ static void macio_nvram_writeb (void *opaque,
 {
     MacIONVRAMState *s = opaque;
 
-    addr -= s->mem_base;
     addr = (addr >> 4) & 0x1fff;
     s->data[addr] = value;
     //    printf("macio_nvram_writeb %04x = %02x\n", addr, value);
@@ -73,7 +71,6 @@ static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
     MacIONVRAMState *s = opaque;
     uint32_t value;
 
-    addr -= s->mem_base;
     addr = (addr >> 4) & 0x1fff;
     value = s->data[addr];
     //    printf("macio_nvram_readb %04x = %02x\n", addr, value);
@@ -112,7 +109,6 @@ void macio_nvram_map (void *opaque, target_phys_addr_t mem_base)
     MacIONVRAMState *s;
 
     s = opaque;
-    s->mem_base = mem_base;
     cpu_register_physical_memory(mem_base, s->size, s->mem_index);
 }
 

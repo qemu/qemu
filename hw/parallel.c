@@ -75,7 +75,6 @@ struct ParallelState {
     int epp_timeout;
     uint32_t last_read_offset; /* For debugging */
     /* Memory-mapped interface */
-    target_phys_addr_t base;
     int it_shift;
 };
 
@@ -477,7 +476,7 @@ static uint32_t parallel_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     ParallelState *s = opaque;
 
-    return parallel_ioport_read_sw(s, (addr - s->base) >> s->it_shift) & 0xFF;
+    return parallel_ioport_read_sw(s, addr >> s->it_shift) & 0xFF;
 }
 
 static void parallel_mm_writeb (void *opaque,
@@ -485,14 +484,14 @@ static void parallel_mm_writeb (void *opaque,
 {
     ParallelState *s = opaque;
 
-    parallel_ioport_write_sw(s, (addr - s->base) >> s->it_shift, value & 0xFF);
+    parallel_ioport_write_sw(s, addr >> s->it_shift, value & 0xFF);
 }
 
 static uint32_t parallel_mm_readw (void *opaque, target_phys_addr_t addr)
 {
     ParallelState *s = opaque;
 
-    return parallel_ioport_read_sw(s, (addr - s->base) >> s->it_shift) & 0xFFFF;
+    return parallel_ioport_read_sw(s, addr >> s->it_shift) & 0xFFFF;
 }
 
 static void parallel_mm_writew (void *opaque,
@@ -500,14 +499,14 @@ static void parallel_mm_writew (void *opaque,
 {
     ParallelState *s = opaque;
 
-    parallel_ioport_write_sw(s, (addr - s->base) >> s->it_shift, value & 0xFFFF);
+    parallel_ioport_write_sw(s, addr >> s->it_shift, value & 0xFFFF);
 }
 
 static uint32_t parallel_mm_readl (void *opaque, target_phys_addr_t addr)
 {
     ParallelState *s = opaque;
 
-    return parallel_ioport_read_sw(s, (addr - s->base) >> s->it_shift);
+    return parallel_ioport_read_sw(s, addr >> s->it_shift);
 }
 
 static void parallel_mm_writel (void *opaque,
@@ -515,7 +514,7 @@ static void parallel_mm_writel (void *opaque,
 {
     ParallelState *s = opaque;
 
-    parallel_ioport_write_sw(s, (addr - s->base) >> s->it_shift, value);
+    parallel_ioport_write_sw(s, addr >> s->it_shift, value);
 }
 
 static CPUReadMemoryFunc *parallel_mm_read_sw[] = {
@@ -540,7 +539,6 @@ ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq 
     if (!s)
         return NULL;
     parallel_reset(s, irq, chr);
-    s->base = base;
     s->it_shift = it_shift;
 
     io_sw = cpu_register_io_memory(0, parallel_mm_read_sw, parallel_mm_write_sw, s);

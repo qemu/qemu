@@ -643,7 +643,8 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     sh7750_io_memory = cpu_register_io_memory(0,
 					      sh7750_mem_read,
 					      sh7750_mem_write, s);
-    cpu_register_physical_memory(0x1c000000, 0x04000000, sh7750_io_memory);
+    cpu_register_physical_memory_offset(0x1c000000, 0x04000000,
+                                        sh7750_io_memory, 0x1c000000);
 
     sh7750_mm_cache_and_tlb = cpu_register_io_memory(0,
 						     sh7750_mmct_read,

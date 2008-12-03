@@ -26,7 +26,6 @@
 //#define DEBUG_G364
 
 typedef struct G364State {
-    target_phys_addr_t vram_base;
     unsigned int vram_size;
     uint8_t *vram_buffer;
     uint32_t ctla;
@@ -300,9 +299,8 @@ static CPUWriteMemoryFunc *g364fb_ctrl_write[3] = {
 static uint32_t g364fb_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     G364State *s = opaque;
-    target_phys_addr_t relative_addr = addr - s->vram_base;
 
-    return s->vram_buffer[relative_addr];
+    return s->vram_buffer[addr];
 }
 
 static uint32_t g364fb_mem_readw(void *opaque, target_phys_addr_t addr)
@@ -326,9 +324,8 @@ static uint32_t g364fb_mem_readl(void *opaque, target_phys_addr_t addr)
 static void g364fb_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     G364State *s = opaque;
-    target_phys_addr_t relative_addr = addr - s->vram_base;
 
-    s->vram_buffer[relative_addr] = val;
+    s->vram_buffer[addr] = val;
 }
 
 static void g364fb_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -375,14 +372,13 @@ int g364fb_mm_init(DisplayState *ds,
     g364fb_reset(s);
 
     s->ds = ds;
-    s->vram_base = vram_base;
 
     s->console = graphic_console_init(ds, g364fb_update_display,
                                       g364fb_invalidate_display,
                                       g364fb_screen_dump, NULL, s);
 
     io_vram = cpu_register_io_memory(0, g364fb_mem_read, g364fb_mem_write, s);
-    cpu_register_physical_memory(s->vram_base, vram_size, io_vram);
+    cpu_register_physical_memory(vram_base, vram_size, io_vram);
 
     io_ctrl = cpu_register_io_memory(0, g364fb_ctrl_read, g364fb_ctrl_write, s);
     cpu_register_physical_memory(ctrl_base, 0x10000, io_ctrl);

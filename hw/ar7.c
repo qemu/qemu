@@ -3522,9 +3522,9 @@ static void ar7_init(CPUState * env)
     int io_memory = cpu_register_io_memory(0, io_read, io_write, env);
     //~ cpu_register_physical_memory(0x08610000, 0x00002800, io_memory);
     //~ cpu_register_physical_memory(0x00001000, 0x0860f000, io_memory);
-    cpu_register_physical_memory(0x00001000, 0x0ffff000, io_memory);
+    cpu_register_physical_memory_offset(0x00001000, 0x0ffff000, io_memory, 0x00001000);
     //~ cpu_register_physical_memory(0x00001000, 0x10000000, io_memory);
-    cpu_register_physical_memory(0x1e000000, 0x01c00000, io_memory);
+    cpu_register_physical_memory_offset(0x1e000000, 0x01c00000, io_memory, 0x1e000000);
 
     //~ reg_write(av.gpio, GPIO_IN, 0x0cbea075);
     reg_write(av.gpio, GPIO_IN, 0x0cbea875);
@@ -3760,7 +3760,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     loaderparams.initrd_filename = initrd_filename;
 
     ram_offset = qemu_ram_alloc(machine_ram_size);
-    cpu_register_physical_memory(KERNEL_LOAD_ADDR, machine_ram_size, ram_offset | IO_MEM_RAM);
+    cpu_register_physical_memory_offset(KERNEL_LOAD_ADDR, machine_ram_size, ram_offset | IO_MEM_RAM, KERNEL_LOAD_ADDR);
     fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x\n",
         __func__, phys_ram_base, (unsigned)machine_ram_size);
 
@@ -3770,7 +3770,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
     ram_offset = qemu_ram_alloc(4 * KiB);
     logout("ram_offset (internal RAM) = %x\n", (unsigned)ram_offset);
-    cpu_register_physical_memory(0, 4 * KiB, ram_offset | IO_MEM_RAM);
+    cpu_register_physical_memory_offset(0, 4 * KiB, ram_offset | IO_MEM_RAM, 0);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
        but initialize the hardware ourselves. When a kernel gets
@@ -3823,8 +3823,8 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         cpu_physical_memory_write_rom(PROM_ADDR, jump, sizeof(jump));
         flash_size = 4 * KiB;
     }
-    cpu_register_physical_memory(PROM_ADDR,
-                                 flash_size, flash_offset | IO_MEM_ROM);
+    cpu_register_physical_memory_offset(PROM_ADDR,
+                                 flash_size, flash_offset | IO_MEM_ROM, PROM_ADDR);
 
     if (kernel_filename) {
         load_kernel(env);

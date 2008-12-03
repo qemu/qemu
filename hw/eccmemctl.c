@@ -114,7 +114,6 @@
 
 #define ECC_NREGS      9
 #define ECC_SIZE       (ECC_NREGS * sizeof(uint32_t))
-#define ECC_ADDR_MASK  0x1f
 
 #define ECC_DIAG_SIZE  4
 #define ECC_DIAG_MASK  (ECC_DIAG_SIZE - 1)
@@ -129,7 +128,7 @@ static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     ECCState *s = opaque;
 
-    switch ((addr & ECC_ADDR_MASK) >> 2) {
+    switch (addr >> 2) {
     case ECC_MER:
         s->regs[ECC_MER] = (s->regs[ECC_MER] & (ECC_MER_VER | ECC_MER_IMPL)) |
             (val & ~(ECC_MER_VER | ECC_MER_IMPL));
@@ -167,7 +166,7 @@ static uint32_t ecc_mem_readl(void *opaque, target_phys_addr_t addr)
     ECCState *s = opaque;
     uint32_t ret = 0;
 
-    switch ((addr & ECC_ADDR_MASK) >> 2) {
+    switch (addr >> 2) {
     case ECC_MER:
         ret = s->regs[ECC_MER];
         DPRINTF("Read memory enable %08x\n", ret);
@@ -225,15 +224,16 @@ static void ecc_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
 {
     ECCState *s = opaque;
 
-    DPRINTF("Write diagnostic[%d] = %02x\n", (int)(addr & ECC_DIAG_MASK), val);
+    DPRINTF("Write diagnostic[%d] = %02x\n", (int)addr, val);
     s->diag[addr & ECC_DIAG_MASK] = val;
 }
 
 static uint32_t ecc_diag_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     ECCState *s = opaque;
-    uint32_t ret = s->diag[addr & ECC_DIAG_MASK];
-    DPRINTF("Read diagnostic[%d] = %02x\n", (int)(addr & ECC_DIAG_MASK), ret);
+    uint32_t ret = s->diag[(int)addr];
+
+    DPRINTF("Read diagnostic[%d] = %02x\n", (int)addr, ret);
     return ret;
 }
 

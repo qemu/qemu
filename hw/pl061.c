@@ -28,7 +28,6 @@ static const uint8_t pl061_id[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
 typedef struct {
-    uint32_t base;
     int locked;
     uint8_t data;
     uint8_t old_data;
@@ -83,7 +82,6 @@ static uint32_t pl061_read(void *opaque, target_phys_addr_t offset)
 {
     pl061_state *s = (pl061_state *)opaque;
 
-    offset -= s->base;
     if (offset >= 0xfd0 && offset < 0x1000) {
         return pl061_id[(offset - 0xfd0) >> 2];
     }
@@ -140,7 +138,6 @@ static void pl061_write(void *opaque, target_phys_addr_t offset,
     pl061_state *s = (pl061_state *)opaque;
     uint8_t mask;
 
-    offset -= s->base;
     if (offset < 0x400) {
         mask = (offset >> 2) & s->dir;
         s->data = (s->data & ~mask) | (value & mask);
@@ -306,7 +303,6 @@ qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out)
     iomemtype = cpu_register_io_memory(0, pl061_readfn,
                                        pl061_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->base = base;
     s->irq = irq;
     pl061_reset(s);
     if (out)

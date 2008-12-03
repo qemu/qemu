@@ -48,7 +48,6 @@
 #define FLASHCTL_NCE		(FLASHCTL_CE0 | FLASHCTL_CE1)
 
 struct sl_nand_s {
-    target_phys_addr_t target_base;
     struct nand_flash_s *nand;
     uint8_t ctl;
     struct ecc_state_s ecc;
@@ -58,7 +57,6 @@ static uint32_t sl_readb(void *opaque, target_phys_addr_t addr)
 {
     struct sl_nand_s *s = (struct sl_nand_s *) opaque;
     int ryby;
-    addr -= s->target_base;
 
     switch (addr) {
 #define BSHR(byte, from, to)	((s->ecc.lp[byte] >> (from - to)) & (1 << to))
@@ -96,7 +94,6 @@ static uint32_t sl_readb(void *opaque, target_phys_addr_t addr)
 static uint32_t sl_readl(void *opaque, target_phys_addr_t addr)
 {
     struct sl_nand_s *s = (struct sl_nand_s *) opaque;
-    addr -= s->target_base;
 
     if (addr == FLASH_FLASHIO)
         return ecc_digest(&s->ecc, nand_getio(s->nand)) |
@@ -109,7 +106,6 @@ static void sl_writeb(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct sl_nand_s *s = (struct sl_nand_s *) opaque;
-    addr -= s->target_base;
 
     switch (addr) {
     case FLASH_ECCCLRR:
@@ -175,7 +171,6 @@ static void sl_flash_register(struct pxa2xx_state_s *cpu, int size)
     };
 
     s = (struct sl_nand_s *) qemu_mallocz(sizeof(struct sl_nand_s));
-    s->target_base = FLASH_BASE;
     s->ctl = 0;
     if (size == FLASH_128M)
         s->nand = nand_init(NAND_MFR_SAMSUNG, 0x73);
@@ -184,7 +179,7 @@ static void sl_flash_register(struct pxa2xx_state_s *cpu, int size)
 
     iomemtype = cpu_register_io_memory(0, sl_readfn,
                     sl_writefn, s);
-    cpu_register_physical_memory(s->target_base, 0x40, iomemtype);
+    cpu_register_physical_memory(FLASH_BASE, 0x40, iomemtype);
 
     register_savevm("sl_flash", 0, 0, sl_save, sl_load, s);
 }

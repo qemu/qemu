@@ -50,8 +50,6 @@ struct etrax_serial_t
 	CharDriverState *chr;
 	qemu_irq *irq;
 
-	target_phys_addr_t base;
-
 	int pending_tx;
 
 	/* Control registers.  */
@@ -240,8 +238,6 @@ void etraxfs_ser_init(CPUState *env, qemu_irq *irq, CharDriverState *chr,
 
 	s->env = env;
 	s->irq = irq;
-	s->base = base;
-
 	s->chr = chr;
 
 	/* transmitter begins ready and idle.  */

@@ -66,6 +66,7 @@ static TCGv cpu_nip;
 static TCGv cpu_ctr;
 static TCGv cpu_lr;
 static TCGv cpu_xer;
+static TCGv cpu_reserve;
 static TCGv_i32 cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
@@ -161,6 +162,9 @@ void ppc_translate_init(void)
     cpu_xer = tcg_global_mem_new(TCG_AREG0,
                                  offsetof(CPUState, xer), "xer");
 
+    cpu_reserve = tcg_global_mem_new(TCG_AREG0,
+                                     offsetof(CPUState, reserve), "reserve");
+
     cpu_fpscr = tcg_global_mem_new_i32(TCG_AREG0,
                                        offsetof(CPUState, fpscr), "fpscr");
 
@@ -199,7 +203,6 @@ typedef struct DisasContext {
     int spe_enabled;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
-    int dcache_line_size;
 } DisasContext;
 
 struct opc_handler_t {
@@ -2469,36 +2472,23 @@ static always_inline void gen_addr_register (TCGv EA,
         tcg_gen_mov_tl(EA, cpu_gpr[rA(ctx->opcode)]);
 }
 
-#if defined(TARGET_PPC64)
-#define _GEN_MEM_FUNCS(name, mode)                                            \
-    &gen_op_##name##_##mode,                                                  \
-    &gen_op_##name##_le_##mode,                                               \
-    &gen_op_##name##_64_##mode,                                               \
-    &gen_op_##name##_le_64_##mode
-#else
-#define _GEN_MEM_FUNCS(name, mode)                                            \
-    &gen_op_##name##_##mode,                                                  \
-    &gen_op_##name##_le_##mode
-#endif
-#if defined(CONFIG_USER_ONLY)
-#if defined(TARGET_PPC64)
-#define NB_MEM_FUNCS 4
-#else
-#define NB_MEM_FUNCS 2
-#endif
-#define GEN_MEM_FUNCS(name)                                                   \
-    _GEN_MEM_FUNCS(name, raw)
-#else
-#if defined(TARGET_PPC64)
-#define NB_MEM_FUNCS 12
-#else
-#define NB_MEM_FUNCS 6
-#endif
-#define GEN_MEM_FUNCS(name)                                                   \
-    _GEN_MEM_FUNCS(name, user),                                               \
-    _GEN_MEM_FUNCS(name, kernel),                                             \
-    _GEN_MEM_FUNCS(name, hypv)
-#endif
+static always_inline void gen_check_align (DisasContext *ctx, TCGv EA, int mask)
+{
+    int l1 = gen_new_label();
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1, t2;
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    tcg_gen_andi_tl(t0, EA, mask);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
+    t1 = tcg_const_i32(POWERPC_EXCP_ALIGN);
+    t2 = tcg_const_i32(0);
+    gen_helper_raise_exception_err(t1, t2);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    gen_set_label(l1);
+    tcg_temp_free(t0);
+}
 
 /***                             Integer load                              ***/
 #if defined(TARGET_PPC64)
@@ -3092,70 +3082,33 @@ void always_inline gen_qemu_st32r(TCGv t0, TCGv t1, int flags)
 GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER);
 
 /***                    Integer load and store multiple                    ***/
-#define op_ldstm(name, reg) (*gen_op_##name[ctx->mem_idx])(reg)
-static GenOpFunc1 *gen_op_lmw[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(lmw),
-};
-static GenOpFunc1 *gen_op_stmw[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(stmw),
-};
-
 /* lmw */
 GEN_HANDLER(lmw, 0x2E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_const_i32(rD(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(cpu_T[0], ctx, 0);
-    op_ldstm(lmw, rD(ctx->opcode));
+    gen_addr_imm_index(t0, ctx, 0);
+    gen_helper_lmw(t0, t1);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
 }
 
 /* stmw */
 GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER)
 {
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_const_i32(rS(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_imm_index(cpu_T[0], ctx, 0);
-    op_ldstm(stmw, rS(ctx->opcode));
+    gen_addr_imm_index(t0, ctx, 0);
+    gen_helper_stmw(t0, t1);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
 }
 
 /***                    Integer load and store strings                     ***/
-#define op_ldsts(name, start) (*gen_op_##name[ctx->mem_idx])(start)
-#define op_ldstsx(name, rd, ra, rb) (*gen_op_##name[ctx->mem_idx])(rd, ra, rb)
-/* string load & stores are by definition endian-safe */
-#define gen_op_lswi_le_raw       gen_op_lswi_raw
-#define gen_op_lswi_le_user      gen_op_lswi_user
-#define gen_op_lswi_le_kernel    gen_op_lswi_kernel
-#define gen_op_lswi_le_hypv      gen_op_lswi_hypv
-#define gen_op_lswi_le_64_raw    gen_op_lswi_raw
-#define gen_op_lswi_le_64_user   gen_op_lswi_user
-#define gen_op_lswi_le_64_kernel gen_op_lswi_kernel
-#define gen_op_lswi_le_64_hypv   gen_op_lswi_hypv
-static GenOpFunc1 *gen_op_lswi[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(lswi),
-};
-#define gen_op_lswx_le_raw       gen_op_lswx_raw
-#define gen_op_lswx_le_user      gen_op_lswx_user
-#define gen_op_lswx_le_kernel    gen_op_lswx_kernel
-#define gen_op_lswx_le_hypv      gen_op_lswx_hypv
-#define gen_op_lswx_le_64_raw    gen_op_lswx_raw
-#define gen_op_lswx_le_64_user   gen_op_lswx_user
-#define gen_op_lswx_le_64_kernel gen_op_lswx_kernel
-#define gen_op_lswx_le_64_hypv   gen_op_lswx_hypv
-static GenOpFunc3 *gen_op_lswx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(lswx),
-};
-#define gen_op_stsw_le_raw       gen_op_stsw_raw
-#define gen_op_stsw_le_user      gen_op_stsw_user
-#define gen_op_stsw_le_kernel    gen_op_stsw_kernel
-#define gen_op_stsw_le_hypv      gen_op_stsw_hypv
-#define gen_op_stsw_le_64_raw    gen_op_stsw_raw
-#define gen_op_stsw_le_64_user   gen_op_stsw_user
-#define gen_op_stsw_le_64_kernel gen_op_stsw_kernel
-#define gen_op_stsw_le_64_hypv   gen_op_stsw_hypv
-static GenOpFunc1 *gen_op_stsw[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(stsw),
-};
-
 /* lswi */
 /* PowerPC32 specification says we must generate an exception if
  * rA is in the range of registers to be loaded.
@@ -3164,6 +3117,8 @@ static GenOpFunc1 *gen_op_stsw[NB_MEM_FUNCS] = {
  */
 GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING)
 {
+    TCGv t0;
+    TCGv_i32 t1, t2;
     int nb = NB(ctx->opcode);
     int start = rD(ctx->opcode);
     int ra = rA(ctx->opcode);
@@ -3181,49 +3136,67 @@ GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING)
     }
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_register(cpu_T[0], ctx);
-    tcg_gen_movi_tl(cpu_T[1], nb);
-    op_ldsts(lswi, start);
+    t0 = tcg_temp_new();
+    gen_addr_register(t0, ctx);
+    t1 = tcg_const_i32(nb);
+    t2 = tcg_const_i32(start);
+    gen_helper_lsw(t0, t1, t2);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
 }
 
 /* lswx */
 GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_STRING)
 {
-    int ra = rA(ctx->opcode);
-    int rb = rB(ctx->opcode);
-
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_const_i32(rD(ctx->opcode));
+    TCGv_i32 t2 = tcg_const_i32(rA(ctx->opcode));
+    TCGv_i32 t3 = tcg_const_i32(rB(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    if (ra == 0) {
-        ra = rb;
-    }
-    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
-    op_ldstsx(lswx, rD(ctx->opcode), ra, rb);
+    gen_addr_reg_index(t0, ctx);
+    gen_helper_lswx(t0, t1, t2, t3);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t3);
 }
 
 /* stswi */
 GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING)
 {
     int nb = NB(ctx->opcode);
-
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1;
+    TCGv_i32 t2 = tcg_const_i32(rS(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_register(cpu_T[0], ctx);
+    gen_addr_register(t0, ctx);
     if (nb == 0)
         nb = 32;
-    tcg_gen_movi_tl(cpu_T[1], nb);
-    op_ldsts(stsw, rS(ctx->opcode));
+    t1 = tcg_const_i32(nb);
+    gen_helper_stsw(t0, t1, t2);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
 }
 
 /* stswx */
 GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING)
 {
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_const_i32(rS(ctx->opcode));
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
-    op_ldsts(stsw, rS(ctx->opcode));
+    gen_addr_reg_index(t0, ctx);
+    tcg_gen_trunc_tl_i32(t1, cpu_xer);
+    tcg_gen_andi_i32(t1, t1, 0x7F);
+    gen_helper_stsw(t0, t1, t2);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
 }
 
 /***                        Memory synchronisation                         ***/
@@ -3238,67 +3211,79 @@ GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM)
     GEN_STOP(ctx);
 }
 
-#define op_lwarx() (*gen_op_lwarx[ctx->mem_idx])()
-#define op_stwcx() (*gen_op_stwcx[ctx->mem_idx])()
-static GenOpFunc *gen_op_lwarx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(lwarx),
-};
-static GenOpFunc *gen_op_stwcx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(stwcx),
-};
-
 /* lwarx */
 GEN_HANDLER(lwarx, 0x1F, 0x14, 0x00, 0x00000001, PPC_RES)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
+    TCGv t0 = tcg_temp_local_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_lwarx();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[1]);
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x03);
+#if defined(TARGET_PPC64)
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
+#endif
+    gen_qemu_ld32u(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx);
+    tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_temp_free(t0);
 }
 
 /* stwcx. */
 GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
+    int l1 = gen_new_label();
+    TCGv t0 = tcg_temp_local_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    op_stwcx();
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x03);
+#if defined(TARGET_PPC64)
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
+#endif
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
+    tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
+    tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
+    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
+    gen_qemu_st32(cpu_gpr[rS(ctx->opcode)], t0, ctx->mem_idx);
+    gen_set_label(l1);
+    tcg_gen_movi_tl(cpu_reserve, -1);
+    tcg_temp_free(t0);
 }
 
 #if defined(TARGET_PPC64)
-#define op_ldarx() (*gen_op_ldarx[ctx->mem_idx])()
-#define op_stdcx() (*gen_op_stdcx[ctx->mem_idx])()
-static GenOpFunc *gen_op_ldarx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(ldarx),
-};
-static GenOpFunc *gen_op_stdcx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(stdcx),
-};
-
 /* ldarx */
 GEN_HANDLER(ldarx, 0x1F, 0x14, 0x02, 0x00000001, PPC_64B)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
+    TCGv t0 = tcg_temp_local_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_ldarx();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[1]);
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x07);
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
+    gen_qemu_ld64(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx);
+    tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_temp_free(t0);
 }
 
 /* stdcx. */
 GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B)
 {
-    /* NIP cannot be restored if the memory exception comes from an helper */
-    gen_update_nip(ctx, ctx->nip - 4);
+    int l1 = gen_new_label();
+    TCGv t0 = tcg_temp_local_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    op_stdcx();
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x07);
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
+    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
+    tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
+    tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
+    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 1 << CRF_EQ);
+    gen_qemu_st64(cpu_gpr[rS(ctx->opcode)], t0, ctx->mem_idx);
+    gen_set_label(l1);
+    tcg_gen_movi_tl(cpu_reserve, -1);
+    tcg_temp_free(t0);
 }
 #endif /* defined(TARGET_PPC64) */
 
@@ -3310,8 +3295,10 @@ GEN_HANDLER(sync, 0x1F, 0x16, 0x12, 0x039FF801, PPC_MEM_SYNC)
 /* wait */
 GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x03FFF801, PPC_WAIT)
 {
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    tcg_gen_st_i32(t0, cpu_env, offsetof(CPUState, halted));
+    tcg_temp_free_i32(t0);
     /* Stop translation, as the CPU is supposed to sleep from now */
-    gen_op_wait();
     GEN_EXCP(ctx, EXCP_HLT, 1);
 }
 
@@ -3745,7 +3732,7 @@ GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_rfi();
+    gen_helper_rfi();
     GEN_SYNC(ctx);
 #endif
 }
@@ -3761,7 +3748,7 @@ GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_rfid();
+    gen_helper_rfid();
     GEN_SYNC(ctx);
 #endif
 }
@@ -3776,7 +3763,7 @@ GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64H)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_hrfid();
+    gen_helper_hrfid();
     GEN_SYNC(ctx);
 #endif
 }
@@ -4140,117 +4127,38 @@ GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x02000001, PPC_CACHE)
 }
 
 /* dcbz */
-#define op_dcbz(n) (*gen_op_dcbz[n][ctx->mem_idx])()
-static GenOpFunc *gen_op_dcbz[4][NB_MEM_FUNCS] = {
-    /* 32 bytes cache line size */
-    {
-#define gen_op_dcbz_l32_le_raw        gen_op_dcbz_l32_raw
-#define gen_op_dcbz_l32_le_user       gen_op_dcbz_l32_user
-#define gen_op_dcbz_l32_le_kernel     gen_op_dcbz_l32_kernel
-#define gen_op_dcbz_l32_le_hypv       gen_op_dcbz_l32_hypv
-#define gen_op_dcbz_l32_le_64_raw     gen_op_dcbz_l32_64_raw
-#define gen_op_dcbz_l32_le_64_user    gen_op_dcbz_l32_64_user
-#define gen_op_dcbz_l32_le_64_kernel  gen_op_dcbz_l32_64_kernel
-#define gen_op_dcbz_l32_le_64_hypv    gen_op_dcbz_l32_64_hypv
-        GEN_MEM_FUNCS(dcbz_l32),
-    },
-    /* 64 bytes cache line size */
-    {
-#define gen_op_dcbz_l64_le_raw        gen_op_dcbz_l64_raw
-#define gen_op_dcbz_l64_le_user       gen_op_dcbz_l64_user
-#define gen_op_dcbz_l64_le_kernel     gen_op_dcbz_l64_kernel
-#define gen_op_dcbz_l64_le_hypv       gen_op_dcbz_l64_hypv
-#define gen_op_dcbz_l64_le_64_raw     gen_op_dcbz_l64_64_raw
-#define gen_op_dcbz_l64_le_64_user    gen_op_dcbz_l64_64_user
-#define gen_op_dcbz_l64_le_64_kernel  gen_op_dcbz_l64_64_kernel
-#define gen_op_dcbz_l64_le_64_hypv    gen_op_dcbz_l64_64_hypv
-        GEN_MEM_FUNCS(dcbz_l64),
-    },
-    /* 128 bytes cache line size */
-    {
-#define gen_op_dcbz_l128_le_raw       gen_op_dcbz_l128_raw
-#define gen_op_dcbz_l128_le_user      gen_op_dcbz_l128_user
-#define gen_op_dcbz_l128_le_kernel    gen_op_dcbz_l128_kernel
-#define gen_op_dcbz_l128_le_hypv      gen_op_dcbz_l128_hypv
-#define gen_op_dcbz_l128_le_64_raw    gen_op_dcbz_l128_64_raw
-#define gen_op_dcbz_l128_le_64_user   gen_op_dcbz_l128_64_user
-#define gen_op_dcbz_l128_le_64_kernel gen_op_dcbz_l128_64_kernel
-#define gen_op_dcbz_l128_le_64_hypv   gen_op_dcbz_l128_64_hypv
-        GEN_MEM_FUNCS(dcbz_l128),
-    },
-    /* tunable cache line size */
-    {
-#define gen_op_dcbz_le_raw            gen_op_dcbz_raw
-#define gen_op_dcbz_le_user           gen_op_dcbz_user
-#define gen_op_dcbz_le_kernel         gen_op_dcbz_kernel
-#define gen_op_dcbz_le_hypv           gen_op_dcbz_hypv
-#define gen_op_dcbz_le_64_raw         gen_op_dcbz_64_raw
-#define gen_op_dcbz_le_64_user        gen_op_dcbz_64_user
-#define gen_op_dcbz_le_64_kernel      gen_op_dcbz_64_kernel
-#define gen_op_dcbz_le_64_hypv        gen_op_dcbz_64_hypv
-        GEN_MEM_FUNCS(dcbz),
-    },
-};
-
-static always_inline void handler_dcbz (DisasContext *ctx,
-                                        int dcache_line_size)
-{
-    int n;
-
-    switch (dcache_line_size) {
-    case 32:
-        n = 0;
-        break;
-    case 64:
-        n = 1;
-        break;
-    case 128:
-        n = 2;
-        break;
-    default:
-        n = 3;
-        break;
-    }
-    op_dcbz(n);
-}
-
 GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03E00001, PPC_CACHE_DCBZ)
 {
-    gen_addr_reg_index(cpu_T[0], ctx);
-    handler_dcbz(ctx, ctx->dcache_line_size);
-    gen_op_check_reservation();
+    TCGv t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    gen_helper_dcbz(t0);
+    tcg_temp_free(t0);
 }
 
 GEN_HANDLER2(dcbz_970, "dcbz", 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT)
 {
-    gen_addr_reg_index(cpu_T[0], ctx);
+    TCGv t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
     if (ctx->opcode & 0x00200000)
-        handler_dcbz(ctx, ctx->dcache_line_size);
+        gen_helper_dcbz(t0);
     else
-        handler_dcbz(ctx, -1);
-    gen_op_check_reservation();
+        gen_helper_dcbz_970(t0);
+    tcg_temp_free(t0);
 }
 
 /* icbi */
-#define op_icbi() (*gen_op_icbi[ctx->mem_idx])()
-#define gen_op_icbi_le_raw       gen_op_icbi_raw
-#define gen_op_icbi_le_user      gen_op_icbi_user
-#define gen_op_icbi_le_kernel    gen_op_icbi_kernel
-#define gen_op_icbi_le_hypv      gen_op_icbi_hypv
-#define gen_op_icbi_le_64_raw    gen_op_icbi_64_raw
-#define gen_op_icbi_le_64_user   gen_op_icbi_64_user
-#define gen_op_icbi_le_64_kernel gen_op_icbi_64_kernel
-#define gen_op_icbi_le_64_hypv   gen_op_icbi_64_hypv
-static GenOpFunc *gen_op_icbi[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(icbi),
-};
-
 GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE_ICBI)
 {
+    TCGv t0 = tcg_temp_new();
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_icbi();
+    gen_addr_reg_index(t0, ctx);
+    gen_helper_icbi(t0);
+    tcg_temp_free(t0);
 }
 
 /* Optional: */
@@ -4488,32 +4396,28 @@ GEN_HANDLER(slbie, 0x1F, 0x12, 0x0D, 0x03FF0001, PPC_SLBI)
 
 /***                              External control                         ***/
 /* Optional: */
-#define op_eciwx() (*gen_op_eciwx[ctx->mem_idx])()
-#define op_ecowx() (*gen_op_ecowx[ctx->mem_idx])()
-static GenOpFunc *gen_op_eciwx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(eciwx),
-};
-static GenOpFunc *gen_op_ecowx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(ecowx),
-};
-
 /* eciwx */
 GEN_HANDLER(eciwx, 0x1F, 0x16, 0x0D, 0x00000001, PPC_EXTERN)
 {
-    /* Should check EAR[E] & alignment ! */
+    /* Should check EAR[E] ! */
+    TCGv t0 = tcg_temp_new();
     gen_set_access_type(ACCESS_RES);
-    gen_addr_reg_index(cpu_T[0], ctx);
-    op_eciwx();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x03);
+    gen_qemu_ld32u(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx);
+    tcg_temp_free(t0);
 }
 
 /* ecowx */
 GEN_HANDLER(ecowx, 0x1F, 0x16, 0x09, 0x00000001, PPC_EXTERN)
 {
-    /* Should check EAR[E] & alignment ! */
-    gen_addr_reg_index(cpu_T[0], ctx);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    op_ecowx();
+    /* Should check EAR[E] ! */
+    TCGv t0 = tcg_temp_new();
+    gen_set_access_type(ACCESS_RES);
+    gen_addr_reg_index(t0, ctx);
+    gen_check_align(ctx, t0, 0x03);
+    gen_qemu_st32(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx);
+    tcg_temp_free(t0);
 }
 
 /* PowerPC 601 specific instructions */
@@ -4621,47 +4525,26 @@ GEN_HANDLER(dozi, 0x09, 0xFF, 0xFF, 0x00000000, PPC_POWER_BR)
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
 }
 
-/* As lscbx load from memory byte after byte, it's always endian safe.
- * Original POWER is 32 bits only, define 64 bits ops as 32 bits ones
- */
-#define op_POWER_lscbx(start, ra, rb)                                         \
-(*gen_op_POWER_lscbx[ctx->mem_idx])(start, ra, rb)
-#define gen_op_POWER_lscbx_64_raw       gen_op_POWER_lscbx_raw
-#define gen_op_POWER_lscbx_64_user      gen_op_POWER_lscbx_user
-#define gen_op_POWER_lscbx_64_kernel    gen_op_POWER_lscbx_kernel
-#define gen_op_POWER_lscbx_64_hypv      gen_op_POWER_lscbx_hypv
-#define gen_op_POWER_lscbx_le_raw       gen_op_POWER_lscbx_raw
-#define gen_op_POWER_lscbx_le_user      gen_op_POWER_lscbx_user
-#define gen_op_POWER_lscbx_le_kernel    gen_op_POWER_lscbx_kernel
-#define gen_op_POWER_lscbx_le_hypv      gen_op_POWER_lscbx_hypv
-#define gen_op_POWER_lscbx_le_64_raw    gen_op_POWER_lscbx_raw
-#define gen_op_POWER_lscbx_le_64_user   gen_op_POWER_lscbx_user
-#define gen_op_POWER_lscbx_le_64_kernel gen_op_POWER_lscbx_kernel
-#define gen_op_POWER_lscbx_le_64_hypv   gen_op_POWER_lscbx_hypv
-static GenOpFunc3 *gen_op_POWER_lscbx[NB_MEM_FUNCS] = {
-    GEN_MEM_FUNCS(POWER_lscbx),
-};
-
 /* lscbx - lscbx. */
 GEN_HANDLER(lscbx, 0x1F, 0x15, 0x08, 0x00000000, PPC_POWER_BR)
 {
-    int ra = rA(ctx->opcode);
-    int rb = rB(ctx->opcode);
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 t1 = tcg_const_i32(rD(ctx->opcode));
+    TCGv_i32 t2 = tcg_const_i32(rA(ctx->opcode));
+    TCGv_i32 t3 = tcg_const_i32(rB(ctx->opcode));
 
-    gen_addr_reg_index(cpu_T[0], ctx);
-    if (ra == 0) {
-        ra = rb;
-    }
+    gen_addr_reg_index(t0, ctx);
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    tcg_gen_andi_tl(cpu_T[1], cpu_xer, 0x7F);
-    tcg_gen_shri_tl(cpu_T[2], cpu_xer, XER_CMP);
-    tcg_gen_andi_tl(cpu_T[2], cpu_T[2], 0xFF);
-    op_POWER_lscbx(rD(ctx->opcode), ra, rb);
+    gen_helper_lscbx(t0, t0, t1, t2, t3);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t3);
     tcg_gen_andi_tl(cpu_xer, cpu_xer, ~0x7F);
-    tcg_gen_or_tl(cpu_xer, cpu_xer, cpu_T[0]);
+    tcg_gen_or_tl(cpu_xer, cpu_xer, t0);
     if (unlikely(Rc(ctx->opcode) != 0))
-        gen_set_Rc0(ctx, cpu_T[0]);
+        gen_set_Rc0(ctx, t0);
+    tcg_temp_free(t0);
 }
 
 /* maskg - maskg. */
@@ -4948,9 +4831,7 @@ GEN_HANDLER(mfrom, 0x1F, 0x09, 0x08, 0x03E0F801, PPC_602_SPEC)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-    gen_op_602_mfrom();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    gen_helper_602_mfrom(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
 #endif
 }
 
@@ -4965,8 +4846,7 @@ GEN_HANDLER2(tlbld_6xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_6xx_tlbld();
+    gen_helper_load_6xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -4980,8 +4860,7 @@ GEN_HANDLER2(tlbli_6xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_6xx_tlbli();
+    gen_helper_load_6xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -4996,8 +4875,7 @@ GEN_HANDLER2(tlbld_74xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_74xx_tlbld();
+    gen_helper_load_74xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5011,8 +4889,7 @@ GEN_HANDLER2(tlbli_74xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_74xx_tlbli();
+    gen_helper_load_74xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5087,7 +4964,7 @@ GEN_HANDLER(rfsvc, 0x13, 0x12, 0x02, 0x03FFF0001, PPC_POWER)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_POWER_rfsvc();
+    gen_helper_rfsvc();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5631,7 +5508,7 @@ GEN_HANDLER2(rfci_40x, "rfci", 0x13, 0x13, 0x01, 0x03FF8001, PPC_40x_EXCP)
         return;
     }
     /* Restore CPU state */
-    gen_op_40x_rfci();
+    gen_helper_40x_rfci();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5646,7 +5523,7 @@ GEN_HANDLER(rfci, 0x13, 0x13, 0x01, 0x03FF8001, PPC_BOOKE)
         return;
     }
     /* Restore CPU state */
-    gen_op_rfci();
+    gen_helper_rfci();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5663,7 +5540,7 @@ GEN_HANDLER(rfdi, 0x13, 0x07, 0x01, 0x03FF8001, PPC_RFDI)
         return;
     }
     /* Restore CPU state */
-    gen_op_rfdi();
+    gen_helper_rfdi();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5679,7 +5556,7 @@ GEN_HANDLER(rfmci, 0x13, 0x06, 0x01, 0x03FF8001, PPC_RFMCI)
         return;
     }
     /* Restore CPU state */
-    gen_op_rfmci();
+    gen_helper_rfmci();
     GEN_SYNC(ctx);
 #endif
 }
@@ -5870,17 +5747,10 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE)
 /* dlmzb */
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC)
 {
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_440_dlmzb();
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], cpu_T[0]);
-    tcg_gen_andi_tl(cpu_xer, cpu_xer, ~0x7F);
-    tcg_gen_or_tl(cpu_xer, cpu_xer, cpu_T[0]);
-    if (Rc(ctx->opcode)) {
-        gen_op_440_dlmzb_update_Rc();
-        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_T[0]);
-        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 0xf);
-    }
+    TCGv_i32 t0 = tcg_const_i32(Rc(ctx->opcode));
+    gen_helper_dlmzb(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)],
+                     cpu_gpr[rB(ctx->opcode)], t0);
+    tcg_temp_free_i32(t0);
 }
 
 /* mbar replaces eieio on 440 */
@@ -7567,7 +7437,6 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
 #else
     ctx.mem_idx = (supervisor << 1) | little_endian;
 #endif
-    ctx.dcache_line_size = env->dcache_line_size;
     ctx.fpu_enabled = msr_fp;
     if ((env->flags & POWERPC_FLAG_SPE) && msr_spe)
         ctx.spe_enabled = msr_spe;

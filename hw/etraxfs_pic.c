@@ -31,7 +31,6 @@
 struct fs_pic_state_t
 {
 	CPUState *env;
-	target_phys_addr_t base;
 
 	uint32_t rw_mask;
 	/* Active interrupt lines.  */
@@ -56,8 +55,6 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 	struct fs_pic_state_t *fs = opaque;
 	uint32_t rval;
 
-	/* Transform this to a relative addr.  */
-	addr -= fs->base;
 	switch (addr)
 	{
 		case 0x0: 
@@ -99,8 +96,6 @@ pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct fs_pic_state_t *fs = opaque;
 	D(printf("%s addr=%x val=%x\n", __func__, addr, value));
-	/* Transform this to a relative addr.  */
-	addr -= fs->base;
 	switch (addr) 
 	{
 		case 0x0: 
@@ -233,7 +228,6 @@ struct etraxfs_pic *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
 
 	intr_vect_regs = cpu_register_io_memory(0, pic_read, pic_write, fs);
 	cpu_register_physical_memory(base, 0x14, intr_vect_regs);
-	fs->base = base;
 
 	return pic;
   err:

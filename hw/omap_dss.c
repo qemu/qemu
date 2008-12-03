@@ -24,11 +24,6 @@
 #include "omap.h"
 
 struct omap_dss_s {
-    target_phys_addr_t diss_base;
-    target_phys_addr_t disc_base;
-    target_phys_addr_t rfbi_base;
-    target_phys_addr_t venc_base;
-    target_phys_addr_t im3_base;
     qemu_irq irq;
     qemu_irq drq;
     DisplayState *state;
@@ -177,9 +172,8 @@ void omap_dss_reset(struct omap_dss_s *s)
 static uint32_t omap_diss_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->diss_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* DSS_REVISIONNUMBER */
         return 0x20;
 
@@ -212,9 +206,8 @@ static void omap_diss_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->diss_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* DSS_REVISIONNUMBER */
     case 0x14:	/* DSS_SYSSTATUS */
     case 0x50:	/* DSS_PSA_LCD_REG_1 */
@@ -254,9 +247,8 @@ static CPUWriteMemoryFunc *omap_diss1_writefn[] = {
 static uint32_t omap_disc_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->disc_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x000:	/* DISPC_REVISION */
         return 0x20;
 
@@ -376,9 +368,8 @@ static void omap_disc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->disc_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x010:	/* DISPC_SYSCONFIG */
         if (value & 2)						/* SOFTRESET */
             omap_dss_reset(s);
@@ -667,9 +658,8 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
 static uint32_t omap_rfbi_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->rfbi_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* RFBI_REVISION */
         return 0x10;
 
@@ -731,9 +721,8 @@ static void omap_rfbi_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->rfbi_base;
 
-    switch (offset) {
+    switch (addr) {
     case 0x10:	/* RFBI_SYSCONFIG */
         if (value & 2)						/* SOFTRESET */
             omap_rfbi_reset(s);
@@ -866,10 +855,7 @@ static CPUWriteMemoryFunc *omap_rfbi1_writefn[] = {
 
 static uint32_t omap_venc_read(void *opaque, target_phys_addr_t addr)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->venc_base;
-
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* REV_ID */
     case 0x04:	/* STATUS */
     case 0x08:	/* F_CONTROL */
@@ -925,10 +911,7 @@ static uint32_t omap_venc_read(void *opaque, target_phys_addr_t addr)
 static void omap_venc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->venc_base;
-
-    switch (offset) {
+    switch (addr) {
     case 0x08:	/* F_CONTROL */
     case 0x10:	/* VIDOUT_CTRL */
     case 0x14:	/* SYNC_CTRL */
@@ -991,10 +974,7 @@ static CPUWriteMemoryFunc *omap_venc1_writefn[] = {
 
 static uint32_t omap_im3_read(void *opaque, target_phys_addr_t addr)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->im3_base;
-
-    switch (offset) {
+    switch (addr) {
     case 0x0a8:	/* SBIMERRLOGA */
     case 0x0b0:	/* SBIMERRLOG */
     case 0x190:	/* SBIMSTATE */
@@ -1016,10 +996,7 @@ static uint32_t omap_im3_read(void *opaque, target_phys_addr_t addr)
 static void omap_im3_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
-    int offset = addr - s->im3_base;
-
-    switch (offset) {
+    switch (addr) {
     case 0x0b0:	/* SBIMERRLOG */
     case 0x190:	/* SBIMSTATE */
     case 0x198:	/* SBTMSTATE_L */
@@ -1070,12 +1047,10 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
                     omap_venc1_writefn, s);
     iomemtype[4] = cpu_register_io_memory(0, omap_im3_readfn,
                     omap_im3_writefn, s);
-    s->diss_base = omap_l4_attach(ta, 0, iomemtype[0]);
-    s->disc_base = omap_l4_attach(ta, 1, iomemtype[1]);
-    s->rfbi_base = omap_l4_attach(ta, 2, iomemtype[2]);
-    s->venc_base = omap_l4_attach(ta, 3, iomemtype[3]);
-    s->im3_base = l3_base;
-    cpu_register_physical_memory(s->im3_base, 0x1000, iomemtype[4]);
+    omap_l4_attach(ta, 0, iomemtype[0]);
+    omap_l4_attach(ta, 1, iomemtype[1]);
+    omap_l4_attach(ta, 3, iomemtype[3]);
+    cpu_register_physical_memory(l3_base, 0x1000, iomemtype[4]);
 
 #if 0
     if (ds)

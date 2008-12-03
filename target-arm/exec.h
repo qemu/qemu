@@ -58,6 +58,4 @@ static inline int cpu_halted(CPUState *env) {
 #include "softmmu_exec.h"
 #endif
 
-void cpu_loop_exit(void);
-
 void raise_exception(int);

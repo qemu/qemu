@@ -109,12 +109,11 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 #define IOPTE_VALID         0x00000002 /* IOPTE is valid */
 #define IOPTE_WAZ           0x00000001 /* Write as zeros */
 
-#define PAGE_SHIFT      12
-#define PAGE_SIZE       (1 << PAGE_SHIFT)
-#define PAGE_MASK       (PAGE_SIZE - 1)
+#define IOMMU_PAGE_SHIFT    12
+#define IOMMU_PAGE_SIZE     (1 << IOMMU_PAGE_SHIFT)
+#define IOMMU_PAGE_MASK     ~(IOMMU_PAGE_SIZE - 1)
 
 typedef struct IOMMUState {
-    target_phys_addr_t addr;
     uint32_t regs[IOMMU_NREGS];
     target_phys_addr_t iostart;
     uint32_t version;
@@ -127,7 +126,7 @@ static uint32_t iommu_mem_readl(void *opaque, target_phys_addr_t addr)
     target_phys_addr_t saddr;
     uint32_t ret;
 
-    saddr = (addr - s->addr) >> 2;
+    saddr = addr >> 2;
     switch (saddr) {
     default:
         ret = s->regs[saddr];
@@ -148,7 +147,7 @@ static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
     IOMMUState *s = opaque;
     target_phys_addr_t saddr;
 
-    saddr = (addr - s->addr) >> 2;
+    saddr = addr >> 2;
     DPRINTF("write reg[%d] = %x\n", (int)saddr, val);
     switch (saddr) {
     case IOMMU_CTRL:
@@ -243,7 +242,7 @@ static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
 
     iopte = s->regs[IOMMU_BASE] << 4;
     addr &= ~s->iostart;
-    iopte += (addr >> (PAGE_SHIFT - 2)) & ~3;
+    iopte += (addr >> (IOMMU_PAGE_SHIFT - 2)) & ~3;
     cpu_physical_memory_read(iopte, (uint8_t *)&ret, 4);
     tswap32s(&ret);
     DPRINTF("get flags addr " TARGET_FMT_plx " => pte " TARGET_FMT_plx
@@ -259,7 +258,7 @@ static target_phys_addr_t iommu_translate_pa(target_phys_addr_t addr,
     target_phys_addr_t pa;
 
     tmppte = pte;
-    pa = ((pte & IOPTE_PAGE) << 4) + (addr & PAGE_MASK);
+    pa = ((pte & IOPTE_PAGE) << 4) + (addr & ~IOMMU_PAGE_MASK);
     DPRINTF("xlate dva " TARGET_FMT_plx " => pa " TARGET_FMT_plx
             " (iopte = %x)\n", addr, pa, tmppte);
 
@@ -286,8 +285,8 @@ void sparc_iommu_memory_rw(void *opaque, target_phys_addr_t addr,
     target_phys_addr_t page, phys_addr;
 
     while (len > 0) {
-        page = addr & TARGET_PAGE_MASK;
-        l = (page + TARGET_PAGE_SIZE) - addr;
+        page = addr & IOMMU_PAGE_MASK;
+        l = (page + IOMMU_PAGE_SIZE) - addr;
         if (l > len)
             l = len;
         flags = iommu_page_get_flags(opaque, page);
@@ -358,7 +357,6 @@ void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
     if (!s)
         return NULL;
 
-    s->addr = addr;
     s->version = version;
     s->irq = irq;
 

@@ -30,6 +30,9 @@
 #include <windows.h>
 #endif
 
+/* Default to cache=writeback as data integrity is not important for qemu-tcg. */
+#define BRDV_O_FLAGS BDRV_O_CACHE_WB
+
 static void __attribute__((noreturn)) error(const char *fmt, ...)
 {
     va_list ap;
@@ -186,7 +189,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, 0, drv) < 0) {
+    if (bdrv_open2(bs, filename, BRDV_O_FLAGS, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     if (bdrv_is_encrypted(bs)) {
@@ -317,7 +320,7 @@ static int img_commit(int argc, char **argv)
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, 0, drv) < 0) {
+    if (bdrv_open2(bs, filename, BRDV_O_FLAGS, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     ret = bdrv_commit(bs);
@@ -691,7 +694,7 @@ static int img_info(int argc, char **argv)
     } else {
         drv = NULL;
     }
-    if (bdrv_open2(bs, filename, 0, drv) < 0) {
+    if (bdrv_open2(bs, filename, BRDV_O_FLAGS, drv) < 0) {
         error("Could not open '%s'", filename);
     }
     bdrv_get_format(bs, fmt_name, sizeof(fmt_name));

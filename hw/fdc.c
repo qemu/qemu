@@ -513,7 +513,7 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     fdctrl_t *fdctrl = opaque;
     uint32_t retval;
 
-    switch (reg & 0x07) {
+    switch (reg) {
     case FD_REG_SRA:
         retval = fdctrl_read_statusA(fdctrl);
         break;
@@ -550,7 +550,7 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
 
     FLOPPY_DPRINTF("write reg%d: 0x%02x\n", reg & 7, value);
 
-    switch (reg & 0x07) {
+    switch (reg) {
     case FD_REG_DOR:
         fdctrl_write_dor(fdctrl, value);
         break;
@@ -566,6 +566,16 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
     default:
         break;
     }
+}
+
+static uint32_t fdctrl_read_port (void *opaque, uint32_t reg)
+{
+    return fdctrl_read(opaque, reg & 7);
+}
+
+static void fdctrl_write_port (void *opaque, uint32_t reg, uint32_t value)
+{
+    fdctrl_write(opaque, reg & 7, value);
 }
 
 static uint32_t fdctrl_read_mem (void *opaque, target_phys_addr_t reg)
@@ -1896,14 +1906,14 @@ fdctrl_t *fdctrl_init (qemu_irq irq, int dma_chann, int mem_mapped,
                                         fdctrl);
         cpu_register_physical_memory(io_base, 0x08, io_mem);
     } else {
-        register_ioport_read((uint32_t)io_base + 0x01, 5, 1, &fdctrl_read,
-                             fdctrl);
-        register_ioport_read((uint32_t)io_base + 0x07, 1, 1, &fdctrl_read,
-                             fdctrl);
-        register_ioport_write((uint32_t)io_base + 0x01, 5, 1, &fdctrl_write,
-                              fdctrl);
-        register_ioport_write((uint32_t)io_base + 0x07, 1, 1, &fdctrl_write,
-                              fdctrl);
+        register_ioport_read((uint32_t)io_base + 0x01, 5, 1,
+                             &fdctrl_read_port, fdctrl);
+        register_ioport_read((uint32_t)io_base + 0x07, 1, 1,
+                             &fdctrl_read_port, fdctrl);
+        register_ioport_write((uint32_t)io_base + 0x01, 5, 1,
+                              &fdctrl_write_port, fdctrl);
+        register_ioport_write((uint32_t)io_base + 0x07, 1, 1,
+                              &fdctrl_write_port, fdctrl);
     }
 
     return fdctrl;

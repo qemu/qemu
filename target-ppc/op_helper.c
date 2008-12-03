@@ -24,21 +24,6 @@
 #include "helper_regs.h"
 #include "op_helper.h"
 
-#define MEMSUFFIX _raw
-#include "op_helper.h"
-#include "op_helper_mem.h"
-#if !defined(CONFIG_USER_ONLY)
-#define MEMSUFFIX _user
-#include "op_helper.h"
-#include "op_helper_mem.h"
-#define MEMSUFFIX _kernel
-#include "op_helper.h"
-#include "op_helper_mem.h"
-#define MEMSUFFIX _hypv
-#include "op_helper.h"
-#include "op_helper_mem.h"
-#endif
-
 //#define DEBUG_OP
 //#define DEBUG_EXCEPTIONS
 //#define DEBUG_SOFTWARE_TLB
@@ -55,7 +40,6 @@ void helper_raise_debug (void)
 {
     raise_exception(env, EXCP_DEBUG);
 }
-
 
 /*****************************************************************************/
 /* Registers load and stores */
@@ -106,6 +90,148 @@ void ppc_store_dump_spr (int sprn, target_ulong val)
                 sprn, sprn, env->spr[sprn], val);
     }
     env->spr[sprn] = val;
+}
+
+/*****************************************************************************/
+/* Memory load and stores */
+
+static always_inline target_ulong get_addr(target_ulong addr)
+{
+#if defined(TARGET_PPC64)
+        if (msr_sf)
+            return addr;
+        else
+#endif
+            return (uint32_t)addr;
+}
+
+void helper_lmw (target_ulong addr, uint32_t reg)
+{
+    for (; reg < 32; reg++, addr += 4) {
+        if (msr_le)
+            env->gpr[reg] = bswap32(ldl(get_addr(addr)));
+        else
+            env->gpr[reg] = ldl(get_addr(addr));
+    }
+}
+
+void helper_stmw (target_ulong addr, uint32_t reg)
+{
+    for (; reg < 32; reg++, addr += 4) {
+        if (msr_le)
+            stl(get_addr(addr), bswap32((uint32_t)env->gpr[reg]));
+        else
+            stl(get_addr(addr), (uint32_t)env->gpr[reg]);
+    }
+}
+
+void helper_lsw(target_ulong addr, uint32_t nb, uint32_t reg)
+{
+    int sh;
+    for (; nb > 3; nb -= 4, addr += 4) {
+        env->gpr[reg] = ldl(get_addr(addr));
+        reg = (reg + 1) % 32;
+    }
+    if (unlikely(nb > 0)) {
+        env->gpr[reg] = 0;
+        for (sh = 24; nb > 0; nb--, addr++, sh -= 8) {
+            env->gpr[reg] |= ldub(get_addr(addr)) << sh;
+        }
+    }
+}
+/* PPC32 specification says we must generate an exception if
+ * rA is in the range of registers to be loaded.
+ * In an other hand, IBM says this is valid, but rA won't be loaded.
+ * For now, I'll follow the spec...
+ */
+void helper_lswx(target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
+{
+    if (likely(xer_bc != 0)) {
+        if (unlikely((ra != 0 && reg < ra && (reg + xer_bc) > ra) ||
+                     (reg < rb && (reg + xer_bc) > rb))) {
+            raise_exception_err(env, POWERPC_EXCP_PROGRAM,
+                                POWERPC_EXCP_INVAL |
+                                POWERPC_EXCP_INVAL_LSWX);
+        } else {
+            helper_lsw(addr, xer_bc, reg);
+        }
+    }
+}
+
+void helper_stsw(target_ulong addr, uint32_t nb, uint32_t reg)
+{
+    int sh;
+    for (; nb > 3; nb -= 4, addr += 4) {
+        stl(get_addr(addr), env->gpr[reg]);
+        reg = (reg + 1) % 32;
+    }
+    if (unlikely(nb > 0)) {
+        for (sh = 24; nb > 0; nb--, addr++, sh -= 8)
+            stb(get_addr(addr), (env->gpr[reg] >> sh) & 0xFF);
+    }
+}
+
+static void do_dcbz(target_ulong addr, int dcache_line_size)
+{
+    target_long mask = get_addr(~(dcache_line_size - 1));
+    int i;
+    addr &= mask;
+    for (i = 0 ; i < dcache_line_size ; i += 4) {
+        stl(addr + i , 0);
+    }
+    if ((env->reserve & mask) == addr)
+        env->reserve = (target_ulong)-1ULL;
+}
+
+void helper_dcbz(target_ulong addr)
+{
+    do_dcbz(addr, env->dcache_line_size);
+}
+
+void helper_dcbz_970(target_ulong addr)
+{
+    if (((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1)
+        do_dcbz(addr, 32);
+    else
+        do_dcbz(addr, env->dcache_line_size);
+}
+
+void helper_icbi(target_ulong addr)
+{
+    uint32_t tmp;
+
+    addr = get_addr(addr & ~(env->dcache_line_size - 1));
+    /* Invalidate one cache line :
+     * PowerPC specification says this is to be treated like a load
+     * (not a fetch) by the MMU. To be sure it will be so,
+     * do the load "by hand".
+     */
+    tmp = ldl(addr);
+    tb_invalidate_page_range(addr, addr + env->icache_line_size);
+}
+
+// XXX: to be tested
+target_ulong helper_lscbx (target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
+{
+    int i, c, d;
+    d = 24;
+    for (i = 0; i < xer_bc; i++) {
+        c = ldub((uint32_t)addr++);
+        /* ra (if not 0) and rb are never modified */
+        if (likely(reg != rb && (ra == 0 || reg != ra))) {
+            env->gpr[reg] = (env->gpr[reg] & ~(0xFF << d)) | (c << d);
+        }
+        if (unlikely(c == xer_cmp))
+            break;
+        if (likely(d != 0)) {
+            d -= 8;
+        } else {
+            d = 24;
+            reg++;
+            reg = reg & 0x1F;
+        }
+    }
+    return i;
 }
 
 /*****************************************************************************/
@@ -1156,7 +1282,6 @@ uint64_t helper_fnmsub (uint64_t arg1, uint64_t arg2, uint64_t arg3)
     return farg1.ll;
 }
 
-
 /* frsp - frsp. */
 uint64_t helper_frsp (uint64_t arg)
 {
@@ -1374,7 +1499,7 @@ void do_store_msr (void)
     }
 }
 
-static always_inline void __do_rfi (target_ulong nip, target_ulong msr,
+static always_inline void do_rfi (target_ulong nip, target_ulong msr,
                                     target_ulong msrm, int keep_msrh)
 {
 #if defined(TARGET_PPC64)
@@ -1403,23 +1528,23 @@ static always_inline void __do_rfi (target_ulong nip, target_ulong msr,
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
-void do_rfi (void)
+void helper_rfi (void)
 {
-    __do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-             ~((target_ulong)0xFFFF0000), 1);
+    do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+           ~((target_ulong)0xFFFF0000), 1);
 }
 
 #if defined(TARGET_PPC64)
-void do_rfid (void)
+void helper_rfid (void)
 {
-    __do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-             ~((target_ulong)0xFFFF0000), 0);
+    do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+           ~((target_ulong)0xFFFF0000), 0);
 }
 
-void do_hrfid (void)
+void helper_hrfid (void)
 {
-    __do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
-             ~((target_ulong)0xFFFF0000), 0);
+    do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
+           ~((target_ulong)0xFFFF0000), 0);
 }
 #endif
 #endif
@@ -1615,9 +1740,9 @@ void do_POWER_rac (void)
     env->nb_BATs = nb_BATs;
 }
 
-void do_POWER_rfsvc (void)
+void helper_rfsvc (void)
 {
-    __do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
+    do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
 }
 
 void do_store_hid0_601 (void)
@@ -1645,19 +1770,19 @@ void do_store_hid0_601 (void)
 /* mfrom is the most crazy instruction ever seen, imho ! */
 /* Real implementation uses a ROM table. Do the same */
 #define USE_MFROM_ROM_TABLE
-void do_op_602_mfrom (void)
+target_ulong helper_602_mfrom (target_ulong arg)
 {
-    if (likely(T0 < 602)) {
+    if (likely(arg < 602)) {
 #if defined(USE_MFROM_ROM_TABLE)
 #include "mfrom_table.c"
-        T0 = mfrom_ROM_table[T0];
+        return mfrom_ROM_table[T0];
 #else
         double d;
         /* Extremly decomposed:
-         *                    -T0 / 256
-         * T0 = 256 * log10(10          + 1.0) + 0.5
+         *                      -arg / 256
+         * return 256 * log10(10           + 1.0) + 0.5
          */
-        d = T0;
+        d = arg;
         d = float64_div(d, 256, &env->fp_status);
         d = float64_chs(d);
         d = exp10(d); // XXX: use float emulation function
@@ -1665,10 +1790,10 @@ void do_op_602_mfrom (void)
         d = log10(d); // XXX: use float emulation function
         d = float64_mul(d, 256, &env->fp_status);
         d = float64_add(d, 0.5, &env->fp_status);
-        T0 = float64_round_to_int(d, &env->fp_status);
+        return float64_round_to_int(d, &env->fp_status);
 #endif
     } else {
-        T0 = 0;
+        return 0;
     }
 }
 
@@ -1715,28 +1840,28 @@ void do_store_dcr (void)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void do_40x_rfci (void)
+void helper_40x_rfci (void)
 {
-    __do_rfi(env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3],
-             ~((target_ulong)0xFFFF0000), 0);
+    do_rfi(env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3],
+           ~((target_ulong)0xFFFF0000), 0);
 }
 
-void do_rfci (void)
+void helper_rfci (void)
 {
-    __do_rfi(env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
-             ~((target_ulong)0x3FFF0000), 0);
+    do_rfi(env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
+           ~((target_ulong)0x3FFF0000), 0);
 }
 
-void do_rfdi (void)
+void helper_rfdi (void)
 {
-    __do_rfi(env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
-             ~((target_ulong)0x3FFF0000), 0);
+    do_rfi(env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
+           ~((target_ulong)0x3FFF0000), 0);
 }
 
-void do_rfmci (void)
+void helper_rfmci (void)
 {
-    __do_rfi(env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
-             ~((target_ulong)0x3FFF0000), 0);
+    do_rfi(env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
+           ~((target_ulong)0x3FFF0000), 0);
 }
 
 void do_load_403_pb (int num)
@@ -1755,24 +1880,39 @@ void do_store_403_pb (int num)
 #endif
 
 /* 440 specific */
-void do_440_dlmzb (void)
+target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_Rc)
 {
     target_ulong mask;
     int i;
 
     i = 1;
     for (mask = 0xFF000000; mask != 0; mask = mask >> 8) {
-        if ((T0 & mask) == 0)
+        if ((high & mask) == 0) {
+            if (update_Rc) {
+                env->crf[0] = 0x4;
+            }
             goto done;
+        }
         i++;
     }
     for (mask = 0xFF000000; mask != 0; mask = mask >> 8) {
-        if ((T1 & mask) == 0)
-            break;
+        if ((low & mask) == 0) {
+            if (update_Rc) {
+                env->crf[0] = 0x8;
+            }
+            goto done;
+        }
         i++;
     }
+    if (update_Rc) {
+        env->crf[0] = 0x2;
+    }
  done:
-    T0 = i;
+    env->xer = (env->xer & ~0x7F) | i;
+    if (update_Rc) {
+        env->crf[0] |= xer_so;
+    }
+    return i;
 }
 
 /*****************************************************************************/
@@ -2460,7 +2600,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 /* Software driven TLBs management */
 /* PowerPC 602/603 software TLB load instructions helpers */
-void do_load_6xx_tlb (int is_code)
+static void helper_load_6xx_tlb (target_ulong new_EPN, int is_code)
 {
     target_ulong RPN, CMP, EPN;
     int way;
@@ -2482,11 +2622,22 @@ void do_load_6xx_tlb (int is_code)
     }
 #endif
     /* Store this TLB */
-    ppc6xx_tlb_store(env, (uint32_t)(T0 & TARGET_PAGE_MASK),
+    ppc6xx_tlb_store(env, (uint32_t)(new_EPN & TARGET_PAGE_MASK),
                      way, is_code, CMP, RPN);
 }
 
-void do_load_74xx_tlb (int is_code)
+void helper_load_6xx_tlbd (target_ulong EPN)
+{
+    helper_load_6xx_tlb(EPN, 0);
+}
+
+void helper_load_6xx_tlbi (target_ulong EPN)
+{
+    helper_load_6xx_tlb(EPN, 1);
+}
+
+/* PowerPC 74xx software TLB load instructions helpers */
+static void helper_load_74xx_tlb (target_ulong new_EPN, int is_code)
 {
     target_ulong RPN, CMP, EPN;
     int way;
@@ -2503,8 +2654,18 @@ void do_load_74xx_tlb (int is_code)
     }
 #endif
     /* Store this TLB */
-    ppc6xx_tlb_store(env, (uint32_t)(T0 & TARGET_PAGE_MASK),
+    ppc6xx_tlb_store(env, (uint32_t)(new_EPN & TARGET_PAGE_MASK),
                      way, is_code, CMP, RPN);
+}
+
+void helper_load_74xx_tlbd (target_ulong EPN)
+{
+    helper_load_74xx_tlb(EPN, 0);
+}
+
+void helper_load_74xx_tlbi (target_ulong EPN)
+{
+    helper_load_74xx_tlb(EPN, 1);
 }
 
 static always_inline target_ulong booke_tlb_to_page_size (int size)

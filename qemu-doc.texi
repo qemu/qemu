@@ -391,7 +391,7 @@ time). This option is needed to have correct date in MS-DOS or
 Windows.
 
 @item -startdate @var{date}
-Set the initial date of the real time clock. Valid format for
+Set the initial date of the real time clock. Valid formats for
 @var{date} are: @code{now} or @code{2006-06-17T16:01:21} or
 @code{2006-06-17}. The default value is @code{now}.
 
@@ -416,7 +416,7 @@ This option is useful to load things like EtherBoot.
 
 @item -name @var{name}
 Sets the @var{name} of the guest.
-This name will be display in the SDL window caption.
+This name will be displayed in the SDL window caption.
 The @var{name} will also be used for the VNC server.
 
 @end table

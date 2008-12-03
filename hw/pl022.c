@@ -40,7 +40,6 @@ do { fprintf(stderr, "pl022: error: " fmt , ##args);} while (0)
 #define PL022_INT_TX  0x08
 
 typedef struct {
-    uint32_t base;
     uint32_t cr0;
     uint32_t cr1;
     uint32_t bitmask;
@@ -137,7 +136,6 @@ static uint32_t pl022_read(void *opaque, target_phys_addr_t offset)
     pl022_state *s = (pl022_state *)opaque;
     int val;
 
-    offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000) {
         return pl022_id[(offset - 0xfe0) >> 2];
     }
@@ -181,7 +179,6 @@ static void pl022_write(void *opaque, target_phys_addr_t offset,
 {
     pl022_state *s = (pl022_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x00: /* CR0 */
         s->cr0 = value;
@@ -303,7 +300,6 @@ void pl022_init(uint32_t base, qemu_irq irq, int (*xfer_cb)(void *, int),
     iomemtype = cpu_register_io_memory(0, pl022_readfn,
                                        pl022_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->base = base;
     s->irq = irq;
     s->xfer_cb = xfer_cb;
     s->opaque = opaque;

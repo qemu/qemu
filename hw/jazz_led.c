@@ -34,7 +34,6 @@ typedef enum {
 } screen_state_t;
 
 typedef struct LedState {
-    target_phys_addr_t base;
     uint8_t segments;
     DisplayState *ds;
     QEMUConsole *console;
@@ -44,10 +43,9 @@ typedef struct LedState {
 static uint32_t led_readb(void *opaque, target_phys_addr_t addr)
 {
     LedState *s = opaque;
-    int relative_addr = addr - s->base;
     uint32_t val;
 
-    switch (relative_addr) {
+    switch (addr) {
         case 0:
             val = s->segments;
             break;
@@ -94,9 +92,8 @@ static uint32_t led_readl(void *opaque, target_phys_addr_t addr)
 static void led_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     LedState *s = opaque;
-    int relative_addr = addr - s->base;
 
-    switch (relative_addr) {
+    switch (addr) {
         case 0:
             s->segments = val;
             s->state |= REDRAW_SEGMENTS;
@@ -311,12 +308,11 @@ void jazz_led_init(DisplayState *ds, target_phys_addr_t base)
     if (!s)
         return;
 
-    s->base = base;
     s->ds = ds;
     s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
 
     io = cpu_register_io_memory(0, led_read, led_write, s);
-    cpu_register_physical_memory(s->base, 1, io);
+    cpu_register_physical_memory(base, 1, io);
 
     s->console = graphic_console_init(ds, jazz_led_update_display,
                                      jazz_led_invalidate_display,

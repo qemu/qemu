@@ -80,7 +80,6 @@
 #define PXAKBD_MAXCOL   8
 
 struct pxa2xx_keypad_s{
-    target_phys_addr_t base;
     qemu_irq    irq;
     struct  keymap *map;
 
@@ -159,7 +158,6 @@ static uint32_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset)
 {
     struct pxa2xx_keypad_s *s = (struct pxa2xx_keypad_s *) opaque;
     uint32_t tmp;
-    offset -= s->base;
 
     switch (offset) {
     case KPC:
@@ -222,7 +220,6 @@ static void pxa2xx_keypad_write(void *opaque,
                 target_phys_addr_t offset, uint32_t value)
 {
     struct pxa2xx_keypad_s *s = (struct pxa2xx_keypad_s *) opaque;
-    offset -= s->base;
 
     switch (offset) {
     case KPC:
@@ -316,7 +313,6 @@ struct pxa2xx_keypad_s *pxa27x_keypad_init(target_phys_addr_t base,
     struct pxa2xx_keypad_s *s;
 
     s = (struct pxa2xx_keypad_s *) qemu_mallocz(sizeof(struct pxa2xx_keypad_s));
-    s->base = base;
     s->irq = irq;
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_keypad_readfn,

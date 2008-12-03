@@ -877,9 +877,17 @@ extern ram_addr_t ram_size;
 typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);
 
-void cpu_register_physical_memory(target_phys_addr_t start_addr,
-                                  ram_addr_t size,
-                                  ram_addr_t phys_offset);
+void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
+                                         ram_addr_t size,
+                                         ram_addr_t phys_offset,
+                                         ram_addr_t region_offset);
+static inline void cpu_register_physical_memory(target_phys_addr_t start_addr,
+                                                ram_addr_t size,
+                                                ram_addr_t phys_offset)
+{
+    cpu_register_physical_memory_offset(start_addr, size, phys_offset, 0);
+}
+
 ram_addr_t cpu_get_physical_page_desc(target_phys_addr_t addr);
 ram_addr_t qemu_ram_alloc(ram_addr_t);
 void qemu_ram_free(ram_addr_t addr);

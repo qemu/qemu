@@ -18,7 +18,6 @@
 #define PL190_NUM_PRIO 17
 
 typedef struct {
-    uint32_t base;
     uint32_t level;
     uint32_t soft_level;
     uint32_t irq_enable;
@@ -92,7 +91,6 @@ static uint32_t pl190_read(void *opaque, target_phys_addr_t offset)
     pl190_state *s = (pl190_state *)opaque;
     int i;
 
-    offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000) {
         return pl190_id[(offset - 0xfe0) >> 2];
     }
@@ -148,7 +146,6 @@ static void pl190_write(void *opaque, target_phys_addr_t offset, uint32_t val)
 {
     pl190_state *s = (pl190_state *)opaque;
 
-    offset -= s->base;
     if (offset >= 0x100 && offset < 0x140) {
         s->vect_addr[(offset - 0x100) >> 2] = val;
         pl190_update_vectors(s);
@@ -241,7 +238,6 @@ qemu_irq *pl190_init(uint32_t base, qemu_irq irq, qemu_irq fiq)
                                        pl190_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     qi = qemu_allocate_irqs(pl190_set_irq, s, 32);
-    s->base = base;
     s->irq = irq;
     s->fiq = fiq;
     pl190_reset(s);

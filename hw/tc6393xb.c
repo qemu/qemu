@@ -79,7 +79,6 @@
 #define NAND_MODE_ECC_RST   0x60
 
 struct tc6393xb_s {
-    target_phys_addr_t target_base;
     qemu_irq irq;
     qemu_irq *sub_irqs;
     struct {
@@ -498,7 +497,6 @@ static void tc6393xb_update_display(void *opaque)
 
 static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr) {
     struct tc6393xb_s *s = opaque;
-    addr -= s->target_base;
 
     switch (addr >> 8) {
         case 0:
@@ -520,7 +518,6 @@ static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr) {
 
 static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr, uint32_t value) {
     struct tc6393xb_s *s = opaque;
-    addr -= s->target_base;
 
     switch (addr >> 8) {
         case 0:
@@ -582,7 +579,6 @@ struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq, DisplayState *ds)
     };
 
     s = (struct tc6393xb_s *) qemu_mallocz(sizeof(struct tc6393xb_s));
-    s->target_base = base;
     s->irq = irq;
     s->gpio_in = qemu_allocate_irqs(tc6393xb_gpio_set, s, TC6393XB_GPIOS);
 
@@ -595,12 +591,12 @@ struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq, DisplayState *ds)
 
     iomemtype = cpu_register_io_memory(0, tc6393xb_readfn,
                     tc6393xb_writefn, s);
-    cpu_register_physical_memory(s->target_base, 0x10000, iomemtype);
+    cpu_register_physical_memory(base, 0x10000, iomemtype);
 
     if (ds) {
         s->ds = ds;
         s->vram_addr = qemu_ram_alloc(0x100000);
-        cpu_register_physical_memory(s->target_base + 0x100000, 0x100000, s->vram_addr);
+        cpu_register_physical_memory(base + 0x100000, 0x100000, s->vram_addr);
         s->scr_width = 480;
         s->scr_height = 640;
         s->console = graphic_console_init(ds,

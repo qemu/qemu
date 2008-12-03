@@ -428,7 +428,7 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
         GET_REGL(env->gpr[n]);
     } else if (n < 64) {
         /* fprs */
-        stfq_p(mem_buf, env->fpr[n]);
+        stfq_p(mem_buf, env->fpr[n-32]);
         return 8;
     } else {
         switch (n) {
@@ -459,7 +459,7 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
         return sizeof(target_ulong);
     } else if (n < 64) {
         /* fprs */
-        env->fpr[n] = ldfq_p(mem_buf);
+        env->fpr[n-32] = ldfq_p(mem_buf);
         return 8;
     } else {
         switch (n) {

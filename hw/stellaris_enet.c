@@ -44,7 +44,6 @@ do { fprintf(stderr, "stellaris_enet: error: " fmt , ##args);} while (0)
 #define SE_TCTL_DUPLEX  0x08
 
 typedef struct {
-    uint32_t base;
     uint32_t ris;
     uint32_t im;
     uint32_t rctl;
@@ -133,7 +132,6 @@ static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;
     uint32_t val;
 
-    offset -= s->base;
     switch (offset) {
     case 0x00: /* RIS */
         DPRINTF("IRQ status %02x\n", s->ris);
@@ -202,7 +200,6 @@ static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
 {
     stellaris_enet_state *s = (stellaris_enet_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x00: /* IACK */
         s->ris &= ~value;
@@ -396,7 +393,6 @@ void stellaris_enet_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     iomemtype = cpu_register_io_memory(0, stellaris_enet_readfn,
                                        stellaris_enet_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->base = base;
     s->irq = irq;
     memcpy(s->macaddr, nd->macaddr, 6);
 

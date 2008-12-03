@@ -76,7 +76,6 @@ typedef struct E1000State_st {
     PCIDevice dev;
     VLANClientState *vc;
     NICInfo *nd;
-    uint32_t mmio_base;
     int mmio_index;
 
     uint32_t mac_reg[0x8000];
@@ -786,7 +785,7 @@ static void
 e1000_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     E1000State *s = opaque;
-    unsigned int index = ((addr - s->mmio_base) & 0x1ffff) >> 2;
+    unsigned int index = (addr & 0x1ffff) >> 2;
 
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
@@ -820,7 +819,7 @@ static uint32_t
 e1000_mmio_readl(void *opaque, target_phys_addr_t addr)
 {
     E1000State *s = opaque;
-    unsigned int index = ((addr - s->mmio_base) & 0x1ffff) >> 2;
+    unsigned int index = (addr & 0x1ffff) >> 2;
 
     if (index < NREADOPS && macreg_readops[index])
     {
@@ -870,7 +869,7 @@ nic_save(QEMUFile *f, void *opaque)
     int i, j;
 
     pci_device_save(&s->dev, f);
-    qemu_put_be32s(f, &s->mmio_base);
+    qemu_put_be32(f, 0);
     qemu_put_be32s(f, &s->rxbuf_size);
     qemu_put_be32s(f, &s->rxbuf_min_shift);
     qemu_put_be32s(f, &s->eecd_state.val_in);
@@ -916,7 +915,7 @@ nic_load(QEMUFile *f, void *opaque, int version_id)
         return ret;
     if (version_id == 1)
         qemu_get_sbe32s(f, &i); /* once some unused instance id */
-    qemu_get_be32s(f, &s->mmio_base);
+    qemu_get_be32(f); /* Ignored.  Was mmio_base.  */
     qemu_get_be32s(f, &s->rxbuf_size);
     qemu_get_be32s(f, &s->rxbuf_min_shift);
     qemu_get_be32s(f, &s->eecd_state.val_in);
@@ -1005,7 +1004,6 @@ e1000_mmio_map(PCIDevice *pci_dev, int region_num,
 
     DBGOUT(MMIO, "e1000_mmio_map addr=0x%08x 0x%08x\n", addr, size);
 
-    d->mmio_base = addr;
     cpu_register_physical_memory(addr, PNPMMIO_SIZE, d->mmio_index);
 }
 

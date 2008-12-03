@@ -106,7 +106,6 @@ struct omap_dma_s {
     struct soc_dma_s *dma;
 
     struct omap_mpu_state_s *mpu;
-    target_phys_addr_t base;
     omap_clk clk;
     qemu_irq irq[4];
     void (*intr_update)(struct omap_dma_s *s);
@@ -1447,20 +1446,20 @@ static int omap_dma_sys_read(struct omap_dma_s *s, int offset,
 static uint32_t omap_dma_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
-    int reg, ch, offset = addr - s->base;
+    int reg, ch;
     uint16_t ret;
 
-    switch (offset) {
+    switch (addr) {
     case 0x300 ... 0x3fe:
         if (s->model <= omap_dma_3_1 || !s->omap_3_1_mapping_disabled) {
-            if (omap_dma_3_1_lcd_read(&s->lcd_ch, offset, &ret))
+            if (omap_dma_3_1_lcd_read(&s->lcd_ch, addr, &ret))
                 break;
             return ret;
         }
         /* Fall through. */
     case 0x000 ... 0x2fe:
-        reg = offset & 0x3f;
-        ch = (offset >> 6) & 0x0f;
+        reg = addr & 0x3f;
+        ch = (addr >> 6) & 0x0f;
         if (omap_dma_ch_reg_read(s, &s->ch[ch], reg, &ret))
             break;
         return ret;
@@ -1470,13 +1469,13 @@ static uint32_t omap_dma_read(void *opaque, target_phys_addr_t addr)
             break;
         /* Fall through. */
     case 0x400:
-        if (omap_dma_sys_read(s, offset, &ret))
+        if (omap_dma_sys_read(s, addr, &ret))
             break;
         return ret;
 
     case 0xb00 ... 0xbfe:
         if (s->model == omap_dma_3_2 && s->omap_3_1_mapping_disabled) {
-            if (omap_dma_3_2_lcd_read(&s->lcd_ch, offset, &ret))
+            if (omap_dma_3_2_lcd_read(&s->lcd_ch, addr, &ret))
                 break;
             return ret;
         }
@@ -1491,19 +1490,19 @@ static void omap_dma_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
-    int reg, ch, offset = addr - s->base;
+    int reg, ch;
 
-    switch (offset) {
+    switch (addr) {
     case 0x300 ... 0x3fe:
         if (s->model <= omap_dma_3_1 || !s->omap_3_1_mapping_disabled) {
-            if (omap_dma_3_1_lcd_write(&s->lcd_ch, offset, value))
+            if (omap_dma_3_1_lcd_write(&s->lcd_ch, addr, value))
                 break;
             return;
         }
         /* Fall through.  */
     case 0x000 ... 0x2fe:
-        reg = offset & 0x3f;
-        ch = (offset >> 6) & 0x0f;
+        reg = addr & 0x3f;
+        ch = (addr >> 6) & 0x0f;
         if (omap_dma_ch_reg_write(s, &s->ch[ch], reg, value))
             break;
         return;
@@ -1513,13 +1512,13 @@ static void omap_dma_write(void *opaque, target_phys_addr_t addr,
             break;
     case 0x400:
         /* Fall through. */
-        if (omap_dma_sys_write(s, offset, value))
+        if (omap_dma_sys_write(s, addr, value))
             break;
         return;
 
     case 0xb00 ... 0xbfe:
         if (s->model == omap_dma_3_2 && s->omap_3_1_mapping_disabled) {
-            if (omap_dma_3_2_lcd_write(&s->lcd_ch, offset, value))
+            if (omap_dma_3_2_lcd_write(&s->lcd_ch, addr, value))
                 break;
             return;
         }
@@ -1628,7 +1627,6 @@ struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
         num_irqs = 16;
         memsize = 0xc00;
     }
-    s->base = base;
     s->model = model;
     s->mpu = mpu;
     s->clk = clk;
@@ -1660,7 +1658,7 @@ struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
 
     iomemtype = cpu_register_io_memory(0, omap_dma_readfn,
                     omap_dma_writefn, s);
-    cpu_register_physical_memory(s->base, memsize, iomemtype);
+    cpu_register_physical_memory(base, memsize, iomemtype);
 
     mpu->drq = s->dma->drq;
 
@@ -1691,10 +1689,10 @@ static void omap_dma_interrupts_4_update(struct omap_dma_s *s)
 static uint32_t omap_dma4_read(void *opaque, target_phys_addr_t addr)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
-    int irqn = 0, chnum, offset = addr - s->base;
+    int irqn = 0, chnum;
     struct omap_dma_channel_s *ch;
 
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* DMA4_REVISION */
         return 0x40;
 
@@ -1735,10 +1733,10 @@ static uint32_t omap_dma4_read(void *opaque, target_phys_addr_t addr)
         return s->gcr;
 
     case 0x80 ... 0xfff:
-        offset -= 0x80;
-        chnum = offset / 0x60;
+        addr -= 0x80;
+        chnum = addr / 0x60;
         ch = s->ch + chnum;
-        offset -= chnum * 0x60;
+        addr -= chnum * 0x60;
         break;
 
     default:
@@ -1747,7 +1745,7 @@ static uint32_t omap_dma4_read(void *opaque, target_phys_addr_t addr)
     }
 
     /* Per-channel registers */
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* DMA4_CCR */
         return (ch->buf_disable << 25) |
                 (ch->src_sync << 24) |
@@ -1837,10 +1835,10 @@ static void omap_dma4_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
-    int chnum, irqn = 0, offset = addr - s->base;
+    int chnum, irqn = 0;
     struct omap_dma_channel_s *ch;
 
-    switch (offset) {
+    switch (addr) {
     case 0x14:	/* DMA4_IRQSTATUS_L3 */
         irqn ++;
     case 0x10:	/* DMA4_IRQSTATUS_L2 */
@@ -1878,10 +1876,10 @@ static void omap_dma4_write(void *opaque, target_phys_addr_t addr,
         return;
 
     case 0x80 ... 0xfff:
-        offset -= 0x80;
-        chnum = offset / 0x60;
+        addr -= 0x80;
+        chnum = addr / 0x60;
         ch = s->ch + chnum;
-        offset -= chnum * 0x60;
+        addr -= chnum * 0x60;
         break;
 
     case 0x00:	/* DMA4_REVISION */
@@ -1899,7 +1897,7 @@ static void omap_dma4_write(void *opaque, target_phys_addr_t addr,
     }
 
     /* Per-channel registers */
-    switch (offset) {
+    switch (addr) {
     case 0x00:	/* DMA4_CCR */
         ch->buf_disable = (value >> 25) & 1;
         ch->src_sync = (value >> 24) & 1;	/* XXX For CamDMA must be 1 */
@@ -2041,7 +2039,6 @@ struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
     struct omap_dma_s *s = (struct omap_dma_s *)
             qemu_mallocz(sizeof(struct omap_dma_s));
 
-    s->base = base;
     s->model = omap_dma_4;
     s->chans = chans;
     s->mpu = mpu;
@@ -2068,7 +2065,7 @@ struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
 
     iomemtype = cpu_register_io_memory(0, omap_dma4_readfn,
                     omap_dma4_writefn, s);
-    cpu_register_physical_memory(s->base, 0x1000, iomemtype);
+    cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     mpu->drq = s->dma->drq;
 

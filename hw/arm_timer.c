@@ -190,7 +190,6 @@ static void *arm_timer_init(uint32_t freq, qemu_irq irq)
 typedef struct {
     void *timer[2];
     int level[2];
-    uint32_t base;
     qemu_irq irq;
 } sp804_state;
 
@@ -208,7 +207,6 @@ static uint32_t sp804_read(void *opaque, target_phys_addr_t offset)
     sp804_state *s = (sp804_state *)opaque;
 
     /* ??? Don't know the PrimeCell ID for this device.  */
-    offset -= s->base;
     if (offset < 0x20) {
         return arm_timer_read(s->timer[0], offset);
     } else {
@@ -221,7 +219,6 @@ static void sp804_write(void *opaque, target_phys_addr_t offset,
 {
     sp804_state *s = (sp804_state *)opaque;
 
-    offset -= s->base;
     if (offset < 0x20) {
         arm_timer_write(s->timer[0], offset, value);
     } else {
@@ -268,7 +265,6 @@ void sp804_init(uint32_t base, qemu_irq irq)
 
     s = (sp804_state *)qemu_mallocz(sizeof(sp804_state));
     qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
-    s->base = base;
     s->irq = irq;
     /* ??? The timers are actually configurable between 32kHz and 1MHz, but
        we don't implement that.  */
@@ -285,7 +281,6 @@ void sp804_init(uint32_t base, qemu_irq irq)
 
 typedef struct {
     void *timer[3];
-    uint32_t base;
 } icp_pit_state;
 
 static uint32_t icp_pit_read(void *opaque, target_phys_addr_t offset)
@@ -294,7 +289,6 @@ static uint32_t icp_pit_read(void *opaque, target_phys_addr_t offset)
     int n;
 
     /* ??? Don't know the PrimeCell ID for this device.  */
-    offset -= s->base;
     n = offset >> 8;
     if (n > 3)
         cpu_abort(cpu_single_env, "sp804_read: Bad timer %d\n", n);
@@ -308,7 +302,6 @@ static void icp_pit_write(void *opaque, target_phys_addr_t offset,
     icp_pit_state *s = (icp_pit_state *)opaque;
     int n;
 
-    offset -= s->base;
     n = offset >> 8;
     if (n > 3)
         cpu_abort(cpu_single_env, "sp804_write: Bad timer %d\n", n);
@@ -335,7 +328,6 @@ void icp_pit_init(uint32_t base, qemu_irq *pic, int irq)
     icp_pit_state *s;
 
     s = (icp_pit_state *)qemu_mallocz(sizeof(icp_pit_state));
-    s->base = base;
     /* Timer 0 runs at the system clock speed (40MHz).  */
     s->timer[0] = arm_timer_init(40000000, pic[irq]);
     /* The other two timers run at 1MHz.  */

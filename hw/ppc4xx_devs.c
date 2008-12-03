@@ -115,13 +115,13 @@ static uint32_t mmio_readlen (ppc4xx_mmio_t *mmio,
     uint32_t ret;
     int idx;
 
-    idx = MMIO_IDX(addr - mmio->base);
+    idx = MMIO_IDX(addr);
 #if defined(DEBUG_MMIO)
     printf("%s: mmio %p len %d addr " PADDRX " idx %d\n", __func__,
            mmio, len, addr, idx);
 #endif
     mem_read = mmio->mem_read[idx];
-    ret = (*mem_read[len])(mmio->opaque[idx], addr - mmio->base);
+    ret = (*mem_read[len])(mmio->opaque[idx], addr);
 
     return ret;
 }
@@ -132,13 +132,13 @@ static void mmio_writelen (ppc4xx_mmio_t *mmio,
     CPUWriteMemoryFunc **mem_write;
     int idx;
 
-    idx = MMIO_IDX(addr - mmio->base);
+    idx = MMIO_IDX(addr);
 #if defined(DEBUG_MMIO)
     printf("%s: mmio %p len %d addr " PADDRX " idx %d value %08" PRIx32 "\n",
            __func__, mmio, len, addr, idx, value);
 #endif
     mem_write = mmio->mem_write[idx];
-    (*mem_write[len])(mmio->opaque[idx], addr - mmio->base, value);
+    (*mem_write[len])(mmio->opaque[idx], addr, value);
 }
 
 static uint32_t mmio_readb (void *opaque, target_phys_addr_t addr)

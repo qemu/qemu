@@ -192,7 +192,6 @@ struct pxa2xx_state_s {
 };
 
 struct pxa2xx_i2s_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     struct pxa2xx_dma_state_s *dma;
     void (*data_req)(void *, int, int);

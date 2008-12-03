@@ -14,7 +14,6 @@
 #define LOCK_VALUE 0xa05f
 
 typedef struct {
-    uint32_t base;
     uint32_t sys_id;
     uint32_t leds;
     uint16_t lockval;
@@ -29,7 +28,6 @@ static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
 
-    offset -= s->base;
     switch (offset) {
     case 0x00: /* ID */
         return s->sys_id;
@@ -108,7 +106,6 @@ static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
                           uint32_t val)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
-    offset -= s->base;
 
     switch (offset) {
     case 0x08: /* LED */
@@ -199,7 +196,6 @@ void arm_sysctl_init(uint32_t base, uint32_t sys_id)
     s = (arm_sysctl_state *)qemu_mallocz(sizeof(arm_sysctl_state));
     if (!s)
         return;
-    s->base = base;
     s->sys_id = sys_id;
     /* The MPcore bootloader uses these flags to start secondary CPUs.
        We don't use a bootloader, so do this here.  */

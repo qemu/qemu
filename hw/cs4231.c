@@ -30,8 +30,7 @@
 /*
  * In addition to Crystal CS4231 there is a DMA controller on Sparc.
  */
-#define CS_MAXADDR 0x3f
-#define CS_SIZE (CS_MAXADDR + 1)
+#define CS_SIZE 0x40
 #define CS_REGS 16
 #define CS_DREGS 32
 #define CS_MAXDREG (CS_DREGS - 1)
@@ -68,7 +67,7 @@ static uint32_t cs_mem_readl(void *opaque, target_phys_addr_t addr)
     CSState *s = opaque;
     uint32_t saddr, ret;
 
-    saddr = (addr & CS_MAXADDR) >> 2;
+    saddr = addr >> 2;
     switch (saddr) {
     case 1:
         switch (CS_RAP(s)) {
@@ -94,7 +93,7 @@ static void cs_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     CSState *s = opaque;
     uint32_t saddr;
 
-    saddr = (addr & CS_MAXADDR) >> 2;
+    saddr = addr >> 2;
     DPRINTF("write reg[%d]: 0x%8.8x -> 0x%8.8x\n", saddr, s->regs[saddr], val);
     switch (saddr) {
     case 1:

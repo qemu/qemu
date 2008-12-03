@@ -24,9 +24,6 @@ static inline void regs_to_env(void)
 /* op_helper.c */
 void do_interrupt(CPUState *env);
 
-/* cpu-exec.c */
-void cpu_loop_exit(void);
-
 static inline int cpu_halted(CPUState *env1) {
     if (!env1->halted)
         return 0;

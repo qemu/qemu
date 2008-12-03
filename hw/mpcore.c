@@ -265,7 +265,7 @@ static qemu_irq *mpcore_priv_init(uint32_t base, qemu_irq *pic_irq)
     s = (mpcore_priv_state *)qemu_mallocz(sizeof(mpcore_priv_state));
     if (!s)
         return NULL;
-    s->gic = gic_init(base, pic_irq);
+    s->gic = gic_init(base + 0x1000, pic_irq);
     if (!s->gic)
         return NULL;
     iomemtype = cpu_register_io_memory(0, mpcore_priv_readfn,

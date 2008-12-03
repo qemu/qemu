@@ -90,7 +90,6 @@ static PXASSPDef pxa27x_ssp[] = {
 static uint32_t pxa2xx_pm_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    addr -= s->pm_base;
 
     switch (addr) {
     case PMCR ... PCMD31:
@@ -110,7 +109,6 @@ static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    addr -= s->pm_base;
 
     switch (addr) {
     case PMCR:
@@ -175,7 +173,6 @@ static int pxa2xx_pm_load(QEMUFile *f, void *opaque, int version_id)
 static uint32_t pxa2xx_cm_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    addr -= s->cm_base;
 
     switch (addr) {
     case CCCR:
@@ -197,7 +194,6 @@ static void pxa2xx_cm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    addr -= s->cm_base;
 
     switch (addr) {
     case CCCR:
@@ -487,7 +483,6 @@ static void pxa2xx_cp14_write(void *opaque, int op2, int reg, int crm,
 static uint32_t pxa2xx_mm_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    addr -= s->mm_base;
 
     switch (addr) {
     case MDCNFG ... SA1110:
@@ -505,7 +500,6 @@ static void pxa2xx_mm_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    addr -= s->mm_base;
 
     switch (addr) {
     case MDCNFG ... SA1110:
@@ -554,7 +548,6 @@ static int pxa2xx_mm_load(QEMUFile *f, void *opaque, int version_id)
 
 /* Synchronous Serial Ports */
 struct pxa2xx_ssp_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     int enable;
 
@@ -668,7 +661,6 @@ static uint32_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_ssp_s *s = (struct pxa2xx_ssp_s *) opaque;
     uint32_t retval;
-    addr -= s->base;
 
     switch (addr) {
     case SSCR0:
@@ -714,7 +706,6 @@ static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct pxa2xx_ssp_s *s = (struct pxa2xx_ssp_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case SSCR0:
@@ -1022,7 +1013,6 @@ static inline void pxa2xx_rtc_pi_tick(void *opaque)
 static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    addr -= s->rtc_base;
 
     switch (addr) {
     case RTTR:
@@ -1069,7 +1059,6 @@ static void pxa2xx_rtc_write(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct pxa2xx_state_s *s = (struct pxa2xx_state_s *) opaque;
-    addr -= s->rtc_base;
 
     switch (addr) {
     case RTTR:
@@ -1270,7 +1259,6 @@ static int pxa2xx_rtc_load(QEMUFile *f, void *opaque, int version_id)
 struct pxa2xx_i2c_s {
     i2c_slave slave;
     i2c_bus *bus;
-    target_phys_addr_t base;
     qemu_irq irq;
 
     uint16_t control;
@@ -1351,8 +1339,8 @@ static int pxa2xx_i2c_tx(i2c_slave *i2c, uint8_t data)
 static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
-    addr -= s->base;
 
+    addr &= 0xff;
     switch (addr) {
     case ICR:
         return s->control;
@@ -1380,8 +1368,8 @@ static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
 {
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
     int ack;
-    addr -= s->base;
 
+    addr &= 0xff;
     switch (addr) {
     case ICR:
         s->control = value & 0xfff7;
@@ -1493,7 +1481,6 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *)
             i2c_slave_init(i2c_init_bus(), 0, sizeof(struct pxa2xx_i2c_s));
 
-    s->base = base;
     s->irq = irq;
     s->slave.event = pxa2xx_i2c_event;
     s->slave.recv = pxa2xx_i2c_rx;
@@ -1502,7 +1489,7 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_i2c_readfn,
                     pxa2xx_i2c_writefn, s);
-    cpu_register_physical_memory(s->base & ~page_size, page_size, iomemtype);
+    cpu_register_physical_memory(base & ~page_size, page_size + 1, iomemtype);
 
     register_savevm("pxa2xx_i2c", base, 1,
                     pxa2xx_i2c_save, pxa2xx_i2c_load, s);
@@ -1573,7 +1560,6 @@ static inline void pxa2xx_i2s_update(struct pxa2xx_i2s_s *i2s)
 static uint32_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *) opaque;
-    addr -= s->base;
 
     switch (addr) {
     case SACR0:
@@ -1607,7 +1593,6 @@ static void pxa2xx_i2s_write(void *opaque, target_phys_addr_t addr,
 {
     struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *) opaque;
     uint32_t *sample;
-    addr -= s->base;
 
     switch (addr) {
     case SACR0:
@@ -1733,7 +1718,6 @@ static struct pxa2xx_i2s_s *pxa2xx_i2s_init(target_phys_addr_t base,
     struct pxa2xx_i2s_s *s = (struct pxa2xx_i2s_s *)
             qemu_mallocz(sizeof(struct pxa2xx_i2s_s));
 
-    s->base = base;
     s->irq = irq;
     s->dma = dma;
     s->data_req = pxa2xx_i2s_data_req;
@@ -1742,7 +1726,7 @@ static struct pxa2xx_i2s_s *pxa2xx_i2s_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_i2s_readfn,
                     pxa2xx_i2s_writefn, s);
-    cpu_register_physical_memory(s->base & 0xfff00000, 0x100000, iomemtype);
+    cpu_register_physical_memory(base, 0x100000, iomemtype);
 
     register_savevm("pxa2xx_i2s", base, 0,
                     pxa2xx_i2s_save, pxa2xx_i2s_load, s);
@@ -1752,7 +1736,6 @@ static struct pxa2xx_i2s_s *pxa2xx_i2s_init(target_phys_addr_t base,
 
 /* PXA Fast Infra-red Communications Port */
 struct pxa2xx_fir_s {
-    target_phys_addr_t base;
     qemu_irq irq;
     struct pxa2xx_dma_state_s *dma;
     int enable;
@@ -1826,7 +1809,6 @@ static uint32_t pxa2xx_fir_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *) opaque;
     uint8_t ret;
-    addr -= s->base;
 
     switch (addr) {
     case ICCR0:
@@ -1865,7 +1847,6 @@ static void pxa2xx_fir_write(void *opaque, target_phys_addr_t addr,
 {
     struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *) opaque;
     uint8_t ch;
-    addr -= s->base;
 
     switch (addr) {
     case ICCR0:
@@ -1996,7 +1977,6 @@ static struct pxa2xx_fir_s *pxa2xx_fir_init(target_phys_addr_t base,
     struct pxa2xx_fir_s *s = (struct pxa2xx_fir_s *)
             qemu_mallocz(sizeof(struct pxa2xx_fir_s));
 
-    s->base = base;
     s->irq = irq;
     s->dma = dma;
     s->chr = chr;
@@ -2005,7 +1985,7 @@ static struct pxa2xx_fir_s *pxa2xx_fir_init(target_phys_addr_t base,
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_fir_readfn,
                     pxa2xx_fir_writefn, s);
-    cpu_register_physical_memory(s->base, 0x1000, iomemtype);
+    cpu_register_physical_memory(base, 0x1000, iomemtype);
 
     if (chr)
         qemu_chr_add_handlers(chr, pxa2xx_fir_is_empty,
@@ -2118,13 +2098,14 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
     ssp = (struct pxa2xx_ssp_s *)
             qemu_mallocz(sizeof(struct pxa2xx_ssp_s) * i);
     for (i = 0; pxa27x_ssp[i].io_base; i ++) {
+        target_phys_addr_t ssp_base;
         s->ssp[i] = &ssp[i];
-        ssp[i].base = pxa27x_ssp[i].io_base;
+        ssp_base = pxa27x_ssp[i].io_base;
         ssp[i].irq = s->pic[pxa27x_ssp[i].irqn];
 
         iomemtype = cpu_register_io_memory(0, pxa2xx_ssp_readfn,
                         pxa2xx_ssp_writefn, &ssp[i]);
-        cpu_register_physical_memory(ssp[i].base, 0x1000, iomemtype);
+        cpu_register_physical_memory(ssp_base, 0x1000, iomemtype);
         register_savevm("pxa2xx_ssp", i, 0,
                         pxa2xx_ssp_save, pxa2xx_ssp_load, s);
     }
@@ -2241,13 +2222,14 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
     ssp = (struct pxa2xx_ssp_s *)
             qemu_mallocz(sizeof(struct pxa2xx_ssp_s) * i);
     for (i = 0; pxa255_ssp[i].io_base; i ++) {
+        target_phys_addr_t ssp_base;
         s->ssp[i] = &ssp[i];
-        ssp[i].base = pxa255_ssp[i].io_base;
+        ssp_base = pxa255_ssp[i].io_base;
         ssp[i].irq = s->pic[pxa255_ssp[i].irqn];
 
         iomemtype = cpu_register_io_memory(0, pxa2xx_ssp_readfn,
                         pxa2xx_ssp_writefn, &ssp[i]);
-        cpu_register_physical_memory(ssp[i].base, 0x1000, iomemtype);
+        cpu_register_physical_memory(ssp_base, 0x1000, iomemtype);
         register_savevm("pxa2xx_ssp", i, 0,
                         pxa2xx_ssp_save, pxa2xx_ssp_load, s);
     }

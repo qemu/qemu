@@ -409,7 +409,6 @@ int cpu_alpha_signal_handler(int host_signum, void *pinfo,
                              void *puc);
 int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
 int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
-void cpu_loop_exit (void);
 void pal_init (CPUState *env);
 #if !defined (CONFIG_USER_ONLY)
 void call_pal (CPUState *env);

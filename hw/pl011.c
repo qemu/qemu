@@ -12,7 +12,6 @@
 #include "primecell.h"
 
 typedef struct {
-    uint32_t base;
     uint32_t readbuff;
     uint32_t flags;
     uint32_t lcr;
@@ -59,7 +58,6 @@ static uint32_t pl011_read(void *opaque, target_phys_addr_t offset)
     pl011_state *s = (pl011_state *)opaque;
     uint32_t c;
 
-    offset -= s->base;
     if (offset >= 0xfe0 && offset < 0x1000) {
         return pl011_id[s->type][(offset - 0xfe0) >> 2];
     }
@@ -130,7 +128,6 @@ static void pl011_write(void *opaque, target_phys_addr_t offset,
     pl011_state *s = (pl011_state *)opaque;
     unsigned char ch;
 
-    offset -= s->base;
     switch (offset >> 2) {
     case 0: /* UARTDR */
         /* ??? Check if transmitter is enabled.  */
@@ -299,7 +296,6 @@ void pl011_init(uint32_t base, qemu_irq irq,
     iomemtype = cpu_register_io_memory(0, pl011_readfn,
                                        pl011_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->base = base;
     s->irq = irq;
     s->type = type;
     s->chr = chr;

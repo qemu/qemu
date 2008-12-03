@@ -47,7 +47,6 @@ struct fs_timer_t {
 	CPUState *env;
 	qemu_irq *irq;
 	qemu_irq *nmi;
-	target_phys_addr_t base;
 
 	QEMUBH *bh_t0;
 	QEMUBH *bh_t1;
@@ -90,8 +89,6 @@ static uint32_t timer_readl (void *opaque, target_phys_addr_t addr)
 	struct fs_timer_t *t = opaque;
 	uint32_t r = 0;
 
-	/* Make addr relative to this instances base.  */
-	addr -= t->base;
 	switch (addr) {
 	case R_TMR0_DATA:
 		break;
@@ -273,8 +270,6 @@ timer_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct fs_timer_t *t = opaque;
 
-	/* Make addr relative to this instances base.  */
-	addr -= t->base;
 	switch (addr)
 	{
 		case RW_TMR0_DIV:
@@ -357,7 +352,6 @@ void etraxfs_timer_init(CPUState *env, qemu_irq *irqs, qemu_irq *nmi,
 	t->irq = irqs;
 	t->nmi = nmi;
 	t->env = env;
-	t->base = base;
 
 	timer_regs = cpu_register_io_memory(0, timer_read, timer_write, t);
 	cpu_register_physical_memory (base, 0x5c, timer_regs);

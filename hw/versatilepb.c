@@ -20,7 +20,6 @@
 
 typedef struct vpb_sic_state
 {
-  uint32_t base;
   uint32_t level;
   uint32_t mask;
   uint32_t pic_enable;
@@ -65,7 +64,6 @@ static uint32_t vpb_sic_read(void *opaque, target_phys_addr_t offset)
 {
     vpb_sic_state *s = (vpb_sic_state *)opaque;
 
-    offset -= s->base;
     switch (offset >> 2) {
     case 0: /* STATUS */
         return s->level & s->mask;
@@ -87,7 +85,6 @@ static void vpb_sic_write(void *opaque, target_phys_addr_t offset,
                           uint32_t value)
 {
     vpb_sic_state *s = (vpb_sic_state *)opaque;
-    offset -= s->base;
 
     switch (offset >> 2) {
     case 2: /* ENSET */
@@ -141,7 +138,6 @@ static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
     if (!s)
         return NULL;
     qi = qemu_allocate_irqs(vpb_sic_set_irq, s, 32);
-    s->base = base;
     s->parent = parent;
     s->irq = irq;
     iomemtype = cpu_register_io_memory(0, vpb_sic_readfn,

@@ -54,7 +54,6 @@
  */
 typedef struct ref405ep_fpga_t ref405ep_fpga_t;
 struct ref405ep_fpga_t {
-    uint32_t base;
     uint8_t reg0;
     uint8_t reg1;
 };
@@ -65,7 +64,6 @@ static uint32_t ref405ep_fpga_readb (void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
     fpga = opaque;
-    addr -= fpga->base;
     switch (addr) {
     case 0x0:
         ret = fpga->reg0;
@@ -87,7 +85,6 @@ static void ref405ep_fpga_writeb (void *opaque,
     ref405ep_fpga_t *fpga;
 
     fpga = opaque;
-    addr -= fpga->base;
     switch (addr) {
     case 0x0:
         /* Read only */
@@ -166,7 +163,6 @@ static void ref405ep_fpga_init (uint32_t base)
 
     fpga = qemu_mallocz(sizeof(ref405ep_fpga_t));
     if (fpga != NULL) {
-        fpga->base = base;
         fpga_memory = cpu_register_io_memory(0, ref405ep_fpga_read,
                                              ref405ep_fpga_write, fpga);
         cpu_register_physical_memory(base, 0x00000100, fpga_memory);
@@ -382,7 +378,6 @@ QEMUMachine ref405ep_machine = {
  */
 typedef struct taihu_cpld_t taihu_cpld_t;
 struct taihu_cpld_t {
-    uint32_t base;
     uint8_t reg0;
     uint8_t reg1;
 };
@@ -393,7 +388,6 @@ static uint32_t taihu_cpld_readb (void *opaque, target_phys_addr_t addr)
     uint32_t ret;
 
     cpld = opaque;
-    addr -= cpld->base;
     switch (addr) {
     case 0x0:
         ret = cpld->reg0;
@@ -415,7 +409,6 @@ static void taihu_cpld_writeb (void *opaque,
     taihu_cpld_t *cpld;
 
     cpld = opaque;
-    addr -= cpld->base;
     switch (addr) {
     case 0x0:
         /* Read only */
@@ -494,7 +487,6 @@ static void taihu_cpld_init (uint32_t base)
 
     cpld = qemu_mallocz(sizeof(taihu_cpld_t));
     if (cpld != NULL) {
-        cpld->base = base;
         cpld_memory = cpu_register_io_memory(0, taihu_cpld_read,
                                              taihu_cpld_write, cpld);
         cpu_register_physical_memory(base, 0x00000100, cpld_memory);

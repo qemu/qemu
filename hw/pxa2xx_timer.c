@@ -78,7 +78,6 @@ struct pxa2xx_timer4_s {
 };
 
 typedef struct {
-    target_phys_addr_t base;
     int32_t clock;
     int32_t oldclock;
     uint64_t lastload;
@@ -139,8 +138,6 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
 {
     pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
     int tm = 0;
-
-    offset -= s->base;
 
     switch (offset) {
     case OSMR3:  tm ++;
@@ -220,8 +217,6 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
 {
     int i, tm = 0;
     pxa2xx_timer_info *s = (pxa2xx_timer_info *) opaque;
-
-    offset -= s->base;
 
     switch (offset) {
     case OSMR3:  tm ++;
@@ -442,7 +437,6 @@ static pxa2xx_timer_info *pxa2xx_timer_init(target_phys_addr_t base,
     pxa2xx_timer_info *s;
 
     s = (pxa2xx_timer_info *) qemu_mallocz(sizeof(pxa2xx_timer_info));
-    s->base = base;
     s->irq_enabled = 0;
     s->oldclock = 0;
     s->clock = 0;

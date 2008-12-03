@@ -108,8 +108,7 @@ struct SerialState {
     struct ChannelState chn[2];
 };
 
-#define SERIAL_MAXADDR 7
-#define SERIAL_SIZE (SERIAL_MAXADDR + 1)
+#define SERIAL_SIZE 8
 #define SERIAL_CTRL 0
 #define SERIAL_DATA 1
 
@@ -477,7 +476,7 @@ static void slavio_serial_mem_writeb(void *opaque, target_phys_addr_t addr,
 
     val &= 0xff;
     saddr = (addr & 3) >> 1;
-    channel = (addr & SERIAL_MAXADDR) >> 2;
+    channel = addr >> 2;
     s = &serial->chn[channel];
     switch (saddr) {
     case SERIAL_CTRL:
@@ -574,7 +573,7 @@ static uint32_t slavio_serial_mem_readb(void *opaque, target_phys_addr_t addr)
     int channel;
 
     saddr = (addr & 3) >> 1;
-    channel = (addr & SERIAL_MAXADDR) >> 2;
+    channel = addr >> 2;
     s = &serial->chn[channel];
     switch (saddr) {
     case SERIAL_CTRL:

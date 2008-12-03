@@ -890,11 +890,9 @@ struct omap_mpu_state_s {
 
     struct omap_lcd_panel_s *lcd;
 
-    target_phys_addr_t ulpd_pm_base;
     uint32_t ulpd_pm_regs[21];
     int64_t ulpd_gauge_start;
 
-    target_phys_addr_t pin_cfg_base;
     uint32_t func_mux_ctrl[14];
     uint32_t comp_mode_ctrl[1];
     uint32_t pull_dwn_ctrl[4];
@@ -905,25 +903,19 @@ struct omap_mpu_state_s {
     int compat1509;
 
     uint32_t mpui_ctrl;
-    target_phys_addr_t mpui_base;
 
     struct omap_tipb_bridge_s *private_tipb;
     struct omap_tipb_bridge_s *public_tipb;
 
-    target_phys_addr_t tcmi_base;
     uint32_t tcmi_regs[17];
 
     struct dpll_ctl_s {
-        target_phys_addr_t base;
         uint16_t mode;
         omap_clk dpll;
     } dpll[3];
 
     omap_clk clks;
     struct {
-        target_phys_addr_t mpu_base;
-        target_phys_addr_t dsp_base;
-
         int cold_start;
         int clocking_scheme;
         uint16_t arm_ckctl;
@@ -944,10 +936,7 @@ struct omap_mpu_state_s {
 
     struct omap_gp_timer_s *gptimer[12];
 
-    target_phys_addr_t tap_base;
-
     struct omap_synctimer_s {
-        target_phys_addr_t base;
         uint32_t val;
         uint16_t readh;
     } synctimer;

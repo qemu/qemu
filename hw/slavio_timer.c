@@ -66,7 +66,6 @@ typedef struct SLAVIO_TIMERState {
     uint32_t slave_mode;
 } SLAVIO_TIMERState;
 
-#define TIMER_MAXADDR 0x1f
 #define SYS_TIMER_SIZE 0x14
 #define CPU_TIMER_SIZE 0x10
 
@@ -132,7 +131,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
     SLAVIO_TIMERState *s = opaque;
     uint32_t saddr, ret;
 
-    saddr = (addr & TIMER_MAXADDR) >> 2;
+    saddr = addr >> 2;
     switch (saddr) {
     case TIMER_LIMIT:
         // read limit (system counter mode) or read most signifying
@@ -185,7 +184,7 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
     uint32_t saddr;
 
     DPRINTF("write " TARGET_FMT_plx " %08x\n", addr, val);
-    saddr = (addr & TIMER_MAXADDR) >> 2;
+    saddr = addr >> 2;
     switch (saddr) {
     case TIMER_LIMIT:
         if (slavio_timer_is_user(s)) {

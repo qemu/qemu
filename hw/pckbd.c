@@ -125,7 +125,6 @@ typedef struct KBDState {
 
     qemu_irq irq_kbd;
     qemu_irq irq_mouse;
-    target_phys_addr_t base;
     int it_shift;
 } KBDState;
 
@@ -392,7 +391,7 @@ static uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     KBDState *s = opaque;
 
-    switch ((addr - s->base) >> s->it_shift) {
+    switch (addr >> s->it_shift) {
     case 0:
         return kbd_read_data(s, 0) & 0xff;
     case 1:
@@ -406,7 +405,7 @@ static void kbd_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value
 {
     KBDState *s = opaque;
 
-    switch ((addr - s->base) >> s->it_shift) {
+    switch (addr >> s->it_shift) {
     case 0:
         kbd_write_data(s, 0, value & 0xff);
         break;
@@ -436,7 +435,6 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
 
     s->irq_kbd = kbd_irq;
     s->irq_mouse = mouse_irq;
-    s->base = base;
     s->it_shift = it_shift;
 
     kbd_reset(s);

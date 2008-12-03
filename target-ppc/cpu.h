@@ -689,7 +689,6 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
 
 void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
-void cpu_loop_exit (void);
 
 void dump_stack (CPUPPCState *env);
 

@@ -39,8 +39,6 @@
 #define PA_OUTPORT	0x36
 
 typedef struct {
-    target_phys_addr_t base;
-
     uint16_t bcr;
     uint16_t irlmon;
     uint16_t cfctl;
@@ -68,8 +66,6 @@ static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
 {
     r2d_fpga_t *s = opaque;
 
-    addr -= s->base;
-
     switch (addr) {
     case PA_OUTPORT:
 	return s->outport;
@@ -86,8 +82,6 @@ static void
 r2d_fpga_write(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     r2d_fpga_t *s = opaque;
-
-    addr -= s->base;
 
     switch (addr) {
     case PA_OUTPORT:
@@ -123,7 +117,6 @@ static void r2d_fpga_init(target_phys_addr_t base)
     if (!s)
 	return;
 
-    s->base = base;
     iomemtype = cpu_register_io_memory(0, r2d_fpga_readfn,
 				       r2d_fpga_writefn, s);
     cpu_register_physical_memory(base, 0x40, iomemtype);

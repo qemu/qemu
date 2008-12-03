@@ -992,7 +992,6 @@ static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 static uint32_t vmsvga_vram_readb(void *opaque, target_phys_addr_t addr)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
-    addr -= s->vram_base;
     if (addr < s->fb_size)
         return *(uint8_t *) (ds_get_data(s->ds) + addr);
     else
@@ -1002,7 +1001,6 @@ static uint32_t vmsvga_vram_readb(void *opaque, target_phys_addr_t addr)
 static uint32_t vmsvga_vram_readw(void *opaque, target_phys_addr_t addr)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
-    addr -= s->vram_base;
     if (addr < s->fb_size)
         return *(uint16_t *) (ds_get_data(s->ds) + addr);
     else
@@ -1012,7 +1010,6 @@ static uint32_t vmsvga_vram_readw(void *opaque, target_phys_addr_t addr)
 static uint32_t vmsvga_vram_readl(void *opaque, target_phys_addr_t addr)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
-    addr -= s->vram_base;
     if (addr < s->fb_size)
         return *(uint32_t *) (ds_get_data(s->ds) + addr);
     else
@@ -1023,7 +1020,6 @@ static void vmsvga_vram_writeb(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
-    addr -= s->vram_base;
     if (addr < s->fb_size)
         *(uint8_t *) (ds_get_data(s->ds) + addr) = value;
     else
@@ -1034,7 +1030,6 @@ static void vmsvga_vram_writew(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
-    addr -= s->vram_base;
     if (addr < s->fb_size)
         *(uint16_t *) (ds_get_data(s->ds) + addr) = value;
     else
@@ -1045,7 +1040,6 @@ static void vmsvga_vram_writel(void *opaque, target_phys_addr_t addr,
                 uint32_t value)
 {
     struct vmsvga_state_s *s = (struct vmsvga_state_s *) opaque;
-    addr -= s->vram_base;
     if (addr < s->fb_size)
         *(uint32_t *) (ds_get_data(s->ds) + addr) = value;
     else

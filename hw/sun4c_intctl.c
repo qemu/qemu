@@ -52,8 +52,7 @@ typedef struct Sun4c_INTCTLState {
     uint8_t pending;
 } Sun4c_INTCTLState;
 
-#define INTCTL_MAXADDR 0
-#define INTCTL_SIZE (INTCTL_MAXADDR + 1)
+#define INTCTL_SIZE 1
 
 static void sun4c_check_interrupts(void *opaque);
 

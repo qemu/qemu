@@ -308,7 +308,8 @@ static void sh_intc_register(struct intc_desc *desc,
 			     unsigned long address)
 {
     if (address)
-        cpu_register_physical_memory(INTC_A7(address), 4, desc->iomemtype);
+        cpu_register_physical_memory_offset(INTC_A7(address), 4,
+                                            desc->iomemtype, INTC_A7(address));
 }
 
 static void sh_intc_register_source(struct intc_desc *desc,
