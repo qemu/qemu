@@ -189,6 +189,14 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     int len, i, shift, ret;
     QCowHeader header;
 
+    /* Performance is terrible right now with cache=writethrough due mainly
+     * to reference count updates.  If the user does not explicitly specify
+     * a caching type, force to writeback caching.
+     */
+    if ((flags & BDRV_O_CACHE_DEF)) {
+        flags |= BDRV_O_CACHE_WB;
+        flags &= ~BDRV_O_CACHE_DEF;
+    }
     ret = bdrv_file_open(&s->hd, filename, flags);
     if (ret < 0)
         return ret;

@@ -289,6 +289,12 @@ The host page can be avoided entirely with @option{cache=none}.  This will
 attempt to do disk IO directly to the guests memory.  QEMU may still perform
 an internal copy of the data.
 
+Some block drivers perform badly with @option{cache=writethrough}, most notably,
+qcow2.  If performance is more important than correctness,
+@option{cache=writeback} should be used with qcow2.  By default, if no explicit
+caching is specified for a qcow2 disk image, @option{cache=writeback} will be
+used.  For all other disk types, @option{cache=writethrough} is the default.
+
 Instead of @option{-cdrom} you can use:
 @example
 qemu -drive file=file,index=2,media=cdrom
