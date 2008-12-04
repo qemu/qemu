@@ -95,3 +95,14 @@ time_t mktimegm(struct tm *tm)
     t += 3600 * tm->tm_hour + 60 * tm->tm_min + tm->tm_sec;
     return t;
 }
+
+int fls(int i)
+{
+    int bit;
+
+    for (bit=31; bit >= 0; bit--)
+        if (i & (1 << bit))
+            return bit+1;
+
+    return 0;
+}
