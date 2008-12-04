@@ -14,9 +14,17 @@
 #ifndef _QEMU_VIRTIO_H
 #define _QEMU_VIRTIO_H
 
-#include <sys/uio.h>
 #include "hw.h"
 #include "pci.h"
+
+#ifdef _WIN32
+struct iovec {
+    void *iov_base;
+    size_t iov_len;
+};
+#else
+#include <sys/uio.h>
+#endif
 
 /* from Linux's linux/virtio_config.h */
 

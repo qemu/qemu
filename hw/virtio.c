@@ -12,7 +12,6 @@
  */
 
 #include <inttypes.h>
-#include <err.h>
 
 #include "virtio.h"
 #include "sysemu.h"
@@ -331,9 +330,11 @@ static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
     uint16_t num_heads = vring_avail_idx(vq) - idx;
 
     /* Check it isn't doing very strange things with descriptor numbers. */
-    if (num_heads > vq->vring.num)
-        errx(1, "Guest moved used index from %u to %u",
-             idx, vring_avail_idx(vq));
+    if (num_heads > vq->vring.num) {
+        fprintf(stderr, "Guest moved used index from %u to %u",
+                idx, vring_avail_idx(vq));
+        exit(1);
+    }
 
     return num_heads;
 }
@@ -347,8 +348,10 @@ static unsigned int virtqueue_get_head(VirtQueue *vq, unsigned int idx)
     head = vring_avail_ring(vq, idx % vq->vring.num);
 
     /* If their number is silly, that's a fatal mistake. */
-    if (head >= vq->vring.num)
-        errx(1, "Guest says index %u is available", head);
+    if (head >= vq->vring.num) {
+        fprintf(stderr, "Guest says index %u is available", head);
+        exit(1);
+    }
 
     return head;
 }
@@ -366,8 +369,10 @@ static unsigned virtqueue_next_desc(VirtQueue *vq, unsigned int i)
     /* Make sure compiler knows to grab that: we don't want it changing! */
     wmb();
 
-    if (next >= vq->vring.num)
-        errx(1, "Desc next is %u", next);
+    if (next >= vq->vring.num) {
+        fprintf(stderr, "Desc next is %u", next);
+        exit(1);
+    }
 
     return next;
 }
@@ -386,8 +391,10 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
         i = virtqueue_get_head(vq, idx++);
         do {
             /* If we've got too many, that implies a descriptor loop. */
-            if (++num_bufs > vq->vring.num)
-                errx(1, "Looped descriptor");
+            if (++num_bufs > vq->vring.num) {
+                fprintf(stderr, "Looped descriptor");
+                exit(1);
+            }
 
             if (vring_desc_flags(vq, i) & VRING_DESC_F_WRITE) {
                 if (in_bytes > 0 &&
@@ -447,12 +454,16 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
                                      sg->iov_len);
         }
 #endif
-        if (sg->iov_base == NULL)
-            errx(1, "Invalid mapping\n");
+        if (sg->iov_base == NULL) {
+            fprintf(stderr, "Invalid mapping\n");
+            exit(1);
+        }
 
         /* If we've got too many, that implies a descriptor loop. */
-        if ((elem->in_num + elem->out_num) > vq->vring.num)
-            errx(1, "Looped descriptor");
+        if ((elem->in_num + elem->out_num) > vq->vring.num) {
+            fprintf(stderr, "Looped descriptor");
+            exit(1);
+        }
     } while ((i = virtqueue_next_desc(vq, i)) != vq->vring.num);
 
     elem->index = head;
