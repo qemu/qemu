@@ -3349,7 +3349,7 @@ static void omap_rtc_interrupts_update(struct omap_rtc_s *s)
 
 static void omap_rtc_alarm_update(struct omap_rtc_s *s)
 {
-    s->alarm_ti = mktime(&s->alarm_tm);
+    s->alarm_ti = mktimegm(&s->alarm_tm);
     if (s->alarm_ti == -1)
         printf("%s: conversion failed\n", __FUNCTION__);
 }
@@ -3492,8 +3492,8 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #endif
         memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
         new_tm.tm_mon = omap_rtc_bin(value);
-        ti[0] = mktime(&s->current_tm);
-        ti[1] = mktime(&new_tm);
+        ti[0] = mktimegm(&s->current_tm);
+        ti[1] = mktimegm(&new_tm);
 
         if (ti[0] != -1 && ti[1] != -1) {
             s->ti -= ti[0];
@@ -3511,8 +3511,8 @@ static void omap_rtc_write(void *opaque, target_phys_addr_t addr,
 #endif
         memcpy(&new_tm, &s->current_tm, sizeof(new_tm));
         new_tm.tm_year += omap_rtc_bin(value) - (new_tm.tm_year % 100);
-        ti[0] = mktime(&s->current_tm);
-        ti[1] = mktime(&new_tm);
+        ti[0] = mktimegm(&s->current_tm);
+        ti[1] = mktimegm(&new_tm);
 
         if (ti[0] != -1 && ti[1] != -1) {
             s->ti -= ti[0];
@@ -3719,7 +3719,7 @@ static void omap_rtc_reset(struct omap_rtc_s *s)
     s->alarm_tm.tm_mday = 0x01;
     s->status = 1 << 7;
     qemu_get_timedate(&tm, 0);
-    s->ti = mktime(&tm);
+    s->ti = mktimegm(&tm);
 
     omap_rtc_alarm_update(s);
     omap_rtc_tick(s);

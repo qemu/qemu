@@ -1181,7 +1181,7 @@ static void pxa2xx_rtc_init(struct pxa2xx_state_s *s)
     qemu_get_timedate(&tm, 0);
     wom = ((tm.tm_mday - 1) / 7) + 1;
 
-    s->last_rcnr = (uint32_t) mktime(&tm);
+    s->last_rcnr = (uint32_t) mktimegm(&tm);
     s->last_rdcr = (wom << 20) | ((tm.tm_wday + 1) << 17) |
             (tm.tm_hour << 12) | (tm.tm_min << 6) | tm.tm_sec;
     s->last_rycr = ((tm.tm_year + 1900) << 9) |
