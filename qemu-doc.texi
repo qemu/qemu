@@ -371,10 +371,10 @@ Enable audio and selected sound hardware. Use ? to print all
 available sound hardware.
 
 @example
-qemu -soundhw sb16,adlib hda
-qemu -soundhw es1370 hda
-qemu -soundhw ac97 hda
-qemu -soundhw all hda
+qemu -soundhw sb16,adlib disk.img
+qemu -soundhw es1370 disk.img
+qemu -soundhw ac97 disk.img
+qemu -soundhw all disk.img
 qemu -soundhw ?
 @end example
 
