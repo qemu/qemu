@@ -52,6 +52,14 @@
 /* Virtio ABI version, if we increment this, we break the guest driver. */
 #define VIRTIO_PCI_ABI_VERSION          0
 
+/* How many bits to shift physical queue address written to QUEUE_PFN.
+ * 12 is historical, and due to x86 page size. */
+#define VIRTIO_PCI_QUEUE_ADDR_SHIFT    12
+
+/* The alignment to use between consumer and producer parts of vring.
+ * x86 pagesize again. */
+#define VIRTIO_PCI_VRING_ALIGN         4096
+
 /* QEMU doesn't strictly need write barriers since everything runs in
  * lock-step.  We'll leave the calls to wmb() in though to make it obvious for
  * KVM or if kqemu gets SMP support.
@@ -147,7 +155,9 @@ static void virtqueue_init(VirtQueue *vq, target_phys_addr_t pa)
 {
     vq->vring.desc = pa;
     vq->vring.avail = pa + vq->vring.num * sizeof(VRingDesc);
-    vq->vring.used = TARGET_PAGE_ALIGN(vq->vring.avail + offsetof(VRingAvail, ring[vq->vring.num]));
+    vq->vring.used = vring_align(vq->vring.avail +
+                                 offsetof(VRingAvail, ring[vq->vring.num]),
+                                 VIRTIO_PCI_VRING_ALIGN);
 }
 
 static inline uint64_t vring_desc_addr(VirtQueue *vq, int i)
@@ -501,7 +511,7 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         vdev->features = val;
         break;
     case VIRTIO_PCI_QUEUE_PFN:
-        pa = (ram_addr_t)val << TARGET_PAGE_BITS;
+        pa = (ram_addr_t)val << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
         vdev->vq[vdev->queue_sel].pfn = val;
         if (pa == 0) {
             virtio_reset(vdev);
@@ -776,7 +786,7 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
         if (vdev->vq[i].pfn) {
             target_phys_addr_t pa;
 
-            pa = (ram_addr_t)vdev->vq[i].pfn << TARGET_PAGE_BITS;
+            pa = (ram_addr_t)vdev->vq[i].pfn << VIRTIO_PCI_QUEUE_ADDR_SHIFT;
             virtqueue_init(&vdev->vq[i], pa);
         }
     }
