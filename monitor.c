@@ -1402,7 +1402,9 @@ static void do_info_balloon(void)
     ram_addr_t actual;
 
     actual = qemu_balloon_status();
-    if (actual == 0)
+    if (kvm_enabled() && !kvm_has_sync_mmu())
+        term_printf("Using KVM without synchronous MMU, ballooning disabled\n");
+    else if (actual == 0)
         term_printf("Ballooning not activated in VM\n");
     else
         term_printf("balloon: actual=%d\n", (int)(actual >> 20));
