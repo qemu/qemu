@@ -253,7 +253,7 @@ this drive. If the filename contains comma, you must double it
 (for instance, "file=my,,file" to use file "my,file").
 @item if=@var{interface}
 This option defines on which type on interface the drive is connected.
-Available types are: ide, scsi, sd, mtd, floppy, pflash.
+Available types are: ide, scsi, sd, mtd, floppy, pflash, virtio.
 @item bus=@var{bus},unit=@var{unit}
 These options define where is connected the drive by defining the bus number and
 the unit id.
