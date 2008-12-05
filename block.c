@@ -765,7 +765,7 @@ static int guess_disk_lchs(BlockDriverState *bs,
     int ret, i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
-    int64_t nb_sectors;
+    uint64_t nb_sectors;
 
     bdrv_get_geometry(bs, &nb_sectors);
 
@@ -805,7 +805,7 @@ void bdrv_guess_geometry(BlockDriverState *bs, int *pcyls, int *pheads, int *pse
 {
     int translation, lba_detected = 0;
     int cylinders, heads, secs;
-    int64_t nb_sectors;
+    uint64_t nb_sectors;
 
     /* if a geometry hint is available, use it */
     bdrv_get_geometry(bs, &nb_sectors);

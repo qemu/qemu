@@ -68,7 +68,7 @@ static int ensure_ep_open(USBHostDevice *dev, int ep, int mode)
     ep = UE_GET_ADDR(ep);
 
     if (dev->ep_fd[ep] < 0) {
-#if __FreeBSD__
+#ifdef __FreeBSD__
         snprintf(buf, sizeof(buf) - 1, "%s.%d", dev->devpath, ep);
 #else
         snprintf(buf, sizeof(buf) - 1, "%s.%02d", dev->devpath, ep);
@@ -321,7 +321,7 @@ USBDevice *usb_host_device_open(const char *devname)
         return NULL;
     }
 
-#if __FreeBSD__
+#ifdef __FreeBSD__
     snprintf(ctlpath, PATH_MAX, "/dev/%s", bus_info.udi_devnames[0]);
 #else
     snprintf(ctlpath, PATH_MAX, "/dev/%s.00", bus_info.udi_devnames[0]);
@@ -413,7 +413,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
             if (strncmp(bus_info.udi_devnames[0], "ugen", 4) != 0)
                 continue;
 
-#if __FreeBSD__
+#ifdef __FreeBSD__
             snprintf(devbuf, sizeof(devbuf) - 1, "/dev/%s", bus_info.udi_devnames[0]);
 #else
             snprintf(devbuf, sizeof(devbuf) - 1, "/dev/%s.00", bus_info.udi_devnames[0]);
