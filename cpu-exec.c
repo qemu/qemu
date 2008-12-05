@@ -1188,17 +1188,32 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
 #elif defined(__x86_64__)
 
+#ifdef __NetBSD__
+#define REG_ERR _REG_ERR
+#define REG_TRAPNO _REG_TRAPNO
+
+#define QEMU_UC_MCONTEXT_GREGS(uc, reg)	(uc)->uc_mcontext.__gregs[(reg)]
+#define QEMU_UC_MACHINE_PC(uc)		_UC_MACHINE_PC(uc)
+#else
+#define QEMU_UC_MCONTEXT_GREGS(uc, reg)	(uc)->uc_mcontext.gregs[(reg)]
+#define QEMU_UC_MACHINE_PC(uc)		QEMU_UC_MCONTEXT_GREGS(uc, REG_RIP)
+#endif
+
 int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
     siginfo_t *info = pinfo;
-    struct ucontext *uc = puc;
     unsigned long pc;
+#ifdef __NetBSD__
+    ucontext_t *uc = puc;
+#else
+    struct ucontext *uc = puc;
+#endif
 
-    pc = uc->uc_mcontext.gregs[REG_RIP];
+    pc = QEMU_UC_MACHINE_PC(uc);
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
-                             uc->uc_mcontext.gregs[REG_TRAPNO] == 0xe ?
-                             (uc->uc_mcontext.gregs[REG_ERR] >> 1) & 1 : 0,
+                             QEMU_UC_MCONTEXT_GREGS(uc, REG_TRAPNO) == 0xe ?
+                             (QEMU_UC_MCONTEXT_GREGS(uc, REG_ERR) >> 1) & 1 : 0,
                              &uc->uc_sigmask, puc);
 }
 
