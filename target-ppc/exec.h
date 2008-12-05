@@ -51,28 +51,6 @@ register target_ulong T2 asm(AREG3);
 # define RETURN() __asm__ __volatile__("" : : : "memory");
 #endif
 
-static always_inline target_ulong rotl8 (target_ulong i, int n)
-{
-    return (((uint8_t)i << n) | ((uint8_t)i >> (8 - n)));
-}
-
-static always_inline target_ulong rotl16 (target_ulong i, int n)
-{
-    return (((uint16_t)i << n) | ((uint16_t)i >> (16 - n)));
-}
-
-static always_inline target_ulong rotl32 (target_ulong i, int n)
-{
-    return (((uint32_t)i << n) | ((uint32_t)i >> (32 - n)));
-}
-
-#if defined(TARGET_PPC64)
-static always_inline target_ulong rotl64 (target_ulong i, int n)
-{
-    return (((uint64_t)i << n) | ((uint64_t)i >> (64 - n)));
-}
-#endif
-
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
