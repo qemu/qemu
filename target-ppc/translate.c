@@ -688,6 +688,17 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
     .oname = stringify(name),                                                 \
 }
 
+/* SPR load/store helpers */
+static always_inline void gen_load_spr(TCGv t, int reg)
+{
+    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUState, spr[reg]));
+}
+
+static always_inline void gen_store_spr(int reg, TCGv t)
+{
+    tcg_gen_st_tl(t, cpu_env, offsetof(CPUState, spr[reg]));
+}
+
 /* Start opcode list */
 GEN_OPCODE_MARK(start);
 
@@ -1550,10 +1561,10 @@ GEN_HANDLER(or, 0x1F, 0x1C, 0x0D, 0x00000000, PPC_INTEGER)
         }
         if (prio) {
             TCGv t0 = tcg_temp_new();
-            tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, spr[SPR_PPR]));
+            gen_load_spr(t0, SPR_PPR);
             tcg_gen_andi_tl(t0, t0, ~0x001C000000000000ULL);
             tcg_gen_ori_tl(t0, t0, ((uint64_t)prio) << 50);
-            tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, spr[SPR_PPR]));
+            gen_store_spr(SPR_PPR, t0);
             tcg_temp_free(t0);
         }
 #endif
