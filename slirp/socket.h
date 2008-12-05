@@ -73,14 +73,6 @@ struct socket {
 
 extern struct socket tcb;
 
-
-#if defined(DECLARE_IOVEC) && !defined(HAVE_READV)
-struct iovec {
-	char *iov_base;
-	size_t iov_len;
-};
-#endif
-
 struct socket * solookup _P((struct socket *, struct in_addr, u_int, struct in_addr, u_int));
 struct socket * socreate _P((void));
 void sofree _P((struct socket *));

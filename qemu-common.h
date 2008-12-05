@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "config-host.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -26,6 +27,14 @@
 
 #ifndef ENOMEDIUM
 #define ENOMEDIUM ENODEV
+#endif
+
+#ifndef HAVE_IOVEC
+#define HAVE_IOVEC
+struct iovec {
+    void *iov_base;
+    size_t iov_len;
+};
 #endif
 
 #ifdef _WIN32
@@ -54,7 +63,6 @@ static inline char *realpath(const char *path, char *resolved_path)
 /* FIXME: Remove NEED_CPU_H.  */
 #ifndef NEED_CPU_H
 
-#include "config-host.h"
 #include <setjmp.h>
 #include "osdep.h"
 #include "bswap.h"

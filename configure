@@ -1017,6 +1017,17 @@ EOF
   fi
 fi
 
+##########################################
+# iovec probe
+cat > $TMPC <<EOF
+#include <sys/uio.h>
+int main(void) { struct iovec iov; return 0; }
+EOF
+iovec=no
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  iovec=yes
+fi
+
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
    [ -x "`which pod2man 2>/dev/null`" ]; then
@@ -1375,6 +1386,9 @@ if test "$aio" = "yes" ; then
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_mak
+fi
+if test "$iovec" = "yes" ; then
+  echo "#define HAVE_IOVEC 1" >> $config_h
 fi
 
 # XXX: suppress that
