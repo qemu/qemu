@@ -21,6 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "config-host.h"
+#ifdef _BSD
+/* include native header before sys-queue.h */
+#include <sys/queue.h>
+#endif
+
 #include "qemu-common.h"
 #include "console.h"
 #include "block_int.h"
@@ -29,7 +35,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/queue.h>
 #include <sys/disk.h>
 #endif
 
