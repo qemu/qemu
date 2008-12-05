@@ -1229,6 +1229,15 @@ EOF
   if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
     echo "#define HAVE_BYTESWAP_H 1" >> $config_h
   fi
+  cat > $TMPC << EOF
+#include <sys/endian.h>
+#include <sys/types.h>
+#include <machine/bswap.h>
+int main(void) { return bswap32(0); }
+EOF
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+    echo "#define HAVE_MACHINE_BSWAP_H 1" >> $config_h
+  fi
 fi
 
 if [ "$openbsd" = "yes" ] ; then
