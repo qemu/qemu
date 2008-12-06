@@ -2110,13 +2110,6 @@ void do_store_sdr1 (CPUPPCState *env, target_ulong value)
     }
 }
 
-#if 0 // Unused
-target_ulong do_load_sr (CPUPPCState *env, int srnum)
-{
-    return env->sr[srnum];
-}
-#endif
-
 void do_store_sr (CPUPPCState *env, int srnum, target_ulong value)
 {
 #if defined (DEBUG_MMU)

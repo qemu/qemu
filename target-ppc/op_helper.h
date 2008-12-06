@@ -34,20 +34,6 @@ void do_POWER_rac (void);
 void do_store_hid0_601 (void);
 #endif
 
-/* PowerPC 440 specific helpers */
-#if !defined(CONFIG_USER_ONLY)
-void do_440_tlbre (int word);
-void do_440_tlbwe (int word);
-#endif
-
-/* PowerPC 4xx specific helpers */
-#if !defined(CONFIG_USER_ONLY)
-void do_4xx_tlbre_lo (void);
-void do_4xx_tlbre_hi (void);
-void do_4xx_tlbwe_lo (void);
-void do_4xx_tlbwe_hi (void);
-#endif
-
 /* PowerPC 403 specific helpers */
 #if !defined(CONFIG_USER_ONLY)
 void do_load_403_pb (int num);

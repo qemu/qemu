@@ -27,33 +27,6 @@
 #include "op_helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
-/* Segment registers load and store */
-void OPPROTO op_load_sr (void)
-{
-    T0 = env->sr[T1];
-    RETURN();
-}
-
-void OPPROTO op_store_sr (void)
-{
-    do_store_sr(env, T1, T0);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_load_slb (void)
-{
-    T0 = ppc_load_slb(env, T1);
-    RETURN();
-}
-
-void OPPROTO op_store_slb (void)
-{
-    ppc_store_slb(env, T1, T0);
-    RETURN();
-}
-#endif /* defined(TARGET_PPC64) */
-
 void OPPROTO op_load_sdr1 (void)
 {
     T0 = env->sdr1;
@@ -218,13 +191,6 @@ void OPPROTO op_store_dbatl (void)
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-/***                             Integer shift                             ***/
-void OPPROTO op_srli_T1 (void)
-{
-    T1 = (uint32_t)T1 >> PARAM1;
-    RETURN();
-}
-
 /* Return from interrupt */
 #if !defined(CONFIG_USER_ONLY)
 /* Exception vectors */
@@ -241,50 +207,6 @@ void OPPROTO op_store_excp_vector (void)
     env->excp_vectors[PARAM1] = T0;
     RETURN();
 }
-#endif
-
-#if !defined(CONFIG_USER_ONLY)
-/* tlbia */
-void OPPROTO op_tlbia (void)
-{
-    ppc_tlb_invalidate_all(env);
-    RETURN();
-}
-
-/* tlbie */
-void OPPROTO op_tlbie (void)
-{
-    ppc_tlb_invalidate_one(env, (uint32_t)T0);
-    RETURN();
-}
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_tlbie_64 (void)
-{
-    ppc_tlb_invalidate_one(env, T0);
-    RETURN();
-}
-#endif
-
-#if defined(TARGET_PPC64)
-void OPPROTO op_slbia (void)
-{
-    ppc_slb_invalidate_all(env);
-    RETURN();
-}
-
-void OPPROTO op_slbie (void)
-{
-    ppc_slb_invalidate_one(env, (uint32_t)T0);
-    RETURN();
-}
-
-void OPPROTO op_slbie_64 (void)
-{
-    ppc_slb_invalidate_one(env, T0);
-    RETURN();
-}
-#endif
 #endif
 
 /* 601 specific */
@@ -337,78 +259,6 @@ void OPPROTO op_store_601_batu (void)
     RETURN();
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
-
-/* POWER instructions not implemented in PowerPC 601 */
-#if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_POWER_mfsri (void)
-{
-    T1 = T0 >> 28;
-    T0 = env->sr[T1];
-    RETURN();
-}
-#endif
-
-/* PowerPC 4xx specific micro-ops */
-#if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_440_tlbre (void)
-{
-    do_440_tlbre(PARAM1);
-    RETURN();
-}
-
-void OPPROTO op_440_tlbsx (void)
-{
-    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_440_MMUCR] & 0xFF);
-    RETURN();
-}
-
-void OPPROTO op_4xx_tlbsx_check (void)
-{
-    int tmp;
-
-    tmp = xer_so;
-    if ((int)T0 != -1)
-        tmp |= 0x02;
-    env->crf[0] = tmp;
-    RETURN();
-}
-
-void OPPROTO op_440_tlbwe (void)
-{
-    do_440_tlbwe(PARAM1);
-    RETURN();
-}
-
-void OPPROTO op_4xx_tlbre_lo (void)
-{
-    do_4xx_tlbre_lo();
-    RETURN();
-}
-
-void OPPROTO op_4xx_tlbre_hi (void)
-{
-    do_4xx_tlbre_hi();
-    RETURN();
-}
-
-void OPPROTO op_4xx_tlbsx (void)
-{
-    T0 = ppcemb_tlb_search(env, T0, env->spr[SPR_40x_PID]);
-    RETURN();
-}
-
-void OPPROTO op_4xx_tlbwe_lo (void)
-{
-    do_4xx_tlbwe_lo();
-    RETURN();
-}
-
-void OPPROTO op_4xx_tlbwe_hi (void)
-{
-    do_4xx_tlbwe_hi();
-    RETURN();
-}
-#endif
 
 /* SPR micro-ops */
 /* 440 specific */

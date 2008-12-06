@@ -4208,13 +4208,14 @@ GEN_HANDLER(mfsr, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_movi_tl(cpu_T[1], SR(ctx->opcode));
-    gen_op_load_sr();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    t0 = tcg_const_tl(SR(ctx->opcode));
+    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], t0);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -4224,14 +4225,16 @@ GEN_HANDLER(mfsrin, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_srli_T1(28);
-    gen_op_load_sr();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    t0 = tcg_temp_new();
+    tcg_gen_shri_tl(t0, cpu_gpr[rB(ctx->opcode)], 28);
+    tcg_gen_andi_tl(t0, t0, 0xF);
+    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], t0);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -4241,13 +4244,14 @@ GEN_HANDLER(mtsr, 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
-    tcg_gen_movi_tl(cpu_T[1], SR(ctx->opcode));
-    gen_op_store_sr();
+    t0 = tcg_const_tl(SR(ctx->opcode));
+    gen_helper_store_sr(t0, cpu_gpr[rS(ctx->opcode)]);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -4257,14 +4261,16 @@ GEN_HANDLER(mtsrin, 0x1F, 0x12, 0x07, 0x001F0001, PPC_SEGMENT)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_srli_T1(28);
-    gen_op_store_sr();
+    t0 = tcg_temp_new();
+    tcg_gen_shri_tl(t0, cpu_gpr[rB(ctx->opcode)], 28);
+    tcg_gen_andi_tl(t0, t0, 0xF);
+    gen_helper_store_sr(t0, cpu_gpr[rD(ctx->opcode)]);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -4276,13 +4282,14 @@ GEN_HANDLER2(mfsr_64b, "mfsr", 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT_64B)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_movi_tl(cpu_T[1], SR(ctx->opcode));
-    gen_op_load_slb();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    t0 = tcg_const_tl(SR(ctx->opcode));
+    gen_helper_load_slb(cpu_gpr[rD(ctx->opcode)], t0);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -4293,14 +4300,16 @@ GEN_HANDLER2(mfsrin_64b, "mfsrin", 0x1F, 0x13, 0x14, 0x001F0001,
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_srli_T1(28);
-    gen_op_load_slb();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    t0 = tcg_temp_new();
+    tcg_gen_shri_tl(t0, cpu_gpr[rB(ctx->opcode)], 28);
+    tcg_gen_andi_tl(t0, t0, 0xF);
+    gen_helper_load_slb(cpu_gpr[rD(ctx->opcode)], t0);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -4310,13 +4319,14 @@ GEN_HANDLER2(mtsr_64b, "mtsr", 0x1F, 0x12, 0x06, 0x0010F801, PPC_SEGMENT_64B)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
-    tcg_gen_movi_tl(cpu_T[1], SR(ctx->opcode));
-    gen_op_store_slb();
+    t0 = tcg_const_tl(SR(ctx->opcode));
+    gen_helper_store_slb(t0, cpu_gpr[rS(ctx->opcode)]);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -4327,14 +4337,16 @@ GEN_HANDLER2(mtsrin_64b, "mtsrin", 0x1F, 0x12, 0x07, 0x001F0001,
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_srli_T1(28);
-    gen_op_store_slb();
+    t0 = tcg_temp_new();
+    tcg_gen_shri_tl(t0, cpu_gpr[rB(ctx->opcode)], 28);
+    tcg_gen_andi_tl(t0, t0, 0xF);
+    gen_helper_store_slb(t0, cpu_gpr[rS(ctx->opcode)]);
+    tcg_temp_free(t0);
 #endif
 }
 #endif /* defined(TARGET_PPC64) */
@@ -4351,7 +4363,7 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_tlbia();
+    gen_helper_tlbia();
 #endif
 }
 
@@ -4365,13 +4377,15 @@ GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM_TLBIE)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
 #if defined(TARGET_PPC64)
-    if (ctx->sf_mode)
-        gen_op_tlbie_64();
-    else
+    if (!ctx->sf_mode) {
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_ext32u_tl(t0, cpu_gpr[rB(ctx->opcode)]);
+        gen_helper_tlbie(t0);
+        tcg_temp_free(t0);
+    } else
 #endif
-        gen_op_tlbie();
+        gen_helper_tlbie(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -4403,7 +4417,7 @@ GEN_HANDLER(slbia, 0x1F, 0x12, 0x0F, 0x03FFFC01, PPC_SLBI)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_op_slbia();
+    gen_helper_slbia();
 #endif
 }
 
@@ -4417,8 +4431,7 @@ GEN_HANDLER(slbie, 0x1F, 0x12, 0x0D, 0x03FF0001, PPC_SLBI)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rB(ctx->opcode)]);
-    gen_op_slbie();
+    gen_helper_slbie(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 #endif
@@ -5129,7 +5142,7 @@ GEN_HANDLER2(tlbld_6xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_helper_load_6xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_6xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5143,7 +5156,7 @@ GEN_HANDLER2(tlbli_6xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_6xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_helper_load_6xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_6xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5158,7 +5171,7 @@ GEN_HANDLER2(tlbld_74xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_74xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_helper_load_74xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_74xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5172,7 +5185,7 @@ GEN_HANDLER2(tlbli_74xx, "tlbli", 0x1F, 0x12, 0x1F, 0x03FF0001, PPC_74xx_TLB)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_helper_load_74xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_74xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5208,18 +5221,21 @@ GEN_HANDLER(mfsri, 0x1F, 0x13, 0x13, 0x00000001, PPC_POWER)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
 #else
+    int ra = rA(ctx->opcode);
+    int rd = rD(ctx->opcode);
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    int ra = rA(ctx->opcode);
-    int rd = rD(ctx->opcode);
-
-    gen_addr_reg_index(cpu_T[0], ctx);
-    gen_op_POWER_mfsri();
-    tcg_gen_mov_tl(cpu_gpr[rd], cpu_T[0]);
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    tcg_gen_shri_tl(t0, t0, 28);
+    tcg_gen_andi_tl(t0, t0, 0xF);
+    gen_helper_load_sr(cpu_gpr[rd], t0);
+    tcg_temp_free(t0);
     if (ra != 0 && ra != rd)
-        tcg_gen_mov_tl(cpu_gpr[ra], cpu_T[1]);
+        tcg_gen_mov_tl(cpu_gpr[ra], cpu_gpr[rd]);
 #endif
 }
 
@@ -5389,18 +5405,18 @@ GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_TLBIVA)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_addr_reg_index(cpu_T[0], ctx);
-    /* Use the same micro-ops as for tlbie */
+    gen_addr_reg_index(t0, ctx);
 #if defined(TARGET_PPC64)
-    if (ctx->sf_mode)
-        gen_op_tlbie_64();
-    else
+    if (!ctx->sf_mode)
+        tcg_gen_ext32u_tl(t0, t0);
 #endif
-        gen_op_tlbie();
+    gen_helper_tlbie(cpu_gpr[rB(ctx->opcode)]);
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -5861,14 +5877,10 @@ GEN_HANDLER2(tlbre_40x, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_40x_TLB)
     }
     switch (rB(ctx->opcode)) {
     case 0:
-        tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-        gen_op_4xx_tlbre_hi();
-        tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+        gen_helper_4xx_tlbre_hi(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
         break;
     case 1:
-        tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-        gen_op_4xx_tlbre_lo();
-        tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+        gen_helper_4xx_tlbre_lo(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
         break;
     default:
         GEN_EXCP_INVAL(ctx);
@@ -5883,15 +5895,24 @@ GEN_HANDLER2(tlbsx_40x, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_40x_TLB)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_addr_reg_index(cpu_T[0], ctx);
-    gen_op_4xx_tlbsx();
-    if (Rc(ctx->opcode))
-        gen_op_4xx_tlbsx_check();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    gen_helper_4xx_tlbsx(cpu_gpr[rD(ctx->opcode)], t0);
+    tcg_temp_free(t0);
+    if (Rc(ctx->opcode)) {
+        int l1 = gen_new_label();
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
+        tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
+        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[rD(ctx->opcode)], -1, l1);
+        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 0x02);
+        gen_set_label(l1);
+    }
 #endif
 }
 
@@ -5907,14 +5928,10 @@ GEN_HANDLER2(tlbwe_40x, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_40x_TLB)
     }
     switch (rB(ctx->opcode)) {
     case 0:
-        tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-        tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-        gen_op_4xx_tlbwe_hi();
+        gen_helper_4xx_tlbwe_hi(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
         break;
     case 1:
-        tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-        tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-        gen_op_4xx_tlbwe_lo();
+        gen_helper_4xx_tlbwe_lo(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
         break;
     default:
         GEN_EXCP_INVAL(ctx);
@@ -5938,9 +5955,11 @@ GEN_HANDLER2(tlbre_440, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_BOOKE)
     case 0:
     case 1:
     case 2:
-        tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-        gen_op_440_tlbre(rB(ctx->opcode));
-        tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+        {
+            TCGv_i32 t0 = tcg_const_i32(rB(ctx->opcode));
+            gen_helper_440_tlbwe(t0, cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+            tcg_temp_free_i32(t0);
+        }
         break;
     default:
         GEN_EXCP_INVAL(ctx);
@@ -5955,15 +5974,24 @@ GEN_HANDLER2(tlbsx_440, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_BOOKE)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    gen_addr_reg_index(cpu_T[0], ctx);
-    gen_op_440_tlbsx();
-    if (Rc(ctx->opcode))
-        gen_op_4xx_tlbsx_check();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(t0, ctx);
+    gen_helper_440_tlbsx(cpu_gpr[rD(ctx->opcode)], t0);
+    tcg_temp_free(t0);
+    if (Rc(ctx->opcode)) {
+        int l1 = gen_new_label();
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_xer);
+        tcg_gen_shri_i32(cpu_crf[0], cpu_crf[0], XER_SO);
+        tcg_gen_andi_i32(cpu_crf[0], cpu_crf[0], 1);
+        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[rD(ctx->opcode)], -1, l1);
+        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 0x02);
+        gen_set_label(l1);
+    }
 #endif
 }
 
@@ -5981,9 +6009,11 @@ GEN_HANDLER2(tlbwe_440, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_BOOKE)
     case 0:
     case 1:
     case 2:
-        tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-        tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-        gen_op_440_tlbwe(rB(ctx->opcode));
+        {
+            TCGv_i32 t0 = tcg_const_i32(rB(ctx->opcode));
+            gen_helper_440_tlbwe(t0, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+            tcg_temp_free_i32(t0);
+        }
         break;
     default:
         GEN_EXCP_INVAL(ctx);

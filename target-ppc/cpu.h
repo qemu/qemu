@@ -582,7 +582,7 @@ struct CPUPPCState {
 #endif
     /* segment registers */
     target_ulong sdr1;
-    target_ulong sr[16];
+    target_ulong sr[32];
     /* BATs */
     int nb_BATs;
     target_ulong DBAT[2][8];

@@ -163,10 +163,28 @@ DEF_HELPER_2(efdcmpgt, i32, i64, i64)
 DEF_HELPER_2(efdcmpeq, i32, i64, i64)
 
 #if !defined(CONFIG_USER_ONLY)
-DEF_HELPER_1(load_6xx_tlbd, void, tl)
-DEF_HELPER_1(load_6xx_tlbi, void, tl)
-DEF_HELPER_1(load_74xx_tlbd, void, tl)
-DEF_HELPER_1(load_74xx_tlbi, void, tl)
+DEF_HELPER_1(4xx_tlbre_hi, tl, tl)
+DEF_HELPER_1(4xx_tlbre_lo, tl, tl)
+DEF_HELPER_2(4xx_tlbwe_hi, void, tl, tl)
+DEF_HELPER_2(4xx_tlbwe_lo, void, tl, tl)
+DEF_HELPER_1(4xx_tlbsx, tl, tl)
+DEF_HELPER_2(440_tlbre, tl, i32, tl)
+DEF_HELPER_3(440_tlbwe, void, i32, tl, tl)
+DEF_HELPER_1(440_tlbsx, tl, tl)
+DEF_HELPER_1(6xx_tlbd, void, tl)
+DEF_HELPER_1(6xx_tlbi, void, tl)
+DEF_HELPER_1(74xx_tlbd, void, tl)
+DEF_HELPER_1(74xx_tlbi, void, tl)
+DEF_HELPER_0(tlbia, void)
+DEF_HELPER_1(tlbie, void, tl)
+#if defined(TARGET_PPC64)
+DEF_HELPER_1(load_slb, tl, tl)
+DEF_HELPER_2(store_slb, void, tl, tl)
+DEF_HELPER_0(slbia, void)
+DEF_HELPER_1(slbie, void, tl)
+#endif
+DEF_HELPER_1(load_sr, tl, tl);
+DEF_HELPER_2(store_sr, void, tl, tl);
 
 DEF_HELPER_1(602_mfrom, tl, tl)
 #endif
