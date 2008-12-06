@@ -35,6 +35,8 @@ struct iovec {
     void *iov_base;
     size_t iov_len;
 };
+#else
+#include <sys/uio.h>
 #endif
 
 #ifdef _WIN32
