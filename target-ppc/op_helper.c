@@ -1756,9 +1756,9 @@ target_ulong helper_602_mfrom (target_ulong arg)
 /* Embedded PowerPC specific helpers */
 
 /* XXX: to be improved to check access rights when in user-mode */
-void do_load_dcr (void)
+target_ulong helper_load_dcr (target_ulong dcrn)
 {
-    target_ulong val;
+    target_ulong val = 0;
 
     if (unlikely(env->dcr_env == NULL)) {
         if (loglevel != 0) {
@@ -1766,18 +1766,17 @@ void do_load_dcr (void)
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
-    } else if (unlikely(ppc_dcr_read(env->dcr_env, T0, &val) != 0)) {
+    } else if (unlikely(ppc_dcr_read(env->dcr_env, dcrn, &val) != 0)) {
         if (loglevel != 0) {
             fprintf(logfile, "DCR read error %d %03x\n", (int)T0, (int)T0);
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
-    } else {
-        T0 = val;
     }
+    return val;
 }
 
-void do_store_dcr (void)
+void helper_store_dcr (target_ulong dcrn, target_ulong val)
 {
     if (unlikely(env->dcr_env == NULL)) {
         if (loglevel != 0) {
@@ -1785,7 +1784,7 @@ void do_store_dcr (void)
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
-    } else if (unlikely(ppc_dcr_write(env->dcr_env, T0, T1) != 0)) {
+    } else if (unlikely(ppc_dcr_write(env->dcr_env, dcrn, val) != 0)) {
         if (loglevel != 0) {
             fprintf(logfile, "DCR write error %d %03x\n", (int)T0, (int)T0);
         }

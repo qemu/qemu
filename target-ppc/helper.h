@@ -181,4 +181,7 @@ DEF_HELPER_2(divo, tl, tl, tl)
 DEF_HELPER_2(divs, tl, tl, tl)
 DEF_HELPER_2(divso, tl, tl, tl)
 
+DEF_HELPER_1(load_dcr, tl, tl);
+DEF_HELPER_2(store_dcr, void, tl, tl);
+
 #include "def-helper.h"

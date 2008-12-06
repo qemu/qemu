@@ -41,8 +41,6 @@ void do_440_tlbwe (int word);
 #endif
 
 /* PowerPC 4xx specific helpers */
-void do_load_dcr (void);
-void do_store_dcr (void);
 #if !defined(CONFIG_USER_ONLY)
 void do_4xx_tlbre_lo (void);
 void do_4xx_tlbre_hi (void);

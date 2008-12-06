@@ -349,18 +349,6 @@ void OPPROTO op_POWER_mfsri (void)
 #endif
 
 /* PowerPC 4xx specific micro-ops */
-void OPPROTO op_load_dcr (void)
-{
-    do_load_dcr();
-    RETURN();
-}
-
-void OPPROTO op_store_dcr (void)
-{
-    do_store_dcr();
-    RETURN();
-}
-
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_440_tlbre (void)
 {

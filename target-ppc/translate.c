@@ -5625,15 +5625,16 @@ GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_DCR)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
-    uint32_t dcrn = SPR(ctx->opcode);
-
+    TCGv dcrn;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_movi_tl(cpu_T[0], dcrn);
-    gen_op_load_dcr();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    dcrn = tcg_const_tl(SPR(ctx->opcode));
+    gen_helper_load_dcr(cpu_gpr[rD(ctx->opcode)], dcrn);
+    tcg_temp_free(dcrn);
 #endif
 }
 
@@ -5643,15 +5644,16 @@ GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_DCR)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVREG(ctx);
 #else
-    uint32_t dcrn = SPR(ctx->opcode);
-
+    TCGv dcrn;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_movi_tl(cpu_T[0], dcrn);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    gen_op_store_dcr();
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    dcrn = tcg_const_tl(SPR(ctx->opcode));
+    gen_helper_store_dcr(dcrn, cpu_gpr[rS(ctx->opcode)]);
+    tcg_temp_free(dcrn);
 #endif
 }
 
@@ -5666,9 +5668,9 @@ GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000000, PPC_DCRX)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-    gen_op_load_dcr();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    gen_helper_load_dcr(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
 #endif
 }
@@ -5684,9 +5686,9 @@ GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000000, PPC_DCRX)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    gen_op_store_dcr();
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    gen_helper_store_dcr(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
 #endif
 }
@@ -5694,18 +5696,18 @@ GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000000, PPC_DCRX)
 /* mfdcrux (PPC 460) : user-mode access to DCR */
 GEN_HANDLER(mfdcrux, 0x1F, 0x03, 0x09, 0x00000000, PPC_DCRUX)
 {
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-    gen_op_load_dcr();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    gen_helper_load_dcr(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
 }
 
 /* mtdcrux (PPC 460) : user-mode access to DCR */
 GEN_HANDLER(mtdcrux, 0x1F, 0x03, 0x0D, 0x00000000, PPC_DCRUX)
 {
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rA(ctx->opcode)]);
-    tcg_gen_mov_tl(cpu_T[1], cpu_gpr[rS(ctx->opcode)]);
-    gen_op_store_dcr();
+    /* NIP cannot be restored if the memory exception comes from an helper */
+    gen_update_nip(ctx, ctx->nip - 4);
+    gen_helper_store_dcr(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
 }
 
