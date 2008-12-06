@@ -370,124 +370,12 @@ void OPPROTO op_store_601_batu (void)
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-/* PowerPC 601 specific instructions (POWER bridge) */
-/* XXX: those micro-ops need tests ! */
-void OPPROTO op_POWER_abs (void)
-{
-    if ((int32_t)T0 == INT32_MIN)
-        T0 = INT32_MAX;
-    else if ((int32_t)T0 < 0)
-        T0 = -T0;
-    RETURN();
-}
-
-void OPPROTO op_POWER_abso (void)
-{
-    do_POWER_abso();
-    RETURN();
-}
-
-void OPPROTO op_POWER_clcs (void)
-{
-    do_POWER_clcs();
-    RETURN();
-}
-
-void OPPROTO op_POWER_div (void)
-{
-    do_POWER_div();
-    RETURN();
-}
-
-void OPPROTO op_POWER_divo (void)
-{
-    do_POWER_divo();
-    RETURN();
-}
-
-void OPPROTO op_POWER_divs (void)
-{
-    do_POWER_divs();
-    RETURN();
-}
-
-void OPPROTO op_POWER_divso (void)
-{
-    do_POWER_divso();
-    RETURN();
-}
-
-void OPPROTO op_POWER_doz (void)
-{
-    if ((int32_t)T1 > (int32_t)T0)
-        T0 = T1 - T0;
-    else
-        T0 = 0;
-    RETURN();
-}
-
-void OPPROTO op_POWER_dozo (void)
-{
-    do_POWER_dozo();
-    RETURN();
-}
-
-void OPPROTO op_POWER_maskg (void)
-{
-    do_POWER_maskg();
-    RETURN();
-}
-
-void OPPROTO op_POWER_maskir (void)
-{
-    T0 = (T0 & ~T2) | (T1 & T2);
-    RETURN();
-}
-
-void OPPROTO op_POWER_mul (void)
-{
-    uint64_t tmp;
-
-    tmp = (uint64_t)T0 * (uint64_t)T1;
-    env->spr[SPR_MQ] = tmp >> 32;
-    T0 = tmp;
-    RETURN();
-}
-
-void OPPROTO op_POWER_mulo (void)
-{
-    do_POWER_mulo();
-    RETURN();
-}
-
-void OPPROTO op_POWER_nabs (void)
-{
-    if (T0 > 0)
-        T0 = -T0;
-    RETURN();
-}
-
-void OPPROTO op_POWER_nabso (void)
-{
-    /* nabs never overflows */
-    if (T0 > 0)
-        T0 = -T0;
-    env->xer &= ~(1 << XER_OV);
-    RETURN();
-}
-
 /* POWER instructions not implemented in PowerPC 601 */
 #if !defined(CONFIG_USER_ONLY)
 void OPPROTO op_POWER_mfsri (void)
 {
     T1 = T0 >> 28;
     T0 = env->sr[T1];
-    RETURN();
-}
-
-void OPPROTO op_POWER_rac (void)
-{
-    do_POWER_rac();
     RETURN();
 }
 #endif

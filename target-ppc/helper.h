@@ -171,5 +171,13 @@ DEF_HELPER_1(602_mfrom, tl, tl)
 #endif
 
 DEF_HELPER_3(dlmzb, tl, tl, tl, i32)
+DEF_HELPER_1(clcs, tl, i32)
+#if !defined(CONFIG_USER_ONLY)
+DEF_HELPER_1(rac, tl, tl)
+#endif
+DEF_HELPER_2(div, tl, tl, tl)
+DEF_HELPER_2(divo, tl, tl, tl)
+DEF_HELPER_2(divs, tl, tl, tl)
+DEF_HELPER_2(divso, tl, tl, tl)
 
 #include "def-helper.h"

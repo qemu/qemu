@@ -1587,147 +1587,101 @@ void do_POWER_abso (void)
     }
 }
 
-void do_POWER_clcs (void)
+target_ulong helper_clcs (uint32_t arg)
 {
-    switch (T0) {
+    switch (arg) {
     case 0x0CUL:
         /* Instruction cache line size */
-        T0 = env->icache_line_size;
+        return env->icache_line_size;
         break;
     case 0x0DUL:
         /* Data cache line size */
-        T0 = env->dcache_line_size;
+        return env->dcache_line_size;
         break;
     case 0x0EUL:
         /* Minimum cache line size */
-        T0 = env->icache_line_size < env->dcache_line_size ?
-            env->icache_line_size : env->dcache_line_size;
+        return (env->icache_line_size < env->dcache_line_size) ?
+                env->icache_line_size : env->dcache_line_size;
         break;
     case 0x0FUL:
         /* Maximum cache line size */
-        T0 = env->icache_line_size > env->dcache_line_size ?
-            env->icache_line_size : env->dcache_line_size;
+        return (env->icache_line_size > env->dcache_line_size) ?
+                env->icache_line_size : env->dcache_line_size;
         break;
     default:
         /* Undefined */
+        return 0;
         break;
     }
 }
 
-void do_POWER_div (void)
+target_ulong helper_div (target_ulong arg1, target_ulong arg2)
 {
-    uint64_t tmp;
+    uint64_t tmp = (uint64_t)arg1 << 32 | env->spr[SPR_MQ];
 
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-        (int32_t)T1 == 0) {
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
+    if (((int32_t)tmp == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
+        (int32_t)arg2 == 0) {
         env->spr[SPR_MQ] = 0;
+        return INT32_MIN;
     } else {
-        tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
-        env->spr[SPR_MQ] = tmp % T1;
-        T0 = tmp / (int32_t)T1;
+        env->spr[SPR_MQ] = tmp % arg2;
+        return  tmp / (int32_t)arg2;
     }
 }
 
-void do_POWER_divo (void)
+target_ulong helper_divo (target_ulong arg1, target_ulong arg2)
 {
-    int64_t tmp;
+    uint64_t tmp = (uint64_t)arg1 << 32 | env->spr[SPR_MQ];
 
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-        (int32_t)T1 == 0) {
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
-        env->spr[SPR_MQ] = 0;
+    if (((int32_t)tmp == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
+        (int32_t)arg2 == 0) {
         env->xer |= (1 << XER_OV) | (1 << XER_SO);
+        env->spr[SPR_MQ] = 0;
+        return INT32_MIN;
     } else {
-        tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
-        env->spr[SPR_MQ] = tmp % T1;
-        tmp /= (int32_t)T1;
-        if (tmp > (int64_t)INT32_MAX || tmp < (int64_t)INT32_MIN) {
+        env->spr[SPR_MQ] = tmp % arg2;
+        tmp /= (int32_t)arg2;
+	if ((int32_t)tmp != tmp) {
             env->xer |= (1 << XER_OV) | (1 << XER_SO);
         } else {
             env->xer &= ~(1 << XER_OV);
         }
-        T0 = tmp;
+        return tmp;
     }
 }
 
-void do_POWER_divs (void)
+target_ulong helper_divs (target_ulong arg1, target_ulong arg2)
 {
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-        (int32_t)T1 == 0) {
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
+    if (((int32_t)arg1 == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
+        (int32_t)arg2 == 0) {
         env->spr[SPR_MQ] = 0;
+        return INT32_MIN;
     } else {
-        env->spr[SPR_MQ] = T0 % T1;
-        T0 = (int32_t)T0 / (int32_t)T1;
+        env->spr[SPR_MQ] = (int32_t)arg1 % (int32_t)arg2;
+        return (int32_t)arg1 / (int32_t)arg2;
     }
 }
 
-void do_POWER_divso (void)
+target_ulong helper_divso (target_ulong arg1, target_ulong arg2)
 {
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-        (int32_t)T1 == 0) {
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
+    if (((int32_t)arg1 == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
+        (int32_t)arg2 == 0) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
         env->spr[SPR_MQ] = 0;
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        T0 = (int32_t)T0 / (int32_t)T1;
-        env->spr[SPR_MQ] = (int32_t)T0 % (int32_t)T1;
-        env->xer &= ~(1 << XER_OV);
-    }
-}
-
-void do_POWER_dozo (void)
-{
-    if ((int32_t)T1 > (int32_t)T0) {
-        T2 = T0;
-        T0 = T1 - T0;
-        if (((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
-            ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)) {
-            env->xer |= (1 << XER_OV) | (1 << XER_SO);
-        } else {
-            env->xer &= ~(1 << XER_OV);
-        }
-    } else {
-        T0 = 0;
-        env->xer &= ~(1 << XER_OV);
-    }
-}
-
-void do_POWER_maskg (void)
-{
-    uint32_t ret;
-
-    if ((uint32_t)T0 == (uint32_t)(T1 + 1)) {
-        ret = UINT32_MAX;
-    } else {
-        ret = (UINT32_MAX >> ((uint32_t)T0)) ^
-            ((UINT32_MAX >> ((uint32_t)T1)) >> 1);
-        if ((uint32_t)T0 > (uint32_t)T1)
-            ret = ~ret;
-    }
-    T0 = ret;
-}
-
-void do_POWER_mulo (void)
-{
-    uint64_t tmp;
-
-    tmp = (uint64_t)T0 * (uint64_t)T1;
-    env->spr[SPR_MQ] = tmp >> 32;
-    T0 = tmp;
-    if (tmp >> 32 != ((uint64_t)T0 >> 16) * ((uint64_t)T1 >> 16)) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
+        return INT32_MIN;
     } else {
         env->xer &= ~(1 << XER_OV);
+        env->spr[SPR_MQ] = (int32_t)arg1 % (int32_t)arg2;
+        return (int32_t)arg1 / (int32_t)arg2;
     }
 }
 
 #if !defined (CONFIG_USER_ONLY)
-void do_POWER_rac (void)
+target_ulong helper_rac (target_ulong addr)
 {
     mmu_ctx_t ctx;
     int nb_BATs;
+    target_ulong ret = 0;
 
     /* We don't have to generate many instances of this instruction,
      * as rac is supervisor only.
@@ -1735,9 +1689,10 @@ void do_POWER_rac (void)
     /* XXX: FIX THIS: Pretend we have no BAT */
     nb_BATs = env->nb_BATs;
     env->nb_BATs = 0;
-    if (get_physical_address(env, &ctx, T0, 0, ACCESS_INT) == 0)
-        T0 = ctx.raddr;
+    if (get_physical_address(env, &ctx, addr, 0, ACCESS_INT) == 0)
+        ret = ctx.raddr;
     env->nb_BATs = nb_BATs;
+    return ret;
 }
 
 void helper_rfsvc (void)

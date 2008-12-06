@@ -33,15 +33,6 @@ void do_store_msr (void);
 #endif
 
 /* POWER / PowerPC 601 specific helpers */
-void do_POWER_abso (void);
-void do_POWER_clcs (void);
-void do_POWER_div (void);
-void do_POWER_divo (void);
-void do_POWER_divs (void);
-void do_POWER_divso (void);
-void do_POWER_dozo (void);
-void do_POWER_maskg (void);
-void do_POWER_mulo (void);
 #if !defined(CONFIG_USER_ONLY)
 void do_POWER_rac (void);
 void do_store_hid0_601 (void);
