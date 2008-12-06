@@ -97,7 +97,7 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 	D(CPUState *env = s->env);
 	uint32_t r = 0;
 
-	switch (addr & 0xfff)
+	switch (addr)
 	{
 		case RW_TR_CTRL:
 			r = s->rw_tr_ctrl;
@@ -150,7 +150,7 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 	unsigned char ch = value;
 	D(CPUState *env = s->env);
 
-	switch (addr & 0xfff)
+	switch (addr)
 	{
 		case RW_TR_CTRL:
 			D(printf("rw_tr_ctrl=%x\n", value));
