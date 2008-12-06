@@ -79,38 +79,6 @@ void OPPROTO op_store_asr (void)
     RETURN();
 }
 #endif
-
-void OPPROTO op_load_msr (void)
-{
-    T0 = env->msr;
-    RETURN();
-}
-
-void OPPROTO op_store_msr (void)
-{
-    do_store_msr();
-    RETURN();
-}
-
-#if defined (TARGET_PPC64)
-void OPPROTO op_store_msr_32 (void)
-{
-    T0 = (env->msr & ~0xFFFFFFFFULL) | (T0 & 0xFFFFFFFF);
-    do_store_msr();
-    RETURN();
-}
-#endif
-
-void OPPROTO op_update_riee (void)
-{
-    /* We don't call do_store_msr here as we won't trigger
-     * any special case nor change hflags
-     */
-    T0 &= (1 << MSR_RI) | (1 << MSR_EE);
-    env->msr &= ~(1 << MSR_RI) | (1 << MSR_EE);
-    env->msr |= T0;
-    RETURN();
-}
 #endif
 
 /* SPR */
@@ -394,17 +362,6 @@ void OPPROTO op_store_dcr (void)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void OPPROTO op_wrte (void)
-{
-    /* We don't call do_store_msr here as we won't trigger
-     * any special case nor change hflags
-     */
-    T0 &= 1 << MSR_EE;
-    env->msr &= ~(1 << MSR_EE);
-    env->msr |= T0;
-    RETURN();
-}
-
 void OPPROTO op_440_tlbre (void)
 {
     do_440_tlbre(PARAM1);

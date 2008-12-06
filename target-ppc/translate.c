@@ -63,6 +63,7 @@ static TCGv_i64 cpu_fpr[32];
 static TCGv_i64 cpu_avrh[32], cpu_avrl[32];
 static TCGv_i32 cpu_crf[8];
 static TCGv cpu_nip;
+static TCGv cpu_msr;
 static TCGv cpu_ctr;
 static TCGv cpu_lr;
 static TCGv cpu_xer;
@@ -152,6 +153,9 @@ void ppc_translate_init(void)
 
     cpu_nip = tcg_global_mem_new(TCG_AREG0,
                                  offsetof(CPUState, nip), "nip");
+
+    cpu_msr = tcg_global_mem_new(TCG_AREG0,
+                                 offsetof(CPUState, msr), "msr");
 
     cpu_ctr = tcg_global_mem_new(TCG_AREG0,
                                  offsetof(CPUState, ctr), "ctr");
@@ -3876,8 +3880,7 @@ GEN_HANDLER(mfmsr, 0x1F, 0x13, 0x02, 0x001FF801, PPC_MISC)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    gen_op_load_msr();
-    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+    tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_msr);
 #endif
 }
 
@@ -3984,14 +3987,18 @@ GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B)
     tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
     if (ctx->opcode & 0x00010000) {
         /* Special form that does not need any synchronisation */
-        gen_op_update_riee();
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], (1 << MSR_RI) | (1 << MSR_EE));
+        tcg_gen_andi_tl(cpu_msr, cpu_msr, ~((1 << MSR_RI) | (1 << MSR_EE)));
+        tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
+        tcg_temp_free(t0);
     } else {
         /* XXX: we need to update nip before the store
          *      if we enter power saving mode, we will exit the loop
          *      directly from ppc_store_msr
          */
         gen_update_nip(ctx, ctx->nip);
-        gen_op_store_msr();
+        gen_helper_store_msr(cpu_gpr[rS(ctx->opcode)]);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
         ctx->exception = POWERPC_EXCP_STOP;
@@ -4012,7 +4019,11 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
     tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
     if (ctx->opcode & 0x00010000) {
         /* Special form that does not need any synchronisation */
-        gen_op_update_riee();
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], (1 << MSR_RI) | (1 << MSR_EE));
+        tcg_gen_andi_tl(cpu_msr, cpu_msr, ~((1 << MSR_RI) | (1 << MSR_EE)));
+        tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
+        tcg_temp_free(t0);
     } else {
         /* XXX: we need to update nip before the store
          *      if we enter power saving mode, we will exit the loop
@@ -4020,13 +4031,20 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
          */
         gen_update_nip(ctx, ctx->nip);
 #if defined(TARGET_PPC64)
-        if (!ctx->sf_mode)
-            gen_op_store_msr_32();
-        else
+        if (!ctx->sf_mode) {
+            TCGv t0 = tcg_temp_new();
+            TCGv t1 = tcg_temp_new();
+            tcg_gen_andi_tl(t0, cpu_msr, 0xFFFFFFFF00000000ULL);
+            tcg_gen_ext32u_tl(t1, cpu_gpr[rS(ctx->opcode)]);
+            tcg_gen_or_tl(t0, t0, t1);
+            tcg_temp_free(t1);
+            gen_helper_store_msr(t0);
+            tcg_temp_free(t0);
+        } else
 #endif
-            gen_op_store_msr();
+            gen_helper_store_msr(cpu_gpr[rS(ctx->opcode)]);
         /* Must stop the translation as machine state (may have) changed */
-        /* Note that mtmsrd is not always defined as context-synchronizing */
+        /* Note that mtmsr is not always defined as context-synchronizing */
         ctx->exception = POWERPC_EXCP_STOP;
     }
 #endif
@@ -5978,12 +5996,16 @@ GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE)
 #if defined(CONFIG_USER_ONLY)
     GEN_EXCP_PRIVOPC(ctx);
 #else
+    TCGv t0;
     if (unlikely(!ctx->supervisor)) {
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rD(ctx->opcode)]);
-    gen_op_wrte();
+    t0 = tcg_temp_new();
+    tcg_gen_andi_tl(t0, cpu_gpr[rD(ctx->opcode)], (1 << MSR_EE));
+    tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(1 << MSR_EE));
+    tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
+    tcg_temp_free(t0);
     /* Stop translation to have a chance to raise an exception
      * if we just set msr_ee to 1
      */
@@ -6001,12 +6023,13 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
-    tcg_gen_movi_tl(cpu_T[0], ctx->opcode & 0x00010000);
-    gen_op_wrte();
-    /* Stop translation to have a chance to raise an exception
-     * if we just set msr_ee to 1
-     */
-    GEN_STOP(ctx);
+    if (ctx->opcode & 0x00010000) {
+        tcg_gen_ori_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
+        /* Stop translation to have a chance to raise an exception */
+        GEN_STOP(ctx);
+    } else {
+        tcg_gen_andi_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
+    }
 #endif
 }
 

@@ -28,10 +28,6 @@ target_ulong ppc_load_dump_spr (int sprn);
 void ppc_store_dump_spr (int sprn, target_ulong val);
 
 /* Misc */
-#if !defined(CONFIG_USER_ONLY)
-void do_store_msr (void);
-#endif
-
 /* POWER / PowerPC 601 specific helpers */
 #if !defined(CONFIG_USER_ONLY)
 void do_POWER_rac (void);

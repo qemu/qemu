@@ -7,6 +7,7 @@ DEF_HELPER_3(tw, void, tl, tl, i32)
 DEF_HELPER_3(td, void, tl, tl, i32)
 #endif
 #if !defined(CONFIG_USER_ONLY)
+DEF_HELPER_1(store_msr, void, tl)
 DEF_HELPER_0(rfi, void)
 DEF_HELPER_0(rfsvc, void)
 DEF_HELPER_0(40x_rfci, void)

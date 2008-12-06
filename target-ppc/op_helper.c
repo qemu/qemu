@@ -1488,16 +1488,16 @@ uint32_t helper_fcmpo (uint64_t arg1, uint64_t arg2)
 }
 
 #if !defined (CONFIG_USER_ONLY)
-void cpu_dump_rfi (target_ulong RA, target_ulong msr);
-
-void do_store_msr (void)
+void helper_store_msr (target_ulong val)
 {
-    T0 = hreg_store_msr(env, T0, 0);
-    if (T0 != 0) {
+    val = hreg_store_msr(env, val, 0);
+    if (val != 0) {
         env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-        raise_exception(env, T0);
+        raise_exception(env, val);
     }
 }
+
+void cpu_dump_rfi (target_ulong RA, target_ulong msr);
 
 static always_inline void do_rfi (target_ulong nip, target_ulong msr,
                                     target_ulong msrm, int keep_msrh)
