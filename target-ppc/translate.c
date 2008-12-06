@@ -72,7 +72,7 @@ static TCGv_i32 cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
 /* dyngen register indexes */
-static TCGv cpu_T[3];
+static TCGv cpu_T[1];
 
 #include "gen-icount.h"
 
@@ -88,20 +88,8 @@ void ppc_translate_init(void)
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 #if TARGET_LONG_BITS > HOST_LONG_BITS
     cpu_T[0] = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, t0), "T0");
-    cpu_T[1] = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, t1), "T1");
-    cpu_T[2] = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, t2), "T2");
 #else
     cpu_T[0] = tcg_global_reg_new(TCG_AREG1, "T0");
-    cpu_T[1] = tcg_global_reg_new(TCG_AREG2, "T1");
-#ifdef HOST_I386
-    /* XXX: This is a temporary workaround for i386.
-     *      On i386 qemu_st32 runs out of registers.
-     *      The proper fix is to remove cpu_T.
-     */
-    cpu_T[2] = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, t2), "T2");
-#else
-    cpu_T[2] = tcg_global_reg_new(TCG_AREG3, "T2");
-#endif
 #endif
 
     p = cpu_reg_names;

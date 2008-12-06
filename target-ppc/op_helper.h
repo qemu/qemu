@@ -18,8 +18,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-void do_print_mem_EA (target_ulong EA);
-
 /* Registers load and stores */
 #if defined(TARGET_PPC64)
 void do_store_pri (int prio);
@@ -30,7 +28,6 @@ void ppc_store_dump_spr (int sprn, target_ulong val);
 /* Misc */
 /* POWER / PowerPC 601 specific helpers */
 #if !defined(CONFIG_USER_ONLY)
-void do_POWER_rac (void);
 void do_store_hid0_601 (void);
 #endif
 

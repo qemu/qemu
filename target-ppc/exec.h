@@ -35,13 +35,9 @@ register struct CPUPPCState *env asm(AREG0);
 #if TARGET_LONG_BITS > HOST_LONG_BITS
 /* no registers can be used */
 #define T0 (env->t0)
-#define T1 (env->t1)
-#define T2 (env->t2)
 #define TDX "%016" PRIx64
 #else
 register target_ulong T0 asm(AREG1);
-register target_ulong T1 asm(AREG2);
-register target_ulong T2 asm(AREG3);
 #define TDX "%016lx"
 #endif
 
