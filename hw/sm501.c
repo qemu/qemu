@@ -638,6 +638,32 @@ static CPUWriteMemoryFunc *sm501_system_config_writefn[] = {
     &sm501_system_config_write,
 };
 
+static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
+{
+    SM501State * s = (SM501State *)opaque;
+    SM501_DPRINTF("sm501 palette read addr=%x\n", (int)addr);
+
+    /* TODO : consider BYTE/WORD access */
+    /* TODO : consider endian */
+
+    assert(0 <= addr && addr < 0x400 * 3);
+    return *(uint32_t*)&s->dc_palette[addr];
+}
+
+static void sm501_palette_write(void *opaque,
+				target_phys_addr_t addr, uint32_t value)
+{
+    SM501State * s = (SM501State *)opaque;
+    SM501_DPRINTF("sm501 palette write addr=%x, val=%x\n",
+		  (int)addr, value);
+
+    /* TODO : consider BYTE/WORD access */
+    /* TODO : consider endian */
+
+    assert(0 <= addr && addr < 0x400 * 3);
+    *(uint32_t*)&s->dc_palette[addr] = value;
+}
+
 static uint32_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr)
 {
     SM501State * s = (SM501State *)opaque;
@@ -718,6 +744,10 @@ static uint32_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr)
     case SM501_DC_CRT_HWC_COLOR_3:
 	ret = s->dc_crt_hwc_addr;
 	break;
+
+    case SM501_DC_PANEL_PALETTE ... SM501_DC_PANEL_PALETTE + 0x400*3 - 4:
+        ret = sm501_palette_read(opaque, addr - SM501_DC_PANEL_PALETTE);
+        break;
 
     default:
 	printf("sm501 disp ctrl : not implemented register read."
@@ -823,6 +853,10 @@ static void sm501_disp_ctrl_write(void *opaque,
 	s->dc_crt_hwc_addr = value & 0x0000FFFF;
 	break;
 
+    case SM501_DC_PANEL_PALETTE ... SM501_DC_PANEL_PALETTE + 0x400*3 - 4:
+        sm501_palette_write(opaque, addr - SM501_DC_PANEL_PALETTE, value);
+        break;
+
     default:
 	printf("sm501 disp ctrl : not implemented register write."
 	       " addr=%x, val=%x\n", (int)addr, value);
@@ -841,45 +875,6 @@ static CPUWriteMemoryFunc *sm501_disp_ctrl_writefn[] = {
     NULL,
     &sm501_disp_ctrl_write,
 };
-
-static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
-{
-    SM501State * s = (SM501State *)opaque;
-    SM501_DPRINTF("sm501 palette read addr=%x\n", (int)addr);
-
-    /* TODO : consider BYTE/WORD access */
-    /* TODO : consider endian */
-
-    assert(0 <= addr && addr < 0x400 * 3);
-    return *(uint32_t*)&s->dc_palette[addr];
-}
-
-static void sm501_palette_write(void *opaque,
-				target_phys_addr_t addr, uint32_t value)
-{
-    SM501State * s = (SM501State *)opaque;
-    SM501_DPRINTF("sm501 palette write addr=%x, val=%x\n",
-		  (int)addr, value);
-
-    /* TODO : consider BYTE/WORD access */
-    /* TODO : consider endian */
-
-    assert(0 <= addr && addr < 0x400 * 3);
-    *(uint32_t*)&s->dc_palette[addr] = value;
-}
-
-static CPUReadMemoryFunc *sm501_palette_readfn[] = {
-    &sm501_palette_read,
-    &sm501_palette_read,
-    &sm501_palette_read,
-};
-
-static CPUWriteMemoryFunc *sm501_palette_writefn[] = {
-    &sm501_palette_write,
-    &sm501_palette_write,
-    &sm501_palette_write,
-};
-
 
 /* draw line functions for all console modes */
 
@@ -1070,7 +1065,6 @@ void sm501_init(DisplayState *ds, uint32_t base, unsigned long local_mem_base,
     SM501State * s;
     int sm501_system_config_index;
     int sm501_disp_ctrl_index;
-    int sm501_palette_index;
 
     /* allocate management data region */
     s = (SM501State *)qemu_mallocz(sizeof(SM501State));
@@ -1098,13 +1092,7 @@ void sm501_init(DisplayState *ds, uint32_t base, unsigned long local_mem_base,
     sm501_disp_ctrl_index = cpu_register_io_memory(0, sm501_disp_ctrl_readfn,
 						   sm501_disp_ctrl_writefn, s);
     cpu_register_physical_memory(base + MMIO_BASE_OFFSET + SM501_DC,
-				 0x400, sm501_disp_ctrl_index);
-
-    sm501_palette_index = cpu_register_io_memory(0, sm501_palette_readfn,
-						   sm501_palette_writefn, s);
-    cpu_register_physical_memory(base + MMIO_BASE_OFFSET
-				 + SM501_DC + SM501_DC_PANEL_PALETTE,
-				 0x400 * 3, sm501_palette_index);
+                                 0x1000, sm501_disp_ctrl_index);
 
     /* bridge to serial emulation module */
     if (chr)
