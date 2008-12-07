@@ -41,6 +41,8 @@ typedef struct SH7750State {
     /* Peripheral frequency in Hz */
     uint32_t periph_freq;
     /* SDRAM controller */
+    uint32_t bcr1;
+    uint32_t bcr2;
     uint16_t rfcr;
     /* IO ports */
     uint16_t gpioic;
@@ -208,6 +210,8 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
     SH7750State *s = opaque;
 
     switch (addr) {
+    case SH7750_BCR2_A7:
+	return s->bcr2;
     case SH7750_FRQCR_A7:
 	return 0;
     case SH7750_RFCR_A7:
@@ -231,6 +235,15 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
     SH7750State *s = opaque;
 
     switch (addr) {
+    case SH7750_BCR1_A7:
+	return s->bcr1;
+    case SH7750_BCR4_A7:
+    case SH7750_WCR1_A7:
+    case SH7750_WCR2_A7:
+    case SH7750_WCR3_A7:
+    case SH7750_MCR_A7:
+        ignore_access("long read", addr);
+        return 0;
     case SH7750_MMUCR_A7:
 	return s->cpu->mmucr;
     case SH7750_PTEH_A7:
@@ -285,6 +298,8 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
     switch (addr) {
 	/* SDRAM controller */
     case SH7750_BCR2_A7:
+        s->bcr2 = mem_value;
+        return;
     case SH7750_BCR3_A7:
     case SH7750_RTCOR_A7:
     case SH7750_RTCNT_A7:
@@ -331,6 +346,8 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
     switch (addr) {
 	/* SDRAM controller */
     case SH7750_BCR1_A7:
+        s->bcr1 = mem_value;
+        return;
     case SH7750_BCR4_A7:
     case SH7750_WCR1_A7:
     case SH7750_WCR2_A7:
