@@ -509,7 +509,6 @@ void HELPER(neon_trn_u8)(void)
     rm = ((T1 & 0xff00ff00) >> 8) | (T0 & 0xff00ff00);
     T0 = rd;
     T1 = rm;
-    FORCE_RET();
 }
 
 void HELPER(neon_trn_u16)(void)
@@ -520,7 +519,6 @@ void HELPER(neon_trn_u16)(void)
     rm = (T1 >> 16) | (T0 & 0xffff0000);
     T0 = rd;
     T1 = rm;
-    FORCE_RET();
 }
 
 /* Worker routines for zip and unzip.  */
@@ -534,7 +532,6 @@ void HELPER(neon_unzip_u8)(void)
          | ((T1 << 8) & 0xff0000) | (T1 & 0xff000000);
     T0 = rd;
     T1 = rm;
-    FORCE_RET();
 }
 
 void HELPER(neon_zip_u8)(void)
@@ -547,7 +544,6 @@ void HELPER(neon_zip_u8)(void)
          | ((T0 >> 8) & 0xff0000) | (T1 & 0xff000000);
     T0 = rd;
     T1 = rm;
-    FORCE_RET();
 }
 
 void HELPER(neon_zip_u16)(void)
@@ -557,5 +553,4 @@ void HELPER(neon_zip_u16)(void)
     tmp = (T0 & 0xffff) | (T1 << 16);
     T1 = (T1 & 0xffff0000) | (T0 >> 16);
     T0 = tmp;
-    FORCE_RET();
 }

@@ -198,9 +198,6 @@ extern int printf(const char *, ...);
 #error unsupported CPU
 #endif
 
-/* force GCC to generate only one epilog at the end of the function */
-#define FORCE_RET() __asm__ __volatile__("" : : : "memory");
-
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
 #define stringify(s)	tostring(s)

@@ -189,7 +189,6 @@ void helper_movl_reg_sreg (uint32_t reg, uint32_t sreg)
 	}
 #endif
 	env->regs[reg] = env->sregs[srs][sreg];
-	RETURN();
 }
 
 static void cris_ccs_rshift(CPUState *env)
