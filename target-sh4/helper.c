@@ -439,6 +439,9 @@ int get_physical_address(CPUState * env, target_ulong * physical,
 	if (address >= 0x80000000 && address < 0xc0000000) {
 	    /* Mask upper 3 bits for P1 and P2 areas */
 	    *physical = address & 0x1fffffff;
+        } else if (address >= 0xfd000000 && address < 0xfe000000) {
+            /* PCI memory space */
+            *physical = address;
 	} else if (address >= 0xfc000000) {
 	    /*
 	     * Mask upper 3 bits for control registers in P4 area,
