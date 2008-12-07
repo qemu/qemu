@@ -1260,6 +1260,7 @@ struct pxa2xx_i2c_s {
     i2c_slave slave;
     i2c_bus *bus;
     qemu_irq irq;
+    target_phys_addr_t offset;
 
     uint16_t control;
     uint16_t status;
@@ -1340,7 +1341,7 @@ static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
 {
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
 
-    addr &= 0xff;
+    addr -= s->offset;
     switch (addr) {
     case ICR:
         return s->control;
@@ -1369,7 +1370,7 @@ static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
     struct pxa2xx_i2c_s *s = (struct pxa2xx_i2c_s *) opaque;
     int ack;
 
-    addr &= 0xff;
+    addr -= s->offset;
     switch (addr) {
     case ICR:
         s->control = value & 0xfff7;
@@ -1474,7 +1475,7 @@ static int pxa2xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
-                qemu_irq irq, uint32_t page_size)
+                qemu_irq irq, uint32_t region_size)
 {
     int iomemtype;
     /* FIXME: Should the slave device really be on a separate bus?  */
@@ -1486,10 +1487,12 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
     s->slave.recv = pxa2xx_i2c_rx;
     s->slave.send = pxa2xx_i2c_tx;
     s->bus = i2c_init_bus();
+    s->offset = base & region_size;
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_i2c_readfn,
                     pxa2xx_i2c_writefn, s);
-    cpu_register_physical_memory(base & ~page_size, page_size + 1, iomemtype);
+    cpu_register_physical_memory(base & ~region_size,
+                    region_size + 1, iomemtype);
 
     register_savevm("pxa2xx_i2c", base, 1,
                     pxa2xx_i2c_save, pxa2xx_i2c_load, s);
