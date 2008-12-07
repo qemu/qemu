@@ -1487,7 +1487,7 @@ struct pxa2xx_i2c_s *pxa2xx_i2c_init(target_phys_addr_t base,
     s->slave.recv = pxa2xx_i2c_rx;
     s->slave.send = pxa2xx_i2c_tx;
     s->bus = i2c_init_bus();
-    s->offset = base & region_size;
+    s->offset = base - (base & (~region_size) & TARGET_PAGE_MASK);
 
     iomemtype = cpu_register_io_memory(0, pxa2xx_i2c_readfn,
                     pxa2xx_i2c_writefn, s);
