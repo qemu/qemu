@@ -3526,7 +3526,7 @@ void qemu_system_powerdown_request(void)
 }
 
 #ifdef _WIN32
-void host_main_loop_wait(int *timeout)
+static void host_main_loop_wait(int *timeout)
 {
     int ret, ret2, i;
     PollingEntry *pe;
@@ -3570,7 +3570,7 @@ void host_main_loop_wait(int *timeout)
     *timeout = 0;
 }
 #else
-void host_main_loop_wait(int *timeout)
+static void host_main_loop_wait(int *timeout)
 {
 }
 #endif
