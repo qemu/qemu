@@ -1605,39 +1605,31 @@ case "$target_cpu" in
   ;;
   ppc)
     echo "TARGET_ARCH=ppc" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"ppc\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   ppcemb)
     echo "TARGET_ARCH=ppcemb" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
     echo "#define TARGET_PPCEMB 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   ppc64)
     echo "TARGET_ARCH=ppc64" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
     echo "#define TARGET_PPC64 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   ppc64abi32)
     echo "TARGET_ARCH=ppc64" >> $config_mak
     echo "TARGET_ABI_DIR=ppc" >> $config_mak
     echo "TARGET_ARCH2=ppc64abi32" >> $config_mak
-    echo "CONFIG_DYNGEN_OP=yes" >> $config_mak
     echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
     echo "#define TARGET_PPC64 1" >> $config_h
     echo "#define TARGET_ABI32 1" >> $config_h
-    echo "#define CONFIG_DYNGEN_OP 1" >> $config_h
   ;;
   sh4|sh4eb)
     echo "TARGET_ARCH=sh4" >> $config_mak

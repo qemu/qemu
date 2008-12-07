@@ -32,20 +32,7 @@
 #define USE_PRECISE_EMULATION 0
 
 register struct CPUPPCState *env asm(AREG0);
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-/* no registers can be used */
-#define T0 (env->t0)
 #define TDX "%016" PRIx64
-#else
-register target_ulong T0 asm(AREG1);
-#define TDX "%016lx"
-#endif
-
-#if defined (DEBUG_OP)
-# define RETURN() __asm__ __volatile__("nop" : : : "memory");
-#else
-# define RETURN() __asm__ __volatile__("" : : : "memory");
-#endif
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"

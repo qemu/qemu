@@ -22,7 +22,6 @@
 #include "helper.h"
 
 #include "helper_regs.h"
-#include "op_helper.h"
 
 //#define DEBUG_OP
 //#define DEBUG_EXCEPTIONS
@@ -65,24 +64,195 @@ void helper_store_cr (target_ulong val, uint32_t mask)
     }
 }
 
-target_ulong ppc_load_dump_spr (int sprn)
+/*****************************************************************************/
+/* SPR accesses */
+void helper_load_dump_spr (uint32_t sprn)
 {
     if (loglevel != 0) {
         fprintf(logfile, "Read SPR %d %03x => " ADDRX "\n",
                 sprn, sprn, env->spr[sprn]);
     }
-
-    return env->spr[sprn];
 }
 
-void ppc_store_dump_spr (int sprn, target_ulong val)
+void helper_store_dump_spr (uint32_t sprn)
 {
     if (loglevel != 0) {
-        fprintf(logfile, "Write SPR %d %03x => " ADDRX " <= " ADDRX "\n",
-                sprn, sprn, env->spr[sprn], val);
+        fprintf(logfile, "Write SPR %d %03x <= " ADDRX "\n",
+                sprn, sprn, env->spr[sprn]);
     }
-    env->spr[sprn] = val;
 }
+
+target_ulong helper_load_tbl (void)
+{
+    return cpu_ppc_load_tbl(env);
+}
+
+target_ulong helper_load_tbu (void)
+{
+    return cpu_ppc_load_tbu(env);
+}
+
+target_ulong helper_load_atbl (void)
+{
+    return cpu_ppc_load_atbl(env);
+}
+
+target_ulong helper_load_atbu (void)
+{
+    return cpu_ppc_load_atbu(env);
+}
+
+target_ulong helper_load_601_rtcl (void)
+{
+    return cpu_ppc601_load_rtcl(env);
+}
+
+target_ulong helper_load_601_rtcu (void)
+{
+    return cpu_ppc601_load_rtcu(env);
+}
+
+#if !defined(CONFIG_USER_ONLY)
+#if defined (TARGET_PPC64)
+void helper_store_asr (target_ulong val)
+{
+    ppc_store_asr(env, val);
+}
+#endif
+
+void helper_store_sdr1 (target_ulong val)
+{
+    ppc_store_sdr1(env, val);
+}
+
+void helper_store_tbl (target_ulong val)
+{
+    cpu_ppc_store_tbl(env, val);
+}
+
+void helper_store_tbu (target_ulong val)
+{
+    cpu_ppc_store_tbu(env, val);
+}
+
+void helper_store_atbl (target_ulong val)
+{
+    cpu_ppc_store_atbl(env, val);
+}
+
+void helper_store_atbu (target_ulong val)
+{
+    cpu_ppc_store_atbu(env, val);
+}
+
+void helper_store_601_rtcl (target_ulong val)
+{
+    cpu_ppc601_store_rtcl(env, val);
+}
+
+void helper_store_601_rtcu (target_ulong val)
+{
+    cpu_ppc601_store_rtcu(env, val);
+}
+
+target_ulong helper_load_decr (void)
+{
+    return cpu_ppc_load_decr(env);
+}
+
+void helper_store_decr (target_ulong val)
+{
+    cpu_ppc_store_decr(env, val);
+}
+
+void helper_store_hid0_601 (target_ulong val)
+{
+    target_ulong hid0;
+
+    hid0 = env->spr[SPR_HID0];
+    if ((val ^ hid0) & 0x00000008) {
+        /* Change current endianness */
+        env->hflags &= ~(1 << MSR_LE);
+        env->hflags_nmsr &= ~(1 << MSR_LE);
+        env->hflags_nmsr |= (1 << MSR_LE) & (((val >> 3) & 1) << MSR_LE);
+        env->hflags |= env->hflags_nmsr;
+        if (loglevel != 0) {
+            fprintf(logfile, "%s: set endianness to %c => " ADDRX "\n",
+                    __func__, val & 0x8 ? 'l' : 'b', env->hflags);
+        }
+    }
+    env->spr[SPR_HID0] = (uint32_t)val;
+}
+
+void helper_store_403_pbr (uint32_t num, target_ulong value)
+{
+    if (likely(env->pb[num] != value)) {
+        env->pb[num] = value;
+        /* Should be optimized */
+        tlb_flush(env, 1);
+    }
+}
+
+target_ulong helper_load_40x_pit (void)
+{
+    return load_40x_pit(env);
+}
+
+void helper_store_40x_pit (target_ulong val)
+{
+    store_40x_pit(env, val);
+}
+
+void helper_store_40x_dbcr0 (target_ulong val)
+{
+    store_40x_dbcr0(env, val);
+}
+
+void helper_store_40x_sler (target_ulong val)
+{
+    store_40x_sler(env, val);
+}
+
+void helper_store_booke_tcr (target_ulong val)
+{
+    store_booke_tcr(env, val);
+}
+
+void helper_store_booke_tsr (target_ulong val)
+{
+    store_booke_tsr(env, val);
+}
+
+void helper_store_ibatu (uint32_t nr, target_ulong val)
+{
+    ppc_store_ibatu(env, nr, val);
+}
+
+void helper_store_ibatl (uint32_t nr, target_ulong val)
+{
+    ppc_store_ibatl(env, nr, val);
+}
+
+void helper_store_dbatu (uint32_t nr, target_ulong val)
+{
+    ppc_store_dbatu(env, nr, val);
+}
+
+void helper_store_dbatl (uint32_t nr, target_ulong val)
+{
+    ppc_store_dbatl(env, nr, val);
+}
+
+void helper_store_601_batl (uint32_t nr, target_ulong val)
+{
+    ppc_store_ibatl_601(env, nr, val);
+}
+
+void helper_store_601_batu (uint32_t nr, target_ulong val)
+{
+    ppc_store_ibatu_601(env, nr, val);
+}
+#endif
 
 /*****************************************************************************/
 /* Memory load and stores */
@@ -1678,25 +1848,6 @@ void helper_rfsvc (void)
 {
     do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
 }
-
-void do_store_hid0_601 (void)
-{
-    uint32_t hid0;
-
-    hid0 = env->spr[SPR_HID0];
-    if ((T0 ^ hid0) & 0x00000008) {
-        /* Change current endianness */
-        env->hflags &= ~(1 << MSR_LE);
-        env->hflags_nmsr &= ~(1 << MSR_LE);
-        env->hflags_nmsr |= (1 << MSR_LE) & (((T0 >> 3) & 1) << MSR_LE);
-        env->hflags |= env->hflags_nmsr;
-        if (loglevel != 0) {
-            fprintf(logfile, "%s: set endianness to %c => " ADDRX "\n",
-                    __func__, T0 & 0x8 ? 'l' : 'b', env->hflags);
-        }
-    }
-    env->spr[SPR_HID0] = T0;
-}
 #endif
 
 /*****************************************************************************/
@@ -1709,7 +1860,7 @@ target_ulong helper_602_mfrom (target_ulong arg)
     if (likely(arg < 602)) {
 #if defined(USE_MFROM_ROM_TABLE)
 #include "mfrom_table.c"
-        return mfrom_ROM_table[T0];
+        return mfrom_ROM_table[arg];
 #else
         double d;
         /* Extremly decomposed:
@@ -1747,7 +1898,7 @@ target_ulong helper_load_dcr (target_ulong dcrn)
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_read(env->dcr_env, dcrn, &val) != 0)) {
         if (loglevel != 0) {
-            fprintf(logfile, "DCR read error %d %03x\n", (int)T0, (int)T0);
+            fprintf(logfile, "DCR read error %d %03x\n", (int)dcrn, (int)dcrn);
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
@@ -1765,7 +1916,7 @@ void helper_store_dcr (target_ulong dcrn, target_ulong val)
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_write(env->dcr_env, dcrn, val) != 0)) {
         if (loglevel != 0) {
-            fprintf(logfile, "DCR write error %d %03x\n", (int)T0, (int)T0);
+            fprintf(logfile, "DCR write error %d %03x\n", (int)dcrn, (int)dcrn);
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
@@ -1795,20 +1946,6 @@ void helper_rfmci (void)
 {
     do_rfi(env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
            ~((target_ulong)0x3FFF0000), 0);
-}
-
-void do_load_403_pb (int num)
-{
-    T0 = env->pb[num];
-}
-
-void do_store_403_pb (int num)
-{
-    if (likely(env->pb[num] != T0)) {
-        env->pb[num] = T0;
-        /* Should be optimized */
-        tlb_flush(env, 1);
-    }
 }
 #endif
 
@@ -2539,7 +2676,7 @@ target_ulong helper_load_sr (target_ulong sr_num)
 
 void helper_store_sr (target_ulong sr_num, target_ulong val)
 {
-    do_store_sr(env, sr_num, val);
+    ppc_store_sr(env, sr_num, val);
 }
 
 /* SLB management */

@@ -38,7 +38,7 @@
 #define GDBSTUB_SINGLE_STEP 0x4
 
 /* Include definitions for instructions classes and implementations flags */
-//#define DO_SINGLE_STEP
+#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
 //#define DO_PPC_STATISTICS
 //#define OPTIMIZE_FPRF_UPDATE
@@ -71,9 +71,6 @@ static TCGv cpu_reserve;
 static TCGv_i32 cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
-/* dyngen register indexes */
-static TCGv cpu_T[1];
-
 #include "gen-icount.h"
 
 void ppc_translate_init(void)
@@ -86,11 +83,6 @@ void ppc_translate_init(void)
         return;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-    cpu_T[0] = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, t0), "T0");
-#else
-    cpu_T[0] = tcg_global_reg_new(TCG_AREG1, "T0");
-#endif
 
     p = cpu_reg_names;
 
@@ -3886,7 +3878,7 @@ static void spr_noaccess (void *opaque, int sprn)
 /* mfspr */
 static always_inline void gen_op_mfspr (DisasContext *ctx)
 {
-    void (*read_cb)(void *opaque, int sprn);
+    void (*read_cb)(void *opaque, int gprn, int sprn);
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
@@ -3899,8 +3891,7 @@ static always_inline void gen_op_mfspr (DisasContext *ctx)
         read_cb = ctx->spr_cb[sprn].uea_read;
     if (likely(read_cb != NULL)) {
         if (likely(read_cb != SPR_NOACCESS)) {
-            (*read_cb)(ctx, sprn);
-            tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_T[0]);
+            (*read_cb)(ctx, rD(ctx->opcode), sprn);
         } else {
             /* Privilege exception */
             /* This is a hack to avoid warnings when running Linux:
@@ -3972,7 +3963,6 @@ GEN_HANDLER(mtmsrd, 0x1F, 0x12, 0x05, 0x001EF801, PPC_64B)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
     if (ctx->opcode & 0x00010000) {
         /* Special form that does not need any synchronisation */
         TCGv t0 = tcg_temp_new();
@@ -4004,7 +3994,6 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
         GEN_EXCP_PRIVREG(ctx);
         return;
     }
-    tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
     if (ctx->opcode & 0x00010000) {
         /* Special form that does not need any synchronisation */
         TCGv t0 = tcg_temp_new();
@@ -4041,7 +4030,7 @@ GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001FF801, PPC_MISC)
 /* mtspr */
 GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
 {
-    void (*write_cb)(void *opaque, int sprn);
+    void (*write_cb)(void *opaque, int sprn, int gprn);
     uint32_t sprn = SPR(ctx->opcode);
 
 #if !defined(CONFIG_USER_ONLY)
@@ -4054,8 +4043,7 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
         write_cb = ctx->spr_cb[sprn].uea_write;
     if (likely(write_cb != NULL)) {
         if (likely(write_cb != SPR_NOACCESS)) {
-            tcg_gen_mov_tl(cpu_T[0], cpu_gpr[rS(ctx->opcode)]);
-            (*write_cb)(ctx, sprn);
+            (*write_cb)(ctx, sprn, rS(ctx->opcode));
         } else {
             /* Privilege exception */
             if (loglevel != 0) {

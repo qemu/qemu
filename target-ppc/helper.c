@@ -1800,17 +1800,7 @@ static always_inline void dump_store_bat (CPUPPCState *env, char ID,
 #endif
 }
 
-target_ulong do_load_ibatu (CPUPPCState *env, int nr)
-{
-    return env->IBAT[0][nr];
-}
-
-target_ulong do_load_ibatl (CPUPPCState *env, int nr)
-{
-    return env->IBAT[1][nr];
-}
-
-void do_store_ibatu (CPUPPCState *env, int nr, target_ulong value)
+void ppc_store_ibatu (CPUPPCState *env, int nr, target_ulong value)
 {
     target_ulong mask;
 
@@ -1836,23 +1826,13 @@ void do_store_ibatu (CPUPPCState *env, int nr, target_ulong value)
     }
 }
 
-void do_store_ibatl (CPUPPCState *env, int nr, target_ulong value)
+void ppc_store_ibatl (CPUPPCState *env, int nr, target_ulong value)
 {
     dump_store_bat(env, 'I', 1, nr, value);
     env->IBAT[1][nr] = value;
 }
 
-target_ulong do_load_dbatu (CPUPPCState *env, int nr)
-{
-    return env->DBAT[0][nr];
-}
-
-target_ulong do_load_dbatl (CPUPPCState *env, int nr)
-{
-    return env->DBAT[1][nr];
-}
-
-void do_store_dbatu (CPUPPCState *env, int nr, target_ulong value)
+void ppc_store_dbatu (CPUPPCState *env, int nr, target_ulong value)
 {
     target_ulong mask;
 
@@ -1878,13 +1858,13 @@ void do_store_dbatu (CPUPPCState *env, int nr, target_ulong value)
     }
 }
 
-void do_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
+void ppc_store_dbatl (CPUPPCState *env, int nr, target_ulong value)
 {
     dump_store_bat(env, 'D', 1, nr, value);
     env->DBAT[1][nr] = value;
 }
 
-void do_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value)
+void ppc_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value)
 {
     target_ulong mask;
     int do_inval;
@@ -1921,7 +1901,7 @@ void do_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value)
     }
 }
 
-void do_store_ibatl_601 (CPUPPCState *env, int nr, target_ulong value)
+void ppc_store_ibatl_601 (CPUPPCState *env, int nr, target_ulong value)
 {
     target_ulong mask;
     int do_inval;
@@ -2075,11 +2055,6 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
 /*****************************************************************************/
 /* Special registers manipulation */
 #if defined(TARGET_PPC64)
-target_ulong ppc_load_asr (CPUPPCState *env)
-{
-    return env->asr;
-}
-
 void ppc_store_asr (CPUPPCState *env, target_ulong value)
 {
     if (env->asr != value) {
@@ -2089,12 +2064,7 @@ void ppc_store_asr (CPUPPCState *env, target_ulong value)
 }
 #endif
 
-target_ulong do_load_sdr1 (CPUPPCState *env)
-{
-    return env->sdr1;
-}
-
-void do_store_sdr1 (CPUPPCState *env, target_ulong value)
+void ppc_store_sdr1 (CPUPPCState *env, target_ulong value)
 {
 #if defined (DEBUG_MMU)
     if (loglevel != 0) {
@@ -2110,7 +2080,7 @@ void do_store_sdr1 (CPUPPCState *env, target_ulong value)
     }
 }
 
-void do_store_sr (CPUPPCState *env, int srnum, target_ulong value)
+void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value)
 {
 #if defined (DEBUG_MMU)
     if (loglevel != 0) {
