@@ -858,10 +858,10 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
     else
         data_reg2 = 0; /* surpress warning */
     addr_reg = *args++;
-#if TARGET_LONG_BITS == 64
-    addr_reg2 = *args++;
-#endif
 #ifdef CONFIG_SOFTMMU
+# if TARGET_LONG_BITS == 64
+    addr_reg2 = *args++;
+# endif
     mem_index = *args;
     s_bits = opc & 3;
 
@@ -1036,10 +1036,10 @@ static inline void tcg_out_qemu_st(TCGContext *s, int cond,
     else
         data_reg2 = 0; /* surpress warning */
     addr_reg = *args++;
-#if TARGET_LONG_BITS == 64
-    addr_reg2 = *args++;
-#endif
 #ifdef CONFIG_SOFTMMU
+# if TARGET_LONG_BITS == 64
+    addr_reg2 = *args++;
+# endif
     mem_index = *args;
     s_bits = opc & 3;
 
