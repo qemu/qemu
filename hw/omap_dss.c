@@ -1049,6 +1049,7 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
                     omap_im3_writefn, s);
     omap_l4_attach(ta, 0, iomemtype[0]);
     omap_l4_attach(ta, 1, iomemtype[1]);
+    omap_l4_attach(ta, 2, iomemtype[2]);
     omap_l4_attach(ta, 3, iomemtype[3]);
     cpu_register_physical_memory(l3_base, 0x1000, iomemtype[4]);
 

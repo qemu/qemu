@@ -3898,7 +3898,6 @@ struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
     iomemtype = l4_register_io_memory(0, omap_sysctl_readfn,
                     omap_sysctl_writefn, s);
     omap_l4_attach(ta, 0, iomemtype);
-    omap_l4_attach(ta, 0, iomemtype);
 
     return s;
 }
