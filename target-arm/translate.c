@@ -6507,8 +6507,8 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         tcg_gen_shri_i64(tmp64, tmp64, 32);
                         tmp = new_tmp();
                         tcg_gen_trunc_i64_i32(tmp, tmp64);
-                        if (rn != 15) {
-                            tmp2 = load_reg(s, rn);
+                        if (rd != 15) {
+                            tmp2 = load_reg(s, rd);
                             if (insn & (1 << 6)) {
                                 tcg_gen_sub_i32(tmp, tmp, tmp2);
                             } else {
@@ -6516,7 +6516,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                             }
                             dead_tmp(tmp2);
                         }
-                        store_reg(s, rd, tmp);
+                        store_reg(s, rn, tmp);
                     } else {
                         if (insn & (1 << 5))
                             gen_swap_half(tmp2);
