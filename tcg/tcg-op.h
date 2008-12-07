@@ -132,7 +132,7 @@ static inline void tcg_gen_ldst_op_i64(int opc, TCGv_i64 val, TCGv_ptr base,
                                        TCGArg offset)
 {
     *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(val);
+    *gen_opparam_ptr++ = GET_TCGV_I64(val);
     *gen_opparam_ptr++ = GET_TCGV_PTR(base);
     *gen_opparam_ptr++ = offset;
 }
@@ -166,7 +166,7 @@ static inline void tcg_gen_op4_i32(int opc, TCGv_i32 arg1, TCGv_i32 arg2,
 }
 
 static inline void tcg_gen_op4_i64(int opc, TCGv_i64 arg1, TCGv_i64 arg2,
-                                   TCGv_i64 arg3, TCGv_i32 arg4)
+                                   TCGv_i64 arg3, TCGv_i64 arg4)
 {
     *gen_opc_ptr++ = opc;
     *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
