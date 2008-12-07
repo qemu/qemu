@@ -97,12 +97,6 @@ HELPER_CFLAGS=
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
-# op.c and helper.c need this on 32-bit x86 system to avoid
-# a compiler spill error. This can probably go away
-# once the SSE ops have been converted to TCG
-ifeq ($(HAVE_GT_GCC_3_3), true)
-I386_CFLAGS=-march=i586 -mtune=i686
-endif
 endif
 
 ifeq ($(ARCH),ppc)

@@ -26,8 +26,6 @@ interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_prefix=""
 cc="gcc"
-gcc3_search="yes"
-gcc3_list="gcc-3.4.6 gcc-3.4 gcc34 gcc-3.3.6 gcc-3.3 gcc33 gcc-3.2 gcc32"
 audio_drv_list=""
 audio_card_list=""
 host_cc="gcc"
@@ -106,7 +104,6 @@ kqemu="no"
 profiler="no"
 cocoa="no"
 check_gfx="yes"
-check_gcc="yes"
 softmmu="yes"
 linux_user="no"
 darwin_user="no"
@@ -273,7 +270,6 @@ for opt do
   --cross-prefix=*) cross_prefix="$optarg"
   ;;
   --cc=*) cc="$optarg"
-  gcc3_search="no"
   ;;
   --host-cc=*) host_cc="$optarg"
   ;;
@@ -331,8 +327,6 @@ for opt do
       audio_drv_list="coreaudio `echo $audio_drv_list | sed s,coreaudio,,g`"
   ;;
   --disable-gfx-check) check_gfx="no"
-  ;;
-  --disable-gcc-check) check_gcc="no"
   ;;
   --disable-system) softmmu="no"
   ;;
@@ -542,40 +536,6 @@ else
     AIOLIBS="-lrt -lpthread"
 fi
 
-# Check for gcc4, error if pre-gcc4
-if test "$check_gcc" = "yes" ; then
-    cat > $TMPC <<EOF
-#if __GNUC__ < 4
-#error gcc3
-#endif
-int main(){return 0;}
-EOF
-    if "$cc" $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
-	echo "WARNING: \"$cc\" looks like gcc 4.x"
-	found_compat_cc="no"
-	if test "$gcc3_search" = "yes" ; then
-	    echo "Looking for gcc 3.x"
-	    for compat_cc in $gcc3_list ; do
-		if "$cross_prefix$compat_cc" --version 2> /dev/null | fgrep '(GCC) 3.' > /dev/null 2>&1 ; then
-		    echo "Found \"$compat_cc\""
-		    cc="$cross_prefix$compat_cc"
-		    found_compat_cc="yes"
-		    break
-		fi
-	    done
-	    if test "$found_compat_cc" = "no" ; then
-		echo "gcc 3.x not found!"
-	    fi
-	fi
-	if test "$found_compat_cc" = "no" ; then
-	    echo "QEMU is known to have problems when compiled with gcc 4.x"
-	    echo "It is recommended that you use gcc 3.x to build QEMU"
-	    echo "To use this compiler anyway, configure with --disable-gcc-check"
-	    exit 1;
-	fi
-    fi
-fi
-
 if test ! -x "$(which cgcc 2>/dev/null)"; then
     sparse="no"
 fi
@@ -584,19 +544,6 @@ fi
 # Solaris specific configure tool chain decisions
 #
 if test "$solaris" = "yes" ; then
-  #
-  # gcc for solaris 10/fcs in /usr/sfw/bin doesn't compile qemu correctly
-  # override the check with --disable-gcc-check
-  #
-  if test "$solarisrev" -eq 10 -a "$check_gcc" = "yes" ; then
-    solgcc=`which $cc`
-    if test "$solgcc" = "/usr/sfw/bin/gcc" ; then
-      echo "Solaris 10/FCS gcc in /usr/sfw/bin will not compiled qemu correctly."
-      echo "please get gcc-3.4.3 or later, from www.blastwave.org using pkg-get -i gcc3"
-      echo "or get the latest patch from SunSolve for gcc"
-      exit 1
-    fi
-  fi
   solinst=`which $install 2> /dev/null | /usr/bin/grep -v "no $install in"`
   if test -z "$solinst" ; then
     echo "Solaris install program not found. Use --install=/usr/ucb/install or"
@@ -1535,13 +1482,6 @@ case "$target_cpu" in
       echo "CONFIG_KVM=yes" >> $config_mak
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
       echo "#define CONFIG_KVM 1" >> $config_h
-    fi
-    gcc3minver=`$cc --version 2> /dev/null| fgrep "(GCC) 3." | awk '{ print $3 }' | cut -f2 -d.`
-    if test -n "$gcc3minver" && test $gcc3minver -gt 3
-    then
-      echo "HAVE_GT_GCC_3_3=true" >> $config_mak
-    else
-      echo "HAVE_GT_GCC_3_3=false" >> $config_mak
     fi
   ;;
   x86_64)
