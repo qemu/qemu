@@ -167,19 +167,19 @@ static void sh_serial_ioport_write(void *opaque, uint32_t offs, uint32_t val)
         }
     }
     else {
-#if 0
         switch(offs) {
+#if 0
         case 0x0c:
             ret = s->dr;
             break;
         case 0x10:
             ret = 0;
             break;
-        case 0x1c:
-            ret = s->sptr;
-            break;
-        }
 #endif
+        case 0x1c:
+            s->sptr = val & 0x8f;
+            return;
+        }
     }
 
     fprintf(stderr, "sh_serial: unsupported write to 0x%02x\n", offs);
@@ -259,8 +259,8 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
         }
     }
     else {
-#if 0
         switch(offs) {
+#if 0
         case 0x0c:
             ret = s->dr;
             break;
@@ -270,11 +270,11 @@ static uint32_t sh_serial_ioport_read(void *opaque, uint32_t offs)
         case 0x14:
             ret = s->rx_fifo[0];
             break;
+#endif
         case 0x1c:
             ret = s->sptr;
             break;
         }
-#endif
     }
 #ifdef DEBUG_SERIAL
     printf("sh_serial: read offs=0x%02x val=0x%x\n",
