@@ -654,6 +654,9 @@ void slirp_input(const uint8_t *pkt, int pkt_len)
         if (!m)
             return;
         /* Note: we add to align the IP header */
+        if (M_FREEROOM(m) < pkt_len + 2) {
+            m_inc(m, pkt_len + 2);
+        }
         m->m_len = pkt_len + 2;
         memcpy(m->m_data + 2, pkt, pkt_len);
 
