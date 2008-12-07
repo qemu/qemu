@@ -867,6 +867,12 @@ static void lsi_execute_script(LSIState *s)
 again:
     insn_processed++;
     insn = read_dword(s, s->dsp);
+    if (!insn) {
+        /* If we receive an empty opcode increment the DSP by 4 bytes
+           instead of 8 and execute the next opcode at that location */
+        s->dsp += 4;
+        goto again;
+    }
     addr = read_dword(s, s->dsp + 4);
     addr_high = 0;
     DPRINTF("SCRIPTS dsp=%08x opcode %08x arg %08x\n", s->dsp, insn, addr);
