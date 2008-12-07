@@ -42,6 +42,9 @@ void sh_serial_init (target_phys_addr_t base, int feat,
 		     qemu_irq tei_source,
 		     qemu_irq bri_source);
 
+/* sh7750.c */
+qemu_irq sh7750_irl(struct SH7750State *s);
+
 /* tc58128.c */
 int tc58128_init(struct SH7750State *s, const char *zone1, const char *zone2);
 

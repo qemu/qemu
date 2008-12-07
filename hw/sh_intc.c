@@ -465,3 +465,18 @@ int sh_intc_init(struct intc_desc *desc,
 
     return 0;
 }
+
+/* Assert level <n> IRL interrupt. 
+   0:deassert. 1:lowest priority,... 15:highest priority. */
+void sh_intc_set_irl(void *opaque, int n, int level)
+{
+    struct intc_source *s = opaque;
+    int i, irl = level ^ 15;
+    for (i = 0; (s = sh_intc_source(s->parent, s->next_enum_id)); i++) {
+	if (i == irl)
+	    sh_intc_toggle_source(s, s->enable_count?0:1, s->asserted?0:1);
+	else
+	    if (s->asserted)
+	        sh_intc_toggle_source(s, 0, -1);
+    }
+}
