@@ -149,6 +149,11 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     sm501_vga_ram_addr = qemu_ram_alloc(SM501_VRAM_SIZE);
     sm501_init(ds, 0x10000000, sm501_vga_ram_addr, SM501_VRAM_SIZE,
 	       serial_hds[2]);
+
+    /* onboard CF (True IDE mode, Master only). */
+    mmio_ide_init(0x14001000, 0x1400080c, NULL, 1,
+                  drives_table[drive_get_index(IF_IDE, 0, 0)].bdrv, NULL);
+
     /* Todo: register on board registers */
     {
       int kernel_size;

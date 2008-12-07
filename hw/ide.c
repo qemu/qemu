@@ -3414,6 +3414,98 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq)
 }
 
 /***********************************************************/
+/* MMIO based ide port
+ * This emulates IDE device connected directly to the CPU bus without
+ * dedicated ide controller, which is often seen on embedded boards.
+ */
+
+typedef struct {
+    void *dev;
+    int shift;
+} MMIOState;
+
+static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
+{
+    MMIOState *s = (MMIOState*)opaque;
+    IDEState *ide = (IDEState*)s->dev;
+    addr >>= s->shift;
+    if (addr & 7)
+        return ide_ioport_read(ide, addr);
+    else
+        return ide_data_readw(ide, 0);
+}
+
+static void mmio_ide_write (void *opaque, target_phys_addr_t addr,
+	uint32_t val)
+{
+    MMIOState *s = (MMIOState*)opaque;
+    IDEState *ide = (IDEState*)s->dev;
+    addr >>= s->shift;
+    if (addr & 7)
+        ide_ioport_write(ide, addr, val);
+    else
+        ide_data_writew(ide, 0, val);
+}
+
+static CPUReadMemoryFunc *mmio_ide_reads[] = {
+    mmio_ide_read,
+    mmio_ide_read,
+    mmio_ide_read,
+};
+
+static CPUWriteMemoryFunc *mmio_ide_writes[] = {
+    mmio_ide_write,
+    mmio_ide_write,
+    mmio_ide_write,
+};
+
+static uint32_t mmio_ide_status_read (void *opaque, target_phys_addr_t addr)
+{
+    MMIOState *s= (MMIOState*)opaque;
+    IDEState *ide = (IDEState*)s->dev;
+    return ide_status_read(ide, 0);
+}
+
+static void mmio_ide_cmd_write (void *opaque, target_phys_addr_t addr,
+	uint32_t val)
+{
+    MMIOState *s = (MMIOState*)opaque;
+    IDEState *ide = (IDEState*)s->dev;
+    ide_cmd_write(ide, 0, val);
+}
+
+static CPUReadMemoryFunc *mmio_ide_status[] = {
+    mmio_ide_status_read,
+    mmio_ide_status_read,
+    mmio_ide_status_read,
+};
+
+static CPUWriteMemoryFunc *mmio_ide_cmd[] = {
+    mmio_ide_cmd_write,
+    mmio_ide_cmd_write,
+    mmio_ide_cmd_write,
+};
+
+void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
+                    qemu_irq irq, int shift,
+                    BlockDriverState *hd0, BlockDriverState *hd1)
+{
+    MMIOState *s = qemu_mallocz(sizeof(MMIOState));
+    IDEState *ide = qemu_mallocz(sizeof(IDEState) * 2);
+    int mem1, mem2;
+
+    ide_init2(ide, hd0, hd1, irq);
+
+    s->dev = ide;
+    s->shift = shift;
+
+    mem1 = cpu_register_io_memory(0, mmio_ide_reads, mmio_ide_writes, s);
+    mem2 = cpu_register_io_memory(0, mmio_ide_status, mmio_ide_cmd, s);
+    cpu_register_physical_memory(membase, 16 << shift, mem1);
+    cpu_register_physical_memory(membase2, 2 << shift, mem2);
+}
+
+/***********************************************************/
 /* CF-ATA Microdrive */
 
 #define METADATA_SIZE	0x20
