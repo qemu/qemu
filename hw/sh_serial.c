@@ -399,7 +399,8 @@ void sh_serial_init (target_phys_addr_t base, int feat,
 
     s_io_memory = cpu_register_io_memory(0, sh_serial_readfn,
 					 sh_serial_writefn, s);
-    cpu_register_physical_memory(base, 0x28, s_io_memory);
+    cpu_register_physical_memory(P4ADDR(base), 0x28, s_io_memory);
+    cpu_register_physical_memory(A7ADDR(base), 0x28, s_io_memory);
 
     s->chr = chr;
 
