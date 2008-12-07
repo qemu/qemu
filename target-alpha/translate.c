@@ -2407,10 +2407,15 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
          * generation
          */
         if (((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0) ||
-            (env->singlestep_enabled) ||
             num_insns >= max_insns) {
             break;
         }
+
+        if (env->singlestep_enabled) {
+            gen_excp(&ctx, EXCP_DEBUG, 0);
+            break;
+	}
+
 #if defined (DO_SINGLE_STEP)
         break;
 #endif

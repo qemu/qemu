@@ -990,6 +990,56 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 
     return 4;
 }
+#elif defined (TARGET_ALPHA)
+
+#define NUM_CORE_REGS 65
+
+static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 31) {
+       GET_REGL(env->ir[n]);
+    }
+    else if (n == 31) {
+       GET_REGL(0);
+    }
+    else if (n<63) {
+       uint64_t val;
+
+       val=*((uint64_t *)&env->fir[n-32]);
+       GET_REGL(val);
+    }
+    else if (n==63) {
+       GET_REGL(env->fpcr);
+    }
+    else if (n==64) {
+       GET_REGL(env->pc);
+    }
+    else {
+       GET_REGL(0);
+    }
+
+    return 0;
+}
+
+static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
+{
+    target_ulong tmp;
+    tmp = ldtul_p(mem_buf);
+
+    if (n < 31) {
+        env->ir[n] = tmp;
+    }
+
+    if (n > 31 && n < 63) {
+        env->fir[n - 32] = ldfl_p(mem_buf);
+    }
+
+    if (n == 64 ) {
+       env->pc=tmp;
+    }
+
+    return 8;
+}
 #else
 
 #define NUM_CORE_REGS 0
@@ -1277,6 +1327,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             s->c_cpu->active_tc.PC = addr;
 #elif defined (TARGET_CRIS)
             s->c_cpu->pc = addr;
+#elif defined (TARGET_ALPHA)
+            s->c_cpu->pc = addr;
 #endif
         }
         gdb_continue(s);
@@ -1312,6 +1364,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
 #elif defined (TARGET_MIPS)
             s->c_cpu->active_tc.PC = addr;
 #elif defined (TARGET_CRIS)
+            s->c_cpu->pc = addr;
+#elif defined (TARGET_ALPHA)
             s->c_cpu->pc = addr;
 #endif
         }
