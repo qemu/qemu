@@ -27,7 +27,6 @@ VPATH=$(SRC_PATH):$(TARGET_PATH):$(SRC_PATH)/hw
 CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H
 #CFLAGS+=-Werror
 LIBS=
-DYNGEN=../dyngen$(EXESUF)
 # user emulator name
 ifndef TARGET_ARCH2
 TARGET_ARCH2=$(TARGET_ARCH)
@@ -186,10 +185,6 @@ all: $(PROGS)
 # cpu emulator library
 LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
         translate.o host-utils.o
-ifdef CONFIG_DYNGEN_OP
-exec.o: dyngen-opc.h
-LIBOBJS+=op.o
-endif
 # TCG code generator
 LIBOBJS+= tcg/tcg.o tcg/tcg-dyngen.o tcg/tcg-runtime.o
 CPPFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
@@ -261,35 +256,15 @@ endif
 
 # libqemu
 
-ifdef CONFIG_DYNGEN_OP
-OPC_H = gen-op.h dyngen-opc.h op.h
-endif
-
 libqemu.a: $(LIBOBJS)
 	rm -f $@
 	$(AR) rcs $@ $(LIBOBJS)
 
-translate.o: translate.c cpu.h $(OPC_H)
+translate.o: translate.c cpu.h
 
-translate-all.o: translate-all.c cpu.h $(OPC_H)
+translate-all.o: translate-all.c cpu.h
 
-tcg/tcg.o: cpu.h $(OPC_H)
-
-tcg/tcg-dyngen.o: $(OPC_H)
-
-tcg/tcg-runtime.o: $(OPC_H)
-
-op.h: op.o $(DYNGEN)
-	$(DYNGEN) -o $@ $<
-
-dyngen-opc.h: op.o $(DYNGEN)
-	$(DYNGEN) -c -o $@ $<
-
-gen-op.h: op.o $(DYNGEN)
-	$(DYNGEN) -g -o $@ $<
-
-op.o: op.c
-	$(CC) $(OP_CFLAGS) $(CPPFLAGS) $(I386_CFLAGS) -c -o $@ $<
+tcg/tcg.o: cpu.h
 
 machine.o: machine.c
 	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
@@ -299,7 +274,7 @@ machine.o: machine.c
 op_helper.o: op_helper.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
 
-cpu-exec.o: cpu-exec.c $(OPC_H)
+cpu-exec.o: cpu-exec.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 #########################################################
@@ -807,7 +782,7 @@ endif
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *.o *.a *~ $(PROGS) gen-op.h dyngen-opc.h op.h nwfpe/*.o fpu/*.o
+	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o
 
 install: all

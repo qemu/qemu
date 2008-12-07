@@ -60,9 +60,8 @@ add_i32 t0, t1, t2  (t0 <- t1 + t2)
 
 - Basic blocks end after branches (e.g. brcond_i32 instruction),
   goto_tb and exit_tb instructions.
-- Basic blocks end before legacy dyngen operations.
-- Basic blocks start after the end of a previous basic block, at a
-  set_label instruction or after a legacy dyngen operation.
+- Basic blocks start after the end of a previous basic block, or at a
+  set_label instruction.
 
 After the end of a basic block, the content of temporaries is
 destroyed, but local temporaries and globals are preserved.
@@ -423,18 +422,7 @@ register.
   target, functions must be able to return 2 values in registers for
   64 bit return type.
 
-5) Migration from dyngen to TCG
-
-TCG is backward compatible with QEMU "dyngen" operations. It means
-that TCG instructions can be freely mixed with dyngen operations. It
-is expected that QEMU targets will be progressively fully converted to
-TCG. Once a target is fully converted to TCG, it will be possible
-to apply more optimizations because more registers will be free for
-the generated code.
-
-The exception model is the same as the dyngen one.
-
-6) Recommended coding rules for best performance
+5) Recommended coding rules for best performance
 
 - Use globals to represent the parts of the QEMU CPU state which are
   often modified, e.g. the integer registers and the condition
@@ -442,8 +430,7 @@ The exception model is the same as the dyngen one.
 
 - Avoid globals stored in fixed registers. They must be used only to
   store the pointer to the CPU state and possibly to store a pointer
-  to a register window. The other uses are to ensure backward
-  compatibility with dyngen during the porting a new target to TCG.
+  to a register window.
 
 - Use temporaries. Use local temporaries only when really needed,
   e.g. when you need to use a value after a jump. Local temporaries
