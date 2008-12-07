@@ -1966,6 +1966,7 @@ struct omap_uart_s {
     uint8_t cfps;
     uint8_t mdr[2];
     uint8_t scr;
+    uint8_t clksel;
 };
 
 void omap_uart_reset(struct omap_uart_s *s)
@@ -1974,6 +1975,7 @@ void omap_uart_reset(struct omap_uart_s *s)
     s->syscontrol = 0;
     s->wkup = 0x3f;
     s->cfps = 0x69;
+    s->clksel = 0;
 }
 
 struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
@@ -2006,17 +2008,19 @@ static uint32_t omap_uart_read(void *opaque, target_phys_addr_t addr)
         return s->scr;
     case 0x44:	/* SSR */
         return 0x0;
-    case 0x48:	/* EBLR */
+    case 0x48:	/* EBLR (OMAP2) */
         return s->eblr;
+    case 0x4C:	/* OSC_12M_SEL (OMAP1) */
+        return s->clksel;
     case 0x50:	/* MVR */
         return 0x30;
-    case 0x54:	/* SYSC */
+    case 0x54:	/* SYSC (OMAP2) */
         return s->syscontrol;
-    case 0x58:	/* SYSS */
+    case 0x58:	/* SYSS (OMAP2) */
         return 1;
-    case 0x5c:	/* WER */
+    case 0x5c:	/* WER (OMAP2) */
         return s->wkup;
-    case 0x60:	/* CFPS */
+    case 0x60:	/* CFPS (OMAP2) */
         return s->cfps;
     }
 
@@ -2040,23 +2044,26 @@ static void omap_uart_write(void *opaque, target_phys_addr_t addr,
     case 0x40:	/* SCR */
         s->scr = value & 0xff;
         break;
-    case 0x48:	/* EBLR */
+    case 0x48:	/* EBLR (OMAP2) */
         s->eblr = value & 0xff;
+        break;
+    case 0x4C:	/* OSC_12M_SEL (OMAP1) */
+        s->clksel = value & 1;
         break;
     case 0x44:	/* SSR */
     case 0x50:	/* MVR */
-    case 0x58:	/* SYSS */
+    case 0x58:	/* SYSS (OMAP2) */
         OMAP_RO_REG(addr);
         break;
-    case 0x54:	/* SYSC */
+    case 0x54:	/* SYSC (OMAP2) */
         s->syscontrol = value & 0x1d;
         if (value & 2)
             omap_uart_reset(s);
         break;
-    case 0x5c:	/* WER */
+    case 0x5c:	/* WER (OMAP2) */
         s->wkup = value & 0x7f;
         break;
-    case 0x60:	/* CFPS */
+    case 0x60:	/* CFPS (OMAP2) */
         s->cfps = value & 0xff;
         break;
     default:
