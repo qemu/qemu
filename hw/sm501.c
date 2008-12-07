@@ -27,6 +27,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "console.h"
+#include "devices.h"
 
 /*
  * Status: 2008/11/02

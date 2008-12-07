@@ -71,7 +71,7 @@ static TCGv_ptr cpu_env;
 static TCGv cpu_gregs[24];
 static TCGv cpu_pc, cpu_sr, cpu_ssr, cpu_spc, cpu_gbr;
 static TCGv cpu_vbr, cpu_sgr, cpu_dbr, cpu_mach, cpu_macl;
-static TCGv cpu_pr, cpu_fpscr, cpu_fpul, cpu_flags;
+static TCGv cpu_pr, cpu_fpscr, cpu_fpul;
 static TCGv cpu_fregs[32];
 
 /* internal register indexes */
@@ -181,7 +181,7 @@ void cpu_dump_state(CPUState * env, FILE * f,
     }
 }
 
-void cpu_sh4_reset(CPUSH4State * env)
+static void cpu_sh4_reset(CPUSH4State * env)
 {
 #if defined(CONFIG_USER_ONLY)
     env->sr = SR_FD;            /* FD - kernel does lazy fpu context switch */

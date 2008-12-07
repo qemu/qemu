@@ -73,7 +73,7 @@ void sh_intc_toggle_source(struct intc_source *source,
   }
 }
 
-void sh_intc_set_irq (void *opaque, int n, int level)
+static void sh_intc_set_irq (void *opaque, int n, int level)
 {
   struct intc_desc *desc = opaque;
   struct intc_source *source = &(desc->sources[n]);

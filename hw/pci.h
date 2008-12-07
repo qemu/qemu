@@ -139,4 +139,8 @@ PCIBus *pci_prep_init(qemu_irq *pic);
 PCIBus *pci_apb_init(target_phys_addr_t special_base, target_phys_addr_t mem_base,
                      qemu_irq *pic);
 
+/* sh_pci.c */
+PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
+                            qemu_irq *pic, int devfn_min, int nirq);
+
 #endif
