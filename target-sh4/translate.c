@@ -447,15 +447,33 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define DREG(x) FREG(x) /* Assumes lsb of (x) is always 0 */
 
 #define CHECK_NOT_DELAY_SLOT \
-  if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) \
-  {gen_helper_raise_slot_illegal_instruction(); ctx->bstate = BS_EXCP; \
-   return;}
+  if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL))     \
+  {                                                           \
+      tcg_gen_movi_i32(cpu_pc, ctx->pc-2);                    \
+      gen_helper_raise_slot_illegal_instruction();            \
+      ctx->bstate = BS_EXCP;                                  \
+      return;                                                 \
+  }
 
 #define CHECK_PRIVILEGED                                      \
   if (IS_USER(ctx)) {                                         \
+      tcg_gen_movi_i32(cpu_pc, ctx->pc);                      \
       gen_helper_raise_illegal_instruction();                 \
       ctx->bstate = BS_EXCP;                                  \
       return;                                                 \
+  }
+
+#define CHECK_FPU_ENABLED                                       \
+  if (ctx->flags & SR_FD) {                                     \
+      if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
+          tcg_gen_movi_i32(cpu_pc, ctx->pc-2);                  \
+          gen_helper_raise_slot_fpu_disable();                  \
+      } else {                                                  \
+          tcg_gen_movi_i32(cpu_pc, ctx->pc);                    \
+          gen_helper_raise_fpu_disable();                       \
+      }                                                         \
+      ctx->bstate = BS_EXCP;                                    \
+      return;                                                   \
   }
 
 static void _decode_opc(DisasContext * ctx)
@@ -1454,12 +1472,14 @@ static void _decode_opc(DisasContext * ctx)
 	LDST(mach, 0x400a, 0x4006, 0x000a, 0x4002, {})
 	LDST(macl, 0x401a, 0x4016, 0x001a, 0x4012, {})
 	LDST(pr,   0x402a, 0x4026, 0x002a, 0x4022, {})
-	LDST(fpul, 0x405a, 0x4056, 0x005a, 0x4052, {})
+	LDST(fpul, 0x405a, 0x4056, 0x005a, 0x4052, {CHECK_FPU_ENABLED})
     case 0x406a:		/* lds Rm,FPSCR */
+	CHECK_FPU_ENABLED
 	gen_helper_ld_fpscr(REG(B11_8));
 	ctx->bstate = BS_STOP;
 	return;
     case 0x4066:		/* lds.l @Rm+,FPSCR */
+	CHECK_FPU_ENABLED
 	{
 	    TCGv addr = tcg_temp_new();
 	    tcg_gen_qemu_ld32s(addr, REG(B11_8), ctx->memidx);
@@ -1470,9 +1490,11 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0x006a:		/* sts FPSCR,Rn */
+	CHECK_FPU_ENABLED
 	tcg_gen_andi_i32(REG(B11_8), cpu_fpscr, 0x003fffff);
 	return;
     case 0x4062:		/* sts FPSCR,@-Rn */
+	CHECK_FPU_ENABLED
 	{
 	    TCGv addr, val;
 	    val = tcg_temp_new();
