@@ -415,7 +415,7 @@ static void gen_set_CF_bit31(TCGv var)
 {
     TCGv tmp = new_tmp();
     tcg_gen_shri_i32(tmp, var, 31);
-    gen_set_CF(var);
+    gen_set_CF(tmp);
     dead_tmp(tmp);
 }
 
@@ -490,7 +490,7 @@ static void shifter_out_im(TCGv var, int shift)
         tcg_gen_andi_i32(tmp, var, 1);
     } else {
         tcg_gen_shri_i32(tmp, var, shift);
-        if (shift != 31);
+        if (shift != 31)
             tcg_gen_andi_i32(tmp, tmp, 1);
     }
     gen_set_CF(tmp);
@@ -4618,6 +4618,7 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     imm = (uint32_t)shift;
                     tmp2 = tcg_const_i32(imm);
                     TCGV_UNUSED_I64(tmp64);
+                    break;
                 case 3:
                     tmp64 = tcg_const_i64(shift);
                     TCGV_UNUSED(tmp2);
@@ -6583,6 +6584,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         break;
                     case 0x12: case 0x16: case 0x1a: case 0x1e: /* sbfx */
                     case 0x32: case 0x36: case 0x3a: case 0x3e: /* ubfx */
+                        ARCH(6T2);
                         tmp = load_reg(s, rm);
                         shift = (insn >> 7) & 0x1f;
                         i = ((insn >> 16) & 0x1f) + 1;
