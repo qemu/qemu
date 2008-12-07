@@ -920,7 +920,6 @@ again:
             break;
         case PHASE_DI:
             s->waiting = 2;
-            s->current_dma_len = s->dbc;
             lsi_do_dma(s, 0);
             if (s->waiting)
                 s->waiting = 3;
