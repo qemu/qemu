@@ -206,12 +206,12 @@ typedef union {
  *   user   : user mode access using soft MMU
  *   kernel : kernel mode access using soft MMU
  */
-static inline int ldub_p(void *ptr)
+static inline int ldub_p(const void *ptr)
 {
     return *(uint8_t *)ptr;
 }
 
-static inline int ldsb_p(void *ptr)
+static inline int ldsb_p(const void *ptr)
 {
     return *(int8_t *)ptr;
 }
@@ -227,7 +227,7 @@ static inline void stb_p(void *ptr, int v)
 #if defined(WORDS_BIGENDIAN) || defined(WORDS_ALIGNED)
 
 /* conservative code for little endian unaligned accesses */
-static inline int lduw_le_p(void *ptr)
+static inline int lduw_le_p(const void *ptr)
 {
 #ifdef __powerpc__
     int val;
@@ -239,7 +239,7 @@ static inline int lduw_le_p(void *ptr)
 #endif
 }
 
-static inline int ldsw_le_p(void *ptr)
+static inline int ldsw_le_p(const void *ptr)
 {
 #ifdef __powerpc__
     int val;
@@ -251,7 +251,7 @@ static inline int ldsw_le_p(void *ptr)
 #endif
 }
 
-static inline int ldl_le_p(void *ptr)
+static inline int ldl_le_p(const void *ptr)
 {
 #ifdef __powerpc__
     int val;
@@ -263,7 +263,7 @@ static inline int ldl_le_p(void *ptr)
 #endif
 }
 
-static inline uint64_t ldq_le_p(void *ptr)
+static inline uint64_t ldq_le_p(const void *ptr)
 {
     uint8_t *p = ptr;
     uint32_t v1, v2;
@@ -305,7 +305,7 @@ static inline void stq_le_p(void *ptr, uint64_t v)
 
 /* float access */
 
-static inline float32 ldfl_le_p(void *ptr)
+static inline float32 ldfl_le_p(const void *ptr)
 {
     union {
         float32 f;
@@ -325,7 +325,7 @@ static inline void stfl_le_p(void *ptr, float32 v)
     stl_le_p(ptr, u.i);
 }
 
-static inline float64 ldfq_le_p(void *ptr)
+static inline float64 ldfq_le_p(const void *ptr)
 {
     CPU_DoubleU u;
     u.l.lower = ldl_le_p(ptr);
@@ -343,22 +343,22 @@ static inline void stfq_le_p(void *ptr, float64 v)
 
 #else
 
-static inline int lduw_le_p(void *ptr)
+static inline int lduw_le_p(const void *ptr)
 {
     return *(uint16_t *)ptr;
 }
 
-static inline int ldsw_le_p(void *ptr)
+static inline int ldsw_le_p(const void *ptr)
 {
     return *(int16_t *)ptr;
 }
 
-static inline int ldl_le_p(void *ptr)
+static inline int ldl_le_p(const void *ptr)
 {
     return *(uint32_t *)ptr;
 }
 
-static inline uint64_t ldq_le_p(void *ptr)
+static inline uint64_t ldq_le_p(const void *ptr)
 {
     return *(uint64_t *)ptr;
 }
@@ -380,12 +380,12 @@ static inline void stq_le_p(void *ptr, uint64_t v)
 
 /* float access */
 
-static inline float32 ldfl_le_p(void *ptr)
+static inline float32 ldfl_le_p(const void *ptr)
 {
     return *(float32 *)ptr;
 }
 
-static inline float64 ldfq_le_p(void *ptr)
+static inline float64 ldfq_le_p(const void *ptr)
 {
     return *(float64 *)ptr;
 }
@@ -403,7 +403,7 @@ static inline void stfq_le_p(void *ptr, float64 v)
 
 #if !defined(WORDS_BIGENDIAN) || defined(WORDS_ALIGNED)
 
-static inline int lduw_be_p(void *ptr)
+static inline int lduw_be_p(const void *ptr)
 {
 #if defined(__i386__)
     int val;
@@ -418,7 +418,7 @@ static inline int lduw_be_p(void *ptr)
 #endif
 }
 
-static inline int ldsw_be_p(void *ptr)
+static inline int ldsw_be_p(const void *ptr)
 {
 #if defined(__i386__)
     int val;
@@ -433,7 +433,7 @@ static inline int ldsw_be_p(void *ptr)
 #endif
 }
 
-static inline int ldl_be_p(void *ptr)
+static inline int ldl_be_p(const void *ptr)
 {
 #if defined(__i386__) || defined(__x86_64__)
     int val;
@@ -448,7 +448,7 @@ static inline int ldl_be_p(void *ptr)
 #endif
 }
 
-static inline uint64_t ldq_be_p(void *ptr)
+static inline uint64_t ldq_be_p(const void *ptr)
 {
     uint32_t a,b;
     a = ldl_be_p(ptr);
@@ -494,7 +494,7 @@ static inline void stq_be_p(void *ptr, uint64_t v)
 
 /* float access */
 
-static inline float32 ldfl_be_p(void *ptr)
+static inline float32 ldfl_be_p(const void *ptr)
 {
     union {
         float32 f;
@@ -514,7 +514,7 @@ static inline void stfl_be_p(void *ptr, float32 v)
     stl_be_p(ptr, u.i);
 }
 
-static inline float64 ldfq_be_p(void *ptr)
+static inline float64 ldfq_be_p(const void *ptr)
 {
     CPU_DoubleU u;
     u.l.upper = ldl_be_p(ptr);
@@ -532,22 +532,22 @@ static inline void stfq_be_p(void *ptr, float64 v)
 
 #else
 
-static inline int lduw_be_p(void *ptr)
+static inline int lduw_be_p(const void *ptr)
 {
     return *(uint16_t *)ptr;
 }
 
-static inline int ldsw_be_p(void *ptr)
+static inline int ldsw_be_p(const void *ptr)
 {
     return *(int16_t *)ptr;
 }
 
-static inline int ldl_be_p(void *ptr)
+static inline int ldl_be_p(const void *ptr)
 {
     return *(uint32_t *)ptr;
 }
 
-static inline uint64_t ldq_be_p(void *ptr)
+static inline uint64_t ldq_be_p(const void *ptr)
 {
     return *(uint64_t *)ptr;
 }
@@ -569,12 +569,12 @@ static inline void stq_be_p(void *ptr, uint64_t v)
 
 /* float access */
 
-static inline float32 ldfl_be_p(void *ptr)
+static inline float32 ldfl_be_p(const void *ptr)
 {
     return *(float32 *)ptr;
 }
 
-static inline float64 ldfq_be_p(void *ptr)
+static inline float64 ldfq_be_p(const void *ptr)
 {
     return *(float64 *)ptr;
 }
