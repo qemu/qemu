@@ -38,7 +38,7 @@
 #define GDBSTUB_SINGLE_STEP 0x4
 
 /* Include definitions for instructions classes and implementations flags */
-#define DO_SINGLE_STEP
+//#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
 //#define DO_PPC_STATISTICS
 //#define OPTIMIZE_FPRF_UPDATE
