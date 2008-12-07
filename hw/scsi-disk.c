@@ -38,6 +38,7 @@ do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
 #define STATUS_CHECK_CONDITION 2
 
 #define SCSI_DMA_BUF_SIZE    131072
+#define SCSI_MAX_INQUIRY_LEN 256
 
 typedef struct SCSIRequest {
     SCSIDeviceState *dev;
@@ -492,7 +493,11 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                      "is less than 36 (TODO: only 5 required)\n", len);
             }
         }
-	memset(outbuf, 0, 36);
+
+        if(len > SCSI_MAX_INQUIRY_LEN)
+            len = SCSI_MAX_INQUIRY_LEN;
+
+        memset(outbuf, 0, len);
 
         if (lun || buf[1] >> 5) {
             outbuf[0] = 0x7f;	/* LUN not supported */
@@ -510,10 +515,10 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
            Some later commands are also implemented. */
 	outbuf[2] = 3;
 	outbuf[3] = 2; /* Format 2 */
-	outbuf[4] = 31;
+	outbuf[4] = len - 5; /* Additional Length = (Len - 1) - 4 */
         /* Sync data transfer and TCQ.  */
         outbuf[7] = 0x10 | (s->tcq ? 0x02 : 0);
-	r->buf_len = 36;
+	r->buf_len = len;
 	break;
     case 0x16:
         DPRINTF("Reserve(6)\n");

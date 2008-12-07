@@ -22,7 +22,6 @@
 #include "helper.h"
 
 #include "helper_regs.h"
-#include "op_helper.h"
 
 //#define DEBUG_OP
 //#define DEBUG_EXCEPTIONS
@@ -65,32 +64,195 @@ void helper_store_cr (target_ulong val, uint32_t mask)
     }
 }
 
-#if defined(TARGET_PPC64)
-void do_store_pri (int prio)
-{
-    env->spr[SPR_PPR] &= ~0x001C000000000000ULL;
-    env->spr[SPR_PPR] |= ((uint64_t)prio & 0x7) << 50;
-}
-#endif
-
-target_ulong ppc_load_dump_spr (int sprn)
+/*****************************************************************************/
+/* SPR accesses */
+void helper_load_dump_spr (uint32_t sprn)
 {
     if (loglevel != 0) {
         fprintf(logfile, "Read SPR %d %03x => " ADDRX "\n",
                 sprn, sprn, env->spr[sprn]);
     }
-
-    return env->spr[sprn];
 }
 
-void ppc_store_dump_spr (int sprn, target_ulong val)
+void helper_store_dump_spr (uint32_t sprn)
 {
     if (loglevel != 0) {
-        fprintf(logfile, "Write SPR %d %03x => " ADDRX " <= " ADDRX "\n",
-                sprn, sprn, env->spr[sprn], val);
+        fprintf(logfile, "Write SPR %d %03x <= " ADDRX "\n",
+                sprn, sprn, env->spr[sprn]);
     }
-    env->spr[sprn] = val;
 }
+
+target_ulong helper_load_tbl (void)
+{
+    return cpu_ppc_load_tbl(env);
+}
+
+target_ulong helper_load_tbu (void)
+{
+    return cpu_ppc_load_tbu(env);
+}
+
+target_ulong helper_load_atbl (void)
+{
+    return cpu_ppc_load_atbl(env);
+}
+
+target_ulong helper_load_atbu (void)
+{
+    return cpu_ppc_load_atbu(env);
+}
+
+target_ulong helper_load_601_rtcl (void)
+{
+    return cpu_ppc601_load_rtcl(env);
+}
+
+target_ulong helper_load_601_rtcu (void)
+{
+    return cpu_ppc601_load_rtcu(env);
+}
+
+#if !defined(CONFIG_USER_ONLY)
+#if defined (TARGET_PPC64)
+void helper_store_asr (target_ulong val)
+{
+    ppc_store_asr(env, val);
+}
+#endif
+
+void helper_store_sdr1 (target_ulong val)
+{
+    ppc_store_sdr1(env, val);
+}
+
+void helper_store_tbl (target_ulong val)
+{
+    cpu_ppc_store_tbl(env, val);
+}
+
+void helper_store_tbu (target_ulong val)
+{
+    cpu_ppc_store_tbu(env, val);
+}
+
+void helper_store_atbl (target_ulong val)
+{
+    cpu_ppc_store_atbl(env, val);
+}
+
+void helper_store_atbu (target_ulong val)
+{
+    cpu_ppc_store_atbu(env, val);
+}
+
+void helper_store_601_rtcl (target_ulong val)
+{
+    cpu_ppc601_store_rtcl(env, val);
+}
+
+void helper_store_601_rtcu (target_ulong val)
+{
+    cpu_ppc601_store_rtcu(env, val);
+}
+
+target_ulong helper_load_decr (void)
+{
+    return cpu_ppc_load_decr(env);
+}
+
+void helper_store_decr (target_ulong val)
+{
+    cpu_ppc_store_decr(env, val);
+}
+
+void helper_store_hid0_601 (target_ulong val)
+{
+    target_ulong hid0;
+
+    hid0 = env->spr[SPR_HID0];
+    if ((val ^ hid0) & 0x00000008) {
+        /* Change current endianness */
+        env->hflags &= ~(1 << MSR_LE);
+        env->hflags_nmsr &= ~(1 << MSR_LE);
+        env->hflags_nmsr |= (1 << MSR_LE) & (((val >> 3) & 1) << MSR_LE);
+        env->hflags |= env->hflags_nmsr;
+        if (loglevel != 0) {
+            fprintf(logfile, "%s: set endianness to %c => " ADDRX "\n",
+                    __func__, val & 0x8 ? 'l' : 'b', env->hflags);
+        }
+    }
+    env->spr[SPR_HID0] = (uint32_t)val;
+}
+
+void helper_store_403_pbr (uint32_t num, target_ulong value)
+{
+    if (likely(env->pb[num] != value)) {
+        env->pb[num] = value;
+        /* Should be optimized */
+        tlb_flush(env, 1);
+    }
+}
+
+target_ulong helper_load_40x_pit (void)
+{
+    return load_40x_pit(env);
+}
+
+void helper_store_40x_pit (target_ulong val)
+{
+    store_40x_pit(env, val);
+}
+
+void helper_store_40x_dbcr0 (target_ulong val)
+{
+    store_40x_dbcr0(env, val);
+}
+
+void helper_store_40x_sler (target_ulong val)
+{
+    store_40x_sler(env, val);
+}
+
+void helper_store_booke_tcr (target_ulong val)
+{
+    store_booke_tcr(env, val);
+}
+
+void helper_store_booke_tsr (target_ulong val)
+{
+    store_booke_tsr(env, val);
+}
+
+void helper_store_ibatu (uint32_t nr, target_ulong val)
+{
+    ppc_store_ibatu(env, nr, val);
+}
+
+void helper_store_ibatl (uint32_t nr, target_ulong val)
+{
+    ppc_store_ibatl(env, nr, val);
+}
+
+void helper_store_dbatu (uint32_t nr, target_ulong val)
+{
+    ppc_store_dbatu(env, nr, val);
+}
+
+void helper_store_dbatl (uint32_t nr, target_ulong val)
+{
+    ppc_store_dbatl(env, nr, val);
+}
+
+void helper_store_601_batl (uint32_t nr, target_ulong val)
+{
+    ppc_store_ibatl_601(env, nr, val);
+}
+
+void helper_store_601_batu (uint32_t nr, target_ulong val)
+{
+    ppc_store_ibatu_601(env, nr, val);
+}
+#endif
 
 /*****************************************************************************/
 /* Memory load and stores */
@@ -841,7 +1003,6 @@ void helper_float_check_status (void)
         if (msr_fe0 != 0 || msr_fe1 != 0)
             raise_exception_err(env, env->exception_index, env->error_code);
     }
-    RETURN();
 #endif
 }
 
@@ -1488,16 +1649,16 @@ uint32_t helper_fcmpo (uint64_t arg1, uint64_t arg2)
 }
 
 #if !defined (CONFIG_USER_ONLY)
-void cpu_dump_rfi (target_ulong RA, target_ulong msr);
-
-void do_store_msr (void)
+void helper_store_msr (target_ulong val)
 {
-    T0 = hreg_store_msr(env, T0, 0);
-    if (T0 != 0) {
+    val = hreg_store_msr(env, val, 0);
+    if (val != 0) {
         env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-        raise_exception(env, T0);
+        raise_exception(env, val);
     }
 }
+
+void cpu_dump_rfi (target_ulong RA, target_ulong msr);
 
 static always_inline void do_rfi (target_ulong nip, target_ulong msr,
                                     target_ulong msrm, int keep_msrh)
@@ -1574,160 +1735,102 @@ void helper_td (target_ulong arg1, target_ulong arg2, uint32_t flags)
 
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
-void do_POWER_abso (void)
-{
-    if ((int32_t)T0 == INT32_MIN) {
-        T0 = INT32_MAX;
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else if ((int32_t)T0 < 0) {
-        T0 = -T0;
-        env->xer &= ~(1 << XER_OV);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-}
 
-void do_POWER_clcs (void)
+target_ulong helper_clcs (uint32_t arg)
 {
-    switch (T0) {
+    switch (arg) {
     case 0x0CUL:
         /* Instruction cache line size */
-        T0 = env->icache_line_size;
+        return env->icache_line_size;
         break;
     case 0x0DUL:
         /* Data cache line size */
-        T0 = env->dcache_line_size;
+        return env->dcache_line_size;
         break;
     case 0x0EUL:
         /* Minimum cache line size */
-        T0 = env->icache_line_size < env->dcache_line_size ?
-            env->icache_line_size : env->dcache_line_size;
+        return (env->icache_line_size < env->dcache_line_size) ?
+                env->icache_line_size : env->dcache_line_size;
         break;
     case 0x0FUL:
         /* Maximum cache line size */
-        T0 = env->icache_line_size > env->dcache_line_size ?
-            env->icache_line_size : env->dcache_line_size;
+        return (env->icache_line_size > env->dcache_line_size) ?
+                env->icache_line_size : env->dcache_line_size;
         break;
     default:
         /* Undefined */
+        return 0;
         break;
     }
 }
 
-void do_POWER_div (void)
+target_ulong helper_div (target_ulong arg1, target_ulong arg2)
 {
-    uint64_t tmp;
+    uint64_t tmp = (uint64_t)arg1 << 32 | env->spr[SPR_MQ];
 
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-        (int32_t)T1 == 0) {
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
+    if (((int32_t)tmp == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
+        (int32_t)arg2 == 0) {
         env->spr[SPR_MQ] = 0;
+        return INT32_MIN;
     } else {
-        tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
-        env->spr[SPR_MQ] = tmp % T1;
-        T0 = tmp / (int32_t)T1;
+        env->spr[SPR_MQ] = tmp % arg2;
+        return  tmp / (int32_t)arg2;
     }
 }
 
-void do_POWER_divo (void)
+target_ulong helper_divo (target_ulong arg1, target_ulong arg2)
 {
-    int64_t tmp;
+    uint64_t tmp = (uint64_t)arg1 << 32 | env->spr[SPR_MQ];
 
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-        (int32_t)T1 == 0) {
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
-        env->spr[SPR_MQ] = 0;
+    if (((int32_t)tmp == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
+        (int32_t)arg2 == 0) {
         env->xer |= (1 << XER_OV) | (1 << XER_SO);
+        env->spr[SPR_MQ] = 0;
+        return INT32_MIN;
     } else {
-        tmp = ((uint64_t)T0 << 32) | env->spr[SPR_MQ];
-        env->spr[SPR_MQ] = tmp % T1;
-        tmp /= (int32_t)T1;
-        if (tmp > (int64_t)INT32_MAX || tmp < (int64_t)INT32_MIN) {
+        env->spr[SPR_MQ] = tmp % arg2;
+        tmp /= (int32_t)arg2;
+	if ((int32_t)tmp != tmp) {
             env->xer |= (1 << XER_OV) | (1 << XER_SO);
         } else {
             env->xer &= ~(1 << XER_OV);
         }
-        T0 = tmp;
+        return tmp;
     }
 }
 
-void do_POWER_divs (void)
+target_ulong helper_divs (target_ulong arg1, target_ulong arg2)
 {
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-        (int32_t)T1 == 0) {
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
+    if (((int32_t)arg1 == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
+        (int32_t)arg2 == 0) {
         env->spr[SPR_MQ] = 0;
+        return INT32_MIN;
     } else {
-        env->spr[SPR_MQ] = T0 % T1;
-        T0 = (int32_t)T0 / (int32_t)T1;
+        env->spr[SPR_MQ] = (int32_t)arg1 % (int32_t)arg2;
+        return (int32_t)arg1 / (int32_t)arg2;
     }
 }
 
-void do_POWER_divso (void)
+target_ulong helper_divso (target_ulong arg1, target_ulong arg2)
 {
-    if (((int32_t)T0 == INT32_MIN && (int32_t)T1 == (int32_t)-1) ||
-        (int32_t)T1 == 0) {
-        T0 = UINT32_MAX * ((uint32_t)T0 >> 31);
+    if (((int32_t)arg1 == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
+        (int32_t)arg2 == 0) {
+        env->xer |= (1 << XER_OV) | (1 << XER_SO);
         env->spr[SPR_MQ] = 0;
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else {
-        T0 = (int32_t)T0 / (int32_t)T1;
-        env->spr[SPR_MQ] = (int32_t)T0 % (int32_t)T1;
-        env->xer &= ~(1 << XER_OV);
-    }
-}
-
-void do_POWER_dozo (void)
-{
-    if ((int32_t)T1 > (int32_t)T0) {
-        T2 = T0;
-        T0 = T1 - T0;
-        if (((uint32_t)(~T2) ^ (uint32_t)T1 ^ UINT32_MAX) &
-            ((uint32_t)(~T2) ^ (uint32_t)T0) & (1UL << 31)) {
-            env->xer |= (1 << XER_OV) | (1 << XER_SO);
-        } else {
-            env->xer &= ~(1 << XER_OV);
-        }
-    } else {
-        T0 = 0;
-        env->xer &= ~(1 << XER_OV);
-    }
-}
-
-void do_POWER_maskg (void)
-{
-    uint32_t ret;
-
-    if ((uint32_t)T0 == (uint32_t)(T1 + 1)) {
-        ret = UINT32_MAX;
-    } else {
-        ret = (UINT32_MAX >> ((uint32_t)T0)) ^
-            ((UINT32_MAX >> ((uint32_t)T1)) >> 1);
-        if ((uint32_t)T0 > (uint32_t)T1)
-            ret = ~ret;
-    }
-    T0 = ret;
-}
-
-void do_POWER_mulo (void)
-{
-    uint64_t tmp;
-
-    tmp = (uint64_t)T0 * (uint64_t)T1;
-    env->spr[SPR_MQ] = tmp >> 32;
-    T0 = tmp;
-    if (tmp >> 32 != ((uint64_t)T0 >> 16) * ((uint64_t)T1 >> 16)) {
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
+        return INT32_MIN;
     } else {
         env->xer &= ~(1 << XER_OV);
+        env->spr[SPR_MQ] = (int32_t)arg1 % (int32_t)arg2;
+        return (int32_t)arg1 / (int32_t)arg2;
     }
 }
 
 #if !defined (CONFIG_USER_ONLY)
-void do_POWER_rac (void)
+target_ulong helper_rac (target_ulong addr)
 {
     mmu_ctx_t ctx;
     int nb_BATs;
+    target_ulong ret = 0;
 
     /* We don't have to generate many instances of this instruction,
      * as rac is supervisor only.
@@ -1735,33 +1838,15 @@ void do_POWER_rac (void)
     /* XXX: FIX THIS: Pretend we have no BAT */
     nb_BATs = env->nb_BATs;
     env->nb_BATs = 0;
-    if (get_physical_address(env, &ctx, T0, 0, ACCESS_INT) == 0)
-        T0 = ctx.raddr;
+    if (get_physical_address(env, &ctx, addr, 0, ACCESS_INT) == 0)
+        ret = ctx.raddr;
     env->nb_BATs = nb_BATs;
+    return ret;
 }
 
 void helper_rfsvc (void)
 {
     do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
-}
-
-void do_store_hid0_601 (void)
-{
-    uint32_t hid0;
-
-    hid0 = env->spr[SPR_HID0];
-    if ((T0 ^ hid0) & 0x00000008) {
-        /* Change current endianness */
-        env->hflags &= ~(1 << MSR_LE);
-        env->hflags_nmsr &= ~(1 << MSR_LE);
-        env->hflags_nmsr |= (1 << MSR_LE) & (((T0 >> 3) & 1) << MSR_LE);
-        env->hflags |= env->hflags_nmsr;
-        if (loglevel != 0) {
-            fprintf(logfile, "%s: set endianness to %c => " ADDRX "\n",
-                    __func__, T0 & 0x8 ? 'l' : 'b', env->hflags);
-        }
-    }
-    env->spr[SPR_HID0] = T0;
 }
 #endif
 
@@ -1775,7 +1860,7 @@ target_ulong helper_602_mfrom (target_ulong arg)
     if (likely(arg < 602)) {
 #if defined(USE_MFROM_ROM_TABLE)
 #include "mfrom_table.c"
-        return mfrom_ROM_table[T0];
+        return mfrom_ROM_table[arg];
 #else
         double d;
         /* Extremly decomposed:
@@ -1801,9 +1886,9 @@ target_ulong helper_602_mfrom (target_ulong arg)
 /* Embedded PowerPC specific helpers */
 
 /* XXX: to be improved to check access rights when in user-mode */
-void do_load_dcr (void)
+target_ulong helper_load_dcr (target_ulong dcrn)
 {
-    target_ulong val;
+    target_ulong val = 0;
 
     if (unlikely(env->dcr_env == NULL)) {
         if (loglevel != 0) {
@@ -1811,18 +1896,17 @@ void do_load_dcr (void)
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
-    } else if (unlikely(ppc_dcr_read(env->dcr_env, T0, &val) != 0)) {
+    } else if (unlikely(ppc_dcr_read(env->dcr_env, dcrn, &val) != 0)) {
         if (loglevel != 0) {
-            fprintf(logfile, "DCR read error %d %03x\n", (int)T0, (int)T0);
+            fprintf(logfile, "DCR read error %d %03x\n", (int)dcrn, (int)dcrn);
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
-    } else {
-        T0 = val;
     }
+    return val;
 }
 
-void do_store_dcr (void)
+void helper_store_dcr (target_ulong dcrn, target_ulong val)
 {
     if (unlikely(env->dcr_env == NULL)) {
         if (loglevel != 0) {
@@ -1830,9 +1914,9 @@ void do_store_dcr (void)
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
-    } else if (unlikely(ppc_dcr_write(env->dcr_env, T0, T1) != 0)) {
+    } else if (unlikely(ppc_dcr_write(env->dcr_env, dcrn, val) != 0)) {
         if (loglevel != 0) {
-            fprintf(logfile, "DCR write error %d %03x\n", (int)T0, (int)T0);
+            fprintf(logfile, "DCR write error %d %03x\n", (int)dcrn, (int)dcrn);
         }
         raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                             POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
@@ -1862,20 +1946,6 @@ void helper_rfmci (void)
 {
     do_rfi(env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
            ~((target_ulong)0x3FFF0000), 0);
-}
-
-void do_load_403_pb (int num)
-{
-    T0 = env->pb[num];
-}
-
-void do_store_403_pb (int num)
-{
-    if (likely(env->pb[num] != T0)) {
-        env->pb[num] = T0;
-        /* Should be optimized */
-        tlb_flush(env, 1);
-    }
 }
 #endif
 
@@ -2598,9 +2668,55 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 
+/* Segment registers load and store */
+target_ulong helper_load_sr (target_ulong sr_num)
+{
+    return env->sr[sr_num];
+}
+
+void helper_store_sr (target_ulong sr_num, target_ulong val)
+{
+    ppc_store_sr(env, sr_num, val);
+}
+
+/* SLB management */
+#if defined(TARGET_PPC64)
+target_ulong helper_load_slb (target_ulong slb_nr)
+{
+    return ppc_load_slb(env, slb_nr);
+}
+
+void helper_store_slb (target_ulong slb_nr, target_ulong rs)
+{
+    ppc_store_slb(env, slb_nr, rs);
+}
+
+void helper_slbia (void)
+{
+    ppc_slb_invalidate_all(env);
+}
+
+void helper_slbie (target_ulong addr)
+{
+    ppc_slb_invalidate_one(env, addr);
+}
+
+#endif /* defined(TARGET_PPC64) */
+
+/* TLB management */
+void helper_tlbia (void)
+{
+    ppc_tlb_invalidate_all(env);
+}
+
+void helper_tlbie (target_ulong addr)
+{
+    ppc_tlb_invalidate_one(env, addr);
+}
+
 /* Software driven TLBs management */
 /* PowerPC 602/603 software TLB load instructions helpers */
-static void helper_load_6xx_tlb (target_ulong new_EPN, int is_code)
+static void do_6xx_tlb (target_ulong new_EPN, int is_code)
 {
     target_ulong RPN, CMP, EPN;
     int way;
@@ -2626,18 +2742,18 @@ static void helper_load_6xx_tlb (target_ulong new_EPN, int is_code)
                      way, is_code, CMP, RPN);
 }
 
-void helper_load_6xx_tlbd (target_ulong EPN)
+void helper_6xx_tlbd (target_ulong EPN)
 {
-    helper_load_6xx_tlb(EPN, 0);
+    do_6xx_tlb(EPN, 0);
 }
 
-void helper_load_6xx_tlbi (target_ulong EPN)
+void helper_6xx_tlbi (target_ulong EPN)
 {
-    helper_load_6xx_tlb(EPN, 1);
+    do_6xx_tlb(EPN, 1);
 }
 
 /* PowerPC 74xx software TLB load instructions helpers */
-static void helper_load_74xx_tlb (target_ulong new_EPN, int is_code)
+static void do_74xx_tlb (target_ulong new_EPN, int is_code)
 {
     target_ulong RPN, CMP, EPN;
     int way;
@@ -2658,14 +2774,14 @@ static void helper_load_74xx_tlb (target_ulong new_EPN, int is_code)
                      way, is_code, CMP, RPN);
 }
 
-void helper_load_74xx_tlbd (target_ulong EPN)
+void helper_74xx_tlbd (target_ulong EPN)
 {
-    helper_load_74xx_tlb(EPN, 0);
+    do_74xx_tlb(EPN, 0);
 }
 
-void helper_load_74xx_tlbi (target_ulong EPN)
+void helper_74xx_tlbi (target_ulong EPN)
 {
-    helper_load_74xx_tlb(EPN, 1);
+    do_74xx_tlb(EPN, 1);
 }
 
 static always_inline target_ulong booke_tlb_to_page_size (int size)
@@ -2737,82 +2853,86 @@ static always_inline int booke_page_size_to_tlb (target_ulong page_size)
 }
 
 /* Helpers for 4xx TLB management */
-void do_4xx_tlbre_lo (void)
+target_ulong helper_4xx_tlbre_lo (target_ulong entry)
 {
     ppcemb_tlb_t *tlb;
+    target_ulong ret;
     int size;
 
-    T0 &= 0x3F;
-    tlb = &env->tlb[T0].tlbe;
-    T0 = tlb->EPN;
+    entry &= 0x3F;
+    tlb = &env->tlb[entry].tlbe;
+    ret = tlb->EPN;
     if (tlb->prot & PAGE_VALID)
-        T0 |= 0x400;
+        ret |= 0x400;
     size = booke_page_size_to_tlb(tlb->size);
     if (size < 0 || size > 0x7)
         size = 1;
-    T0 |= size << 7;
+    ret |= size << 7;
     env->spr[SPR_40x_PID] = tlb->PID;
+    return ret;
 }
 
-void do_4xx_tlbre_hi (void)
+target_ulong helper_4xx_tlbre_hi (target_ulong entry)
 {
     ppcemb_tlb_t *tlb;
+    target_ulong ret;
 
-    T0 &= 0x3F;
-    tlb = &env->tlb[T0].tlbe;
-    T0 = tlb->RPN;
+    entry &= 0x3F;
+    tlb = &env->tlb[entry].tlbe;
+    ret = tlb->RPN;
     if (tlb->prot & PAGE_EXEC)
-        T0 |= 0x200;
+        ret |= 0x200;
     if (tlb->prot & PAGE_WRITE)
-        T0 |= 0x100;
+        ret |= 0x100;
+    return ret;
 }
 
-void do_4xx_tlbwe_hi (void)
+void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
 {
     ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s T0 " TDX " T1 " TDX "\n", __func__, T0, T1);
+        fprintf(logfile, "%s entry " TDX " val " TDX "\n", __func__, entry, val);
     }
 #endif
-    T0 &= 0x3F;
-    tlb = &env->tlb[T0].tlbe;
+    entry &= 0x3F;
+    tlb = &env->tlb[entry].tlbe;
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
 #if defined (DEBUG_SOFTWARE_TLB)
         if (loglevel != 0) {
             fprintf(logfile, "%s: invalidate old TLB %d start " ADDRX
-                    " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
+                    " end " ADDRX "\n", __func__, (int)entry, tlb->EPN, end);
         }
 #endif
         // optimize memset in tlb_flush_page!!!
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
             tlb_flush_page(env, page);
     }
-    tlb->size = booke_tlb_to_page_size((T1 >> 7) & 0x7);
+    tlb->size = booke_tlb_to_page_size((val >> 7) & 0x7);
     /* We cannot handle TLB size < TARGET_PAGE_SIZE.
      * If this ever occurs, one should use the ppcemb target instead
      * of the ppc or ppc64 one
      */
-    if ((T1 & 0x40) && tlb->size < TARGET_PAGE_SIZE) {
+    if ((val & 0x40) && tlb->size < TARGET_PAGE_SIZE) {
         cpu_abort(env, "TLB size " TARGET_FMT_lu " < %u "
                   "are not supported (%d)\n",
-                  tlb->size, TARGET_PAGE_SIZE, (int)((T1 >> 7) & 0x7));
+                  tlb->size, TARGET_PAGE_SIZE, (int)((val >> 7) & 0x7));
     }
-    tlb->EPN = T1 & ~(tlb->size - 1);
-    if (T1 & 0x40)
+    tlb->EPN = val & ~(tlb->size - 1);
+    if (val & 0x40)
         tlb->prot |= PAGE_VALID;
     else
         tlb->prot &= ~PAGE_VALID;
-    if (T1 & 0x20) {
+    if (val & 0x20) {
         /* XXX: TO BE FIXED */
         cpu_abort(env, "Little-endian TLB entries are not supported by now\n");
     }
     tlb->PID = env->spr[SPR_40x_PID]; /* PID */
-    tlb->attr = T1 & 0xFF;
+    tlb->attr = val & 0xFF;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
         fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
@@ -2839,28 +2959,28 @@ void do_4xx_tlbwe_hi (void)
     }
 }
 
-void do_4xx_tlbwe_lo (void)
+void helper_4xx_tlbwe_lo (target_ulong entry, target_ulong val)
 {
     ppcemb_tlb_t *tlb;
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s T0 " TDX " T1 " TDX "\n", __func__, T0, T1);
+        fprintf(logfile, "%s entry " TDX " val " TDX "\n", __func__, entry, val);
     }
 #endif
-    T0 &= 0x3F;
-    tlb = &env->tlb[T0].tlbe;
-    tlb->RPN = T1 & 0xFFFFFC00;
+    entry &= 0x3F;
+    tlb = &env->tlb[entry].tlbe;
+    tlb->RPN = val & 0xFFFFFC00;
     tlb->prot = PAGE_READ;
-    if (T1 & 0x200)
+    if (val & 0x200)
         tlb->prot |= PAGE_EXEC;
-    if (T1 & 0x100)
+    if (val & 0x100)
         tlb->prot |= PAGE_WRITE;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
         fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
-                (int)T0, tlb->RPN, tlb->EPN, tlb->size,
+                (int)entry, tlb->RPN, tlb->EPN, tlb->size,
                 tlb->prot & PAGE_READ ? 'r' : '-',
                 tlb->prot & PAGE_WRITE ? 'w' : '-',
                 tlb->prot & PAGE_EXEC ? 'x' : '-',
@@ -2869,8 +2989,13 @@ void do_4xx_tlbwe_lo (void)
 #endif
 }
 
+target_ulong helper_4xx_tlbsx (target_ulong address)
+{
+    return ppcemb_tlb_search(env, address, env->spr[SPR_40x_PID]);
+}
+
 /* PowerPC 440 TLB management */
-void do_440_tlbwe (int word)
+void helper_440_tlbwe (uint32_t word, target_ulong entry, target_ulong value)
 {
     ppcemb_tlb_t *tlb;
     target_ulong EPN, RPN, size;
@@ -2878,28 +3003,28 @@ void do_440_tlbwe (int word)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s word %d T0 " TDX " T1 " TDX "\n",
-                __func__, word, T0, T1);
+        fprintf(logfile, "%s word %d entry " TDX " value " TDX "\n",
+                __func__, word, entry, value);
     }
 #endif
     do_flush_tlbs = 0;
-    T0 &= 0x3F;
-    tlb = &env->tlb[T0].tlbe;
+    entry &= 0x3F;
+    tlb = &env->tlb[entry].tlbe;
     switch (word) {
     default:
         /* Just here to please gcc */
     case 0:
-        EPN = T1 & 0xFFFFFC00;
+        EPN = value & 0xFFFFFC00;
         if ((tlb->prot & PAGE_VALID) && EPN != tlb->EPN)
             do_flush_tlbs = 1;
         tlb->EPN = EPN;
-        size = booke_tlb_to_page_size((T1 >> 4) & 0xF);
+        size = booke_tlb_to_page_size((value >> 4) & 0xF);
         if ((tlb->prot & PAGE_VALID) && tlb->size < size)
             do_flush_tlbs = 1;
         tlb->size = size;
         tlb->attr &= ~0x1;
-        tlb->attr |= (T1 >> 8) & 1;
-        if (T1 & 0x200) {
+        tlb->attr |= (value >> 8) & 1;
+        if (value & 0x200) {
             tlb->prot |= PAGE_VALID;
         } else {
             if (tlb->prot & PAGE_VALID) {
@@ -2912,71 +3037,79 @@ void do_440_tlbwe (int word)
             tlb_flush(env, 1);
         break;
     case 1:
-        RPN = T1 & 0xFFFFFC0F;
+        RPN = value & 0xFFFFFC0F;
         if ((tlb->prot & PAGE_VALID) && tlb->RPN != RPN)
             tlb_flush(env, 1);
         tlb->RPN = RPN;
         break;
     case 2:
-        tlb->attr = (tlb->attr & 0x1) | (T1 & 0x0000FF00);
+        tlb->attr = (tlb->attr & 0x1) | (value & 0x0000FF00);
         tlb->prot = tlb->prot & PAGE_VALID;
-        if (T1 & 0x1)
+        if (value & 0x1)
             tlb->prot |= PAGE_READ << 4;
-        if (T1 & 0x2)
+        if (value & 0x2)
             tlb->prot |= PAGE_WRITE << 4;
-        if (T1 & 0x4)
+        if (value & 0x4)
             tlb->prot |= PAGE_EXEC << 4;
-        if (T1 & 0x8)
+        if (value & 0x8)
             tlb->prot |= PAGE_READ;
-        if (T1 & 0x10)
+        if (value & 0x10)
             tlb->prot |= PAGE_WRITE;
-        if (T1 & 0x20)
+        if (value & 0x20)
             tlb->prot |= PAGE_EXEC;
         break;
     }
 }
 
-void do_440_tlbre (int word)
+target_ulong helper_440_tlbre (uint32_t word, target_ulong entry)
 {
     ppcemb_tlb_t *tlb;
+    target_ulong ret;
     int size;
 
-    T0 &= 0x3F;
-    tlb = &env->tlb[T0].tlbe;
+    entry &= 0x3F;
+    tlb = &env->tlb[entry].tlbe;
     switch (word) {
     default:
         /* Just here to please gcc */
     case 0:
-        T0 = tlb->EPN;
+        ret = tlb->EPN;
         size = booke_page_size_to_tlb(tlb->size);
         if (size < 0 || size > 0xF)
             size = 1;
-        T0 |= size << 4;
+        ret |= size << 4;
         if (tlb->attr & 0x1)
-            T0 |= 0x100;
+            ret |= 0x100;
         if (tlb->prot & PAGE_VALID)
-            T0 |= 0x200;
+            ret |= 0x200;
         env->spr[SPR_440_MMUCR] &= ~0x000000FF;
         env->spr[SPR_440_MMUCR] |= tlb->PID;
         break;
     case 1:
-        T0 = tlb->RPN;
+        ret = tlb->RPN;
         break;
     case 2:
-        T0 = tlb->attr & ~0x1;
+        ret = tlb->attr & ~0x1;
         if (tlb->prot & (PAGE_READ << 4))
-            T0 |= 0x1;
+            ret |= 0x1;
         if (tlb->prot & (PAGE_WRITE << 4))
-            T0 |= 0x2;
+            ret |= 0x2;
         if (tlb->prot & (PAGE_EXEC << 4))
-            T0 |= 0x4;
+            ret |= 0x4;
         if (tlb->prot & PAGE_READ)
-            T0 |= 0x8;
+            ret |= 0x8;
         if (tlb->prot & PAGE_WRITE)
-            T0 |= 0x10;
+            ret |= 0x10;
         if (tlb->prot & PAGE_EXEC)
-            T0 |= 0x20;
+            ret |= 0x20;
         break;
     }
+    return ret;
 }
+
+target_ulong helper_440_tlbsx (target_ulong address)
+{
+    return ppcemb_tlb_search(env, address, env->spr[SPR_440_MMUCR] & 0xFF);
+}
+
 #endif /* !CONFIG_USER_ONLY */

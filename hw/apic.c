@@ -105,6 +105,12 @@ static void apic_init_ipi(APICState *s);
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode);
 static void apic_update_irq(APICState *s);
 
+/* Find first bit starting from msb */
+static int fls_bit(uint32_t value)
+{
+    return 31 - clz32(value);
+}
+
 /* Find first bit starting from lsb */
 static int ffs_bit(uint32_t value)
 {
@@ -300,7 +306,7 @@ static int get_highest_priority_int(uint32_t *tab)
     int i;
     for(i = 7; i >= 0; i--) {
         if (tab[i] != 0) {
-            return i * 32 + fls(tab[i]);
+            return i * 32 + fls_bit(tab[i]);
         }
     }
     return -1;

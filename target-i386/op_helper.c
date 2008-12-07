@@ -1745,7 +1745,6 @@ void helper_aaa(void)
     }
     EAX = (EAX & ~0xffff) | al | (ah << 8);
     CC_SRC = eflags;
-    FORCE_RET();
 }
 
 void helper_aas(void)
@@ -1770,7 +1769,6 @@ void helper_aas(void)
     }
     EAX = (EAX & ~0xffff) | al | (ah << 8);
     CC_SRC = eflags;
-    FORCE_RET();
 }
 
 void helper_daa(void)
@@ -1798,7 +1796,6 @@ void helper_daa(void)
     eflags |= parity_table[al]; /* pf */
     eflags |= (al & 0x80); /* sf */
     CC_SRC = eflags;
-    FORCE_RET();
 }
 
 void helper_das(void)
@@ -1829,7 +1826,6 @@ void helper_das(void)
     eflags |= parity_table[al]; /* pf */
     eflags |= (al & 0x80); /* sf */
     CC_SRC = eflags;
-    FORCE_RET();
 }
 
 void helper_into(int next_eip_addend)
@@ -3553,7 +3549,6 @@ void helper_fcom_ST0_FT0(void)
 
     ret = floatx_compare(ST0, FT0, &env->fp_status);
     env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret + 1];
-    FORCE_RET();
 }
 
 void helper_fucom_ST0_FT0(void)
@@ -3562,7 +3557,6 @@ void helper_fucom_ST0_FT0(void)
 
     ret = floatx_compare_quiet(ST0, FT0, &env->fp_status);
     env->fpus = (env->fpus & ~0x4500) | fcom_ccval[ret+ 1];
-    FORCE_RET();
 }
 
 static const int fcomi_ccval[4] = {CC_C, CC_Z, 0, CC_Z | CC_P | CC_C};
@@ -3576,7 +3570,6 @@ void helper_fcomi_ST0_FT0(void)
     eflags = helper_cc_compute_all(CC_OP);
     eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
     CC_SRC = eflags;
-    FORCE_RET();
 }
 
 void helper_fucomi_ST0_FT0(void)
@@ -3588,7 +3581,6 @@ void helper_fucomi_ST0_FT0(void)
     eflags = helper_cc_compute_all(CC_OP);
     eflags = (eflags & ~(CC_Z | CC_P | CC_C)) | fcomi_ccval[ret + 1];
     CC_SRC = eflags;
-    FORCE_RET();
 }
 
 void helper_fadd_ST0_FT0(void)
@@ -3773,7 +3765,6 @@ void helper_fwait(void)
 {
     if (env->fpus & FPUS_SE)
         fpu_raise_exception();
-    FORCE_RET();
 }
 
 void helper_fninit(void)
@@ -4629,7 +4620,6 @@ void helper_boundw(target_ulong a0, int v)
     if (v < low || v > high) {
         raise_exception(EXCP05_BOUND);
     }
-    FORCE_RET();
 }
 
 void helper_boundl(target_ulong a0, int v)
@@ -4640,7 +4630,6 @@ void helper_boundl(target_ulong a0, int v)
     if (v < low || v > high) {
         raise_exception(EXCP05_BOUND);
     }
-    FORCE_RET();
 }
 
 static float approx_rsqrt(float a)

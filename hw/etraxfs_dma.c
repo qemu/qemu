@@ -165,10 +165,8 @@ enum dma_ch_state
 
 struct fs_dma_channel
 {
-	int regmap;
 	qemu_irq *irq;
 	struct etraxfs_dma_client *client;
-
 
 	/* Internal status.  */
 	int stream_cmd_src;
@@ -187,6 +185,7 @@ struct fs_dma_channel
 
 struct fs_dma_ctrl
 {
+	int map;
 	CPUState *env;
 
 	int nr_channels;
@@ -570,9 +569,9 @@ dma_readl (void *opaque, target_phys_addr_t addr)
 	int c;
 	uint32_t r = 0;
 
-	/* Make addr relative to this instances base.  */
+	/* Make addr relative to this channel and bounded to nr regs.  */
 	c = fs_channel(addr);
-	addr &= 0x1fff;
+	addr &= 0xff;
 	switch (addr)
 	{
 		case RW_STAT:
@@ -616,9 +615,9 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
         struct fs_dma_ctrl *ctrl = opaque;
 	int c;
 
-        /* Make addr relative to this instances base.  */
+        /* Make addr relative to this channel and bounded to nr regs.  */
 	c = fs_channel(addr);
-        addr &= 0x1fff;
+        addr &= 0xff;
         switch (addr)
 	{
 		case RW_DATA:
@@ -744,7 +743,6 @@ void *etraxfs_dmac_init(CPUState *env,
 			target_phys_addr_t base, int nr_channels)
 {
 	struct fs_dma_ctrl *ctrl = NULL;
-	int i;
 
 	ctrl = qemu_mallocz(sizeof *ctrl);
 	if (!ctrl)
@@ -758,17 +756,8 @@ void *etraxfs_dmac_init(CPUState *env,
 	if (!ctrl->channels)
 		goto err;
 
-	for (i = 0; i < nr_channels; i++)
-	{
-		ctrl->channels[i].regmap = cpu_register_io_memory(0,
-								  dma_read, 
-								  dma_write, 
-								  ctrl);
-		cpu_register_physical_memory_offset (base + i * 0x2000,
-                    sizeof ctrl->channels[i].regs, ctrl->channels[i].regmap,
-                    i * 0x2000);
-	}
-
+	ctrl->map = cpu_register_io_memory(0, dma_read, dma_write, ctrl);
+	cpu_register_physical_memory(base, nr_channels * 0x2000, ctrl->map);
 	return ctrl;
   err:
 	qemu_free(ctrl->channels);

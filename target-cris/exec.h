@@ -25,8 +25,6 @@ register struct CPUCRISState *env asm(AREG0);
 #include "cpu.h"
 #include "exec-all.h"
 
-#define RETURN() __asm__ __volatile__("" : : : "memory");
-
 static inline void env_to_regs(void)
 {
 }

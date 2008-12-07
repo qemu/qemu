@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "config-host.h"
 
 #ifndef O_LARGEFILE
 #define O_LARGEFILE 0
@@ -30,6 +31,16 @@
 
 #define KiB     1024
 #define MiB     (KiB * KiB)
+
+#ifndef HAVE_IOVEC
+#define HAVE_IOVEC
+struct iovec {
+    void *iov_base;
+    size_t iov_len;
+};
+#else
+#include <sys/uio.h>
+#endif
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -57,7 +68,6 @@ static inline char *realpath(const char *path, char *resolved_path)
 /* FIXME: Remove NEED_CPU_H.  */
 #ifndef NEED_CPU_H
 
-#include "config-host.h"
 #include <setjmp.h>
 #include "osdep.h"
 #include "bswap.h"

@@ -28,7 +28,6 @@ CPPFLAGS=-I. -I.. -I$(TARGET_PATH) -I$(SRC_PATH) -MMD -MT $@ -MP -DNEED_CPU_H
 #CFLAGS+=-Werror
 BASE_LDFLAGS += -g
 LIBS=
-DYNGEN=../dyngen$(EXESUF)
 # user emulator name
 ifndef TARGET_ARCH2
 TARGET_ARCH2=$(TARGET_ARCH)
@@ -93,7 +92,7 @@ endif # !CONFIG_LINUX_USER
 
 # We require -O2 to avoid the stack setup prologue in EXIT_TB
 OP_CFLAGS := -O2 -g -fno-strict-aliasing
-OP_CFLAGS += -Wall -Wundef -Wendif-labels -Wwrite-strings
+OP_CFLAGS += -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls
 OP_CFLAGS += -Wshadow
 
 # cc-option
@@ -117,12 +116,6 @@ HELPER_CFLAGS=
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
-# op.c and helper.c need this on 32-bit x86 system to avoid
-# a compiler spill error. This can probably go away
-# once the SSE ops have been converted to TCG
-ifeq ($(HAVE_GT_GCC_3_3), true)
-I386_CFLAGS=-march=i586 -mtune=i686
-endif
 endif
 
 ifeq ($(ARCH),ppc)
@@ -215,12 +208,8 @@ all: $(PROGS)
 # cpu emulator library
 LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
         translate.o host-utils.o
-ifdef CONFIG_DYNGEN_OP
-exec.o: dyngen-opc.h
-LIBOBJS+=op.o
-endif
 # TCG code generator
-LIBOBJS+= tcg/tcg.o tcg/tcg-dyngen.o tcg/tcg-runtime.o
+LIBOBJS+= tcg/tcg.o tcg/tcg-runtime.o
 CPPFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
 ifeq ($(ARCH),sparc64)
 CPPFLAGS+=-I$(SRC_PATH)/tcg/sparc
@@ -294,38 +283,16 @@ endif
 
 # libqemu
 
-ifdef CONFIG_DYNGEN_OP
-OPC_H = gen-op.h dyngen-opc.h op.h
-endif
-
 libqemu.a: $(LIBOBJS)
 	rm -f $@
 	$(AR) rcs $@ $(LIBOBJS)
 
-translate.o: translate.c cpu.h $(OPC_H)
+translate.o: translate.c cpu.h
 translate.o: CFLAGS:=${CFLAGS} -O1 #-fno-unit-at-a-time
 
-translate-all.o: translate-all.c cpu.h $(OPC_H)
+translate-all.o: translate-all.c cpu.h
 
-tcg/tcg.o: cpu.h $(OPC_H)
-
-tcg/tcg-dyngen.o: $(OPC_H)
-
-tcg/tcg-runtime.o: $(OPC_H)
-
-ifdef CONFIG_DYNGEN_OP
-op.h: op.o $(DYNGEN)
-	$(DYNGEN) -o $@ $<
-
-dyngen-opc.h: op.o $(DYNGEN)
-	$(DYNGEN) -c -o $@ $<
-
-gen-op.h: op.o $(DYNGEN)
-	$(DYNGEN) -g -o $@ $<
-
-op.o: op.c
-	$(CC) $(OP_CFLAGS) $(CPPFLAGS) $(I386_CFLAGS) -c -o $@ $<
-endif
+tcg/tcg.o: cpu.h
 
 machine.o: machine.c
 	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
@@ -335,7 +302,7 @@ machine.o: machine.c
 op_helper.o: op_helper.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
 
-cpu-exec.o: cpu-exec.c $(OPC_H)
+cpu-exec.o: cpu-exec.c
 	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 #########################################################
@@ -790,7 +757,8 @@ CPPFLAGS += -DHAS_AUDIO
 endif
 ifeq ($(TARGET_BASE_ARCH), sh4)
 OBJS+= shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
-OBJS+= sh_timer.o ptimer.o sh_serial.o sh_intc.o sm501.o serial.o
+OBJS+= sh_timer.o ptimer.o sh_serial.o sh_intc.o sh_pci.o sm501.o serial.o
+OBJS+= ide.o
 endif
 ifeq ($(TARGET_BASE_ARCH), m68k)
 OBJS+= an5206.o mcf5206.o ptimer.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
@@ -869,7 +837,7 @@ endif
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *.o *.a *~ $(PROGS) gen-op.h dyngen-opc.h op.h nwfpe/*.o fpu/*.o
+	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o
 
 install: all

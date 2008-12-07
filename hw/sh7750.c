@@ -41,6 +41,8 @@ typedef struct SH7750State {
     /* Peripheral frequency in Hz */
     uint32_t periph_freq;
     /* SDRAM controller */
+    uint32_t bcr1;
+    uint32_t bcr2;
     uint16_t rfcr;
     /* IO ports */
     uint16_t gpioic;
@@ -208,6 +210,8 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
     SH7750State *s = opaque;
 
     switch (addr) {
+    case SH7750_BCR2_A7:
+	return s->bcr2;
     case SH7750_FRQCR_A7:
 	return 0;
     case SH7750_RFCR_A7:
@@ -231,6 +235,15 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
     SH7750State *s = opaque;
 
     switch (addr) {
+    case SH7750_BCR1_A7:
+	return s->bcr1;
+    case SH7750_BCR4_A7:
+    case SH7750_WCR1_A7:
+    case SH7750_WCR2_A7:
+    case SH7750_WCR3_A7:
+    case SH7750_MCR_A7:
+        ignore_access("long read", addr);
+        return 0;
     case SH7750_MMUCR_A7:
 	return s->cpu->mmucr;
     case SH7750_PTEH_A7:
@@ -285,6 +298,8 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
     switch (addr) {
 	/* SDRAM controller */
     case SH7750_BCR2_A7:
+        s->bcr2 = mem_value;
+        return;
     case SH7750_BCR3_A7:
     case SH7750_RTCOR_A7:
     case SH7750_RTCNT_A7:
@@ -331,6 +346,8 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
     switch (addr) {
 	/* SDRAM controller */
     case SH7750_BCR1_A7:
+        s->bcr1 = mem_value;
+        return;
     case SH7750_BCR4_A7:
     case SH7750_WCR1_A7:
     case SH7750_WCR2_A7:
@@ -412,7 +429,9 @@ enum {
 	UNUSED = 0,
 
 	/* interrupt sources */
-	IRL0, IRL1, IRL2, IRL3, /* only IRLM mode supported */
+	IRL_0, IRL_1, IRL_2, IRL_3, IRL_4, IRL_5, IRL_6, IRL_7,
+	IRL_8, IRL_9, IRL_A, IRL_B, IRL_C, IRL_D, IRL_E,
+	IRL0, IRL1, IRL2, IRL3,
 	HUDI, GPIOI,
 	DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2, DMAC_DMTE3,
 	DMAC_DMTE4, DMAC_DMTE5, DMAC_DMTE6, DMAC_DMTE7,
@@ -428,6 +447,8 @@ enum {
 
 	/* interrupt groups */
 	DMAC, PCIC1, TMU2, RTC, SCI1, SCIF, REF,
+	/* irl bundle */
+	IRL,
 
 	NR_SOURCES,
 };
@@ -527,6 +548,29 @@ static struct intc_vect vectors_pci[] = {
 static struct intc_group groups_pci[] = {
 	INTC_GROUP(PCIC1, PCIC1_PCIERR, PCIC1_PCIPWDWN, PCIC1_PCIPWON,
 		   PCIC1_PCIDMA0, PCIC1_PCIDMA1, PCIC1_PCIDMA2, PCIC1_PCIDMA3),
+};
+
+static struct intc_vect vectors_irl[] = {
+	INTC_VECT(IRL_0, 0x200),
+	INTC_VECT(IRL_1, 0x220),
+	INTC_VECT(IRL_2, 0x240),
+	INTC_VECT(IRL_3, 0x260),
+	INTC_VECT(IRL_4, 0x280),
+	INTC_VECT(IRL_5, 0x2a0),
+	INTC_VECT(IRL_6, 0x2c0),
+	INTC_VECT(IRL_7, 0x2e0),
+	INTC_VECT(IRL_8, 0x300),
+	INTC_VECT(IRL_9, 0x320),
+	INTC_VECT(IRL_A, 0x340),
+	INTC_VECT(IRL_B, 0x360),
+	INTC_VECT(IRL_C, 0x380),
+	INTC_VECT(IRL_D, 0x3a0),
+	INTC_VECT(IRL_E, 0x3c0),
+};
+
+static struct intc_group groups_irl[] = {
+	INTC_GROUP(IRL, IRL_0, IRL_1, IRL_2, IRL_3, IRL_4, IRL_5, IRL_6,
+		IRL_7, IRL_8, IRL_9, IRL_A, IRL_B, IRL_C, IRL_D, IRL_E),
 };
 
 /**********************************************************************
@@ -718,5 +762,16 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
 				 NULL, 0);
     }
 
+    sh_intc_register_sources(&s->intc,
+				_INTC_ARRAY(vectors_irl),
+				_INTC_ARRAY(groups_irl));
     return s;
 }
+
+qemu_irq sh7750_irl(SH7750State *s)
+{
+    sh_intc_toggle_source(sh_intc_source(&s->intc, IRL), 1, 0); /* enable */
+    return qemu_allocate_irqs(sh_intc_set_irl, sh_intc_source(&s->intc, IRL),
+                               1)[0];
+}
+

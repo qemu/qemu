@@ -126,20 +126,20 @@ typedef tcg_target_ulong TCGArg;
 
 typedef struct
 {
-    int n;
+    int i32;
 } TCGv_i32;
 
 typedef struct
 {
-    int n;
+    int i64;
 } TCGv_i64;
 
 #define MAKE_TCGV_I32(i) __extension__                  \
     ({ TCGv_i32 make_tcgv_tmp = {i}; make_tcgv_tmp;})
 #define MAKE_TCGV_I64(i) __extension__                  \
     ({ TCGv_i64 make_tcgv_tmp = {i}; make_tcgv_tmp;})
-#define GET_TCGV_I32(t) ((t).n)
-#define GET_TCGV_I64(t) ((t).n)
+#define GET_TCGV_I32(t) ((t).i32)
+#define GET_TCGV_I64(t) ((t).i64)
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) MAKE_TCGV_I32(GET_TCGV_I64(t))
 #define TCGV_HIGH(t) MAKE_TCGV_I32(GET_TCGV_I64(t) + 1)
@@ -448,8 +448,6 @@ void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
                    int label_index, long addend);
 const TCGArg *tcg_gen_code_op(TCGContext *s, int opc, const TCGArg *args1,
                               unsigned int dead_iargs);
-
-const TCGArg *dyngen_op(TCGContext *s, int opc, const TCGArg *opparam_ptr);
 
 /* tcg-runtime.c */
 int64_t tcg_helper_shl_i64(int64_t arg1, int64_t arg2);

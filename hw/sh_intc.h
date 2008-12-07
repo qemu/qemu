@@ -75,4 +75,6 @@ int sh_intc_init(struct intc_desc *desc,
 		 struct intc_prio_reg *prio_regs,
 		 int nr_prio_regs);
 
+void sh_intc_set_irl(void *opaque, int n, int level);
+
 #endif /* __SH_INTC_H__ */

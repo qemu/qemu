@@ -21,10 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifdef CONFIG_DYNGEN_OP
-#include "dyngen-opc.h"
-#endif
-
 #ifndef DEF2
 #define DEF2(name, oargs, iargs, cargs, flags) DEF(name, oargs + iargs + cargs, 0)
 #endif

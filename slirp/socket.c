@@ -11,6 +11,7 @@
 #ifdef __sun__
 #include <sys/filio.h>
 #endif
+#include "qemu-common.h"
 
 static void sofcantrcvmore(struct socket *so);
 static void sofcantsendmore(struct socket *so);
