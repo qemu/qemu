@@ -6556,12 +6556,12 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         tmp2 = load_reg(s, rs);
                         gen_helper_usad8(tmp, tmp, tmp2);
                         dead_tmp(tmp2);
-                        if (rn != 15) {
-                            tmp2 = load_reg(s, rn);
+                        if (rd != 15) {
+                            tmp2 = load_reg(s, rd);
                             tcg_gen_add_i32(tmp, tmp, tmp2);
                             dead_tmp(tmp2);
                         }
-                        store_reg(s, rd, tmp);
+                        store_reg(s, rn, tmp);
                         break;
                     case 0x20: case 0x24: case 0x28: case 0x2c:
                         /* Bitfield insert/clear.  */
