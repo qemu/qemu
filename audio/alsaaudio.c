@@ -527,7 +527,7 @@ static int alsa_run_out (HWVoiceOut *hw)
     int rpos, live, decr;
     int samples;
     uint8_t *dst;
-    st_sample_t *src;
+    struct st_sample *src;
     snd_pcm_sframes_t avail;
 
     live = audio_pcm_hw_get_live_out (hw);
@@ -612,13 +612,13 @@ static void alsa_fini_out (HWVoiceOut *hw)
     }
 }
 
-static int alsa_init_out (HWVoiceOut *hw, audsettings_t *as)
+static int alsa_init_out (HWVoiceOut *hw, struct audsettings *as)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
     struct alsa_params_req req;
     struct alsa_params_obt obt;
     snd_pcm_t *handle;
-    audsettings_t obt_as;
+    struct audsettings obt_as;
 
     req.fmt = aud_to_alsafmt (as->fmt);
     req.freq = as->freq;
@@ -692,13 +692,13 @@ static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return -1;
 }
 
-static int alsa_init_in (HWVoiceIn *hw, audsettings_t *as)
+static int alsa_init_in (HWVoiceIn *hw, struct audsettings *as)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     struct alsa_params_req req;
     struct alsa_params_obt obt;
     snd_pcm_t *handle;
-    audsettings_t obt_as;
+    struct audsettings obt_as;
 
     req.fmt = aud_to_alsafmt (as->fmt);
     req.freq = as->freq;
@@ -792,7 +792,7 @@ static int alsa_run_in (HWVoiceIn *hw)
 
     for (i = 0; i < 2; ++i) {
         void *src;
-        st_sample_t *dst;
+        struct st_sample *dst;
         snd_pcm_sframes_t nread;
         snd_pcm_uframes_t len;
 

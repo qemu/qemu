@@ -49,8 +49,9 @@ typedef struct QEMUSnapshotInfo {
                                      bdrv_file_open()) */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
 #define BDRV_O_CACHE_WB    0x0040 /* use write-back caching */
+#define BDRV_O_CACHE_DEF   0x0080 /* use default caching */
 
-#define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB)
+#define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_CACHE_DEF)
 
 void bdrv_info(void);
 void bdrv_info_stats(void);

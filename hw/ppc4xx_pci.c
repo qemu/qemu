@@ -314,7 +314,7 @@ static void ppc4xx_pci_save(QEMUFile *f, void *opaque)
     PPC4xxPCIState *controller = opaque;
     int i;
 
-    pci_device_save(&controller->pci_dev, f);
+    pci_device_save(controller->pci_dev, f);
 
     for (i = 0; i < PPC4xx_PCI_NR_PMMS; i++) {
         qemu_put_be32s(f, &controller->pmm[i].la);
@@ -337,7 +337,7 @@ static int ppc4xx_pci_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id != 1)
         return -EINVAL;
 
-    pci_device_load(&controller->pci_dev, f);
+    pci_device_load(controller->pci_dev, f);
 
     for (i = 0; i < PPC4xx_PCI_NR_PMMS; i++) {
         qemu_get_be32s(f, &controller->pmm[i].la);

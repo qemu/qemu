@@ -36,6 +36,7 @@
 #include "block.h"
 #include "audio/audio.h"
 #include "disas.h"
+#include "balloon.h"
 #include <dirent.h>
 #include "qemu-timer.h"
 #include "migration.h"
@@ -1394,6 +1395,25 @@ static void do_inject_nmi(int cpu_index)
 }
 #endif
 
+static void do_balloon(int value)
+{
+    ram_addr_t target = value;
+    qemu_balloon(target << 20);
+}
+
+static void do_info_balloon(void)
+{
+    ram_addr_t actual;
+
+    actual = qemu_balloon_status();
+    if (kvm_enabled() && !kvm_has_sync_mmu())
+        term_printf("Using KVM without synchronous MMU, ballooning disabled\n");
+    else if (actual == 0)
+        term_printf("Ballooning not activated in VM\n");
+    else
+        term_printf("balloon: actual=%d\n", (int)(actual >> 20));
+}
+
 static const term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help,
       "[cmd]", "show the help" },
@@ -1481,6 +1501,8 @@ static const term_cmd_t term_cmds[] = {
       "", "cancel the current VM migration" },
     { "migrate_set_speed", "s", do_migrate_set_speed,
       "value", "set maximum speed (in bytes) for migrations" },
+    { "balloon", "i", do_balloon,
+      "target", "request VM to change it's memory allocation (in MB)" },
     { NULL, NULL, },
 };
 
@@ -1548,6 +1570,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show SLIRP statistics", },
 #endif
     { "migrate", "", do_info_migrate, "", "show migration status" },
+    { "balloon", "", do_info_balloon,
+      "", "show balloon information" },
     { NULL, NULL, },
 };
 

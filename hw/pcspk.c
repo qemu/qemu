@@ -99,7 +99,7 @@ static void pcspk_callback(void *opaque, int free)
 int pcspk_audio_init(AudioState *audio, qemu_irq *pic)
 {
     PCSpkState *s = &pcspk_state;
-    audsettings_t as = {PCSPK_SAMPLE_RATE, 1, AUD_FMT_U8, 0};
+    struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUD_FMT_U8, 0};
 
     if (!audio) {
         AUD_log(s_spk, "No audio state\n");

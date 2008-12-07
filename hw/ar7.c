@@ -89,7 +89,7 @@
 #define KERNEL_LOAD_ADDR 0x14000000
 
 /* physical address of kernel parameters */
-#define INITRD_LOAD_ADDR 0x14700000
+#define INITRD_LOAD_ADDR 0x14800000
 
 /* physical address of 4 KiB internal ROM */
 #define PROM_ADDR 0x1fc00000
@@ -3602,6 +3602,8 @@ static int64_t load_kernel (CPUState *env)
         fprintf(stderr, "qemu: elf kernel '%s' with start address 0x%08lx"
                 " and size %d bytes\n",
                 loaderparams.kernel_filename, (unsigned long)kernel_addr, kernel_size);
+        fprintf(stderr, "qemu: kernel low 0x%08lx, high 0x%08lx\n",
+                (unsigned long)kernel_low, (unsigned long)kernel_high);
         env->active_tc.PC = kernel_addr;
     } else {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",

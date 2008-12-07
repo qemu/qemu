@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "host-utils.h"
 
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
@@ -94,4 +95,9 @@ time_t mktimegm(struct tm *tm)
                  y / 400 - 719469);
     t += 3600 * tm->tm_hour + 60 * tm->tm_min + tm->tm_sec;
     return t;
+}
+
+int fls(int i)
+{
+    return 32 - clz32(i);
 }

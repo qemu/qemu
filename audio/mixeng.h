@@ -25,27 +25,27 @@
 #define QEMU_MIXENG_H
 
 #ifdef FLOAT_MIXENG
-typedef float real_t;
-typedef struct { int mute; real_t r; real_t l; } volume_t;
-typedef struct { real_t l; real_t r; } st_sample_t;
+typedef float mixeng_real;
+struct mixeng_volume { int mute; mixeng_real r; mixeng_real l; };
+struct mixeng_sample { mixeng_real l; mixeng_real r; };
 #else
-typedef struct { int mute; int64_t r; int64_t l; } volume_t;
-typedef struct { int64_t l; int64_t r; } st_sample_t;
+struct mixeng_volume { int mute; int64_t r; int64_t l; };
+struct st_sample { int64_t l; int64_t r; };
 #endif
 
-typedef void (t_sample) (st_sample_t *dst, const void *src,
-                         int samples, volume_t *vol);
-typedef void (f_sample) (void *dst, const st_sample_t *src, int samples);
+typedef void (t_sample) (struct st_sample *dst, const void *src,
+                         int samples, struct mixeng_volume *vol);
+typedef void (f_sample) (void *dst, const struct st_sample *src, int samples);
 
 extern t_sample *mixeng_conv[2][2][2][3];
 extern f_sample *mixeng_clip[2][2][2][3];
 
 void *st_rate_start (int inrate, int outrate);
-void st_rate_flow (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,
+void st_rate_flow (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
                    int *isamp, int *osamp);
-void st_rate_flow_mix (void *opaque, st_sample_t *ibuf, st_sample_t *obuf,
+void st_rate_flow_mix (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
                        int *isamp, int *osamp);
 void st_rate_stop (void *opaque);
-void mixeng_clear (st_sample_t *buf, int len);
+void mixeng_clear (struct st_sample *buf, int len);
 
 #endif  /* mixeng.h */

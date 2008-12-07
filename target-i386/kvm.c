@@ -12,6 +12,7 @@
  *
  */
 
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -39,7 +40,8 @@ int kvm_arch_init_vcpu(CPUState *env)
         struct kvm_cpuid cpuid;
         struct kvm_cpuid_entry entries[100];
     } __attribute__((packed)) cpuid_data;
-    int limit, i, cpuid_i;
+    int limit, cpuid_i;
+    unsigned i;
     uint32_t eax, ebx, ecx, edx;
 
     cpuid_i = 0;
@@ -49,6 +51,7 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     for (i = 0; i <= limit; i++) {
         struct kvm_cpuid_entry *c = &cpuid_data.entries[cpuid_i++];
+        assert(cpuid_i < 100);
 
         cpu_x86_cpuid(env, i, &eax, &ebx, &ecx, &edx);
         c->function = i;
@@ -63,6 +66,7 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     for (i = 0x80000000; i <= limit; i++) {
         struct kvm_cpuid_entry *c = &cpuid_data.entries[cpuid_i++];
+        assert(cpuid_i < 100);
 
         cpu_x86_cpuid(env, i, &eax, &ebx, &ecx, &edx);
         c->function = i;

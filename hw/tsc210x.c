@@ -327,7 +327,7 @@ static void tsc2102_audio_rate_update(struct tsc210x_state_s *s)
 static void tsc2102_audio_output_update(struct tsc210x_state_s *s)
 {
     int enable;
-    audsettings_t fmt;
+    struct audsettings fmt;
 
     if (s->dac_voice[0]) {
         tsc210x_out_flush(s, s->codec.out.len);

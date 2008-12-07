@@ -82,7 +82,7 @@ static void glue (audio_pcm_hw_free_resources_, TYPE) (HW *hw)
 
 static int glue (audio_pcm_hw_alloc_resources_, TYPE) (HW *hw)
 {
-    HWBUF = audio_calloc (AUDIO_FUNC, hw->samples, sizeof (st_sample_t));
+    HWBUF = audio_calloc (AUDIO_FUNC, hw->samples, sizeof (struct st_sample));
     if (!HWBUF) {
         dolog ("Could not allocate " NAME " buffer (%d samples)\n",
                hw->samples);
@@ -116,7 +116,7 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
     samples = ((int64_t) sw->hw->samples << 32) / sw->ratio;
 #endif
 
-    sw->buf = audio_calloc (AUDIO_FUNC, samples, sizeof (st_sample_t));
+    sw->buf = audio_calloc (AUDIO_FUNC, samples, sizeof (struct st_sample));
     if (!sw->buf) {
         dolog ("Could not allocate buffer for `%s' (%d samples)\n",
                SW_NAME (sw), samples);
@@ -140,7 +140,7 @@ static int glue (audio_pcm_sw_init_, TYPE) (
     SW *sw,
     HW *hw,
     const char *name,
-    audsettings_t *as
+    struct audsettings *as
     )
 {
     int err;
@@ -229,7 +229,7 @@ static HW *glue (audio_pcm_hw_find_any_enabled_, TYPE) (AudioState *s, HW *hw)
 static HW *glue (audio_pcm_hw_find_specific_, TYPE) (
     AudioState *s,
     HW *hw,
-    audsettings_t *as
+    struct audsettings *as
     )
 {
     while ((hw = glue (audio_pcm_hw_find_any_, TYPE) (s, hw))) {
@@ -240,7 +240,8 @@ static HW *glue (audio_pcm_hw_find_specific_, TYPE) (
     return NULL;
 }
 
-static HW *glue (audio_pcm_hw_add_new_, TYPE) (AudioState *s, audsettings_t *as)
+static HW *glue (audio_pcm_hw_add_new_, TYPE) (AudioState *s,
+                                               struct audsettings *as)
 {
     HW *hw;
     struct audio_driver *drv = s->drv;
@@ -308,7 +309,8 @@ static HW *glue (audio_pcm_hw_add_new_, TYPE) (AudioState *s, audsettings_t *as)
     return NULL;
 }
 
-static HW *glue (audio_pcm_hw_add_, TYPE) (AudioState *s, audsettings_t *as)
+static HW *glue (audio_pcm_hw_add_, TYPE) (AudioState *s,
+                                           struct audsettings *as)
 {
     HW *hw;
 
@@ -335,12 +337,12 @@ static HW *glue (audio_pcm_hw_add_, TYPE) (AudioState *s, audsettings_t *as)
 static SW *glue (audio_pcm_create_voice_pair_, TYPE) (
     AudioState *s,
     const char *sw_name,
-    audsettings_t *as
+    struct audsettings *as
     )
 {
     SW *sw;
     HW *hw;
-    audsettings_t hw_as;
+    struct audsettings hw_as;
 
     if (glue (conf.fixed_, TYPE).enabled) {
         hw_as = glue (conf.fixed_, TYPE).settings;
@@ -405,7 +407,7 @@ SW *glue (AUD_open_, TYPE) (
     const char *name,
     void *callback_opaque ,
     audio_callback_fn_t callback_fn,
-    audsettings_t *as
+    struct audsettings *as
     )
 {
     AudioState *s;

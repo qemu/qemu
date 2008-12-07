@@ -33,6 +33,8 @@
 #include "boards.h"
 #include "console.h"
 #include "fw_cfg.h"
+#include "virtio-blk.h"
+#include "virtio-balloon.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -1092,6 +1094,22 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
 	    }
         }
     }
+
+    /* Add virtio block devices */
+    if (pci_enabled) {
+        int index;
+        int unit_id = 0;
+
+        while ((index = drive_get_index(IF_VIRTIO, 0, unit_id)) != -1) {
+            virtio_blk_init(pci_bus, 0x1AF4, 0x1001,
+                            drives_table[index].bdrv);
+            unit_id++;
+        }
+    }
+
+    /* Add virtio balloon device */
+    if (pci_enabled)
+        virtio_balloon_init(pci_bus);
 }
 
 static void pc_init_pci(ram_addr_t ram_size, int vga_ram_size,

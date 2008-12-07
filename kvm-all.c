@@ -549,3 +549,15 @@ int kvm_vcpu_ioctl(CPUState *env, int type, ...)
 
     return ret;
 }
+
+int kvm_has_sync_mmu(void)
+{
+    KVMState *s = kvm_state;
+
+#ifdef KVM_CAP_SYNC_MMU
+    if (kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU) > 0)
+        return 1;
+#endif
+
+    return 0;
+}

@@ -21,6 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "config-host.h"
+#ifdef _BSD
+/* include native header before sys-queue.h */
+#include <sys/queue.h>
+#endif
+
 #include "qemu-common.h"
 #include "console.h"
 #include "block_int.h"
@@ -31,7 +37,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/queue.h>
 #include <sys/disk.h>
 #endif
 
@@ -762,7 +767,7 @@ static int guess_disk_lchs(BlockDriverState *bs,
     int ret, i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
-    int64_t nb_sectors;
+    uint64_t nb_sectors;
 
     bdrv_get_geometry(bs, &nb_sectors);
 
@@ -802,7 +807,7 @@ void bdrv_guess_geometry(BlockDriverState *bs, int *pcyls, int *pheads, int *pse
 {
     int translation, lba_detected = 0;
     int cylinders, heads, secs;
-    int64_t nb_sectors;
+    uint64_t nb_sectors;
 
     /* if a geometry hint is available, use it */
     bdrv_get_geometry(bs, &nb_sectors);

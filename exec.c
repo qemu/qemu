@@ -415,7 +415,7 @@ static void code_gen_alloc(unsigned long tb_size)
         code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
 #else
         /* XXX: needs adjustments */
-        code_gen_buffer_size = (int)(phys_ram_size / 4);
+        code_gen_buffer_size = (unsigned long)(phys_ram_size / 4);
 #endif
     }
     if (code_gen_buffer_size < MIN_CODE_GEN_BUFFER_SIZE)
@@ -2246,7 +2246,7 @@ static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
    page size. If (phys_offset & ~TARGET_PAGE_MASK) != 0, then it is an
    io memory page.  The address used when calling the IO function is
    the offset from the start of the region, plus region_offset.  Both
-   start_region and regon_offset are rounded down to a page boundary
+   start_region and region_offset are rounded down to a page boundary
    before calculating this offset.  This should not be a problem unless
    the low bits of start_addr and region_offset differ.  */
 void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,

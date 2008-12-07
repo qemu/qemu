@@ -280,7 +280,7 @@ static void Adlib_fini (AdlibState *s)
 int Adlib_init (AudioState *audio, qemu_irq *pic)
 {
     AdlibState *s = &glob_adlib;
-    audsettings_t as;
+    struct audsettings as;
 
     if (!audio) {
         dolog ("No audio state\n");

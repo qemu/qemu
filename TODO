@@ -2,7 +2,6 @@ General:
 -------
 - cycle counter for all archs
 - cpu_interrupt() win32/SMP fix
-- Precise VGA timings for old games/demos (malc patch)
 - merge PIC spurious interrupt patch
 - warning for OS/2: must not use 128 MB memory (merge bochs cmos patch ?)
 - config file (at least for windows/Mac OS X)

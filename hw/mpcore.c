@@ -105,6 +105,8 @@ static uint32_t mpcore_timer_read(mpcore_timer_state *s, int offset)
         return s->control;
     case 12: /* Interrupt status.  */
         return s->status;
+    default:
+        return 0;
     }
 }
 

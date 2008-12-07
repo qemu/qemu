@@ -44,12 +44,12 @@ typedef enum {
 #define AUDIO_HOST_ENDIANNESS 0
 #endif
 
-typedef struct {
+struct audsettings {
     int freq;
     int nchannels;
     audfmt_e fmt;
     int endianness;
-} audsettings_t;
+};
 
 typedef enum {
     AUD_CNOTIFY_ENABLE,
@@ -100,7 +100,7 @@ void AUD_register_card (AudioState *s, const char *name, QEMUSoundCard *card);
 void AUD_remove_card (QEMUSoundCard *card);
 CaptureVoiceOut *AUD_add_capture (
     AudioState *s,
-    audsettings_t *as,
+    struct audsettings *as,
     struct audio_capture_ops *ops,
     void *opaque
     );
@@ -112,7 +112,7 @@ SWVoiceOut *AUD_open_out (
     const char *name,
     void *callback_opaque,
     audio_callback_fn_t callback_fn,
-    audsettings_t *settings
+    struct audsettings *settings
     );
 
 void AUD_close_out (QEMUSoundCard *card, SWVoiceOut *sw);
@@ -133,7 +133,7 @@ SWVoiceIn *AUD_open_in (
     const char *name,
     void *callback_opaque,
     audio_callback_fn_t callback_fn,
-    audsettings_t *settings
+    struct audsettings *settings
     );
 
 void AUD_close_in (QEMUSoundCard *card, SWVoiceIn *sw);

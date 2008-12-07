@@ -421,7 +421,7 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                     (new_fmt & 2) ? AUD_FMT_S16 : AUD_FMT_U8,
                     d->shift);
             if (new_freq) {
-                audsettings_t as;
+                struct audsettings as;
 
                 as.freq = new_freq;
                 as.nchannels = 1 << (new_fmt & 1);

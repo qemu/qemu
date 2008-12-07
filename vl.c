@@ -40,6 +40,7 @@
 #include "audio/audio.h"
 #include "migration.h"
 #include "kvm.h"
+#include "balloon.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -513,6 +514,31 @@ void hw_error(const char *fmt, ...)
     }
     va_end(ap);
     abort();
+}
+ 
+/***************/
+/* ballooning */
+
+static QEMUBalloonEvent *qemu_balloon_event;
+void *qemu_balloon_event_opaque;
+
+void qemu_add_balloon_handler(QEMUBalloonEvent *func, void *opaque)
+{
+    qemu_balloon_event = func;
+    qemu_balloon_event_opaque = opaque;
+}
+
+void qemu_balloon(ram_addr_t target)
+{
+    if (qemu_balloon_event)
+        qemu_balloon_event(qemu_balloon_event_opaque, target);
+}
+
+ram_addr_t qemu_balloon_status(void)
+{
+    if (qemu_balloon_event)
+        return qemu_balloon_event(qemu_balloon_event_opaque, 0);
+    return 0;
 }
 
 /***********************************************************/
@@ -2215,7 +2241,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     unit_id = -1;
     translation = BIOS_ATA_TRANSLATION_AUTO;
     index = -1;
-    cache = 1;
+    cache = 3;
 
     if (machine->use_scsi) {
         type = IF_SCSI;
@@ -2266,7 +2292,10 @@ static int drive_init(struct drive_opt *arg, int snapshot,
 	} else if (!strcmp(buf, "sd")) {
 	    type = IF_SD;
             max_devs = 0;
-	} else {
+        } else if (!strcmp(buf, "virtio")) {
+            type = IF_VIRTIO;
+            max_devs = 0;
+        } else {
             fprintf(stderr, "qemu: '%s' unsupported bus type '%s'\n", str, buf);
             return -1;
 	}
@@ -2473,6 +2502,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         break;
     case IF_PFLASH:
     case IF_MTD:
+    case IF_VIRTIO:
         break;
     }
     if (!file[0])
@@ -2486,6 +2516,8 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         bdrv_flags |= BDRV_O_NOCACHE;
     else if (cache == 2) /* write-back */
         bdrv_flags |= BDRV_O_CACHE_WB;
+    else if (cache == 3) /* not specified */
+        bdrv_flags |= BDRV_O_CACHE_DEF;
     if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0 || qemu_key_check(bdrv, file)) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);

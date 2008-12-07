@@ -42,6 +42,9 @@ void kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr, target_phys_a
 
 int kvm_log_start(target_phys_addr_t phys_addr, target_phys_addr_t len);
 int kvm_log_stop(target_phys_addr_t phys_addr, target_phys_addr_t len);
+
+int kvm_has_sync_mmu(void);
+
 /* internal API */
 
 struct KVMState;

@@ -206,7 +206,7 @@ void pl031_init(uint32_t base, qemu_irq irq)
     s->irq  = irq;
     /* ??? We assume vm_clock is zero at this point.  */
     qemu_get_timedate(&tm, 0);
-    s->tick_offset = mktime(&tm);
+    s->tick_offset = mktimegm(&tm);
 
     s->timer = qemu_new_timer(vm_clock, pl031_interrupt, s);
 }

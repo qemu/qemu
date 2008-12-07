@@ -221,15 +221,17 @@
 #define CIRRUS_HOOK_NOT_HANDLED 0
 #define CIRRUS_HOOK_HANDLED 1
 
+#define ABS(a) ((signed)(a) > 0 ? a : -a)
+
 #define BLTUNSAFE(s) \
     ( \
         ( /* check dst is within bounds */ \
-            (s)->cirrus_blt_height * (s)->cirrus_blt_dstpitch \
+            (s)->cirrus_blt_height * ABS((s)->cirrus_blt_dstpitch) \
                 + ((s)->cirrus_blt_dstaddr & (s)->cirrus_addr_mask) > \
                     (s)->vram_size \
         ) || \
         ( /* check src is within bounds */ \
-            (s)->cirrus_blt_height * (s)->cirrus_blt_srcpitch \
+            (s)->cirrus_blt_height * ABS((s)->cirrus_blt_srcpitch) \
                 + ((s)->cirrus_blt_srcaddr & (s)->cirrus_addr_mask) > \
                     (s)->vram_size \
         ) \

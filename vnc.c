@@ -171,7 +171,7 @@ struct VncState
     int client_blue_shift, client_blue_max, server_blue_shift, server_blue_max;
 
     CaptureVoiceOut *audio_cap;
-    audsettings_t as;
+    struct audsettings as;
 
     VncReadEvent *read_handler;
     size_t read_handler_expect;

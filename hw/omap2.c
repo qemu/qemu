@@ -1610,7 +1610,7 @@ static void omap_eac_volume_update(struct omap_eac_s *s)
 
 static void omap_eac_format_update(struct omap_eac_s *s)
 {
-    audsettings_t fmt;
+    struct audsettings fmt;
 
     /* The hardware buffers at most one sample */
     if (s->codec.rxlen)

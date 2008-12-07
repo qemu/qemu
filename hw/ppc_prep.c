@@ -122,7 +122,7 @@ static always_inline uint32_t _PPC_intack_read (target_phys_addr_t addr)
 {
     uint32_t retval = 0;
 
-    if (addr & 0xf == 0)
+    if ((addr & 0xf) == 0)
         retval = pic_intack_read(isa_pic);
 //   printf("%s: 0x" PADDRX " <= %08" PRIx32 "\n", __func__, addr, retval);
 
