@@ -57,7 +57,6 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
     int singlestep_enabled;
     int thumb;
-    int is_mem;
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
@@ -195,7 +194,6 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 
 /* Basic operations.  */
 #define gen_op_movl_T0_T1() tcg_gen_mov_i32(cpu_T[0], cpu_T[1])
-#define gen_op_movl_T1_T0() tcg_gen_mov_i32(cpu_T[1], cpu_T[0])
 #define gen_op_movl_T0_im(im) tcg_gen_movi_i32(cpu_T[0], im)
 #define gen_op_movl_T1_im(im) tcg_gen_movi_i32(cpu_T[1], im)
 
@@ -219,11 +217,8 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 #define gen_op_logic_T0_cc() gen_logic_CC(cpu_T[0]);
 #define gen_op_logic_T1_cc() gen_logic_CC(cpu_T[1]);
 
-#define gen_op_shll_T0_im(im) tcg_gen_shli_i32(cpu_T[0], cpu_T[0], im)
 #define gen_op_shll_T1_im(im) tcg_gen_shli_i32(cpu_T[1], cpu_T[1], im)
 #define gen_op_shrl_T1_im(im) tcg_gen_shri_i32(cpu_T[1], cpu_T[1], im)
-#define gen_op_sarl_T1_im(im) tcg_gen_sari_i32(cpu_T[1], cpu_T[1], im)
-#define gen_op_rorl_T1_im(im) tcg_gen_rori_i32(cpu_T[1], cpu_T[1], im)
 
 /* Value extensions.  */
 #define gen_uxtb(var) tcg_gen_ext8u_i32(var, var)
@@ -382,7 +377,6 @@ static void gen_imull(TCGv a, TCGv b)
     tcg_gen_shri_i64(tmp1, tmp1, 32);
     tcg_gen_trunc_i64_i32(b, tmp1);
 }
-#define gen_op_imull_T0_T1() gen_imull(cpu_T[0], cpu_T[1])
 
 /* Swap low and high halfwords.  */
 static void gen_swap_half(TCGv var)
@@ -817,17 +811,6 @@ static inline void gen_bx_T0(DisasContext *s)
     gen_bx(s, tmp);
 }
 
-#if defined(CONFIG_USER_ONLY)
-#define gen_ldst(name, s) gen_op_##name##_raw()
-#else
-#define gen_ldst(name, s) do { \
-    s->is_mem = 1; \
-    if (IS_USER(s)) \
-        gen_op_##name##_user(); \
-    else \
-        gen_op_##name##_kernel(); \
-    } while (0)
-#endif
 static inline TCGv gen_ld8s(TCGv addr, int index)
 {
     TCGv tmp = new_tmp();
@@ -993,15 +976,6 @@ static inline void gen_vfp_##name(int dp)                             \
         gen_helper_vfp_##name##d(cpu_F0d, cpu_F0d, cpu_F1d, cpu_env); \
     else                                                              \
         gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, cpu_F1s, cpu_env); \
-}
-
-#define VFP_OP1(name)                               \
-static inline void gen_vfp_##name(int dp, int arg)  \
-{                                                   \
-    if (dp)                                         \
-        gen_op_vfp_##name##d(arg);                  \
-    else                                            \
-        gen_op_vfp_##name##s(arg);                  \
 }
 
 VFP_OP2(add)
@@ -6649,7 +6623,6 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 gen_add_data_offset(s, insn, tmp2);
             if (insn & (1 << 20)) {
                 /* load */
-                s->is_mem = 1;
                 if (insn & (1 << 22)) {
                     tmp = gen_ld8u(tmp2, i);
                 } else {
@@ -8625,7 +8598,6 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     dc->thumb = env->thumb;
     dc->condexec_mask = (env->condexec_bits & 0xf) << 1;
     dc->condexec_cond = env->condexec_bits >> 4;
-    dc->is_mem = 0;
 #if !defined(CONFIG_USER_ONLY)
     if (IS_M(env)) {
         dc->user = ((env->v7m.exception == 0) && (env->v7m.control & 1));
@@ -8729,7 +8701,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
             gen_set_label(dc->condlabel);
             dc->condjmp = 0;
         }
-        /* Translation stops when a conditional branch is enoutered.
+        /* Translation stops when a conditional branch is encountered.
          * Otherwise the subsequent code could get translated several times.
          * Also stop translation when a page boundary is reached.  This
          * ensures prefetch aborts occur at the right place.  */
