@@ -65,14 +65,6 @@ void helper_store_cr (target_ulong val, uint32_t mask)
     }
 }
 
-#if defined(TARGET_PPC64)
-void do_store_pri (int prio)
-{
-    env->spr[SPR_PPR] &= ~0x001C000000000000ULL;
-    env->spr[SPR_PPR] |= ((uint64_t)prio & 0x7) << 50;
-}
-#endif
-
 target_ulong ppc_load_dump_spr (int sprn)
 {
     if (loglevel != 0) {
@@ -841,7 +833,6 @@ void helper_float_check_status (void)
         if (msr_fe0 != 0 || msr_fe1 != 0)
             raise_exception_err(env, env->exception_index, env->error_code);
     }
-    RETURN();
 #endif
 }
 
@@ -1574,18 +1565,6 @@ void helper_td (target_ulong arg1, target_ulong arg2, uint32_t flags)
 
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
-void do_POWER_abso (void)
-{
-    if ((int32_t)T0 == INT32_MIN) {
-        T0 = INT32_MAX;
-        env->xer |= (1 << XER_OV) | (1 << XER_SO);
-    } else if ((int32_t)T0 < 0) {
-        T0 = -T0;
-        env->xer &= ~(1 << XER_OV);
-    } else {
-        env->xer &= ~(1 << XER_OV);
-    }
-}
 
 target_ulong helper_clcs (uint32_t arg)
 {
