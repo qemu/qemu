@@ -34,12 +34,14 @@
 
 #define SM501_VRAM_SIZE 0x800000
 
+#define PA_IRLMSK	0x00
 #define PA_POWOFF	0x30
 #define PA_VERREG	0x32
 #define PA_OUTPORT	0x36
 
 typedef struct {
     uint16_t bcr;
+    uint16_t irlmsk;
     uint16_t irlmon;
     uint16_t cfctl;
     uint16_t cfpow;
@@ -60,13 +62,60 @@ typedef struct {
     uint16_t inport;
     uint16_t outport;
     uint16_t bverreg;
+
+/* output pin */
+    qemu_irq irl;
 } r2d_fpga_t;
+
+enum r2d_fpga_irq {
+    PCI_INTD, CF_IDE, CF_CD, PCI_INTC, SM501, KEY, RTC_A, RTC_T,
+    SDCARD, PCI_INTA, PCI_INTB, EXT, TP,
+    NR_IRQS
+};
+
+static const struct { short irl; uint16_t msk; } irqtab[NR_IRQS] = {
+    [CF_IDE]	= {  1, 1<<9 },
+    [CF_CD]	= {  2, 1<<8 },
+    [PCI_INTA]	= {  9, 1<<14 },
+    [PCI_INTB]	= { 10, 1<<13 },
+    [PCI_INTC]	= {  3, 1<<12 },
+    [PCI_INTD]	= {  0, 1<<11 },
+    [SM501]	= {  4, 1<<10 },
+    [KEY]	= {  5, 1<<6 },
+    [RTC_A]	= {  6, 1<<5 },
+    [RTC_T]	= {  7, 1<<4 },
+    [SDCARD]	= {  8, 1<<7 },
+    [EXT]	= { 11, 1<<0 },
+    [TP]	= { 12, 1<<15 },
+};
+
+static void update_irl(r2d_fpga_t *fpga)
+{
+    int i, irl = 15;
+    for (i = 0; i < NR_IRQS; i++)
+        if (fpga->irlmon & fpga->irlmsk & irqtab[i].msk)
+            if (irqtab[i].irl < irl)
+                irl = irqtab[i].irl;
+    qemu_set_irq(fpga->irl, irl ^ 15);
+}
+
+static void r2d_fpga_irq_set(void *opaque, int n, int level)
+{
+    r2d_fpga_t *fpga = opaque;
+    if (level)
+        fpga->irlmon |= irqtab[n].msk;
+    else
+        fpga->irlmon &= ~irqtab[n].msk;
+    update_irl(fpga);
+}
 
 static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
 {
     r2d_fpga_t *s = opaque;
 
     switch (addr) {
+    case PA_IRLMSK:
+        return s->irlmsk;
     case PA_OUTPORT:
 	return s->outport;
     case PA_POWOFF:
@@ -84,6 +133,10 @@ r2d_fpga_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     r2d_fpga_t *s = opaque;
 
     switch (addr) {
+    case PA_IRLMSK:
+        s->irlmsk = value;
+        update_irl(s);
+	break;
     case PA_OUTPORT:
 	s->outport = value;
 	break;
@@ -108,18 +161,21 @@ static CPUWriteMemoryFunc *r2d_fpga_writefn[] = {
     NULL,
 };
 
-static void r2d_fpga_init(target_phys_addr_t base)
+static qemu_irq *r2d_fpga_init(target_phys_addr_t base, qemu_irq irl)
 {
     int iomemtype;
     r2d_fpga_t *s;
 
     s = qemu_mallocz(sizeof(r2d_fpga_t));
     if (!s)
-	return;
+        return NULL;
+
+    s->irl = irl;
 
     iomemtype = cpu_register_io_memory(0, r2d_fpga_readfn,
 				       r2d_fpga_writefn, s);
     cpu_register_physical_memory(base, 0x40, iomemtype);
+    return qemu_allocate_irqs(r2d_fpga_irq_set, s, NR_IRQS);
 }
 
 static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
@@ -130,6 +186,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     CPUState *env;
     struct SH7750State *s;
     ram_addr_t sdram_addr, sm501_vga_ram_addr;
+    qemu_irq *irq;
 
     if (!cpu_model)
         cpu_model = "SH7751R";
@@ -144,15 +201,16 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     sdram_addr = qemu_ram_alloc(SDRAM_SIZE);
     cpu_register_physical_memory(SDRAM_BASE, SDRAM_SIZE, sdram_addr);
     /* Register peripherals */
-    r2d_fpga_init(0x04000000);
     s = sh7750_init(env);
+    irq = r2d_fpga_init(0x04000000, sh7750_irl(s));
+
     sm501_vga_ram_addr = qemu_ram_alloc(SM501_VRAM_SIZE);
     sm501_init(ds, 0x10000000, sm501_vga_ram_addr, SM501_VRAM_SIZE,
 	       serial_hds[2]);
 
     /* onboard CF (True IDE mode, Master only). */
-    mmio_ide_init(0x14001000, 0x1400080c, NULL, 1,
-                  drives_table[drive_get_index(IF_IDE, 0, 0)].bdrv, NULL);
+    mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
+        drives_table[drive_get_index(IF_IDE, 0, 0)].bdrv, NULL);
 
     /* Todo: register on board registers */
     {
