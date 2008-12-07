@@ -1,6 +1,4 @@
 config-host.*
-dyngen
-dyngen.dSYM
 i386
 *-softmmu
 *-darwin-user
