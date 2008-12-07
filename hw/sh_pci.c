@@ -40,7 +40,6 @@ typedef struct {
 static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint32_t val)
 {
     SHPCIC *pcic = p;
-    addr -= pcic->regbase;
     switch(addr) {
     case 0 ... 0xfc:
         cpu_to_le32w((uint32_t*)(pcic->dev->config + addr), val);
@@ -63,7 +62,6 @@ static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint32_t val)
 static uint32_t sh_pci_reg_read (void *p, target_phys_addr_t addr)
 {
     SHPCIC *pcic = p;
-    addr -= pcic->regbase;
     switch(addr) {
     case 0 ... 0xfc:
         return le32_to_cpup((uint32_t*)(pcic->dev->config + addr));
@@ -78,13 +76,13 @@ static uint32_t sh_pci_reg_read (void *p, target_phys_addr_t addr)
 static void sh_pci_data_write (SHPCIC *pcic, target_phys_addr_t addr,
                                uint32_t val, int size)
 {
-    pci_data_write(pcic->bus, addr - pcic->membase + pcic->mbr, val, size);
+    pci_data_write(pcic->bus, addr + pcic->mbr, val, size);
 }
 
 static uint32_t sh_pci_mem_read (SHPCIC *pcic, target_phys_addr_t addr,
                                  int size)
 {
-    return pci_data_read(pcic->bus, addr - pcic->membase + pcic->mbr, size);
+    return pci_data_read(pcic->bus, addr + pcic->mbr, size);
 }
 
 static void sh_pci_writeb (void *p, target_phys_addr_t addr, uint32_t val)
@@ -119,7 +117,7 @@ static uint32_t sh_pci_readl (void *p, target_phys_addr_t addr)
 
 static int sh_pci_addr2port(SHPCIC *pcic, target_phys_addr_t addr)
 {
-    return addr - pcic->iopbase + pcic->iobr;
+    return addr + pcic->iobr;
 }
 
 static void sh_pci_outb (void *p, target_phys_addr_t addr, uint32_t val)
