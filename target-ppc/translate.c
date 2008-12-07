@@ -3024,7 +3024,7 @@ GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B)
 #endif
 /***                Integer load and store with byte reverse               ***/
 /* lhbrx */
-void always_inline gen_qemu_ld16ur(TCGv t0, TCGv t1, int flags)
+static void always_inline gen_qemu_ld16ur(TCGv t0, TCGv t1, int flags)
 {
     TCGv_i32 temp = tcg_temp_new_i32();
     gen_qemu_ld16u(t0, t1, flags);
@@ -3036,7 +3036,7 @@ void always_inline gen_qemu_ld16ur(TCGv t0, TCGv t1, int flags)
 GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER);
 
 /* lwbrx */
-void always_inline gen_qemu_ld32ur(TCGv t0, TCGv t1, int flags)
+static void always_inline gen_qemu_ld32ur(TCGv t0, TCGv t1, int flags)
 {
     TCGv_i32 temp = tcg_temp_new_i32();
     gen_qemu_ld32u(t0, t1, flags);
@@ -3048,7 +3048,7 @@ void always_inline gen_qemu_ld32ur(TCGv t0, TCGv t1, int flags)
 GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 
 /* sthbrx */
-void always_inline gen_qemu_st16r(TCGv t0, TCGv t1, int flags)
+static void always_inline gen_qemu_st16r(TCGv t0, TCGv t1, int flags)
 {
     TCGv_i32 temp = tcg_temp_new_i32();
     TCGv t2 = tcg_temp_new();
@@ -3063,7 +3063,7 @@ void always_inline gen_qemu_st16r(TCGv t0, TCGv t1, int flags)
 GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER);
 
 /* stwbrx */
-void always_inline gen_qemu_st32r(TCGv t0, TCGv t1, int flags)
+static void always_inline gen_qemu_st32r(TCGv t0, TCGv t1, int flags)
 {
     TCGv_i32 temp = tcg_temp_new_i32();
     TCGv t2 = tcg_temp_new();

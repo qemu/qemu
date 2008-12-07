@@ -21,6 +21,8 @@
  * 4xx SoCs, such as the 440EP. */
 
 #include "hw.h"
+#include "ppc.h"
+#include "ppc4xx.h"
 
 typedef target_phys_addr_t pci_addr_t;
 #include "pci.h"
