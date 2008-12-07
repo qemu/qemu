@@ -201,10 +201,6 @@ extern int printf(const char *, ...);
 /* force GCC to generate only one epilog at the end of the function */
 #define FORCE_RET() __asm__ __volatile__("" : : : "memory");
 
-#ifndef OPPROTO
-#define OPPROTO
-#endif
-
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
 #define stringify(s)	tostring(s)
@@ -215,79 +211,6 @@ extern int printf(const char *, ...);
 #define __hidden __attribute__((visibility("hidden")))
 #else
 #define __hidden
-#endif
-
-#if defined(__alpha__)
-/* Suggested by Richard Henderson. This will result in code like
-        ldah $0,__op_param1($29)        !gprelhigh
-        lda $0,__op_param1($0)          !gprellow
-   We can then conveniently change $29 to $31 and adapt the offsets to
-   emit the appropriate constant.  */
-extern int __op_param1 __hidden;
-extern int __op_param2 __hidden;
-extern int __op_param3 __hidden;
-#define PARAM1 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param1)); _r; })
-#define PARAM2 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param2)); _r; })
-#define PARAM3 ({ int _r; asm("" : "=r"(_r) : "0" (&__op_param3)); _r; })
-#elif defined(__s390__)
-extern int __op_param1 __hidden;
-extern int __op_param2 __hidden;
-extern int __op_param3 __hidden;
-#define PARAM1 ({ int _r; asm("bras %0,8; .long " ASM_NAME(__op_param1) "; l %0,0(%0)" : "=r"(_r) : ); _r; })
-#define PARAM2 ({ int _r; asm("bras %0,8; .long " ASM_NAME(__op_param2) "; l %0,0(%0)" : "=r"(_r) : ); _r; })
-#define PARAM3 ({ int _r; asm("bras %0,8; .long " ASM_NAME(__op_param3) "; l %0,0(%0)" : "=r"(_r) : ); _r; })
-#else
-#if defined(__APPLE__)
-static int __op_param1, __op_param2, __op_param3;
-#else
-extern int __op_param1, __op_param2, __op_param3;
-#endif
-#define PARAM1 ((long)(&__op_param1))
-#define PARAM2 ((long)(&__op_param2))
-#define PARAM3 ((long)(&__op_param3))
-#endif /* !defined(__alpha__) */
-
-extern int __op_jmp0, __op_jmp1, __op_jmp2, __op_jmp3;
-
-#if defined(_WIN32) || defined(__APPLE__)
-#define ASM_NAME(x) "_" #x
-#else
-#define ASM_NAME(x) #x
-#endif
-
-#if defined(__i386__)
-#define EXIT_TB() asm volatile ("ret")
-#define GOTO_LABEL_PARAM(n) asm volatile ("jmp " ASM_NAME(__op_gen_label) #n)
-#elif defined(__x86_64__)
-#define EXIT_TB() asm volatile ("ret")
-#define GOTO_LABEL_PARAM(n) asm volatile ("jmp " ASM_NAME(__op_gen_label) #n)
-#elif defined(__powerpc__)
-#define EXIT_TB() asm volatile ("blr")
-#define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
-#elif defined(__s390__)
-#define EXIT_TB() asm volatile ("br %r14")
-#define GOTO_LABEL_PARAM(n) asm volatile ("larl %r7,12; l %r7,0(%r7); br %r7; .long " ASM_NAME(__op_gen_label) #n)
-#elif defined(__alpha__)
-#define EXIT_TB() asm volatile ("ret")
-#elif defined(__ia64__)
-#define EXIT_TB() asm volatile ("br.ret.sptk.many b0;;")
-#define GOTO_LABEL_PARAM(n) asm volatile ("br.sptk.many " \
-					  ASM_NAME(__op_gen_label) #n)
-#elif defined(__sparc__)
-#define EXIT_TB() asm volatile ("jmpl %i0 + 8, %g0; nop")
-#define GOTO_LABEL_PARAM(n) asm volatile ("ba " ASM_NAME(__op_gen_label) #n ";nop")
-#elif defined(__arm__)
-#define EXIT_TB() asm volatile ("b exec_loop")
-#define GOTO_LABEL_PARAM(n) asm volatile ("b " ASM_NAME(__op_gen_label) #n)
-#elif defined(__mc68000)
-#define EXIT_TB() asm volatile ("rts")
-#elif defined(__mips__)
-#define EXIT_TB() asm volatile ("jr $ra")
-#define GOTO_LABEL_PARAM(n) asm volatile (".set noat; la $1, " ASM_NAME(__op_gen_label) #n "; jr $1; .set at")
-#elif defined(__hppa__)
-#define GOTO_LABEL_PARAM(n) asm volatile ("b,n " ASM_NAME(__op_gen_label) #n)
-#else
-#error unsupported CPU
 #endif
 
 /* The return address may point to the start of the next instruction.

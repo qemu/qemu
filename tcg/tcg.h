@@ -449,8 +449,6 @@ void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
 const TCGArg *tcg_gen_code_op(TCGContext *s, int opc, const TCGArg *args1,
                               unsigned int dead_iargs);
 
-const TCGArg *dyngen_op(TCGContext *s, int opc, const TCGArg *opparam_ptr);
-
 /* tcg-runtime.c */
 int64_t tcg_helper_shl_i64(int64_t arg1, int64_t arg2);
 int64_t tcg_helper_shr_i64(int64_t arg1, int64_t arg2);

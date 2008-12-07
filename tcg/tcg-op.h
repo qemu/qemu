@@ -23,11 +23,6 @@
  */
 #include "tcg.h"
 
-#ifdef CONFIG_DYNGEN_OP
-/* legacy dyngen operations */
-#include "gen-op.h"
-#endif
-
 int gen_new_label(void);
 
 static inline void tcg_gen_op1_i32(int opc, TCGv_i32 arg1)

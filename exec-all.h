@@ -267,20 +267,6 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
 
 TranslationBlock *tb_find_pc(unsigned long pc_ptr);
 
-#if defined(_WIN32)
-#define ASM_DATA_SECTION ".section \".data\"\n"
-#define ASM_PREVIOUS_SECTION ".section .text\n"
-#elif defined(__APPLE__)
-#define ASM_DATA_SECTION ".data\n"
-#define ASM_PREVIOUS_SECTION ".text\n"
-#else
-#define ASM_DATA_SECTION ".section \".data\"\n"
-#define ASM_PREVIOUS_SECTION ".previous\n"
-#endif
-
-#define ASM_OP_LABEL_NAME(n, opname) \
-    ASM_NAME(__op_label) #n "." ASM_NAME(opname)
-
 extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
