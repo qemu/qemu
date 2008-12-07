@@ -699,7 +699,7 @@ static void spitz_ssp_attach(struct pxa2xx_state_s *cpu)
 
 /* CF Microdrive */
 
-static void spitz_microdrive_attach(struct pxa2xx_state_s *cpu)
+static void spitz_microdrive_attach(struct pxa2xx_state_s *cpu, int slot)
 {
     struct pcmcia_card_s *md;
     int index;
@@ -711,7 +711,7 @@ static void spitz_microdrive_attach(struct pxa2xx_state_s *cpu)
     bs = drives_table[index].bdrv;
     if (bdrv_is_inserted(bs) && !bdrv_is_removable(bs)) {
         md = dscm1xxxx_init(bs);
-        pxa2xx_pcmcia_attach(cpu->pcmcia[1], md);
+        pxa2xx_pcmcia_attach(cpu->pcmcia[slot], md);
     }
 }
 
@@ -952,10 +952,10 @@ static void spitz_common_init(ram_addr_t ram_size, int vga_ram_size,
 
     if (model == terrier)
         /* A 6.0 GB microdrive is permanently sitting in CF slot 1.  */
-        spitz_microdrive_attach(cpu);
+        spitz_microdrive_attach(cpu, 1);
     else if (model != akita)
-        /* A 4.0 GB microdrive is permanently sitting in CF slot 1.  */
-        spitz_microdrive_attach(cpu);
+        /* A 4.0 GB microdrive is permanently sitting in CF slot 0.  */
+        spitz_microdrive_attach(cpu, 0);
 
     /* Setup initial (reset) machine state */
     cpu->env->regs[15] = spitz_binfo.loader_start;
