@@ -73,7 +73,7 @@ PROGS=$(QEMU_PROG)
 
 # We require -O2 to avoid the stack setup prologue in EXIT_TB
 OP_CFLAGS := -O2 -g -fno-strict-aliasing
-OP_CFLAGS += -Wall -Wundef -Wendif-labels -Wwrite-strings
+OP_CFLAGS += -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes
 
 # cc-option
 # Usage: OP_CFLAGS+=$(call cc-option, -falign-functions=0, -malign-functions=0)
