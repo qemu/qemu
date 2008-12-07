@@ -5386,6 +5386,7 @@ GEN_HANDLER(tlbiva, 0x1F, 0x12, 0x18, 0x03FFF801, PPC_TLBIVA)
         GEN_EXCP_PRIVOPC(ctx);
         return;
     }
+    t0 = tcg_temp_new();
     gen_addr_reg_index(t0, ctx);
 #if defined(TARGET_PPC64)
     if (!ctx->sf_mode)
