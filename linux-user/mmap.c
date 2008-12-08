@@ -382,6 +382,16 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         end = start + len;
         real_end = HOST_PAGE_ALIGN(end);
 
+	/*
+	 * Test if requested memory area fits target address space
+	 * It can fail only on 64-bit host with 32-bit target.
+	 * On any other target/host host mmap() handles this error correctly.
+	 */
+        if ((unsigned long)start + len - 1 > (abi_ulong) -1) {
+            errno = EINVAL;
+            goto fail;
+        }
+
         for(addr = real_start; addr < real_end; addr += TARGET_PAGE_SIZE) {
             flg = page_get_flags(addr);
             if (flg & PAGE_RESERVED) {
