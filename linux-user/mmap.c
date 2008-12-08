@@ -537,19 +537,41 @@ int target_munmap(abi_ulong start, abi_ulong len)
     return ret;
 }
 
-/* XXX: currently, we only handle MAP_ANONYMOUS and not MAP_FIXED
-   blocks which have been allocated starting on a host page */
 abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                        abi_ulong new_size, unsigned long flags,
                        abi_ulong new_addr)
 {
     int prot;
-    unsigned long host_addr;
+    void *host_addr;
 
     mmap_lock();
-    /* XXX: use 5 args syscall */
-    host_addr = (long)mremap(g2h(old_addr), old_size, new_size, flags);
-    if (host_addr == -1) {
+
+    if (flags & MREMAP_FIXED)
+        host_addr = mremap(g2h(old_addr), old_size, new_size,
+                           flags, new_addr);
+    else if (flags & MREMAP_MAYMOVE) {
+        abi_ulong mmap_start;
+
+        mmap_start = mmap_find_vma(0, new_size);
+
+        if (mmap_start == -1) {
+            errno = ENOMEM;
+            host_addr = MAP_FAILED;
+        } else
+            host_addr = mremap(g2h(old_addr), old_size, new_size,
+                               flags | MREMAP_FIXED, g2h(mmap_start));
+    } else {
+        host_addr = mremap(g2h(old_addr), old_size, new_size, flags);
+        /* Check if address fits target address space */
+        if ((unsigned long)host_addr + new_size > (abi_ulong)-1) {
+            /* Revert mremap() changes */
+            host_addr = mremap(g2h(old_addr), new_size, old_size, flags);
+            errno = ENOMEM;
+            host_addr = MAP_FAILED;
+        }
+    }
+
+    if (host_addr == MAP_FAILED) {
         new_addr = -1;
     } else {
         new_addr = h2g(host_addr);
