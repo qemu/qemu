@@ -257,47 +257,51 @@ void helper_store_601_batu (uint32_t nr, target_ulong val)
 /*****************************************************************************/
 /* Memory load and stores */
 
-static always_inline target_ulong get_addr(target_ulong addr)
+static always_inline target_ulong addr_add(target_ulong addr, target_long arg)
 {
 #if defined(TARGET_PPC64)
-        if (msr_sf)
-            return addr;
+        if (!msr_sf)
+            return (uint32_t)(addr + arg);
         else
 #endif
-            return (uint32_t)addr;
+            return addr + arg;
 }
 
 void helper_lmw (target_ulong addr, uint32_t reg)
 {
-    for (; reg < 32; reg++, addr += 4) {
+    for (; reg < 32; reg++) {
         if (msr_le)
-            env->gpr[reg] = bswap32(ldl(get_addr(addr)));
+            env->gpr[reg] = bswap32(ldl(addr));
         else
-            env->gpr[reg] = ldl(get_addr(addr));
+            env->gpr[reg] = ldl(addr);
+	addr = addr_add(addr, 4);
     }
 }
 
 void helper_stmw (target_ulong addr, uint32_t reg)
 {
-    for (; reg < 32; reg++, addr += 4) {
+    for (; reg < 32; reg++) {
         if (msr_le)
-            stl(get_addr(addr), bswap32((uint32_t)env->gpr[reg]));
+            stl(addr, bswap32((uint32_t)env->gpr[reg]));
         else
-            stl(get_addr(addr), (uint32_t)env->gpr[reg]);
+            stl(addr, (uint32_t)env->gpr[reg]);
+	addr = addr_add(addr, 4);
     }
 }
 
 void helper_lsw(target_ulong addr, uint32_t nb, uint32_t reg)
 {
     int sh;
-    for (; nb > 3; nb -= 4, addr += 4) {
-        env->gpr[reg] = ldl(get_addr(addr));
+    for (; nb > 3; nb -= 4) {
+        env->gpr[reg] = ldl(addr);
         reg = (reg + 1) % 32;
+	addr = addr_add(addr, 4);
     }
     if (unlikely(nb > 0)) {
         env->gpr[reg] = 0;
-        for (sh = 24; nb > 0; nb--, addr++, sh -= 8) {
-            env->gpr[reg] |= ldub(get_addr(addr)) << sh;
+        for (sh = 24; nb > 0; nb--, sh -= 8) {
+            env->gpr[reg] |= ldub(addr) << sh;
+	    addr = addr_add(addr, 1);
         }
     }
 }
@@ -323,25 +327,26 @@ void helper_lswx(target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
 void helper_stsw(target_ulong addr, uint32_t nb, uint32_t reg)
 {
     int sh;
-    for (; nb > 3; nb -= 4, addr += 4) {
-        stl(get_addr(addr), env->gpr[reg]);
+    for (; nb > 3; nb -= 4) {
+        stl(addr, env->gpr[reg]);
         reg = (reg + 1) % 32;
+	addr = addr_add(addr, 4);
     }
     if (unlikely(nb > 0)) {
-        for (sh = 24; nb > 0; nb--, addr++, sh -= 8)
-            stb(get_addr(addr), (env->gpr[reg] >> sh) & 0xFF);
+        for (sh = 24; nb > 0; nb--, sh -= 8)
+            stb(addr, (env->gpr[reg] >> sh) & 0xFF);
+	    addr = addr_add(addr, 1);
     }
 }
 
 static void do_dcbz(target_ulong addr, int dcache_line_size)
 {
-    target_long mask = get_addr(~(dcache_line_size - 1));
+    addr &= ~(dcache_line_size - 1);
     int i;
-    addr &= mask;
     for (i = 0 ; i < dcache_line_size ; i += 4) {
         stl(addr + i , 0);
     }
-    if ((env->reserve & mask) == addr)
+    if (env->reserve == addr)
         env->reserve = (target_ulong)-1ULL;
 }
 
@@ -362,7 +367,7 @@ void helper_icbi(target_ulong addr)
 {
     uint32_t tmp;
 
-    addr = get_addr(addr & ~(env->dcache_line_size - 1));
+    addr &= ~(env->dcache_line_size - 1);
     /* Invalidate one cache line :
      * PowerPC specification says this is to be treated like a load
      * (not a fetch) by the MMU. To be sure it will be so,
@@ -378,7 +383,8 @@ target_ulong helper_lscbx (target_ulong addr, uint32_t reg, uint32_t ra, uint32_
     int i, c, d;
     d = 24;
     for (i = 0; i < xer_bc; i++) {
-        c = ldub((uint32_t)addr++);
+        c = ldub(addr);
+	addr = addr_add(addr, 1);
         /* ra (if not 0) and rb are never modified */
         if (likely(reg != rb && (ra == 0 || reg != ra))) {
             env->gpr[reg] = (env->gpr[reg] & ~(0xFF << d)) | (c << d);
