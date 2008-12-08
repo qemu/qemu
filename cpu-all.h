@@ -638,6 +638,10 @@ static inline void stfq_be_p(void *ptr, float64 v)
     assert(__ret == (abi_ulong)__ret); \
     (abi_ulong)__ret; \
 })
+#define h2g_valid(x) ({ \
+    unsigned long __guest = (unsigned long)(x) - GUEST_BASE; \
+    (__guest == (abi_ulong)__guest); \
+})
 
 #define saddr(x) g2h(x)
 #define laddr(x) g2h(x)
