@@ -621,6 +621,9 @@ static inline void stfq_be_p(void *ptr, float64 v)
 /* MMU memory access macros */
 
 #if defined(CONFIG_USER_ONLY)
+#include <assert.h>
+#include "qemu-types.h"
+
 /* On some host systems the guest address space is reserved on the host.
  * This allows the guest address space to be offset to a convenient location.
  */
@@ -629,7 +632,12 @@ static inline void stfq_be_p(void *ptr, float64 v)
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
 #define g2h(x) ((void *)((unsigned long)(x) + GUEST_BASE))
-#define h2g(x) ((target_ulong)((unsigned long)(x) - GUEST_BASE))
+#define h2g(x) ({ \
+    unsigned long __ret = (unsigned long)(x) - GUEST_BASE; \
+    /* Check if given address fits target address space */ \
+    assert(__ret == (abi_ulong)__ret); \
+    (abi_ulong)__ret; \
+})
 
 #define saddr(x) g2h(x)
 #define laddr(x) g2h(x)
