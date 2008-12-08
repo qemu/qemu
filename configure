@@ -499,7 +499,7 @@ cat > $TMPC <<EOF
 int main(void) {}
 EOF
 
-if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
   : C compiler works ok
 else
     echo "ERROR: \"$cc\" either does not exist or does not work"
@@ -515,7 +515,7 @@ cat > $TMPC <<EOF
 int main(void) {}
 EOF
 
-if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
     mingw32="yes"
 fi
 
@@ -641,7 +641,7 @@ int main(int argc, char ** argv){
 }
 EOF
 
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
 $TMPE && bigendian="yes"
 else
 echo big/little test failed
@@ -885,7 +885,7 @@ cat > $TMPC << EOF
 #include <brlapi.h>
 int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
 EOF
-    if $cc ${ARCH_CFLAGS} -o $TMPE ${OS_CFLAGS} $TMPC -lbrlapi 2> /dev/null ; then
+    if $cc ${ARCH_CFLAGS} -o $TMPE ${OS_CFLAGS} $TMPC -lbrlapi > /dev/null 2> /dev/null ; then
 	    brlapi=yes
     fi # brlapi compile test
 fi # -z $brlapi
@@ -899,7 +899,7 @@ if test "$curses" = "yes" ; then
 #include <curses.h>
 int main(void) { return curses_version(); }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses > /dev/null 2> /dev/null ; then
     curses=yes
   fi
 fi # test "$curses"
@@ -1186,7 +1186,7 @@ else
 #include <byteswap.h>
 int main(void) { return bswap_32(0); }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
     echo "#define HAVE_BYTESWAP_H 1" >> $config_h
   fi
   cat > $TMPC << EOF
@@ -1195,7 +1195,7 @@ EOF
 #include <machine/bswap.h>
 int main(void) { return bswap32(0); }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC >/dev/null 2> /dev/null ; then
     echo "#define HAVE_MACHINE_BSWAP_H 1" >> $config_h
   fi
 fi
