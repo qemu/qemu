@@ -2738,9 +2738,9 @@ static void do_6xx_tlb (target_ulong new_EPN, int is_code)
     way = (env->spr[SPR_SRR1] >> 17) & 1;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: EPN " TDX " " ADDRX " PTE0 " ADDRX
+        fprintf(logfile, "%s: EPN " ADDRX " " ADDRX " PTE0 " ADDRX
                 " PTE1 " ADDRX " way %d\n",
-                __func__, T0, EPN, CMP, RPN, way);
+                __func__, new_EPN, EPN, CMP, RPN, way);
     }
 #endif
     /* Store this TLB */
@@ -2770,9 +2770,9 @@ static void do_74xx_tlb (target_ulong new_EPN, int is_code)
     way = env->spr[SPR_TLBMISS] & 0x3;
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s: EPN " TDX " " ADDRX " PTE0 " ADDRX
+        fprintf(logfile, "%s: EPN " ADDRX " " ADDRX " PTE0 " ADDRX
                 " PTE1 " ADDRX " way %d\n",
-                __func__, T0, EPN, CMP, RPN, way);
+                __func__, new_EPN, EPN, CMP, RPN, way);
     }
 #endif
     /* Store this TLB */
@@ -2900,7 +2900,7 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s entry " TDX " val " TDX "\n", __func__, entry, val);
+        fprintf(logfile, "%s entry %d val " ADDRX "\n", __func__, (int)entry, val);
     }
 #endif
     entry &= 0x3F;
@@ -2942,7 +2942,7 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
     if (loglevel != 0) {
         fprintf(logfile, "%s: set up TLB %d RPN " PADDRX " EPN " ADDRX
                 " size " ADDRX " prot %c%c%c%c PID %d\n", __func__,
-                (int)T0, tlb->RPN, tlb->EPN, tlb->size,
+                (int)entry, tlb->RPN, tlb->EPN, tlb->size,
                 tlb->prot & PAGE_READ ? 'r' : '-',
                 tlb->prot & PAGE_WRITE ? 'w' : '-',
                 tlb->prot & PAGE_EXEC ? 'x' : '-',
@@ -2955,7 +2955,7 @@ void helper_4xx_tlbwe_hi (target_ulong entry, target_ulong val)
 #if defined (DEBUG_SOFTWARE_TLB)
         if (loglevel != 0) {
             fprintf(logfile, "%s: invalidate TLB %d start " ADDRX
-                    " end " ADDRX "\n", __func__, (int)T0, tlb->EPN, end);
+                    " end " ADDRX "\n", __func__, (int)entry, tlb->EPN, end);
         }
 #endif
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE)
@@ -2969,7 +2969,7 @@ void helper_4xx_tlbwe_lo (target_ulong entry, target_ulong val)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s entry " TDX " val " TDX "\n", __func__, entry, val);
+        fprintf(logfile, "%s entry %i val " ADDRX "\n", __func__, (int)entry, val);
     }
 #endif
     entry &= 0x3F;
@@ -3007,8 +3007,8 @@ void helper_440_tlbwe (uint32_t word, target_ulong entry, target_ulong value)
 
 #if defined (DEBUG_SOFTWARE_TLB)
     if (loglevel != 0) {
-        fprintf(logfile, "%s word %d entry " TDX " value " TDX "\n",
-                __func__, word, entry, value);
+        fprintf(logfile, "%s word %d entry %d value " ADDRX "\n",
+                __func__, word, (int)entry, value);
     }
 #endif
     do_flush_tlbs = 0;
