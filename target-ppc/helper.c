@@ -1510,10 +1510,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         access_type = ACCESS_CODE;
     } else {
         /* data access */
-        /* XXX: put correct access by using cpu_restore_state()
-           correctly */
-        access_type = ACCESS_INT;
-        //        access_type = env->access_type;
+        access_type = env->access_type;
     }
     ret = get_physical_address(env, &ctx, address, rw, access_type);
     if (ret == 0) {
