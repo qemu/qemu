@@ -1860,6 +1860,7 @@ void helper_rfsvc (void)
 /* 602 specific instructions */
 /* mfrom is the most crazy instruction ever seen, imho ! */
 /* Real implementation uses a ROM table. Do the same */
+#if !defined (CONFIG_USER_ONLY)
 #define USE_MFROM_ROM_TABLE
 target_ulong helper_602_mfrom (target_ulong arg)
 {
@@ -1887,6 +1888,7 @@ target_ulong helper_602_mfrom (target_ulong arg)
         return 0;
     }
 }
+#endif
 
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
