@@ -933,7 +933,8 @@ if test "$kvm" = "yes" ; then
     KVM_API_VERSION < 12 || \
     KVM_API_VERSION > 12 || \
     !defined(KVM_CAP_USER_MEMORY) || \
-    !defined(KVM_CAP_SET_TSS_ADDR)
+    !defined(KVM_CAP_SET_TSS_ADDR) || \
+    !defined(KVM_CAP_DESTROY_MEMORY_REGION_WORKS)
 #error Invalid KVM version
 #endif
 int main(void) { return 0; }

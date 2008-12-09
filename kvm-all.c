@@ -283,6 +283,21 @@ int kvm_init(int smp_cpus)
         goto err;
     }
 
+    /* There was a nasty bug in < kvm-80 that prevents memory slots from being
+     * destroyed properly.  Since we rely on this capability, refuse to work
+     * with any kernel without this capability. */
+    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION,
+                    KVM_CAP_DESTROY_MEMORY_REGION_WORKS);
+    if (ret <= 0) {
+        if (ret == 0)
+            ret = -EINVAL;
+
+        fprintf(stderr,
+                "KVM kernel module broken (DESTROY_MEMORY_REGION)\n"
+                "Please upgrade to at least kvm-81.\n");
+        goto err;
+    }
+
     ret = kvm_arch_init(s, smp_cpus);
     if (ret < 0)
         goto err;
