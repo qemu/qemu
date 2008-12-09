@@ -3,6 +3,8 @@
 DEF_HELPER_0(ldtlb, void)
 DEF_HELPER_0(raise_illegal_instruction, void)
 DEF_HELPER_0(raise_slot_illegal_instruction, void)
+DEF_HELPER_0(raise_fpu_disable, void)
+DEF_HELPER_0(raise_slot_fpu_disable, void)
 DEF_HELPER_0(debug, void)
 DEF_HELPER_1(sleep, void, i32)
 DEF_HELPER_1(trapa, void, i32)

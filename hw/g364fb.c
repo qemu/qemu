@@ -20,6 +20,7 @@
  */
 
 #include "hw.h"
+#include "mips.h"
 #include "console.h"
 #include "pixel_ops.h"
 

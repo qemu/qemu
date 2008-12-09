@@ -314,8 +314,8 @@ static inline void *tcg_malloc(int size)
 void tcg_context_init(TCGContext *s);
 void tcg_func_start(TCGContext *s);
 
-int dyngen_code(TCGContext *s, uint8_t *gen_code_buf);
-int dyngen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
+int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf);
+int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
 
 void tcg_set_frame(TCGContext *s, int reg,
                    tcg_target_long start, tcg_target_long size);

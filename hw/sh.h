@@ -4,6 +4,9 @@
 
 #include "sh_intc.h"
 
+#define A7ADDR(x) ((x) & 0x1fffffff)
+#define P4ADDR(x) ((x) | 0xe0000000)
+
 /* sh7750.c */
 struct SH7750State;
 

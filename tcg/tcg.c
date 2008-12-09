@@ -1890,20 +1890,15 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
 
 #ifdef CONFIG_PROFILER
 
-static int64_t dyngen_table_op_count[NB_OPS];
+static int64_t tcg_table_op_count[NB_OPS];
 
 void dump_op_count(void)
 {
     int i;
     FILE *f;
-    f = fopen("/tmp/op1.log", "w");
-    for(i = 0; i < INDEX_op_end; i++) {
-        fprintf(f, "%s %" PRId64 "\n", tcg_op_defs[i].name, dyngen_table_op_count[i]);
-    }
-    fclose(f);
-    f = fopen("/tmp/op2.log", "w");
+    f = fopen("/tmp/op.log", "w");
     for(i = INDEX_op_end; i < NB_OPS; i++) {
-        fprintf(f, "%s %" PRId64 "\n", tcg_op_defs[i].name, dyngen_table_op_count[i]);
+        fprintf(f, "%s %" PRId64 "\n", tcg_op_defs[i].name, tcg_table_op_count[i]);
     }
     fclose(f);
 }
@@ -1953,7 +1948,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     for(;;) {
         opc = gen_opc_buf[op_index];
 #ifdef CONFIG_PROFILER
-        dyngen_table_op_count[opc]++;
+        tcg_table_op_count[opc]++;
 #endif
         def = &tcg_op_defs[opc];
 #if 0
@@ -2030,7 +2025,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     return -1;
 }
 
-int dyngen_code(TCGContext *s, uint8_t *gen_code_buf)
+int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf)
 {
 #ifdef CONFIG_PROFILER
     {
@@ -2058,7 +2053,7 @@ int dyngen_code(TCGContext *s, uint8_t *gen_code_buf)
    offset bytes from the start of the TB.  The contents of gen_code_buf must
    not be changed, though writing the same values is ok.
    Return -1 if not found. */
-int dyngen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset)
+int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset)
 {
     return tcg_gen_code_common(s, gen_code_buf, offset);
 }

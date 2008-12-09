@@ -73,7 +73,7 @@ void sh_intc_toggle_source(struct intc_source *source,
   }
 }
 
-void sh_intc_set_irq (void *opaque, int n, int level)
+static void sh_intc_set_irq (void *opaque, int n, int level)
 {
   struct intc_desc *desc = opaque;
   struct intc_source *source = &(desc->sources[n]);
@@ -307,9 +307,12 @@ struct intc_source *sh_intc_source(struct intc_desc *desc, intc_enum id)
 static void sh_intc_register(struct intc_desc *desc, 
 			     unsigned long address)
 {
-    if (address)
-        cpu_register_physical_memory_offset(INTC_A7(address), 4,
+    if (address) {
+        cpu_register_physical_memory_offset(P4ADDR(address), 4,
                                             desc->iomemtype, INTC_A7(address));
+        cpu_register_physical_memory_offset(A7ADDR(address), 4,
+                                            desc->iomemtype, INTC_A7(address));
+    }
 }
 
 static void sh_intc_register_source(struct intc_desc *desc,

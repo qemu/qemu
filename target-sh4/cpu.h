@@ -279,7 +279,8 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *flags = (env->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL
                     | DELAY_SLOT_TRUE | DELAY_SLOT_CLEARME))   /* Bits  0- 3 */
             | (env->fpscr & (FPSCR_FR | FPSCR_SZ | FPSCR_PR))  /* Bits 19-21 */
-            | (env->sr & (SR_MD | SR_RB));                     /* Bits 29-30 */
+            | (env->sr & (SR_MD | SR_RB))                      /* Bits 29-30 */
+            | (env->sr & SR_FD);                               /* Bit 15 */
 }
 
 #endif				/* _CPU_SH4_H */

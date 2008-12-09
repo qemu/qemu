@@ -102,12 +102,12 @@ static void audio_init(qemu_irq *pic)
 }
 #endif
 
-void espdma_memory_read(void *opaque, uint8_t *buf, int len)
+static void espdma_memory_read(void *opaque, uint8_t *buf, int len)
 {
     printf("espdma_memory_read(buf %p, len %d) not implemented\n", buf, len);
 }
 
-void espdma_memory_write(void *opaque, uint8_t *buf, int len)
+static void espdma_memory_write(void *opaque, uint8_t *buf, int len)
 {
     printf("espdma_memory_write(buf %p, len %d) not implemented\n", buf, len);
 }

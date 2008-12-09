@@ -89,6 +89,18 @@ void helper_raise_slot_illegal_instruction(void)
     cpu_loop_exit();
 }
 
+void helper_raise_fpu_disable(void)
+{
+  env->exception_index = 0x800;
+  cpu_loop_exit();
+}
+
+void helper_raise_slot_fpu_disable(void)
+{
+  env->exception_index = 0x820;
+  cpu_loop_exit();
+}
+
 void helper_debug(void)
 {
     env->exception_index = EXCP_DEBUG;
