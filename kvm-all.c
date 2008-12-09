@@ -24,6 +24,9 @@
 #include "sysemu.h"
 #include "kvm.h"
 
+/* KVM uses PAGE_SIZE in it's definition of COALESCED_MMIO_MAX */
+#define PAGE_SIZE TARGET_PAGE_SIZE
+
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
@@ -52,6 +55,7 @@ struct KVMState
     KVMSlot slots[32];
     int fd;
     int vmfd;
+    int coalesced_mmio;
 };
 
 static KVMState *kvm_state;
@@ -228,6 +232,44 @@ out:
     qemu_free(d.dirty_bitmap);
 }
 
+int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
+{
+    int ret = -ENOSYS;
+#ifdef KVM_CAP_COALESCED_MMIO
+    KVMState *s = kvm_state;
+
+    if (s->coalesced_mmio) {
+        struct kvm_coalesced_mmio_zone zone;
+
+        zone.addr = start;
+        zone.size = size;
+
+        ret = kvm_vm_ioctl(s, KVM_REGISTER_COALESCED_MMIO, &zone);
+    }
+#endif
+
+    return ret;
+}
+
+int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
+{
+    int ret = -ENOSYS;
+#ifdef KVM_CAP_COALESCED_MMIO
+    KVMState *s = kvm_state;
+
+    if (s->coalesced_mmio) {
+        struct kvm_coalesced_mmio_zone zone;
+
+        zone.addr = start;
+        zone.size = size;
+
+        ret = kvm_vm_ioctl(s, KVM_UNREGISTER_COALESCED_MMIO, &zone);
+    }
+#endif
+
+    return ret;
+}
+
 int kvm_init(int smp_cpus)
 {
     KVMState *s;
@@ -298,6 +340,13 @@ int kvm_init(int smp_cpus)
         goto err;
     }
 
+    s->coalesced_mmio = 0;
+#ifdef KVM_CAP_COALESCED_MMIO
+    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
+    if (ret > 0)
+        s->coalesced_mmio = ret;
+#endif
+
     ret = kvm_arch_init(s, smp_cpus);
     if (ret < 0)
         goto err;
@@ -357,6 +406,27 @@ static int kvm_handle_io(CPUState *env, uint16_t port, void *data,
     return 1;
 }
 
+static void kvm_run_coalesced_mmio(CPUState *env, struct kvm_run *run)
+{
+#ifdef KVM_CAP_COALESCED_MMIO
+    KVMState *s = kvm_state;
+    if (s->coalesced_mmio) {
+        struct kvm_coalesced_mmio_ring *ring;
+
+        ring = (void *)run + (s->coalesced_mmio * TARGET_PAGE_SIZE);
+        while (ring->first != ring->last) {
+            struct kvm_coalesced_mmio *ent;
+
+            ent = &ring->coalesced_mmio[ring->first];
+
+            cpu_physical_memory_write(ent->phys_addr, ent->data, ent->len);
+            /* FIXME smp_wmb() */
+            ring->first = (ring->first + 1) % KVM_COALESCED_MMIO_MAX;
+        }
+    }
+#endif
+}
+
 int kvm_cpu_exec(CPUState *env)
 {
     struct kvm_run *run = env->kvm_run;
@@ -386,6 +456,8 @@ int kvm_cpu_exec(CPUState *env)
             dprintf("kvm run failed %s\n", strerror(-ret));
             abort();
         }
+
+        kvm_run_coalesced_mmio(env, run);
 
         ret = 0; /* exit loop */
         switch (run->exit_reason) {

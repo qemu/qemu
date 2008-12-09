@@ -279,6 +279,7 @@ static void pci_update_mappings(PCIDevice *d)
                         cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
                                                      r->size,
                                                      IO_MEM_UNASSIGNED);
+                        qemu_unregister_coalesced_mmio(r->addr, r->size);
                     }
                 }
                 r->addr = new_addr;

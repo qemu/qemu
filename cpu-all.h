@@ -973,6 +973,15 @@ void cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr, target_phys_a
 void dump_exec_info(FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
+/* Coalesced MMIO regions are areas where write operations can be reordered.
+ * This usually implies that write operations are side-effect free.  This allows
+ * batching which can make a major impact on performance when using
+ * virtualization.
+ */
+void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
+
+void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
+
 /*******************************************/
 /* host CPU ticks (if available) */
 

@@ -2256,6 +2256,7 @@ void vga_init(VGAState *s)
     vga_io_memory = cpu_register_io_memory(0, vga_mem_read, vga_mem_write, s);
     cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000,
                                  vga_io_memory);
+    qemu_register_coalesced_mmio(isa_mem_base + 0x000a0000, 0x20000);
 }
 
 /* Memory mapped interface */
@@ -2330,6 +2331,7 @@ static void vga_mm_init(VGAState *s, target_phys_addr_t vram_base,
     cpu_register_physical_memory(ctrl_base, 0x100000, s_ioport_ctrl);
     s->bank_offset = 0;
     cpu_register_physical_memory(vram_base + 0x000a0000, 0x20000, vga_io_memory);
+    qemu_register_coalesced_mmio(vram_base + 0x000a0000, 0x20000);
 }
 
 int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
