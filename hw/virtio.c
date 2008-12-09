@@ -485,7 +485,7 @@ static void virtio_update_irq(VirtIODevice *vdev)
     qemu_set_irq(vdev->pci_dev.irq[0], vdev->isr & 1);
 }
 
-void virtio_reset(void *opaque)
+static void virtio_reset(void *opaque)
 {
     VirtIODevice *vdev = opaque;
     int i;

@@ -1602,8 +1602,6 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     return RS_IDLE;
 }
 
-extern void tb_flush(CPUState *env);
-
 void gdb_set_stop_cpu(CPUState *env)
 {
     gdbserver_state->c_cpu = env;

@@ -284,8 +284,8 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     return 0;
 }
 
-#ifndef _WIN32
-int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
+#if !defined(_WIN32) && 0
+static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 {
     const char *p;
     int len;

@@ -60,7 +60,6 @@ typedef struct SH7750State {
     uint16_t periph_portdirb;	/* Direction seen from the peripherals */
     sh7750_io_device *devices[NB_DEVICES];	/* External peripherals */
 
-    uint16_t icr;
     /* Cache */
     uint32_t ccr;
 
@@ -222,8 +221,6 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
 	return porta_lines(s);
     case SH7750_PDTRB_A7:
 	return portb_lines(s);
-    case 0x1fd00000:
-        return s->icr;
     default:
 	error_access("word read", addr);
 	assert(0);
@@ -327,9 +324,6 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
 	    fprintf(stderr, "I/O interrupts not implemented\n");
 	    assert(0);
 	}
-	return;
-    case 0x1fd00000:
-        s->icr = mem_value;
 	return;
     default:
 	error_access("word write", addr);
@@ -687,8 +681,12 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     sh7750_io_memory = cpu_register_io_memory(0,
 					      sh7750_mem_read,
 					      sh7750_mem_write, s);
-    cpu_register_physical_memory_offset(0x1c000000, 0x04000000,
-                                        sh7750_io_memory, 0x1c000000);
+    cpu_register_physical_memory_offset(0x1f000000, 0x1000,
+                                        sh7750_io_memory, 0x1f000000);
+    cpu_register_physical_memory_offset(0x1f800000, 0x1000,
+                                        sh7750_io_memory, 0x1f800000);
+    cpu_register_physical_memory_offset(0x1fc00000, 0x1000,
+                                        sh7750_io_memory, 0x1fc00000);
 
     sh7750_mm_cache_and_tlb = cpu_register_io_memory(0,
 						     sh7750_mmct_read,

@@ -40,8 +40,7 @@ int kvm_arch_init_vcpu(CPUState *env)
         struct kvm_cpuid cpuid;
         struct kvm_cpuid_entry entries[100];
     } __attribute__((packed)) cpuid_data;
-    int limit, cpuid_i;
-    unsigned i;
+    uint32_t limit, i, cpuid_i;
     uint32_t eax, ebx, ecx, edx;
 
     cpuid_i = 0;
