@@ -429,12 +429,16 @@ static void do_change_block(const char *device, const char *filename, const char
     qemu_key_check(bs, filename);
 }
 
-static void do_change_vnc(const char *target)
+static void do_change_vnc(const char *target, const char *arg)
 {
     if (strcmp(target, "passwd") == 0 ||
 	strcmp(target, "password") == 0) {
 	char password[9];
-	monitor_readline("Password: ", 1, password, sizeof(password));
+	if (arg) {
+	    strncpy(password, arg, sizeof(password));
+	    password[sizeof(password) - 1] = '\0';
+	} else
+	    monitor_readline("Password: ", 1, password, sizeof(password));
 	if (vnc_display_password(NULL, password) < 0)
 	    term_printf("could not set VNC server password\n");
     } else {
@@ -443,12 +447,12 @@ static void do_change_vnc(const char *target)
     }
 }
 
-static void do_change(const char *device, const char *target, const char *fmt)
+static void do_change(const char *device, const char *target, const char *arg)
 {
     if (strcmp(device, "vnc") == 0) {
-	do_change_vnc(target);
+	do_change_vnc(target, arg);
     } else {
-	do_change_block(device, target, fmt);
+	do_change_block(device, target, arg);
     }
 }
 
