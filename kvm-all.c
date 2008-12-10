@@ -328,6 +328,7 @@ int kvm_init(int smp_cpus)
     /* There was a nasty bug in < kvm-80 that prevents memory slots from being
      * destroyed properly.  Since we rely on this capability, refuse to work
      * with any kernel without this capability. */
+#if defined(KVM_CAP_DESTROY_MEMORY_REGION_WORKS)
     ret = kvm_ioctl(s, KVM_CHECK_EXTENSION,
                     KVM_CAP_DESTROY_MEMORY_REGION_WORKS);
     if (ret <= 0) {
@@ -339,7 +340,11 @@ int kvm_init(int smp_cpus)
                 "Please upgrade to at least kvm-81.\n");
         goto err;
     }
-
+#else
+    fprintf(stderr,
+            "KVM kernel module might be broken (DESTROY_MEMORY_REGION)\n"
+            "Please upgrade to at least kvm-81.\n");
+#endif
     s->coalesced_mmio = 0;
 #ifdef KVM_CAP_COALESCED_MMIO
     ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
