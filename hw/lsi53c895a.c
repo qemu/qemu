@@ -338,6 +338,20 @@ static int lsi_dma_40bit(LSIState *s)
     return 0;
 }
 
+static int lsi_dma_ti64bit(LSIState *s)
+{
+    if ((s->ccntl1 & LSI_CCNTL1_EN64TIBMV) == LSI_CCNTL1_EN64TIBMV)
+        return 1;
+    return 0;
+}
+
+static int lsi_dma_64bit(LSIState *s)
+{
+    if ((s->ccntl1 & LSI_CCNTL1_EN64DBMV) == LSI_CCNTL1_EN64DBMV)
+        return 1;
+    return 0;
+}
+
 static uint8_t lsi_reg_readb(LSIState *s, int offset);
 static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val);
 static void lsi_execute_script(LSIState *s);
@@ -477,8 +491,11 @@ static void lsi_do_dma(LSIState *s, int out)
         count = s->current_dma_len;
 
     addr = s->dnad;
-    if (lsi_dma_40bit(s))
+    /* both 40 and Table Indirect 64-bit DMAs store upper bits in dnad64 */
+    if (lsi_dma_40bit(s) || lsi_dma_ti64bit(s))
         addr |= ((uint64_t)s->dnad64 << 32);
+    else if (s->dbms)
+        addr |= ((uint64_t)s->dbms << 32);
     else if (s->sbms)
         addr |= ((uint64_t)s->sbms << 32);
 
@@ -888,6 +905,8 @@ again:
         }
         s->dbc = insn & 0xffffff;
         s->rbc = s->dbc;
+        /* ??? Set ESA.  */
+        s->ia = s->dsp - 8;
         if (insn & (1 << 29)) {
             /* Indirect addressing.  */
             addr = read_dword(s, addr);
@@ -895,6 +914,8 @@ again:
             uint32_t buf[2];
             int32_t offset;
             /* Table indirect addressing.  */
+
+            /* 32-bit Table indirect */
             offset = sxt24(addr);
             cpu_physical_memory_read(s->dsa + offset, (uint8_t *)buf, 8);
             /* byte count is stored in bits 0:23 only */
@@ -906,6 +927,44 @@ again:
              * table, bits [31:24] */
             if (lsi_dma_40bit(s))
                 addr_high = cpu_to_le32(buf[0]) >> 24;
+            else if (lsi_dma_ti64bit(s)) {
+                int selector = (cpu_to_le32(buf[0]) >> 24) & 0x1f;
+                switch (selector) {
+                case 0 ... 0x0f:
+                    /* offset index into scratch registers since
+                     * TI64 mode can use registers C to R */
+                    addr_high = s->scratch[2 + selector];
+                    break;
+                case 0x10:
+                    addr_high = s->mmrs;
+                    break;
+                case 0x11:
+                    addr_high = s->mmws;
+                    break;
+                case 0x12:
+                    addr_high = s->sfs;
+                    break;
+                case 0x13:
+                    addr_high = s->drs;
+                    break;
+                case 0x14:
+                    addr_high = s->sbms;
+                    break;
+                case 0x15:
+                    addr_high = s->dbms;
+                    break;
+                default:
+                    BADF("Illegal selector specified (0x%x > 0x15)"
+                         " for 64-bit DMA block move", selector);
+                    break;
+                }
+            }
+        } else if (lsi_dma_64bit(s)) {
+            /* fetch a 3rd dword if 64-bit direct move is enabled and
+               only if we're not doing table indirect or indirect addressing */
+            s->dbms = read_dword(s, s->dsp);
+            s->dsp += 4;
+            s->ia = s->dsp - 12;
         }
         if ((s->sstat1 & PHASE_MASK) != ((insn >> 24) & 7)) {
             DPRINTF("Wrong phase got %d expected %d\n",
@@ -915,8 +974,6 @@ again:
         }
         s->dnad = addr;
         s->dnad64 = addr_high;
-        /* ??? Set ESA.  */
-        s->ia = s->dsp - 8;
         switch (s->sstat1 & 0x7) {
         case PHASE_DO:
             s->waiting = 2;
