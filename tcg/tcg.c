@@ -43,6 +43,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
+#include "cache-utils.h"
 
 /* Note: the long term plan is to reduce the dependancies on the QEMU
    CPU definitions. Currently they are used for qemu_ld/st

@@ -79,7 +79,7 @@ OBJS+=usb-serial.o usb-net.o
 OBJS+=sd.o ssi-sd.o
 OBJS+=bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
 OBJS+=buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
-OBJS+=qemu-char.o aio.o net-checksum.o savevm.o
+OBJS+=qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
 
 ifdef CONFIG_BRLAPI
 OBJS+= baum.o
@@ -178,7 +178,7 @@ libqemu_common.a: $(OBJS)
 
 #######################################################################
 # USER_OBJS is code used by qemu userspace emulation
-USER_OBJS=cutils.o
+USER_OBJS=cutils.o  cache-utils.o
 
 libqemu_user.a: $(USER_OBJS)
 	rm -f $@ 

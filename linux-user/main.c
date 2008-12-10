@@ -27,6 +27,7 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
+#include "cache-utils.h"
 /* For tb_lock */
 #include "exec-all.h"
 
@@ -2214,7 +2215,7 @@ void init_task_state(TaskState *ts)
     ts->sigqueue_table[i].next = NULL;
 }
  
-int main(int argc, char **argv)
+int main(int argc, char **argv, char **envp)
 {
     const char *filename;
     const char *cpu_model;
@@ -2230,6 +2231,8 @@ int main(int argc, char **argv)
 
     if (argc <= 1)
         usage();
+
+    qemu_cache_utils_init(envp);
 
     /* init debug */
     cpu_set_log_filename(DEBUG_LOGFILE);

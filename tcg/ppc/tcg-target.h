@@ -86,24 +86,3 @@ enum {
 #define TCG_AREG1 TCG_REG_R24
 #define TCG_AREG2 TCG_REG_R25
 #define TCG_AREG3 TCG_REG_R26
-
-/* taken directly from tcg-dyngen.c */
-#define MIN_CACHE_LINE_SIZE 8 /* conservative value */
-
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
-{
-    unsigned long p;
-
-    start &= ~(MIN_CACHE_LINE_SIZE - 1);
-    stop = (stop + MIN_CACHE_LINE_SIZE - 1) & ~(MIN_CACHE_LINE_SIZE - 1);
-
-    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
-        asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
-    }
-    asm volatile ("sync" : : : "memory");
-    for (p = start; p < stop; p += MIN_CACHE_LINE_SIZE) {
-        asm volatile ("icbi 0,%0" : : "r"(p) : "memory");
-    }
-    asm volatile ("sync" : : : "memory");
-    asm volatile ("isync" : : : "memory");
-}
