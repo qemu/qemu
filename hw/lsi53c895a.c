@@ -251,7 +251,7 @@ typedef struct {
     uint32_t sfs;
     uint32_t drs;
     uint32_t sbms;
-    uint32_t dmbs;
+    uint32_t dbms;
     uint32_t dnad64;
     uint32_t pmjad1;
     uint32_t pmjad2;
@@ -320,7 +320,7 @@ static void lsi_soft_reset(LSIState *s)
     s->sfs = 0;
     s->drs = 0;
     s->sbms = 0;
-    s->dmbs = 0;
+    s->dbms = 0;
     s->dnad64 = 0;
     s->pmjad1 = 0;
     s->pmjad2 = 0;
@@ -1401,7 +1401,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
     CASE_GET_REG32(sfs, 0xa8)
     CASE_GET_REG32(drs, 0xac)
     CASE_GET_REG32(sbms, 0xb0)
-    CASE_GET_REG32(dmbs, 0xb4)
+    CASE_GET_REG32(dbms, 0xb4)
     CASE_GET_REG32(dnad64, 0xb8)
     CASE_GET_REG32(pmjad1, 0xc0)
     CASE_GET_REG32(pmjad2, 0xc4)
@@ -1618,7 +1618,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     CASE_SET_REG32(sfs, 0xa8)
     CASE_SET_REG32(drs, 0xac)
     CASE_SET_REG32(sbms, 0xb0)
-    CASE_SET_REG32(dmbs, 0xb4)
+    CASE_SET_REG32(dbms, 0xb4)
     CASE_SET_REG32(dnad64, 0xb8)
     CASE_SET_REG32(pmjad1, 0xc0)
     CASE_SET_REG32(pmjad2, 0xc4)
