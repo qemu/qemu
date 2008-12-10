@@ -255,7 +255,7 @@ static int find_tlb_entry(CPUState * env, target_ulong address,
     for (i = 0; i < nbtlb; i++) {
 	if (!entries[i].v)
 	    continue;		/* Invalid entry */
-	if (use_asid && entries[i].asid != asid)
+	if (!entries[i].sh && use_asid && entries[i].asid != asid)
 	    continue;		/* Bad ASID */
 #if 0
 	switch (entries[i].sz) {
@@ -538,9 +538,6 @@ void cpu_load_tlb(CPUState * env)
 	}
     }
 
-    /* per utlb access cannot implemented. */
-    increment_urc(env);
-
     /* Take values into cpu status from registers. */
     entry->asid = (uint8_t)cpu_pteh_asid(env->pteh);
     entry->vpn  = cpu_pteh_vpn(env->pteh);
@@ -581,6 +578,7 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
     uint8_t d = (uint8_t)((mem_value & 0x00000200) >> 9);
     uint8_t v = (uint8_t)((mem_value & 0x00000100) >> 8);
     uint8_t asid = (uint8_t)(mem_value & 0x000000ff);
+    int use_asid = (s->mmucr & MMUCR_SV) == 0 || (s->sr & SR_MD) == 0;
 
     if (associate) {
         int i;
@@ -593,7 +591,8 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
             if (!entry->v)
 	        continue;
 
-            if (entry->vpn == vpn && entry->asid == asid) {
+            if (entry->vpn == vpn
+                && (!use_asid || entry->asid == asid || entry->sh)) {
 	        if (utlb_match_entry) {
 		    /* Multiple TLB Exception */
 		    s->exception_index = 0x140;
@@ -612,7 +611,8 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 	/* search ITLB */
 	for (i = 0; i < ITLB_SIZE; i++) {
             tlb_t * entry = &s->itlb[i];
-            if (entry->vpn == vpn && entry->asid == asid) {
+            if (entry->vpn == vpn
+                && (!use_asid || entry->asid == asid || entry->sh)) {
 	        if (entry->v && !v)
 		    needs_tlb_flush = 1;
 	        if (utlb_match_entry)
