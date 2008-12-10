@@ -6165,6 +6165,8 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         tval += s->pc - s->cs_base;
         if (s->dflag == 0)
             tval &= 0xffff;
+        else if(!CODE64(s))
+            tval &= 0xffffffff;
         gen_jmp(s, tval);
         break;
     case 0xea: /* ljmp im */
