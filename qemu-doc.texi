@@ -1241,11 +1241,11 @@ and @var{options} are described at @ref{sec_invocation}. eg
 (qemu) change vnc localhost:1
 @end example
 
-@item change vnc password
+@item change vnc password [@var{password}]
 
-Change the password associated with the VNC server. The monitor will prompt for
-the new password to be entered. VNC passwords are only significant upto 8 letters.
-eg.
+Change the password associated with the VNC server. If the new password is not
+supplied, the monitor will prompt for it to be entered. VNC passwords are only
+significant up to 8 letters. eg
 
 @example
 (qemu) change vnc password

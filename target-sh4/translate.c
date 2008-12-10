@@ -481,6 +481,7 @@ static void _decode_opc(DisasContext * ctx)
 #if 0
     fprintf(stderr, "Translating opcode 0x%04x\n", ctx->opcode);
 #endif
+
     switch (ctx->opcode) {
     case 0x0019:		/* div0u */
 	tcg_gen_andi_i32(cpu_sr, cpu_sr, ~(SR_M | SR_Q | SR_T));
@@ -998,6 +999,7 @@ static void _decode_opc(DisasContext * ctx)
 	tcg_gen_xor_i32(REG(B11_8), REG(B11_8), REG(B7_4));
 	return;
     case 0xf00c: /* fmov {F,D,X}Rm,{F,D,X}Rn - FPSCR: Nothing */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_SZ) {
 	    TCGv_i64 fp = tcg_temp_new_i64();
 	    gen_load_fpr64(fp, XREG(B7_4));
@@ -1008,6 +1010,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf00a: /* fmov {F,D,X}Rm,@Rn - FPSCR: Nothing */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_SZ) {
 	    TCGv addr_hi = tcg_temp_new();
 	    int fr = XREG(B7_4);
@@ -1020,6 +1023,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf008: /* fmov @Rm,{F,D,X}Rn - FPSCR: Nothing */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_SZ) {
 	    TCGv addr_hi = tcg_temp_new();
 	    int fr = XREG(B11_8);
@@ -1032,6 +1036,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf009: /* fmov @Rm+,{F,D,X}Rn - FPSCR: Nothing */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_SZ) {
 	    TCGv addr_hi = tcg_temp_new();
 	    int fr = XREG(B11_8);
@@ -1046,6 +1051,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf00b: /* fmov {F,D,X}Rm,@-Rn - FPSCR: Nothing */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_SZ) {
 	    TCGv addr = tcg_temp_new_i32();
 	    int fr = XREG(B7_4);
@@ -1065,6 +1071,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf006: /* fmov @(R0,Rm),{F,D,X}Rm - FPSCR: Nothing */
+	CHECK_FPU_ENABLED
 	{
 	    TCGv addr = tcg_temp_new_i32();
 	    tcg_gen_add_i32(addr, REG(B7_4), REG(0));
@@ -1080,6 +1087,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf007: /* fmov {F,D,X}Rn,@(R0,Rn) - FPSCR: Nothing */
+	CHECK_FPU_ENABLED
 	{
 	    TCGv addr = tcg_temp_new();
 	    tcg_gen_add_i32(addr, REG(B11_8), REG(0));
@@ -1101,6 +1109,7 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf004: /* fcmp/eq Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
     case 0xf005: /* fcmp/gt Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
 	{
+	    CHECK_FPU_ENABLED
 	    if (ctx->fpscr & FPSCR_PR) {
                 TCGv_i64 fp0, fp1;
 
@@ -1623,16 +1632,15 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf00d: /* fsts FPUL,FRn - FPSCR: Nothing */
-	{
-	    tcg_gen_mov_i32(cpu_fregs[FREG(B11_8)], cpu_fpul);
-	}
+	CHECK_FPU_ENABLED
+	tcg_gen_mov_i32(cpu_fregs[FREG(B11_8)], cpu_fpul);
 	return;
     case 0xf01d: /* flds FRm,FPUL - FPSCR: Nothing */
-	{
-	    tcg_gen_mov_i32(cpu_fpul, cpu_fregs[FREG(B11_8)]);
-	}
+	CHECK_FPU_ENABLED
+	tcg_gen_mov_i32(cpu_fpul, cpu_fregs[FREG(B11_8)]);
 	return;
     case 0xf02d: /* float FPUL,FRn/DRn - FPSCR: R[PR,Enable.I]/W[Cause,Flag] */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_PR) {
 	    TCGv_i64 fp;
 	    if (ctx->opcode & 0x0100)
@@ -1647,6 +1655,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf03d: /* ftrc FRm/DRm,FPUL - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_PR) {
 	    TCGv_i64 fp;
 	    if (ctx->opcode & 0x0100)
@@ -1661,11 +1670,13 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf04d: /* fneg FRn/DRn - FPSCR: Nothing */
+	CHECK_FPU_ENABLED
 	{
 	    gen_helper_fneg_T(cpu_fregs[FREG(B11_8)], cpu_fregs[FREG(B11_8)]);
 	}
 	return;
     case 0xf05d: /* fabs FRn/DRn */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_PR) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
@@ -1679,6 +1690,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf06d: /* fsqrt FRn */
+	CHECK_FPU_ENABLED
 	if (ctx->fpscr & FPSCR_PR) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
@@ -1692,18 +1704,22 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf07d: /* fsrra FRn */
+	CHECK_FPU_ENABLED
 	break;
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
+	CHECK_FPU_ENABLED
 	if (!(ctx->fpscr & FPSCR_PR)) {
 	    tcg_gen_movi_i32(cpu_fregs[FREG(B11_8)], 0);
 	}
 	return;
     case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
+	CHECK_FPU_ENABLED
 	if (!(ctx->fpscr & FPSCR_PR)) {
 	    tcg_gen_movi_i32(cpu_fregs[FREG(B11_8)], 0x3f800000);
 	}
 	return;
     case 0xf0ad: /* fcnvsd FPUL,DRn */
+	CHECK_FPU_ENABLED
 	{
 	    TCGv_i64 fp = tcg_temp_new_i64();
 	    gen_helper_fcnvsd_FT_DT(fp, cpu_fpul);
@@ -1712,6 +1728,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0xf0bd: /* fcnvds DRn,FPUL */
+	CHECK_FPU_ENABLED
 	{
 	    TCGv_i64 fp = tcg_temp_new_i64();
 	    gen_load_fpr64(fp, DREG(B11_8));

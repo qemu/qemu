@@ -45,6 +45,9 @@ int kvm_log_stop(target_phys_addr_t phys_addr, target_phys_addr_t len);
 
 int kvm_has_sync_mmu(void);
 
+int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
+int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
+
 /* internal API */
 
 struct KVMState;

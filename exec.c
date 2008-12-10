@@ -2381,6 +2381,18 @@ static const char *backtrace(char *buffer, size_t length)
 #endif /* TARGET_MIPS */
 #endif /* DEBUG_UNASSIGNED */
 
+void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
+{
+    if (kvm_enabled())
+        kvm_coalesce_mmio_region(addr, size);
+}
+
+void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
+{
+    if (kvm_enabled())
+        kvm_uncoalesce_mmio_region(addr, size);
+}
+
 /* XXX: better than nothing */
 ram_addr_t qemu_ram_alloc(ram_addr_t size)
 {

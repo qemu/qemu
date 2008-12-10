@@ -2904,13 +2904,15 @@ void cpu_ppc_reset (void *opaque)
 #endif
 #if defined(CONFIG_USER_ONLY)
     msr |= (target_ulong)1 << MSR_FP; /* Allow floating point usage */
+    msr |= (target_ulong)1 << MSR_VR; /* Allow altivec usage */
+    msr |= (target_ulong)1 << MSR_SPE; /* Allow SPE usage */
     msr |= (target_ulong)1 << MSR_PR;
+    env->msr = msr & env->msr_mask;
 #else
     env->nip = env->hreset_vector | env->excp_prefix;
     if (env->mmu_model != POWERPC_MMU_REAL)
         ppc_tlb_invalidate_all(env);
 #endif
-    env->msr = msr;
     hreg_compute_hflags(env);
     env->reserve = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */
