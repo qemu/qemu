@@ -71,7 +71,8 @@ void *vmmouse_init(void *m);
 
 void i8042_init(qemu_irq kbd_irq, qemu_irq mouse_irq, uint32_t io_base);
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
-                   target_phys_addr_t base, int it_shift);
+                   target_phys_addr_t base, ram_addr_t size,
+                   target_phys_addr_t mask);
 
 /* mc146818rtc.c */
 

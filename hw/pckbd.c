@@ -125,7 +125,7 @@ typedef struct KBDState {
 
     qemu_irq irq_kbd;
     qemu_irq irq_mouse;
-    int it_shift;
+    target_phys_addr_t mask;
 } KBDState;
 
 static KBDState kbd_state;
@@ -391,28 +391,20 @@ static uint32_t kbd_mm_readb (void *opaque, target_phys_addr_t addr)
 {
     KBDState *s = opaque;
 
-    switch (addr >> s->it_shift) {
-    case 0:
-        return kbd_read_data(s, 0) & 0xff;
-    case 1:
+    if (addr & s->mask)
         return kbd_read_status(s, 0) & 0xff;
-    default:
-        return 0xff;
-    }
+    else
+        return kbd_read_data(s, 0) & 0xff;
 }
 
 static void kbd_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     KBDState *s = opaque;
 
-    switch (addr >> s->it_shift) {
-    case 0:
-        kbd_write_data(s, 0, value & 0xff);
-        break;
-    case 1:
+    if (addr & s->mask)
         kbd_write_command(s, 0, value & 0xff);
-        break;
-    }
+    else
+        kbd_write_data(s, 0, value & 0xff);
 }
 
 static CPUReadMemoryFunc *kbd_mm_read[] = {
@@ -428,19 +420,20 @@ static CPUWriteMemoryFunc *kbd_mm_write[] = {
 };
 
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
-                   target_phys_addr_t base, int it_shift)
+                   target_phys_addr_t base, ram_addr_t size,
+                   target_phys_addr_t mask)
 {
     KBDState *s = &kbd_state;
     int s_io_memory;
 
     s->irq_kbd = kbd_irq;
     s->irq_mouse = mouse_irq;
-    s->it_shift = it_shift;
+    s->mask = mask;
 
     kbd_reset(s);
     register_savevm("pckbd", 0, 3, kbd_save, kbd_load, s);
     s_io_memory = cpu_register_io_memory(0, kbd_mm_read, kbd_mm_write, s);
-    cpu_register_physical_memory(base, 2 << it_shift, s_io_memory);
+    cpu_register_physical_memory(base, size, s_io_memory);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
