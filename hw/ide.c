@@ -2324,6 +2324,13 @@ static void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             s->status = READY_STAT;
             ide_set_irq(s);
             break;
+        case WIN_SEEK:
+            if(s->is_cdrom)
+                goto abort_cmd;
+            /* XXX: Check that seek is within bounds */
+            s->status = READY_STAT | SEEK_STAT;
+            ide_set_irq(s);
+            break;
             /* ATAPI commands */
         case WIN_PIDENTIFY:
             if (s->is_cdrom) {
