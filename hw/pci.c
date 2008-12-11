@@ -50,6 +50,8 @@ static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
 
 target_phys_addr_t pci_mem_base;
+static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
+static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 static int pci_irq_index;
 static PCIBus *first_bus;
 
@@ -145,6 +147,16 @@ int pci_device_load(PCIDevice *s, QEMUFile *f)
     return 0;
 }
 
+static int pci_set_default_subsystem_id(PCIDevice *pci_dev)
+{
+    uint16_t *id;
+
+    id = (void*)(&pci_dev->config[PCI_SUBVENDOR_ID]);
+    id[0] = cpu_to_le16(pci_default_sub_vendor_id);
+    id[1] = cpu_to_le16(pci_default_sub_device_id);
+    return 0;
+}
+
 /* -1 for devfn means auto assign */
 PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                int instance_size, int devfn,
@@ -171,6 +183,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     memset(pci_dev->irq_state, 0, sizeof(pci_dev->irq_state));
+    pci_set_default_subsystem_id(pci_dev);
 
     if (!config_read)
         config_read = pci_default_read_config;
