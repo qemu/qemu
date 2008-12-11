@@ -1669,8 +1669,6 @@ void helper_store_msr (target_ulong val)
     }
 }
 
-void cpu_dump_rfi (target_ulong RA, target_ulong msr);
-
 static always_inline void do_rfi (target_ulong nip, target_ulong msr,
                                     target_ulong msrm, int keep_msrh)
 {

@@ -38,12 +38,6 @@ register struct CPUPPCState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong vaddr,
-                          int rw, int access_type);
-
-void ppc6xx_tlb_store (CPUState *env, target_ulong EPN, int way, int is_code,
-                       target_ulong pte0, target_ulong pte1);
-
 static always_inline void env_to_regs (void)
 {
 }
@@ -51,9 +45,6 @@ static always_inline void env_to_regs (void)
 static always_inline void regs_to_env (void)
 {
 }
-
-int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu);
 
 static always_inline int cpu_halted (CPUState *env)
 {
