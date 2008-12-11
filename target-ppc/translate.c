@@ -230,8 +230,6 @@ static always_inline void gen_compute_fprf (TCGv_i64 arg, int set_fprf, int set_
         tcg_gen_movi_i32(t0, 0);
         gen_helper_compute_fprf(t0, arg, t0);
         tcg_gen_mov_i32(cpu_crf[1], t0);
-        if (set_fprf)
-            gen_helper_float_check_status();
     }
 
     tcg_temp_free_i32(t0);
