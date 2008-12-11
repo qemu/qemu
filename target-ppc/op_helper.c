@@ -32,12 +32,17 @@
 
 void helper_raise_exception_err (uint32_t exception, uint32_t error_code)
 {
-    raise_exception_err(env, exception, error_code);
+#if 0
+    printf("Raise exception %3x code : %d\n", exception, error_code);
+#endif
+    env->exception_index = exception;
+    env->error_code = error_code;
+    cpu_loop_exit();
 }
 
-void helper_raise_debug (void)
+void helper_raise_exception (uint32_t exception)
 {
-    raise_exception(env, EXCP_DEBUG);
+    helper_raise_exception_err(exception, 0);
 }
 
 /*****************************************************************************/
@@ -315,9 +320,9 @@ void helper_lswx(target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
     if (likely(xer_bc != 0)) {
         if (unlikely((ra != 0 && reg < ra && (reg + xer_bc) > ra) ||
                      (reg < rb && (reg + xer_bc) > rb))) {
-            raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                POWERPC_EXCP_INVAL |
-                                POWERPC_EXCP_INVAL_LSWX);
+            helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                       POWERPC_EXCP_INVAL |
+                                       POWERPC_EXCP_INVAL_LSWX);
         } else {
             helper_lsw(addr, xer_bc, reg);
         }
@@ -738,7 +743,7 @@ static always_inline uint64_t fload_invalid_op_excp (int op)
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
         if (msr_fe0 != 0 || msr_fe1 != 0)
-            raise_exception_err(env, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_FP | op);
+            helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_FP | op);
     }
     return ret;
 }
@@ -753,8 +758,8 @@ static always_inline uint64_t float_zero_divide_excp (uint64_t arg1, uint64_t ar
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
         if (msr_fe0 != 0 || msr_fe1 != 0) {
-            raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                POWERPC_EXCP_FP | POWERPC_EXCP_FP_ZX);
+            helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                       POWERPC_EXCP_FP | POWERPC_EXCP_FP_ZX);
         }
     } else {
         /* Set the result to infinity */
@@ -994,7 +999,7 @@ void helper_float_check_status (void)
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */
         if (msr_fe0 != 0 || msr_fe1 != 0)
-            raise_exception_err(env, env->exception_index, env->error_code);
+            helper_raise_exception_err(env->exception_index, env->error_code);
     } else if (env->fp_status.float_exception_flags & float_flag_overflow) {
         float_overflow_excp();
     } else if (env->fp_status.float_exception_flags & float_flag_underflow) {
@@ -1007,7 +1012,7 @@ void helper_float_check_status (void)
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */
         if (msr_fe0 != 0 || msr_fe1 != 0)
-            raise_exception_err(env, env->exception_index, env->error_code);
+            helper_raise_exception_err(env->exception_index, env->error_code);
     }
 #endif
 }
@@ -1660,7 +1665,7 @@ void helper_store_msr (target_ulong val)
     val = hreg_store_msr(env, val, 0);
     if (val != 0) {
         env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-        raise_exception(env, val);
+        helper_raise_exception(val);
     }
 }
 
@@ -1723,7 +1728,7 @@ void helper_tw (target_ulong arg1, target_ulong arg2, uint32_t flags)
                   ((int32_t)arg1 == (int32_t)arg2 && (flags & 0x04)) ||
                   ((uint32_t)arg1 < (uint32_t)arg2 && (flags & 0x02)) ||
                   ((uint32_t)arg1 > (uint32_t)arg2 && (flags & 0x01))))) {
-        raise_exception_err(env, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
     }
 }
 
@@ -1735,7 +1740,7 @@ void helper_td (target_ulong arg1, target_ulong arg2, uint32_t flags)
                   ((int64_t)arg1 == (int64_t)arg2 && (flags & 0x04)) ||
                   ((uint64_t)arg1 < (uint64_t)arg2 && (flags & 0x02)) ||
                   ((uint64_t)arg1 > (uint64_t)arg2 && (flags & 0x01)))))
-        raise_exception_err(env, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
 }
 #endif
 
@@ -1902,14 +1907,14 @@ target_ulong helper_load_dcr (target_ulong dcrn)
         if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");
         }
-        raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                            POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_read(env->dcr_env, dcrn, &val) != 0)) {
         if (loglevel != 0) {
             fprintf(logfile, "DCR read error %d %03x\n", (int)dcrn, (int)dcrn);
         }
-        raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                            POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
     return val;
 }
@@ -1920,14 +1925,14 @@ void helper_store_dcr (target_ulong dcrn, target_ulong val)
         if (loglevel != 0) {
             fprintf(logfile, "No DCR environment\n");
         }
-        raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                            POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_write(env->dcr_env, dcrn, val) != 0)) {
         if (loglevel != 0) {
             fprintf(logfile, "DCR write error %d %03x\n", (int)dcrn, (int)dcrn);
         }
-        raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                            POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
 }
 
@@ -2671,7 +2676,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
                 cpu_restore_state(tb, env, pc, NULL);
             }
         }
-        raise_exception_err(env, env->exception_index, env->error_code);
+        helper_raise_exception_err(env->exception_index, env->error_code);
     }
     env = saved_env;
 }

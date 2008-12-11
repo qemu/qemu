@@ -347,7 +347,7 @@ static void spr_write_hid0_601 (void *opaque, int sprn, int gprn)
 
     gen_helper_store_hid0_601(cpu_gpr[gprn]);
     /* Must stop the translation as endianness may have changed */
-    GEN_STOP(ctx);
+    gen_stop_exception(ctx);
 }
 #endif
 
@@ -391,7 +391,7 @@ static void spr_write_40x_dbcr0 (void *opaque, int sprn, int gprn)
 
     gen_helper_store_40x_dbcr0(cpu_gpr[gprn]);
     /* We must stop translation as we may have rebooted */
-    GEN_STOP(ctx);
+    gen_stop_exception(ctx);
 }
 
 static void spr_write_40x_sler (void *opaque, int sprn, int gprn)
@@ -466,7 +466,7 @@ static void spr_write_excp_vector (void *opaque, int sprn, int gprn)
     } else {
         printf("Trying to write an unknown exception vector %d %03x\n",
                sprn, sprn);
-        GEN_EXCP_PRIVREG(ctx);
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
     }
 }
 #endif

@@ -38,9 +38,6 @@ register struct CPUPPCState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-void raise_exception_err (CPUState *env, int exception, int error_code);
-void raise_exception (CPUState *env, int exception);
-
 int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong vaddr,
                           int rw, int access_type);
 
