@@ -25,6 +25,7 @@
 #include "qemu-char.h"
 #include "qemu-timer.h"
 #include "usb.h"
+#include "baum.h"
 #include <assert.h>
 #include <brlapi.h>
 #include <brlapi_constants.h>
