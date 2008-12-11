@@ -240,10 +240,12 @@ int fw_cfg_add_callback(void *opaque, uint16_t key, FWCfgCallback callback,
     FWCfgState *s = opaque;
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
+    if (!(key & FW_CFG_WRITE_CHANNEL))
+        return 0;
+
     key &= FW_CFG_ENTRY_MASK;
 
-    if (key >= FW_CFG_MAX_ENTRY || !(key & FW_CFG_WRITE_CHANNEL)
-        || len > 65535)
+    if (key >= FW_CFG_MAX_ENTRY || len > 65535)
         return 0;
 
     s->entries[arch][key].data = data;
