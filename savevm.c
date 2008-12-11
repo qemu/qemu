@@ -1020,6 +1020,7 @@ void do_savevm(const char *name)
     BlockDriverInfo bdi1, *bdi = &bdi1;
     QEMUFile *f;
     int saved_vm_running;
+    uint32_t vm_state_size;
 #ifdef _WIN32
     struct _timeb tb;
 #else
@@ -1079,7 +1080,7 @@ void do_savevm(const char *name)
         goto the_end;
     }
     ret = qemu_savevm_state(f);
-    sn->vm_state_size = qemu_ftell(f);
+    vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {
         term_printf("Error %d while writing VM\n", ret);
@@ -1098,6 +1099,8 @@ void do_savevm(const char *name)
                                 bdrv_get_device_name(bs1));
                 }
             }
+            /* Write VM state size only to the image that contains the state */
+            sn->vm_state_size = (bs == bs1 ? vm_state_size : 0);
             ret = bdrv_snapshot_create(bs1, sn);
             if (ret < 0) {
                 term_printf("Error while creating snapshot on '%s'\n",
@@ -1115,6 +1118,7 @@ void do_loadvm(const char *name)
 {
     BlockDriverState *bs, *bs1;
     BlockDriverInfo bdi1, *bdi = &bdi1;
+    QEMUSnapshotInfo sn;
     QEMUFile *f;
     int i, ret;
     int saved_vm_running;
@@ -1164,6 +1168,11 @@ void do_loadvm(const char *name)
                     bdrv_get_device_name(bs));
         return;
     }
+
+    /* Don't even try to load empty VM states */
+    ret = bdrv_snapshot_find(bs, &sn, name);
+    if ((ret >= 0) && (sn.vm_state_size == 0))
+        goto the_end;
 
     /* restore the VM state */
     f = qemu_fopen_bdrv(bs, bdi->vm_state_offset, 0);
