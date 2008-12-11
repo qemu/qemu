@@ -593,7 +593,7 @@ SOUND_HW += ac97.o
 endif
 ifdef CONFIG_ADLIB
 SOUND_HW += fmopl.o adlib.o
-fmopl.o: CFLAGS := ${CFLAGS} -DBUILD_Y8950=0
+adlib.o fmopl.o: CFLAGS := ${CFLAGS} -DBUILD_Y8950=0
 endif
 ifdef CONFIG_GUS
 SOUND_HW += gus.o gusemu_hal.o gusemu_mixer.o
