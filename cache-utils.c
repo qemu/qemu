@@ -16,7 +16,10 @@ static void ppc_init_cacheline_sizes(void)
 }
 
 #elif defined __linux__
-#include <linux/auxvec.h>
+
+#define QEMU_AT_NULL        0
+#define QEMU_AT_DCACHEBSIZE 19
+#define QEMU_AT_ICACHEBSIZE 20
 
 static void ppc_init_cacheline_sizes(char **envp)
 {
@@ -24,10 +27,10 @@ static void ppc_init_cacheline_sizes(char **envp)
 
     while (*envp++);
 
-    for (auxv = (unsigned long *) envp; *auxv != AT_NULL; auxv += 2) {
+    for (auxv = (unsigned long *) envp; *auxv != QEMU_AT_NULL; auxv += 2) {
         switch (*auxv) {
-        case AT_DCACHEBSIZE: qemu_cache_conf.dcache_bsize = auxv[1]; break;
-        case AT_ICACHEBSIZE: qemu_cache_conf.icache_bsize = auxv[1]; break;
+        case QEMU_AT_DCACHEBSIZE: qemu_cache_conf.dcache_bsize = auxv[1]; break
+        case QEMU_AT_ICACHEBSIZE: qemu_cache_conf.icache_bsize = auxv[1]; break
         default: break;
         }
     }
