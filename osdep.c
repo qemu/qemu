@@ -200,11 +200,7 @@ void *qemu_vmalloc(size_t size)
     if (kqemu_allowed)
         return kqemu_vmalloc(size);
 #endif
-#ifdef _BSD
-    return valloc(size);
-#else
     return qemu_memalign(getpagesize(), size);
-#endif
 }
 
 void qemu_vfree(void *ptr)
