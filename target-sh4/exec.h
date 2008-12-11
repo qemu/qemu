@@ -53,14 +53,10 @@ static inline void env_to_regs(void)
     /* XXXXX */
 }
 
-int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
-			     int mmu_idx, int is_softmmu);
 void cpu_load_tlb(CPUState * env);
 
 int find_itlb_entry(CPUState * env, target_ulong address,
 		    int use_asid, int update);
 int find_utlb_entry(CPUState * env, target_ulong address, int use_asid);
-
-void do_interrupt(CPUState * env);
 
 #endif				/* _EXEC_SH4_H */
