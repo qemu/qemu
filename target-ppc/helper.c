@@ -29,7 +29,6 @@
 #include "exec-all.h"
 #include "helper_regs.h"
 #include "qemu-common.h"
-#include "helper.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
