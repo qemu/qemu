@@ -546,6 +546,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
 
     mmap_lock();
 
+#if defined(MREMAP_FIXED)
     if (flags & MREMAP_FIXED)
         host_addr = mremap(g2h(old_addr), old_size, new_size,
                            flags, new_addr);
@@ -560,7 +561,9 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
         } else
             host_addr = mremap(g2h(old_addr), old_size, new_size,
                                flags | MREMAP_FIXED, g2h(mmap_start));
-    } else {
+    } else
+#endif
+    {
         host_addr = mremap(g2h(old_addr), old_size, new_size, flags);
         /* Check if address fits target address space */
         if ((unsigned long)host_addr + new_size > (abi_ulong)-1) {
