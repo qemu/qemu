@@ -129,9 +129,9 @@ static uint32_t ref405ep_fpga_readl (void *opaque, target_phys_addr_t addr)
 static void ref405ep_fpga_writel (void *opaque,
                                   target_phys_addr_t addr, uint32_t value)
 {
-    ref405ep_fpga_writel(opaque, addr, (value >> 24) & 0xFF);
-    ref405ep_fpga_writel(opaque, addr + 1, (value >> 16) & 0xFF);
-    ref405ep_fpga_writel(opaque, addr + 2, (value >> 8) & 0xFF);
+    ref405ep_fpga_writeb(opaque, addr, (value >> 24) & 0xFF);
+    ref405ep_fpga_writeb(opaque, addr + 1, (value >> 16) & 0xFF);
+    ref405ep_fpga_writeb(opaque, addr + 2, (value >> 8) & 0xFF);
     ref405ep_fpga_writeb(opaque, addr + 3, value & 0xFF);
 }
 
