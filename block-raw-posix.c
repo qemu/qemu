@@ -27,7 +27,7 @@
 #include "block_int.h"
 #include <assert.h>
 #ifdef CONFIG_AIO
-#include <aio.h>
+#include "posix-aio-compat.h"
 #endif
 
 #ifdef CONFIG_COCOA
@@ -93,16 +93,10 @@
    reopen it to see if the disk has been changed */
 #define FD_OPEN_TIMEOUT 1000
 
-/* posix-aio doesn't allow multiple outstanding requests to a single file
- * descriptor.  we implement a pool of dup()'d file descriptors to work
- * around this */
-#define RAW_FD_POOL_SIZE	64
-
 typedef struct BDRVRawState {
     int fd;
     int type;
     unsigned int lseek_err_cnt;
-    int fd_pool[RAW_FD_POOL_SIZE];
 #if defined(__linux__)
     /* linux floppy specific */
     int fd_open_flags;
@@ -122,7 +116,6 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
     int fd, open_flags, ret;
-    int i;
 
     posix_aio_init();
 
@@ -155,8 +148,6 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
         return ret;
     }
     s->fd = fd;
-    for (i = 0; i < RAW_FD_POOL_SIZE; i++)
-        s->fd_pool[i] = -1;
     s->aligned_buf = NULL;
     if ((flags & BDRV_O_NOCACHE)) {
         s->aligned_buf = qemu_memalign(512, ALIGNED_BUFFER_SIZE);
@@ -446,8 +437,7 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
 
 typedef struct RawAIOCB {
     BlockDriverAIOCB common;
-    int fd;
-    struct aiocb aiocb;
+    struct qemu_paiocb aiocb;
     struct RawAIOCB *next;
     int ret;
 } RawAIOCB;
@@ -457,38 +447,6 @@ typedef struct PosixAioState
     int rfd, wfd;
     RawAIOCB *first_aio;
 } PosixAioState;
-
-static int raw_fd_pool_get(BDRVRawState *s)
-{
-    int i;
-
-    for (i = 0; i < RAW_FD_POOL_SIZE; i++) {
-        /* already in use */
-        if (s->fd_pool[i] != -1)
-            continue;
-
-        /* try to dup file descriptor */
-        s->fd_pool[i] = dup(s->fd);
-        if (s->fd_pool[i] != -1)
-            return s->fd_pool[i];
-    }
-
-    /* we couldn't dup the file descriptor so just use the main one */
-    return s->fd;
-}
-
-static void raw_fd_pool_put(RawAIOCB *acb)
-{
-    BDRVRawState *s = acb->common.bs->opaque;
-    int i;
-
-    for (i = 0; i < RAW_FD_POOL_SIZE; i++) {
-        if (s->fd_pool[i] == acb->fd) {
-            close(s->fd_pool[i]);
-            s->fd_pool[i] = -1;
-        }
-    }
-}
 
 static void posix_aio_read(void *opaque)
 {
@@ -515,16 +473,15 @@ static void posix_aio_read(void *opaque)
             acb = *pacb;
             if (!acb)
                 goto the_end;
-            ret = aio_error(&acb->aiocb);
+            ret = qemu_paio_error(&acb->aiocb);
             if (ret == ECANCELED) {
                 /* remove the request */
                 *pacb = acb->next;
-                raw_fd_pool_put(acb);
                 qemu_aio_release(acb);
             } else if (ret != EINPROGRESS) {
                 /* end of aio */
                 if (ret == 0) {
-                    ret = aio_return(&acb->aiocb);
+                    ret = qemu_paio_return(&acb->aiocb);
                     if (ret == acb->aiocb.aio_nbytes)
                         ret = 0;
                     else
@@ -536,7 +493,6 @@ static void posix_aio_read(void *opaque)
                 *pacb = acb->next;
                 /* call the callback */
                 acb->common.cb(acb->common.opaque, ret);
-                raw_fd_pool_put(acb);
                 qemu_aio_release(acb);
                 break;
             } else {
@@ -571,6 +527,7 @@ static int posix_aio_init(void)
     struct sigaction act;
     PosixAioState *s;
     int fds[2];
+    struct qemu_paioinit ai;
   
     if (posix_aio_state)
         return 0;
@@ -598,24 +555,11 @@ static int posix_aio_init(void)
 
     qemu_aio_set_fd_handler(s->rfd, posix_aio_read, NULL, posix_aio_flush, s);
 
-#if defined(__linux__)
-    {
-        struct aioinit ai;
+    memset(&ai, 0, sizeof(ai));
+    ai.aio_threads = 64;
+    ai.aio_num = 64;
+    qemu_paio_init(&ai);
 
-        memset(&ai, 0, sizeof(ai));
-#if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 4)
-        ai.aio_threads = 64;
-        ai.aio_num = 64;
-#else
-        /* XXX: aio thread exit seems to hang on RedHat 9 and this init
-           seems to fix the problem. */
-        ai.aio_threads = 1;
-        ai.aio_num = 1;
-        ai.aio_idle_time = 365 * 100000;
-#endif
-        aio_init(&ai);
-    }
-#endif
     posix_aio_state = s;
 
     return 0;
@@ -634,8 +578,7 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     acb = qemu_aio_get(bs, cb, opaque);
     if (!acb)
         return NULL;
-    acb->fd = raw_fd_pool_get(s);
-    acb->aiocb.aio_fildes = acb->fd;
+    acb->aiocb.aio_fildes = s->fd;
     acb->aiocb.aio_sigevent.sigev_signo = SIGUSR2;
     acb->aiocb.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
     acb->aiocb.aio_buf = buf;
@@ -680,7 +623,7 @@ static BlockDriverAIOCB *raw_aio_read(BlockDriverState *bs,
     acb = raw_aio_setup(bs, sector_num, buf, nb_sectors, cb, opaque);
     if (!acb)
         return NULL;
-    if (aio_read(&acb->aiocb) < 0) {
+    if (qemu_paio_read(&acb->aiocb) < 0) {
         qemu_aio_release(acb);
         return NULL;
     }
@@ -711,7 +654,7 @@ static BlockDriverAIOCB *raw_aio_write(BlockDriverState *bs,
     acb = raw_aio_setup(bs, sector_num, (uint8_t*)buf, nb_sectors, cb, opaque);
     if (!acb)
         return NULL;
-    if (aio_write(&acb->aiocb) < 0) {
+    if (qemu_paio_write(&acb->aiocb) < 0) {
         qemu_aio_release(acb);
         return NULL;
     }
@@ -724,11 +667,11 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
     RawAIOCB *acb = (RawAIOCB *)blockacb;
     RawAIOCB **pacb;
 
-    ret = aio_cancel(acb->aiocb.aio_fildes, &acb->aiocb);
-    if (ret == AIO_NOTCANCELED) {
+    ret = qemu_paio_cancel(acb->aiocb.aio_fildes, &acb->aiocb);
+    if (ret == QEMU_PAIO_NOTCANCELED) {
         /* fail safe: if the aio could not be canceled, we wait for
            it */
-        while (aio_error(&acb->aiocb) == EINPROGRESS);
+        while (qemu_paio_error(&acb->aiocb) == EINPROGRESS);
     }
 
     /* remove the callback from the queue */
@@ -738,14 +681,12 @@ static void raw_aio_cancel(BlockDriverAIOCB *blockacb)
             break;
         } else if (*pacb == acb) {
             *pacb = acb->next;
-            raw_fd_pool_put(acb);
             qemu_aio_release(acb);
             break;
         }
         pacb = &acb->next;
     }
 }
-
 #else /* CONFIG_AIO */
 static int posix_aio_init(void)
 {
@@ -753,17 +694,6 @@ static int posix_aio_init(void)
 }
 #endif /* CONFIG_AIO */
 
-static void raw_close_fd_pool(BDRVRawState *s)
-{
-    int i;
-
-    for (i = 0; i < RAW_FD_POOL_SIZE; i++) {
-        if (s->fd_pool[i] != -1) {
-            close(s->fd_pool[i]);
-            s->fd_pool[i] = -1;
-        }
-    }
-}
 
 static void raw_close(BlockDriverState *bs)
 {
@@ -774,7 +704,6 @@ static void raw_close(BlockDriverState *bs)
         if (s->aligned_buf != NULL)
             qemu_free(s->aligned_buf);
     }
-    raw_close_fd_pool(s);
 }
 
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
@@ -895,6 +824,7 @@ BlockDriver bdrv_raw = {
     .bdrv_aio_cancel = raw_aio_cancel,
     .aiocb_size = sizeof(RawAIOCB),
 #endif
+
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
     .bdrv_truncate = raw_truncate,
@@ -965,7 +895,7 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
 static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
-    int fd, open_flags, ret, i;
+    int fd, open_flags, ret;
 
     posix_aio_init();
 
@@ -1032,8 +962,6 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         return ret;
     }
     s->fd = fd;
-    for (i = 0; i < RAW_FD_POOL_SIZE; i++)
-        s->fd_pool[i] = -1;
 #if defined(__linux__)
     /* close fd so that we can reopen it as needed */
     if (s->type == FTYPE_FD) {
@@ -1061,7 +989,6 @@ static int fd_open(BlockDriverState *bs)
         (qemu_get_clock(rt_clock) - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
         close(s->fd);
         s->fd = -1;
-        raw_close_fd_pool(s);
 #ifdef DEBUG_FLOPPY
         printf("Floppy closed\n");
 #endif
@@ -1162,7 +1089,6 @@ static int raw_eject(BlockDriverState *bs, int eject_flag)
             if (s->fd >= 0) {
                 close(s->fd);
                 s->fd = -1;
-                raw_close_fd_pool(s);
             }
             fd = open(bs->filename, s->fd_open_flags | O_NONBLOCK);
             if (fd >= 0) {
@@ -1252,6 +1178,7 @@ BlockDriver bdrv_host_device = {
     .bdrv_aio_cancel = raw_aio_cancel,
     .aiocb_size = sizeof(RawAIOCB),
 #endif
+
     .bdrv_pread = raw_pread,
     .bdrv_pwrite = raw_pwrite,
     .bdrv_getlength = raw_getlength,
