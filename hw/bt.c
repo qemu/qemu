@@ -29,7 +29,7 @@ static void bt_dummy_lmp_mode_change(struct bt_link_s *link)
 }
 
 /* Slaves should never receive these PDUs */
-static void bt_dummy_lmp_connection_complete(struct bt_link_s *link)
+static void __attribute__((__noreturn__)) bt_dummy_lmp_connection_complete(struct bt_link_s *link)
 {
     if (link->slave->reject_reason)
         fprintf(stderr, "%s: stray LMP_not_accepted received, fixme\n",
@@ -40,13 +40,13 @@ static void bt_dummy_lmp_connection_complete(struct bt_link_s *link)
     exit(-1);
 }
 
-static void bt_dummy_lmp_disconnect_master(struct bt_link_s *link)
+static void __attribute__((__noreturn__)) bt_dummy_lmp_disconnect_master(struct bt_link_s *link)
 {
     fprintf(stderr, "%s: stray LMP_detach received, fixme\n", __FUNCTION__);
     exit(-1);
 }
 
-static void bt_dummy_lmp_acl_resp(struct bt_link_s *link,
+static void __attribute__((__noreturn__)) bt_dummy_lmp_acl_resp(struct bt_link_s *link,
                 const uint8_t *data, int start, int len)
 {
     fprintf(stderr, "%s: stray ACL response PDU, fixme\n", __FUNCTION__);
