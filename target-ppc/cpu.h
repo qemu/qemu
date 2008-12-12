@@ -678,13 +678,18 @@ void cpu_ppc_close (CPUPPCState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
-
+int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
+                              int mmu_idx, int is_softmmu);
+int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,
+                          int rw, int access_type);
 void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
 
-void dump_stack (CPUPPCState *env);
+void cpu_dump_rfi (target_ulong RA, target_ulong msr);
 
 #if !defined(CONFIG_USER_ONLY)
+void ppc6xx_tlb_store (CPUPPCState *env, target_ulong EPN, int way, int is_code,
+                       target_ulong pte0, target_ulong pte1);
 void ppc_store_ibatu (CPUPPCState *env, int nr, target_ulong value);
 void ppc_store_ibatl (CPUPPCState *env, int nr, target_ulong value);
 void ppc_store_dbatu (CPUPPCState *env, int nr, target_ulong value);

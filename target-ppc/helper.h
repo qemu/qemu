@@ -1,7 +1,7 @@
 #include "def-helper.h"
 
 DEF_HELPER_2(raise_exception_err, void, i32, i32)
-DEF_HELPER_0(raise_debug, void)
+DEF_HELPER_1(raise_exception, void, i32)
 DEF_HELPER_3(tw, void, tl, tl, i32)
 #if defined(TARGET_PPC64)
 DEF_HELPER_3(td, void, tl, tl, i32)

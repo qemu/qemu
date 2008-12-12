@@ -407,6 +407,10 @@ int cpu_alpha_exec(CPUAlphaState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_alpha_signal_handler(int host_signum, void *pinfo,
                              void *puc);
+int cpu_alpha_handle_mmu_fault (CPUState *env, uint64_t address, int rw,
+                                int mmu_idx, int is_softmmu);
+void do_interrupt (CPUState *env);
+
 int cpu_alpha_mfpr (CPUState *env, int iprn, uint64_t *valp);
 int cpu_alpha_mtpr (CPUState *env, int iprn, uint64_t val, uint64_t *oldvalp);
 void pal_init (CPUState *env);

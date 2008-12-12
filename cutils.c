@@ -97,7 +97,7 @@ time_t mktimegm(struct tm *tm)
     return t;
 }
 
-int fls(int i)
+int qemu_fls(int i)
 {
     return 32 - clz32(i);
 }

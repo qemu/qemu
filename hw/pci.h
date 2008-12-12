@@ -8,6 +8,15 @@
 
 extern target_phys_addr_t pci_mem_base;
 
+/* see pci-ids.txt */
+#define PCI_VENDOR_ID_REDHAT_QUMRANET    0x1af4
+#define PCI_SUBVENDOR_ID_REDHAT_QUMRANET 0x1af4
+#define PCI_SUBDEVICE_ID_QEMU            0x1100
+
+#define PCI_DEVICE_ID_VIRTIO_NET         0x1000
+#define PCI_DEVICE_ID_VIRTIO_BLOCK       0x1001
+#define PCI_DEVICE_ID_VIRTIO_BALLOON     0x1002
+
 typedef void PCIConfigWriteFunc(PCIDevice *pci_dev,
                                 uint32_t address, uint32_t data, int len);
 typedef uint32_t PCIConfigReadFunc(PCIDevice *pci_dev,
@@ -36,7 +45,10 @@ typedef struct PCIIORegion {
 #define PCI_COMMAND		0x04	/* 16 bits */
 #define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
 #define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
+#define PCI_REVISION            0x08
 #define PCI_CLASS_DEVICE        0x0a    /* Device class */
+#define PCI_SUBVENDOR_ID	0x2c	/* 16 bits */
+#define PCI_SUBDEVICE_ID	0x2e	/* 16 bits */
 #define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */
 #define PCI_INTERRUPT_PIN	0x3d	/* 8 bits */
 #define PCI_MIN_GNT		0x3e	/* 8 bits */

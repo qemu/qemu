@@ -49,7 +49,7 @@ static inline void address_mask(CPUState *env1, target_ulong *addr)
 #endif
 }
 
-void raise_exception(int tt)
+static void raise_exception(int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit();

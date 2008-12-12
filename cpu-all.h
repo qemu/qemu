@@ -234,7 +234,7 @@ static inline int lduw_le_p(const void *ptr)
     __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return val;
 #else
-    uint8_t *p = ptr;
+    const uint8_t *p = ptr;
     return p[0] | (p[1] << 8);
 #endif
 }
@@ -246,7 +246,7 @@ static inline int ldsw_le_p(const void *ptr)
     __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return (int16_t)val;
 #else
-    uint8_t *p = ptr;
+    const uint8_t *p = ptr;
     return (int16_t)(p[0] | (p[1] << 8));
 #endif
 }
@@ -258,14 +258,14 @@ static inline int ldl_le_p(const void *ptr)
     __asm__ __volatile__ ("lwbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return val;
 #else
-    uint8_t *p = ptr;
+    const uint8_t *p = ptr;
     return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
 #endif
 }
 
 static inline uint64_t ldq_le_p(const void *ptr)
 {
-    uint8_t *p = ptr;
+    const uint8_t *p = ptr;
     uint32_t v1, v2;
     v1 = ldl_le_p(p);
     v2 = ldl_le_p(p + 4);
@@ -413,7 +413,7 @@ static inline int lduw_be_p(const void *ptr)
                   : "m" (*(uint16_t *)ptr));
     return val;
 #else
-    uint8_t *b = (uint8_t *) ptr;
+    const uint8_t *b = ptr;
     return ((b[0] << 8) | b[1]);
 #endif
 }
@@ -428,7 +428,7 @@ static inline int ldsw_be_p(const void *ptr)
                   : "m" (*(uint16_t *)ptr));
     return (int16_t)val;
 #else
-    uint8_t *b = (uint8_t *) ptr;
+    const uint8_t *b = ptr;
     return (int16_t)((b[0] << 8) | b[1]);
 #endif
 }
@@ -443,7 +443,7 @@ static inline int ldl_be_p(const void *ptr)
                   : "m" (*(uint32_t *)ptr));
     return val;
 #else
-    uint8_t *b = (uint8_t *) ptr;
+    const uint8_t *b = ptr;
     return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];
 #endif
 }

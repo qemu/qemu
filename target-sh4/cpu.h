@@ -137,6 +137,10 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model);
 int cpu_sh4_exec(CPUSH4State * s);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
+int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
+			     int mmu_idx, int is_softmmu);
+void do_interrupt(CPUSH4State * env);
+
 void sh4_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
 				    uint32_t mem_value);

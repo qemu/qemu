@@ -858,7 +858,7 @@ VirtIODevice *virtio_init_pci(PCIBus *bus, const char *name,
 
     size = 20 + config_size;
     if (size & (size-1))
-        size = 1 << fls(size);
+        size = 1 << qemu_fls(size);
 
     pci_register_io_region(pci_dev, 0, size, PCI_ADDRESS_SPACE_IO,
                            virtio_map);

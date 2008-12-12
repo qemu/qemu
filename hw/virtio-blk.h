@@ -70,7 +70,6 @@ struct virtio_blk_inhdr
     unsigned char status;
 };
 
-void *virtio_blk_init(PCIBus *bus, uint16_t vendor, uint16_t device,
-                      BlockDriverState *bs);
+void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs);
 
 #endif

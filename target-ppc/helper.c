@@ -29,7 +29,6 @@
 #include "exec-all.h"
 #include "helper_regs.h"
 #include "qemu-common.h"
-#include "helper.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
@@ -38,24 +37,6 @@
 //#define DUMP_PAGE_TABLES
 //#define DEBUG_EXCEPTIONS
 //#define FLUSH_ALL_TLBS
-
-/*****************************************************************************/
-/* Exceptions processing */
-
-void raise_exception_err (CPUState *env, int exception, int error_code)
-{
-#if 0
-    printf("Raise exception %3x code : %d\n", exception, error_code);
-#endif
-    env->exception_index = exception;
-    env->error_code = error_code;
-    cpu_loop_exit();
-}
-
-void raise_exception (CPUState *env, int exception)
-{
-    helper_raise_exception_err(exception, 0);
-}
 
 /*****************************************************************************/
 /* PowerPC MMU emulation */
@@ -1225,7 +1206,7 @@ static always_inline void ppc4xx_tlb_invalidate_virt (CPUState *env,
 #endif
 }
 
-int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
+static int mmu40x_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
                                  target_ulong address, int rw, int access_type)
 {
     ppcemb_tlb_t *tlb;
@@ -1307,9 +1288,9 @@ void store_40x_sler (CPUPPCState *env, uint32_t val)
     env->spr[SPR_405_SLER] = val;
 }
 
-int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
-                                   target_ulong address, int rw,
-                                   int access_type)
+static int mmubooke_get_physical_address (CPUState *env, mmu_ctx_t *ctx,
+                                          target_ulong address, int rw,
+                                          int access_type)
 {
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
