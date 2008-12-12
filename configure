@@ -149,7 +149,6 @@ FreeBSD)
 bsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd pa"
-aio_lib="-lpthread"
 if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
@@ -159,7 +158,6 @@ bsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
 oss_lib="-lossaudio"
-aio_lib="-lrt -lpthread"
 ;;
 OpenBSD)
 bsd="yes"
@@ -167,7 +165,6 @@ openbsd="yes"
 audio_drv_list="oss"
 audio_possible_drivers="oss sdl esd"
 oss_lib="-lossaudio"
-aio_lib="-lpthread"
 ;;
 Darwin)
 bsd="yes"
@@ -178,7 +175,6 @@ audio_drv_list="coreaudio"
 audio_possible_drivers="coreaudio sdl fmod"
 OS_CFLAGS="-mdynamic-no-pic"
 OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
-aio_lib="-lpthread"
 ;;
 SunOS)
     solaris="yes"
@@ -525,15 +521,6 @@ if test "$mingw32" = "yes" ; then
     oss="no"
     linux_user="no"
     bsd_user="no"
-fi
-
-if [ "$darwin" = "yes" -o "$mingw32" = "yes" ] ; then
-    AIOLIBS=
-elif [ "$bsd" = "yes" ]; then
-    AIOLIBS="$aio_lib"
-else
-    # Some Linux architectures (e.g. s390) don't imply -lpthread automatically.
-    AIOLIBS="-lrt -lpthread"
 fi
 
 if test ! -x "$(which cgcc 2>/dev/null)"; then
@@ -954,14 +941,17 @@ fi
 
 ##########################################
 # AIO probe
+AIOLIBS=""
+
 if test "$aio" = "yes" ; then
   aio=no
   cat > $TMPC << EOF
-#include <aio.h>
-int main(void) { return aio_write(NULL); }
+#include <pthread.h>
+int main(void) { pthread_mutex_t lock; return 0; }
 EOF
   if $cc $ARCH_CFLAGS -o $TMPE $AIOLIBS $TMPC 2> /dev/null ; then
     aio=yes
+    AIOLIBS="-lpthread"
   fi
 fi
 

@@ -56,6 +56,9 @@ BLOCK_OBJS+=nbd.o block.o aio.o
 ifdef CONFIG_WIN32
 BLOCK_OBJS += block-raw-win32.o
 else
+ifdef CONFIG_AIO
+BLOCK_OBJS += posix-aio-compat.o
+endif
 BLOCK_OBJS += block-raw-posix.o
 endif
 
