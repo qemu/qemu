@@ -972,6 +972,26 @@ if [ -x "`which texi2html 2>/dev/null`" ] && \
   build_docs="yes"
 fi
 
+##########################################
+# Do we need librt
+cat > $TMPC <<EOF
+#include <signal.h>
+#include <time.h>
+int main(void) { clockid_t id; return clock_gettime(id, NULL); }
+EOF
+
+rt=no
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  :
+elif $cc $ARCH_CFLAGS -o $TMPE $TMPC -lrt 2> /dev/null ; then
+  rt=yes
+fi
+
+if test "$rt" = "yes" ; then
+  # Hack, we should have a general purpose LIBS for this sort of thing
+  AIOLIBS="$AIOLIBS -lrt"
+fi
+
 if test "$mingw32" = "yes" ; then
   if test -z "$prefix" ; then
       prefix="c:\\\\Program Files\\\\Qemu"
