@@ -199,4 +199,3 @@ int qemu_paio_cancel(int fd, struct qemu_paiocb *aiocb)
 
     return ret;
 }
-

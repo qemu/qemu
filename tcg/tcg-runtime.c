@@ -66,4 +66,3 @@ uint64_t tcg_helper_remu_i64(uint64_t arg1, uint64_t arg2)
 {
     return arg1 % arg2;
 }
-

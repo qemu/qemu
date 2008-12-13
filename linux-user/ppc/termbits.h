@@ -234,4 +234,3 @@ struct target_termios {
 
 #define TARGET_TIOCMIWAIT	0x545C	/* wait for a change on serial input line(s) */
 #define TARGET_TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
-

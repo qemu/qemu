@@ -336,4 +336,3 @@ void *pl080_init(uint32_t base, qemu_irq irq, int nchannels)
     /* ??? Save/restore.  */
     return s;
 }
-

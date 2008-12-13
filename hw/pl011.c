@@ -309,4 +309,3 @@ void pl011_init(uint32_t base, qemu_irq irq,
     }
     register_savevm("pl011_uart", -1, 1, pl011_save, pl011_load, s);
 }
-

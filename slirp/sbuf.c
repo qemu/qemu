@@ -198,4 +198,3 @@ sbcopy(sb, off, len, to)
 		   memcpy(to+off,sb->sb_data,len);
 	}
 }
-

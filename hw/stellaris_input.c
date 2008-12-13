@@ -89,5 +89,3 @@ void stellaris_gamepad_init(int n, qemu_irq *irq, const int *keycode)
     register_savevm("stellaris_gamepad", -1, 1,
                     stellaris_gamepad_save, stellaris_gamepad_load, s);
 }
-
-

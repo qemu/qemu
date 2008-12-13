@@ -288,4 +288,3 @@ void *vmmouse_init(void *m)
 
     return s;
 }
-

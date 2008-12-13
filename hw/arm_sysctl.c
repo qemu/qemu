@@ -205,4 +205,3 @@ void arm_sysctl_init(uint32_t base, uint32_t sys_id)
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
     /* ??? Save/restore.  */
 }
-

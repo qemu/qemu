@@ -169,4 +169,3 @@ PCIBus *pci_prep_init(qemu_irq *pic)
 
     return s->bus;
 }
-

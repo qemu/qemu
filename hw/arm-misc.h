@@ -44,4 +44,3 @@ qemu_irq *armv7m_nvic_init(CPUState *env);
 void stellaris_enet_init(NICInfo *nd, uint32_t base, qemu_irq irq);
 
 #endif /* !ARM_MISC_H */
-

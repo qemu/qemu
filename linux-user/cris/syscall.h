@@ -34,4 +34,3 @@ struct target_pt_regs {
         unsigned long exs;
         unsigned long eda;
 };
-

@@ -234,4 +234,3 @@ dtom(dat)
 
 	return (struct mbuf *)0;
 }
-

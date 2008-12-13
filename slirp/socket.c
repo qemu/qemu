@@ -723,4 +723,3 @@ sofwdrain(so)
 	else
 		sofcantsendmore(so);
 }
-

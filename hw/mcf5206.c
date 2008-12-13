@@ -540,4 +540,3 @@ qemu_irq *mcf5206_init(uint32_t base, CPUState *env)
     m5206_mbar_reset(s);
     return pic;
 }
-

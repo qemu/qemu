@@ -69,4 +69,3 @@ static void glue(tc6393xb_draw_graphic, BITS)(struct tc6393xb_s *s)
 
 #undef BITS
 #undef SET_PIXEL
-

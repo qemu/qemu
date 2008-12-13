@@ -207,4 +207,3 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
 
     return pic;
 }
-

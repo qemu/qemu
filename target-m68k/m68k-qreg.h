@@ -9,4 +9,3 @@ enum {
 #undef DEFR
 #undef DEFF64
 };
-

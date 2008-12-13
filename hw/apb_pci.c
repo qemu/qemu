@@ -261,5 +261,3 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
                     "Advanced PCI Bus secondary bridge 2");
     return secondary;
 }
-
-

@@ -76,4 +76,3 @@ void dbdma_init (int *dbdma_mem_index)
 {
     *dbdma_mem_index = cpu_register_io_memory(0, dbdma_read, dbdma_write, NULL);
 }
-

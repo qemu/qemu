@@ -455,5 +455,3 @@ handle_signal:
     if (q != &k->info)
         free_sigqueue(q);
 }
-
-

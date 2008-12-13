@@ -23,4 +23,3 @@ int main (int argc, char *argv[])
   printf ("pass\n");
   exit (0);
 }
-

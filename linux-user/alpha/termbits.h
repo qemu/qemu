@@ -262,4 +262,3 @@ struct target_termios {
 #define TARGET_TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
 #define TARGET_TIOCGHAYESESP	0x545E  /* Get Hayes ESP configuration */
 #define TARGET_TIOCSHAYESESP	0x545F  /* Set Hayes ESP configuration */
-

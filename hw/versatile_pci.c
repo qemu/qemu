@@ -141,4 +141,3 @@ PCIBus *pci_vpb_init(qemu_irq *pic, int irq, int realview)
 
     return s;
 }
-

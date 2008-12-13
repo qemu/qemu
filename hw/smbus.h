@@ -67,4 +67,3 @@ void smbus_write_block(i2c_bus *bus, int addr, uint8_t command, uint8_t *data,
 
 /* smbus_eeprom.c */
 void smbus_eeprom_device_init(i2c_bus *bus, uint8_t addr, uint8_t *buf);
-

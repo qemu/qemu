@@ -192,4 +192,3 @@ ptimer_state *ptimer_init(QEMUBH *bh)
     s->timer = qemu_new_timer(vm_clock, ptimer_tick, s);
     return s;
 }
-

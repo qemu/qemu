@@ -1646,4 +1646,3 @@ QEMUMachine ss2_machine = {
     .nodisk_ok = 1,
     .use_scsi = 1,
 };
-

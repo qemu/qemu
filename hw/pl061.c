@@ -311,4 +311,3 @@ qemu_irq *pl061_init(uint32_t base, qemu_irq irq, qemu_irq **out)
     register_savevm("pl061_gpio", -1, 1, pl061_save, pl061_load, s);
     return qemu_allocate_irqs(pl061_set_irq, s, 8);
 }
-

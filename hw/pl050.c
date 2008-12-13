@@ -139,4 +139,3 @@ void pl050_init(uint32_t base, qemu_irq irq, int is_mouse)
         s->dev = ps2_kbd_init(pl050_update, s);
     /* ??? Save/restore.  */
 }
-

@@ -95,4 +95,3 @@ static inline FdMigrationState *migrate_to_fms(MigrationState *mig_state)
 }
 
 #endif
-
