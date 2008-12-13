@@ -1762,9 +1762,11 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     }
-
+#if 0
     fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",
 	    ctx->opcode, ctx->pc);
+    fflush(stderr);
+#endif
     gen_helper_raise_illegal_instruction();
     ctx->bstate = BS_EXCP;
 }
