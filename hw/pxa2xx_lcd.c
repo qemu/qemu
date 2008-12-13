@@ -752,11 +752,11 @@ static void pxa2xx_lcdc_dma0_redraw_vert(struct pxa2xx_lcdc_s *s,
     addr = (ram_addr_t) (fb - phys_ram_base);
     start = addr + s->yres * src_width;
     end = addr;
+    x = addr + TARGET_PAGE_SIZE;
     dirty[0] = dirty[1] = cpu_physical_memory_get_dirty(start, VGA_DIRTY_FLAG);
     for (y = 0; y < s->yres; y ++) {
         new_addr = addr + src_width;
-        for (x = addr + TARGET_PAGE_SIZE; x < new_addr;
-                        x += TARGET_PAGE_SIZE) {
+        for (; x < new_addr; x += TARGET_PAGE_SIZE) {
             dirty[1] = cpu_physical_memory_get_dirty(x, VGA_DIRTY_FLAG);
             dirty[0] |= dirty[1];
         }
