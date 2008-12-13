@@ -183,7 +183,7 @@ static VncState *vnc_state; /* needed for info vnc */
 
 void do_info_vnc(void)
 {
-    if (vnc_state == NULL)
+    if (vnc_state == NULL || vnc_state->display == NULL)
 	term_printf("VNC server disabled\n");
     else {
 	term_printf("VNC server active on: ");
