@@ -1408,7 +1408,7 @@ uint64_t helper_fnmadd (uint64_t arg1, uint64_t arg2, uint64_t arg3)
         farg1.d = float64_mul(farg1.d, farg2.d, &env->fp_status);
         farg1.d = float64_add(farg1.d, farg3.d, &env->fp_status);
 #endif
-        if (likely(!isnan(farg1.d)))
+        if (likely(!float64_is_nan(farg1.d)))
             farg1.d = float64_chs(farg1.d);
     }
     return farg1.ll;
@@ -1448,7 +1448,7 @@ uint64_t helper_fnmsub (uint64_t arg1, uint64_t arg2, uint64_t arg3)
         farg1.d = float64_mul(farg1.d, farg2.d, &env->fp_status);
         farg1.d = float64_sub(farg1.d, farg3.d, &env->fp_status);
 #endif
-        if (likely(!isnan(farg1.d)))
+        if (likely(!float64_is_nan(farg1.d)))
             farg1.d = float64_chs(farg1.d);
     }
     return farg1.ll;
@@ -1510,7 +1510,7 @@ uint64_t helper_fre (uint64_t arg)
             farg.ll = 0xFFF0000000000000ULL;
         } else if (farg.ll == 0x0000000000000000ULL) {
             farg.ll = 0x7FF0000000000000ULL;
-        } else if (isnan(farg.d)) {
+        } else if (float64_is_nan(farg.d)) {
             farg.ll = 0x7FF8000000000000ULL;
         } else if (fpisneg(farg.d)) {
             farg.ll = 0x8000000000000000ULL;
@@ -1545,7 +1545,7 @@ uint64_t helper_fres (uint64_t arg)
             farg.ll = 0xFFF0000000000000ULL;
         } else if (farg.ll == 0x0000000000000000ULL) {
             farg.ll = 0x7FF0000000000000ULL;
-        } else if (isnan(farg.d)) {
+        } else if (float64_is_nan(farg.d)) {
             farg.ll = 0x7FF8000000000000ULL;
         } else if (fpisneg(farg.d)) {
             farg.ll = 0x8000000000000000ULL;
@@ -1576,7 +1576,7 @@ uint64_t helper_frsqrte (uint64_t arg)
             farg.ll = 0xFFF0000000000000ULL;
         } else if (farg.ll == 0x0000000000000000ULL) {
             farg.ll = 0x7FF0000000000000ULL;
-        } else if (isnan(farg.d)) {
+        } else if (float64_is_nan(farg.d)) {
             farg.ll |= 0x000FFFFFFFFFFFFFULL;
         } else if (fpisneg(farg.d)) {
             farg.ll = 0x7FF8000000000000ULL;
@@ -2065,7 +2065,7 @@ static always_inline int32_t efsctsi (uint32_t val)
 
     u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(float32_is_nan(u.f)))
         return 0;
 
     return float32_to_int32(u.f, &env->spe_status);
@@ -2077,7 +2077,7 @@ static always_inline uint32_t efsctui (uint32_t val)
 
     u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(float32_is_nan(u.f)))
         return 0;
 
     return float32_to_uint32(u.f, &env->spe_status);
@@ -2089,7 +2089,7 @@ static always_inline uint32_t efsctsiz (uint32_t val)
 
     u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(float32_is_nan(u.f)))
         return 0;
 
     return float32_to_int32_round_to_zero(u.f, &env->spe_status);
@@ -2101,7 +2101,7 @@ static always_inline uint32_t efsctuiz (uint32_t val)
 
     u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(float32_is_nan(u.f)))
         return 0;
 
     return float32_to_uint32_round_to_zero(u.f, &env->spe_status);
@@ -2138,7 +2138,7 @@ static always_inline uint32_t efsctsf (uint32_t val)
 
     u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(float32_is_nan(u.f)))
         return 0;
     tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
     u.f = float32_mul(u.f, tmp, &env->spe_status);
@@ -2153,7 +2153,7 @@ static always_inline uint32_t efsctuf (uint32_t val)
 
     u.l = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.f)))
+    if (unlikely(float32_is_nan(u.f)))
         return 0;
     tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
     u.f = float32_mul(u.f, tmp, &env->spe_status);
@@ -2407,7 +2407,7 @@ uint32_t helper_efdctsi (uint64_t val)
 
     u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.d)))
+    if (unlikely(float64_is_nan(u.d)))
         return 0;
 
     return float64_to_int32(u.d, &env->spe_status);
@@ -2419,7 +2419,7 @@ uint32_t helper_efdctui (uint64_t val)
 
     u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.d)))
+    if (unlikely(float64_is_nan(u.d)))
         return 0;
 
     return float64_to_uint32(u.d, &env->spe_status);
@@ -2431,7 +2431,7 @@ uint32_t helper_efdctsiz (uint64_t val)
 
     u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.d)))
+    if (unlikely(float64_is_nan(u.d)))
         return 0;
 
     return float64_to_int32_round_to_zero(u.d, &env->spe_status);
@@ -2443,7 +2443,7 @@ uint64_t helper_efdctsidz (uint64_t val)
 
     u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.d)))
+    if (unlikely(float64_is_nan(u.d)))
         return 0;
 
     return float64_to_int64_round_to_zero(u.d, &env->spe_status);
@@ -2455,7 +2455,7 @@ uint32_t helper_efdctuiz (uint64_t val)
 
     u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.d)))
+    if (unlikely(float64_is_nan(u.d)))
         return 0;
 
     return float64_to_uint32_round_to_zero(u.d, &env->spe_status);
@@ -2467,7 +2467,7 @@ uint64_t helper_efdctuidz (uint64_t val)
 
     u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.d)))
+    if (unlikely(float64_is_nan(u.d)))
         return 0;
 
     return float64_to_uint64_round_to_zero(u.d, &env->spe_status);
@@ -2504,7 +2504,7 @@ uint32_t helper_efdctsf (uint64_t val)
 
     u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.d)))
+    if (unlikely(float64_is_nan(u.d)))
         return 0;
     tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
     u.d = float64_mul(u.d, tmp, &env->spe_status);
@@ -2519,7 +2519,7 @@ uint32_t helper_efdctuf (uint64_t val)
 
     u.ll = val;
     /* NaN are not treated the same way IEEE 754 does */
-    if (unlikely(isnan(u.d)))
+    if (unlikely(float64_is_nan(u.d)))
         return 0;
     tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
     u.d = float64_mul(u.d, tmp, &env->spe_status);
