@@ -49,6 +49,10 @@
 #define SR_FD (1 << 15)
 #define SR_M  (1 << 9)
 #define SR_Q  (1 << 8)
+#define SR_I3 (1 << 7)
+#define SR_I2 (1 << 6)
+#define SR_I1 (1 << 5)
+#define SR_I0 (1 << 4)
 #define SR_S  (1 << 1)
 #define SR_T  (1 << 0)
 

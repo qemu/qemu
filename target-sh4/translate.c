@@ -187,7 +187,7 @@ static void cpu_sh4_reset(CPUSH4State * env)
 #if defined(CONFIG_USER_ONLY)
     env->sr = 0;
 #else
-    env->sr = 0x700000F0;	/* MD, RB, BL, I3-I0 */
+    env->sr = SR_MD | SR_RB | SR_BL | SR_I3 | SR_I2 | SR_I1 | SR_I0;
 #endif
     env->vbr = 0;
     env->pc = 0xA0000000;
