@@ -408,4 +408,3 @@ int target_msync(unsigned long start, unsigned long len, int flags)
     start &= qemu_host_page_mask;
     return msync((void *)start, end - start, flags);
 }
-

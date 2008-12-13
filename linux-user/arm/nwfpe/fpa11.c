@@ -241,4 +241,3 @@ unsigned int EmulateAll1(unsigned int opcode)
   }
 }
 #endif
-

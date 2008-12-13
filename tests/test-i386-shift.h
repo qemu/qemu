@@ -183,4 +183,3 @@ void *glue(_test_, OP) __init_call = glue(test_, OP);
 #undef OP_SHIFTD
 #undef OP_NOBYTE
 #undef EXECSHIFT
-

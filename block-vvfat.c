@@ -2848,4 +2848,3 @@ static void checkpoint(void) {
     print_direntry(NULL);
 }
 #endif
-

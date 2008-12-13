@@ -90,4 +90,3 @@ static uint32_t pci_host_data_readl(void* opaque, pci_addr_t addr)
 #endif
     return val;
 }
-

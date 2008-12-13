@@ -1708,4 +1708,3 @@ const struct s390_opcode s390_opcodes[] =
 
 const int s390_num_opcodes =
   sizeof (s390_opcodes) / sizeof (s390_opcodes[0]);
-

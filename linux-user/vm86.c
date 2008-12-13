@@ -485,4 +485,3 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
  out:
     return ret;
 }
-

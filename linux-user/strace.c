@@ -314,4 +314,3 @@ print_syscall_ret(int num, abi_long ret)
             break;
         }
 }
-

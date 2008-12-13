@@ -3463,4 +3463,3 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
         rtl8139_get_next_tctr_time(s,qemu_get_clock(vm_clock)));
 #endif /* RTL8139_ONBOARD_TIMER */
 }
-

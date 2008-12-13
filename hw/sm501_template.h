@@ -101,4 +101,3 @@ static void glue(draw_line32_, PIXEL_NAME)(
 #undef PIXEL_TYPE
 #undef PIXEL_NAME
 #undef BGR_FORMAT
-

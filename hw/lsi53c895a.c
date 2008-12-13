@@ -2005,4 +2005,3 @@ void *lsi_scsi_init(PCIBus *bus, int devfn)
 
     return s;
 }
-

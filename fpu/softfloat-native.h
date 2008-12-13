@@ -246,6 +246,7 @@ INLINE int float32_unordered( float32 a, float32 b STATUS_PARAM)
 int float32_compare( float32, float32 STATUS_PARAM );
 int float32_compare_quiet( float32, float32 STATUS_PARAM );
 int float32_is_signaling_nan( float32 );
+int float32_is_nan( float32 );
 
 INLINE float32 float32_abs(float32 a)
 {

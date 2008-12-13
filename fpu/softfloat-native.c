@@ -250,6 +250,15 @@ int float32_is_signaling_nan( float32 a1)
     return ( ( ( a>>22 ) & 0x1FF ) == 0x1FE ) && ( a & 0x003FFFFF );
 }
 
+int float32_is_nan( float32 a1 )
+{
+    float32u u;
+    uint64_t a;
+    u.f = a1;
+    a = u.i;
+    return ( 0xFF800000 < ( a<<1 ) );
+}
+
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/

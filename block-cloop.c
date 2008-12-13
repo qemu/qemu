@@ -165,5 +165,3 @@ BlockDriver bdrv_cloop = {
     NULL,
     cloop_close,
 };
-
-

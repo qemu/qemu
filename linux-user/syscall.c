@@ -1614,12 +1614,14 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
 }
 #endif
 
+#ifdef TARGET_NR_ipc
 #define N_SHM_REGIONS	32
 
 static struct shm_region {
     abi_ulong	start;
     abi_ulong	size;
 } shm_regions[N_SHM_REGIONS];
+#endif
 
 struct target_ipc_perm
 {

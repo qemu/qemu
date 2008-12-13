@@ -206,7 +206,7 @@ struct opc_handler_t {
 static always_inline void gen_reset_fpstatus (void)
 {
 #ifdef CONFIG_SOFTFLOAT
-    gen_op_reset_fpstatus();
+    gen_helper_reset_fpstatus();
 #endif
 }
 

@@ -29,6 +29,7 @@
 
 #include "config.h"
 #include "osdep.h"
+#include "cpu.h" // For TARGET_LONG_BITS
 #include "tcg.h"
 
 int64_t tcg_helper_shl_i64(int64_t arg1, int64_t arg2)
@@ -65,4 +66,3 @@ uint64_t tcg_helper_remu_i64(uint64_t arg1, uint64_t arg2)
 {
     return arg1 % arg2;
 }
-

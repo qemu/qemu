@@ -57,18 +57,11 @@ register struct CPUX86State *env asm(AREG0);
 #include "cpu.h"
 #include "exec-all.h"
 
-void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
-void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
-int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
-                             int is_write, int mmu_idx, int is_softmmu);
-void __hidden cpu_lock(void);
-void __hidden cpu_unlock(void);
+/* op_helper.c */
 void do_interrupt(int intno, int is_int, int error_code,
                   target_ulong next_eip, int is_hw);
 void do_interrupt_user(int intno, int is_int, int error_code,
                        target_ulong next_eip);
-void raise_interrupt(int intno, int is_int, int error_code,
-                     int next_eip_addend);
 void raise_exception_err(int exception_index, int error_code);
 void raise_exception(int exception_index);
 void do_smm_enter(void);
@@ -273,16 +266,6 @@ static inline void helper_fstt(CPU86_LDouble f, target_ulong ptr)
 #define FPUS_B  (1 << 15)
 
 #define FPUC_EM 0x3f
-
-extern const CPU86_LDouble f15rk[7];
-
-void fpu_raise_exception(void);
-void restore_native_fp_state(CPUState *env);
-void save_native_fp_state(CPUState *env);
-
-extern const uint8_t parity_table[256];
-extern const uint8_t rclw_table[32];
-extern const uint8_t rclb_table[32];
 
 static inline uint32_t compute_eflags(void)
 {

@@ -224,4 +224,3 @@ void HELPER(divs)(CPUState *env, uint32_t word)
     env->div2 = rem;
     env->cc_dest = flags;
 }
-

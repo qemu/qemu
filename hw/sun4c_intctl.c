@@ -221,4 +221,3 @@ void *sun4c_intctl_init(target_phys_addr_t addr, qemu_irq **irq,
     sun4c_intctl_reset(s);
     return s;
 }
-

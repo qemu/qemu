@@ -268,4 +268,3 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
 #endif
     return s->bus;
 }
-

@@ -428,4 +428,3 @@ typedef struct
 #endif
 
 #endif /* _A_OUT_H_ */
-

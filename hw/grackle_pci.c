@@ -146,4 +146,3 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
 #endif
     return s->bus;
 }
-

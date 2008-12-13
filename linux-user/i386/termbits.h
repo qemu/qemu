@@ -224,4 +224,3 @@ struct target_termios {
 #define TARGET_TIOCPKT_DOSTOP		32
 
 #define TARGET_TIOCSER_TEMT    0x01	/* Transmitter physically empty */
-

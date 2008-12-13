@@ -47,4 +47,3 @@ struct pcmcia_card_s {
 
 /* dscm1xxxx.c */
 struct pcmcia_card_s *dscm1xxxx_init(BlockDriverState *bdrv);
-

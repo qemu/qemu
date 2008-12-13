@@ -237,4 +237,3 @@ void *ssi_sd_init(BlockDriverState *bs)
     register_savevm("ssi_sd", -1, 1, ssi_sd_save, ssi_sd_load, s);
     return s;
 }
-

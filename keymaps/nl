@@ -57,4 +57,3 @@ equal 0x35 shift
 bracketright 0x56
 bracketleft 0x56 shift
 brokenbar 0x56 altgr
-

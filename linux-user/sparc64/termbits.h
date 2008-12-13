@@ -277,4 +277,3 @@ struct target_termios {
 #define TARGET_TIOCSERSETMULTI 0x545B /* Set multiport config */
 #define TARGET_TIOCMIWAIT	0x545C /* Wait input */
 #define TARGET_TIOCGICOUNT	0x545D /* Read serial port inline interrupt counts */
-

@@ -202,4 +202,3 @@ PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
 
     return p->bus;
 }
-

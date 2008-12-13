@@ -306,5 +306,3 @@ void pl022_init(uint32_t base, qemu_irq irq, int (*xfer_cb)(void *, int),
     pl022_reset(s);
     register_savevm("pl022_ssp", -1, 1, pl022_save, pl022_load, s);
 }
-
-

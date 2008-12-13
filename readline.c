@@ -484,5 +484,3 @@ const char *readline_get_history(unsigned int index)
         return NULL;
     return term_history[index];
 }
-
-

@@ -401,11 +401,11 @@ int cpu_exec(CPUState *env1)
                             int intno;
                             /* FIXME: this should respect TPR */
                             svm_check_intercept(SVM_EXIT_VINTR);
-                            env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
                             intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
                             if (loglevel & CPU_LOG_TB_IN_ASM)
                                 fprintf(logfile, "Servicing virtual hardware INT=0x%02x\n", intno);
                             do_interrupt(intno, 0, 0, 0, 1);
+                            env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
                             next_tb = 0;
 #endif
                         }

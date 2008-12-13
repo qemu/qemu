@@ -717,4 +717,3 @@ INLINE flag ne128( bits64 a0, bits64 a1, bits64 b0, bits64 b1 )
     return ( a0 != b0 ) || ( a1 != b1 );
 
 }
-

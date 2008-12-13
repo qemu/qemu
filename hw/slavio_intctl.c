@@ -421,4 +421,3 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
     slavio_intctl_reset(s);
     return s;
 }
-

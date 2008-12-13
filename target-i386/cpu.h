@@ -720,10 +720,12 @@ static inline void cpu_x86_set_cpl(CPUX86State *s, int cpl)
 #endif
 }
 
+/* op_helper.c */
 /* used for debug or cpu save/restore */
 void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, CPU86_LDouble f);
 CPU86_LDouble cpu_set_fp80(uint64_t mant, uint16_t upper);
 
+/* cpu-exec.c */
 /* the following helpers are only usable in user mode simulation as
    they can trigger unexpected exceptions */
 void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
@@ -735,24 +737,51 @@ void cpu_x86_frstor(CPUX86State *s, target_ulong ptr, int data32);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_x86_signal_handler(int host_signum, void *pinfo,
                            void *puc);
+
+/* helper.c */
+int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
+                             int is_write, int mmu_idx, int is_softmmu);
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
+void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
+                   uint32_t *eax, uint32_t *ebx,
+                   uint32_t *ecx, uint32_t *edx);
 
-uint64_t cpu_get_tsc(CPUX86State *env);
+static inline int hw_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return (dr7 >> (index * 2)) & 3;
+}
 
+static inline int hw_breakpoint_type(unsigned long dr7, int index)
+{
+    return (dr7 >> (DR7_TYPE_SHIFT + (index * 2))) & 3;
+}
+
+static inline int hw_breakpoint_len(unsigned long dr7, int index)
+{
+    int len = ((dr7 >> (DR7_LEN_SHIFT + (index * 2))) & 3);
+    return (len == 2) ? 8 : len + 1;
+}
+
+void hw_breakpoint_insert(CPUX86State *env, int index);
+void hw_breakpoint_remove(CPUX86State *env, int index);
+int check_hw_breakpoints(CPUX86State *env, int force_dr6_update);
+
+/* will be suppressed */
+void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
+void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
+void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
+
+/* hw/apic.c */
 void cpu_set_apic_base(CPUX86State *env, uint64_t val);
 uint64_t cpu_get_apic_base(CPUX86State *env);
 void cpu_set_apic_tpr(CPUX86State *env, uint8_t val);
 #ifndef NO_CPU_IO_DEFS
 uint8_t cpu_get_apic_tpr(CPUX86State *env);
 #endif
+
+/* hw/pc.c */
 void cpu_smm_update(CPUX86State *env);
-
-/* will be suppressed */
-void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
-
-void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
-                   uint32_t *eax, uint32_t *ebx,
-                   uint32_t *ecx, uint32_t *edx);
+uint64_t cpu_get_tsc(CPUX86State *env);
 
 /* used to debug */
 #define X86_DUMP_FPU  0x0001 /* dump FPU state too */
@@ -787,6 +816,7 @@ static inline int cpu_mmu_index (CPUState *env)
     return (env->hflags & HF_CPL_MASK) == 3 ? 1 : 0;
 }
 
+/* translate.c */
 void optimize_flags_init(void);
 
 typedef struct CCTable {
@@ -802,26 +832,6 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
     env->regs[R_EAX] = 0;
 }
 #endif
-
-static inline int hw_breakpoint_enabled(unsigned long dr7, int index)
-{
-    return (dr7 >> (index * 2)) & 3;
-}
-
-static inline int hw_breakpoint_type(unsigned long dr7, int index)
-{
-    return (dr7 >> (DR7_TYPE_SHIFT + (index * 2))) & 3;
-}
-
-static inline int hw_breakpoint_len(unsigned long dr7, int index)
-{
-    int len = ((dr7 >> (DR7_LEN_SHIFT + (index * 2))) & 3);
-    return (len == 2) ? 8 : len + 1;
-}
-
-void hw_breakpoint_insert(CPUState *env, int index);
-void hw_breakpoint_remove(CPUState *env, int index);
-int check_hw_breakpoints(CPUState *env, int force_dr6_update);
 
 #include "cpu-all.h"
 #include "exec-all.h"

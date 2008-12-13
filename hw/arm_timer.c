@@ -340,4 +340,3 @@ void icp_pit_init(uint32_t base, qemu_irq *pic, int irq)
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
 }
-

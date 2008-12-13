@@ -247,4 +247,3 @@ QEMUFile *qemu_fopen_ops_buffered(void *opaque,
 
     return s->file;
 }
-
