@@ -89,6 +89,10 @@ typedef struct tlb_t {
 
 #define NB_MMU_MODES 2
 
+enum sh_features {
+    SH_FEATURE_SH4A = 1,
+};
+
 typedef struct CPUSH4State {
     int id;			/* CPU model */
 
@@ -112,6 +116,9 @@ typedef struct CPUSH4State {
 
     /* float point status register */
     float_status fp_status;
+
+    /* The features that we should emulate. See sh_features above.  */
+    uint32_t features;
 
     /* Those belong to the specific unit (SH7750) but are handled here */
     uint32_t mmucr;		/* MMU control register */

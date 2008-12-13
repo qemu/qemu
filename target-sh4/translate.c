@@ -49,6 +49,7 @@ typedef struct DisasContext {
     int memidx;
     uint32_t delayed_pc;
     int singlestep_enabled;
+    uint32_t features;
 } DisasContext;
 
 #if defined(CONFIG_USER_ONLY)
@@ -206,6 +207,7 @@ typedef struct {
     uint32_t pvr;
     uint32_t prr;
     uint32_t cvr;
+    uint32_t features;
 } sh4_def_t;
 
 static sh4_def_t sh4_defs[] = {
@@ -227,6 +229,7 @@ static sh4_def_t sh4_defs[] = {
 	.pvr = 0x10300700,
 	.prr = 0x00000200,
 	.cvr = 0x71440211,
+	.features = SH_FEATURE_SH4A,
      },
 };
 
@@ -271,6 +274,7 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model)
     env = qemu_mallocz(sizeof(CPUSH4State));
     if (!env)
 	return NULL;
+    env->features = def->features;
     cpu_exec_init(env);
     sh4_translate_init();
     env->cpu_model_str = cpu_model;
@@ -1562,6 +1566,21 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x0083:		/* pref @Rn */
 	return;
+    case 0x00d3:		/* prefi @Rn */
+	if (ctx->features & SH_FEATURE_SH4A)
+	    return;
+	else
+	    break;
+    case 0x00e3:		/* icbi @Rn */
+	if (ctx->features & SH_FEATURE_SH4A)
+	    return;
+	else
+	    break;
+    case 0x00ab:		/* synco */
+	if (ctx->features & SH_FEATURE_SH4A)
+	    return;
+	else
+	    break;
     case 0x4024:		/* rotcl Rn */
 	{
 	    TCGv tmp = tcg_temp_new();
@@ -1805,6 +1824,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
     ctx.singlestep_enabled = env->singlestep_enabled;
+    ctx.features = env->features;
 
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
