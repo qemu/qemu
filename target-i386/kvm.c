@@ -90,11 +90,11 @@ static int kvm_has_msr_star(CPUState *env)
 
         /* Obtain MSR list from KVM.  These are the MSRs that we must
          * save/restore */
+        msr_list.nmsrs = 0;
         ret = kvm_ioctl(env->kvm_state, KVM_GET_MSR_INDEX_LIST, &msr_list);
         if (ret < 0)
             return 0;
 
-        msr_list.nmsrs = 0;
         kvm_msr_list = qemu_mallocz(sizeof(msr_list) +
                                     msr_list.nmsrs * sizeof(msr_list.indices[0]));
         if (kvm_msr_list == NULL)
