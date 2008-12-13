@@ -100,6 +100,7 @@ static int kvm_has_msr_star(CPUState *env)
         if (kvm_msr_list == NULL)
             return 0;
 
+        kvm_msr_list->nmsrs = msr_list.nmsrs;
         ret = kvm_ioctl(env->kvm_state, KVM_GET_MSR_INDEX_LIST, kvm_msr_list);
         if (ret >= 0) {
             int i;
