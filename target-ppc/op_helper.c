@@ -1865,30 +1865,16 @@ void helper_rfsvc (void)
 /* 602 specific instructions */
 /* mfrom is the most crazy instruction ever seen, imho ! */
 /* Real implementation uses a ROM table. Do the same */
+/* Extremly decomposed:
+ *                      -arg / 256
+ * return 256 * log10(10           + 1.0) + 0.5
+ */
 #if !defined (CONFIG_USER_ONLY)
-#define USE_MFROM_ROM_TABLE
 target_ulong helper_602_mfrom (target_ulong arg)
 {
     if (likely(arg < 602)) {
-#if defined(USE_MFROM_ROM_TABLE)
 #include "mfrom_table.c"
         return mfrom_ROM_table[arg];
-#else
-        double d;
-        /* Extremly decomposed:
-         *                      -arg / 256
-         * return 256 * log10(10           + 1.0) + 0.5
-         */
-        d = arg;
-        d = float64_div(d, 256, &env->fp_status);
-        d = float64_chs(d);
-        d = exp10(d); // XXX: use float emulation function
-        d = float64_add(d, 1.0, &env->fp_status);
-        d = log10(d); // XXX: use float emulation function
-        d = float64_mul(d, 256, &env->fp_status);
-        d = float64_add(d, 0.5, &env->fp_status);
-        return float64_round_to_int(d, &env->fp_status);
-#endif
     } else {
         return 0;
     }
