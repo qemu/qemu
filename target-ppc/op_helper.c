@@ -1000,12 +1000,15 @@ void helper_float_check_status (void)
         /* Differred floating-point exception after target FPR update */
         if (msr_fe0 != 0 || msr_fe1 != 0)
             helper_raise_exception_err(env->exception_index, env->error_code);
-    } else if (env->fp_status.float_exception_flags & float_flag_overflow) {
-        float_overflow_excp();
-    } else if (env->fp_status.float_exception_flags & float_flag_underflow) {
-        float_underflow_excp();
-    } else if (env->fp_status.float_exception_flags & float_flag_inexact) {
-        float_inexact_excp();
+    } else {
+        int status = get_float_exception_flags(&env->fp_status);
+        if (status & float_flag_overflow) {
+            float_overflow_excp();
+        } else if (status & float_flag_underflow) {
+            float_underflow_excp();
+        } else if (status & float_flag_inexact) {
+            float_inexact_excp();
+        }
     }
 #else
     if (env->exception_index == POWERPC_EXCP_PROGRAM &&
@@ -1020,7 +1023,7 @@ void helper_float_check_status (void)
 #ifdef CONFIG_SOFTFLOAT
 void helper_reset_fpstatus (void)
 {
-    env->fp_status.float_exception_flags = 0;
+    set_float_exception_flags(0, &env->fp_status);
 }
 #endif
 
