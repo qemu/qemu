@@ -27,10 +27,8 @@
 
 #include "cpu.h"
 #include "exec-all.h"
-#include "svm.h"
 #include "qemu-common.h"
 #include "kvm.h"
-#include "helper.h"
 
 //#define DEBUG_MMU
 
@@ -847,12 +845,6 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
         env->hflags &= ~HF_OSFXSR_MASK;
 
     env->cr[4] = new_cr4;
-}
-
-/* XXX: also flush 4MB pages */
-void cpu_x86_flush_tlb(CPUX86State *env, target_ulong addr)
-{
-    tlb_flush_page(env, addr);
 }
 
 #if defined(CONFIG_USER_ONLY)

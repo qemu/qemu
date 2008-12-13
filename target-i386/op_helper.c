@@ -19,6 +19,7 @@
  */
 #define CPU_NO_GLOBAL_REGS
 #include "exec.h"
+#include "exec-all.h"
 #include "host-utils.h"
 
 //#define DEBUG_PCALL
@@ -32,7 +33,7 @@ do {\
 } while (0)
 #endif
 
-const uint8_t parity_table[256] = {
+static const uint8_t parity_table[256] = {
     CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
     0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
     0, CC_P, CC_P, 0, CC_P, 0, 0, CC_P,
@@ -68,7 +69,7 @@ const uint8_t parity_table[256] = {
 };
 
 /* modulo 17 table */
-const uint8_t rclw_table[32] = {
+static const uint8_t rclw_table[32] = {
     0, 1, 2, 3, 4, 5, 6, 7,
     8, 9,10,11,12,13,14,15,
    16, 0, 1, 2, 3, 4, 5, 6,
@@ -76,14 +77,14 @@ const uint8_t rclw_table[32] = {
 };
 
 /* modulo 9 table */
-const uint8_t rclb_table[32] = {
+static const uint8_t rclb_table[32] = {
     0, 1, 2, 3, 4, 5, 6, 7,
     8, 0, 1, 2, 3, 4, 5, 6,
     7, 8, 0, 1, 2, 3, 4, 5,
     6, 7, 8, 0, 1, 2, 3, 4,
 };
 
-const CPU86_LDouble f15rk[7] =
+static const CPU86_LDouble f15rk[7] =
 {
     0.00000000000000000000L,
     1.00000000000000000000L,
@@ -995,6 +996,7 @@ static void do_interrupt64(int intno, int is_int, int error_code,
 }
 #endif
 
+#ifdef TARGET_X86_64
 #if defined(CONFIG_USER_ONLY)
 void helper_syscall(int next_eip_addend)
 {
@@ -1011,7 +1013,6 @@ void helper_syscall(int next_eip_addend)
         raise_exception_err(EXCP06_ILLOP, 0);
     }
     selector = (env->star >> 32) & 0xffff;
-#ifdef TARGET_X86_64
     if (env->hflags & HF_LMA_MASK) {
         int code64;
 
@@ -1037,9 +1038,7 @@ void helper_syscall(int next_eip_addend)
             env->eip = env->lstar;
         else
             env->eip = env->cstar;
-    } else
-#endif
-    {
+    } else {
         ECX = (uint32_t)(env->eip + next_eip_addend);
 
         cpu_x86_set_cpl(env, 0);
@@ -1058,7 +1057,9 @@ void helper_syscall(int next_eip_addend)
     }
 }
 #endif
+#endif
 
+#ifdef TARGET_X86_64
 void helper_sysret(int dflag)
 {
     int cpl, selector;
@@ -1071,7 +1072,6 @@ void helper_sysret(int dflag)
         raise_exception_err(EXCP0D_GPF, 0);
     }
     selector = (env->star >> 48) & 0xffff;
-#ifdef TARGET_X86_64
     if (env->hflags & HF_LMA_MASK) {
         if (dflag == 2) {
             cpu_x86_load_seg_cache(env, R_CS, (selector + 16) | 3,
@@ -1097,9 +1097,7 @@ void helper_sysret(int dflag)
         load_eflags((uint32_t)(env->regs[11]), TF_MASK | AC_MASK | ID_MASK |
                     IF_MASK | IOPL_MASK | VM_MASK | RF_MASK | NT_MASK);
         cpu_x86_set_cpl(env, 3);
-    } else
-#endif
-    {
+    } else {
         cpu_x86_load_seg_cache(env, R_CS, selector | 3,
                                0, 0xffffffff,
                                DESC_G_MASK | DESC_B_MASK | DESC_P_MASK |
@@ -1123,6 +1121,7 @@ void helper_sysret(int dflag)
     }
 #endif
 }
+#endif
 
 /* real mode interrupt */
 static void do_interrupt_real(int intno, int is_int, int error_code,
@@ -1285,8 +1284,8 @@ static int check_exception(int intno, int *error_code)
  * EIP value AFTER the interrupt instruction. It is only relevant if
  * is_int is TRUE.
  */
-void raise_interrupt(int intno, int is_int, int error_code,
-                     int next_eip_addend)
+static void raise_interrupt(int intno, int is_int, int error_code,
+                            int next_eip_addend)
 {
     if (!is_int) {
         helper_svm_check_intercept_param(SVM_EXIT_EXCP_BASE + intno, error_code);
@@ -1304,7 +1303,7 @@ void raise_interrupt(int intno, int is_int, int error_code,
 
 /* shortcuts to generate exceptions */
 
-void (raise_exception_err)(int exception_index, int error_code)
+void raise_exception_err(int exception_index, int error_code)
 {
     raise_interrupt(exception_index, 0, error_code, 0);
 }
@@ -3319,7 +3318,7 @@ static inline CPU86_LDouble helper_fdiv(CPU86_LDouble a, CPU86_LDouble b)
     return a / b;
 }
 
-void fpu_raise_exception(void)
+static void fpu_raise_exception(void)
 {
     if (env->cr[0] & CR0_NE_MASK) {
         raise_exception(EXCP10_COPR);
@@ -4660,6 +4659,7 @@ static float approx_rcp(float a)
 
 #endif
 
+#if !defined(CONFIG_USER_ONLY)
 /* try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
@@ -4692,7 +4692,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     }
     env = saved_env;
 }
-
+#endif
 
 /* Secure Virtual Machine helpers */
 
