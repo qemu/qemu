@@ -1041,7 +1041,7 @@ uint64_t helper_fadd (uint64_t arg1, uint64_t arg2)
         farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
     } else {
         /* Magnitude subtraction of infinities */
-        farg1.ll == fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
     }
 #else
     farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
@@ -1095,7 +1095,6 @@ uint64_t helper_fmul (uint64_t arg1, uint64_t arg2)
     } else {
         farg1.d = float64_mul(farg1.d, farg2.d, &env->fp_status);
     }
-}
 #else
     farg1.d = float64_mul(farg1.d, farg2.d, &env->fp_status);
 #endif
@@ -1120,7 +1119,7 @@ uint64_t helper_fdiv (uint64_t arg1, uint64_t arg2)
     } else if (unlikely(iszero(farg2.d))) {
         if (iszero(farg1.d)) {
             /* Division of zero by zero */
-            farg1.ll fload_invalid_op_excp(POWERPC_EXCP_FP_VXZDZ);
+            farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXZDZ);
         } else {
             /* Division by zero */
             farg1.ll = float_zero_divide_excp(farg1.d, farg2.d);
@@ -1465,7 +1464,7 @@ uint64_t helper_frsp (uint64_t arg)
         /* sNaN square root */
        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else {
-       fard.d = float64_to_float32(farg.d, &env->fp_status);
+       farg.d = float64_to_float32(farg.d, &env->fp_status);
     }
 #else
     farg.d = float64_to_float32(farg.d, &env->fp_status);
