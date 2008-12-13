@@ -221,7 +221,13 @@ static sh4_def_t sh4_defs[] = {
 	.pvr = 0x04050005,
 	.prr = 0x00000113,
 	.cvr = 0x00110000,	/* Neutered caches, should be 0x20480000 */
-    },
+    }, {
+	.name = "SH7785",
+	.id = SH_CPU_SH7785,
+	.pvr = 0x10300700,
+	.prr = 0x00000200,
+	.cvr = 0x71440211,
+     },
 };
 
 static const sh4_def_t *cpu_sh4_find_by_name(const char *name)
