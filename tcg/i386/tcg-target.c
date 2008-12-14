@@ -525,7 +525,13 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         tcg_out_modrm(s, 0xbf | P_EXT, data_reg, TCG_REG_EAX);
         break;
     case 0:
+        /* movzbl */
+        tcg_out_modrm(s, 0xb6 | P_EXT, data_reg, TCG_REG_EAX);
+        break;
     case 1:
+        /* movzwl */
+        tcg_out_modrm(s, 0xb7 | P_EXT, data_reg, TCG_REG_EAX);
+        break;
     case 2:
     default:
         tcg_out_mov(s, data_reg, TCG_REG_EAX);

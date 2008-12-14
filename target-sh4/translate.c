@@ -49,6 +49,7 @@ typedef struct DisasContext {
     int memidx;
     uint32_t delayed_pc;
     int singlestep_enabled;
+    uint32_t features;
 } DisasContext;
 
 #if defined(CONFIG_USER_ONLY)
@@ -184,9 +185,9 @@ void cpu_dump_state(CPUState * env, FILE * f,
 static void cpu_sh4_reset(CPUSH4State * env)
 {
 #if defined(CONFIG_USER_ONLY)
-    env->sr = SR_FD;            /* FD - kernel does lazy fpu context switch */
+    env->sr = 0;
 #else
-    env->sr = 0x700000F0;	/* MD, RB, BL, I3-I0 */
+    env->sr = SR_MD | SR_RB | SR_BL | SR_I3 | SR_I2 | SR_I1 | SR_I0;
 #endif
     env->vbr = 0;
     env->pc = 0xA0000000;
@@ -206,6 +207,7 @@ typedef struct {
     uint32_t pvr;
     uint32_t prr;
     uint32_t cvr;
+    uint32_t features;
 } sh4_def_t;
 
 static sh4_def_t sh4_defs[] = {
@@ -221,7 +223,14 @@ static sh4_def_t sh4_defs[] = {
 	.pvr = 0x04050005,
 	.prr = 0x00000113,
 	.cvr = 0x00110000,	/* Neutered caches, should be 0x20480000 */
-    },
+    }, {
+	.name = "SH7785",
+	.id = SH_CPU_SH7785,
+	.pvr = 0x10300700,
+	.prr = 0x00000200,
+	.cvr = 0x71440211,
+	.features = SH_FEATURE_SH4A,
+     },
 };
 
 static const sh4_def_t *cpu_sh4_find_by_name(const char *name)
@@ -265,6 +274,7 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model)
     env = qemu_mallocz(sizeof(CPUSH4State));
     if (!env)
 	return NULL;
+    env->features = def->features;
     cpu_exec_init(env);
     sh4_translate_init();
     env->cpu_model_str = cpu_model;
@@ -1556,6 +1566,21 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x0083:		/* pref @Rn */
 	return;
+    case 0x00d3:		/* prefi @Rn */
+	if (ctx->features & SH_FEATURE_SH4A)
+	    return;
+	else
+	    break;
+    case 0x00e3:		/* icbi @Rn */
+	if (ctx->features & SH_FEATURE_SH4A)
+	    return;
+	else
+	    break;
+    case 0x00ab:		/* synco */
+	if (ctx->features & SH_FEATURE_SH4A)
+	    return;
+	else
+	    break;
     case 0x4024:		/* rotcl Rn */
 	{
 	    TCGv tmp = tcg_temp_new();
@@ -1737,9 +1762,11 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     }
-
+#if 0
     fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",
 	    ctx->opcode, ctx->pc);
+    fflush(stderr);
+#endif
     gen_helper_raise_illegal_instruction();
     ctx->bstate = BS_EXCP;
 }
@@ -1799,6 +1826,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
     ctx.singlestep_enabled = env->singlestep_enabled;
+    ctx.features = env->features;
 
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_CPU) {
