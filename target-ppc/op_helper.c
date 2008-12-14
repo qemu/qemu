@@ -843,6 +843,24 @@ static always_inline void fpscr_set_rounding_mode (void)
     set_float_rounding_mode(rnd_type, &env->fp_status);
 }
 
+void helper_fpscr_clrbit (uint32_t bit)
+{
+    int prev;
+
+    prev = (env->fpscr >> bit) & 1;
+    env->fpscr &= ~(1 << bit);
+    if (prev == 1) {
+        switch (bit) {
+        case FPSCR_RN1:
+        case FPSCR_RN:
+            fpscr_set_rounding_mode();
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 void helper_fpscr_setbit (uint32_t bit)
 {
     int prev;

@@ -2355,11 +2355,14 @@ GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    crb = 32 - (crbD(ctx->opcode) >> 2);
+    crb = 31 - crbD(ctx->opcode);
     gen_optimize_fprf();
     gen_reset_fpstatus();
-    if (likely(crb != 30 && crb != 29))
-        tcg_gen_andi_i32(cpu_fpscr, cpu_fpscr, ~(1 << crb));
+    if (likely(crb != FPSCR_FEX && crb != FPSCR_VX)) {
+        TCGv_i32 t0 = tcg_const_i32(crb);
+        gen_helper_fpscr_clrbit(t0);
+        tcg_temp_free_i32(t0);
+    }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
@@ -2374,7 +2377,7 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    crb = 32 - (crbD(ctx->opcode) >> 2);
+    crb = 31 - crbD(ctx->opcode);
     gen_optimize_fprf();
     gen_reset_fpstatus();
     /* XXX: we pretend we can only do IEEE floating-point computations */
