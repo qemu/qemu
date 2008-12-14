@@ -30,3 +30,5 @@ qemu-nbd.pod
 *.tp
 *.vr
 *.d
+.pc
+patches
