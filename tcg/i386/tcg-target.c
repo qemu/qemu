@@ -285,7 +285,7 @@ static inline void tgen_arithi(TCGContext *s, int c, int r0, int32_t val)
     }
 }
 
-void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
+static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
 {
     if (val != 0)
         tgen_arithi(s, ARITH_ADD, reg, val);

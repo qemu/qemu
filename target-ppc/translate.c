@@ -41,7 +41,6 @@
 //#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
 //#define DO_PPC_STATISTICS
-//#define OPTIMIZE_FPRF_UPDATE
 
 /*****************************************************************************/
 /* Code translation helpers                                                  */
@@ -162,11 +161,6 @@ void ppc_translate_init(void)
     done_init = 1;
 }
 
-#if defined(OPTIMIZE_FPRF_UPDATE)
-static uint16_t *gen_fprf_buf[OPC_BUF_SIZE];
-static uint16_t **gen_fprf_ptr;
-#endif
-
 /* internal defines */
 typedef struct DisasContext {
     struct TranslationBlock *tb;
@@ -216,9 +210,6 @@ static always_inline void gen_compute_fprf (TCGv_i64 arg, int set_fprf, int set_
 
     if (set_fprf != 0) {
         /* This case might be optimized later */
-#if defined(OPTIMIZE_FPRF_UPDATE)
-        *gen_fprf_ptr++ = gen_opc_ptr;
-#endif
         tcg_gen_movi_i32(t0, 1);
         gen_helper_compute_fprf(t0, arg, t0);
         if (unlikely(set_rc)) {
@@ -233,17 +224,6 @@ static always_inline void gen_compute_fprf (TCGv_i64 arg, int set_fprf, int set_
     }
 
     tcg_temp_free_i32(t0);
-}
-
-static always_inline void gen_optimize_fprf (void)
-{
-#if defined(OPTIMIZE_FPRF_UPDATE)
-    uint16_t **ptr;
-
-    for (ptr = gen_fprf_buf; ptr != (gen_fprf_ptr - 1); ptr++)
-        *ptr = INDEX_op_nop1;
-    gen_fprf_ptr = gen_fprf_buf;
-#endif
 }
 
 static always_inline void gen_set_access_type (DisasContext *ctx, int access_type)
@@ -2269,26 +2249,30 @@ GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT);
 /* fcmpo */
 GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT)
 {
+    TCGv crf;
     if (unlikely(!ctx->fpu_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
     gen_reset_fpstatus();
-    gen_helper_fcmpo(cpu_crf[crfD(ctx->opcode)],
-                     cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    crf = tcg_const_i32(crfD(ctx->opcode));
+    gen_helper_fcmpo(cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)], crf);
+    tcg_temp_free(crf);
     gen_helper_float_check_status();
 }
 
 /* fcmpu */
 GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT)
 {
+    TCGv crf;
     if (unlikely(!ctx->fpu_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
     gen_reset_fpstatus();
-    gen_helper_fcmpu(cpu_crf[crfD(ctx->opcode)],
-                     cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    crf = tcg_const_i32(crfD(ctx->opcode));
+    gen_helper_fcmpu(cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)], crf);
+    tcg_temp_free(crf);
     gen_helper_float_check_status();
 }
 
@@ -2326,7 +2310,6 @@ GEN_HANDLER(mcrfs, 0x3F, 0x00, 0x02, 0x0063F801, PPC_FLOAT)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    gen_optimize_fprf();
     bfa = 4 * (7 - crfS(ctx->opcode));
     tcg_gen_shri_i32(cpu_crf[crfD(ctx->opcode)], cpu_fpscr, bfa);
     tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)], 0xf);
@@ -2340,7 +2323,6 @@ GEN_HANDLER(mffs, 0x3F, 0x07, 0x12, 0x001FF800, PPC_FLOAT)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    gen_optimize_fprf();
     gen_reset_fpstatus();
     tcg_gen_extu_i32_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpscr);
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
@@ -2355,11 +2337,13 @@ GEN_HANDLER(mtfsb0, 0x3F, 0x06, 0x02, 0x001FF800, PPC_FLOAT)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    crb = 32 - (crbD(ctx->opcode) >> 2);
-    gen_optimize_fprf();
+    crb = 31 - crbD(ctx->opcode);
     gen_reset_fpstatus();
-    if (likely(crb != 30 && crb != 29))
-        tcg_gen_andi_i32(cpu_fpscr, cpu_fpscr, ~(1 << crb));
+    if (likely(crb != FPSCR_FEX && crb != FPSCR_VX)) {
+        TCGv_i32 t0 = tcg_const_i32(crb);
+        gen_helper_fpscr_clrbit(t0);
+        tcg_temp_free_i32(t0);
+    }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
@@ -2374,8 +2358,7 @@ GEN_HANDLER(mtfsb1, 0x3F, 0x06, 0x01, 0x001FF800, PPC_FLOAT)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    crb = 32 - (crbD(ctx->opcode) >> 2);
-    gen_optimize_fprf();
+    crb = 31 - crbD(ctx->opcode);
     gen_reset_fpstatus();
     /* XXX: we pretend we can only do IEEE floating-point computations */
     if (likely(crb != FPSCR_FEX && crb != FPSCR_VX && crb != FPSCR_NI)) {
@@ -2399,7 +2382,6 @@ GEN_HANDLER(mtfsf, 0x3F, 0x07, 0x16, 0x02010000, PPC_FLOAT)
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
-    gen_optimize_fprf();
     gen_reset_fpstatus();
     t0 = tcg_const_i32(FM(ctx->opcode));
     gen_helper_store_fpscr(cpu_fpr[rB(ctx->opcode)], t0);
@@ -2424,7 +2406,6 @@ GEN_HANDLER(mtfsfi, 0x3F, 0x06, 0x04, 0x006f0800, PPC_FLOAT)
     }
     bf = crbD(ctx->opcode) >> 2;
     sh = 7 - bf;
-    gen_optimize_fprf();
     gen_reset_fpstatus();
     t0 = tcg_const_i64(FPIMM(ctx->opcode) << (4 * sh));
     t1 = tcg_const_i32(1 << sh);
@@ -7651,6 +7632,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
         if ((i & (RFPL - 1)) == (RFPL - 1))
             cpu_fprintf(f, "\n");
     }
+    cpu_fprintf(f, "FPSCR %08x\n", env->fpscr);
 #if !defined(CONFIG_USER_ONLY)
     cpu_fprintf(f, "SRR0 " ADDRX " SRR1 " ADDRX " SDR1 " ADDRX "\n",
                 env->spr[SPR_SRR0], env->spr[SPR_SRR1], env->sdr1);
@@ -7723,9 +7705,6 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
 
     pc_start = tb->pc;
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
-#if defined(OPTIMIZE_FPRF_UPDATE)
-    gen_fprf_ptr = gen_fprf_buf;
-#endif
     ctx.nip = pc_start;
     ctx.tb = tb;
     ctx.exception = POWERPC_EXCP_NONE;
