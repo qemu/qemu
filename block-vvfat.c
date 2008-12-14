@@ -1249,7 +1249,7 @@ static void print_direntry(const direntry_t* direntry)
 	unsigned char* c=(unsigned char*)direntry;
 	int i;
 	for(i=1;i<11 && c[i] && c[i]!=0xff;i+=2)
-#define ADD_CHAR(c) {buffer[j] = (c); if (buffer[j] < ' ') buffer[j] = '°'; j++;}
+#define ADD_CHAR(c) {buffer[j] = (c); if (buffer[j] < ' ') buffer[j] = 0xb0; j++;}
 	    ADD_CHAR(c[i]);
 	for(i=14;i<26 && c[i] && c[i]!=0xff;i+=2)
 	    ADD_CHAR(c[i]);
