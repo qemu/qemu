@@ -3,6 +3,7 @@ i386
 *-softmmu
 *-darwin-user
 *-linux-user
+*-bsd-user
 qemu-doc.html
 qemu-tech.html
 qemu-doc.info
@@ -14,6 +15,7 @@ qemu-img.pod
 qemu-img
 qemu-nbd
 qemu-nbd.8
+qemu-nbd.pod
 .gdbinit
 *.a
 *.aux
