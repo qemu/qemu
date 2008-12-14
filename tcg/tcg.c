@@ -886,7 +886,7 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
             val = args[1];
             th = tcg_find_helper(s, val);
             if (th) {
-                fprintf(outfile, th->name);
+                fprintf(outfile, "%s", th->name);
             } else {
                 if (c == INDEX_op_movi_i32)
                     fprintf(outfile, "0x%x", (uint32_t)val);
