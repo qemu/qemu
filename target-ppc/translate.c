@@ -2249,26 +2249,30 @@ GEN_FLOAT_B(rim, 0x08, 0x0F, 1, PPC_FLOAT_EXT);
 /* fcmpo */
 GEN_HANDLER(fcmpo, 0x3F, 0x00, 0x01, 0x00600001, PPC_FLOAT)
 {
+    TCGv crf;
     if (unlikely(!ctx->fpu_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
     gen_reset_fpstatus();
-    gen_helper_fcmpo(cpu_crf[crfD(ctx->opcode)],
-                     cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    crf = tcg_const_i32(crfD(ctx->opcode));
+    gen_helper_fcmpo(cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)], crf);
+    tcg_temp_free(crf);
     gen_helper_float_check_status();
 }
 
 /* fcmpu */
 GEN_HANDLER(fcmpu, 0x3F, 0x00, 0x00, 0x00600001, PPC_FLOAT)
 {
+    TCGv crf;
     if (unlikely(!ctx->fpu_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_FPU);
         return;
     }
     gen_reset_fpstatus();
-    gen_helper_fcmpu(cpu_crf[crfD(ctx->opcode)],
-                     cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    crf = tcg_const_i32(crfD(ctx->opcode));
+    gen_helper_fcmpu(cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)], crf);
+    tcg_temp_free(crf);
     gen_helper_float_check_status();
 }
 
