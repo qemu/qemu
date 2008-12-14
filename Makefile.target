@@ -697,6 +697,7 @@ OBJS+= pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 OBJS+= virtio.o virtio-blk.o virtio-balloon.o
 endif
 ifeq ($(TARGET_BASE_ARCH), mips)
+CPPFLAGS += -Werror
 OBJS+= mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 OBJS+= mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
 OBJS+= g364fb.o jazz_led.o
