@@ -678,7 +678,7 @@ endif
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
 ifndef CONFIG_USER_ONLY
-CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
+CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE -Werror
 endif
 # shared objects
 OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o

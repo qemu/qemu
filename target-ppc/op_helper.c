@@ -1592,16 +1592,14 @@ uint64_t helper_frsqrte (uint64_t arg)
 /* fsel - fsel. */
 uint64_t helper_fsel (uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
-    CPU_DoubleU farg1, farg2, farg3;
+    CPU_DoubleU farg1;
 
     farg1.ll = arg1;
-    farg2.ll = arg2;
-    farg3.ll = arg3;
 
     if (!fpisneg(farg1.d) || iszero(farg1.d))
-        return farg2.ll;
+        return arg2;
     else
-        return farg2.ll;
+        return arg3;
 }
 
 uint32_t helper_fcmpu (uint64_t arg1, uint64_t arg2)
