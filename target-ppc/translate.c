@@ -7651,6 +7651,7 @@ void cpu_dump_state (CPUState *env, FILE *f,
         if ((i & (RFPL - 1)) == (RFPL - 1))
             cpu_fprintf(f, "\n");
     }
+    cpu_fprintf(f, "FPSCR %08x\n", env->fpscr);
 #if !defined(CONFIG_USER_ONLY)
     cpu_fprintf(f, "SRR0 " ADDRX " SRR1 " ADDRX " SDR1 " ADDRX "\n",
                 env->spr[SPR_SRR0], env->spr[SPR_SRR1], env->sdr1);
