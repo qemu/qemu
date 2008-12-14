@@ -641,7 +641,7 @@ OBJS+= virtio.o virtio-blk.o virtio-balloon.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 ifeq ($(TARGET_BASE_ARCH), ppc)
-CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE -Werror
+CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 # shared objects
 OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o
 # PREP target
