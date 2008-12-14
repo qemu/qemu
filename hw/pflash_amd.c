@@ -37,6 +37,7 @@
  * It does not implement multiple sectors erase
  */
 
+#include <assert.h>     /* assert */
 #include <stdio.h>      /* fprintf */
 
 #include "hw.h"
@@ -246,7 +247,9 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
     /* WARNING: when the memory area is in ROMD mode, the offset is a
        ram offset, not a physical address */
     if (pfl->mode == rom_mode) {
-        offset -= (uint32_t)pfl->storage;
+        // TODO: next line raises a compiler warning, needs fix.
+        //~ offset -= (uint32_t)pfl->storage;
+        assert(0);
     } else {
         offset -= pfl->base;
     }
@@ -585,7 +588,7 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
 
     total_len = sector_len * nb_blocs;
 
-    DPRINTF("flash size %u MiB (%u x %u bytes)\n",
+    DPRINTF("flash size " TARGET_FMT_lu " MiB (" TARGET_FMT_lu " x %u bytes)\n",
             total_len / MiB, total_len / width, width);
 
     /* XXX: to be fixed */

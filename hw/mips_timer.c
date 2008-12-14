@@ -2,8 +2,9 @@
 #include "mips.h"
 #include "qemu-timer.h"
 #include "exec-all.h"
+#include "target-mips/cpu.h"
 
-#define TIMER_FREQ	100 * 1000 * 1000
+//~ #define TIMER_FREQ	100 * 1000 * 1000
 
 /* Timer on Sinus 154 DSL Basic SE (Openwrt) needs a lower frequency. */
 #define TIMER_FREQ	10 * 1000 * 1000

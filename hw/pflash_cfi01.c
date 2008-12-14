@@ -205,11 +205,11 @@ static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
                     ret = pfl->ident[boff];
                     break;
                 default:
-                    DPRINTF("??? offset " TARGET_FMT_lx " %08x %d\n", offset, ret, width);
+                    DPRINTF("??? offset %08" PRIx32 " %08x %d\n", offset, ret, width);
                     assert(0);
                     goto flash_read;
             }
-            DPRINTF("ID " TARGET_FMT_ld " 0x%04x\n", offset, ret);
+            DPRINTF("ID %08" PRIx32 " 0x%04x\n", offset, ret);
             break;
         case 0x10:
         case 0x30:
@@ -238,7 +238,7 @@ static uint32_t pflash_read (pflash_t *pfl, uint32_t offset, int width)
             goto flash_read;
     }
 
-    DPRINTF("offset " TARGET_FMT_lx " %08x %d\n", offset, ret, width);
+    DPRINTF("offset %08" PRIx32 " %08x %d\n", offset, ret, width);
     return ret;
 }
 
@@ -317,10 +317,10 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         offset -= pfl->base;
     }
 
-    DPRINTF("offset " TARGET_FMT_lx " %08x %d\n", offset, value, width);
+    DPRINTF("offset %08" PRIx32 " %08x %d\n", offset, value, width);
 
     if (pfl->cmd == 0x40) {
-        DPRINTF("Single Byte Program offset " TARGET_FMT_lx " data %08x %d\n",
+        DPRINTF("Single Byte Program offset %08" PRIx32 " data %08x %d\n",
                 offset, value, width);
         pflash_write_data(pfl->storage, offset, value, width);
         pflash_update(pfl, offset, width);
@@ -381,7 +381,7 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
         pflash_io_mode(pfl);
         return;
     } else if (pfl->cmd == 0x28 && cmd == 0xd0) {
-        DPRINTF("Block Erase confirmed (" TARGET_FMT_lx " %02x)\n", offset, cmd);
+        DPRINTF("Block Erase confirmed (%08" PRIx32 " %02x)\n", offset, cmd);
         offset &= ~(sector_len - 1);
         memset(pfl->storage + offset, 0xFF, sector_len);
         pflash_update(pfl, offset, sector_len);

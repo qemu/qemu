@@ -61,7 +61,7 @@
 
 #include "hw/atheros_wlan.h"
 #include "hw/atheros_wlan_ap.h"
-
+#include "hw/atheros_wlan_io.h"
 
 /*
  * MadWifi OPENHAL atheros constants
@@ -119,7 +119,7 @@ static int get_eeprom_data(Atheros_WLANState *s, uint32_t addr, uint32_t *val)
 
 
 
-void updateFrequency(Atheros_WLANState *s)
+static void updateFrequency(Atheros_WLANState *s)
 {
 	int i;
 	u_int32_t new_frequency = 0;
@@ -580,7 +580,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 				// hm... ar5424 resets its queue to 0 :-(
 			}
 			SET_MEM_L(s->mem, addr, val);
-			s->receive_queue_address = (uint32_t *)val;
+			s->receive_queue_address = (target_phys_addr_t)val;
 
 			/*
 			 * Madwifi hack: we allow only a certain
@@ -629,7 +629,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr, uint32_t va
 				 * once the queue is enabled
 				 */
 				s->transmit_queue_processed[addr] = 0;
-				s->transmit_queue_address[addr] = (uint32_t *)val;
+				s->transmit_queue_address[addr] = (target_phys_addr_t)val;
 			}
 			else
 			{

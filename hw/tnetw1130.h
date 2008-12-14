@@ -24,6 +24,7 @@
 
 void vlynq_tnetw1130_init(void);
 
-void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn);
+// pci_tnetw1130_init is in pci.h
+//~ void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn);
 
 #endif /* HW_TNETW1130_H */

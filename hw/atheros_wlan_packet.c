@@ -65,7 +65,7 @@
 static int insertCRC(struct mac80211_frame *frame, uint32_t frame_length)
 {
 	unsigned long crc;
-	unsigned char *fcs = (char*)frame;
+	unsigned char *fcs = (unsigned char*)frame;
 
 	crc = crc32_ccitt(fcs, frame_length);
 	memcpy(&fcs[frame_length], &crc, 4);

@@ -96,7 +96,7 @@ static void Atheros_WLAN_reset(NICInfo *nd, Atheros_WLANState *s)
 	Atheros_WLAN_update_irq(s);
 }
 
-void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
+static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
 {
 	// create buffer large enough to
 	// do all checks
@@ -291,7 +291,7 @@ static int Atheros_WLAN_load(QEMUFile* f, void* opaque, int version_id)
 
 	qemu_get_be32s(f, &s->current_frequency);
 	qemu_get_be32s(f, &direct_value);
-	s->receive_queue_address = (uint32_t*)direct_value;
+	s->receive_queue_address = (target_phys_addr_t)direct_value;
 	qemu_get_be32s(f, &s->receive_queue_count);
 
 	qemu_get_be32s(f, &s->transmit_queue_size);
@@ -299,7 +299,7 @@ static int Atheros_WLAN_load(QEMUFile* f, void* opaque, int version_id)
 	{
 		qemu_get_8s(f, &s->transmit_queue_enabled[i]);
 		qemu_get_be32s(f, &direct_value);
-		s->transmit_queue_address[i] = (uint32_t*)direct_value;
+		s->transmit_queue_address[i] = (target_phys_addr_t)direct_value;
 		qemu_get_be32s(f, &s->transmit_queue_processed[i]);
 	}
 

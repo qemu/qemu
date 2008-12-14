@@ -187,7 +187,7 @@ static void Atheros_WLAN_inject_timer(void *opaque)
 		goto timer_done;
 	}
 
-	if (s->receive_queue_address == NULL)
+	if (s->receive_queue_address == 0)
 	{
 		// we drop the packet
 	}
@@ -445,12 +445,12 @@ void Atheros_WLAN_handleRxBuffer(Atheros_WLANState *s, struct mac80211_frame *fr
 	struct ath5k_ar5212_rx_status *rx_status;
 	rx_status = (struct ath5k_ar5212_rx_status*)&desc.ds_hw[0];
 
-	if (s->receive_queue_address == NULL)
+	if (s->receive_queue_address == 0)
 	{
 		return;
 	}
 
-	cpu_physical_memory_read((target_phys_addr_t)s->receive_queue_address, (uint8_t*)&desc, sizeof(desc));
+	cpu_physical_memory_read(s->receive_queue_address, (uint8_t*)&desc, sizeof(desc));
 
 	/*
 	 * Put some good base-data into
@@ -479,7 +479,7 @@ void Atheros_WLAN_handleRxBuffer(Atheros_WLANState *s, struct mac80211_frame *fr
 	/*
 	 * Write descriptor and packet back to DMA memory...
 	 */
-	cpu_physical_memory_write((target_phys_addr_t)s->receive_queue_address, (uint8_t*)&desc, sizeof(desc));
+	cpu_physical_memory_write(s->receive_queue_address, (uint8_t*)&desc, sizeof(desc));
 	cpu_physical_memory_write((target_phys_addr_t)desc.ds_data, (uint8_t*)frame, sizeof(struct mac80211_frame));
 
 	/*
@@ -504,8 +504,8 @@ void Atheros_WLAN_handleRxBuffer(Atheros_WLANState *s, struct mac80211_frame *fr
 	 */
 	s->receive_queue_address =
 		((++s->receive_queue_count) > MAX_CONCURRENT_RX_FRAMES)
-			? NULL
-			: (uint32_t *)desc.ds_link;
+			? 0
+			: (target_phys_addr_t)desc.ds_link;
 
 
 	DEBUG_PRINT((">> Enabling rx\n"));
@@ -525,12 +525,12 @@ void Atheros_WLAN_handleTxBuffer(Atheros_WLANState *s, uint32_t queue)
 	struct ath_desc desc;
 	struct mac80211_frame frame;
 
-	if (s->transmit_queue_address[queue] == NULL)
+	if (s->transmit_queue_address[queue] == 0)
 	{
 		return;
 	}
 
-	cpu_physical_memory_read((target_phys_addr_t)s->transmit_queue_address[queue], (uint8_t*)&desc, sizeof(desc));
+	cpu_physical_memory_read(s->transmit_queue_address[queue], (uint8_t*)&desc, sizeof(desc));
 
 	if (s->transmit_queue_processed[queue])
 	{
@@ -543,12 +543,12 @@ void Atheros_WLAN_handleTxBuffer(Atheros_WLANState *s, uint32_t queue)
 		 * this way we have to process the next
 		 * frame in the single linked list!!
 		 */
-		s->transmit_queue_address[queue] = (uint32_t *)desc.ds_link;
+		s->transmit_queue_address[queue] = (target_phys_addr_t)desc.ds_link;
 
 		/*
 		 * And now get the frame we really have to process...
 		 */
-		cpu_physical_memory_read((target_phys_addr_t)s->transmit_queue_address[queue], (uint8_t*)&desc, sizeof(desc));
+		cpu_physical_memory_read(s->transmit_queue_address[queue], (uint8_t*)&desc, sizeof(desc));
 	}
 
 	uint32_t segment_len, frame_length = 0, more;
@@ -597,7 +597,7 @@ void Atheros_WLAN_handleTxBuffer(Atheros_WLANState *s, uint32_t queue)
 		 *
 		 * Write descriptor back to DMA memory...
 		 */
-		cpu_physical_memory_write((target_phys_addr_t)s->transmit_queue_address[queue], (uint8_t*)&desc, sizeof(desc));
+		cpu_physical_memory_write(s->transmit_queue_address[queue], (uint8_t*)&desc, sizeof(desc));
 
 		if (more && frame_length < sizeof(frame))
 		{
@@ -611,8 +611,8 @@ void Atheros_WLAN_handleTxBuffer(Atheros_WLANState *s, uint32_t queue)
 			 * by this version) but let's do it the safe
 			 * way and not mess it up :-)
 			 */
-			s->transmit_queue_address[queue] = (uint32_t *)desc.ds_link;
-			cpu_physical_memory_read((target_phys_addr_t)s->transmit_queue_address[queue], (uint8_t*)&desc, sizeof(desc));
+			s->transmit_queue_address[queue] = (target_phys_addr_t)desc.ds_link;
+			cpu_physical_memory_read(s->transmit_queue_address[queue], (uint8_t*)&desc, sizeof(desc));
 		}
 	}
 	while (more && frame_length < sizeof(frame));

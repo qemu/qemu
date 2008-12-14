@@ -983,6 +983,13 @@ static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
     return val;
 }
 
+static void __attribute__((__noreturn__)) dp8381x_writeb(pci_dp8381x_t * d,
+  target_phys_addr_t addr, uint8_t val);
+static void __attribute__((__noreturn__)) dp8381x_ioport_writeb(void *opaque,
+  uint32_t addr, uint32_t val);
+static void __attribute__((__noreturn__)) dp8381x_mmio_writeb(void *opaque,
+  target_phys_addr_t addr, uint32_t val);
+
 static void dp8381x_writeb(pci_dp8381x_t * d, target_phys_addr_t addr,
                            uint8_t val)
 {
@@ -1312,7 +1319,7 @@ static uint32_t dp8381x_mmio_readb(void *opaque, target_phys_addr_t addr)
     pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
     dp8381x_t *s = &d->dp8381x;
     addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_lx "\n", addr);
+    logout("addr 0x" TARGET_FMT_plx "\n", addr);
     return dp8381x_readb(d, addr);
 }
 
@@ -1321,7 +1328,7 @@ static uint32_t dp8381x_mmio_readw(void *opaque, target_phys_addr_t addr)
     pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
     dp8381x_t *s = &d->dp8381x;
     addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_lx "\n", addr);
+    logout("addr 0x" TARGET_FMT_plx "\n", addr);
     return dp8381x_readw(d, addr);
 }
 
@@ -1330,7 +1337,7 @@ static uint32_t dp8381x_mmio_readl(void *opaque, target_phys_addr_t addr)
     pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
     dp8381x_t *s = &d->dp8381x;
     addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_lx "\n", addr);
+    logout("addr 0x" TARGET_FMT_plx "\n", addr);
     return dp8381x_readl(d, addr);
 }
 
@@ -1340,7 +1347,7 @@ static void dp8381x_mmio_writeb(void *opaque, target_phys_addr_t addr,
     pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
     dp8381x_t *s = &d->dp8381x;
     addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_lx "\n", addr);
+    logout("addr 0x" TARGET_FMT_plx "\n", addr);
     dp8381x_writeb(d, addr, val);
 }
 
@@ -1350,7 +1357,7 @@ static void dp8381x_mmio_writew(void *opaque, target_phys_addr_t addr,
     pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
     dp8381x_t *s = &d->dp8381x;
     addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_lx "\n", addr);
+    logout("addr 0x" TARGET_FMT_plx "\n", addr);
     dp8381x_writew(d, addr, val);
 }
 
@@ -1360,7 +1367,7 @@ static void dp8381x_mmio_writel(void *opaque, target_phys_addr_t addr,
     pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
     dp8381x_t *s = &d->dp8381x;
     addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_lx "\n", addr);
+    logout("addr 0x" TARGET_FMT_plx "\n", addr);
     dp8381x_writel(d, addr, val);
 }
 

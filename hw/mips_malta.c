@@ -38,6 +38,7 @@
 #include "boards.h"
 #include "qemu-log.h"
 
+#undef BIOS_SIZE
 #define BIOS_SIZE (16 * MiB)
 
 //#define DEBUG_BOARD_INIT
@@ -309,7 +310,7 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     default:
 #if 1
-        fprintf (stderr, "%s: Bad register offset 0x" TARGET_FMT_lx "\n",
+        fprintf (stderr, "%s: Bad register offset 0x" TARGET_FMT_plx "\n",
                 __func__, addr);
 #endif
         break;
@@ -399,7 +400,7 @@ static void malta_fpga_writel(void *opaque, target_phys_addr_t addr,
 
     default:
 #if 1
-        fprintf(stderr, "%s: Bad register offset 0x" TARGET_FMT_lx "\n",
+        fprintf(stderr, "%s: Bad register offset 0x" TARGET_FMT_plx "\n",
                 __func__, addr);
 #endif
         break;

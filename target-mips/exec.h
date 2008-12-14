@@ -24,21 +24,6 @@ void fpu_dump_state(CPUState *env, FILE *f,
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags);
 
-int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                               int mmu_idx, int is_softmmu);
-void do_interrupt (CPUState *env);
-void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra);
-
-void do_raise_exception_err (uint32_t exception, int error_code);
-void do_raise_exception (uint32_t exception);
-
-uint32_t cpu_mips_get_random (CPUState *env);
-uint32_t cpu_mips_get_count (CPUState *env);
-void cpu_mips_store_count (CPUState *env, uint32_t value);
-void cpu_mips_store_compare (CPUState *env, uint32_t value);
-void cpu_mips_start_count(CPUState *env);
-void cpu_mips_stop_count(CPUState *env);
-void cpu_mips_update_irq (CPUState *env);
 void cpu_mips_clock_init (CPUState *env);
 void cpu_mips_tlb_flush (CPUState *env, int flush_global);
 

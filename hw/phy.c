@@ -275,7 +275,7 @@ static void phy_write(unsigned addr, uint16_t val)
     phy.reg[addr] = val;
 }
 
-void phy_init(void)
+static void phy_init(void)
 {
 #if defined(DEBUG_PHY)
     set_phy_traceflags("DEBUG_AR7");

@@ -74,7 +74,7 @@
 #include "hw/pflash.h"          /* pflash_amd_register, ... */
 #include "hw/tnetw1130.h"       /* vlynq_tnetw1130_init */
 
-//~ #include "target-mips/exec.h"   /* do_interrupt */
+#include "target-mips/cpu.h"    /* do_interrupt */
 
 #define MIPS_EXCEPTION_OFFSET   8
 #define NUM_PRIMARY_IRQS        40
@@ -387,7 +387,7 @@ static const unsigned io_frequency = 125000000 / 2;
 /* Global variable avalanche can be used in debugger. */
 //~ ar7_register_t *avalanche = &av;
 
-const char *mips_backtrace(void)
+static const char *mips_backtrace(void)
 {
     static char buffer[256];
     char *p = buffer;
@@ -3132,26 +3132,30 @@ static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
     } else if (INRANGE(AVALANCHE_VLYNQ0_BASE + VLYNQ_CTRL, 4) ||
                INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         uint32_t oldvalue = ar7_io_memread(opaque, addr & ~3);
-        //~ logout("??? addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
+        //~ logout("??? addr=0x" TARGET_FMT_plx ", val=0x%02x\n", addr, value);
         oldvalue &= ~(0xff << (8 * (addr & 3)));
         value = oldvalue + ((value & 0xff) << (8 * (addr & 3)));
         ar7_io_memwrite(opaque, addr & ~3, value);
     } else if (addr & 3) {
         ar7_io_memwrite(opaque, addr & ~3, value);
-        logout("addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
+        logout("addr=0x" TARGET_FMT_plx ", val=0x%02x\n", addr, value);
         UNEXPECTED();
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
         ar7_io_memwrite(opaque, addr, value);
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
         ar7_io_memwrite(opaque, addr, value);
-#else
-# warning("TODO: missing code")
-#endif
     } else {
         ar7_io_memwrite(opaque, addr, value);
-        logout("??? addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
+        logout("??? addr=0x" TARGET_FMT_plx ", val=0x%02x\n", addr, value);
         //~ UNEXPECTED();
     }
+#else
+    } else {
+        ar7_io_memwrite(opaque, addr, value);
+        logout("??? addr=0x" TARGET_FMT_plx ", val=0x%02x\n", addr, value);
+        MISSING();
+    }
+#endif
     //~ cpu_outb(NULL, addr & 0xffff, value);
 }
 
@@ -3163,7 +3167,7 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
     } else if (INRANGE(AVALANCHE_BBIF_BASE, av.bbif)) {
         value >>= (addr & 3) * 8;
         value &= 0xff;
-        logout("??? addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
+        logout("??? addr=0x" TARGET_FMT_plx ", val=0x%02x\n", addr, value);
     } else if (INRANGE(AVALANCHE_GPIO_BASE, av.gpio)) {
         value >>= ((addr & 3) * 8);
         value &= 0xff;
@@ -3173,18 +3177,21 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
         value >>= ((addr & 3) * 8);
         value &= 0xff;
     } else if (addr & 3) {
-        logout("addr=0x%08x, val=0x%02x\n", (unsigned)addr, value);
+        logout("addr=0x" TARGET_FMT_plx ", val=0x%02x\n", addr, value);
         UNEXPECTED();
     } else if (INRANGE(AVALANCHE_UART0_BASE, av.uart0)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
     } else if (INRANGE(AVALANCHE_UART1_BASE, av.uart1)) {
-#else
-# warning("TODO: missing code")
-#endif
     } else {
-        logout("addr=0x%08x, val=0x%02x\n", (unsigned)addr, value & 0xff);
+        logout("addr=0x" TARGET_FMT_plx ", val=0x%02x\n", addr, value & 0xff);
         UNEXPECTED();
     }
+#else
+    } else {
+        logout("addr=0x" TARGET_FMT_plx ", val=0x%02x\n", addr, value & 0xff);
+        MISSING();
+    }
+#endif
     value &= 0xff;
     return value;
 }
@@ -3193,7 +3200,7 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     if (0) {
     } else {
-        logout("??? addr=0x%08x, val=0x%04x\n", (unsigned)addr, value);
+        logout("??? addr=0x" TARGET_FMT_plx ", val=0x%04x\n", addr, value);
         switch (addr & 3) {
 #if !defined(TARGET_WORDS_BIGENDIAN)
         case 0:
@@ -3205,7 +3212,9 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
             ar7_io_memwrite(opaque, addr - 2, value);
             break;
 #else
-# warning("TODO: missing code")
+        case 0:
+            MISSING();
+            break;
 #endif
         default:
             assert(0);
@@ -3227,12 +3236,14 @@ static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
           value >>= 16;
           break;
 #else
-# warning("TODO: missing code")
+      case 0:
+          MISSING();
+          break;
 #endif
       default:
           assert(0);
       }
-      TRACE(OTHER, logout("addr=0x%08x, val=0x%04x\n", (unsigned)addr, value));
+      TRACE(OTHER, logout("addr=0x" TARGET_FMT_plx ", val=0x%04x\n", addr, value));
     }
     return value;
 }

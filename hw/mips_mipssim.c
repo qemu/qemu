@@ -32,8 +32,6 @@
 #include "sysemu.h"
 #include "boards.h"
 
-#define BIOS_SIZE (4 * MiB)
-
 #ifdef TARGET_WORDS_BIGENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
 #else

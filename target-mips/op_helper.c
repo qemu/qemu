@@ -54,7 +54,7 @@ void do_interrupt_restart (void)
     }
 }
 
-void do_restore_state (void *pc_ptr)
+static void do_restore_state (void *pc_ptr)
 {
     TranslationBlock *tb;
     unsigned long pc = (unsigned long) pc_ptr;

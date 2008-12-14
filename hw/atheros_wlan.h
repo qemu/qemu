@@ -286,7 +286,7 @@ typedef struct Atheros_WLANState
 	VLANClientState *vc;
 	int Atheros_WLAN_mmio_io_addr;
 
-	int device_driver_type;
+	uint32_t device_driver_type;
 
 	uint8_t ipaddr[4];				// currently unused
 	uint8_t macaddr[6];				// mac address
@@ -306,20 +306,20 @@ typedef struct Atheros_WLANState
 	uint32_t current_frequency;
 
 
-	uint32_t *receive_queue_address;
+	target_phys_addr_t receive_queue_address;
 	uint32_t receive_queue_count;
 
 	uint32_t transmit_queue_size;
 	uint8_t transmit_queue_enabled[16];
-	uint32_t *transmit_queue_address[16];
-	int transmit_queue_processed[16];
+	target_phys_addr_t transmit_queue_address[16];
+	uint32_t transmit_queue_processed[16];
 
 	uint32_t mem[Atheros_WLAN_MEM_SIZE / 4];
 
 	int eeprom_size;
-	u_int32_t *eeprom_data;
+	uint32_t *eeprom_data;
 
-	int ap_state;
+	uint32_t ap_state;
 	int inject_timer_running;
 	unsigned int inject_sequence_number;
 

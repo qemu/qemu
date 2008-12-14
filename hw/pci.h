@@ -125,16 +125,10 @@ void usb_uhci_piix4_init(PCIBus *bus, int devfn);
 void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn);
 
 /* dp83815.c */
-
 void pci_dp83816_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* e100.c */
-
 void pci_e100_init(PCIBus *bus, NICInfo *nd, int devfn);
-
-/* e1000 */
-
-void pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* eepro100.c */
 
@@ -151,11 +145,13 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 /* atheros_wlan.c */
 void pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn);
 
+/* e1000.c */
+void pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
+
 /* pcnet.c */
 void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* tnetw1130.c */
-
 void pci_tnetw1130_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* prep_pci.c */
