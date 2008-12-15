@@ -986,9 +986,9 @@ void helper_store_fpscr (uint64_t arg, uint32_t mask)
 
     prev = env->fpscr;
     new = (uint32_t)arg;
-    new &= ~0x90000000;
-    new |= prev & 0x90000000;
-    for (i = 0; i < 7; i++) {
+    new &= ~0x60000000;
+    new |= prev & 0x60000000;
+    for (i = 0; i < 8; i++) {
         if (mask & (1 << i)) {
             env->fpscr &= ~(0xF << (4 * i));
             env->fpscr |= new & (0xF << (4 * i));
