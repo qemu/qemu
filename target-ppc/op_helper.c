@@ -563,17 +563,7 @@ static always_inline int isden (float64 d)
     return ((u.ll >> 52) & 0x7FF) == 0;
 }
 
-
 #ifdef CONFIG_SOFTFLOAT
-static always_inline int isfinite (float64 d)
-{
-    CPU_DoubleU u;
-
-    u.d = d;
-
-    return (((u.ll >> 52) & 0x7FF) != 0x7FF);
-}
-
 static always_inline int isnormal (float64 d)
 {
     CPU_DoubleU u;
@@ -1028,12 +1018,12 @@ uint64_t helper_fadd (uint64_t arg1, uint64_t arg2)
                  float64_is_signaling_nan(farg2.d))) {
         /* sNaN addition */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (likely(isfinite(farg1.d) || isfinite(farg2.d) ||
-                      float64_is_neg(farg1.d) == float64_is_neg(farg2.d))) {
-        farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
-    } else {
+    } else if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d) &&
+                      float64_is_neg(farg1.d) != float64_is_neg(farg2.d))) {
         /* Magnitude subtraction of infinities */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+    } else {
+        farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
     }
 #else
     farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
@@ -1054,12 +1044,12 @@ uint64_t helper_fsub (uint64_t arg1, uint64_t arg2)
                  float64_is_signaling_nan(farg2.d))) {
         /* sNaN subtraction */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (likely(isfinite(farg1.d) || isfinite(farg2.d) ||
-                      float64_is_neg(farg1.d) != float64_is_neg(farg2.d))) {
-        farg1.d = float64_sub(farg1.d, farg2.d, &env->fp_status);
-    } else {
+    } else if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d) &&
+                      float64_is_neg(farg1.d) == float64_is_neg(farg2.d))) {
         /* Magnitude subtraction of infinities */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+    } else {
+        farg1.d = float64_sub(farg1.d, farg2.d, &env->fp_status);
     }
 }
 #else
