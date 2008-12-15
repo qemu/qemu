@@ -258,6 +258,21 @@ INLINE float32 float32_chs(float32 a)
     return -a;
 }
 
+INLINE float32 float32_is_infinity(float32 a)
+{
+    return fpclassify(a) == FP_INFINITE;
+}
+
+INLINE float32 float32_is_neg(float32 a)
+{
+    return a < 0.0;
+}
+
+INLINE float32 float32_is_zero(float32 a)
+{
+    return fpclassify(a) == FP_ZERO;
+}
+
 INLINE float32 float32_scalbn(float32 a, int n)
 {
     return scalbnf(a, n);
@@ -350,6 +365,21 @@ INLINE float64 float64_chs(float64 a)
     return -a;
 }
 
+INLINE float64 float64_is_infinity(float64 a)
+{
+    return fpclassify(a) == FP_INFINITE;
+}
+
+INLINE float64 float64_is_neg(float64 a)
+{
+    return a < 0.0;
+}
+
+INLINE float64 float64_is_zero(float64 a)
+{
+    return fpclassify(a) == FP_ZERO;
+}
+
 INLINE float64 float64_scalbn(float64 a, int n)
 {
     return scalbn(a, n);
@@ -435,6 +465,21 @@ INLINE floatx80 floatx80_abs(floatx80 a)
 INLINE floatx80 floatx80_chs(floatx80 a)
 {
     return -a;
+}
+
+INLINE floatx80 floatx80_is_infinity(floatx80 a)
+{
+    return fpclassify(a) == FP_INFINITE;
+}
+
+INLINE floatx80 floatx80_is_neg(floatx80 a)
+{
+    return a < 0.0;
+}
+
+INLINE floatx80 floatx80_is_zero(floatx80 a)
+{
+    return fpclassify(a) == FP_ZERO;
 }
 
 INLINE floatx80 floatx80_scalbn(floatx80 a, int n)
