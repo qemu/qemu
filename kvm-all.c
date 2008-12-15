@@ -141,6 +141,21 @@ err:
     return ret;
 }
 
+int kvm_sync_vcpus(void)
+{
+    CPUState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        int ret;
+
+        ret = kvm_arch_put_registers(env);
+        if (ret)
+            return ret;
+    }
+
+    return 0;
+}
+
 /*
  * dirty pages logging control
  */
