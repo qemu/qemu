@@ -431,7 +431,7 @@ int float64_is_nan( float64 a1 )
     u.f = a1;
     a = u.i;
 
-    return ( LIT64( 0xFFE0000000000000 ) < (bits64) ( a<<1 ) );
+    return ( LIT64( 0xFFF0000000000000 ) < (bits64) ( a<<1 ) );
 
 }
 
@@ -505,6 +505,19 @@ int floatx80_compare_quiet( floatx80 a, floatx80 b STATUS_PARAM )
     }
 }
 int floatx80_is_signaling_nan( floatx80 a1)
+{
+    floatx80u u;
+    uint64_t aLow;
+    u.f = a1;
+
+    aLow = u.i.low & ~ LIT64( 0x4000000000000000 );
+    return
+           ( ( u.i.high & 0x7FFF ) == 0x7FFF )
+        && (bits64) ( aLow<<1 )
+        && ( u.i.low == aLow );
+}
+
+int floatx80_is_nan( floatx80 a1 )
 {
     floatx80u u;
     u.f = a1;
