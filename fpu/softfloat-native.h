@@ -425,6 +425,7 @@ INLINE int floatx80_unordered( floatx80 a, floatx80 b STATUS_PARAM)
 int floatx80_compare( floatx80, floatx80 STATUS_PARAM );
 int floatx80_compare_quiet( floatx80, floatx80 STATUS_PARAM );
 int floatx80_is_signaling_nan( floatx80 );
+int floatx80_is_nan( floatx80 );
 
 INLINE floatx80 floatx80_abs(floatx80 a)
 {
