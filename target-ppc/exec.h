@@ -32,7 +32,6 @@
 #define USE_PRECISE_EMULATION 1
 
 register struct CPUPPCState *env asm(AREG0);
-#define TDX "%016" PRIx64
 
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
