@@ -48,7 +48,7 @@ enum {
 qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
                        uint32_t dcr_base, int has_ssr, int has_vr);
 
-void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
+void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
                         target_phys_addr_t *ram_bases,
                         target_phys_addr_t *ram_sizes,
                         int do_init);

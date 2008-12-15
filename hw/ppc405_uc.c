@@ -2230,7 +2230,7 @@ CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
     pic = ppcuic_init(env, irqs, 0x0C0, 0, 1);
     *picp = pic;
     /* SDRAM controller */
-    ppc405_sdram_init(env, pic[14], 1, ram_bases, ram_sizes, do_init);
+    ppc4xx_sdram_init(env, pic[14], 1, ram_bases, ram_sizes, do_init);
     offset = 0;
     for (i = 0; i < 4; i++)
         offset += ram_sizes[i];
@@ -2588,7 +2588,7 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
     *picp = pic;
     /* SDRAM controller */
 	/* XXX 405EP has no ECC interrupt */
-    ppc405_sdram_init(env, pic[17], 2, ram_bases, ram_sizes, do_init);
+    ppc4xx_sdram_init(env, pic[17], 2, ram_bases, ram_sizes, do_init);
     offset = 0;
     for (i = 0; i < 2; i++)
         offset += ram_sizes[i];

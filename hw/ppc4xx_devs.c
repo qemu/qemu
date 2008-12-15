@@ -846,7 +846,7 @@ static void sdram_reset (void *opaque)
     sdram_unmap_bcr(sdram);
 }
 
-void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
+void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
                         target_phys_addr_t *ram_bases,
                         target_phys_addr_t *ram_sizes,
                         int do_init)
