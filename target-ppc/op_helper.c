@@ -1517,7 +1517,8 @@ uint64_t helper_fsqrt (uint64_t arg)
 /* fre - fre. */
 uint64_t helper_fre (uint64_t arg)
 {
-    CPU_DoubleU farg;
+    CPU_DoubleU fone, farg;
+    fone.ll = 0x3FF0000000000000ULL;
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
@@ -1525,9 +1526,9 @@ uint64_t helper_fre (uint64_t arg)
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else if (unlikely(iszero(farg.d))) {
         /* Zero reciprocal */
-        farg.ll = float_zero_divide_excp(1.0, farg.d);
+        farg.ll = float_zero_divide_excp(fone.d, farg.d);
     } else if (likely(isnormal(farg.d))) {
-        farg.d = float64_div(1.0, farg.d, &env->fp_status);
+        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
     } else {
         if (farg.ll == 0x8000000000000000ULL) {
             farg.ll = 0xFFF0000000000000ULL;
@@ -1547,7 +1548,8 @@ uint64_t helper_fre (uint64_t arg)
 /* fres - fres. */
 uint64_t helper_fres (uint64_t arg)
 {
-    CPU_DoubleU farg;
+    CPU_DoubleU fone, farg;
+    fone.ll = 0x3FF0000000000000ULL;
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
@@ -1555,13 +1557,13 @@ uint64_t helper_fres (uint64_t arg)
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else if (unlikely(iszero(farg.d))) {
         /* Zero reciprocal */
-        farg.ll = float_zero_divide_excp(1.0, farg.d);
+        farg.ll = float_zero_divide_excp(fone.d, farg.d);
     } else if (likely(isnormal(farg.d))) {
 #if USE_PRECISE_EMULATION
-        farg.d = float64_div(1.0, farg.d, &env->fp_status);
+        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
         farg.d = float64_to_float32(farg.d, &env->fp_status);
 #else
-        farg.d = float32_div(1.0, farg.d, &env->fp_status);
+        farg.d = float32_div(fone.d, farg.d, &env->fp_status);
 #endif
     } else {
         if (farg.ll == 0x8000000000000000ULL) {
@@ -1582,7 +1584,8 @@ uint64_t helper_fres (uint64_t arg)
 /* frsqrte  - frsqrte. */
 uint64_t helper_frsqrte (uint64_t arg)
 {
-    CPU_DoubleU farg;
+    CPU_DoubleU fone, farg;
+    fone.ll = 0x3FF0000000000000ULL;
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
@@ -1593,7 +1596,7 @@ uint64_t helper_frsqrte (uint64_t arg)
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSQRT);
     } else if (likely(isnormal(farg.d))) {
         farg.d = float64_sqrt(farg.d, &env->fp_status);
-        farg.d = float32_div(1.0, farg.d, &env->fp_status);
+        farg.d = float32_div(fone.d, farg.d, &env->fp_status);
     } else {
         if (farg.ll == 0x8000000000000000ULL) {
             farg.ll = 0xFFF0000000000000ULL;
