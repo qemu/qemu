@@ -671,15 +671,13 @@ static always_inline uint64_t fload_invalid_op_excp (int op)
     int ve;
 
     ve = fpscr_ve;
-    if (op & POWERPC_EXCP_FP_VXSNAN) {
-        /* Operation on signaling NaN */
+    switch (op) {
+    case POWERPC_EXCP_FP_VXSNAN:
         env->fpscr |= 1 << FPSCR_VXSNAN;
-    }
-    if (op & POWERPC_EXCP_FP_VXSOFT) {
-        /* Software-defined condition */
+	break;
+    case POWERPC_EXCP_FP_VXSOFT:
         env->fpscr |= 1 << FPSCR_VXSOFT;
-    }
-    switch (op & ~(POWERPC_EXCP_FP_VXSOFT | POWERPC_EXCP_FP_VXSNAN)) {
+	break;
     case POWERPC_EXCP_FP_VXISI:
         /* Magnitude subtraction of infinities */
         env->fpscr |= 1 << FPSCR_VXISI;
@@ -718,7 +716,7 @@ static always_inline uint64_t fload_invalid_op_excp (int op)
         env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
         if (ve == 0) {
             /* Set the result to quiet NaN */
-            ret = UINT64_MAX;
+            ret = 0xFFF8000000000000ULL;
             env->fpscr &= ~(0xF << FPSCR_FPCC);
             env->fpscr |= 0x11 << FPSCR_FPCC;
         }
@@ -729,7 +727,7 @@ static always_inline uint64_t fload_invalid_op_excp (int op)
         env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
         if (ve == 0) {
             /* Set the result to quiet NaN */
-            ret = UINT64_MAX;
+            ret = 0xFFF8000000000000ULL;
             env->fpscr &= ~(0xF << FPSCR_FPCC);
             env->fpscr |= 0x11 << FPSCR_FPCC;
         }
