@@ -311,6 +311,9 @@ union ppc_avr_t {
     uint8_t u8[16];
     uint16_t u16[8];
     uint32_t u32[4];
+    int8_t s8[16];
+    int16_t s16[8];
+    int32_t s32[4];
     uint64_t u64[2];
 };
 

@@ -11,6 +11,8 @@ void register_machines(void)
     qemu_register_machine(&spitzpda_machine);
     qemu_register_machine(&borzoipda_machine);
     qemu_register_machine(&terrierpda_machine);
+    qemu_register_machine(&sx1_machine_v1);
+    qemu_register_machine(&sx1_machine_v2);
     qemu_register_machine(&palmte_machine);
     qemu_register_machine(&n800_machine);
     qemu_register_machine(&n810_machine);
