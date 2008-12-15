@@ -265,7 +265,9 @@ INLINE float32 float32_is_infinity(float32 a)
 
 INLINE float32 float32_is_neg(float32 a)
 {
-    return a < 0.0;
+    float32u u;
+    u.f = a;
+    return u.i >> 31;
 }
 
 INLINE float32 float32_is_zero(float32 a)
@@ -372,7 +374,9 @@ INLINE float64 float64_is_infinity(float64 a)
 
 INLINE float64 float64_is_neg(float64 a)
 {
-    return a < 0.0;
+    float64u u;
+    u.f = a;
+    return u.i >> 63;
 }
 
 INLINE float64 float64_is_zero(float64 a)
@@ -474,7 +478,9 @@ INLINE floatx80 floatx80_is_infinity(floatx80 a)
 
 INLINE floatx80 floatx80_is_neg(floatx80 a)
 {
-    return a < 0.0;
+    floatx80u u;
+    u.f = a;
+    return u.i.high >> 15;
 }
 
 INLINE floatx80 floatx80_is_zero(floatx80 a)
