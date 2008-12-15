@@ -1135,7 +1135,7 @@ uint64_t helper_fdiv (uint64_t arg1, uint64_t arg2)
     } else if (unlikely(isinfinity(farg1.d) && isinfinity(farg2.d))) {
         /* Division of infinity by infinity */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIDI);
-    } else if (unlikely(iszero(farg2.d))) {
+    } else if (unlikely(!float64_is_nan(farg1.d) && iszero(farg2.d))) {
         if (iszero(farg1.d)) {
             /* Division of zero by zero */
             farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXZDZ);
