@@ -1478,6 +1478,7 @@ uint64_t helper_fnmsub (uint64_t arg1, uint64_t arg2, uint64_t arg3)
 uint64_t helper_frsp (uint64_t arg)
 {
     CPU_DoubleU farg;
+    float32 f32;
     farg.ll = arg;
 
 #if USE_PRECISE_EMULATION
@@ -1485,10 +1486,12 @@ uint64_t helper_frsp (uint64_t arg)
         /* sNaN square root */
        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else {
-       farg.d = float64_to_float32(farg.d, &env->fp_status);
+       f32 = float64_to_float32(farg.d, &env->fp_status);
+       farg.d = float32_to_float64(f32, &env->fp_status);
     }
 #else
-    farg.d = float64_to_float32(farg.d, &env->fp_status);
+    f32 = float64_to_float32(farg.d, &env->fp_status);
+    farg.d = float32_to_float64(f32, &env->fp_status);
 #endif
     return farg.ll;
 }
