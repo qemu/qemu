@@ -688,7 +688,7 @@ void foo()
 }
 EOF
 
-if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
   :
 else
    nptl="no"
@@ -701,7 +701,7 @@ cat > $TMPC << EOF
 #include <zlib.h>
 int main(void) { zlibVersion(); return 0; }
 EOF
-if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lz 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lz > /dev/null 2> /dev/null ; then
     :
 else
     echo
@@ -726,7 +726,7 @@ cat > $TMPC << EOF
 #undef main /* We don't want SDL to override our main() */
 int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` 2> $TMPSDLLOG ; then
+    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` > $TMPSDLLOG 2>&1 ; then
         _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
         if test "$_sdlversion" -lt 121 ; then
             sdl_too_old=yes
@@ -745,7 +745,7 @@ EOF
                 sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
             fi
 
-            if $cc -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs 2> /dev/null; then
+            if $cc -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs > /dev/null 2> /dev/null; then
                 sdl_static=yes
             fi
         fi # static link
@@ -768,7 +768,7 @@ EOF
     vnc_tls_cflags=`pkg-config --cflags gnutls 2> /dev/null`
     vnc_tls_libs=`pkg-config --libs gnutls 2> /dev/null`
     if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $vnc_tls_cflags $TMPC \
-           $vnc_tls_libs 2> /dev/null ; then
+           $vnc_tls_libs > /dev/null 2> /dev/null ; then
 	:
     else
 	vnc_tls="no"
@@ -787,7 +787,7 @@ int main(void)
     return 0;
 }
 EOF
-    if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lvdeplug 2> /dev/null ; then
+    if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lvdeplug > /dev/null 2> /dev/null ; then
         :
     else
         vde="no"
@@ -808,7 +808,7 @@ audio_drv_probe()
 #include <$hdr>
 int main(void) { $exp }
 EOF
-    if $cc $ARCH_CFLAGS $cfl -o $TMPE $TMPC $lib 2> /dev/null ; then
+    if $cc $ARCH_CFLAGS $cfl -o $TMPE $TMPC $lib > /dev/null 2> /dev/null ; then
         :
     else
         echo
@@ -904,7 +904,7 @@ EOF
   bluez_cflags=`pkg-config --cflags bluez`
   bluez_libs=`pkg-config --libs bluez`
   if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $bluez_cflags $TMPC \
-      $bluez_libs 2> /dev/null ; then
+      $bluez_libs > /dev/null 2> /dev/null ; then
     :
   else
     bluez="no"
@@ -932,7 +932,7 @@ EOF
       kvm_cflags=""
   fi
   if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $kvm_cflags $TMPC \
-      2>/dev/null ; then
+      > /dev/null 2>/dev/null ; then
     :
   else
     kvm="no"
@@ -962,7 +962,7 @@ cat > $TMPC <<EOF
 int main(void) { struct iovec iov; return 0; }
 EOF
 iovec=no
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
   iovec=yes
 fi
 
@@ -981,9 +981,9 @@ int main(void) { clockid_t id; return clock_gettime(id, NULL); }
 EOF
 
 rt=no
-if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
   :
-elif $cc $ARCH_CFLAGS -o $TMPE $TMPC -lrt 2> /dev/null ; then
+elif $cc $ARCH_CFLAGS -o $TMPE $TMPC -lrt > /dev/null 2> /dev/null ; then
   rt=yes
 fi
 
