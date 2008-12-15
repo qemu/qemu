@@ -696,7 +696,7 @@ static void pxa2xx_lcdc_dma0_redraw_horiz(struct pxa2xx_lcdc_s *s,
     addr = (ram_addr_t) (fb - phys_ram_base);
     start = addr + s->yres * src_width;
     end = addr;
-    dirty[0] = dirty[1] = cpu_physical_memory_get_dirty(start, VGA_DIRTY_FLAG);
+    dirty[0] = dirty[1] = cpu_physical_memory_get_dirty(addr, VGA_DIRTY_FLAG);
     for (y = 0; y < s->yres; y ++) {
         new_addr = addr + src_width;
         for (x = addr + TARGET_PAGE_SIZE; x < new_addr;
