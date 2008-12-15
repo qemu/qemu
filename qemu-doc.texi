@@ -81,7 +81,7 @@ For system emulation, the following hardware targets are supported:
 @item ARM Integrator/CP (ARM)
 @item ARM Versatile baseboard (ARM)
 @item ARM RealView Emulation baseboard (ARM)
-@item Spitz, Akita, Borzoi and Terrier PDAs (PXA270 processor)
+@item Spitz, Akita, Borzoi, Terrier and Tosa PDAs (PXA270 processor)
 @item Luminary Micro LM3S811EVB (ARM Cortex-M3)
 @item Luminary Micro LM3S6965EVB (ARM Cortex-M3)
 @item Freescale MCF5208EVB (ColdFire V2).
@@ -89,6 +89,8 @@ For system emulation, the following hardware targets are supported:
 @item Palm Tungsten|E PDA (OMAP310 processor)
 @item N800 and N810 tablets (OMAP2420 processor)
 @item MusicPal (MV88W8618 ARM processor)
+@item Gumstix "Connex" and "Verdex" motherboards (PXA255/270).
+@item Siemens SX1 smartphone (OMAP310 processor)
 @end itemize
 
 For user emulation, x86, PowerPC, ARM, 32-bit MIPS, Sparc32/64 and ColdFire(m68k) CPUs are supported.
