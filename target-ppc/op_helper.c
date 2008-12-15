@@ -554,15 +554,6 @@ uint32_t helper_float64_to_float32(uint64_t arg)
     return f.l;
 }
 
-static always_inline int fpisneg (float64 d)
-{
-    CPU_DoubleU u;
-
-    u.d = d;
-
-    return u.ll >> 63 != 0;
-}
-
 static always_inline int isden (float64 d)
 {
     CPU_DoubleU u;
@@ -572,24 +563,6 @@ static always_inline int isden (float64 d)
     return ((u.ll >> 52) & 0x7FF) == 0;
 }
 
-static always_inline int iszero (float64 d)
-{
-    CPU_DoubleU u;
-
-    u.d = d;
-
-    return (u.ll & ~0x8000000000000000ULL) == 0;
-}
-
-static always_inline int isinfinity (float64 d)
-{
-    CPU_DoubleU u;
-
-    u.d = d;
-
-    return ((u.ll >> 52) & 0x7FF) == 0x7FF &&
-        (u.ll & 0x000FFFFFFFFFFFFFULL) == 0;
-}
 
 #ifdef CONFIG_SOFTFLOAT
 static always_inline int isfinite (float64 d)
@@ -618,7 +591,7 @@ uint32_t helper_compute_fprf (uint64_t arg, uint32_t set_fprf)
     int isneg;
     int ret;
     farg.ll = arg;
-    isneg = fpisneg(farg.d);
+    isneg = float64_is_neg(farg.d);
     if (unlikely(float64_is_nan(farg.d))) {
         if (float64_is_signaling_nan(farg.d)) {
             /* Signaling NaN: flags are undefined */
@@ -627,14 +600,14 @@ uint32_t helper_compute_fprf (uint64_t arg, uint32_t set_fprf)
             /* Quiet NaN */
             ret = 0x11;
         }
-    } else if (unlikely(isinfinity(farg.d))) {
+    } else if (unlikely(float64_is_infinity(farg.d))) {
         /* +/- infinity */
         if (isneg)
             ret = 0x09;
         else
             ret = 0x05;
     } else {
-        if (iszero(farg.d)) {
+        if (float64_is_zero(farg.d)) {
             /* +/- zero */
             if (isneg)
                 ret = 0x12;
@@ -1056,7 +1029,7 @@ uint64_t helper_fadd (uint64_t arg1, uint64_t arg2)
         /* sNaN addition */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else if (likely(isfinite(farg1.d) || isfinite(farg2.d) ||
-                      fpisneg(farg1.d) == fpisneg(farg2.d))) {
+                      float64_is_neg(farg1.d) == float64_is_neg(farg2.d))) {
         farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
     } else {
         /* Magnitude subtraction of infinities */
@@ -1082,7 +1055,7 @@ uint64_t helper_fsub (uint64_t arg1, uint64_t arg2)
         /* sNaN subtraction */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else if (likely(isfinite(farg1.d) || isfinite(farg2.d) ||
-                      fpisneg(farg1.d) != fpisneg(farg2.d))) {
+                      float64_is_neg(farg1.d) != float64_is_neg(farg2.d))) {
         farg1.d = float64_sub(farg1.d, farg2.d, &env->fp_status);
     } else {
         /* Magnitude subtraction of infinities */
@@ -1107,8 +1080,8 @@ uint64_t helper_fmul (uint64_t arg1, uint64_t arg2)
                  float64_is_signaling_nan(farg2.d))) {
         /* sNaN multiplication */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely((isinfinity(farg1.d) && iszero(farg2.d)) ||
-                        (iszero(farg1.d) && isinfinity(farg2.d)))) {
+    } else if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
+                        (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIMZ);
     } else {
@@ -1132,11 +1105,11 @@ uint64_t helper_fdiv (uint64_t arg1, uint64_t arg2)
                  float64_is_signaling_nan(farg2.d))) {
         /* sNaN division */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely(isinfinity(farg1.d) && isinfinity(farg2.d))) {
+    } else if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d))) {
         /* Division of infinity by infinity */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIDI);
-    } else if (unlikely(!float64_is_nan(farg1.d) && iszero(farg2.d))) {
-        if (iszero(farg1.d)) {
+    } else if (unlikely(!float64_is_nan(farg1.d) && float64_is_zero(farg2.d))) {
+        if (float64_is_zero(farg1.d)) {
             /* Division of zero by zero */
             farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXZDZ);
         } else {
@@ -1192,7 +1165,7 @@ uint64_t helper_fctiw (uint64_t arg)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN conversion */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN | POWERPC_EXCP_FP_VXCVI);
-    } else if (unlikely(float64_is_nan(farg.d) || isinfinity(farg.d))) {
+    } else if (unlikely(float64_is_nan(farg.d) || float64_is_infinity(farg.d))) {
         /* qNan / infinity conversion */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
@@ -1216,7 +1189,7 @@ uint64_t helper_fctiwz (uint64_t arg)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN conversion */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN | POWERPC_EXCP_FP_VXCVI);
-    } else if (unlikely(float64_is_nan(farg.d) || isinfinity(farg.d))) {
+    } else if (unlikely(float64_is_nan(farg.d) || float64_is_infinity(farg.d))) {
         /* qNan / infinity conversion */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
@@ -1249,7 +1222,7 @@ uint64_t helper_fctid (uint64_t arg)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN conversion */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN | POWERPC_EXCP_FP_VXCVI);
-    } else if (unlikely(float64_is_nan(farg.d) || isinfinity(farg.d))) {
+    } else if (unlikely(float64_is_nan(farg.d) || float64_is_infinity(farg.d))) {
         /* qNan / infinity conversion */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
@@ -1267,7 +1240,7 @@ uint64_t helper_fctidz (uint64_t arg)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN conversion */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN | POWERPC_EXCP_FP_VXCVI);
-    } else if (unlikely(float64_is_nan(farg.d) || isinfinity(farg.d))) {
+    } else if (unlikely(float64_is_nan(farg.d) || float64_is_infinity(farg.d))) {
         /* qNan / infinity conversion */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
@@ -1286,7 +1259,7 @@ static always_inline uint64_t do_fri (uint64_t arg, int rounding_mode)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN round */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN | POWERPC_EXCP_FP_VXCVI);
-    } else if (unlikely(float64_is_nan(farg.d) || isinfinity(farg.d))) {
+    } else if (unlikely(float64_is_nan(farg.d) || float64_is_infinity(farg.d))) {
         /* qNan / infinity round */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
     } else {
@@ -1503,7 +1476,7 @@ uint64_t helper_fsqrt (uint64_t arg)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN square root */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely(fpisneg(farg.d) && !iszero(farg.d))) {
+    } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Square root of a negative nonzero number */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSQRT);
     } else {
@@ -1522,7 +1495,7 @@ uint64_t helper_fre (uint64_t arg)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely(iszero(farg.d))) {
+    } else if (unlikely(float64_is_zero(farg.d))) {
         /* Zero reciprocal */
         farg.ll = float_zero_divide_excp(fone.d, farg.d);
     } else if (likely(isnormal(farg.d))) {
@@ -1534,7 +1507,7 @@ uint64_t helper_fre (uint64_t arg)
             farg.ll = 0x7FF0000000000000ULL;
         } else if (float64_is_nan(farg.d)) {
             farg.ll = 0x7FF8000000000000ULL;
-        } else if (fpisneg(farg.d)) {
+        } else if (float64_is_neg(farg.d)) {
             farg.ll = 0x8000000000000000ULL;
         } else {
             farg.ll = 0x0000000000000000ULL;
@@ -1553,7 +1526,7 @@ uint64_t helper_fres (uint64_t arg)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely(iszero(farg.d))) {
+    } else if (unlikely(float64_is_zero(farg.d))) {
         /* Zero reciprocal */
         farg.ll = float_zero_divide_excp(fone.d, farg.d);
     } else if (likely(isnormal(farg.d))) {
@@ -1570,7 +1543,7 @@ uint64_t helper_fres (uint64_t arg)
             farg.ll = 0x7FF0000000000000ULL;
         } else if (float64_is_nan(farg.d)) {
             farg.ll = 0x7FF8000000000000ULL;
-        } else if (fpisneg(farg.d)) {
+        } else if (float64_is_neg(farg.d)) {
             farg.ll = 0x8000000000000000ULL;
         } else {
             farg.ll = 0x0000000000000000ULL;
@@ -1589,7 +1562,7 @@ uint64_t helper_frsqrte (uint64_t arg)
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal square root */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely(fpisneg(farg.d) && !iszero(farg.d))) {
+    } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Reciprocal square root of a negative nonzero number */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSQRT);
     } else if (likely(isnormal(farg.d))) {
@@ -1602,7 +1575,7 @@ uint64_t helper_frsqrte (uint64_t arg)
             farg.ll = 0x7FF0000000000000ULL;
         } else if (float64_is_nan(farg.d)) {
             farg.ll |= 0x000FFFFFFFFFFFFFULL;
-        } else if (fpisneg(farg.d)) {
+        } else if (float64_is_neg(farg.d)) {
             farg.ll = 0x7FF8000000000000ULL;
         } else {
             farg.ll = 0x0000000000000000ULL;
@@ -1618,7 +1591,7 @@ uint64_t helper_fsel (uint64_t arg1, uint64_t arg2, uint64_t arg3)
 
     farg1.ll = arg1;
 
-    if (!fpisneg(farg1.d) || iszero(farg1.d))
+    if (!float64_is_neg(farg1.d) || float64_is_zero(farg1.d))
         return arg2;
     else
         return arg3;
