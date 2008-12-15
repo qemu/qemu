@@ -86,6 +86,10 @@ extern QEMUMachine spitzpda_machine;
 extern QEMUMachine borzoipda_machine;
 extern QEMUMachine terrierpda_machine;
 
+/* omap_sx1.c */
+extern QEMUMachine sx1_machine_v1;
+extern QEMUMachine sx1_machine_v2;
+
 /* palm.c */
 extern QEMUMachine palmte_machine;
 

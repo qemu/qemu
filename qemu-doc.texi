@@ -2798,6 +2798,28 @@ MV88W8618 audio controller, WM8750 CODEC and mixer
 2 buttons, 2 navigation wheels with button function
 @end itemize
 
+The Siemens SX1 models v1 and v2 (default) basic emulation.
+The emulaton includes the following elements:
+
+@itemize @minus
+@item
+Texas Instruments OMAP310 System-on-chip (ARM 925T core)
+@item
+ROM and RAM memories (ROM firmware image can be loaded with -pflash)
+V1
+1 Flash of 16MB and 1 Flash of 8MB
+V2
+1 Flash of 32MB
+@item
+On-chip LCD controller
+@item
+On-chip Real Time Clock
+@item
+Secure Digital card connected to OMAP MMC/SD host
+@item
+Three on-chip UARTs
+@end itemize
+
 A Linux 2.6 test image is available on the QEMU web site. More
 information is available in the QEMU mailing-list archive.
 
