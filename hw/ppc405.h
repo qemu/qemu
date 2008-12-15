@@ -66,11 +66,6 @@ void ppc4xx_pob_init (CPUState *env);
 /* OPB arbitrer */
 void ppc4xx_opba_init (CPUState *env, ppc4xx_mmio_t *mmio,
                        target_phys_addr_t offset);
-/* SDRAM controller */
-void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
-                        target_phys_addr_t *ram_bases,
-                        target_phys_addr_t *ram_sizes,
-                        int do_init);
 /* Peripheral controller */
 void ppc405_ebc_init (CPUState *env);
 /* DMA controller */

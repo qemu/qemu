@@ -532,3 +532,344 @@ qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
 
     return qemu_allocate_irqs(&ppcuic_set_irq, uic, UIC_MAX_IRQ);
 }
+
+/*****************************************************************************/
+/* SDRAM controller */
+typedef struct ppc4xx_sdram_t ppc4xx_sdram_t;
+struct ppc4xx_sdram_t {
+    uint32_t addr;
+    int nbanks;
+    target_phys_addr_t ram_bases[4];
+    target_phys_addr_t ram_sizes[4];
+    uint32_t besr0;
+    uint32_t besr1;
+    uint32_t bear;
+    uint32_t cfg;
+    uint32_t status;
+    uint32_t rtr;
+    uint32_t pmit;
+    uint32_t bcr[4];
+    uint32_t tr;
+    uint32_t ecccfg;
+    uint32_t eccesr;
+    qemu_irq irq;
+};
+
+enum {
+    SDRAM0_CFGADDR = 0x010,
+    SDRAM0_CFGDATA = 0x011,
+};
+
+/* XXX: TOFIX: some patches have made this code become inconsistent:
+ *      there are type inconsistencies, mixing target_phys_addr_t, target_ulong
+ *      and uint32_t
+ */
+static uint32_t sdram_bcr (target_phys_addr_t ram_base,
+                           target_phys_addr_t ram_size)
+{
+    uint32_t bcr;
+
+    switch (ram_size) {
+    case (4 * 1024 * 1024):
+        bcr = 0x00000000;
+        break;
+    case (8 * 1024 * 1024):
+        bcr = 0x00020000;
+        break;
+    case (16 * 1024 * 1024):
+        bcr = 0x00040000;
+        break;
+    case (32 * 1024 * 1024):
+        bcr = 0x00060000;
+        break;
+    case (64 * 1024 * 1024):
+        bcr = 0x00080000;
+        break;
+    case (128 * 1024 * 1024):
+        bcr = 0x000A0000;
+        break;
+    case (256 * 1024 * 1024):
+        bcr = 0x000C0000;
+        break;
+    default:
+        printf("%s: invalid RAM size " PADDRX "\n", __func__, ram_size);
+        return 0x00000000;
+    }
+    bcr |= ram_base & 0xFF800000;
+    bcr |= 1;
+
+    return bcr;
+}
+
+static always_inline target_phys_addr_t sdram_base (uint32_t bcr)
+{
+    return bcr & 0xFF800000;
+}
+
+static target_ulong sdram_size (uint32_t bcr)
+{
+    target_ulong size;
+    int sh;
+
+    sh = (bcr >> 17) & 0x7;
+    if (sh == 7)
+        size = -1;
+    else
+        size = (4 * 1024 * 1024) << sh;
+
+    return size;
+}
+
+static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
+{
+    if (*bcrp & 0x00000001) {
+        /* Unmap RAM */
+#ifdef DEBUG_SDRAM
+        printf("%s: unmap RAM area " PADDRX " " ADDRX "\n",
+               __func__, sdram_base(*bcrp), sdram_size(*bcrp));
+#endif
+        cpu_register_physical_memory(sdram_base(*bcrp), sdram_size(*bcrp),
+                                     IO_MEM_UNASSIGNED);
+    }
+    *bcrp = bcr & 0xFFDEE001;
+    if (enabled && (bcr & 0x00000001)) {
+#ifdef DEBUG_SDRAM
+        printf("%s: Map RAM area " PADDRX " " ADDRX "\n",
+               __func__, sdram_base(bcr), sdram_size(bcr));
+#endif
+        cpu_register_physical_memory(sdram_base(bcr), sdram_size(bcr),
+                                     sdram_base(bcr) | IO_MEM_RAM);
+    }
+}
+
+static void sdram_map_bcr (ppc4xx_sdram_t *sdram)
+{
+    int i;
+
+    for (i = 0; i < sdram->nbanks; i++) {
+        if (sdram->ram_sizes[i] != 0) {
+            sdram_set_bcr(&sdram->bcr[i],
+                          sdram_bcr(sdram->ram_bases[i], sdram->ram_sizes[i]),
+                          1);
+        } else {
+            sdram_set_bcr(&sdram->bcr[i], 0x00000000, 0);
+        }
+    }
+}
+
+static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
+{
+    int i;
+
+    for (i = 0; i < sdram->nbanks; i++) {
+#ifdef DEBUG_SDRAM
+        printf("%s: Unmap RAM area " PADDRX " " ADDRX "\n",
+               __func__, sdram_base(sdram->bcr[i]), sdram_size(sdram->bcr[i]));
+#endif
+        cpu_register_physical_memory(sdram_base(sdram->bcr[i]),
+                                     sdram_size(sdram->bcr[i]),
+                                     IO_MEM_UNASSIGNED);
+    }
+}
+
+static target_ulong dcr_read_sdram (void *opaque, int dcrn)
+{
+    ppc4xx_sdram_t *sdram;
+    target_ulong ret;
+
+    sdram = opaque;
+    switch (dcrn) {
+    case SDRAM0_CFGADDR:
+        ret = sdram->addr;
+        break;
+    case SDRAM0_CFGDATA:
+        switch (sdram->addr) {
+        case 0x00: /* SDRAM_BESR0 */
+            ret = sdram->besr0;
+            break;
+        case 0x08: /* SDRAM_BESR1 */
+            ret = sdram->besr1;
+            break;
+        case 0x10: /* SDRAM_BEAR */
+            ret = sdram->bear;
+            break;
+        case 0x20: /* SDRAM_CFG */
+            ret = sdram->cfg;
+            break;
+        case 0x24: /* SDRAM_STATUS */
+            ret = sdram->status;
+            break;
+        case 0x30: /* SDRAM_RTR */
+            ret = sdram->rtr;
+            break;
+        case 0x34: /* SDRAM_PMIT */
+            ret = sdram->pmit;
+            break;
+        case 0x40: /* SDRAM_B0CR */
+            ret = sdram->bcr[0];
+            break;
+        case 0x44: /* SDRAM_B1CR */
+            ret = sdram->bcr[1];
+            break;
+        case 0x48: /* SDRAM_B2CR */
+            ret = sdram->bcr[2];
+            break;
+        case 0x4C: /* SDRAM_B3CR */
+            ret = sdram->bcr[3];
+            break;
+        case 0x80: /* SDRAM_TR */
+            ret = -1; /* ? */
+            break;
+        case 0x94: /* SDRAM_ECCCFG */
+            ret = sdram->ecccfg;
+            break;
+        case 0x98: /* SDRAM_ECCESR */
+            ret = sdram->eccesr;
+            break;
+        default: /* Error */
+            ret = -1;
+            break;
+        }
+        break;
+    default:
+        /* Avoid gcc warning */
+        ret = 0x00000000;
+        break;
+    }
+
+    return ret;
+}
+
+static void dcr_write_sdram (void *opaque, int dcrn, target_ulong val)
+{
+    ppc4xx_sdram_t *sdram;
+
+    sdram = opaque;
+    switch (dcrn) {
+    case SDRAM0_CFGADDR:
+        sdram->addr = val;
+        break;
+    case SDRAM0_CFGDATA:
+        switch (sdram->addr) {
+        case 0x00: /* SDRAM_BESR0 */
+            sdram->besr0 &= ~val;
+            break;
+        case 0x08: /* SDRAM_BESR1 */
+            sdram->besr1 &= ~val;
+            break;
+        case 0x10: /* SDRAM_BEAR */
+            sdram->bear = val;
+            break;
+        case 0x20: /* SDRAM_CFG */
+            val &= 0xFFE00000;
+            if (!(sdram->cfg & 0x80000000) && (val & 0x80000000)) {
+#ifdef DEBUG_SDRAM
+                printf("%s: enable SDRAM controller\n", __func__);
+#endif
+                /* validate all RAM mappings */
+                sdram_map_bcr(sdram);
+                sdram->status &= ~0x80000000;
+            } else if ((sdram->cfg & 0x80000000) && !(val & 0x80000000)) {
+#ifdef DEBUG_SDRAM
+                printf("%s: disable SDRAM controller\n", __func__);
+#endif
+                /* invalidate all RAM mappings */
+                sdram_unmap_bcr(sdram);
+                sdram->status |= 0x80000000;
+            }
+            if (!(sdram->cfg & 0x40000000) && (val & 0x40000000))
+                sdram->status |= 0x40000000;
+            else if ((sdram->cfg & 0x40000000) && !(val & 0x40000000))
+                sdram->status &= ~0x40000000;
+            sdram->cfg = val;
+            break;
+        case 0x24: /* SDRAM_STATUS */
+            /* Read-only register */
+            break;
+        case 0x30: /* SDRAM_RTR */
+            sdram->rtr = val & 0x3FF80000;
+            break;
+        case 0x34: /* SDRAM_PMIT */
+            sdram->pmit = (val & 0xF8000000) | 0x07C00000;
+            break;
+        case 0x40: /* SDRAM_B0CR */
+            sdram_set_bcr(&sdram->bcr[0], val, sdram->cfg & 0x80000000);
+            break;
+        case 0x44: /* SDRAM_B1CR */
+            sdram_set_bcr(&sdram->bcr[1], val, sdram->cfg & 0x80000000);
+            break;
+        case 0x48: /* SDRAM_B2CR */
+            sdram_set_bcr(&sdram->bcr[2], val, sdram->cfg & 0x80000000);
+            break;
+        case 0x4C: /* SDRAM_B3CR */
+            sdram_set_bcr(&sdram->bcr[3], val, sdram->cfg & 0x80000000);
+            break;
+        case 0x80: /* SDRAM_TR */
+            sdram->tr = val & 0x018FC01F;
+            break;
+        case 0x94: /* SDRAM_ECCCFG */
+            sdram->ecccfg = val & 0x00F00000;
+            break;
+        case 0x98: /* SDRAM_ECCESR */
+            val &= 0xFFF0F000;
+            if (sdram->eccesr == 0 && val != 0)
+                qemu_irq_raise(sdram->irq);
+            else if (sdram->eccesr != 0 && val == 0)
+                qemu_irq_lower(sdram->irq);
+            sdram->eccesr = val;
+            break;
+        default: /* Error */
+            break;
+        }
+        break;
+    }
+}
+
+static void sdram_reset (void *opaque)
+{
+    ppc4xx_sdram_t *sdram;
+
+    sdram = opaque;
+    sdram->addr = 0x00000000;
+    sdram->bear = 0x00000000;
+    sdram->besr0 = 0x00000000; /* No error */
+    sdram->besr1 = 0x00000000; /* No error */
+    sdram->cfg = 0x00000000;
+    sdram->ecccfg = 0x00000000; /* No ECC */
+    sdram->eccesr = 0x00000000; /* No error */
+    sdram->pmit = 0x07C00000;
+    sdram->rtr = 0x05F00000;
+    sdram->tr = 0x00854009;
+    /* We pre-initialize RAM banks */
+    sdram->status = 0x00000000;
+    sdram->cfg = 0x00800000;
+    sdram_unmap_bcr(sdram);
+}
+
+void ppc405_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
+                        target_phys_addr_t *ram_bases,
+                        target_phys_addr_t *ram_sizes,
+                        int do_init)
+{
+    ppc4xx_sdram_t *sdram;
+
+    sdram = qemu_mallocz(sizeof(ppc4xx_sdram_t));
+    if (sdram != NULL) {
+        sdram->irq = irq;
+        sdram->nbanks = nbanks;
+        memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));
+        memcpy(sdram->ram_bases, ram_bases,
+               nbanks * sizeof(target_phys_addr_t));
+        memset(sdram->ram_sizes, 0, 4 * sizeof(target_phys_addr_t));
+        memcpy(sdram->ram_sizes, ram_sizes,
+               nbanks * sizeof(target_phys_addr_t));
+        sdram_reset(sdram);
+        qemu_register_reset(&sdram_reset, sdram);
+        ppc_dcr_register(env, SDRAM0_CFGADDR,
+                         sdram, &dcr_read_sdram, &dcr_write_sdram);
+        ppc_dcr_register(env, SDRAM0_CFGDATA,
+                         sdram, &dcr_read_sdram, &dcr_write_sdram);
+        if (do_init)
+            sdram_map_bcr(sdram);
+    }
+}
