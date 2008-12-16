@@ -655,6 +655,7 @@ OBJS+= heathrow_pic.o grackle_pci.o ppc_oldworld.o
 OBJS+= unin_pci.o ppc_chrp.o
 # PowerPC 4xx boards
 OBJS+= pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
+OBJS+= ppc440.o
 ifdef FDT_LIBS
 OBJS+= device_tree.o
 LIBS+= $(FDT_LIBS)
