@@ -48,6 +48,16 @@ enum {
 qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
                        uint32_t dcr_base, int has_ssr, int has_vr);
 
+ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
+                               target_phys_addr_t ram_bases[],
+                               target_phys_addr_t ram_sizes[],
+                               const unsigned int sdram_bank_sizes[]);
+
+void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
+                        target_phys_addr_t *ram_bases,
+                        target_phys_addr_t *ram_sizes,
+                        int do_init);
+
 PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
                         target_phys_addr_t config_space,
                         target_phys_addr_t int_ack,

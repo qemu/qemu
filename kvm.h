@@ -31,6 +31,7 @@ struct kvm_run;
 int kvm_init(int smp_cpus);
 
 int kvm_init_vcpu(CPUState *env);
+int kvm_sync_vcpus(void);
 
 int kvm_cpu_exec(CPUState *env);
 

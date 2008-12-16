@@ -24,6 +24,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include <linux/mman.h>
+#include <linux/unistd.h>
 
 #include "qemu.h"
 #include "qemu-common.h"
@@ -546,10 +548,11 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
 
     mmap_lock();
 
-#if defined(MREMAP_FIXED)
     if (flags & MREMAP_FIXED)
-        host_addr = mremap(g2h(old_addr), old_size, new_size,
-                           flags, new_addr);
+        host_addr = (void *) syscall(__NR_mremap, g2h(old_addr),
+                                     old_size, new_size,
+                                     flags,
+                                     new_addr);
     else if (flags & MREMAP_MAYMOVE) {
         abi_ulong mmap_start;
 
@@ -559,11 +562,11 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             errno = ENOMEM;
             host_addr = MAP_FAILED;
         } else
-            host_addr = mremap(g2h(old_addr), old_size, new_size,
-                               flags | MREMAP_FIXED, g2h(mmap_start));
-    } else
-#endif
-    {
+            host_addr = (void *) syscall(__NR_mremap, g2h(old_addr),
+                                         old_size, new_size,
+                                         flags | MREMAP_FIXED,
+                                         g2h(mmap_start));
+    } else {
         host_addr = mremap(g2h(old_addr), old_size, new_size, flags);
         /* Check if address fits target address space */
         if ((unsigned long)host_addr + new_size > (abi_ulong)-1) {
