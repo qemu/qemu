@@ -119,6 +119,7 @@ kvm="yes"
 kerneldir=""
 aix="no"
 blobs="yes"
+fdt="yes"
 
 # OS specific
 targetos=`uname -s`
@@ -966,6 +967,18 @@ if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
   iovec=yes
 fi
 
+##########################################
+# fdt probe
+if test "$fdt" = "yes" ; then
+    fdt=no
+    cat > $TMPC << EOF
+int main(void) { return 0; }
+EOF
+  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lfdt 2> /dev/null ; then
+    fdt=yes
+  fi
+fi
+
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
    [ -x "`which pod2man 2>/dev/null`" ]; then
@@ -1061,6 +1074,7 @@ echo "vde support       $vde"
 echo "AIO support       $aio"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
+echo "fdt support       $fdt"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -1349,6 +1363,10 @@ if test "$blobs" = "yes" ; then
 fi
 if test "$iovec" = "yes" ; then
   echo "#define HAVE_IOVEC 1" >> $config_h
+fi
+if test "$fdt" = "yes" ; then
+  echo "#define HAVE_FDT 1" >> $config_h
+  echo "FDT_LIBS=-lfdt" >> $config_mak
 fi
 
 # XXX: suppress that
