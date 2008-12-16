@@ -222,7 +222,7 @@ common  de-ch  es     fo  fr-ca  hu     ja  mk  nl-be      pt  sl     tr
 ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
 video.x openbios-sparc32 openbios-sparc64 pxe-ne2k_pci.bin \
-pxe-rtl8139.bin pxe-pcnet.bin pxe-e1000.bin
+pxe-rtl8139.bin pxe-pcnet.bin pxe-e1000.bin bamboo.dtb
 else
 BLOBS=
 endif
