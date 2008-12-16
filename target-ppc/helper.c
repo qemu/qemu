@@ -29,6 +29,7 @@
 #include "exec-all.h"
 #include "helper_regs.h"
 #include "qemu-common.h"
+#include "kvm.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS
@@ -2920,6 +2921,10 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     env->cpu_model_str = cpu_model;
     cpu_ppc_register_internal(env, def);
     cpu_ppc_reset(env);
+
+    if (kvm_enabled())
+        kvm_init_vcpu(env);
+
     return env;
 }
 

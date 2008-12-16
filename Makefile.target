@@ -659,6 +659,9 @@ ifdef FDT_LIBS
 OBJS+= device_tree.o
 LIBS+= $(FDT_LIBS)
 endif
+ifdef CONFIG_KVM
+OBJS+= kvm_ppc.o
+endif
 # virtio support
 OBJS+= virtio.o virtio-blk.o virtio-balloon.o
 endif

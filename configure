@@ -1491,6 +1491,7 @@ gdb_xml_files=""
 
 # Make sure the target and host cpus are compatible
 if test "$kvm" = "yes" -a ! \( "$target_cpu" = "$cpu" -o \
+  \( "$target_cpu" = "ppcemb" -a "$cpu" = "powerpc" \) -o \
   \( "$target_cpu" = "x86_64" -a "$cpu" = "i386"   \) -o \
   \( "$target_cpu" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
   kvm="no"
@@ -1585,6 +1586,11 @@ case "$target_cpu" in
     echo "#define TARGET_ARCH \"ppcemb\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
     echo "#define TARGET_PPCEMB 1" >> $config_h
+    if test "$kvm" = "yes" ; then
+      echo "CONFIG_KVM=yes" >> $config_mak
+      echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
+      echo "#define CONFIG_KVM 1" >> $config_h
+    fi
   ;;
   ppc64)
     echo "TARGET_ARCH=ppc64" >> $config_mak
