@@ -1519,7 +1519,7 @@ uint64_t helper_fsqrt (uint64_t arg)
 uint64_t helper_fre (uint64_t arg)
 {
     CPU_DoubleU fone, farg;
-    fone.ll = 0x3FF0000000000000ULL;
+    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
@@ -1550,7 +1550,7 @@ uint64_t helper_fre (uint64_t arg)
 uint64_t helper_fres (uint64_t arg)
 {
     CPU_DoubleU fone, farg;
-    fone.ll = 0x3FF0000000000000ULL;
+    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
@@ -1586,7 +1586,7 @@ uint64_t helper_fres (uint64_t arg)
 uint64_t helper_frsqrte (uint64_t arg)
 {
     CPU_DoubleU fone, farg;
-    fone.ll = 0x3FF0000000000000ULL;
+    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
