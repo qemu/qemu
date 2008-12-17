@@ -1,0 +1,190 @@
+BOCHS BIOS changes to support HPET in QEMU.
+
+Signed-off-by Beth Kon <eak@us.ibm.com>
+
+Index: bochs-2.3.7/bios/acpi-dsdt.dsl
+===================================================================
+--- bochs-2.3.7.orig/bios/acpi-dsdt.dsl	2008-10-15 12:39:14.000000000 -0500
++++ bochs-2.3.7/bios/acpi-dsdt.dsl	2008-10-28 07:58:40.000000000 -0500
+@@ -159,6 +159,26 @@
+                 Return (MEMP)
+             }
+         }
++#ifdef BX_QEMU
++        Device(HPET) {
++            Name(_HID,  EISAID("PNP0103"))
++            Name(_UID, 0)
++            Method (_STA, 0, NotSerialized) {
++                    Return(0x0F)
++            }
++            Name(_CRS, ResourceTemplate() {
++                DWordMemory(
++                    ResourceConsumer, PosDecode, MinFixed, MaxFixed,
++                    NonCacheable, ReadWrite,
++                    0x00000000,
++                    0xFED00000,
++                    0xFED003FF,
++                    0x00000000,
++                    0x00000400 /* 1K memory: FED00000 - FED003FF */
++                )
++            })
++        }
++#endif
+     }
+ 
+     Scope(\_SB.PCI0) {
+Index: bochs-2.3.7/bios/rombios32.c
+===================================================================
+--- bochs-2.3.7.orig/bios/rombios32.c	2008-10-15 12:39:36.000000000 -0500
++++ bochs-2.3.7/bios/rombios32.c	2008-11-12 14:41:41.000000000 -0600
+@@ -1087,7 +1087,11 @@
+ struct rsdt_descriptor_rev1
+ {
+ 	ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
++#ifdef BX_QEMU
++	uint32_t                             table_offset_entry [4]; /* Array of pointers to other */
++#else
+ 	uint32_t                             table_offset_entry [3]; /* Array of pointers to other */
++#endif
+ 			 /* ACPI tables */
+ };
+ 
+@@ -1227,6 +1231,32 @@
+ #endif
+ };
+ 
++#ifdef BX_QEMU
++/*
++ *  * ACPI 2.0 Generic Address Space definition.
++ *   */
++struct acpi_20_generic_address {
++    uint8_t  address_space_id;
++    uint8_t  register_bit_width;
++    uint8_t  register_bit_offset;
++    uint8_t  reserved;
++    uint64_t address;
++};
++
++/*
++ *  * HPET Description Table
++ *   */
++struct acpi_20_hpet {
++    ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
++    uint32_t           timer_block_id;
++    struct acpi_20_generic_address addr;
++    uint8_t            hpet_number;
++    uint16_t           min_tick;
++    uint8_t            page_protect;
++};
++#define ACPI_HPET_ADDRESS 0xFED00000UL
++#endif
++
+ struct madt_io_apic
+ {
+ 	APIC_HEADER_DEF
+@@ -1237,6 +1267,17 @@
+ 			  * lines start */
+ };
+ 
++#ifdef BX_QEMU
++struct madt_int_override
++{
++	APIC_HEADER_DEF
++	uint8_t                bus;     /* Identifies ISA Bus */
++	uint8_t                source;  /* Bus-relative interrupt source */
++	uint32_t               gsi;     /* GSI that source will signal */
++	uint16_t               flags;   /* MPS INTI flags */
++};
++#endif
++
+ #include "acpi-dsdt.hex"
+ 
+ static inline uint16_t cpu_to_le16(uint16_t x)
+@@ -1342,6 +1383,10 @@
+     struct facs_descriptor_rev1 *facs;
+     struct multiple_apic_table *madt;
+     uint8_t *dsdt, *ssdt;
++#ifdef BX_QEMU
++    struct acpi_20_hpet *hpet;
++    uint32_t hpet_addr;
++#endif
+     uint32_t base_addr, rsdt_addr, fadt_addr, addr, facs_addr, dsdt_addr, ssdt_addr;
+     uint32_t acpi_tables_size, madt_addr, madt_size;
+     int i;
+@@ -1384,10 +1429,21 @@
+     madt_addr = addr;
+     madt_size = sizeof(*madt) +
+         sizeof(struct madt_processor_apic) * smp_cpus +
++#ifdef BX_QEMU
++        sizeof(struct madt_io_apic) + sizeof(struct madt_int_override);
++#else
+         sizeof(struct madt_io_apic);
++#endif
+     madt = (void *)(addr);
+     addr += madt_size;
+ 
++#ifdef BX_QEMU
++    addr = (addr + 7) & ~7;
++    hpet_addr = addr;
++    hpet = (void *)(addr);
++    addr += sizeof(*hpet);
++#endif
++
+     acpi_tables_size = addr - base_addr;
+ 
+     BX_INFO("ACPI tables: RSDP addr=0x%08lx ACPI DATA addr=0x%08lx size=0x%x\n",
+@@ -1410,6 +1466,9 @@
+     rsdt->table_offset_entry[0] = cpu_to_le32(fadt_addr);
+     rsdt->table_offset_entry[1] = cpu_to_le32(madt_addr);
+     rsdt->table_offset_entry[2] = cpu_to_le32(ssdt_addr);
++#ifdef BX_QEMU
++    rsdt->table_offset_entry[3] = cpu_to_le32(hpet_addr);
++#endif
+     acpi_build_table_header((struct acpi_table_header *)rsdt,
+                             "RSDT", sizeof(*rsdt), 1);
+ 
+@@ -1448,6 +1507,9 @@
+     {
+         struct madt_processor_apic *apic;
+         struct madt_io_apic *io_apic;
++#ifdef BX_QEMU
++        struct madt_int_override *int_override;
++#endif
+ 
+         memset(madt, 0, madt_size);
+         madt->local_apic_address = cpu_to_le32(0xfee00000);
+@@ -1467,10 +1529,34 @@
+         io_apic->io_apic_id = smp_cpus;
+         io_apic->address = cpu_to_le32(0xfec00000);
+         io_apic->interrupt = cpu_to_le32(0);
++#ifdef BX_QEMU
++        io_apic++;
++
++        int_override = (void *)io_apic;
++        int_override->type = APIC_XRUPT_OVERRIDE;
++        int_override->length = sizeof(*int_override);
++        int_override->bus = cpu_to_le32(0);
++        int_override->source = cpu_to_le32(0);
++        int_override->gsi = cpu_to_le32(2);
++        int_override->flags = cpu_to_le32(0);
++#endif
+ 
+         acpi_build_table_header((struct acpi_table_header *)madt,
+                                 "APIC", madt_size, 1);
+     }
++
++#ifdef BX_QEMU
++    /* HPET */
++    memset(hpet, 0, sizeof(*hpet));
++    /* Note timer_block_id value must be kept in sync with value advertised by
++     * emulated hpet
++     */
++    hpet->timer_block_id = cpu_to_le32(0x8086a201);
++    hpet->addr.address = cpu_to_le32(ACPI_HPET_ADDRESS);
++    acpi_build_table_header((struct  acpi_table_header *)hpet,
++                             "HPET", sizeof(*hpet), 1);
++#endif
++
+ }
+ 
+ /* SMBIOS entry point -- must be written to a 16-bit aligned address

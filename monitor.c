@@ -252,6 +252,11 @@ static void do_info_name(void)
         term_printf("%s\n", qemu_name);
 }
 
+static void do_info_hpet(void)
+{
+    term_printf("HPET is %s by QEMU\n", (no_hpet) ? "disabled" : "enabled");
+}
+
 static void do_info_uuid(void)
 {
     term_printf(UUID_FMT "\n", qemu_uuid[0], qemu_uuid[1], qemu_uuid[2],
@@ -1531,6 +1536,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show virtual to physical memory mappings", },
     { "mem", "", mem_info,
       "", "show the active virtual memory mappings", },
+    { "hpet", "", do_info_hpet,
+      "", "show state of HPET", },
 #endif
     { "jit", "", do_info_jit,
       "", "show dynamic compiler info", },

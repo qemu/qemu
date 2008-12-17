@@ -224,6 +224,7 @@ int usb_enabled = 0;
 int smp_cpus = 1;
 const char *vnc_display;
 int acpi_enabled = 1;
+int no_hpet = 0;
 int fd_bootchk = 1;
 int no_reboot = 0;
 int no_shutdown = 0;
@@ -3956,6 +3957,7 @@ static void help(int exitcode)
 #endif
 #ifdef TARGET_I386
            "-no-acpi        disable ACPI\n"
+           "-no-hpet        disable HPET\n"
 #endif
 #ifdef CONFIG_CURSES
            "-curses         use a curses/ncurses interface instead of SDL\n"
@@ -4067,6 +4069,7 @@ enum {
     QEMU_OPTION_smp,
     QEMU_OPTION_vnc,
     QEMU_OPTION_no_acpi,
+    QEMU_OPTION_no_hpet,
     QEMU_OPTION_curses,
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_no_shutdown,
@@ -4180,6 +4183,7 @@ static const QEMUOption qemu_options[] = {
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
+    { "no-hpet", 0, QEMU_OPTION_no_hpet },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "no-shutdown", 0, QEMU_OPTION_no_shutdown },
     { "show-cursor", 0, QEMU_OPTION_show_cursor },
@@ -5016,6 +5020,9 @@ int main(int argc, char **argv, char **envp)
 		break;
             case QEMU_OPTION_no_acpi:
                 acpi_enabled = 0;
+                break;
+            case QEMU_OPTION_no_hpet:
+                no_hpet = 1;
                 break;
             case QEMU_OPTION_no_reboot:
                 no_reboot = 1;

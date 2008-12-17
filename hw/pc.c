@@ -35,6 +35,7 @@
 #include "fw_cfg.h"
 #include "virtio-blk.h"
 #include "virtio-balloon.h"
+#include "hpet_emul.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -977,6 +978,9 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
     }
     pit = pit_init(0x40, i8259[0]);
     pcspk_init(pit);
+    if (!no_hpet) {
+        hpet_init(i8259);
+    }
     if (pci_enabled) {
         pic_set_alt_irq_func(isa_pic, ioapic_set_irq, ioapic);
     }

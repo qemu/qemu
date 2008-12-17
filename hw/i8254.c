@@ -463,6 +463,27 @@ static void pit_reset(void *opaque)
     }
 }
 
+/* When HPET is operating in legacy mode, i8254 timer0 is disabled */
+void hpet_pit_disable(void) {
+    PITChannelState *s;
+    s = &pit_state.channels[0];
+    qemu_del_timer(s->irq_timer);
+}
+
+/* When HPET is reset or leaving legacy mode, it must reenable i8254 
+ * timer 0
+ */
+
+void hpet_pit_enable(void)
+{
+    PITState *pit = &pit_state;
+    PITChannelState *s;
+    s = &pit->channels[0];
+    s->mode = 3;
+    s->gate = 1;
+    pit_load_count(s, 0);
+}
+
 PITState *pit_init(int base, qemu_irq irq)
 {
     PITState *pit = &pit_state;

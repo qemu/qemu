@@ -26,6 +26,7 @@
 #include "sysemu.h"
 #include "pc.h"
 #include "isa.h"
+#include "hpet_emul.h"
 
 //#define DEBUG_CMOS
 
@@ -69,6 +70,18 @@ struct RTCState {
     QEMUTimer *second_timer2;
 };
 
+static void rtc_irq_raise(qemu_irq irq) {
+    /* When HPET is operating in legacy mode, RTC interrupts are disabled 
+     * We block qemu_irq_raise, but not qemu_irq_lower, in case legacy
+     * mode is established while interrupt is raised. We want it to 
+     * be lowered in any case
+     */ 
+#if defined TARGET_I386 || defined TARGET_X86_64
+    if (!hpet_in_legacy_mode()) 
+#endif
+        qemu_irq_raise(irq);
+}
+
 static void rtc_set_time(RTCState *s);
 static void rtc_copy_date(RTCState *s);
 
@@ -78,8 +91,14 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
     int64_t cur_clock, next_irq_clock;
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
-    if (period_code != 0 &&
-        (s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
+#if defined TARGET_I386 || defined TARGET_X86_64
+    /* disable periodic timer if hpet is in legacy mode, since interrupts are 
+     * disabled anyway.
+     */
+    if (period_code != 0 && (s->cmos_data[RTC_REG_B] & REG_B_PIE) && !hpet_in_legacy_mode()) {
+#else
+    if (period_code != 0 && (s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
+#endif
         if (period_code <= 2)
             period_code += 7;
         /* period in 32 Khz cycles */
@@ -100,7 +119,7 @@ static void rtc_periodic_timer(void *opaque)
 
     rtc_timer_update(s, s->next_periodic_time);
     s->cmos_data[RTC_REG_C] |= 0xc0;
-    qemu_irq_raise(s->irq);
+    rtc_irq_raise(s->irq);
 }
 
 static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
@@ -319,14 +338,14 @@ static void rtc_update_second2(void *opaque)
              s->cmos_data[RTC_HOURS_ALARM] == s->current_tm.tm_hour)) {
 
             s->cmos_data[RTC_REG_C] |= 0xa0;
-            qemu_irq_raise(s->irq);
+            rtc_irq_raise(s->irq);
         }
     }
 
     /* update ended interrupt */
     if (s->cmos_data[RTC_REG_B] & REG_B_UIE) {
         s->cmos_data[RTC_REG_C] |= 0x90;
-        qemu_irq_raise(s->irq);
+        rtc_irq_raise(s->irq);
     }
 
     /* clear update in progress bit */

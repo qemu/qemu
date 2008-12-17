@@ -635,7 +635,7 @@ ifeq ($(TARGET_BASE_ARCH), i386)
 OBJS+= ide.o pckbd.o ps2.o vga.o $(SOUND_HW) dma.o
 OBJS+= fdc.o mc146818rtc.o serial.o i8259.o i8254.o pcspk.o pc.o
 OBJS+= cirrus_vga.o apic.o parallel.o acpi.o piix_pci.o
-OBJS+= usb-uhci.o vmmouse.o vmport.o vmware_vga.o
+OBJS+= usb-uhci.o vmmouse.o vmport.o vmware_vga.o hpet.o
 # virtio support
 OBJS+= virtio.o virtio-blk.o virtio-balloon.o virtio-net.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
