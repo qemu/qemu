@@ -82,6 +82,7 @@ RTCState *rtc_init(int base, qemu_irq irq);
 RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq);
 void rtc_set_memory(RTCState *s, int addr, int val);
 void rtc_set_date(RTCState *s, const struct tm *tm);
+void cmos_set_s3_resume(void);
 
 /* pc.c */
 extern int fd_bootchk;
