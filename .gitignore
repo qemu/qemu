@@ -32,3 +32,4 @@ qemu-nbd.pod
 *.d
 .pc
 patches
+pc-bios/bios-pq/status
