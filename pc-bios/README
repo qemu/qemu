@@ -1,7 +1,8 @@
 - The PC BIOS comes from the Bochs project (http://bochs.sourceforge.net/).
   The patches in bios-pq have been applied. The binary is based on the revision
   in bios-pq/HEAD with the patches in bios-pq/series applied.  The git repo
-  that HEAD refers to is located at http://repo.or.cz/w/bochs-mirror.git
+  that HEAD refers to is located at
+  git://git.kernel.org/pub/scm/virt/bochs/bochs.git
 
 - The VGA BIOS and the Cirrus VGA BIOS come from the LGPL VGA bios
   project (http://www.nongnu.org/vgabios/).
