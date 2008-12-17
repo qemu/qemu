@@ -369,6 +369,50 @@ void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
     }
 }
 
+static ssize_t vc_sendv_compat(VLANClientState *vc, const struct iovec *iov,
+                               int iovcnt)
+{
+    uint8_t buffer[4096];
+    size_t offset = 0;
+    int i;
+
+    for (i = 0; i < iovcnt; i++) {
+        size_t len;
+
+        len = MIN(sizeof(buffer) - offset, iov[i].iov_len);
+        memcpy(buffer + offset, iov[i].iov_base, len);
+        offset += len;
+    }
+
+    vc->fd_read(vc->opaque, buffer, offset);
+
+    return offset;
+}
+
+ssize_t qemu_sendv_packet(VLANClientState *vc1, const struct iovec *iov,
+                          int iovcnt)
+{
+    VLANState *vlan = vc1->vlan;
+    VLANClientState *vc;
+    ssize_t max_len = 0;
+
+    for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
+        ssize_t len = 0;
+
+        if (vc == vc1)
+            continue;
+
+        if (vc->fd_readv)
+            len = vc->fd_readv(vc->opaque, iov, iovcnt);
+        else if (vc->fd_read)
+            len = vc_sendv_compat(vc, iov, iovcnt);
+
+        max_len = MAX(max_len, len);
+    }
+
+    return max_len;
+}
+
 #if defined(CONFIG_SLIRP)
 
 /* slirp network adapter */
