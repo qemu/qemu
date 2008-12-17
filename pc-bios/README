@@ -5,7 +5,10 @@
   git://git.kernel.org/pub/scm/virt/bochs/bochs.git
 
 - The VGA BIOS and the Cirrus VGA BIOS come from the LGPL VGA bios
-  project (http://www.nongnu.org/vgabios/).
+  project (http://www.nongnu.org/vgabios/).  The binary is based on the revision
+  in vgabios-pq/HEAD with the patches in vgabios-pq/series applied.  The git
+  repo that HEAD refers to is located at
+  git://git.kernel.org/pub/scm/virt/vgabios/vgabios.git
 
 - The PowerPC Open Hack'Ware Open Firmware Compatible BIOS is
   available at http://perso.magic.fr/l_indien/OpenHackWare/index.htm.
