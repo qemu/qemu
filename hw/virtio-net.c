@@ -106,7 +106,7 @@ static int iov_fill(struct iovec *iov, int iovcnt, const void *buf, int count)
 }
 
 static int receive_header(VirtIONet *n, struct iovec *iov, int iovcnt,
-                          const void *buf, int size, int hdr_len)
+                          const void *buf, size_t size, size_t hdr_len)
 {
     struct virtio_net_hdr *hdr = iov[0].iov_base;
     int offset = 0;
@@ -127,7 +127,7 @@ static void virtio_net_receive(void *opaque, const uint8_t *buf, int size)
 {
     VirtIONet *n = opaque;
     struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;
-    int hdr_len, offset, i;
+    size_t hdr_len, offset, i;
 
     if (!do_virtio_net_can_receive(n, size))
         return;
