@@ -60,6 +60,9 @@ int pit_get_initial_count(PITState *pit, int channel);
 int pit_get_mode(PITState *pit, int channel);
 int pit_get_out(PITState *pit, int channel, int64_t current_time);
 
+void hpet_pit_disable(void);
+void hpet_pit_enable(void);
+
 /* vmport.c */
 void vmport_init(void);
 void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);

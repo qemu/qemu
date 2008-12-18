@@ -252,10 +252,12 @@ static void do_info_name(void)
         term_printf("%s\n", qemu_name);
 }
 
+#if defined(TARGET_I386)
 static void do_info_hpet(void)
 {
     term_printf("HPET is %s by QEMU\n", (no_hpet) ? "disabled" : "enabled");
 }
+#endif
 
 static void do_info_uuid(void)
 {

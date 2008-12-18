@@ -26,12 +26,10 @@
  */
 
 #include "hw.h"
+#include "pc.h"
 #include "console.h"
 #include "qemu-timer.h"
 #include "hpet_emul.h"
-
-extern void hpet_pit_disable(void);
-extern void hpet_pit_enable(void);
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
