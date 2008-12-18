@@ -470,7 +470,7 @@ void hpet_pit_disable(void) {
     qemu_del_timer(s->irq_timer);
 }
 
-/* When HPET is reset or leaving legacy mode, it must reenable i8254 
+/* When HPET is reset or leaving legacy mode, it must reenable i8254
  * timer 0
  */
 

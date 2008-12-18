@@ -71,13 +71,13 @@ struct RTCState {
 };
 
 static void rtc_irq_raise(qemu_irq irq) {
-    /* When HPET is operating in legacy mode, RTC interrupts are disabled 
+    /* When HPET is operating in legacy mode, RTC interrupts are disabled
      * We block qemu_irq_raise, but not qemu_irq_lower, in case legacy
-     * mode is established while interrupt is raised. We want it to 
+     * mode is established while interrupt is raised. We want it to
      * be lowered in any case
-     */ 
+     */
 #if defined TARGET_I386 || defined TARGET_X86_64
-    if (!hpet_in_legacy_mode()) 
+    if (!hpet_in_legacy_mode())
 #endif
         qemu_irq_raise(irq);
 }
@@ -92,7 +92,7 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
 #if defined TARGET_I386 || defined TARGET_X86_64
-    /* disable periodic timer if hpet is in legacy mode, since interrupts are 
+    /* disable periodic timer if hpet is in legacy mode, since interrupts are
      * disabled anyway.
      */
     if (period_code != 0 && (s->cmos_data[RTC_REG_B] & REG_B_PIE) && !hpet_in_legacy_mode()) {

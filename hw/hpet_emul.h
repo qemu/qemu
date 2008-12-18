@@ -60,9 +60,9 @@ typedef struct HPETTimer {  /* timers */
     uint64_t fsb;           /* FSB route, not supported now */
     /* Hidden register state */
     uint64_t period;        /* Last value written to comparator */
-    uint8_t wrap_flag;      /* timer pop will indicate wrap for one-shot 32-bit 
+    uint8_t wrap_flag;      /* timer pop will indicate wrap for one-shot 32-bit
                              * mode. Next pop will be actual timer expiration.
-                             */ 
+                             */
 } HPETTimer;
 
 typedef struct HPETState {
