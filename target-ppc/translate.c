@@ -6139,6 +6139,24 @@ GEN_VR_STX(svx, 0x07, 0x07);
 /* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
 GEN_VR_STX(svxl, 0x07, 0x0F);
 
+/* Logical operations */
+#define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
+GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)            \
+{                                                                       \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    tcg_op(cpu_avrh[rD(ctx->opcode)], cpu_avrh[rA(ctx->opcode)], cpu_avrh[rB(ctx->opcode)]); \
+    tcg_op(cpu_avrl[rD(ctx->opcode)], cpu_avrl[rA(ctx->opcode)], cpu_avrl[rB(ctx->opcode)]); \
+}
+
+GEN_VX_LOGICAL(vand, tcg_gen_and_i64, 2, 16);
+GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17);
+GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18);
+GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19);
+GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20);
+
 /***                           SPE extension                               ***/
 /* Register moves */
 
