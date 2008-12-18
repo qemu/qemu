@@ -1996,6 +1996,18 @@ int gdbserver_start(int port)
     gdb_accept();
     return 0;
 }
+
+/* Disable gdb stub for child processes.  */
+void gdbserver_fork(CPUState *env)
+{
+    GDBState *s = gdbserver_state;
+    if (s->fd < 0)
+      return;
+    close(s->fd);
+    s->fd = -1;
+    cpu_breakpoint_remove_all(env, BP_GDB);
+    cpu_watchpoint_remove_all(env, BP_GDB);
+}
 #else
 static int gdb_chr_can_receive(void *opaque)
 {

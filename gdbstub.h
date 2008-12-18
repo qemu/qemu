@@ -13,6 +13,7 @@ void gdb_set_stop_cpu(CPUState *env);
 int gdb_handlesig (CPUState *, int);
 void gdb_exit(CPUState *, int);
 int gdbserver_start(int);
+void gdbserver_fork(CPUState *);
 #else
 int gdbserver_start(const char *port);
 #endif

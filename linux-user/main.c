@@ -162,6 +162,7 @@ void fork_end(int child)
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
         pthread_mutex_init(&tb_lock, NULL);
+        gdbserver_fork(thread_env);
     } else {
         pthread_mutex_unlock(&exclusive_lock);
         pthread_mutex_unlock(&tb_lock);
@@ -254,6 +255,9 @@ void fork_start(void)
 
 void fork_end(int child)
 {
+    if (child) {
+        gdbserver_fork(thread_env);
+    }
 }
 #endif
 
