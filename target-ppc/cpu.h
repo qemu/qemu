@@ -602,7 +602,7 @@ struct CPUPPCState {
     ppc_avr_t avr[32];
     uint32_t vscr;
     /* SPE registers */
-    target_ulong spe_acc;
+    uint64_t spe_acc;
     float_status spe_status;
     uint32_t spe_fscr;
 
