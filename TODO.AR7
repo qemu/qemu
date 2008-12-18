@@ -1,5 +1,90 @@
 TODO list for AR7 / QEMU
 
+2008-12-16
+
+* Linux 2.6.27.9 working, but some locking issues with acx driver:
+
+[ 9424.190000] get_mask 0x00000000, set_mask 0x00000040
+[ 9424.200000] setting RXconfig to 2010:0FDD
+[ 9424.220000] get_mask 0x00000000, set_mask 0x00000000 - after update
+[ 9424.250000]
+[ 9424.250000] =======================================================
+[ 9424.250000] [ INFO: possible circular locking dependency detected ]
+[ 9424.250000] 2.6.27.9 #3
+[ 9424.250000] -------------------------------------------------------
+[ 9424.250000] ifconfig/410 is trying to acquire lock:
+[ 9424.250000]  (events){--..}, at: [<94044984>] flush_workqueue+0x0/0x80
+[ 9424.250000]
+[ 9424.250000] but task is already holding lock:
+[ 9424.250000]  (rtnl_mutex){--..}, at: [<941f907c>] devinet_ioctl+0x160/0x858
+[ 9424.250000]
+[ 9424.250000] which lock already depends on the new lock.
+[ 9424.250000]
+[ 9424.250000]
+[ 9424.250000] the existing dependency chain (in reverse order) is:
+[ 9424.250000]
+[ 9424.250000] -> #2 (rtnl_mutex){--..}:
+[ 9424.250000]        [<9405bc8c>] validate_chain+0xb84/0xee0
+[ 9424.250000]        [<9405c7d8>] __lock_acquire+0x7f0/0x89c
+[ 9424.250000]        [<9405c8f4>] lock_acquire+0x70/0xb0
+[ 9424.250000]        [<940078c8>] mutex_lock_nested+0x114/0x498
+[ 9424.250000]        [<941a81c8>] linkwatch_event+0x10/0x38
+[ 9424.250000]        [<94043fa0>] run_workqueue+0x1a8/0x2bc
+[ 9424.250000]        [<94044ff0>] worker_thread+0xac/0xcc
+[ 9424.250000]        [<94048f84>] kthread+0x58/0x98
+[ 9424.250000]        [<9400c4d4>] kernel_thread_helper+0x10/0x18
+[ 9424.250000]
+[ 9424.250000] -> #1 ((linkwatch_work).work){--..}:
+[ 9424.250000]        [<9405bc8c>] validate_chain+0xb84/0xee0
+[ 9424.250000]        [<9405c7d8>] __lock_acquire+0x7f0/0x89c
+[ 9424.250000]        [<9405c8f4>] lock_acquire+0x70/0xb0
+[ 9424.250000]        [<94043f98>] run_workqueue+0x1a0/0x2bc
+[ 9424.250000]        [<94044ff0>] worker_thread+0xac/0xcc
+[ 9424.250000]        [<94048f84>] kthread+0x58/0x98
+[ 9424.250000]        [<9400c4d4>] kernel_thread_helper+0x10/0x18
+[ 9424.250000]
+[ 9424.250000] -> #0 (events){--..}:
+[ 9424.250000]        [<9405b8e8>] validate_chain+0x7e0/0xee0
+[ 9424.250000]        [<9405c7d8>] __lock_acquire+0x7f0/0x89c
+[ 9424.250000]        [<9405c8f4>] lock_acquire+0x70/0xb0
+[ 9424.250000]        [<940449d8>] flush_workqueue+0x54/0x80
+[ 9424.250000]        [<c0046c90>] acxpci_l_get_txbuf+0x138/0x2c4 [acx]
+[ 9424.250000]
+[ 9424.250000] other info that might help us debug this:
+[ 9424.250000]
+[ 9424.250000] 1 lock held by ifconfig/410:
+[ 9424.250000]  #0:  (rtnl_mutex){--..}, at: [<941f907c>] devinet_ioctl+0x160/0x858
+[ 9424.250000]
+[ 9424.250000] stack backtrace:
+[ 9424.250000] Call Trace:
+[ 9424.250000] [<940111a8>] dump_stack+0x8/0x34
+[ 9424.250000] [<9405b0f0>] print_circular_bug_tail+0xd4/0xec
+[ 9424.250000] [<9405b8e8>] validate_chain+0x7e0/0xee0
+[ 9424.250000] [<9405c7d8>] __lock_acquire+0x7f0/0x89c
+[ 9424.250000] [<9405c8f4>] lock_acquire+0x70/0xb0
+[ 9424.250000] [<940449d8>] flush_workqueue+0x54/0x80
+[ 9424.250000] [<c0046c90>] acxpci_l_get_txbuf+0x138/0x2c4 [acx]
+[ 9424.250000]
+[ 9424.520000] acx_set_status(0):STOPPED
+[ 9424.520000] closed device
+root@OpenWrt:/# iwlist wlan0 scan
+wlan0     Interface doesn't support scanning : Resource temporarily unavailable
+
+* very poor performance on cpmac:
+  eth0 sinus-heipc84499         1,4 MBit / s
+  eth0 heipc84499-sinus        23,6 MBit / s
+  lo sinus-sinus               49,0 MBit / s
+  wlan0 heipc84499-flocke       3,6 MBit / s
+
+root@OpenWrt:/# netperf -H 192.168.2.2
+TCP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 192.168.2.2 (192.168.2.2) port 0 AF_INET
+Recv   Send    Send
+Socket Socket  Message  Elapsed
+Size   Size    Size     Time     Throughput
+bytes  bytes   bytes    secs.    10^6bits/sec
+
+   256  16384  16384    10.02       1.40
+
 2008-07-14
 
 * Linux 2.6.26 working.
