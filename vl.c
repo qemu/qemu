@@ -149,14 +149,6 @@
 
 #include "exec-all.h"
 
-#define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
-#define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"
-#ifdef __sun__
-#define SMBD_COMMAND "/usr/sfw/sbin/smbd"
-#else
-#define SMBD_COMMAND "/usr/sbin/smbd"
-#endif
-
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 //#define DEBUG_NET

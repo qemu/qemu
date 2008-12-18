@@ -85,4 +85,12 @@ void net_cleanup(void);
 int slirp_is_inited(void);
 void net_client_check(void);
 
+#define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
+#define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"
+#ifdef __sun__
+#define SMBD_COMMAND "/usr/sfw/sbin/smbd"
+#else
+#define SMBD_COMMAND "/usr/sbin/smbd"
+#endif
+
 #endif
