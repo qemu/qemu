@@ -417,6 +417,9 @@ void pci_default_write_config(PCIDevice *d,
         if (can_write) {
             /* Mask out writes to reserved bits in registers */
             switch (addr) {
+	    case 0x05:
+                val &= ~PCI_COMMAND_RESERVED_MASK_HI;
+                break;
             case 0x06:
                 val &= ~PCI_STATUS_RESERVED_MASK_LO;
                 break;

@@ -69,6 +69,11 @@ typedef struct PCIIORegion {
 
 #define PCI_STATUS_RESERVED_MASK_HI (PCI_STATUS_DEVSEL >> 8)
 
+/* Bits in the PCI Command Register (PCI 2.3 spec) */
+#define PCI_COMMAND_RESERVED	0xf800
+
+#define PCI_COMMAND_RESERVED_MASK_HI (PCI_COMMAND_RESERVED >> 8)
+
 struct PCIDevice {
     /* PCI config space */
     uint8_t config[256];
