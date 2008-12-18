@@ -54,6 +54,21 @@ typedef struct PCIIORegion {
 #define PCI_MIN_GNT		0x3e	/* 8 bits */
 #define PCI_MAX_LAT		0x3f	/* 8 bits */
 
+/* Bits in the PCI Status Register (PCI 2.3 spec) */
+#define PCI_STATUS_RESERVED1	0x007
+#define PCI_STATUS_INT_STATUS	0x008
+#define PCI_STATUS_CAPABILITIES	0x010
+#define PCI_STATUS_66MHZ	0x020
+#define PCI_STATUS_RESERVED2	0x040
+#define PCI_STATUS_FAST_BACK	0x080
+#define PCI_STATUS_DEVSEL	0x600
+
+#define PCI_STATUS_RESERVED_MASK_LO (PCI_STATUS_RESERVED1 | \
+                PCI_STATUS_INT_STATUS | PCI_STATUS_CAPABILITIES | \
+                PCI_STATUS_66MHZ | PCI_STATUS_RESERVED2 | PCI_STATUS_FAST_BACK)
+
+#define PCI_STATUS_RESERVED_MASK_HI (PCI_STATUS_DEVSEL >> 8)
+
 struct PCIDevice {
     /* PCI config space */
     uint8_t config[256];

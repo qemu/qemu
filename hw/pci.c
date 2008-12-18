@@ -381,6 +381,7 @@ void pci_default_write_config(PCIDevice *d,
             case 0x0b:
             case 0x0e:
             case 0x10 ... 0x27: /* base */
+            case 0x2c ... 0x2f: /* read-only subsystem ID & vendor ID */
             case 0x30 ... 0x33: /* rom */
             case 0x3d:
                 can_write = 0;
@@ -402,6 +403,7 @@ void pci_default_write_config(PCIDevice *d,
             case 0x0a:
             case 0x0b:
             case 0x0e:
+            case 0x2c ... 0x2f: /* read-only subsystem ID & vendor ID */
             case 0x38 ... 0x3b: /* rom */
             case 0x3d:
                 can_write = 0;
@@ -413,6 +415,15 @@ void pci_default_write_config(PCIDevice *d,
             break;
         }
         if (can_write) {
+            /* Mask out writes to reserved bits in registers */
+            switch (addr) {
+            case 0x06:
+                val &= ~PCI_STATUS_RESERVED_MASK_LO;
+                break;
+            case 0x07:
+                val &= ~PCI_STATUS_RESERVED_MASK_HI;
+                break;
+            }
             d->config[addr] = val;
         }
         if (++addr > 0xff)
