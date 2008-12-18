@@ -1401,6 +1401,15 @@ static void do_inject_nmi(int cpu_index)
 }
 #endif
 
+static void do_info_status(void)
+{
+    if (vm_running)
+       term_printf("VM status: running\n");
+    else
+       term_printf("VM status: paused\n");
+}
+
+
 static void do_balloon(int value)
 {
     ram_addr_t target = value;
@@ -1557,6 +1566,8 @@ static const term_cmd_t info_cmds[] = {
       "", "show capture information" },
     { "snapshots", "", do_info_snapshots,
       "", "show the currently saved VM snapshots" },
+    { "status", "", do_info_status,
+      "", "show the current VM status (running|paused)" },
     { "pcmcia", "", pcmcia_info,
       "", "show guest PCMCIA status" },
     { "mice", "", do_info_mice,
