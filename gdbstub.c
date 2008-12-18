@@ -38,17 +38,212 @@
 #define MAX_PACKET_LENGTH 4096
 
 #include "qemu_socket.h"
-#ifdef _WIN32
-/* XXX: these constants may be independent of the host ones even for Unix */
-#ifndef SIGTRAP
-#define SIGTRAP 5
-#endif
-#ifndef SIGINT
-#define SIGINT 2
-#endif
+
+
+enum {
+    GDB_SIGNAL_0 = 0,
+    GDB_SIGNAL_INT = 2,
+    GDB_SIGNAL_TRAP = 5,
+    GDB_SIGNAL_UNKNOWN = 143
+};
+
+#ifdef CONFIG_USER_ONLY
+
+/* Map target signal numbers to GDB protocol signal numbers and vice
+ * versa.  For user emulation's currently supported systems, we can
+ * assume most signals are defined.
+ */
+
+static int gdb_signal_table[] = {
+    0,
+    TARGET_SIGHUP,
+    TARGET_SIGINT,
+    TARGET_SIGQUIT,
+    TARGET_SIGILL,
+    TARGET_SIGTRAP,
+    TARGET_SIGABRT,
+    -1, /* SIGEMT */
+    TARGET_SIGFPE,
+    TARGET_SIGKILL,
+    TARGET_SIGBUS,
+    TARGET_SIGSEGV,
+    TARGET_SIGSYS,
+    TARGET_SIGPIPE,
+    TARGET_SIGALRM,
+    TARGET_SIGTERM,
+    TARGET_SIGURG,
+    TARGET_SIGSTOP,
+    TARGET_SIGTSTP,
+    TARGET_SIGCONT,
+    TARGET_SIGCHLD,
+    TARGET_SIGTTIN,
+    TARGET_SIGTTOU,
+    TARGET_SIGIO,
+    TARGET_SIGXCPU,
+    TARGET_SIGXFSZ,
+    TARGET_SIGVTALRM,
+    TARGET_SIGPROF,
+    TARGET_SIGWINCH,
+    -1, /* SIGLOST */
+    TARGET_SIGUSR1,
+    TARGET_SIGUSR2,
+    TARGET_SIGPWR,
+    -1, /* SIGPOLL */
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    __SIGRTMIN + 1,
+    __SIGRTMIN + 2,
+    __SIGRTMIN + 3,
+    __SIGRTMIN + 4,
+    __SIGRTMIN + 5,
+    __SIGRTMIN + 6,
+    __SIGRTMIN + 7,
+    __SIGRTMIN + 8,
+    __SIGRTMIN + 9,
+    __SIGRTMIN + 10,
+    __SIGRTMIN + 11,
+    __SIGRTMIN + 12,
+    __SIGRTMIN + 13,
+    __SIGRTMIN + 14,
+    __SIGRTMIN + 15,
+    __SIGRTMIN + 16,
+    __SIGRTMIN + 17,
+    __SIGRTMIN + 18,
+    __SIGRTMIN + 19,
+    __SIGRTMIN + 20,
+    __SIGRTMIN + 21,
+    __SIGRTMIN + 22,
+    __SIGRTMIN + 23,
+    __SIGRTMIN + 24,
+    __SIGRTMIN + 25,
+    __SIGRTMIN + 26,
+    __SIGRTMIN + 27,
+    __SIGRTMIN + 28,
+    __SIGRTMIN + 29,
+    __SIGRTMIN + 30,
+    __SIGRTMIN + 31,
+    -1, /* SIGCANCEL */
+    __SIGRTMIN,
+    __SIGRTMIN + 32,
+    __SIGRTMIN + 33,
+    __SIGRTMIN + 34,
+    __SIGRTMIN + 35,
+    __SIGRTMIN + 36,
+    __SIGRTMIN + 37,
+    __SIGRTMIN + 38,
+    __SIGRTMIN + 39,
+    __SIGRTMIN + 40,
+    __SIGRTMIN + 41,
+    __SIGRTMIN + 42,
+    __SIGRTMIN + 43,
+    __SIGRTMIN + 44,
+    __SIGRTMIN + 45,
+    __SIGRTMIN + 46,
+    __SIGRTMIN + 47,
+    __SIGRTMIN + 48,
+    __SIGRTMIN + 49,
+    __SIGRTMIN + 50,
+    __SIGRTMIN + 51,
+    __SIGRTMIN + 52,
+    __SIGRTMIN + 53,
+    __SIGRTMIN + 54,
+    __SIGRTMIN + 55,
+    __SIGRTMIN + 56,
+    __SIGRTMIN + 57,
+    __SIGRTMIN + 58,
+    __SIGRTMIN + 59,
+    __SIGRTMIN + 60,
+    __SIGRTMIN + 61,
+    __SIGRTMIN + 62,
+    __SIGRTMIN + 63,
+    __SIGRTMIN + 64,
+    __SIGRTMIN + 65,
+    __SIGRTMIN + 66,
+    __SIGRTMIN + 67,
+    __SIGRTMIN + 68,
+    __SIGRTMIN + 69,
+    __SIGRTMIN + 70,
+    __SIGRTMIN + 71,
+    __SIGRTMIN + 72,
+    __SIGRTMIN + 73,
+    __SIGRTMIN + 74,
+    __SIGRTMIN + 75,
+    __SIGRTMIN + 76,
+    __SIGRTMIN + 77,
+    __SIGRTMIN + 78,
+    __SIGRTMIN + 79,
+    __SIGRTMIN + 80,
+    __SIGRTMIN + 81,
+    __SIGRTMIN + 82,
+    __SIGRTMIN + 83,
+    __SIGRTMIN + 84,
+    __SIGRTMIN + 85,
+    __SIGRTMIN + 86,
+    __SIGRTMIN + 87,
+    __SIGRTMIN + 88,
+    __SIGRTMIN + 89,
+    __SIGRTMIN + 90,
+    __SIGRTMIN + 91,
+    __SIGRTMIN + 92,
+    __SIGRTMIN + 93,
+    __SIGRTMIN + 94,
+    __SIGRTMIN + 95,
+    -1, /* SIGINFO */
+    -1, /* UNKNOWN */
+    -1, /* DEFAULT */
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1
+};
 #else
-#include <signal.h>
+/* In system mode we only need SIGINT and SIGTRAP; other signals
+   are not yet supported.  */
+
+enum {
+    TARGET_SIGINT = 2,
+    TARGET_SIGTRAP = 5
+};
+
+static int gdb_signal_table[] = {
+    -1,
+    -1,
+    TARGET_SIGINT,
+    -1,
+    -1,
+    TARGET_SIGTRAP
+};
 #endif
+
+#ifdef CONFIG_USER_ONLY
+static int target_signal_to_gdb (int sig)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE (gdb_signal_table); i++)
+        if (gdb_signal_table[i] == sig)
+            return i;
+    return GDB_SIGNAL_UNKNOWN;
+}
+#endif
+
+static int gdb_signal_to_target (int sig)
+{
+    if (sig < ARRAY_SIZE (gdb_signal_table))
+        return gdb_signal_table[sig];
+    else
+        return -1;
+}
 
 //#define DEBUG_GDB
 
@@ -1300,7 +1495,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     switch(ch) {
     case '?':
         /* TODO: Make this return the correct value for user-mode.  */
-        snprintf(buf, sizeof(buf), "T%02xthread:%02x;", SIGTRAP,
+        snprintf(buf, sizeof(buf), "T%02xthread:%02x;", GDB_SIGNAL_TRAP,
                  s->c_cpu->cpu_index+1);
         put_packet(s, buf);
         /* Remove all the breakpoints when this query is issued,
@@ -1331,10 +1526,13 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             s->c_cpu->pc = addr;
 #endif
         }
+        s->signal = 0;
         gdb_continue(s);
 	return RS_IDLE;
     case 'C':
-        s->signal = strtoul(p, (char **)&p, 16);
+        s->signal = gdb_signal_to_target (strtoul(p, (char **)&p, 16));
+        if (s->signal == -1)
+            s->signal = 0;
         gdb_continue(s);
         return RS_IDLE;
     case 'k':
@@ -1692,16 +1890,16 @@ static void gdb_vm_stopped(void *opaque, int reason)
             }
             snprintf(buf, sizeof(buf),
                      "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
-                     SIGTRAP, env->cpu_index+1, type,
+                     GDB_SIGNAL_TRAP, env->cpu_index+1, type,
                      env->watchpoint_hit->vaddr);
             put_packet(s, buf);
             env->watchpoint_hit = NULL;
             return;
         }
 	tb_flush(env);
-        ret = SIGTRAP;
+        ret = GDB_SIGNAL_TRAP;
     } else if (reason == EXCP_INTERRUPT) {
-        ret = SIGINT;
+        ret = GDB_SIGNAL_INT;
     } else {
         ret = 0;
     }
@@ -1853,6 +2051,19 @@ static void gdb_read_byte(GDBState *s, int ch)
 
 #ifdef CONFIG_USER_ONLY
 int
+gdb_queuesig (void)
+{
+    GDBState *s;
+
+    s = gdbserver_state;
+
+    if (gdbserver_fd < 0 || s->fd < 0)
+        return 0;
+    else
+        return 1;
+}
+
+int
 gdb_handlesig (CPUState *env, int sig)
 {
   GDBState *s;
@@ -1869,7 +2080,7 @@ gdb_handlesig (CPUState *env, int sig)
 
   if (sig != 0)
     {
-      snprintf(buf, sizeof(buf), "S%02x", sig);
+      snprintf(buf, sizeof(buf), "S%02x", target_signal_to_gdb (sig));
       put_packet(s, buf);
     }
   /* put_packet() might have detected that the peer terminated the 
@@ -1915,6 +2126,19 @@ void gdb_exit(CPUState *env, int code)
   put_packet(s, buf);
 }
 
+/* Tell the remote gdb that the process has exited due to SIG.  */
+void gdb_signalled(CPUState *env, int sig)
+{
+  GDBState *s;
+  char buf[4];
+
+  s = gdbserver_state;
+  if (gdbserver_fd < 0 || s->fd < 0)
+    return;
+
+  snprintf(buf, sizeof(buf), "X%02x", target_signal_to_gdb (sig));
+  put_packet(s, buf);
+}
 
 static void gdb_accept(void)
 {

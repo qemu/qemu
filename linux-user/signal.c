@@ -264,6 +264,26 @@ void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
             (void *)(long)tswapl(tinfo->_sifields._rt._sigval.sival_ptr);
 }
 
+static int fatal_signal (int sig)
+{
+    switch (sig) {
+    case TARGET_SIGCHLD:
+    case TARGET_SIGURG:
+    case TARGET_SIGWINCH:
+        /* Ignored by default.  */
+        return 0;
+    case TARGET_SIGCONT:
+    case TARGET_SIGSTOP:
+    case TARGET_SIGTSTP:
+    case TARGET_SIGTTIN:
+    case TARGET_SIGTTOU:
+        /* Job control signals.  */
+        return 0;
+    default:
+        return 1;
+    }
+}
+
 void signal_init(void)
 {
     struct sigaction act;
@@ -298,10 +318,12 @@ void signal_init(void)
         }
         /* If there's already a handler installed then something has
            gone horribly wrong, so don't even try to handle that case.  */
-        /* Install some handlers for our own use.  */
-        if (host_sig == SIGSEGV || host_sig == SIGBUS) {
+        /* Install some handlers for our own use.  We need at least
+           SIGSEGV and SIGBUS, to detect exceptions.  We can not just
+           trap all signals because it affects syscall interrupt
+           behavior.  But do trap all default-fatal signals.  */
+        if (fatal_signal (i))
             sigaction(host_sig, &act, NULL);
-        }
     }
 }
 
@@ -332,6 +354,7 @@ static void __attribute((noreturn)) force_sig(int sig)
     fprintf(stderr, "qemu: uncaught target signal %d (%s) - exiting\n",
             sig, strsignal(host_sig));
 #if 1
+    gdb_signalled(thread_env, sig);
     _exit(-host_sig);
 #else
     {
@@ -353,14 +376,16 @@ int queue_signal(CPUState *env, int sig, target_siginfo_t *info)
     struct emulated_sigtable *k;
     struct sigqueue *q, **pq;
     abi_ulong handler;
+    int queue;
 
 #if defined(DEBUG_SIGNAL)
     fprintf(stderr, "queue_signal: sig=%d\n",
             sig);
 #endif
     k = &ts->sigtab[sig - 1];
+    queue = gdb_queuesig ();
     handler = sigact_table[sig - 1]._sa_handler;
-    if (handler == TARGET_SIG_DFL) {
+    if (!queue && handler == TARGET_SIG_DFL) {
         if (sig == TARGET_SIGTSTP || sig == TARGET_SIGTTIN || sig == TARGET_SIGTTOU) {
             kill(getpid(),SIGSTOP);
             return 0;
@@ -374,10 +399,10 @@ int queue_signal(CPUState *env, int sig, target_siginfo_t *info)
         } else {
             return 0; /* indicate ignored */
         }
-    } else if (handler == TARGET_SIG_IGN) {
+    } else if (!queue && handler == TARGET_SIG_IGN) {
         /* ignore signal */
         return 0;
-    } else if (handler == TARGET_SIG_ERR) {
+    } else if (!queue && handler == TARGET_SIG_ERR) {
         force_sig(sig);
     } else {
         pq = &k->first;
@@ -417,7 +442,8 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
 
     /* the CPU emulator uses some host signals to detect exceptions,
        we we forward to it some signals */
-    if (host_signum == SIGSEGV || host_signum == SIGBUS) {
+    if ((host_signum == SIGSEGV || host_signum == SIGBUS)
+        && info->si_code == SI_KERNEL) {
         if (cpu_signal_handler(host_signum, info, puc))
             return;
     }
@@ -544,7 +570,10 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             if (k->_sa_handler == TARGET_SIG_IGN) {
                 act1.sa_sigaction = (void *)SIG_IGN;
             } else if (k->_sa_handler == TARGET_SIG_DFL) {
-                act1.sa_sigaction = (void *)SIG_DFL;
+                if (fatal_signal (sig))
+                    act1.sa_sigaction = host_signal_handler;
+                else
+                    act1.sa_sigaction = (void *)SIG_DFL;
             } else {
                 act1.sa_sigaction = host_signal_handler;
             }
@@ -3107,17 +3136,21 @@ void process_pending_signals(CPUState *cpu_env)
 
     sig = gdb_handlesig (cpu_env, sig);
     if (!sig) {
-        fprintf (stderr, "Lost signal\n");
-        abort();
+        sa = NULL;
+        handler = TARGET_SIG_IGN;
+    } else {
+        sa = &sigact_table[sig - 1];
+        handler = sa->_sa_handler;
     }
 
-    sa = &sigact_table[sig - 1];
-    handler = sa->_sa_handler;
     if (handler == TARGET_SIG_DFL) {
-        /* default handler : ignore some signal. The other are fatal */
-        if (sig != TARGET_SIGCHLD &&
-            sig != TARGET_SIGURG &&
-            sig != TARGET_SIGWINCH) {
+        /* default handler : ignore some signal. The other are job control or fatal */
+        if (sig == TARGET_SIGTSTP || sig == TARGET_SIGTTIN || sig == TARGET_SIGTTOU) {
+            kill(getpid(),SIGSTOP);
+        } else if (sig != TARGET_SIGCHLD &&
+                   sig != TARGET_SIGURG &&
+                   sig != TARGET_SIGWINCH &&
+                   sig != TARGET_SIGCONT) {
             force_sig(sig);
         }
     } else if (handler == TARGET_SIG_IGN) {
