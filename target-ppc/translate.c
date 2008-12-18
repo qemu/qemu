@@ -6083,6 +6083,13 @@ GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
 /***                      Altivec vector extension                         ***/
 /* Altivec registers moves */
 
+static always_inline TCGv_ptr gen_avr_ptr(int reg)
+{
+    TCGv_ptr r = tcg_temp_new();
+    tcg_gen_addi_ptr(r, cpu_env, offsetof(CPUPPCState, avr[reg]));
+    return r;
+}
+
 #define GEN_VR_LDX(name, opc2, opc3)                                          \
 GEN_HANDLER(name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)                  \
 {                                                                             \
