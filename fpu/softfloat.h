@@ -283,7 +283,7 @@ INLINE float32 float32_chs(float32 a)
 
 INLINE int float32_is_infinity(float32 a)
 {
-    return (float32_val(a) & 0x7fffffff) == 0x7ff80000;
+    return (float32_val(a) & 0x7fffffff) == 0x7f800000;
 }
 
 INLINE int float32_is_neg(float32 a)
