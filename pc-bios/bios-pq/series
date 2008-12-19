@@ -3,3 +3,4 @@
 0003_smp-startup-poll.patch
 0004_no-stack-protector.patch
 0005_hpet.patch
+0006_acpi-packing.patch
