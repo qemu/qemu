@@ -900,11 +900,15 @@ static inline int check_ap(CPUState *env, int ap, int domain, int access_type,
           return PAGE_READ | PAGE_WRITE;
   case 3:
       return PAGE_READ | PAGE_WRITE;
-  case 4: case 7: /* Reserved.  */
+  case 4: /* Reserved.  */
       return 0;
   case 5:
       return is_user ? 0 : prot_ro;
   case 6:
+      return prot_ro;
+  case 7:
+      if (!arm_feature (env, ARM_FEATURE_V7))
+          return 0;
       return prot_ro;
   default:
       abort();
@@ -1085,6 +1089,12 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
     if (xn && access_type == 2)
         goto do_fault;
 
+    /* The simplified model uses AP[0] as an access control bit.  */
+    if ((env->cp15.c1_sys & (1 << 29)) && (ap & 1) == 0) {
+        /* Access flag fault.  */
+        code = (code == 15) ? 6 : 3;
+        goto do_fault;
+    }
     *prot = check_ap(env, ap, domain, access_type, is_user);
     if (!*prot) {
         /* Access permission fault.  */
