@@ -94,7 +94,11 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00011100;
         memcpy(env->cp15.c0_c1, cortexa8_cp15_c0_c1, 8 * sizeof(uint32_t));
         memcpy(env->cp15.c0_c2, cortexa8_cp15_c0_c2, 8 * sizeof(uint32_t));
-        env->cp15.c0_cachetype = 0x1dd20d2;
+        env->cp15.c0_cachetype = 0x82048004;
+        env->cp15.c0_clid = (1 << 27) | (2 << 24) | 3;
+        env->cp15.c0_ccsid[0] = 0xe007e01a; /* 16k L1 dcache. */
+        env->cp15.c0_ccsid[1] = 0x2007e01a; /* 16k L1 icache. */
+        env->cp15.c0_ccsid[2] = 0xf0000000; /* No L2 icache. */
         break;
     case ARM_CPUID_CORTEXM3:
         set_feature(env, ARM_FEATURE_V6);
@@ -1321,15 +1325,16 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
     crm = insn & 0xf;
     switch ((insn >> 16) & 0xf) {
     case 0:
-        if (((insn >> 21) & 7) == 2) {
-            /* ??? Select cache level.  Ignore.  */
-            return;
-        }
         /* ID codes.  */
         if (arm_feature(env, ARM_FEATURE_XSCALE))
             break;
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
             break;
+        if (arm_feature(env, ARM_FEATURE_V7)
+                && op1 == 2 && crm == 0 && op2 == 0) {
+            env->cp15.c0_cssel = val & 0xf;
+            break;
+        }
         goto bad_reg;
     case 1: /* System configuration.  */
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
@@ -1648,9 +1653,22 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
                 goto bad_reg;
             if (crm != 0)
                 goto bad_reg;
-            if (arm_feature(env, ARM_FEATURE_XSCALE))
+            if (!arm_feature(env, ARM_FEATURE_V7))
+                return 0;
+
+            switch (op2) {
+            case 0:
+                return env->cp15.c0_ccsid[env->cp15.c0_cssel];
+            case 1:
+                return env->cp15.c0_clid;
+            case 7:
+                return 0;
+            }
+            goto bad_reg;
+        case 2:
+            if (op2 != 0 || crm != 0)
                 goto bad_reg;
-            return 0;
+            return env->cp15.c0_cssel;
         default:
             goto bad_reg;
         }
