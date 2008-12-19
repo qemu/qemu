@@ -4,3 +4,4 @@
 0004_no-stack-protector.patch
 0005_hpet.patch
 0006_acpi-packing.patch
+0007_separate-build-dir.patch
