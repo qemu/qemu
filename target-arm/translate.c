@@ -3001,6 +3001,10 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 case 21:
                 case 22:
                 case 23:
+                case 28:
+                case 29:
+                case 30:
+                case 31:
                     /* Source and destination the same.  */
                     gen_mov_F0_vreg(dp, rd);
                     break;
@@ -3120,22 +3124,22 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     case 20: /* fshto */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_shto(dp, rm);
+                        gen_vfp_shto(dp, 16 - rm);
                         break;
                     case 21: /* fslto */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_slto(dp, rm);
+                        gen_vfp_slto(dp, 32 - rm);
                         break;
                     case 22: /* fuhto */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_uhto(dp, rm);
+                        gen_vfp_uhto(dp, 16 - rm);
                         break;
                     case 23: /* fulto */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_ulto(dp, rm);
+                        gen_vfp_ulto(dp, 32 - rm);
                         break;
                     case 24: /* ftoui */
                         gen_vfp_toui(dp);
@@ -3152,22 +3156,22 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     case 28: /* ftosh */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_tosh(dp, rm);
+                        gen_vfp_tosh(dp, 16 - rm);
                         break;
                     case 29: /* ftosl */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_tosl(dp, rm);
+                        gen_vfp_tosl(dp, 32 - rm);
                         break;
                     case 30: /* ftouh */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_touh(dp, rm);
+                        gen_vfp_touh(dp, 16 - rm);
                         break;
                     case 31: /* ftoul */
                         if (!arm_feature(env, ARM_FEATURE_VFP3))
                           return 1;
-                        gen_vfp_toul(dp, rm);
+                        gen_vfp_toul(dp, 32 - rm);
                         break;
                     default: /* undefined */
                         printf ("rn:%d\n", rn);

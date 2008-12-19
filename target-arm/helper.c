@@ -2522,7 +2522,7 @@ ftype VFP_HELPER(name##to, p)(ftype x, uint32_t shift, CPUState *env) \
     ftype tmp; \
     tmp = sign##int32_to_##ftype ((itype)vfp_##p##toi(x), \
                                   &env->vfp.fp_status); \
-    return ftype##_scalbn(tmp, shift, &env->vfp.fp_status); \
+    return ftype##_scalbn(tmp, -(int)shift, &env->vfp.fp_status); \
 } \
 ftype VFP_HELPER(to##name, p)(ftype x, uint32_t shift, CPUState *env) \
 { \
