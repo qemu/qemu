@@ -190,10 +190,15 @@ typedef struct float_status {
 #ifdef FLOATX80
     signed char floatx80_rounding_precision;
 #endif
+    flag default_nan_mode;
 } float_status;
 
 void set_float_rounding_mode(int val STATUS_PARAM);
 void set_float_exception_flags(int val STATUS_PARAM);
+INLINE void set_default_nan_mode(flag val STATUS_PARAM)
+{
+    STATUS(default_nan_mode) = val;
+}
 INLINE int get_float_exception_flags(float_status *status)
 {
     return STATUS(float_exception_flags);
