@@ -42,6 +42,7 @@ extern QEMUMachine core99_machine;
 extern QEMUMachine heathrow_machine;
 extern QEMUMachine ref405ep_machine;
 extern QEMUMachine taihu_machine;
+extern QEMUMachine bamboo_machine;
 
 /* mips_r4k.c */
 extern QEMUMachine mips_machine;

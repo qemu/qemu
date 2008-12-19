@@ -64,6 +64,9 @@ int pit_get_initial_count(PITState *pit, int channel);
 int pit_get_mode(PITState *pit, int channel);
 int pit_get_out(PITState *pit, int channel, int64_t current_time);
 
+void hpet_pit_disable(void);
+void hpet_pit_enable(void);
+
 /* vmport.c */
 void vmport_init(void);
 void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque);
@@ -86,6 +89,7 @@ RTCState *rtc_init(int base, qemu_irq irq);
 RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq);
 void rtc_set_memory(RTCState *s, int addr, int val);
 void rtc_set_date(RTCState *s, const struct tm *tm);
+void cmos_set_s3_resume(void);
 
 /* pc.c */
 extern int fd_bootchk;
@@ -99,6 +103,9 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                        qemu_irq sci_irq);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 void acpi_bios_init(void);
+
+/* hpet.c */
+extern int no_hpet;
 
 /* pcspk.c */
 void pcspk_init(PITState *);

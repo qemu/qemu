@@ -25,6 +25,7 @@
 #include "pci.h"
 #include "console.h"
 #include "net.h"
+#include "virtio-net.h"
 
 //#define DEBUG_PCI
 
@@ -382,6 +383,7 @@ void pci_default_write_config(PCIDevice *d,
             case 0x0b:
             case 0x0e:
             case 0x10 ... 0x27: /* base */
+            case 0x2c ... 0x2f: /* read-only subsystem ID & vendor ID */
             case 0x30 ... 0x33: /* rom */
             case 0x3d:
                 can_write = 0;
@@ -403,6 +405,7 @@ void pci_default_write_config(PCIDevice *d,
             case 0x0a:
             case 0x0b:
             case 0x0e:
+            case 0x2c ... 0x2f: /* read-only subsystem ID & vendor ID */
             case 0x38 ... 0x3b: /* rom */
             case 0x3d:
                 can_write = 0;
@@ -414,6 +417,18 @@ void pci_default_write_config(PCIDevice *d,
             break;
         }
         if (can_write) {
+            /* Mask out writes to reserved bits in registers */
+            switch (addr) {
+	    case 0x05:
+                val &= ~PCI_COMMAND_RESERVED_MASK_HI;
+                break;
+            case 0x06:
+                val &= ~PCI_STATUS_RESERVED_MASK_LO;
+                break;
+            case 0x07:
+                val &= ~PCI_STATUS_RESERVED_MASK_HI;
+                break;
+            }
             d->config[addr] = val;
         }
         if (++addr > 0xff)
@@ -668,10 +683,12 @@ void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
         pci_pcnet_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "tnetw1130") == 0) {
         pci_tnetw1130_init(bus, nd, devfn);
+    } else if (strcmp(nd->model, "virtio") == 0) {
+        virtio_net_init(bus, nd, devfn);
     } else if (strcmp(nd->model, "?") == 0) {
         fprintf(stderr, "qemu: Supported PCI NICs: dp83816 e100 e1000"
                         " i82551 i82557a i82557b i82557c i82558b i82559c i82559er"
-                        " ne2k_pci pcnet rtl8139 tnetw1130\n");
+                        " ne2k_pci pcnet rtl8139 tnetw1130 virtio\n");
         exit (1);
     } else {
         fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);

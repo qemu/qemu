@@ -1,0 +1,30 @@
+
+PCI IDs for qemu
+================
+
+Red Hat, Inc. donates a part of its device ID range to qemu, to be used for
+virtual devices.  The vendor ID is 1af4 (formerly Qumranet ID).
+
+The 1000 -> 10ff device ID range is used for VirtIO devices.
+
+The 1100 device ID is used as PCI Subsystem ID for existing hardware
+devices emulated by qemu.
+
+All other device IDs are reserved.
+
+
+VirtIO Device IDs
+-----------------
+
+1af4:1000  network device
+1af4:1001  block device
+1af4:1002  balloon device
+
+1af4:1003  Reserved.
+   to      Contact Gerd Hoffmann <kraxel@redhat.com> to get a
+1af4:10ef  device ID assigned for your new virtio device.
+
+1af4:10f0  Available for experimental usage without registration.  Must get
+   to      official ID when the code leaves the test lab (i.e. when seeking
+1af4:10ff  upstream merge or shipping a distro/product) to avoid conflicts.
+

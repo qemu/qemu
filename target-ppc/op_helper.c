@@ -563,18 +563,6 @@ static always_inline int isden (float64 d)
     return ((u.ll >> 52) & 0x7FF) == 0;
 }
 
-#ifdef CONFIG_SOFTFLOAT
-static always_inline int isnormal (float64 d)
-{
-    CPU_DoubleU u;
-
-    u.d = d;
-
-    uint32_t exp = (u.ll >> 52) & 0x7FF;
-    return ((0 < exp) && (exp < 0x7FF));
-}
-#endif
-
 uint32_t helper_compute_fprf (uint64_t arg, uint32_t set_fprf)
 {
     CPU_DoubleU farg;
@@ -709,7 +697,7 @@ static always_inline uint64_t fload_invalid_op_excp (int op)
     return ret;
 }
 
-static always_inline uint64_t float_zero_divide_excp (uint64_t arg1, uint64_t arg2)
+static always_inline void float_zero_divide_excp (void)
 {
     env->fpscr |= 1 << FPSCR_ZX;
     env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
@@ -722,12 +710,7 @@ static always_inline uint64_t float_zero_divide_excp (uint64_t arg1, uint64_t ar
             helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                        POWERPC_EXCP_FP | POWERPC_EXCP_FP_ZX);
         }
-    } else {
-        /* Set the result to infinity */
-        arg1 = ((arg1 ^ arg2) & 0x8000000000000000ULL);
-        arg1 |= 0x7FFULL << 52;
     }
-    return arg1;
 }
 
 static always_inline void float_overflow_excp (void)
@@ -981,7 +964,9 @@ void helper_float_check_status (void)
             helper_raise_exception_err(env->exception_index, env->error_code);
     } else {
         int status = get_float_exception_flags(&env->fp_status);
-        if (status & float_flag_overflow) {
+        if (status & float_flag_divbyzero) {
+            float_zero_divide_excp();
+        } else if (status & float_flag_overflow) {
             float_overflow_excp();
         } else if (status & float_flag_underflow) {
             float_underflow_excp();
@@ -1098,14 +1083,9 @@ uint64_t helper_fdiv (uint64_t arg1, uint64_t arg2)
     } else if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d))) {
         /* Division of infinity by infinity */
         farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIDI);
-    } else if (unlikely(!float64_is_nan(farg1.d) && float64_is_zero(farg2.d))) {
-        if (float64_is_zero(farg1.d)) {
-            /* Division of zero by zero */
-            farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXZDZ);
-        } else {
-            /* Division by zero */
-            farg1.ll = float_zero_divide_excp(farg1.d, farg2.d);
-        }
+    } else if (unlikely(float64_is_zero(farg1.d) && float64_is_zero(farg2.d))) {
+        /* Division of zero by zero */
+        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXZDZ);
     } else {
         farg1.d = float64_div(farg1.d, farg2.d, &env->fp_status);
     }
@@ -1519,29 +1499,14 @@ uint64_t helper_fsqrt (uint64_t arg)
 uint64_t helper_fre (uint64_t arg)
 {
     CPU_DoubleU fone, farg;
-    fone.ll = 0x3FF0000000000000ULL;
+    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely(float64_is_zero(farg.d))) {
-        /* Zero reciprocal */
-        farg.ll = float_zero_divide_excp(fone.d, farg.d);
-    } else if (likely(isnormal(farg.d))) {
-        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
     } else {
-        if (farg.ll == 0x8000000000000000ULL) {
-            farg.ll = 0xFFF0000000000000ULL;
-        } else if (farg.ll == 0x0000000000000000ULL) {
-            farg.ll = 0x7FF0000000000000ULL;
-        } else if (float64_is_nan(farg.d)) {
-            farg.ll = 0x7FF8000000000000ULL;
-        } else if (float64_is_neg(farg.d)) {
-            farg.ll = 0x8000000000000000ULL;
-        } else {
-            farg.ll = 0x0000000000000000ULL;
-        }
+        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
     }
     return farg.d;
 }
@@ -1550,34 +1515,17 @@ uint64_t helper_fre (uint64_t arg)
 uint64_t helper_fres (uint64_t arg)
 {
     CPU_DoubleU fone, farg;
-    fone.ll = 0x3FF0000000000000ULL;
+    float32 f32;
+    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
-    } else if (unlikely(float64_is_zero(farg.d))) {
-        /* Zero reciprocal */
-        farg.ll = float_zero_divide_excp(fone.d, farg.d);
-    } else if (likely(isnormal(farg.d))) {
-#if USE_PRECISE_EMULATION
-        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
-        farg.d = float64_to_float32(farg.d, &env->fp_status);
-#else
-        farg.d = float32_div(fone.d, farg.d, &env->fp_status);
-#endif
     } else {
-        if (farg.ll == 0x8000000000000000ULL) {
-            farg.ll = 0xFFF0000000000000ULL;
-        } else if (farg.ll == 0x0000000000000000ULL) {
-            farg.ll = 0x7FF0000000000000ULL;
-        } else if (float64_is_nan(farg.d)) {
-            farg.ll = 0x7FF8000000000000ULL;
-        } else if (float64_is_neg(farg.d)) {
-            farg.ll = 0x8000000000000000ULL;
-        } else {
-            farg.ll = 0x0000000000000000ULL;
-        }
+        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
+        f32 = float64_to_float32(farg.d, &env->fp_status);
+        farg.d = float32_to_float64(f32, &env->fp_status);
     }
     return farg.ll;
 }
@@ -1586,7 +1534,8 @@ uint64_t helper_fres (uint64_t arg)
 uint64_t helper_frsqrte (uint64_t arg)
 {
     CPU_DoubleU fone, farg;
-    fone.ll = 0x3FF0000000000000ULL;
+    float32 f32;
+    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
@@ -1595,21 +1544,11 @@ uint64_t helper_frsqrte (uint64_t arg)
     } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Reciprocal square root of a negative nonzero number */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSQRT);
-    } else if (likely(isnormal(farg.d))) {
-        farg.d = float64_sqrt(farg.d, &env->fp_status);
-        farg.d = float32_div(fone.d, farg.d, &env->fp_status);
     } else {
-        if (farg.ll == 0x8000000000000000ULL) {
-            farg.ll = 0xFFF0000000000000ULL;
-        } else if (farg.ll == 0x0000000000000000ULL) {
-            farg.ll = 0x7FF0000000000000ULL;
-        } else if (float64_is_nan(farg.d)) {
-            farg.ll |= 0x000FFFFFFFFFFFFFULL;
-        } else if (float64_is_neg(farg.d)) {
-            farg.ll = 0x7FF8000000000000ULL;
-        } else {
-            farg.ll = 0x0000000000000000ULL;
-        }
+        farg.d = float64_sqrt(farg.d, &env->fp_status);
+        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
+        f32 = float64_to_float32(farg.d, &env->fp_status);
+        farg.d = float32_to_float64(f32, &env->fp_status);
     }
     return farg.ll;
 }

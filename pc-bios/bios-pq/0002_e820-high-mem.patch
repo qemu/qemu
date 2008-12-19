@@ -1,17 +1,16 @@
---- bochs-2.3.7.orig/bios/rombios.h
-+++ bochs-2.3.7/bios/rombios.h
-@@ -19,7 +19,7 @@
- //  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
- 
- /* define it to include QEMU specific code */
--//#define BX_QEMU
-+#define BX_QEMU
- 
- #ifndef LEGACY
- #  define BX_ROMBIOS32     1
---- bochs-2.3.7.orig/bios/rombios.c
-+++ bochs-2.3.7/bios/rombios.c
-@@ -4404,22 +4404,25 @@
+From: Izik Eidus <izike@qumranet.com>
+
+add support to memory above the pci hole
+    
+the new memory region is mapped after address 0x100000000,
+the bios take the size of the memory after the 0x100000000 from
+three new cmos bytes.
+
+diff --git a/bios/rombios.c b/bios/rombios.c
+index 1be0816..b70f249 100644
+--- a/bios/rombios.c
++++ b/bios/rombios.c
+@@ -4442,22 +4442,25 @@ BX_DEBUG_INT15("case default:\n");
  #endif // BX_USE_PS2_MOUSE
  
  
@@ -40,7 +39,7 @@
      write_word(ES, DI+14, 0x0000);
  
      write_word(ES, DI+16, type);
-@@ -4432,7 +4435,9 @@
+@@ -4470,7 +4473,9 @@ int15_function32(regs, ES, DS, FLAGS)
    Bit16u ES, DS, FLAGS;
  {
    Bit32u  extended_memory_size=0; // 64bits long
@@ -50,7 +49,7 @@
  
  BX_DEBUG_INT15("int15 AX=%04x\n",regs.u.r16.ax);
  
-@@ -4506,11 +4511,18 @@
+@@ -4544,11 +4549,18 @@ ASM_END
                      extended_memory_size += (1L * 1024 * 1024);
                  }
  
@@ -65,21 +64,21 @@
                  {
                      case 0:
                          set_e820_range(ES, regs.u.r16.di,
--                                       0x0000000L, 0x0009fc00L, 1);
-+                                       0x0000000L, 0x0009fc00L, 0, 0, 1);
+-                                       0x0000000L, 0x0009f000L, 1);
++                                       0x0000000L, 0x0009f000L, 0, 0, 1);
                          regs.u.r32.ebx = 1;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4519,7 +4531,7 @@
+@@ -4557,7 +4569,7 @@ ASM_END
                          break;
                      case 1:
                          set_e820_range(ES, regs.u.r16.di,
--                                       0x0009fc00L, 0x000a0000L, 2);
-+                                       0x0009fc00L, 0x000a0000L, 0, 0, 2);
+-                                       0x0009f000L, 0x000a0000L, 2);
++                                       0x0009f000L, 0x000a0000L, 0, 0, 2);
                          regs.u.r32.ebx = 2;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4528,7 +4540,7 @@
+@@ -4566,7 +4578,7 @@ ASM_END
                          break;
                      case 2:
                          set_e820_range(ES, regs.u.r16.di,
@@ -88,7 +87,7 @@
                          regs.u.r32.ebx = 3;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4539,7 +4551,7 @@
+@@ -4577,7 +4589,7 @@ ASM_END
  #if BX_ROMBIOS32
                          set_e820_range(ES, regs.u.r16.di,
                                         0x00100000L,
@@ -97,7 +96,7 @@
                          regs.u.r32.ebx = 4;
  #else
                          set_e820_range(ES, regs.u.r16.di,
-@@ -4555,7 +4567,7 @@
+@@ -4593,7 +4605,7 @@ ASM_END
                      case 4:
                          set_e820_range(ES, regs.u.r16.di,
                                         extended_memory_size - ACPI_DATA_SIZE,
@@ -106,7 +105,7 @@
                          regs.u.r32.ebx = 5;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
-@@ -4565,7 +4577,20 @@
+@@ -4603,7 +4615,20 @@ ASM_END
                      case 5:
                          /* 256KB BIOS area at the end of 4 GB */
                          set_e820_range(ES, regs.u.r16.di,
@@ -128,18 +127,3 @@
                          regs.u.r32.ebx = 0;
                          regs.u.r32.eax = 0x534D4150;
                          regs.u.r32.ecx = 0x14;
---- bochs-2.3.7.orig/bios/rombios32.c
-+++ bochs-2.3.7/bios/rombios32.c
-@@ -479,7 +479,12 @@
-         sipi_vector = AP_BOOT_ADDR >> 12;
-         writel(APIC_BASE + APIC_ICR_LOW, 0x000C4600 | sipi_vector);
- 
-+#ifndef BX_QEMU
-         delay_ms(10);
-+#else
-+	while (cmos_readb(0x5f) + 1 != readw((void *)CPU_COUNT_ADDR))
-+		;
-+#endif
- 
-         smp_cpus = readw((void *)CPU_COUNT_ADDR);
-     }
