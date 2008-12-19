@@ -88,6 +88,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
         set_feature(env, ARM_FEATURE_NEON);
+        set_feature(env, ARM_FEATURE_THUMB2EE);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410330c0;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11110222;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00011100;
@@ -110,6 +111,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
         set_feature(env, ARM_FEATURE_NEON);
+        set_feature(env, ARM_FEATURE_THUMB2EE);
         set_feature(env, ARM_FEATURE_DIV);
         break;
     case ARM_CPUID_TI915T:
@@ -2594,4 +2596,13 @@ uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUState *env)
     tmp = helper_rsqrte_f32(tmp, env);
     tmp = float32_scalbn(tmp, 31, s);
     return float32_to_int32(tmp, s);
+}
+
+void HELPER(set_teecr)(CPUState *env, uint32_t val)
+{
+    val &= 1;
+    if (env->teecr != val) {
+        env->teecr = val;
+        tb_flush(env);
+    }
 }

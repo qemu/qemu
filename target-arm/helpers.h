@@ -453,4 +453,6 @@ DEF_HELPER_3(iwmmxt_muladdsl, i64, i64, i32, i32)
 DEF_HELPER_3(iwmmxt_muladdsw, i64, i64, i32, i32)
 DEF_HELPER_3(iwmmxt_muladdswl, i64, i64, i32, i32)
 
+DEF_HELPER_2(set_teecr, void, env, i32)
+
 #include "def-helper.h"
