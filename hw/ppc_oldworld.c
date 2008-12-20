@@ -132,7 +132,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* init CPUs */
     if (cpu_model == NULL)
-        cpu_model = "default";
+        cpu_model = "G3";
     for (i = 0; i < smp_cpus; i++) {
         env = cpu_init(cpu_model);
         if (!env) {
