@@ -34,6 +34,7 @@
 #include "boards.h"
 
 #define MAX_IDE_BUS 2
+#define VGA_BIOS_SIZE 65536
 
 /* temporary frame buffer OSI calls for the video.x driver. The right
    solution is to modify the driver to use VGA PCI I/Os */
@@ -116,7 +117,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     nvram_t nvram;
     m48t59_t *m48t59;
     int linux_boot, i;
-    unsigned long bios_offset, vga_bios_offset;
+    ram_addr_t ram_offset, vga_ram_offset, bios_offset, vga_bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
@@ -154,10 +155,14 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(ram_size);
+    cpu_register_physical_memory(0, ram_size, ram_offset);
+
+    /* allocate VGA RAM */
+    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
 
     /* allocate and load BIOS */
-    bios_offset = ram_size + vga_ram_size;
+    bios_offset = qemu_ram_alloc(BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
@@ -166,7 +171,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
         cpu_abort(env, "qemu: could not load PowerPC bios '%s'\n", buf);
         exit(1);
     }
-    bios_size = (bios_size + 0xfff) & ~0xfff;
     if (bios_size > 0x00080000) {
         /* As the NVRAM is located at 0xFFF04000, we cannot use 1 MB BIOSes */
         cpu_abort(env, "G3BW Mac hardware can not handle 1 MB BIOS\n");
@@ -175,7 +179,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
                                  bios_size, bios_offset | IO_MEM_ROM);
 
     /* allocate and load VGA BIOS */
-    vga_bios_offset = bios_offset + bios_size;
+    vga_bios_offset = qemu_ram_alloc(VGA_BIOS_SIZE);
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
     vga_bios_size = load_image(buf, phys_ram_base + vga_bios_offset + 8);
     if (vga_bios_size < 0) {
@@ -193,7 +197,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
                      vga_bios_size);
         vga_bios_size += 8;
     }
-    vga_bios_size = (vga_bios_size + 0xfff) & ~0xfff;
 
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
@@ -278,8 +281,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     }
     pic = heathrow_pic_init(&pic_mem_index, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic);
-    pci_vga_init(pci_bus, ds, phys_ram_base + ram_size,
-                 ram_size, vga_ram_size,
+    pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_offset,
+                 vga_ram_offset, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
 
     /* XXX: suppress that */
@@ -369,6 +372,6 @@ QEMUMachine heathrow_machine = {
     .name = "g3bw",
     .desc = "Heathrow based PowerMAC",
     .init = ppc_heathrow_init,
-    .ram_require = BIOS_SIZE + VGA_RAM_SIZE,
+    .ram_require = BIOS_SIZE + VGA_BIOS_SIZE + VGA_RAM_SIZE,
     .max_cpus = MAX_CPUS,
 };
