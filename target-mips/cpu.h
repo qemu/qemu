@@ -561,8 +561,25 @@ enum {
 
 int cpu_mips_exec(CPUMIPSState *s);
 CPUMIPSState *cpu_mips_init(const char *cpu_model);
-uint32_t cpu_mips_get_clock (void);
+//~ uint32_t cpu_mips_get_clock (void);
 int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
+
+/* mips_timer.c */
+uint32_t cpu_mips_get_random (CPUState *env);
+uint32_t cpu_mips_get_count (CPUState *env);
+void cpu_mips_store_count (CPUState *env, uint32_t value);
+void cpu_mips_store_compare (CPUState *env, uint32_t value);
+void cpu_mips_start_count(CPUState *env);
+void cpu_mips_stop_count(CPUState *env);
+
+/* mips_int.c */
+void cpu_mips_update_irq (CPUState *env);
+
+/* helper.c */
+int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+                               int mmu_idx, int is_softmmu);
+void do_interrupt (CPUState *env);
+void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra);
 
 static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
 {

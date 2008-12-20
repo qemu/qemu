@@ -3272,7 +3272,7 @@ choose_arch_by_number (unsigned long mach)
   return c;
 }
 
-void
+static void
 set_default_mips_dis_options (struct disassemble_info *info)
 {
   const struct mips_arch_choice *chosen_arch;
@@ -3321,7 +3321,7 @@ set_default_mips_dis_options (struct disassemble_info *info)
 #endif
 }
 
-void
+static void
 parse_mips_dis_option (const char *option, unsigned int len)
 {
   unsigned int i, optionlen, vallen;
@@ -4809,7 +4809,6 @@ print_mips16_insn_arg (char type,
       abort ();
     }
 }
-#endif
 
 void
 print_mips_disassembler_options (FILE *stream)
@@ -4863,3 +4862,4 @@ with the -M switch (multiple options should be separated by commas):\n"));
 
   fprintf (stream, _("\n"));
 }
+#endif

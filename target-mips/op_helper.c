@@ -54,7 +54,8 @@ void do_interrupt_restart (void)
     }
 }
 
-void do_restore_state (void *pc_ptr)
+#if !defined(CONFIG_USER_ONLY)
+static void do_restore_state (void *pc_ptr)
 {
     TranslationBlock *tb;
     unsigned long pc = (unsigned long) pc_ptr;
@@ -64,6 +65,7 @@ void do_restore_state (void *pc_ptr)
         cpu_restore_state (tb, env, pc, NULL);
     }
 }
+#endif
 
 target_ulong do_clo (target_ulong t0)
 {
@@ -1356,7 +1358,6 @@ void do_mtc0_status_irqraise_debug(void)
 {
     fprintf(logfile, "Raise pending IRQs\n");
 }
-#endif /* !CONFIG_USER_ONLY */
 
 /* MIPS MT functions */
 target_ulong do_mftgpr(uint32_t sel)
@@ -1495,6 +1496,7 @@ target_ulong do_evpe(target_ulong t0)
 
     return t0;
 }
+#endif /* !CONFIG_USER_ONLY */
 
 void do_fork(target_ulong t0, target_ulong t1)
 {
