@@ -78,6 +78,19 @@ do { printf("IOMMU: " fmt , ##args); } while (0)
 
 #define IOMMU_AFAR          (0x1004 >> 2)
 
+#define IOMMU_AER           (0x1008 >> 2) /* Arbiter Enable Register */
+#define IOMMU_AER_EN_P0_ARB 0x00000001    /* MBus master 0x8 (Always 1) */
+#define IOMMU_AER_EN_P1_ARB 0x00000002    /* MBus master 0x9 */
+#define IOMMU_AER_EN_P2_ARB 0x00000004    /* MBus master 0xa */
+#define IOMMU_AER_EN_P3_ARB 0x00000008    /* MBus master 0xb */
+#define IOMMU_AER_EN_0      0x00010000    /* SBus slot 0 */
+#define IOMMU_AER_EN_1      0x00020000    /* SBus slot 1 */
+#define IOMMU_AER_EN_2      0x00040000    /* SBus slot 2 */
+#define IOMMU_AER_EN_3      0x00080000    /* SBus slot 3 */
+#define IOMMU_AER_EN_F      0x00100000    /* SBus on-board */
+#define IOMMU_AER_SBW       0x80000000    /* S-to-M asynchronous writes */
+#define IOMMU_AER_MASK      0x801f000f
+
 #define IOMMU_SBCFG0        (0x1010 >> 2) /* SBUS configration per-slot */
 #define IOMMU_SBCFG1        (0x1014 >> 2) /* SBUS configration per-slot */
 #define IOMMU_SBCFG2        (0x1018 >> 2) /* SBUS configration per-slot */
@@ -195,6 +208,9 @@ static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
     case IOMMU_AFAR:
         s->regs[saddr] = val;
         qemu_irq_lower(s->irq);
+        break;
+    case IOMMU_AER:
+        s->regs[saddr] = (val & IOMMU_AER_MASK) | IOMMU_AER_EN_P0_ARB;
         break;
     case IOMMU_AFSR:
         s->regs[saddr] = (val & IOMMU_AFSR_MASK) | IOMMU_AFSR_RESV;
@@ -344,6 +360,7 @@ static void iommu_reset(void *opaque)
     s->regs[IOMMU_CTRL] = s->version;
     s->regs[IOMMU_ARBEN] = IOMMU_MID;
     s->regs[IOMMU_AFSR] = IOMMU_AFSR_RESV;
+    s->regs[IOMMU_AER] = IOMMU_AER_EN_P0_ARB | IOMMU_AER_EN_P1_ARB;
     s->regs[IOMMU_MASK_ID] = IOMMU_TS_MASK;
     qemu_irq_lower(s->irq);
 }
