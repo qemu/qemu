@@ -1,0 +1,33 @@
+Fix bochs bios build from a separate directory
+
+Bochs keeps the BIOS-bochs-latest and BIOS-bochs-legacy binaries under revision
+control.  Since the build changes these binaries, and guilt cannot handle
+changed binaries, it makes it very difficult to work with a patch queue if
+you're building from the same tree as the source is located.
+
+Bochs has some support for building from a separate directory but it's currently
+broken.  This patch fixes that and allows for a sane work flow when developing
+BIOS changes for QEMU.
+
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+diff --git a/bios/Makefile.in b/bios/Makefile.in
+index 5c7bd4f..3d3d195 100644
+--- a/bios/Makefile.in
++++ b/bios/Makefile.in
+@@ -98,7 +98,7 @@ rombios32.bin: rombios32.out rombios.h
+ 	./biossums -pad $@
+ 
+ rombios32.out: rombios32start.o rombios32.o rombios32.ld
+-	ld -o $@ -T rombios32.ld rombios32start.o rombios32.o
++	ld -o $@ -T $(srcdir)/rombios32.ld rombios32start.o rombios32.o
+ 
+ rombios32.o: rombios32.c acpi-dsdt.hex
+ 	$(GCC32) -O2 -Wall -c -o $@ $<
+@@ -115,5 +115,4 @@ rombios32start.o: rombios32start.S
+ BIOS-bochs-latest: rombios16.bin rombios32.bin
+ 	cat rombios32.bin rombios16.bin > $@
+ 
+-biossums: biossums.c
+-	$(GCC) -o biossums biossums.c
++biossums: biossums.o

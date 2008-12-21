@@ -100,6 +100,9 @@ typedef struct CPUARMState {
     struct {
         uint32_t c0_cpuid;
         uint32_t c0_cachetype;
+        uint32_t c0_ccsid[16]; /* Cache size.  */
+        uint32_t c0_clid; /* Cache level.  */
+        uint32_t c0_cssel; /* Cache size selection.  */
         uint32_t c0_c1[8]; /* Feature registers.  */
         uint32_t c0_c2[8]; /* Instruction set registers.  */
         uint32_t c1_sys; /* System control register.  */
@@ -150,6 +153,10 @@ typedef struct CPUARMState {
         ARMWriteCPFunc *cp_write;
         void *opaque;
     } cp[15];
+
+    /* Thumb-2 EE state.  */
+    uint32_t teecr;
+    uint32_t teehbr;
 
     /* Internal CPU feature flags.  */
     uint32_t features;
@@ -329,7 +336,8 @@ enum arm_features {
     ARM_FEATURE_NEON,
     ARM_FEATURE_DIV,
     ARM_FEATURE_M, /* Microcontroller profile.  */
-    ARM_FEATURE_OMAPCP  /* OMAP specific CP15 ops handling.  */
+    ARM_FEATURE_OMAPCP, /* OMAP specific CP15 ops handling.  */
+    ARM_FEATURE_THUMB2EE
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

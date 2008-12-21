@@ -144,6 +144,9 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
     flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
     bits32 av, bv, res;
 
+    if ( STATUS(default_nan_mode) )
+        return float32_default_nan;
+
     aIsNaN = float32_is_nan( a );
     aIsSignalingNaN = float32_is_signaling_nan( a );
     bIsNaN = float32_is_nan( b );
@@ -275,6 +278,9 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
 {
     flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
     bits64 av, bv, res;
+
+    if ( STATUS(default_nan_mode) )
+        return float64_default_nan;
 
     aIsNaN = float64_is_nan( a );
     aIsSignalingNaN = float64_is_signaling_nan( a );
@@ -412,6 +418,12 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
 {
     flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
 
+    if ( STATUS(default_nan_mode) ) {
+        a.low = floatx80_default_nan_low;
+        a.high = floatx80_default_nan_high;
+        return a;
+    }
+
     aIsNaN = floatx80_is_nan( a );
     aIsSignalingNaN = floatx80_is_signaling_nan( a );
     bIsNaN = floatx80_is_nan( b );
@@ -531,6 +543,12 @@ static float128 commonNaNToFloat128( commonNaNT a )
 static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
 {
     flag aIsNaN, aIsSignalingNaN, bIsNaN, bIsSignalingNaN;
+
+    if ( STATUS(default_nan_mode) ) {
+        a.low = float128_default_nan_low;
+        a.high = float128_default_nan_high;
+        return a;
+    }
 
     aIsNaN = float128_is_nan( a );
     aIsSignalingNaN = float128_is_signaling_nan( a );

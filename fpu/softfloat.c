@@ -30,6 +30,8 @@ these four paragraphs for those parts of this code that are retained.
 
 =============================================================================*/
 
+/* FIXME: Flush-To-Zero only effects results.  Denormal inputs should also
+   be flushed to zero.  */
 #include "softfloat.h"
 
 /*----------------------------------------------------------------------------
@@ -294,6 +296,7 @@ static float32 roundAndPackFloat32( flag zSign, int16 zExp, bits32 zSig STATUS_P
             return packFloat32( zSign, 0xFF, - ( roundIncrement == 0 ));
         }
         if ( zExp < 0 ) {
+            if ( STATUS(flush_to_zero) ) return packFloat32( zSign, 0, 0 );
             isTiny =
                    ( STATUS(float_detect_tininess) == float_tininess_before_rounding )
                 || ( zExp < -1 )
@@ -457,6 +460,7 @@ static float64 roundAndPackFloat64( flag zSign, int16 zExp, bits64 zSig STATUS_P
             return packFloat64( zSign, 0x7FF, - ( roundIncrement == 0 ));
         }
         if ( zExp < 0 ) {
+            if ( STATUS(flush_to_zero) ) return packFloat64( zSign, 0, 0 );
             isTiny =
                    ( STATUS(float_detect_tininess) == float_tininess_before_rounding )
                 || ( zExp < -1 )
@@ -635,6 +639,7 @@ static floatx80
             goto overflow;
         }
         if ( zExp <= 0 ) {
+            if ( STATUS(flush_to_zero) ) return packFloatx80( zSign, 0, 0 );
             isTiny =
                    ( STATUS(float_detect_tininess) == float_tininess_before_rounding )
                 || ( zExp < 0 )
@@ -965,6 +970,7 @@ static float128
             return packFloat128( zSign, 0x7FFF, 0, 0 );
         }
         if ( zExp < 0 ) {
+            if ( STATUS(flush_to_zero) ) return packFloat128( zSign, 0, 0, 0 );
             isTiny =
                    ( STATUS(float_detect_tininess) == float_tininess_before_rounding )
                 || ( zExp < -1 )
@@ -1637,7 +1643,10 @@ static float32 addFloat32Sigs( float32 a, float32 b, flag zSign STATUS_PARAM)
             if ( aSig | bSig ) return propagateFloat32NaN( a, b STATUS_VAR );
             return a;
         }
-        if ( aExp == 0 ) return packFloat32( zSign, 0, ( aSig + bSig )>>6 );
+        if ( aExp == 0 ) {
+            if ( STATUS(flush_to_zero) ) return packFloat32( zSign, 0, 0 );
+            return packFloat32( zSign, 0, ( aSig + bSig )>>6 );
+        }
         zSig = 0x40000000 + aSig + bSig;
         zExp = aExp;
         goto roundAndPack;
@@ -2595,7 +2604,10 @@ static float64 addFloat64Sigs( float64 a, float64 b, flag zSign STATUS_PARAM )
             if ( aSig | bSig ) return propagateFloat64NaN( a, b STATUS_VAR );
             return a;
         }
-        if ( aExp == 0 ) return packFloat64( zSign, 0, ( aSig + bSig )>>9 );
+        if ( aExp == 0 ) {
+            if ( STATUS(flush_to_zero) ) return packFloat64( zSign, 0, 0 );
+            return packFloat64( zSign, 0, ( aSig + bSig )>>9 );
+        }
         zSig = LIT64( 0x4000000000000000 ) + aSig + bSig;
         zExp = aExp;
         goto roundAndPack;
@@ -4597,7 +4609,10 @@ static float128 addFloat128Sigs( float128 a, float128 b, flag zSign STATUS_PARAM
             return a;
         }
         add128( aSig0, aSig1, bSig0, bSig1, &zSig0, &zSig1 );
-        if ( aExp == 0 ) return packFloat128( zSign, 0, zSig0, zSig1 );
+        if ( aExp == 0 ) {
+            if ( STATUS(flush_to_zero) ) return packFloat128( zSign, 0, 0, 0 );
+            return packFloat128( zSign, 0, zSig0, zSig1 );
+        }
         zSig2 = 0;
         zSig0 |= LIT64( 0x0002000000000000 );
         zExp = aExp;
@@ -5479,8 +5494,14 @@ float32 float32_scalbn( float32 a, int n STATUS_PARAM )
     if ( aExp == 0xFF ) {
         return a;
     }
-    aExp += n;
-    return roundAndPackFloat32( aSign, aExp, aSig STATUS_VAR );
+    if ( aExp != 0 )
+        aSig |= 0x00800000;
+    else if ( aSig == 0 )
+        return a;
+
+    aExp += n - 1;
+    aSig <<= 7;
+    return normalizeRoundAndPackFloat32( aSign, aExp, aSig STATUS_VAR );
 }
 
 float64 float64_scalbn( float64 a, int n STATUS_PARAM )
@@ -5496,8 +5517,14 @@ float64 float64_scalbn( float64 a, int n STATUS_PARAM )
     if ( aExp == 0x7FF ) {
         return a;
     }
-    aExp += n;
-    return roundAndPackFloat64( aSign, aExp, aSig STATUS_VAR );
+    if ( aExp != 0 )
+        aSig |= LIT64( 0x0010000000000000 );
+    else if ( aSig == 0 )
+        return a;
+
+    aExp += n - 1;
+    aSig <<= 10;
+    return normalizeRoundAndPackFloat64( aSign, aExp, aSig STATUS_VAR );
 }
 
 #ifdef FLOATX80
@@ -5514,9 +5541,12 @@ floatx80 floatx80_scalbn( floatx80 a, int n STATUS_PARAM )
     if ( aExp == 0x7FF ) {
         return a;
     }
+    if (aExp == 0 && aSig == 0)
+        return a;
+
     aExp += n;
-    return roundAndPackFloatx80( STATUS(floatx80_rounding_precision),
-                                 aSign, aExp, aSig, 0 STATUS_VAR );
+    return normalizeRoundAndPackFloatx80( STATUS(floatx80_rounding_precision),
+                                          aSign, aExp, aSig, 0 STATUS_VAR );
 }
 #endif
 
@@ -5534,8 +5564,14 @@ float128 float128_scalbn( float128 a, int n STATUS_PARAM )
     if ( aExp == 0x7FFF ) {
         return a;
     }
-    aExp += n;
-    return roundAndPackFloat128( aSign, aExp, aSig0, aSig1, 0 STATUS_VAR );
+    if ( aExp != 0 )
+        aSig0 |= LIT64( 0x0001000000000000 );
+    else if ( aSig0 == 0 && aSig1 == 0 )
+        return a;
+
+    aExp += n - 1;
+    return normalizeRoundAndPackFloat128( aSign, aExp, aSig0, aSig1
+                                          STATUS_VAR );
 
 }
 #endif

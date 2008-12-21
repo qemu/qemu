@@ -4,6 +4,27 @@
   that HEAD refers to is located at
   git://git.kernel.org/pub/scm/virt/bochs/bochs.git
 
+  To build these use the following instructions:
+  using guilt:
+  $ export QEMUSRC=/path/to/qemu/svn
+  $ git clone git://git.kernel.org/pub/scm/virt/bochs/bochs.git
+  $ cd bochs
+  $ git checkout -b qemu-bios $(cat $QEMUSRC/pc-bios/bios-pq/HEAD)
+
+  $ mkdir -p .git/patches
+  $ ln -s $QEMUSRC/pc-bios/bios-pq .git/patches/qemu-bios
+  $ touch .git/patches/qemu-bios/status
+  $ guilt push -a
+  $ ./configure
+  $ cd bios
+  $ make
+  $ cp BIOS-bochs-latest $QEMUSRC/pc-bios/bios.bin
+
+  or alternatively (after the git checkout):
+  $ for p in $(cat $QEMUSRC/pc-bios/bios-pq/series); do git am $p; done
+  $ ./configure
+  $ make bios
+
 - The VGA BIOS and the Cirrus VGA BIOS come from the LGPL VGA bios
   project (http://www.nongnu.org/vgabios/).  The binary is based on the revision
   in vgabios-pq/HEAD with the patches in vgabios-pq/series applied.  The git

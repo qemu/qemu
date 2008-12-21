@@ -86,6 +86,7 @@ void cpu_resume_from_signal(CPUState *env1, void *puc)
 #endif
     }
 #endif
+    env->exception_index = -1;
     longjmp(env->jmp_env, 1);
 }
 
