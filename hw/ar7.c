@@ -775,7 +775,7 @@ static const char *i2intc(unsigned name_index)
 {
     static char buffer[32];
     const char *text = buffer;
-    if (name_index < sizeof(intc_names) / sizeof(*intc_names)) {
+    if (name_index < ARRAY_SIZE(intc_names)) {
         text = intc_names[name_index];
     } else if (name_index >= 128 && name_index < 168) {
         snprintf(buffer, sizeof(buffer),
@@ -4141,7 +4141,7 @@ static QEMUMachine mips_machines[] = {
 int qemu_register_ar7_machines(void)
 {
     size_t i;
-    for (i = 0; i < sizeof(mips_machines) / sizeof(*mips_machines); i++) {
+    for (i = 0; i < ARRAY_SIZE(mips_machines); i++) {
         qemu_register_machine(&mips_machines[i]);
     }
     return 0;

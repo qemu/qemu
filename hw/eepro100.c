@@ -1145,7 +1145,7 @@ static const char *reg2name(uint8_t reg)
 {
     static char buffer[10];
     const char *p = buffer;
-    if (reg < sizeof(mdi_reg_name) / sizeof(*mdi_reg_name)) {
+    if (reg < ARRAY_SIZE(mdi_reg_name)) {
         p = mdi_reg_name[reg];
     } else {
         sprintf(buffer, "reg=0x%02x", reg);
@@ -2037,7 +2037,7 @@ static const key_value_t devicetable[] = {
 void pci_eepro100_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
   size_t i;
-  for (i = 0; i < sizeof(devicetable) / sizeof(*devicetable); i++) {
+  for (i = 0; i < ARRAY_SIZE(devicetable); i++) {
     if (strcmp(devicetable[i].name, nd->model) == 0) {
       nic_init(bus, nd, devicetable[i].value);
       break;
