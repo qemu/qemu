@@ -140,9 +140,9 @@ enum {
 #endif
 
 typedef struct float_status {
-    signed char float_rounding_mode;
+    int float_rounding_mode;
 #ifdef FLOATX80
-    signed char floatx80_rounding_precision;
+    int floatx80_rounding_precision;
 #endif
 } float_status;
 

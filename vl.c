@@ -1048,7 +1048,7 @@ static void configure_alarms(char const *opt)
 {
     int i;
     int cur = 0;
-    int count = (sizeof(alarm_timers) / sizeof(*alarm_timers)) - 1;
+    int count = ARRAY_SIZE(alarm_timers) - 1;
     char *arg;
     char *name;
     struct qemu_alarm_timer tmp;

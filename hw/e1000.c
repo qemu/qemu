@@ -763,7 +763,7 @@ static uint32_t (*macreg_readops[])(E1000State *, int) = {
     [MTA ... MTA+127] = &mac_readreg,
     [VFTA ... VFTA+127] = &mac_readreg,
 };
-enum { NREADOPS = sizeof(macreg_readops) / sizeof(*macreg_readops) };
+enum { NREADOPS = ARRAY_SIZE(macreg_readops) };
 
 #define putreg(x)	[x] = mac_writereg
 static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
@@ -779,7 +779,7 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
     [MTA ... MTA+127] = &mac_writereg,
     [VFTA ... VFTA+127] = &mac_writereg,
 };
-enum { NWRITEOPS = sizeof(macreg_writeops) / sizeof(*macreg_writeops) };
+enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
 
 static void
 e1000_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -854,13 +854,13 @@ static const int mac_regtosave[] = {
     TDT,	TORH,	TORL,	TOTH,	TOTL,	TPR,	TPT,	TXDCTL,	WUFC,
     VET,
 };
-enum { MAC_NSAVE = sizeof mac_regtosave/sizeof *mac_regtosave };
+enum { MAC_NSAVE = ARRAY_SIZE(mac_regtosave) };
 
 static const struct {
     int size;
     int array0;
 } mac_regarraystosave[] = { {32, RA}, {128, MTA}, {128, VFTA} };
-enum { MAC_NARRAYS = sizeof mac_regarraystosave/sizeof *mac_regarraystosave };
+enum { MAC_NARRAYS = ARRAY_SIZE(mac_regarraystosave) };
 
 static void
 nic_save(QEMUFile *f, void *opaque)

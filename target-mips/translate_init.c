@@ -421,7 +421,7 @@ static const mips_def_t *cpu_mips_find_by_name (const char *name)
 {
     int i;
 
-    for (i = 0; i < sizeof(mips_defs) / sizeof(mips_defs[0]); i++) {
+    for (i = 0; i < ARRAY_SIZE(mips_defs); i++) {
         if (strcasecmp(name, mips_defs[i].name) == 0) {
             return &mips_defs[i];
         }
@@ -433,7 +433,7 @@ void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
     int i;
 
-    for (i = 0; i < sizeof(mips_defs) / sizeof(mips_defs[0]); i++) {
+    for (i = 0; i < ARRAY_SIZE(mips_defs); i++) {
         (*cpu_fprintf)(f, "MIPS '%s'\n",
                        mips_defs[i].name);
     }

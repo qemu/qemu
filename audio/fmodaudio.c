@@ -564,7 +564,7 @@ static void *fmod_audio_init (void)
 
     if (drv) {
         int found = 0;
-        for (i = 0; i < sizeof (drvtab) / sizeof (drvtab[0]); i++) {
+        for (i = 0; i < ARRAY_SIZE (drvtab); i++) {
             if (!strcmp (drv, drvtab[i].name)) {
                 output_type = drvtab[i].type;
                 found = 1;
@@ -574,7 +574,7 @@ static void *fmod_audio_init (void)
         if (!found) {
             dolog ("Unknown FMOD driver `%s'\n", drv);
             dolog ("Valid drivers:\n");
-            for (i = 0; i < sizeof (drvtab) / sizeof (drvtab[0]); i++) {
+            for (i = 0; i < ARRAY_SIZE (drvtab); i++) {
                 dolog ("  %s\n", drvtab[i].name);
             }
         }

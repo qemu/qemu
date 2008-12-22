@@ -9455,7 +9455,7 @@ static const ppc_def_t *ppc_find_by_pvr (uint32_t pvr)
     int i, best, match, best_match, max;
 
     ret = NULL;
-    max = sizeof(ppc_defs) / sizeof(ppc_def_t);
+    max = ARRAY_SIZE(ppc_defs);
     best = -1;
     pvr_rev = pvr & 0xFFFF;
     /* We want all specified bits to match */
@@ -9510,7 +9510,7 @@ const ppc_def_t *cpu_ppc_find_by_name (const char *name)
             return ppc_find_by_pvr(strtoul(name, NULL, 16));
     }
     ret = NULL;
-    max = sizeof(ppc_defs) / sizeof(ppc_def_t);
+    max = ARRAY_SIZE(ppc_defs);
     for (i = 0; i < max; i++) {
         if (strcasecmp(name, ppc_defs[i].name) == 0) {
             ret = &ppc_defs[i];
@@ -9525,7 +9525,7 @@ void ppc_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
     int i, max;
 
-    max = sizeof(ppc_defs) / sizeof(ppc_def_t);
+    max = ARRAY_SIZE(ppc_defs);
     for (i = 0; i < max; i++) {
         (*cpu_fprintf)(f, "PowerPC %-16s PVR %08x\n",
                        ppc_defs[i].name, ppc_defs[i].pvr);

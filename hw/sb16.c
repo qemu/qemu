@@ -27,8 +27,6 @@
 #include "isa.h"
 #include "qemu-timer.h"
 
-#define LENOFA(a) ((int) (sizeof(a)/sizeof(a[0])))
-
 #define dolog(...) AUD_log ("sb16", __VA_ARGS__)
 
 /* #define DEBUG */
@@ -1440,11 +1438,11 @@ int SB16_init (AudioState *audio, qemu_irq *pic)
         dolog ("warning: Could not create auxiliary timer\n");
     }
 
-    for (i = 0; i < LENOFA (dsp_write_ports); i++) {
+    for (i = 0; i < ARRAY_SIZE (dsp_write_ports); i++) {
         register_ioport_write (s->port + dsp_write_ports[i], 1, 1, dsp_write, s);
     }
 
-    for (i = 0; i < LENOFA (dsp_read_ports); i++) {
+    for (i = 0; i < ARRAY_SIZE (dsp_read_ports); i++) {
         register_ioport_read (s->port + dsp_read_ports[i], 1, 1, dsp_read, s);
     }
 

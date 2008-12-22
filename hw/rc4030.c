@@ -269,7 +269,7 @@ static void rc4030_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
             static int current = 0;
             target_phys_addr_t dest = 0 + dests[current];
             uint8_t buf;
-            current = (current + 1) % (sizeof(dests)/sizeof(dests[0]));
+            current = (current + 1) % (ARRAY_SIZE(dests));
             buf = s->cache_bwin - 1;
             cpu_physical_memory_rw(dest, &buf, 1, 1);
         }
@@ -403,7 +403,7 @@ static void update_jazz_irq(rc4030State *s)
     if (s->isr_jazz != 0) {
         uint32_t irq = 0;
         printf("jazz pending:");
-        for (irq = 0; irq < sizeof(irq_names)/sizeof(irq_names[0]); irq++) {
+        for (irq = 0; irq < ARRAY_SIZE(irq_names); irq++) {
             if (s->isr_jazz & (1 << irq)) {
                 printf(" %s", irq_names[irq]);
                 if (!(s->imr_jazz & (1 << irq))) {

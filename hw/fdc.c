@@ -1851,7 +1851,7 @@ static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
     int i, j;
 
     /* Fill 'command_to_handler' lookup table */
-    for (i = sizeof(handlers)/sizeof(handlers[0]) - 1; i >= 0; i--) {
+    for (i = ARRAY_SIZE(handlers) - 1; i >= 0; i--) {
         for (j = 0; j < sizeof(command_to_handler); j++) {
             if ((j & handlers[i].mask) == handlers[i].value)
                 command_to_handler[j] = i;

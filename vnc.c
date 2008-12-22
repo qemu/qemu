@@ -1503,10 +1503,13 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 	if (len == 1)
 	    return 4;
 
-	if (len == 4)
-	    return 4 + (read_u16(data, 2) * 4);
+	if (len == 4) {
+            limit = read_u16(data, 2);
+            if (limit > 0)
+                return 4 + (limit * 4);
+        } else
+            limit = read_u16(data, 2);
 
-	limit = read_u16(data, 2);
 	for (i = 0; i < limit; i++) {
 	    int32_t val = read_s32(data, 4 + (i * 4));
 	    memcpy(data + 4 + (i * 4), &val, sizeof(val));

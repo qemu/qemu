@@ -817,7 +817,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         s->guest = value;
 #ifdef VERBOSE
         if (value >= GUEST_OS_BASE && value < GUEST_OS_BASE +
-                sizeof(vmsvga_guest_id) / sizeof(*vmsvga_guest_id))
+                ARRAY_SIZE(vmsvga_guest_id))
             printf("%s: guest runs %s.\n", __FUNCTION__,
                             vmsvga_guest_id[value - GUEST_OS_BASE]);
 #endif

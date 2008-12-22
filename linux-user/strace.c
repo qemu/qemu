@@ -263,7 +263,7 @@ static const struct syscallname scnames[] = {
 #include "strace.list"
 };
 
-static int nsyscalls = sizeof(scnames)/sizeof(struct syscallname);
+static int nsyscalls = ARRAY_SIZE(scnames);
 
 /*
  * The public interface to this module.

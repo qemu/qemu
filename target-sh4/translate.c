@@ -240,7 +240,7 @@ static const sh4_def_t *cpu_sh4_find_by_name(const char *name)
     if (strcasecmp(name, "any") == 0)
 	return &sh4_defs[0];
 
-    for (i = 0; i < sizeof(sh4_defs) / sizeof(*sh4_defs); i++)
+    for (i = 0; i < ARRAY_SIZE(sh4_defs); i++)
 	if (strcasecmp(name, sh4_defs[i].name) == 0)
 	    return &sh4_defs[i];
 
@@ -251,7 +251,7 @@ void sh4_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
     int i;
 
-    for (i = 0; i < sizeof(sh4_defs) / sizeof(*sh4_defs); i++)
+    for (i = 0; i < ARRAY_SIZE(sh4_defs); i++)
 	(*cpu_fprintf)(f, "%s\n", sh4_defs[i].name);
 }
 

@@ -32,7 +32,7 @@ struct intc_prio_reg {
     unsigned long value;
 };
 
-#define _INTC_ARRAY(a) a, sizeof(a)/sizeof(*a)
+#define _INTC_ARRAY(a) a, ARRAY_SIZE(a)
 
 struct intc_source {
     unsigned short vect;

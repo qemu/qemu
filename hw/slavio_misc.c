@@ -324,8 +324,7 @@ static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
     default:
         break;
     }
-    MISC_DPRINTF("Read system control reg 0x" TARGET_FMT_plx " = %x\n", addr,
-                 ret);
+    MISC_DPRINTF("Read system control %08x\n", ret);
     return ret;
 }
 
@@ -334,8 +333,7 @@ static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Write system control reg 0x" TARGET_FMT_plx " =  %x\n", addr,
-                 val);
+    MISC_DPRINTF("Write system control %08x\n", val);
     switch (addr) {
     case 0:
         if (val & SYS_RESET) {
@@ -372,8 +370,7 @@ static uint32_t slavio_led_mem_readw(void *opaque, target_phys_addr_t addr)
     default:
         break;
     }
-    MISC_DPRINTF("Read diagnostic LED reg 0x" TARGET_FMT_plx " = %x\n", addr,
-                 ret);
+    MISC_DPRINTF("Read diagnostic LED %04x\n", ret);
     return ret;
 }
 
@@ -382,8 +379,7 @@ static void slavio_led_mem_writew(void *opaque, target_phys_addr_t addr,
 {
     MiscState *s = opaque;
 
-    MISC_DPRINTF("Write diagnostic LED reg 0x" TARGET_FMT_plx " =  %x\n", addr,
-                 val);
+    MISC_DPRINTF("Write diagnostic LED %04x\n", val & 0xffff);
     switch (addr) {
     case 0:
         s->leds = val;
