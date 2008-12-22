@@ -180,7 +180,7 @@ static int max7310_load(QEMUFile *f, void *opaque, int version_id)
 static void max7310_gpio_set(void *opaque, int line, int level)
 {
     struct max7310_s *s = (struct max7310_s *) opaque;
-    if (line >= sizeof(s->handler) / sizeof(*s->handler) || line  < 0)
+    if (line >= ARRAY_SIZE(s->handler) || line  < 0)
         hw_error("bad GPIO line");
 
     if (level)
@@ -199,7 +199,7 @@ struct i2c_slave *max7310_init(i2c_bus *bus)
     s->i2c.recv = max7310_rx;
     s->i2c.send = max7310_tx;
     s->gpio_in = qemu_allocate_irqs(max7310_gpio_set, s,
-                    sizeof(s->handler) / sizeof(*s->handler));
+                    ARRAY_SIZE(s->handler));
 
     max7310_reset(&s->i2c);
 
@@ -217,7 +217,7 @@ qemu_irq *max7310_gpio_in_get(i2c_slave *i2c)
 void max7310_gpio_out_set(i2c_slave *i2c, int line, qemu_irq handler)
 {
     struct max7310_s *s = (struct max7310_s *) i2c;
-    if (line >= sizeof(s->handler) / sizeof(*s->handler) || line  < 0)
+    if (line >= ARRAY_SIZE(s->handler) || line  < 0)
         hw_error("bad GPIO line");
 
     s->handler[line] = handler;

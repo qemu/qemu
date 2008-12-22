@@ -191,7 +191,7 @@ void commpage_init(void)
 
     /* XXX: commpage data not handled */
 
-    for(i = 0; i < sizeof(commpage_entries)/sizeof(commpage_entries[0]); i++)
+    for(i = 0; i < ARRAY_SIZE(commpage_entries); i++)
         install_commpage_backdoor_for_entry(commpage_entries[i]);
 #else
     /* simply map our pages so they can be executed
@@ -329,7 +329,7 @@ do_commpage(void *cpu_env, int num, uint32_t arg1, uint32_t arg2, uint32_t arg3,
 
     num = num-COMMPAGE_START-2;
 
-    for(i = 0; i < sizeof(commpage_entries)/sizeof(commpage_entries[0]); i++) {
+    for(i = 0; i < ARRAY_SIZE(commpage_entries); i++) {
         if( num == commpage_code_num(&commpage_entries[i]) )
         {
             DPRINTF("commpage: %s %s\n", commpage_entries[i].name, commpage_is_indirect(&commpage_entries[i]) ? "[indirect]" : "[direct]");

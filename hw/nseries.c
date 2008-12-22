@@ -432,7 +432,7 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
         cpu_abort(cpu_single_env, "%s: FIXME: bad SPI word width %i\n",
                         __FUNCTION__, len);
 
-    if (s->p >= sizeof(s->resp) / sizeof(*s->resp))
+    if (s->p >= ARRAY_SIZE(s->resp))
         ret = 0;
     else
         ret = s->resp[s->p ++];
@@ -840,7 +840,7 @@ static void n800_setup_nolo_tags(void *sram_base)
 
     /* OMAP STI console? Pin out settings? */
     ADD_TAG(0x6e01, 414);
-    for (i = 0; i < sizeof(n800_pinout) / 4; i ++)
+    for (i = 0; i < ARRAY_SIZE(n800_pinout); i ++)
         stl_raw(v ++, n800_pinout[i]);
 
     /* Kernel memsize? */

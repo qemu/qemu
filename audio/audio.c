@@ -1556,7 +1556,7 @@ void AUD_help (void)
     size_t i;
 
     audio_process_options ("AUDIO", audio_options);
-    for (i = 0; i < sizeof (drvtab) / sizeof (drvtab[0]); i++) {
+    for (i = 0; i < ARRAY_SIZE (drvtab); i++) {
         struct audio_driver *d = drvtab[i];
         if (d->options) {
             audio_process_options (d->name, d->options);
@@ -1569,7 +1569,7 @@ void AUD_help (void)
 
     printf ("Available drivers:\n");
 
-    for (i = 0; i < sizeof (drvtab) / sizeof (drvtab[0]); i++) {
+    for (i = 0; i < ARRAY_SIZE (drvtab); i++) {
         struct audio_driver *d = drvtab[i];
 
         printf ("Name: %s\n", d->name);
@@ -1746,7 +1746,7 @@ AudioState *AUD_init (void)
     if (drvname) {
         int found = 0;
 
-        for (i = 0; i < sizeof (drvtab) / sizeof (drvtab[0]); i++) {
+        for (i = 0; i < ARRAY_SIZE (drvtab); i++) {
             if (!strcmp (drvname, drvtab[i]->name)) {
                 done = !audio_driver_init (s, drvtab[i]);
                 found = 1;
@@ -1761,7 +1761,7 @@ AudioState *AUD_init (void)
     }
 
     if (!done) {
-        for (i = 0; !done && i < sizeof (drvtab) / sizeof (drvtab[0]); i++) {
+        for (i = 0; !done && i < ARRAY_SIZE (drvtab); i++) {
             if (drvtab[i]->can_be_default) {
                 done = !audio_driver_init (s, drvtab[i]);
             }

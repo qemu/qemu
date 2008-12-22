@@ -199,7 +199,7 @@ static void patch_reloc (uint8_t *code_ptr, int type,
 /* maximum number of register used for input function arguments */
 static int tcg_target_get_call_iarg_regs_count (int flags)
 {
-    return sizeof (tcg_target_call_iarg_regs) / sizeof (tcg_target_call_iarg_regs[0]);
+    return ARRAY_SIZE (tcg_target_call_iarg_regs);
 }
 
 /* parse target specific constraints */

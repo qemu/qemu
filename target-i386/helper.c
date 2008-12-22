@@ -274,7 +274,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     int family = -1, model = -1, stepping = -1;
 
     def = NULL;
-    for (i = 0; i < sizeof(x86_defs) / sizeof(x86_def_t); i++) {
+    for (i = 0; i < ARRAY_SIZE(x86_defs); i++) {
         if (strcmp(name, x86_defs[i].name) == 0) {
             def = &x86_defs[i];
             break;
@@ -364,7 +364,7 @@ void x86_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
     unsigned int i;
 
-    for (i = 0; i < sizeof(x86_defs) / sizeof(x86_def_t); i++)
+    for (i = 0; i < ARRAY_SIZE(x86_defs); i++)
         (*cpu_fprintf)(f, "x86 %16s\n", x86_defs[i].name);
 }
 

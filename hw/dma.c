@@ -37,8 +37,6 @@
 #define ldebug(...)
 #endif
 
-#define LENOFA(a) ((int) (sizeof(a)/sizeof(a[0])))
-
 struct dma_regs {
     int now[2];
     uint16_t base[2];
@@ -479,7 +477,7 @@ static void dma_init2(struct dma_cont *d, int base, int dshift,
         register_ioport_write (base + (i << dshift), 1, 1, write_chan, d);
         register_ioport_read (base + (i << dshift), 1, 1, read_chan, d);
     }
-    for (i = 0; i < LENOFA (page_port_list); i++) {
+    for (i = 0; i < ARRAY_SIZE (page_port_list); i++) {
         register_ioport_write (page_base + page_port_list[i], 1, 1,
                                write_page, d);
         register_ioport_read (page_base + page_port_list[i], 1, 1,
@@ -499,7 +497,7 @@ static void dma_init2(struct dma_cont *d, int base, int dshift,
     }
     qemu_register_reset(dma_reset, d);
     dma_reset(d);
-    for (i = 0; i < LENOFA (d->regs); ++i) {
+    for (i = 0; i < ARRAY_SIZE (d->regs); ++i) {
         d->regs[i].transfer_handler = dma_phony_handler;
     }
 }

@@ -628,14 +628,13 @@ static int ndis_query(USBNetState *s, uint32_t oid,
                       uint8_t *inbuf, unsigned int inlen, uint8_t *outbuf,
                       size_t outlen)
 {
-    unsigned int i, count;
+    unsigned int i;
 
     switch (oid) {
     /* general oids (table 4-1) */
     /* mandatory */
     case OID_GEN_SUPPORTED_LIST:
-        count = sizeof(oid_supported_list) / sizeof(uint32_t);
-        for (i = 0; i < count; i++)
+        for (i = 0; i < ARRAY_SIZE(oid_supported_list); i++)
             ((le32 *) outbuf)[i] = cpu_to_le32(oid_supported_list[i]);
         return sizeof(oid_supported_list);
 

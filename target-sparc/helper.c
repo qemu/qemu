@@ -1240,7 +1240,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
     long long iu_version;
     uint32_t fpu_version, mmu_version, nwindows;
 
-    for (i = 0; i < sizeof(sparc_defs) / sizeof(sparc_def_t); i++) {
+    for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
         if (strcasecmp(name, sparc_defs[i].name) == 0) {
             def = &sparc_defs[i];
         }
@@ -1336,7 +1336,7 @@ void sparc_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
 {
     unsigned int i;
 
-    for (i = 0; i < sizeof(sparc_defs) / sizeof(sparc_def_t); i++) {
+    for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
         (*cpu_fprintf)(f, "Sparc %16s IU " TARGET_FMT_lx " FPU %08x MMU %08x NWINS %d ",
                        sparc_defs[i].name,
                        sparc_defs[i].iu_version,

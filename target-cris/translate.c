@@ -612,7 +612,7 @@ static inline void t_gen_swapr(TCGv d, TCGv s)
 
 	tcg_gen_shli_tl(t, org_s,  bitrev[0].shift);
 	tcg_gen_andi_tl(d, t,  bitrev[0].mask);
-	for (i = 1; i < sizeof bitrev / sizeof bitrev[0]; i++) {
+	for (i = 1; i < ARRAY_SIZE(bitrev); i++) {
 		if (bitrev[i].shift >= 0) {
 			tcg_gen_shli_tl(t, org_s,  bitrev[i].shift);
 		} else {
@@ -3158,7 +3158,7 @@ cris_decoder(DisasContext *dc)
 	dc->postinc  = EXTRACT_FIELD(dc->ir, 10, 10);
 
 	/* Large switch for all insns.  */
-	for (i = 0; i < sizeof decinfo / sizeof decinfo[0]; i++) {
+	for (i = 0; i < ARRAY_SIZE(decinfo); i++) {
 		if ((dc->opcode & decinfo[i].mask) == decinfo[i].bits)
 		{
 			insn_len = decinfo[i].dec(dc);
