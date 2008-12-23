@@ -210,6 +210,7 @@ typedef struct sparc_def_t {
     uint32_t mmu_cxr_mask;
     uint32_t mmu_sfsr_mask;
     uint32_t mmu_trcr_mask;
+    uint32_t mxcc_version;
     uint32_t features;
     uint32_t nwindows;
     uint32_t maxtl;
