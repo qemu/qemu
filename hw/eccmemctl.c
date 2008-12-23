@@ -40,6 +40,10 @@
  * SMC (version 0, implementation 2) SS-10SX and SS-20
  */
 
+#define ECC_MCC        0x00000000
+#define ECC_EMC        0x10000000
+#define ECC_SMC        0x20000000
+
 /* Register indexes */
 #define ECC_MER        0               /* Memory Enable Register */
 #define ECC_MDR        1               /* Memory Delay Register */
@@ -63,12 +67,15 @@
 #define ECC_MER_MRR5   0x00000080      /* SIMM 5 */
 #define ECC_MER_MRR6   0x00000100      /* SIMM 6 */
 #define ECC_MER_MRR7   0x00000200      /* SIMM 7 */
-#define ECC_MER_REU    0x00000200      /* Memory Refresh Enable (600MP) */
+#define ECC_MER_REU    0x00000100      /* Memory Refresh Enable (600MP) */
 #define ECC_MER_MRR    0x000003fc      /* MRR mask */
-#define ECC_MEM_A      0x00000400      /* Memory controller addr map select */
+#define ECC_MER_A      0x00000400      /* Memory controller addr map select */
 #define ECC_MER_DCI    0x00000800      /* Disables Coherent Invalidate ACK */
 #define ECC_MER_VER    0x0f000000      /* Version */
 #define ECC_MER_IMPL   0xf0000000      /* Implementation */
+#define ECC_MER_MASK_0 0x00000103      /* Version 0 (MCC) mask */
+#define ECC_MER_MASK_1 0x00000bff      /* Version 1 (EMC) mask */
+#define ECC_MER_MASK_2 0x00000bff      /* Version 2 (SMC) mask */
 
 /* ECC memory delay register */
 #define ECC_MDR_RRI    0x000003ff      /* Refresh Request Interval */
@@ -122,6 +129,7 @@ typedef struct ECCState {
     qemu_irq irq;
     uint32_t regs[ECC_NREGS];
     uint8_t diag[ECC_DIAG_SIZE];
+    uint32_t version;
 } ECCState;
 
 static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -130,8 +138,12 @@ static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 
     switch (addr >> 2) {
     case ECC_MER:
-        s->regs[ECC_MER] = (s->regs[ECC_MER] & (ECC_MER_VER | ECC_MER_IMPL)) |
-            (val & ~(ECC_MER_VER | ECC_MER_IMPL));
+        if (s->version == ECC_MCC)
+            s->regs[ECC_MER] = (val & ECC_MER_MASK_0);
+        else if (s->version == ECC_EMC)
+            s->regs[ECC_MER] = s->version | (val & ECC_MER_MASK_1);
+        else if (s->version == ECC_SMC)
+            s->regs[ECC_MER] = s->version | (val & ECC_MER_MASK_2);
         DPRINTF("Write memory enable %08x\n", val);
         break;
     case ECC_MDR:
@@ -140,6 +152,7 @@ static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         break;
     case ECC_MFSR:
         s->regs[ECC_MFSR] =  val;
+        qemu_irq_lower(s->irq);
         DPRINTF("Write memory fault status %08x\n", val);
         break;
     case ECC_VCR:
@@ -148,7 +161,7 @@ static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         break;
     case ECC_DR:
         s->regs[ECC_DR] =  val;
-        DPRINTF("Write diagnosiic %08x\n", val);
+        DPRINTF("Write diagnostic %08x\n", val);
         break;
     case ECC_ECR0:
         s->regs[ECC_ECR0] =  val;
@@ -254,7 +267,7 @@ static int ecc_load(QEMUFile *f, void *opaque, int version_id)
     ECCState *s = opaque;
     int i;
 
-    if (version_id != 2)
+    if (version_id != 3)
         return -EINVAL;
 
     for (i = 0; i < ECC_NREGS; i++)
@@ -262,6 +275,8 @@ static int ecc_load(QEMUFile *f, void *opaque, int version_id)
 
     for (i = 0; i < ECC_DIAG_SIZE; i++)
         qemu_get_8s(f, &s->diag[i]);
+
+    qemu_get_be32s(f, &s->version);
 
     return 0;
 }
@@ -276,14 +291,19 @@ static void ecc_save(QEMUFile *f, void *opaque)
 
     for (i = 0; i < ECC_DIAG_SIZE; i++)
         qemu_put_8s(f, &s->diag[i]);
+
+    qemu_put_be32s(f, &s->version);
 }
 
 static void ecc_reset(void *opaque)
 {
     ECCState *s = opaque;
 
-    s->regs[ECC_MER] &= (ECC_MER_VER | ECC_MER_IMPL);
-    s->regs[ECC_MER] |= ECC_MER_MRR;
+    if (s->version == ECC_MCC)
+        s->regs[ECC_MER] &= ECC_MER_REU;
+    else
+        s->regs[ECC_MER] &= (ECC_MER_VER | ECC_MER_IMPL | ECC_MER_MRR |
+                             ECC_MER_DCI);
     s->regs[ECC_MDR] = 0x20;
     s->regs[ECC_MFSR] = 0;
     s->regs[ECC_VCR] = 0;
@@ -303,18 +323,19 @@ void * ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
     if (!s)
         return NULL;
 
+    s->version = version;
     s->regs[0] = version;
     s->irq = irq;
 
     ecc_io_memory = cpu_register_io_memory(0, ecc_mem_read, ecc_mem_write, s);
     cpu_register_physical_memory(base, ECC_SIZE, ecc_io_memory);
-    if (version == 0) { // SS-600MP only
+    if (version == ECC_MCC) { // SS-600MP only
         ecc_io_memory = cpu_register_io_memory(0, ecc_diag_mem_read,
                                                ecc_diag_mem_write, s);
         cpu_register_physical_memory(base + 0x1000, ECC_DIAG_SIZE,
                                      ecc_io_memory);
     }
-    register_savevm("ECC", base, 2, ecc_save, ecc_load, s);
+    register_savevm("ECC", base, 3, ecc_save, ecc_load, s);
     qemu_register_reset(ecc_reset, s);
     ecc_reset(s);
     return s;
