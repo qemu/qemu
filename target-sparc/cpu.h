@@ -301,6 +301,7 @@ typedef struct CPUSPARCState {
     uint32_t mmuregs[32];
     uint64_t mxccdata[4];
     uint64_t mxccregs[8];
+    uint64_t mmubpregs[4];
     uint64_t prom_addr;
 #endif
     /* temporary float registers */
