@@ -57,6 +57,9 @@
 
 #define MAX_PILS 16
 
+#define TICK_INT_DIS         0x8000000000000000ULL
+#define TICK_MAX             0x7fffffffffffffffULL
+
 struct hwdef {
     const char * const default_cpu_model;
     uint16_t machine_id;
@@ -269,11 +272,14 @@ static void main_cpu_reset(void *opaque)
     CPUState *env = s->env;
 
     cpu_reset(env);
-    ptimer_set_limit(env->tick, 0x7fffffffffffffffULL, 1);
+    env->tick_cmpr = TICK_INT_DIS | 0;
+    ptimer_set_limit(env->tick, TICK_MAX, 1);
     ptimer_run(env->tick, 0);
-    ptimer_set_limit(env->stick, 0x7fffffffffffffffULL, 1);
+    env->stick_cmpr = TICK_INT_DIS | 0;
+    ptimer_set_limit(env->stick, TICK_MAX, 1);
     ptimer_run(env->stick, 0);
-    ptimer_set_limit(env->hstick, 0x7fffffffffffffffULL, 1);
+    env->hstick_cmpr = TICK_INT_DIS | 0;
+    ptimer_set_limit(env->hstick, TICK_MAX, 1);
     ptimer_run(env->hstick, 0);
     env->gregs[1] = 0; // Memory start
     env->gregs[2] = ram_size; // Memory size
@@ -286,24 +292,29 @@ static void tick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
-    env->softint |= SOFTINT_TIMER;
-    cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    if (!(env->tick_cmpr & TICK_INT_DIS)) {
+        env->softint |= SOFTINT_TIMER;
+        cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    }
 }
 
 static void stick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
-    env->softint |= SOFTINT_TIMER;
-    cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    if (!(env->stick_cmpr & TICK_INT_DIS)) {
+        env->softint |= SOFTINT_STIMER;
+        cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    }
 }
 
 static void hstick_irq(void *opaque)
 {
     CPUState *env = opaque;
 
-    env->softint |= SOFTINT_TIMER;
-    cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    if (!(env->hstick_cmpr & TICK_INT_DIS)) {
+        cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+    }
 }
 
 void cpu_tick_set_count(void *opaque, uint64_t count)

@@ -330,7 +330,8 @@ typedef struct CPUSPARCState {
     uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
     void *hstick; // UA 2005
     uint32_t softint;
-#define SOFTINT_TIMER 1
+#define SOFTINT_TIMER   1
+#define SOFTINT_STIMER  (1 << 16)
 #endif
     sparc_def_t *def;
 } CPUSPARCState;
