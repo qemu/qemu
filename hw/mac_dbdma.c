@@ -25,38 +25,54 @@
 #include "hw.h"
 #include "ppc_mac.h"
 
+/* debug DBDMA */
+//#define DEBUG_DBDMA
+
+#ifdef DEBUG_DBDMA
+#define DBDMA_DPRINTF(fmt, args...) \
+do { printf("DBDMA: " fmt , ##args); } while (0)
+#else
+#define DBDMA_DPRINTF(fmt, args...)
+#endif
+
 /* DBDMA: currently no op - should suffice right now */
 
 static void dbdma_writeb (void *opaque,
                           target_phys_addr_t addr, uint32_t value)
 {
-    printf("%s: 0x" PADDRX " <= 0x%08x\n", __func__, addr, value);
+    DBDMA_DPRINTF("writeb 0x" TARGET_FMT_plx " <= 0x%08x\n", addr, value);
 }
 
 static void dbdma_writew (void *opaque,
                           target_phys_addr_t addr, uint32_t value)
 {
+    DBDMA_DPRINTF("writew 0x" TARGET_FMT_plx " <= 0x%08x\n", addr, value);
 }
 
 static void dbdma_writel (void *opaque,
                           target_phys_addr_t addr, uint32_t value)
 {
+    DBDMA_DPRINTF("writel 0x" TARGET_FMT_plx " <= 0x%08x\n", addr, value);
 }
 
 static uint32_t dbdma_readb (void *opaque, target_phys_addr_t addr)
 {
-    printf("%s: 0x" PADDRX " => 0x00000000\n", __func__, addr);
+    DBDMA_DPRINTF("readb 0x" TARGET_FMT_plx " => 0\n", addr);
 
     return 0;
 }
 
 static uint32_t dbdma_readw (void *opaque, target_phys_addr_t addr)
 {
+    DBDMA_DPRINTF("readw 0x" TARGET_FMT_plx " => 0\n", addr);
+
     return 0;
 }
 
 static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
 {
+    DBDMA_DPRINTF("readl 0x" TARGET_FMT_plx " => 0\n", addr);
+
     return 0;
 }
 

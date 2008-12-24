@@ -108,7 +108,7 @@ extern int kqemu_allowed;
 extern const char *option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
 
-#ifdef TARGET_SPARC
+#if defined(TARGET_SPARC) || defined(TARGET_PPC)
 #define MAX_PROM_ENVS 128
 extern const char *prom_envs[MAX_PROM_ENVS];
 extern unsigned int nb_prom_envs;

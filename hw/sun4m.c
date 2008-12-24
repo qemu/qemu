@@ -505,7 +505,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                                        cpu_irqs,
                                        hwdef->clock_irq);
 
-    if (hwdef->idreg_base != (target_phys_addr_t)-1) {
+    if (hwdef->idreg_base) {
         static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
 
         idreg_offset = qemu_ram_alloc(sizeof(idreg_data));
@@ -563,7 +563,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                                    slavio_irq[hwdef->me_irq], cpu_halt[0],
                                    &fdc_tc);
 
-    if (hwdef->fd_base != (target_phys_addr_t)-1) {
+    if (hwdef->fd_base) {
         /* there is zero or one floppy drive */
         memset(fd, 0, sizeof(fd));
         drive_index = drive_get_index(IF_FLOPPY, 0, 0);
@@ -590,7 +590,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         esp_scsi_attach(main_esp, drives_table[drive_index].bdrv, i);
     }
 
-    if (hwdef->cs_base != (target_phys_addr_t)-1)
+    if (hwdef->cs_base)
         cs_init(hwdef->cs_base, hwdef->cs_irq, slavio_intctl);
 
     kernel_size = sun4m_load_kernel(kernel_filename, initrd_filename,
@@ -601,7 +601,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                graphic_height, graphic_depth, hwdef->nvram_machine_id,
                "Sun4m");
 
-    if (hwdef->ecc_base != (target_phys_addr_t)-1)
+    if (hwdef->ecc_base)
         ecc_init(hwdef->ecc_base, slavio_irq[hwdef->ecc_irq],
                  hwdef->ecc_version);
 
@@ -647,7 +647,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x6a000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .ecc_base     = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -673,7 +672,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
-        .cs_base      = -1,
         .slavio_base  = 0xff0000000ULL,
         .ms_kb_base   = 0xff1000000ULL,
         .serial_base  = 0xff1100000ULL,
@@ -700,7 +698,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ser_irq = 15,
         .fd_irq = 22,
         .me_irq = 30,
-        .cs_irq = -1,
         .ecc_irq = 28,
         .nvram_machine_id = 0x72,
         .machine_id = ss10_id,
@@ -716,15 +713,12 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
-        .cs_base      = -1,
         .slavio_base  = 0xff0000000ULL,
         .ms_kb_base   = 0xff1000000ULL,
         .serial_base  = 0xff1100000ULL,
         .nvram_base   = 0xff1200000ULL,
-        .fd_base      = -1,
         .counter_base = 0xff1300000ULL,
         .intctl_base  = 0xff1400000ULL,
-        .idreg_base   = -1,
         .dma_base     = 0xef0081000ULL,
         .esp_base     = 0xef0080000ULL,
         .le_base      = 0xef0060000ULL,
@@ -743,7 +737,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ser_irq = 15,
         .fd_irq = 22,
         .me_irq = 30,
-        .cs_irq = -1,
         .ecc_irq = 28,
         .nvram_machine_id = 0x71,
         .machine_id = ss600mp_id,
@@ -759,7 +752,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
-        .cs_base      = -1,
         .slavio_base  = 0xff0000000ULL,
         .ms_kb_base   = 0xff1000000ULL,
         .serial_base  = 0xff1100000ULL,
@@ -786,7 +778,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ser_irq = 15,
         .fd_irq = 22,
         .me_irq = 30,
-        .cs_irq = -1,
         .ecc_irq = 28,
         .nvram_machine_id = 0x72,
         .machine_id = ss20_id,
@@ -802,7 +793,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
-        .cs_base      = -1,
         .slavio_base  = 0x70000000,
         .ms_kb_base   = 0x71000000,
         .serial_base  = 0x71100000,
@@ -817,7 +807,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x71300000, // pmc
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .ecc_base     = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -828,7 +817,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ser_irq = 15,
         .fd_irq = 22,
         .me_irq = 30,
-        .cs_irq = -1,
         .nvram_machine_id = 0x80,
         .machine_id = vger_id,
         .iommu_version = 0x05000000,
@@ -843,7 +831,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
-        .cs_base      = -1,
         .slavio_base  = 0x70000000,
         .ms_kb_base   = 0x71000000,
         .serial_base  = 0x71100000,
@@ -855,10 +842,8 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .dma_base     = 0x78400000,
         .esp_base     = 0x78800000,
         .le_base      = 0x78c00000,
-        .apc_base     = -1,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .ecc_base     = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -869,7 +854,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ser_irq = 15,
         .fd_irq = 22,
         .me_irq = 30,
-        .cs_irq = -1,
         .nvram_machine_id = 0x80,
         .machine_id = lx_id,
         .iommu_version = 0x04000000,
@@ -899,7 +883,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x6a000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .ecc_base     = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -925,7 +908,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
-        .cs_base      = -1,
         .slavio_base  = 0x70000000,
         .ms_kb_base   = 0x71000000,
         .serial_base  = 0x71100000,
@@ -940,7 +922,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x6a000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .ecc_base     = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -951,7 +932,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ser_irq = 15,
         .fd_irq = 22,
         .me_irq = 30,
-        .cs_irq = -1,
         .nvram_machine_id = 0x80,
         .machine_id = scls_id,
         .iommu_version = 0x05000000,
@@ -966,7 +946,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000, // XXX
-        .cs_base      = -1,
         .slavio_base  = 0x70000000,
         .ms_kb_base   = 0x71000000,
         .serial_base  = 0x71100000,
@@ -981,7 +960,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .apc_base     = 0x6a000000,
         .aux1_base    = 0x71900000,
         .aux2_base    = 0x71910000,
-        .ecc_base     = -1,
         .vram_size    = 0x00100000,
         .nvram_size   = 0x2000,
         .esp_irq = 18,
@@ -992,7 +970,6 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .ser_irq = 15,
         .fd_irq = 22,
         .me_irq = 30,
-        .cs_irq = -1,
         .nvram_machine_id = 0x80,
         .machine_id = sbook_id,
         .iommu_version = 0x05000000,
@@ -1584,7 +1561,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     slavio_serial_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq],
                        serial_hds[1], serial_hds[0]);
 
-    slavio_misc = slavio_misc_init(0, -1, hwdef->aux1_base, -1,
+    slavio_misc = slavio_misc_init(0, 0, hwdef->aux1_base, 0,
                                    slavio_irq[hwdef->me_irq], NULL, &fdc_tc);
 
     if (hwdef->fd_base != (target_phys_addr_t)-1) {

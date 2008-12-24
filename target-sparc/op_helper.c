@@ -953,6 +953,28 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x39: /* data cache diagnostic register */
         ret = 0;
         break;
+    case 0x38: /* SuperSPARC MMU Breakpoint Control Registers */
+        {
+            int reg = (addr >> 8) & 3;
+
+            switch(reg) {
+            case 0: /* Breakpoint Value (Addr) */
+                ret = env->mmubpregs[reg];
+                break;
+            case 1: /* Breakpoint Mask */
+                ret = env->mmubpregs[reg];
+                break;
+            case 2: /* Breakpoint Control */
+                ret = env->mmubpregs[reg];
+                break;
+            case 3: /* Breakpoint Status */
+                ret = env->mmubpregs[reg];
+                env->mmubpregs[reg] = 0ULL;
+                break;
+            }
+            DPRINTF_MMU("read breakpoint reg[%d] 0x%016llx\n", reg, ret);
+        }
+        break;
     case 8: /* User code access, XXX */
     default:
         do_unassigned_access(addr, 0, 0, asi, size);
@@ -1283,8 +1305,29 @@ void helper_st_asi(target_ulong addr, uint64_t val, int asi, int size)
                // descriptor diagnostic
     case 0x36: /* I-cache flash clear */
     case 0x37: /* D-cache flash clear */
-    case 0x38: /* breakpoint diagnostics */
     case 0x4c: /* breakpoint action */
+        break;
+    case 0x38: /* SuperSPARC MMU Breakpoint Control Registers*/
+        {
+            int reg = (addr >> 8) & 3;
+
+            switch(reg) {
+            case 0: /* Breakpoint Value (Addr) */
+                env->mmubpregs[reg] = (val & 0xfffffffffULL);
+                break;
+            case 1: /* Breakpoint Mask */
+                env->mmubpregs[reg] = (val & 0xfffffffffULL);
+                break;
+            case 2: /* Breakpoint Control */
+                env->mmubpregs[reg] = (val & 0x7fULL);
+                break;
+            case 3: /* Breakpoint Status */
+                env->mmubpregs[reg] = (val & 0xfULL);
+                break;
+            }
+            DPRINTF_MMU("write breakpoint reg[%d] 0x%016llx\n", reg,
+                        env->mmuregs[reg]);
+        }
         break;
     case 8: /* User code access, XXX */
     case 9: /* Supervisor code access, XXX */

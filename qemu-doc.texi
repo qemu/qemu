@@ -2330,6 +2330,11 @@ PC compatible keyboard and mouse.
 QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
 @url{http://perso.magic.fr/l_indien/OpenHackWare/index.htm}.
 
+Since version 0.9.1, QEMU uses OpenBIOS @url{http://www.openbios.org/}
+for the g3bw PowerMac machine. OpenBIOS is a free (GPL v2) portable
+firmware implementation. The goal is to implement a 100% IEEE
+1275-1994 (referred to as Open Firmware) compliant firmware.
+
 @c man begin OPTIONS
 
 The following options are specific to the PowerPC emulation:
@@ -2339,6 +2344,18 @@ The following options are specific to the PowerPC emulation:
 @item -g WxH[xDEPTH]
 
 Set the initial VGA graphic mode. The default is 800x600x15.
+
+@item -prom-env string
+
+Set OpenBIOS variables in NVRAM, for example:
+
+@example
+qemu-system-ppc -prom-env 'auto-boot?=false' \
+ -prom-env 'boot-device=hd:2,\yaboot' \
+ -prom-env 'boot-args=conf=hd:2,\yaboot.conf'
+@end example
+
+These variables are not used by Open Hack'Ware.
 
 @end table
 

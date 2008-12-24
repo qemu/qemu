@@ -27,6 +27,16 @@
 #include "ppc_mac.h"
 #include "pci.h"
 
+/* debug Grackle */
+//#define DEBUG_GRACKLE
+
+#ifdef DEBUG_GRACKLE
+#define GRACKLE_DPRINTF(fmt, args...) \
+do { printf("GRACKLE: " fmt , ##args); } while (0)
+#else
+#define GRACKLE_DPRINTF(fmt, args...)
+#endif
+
 typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
 
@@ -36,6 +46,9 @@ static void pci_grackle_config_writel (void *opaque, target_phys_addr_t addr,
                                        uint32_t val)
 {
     GrackleState *s = opaque;
+
+    GRACKLE_DPRINTF("config_writel addr " TARGET_FMT_plx " val %x\n", addr,
+                    val);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
@@ -51,6 +64,8 @@ static uint32_t pci_grackle_config_readl (void *opaque, target_phys_addr_t addr)
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
+    GRACKLE_DPRINTF("config_readl addr " TARGET_FMT_plx " val %x\n", addr,
+                    val);
     return val;
 }
 
@@ -86,6 +101,7 @@ static int pci_grackle_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pci_grackle_set_irq(qemu_irq *pic, int irq_num, int level)
 {
+    GRACKLE_DPRINTF("set_irq num %d level %d\n", irq_num, level);
     qemu_set_irq(pic[irq_num + 0x15], level);
 }
 
