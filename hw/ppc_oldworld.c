@@ -32,9 +32,17 @@
 #include "isa.h"
 #include "pci.h"
 #include "boards.h"
+#include "fw_cfg.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
+#define CFG_ADDR 0xf0000510
+
+enum {
+    ARCH_PREP = 0,
+    ARCH_MAC99,
+    ARCH_HEATHROW,
+};
 
 /* temporary frame buffer OSI calls for the video.x driver. The right
    solution is to modify the driver to use VGA PCI I/Os */
@@ -128,6 +136,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     int ppc_boot_device;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     int index;
+    void *fw_cfg;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -363,6 +372,11 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* Special port to get debug messages from Open-Firmware */
     register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
+
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_HEATHROW);
 }
 
 QEMUMachine heathrow_machine = {
