@@ -207,7 +207,15 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
-        kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
+        kernel_size = load_elf(kernel_filename, kernel_base - 0xc0000000ULL,
+                               NULL, NULL, NULL);
+        if (kernel_size < 0)
+            kernel_size = load_aout(kernel_filename, kernel_base,
+                                    ram_size - kernel_base);
+        if (kernel_size < 0)
+            kernel_size = load_image_targphys(kernel_filename,
+                                              kernel_base,
+                                              ram_size - kernel_base);
         if (kernel_size < 0) {
             cpu_abort(env, "qemu: could not load kernel '%s'\n",
                       kernel_filename);
