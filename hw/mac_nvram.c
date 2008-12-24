@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
+#include "firmware_abi.h"
+#include "sysemu.h"
 #include "ppc_mac.h"
 
 /* debug NVR */
@@ -122,26 +124,35 @@ void macio_nvram_map (void *opaque, target_phys_addr_t mem_base)
     cpu_register_physical_memory(mem_base, s->size, s->mem_index);
 }
 
-static uint8_t nvram_chksum (const uint8_t *buf, int n)
-{
-    int sum, i;
-    sum = 0;
-    for(i = 0; i < n; i++)
-        sum += buf[i];
-    return (sum & 0xff) + (sum >> 8);
-}
-
-/* set a free Mac OS NVRAM partition */
+/* Set up a system OpenBIOS NVRAM partition */
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len)
 {
-    uint8_t *buf;
-    char partition_name[12] = "wwwwwwwwwwww";
+    unsigned int i;
+    uint32_t start = 0, end;
+    struct OpenBIOS_nvpart_v1 *part_header;
 
-    buf = nvr->data;
-    buf[0] = 0x7f; /* free partition magic */
-    buf[1] = 0; /* checksum */
-    buf[2] = len >> 8;
-    buf[3] = len;
-    memcpy(buf + 4, partition_name, 12);
-    buf[1] = nvram_chksum(buf, 16);
+    // OpenBIOS nvram variables
+    // Variable partition
+    part_header = (struct OpenBIOS_nvpart_v1 *)nvr->data;
+    part_header->signature = OPENBIOS_PART_SYSTEM;
+    pstrcpy(part_header->name, sizeof(part_header->name), "system");
+
+    end = start + sizeof(struct OpenBIOS_nvpart_v1);
+    for (i = 0; i < nb_prom_envs; i++)
+        end = OpenBIOS_set_var(nvr->data, end, prom_envs[i]);
+
+    // End marker
+    nvr->data[end++] = '\0';
+
+    end = start + ((end - start + 15) & ~15);
+    OpenBIOS_finish_partition(part_header, end - start);
+
+    // free partition
+    start = end;
+    part_header = (struct OpenBIOS_nvpart_v1 *)&nvr->data[start];
+    part_header->signature = OPENBIOS_PART_FREE;
+    pstrcpy(part_header->name, sizeof(part_header->name), "free");
+
+    end = len;
+    OpenBIOS_finish_partition(part_header, end - start);
 }

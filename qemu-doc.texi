@@ -2343,6 +2343,18 @@ The following options are specific to the PowerPC emulation:
 
 Set the initial VGA graphic mode. The default is 800x600x15.
 
+@item -prom-env string
+
+Set OpenBIOS variables in NVRAM, for example:
+
+@example
+qemu-system-ppc -prom-env 'auto-boot?=false' \
+ -prom-env 'boot-device=hd:2,\yaboot' \
+ -prom-env 'boot-args=conf=hd:2,\yaboot.conf'
+@end example
+
+These variables are not used by Open Hack'Ware.
+
 @end table
 
 @c man end
