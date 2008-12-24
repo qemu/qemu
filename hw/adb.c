@@ -25,6 +25,16 @@
 #include "ppc_mac.h"
 #include "console.h"
 
+/* debug ADB */
+//#define DEBUG_ADB
+
+#ifdef DEBUG_ADB
+#define ADB_DPRINTF(fmt, args...) \
+do { printf("ADB: " fmt , ##args); } while (0)
+#else
+#define ADB_DPRINTF(fmt, args...)
+#endif
+
 /* ADB commands */
 #define ADB_BUSRESET		0x00
 #define ADB_FLUSH               0x01
@@ -351,6 +361,7 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
     olen = 0;
     switch(cmd) {
     case ADB_WRITEREG:
+        ADB_DPRINTF("write reg %d val 0x%2.2x\n", reg, buf[1]);
         switch(reg) {
         case 2:
             break;
@@ -383,6 +394,8 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
             olen = 2;
             break;
         }
+        ADB_DPRINTF("read reg %d obuf[0] 0x%2.2x obuf[1] 0x%2.2x\n", reg,
+                    obuf[0], obuf[1]);
         break;
     }
     return olen;

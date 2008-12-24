@@ -25,6 +25,16 @@
 #include "hw.h"
 #include "ppc_mac.h"
 
+/* debug NVR */
+//#define DEBUG_NVR
+
+#ifdef DEBUG_NVR
+#define NVR_DPRINTF(fmt, args...) \
+do { printf("NVR: " fmt , ##args); } while (0)
+#else
+#define NVR_DPRINTF(fmt, args...)
+#endif
+
 struct MacIONVRAMState {
     target_phys_addr_t size;
     int mem_index;
@@ -37,11 +47,11 @@ uint32_t macio_nvram_read (void *opaque, uint32_t addr)
     MacIONVRAMState *s = opaque;
     uint32_t ret;
 
-    //    printf("%s: %p addr %04x\n", __func__, s, addr);
     if (addr < 0x2000)
         ret = s->data[addr];
     else
         ret = -1;
+    NVR_DPRINTF("read addr %04x val %x\n", addr, ret);
 
     return ret;
 }
@@ -50,7 +60,7 @@ void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val)
 {
     MacIONVRAMState *s = opaque;
 
-    //    printf("%s: %p addr %04x val %02x\n", __func__, s, addr, val);
+    NVR_DPRINTF("write addr %04x val %x\n", addr, val);
     if (addr < 0x2000)
         s->data[addr] = val;
 }
@@ -63,7 +73,7 @@ static void macio_nvram_writeb (void *opaque,
 
     addr = (addr >> 4) & 0x1fff;
     s->data[addr] = value;
-    //    printf("macio_nvram_writeb %04x = %02x\n", addr, value);
+    NVR_DPRINTF("writeb addr %04x val %x\n", (int)addr, value);
 }
 
 static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
@@ -73,7 +83,7 @@ static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
 
     addr = (addr >> 4) & 0x1fff;
     value = s->data[addr];
-    //    printf("macio_nvram_readb %04x = %02x\n", addr, value);
+    NVR_DPRINTF("readb addr %04x val %x\n", (int)addr, value);
 
     return value;
 }

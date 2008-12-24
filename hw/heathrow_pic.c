@@ -25,7 +25,15 @@
 #include "hw.h"
 #include "ppc_mac.h"
 
-//#define DEBUG
+/* debug PIC */
+//#define DEBUG_PIC
+
+#ifdef DEBUG_PIC
+#define PIC_DPRINTF(fmt, args...) \
+do { printf("PIC: " fmt , ##args); } while (0)
+#else
+#define PIC_DPRINTF(fmt, args...)
+#endif
 
 typedef struct HeathrowPIC {
     uint32_t events;
@@ -64,9 +72,7 @@ static void pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     value = bswap32(value);
 #endif
     n = ((addr & 0xfff) - 0x10) >> 4;
-#ifdef DEBUG
-    printf("pic_writel: " PADDRX " %u: %08x\n", addr, n, value);
-#endif
+    PIC_DPRINTF("writel: " TARGET_FMT_plx " %u: %08x\n", addr, n, value);
     if (n >= 2)
         return;
     pic = &s->pics[n];
@@ -113,9 +119,7 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
             break;
         }
     }
-#ifdef DEBUG
-    printf("pic_readl: " PADDRX " %u: %08x\n", addr, n, value);
-#endif
+    PIC_DPRINTF("readl: " TARGET_FMT_plx " %u: %08x\n", addr, n, value);
 #ifdef TARGET_WORDS_BIGENDIAN
     value = bswap32(value);
 #endif
@@ -145,7 +149,7 @@ static void heathrow_pic_set_irq(void *opaque, int num, int level)
     {
         static int last_level[64];
         if (last_level[num] != level) {
-            printf("set_irq: num=0x%02x level=%d\n", num, level);
+            PIC_DPRINTF("set_irq: num=0x%02x level=%d\n", num, level);
             last_level[num] = level;
         }
     }
