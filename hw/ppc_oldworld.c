@@ -164,19 +164,16 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     /* allocate and load BIOS */
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
     if (bios_name == NULL)
-        bios_name = BIOS_FILENAME;
+        bios_name = PROM_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    cpu_register_physical_memory(PROM_ADDR, BIOS_SIZE, bios_offset | IO_MEM_ROM);
+
+    /* Load OpenBIOS (ELF) */
+    bios_size = load_elf(buf, 0, NULL, NULL, NULL);
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         cpu_abort(env, "qemu: could not load PowerPC bios '%s'\n", buf);
         exit(1);
     }
-    if (bios_size > 0x00080000) {
-        /* As the NVRAM is located at 0xFFF04000, we cannot use 1 MB BIOSes */
-        cpu_abort(env, "G3BW Mac hardware can not handle 1 MB BIOS\n");
-    }
-    cpu_register_physical_memory((uint32_t)(-bios_size),
-                                 bios_size, bios_offset | IO_MEM_ROM);
 
     /* allocate and load VGA BIOS */
     vga_bios_offset = qemu_ram_alloc(VGA_BIOS_SIZE);

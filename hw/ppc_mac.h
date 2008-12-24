@@ -31,6 +31,8 @@
 #define BIOS_FILENAME "ppc_rom.bin"
 #define VGABIOS_FILENAME "video.x"
 #define NVRAM_SIZE        0x2000
+#define PROM_FILENAME    "openbios-ppc32"
+#define PROM_ADDR         0xfff00000
 
 #define KERNEL_LOAD_ADDR 0x01000000
 #define INITRD_LOAD_ADDR 0x01800000
