@@ -43,6 +43,8 @@ struct MacIONVRAMState {
     uint8_t *data;
 };
 
+#define DEF_SYSTEM_SIZE 0xc10
+
 /* Direct access to NVRAM */
 uint32_t macio_nvram_read (void *opaque, uint32_t addr)
 {
@@ -151,6 +153,10 @@ void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len)
     nvr->data[end++] = '\0';
 
     end = start + ((end - start + 15) & ~15);
+    /* XXX: OpenBIOS is not able to grow up a partition. Leave some space for
+       new variables. */
+    if (end < DEF_SYSTEM_SIZE)
+        end = DEF_SYSTEM_SIZE;
     OpenBIOS_finish_partition(part_header, end - start);
 
     // free partition
