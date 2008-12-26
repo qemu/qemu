@@ -40,7 +40,7 @@ do { printf("NVR: " fmt , ##args); } while (0)
 struct MacIONVRAMState {
     target_phys_addr_t size;
     int mem_index;
-    uint8_t data[0x2000];
+    uint8_t *data;
 };
 
 /* Direct access to NVRAM */
@@ -49,7 +49,7 @@ uint32_t macio_nvram_read (void *opaque, uint32_t addr)
     MacIONVRAMState *s = opaque;
     uint32_t ret;
 
-    if (addr < 0x2000)
+    if (addr < s->size)
         ret = s->data[addr];
     else
         ret = -1;
@@ -63,7 +63,7 @@ void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val)
     MacIONVRAMState *s = opaque;
 
     NVR_DPRINTF("write addr %04x val %x\n", addr, val);
-    if (addr < 0x2000)
+    if (addr < s->size)
         s->data[addr] = val;
 }
 
@@ -73,7 +73,7 @@ static void macio_nvram_writeb (void *opaque,
 {
     MacIONVRAMState *s = opaque;
 
-    addr = (addr >> 4) & 0x1fff;
+    addr = (addr >> 4) & (s->size - 1);
     s->data[addr] = value;
     NVR_DPRINTF("writeb addr %04x val %x\n", (int)addr, value);
 }
@@ -83,7 +83,7 @@ static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
     MacIONVRAMState *s = opaque;
     uint32_t value;
 
-    addr = (addr >> 4) & 0x1fff;
+    addr = (addr >> 4) & (s->size - 1);
     value = s->data[addr];
     NVR_DPRINTF("readb addr %04x val %x\n", (int)addr, value);
 
@@ -109,7 +109,13 @@ MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size)
     s = qemu_mallocz(sizeof(MacIONVRAMState));
     if (!s)
         return NULL;
+    s->data = qemu_mallocz(size);
+    if (!s->data) {
+        qemu_free(s);
+	return NULL;
+    }
     s->size = size;
+
     s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
     *mem_index = s->mem_index;
 
@@ -121,7 +127,7 @@ void macio_nvram_map (void *opaque, target_phys_addr_t mem_base)
     MacIONVRAMState *s;
 
     s = opaque;
-    cpu_register_physical_memory(mem_base, s->size, s->mem_index);
+    cpu_register_physical_memory(mem_base, s->size << 4, s->mem_index);
 }
 
 /* Set up a system OpenBIOS NVRAM partition */
