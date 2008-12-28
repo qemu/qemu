@@ -3084,6 +3084,15 @@ static void cmd646_set_irq(void *opaque, int channel, int level)
     cmd646_update_irq(d);
 }
 
+static void cmd646_reset(void *opaque)
+{
+    PCIIDEState *d = opaque;
+    unsigned int i;
+
+    for (i = 0; i < 2; i++)
+        ide_dma_cancel(&d->bmdma[i]);
+}
+
 /* CMD646 PCI IDE controller */
 void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
                          int secondary_ide_enabled)
@@ -3135,6 +3144,9 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
     ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], irq[0]);
     ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], irq[1]);
+
+    qemu_register_reset(cmd646_reset, d);
+    cmd646_reset(d);
 }
 
 static void pci_ide_save(QEMUFile* f, void *opaque)
@@ -3405,6 +3417,14 @@ static CPUReadMemoryFunc *pmac_ide_read[] = {
     pmac_ide_readl,
 };
 
+static void pmac_ide_reset(void *opaque)
+{
+    IDEState *s = (IDEState *)opaque;
+
+    ide_reset(&s[0]);
+    ide_reset(&s[1]);
+}
+
 /* hd_table must contain 4 block drivers */
 /* PowerMac uses memory mapped registers, not I/O. Return the memory
    I/O index to access the ide. */
@@ -3418,6 +3438,8 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq)
 
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, &ide_if[0]);
+    qemu_register_reset(pmac_ide_reset, &ide_if[0]);
+    pmac_ide_reset(&ide_if[0]);
     return pmac_ide_memory;
 }
 

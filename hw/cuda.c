@@ -633,6 +633,33 @@ static CPUReadMemoryFunc *cuda_read[] = {
     &cuda_readl,
 };
 
+static void cuda_reset(void *opaque)
+{
+    CUDAState *s = opaque;
+
+    s->b = 0;
+    s->a = 0;
+    s->dirb = 0;
+    s->dira = 0;
+    s->sr = 0;
+    s->acr = 0;
+    s->pcr = 0;
+    s->ifr = 0;
+    s->ier = 0;
+    //    s->ier = T1_INT | SR_INT;
+    s->anh = 0;
+    s->data_in_size = 0;
+    s->data_in_index = 0;
+    s->data_out_index = 0;
+    s->autopoll = 0;
+
+    s->timers[0].latch = 0xffff;
+    set_counter(s, &s->timers[0], 0xffff);
+
+    s->timers[1].latch = 0;
+    set_counter(s, &s->timers[1], 0xffff);
+}
+
 void cuda_init (int *cuda_mem_index, qemu_irq irq)
 {
     CUDAState *s = &cuda_state;
@@ -641,15 +668,11 @@ void cuda_init (int *cuda_mem_index, qemu_irq irq)
 
     s->timers[0].index = 0;
     s->timers[0].timer = qemu_new_timer(vm_clock, cuda_timer1, s);
-    s->timers[0].latch = 0xffff;
-    set_counter(s, &s->timers[0], 0xffff);
 
     s->timers[1].index = 1;
-    s->timers[1].latch = 0;
-    //    s->ier = T1_INT | SR_INT;
-    s->ier = 0;
-    set_counter(s, &s->timers[1], 0xffff);
 
     s->adb_poll_timer = qemu_new_timer(vm_clock, cuda_adb_poll, s);
     *cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
+    qemu_register_reset(cuda_reset, s);
+    cuda_reset(s);
 }

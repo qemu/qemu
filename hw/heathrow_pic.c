@@ -165,17 +165,33 @@ static void heathrow_pic_set_irq(void *opaque, int num, int level)
     heathrow_pic_update(s);
 }
 
+static void heathrow_pic_reset_one(HeathrowPIC *s)
+{
+    memset(s, '\0', sizeof(HeathrowPIC));
+}
+
+static void heathrow_pic_reset(void *opaque)
+{
+    HeathrowPICS *s = opaque;
+
+    heathrow_pic_reset_one(&s->pics[0]);
+    heathrow_pic_reset_one(&s->pics[1]);
+
+    s->pics[0].level_triggered = 0;
+    s->pics[1].level_triggered = 0x1ff00000;
+}
+
 qemu_irq *heathrow_pic_init(int *pmem_index,
                             int nb_cpus, qemu_irq **irqs)
 {
     HeathrowPICS *s;
 
     s = qemu_mallocz(sizeof(HeathrowPICS));
-    s->pics[0].level_triggered = 0;
-    s->pics[1].level_triggered = 0x1ff00000;
     /* only 1 CPU */
     s->irqs = irqs[0];
     *pmem_index = cpu_register_io_memory(0, pic_read, pic_write, s);
 
+    qemu_register_reset(heathrow_pic_reset, s);
+    heathrow_pic_reset(s);
     return qemu_allocate_irqs(heathrow_pic_set_irq, s, 64);
 }

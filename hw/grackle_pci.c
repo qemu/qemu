@@ -105,6 +105,10 @@ static void pci_grackle_set_irq(qemu_irq *pic, int irq_num, int level)
     qemu_set_irq(pic[irq_num + 0x15], level);
 }
 
+static void pci_grackle_reset(void *opaque)
+{
+}
+
 PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
 {
     GrackleState *s;
@@ -160,5 +164,8 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     d->config[0x26] = 0x00; // prefetchable_memory_limit
     d->config[0x27] = 0x85;
 #endif
+    qemu_register_reset(pci_grackle_reset, d);
+    pci_grackle_reset(d);
+
     return s->bus;
 }

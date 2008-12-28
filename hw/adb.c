@@ -122,6 +122,8 @@ ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
     d->devreq = devreq;
     d->devreset = devreset;
     d->opaque = opaque;
+    qemu_register_reset(devreset, d);
+    d->devreset(d);
     return d;
 }
 
@@ -278,7 +280,6 @@ void adb_kbd_init(ADBBusState *bus)
     s = qemu_mallocz(sizeof(KBDState));
     d = adb_register_device(bus, ADB_KEYBOARD, adb_kbd_request,
                             adb_kbd_reset, s);
-    adb_kbd_reset(d);
     qemu_add_kbd_event_handler(adb_kbd_put_keycode, d);
 }
 
@@ -420,6 +421,5 @@ void adb_mouse_init(ADBBusState *bus)
     s = qemu_mallocz(sizeof(MouseState));
     d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request,
                             adb_mouse_reset, s);
-    adb_mouse_reset(d);
     qemu_add_mouse_event_handler(adb_mouse_event, d, 0, "QEMU ADB Mouse");
 }
