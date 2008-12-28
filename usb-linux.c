@@ -1163,7 +1163,8 @@ static int usb_host_read_file(char *line, size_t line_size, const char *device_f
     int ret = 0;
     char filename[PATH_MAX];
 
-    snprintf(filename, PATH_MAX, device_file, device_name);
+    snprintf(filename, PATH_MAX, USBSYSBUS_PATH "/devices/%s/%s", device_name,
+             device_file);
     f = fopen(filename, "r");
     if (f) {
         fgets(line, line_size, f);
@@ -1205,27 +1206,30 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
                 tmpstr += 3;
             bus_num = atoi(tmpstr);
 
-            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/devnum", de->d_name))
+            if (!usb_host_read_file(line, sizeof(line), "devnum", de->d_name))
                 goto the_end;
             if (sscanf(line, "%d", &addr) != 1)
                 goto the_end;
 
-            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/bDeviceClass", de->d_name))
+            if (!usb_host_read_file(line, sizeof(line), "bDeviceClass",
+                                    de->d_name))
                 goto the_end;
             if (sscanf(line, "%x", &class_id) != 1)
                 goto the_end;
 
-            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/idVendor", de->d_name))
+            if (!usb_host_read_file(line, sizeof(line), "idVendor", de->d_name))
                 goto the_end;
             if (sscanf(line, "%x", &vendor_id) != 1)
                 goto the_end;
 
-            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/idProduct", de->d_name))
+            if (!usb_host_read_file(line, sizeof(line), "idProduct",
+                                    de->d_name))
                 goto the_end;
             if (sscanf(line, "%x", &product_id) != 1)
                 goto the_end;
 
-            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/product", de->d_name)) {
+            if (!usb_host_read_file(line, sizeof(line), "product",
+                                    de->d_name)) {
                 *product_name = 0;
             } else {
                 if (strlen(line) > 0)
@@ -1233,7 +1237,7 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
                 pstrcpy(product_name, sizeof(product_name), line);
             }
 
-            if (!usb_host_read_file(line, sizeof(line), USBSYSBUS_PATH "/devices/%s/speed", de->d_name))
+            if (!usb_host_read_file(line, sizeof(line), "speed", de->d_name))
                 goto the_end;
             if (!strcmp(line, "480\n"))
                 speed = USB_SPEED_HIGH;
