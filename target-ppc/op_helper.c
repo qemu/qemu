@@ -338,9 +338,10 @@ void helper_stsw(target_ulong addr, uint32_t nb, uint32_t reg)
 	addr = addr_add(addr, 4);
     }
     if (unlikely(nb > 0)) {
-        for (sh = 24; nb > 0; nb--, sh -= 8)
+        for (sh = 24; nb > 0; nb--, sh -= 8) {
             stb(addr, (env->gpr[reg] >> sh) & 0xFF);
-	    addr = addr_add(addr, 1);
+            addr = addr_add(addr, 1);
+        }
     }
 }
 
