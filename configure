@@ -33,7 +33,56 @@ ar="ar"
 make="make"
 install="install"
 strip="strip"
-cpu=`test $(uname -s) = AIX && uname -p || uname -m`
+
+# parse CC options first
+for opt do
+  optarg=`expr "x$opt" : 'x[^=]*=\(.*\)'`
+  case "$opt" in
+  --cross-prefix=*) cross_prefix="$optarg"
+  ;;
+  --cc=*) cc="$optarg"
+  ;;
+  esac
+done
+
+# OS specific
+# Using uname is really, really broken.  Once we have the right set of checks
+# we can eliminate it's usage altogether
+
+cc="${cross_prefix}${cc}"
+ar="${cross_prefix}${ar}"
+strip="${cross_prefix}${strip}"
+
+# check that the C compiler works.
+cat > $TMPC <<EOF
+int main(void) {}
+EOF
+
+if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
+  : C compiler works ok
+else
+    echo "ERROR: \"$cc\" either does not exist or does not work"
+    exit 1
+fi
+
+check_define() {
+cat > $TMPC <<EOF
+#if !defined($1)
+#error Not defined
+#endif
+int main(void) { return 0; }
+EOF
+  $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null
+}
+
+if check_define __i386__ ; then
+  cpu="i386"
+elif check_define __x86_64__ ; then
+  cpu="x86_64"
+else
+  cpu=`test $(uname -s) = AIX && uname -p || uname -m`
+fi
+
 target_list=""
 case "$cpu" in
   i386|i486|i586|i686|i86pc|BePC)
@@ -122,7 +171,13 @@ blobs="yes"
 fdt="yes"
 
 # OS specific
-targetos=`uname -s`
+if check_define __linux__ ; then
+  targetos="Linux"
+elif check_define _WIN32 ; then
+  targetos='MINGW32'
+else
+  targetos=`uname -s`
+fi
 case $targetos in
 CYGWIN*)
 mingw32="yes"
@@ -264,9 +319,9 @@ for opt do
   --source-path=*) source_path="$optarg"
   source_path_used="yes"
   ;;
-  --cross-prefix=*) cross_prefix="$optarg"
+  --cross-prefix=*)
   ;;
-  --cc=*) cc="$optarg"
+  --cc=*)
   ;;
   --host-cc=*) host_cc="$optarg"
   ;;
@@ -485,35 +540,6 @@ echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
-fi
-
-cc="${cross_prefix}${cc}"
-ar="${cross_prefix}${ar}"
-strip="${cross_prefix}${strip}"
-
-# check that the C compiler works.
-cat > $TMPC <<EOF
-int main(void) {}
-EOF
-
-if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
-  : C compiler works ok
-else
-    echo "ERROR: \"$cc\" either does not exist or does not work"
-    exit 1
-fi
-
-# check compiler to see if we're on mingw32
-cat > $TMPC <<EOF
-#include <windows.h>
-#ifndef _WIN32
-#error not windows
-#endif
-int main(void) {}
-EOF
-
-if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC > /dev/null 2> /dev/null ; then
-    mingw32="yes"
 fi
 
 if test "$mingw32" = "yes" ; then
