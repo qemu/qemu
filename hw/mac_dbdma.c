@@ -88,6 +88,18 @@ static CPUReadMemoryFunc *dbdma_read[] = {
     &dbdma_readl,
 };
 
+static void dbdma_save(QEMUFile *f, void *opaque)
+{
+}
+
+static int dbdma_load(QEMUFile *f, void *opaque, int version_id)
+{
+    if (version_id != 1)
+        return -EINVAL;
+
+    return 0;
+}
+
 static void dbdma_reset(void *opaque)
 {
 }
@@ -95,6 +107,7 @@ static void dbdma_reset(void *opaque)
 void dbdma_init (int *dbdma_mem_index)
 {
     *dbdma_mem_index = cpu_register_io_memory(0, dbdma_read, dbdma_write, NULL);
+    register_savevm("dbdma", -1, 1, dbdma_save, dbdma_load, NULL);
     qemu_register_reset(dbdma_reset, NULL);
     dbdma_reset(NULL);
 }

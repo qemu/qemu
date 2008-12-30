@@ -105,6 +105,23 @@ static void pci_grackle_set_irq(qemu_irq *pic, int irq_num, int level)
     qemu_set_irq(pic[irq_num + 0x15], level);
 }
 
+static void pci_grackle_save(QEMUFile* f, void *opaque)
+{
+    PCIDevice *d = opaque;
+
+    pci_device_save(d, f);
+}
+
+static int pci_grackle_load(QEMUFile* f, void *opaque, int version_id)
+{
+    PCIDevice *d = opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    return pci_device_load(d, f);
+}
+
 static void pci_grackle_reset(void *opaque)
 {
 }
@@ -164,6 +181,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     d->config[0x26] = 0x00; // prefetchable_memory_limit
     d->config[0x27] = 0x85;
 #endif
+    register_savevm("grackle", 0, 1, pci_grackle_save, pci_grackle_load, d);
     qemu_register_reset(pci_grackle_reset, d);
     pci_grackle_reset(d);
 

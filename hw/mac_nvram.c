@@ -104,6 +104,25 @@ static CPUReadMemoryFunc *nvram_read[] = {
     &macio_nvram_readb,
 };
 
+static void macio_nvram_save(QEMUFile *f, void *opaque)
+{
+    MacIONVRAMState *s = (MacIONVRAMState *)opaque;
+
+    qemu_put_buffer(f, s->data, s->size);
+}
+
+static int macio_nvram_load(QEMUFile *f, void *opaque, int version_id)
+{
+    MacIONVRAMState *s = (MacIONVRAMState *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_buffer(f, s->data, s->size);
+
+    return 0;
+}
+
 static void macio_nvram_reset(void *opaque)
 {
 }
@@ -124,6 +143,8 @@ MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size)
 
     s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
     *mem_index = s->mem_index;
+    register_savevm("macio_nvram", -1, 1, macio_nvram_save, macio_nvram_load,
+                    s);
     qemu_register_reset(macio_nvram_reset, s);
     macio_nvram_reset(s);
 

@@ -165,6 +165,43 @@ static void heathrow_pic_set_irq(void *opaque, int num, int level)
     heathrow_pic_update(s);
 }
 
+static void heathrow_pic_save_one(QEMUFile *f, HeathrowPIC *s)
+{
+    qemu_put_be32s(f, &s->events);
+    qemu_put_be32s(f, &s->mask);
+    qemu_put_be32s(f, &s->levels);
+    qemu_put_be32s(f, &s->level_triggered);
+}
+
+static void heathrow_pic_save(QEMUFile *f, void *opaque)
+{
+    HeathrowPICS *s = (HeathrowPICS *)opaque;
+
+    heathrow_pic_save_one(f, &s->pics[0]);
+    heathrow_pic_save_one(f, &s->pics[1]);
+}
+
+static void heathrow_pic_load_one(QEMUFile *f, HeathrowPIC *s)
+{
+    qemu_get_be32s(f, &s->events);
+    qemu_get_be32s(f, &s->mask);
+    qemu_get_be32s(f, &s->levels);
+    qemu_get_be32s(f, &s->level_triggered);
+}
+
+static int heathrow_pic_load(QEMUFile *f, void *opaque, int version_id)
+{
+    HeathrowPICS *s = (HeathrowPICS *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    heathrow_pic_load_one(f, &s->pics[0]);
+    heathrow_pic_load_one(f, &s->pics[1]);
+
+    return 0;
+}
+
 static void heathrow_pic_reset_one(HeathrowPIC *s)
 {
     memset(s, '\0', sizeof(HeathrowPIC));
@@ -191,6 +228,8 @@ qemu_irq *heathrow_pic_init(int *pmem_index,
     s->irqs = irqs[0];
     *pmem_index = cpu_register_io_memory(0, pic_read, pic_write, s);
 
+    register_savevm("heathrow_pic", -1, 1, heathrow_pic_save,
+                    heathrow_pic_load, s);
     qemu_register_reset(heathrow_pic_reset, s);
     heathrow_pic_reset(s);
     return qemu_allocate_irqs(heathrow_pic_set_irq, s, 64);

@@ -633,6 +633,79 @@ static CPUReadMemoryFunc *cuda_read[] = {
     &cuda_readl,
 };
 
+static void cuda_save_timer(QEMUFile *f, CUDATimer *s)
+{
+    qemu_put_be16s(f, &s->latch);
+    qemu_put_be16s(f, &s->counter_value);
+    qemu_put_sbe64s(f, &s->load_time);
+    qemu_put_sbe64s(f, &s->next_irq_time);
+    if (s->timer)
+        qemu_put_timer(f, s->timer);
+}
+
+static void cuda_save(QEMUFile *f, void *opaque)
+{
+    CUDAState *s = (CUDAState *)opaque;
+
+    qemu_put_ubyte(f, s->b);
+    qemu_put_ubyte(f, s->a);
+    qemu_put_ubyte(f, s->dirb);
+    qemu_put_ubyte(f, s->dira);
+    qemu_put_ubyte(f, s->sr);
+    qemu_put_ubyte(f, s->acr);
+    qemu_put_ubyte(f, s->pcr);
+    qemu_put_ubyte(f, s->ifr);
+    qemu_put_ubyte(f, s->ier);
+    qemu_put_ubyte(f, s->anh);
+    qemu_put_sbe32s(f, &s->data_in_size);
+    qemu_put_sbe32s(f, &s->data_in_index);
+    qemu_put_sbe32s(f, &s->data_out_index);
+    qemu_put_ubyte(f, s->autopoll);
+    qemu_put_buffer(f, s->data_in, sizeof(s->data_in));
+    qemu_put_buffer(f, s->data_out, sizeof(s->data_out));
+    cuda_save_timer(f, &s->timers[0]);
+    cuda_save_timer(f, &s->timers[1]);
+}
+
+static void cuda_load_timer(QEMUFile *f, CUDATimer *s)
+{
+    qemu_get_be16s(f, &s->latch);
+    qemu_get_be16s(f, &s->counter_value);
+    qemu_get_sbe64s(f, &s->load_time);
+    qemu_get_sbe64s(f, &s->next_irq_time);
+    if (s->timer)
+        qemu_get_timer(f, s->timer);
+}
+
+static int cuda_load(QEMUFile *f, void *opaque, int version_id)
+{
+    CUDAState *s = (CUDAState *)opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->b = qemu_get_ubyte(f);
+    s->a = qemu_get_ubyte(f);
+    s->dirb = qemu_get_ubyte(f);
+    s->dira = qemu_get_ubyte(f);
+    s->sr = qemu_get_ubyte(f);
+    s->acr = qemu_get_ubyte(f);
+    s->pcr = qemu_get_ubyte(f);
+    s->ifr = qemu_get_ubyte(f);
+    s->ier = qemu_get_ubyte(f);
+    s->anh = qemu_get_ubyte(f);
+    qemu_get_sbe32s(f, &s->data_in_size);
+    qemu_get_sbe32s(f, &s->data_in_index);
+    qemu_get_sbe32s(f, &s->data_out_index);
+    s->autopoll = qemu_get_ubyte(f);
+    qemu_get_buffer(f, s->data_in, sizeof(s->data_in));
+    qemu_get_buffer(f, s->data_out, sizeof(s->data_out));
+    cuda_load_timer(f, &s->timers[0]);
+    cuda_load_timer(f, &s->timers[1]);
+
+    return 0;
+}
+
 static void cuda_reset(void *opaque)
 {
     CUDAState *s = opaque;
@@ -673,6 +746,7 @@ void cuda_init (int *cuda_mem_index, qemu_irq irq)
 
     s->adb_poll_timer = qemu_new_timer(vm_clock, cuda_adb_poll, s);
     *cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
+    register_savevm("cuda", -1, 1, cuda_save, cuda_load, s);
     qemu_register_reset(cuda_reset, s);
     cuda_reset(s);
 }

@@ -3058,6 +3058,71 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
     }
 }
 
+static void pci_ide_save(QEMUFile* f, void *opaque)
+{
+    PCIIDEState *d = opaque;
+    int i;
+
+    pci_device_save(&d->dev, f);
+
+    for(i = 0; i < 2; i++) {
+        BMDMAState *bm = &d->bmdma[i];
+        qemu_put_8s(f, &bm->cmd);
+        qemu_put_8s(f, &bm->status);
+        qemu_put_be32s(f, &bm->addr);
+        /* XXX: if a transfer is pending, we do not save it yet */
+    }
+
+    /* per IDE interface data */
+    for(i = 0; i < 2; i++) {
+        IDEState *s = &d->ide_if[i * 2];
+        uint8_t drive1_selected;
+        qemu_put_8s(f, &s->cmd);
+        drive1_selected = (s->cur_drive != s);
+        qemu_put_8s(f, &drive1_selected);
+    }
+
+    /* per IDE drive data */
+    for(i = 0; i < 4; i++) {
+        ide_save(f, &d->ide_if[i]);
+    }
+}
+
+static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
+{
+    PCIIDEState *d = opaque;
+    int ret, i;
+
+    if (version_id != 1)
+        return -EINVAL;
+    ret = pci_device_load(&d->dev, f);
+    if (ret < 0)
+        return ret;
+
+    for(i = 0; i < 2; i++) {
+        BMDMAState *bm = &d->bmdma[i];
+        qemu_get_8s(f, &bm->cmd);
+        qemu_get_8s(f, &bm->status);
+        qemu_get_be32s(f, &bm->addr);
+        /* XXX: if a transfer is pending, we do not save it yet */
+    }
+
+    /* per IDE interface data */
+    for(i = 0; i < 2; i++) {
+        IDEState *s = &d->ide_if[i * 2];
+        uint8_t drive1_selected;
+        qemu_get_8s(f, &s->cmd);
+        qemu_get_8s(f, &drive1_selected);
+        s->cur_drive = &d->ide_if[i * 2 + (drive1_selected != 0)];
+    }
+
+    /* per IDE drive data */
+    for(i = 0; i < 4; i++) {
+        ide_load(f, &d->ide_if[i]);
+    }
+    return 0;
+}
+
 /* XXX: call it also when the MRDMODE is changed from the PCI config
    registers */
 static void cmd646_update_irq(PCIIDEState *d)
@@ -3145,73 +3210,9 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], irq[0]);
     ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], irq[1]);
 
+    register_savevm("ide", 0, 1, pci_ide_save, pci_ide_load, d);
     qemu_register_reset(cmd646_reset, d);
     cmd646_reset(d);
-}
-
-static void pci_ide_save(QEMUFile* f, void *opaque)
-{
-    PCIIDEState *d = opaque;
-    int i;
-
-    pci_device_save(&d->dev, f);
-
-    for(i = 0; i < 2; i++) {
-        BMDMAState *bm = &d->bmdma[i];
-        qemu_put_8s(f, &bm->cmd);
-        qemu_put_8s(f, &bm->status);
-        qemu_put_be32s(f, &bm->addr);
-        /* XXX: if a transfer is pending, we do not save it yet */
-    }
-
-    /* per IDE interface data */
-    for(i = 0; i < 2; i++) {
-        IDEState *s = &d->ide_if[i * 2];
-        uint8_t drive1_selected;
-        qemu_put_8s(f, &s->cmd);
-        drive1_selected = (s->cur_drive != s);
-        qemu_put_8s(f, &drive1_selected);
-    }
-
-    /* per IDE drive data */
-    for(i = 0; i < 4; i++) {
-        ide_save(f, &d->ide_if[i]);
-    }
-}
-
-static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
-{
-    PCIIDEState *d = opaque;
-    int ret, i;
-
-    if (version_id != 1)
-        return -EINVAL;
-    ret = pci_device_load(&d->dev, f);
-    if (ret < 0)
-        return ret;
-
-    for(i = 0; i < 2; i++) {
-        BMDMAState *bm = &d->bmdma[i];
-        qemu_get_8s(f, &bm->cmd);
-        qemu_get_8s(f, &bm->status);
-        qemu_get_be32s(f, &bm->addr);
-        /* XXX: if a transfer is pending, we do not save it yet */
-    }
-
-    /* per IDE interface data */
-    for(i = 0; i < 2; i++) {
-        IDEState *s = &d->ide_if[i * 2];
-        uint8_t drive1_selected;
-        qemu_get_8s(f, &s->cmd);
-        qemu_get_8s(f, &drive1_selected);
-        s->cur_drive = &d->ide_if[i * 2 + (drive1_selected != 0)];
-    }
-
-    /* per IDE drive data */
-    for(i = 0; i < 4; i++) {
-        ide_load(f, &d->ide_if[i]);
-    }
-    return 0;
 }
 
 static void piix3_reset(void *opaque)
@@ -3417,6 +3418,44 @@ static CPUReadMemoryFunc *pmac_ide_read[] = {
     pmac_ide_readl,
 };
 
+static void pmac_ide_save(QEMUFile *f, void *opaque)
+{
+    IDEState *s = (IDEState *)opaque;
+    uint8_t drive1_selected;
+    unsigned int i;
+
+    /* per IDE interface data */
+    qemu_put_8s(f, &s->cmd);
+    drive1_selected = (s->cur_drive != s);
+    qemu_put_8s(f, &drive1_selected);
+
+    /* per IDE drive data */
+    for(i = 0; i < 2; i++) {
+        ide_save(f, &s[i]);
+    }
+}
+
+static int pmac_ide_load(QEMUFile *f, void *opaque, int version_id)
+{
+    IDEState *s = (IDEState *)opaque;
+    uint8_t drive1_selected;
+    unsigned int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    /* per IDE interface data */
+    qemu_get_8s(f, &s->cmd);
+    qemu_get_8s(f, &drive1_selected);
+    s->cur_drive = &s[(drive1_selected != 0)];
+
+    /* per IDE drive data */
+    for(i = 0; i < 2; i++) {
+        ide_load(f, &s[i]);
+    }
+    return 0;
+}
+
 static void pmac_ide_reset(void *opaque)
 {
     IDEState *s = (IDEState *)opaque;
@@ -3438,6 +3477,7 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq)
 
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, &ide_if[0]);
+    register_savevm("ide", 0, 1, pmac_ide_save, pmac_ide_load, &ide_if[0]);
     qemu_register_reset(pmac_ide_reset, &ide_if[0]);
     pmac_ide_reset(&ide_if[0]);
     return pmac_ide_memory;
