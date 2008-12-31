@@ -79,6 +79,14 @@ if check_define __i386__ ; then
   cpu="i386"
 elif check_define __x86_64__ ; then
   cpu="x86_64"
+elif check_define __sparc__ ; then
+  # We can't check for 64 bit (when gcc is biarch) or V8PLUSA
+  # They must be specified using --sparc_cpu
+  if check_define __arch64__ ; then
+    cpu="sparc64"
+  else
+    cpu="sparc"
+  fi
 else
   cpu=`test $(uname -s) = AIX && uname -p || uname -m`
 fi
