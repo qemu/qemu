@@ -338,9 +338,10 @@ void helper_stsw(target_ulong addr, uint32_t nb, uint32_t reg)
 	addr = addr_add(addr, 4);
     }
     if (unlikely(nb > 0)) {
-        for (sh = 24; nb > 0; nb--, sh -= 8)
+        for (sh = 24; nb > 0; nb--, sh -= 8) {
             stb(addr, (env->gpr[reg] >> sh) & 0xFF);
-	    addr = addr_add(addr, 1);
+            addr = addr_add(addr, 1);
+        }
     }
 }
 
@@ -1560,7 +1561,7 @@ uint64_t helper_fsel (uint64_t arg1, uint64_t arg2, uint64_t arg3)
 
     farg1.ll = arg1;
 
-    if (!float64_is_neg(farg1.d) || float64_is_zero(farg1.d))
+    if ((!float64_is_neg(farg1.d) || float64_is_zero(farg1.d)) && !float64_is_nan(farg1.d))
         return arg2;
     else
         return arg3;

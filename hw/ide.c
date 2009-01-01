@@ -3058,85 +3058,6 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
     }
 }
 
-/* XXX: call it also when the MRDMODE is changed from the PCI config
-   registers */
-static void cmd646_update_irq(PCIIDEState *d)
-{
-    int pci_level;
-    pci_level = ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH0) &&
-                 !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH0)) ||
-        ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH1) &&
-         !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH1));
-    qemu_set_irq(d->dev.irq[0], pci_level);
-}
-
-/* the PCI irq level is the logical OR of the two channels */
-static void cmd646_set_irq(void *opaque, int channel, int level)
-{
-    PCIIDEState *d = opaque;
-    int irq_mask;
-
-    irq_mask = MRDMODE_INTR_CH0 << channel;
-    if (level)
-        d->dev.config[MRDMODE] |= irq_mask;
-    else
-        d->dev.config[MRDMODE] &= ~irq_mask;
-    cmd646_update_irq(d);
-}
-
-/* CMD646 PCI IDE controller */
-void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
-                         int secondary_ide_enabled)
-{
-    PCIIDEState *d;
-    uint8_t *pci_conf;
-    int i;
-    qemu_irq *irq;
-
-    d = (PCIIDEState *)pci_register_device(bus, "CMD646 IDE",
-                                           sizeof(PCIIDEState),
-                                           -1,
-                                           NULL, NULL);
-    d->type = IDE_TYPE_CMD646;
-    pci_conf = d->dev.config;
-    pci_conf[0x00] = 0x95; // CMD646
-    pci_conf[0x01] = 0x10;
-    pci_conf[0x02] = 0x46;
-    pci_conf[0x03] = 0x06;
-
-    pci_conf[0x08] = 0x07; // IDE controller revision
-    pci_conf[0x09] = 0x8f;
-
-    pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
-    pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
-    pci_conf[0x0e] = 0x00; // header_type
-
-    if (secondary_ide_enabled) {
-        /* XXX: if not enabled, really disable the seconday IDE controller */
-        pci_conf[0x51] = 0x80; /* enable IDE1 */
-    }
-
-    pci_register_io_region((PCIDevice *)d, 0, 0x8,
-                           PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 1, 0x4,
-                           PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 2, 0x8,
-                           PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 3, 0x4,
-                           PCI_ADDRESS_SPACE_IO, ide_map);
-    pci_register_io_region((PCIDevice *)d, 4, 0x10,
-                           PCI_ADDRESS_SPACE_IO, bmdma_map);
-
-    pci_conf[0x3d] = 0x01; // interrupt on pin 1
-
-    for(i = 0; i < 4; i++)
-        d->ide_if[i].pci_dev = (PCIDevice *)d;
-
-    irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
-    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], irq[0]);
-    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], irq[1]);
-}
-
 static void pci_ide_save(QEMUFile* f, void *opaque)
 {
     PCIIDEState *d = opaque;
@@ -3200,6 +3121,98 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
         ide_load(f, &d->ide_if[i]);
     }
     return 0;
+}
+
+/* XXX: call it also when the MRDMODE is changed from the PCI config
+   registers */
+static void cmd646_update_irq(PCIIDEState *d)
+{
+    int pci_level;
+    pci_level = ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH0) &&
+                 !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH0)) ||
+        ((d->dev.config[MRDMODE] & MRDMODE_INTR_CH1) &&
+         !(d->dev.config[MRDMODE] & MRDMODE_BLK_CH1));
+    qemu_set_irq(d->dev.irq[0], pci_level);
+}
+
+/* the PCI irq level is the logical OR of the two channels */
+static void cmd646_set_irq(void *opaque, int channel, int level)
+{
+    PCIIDEState *d = opaque;
+    int irq_mask;
+
+    irq_mask = MRDMODE_INTR_CH0 << channel;
+    if (level)
+        d->dev.config[MRDMODE] |= irq_mask;
+    else
+        d->dev.config[MRDMODE] &= ~irq_mask;
+    cmd646_update_irq(d);
+}
+
+static void cmd646_reset(void *opaque)
+{
+    PCIIDEState *d = opaque;
+    unsigned int i;
+
+    for (i = 0; i < 2; i++)
+        ide_dma_cancel(&d->bmdma[i]);
+}
+
+/* CMD646 PCI IDE controller */
+void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
+                         int secondary_ide_enabled)
+{
+    PCIIDEState *d;
+    uint8_t *pci_conf;
+    int i;
+    qemu_irq *irq;
+
+    d = (PCIIDEState *)pci_register_device(bus, "CMD646 IDE",
+                                           sizeof(PCIIDEState),
+                                           -1,
+                                           NULL, NULL);
+    d->type = IDE_TYPE_CMD646;
+    pci_conf = d->dev.config;
+    pci_conf[0x00] = 0x95; // CMD646
+    pci_conf[0x01] = 0x10;
+    pci_conf[0x02] = 0x46;
+    pci_conf[0x03] = 0x06;
+
+    pci_conf[0x08] = 0x07; // IDE controller revision
+    pci_conf[0x09] = 0x8f;
+
+    pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
+    pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
+    pci_conf[0x0e] = 0x00; // header_type
+
+    if (secondary_ide_enabled) {
+        /* XXX: if not enabled, really disable the seconday IDE controller */
+        pci_conf[0x51] = 0x80; /* enable IDE1 */
+    }
+
+    pci_register_io_region((PCIDevice *)d, 0, 0x8,
+                           PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_io_region((PCIDevice *)d, 1, 0x4,
+                           PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_io_region((PCIDevice *)d, 2, 0x8,
+                           PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_io_region((PCIDevice *)d, 3, 0x4,
+                           PCI_ADDRESS_SPACE_IO, ide_map);
+    pci_register_io_region((PCIDevice *)d, 4, 0x10,
+                           PCI_ADDRESS_SPACE_IO, bmdma_map);
+
+    pci_conf[0x3d] = 0x01; // interrupt on pin 1
+
+    for(i = 0; i < 4; i++)
+        d->ide_if[i].pci_dev = (PCIDevice *)d;
+
+    irq = qemu_allocate_irqs(cmd646_set_irq, d, 2);
+    ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], irq[0]);
+    ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], irq[1]);
+
+    register_savevm("ide", 0, 1, pci_ide_save, pci_ide_load, d);
+    qemu_register_reset(cmd646_reset, d);
+    cmd646_reset(d);
 }
 
 static void piix3_reset(void *opaque)
@@ -3405,6 +3418,52 @@ static CPUReadMemoryFunc *pmac_ide_read[] = {
     pmac_ide_readl,
 };
 
+static void pmac_ide_save(QEMUFile *f, void *opaque)
+{
+    IDEState *s = (IDEState *)opaque;
+    uint8_t drive1_selected;
+    unsigned int i;
+
+    /* per IDE interface data */
+    qemu_put_8s(f, &s->cmd);
+    drive1_selected = (s->cur_drive != s);
+    qemu_put_8s(f, &drive1_selected);
+
+    /* per IDE drive data */
+    for(i = 0; i < 2; i++) {
+        ide_save(f, &s[i]);
+    }
+}
+
+static int pmac_ide_load(QEMUFile *f, void *opaque, int version_id)
+{
+    IDEState *s = (IDEState *)opaque;
+    uint8_t drive1_selected;
+    unsigned int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    /* per IDE interface data */
+    qemu_get_8s(f, &s->cmd);
+    qemu_get_8s(f, &drive1_selected);
+    s->cur_drive = &s[(drive1_selected != 0)];
+
+    /* per IDE drive data */
+    for(i = 0; i < 2; i++) {
+        ide_load(f, &s[i]);
+    }
+    return 0;
+}
+
+static void pmac_ide_reset(void *opaque)
+{
+    IDEState *s = (IDEState *)opaque;
+
+    ide_reset(&s[0]);
+    ide_reset(&s[1]);
+}
+
 /* hd_table must contain 4 block drivers */
 /* PowerMac uses memory mapped registers, not I/O. Return the memory
    I/O index to access the ide. */
@@ -3418,6 +3477,9 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq)
 
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, &ide_if[0]);
+    register_savevm("ide", 0, 1, pmac_ide_save, pmac_ide_load, &ide_if[0]);
+    qemu_register_reset(pmac_ide_reset, &ide_if[0]);
+    pmac_ide_reset(&ide_if[0]);
     return pmac_ide_memory;
 }
 

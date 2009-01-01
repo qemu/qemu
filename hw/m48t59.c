@@ -604,6 +604,8 @@ static void m48t59_reset(void *opaque)
 {
     m48t59_t *NVRAM = opaque;
 
+    NVRAM->addr = 0;
+    NVRAM->lock = 0;
     if (NVRAM->alrm_timer != NULL)
         qemu_del_timer(NVRAM->alrm_timer);
 
@@ -630,7 +632,6 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
     s->IRQ = IRQ;
     s->size = size;
     s->io_base = io_base;
-    s->addr = 0;
     s->type = type;
     if (io_base != 0) {
         register_ioport_read(io_base, 0x04, 1, NVRAM_readb, s);
@@ -644,7 +645,6 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
         s->alrm_timer = qemu_new_timer(vm_clock, &alarm_cb, s);
         s->wd_timer = qemu_new_timer(vm_clock, &watchdog_cb, s);
     }
-    s->lock = 0;
     qemu_get_timedate(&s->alarm, 0);
 
     qemu_register_reset(m48t59_reset, s);
