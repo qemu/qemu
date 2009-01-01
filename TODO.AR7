@@ -2,6 +2,8 @@ TODO list for AR7 / QEMU
 
 2008-12-16
 
+AR7_RESET_PEREPHERIAL
+
 * Linux 2.6.27.9 working, but some locking issues with acx driver:
 
 [ 9424.190000] get_mask 0x00000000, set_mask 0x00000040
