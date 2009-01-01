@@ -75,6 +75,24 @@ static CPUWriteMemoryFunc *rtc_write[3] = {
     rtc_writeb,
 };
 
+static void dma_dummy_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+{
+    /* Nothing to do. That is only to ensure that
+     * the current DMA acknowledge cycle is completed. */
+}
+
+static CPUReadMemoryFunc *dma_dummy_read[3] = {
+    NULL,
+    NULL,
+    NULL,
+};
+
+static CPUWriteMemoryFunc *dma_dummy_write[3] = {
+    dma_dummy_writeb,
+    dma_dummy_writeb,
+    dma_dummy_writeb,
+};
+
 #ifdef HAS_AUDIO
 static void audio_init(qemu_irq *pic)
 {
@@ -102,16 +120,6 @@ static void audio_init(qemu_irq *pic)
 }
 #endif
 
-static void espdma_memory_read(void *opaque, uint8_t *buf, int len)
-{
-    printf("espdma_memory_read(buf %p, len %d) not implemented\n", buf, len);
-}
-
-static void espdma_memory_write(void *opaque, uint8_t *buf, int len)
-{
-    printf("espdma_memory_write(buf %p, len %d) not implemented\n", buf, len);
-}
-
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
@@ -125,9 +133,11 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     int bios_size, n;
     CPUState *env;
     qemu_irq *rc4030, *i8259;
+    rc4030_dma *dmas;
+    rc4030_dma_function dma_read, dma_write;
     void *scsi_hba;
     int hd;
-    int s_rtc;
+    int s_rtc, s_dma_dummy;
     PITState *pit;
     BlockDriverState *fds[MAX_FD];
     qemu_irq esp_reset;
@@ -153,7 +163,9 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* load the BIOS image. */
     bios_offset = ram_size + vga_ram_size;
-    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, BIOS_FILENAME);
+    if (bios_name == NULL)
+        bios_name = BIOS_FILENAME;
+    snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
     bios_size = load_image(buf, phys_ram_base + bios_offset);
     if (bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) {
         fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n",
@@ -171,10 +183,14 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     cpu_mips_clock_init(env);
 
     /* Chipset */
-    rc4030 = rc4030_init(env->irq[6], env->irq[3]);
+    rc4030 = rc4030_init(env->irq[6], env->irq[3],
+                         &dmas, &dma_read, &dma_write);
+    s_dma_dummy = cpu_register_io_memory(0, dma_dummy_read, dma_dummy_write, NULL);
+    cpu_register_physical_memory(0x8000d000, 0x00001000, s_dma_dummy);
 
     /* ISA devices */
     i8259 = i8259_init(env->irq[4]);
+    DMA_init(0);
     pit = pit_init(0x40, i8259[0]);
     pcspk_init(pit);
 
@@ -200,7 +216,7 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* SCSI adapter */
     scsi_hba = esp_init(0x80002000, 0,
-                        espdma_memory_read, espdma_memory_write, NULL,
+                        dma_read, dma_write, dmas[0],
                         rc4030[5], &esp_reset);
     for (n = 0; n < ESP_MAX_DEVS; n++) {
         hd = drive_get_index(IF_SCSI, 0, n);
@@ -278,6 +294,7 @@ QEMUMachine mips_magnum_machine = {
     .init = mips_magnum_init,
     .ram_require = MAGNUM_BIOS_SIZE + VGA_RAM_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
 
 QEMUMachine mips_pica61_machine = {
@@ -286,4 +303,5 @@ QEMUMachine mips_pica61_machine = {
     .init = mips_pica61_init,
     .ram_require = MAGNUM_BIOS_SIZE + VGA_RAM_SIZE,
     .nodisk_ok = 1,
+    .use_scsi = 1,
 };
