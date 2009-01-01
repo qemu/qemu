@@ -785,8 +785,8 @@ static void _decode_opc(DisasContext * ctx)
 	{
 	    int label1 = gen_new_label();
 	    int label2 = gen_new_label();
-	    TCGv cmp1 = tcg_temp_local_new(TCG_TYPE_I32);
-	    TCGv cmp2 = tcg_temp_local_new(TCG_TYPE_I32);
+	    TCGv cmp1 = tcg_temp_local_new();
+	    TCGv cmp2 = tcg_temp_local_new();
 	    tcg_gen_xor_i32(cmp1, REG(B7_4), REG(B11_8));
 	    tcg_gen_andi_i32(cmp2, cmp1, 0xff000000);
 	    tcg_gen_brcondi_i32(TCG_COND_EQ, cmp2, 0, label1);
@@ -935,7 +935,7 @@ static void _decode_opc(DisasContext * ctx)
 	    int label2 = gen_new_label();
 	    int label3 = gen_new_label();
 	    int label4 = gen_new_label();
-	    TCGv shift = tcg_temp_local_new(TCG_TYPE_I32);
+	    TCGv shift = tcg_temp_local_new();
 	    tcg_gen_brcondi_i32(TCG_COND_LT, REG(B7_4), 0, label1);
 	    /* Rm positive, shift to the left */
 	    tcg_gen_andi_i32(shift, REG(B7_4), 0x1f);
@@ -966,7 +966,7 @@ static void _decode_opc(DisasContext * ctx)
 	    int label1 = gen_new_label();
 	    int label2 = gen_new_label();
 	    int label3 = gen_new_label();
-	    TCGv shift = tcg_temp_local_new(TCG_TYPE_I32);
+	    TCGv shift = tcg_temp_local_new();
 	    tcg_gen_brcondi_i32(TCG_COND_LT, REG(B7_4), 0, label1);
 	    /* Rm positive, shift to the left */
 	    tcg_gen_andi_i32(shift, REG(B7_4), 0x1f);
@@ -1645,9 +1645,9 @@ static void _decode_opc(DisasContext * ctx)
     case 0x401b:		/* tas.b @Rn */
 	{
 	    TCGv addr, val;
-	    addr = tcg_temp_local_new(TCG_TYPE_I32);
+	    addr = tcg_temp_local_new();
 	    tcg_gen_mov_i32(addr, REG(B11_8));
-	    val = tcg_temp_local_new(TCG_TYPE_I32);
+	    val = tcg_temp_local_new();
 	    tcg_gen_qemu_ld8u(val, addr, ctx->memidx);
 	    gen_cmp_imm(TCG_COND_EQ, val, 0);
 	    tcg_gen_ori_i32(val, val, 0x80);
