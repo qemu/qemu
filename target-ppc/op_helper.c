@@ -1954,6 +1954,28 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
 }
 
 /*****************************************************************************/
+/* Altivec extension helpers */
+#if defined(WORDS_BIGENDIAN)
+#define HI_IDX 0
+#define LO_IDX 1
+#else
+#define HI_IDX 1
+#define LO_IDX 0
+#endif
+
+#if defined(WORDS_BIGENDIAN)
+#define VECTOR_FOR_INORDER_I(index, element)            \
+    for (index = 0; index < ARRAY_SIZE(r->element); index++)
+#else
+#define VECTOR_FOR_INORDER_I(index, element)            \
+  for (index = ARRAY_SIZE(r->element)-1; index >= 0; index--)
+#endif
+
+#undef VECTOR_FOR_INORDER_I
+#undef HI_IDX
+#undef LO_IDX
+
+/*****************************************************************************/
 /* SPE extension helpers */
 /* Use a table to make this quicker */
 static uint8_t hbrev[16] = {
