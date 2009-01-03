@@ -2007,6 +2007,30 @@ VAVG(w, s32, int64_t, u32, uint64_t)
 #undef VAVG_DO
 #undef VAVG
 
+#define VMINMAX_DO(name, compare, element)                              \
+    void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            if (a->element[i] compare b->element[i]) {                  \
+                r->element[i] = b->element[i];                          \
+            } else {                                                    \
+                r->element[i] = a->element[i];                          \
+            }                                                           \
+        }                                                               \
+    }
+#define VMINMAX(suffix, element)                \
+  VMINMAX_DO(min##suffix, >, element)           \
+  VMINMAX_DO(max##suffix, <, element)
+VMINMAX(sb, s8)
+VMINMAX(sh, s16)
+VMINMAX(sw, s32)
+VMINMAX(ub, u8)
+VMINMAX(uh, u16)
+VMINMAX(uw, u32)
+#undef VMINMAX_DO
+#undef VMINMAX
+
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX
