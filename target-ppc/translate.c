@@ -6350,7 +6350,7 @@ static always_inline void gen_##name (DisasContext *ctx)                      \
     TCGv_i32 t0 = tcg_temp_local_new_i32();                                   \
     TCGv_i32 t1 = tcg_temp_local_new_i32();                                   \
     TCGv_i32 t2 = tcg_temp_local_new_i32();                                   \
-    TCGv_i64 t3 = tcg_temp_local_new();                                       \
+    TCGv_i64 t3 = tcg_temp_local_new_i64();                                   \
     tcg_gen_trunc_i64_i32(t0, cpu_gpr[rA(ctx->opcode)]);                      \
     tcg_gen_trunc_i64_i32(t2, cpu_gpr[rB(ctx->opcode)]);                      \
     tcg_op(t0, t0, t2);                                                       \
