@@ -1988,6 +1988,25 @@ VARITH(uwm, u32)
 #undef VARITH_DO
 #undef VARITH
 
+#define VAVG_DO(name, element, etype)                                   \
+    void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            etype x = (etype)a->element[i] + (etype)b->element[i] + 1;  \
+            r->element[i] = x >> 1;                                     \
+        }                                                               \
+    }
+
+#define VAVG(type, signed_element, signed_type, unsigned_element, unsigned_type) \
+    VAVG_DO(avgs##type, signed_element, signed_type)                    \
+    VAVG_DO(avgu##type, unsigned_element, unsigned_type)
+VAVG(b, s8, int16_t, u8, uint16_t)
+VAVG(h, s16, int32_t, u16, uint32_t)
+VAVG(w, s32, int64_t, u32, uint64_t)
+#undef VAVG_DO
+#undef VAVG
+
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX
