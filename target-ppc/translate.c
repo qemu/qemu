@@ -6164,6 +6164,23 @@ GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18);
 GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19);
 GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20);
 
+#define GEN_VXFORM(name, opc2, opc3)                                    \
+GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)            \
+{                                                                       \
+    TCGv_ptr ra, rb, rd;                                                \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    ra = gen_avr_ptr(rA(ctx->opcode));                                  \
+    rb = gen_avr_ptr(rB(ctx->opcode));                                  \
+    rd = gen_avr_ptr(rD(ctx->opcode));                                  \
+    gen_helper_##name (rd, ra, rb);                                     \
+    tcg_temp_free_ptr(ra);                                              \
+    tcg_temp_free_ptr(rb);                                              \
+    tcg_temp_free_ptr(rd);                                              \
+}
+
 /***                           SPE extension                               ***/
 /* Register moves */
 
