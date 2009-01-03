@@ -525,6 +525,13 @@ enum {
                    0x1F)
 
 /*****************************************************************************/
+/* Vector status and control register */
+#define VSCR_NJ		16 /* Vector non-java */
+#define VSCR_SAT	0 /* Vector saturation */
+#define vscr_nj		(((env->vscr) >> VSCR_NJ)	& 0x1)
+#define vscr_sat	(((env->vscr) >> VSCR_SAT)	& 0x1)
+
+/*****************************************************************************/
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
