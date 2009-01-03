@@ -314,39 +314,39 @@ tar:
 tarbin:
 	cd / && tar zcvf ~/qemu-$(VERSION)-$(ARCH).tar.gz \
 	$(bindir)/qemu \
-	$(bindir)/qemu-system-ppc \
-	$(bindir)/qemu-system-ppc64 \
-	$(bindir)/qemu-system-ppcemb \
-	$(bindir)/qemu-system-sparc \
 	$(bindir)/qemu-system-x86_64 \
+	$(bindir)/qemu-system-arm \
+	$(bindir)/qemu-system-cris \
+	$(bindir)/qemu-system-m68k \
 	$(bindir)/qemu-system-mips \
 	$(bindir)/qemu-system-mipsel \
 	$(bindir)/qemu-system-mips64 \
 	$(bindir)/qemu-system-mips64el \
-	$(bindir)/qemu-system-arm \
-	$(bindir)/qemu-system-m68k \
+	$(bindir)/qemu-system-ppc \
+	$(bindir)/qemu-system-ppcemb \
+	$(bindir)/qemu-system-ppc64 \
 	$(bindir)/qemu-system-sh4 \
 	$(bindir)/qemu-system-sh4eb \
-	$(bindir)/qemu-system-cris \
+	$(bindir)/qemu-system-sparc \
 	$(bindir)/qemu-i386 \
 	$(bindir)/qemu-x86_64 \
-        $(bindir)/qemu-arm \
-        $(bindir)/qemu-armeb \
-        $(bindir)/qemu-sparc \
-        $(bindir)/qemu-sparc32plus \
-        $(bindir)/qemu-sparc64 \
-        $(bindir)/qemu-ppc \
-        $(bindir)/qemu-ppc64 \
-        $(bindir)/qemu-ppc64abi32 \
-        $(bindir)/qemu-mips \
-        $(bindir)/qemu-mipsel \
-        $(bindir)/qemu-alpha \
-        $(bindir)/qemu-m68k \
-        $(bindir)/qemu-sh4 \
-        $(bindir)/qemu-sh4eb \
-        $(bindir)/qemu-cris \
-        $(bindir)/qemu-img \
-        $(bindir)/qemu-nbd \
+	$(bindir)/qemu-alpha \
+	$(bindir)/qemu-arm \
+	$(bindir)/qemu-armeb \
+	$(bindir)/qemu-cris \
+	$(bindir)/qemu-m68k \
+	$(bindir)/qemu-mips \
+	$(bindir)/qemu-mipsel \
+	$(bindir)/qemu-ppc \
+	$(bindir)/qemu-ppc64 \
+	$(bindir)/qemu-ppc64abi32 \
+	$(bindir)/qemu-sh4 \
+	$(bindir)/qemu-sh4eb \
+	$(bindir)/qemu-sparc \
+	$(bindir)/qemu-sparc64 \
+	$(bindir)/qemu-sparc32plus \
+	$(bindir)/qemu-img \
+	$(bindir)/qemu-nbd \
 	$(datadir)/bios.bin \
 	$(datadir)/vgabios.bin \
 	$(datadir)/vgabios-cirrus.bin \
@@ -354,13 +354,14 @@ tarbin:
 	$(datadir)/video.x \
 	$(datadir)/openbios-sparc32 \
 	$(datadir)/openbios-sparc64 \
-        $(datadir)/pxe-ne2k_pci.bin \
+	$(datadir)/pxe-ne2k_pci.bin \
 	$(datadir)/pxe-rtl8139.bin \
-        $(datadir)/pxe-pcnet.bin \
+	$(datadir)/pxe-pcnet.bin \
 	$(datadir)/pxe-e1000.bin \
 	$(docdir)/qemu-doc.html \
 	$(docdir)/qemu-tech.html \
-	$(mandir)/man1/qemu.1 $(mandir)/man1/qemu-img.1
+	$(mandir)/man1/qemu.1 \
+	$(mandir)/man1/qemu-img.1 \
 	$(mandir)/man8/qemu-nbd.8
 
 # Include automatically generated dependency files
