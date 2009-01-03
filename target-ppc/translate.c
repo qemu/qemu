@@ -6181,6 +6181,12 @@ GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)            \
     tcg_temp_free_ptr(rd);                                              \
 }
 
+GEN_VXFORM(vaddubm, 0, 0);
+GEN_VXFORM(vadduhm, 0, 1);
+GEN_VXFORM(vadduwm, 0, 2);
+GEN_VXFORM(vsububm, 0, 16);
+GEN_VXFORM(vsubuhm, 0, 17);
+GEN_VXFORM(vsubuwm, 0, 18);
 /***                           SPE extension                               ***/
 /* Register moves */
 

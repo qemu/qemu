@@ -1971,6 +1971,23 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
   for (index = ARRAY_SIZE(r->element)-1; index >= 0; index--)
 #endif
 
+#define VARITH_DO(name, op, element)        \
+void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
+{                                                                       \
+    int i;                                                              \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
+        r->element[i] = a->element[i] op b->element[i];                 \
+    }                                                                   \
+}
+#define VARITH(suffix, element)                  \
+  VARITH_DO(add##suffix, +, element)             \
+  VARITH_DO(sub##suffix, -, element)
+VARITH(ubm, u8)
+VARITH(uhm, u16)
+VARITH(uwm, u32)
+#undef VARITH_DO
+#undef VARITH
+
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX

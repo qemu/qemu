@@ -96,6 +96,15 @@ DEF_HELPER_1(fres, i64, i64)
 DEF_HELPER_1(frsqrte, i64, i64)
 DEF_HELPER_3(fsel, i64, i64, i64, i64)
 
+#define dh_alias_avr ptr
+#define dh_ctype_avr ppc_avr_t *
+
+DEF_HELPER_3(vaddubm, void, avr, avr, avr)
+DEF_HELPER_3(vadduhm, void, avr, avr, avr)
+DEF_HELPER_3(vadduwm, void, avr, avr, avr)
+DEF_HELPER_3(vsububm, void, avr, avr, avr)
+DEF_HELPER_3(vsubuhm, void, avr, avr, avr)
+DEF_HELPER_3(vsubuwm, void, avr, avr, avr)
 DEF_HELPER_1(efscfsi, i32, i32)
 DEF_HELPER_1(efscfui, i32, i32)
 DEF_HELPER_1(efscfuf, i32, i32)
