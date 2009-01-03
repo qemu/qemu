@@ -441,9 +441,9 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     target_siginfo_t tinfo;
 
     /* the CPU emulator uses some host signals to detect exceptions,
-       we we forward to it some signals */
+       we forward to it some signals */
     if ((host_signum == SIGSEGV || host_signum == SIGBUS)
-        && info->si_code == SI_KERNEL) {
+        && info->si_code > 0) {
         if (cpu_signal_handler(host_signum, info, puc))
             return;
     }
