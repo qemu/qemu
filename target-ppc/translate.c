@@ -6308,6 +6308,10 @@ GEN_VXFORM(vrlw, 2, 2);
         tcg_temp_free_ptr(rd);                                          \
     }
 
+GEN_VXFORM_UIMM(vspltb, 6, 8);
+GEN_VXFORM_UIMM(vsplth, 6, 9);
+GEN_VXFORM_UIMM(vspltw, 6, 10);
+
 GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
 {
     TCGv_ptr ra, rb, rd;
