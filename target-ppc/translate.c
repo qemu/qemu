@@ -6289,6 +6289,10 @@ GEN_VXFORM(vrlw, 2, 2);
         tcg_temp_free_ptr(rd);                                         \
     }
 
+GEN_VXFORM_NOA(vupkhsb, 7, 8);
+GEN_VXFORM_NOA(vupkhsh, 7, 9);
+GEN_VXFORM_NOA(vupklsb, 7, 10);
+GEN_VXFORM_NOA(vupklsh, 7, 11);
 GEN_VXFORM_NOA(vupkhpx, 7, 13);
 GEN_VXFORM_NOA(vupklpx, 7, 15);
 

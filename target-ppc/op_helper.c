@@ -2274,6 +2274,27 @@ VUPKPX(lpx, UPKLO)
 VUPKPX(hpx, UPKHI)
 #undef VUPKPX
 
+#define VUPK(suffix, unpacked, packee, hi)                              \
+    void helper_vupk##suffix (ppc_avr_t *r, ppc_avr_t *b)               \
+    {                                                                   \
+        int i;                                                          \
+        ppc_avr_t result;                                               \
+        if (hi) {                                                       \
+            for (i = 0; i < ARRAY_SIZE(r->unpacked); i++) {             \
+                result.unpacked[i] = b->packee[i];                      \
+            }                                                           \
+        } else {                                                        \
+            for (i = ARRAY_SIZE(r->unpacked); i < ARRAY_SIZE(r->packee); i++) { \
+                result.unpacked[i-ARRAY_SIZE(r->unpacked)] = b->packee[i]; \
+            }                                                           \
+        }                                                               \
+        *r = result;                                                    \
+    }
+VUPK(hsb, s16, s8, UPKHI)
+VUPK(hsh, s32, s16, UPKHI)
+VUPK(lsb, s16, s8, UPKLO)
+VUPK(lsh, s32, s16, UPKLO)
+#undef VUPK
 #undef UPKHI
 #undef UPKLO
 
