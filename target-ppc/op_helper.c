@@ -2115,6 +2115,21 @@ VMUL(uh, u16, u32)
 #undef VMUL_DO
 #undef VMUL
 
+#define VROTATE(suffix, element)                                        \
+    void helper_vrl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            unsigned int mask = ((1 << (3 + (sizeof (a->element[0]) >> 1))) - 1); \
+            unsigned int shift = b->element[i] & mask;                  \
+            r->element[i] = (a->element[i] << shift) | (a->element[i] >> (sizeof(a->element[0]) * 8 - shift)); \
+        }                                                               \
+    }
+VROTATE(b, u8)
+VROTATE(h, u16)
+VROTATE(w, u32)
+#undef VROTATE
+
 #define VSL(suffix, element)                                            \
     void helper_vsl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
     {                                                                   \
