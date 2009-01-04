@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
+#include <string.h>
 #include "exec.h"
 #include "host-utils.h"
 #include "helper.h"
@@ -2103,6 +2104,19 @@ VSL(h, u16)
 VSL(w, u32)
 #undef VSL
 
+void helper_vslo (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+  int sh = (b->u8[LO_IDX*0xf] >> 3) & 0xf;
+
+#if defined (WORDS_BIGENDIAN)
+  memmove (&r->u8[0], &a->u8[sh], 16-sh);
+  memset (&r->u8[16-sh], 0, sh);
+#else
+  memmove (&r->u8[sh], &a->u8[0], 16-sh);
+  memset (&r->u8[0], 0, sh);
+#endif
+}
+
 #define VSR(suffix, element)                                            \
     void helper_vsr##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
     {                                                                   \
@@ -2120,6 +2134,19 @@ VSR(b, u8)
 VSR(h, u16)
 VSR(w, u32)
 #undef VSR
+
+void helper_vsro (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+  int sh = (b->u8[LO_IDX*0xf] >> 3) & 0xf;
+
+#if defined (WORDS_BIGENDIAN)
+  memmove (&r->u8[sh], &a->u8[0], 16-sh);
+  memset (&r->u8[0], 0, sh);
+#else
+  memmove (&r->u8[0], &a->u8[sh], 16-sh);
+  memset (&r->u8[16-sh], 0, sh);
+#endif
+}
 
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX

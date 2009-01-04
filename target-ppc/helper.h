@@ -146,6 +146,8 @@ DEF_HELPER_3(vsrw, void, avr, avr, avr)
 DEF_HELPER_3(vslb, void, avr, avr, avr)
 DEF_HELPER_3(vslh, void, avr, avr, avr)
 DEF_HELPER_3(vslw, void, avr, avr, avr)
+DEF_HELPER_3(vslo, void, avr, avr, avr)
+DEF_HELPER_3(vsro, void, avr, avr, avr)
 
 DEF_HELPER_1(efscfsi, i32, i32)
 DEF_HELPER_1(efscfui, i32, i32)
