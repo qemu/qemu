@@ -2166,6 +2166,40 @@ void helper_vmsummbm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
+void helper_vmsumshm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int32_t prod[8];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        prod[i] = a->s16[i] * b->s16[i];
+    }
+
+    VECTOR_FOR_INORDER_I(i, s32) {
+        r->s32[i] = c->s32[i] + prod[2*i] + prod[2*i+1];
+    }
+}
+
+void helper_vmsumshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int32_t prod[8];
+    int i;
+    int sat = 0;
+
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        prod[i] = (int32_t)a->s16[i] * b->s16[i];
+    }
+
+    VECTOR_FOR_INORDER_I (i, s32) {
+        int64_t t = (int64_t)c->s32[i] + prod[2*i] + prod[2*i+1];
+        r->u32[i] = cvtsdsw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
 void helper_vmsumubm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     uint16_t prod[16];
