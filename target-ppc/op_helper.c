@@ -1972,6 +1972,33 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
   for (index = ARRAY_SIZE(r->element)-1; index >= 0; index--)
 #endif
 
+/* Saturating arithmetic helpers.  */
+#define SATCVT(from, to, from_type, to_type, min, max, use_min, use_max) \
+    static always_inline to_type cvt##from##to (from_type x, int *sat)  \
+    {                                                                   \
+        to_type r;                                                      \
+        if (use_min && x < min) {                                       \
+            r = min;                                                    \
+            *sat = 1;                                                   \
+        } else if (use_max && x > max) {                                \
+            r = max;                                                    \
+            *sat = 1;                                                   \
+        } else {                                                        \
+            r = x;                                                      \
+        }                                                               \
+        return r;                                                       \
+    }
+SATCVT(sh, sb, int16_t, int8_t, INT8_MIN, INT8_MAX, 1, 1)
+SATCVT(sw, sh, int32_t, int16_t, INT16_MIN, INT16_MAX, 1, 1)
+SATCVT(sd, sw, int64_t, int32_t, INT32_MIN, INT32_MAX, 1, 1)
+SATCVT(uh, ub, uint16_t, uint8_t, 0, UINT8_MAX, 0, 1)
+SATCVT(uw, uh, uint32_t, uint16_t, 0, UINT16_MAX, 0, 1)
+SATCVT(ud, uw, uint64_t, uint32_t, 0, UINT32_MAX, 0, 1)
+SATCVT(sh, ub, int16_t, uint8_t, 0, UINT8_MAX, 1, 1)
+SATCVT(sw, uh, int32_t, uint16_t, 0, UINT16_MAX, 1, 1)
+SATCVT(sd, uw, int64_t, uint32_t, 0, UINT32_MAX, 1, 1)
+#undef SATCVT
+
 void helper_lvsl (ppc_avr_t *r, target_ulong sh)
 {
     int i, j = (sh & 0xf);
