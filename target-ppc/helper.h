@@ -184,6 +184,7 @@ DEF_HELPER_4(vmsumuhm, void, avr, avr, avr, avr)
 DEF_HELPER_4(vmsumuhs, void, avr, avr, avr, avr)
 DEF_HELPER_4(vmsumshm, void, avr, avr, avr, avr)
 DEF_HELPER_4(vmsumshs, void, avr, avr, avr, avr)
+DEF_HELPER_4(vmladduhm, void, avr, avr, avr, avr)
 
 DEF_HELPER_1(efscfsi, i32, i32)
 DEF_HELPER_1(efscfui, i32, i32)

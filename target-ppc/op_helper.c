@@ -2117,6 +2117,15 @@ VMINMAX(uw, u32)
 #undef VMINMAX_DO
 #undef VMINMAX
 
+void helper_vmladduhm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        int32_t prod = a->s16[i] * b->s16[i];
+        r->s16[i] = (int16_t) (prod + c->s16[i]);
+    }
+}
+
 #define VMRG_DO(name, element, highp)                                   \
     void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
     {                                                                   \
