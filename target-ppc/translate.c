@@ -6289,6 +6289,9 @@ GEN_VXFORM(vrlw, 2, 2);
         tcg_temp_free_ptr(rd);                                         \
     }
 
+GEN_VXFORM_NOA(vupkhpx, 7, 13);
+GEN_VXFORM_NOA(vupklpx, 7, 15);
+
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \
     {                                                                   \

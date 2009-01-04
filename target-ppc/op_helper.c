@@ -2248,6 +2248,35 @@ void helper_vsubcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
+#if defined(WORDS_BIGENDIAN)
+#define UPKHI 1
+#define UPKLO 0
+#else
+#define UPKHI 0
+#define UPKLO 1
+#endif
+#define VUPKPX(suffix, hi)                                      \
+    void helper_vupk##suffix (ppc_avr_t *r, ppc_avr_t *b)       \
+    {                                                           \
+        int i;                                                  \
+        ppc_avr_t result;                                       \
+        for (i = 0; i < ARRAY_SIZE(r->u32); i++) {              \
+            uint16_t e = b->u16[hi ? i : i+4];                  \
+            uint8_t a = (e >> 15) ? 0xff : 0;                   \
+            uint8_t r = (e >> 10) & 0x1f;                       \
+            uint8_t g = (e >> 5) & 0x1f;                        \
+            uint8_t b = e & 0x1f;                               \
+            result.u32[i] = (a << 24) | (r << 16) | (g << 8) | b;       \
+        }                                                               \
+        *r = result;                                                    \
+    }
+VUPKPX(lpx, UPKLO)
+VUPKPX(hpx, UPKHI)
+#undef VUPKPX
+
+#undef UPKHI
+#undef UPKLO
+
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX

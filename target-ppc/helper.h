@@ -159,6 +159,8 @@ DEF_HELPER_4(vsldoi, void, avr, avr, avr, i32)
 DEF_HELPER_3(vspltb, void, avr, avr, i32)
 DEF_HELPER_3(vsplth, void, avr, avr, i32)
 DEF_HELPER_3(vspltw, void, avr, avr, i32)
+DEF_HELPER_2(vupkhpx, void, avr, avr)
+DEF_HELPER_2(vupklpx, void, avr, avr)
 
 DEF_HELPER_1(efscfsi, i32, i32)
 DEF_HELPER_1(efscfui, i32, i32)
