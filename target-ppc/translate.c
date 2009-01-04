@@ -372,6 +372,8 @@ EXTRACT_SHELPER(SIMM, 0, 16);
 EXTRACT_HELPER(UIMM, 0, 16);
 /* 5 bits signed immediate value */
 EXTRACT_HELPER(SIMM5, 16, 5);
+/* 5 bits signed immediate value */
+EXTRACT_HELPER(UIMM5, 16, 5);
 /* Bit count */
 EXTRACT_HELPER(NB, 11, 5);
 /* Shift count */
@@ -6285,6 +6287,24 @@ GEN_VXFORM(vrlw, 2, 2);
         rd = gen_avr_ptr(rD(ctx->opcode));                              \
         gen_helper_##name (rd, simm);                                   \
         tcg_temp_free_i32(simm);                                        \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
+#define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \
+    {                                                                   \
+        TCGv_ptr rb, rd;                                                \
+        TCGv_i32 uimm;                                                  \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        uimm = tcg_const_i32(UIMM5(ctx->opcode));                       \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name (rd, rb, uimm);                               \
+        tcg_temp_free_i32(uimm);                                        \
+        tcg_temp_free_ptr(rb);                                          \
         tcg_temp_free_ptr(rd);                                          \
     }
 
