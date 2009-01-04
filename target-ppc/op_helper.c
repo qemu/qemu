@@ -2534,6 +2534,109 @@ void helper_vsubcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
+void helper_vsumsws (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int64_t t;
+    int i, upper;
+    ppc_avr_t result;
+    int sat = 0;
+
+#if defined(WORDS_BIGENDIAN)
+    upper = ARRAY_SIZE(r->s32)-1;
+#else
+    upper = 0;
+#endif
+    t = (int64_t)b->s32[upper];
+    for (i = 0; i < ARRAY_SIZE(r->s32); i++) {
+        t += a->s32[i];
+        result.s32[i] = 0;
+    }
+    result.s32[upper] = cvtsdsw(t, &sat);
+    *r = result;
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vsum2sws (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i, j, upper;
+    ppc_avr_t result;
+    int sat = 0;
+
+#if defined(WORDS_BIGENDIAN)
+    upper = 1;
+#else
+    upper = 0;
+#endif
+    for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
+        int64_t t = (int64_t)b->s32[upper+i*2];
+        result.u64[i] = 0;
+        for (j = 0; j < ARRAY_SIZE(r->u64); j++) {
+            t += a->s32[2*i+j];
+        }
+        result.s32[upper+i*2] = cvtsdsw(t, &sat);
+    }
+
+    *r = result;
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vsum4sbs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i, j;
+    int sat = 0;
+
+    for (i = 0; i < ARRAY_SIZE(r->s32); i++) {
+        int64_t t = (int64_t)b->s32[i];
+        for (j = 0; j < ARRAY_SIZE(r->s32); j++) {
+            t += a->s8[4*i+j];
+        }
+        r->s32[i] = cvtsdsw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vsum4shs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int sat = 0;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s32); i++) {
+        int64_t t = (int64_t)b->s32[i];
+        t += a->s16[2*i] + a->s16[2*i+1];
+        r->s32[i] = cvtsdsw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vsum4ubs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i, j;
+    int sat = 0;
+
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
+        uint64_t t = (uint64_t)b->u32[i];
+        for (j = 0; j < ARRAY_SIZE(r->u32); j++) {
+            t += a->u8[4*i+j];
+        }
+        r->u32[i] = cvtuduw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
 #if defined(WORDS_BIGENDIAN)
 #define UPKHI 1
 #define UPKLO 0
