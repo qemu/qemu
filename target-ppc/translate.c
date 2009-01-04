@@ -6274,6 +6274,21 @@ GEN_VXFORM(vrlb, 2, 0);
 GEN_VXFORM(vrlh, 2, 1);
 GEN_VXFORM(vrlw, 2, 2);
 
+#define GEN_VXFORM_NOA(name, opc2, opc3)                                \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)        \
+    {                                                                   \
+        TCGv_ptr rb, rd;                                                \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name (rd, rb);                                     \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rd);                                         \
+    }
+
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \
     {                                                                   \
