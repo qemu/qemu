@@ -1999,6 +1999,26 @@ SATCVT(sw, uh, int32_t, uint16_t, 0, UINT16_MAX, 1, 1)
 SATCVT(sd, uw, int64_t, uint32_t, 0, UINT32_MAX, 1, 1)
 #undef SATCVT
 
+#define LVE(name, access, swap, element)                        \
+    void helper_##name (ppc_avr_t *r, target_ulong addr)        \
+    {                                                           \
+        size_t n_elems = ARRAY_SIZE(r->element);                \
+        int adjust = HI_IDX*(n_elems-1);                        \
+        int sh = sizeof(r->element[0]) >> 1;                    \
+        int index = (addr & 0xf) >> sh;                         \
+        if(msr_le) {                                            \
+            r->element[LO_IDX ? index : (adjust - index)] = swap(access(addr)); \
+        } else {                                                        \
+            r->element[LO_IDX ? index : (adjust - index)] = access(addr); \
+        }                                                               \
+    }
+#define I(x) (x)
+LVE(lvebx, ldub, I, u8)
+LVE(lvehx, lduw, bswap16, u16)
+LVE(lvewx, ldl, bswap32, u32)
+#undef I
+#undef LVE
+
 void helper_lvsl (ppc_avr_t *r, target_ulong sh)
 {
     int i, j = (sh & 0xf);
@@ -2016,6 +2036,26 @@ void helper_lvsr (ppc_avr_t *r, target_ulong sh)
         r->u8[i] = j++;
     }
 }
+
+#define STVE(name, access, swap, element)                       \
+    void helper_##name (ppc_avr_t *r, target_ulong addr)        \
+    {                                                           \
+        size_t n_elems = ARRAY_SIZE(r->element);                \
+        int adjust = HI_IDX*(n_elems-1);                        \
+        int sh = sizeof(r->element[0]) >> 1;                    \
+        int index = (addr & 0xf) >> sh;                         \
+        if(msr_le) {                                            \
+            access(addr, swap(r->element[LO_IDX ? index : (adjust - index)])); \
+        } else {                                                        \
+            access(addr, r->element[LO_IDX ? index : (adjust - index)]); \
+        }                                                               \
+    }
+#define I(x) (x)
+STVE(stvebx, stb, I, u8)
+STVE(stvehx, stw, bswap16, u16)
+STVE(stvewx, stl, bswap32, u32)
+#undef I
+#undef LVE
 
 void helper_vaddcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {

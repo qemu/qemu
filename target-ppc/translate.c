@@ -6144,13 +6144,57 @@ GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)              \
     tcg_temp_free(EA);                                                        \
 }
 
+#define GEN_VR_LVE(name, opc2, opc3)                                    \
+    GEN_HANDLER(lve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)   \
+    {                                                                   \
+        TCGv EA;                                                        \
+        TCGv_ptr rs;                                                    \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        gen_set_access_type(ctx, ACCESS_INT);                           \
+        EA = tcg_temp_new();                                            \
+        gen_addr_reg_index(ctx, EA);                                    \
+        rs = gen_avr_ptr(rS(ctx->opcode));                              \
+        gen_helper_lve##name (rs, EA);                                  \
+        tcg_temp_free(EA);                                              \
+        tcg_temp_free_ptr(rs);                                          \
+    }
+
+#define GEN_VR_STVE(name, opc2, opc3)                                   \
+    GEN_HANDLER(stve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)  \
+    {                                                                   \
+        TCGv EA;                                                        \
+        TCGv_ptr rs;                                                    \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        gen_set_access_type(ctx, ACCESS_INT);                           \
+        EA = tcg_temp_new();                                            \
+        gen_addr_reg_index(ctx, EA);                                    \
+        rs = gen_avr_ptr(rS(ctx->opcode));                              \
+        gen_helper_stve##name (rs, EA);                                 \
+        tcg_temp_free(EA);                                              \
+        tcg_temp_free_ptr(rs);                                          \
+    }
+
 GEN_VR_LDX(lvx, 0x07, 0x03);
 /* As we don't emulate the cache, lvxl is stricly equivalent to lvx */
 GEN_VR_LDX(lvxl, 0x07, 0x0B);
 
+GEN_VR_LVE(bx, 0x07, 0x00);
+GEN_VR_LVE(hx, 0x07, 0x01);
+GEN_VR_LVE(wx, 0x07, 0x02);
+
 GEN_VR_STX(svx, 0x07, 0x07);
 /* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
 GEN_VR_STX(svxl, 0x07, 0x0F);
+
+GEN_VR_STVE(bx, 0x07, 0x04);
+GEN_VR_STVE(hx, 0x07, 0x05);
+GEN_VR_STVE(wx, 0x07, 0x06);
 
 GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC)
 {
