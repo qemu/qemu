@@ -295,7 +295,7 @@ void cris_mmu_flush_pid(CPUState *env, uint32_t pid)
 	unsigned int idx;
 	uint32_t lo, hi;
 	uint32_t tlb_vpn;
-	int tlb_pid, tlb_g, tlb_v, tlb_k;
+	int tlb_pid, tlb_g, tlb_v;
 	unsigned int set;
 	unsigned int mmu;
 
@@ -311,11 +311,8 @@ void cris_mmu_flush_pid(CPUState *env, uint32_t pid)
 				tlb_pid = EXTRACT_FIELD(hi, 0, 7);
 				tlb_g  = EXTRACT_FIELD(lo, 4, 4);
 				tlb_v = EXTRACT_FIELD(lo, 3, 3);
-				tlb_k = EXTRACT_FIELD(lo, 2, 2);
 
-				/* Kernel protected areas need to be flushed
-				   as well.  */
-				if (tlb_v && !tlb_g && (tlb_pid == pid || tlb_k)) {
+				if (tlb_v && !tlb_g && (tlb_pid == pid)) {
 					vaddr = tlb_vpn << TARGET_PAGE_BITS;
 					D(fprintf(logfile,
 						  "flush pid=%x vaddr=%x\n", 
