@@ -6228,6 +6228,33 @@ GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC)
     tcg_temp_free_ptr(rd);
 }
 
+GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC)
+{
+    TCGv_i32 t;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    tcg_gen_movi_i64(cpu_avrh[rD(ctx->opcode)], 0);
+    t = tcg_temp_new_i32();
+    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUState, vscr));
+    tcg_gen_extu_i32_i64(cpu_avrl[rD(ctx->opcode)], t);
+    tcg_temp_free(t);
+}
+
+GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC)
+{
+    TCGv_i32 t;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    t = tcg_temp_new_i32();
+    tcg_gen_trunc_i64_i32(t, cpu_avrl[rD(ctx->opcode)]);
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUState, vscr));
+    tcg_temp_free_i32(t);
+}
+
 /* Logical operations */
 #define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
 GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)            \
