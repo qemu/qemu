@@ -6281,6 +6281,7 @@ GEN_VXFORM(vpkshus, 7, 4);
 GEN_VXFORM(vpkswus, 7, 5);
 GEN_VXFORM(vpkshss, 7, 6);
 GEN_VXFORM(vpkswss, 7, 7);
+GEN_VXFORM(vpkpx, 7, 12);
 
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)        \
