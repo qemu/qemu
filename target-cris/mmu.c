@@ -285,7 +285,7 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		  env->sregs[SFR_RW_MM_TLB_SEL],
 		  env->regs[R_SP], env->pregs[PR_USP], env->ksp));
 
-	res->pfn = tlb_pfn;
+	res->phy = tlb_pfn << TARGET_PAGE_BITS;
 	return !match;
 }
 
@@ -360,11 +360,7 @@ int cris_mmu_translate(struct cris_mmu_result_t *res,
 		res->prot = PAGE_BITS;
 	}
 	else
-	{
 		miss = cris_mmu_translate_page(res, env, vaddr, rw, is_user);
-		phy = (res->pfn << 13);
-		res->phy = phy;
-	}
   done:
 	env->pregs[PR_SRS] = old_srs;
 	return miss;
