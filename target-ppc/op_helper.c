@@ -2180,6 +2180,40 @@ void helper_vmsumubm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
+void helper_vmsumuhm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    uint32_t prod[8];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->u16); i++) {
+        prod[i] = a->u16[i] * b->u16[i];
+    }
+
+    VECTOR_FOR_INORDER_I(i, u32) {
+        r->u32[i] = c->u32[i] + prod[2*i] + prod[2*i+1];
+    }
+}
+
+void helper_vmsumuhs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    uint32_t prod[8];
+    int i;
+    int sat = 0;
+
+    for (i = 0; i < ARRAY_SIZE(r->u16); i++) {
+        prod[i] = a->u16[i] * b->u16[i];
+    }
+
+    VECTOR_FOR_INORDER_I (i, s32) {
+        uint64_t t = (uint64_t)c->u32[i] + prod[2*i] + prod[2*i+1];
+        r->u32[i] = cvtuduw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
 #define VMUL_DO(name, mul_element, prod_element, evenp)                 \
     void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
     {                                                                   \
