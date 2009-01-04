@@ -374,6 +374,8 @@ EXTRACT_HELPER(UIMM, 0, 16);
 EXTRACT_HELPER(NB, 11, 5);
 /* Shift count */
 EXTRACT_HELPER(SH, 11, 5);
+/* Vector shift count */
+EXTRACT_HELPER(VSH, 6, 4);
 /* Mask start */
 EXTRACT_HELPER(MB, 6, 5);
 /* Mask end */
@@ -6267,6 +6269,25 @@ GEN_VXFORM(vsubcuw, 0, 22);
 GEN_VXFORM(vrlb, 2, 0);
 GEN_VXFORM(vrlh, 2, 1);
 GEN_VXFORM(vrlw, 2, 2);
+
+GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
+{
+    TCGv_ptr ra, rb, rd;
+    TCGv sh;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    ra = gen_avr_ptr(rA(ctx->opcode));
+    rb = gen_avr_ptr(rB(ctx->opcode));
+    rd = gen_avr_ptr(rD(ctx->opcode));
+    sh = tcg_const_i32(VSH(ctx->opcode));
+    gen_helper_vsldoi (rd, ra, rb, sh);
+    tcg_temp_free_ptr(ra);
+    tcg_temp_free_ptr(rb);
+    tcg_temp_free_ptr(rd);
+    tcg_temp_free(sh);
+}
 
 /***                           SPE extension                               ***/
 /* Register moves */

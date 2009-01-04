@@ -2145,6 +2145,34 @@ VSL(h, u16)
 VSL(w, u32)
 #undef VSL
 
+void helper_vsldoi (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
+{
+    int sh = shift & 0xf;
+    int i;
+    ppc_avr_t result;
+
+#if defined(WORDS_BIGENDIAN)
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+        int index = sh + i;
+        if (index > 0xf) {
+            result.u8[i] = b->u8[index-0x10];
+        } else {
+            result.u8[i] = a->u8[index];
+        }
+    }
+#else
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+        int index = (16 - sh) + i;
+        if (index > 0xf) {
+            result.u8[i] = a->u8[index-0x10];
+        } else {
+            result.u8[i] = b->u8[index];
+        }
+    }
+#endif
+    *r = result;
+}
+
 void helper_vslo (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
   int sh = (b->u8[LO_IDX*0xf] >> 3) & 0xf;
