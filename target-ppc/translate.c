@@ -6146,6 +6146,38 @@ GEN_VR_STX(svx, 0x07, 0x07);
 /* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
 GEN_VR_STX(svxl, 0x07, 0x0F);
 
+GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC)
+{
+    TCGv_ptr rd;
+    TCGv EA;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    rd = gen_avr_ptr(rD(ctx->opcode));
+    gen_helper_lvsl(rd, EA);
+    tcg_temp_free(EA);
+    tcg_temp_free_ptr(rd);
+}
+
+GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC)
+{
+    TCGv_ptr rd;
+    TCGv EA;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    rd = gen_avr_ptr(rD(ctx->opcode));
+    gen_helper_lvsr(rd, EA);
+    tcg_temp_free(EA);
+    tcg_temp_free_ptr(rd);
+}
+
 /* Logical operations */
 #define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
 GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)            \

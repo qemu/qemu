@@ -1972,6 +1972,24 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
   for (index = ARRAY_SIZE(r->element)-1; index >= 0; index--)
 #endif
 
+void helper_lvsl (ppc_avr_t *r, target_ulong sh)
+{
+    int i, j = (sh & 0xf);
+
+    VECTOR_FOR_INORDER_I (i, u8) {
+        r->u8[i] = j++;
+    }
+}
+
+void helper_lvsr (ppc_avr_t *r, target_ulong sh)
+{
+    int i, j = 0x10 - (sh & 0xf);
+
+    VECTOR_FOR_INORDER_I (i, u8) {
+        r->u8[i] = j++;
+    }
+}
+
 void helper_vaddcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i;
