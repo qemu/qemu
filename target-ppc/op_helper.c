@@ -2143,6 +2143,26 @@ VMUL(uh, u16, u32)
 #undef VMUL_DO
 #undef VMUL
 
+void helper_vperm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    ppc_avr_t result;
+    int i;
+    VECTOR_FOR_INORDER_I (i, u8) {
+        int s = c->u8[i] & 0x1f;
+#if defined(WORDS_BIGENDIAN)
+        int index = s & 0xf;
+#else
+        int index = 15 - (s & 0xf);
+#endif
+        if (s & 0x10) {
+            result.u8[i] = b->u8[index];
+        } else {
+            result.u8[i] = a->u8[index];
+        }
+    }
+    *r = result;
+}
+
 #define VROTATE(suffix, element)                                        \
     void helper_vrl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
     {                                                                   \
@@ -2157,6 +2177,12 @@ VROTATE(b, u8)
 VROTATE(h, u16)
 VROTATE(w, u32)
 #undef VROTATE
+
+void helper_vsel (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    r->u64[0] = (a->u64[0] & ~c->u64[0]) | (b->u64[0] & c->u64[0]);
+    r->u64[1] = (a->u64[1] & ~c->u64[1]) | (b->u64[1] & c->u64[1]);
+}
 
 #define VSL(suffix, element)                                            \
     void helper_vsl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
