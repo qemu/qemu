@@ -1223,6 +1223,35 @@ static const uint8_t cursor_glyph[32 * 4] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 };
 
+static void vga_get_text_resolution(VGAState *s, int *pwidth, int *pheight,
+                                    int *pcwidth, int *pcheight)
+{
+    int width, cwidth, height, cheight;
+
+    /* total width & height */
+    cheight = (s->cr[9] & 0x1f) + 1;
+    cwidth = 8;
+    if (!(s->sr[1] & 0x01))
+        cwidth = 9;
+    if (s->sr[1] & 0x08)
+        cwidth = 16; /* NOTE: no 18 pixel wide */
+    width = (s->cr[0x01] + 1);
+    if (s->cr[0x06] == 100) {
+        /* ugly hack for CGA 160x100x16 - explain me the logic */
+        height = 100;
+    } else {
+        height = s->cr[0x12] |
+            ((s->cr[0x07] & 0x02) << 7) |
+            ((s->cr[0x07] & 0x40) << 3);
+        height = (height + 1) / cheight;
+    }
+
+    *pwidth = width;
+    *pheight = height;
+    *pcwidth = cwidth;
+    *pcheight = cheight;
+}
+
 /*
  * Text mode update
  * Missing:
@@ -1275,24 +1304,8 @@ static void vga_draw_text(VGAState *s, int full_update)
     line_offset = s->line_offset;
     s1 = s->vram_ptr + (s->start_addr * 4);
 
-    /* total width & height */
-    cheight = (s->cr[9] & 0x1f) + 1;
-    cw = 8;
-    if (!(s->sr[1] & 0x01))
-        cw = 9;
-    if (s->sr[1] & 0x08)
-        cw = 16; /* NOTE: no 18 pixel wide */
+    vga_get_text_resolution(s, &width, &height, &cw, &cheight);
     x_incr = cw * ((ds_get_bits_per_pixel(s->ds) + 7) >> 3);
-    width = (s->cr[0x01] + 1);
-    if (s->cr[0x06] == 100) {
-        /* ugly hack for CGA 160x100x16 - explain me the logic */
-        height = 100;
-    } else {
-        height = s->cr[0x12] |
-            ((s->cr[0x07] & 0x02) << 7) |
-            ((s->cr[0x07] & 0x40) << 3);
-        height = (height + 1) / cheight;
-    }
     if ((height * width) > CH_ATTR_SIZE) {
         /* better than nothing: exit if transient size is too big */
         return;
@@ -2542,11 +2555,29 @@ int ppm_save(const char *filename, uint8_t *data,
     return 0;
 }
 
-/* save the vga display in a PPM image even if no display is
-   available */
-static void vga_screen_dump(void *opaque, const char *filename)
+static void vga_screen_dump_blank(VGAState *s, const char *filename)
 {
-    VGAState *s = (VGAState *)opaque;
+    FILE *f;
+    unsigned int y, x, w, h;
+
+    w = s->last_scr_width * sizeof(uint32_t);
+    h = s->last_scr_height;
+
+    f = fopen(filename, "wb");
+    if (!f)
+        return;
+    fprintf(f, "P6\n%d %d\n%d\n", w, h, 255);
+    for (y = 0; y < h; y++) {
+        for (x = 0; x < w; x++) {
+            fputc(0, f);
+        }
+    }
+    fclose(f);
+}
+
+static void vga_screen_dump_common(VGAState *s, const char *filename,
+                                   int w, int h)
+{
     DisplayState *saved_ds, ds1, *ds = &ds1;
 
     /* XXX: this is a little hackish */
@@ -2559,14 +2590,42 @@ static void vga_screen_dump(void *opaque, const char *filename)
     ds->dpy_refresh = vga_save_dpy_refresh;
     ds->depth = 32;
 
+    ds->linesize = w * sizeof(uint32_t);
+    ds->data = qemu_mallocz(h * ds->linesize);
     s->ds = ds;
     s->graphic_mode = -1;
     vga_update_display(s);
-
-    if (ds_get_data(ds)) {
-        ppm_save(filename, ds_get_data(ds), vga_save_w, vga_save_h,
-                 ds_get_linesize(s->ds));
-        qemu_free(ds_get_data(ds));
-    }
+    ppm_save(filename, ds->data, w, h, ds->linesize);
+    qemu_free(ds->data);
     s->ds = saved_ds;
+}
+
+static void vga_screen_dump_graphic(VGAState *s, const char *filename)
+{
+    int w, h;
+
+    s->get_resolution(s, &w, &h);
+    vga_screen_dump_common(s, filename, w, h);
+}
+
+static void vga_screen_dump_text(VGAState *s, const char *filename)
+{
+    int w, h, cwidth, cheight;
+
+    vga_get_text_resolution(s, &w, &h, &cwidth, &cheight);
+    vga_screen_dump_common(s, filename, w * cwidth, h * cheight);
+}
+
+/* save the vga display in a PPM image even if no display is
+   available */
+static void vga_screen_dump(void *opaque, const char *filename)
+{
+    VGAState *s = (VGAState *)opaque;
+
+    if (!(s->ar_index & 0x20))
+        vga_screen_dump_blank(s, filename);
+    else if (s->gr[6] & 1)
+        vga_screen_dump_graphic(s, filename);
+    else
+        vga_screen_dump_text(s, filename);
 }
