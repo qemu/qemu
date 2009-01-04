@@ -2031,6 +2031,41 @@ VMINMAX(uw, u32)
 #undef VMINMAX_DO
 #undef VMINMAX
 
+#define VMRG_DO(name, element, highp)                                   \
+    void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
+    {                                                                   \
+        ppc_avr_t result;                                               \
+        int i;                                                          \
+        size_t n_elems = ARRAY_SIZE(r->element);                        \
+        for (i = 0; i < n_elems/2; i++) {                               \
+            if (highp) {                                                \
+                result.element[i*2+HI_IDX] = a->element[i];             \
+                result.element[i*2+LO_IDX] = b->element[i];             \
+            } else {                                                    \
+                result.element[n_elems - i*2 - (1+HI_IDX)] = b->element[n_elems - i - 1]; \
+                result.element[n_elems - i*2 - (1+LO_IDX)] = a->element[n_elems - i - 1]; \
+            }                                                           \
+        }                                                               \
+        *r = result;                                                    \
+    }
+#if defined(WORDS_BIGENDIAN)
+#define MRGHI 0
+#define MRGL0 1
+#else
+#define MRGHI 1
+#define MRGLO 0
+#endif
+#define VMRG(suffix, element)                   \
+  VMRG_DO(mrgl##suffix, element, MRGHI)         \
+  VMRG_DO(mrgh##suffix, element, MRGLO)
+VMRG(b, u8)
+VMRG(h, u16)
+VMRG(w, u32)
+#undef VMRG_DO
+#undef VMRG
+#undef MRGHI
+#undef MRGLO
+
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX
