@@ -2088,6 +2088,21 @@ VMUL(uh, u16, u32)
 #undef VMUL_DO
 #undef VMUL
 
+#define VSL(suffix, element)                                            \
+    void helper_vsl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            unsigned int mask = ((1 << (3 + (sizeof (a->element[0]) >> 1))) - 1); \
+            unsigned int shift = b->element[i] & mask;                  \
+            r->element[i] = a->element[i] << shift;                     \
+        }                                                               \
+    }
+VSL(b, u8)
+VSL(h, u16)
+VSL(w, u32)
+#undef VSL
+
 #define VSR(suffix, element)                                            \
     void helper_vsr##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
     {                                                                   \
