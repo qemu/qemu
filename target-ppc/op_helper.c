@@ -2190,6 +2190,41 @@ void helper_vperm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     *r = result;
 }
 
+#if defined(WORDS_BIGENDIAN)
+#define PKBIG 1
+#else
+#define PKBIG 0
+#endif
+#define VPK(suffix, from, to, cvt, dosat)       \
+    void helper_vpk##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    {                                                                   \
+        int i;                                                          \
+        int sat = 0;                                                    \
+        ppc_avr_t result;                                               \
+        ppc_avr_t *a0 = PKBIG ? a : b;                                  \
+        ppc_avr_t *a1 = PKBIG ? b : a;                                  \
+        VECTOR_FOR_INORDER_I (i, from) {                                \
+            result.to[i] = cvt(a0->from[i], &sat);                      \
+            result.to[i+ARRAY_SIZE(r->from)] = cvt(a1->from[i], &sat);  \
+        }                                                               \
+        *r = result;                                                    \
+        if (dosat && sat) {                                             \
+            env->vscr |= (1 << VSCR_SAT);                               \
+        }                                                               \
+    }
+#define I(x, y) (x)
+VPK(shss, s16, s8, cvtshsb, 1)
+VPK(shus, s16, u8, cvtshub, 1)
+VPK(swss, s32, s16, cvtswsh, 1)
+VPK(swus, s32, u16, cvtswuh, 1)
+VPK(uhus, u16, u8, cvtuhub, 1)
+VPK(uwus, u32, u16, cvtuwuh, 1)
+VPK(uhum, u16, u8, I, 0)
+VPK(uwum, u32, u16, I, 0)
+#undef I
+#undef VPK
+#undef PKBIG
+
 #define VROTATE(suffix, element)                                        \
     void helper_vrl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
     {                                                                   \
