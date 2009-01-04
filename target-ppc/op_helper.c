@@ -1972,6 +1972,14 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
   for (index = ARRAY_SIZE(r->element)-1; index >= 0; index--)
 #endif
 
+void helper_vaddcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
+        r->u32[i] = ~a->u32[i] < b->u32[i];
+    }
+}
+
 #define VARITH_DO(name, op, element)        \
 void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
 {                                                                       \
@@ -2146,6 +2154,14 @@ void helper_vsro (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
   memmove (&r->u8[0], &a->u8[sh], 16-sh);
   memset (&r->u8[16-sh], 0, sh);
 #endif
+}
+
+void helper_vsubcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
+        r->u32[i] = a->u32[i] >= b->u32[i];
+    }
 }
 
 #undef VECTOR_FOR_INORDER_I
