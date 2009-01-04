@@ -6353,6 +6353,29 @@ GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
     tcg_temp_free(sh);
 }
 
+#define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
+    GEN_HANDLER(name0##_##name1, 0x04, opc2, 0xFF, 0x00000000, PPC_ALTIVEC) \
+    {                                                                   \
+        TCGv_ptr ra, rb, rc, rd;                                        \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        ra = gen_avr_ptr(rA(ctx->opcode));                              \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rc = gen_avr_ptr(rC(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        if (Rc(ctx->opcode)) {                                          \
+            gen_helper_##name1 (rd, ra, rb, rc);                        \
+        } else {                                                        \
+            gen_helper_##name0 (rd, ra, rb, rc);                        \
+        }                                                               \
+        tcg_temp_free_ptr(ra);                                          \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rc);                                          \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
 /***                           SPE extension                               ***/
 /* Register moves */
 
