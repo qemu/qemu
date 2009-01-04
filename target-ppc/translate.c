@@ -6219,6 +6219,12 @@ GEN_VXFORM(vmuleub, 4, 8);
 GEN_VXFORM(vmuleuh, 4, 9);
 GEN_VXFORM(vmulesb, 4, 12);
 GEN_VXFORM(vmulesh, 4, 13);
+GEN_VXFORM(vsrb, 2, 8);
+GEN_VXFORM(vsrh, 2, 9);
+GEN_VXFORM(vsrw, 2, 10);
+GEN_VXFORM(vsrab, 2, 12);
+GEN_VXFORM(vsrah, 2, 13);
+GEN_VXFORM(vsraw, 2, 14);
 
 /***                           SPE extension                               ***/
 /* Register moves */
