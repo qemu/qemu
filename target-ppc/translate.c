@@ -6385,6 +6385,8 @@ GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
         tcg_temp_free_ptr(rd);                                          \
     }
 
+GEN_VAFORM_PAIRED(vmhaddshs, vmhraddshs, 16)
+
 GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18)
 GEN_VAFORM_PAIRED(vsel, vperm, 21)
 

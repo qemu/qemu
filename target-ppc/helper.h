@@ -178,6 +178,8 @@ DEF_HELPER_3(vpkuwus, void, avr, avr, avr)
 DEF_HELPER_3(vpkuhum, void, avr, avr, avr)
 DEF_HELPER_3(vpkuwum, void, avr, avr, avr)
 DEF_HELPER_3(vpkpx, void, avr, avr, avr)
+DEF_HELPER_4(vmhaddshs, void, avr, avr, avr, avr)
+DEF_HELPER_4(vmhraddshs, void, avr, avr, avr, avr)
 
 DEF_HELPER_1(efscfsi, i32, i32)
 DEF_HELPER_1(efscfui, i32, i32)

@@ -2061,6 +2061,38 @@ VAVG(w, s32, int64_t, u32, uint64_t)
 #undef VAVG_DO
 #undef VAVG
 
+void helper_vmhaddshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int sat = 0;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        int32_t prod = a->s16[i] * b->s16[i];
+        int32_t t = (int32_t)c->s16[i] + (prod >> 15);
+        r->s16[i] = cvtswsh (t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vmhraddshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int sat = 0;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        int32_t prod = a->s16[i] * b->s16[i] + 0x00004000;
+        int32_t t = (int32_t)c->s16[i] + (prod >> 15);
+        r->s16[i] = cvtswsh (t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
 #define VMINMAX_DO(name, compare, element)                              \
     void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
     {                                                                   \
