@@ -165,6 +165,8 @@ DEF_HELPER_2(vupkhsb, void, avr, avr)
 DEF_HELPER_2(vupkhsh, void, avr, avr)
 DEF_HELPER_2(vupklsb, void, avr, avr)
 DEF_HELPER_2(vupklsh, void, avr, avr)
+DEF_HELPER_4(vmsumubm, void, avr, avr, avr, avr)
+DEF_HELPER_4(vmsummbm, void, avr, avr, avr, avr)
 
 DEF_HELPER_1(efscfsi, i32, i32)
 DEF_HELPER_1(efscfui, i32, i32)

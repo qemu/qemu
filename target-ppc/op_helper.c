@@ -2093,6 +2093,34 @@ VMRG(w, u32)
 #undef MRGHI
 #undef MRGLO
 
+void helper_vmsummbm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int32_t prod[16];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s8); i++) {
+        prod[i] = (int32_t)a->s8[i] * b->u8[i];
+    }
+
+    VECTOR_FOR_INORDER_I(i, s32) {
+        r->s32[i] = c->s32[i] + prod[4*i] + prod[4*i+1] + prod[4*i+2] + prod[4*i+3];
+    }
+}
+
+void helper_vmsumubm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    uint16_t prod[16];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+        prod[i] = a->u8[i] * b->u8[i];
+    }
+
+    VECTOR_FOR_INORDER_I(i, u32) {
+        r->u32[i] = c->u32[i] + prod[4*i] + prod[4*i+1] + prod[4*i+2] + prod[4*i+3];
+    }
+}
+
 #define VMUL_DO(name, mul_element, prod_element, evenp)                 \
     void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
     {                                                                   \
