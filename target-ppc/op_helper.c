@@ -2185,7 +2185,7 @@ void helper_vmladduhm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 #if defined(WORDS_BIGENDIAN)
 #define MRGHI 0
-#define MRGL0 1
+#define MRGLO 1
 #else
 #define MRGHI 1
 #define MRGLO 0
