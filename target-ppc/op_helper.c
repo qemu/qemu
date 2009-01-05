@@ -15,8 +15,9 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
+#include <string.h>
 #include "exec.h"
 #include "host-utils.h"
 #include "helper.h"
@@ -1952,6 +1953,743 @@ target_ulong helper_dlmzb (target_ulong high, target_ulong low, uint32_t update_
     }
     return i;
 }
+
+/*****************************************************************************/
+/* Altivec extension helpers */
+#if defined(WORDS_BIGENDIAN)
+#define HI_IDX 0
+#define LO_IDX 1
+#else
+#define HI_IDX 1
+#define LO_IDX 0
+#endif
+
+#if defined(WORDS_BIGENDIAN)
+#define VECTOR_FOR_INORDER_I(index, element)            \
+    for (index = 0; index < ARRAY_SIZE(r->element); index++)
+#else
+#define VECTOR_FOR_INORDER_I(index, element)            \
+  for (index = ARRAY_SIZE(r->element)-1; index >= 0; index--)
+#endif
+
+/* Saturating arithmetic helpers.  */
+#define SATCVT(from, to, from_type, to_type, min, max, use_min, use_max) \
+    static always_inline to_type cvt##from##to (from_type x, int *sat)  \
+    {                                                                   \
+        to_type r;                                                      \
+        if (use_min && x < min) {                                       \
+            r = min;                                                    \
+            *sat = 1;                                                   \
+        } else if (use_max && x > max) {                                \
+            r = max;                                                    \
+            *sat = 1;                                                   \
+        } else {                                                        \
+            r = x;                                                      \
+        }                                                               \
+        return r;                                                       \
+    }
+SATCVT(sh, sb, int16_t, int8_t, INT8_MIN, INT8_MAX, 1, 1)
+SATCVT(sw, sh, int32_t, int16_t, INT16_MIN, INT16_MAX, 1, 1)
+SATCVT(sd, sw, int64_t, int32_t, INT32_MIN, INT32_MAX, 1, 1)
+SATCVT(uh, ub, uint16_t, uint8_t, 0, UINT8_MAX, 0, 1)
+SATCVT(uw, uh, uint32_t, uint16_t, 0, UINT16_MAX, 0, 1)
+SATCVT(ud, uw, uint64_t, uint32_t, 0, UINT32_MAX, 0, 1)
+SATCVT(sh, ub, int16_t, uint8_t, 0, UINT8_MAX, 1, 1)
+SATCVT(sw, uh, int32_t, uint16_t, 0, UINT16_MAX, 1, 1)
+SATCVT(sd, uw, int64_t, uint32_t, 0, UINT32_MAX, 1, 1)
+#undef SATCVT
+
+#define LVE(name, access, swap, element)                        \
+    void helper_##name (ppc_avr_t *r, target_ulong addr)        \
+    {                                                           \
+        size_t n_elems = ARRAY_SIZE(r->element);                \
+        int adjust = HI_IDX*(n_elems-1);                        \
+        int sh = sizeof(r->element[0]) >> 1;                    \
+        int index = (addr & 0xf) >> sh;                         \
+        if(msr_le) {                                            \
+            r->element[LO_IDX ? index : (adjust - index)] = swap(access(addr)); \
+        } else {                                                        \
+            r->element[LO_IDX ? index : (adjust - index)] = access(addr); \
+        }                                                               \
+    }
+#define I(x) (x)
+LVE(lvebx, ldub, I, u8)
+LVE(lvehx, lduw, bswap16, u16)
+LVE(lvewx, ldl, bswap32, u32)
+#undef I
+#undef LVE
+
+void helper_lvsl (ppc_avr_t *r, target_ulong sh)
+{
+    int i, j = (sh & 0xf);
+
+    VECTOR_FOR_INORDER_I (i, u8) {
+        r->u8[i] = j++;
+    }
+}
+
+void helper_lvsr (ppc_avr_t *r, target_ulong sh)
+{
+    int i, j = 0x10 - (sh & 0xf);
+
+    VECTOR_FOR_INORDER_I (i, u8) {
+        r->u8[i] = j++;
+    }
+}
+
+#define STVE(name, access, swap, element)                       \
+    void helper_##name (ppc_avr_t *r, target_ulong addr)        \
+    {                                                           \
+        size_t n_elems = ARRAY_SIZE(r->element);                \
+        int adjust = HI_IDX*(n_elems-1);                        \
+        int sh = sizeof(r->element[0]) >> 1;                    \
+        int index = (addr & 0xf) >> sh;                         \
+        if(msr_le) {                                            \
+            access(addr, swap(r->element[LO_IDX ? index : (adjust - index)])); \
+        } else {                                                        \
+            access(addr, r->element[LO_IDX ? index : (adjust - index)]); \
+        }                                                               \
+    }
+#define I(x) (x)
+STVE(stvebx, stb, I, u8)
+STVE(stvehx, stw, bswap16, u16)
+STVE(stvewx, stl, bswap32, u32)
+#undef I
+#undef LVE
+
+void helper_vaddcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
+        r->u32[i] = ~a->u32[i] < b->u32[i];
+    }
+}
+
+#define VARITH_DO(name, op, element)        \
+void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
+{                                                                       \
+    int i;                                                              \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
+        r->element[i] = a->element[i] op b->element[i];                 \
+    }                                                                   \
+}
+#define VARITH(suffix, element)                  \
+  VARITH_DO(add##suffix, +, element)             \
+  VARITH_DO(sub##suffix, -, element)
+VARITH(ubm, u8)
+VARITH(uhm, u16)
+VARITH(uwm, u32)
+#undef VARITH_DO
+#undef VARITH
+
+#define VAVG_DO(name, element, etype)                                   \
+    void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            etype x = (etype)a->element[i] + (etype)b->element[i] + 1;  \
+            r->element[i] = x >> 1;                                     \
+        }                                                               \
+    }
+
+#define VAVG(type, signed_element, signed_type, unsigned_element, unsigned_type) \
+    VAVG_DO(avgs##type, signed_element, signed_type)                    \
+    VAVG_DO(avgu##type, unsigned_element, unsigned_type)
+VAVG(b, s8, int16_t, u8, uint16_t)
+VAVG(h, s16, int32_t, u16, uint32_t)
+VAVG(w, s32, int64_t, u32, uint64_t)
+#undef VAVG_DO
+#undef VAVG
+
+void helper_vmhaddshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int sat = 0;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        int32_t prod = a->s16[i] * b->s16[i];
+        int32_t t = (int32_t)c->s16[i] + (prod >> 15);
+        r->s16[i] = cvtswsh (t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vmhraddshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int sat = 0;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        int32_t prod = a->s16[i] * b->s16[i] + 0x00004000;
+        int32_t t = (int32_t)c->s16[i] + (prod >> 15);
+        r->s16[i] = cvtswsh (t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+#define VMINMAX_DO(name, compare, element)                              \
+    void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            if (a->element[i] compare b->element[i]) {                  \
+                r->element[i] = b->element[i];                          \
+            } else {                                                    \
+                r->element[i] = a->element[i];                          \
+            }                                                           \
+        }                                                               \
+    }
+#define VMINMAX(suffix, element)                \
+  VMINMAX_DO(min##suffix, >, element)           \
+  VMINMAX_DO(max##suffix, <, element)
+VMINMAX(sb, s8)
+VMINMAX(sh, s16)
+VMINMAX(sw, s32)
+VMINMAX(ub, u8)
+VMINMAX(uh, u16)
+VMINMAX(uw, u32)
+#undef VMINMAX_DO
+#undef VMINMAX
+
+void helper_vmladduhm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        int32_t prod = a->s16[i] * b->s16[i];
+        r->s16[i] = (int16_t) (prod + c->s16[i]);
+    }
+}
+
+#define VMRG_DO(name, element, highp)                                   \
+    void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
+    {                                                                   \
+        ppc_avr_t result;                                               \
+        int i;                                                          \
+        size_t n_elems = ARRAY_SIZE(r->element);                        \
+        for (i = 0; i < n_elems/2; i++) {                               \
+            if (highp) {                                                \
+                result.element[i*2+HI_IDX] = a->element[i];             \
+                result.element[i*2+LO_IDX] = b->element[i];             \
+            } else {                                                    \
+                result.element[n_elems - i*2 - (1+HI_IDX)] = b->element[n_elems - i - 1]; \
+                result.element[n_elems - i*2 - (1+LO_IDX)] = a->element[n_elems - i - 1]; \
+            }                                                           \
+        }                                                               \
+        *r = result;                                                    \
+    }
+#if defined(WORDS_BIGENDIAN)
+#define MRGHI 0
+#define MRGL0 1
+#else
+#define MRGHI 1
+#define MRGLO 0
+#endif
+#define VMRG(suffix, element)                   \
+  VMRG_DO(mrgl##suffix, element, MRGHI)         \
+  VMRG_DO(mrgh##suffix, element, MRGLO)
+VMRG(b, u8)
+VMRG(h, u16)
+VMRG(w, u32)
+#undef VMRG_DO
+#undef VMRG
+#undef MRGHI
+#undef MRGLO
+
+void helper_vmsummbm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int32_t prod[16];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s8); i++) {
+        prod[i] = (int32_t)a->s8[i] * b->u8[i];
+    }
+
+    VECTOR_FOR_INORDER_I(i, s32) {
+        r->s32[i] = c->s32[i] + prod[4*i] + prod[4*i+1] + prod[4*i+2] + prod[4*i+3];
+    }
+}
+
+void helper_vmsumshm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int32_t prod[8];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        prod[i] = a->s16[i] * b->s16[i];
+    }
+
+    VECTOR_FOR_INORDER_I(i, s32) {
+        r->s32[i] = c->s32[i] + prod[2*i] + prod[2*i+1];
+    }
+}
+
+void helper_vmsumshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int32_t prod[8];
+    int i;
+    int sat = 0;
+
+    for (i = 0; i < ARRAY_SIZE(r->s16); i++) {
+        prod[i] = (int32_t)a->s16[i] * b->s16[i];
+    }
+
+    VECTOR_FOR_INORDER_I (i, s32) {
+        int64_t t = (int64_t)c->s32[i] + prod[2*i] + prod[2*i+1];
+        r->u32[i] = cvtsdsw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vmsumubm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    uint16_t prod[16];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+        prod[i] = a->u8[i] * b->u8[i];
+    }
+
+    VECTOR_FOR_INORDER_I(i, u32) {
+        r->u32[i] = c->u32[i] + prod[4*i] + prod[4*i+1] + prod[4*i+2] + prod[4*i+3];
+    }
+}
+
+void helper_vmsumuhm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    uint32_t prod[8];
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->u16); i++) {
+        prod[i] = a->u16[i] * b->u16[i];
+    }
+
+    VECTOR_FOR_INORDER_I(i, u32) {
+        r->u32[i] = c->u32[i] + prod[2*i] + prod[2*i+1];
+    }
+}
+
+void helper_vmsumuhs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    uint32_t prod[8];
+    int i;
+    int sat = 0;
+
+    for (i = 0; i < ARRAY_SIZE(r->u16); i++) {
+        prod[i] = a->u16[i] * b->u16[i];
+    }
+
+    VECTOR_FOR_INORDER_I (i, s32) {
+        uint64_t t = (uint64_t)c->u32[i] + prod[2*i] + prod[2*i+1];
+        r->u32[i] = cvtuduw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+#define VMUL_DO(name, mul_element, prod_element, evenp)                 \
+    void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
+    {                                                                   \
+        int i;                                                          \
+        VECTOR_FOR_INORDER_I(i, prod_element) {                         \
+            if (evenp) {                                                \
+                r->prod_element[i] = a->mul_element[i*2+HI_IDX] * b->mul_element[i*2+HI_IDX]; \
+            } else {                                                    \
+                r->prod_element[i] = a->mul_element[i*2+LO_IDX] * b->mul_element[i*2+LO_IDX]; \
+            }                                                           \
+        }                                                               \
+    }
+#define VMUL(suffix, mul_element, prod_element) \
+  VMUL_DO(mule##suffix, mul_element, prod_element, 1) \
+  VMUL_DO(mulo##suffix, mul_element, prod_element, 0)
+VMUL(sb, s8, s16)
+VMUL(sh, s16, s32)
+VMUL(ub, u8, u16)
+VMUL(uh, u16, u32)
+#undef VMUL_DO
+#undef VMUL
+
+void helper_vperm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    ppc_avr_t result;
+    int i;
+    VECTOR_FOR_INORDER_I (i, u8) {
+        int s = c->u8[i] & 0x1f;
+#if defined(WORDS_BIGENDIAN)
+        int index = s & 0xf;
+#else
+        int index = 15 - (s & 0xf);
+#endif
+        if (s & 0x10) {
+            result.u8[i] = b->u8[index];
+        } else {
+            result.u8[i] = a->u8[index];
+        }
+    }
+    *r = result;
+}
+
+#if defined(WORDS_BIGENDIAN)
+#define PKBIG 1
+#else
+#define PKBIG 0
+#endif
+void helper_vpkpx (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i, j;
+    ppc_avr_t result;
+#if defined(WORDS_BIGENDIAN)
+    const ppc_avr_t *x[2] = { a, b };
+#else
+    const ppc_avr_t *x[2] = { b, a };
+#endif
+
+    VECTOR_FOR_INORDER_I (i, u64) {
+        VECTOR_FOR_INORDER_I (j, u32){
+            uint32_t e = x[i]->u32[j];
+            result.u16[4*i+j] = (((e >> 9) & 0xfc00) |
+                                 ((e >> 6) & 0x3e0) |
+                                 ((e >> 3) & 0x1f));
+        }
+    }
+    *r = result;
+}
+
+#define VPK(suffix, from, to, cvt, dosat)       \
+    void helper_vpk##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    {                                                                   \
+        int i;                                                          \
+        int sat = 0;                                                    \
+        ppc_avr_t result;                                               \
+        ppc_avr_t *a0 = PKBIG ? a : b;                                  \
+        ppc_avr_t *a1 = PKBIG ? b : a;                                  \
+        VECTOR_FOR_INORDER_I (i, from) {                                \
+            result.to[i] = cvt(a0->from[i], &sat);                      \
+            result.to[i+ARRAY_SIZE(r->from)] = cvt(a1->from[i], &sat);  \
+        }                                                               \
+        *r = result;                                                    \
+        if (dosat && sat) {                                             \
+            env->vscr |= (1 << VSCR_SAT);                               \
+        }                                                               \
+    }
+#define I(x, y) (x)
+VPK(shss, s16, s8, cvtshsb, 1)
+VPK(shus, s16, u8, cvtshub, 1)
+VPK(swss, s32, s16, cvtswsh, 1)
+VPK(swus, s32, u16, cvtswuh, 1)
+VPK(uhus, u16, u8, cvtuhub, 1)
+VPK(uwus, u32, u16, cvtuwuh, 1)
+VPK(uhum, u16, u8, I, 0)
+VPK(uwum, u32, u16, I, 0)
+#undef I
+#undef VPK
+#undef PKBIG
+
+#define VROTATE(suffix, element)                                        \
+    void helper_vrl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            unsigned int mask = ((1 << (3 + (sizeof (a->element[0]) >> 1))) - 1); \
+            unsigned int shift = b->element[i] & mask;                  \
+            r->element[i] = (a->element[i] << shift) | (a->element[i] >> (sizeof(a->element[0]) * 8 - shift)); \
+        }                                                               \
+    }
+VROTATE(b, u8)
+VROTATE(h, u16)
+VROTATE(w, u32)
+#undef VROTATE
+
+void helper_vsel (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    r->u64[0] = (a->u64[0] & ~c->u64[0]) | (b->u64[0] & c->u64[0]);
+    r->u64[1] = (a->u64[1] & ~c->u64[1]) | (b->u64[1] & c->u64[1]);
+}
+
+#define VSL(suffix, element)                                            \
+    void helper_vsl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            unsigned int mask = ((1 << (3 + (sizeof (a->element[0]) >> 1))) - 1); \
+            unsigned int shift = b->element[i] & mask;                  \
+            r->element[i] = a->element[i] << shift;                     \
+        }                                                               \
+    }
+VSL(b, u8)
+VSL(h, u16)
+VSL(w, u32)
+#undef VSL
+
+void helper_vsldoi (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t shift)
+{
+    int sh = shift & 0xf;
+    int i;
+    ppc_avr_t result;
+
+#if defined(WORDS_BIGENDIAN)
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+        int index = sh + i;
+        if (index > 0xf) {
+            result.u8[i] = b->u8[index-0x10];
+        } else {
+            result.u8[i] = a->u8[index];
+        }
+    }
+#else
+    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
+        int index = (16 - sh) + i;
+        if (index > 0xf) {
+            result.u8[i] = a->u8[index-0x10];
+        } else {
+            result.u8[i] = b->u8[index];
+        }
+    }
+#endif
+    *r = result;
+}
+
+void helper_vslo (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+  int sh = (b->u8[LO_IDX*0xf] >> 3) & 0xf;
+
+#if defined (WORDS_BIGENDIAN)
+  memmove (&r->u8[0], &a->u8[sh], 16-sh);
+  memset (&r->u8[16-sh], 0, sh);
+#else
+  memmove (&r->u8[sh], &a->u8[0], 16-sh);
+  memset (&r->u8[0], 0, sh);
+#endif
+}
+
+/* Experimental testing shows that hardware masks the immediate.  */
+#define _SPLAT_MASKED(element) (splat & (ARRAY_SIZE(r->element) - 1))
+#if defined(WORDS_BIGENDIAN)
+#define SPLAT_ELEMENT(element) _SPLAT_MASKED(element)
+#else
+#define SPLAT_ELEMENT(element) (ARRAY_SIZE(r->element)-1 - _SPLAT_MASKED(element))
+#endif
+#define VSPLT(suffix, element)                                          \
+    void helper_vsplt##suffix (ppc_avr_t *r, ppc_avr_t *b, uint32_t splat) \
+    {                                                                   \
+        uint32_t s = b->element[SPLAT_ELEMENT(element)];                \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            r->element[i] = s;                                          \
+        }                                                               \
+    }
+VSPLT(b, u8)
+VSPLT(h, u16)
+VSPLT(w, u32)
+#undef VSPLT
+#undef SPLAT_ELEMENT
+#undef _SPLAT_MASKED
+
+#define VSR(suffix, element)                                            \
+    void helper_vsr##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            unsigned int mask = ((1 << (3 + (sizeof (a->element[0]) >> 1))) - 1); \
+            unsigned int shift = b->element[i] & mask;                  \
+            r->element[i] = a->element[i] >> shift;                     \
+        }                                                               \
+    }
+VSR(ab, s8)
+VSR(ah, s16)
+VSR(aw, s32)
+VSR(b, u8)
+VSR(h, u16)
+VSR(w, u32)
+#undef VSR
+
+void helper_vsro (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+  int sh = (b->u8[LO_IDX*0xf] >> 3) & 0xf;
+
+#if defined (WORDS_BIGENDIAN)
+  memmove (&r->u8[sh], &a->u8[0], 16-sh);
+  memset (&r->u8[0], 0, sh);
+#else
+  memmove (&r->u8[0], &a->u8[sh], 16-sh);
+  memset (&r->u8[16-sh], 0, sh);
+#endif
+}
+
+void helper_vsubcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
+        r->u32[i] = a->u32[i] >= b->u32[i];
+    }
+}
+
+void helper_vsumsws (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int64_t t;
+    int i, upper;
+    ppc_avr_t result;
+    int sat = 0;
+
+#if defined(WORDS_BIGENDIAN)
+    upper = ARRAY_SIZE(r->s32)-1;
+#else
+    upper = 0;
+#endif
+    t = (int64_t)b->s32[upper];
+    for (i = 0; i < ARRAY_SIZE(r->s32); i++) {
+        t += a->s32[i];
+        result.s32[i] = 0;
+    }
+    result.s32[upper] = cvtsdsw(t, &sat);
+    *r = result;
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vsum2sws (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i, j, upper;
+    ppc_avr_t result;
+    int sat = 0;
+
+#if defined(WORDS_BIGENDIAN)
+    upper = 1;
+#else
+    upper = 0;
+#endif
+    for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
+        int64_t t = (int64_t)b->s32[upper+i*2];
+        result.u64[i] = 0;
+        for (j = 0; j < ARRAY_SIZE(r->u64); j++) {
+            t += a->s32[2*i+j];
+        }
+        result.s32[upper+i*2] = cvtsdsw(t, &sat);
+    }
+
+    *r = result;
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vsum4sbs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i, j;
+    int sat = 0;
+
+    for (i = 0; i < ARRAY_SIZE(r->s32); i++) {
+        int64_t t = (int64_t)b->s32[i];
+        for (j = 0; j < ARRAY_SIZE(r->s32); j++) {
+            t += a->s8[4*i+j];
+        }
+        r->s32[i] = cvtsdsw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vsum4shs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int sat = 0;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(r->s32); i++) {
+        int64_t t = (int64_t)b->s32[i];
+        t += a->s16[2*i] + a->s16[2*i+1];
+        r->s32[i] = cvtsdsw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+void helper_vsum4ubs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    int i, j;
+    int sat = 0;
+
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
+        uint64_t t = (uint64_t)b->u32[i];
+        for (j = 0; j < ARRAY_SIZE(r->u32); j++) {
+            t += a->u8[4*i+j];
+        }
+        r->u32[i] = cvtuduw(t, &sat);
+    }
+
+    if (sat) {
+        env->vscr |= (1 << VSCR_SAT);
+    }
+}
+
+#if defined(WORDS_BIGENDIAN)
+#define UPKHI 1
+#define UPKLO 0
+#else
+#define UPKHI 0
+#define UPKLO 1
+#endif
+#define VUPKPX(suffix, hi)                                      \
+    void helper_vupk##suffix (ppc_avr_t *r, ppc_avr_t *b)       \
+    {                                                           \
+        int i;                                                  \
+        ppc_avr_t result;                                       \
+        for (i = 0; i < ARRAY_SIZE(r->u32); i++) {              \
+            uint16_t e = b->u16[hi ? i : i+4];                  \
+            uint8_t a = (e >> 15) ? 0xff : 0;                   \
+            uint8_t r = (e >> 10) & 0x1f;                       \
+            uint8_t g = (e >> 5) & 0x1f;                        \
+            uint8_t b = e & 0x1f;                               \
+            result.u32[i] = (a << 24) | (r << 16) | (g << 8) | b;       \
+        }                                                               \
+        *r = result;                                                    \
+    }
+VUPKPX(lpx, UPKLO)
+VUPKPX(hpx, UPKHI)
+#undef VUPKPX
+
+#define VUPK(suffix, unpacked, packee, hi)                              \
+    void helper_vupk##suffix (ppc_avr_t *r, ppc_avr_t *b)               \
+    {                                                                   \
+        int i;                                                          \
+        ppc_avr_t result;                                               \
+        if (hi) {                                                       \
+            for (i = 0; i < ARRAY_SIZE(r->unpacked); i++) {             \
+                result.unpacked[i] = b->packee[i];                      \
+            }                                                           \
+        } else {                                                        \
+            for (i = ARRAY_SIZE(r->unpacked); i < ARRAY_SIZE(r->packee); i++) { \
+                result.unpacked[i-ARRAY_SIZE(r->unpacked)] = b->packee[i]; \
+            }                                                           \
+        }                                                               \
+        *r = result;                                                    \
+    }
+VUPK(hsb, s16, s8, UPKHI)
+VUPK(hsh, s32, s16, UPKHI)
+VUPK(lsb, s16, s8, UPKLO)
+VUPK(lsh, s32, s16, UPKLO)
+#undef VUPK
+#undef UPKHI
+#undef UPKLO
+
+#undef VECTOR_FOR_INORDER_I
+#undef HI_IDX
+#undef LO_IDX
 
 /*****************************************************************************/
 /* SPE extension helpers */

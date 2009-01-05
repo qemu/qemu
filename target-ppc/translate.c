@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
 #include <stdarg.h>
 #include <stdlib.h>
@@ -370,10 +370,16 @@ EXTRACT_HELPER(IMM, 12, 8);
 EXTRACT_SHELPER(SIMM, 0, 16);
 /* 16 bits unsigned immediate value */
 EXTRACT_HELPER(UIMM, 0, 16);
+/* 5 bits signed immediate value */
+EXTRACT_HELPER(SIMM5, 16, 5);
+/* 5 bits signed immediate value */
+EXTRACT_HELPER(UIMM5, 16, 5);
 /* Bit count */
 EXTRACT_HELPER(NB, 11, 5);
 /* Shift count */
 EXTRACT_HELPER(SH, 11, 5);
+/* Vector shift count */
+EXTRACT_HELPER(VSH, 6, 4);
 /* Mask start */
 EXTRACT_HELPER(MB, 6, 5);
 /* Mask end */
@@ -6085,7 +6091,7 @@ GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001, PPC_BOOKE)
 
 static always_inline TCGv_ptr gen_avr_ptr(int reg)
 {
-    TCGv_ptr r = tcg_temp_new();
+    TCGv_ptr r = tcg_temp_new_ptr();
     tcg_gen_addi_ptr(r, cpu_env, offsetof(CPUPPCState, avr[reg]));
     return r;
 }
@@ -6138,13 +6144,116 @@ GEN_HANDLER(st##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)              \
     tcg_temp_free(EA);                                                        \
 }
 
+#define GEN_VR_LVE(name, opc2, opc3)                                    \
+    GEN_HANDLER(lve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)   \
+    {                                                                   \
+        TCGv EA;                                                        \
+        TCGv_ptr rs;                                                    \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        gen_set_access_type(ctx, ACCESS_INT);                           \
+        EA = tcg_temp_new();                                            \
+        gen_addr_reg_index(ctx, EA);                                    \
+        rs = gen_avr_ptr(rS(ctx->opcode));                              \
+        gen_helper_lve##name (rs, EA);                                  \
+        tcg_temp_free(EA);                                              \
+        tcg_temp_free_ptr(rs);                                          \
+    }
+
+#define GEN_VR_STVE(name, opc2, opc3)                                   \
+    GEN_HANDLER(stve##name, 0x1F, opc2, opc3, 0x00000001, PPC_ALTIVEC)  \
+    {                                                                   \
+        TCGv EA;                                                        \
+        TCGv_ptr rs;                                                    \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        gen_set_access_type(ctx, ACCESS_INT);                           \
+        EA = tcg_temp_new();                                            \
+        gen_addr_reg_index(ctx, EA);                                    \
+        rs = gen_avr_ptr(rS(ctx->opcode));                              \
+        gen_helper_stve##name (rs, EA);                                 \
+        tcg_temp_free(EA);                                              \
+        tcg_temp_free_ptr(rs);                                          \
+    }
+
 GEN_VR_LDX(lvx, 0x07, 0x03);
 /* As we don't emulate the cache, lvxl is stricly equivalent to lvx */
 GEN_VR_LDX(lvxl, 0x07, 0x0B);
 
+GEN_VR_LVE(bx, 0x07, 0x00);
+GEN_VR_LVE(hx, 0x07, 0x01);
+GEN_VR_LVE(wx, 0x07, 0x02);
+
 GEN_VR_STX(svx, 0x07, 0x07);
 /* As we don't emulate the cache, stvxl is stricly equivalent to stvx */
 GEN_VR_STX(svxl, 0x07, 0x0F);
+
+GEN_VR_STVE(bx, 0x07, 0x04);
+GEN_VR_STVE(hx, 0x07, 0x05);
+GEN_VR_STVE(wx, 0x07, 0x06);
+
+GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC)
+{
+    TCGv_ptr rd;
+    TCGv EA;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    rd = gen_avr_ptr(rD(ctx->opcode));
+    gen_helper_lvsl(rd, EA);
+    tcg_temp_free(EA);
+    tcg_temp_free_ptr(rd);
+}
+
+GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC)
+{
+    TCGv_ptr rd;
+    TCGv EA;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    rd = gen_avr_ptr(rD(ctx->opcode));
+    gen_helper_lvsr(rd, EA);
+    tcg_temp_free(EA);
+    tcg_temp_free_ptr(rd);
+}
+
+GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC)
+{
+    TCGv_i32 t;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    tcg_gen_movi_i64(cpu_avrh[rD(ctx->opcode)], 0);
+    t = tcg_temp_new_i32();
+    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUState, vscr));
+    tcg_gen_extu_i32_i64(cpu_avrl[rD(ctx->opcode)], t);
+    tcg_temp_free(t);
+}
+
+GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC)
+{
+    TCGv_i32 t;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    t = tcg_temp_new_i32();
+    tcg_gen_trunc_i64_i32(t, cpu_avrl[rD(ctx->opcode)]);
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUState, vscr));
+    tcg_temp_free_i32(t);
+}
 
 /* Logical operations */
 #define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
@@ -6163,6 +6272,219 @@ GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17);
 GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18);
 GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19);
 GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20);
+
+#define GEN_VXFORM(name, opc2, opc3)                                    \
+GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)            \
+{                                                                       \
+    TCGv_ptr ra, rb, rd;                                                \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    ra = gen_avr_ptr(rA(ctx->opcode));                                  \
+    rb = gen_avr_ptr(rB(ctx->opcode));                                  \
+    rd = gen_avr_ptr(rD(ctx->opcode));                                  \
+    gen_helper_##name (rd, ra, rb);                                     \
+    tcg_temp_free_ptr(ra);                                              \
+    tcg_temp_free_ptr(rb);                                              \
+    tcg_temp_free_ptr(rd);                                              \
+}
+
+GEN_VXFORM(vaddubm, 0, 0);
+GEN_VXFORM(vadduhm, 0, 1);
+GEN_VXFORM(vadduwm, 0, 2);
+GEN_VXFORM(vsububm, 0, 16);
+GEN_VXFORM(vsubuhm, 0, 17);
+GEN_VXFORM(vsubuwm, 0, 18);
+GEN_VXFORM(vmaxub, 1, 0);
+GEN_VXFORM(vmaxuh, 1, 1);
+GEN_VXFORM(vmaxuw, 1, 2);
+GEN_VXFORM(vmaxsb, 1, 4);
+GEN_VXFORM(vmaxsh, 1, 5);
+GEN_VXFORM(vmaxsw, 1, 6);
+GEN_VXFORM(vminub, 1, 8);
+GEN_VXFORM(vminuh, 1, 9);
+GEN_VXFORM(vminuw, 1, 10);
+GEN_VXFORM(vminsb, 1, 12);
+GEN_VXFORM(vminsh, 1, 13);
+GEN_VXFORM(vminsw, 1, 14);
+GEN_VXFORM(vavgub, 1, 16);
+GEN_VXFORM(vavguh, 1, 17);
+GEN_VXFORM(vavguw, 1, 18);
+GEN_VXFORM(vavgsb, 1, 20);
+GEN_VXFORM(vavgsh, 1, 21);
+GEN_VXFORM(vavgsw, 1, 22);
+GEN_VXFORM(vmrghb, 6, 0);
+GEN_VXFORM(vmrghh, 6, 1);
+GEN_VXFORM(vmrghw, 6, 2);
+GEN_VXFORM(vmrglb, 6, 4);
+GEN_VXFORM(vmrglh, 6, 5);
+GEN_VXFORM(vmrglw, 6, 6);
+GEN_VXFORM(vmuloub, 4, 0);
+GEN_VXFORM(vmulouh, 4, 1);
+GEN_VXFORM(vmulosb, 4, 4);
+GEN_VXFORM(vmulosh, 4, 5);
+GEN_VXFORM(vmuleub, 4, 8);
+GEN_VXFORM(vmuleuh, 4, 9);
+GEN_VXFORM(vmulesb, 4, 12);
+GEN_VXFORM(vmulesh, 4, 13);
+GEN_VXFORM(vslb, 2, 4);
+GEN_VXFORM(vslh, 2, 5);
+GEN_VXFORM(vslw, 2, 6);
+GEN_VXFORM(vsrb, 2, 8);
+GEN_VXFORM(vsrh, 2, 9);
+GEN_VXFORM(vsrw, 2, 10);
+GEN_VXFORM(vsrab, 2, 12);
+GEN_VXFORM(vsrah, 2, 13);
+GEN_VXFORM(vsraw, 2, 14);
+GEN_VXFORM(vslo, 6, 16);
+GEN_VXFORM(vsro, 6, 17);
+GEN_VXFORM(vaddcuw, 0, 6);
+GEN_VXFORM(vsubcuw, 0, 22);
+GEN_VXFORM(vrlb, 2, 0);
+GEN_VXFORM(vrlh, 2, 1);
+GEN_VXFORM(vrlw, 2, 2);
+GEN_VXFORM(vpkuhum, 7, 0);
+GEN_VXFORM(vpkuwum, 7, 1);
+GEN_VXFORM(vpkuhus, 7, 2);
+GEN_VXFORM(vpkuwus, 7, 3);
+GEN_VXFORM(vpkshus, 7, 4);
+GEN_VXFORM(vpkswus, 7, 5);
+GEN_VXFORM(vpkshss, 7, 6);
+GEN_VXFORM(vpkswss, 7, 7);
+GEN_VXFORM(vpkpx, 7, 12);
+GEN_VXFORM(vsum4ubs, 4, 24);
+GEN_VXFORM(vsum4sbs, 4, 28);
+GEN_VXFORM(vsum4shs, 4, 25);
+GEN_VXFORM(vsum2sws, 4, 26);
+GEN_VXFORM(vsumsws, 4, 30);
+
+#define GEN_VXFORM_NOA(name, opc2, opc3)                                \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)        \
+    {                                                                   \
+        TCGv_ptr rb, rd;                                                \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name (rd, rb);                                     \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rd);                                         \
+    }
+
+GEN_VXFORM_NOA(vupkhsb, 7, 8);
+GEN_VXFORM_NOA(vupkhsh, 7, 9);
+GEN_VXFORM_NOA(vupklsb, 7, 10);
+GEN_VXFORM_NOA(vupklsh, 7, 11);
+GEN_VXFORM_NOA(vupkhpx, 7, 13);
+GEN_VXFORM_NOA(vupklpx, 7, 15);
+
+#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \
+    {                                                                   \
+        TCGv_ptr rd;                                                    \
+        TCGv_i32 simm;                                                  \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        simm = tcg_const_i32(SIMM5(ctx->opcode));                       \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name (rd, simm);                                   \
+        tcg_temp_free_i32(simm);                                        \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
+#define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \
+    {                                                                   \
+        TCGv_ptr rb, rd;                                                \
+        TCGv_i32 uimm;                                                  \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        uimm = tcg_const_i32(UIMM5(ctx->opcode));                       \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name (rd, rb, uimm);                               \
+        tcg_temp_free_i32(uimm);                                        \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
+GEN_VXFORM_UIMM(vspltb, 6, 8);
+GEN_VXFORM_UIMM(vsplth, 6, 9);
+GEN_VXFORM_UIMM(vspltw, 6, 10);
+
+GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
+{
+    TCGv_ptr ra, rb, rd;
+    TCGv sh;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    ra = gen_avr_ptr(rA(ctx->opcode));
+    rb = gen_avr_ptr(rB(ctx->opcode));
+    rd = gen_avr_ptr(rD(ctx->opcode));
+    sh = tcg_const_i32(VSH(ctx->opcode));
+    gen_helper_vsldoi (rd, ra, rb, sh);
+    tcg_temp_free_ptr(ra);
+    tcg_temp_free_ptr(rb);
+    tcg_temp_free_ptr(rd);
+    tcg_temp_free(sh);
+}
+
+#define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
+    GEN_HANDLER(name0##_##name1, 0x04, opc2, 0xFF, 0x00000000, PPC_ALTIVEC) \
+    {                                                                   \
+        TCGv_ptr ra, rb, rc, rd;                                        \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        ra = gen_avr_ptr(rA(ctx->opcode));                              \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rc = gen_avr_ptr(rC(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        if (Rc(ctx->opcode)) {                                          \
+            gen_helper_##name1 (rd, ra, rb, rc);                        \
+        } else {                                                        \
+            gen_helper_##name0 (rd, ra, rb, rc);                        \
+        }                                                               \
+        tcg_temp_free_ptr(ra);                                          \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rc);                                          \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
+GEN_VAFORM_PAIRED(vmhaddshs, vmhraddshs, 16)
+
+GEN_HANDLER(vmladduhm, 0x04, 0x11, 0xFF, 0x00000000, PPC_ALTIVEC)
+{
+    TCGv_ptr ra, rb, rc, rd;
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    ra = gen_avr_ptr(rA(ctx->opcode));
+    rb = gen_avr_ptr(rB(ctx->opcode));
+    rc = gen_avr_ptr(rC(ctx->opcode));
+    rd = gen_avr_ptr(rD(ctx->opcode));
+    gen_helper_vmladduhm(rd, ra, rb, rc);
+    tcg_temp_free_ptr(ra);
+    tcg_temp_free_ptr(rb);
+    tcg_temp_free_ptr(rc);
+    tcg_temp_free_ptr(rd);
+}
+
+GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18)
+GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19)
+GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20)
+GEN_VAFORM_PAIRED(vsel, vperm, 21)
 
 /***                           SPE extension                               ***/
 /* Register moves */
@@ -6350,7 +6672,7 @@ static always_inline void gen_##name (DisasContext *ctx)                      \
     TCGv_i32 t0 = tcg_temp_local_new_i32();                                   \
     TCGv_i32 t1 = tcg_temp_local_new_i32();                                   \
     TCGv_i32 t2 = tcg_temp_local_new_i32();                                   \
-    TCGv_i64 t3 = tcg_temp_local_new();                                       \
+    TCGv_i64 t3 = tcg_temp_local_new_i64();                                   \
     tcg_gen_trunc_i64_i32(t0, cpu_gpr[rA(ctx->opcode)]);                      \
     tcg_gen_trunc_i64_i32(t2, cpu_gpr[rB(ctx->opcode)]);                      \
     tcg_op(t0, t0, t2);                                                       \

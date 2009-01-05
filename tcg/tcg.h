@@ -319,8 +319,6 @@ int tcg_gen_code_search_pc(TCGContext *s, uint8_t *gen_code_buf, long offset);
 
 void tcg_set_frame(TCGContext *s, int reg,
                    tcg_target_long start, tcg_target_long size);
-TCGv_i64 tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2,
-                                  const char *name);
 
 TCGv_i32 tcg_global_reg_new_i32(int reg, const char *name);
 TCGv_i32 tcg_global_mem_new_i32(int reg, tcg_target_long offset,

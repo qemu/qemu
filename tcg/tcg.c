@@ -313,43 +313,6 @@ TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name)
     return MAKE_TCGV_I64(idx);
 }
 
-#if TCG_TARGET_REG_BITS == 32
-/* temporary hack to avoid register shortage for tcg_qemu_st64() */
-TCGv_i64 tcg_global_reg2_new_hack(TCGType type, int reg1, int reg2,
-                                  const char *name)
-{
-    TCGContext *s = &tcg_ctx;
-    TCGTemp *ts;
-    int idx;
-    char buf[64];
-
-    if (type != TCG_TYPE_I64)
-        tcg_abort();
-    idx = s->nb_globals;
-    tcg_temp_alloc(s, s->nb_globals + 2);
-    ts = &s->temps[s->nb_globals];
-    ts->base_type = type;
-    ts->type = TCG_TYPE_I32;
-    ts->fixed_reg = 1;
-    ts->reg = reg1;
-    pstrcpy(buf, sizeof(buf), name);
-    pstrcat(buf, sizeof(buf), "_0");
-    ts->name = strdup(buf);
-
-    ts++;
-    ts->base_type = type;
-    ts->type = TCG_TYPE_I32;
-    ts->fixed_reg = 1;
-    ts->reg = reg2;
-    pstrcpy(buf, sizeof(buf), name);
-    pstrcat(buf, sizeof(buf), "_1");
-    ts->name = strdup(buf);
-
-    s->nb_globals += 2;
-    return MAKE_TCGV_I64(idx);
-}
-#endif
-
 static inline int tcg_global_mem_new_internal(TCGType type, int reg,
                                               tcg_target_long offset,
                                               const char *name)

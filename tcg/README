@@ -334,22 +334,22 @@ Exit the current TB and jump to the TB index 'index' (constant) if the
 current TB was linked to this TB. Otherwise execute the next
 instructions.
 
-* qemu_ld_i32/i64 t0, t1, flags
-qemu_ld8u_i32/i64 t0, t1, flags
-qemu_ld8s_i32/i64 t0, t1, flags
-qemu_ld16u_i32/i64 t0, t1, flags
-qemu_ld16s_i32/i64 t0, t1, flags
-qemu_ld32u_i64 t0, t1, flags
-qemu_ld32s_i64 t0, t1, flags
+* qemu_ld8u t0, t1, flags
+qemu_ld8s t0, t1, flags
+qemu_ld16u t0, t1, flags
+qemu_ld16s t0, t1, flags
+qemu_ld32u t0, t1, flags
+qemu_ld32s t0, t1, flags
+qemu_ld64 t0, t1, flags
 
 Load data at the QEMU CPU address t1 into t0. t1 has the QEMU CPU
 address type. 'flags' contains the QEMU memory index (selects user or
 kernel access) for example.
 
-* qemu_st_i32/i64 t0, t1, flags
-qemu_st8_i32/i64 t0, t1, flags
-qemu_st16_i32/i64 t0, t1, flags
-qemu_st32_i64 t0, t1, flags
+* qemu_st8 t0, t1, flags
+qemu_st16 t0, t1, flags
+qemu_st32 t0, t1, flags
+qemu_st64 t0, t1, flags
 
 Store the data t0 at the QEMU CPU Address t1. t1 has the QEMU CPU
 address type. 'flags' contains the QEMU memory index (selects user or
