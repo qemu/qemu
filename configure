@@ -635,7 +635,7 @@ sparc32plus-linux-user \
     fi
 # the following are Darwin specific
     if [ "$darwin_user" = "yes" ] ; then
-        target_list="$target_list i386-darwin-user ppc-darwin-user"
+        target_list="$target_list i386-darwin-user ppc-darwin-user "
     fi
 # the following are BSD specific
     if [ "$bsd_user" = "yes" ] ; then
