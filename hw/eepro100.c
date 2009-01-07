@@ -1776,7 +1776,7 @@ static void nic_init(PCIBus * bus, NICInfo * nd,
 
     nic_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model,
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                  nic_receive, nic_can_receive, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);

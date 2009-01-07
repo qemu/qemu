@@ -718,7 +718,7 @@ static void mv88w8618_eth_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     if (!s)
         return;
     s->irq = irq;
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model,
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                  eth_receive, eth_can_receive, s);
     iomemtype = cpu_register_io_memory(0, mv88w8618_eth_readfn,
                                        mv88w8618_eth_writefn, s);

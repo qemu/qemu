@@ -3887,30 +3887,30 @@ static void help(int exitcode)
            "-uuid %%08x-%%04x-%%04x-%%04x-%%012x specify machine UUID\n"
            "\n"
            "Network options:\n"
-           "-net nic[,vlan=n][,macaddr=addr][,model=type]\n"
+           "-net nic[,vlan=n][,macaddr=addr][,model=type][,name=str]\n"
            "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
-           "-net user[,vlan=n][,hostname=host]\n"
+           "-net user[,vlan=n][,name=str][,hostname=host]\n"
            "                connect the user mode network stack to VLAN 'n' and send\n"
            "                hostname 'host' to DHCP clients\n"
 #endif
 #ifdef _WIN32
-           "-net tap[,vlan=n],ifname=name\n"
+           "-net tap[,vlan=n][,name=str],ifname=name\n"
            "                connect the host TAP network interface to VLAN 'n'\n"
 #else
-           "-net tap[,vlan=n][,fd=h][,ifname=name][,script=file][,downscript=dfile]\n"
+           "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile]\n"
            "                connect the host TAP network interface to VLAN 'n' and use the\n"
            "                network scripts 'file' (default=%s)\n"
            "                and 'dfile' (default=%s);\n"
            "                use '[down]script=no' to disable script execution;\n"
            "                use 'fd=h' to connect to an already opened TAP interface\n"
 #endif
-           "-net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]\n"
+           "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
            "                connect the vlan 'n' to another VLAN using a socket connection\n"
-           "-net socket[,vlan=n][,fd=h][,mcast=maddr:port]\n"
+           "-net socket[,vlan=n][,name=str][,fd=h][,mcast=maddr:port]\n"
            "                connect the vlan 'n' to multicast maddr and port\n"
 #ifdef CONFIG_VDE
-           "-net vde[,vlan=n][,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]\n"
+           "-net vde[,vlan=n][,name=str][,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]\n"
            "                connect the vlan 'n' to port 'n' of a vde switch running\n"
            "                on host and listening for incoming connections on 'socketpath'.\n"
            "                Use group 'groupname' and mode 'octalmode' to change default\n"

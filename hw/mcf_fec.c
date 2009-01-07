@@ -452,7 +452,7 @@ void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq)
                                        mcf_fec_writefn, s);
     cpu_register_physical_memory(base, 0x400, iomemtype);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, nd->model,
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                  mcf_fec_receive, mcf_fec_can_receive, s);
     memcpy(s->macaddr, nd->macaddr, 6);
     qemu_format_nic_info_str(n->vc, s->macaddr);

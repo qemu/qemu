@@ -33,6 +33,7 @@ struct VLANState {
 VLANState *qemu_find_vlan(int id);
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *model,
+                                      const char *name,
                                       IOReadHandler *fd_read,
                                       IOCanRWHandler *fd_can_read,
                                       void *opaque);
@@ -53,6 +54,7 @@ void do_info_network(void);
 struct NICInfo {
     uint8_t macaddr[6];
     const char *model;
+    const char *name;
     VLANState *vlan;
 };
 
