@@ -728,8 +728,15 @@ static void cris_evaluate_flags(DisasContext *dc)
 			case CC_OP_FLAGS:
 				/* live.  */
 				break;
+			case CC_OP_SUB:
+			case CC_OP_CMP:
+				if (dc->cc_size == 4)
+					gen_helper_evaluate_flags_sub_4();
+				else
+					gen_helper_evaluate_flags();
+
+				break;
 			default:
-			{
 				switch (dc->cc_size)
 				{
 					case 4:
@@ -739,7 +746,6 @@ static void cris_evaluate_flags(DisasContext *dc)
 						gen_helper_evaluate_flags();
 						break;
 				}
-			}
 			break;
 		}
 		if (dc->flagx_known) {
@@ -821,13 +827,8 @@ static void cris_pre_alu_update_cc(DisasContext *dc, int op,
 /* Update cc after executing ALU op. needs the result.  */
 static inline void cris_update_result(DisasContext *dc, TCGv res)
 {
-	if (dc->update_cc) {
-		if (dc->cc_size == 4 && 
-		    (dc->cc_op == CC_OP_SUB
-		     || dc->cc_op == CC_OP_ADD))
-			return;
+	if (dc->update_cc)
 		tcg_gen_mov_tl(cc_result, res);
-	}
 }
 
 /* Returns one if the write back stage should execute.  */
@@ -1890,6 +1891,10 @@ static unsigned int dec_addc_r(DisasContext *dc)
 	DIS(fprintf (logfile, "addc $r%u, $r%u\n",
 		    dc->op1, dc->op2));
 	cris_evaluate_flags(dc);
+	/* Set for this insn.  */
+	dc->flagx_known = 1;
+	dc->flags_x = X_FLAG;
+
 	cris_cc_mask(dc, CC_MASK_NZVC);
 	cris_alu(dc, CC_OP_ADDC,
 		 cpu_R[dc->op2], cpu_R[dc->op2], cpu_R[dc->op1], 4);
@@ -2615,6 +2620,11 @@ static unsigned int dec_addc_mr(DisasContext *dc)
 		    dc->op2));
 
 	cris_evaluate_flags(dc);
+
+	/* Set for this insn.  */
+	dc->flagx_known = 1;
+	dc->flags_x = X_FLAG;
+
 	cris_alu_m_alloc_temps(t);
 	insn_len = dec_prep_alu_m(dc, 0, 4, t[0], t[1]);
 	cris_cc_mask(dc, CC_MASK_NZVC);

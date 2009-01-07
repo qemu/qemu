@@ -245,17 +245,19 @@ void helper_rfn(void)
 
 static void evaluate_flags_writeback(uint32_t flags)
 {
-	int x;
+	unsigned int x, z, mask;
 
 	/* Extended arithmetics, leave the z flag alone.  */
 	x = env->cc_x;
-	if ((x || env->cc_op == CC_OP_ADDC)
-	    && flags & Z_FLAG)
-		env->cc_mask &= ~Z_FLAG;
+	mask = env->cc_mask | X_FLAG;
+        if (x) {
+		z = flags & Z_FLAG;
+		mask = mask & ~z;
+	}
+	flags &= mask;
 
 	/* all insn clear the x-flag except setf or clrf.  */
-	env->pregs[PR_CCS] &= ~(env->cc_mask | X_FLAG);
-	flags &= env->cc_mask;
+	env->pregs[PR_CCS] &= ~mask;
 	env->pregs[PR_CCS] |= flags;
 }
 
@@ -323,33 +325,25 @@ void  helper_evaluate_flags_mcp(void)
 	uint32_t res;
 	uint32_t flags = 0;
 
-	src = env->cc_src;
-	dst = env->cc_dest;
+	src = env->cc_src & 0x80000000;
+	dst = env->cc_dest & 0x80000000;
 	res = env->cc_result;
 
 	if ((res & 0x80000000L) != 0L)
 	{
 		flags |= N_FLAG;
-		if (((src & 0x80000000L) == 0L)
-		    && ((dst & 0x80000000L) == 0L))
-		{
+		if (!src && !dst)
 			flags |= V_FLAG;
-		}
-		else if (((src & 0x80000000L) != 0L) &&
-			 ((dst & 0x80000000L) != 0L))
-		{
+		else if (src & dst)
 			flags |= R_FLAG;
-		}
 	}
 	else
 	{
 		if (res == 0L)
 			flags |= Z_FLAG;
-		if (((src & 0x80000000L) != 0L)
-		    && ((dst & 0x80000000L) != 0L))
+		if (src & dst) 
 			flags |= V_FLAG;
-		if ((dst & 0x80000000L) != 0L
-		    || (src & 0x80000000L) != 0L)
+		if (dst | src) 
 			flags |= R_FLAG;
 	}
 
@@ -363,56 +357,61 @@ void  helper_evaluate_flags_alu_4(void)
 	uint32_t res;
 	uint32_t flags = 0;
 
-	src = env->cc_src;
-	dst = env->cc_dest;
-
-	/* Reconstruct the result.  */
-	switch (env->cc_op)
-	{
-		case CC_OP_SUB:
-			res = dst - src;
-			break;
-		case CC_OP_ADD:
-			res = dst + src;
-			break;
-		default:
-			res = env->cc_result;
-			break;
-	}
-
-	if (env->cc_op == CC_OP_SUB || env->cc_op == CC_OP_CMP)
-		src = ~src;
+	src = env->cc_src & 0x80000000;
+	dst = env->cc_dest & 0x80000000;
+	res = env->cc_result;
 
 	if ((res & 0x80000000L) != 0L)
 	{
 		flags |= N_FLAG;
-		if (((src & 0x80000000L) == 0L)
-		    && ((dst & 0x80000000L) == 0L))
-		{
+		if (!src && !dst)
 			flags |= V_FLAG;
-		}
-		else if (((src & 0x80000000L) != 0L) &&
-			 ((dst & 0x80000000L) != 0L))
-		{
+		else if (src & dst)
 			flags |= C_FLAG;
-		}
 	}
 	else
 	{
 		if (res == 0L)
 			flags |= Z_FLAG;
-		if (((src & 0x80000000L) != 0L)
-		    && ((dst & 0x80000000L) != 0L))
+		if (src & dst) 
 			flags |= V_FLAG;
-		if ((dst & 0x80000000L) != 0L
-		    || (src & 0x80000000L) != 0L)
+		if (dst | src) 
 			flags |= C_FLAG;
 	}
 
-	if (env->cc_op == CC_OP_SUB
-	    || env->cc_op == CC_OP_CMP) {
-		flags ^= C_FLAG;
+	evaluate_flags_writeback(flags);
+}
+
+void  helper_evaluate_flags_sub_4(void)
+{
+	uint32_t src;
+	uint32_t dst;
+	uint32_t res;
+	uint32_t flags = 0;
+
+	src = (~env->cc_src) & 0x80000000;
+	dst = env->cc_dest & 0x80000000;
+	res = env->cc_result;
+
+	if ((res & 0x80000000L) != 0L)
+	{
+		flags |= N_FLAG;
+		if (!src && !dst)
+			flags |= V_FLAG;
+		else if (src & dst)
+			flags |= C_FLAG;
 	}
+	else
+	{
+		if (res == 0L)
+			flags |= Z_FLAG;
+		if (src & dst) 
+			flags |= V_FLAG;
+		if (dst | src) 
+			flags |= C_FLAG;
+	}
+
+	flags ^= C_FLAG;
 	evaluate_flags_writeback(flags);
 }
 
@@ -606,6 +605,13 @@ void helper_top_evaluate_flags(void)
 			break;
 		case CC_OP_FLAGS:
 			/* live.  */
+			break;
+		case CC_OP_SUB:
+		case CC_OP_CMP:
+			if (env->cc_size == 4)
+				helper_evaluate_flags_sub_4();
+			else
+				helper_evaluate_flags();
 			break;
 		default:
 		{
