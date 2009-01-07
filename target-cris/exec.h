@@ -46,7 +46,10 @@ void helper_movec(CPUCRISState *env, int reg, uint32_t val);
 static inline int cpu_halted(CPUState *env) {
 	if (!env->halted)
 		return 0;
-	if (env->interrupt_request & CPU_INTERRUPT_HARD) {
+
+	/* IRQ, NMI and GURU execeptions wakes us up.  */
+	if (env->interrupt_request
+	    & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI)) {
 		env->halted = 0;
 		return 0;
 	}
