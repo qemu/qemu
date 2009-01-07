@@ -975,6 +975,7 @@ static int arith_cc(DisasContext *dc)
 			case CC_OP_CMP: return 1;
 			case CC_OP_NEG: return 1;
 			case CC_OP_OR: return 1;
+			case CC_OP_AND: return 1;
 			case CC_OP_XOR: return 1;
 			case CC_OP_MULU: return 1;
 			case CC_OP_MULS: return 1;
@@ -1000,7 +1001,7 @@ static void gen_tst_cc (DisasContext *dc, TCGv cc, int cond)
 	 * code is true.
 	 */
 	arith_opt = arith_cc(dc) && !dc->flags_uptodate;
-	move_opt = (dc->cc_op == CC_OP_MOVE) && dc->flags_uptodate;
+	move_opt = (dc->cc_op == CC_OP_MOVE);
 	switch (cond) {
 		case CC_EQ:
 			if (arith_opt || move_opt) {
