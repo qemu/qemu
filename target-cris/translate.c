@@ -388,64 +388,6 @@ static void t_gen_lz_i32(TCGv d, TCGv x)
 	tcg_temp_free(n);
 }
 
-static void t_gen_btst(TCGv d, TCGv a, TCGv b)
-{
-        TCGv sbit;
-        TCGv bset;
-        TCGv t0;
-	int l1;
-
-        /* des ref:
-           The N flag is set according to the selected bit in the dest reg.
-           The Z flag is set if the selected bit and all bits to the right are
-           zero.
-           The X flag is cleared.
-           Other flags are left untouched.
-           The destination reg is not affected.
-
-        unsigned int fz, sbit, bset, mask, masked_t0;
-
-        sbit = T1 & 31;
-        bset = !!(T0 & (1 << sbit));
-        mask = sbit == 31 ? -1 : (1 << (sbit + 1)) - 1;
-        masked_t0 = T0 & mask;
-        fz = !(masked_t0 | bset);
-
-        // Clear the X, N and Z flags.
-        T0 = env->pregs[PR_CCS] & ~(X_FLAG | N_FLAG | Z_FLAG);
-        // Set the N and Z flags accordingly.
-        T0 |= (bset << 3) | (fz << 2);
-        */
-
-	l1 = gen_new_label();
-        sbit = tcg_temp_new();
-        bset = tcg_temp_new();
-        t0 = tcg_temp_new();
-
-        /* Compute bset and sbit.  */
-        tcg_gen_andi_tl(sbit, b, 31);
-        tcg_gen_shl_tl(t0, tcg_const_tl(1), sbit);
-        tcg_gen_and_tl(bset, a, t0);
-        tcg_gen_shr_tl(bset, bset, sbit);
-	/* Displace to N_FLAG.  */
-        tcg_gen_shli_tl(bset, bset, 3);
-
-        tcg_gen_shl_tl(sbit, tcg_const_tl(2), sbit);
-        tcg_gen_subi_tl(sbit, sbit, 1);
-        tcg_gen_and_tl(sbit, a, sbit);
-
-        tcg_gen_andi_tl(d, cpu_PR[PR_CCS], ~(X_FLAG | N_FLAG | Z_FLAG));
-	/* or in the N_FLAG.  */
-        tcg_gen_or_tl(d, d, bset);
-	tcg_gen_brcondi_tl(TCG_COND_NE, sbit, 0, l1);
-	/* or in the Z_FLAG.  */
-	tcg_gen_ori_tl(d, d, Z_FLAG);
-	gen_set_label(l1);
-
-        tcg_temp_free(sbit);
-        tcg_temp_free(bset);
-}
-
 static void t_gen_cris_dstep(TCGv d, TCGv a, TCGv b)
 {
 	int l1;
@@ -885,9 +827,6 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
 		case CC_OP_LZ:
 			t_gen_lz_i32(dst, b);
 			break;
-		case CC_OP_BTST:
-			t_gen_btst(dst, a, b);
-			break;
 		case CC_OP_MULS:
 			t_gen_muls(dst, cpu_PR[PR_MOF], a, b);
 			break;
@@ -932,7 +871,7 @@ static void cris_alu(DisasContext *dc, int op,
 
 	writeback = 1;
 
-	if (op == CC_OP_BOUND || op == CC_OP_BTST)
+	if (op == CC_OP_BOUND)
 		tmp = tcg_temp_local_new();
 
 	if (op == CC_OP_CMP) {
@@ -1560,18 +1499,17 @@ static unsigned int dec_orq(DisasContext *dc)
 }
 static unsigned int dec_btstq(DisasContext *dc)
 {
-	TCGv l0;
 	dc->op1 = EXTRACT_FIELD(dc->ir, 0, 4);
 	DIS(fprintf (logfile, "btstq %u, $r%d\n", dc->op1, dc->op2));
 
 	cris_cc_mask(dc, CC_MASK_NZ);
-	l0 = tcg_temp_local_new();
-	cris_alu(dc, CC_OP_BTST,
-		 l0, cpu_R[dc->op2], tcg_const_tl(dc->op1), 4);
+	cris_evaluate_flags(dc);
+	gen_helper_btst(cpu_PR[PR_CCS], cpu_R[dc->op2],
+			tcg_const_tl(dc->op1), cpu_PR[PR_CCS]);
+	cris_alu(dc, CC_OP_MOVE,
+		 cpu_R[dc->op2], cpu_R[dc->op2], cpu_R[dc->op2], 4);
 	cris_update_cc_op(dc, CC_OP_FLAGS, 4);
-	t_gen_mov_preg_TN(dc, PR_CCS, l0);
 	dc->flags_uptodate = 1;
-	tcg_temp_free(l0);
 	return 2;
 }
 static unsigned int dec_asrq(DisasContext *dc)
@@ -2012,17 +1950,16 @@ static unsigned int dec_neg_r(DisasContext *dc)
 
 static unsigned int dec_btst_r(DisasContext *dc)
 {
-	TCGv l0;
 	DIS(fprintf (logfile, "btst $r%u, $r%u\n",
 		    dc->op1, dc->op2));
 	cris_cc_mask(dc, CC_MASK_NZ);
-
-	l0 = tcg_temp_local_new();
-	cris_alu(dc, CC_OP_BTST, l0, cpu_R[dc->op2], cpu_R[dc->op1], 4);
+	cris_evaluate_flags(dc);
+	gen_helper_btst(cpu_PR[PR_CCS], cpu_R[dc->op2],
+			cpu_R[dc->op1], cpu_PR[PR_CCS]);
+	cris_alu(dc, CC_OP_MOVE, cpu_R[dc->op2],
+		 cpu_R[dc->op2], cpu_R[dc->op2], 4);
 	cris_update_cc_op(dc, CC_OP_FLAGS, 4);
-	t_gen_mov_preg_TN(dc, PR_CCS, l0);
 	dc->flags_uptodate = 1;
-	tcg_temp_free(l0);
 	return 2;
 }
 

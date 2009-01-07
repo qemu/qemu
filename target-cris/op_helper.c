@@ -243,6 +243,32 @@ void helper_rfn(void)
     env->pregs[PR_CCS] |= M_FLAG;
 }
 
+uint32_t helper_btst(uint32_t t0, uint32_t t1, uint32_t ccs)
+{
+	/* FIXME: clean this up.  */
+
+	/* des ref:
+	   The N flag is set according to the selected bit in the dest reg.
+	   The Z flag is set if the selected bit and all bits to the right are
+	   zero.
+	   The X flag is cleared.
+	   Other flags are left untouched.
+	   The destination reg is not affected.*/
+	unsigned int fz, sbit, bset, mask, masked_t0;
+
+	sbit = t1 & 31;
+	bset = !!(t0 & (1 << sbit));
+	mask = sbit == 31 ? -1 : (1 << (sbit + 1)) - 1;
+	masked_t0 = t0 & mask;
+	fz = !(masked_t0 | bset);
+
+	/* Clear the X, N and Z flags.  */
+	ccs = ccs & ~(X_FLAG | N_FLAG | Z_FLAG);
+	/* Set the N and Z flags accordingly.  */
+	ccs |= (bset << 3) | (fz << 2);
+	return ccs;
+}
+
 static void evaluate_flags_writeback(uint32_t flags)
 {
 	unsigned int x, z, mask;
