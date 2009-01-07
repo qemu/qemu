@@ -871,9 +871,6 @@ static void cris_alu(DisasContext *dc, int op,
 
 	writeback = 1;
 
-	if (op == CC_OP_BOUND)
-		tmp = tcg_temp_local_new();
-
 	if (op == CC_OP_CMP) {
 		tmp = tcg_temp_new();
 		writeback = 0;
