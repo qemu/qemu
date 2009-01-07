@@ -1555,14 +1555,10 @@ static void pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
     eeprom_init(s);
 #endif
 
-    s->vc = qemu_new_vlan_client(nd->vlan, dp8381x_receive,
-                                 dp8381x_can_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                 dp8381x_receive, dp8381x_can_receive, s);
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "dp8381x pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             nd->macaddr[0],
-             nd->macaddr[1],
-             nd->macaddr[2], nd->macaddr[3], nd->macaddr[4], nd->macaddr[5]);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
     qemu_register_reset(nic_reset, d);
 

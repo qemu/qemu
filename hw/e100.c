@@ -2511,13 +2511,10 @@ static void e100_init(PCIBus * bus, NICInfo * nd,
 
     e100_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, e100_receive, e100_can_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                 e100_receive, e100_can_receive, s);
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-            "e100 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-            s->macaddr[0],
-            s->macaddr[1],
-            s->macaddr[2], s->macaddr[3], s->macaddr[4], s->macaddr[5]);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
     qemu_register_reset(e100_reset, s);
 
