@@ -84,12 +84,88 @@ static CPUWriteMemoryFunc *nand_write[] = {
     &nand_writel,
 };
 
-#define RW_PA_DOUT 0
-#define R_PA_DIN   1
-#define RW_PA_OE   2
-struct gpio_state_t
+
+struct tempsensor_t
+{
+    unsigned int shiftreg;
+    unsigned int count;
+    enum {
+        ST_OUT, ST_IN, ST_Z
+    } state;
+
+    uint16_t regs[3];
+};
+
+static void tempsensor_clkedge(struct tempsensor_t *s,
+                               unsigned int clk, unsigned int data_in)
+{
+    D(printf("%s clk=%d state=%d sr=%x\n", __func__,
+             clk, s->state, s->shiftreg));
+    if (s->count == 0) {
+        s->count = 16;
+        s->state = ST_OUT;
+    }
+    switch (s->state) {
+        case ST_OUT:
+            /* Output reg is clocked at negedge.  */
+            if (!clk) {
+                s->count--;
+                s->shiftreg <<= 1;
+                if (s->count == 0) {
+                    s->shiftreg = 0;
+                    s->state = ST_IN;
+                    s->count = 16;
+                }
+            }
+            break;
+        case ST_Z:
+            if (clk) {
+                s->count--;
+                if (s->count == 0) {
+                    s->shiftreg = 0;
+                    s->state = ST_OUT;
+                    s->count = 16;
+                }
+            }
+            break;
+        case ST_IN:
+            /* Indata is sampled at posedge.  */
+            if (clk) {
+                s->count--;
+                s->shiftreg <<= 1;
+                s->shiftreg |= data_in & 1;
+                if (s->count == 0) {
+                    D(printf("%s cfgreg=%x\n", __func__, s->shiftreg));
+                    s->regs[0] = s->shiftreg;
+                    s->state = ST_OUT;
+                    s->count = 16;
+
+                    if ((s->regs[0] & 0xff) == 0) {
+                        /* 25 degrees celcius.  */
+                        s->shiftreg = 0x0b9f;
+                    } else if ((s->regs[0] & 0xff) == 0xff) {
+                        /* Sensor ID, 0x8100 LM70.  */
+                        s->shiftreg = 0x8100;
+                    } else
+                        printf("Invalid tempsens state %x\n", s->regs[0]);
+                }
+            }
+            break;
+    }
+}
+
+
+#define RW_PA_DOUT    0x00
+#define R_PA_DIN      0x01
+#define RW_PA_OE      0x02
+#define RW_PD_DOUT    0x10
+#define R_PD_DIN      0x11
+#define RW_PD_OE      0x12
+
+static struct gpio_state_t
 {
     struct nand_state_t *nand;
+    struct tempsensor_t tempsensor;
     uint32_t regs[0x5c / 4];
 } gpio_state;
 
@@ -107,6 +183,13 @@ static uint32_t gpio_readl (void *opaque, target_phys_addr_t addr)
             /* Encode pins from the nand.  */
             r |= s->nand->rdy << 7;
             break;
+        case R_PD_DIN:
+            r = s->regs[RW_PD_DOUT] & s->regs[RW_PD_OE];
+
+            /* Encode temp sensor pins.  */
+            r |= (!!(s->tempsensor.shiftreg & 0x10000)) << 4;
+            break;
+
         default:
             r = s->regs[addr];
             break;
@@ -131,6 +214,15 @@ static void gpio_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 
             s->regs[addr] = value;
             break;
+
+        case RW_PD_DOUT:
+            /* Temp sensor clk.  */
+            if ((s->regs[addr] ^ value) & 2)
+                tempsensor_clkedge(&s->tempsensor, !!(value & 2),
+                                   !!(value & 16));
+            s->regs[addr] = value;
+            break;
+
         default:
             s->regs[addr] = value;
             break;
@@ -194,13 +286,13 @@ void axisdev88_init (ram_addr_t ram_size, int vga_ram_size,
 
 
       /* Attach a NAND flash to CS1.  */
-    nand_state.nand = nand_init(NAND_MFR_STMICRO, 0xf1);
+    nand_state.nand = nand_init(NAND_MFR_STMICRO, 0x39);
     nand_regs = cpu_register_io_memory(0, nand_read, nand_write, &nand_state);
     cpu_register_physical_memory(0x10000000, 0x05000000, nand_regs);
 
     gpio_state.nand = &nand_state;
     gpio_regs = cpu_register_io_memory(0, gpio_read, gpio_write, &gpio_state);
-    cpu_register_physical_memory(0x3001a000, 0x1c, gpio_regs);
+    cpu_register_physical_memory(0x3001a000, 0x5c, gpio_regs);
 
 
     pic = etraxfs_pic_init(env, 0x3001c000);
