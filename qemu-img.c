@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "osdep.h"
 #include "block_int.h"
 #include <assert.h>
 
@@ -60,6 +61,7 @@ static void help(void)
            "  commit [-f fmt] filename\n"
            "  convert [-c] [-e] [-6] [-f fmt] [-O output_fmt] [-B output_base_image] filename [filename2 [...]] output_filename\n"
            "  info [-f fmt] filename\n"
+           "  snapshot [-l|-a snapshot|-c snapshot|-d snapshot] filename\n"
            "\n"
            "Command parameters:\n"
            "  'filename' is a disk image filename\n"
@@ -77,6 +79,13 @@ static void help(void)
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
            "  '-e' indicates that the target image must be encrypted (qcow format only)\n"
            "  '-6' indicates that the target image must use compatibility level 6 (vmdk format only)\n"
+           "\n"
+           "  Parameters to snapshot subcommand:\n"
+           "    'snapshot' is the name of the snapshot to create, apply or delete\n"
+           "    '-a' applies a snapshot (revert disk to saved state)\n"
+           "    '-c' creates a snapshot\n"
+           "    '-d' deletes a snapshot\n"
+           "    '-l' lists all snapshots in the given image\n"
            );
     printf("\nSupported format:");
     bdrv_iterate_format(format_print, NULL);
@@ -732,6 +741,116 @@ static int img_info(int argc, char **argv)
     return 0;
 }
 
+#define SNAPSHOT_LIST   1
+#define SNAPSHOT_CREATE 2
+#define SNAPSHOT_APPLY  3
+#define SNAPSHOT_DELETE 4
+
+static void img_snapshot(int argc, char **argv)
+{
+    BlockDriverState *bs;
+    QEMUSnapshotInfo sn;
+    char *filename, *snapshot_name = NULL;
+    char c;
+    int ret;
+    int action = 0;
+    qemu_timeval tv;
+
+    /* Parse commandline parameters */
+    for(;;) {
+        c = getopt(argc, argv, "la:c:d:h");
+        if (c == -1)
+            break;
+        switch(c) {
+        case 'h':
+            help();
+            return;
+        case 'l':
+            if (action) {
+                help();
+                return;
+            }
+            action = SNAPSHOT_LIST;
+            break;
+        case 'a':
+            if (action) {
+                help();
+                return;
+            }
+            action = SNAPSHOT_APPLY;
+            snapshot_name = optarg;
+            break;
+        case 'c':
+            if (action) {
+                help();
+                return;
+            }
+            action = SNAPSHOT_CREATE;
+            snapshot_name = optarg;
+            break;
+        case 'd':
+            if (action) {
+                help();
+                return;
+            }
+            action = SNAPSHOT_DELETE;
+            snapshot_name = optarg;
+            break;
+        }
+    }
+
+    if (optind >= argc)
+        help();
+    filename = argv[optind++];
+
+    /* Open the image */
+    bs = bdrv_new("");
+    if (!bs)
+        error("Not enough memory");
+
+    if (bdrv_open2(bs, filename, 0, NULL) < 0) {
+        error("Could not open '%s'", filename);
+    }
+
+    /* Perform the requested action */
+    switch(action) {
+    case SNAPSHOT_LIST:
+        dump_snapshots(bs);
+        break;
+
+    case SNAPSHOT_CREATE:
+        memset(&sn, 0, sizeof(sn));
+        pstrcpy(sn.name, sizeof(sn.name), snapshot_name);
+
+        qemu_gettimeofday(&tv);
+        sn.date_sec = tv.tv_sec;
+        sn.date_nsec = tv.tv_usec * 1000;
+
+        ret = bdrv_snapshot_create(bs, &sn);
+        if (ret)
+            error("Could not create snapshot '%s': %d (%s)",
+                snapshot_name, ret, strerror(-ret));
+        break;
+
+    case SNAPSHOT_APPLY:
+        ret = bdrv_snapshot_goto(bs, snapshot_name);
+        if (ret)
+            error("Could not apply snapshot '%s': %d (%s)",
+                snapshot_name, ret, strerror(-ret));
+        break;
+
+    case SNAPSHOT_DELETE:
+        ret = bdrv_snapshot_delete(bs, snapshot_name);
+        if (ret)
+            error("Could not delete snapshot '%s': %d (%s)",
+                snapshot_name, ret, strerror(-ret));
+        break;
+    }
+
+    /* Cleanup */
+    bdrv_delete(bs);
+}
+
 int main(int argc, char **argv)
 {
     const char *cmd;
@@ -749,6 +868,8 @@ int main(int argc, char **argv)
         img_convert(argc, argv);
     } else if (!strcmp(cmd, "info")) {
         img_info(argc, argv);
+    } else if (!strcmp(cmd, "snapshot")) {
+        img_snapshot(argc, argv);
     } else {
         help();
     }
