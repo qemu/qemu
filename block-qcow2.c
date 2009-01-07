@@ -620,6 +620,9 @@ static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
     int i;
     uint64_t offset = be64_to_cpu(l2_table[0]) & ~mask;
 
+    if (!offset)
+        return 0;
+
     for (i = 0; i < nb_clusters; i++)
         if (offset + i * cluster_size != (be64_to_cpu(l2_table[i]) & ~mask))
             break;
@@ -981,6 +984,12 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
     /* how many available clusters ? */
 
     while (i < nb_clusters) {
+        i += count_contiguous_clusters(nb_clusters - i, s->cluster_size,
+                &l2_table[l2_index + i], 0);
+
+        if(be64_to_cpu(l2_table[l2_index + i]))
+            break;
+
         i += count_contiguous_free_clusters(nb_clusters - i,
                 &l2_table[l2_index + i]);
 
@@ -988,12 +997,6 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
 
         if ((cluster_offset & QCOW_OFLAG_COPIED) ||
                 (cluster_offset & QCOW_OFLAG_COMPRESSED))
-            break;
-
-        i += count_contiguous_clusters(nb_clusters - i, s->cluster_size,
-                &l2_table[l2_index + i], 0);
-
-        if(be64_to_cpu(l2_table[l2_index + i]))
             break;
     }
     nb_clusters = i;
