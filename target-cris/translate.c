@@ -565,74 +565,85 @@ static void cris_flush_cc_state(DisasContext *dc)
 
 static void cris_evaluate_flags(DisasContext *dc)
 {
-	if (!dc->flags_uptodate) {
-		cris_flush_cc_state(dc);
+	if (dc->flags_uptodate)
+		return;
 
-		switch (dc->cc_op)
+	cris_flush_cc_state(dc);
+
+	switch (dc->cc_op)
+	{
+	case CC_OP_MCP:
+		gen_helper_evaluate_flags_mcp(cpu_PR[PR_CCS],
+					cpu_PR[PR_CCS], cc_src,
+					cc_dest, cc_result);
+		break;
+	case CC_OP_MULS:
+		gen_helper_evaluate_flags_muls(cpu_PR[PR_CCS],
+					cpu_PR[PR_CCS], cc_result,
+					cpu_PR[PR_MOF]);
+		break;
+	case CC_OP_MULU:
+		gen_helper_evaluate_flags_mulu(cpu_PR[PR_CCS],
+					cpu_PR[PR_CCS], cc_result,
+					cpu_PR[PR_MOF]);
+		break;
+	case CC_OP_MOVE:
+	case CC_OP_AND:
+	case CC_OP_OR:
+	case CC_OP_XOR:
+	case CC_OP_ASR:
+	case CC_OP_LSR:
+	case CC_OP_LSL:
+		switch (dc->cc_size)
 		{
-			case CC_OP_MCP:
-				gen_helper_evaluate_flags_mcp();
-				break;
-			case CC_OP_MULS:
-				gen_helper_evaluate_flags_muls();
-				break;
-			case CC_OP_MULU:
-				gen_helper_evaluate_flags_mulu();
-				break;
-			case CC_OP_MOVE:
-			case CC_OP_AND:
-			case CC_OP_OR:
-			case CC_OP_XOR:
-			case CC_OP_ASR:
-			case CC_OP_LSR:
-			case CC_OP_LSL:
-				switch (dc->cc_size)
-				{
-					case 4:
-						gen_helper_evaluate_flags_move_4();
-						break;
-					case 2:
-						gen_helper_evaluate_flags_move_2();
-						break;
-					default:
-						gen_helper_evaluate_flags();
-						break;
-				}
-				break;
-			case CC_OP_FLAGS:
-				/* live.  */
-				break;
-			case CC_OP_SUB:
-			case CC_OP_CMP:
-				if (dc->cc_size == 4)
-					gen_helper_evaluate_flags_sub_4();
-				else
-					gen_helper_evaluate_flags();
-
-				break;
-			default:
-				switch (dc->cc_size)
-				{
-					case 4:
-						gen_helper_evaluate_flags_alu_4();
-						break;
-					default:
-						gen_helper_evaluate_flags();
-						break;
-				}
+		case 4:
+			gen_helper_evaluate_flags_move_4(cpu_PR[PR_CCS],
+						cpu_PR[PR_CCS], cc_result);
+			break;
+		case 2:
+			gen_helper_evaluate_flags_move_2(cpu_PR[PR_CCS],
+						cpu_PR[PR_CCS], cc_result);
+			break;
+		default:
+			gen_helper_evaluate_flags();
 			break;
 		}
-		if (dc->flagx_known) {
-			if (dc->flags_x)
-				tcg_gen_ori_tl(cpu_PR[PR_CCS], 
-					       cpu_PR[PR_CCS], X_FLAG);
-			else
-				tcg_gen_andi_tl(cpu_PR[PR_CCS], 
-						cpu_PR[PR_CCS], ~X_FLAG);
-	        }
+		break;
+	case CC_OP_FLAGS:
+		/* live.  */
+		break;
+	case CC_OP_SUB:
+	case CC_OP_CMP:
+		if (dc->cc_size == 4)
+			gen_helper_evaluate_flags_sub_4(cpu_PR[PR_CCS],
+				cpu_PR[PR_CCS], cc_src, cc_dest, cc_result);
+		else
+			gen_helper_evaluate_flags();
 
-		dc->flags_uptodate = 1;
+		break;
+	default:
+		switch (dc->cc_size)
+		{
+			case 4:
+			gen_helper_evaluate_flags_alu_4(cpu_PR[PR_CCS],
+				cpu_PR[PR_CCS], cc_src, cc_dest, cc_result);
+				break;
+			default:
+				gen_helper_evaluate_flags();
+				break;
+		}
+		break;
 	}
+
+	if (dc->flagx_known) {
+		if (dc->flags_x)
+			tcg_gen_ori_tl(cpu_PR[PR_CCS], 
+				       cpu_PR[PR_CCS], X_FLAG);
+		else
+			tcg_gen_andi_tl(cpu_PR[PR_CCS], 
+					cpu_PR[PR_CCS], ~X_FLAG);
+        }
+	dc->flags_uptodate = 1;
 }
 
 static void cris_cc_mask(DisasContext *dc, unsigned int mask)
