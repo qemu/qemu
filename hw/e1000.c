@@ -1071,8 +1071,8 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
     d->rxbuf_min_shift = 1;
     memset(&d->tx, 0, sizeof d->tx);
 
-    d->vc = qemu_new_vlan_client(nd->vlan, e1000_receive,
-                                 e1000_can_receive, d);
+    d->vc = qemu_new_vlan_client(nd->vlan, nd->model,
+                                 e1000_receive, e1000_can_receive, d);
 
     snprintf(d->vc->info_str, sizeof(d->vc->info_str),
              "%s macaddr=%02x:%02x:%02x:%02x:%02x:%02x", info_str,

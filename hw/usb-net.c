@@ -1453,7 +1453,7 @@ USBDevice *usb_net_init(NICInfo *nd)
 
     pstrcpy(s->dev.devname, sizeof(s->dev.devname),
                     "QEMU USB Network Interface");
-    s->vc = qemu_new_vlan_client(nd->vlan,
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model,
                     usbnet_receive, usbnet_can_receive, s);
 
     snprintf(s->usbstring_mac, sizeof(s->usbstring_mac),

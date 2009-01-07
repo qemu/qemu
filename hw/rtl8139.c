@@ -3438,8 +3438,8 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     s->pci_dev = (PCIDevice *)d;
     memcpy(s->macaddr, nd->macaddr, 6);
     rtl8139_reset(s);
-    s->vc = qemu_new_vlan_client(nd->vlan, rtl8139_receive,
-                                 rtl8139_can_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model,
+                                 rtl8139_receive, rtl8139_can_receive, s);
 
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "rtl8139 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",

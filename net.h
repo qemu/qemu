@@ -18,6 +18,7 @@ struct VLANClientState {
     void *opaque;
     struct VLANClientState *next;
     struct VLANState *vlan;
+    char *model;
     char info_str[256];
 };
 
@@ -30,6 +31,7 @@ struct VLANState {
 
 VLANState *qemu_find_vlan(int id);
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
+                                      const char *model,
                                       IOReadHandler *fd_read,
                                       IOCanRWHandler *fd_can_read,
                                       void *opaque);

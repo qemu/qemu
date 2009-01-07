@@ -315,8 +315,8 @@ PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
     memcpy(n->mac, nd->macaddr, 6);
-    n->vc = qemu_new_vlan_client(nd->vlan, virtio_net_receive,
-                                 virtio_net_can_receive, n);
+    n->vc = qemu_new_vlan_client(nd->vlan, nd->model,
+                                 virtio_net_receive, virtio_net_can_receive, n);
 
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
     n->tx_timer_active = 0;
