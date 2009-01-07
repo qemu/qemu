@@ -41,13 +41,40 @@ struct fs_pic_state_t
 	uint32_t r_guru;
 };
 
-static uint32_t pic_readb (void *opaque, target_phys_addr_t addr)
-{
-	return 0;
-}
-static uint32_t pic_readw (void *opaque, target_phys_addr_t addr)
-{
-	return 0;
+static void pic_update(struct fs_pic_state_t *fs)
+{	
+	CPUState *env = fs->env;
+	int i;
+	uint32_t vector = 0;
+
+	fs->r_masked_vect = fs->r_vect & fs->rw_mask;
+
+	/* The ETRAX interrupt controller signals interrupts to teh core
+	   through an interrupt request wire and an irq vector bus. If 
+	   multiple interrupts are simultaneously active it chooses vector 
+	   0x30 and lets the sw choose the priorities.  */
+	if (fs->r_masked_vect) {
+		uint32_t mv = fs->r_masked_vect;
+		for (i = 0; i < 31; i++) {
+			if (mv & 1) {
+				vector = 0x31 + i;
+				/* Check for multiple interrupts.  */
+				if (mv > 1)
+					vector = 0x30;
+				break;
+			}
+			mv >>= 1;
+		}
+		if (vector) {
+			env->interrupt_vector = vector;
+			D(printf("%s vector=%x\n", __func__, vector));
+			cpu_interrupt(env, CPU_INTERRUPT_HARD);
+		}
+	} else {
+		env->interrupt_vector = 0;
+		cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+		D(printf("%s reset irqs\n", __func__));
+	}
 }
 
 static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
@@ -82,16 +109,6 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-pic_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-}
-
-static void
-pic_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-}
-
-static void
 pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct fs_pic_state_t *fs = opaque;
@@ -100,18 +117,7 @@ pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 	{
 		case 0x0: 
 			fs->rw_mask = value;
-			break;
-		case 0x4: 
-			fs->r_vect = value;
-			break;
-		case 0x8: 
-			fs->r_masked_vect = value;
-			break;
-		case 0xc: 
-			fs->r_nmi = value;
-			break;
-		case 0x10: 
-			fs->r_guru = value;
+			pic_update(fs);
 			break;
 		default:
 			cpu_abort(fs->env, "invalid PIC register.\n");
@@ -120,14 +126,12 @@ pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 }
 
 static CPUReadMemoryFunc *pic_read[] = {
-	&pic_readb,
-	&pic_readw,
+	NULL, NULL,
 	&pic_readl,
 };
 
 static CPUWriteMemoryFunc *pic_write[] = {
-	&pic_writeb,
-	&pic_writew,
+	NULL, NULL,
 	&pic_writel,
 };
 
@@ -142,9 +146,6 @@ void irq_info(void)
 static void irq_handler(void *opaque, int irq, int level)
 {	
 	struct fs_pic_state_t *fs = (void *)opaque;
-	CPUState *env = fs->env;
-	int i;
-	uint32_t vector = 0;
 
 	D(printf("%s irq=%d level=%d mask=%x v=%x mv=%x\n", 
 		 __func__, irq, level,
@@ -153,34 +154,8 @@ static void irq_handler(void *opaque, int irq, int level)
 	irq -= 1;
 	fs->r_vect &= ~(1 << irq);
 	fs->r_vect |= (!!level << irq);
-	fs->r_masked_vect = fs->r_vect & fs->rw_mask;
 
-	/* The ETRAX interrupt controller signals interrupts to teh core
-	   through an interrupt request wire and an irq vector bus. If 
-	   multiple interrupts are simultaneously active it chooses vector 
-	   0x30 and lets the sw choose the priorities.  */
-	if (fs->r_masked_vect) {
-		uint32_t mv = fs->r_masked_vect;
-		for (i = 0; i < 31; i++) {
-			if (mv & 1) {
-				vector = 0x31 + i;
-				/* Check for multiple interrupts.  */
-				if (mv > 1)
-					vector = 0x30;
-				break;
-			}
-			mv >>= 1;
-		}
-		if (vector) {
-			env->interrupt_vector = vector;
-			D(printf("%s vector=%x\n", __func__, vector));
-			cpu_interrupt(env, CPU_INTERRUPT_HARD);
-		}
-	} else {
-		env->interrupt_vector = 0;
-		cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
-		D(printf("%s reset irqs\n", __func__));
-	}
+	pic_update(fs);
 }
 
 static void nmi_handler(void *opaque, int irq, int level)
@@ -208,7 +183,6 @@ static void guru_handler(void *opaque, int irq, int level)
 	cpu_abort(env, "%s unsupported exception\n", __func__);
 
 }
-
 
 struct etraxfs_pic *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
 {

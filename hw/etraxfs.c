@@ -42,7 +42,6 @@ static void main_cpu_reset(void *opaque)
     CPUState *env = opaque;
     cpu_reset(env);
 
-    env->pregs[PR_CCS] &= ~I_FLAG;
     env->pc = bootstrap_pc;
 }
 

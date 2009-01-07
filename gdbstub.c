@@ -2225,7 +2225,7 @@ int gdbserver_start(int port)
 void gdbserver_fork(CPUState *env)
 {
     GDBState *s = gdbserver_state;
-    if (s->fd < 0)
+    if (gdbserver_fd < 0 || s->fd < 0)
       return;
     close(s->fd);
     s->fd = -1;

@@ -617,16 +617,19 @@ static int size_to_clusters(BDRVQcowState *s, int64_t size)
 }
 
 static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
-        uint64_t *l2_table, uint64_t mask)
+        uint64_t *l2_table, uint64_t start, uint64_t mask)
 {
     int i;
     uint64_t offset = be64_to_cpu(l2_table[0]) & ~mask;
 
-    for (i = 0; i < nb_clusters; i++)
+    if (!offset)
+        return 0;
+
+    for (i = start; i < start + nb_clusters; i++)
         if (offset + i * cluster_size != (be64_to_cpu(l2_table[i]) & ~mask))
             break;
 
-	return i;
+	return (i - start);
 }
 
 static int count_contiguous_free_clusters(uint64_t nb_clusters, uint64_t *l2_table)
@@ -713,7 +716,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
     } else {
         /* how many allocated clusters ? */
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], QCOW_OFLAG_COPIED);
+                &l2_table[l2_index], 0, QCOW_OFLAG_COPIED);
     }
 
    nb_available = (c * s->cluster_sectors);
@@ -967,7 +970,7 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
 
     if (cluster_offset & QCOW_OFLAG_COPIED) {
         nb_clusters = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], 0);
+                &l2_table[l2_index], 0, 0);
 
         cluster_offset &= ~QCOW_OFLAG_COPIED;
         m->nb_clusters = 0;
@@ -983,6 +986,12 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
     /* how many available clusters ? */
 
     while (i < nb_clusters) {
+        i += count_contiguous_clusters(nb_clusters - i, s->cluster_size,
+                &l2_table[l2_index], i, 0);
+
+        if(be64_to_cpu(l2_table[l2_index + i]))
+            break;
+
         i += count_contiguous_free_clusters(nb_clusters - i,
                 &l2_table[l2_index + i]);
 
@@ -990,12 +999,6 @@ static uint64_t alloc_cluster_offset(BlockDriverState *bs,
 
         if ((cluster_offset & QCOW_OFLAG_COPIED) ||
                 (cluster_offset & QCOW_OFLAG_COMPRESSED))
-            break;
-
-        i += count_contiguous_clusters(nb_clusters - i, s->cluster_size,
-                &l2_table[l2_index + i], 0);
-
-        if(be64_to_cpu(l2_table[l2_index + i]))
             break;
     }
     nb_clusters = i;

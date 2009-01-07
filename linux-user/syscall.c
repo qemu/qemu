@@ -5912,6 +5912,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
       ((CPUMIPSState *) cpu_env)->tls_value = arg1;
       ret = 0;
       break;
+#elif defined(TARGET_CRIS)
+      if (arg1 & 0xff)
+          ret = -TARGET_EINVAL;
+      else {
+          ((CPUCRISState *) cpu_env)->pregs[PR_PID] = arg1;
+          ret = 0;
+      }
+      break;
 #elif defined(TARGET_I386) && defined(TARGET_ABI32)
       ret = do_set_thread_area(cpu_env, arg1);
       break;

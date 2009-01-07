@@ -2195,6 +2195,17 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
+const char *drive_get_serial(BlockDriverState *bdrv)
+{
+    int index;
+
+    for (index = 0; index < nb_drives; index++)
+        if (drives_table[index].bdrv == bdrv)
+            return drives_table[index].serial;
+
+    return "\0";
+}
+
 static void bdrv_format_print(void *opaque, const char *name)
 {
     fprintf(stderr, " %s", name);
@@ -2206,6 +2217,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     char buf[128];
     char file[1024];
     char devname[128];
+    char serial[21];
     const char *mediastr = "";
     BlockInterfaceType type;
     enum { MEDIA_DISK, MEDIA_CDROM } media;
@@ -2221,7 +2233,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     static const char * const params[] = { "bus", "unit", "if", "index",
                                            "cyls", "heads", "secs", "trans",
                                            "media", "snapshot", "file",
-                                           "cache", "format", NULL };
+                                           "cache", "format", "serial", NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
@@ -2408,6 +2420,9 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     else
         pstrcpy(file, sizeof(file), arg->file);
 
+    if (!get_param_value(serial, sizeof(serial), "serial", str))
+	    memset(serial, 0,  sizeof(serial));
+
     /* compute bus and unit according index */
 
     if (index != -1) {
@@ -2471,6 +2486,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     drives_table[nb_drives].type = type;
     drives_table[nb_drives].bus = bus_id;
     drives_table[nb_drives].unit = unit_id;
+    strncpy(drives_table[nb_drives].serial, serial, sizeof(serial));
     nb_drives++;
 
     switch(type) {
@@ -3825,7 +3841,7 @@ static void __attribute__((__noreturn__)) help(int exitcode)
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
 	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
            "       [,cyls=c,heads=h,secs=s[,trans=t]][,snapshot=on|off]\n"
-           "       [,cache=writethrough|writeback|none][,format=f]\n"
+           "       [,cache=writethrough|writeback|none][,format=f][,serial=s]\n"
 	   "                use 'file' as a drive image\n"
            "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"
@@ -3870,30 +3886,30 @@ static void __attribute__((__noreturn__)) help(int exitcode)
            "-uuid %%08x-%%04x-%%04x-%%04x-%%012x specify machine UUID\n"
            "\n"
            "Network options:\n"
-           "-net nic[,vlan=n][,macaddr=addr][,model=type]\n"
+           "-net nic[,vlan=n][,macaddr=addr][,model=type][,name=str]\n"
            "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
-           "-net user[,vlan=n][,hostname=host]\n"
+           "-net user[,vlan=n][,name=str][,hostname=host]\n"
            "                connect the user mode network stack to VLAN 'n' and send\n"
            "                hostname 'host' to DHCP clients\n"
 #endif
 #ifdef _WIN32
-           "-net tap[,vlan=n],ifname=name\n"
+           "-net tap[,vlan=n][,name=str],ifname=name\n"
            "                connect the host TAP network interface to VLAN 'n'\n"
 #else
-           "-net tap[,vlan=n][,fd=h][,ifname=name][,script=file][,downscript=dfile]\n"
+           "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile]\n"
            "                connect the host TAP network interface to VLAN 'n' and use the\n"
            "                network scripts 'file' (default=%s)\n"
            "                and 'dfile' (default=%s);\n"
            "                use '[down]script=no' to disable script execution;\n"
            "                use 'fd=h' to connect to an already opened TAP interface\n"
 #endif
-           "-net socket[,vlan=n][,fd=h][,listen=[host]:port][,connect=host:port]\n"
+           "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
            "                connect the vlan 'n' to another VLAN using a socket connection\n"
-           "-net socket[,vlan=n][,fd=h][,mcast=maddr:port]\n"
+           "-net socket[,vlan=n][,name=str][,fd=h][,mcast=maddr:port]\n"
            "                connect the vlan 'n' to multicast maddr and port\n"
 #ifdef CONFIG_VDE
-           "-net vde[,vlan=n][,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]\n"
+           "-net vde[,vlan=n][,name=str][,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]\n"
            "                connect the vlan 'n' to port 'n' of a vde switch running\n"
            "                on host and listening for incoming connections on 'socketpath'.\n"
            "                Use group 'groupname' and mode 'octalmode' to change default\n"

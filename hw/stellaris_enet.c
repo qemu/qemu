@@ -396,9 +396,11 @@ void stellaris_enet_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     s->irq = irq;
     memcpy(s->macaddr, nd->macaddr, 6);
 
-    if (nd->vlan)
-        s->vc = qemu_new_vlan_client(nd->vlan, stellaris_enet_receive,
-                                     stellaris_enet_can_receive, s);
+    if (nd->vlan) {
+        s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                     stellaris_enet_receive, stellaris_enet_can_receive, s);
+        qemu_format_nic_info_str(s->vc, s->macaddr);
+    }
 
     stellaris_enet_reset(s);
     register_savevm("stellaris_enet", -1, 1,

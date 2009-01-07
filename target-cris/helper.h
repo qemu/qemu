@@ -10,10 +10,14 @@ DEF_HELPER_0(rfn, void);
 DEF_HELPER_2(movl_sreg_reg, void, i32, i32)
 DEF_HELPER_2(movl_reg_sreg, void, i32, i32)
 
+DEF_HELPER_FLAGS_1(lz, TCG_CALL_PURE, i32, i32);
+DEF_HELPER_FLAGS_3(btst, TCG_CALL_PURE, i32, i32, i32, i32);
+
 DEF_HELPER_0(evaluate_flags_muls, void)
 DEF_HELPER_0(evaluate_flags_mulu, void)
 DEF_HELPER_0(evaluate_flags_mcp, void)
 DEF_HELPER_0(evaluate_flags_alu_4, void)
+DEF_HELPER_0(evaluate_flags_sub_4, void)
 DEF_HELPER_0(evaluate_flags_move_4, void)
 DEF_HELPER_0(evaluate_flags_move_2, void)
 DEF_HELPER_0(evaluate_flags, void)

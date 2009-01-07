@@ -13,6 +13,8 @@
  * the host adapter emulator.
  */
 
+#include <qemu-common.h>
+#include <sysemu.h>
 //#define DEBUG_SCSI
 
 #ifdef DEBUG_SCSI
@@ -68,6 +70,7 @@ struct SCSIDeviceState
        or from the AIO completion routines.  */
     scsi_completionfn completion;
     void *opaque;
+    char drive_serial_str[21];
 };
 
 /* Global pool of SCSIRequest structures.  */
@@ -408,6 +411,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                     break;
                 case 0x80:
                     {
+                        int l;
+
                         /* Device serial number, optional */
                         if (len < 4) {
                             BADF("Error: EVPD[Serial number] Inquiry buffer "
@@ -416,6 +421,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
                         }
 
                         DPRINTF("Inquiry EVPD[Serial number] buffer size %d\n", len);
+                        l = MIN(len, strlen(s->drive_serial_str));
 
                         r->buf_len = 0;
 
@@ -428,9 +434,9 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
 
                         outbuf[r->buf_len++] = 0x80; // this page
                         outbuf[r->buf_len++] = 0x00;
-                        outbuf[r->buf_len++] = 0x01; // 1 byte data follow
-
-                        outbuf[r->buf_len++] = '0';  // 1 byte data follow 
+                        outbuf[r->buf_len++] = l;
+                        memcpy(&outbuf[r->buf_len], s->drive_serial_str, l);
+                        r->buf_len += l;
                     }
 
                     break;
@@ -812,7 +818,10 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv, int tcq,
     } else {
         s->cluster_size = 1;
     }
-
+    strncpy(s->drive_serial_str, drive_get_serial(s->bdrv),
+            sizeof(s->drive_serial_str));
+    if (strlen(s->drive_serial_str) == 0)
+        strcpy(s->drive_serial_str, "0"); 
     d = (SCSIDevice *)qemu_mallocz(sizeof(SCSIDevice));
     d->state = s;
     d->destroy = scsi_destroy;

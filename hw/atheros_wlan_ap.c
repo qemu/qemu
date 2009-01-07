@@ -298,11 +298,11 @@ void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 	// it when necessary...
 	s->inject_timer = qemu_new_timer(rt_clock, Atheros_WLAN_inject_timer, s);
 
-	s->vc = qemu_new_vlan_client(nd->vlan, Atheros_WLAN_receive, Atheros_WLAN_can_receive, s);
+        s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                     Atheros_WLAN_receive,
+                                     Atheros_WLAN_can_receive, s);
 
-	snprintf(s->vc->info_str, sizeof(s->vc->info_str), "atheros wireless lan (macaddr=%02x:%02x:%02x:%02x:%02x:%02x)",
-			s->macaddr[0], s->macaddr[1], s->macaddr[2],
-			s->macaddr[3], s->macaddr[4], s->macaddr[5]);
+        qemu_format_nic_info_str(s->vc, s->macaddr);
 }
 
 

@@ -878,14 +878,10 @@ static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
     //~ memcpy(s->macaddr, nd->macaddr, 6);
     tnetw1130_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, tnetw1130_receive,
-                                 tnetw1130_can_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                 tnetw1130_receive, tnetw1130_can_receive, s);
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "tnetw1130 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             nd->macaddr[0],
-             nd->macaddr[1],
-             nd->macaddr[2], nd->macaddr[3], nd->macaddr[4], nd->macaddr[5]);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
     qemu_register_reset(nic_reset, d);
 

@@ -742,17 +742,10 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
 
     ne2000_reset(s);
 
-    s->vc = qemu_new_vlan_client(nd->vlan, ne2000_receive,
-                                 ne2000_can_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                 ne2000_receive, ne2000_can_receive, s);
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "ne2000 macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             s->macaddr[0],
-             s->macaddr[1],
-             s->macaddr[2],
-             s->macaddr[3],
-             s->macaddr[4],
-             s->macaddr[5]);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
     register_savevm("ne2000", -1, 2, ne2000_save, ne2000_load, s);
 }
@@ -815,17 +808,10 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
     s->pci_dev = (PCIDevice *)d;
     memcpy(s->macaddr, nd->macaddr, 6);
     ne2000_reset(s);
-    s->vc = qemu_new_vlan_client(nd->vlan, ne2000_receive,
-                                 ne2000_can_receive, s);
+    s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
+                                 ne2000_receive, ne2000_can_receive, s);
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "ne2000 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             s->macaddr[0],
-             s->macaddr[1],
-             s->macaddr[2],
-             s->macaddr[3],
-             s->macaddr[4],
-             s->macaddr[5]);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
     register_savevm("ne2000", -1, 3, ne2000_save, ne2000_load, s);
 }
