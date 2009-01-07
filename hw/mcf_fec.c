@@ -455,4 +455,5 @@ void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq)
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model,
                                  mcf_fec_receive, mcf_fec_can_receive, s);
     memcpy(s->macaddr, nd->macaddr, 6);
+    qemu_format_nic_info_str(n->vc, s->macaddr);
 }

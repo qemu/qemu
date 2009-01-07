@@ -706,5 +706,6 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model,
                                  smc91c111_receive, smc91c111_can_receive, s);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
     /* ??? Save/restore.  */
 }

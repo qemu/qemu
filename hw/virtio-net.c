@@ -318,6 +318,8 @@ PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->vc = qemu_new_vlan_client(nd->vlan, nd->model,
                                  virtio_net_receive, virtio_net_can_receive, n);
 
+    qemu_format_nic_info_str(n->vc, n->mac);
+
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
     n->tx_timer_active = 0;
     n->mergeable_rx_bufs = 0;
