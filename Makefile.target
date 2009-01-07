@@ -676,7 +676,10 @@ OBJS+= pflash_cfi01.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)
-OBJS+= etraxfs.o
+# Boards
+OBJS+= etraxfs.o axis_dev88.o
+
+# IO blocks
 OBJS+= etraxfs_dma.o
 OBJS+= etraxfs_pic.o
 OBJS+= etraxfs_eth.o
@@ -684,7 +687,7 @@ OBJS+= etraxfs_timer.o
 OBJS+= etraxfs_ser.o
 
 OBJS+= ptimer.o
-OBJS+= pflash_cfi02.o
+OBJS+= pflash_cfi02.o nand.o
 endif
 ifeq ($(TARGET_BASE_ARCH), sparc)
 ifeq ($(TARGET_ARCH), sparc64)

@@ -4,6 +4,7 @@
 void register_machines(void)
 {
     qemu_register_machine(&bareetraxfs_machine);
+    qemu_register_machine(&axisdev88_machine);
 }
 
 void cpu_save(QEMUFile *f, void *opaque)
