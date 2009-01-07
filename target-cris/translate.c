@@ -2979,8 +2979,12 @@ static unsigned int dec_rfe_etc(DisasContext *dc)
 {
 	cris_cc_mask(dc, 0);
 
-	if (dc->op2 == 15) /* ignore halt.  */
+	if (dc->op2 == 15) {
+		t_gen_mov_env_TN(halted, tcg_const_tl(1));
+		tcg_gen_movi_tl(env_pc, dc->pc + 2);
+		t_gen_raise_exception(EXCP_HLT);
 		return 2;
+	}
 
 	switch (dc->op2 & 7) {
 		case 2:
