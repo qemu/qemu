@@ -1779,11 +1779,7 @@ static void nic_init(PCIBus * bus, NICInfo * nd,
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model,
                                  nic_receive, nic_can_receive, s);
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "eepro100 pci macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             s->macaddr[0],
-             s->macaddr[1],
-             s->macaddr[2], s->macaddr[3], s->macaddr[4], s->macaddr[5]);
+    qemu_format_nic_info_str(s->vc, s->macaddr);
 
     qemu_register_reset(nic_reset, s);
 

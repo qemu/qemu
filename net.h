@@ -41,6 +41,7 @@ int qemu_can_send_packet(VLANClientState *vc);
 ssize_t qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov,
                           int iovcnt);
 void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
+void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6]);
 void qemu_handler_true(void *opaque);
 
 void do_info_network(void);

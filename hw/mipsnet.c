@@ -256,14 +256,7 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
         s->vc = NULL;
     }
 
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "mipsnet macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-              s->nd->macaddr[0],
-              s->nd->macaddr[1],
-              s->nd->macaddr[2],
-              s->nd->macaddr[3],
-              s->nd->macaddr[4],
-              s->nd->macaddr[5]);
+    qemu_format_nic_info_str(s->vc, s->nd->macaddr);
 
     mipsnet_reset(s);
     register_savevm("mipsnet", 0, 0, mipsnet_save, mipsnet_load, s);

@@ -296,6 +296,14 @@ static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 }
 #endif
 
+void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6])
+{
+    snprintf(vc->info_str, sizeof(vc->info_str),
+             "macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             macaddr[0], macaddr[1], macaddr[2],
+             macaddr[3], macaddr[4], macaddr[5]);
+}
+
 static char *assign_name(VLANClientState *vc1, const char *model)
 {
     VLANState *vlan;
@@ -474,7 +482,7 @@ static int net_slirp_init(VLANState *vlan, const char *model)
     }
     slirp_vc = qemu_new_vlan_client(vlan, model,
                                     slirp_receive, NULL, NULL);
-    snprintf(slirp_vc->info_str, sizeof(slirp_vc->info_str), "user redirector");
+    slirp_vc->info_str[0] = '\0';
     return 0;
 }
 
@@ -699,7 +707,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan, const char *model, int fd)
     s->vc->fd_readv = tap_receive_iov;
 #endif
     qemu_set_fd_handler(s->fd, tap_send, NULL, s);
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str), "tap: fd=%d", fd);
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str), "fd=%d", fd);
     return s;
 }
 
@@ -954,7 +962,8 @@ static int net_tap_init(VLANState *vlan, const char *model, const char *ifname1,
     if (!s)
         return -1;
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
-             "tap: ifname=%s setup_script=%s", ifname, setup_script);
+             "ifname=%s,script=%s,downscript=%s",
+             ifname, setup_script, down_script);
     if (down_script && strcmp(down_script, "no"))
         snprintf(s->down_script, sizeof(s->down_script), "%s", down_script);
     return 0;
@@ -1016,7 +1025,7 @@ static int net_vde_init(VLANState *vlan, const char *model, const char *sock,
     }
     s->vc = qemu_new_vlan_client(vlan, model, vde_from_qemu, NULL, s);
     qemu_set_fd_handler(vde_datafd(s->vde), vde_to_qemu, NULL, s);
-    snprintf(s->vc->info_str, sizeof(s->vc->info_str), "vde: sock=%s fd=%d",
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str), "sock=%s,fd=%d",
              sock, vde_datafd(s->vde));
     return 0;
 }
@@ -1639,7 +1648,7 @@ void do_info_network(void)
     for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
         term_printf("VLAN %d devices:\n", vlan->id);
         for(vc = vlan->first_client; vc != NULL; vc = vc->next)
-            term_printf("  %s\n", vc->info_str);
+            term_printf("  %s: %s\n", vc->name, vc->info_str);
     }
 }
 
@@ -1657,7 +1666,8 @@ void net_cleanup(void)
                 char ifname[64];
                 TAPState *s = vc->opaque;
 
-                if (sscanf(vc->info_str, "tap: ifname=%63s ", ifname) == 1 &&
+                if (strcmp(vc->model, "tap") == 0 &&
+                    sscanf(vc->info_str, "ifname=%63s ", ifname) == 1 &&
                     s->down_script[0])
                     launch_script(s->down_script, ifname, s->fd);
             }

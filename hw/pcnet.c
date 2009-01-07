@@ -1939,14 +1939,7 @@ static void pcnet_common_init(PCNetState *d, NICInfo *nd, const char *info_str)
         d->vc = qemu_new_vlan_client(nd->vlan, nd->model,
                                      pcnet_receive, pcnet_can_receive, d);
 
-        snprintf(d->vc->info_str, sizeof(d->vc->info_str),
-                 "pcnet macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-                 d->nd->macaddr[0],
-                 d->nd->macaddr[1],
-                 d->nd->macaddr[2],
-                 d->nd->macaddr[3],
-                 d->nd->macaddr[4],
-                 d->nd->macaddr[5]);
+        qemu_format_nic_info_str(d->vc, d->nd->macaddr);
     } else {
         d->vc = NULL;
     }
