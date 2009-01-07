@@ -296,6 +296,25 @@ static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 }
 #endif
 
+static char *assign_name(VLANClientState *vc1, const char *model)
+{
+    VLANState *vlan;
+    char buf[256];
+    int id = 0;
+
+    for (vlan = first_vlan; vlan; vlan = vlan->next) {
+        VLANClientState *vc;
+
+        for (vc = vlan->first_client; vc; vc = vc->next)
+            if (vc != vc1 && strcmp(vc->model, model) == 0)
+                id++;
+    }
+
+    snprintf(buf, sizeof(buf), "%s.%d", model, id);
+
+    return strdup(buf);
+}
+
 VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *model,
                                       IOReadHandler *fd_read,
@@ -307,6 +326,7 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
     if (!vc)
         return NULL;
     vc->model = strdup(model);
+    vc->name = assign_name(vc, model);
     vc->fd_read = fd_read;
     vc->fd_can_read = fd_can_read;
     vc->opaque = opaque;
@@ -327,6 +347,7 @@ void qemu_del_vlan_client(VLANClientState *vc)
     while (*pvc != NULL)
         if (*pvc == vc) {
             *pvc = vc->next;
+            free(vc->name);
             free(vc->model);
             free(vc);
             break;

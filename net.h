@@ -19,6 +19,7 @@ struct VLANClientState {
     struct VLANClientState *next;
     struct VLANState *vlan;
     char *model;
+    char *name;
     char info_str[256];
 };
 
