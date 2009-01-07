@@ -2196,6 +2196,17 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
+const char *drive_get_serial(BlockDriverState *bdrv)
+{
+    int index;
+
+    for (index = 0; index < nb_drives; index++)
+        if (drives_table[index].bdrv == bdrv)
+            return drives_table[index].serial;
+
+    return "\0";
+}
+
 static void bdrv_format_print(void *opaque, const char *name)
 {
     fprintf(stderr, " %s", name);
@@ -2207,6 +2218,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     char buf[128];
     char file[1024];
     char devname[128];
+    char serial[21];
     const char *mediastr = "";
     BlockInterfaceType type;
     enum { MEDIA_DISK, MEDIA_CDROM } media;
@@ -2222,7 +2234,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     static const char * const params[] = { "bus", "unit", "if", "index",
                                            "cyls", "heads", "secs", "trans",
                                            "media", "snapshot", "file",
-                                           "cache", "format", NULL };
+                                           "cache", "format", "serial", NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
@@ -2409,6 +2421,9 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     else
         pstrcpy(file, sizeof(file), arg->file);
 
+    if (!get_param_value(serial, sizeof(serial), "serial", str))
+	    memset(serial, 0,  sizeof(serial));
+
     /* compute bus and unit according index */
 
     if (index != -1) {
@@ -2472,6 +2487,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     drives_table[nb_drives].type = type;
     drives_table[nb_drives].bus = bus_id;
     drives_table[nb_drives].unit = unit_id;
+    strncpy(drives_table[nb_drives].serial, serial, sizeof(serial));
     nb_drives++;
 
     switch(type) {
@@ -3826,7 +3842,7 @@ static void help(int exitcode)
            "-cdrom file     use 'file' as IDE cdrom image (cdrom is ide1 master)\n"
 	   "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
            "       [,cyls=c,heads=h,secs=s[,trans=t]][,snapshot=on|off]\n"
-           "       [,cache=writethrough|writeback|none][,format=f]\n"
+           "       [,cache=writethrough|writeback|none][,format=f][,serial=s]\n"
 	   "                use 'file' as a drive image\n"
            "-mtdblock file  use 'file' as on-board Flash memory image\n"
            "-sd file        use 'file' as SecureDigital card image\n"

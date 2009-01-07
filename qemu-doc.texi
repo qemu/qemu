@@ -274,6 +274,8 @@ These options have the same definition as they have in @option{-hdachs}.
 Specify which disk @var{format} will be used rather than detecting
 the format.  Can be used to specifiy format=raw to avoid interpreting
 an untrusted format header.
+@item serial=@var{serial}
+This option specifies the serial number to assign to the device.
 @end table
 
 By default, writethrough caching is used for all block device.  This means that

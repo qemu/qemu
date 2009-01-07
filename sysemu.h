@@ -131,6 +131,7 @@ typedef struct DriveInfo {
     BlockInterfaceType type;
     int bus;
     int unit;
+    char serial[21];
 } DriveInfo;
 
 #define MAX_IDE_DEVS	2
@@ -142,6 +143,7 @@ extern DriveInfo drives_table[MAX_DRIVES+1];
 
 extern int drive_get_index(BlockInterfaceType type, int bus, int unit);
 extern int drive_get_max_bus(BlockInterfaceType type);
+extern const char *drive_get_serial(BlockDriverState *bdrv);
 
 /* serial ports */
 
