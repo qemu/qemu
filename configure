@@ -1582,6 +1582,7 @@ case "$target_cpu" in
     echo "TARGET_ARCH=cris" >> $config_mak
     echo "#define TARGET_ARCH \"cris\"" >> $config_h
     echo "#define TARGET_CRIS 1" >> $config_h
+    target_nptl="yes"
   ;;
   m68k)
     echo "TARGET_ARCH=m68k" >> $config_mak
