@@ -31,21 +31,21 @@
 
 #define D(x)
 
-#define RW_DATA           0x0
-#define RW_SAVED_DATA     0x58
-#define RW_SAVED_DATA_BUF 0x5c
-#define RW_GROUP          0x60
-#define RW_GROUP_DOWN     0x7c
-#define RW_CMD            0x80
-#define RW_CFG            0x84
-#define RW_STAT           0x88
-#define RW_INTR_MASK      0x8c
-#define RW_ACK_INTR       0x90
-#define R_INTR            0x94
-#define R_MASKED_INTR     0x98
-#define RW_STREAM_CMD     0x9c
+#define RW_DATA           (0x0 / 4)
+#define RW_SAVED_DATA     (0x58 / 4)
+#define RW_SAVED_DATA_BUF (0x5c / 4)
+#define RW_GROUP          (0x60 / 4)
+#define RW_GROUP_DOWN     (0x7c / 4)
+#define RW_CMD            (0x80 / 4)
+#define RW_CFG            (0x84 / 4)
+#define RW_STAT           (0x88 / 4)
+#define RW_INTR_MASK      (0x8c / 4)
+#define RW_ACK_INTR       (0x90 / 4)
+#define R_INTR            (0x94 / 4)
+#define R_MASKED_INTR     (0x98 / 4)
+#define RW_STREAM_CMD     (0x9c / 4)
 
-#define DMA_REG_MAX   0x100
+#define DMA_REG_MAX       (0x100 / 4)
 
 /* descriptors */
 
@@ -194,6 +194,9 @@ struct fs_dma_ctrl
         QEMUBH *bh;
 };
 
+static void DMA_run(void *opaque);
+static int channel_out_run(struct fs_dma_ctrl *ctrl, int c);
+
 static inline uint32_t channel_reg(struct fs_dma_ctrl *ctrl, int c, int reg)
 {
 	return ctrl->channels[c].regs[reg];
@@ -314,6 +317,8 @@ static inline void channel_start(struct fs_dma_ctrl *ctrl, int c)
 	{
 		ctrl->channels[c].eol = 0;
 		ctrl->channels[c].state = RUNNING;
+		if (!ctrl->channels[c].input)
+			channel_out_run(ctrl, c);
 	} else
 		printf("WARNING: starting DMA ch %d with no client\n", c);
 
@@ -347,6 +352,9 @@ static void channel_continue(struct fs_dma_ctrl *ctrl, int c)
 		ctrl->channels[c].regs[RW_SAVED_DATA] =
 			(uint32_t)(unsigned long)ctrl->channels[c].current_d.next;
 		channel_load_d(ctrl, c);
+		ctrl->channels[c].regs[RW_SAVED_DATA_BUF] =
+			(uint32_t)(unsigned long)ctrl->channels[c].current_d.buf;
+
 		channel_start(ctrl, c);
 	}
 	ctrl->channels[c].regs[RW_SAVED_DATA_BUF] =
@@ -367,7 +375,6 @@ static void channel_stream_cmd(struct fs_dma_ctrl *ctrl, int c, uint32_t v)
 
 	if (cmd & regk_dma_load_c) {
 		channel_load_c(ctrl, c);
-		channel_start(ctrl, c);
 	}
 }
 
@@ -401,14 +408,14 @@ static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 		return 0;
 
 	do {
-		saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
-
 		D(printf("ch=%d buf=%x after=%x saved_data_buf=%x\n",
 			 c,
 			 (uint32_t)ctrl->channels[c].current_d.buf,
 			 (uint32_t)ctrl->channels[c].current_d.after,
 			 saved_data_buf));
 
+		channel_load_d(ctrl, c);
+		saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
 		len = (uint32_t)(unsigned long)
 			ctrl->channels[c].current_d.after;
 		len -= saved_data_buf;
@@ -440,10 +447,12 @@ static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 			if (ctrl->channels[c].current_d.intr) {
 				/* TODO: signal eop to the client.  */
 				/* data intr.  */
-				D(printf("signal intr\n"));
+				D(printf("signal intr %d eol=%d\n",
+					len, ctrl->channels[c].current_d.eol));
 				ctrl->channels[c].regs[R_INTR] |= (1 << 2);
 				channel_update_irq(ctrl, c);
 			}
+			channel_store_d(ctrl, c);
 			if (ctrl->channels[c].current_d.eol) {
 				D(printf("channel %d EOL\n", c));
 				ctrl->channels[c].eol = 1;
@@ -463,7 +472,6 @@ static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 					ctrl->channels[c].current_d.buf;
 			}
 
-			channel_store_d(ctrl, c);
 			ctrl->channels[c].regs[RW_SAVED_DATA_BUF] =
 							saved_data_buf;
 			D(dump_d(c, &ctrl->channels[c].current_d));
@@ -482,6 +490,7 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 	if (ctrl->channels[c].eol == 1)
 		return 0;
 
+	channel_load_d(ctrl, c);
 	saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
 	len = (uint32_t)(unsigned long)ctrl->channels[c].current_d.after;
 	len -= saved_data_buf;
@@ -572,6 +581,7 @@ dma_readl (void *opaque, target_phys_addr_t addr)
 	/* Make addr relative to this channel and bounded to nr regs.  */
 	c = fs_channel(addr);
 	addr &= 0xff;
+	addr >>= 2;
 	switch (addr)
 	{
 		case RW_STAT:
@@ -618,6 +628,7 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
         /* Make addr relative to this channel and bounded to nr regs.  */
 	c = fs_channel(addr);
         addr &= 0xff;
+        addr >>= 2;
         switch (addr)
 	{
 		case RW_DATA:
