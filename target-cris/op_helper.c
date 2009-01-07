@@ -23,6 +23,7 @@
 #include "exec.h"
 #include "mmu.h"
 #include "helper.h"
+#include "host-utils.h"
 
 #define D(x)
 
@@ -241,6 +242,11 @@ void helper_rfn(void)
 
     /* Always set the M flag.  */
     env->pregs[PR_CCS] |= M_FLAG;
+}
+
+uint32_t helper_lz(uint32_t t0)
+{
+	return clz32(t0);
 }
 
 uint32_t helper_btst(uint32_t t0, uint32_t t1, uint32_t ccs)
