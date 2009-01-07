@@ -65,7 +65,7 @@ typedef struct USBHIDState {
     };
     int kind;
     int protocol;
-    int idle;
+    uint8_t idle;
     int changed;
     void *datain_opaque;
     void (*datain)(void *);
@@ -794,7 +794,7 @@ static int usb_hid_handle_control(USBDevice *dev, int request, int value,
         data[0] = s->idle;
         break;
     case SET_IDLE:
-        s->idle = value;
+        s->idle = (uint8_t) (value >> 8);
         ret = 0;
         break;
     default:
