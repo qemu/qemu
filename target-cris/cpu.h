@@ -225,6 +225,11 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 #endif
 
+static inline void cpu_set_tls(CPUCRISState *env, target_ulong newtls)
+{
+	env->pregs[PR_PID] = (env->pregs[PR_PID] & 0xff) | newtls;
+}
+
 /* Support function regs.  */
 #define SFR_RW_GC_CFG      0][0
 #define SFR_RW_MM_CFG      env->pregs[PR_SRS]][0

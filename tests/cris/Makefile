@@ -117,7 +117,7 @@ TESTCASES += check_mmap3.ctst
 TESTCASES += check_sigalrm.ctst
 TESTCASES += check_time1.ctst
 TESTCASES += check_time2.ctst
-
+TESTCASES += check_settls1.ctst
 
 TESTCASES += check_gcctorture_pr28634-1.ctst
 #TESTCASES += check_gcctorture_pr28634.ctst
