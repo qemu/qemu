@@ -1,5 +1,5 @@
 /*
- * QEMU OldWorld PowerMac (currently ~G3 B&W) hardware System Emulator
+ * QEMU OldWorld PowerMac (currently ~G3 Beige) hardware System Emulator
  *
  * Copyright (c) 2004-2007 Fabrice Bellard
  * Copyright (c) 2007 Jocelyn Mayer
@@ -355,7 +355,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 
     dbdma_init(&dbdma_mem_index);
 
-    macio_init(pci_bus, 0x0017, 1, pic_mem_index, dbdma_mem_index,
+    macio_init(pci_bus, 0x0010, 1, pic_mem_index, dbdma_mem_index,
                cuda_mem_index, nvr, 2, ide_mem_index);
 
     if (usb_enabled) {
@@ -388,7 +388,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine heathrow_machine = {
-    .name = "g3bw",
+    .name = "g3beige",
     .desc = "Heathrow based PowerMAC",
     .init = ppc_heathrow_init,
     .ram_require = BIOS_SIZE + VGA_BIOS_SIZE + VGA_RAM_SIZE,
