@@ -4863,6 +4863,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_clone:
 #if defined(TARGET_SH4)
         ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
+#elif defined(TARGET_CRIS)
+        ret = get_errno(do_fork(cpu_env, arg2, arg1, arg3, arg4, arg5));
 #else
         ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg4, arg5));
 #endif
