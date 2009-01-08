@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qemu-common.h"
 #include "slirp.h"
 
 /* host address */
@@ -736,9 +737,69 @@ int slirp_redir(int is_udp, int host_port,
     return 0;
 }
 
-int slirp_add_exec(int do_pty, const char *args, int addr_low_byte,
+int slirp_add_exec(int do_pty, const void *args, int addr_low_byte,
                   int guest_port)
 {
     return add_exec(&exec_list, do_pty, (char *)args,
                     addr_low_byte, htons(guest_port));
+}
+
+ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
+{
+	if (so->s == -1 && so->extra) {
+		qemu_chr_write(so->extra, buf, len);
+		return len;
+	}
+
+	return send(so->s, buf, len, flags);
+}
+
+static struct socket *slirp_find_ctl_socket(int addr_low_byte, int guest_port)
+{
+	struct socket *so;
+
+	for (so = tcb.so_next; so != &tcb; so = so->so_next) {
+		if ((so->so_faddr.s_addr & htonl(0xffffff00)) ==
+				special_addr.s_addr
+				&& (ntohl(so->so_faddr.s_addr) & 0xff) ==
+				addr_low_byte
+				&& htons(so->so_fport) == guest_port)
+			return so;
+	}
+
+	return NULL;
+}
+
+size_t slirp_socket_can_recv(int addr_low_byte, int guest_port)
+{
+	struct iovec iov[2];
+	struct socket *so;
+
+    if (!link_up)
+        return 0;
+
+	so = slirp_find_ctl_socket(addr_low_byte, guest_port);
+
+	if (!so || so->so_state & SS_NOFDREF)
+		return 0;
+
+	if (!CONN_CANFRCV(so) || so->so_snd.sb_cc >= (so->so_snd.sb_datalen/2))
+		return 0;
+
+	return sopreprbuf(so, iov, NULL);
+}
+
+void slirp_socket_recv(int addr_low_byte, int guest_port, const uint8_t *buf,
+        int size)
+{
+    int ret;
+    struct socket *so = slirp_find_ctl_socket(addr_low_byte, guest_port);
+   
+    if (!so)
+        return;
+
+    ret = soreadbuf(so, buf, size);
+
+    if (ret > 0)
+        tcp_output(sototcpcb(so));
 }

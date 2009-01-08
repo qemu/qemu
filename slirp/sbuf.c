@@ -108,7 +108,7 @@ sbappend(so, m)
 	 * ottherwise it'll arrive out of order, and hence corrupt
 	 */
 	if (!so->so_rcv.sb_cc)
-	   ret = send(so->s, m->m_data, m->m_len, 0);
+	   ret = slirp_send(so, m->m_data, m->m_len, 0);
 
 	if (ret <= 0) {
 		/*
