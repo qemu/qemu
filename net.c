@@ -1718,6 +1718,9 @@ int do_set_link(const char *name, const char *up_or_down)
         term_printf("invalid link status '%s'; only 'up' or 'down' valid\n",
                     up_or_down);
 
+    if (vc->link_status_changed)
+        vc->link_status_changed(vc);
+
     return 1;
 }
 

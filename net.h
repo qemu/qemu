@@ -9,12 +9,15 @@ typedef ssize_t (IOReadvHandler)(void *, const struct iovec *, int);
 
 typedef struct VLANClientState VLANClientState;
 
+typedef void (LinkStatusChanged)(VLANClientState *);
+
 struct VLANClientState {
     IOReadHandler *fd_read;
     IOReadvHandler *fd_readv;
     /* Packets may still be sent if this returns zero.  It's used to
        rate-limit the slirp code.  */
     IOCanRWHandler *fd_can_read;
+    LinkStatusChanged *link_status_changed;
     int link_down;
     void *opaque;
     struct VLANClientState *next;
