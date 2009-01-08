@@ -2467,7 +2467,8 @@ static uint32_t ide_ioport_read(void *opaque, uint32_t addr1)
         ret = 0xff;
         break;
     case 1:
-        if (!ide_if[0].bs && !ide_if[1].bs)
+        if ((!ide_if[0].bs && !ide_if[1].bs) ||
+            (s != ide_if && !s->bs))
             ret = 0;
         else if (!hob)
             ret = s->error;
