@@ -6380,6 +6380,16 @@ GEN_VXFORM(vsumsws, 4, 30);
     GEN_VXRFORM1(name, name, #name, opc2, opc3)                      \
     GEN_VXRFORM1(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
 
+GEN_VXRFORM(vcmpequb, 3, 0)
+GEN_VXRFORM(vcmpequh, 3, 1)
+GEN_VXRFORM(vcmpequw, 3, 2)
+GEN_VXRFORM(vcmpgtsb, 3, 12)
+GEN_VXRFORM(vcmpgtsh, 3, 13)
+GEN_VXRFORM(vcmpgtsw, 3, 14)
+GEN_VXRFORM(vcmpgtub, 3, 8)
+GEN_VXRFORM(vcmpgtuh, 3, 9)
+GEN_VXRFORM(vcmpgtuw, 3, 10)
+
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)        \
     {                                                                   \

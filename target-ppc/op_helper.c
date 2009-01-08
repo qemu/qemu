@@ -2101,6 +2101,42 @@ VAVG(w, s32, int64_t, u32, uint64_t)
 #undef VAVG_DO
 #undef VAVG
 
+#define VCMP_DO(suffix, compare, element, record)                       \
+    void helper_vcmp##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b) \
+    {                                                                   \
+        uint32_t ones = (uint32_t)-1;                                   \
+        uint32_t all = ones;                                            \
+        uint32_t none = 0;                                              \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            uint32_t result = (a->element[i] compare b->element[i] ? ones : 0x0); \
+            switch (sizeof (a->element[0])) {                           \
+            case 4: r->u32[i] = result; break;                          \
+            case 2: r->u16[i] = result; break;                          \
+            case 1: r->u8[i] = result; break;                           \
+            }                                                           \
+            all &= result;                                              \
+            none |= result;                                             \
+        }                                                               \
+        if (record) {                                                   \
+            env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);       \
+        }                                                               \
+    }
+#define VCMP(suffix, compare, element)          \
+    VCMP_DO(suffix, compare, element, 0)        \
+    VCMP_DO(suffix##_dot, compare, element, 1)
+VCMP(equb, ==, u8)
+VCMP(equh, ==, u16)
+VCMP(equw, ==, u32)
+VCMP(gtub, >, u8)
+VCMP(gtuh, >, u16)
+VCMP(gtuw, >, u32)
+VCMP(gtsb, >, s8)
+VCMP(gtsh, >, s16)
+VCMP(gtsw, >, s32)
+#undef VCMP_DO
+#undef VCMP
+
 void helper_vmhaddshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     int sat = 0;
