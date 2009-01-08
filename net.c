@@ -447,6 +447,8 @@ ssize_t qemu_sendv_packet(VLANClientState *vc1, const struct iovec *iov,
 /* slirp network adapter */
 
 static int slirp_inited;
+static int slirp_restrict;
+static char *slirp_ip;
 static VLANClientState *slirp_vc;
 
 int slirp_can_output(void)
@@ -483,7 +485,7 @@ static int net_slirp_init(VLANState *vlan, const char *model, const char *name)
 {
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init(0, NULL);
+        slirp_init(slirp_restrict, slirp_ip);
     }
     slirp_vc = qemu_new_vlan_client(vlan, model, name,
                                     slirp_receive, NULL, NULL);
@@ -501,7 +503,7 @@ void net_slirp_redir(const char *redir_str)
 
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init(0, NULL);
+        slirp_init(slirp_restrict, slirp_ip);
     }
 
     p = redir_str;
@@ -587,7 +589,7 @@ void net_slirp_smb(const char *exported_dir)
 
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init(0, NULL);
+        slirp_init(slirp_restrict, slirp_ip);
     }
 
     /* XXX: better tmp dir construction */
@@ -1553,6 +1555,12 @@ int net_client_init(const char *device, const char *p)
     if (!strcmp(device, "user")) {
         if (get_param_value(buf, sizeof(buf), "hostname", p)) {
             pstrcpy(slirp_hostname, sizeof(slirp_hostname), buf);
+        }
+        if (get_param_value(buf, sizeof(buf), "restrict", p)) {
+            slirp_restrict = (buf[0] == 'y') ? 1 : 0;
+        }
+        if (get_param_value(buf, sizeof(buf), "ip", p)) {
+            slirp_ip = strdup(buf);
         }
         vlan->nb_host_devs++;
         ret = net_slirp_init(vlan, device, name);
