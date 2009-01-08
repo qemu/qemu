@@ -2452,6 +2452,45 @@ void helper_vsel (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     r->u64[1] = (a->u64[1] & ~c->u64[1]) | (b->u64[1] & c->u64[1]);
 }
 
+#if defined(WORDS_BIGENDIAN)
+#define LEFT 0
+#define RIGHT 1
+#else
+#define LEFT 1
+#define RIGHT 0
+#endif
+/* The specification says that the results are undefined if all of the
+ * shift counts are not identical.  We check to make sure that they are
+ * to conform to what real hardware appears to do.  */
+#define VSHIFT(suffix, leftp)                                           \
+    void helper_vs##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
+    {                                                                   \
+        int shift = b->u8[LO_IDX*0x15] & 0x7;                           \
+        int doit = 1;                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->u8); i++) {                       \
+            doit = doit && ((b->u8[i] & 0x7) == shift);                 \
+        }                                                               \
+        if (doit) {                                                     \
+            if (shift == 0) {                                           \
+                *r = *a;                                                \
+            } else if (leftp) {                                         \
+                uint64_t carry = a->u64[LO_IDX] >> (64 - shift);        \
+                r->u64[HI_IDX] = (a->u64[HI_IDX] << shift) | carry;     \
+                r->u64[LO_IDX] = a->u64[LO_IDX] << shift;               \
+            } else {                                                    \
+                uint64_t carry = a->u64[HI_IDX] << (64 - shift);        \
+                r->u64[LO_IDX] = (a->u64[LO_IDX] >> shift) | carry;     \
+                r->u64[HI_IDX] = a->u64[HI_IDX] >> shift;               \
+            }                                                           \
+        }                                                               \
+    }
+VSHIFT(l, LEFT)
+VSHIFT(r, RIGHT)
+#undef VSHIFT
+#undef LEFT
+#undef RIGHT
+
 #define VSL(suffix, element)                                            \
     void helper_vsl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
     {                                                                   \

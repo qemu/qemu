@@ -173,6 +173,8 @@ DEF_HELPER_2(lvsr, void, avr, tl);
 DEF_HELPER_3(vrlb, void, avr, avr, avr)
 DEF_HELPER_3(vrlh, void, avr, avr, avr)
 DEF_HELPER_3(vrlw, void, avr, avr, avr)
+DEF_HELPER_3(vsl, void, avr, avr, avr)
+DEF_HELPER_3(vsr, void, avr, avr, avr)
 DEF_HELPER_4(vsldoi, void, avr, avr, avr, i32)
 DEF_HELPER_3(vspltb, void, avr, avr, i32)
 DEF_HELPER_3(vsplth, void, avr, avr, i32)

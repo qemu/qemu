@@ -6344,6 +6344,8 @@ GEN_VXFORM(vsubcuw, 0, 22);
 GEN_VXFORM(vrlb, 2, 0);
 GEN_VXFORM(vrlh, 2, 1);
 GEN_VXFORM(vrlw, 2, 2);
+GEN_VXFORM(vsl, 2, 7);
+GEN_VXFORM(vsr, 2, 11);
 GEN_VXFORM(vpkuhum, 7, 0);
 GEN_VXFORM(vpkuwum, 7, 1);
 GEN_VXFORM(vpkuhus, 7, 2);
