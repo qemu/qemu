@@ -339,28 +339,33 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
                 return -1;
         } else {
             cluster_offset = bdrv_getlength(s->hd);
-            /* round to cluster size */
-            cluster_offset = (cluster_offset + s->cluster_size - 1) &
-                ~(s->cluster_size - 1);
-            bdrv_truncate(s->hd, cluster_offset + s->cluster_size);
-            /* if encrypted, we must initialize the cluster
-               content which won't be written */
-            if (s->crypt_method &&
-                (n_end - n_start) < s->cluster_sectors) {
-                uint64_t start_sect;
-                start_sect = (offset & ~(s->cluster_size - 1)) >> 9;
-                memset(s->cluster_data + 512, 0x00, 512);
-                for(i = 0; i < s->cluster_sectors; i++) {
-                    if (i < n_start || i >= n_end) {
-                        encrypt_sectors(s, start_sect + i,
-                                        s->cluster_data,
-                                        s->cluster_data + 512, 1, 1,
-                                        &s->aes_encrypt_key);
-                        if (bdrv_pwrite(s->hd, cluster_offset + i * 512,
-                                        s->cluster_data, 512) != 512)
-                            return -1;
+            if (allocate == 1) {
+                /* round to cluster size */
+                cluster_offset = (cluster_offset + s->cluster_size - 1) &
+                    ~(s->cluster_size - 1);
+                bdrv_truncate(s->hd, cluster_offset + s->cluster_size);
+                /* if encrypted, we must initialize the cluster
+                   content which won't be written */
+                if (s->crypt_method &&
+                    (n_end - n_start) < s->cluster_sectors) {
+                    uint64_t start_sect;
+                    start_sect = (offset & ~(s->cluster_size - 1)) >> 9;
+                    memset(s->cluster_data + 512, 0x00, 512);
+                    for(i = 0; i < s->cluster_sectors; i++) {
+                        if (i < n_start || i >= n_end) {
+                            encrypt_sectors(s, start_sect + i,
+                                            s->cluster_data,
+                                            s->cluster_data + 512, 1, 1,
+                                            &s->aes_encrypt_key);
+                            if (bdrv_pwrite(s->hd, cluster_offset + i * 512,
+                                            s->cluster_data, 512) != 512)
+                                return -1;
+                        }
                     }
                 }
+            } else if (allocate == 2) {
+                cluster_offset |= QCOW_OFLAG_COMPRESSED |
+                    (uint64_t)compressed_size << (63 - s->cluster_bits);
             }
         }
         /* update L2 table */
