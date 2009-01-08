@@ -38,12 +38,6 @@
 #define VGA_BIOS_SIZE 65536
 #define CFG_ADDR 0xf0000510
 
-enum {
-    ARCH_PREP = 0,
-    ARCH_MAC99,
-    ARCH_HEATHROW,
-};
-
 /* temporary frame buffer OSI calls for the video.x driver. The right
    solution is to modify the driver to use VGA PCI I/Os */
 /* XXX: to be removed. This is no way related to emulation */
