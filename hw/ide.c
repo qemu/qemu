@@ -3185,9 +3185,10 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
 
+    pci_conf[0x51] = 0x04; // enable IDE0
     if (secondary_ide_enabled) {
         /* XXX: if not enabled, really disable the seconday IDE controller */
-        pci_conf[0x51] = 0x80; /* enable IDE1 */
+        pci_conf[0x51] |= 0x08; /* enable IDE1 */
     }
 
     pci_register_io_region((PCIDevice *)d, 0, 0x8,
