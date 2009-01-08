@@ -955,7 +955,7 @@ static void ide_read_dma_cb(void *opaque, int ret)
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
 #ifdef DEBUG_AIO
-    printf("aio_read: sector_num=%lld n=%d\n", sector_num, n);
+    printf("aio_read: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #endif
     bm->aiocb = bdrv_aio_read(s->bs, sector_num, s->io_buffer, n,
                               ide_read_dma_cb, bm);
@@ -1067,7 +1067,7 @@ static void ide_write_dma_cb(void *opaque, int ret)
     if (dma_buf_rw(bm, 0) == 0)
         goto eot;
 #ifdef DEBUG_AIO
-    printf("aio_write: sector_num=%lld n=%d\n", sector_num, n);
+    printf("aio_write: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #endif
     bm->aiocb = bdrv_aio_write(s->bs, sector_num, s->io_buffer, n,
                                ide_write_dma_cb, bm);
