@@ -299,7 +299,8 @@ static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6])
 {
     snprintf(vc->info_str, sizeof(vc->info_str),
-             "macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             "model=%s,macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             vc->model,
              macaddr[0], macaddr[1], macaddr[2],
              macaddr[3], macaddr[4], macaddr[5]);
 }
