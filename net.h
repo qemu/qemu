@@ -15,6 +15,7 @@ struct VLANClientState {
     /* Packets may still be sent if this returns zero.  It's used to
        rate-limit the slirp code.  */
     IOCanRWHandler *fd_can_read;
+    int link_down;
     void *opaque;
     struct VLANClientState *next;
     struct VLANState *vlan;
@@ -46,6 +47,7 @@ void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6]);
 void qemu_handler_true(void *opaque);
 
 void do_info_network(void);
+int do_set_link(const char *name, const char *up_or_down);
 
 /* NIC info */
 

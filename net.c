@@ -387,12 +387,15 @@ void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
     VLANState *vlan = vc1->vlan;
     VLANClientState *vc;
 
+    if (vc1->link_down)
+        return;
+
 #ifdef DEBUG_NET
     printf("vlan %d send:\n", vlan->id);
     hex_dump(stdout, buf, size);
 #endif
     for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
-        if (vc != vc1) {
+        if (vc != vc1 && !vc->link_down) {
             vc->fd_read(vc->opaque, buf, size);
         }
     }
@@ -1690,6 +1693,32 @@ void do_info_network(void)
         for(vc = vlan->first_client; vc != NULL; vc = vc->next)
             term_printf("  %s: %s\n", vc->name, vc->info_str);
     }
+}
+
+int do_set_link(const char *name, const char *up_or_down)
+{
+    VLANState *vlan;
+    VLANClientState *vc = NULL;
+
+    for (vlan = first_vlan; vlan != NULL; vlan = vlan->next)
+        for (vc = vlan->first_client; vc != NULL; vc = vc->next)
+            if (strcmp(vc->name, name) == 0)
+                break;
+
+    if (!vc) {
+        term_printf("could not find network device '%s'", name);
+        return 0;
+    }
+
+    if (strcmp(up_or_down, "up") == 0)
+        vc->link_down = 0;
+    else if (strcmp(up_or_down, "down") == 0)
+        vc->link_down = 1;
+    else
+        term_printf("invalid link status '%s'; only 'up' or 'down' valid\n",
+                    up_or_down);
+
+    return 1;
 }
 
 void net_cleanup(void)
