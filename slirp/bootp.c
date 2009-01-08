@@ -219,16 +219,18 @@ static void bootp_reply(struct bootp_t *bp)
         *q++ = 0xff;
         *q++ = 0x00;
 
-        *q++ = RFC1533_GATEWAY;
-        *q++ = 4;
-        memcpy(q, &saddr.sin_addr, 4);
-        q += 4;
+        if (!slirp_restrict) {
+            *q++ = RFC1533_GATEWAY;
+            *q++ = 4;
+            memcpy(q, &saddr.sin_addr, 4);
+            q += 4;
 
-        *q++ = RFC1533_DNS;
-        *q++ = 4;
-        dns_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_DNS);
-        memcpy(q, &dns_addr, 4);
-        q += 4;
+            *q++ = RFC1533_DNS;
+            *q++ = 4;
+            dns_addr.s_addr = htonl(ntohl(special_addr.s_addr) | CTL_DNS);
+            memcpy(q, &dns_addr, 4);
+            q += 4;
+        }
 
         *q++ = RFC2132_LEASE_TIME;
         *q++ = 4;

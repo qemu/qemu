@@ -6344,6 +6344,8 @@ GEN_VXFORM(vsubcuw, 0, 22);
 GEN_VXFORM(vrlb, 2, 0);
 GEN_VXFORM(vrlh, 2, 1);
 GEN_VXFORM(vrlw, 2, 2);
+GEN_VXFORM(vsl, 2, 7);
+GEN_VXFORM(vsr, 2, 11);
 GEN_VXFORM(vpkuhum, 7, 0);
 GEN_VXFORM(vpkuwum, 7, 1);
 GEN_VXFORM(vpkuhus, 7, 2);
@@ -6358,6 +6360,57 @@ GEN_VXFORM(vsum4sbs, 4, 28);
 GEN_VXFORM(vsum4shs, 4, 25);
 GEN_VXFORM(vsum2sws, 4, 26);
 GEN_VXFORM(vsumsws, 4, 30);
+
+#define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
+    GEN_HANDLER2(name, str, 0x4, opc2, opc3, 0x00000000, PPC_ALTIVEC)   \
+    {                                                                   \
+        TCGv_ptr ra, rb, rd;                                            \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        ra = gen_avr_ptr(rA(ctx->opcode));                              \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##opname (rd, ra, rb);                               \
+        tcg_temp_free_ptr(ra);                                          \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
+#define GEN_VXRFORM(name, opc2, opc3)                                \
+    GEN_VXRFORM1(name, name, #name, opc2, opc3)                      \
+    GEN_VXRFORM1(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
+
+GEN_VXRFORM(vcmpequb, 3, 0)
+GEN_VXRFORM(vcmpequh, 3, 1)
+GEN_VXRFORM(vcmpequw, 3, 2)
+GEN_VXRFORM(vcmpgtsb, 3, 12)
+GEN_VXRFORM(vcmpgtsh, 3, 13)
+GEN_VXRFORM(vcmpgtsw, 3, 14)
+GEN_VXRFORM(vcmpgtub, 3, 8)
+GEN_VXRFORM(vcmpgtuh, 3, 9)
+GEN_VXRFORM(vcmpgtuw, 3, 10)
+
+#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
+    GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \
+    {                                                                   \
+        TCGv_ptr rd;                                                    \
+        TCGv_i32 simm;                                                  \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        simm = tcg_const_i32(SIMM5(ctx->opcode));                       \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name (rd, simm);                                   \
+        tcg_temp_free_i32(simm);                                        \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
+GEN_VXFORM_SIMM(vspltisb, 6, 12);
+GEN_VXFORM_SIMM(vspltish, 6, 13);
+GEN_VXFORM_SIMM(vspltisw, 6, 14);
 
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x001f0000, PPC_ALTIVEC)        \

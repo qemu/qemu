@@ -44,6 +44,8 @@ extern int towrite_max;
 extern int ppp_exit;
 extern int tcp_keepintvl;
 extern uint8_t client_ethaddr[6];
+extern char *slirp_special_ip;
+extern int slirp_restrict;
 
 #define PROTO_SLIP 0x1
 #ifdef USE_PPP
@@ -51,3 +53,4 @@ extern uint8_t client_ethaddr[6];
 #endif
 
 void if_encap(const uint8_t *ip_data, int ip_data_len);
+ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags);

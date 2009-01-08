@@ -72,7 +72,7 @@ For system emulation, the following hardware targets are supported:
 @item PC (x86 or x86_64 processor)
 @item ISA PC (old style PC without PCI bus)
 @item PREP (PowerPC processor)
-@item G3 BW PowerMac (PowerPC processor)
+@item G3 Beige PowerMac (PowerPC processor)
 @item Mac99 PowerMac (PowerPC processor, in progress)
 @item Sun4m/Sun4c/Sun4d (32-bit Sparc processor)
 @item Sun4u/Sun4v (64-bit Sparc processor, in progress)

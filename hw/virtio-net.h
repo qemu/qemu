@@ -37,16 +37,21 @@
 #define VIRTIO_NET_F_HOST_ECN   13      /* Host can handle TSO[6] w/ ECN in. */
 #define VIRTIO_NET_F_HOST_UFO   14      /* Host can handle UFO in. */
 #define VIRTIO_NET_F_MRG_RXBUF  15      /* Host can merge receive buffers. */
+#define VIRTIO_NET_F_STATUS     16      /* virtio_net_config.status available */
+
+#define VIRTIO_NET_S_LINK_UP    1       /* Link is up */
 
 #define TX_TIMER_INTERVAL 150000 /* 150 us */
 
 /* Maximum packet size we can receive from tap device: header + 64k */
 #define VIRTIO_NET_MAX_BUFSIZE (sizeof(struct virtio_net_hdr) + (64 << 10))
 
-/* The config defining mac address (6 bytes) */
 struct virtio_net_config
 {
+    /* The config defining mac address (6 bytes) */
     uint8_t mac[6];
+    /* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
+    uint16_t status;
 } __attribute__((packed));
 
 /* This is the first element of the scatter-gather list.  If you don't

@@ -2026,6 +2026,7 @@ static int qcow_snapshot_create(BlockDriverState *bs,
     if (!snapshots1)
         goto fail;
     memcpy(snapshots1, s->snapshots, s->nb_snapshots * sizeof(QCowSnapshot));
+    qemu_free(s->snapshots);
     s->snapshots = snapshots1;
     s->snapshots[s->nb_snapshots++] = *sn;
 

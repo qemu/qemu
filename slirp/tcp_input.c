@@ -253,6 +253,7 @@ tcp_input(m, iphlen, inso)
 	u_long tiwin;
 	int ret;
 /*	int ts_present = 0; */
+    struct ex_list *ex_ptr;
 
 	DEBUG_CALL("tcp_input");
 	DEBUG_ARGS((dfd," m = %8lx  iphlen = %2d  inso = %lx\n",
@@ -363,6 +364,15 @@ tcp_input(m, iphlen, inso)
 	m->m_data += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 	m->m_len  -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 
+    if (slirp_restrict) {
+        for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
+            if (ex_ptr->ex_fport == ti->ti_dport &&
+                    (ntohl(ti->ti_dst.s_addr) & 0xff) == ex_ptr->ex_addr)
+                break;
+
+        if (!ex_ptr)
+            goto drop;
+    }
 	/*
 	 * Locate pcb for segment.
 	 */
@@ -646,7 +656,6 @@ findso:
 #endif
               {
 		/* May be an add exec */
-		struct ex_list *ex_ptr;
 		for(ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
 		  if(ex_ptr->ex_fport == so->so_fport &&
 		     lastbyte == ex_ptr->ex_addr) {

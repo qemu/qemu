@@ -299,7 +299,8 @@ static int parse_unix_path(struct sockaddr_un *uaddr, const char *str)
 void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6])
 {
     snprintf(vc->info_str, sizeof(vc->info_str),
-             "macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             "model=%s,macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             vc->model,
              macaddr[0], macaddr[1], macaddr[2],
              macaddr[3], macaddr[4], macaddr[5]);
 }
@@ -386,12 +387,15 @@ void qemu_send_packet(VLANClientState *vc1, const uint8_t *buf, int size)
     VLANState *vlan = vc1->vlan;
     VLANClientState *vc;
 
+    if (vc1->link_down)
+        return;
+
 #ifdef DEBUG_NET
     printf("vlan %d send:\n", vlan->id);
     hex_dump(stdout, buf, size);
 #endif
     for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
-        if (vc != vc1) {
+        if (vc != vc1 && !vc->link_down) {
             vc->fd_read(vc->opaque, buf, size);
         }
     }
@@ -446,6 +450,8 @@ ssize_t qemu_sendv_packet(VLANClientState *vc1, const struct iovec *iov,
 /* slirp network adapter */
 
 static int slirp_inited;
+static int slirp_restrict;
+static char *slirp_ip;
 static VLANClientState *slirp_vc;
 
 int slirp_can_output(void)
@@ -482,7 +488,7 @@ static int net_slirp_init(VLANState *vlan, const char *model, const char *name)
 {
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init();
+        slirp_init(slirp_restrict, slirp_ip);
     }
     slirp_vc = qemu_new_vlan_client(vlan, model, name,
                                     slirp_receive, NULL, NULL);
@@ -500,7 +506,7 @@ void net_slirp_redir(const char *redir_str)
 
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init();
+        slirp_init(slirp_restrict, slirp_ip);
     }
 
     p = redir_str;
@@ -586,7 +592,7 @@ void net_slirp_smb(const char *exported_dir)
 
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init();
+        slirp_init(slirp_restrict, slirp_ip);
     }
 
     /* XXX: better tmp dir construction */
@@ -1553,6 +1559,12 @@ int net_client_init(const char *device, const char *p)
         if (get_param_value(buf, sizeof(buf), "hostname", p)) {
             pstrcpy(slirp_hostname, sizeof(slirp_hostname), buf);
         }
+        if (get_param_value(buf, sizeof(buf), "restrict", p)) {
+            slirp_restrict = (buf[0] == 'y') ? 1 : 0;
+        }
+        if (get_param_value(buf, sizeof(buf), "ip", p)) {
+            slirp_ip = strdup(buf);
+        }
         vlan->nb_host_devs++;
         ret = net_slirp_init(vlan, device, name);
     } else
@@ -1681,6 +1693,35 @@ void do_info_network(void)
         for(vc = vlan->first_client; vc != NULL; vc = vc->next)
             term_printf("  %s: %s\n", vc->name, vc->info_str);
     }
+}
+
+int do_set_link(const char *name, const char *up_or_down)
+{
+    VLANState *vlan;
+    VLANClientState *vc = NULL;
+
+    for (vlan = first_vlan; vlan != NULL; vlan = vlan->next)
+        for (vc = vlan->first_client; vc != NULL; vc = vc->next)
+            if (strcmp(vc->name, name) == 0)
+                break;
+
+    if (!vc) {
+        term_printf("could not find network device '%s'", name);
+        return 0;
+    }
+
+    if (strcmp(up_or_down, "up") == 0)
+        vc->link_down = 0;
+    else if (strcmp(up_or_down, "down") == 0)
+        vc->link_down = 1;
+    else
+        term_printf("invalid link status '%s'; only 'up' or 'down' valid\n",
+                    up_or_down);
+
+    if (vc->link_status_changed)
+        vc->link_status_changed(vc);
+
+    return 1;
 }
 
 void net_cleanup(void)

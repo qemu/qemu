@@ -955,7 +955,7 @@ static void ide_read_dma_cb(void *opaque, int ret)
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
 #ifdef DEBUG_AIO
-    printf("aio_read: sector_num=%lld n=%d\n", sector_num, n);
+    printf("aio_read: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #endif
     bm->aiocb = bdrv_aio_read(s->bs, sector_num, s->io_buffer, n,
                               ide_read_dma_cb, bm);
@@ -1067,7 +1067,7 @@ static void ide_write_dma_cb(void *opaque, int ret)
     if (dma_buf_rw(bm, 0) == 0)
         goto eot;
 #ifdef DEBUG_AIO
-    printf("aio_write: sector_num=%lld n=%d\n", sector_num, n);
+    printf("aio_write: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #endif
     bm->aiocb = bdrv_aio_write(s->bs, sector_num, s->io_buffer, n,
                                ide_write_dma_cb, bm);
@@ -3185,9 +3185,10 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
     pci_conf[0x0e] = 0x00; // header_type
 
+    pci_conf[0x51] = 0x04; // enable IDE0
     if (secondary_ide_enabled) {
         /* XXX: if not enabled, really disable the seconday IDE controller */
-        pci_conf[0x51] = 0x80; /* enable IDE1 */
+        pci_conf[0x51] |= 0x08; /* enable IDE1 */
     }
 
     pci_register_io_region((PCIDevice *)d, 0, 0x8,

@@ -570,6 +570,21 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
     return 0;
 }
 
+static void
+e1000_set_link_status(VLANClientState *vc)
+{
+    E1000State *s = vc->opaque;
+    uint32_t old_status = s->mac_reg[STATUS];
+
+    if (vc->link_down)
+        s->mac_reg[STATUS] &= ~E1000_STATUS_LU;
+    else
+        s->mac_reg[STATUS] |= E1000_STATUS_LU;
+
+    if (s->mac_reg[STATUS] != old_status)
+        set_ics(s, 0, E1000_ICR_LSC);
+}
+
 static int
 e1000_can_receive(void *opaque)
 {
@@ -1073,6 +1088,7 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     d->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                  e1000_receive, e1000_can_receive, d);
+    d->vc->link_status_changed = e1000_set_link_status;
 
     qemu_format_nic_info_str(d->vc, d->nd->macaddr);
 

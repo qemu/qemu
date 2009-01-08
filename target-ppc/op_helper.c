@@ -2101,6 +2101,42 @@ VAVG(w, s32, int64_t, u32, uint64_t)
 #undef VAVG_DO
 #undef VAVG
 
+#define VCMP_DO(suffix, compare, element, record)                       \
+    void helper_vcmp##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b) \
+    {                                                                   \
+        uint32_t ones = (uint32_t)-1;                                   \
+        uint32_t all = ones;                                            \
+        uint32_t none = 0;                                              \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            uint32_t result = (a->element[i] compare b->element[i] ? ones : 0x0); \
+            switch (sizeof (a->element[0])) {                           \
+            case 4: r->u32[i] = result; break;                          \
+            case 2: r->u16[i] = result; break;                          \
+            case 1: r->u8[i] = result; break;                           \
+            }                                                           \
+            all &= result;                                              \
+            none |= result;                                             \
+        }                                                               \
+        if (record) {                                                   \
+            env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);       \
+        }                                                               \
+    }
+#define VCMP(suffix, compare, element)          \
+    VCMP_DO(suffix, compare, element, 0)        \
+    VCMP_DO(suffix##_dot, compare, element, 1)
+VCMP(equb, ==, u8)
+VCMP(equh, ==, u16)
+VCMP(equw, ==, u32)
+VCMP(gtub, >, u8)
+VCMP(gtuh, >, u16)
+VCMP(gtuw, >, u32)
+VCMP(gtsb, >, s8)
+VCMP(gtsh, >, s16)
+VCMP(gtsw, >, s32)
+#undef VCMP_DO
+#undef VCMP
+
 void helper_vmhaddshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     int sat = 0;
@@ -2416,6 +2452,45 @@ void helper_vsel (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     r->u64[1] = (a->u64[1] & ~c->u64[1]) | (b->u64[1] & c->u64[1]);
 }
 
+#if defined(WORDS_BIGENDIAN)
+#define LEFT 0
+#define RIGHT 1
+#else
+#define LEFT 1
+#define RIGHT 0
+#endif
+/* The specification says that the results are undefined if all of the
+ * shift counts are not identical.  We check to make sure that they are
+ * to conform to what real hardware appears to do.  */
+#define VSHIFT(suffix, leftp)                                           \
+    void helper_vs##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
+    {                                                                   \
+        int shift = b->u8[LO_IDX*0x15] & 0x7;                           \
+        int doit = 1;                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->u8); i++) {                       \
+            doit = doit && ((b->u8[i] & 0x7) == shift);                 \
+        }                                                               \
+        if (doit) {                                                     \
+            if (shift == 0) {                                           \
+                *r = *a;                                                \
+            } else if (leftp) {                                         \
+                uint64_t carry = a->u64[LO_IDX] >> (64 - shift);        \
+                r->u64[HI_IDX] = (a->u64[HI_IDX] << shift) | carry;     \
+                r->u64[LO_IDX] = a->u64[LO_IDX] << shift;               \
+            } else {                                                    \
+                uint64_t carry = a->u64[HI_IDX] << (64 - shift);        \
+                r->u64[LO_IDX] = (a->u64[LO_IDX] >> shift) | carry;     \
+                r->u64[HI_IDX] = a->u64[HI_IDX] >> shift;               \
+            }                                                           \
+        }                                                               \
+    }
+VSHIFT(l, LEFT)
+VSHIFT(r, RIGHT)
+#undef VSHIFT
+#undef LEFT
+#undef RIGHT
+
 #define VSL(suffix, element)                                            \
     void helper_vsl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
     {                                                                   \
@@ -2494,6 +2569,20 @@ VSPLT(w, u32)
 #undef VSPLT
 #undef SPLAT_ELEMENT
 #undef _SPLAT_MASKED
+
+#define VSPLTI(suffix, element, splat_type)                     \
+    void helper_vspltis##suffix (ppc_avr_t *r, uint32_t splat)  \
+    {                                                           \
+        splat_type x = (int8_t)(splat << 3) >> 3;               \
+        int i;                                                  \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {          \
+            r->element[i] = x;                                  \
+        }                                                       \
+    }
+VSPLTI(b, s8, int8_t)
+VSPLTI(h, s16, int16_t)
+VSPLTI(w, s32, int32_t)
+#undef VSPLTI
 
 #define VSR(suffix, element)                                            \
     void helper_vsr##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \

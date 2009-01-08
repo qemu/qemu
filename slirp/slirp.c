@@ -21,7 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qemu-common.h"
 #include "slirp.h"
+#include "hw/hw.h"
 
 /* host address */
 struct in_addr our_addr;
@@ -45,6 +47,8 @@ static struct in_addr client_ipaddr;
 
 static const uint8_t zero_ethaddr[6] = { 0, 0, 0, 0, 0, 0 };
 
+char *slirp_special_ip = CTL_SPECIAL;
+int slirp_restrict;
 int do_slowtimo;
 int link_up;
 struct timeval tt;
@@ -163,7 +167,10 @@ static void slirp_cleanup(void)
 }
 #endif
 
-void slirp_init(void)
+static void slirp_state_save(QEMUFile *f, void *opaque);
+static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
+
+void slirp_init(int restrict, char *special_ip)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
 
@@ -176,6 +183,7 @@ void slirp_init(void)
 #endif
 
     link_up = 1;
+    slirp_restrict = restrict;
 
     if_init();
     ip_init();
@@ -191,9 +199,13 @@ void slirp_init(void)
         fprintf (stderr, "Warning: No DNS servers found\n");
     }
 
-    inet_aton(CTL_SPECIAL, &special_addr);
+    if (special_ip)
+        slirp_special_ip = special_ip;
+
+    inet_aton(slirp_special_ip, &special_addr);
     alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
     getouraddr();
+    register_savevm("slirp", 0, 1, slirp_state_save, slirp_state_load, NULL);
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
@@ -736,9 +748,291 @@ int slirp_redir(int is_udp, int host_port,
     return 0;
 }
 
-int slirp_add_exec(int do_pty, const char *args, int addr_low_byte,
+int slirp_add_exec(int do_pty, const void *args, int addr_low_byte,
                   int guest_port)
 {
     return add_exec(&exec_list, do_pty, (char *)args,
                     addr_low_byte, htons(guest_port));
+}
+
+ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
+{
+	if (so->s == -1 && so->extra) {
+		qemu_chr_write(so->extra, buf, len);
+		return len;
+	}
+
+	return send(so->s, buf, len, flags);
+}
+
+static struct socket *slirp_find_ctl_socket(int addr_low_byte, int guest_port)
+{
+	struct socket *so;
+
+	for (so = tcb.so_next; so != &tcb; so = so->so_next) {
+		if ((so->so_faddr.s_addr & htonl(0xffffff00)) ==
+				special_addr.s_addr
+				&& (ntohl(so->so_faddr.s_addr) & 0xff) ==
+				addr_low_byte
+				&& htons(so->so_fport) == guest_port)
+			return so;
+	}
+
+	return NULL;
+}
+
+size_t slirp_socket_can_recv(int addr_low_byte, int guest_port)
+{
+	struct iovec iov[2];
+	struct socket *so;
+
+    if (!link_up)
+        return 0;
+
+	so = slirp_find_ctl_socket(addr_low_byte, guest_port);
+
+	if (!so || so->so_state & SS_NOFDREF)
+		return 0;
+
+	if (!CONN_CANFRCV(so) || so->so_snd.sb_cc >= (so->so_snd.sb_datalen/2))
+		return 0;
+
+	return sopreprbuf(so, iov, NULL);
+}
+
+void slirp_socket_recv(int addr_low_byte, int guest_port, const uint8_t *buf,
+        int size)
+{
+    int ret;
+    struct socket *so = slirp_find_ctl_socket(addr_low_byte, guest_port);
+   
+    if (!so)
+        return;
+
+    ret = soreadbuf(so, buf, size);
+
+    if (ret > 0)
+        tcp_output(sototcpcb(so));
+}
+
+static void slirp_tcp_save(QEMUFile *f, struct tcpcb *tp)
+{
+    int i;
+
+    qemu_put_sbe16(f, tp->t_state);
+    for (i = 0; i < TCPT_NTIMERS; i++)
+        qemu_put_sbe16(f, tp->t_timer[i]);
+    qemu_put_sbe16(f, tp->t_rxtshift);
+    qemu_put_sbe16(f, tp->t_rxtcur);
+    qemu_put_sbe16(f, tp->t_dupacks);
+    qemu_put_be16(f, tp->t_maxseg);
+    qemu_put_sbyte(f, tp->t_force);
+    qemu_put_be16(f, tp->t_flags);
+    qemu_put_be32(f, tp->snd_una);
+    qemu_put_be32(f, tp->snd_nxt);
+    qemu_put_be32(f, tp->snd_up);
+    qemu_put_be32(f, tp->snd_wl1);
+    qemu_put_be32(f, tp->snd_wl2);
+    qemu_put_be32(f, tp->iss);
+    qemu_put_be32(f, tp->snd_wnd);
+    qemu_put_be32(f, tp->rcv_wnd);
+    qemu_put_be32(f, tp->rcv_nxt);
+    qemu_put_be32(f, tp->rcv_up);
+    qemu_put_be32(f, tp->irs);
+    qemu_put_be32(f, tp->rcv_adv);
+    qemu_put_be32(f, tp->snd_max);
+    qemu_put_be32(f, tp->snd_cwnd);
+    qemu_put_be32(f, tp->snd_ssthresh);
+    qemu_put_sbe16(f, tp->t_idle);
+    qemu_put_sbe16(f, tp->t_rtt);
+    qemu_put_be32(f, tp->t_rtseq);
+    qemu_put_sbe16(f, tp->t_srtt);
+    qemu_put_sbe16(f, tp->t_rttvar);
+    qemu_put_be16(f, tp->t_rttmin);
+    qemu_put_be32(f, tp->max_sndwnd);
+    qemu_put_byte(f, tp->t_oobflags);
+    qemu_put_byte(f, tp->t_iobc);
+    qemu_put_sbe16(f, tp->t_softerror);
+    qemu_put_byte(f, tp->snd_scale);
+    qemu_put_byte(f, tp->rcv_scale);
+    qemu_put_byte(f, tp->request_r_scale);
+    qemu_put_byte(f, tp->requested_s_scale);
+    qemu_put_be32(f, tp->ts_recent);
+    qemu_put_be32(f, tp->ts_recent_age);
+    qemu_put_be32(f, tp->last_ack_sent);
+}
+
+static void slirp_sbuf_save(QEMUFile *f, struct sbuf *sbuf)
+{
+    uint32_t off;
+
+    qemu_put_be32(f, sbuf->sb_cc);
+    qemu_put_be32(f, sbuf->sb_datalen);
+    off = (uint32_t)(sbuf->sb_wptr - sbuf->sb_data);
+    qemu_put_sbe32(f, off);
+    off = (uint32_t)(sbuf->sb_rptr - sbuf->sb_data);
+    qemu_put_sbe32(f, off);
+    qemu_put_buffer(f, (unsigned char*)sbuf->sb_data, sbuf->sb_datalen);
+}
+
+static void slirp_socket_save(QEMUFile *f, struct socket *so)
+{
+    qemu_put_be32(f, so->so_urgc);
+    qemu_put_be32(f, so->so_faddr.s_addr);
+    qemu_put_be32(f, so->so_laddr.s_addr);
+    qemu_put_be16(f, so->so_fport);
+    qemu_put_be16(f, so->so_lport);
+    qemu_put_byte(f, so->so_iptos);
+    qemu_put_byte(f, so->so_emu);
+    qemu_put_byte(f, so->so_type);
+    qemu_put_be32(f, so->so_state);
+    slirp_sbuf_save(f, &so->so_rcv);
+    slirp_sbuf_save(f, &so->so_snd);
+    slirp_tcp_save(f, so->so_tcpcb);
+}
+
+static void slirp_state_save(QEMUFile *f, void *opaque)
+{
+    struct ex_list *ex_ptr;
+
+    for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
+        if (ex_ptr->ex_pty == 3) {
+            struct socket *so;
+            so = slirp_find_ctl_socket(ex_ptr->ex_addr, ntohs(ex_ptr->ex_fport));
+            if (!so)
+                continue;
+
+            qemu_put_byte(f, 42);
+            slirp_socket_save(f, so);
+        }
+    qemu_put_byte(f, 0);
+}
+
+static void slirp_tcp_load(QEMUFile *f, struct tcpcb *tp)
+{
+    int i;
+
+    tp->t_state = qemu_get_sbe16(f);
+    for (i = 0; i < TCPT_NTIMERS; i++)
+        tp->t_timer[i] = qemu_get_sbe16(f);
+    tp->t_rxtshift = qemu_get_sbe16(f);
+    tp->t_rxtcur = qemu_get_sbe16(f);
+    tp->t_dupacks = qemu_get_sbe16(f);
+    tp->t_maxseg = qemu_get_be16(f);
+    tp->t_force = qemu_get_sbyte(f);
+    tp->t_flags = qemu_get_be16(f);
+    tp->snd_una = qemu_get_be32(f);
+    tp->snd_nxt = qemu_get_be32(f);
+    tp->snd_up = qemu_get_be32(f);
+    tp->snd_wl1 = qemu_get_be32(f);
+    tp->snd_wl2 = qemu_get_be32(f);
+    tp->iss = qemu_get_be32(f);
+    tp->snd_wnd = qemu_get_be32(f);
+    tp->rcv_wnd = qemu_get_be32(f);
+    tp->rcv_nxt = qemu_get_be32(f);
+    tp->rcv_up = qemu_get_be32(f);
+    tp->irs = qemu_get_be32(f);
+    tp->rcv_adv = qemu_get_be32(f);
+    tp->snd_max = qemu_get_be32(f);
+    tp->snd_cwnd = qemu_get_be32(f);
+    tp->snd_ssthresh = qemu_get_be32(f);
+    tp->t_idle = qemu_get_sbe16(f);
+    tp->t_rtt = qemu_get_sbe16(f);
+    tp->t_rtseq = qemu_get_be32(f);
+    tp->t_srtt = qemu_get_sbe16(f);
+    tp->t_rttvar = qemu_get_sbe16(f);
+    tp->t_rttmin = qemu_get_be16(f);
+    tp->max_sndwnd = qemu_get_be32(f);
+    tp->t_oobflags = qemu_get_byte(f);
+    tp->t_iobc = qemu_get_byte(f);
+    tp->t_softerror = qemu_get_sbe16(f);
+    tp->snd_scale = qemu_get_byte(f);
+    tp->rcv_scale = qemu_get_byte(f);
+    tp->request_r_scale = qemu_get_byte(f);
+    tp->requested_s_scale = qemu_get_byte(f);
+    tp->ts_recent = qemu_get_be32(f);
+    tp->ts_recent_age = qemu_get_be32(f);
+    tp->last_ack_sent = qemu_get_be32(f);
+    tcp_template(tp);
+}
+
+static int slirp_sbuf_load(QEMUFile *f, struct sbuf *sbuf)
+{
+    uint32_t off, sb_cc, sb_datalen;
+
+    sb_cc = qemu_get_be32(f);
+    sb_datalen = qemu_get_be32(f);
+
+    sbreserve(sbuf, sb_datalen);
+
+    if (sbuf->sb_datalen != sb_datalen)
+        return -ENOMEM;
+
+    sbuf->sb_cc = sb_cc;
+
+    off = qemu_get_sbe32(f);
+    sbuf->sb_wptr = sbuf->sb_data + off;
+    off = qemu_get_sbe32(f);
+    sbuf->sb_rptr = sbuf->sb_data + off;
+    qemu_get_buffer(f, (unsigned char*)sbuf->sb_data, sbuf->sb_datalen);
+
+    return 0;
+}
+
+static int slirp_socket_load(QEMUFile *f, struct socket *so)
+{
+    if (tcp_attach(so) < 0)
+        return -ENOMEM;
+
+    so->so_urgc = qemu_get_be32(f);
+    so->so_faddr.s_addr = qemu_get_be32(f);
+    so->so_laddr.s_addr = qemu_get_be32(f);
+    so->so_fport = qemu_get_be16(f);
+    so->so_lport = qemu_get_be16(f);
+    so->so_iptos = qemu_get_byte(f);
+    so->so_emu = qemu_get_byte(f);
+    so->so_type = qemu_get_byte(f);
+    so->so_state = qemu_get_be32(f);
+    if (slirp_sbuf_load(f, &so->so_rcv) < 0)
+        return -ENOMEM;
+    if (slirp_sbuf_load(f, &so->so_snd) < 0)
+        return -ENOMEM;
+    slirp_tcp_load(f, so->so_tcpcb);
+
+    return 0;
+}
+
+static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
+{
+    struct ex_list *ex_ptr;
+    int r;
+
+    while ((r = qemu_get_byte(f))) {
+        int ret;
+        struct socket *so = socreate();
+
+        if (!so)
+            return -ENOMEM;
+
+        ret = slirp_socket_load(f, so);
+
+        if (ret < 0)
+            return ret;
+
+        if ((so->so_faddr.s_addr & htonl(0xffffff00)) != special_addr.s_addr)
+            return -EINVAL;
+
+        for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
+            if (ex_ptr->ex_pty == 3 &&
+                    (ntohl(so->so_faddr.s_addr) & 0xff) == ex_ptr->ex_addr &&
+                    so->so_fport == ex_ptr->ex_fport)
+                break;
+
+        if (!ex_ptr)
+            return -EINVAL;
+
+        so->extra = ex_ptr->ex_exec;
+    }
+
+    return 0;
 }
