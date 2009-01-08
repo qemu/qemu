@@ -160,7 +160,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
          * the boot vector is at 0xFFF00100, then we need a 1MB BIOS.
          * But the NVRAM is located at 0xFFF04000...
          */
-        cpu_abort(env, "G3BW Mac hardware can not handle 1 MB BIOS\n");
+        cpu_abort(env, "G3 Beige Mac hardware can not handle 1 MB BIOS\n");
     }
 
     /* allocate RAM */
