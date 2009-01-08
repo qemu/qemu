@@ -46,6 +46,8 @@ static struct in_addr client_ipaddr;
 
 static const uint8_t zero_ethaddr[6] = { 0, 0, 0, 0, 0, 0 };
 
+char *slirp_special_ip = CTL_SPECIAL;
+int slirp_restrict;
 int do_slowtimo;
 int link_up;
 struct timeval tt;
@@ -164,7 +166,7 @@ static void slirp_cleanup(void)
 }
 #endif
 
-void slirp_init(void)
+void slirp_init(int restrict, char *special_ip)
 {
     //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
 
@@ -177,6 +179,7 @@ void slirp_init(void)
 #endif
 
     link_up = 1;
+    slirp_restrict = restrict;
 
     if_init();
     ip_init();
@@ -192,7 +195,10 @@ void slirp_init(void)
         fprintf (stderr, "Warning: No DNS servers found\n");
     }
 
-    inet_aton(CTL_SPECIAL, &special_addr);
+    if (special_ip)
+        slirp_special_ip = special_ip;
+
+    inet_aton(slirp_special_ip, &special_addr);
     alias_addr.s_addr = special_addr.s_addr | htonl(CTL_ALIAS);
     getouraddr();
 }

@@ -136,6 +136,27 @@ ip_input(m)
 		STAT(ipstat.ips_tooshort++);
 		goto bad;
 	}
+
+    if (slirp_restrict) {
+        if (memcmp(&ip->ip_dst.s_addr, &special_addr, 3)) {
+            if (ip->ip_dst.s_addr == 0xffffffff && ip->ip_p != IPPROTO_UDP)
+                goto bad;
+        } else {
+            int host = ntohl(ip->ip_dst.s_addr) & 0xff;
+            struct ex_list *ex_ptr;
+
+            if (host == 0xff)
+                goto bad;
+
+            for (ex_ptr = exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
+                if (ex_ptr->ex_addr == host)
+                    break;
+
+            if (!ex_ptr)
+                goto bad;
+        }
+    }
+
 	/* Should drop packet if mbuf too long? hmmm... */
 	if (m->m_len > ip->ip_len)
 	   m_adj(m, ip->ip_len - m->m_len);

@@ -483,7 +483,7 @@ static int net_slirp_init(VLANState *vlan, const char *model, const char *name)
 {
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init();
+        slirp_init(0, NULL);
     }
     slirp_vc = qemu_new_vlan_client(vlan, model, name,
                                     slirp_receive, NULL, NULL);
@@ -501,7 +501,7 @@ void net_slirp_redir(const char *redir_str)
 
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init();
+        slirp_init(0, NULL);
     }
 
     p = redir_str;
@@ -587,7 +587,7 @@ void net_slirp_smb(const char *exported_dir)
 
     if (!slirp_inited) {
         slirp_inited = 1;
-        slirp_init();
+        slirp_init(0, NULL);
     }
 
     /* XXX: better tmp dir construction */
