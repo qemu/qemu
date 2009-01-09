@@ -465,8 +465,9 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, NULL);
     isa_mem_base = VGA_BASE;
     vga_ram_offset = qemu_ram_alloc(vga_ram_size);
-    pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + vga_ram_offset,
-                        vga_ram_offset, vga_ram_size);
+    pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_offset,
+                 vga_ram_offset, vga_ram_size,
+                 0, 0);
 
     i = 0;
     if (hwdef->console_serial_base) {

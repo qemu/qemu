@@ -22,12 +22,23 @@
  * THE SOFTWARE.
  */
 
-/* XXX This file and most of its contests are somewhat misnamed.  The
+/* XXX This file and most of its contents are somewhat misnamed.  The
    Ultrasparc PCI host is called the PCI Bus Module (PBM).  The APB is
    the secondary PCI bridge.  */
 
 #include "hw.h"
 #include "pci.h"
+
+/* debug APB */
+//#define DEBUG_APB
+
+#ifdef DEBUG_APB
+#define APB_DPRINTF(fmt, args...) \
+do { printf("APB: " fmt , ##args); } while (0)
+#else
+#define APB_DPRINTF(fmt, args...)
+#endif
+
 typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
 
@@ -37,13 +48,13 @@ static void pci_apb_config_writel (void *opaque, target_phys_addr_t addr,
                                          uint32_t val)
 {
     APBState *s = opaque;
-    int i;
 
-    for (i = 11; i < 32; i++) {
-        if ((val & (1 << i)) != 0)
-            break;
-    }
-    s->config_reg = (1 << 16) | (val & 0x7FC) | (i << 11);
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    APB_DPRINTF("config_writel addr " TARGET_FMT_plx " val %x\n", addr,
+                val);
+    s->config_reg = val;
 }
 
 static uint32_t pci_apb_config_readl (void *opaque,
@@ -51,10 +62,13 @@ static uint32_t pci_apb_config_readl (void *opaque,
 {
     APBState *s = opaque;
     uint32_t val;
-    int devfn;
 
-    devfn = (s->config_reg >> 8) & 0xFF;
-    val = (1 << (devfn >> 3)) | ((devfn & 0x07) << 8) | (s->config_reg & 0xFC);
+    val = s->config_reg;
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
+    APB_DPRINTF("config_readl addr " TARGET_FMT_plx " val %x\n", addr,
+                val);
     return val;
 }
 
@@ -259,5 +273,5 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
                                 "Advanced PCI Bus secondary bridge 1");
     pci_bridge_init(s->bus, 9, 0x108e5000, pci_apb_map_irq,
                     "Advanced PCI Bus secondary bridge 2");
-    return secondary;
+    return s->bus;
 }
