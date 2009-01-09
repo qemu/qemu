@@ -201,7 +201,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
-        kernel_size = load_elf(kernel_filename, kernel_base - 0x00000000ULL,
+        kernel_size = load_elf(kernel_filename, kernel_base - 0xc0000000ULL,
                                NULL, NULL, NULL);
         if (kernel_size < 0)
             kernel_size = load_aout(kernel_filename, kernel_base,
