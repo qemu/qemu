@@ -45,6 +45,8 @@ struct qemu_phy
 {
 	uint32_t regs[32];
 
+	int link;
+
 	unsigned int (*read)(struct qemu_phy *phy, unsigned int req);
 	void (*write)(struct qemu_phy *phy, unsigned int req, 
 		      unsigned int data);
@@ -59,13 +61,15 @@ static unsigned int tdk_read(struct qemu_phy *phy, unsigned int req)
 
 	switch (regnum) {
 		case 1:
+			if (!phy->link)
+				break;
 			/* MR1.	 */
 			/* Speeds and modes.  */
 			r |= (1 << 13) | (1 << 14);
 			r |= (1 << 11) | (1 << 12);
 			r |= (1 << 5); /* Autoneg complete.  */
 			r |= (1 << 3); /* Autoneg able.	 */
-			r |= (1 << 2); /* Link.	 */
+			r |= (1 << 2); /* link.	 */
 			break;
 		case 5:
 			/* Link partner ability.
@@ -82,6 +86,9 @@ static unsigned int tdk_read(struct qemu_phy *phy, unsigned int req)
 			/* Diagnostics reg.  */
 			int duplex = 0;
 			int speed_100 = 0;
+
+			if (!phy->link)
+				break;
 
 			/* Are we advertising 100 half or 100 duplex ? */
 			speed_100 = !!(phy->regs[4] & ADVERTISE_100HALF);
@@ -125,6 +132,7 @@ tdk_init(struct qemu_phy *phy)
 	phy->regs[3] = 0xe400;
 	/* Autonegotiation advertisement reg.  */
 	phy->regs[4] = 0x01E1;
+	phy->link = 1;
 
 	phy->read = tdk_read;
 	phy->write = tdk_write;
@@ -530,6 +538,13 @@ static int eth_tx_push(void *opaque, unsigned char *buf, int len)
 	return len;
 }
 
+static void eth_set_link(VLANClientState *vc)
+{
+	struct fs_eth *eth = vc->opaque;
+	D(printf("%s %d\n", __func__, vc->link_down));
+	eth->phy.link = !vc->link_down;
+}
+
 static CPUReadMemoryFunc *eth_read[] = {
 	NULL, NULL,
 	&eth_readl,
@@ -541,7 +556,7 @@ static CPUWriteMemoryFunc *eth_write[] = {
 };
 
 void *etraxfs_eth_init(NICInfo *nd, CPUState *env, 
-		       qemu_irq *irq, target_phys_addr_t base)
+		       qemu_irq *irq, target_phys_addr_t base, int phyaddr)
 {
 	struct etraxfs_dma_client *dma = NULL;	
 	struct fs_eth *eth = NULL;
@@ -565,7 +580,7 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	eth->dma_in = dma + 1;
 
 	/* Connect the phy.  */
-	eth->phyaddr = 1;
+	eth->phyaddr = phyaddr & 0x1f;
 	tdk_init(&eth->phy);
 	mdio_attach(&eth->mdio_bus, &eth->phy, eth->phyaddr);
 
@@ -574,6 +589,8 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 
 	eth->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
 				       eth_receive, eth_can_receive, eth);
+	eth->vc->opaque = eth;
+	eth->vc->link_status_changed = eth_set_link;
 
 	return dma;
   err:
