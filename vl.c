@@ -4266,6 +4266,8 @@ struct soundhw soundhw[] = {
         { .init_isa = pcspk_audio_init }
     },
 #endif
+
+#ifdef CONFIG_SB16
     {
         "sb16",
         "Creative Sound Blaster 16",
@@ -4273,6 +4275,7 @@ struct soundhw soundhw[] = {
         1,
         { .init_isa = SB16_init }
     },
+#endif
 
 #ifdef CONFIG_CS4231A
     {
@@ -4308,6 +4311,7 @@ struct soundhw soundhw[] = {
     },
 #endif
 
+#ifdef CONFIG_AC97
     {
         "ac97",
         "Intel 82801AA AC97 Audio",
@@ -4315,7 +4319,9 @@ struct soundhw soundhw[] = {
         0,
         { .init_pci = ac97_init }
     },
+#endif
 
+#ifdef CONFIG_ES1370
     {
         "es1370",
         "ENSONIQ AudioPCI ES1370",
@@ -4324,6 +4330,8 @@ struct soundhw soundhw[] = {
         { .init_pci = es1370_init }
     },
 #endif
+
+#endif /* HAS_AUDIO_CHOICE */
 
     { NULL, NULL, 0, 0, { NULL } }
 };
