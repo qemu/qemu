@@ -221,8 +221,9 @@ common  de-ch  es     fo  fr-ca  hu     ja  mk  nl-be      pt  sl     tr
 
 ifdef INSTALL_BLOBS
 BLOBS=bios.bin vgabios.bin vgabios-cirrus.bin ppc_rom.bin \
-video.x openbios-sparc32 openbios-sparc64 pxe-ne2k_pci.bin \
-pxe-rtl8139.bin pxe-pcnet.bin pxe-e1000.bin bamboo.dtb
+video.x openbios-sparc32 openbios-sparc64 openbios-ppc \
+pxe-ne2k_pci.bin pxe-rtl8139.bin pxe-pcnet.bin pxe-e1000.bin \
+bamboo.dtb
 else
 BLOBS=
 endif
@@ -354,6 +355,7 @@ tarbin:
 	$(datadir)/video.x \
 	$(datadir)/openbios-sparc32 \
 	$(datadir)/openbios-sparc64 \
+	$(datadir)/openbios-ppc \
 	$(datadir)/pxe-ne2k_pci.bin \
 	$(datadir)/pxe-rtl8139.bin \
 	$(datadir)/pxe-pcnet.bin \
