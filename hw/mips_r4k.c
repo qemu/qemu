@@ -248,8 +248,10 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
                  vga_ram_size);
 
     if (nd_table[0].vlan) {
-        if (nd_table[0].model == NULL
-            || strcmp(nd_table[0].model, "ne2k_isa") == 0) {
+        if (nd_table[i].model == NULL) {
+	    nd_table[i].model = "ne2k_isa";
+        }
+        if (strcmp(nd_table[0].model, "ne2k_isa") == 0) {
             isa_ne2000_init(0x300, i8259[9], &nd_table[0]);
         } else if (strcmp(nd_table[0].model, "?") == 0) {
             fprintf(stderr, "qemu: Supported NICs: ne2k_isa\n");
