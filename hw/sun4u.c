@@ -344,6 +344,48 @@ static const int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
 static fdctrl_t *floppy_controller;
 
+static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
+                              uint32_t addr, uint32_t size, int type)
+{
+    DPRINTF("Mapping region %d registers at %08x\n", region_num, addr);
+    switch (region_num) {
+    case 0:
+        isa_mmio_init(addr, 0x1000000);
+        break;
+    case 1:
+        isa_mmio_init(addr, 0x800000);
+        break;
+    }
+}
+
+/* EBUS (Eight bit bus) bridge */
+static void
+pci_ebus_init(PCIBus *bus, int devfn)
+{
+    PCIDevice *s;
+
+    s = pci_register_device(bus, "EBUS", sizeof(*s), devfn, NULL, NULL);
+    s->config[0x00] = 0x8e; // vendor_id : Sun
+    s->config[0x01] = 0x10;
+    s->config[0x02] = 0x00; // device_id
+    s->config[0x03] = 0x10;
+    s->config[0x04] = 0x06; // command = bus master, pci mem
+    s->config[0x05] = 0x00;
+    s->config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error
+    s->config[0x07] = 0x03; // status = medium devsel
+    s->config[0x08] = 0x01; // revision
+    s->config[0x09] = 0x00; // programming i/f
+    s->config[0x0A] = 0x80; // class_sub = misc bridge
+    s->config[0x0B] = 0x06; // class_base = PCI_bridge
+    s->config[0x0D] = 0x0a; // latency_timer
+    s->config[0x0E] = 0x00; // header_type
+
+    pci_register_io_region(s, 0, 0x1000000, PCI_ADDRESS_SPACE_MEM,
+                           ebus_mmio_mapfunc);
+    pci_register_io_region(s, 1, 0x800000,  PCI_ADDRESS_SPACE_MEM,
+                           ebus_mmio_mapfunc);
+}
+
 static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
                         const char *boot_devices, DisplayState *ds,
                         const char *kernel_filename, const char *kernel_cmdline,
@@ -357,7 +399,7 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
     unsigned int i;
     ram_addr_t ram_offset, prom_offset, vga_ram_offset;
     long initrd_size, kernel_size;
-    PCIBus *pci_bus;
+    PCIBus *pci_bus, *pci_bus2, *pci_bus3;
     QEMUBH *bh;
     qemu_irq *irq;
     int drive_index;
@@ -462,12 +504,16 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
             }
         }
     }
-    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, NULL);
+    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, NULL, &pci_bus2,
+                           &pci_bus3);
     isa_mem_base = VGA_BASE;
     vga_ram_offset = qemu_ram_alloc(vga_ram_size);
     pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_offset,
                  vga_ram_offset, vga_ram_size,
                  0, 0);
+
+    // XXX Should be pci_bus3
+    pci_ebus_init(pci_bus, -1);
 
     i = 0;
     if (hwdef->console_serial_base) {

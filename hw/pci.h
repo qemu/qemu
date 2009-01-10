@@ -168,8 +168,9 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 PCIBus *pci_prep_init(qemu_irq *pic);
 
 /* apb_pci.c */
-PCIBus *pci_apb_init(target_phys_addr_t special_base, target_phys_addr_t mem_base,
-                     qemu_irq *pic);
+PCIBus *pci_apb_init(target_phys_addr_t special_base,
+                     target_phys_addr_t mem_base,
+                     qemu_irq *pic, PCIBus **bus2, PCIBus **bus3);
 
 /* sh_pci.c */
 PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,

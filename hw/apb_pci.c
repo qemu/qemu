@@ -223,12 +223,11 @@ static void pci_apb_set_irq(qemu_irq *pic, int irq_num, int level)
 
 PCIBus *pci_apb_init(target_phys_addr_t special_base,
                      target_phys_addr_t mem_base,
-                     qemu_irq *pic)
+                     qemu_irq *pic, PCIBus **bus2, PCIBus **bus3)
 {
     APBState *s;
     PCIDevice *d;
     int pci_mem_config, pci_mem_data, apb_config, pci_ioport;
-    PCIBus *secondary;
 
     s = qemu_mallocz(sizeof(APBState));
     /* Ultrasparc PBM main bus */
@@ -269,9 +268,9 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     d->config[0x0E] = 0x00; // header_type
 
     /* APB secondary busses */
-    secondary = pci_bridge_init(s->bus, 8, 0x108e5000, pci_apb_map_irq,
-                                "Advanced PCI Bus secondary bridge 1");
-    pci_bridge_init(s->bus, 9, 0x108e5000, pci_apb_map_irq,
-                    "Advanced PCI Bus secondary bridge 2");
+    *bus2 = pci_bridge_init(s->bus, 8, 0x108e5000, pci_apb_map_irq,
+                            "Advanced PCI Bus secondary bridge 1");
+    *bus3 = pci_bridge_init(s->bus, 9, 0x108e5000, pci_apb_map_irq,
+                            "Advanced PCI Bus secondary bridge 2");
     return s->bus;
 }
