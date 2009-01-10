@@ -533,8 +533,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
-    if (nd_table[0].model == NULL
-        || strcmp(nd_table[0].model, "lance") == 0) {
+    if (nd_table[0].model == NULL)
+        nd_table[0].model = "lance";
+    if (strcmp(nd_table[0].model, "lance") == 0) {
         lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
     } else if (strcmp(nd_table[0].model, "?") == 0) {
         fprintf(stderr, "qemu: Supported NICs: lance\n");
@@ -1325,8 +1326,9 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
-    if (nd_table[0].model == NULL
-        || strcmp(nd_table[0].model, "lance") == 0) {
+    if (nd_table[0].model == NULL)
+        nd_table[0].model = "lance";
+    if (strcmp(nd_table[0].model, "lance") == 0) {
         lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
     } else if (strcmp(nd_table[0].model, "?") == 0) {
         fprintf(stderr, "qemu: Supported NICs: lance\n");
@@ -1540,8 +1542,9 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
-    if (nd_table[0].model == NULL
-        || strcmp(nd_table[0].model, "lance") == 0) {
+    if (nd_table[0].model == NULL)
+        nd_table[0].model = "lance";
+    if (strcmp(nd_table[0].model, "lance") == 0) {
         lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
     } else if (strcmp(nd_table[0].model, "?") == 0) {
         fprintf(stderr, "qemu: Supported NICs: lance\n");
