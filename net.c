@@ -1703,7 +1703,8 @@ int do_set_link(const char *name, const char *up_or_down)
     for (vlan = first_vlan; vlan != NULL; vlan = vlan->next)
         for (vc = vlan->first_client; vc != NULL; vc = vc->next)
             if (strcmp(vc->name, name) == 0)
-                break;
+                goto done;
+done:
 
     if (!vc) {
         term_printf("could not find network device '%s'", name);

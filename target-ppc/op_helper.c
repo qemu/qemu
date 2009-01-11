@@ -2082,6 +2082,45 @@ VARITH(uwm, u32)
 #undef VARITH_DO
 #undef VARITH
 
+#define VARITHSAT_CASE(type, op, cvt, element)                          \
+    {                                                                   \
+        type result = (type)a->element[i] op (type)b->element[i];       \
+        r->element[i] = cvt(result, &sat);                              \
+    }
+
+#define VARITHSAT_DO(name, op, optype, cvt, element)                    \
+    void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
+    {                                                                   \
+        int sat = 0;                                                    \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            switch (sizeof(r->element[0])) {                            \
+            case 1: VARITHSAT_CASE(optype, op, cvt, element); break;    \
+            case 2: VARITHSAT_CASE(optype, op, cvt, element); break;    \
+            case 4: VARITHSAT_CASE(optype, op, cvt, element); break;    \
+            }                                                           \
+        }                                                               \
+        if (sat) {                                                      \
+            env->vscr |= (1 << VSCR_SAT);                               \
+        }                                                               \
+    }
+#define VARITHSAT_SIGNED(suffix, element, optype, cvt)        \
+    VARITHSAT_DO(adds##suffix##s, +, optype, cvt, element)    \
+    VARITHSAT_DO(subs##suffix##s, -, optype, cvt, element)
+#define VARITHSAT_UNSIGNED(suffix, element, optype, cvt)       \
+    VARITHSAT_DO(addu##suffix##s, +, optype, cvt, element)     \
+    VARITHSAT_DO(subu##suffix##s, -, optype, cvt, element)
+VARITHSAT_SIGNED(b, s8, int16_t, cvtshsb)
+VARITHSAT_SIGNED(h, s16, int32_t, cvtswsh)
+VARITHSAT_SIGNED(w, s32, int64_t, cvtsdsw)
+VARITHSAT_UNSIGNED(b, u8, uint16_t, cvtshub)
+VARITHSAT_UNSIGNED(h, u16, uint32_t, cvtswuh)
+VARITHSAT_UNSIGNED(w, u32, uint64_t, cvtsduw)
+#undef VARITHSAT_CASE
+#undef VARITHSAT_DO
+#undef VARITHSAT_SIGNED
+#undef VARITHSAT_UNSIGNED
+
 #define VAVG_DO(name, element, etype)                                   \
     void helper_v##name (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)      \
     {                                                                   \

@@ -671,8 +671,10 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
     if (nb_nics1 > NE2000_NB_MAX)
         nb_nics1 = NE2000_NB_MAX;
     for(i = 0; i < nb_nics1; i++) {
-        if (nd_table[i].model == NULL
-            || strcmp(nd_table[i].model, "ne2k_isa") == 0) {
+        if (nd_table[i].model == NULL) {
+	    nd_table[i].model = "ne2k_isa";
+        }
+        if (strcmp(nd_table[i].model, "ne2k_isa") == 0) {
             isa_ne2000_init(ne2000_io[i], i8259[ne2000_irq[i]], &nd_table[i]);
         } else {
             pci_nic_init(pci_bus, &nd_table[i], -1);
