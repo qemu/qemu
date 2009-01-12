@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "ppc_mac.h"
 #include "pci.h"
+#include "escc.h"
 
 typedef struct macio_state_t macio_state_t;
 struct macio_state_t {
@@ -32,6 +33,7 @@ struct macio_state_t {
     int pic_mem_index;
     int dbdma_mem_index;
     int cuda_mem_index;
+    int escc_mem_index;
     void *nvram;
     int nb_ide;
     int ide_mem_index[4];
@@ -59,6 +61,10 @@ static void macio_map (PCIDevice *pci_dev, int region_num,
         cpu_register_physical_memory(addr + 0x08000, 0x1000,
                                      macio_state->dbdma_mem_index);
     }
+    if (macio_state->escc_mem_index >= 0) {
+        cpu_register_physical_memory(addr + 0x13000, ESCC_SIZE << 4,
+                                     macio_state->escc_mem_index);
+    }
     if (macio_state->cuda_mem_index >= 0) {
         cpu_register_physical_memory(addr + 0x16000, 0x2000,
                                      macio_state->cuda_mem_index);
@@ -75,7 +81,7 @@ static void macio_map (PCIDevice *pci_dev, int region_num,
 
 void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
                  int dbdma_mem_index, int cuda_mem_index, void *nvram,
-                 int nb_ide, int *ide_mem_index)
+                 int nb_ide, int *ide_mem_index, int escc_mem_index)
 {
     PCIDevice *d;
     macio_state_t *macio_state;
@@ -89,6 +95,7 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
     macio_state->pic_mem_index = pic_mem_index;
     macio_state->dbdma_mem_index = dbdma_mem_index;
     macio_state->cuda_mem_index = cuda_mem_index;
+    macio_state->escc_mem_index = escc_mem_index;
     macio_state->nvram = nvram;
     if (nb_ide > 4)
         nb_ide = 4;

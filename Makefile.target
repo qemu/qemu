@@ -646,7 +646,7 @@ OBJS+= ppc.o ide.o vga.o $(SOUND_HW) dma.o openpic.o
 OBJS+= pckbd.o ps2.o serial.o i8259.o i8254.o fdc.o m48t59.o mc146818rtc.o
 OBJS+= prep_pci.o ppc_prep.o
 # Mac shared devices
-OBJS+= macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o
+OBJS+= macio.o cuda.o adb.o mac_nvram.o mac_dbdma.o escc.o
 # OldWorld PowerMac
 OBJS+= heathrow_pic.o grackle_pci.o ppc_oldworld.o
 # NewWorld PowerMac
