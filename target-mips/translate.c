@@ -7859,13 +7859,13 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                     gen_helper_rdhwr_ccres(t0);
                     break;
                 case 29:
-                    if (env->user_mode_only) {
-                        tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, tls_value));
-                        break;
-                    } else {
-                        /* XXX: Some CPUs implement this in hardware.
-                           Not supported yet. */
-                    }
+#if defined(CONFIG_USER_ONLY)
+                    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, tls_value));
+                    break;
+#else
+                    /* XXX: Some CPUs implement this in hardware.
+                       Not supported yet. */
+#endif
                 default:            /* Invalid */
                     MIPS_INVAL("rdhwr");
                     generate_exception(ctx, EXCP_RI);
@@ -7953,19 +7953,17 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_DMTC0:
 #endif
 #ifndef CONFIG_USER_ONLY
-            if (!env->user_mode_only)
-                gen_cp0(env, ctx, op1, rt, rd);
+            gen_cp0(env, ctx, op1, rt, rd);
 #endif /* !CONFIG_USER_ONLY */
             break;
         case OPC_C0_FIRST ... OPC_C0_LAST:
 #ifndef CONFIG_USER_ONLY
-            if (!env->user_mode_only)
-                gen_cp0(env, ctx, MASK_C0(ctx->opcode), rt, rd);
+            gen_cp0(env, ctx, MASK_C0(ctx->opcode), rt, rd);
 #endif /* !CONFIG_USER_ONLY */
             break;
         case OPC_MFMC0:
 #ifndef CONFIG_USER_ONLY
-            if (!env->user_mode_only) {
+            {
                 TCGv t0 = tcg_temp_local_new();
 
                 op2 = MASK_MFMC0(ctx->opcode);
@@ -8264,10 +8262,11 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     /* Restore delay slot state from the tb context.  */
     ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
     restore_cpu_state(env, &ctx);
-    if (env->user_mode_only)
+#ifdef CONFIG_USER_ONLY
         ctx.mem_idx = MIPS_HFLAG_UM;
-    else
+#else
         ctx.mem_idx = ctx.hflags & MIPS_HFLAG_KSU;
+#endif
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
@@ -8583,40 +8582,37 @@ void cpu_reset (CPUMIPSState *env)
 
     /* Minimal init */
 #if defined(CONFIG_USER_ONLY)
-    env->user_mode_only = 1;
-#endif
-    if (env->user_mode_only) {
-        env->hflags = MIPS_HFLAG_UM;
+    env->hflags = MIPS_HFLAG_UM;
+#else
+    if (env->hflags & MIPS_HFLAG_BMASK) {
+        /* If the exception was raised from a delay slot,
+           come back to the jump.  */
+        env->CP0_ErrorEPC = env->active_tc.PC - 4;
     } else {
-        if (env->hflags & MIPS_HFLAG_BMASK) {
-            /* If the exception was raised from a delay slot,
-               come back to the jump.  */
-            env->CP0_ErrorEPC = env->active_tc.PC - 4;
-        } else {
-            env->CP0_ErrorEPC = env->active_tc.PC;
-        }
-        env->active_tc.PC = (int32_t)0xBFC00000;
-        env->CP0_Wired = 0;
-        /* SMP not implemented */
-        env->CP0_EBase = 0x80000000;
-        env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
-        /* vectored interrupts not implemented, timer on int 7,
-           no performance counters. */
-        env->CP0_IntCtl = 0xe0000000;
-        {
-            int i;
-
-            for (i = 0; i < 7; i++) {
-                env->CP0_WatchLo[i] = 0;
-                env->CP0_WatchHi[i] = 0x80000000;
-            }
-            env->CP0_WatchLo[7] = 0;
-            env->CP0_WatchHi[7] = 0;
-        }
-        /* Count register increments in debug mode, EJTAG version 1 */
-        env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
-        env->hflags = MIPS_HFLAG_CP0;
+        env->CP0_ErrorEPC = env->active_tc.PC;
     }
+    env->active_tc.PC = (int32_t)0xBFC00000;
+    env->CP0_Wired = 0;
+    /* SMP not implemented */
+    env->CP0_EBase = 0x80000000;
+    env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
+    /* vectored interrupts not implemented, timer on int 7,
+       no performance counters. */
+    env->CP0_IntCtl = 0xe0000000;
+    {
+        int i;
+
+        for (i = 0; i < 7; i++) {
+            env->CP0_WatchLo[i] = 0;
+            env->CP0_WatchHi[i] = 0x80000000;
+        }
+        env->CP0_WatchLo[7] = 0;
+        env->CP0_WatchHi[7] = 0;
+    }
+    /* Count register increments in debug mode, EJTAG version 1 */
+    env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
+    env->hflags = MIPS_HFLAG_CP0;
+#endif
     env->exception_index = EXCP_NONE;
     cpu_mips_register(env, env->cpu_model);
 }
