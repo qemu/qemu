@@ -287,7 +287,7 @@ static void slavio_serial_reset_chn(ChannelState *s)
     int i;
 
     s->reg = 0;
-    for (i = 0; i < SERIAL_SIZE; i++) {
+    for (i = 0; i < SERIAL_REGS; i++) {
         s->rregs[i] = 0;
         s->wregs[i] = 0;
     }
