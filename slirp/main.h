@@ -44,7 +44,7 @@ extern int towrite_max;
 extern int ppp_exit;
 extern int tcp_keepintvl;
 extern uint8_t client_ethaddr[6];
-extern char *slirp_special_ip;
+extern const char *slirp_special_ip;
 extern int slirp_restrict;
 
 #define PROTO_SLIP 0x1

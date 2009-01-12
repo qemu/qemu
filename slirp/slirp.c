@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu-char.h"
 #include "slirp.h"
 #include "hw/hw.h"
 
@@ -47,7 +48,7 @@ static struct in_addr client_ipaddr;
 
 static const uint8_t zero_ethaddr[6] = { 0, 0, 0, 0, 0, 0 };
 
-char *slirp_special_ip = CTL_SPECIAL;
+const char *slirp_special_ip = CTL_SPECIAL;
 int slirp_restrict;
 int do_slowtimo;
 int link_up;
@@ -809,7 +810,7 @@ void slirp_socket_recv(int addr_low_byte, int guest_port, const uint8_t *buf,
     if (!so)
         return;
 
-    ret = soreadbuf(so, buf, size);
+    ret = soreadbuf(so, (const char *)buf, size);
 
     if (ret > 0)
         tcp_output(sototcpcb(so));
@@ -1031,7 +1032,7 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
         if (!ex_ptr)
             return -EINVAL;
 
-        so->extra = ex_ptr->ex_exec;
+        so->extra = (void *)ex_ptr->ex_exec;
     }
 
     return 0;
