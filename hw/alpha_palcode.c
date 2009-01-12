@@ -998,12 +998,12 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, uint32_t address, int rw,
     uint64_t physical, page_size, end;
     int prot, zbits, ret;
 
-    if (env->user_mode_only) {
+#if defined(CONFIG_USER_ONLY)
         ret = 2;
-    } else {
+#else
         ret = virtual_to_physical(env, &physical, &zbits, &prot,
                                   address, mmu_idx, rw);
-    }
+#endif
     switch (ret) {
     case 0:
         /* No fault */
