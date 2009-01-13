@@ -472,6 +472,8 @@ typedef struct RTL8139State {
     uint32_t   currTxDesc;
 
     /* C+ mode */
+    uint32_t   cplus_enabled;
+
     uint32_t   currCPlusRxDesc;
     uint32_t   currCPlusTxDesc;
 
@@ -1232,6 +1234,8 @@ static void rtl8139_reset(RTL8139State *s)
     s->CSCR = CSCR_F_LINK_100 | CSCR_HEART_BIT | CSCR_LD;
 
     s->CpCmd   = 0x0; /* reset C+ mode */
+    s->cplus_enabled = 0;
+
 
 //    s->BasicModeCtrl = 0x3100; // 100Mbps, full duplex, autonegotiation
 //    s->BasicModeCtrl = 0x2100; // 100Mbps, full duplex
@@ -1419,6 +1423,8 @@ static void rtl8139_CpCmd_write(RTL8139State *s, uint32_t val)
     val &= 0xffff;
 
     DEBUG_PRINT(("RTL8139C+ command register write(w) val=0x%04x\n", val));
+
+    s->cplus_enabled = 1;
 
     /* mask unwriteable bits */
     val = SET_MASKED(val, 0xff84, s->CpCmd);
@@ -2367,7 +2373,7 @@ static void rtl8139_TxStatus_write(RTL8139State *s, uint32_t txRegOffset, uint32
 
     /* handle C+ transmit mode register configuration */
 
-    if (rtl8139_cp_transmitter_enabled(s))
+    if (s->cplus_enabled)
     {
         DEBUG_PRINT(("RTL8139C+ DTCCR write offset=0x%x val=0x%08x descriptor=%d\n", txRegOffset, val, descriptor));
 
@@ -3190,6 +3196,8 @@ static void rtl8139_save(QEMUFile* f,void* opaque)
     qemu_put_be64(f, s->TCTR_base);
 
     RTL8139TallyCounters_save(f, &s->tally_counters);
+
+    qemu_put_be32s(f, &s->cplus_enabled);
 }
 
 static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
@@ -3199,7 +3207,7 @@ static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
     int ret;
 
     /* just 2 versions for now */
-    if (version_id > 3)
+    if (version_id > 4)
             return -EINVAL;
 
     if (version_id >= 3) {
@@ -3297,6 +3305,12 @@ static int rtl8139_load(QEMUFile* f,void* opaque,int version_id)
         s->TCTR_base = 0;
 
         RTL8139TallyCounters_clear(&s->tally_counters);
+    }
+
+    if (version_id >= 4) {
+        qemu_get_be32s(f, &s->cplus_enabled);
+    } else {
+        s->cplus_enabled = s->CpCmd != 0;
     }
 
     return 0;
@@ -3447,7 +3461,7 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     s->cplus_txbuffer_len = 0;
     s->cplus_txbuffer_offset = 0;
 
-    register_savevm("rtl8139", -1, 3, rtl8139_save, rtl8139_load, s);
+    register_savevm("rtl8139", -1, 4, rtl8139_save, rtl8139_load, s);
 
 #ifdef RTL8139_ONBOARD_TIMER
     s->timer = qemu_new_timer(vm_clock, rtl8139_timer, s);

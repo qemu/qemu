@@ -31,6 +31,7 @@
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
+#include "escc.h"
 
 #define MAX_IDE_BUS 2
 
@@ -80,7 +81,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     m48t59_t *m48t59;
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
-    int pic_mem_index, dbdma_mem_index, cuda_mem_index;
+    int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
     int ide_mem_index[2];
     int ppc_boot_device;
     int index;
@@ -262,8 +263,8 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     /* XXX: suppress that */
     dummy_irq = i8259_init(NULL);
 
-    /* XXX: use Mac Serial port */
-    serial_init(0x3f8, dummy_irq[4], 115200, serial_hds[0]);
+    escc_mem_index = escc_init(0x80013000, dummy_irq[4], serial_hds[0],
+                               serial_hds[1], ESCC_CLOCK, 4);
     for(i = 0; i < nb_nics; i++) {
         if (!nd_table[i].model)
             nd_table[i].model = "ne2k_pci";
@@ -295,7 +296,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     dbdma_init(&dbdma_mem_index);
 
     macio_init(pci_bus, 0x0022, 0, pic_mem_index, dbdma_mem_index,
-               cuda_mem_index, NULL, 2, ide_mem_index);
+               cuda_mem_index, NULL, 2, ide_mem_index, escc_mem_index);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);

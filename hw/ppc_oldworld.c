@@ -33,6 +33,7 @@
 #include "pci.h"
 #include "boards.h"
 #include "fw_cfg.h"
+#include "escc.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
@@ -126,7 +127,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
-    int ide_mem_index[2];
+    int escc_mem_index, ide_mem_index[2];
     int ppc_boot_device;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     int index;
@@ -296,8 +297,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     /* XXX: suppress that */
     dummy_irq = i8259_init(NULL);
 
-    /* XXX: use Mac Serial port */
-    serial_init(0x3f8, dummy_irq[4], 115200, serial_hds[0]);
+    escc_mem_index = escc_init(0x80013000, pic[0x10], serial_hds[0],
+                               serial_hds[1], ESCC_CLOCK, 4);
 
     for(i = 0; i < nb_nics; i++) {
         if (!nd_table[i].model)
@@ -350,7 +351,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     dbdma_init(&dbdma_mem_index);
 
     macio_init(pci_bus, 0x0010, 1, pic_mem_index, dbdma_mem_index,
-               cuda_mem_index, nvr, 2, ide_mem_index);
+               cuda_mem_index, nvr, 2, ide_mem_index, escc_mem_index);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);

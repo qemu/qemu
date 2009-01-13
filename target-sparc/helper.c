@@ -402,12 +402,12 @@ static int get_physical_address_data(CPUState *env,
             mask = 0xffffffffffc00000ULL;
             break;
         }
-        // ctx match, vaddr match?
+        // ctx match, vaddr match, valid?
         if (env->dmmuregs[1] == (env->dtlb_tag[i] & 0x1fff) &&
-            (address & mask) == (env->dtlb_tag[i] & ~0x1fffULL)) {
-            // valid, access ok?
-            if ((env->dtlb_tte[i] & 0x8000000000000000ULL) == 0 ||
-                ((env->dtlb_tte[i] & 0x4) && is_user) ||
+            (address & mask) == (env->dtlb_tag[i] & ~0x1fffULL) &&
+            (env->dtlb_tte[i] & 0x8000000000000000ULL)) {
+            // access ok?
+            if (((env->dtlb_tte[i] & 0x4) && is_user) ||
                 (!(env->dtlb_tte[i] & 0x2) && (rw == 1))) {
                 if (env->dmmuregs[3]) /* Fault status register */
                     env->dmmuregs[3] = 2; /* overflow (not read before
@@ -465,12 +465,12 @@ static int get_physical_address_code(CPUState *env,
             mask = 0xffffffffffc00000ULL;
                 break;
         }
-        // ctx match, vaddr match?
+        // ctx match, vaddr match, valid?
         if (env->dmmuregs[1] == (env->itlb_tag[i] & 0x1fff) &&
-            (address & mask) == (env->itlb_tag[i] & ~0x1fffULL)) {
-            // valid, access ok?
-            if ((env->itlb_tte[i] & 0x8000000000000000ULL) == 0 ||
-                ((env->itlb_tte[i] & 0x4) && is_user)) {
+            (address & mask) == (env->itlb_tag[i] & ~0x1fffULL) &&
+            (env->itlb_tte[i] & 0x8000000000000000ULL)) {
+            // access ok?
+            if ((env->itlb_tte[i] & 0x4) && is_user) {
                 if (env->immuregs[3]) /* Fault status register */
                     env->immuregs[3] = 2; /* overflow (not read before
                                              another fault) */

@@ -694,7 +694,7 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
 #define NUM_CORE_REGS 86
 #else
-#define NUM_CORE_REGS 73
+#define NUM_CORE_REGS 72
 #endif
 
 #ifdef TARGET_ABI32
@@ -728,7 +728,7 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
     case 69: GET_REGA(env->npc);
     case 70: GET_REGA(env->fsr);
     case 71: GET_REGA(0); /* csr */
-    case 72: GET_REGA(0);
+    default: GET_REGA(0);
     }
 #else
     if (n < 64) {

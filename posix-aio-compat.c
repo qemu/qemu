@@ -81,21 +81,16 @@ static void *aio_thread(void *unused)
             if (len == -1 && errno == EINTR)
                 continue;
             else if (len == -1) {
-                pthread_mutex_lock(&lock);
-                aiocb->ret = -errno;
-                pthread_mutex_unlock(&lock);
+                offset = -errno;
                 break;
             } else if (len == 0)
                 break;
 
             offset += len;
-
-            pthread_mutex_lock(&lock);
-            aiocb->ret = offset;
-            pthread_mutex_unlock(&lock);
         }
 
         pthread_mutex_lock(&lock);
+        aiocb->ret = offset;
         idle_threads++;
         pthread_mutex_unlock(&lock);
 

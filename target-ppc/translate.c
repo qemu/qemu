@@ -4152,6 +4152,33 @@ GEN_HANDLER2(dcbz_970, "dcbz", 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZT)
     tcg_temp_free(t0);
 }
 
+/* dst / dstt */
+GEN_HANDLER(dst, 0x1F, 0x16, 0x0A, 0x01800001, PPC_ALTIVEC)
+{
+    if (rA(ctx->opcode) == 0) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
+    } else {
+        /* interpreted as no-op */
+    }
+}
+
+/* dstst /dststt */
+GEN_HANDLER(dstst, 0x1F, 0x16, 0x0B, 0x02000001, PPC_ALTIVEC)
+{
+    if (rA(ctx->opcode) == 0) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
+    } else {
+        /* interpreted as no-op */
+    }
+
+}
+
+/* dss / dssall */
+GEN_HANDLER(dss, 0x1F, 0x16, 0x19, 0x019FF801, PPC_ALTIVEC)
+{
+    /* interpreted as no-op */
+}
+
 /* icbi */
 GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE_ICBI)
 {
