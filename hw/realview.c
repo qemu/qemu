@@ -126,9 +126,7 @@ static void realview_init(ram_addr_t ram_size, int vga_ram_size,
             smc91c111_init(nd, 0x4e000000, pic[28]);
             done_smc = 1;
         } else {
-            if (!nd->model)
-                nd->model = "rtl8139";
-            pci_nic_init(pci_bus, nd, -1);
+            pci_nic_init(pci_bus, nd, -1, "rtl8139");
         }
     }
 

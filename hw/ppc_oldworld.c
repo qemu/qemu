@@ -307,11 +307,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     escc_mem_index = escc_init(0x80013000, pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
 
-    for(i = 0; i < nb_nics; i++) {
-        if (!nd_table[i].model)
-            nd_table[i].model = "ne2k_pci";
-        pci_nic_init(pci_bus, &nd_table[i], -1);
-    }
+    for(i = 0; i < nb_nics; i++)
+        pci_nic_init(pci_bus, &nd_table[i], -1, "ne2k_pci");
 
     /* First IDE channel is a CMD646 on the PCI bus */
 

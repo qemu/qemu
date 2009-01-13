@@ -487,19 +487,16 @@ static void audio_init (PCIBus *pci_bus)
 static void network_init (PCIBus *pci_bus)
 {
     int i;
-    NICInfo *nd;
 
     for(i = 0; i < nb_nics; i++) {
-        nd = &nd_table[i];
-        if (!nd->model) {
-            nd->model = "pcnet";
-        }
-        if (i == 0  && strcmp(nd->model, "pcnet") == 0) {
+        NICInfo *nd = &nd_table[i];
+        int devfn = -1;
+
+        if (i == 0 && (!nd->model || strcmp(nd->model, "pcnet") == 0))
             /* The malta board has a PCNet card using PCI SLOT 11 */
-            pci_nic_init(pci_bus, nd, 88);
-        } else {
-            pci_nic_init(pci_bus, nd, -1);
-        }
+            devfn = 88;
+
+        pci_nic_init(pci_bus, nd, devfn, "pcnet");
     }
 }
 

@@ -652,33 +652,43 @@ void pci_info(void)
     pci_for_each_device(0, pci_info_device);
 }
 
+static const char * const pci_nic_models[] = {
+    "ne2k_pci",
+    "i82551",
+    "i82557b",
+    "i82559er",
+    "rtl8139",
+    "e1000",
+    "pcnet",
+    "virtio",
+    NULL
+};
+
+typedef void (*PCINICInitFn)(PCIBus *, NICInfo *, int);
+
+static PCINICInitFn pci_nic_init_fns[] = {
+    pci_ne2000_init,
+    pci_i82551_init,
+    pci_i82557b_init,
+    pci_i82559er_init,
+    pci_rtl8139_init,
+    pci_e1000_init,
+    pci_pcnet_init,
+    virtio_net_init,
+    NULL
+};
+
 /* Initialize a PCI NIC.  */
-void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
+void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
+                  const char *default_model)
 {
-    if (strcmp(nd->model, "ne2k_pci") == 0) {
-        pci_ne2000_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "i82551") == 0) {
-        pci_i82551_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "i82557b") == 0) {
-        pci_i82557b_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "i82559er") == 0) {
-        pci_i82559er_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "rtl8139") == 0) {
-        pci_rtl8139_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "e1000") == 0) {
-        pci_e1000_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "pcnet") == 0) {
-        pci_pcnet_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "virtio") == 0) {
-        virtio_net_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "?") == 0) {
-        fprintf(stderr, "qemu: Supported PCI NICs: i82551 i82557b i82559er"
-                        " ne2k_pci pcnet rtl8139 e1000 virtio\n");
-        exit (1);
-    } else {
-        fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
-        exit (1);
-    }
+    int i;
+
+    qemu_check_nic_model_list(nd, pci_nic_models, default_model);
+
+    for (i = 0; pci_nic_models[i]; i++)
+        if (strcmp(nd->model, pci_nic_models[i]) == 0)
+            pci_nic_init_fns[i](bus, nd, devfn);
 }
 
 typedef struct {
