@@ -1,7 +1,9 @@
 #ifndef QEMU_CACHE_UTILS_H
 #define QEMU_CACHE_UTILS_H
 
-#ifdef __powerpc__
+#include "config-host.h"
+
+#ifdef HOST_PPC
 struct qemu_cache_conf {
     unsigned long dcache_bsize;
     unsigned long icache_bsize;
