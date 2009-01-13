@@ -652,6 +652,7 @@ typedef struct TAPState {
     VLANClientState *vc;
     int fd;
     char down_script[1024];
+    char down_script_arg[128];
 } TAPState;
 
 #ifdef HAVE_IOVEC
@@ -978,8 +979,10 @@ static int net_tap_init(VLANState *vlan, const char *model,
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "ifname=%s,script=%s,downscript=%s",
              ifname, setup_script, down_script);
-    if (down_script && strcmp(down_script, "no"))
+    if (down_script && strcmp(down_script, "no")) {
         snprintf(s->down_script, sizeof(s->down_script), "%s", down_script);
+        snprintf(s->down_script_arg, sizeof(s->down_script_arg), "%s", ifname);
+    }
     return 0;
 }
 
@@ -1770,13 +1773,10 @@ void net_cleanup(void)
 
         for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
             if (vc->fd_read == tap_receive) {
-                char ifname[64];
                 TAPState *s = vc->opaque;
 
-                if (strcmp(vc->model, "tap") == 0 &&
-                    sscanf(vc->info_str, "ifname=%63s ", ifname) == 1 &&
-                    s->down_script[0])
-                    launch_script(s->down_script, ifname, s->fd);
+                if (s->down_script[0])
+                    launch_script(s->down_script, s->down_script_arg, s->fd);
             }
 #if defined(CONFIG_VDE)
             if (vc->fd_read == vde_from_qemu) {
