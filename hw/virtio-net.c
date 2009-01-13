@@ -315,7 +315,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
+void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     VirtIONet *n;
     static int virtio_net_id;
@@ -326,7 +326,7 @@ PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
                                      sizeof(struct virtio_net_config),
                                      sizeof(VirtIONet));
     if (!n)
-        return NULL;
+        return;
 
     n->vdev.get_config = virtio_net_update_config;
     n->vdev.get_features = virtio_net_get_features;
@@ -347,6 +347,4 @@ PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     register_savevm("virtio-net", virtio_net_id++, 2,
                     virtio_net_save, virtio_net_load, n);
-
-    return (PCIDevice *)n;
 }
