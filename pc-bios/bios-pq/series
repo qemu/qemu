@@ -1,4 +1,1 @@
 0001_bx-qemu.patch
-0002_e820-high-mem.patch
-0003_smp-startup-poll.patch
-0005_hpet.patch
