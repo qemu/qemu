@@ -255,7 +255,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 #endif
         }
         if (ppc_boot_device == '\0') {
-            fprintf(stderr, "No valid boot device for Mac99 machine\n");
+            fprintf(stderr, "No valid boot device for G3 Beige machine\n");
             exit(1);
         }
     }
