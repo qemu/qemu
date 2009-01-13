@@ -391,9 +391,14 @@ static const char *mips_backtrace(void)
 {
     static char buffer[256];
     char *p = buffer;
-    assert(ar7.cpu_env == 0 || cpu_single_env == ar7.cpu_env);
-    p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.PC));
-    p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.gpr[31]));
+    if (cpu_single_env != 0) {
+      assert(ar7.cpu_env == 0 || cpu_single_env == ar7.cpu_env);
+      p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.PC));
+      p += sprintf(p, "[%s]", lookup_symbol(cpu_single_env->active_tc.gpr[31]));
+    } else {
+      /* Called from remote gdb. */
+      p += sprintf(p, "[gdb?]");
+    }
     assert((p - buffer) < sizeof(buffer));
     return buffer;
 }
