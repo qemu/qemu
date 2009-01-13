@@ -71,7 +71,7 @@ tcp_seq tcp_iss;                /* tcp initial send seq # */
 #ifdef TCP_ACK_HACK
 #define TCP_REASS(tp, ti, m, so, flags) {\
        if ((ti)->ti_seq == (tp)->rcv_nxt && \
-           (tp)->seg_next == (tcpiphdrp_32)(tp) && \
+           tcpfrag_list_empty(tp) && \
            (tp)->t_state == TCPS_ESTABLISHED) {\
                if (ti->ti_flags & TH_PUSH) \
                        tp->t_flags |= TF_ACKNOW; \
@@ -94,7 +94,7 @@ tcp_seq tcp_iss;                /* tcp initial send seq # */
 #else
 #define	TCP_REASS(tp, ti, m, so, flags) { \
 	if ((ti)->ti_seq == (tp)->rcv_nxt && \
-	    (tp)->seg_next == (tcpiphdrp_32)(tp) && \
+        tcpfrag_list_empty(tp) && \
 	    (tp)->t_state == TCPS_ESTABLISHED) { \
 		tp->t_flags |= TF_DELACK; \
 		(tp)->rcv_nxt += (ti)->ti_len; \
@@ -134,8 +134,8 @@ tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
 	/*
 	 * Find a segment which begins after this one does.
 	 */
-	for (q = (struct tcpiphdr *)tp->seg_next; q != (struct tcpiphdr *)tp;
-	    q = (struct tcpiphdr *)q->ti_next)
+	for (q = tcpfrag_list_first(tp); !tcpfrag_list_end(q, tp);
+            q = tcpiphdr_next(q))
 		if (SEQ_GT(q->ti_seq, ti->ti_seq))
 			break;
 
@@ -144,9 +144,9 @@ tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
 	 * our data already.  If so, drop the data from the incoming
 	 * segment.  If it provides all of our data, drop us.
 	 */
-	if ((struct tcpiphdr *)q->ti_prev != (struct tcpiphdr *)tp) {
+	if (!tcpfrag_list_end(tcpiphdr_prev(q), tp)) {
 		register int i;
-		q = (struct tcpiphdr *)q->ti_prev;
+		q = tcpiphdr_prev(q);
 		/* conversion to int (in i) handles seq wraparound */
 		i = q->ti_seq + q->ti_len - ti->ti_seq;
 		if (i > 0) {
@@ -166,36 +166,36 @@ tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
 			ti->ti_len -= i;
 			ti->ti_seq += i;
 		}
-		q = (struct tcpiphdr *)(q->ti_next);
+		q = tcpiphdr_next(q);
 	}
 	STAT(tcpstat.tcps_rcvoopack++);
 	STAT(tcpstat.tcps_rcvoobyte += ti->ti_len);
-	REASS_MBUF(ti) = (mbufp_32) m;		/* XXX */
+	ti->ti_mbuf = m;
 
 	/*
 	 * While we overlap succeeding segments trim them or,
 	 * if they are completely covered, dequeue them.
 	 */
-	while (q != (struct tcpiphdr *)tp) {
+	while (!tcpfrag_list_end(q, tp)) {
 		register int i = (ti->ti_seq + ti->ti_len) - q->ti_seq;
 		if (i <= 0)
 			break;
 		if (i < q->ti_len) {
 			q->ti_seq += i;
 			q->ti_len -= i;
-			m_adj((struct mbuf *) REASS_MBUF(q), i);
+			m_adj(q->ti_mbuf, i);
 			break;
 		}
-		q = (struct tcpiphdr *)q->ti_next;
-		m = (struct mbuf *) REASS_MBUF((struct tcpiphdr *)q->ti_prev);
-		remque_32((void *)(q->ti_prev));
+		q = tcpiphdr_next(q);
+		m = tcpiphdr_prev(q)->ti_mbuf;
+		remque(tcpiphdr2qlink(tcpiphdr_prev(q)));
 		m_freem(m);
 	}
 
 	/*
 	 * Stick new segment in its place.
 	 */
-	insque_32(ti, (void *)(q->ti_prev));
+	insque(tcpiphdr2qlink(ti), tcpiphdr2qlink(tcpiphdr_prev(q)));
 
 present:
 	/*
@@ -204,17 +204,17 @@ present:
 	 */
 	if (!TCPS_HAVEESTABLISHED(tp->t_state))
 		return (0);
-	ti = (struct tcpiphdr *) tp->seg_next;
-	if (ti == (struct tcpiphdr *)tp || ti->ti_seq != tp->rcv_nxt)
+	ti = tcpfrag_list_first(tp);
+	if (tcpfrag_list_end(ti, tp) || ti->ti_seq != tp->rcv_nxt)
 		return (0);
 	if (tp->t_state == TCPS_SYN_RECEIVED && ti->ti_len)
 		return (0);
 	do {
 		tp->rcv_nxt += ti->ti_len;
 		flags = ti->ti_flags & TH_FIN;
-		remque_32(ti);
-		m = (struct mbuf *) REASS_MBUF(ti); /* XXX */
-		ti = (struct tcpiphdr *)ti->ti_next;
+		remque(tcpiphdr2qlink(ti));
+		m = ti->ti_mbuf;
+		ti = tcpiphdr_next(ti);
 /*		if (so->so_state & SS_FCANTRCVMORE) */
 		if (so->so_state & SS_FCANTSENDMORE)
 			m_freem(m);
@@ -302,7 +302,8 @@ tcp_input(m, iphlen, inso)
 	 * Checksum extended TCP header and data.
 	 */
 	tlen = ((struct ip *)ti)->ip_len;
-	ti->ti_next = ti->ti_prev = 0;
+	tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = 0;
+    memset(&ti->ti_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
 	ti->ti_x1 = 0;
 	ti->ti_len = htons((u_int16_t)tlen);
 	len = sizeof(struct ip ) + tlen;
@@ -560,7 +561,7 @@ findso:
 				return;
 			}
 		} else if (ti->ti_ack == tp->snd_una &&
-		    tp->seg_next == (tcpiphdrp_32)tp &&
+		    tcpfrag_list_empty(tp) &&
 		    ti->ti_len <= sbspace(&so->so_rcv)) {
 			/*
 			 * this is a pure, in-sequence data packet
