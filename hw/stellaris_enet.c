@@ -389,6 +389,8 @@ void stellaris_enet_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     stellaris_enet_state *s;
     int iomemtype;
 
+    qemu_check_nic_model(nd, "stellaris");
+
     s = (stellaris_enet_state *)qemu_mallocz(sizeof(stellaris_enet_state));
     iomemtype = cpu_register_io_memory(0, stellaris_enet_readfn,
                                        stellaris_enet_writefn, s);

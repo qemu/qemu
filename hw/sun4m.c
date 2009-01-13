@@ -536,17 +536,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
-    if (nd_table[0].model == NULL)
-        nd_table[0].model = "lance";
-    if (strcmp(nd_table[0].model, "lance") == 0) {
-        lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
-    } else if (strcmp(nd_table[0].model, "?") == 0) {
-        fprintf(stderr, "qemu: Supported NICs: lance\n");
-        exit (1);
-    } else {
-        fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
-        exit (1);
-    }
+    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
@@ -558,8 +548,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                               nographic, ESCC_CLOCK, 1);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    escc_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq], serial_hds[1],
-              serial_hds[0], ESCC_CLOCK, 1);
+    escc_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq], serial_hds[0],
+              serial_hds[1], ESCC_CLOCK, 1);
 
     cpu_halt = qemu_allocate_irqs(cpu_halt_signal, NULL, 1);
     slavio_misc = slavio_misc_init(hwdef->slavio_base, hwdef->apc_base,
@@ -1329,17 +1319,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
-    if (nd_table[0].model == NULL)
-        nd_table[0].model = "lance";
-    if (strcmp(nd_table[0].model, "lance") == 0) {
-        lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
-    } else if (strcmp(nd_table[0].model, "?") == 0) {
-        fprintf(stderr, "qemu: Supported NICs: lance\n");
-        exit (1);
-    } else {
-        fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
-        exit (1);
-    }
+    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
 
     nvram = m48t59_init(sbi_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 8);
@@ -1351,8 +1331,8 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
                               nographic, ESCC_CLOCK, 1);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    escc_init(hwdef->serial_base, sbi_irq[hwdef->ser_irq], serial_hds[1],
-              serial_hds[0], ESCC_CLOCK, 1);
+    escc_init(hwdef->serial_base, sbi_irq[hwdef->ser_irq], serial_hds[0],
+              serial_hds[1], ESCC_CLOCK, 1);
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
         fprintf(stderr, "qemu: too many SCSI bus\n");
@@ -1545,17 +1525,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     tcx_init(ds, hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
              hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
 
-    if (nd_table[0].model == NULL)
-        nd_table[0].model = "lance";
-    if (strcmp(nd_table[0].model, "lance") == 0) {
-        lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
-    } else if (strcmp(nd_table[0].model, "?") == 0) {
-        fprintf(stderr, "qemu: Supported NICs: lance\n");
-        exit (1);
-    } else {
-        fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
-        exit (1);
-    }
+    lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0,
                         hwdef->nvram_size, 2);
@@ -1564,8 +1534,8 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
                               nographic, ESCC_CLOCK, 1);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    escc_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq], serial_hds[1],
-              serial_hds[0], ESCC_CLOCK, 1);
+    escc_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq], serial_hds[0],
+              serial_hds[1], ESCC_CLOCK, 1);
 
     slavio_misc = slavio_misc_init(0, 0, hwdef->aux1_base, 0,
                                    slavio_irq[hwdef->me_irq], NULL, &fdc_tc);

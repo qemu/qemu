@@ -230,9 +230,9 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
         drives_table[drive_get_index(IF_IDE, 0, 0)].bdrv, NULL);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
-    pci_rtl8139_init(pci, &nd_table[0], 2 << 3);
+    pci_nic_init(pci, &nd_table[0], 2 << 3, "rtl8139");
     for (i = 1; i < nb_nics; i++)
-        pci_nic_init(pci, &nd_table[i], -1);
+        pci_nic_init(pci, &nd_table[i], -1, "ne2k_pci");
 
     /* Todo: register on board registers */
     {

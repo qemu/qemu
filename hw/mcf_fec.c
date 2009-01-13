@@ -446,6 +446,8 @@ void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq)
     mcf_fec_state *s;
     int iomemtype;
 
+    qemu_check_nic_model(nd, "mcf_fec");
+
     s = (mcf_fec_state *)qemu_mallocz(sizeof(mcf_fec_state));
     s->irq = irq;
     iomemtype = cpu_register_io_memory(0, mcf_fec_readfn,

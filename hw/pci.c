@@ -654,46 +654,63 @@ void pci_info(void)
     pci_for_each_device(0, pci_info_device);
 }
 
-/* Initialize a PCI NIC.  */
-void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn)
-{
-    if (strcmp(nd->model, "ne2k_pci") == 0) {
-        pci_ne2000_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "dp83816") == 0) {
-        pci_dp83816_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "e100") == 0) {
-        pci_e100_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "e1000") == 0) {
-        pci_e1000_init(bus, nd, devfn);
-    } else if ((strcmp(nd->model, "i82551") == 0) ||
-               (strcmp(nd->model, "i82557a") == 0) ||
-               (strcmp(nd->model, "i82557b") == 0) ||
-               (strcmp(nd->model, "i82557c") == 0) ||
-               (strcmp(nd->model, "i82558b") == 0) ||
-               (strcmp(nd->model, "i82559c") == 0) ||
-               (strcmp(nd->model, "i82559er") == 0)) {
-        pci_eepro100_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "rtl8139") == 0) {
-        pci_rtl8139_init(bus, nd, devfn);
+static const char * const pci_nic_models[] = {
 #if !defined(CONFIG_WIN32)
-    } else if (strncmp(nd->model, "atheros_wlan", 12) == 0) {
-        pci_Atheros_WLAN_init(bus, nd, devfn);
+    "atheros_wlan",
 #endif
-    } else if (strcmp(nd->model, "pcnet") == 0) {
-        pci_pcnet_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "tnetw1130") == 0) {
-        pci_tnetw1130_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "virtio") == 0) {
-        virtio_net_init(bus, nd, devfn);
-    } else if (strcmp(nd->model, "?") == 0) {
-        fprintf(stderr, "qemu: Supported PCI NICs: dp83816 e100 e1000"
-                        " i82551 i82557a i82557b i82557c i82558b i82559c i82559er"
-                        " ne2k_pci pcnet rtl8139 tnetw1130 virtio\n");
-        exit (1);
-    } else {
-        fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
-        exit (1);
-    }
+    "dp83816",
+    "e100",
+    "ne2k_pci",
+    "i82551",
+    "i82557a",
+    "i82557b",
+    "i82557c",
+    "i82558b",
+    "i82559c",
+    "i82559er",
+    "rtl8139",
+    "e1000",
+    "pcnet",
+    "tnetw1130",
+    "virtio",
+    NULL
+};
+
+typedef void (*PCINICInitFn)(PCIBus *, NICInfo *, int);
+
+static PCINICInitFn pci_nic_init_fns[] = {
+#if !defined(CONFIG_WIN32)
+    pci_Atheros_WLAN_init,
+#endif
+    pci_dp83816_init,
+    pci_e100_init,
+    pci_ne2000_init,
+    pci_eepro100_init,
+    pci_eepro100_init,
+    pci_eepro100_init,
+    pci_eepro100_init,
+    pci_eepro100_init,
+    pci_eepro100_init,
+    pci_eepro100_init,
+    pci_rtl8139_init,
+    pci_e1000_init,
+    pci_pcnet_init,
+    pci_tnetw1130_init,
+    virtio_net_init,
+    NULL
+};
+
+/* Initialize a PCI NIC.  */
+void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
+                  const char *default_model)
+{
+    int i;
+
+    qemu_check_nic_model_list(nd, pci_nic_models, default_model);
+
+    for (i = 0; pci_nic_models[i]; i++)
+        if (strcmp(nd->model, pci_nic_models[i]) == 0)
+            pci_nic_init_fns[i](bus, nd, devfn);
 }
 
 typedef struct {

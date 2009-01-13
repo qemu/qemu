@@ -159,6 +159,13 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* allocate RAM */
+    if (ram_size > (2047 << 20)) {
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d MB, maximum 2047 MB\n",
+                ((unsigned int)ram_size / (1 << 20)));
+        exit(1);
+    }
+
     ram_offset = qemu_ram_alloc(ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);
 
@@ -255,7 +262,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 #endif
         }
         if (ppc_boot_device == '\0') {
-            fprintf(stderr, "No valid boot device for Mac99 machine\n");
+            fprintf(stderr, "No valid boot device for G3 Beige machine\n");
             exit(1);
         }
     }
@@ -300,11 +307,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     escc_mem_index = escc_init(0x80013000, pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
 
-    for(i = 0; i < nb_nics; i++) {
-        if (!nd_table[i].model)
-            nd_table[i].model = "ne2k_pci";
-        pci_nic_init(pci_bus, &nd_table[i], -1);
-    }
+    for(i = 0; i < nb_nics; i++)
+        pci_nic_init(pci_bus, &nd_table[i], -1, "ne2k_pci");
 
     /* First IDE channel is a CMD646 on the PCI bus */
 

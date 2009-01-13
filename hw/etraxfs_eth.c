@@ -561,6 +561,8 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	struct etraxfs_dma_client *dma = NULL;	
 	struct fs_eth *eth = NULL;
 
+	qemu_check_nic_model(nd, "fseth");
+
 	dma = qemu_mallocz(sizeof *dma * 2);
 	if (!dma)
 		return NULL;

@@ -194,12 +194,12 @@ static void versatile_init(ram_addr_t ram_size, int vga_ram_size,
        so many of the qemu PCI devices are not useable.  */
     for(n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
-        if (!nd->model)
-            nd->model = done_smc ? "rtl8139" : "smc91c111";
-        if (strcmp(nd->model, "smc91c111") == 0) {
+
+        if ((!nd->model && !done_smc) || strcmp(nd->model, "smc91c111") == 0) {
             smc91c111_init(nd, 0x10010000, sic[25]);
+            done_smc = 1;
         } else {
-            pci_nic_init(pci_bus, nd, -1);
+            pci_nic_init(pci_bus, nd, -1, "rtl8139");
         }
     }
     if (usb_enabled) {

@@ -44,8 +44,7 @@ struct tcpiphdr {
 	struct 	ipovly ti_i;		/* overlaid ip structure */
 	struct	tcphdr ti_t;		/* tcp header */
 };
-#define	ti_next		ti_i.ih_next
-#define	ti_prev		ti_i.ih_prev
+#define	ti_mbuf		ti_i.ih_mbuf.mptr
 #define	ti_x1		ti_i.ih_x1
 #define	ti_pr		ti_i.ih_pr
 #define	ti_len		ti_i.ih_len
@@ -61,6 +60,14 @@ struct tcpiphdr {
 #define	ti_win		ti_t.th_win
 #define	ti_sum		ti_t.th_sum
 #define	ti_urp		ti_t.th_urp
+
+#define tcpiphdr2qlink(T) ((struct qlink*)(((char*)(T)) - sizeof(struct qlink)))
+#define qlink2tcpiphdr(Q) ((struct tcpiphdr*)(((char*)(Q)) + sizeof(struct qlink)))
+#define tcpiphdr_next(T) qlink2tcpiphdr(tcpiphdr2qlink(T)->next)
+#define tcpiphdr_prev(T) qlink2tcpiphdr(tcpiphdr2qlink(T)->prev)
+#define tcpfrag_list_first(T) qlink2tcpiphdr((T)->seg_next)
+#define tcpfrag_list_end(F, T) (tcpiphdr2qlink(F) == (struct qlink*)(T))
+#define tcpfrag_list_empty(T) ((T)->seg_next == (struct tcpiphdr*)(T))
 
 /*
  * Just a clean way to get to the first byte

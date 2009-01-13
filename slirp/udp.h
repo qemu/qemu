@@ -60,8 +60,7 @@ struct udpiphdr {
 	        struct  ipovly ui_i;            /* overlaid ip structure */
 	        struct  udphdr ui_u;            /* udp header */
 };
-#define ui_next         ui_i.ih_next
-#define ui_prev         ui_i.ih_prev
+#define ui_mbuf         ui_i.ih_mbuf.mptr
 #define ui_x1           ui_i.ih_x1
 #define ui_pr           ui_i.ih_pr
 #define ui_len          ui_i.ih_len
