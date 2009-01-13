@@ -159,6 +159,13 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* allocate RAM */
+    if (ram_size > (2047 << 20)) {
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d MB, maximum 2047 MB\n",
+                ((unsigned int)ram_size / (1 << 20)));
+        exit(1);
+    }
+
     ram_offset = qemu_ram_alloc(ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);
 
