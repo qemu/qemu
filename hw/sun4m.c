@@ -1564,8 +1564,8 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
                               nographic, ESCC_CLOCK, 1);
     // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
     // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
-    escc_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq], serial_hds[1],
-              serial_hds[0], ESCC_CLOCK, 1);
+    escc_init(hwdef->serial_base, slavio_irq[hwdef->ser_irq], serial_hds[0],
+              serial_hds[1], ESCC_CLOCK, 1);
 
     slavio_misc = slavio_misc_init(0, 0, hwdef->aux1_base, 0,
                                    slavio_irq[hwdef->me_irq], NULL, &fdc_tc);
