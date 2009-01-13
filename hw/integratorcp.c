@@ -497,18 +497,8 @@ static void integratorcp_init(ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
     pl181_init(0x1c000000, drives_table[sd].bdrv, pic[23], pic[24]);
-    if (nd_table[0].vlan) {
-        if (nd_table[0].model == NULL
-            || strcmp(nd_table[0].model, "smc91c111") == 0) {
-            smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
-        } else if (strcmp(nd_table[0].model, "?") == 0) {
-            fprintf(stderr, "qemu: Supported NICs: smc91c111\n");
-            exit (1);
-        } else {
-            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
-            exit (1);
-        }
-    }
+    if (nd_table[0].vlan)
+        smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
     pl110_init(ds, 0xc0000000, pic[22], 0);
 
     integrator_binfo.ram_size = ram_size;

@@ -175,19 +175,9 @@ mips_mipssim_init (ram_addr_t ram_size, int vga_ram_size,
     if (serial_hds[0])
         serial_init(0x3f8, env->irq[4], 115200, serial_hds[0]);
 
-    if (nd_table[0].vlan) {
-        if (nd_table[0].model == NULL
-            || strcmp(nd_table[0].model, "mipsnet") == 0) {
-            /* MIPSnet uses the MIPS CPU INT0, which is interrupt 2. */
-            mipsnet_init(0x4200, env->irq[2], &nd_table[0]);
-        } else if (strcmp(nd_table[0].model, "?") == 0) {
-            fprintf(stderr, "qemu: Supported NICs: mipsnet\n");
-            exit (1);
-        } else {
-            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd_table[0].model);
-            exit (1);
-        }
-    }
+    if (nd_table[0].vlan)
+        /* MIPSnet uses the MIPS CPU INT0, which is interrupt 2. */
+        mipsnet_init(0x4200, env->irq[2], &nd_table[0]);
 }
 
 QEMUMachine mips_mipssim_machine = {

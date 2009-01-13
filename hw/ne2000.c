@@ -722,6 +722,8 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
 {
     NE2000State *s;
 
+    qemu_check_nic_model(nd, "ne2k_isa");
+
     s = qemu_mallocz(sizeof(NE2000State));
     if (!s)
         return;

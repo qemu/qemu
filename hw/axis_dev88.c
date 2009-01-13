@@ -303,13 +303,10 @@ void axisdev88_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* Add the two ethernet blocks.  */
-    nd_table[0].model = nd_table[0].model ? nd_table[0].model : "fseth";
     eth[0] = etraxfs_eth_init(&nd_table[0], env, pic->irq + 25, 0x30034000, 1);
-    if (nb_nics > 1) {
-        nd_table[1].model = nd_table[1].model ? nd_table[1].model : "fseth";
+    if (nb_nics > 1)
         eth[1] = etraxfs_eth_init(&nd_table[1], env,
                                   pic->irq + 26, 0x30036000, 2);
-    }
 
     /* The DMA Connector block is missing, hardwire things for now.  */
     etraxfs_dmac_connect_client(etraxfs_dmac, 0, eth[0]);
