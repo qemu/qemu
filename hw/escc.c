@@ -719,8 +719,9 @@ static int escc_load(QEMUFile *f, void *opaque, int version_id)
 
 }
 
-int escc_init(target_phys_addr_t base, qemu_irq irq, CharDriverState *chrA,
-              CharDriverState *chrB, int clock, int it_shift)
+int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
+              CharDriverState *chrA, CharDriverState *chrB,
+              int clock, int it_shift)
 {
     int escc_io_memory, i;
     SerialState *s;
@@ -741,9 +742,10 @@ int escc_init(target_phys_addr_t base, qemu_irq irq, CharDriverState *chrA,
     s->chn[1].chr = chrA;
     s->chn[0].disabled = 0;
     s->chn[1].disabled = 0;
+    s->chn[0].irq = irqB;
+    s->chn[1].irq = irqA;
 
     for (i = 0; i < 2; i++) {
-        s->chn[i].irq = irq;
         s->chn[i].chn = 1 - i;
         s->chn[i].type = ser;
         s->chn[i].clock = clock / 2;
