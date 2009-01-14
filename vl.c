@@ -3825,7 +3825,7 @@ static int main_loop(void)
     return ret;
 }
 
-static void __attribute__((__noreturn__)) help(int exitcode)
+static void noreturn help(int exitcode)
 {
     printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"

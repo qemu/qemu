@@ -136,7 +136,7 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
                             abi_long arg5, abi_long arg6);
 void gemu_log(const char *fmt, ...) __attribute__((format(printf,1,2)));
 extern THREAD CPUState *thread_env;
-void cpu_loop(CPUState *env, enum BSDType bsd_type);
+void noreturn cpu_loop(CPUState *env, enum BSDType bsd_type);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
 char *target_strerror(int err);

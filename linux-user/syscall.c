@@ -2829,7 +2829,7 @@ typedef struct {
     sigset_t sigmask;
 } new_thread_info;
 
-static void *clone_func(void *arg)
+static void * noreturn clone_func(void *arg)
 {
     new_thread_info *info = arg;
     CPUState *env;
@@ -2852,19 +2852,17 @@ static void *clone_func(void *arg)
     pthread_mutex_unlock(&clone_lock);
     cpu_loop(env);
     /* never exits */
-    return NULL;
 }
 #else
 /* this stack is the equivalent of the kernel stack associated with a
    thread/process */
 #define NEW_STACK_SIZE 8192
 
-static int clone_func(void *arg)
+static int noreturn clone_func(void *arg)
 {
     CPUState *env = arg;
     cpu_loop(env);
     /* never exits */
-    return 0;
 }
 #endif
 

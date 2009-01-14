@@ -380,7 +380,7 @@ static void do_info_cpu_stats (void)
 }
 #endif
 
-static void __attribute__((__noreturn__)) do_quit(void)
+static void noreturn do_quit(void)
 {
     exit(0);
 }
@@ -1943,7 +1943,7 @@ static const MonitorDef monitor_defs[] = {
     { NULL },
 };
 
-static void __attribute__((__noreturn__)) expr_error(const char *msg)
+static void noreturn expr_error(const char *msg)
 {
     term_printf("%s\n", msg);
     longjmp(expr_env, 1);

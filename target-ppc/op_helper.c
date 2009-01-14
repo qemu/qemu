@@ -31,7 +31,7 @@
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
-void helper_raise_exception_err (uint32_t exception, uint32_t error_code)
+void noreturn helper_raise_exception_err (uint32_t exception, uint32_t error_code)
 {
 #if 0
     printf("Raise exception %3x code : %d\n", exception, error_code);
@@ -41,7 +41,7 @@ void helper_raise_exception_err (uint32_t exception, uint32_t error_code)
     cpu_loop_exit();
 }
 
-void helper_raise_exception (uint32_t exception)
+void noreturn helper_raise_exception (uint32_t exception)
 {
     helper_raise_exception_err(exception, 0);
 }

@@ -327,7 +327,7 @@ static void set_idt(int n, unsigned int dpl)
 }
 #endif
 
-void __attribute((noreturn)) cpu_loop(CPUX86State *env)
+void cpu_loop(CPUX86State *env)
 {
     int trapnr;
     abi_ulong pc;
@@ -552,7 +552,7 @@ do_kernel_trap(CPUARMState *env)
     return 0;
 }
 
-void __attribute((noreturn)) cpu_loop(CPUARMState *env)
+void cpu_loop(CPUARMState *env)
 {
     int trapnr;
     unsigned int n, insn;
@@ -881,7 +881,7 @@ static void flush_windows(CPUSPARCState *env)
 #endif
 }
 
-void __attribute((noreturn)) cpu_loop (CPUSPARCState *env)
+void cpu_loop (CPUSPARCState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
@@ -1063,7 +1063,7 @@ do {                                                                          \
     }                                                                         \
 } while (0)
 
-void __attribute((noreturn)) cpu_loop(CPUPPCState *env)
+void cpu_loop(CPUPPCState *env)
 {
     target_siginfo_t info;
     int trapnr;
@@ -1795,7 +1795,7 @@ static const uint8_t mips_syscall_args[] = {
 
 #undef MIPS_SYS
 
-void __attribute((noreturn)) cpu_loop(CPUMIPSState *env)
+void cpu_loop(CPUMIPSState *env)
 {
     target_siginfo_t info;
     int trapnr, ret;
@@ -1880,7 +1880,7 @@ void __attribute((noreturn)) cpu_loop(CPUMIPSState *env)
 #endif
 
 #ifdef TARGET_SH4
-void __attribute((noreturn)) cpu_loop (CPUState *env)
+void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
@@ -1938,7 +1938,7 @@ void __attribute((noreturn)) cpu_loop (CPUState *env)
 #endif
 
 #ifdef TARGET_CRIS
-void __attribute((noreturn)) cpu_loop (CPUState *env)
+void cpu_loop (CPUState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
@@ -1996,7 +1996,7 @@ void __attribute((noreturn)) cpu_loop (CPUState *env)
 
 #ifdef TARGET_M68K
 
-void __attribute((noreturn)) cpu_loop(CPUM68KState *env)
+void cpu_loop(CPUM68KState *env)
 {
     int trapnr;
     unsigned int n;
@@ -2087,7 +2087,7 @@ void __attribute((noreturn)) cpu_loop(CPUM68KState *env)
 #endif /* TARGET_M68K */
 
 #ifdef TARGET_ALPHA
-void __attribute((noreturn)) cpu_loop (CPUState *env)
+void cpu_loop (CPUState *env)
 {
     int trapnr;
     target_siginfo_t info;
@@ -2175,7 +2175,7 @@ void __attribute((noreturn)) cpu_loop (CPUState *env)
 }
 #endif /* TARGET_ALPHA */
 
-static void __attribute((noreturn)) usage(void)
+static void noreturn usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
            "usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"

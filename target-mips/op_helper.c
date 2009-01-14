@@ -26,7 +26,7 @@
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
-void do_raise_exception_err (uint32_t exception, int error_code)
+void noreturn do_raise_exception_err (uint32_t exception, int error_code)
 {
 #if 1
     if (logfile && exception < 0x100)
@@ -37,7 +37,7 @@ void do_raise_exception_err (uint32_t exception, int error_code)
     cpu_loop_exit();
 }
 
-void do_raise_exception (uint32_t exception)
+void noreturn do_raise_exception (uint32_t exception)
 {
     do_raise_exception_err(exception, 0);
 }
@@ -1832,7 +1832,7 @@ void do_pmon (int function)
     }
 }
 
-void do_wait (void)
+void noreturn do_wait (void)
 {
     env->halted = 1;
     do_raise_exception(EXCP_HLT);
@@ -1857,7 +1857,8 @@ static void do_unaligned_access (target_ulong addr, int is_write, int is_user, v
 #define SHIFT 3
 #include "softmmu_template.h"
 
-static void do_unaligned_access (target_ulong addr, int is_write, int is_user, void *retaddr)
+static void noreturn do_unaligned_access (target_ulong addr, int is_write,
+                                          int is_user, void *retaddr)
 {
     env->CP0_BadVAddr = addr;
     do_restore_state (retaddr);
@@ -1892,8 +1893,8 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     env = saved_env;
 }
 
-void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
-                          int unused, int size)
+void noreturn do_unassigned_access(target_phys_addr_t addr, int is_write,
+                                   int is_exec, int unused, int size)
 {
     if (is_exec)
         do_raise_exception(EXCP_IBE);

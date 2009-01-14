@@ -50,7 +50,7 @@ static void format_print(void *opaque, const char *name)
     printf(" %s", name);
 }
 
-static void __attribute__((__noreturn__)) help(void)
+static void noreturn help(void)
 {
     printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2008 Fabrice Bellard\n"
            "usage: qemu-img command [command options]\n"

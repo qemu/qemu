@@ -79,8 +79,8 @@ int cpu_restore_state(struct TranslationBlock *tb,
 int cpu_restore_state_copy(struct TranslationBlock *tb,
                            CPUState *env, unsigned long searched_pc,
                            void *puc);
-void cpu_resume_from_signal(CPUState *env1, void *puc) __attribute__((__noreturn__));
-void cpu_io_recompile(CPUState *env, void *retaddr) __attribute__((__noreturn__));
+void noreturn cpu_resume_from_signal(CPUState *env1, void *puc);
+void noreturn cpu_io_recompile(CPUState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUState *env, 
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
