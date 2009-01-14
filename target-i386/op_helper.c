@@ -639,7 +639,7 @@ static void do_interrupt_protected(int intno, int is_int, int error_code,
     target_ulong ptr, ssp;
     int type, dpl, selector, ss_dpl, cpl;
     int has_error_code, new_stack, shift;
-    uint32_t e1, e2, offset, ss, esp, ss_e1, ss_e2;
+    uint32_t e1, e2, offset, ss = 0, esp, ss_e1 = 0, ss_e2 = 0;
     uint32_t old_eip, sp_mask;
 
     has_error_code = 0;
@@ -2271,7 +2271,7 @@ void helper_lcall_protected(int new_cs, target_ulong new_eip,
 {
     int new_stack, i;
     uint32_t e1, e2, cpl, dpl, rpl, selector, offset, param_count;
-    uint32_t ss, ss_e1, ss_e2, sp, type, ss_dpl, sp_mask;
+    uint32_t ss = 0, ss_e1 = 0, ss_e2 = 0, sp, type, ss_dpl, sp_mask;
     uint32_t val, limit, old_sp_mask;
     target_ulong ssp, old_ssp, next_eip;
 
