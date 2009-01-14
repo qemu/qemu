@@ -1,9 +1,7 @@
 #ifndef QEMU_CACHE_UTILS_H
 #define QEMU_CACHE_UTILS_H
 
-#include "config-host.h"
-
-#if defined HOST_PPC || defined HOST_PPC64
+#if defined(_ARCH_PPC)
 struct qemu_cache_conf {
     unsigned long dcache_bsize;
     unsigned long icache_bsize;

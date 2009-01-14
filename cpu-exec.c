@@ -1218,7 +1218,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
                              &uc->uc_sigmask, puc);
 }
 
-#elif defined(__powerpc__)
+#elif defined(_ARCH_PPC)
 
 /***********************************************************************
  * signal context platform-specific definitions

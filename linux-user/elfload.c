@@ -12,7 +12,7 @@
 #include "qemu.h"
 #include "disas.h"
 
-#ifdef __powerpc64__
+#ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
 #undef ELF_PLATFORM
 #undef ELF_HWCAP

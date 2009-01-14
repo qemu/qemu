@@ -2546,7 +2546,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
         char *dpy;
         dpy = qemu_malloc(256);
         if (strncmp(display, "unix:", 5) == 0) {
-            strcpy(dpy, "unix:");
+            pstrcpy(dpy, 256, "unix:");
             vs->lsock = unix_listen(display+5, dpy+5, 256-5);
         } else {
             vs->lsock = inet_listen(display, dpy, 256, SOCK_STREAM, 5900);

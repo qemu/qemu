@@ -117,7 +117,7 @@ static inline int tlb_set_page(CPUState *env1, target_ulong vaddr,
 #define CODE_GEN_AVG_BLOCK_SIZE 64
 #endif
 
-#if defined(__powerpc__) || defined(__x86_64__) || defined(__arm__)
+#if defined(_ARCH_PPC) || defined(__x86_64__) || defined(__arm__)
 #define USE_DIRECT_JUMP
 #endif
 #if defined(__i386__) && !defined(_WIN32)
@@ -192,7 +192,7 @@ extern int code_gen_max_blocks;
 
 #if defined(USE_DIRECT_JUMP)
 
-#if defined(__powerpc__)
+#if defined(_ARCH_PPC)
 extern void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)

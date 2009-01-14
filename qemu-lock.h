@@ -58,7 +58,7 @@ static inline void resetlock (spinlock_t *p)
 
 #endif
 
-#if defined(__powerpc__)
+#if defined(_ARCH_PPC)
 static inline int testandset (int *p)
 {
     int ret;
