@@ -107,7 +107,7 @@ int inet_listen(const char *str, char *ostr, int olen,
     /* parse address */
     if (str[0] == ':') {
         /* no host given */
-        strcpy(addr,"");
+        addr[0] = '\0';
         if (1 != sscanf(str,":%32[^,]%n",port,&pos)) {
             fprintf(stderr, "%s: portonly parse error (%s)\n",
                     __FUNCTION__, str);
