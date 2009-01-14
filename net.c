@@ -1516,7 +1516,7 @@ void qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
     int i, exit_status = 0;
 
     if (!nd->model)
-        nd->model = strdup(default_model);
+        nd->model = default_model;
 
     if (strcmp(nd->model, "?") != 0) {
         for (i = 0 ; models[i]; i++)
