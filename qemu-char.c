@@ -2053,11 +2053,11 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     if (is_listen) {
         chr->filename = qemu_malloc(256);
         if (is_unix) {
-            strcpy(chr->filename, "unix:");
+            pstrcpy(chr->filename, 256, "unix:");
         } else if (is_telnet) {
-            strcpy(chr->filename, "telnet:");
+            pstrcpy(chr->filename, 256, "telnet:");
         } else {
-            strcpy(chr->filename, "tcp:");
+            pstrcpy(chr->filename, 256, "tcp:");
         }
         offset = strlen(chr->filename);
     }

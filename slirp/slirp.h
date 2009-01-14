@@ -120,12 +120,11 @@ typedef unsigned char u_int8_t;
 #include <sys/uio.h>
 #endif
 
-#ifndef _P
+#undef _P
 #ifndef NO_PROTOTYPES
 #  define   _P(x)   x
 #else
 #  define   _P(x)   ()
-#endif
 #endif
 
 #ifndef _WIN32

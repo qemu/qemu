@@ -144,8 +144,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);
         }
-        /* Set time-base frequency to 100 Mhz */
-        cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+        /* Set time-base frequency to 16.6 Mhz */
+        cpu_ppc_tb_init(env,  16600000UL);
         env->osi_call = vga_osi_call;
         qemu_register_reset(&cpu_ppc_reset, env);
         envs[i] = env;
@@ -304,7 +304,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     /* XXX: suppress that */
     dummy_irq = i8259_init(NULL);
 
-    escc_mem_index = escc_init(0x80013000, pic[0x10], serial_hds[0],
+    escc_mem_index = escc_init(0x80013000, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
 
     for(i = 0; i < nb_nics; i++)

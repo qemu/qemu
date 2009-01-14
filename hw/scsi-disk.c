@@ -821,7 +821,7 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv, int tcq,
     strncpy(s->drive_serial_str, drive_get_serial(s->bdrv),
             sizeof(s->drive_serial_str));
     if (strlen(s->drive_serial_str) == 0)
-        strcpy(s->drive_serial_str, "0"); 
+        pstrcpy(s->drive_serial_str, sizeof(s->drive_serial_str), "0");
     d = (SCSIDevice *)qemu_mallocz(sizeof(SCSIDevice));
     d->state = s;
     d->destroy = scsi_destroy;
