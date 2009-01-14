@@ -201,8 +201,6 @@ typedef struct CPUWatchpoint {
     jmp_buf jmp_env;                                                    \
     int exception_index;                                                \
                                                                         \
-    int user_mode_only;                                                 \
-                                                                        \
     void *next_cpu; /* next CPU sharing TB cache */                     \
     int cpu_index; /* CPU index (informative) */                        \
     int running; /* Nonzero if cpu is currently running(usermode).  */  \

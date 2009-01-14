@@ -2421,7 +2421,6 @@ int main(int argc, char **argv, char **envp)
     init_task_state(ts);
     ts->info = info;
     env->opaque = ts;
-    env->user_mode_only = 1;
 
 #if defined(TARGET_I386)
     cpu_x86_set_cpl(env, 3);

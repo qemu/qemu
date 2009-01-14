@@ -199,10 +199,6 @@ int main(int argc, char **argv)
 
     env = cpu_init("qemu32");
 
-    /* set user mode state (XXX: should be done automatically by
-       cpu_init ?) */
-    env->user_mode_only = 1;
-
     cpu_x86_set_cpl(env, 3);
 
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;

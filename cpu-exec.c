@@ -263,7 +263,8 @@ int cpu_exec(CPUState *env1)
                     if (ret == EXCP_DEBUG)
                         cpu_handle_debug_exception(env);
                     break;
-                } else if (env->user_mode_only) {
+                } else {
+#if defined(CONFIG_USER_ONLY)
                     /* if user mode only, we simulate a fake exception
                        which will be handled outside the cpu execution
                        loop */
@@ -277,7 +278,7 @@ int cpu_exec(CPUState *env1)
 #endif
                     ret = env->exception_index;
                     break;
-                } else {
+#else
 #if defined(TARGET_I386)
                     /* simulate a real cpu exception. On i386, it can
                        trigger new exceptions, but we do not handle
@@ -304,6 +305,7 @@ int cpu_exec(CPUState *env1)
                     do_interrupt(env);
 #elif defined(TARGET_M68K)
                     do_interrupt(0);
+#endif
 #endif
                 }
                 env->exception_index = -1;

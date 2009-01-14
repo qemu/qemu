@@ -558,7 +558,6 @@ int main(int argc, char **argv)
     init_task_state(ts);
     ts->info = info;
     env->opaque = ts;
-    env->user_mode_only = 1;
 
 #if defined(TARGET_SPARC)
     {
