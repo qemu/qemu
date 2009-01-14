@@ -3433,10 +3433,8 @@ static void ar7_nic_init(void)
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
         if (nd->vlan) {
-            if (nd->model == NULL) {
-                nd->model = "ar7";
-            }
-            if (n < 2 && (strcmp(nd->model, "ar7") == 0)) {
+            qemu_check_nic_model(nd, "ar7");
+            if (n < 2 /*&& (strcmp(nd->model, "ar7") == 0)*/) {
                 TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
                 ar7.nic[n].vc =
                     qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
@@ -3445,10 +3443,6 @@ static void ar7_nic_init(void)
                 //~ qemu_format_nic_info_str(ar7.nic[n].vc, ar7.nic[n].mac);
                 n++;
                 emac_reset(n);
-            } else {
-                fprintf(stderr, "qemu: Unsupported NIC: %s\n",
-                        nd_table[n].model);
-                exit(1);
             }
         }
     }
