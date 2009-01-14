@@ -1136,6 +1136,7 @@ QEMUMachine pc_machine = {
     .desc = "Standard PC",
     .init = pc_init_pci,
     .ram_require = VGA_RAM_SIZE + PC_MAX_BIOS_SIZE,
+    .nodisk_ok = 1,
     .max_cpus = 255,
 };
 
@@ -1144,5 +1145,6 @@ QEMUMachine isapc_machine = {
     .desc = "ISA-only PC",
     .init = pc_init_isa,
     .ram_require = VGA_RAM_SIZE + PC_MAX_BIOS_SIZE,
+    .nodisk_ok = 1,
     .max_cpus = 1,
 };
