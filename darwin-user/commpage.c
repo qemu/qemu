@@ -181,7 +181,7 @@ static inline void install_commpage_backdoor_for_entry(struct commpage_entry ent
  */
 void commpage_init(void)
 {
-#if (defined(__i386__) ^ defined(TARGET_I386)) || (defined(__powerpc__) ^ defined(TARGET_PPC))
+#if (defined(__i386__) ^ defined(TARGET_I386)) || (defined(_ARCH_PPC) ^ defined(TARGET_PPC))
     int i;
     void * commpage = (void *)target_mmap( COMMPAGE_START, COMMPAGE_SIZE,
                            PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_FIXED, -1, 0);

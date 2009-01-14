@@ -98,11 +98,6 @@ HELPER_CFLAGS+=-fomit-frame-pointer
 OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
 endif
 
-ifeq ($(ARCH),ppc)
-CPPFLAGS+= -D__powerpc__
-OP_CFLAGS+= -mlongcall
-endif
-
 ifeq ($(ARCH),sparc)
   CFLAGS+=-ffixed-g2 -ffixed-g3
   OP_CFLAGS+=-fno-delayed-branch -ffixed-i0

@@ -229,7 +229,7 @@ static inline void stb_p(void *ptr, int v)
 /* conservative code for little endian unaligned accesses */
 static inline int lduw_le_p(const void *ptr)
 {
-#ifdef __powerpc__
+#ifdef _ARCH_PPC
     int val;
     __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return val;
@@ -241,7 +241,7 @@ static inline int lduw_le_p(const void *ptr)
 
 static inline int ldsw_le_p(const void *ptr)
 {
-#ifdef __powerpc__
+#ifdef _ARCH_PPC
     int val;
     __asm__ __volatile__ ("lhbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return (int16_t)val;
@@ -253,7 +253,7 @@ static inline int ldsw_le_p(const void *ptr)
 
 static inline int ldl_le_p(const void *ptr)
 {
-#ifdef __powerpc__
+#ifdef _ARCH_PPC
     int val;
     __asm__ __volatile__ ("lwbrx %0,0,%1" : "=r" (val) : "r" (ptr));
     return val;
@@ -274,7 +274,7 @@ static inline uint64_t ldq_le_p(const void *ptr)
 
 static inline void stw_le_p(void *ptr, int v)
 {
-#ifdef __powerpc__
+#ifdef _ARCH_PPC
     __asm__ __volatile__ ("sthbrx %1,0,%2" : "=m" (*(uint16_t *)ptr) : "r" (v), "r" (ptr));
 #else
     uint8_t *p = ptr;
@@ -285,7 +285,7 @@ static inline void stw_le_p(void *ptr, int v)
 
 static inline void stl_le_p(void *ptr, int v)
 {
-#ifdef __powerpc__
+#ifdef _ARCH_PPC
     __asm__ __volatile__ ("stwbrx %1,0,%2" : "=m" (*(uint32_t *)ptr) : "r" (v), "r" (ptr));
 #else
     uint8_t *p = ptr;
@@ -985,7 +985,7 @@ void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 /*******************************************/
 /* host CPU ticks (if available) */
 
-#if defined(__powerpc__)
+#if defined(_ARCH_PPC)
 
 static inline uint32_t get_tbl(void)
 {
