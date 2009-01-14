@@ -54,6 +54,7 @@
 #define REG_B_PIE 0x40
 #define REG_B_AIE 0x20
 #define REG_B_UIE 0x10
+#define REG_B_DM  0x04
 
 struct RTCState {
     uint8_t cmos_data[128];
@@ -186,7 +187,7 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
 
 static inline int to_bcd(RTCState *s, int a)
 {
-    if (s->cmos_data[RTC_REG_B] & 0x04) {
+    if (s->cmos_data[RTC_REG_B] & REG_B_DM) {
         return a;
     } else {
         return ((a / 10) << 4) | (a % 10);
@@ -195,7 +196,7 @@ static inline int to_bcd(RTCState *s, int a)
 
 static inline int from_bcd(RTCState *s, int a)
 {
-    if (s->cmos_data[RTC_REG_B] & 0x04) {
+    if (s->cmos_data[RTC_REG_B] & REG_B_DM) {
         return a;
     } else {
         return ((a >> 4) * 10) + (a & 0x0f);
@@ -213,7 +214,7 @@ static void rtc_set_time(RTCState *s)
         (s->cmos_data[RTC_HOURS] & 0x80)) {
         tm->tm_hour += 12;
     }
-    tm->tm_wday = from_bcd(s, s->cmos_data[RTC_DAY_OF_WEEK]);
+    tm->tm_wday = from_bcd(s, s->cmos_data[RTC_DAY_OF_WEEK]) - 1;
     tm->tm_mday = from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
     tm->tm_mon = from_bcd(s, s->cmos_data[RTC_MONTH]) - 1;
     tm->tm_year = from_bcd(s, s->cmos_data[RTC_YEAR]) + 100;
@@ -234,7 +235,7 @@ static void rtc_copy_date(RTCState *s)
         if (tm->tm_hour >= 12)
             s->cmos_data[RTC_HOURS] |= 0x80;
     }
-    s->cmos_data[RTC_DAY_OF_WEEK] = to_bcd(s, tm->tm_wday);
+    s->cmos_data[RTC_DAY_OF_WEEK] = to_bcd(s, tm->tm_wday + 1);
     s->cmos_data[RTC_DAY_OF_MONTH] = to_bcd(s, tm->tm_mday);
     s->cmos_data[RTC_MONTH] = to_bcd(s, tm->tm_mon + 1);
     s->cmos_data[RTC_YEAR] = to_bcd(s, tm->tm_year % 100);
