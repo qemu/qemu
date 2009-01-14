@@ -88,8 +88,14 @@ elif check_define __sparc__ ; then
   else
     cpu="sparc"
   fi
+elif check_define _ARCH_PPC ; then
+  if check_define _ARCH_PPC64 ; then
+    cpu="ppc64"
+  else
+    cpu="ppc"
+  fi
 else
-  cpu=`test $(uname -s) = AIX && uname -p || uname -m`
+  cpu=`uname -m`
 fi
 
 target_list=""
@@ -127,8 +133,11 @@ case "$cpu" in
   mips64)
     cpu="mips64"
   ;;
-  "Power Macintosh"|ppc|ppc64|powerpc)
-    cpu="powerpc"
+  ppc)
+    cpu="ppc"
+  ;;
+  ppc64)
+    cpu="ppc64"
   ;;
   s390*)
     cpu="s390"
@@ -678,7 +687,8 @@ if test "$cpu" = "armv4b" \
      -o "$cpu" = "m68k" \
      -o "$cpu" = "mips" \
      -o "$cpu" = "mips64" \
-     -o "$cpu" = "powerpc" \
+     -o "$cpu" = "ppc" \
+     -o "$cpu" = "ppc64" \
      -o "$cpu" = "s390" \
      -o "$cpu" = "sparc" \
      -o "$cpu" = "sparc64"; then
@@ -692,18 +702,9 @@ hostlongbits="32"
 if test "$cpu" = "x86_64" \
      -o "$cpu" = "alpha" \
      -o "$cpu" = "ia64" \
-     -o "$cpu" = "sparc64"; then
+     -o "$cpu" = "sparc64" \
+     -o "$cpu" = "ppc64"; then
     hostlongbits="64"
-fi
-
-# ppc specific hostlongbits selection
-if test "$cpu" = "powerpc" ; then
-    if $cc $ARCH_CFLAGS -dM -E - -o $TMPI 2>/dev/null </dev/null; then
-        grep -q __powerpc64__ $TMPI && hostlongbits=64
-    else
-        echo hostlongbits test failed
-        exit 1
-    fi
 fi
 
 # check gcc options support
@@ -1210,14 +1211,13 @@ case "$cpu" in
     echo "ARCH=mips64" >> $config_mak
     echo "#define HOST_MIPS64 1" >> $config_h
   ;;
-  powerpc)
-  if test "$hostlongbits" = "32"; then
-      echo "ARCH=ppc" >> $config_mak
-      echo "#define HOST_PPC 1" >> $config_h
-  else
-      echo "ARCH=ppc64" >> $config_mak
-      echo "#define HOST_PPC64 1" >> $config_h
-  fi
+  ppc)
+    echo "ARCH=ppc" >> $config_mak
+    echo "#define HOST_PPC 1" >> $config_h
+  ;;
+  ppc64)
+    echo "ARCH=ppc64" >> $config_mak
+    echo "#define HOST_PPC64 1" >> $config_h
   ;;
   s390)
     echo "ARCH=s390" >> $config_mak
@@ -1534,7 +1534,7 @@ gdb_xml_files=""
 
 # Make sure the target and host cpus are compatible
 if test "$kvm" = "yes" -a ! \( "$target_cpu" = "$cpu" -o \
-  \( "$target_cpu" = "ppcemb" -a "$cpu" = "powerpc" \) -o \
+  \( "$target_cpu" = "ppcemb" -a "$cpu" = "ppc" \) -o \
   \( "$target_cpu" = "x86_64" -a "$cpu" = "i386"   \) -o \
   \( "$target_cpu" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
   kvm="no"
