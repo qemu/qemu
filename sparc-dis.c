@@ -224,7 +224,6 @@ typedef struct sparc_opcode
 #define RS2_G0  RS2 (~0)
 
 static const struct sparc_opcode sparc_opcodes[];
-static const int sparc_num_opcodes;
 
 static const char *sparc_decode_asi_v8 (int);
 static const char *sparc_decode_asi_v9 (int);
