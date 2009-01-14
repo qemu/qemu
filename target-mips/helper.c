@@ -143,15 +143,15 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #if defined(TARGET_MIPS64)
     } else if (address < 0x4000000000000000ULL) {
         /* xuseg */
-	if (UX && address <= (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
+        if (UX && address <= (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         } else {
             ret = TLBRET_BADADDR;
         }
     } else if (address < 0x8000000000000000ULL) {
         /* xsseg */
-	if ((supervisor_mode || kernel_mode) &&
-	    SX && address <= (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
+        if ((supervisor_mode || kernel_mode) &&
+            SX && address <= (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         } else {
             ret = TLBRET_BADADDR;
@@ -165,13 +165,13 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             if (rw) {
                 *prot |= PAGE_WRITE;
             }
-	} else {
-	    ret = TLBRET_BADADDR;
-	}
+        } else {
+            ret = TLBRET_BADADDR;
+        }
     } else if (address < 0xFFFFFFFF80000000ULL) {
         /* xkseg */
-	if (kernel_mode && KX &&
-	    address <= (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
+        if (kernel_mode && KX &&
+            address <= (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
         } else {
             ret = TLBRET_BADADDR;

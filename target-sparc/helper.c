@@ -644,7 +644,6 @@ void cpu_reset(CPUSPARCState *env)
     env->wim = 1;
     env->regwptr = env->regbase + (env->cwp * 16);
 #if defined(CONFIG_USER_ONLY)
-    env->user_mode_only = 1;
 #ifdef TARGET_SPARC64
     env->cleanwin = env->nwindows - 2;
     env->cansave = env->nwindows - 2;

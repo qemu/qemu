@@ -896,7 +896,6 @@ int main(int argc, char **argv)
     memset(ts, 0, sizeof(TaskState));
     env->opaque = ts;
     ts->used = 1;
-    env->user_mode_only = 1;
 
 #if defined(TARGET_I386)
     cpu_x86_set_cpl(env, 3);

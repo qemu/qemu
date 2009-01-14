@@ -6077,7 +6077,7 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000EFC01, PPC_WRTEE)
         /* Stop translation to have a chance to raise an exception */
         gen_stop_exception(ctx);
     } else {
-        tcg_gen_andi_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
+        tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(1 << MSR_EE));
     }
 #endif
 }

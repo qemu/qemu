@@ -102,8 +102,8 @@ static const mips_def_t mips_defs[] =
         .CP0_PRid = 0x00018000,
         .CP0_Config0 = MIPS_CONFIG0 | (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU) |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -121,8 +121,8 @@ static const mips_def_t mips_defs[] =
            no virtual icache, uncached coherency. */
         .CP0_Config0 = MIPS_CONFIG0 | (MMU_TYPE_FMT << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -138,8 +138,8 @@ static const mips_def_t mips_defs[] =
         .CP0_PRid = 0x00018400,
         .CP0_Config0 = MIPS_CONFIG0 | (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU) |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -155,8 +155,8 @@ static const mips_def_t mips_defs[] =
         .CP0_PRid = 0x00018500,
         .CP0_Config0 = MIPS_CONFIG0 | (MMU_TYPE_FMT << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -173,8 +173,8 @@ static const mips_def_t mips_defs[] =
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
                     (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU) |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3 | (0 << CP0C3_VInt),
         .SYNCI_Step = 32,
@@ -189,10 +189,10 @@ static const mips_def_t mips_defs[] =
         .name = "4KEm",
         .CP0_PRid = 0x00019100,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
-                    (MMU_TYPE_FMT << CP0C0_MT),
+                       (MMU_TYPE_FMT << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -207,10 +207,10 @@ static const mips_def_t mips_defs[] =
         .name = "24Kc",
         .CP0_PRid = 0x00019300,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
-                    (MMU_TYPE_R4000 << CP0C0_MT),
+                       (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (15 << CP0C1_MMU) |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3 | (0 << CP0C3_VInt),
         .SYNCI_Step = 32,
@@ -228,8 +228,8 @@ static const mips_def_t mips_defs[] =
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
                     (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (15 << CP0C1_MMU) |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3 | (0 << CP0C3_VInt),
         .SYNCI_Step = 32,
@@ -247,10 +247,10 @@ static const mips_def_t mips_defs[] =
         .name = "34Kf",
         .CP0_PRid = 0x00019500,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
-                    (MMU_TYPE_R4000 << CP0C0_MT),
+                       (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (15 << CP0C1_MMU) |
-		    (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3 | (0 << CP0C3_VInt) | (1 << CP0C3_MT),
         .SYNCI_Step = 32,
@@ -293,12 +293,12 @@ static const mips_def_t mips_defs[] =
         .CP0_PRid = 0x00000400,
         /* No L2 cache, icache size 8k, dcache size 8k, uncached coherency. */
         .CP0_Config0 = (1 << 17) | (0x1 << 9) | (0x1 << 6) | (0x2 << CP0C0_K0),
-	/* Note: Config1 is only used internally, the R4000 has only Config0. */
+        /* Note: Config1 is only used internally, the R4000 has only Config0. */
         .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
         .SYNCI_Step = 16,
         .CCRes = 2,
         .CP0_Status_rw_bitmask = 0x3678FFFF,
-	/* The R4000 has a full 64bit FPU but doesn't use the fcr0 bits. */
+        /* The R4000 has a full 64bit FPU but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x0 << FCR0_REV),
         .SEGBITS = 40,
         .PABITS = 36,
@@ -325,11 +325,11 @@ static const mips_def_t mips_defs[] =
         .name = "5Kc",
         .CP0_PRid = 0x00018100,
         .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT) |
-                    (MMU_TYPE_R4000 << CP0C0_MT),
+                       (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (31 << CP0C1_MMU) |
-		    (1 << CP0C1_IS) | (4 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (1 << CP0C1_DS) | (4 << CP0C1_DL) | (1 << CP0C1_DA) |
-		    (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
+                       (1 << CP0C1_IS) | (4 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (1 << CP0C1_DS) | (4 << CP0C1_DL) | (1 << CP0C1_DA) |
+                       (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
@@ -344,17 +344,17 @@ static const mips_def_t mips_defs[] =
         .name = "5Kf",
         .CP0_PRid = 0x00018100,
         .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT) |
-                    (MMU_TYPE_R4000 << CP0C0_MT),
+                       (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (31 << CP0C1_MMU) |
-		    (1 << CP0C1_IS) | (4 << CP0C1_IL) | (1 << CP0C1_IA) |
-		    (1 << CP0C1_DS) | (4 << CP0C1_DL) | (1 << CP0C1_DA) |
-		    (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
+                       (1 << CP0C1_IS) | (4 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (1 << CP0C1_DS) | (4 << CP0C1_DL) | (1 << CP0C1_DA) |
+                       (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 2,
         .CP0_Status_rw_bitmask = 0x36F8FFFF,
-	/* The 5Kf has F64 / L / W but doesn't use the fcr0 bits. */
+        /* The 5Kf has F64 / L / W but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (1 << FCR0_D) | (1 << FCR0_S) |
                     (0x81 << FCR0_PRID) | (0x0 << FCR0_REV),
         .SEGBITS = 42,
@@ -364,21 +364,21 @@ static const mips_def_t mips_defs[] =
     },
     {
         .name = "20Kc",
-	/* We emulate a later version of the 20Kc, earlier ones had a broken
+        /* We emulate a later version of the 20Kc, earlier ones had a broken
            WAIT instruction. */
         .CP0_PRid = 0x000182a0,
         .CP0_Config0 = MIPS_CONFIG0 | (0x2 << CP0C0_AT) |
                     (MMU_TYPE_R4000 << CP0C0_MT) | (1 << CP0C0_VI),
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (47 << CP0C1_MMU) |
-		    (2 << CP0C1_IS) | (4 << CP0C1_IL) | (3 << CP0C1_IA) |
-		    (2 << CP0C1_DS) | (4 << CP0C1_DL) | (3 << CP0C1_DA) |
-		    (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
+                       (2 << CP0C1_IS) | (4 << CP0C1_IL) | (3 << CP0C1_IA) |
+                       (2 << CP0C1_DS) | (4 << CP0C1_DL) | (3 << CP0C1_DA) |
+                       (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3,
         .SYNCI_Step = 32,
         .CCRes = 1,
         .CP0_Status_rw_bitmask = 0x36FBFFFF,
-	/* The 20Kc has F64 / L / W but doesn't use the fcr0 bits. */
+        /* The 20Kc has F64 / L / W but doesn't use the fcr0 bits. */
         .CP1_fcr0 = (1 << FCR0_3D) | (1 << FCR0_PS) |
                     (1 << FCR0_D) | (1 << FCR0_S) |
                     (0x82 << FCR0_PRID) | (0x0 << FCR0_REV),
@@ -388,16 +388,16 @@ static const mips_def_t mips_defs[] =
         .mmu_type = MMU_TYPE_R4000,
     },
     {
-	/* A generic CPU providing MIPS64 Release 2 features.
+        /* A generic CPU providing MIPS64 Release 2 features.
            FIXME: Eventually this should be replaced by a real CPU model. */
         .name = "MIPS64R2-generic",
         .CP0_PRid = 0x00010000,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) | (0x2 << CP0C0_AT) |
-                    (MMU_TYPE_R4000 << CP0C0_MT),
+                       (MMU_TYPE_R4000 << CP0C0_MT),
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (63 << CP0C1_MMU) |
-		    (2 << CP0C1_IS) | (4 << CP0C1_IL) | (3 << CP0C1_IA) |
-		    (2 << CP0C1_DS) | (4 << CP0C1_DL) | (3 << CP0C1_DA) |
-		    (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
+                       (2 << CP0C1_IS) | (4 << CP0C1_IL) | (3 << CP0C1_IA) |
+                       (2 << CP0C1_DS) | (4 << CP0C1_DL) | (3 << CP0C1_DA) |
+                       (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
         .CP0_Config2 = MIPS_CONFIG2,
         .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_LPA),
         .SYNCI_Step = 32,

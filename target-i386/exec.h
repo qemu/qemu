@@ -31,6 +31,7 @@
 
 register struct CPUX86State *env asm(AREG0);
 
+#include "qemu-common.h"
 #include "qemu-log.h"
 
 #define EAX (env->regs[R_EAX])
@@ -62,8 +63,8 @@ void do_interrupt(int intno, int is_int, int error_code,
                   target_ulong next_eip, int is_hw);
 void do_interrupt_user(int intno, int is_int, int error_code,
                        target_ulong next_eip);
-void raise_exception_err(int exception_index, int error_code);
-void raise_exception(int exception_index);
+void noreturn raise_exception_err(int exception_index, int error_code);
+void noreturn raise_exception(int exception_index);
 void do_smm_enter(void);
 
 /* n must be a constant to be efficient */
