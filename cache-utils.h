@@ -3,7 +3,7 @@
 
 #include "config-host.h"
 
-#ifdef HOST_PPC
+#if defined HOST_PPC || defined HOST_PPC64
 struct qemu_cache_conf {
     unsigned long dcache_bsize;
     unsigned long icache_bsize;
