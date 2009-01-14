@@ -1176,6 +1176,17 @@ static void _decode_opc(DisasContext * ctx)
 	    }
 	}
 	return;
+    case 0xf00e: /* fmac FR0,RM,Rn */
+        {
+            CHECK_FPU_ENABLED
+            if (ctx->fpscr & FPSCR_PR) {
+                break; /* illegal instruction */
+            } else {
+                gen_helper_fmac_FT(cpu_fregs[FREG(B11_8)],
+                                   cpu_fregs[FREG(0)], cpu_fregs[FREG(B7_4)], cpu_fregs[FREG(B11_8)]);
+                return;
+            }
+        }
     }
 
     switch (ctx->opcode & 0xff00) {

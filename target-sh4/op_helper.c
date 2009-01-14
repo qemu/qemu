@@ -531,6 +531,17 @@ uint64_t helper_float_DT(uint32_t t0)
     return d.ll;
 }
 
+uint32_t helper_fmac_FT(uint32_t t0, uint32_t t1, uint32_t t2)
+{
+    CPU_FloatU f0, f1, f2;
+    f0.l = t0;
+    f1.l = t1;
+    f2.l = t2;
+    f0.f = float32_mul(f0.f, f1.f, &env->fp_status);
+    f0.f = float32_add(f0.f, f2.f, &env->fp_status);
+    return f0.l;
+}
+
 uint32_t helper_fmul_FT(uint32_t t0, uint32_t t1)
 {
     CPU_FloatU f0, f1;
