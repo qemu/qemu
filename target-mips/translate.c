@@ -988,9 +988,8 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
     } else if (offset == 0) {
         gen_load_gpr(t0, base);
     } else {
-        gen_load_gpr(t0, base);
-        tcg_gen_movi_tl(t1, offset);
-        gen_op_addr_add(ctx, t0, t1);
+        tcg_gen_movi_tl(t0, offset);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base]);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
@@ -1151,12 +1150,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     } else if (offset == 0) {
         gen_load_gpr(t0, base);
     } else {
-        TCGv t1 = tcg_temp_local_new();
-
-        gen_load_gpr(t0, base);
-        tcg_gen_movi_tl(t1, offset);
-        gen_op_addr_add(ctx, t0, t1);
-        tcg_temp_free(t1);
+        tcg_gen_movi_tl(t0, offset);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base]);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
@@ -7259,9 +7254,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     } else if (index == 0) {
         gen_load_gpr(t0, base);
     } else {
-        gen_load_gpr(t0, base);
-        gen_load_gpr(t1, index);
-        gen_op_addr_add(ctx, t0, t1);
+        gen_load_gpr(t0, index);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base]);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
