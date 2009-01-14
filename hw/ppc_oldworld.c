@@ -144,8 +144,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);
         }
-        /* Set time-base frequency to 100 Mhz */
-        cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
+        /* Set time-base frequency to 16.6 Mhz */
+        cpu_ppc_tb_init(env,  16600000UL);
         env->osi_call = vga_osi_call;
         qemu_register_reset(&cpu_ppc_reset, env);
         envs[i] = env;
