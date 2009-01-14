@@ -134,18 +134,18 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #if defined(TARGET_MIPS64)
     } else if (address < 0x4000000000000000ULL) {
         /* xuseg */
-	if (UX && address <= (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
+        if (UX && address <= (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
-	} else {
-	    ret = TLBRET_BADADDR;
+        } else {
+            ret = TLBRET_BADADDR;
         }
     } else if (address < 0x8000000000000000ULL) {
         /* xsseg */
-	if ((supervisor_mode || kernel_mode) &&
-	    SX && address <= (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
+        if ((supervisor_mode || kernel_mode) &&
+            SX && address <= (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
-	} else {
-	    ret = TLBRET_BADADDR;
+        } else {
+            ret = TLBRET_BADADDR;
         }
     } else if (address < 0xC000000000000000ULL) {
         /* xkphys */
@@ -153,17 +153,17 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
             (address & 0x07FFFFFFFFFFFFFFULL) <= env->PAMask) {
             *physical = address & env->PAMask;
             *prot = PAGE_READ | PAGE_WRITE;
-	} else {
-	    ret = TLBRET_BADADDR;
-	}
+        } else {
+            ret = TLBRET_BADADDR;
+        }
     } else if (address < 0xFFFFFFFF80000000ULL) {
         /* xkseg */
-	if (kernel_mode && KX &&
-	    address <= (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
+        if (kernel_mode && KX &&
+            address <= (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot, address, rw, access_type);
-	} else {
-	    ret = TLBRET_BADADDR;
-	}
+        } else {
+            ret = TLBRET_BADADDR;
+        }
 #endif
     } else if (address < (int32_t)0xA0000000UL) {
         /* kseg0 */
@@ -200,7 +200,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
 #if 0
     if (logfile) {
         fprintf(logfile, TARGET_FMT_lx " %d %d => " TARGET_FMT_lx " %d (%d)\n",
-		address, rw, access_type, *physical, *prot, ret);
+                address, rw, access_type, *physical, *prot, ret);
     }
 #endif
 
@@ -297,7 +297,7 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         /* Raise exception */
         env->CP0_BadVAddr = address;
         env->CP0_Context = (env->CP0_Context & ~0x007fffff) |
-	                   ((address >> 9) &   0x007ffff0);
+                           ((address >> 9) &   0x007ffff0);
         env->CP0_EntryHi =
             (env->CP0_EntryHi & 0xFF) | (address & (TARGET_PAGE_MASK << 1));
 #if defined(TARGET_MIPS64)
@@ -593,8 +593,8 @@ void r4k_invalidate_tlb (CPUState *env, int idx, int use_extra)
 
     if (use_extra && env->tlb->tlb_in_use < MIPS_TLB_MAX) {
         /* For tlbwr, we can shadow the discarded entry into
-	   a new (fake) TLB entry, as long as the guest can not
-	   tell that it's there.  */
+           a new (fake) TLB entry, as long as the guest can not
+           tell that it's there.  */
         env->tlb->mmu.r4k.tlb[env->tlb->tlb_in_use] = *tlb;
         env->tlb->tlb_in_use++;
         return;

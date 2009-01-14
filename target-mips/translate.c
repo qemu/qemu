@@ -1092,7 +1092,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         break;
     case OPC_LWL:
         save_cpu_state(ctx, 1);
-	gen_load_gpr(t1, rt);
+        gen_load_gpr(t1, rt);
         gen_helper_3i(lwl, t1, t0, t1, ctx->mem_idx);
         gen_store_gpr(t1, rt);
         opn = "lwl";
@@ -1105,7 +1105,7 @@ static void gen_ldst (DisasContext *ctx, uint32_t opc, int rt,
         break;
     case OPC_LWR:
         save_cpu_state(ctx, 1);
-	gen_load_gpr(t1, rt);
+        gen_load_gpr(t1, rt);
         gen_helper_3i(lwr, t1, t0, t1, ctx->mem_idx);
         gen_store_gpr(t1, rt);
         opn = "lwr";
@@ -2076,59 +2076,59 @@ static void gen_mul_vr54xx (DisasContext *ctx, uint32_t opc,
     case OPC_VR54XX_MULS:
         gen_helper_muls(t0, t0, t1);
         opn = "muls";
-	break;
+        break;
     case OPC_VR54XX_MULSU:
         gen_helper_mulsu(t0, t0, t1);
         opn = "mulsu";
-	break;
+        break;
     case OPC_VR54XX_MACC:
         gen_helper_macc(t0, t0, t1);
         opn = "macc";
-	break;
+        break;
     case OPC_VR54XX_MACCU:
         gen_helper_maccu(t0, t0, t1);
         opn = "maccu";
-	break;
+        break;
     case OPC_VR54XX_MSAC:
         gen_helper_msac(t0, t0, t1);
         opn = "msac";
-	break;
+        break;
     case OPC_VR54XX_MSACU:
         gen_helper_msacu(t0, t0, t1);
         opn = "msacu";
-	break;
+        break;
     case OPC_VR54XX_MULHI:
         gen_helper_mulhi(t0, t0, t1);
         opn = "mulhi";
-	break;
+        break;
     case OPC_VR54XX_MULHIU:
         gen_helper_mulhiu(t0, t0, t1);
         opn = "mulhiu";
-	break;
+        break;
     case OPC_VR54XX_MULSHI:
         gen_helper_mulshi(t0, t0, t1);
         opn = "mulshi";
-	break;
+        break;
     case OPC_VR54XX_MULSHIU:
         gen_helper_mulshiu(t0, t0, t1);
         opn = "mulshiu";
-	break;
+        break;
     case OPC_VR54XX_MACCHI:
         gen_helper_macchi(t0, t0, t1);
         opn = "macchi";
-	break;
+        break;
     case OPC_VR54XX_MACCHIU:
         gen_helper_macchiu(t0, t0, t1);
         opn = "macchiu";
-	break;
+        break;
     case OPC_VR54XX_MSACHI:
         gen_helper_msachi(t0, t0, t1);
         opn = "msachi";
-	break;
+        break;
     case OPC_VR54XX_MSACHIU:
         gen_helper_msachiu(t0, t0, t1);
         opn = "msachiu";
-	break;
+        break;
     default:
         MIPS_INVAL("mul vr54xx");
         generate_exception(ctx, EXCP_RI);
@@ -2323,7 +2323,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             fprintf(logfile,
                     "Branch in delay slot at PC 0x" TARGET_FMT_lx "\n",
                     ctx->pc);
-	}
+        }
 #endif
         generate_exception(ctx, EXCP_RI);
         goto out;
@@ -5763,7 +5763,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
             gen_load_fpr32(fp0, fs);
             tcg_gen_ext_i32_tl(t0, fp0);
             tcg_temp_free_i32(fp0);
-	}
+        }
         gen_store_gpr(t0, rt);
         opn = "mfc1";
         break;
@@ -5775,7 +5775,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
             tcg_gen_trunc_tl_i32(fp0, t0);
             gen_store_fpr32(fp0, fs);
             tcg_temp_free_i32(fp0);
-	}
+        }
         opn = "mtc1";
         break;
     case OPC_CFC1:
@@ -5795,7 +5795,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
             gen_load_fpr64(ctx, fp0, fs);
             tcg_gen_trunc_i64_tl(t0, fp0);
             tcg_temp_free_i64(fp0);
-	}
+        }
         gen_store_gpr(t0, rt);
         opn = "dmfc1";
         break;
@@ -5807,7 +5807,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
             tcg_gen_extu_tl_i64(fp0, t0);
             gen_store_fpr64(ctx, fp0, fs);
             tcg_temp_free_i64(fp0);
-	}
+        }
         opn = "dmtc1";
         break;
     case OPC_MFHC1:
@@ -5817,7 +5817,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
             gen_load_fpr32h(fp0, fs);
             tcg_gen_ext_i32_tl(t0, fp0);
             tcg_temp_free_i32(fp0);
-	}
+        }
         gen_store_gpr(t0, rt);
         opn = "mfhc1";
         break;
@@ -5829,7 +5829,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
             tcg_gen_trunc_tl_i32(fp0, t0);
             gen_store_fpr32h(fp0, fs);
             tcg_temp_free_i32(fp0);
-	}
+        }
         opn = "mthc1";
         break;
     default:
@@ -8339,7 +8339,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         save_cpu_state(&ctx, ctx.bstate == BS_NONE);
         gen_helper_0i(raise_exception, EXCP_DEBUG);
     } else {
-	switch (ctx.bstate) {
+        switch (ctx.bstate) {
         case BS_STOP:
             gen_helper_interrupt_restart();
             gen_goto_tb(&ctx, 0, ctx.pc);
@@ -8355,7 +8355,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         case BS_BRANCH:
         default:
             break;
-	}
+        }
     }
 done_generating:
     gen_icount_end(tb, num_insns);
@@ -8499,7 +8499,7 @@ static void mips_tcg_init(void)
 
     /* Initialize various static tables. */
     if (inited)
-	return;
+        return;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     for (i = 0; i < 32; i++)
