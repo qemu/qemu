@@ -28,6 +28,7 @@
 #include <sys/ucontext.h>
 
 #include "qemu.h"
+#include "qemu-common.h"
 #include "target_signal.h"
 
 //#define DEBUG_SIGNAL
@@ -348,7 +349,7 @@ static inline void free_sigqueue(CPUState *env, struct sigqueue *q)
 }
 
 /* abort execution with signal */
-static void __attribute((noreturn)) force_sig(int sig)
+static void noreturn force_sig(int sig)
 {
     int host_sig;
     host_sig = target_to_host_signal(sig);

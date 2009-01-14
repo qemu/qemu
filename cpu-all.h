@@ -20,6 +20,8 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
+#include "qemu-common.h"
+
 #if defined(__arm__) || defined(__sparc__) || defined(__mips__) || defined(__hppa__)
 #define WORDS_ALIGNED
 #endif
@@ -751,9 +753,8 @@ void cpu_dump_statistics (CPUState *env, FILE *f,
                           int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                           int flags);
 
-void cpu_abort(CPUState *env, const char *fmt, ...)
-    __attribute__ ((__format__ (__printf__, 2, 3)))
-    __attribute__ ((__noreturn__));
+void noreturn cpu_abort(CPUState *env, const char *fmt, ...)
+    __attribute__ ((__format__ (__printf__, 2, 3)));
 extern CPUState *first_cpu;
 extern CPUState *cpu_single_env;
 extern int64_t qemu_icount;

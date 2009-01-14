@@ -2,6 +2,13 @@
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 
+#define noreturn __attribute__ ((__noreturn__))
+
+/* Hack around the mess dyngen-exec.h causes: We need noreturn in files that
+   cannot include the following headers without conflicts. This condition has
+   to be removed once dyngen is gone. */
+#ifndef __DYNGEN_EXEC_H__
+
 /* we put basic includes here to avoid repeating them in device drivers */
 #include <stdlib.h>
 #include <stdio.h>
@@ -134,9 +141,8 @@ void *get_mmap_addr(unsigned long size);
 
 /* Error handling.  */
 
-void hw_error(const char *fmt, ...)
-    __attribute__ ((__format__ (__printf__, 1, 2)))
-    __attribute__ ((__noreturn__));
+void noreturn hw_error(const char *fmt, ...)
+    __attribute__ ((__format__ (__printf__, 1, 2)));
 
 /* IO callbacks.  */
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
@@ -178,5 +184,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id);
 
 /* Force QEMU to stop what it's doing and service IO */
 void qemu_service_io(void);
+
+#endif /* dyngen-exec.h hack */
 
 #endif

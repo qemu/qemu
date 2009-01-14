@@ -37,6 +37,7 @@
 #include <signal.h>
 
 #include "qemu.h"
+#include "qemu-common.h"
 
 #define DEBUG_SIGNAL
 
@@ -132,7 +133,7 @@ static inline void free_sigqueue(struct sigqueue *q)
 }
 
 /* abort execution with signal */
-void __attribute((noreturn)) force_sig(int sig)
+void noreturn force_sig(int sig)
 {
     int host_sig;
     host_sig = target_to_host_signal(sig);
