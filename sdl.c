@@ -100,11 +100,6 @@ static void sdl_resize(DisplayState *ds, int w, int h)
         if ((mask & 0x8000) == 0)
             ds->depth = 15;
     }
-    if (ds->depth == 32 && screen->format->Rshift == 0) {
-        ds->bgr = 1;
-    } else {
-        ds->bgr = 0;
-    }
     ds->width = w;
     ds->height = h;
 }
