@@ -968,6 +968,8 @@ EOF
       if test \( "$cpu" = "i386" -o "$cpu" = "x86_64" \) \
          -a -d "$kerneldir/arch/x86/include" ; then
             kvm_cflags="$kvm_cflags -I$kerneldir/arch/x86/include"
+	elif test "$cpu" = "ppc" -a -d "$kerneldir/arch/powerpc/include" ; then
+	    kvm_cflags="$kvm_cflags -I$kerneldir/arch/powerpc/include"
         elif test -d "$kerneldir/arch/$cpu/include" ; then
             kvm_cflags="$kvm_cflags -I$kerneldir/arch/$cpu/include"
       fi
