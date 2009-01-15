@@ -1939,7 +1939,8 @@ void ppc_tlb_invalidate_all (CPUPPCState *env)
         break;
     case POWERPC_MMU_BOOKE_FSL:
         /* XXX: TODO */
-        cpu_abort(env, "BookE MMU model is not implemented\n");
+        if (!kvm_enabled())
+            cpu_abort(env, "BookE MMU model is not implemented\n");
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
