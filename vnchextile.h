@@ -13,7 +13,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
                                              void *last_fg_,
                                              int *has_bg, int *has_fg)
 {
-    uint8_t *row = (ds_get_data(vs->ds) + y * ds_get_linesize(vs->ds) + x * vs->depth);
+    uint8_t *row = (ds_get_data(vs->ds) + y * ds_get_linesize(vs->ds) + x * ds_get_bytes_per_pixel(vs->ds));
     pixel_t *irow = (pixel_t *)row;
     int j, i;
     pixel_t *last_bg = (pixel_t *)last_bg_;
@@ -24,7 +24,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
     int bg_count = 0;
     int fg_count = 0;
     int flags = 0;
-    uint8_t data[(vs->pix_bpp + 2) * 16 * 16];
+    uint8_t data[(vs->clientds.pf.bytes_per_pixel + 2) * 16 * 16];
     int n_data = 0;
     int n_subtiles = 0;
 
@@ -132,7 +132,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 		    has_color = 0;
 #ifdef GENERIC
                     vnc_convert_pixel(vs, data + n_data, color);
-                    n_data += vs->pix_bpp;
+                    n_data += vs->clientds.pf.bytes_per_pixel;
 #else
 		    memcpy(data + n_data, &color, sizeof(color));
                     n_data += sizeof(pixel_t);
@@ -152,7 +152,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	    if (has_color) {
 #ifdef GENERIC
                 vnc_convert_pixel(vs, data + n_data, color);
-                n_data += vs->pix_bpp;
+                n_data += vs->clientds.pf.bytes_per_pixel;
 #else
                 memcpy(data + n_data, &color, sizeof(color));
                 n_data += sizeof(pixel_t);
@@ -197,7 +197,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	}
     } else {
 	for (j = 0; j < h; j++) {
-	    vs->write_pixels(vs, row, w * vs->depth);
+	    vs->write_pixels(vs, row, w * ds_get_bytes_per_pixel(vs->ds));
 	    row += ds_get_linesize(vs->ds);
 	}
     }
