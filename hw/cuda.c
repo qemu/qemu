@@ -563,8 +563,8 @@ static void cuda_receive_packet(CUDAState *s,
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
         cuda_send_packet_to_host(s, obuf, 2);
-	qemu_system_shutdown_request();
-	break;
+        qemu_system_shutdown_request();
+        break;
     case CUDA_RESET_SYSTEM:
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
