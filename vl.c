@@ -4062,6 +4062,7 @@ enum {
     QEMU_OPTION_echr,
     QEMU_OPTION_monitor,
     QEMU_OPTION_serial,
+    QEMU_OPTION_virtiocon,
     QEMU_OPTION_parallel,
     QEMU_OPTION_loadvm,
     QEMU_OPTION_full_screen,
@@ -4171,6 +4172,7 @@ static const QEMUOption qemu_options[] = {
     { "echr", HAS_ARG, QEMU_OPTION_echr },
     { "monitor", HAS_ARG, QEMU_OPTION_monitor },
     { "serial", HAS_ARG, QEMU_OPTION_serial },
+    { "virtioconsole", HAS_ARG, QEMU_OPTION_virtiocon },
     { "parallel", HAS_ARG, QEMU_OPTION_parallel },
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
@@ -4968,6 +4970,14 @@ int main(int argc, char **argv, char **envp)
                 }
                 serial_devices[serial_device_index] = optarg;
                 serial_device_index++;
+                break;
+            case QEMU_OPTION_virtiocon:
+                if (virtio_console_index >= MAX_VIRTIO_CONSOLES) {
+                    fprintf(stderr, "qemu: too many virtio consoles\n");
+                    exit(1);
+                }
+                virtio_consoles[virtio_console_index] = optarg;
+                virtio_console_index++;
                 break;
             case QEMU_OPTION_parallel:
                 if (parallel_device_index >= MAX_PARALLEL_PORTS) {
