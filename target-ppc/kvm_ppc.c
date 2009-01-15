@@ -27,7 +27,7 @@ static int kvmppc_read_host_property(const char *node_path, const char *prop,
 {
     char *path;
     FILE *f;
-    int ret;
+    int ret = 0;
     int pathlen;
 
     pathlen = snprintf(NULL, 0, "%s/%s/%s", PROC_DEVTREE_PATH, node_path, prop)
