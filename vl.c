@@ -192,6 +192,7 @@ int vm_running;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
+int std_vga_enabled = 0;
 int vmsvga_enabled = 0;
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
@@ -3873,7 +3874,7 @@ static void help(int exitcode)
            "                use -soundhw ? to get the list of supported cards\n"
            "                use -soundhw all to enable all of them\n"
 #endif
-           "-vga [std|cirrus|vmware]\n"
+           "-vga [std|cirrus|vmware|none]\n"
            "                select video card type\n"
            "-localtime      set the real time clock to local time [default=utc]\n"
            "-full-screen    start in full screen\n"
@@ -4407,14 +4408,21 @@ static void select_vgahw (const char *p)
     const char *opts;
 
     if (strstart(p, "std", &opts)) {
+        std_vga_enabled = 1;
         cirrus_vga_enabled = 0;
         vmsvga_enabled = 0;
     } else if (strstart(p, "cirrus", &opts)) {
         cirrus_vga_enabled = 1;
+        std_vga_enabled = 0;
         vmsvga_enabled = 0;
     } else if (strstart(p, "vmware", &opts)) {
         cirrus_vga_enabled = 0;
+        std_vga_enabled = 0;
         vmsvga_enabled = 1;
+    } else if (strstart(p, "none", &opts)) {
+        cirrus_vga_enabled = 0;
+        std_vga_enabled = 0;
+        vmsvga_enabled = 0;
     } else {
     invalid_vga:
         fprintf(stderr, "Unknown vga type: %s\n", p);

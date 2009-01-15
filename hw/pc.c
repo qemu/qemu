@@ -852,22 +852,24 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
 
-    /* VGA BIOS load */
-    if (cirrus_vga_enabled) {
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_CIRRUS_FILENAME);
-    } else {
-        snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
-    }
-    vga_bios_size = get_image_size(buf);
-    if (vga_bios_size <= 0 || vga_bios_size > 65536)
-        goto vga_bios_error;
-    vga_bios_offset = qemu_ram_alloc(65536);
+    if (cirrus_vga_enabled || std_vga_enabled || vmsvga_enabled) {
+        /* VGA BIOS load */
+        if (cirrus_vga_enabled) {
+            snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_CIRRUS_FILENAME);
+        } else {
+            snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
+        }
+        vga_bios_size = get_image_size(buf);
+        if (vga_bios_size <= 0 || vga_bios_size > 65536)
+            goto vga_bios_error;
+        vga_bios_offset = qemu_ram_alloc(65536);
 
-    ret = load_image(buf, phys_ram_base + vga_bios_offset);
-    if (ret != vga_bios_size) {
-    vga_bios_error:
-        fprintf(stderr, "qemu: could not load VGA BIOS '%s'\n", buf);
-        exit(1);
+        ret = load_image(buf, phys_ram_base + vga_bios_offset);
+        if (ret != vga_bios_size) {
+vga_bios_error:
+            fprintf(stderr, "qemu: could not load VGA BIOS '%s'\n", buf);
+            exit(1);
+        }
     }
 
     /* setup basic memory access */
@@ -956,7 +958,7 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
                             vga_ram_addr, vga_ram_size);
         else
             fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
-    } else {
+    } else if (std_vga_enabled) {
         if (pci_enabled) {
             pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_addr,
                          vga_ram_addr, vga_ram_size, 0, 0);

@@ -83,6 +83,7 @@ void do_info_slirp(void);
 
 extern int bios_size;
 extern int cirrus_vga_enabled;
+extern int std_vga_enabled;
 extern int vmsvga_enabled;
 extern int graphic_width;
 extern int graphic_height;
