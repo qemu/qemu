@@ -193,6 +193,7 @@ enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 DisplayState display_state;
 int nographic;
 static int curses;
+static int sdl;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 ram_addr_t ram_size;
@@ -2764,20 +2765,21 @@ static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
 {
 }
 
-static void dumb_resize(DisplayState *ds, int w, int h)
+static void dumb_resize(DisplayState *ds)
 {
 }
 
 static void dumb_display_init(DisplayState *ds)
 {
-    ds->data = NULL;
-    ds->linesize = 0;
-    ds->depth = 0;
-    ds->dpy_update = dumb_update;
-    ds->dpy_resize = dumb_resize;
-    ds->dpy_refresh = NULL;
-    ds->gui_timer_interval = 0;
-    ds->idle = 1;
+    DisplayChangeListener *dcl = qemu_mallocz(sizeof(DisplayChangeListener));
+    if (!dcl)
+        exit(1);
+    dcl->dpy_update = dumb_update;
+    dcl->dpy_resize = dumb_resize;
+    dcl->dpy_refresh = NULL;
+    dcl->idle = 1;
+    dcl->gui_timer_interval = 500;
+    register_displaychangelistener(ds, dcl);
 }
 
 /***********************************************************/
@@ -3360,13 +3362,19 @@ static QEMUMachine *find_machine(const char *name)
 
 static void gui_update(void *opaque)
 {
+    uint64_t interval = GUI_REFRESH_INTERVAL;
     DisplayState *ds = opaque;
-    ds->dpy_refresh(ds);
-    qemu_mod_timer(ds->gui_timer,
-        (ds->gui_timer_interval ?
-	    ds->gui_timer_interval :
-	    GUI_REFRESH_INTERVAL)
-	+ qemu_get_clock(rt_clock));
+    DisplayChangeListener *dcl = ds->listeners;
+
+    dpy_refresh(ds);
+
+    while (dcl != NULL) {
+        if (dcl->gui_timer_interval &&
+            dcl->gui_timer_interval < interval)
+            interval = dcl->gui_timer_interval;
+        dcl = dcl->next;
+    }
+    qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock(rt_clock));
 }
 
 struct vm_change_state_entry {
@@ -3848,6 +3856,7 @@ static void help(int exitcode)
            "-no-frame       open SDL window without a frame and window decorations\n"
            "-alt-grab       use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt)\n"
            "-no-quit        disable SDL window close capability\n"
+           "-sdl            enable SDL\n"
 #endif
 #ifdef TARGET_I386
            "-no-fd-bootchk  disable boot signature checking for floppy disks\n"
@@ -4064,6 +4073,7 @@ enum {
     QEMU_OPTION_no_frame,
     QEMU_OPTION_alt_grab,
     QEMU_OPTION_no_quit,
+    QEMU_OPTION_sdl,
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
     QEMU_OPTION_kernel_kqemu,
@@ -4176,6 +4186,7 @@ static const QEMUOption qemu_options[] = {
     { "no-frame", 0, QEMU_OPTION_no_frame },
     { "alt-grab", 0, QEMU_OPTION_alt_grab },
     { "no-quit", 0, QEMU_OPTION_no_quit },
+    { "sdl", 0, QEMU_OPTION_sdl },
 #endif
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
     { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
@@ -4495,6 +4506,7 @@ int main(int argc, char **argv, char **envp)
     const char *kernel_filename, *kernel_cmdline;
     const char *boot_devices = "";
     DisplayState *ds = &display_state;
+    DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
     const char *net_clients[MAX_NET_CLIENTS];
     int nb_net_clients;
@@ -5007,6 +5019,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
                 break;
+            case QEMU_OPTION_sdl:
+                sdl = 1;
+                break;
 #endif
             case QEMU_OPTION_pidfile:
                 pid_file = optarg;
@@ -5404,6 +5419,7 @@ int main(int argc, char **argv, char **envp)
 
     /* terminal init */
     memset(&display_state, 0, sizeof(display_state));
+    ds->surface = qemu_create_displaysurface(640, 480, 32, 640 * 4);
     if (nographic) {
         if (curses) {
             fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
@@ -5411,26 +5427,30 @@ int main(int argc, char **argv, char **envp)
         }
         /* nearly nothing to do */
         dumb_display_init(ds);
-    } else if (vnc_display != NULL) {
-        vnc_display_init(ds);
-        if (vnc_display_open(ds, vnc_display) < 0)
-            exit(1);
-    } else
+    } else { 
 #if defined(CONFIG_CURSES)
-    if (curses) {
-        curses_display_init(ds, full_screen);
-    } else
+            if (curses) {
+                /* At the moment curses cannot be used with other displays */
+                curses_display_init(ds, full_screen);
+            } else
 #endif
-    {
+            {
+                if (vnc_display != NULL) {
+                    vnc_display_init(ds);
+                    if (vnc_display_open(ds, vnc_display) < 0)
+                        exit(1);
+                }
+                if (sdl || !vnc_display)
 #if defined(CONFIG_SDL)
-        sdl_display_init(ds, full_screen, no_frame);
+                    sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
-        cocoa_display_init(ds, full_screen);
+                    cocoa_display_init(ds, full_screen);
 #else
-        dumb_display_init(ds);
+                    dumb_display_init(ds);
 #endif
+            }
     }
-
+    dpy_resize(ds);
 #ifndef _WIN32
     /* must be after terminal init, SDL library changes signal handlers */
     termsig_setup();
@@ -5541,11 +5561,14 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    if (display_state.dpy_refresh) {
-        display_state.gui_timer = qemu_new_timer(rt_clock, gui_update, &display_state);
-        qemu_mod_timer(display_state.gui_timer, qemu_get_clock(rt_clock));
+    dcl = ds->listeners;
+    while (dcl != NULL) {
+        if (dcl->dpy_refresh != NULL) {
+            display_state.gui_timer = qemu_new_timer(rt_clock, gui_update, &display_state);
+            qemu_mod_timer(display_state.gui_timer, qemu_get_clock(rt_clock));
+        }
+        dcl = dcl->next;
     }
-
 #ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {
         /* XXX: use standard host:port notation and modify options

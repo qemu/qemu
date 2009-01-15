@@ -1044,12 +1044,15 @@ void console_select(unsigned int index)
 
     if (index >= MAX_CONSOLES)
         return;
+    active_console->g_width = ds_get_width(active_console->ds);
+    active_console->g_height = ds_get_height(active_console->ds);
     s = consoles[index];
     if (s) {
+        DisplayState *ds = s->ds;
         active_console = s;
-        if (s->console_type != TEXT_CONSOLE && s->g_width && s->g_height
-            && (s->g_width != ds_get_width(s->ds) || s->g_height != ds_get_height(s->ds)))
-            dpy_resize(s->ds, s->g_width, s->g_height);
+        ds->surface = qemu_resize_displaysurface(ds->surface, s->g_width,
+                                                s->g_height, 32, 4 * s->g_width);
+        dpy_resize(s->ds);
         vga_hw_invalidate();
     }
 }
@@ -1157,16 +1160,6 @@ void kbd_put_keysym(int keysym)
 static void text_console_invalidate(void *opaque)
 {
     TextConsole *s = (TextConsole *) opaque;
-
-    if (s->g_width != ds_get_width(s->ds) || s->g_height != ds_get_height(s->ds)) {
-        if (s->console_type == TEXT_CONSOLE_FIXED_SIZE)
-            dpy_resize(s->ds, s->g_width, s->g_height);
-        else {
-            s->g_width = ds_get_width(s->ds);
-            s->g_height = ds_get_height(s->ds);
-            text_console_resize(s);
-        }
-    }
     console_refresh(s);
 }
 
@@ -1346,13 +1339,12 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
 
 void qemu_console_resize(QEMUConsole *console, int width, int height)
 {
-    if (console->g_width != width || console->g_height != height
-        || !ds_get_data(console->ds)) {
-        console->g_width = width;
-        console->g_height = height;
-        if (active_console == console) {
-            dpy_resize(console->ds, width, height);
-        }
+    console->g_width = width;
+    console->g_height = height;
+    if (active_console == console) {
+        DisplayState *ds = console->ds;
+        ds->surface = qemu_resize_displaysurface(ds->surface, width, height, 32, 4 * width);
+        dpy_resize(console->ds);
     }
 }
 
@@ -1360,12 +1352,137 @@ void qemu_console_copy(QEMUConsole *console, int src_x, int src_y,
                 int dst_x, int dst_y, int w, int h)
 {
     if (active_console == console) {
-        if (console->ds->dpy_copy)
-            console->ds->dpy_copy(console->ds,
-                            src_x, src_y, dst_x, dst_y, w, h);
-        else {
-            /* TODO */
-            console->ds->dpy_update(console->ds, dst_x, dst_y, w, h);
-        }
+            dpy_copy(console->ds, src_x, src_y, dst_x, dst_y, w, h);
     }
+}
+
+static PixelFormat qemu_default_pixelformat(int bpp)
+{
+    PixelFormat pf;
+
+    memset(&pf, 0x00, sizeof(PixelFormat));
+
+    pf.bits_per_pixel = bpp;
+    pf.bytes_per_pixel = bpp / 8;
+    pf.depth = bpp == 32 ? 24 : bpp;
+
+    switch (bpp) {
+        case 8:
+            pf.rmask = 0x000000E0;
+            pf.gmask = 0x0000001C;
+            pf.bmask = 0x00000003;
+            pf.rmax = 7;
+            pf.gmax = 7;
+            pf.bmax = 3;
+            pf.rshift = 5;
+            pf.gshift = 2;
+            pf.bshift = 0;
+            break;
+        case 16:
+            pf.rmask = 0x0000F800;
+            pf.gmask = 0x000007E0;
+            pf.bmask = 0x0000001F;
+            pf.rmax = 31;
+            pf.gmax = 63;
+            pf.bmax = 31;
+            pf.rshift = 11;
+            pf.gshift = 5;
+            pf.bshift = 0;
+            break;
+        case 24:
+        case 32:
+            pf.rmask = 0x00FF0000;
+            pf.gmask = 0x0000FF00;
+            pf.bmask = 0x000000FF;
+            pf.rmax = 255;
+            pf.gmax = 255;
+            pf.bmax = 255;
+            pf.rshift = 16;
+            pf.gshift = 8;
+            pf.bshift = 0;
+            break;
+        default:
+            break;
+    }
+    return pf;
+}
+
+DisplaySurface* qemu_create_displaysurface(int width, int height, int bpp, int linesize)
+{
+    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
+    if (surface == NULL) {
+        fprintf(stderr, "qemu_create_displaysurface: malloc failed\n");
+        exit(1);
+    }
+
+    surface->width = width;
+    surface->height = height;
+    surface->linesize = linesize;
+    surface->pf = qemu_default_pixelformat(bpp);
+#ifdef WORDS_BIGENDIAN
+    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
+#else
+    surface->flags = QEMU_ALLOCATED_FLAG;
+#endif
+    surface->data = (uint8_t*) qemu_mallocz(surface->linesize * surface->height);
+    if (surface->data == NULL) {
+        fprintf(stderr, "qemu_create_displaysurface: malloc failed\n");
+        exit(1);
+    }
+
+    return surface;
+}
+
+DisplaySurface* qemu_resize_displaysurface(DisplaySurface *surface,
+                                          int width, int height, int bpp, int linesize)
+{
+    surface->width = width;
+    surface->height = height;
+    surface->linesize = linesize;
+    surface->pf = qemu_default_pixelformat(bpp);
+    if (surface->flags & QEMU_ALLOCATED_FLAG)
+        surface->data = (uint8_t*) qemu_realloc(surface->data, surface->linesize * surface->height);
+    else
+        surface->data = (uint8_t*) qemu_malloc(surface->linesize * surface->height);
+    if (surface->data == NULL) {
+        fprintf(stderr, "qemu_resize_displaysurface: malloc failed\n");
+        exit(1);
+    }
+#ifdef WORDS_BIGENDIAN
+    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
+#else
+    surface->flags = QEMU_ALLOCATED_FLAG;
+#endif
+
+    return surface;
+}
+
+DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
+                                              int linesize, uint8_t *data)
+{
+    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
+    if (surface == NULL) {
+        fprintf(stderr, "qemu_create_displaysurface_from: malloc failed\n");
+        exit(1);
+    }
+
+    surface->width = width;
+    surface->height = height;
+    surface->linesize = linesize;
+    surface->pf = qemu_default_pixelformat(bpp);
+#ifdef WORDS_BIGENDIAN
+    surface->flags = QEMU_BIG_ENDIAN_FLAG;
+#endif
+    surface->data = data;
+
+    return surface;
+}
+
+void qemu_free_displaysurface(DisplaySurface *surface)
+{
+    if (surface == NULL)
+        return;
+    if (surface->flags & QEMU_ALLOCATED_FLAG)
+        qemu_free(surface->data);
+    qemu_free(surface);
 }

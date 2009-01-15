@@ -154,9 +154,11 @@ typedef void (* vga_update_retrace_info_fn)(struct VGAState *s);
     uint32_t line_compare;                                              \
     uint32_t start_addr;                                                \
     uint32_t plane_updated;                                             \
+    uint32_t last_line_offset;                                          \
     uint8_t last_cw, last_ch;                                           \
     uint32_t last_width, last_height; /* in chars or pixels */          \
     uint32_t last_scr_width, last_scr_height; /* in pixels */           \
+    uint32_t last_depth; /* in bits */                                  \
     uint8_t cursor_start, cursor_end;                                   \
     uint32_t cursor_offset;                                             \
     unsigned int (*rgb_to_pixel)(unsigned int r,                        \

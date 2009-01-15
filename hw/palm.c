@@ -277,7 +277,8 @@ static void palmte_init(ram_addr_t ram_size, int vga_ram_size,
     /* FIXME: We shouldn't really be doing this here.  The LCD controller
        will set the size once configured, so this just sets an initial
        size until the guest activates the display.  */
-    dpy_resize(ds, 320, 320);
+    ds->surface = qemu_resize_displaysurface(ds->surface, 320, 320, 32, 4 * 320);
+    dpy_resize(ds);
 }
 
 QEMUMachine palmte_machine = {

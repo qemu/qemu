@@ -31,7 +31,9 @@
 #include <signal.h>
 #endif
 
-static SDL_Surface *screen;
+static DisplayChangeListener *dcl;
+static SDL_Surface *real_screen;
+static SDL_Surface *guest_screen = NULL;
 static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
 static int last_vm_running;
 static int gui_saved_grab;
@@ -52,11 +54,34 @@ static SDL_Cursor *guest_sprite = 0;
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
+    SDL_Rect rec;
+    rec.x = x;
+    rec.y = y;
+    rec.w = w;
+    rec.h = h;
     //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
-    SDL_UpdateRect(screen, x, y, w, h);
+
+    SDL_BlitSurface(guest_screen, &rec, real_screen, &rec);
+    SDL_Flip(real_screen);
 }
 
-static void sdl_resize(DisplayState *ds, int w, int h)
+static void sdl_setdata(DisplayState *ds)
+{
+    SDL_Rect rec;
+    rec.x = 0;
+    rec.y = 0;
+    rec.w = real_screen->w;
+    rec.h = real_screen->h;
+
+    if (guest_screen != NULL) SDL_FreeSurface(guest_screen);
+
+    guest_screen = SDL_CreateRGBSurfaceFrom(ds_get_data(ds), ds_get_width(ds), ds_get_height(ds),
+                                            ds_get_bits_per_pixel(ds), ds_get_linesize(ds),
+                                            ds->surface->pf.rmask, ds->surface->pf.gmask,
+                                            ds->surface->pf.bmask, ds->surface->pf.amask);
+}
+
+static void sdl_resize(DisplayState *ds)
 {
     int flags;
 
@@ -68,40 +93,23 @@ static void sdl_resize(DisplayState *ds, int w, int h)
     if (gui_noframe)
         flags |= SDL_NOFRAME;
 
-    width = w;
-    height = h;
-
  again:
-    screen = SDL_SetVideoMode(w, h, 0, flags);
-    if (!screen) {
+    real_screen = SDL_SetVideoMode(ds_get_width(ds), ds_get_height(ds), 0, flags);
+    if (!real_screen) {
         fprintf(stderr, "Could not open SDL display\n");
         exit(1);
     }
-    if (!screen->pixels && (flags & SDL_HWSURFACE) && (flags & SDL_FULLSCREEN)) {
+    if (!real_screen->pixels && (flags & SDL_HWSURFACE) && (flags & SDL_FULLSCREEN)) {
         flags &= ~SDL_HWSURFACE;
         goto again;
     }
 
-    if (!screen->pixels) {
+    if (!real_screen->pixels) {
         fprintf(stderr, "Could not open SDL display\n");
         exit(1);
     }
-    ds->data = screen->pixels;
-    ds->linesize = screen->pitch;
-    ds->depth = screen->format->BitsPerPixel;
-    /* SDL BitsPerPixel never indicates any values other than
-       multiples of 8, so we need to check for strange depths. */
-    if (ds->depth == 16) {
-        uint32_t mask;
 
-        mask = screen->format->Rmask;
-        mask |= screen->format->Gmask;
-        mask |= screen->format->Bmask;
-        if ((mask & 0x8000) == 0)
-            ds->depth = 15;
-    }
-    ds->width = w;
-    ds->height = h;
+    sdl_setdata(ds);
 }
 
 /* generic keyboard conversion */
@@ -337,7 +345,7 @@ static void sdl_send_mouse_event(int dx, int dy, int dz, int x, int y, int state
 static void toggle_full_screen(DisplayState *ds)
 {
     gui_fullscreen = !gui_fullscreen;
-    sdl_resize(ds, screen->w, screen->h);
+    sdl_resize(ds);
     if (gui_fullscreen) {
         gui_saved_grab = gui_grab;
         sdl_grab_start();
@@ -366,7 +374,7 @@ static void sdl_refresh(DisplayState *ds)
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
         case SDL_VIDEOEXPOSE:
-            sdl_update(ds, 0, 0, screen->w, screen->h);
+            sdl_update(ds, 0, 0, real_screen->w, real_screen->h);
             break;
         case SDL_KEYDOWN:
         case SDL_KEYUP:
@@ -521,12 +529,12 @@ static void sdl_refresh(DisplayState *ds)
             if (ev->active.state & SDL_APPACTIVE) {
                 if (ev->active.gain) {
                     /* Back to default interval */
-                    ds->gui_timer_interval = 0;
-                    ds->idle = 0;
+                    dcl->gui_timer_interval = 0;
+                    dcl->idle = 0;
                 } else {
                     /* Sleeping interval */
-                    ds->gui_timer_interval = 500;
-                    ds->idle = 1;
+                    dcl->gui_timer_interval = 500;
+                    dcl->idle = 1;
                 }
             }
             break;
@@ -539,7 +547,7 @@ static void sdl_refresh(DisplayState *ds)
 static void sdl_fill(DisplayState *ds, int x, int y, int w, int h, uint32_t c)
 {
     SDL_Rect dst = { x, y, w, h };
-    SDL_FillRect(screen, &dst, c);
+    SDL_FillRect(real_screen, &dst, c);
 }
 
 static void sdl_mouse_warp(int x, int y, int on)
@@ -635,14 +643,18 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         exit(1);
     }
 
-    ds->dpy_update = sdl_update;
-    ds->dpy_resize = sdl_resize;
-    ds->dpy_refresh = sdl_refresh;
-    ds->dpy_fill = sdl_fill;
+    dcl = qemu_mallocz(sizeof(DisplayChangeListener));
+    if (!dcl)
+        exit(1);
+    dcl->dpy_update = sdl_update;
+    dcl->dpy_resize = sdl_resize;
+    dcl->dpy_refresh = sdl_refresh;
+    dcl->dpy_setdata = sdl_setdata;
+    dcl->dpy_fill = sdl_fill;
     ds->mouse_set = sdl_mouse_warp;
     ds->cursor_define = sdl_mouse_define;
+    register_displaychangelistener(ds, dcl);
 
-    sdl_resize(ds, 640, 400);
     sdl_update_caption();
     SDL_EnableKeyRepeat(250, 50);
     gui_grab = 0;
