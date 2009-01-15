@@ -35,6 +35,7 @@
 #include "fw_cfg.h"
 #include "virtio-blk.h"
 #include "virtio-balloon.h"
+#include "virtio-console.h"
 #include "hpet_emul.h"
 
 /* output Bochs bios info messages */
@@ -1097,6 +1098,14 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
     /* Add virtio balloon device */
     if (pci_enabled)
         virtio_balloon_init(pci_bus);
+
+    /* Add virtio console devices */
+    if (pci_enabled) {
+        for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
+            if (virtcon_hds[i])
+                virtio_console_init(pci_bus, virtcon_hds[i]);
+        }
+    }
 }
 
 static void pc_init_pci(ram_addr_t ram_size, int vga_ram_size,
