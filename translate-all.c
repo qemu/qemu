@@ -127,7 +127,7 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 #endif
 
 #ifdef DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_OUT_ASM) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
         qemu_log("OUT: [size=%d]\n", *gen_code_size_ptr);
         log_disas(tb->tc_ptr, *gen_code_size_ptr);
         qemu_log("\n");

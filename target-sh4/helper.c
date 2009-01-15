@@ -105,7 +105,7 @@ void do_interrupt(CPUState * env)
 	}
     }
 
-    if (loglevel & CPU_LOG_INT) {
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
 	const char *expname;
 	switch (env->exception_index) {
 	case 0x0e0:

@@ -2442,7 +2442,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     }
 #if defined ALPHA_DEBUG_DISAS
     log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(pc_start, ctx.pc - pc_start, 1);
         qemu_log("\n");

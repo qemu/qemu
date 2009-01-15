@@ -2811,7 +2811,7 @@ void do_interrupt(CPUState *env)
     int intno = env->exception_index;
 
 #ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_INT) {
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
         const char *name;
 
@@ -2942,7 +2942,7 @@ void do_interrupt(CPUState *env)
     int cwp, intno = env->exception_index;
 
 #ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_INT) {
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static int count;
         const char *name;
 

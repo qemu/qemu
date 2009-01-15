@@ -1933,7 +1933,7 @@ static void disas_sparc_insn(DisasContext * dc)
 {
     unsigned int insn, opc, rs1, rs2, rd;
 
-    if (unlikely(loglevel & CPU_LOG_TB_OP))
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
         tcg_gen_debug_insn_start(dc->pc);
     insn = ldl_code(dc->pc);
     opc = GET_FIELD(insn, 0, 1);
@@ -4905,7 +4905,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         tb->icount = num_insns;
     }
 #ifdef DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("--------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
         log_target_disas(pc_start, last_pc + 4 - pc_start, 0);

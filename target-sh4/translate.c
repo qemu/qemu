@@ -1937,7 +1937,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 #ifdef SH4_DEBUG_DISAS
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "\n");
 #endif
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
 	qemu_log("IN:\n");	/* , lookup_symbol(pc_start)); */
 	log_target_disas(pc_start, ctx.pc - pc_start, 0);
 	qemu_log("\n");

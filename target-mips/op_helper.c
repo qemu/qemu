@@ -1194,7 +1194,7 @@ void do_mtc0_status (target_ulong t0)
     old = env->CP0_Status;
     env->CP0_Status = (env->CP0_Status & ~mask) | val;
     compute_hflags(env);
-    if (loglevel & CPU_LOG_EXEC)
+    if (qemu_loglevel_mask(CPU_LOG_EXEC))
         do_mtc0_status_debug(old, val);
     cpu_mips_update_irq(env);
 }
@@ -1705,7 +1705,7 @@ target_ulong do_ei (void)
 
 static void debug_pre_eret (void)
 {
-    if (loglevel & CPU_LOG_EXEC) {
+    if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
         qemu_log("ERET: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
                 env->active_tc.PC, env->CP0_EPC);
         if (env->CP0_Status & (1 << CP0St_ERL))
@@ -1718,7 +1718,7 @@ static void debug_pre_eret (void)
 
 static void debug_post_eret (void)
 {
-    if (loglevel & CPU_LOG_EXEC) {
+    if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
         qemu_log("  =>  PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
                 env->active_tc.PC, env->CP0_EPC);
         if (env->CP0_Status & (1 << CP0St_ERL))

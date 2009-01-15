@@ -532,7 +532,7 @@ int cpu_exec(CPUState *env1)
                     }
                 }
 #ifdef DEBUG_EXEC
-                if ((loglevel & CPU_LOG_TB_CPU)) {
+                if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
                     /* restore flags in standard format */
                     regs_to_env();
 #if defined(TARGET_I386)

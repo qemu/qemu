@@ -8334,7 +8334,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
 #if defined(DEBUG_DISAS)
     qemu_log_mask(CPU_LOG_TB_CPU, "---------------- excp: %04x\n", ctx.exception);
     log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         int flags;
         flags = env->bfd_mach;
         flags |= ctx.le_mode << 16;

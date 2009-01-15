@@ -3035,7 +3035,7 @@ cris_decoder(DisasContext *dc)
 	unsigned int insn_len = 2;
 	int i;
 
-	if (unlikely(loglevel & CPU_LOG_TB_OP))
+	if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
 		tcg_gen_debug_insn_start(dc->pc);
 
 	/* Load a halfword onto the instruction register.  */
@@ -3179,7 +3179,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
 	dc->cpustate_changed = 0;
 
-	if (loglevel & CPU_LOG_TB_IN_ASM) {
+	if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
 		qemu_log(
 			"srch=%d pc=%x %x flg=%llx bt=%x ds=%u ccs=%x\n"
 			"pid=%x usp=%x\n"
@@ -3331,7 +3331,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
 #ifdef DEBUG_DISAS
 #if !DISAS_CRIS
-	if (loglevel & CPU_LOG_TB_IN_ASM) {
+	if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
 		log_target_disas(pc_start, dc->pc - pc_start, 0);
 		qemu_log("\nisize=%d osize=%zd\n",
 			dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);

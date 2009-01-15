@@ -52,7 +52,7 @@
 #if defined (HARD_DEBUG_PPC_IO)
 #define PPC_IO_DPRINTF(fmt, args...)                     \
 do {                                                     \
-    if (loglevel & CPU_LOG_IOPORT) {                     \
+    if (qemu_loglevel_mask(CPU_LOG_IOPORT)) {            \
         qemu_log("%s: " fmt, __func__ , ##args); \
     } else {                                             \
         printf("%s : " fmt, __func__ , ##args);          \
