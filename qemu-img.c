@@ -751,8 +751,7 @@ static void img_snapshot(int argc, char **argv)
     BlockDriverState *bs;
     QEMUSnapshotInfo sn;
     char *filename, *snapshot_name = NULL;
-    char c;
-    int ret;
+    int c, ret;
     int action = 0;
     qemu_timeval tv;
 
