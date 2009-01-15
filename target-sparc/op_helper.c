@@ -2829,23 +2829,23 @@ void do_interrupt(CPUState *env)
                 name = "Unknown";
         }
 
-        fprintf(logfile, "%6d: %s (v=%04x) pc=%016" PRIx64 " npc=%016" PRIx64
+        qemu_log("%6d: %s (v=%04x) pc=%016" PRIx64 " npc=%016" PRIx64
                 " SP=%016" PRIx64 "\n",
                 count, name, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
-        cpu_dump_state(env, logfile, fprintf, 0);
+        log_cpu_state(env, 0);
 #if 0
         {
             int i;
             uint8_t *ptr;
 
-            fprintf(logfile, "       code=");
+            qemu_log("       code=");
             ptr = (uint8_t *)env->pc;
             for(i = 0; i < 16; i++) {
-                fprintf(logfile, " %02x", ldub(ptr + i));
+                qemu_log(" %02x", ldub(ptr + i));
             }
-            fprintf(logfile, "\n");
+            qemu_log("\n");
         }
 #endif
         count++;
@@ -2956,22 +2956,22 @@ void do_interrupt(CPUState *env)
                 name = "Unknown";
         }
 
-        fprintf(logfile, "%6d: %s (v=%02x) pc=%08x npc=%08x SP=%08x\n",
+        qemu_log("%6d: %s (v=%02x) pc=%08x npc=%08x SP=%08x\n",
                 count, name, intno,
                 env->pc,
                 env->npc, env->regwptr[6]);
-        cpu_dump_state(env, logfile, fprintf, 0);
+        log_cpu_state(env, 0);
 #if 0
         {
             int i;
             uint8_t *ptr;
 
-            fprintf(logfile, "       code=");
+            qemu_log("       code=");
             ptr = (uint8_t *)env->pc;
             for(i = 0; i < 16; i++) {
-                fprintf(logfile, " %02x", ldub(ptr + i));
+                qemu_log(" %02x", ldub(ptr + i));
             }
-            fprintf(logfile, "\n");
+            qemu_log("\n");
         }
 #endif
         count++;

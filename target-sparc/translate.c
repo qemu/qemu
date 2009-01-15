@@ -4829,8 +4829,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             }
         }
         if (spc) {
-            if (loglevel > 0)
-                fprintf(logfile, "Search PC...\n");
+            qemu_log("Search PC...\n");
             j = gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
                 lj++;
@@ -4897,9 +4896,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;
 #if 0
-        if (loglevel > 0) {
-            page_dump(logfile);
-        }
+        log_page_dump();
 #endif
         gen_opc_jump_pc[0] = dc->jump_pc[0];
         gen_opc_jump_pc[1] = dc->jump_pc[1];
@@ -4909,10 +4906,10 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     }
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "--------------\n");
-        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-        target_disas(logfile, pc_start, last_pc + 4 - pc_start, 0);
-        fprintf(logfile, "\n");
+        qemu_log("--------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+        log_target_disas(pc_start, last_pc + 4 - pc_start, 0);
+        qemu_log("\n");
     }
 #endif
 }

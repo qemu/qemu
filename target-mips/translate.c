@@ -514,18 +514,11 @@ static const char *fregnames_h[] =
       "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31", };
 
 #ifdef MIPS_DEBUG_DISAS
-#define MIPS_DEBUG(fmt, args...)                                              \
-do {                                                                          \
-    if (loglevel & CPU_LOG_TB_IN_ASM) {                                       \
-        fprintf(logfile, TARGET_FMT_lx ": %08x " fmt "\n",                    \
-                ctx->pc, ctx->opcode , ##args);                               \
-    }                                                                         \
-} while (0)
-#define LOG_DISAS(...)                        \
-    do {                                      \
-        if (loglevel & CPU_LOG_TB_IN_ASM)     \
-            fprintf(logfile, ## __VA_ARGS__); \
-    } while (0)
+#define MIPS_DEBUG(fmt, args...)                         \
+        qemu_log_mask(CPU_LOG_TB_IN_ASM,                \
+                       TARGET_FMT_lx ": %08x " fmt "\n", \
+                       ctx->pc, ctx->opcode , ##args)
+#define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
 #else
 #define MIPS_DEBUG(fmt, args...) do { } while(0)
 #define LOG_DISAS(...) do { } while (0)
@@ -8180,8 +8173,8 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     int num_insns;
     int max_insns;
 
-    if (search_pc && loglevel)
-        fprintf (logfile, "search pc %d\n", search_pc);
+    if (search_pc)
+        qemu_log("search pc %d\n", search_pc);
 
     pc_start = tb->pc;
     /* Leave some spare opc slots for branch handling. */
@@ -8203,11 +8196,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
 #ifdef DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_CPU) {
-        fprintf(logfile, "------------------------------------------------\n");
-        /* FIXME: This may print out stale hflags from env... */
-        cpu_dump_state(env, logfile, fprintf, 0);
-    }
+    qemu_log_mask(CPU_LOG_TB_CPU, "------------------------------------------------\n");
+    /* FIXME: This may print out stale hflags from env... */
+    log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
 #endif
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_icount_start();
@@ -8299,13 +8290,11 @@ done_generating:
 #ifdef DEBUG_DISAS
     LOG_DISAS("\n");
     if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-        target_disas(logfile, pc_start, ctx.pc - pc_start, 0);
-        fprintf(logfile, "\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+        log_target_disas(pc_start, ctx.pc - pc_start, 0);
+        qemu_log("\n");
     }
-    if (loglevel & CPU_LOG_TB_CPU) {
-        fprintf(logfile, "---------------- %d %08x\n", ctx.bstate, ctx.hflags);
-    }
+    qemu_log_mask(CPU_LOG_TB_CPU, "---------------- %d %08x\n", ctx.bstate, ctx.hflags);
 #endif
 }
 

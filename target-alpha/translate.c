@@ -39,10 +39,7 @@
 
 
 #ifdef ALPHA_DEBUG_DISAS
-#  define LOG_DISAS(...) do {            \
-     if (logfile)                        \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_DISAS(...) qemu_log(__VA_ARGS__)
 #else
 #  define LOG_DISAS(...) do { } while (0)
 #endif
@@ -2444,13 +2441,11 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
         tb->icount = num_insns;
     }
 #if defined ALPHA_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_CPU) {
-        cpu_dump_state(env, logfile, fprintf, 0);
-    }
+    log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
     if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-        target_disas(logfile, pc_start, ctx.pc - pc_start, 1);
-        fprintf(logfile, "\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+        log_target_disas(pc_start, ctx.pc - pc_start, 1);
+        qemu_log("\n");
     }
 #endif
 }

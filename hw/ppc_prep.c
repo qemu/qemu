@@ -53,18 +53,13 @@
 #define PPC_IO_DPRINTF(fmt, args...)                     \
 do {                                                     \
     if (loglevel & CPU_LOG_IOPORT) {                     \
-        fprintf(logfile, "%s: " fmt, __func__ , ##args); \
+        qemu_log("%s: " fmt, __func__ , ##args); \
     } else {                                             \
         printf("%s : " fmt, __func__ , ##args);          \
     }                                                    \
 } while (0)
 #elif defined (DEBUG_PPC_IO)
-#define PPC_IO_DPRINTF(fmt, args...)                     \
-do {                                                     \
-    if (loglevel & CPU_LOG_IOPORT) {                     \
-        fprintf(logfile, "%s: " fmt, __func__ , ##args); \
-    }                                                    \
-} while (0)
+#define PPC_IO_DPRINTF(fmt, args...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
 #else
 #define PPC_IO_DPRINTF(fmt, args...) do { } while (0)
 #endif

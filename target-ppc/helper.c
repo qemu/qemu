@@ -40,14 +40,8 @@
 //#define FLUSH_ALL_TLBS
 
 #ifdef DEBUG_MMU
-#  define LOG_MMU(...) do {              \
-     if (loglevel)                       \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
-#  define LOG_MMU_STATE(env) do {                     \
-        if (loglevel)                                 \
-            cpu_dump_state(env, logfile, fprintf, 0); \
-   } while (0)
+#  define LOG_MMU(...) qemu_log(__VA_ARGS__)
+#  define LOG_MMU_STATE(env) log_cpu_state((env), 0)
 #else
 #  define LOG_MMU(...) do { } while (0)
 #  define LOG_MMU_STATE(...) do { } while (0)
@@ -55,37 +49,25 @@
 
 
 #ifdef DEBUG_SOFTWARE_TLB
-#  define LOG_SWTLB(...) do {            \
-     if (loglevel)                       \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_SWTLB(...) qemu_log(__VA_ARGS__)
 #else
 #  define LOG_SWTLB(...) do { } while (0)
 #endif
 
 #ifdef DEBUG_BATS
-#  define LOG_BATS(...) do {             \
-     if (loglevel)                       \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_BATS(...) qemu_log(__VA_ARGS__)
 #else
 #  define LOG_BATS(...) do { } while (0)
 #endif
 
 #ifdef DEBUG_SLB
-#  define LOG_SLB(...) do {              \
-     if (loglevel)                       \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_SLB(...) qemu_log(__VA_ARGS__)
 #else
 #  define LOG_SLB(...) do { } while (0)
 #endif
 
 #ifdef DEBUG_EXCEPTIONS
-#  define LOG_EXCP(...) do {             \
-     if (loglevel)                       \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_EXCP(...) qemu_log(__VA_ARGS__)
 #else
 #  define LOG_EXCP(...) do { } while (0)
 #endif
@@ -257,8 +239,7 @@ static always_inline int _pte_check (mmu_ctx_t *ctx, int is_64b,
             if (ctx->raddr != (target_phys_addr_t)-1ULL) {
                 /* all matches should have equal RPN, WIMG & PP */
                 if ((ctx->raddr & mmask) != (pte1 & mmask)) {
-                    if (loglevel != 0)
-                        fprintf(logfile, "Bad RPN/WIMG/PP\n");
+                    qemu_log("Bad RPN/WIMG/PP\n");
                     return -3;
                 }
             }
@@ -988,11 +969,11 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
                 }
             }
 #if defined (DUMP_PAGE_TABLES)
-            if (loglevel != 0) {
+            if (qemu_log_enabled()) {
                 target_phys_addr_t curaddr;
                 uint32_t a0, a1, a2, a3;
-                fprintf(logfile, "Page table: " PADDRX " len " PADDRX "\n",
-                        sdr, mask + 0x80);
+                qemu_log("Page table: " PADDRX " len " PADDRX "\n",
+                          sdr, mask + 0x80);
                 for (curaddr = sdr; curaddr < (sdr + mask + 0x80);
                      curaddr += 16) {
                     a0 = ldl_phys(curaddr);
@@ -1000,8 +981,8 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
                     a2 = ldl_phys(curaddr + 8);
                     a3 = ldl_phys(curaddr + 12);
                     if (a0 != 0 || a1 != 0 || a2 != 0 || a3 != 0) {
-                        fprintf(logfile, PADDRX ": %08x %08x %08x %08x\n",
-                                curaddr, a0, a1, a2, a3);
+                        qemu_log(PADDRX ": %08x %08x %08x %08x\n",
+                                  curaddr, a0, a1, a2, a3);
                     }
                 }
             }
@@ -1037,10 +1018,8 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
             /* eciwx or ecowx */
             return -4;
         default:
-            if (logfile) {
-                fprintf(logfile, "ERROR: instruction should not need "
+            qemu_log("ERROR: instruction should not need "
                         "address translation\n");
-            }
             return -4;
         }
         if ((rw == 1 || ctx->key != 1) && (rw == 0 || ctx->key != 0)) {
@@ -1064,8 +1043,7 @@ static always_inline int ppcemb_tlb_check (CPUState *env, ppcemb_tlb_t *tlb,
 
     /* Check valid flag */
     if (!(tlb->prot & PAGE_VALID)) {
-        if (loglevel != 0)
-            fprintf(logfile, "%s: TLB %d not valid\n", __func__, i);
+        qemu_log("%s: TLB %d not valid\n", __func__, i);
         return -1;
     }
     mask = ~(tlb->size - 1);
@@ -1335,9 +1313,7 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
     int ret;
 
 #if 0
-    if (loglevel != 0) {
-        fprintf(logfile, "%s\n", __func__);
-    }
+    qemu_log("%s\n", __func__);
 #endif
     if ((access_type == ACCESS_CODE && msr_ir == 0) ||
         (access_type != ACCESS_CODE && msr_dr == 0)) {
@@ -1388,10 +1364,8 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         }
     }
 #if 0
-    if (loglevel != 0) {
-        fprintf(logfile, "%s address " ADDRX " => %d " PADDRX "\n",
+    qemu_log("%s address " ADDRX " => %d " PADDRX "\n",
                 __func__, eaddr, ret, ctx->raddr);
-    }
 #endif
 
     return ret;
@@ -2016,7 +1990,7 @@ void ppc_hw_interrupt (CPUState *env)
 #else /* defined (CONFIG_USER_ONLY) */
 static always_inline void dump_syscall (CPUState *env)
 {
-    fprintf(logfile, "syscall r0=" REGX " r3=" REGX " r4=" REGX
+    qemu_log_mask(CPU_LOG_INT, "syscall r0=" REGX " r3=" REGX " r4=" REGX
             " r5=" REGX " r6=" REGX " nip=" ADDRX "\n",
             ppc_dump_gpr(env, 0), ppc_dump_gpr(env, 3), ppc_dump_gpr(env, 4),
             ppc_dump_gpr(env, 5), ppc_dump_gpr(env, 6), env->nip);
@@ -2042,10 +2016,8 @@ static always_inline void powerpc_excp (CPUState *env,
         lpes1 = 1;
     }
 
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "Raise exception at " ADDRX " => %08x (%02x)\n",
-                env->nip, excp, env->error_code);
-    }
+    qemu_log_mask(CPU_LOG_INT, "Raise exception at " ADDRX " => %08x (%02x)\n",
+                 env->nip, excp, env->error_code);
     msr = env->msr;
     new_msr = msr;
     srr0 = SPR_SRR0;
@@ -2079,8 +2051,8 @@ static always_inline void powerpc_excp (CPUState *env,
             /* Machine check exception is not enabled.
              * Enter checkstop state.
              */
-            if (loglevel != 0) {
-                fprintf(logfile, "Machine check while not allowed. "
+            if (qemu_log_enabled()) {
+                qemu_log("Machine check while not allowed. "
                         "Entering checkstop state\n");
             } else {
                 fprintf(stderr, "Machine check while not allowed. "
@@ -2200,9 +2172,7 @@ static always_inline void powerpc_excp (CPUState *env,
                 return;
             }
         }
-        if (loglevel & CPU_LOG_INT) {
-            dump_syscall(env);
-        }
+        dump_syscall(env);
         new_msr &= ~((target_ulong)1 << MSR_RI);
         lev = env->error_code;
         if (lev == 1 || (lpes0 == 0 && lpes1 == 0))
@@ -2416,7 +2386,7 @@ static always_inline void powerpc_excp (CPUState *env,
         case POWERPC_EXCP_7x5:
         tlb_miss:
 #if defined (DEBUG_SOFTWARE_TLB)
-            if (loglevel != 0) {
+            if (qemu_log_enabled()) {
                 const unsigned char *es;
                 target_ulong *miss, *cmp;
                 int en;
@@ -2434,7 +2404,7 @@ static always_inline void powerpc_excp (CPUState *env,
                     miss = &env->spr[SPR_DMISS];
                     cmp = &env->spr[SPR_DCMP];
                 }
-                fprintf(logfile, "6xx %sTLB miss: %cM " ADDRX " %cC " ADDRX
+                qemu_log("6xx %sTLB miss: %cM " ADDRX " %cC " ADDRX
                         " H1 " ADDRX " H2 " ADDRX " %08x\n",
                         es, en, *miss, en, *cmp,
                         env->spr[SPR_HASH1], env->spr[SPR_HASH2],
@@ -2449,7 +2419,7 @@ static always_inline void powerpc_excp (CPUState *env,
         case POWERPC_EXCP_74xx:
         tlb_miss_74xx:
 #if defined (DEBUG_SOFTWARE_TLB)
-            if (loglevel != 0) {
+            if (qemu_log_enabled()) {
                 const unsigned char *es;
                 target_ulong *miss, *cmp;
                 int en;
@@ -2467,7 +2437,7 @@ static always_inline void powerpc_excp (CPUState *env,
                     miss = &env->spr[SPR_TLBMISS];
                     cmp = &env->spr[SPR_PTEHI];
                 }
-                fprintf(logfile, "74xx %sTLB miss: %cM " ADDRX " %cC " ADDRX
+                qemu_log("74xx %sTLB miss: %cM " ADDRX " %cC " ADDRX
                         " %08x\n",
                         es, en, *miss, en, *cmp, env->error_code);
             }
@@ -2619,11 +2589,9 @@ void ppc_hw_interrupt (CPUPPCState *env)
     int hdice;
 
 #if 0
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: %p pending %08x req %08x me %d ee %d\n",
+    qemu_log_mask(CPU_LOG_INT, "%s: %p pending %08x req %08x me %d ee %d\n",
                 __func__, env, env->pending_interrupts,
                 env->interrupt_request, (int)msr_me, (int)msr_ee);
-    }
 #endif
     /* External reset */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_RESET)) {
@@ -2735,16 +2703,8 @@ void ppc_hw_interrupt (CPUPPCState *env)
 
 void cpu_dump_rfi (target_ulong RA, target_ulong msr)
 {
-    FILE *f;
-
-    if (logfile) {
-        f = logfile;
-    } else {
-        f = stdout;
-        return;
-    }
-    fprintf(f, "Return from exception at " ADDRX " with flags " ADDRX "\n",
-            RA, msr);
+    qemu_log("Return from exception at " ADDRX " with flags " ADDRX "\n",
+             RA, msr);
 }
 
 void cpu_ppc_reset (void *opaque)

@@ -165,7 +165,7 @@ typedef void (*disas_proc)(DisasContext *, uint16_t);
 #define DISAS_INSN(name) \
   static void real_disas_##name (DisasContext *s, uint16_t insn); \
   static void disas_##name (DisasContext *s, uint16_t insn) { \
-    if (logfile) fprintf(logfile, "Dispatch " #name "\n"); \
+    qemu_log("Dispatch " #name "\n"); \
     real_disas_##name(s, insn); } \
   static void real_disas_##name (DisasContext *s, uint16_t insn)
 #else
@@ -3064,10 +3064,10 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "----------------\n");
-        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-        target_disas(logfile, pc_start, dc->pc - pc_start, 0);
-        fprintf(logfile, "\n");
+        qemu_log("----------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+        log_target_disas(pc_start, dc->pc - pc_start, 0);
+        qemu_log("\n");
     }
 #endif
     if (search_pc) {

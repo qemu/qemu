@@ -128,9 +128,9 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 
 #ifdef DEBUG_DISAS
     if (loglevel & CPU_LOG_TB_OUT_ASM) {
-        fprintf(logfile, "OUT: [size=%d]\n", *gen_code_size_ptr);
-        disas(logfile, tb->tc_ptr, *gen_code_size_ptr);
-        fprintf(logfile, "\n");
+        qemu_log("OUT: [size=%d]\n", *gen_code_size_ptr);
+        log_disas(tb->tc_ptr, *gen_code_size_ptr);
+        qemu_log("\n");
         fflush(logfile);
     }
 #endif

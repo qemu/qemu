@@ -30,7 +30,7 @@
 //#define DEBUG_VM86
 
 #ifdef DEBUG_VM86
-#  define LOG_VM86(...) fprintf(logfile, ## __VA_ARGS__);
+#  define LOG_VM86(...) qemu_log(__VA_ARGS__);
 #else
 #  define LOG_VM86(...) do { } while (0)
 #endif

@@ -26,14 +26,9 @@
 
 
 #ifdef DEBUG_PCALL
-#  define LOG_PCALL(...) do {            \
-     if (loglevel & CPU_LOG_PCALL)       \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
-#  define LOG_PCALL_STATE(env) do {                             \
-    if (loglevel & CPU_LOG_PCALL)                               \
-        cpu_dump_state((env), logfile, fprintf, X86_DUMP_CCOP); \
-   } while (0)
+#  define LOG_PCALL(...) qemu_log_mask(CPU_LOG_PCALL, ## __VA_ARGS__)
+#  define LOG_PCALL_STATE(env) \
+          log_cpu_state_mask(CPU_LOG_PCALL, (env), X86_DUMP_CCOP)
 #else
 #  define LOG_PCALL(...) do { } while (0)
 #  define LOG_PCALL_STATE(env) do { } while (0)
@@ -43,8 +38,7 @@
 #if 0
 #define raise_exception_err(a, b)\
 do {\
-    if (logfile)\
-        fprintf(logfile, "raise_exception line=%d\n", __LINE__);\
+    qemu_log("raise_exception line=%d\n", __LINE__);\
     (raise_exception_err)(a, b);\
 } while (0)
 #endif
@@ -1215,29 +1209,29 @@ void do_interrupt(int intno, int is_int, int error_code,
     if (loglevel & CPU_LOG_INT) {
         if ((env->cr[0] & CR0_PE_MASK)) {
             static int count;
-            fprintf(logfile, "%6d: v=%02x e=%04x i=%d cpl=%d IP=%04x:" TARGET_FMT_lx " pc=" TARGET_FMT_lx " SP=%04x:" TARGET_FMT_lx,
+            qemu_log("%6d: v=%02x e=%04x i=%d cpl=%d IP=%04x:" TARGET_FMT_lx " pc=" TARGET_FMT_lx " SP=%04x:" TARGET_FMT_lx,
                     count, intno, error_code, is_int,
                     env->hflags & HF_CPL_MASK,
                     env->segs[R_CS].selector, EIP,
                     (int)env->segs[R_CS].base + EIP,
                     env->segs[R_SS].selector, ESP);
             if (intno == 0x0e) {
-                fprintf(logfile, " CR2=" TARGET_FMT_lx, env->cr[2]);
+                qemu_log(" CR2=" TARGET_FMT_lx, env->cr[2]);
             } else {
-                fprintf(logfile, " EAX=" TARGET_FMT_lx, EAX);
+                qemu_log(" EAX=" TARGET_FMT_lx, EAX);
             }
-            fprintf(logfile, "\n");
-            cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
+            qemu_log("\n");
+            log_cpu_state(env, X86_DUMP_CCOP);
 #if 0
             {
                 int i;
                 uint8_t *ptr;
-                fprintf(logfile, "       code=");
+                qemu_log("       code=");
                 ptr = env->segs[R_CS].base + env->eip;
                 for(i = 0; i < 16; i++) {
-                    fprintf(logfile, " %02x", ldub(ptr + i));
+                    qemu_log(" %02x", ldub(ptr + i));
                 }
-                fprintf(logfile, "\n");
+                qemu_log("\n");
             }
 #endif
             count++;
@@ -1270,8 +1264,7 @@ static int check_exception(int intno, int *error_code)
     int second_contributory = intno == 0 ||
                                (intno >= 10 && intno <= 13);
 
-    if (loglevel & CPU_LOG_INT)
-        fprintf(logfile, "check_exception old: 0x%x new 0x%x\n",
+    qemu_log_mask(CPU_LOG_INT, "check_exception old: 0x%x new 0x%x\n",
                 env->old_exception, intno);
 
     if (env->old_exception == EXCP08_DBLE)
@@ -1352,10 +1345,8 @@ void do_smm_enter(void)
     SegmentCache *dt;
     int i, offset;
 
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "SMM: enter\n");
-        cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
-    }
+    qemu_log_mask(CPU_LOG_INT, "SMM: enter\n");
+    log_cpu_state_mask(CPU_LOG_INT, env, X86_DUMP_CCOP);
 
     env->hflags |= HF_SMM_MASK;
     cpu_smm_update(env);
@@ -1595,10 +1586,8 @@ void helper_rsm(void)
     env->hflags &= ~HF_SMM_MASK;
     cpu_smm_update(env);
 
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "SMM: after RSM\n");
-        cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
-    }
+    qemu_log_mask(CPU_LOG_INT, "SMM: after RSM\n");
+    log_cpu_state_mask(CPU_LOG_INT, env, X86_DUMP_CCOP);
 }
 
 #endif /* !CONFIG_USER_ONLY */
@@ -2156,7 +2145,7 @@ void helper_load_seg(int seg_reg, int selector)
                        get_seg_limit(e1, e2),
                        e2);
 #if 0
-        fprintf(logfile, "load_seg: sel=0x%04x base=0x%08lx limit=0x%08lx flags=%08x\n",
+        qemu_log("load_seg: sel=0x%04x base=0x%08lx limit=0x%08lx flags=%08x\n",
                 selector, (unsigned long)sc->base, sc->limit, sc->flags);
 #endif
     }
@@ -4774,8 +4763,7 @@ void helper_vmrun(int aflag, int next_eip_addend)
     else
         addr = (uint32_t)EAX;
 
-    if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile,"vmrun! " TARGET_FMT_lx "\n", addr);
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmrun! " TARGET_FMT_lx "\n", addr);
 
     env->vm_vmcb = addr;
 
@@ -4895,8 +4883,7 @@ void helper_vmrun(int aflag, int next_eip_addend)
         uint32_t event_inj_err = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj_err));
         stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj), event_inj & ~SVM_EVTINJ_VALID);
 
-        if (loglevel & CPU_LOG_TB_IN_ASM)
-            fprintf(logfile, "Injecting(%#hx): ", valid_err);
+        qemu_log_mask(CPU_LOG_TB_IN_ASM, "Injecting(%#hx): ", valid_err);
         /* FIXME: need to implement valid_err */
         switch (event_inj & SVM_EVTINJ_TYPE_MASK) {
         case SVM_EVTINJ_TYPE_INTR:
@@ -4904,8 +4891,7 @@ void helper_vmrun(int aflag, int next_eip_addend)
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = -1;
-                if (loglevel & CPU_LOG_TB_IN_ASM)
-                    fprintf(logfile, "INTR");
+                qemu_log_mask(CPU_LOG_TB_IN_ASM, "INTR");
                 /* XXX: is it always correct ? */
                 do_interrupt(vector, 0, 0, 0, 1);
                 break;
@@ -4914,8 +4900,7 @@ void helper_vmrun(int aflag, int next_eip_addend)
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = EIP;
-                if (loglevel & CPU_LOG_TB_IN_ASM)
-                    fprintf(logfile, "NMI");
+                qemu_log_mask(CPU_LOG_TB_IN_ASM, "NMI");
                 cpu_loop_exit();
                 break;
         case SVM_EVTINJ_TYPE_EXEPT:
@@ -4923,8 +4908,7 @@ void helper_vmrun(int aflag, int next_eip_addend)
                 env->error_code = event_inj_err;
                 env->exception_is_int = 0;
                 env->exception_next_eip = -1;
-                if (loglevel & CPU_LOG_TB_IN_ASM)
-                    fprintf(logfile, "EXEPT");
+                qemu_log_mask(CPU_LOG_TB_IN_ASM, "EXEPT");
                 cpu_loop_exit();
                 break;
         case SVM_EVTINJ_TYPE_SOFT:
@@ -4932,13 +4916,11 @@ void helper_vmrun(int aflag, int next_eip_addend)
                 env->error_code = event_inj_err;
                 env->exception_is_int = 1;
                 env->exception_next_eip = EIP;
-                if (loglevel & CPU_LOG_TB_IN_ASM)
-                    fprintf(logfile, "SOFT");
+                qemu_log_mask(CPU_LOG_TB_IN_ASM, "SOFT");
                 cpu_loop_exit();
                 break;
         }
-        if (loglevel & CPU_LOG_TB_IN_ASM)
-            fprintf(logfile, " %#x %#x\n", env->exception_index, env->error_code);
+        qemu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", env->exception_index, env->error_code);
     }
 }
 
@@ -4958,8 +4940,7 @@ void helper_vmload(int aflag)
     else
         addr = (uint32_t)EAX;
 
-    if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile,"vmload! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmload! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
                 addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
                 env->segs[R_FS].base);
 
@@ -4994,8 +4975,7 @@ void helper_vmsave(int aflag)
     else
         addr = (uint32_t)EAX;
 
-    if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile,"vmsave! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmsave! " TARGET_FMT_lx "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
                 addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
                 env->segs[R_FS].base);
 
@@ -5143,8 +5123,7 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
 {
     uint32_t int_ctl;
 
-    if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile,"vmexit(%08x, %016" PRIx64 ", %016" PRIx64 ", " TARGET_FMT_lx ")!\n",
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmexit(%08x, %016" PRIx64 ", %016" PRIx64 ", " TARGET_FMT_lx ")!\n",
                 exit_code, exit_info_1,
                 ldq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2)),
                 EIP);

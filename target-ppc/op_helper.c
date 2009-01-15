@@ -29,10 +29,7 @@
 //#define DEBUG_SOFTWARE_TLB
 
 #ifdef DEBUG_SOFTWARE_TLB
-#  define LOG_SWTLB(...) do {            \
-     if (loglevel)                       \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_SWTLB(...) qemu_log(__VA_ARGS__)
 #else
 #  define LOG_SWTLB(...) do { } while (0)
 #endif
@@ -84,18 +81,14 @@ void helper_store_cr (target_ulong val, uint32_t mask)
 /* SPR accesses */
 void helper_load_dump_spr (uint32_t sprn)
 {
-    if (loglevel != 0) {
-        fprintf(logfile, "Read SPR %d %03x => " ADDRX "\n",
+    qemu_log("Read SPR %d %03x => " ADDRX "\n",
                 sprn, sprn, env->spr[sprn]);
-    }
 }
 
 void helper_store_dump_spr (uint32_t sprn)
 {
-    if (loglevel != 0) {
-        fprintf(logfile, "Write SPR %d %03x <= " ADDRX "\n",
+    qemu_log("Write SPR %d %03x <= " ADDRX "\n",
                 sprn, sprn, env->spr[sprn]);
-    }
 }
 
 target_ulong helper_load_tbl (void)
@@ -192,10 +185,8 @@ void helper_store_hid0_601 (target_ulong val)
         env->hflags_nmsr &= ~(1 << MSR_LE);
         env->hflags_nmsr |= (1 << MSR_LE) & (((val >> 3) & 1) << MSR_LE);
         env->hflags |= env->hflags_nmsr;
-        if (loglevel != 0) {
-            fprintf(logfile, "%s: set endianness to %c => " ADDRX "\n",
+        qemu_log("%s: set endianness to %c => " ADDRX "\n",
                     __func__, val & 0x8 ? 'l' : 'b', env->hflags);
-        }
     }
     env->spr[SPR_HID0] = (uint32_t)val;
 }
@@ -1870,15 +1861,11 @@ target_ulong helper_load_dcr (target_ulong dcrn)
     target_ulong val = 0;
 
     if (unlikely(env->dcr_env == NULL)) {
-        if (loglevel != 0) {
-            fprintf(logfile, "No DCR environment\n");
-        }
+        qemu_log("No DCR environment\n");
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_read(env->dcr_env, dcrn, &val) != 0)) {
-        if (loglevel != 0) {
-            fprintf(logfile, "DCR read error %d %03x\n", (int)dcrn, (int)dcrn);
-        }
+        qemu_log("DCR read error %d %03x\n", (int)dcrn, (int)dcrn);
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
@@ -1888,15 +1875,11 @@ target_ulong helper_load_dcr (target_ulong dcrn)
 void helper_store_dcr (target_ulong dcrn, target_ulong val)
 {
     if (unlikely(env->dcr_env == NULL)) {
-        if (loglevel != 0) {
-            fprintf(logfile, "No DCR environment\n");
-        }
+        qemu_log("No DCR environment\n");
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_write(env->dcr_env, dcrn, val) != 0)) {
-        if (loglevel != 0) {
-            fprintf(logfile, "DCR write error %d %03x\n", (int)dcrn, (int)dcrn);
-        }
+        qemu_log("DCR write error %d %03x\n", (int)dcrn, (int)dcrn);
         helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }

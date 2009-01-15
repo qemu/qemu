@@ -84,9 +84,7 @@ static void mips_timer_cb (void *opaque)
 
     env = opaque;
 #if 0
-    if (logfile) {
-        fprintf(logfile, "%s\n", __func__);
-    }
+    qemu_log("%s\n", __func__);
 #endif
 
     if (env->CP0_Cause & (1 << CP0Ca_DC))

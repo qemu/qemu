@@ -29,8 +29,8 @@
 void do_raise_exception_err (uint32_t exception, int error_code)
 {
 #if 1
-    if (logfile && exception < 0x100)
-        fprintf(logfile, "%s: %d %d\n", __func__, exception, error_code);
+    if (exception < 0x100)
+        qemu_log("%s: %d %d\n", __func__, exception, error_code);
 #endif
     env->exception_index = exception;
     env->error_code = error_code;
@@ -1342,21 +1342,21 @@ void do_mtc0_datahi (target_ulong t0)
 
 void do_mtc0_status_debug(uint32_t old, uint32_t val)
 {
-    fprintf(logfile, "Status %08x (%08x) => %08x (%08x) Cause %08x",
+    qemu_log("Status %08x (%08x) => %08x (%08x) Cause %08x",
             old, old & env->CP0_Cause & CP0Ca_IP_mask,
             val, val & env->CP0_Cause & CP0Ca_IP_mask,
             env->CP0_Cause);
     switch (env->hflags & MIPS_HFLAG_KSU) {
-    case MIPS_HFLAG_UM: fputs(", UM\n", logfile); break;
-    case MIPS_HFLAG_SM: fputs(", SM\n", logfile); break;
-    case MIPS_HFLAG_KM: fputs("\n", logfile); break;
+    case MIPS_HFLAG_UM: qemu_log(", UM\n"); break;
+    case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
+    case MIPS_HFLAG_KM: qemu_log("\n"); break;
     default: cpu_abort(env, "Invalid MMU mode!\n"); break;
     }
 }
 
 void do_mtc0_status_irqraise_debug(void)
 {
-    fprintf(logfile, "Raise pending IRQs\n");
+    qemu_log("Raise pending IRQs\n");
 }
 
 /* MIPS MT functions */
@@ -1705,35 +1705,38 @@ target_ulong do_ei (void)
 
 static void debug_pre_eret (void)
 {
-    fprintf(logfile, "ERET: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
-            env->active_tc.PC, env->CP0_EPC);
-    if (env->CP0_Status & (1 << CP0St_ERL))
-        fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
-    if (env->hflags & MIPS_HFLAG_DM)
-        fprintf(logfile, " DEPC " TARGET_FMT_lx, env->CP0_DEPC);
-    fputs("\n", logfile);
+    if (loglevel & CPU_LOG_EXEC) {
+        qemu_log("ERET: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
+                env->active_tc.PC, env->CP0_EPC);
+        if (env->CP0_Status & (1 << CP0St_ERL))
+            qemu_log(" ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
+        if (env->hflags & MIPS_HFLAG_DM)
+            qemu_log(" DEPC " TARGET_FMT_lx, env->CP0_DEPC);
+        qemu_log("\n");
+    }
 }
 
 static void debug_post_eret (void)
 {
-    fprintf(logfile, "  =>  PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
-            env->active_tc.PC, env->CP0_EPC);
-    if (env->CP0_Status & (1 << CP0St_ERL))
-        fprintf(logfile, " ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
-    if (env->hflags & MIPS_HFLAG_DM)
-        fprintf(logfile, " DEPC " TARGET_FMT_lx, env->CP0_DEPC);
-    switch (env->hflags & MIPS_HFLAG_KSU) {
-    case MIPS_HFLAG_UM: fputs(", UM\n", logfile); break;
-    case MIPS_HFLAG_SM: fputs(", SM\n", logfile); break;
-    case MIPS_HFLAG_KM: fputs("\n", logfile); break;
-    default: cpu_abort(env, "Invalid MMU mode!\n"); break;
+    if (loglevel & CPU_LOG_EXEC) {
+        qemu_log("  =>  PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
+                env->active_tc.PC, env->CP0_EPC);
+        if (env->CP0_Status & (1 << CP0St_ERL))
+            qemu_log(" ErrorEPC " TARGET_FMT_lx, env->CP0_ErrorEPC);
+        if (env->hflags & MIPS_HFLAG_DM)
+            qemu_log(" DEPC " TARGET_FMT_lx, env->CP0_DEPC);
+        switch (env->hflags & MIPS_HFLAG_KSU) {
+        case MIPS_HFLAG_UM: qemu_log(", UM\n"); break;
+        case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
+        case MIPS_HFLAG_KM: qemu_log("\n"); break;
+        default: cpu_abort(env, "Invalid MMU mode!\n"); break;
+        }
     }
 }
 
 void do_eret (void)
 {
-    if (loglevel & CPU_LOG_EXEC)
-        debug_pre_eret();
+    debug_pre_eret();
     if (env->CP0_Status & (1 << CP0St_ERL)) {
         env->active_tc.PC = env->CP0_ErrorEPC;
         env->CP0_Status &= ~(1 << CP0St_ERL);
@@ -1742,20 +1745,17 @@ void do_eret (void)
         env->CP0_Status &= ~(1 << CP0St_EXL);
     }
     compute_hflags(env);
-    if (loglevel & CPU_LOG_EXEC)
-        debug_post_eret();
+    debug_post_eret();
     env->CP0_LLAddr = 1;
 }
 
 void do_deret (void)
 {
-    if (loglevel & CPU_LOG_EXEC)
-        debug_pre_eret();
+    debug_pre_eret();
     env->active_tc.PC = env->CP0_DEPC;
     env->hflags &= MIPS_HFLAG_DM;
     compute_hflags(env);
-    if (loglevel & CPU_LOG_EXEC)
-        debug_post_eret();
+    debug_post_eret();
     env->CP0_LLAddr = 1;
 }
 #endif /* !CONFIG_USER_ONLY */

@@ -117,10 +117,7 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
     int ret = TLBRET_MATCH;
 
 #if 0
-    if (logfile) {
-        fprintf(logfile, "user mode %d h %08x\n",
-                user_mode, env->hflags);
-    }
+    qemu_log("user mode %d h %08x\n", user_mode, env->hflags);
 #endif
 
     if (address <= (int32_t)0x7FFFFFFFUL) {
@@ -198,9 +195,8 @@ static int get_physical_address (CPUState *env, target_ulong *physical,
         }
     }
 #if 0
-    if (logfile) {
-        fprintf(logfile, TARGET_FMT_lx " %d %d => " TARGET_FMT_lx " %d (%d)\n",
-                address, rw, access_type, *physical, *prot, ret);
+    qemu_log(TARGET_FMT_lx " %d %d => " TARGET_FMT_lx " %d (%d)\n",
+            address, rw, access_type, *physical, *prot, ret);
     }
 #endif
 
@@ -233,13 +229,11 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     int access_type;
     int ret = 0;
 
-    if (logfile) {
 #if 0
-        cpu_dump_state(env, logfile, fprintf, 0);
+    log_cpu_state(env, 0);
 #endif
-        fprintf(logfile, "%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d smmu %d\n",
-                __func__, env->active_tc.PC, address, rw, mmu_idx, is_softmmu);
-    }
+    qemu_log("%s pc " TARGET_FMT_lx " ad " TARGET_FMT_lx " rw %d mmu_idx %d smmu %d\n",
+              __func__, env->active_tc.PC, address, rw, mmu_idx, is_softmmu);
 
     rw &= 1;
 
@@ -252,10 +246,8 @@ int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 #else
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type);
-    if (logfile) {
-        fprintf(logfile, "%s address=" TARGET_FMT_lx " ret %d physical " TARGET_FMT_lx " prot %d\n",
-                __func__, address, ret, physical, prot);
-    }
+    qemu_log("%s address=" TARGET_FMT_lx " ret %d physical " TARGET_FMT_lx " prot %d\n",
+              __func__, address, ret, physical, prot);
     if (ret == TLBRET_MATCH) {
        ret = tlb_set_page(env, address & TARGET_PAGE_MASK,
                           physical & TARGET_PAGE_MASK, prot,
@@ -357,14 +349,14 @@ void do_interrupt (CPUState *env)
     int cause = -1;
     const char *name;
 
-    if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
+    if (qemu_log_enabled() && env->exception_index != EXCP_EXT_INTERRUPT) {
         if (env->exception_index < 0 || env->exception_index > EXCP_LAST)
             name = "unknown";
         else
             name = excp_names[env->exception_index];
 
-        fprintf(logfile, "%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
-                __func__, env->active_tc.PC, env->CP0_EPC, name);
+        qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
+                 __func__, env->active_tc.PC, env->CP0_EPC, name);
     }
     if (env->exception_index == EXCP_EXT_INTERRUPT &&
         (env->hflags & MIPS_HFLAG_DM))
@@ -558,15 +550,12 @@ void do_interrupt (CPUState *env)
         env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
         break;
     default:
-        if (logfile) {
-            fprintf(logfile, "Invalid MIPS exception %d. Exiting\n",
-                    env->exception_index);
-        }
+        qemu_log("Invalid MIPS exception %d. Exiting\n", env->exception_index);
         printf("Invalid MIPS exception %d. Exiting\n", env->exception_index);
         exit(1);
     }
-    if (logfile && env->exception_index != EXCP_EXT_INTERRUPT) {
-        fprintf(logfile, "%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
+    if (qemu_log_enabled() && env->exception_index != EXCP_EXT_INTERRUPT) {
+        qemu_log("%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
                 "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
                 __func__, env->active_tc.PC, env->CP0_EPC, cause,
                 env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,

@@ -34,7 +34,7 @@
 
 #ifdef CRIS_HELPER_DEBUG
 #define D(x) x
-#define D_LOG(...) fprintf(logfile, ## __VA_ARGS__)
+#define D_LOG(...) qemu_log(__VA__ARGS__)
 #else
 #define D(x)
 #define D_LOG(...) do { } while (0)

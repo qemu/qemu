@@ -390,9 +390,7 @@ int cpu_exec(CPUState *env1)
                             svm_check_intercept(SVM_EXIT_INTR);
                             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
                             intno = cpu_get_pic_interrupt(env);
-                            if (loglevel & CPU_LOG_TB_IN_ASM) {
-                                fprintf(logfile, "Servicing hardware INT=0x%02x\n", intno);
-                            }
+                            qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing hardware INT=0x%02x\n", intno);
                             do_interrupt(intno, 0, 0, 0, 1);
                             /* ensure that no TB jump will be modified as
                                the program flow was changed */
@@ -405,8 +403,7 @@ int cpu_exec(CPUState *env1)
                             /* FIXME: this should respect TPR */
                             svm_check_intercept(SVM_EXIT_VINTR);
                             intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
-                            if (loglevel & CPU_LOG_TB_IN_ASM)
-                                fprintf(logfile, "Servicing virtual hardware INT=0x%02x\n", intno);
+                            qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing virtual hardware INT=0x%02x\n", intno);
                             do_interrupt(intno, 0, 0, 0, 1);
                             env->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
                             next_tb = 0;
@@ -540,28 +537,28 @@ int cpu_exec(CPUState *env1)
                     regs_to_env();
 #if defined(TARGET_I386)
                     env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
-                    cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
+                    log_cpu_state(env, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 #elif defined(TARGET_ARM)
-                    cpu_dump_state(env, logfile, fprintf, 0);
+                    log_cpu_state(env, 0);
 #elif defined(TARGET_SPARC)
-                    cpu_dump_state(env, logfile, fprintf, 0);
+                    log_cpu_state(env, 0);
 #elif defined(TARGET_PPC)
-                    cpu_dump_state(env, logfile, fprintf, 0);
+                    log_cpu_state(env, 0);
 #elif defined(TARGET_M68K)
                     cpu_m68k_flush_flags(env, env->cc_op);
                     env->cc_op = CC_OP_FLAGS;
                     env->sr = (env->sr & 0xffe0)
                               | env->cc_dest | (env->cc_x << 4);
-                    cpu_dump_state(env, logfile, fprintf, 0);
+                    log_cpu_state(env, 0);
 #elif defined(TARGET_MIPS)
-                    cpu_dump_state(env, logfile, fprintf, 0);
+                    log_cpu_state(env, 0);
 #elif defined(TARGET_SH4)
-		    cpu_dump_state(env, logfile, fprintf, 0);
+		    log_cpu_state(env, 0);
 #elif defined(TARGET_ALPHA)
-                    cpu_dump_state(env, logfile, fprintf, 0);
+                    log_cpu_state(env, 0);
 #elif defined(TARGET_CRIS)
-                    cpu_dump_state(env, logfile, fprintf, 0);
+                    log_cpu_state(env, 0);
 #else
 #error unsupported target CPU
 #endif
@@ -579,11 +576,9 @@ int cpu_exec(CPUState *env1)
                     tb_invalidated_flag = 0;
                 }
 #ifdef DEBUG_EXEC
-                if ((loglevel & CPU_LOG_EXEC)) {
-                    fprintf(logfile, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
-                            (long)tb->tc_ptr, tb->pc,
-                            lookup_symbol(tb->pc));
-                }
+                qemu_log_mask(CPU_LOG_EXEC, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
+                             (long)tb->tc_ptr, tb->pc,
+                             lookup_symbol(tb->pc));
 #endif
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct

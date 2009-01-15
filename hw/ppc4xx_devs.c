@@ -33,10 +33,7 @@
 
 
 #ifdef DEBUG_UIC
-#  define LOG_UIC(...) do {              \
-     if (loglevel & CPU_LOG_INT)         \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_UIC(...) qemu_log_mask(CPU_LOG_INT, ## __VA_ARGS__)
 #else
 #  define LOG_UIC(...) do { } while (0)
 #endif

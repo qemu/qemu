@@ -151,9 +151,9 @@ void do_interrupt(CPUState * env)
             expname = do_irq ? "interrupt" : "???";
             break;
 	}
-	fprintf(logfile, "exception 0x%03x [%s] raised\n",
-		irq_vector, expname);
-	cpu_dump_state(env, logfile, fprintf, 0);
+	qemu_log("exception 0x%03x [%s] raised\n",
+		  irq_vector, expname);
+	log_cpu_state(env, 0);
     }
 
     env->ssr = env->sr;

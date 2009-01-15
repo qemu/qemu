@@ -43,10 +43,7 @@
 //#define DO_PPC_STATISTICS
 
 #ifdef PPC_DEBUG_DISAS
-#  define LOG_DISAS(...) do {            \
-     if (loglevel & CPU_LOG_TB_IN_ASM)   \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
 #else
 #  define LOG_DISAS(...) do { } while (0)
 #endif
@@ -3900,10 +3897,8 @@ static always_inline void gen_op_mfspr (DisasContext *ctx)
              * allowing userland application to read the PVR
              */
             if (sprn != SPR_PVR) {
-                if (loglevel != 0) {
-                    fprintf(logfile, "Trying to read privileged spr %d %03x at "
+                qemu_log("Trying to read privileged spr %d %03x at "
                             ADDRX "\n", sprn, sprn, ctx->nip);
-                }
                 printf("Trying to read privileged spr %d %03x at " ADDRX "\n",
                        sprn, sprn, ctx->nip);
             }
@@ -3911,10 +3906,8 @@ static always_inline void gen_op_mfspr (DisasContext *ctx)
         }
     } else {
         /* Not defined */
-        if (loglevel != 0) {
-            fprintf(logfile, "Trying to read invalid spr %d %03x at "
+        qemu_log("Trying to read invalid spr %d %03x at "
                     ADDRX "\n", sprn, sprn, ctx->nip);
-        }
         printf("Trying to read invalid spr %d %03x at " ADDRX "\n",
                sprn, sprn, ctx->nip);
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
@@ -4046,20 +4039,16 @@ GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000001, PPC_MISC)
             (*write_cb)(ctx, sprn, rS(ctx->opcode));
         } else {
             /* Privilege exception */
-            if (loglevel != 0) {
-                fprintf(logfile, "Trying to write privileged spr %d %03x at "
+            qemu_log("Trying to write privileged spr %d %03x at "
                         ADDRX "\n", sprn, sprn, ctx->nip);
-            }
             printf("Trying to write privileged spr %d %03x at " ADDRX "\n",
                    sprn, sprn, ctx->nip);
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
     } else {
         /* Not defined */
-        if (loglevel != 0) {
-            fprintf(logfile, "Trying to write invalid spr %d %03x at "
+        qemu_log("Trying to write invalid spr %d %03x at "
                     ADDRX "\n", sprn, sprn, ctx->nip);
-        }
         printf("Trying to write invalid spr %d %03x at " ADDRX "\n",
                sprn, sprn, ctx->nip);
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
@@ -8267,11 +8256,11 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
         }
         /* Is opcode *REALLY* valid ? */
         if (unlikely(handler->handler == &gen_invalid)) {
-            if (loglevel != 0) {
-                fprintf(logfile, "invalid/unsupported opcode: "
-                        "%02x - %02x - %02x (%08x) " ADDRX " %d\n",
-                        opc1(ctx.opcode), opc2(ctx.opcode),
-                        opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
+            if (qemu_log_enabled()) {
+                qemu_log("invalid/unsupported opcode: "
+                          "%02x - %02x - %02x (%08x) " ADDRX " %d\n",
+                          opc1(ctx.opcode), opc2(ctx.opcode),
+                          opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
             } else {
                 printf("invalid/unsupported opcode: "
                        "%02x - %02x - %02x (%08x) " ADDRX " %d\n",
@@ -8280,12 +8269,12 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
             }
         } else {
             if (unlikely((ctx.opcode & handler->inval) != 0)) {
-                if (loglevel != 0) {
-                    fprintf(logfile, "invalid bits: %08x for opcode: "
-                            "%02x - %02x - %02x (%08x) " ADDRX "\n",
-                            ctx.opcode & handler->inval, opc1(ctx.opcode),
-                            opc2(ctx.opcode), opc3(ctx.opcode),
-                            ctx.opcode, ctx.nip - 4);
+                if (qemu_log_enabled()) {
+                    qemu_log("invalid bits: %08x for opcode: "
+                              "%02x - %02x - %02x (%08x) " ADDRX "\n",
+                              ctx.opcode & handler->inval, opc1(ctx.opcode),
+                              opc2(ctx.opcode), opc3(ctx.opcode),
+                              ctx.opcode, ctx.nip - 4);
                 } else {
                     printf("invalid bits: %08x for opcode: "
                            "%02x - %02x - %02x (%08x) " ADDRX "\n",
@@ -8343,17 +8332,15 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
         tb->icount = num_insns;
     }
 #if defined(DEBUG_DISAS)
-    if (loglevel & CPU_LOG_TB_CPU) {
-        fprintf(logfile, "---------------- excp: %04x\n", ctx.exception);
-        cpu_dump_state(env, logfile, fprintf, 0);
-    }
+    qemu_log_mask(CPU_LOG_TB_CPU, "---------------- excp: %04x\n", ctx.exception);
+    log_cpu_state_mask(CPU_LOG_TB_CPU, env, 0);
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         int flags;
         flags = env->bfd_mach;
         flags |= ctx.le_mode << 16;
-        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-        target_disas(logfile, pc_start, ctx.nip - pc_start, flags);
-        fprintf(logfile, "\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+        log_target_disas(pc_start, ctx.nip - pc_start, flags);
+        qemu_log("\n");
     }
 #endif
 }
