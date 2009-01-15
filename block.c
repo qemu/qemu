@@ -565,21 +565,22 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
     if (bs->read_only)
         return -EACCES;
     if (drv->bdrv_pwrite) {
-        int ret, len;
+        int ret, len, count = 0;
         len = nb_sectors * 512;
-        ret = drv->bdrv_pwrite(bs, sector_num * 512, buf, len);
-        if (ret < 0)
-            return ret;
-        else if (ret != len)
-            return -EIO;
-        else {
-	    bs->wr_bytes += (unsigned) len;
-	    bs->wr_ops ++;
-            return 0;
-	}
-    } else {
-        return drv->bdrv_write(bs, sector_num, buf, nb_sectors);
+        do {
+            ret = drv->bdrv_pwrite(bs, sector_num * 512, buf, len - count);
+            if (ret < 0) {
+                printf("bdrv_write ret=%d\n", ret);
+                return ret;
+            }
+            count += ret;
+            buf += ret;
+        } while (count != len);
+        bs->wr_bytes += (unsigned) len;
+        bs->wr_ops ++;
+        return 0;
     }
+    return drv->bdrv_write(bs, sector_num, buf, nb_sectors);
 }
 
 static int bdrv_pread_em(BlockDriverState *bs, int64_t offset,
