@@ -158,6 +158,12 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
+/* virtio consoles */
+
+#define MAX_VIRTIO_CONSOLES 1
+
+extern CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
+
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 #ifdef NEED_CPU_H

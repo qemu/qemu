@@ -554,7 +554,7 @@ ifndef CONFIG_USER_ONLY
 OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
-OBJS+=virtio.o virtio-blk.o virtio-balloon.o virtio-net.o
+OBJS+=virtio.o virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o
 OBJS+=fw_cfg.o
 ifdef CONFIG_KVM
 OBJS+=kvm.o kvm-all.o
