@@ -100,6 +100,8 @@ struct IOAPICState {
 static int apic_io_memory;
 static APICState *local_apics[MAX_APICS + 1];
 static int last_apic_id = 0;
+static int apic_irq_delivered;
+
 
 static void apic_init_ipi(APICState *s);
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode);
@@ -131,6 +133,14 @@ static inline void reset_bit(uint32_t *tab, int index)
     i = index >> 5;
     mask = 1 << (index & 0x1f);
     tab[i] &= ~mask;
+}
+
+static inline int get_bit(uint32_t *tab, int index)
+{
+    int i, mask;
+    i = index >> 5;
+    mask = 1 << (index & 0x1f);
+    return !!(tab[i] & mask);
 }
 
 static void apic_local_deliver(CPUState *env, int vector)
@@ -349,8 +359,20 @@ static void apic_update_irq(APICState *s)
     cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
 }
 
+void apic_reset_irq_delivered(void)
+{
+    apic_irq_delivered = 0;
+}
+
+int apic_get_irq_delivered(void)
+{
+    return apic_irq_delivered;
+}
+
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode)
 {
+    apic_irq_delivered += !get_bit(s->irr, vector_num);
+
     set_bit(s->irr, vector_num);
     if (trigger_mode)
         set_bit(s->tmr, vector_num);

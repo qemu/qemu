@@ -46,6 +46,8 @@ void apic_deliver_pic_intr(CPUState *env, int level);
 int apic_get_interrupt(CPUState *env);
 IOAPICState *ioapic_init(void);
 void ioapic_set_irq(void *opaque, int vector, int level);
+void apic_reset_irq_delivered(void);
+int apic_get_irq_delivered(void);
 
 /* i8254.c */
 

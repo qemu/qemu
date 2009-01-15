@@ -212,6 +212,7 @@ CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
 #ifdef TARGET_I386
 int win2k_install_hack = 0;
+int rtc_td_hack = 0;
 #endif
 int usb_enabled = 0;
 int smp_cpus = 1;
@@ -3878,6 +3879,7 @@ static void help(int exitcode)
            "-full-screen    start in full screen\n"
 #ifdef TARGET_I386
            "-win2k-hack     use it when installing Windows 2000 to avoid a disk full bug\n"
+           "-rtc-td-hack    use it to fix time drift in Windows ACPI HAL\n"
 #endif
            "-usb            enable the USB driver (will be the default soon)\n"
            "-usbdevice name add the host or guest USB device 'name'\n"
@@ -4074,6 +4076,7 @@ enum {
     QEMU_OPTION_kernel_kqemu,
     QEMU_OPTION_enable_kvm,
     QEMU_OPTION_win2k_hack,
+    QEMU_OPTION_rtc_td_hack,
     QEMU_OPTION_usb,
     QEMU_OPTION_usbdevice,
     QEMU_OPTION_smp,
@@ -4183,6 +4186,7 @@ static const QEMUOption qemu_options[] = {
 #endif
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
     { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
+    { "rtc-td-hack", 0, QEMU_OPTION_rtc_td_hack },
     { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
     { "smp", HAS_ARG, QEMU_OPTION_smp },
     { "vnc", HAS_ARG, QEMU_OPTION_vnc },
@@ -5010,6 +5014,9 @@ int main(int argc, char **argv, char **envp)
 #ifdef TARGET_I386
             case QEMU_OPTION_win2k_hack:
                 win2k_install_hack = 1;
+                break;
+            case QEMU_OPTION_rtc_td_hack:
+                rtc_td_hack = 1;
                 break;
 #endif
 #ifdef USE_KQEMU
