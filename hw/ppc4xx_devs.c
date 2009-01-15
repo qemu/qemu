@@ -31,6 +31,16 @@
 //#define DEBUG_UNASSIGNED
 #define DEBUG_UIC
 
+
+#ifdef DEBUG_UIC
+#  define LOG_UIC(...) do {              \
+     if (loglevel & CPU_LOG_INT)         \
+       fprintf(logfile, ## __VA_ARGS__); \
+   } while (0)
+#else
+#  define LOG_UIC(...) do { } while (0)
+#endif
+
 /*****************************************************************************/
 /* Generic PowerPC 4xx processor instanciation */
 CPUState *ppc4xx_init (const char *cpu_model,
@@ -294,28 +304,16 @@ static void ppcuic_trigger_irq (ppcuic_t *uic)
     /* Trigger interrupt if any is pending */
     ir = uic->uicsr & uic->uicer & (~uic->uiccr);
     cr = uic->uicsr & uic->uicer & uic->uiccr;
-#ifdef DEBUG_UIC
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: uicsr %08" PRIx32 " uicer %08" PRIx32
+    LOG_UIC("%s: uicsr %08" PRIx32 " uicer %08" PRIx32
                 " uiccr %08" PRIx32 "\n"
                 "   %08" PRIx32 " ir %08" PRIx32 " cr %08" PRIx32 "\n",
                 __func__, uic->uicsr, uic->uicer, uic->uiccr,
                 uic->uicsr & uic->uicer, ir, cr);
-    }
-#endif
     if (ir != 0x0000000) {
-#ifdef DEBUG_UIC
-        if (loglevel & CPU_LOG_INT) {
-            fprintf(logfile, "Raise UIC interrupt\n");
-        }
-#endif
+        LOG_UIC("Raise UIC interrupt\n");
         qemu_irq_raise(uic->irqs[PPCUIC_OUTPUT_INT]);
     } else {
-#ifdef DEBUG_UIC
-        if (loglevel & CPU_LOG_INT) {
-            fprintf(logfile, "Lower UIC interrupt\n");
-        }
-#endif
+        LOG_UIC("Lower UIC interrupt\n");
         qemu_irq_lower(uic->irqs[PPCUIC_OUTPUT_INT]);
     }
     /* Trigger critical interrupt if any is pending and update vector */
@@ -340,18 +338,10 @@ static void ppcuic_trigger_irq (ppcuic_t *uic)
                 }
             }
         }
-#ifdef DEBUG_UIC
-        if (loglevel & CPU_LOG_INT) {
-            fprintf(logfile, "Raise UIC critical interrupt - "
+        LOG_UIC("Raise UIC critical interrupt - "
                     "vector %08" PRIx32 "\n", uic->uicvr);
-        }
-#endif
     } else {
-#ifdef DEBUG_UIC
-        if (loglevel & CPU_LOG_INT) {
-            fprintf(logfile, "Lower UIC critical interrupt\n");
-        }
-#endif
+        LOG_UIC("Lower UIC critical interrupt\n");
         qemu_irq_lower(uic->irqs[PPCUIC_OUTPUT_CINT]);
         uic->uicvr = 0x00000000;
     }
@@ -364,14 +354,10 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
 
     uic = opaque;
     mask = 1 << (31-irq_num);
-#ifdef DEBUG_UIC
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: irq %d level %d uicsr %08" PRIx32
+    LOG_UIC("%s: irq %d level %d uicsr %08" PRIx32
                 " mask %08" PRIx32 " => %08" PRIx32 " %08" PRIx32 "\n",
                 __func__, irq_num, level,
                 uic->uicsr, mask, uic->uicsr & mask, level << irq_num);
-    }
-#endif
     if (irq_num < 0 || irq_num > 31)
         return;
     sr = uic->uicsr;
@@ -391,12 +377,8 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
             uic->level &= ~mask;
         }
     }
-#ifdef DEBUG_UIC
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: irq %d level %d sr %" PRIx32 " => "
+    LOG_UIC("%s: irq %d level %d sr %" PRIx32 " => "
                 "%08" PRIx32 "\n", __func__, irq_num, level, uic->uicsr, sr);
-    }
-#endif
     if (sr != uic->uicsr)
         ppcuic_trigger_irq(uic);
 }
@@ -453,11 +435,7 @@ static void dcr_write_uic (void *opaque, int dcrn, target_ulong val)
 
     uic = opaque;
     dcrn -= uic->dcr_base;
-#ifdef DEBUG_UIC
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "%s: dcr %d val " ADDRX "\n", __func__, dcrn, val);
-    }
-#endif
+    LOG_UIC("%s: dcr %d val " ADDRX "\n", __func__, dcrn, val);
     switch (dcrn) {
     case DCR_UICSR:
         uic->uicsr &= ~val;

@@ -154,6 +154,16 @@
 //#define DEBUG_NET
 //#define DEBUG_SLIRP
 
+
+#ifdef DEBUG_IOPORT
+#  define LOG_IOPORT(...) do {           \
+     if (loglevel & CPU_LOG_IOPORT)      \
+       fprintf(logfile, ## __VA_ARGS__); \
+   } while (0)
+#else
+#  define LOG_IOPORT(...) do { } while (0)
+#endif
+
 #ifdef TARGET_PPC
 #define DEFAULT_RAM_SIZE 144
 #else
@@ -409,10 +419,7 @@ void isa_unassign_ioport(int start, int length)
 
 void cpu_outb(CPUState *env, int addr, int val)
 {
-#ifdef DEBUG_IOPORT
-    if (loglevel & CPU_LOG_IOPORT)
-        fprintf(logfile, "outb: %04x %02x\n", addr, val);
-#endif
+    LOG_IOPORT("outb: %04x %02x\n", addr, val);
     ioport_write(0, addr, val);
 #ifdef USE_KQEMU
     if (env)
@@ -422,10 +429,7 @@ void cpu_outb(CPUState *env, int addr, int val)
 
 void cpu_outw(CPUState *env, int addr, int val)
 {
-#ifdef DEBUG_IOPORT
-    if (loglevel & CPU_LOG_IOPORT)
-        fprintf(logfile, "outw: %04x %04x\n", addr, val);
-#endif
+    LOG_IOPORT("outw: %04x %04x\n", addr, val);
     ioport_write(1, addr, val);
 #ifdef USE_KQEMU
     if (env)
@@ -435,10 +439,7 @@ void cpu_outw(CPUState *env, int addr, int val)
 
 void cpu_outl(CPUState *env, int addr, int val)
 {
-#ifdef DEBUG_IOPORT
-    if (loglevel & CPU_LOG_IOPORT)
-        fprintf(logfile, "outl: %04x %08x\n", addr, val);
-#endif
+    LOG_IOPORT("outl: %04x %08x\n", addr, val);
     ioport_write(2, addr, val);
 #ifdef USE_KQEMU
     if (env)
@@ -450,10 +451,7 @@ int cpu_inb(CPUState *env, int addr)
 {
     int val;
     val = ioport_read(0, addr);
-#ifdef DEBUG_IOPORT
-    if (loglevel & CPU_LOG_IOPORT)
-        fprintf(logfile, "inb : %04x %02x\n", addr, val);
-#endif
+    LOG_IOPORT("inb : %04x %02x\n", addr, val);
 #ifdef USE_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
@@ -465,10 +463,7 @@ int cpu_inw(CPUState *env, int addr)
 {
     int val;
     val = ioport_read(1, addr);
-#ifdef DEBUG_IOPORT
-    if (loglevel & CPU_LOG_IOPORT)
-        fprintf(logfile, "inw : %04x %04x\n", addr, val);
-#endif
+    LOG_IOPORT("inw : %04x %04x\n", addr, val);
 #ifdef USE_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
@@ -480,10 +475,7 @@ int cpu_inl(CPUState *env, int addr)
 {
     int val;
     val = ioport_read(2, addr);
-#ifdef DEBUG_IOPORT
-    if (loglevel & CPU_LOG_IOPORT)
-        fprintf(logfile, "inl : %04x %08x\n", addr, val);
-#endif
+    LOG_IOPORT("inl : %04x %08x\n", addr, val);
 #ifdef USE_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();

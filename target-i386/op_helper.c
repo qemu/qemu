@@ -24,6 +24,22 @@
 
 //#define DEBUG_PCALL
 
+
+#ifdef DEBUG_PCALL
+#  define LOG_PCALL(...) do {            \
+     if (loglevel & CPU_LOG_PCALL)       \
+       fprintf(logfile, ## __VA_ARGS__); \
+   } while (0)
+#  define LOG_PCALL_STATE(env) do {                             \
+    if (loglevel & CPU_LOG_PCALL)                               \
+        cpu_dump_state((env), logfile, fprintf, X86_DUMP_CCOP); \
+   } while (0)
+#else
+#  define LOG_PCALL(...) do { } while (0)
+#  define LOG_PCALL_STATE(env) do { } while (0)
+#endif
+
+
 #if 0
 #define raise_exception_err(a, b)\
 do {\
@@ -277,10 +293,7 @@ static void switch_tss(int tss_selector,
     target_ulong ptr;
 
     type = (e2 >> DESC_TYPE_SHIFT) & 0xf;
-#ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_PCALL)
-        fprintf(logfile, "switch_tss: sel=0x%04x type=%d src=%d\n", tss_selector, type, source);
-#endif
+    LOG_PCALL("switch_tss: sel=0x%04x type=%d src=%d\n", tss_selector, type, source);
 
     /* if task gate, we read the TSS segment and we load it */
     if (type == 5) {
@@ -2276,23 +2289,14 @@ void helper_lcall_protected(int new_cs, target_ulong new_eip,
     target_ulong ssp, old_ssp, next_eip;
 
     next_eip = env->eip + next_eip_addend;
-#ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_PCALL) {
-        fprintf(logfile, "lcall %04x:%08x s=%d\n",
-                new_cs, (uint32_t)new_eip, shift);
-        cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
-    }
-#endif
+    LOG_PCALL("lcall %04x:%08x s=%d\n", new_cs, (uint32_t)new_eip, shift);
+    LOG_PCALL_STATE(env);
     if ((new_cs & 0xfffc) == 0)
         raise_exception_err(EXCP0D_GPF, 0);
     if (load_segment(&e1, &e2, new_cs) != 0)
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
     cpl = env->hflags & HF_CPL_MASK;
-#ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_PCALL) {
-        fprintf(logfile, "desc=%08x:%08x\n", e1, e2);
-    }
-#endif
+    LOG_PCALL("desc=%08x:%08x\n", e1, e2);
     if (e2 & DESC_S_MASK) {
         if (!(e2 & DESC_CS_MASK))
             raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
@@ -2396,11 +2400,8 @@ void helper_lcall_protected(int new_cs, target_ulong new_eip,
         if (!(e2 & DESC_C_MASK) && dpl < cpl) {
             /* to inner privilege */
             get_ss_esp_from_tss(&ss, &sp, dpl);
-#ifdef DEBUG_PCALL
-            if (loglevel & CPU_LOG_PCALL)
-                fprintf(logfile, "new ss:esp=%04x:%08x param_count=%d ESP=" TARGET_FMT_lx "\n",
+            LOG_PCALL("new ss:esp=%04x:%08x param_count=%d ESP=" TARGET_FMT_lx "\n",
                         ss, sp, param_count, ESP);
-#endif
             if ((ss & 0xfffc) == 0)
                 raise_exception_err(EXCP0A_TSS, ss & 0xfffc);
             if ((ss & 3) != dpl)
@@ -2587,13 +2588,9 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
         if (is_iret)
             POPW(ssp, sp, sp_mask, new_eflags);
     }
-#ifdef DEBUG_PCALL
-    if (loglevel & CPU_LOG_PCALL) {
-        fprintf(logfile, "lret new %04x:" TARGET_FMT_lx " s=%d addend=0x%x\n",
-                new_cs, new_eip, shift, addend);
-        cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
-    }
-#endif
+    LOG_PCALL("lret new %04x:" TARGET_FMT_lx " s=%d addend=0x%x\n",
+              new_cs, new_eip, shift, addend);
+    LOG_PCALL_STATE(env);
     if ((new_cs & 0xfffc) == 0)
         raise_exception_err(EXCP0D_GPF, new_cs & 0xfffc);
     if (load_segment(&e1, &e2, new_cs) != 0)
@@ -2643,12 +2640,8 @@ static inline void helper_ret_protected(int shift, int is_iret, int addend)
             POPW(ssp, sp, sp_mask, new_esp);
             POPW(ssp, sp, sp_mask, new_ss);
         }
-#ifdef DEBUG_PCALL
-        if (loglevel & CPU_LOG_PCALL) {
-            fprintf(logfile, "new ss:esp=%04x:" TARGET_FMT_lx "\n",
+        LOG_PCALL("new ss:esp=%04x:" TARGET_FMT_lx "\n",
                     new_ss, new_esp);
-        }
-#endif
         if ((new_ss & 0xfffc) == 0) {
 #ifdef TARGET_X86_64
             /* NULL ss is allowed in long mode if cpl != 3*/

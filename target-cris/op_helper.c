@@ -25,7 +25,16 @@
 #include "helper.h"
 #include "host-utils.h"
 
+//#define CRIS_OP_HELPER_DEBUG
+
+
+#ifdef CRIS_OP_HELPER_DEBUG
+#define D(x) x
+#define D_LOG(...) fprintf(logfile, ## __VA_ARGS__)
+#else
 #define D(x)
+#define D_LOG(...) do { } while (0)
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 
@@ -59,8 +68,8 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
     saved_env = env;
     env = cpu_single_env;
 
-    D(fprintf(logfile, "%s pc=%x tpc=%x ra=%x\n", __func__, 
-	     env->pc, env->debug1, retaddr));
+    D_LOG("%s pc=%x tpc=%x ra=%x\n", __func__, 
+	     env->pc, env->debug1, retaddr);
     ret = cpu_cris_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
     if (unlikely(ret)) {
         if (retaddr) {
@@ -155,9 +164,8 @@ void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 			env->tlbsets[srs - 1][set][idx].lo = lo;
 			env->tlbsets[srs - 1][set][idx].hi = hi;
 
-			D(fprintf(logfile, 
-				  "tlb flush vaddr=%x v=%d pc=%x\n", 
-				  vaddr, tlb_v, env->pc));
+			D_LOG("tlb flush vaddr=%x v=%d pc=%x\n", 
+				  vaddr, tlb_v, env->pc);
 			tlb_flush_page(env, vaddr);
 		}
 	}
@@ -213,10 +221,10 @@ void helper_rfe(void)
 {
 	int rflag = env->pregs[PR_CCS] & R_FLAG;
 
-	D(fprintf(logfile, "rfe: erp=%x pid=%x ccs=%x btarget=%x\n", 
+	D_LOG("rfe: erp=%x pid=%x ccs=%x btarget=%x\n", 
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
-		 env->btarget));
+		 env->btarget);
 
 	cris_ccs_rshift(env);
 
@@ -229,10 +237,10 @@ void helper_rfn(void)
 {
 	int rflag = env->pregs[PR_CCS] & R_FLAG;
 
-	D(fprintf(logfile, "rfn: erp=%x pid=%x ccs=%x btarget=%x\n", 
+	D_LOG("rfn: erp=%x pid=%x ccs=%x btarget=%x\n", 
 		 env->pregs[PR_ERP], env->pregs[PR_PID],
 		 env->pregs[PR_CCS],
-		 env->btarget));
+		 env->btarget);
 
 	cris_ccs_rshift(env);
 

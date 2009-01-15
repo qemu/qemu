@@ -29,6 +29,13 @@
 
 //#define DEBUG_VM86
 
+#ifdef DEBUG_VM86
+#  define LOG_VM86(...) fprintf(logfile, ## __VA_ARGS__);
+#else
+#  define LOG_VM86(...) do { } while (0)
+#endif
+
+
 #define set_flags(X,new,mask) \
 ((X) = ((X) & ~(mask)) | ((new) & (mask)))
 
@@ -92,10 +99,8 @@ void save_v86_state(CPUX86State *env)
     set_flags(env->eflags, ts->v86flags, VIF_MASK | ts->v86mask);
     target_v86->regs.eflags = tswap32(env->eflags);
     unlock_user_struct(target_v86, ts->target_v86, 1);
-#ifdef DEBUG_VM86
-    fprintf(logfile, "save_v86_state: eflags=%08x cs:ip=%04x:%04x\n",
-            env->eflags, env->segs[R_CS].selector, env->eip);
-#endif
+    LOG_VM86("save_v86_state: eflags=%08x cs:ip=%04x:%04x\n",
+             env->eflags, env->segs[R_CS].selector, env->eip);
 
     /* restore 32 bit registers */
     env->regs[R_EAX] = ts->vm86_saved_regs.eax;
@@ -121,9 +126,7 @@ void save_v86_state(CPUX86State *env)
    'retval' */
 static inline void return_to_32bit(CPUX86State *env, int retval)
 {
-#ifdef DEBUG_VM86
-    fprintf(logfile, "return_to_32bit: ret=0x%x\n", retval);
-#endif
+    LOG_VM86("return_to_32bit: ret=0x%x\n", retval);
     save_v86_state(env);
     env->regs[R_EAX] = retval;
 }
@@ -216,10 +219,8 @@ static void do_int(CPUX86State *env, int intno)
     segoffs = ldl(int_addr);
     if ((segoffs >> 16) == TARGET_BIOSSEG)
         goto cannot_handle;
-#if defined(DEBUG_VM86)
-    fprintf(logfile, "VM86: emulating int 0x%x. CS:IP=%04x:%04x\n",
-            intno, segoffs >> 16, segoffs & 0xffff);
-#endif
+    LOG_VM86("VM86: emulating int 0x%x. CS:IP=%04x:%04x\n",
+             intno, segoffs >> 16, segoffs & 0xffff);
     /* save old state */
     ssp = env->segs[R_SS].selector << 4;
     sp = env->regs[R_ESP] & 0xffff;
@@ -235,9 +236,7 @@ static void do_int(CPUX86State *env, int intno)
     clear_AC(env);
     return;
  cannot_handle:
-#if defined(DEBUG_VM86)
-    fprintf(logfile, "VM86: return to 32 bits int 0x%x\n", intno);
-#endif
+    LOG_VM86("VM86: return to 32 bits int 0x%x\n", intno);
     return_to_32bit(env, TARGET_VM86_INTx | (intno << 8));
 }
 
@@ -274,10 +273,8 @@ void handle_vm86_fault(CPUX86State *env)
     ssp = env->segs[R_SS].selector << 4;
     sp = env->regs[R_ESP] & 0xffff;
 
-#if defined(DEBUG_VM86)
-    fprintf(logfile, "VM86 exception %04x:%08x\n",
-            env->segs[R_CS].selector, env->eip);
-#endif
+    LOG_VM86("VM86 exception %04x:%08x\n",
+             env->segs[R_CS].selector, env->eip);
 
     data32 = 0;
     pref_done = 0;
@@ -478,10 +475,8 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
            target_v86->vm86plus.vm86dbg_intxxtab, 32);
     unlock_user_struct(target_v86, vm86_addr, 0);
 
-#ifdef DEBUG_VM86
-    fprintf(logfile, "do_vm86: cs:ip=%04x:%04x\n",
-            env->segs[R_CS].selector, env->eip);
-#endif
+    LOG_VM86("do_vm86: cs:ip=%04x:%04x\n",
+             env->segs[R_CS].selector, env->eip);
     /* now the virtual CPU is ready for vm86 execution ! */
  out:
     return ret;

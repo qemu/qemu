@@ -32,8 +32,10 @@
 
 #ifdef DEBUG
 #define D(x) x
+#define D_LOG(...) fprintf(logfile, ## __VA_ARGS__)
 #else
 #define D(x)
+#define D_LOG(...) do { } while (0)
 #endif
 
 void cris_mmu_init(CPUState *env)
@@ -180,9 +182,8 @@ static int cris_mmu_translate_page(struct cris_mmu_result_t *res,
 		tlb_pid = EXTRACT_FIELD(hi, 0, 7);
 		tlb_g  = EXTRACT_FIELD(lo, 4, 4);
 
-		D(fprintf(logfile, 
-			 "TLB[%d][%d][%d] v=%x vpage=%x lo=%x hi=%x\n", 
-			 mmu, set, idx, tlb_vpn, vpage, lo, hi));
+		D_LOG("TLB[%d][%d][%d] v=%x vpage=%x lo=%x hi=%x\n", 
+			 mmu, set, idx, tlb_vpn, vpage, lo, hi);
 		if ((tlb_g || (tlb_pid == pid))
 		    && tlb_vpn == vpage) {
 			match = 1;
@@ -314,9 +315,8 @@ void cris_mmu_flush_pid(CPUState *env, uint32_t pid)
 
 				if (tlb_v && !tlb_g && (tlb_pid == pid)) {
 					vaddr = tlb_vpn << TARGET_PAGE_BITS;
-					D(fprintf(logfile,
-						  "flush pid=%x vaddr=%x\n", 
-						  pid, vaddr));
+					D_LOG("flush pid=%x vaddr=%x\n", 
+						  pid, vaddr);
 					tlb_flush_page(env, vaddr);
 				}
 			}

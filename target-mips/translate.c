@@ -521,8 +521,14 @@ do {                                                                          \
                 ctx->pc, ctx->opcode , ##args);                               \
     }                                                                         \
 } while (0)
+#define LOG_DISAS(...)                        \
+    do {                                      \
+        if (loglevel & CPU_LOG_TB_IN_ASM)     \
+            fprintf(logfile, ## __VA_ARGS__); \
+    } while (0)
 #else
 #define MIPS_DEBUG(fmt, args...) do { } while(0)
+#define LOG_DISAS(...) do { } while (0)
 #endif
 
 #define MIPS_INVAL(op)                                                        \
@@ -758,12 +764,7 @@ static inline void gen_save_pc(target_ulong pc)
 
 static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
 {
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "hflags %08x saved %08x\n",
-                    ctx->hflags, ctx->saved_hflags);
-    }
-#endif
+    LOG_DISAS("hflags %08x saved %08x\n", ctx->hflags, ctx->saved_hflags);
     if (do_save_pc && ctx->pc != ctx->saved_pc) {
         gen_save_pc(ctx->pc);
         ctx->saved_pc = ctx->pc;
@@ -2314,11 +2315,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
 #ifdef MIPS_DEBUG_DISAS
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile,
-                    "Branch in delay slot at PC 0x" TARGET_FMT_lx "\n",
-                    ctx->pc);
-        }
+        LOG_DISAS("Branch in delay slot at PC 0x" TARGET_FMT_lx "\n", ctx->pc);
 #endif
         generate_exception(ctx, EXCP_RI);
         goto out;
@@ -3295,21 +3292,11 @@ static void gen_mfc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
     default:
        goto die;
     }
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "mfc0 %s (reg %d sel %d)\n",
-                rn, reg, sel);
-    }
-#endif
+    LOG_DISAS("mfc0 %s (reg %d sel %d)\n", rn, reg, sel);
     return;
 
 die:
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "mfc0 %s (reg %d sel %d)\n",
-                rn, reg, sel);
-    }
-#endif
+    LOG_DISAS("mfc0 %s (reg %d sel %d)\n", rn, reg, sel);
     generate_exception(ctx, EXCP_RI);
 }
 
@@ -3899,12 +3886,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
     default:
        goto die;
     }
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "mtc0 %s (reg %d sel %d)\n",
-                rn, reg, sel);
-    }
-#endif
+    LOG_DISAS("mtc0 %s (reg %d sel %d)\n", rn, reg, sel);
     /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
         gen_io_end();
@@ -3913,12 +3895,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
     return;
 
 die:
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "mtc0 %s (reg %d sel %d)\n",
-                rn, reg, sel);
-    }
-#endif
+    LOG_DISAS("mtc0 %s (reg %d sel %d)\n", rn, reg, sel);
     generate_exception(ctx, EXCP_RI);
 }
 
@@ -4481,21 +4458,11 @@ static void gen_dmfc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     default:
         goto die;
     }
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "dmfc0 %s (reg %d sel %d)\n",
-                rn, reg, sel);
-    }
-#endif
+    LOG_DISAS("dmfc0 %s (reg %d sel %d)\n", rn, reg, sel);
     return;
 
 die:
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "dmfc0 %s (reg %d sel %d)\n",
-                rn, reg, sel);
-    }
-#endif
+    LOG_DISAS("dmfc0 %s (reg %d sel %d)\n", rn, reg, sel);
     generate_exception(ctx, EXCP_RI);
 }
 
@@ -5072,12 +5039,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     default:
         goto die;
     }
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "dmtc0 %s (reg %d sel %d)\n",
-                rn, reg, sel);
-    }
-#endif
+    LOG_DISAS("dmtc0 %s (reg %d sel %d)\n", rn, reg, sel);
     /* For simplicity assume that all writes can cause interrupts.  */
     if (use_icount) {
         gen_io_end();
@@ -5086,12 +5048,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     return;
 
 die:
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "dmtc0 %s (reg %d sel %d)\n",
-                rn, reg, sel);
-    }
-#endif
+    LOG_DISAS("dmtc0 %s (reg %d sel %d)\n", rn, reg, sel);
     generate_exception(ctx, EXCP_RI);
 }
 #endif /* TARGET_MIPS64 */
@@ -5249,24 +5206,14 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
     default:
         goto die;
     }
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "mftr (reg %d u %d sel %d h %d)\n",
-                rt, u, sel, h);
-    }
-#endif
+    LOG_DISAS("mftr (reg %d u %d sel %d h %d)\n", rt, u, sel, h);
     gen_store_gpr(t0, rd);
     tcg_temp_free(t0);
     return;
 
 die:
     tcg_temp_free(t0);
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "mftr (reg %d u %d sel %d h %d)\n",
-                rt, u, sel, h);
-    }
-#endif
+    LOG_DISAS("mftr (reg %d u %d sel %d h %d)\n", rt, u, sel, h);
     generate_exception(ctx, EXCP_RI);
 }
 
@@ -5424,23 +5371,13 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd, int rt,
     default:
         goto die;
     }
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "mttr (reg %d u %d sel %d h %d)\n",
-                rd, u, sel, h);
-    }
-#endif
+    LOG_DISAS("mttr (reg %d u %d sel %d h %d)\n", rd, u, sel, h);
     tcg_temp_free(t0);
     return;
 
 die:
     tcg_temp_free(t0);
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "mttr (reg %d u %d sel %d h %d)\n",
-                rd, u, sel, h);
-    }
-#endif
+    LOG_DISAS("mttr (reg %d u %d sel %d h %d)\n", rd, u, sel, h);
     generate_exception(ctx, EXCP_RI);
 }
 
@@ -8272,11 +8209,7 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
         cpu_dump_state(env, logfile, fprintf, 0);
     }
 #endif
-#ifdef MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile, "\ntb %p idx %d hflags %04x\n",
-                tb, ctx.mem_idx, ctx.hflags);
-#endif
+    LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_icount_start();
     while (ctx.bstate == BS_NONE) {
         if (unlikely(!TAILQ_EMPTY(&env->breakpoints))) {
@@ -8364,10 +8297,7 @@ done_generating:
         tb->icount = num_insns;
     }
 #ifdef DEBUG_DISAS
-#if defined MIPS_DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM)
-        fprintf(logfile, "\n");
-#endif
+    LOG_DISAS("\n");
     if (loglevel & CPU_LOG_TB_IN_ASM) {
         fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
         target_disas(logfile, pc_start, ctx.pc - pc_start, 0);

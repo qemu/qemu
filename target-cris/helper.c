@@ -28,7 +28,17 @@
 #include "exec-all.h"
 #include "host-utils.h"
 
+
+//#define CRIS_HELPER_DEBUG
+
+
+#ifdef CRIS_HELPER_DEBUG
+#define D(x) x
+#define D_LOG(...) fprintf(logfile, ## __VA_ARGS__)
+#else
 #define D(x)
+#define D_LOG(...) do { } while (0)
+#endif
 
 #if defined(CONFIG_USER_ONLY)
 
@@ -98,10 +108,10 @@ int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 		r = tlb_set_page(env, address, phy, prot, mmu_idx, is_softmmu);
 	}
 	if (r > 0)
-		D(fprintf(logfile, "%s returns %d irqreq=%x addr=%x"
+		D_LOG("%s returns %d irqreq=%x addr=%x"
 			  " phy=%x ismmu=%d vec=%x pc=%x\n", 
 			  __func__, r, env->interrupt_request, 
-			  address, res.phy, is_softmmu, res.bf_vec, env->pc));
+			  address, res.phy, is_softmmu, res.bf_vec, env->pc);
 	return r;
 }
 
@@ -109,9 +119,9 @@ void do_interrupt(CPUState *env)
 {
 	int ex_vec = -1;
 
-	D(fprintf (logfile, "exception index=%d interrupt_req=%d\n",
+	D_LOG( "exception index=%d interrupt_req=%d\n",
 		   env->exception_index,
-		   env->interrupt_request));
+		   env->interrupt_request);
 
 	switch (env->exception_index)
 	{
@@ -147,13 +157,13 @@ void do_interrupt(CPUState *env)
 	env->pregs[PR_EXS] = (ex_vec & 0xff) << 8;
 
 	if (env->dslot) {
-		D(fprintf(logfile, "excp isr=%x PC=%x ds=%d SP=%x"
+		D_LOG("excp isr=%x PC=%x ds=%d SP=%x"
 			  " ERP=%x pid=%x ccs=%x cc=%d %x\n",
 			  ex_vec, env->pc, env->dslot,
 			  env->regs[R_SP],
 			  env->pregs[PR_ERP], env->pregs[PR_PID],
 			  env->pregs[PR_CCS],
-			  env->cc_op, env->cc_mask));
+			  env->cc_op, env->cc_mask);
 		/* We loose the btarget, btaken state here so rexec the
 		   branch.  */
 		env->pregs[PR_ERP] -= env->dslot;
@@ -171,11 +181,11 @@ void do_interrupt(CPUState *env)
 
 	/* Apply the CRIS CCS shift. Clears U if set.  */
 	cris_shift_ccs(env);
-	D(fprintf (logfile, "%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n", 
+	D_LOG("%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n", 
 		   __func__, env->pc, ex_vec, 
 		   env->pregs[PR_CCS],
 		   env->pregs[PR_PID], 
-		   env->pregs[PR_ERP]));
+		   env->pregs[PR_ERP]);
 }
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
