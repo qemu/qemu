@@ -953,13 +953,17 @@ fi
 if test "$kvm" = "yes" ; then
     cat > $TMPC <<EOF
 #include <linux/kvm.h>
-#if !defined(KVM_API_VERSION) || \
-    KVM_API_VERSION < 12 || \
-    KVM_API_VERSION > 12 || \
-    !defined(KVM_CAP_USER_MEMORY) || \
-    !defined(KVM_CAP_SET_TSS_ADDR) || \
-    !defined(KVM_CAP_DESTROY_MEMORY_REGION_WORKS)
+#if !defined(KVM_API_VERSION) || KVM_API_VERSION < 12 || KVM_API_VERSION > 12
 #error Invalid KVM version
+#endif
+#if !defined(KVM_CAP_USER_MEMORY)
+#error Missing KVM capability KVM_CAP_USER_MEMORY
+#endif
+#if !defined(KVM_CAP_SET_TSS_ADDR)
+#error Missing KVM capability KVM_CAP_SET_TSS_ADDR
+#endif
+#if !defined(KVM_CAP_DESTROY_MEMORY_REGION_WORKS)
+#error Missing KVM capability KVM_CAP_DESTROY_MEMORY_REGION_WORKS
 #endif
 int main(void) { return 0; }
 EOF
@@ -980,7 +984,16 @@ EOF
       > /dev/null 2>/dev/null ; then
     :
   else
-    kvm="no"
+    kvm="no";
+    if [ -x "`which awk 2>/dev/null`" ] && \
+       [ -x "`which grep 2>/dev/null`" ]; then
+      kvmerr=`$cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $kvm_cflags $TMPC 2>&1 \
+	| grep "error: " \
+	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
+      if test "$kvmerr" != "" ; then
+        kvm="no - (${kvmerr})"
+      fi
+    fi
   fi
 fi
 
