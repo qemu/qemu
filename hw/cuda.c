@@ -131,6 +131,8 @@ typedef struct CUDAState {
 
     CUDATimer timers[2];
 
+    uint32_t tick_offset;
+
     uint8_t last_b; /* last value of B register */
     uint8_t last_acr; /* last value of B register */
 
@@ -510,7 +512,8 @@ static void cuda_receive_packet(CUDAState *s,
                                 const uint8_t *data, int len)
 {
     uint8_t obuf[16];
-    int ti, autopoll;
+    int autopoll;
+    uint32_t ti;
 
     switch(data[0]) {
     case CUDA_AUTOPOLL:
@@ -529,10 +532,16 @@ static void cuda_receive_packet(CUDAState *s,
         obuf[1] = data[1];
         cuda_send_packet_to_host(s, obuf, 2);
         break;
-    case CUDA_GET_TIME:
     case CUDA_SET_TIME:
-        /* XXX: add time support ? */
-        ti = time(NULL) + RTC_OFFSET;
+        ti = (((uint32_t)data[1]) << 24) + (((uint32_t)data[2]) << 16) + (((uint32_t)data[3]) << 8) + data[4];
+        s->tick_offset = ti - (qemu_get_clock(vm_clock) / ticks_per_sec);
+        obuf[0] = CUDA_PACKET;
+        obuf[1] = 0;
+        obuf[2] = 0;
+        cuda_send_packet_to_host(s, obuf, 3);
+        break;
+    case CUDA_GET_TIME:
+        ti = s->tick_offset + (qemu_get_clock(vm_clock) / ticks_per_sec);
         obuf[0] = CUDA_PACKET;
         obuf[1] = 0;
         obuf[2] = 0;
@@ -663,6 +672,7 @@ static void cuda_save(QEMUFile *f, void *opaque)
     qemu_put_ubyte(f, s->autopoll);
     qemu_put_buffer(f, s->data_in, sizeof(s->data_in));
     qemu_put_buffer(f, s->data_out, sizeof(s->data_out));
+    qemu_put_be32s(f, &s->tick_offset);
     cuda_save_timer(f, &s->timers[0]);
     cuda_save_timer(f, &s->timers[1]);
 }
@@ -700,6 +710,7 @@ static int cuda_load(QEMUFile *f, void *opaque, int version_id)
     s->autopoll = qemu_get_ubyte(f);
     qemu_get_buffer(f, s->data_in, sizeof(s->data_in));
     qemu_get_buffer(f, s->data_out, sizeof(s->data_out));
+    qemu_get_be32s(f, &s->tick_offset);
     cuda_load_timer(f, &s->timers[0]);
     cuda_load_timer(f, &s->timers[1]);
 
@@ -735,6 +746,7 @@ static void cuda_reset(void *opaque)
 
 void cuda_init (int *cuda_mem_index, qemu_irq irq)
 {
+    struct tm tm;
     CUDAState *s = &cuda_state;
 
     s->irq = irq;
@@ -743,6 +755,9 @@ void cuda_init (int *cuda_mem_index, qemu_irq irq)
     s->timers[0].timer = qemu_new_timer(vm_clock, cuda_timer1, s);
 
     s->timers[1].index = 1;
+
+    qemu_get_timedate(&tm, RTC_OFFSET);
+    s->tick_offset = mktimegm(&tm);
 
     s->adb_poll_timer = qemu_new_timer(vm_clock, cuda_adb_poll, s);
     *cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
