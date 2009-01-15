@@ -1641,7 +1641,7 @@ void cpu_abort(CPUState *env, const char *fmt, ...)
 #else
         log_cpu_state(env, 0);
 #endif
-        fflush(logfile);
+        qemu_log_flush();
         qemu_log_close();
     }
     va_end(ap2);
