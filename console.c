@@ -1242,7 +1242,7 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
 {
     TextConsole *s;
     DisplayState *ds;
-    
+
     ds = (DisplayState *) qemu_mallocz(sizeof(DisplayState));
     if (ds == NULL)
         return NULL;
@@ -1260,7 +1260,7 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
     s->hw_text_update = text_update;
     s->hw = opaque;
 
-    register_displaystate(ds); 
+    register_displaystate(ds);
     return ds;
 }
 
@@ -1279,7 +1279,7 @@ void console_color_init(DisplayState *ds)
     int i, j;
     for (j = 0; j < 2; j++) {
         for (i = 0; i < 8; i++) {
-            color_table[j][i] = col_expand(ds, 
+            color_table[j][i] = col_expand(ds,
                    vga_get_color(ds, color_table_rgb[j][i]));
         }
     }
