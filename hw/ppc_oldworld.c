@@ -377,9 +377,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
                          graphic_width, graphic_height, graphic_depth);
     /* No PCI init: the BIOS will do it */
 
-    /* Special port to get debug messages from Open-Firmware */
-    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
-
     fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
     fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
