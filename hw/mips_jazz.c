@@ -125,7 +125,7 @@ static void audio_init(qemu_irq *pic)
 
 static
 void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
-                     DisplayState *ds, const char *cpu_model,
+                     const char *cpu_model,
                      enum jazz_model_e jazz_model)
 {
     char buf[1024];
@@ -201,10 +201,10 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        g364fb_mm_init(ds, vga_ram_size, 0, 0x40000000, 0x60000000);
+        g364fb_mm_init(vga_ram_size, 0, 0x40000000, 0x60000000);
         break;
     case JAZZ_PICA61:
-        isa_vga_mm_init(ds, phys_ram_base + ram_size, ram_size, vga_ram_size,
+        isa_vga_mm_init(phys_ram_base + ram_size, ram_size, vga_ram_size,
                         0x40000000, 0x60000000, 0);
         break;
     default:
@@ -267,25 +267,25 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     ds1225y_init(0x80009000, "nvram");
 
     /* LED indicator */
-    jazz_led_init(ds, 0x8000f000);
+    jazz_led_init(0x8000f000);
 }
 
 static
 void mips_magnum_init (ram_addr_t ram_size, int vga_ram_size,
-                       const char *boot_device, DisplayState *ds,
+                       const char *boot_device,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
-    mips_jazz_init(ram_size, vga_ram_size, ds, cpu_model, JAZZ_MAGNUM);
+    mips_jazz_init(ram_size, vga_ram_size, cpu_model, JAZZ_MAGNUM);
 }
 
 static
 void mips_pica61_init (ram_addr_t ram_size, int vga_ram_size,
-                       const char *boot_device, DisplayState *ds,
+                       const char *boot_device,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
-    mips_jazz_init(ram_size, vga_ram_size, ds, cpu_model, JAZZ_PICA61);
+    mips_jazz_init(ram_size, vga_ram_size, cpu_model, JAZZ_PICA61);
 }
 
 QEMUMachine mips_magnum_machine = {

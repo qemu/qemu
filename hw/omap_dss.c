@@ -1022,7 +1022,7 @@ static CPUWriteMemoryFunc *omap_im3_writefn[] = {
 };
 
 struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
-                target_phys_addr_t l3_base, DisplayState *ds,
+                target_phys_addr_t l3_base,
                 qemu_irq irq, qemu_irq drq,
                 omap_clk fck1, omap_clk fck2, omap_clk ck54m,
                 omap_clk ick1, omap_clk ick2)
@@ -1033,7 +1033,6 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
 
     s->irq = irq;
     s->drq = drq;
-    s->state = ds;
     omap_dss_reset(s);
 
     iomemtype[0] = l4_register_io_memory(0, omap_diss1_readfn,
@@ -1053,9 +1052,8 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
     cpu_register_physical_memory(l3_base, 0x1000, iomemtype[4]);
 
 #if 0
-    if (ds)
-        graphic_console_init(ds, omap_update_display,
-                        omap_invalidate_display, omap_screen_dump, s);
+    s->state = graphic_console_init(omap_update_display,
+                                    omap_invalidate_display, omap_screen_dump, s);
 #endif
 
     return s;

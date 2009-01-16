@@ -36,7 +36,6 @@
 typedef struct TCXState {
     target_phys_addr_t addr;
     DisplayState *ds;
-    QEMUConsole *console;
     uint8_t *vram;
     uint32_t *vram24, *cplane;
     ram_addr_t vram_offset, vram24_offset, cplane_offset;
@@ -491,7 +490,7 @@ static CPUWriteMemoryFunc *tcx_dummy_write[3] = {
     tcx_dummy_writel,
 };
 
-void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
+void tcx_init(target_phys_addr_t addr, uint8_t *vram_base,
               unsigned long vram_offset, int vram_size, int width, int height,
               int depth)
 {
@@ -502,7 +501,6 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
     s = qemu_mallocz(sizeof(TCXState));
     if (!s)
         return;
-    s->ds = ds;
     s->addr = addr;
     s->vram_offset = vram_offset;
     s->width = width;
@@ -538,15 +536,15 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
         s->cplane = (uint32_t *)vram_base;
         s->cplane_offset = vram_offset;
         cpu_register_physical_memory(addr + 0x0a000000ULL, size, vram_offset);
-        s->console = graphic_console_init(s->ds, tcx24_update_display,
-                                          tcx24_invalidate_display,
-                                          tcx24_screen_dump, NULL, s);
+        s->ds = graphic_console_init(tcx24_update_display,
+                                     tcx24_invalidate_display,
+                                     tcx24_screen_dump, NULL, s);
     } else {
         cpu_register_physical_memory(addr + 0x00300000ULL, TCX_THC_NREGS_8,
                                      dummy_memory);
-        s->console = graphic_console_init(s->ds, tcx_update_display,
-                                          tcx_invalidate_display,
-                                          tcx_screen_dump, NULL, s);
+        s->ds = graphic_console_init(tcx_update_display,
+                                     tcx_invalidate_display,
+                                     tcx_screen_dump, NULL, s);
     }
     // NetBSD writes here even with 8-bit display
     cpu_register_physical_memory(addr + 0x00301000ULL, TCX_THC_NREGS_24,
@@ -555,7 +553,7 @@ void tcx_init(DisplayState *ds, target_phys_addr_t addr, uint8_t *vram_base,
     register_savevm("tcx", addr, 4, tcx_save, tcx_load, s);
     qemu_register_reset(tcx_reset, s);
     tcx_reset(s);
-    qemu_console_resize(s->console, width, height);
+    qemu_console_resize(s->ds, width, height);
 }
 
 static void tcx_screen_dump(void *opaque, const char *filename)

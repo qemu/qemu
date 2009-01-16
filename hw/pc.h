@@ -132,20 +132,20 @@ extern enum vga_retrace_method vga_retrace_method;
 #define VGA_RAM_SIZE (9 * 1024 * 1024)
 #endif
 
-int isa_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
+int isa_vga_init(uint8_t *vga_ram_base,
                  unsigned long vga_ram_offset, int vga_ram_size);
-int pci_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
+int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
                  unsigned long vga_ram_offset, int vga_ram_size,
                  unsigned long vga_bios_offset, int vga_bios_size);
-int isa_vga_mm_init(DisplayState *ds, uint8_t *vga_ram_base,
+int isa_vga_mm_init(uint8_t *vga_ram_base,
                     unsigned long vga_ram_offset, int vga_ram_size,
                     target_phys_addr_t vram_base, target_phys_addr_t ctrl_base,
                     int it_shift);
 
 /* cirrus_vga.c */
-void pci_cirrus_vga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
+void pci_cirrus_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
                          ram_addr_t vga_ram_offset, int vga_ram_size);
-void isa_cirrus_vga_init(DisplayState *ds, uint8_t *vga_ram_base,
+void isa_cirrus_vga_init(uint8_t *vga_ram_base,
                          ram_addr_t vga_ram_offset, int vga_ram_size);
 
 /* ide.c */

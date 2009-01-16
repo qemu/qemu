@@ -72,7 +72,6 @@ struct blizzard_s {
     uint8_t iformat;
     uint8_t source;
     DisplayState *state;
-    QEMUConsole *console;
     blizzard_fn_t *line_fn_tab[2];
     void *fb;
 
@@ -896,7 +895,7 @@ static void blizzard_update_display(void *opaque)
 
     if (s->x != ds_get_width(s->state) || s->y != ds_get_height(s->state)) {
         s->invalidate = 1;
-        qemu_console_resize(s->console, s->x, s->y);
+        qemu_console_resize(s->state, s->x, s->y);
     }
 
     if (s->invalidate) {
@@ -954,11 +953,10 @@ static void blizzard_screen_dump(void *opaque, const char *filename) {
 #define DEPTH 32
 #include "blizzard_template.h"
 
-void *s1d13745_init(qemu_irq gpio_int, DisplayState *ds)
+void *s1d13745_init(qemu_irq gpio_int)
 {
     struct blizzard_s *s = (struct blizzard_s *) qemu_mallocz(sizeof(*s));
 
-    s->state = ds;
     s->fb = qemu_malloc(0x180000);
 
     switch (ds_get_bits_per_pixel(s->state)) {
@@ -993,9 +991,9 @@ void *s1d13745_init(qemu_irq gpio_int, DisplayState *ds)
 
     blizzard_reset(s);
 
-    s->console = graphic_console_init(s->state, blizzard_update_display,
-                                      blizzard_invalidate_display,
-                                      blizzard_screen_dump, NULL, s);
+    s->state = graphic_console_init(blizzard_update_display,
+                                 blizzard_invalidate_display,
+                                 blizzard_screen_dump, NULL, s);
 
     return s;
 }

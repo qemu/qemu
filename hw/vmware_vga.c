@@ -57,7 +57,6 @@ struct vmsvga_state_s {
 
 #ifndef EMBED_STDVGA
     DisplayState *ds;
-    QEMUConsole *console;
     int vram_size;
     ram_addr_t vram_offset;
 #endif
@@ -384,7 +383,7 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
 
 # ifdef DIRECT_VRAM
     if (s->ds->dpy_copy)
-        qemu_console_copy(s->console, x0, y0, x1, y1, w, h);
+        qemu_console_copy(s->ds, x0, y0, x1, y1, w, h);
     else
 # endif
     {
@@ -877,7 +876,7 @@ static inline void vmsvga_size(struct vmsvga_state_s *s)
     if (s->new_width != s->width || s->new_height != s->height) {
         s->width = s->new_width;
         s->height = s->new_height;
-        qemu_console_resize(s->console, s->width, s->height);
+        qemu_console_resize(s->ds, s->width, s->height);
         s->invalidated = 1;
     }
 }
@@ -915,7 +914,7 @@ static void vmsvga_reset(struct vmsvga_state_s *s)
     s->width = -1;
     s->height = -1;
     s->svgaid = SVGA_ID;
-    s->depth = ds_get_bits_per_pixel(s->ds) ? ds_get_bits_per_pixel(s->ds) : 24;
+    s->depth = 24;
     s->bypp = (s->depth + 7) >> 3;
     s->cursor.on = 0;
     s->redraw_fifo_first = 0;
@@ -1110,11 +1109,10 @@ static int vmsvga_load(struct vmsvga_state_s *s, QEMUFile *f)
     return 0;
 }
 
-static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
+static void vmsvga_init(struct vmsvga_state_s *s,
                 uint8_t *vga_ram_base, unsigned long vga_ram_offset,
                 int vga_ram_size)
 {
-    s->ds = ds;
     s->vram = vga_ram_base;
     s->vram_size = vga_ram_size;
     s->vram_offset = vga_ram_offset;
@@ -1125,15 +1123,15 @@ static void vmsvga_init(struct vmsvga_state_s *s, DisplayState *ds,
     vmsvga_reset(s);
 
 #ifdef EMBED_STDVGA
-    vga_common_init((VGAState *) s, ds,
+    vga_common_init((VGAState *) s,
                     vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init((VGAState *) s);
 #endif
 
-    s->console = graphic_console_init(ds, vmsvga_update_display,
-                                      vmsvga_invalidate_display,
-                                      vmsvga_screen_dump,
-                                      vmsvga_text_update, s);
+    s->ds = graphic_console_init(vmsvga_update_display,
+                                 vmsvga_invalidate_display,
+                                 vmsvga_screen_dump,
+                                 vmsvga_text_update, s);
 
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
@@ -1213,7 +1211,7 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
 #define PCI_CLASS_SUB_VGA		0x00
 #define PCI_CLASS_HEADERTYPE_00h	0x00
 
-void pci_vmsvga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
+void pci_vmsvga_init(PCIBus *bus, uint8_t *vga_ram_base,
                      unsigned long vga_ram_offset, int vga_ram_size)
 {
     struct pci_vmsvga_state_s *s;
@@ -1243,7 +1241,7 @@ void pci_vmsvga_init(PCIBus *bus, DisplayState *ds, uint8_t *vga_ram_base,
     pci_register_io_region(&s->card, 1, vga_ram_size,
                     PCI_ADDRESS_SPACE_MEM_PREFETCH, pci_vmsvga_map_mem);
 
-    vmsvga_init(&s->chip, ds, vga_ram_base, vga_ram_offset, vga_ram_size);
+    vmsvga_init(&s->chip, vga_ram_base, vga_ram_offset, vga_ram_size);
 
     register_savevm("vmware_vga", 0, 0, pci_vmsvga_save, pci_vmsvga_load, s);
 }

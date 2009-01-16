@@ -714,9 +714,9 @@ static void n800_dss_init(struct rfbi_chip_s *chip)
     free(fb_blank);
 }
 
-static void n8x0_dss_setup(struct n800_s *s, DisplayState *ds)
+static void n8x0_dss_setup(struct n800_s *s)
 {
-    s->blizzard.opaque = s1d13745_init(0, ds);
+    s->blizzard.opaque = s1d13745_init(0);
     s->blizzard.block = s1d13745_write_block;
     s->blizzard.write = s1d13745_write;
     s->blizzard.read = s1d13745_read;
@@ -1266,13 +1266,14 @@ static int n810_atag_setup(struct arm_boot_info *info, void *p)
 }
 
 static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
-                DisplayState *ds, const char *kernel_filename,
+                const char *kernel_filename,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, struct arm_boot_info *binfo, int model)
 {
     struct n800_s *s = (struct n800_s *) qemu_mallocz(sizeof(*s));
     int sdram_size = binfo->ram_size;
     int onenandram_size = 0x00010000;
+    DisplayState *ds = get_displaystate();
 
     if (ram_size < sdram_size + onenandram_size + OMAP242X_SRAM_SIZE) {
         fprintf(stderr, "This architecture uses %i bytes of memory\n",
@@ -1280,7 +1281,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
         exit(1);
     }
 
-    s->cpu = omap2420_mpu_init(sdram_size, NULL, cpu_model);
+    s->cpu = omap2420_mpu_init(sdram_size, cpu_model);
 
     /* Setup peripherals
      *
@@ -1317,7 +1318,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
         n810_kbd_setup(s);
     }
     n8x0_spi_setup(s);
-    n8x0_dss_setup(s, ds);
+    n8x0_dss_setup(s);
     n8x0_cbus_setup(s);
     n8x0_uart_setup(s);
     if (usb_enabled)
@@ -1384,21 +1385,21 @@ static struct arm_boot_info n810_binfo = {
 };
 
 static void n800_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    return n8x0_init(ram_size, boot_device, ds,
+    return n8x0_init(ram_size, boot_device,
                     kernel_filename, kernel_cmdline, initrd_filename,
                     cpu_model, &n800_binfo, 800);
 }
 
 static void n810_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    return n8x0_init(ram_size, boot_device, ds,
+    return n8x0_init(ram_size, boot_device,
                     kernel_filename, kernel_cmdline, initrd_filename,
                     cpu_model, &n810_binfo, 810);
 }

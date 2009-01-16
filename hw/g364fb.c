@@ -32,7 +32,6 @@ typedef struct G364State {
     uint8_t palette[256][3];
     /* display refresh support */
     DisplayState *ds;
-    QEMUConsole *console;
     int graphic_mode;
     uint32_t scr_width, scr_height; /* in pixels */
 } G364State;
@@ -131,7 +130,7 @@ static void g364fb_update_display(void *opaque)
         full_update = 1;
     }
     if (s->scr_width != ds_get_width(s->ds) || s->scr_height != ds_get_height(s->ds)) {
-        qemu_console_resize(s->console, s->scr_width, s->scr_height);
+        qemu_console_resize(s->ds, s->scr_width, s->scr_height);
         full_update = 1;
     }
     switch(graphic_mode) {
@@ -354,8 +353,7 @@ static CPUWriteMemoryFunc *g364fb_mem_write[3] = {
     g364fb_mem_writel,
 };
 
-int g364fb_mm_init(DisplayState *ds,
-                   int vram_size, int it_shift,
+int g364fb_mm_init(int vram_size, int it_shift,
                    target_phys_addr_t vram_base, target_phys_addr_t ctrl_base)
 {
     G364State *s;
@@ -371,11 +369,9 @@ int g364fb_mm_init(DisplayState *ds,
     qemu_register_reset(g364fb_reset, s);
     g364fb_reset(s);
 
-    s->ds = ds;
-
-    s->console = graphic_console_init(ds, g364fb_update_display,
-                                      g364fb_invalidate_display,
-                                      g364fb_screen_dump, NULL, s);
+    s->ds = graphic_console_init(g364fb_update_display,
+                                 g364fb_invalidate_display,
+                                 g364fb_screen_dump, NULL, s);
 
     io_vram = cpu_register_io_memory(0, g364fb_mem_read, g364fb_mem_write, s);
     cpu_register_physical_memory(vram_base, vram_size, io_vram);

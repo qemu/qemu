@@ -136,7 +136,7 @@ static void sx1_init(ram_addr_t ram_size, int vga_ram_size,
         flash_size = flash2_size;
     }
 
-    cpu = omap310_mpu_init(sx1_binfo.ram_size, ds, cpu_model);
+    cpu = omap310_mpu_init(sx1_binfo.ram_size, cpu_model);
 
     /* External Flash (EMIFS) */
     cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,
@@ -201,8 +201,7 @@ static void sx1_init(ram_addr_t ram_size, int vga_ram_size,
         cpu->env->regs[15] = 0x00000000;
     }
 
-    ds->surface = qemu_resize_displaysurface(ds->surface, 640, 480, 32, 4 * 640);
-    dpy_resize(ds);
+    qemu_console_resize(ds, 640, 480);
 }
 
 static void sx1_init_v1(ram_addr_t ram_size, int vga_ram_size,

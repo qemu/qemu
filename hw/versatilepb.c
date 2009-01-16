@@ -156,7 +156,7 @@ static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
 static struct arm_boot_info versatile_binfo;
 
 static void versatile_init(ram_addr_t ram_size, int vga_ram_size,
-                     const char *boot_device, DisplayState *ds,
+                     const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model,
                      int board_id)
@@ -228,7 +228,7 @@ static void versatile_init(ram_addr_t ram_size, int vga_ram_size,
 
     /* The versatile/PB actually has a modified Color LCD controller
        that includes hardware cursor support from the PL111.  */
-    pl110_init(ds, 0x10120000, pic[16], 1);
+    pl110_init(0x10120000, pic[16], 1);
 
     index = drive_get_index(IF_SD, 0, 0);
     if (index == -1) {
@@ -290,23 +290,23 @@ static void versatile_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 static void vpb_init(ram_addr_t ram_size, int vga_ram_size,
-                     const char *boot_device, DisplayState *ds,
+                     const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
     versatile_init(ram_size, vga_ram_size,
-                   boot_device, ds,
+                   boot_device,
                    kernel_filename, kernel_cmdline,
                    initrd_filename, cpu_model, 0x183);
 }
 
 static void vab_init(ram_addr_t ram_size, int vga_ram_size,
-                     const char *boot_device, DisplayState *ds,
+                     const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
     versatile_init(ram_size, vga_ram_size,
-                   boot_device, ds,
+                   boot_device,
                    kernel_filename, kernel_cmdline,
                    initrd_filename, cpu_model, 0x25e);
 }

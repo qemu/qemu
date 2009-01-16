@@ -2010,8 +2010,7 @@ static void pxa2xx_reset(void *opaque, int line, int level)
 }
 
 /* Initialise a PXA270 integrated chip (ARM based core).  */
-struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
-                DisplayState *ds, const char *revision)
+struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, const char *revision)
 {
     struct pxa2xx_state_s *s;
     struct pxa2xx_ssp_s *ssp;
@@ -2067,8 +2066,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
         s->fir = pxa2xx_fir_init(0x40800000, s->pic[PXA2XX_PIC_ICP],
                         s->dma, serial_hds[i]);
 
-    if (ds)
-        s->lcd = pxa2xx_lcdc_init(0x44000000, s->pic[PXA2XX_PIC_LCD], ds);
+    s->lcd = pxa2xx_lcdc_init(0x44000000, s->pic[PXA2XX_PIC_LCD]);
 
     s->cm_base = 0x41300000;
     s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */
@@ -2141,8 +2139,7 @@ struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size,
 }
 
 /* Initialise a PXA255 integrated chip (ARM based core).  */
-struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
-                DisplayState *ds)
+struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size)
 {
     struct pxa2xx_state_s *s;
     struct pxa2xx_ssp_s *ssp;
@@ -2191,8 +2188,7 @@ struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size,
         s->fir = pxa2xx_fir_init(0x40800000, s->pic[PXA2XX_PIC_ICP],
                         s->dma, serial_hds[i]);
 
-    if (ds)
-        s->lcd = pxa2xx_lcdc_init(0x44000000, s->pic[PXA2XX_PIC_LCD], ds);
+    s->lcd = pxa2xx_lcdc_init(0x44000000, s->pic[PXA2XX_PIC_LCD]);
 
     s->cm_base = 0x41300000;
     s->cm_regs[CCCR >> 2] = 0x02000210;	/* 416.0 MHz */

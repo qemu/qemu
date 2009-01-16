@@ -4622,7 +4622,7 @@ static int omap_validate_tipb_mpui_addr(struct omap_mpu_state_s *s,
 }
 
 struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
-                DisplayState *ds, const char *core)
+                const char *core)
 {
     int i;
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
@@ -4704,7 +4704,7 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "clk32-kHz"));
 
     s->lcd = omap_lcdc_init(0xfffec000, s->irq[0][OMAP_INT_LCD_CTRL],
-                    omap_dma_get_lcdch(s->dma), ds, imif_base, emiff_base,
+                    omap_dma_get_lcdch(s->dma), imif_base, emiff_base,
                     omap_findclk(s, "lcd_ck"));
 
     omap_ulpd_pm_init(0xfffe0800, s);

@@ -145,7 +145,6 @@ typedef void (* vga_update_retrace_info_fn)(struct VGAState *s);
     VGA_STATE_COMMON_BOCHS_VBE                                          \
     /* display refresh support */                                       \
     DisplayState *ds;                                                   \
-    QEMUConsole *console;                                               \
     uint32_t font_offsets[2];                                           \
     int graphic_mode;                                                   \
     uint8_t shift_control;                                              \
@@ -192,7 +191,7 @@ static inline int c6_to_8(int v)
     return (v << 2) | (b << 1) | b;
 }
 
-void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
+void vga_common_init(VGAState *s, uint8_t *vga_ram_base,
                      ram_addr_t vga_ram_offset, int vga_ram_size);
 void vga_init(VGAState *s);
 void vga_reset(void *s);

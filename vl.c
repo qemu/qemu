@@ -187,7 +187,7 @@ DriveInfo drives_table[MAX_DRIVES+1];
 int nb_drives;
 static int vga_ram_size;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
-DisplayState display_state;
+static DisplayState *display_state;
 int nographic;
 static int curses;
 static int sdl;
@@ -2756,6 +2756,23 @@ void pcmcia_info(void)
 }
 
 /***********************************************************/
+/* register display */
+
+void register_displaystate(DisplayState *ds)
+{
+    DisplayState **s;
+    s = &display_state;
+    while (*s != NULL)
+        s = &(*s)->next;
+    ds->next = NULL;
+    *s = ds;
+}
+
+DisplayState *get_displaystate(void)
+{
+    return display_state;
+}
+
 /* dumb display */
 
 static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
@@ -4502,7 +4519,7 @@ int main(int argc, char **argv, char **envp)
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
     const char *boot_devices = "";
-    DisplayState *ds = &display_state;
+    DisplayState *ds;
     DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
     const char *net_clients[MAX_NET_CLIENTS];
@@ -5414,9 +5431,63 @@ int main(int argc, char **argv, char **envp)
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
     register_savevm_live("ram", 0, 3, ram_save_live, NULL, ram_load, NULL);
 
+#ifndef _WIN32
+    /* must be after terminal init, SDL library changes signal handlers */
+    termsig_setup();
+#endif
+
+    /* Maintain compatibility with multiple stdio monitors */
+    if (!strcmp(monitor_device,"stdio")) {
+        for (i = 0; i < MAX_SERIAL_PORTS; i++) {
+            const char *devname = serial_devices[i];
+            if (devname && !strcmp(devname,"mon:stdio")) {
+                monitor_device = NULL;
+                break;
+            } else if (devname && !strcmp(devname,"stdio")) {
+                monitor_device = NULL;
+                serial_devices[i] = "mon:stdio";
+                break;
+            }
+        }
+    }
+
+    if (kvm_enabled()) {
+        int ret;
+
+        ret = kvm_init(smp_cpus);
+        if (ret < 0) {
+            fprintf(stderr, "failed to initialize KVM\n");
+            exit(1);
+        }
+    }
+
+    machine->init(ram_size, vga_ram_size, boot_devices,
+                  kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
+
+    /* Set KVM's vcpu state to qemu's initial CPUState. */
+    if (kvm_enabled()) {
+        int ret;
+
+        ret = kvm_sync_vcpus();
+        if (ret < 0) {
+            fprintf(stderr, "failed to initialize vcpus\n");
+            exit(1);
+        }
+    }
+
+    /* init USB devices */
+    if (usb_enabled) {
+        for(i = 0; i < usb_devices_index; i++) {
+            if (usb_device_add(usb_devices[i]) < 0) {
+                fprintf(stderr, "Warning: could not add USB device %s\n",
+                        usb_devices[i]);
+            }
+        }
+    }
+
+    /* just use the first displaystate for the moment */
+    ds = display_state;
     /* terminal init */
-    memset(&display_state, 0, sizeof(display_state));
-    ds->surface = qemu_create_displaysurface(640, 480, 32, 640 * 4);
     if (nographic) {
         if (curses) {
             fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
@@ -5448,25 +5519,16 @@ int main(int argc, char **argv, char **envp)
             }
     }
     dpy_resize(ds);
-#ifndef _WIN32
-    /* must be after terminal init, SDL library changes signal handlers */
-    termsig_setup();
-#endif
 
-    /* Maintain compatibility with multiple stdio monitors */
-    if (!strcmp(monitor_device,"stdio")) {
-        for (i = 0; i < MAX_SERIAL_PORTS; i++) {
-            const char *devname = serial_devices[i];
-            if (devname && !strcmp(devname,"mon:stdio")) {
-                monitor_device = NULL;
-                break;
-            } else if (devname && !strcmp(devname,"stdio")) {
-                monitor_device = NULL;
-                serial_devices[i] = "mon:stdio";
-                break;
-            }
+    dcl = ds->listeners;
+    while (dcl != NULL) {
+        if (dcl->dpy_refresh != NULL) {
+            ds->gui_timer = qemu_new_timer(rt_clock, gui_update, ds);
+            qemu_mod_timer(ds->gui_timer, qemu_get_clock(rt_clock));
         }
+        dcl = dcl->next;
     }
+
     if (monitor_device) {
         monitor_hd = qemu_chr_open("monitor", monitor_device);
         if (!monitor_hd) {
@@ -5524,48 +5586,6 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    if (kvm_enabled()) {
-        int ret;
-
-        ret = kvm_init(smp_cpus);
-        if (ret < 0) {
-            fprintf(stderr, "failed to initialize KVM\n");
-            exit(1);
-        }
-    }
-
-    machine->init(ram_size, vga_ram_size, boot_devices, ds,
-                  kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
-
-    /* Set KVM's vcpu state to qemu's initial CPUState. */
-    if (kvm_enabled()) {
-        int ret;
-
-        ret = kvm_sync_vcpus();
-        if (ret < 0) {
-            fprintf(stderr, "failed to initialize vcpus\n");
-            exit(1);
-        }
-    }
-
-    /* init USB devices */
-    if (usb_enabled) {
-        for(i = 0; i < usb_devices_index; i++) {
-            if (usb_device_add(usb_devices[i]) < 0) {
-                fprintf(stderr, "Warning: could not add USB device %s\n",
-                        usb_devices[i]);
-            }
-        }
-    }
-
-    dcl = ds->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_refresh != NULL) {
-            display_state.gui_timer = qemu_new_timer(rt_clock, gui_update, &display_state);
-            qemu_mod_timer(display_state.gui_timer, qemu_get_clock(rt_clock));
-        }
-        dcl = dcl->next;
-    }
 #ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {
         /* XXX: use standard host:port notation and modify options

@@ -531,7 +531,7 @@ static CPUReadMemoryFunc *PPC_prep_io_read[] = {
 
 /* PowerPC PREP hardware initialisation */
 static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
-                           const char *boot_device, DisplayState *ds,
+                           const char *boot_device,
                            const char *kernel_filename,
                            const char *kernel_cmdline,
                            const char *initrd_filename,
@@ -655,7 +655,7 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
     cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, ds, phys_ram_base + ram_size, ram_size,
+    pci_vga_init(pci_bus, phys_ram_base + ram_size, ram_size,
                  vga_ram_size, 0, 0);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, i8259[0]);

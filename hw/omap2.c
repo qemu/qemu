@@ -4492,7 +4492,7 @@ static const struct dma_irq_map omap2_dma_irq_map[] = {
 };
 
 struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
-                DisplayState *ds, const char *core)
+                const char *core)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             qemu_mallocz(sizeof(struct omap_mpu_state_s));
@@ -4670,7 +4670,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "spi2_fclk"),
                     omap_findclk(s, "spi2_iclk"));
 
-    s->dss = omap_dss_init(omap_l4ta(s->l4, 10), 0x68000800, ds,
+    s->dss = omap_dss_init(omap_l4ta(s->l4, 10), 0x68000800,
                     /* XXX wire M_IRQ_25, D_L2_IRQ_30 and I_IRQ_13 together */
                     s->irq[0][OMAP_INT_24XX_DSS_IRQ], s->drq[OMAP24XX_DMA_DSS],
                     omap_findclk(s, "dss_clk1"), omap_findclk(s, "dss_clk2"),

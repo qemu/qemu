@@ -42,7 +42,7 @@
 static const int sector_len = 128 * 1024;
 
 static void connex_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -58,7 +58,7 @@ static void connex_init(ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
 
-    cpu = pxa255_init(connex_ram, ds);
+    cpu = pxa255_init(connex_ram);
 
     index = drive_get_index(IF_PFLASH, 0, 0);
     if (index == -1) {
@@ -82,7 +82,7 @@ static void connex_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 static void verdex_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -98,7 +98,7 @@ static void verdex_init(ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
 
-    cpu = pxa270_init(verdex_ram, ds, cpu_model ?: "pxa270-c0");
+    cpu = pxa270_init(verdex_ram, cpu_model ?: "pxa270-c0");
 
     index = drive_get_index(IF_PFLASH, 0, 0);
     if (index == -1) {

@@ -200,7 +200,7 @@ static struct arm_boot_info palmte_binfo = {
 };
 
 static void palmte_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
@@ -214,6 +214,7 @@ static void palmte_init(ram_addr_t ram_size, int vga_ram_size,
     static uint32_t cs3val = 0xe1a0e1a0;
     ram_addr_t phys_flash;
     int rom_size, rom_loaded = 0;
+    DisplayState *ds = get_displaystate();
 
     if (ram_size < flash_size + sdram_size + OMAP15XX_SRAM_SIZE) {
         fprintf(stderr, "This architecture uses %i bytes of memory\n",
@@ -221,7 +222,7 @@ static void palmte_init(ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
 
-    cpu = omap310_mpu_init(sdram_size, ds, cpu_model);
+    cpu = omap310_mpu_init(sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */
     cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,

@@ -29,7 +29,6 @@ enum pl110_bppmode
 
 typedef struct {
     DisplayState *ds;
-    QEMUConsole *console;
 
     /* The Versatile/PB uses a slightly modified PL110 controller.  */
     int versatile;
@@ -271,7 +270,7 @@ static void pl110_resize(pl110_state *s, int width, int height)
 {
     if (width != s->cols || height != s->rows) {
         if (pl110_enabled(s)) {
-            qemu_console_resize(s->console, width, height);
+            qemu_console_resize(s->ds, width, height);
         }
     }
     s->cols = width;
@@ -386,7 +385,7 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
         s->cr = val;
         s->bpp = (val >> 1) & 7;
         if (pl110_enabled(s)) {
-            qemu_console_resize(s->console, s->cols, s->rows);
+            qemu_console_resize(s->ds, s->cols, s->rows);
         }
         break;
     case 10: /* LCDICR */
@@ -410,8 +409,7 @@ static CPUWriteMemoryFunc *pl110_writefn[] = {
    pl110_write
 };
 
-void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq,
-                 int versatile)
+void *pl110_init(uint32_t base, qemu_irq irq, int versatile)
 {
     pl110_state *s;
     int iomemtype;
@@ -420,12 +418,11 @@ void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq,
     iomemtype = cpu_register_io_memory(0, pl110_readfn,
                                        pl110_writefn, s);
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
-    s->ds = ds;
     s->versatile = versatile;
     s->irq = irq;
-    s->console = graphic_console_init(ds, pl110_update_display,
-                                      pl110_invalidate_display,
-                                      NULL, NULL, s);
+    s->ds = graphic_console_init(pl110_update_display,
+                                 pl110_invalidate_display,
+                                 NULL, NULL, s);
     /* ??? Save/restore.  */
     return s;
 }

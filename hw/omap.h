@@ -746,7 +746,7 @@ struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
 struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
-                struct omap_dma_lcd_channel_s *dma, DisplayState *ds,
+                struct omap_dma_lcd_channel_s *dma,
                 ram_addr_t imif_base, ram_addr_t emiff_base, omap_clk clk);
 
 /* omap_dss.c */
@@ -759,7 +759,7 @@ struct rfbi_chip_s {
 struct omap_dss_s;
 void omap_dss_reset(struct omap_dss_s *s);
 struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
-                target_phys_addr_t l3_base, DisplayState *ds,
+                target_phys_addr_t l3_base,
                 qemu_irq irq, qemu_irq drq,
                 omap_clk fck1, omap_clk fck2, omap_clk ck54m,
                 omap_clk ick1, omap_clk ick2);
@@ -956,11 +956,11 @@ struct omap_mpu_state_s {
 
 /* omap1.c */
 struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
-                DisplayState *ds, const char *core);
+                const char *core);
 
 /* omap2.c */
 struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
-                DisplayState *ds, const char *core);
+                const char *core);
 
 # if TARGET_PHYS_ADDR_BITS == 32
 #  define OMAP_FMT_plx "%#08x"

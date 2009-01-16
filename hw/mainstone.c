@@ -69,7 +69,7 @@ static struct arm_boot_info mainstone_binfo = {
 };
 
 static void mainstone_common_init(ram_addr_t ram_size, int vga_ram_size,
-                DisplayState *ds, const char *kernel_filename,
+                const char *kernel_filename,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, enum mainstone_model_e model, int arm_id)
 {
@@ -91,7 +91,7 @@ static void mainstone_common_init(ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
 
-    cpu = pxa270_init(mainstone_binfo.ram_size, ds, cpu_model);
+    cpu = pxa270_init(mainstone_binfo.ram_size, cpu_model);
     cpu_register_physical_memory(0, MAINSTONE_ROM,
                     qemu_ram_alloc(MAINSTONE_ROM) | IO_MEM_ROM);
 
@@ -135,11 +135,11 @@ static void mainstone_common_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 static void mainstone_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    mainstone_common_init(ram_size, vga_ram_size, ds, kernel_filename,
+    mainstone_common_init(ram_size, vga_ram_size, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, mainstone, 0x196);
 }
 

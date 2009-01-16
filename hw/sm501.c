@@ -450,7 +450,6 @@ static const uint32_t sm501_mem_local_size[] = {
 typedef struct SM501State {
     /* graphic console status */
     DisplayState *ds;
-    QEMUConsole *console;
 
     /* status & internal resources */
     target_phys_addr_t base;
@@ -994,7 +993,7 @@ static void sm501_draw_crt(SM501State * s)
 
     /* adjust console size */
     if (s->last_width != width || s->last_height != height) {
-	qemu_console_resize(s->console, width, height);
+	qemu_console_resize(s->ds, width, height);
 	s->last_width = width;
 	s->last_height = height;
 	full_update = 1;
@@ -1051,7 +1050,7 @@ static void sm501_update_display(void *opaque)
 	sm501_draw_crt(s);
 }
 
-void sm501_init(DisplayState *ds, uint32_t base, unsigned long local_mem_base,
+void sm501_init(uint32_t base, unsigned long local_mem_base,
 		uint32_t local_mem_bytes, CharDriverState *chr)
 {
     SM501State * s;
@@ -1069,7 +1068,6 @@ void sm501_init(DisplayState *ds, uint32_t base, unsigned long local_mem_base,
     s->misc_control = 0x00001000; /* assumes SH, active=low */
     s->dc_panel_control = 0x00010000;
     s->dc_crt_control = 0x00010000;
-    s->ds = ds;
 
     /* allocate local memory */
     s->local_mem = (uint8 *)phys_ram_base + local_mem_base;
@@ -1093,6 +1091,6 @@ void sm501_init(DisplayState *ds, uint32_t base, unsigned long local_mem_base,
 		       115200, chr, 1);
 
     /* create qemu graphic console */
-    s->console = graphic_console_init(s->ds, sm501_update_display, NULL,
-				      NULL, NULL, s);
+    s->ds = graphic_console_init(sm501_update_display, NULL,
+				 NULL, NULL, s);
 }

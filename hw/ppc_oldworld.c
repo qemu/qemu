@@ -108,7 +108,7 @@ static int vga_osi_call (CPUState *env)
 }
 
 static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
-                               const char *boot_device, DisplayState *ds,
+                               const char *boot_device,
                                const char *kernel_filename,
                                const char *kernel_cmdline,
                                const char *initrd_filename,
@@ -297,7 +297,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     }
     pic = heathrow_pic_init(&pic_mem_index, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic);
-    pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_offset,
+    pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
                  vga_ram_offset, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
 

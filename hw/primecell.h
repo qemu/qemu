@@ -9,7 +9,7 @@
 void pl031_init(uint32_t base, qemu_irq irq);
 
 /* pl110.c */
-void *pl110_init(DisplayState *ds, uint32_t base, qemu_irq irq, int);
+void *pl110_init(uint32_t base, qemu_irq irq, int);
 
 /* pl011.c */
 enum pl011_type {

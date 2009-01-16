@@ -1282,7 +1282,7 @@ static stellaris_board_info stellaris_boards[] = {
 };
 
 static void stellaris_init(const char *kernel_filename, const char *cpu_model,
-                           DisplayState *ds, stellaris_board_info *board)
+                           stellaris_board_info *board)
 {
     static const int uart_irq[] = {5, 6, 33, 34};
     static const int timer_irq[] = {19, 21, 23, 35};
@@ -1329,7 +1329,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         i2c = i2c_init_bus();
         stellaris_i2c_init(0x40020000, pic[8], i2c);
         if (board->peripherals & BP_OLED_I2C) {
-            ssd0303_init(ds, i2c, 0x3d);
+            ssd0303_init(i2c, 0x3d);
         }
     }
 
@@ -1346,7 +1346,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
             void *ssi_bus;
             int index;
 
-            oled = ssd0323_init(ds, &gpio_out[GPIO_C][7]);
+            oled = ssd0323_init(&gpio_out[GPIO_C][7]);
             index = drive_get_index(IF_SD, 0, 0);
             sd = ssi_sd_init(drives_table[index].bdrv);
 
@@ -1379,19 +1379,19 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
 static void lm3s811evb_init(ram_addr_t ram_size, int vga_ram_size,
-                     const char *boot_device, DisplayState *ds,
+                     const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    stellaris_init(kernel_filename, cpu_model, ds, &stellaris_boards[0]);
+    stellaris_init(kernel_filename, cpu_model, &stellaris_boards[0]);
 }
 
 static void lm3s6965evb_init(ram_addr_t ram_size, int vga_ram_size,
-                     const char *boot_device, DisplayState *ds,
+                     const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    stellaris_init(kernel_filename, cpu_model, ds, &stellaris_boards[1]);
+    stellaris_init(kernel_filename, cpu_model, &stellaris_boards[1]);
 }
 
 QEMUMachine lm3s811evb_machine = {

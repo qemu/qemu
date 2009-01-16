@@ -1190,6 +1190,17 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
     }
 }
 
+static TextConsole *get_graphic_console() {
+    int i;
+    TextConsole *s;
+    for (i = 0; i < nb_consoles; i++) {
+        s = consoles[i];
+        if (s->console_type == GRAPHIC_CONSOLE)
+            return s;
+    }
+    return NULL;
+}
+
 static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
 {
     TextConsole *s;
@@ -1217,27 +1228,39 @@ static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
             consoles[i] = consoles[i - 1];
         }
         consoles[i] = s;
+        nb_consoles++;
     }
     return s;
 }
 
-TextConsole *graphic_console_init(DisplayState *ds, vga_hw_update_ptr update,
-                                  vga_hw_invalidate_ptr invalidate,
-                                  vga_hw_screen_dump_ptr screen_dump,
-                                  vga_hw_text_update_ptr text_update,
-                                  void *opaque)
+DisplayState *graphic_console_init(vga_hw_update_ptr update,
+                                   vga_hw_invalidate_ptr invalidate,
+                                   vga_hw_screen_dump_ptr screen_dump,
+                                   vga_hw_text_update_ptr text_update,
+                                   void *opaque)
 {
     TextConsole *s;
+    DisplayState *ds;
+    
+    ds = (DisplayState *) qemu_mallocz(sizeof(DisplayState));
+    if (ds == NULL)
+        return NULL;
+    ds->surface = qemu_create_displaysurface(640, 480, 32, 640 * 4);
 
     s = new_console(ds, GRAPHIC_CONSOLE);
-    if (!s)
-      return NULL;
+    if (s == NULL) {
+        qemu_free_displaysurface(ds->surface);
+        qemu_free(ds);
+        return NULL;
+    }
     s->hw_update = update;
     s->hw_invalidate = invalidate;
     s->hw_screen_dump = screen_dump;
     s->hw_text_update = text_update;
     s->hw = opaque;
-    return s;
+
+    register_displaystate(ds); 
+    return ds;
 }
 
 int is_graphic_console(void)
@@ -1285,6 +1308,7 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     s->out_fifo.buf = s->out_fifo_buf;
     s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
     s->kbd_timer = qemu_new_timer(rt_clock, kbd_send_chars, s);
+    s->ds = ds;
 
     if (!color_inited) {
         color_inited = 1;
@@ -1337,22 +1361,22 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     return chr;
 }
 
-void qemu_console_resize(QEMUConsole *console, int width, int height)
+void qemu_console_resize(DisplayState *ds, int width, int height)
 {
-    console->g_width = width;
-    console->g_height = height;
-    if (active_console == console) {
-        DisplayState *ds = console->ds;
+    TextConsole *s = get_graphic_console();
+    s->g_width = width;
+    s->g_height = height;
+    if (is_graphic_console()) {
         ds->surface = qemu_resize_displaysurface(ds->surface, width, height, 32, 4 * width);
-        dpy_resize(console->ds);
+        dpy_resize(ds);
     }
 }
 
-void qemu_console_copy(QEMUConsole *console, int src_x, int src_y,
-                int dst_x, int dst_y, int w, int h)
+void qemu_console_copy(DisplayState *ds, int src_x, int src_y,
+                       int dst_x, int dst_y, int w, int h)
 {
-    if (active_console == console) {
-            dpy_copy(console->ds, src_x, src_y, dst_x, dst_y, w, h);
+    if (is_graphic_console()) {
+        dpy_copy(ds, src_x, src_y, dst_x, dst_y, w, h);
     }
 }
 

@@ -89,7 +89,7 @@ void pxa2xx_dma_request(struct pxa2xx_dma_state_s *s, int req_num, int on);
 /* pxa2xx_lcd.c */
 struct pxa2xx_lcdc_s;
 struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base,
-                qemu_irq irq, DisplayState *ds);
+                qemu_irq irq);
 void pxa2xx_lcd_vsync_notifier(struct pxa2xx_lcdc_s *s, qemu_irq handler);
 void pxa2xx_lcdc_oritentation(void *opaque, int angle);
 
@@ -215,9 +215,8 @@ struct pxa2xx_i2s_s {
 # define PA_FMT			"0x%08lx"
 # define REG_FMT		"0x" TARGET_FMT_plx
 
-struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, DisplayState *ds,
-                const char *revision);
-struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size, DisplayState *ds);
+struct pxa2xx_state_s *pxa270_init(unsigned int sdram_size, const char *revision);
+struct pxa2xx_state_s *pxa255_init(unsigned int sdram_size);
 
 /* usb-ohci.c */
 void usb_ohci_init_pxa(target_phys_addr_t base, int num_ports, int devfn,

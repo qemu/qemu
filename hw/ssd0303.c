@@ -45,7 +45,6 @@ enum ssd0303_cmd {
 typedef struct {
     i2c_slave i2c;
     DisplayState *ds;
-    QEMUConsole *console;
     int row;
     int col;
     int start_line;
@@ -306,18 +305,17 @@ static int ssd0303_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address)
+void ssd0303_init(i2c_bus *bus, int address)
 {
     ssd0303_state *s;
 
     s = (ssd0303_state *)i2c_slave_init(bus, address, sizeof(ssd0303_state));
-    s->ds = ds;
     s->i2c.event = ssd0303_event;
     s->i2c.recv = ssd0303_recv;
     s->i2c.send = ssd0303_send;
-    s->console = graphic_console_init(ds, ssd0303_update_display,
-                                      ssd0303_invalidate_display,
-                                      NULL, NULL, s);
-    qemu_console_resize(s->console, 96 * MAGNIFY, 16 * MAGNIFY);
+    s->ds = graphic_console_init(ssd0303_update_display,
+                                 ssd0303_invalidate_display,
+                                 NULL, NULL, s);
+    qemu_console_resize(s->ds, 96 * MAGNIFY, 16 * MAGNIFY);
     register_savevm("ssd0303_oled", -1, 1, ssd0303_save, ssd0303_load, s);
 }

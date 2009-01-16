@@ -2128,10 +2128,10 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename)
     CharDriverState *chr;
 
     if (!strcmp(filename, "vc")) {
-        chr = text_console_init(&display_state, 0);
+        chr = text_console_init(get_displaystate(), 0);
     } else
     if (strstart(filename, "vc:", &p)) {
-        chr = text_console_init(&display_state, p);
+        chr = text_console_init(get_displaystate(), p);
     } else
     if (!strcmp(filename, "null")) {
         chr = qemu_chr_open_null();
