@@ -939,7 +939,7 @@ static void blizzard_screen_dump(void *opaque, const char *filename) {
 
     blizzard_update_display(opaque);
     if (s && ds_get_data(s->state))
-        ppm_save(filename, s->state);
+        ppm_save(filename, s->state->surface);
 }
 
 #define DEPTH 8
