@@ -1190,7 +1190,8 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
     }
 }
 
-static TextConsole *get_graphic_console() {
+static TextConsole *get_graphic_console(void)
+{
     int i;
     TextConsole *s;
     for (i = 0; i < nb_consoles; i++) {
