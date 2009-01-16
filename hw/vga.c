@@ -1618,6 +1618,40 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         s->double_scan = double_scan;
     }
 
+    depth = s->get_bpp(s);
+    if (s->line_offset != s->last_line_offset ||
+        disp_width != s->last_width ||
+        height != s->last_height ||
+        s->last_depth != depth) {
+        if (depth == 16 || depth == 32) {
+            if (is_graphic_console()) {
+                qemu_free_displaysurface(s->ds->surface);
+                s->ds->surface = qemu_create_displaysurface_from(disp_width, height, depth,
+                                                               s->line_offset,
+                                                               s->vram_ptr + (s->start_addr * 4));
+                dpy_resize(s->ds);
+            } else {
+                qemu_console_resize(s->ds, disp_width, height);
+            }
+        } else {
+            qemu_console_resize(s->ds, disp_width, height);
+        }
+        s->last_scr_width = disp_width;
+        s->last_scr_height = height;
+        s->last_width = disp_width;
+        s->last_height = height;
+        s->last_line_offset = s->line_offset;
+        s->last_depth = depth;
+        full_update = 1;
+    } else if (is_graphic_console() && is_buffer_shared(s->ds->surface) &&
+               (full_update || s->ds->surface->data != s->vram_ptr + (s->start_addr * 4))) {
+        s->ds->surface->data = s->vram_ptr + (s->start_addr * 4);
+        dpy_setdata(s->ds);
+    }
+
+    s->rgb_to_pixel =
+        rgb_to_pixel_dup_table[get_depth_index(s->ds)];
+
     if (shift_control == 0) {
         full_update |= update_palette16(s);
         if (s->sr[0x01] & 8) {
@@ -1668,40 +1702,6 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         }
     }
     vga_draw_line = vga_draw_line_table[v * NB_DEPTHS + get_depth_index(s->ds)];
-
-    depth = s->get_bpp(s);
-    if (s->line_offset != s->last_line_offset ||
-        disp_width != s->last_width ||
-        height != s->last_height ||
-        s->last_depth != depth) {
-        if (depth == 16 || depth == 32) {
-            if (is_graphic_console()) {
-                qemu_free_displaysurface(s->ds->surface);
-                s->ds->surface = qemu_create_displaysurface_from(disp_width, height, depth,
-                                                               s->line_offset,
-                                                               s->vram_ptr + (s->start_addr * 4));
-                dpy_resize(s->ds);
-            } else {
-                qemu_console_resize(s->ds, disp_width, height);
-            }
-        } else {
-            qemu_console_resize(s->ds, disp_width, height);
-        }
-        s->last_scr_width = disp_width;
-        s->last_scr_height = height;
-        s->last_width = disp_width;
-        s->last_height = height;
-        s->last_line_offset = s->line_offset;
-        s->last_depth = depth;
-        full_update = 1;
-    } else if (is_graphic_console() && is_buffer_shared(s->ds->surface) &&
-               (full_update || s->ds->surface->data != s->vram_ptr + (s->start_addr * 4))) {
-        s->ds->surface->data = s->vram_ptr + (s->start_addr * 4);
-        dpy_setdata(s->ds);
-    }
-
-    s->rgb_to_pixel =
-        rgb_to_pixel_dup_table[get_depth_index(s->ds)];
 
     if (!is_buffer_shared(s->ds->surface) && s->cursor_invalidate)
         s->cursor_invalidate(s);
