@@ -1190,13 +1190,13 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
     }
 }
 
-static TextConsole *get_graphic_console(void)
+static TextConsole *get_graphic_console(DisplayState *ds)
 {
     int i;
     TextConsole *s;
     for (i = 0; i < nb_consoles; i++) {
         s = consoles[i];
-        if (s->console_type == GRAPHIC_CONSOLE)
+        if (s->console_type == GRAPHIC_CONSOLE && s->ds == ds)
             return s;
     }
     return NULL;
@@ -1394,7 +1394,7 @@ void text_consoles_set_display(DisplayState *ds)
 
 void qemu_console_resize(DisplayState *ds, int width, int height)
 {
-    TextConsole *s = get_graphic_console();
+    TextConsole *s = get_graphic_console(ds);
     s->g_width = width;
     s->g_height = height;
     if (is_graphic_console()) {
