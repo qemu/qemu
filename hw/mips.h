@@ -10,8 +10,10 @@ void *ds1225y_init(target_phys_addr_t mem_base, const char *filename);
 void ds1225y_set_protection(void *opaque, int protection);
 
 /* g364fb.c */
-int g364fb_mm_init(int vram_size, int it_shift,
-                   target_phys_addr_t vram_base, target_phys_addr_t ctrl_base);
+int g364fb_mm_init(uint8_t *vram, ram_addr_t vram_offset,
+                   int vram_size, target_phys_addr_t vram_base,
+                   target_phys_addr_t ctrl_base, int it_shift,
+                   qemu_irq irq);
 
 /* mipsnet.c */
 void mipsnet_init(int base, qemu_irq irq, NICInfo *nd);
