@@ -1299,7 +1299,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds, const c
     s = new_console(ds, (p == 0) ? TEXT_CONSOLE : TEXT_CONSOLE_FIXED_SIZE);
     if (!s) {
         free(chr);
-        return NULL;
+        return;
     }
     chr->opaque = s;
     chr->chr_write = console_puts;
@@ -1357,8 +1357,6 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds, const c
     text_console_resize(s);
 
     qemu_chr_reset(chr);
-
-    return chr;
 }
 
 CharDriverState *text_console_init(const char *p)
