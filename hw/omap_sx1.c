@@ -201,7 +201,8 @@ static void sx1_init(ram_addr_t ram_size, int vga_ram_size,
         cpu->env->regs[15] = 0x00000000;
     }
 
-    dpy_resize(ds, 640, 480);
+    ds->surface = qemu_resize_displaysurface(ds->surface, 640, 480, 32, 4 * 640);
+    dpy_resize(ds);
 }
 
 static void sx1_init_v1(ram_addr_t ram_size, int vga_ram_size,
