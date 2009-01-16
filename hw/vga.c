@@ -2533,8 +2533,6 @@ int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
 /********************************************************/
 /* vga screen dump */
 
-static int vga_save_w, vga_save_h;
-
 static void vga_save_dpy_update(DisplayState *s,
                                 int x, int y, int w, int h)
 {
@@ -2548,30 +2546,39 @@ static void vga_save_dpy_refresh(DisplayState *s)
 {
 }
 
-int ppm_save(const char *filename, uint8_t *data,
-             int w, int h, int linesize)
+int ppm_save(const char *filename, struct DisplaySurface *ds)
 {
     FILE *f;
     uint8_t *d, *d1;
-    unsigned int v;
+    uint32_t v;
     int y, x;
+    uint8_t r, g, b;
 
     f = fopen(filename, "wb");
     if (!f)
         return -1;
     fprintf(f, "P6\n%d %d\n%d\n",
-            w, h, 255);
-    d1 = data;
-    for(y = 0; y < h; y++) {
+            ds->width, ds->height, 255);
+    d1 = ds->data;
+    for(y = 0; y < ds->height; y++) {
         d = d1;
-        for(x = 0; x < w; x++) {
-            v = *(uint32_t *)d;
-            fputc((v >> 16) & 0xff, f);
-            fputc((v >> 8) & 0xff, f);
-            fputc((v) & 0xff, f);
-            d += 4;
+        for(x = 0; x < ds->width; x++) {
+            if (ds->pf.bits_per_pixel == 32)
+                v = *(uint32_t *)d;
+            else
+                v = (uint32_t) (*(uint16_t *)d);
+            r = ((v >> ds->pf.rshift) & ds->pf.rmax) * 256 /
+                (ds->pf.rmax + 1);
+            g = ((v >> ds->pf.gshift) & ds->pf.gmax) * 256 /
+                (ds->pf.gmax + 1);
+            b = ((v >> ds->pf.bshift) & ds->pf.bmax) * 256 /
+                (ds->pf.bmax + 1);
+            fputc(r, f);
+            fputc(g, f);
+            fputc(b, f);
+            d += ds->pf.bytes_per_pixel;
         }
-        d1 += linesize;
+        d1 += ds->linesize;
     }
     fclose(f);
     return 0;
@@ -2613,15 +2620,13 @@ static void vga_screen_dump_common(VGAState *s, const char *filename,
     dcl.dpy_resize = vga_save_dpy_resize;
     dcl.dpy_refresh = vga_save_dpy_refresh;
     register_displaychangelistener(ds, &dcl);
-    ds->surface = qemu_create_displaysurface(ds_get_width(saved_ds),
-            ds_get_height(saved_ds), 32, 4 * ds_get_width(saved_ds));
+    ds->surface = qemu_create_displaysurface(w, h, 32, 4 * w);
 
     s->ds = ds;
     s->graphic_mode = -1;
     vga_update_display(s);
 
-    ppm_save(filename, ds_get_data(ds), vga_save_w, vga_save_h,
-            ds_get_linesize(ds));
+    ppm_save(filename, ds->surface);
 
     qemu_free_displaysurface(ds->surface);
     s->ds = saved_ds;

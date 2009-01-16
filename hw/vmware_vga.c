@@ -975,7 +975,10 @@ static void vmsvga_screen_dump(void *opaque, const char *filename)
     }
 
     if (s->depth == 32) {
-        ppm_save(filename, s->vram, s->width, s->height, ds_get_linesize(s->ds));
+        DisplaySurface *ds = qemu_create_displaysurface_from(s->width,
+                s->height, 32, ds_get_linesize(s->ds), s->vram);
+        ppm_save(filename, ds);
+        qemu_free(ds);
     }
 }
 
