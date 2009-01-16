@@ -5461,6 +5461,48 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        const char *devname = serial_devices[i];
+        if (devname && strcmp(devname, "none")) {
+            char label[32];
+            snprintf(label, sizeof(label), "serial%d", i);
+            serial_hds[i] = qemu_chr_open(label, devname);
+            if (!serial_hds[i]) {
+                fprintf(stderr, "qemu: could not open serial device '%s'\n",
+                        devname);
+                exit(1);
+            }
+        }
+    }
+
+    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
+        const char *devname = parallel_devices[i];
+        if (devname && strcmp(devname, "none")) {
+            char label[32];
+            snprintf(label, sizeof(label), "parallel%d", i);
+            parallel_hds[i] = qemu_chr_open(label, devname);
+            if (!parallel_hds[i]) {
+                fprintf(stderr, "qemu: could not open parallel device '%s'\n",
+                        devname);
+                exit(1);
+            }
+        }
+    }
+
+    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
+        const char *devname = virtio_consoles[i];
+        if (devname && strcmp(devname, "none")) {
+            char label[32];
+            snprintf(label, sizeof(label), "virtcon%d", i);
+            virtcon_hds[i] = qemu_chr_open(label, devname);
+            if (!virtcon_hds[i]) {
+                fprintf(stderr, "qemu: could not open virtio console '%s'\n",
+                        devname);
+                exit(1);
+            }
+        }
+    }
+
     machine->init(ram_size, vga_ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
@@ -5529,6 +5571,8 @@ int main(int argc, char **argv, char **envp)
         dcl = dcl->next;
     }
 
+    text_consoles_set_display(display_state);
+
     if (monitor_device) {
         monitor_hd = qemu_chr_open("monitor", monitor_device);
         if (!monitor_hd) {
@@ -5543,12 +5587,6 @@ int main(int argc, char **argv, char **envp)
         if (devname && strcmp(devname, "none")) {
             char label[32];
             snprintf(label, sizeof(label), "serial%d", i);
-            serial_hds[i] = qemu_chr_open(label, devname);
-            if (!serial_hds[i]) {
-                fprintf(stderr, "qemu: could not open serial device '%s'\n",
-                        devname);
-                exit(1);
-            }
             if (strstart(devname, "vc", 0))
                 qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
         }
@@ -5559,12 +5597,6 @@ int main(int argc, char **argv, char **envp)
         if (devname && strcmp(devname, "none")) {
             char label[32];
             snprintf(label, sizeof(label), "parallel%d", i);
-            parallel_hds[i] = qemu_chr_open(label, devname);
-            if (!parallel_hds[i]) {
-                fprintf(stderr, "qemu: could not open parallel device '%s'\n",
-                        devname);
-                exit(1);
-            }
             if (strstart(devname, "vc", 0))
                 qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
         }
@@ -5572,15 +5604,9 @@ int main(int argc, char **argv, char **envp)
 
     for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
         const char *devname = virtio_consoles[i];
-        if (devname && strcmp(devname, "none")) {
+        if (virtcon_hds[i] && devname) {
             char label[32];
             snprintf(label, sizeof(label), "virtcon%d", i);
-            virtcon_hds[i] = qemu_chr_open(label, devname);
-            if (!virtcon_hds[i]) {
-                fprintf(stderr, "qemu: could not open virtio console '%s'\n",
-                        devname);
-                exit(1);
-            }
             if (strstart(devname, "vc", 0))
                 qemu_chr_printf(virtcon_hds[i], "virtio console%d\r\n", i);
         }

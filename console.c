@@ -1285,17 +1285,17 @@ void console_color_init(DisplayState *ds)
     }
 }
 
-CharDriverState *text_console_init(DisplayState *ds, const char *p)
+static int n_text_consoles;
+static CharDriverState *text_consoles[128];
+static char *text_console_strs[128];
+
+static void text_console_do_init(CharDriverState *chr, DisplayState *ds, const char *p)
 {
-    CharDriverState *chr;
     TextConsole *s;
     unsigned width;
     unsigned height;
     static int color_inited;
 
-    chr = qemu_mallocz(sizeof(CharDriverState));
-    if (!chr)
-        return NULL;
     s = new_console(ds, (p == 0) ? TEXT_CONSOLE : TEXT_CONSOLE_FIXED_SIZE);
     if (!s) {
         free(chr);
@@ -1352,7 +1352,6 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     s->t_attrib_default.unvisible = 0;
     s->t_attrib_default.fgcol = COLOR_WHITE;
     s->t_attrib_default.bgcol = COLOR_BLACK;
-
     /* set current text attributes to default */
     s->t_attrib = s->t_attrib_default;
     text_console_resize(s);
@@ -1360,6 +1359,37 @@ CharDriverState *text_console_init(DisplayState *ds, const char *p)
     qemu_chr_reset(chr);
 
     return chr;
+}
+
+CharDriverState *text_console_init(const char *p)
+{
+    CharDriverState *chr;
+
+    chr = qemu_mallocz(sizeof(CharDriverState));
+    if (!chr)
+        return NULL;
+
+    if (n_text_consoles == 128) {
+        fprintf(stderr, "Too many text consoles\n");
+        exit(1);
+    }
+    text_consoles[n_text_consoles] = chr;
+    text_console_strs[n_text_consoles] = p ? qemu_strdup(p) : NULL;
+    n_text_consoles++;
+
+    return chr;
+}
+
+void text_consoles_set_display(DisplayState *ds)
+{
+    int i;
+
+    for (i = 0; i < n_text_consoles; i++) {
+        text_console_do_init(text_consoles[i], ds, text_console_strs[i]);
+        qemu_free(text_console_strs[i]);
+    }
+
+    n_text_consoles = 0;
 }
 
 void qemu_console_resize(DisplayState *ds, int width, int height)
