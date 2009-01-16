@@ -125,7 +125,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
     int vga_bios_size, bios_size;
-    qemu_irq *dummy_irq;
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
     int escc_mem_index, ide_mem_index[2];
     int ppc_boot_device;
@@ -301,9 +300,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
                  vga_ram_offset, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
 
-    /* XXX: suppress that */
-    dummy_irq = i8259_init(NULL);
-
     escc_mem_index = escc_init(0x80013000, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
 
@@ -364,7 +360,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
         graphic_depth = 15;
 
-    m48t59 = m48t59_init(dummy_irq[8], 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
+    m48t59 = m48t59_init(0, 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
     nvram.opaque = m48t59;
     nvram.read_fn = &m48t59_read;
     nvram.write_fn = &m48t59_write;
