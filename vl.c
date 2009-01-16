@@ -4529,7 +4529,7 @@ int main(int argc, char **argv, char **envp)
     int hda_index;
     int optind;
     const char *r, *optarg;
-    CharDriverState *monitor_hd;
+    CharDriverState *monitor_hd = NULL;
     const char *monitor_device;
     const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
@@ -5461,6 +5461,14 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    if (monitor_device) {
+        monitor_hd = qemu_chr_open("monitor", monitor_device);
+        if (!monitor_hd) {
+            fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
+            exit(1);
+        }
+    }
+
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         const char *devname = serial_devices[i];
         if (devname && strcmp(devname, "none")) {
@@ -5573,14 +5581,8 @@ int main(int argc, char **argv, char **envp)
 
     text_consoles_set_display(display_state);
 
-    if (monitor_device) {
-        monitor_hd = qemu_chr_open("monitor", monitor_device);
-        if (!monitor_hd) {
-            fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
-            exit(1);
-        }
+    if (monitor_device && monitor_hd)
         monitor_init(monitor_hd, !nographic);
-    }
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         const char *devname = serial_devices[i];
