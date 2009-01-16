@@ -870,11 +870,11 @@ vga_bios_error:
             fprintf(stderr, "qemu: could not load VGA BIOS '%s'\n", buf);
             exit(1);
         }
-    }
 
-    /* setup basic memory access */
-    cpu_register_physical_memory(0xc0000, 0x10000,
-                                 vga_bios_offset | IO_MEM_ROM);
+        /* setup basic memory access */
+        cpu_register_physical_memory(0xc0000, 0x10000,
+                                     vga_bios_offset | IO_MEM_ROM);
+    }
 
     /* map the last 128KB of the BIOS in ISA space */
     isa_bios_size = bios_size;
