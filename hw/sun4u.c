@@ -552,8 +552,8 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
            hd[i] = NULL;
     }
 
-    // XXX pci_cmd646_ide_init(pci_bus, hd, 1);
-    pci_piix3_ide_init(pci_bus, hd, -1, irq);
+    pci_cmd646_ide_init(pci_bus, hd, 1);
+
     /* FIXME: wire up interrupts.  */
     i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
     for(i = 0; i < MAX_FD; i++) {
