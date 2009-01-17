@@ -94,9 +94,7 @@ static void *aio_thread(void *unused)
         idle_threads++;
         pthread_mutex_unlock(&lock);
 
-        sigqueue(getpid(),
-                 aiocb->aio_sigevent.sigev_signo,
-                 aiocb->aio_sigevent.sigev_value);
+        kill(getpid(), aiocb->sigev_signo);
     }
 
     idle_threads--;

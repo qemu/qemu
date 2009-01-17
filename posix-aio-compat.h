@@ -29,7 +29,7 @@ struct qemu_paiocb
     int aio_fildes;
     void *aio_buf;
     size_t aio_nbytes;
-    struct sigevent aio_sigevent;
+    int sigev_signo;
     off_t aio_offset;
 
     /* private */

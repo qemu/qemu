@@ -1005,9 +1005,7 @@ if test "$aio" = "yes" ; then
   aio=no
   cat > $TMPC << EOF
 #include <pthread.h>
-#include <signal.h>
-int main(void) { struct sigevent s; pthread_mutex_t lock;
-    return sigqueue(0, 0, s.sigev_value); }
+int main(void) { pthread_mutex_t lock;  return 0; }
 EOF
   if $cc $ARCH_CFLAGS -o $TMPE $AIOLIBS $TMPC 2> /dev/null ; then
     aio=yes
