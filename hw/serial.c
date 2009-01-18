@@ -711,7 +711,7 @@ static void serial_init_core(SerialState *s, qemu_irq irq, int baudbase,
 {
     s->irq = irq;
     s->baudbase = baudbase;
-    s->chr = chr;
+    s->chr = chr ?: qemu_chr_open("null", "null", NULL);
 
     s->modem_status_poll = qemu_new_timer(vm_clock, (QEMUTimerCB *) serial_update_msl, s);
 
@@ -721,6 +721,8 @@ static void serial_init_core(SerialState *s, qemu_irq irq, int baudbase,
     qemu_register_reset(serial_reset, s);
     serial_reset(s);
 
+    qemu_chr_add_handlers(s->chr, serial_can_receive1, serial_receive1,
+                          serial_event, s);
 }
 
 /* If fd is zero, it means that the serial device uses the console */
@@ -739,8 +741,6 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 
     register_ioport_write(base, 8, 1, serial_ioport_write, s);
     register_ioport_read(base, 8, 1, serial_ioport_read, s);
-    qemu_chr_add_handlers(chr, serial_can_receive1, serial_receive1,
-                          serial_event, s);
     return s;
 }
 
@@ -837,8 +837,6 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                                              serial_mm_write, s);
         cpu_register_physical_memory(base, 8 << it_shift, s_io_memory);
     }
-    qemu_chr_add_handlers(chr, serial_can_receive1, serial_receive1,
-                          serial_event, s);
     serial_update_msl(s);
     return s;
 }
