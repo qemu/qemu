@@ -756,8 +756,8 @@ void cuda_init (int *cuda_mem_index, qemu_irq irq)
 
     s->timers[1].index = 1;
 
-    qemu_get_timedate(&tm, RTC_OFFSET);
-    s->tick_offset = mktimegm(&tm);
+    qemu_get_timedate(&tm, 0);
+    s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     s->adb_poll_timer = qemu_new_timer(vm_clock, cuda_adb_poll, s);
     *cuda_mem_index = cpu_register_io_memory(0, cuda_read, cuda_write, s);
