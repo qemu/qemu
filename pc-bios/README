@@ -42,7 +42,7 @@
   firmware implementation. The goal is to implement a 100% IEEE
   1275-1994 (referred to as Open Firmware) compliant firmware.
   The included Sparc32 and Sparc64 images are built from SVN revision 395.
-  The included PowerPC image is built from SVN revision 406.
+  The included PowerPC image is built from SVN revision 418.
 
 - The PXE roms come from Rom-o-Matic etherboot 5.4.2.
   pcnet32:pcnet32 -- [0x1022,0x2000]
