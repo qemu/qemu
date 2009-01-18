@@ -420,11 +420,6 @@ static void malta_fpga_reset(void *opaque)
     snprintf(s->display_text, 9, "        ");
 }
 
-static void malta_fpga_uart_init(CharDriverState *chr)
-{
-    qemu_chr_printf(chr, "CBUS UART\r\n");
-}
-
 static void malta_fpga_led_init(CharDriverState *chr)
 {
     qemu_chr_printf(chr, "\e[HMalta LEDBAR\r\n");
@@ -438,10 +433,9 @@ static void malta_fpga_led_init(CharDriverState *chr)
     qemu_chr_printf(chr, "+--------+\r\n");
 }
 
-static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
+static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_irq, CharDriverState *uart_chr)
 {
     MaltaFPGAState *s;
-    CharDriverState *uart_chr;
     int malta;
 
     s = (MaltaFPGAState *)qemu_mallocz(sizeof(MaltaFPGAState));
@@ -455,9 +449,7 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
 
     s->display = qemu_chr_open("fpga", "vc:320x200", malta_fpga_led_init);
 
-    uart_chr = qemu_chr_open("cbus", "vc:80Cx24C", malta_fpga_uart_init);
-    s->uart =
-        serial_mm_init(base + 0x900, 3, env->irq[2], 230400, uart_chr, 1);
+    s->uart = serial_mm_init(base + 0x900, 3, uart_irq, 230400, uart_chr, 1);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
@@ -820,7 +812,7 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
     /* FPGA */
-    malta_fpga = malta_fpga_init(0x1f000000LL, env);
+    malta_fpga = malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2]);
 
     /* Load firmware in flash / BIOS unless we boot directly into a kernel. */
     if (kernel_filename) {
@@ -921,10 +913,8 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     /* Super I/O */
     i8042_init(i8259[1], i8259[12], 0x60);
     rtc_state = rtc_init(0x70, i8259[8]);
-    if (serial_hds[0])
-        serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
-    if (serial_hds[1])
-        serial_init(0x2f8, i8259[3], 115200, serial_hds[1]);
+    serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
+    serial_init(0x2f8, i8259[3], 115200, serial_hds[1]);
     if (parallel_hds[0])
         parallel_init(0x378, i8259[7], parallel_hds[0]);
     for(i = 0; i < MAX_FD; i++) {
