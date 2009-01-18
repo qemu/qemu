@@ -558,7 +558,7 @@ USBDevice *usb_serial_init(const char *filename)
         return NULL;
 
     snprintf(label, sizeof(label), "usbserial%d", index++);
-    cdrv = qemu_chr_open(label, filename);
+    cdrv = qemu_chr_open(label, filename, NULL);
     if (!cdrv)
         goto fail;
     s->cs = cdrv;

@@ -418,7 +418,24 @@ static void malta_fpga_reset(void *opaque)
 
     s->display_text[8] = '\0';
     snprintf(s->display_text, 9, "        ");
-    malta_fpga_update_display(s);
+}
+
+static void malta_fpga_uart_init(CharDriverState *chr)
+{
+    qemu_chr_printf(chr, "CBUS UART\r\n");
+}
+
+static void malta_fpga_led_init(CharDriverState *chr)
+{
+    qemu_chr_printf(chr, "\e[HMalta LEDBAR\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "+        +\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "\n");
+    qemu_chr_printf(chr, "Malta ASCII\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "+        +\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
 }
 
 static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
@@ -436,19 +453,9 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
     /* 0xa00 is less than a page, so will still get the right offsets.  */
     cpu_register_physical_memory(base + 0xa00, 0x100000 - 0xa00, malta);
 
-    s->display = qemu_chr_open("fpga", "vc:320x200");
-    qemu_chr_printf(s->display, "\e[HMalta LEDBAR\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "+        +\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "\n");
-    qemu_chr_printf(s->display, "Malta ASCII\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "+        +\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
+    s->display = qemu_chr_open("fpga", "vc:320x200", malta_fpga_led_init);
 
-    uart_chr = qemu_chr_open("cbus", "vc:80Cx24C");
-    qemu_chr_printf(uart_chr, "CBUS UART\r\n");
+    uart_chr = qemu_chr_open("cbus", "vc:80Cx24C", malta_fpga_uart_init);
     s->uart =
         serial_mm_init(base + 0x900, 3, env->irq[2], 230400, uart_chr, 1);
 

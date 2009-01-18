@@ -1357,6 +1357,8 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds, const c
     text_console_resize(s);
 
     qemu_chr_reset(chr);
+    if (chr->init)
+        chr->init(chr);
 }
 
 CharDriverState *text_console_init(const char *p)
