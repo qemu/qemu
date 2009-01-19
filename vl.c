@@ -2775,25 +2775,10 @@ DisplayState *get_displaystate(void)
 
 /* dumb display */
 
-static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
+static void dumb_display_init(void)
 {
-}
-
-static void dumb_resize(DisplayState *ds)
-{
-}
-
-static void dumb_display_init(DisplayState *ds)
-{
-    DisplayChangeListener *dcl = qemu_mallocz(sizeof(DisplayChangeListener));
-    if (!dcl)
-        exit(1);
-    dcl->dpy_update = dumb_update;
-    dcl->dpy_resize = dumb_resize;
-    dcl->dpy_refresh = NULL;
-    dcl->idle = 1;
-    dcl->gui_timer_interval = 500;
-    register_displaychangelistener(ds, dcl);
+    DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
+    register_displaystate(ds);
 }
 
 /***********************************************************/
@@ -5535,6 +5520,8 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    if (!display_state)
+        dumb_display_init();
     /* just use the first displaystate for the moment */
     ds = display_state;
     /* terminal init */
@@ -5543,8 +5530,6 @@ int main(int argc, char **argv, char **envp)
             fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
             exit(1);
         }
-        /* nearly nothing to do */
-        dumb_display_init(ds);
     } else { 
 #if defined(CONFIG_CURSES)
             if (curses) {
@@ -5563,8 +5548,6 @@ int main(int argc, char **argv, char **envp)
                     sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
                     cocoa_display_init(ds, full_screen);
-#else
-                    dumb_display_init(ds);
 #endif
             }
     }
