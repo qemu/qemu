@@ -42,6 +42,14 @@
 //#define PPC_DEBUG_DISAS
 //#define DO_PPC_STATISTICS
 
+#ifdef PPC_DEBUG_DISAS
+#  define LOG_DISAS(...) do {            \
+     if (loglevel & CPU_LOG_TB_IN_ASM)   \
+       fprintf(logfile, ## __VA_ARGS__); \
+   } while (0)
+#else
+#  define LOG_DISAS(...) do { } while (0)
+#endif
 /*****************************************************************************/
 /* Code translation helpers                                                  */
 
@@ -8232,13 +8240,9 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
                 gen_opc_icount[lj] = num_insns;
             }
         }
-#if defined PPC_DEBUG_DISAS
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "----------------\n");
-            fprintf(logfile, "nip=" ADDRX " super=%d ir=%d\n",
-                    ctx.nip, ctx.mem_idx, (int)msr_ir);
-        }
-#endif
+        LOG_DISAS("----------------\n");
+        LOG_DISAS("nip=" ADDRX " super=%d ir=%d\n",
+                  ctx.nip, ctx.mem_idx, (int)msr_ir);
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
         if (unlikely(ctx.le_mode)) {
@@ -8246,13 +8250,9 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
         } else {
             ctx.opcode = ldl_code(ctx.nip);
         }
-#if defined PPC_DEBUG_DISAS
-        if (loglevel & CPU_LOG_TB_IN_ASM) {
-            fprintf(logfile, "translate opcode %08x (%02x %02x %02x) (%s)\n",
+        LOG_DISAS("translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
                     opc3(ctx.opcode), little_endian ? "little" : "big");
-        }
-#endif
         ctx.nip += 4;
         table = env->opcodes;
         num_insns++;

@@ -87,7 +87,11 @@ static int gdb_signal_table[] = {
     -1, /* SIGLOST */
     TARGET_SIGUSR1,
     TARGET_SIGUSR2,
+#ifdef TARGET_SIGPWR
     TARGET_SIGPWR,
+#else
+    -1,
+#endif
     -1, /* SIGPOLL */
     -1,
     -1,
@@ -100,6 +104,7 @@ static int gdb_signal_table[] = {
     -1,
     -1,
     -1,
+#ifdef __SIGRTMIN
     __SIGRTMIN + 1,
     __SIGRTMIN + 2,
     __SIGRTMIN + 3,
@@ -206,6 +211,7 @@ static int gdb_signal_table[] = {
     -1,
     -1,
     -1
+#endif
 };
 #else
 /* In system mode we only need SIGINT and SIGTRAP; other signals

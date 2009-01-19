@@ -1314,6 +1314,11 @@ again:
 static uint8_t lsi_reg_readb(LSIState *s, int offset)
 {
     uint8_t tmp;
+#define CASE_GET_REG24(name, addr) \
+    case addr: return s->name & 0xff; \
+    case addr + 1: return (s->name >> 8) & 0xff; \
+    case addr + 2: return (s->name >> 16) & 0xff;
+
 #define CASE_GET_REG32(name, addr) \
     case addr: return s->name & 0xff; \
     case addr + 1: return (s->name >> 8) & 0xff; \
@@ -1389,12 +1394,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         return s->ctest5;
     case 0x23: /* CTEST6 */
          return 0;
-    case 0x24: /* DBC[0:7] */
-        return s->dbc & 0xff;
-    case 0x25: /* DBC[8:15] */
-        return (s->dbc >> 8) & 0xff;
-    case 0x26: /* DBC[16->23] */
-        return (s->dbc >> 16) & 0xff;
+    CASE_GET_REG24(dbc, 0x24)
     case 0x27: /* DCMD */
         return s->dcmd;
     CASE_GET_REG32(dsp, 0x2c)
@@ -1477,6 +1477,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
     }
     BADF("readb 0x%x\n", offset);
     exit(1);
+#undef CASE_GET_REG24
 #undef CASE_GET_REG32
 }
 

@@ -139,6 +139,11 @@ static inline int ds_get_bits_per_pixel(DisplayState *ds)
     return ds->depth;
 }
 
+static inline int ds_get_bytes_per_pixel(DisplayState *ds)
+{
+    return (ds->depth / 8);
+}
+
 typedef unsigned long console_ch_t;
 static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 {

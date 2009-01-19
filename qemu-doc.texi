@@ -420,6 +420,11 @@ Use it when installing Windows 2000 to avoid a disk full bug. After
 Windows 2000 is installed, you no longer need this option (this option
 slows down the IDE transfers).
 
+@item -rtc-td-hack
+Use it if you experience time drift problem in Windows with ACPI HAL.
+This option will try to figure out how many timer interrupts were not
+processed by the Windows guest and will re-inject them.
+
 @item -option-rom @var{file}
 Load the contents of @var{file} as an option ROM.
 This option is useful to load things like EtherBoot.

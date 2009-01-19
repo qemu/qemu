@@ -279,7 +279,7 @@ static void IRQ_local_pipe (openpic_t *opp, int n_CPU, int n_IRQ)
     }
     IRQ_get_next(opp, &dst->raised);
     if (IRQ_get_next(opp, &dst->servicing) != -1 &&
-        priority < dst->servicing.priority) {
+        priority <= dst->servicing.priority) {
         DPRINTF("%s: IRQ %d is hidden by servicing IRQ %d on CPU %d\n",
                 __func__, n_IRQ, dst->servicing.next, n_CPU);
         /* Already servicing a higher priority IRQ */

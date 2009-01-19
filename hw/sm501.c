@@ -940,25 +940,16 @@ static draw_line_func * draw_line32_funcs[] = {
 
 static inline int get_depth_index(DisplayState *s)
 {
-    switch(s->depth) {
+    switch(ds_get_bits_per_pixel(s)) {
     default:
     case 8:
 	return 0;
     case 15:
-	if (s->bgr)
-	    return 5;
-	else
-	    return 1;
+        return 1;
     case 16:
-	if (s->bgr)
-	    return 6;
-	else
-	    return 2;
+        return 2;
     case 32:
-	if (s->bgr)
-	    return 4;
-	else
-	    return 3;
+        return 3;
     }
 }
 
@@ -970,7 +961,7 @@ static void sm501_draw_crt(SM501State * s)
 
     uint8_t  * src = s->local_mem;
     int src_bpp = 0;
-    int dst_bpp = s->ds->depth / 8 + (s->ds->depth % 8 ? 1 : 0);
+    int dst_bpp = ds_get_bytes_per_pixel(s->ds) + (ds_get_bits_per_pixel(s->ds) % 8 ? 1 : 0);
     uint32_t * palette = (uint32_t *)&s->dc_palette[SM501_DC_CRT_PALETTE
 						    - SM501_DC_PANEL_PALETTE];
     int ds_depth_index = get_depth_index(s->ds);
@@ -1024,7 +1015,7 @@ static void sm501_draw_crt(SM501State * s)
 
 	/* draw line and change status */
 	if (update) {
-	    draw_line(&s->ds->data[y * width * dst_bpp], src, width, palette);
+	    draw_line(&(ds_get_data(s->ds)[y * width * dst_bpp]), src, width, palette);
 	    if (y_start < 0)
 		y_start = y;
 	    if (page0 < page_min)

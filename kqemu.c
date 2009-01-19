@@ -47,6 +47,22 @@
 #define DEBUG
 //#define PROFILE
 
+
+#ifdef DEBUG
+#  define LOG_INT(...) do {              \
+     if (loglevel & CPU_LOG_INT)         \
+       fprintf(logfile, ## __VA_ARGS__); \
+   } while (0)
+#  define LOG_INT_STATE(env) \
+      do {                                            \
+         if (loglevel & CPU_LOG_INT)                  \
+            cpu_dump_state(env, logfile, fprintf, 0); \
+      } while (0)
+#else
+#  define LOG_INT(...) do { } while (0)
+#  define LOG_INT_STATE(env) do { } while (0)
+#endif
+
 #include <unistd.h>
 #include <fcntl.h>
 #include "kqemu.h"
@@ -241,11 +257,7 @@ int kqemu_init(CPUState *env)
 
 void kqemu_flush_page(CPUState *env, target_ulong addr)
 {
-#if defined(DEBUG)
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "kqemu_flush_page: addr=" TARGET_FMT_lx "\n", addr);
-    }
-#endif
+    LOG_INT("kqemu_flush_page: addr=" TARGET_FMT_lx "\n", addr);
     if (nb_pages_to_flush >= KQEMU_MAX_PAGES_TO_FLUSH)
         nb_pages_to_flush = KQEMU_FLUSH_ALL;
     else
@@ -254,22 +266,14 @@ void kqemu_flush_page(CPUState *env, target_ulong addr)
 
 void kqemu_flush(CPUState *env, int global)
 {
-#ifdef DEBUG
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "kqemu_flush:\n");
-    }
-#endif
+    LOG_INT("kqemu_flush:\n");
     nb_pages_to_flush = KQEMU_FLUSH_ALL;
 }
 
 void kqemu_set_notdirty(CPUState *env, ram_addr_t ram_addr)
 {
-#ifdef DEBUG
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "kqemu_set_notdirty: addr=%08lx\n", 
+    LOG_INT("kqemu_set_notdirty: addr=%08lx\n", 
                 (unsigned long)ram_addr);
-    }
-#endif
     /* we only track transitions to dirty state */
     if (phys_ram_dirty[ram_addr >> TARGET_PAGE_BITS] != 0xff)
         return;
@@ -703,12 +707,8 @@ int kqemu_cpu_exec(CPUState *env)
 #ifdef CONFIG_PROFILER
     ti = profile_getclock();
 #endif
-#ifdef DEBUG
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "kqemu: cpu_exec: enter\n");
-        cpu_dump_state(env, logfile, fprintf, 0);
-    }
-#endif
+    LOG_INT("kqemu: cpu_exec: enter\n");
+    LOG_INT_STATE(env);
     for(i = 0; i < CPU_NB_REGS; i++)
         kenv->regs[i] = env->regs[i];
     kenv->eip = env->eip;
@@ -867,11 +867,7 @@ int kqemu_cpu_exec(CPUState *env)
     else
         env->hflags &= ~HF_OSFXSR_MASK;
 
-#ifdef DEBUG
-    if (loglevel & CPU_LOG_INT) {
-        fprintf(logfile, "kqemu: kqemu_cpu_exec: ret=0x%x\n", ret);
-    }
-#endif
+    LOG_INT("kqemu: kqemu_cpu_exec: ret=0x%x\n", ret);
     if (ret == KQEMU_RET_SYSCALL) {
         /* syscall instruction */
         return do_syscall(env, kenv);
@@ -884,13 +880,8 @@ int kqemu_cpu_exec(CPUState *env)
 #ifdef CONFIG_PROFILER
         kqemu_ret_int_count++;
 #endif
-#ifdef DEBUG
-        if (loglevel & CPU_LOG_INT) {
-            fprintf(logfile, "kqemu: interrupt v=%02x:\n",
-                    env->exception_index);
-            cpu_dump_state(env, logfile, fprintf, 0);
-        }
-#endif
+        LOG_INT("kqemu: interrupt v=%02x:\n", env->exception_index);
+        LOG_INT_STATE(env);
         return 1;
     } else if ((ret & 0xff00) == KQEMU_RET_EXCEPTION) {
         env->exception_index = ret & 0xff;
@@ -900,23 +891,15 @@ int kqemu_cpu_exec(CPUState *env)
 #ifdef CONFIG_PROFILER
         kqemu_ret_excp_count++;
 #endif
-#ifdef DEBUG
-        if (loglevel & CPU_LOG_INT) {
-            fprintf(logfile, "kqemu: exception v=%02x e=%04x:\n",
+        LOG_INT("kqemu: exception v=%02x e=%04x:\n",
                     env->exception_index, env->error_code);
-            cpu_dump_state(env, logfile, fprintf, 0);
-        }
-#endif
+        LOG_INT_STATE(env);
         return 1;
     } else if (ret == KQEMU_RET_INTR) {
 #ifdef CONFIG_PROFILER
         kqemu_ret_intr_count++;
 #endif
-#ifdef DEBUG
-        if (loglevel & CPU_LOG_INT) {
-            cpu_dump_state(env, logfile, fprintf, 0);
-        }
-#endif
+        LOG_INT_STATE(env);
         return 0;
     } else if (ret == KQEMU_RET_SOFTMMU) {
 #ifdef CONFIG_PROFILER
@@ -925,11 +908,7 @@ int kqemu_cpu_exec(CPUState *env)
             kqemu_record_pc(pc);
         }
 #endif
-#ifdef DEBUG
-        if (loglevel & CPU_LOG_INT) {
-            cpu_dump_state(env, logfile, fprintf, 0);
-        }
-#endif
+        LOG_INT_STATE(env);
         return 2;
     } else {
         cpu_dump_state(env, stderr, fprintf, 0);
