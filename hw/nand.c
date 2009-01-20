@@ -492,6 +492,9 @@ struct nand_flash_s *nand_init(int manf_id, int chip_id)
     if (pagesize)
         s->storage = (uint8_t *) memset(qemu_malloc(s->pages * pagesize),
                         0xff, s->pages * pagesize);
+    /* Give s->ioaddr a sane value in case we save state before it
+       is used.  */
+    s->ioaddr = s->io;
 
     register_savevm("nand", -1, 0, nand_save, nand_load, s);
 
