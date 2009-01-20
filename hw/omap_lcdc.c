@@ -24,7 +24,6 @@
 struct omap_lcd_panel_s {
     qemu_irq irq;
     DisplayState *state;
-    QEMUConsole *console;
     ram_addr_t imif_base;
     ram_addr_t emiff_base;
 
@@ -174,7 +173,7 @@ static void omap_update_display(void *opaque)
     width = omap_lcd->width;
     if (width != ds_get_width(omap_lcd->state) ||
             omap_lcd->height != ds_get_height(omap_lcd->state)) {
-        qemu_console_resize(omap_lcd->console,
+        qemu_console_resize(omap_lcd->state,
                             omap_lcd->width, omap_lcd->height);
         omap_lcd->invalidate = 1;
     }
@@ -472,7 +471,7 @@ void omap_lcdc_reset(struct omap_lcd_panel_s *s)
 }
 
 struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
-                struct omap_dma_lcd_channel_s *dma, DisplayState *ds,
+                struct omap_dma_lcd_channel_s *dma,
                 ram_addr_t imif_base, ram_addr_t emiff_base, omap_clk clk)
 {
     int iomemtype;
@@ -481,7 +480,6 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
 
     s->irq = irq;
     s->dma = dma;
-    s->state = ds;
     s->imif_base = imif_base;
     s->emiff_base = emiff_base;
     omap_lcdc_reset(s);
@@ -490,9 +488,9 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
                     omap_lcdc_writefn, s);
     cpu_register_physical_memory(base, 0x100, iomemtype);
 
-    s->console = graphic_console_init(ds, omap_update_display,
-                                      omap_invalidate_display,
-                                      omap_screen_dump, NULL, s);
+    s->state = graphic_console_init(omap_update_display,
+                                    omap_invalidate_display,
+                                    omap_screen_dump, NULL, s);
 
     return s;
 }

@@ -36,6 +36,7 @@
 #define HPET_TN_CFG     0x000
 #define HPET_TN_CMP     0x008
 #define HPET_TN_ROUTE   0x010
+#define HPET_CFG_WRITE_MASK  0x3
 
 
 #define HPET_TN_ENABLE           0x004
@@ -45,6 +46,7 @@
 #define HPET_TN_SETVAL           0x040
 #define HPET_TN_32BIT            0x100
 #define HPET_TN_INT_ROUTE_MASK  0x3e00
+#define HPET_TN_CFG_WRITE_MASK  0x3f4e
 #define HPET_TN_INT_ROUTE_SHIFT      9
 #define HPET_TN_INT_ROUTE_CAP_SHIFT 32
 #define HPET_TN_CFG_BITS_READONLY_OR_RESERVED 0xffff80b1U

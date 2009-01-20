@@ -752,7 +752,6 @@ typedef struct musicpal_lcd_state {
     int page;
     int page_off;
     DisplayState *ds;
-    QEMUConsole *console;
     uint8_t video_ram[128*64/8];
 } musicpal_lcd_state;
 
@@ -906,7 +905,7 @@ static CPUWriteMemoryFunc *musicpal_lcd_writefn[] = {
     musicpal_lcd_write
 };
 
-static void musicpal_lcd_init(DisplayState *ds, uint32_t base)
+static void musicpal_lcd_init(uint32_t base)
 {
     musicpal_lcd_state *s;
     int iomemtype;
@@ -914,14 +913,13 @@ static void musicpal_lcd_init(DisplayState *ds, uint32_t base)
     s = qemu_mallocz(sizeof(musicpal_lcd_state));
     if (!s)
         return;
-    s->ds = ds;
     iomemtype = cpu_register_io_memory(0, musicpal_lcd_readfn,
                                        musicpal_lcd_writefn, s);
     cpu_register_physical_memory(base, MP_LCD_SIZE, iomemtype);
 
-    s->console = graphic_console_init(ds, lcd_refresh, lcd_invalidate,
-                                      NULL, NULL, s);
-    qemu_console_resize(s->console, 128*3, 64*3);
+    s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
+                                 NULL, NULL, s);
+    qemu_console_resize(s->ds, 128*3, 64*3);
 }
 
 /* PIC register offsets */
@@ -1404,7 +1402,7 @@ static struct arm_boot_info musicpal_binfo = {
 };
 
 static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
-               const char *boot_device, DisplayState *ds,
+               const char *boot_device,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
 {
@@ -1470,7 +1468,7 @@ static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
     }
     mv88w8618_flashcfg_init(MP_FLASHCFG_BASE);
 
-    musicpal_lcd_init(ds, MP_LCD_BASE);
+    musicpal_lcd_init(MP_LCD_BASE);
 
     qemu_add_kbd_event_handler(musicpal_key_event, pic[MP_GPIO_IRQ]);
 

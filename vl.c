@@ -156,10 +156,7 @@
 
 
 #ifdef DEBUG_IOPORT
-#  define LOG_IOPORT(...) do {           \
-     if (loglevel & CPU_LOG_IOPORT)      \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_IOPORT(...) qemu_log_mask(CPU_LOG_IOPORT, ## __VA_ARGS__)
 #else
 #  define LOG_IOPORT(...) do { } while (0)
 #endif
@@ -190,9 +187,10 @@ DriveInfo drives_table[MAX_DRIVES+1];
 int nb_drives;
 static int vga_ram_size;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
-DisplayState display_state;
+static DisplayState *display_state;
 int nographic;
 static int curses;
+static int sdl;
 const char* keyboard_layout = NULL;
 int64_t ticks_per_sec;
 ram_addr_t ram_size;
@@ -2757,26 +2755,30 @@ void pcmcia_info(void)
 }
 
 /***********************************************************/
+/* register display */
+
+void register_displaystate(DisplayState *ds)
+{
+    DisplayState **s;
+    s = &display_state;
+    while (*s != NULL)
+        s = &(*s)->next;
+    ds->next = NULL;
+    *s = ds;
+}
+
+DisplayState *get_displaystate(void)
+{
+    return display_state;
+}
+
 /* dumb display */
 
-static void dumb_update(DisplayState *ds, int x, int y, int w, int h)
+static void dumb_display_init(void)
 {
-}
-
-static void dumb_resize(DisplayState *ds, int w, int h)
-{
-}
-
-static void dumb_display_init(DisplayState *ds)
-{
-    ds->data = NULL;
-    ds->linesize = 0;
-    ds->depth = 0;
-    ds->dpy_update = dumb_update;
-    ds->dpy_resize = dumb_resize;
-    ds->dpy_refresh = NULL;
-    ds->gui_timer_interval = 0;
-    ds->idle = 1;
+    DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
+    ds->surface = qemu_create_displaysurface(640, 480, 32, 640 * 4);
+    register_displaystate(ds);
 }
 
 /***********************************************************/
@@ -3359,13 +3361,19 @@ static QEMUMachine *find_machine(const char *name)
 
 static void gui_update(void *opaque)
 {
+    uint64_t interval = GUI_REFRESH_INTERVAL;
     DisplayState *ds = opaque;
-    ds->dpy_refresh(ds);
-    qemu_mod_timer(ds->gui_timer,
-        (ds->gui_timer_interval ?
-	    ds->gui_timer_interval :
-	    GUI_REFRESH_INTERVAL)
-	+ qemu_get_clock(rt_clock));
+    DisplayChangeListener *dcl = ds->listeners;
+
+    dpy_refresh(ds);
+
+    while (dcl != NULL) {
+        if (dcl->gui_timer_interval &&
+            dcl->gui_timer_interval < interval)
+            interval = dcl->gui_timer_interval;
+        dcl = dcl->next;
+    }
+    qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock(rt_clock));
 }
 
 struct vm_change_state_entry {
@@ -3847,6 +3855,7 @@ static void noreturn help(int exitcode)
            "-no-frame       open SDL window without a frame and window decorations\n"
            "-alt-grab       use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt)\n"
            "-no-quit        disable SDL window close capability\n"
+           "-sdl            enable SDL\n"
 #endif
 #ifdef TARGET_I386
            "-no-fd-bootchk  disable boot signature checking for floppy disks\n"
@@ -4063,6 +4072,7 @@ enum {
     QEMU_OPTION_no_frame,
     QEMU_OPTION_alt_grab,
     QEMU_OPTION_no_quit,
+    QEMU_OPTION_sdl,
     QEMU_OPTION_pidfile,
     QEMU_OPTION_no_kqemu,
     QEMU_OPTION_kernel_kqemu,
@@ -4175,6 +4185,7 @@ static const QEMUOption qemu_options[] = {
     { "no-frame", 0, QEMU_OPTION_no_frame },
     { "alt-grab", 0, QEMU_OPTION_alt_grab },
     { "no-quit", 0, QEMU_OPTION_no_quit },
+    { "sdl", 0, QEMU_OPTION_sdl },
 #endif
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
     { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
@@ -4529,7 +4540,8 @@ int main(int argc, char **argv, char **envp)
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
     const char *boot_devices = "";
-    DisplayState *ds = &display_state;
+    DisplayState *ds;
+    DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
     const char *net_clients[MAX_NET_CLIENTS];
     int nb_net_clients;
@@ -4538,7 +4550,7 @@ int main(int argc, char **argv, char **envp)
     int hda_index;
     int optind;
     const char *r, *optarg;
-    CharDriverState *monitor_hd;
+    CharDriverState *monitor_hd = NULL;
     const char *monitor_device;
     const char *serial_devices[MAX_SERIAL_PORTS];
     int serial_device_index;
@@ -5051,6 +5063,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
                 break;
+            case QEMU_OPTION_sdl:
+                sdl = 1;
+                break;
 #endif
             case QEMU_OPTION_pidfile:
                 pid_file = optarg;
@@ -5447,35 +5462,6 @@ int main(int argc, char **argv, char **envp)
     register_savevm("timer", 0, 2, timer_save, timer_load, NULL);
     register_savevm_live("ram", 0, 3, ram_save_live, NULL, ram_load, NULL);
 
-    /* terminal init */
-    memset(&display_state, 0, sizeof(display_state));
-    if (nographic) {
-        if (curses) {
-            fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
-            exit(1);
-        }
-        /* nearly nothing to do */
-        dumb_display_init(ds);
-    } else if (vnc_display != NULL) {
-        vnc_display_init(ds);
-        if (vnc_display_open(ds, vnc_display) < 0)
-            exit(1);
-    } else
-#if defined(CONFIG_CURSES)
-    if (curses) {
-        curses_display_init(ds, full_screen);
-    } else
-#endif
-    {
-#if defined(CONFIG_SDL)
-        sdl_display_init(ds, full_screen, no_frame);
-#elif defined(CONFIG_COCOA)
-        cocoa_display_init(ds, full_screen);
-#else
-        dumb_display_init(ds);
-#endif
-    }
-
 #ifndef _WIN32
     /* must be after terminal init, SDL library changes signal handlers */
     termsig_setup();
@@ -5495,62 +5481,6 @@ int main(int argc, char **argv, char **envp)
             }
         }
     }
-    if (monitor_device) {
-        monitor_hd = qemu_chr_open("monitor", monitor_device);
-        if (!monitor_hd) {
-            fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
-            exit(1);
-        }
-        monitor_init(monitor_hd, !nographic);
-    }
-
-    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
-        const char *devname = serial_devices[i];
-        if (devname && strcmp(devname, "none")) {
-            char label[32];
-            snprintf(label, sizeof(label), "serial%d", i);
-            serial_hds[i] = qemu_chr_open(label, devname);
-            if (!serial_hds[i]) {
-                fprintf(stderr, "qemu: could not open serial device '%s'\n",
-                        devname);
-                exit(1);
-            }
-            if (strstart(devname, "vc", 0))
-                qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
-        }
-    }
-
-    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
-        const char *devname = parallel_devices[i];
-        if (devname && strcmp(devname, "none")) {
-            char label[32];
-            snprintf(label, sizeof(label), "parallel%d", i);
-            parallel_hds[i] = qemu_chr_open(label, devname);
-            if (!parallel_hds[i]) {
-                fprintf(stderr, "qemu: could not open parallel device '%s'\n",
-                        devname);
-                exit(1);
-            }
-            if (strstart(devname, "vc", 0))
-                qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
-        }
-    }
-
-    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
-        const char *devname = virtio_consoles[i];
-        if (devname && strcmp(devname, "none")) {
-            char label[32];
-            snprintf(label, sizeof(label), "virtcon%d", i);
-            virtcon_hds[i] = qemu_chr_open(label, devname);
-            if (!virtcon_hds[i]) {
-                fprintf(stderr, "qemu: could not open virtio console '%s'\n",
-                        devname);
-                exit(1);
-            }
-            if (strstart(devname, "vc", 0))
-                qemu_chr_printf(virtcon_hds[i], "virtio console%d\r\n", i);
-        }
-    }
 
     if (kvm_enabled()) {
         int ret;
@@ -5562,7 +5492,57 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    machine->init(ram_size, vga_ram_size, boot_devices, ds,
+    if (monitor_device) {
+        monitor_hd = qemu_chr_open("monitor", monitor_device, NULL);
+        if (!monitor_hd) {
+            fprintf(stderr, "qemu: could not open monitor device '%s'\n", monitor_device);
+            exit(1);
+        }
+    }
+
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        const char *devname = serial_devices[i];
+        if (devname && strcmp(devname, "none")) {
+            char label[32];
+            snprintf(label, sizeof(label), "serial%d", i);
+            serial_hds[i] = qemu_chr_open(label, devname, NULL);
+            if (!serial_hds[i]) {
+                fprintf(stderr, "qemu: could not open serial device '%s'\n",
+                        devname);
+                exit(1);
+            }
+        }
+    }
+
+    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
+        const char *devname = parallel_devices[i];
+        if (devname && strcmp(devname, "none")) {
+            char label[32];
+            snprintf(label, sizeof(label), "parallel%d", i);
+            parallel_hds[i] = qemu_chr_open(label, devname, NULL);
+            if (!parallel_hds[i]) {
+                fprintf(stderr, "qemu: could not open parallel device '%s'\n",
+                        devname);
+                exit(1);
+            }
+        }
+    }
+
+    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
+        const char *devname = virtio_consoles[i];
+        if (devname && strcmp(devname, "none")) {
+            char label[32];
+            snprintf(label, sizeof(label), "virtcon%d", i);
+            virtcon_hds[i] = qemu_chr_open(label, devname, NULL);
+            if (!virtcon_hds[i]) {
+                fprintf(stderr, "qemu: could not open virtio console '%s'\n",
+                        devname);
+                exit(1);
+            }
+        }
+    }
+
+    machine->init(ram_size, vga_ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
 
     /* Set KVM's vcpu state to qemu's initial CPUState. */
@@ -5586,12 +5566,79 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-#if defined(CONFIG_SDL)
-    if (display_state.dpy_refresh) {
-        display_state.gui_timer = qemu_new_timer(rt_clock, gui_update, &display_state);
-        qemu_mod_timer(display_state.gui_timer, qemu_get_clock(rt_clock));
-    }
+    if (!display_state)
+        dumb_display_init();
+    /* just use the first displaystate for the moment */
+    ds = display_state;
+    /* terminal init */
+    if (nographic) {
+        if (curses) {
+            fprintf(stderr, "fatal: -nographic can't be used with -curses\n");
+            exit(1);
+        }
+    } else { 
+#if defined(CONFIG_CURSES)
+            if (curses) {
+                /* At the moment curses cannot be used with other displays */
+                curses_display_init(ds, full_screen);
+            } else
 #endif
+            {
+                if (vnc_display != NULL) {
+                    vnc_display_init(ds);
+                    if (vnc_display_open(ds, vnc_display) < 0)
+                        exit(1);
+                }
+                if (sdl || !vnc_display)
+#if defined(CONFIG_SDL)
+                    sdl_display_init(ds, full_screen, no_frame);
+#elif defined(CONFIG_COCOA)
+                    cocoa_display_init(ds, full_screen);
+#endif
+            }
+    }
+    dpy_resize(ds);
+
+    dcl = ds->listeners;
+    while (dcl != NULL) {
+        if (dcl->dpy_refresh != NULL) {
+            ds->gui_timer = qemu_new_timer(rt_clock, gui_update, ds);
+            qemu_mod_timer(ds->gui_timer, qemu_get_clock(rt_clock));
+        }
+        dcl = dcl->next;
+    }
+
+    text_consoles_set_display(display_state);
+
+    if (monitor_device && monitor_hd)
+        monitor_init(monitor_hd, !nographic);
+
+    for(i = 0; i < MAX_SERIAL_PORTS; i++) {
+        if (serial_hds[i]) {
+            const char *devname = serial_hds[i]->filename;
+            if (strstart(devname, "vc", 0)) {
+                qemu_chr_printf(serial_hds[i], "serial%d console\r\n", i);
+            }
+        }
+    }
+
+    for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
+        if (parallel_hds[i]) {
+            const char *devname = parallel_hds[i]->filename;
+            if (strstart(devname, "vc", 0)) {
+                qemu_chr_printf(parallel_hds[i], "parallel%d console\r\n", i);
+            }
+        }
+    }
+
+    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++) {
+        if (virtcon_hds[i]) {
+            const char *devname = virtcon_hds[i]->filename;
+            if (strstart(devname, "vc", 0)) {
+                qemu_chr_printf(virtcon_hds[i], "virtio console%d\r\n", i);
+            }
+        }
+    }
 
 #ifdef CONFIG_GDBSTUB
     if (use_gdbstub) {

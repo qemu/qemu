@@ -3283,8 +3283,7 @@ static void ar7_serial_init(CPUState * env)
      */
     unsigned uart_index;
     if (serial_hds[1] == 0) {
-        serial_hds[1] = qemu_chr_open("serial1", "vc:80Cx24C");
-        qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
+        serial_hds[1] = qemu_chr_open("serial1", "vc:80Cx24C", NULL);
     }
     for (uart_index = 0; uart_index < 2; uart_index++) {
         ar7.serial[uart_index] = serial_mm_init(uart_base[uart_index], 2,
@@ -3295,9 +3294,6 @@ static void ar7_serial_init(CPUState * env)
 
     /* Set special init values. */
     serial_mm_writeb(ar7.serial[0], AVALANCHE_UART0_BASE + (5 << 2), 0x20);
-
-    /* Select 1st serial console as default (because we don't have VGA). */
-    console_select(1);
 }
 
 static int ar7_nic_can_receive(void *opaque)
@@ -3477,29 +3473,40 @@ static void ar7_display_event(void *opaque, int event)
     //~ if (event == CHR_EVENT_BREAK)
 }
 
-static void ar7_display_init(CPUState *env)
+static void malta_fpga_led_init(CharDriverState *chr)
 {
-    ar7.gpio_display = qemu_chr_open("gpio", "vc:400x300");
-    qemu_chr_add_handlers(ar7.gpio_display, ar7_display_can_receive,
-                          ar7_display_receive, ar7_display_event, 0);
-    qemu_chr_printf(ar7.gpio_display,
+    qemu_chr_printf(chr, "\e[HMalta LEDBAR\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "+        +\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "\n");
+    qemu_chr_printf(chr, "Malta ASCII\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "+        +\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+
+    /* Select 1st serial console as default (because we don't have VGA). */
+    console_select(1);
+}
+
+static void ar7_gpio_display_init(CharDriverState *chr)
+{
+    qemu_chr_printf(chr,
                     "\e[1;1HGPIO Status"
                     "\e[2;1H0         1         2         3"
                     "\e[3;1H01234567890123456789012345678901"
                     "\e[10;1H* lan * wlan * online * dsl * power"
                     "\e[12;1HPress 'r' to toggle the reset button");
     ar7_gpio_display();
+}
 
-    malta_display.display = qemu_chr_open("led display", "vc:320x200");
-    qemu_chr_printf(malta_display.display, "\e[HMalta LEDBAR\r\n");
-    qemu_chr_printf(malta_display.display, "+--------+\r\n");
-    qemu_chr_printf(malta_display.display, "+        +\r\n");
-    qemu_chr_printf(malta_display.display, "+--------+\r\n");
-    qemu_chr_printf(malta_display.display, "\n");
-    qemu_chr_printf(malta_display.display, "Malta ASCII\r\n");
-    qemu_chr_printf(malta_display.display, "+--------+\r\n");
-    qemu_chr_printf(malta_display.display, "+        +\r\n");
-    qemu_chr_printf(malta_display.display, "+--------+\r\n");
+static void ar7_display_init(CPUState *env)
+{
+    ar7.gpio_display = qemu_chr_open("gpio", "vc:400x300", ar7_gpio_display_init);
+    qemu_chr_add_handlers(ar7.gpio_display, ar7_display_can_receive,
+                          ar7_display_receive, ar7_display_event, 0);
+
+    malta_display.display = qemu_chr_open("led display", "vc:320x200", malta_fpga_led_init);
 }
 
 static int ar7_load(QEMUFile * f, void *opaque, int version_id)
@@ -3877,7 +3884,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
 }
 
 static void mips_ar7_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3887,7 +3894,7 @@ static void mips_ar7_init(ram_addr_t machine_ram_size, int vga_ram_size,
 }
 
 static void ar7_amd_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3898,7 +3905,7 @@ static void ar7_amd_init(ram_addr_t machine_ram_size, int vga_ram_size,
 }
 
 static void mips_tnetd7200_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3909,7 +3916,7 @@ static void mips_tnetd7200_init(ram_addr_t machine_ram_size, int vga_ram_size,
 }
 
 static void mips_tnetd7300_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3921,7 +3928,7 @@ static void mips_tnetd7300_init(ram_addr_t machine_ram_size, int vga_ram_size,
 #if defined(TARGET_WORDS_BIGENDIAN)
 
 static void zyxel_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3940,7 +3947,7 @@ static void zyxel_init(ram_addr_t machine_ram_size, int vga_ram_size,
 #else
 
 static void fbox4_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3957,7 +3964,7 @@ static void fbox4_init(ram_addr_t machine_ram_size, int vga_ram_size,
 }
 
 static void fbox8_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3974,7 +3981,7 @@ static void fbox8_init(ram_addr_t machine_ram_size, int vga_ram_size,
 }
 
 static void sinus_basic_3_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -3991,7 +3998,7 @@ static void sinus_basic_3_init(ram_addr_t machine_ram_size, int vga_ram_size,
 }
 
 static void sinus_basic_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -4008,7 +4015,7 @@ static void sinus_basic_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
 }
 
 static void sinus_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {
@@ -4027,7 +4034,7 @@ static void sinus_se_init(ram_addr_t machine_ram_size, int vga_ram_size,
 }
 
 static void speedport_init(ram_addr_t machine_ram_size, int vga_ram_size,
-                    const char *boot_device, DisplayState *ds,
+                    const char *boot_device,
                     const char *kernel_filename, const char *kernel_cmdline,
                     const char *initrd_filename, const char *cpu_model)
 {

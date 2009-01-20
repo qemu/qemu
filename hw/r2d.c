@@ -193,7 +193,7 @@ static int r2d_pci_map_irq(PCIDevice *d, int irq_num)
 }
 
 static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
-              const char *boot_device, DisplayState * ds,
+              const char *boot_device,
 	      const char *kernel_filename, const char *kernel_cmdline,
 	      const char *initrd_filename, const char *cpu_model)
 {
@@ -222,7 +222,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     pci = sh_pci_register_bus(r2d_pci_set_irq, r2d_pci_map_irq, irq, 0, 4);
 
     sm501_vga_ram_addr = qemu_ram_alloc(SM501_VRAM_SIZE);
-    sm501_init(ds, 0x10000000, sm501_vga_ram_addr, SM501_VRAM_SIZE,
+    sm501_init(0x10000000, sm501_vga_ram_addr, SM501_VRAM_SIZE,
 	       serial_hds[2]);
 
     /* onboard CF (True IDE mode, Master only). */

@@ -1878,10 +1878,10 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     const TCGArg *args;
 
 #ifdef DEBUG_DISAS
-    if (unlikely(loglevel & CPU_LOG_TB_OP)) {
-        fprintf(logfile, "OP:\n");
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+        qemu_log("OP:\n");
         tcg_dump_ops(s, logfile);
-        fprintf(logfile, "\n");
+        qemu_log("\n");
     }
 #endif
 
@@ -1894,10 +1894,10 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 #endif
 
 #ifdef DEBUG_DISAS
-    if (unlikely(loglevel & CPU_LOG_TB_OP_OPT)) {
-        fprintf(logfile, "OP after la:\n");
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_OPT))) {
+        qemu_log("OP after la:\n");
         tcg_dump_ops(s, logfile);
-        fprintf(logfile, "\n");
+        qemu_log("\n");
     }
 #endif
 

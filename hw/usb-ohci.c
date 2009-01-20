@@ -1360,102 +1360,134 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
 static uint32_t ohci_mem_read(void *ptr, target_phys_addr_t addr)
 {
     OHCIState *ohci = ptr;
+    uint32_t retval;
 
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
         fprintf(stderr, "usb-ohci: Mis-aligned read\n");
         return 0xffffffff;
-    }
-
-    if (addr >= 0x54 && addr < 0x54 + ohci->num_ports * 4) {
+    } else if (addr >= 0x54 && addr < 0x54 + ohci->num_ports * 4) {
         /* HcRhPortStatus */
-        return ohci->rhport[(addr - 0x54) >> 2].ctrl | OHCI_PORT_PPS;
+        retval = ohci->rhport[(addr - 0x54) >> 2].ctrl | OHCI_PORT_PPS;
+    } else {
+        switch (addr >> 2) {
+        case 0: /* HcRevision */
+            retval = 0x10;
+            break;
+
+        case 1: /* HcControl */
+            retval = ohci->ctl;
+            break;
+
+        case 2: /* HcCommandStatus */
+            retval = ohci->status;
+            break;
+
+        case 3: /* HcInterruptStatus */
+            retval = ohci->intr_status;
+            break;
+
+        case 4: /* HcInterruptEnable */
+        case 5: /* HcInterruptDisable */
+            retval = ohci->intr;
+            break;
+
+        case 6: /* HcHCCA */
+            retval = ohci->hcca;
+            break;
+
+        case 7: /* HcPeriodCurrentED */
+            retval = ohci->per_cur;
+            break;
+
+        case 8: /* HcControlHeadED */
+            retval = ohci->ctrl_head;
+            break;
+
+        case 9: /* HcControlCurrentED */
+            retval = ohci->ctrl_cur;
+            break;
+
+        case 10: /* HcBulkHeadED */
+            retval = ohci->bulk_head;
+            break;
+
+        case 11: /* HcBulkCurrentED */
+            retval = ohci->bulk_cur;
+            break;
+
+        case 12: /* HcDoneHead */
+            retval = ohci->done;
+            break;
+
+        case 13: /* HcFmInterretval */
+            retval = (ohci->fit << 31) | (ohci->fsmps << 16) | (ohci->fi);
+            break;
+
+        case 14: /* HcFmRemaining */
+            retval = ohci_get_frame_remaining(ohci);
+            break;
+
+        case 15: /* HcFmNumber */
+            retval = ohci->frame_number;
+            break;
+
+        case 16: /* HcPeriodicStart */
+            retval = ohci->pstart;
+            break;
+
+        case 17: /* HcLSThreshold */
+            retval = ohci->lst;
+            break;
+
+        case 18: /* HcRhDescriptorA */
+            retval = ohci->rhdesc_a;
+            break;
+
+        case 19: /* HcRhDescriptorB */
+            retval = ohci->rhdesc_b;
+            break;
+
+        case 20: /* HcRhStatus */
+            retval = ohci->rhstatus;
+            break;
+
+        /* PXA27x specific registers */
+        case 24: /* HcStatus */
+            retval = ohci->hstatus & ohci->hmask;
+            break;
+
+        case 25: /* HcHReset */
+            retval = ohci->hreset;
+            break;
+
+        case 26: /* HcHInterruptEnable */
+            retval = ohci->hmask;
+            break;
+
+        case 27: /* HcHInterruptTest */
+            retval = ohci->htest;
+            break;
+
+        default:
+            fprintf(stderr, "ohci_read: Bad offset %x\n", (int)addr);
+            retval = 0xffffffff;
+        }
     }
 
-    switch (addr >> 2) {
-    case 0: /* HcRevision */
-        return 0x10;
-
-    case 1: /* HcControl */
-        return ohci->ctl;
-
-    case 2: /* HcCommandStatus */
-        return ohci->status;
-
-    case 3: /* HcInterruptStatus */
-        return ohci->intr_status;
-
-    case 4: /* HcInterruptEnable */
-    case 5: /* HcInterruptDisable */
-        return ohci->intr;
-
-    case 6: /* HcHCCA */
-        return ohci->hcca;
-
-    case 7: /* HcPeriodCurrentED */
-        return ohci->per_cur;
-
-    case 8: /* HcControlHeadED */
-        return ohci->ctrl_head;
-
-    case 9: /* HcControlCurrentED */
-        return ohci->ctrl_cur;
-
-    case 10: /* HcBulkHeadED */
-        return ohci->bulk_head;
-
-    case 11: /* HcBulkCurrentED */
-        return ohci->bulk_cur;
-
-    case 12: /* HcDoneHead */
-        return ohci->done;
-
-    case 13: /* HcFmInterval */
-        return (ohci->fit << 31) | (ohci->fsmps << 16) | (ohci->fi);
-
-    case 14: /* HcFmRemaining */
-        return ohci_get_frame_remaining(ohci);
-
-    case 15: /* HcFmNumber */
-        return ohci->frame_number;
-
-    case 16: /* HcPeriodicStart */
-        return ohci->pstart;
-
-    case 17: /* HcLSThreshold */
-        return ohci->lst;
-
-    case 18: /* HcRhDescriptorA */
-        return ohci->rhdesc_a;
-
-    case 19: /* HcRhDescriptorB */
-        return ohci->rhdesc_b;
-
-    case 20: /* HcRhStatus */
-        return ohci->rhstatus;
-
-    /* PXA27x specific registers */
-    case 24: /* HcStatus */
-        return ohci->hstatus & ohci->hmask;
-
-    case 25: /* HcHReset */
-        return ohci->hreset;
-
-    case 26: /* HcHInterruptEnable */
-        return ohci->hmask;
-
-    case 27: /* HcHInterruptTest */
-        return ohci->htest;
-
-    default:
-        fprintf(stderr, "ohci_read: Bad offset %x\n", (int)addr);
-        return 0xffffffff;
-    }
+#ifdef TARGET_WORDS_BIGENDIAN
+    retval = bswap32(retval);
+#endif
+    return retval;
 }
 
 static void ohci_mem_write(void *ptr, target_phys_addr_t addr, uint32_t val)
 {
     OHCIState *ohci = ptr;
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    val = bswap32(val);
+#endif
 
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {

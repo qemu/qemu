@@ -438,13 +438,24 @@ static void malta_fpga_reset(void *opaque)
 
     s->display_text[8] = '\0';
     snprintf(s->display_text, 9, "        ");
-    malta_fpga_update_display(s);
 }
 
-static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
+static void malta_fpga_led_init(CharDriverState *chr)
+{
+    qemu_chr_printf(chr, "\e[HMalta LEDBAR\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "+        +\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "\n");
+    qemu_chr_printf(chr, "Malta ASCII\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_printf(chr, "+        +\r\n");
+    qemu_chr_printf(chr, "+--------+\r\n");
+}
+
+static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_irq, CharDriverState *uart_chr)
 {
     MaltaFPGAState *s;
-    CharDriverState *uart_chr;
     int malta;
 
     s = (MaltaFPGAState *)qemu_mallocz(sizeof(MaltaFPGAState));
@@ -456,21 +467,9 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, CPUState *env)
     /* 0xa00 is less than a page, so will still get the right offsets.  */
     cpu_register_physical_memory(base + 0xa00, 0x100000 - 0xa00, malta);
 
-    s->display = qemu_chr_open("fpga", "vc:320x200");
-    qemu_chr_printf(s->display, "\e[HMalta LEDBAR\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "+        +\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "\n");
-    qemu_chr_printf(s->display, "Malta ASCII\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
-    qemu_chr_printf(s->display, "+        +\r\n");
-    qemu_chr_printf(s->display, "+--------+\r\n");
+    s->display = qemu_chr_open("fpga", "vc:320x200", malta_fpga_led_init);
 
-    uart_chr = qemu_chr_open("cbus", "vc:80Cx24C");
-    qemu_chr_printf(uart_chr, "CBUS UART\r\n");
-    s->uart =
-        serial_mm_init(base + 0x900, 3, env->irq[2], 230400, uart_chr, 1);
+    s->uart = serial_mm_init(base + 0x900, 3, uart_irq, 230400, uart_chr, 1);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);
@@ -787,7 +786,7 @@ static void main_cpu_reset(void *opaque)
 
 static
 void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
-                      const char *boot_device, DisplayState *ds,
+                      const char *boot_device,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
 {
@@ -846,7 +845,7 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
     /* FPGA */
-    malta_fpga = malta_fpga_init(0x1f000000LL, env);
+    malta_fpga = malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2]);
 
     /* Load firmware in flash / BIOS unless we boot directly into a kernel. */
     if (kernel_filename) {
@@ -949,14 +948,8 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     //~ super_io_init();
     i8042_init(i8259[1], i8259[12], 0x60);
     rtc_state = rtc_init(0x70, i8259[8]);
-    if (serial_hds[1] == 0) {
-        serial_hds[1] = qemu_chr_open("serial1", "vc");
-        qemu_chr_printf(serial_hds[1], "serial1 console\r\n");
-    }
-    if (serial_hds[0])
-        serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
-    if (serial_hds[1])
-        serial_init(0x2f8, i8259[3], 115200, serial_hds[1]);
+    serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
+    serial_init(0x2f8, i8259[3], 115200, serial_hds[1]);
     if (parallel_hds[0])
         parallel_init(0x378, i8259[7], parallel_hds[0]);
     for(i = 0; i < MAX_FD; i++) {
@@ -977,13 +970,8 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     network_init(pci_bus);
 
     /* Optional PCI video card */
-    if (vmsvga_enabled) {
-        pci_vmsvga_init(pci_bus, ds, phys_ram_base + ram_size,
+    pci_cirrus_vga_init(pci_bus, phys_ram_base + ram_size,
                         ram_size, vga_ram_size);
-    } else {
-        pci_cirrus_vga_init(pci_bus, ds, phys_ram_base + ram_size,
-                            ram_size, vga_ram_size);
-    }
 }
 
 QEMUMachine mips_malta_machine = {

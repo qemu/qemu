@@ -387,7 +387,7 @@ pci_ebus_init(PCIBus *bus, int devfn)
 }
 
 static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
-                        const char *boot_devices, DisplayState *ds,
+                        const char *boot_devices,
                         const char *kernel_filename, const char *kernel_cmdline,
                         const char *initrd_filename, const char *cpu_model,
                         const struct hwdef *hwdef)
@@ -508,7 +508,7 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
                            &pci_bus3);
     isa_mem_base = VGA_BASE;
     vga_ram_offset = qemu_ram_alloc(vga_ram_size);
-    pci_vga_init(pci_bus, ds, phys_ram_base + vga_ram_offset,
+    pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
                  vga_ram_offset, vga_ram_size,
                  0, 0);
 
@@ -552,8 +552,8 @@ static void sun4uv_init(ram_addr_t RAM_size, int vga_ram_size,
            hd[i] = NULL;
     }
 
-    // XXX pci_cmd646_ide_init(pci_bus, hd, 1);
-    pci_piix3_ide_init(pci_bus, hd, -1, irq);
+    pci_cmd646_ide_init(pci_bus, hd, 1);
+
     /* FIXME: wire up interrupts.  */
     i8042_init(NULL/*1*/, NULL/*12*/, 0x60);
     for(i = 0; i < MAX_FD; i++) {
@@ -612,31 +612,31 @@ static const struct hwdef hwdefs[] = {
 
 /* Sun4u hardware initialisation */
 static void sun4u_init(ram_addr_t RAM_size, int vga_ram_size,
-                       const char *boot_devices, DisplayState *ds,
+                       const char *boot_devices,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
-    sun4uv_init(RAM_size, vga_ram_size, boot_devices, ds, kernel_filename,
+    sun4uv_init(RAM_size, vga_ram_size, boot_devices, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, &hwdefs[0]);
 }
 
 /* Sun4v hardware initialisation */
 static void sun4v_init(ram_addr_t RAM_size, int vga_ram_size,
-                       const char *boot_devices, DisplayState *ds,
+                       const char *boot_devices,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
-    sun4uv_init(RAM_size, vga_ram_size, boot_devices, ds, kernel_filename,
+    sun4uv_init(RAM_size, vga_ram_size, boot_devices, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, &hwdefs[1]);
 }
 
 /* Niagara hardware initialisation */
 static void niagara_init(ram_addr_t RAM_size, int vga_ram_size,
-                         const char *boot_devices, DisplayState *ds,
+                         const char *boot_devices,
                          const char *kernel_filename, const char *kernel_cmdline,
                          const char *initrd_filename, const char *cpu_model)
 {
-    sun4uv_init(RAM_size, vga_ram_size, boot_devices, ds, kernel_filename,
+    sun4uv_init(RAM_size, vga_ram_size, boot_devices, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, &hwdefs[2]);
 }
 

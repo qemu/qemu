@@ -32,20 +32,14 @@
 //#define PPC_DEBUG_TB
 
 #ifdef PPC_DEBUG_IRQ
-#  define LOG_IRQ(...) do {              \
-     if (loglevel & CPU_LOG_INT)         \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_IRQ(...) qemu_log_mask(CPU_LOG_INT, ## __VA_ARGS__)
 #else
 #  define LOG_IRQ(...) do { } while (0)
 #endif
 
 
 #ifdef PPC_DEBUG_TB
-#  define LOG_TB(...) do {               \
-     if (loglevel)                       \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
+#  define LOG_TB(...) qemu_log(__VA_ARGS__)
 #else
 #  define LOG_TB(...) do { } while (0)
 #endif

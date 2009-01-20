@@ -22,7 +22,6 @@ struct pxa2xx_lcdc_s {
 
     int invalidated;
     DisplayState *ds;
-    QEMUConsole *console;
     drawfn *line_fn[2];
     int dest_width;
     int xres, yres;
@@ -792,9 +791,9 @@ static void pxa2xx_lcdc_resize(struct pxa2xx_lcdc_s *s)
 
     if (width != s->xres || height != s->yres) {
         if (s->orientation)
-            qemu_console_resize(s->console, height, width);
+            qemu_console_resize(s->ds, height, width);
         else
-            qemu_console_resize(s->console, width, height);
+            qemu_console_resize(s->ds, width, height);
         s->invalidated = 1;
         s->xres = width;
         s->yres = height;
@@ -981,8 +980,7 @@ static int pxa2xx_lcdc_load(QEMUFile *f, void *opaque, int version_id)
 #define BITS 32
 #include "pxa2xx_template.h"
 
-struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq,
-                DisplayState *ds)
+struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq)
 {
     int iomemtype;
     struct pxa2xx_lcdc_s *s;
@@ -990,7 +988,6 @@ struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq,
     s = (struct pxa2xx_lcdc_s *) qemu_mallocz(sizeof(struct pxa2xx_lcdc_s));
     s->invalidated = 1;
     s->irq = irq;
-    s->ds = ds;
 
     pxa2xx_lcdc_orientation(s, graphic_rotate);
 
@@ -998,9 +995,9 @@ struct pxa2xx_lcdc_s *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq,
                     pxa2xx_lcdc_writefn, s);
     cpu_register_physical_memory(base, 0x00100000, iomemtype);
 
-    s->console = graphic_console_init(ds, pxa2xx_update_display,
-                                      pxa2xx_invalidate_display,
-                                      pxa2xx_screen_dump, NULL, s);
+    s->ds = graphic_console_init(pxa2xx_update_display,
+                                 pxa2xx_invalidate_display,
+                                 pxa2xx_screen_dump, NULL, s);
 
     switch (ds_get_bits_per_pixel(s->ds)) {
     case 0:

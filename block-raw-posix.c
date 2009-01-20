@@ -67,8 +67,8 @@
 
 //#define DEBUG_BLOCK
 #if defined(DEBUG_BLOCK)
-#define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (loglevel != 0)	\
-    { fprintf(logfile, formatCstr, ##args); fflush(logfile); } } while (0)
+#define DEBUG_BLOCK_PRINT(formatCstr, args...) do { if (qemu_log_enabled())	\
+    { qemu_log(formatCstr, ##args); qemu_log_flush(); } } while (0)
 #else
 #define DEBUG_BLOCK_PRINT(formatCstr, args...)
 #endif
@@ -579,8 +579,7 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     if (!acb)
         return NULL;
     acb->aiocb.aio_fildes = s->fd;
-    acb->aiocb.aio_sigevent.sigev_signo = SIGUSR2;
-    acb->aiocb.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
+    acb->aiocb.sigev_signo = SIGUSR2;
     acb->aiocb.aio_buf = buf;
     if (nb_sectors < 0)
         acb->aiocb.aio_nbytes = -nb_sectors;

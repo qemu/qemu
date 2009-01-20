@@ -101,7 +101,6 @@ extern int no_quit;
 extern int semihosting_enabled;
 extern int old_param;
 extern const char *bootp_filename;
-extern DisplayState display_state;
 
 #ifdef USE_KQEMU
 extern int kqemu_allowed;

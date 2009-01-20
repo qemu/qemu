@@ -8871,11 +8871,11 @@ done_generating:
     *gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
-        fprintf(logfile, "----------------\n");
-        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
-        target_disas(logfile, pc_start, dc->pc - pc_start, env->thumb);
-        fprintf(logfile, "\n");
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+        qemu_log("----------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+        log_target_disas(pc_start, dc->pc - pc_start, env->thumb);
+        qemu_log("\n");
     }
 #endif
     if (search_pc) {

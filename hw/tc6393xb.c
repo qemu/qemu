@@ -122,7 +122,6 @@ struct tc6393xb_s {
     struct ecc_state_s ecc;
 
     DisplayState *ds;
-    QEMUConsole *console;
     ram_addr_t vram_addr;
     uint32_t scr_width, scr_height; /* in pixels */
     qemu_irq l3v;
@@ -485,7 +484,7 @@ static void tc6393xb_update_display(void *opaque)
         full_update = 1;
     }
     if (s->scr_width != ds_get_width(s->ds) || s->scr_height != ds_get_height(s->ds)) {
-        qemu_console_resize(s->console, s->scr_width, s->scr_height);
+        qemu_console_resize(s->ds, s->scr_width, s->scr_height);
         full_update = 1;
     }
     if (s->blanked)
@@ -563,7 +562,7 @@ static void tc6393xb_writel(void *opaque, target_phys_addr_t addr, uint32_t valu
     tc6393xb_writeb(opaque, addr + 3, value >> 24);
 }
 
-struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq, DisplayState *ds)
+struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq)
 {
     int iomemtype;
     struct tc6393xb_s *s;
@@ -593,19 +592,15 @@ struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq, DisplayState *ds)
                     tc6393xb_writefn, s);
     cpu_register_physical_memory(base, 0x10000, iomemtype);
 
-    if (ds) {
-        s->ds = ds;
-        s->vram_addr = qemu_ram_alloc(0x100000);
-        cpu_register_physical_memory(base + 0x100000, 0x100000, s->vram_addr);
-        s->scr_width = 480;
-        s->scr_height = 640;
-        s->console = graphic_console_init(ds,
-                tc6393xb_update_display,
-                NULL, /* invalidate */
-                NULL, /* screen_dump */
-                NULL, /* text_update */
-                s);
-    }
+    s->vram_addr = qemu_ram_alloc(0x100000);
+    cpu_register_physical_memory(base + 0x100000, 0x100000, s->vram_addr);
+    s->scr_width = 480;
+    s->scr_height = 640;
+    s->ds = graphic_console_init(tc6393xb_update_display,
+            NULL, /* invalidate */
+            NULL, /* screen_dump */
+            NULL, /* text_update */
+            s);
 
     return s;
 }

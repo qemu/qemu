@@ -71,7 +71,7 @@ void wm8750_dac_commit(void *opaque);
 void wm8750_set_bclk_in(void *opaque, int new_hz);
 
 /* ssd0303.c */
-void ssd0303_init(DisplayState *ds, i2c_bus *bus, int address);
+void ssd0303_init(i2c_bus *bus, int address);
 
 /* twl92230.c */
 i2c_slave *twl92230_init(i2c_bus *bus, qemu_irq irq);

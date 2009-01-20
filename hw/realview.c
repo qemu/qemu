@@ -24,7 +24,7 @@ static struct arm_boot_info realview_binfo = {
 };
 
 static void realview_init(ram_addr_t ram_size, int vga_ram_size,
-                     const char *boot_device, DisplayState *ds,
+                     const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
@@ -93,7 +93,7 @@ static void realview_init(ram_addr_t ram_size, int vga_ram_size,
     sp804_init(0x10011000, pic[4]);
     sp804_init(0x10012000, pic[5]);
 
-    pl110_init(ds, 0x10020000, pic[23], 1);
+    pl110_init(0x10020000, pic[23], 1);
 
     index = drive_get_index(IF_SD, 0, 0);
     if (index == -1) {

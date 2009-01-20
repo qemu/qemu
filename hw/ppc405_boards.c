@@ -172,7 +172,7 @@ static void ref405ep_fpga_init (uint32_t base)
 }
 
 static void ref405ep_init (ram_addr_t ram_size, int vga_ram_size,
-                           const char *boot_device, DisplayState *ds,
+                           const char *boot_device,
                            const char *kernel_filename,
                            const char *kernel_cmdline,
                            const char *initrd_filename,
@@ -496,7 +496,7 @@ static void taihu_cpld_init (uint32_t base)
 }
 
 static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
-                             const char *boot_device, DisplayState *ds,
+                             const char *boot_device,
                              const char *kernel_filename,
                              const char *kernel_cmdline,
                              const char *initrd_filename,

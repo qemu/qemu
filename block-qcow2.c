@@ -1811,6 +1811,12 @@ static int qcow_read_snapshots(BlockDriverState *bs)
     int64_t offset;
     uint32_t extra_data_size;
 
+    if (!s->nb_snapshots) {
+        s->snapshots = NULL;
+        s->snapshots_size = 0;
+        return 0;
+    }
+
     offset = s->snapshots_offset;
     s->snapshots = qemu_mallocz(s->nb_snapshots * sizeof(QCowSnapshot));
     if (!s->snapshots)
@@ -2025,8 +2031,10 @@ static int qcow_snapshot_create(BlockDriverState *bs,
     snapshots1 = qemu_malloc((s->nb_snapshots + 1) * sizeof(QCowSnapshot));
     if (!snapshots1)
         goto fail;
-    memcpy(snapshots1, s->snapshots, s->nb_snapshots * sizeof(QCowSnapshot));
-    qemu_free(s->snapshots);
+    if (s->snapshots) {
+        memcpy(snapshots1, s->snapshots, s->nb_snapshots * sizeof(QCowSnapshot));
+        qemu_free(s->snapshots);
+    }
     s->snapshots = snapshots1;
     s->snapshots[s->nb_snapshots++] = *sn;
 

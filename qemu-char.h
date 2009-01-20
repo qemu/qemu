@@ -43,6 +43,7 @@ typedef struct {
 typedef void IOEventHandler(void *opaque, int event);
 
 struct CharDriverState {
+    void (*init)(struct CharDriverState *s);
     int (*chr_write)(struct CharDriverState *s, const uint8_t *buf, int len);
     void (*chr_update_read_handler)(struct CharDriverState *s);
     int (*chr_ioctl)(struct CharDriverState *s, int cmd, void *arg);
@@ -61,7 +62,7 @@ struct CharDriverState {
     TAILQ_ENTRY(CharDriverState) next;
 };
 
-CharDriverState *qemu_chr_open(const char *label, const char *filename);
+CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s));
 void qemu_chr_close(CharDriverState *chr);
 void qemu_chr_printf(CharDriverState *s, const char *fmt, ...);
 int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len);

@@ -2122,16 +2122,16 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
 static TAILQ_HEAD(CharDriverStateHead, CharDriverState) chardevs
 = TAILQ_HEAD_INITIALIZER(chardevs);
 
-CharDriverState *qemu_chr_open(const char *label, const char *filename)
+CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s))
 {
     const char *p;
     CharDriverState *chr;
 
     if (!strcmp(filename, "vc")) {
-        chr = text_console_init(&display_state, 0);
+        chr = text_console_init(0);
     } else
     if (strstart(filename, "vc:", &p)) {
-        chr = text_console_init(&display_state, p);
+        chr = text_console_init(p);
     } else
     if (!strcmp(filename, "null")) {
         chr = qemu_chr_open_null();
@@ -2146,7 +2146,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename)
         chr = qemu_chr_open_udp(p);
     } else
     if (strstart(filename, "mon:", &p)) {
-        chr = qemu_chr_open(label, p);
+        chr = qemu_chr_open(label, p, NULL);
         if (chr) {
             chr = qemu_chr_open_mux(chr);
             monitor_init(chr, !nographic);
@@ -2207,6 +2207,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename)
     if (chr) {
         if (!chr->filename)
             chr->filename = qemu_strdup(filename);
+        chr->init = init;
         chr->label = qemu_strdup(label);
         TAILQ_INSERT_TAIL(&chardevs, chr, next);
     }

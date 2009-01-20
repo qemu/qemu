@@ -49,15 +49,8 @@
 
 
 #ifdef DEBUG
-#  define LOG_INT(...) do {              \
-     if (loglevel & CPU_LOG_INT)         \
-       fprintf(logfile, ## __VA_ARGS__); \
-   } while (0)
-#  define LOG_INT_STATE(env) \
-      do {                                            \
-         if (loglevel & CPU_LOG_INT)                  \
-            cpu_dump_state(env, logfile, fprintf, 0); \
-      } while (0)
+#  define LOG_INT(...) qemu_log_mask(CPU_LOG_INT, ## __VA_ARGS__)
+#  define LOG_INT_STATE(env) log_cpu_state_mask(CPU_LOG_INT, (env), 0)
 #else
 #  define LOG_INT(...) do { } while (0)
 #  define LOG_INT_STATE(env) do { } while (0)

@@ -3962,7 +3962,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     target_ulong next_eip, tval;
     int rex_w, rex_r;
 
-    if (unlikely(loglevel & CPU_LOG_TB_OP))
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
         tcg_gen_debug_insn_start(pc_start);
     s->pc = pc_start;
     prefixes = 0;
@@ -7676,21 +7676,19 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     }
 
 #ifdef DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_CPU) {
-        cpu_dump_state(env, logfile, fprintf, X86_DUMP_CCOP);
-    }
-    if (loglevel & CPU_LOG_TB_IN_ASM) {
+    log_cpu_state_mask(CPU_LOG_TB_CPU, env, X86_DUMP_CCOP);
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         int disas_flags;
-        fprintf(logfile, "----------------\n");
-        fprintf(logfile, "IN: %s\n", lookup_symbol(pc_start));
+        qemu_log("----------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
 #ifdef TARGET_X86_64
         if (dc->code64)
             disas_flags = 2;
         else
 #endif
             disas_flags = !dc->code32;
-	target_disas(logfile, pc_start, pc_ptr - pc_start, disas_flags);
-        fprintf(logfile, "\n");
+        log_target_disas(pc_start, pc_ptr - pc_start, disas_flags);
+        qemu_log("\n");
     }
 #endif
 
@@ -7715,15 +7713,15 @@ void gen_pc_load(CPUState *env, TranslationBlock *tb,
 {
     int cc_op;
 #ifdef DEBUG_DISAS
-    if (loglevel & CPU_LOG_TB_OP) {
+    if (qemu_loglevel_mask(CPU_LOG_TB_OP)) {
         int i;
-        fprintf(logfile, "RESTORE:\n");
+        qemu_log("RESTORE:\n");
         for(i = 0;i <= pc_pos; i++) {
             if (gen_opc_instr_start[i]) {
-                fprintf(logfile, "0x%04x: " TARGET_FMT_lx "\n", i, gen_opc_pc[i]);
+                qemu_log("0x%04x: " TARGET_FMT_lx "\n", i, gen_opc_pc[i]);
             }
         }
-        fprintf(logfile, "spc=0x%08lx pc_pos=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n",
+        qemu_log("spc=0x%08lx pc_pos=0x%x eip=" TARGET_FMT_lx " cs_base=%x\n",
                 searched_pc, pc_pos, gen_opc_pc[pc_pos] - tb->cs_base,
                 (uint32_t)tb->cs_base);
     }

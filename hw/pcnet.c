@@ -1929,7 +1929,7 @@ static int pcnet_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void pcnet_common_init(PCNetState *d, NICInfo *nd, const char *info_str)
+static void pcnet_common_init(PCNetState *d, NICInfo *nd)
 {
     d->poll_timer = qemu_new_timer(vm_clock, pcnet_poll_timer, d);
 
@@ -2032,7 +2032,7 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
     d->phys_mem_write = pci_physical_memory_write;
     d->pci_dev = &d->dev;
 
-    pcnet_common_init(d, nd, "pcnet");
+    pcnet_common_init(d, nd);
 }
 
 /* SPARC32 interface */
@@ -2106,6 +2106,6 @@ void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
     d->phys_mem_read = ledma_memory_read;
     d->phys_mem_write = ledma_memory_write;
 
-    pcnet_common_init(d, nd, "lance");
+    pcnet_common_init(d, nd);
 }
 #endif /* TARGET_SPARC */

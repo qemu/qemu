@@ -145,7 +145,6 @@ typedef void (* vga_update_retrace_info_fn)(struct VGAState *s);
     VGA_STATE_COMMON_BOCHS_VBE                                          \
     /* display refresh support */                                       \
     DisplayState *ds;                                                   \
-    QEMUConsole *console;                                               \
     uint32_t font_offsets[2];                                           \
     int graphic_mode;                                                   \
     uint8_t shift_control;                                              \
@@ -154,9 +153,11 @@ typedef void (* vga_update_retrace_info_fn)(struct VGAState *s);
     uint32_t line_compare;                                              \
     uint32_t start_addr;                                                \
     uint32_t plane_updated;                                             \
+    uint32_t last_line_offset;                                          \
     uint8_t last_cw, last_ch;                                           \
     uint32_t last_width, last_height; /* in chars or pixels */          \
     uint32_t last_scr_width, last_scr_height; /* in pixels */           \
+    uint32_t last_depth; /* in bits */                                  \
     uint8_t cursor_start, cursor_end;                                   \
     uint32_t cursor_offset;                                             \
     unsigned int (*rgb_to_pixel)(unsigned int r,                        \
@@ -190,7 +191,7 @@ static inline int c6_to_8(int v)
     return (v << 2) | (b << 1) | b;
 }
 
-void vga_common_init(VGAState *s, DisplayState *ds, uint8_t *vga_ram_base,
+void vga_common_init(VGAState *s, uint8_t *vga_ram_base,
                      ram_addr_t vga_ram_offset, int vga_ram_size);
 void vga_init(VGAState *s);
 void vga_reset(void *s);
@@ -201,8 +202,7 @@ void vga_dirty_log_stop(VGAState *s);
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
 void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val);
 void vga_invalidate_scanlines(VGAState *s, int y1, int y2);
-int ppm_save(const char *filename, uint8_t *data,
-             int w, int h, int linesize);
+int ppm_save(const char *filename, struct DisplaySurface *ds);
 
 void vga_draw_cursor_line_8(uint8_t *d1, const uint8_t *src1,
                             int poffset, int w,

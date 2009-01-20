@@ -1456,7 +1456,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 
     free(elf_phdata);
 
-    if (loglevel)
+    if (qemu_log_enabled())
         load_symbols(&elf_ex, bprm->fd);
 
     if (interpreter_type != INTERPRETER_AOUT) close(bprm->fd);

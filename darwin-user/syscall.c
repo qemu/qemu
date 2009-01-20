@@ -69,7 +69,7 @@
 # define DEBUG_ENABLE_ALL()  static int __DEBUG_qemu_user_force_enable = 1
     DEBUG_ENABLE_ALL();
 
-# define DPRINTF(...) do { if(loglevel) fprintf(logfile, __VA_ARGS__); \
+# define DPRINTF(...) do { qemu_log(__VA_ARGS__); \
                            if(__DEBUG_qemu_user_force_enable) fprintf(stderr, __VA_ARGS__); \
                          } while(0)
 #else
@@ -77,7 +77,7 @@
 # define DEBUG_BEGIN_ENABLE
 # define DEBUG_END_ENABLE
 
-# define DPRINTF(...) do { if(loglevel) fprintf(logfile, __VA_ARGS__); } while(0)
+# define DPRINTF(...) do { qemu_log(__VA_ARGS__); } while(0)
 #endif
 
 enum {
