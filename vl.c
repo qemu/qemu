@@ -2779,7 +2779,7 @@ static void dumb_display_init(void)
     DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
     // TODO: this is a workaround - smaller surface would crash when
     // monitor display is selected.
-    ds->surface = qemu_create_displaysurface(640 * 2, 480 * 2, 32, 640 * 2 * 4);
+    ds->surface = qemu_create_displaysurface(132 * 8, 43 * 16, 32, 132 * 8 * 4);
     register_displaystate(ds);
 }
 
