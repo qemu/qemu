@@ -2777,7 +2777,9 @@ DisplayState *get_displaystate(void)
 static void dumb_display_init(void)
 {
     DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
-    ds->surface = qemu_create_displaysurface(640, 480, 32, 640 * 4);
+    // TODO: this is a workaround - smaller surface would crash when
+    // monitor display is selected.
+    ds->surface = qemu_create_displaysurface(640 * 2, 480 * 2, 32, 640 * 2 * 4);
     register_displaystate(ds);
 }
 
