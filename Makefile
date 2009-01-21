@@ -174,16 +174,12 @@ curses.o: curses.c keymaps.c curses_keys.h
 bt-host.o: CFLAGS += $(CONFIG_BLUEZ_CFLAGS)
 
 libqemu_common.a: $(OBJS)
-	rm -f $@ 
-	$(AR) rcs $@ $(OBJS)
 
 #######################################################################
 # USER_OBJS is code used by qemu userspace emulation
 USER_OBJS=cutils.o  cache-utils.o
 
 libqemu_user.a: $(USER_OBJS)
-	rm -f $@ 
-	$(AR) rcs $@ $(USER_OBJS)
 
 ######################################################################
 

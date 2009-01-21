@@ -211,8 +211,6 @@ endif
 # libqemu
 
 libqemu.a: $(LIBOBJS)
-	rm -f $@
-	$(AR) rcs $@ $(LIBOBJS)
 
 translate.o: translate.c cpu.h
 

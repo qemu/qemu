@@ -13,4 +13,7 @@ LINK = $(call quiet-command,$(CC) $(LDFLAGS) -o $@ $^ $(LIBS),LINK $@)
 %$(EXESUF): %.o
 	$(LINK)
 
+%.a:
+	$(call quiet-command,rm -f $@ && $(AR) rcs $@ $^,AR $@)
+
 quiet-command = $(if $(V),$1,@echo $2 && $1)
