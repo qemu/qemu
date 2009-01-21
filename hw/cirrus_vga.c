@@ -2620,12 +2620,12 @@ static CPUWriteMemoryFunc *cirrus_linear_bitblt_write[3] = {
 
 static void map_linear_vram(CirrusVGAState *s)
 {
+    vga_dirty_log_stop((VGAState *)s);
 
     if (!s->map_addr && s->lfb_addr && s->lfb_end) {
         s->map_addr = s->lfb_addr;
         s->map_end = s->lfb_end;
         cpu_register_physical_memory(s->map_addr, s->map_end - s->map_addr, s->vram_offset);
-        vga_dirty_log_start((VGAState *)s);
     }
 
     if (!s->map_addr)
@@ -2644,24 +2644,26 @@ static void map_linear_vram(CirrusVGAState *s)
                                     (s->vram_offset + s->cirrus_bank_base[1]) | IO_MEM_RAM);
 
         s->lfb_vram_mapped = 1;
-        vga_dirty_log_start((VGAState *)s);
     }
     else {
         cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x8000, s->vga_io_memory);
         cpu_register_physical_memory(isa_mem_base + 0xa8000, 0x8000, s->vga_io_memory);
     }
 
+    vga_dirty_log_start((VGAState *)s);
 }
 
 static void unmap_linear_vram(CirrusVGAState *s)
 {
-    if (s->map_addr && s->lfb_addr && s->lfb_end) {
-        vga_dirty_log_stop((VGAState *)s);
+    vga_dirty_log_stop((VGAState *)s);
+
+    if (s->map_addr && s->lfb_addr && s->lfb_end)
         s->map_addr = s->map_end = 0;
-    }
 
     cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x20000,
                                  s->vga_io_memory);
+
+    vga_dirty_log_start((VGAState *)s);
 }
 
 /* Compute the memory access functions */
@@ -3317,6 +3319,8 @@ static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
 {
     CirrusVGAState *s = &((PCICirrusVGAState *)d)->cirrus_vga;
 
+    vga_dirty_log_stop((VGAState *)s);
+
     /* XXX: add byte swapping apertures */
     cpu_register_physical_memory(addr, s->vram_size,
 				 s->cirrus_linear_io_addr);
@@ -3329,6 +3333,8 @@ static void cirrus_pci_lfb_map(PCIDevice *d, int region_num,
     /* account for overflow */
     if (s->lfb_end < addr + VGA_RAM_SIZE)
         s->lfb_end = addr + VGA_RAM_SIZE;
+
+    vga_dirty_log_start((VGAState *)s);
 }
 
 static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
@@ -3338,6 +3344,22 @@ static void cirrus_pci_mmio_map(PCIDevice *d, int region_num,
 
     cpu_register_physical_memory(addr, CIRRUS_PNPMMIO_SIZE,
 				 s->cirrus_mmio_io_addr);
+}
+
+static void pci_cirrus_write_config(PCIDevice *d,
+                                    uint32_t address, uint32_t val, int len)
+{
+    PCICirrusVGAState *pvs = container_of(d, PCICirrusVGAState, dev);
+    CirrusVGAState *s = &pvs->cirrus_vga;
+
+    vga_dirty_log_stop((VGAState *)s);
+
+    pci_default_write_config(d, address, val, len);
+    if (s->map_addr && pvs->dev.io_regions[0].addr == -1)
+        s->map_addr = 0;
+    cirrus_update_memory_access(s);
+
+    vga_dirty_log_start((VGAState *)s);
 }
 
 void pci_cirrus_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
@@ -3353,7 +3375,7 @@ void pci_cirrus_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
     /* setup PCI configuration registers */
     d = (PCICirrusVGAState *)pci_register_device(bus, "Cirrus VGA",
                                                  sizeof(PCICirrusVGAState),
-                                                 -1, NULL, NULL);
+                                                 -1, NULL, pci_cirrus_write_config);
     pci_conf = d->dev.config;
     pci_conf[0x00] = (uint8_t) (PCI_VENDOR_CIRRUS & 0xff);
     pci_conf[0x01] = (uint8_t) (PCI_VENDOR_CIRRUS >> 8);
