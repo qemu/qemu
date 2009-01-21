@@ -1,11 +1,13 @@
 # Makefile for QEMU.
 
 include config-host.mak
+include $(SRC_PATH)/rules.mak
 
 .PHONY: all clean cscope distclean dvi html info install install-doc \
 	recurse-all speed tar tarbin test
 
 VPATH=$(SRC_PATH):$(SRC_PATH)/hw
+
 
 CFLAGS += $(OS_CFLAGS) $(ARCH_CFLAGS)
 LDFLAGS += $(OS_LDFLAGS) $(ARCH_LDFLAGS)
@@ -187,12 +189,6 @@ libqemu_user.a: $(USER_OBJS)
 
 qemu-img$(EXESUF): qemu-img.o qemu-tool.o osdep.o $(BLOCK_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ -lz $(LIBS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
-
-%.o: %.m
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o osdep.o $(BLOCK_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ -lz $(LIBS)

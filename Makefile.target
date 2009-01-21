@@ -1,4 +1,5 @@
 include config.mak
+include $(SRC_PATH)/rules.mak
 
 TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
@@ -730,12 +731,6 @@ ifeq ($(TARGET_XML_FILES),)
 else
 	$(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES)
 endif
-
-%.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
-
-%.o: %.S
-	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
