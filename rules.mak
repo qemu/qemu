@@ -8,3 +8,7 @@
 %.o: %.m
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
+LINK = $(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+%$(EXESUF): %.o
+	$(LINK)

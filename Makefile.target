@@ -355,7 +355,7 @@ OBJS+= libqemu.a
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS) ../libqemu_user.a
-	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+	$(LINK)
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
 # the address space (31 bit so sign extending doesn't matter)
@@ -390,7 +390,7 @@ endif
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+	$(LINK)
 
 endif #CONFIG_DARWIN_USER
 
@@ -494,7 +494,7 @@ endif
 signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS) ../libqemu_user.a
-	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+	$(LINK)
 
 endif #CONFIG_BSD_USER
 
@@ -719,8 +719,10 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
+$(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
+
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
+	$(LINK)
 
 endif # !CONFIG_USER_ONLY
 
