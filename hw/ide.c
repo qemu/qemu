@@ -457,6 +457,8 @@ static inline int media_is_cd(IDEState *s)
 #define BM_STATUS_DMAING 0x01
 #define BM_STATUS_ERROR  0x02
 #define BM_STATUS_INT    0x04
+#define BM_STATUS_DMA_RETRY  0x08
+#define BM_STATUS_PIO_RETRY  0x10
 
 #define BM_CMD_START     0x01
 #define BM_CMD_READ      0x08
@@ -488,6 +490,8 @@ typedef struct BMDMAState {
     IDEState *ide_if;
     BlockDriverCompletionFunc *dma_cb;
     BlockDriverAIOCB *aiocb;
+    int64_t sector_num;
+    uint32_t nsector;
 } BMDMAState;
 
 typedef struct PCIIDEState {
@@ -498,6 +502,7 @@ typedef struct PCIIDEState {
 } PCIIDEState;
 
 static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb);
+static void ide_dma_restart(IDEState *s);
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret);
 
 static void padstr(char *str, const char *src, int len)
@@ -865,6 +870,28 @@ static void ide_dma_error(IDEState *s)
     ide_set_irq(s);
 }
 
+static int ide_handle_write_error(IDEState *s, int error, int op)
+{
+    BlockInterfaceErrorAction action = drive_get_onerror(s->bs);
+
+    if (action == BLOCK_ERR_IGNORE)
+        return 0;
+
+    if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
+            || action == BLOCK_ERR_STOP_ANY) {
+        s->bmdma->ide_if = s;
+        s->bmdma->status |= op;
+        vm_stop(0);
+    } else {
+        if (op == BM_STATUS_DMA_RETRY)
+            ide_dma_error(s);
+        else
+            ide_rw_error(s);
+    }
+
+    return 1;
+}
+
 /* return 0 if buffer completed */
 static int dma_buf_rw(BMDMAState *bm, int is_write)
 {
@@ -990,9 +1017,10 @@ static void ide_sector_write(IDEState *s)
     if (n > s->req_nb_sectors)
         n = s->req_nb_sectors;
     ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
+
     if (ret != 0) {
-	ide_rw_error(s);
-	return;
+        if (ide_handle_write_error(s, -ret, BM_STATUS_PIO_RETRY))
+            return;
     }
 
     s->nsector -= n;
@@ -1024,6 +1052,20 @@ static void ide_sector_write(IDEState *s)
     }
 }
 
+static void ide_dma_restart_cb(void *opaque, int running)
+{
+    BMDMAState *bm = opaque;
+    if (!running)
+        return;
+    if (bm->status & BM_STATUS_DMA_RETRY) {
+        bm->status &= ~BM_STATUS_DMA_RETRY;
+        ide_dma_restart(bm->ide_if);
+    } else if (bm->status & BM_STATUS_PIO_RETRY) {
+        bm->status &= ~BM_STATUS_PIO_RETRY;
+        ide_sector_write(bm->ide_if);
+    }
+}
+
 static void ide_write_dma_cb(void *opaque, int ret)
 {
     BMDMAState *bm = opaque;
@@ -1032,8 +1074,8 @@ static void ide_write_dma_cb(void *opaque, int ret)
     int64_t sector_num;
 
     if (ret < 0) {
-	ide_dma_error(s);
-	return;
+        if (ide_handle_write_error(s, -ret,  BM_STATUS_DMA_RETRY))
+            return;
     }
 
     n = s->io_buffer_size >> 9;
@@ -2849,9 +2891,23 @@ static void ide_dma_start(IDEState *s, BlockDriverCompletionFunc *dma_cb)
     bm->cur_prd_last = 0;
     bm->cur_prd_addr = 0;
     bm->cur_prd_len = 0;
+    bm->sector_num = ide_get_sector(s);
+    bm->nsector = s->nsector;
     if (bm->status & BM_STATUS_DMAING) {
         bm->dma_cb(bm, 0);
     }
+}
+
+static void ide_dma_restart(IDEState *s)
+{
+    BMDMAState *bm = s->bmdma;
+    ide_set_sector(s, bm->sector_num);
+    s->io_buffer_index = 0;
+    s->io_buffer_size = 0;
+    s->nsector = bm->nsector;
+    bm->cur_addr = bm->addr;
+    bm->dma_cb = ide_write_dma_cb;
+    ide_dma_start(s, bm->dma_cb);
 }
 
 static void ide_dma_cancel(BMDMAState *bm)
@@ -3043,6 +3099,7 @@ static void bmdma_map(PCIDevice *pci_dev, int region_num,
         d->ide_if[2 * i].bmdma = bm;
         d->ide_if[2 * i + 1].bmdma = bm;
         bm->pci_dev = (PCIIDEState *)pci_dev;
+        qemu_add_vm_change_state_handler(ide_dma_restart_cb, bm);
 
         register_ioport_write(addr, 1, 1, bmdma_cmd_writeb, bm);
 
@@ -3068,9 +3125,14 @@ static void pci_ide_save(QEMUFile* f, void *opaque)
 
     for(i = 0; i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
+        uint8_t ifidx;
         qemu_put_8s(f, &bm->cmd);
         qemu_put_8s(f, &bm->status);
         qemu_put_be32s(f, &bm->addr);
+        qemu_put_sbe64s(f, &bm->sector_num);
+        qemu_put_be32s(f, &bm->nsector);
+        ifidx = bm->ide_if ? bm->ide_if - d->ide_if : 0;
+        qemu_put_8s(f, &ifidx);
         /* XXX: if a transfer is pending, we do not save it yet */
     }
 
@@ -3094,7 +3156,7 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
     PCIIDEState *d = opaque;
     int ret, i;
 
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
     ret = pci_device_load(&d->dev, f);
     if (ret < 0)
@@ -3102,9 +3164,14 @@ static int pci_ide_load(QEMUFile* f, void *opaque, int version_id)
 
     for(i = 0; i < 2; i++) {
         BMDMAState *bm = &d->bmdma[i];
+        uint8_t ifidx;
         qemu_get_8s(f, &bm->cmd);
         qemu_get_8s(f, &bm->status);
         qemu_get_be32s(f, &bm->addr);
+        qemu_get_sbe64s(f, &bm->sector_num);
+        qemu_get_be32s(f, &bm->nsector);
+        qemu_get_8s(f, &ifidx);
+        bm->ide_if = &d->ide_if[ifidx];
         /* XXX: if a transfer is pending, we do not save it yet */
     }
 
@@ -3212,7 +3279,7 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     ide_init2(&d->ide_if[0], hd_table[0], hd_table[1], irq[0]);
     ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], irq[1]);
 
-    register_savevm("ide", 0, 1, pci_ide_save, pci_ide_load, d);
+    register_savevm("ide", 0, 2, pci_ide_save, pci_ide_load, d);
     qemu_register_reset(cmd646_reset, d);
     cmd646_reset(d);
 }
@@ -3269,7 +3336,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
 
-    register_savevm("ide", 0, 1, pci_ide_save, pci_ide_load, d);
+    register_savevm("ide", 0, 2, pci_ide_save, pci_ide_load, d);
 }
 
 /* hd_table must contain 4 block drivers */
@@ -3308,7 +3375,7 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
 
-    register_savevm("ide", 0, 1, pci_ide_save, pci_ide_load, d);
+    register_savevm("ide", 0, 2, pci_ide_save, pci_ide_load, d);
 }
 
 /***********************************************************/

@@ -1070,8 +1070,13 @@ void console_select(unsigned int index)
     if (s) {
         DisplayState *ds = s->ds;
         active_console = s;
-        ds->surface = qemu_resize_displaysurface(ds->surface, s->g_width,
-                                                s->g_height, 32, 4 * s->g_width);
+        if (ds_get_bits_per_pixel(s->ds)) {
+            ds->surface = qemu_resize_displaysurface(ds->surface, s->g_width,
+                    s->g_height, 32, 4 * s->g_width);
+        } else {
+            s->ds->surface->width = s->width;
+            s->ds->surface->height = s->height;
+        }
         dpy_resize(s->ds);
         vga_hw_invalidate();
     }
@@ -1189,6 +1194,11 @@ void kbd_put_keysym(int keysym)
 static void text_console_invalidate(void *opaque)
 {
     TextConsole *s = (TextConsole *) opaque;
+    if (!ds_get_bits_per_pixel(s->ds) && s->console_type == TEXT_CONSOLE) {
+        s->g_width = ds_get_width(s->ds);
+        s->g_height = ds_get_height(s->ds);
+        text_console_resize(s);
+    }
     console_refresh(s);
 }
 
@@ -1424,6 +1434,8 @@ void text_consoles_set_display(DisplayState *ds)
 void qemu_console_resize(DisplayState *ds, int width, int height)
 {
     TextConsole *s = get_graphic_console(ds);
+    if (!s) return;
+
     s->g_width = width;
     s->g_height = height;
     if (is_graphic_console()) {

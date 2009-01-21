@@ -128,11 +128,17 @@ typedef enum {
     IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO
 } BlockInterfaceType;
 
+typedef enum {
+    BLOCK_ERR_REPORT, BLOCK_ERR_IGNORE, BLOCK_ERR_STOP_ENOSPC,
+    BLOCK_ERR_STOP_ANY
+} BlockInterfaceErrorAction;
+
 typedef struct DriveInfo {
     BlockDriverState *bdrv;
     BlockInterfaceType type;
     int bus;
     int unit;
+    BlockInterfaceErrorAction onerror;
     char serial[21];
 } DriveInfo;
 
@@ -146,6 +152,7 @@ extern DriveInfo drives_table[MAX_DRIVES+1];
 extern int drive_get_index(BlockInterfaceType type, int bus, int unit);
 extern int drive_get_max_bus(BlockInterfaceType type);
 extern const char *drive_get_serial(BlockDriverState *bdrv);
+extern BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv);
 
 /* serial ports */
 

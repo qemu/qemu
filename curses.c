@@ -106,6 +106,8 @@ static void curses_resize(DisplayState *ds)
     gheight = ds_get_height(ds);
 
     curses_calc_pad();
+    ds->surface->width = width * FONT_WIDTH;
+    ds->surface->height = height * FONT_HEIGHT;
 }
 
 #ifndef _WIN32
@@ -367,7 +369,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
     dcl->dpy_text_cursor = curses_cursor_position;
     register_displaychangelistener(ds, dcl);
     qemu_free_displaysurface(ds->surface);
-    ds->surface = qemu_create_displaysurface_from(80, 25, 0, 0, (uint8_t*) screen);
+    ds->surface = qemu_create_displaysurface_from(640, 400, 0, 0, (uint8_t*) screen);
 
     invalidate = 1;
 
