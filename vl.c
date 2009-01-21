@@ -2200,6 +2200,17 @@ const char *drive_get_serial(BlockDriverState *bdrv)
     return "\0";
 }
 
+BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv)
+{
+    int index;
+
+    for (index = 0; index < nb_drives; index++)
+        if (drives_table[index].bdrv == bdrv)
+            return drives_table[index].onerror;
+
+    return BLOCK_ERR_REPORT;
+}
+
 static void bdrv_format_print(void *opaque, const char *name)
 {
     fprintf(stderr, " %s", name);
@@ -2222,12 +2233,13 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     int max_devs;
     int index;
     int cache;
-    int bdrv_flags;
+    int bdrv_flags, onerror;
     char *str = arg->opt;
     static const char * const params[] = { "bus", "unit", "if", "index",
                                            "cyls", "heads", "secs", "trans",
                                            "media", "snapshot", "file",
-                                           "cache", "format", "serial", NULL };
+                                           "cache", "format", "serial", "werror",
+                                           NULL };
 
     if (check_params(buf, sizeof(buf), params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
@@ -2417,6 +2429,26 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     if (!get_param_value(serial, sizeof(serial), "serial", str))
 	    memset(serial, 0,  sizeof(serial));
 
+    onerror = BLOCK_ERR_REPORT;
+    if (get_param_value(buf, sizeof(serial), "werror", str)) {
+        if (type != IF_IDE) {
+            fprintf(stderr, "werror is supported only by IDE\n");
+            return -1;
+        }
+        if (!strcmp(buf, "ignore"))
+            onerror = BLOCK_ERR_IGNORE;
+        else if (!strcmp(buf, "enospc"))
+            onerror = BLOCK_ERR_STOP_ENOSPC;
+        else if (!strcmp(buf, "stop"))
+            onerror = BLOCK_ERR_STOP_ANY;
+        else if (!strcmp(buf, "report"))
+            onerror = BLOCK_ERR_REPORT;
+        else {
+            fprintf(stderr, "qemu: '%s' invalid write error action\n", buf);
+            return -1;
+        }
+    }
+
     /* compute bus and unit according index */
 
     if (index != -1) {
@@ -2480,6 +2512,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     drives_table[nb_drives].type = type;
     drives_table[nb_drives].bus = bus_id;
     drives_table[nb_drives].unit = unit_id;
+    drives_table[nb_drives].onerror = onerror;
     strncpy(drives_table[nb_drives].serial, serial, sizeof(serial));
     nb_drives++;
 
