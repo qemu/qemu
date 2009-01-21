@@ -92,7 +92,7 @@ static int get_pmsts(PIIX4PMState *s)
     d = muldiv64(qemu_get_clock(vm_clock), PM_FREQ, ticks_per_sec);
     if (d >= s->tmr_overflow_time)
         s->pmsts |= TMROF_EN;
-    return pmsts;
+    return s->pmsts;
 }
 
 static void pm_update_sci(PIIX4PMState *s)

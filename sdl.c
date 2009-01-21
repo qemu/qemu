@@ -62,7 +62,7 @@ static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
     //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
 
     SDL_BlitSurface(guest_screen, &rec, real_screen, &rec);
-    SDL_Flip(real_screen);
+    SDL_UpdateRect(real_screen, x, y, w, h);
 }
 
 static void sdl_setdata(DisplayState *ds)
@@ -93,18 +93,8 @@ static void sdl_resize(DisplayState *ds)
     if (gui_noframe)
         flags |= SDL_NOFRAME;
 
- again:
     real_screen = SDL_SetVideoMode(ds_get_width(ds), ds_get_height(ds), 0, flags);
     if (!real_screen) {
-        fprintf(stderr, "Could not open SDL display\n");
-        exit(1);
-    }
-    if (!real_screen->pixels && (flags & SDL_HWSURFACE) && (flags & SDL_FULLSCREEN)) {
-        flags &= ~SDL_HWSURFACE;
-        goto again;
-    }
-
-    if (!real_screen->pixels) {
         fprintf(stderr, "Could not open SDL display\n");
         exit(1);
     }
