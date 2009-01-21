@@ -263,6 +263,7 @@ static int icount_time_shift;
 static int64_t qemu_icount_bias;
 static QEMUTimer *icount_rt_timer;
 static QEMUTimer *icount_vm_timer;
+static QEMUTimer *nographic_timer;
 
 uint8_t qemu_uuid[16];
 
@@ -3414,6 +3415,13 @@ static void gui_update(void *opaque)
     qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock(rt_clock));
 }
 
+static void nographic_update(void *opaque)
+{
+    uint64_t interval = GUI_REFRESH_INTERVAL;
+
+    qemu_mod_timer(nographic_timer, interval + qemu_get_clock(rt_clock));
+}
+
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
     void *opaque;
@@ -5598,6 +5606,11 @@ int main(int argc, char **argv, char **envp)
             qemu_mod_timer(ds->gui_timer, qemu_get_clock(rt_clock));
         }
         dcl = dcl->next;
+    }
+
+    if (nographic || (vnc_display && !sdl)) {
+        nographic_timer = qemu_new_timer(rt_clock, nographic_update, NULL);
+        qemu_mod_timer(nographic_timer, qemu_get_clock(rt_clock));
     }
 
     text_consoles_set_display(display_state);
