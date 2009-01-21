@@ -2778,6 +2778,11 @@ DisplayState *get_displaystate(void)
 static void dumb_display_init(void)
 {
     DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
+    if (ds == NULL) {
+        fprintf(stderr, "dumb_display_init: DisplayState allocation failed\n");
+        exit(1);
+    }
+    ds->surface = qemu_create_displaysurface(640, 480, 32, 640 * 4);
     register_displaystate(ds);
 }
 
