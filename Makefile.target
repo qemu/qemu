@@ -1,4 +1,5 @@
 include config.mak
+include $(SRC_PATH)/rules.mak
 
 TARGET_BASE_ARCH:=$(TARGET_ARCH)
 ifeq ($(TARGET_ARCH), x86_64)
@@ -72,6 +73,7 @@ endif
 
 PROGS=$(QEMU_PROG)
 
+ifdef CONFIG_MY_EXTENSIONS # TODO
 ifndef CONFIG_LINUX_USER
 ifndef CONFIG_WIN32
 ifneq ($(wildcard /usr/lib/ruby/1.8/i486-linux/ruby.h),)
@@ -94,90 +96,51 @@ endif # !CONFIG_LINUX_USER
 OP_CFLAGS := -O2 -g -fno-strict-aliasing
 OP_CFLAGS += -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls
 OP_CFLAGS += -Wshadow
+endif # !CONFIG_MY_EXTENSIONS
 
 # cc-option
-# Usage: OP_CFLAGS+=$(call cc-option, -falign-functions=0, -malign-functions=0)
+# Usage: CFLAGS+=$(call cc-option, $(CFLAGS), -falign-functions=0, -malign-functions=0)
 
-cc-option = $(shell if $(CC) $(OP_CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
-              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
-
-OP_CFLAGS+=$(call cc-option, -fno-reorder-blocks, "")
-OP_CFLAGS+=$(call cc-option, -fno-gcse, "")
-OP_CFLAGS+=$(call cc-option, -fno-tree-ch, "")
-OP_CFLAGS+=$(call cc-option, -fno-optimize-sibling-calls, "")
-OP_CFLAGS+=$(call cc-option, -fno-crossjumping, "")
-OP_CFLAGS+=$(call cc-option, -fno-align-labels, "")
-OP_CFLAGS+=$(call cc-option, -fno-align-jumps, "")
-OP_CFLAGS+=$(call cc-option, -fno-align-functions, $(call cc-option, -malign-functions=0, ""))
-OP_CFLAGS+=$(call cc-option, -fno-section-anchors, "")
+cc-option = $(shell if $(CC) $(1) $(2) -S -o /dev/null -xc /dev/null \
+              > /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi ;)
 
 HELPER_CFLAGS=
 
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
-OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
 endif
 
 ifeq ($(ARCH),sparc)
   CFLAGS+=-ffixed-g2 -ffixed-g3
-  OP_CFLAGS+=-fno-delayed-branch -ffixed-i0
-  ifeq ($(CONFIG_SOLARIS),yes)
-    OP_CFLAGS+=-fno-omit-frame-pointer
-  else
+  ifneq ($(CONFIG_SOLARIS),yes)
     CFLAGS+=-ffixed-g1 -ffixed-g6
     HELPER_CFLAGS+=-ffixed-i0
   endif
 endif
 
 ifeq ($(ARCH),sparc64)
-  OP_CFLAGS+=-mcpu=ultrasparc -m64 -fno-delayed-branch -ffixed-i0
   ifneq ($(CONFIG_SOLARIS),yes)
     CFLAGS+=-ffixed-g5 -ffixed-g6 -ffixed-g7
-    OP_CFLAGS+=-ffixed-g5 -ffixed-g6 -ffixed-g7
   else
     CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
   endif
 endif
 
 ifeq ($(ARCH),alpha)
-# -msmall-data is not used for OP_CFLAGS because we want two-instruction
-# relocations for the constant constructions
 # Ensure there's only a single GP
 CFLAGS+=-msmall-data
 endif
 
 ifeq ($(ARCH),hppa)
-OP_CFLAGS=-O1 -fno-delayed-branch
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),ia64)
 CFLAGS+=-mno-sdata
-OP_CFLAGS+=-mno-sdata
-endif
-
-ifeq ($(ARCH),arm)
-OP_CFLAGS+=-mno-sched-prolog -fno-omit-frame-pointer
-endif
-
-ifeq ($(ARCH),m68k)
-OP_CFLAGS+=-fomit-frame-pointer
-endif
-
-ifeq ($(ARCH),mips)
-OP_CFLAGS+=-mabi=32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
-# At least one compiler needs -Wa,-g:
-# gcc-3.4 (GCC) 3.4.6 (Debian 3.4.6-5) on mips
-OP_CFLAGS += -Wa,-g
-endif
-
-ifeq ($(ARCH),mips64)
-OP_CFLAGS+=-mabi=n32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
 endif
 
 CFLAGS+=$(OS_CFLAGS) $(ARCH_CFLAGS)
 LDFLAGS+=$(OS_LDFLAGS) $(ARCH_LDFLAGS)
-OP_CFLAGS+=$(OS_CFLAGS) $(ARCH_CFLAGS)
 
 CPPFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 LIBS+=-lm
@@ -189,7 +152,6 @@ LIBS+=-lsocket -lnsl -lresolv
 ifdef NEEDS_LIBSUNMATH
 LIBS+=-lsunmath
 LDFLAGS+=-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib
-OP_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
 CFLAGS+=-I/opt/SUNWspro/prod/include/cc
 endif
 endif
@@ -279,8 +241,6 @@ endif
 # libqemu
 
 libqemu.a: $(LIBOBJS)
-	rm -f $@
-	$(AR) rcs $@ $(LIBOBJS)
 
 translate.o: translate.c cpu.h
 translate.o: CFLAGS:=${CFLAGS} -O1 #-fno-unit-at-a-time
@@ -289,16 +249,11 @@ translate-all.o: translate-all.c cpu.h
 
 tcg/tcg.o: cpu.h
 
-machine.o: machine.c
-	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
-
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-op_helper.o: op_helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
+op_helper.o: CFLAGS += $(HELPER_CFLAGS) $(I386_CFLAGS)
 
-cpu-exec.o: cpu-exec.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+cpu-exec.o: CFLAGS += $(HELPER_CFLAGS)
 
 #########################################################
 # Linux user emulator target
@@ -426,11 +381,10 @@ OBJS+= libqemu.a
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: signal.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS) ../libqemu_user.a
-	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+	$(LINK)
 ifeq ($(ARCH),alpha)
 # Mark as 32 bit binary, i. e. it will be mapped into the low 31 bit of
 # the address space (31 bit so sign extending doesn't matter)
@@ -462,11 +416,10 @@ endif
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: signal.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+	$(LINK)
 
 endif #CONFIG_DARWIN_USER
 
@@ -567,11 +520,10 @@ endif
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: signal.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS) ../libqemu_user.a
-	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
+	$(LINK)
 
 endif #CONFIG_BSD_USER
 
@@ -824,8 +776,10 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
+$(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
+
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
+	$(LINK)
 
 endif # !CONFIG_USER_ONLY
 
@@ -836,12 +790,6 @@ ifeq ($(TARGET_XML_FILES),)
 else
 	$(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES)
 endif
-
-%.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
-
-%.o: %.S
-	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
