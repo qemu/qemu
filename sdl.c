@@ -62,7 +62,7 @@ static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
     //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
 
     SDL_BlitSurface(guest_screen, &rec, real_screen, &rec);
-    SDL_Flip(real_screen);
+    SDL_UpdateRect(real_screen, x, y, w, h);
 }
 
 static void sdl_setdata(DisplayState *ds)
