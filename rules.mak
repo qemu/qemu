@@ -1,14 +1,16 @@
 
 %.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(call quiet-command,$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<,CC $@)
 
 %.o: %.S
-	$(CC) $(CPPFLAGS) -c -o $@ $<
+	$(call quiet-command,$(CC) $(CPPFLAGS) -c -o $@ $<,AS $@)
 
 %.o: %.m
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(call quiet-command,$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<,OBJC $@)
 
-LINK = $(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+LINK = $(call quiet-command,$(CC) $(LDFLAGS) -o $@ $^ $(LIBS),LINK $@)
 
 %$(EXESUF): %.o
 	$(LINK)
+
+quiet-command = $(if $(V),$1,@echo $2 && $1)

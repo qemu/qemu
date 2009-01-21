@@ -39,7 +39,7 @@ all: $(TOOLS) $(DOCS) recurse-all
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
 subdir-%:
-	$(MAKE) -C $(subst subdir-,,$@) all
+	$(MAKE) -C $(subst subdir-,,$@) V="$(V)" all
 
 $(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
 $(filter %-user,$(SUBDIR_RULES)): libqemu_user.a
