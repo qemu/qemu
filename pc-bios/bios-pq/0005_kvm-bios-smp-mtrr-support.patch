@@ -1,0 +1,126 @@
+smp mtrr support (Avi Kivity)
+
+Signed-off-by: Avi Kivity <avi@qumranet.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+Index: bochs/bios/rombios.h
+===================================================================
+--- bochs.orig/bios/rombios.h
++++ bochs/bios/rombios.h
+@@ -56,6 +56,7 @@
+ #define ACPI_DATA_SIZE    0x00010000L
+ #define PM_IO_BASE        0xb000
+ #define SMB_IO_BASE       0xb100
++#define SMP_MSR_ADDR      0xf010
+
+   // Define the application NAME
+ #if defined(BX_QEMU)
+Index: bochs/bios/rombios32.c
+===================================================================
+--- bochs.orig/bios/rombios32.c
++++ bochs/bios/rombios32.c
+@@ -472,6 +472,23 @@ void qemu_cfg_read(uint8_t *buf, int len
+ }
+ #endif
+
++void init_smp_msrs(void)
++{
++    *(uint32_t *)SMP_MSR_ADDR = 0;
++}
++
++void wrmsr_smp(uint32_t index, uint64_t val)
++{
++    static struct { uint32_t ecx, eax, edx; } *p = (void *)SMP_MSR_ADDR;
++
++    wrmsr(index, val);
++    p->ecx = index;
++    p->eax = val;
++    p->edx = val >> 32;
++    ++p;
++    p->ecx = 0;
++}
++
+ void uuid_probe(void)
+ {
+ #ifdef BX_QEMU
+@@ -519,32 +536,32 @@ void setup_mtrr(void)
+     for (i = 0; i < 8; ++i)
+         if (ram_size >= 65536 * (i + 1))
+             u.valb[i] = 6;
+-    wrmsr(MSR_MTRRfix64K_00000, u.val);
++    wrmsr_smp(MSR_MTRRfix64K_00000, u.val);
+     u.val = 0;
+     for (i = 0; i < 8; ++i)
+         if (ram_size >= 65536 * 8 + 16384 * (i + 1))
+             u.valb[i] = 6;
+-    wrmsr(MSR_MTRRfix16K_80000, u.val);
+-    wrmsr(MSR_MTRRfix16K_A0000, 0);
+-    wrmsr(MSR_MTRRfix4K_C0000, 0);
+-    wrmsr(MSR_MTRRfix4K_C8000, 0);
+-    wrmsr(MSR_MTRRfix4K_D0000, 0);
+-    wrmsr(MSR_MTRRfix4K_D8000, 0);
+-    wrmsr(MSR_MTRRfix4K_E0000, 0);
+-    wrmsr(MSR_MTRRfix4K_E8000, 0);
+-    wrmsr(MSR_MTRRfix4K_F0000, 0);
+-    wrmsr(MSR_MTRRfix4K_F8000, 0);
++    wrmsr_smp(MSR_MTRRfix16K_80000, u.val);
++    wrmsr_smp(MSR_MTRRfix16K_A0000, 0);
++    wrmsr_smp(MSR_MTRRfix4K_C0000, 0);
++    wrmsr_smp(MSR_MTRRfix4K_C8000, 0);
++    wrmsr_smp(MSR_MTRRfix4K_D0000, 0);
++    wrmsr_smp(MSR_MTRRfix4K_D8000, 0);
++    wrmsr_smp(MSR_MTRRfix4K_E0000, 0);
++    wrmsr_smp(MSR_MTRRfix4K_E8000, 0);
++    wrmsr_smp(MSR_MTRRfix4K_F0000, 0);
++    wrmsr_smp(MSR_MTRRfix4K_F8000, 0);
+     vbase = 0;
+     --vcnt; /* leave one mtrr for VRAM */
+     for (i = 0; i < vcnt && vbase < ram_size; ++i) {
+         vmask = (1ull << 40) - 1;
+         while (vbase + vmask + 1 > ram_size)
+             vmask >>= 1;
+-        wrmsr(MTRRphysBase_MSR(i), vbase | 6);
+-        wrmsr(MTRRphysMask_MSR(i), (~vmask & 0xfffffff000ull) | 0x800);
++        wrmsr_smp(MTRRphysBase_MSR(i), vbase | 6);
++        wrmsr_smp(MTRRphysMask_MSR(i), (~vmask & 0xfffffff000ull) | 0x800);
+         vbase += vmask + 1;
+     }
+-    wrmsr(MSR_MTRRdefType, 0xc00);
++    wrmsr_smp(MSR_MTRRdefType, 0xc00);
+ }
+
+ void ram_probe(void)
+@@ -2263,6 +2280,8 @@ void rombios32_init(uint32_t *s3_resume_
+     qemu_cfg_port = qemu_cfg_port_probe();
+ #endif
+
++    init_smp_msrs();
++
+     ram_probe();
+
+     cpu_probe();
+Index: bochs/bios/rombios32start.S
+===================================================================
+--- bochs.orig/bios/rombios32start.S
++++ bochs/bios/rombios32start.S
+@@ -49,6 +49,18 @@ _start:
+ smp_ap_boot_code_start:
+   xor %ax, %ax
+   mov %ax, %ds
++
++  mov $SMP_MSR_ADDR, %ebx
++11:
++  mov 0(%ebx), %ecx
++  test %ecx, %ecx
++  jz 12f
++  mov 4(%ebx), %eax
++  mov 8(%ebx), %edx
++  wrmsr
++  add $12, %ebx
++  jmp 11b
++12:
+   lock incw smp_cpus
+ 1:
+   hlt
+
+

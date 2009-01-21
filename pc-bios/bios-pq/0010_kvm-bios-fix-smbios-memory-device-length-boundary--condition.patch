@@ -1,0 +1,23 @@
+fix smbios memory device length boundary  condition (Bill Rieske)
+
+dev_memsize ends up 0 when it shouldn't be on 16G boundary conditions.
+    
+Signed-off-by: Bill Rieske <brieske@novell.com>
+Signed-off-by: Avi Kivity <avi@redhat.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+Index: bochs/bios/rombios32.c
+===================================================================
+--- bochs.orig/bios/rombios32.c
++++ bochs/bios/rombios32.c
+@@ -2218,7 +2218,7 @@ void smbios_init(void)
+     for ( i = 0; i < nr_mem_devs; i++ )
+     {
+         uint32_t dev_memsize = ((i == (nr_mem_devs - 1))
+-                                ? (memsize & 0x3fff) : 0x4000);
++                                ? (((memsize-1) & 0x3fff)+1) : 0x4000);
+         add_struct(smbios_type_17_init(p, dev_memsize, i));
+         add_struct(smbios_type_19_init(p, dev_memsize, i));
+         add_struct(smbios_type_20_init(p, dev_memsize, i));
+
+

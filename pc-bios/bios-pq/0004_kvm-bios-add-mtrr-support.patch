@@ -1,0 +1,120 @@
+add mtrr support (Avi Kivity)
+
+program mtrrs for cpu 0.  Doesn't support >=4G at the moment.
+    
+Signed-off-by: Avi Kivity <avi@qumranet.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+Index: bochs/bios/rombios32.c
+===================================================================
+--- bochs.orig/bios/rombios32.c
++++ bochs/bios/rombios32.c
+@@ -64,6 +64,23 @@ typedef unsigned long long uint64_t;
+
+ #define BIOS_TMP_STORAGE  0x00030000 /* 64 KB used to copy the BIOS to shadow RAM */
+
++#define MSR_MTRRcap			0x000000fe
++#define MSR_MTRRfix64K_00000		0x00000250
++#define MSR_MTRRfix16K_80000		0x00000258
++#define MSR_MTRRfix16K_A0000		0x00000259
++#define MSR_MTRRfix4K_C0000		0x00000268
++#define MSR_MTRRfix4K_C8000		0x00000269
++#define MSR_MTRRfix4K_D0000		0x0000026a
++#define MSR_MTRRfix4K_D8000		0x0000026b
++#define MSR_MTRRfix4K_E0000		0x0000026c
++#define MSR_MTRRfix4K_E8000		0x0000026d
++#define MSR_MTRRfix4K_F0000		0x0000026e
++#define MSR_MTRRfix4K_F8000		0x0000026f
++#define MSR_MTRRdefType			0x000002ff
++
++#define MTRRphysBase_MSR(reg) (0x200 + 2 * (reg))
++#define MTRRphysMask_MSR(reg) (0x200 + 2 * (reg) + 1)
++
+ static inline void outl(int addr, int val)
+ {
+     asm volatile ("outl %1, %w0" : : "d" (addr), "a" (val));
+@@ -135,6 +152,19 @@ static inline void putc(int c)
+     outb(INFO_PORT, c);
+ }
+
++static uint64_t rdmsr(unsigned index)
++{
++    unsigned long long ret;
++
++    asm ("rdmsr" : "=A"(ret) : "c"(index));
++    return ret;
++}
++
++static void wrmsr(unsigned index, uint64_t val)
++{
++    asm volatile ("wrmsr" : : "c"(index), "A"(val));
++}
++
+ static inline int isdigit(int c)
+ {
+     return c >= '0' && c <= '9';
+@@ -469,6 +499,54 @@ static int cmos_readb(int addr)
+     return inb(0x71);
+ }
+
++void setup_mtrr(void)
++{
++    int i, vcnt, fix, wc;
++    uint32_t mtrr_cap;
++    union {
++        uint8_t valb[8];
++        uint64_t val;
++    } u;
++    uint64_t vbase, vmask;
++
++    mtrr_cap = rdmsr(MSR_MTRRcap);
++    vcnt = mtrr_cap & 0xff;
++    fix = mtrr_cap & 0x100;
++    wc = mtrr_cap & 0x400;
++    if (!vcnt || !fix)
++	return;
++    u.val = 0;
++    for (i = 0; i < 8; ++i)
++        if (ram_size >= 65536 * (i + 1))
++            u.valb[i] = 6;
++    wrmsr(MSR_MTRRfix64K_00000, u.val);
++    u.val = 0;
++    for (i = 0; i < 8; ++i)
++        if (ram_size >= 65536 * 8 + 16384 * (i + 1))
++            u.valb[i] = 6;
++    wrmsr(MSR_MTRRfix16K_80000, u.val);
++    wrmsr(MSR_MTRRfix16K_A0000, 0);
++    wrmsr(MSR_MTRRfix4K_C0000, 0);
++    wrmsr(MSR_MTRRfix4K_C8000, 0);
++    wrmsr(MSR_MTRRfix4K_D0000, 0);
++    wrmsr(MSR_MTRRfix4K_D8000, 0);
++    wrmsr(MSR_MTRRfix4K_E0000, 0);
++    wrmsr(MSR_MTRRfix4K_E8000, 0);
++    wrmsr(MSR_MTRRfix4K_F0000, 0);
++    wrmsr(MSR_MTRRfix4K_F8000, 0);
++    vbase = 0;
++    --vcnt; /* leave one mtrr for VRAM */
++    for (i = 0; i < vcnt && vbase < ram_size; ++i) {
++        vmask = (1ull << 40) - 1;
++        while (vbase + vmask + 1 > ram_size)
++            vmask >>= 1;
++        wrmsr(MTRRphysBase_MSR(i), vbase | 6);
++        wrmsr(MTRRphysMask_MSR(i), (~vmask & 0xfffffff000ull) | 0x800);
++        vbase += vmask + 1;
++    }
++    wrmsr(MSR_MTRRdefType, 0xc00);
++}
++
+ void ram_probe(void)
+ {
+   if (cmos_readb(0x34) | cmos_readb(0x35))
+@@ -482,6 +560,7 @@ void ram_probe(void)
+   ebda_cur_addr = ((*(uint16_t *)(0x40e)) << 4) + 0x380;
+   BX_INFO("ebda_cur_addr: 0x%08lx\n", ebda_cur_addr);
+ #endif
++  setup_mtrr();
+ }
+
+ /****************************************************/
+
+

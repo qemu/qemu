@@ -1,1 +1,10 @@
 0001_bx-qemu.patch
+0002_kvm-bios-update-smbios-table-to-report-memory-above-4g.patch
+0003_kvm-bios-generate-mptable-unconditionally.patch
+0004_kvm-bios-add-mtrr-support.patch
+0005_kvm-bios-smp-mtrr-support.patch
+0006_kvm-bios-extend-mtrrs-to-above-4g.patch
+0007_kvm-bios-cleanup-consolidate-above-4g-memory-parsing.patch
+0008_kvm-bios-switch-mtrrs-to-cover-only-the-pci-range-and--default-to-wb.patch
+0009_kvm-bios-resolve-memory-device-roll-over-reporting--issues-with-32g-guests.patch
+0010_kvm-bios-fix-smbios-memory-device-length-boundary--condition.patch
