@@ -71,90 +71,49 @@ endif
 
 PROGS=$(QEMU_PROG)
 
-# We require -O2 to avoid the stack setup prologue in EXIT_TB
-OP_CFLAGS := -O2 -g -fno-strict-aliasing
-OP_CFLAGS += -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls
-
 # cc-option
-# Usage: OP_CFLAGS+=$(call cc-option, -falign-functions=0, -malign-functions=0)
+# Usage: CFLAGS+=$(call cc-option, $(CFLAGS), -falign-functions=0, -malign-functions=0)
 
-cc-option = $(shell if $(CC) $(OP_CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
-              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
-
-OP_CFLAGS+=$(call cc-option, -fno-reorder-blocks, "")
-OP_CFLAGS+=$(call cc-option, -fno-gcse, "")
-OP_CFLAGS+=$(call cc-option, -fno-tree-ch, "")
-OP_CFLAGS+=$(call cc-option, -fno-optimize-sibling-calls, "")
-OP_CFLAGS+=$(call cc-option, -fno-crossjumping, "")
-OP_CFLAGS+=$(call cc-option, -fno-align-labels, "")
-OP_CFLAGS+=$(call cc-option, -fno-align-jumps, "")
-OP_CFLAGS+=$(call cc-option, -fno-align-functions, $(call cc-option, -malign-functions=0, ""))
-OP_CFLAGS+=$(call cc-option, -fno-section-anchors, "")
+cc-option = $(shell if $(CC) $(1) $(2) -S -o /dev/null -xc /dev/null \
+              > /dev/null 2>&1; then echo "$(2)"; else echo "$(3)"; fi ;)
 
 HELPER_CFLAGS=
 
 ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
-OP_CFLAGS+=-mpreferred-stack-boundary=2 -fomit-frame-pointer
 endif
 
 ifeq ($(ARCH),sparc)
   CFLAGS+=-ffixed-g2 -ffixed-g3
-  OP_CFLAGS+=-fno-delayed-branch -ffixed-i0
-  ifeq ($(CONFIG_SOLARIS),yes)
-    OP_CFLAGS+=-fno-omit-frame-pointer
-  else
+  ifneq ($(CONFIG_SOLARIS),yes)
     CFLAGS+=-ffixed-g1 -ffixed-g6
     HELPER_CFLAGS+=-ffixed-i0
   endif
 endif
 
 ifeq ($(ARCH),sparc64)
-  OP_CFLAGS+=-mcpu=ultrasparc -m64 -fno-delayed-branch -ffixed-i0
   ifneq ($(CONFIG_SOLARIS),yes)
     CFLAGS+=-ffixed-g5 -ffixed-g6 -ffixed-g7
-    OP_CFLAGS+=-ffixed-g5 -ffixed-g6 -ffixed-g7
   else
     CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
   endif
 endif
 
 ifeq ($(ARCH),alpha)
-# -msmall-data is not used for OP_CFLAGS because we want two-instruction
-# relocations for the constant constructions
 # Ensure there's only a single GP
 CFLAGS+=-msmall-data
 endif
 
 ifeq ($(ARCH),hppa)
-OP_CFLAGS=-O1 -fno-delayed-branch
 BASE_LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),ia64)
 CFLAGS+=-mno-sdata
-OP_CFLAGS+=-mno-sdata
-endif
-
-ifeq ($(ARCH),arm)
-OP_CFLAGS+=-mno-sched-prolog -fno-omit-frame-pointer
-endif
-
-ifeq ($(ARCH),m68k)
-OP_CFLAGS+=-fomit-frame-pointer
-endif
-
-ifeq ($(ARCH),mips)
-OP_CFLAGS+=-mabi=32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
-endif
-
-ifeq ($(ARCH),mips64)
-OP_CFLAGS+=-mabi=n32 -G0 -fno-PIC -mno-abicalls -fomit-frame-pointer -fno-delayed-branch -Wa,-O0
 endif
 
 CFLAGS+=$(OS_CFLAGS) $(ARCH_CFLAGS)
 LDFLAGS+=$(OS_LDFLAGS) $(ARCH_LDFLAGS)
-OP_CFLAGS+=$(OS_CFLAGS) $(ARCH_CFLAGS)
 
 CPPFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 LIBS+=-lm
@@ -166,7 +125,6 @@ LIBS+=-lsocket -lnsl -lresolv
 ifdef NEEDS_LIBSUNMATH
 LIBS+=-lsunmath
 LDFLAGS+=-L/opt/SUNWspro/prod/lib -R/opt/SUNWspro/prod/lib
-OP_CFLAGS+=-I/opt/SUNWspro/prod/include/cc
 CFLAGS+=-I/opt/SUNWspro/prod/include/cc
 endif
 endif
@@ -262,7 +220,7 @@ translate-all.o: translate-all.c cpu.h
 tcg/tcg.o: cpu.h
 
 machine.o: machine.c
-	$(CC) $(OP_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
