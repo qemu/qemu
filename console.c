@@ -1431,6 +1431,8 @@ void text_consoles_set_display(DisplayState *ds)
 void qemu_console_resize(DisplayState *ds, int width, int height)
 {
     TextConsole *s = get_graphic_console(ds);
+    if (!s) return;
+
     s->g_width = width;
     s->g_height = height;
     if (is_graphic_console()) {
