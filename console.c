@@ -21,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include <assert.h>
 #include "qemu-common.h"
 #include "console.h"
 #include "qemu-timer.h"
@@ -446,6 +448,7 @@ static void vga_putcharxy(DisplayState *ds, int x, int y, int ch,
     bpp = (ds_get_bits_per_pixel(ds) + 7) >> 3;
     d = ds_get_data(ds) +
         ds_get_linesize(ds) * y * FONT_HEIGHT + bpp * x * FONT_WIDTH;
+    assert(d < ds->surface->data + ds->surface->linesize * ds->surface->height);
     linesize = ds_get_linesize(ds);
     font_ptr = vgafont16 + FONT_HEIGHT * ch;
     xorcol = bgcol ^ fgcol;
