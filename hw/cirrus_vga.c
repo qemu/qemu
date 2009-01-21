@@ -3169,6 +3169,7 @@ static void cirrus_reset(void *opaque)
     CirrusVGAState *s = opaque;
 
     vga_reset(s);
+    unmap_linear_vram(s);
     s->sr[0x06] = 0x0f;
     if (s->device_id == CIRRUS_ID_CLGD5446) {
         /* 4MB 64 bit memory config, always PCI */
