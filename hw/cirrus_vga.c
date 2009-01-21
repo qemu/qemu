@@ -2652,8 +2652,8 @@ static void map_linear_vram(CirrusVGAState *s)
         s->lfb_vram_mapped = 1;
     }
     else {
-        cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x8000, s->vga_io_memory);
-        cpu_register_physical_memory(isa_mem_base + 0xa8000, 0x8000, s->vga_io_memory);
+        cpu_register_physical_memory(isa_mem_base + 0xa0000, 0x20000,
+                                     s->vga_io_memory);
     }
 
     vga_dirty_log_start((VGAState *)s);
