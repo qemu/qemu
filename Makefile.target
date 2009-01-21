@@ -219,16 +219,11 @@ translate-all.o: translate-all.c cpu.h
 
 tcg/tcg.o: cpu.h
 
-machine.o: machine.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
-
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-op_helper.o: op_helper.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(I386_CFLAGS) -c -o $@ $<
+op_helper.o: CFLAGS += $(HELPER_CFLAGS) $(I386_CFLAGS)
 
-cpu-exec.o: cpu-exec.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+cpu-exec.o: CFLAGS += $(HELPER_CFLAGS)
 
 #########################################################
 # Linux user emulator target
@@ -356,8 +351,7 @@ OBJS+= libqemu.a
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: signal.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS) ../libqemu_user.a
 	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
@@ -392,8 +386,7 @@ endif
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: signal.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)
@@ -497,8 +490,7 @@ endif
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
-signal.o: signal.c
-	$(CC) $(HELPER_CFLAGS) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+signal.o: CFLAGS += $(HELPER_CFLAGS)
 
 $(QEMU_PROG): $(OBJS) ../libqemu_user.a
 	$(CC) $(LDFLAGS) -o $@ $^  $(LIBS)

@@ -158,22 +158,18 @@ endif
 LIBS+=$(VDE_LIBS)
 
 cocoa.o: cocoa.m
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 sdl.o: sdl.c keymaps.c sdl_keysym.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+
+sdl.o audio/sdlaudio.o: CFLAGS += $(SDL_CFLAGS)
 
 vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(CONFIG_VNC_TLS_CFLAGS) -c -o $@ $<
+
+vnc.o: CFLAGS += $(CONFIG_VNC_TLS_CFLAGS)
 
 curses.o: curses.c keymaps.c curses_keys.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-bt-host.o: bt-host.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(CONFIG_BLUEZ_CFLAGS) -c -o $@ $<
-
-audio/sdlaudio.o: audio/sdlaudio.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+bt-host.o: CFLAGS += $(CONFIG_BLUEZ_CFLAGS)
 
 libqemu_common.a: $(OBJS)
 	rm -f $@ 
@@ -193,6 +189,9 @@ qemu-img$(EXESUF): qemu-img.o qemu-tool.o osdep.o $(BLOCK_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ -lz $(LIBS)
 
 %.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+%.o: %.m
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o osdep.o $(BLOCK_OBJS)
