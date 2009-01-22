@@ -191,6 +191,18 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id);
 /* Force QEMU to stop what it's doing and service IO */
 void qemu_service_io(void);
 
+typedef struct QEMUIOVector {
+    struct iovec *iov;
+    int niov;
+    int nalloc;
+} QEMUIOVector;
+
+void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint);
+void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
+void qemu_iovec_destroy(QEMUIOVector *qiov);
+void qemu_iovec_to_buffer(QEMUIOVector *qiov, void *buf);
+void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf);
+
 #endif /* dyngen-exec.h hack */
 
 #endif
