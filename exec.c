@@ -3053,10 +3053,49 @@ typedef struct {
 
 static BounceBuffer bounce;
 
+typedef struct MapClient {
+    void *opaque;
+    void (*callback)(void *opaque);
+    LIST_ENTRY(MapClient) link;
+} MapClient;
+
+static LIST_HEAD(map_client_list, MapClient) map_client_list
+    = LIST_HEAD_INITIALIZER(map_client_list);
+
+void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
+{
+    MapClient *client = qemu_malloc(sizeof(*client));
+
+    client->opaque = opaque;
+    client->callback = callback;
+    LIST_INSERT_HEAD(&map_client_list, client, link);
+    return client;
+}
+
+void cpu_unregister_map_client(void *_client)
+{
+    MapClient *client = (MapClient *)_client;
+
+    LIST_REMOVE(client, link);
+}
+
+static void cpu_notify_map_clients(void)
+{
+    MapClient *client;
+
+    while (!LIST_EMPTY(&map_client_list)) {
+        client = LIST_FIRST(&map_client_list);
+        client->callback(client->opaque);
+        LIST_REMOVE(client, link);
+    }
+}
+
 /* Map a physical memory region into a host virtual address.
  * May map a subset of the requested range, given by and returned in *plen.
  * May return NULL if resources needed to perform the mapping are exhausted.
  * Use only for reads OR writes - not for read-modify-write operations.
+ * Use cpu_register_map_client() to know when retrying the map operation is
+ * likely to succeed.
  */
 void *cpu_physical_memory_map(target_phys_addr_t addr,
                               target_phys_addr_t *plen,
@@ -3146,6 +3185,7 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
     }
     qemu_free(bounce.buffer);
     bounce.buffer = NULL;
+    cpu_notify_map_clients();
 }
 
 /* warning: addr must be aligned */

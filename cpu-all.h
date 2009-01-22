@@ -928,6 +928,8 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
                               int is_write);
 void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
                                int is_write, target_phys_addr_t access_len);
+void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque));
+void cpu_unregister_map_client(void *cookie);
 
 uint32_t ldub_phys(target_phys_addr_t addr);
 uint32_t lduw_phys(target_phys_addr_t addr);
