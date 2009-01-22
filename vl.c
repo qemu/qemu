@@ -5589,10 +5589,11 @@ int main(int argc, char **argv, char **envp)
                     if (vnc_display_open(ds, vnc_display) < 0)
                         exit(1);
                 }
-                if (sdl || !vnc_display)
 #if defined(CONFIG_SDL)
+                if (sdl || !vnc_display)
                     sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
+                if (sdl || !vnc_display)
                     cocoa_display_init(ds, full_screen);
 #endif
             }
