@@ -1077,6 +1077,7 @@ void bdrv_info(void)
 void bdrv_info_stats (void)
 {
     BlockDriverState *bs;
+    BlockDriverInfo bdi;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
 	term_printf ("%s:"
@@ -1084,10 +1085,14 @@ void bdrv_info_stats (void)
 		     " wr_bytes=%" PRIu64
 		     " rd_operations=%" PRIu64
 		     " wr_operations=%" PRIu64
-		     "\n",
+                     ,
 		     bs->device_name,
 		     bs->rd_bytes, bs->wr_bytes,
 		     bs->rd_ops, bs->wr_ops);
+        if (bdrv_get_info(bs, &bdi) == 0)
+            term_printf(" high=%" PRIu64,
+                        bdi.highest_alloc);
+        term_printf("\n");
     }
 }
 
