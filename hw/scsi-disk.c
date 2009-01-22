@@ -42,6 +42,8 @@ do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
 #define SCSI_DMA_BUF_SIZE    131072
 #define SCSI_MAX_INQUIRY_LEN 256
 
+#define SCSI_REQ_STATUS_RETRY 0x01
+
 typedef struct SCSIRequest {
     SCSIDeviceState *dev;
     uint32_t tag;
@@ -55,6 +57,7 @@ typedef struct SCSIRequest {
     uint8_t *dma_buf;
     BlockDriverAIOCB *aiocb;
     struct SCSIRequest *next;
+    uint32_t status;
 } SCSIRequest;
 
 struct SCSIDeviceState
@@ -92,6 +95,7 @@ static SCSIRequest *scsi_new_request(SCSIDeviceState *s, uint32_t tag)
     r->sector_count = 0;
     r->buf_len = 0;
     r->aiocb = NULL;
+    r->status = 0;
 
     r->next = s->requests;
     s->requests = r;
@@ -212,18 +216,42 @@ static void scsi_read_data(SCSIDevice *d, uint32_t tag)
     r->sector_count -= n;
 }
 
+static int scsi_handle_write_error(SCSIRequest *r, int error)
+{
+    BlockInterfaceErrorAction action = drive_get_onerror(r->dev->bdrv);
+
+    if (action == BLOCK_ERR_IGNORE)
+        return 0;
+
+    if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
+            || action == BLOCK_ERR_STOP_ANY) {
+        r->status |= SCSI_REQ_STATUS_RETRY;
+        vm_stop(0);
+    } else {
+        scsi_command_complete(r, STATUS_CHECK_CONDITION,
+                SENSE_HARDWARE_ERROR);
+    }
+
+    return 1;
+}
+
 static void scsi_write_complete(void * opaque, int ret)
 {
     SCSIRequest *r = (SCSIRequest *)opaque;
     SCSIDeviceState *s = r->dev;
     uint32_t len;
-
-    if (ret) {
-        fprintf(stderr, "scsi-disc: IO write error\n");
-        exit(1);
-    }
+    uint32_t n;
 
     r->aiocb = NULL;
+
+    if (ret) {
+        if (scsi_handle_write_error(r, -ret))
+            return;
+    }
+
+    n = r->buf_len / 512;
+    r->sector += n;
+    r->sector_count -= n;
     if (r->sector_count == 0) {
         scsi_command_complete(r, STATUS_GOOD, SENSE_NO_SENSE);
     } else {
@@ -237,13 +265,30 @@ static void scsi_write_complete(void * opaque, int ret)
     }
 }
 
+static void scsi_write_request(SCSIRequest *r)
+{
+    SCSIDeviceState *s = r->dev;
+    uint32_t n;
+
+    n = r->buf_len / 512;
+    if (n) {
+        r->aiocb = bdrv_aio_write(s->bdrv, r->sector, r->dma_buf, n,
+                                  scsi_write_complete, r);
+        if (r->aiocb == NULL)
+            scsi_command_complete(r, STATUS_CHECK_CONDITION,
+                                  SENSE_HARDWARE_ERROR);
+    } else {
+        /* Invoke completion routine to fetch data from host.  */
+        scsi_write_complete(r, 0);
+    }
+}
+
 /* Write data to a scsi device.  Returns nonzero on failure.
    The transfer may complete asynchronously.  */
 static int scsi_write_data(SCSIDevice *d, uint32_t tag)
 {
     SCSIDeviceState *s = d->state;
     SCSIRequest *r;
-    uint32_t n;
 
     DPRINTF("Write data tag=0x%x\n", tag);
     r = scsi_find_request(s, tag);
@@ -252,23 +297,29 @@ static int scsi_write_data(SCSIDevice *d, uint32_t tag)
         scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
         return 1;
     }
+
     if (r->aiocb)
         BADF("Data transfer already in progress\n");
-    n = r->buf_len / 512;
-    if (n) {
-        r->aiocb = bdrv_aio_write(s->bdrv, r->sector, r->dma_buf, n,
-                                  scsi_write_complete, r);
-        if (r->aiocb == NULL)
-            scsi_command_complete(r, STATUS_CHECK_CONDITION,
-                                  SENSE_HARDWARE_ERROR);
-        r->sector += n;
-        r->sector_count -= n;
-    } else {
-        /* Invoke completion routine to fetch data from host.  */
-        scsi_write_complete(r, 0);
-    }
+
+    scsi_write_request(r);
 
     return 0;
+}
+
+static void scsi_dma_restart_cb(void *opaque, int running, int reason)
+{
+    SCSIDeviceState *s = opaque;
+    SCSIRequest *r = s->requests;
+    if (!running)
+        return;
+
+    while (r) {
+        if (r->status & SCSI_REQ_STATUS_RETRY) {
+            r->status &= ~SCSI_REQ_STATUS_RETRY;
+            scsi_write_request(r); 
+        }
+        r = r->next;
+    }
 }
 
 /* Return a pointer to the data buffer.  */
@@ -822,6 +873,7 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv, int tcq,
             sizeof(s->drive_serial_str));
     if (strlen(s->drive_serial_str) == 0)
         pstrcpy(s->drive_serial_str, sizeof(s->drive_serial_str), "0");
+    qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
     d = (SCSIDevice *)qemu_mallocz(sizeof(SCSIDevice));
     d->state = s;
     d->destroy = scsi_destroy;

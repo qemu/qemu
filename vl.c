@@ -2432,8 +2432,8 @@ static int drive_init(struct drive_opt *arg, int snapshot,
 
     onerror = BLOCK_ERR_REPORT;
     if (get_param_value(buf, sizeof(serial), "werror", str)) {
-        if (type != IF_IDE) {
-            fprintf(stderr, "werror is supported only by IDE\n");
+        if (type != IF_IDE && type != IF_SCSI) {
+            fprintf(stderr, "werror is no supported by this format\n");
             return -1;
         }
         if (!strcmp(buf, "ignore"))
