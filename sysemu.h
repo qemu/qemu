@@ -12,15 +12,11 @@ extern uint8_t qemu_uuid[];
 #define UUID_FMT "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
 
 typedef struct vm_change_state_entry VMChangeStateEntry;
-typedef void VMChangeStateHandler(void *opaque, int running);
-typedef void VMStopHandler(void *opaque, int reason);
+typedef void VMChangeStateHandler(void *opaque, int running, int reason);
 
 VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque);
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
-
-int qemu_add_vm_stop_handler(VMStopHandler *cb, void *opaque);
-void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque);
 
 void vm_start(void);
 void vm_stop(int reason);

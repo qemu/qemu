@@ -3451,29 +3451,13 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
     qemu_free (e);
 }
 
-static void vm_state_notify(int running)
+static void vm_state_notify(int running, int reason)
 {
     VMChangeStateEntry *e;
 
     for (e = vm_change_state_head.lh_first; e; e = e->entries.le_next) {
-        e->cb(e->opaque, running);
+        e->cb(e->opaque, running, reason);
     }
-}
-
-/* XXX: support several handlers */
-static VMStopHandler *vm_stop_cb;
-static void *vm_stop_opaque;
-
-int qemu_add_vm_stop_handler(VMStopHandler *cb, void *opaque)
-{
-    vm_stop_cb = cb;
-    vm_stop_opaque = opaque;
-    return 0;
-}
-
-void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque)
-{
-    vm_stop_cb = NULL;
 }
 
 void vm_start(void)
@@ -3481,7 +3465,7 @@ void vm_start(void)
     if (!vm_running) {
         cpu_enable_ticks();
         vm_running = 1;
-        vm_state_notify(1);
+        vm_state_notify(1, 0);
         qemu_rearm_alarm_timer(alarm_timer);
     }
 }
@@ -3491,12 +3475,7 @@ void vm_stop(int reason)
     if (vm_running) {
         cpu_disable_ticks();
         vm_running = 0;
-        if (reason != 0) {
-            if (vm_stop_cb) {
-                vm_stop_cb(vm_stop_opaque, reason);
-            }
-        }
-        vm_state_notify(0);
+        vm_state_notify(0, reason);
     }
 }
 
