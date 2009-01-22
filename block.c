@@ -1246,6 +1246,69 @@ char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
 /**************************************************************/
 /* async I/Os */
 
+typedef struct VectorTranslationState {
+    QEMUIOVector *iov;
+    uint8_t *bounce;
+    int is_write;
+    BlockDriverAIOCB *aiocb;
+    BlockDriverAIOCB *this_aiocb;
+} VectorTranslationState;
+
+static void bdrv_aio_rw_vector_cb(void *opaque, int ret)
+{
+    VectorTranslationState *s = opaque;
+
+    if (!s->is_write) {
+        qemu_iovec_from_buffer(s->iov, s->bounce);
+    }
+    qemu_free(s->bounce);
+    s->this_aiocb->cb(s->this_aiocb->opaque, ret);
+    qemu_aio_release(s->this_aiocb);
+}
+
+static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
+                                            int64_t sector_num,
+                                            QEMUIOVector *iov,
+                                            int nb_sectors,
+                                            BlockDriverCompletionFunc *cb,
+                                            void *opaque,
+                                            int is_write)
+
+{
+    VectorTranslationState *s = qemu_mallocz(sizeof(*s));
+    BlockDriverAIOCB *aiocb = qemu_aio_get(bs, cb, opaque);
+
+    s->this_aiocb = aiocb;
+    s->iov = iov;
+    s->bounce = qemu_memalign(512, nb_sectors * 512);
+    s->is_write = is_write;
+    if (is_write) {
+        qemu_iovec_to_buffer(s->iov, s->bounce);
+        s->aiocb = bdrv_aio_write(bs, sector_num, s->bounce, nb_sectors,
+                                  bdrv_aio_rw_vector_cb, s);
+    } else {
+        s->aiocb = bdrv_aio_read(bs, sector_num, s->bounce, nb_sectors,
+                                 bdrv_aio_rw_vector_cb, s);
+    }
+    return aiocb;
+}
+
+BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
+                                 QEMUIOVector *iov, int nb_sectors,
+                                 BlockDriverCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_rw_vector(bs, sector_num, iov, nb_sectors,
+                              cb, opaque, 0);
+}
+
+BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
+                                  QEMUIOVector *iov, int nb_sectors,
+                                  BlockDriverCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_rw_vector(bs, sector_num, iov, nb_sectors,
+                              cb, opaque, 1);
+}
+
 BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
                                 uint8_t *buf, int nb_sectors,
                                 BlockDriverCompletionFunc *cb, void *opaque)
@@ -1293,6 +1356,11 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
 void bdrv_aio_cancel(BlockDriverAIOCB *acb)
 {
     BlockDriver *drv = acb->bs->drv;
+
+    if (acb->cb == bdrv_aio_rw_vector_cb) {
+        VectorTranslationState *s = acb->opaque;
+        acb = s->aiocb;
+    }
 
     drv->bdrv_aio_cancel(acb);
 }

@@ -2,6 +2,7 @@
 #define BLOCK_H
 
 #include "qemu-aio.h"
+#include "qemu-common.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -84,6 +85,13 @@ int bdrv_commit(BlockDriverState *bs);
 /* async block I/O */
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
+
+BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
+                                 QEMUIOVector *iov, int nb_sectors,
+                                 BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
+                                  QEMUIOVector *iov, int nb_sectors,
+                                  BlockDriverCompletionFunc *cb, void *opaque);
 
 BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
                                 uint8_t *buf, int nb_sectors,
