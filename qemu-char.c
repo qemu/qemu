@@ -241,13 +241,13 @@ static int mux_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
                 if (term_timestamps_start == -1)
                     term_timestamps_start = ti;
                 ti -= term_timestamps_start;
-                secs = ti / 1000000000;
+                secs = ti / 1000;
                 snprintf(buf1, sizeof(buf1),
                          "[%02d:%02d:%02d.%03d] ",
                          secs / 3600,
                          (secs / 60) % 60,
                          secs % 60,
-                         (int)((ti / 1000000) % 1000));
+                         (int)(ti % 1000));
                 d->drv->chr_write(d->drv, (uint8_t *)buf1, strlen(buf1));
             }
         }
