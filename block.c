@@ -1090,8 +1090,9 @@ void bdrv_info_stats (void)
 		     bs->rd_bytes, bs->wr_bytes,
 		     bs->rd_ops, bs->wr_ops);
         if (bdrv_get_info(bs, &bdi) == 0)
-            term_printf(" high=%" PRIu64,
-                        bdi.highest_alloc);
+            term_printf(" high=%" PRId64
+                        " bytes_free=%" PRId64,
+                        bdi.highest_alloc, bdi.num_free_bytes);
         term_printf("\n");
     }
 }

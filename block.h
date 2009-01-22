@@ -27,6 +27,7 @@ typedef struct BlockDriverInfo {
     /* offset at which the VM state can be saved (0 if not possible) */
     int64_t vm_state_offset;
     int64_t highest_alloc; /* highest allocated block offset (in bytes) */
+    int64_t num_free_bytes; /* below highest_alloc  */
 } BlockDriverInfo;
 
 typedef struct QEMUSnapshotInfo {
