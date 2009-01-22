@@ -1152,7 +1152,7 @@ static void ide_sector_write(IDEState *s)
     }
 }
 
-static void ide_dma_restart_cb(void *opaque, int running)
+static void ide_dma_restart_cb(void *opaque, int running, int reason)
 {
     BMDMAState *bm = opaque;
     if (!running)
