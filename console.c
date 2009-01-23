@@ -1449,7 +1449,7 @@ void qemu_console_copy(DisplayState *ds, int src_x, int src_y,
     }
 }
 
-static PixelFormat qemu_default_pixelformat(int bpp)
+PixelFormat qemu_different_endianness_pixelformat(int bpp)
 {
     PixelFormat pf;
 
@@ -1460,17 +1460,48 @@ static PixelFormat qemu_default_pixelformat(int bpp)
     pf.depth = bpp == 32 ? 24 : bpp;
 
     switch (bpp) {
-        case 8:
-            pf.rmask = 0x000000E0;
-            pf.gmask = 0x0000001C;
-            pf.bmask = 0x00000003;
-            pf.rmax = 7;
-            pf.gmax = 7;
-            pf.bmax = 3;
-            pf.rshift = 5;
-            pf.gshift = 2;
-            pf.bshift = 0;
+        case 24:
+            pf.rmask = 0x000000FF;
+            pf.gmask = 0x0000FF00;
+            pf.bmask = 0x00FF0000;
+            pf.rmax = 255;
+            pf.gmax = 255;
+            pf.bmax = 255;
+            pf.rshift = 0;
+            pf.gshift = 8;
+            pf.bshift = 16;
             break;
+        case 32:
+            pf.rmask = 0x0000FF00;
+            pf.gmask = 0x00FF0000;
+            pf.bmask = 0xFF000000;
+            pf.amask = 0x00000000;
+            pf.amax = 255;
+            pf.rmax = 255;
+            pf.gmax = 255;
+            pf.bmax = 255;
+            pf.ashift = 0;
+            pf.rshift = 8;
+            pf.gshift = 16;
+            pf.bshift = 24;
+            break;
+        default:
+            break;
+    }
+    return pf;
+}
+
+PixelFormat qemu_default_pixelformat(int bpp)
+{
+    PixelFormat pf;
+
+    memset(&pf, 0x00, sizeof(PixelFormat));
+
+    pf.bits_per_pixel = bpp;
+    pf.bytes_per_pixel = bpp / 8;
+    pf.depth = bpp == 32 ? 24 : bpp;
+
+    switch (bpp) {
         case 16:
             pf.rmask = 0x0000F800;
             pf.gmask = 0x000007E0;
@@ -1483,13 +1514,24 @@ static PixelFormat qemu_default_pixelformat(int bpp)
             pf.bshift = 0;
             break;
         case 24:
-        case 32:
             pf.rmask = 0x00FF0000;
             pf.gmask = 0x0000FF00;
             pf.bmask = 0x000000FF;
             pf.rmax = 255;
             pf.gmax = 255;
             pf.bmax = 255;
+            pf.rshift = 16;
+            pf.gshift = 8;
+            pf.bshift = 0;
+        case 32:
+            pf.rmask = 0x00FF0000;
+            pf.gmask = 0x0000FF00;
+            pf.bmask = 0x000000FF;
+            pf.amax = 255;
+            pf.rmax = 255;
+            pf.gmax = 255;
+            pf.bmax = 255;
+            pf.ashift = 24;
             pf.rshift = 16;
             pf.gshift = 8;
             pf.bshift = 0;

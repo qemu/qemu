@@ -1623,12 +1623,19 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         disp_width != s->last_width ||
         height != s->last_height ||
         s->last_depth != depth) {
+#if defined(WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
         if (depth == 16 || depth == 32) {
+#else
+        if (depth == 32) {
+#endif
             if (is_graphic_console()) {
                 qemu_free_displaysurface(s->ds->surface);
                 s->ds->surface = qemu_create_displaysurface_from(disp_width, height, depth,
                                                                s->line_offset,
                                                                s->vram_ptr + (s->start_addr * 4));
+#if defined(WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
+                s->ds->surface->pf = qemu_different_endianness_pixelformat(depth);
+#endif
                 dpy_resize(s->ds);
             } else {
                 qemu_console_resize(s->ds, disp_width, height);

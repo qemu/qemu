@@ -134,6 +134,8 @@ DisplaySurface* qemu_resize_displaysurface(DisplaySurface *surface,
 DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
                                                 int linesize, uint8_t *data);
 void qemu_free_displaysurface(DisplaySurface *surface);
+PixelFormat qemu_different_endianness_pixelformat(int bpp);
+PixelFormat qemu_default_pixelformat(int bpp);
 
 static inline int is_buffer_shared(DisplaySurface *surface)
 {
