@@ -793,7 +793,6 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     char buf[1024];
     unsigned long bios_offset;
     target_long bios_size;
-    ram_addr_t ram_addr;
     int64_t kernel_entry;
     PCIBus *pci_bus;
     CPUState *env;
