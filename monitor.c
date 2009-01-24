@@ -1429,6 +1429,7 @@ static void do_info_balloon(void)
         term_printf("balloon: actual=%d\n", (int)(actual >> 20));
 }
 
+/* Please update qemu-doc.texi when adding or changing commands */
 static const term_cmd_t term_cmds[] = {
     { "help|?", "s?", do_help,
       "[cmd]", "show the help" },
@@ -1496,8 +1497,8 @@ static const term_cmd_t term_cmds[] = {
       "path [frequency bits channels]",
       "capture audio to a wave file (default frequency=44100 bits=16 channels=2)" },
 #endif
-     { "stopcapture", "i", do_stop_capture,
-       "capture index", "stop capture" },
+    { "stopcapture", "i", do_stop_capture,
+      "capture index", "stop capture" },
     { "memsave", "lis", do_memory_save,
       "addr size file", "save to disk virtual memory dump starting at 'addr' of size 'size'", },
     { "pmemsave", "lis", do_physical_memory_save,
@@ -1520,9 +1521,10 @@ static const term_cmd_t term_cmds[] = {
     { NULL, NULL, },
 };
 
+/* Please update qemu-doc.texi when adding or changing commands */
 static const term_cmd_t info_cmds[] = {
     { "version", "", do_info_version,
-      "", "show the version of qemu" },
+      "", "show the version of QEMU" },
     { "network", "", do_info_network,
       "", "show the network state" },
     { "chardev", "", qemu_chr_info,
@@ -1554,9 +1556,9 @@ static const term_cmd_t info_cmds[] = {
     { "jit", "", do_info_jit,
       "", "show dynamic compiler info", },
     { "kqemu", "", do_info_kqemu,
-      "", "show kqemu information", },
+      "", "show KQEMU information", },
     { "kvm", "", do_info_kvm,
-      "", "show kvm information", },
+      "", "show KVM information", },
     { "usb", "", usb_info,
       "", "show guest USB devices", },
     { "usbhost", "", usb_host_info,

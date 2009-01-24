@@ -221,12 +221,24 @@ usage: qemu [options] [@var{disk_image}]
 @end example
 
 @c man begin OPTIONS
-@var{disk_image} is a raw hard disk image for IDE hard disk 0.
+@var{disk_image} is a raw hard disk image for IDE hard disk 0. Some
+targets do not need a disk image.
 
 General options:
 @table @option
+@item -h
+Display help and exit
+
 @item -M @var{machine}
 Select the emulated @var{machine} (@code{-M ?} for list)
+
+@item -cpu @var{model}
+Select CPU model (-cpu ? for list and additional feature selection)
+
+@item -smp @var{n}
+Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
+CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
+to 4.
 
 @item -fda @var{file}
 @item -fdb @var{file}
@@ -344,6 +356,15 @@ is interpreted like:
 qemu -hda a -hdb b
 @end example
 
+@item -mtdblock file
+Use 'file' as on-board Flash memory image.
+
+@item -sd file
+Use 'file' as SecureDigital card image.
+
+@item -pflash file
+Use 'file' as a parallel flash image.
+
 @item -boot [a|c|d|n]
 Boot on floppy (a), hard disk (c), CD-ROM (d), or Etherboot (n). Hard disk boot
 is the default.
@@ -353,22 +374,27 @@ Write to temporary files instead of disk image files. In this case,
 the raw disk image you use is not written back. You can however force
 the write back by pressing @key{C-a s} (@pxref{disk_images}).
 
-@item -no-fd-bootchk
-Disable boot signature checking for floppy disks in Bochs BIOS. It may
-be needed to boot from old floppy disks.
-
 @item -m @var{megs}
 Set virtual RAM size to @var{megs} megabytes. Default is 128 MiB.  Optionally,
 a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
 gigabytes respectively.
 
-@item -cpu @var{model}
-Select CPU model (-cpu ? for list and additional feature selection)
+@item -k @var{language}
 
-@item -smp @var{n}
-Simulate an SMP system with @var{n} CPUs. On the PC target, up to 255
-CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
-to 4.
+Use keyboard layout @var{language} (for example @code{fr} for
+French). This option is only needed where it is not easy to get raw PC
+keycodes (e.g. on Macs, with some X11 servers or with a VNC
+display). You don't normally need to use it on PC/Linux or PC/Windows
+hosts.
+
+The available layouts are:
+@example
+ar  de-ch  es  fo     fr-ca  hu  ja  mk     no  pt-br  sv
+da  en-gb  et  fr     fr-ch  is  lt  nl     pl  ru     th
+de  en-us  fi  fr-be  hr     it  lv  nl-be  pt  sl     tr
+@end example
+
+The default is @code{en-us}.
 
 @item -audio-help
 
@@ -395,44 +421,58 @@ require manually specifying clocking.
 modprobe i810_audio clocking=48000
 @end example
 
-@item -localtime
-Set the real time clock to local time (the default is to UTC
-time). This option is needed to have correct date in MS-DOS or
-Windows.
+@end table
 
-@item -startdate @var{date}
-Set the initial date of the real time clock. Valid formats for
-@var{date} are: @code{now} or @code{2006-06-17T16:01:21} or
-@code{2006-06-17}. The default value is @code{now}.
+USB options:
+@table @option
 
-@item -pidfile @var{file}
-Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
-from a script.
+@item -usb
+Enable the USB driver (will be the default soon)
 
-@item -daemonize
-Daemonize the QEMU process after initialization.  QEMU will not detach from
-standard IO until it is ready to receive connections on any of its devices.
-This option is a useful way for external programs to launch QEMU without having
-to cope with initialization race conditions.
+@item -usbdevice @var{devname}
+Add the USB device @var{devname}. @xref{usb_devices}.
 
-@item -win2k-hack
-Use it when installing Windows 2000 to avoid a disk full bug. After
-Windows 2000 is installed, you no longer need this option (this option
-slows down the IDE transfers).
+@table @code
 
-@item -rtc-td-hack
-Use it if you experience time drift problem in Windows with ACPI HAL.
-This option will try to figure out how many timer interrupts were not
-processed by the Windows guest and will re-inject them.
+@item mouse
+Virtual Mouse. This will override the PS/2 mouse emulation when activated.
 
-@item -option-rom @var{file}
-Load the contents of @var{file} as an option ROM.
-This option is useful to load things like EtherBoot.
+@item tablet
+Pointer device that uses absolute coordinates (like a touchscreen). This
+means qemu is able to report the mouse position without having to grab the
+mouse. Also overrides the PS/2 mouse emulation when activated.
+
+@item disk:[format=@var{format}]:file
+Mass storage device based on file. The optional @var{format} argument
+will be used rather than detecting the format. Can be used to specifiy
+format=raw to avoid interpreting an untrusted format header.
+
+@item host:bus.addr
+Pass through the host device identified by bus.addr (Linux only).
+
+@item host:vendor_id:product_id
+Pass through the host device identified by vendor_id:product_id (Linux only).
+
+@item serial:[vendorid=@var{vendor_id}][,productid=@var{product_id}]:@var{dev}
+Serial converter to host character device @var{dev}, see @code{-serial} for the
+available devices.
+
+@item braille
+Braille device.  This will use BrlAPI to display the braille output on a real
+or fake device.
+
+@item net:options
+Network adapter that supports CDC ethernet and RNDIS protocols.
+
+@end table
 
 @item -name @var{name}
 Sets the @var{name} of the guest.
 This name will be displayed in the SDL window caption.
 The @var{name} will also be used for the VNC server.
+
+@item -uuid @var{uuid}
+Set system UUID.
 
 @end table
 
@@ -459,9 +499,42 @@ Do not use decorations for SDL windows and start them using the whole
 available screen space. This makes the using QEMU in a dedicated desktop
 workspace more convenient.
 
+@item -alt-grab
+
+Use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt).
+
 @item -no-quit
 
 Disable SDL window close capability.
+
+@item -sdl
+
+Enable SDL.
+
+@item -portrait
+
+Rotate graphical output 90 deg left (only PXA LCD).
+
+@item -vga @var{type}
+Select type of VGA card to emulate. Valid values for @var{type} are
+@table @code
+@item cirrus
+Cirrus Logic GD5446 Video card. All Windows versions starting from
+Windows 95 should recognize and use this graphic card. For optimal
+performances, use 16 bit color depth in the guest and the host OS.
+(This one is the default)
+@item std
+Standard VGA card with Bochs VBE extensions.  If your guest OS
+supports the VESA 2.0 VBE extensions (e.g. Windows XP) and if you want
+to use high resolution modes (>= 1280x1024x16) then you should use
+this option.
+@item vmware
+VMWare SVGA-II compatible adapter. Use it if you have sufficiently
+recent XFree86/XOrg server or Windows guest with a driver for this
+card.
+@item none
+Disable VGA card.
+@end table
 
 @item -full-screen
 Start in full screen.
@@ -542,68 +615,6 @@ to set a password on the VNC server as a second authentication layer. The
 path following this option specifies where the x509 certificates are to
 be loaded from. See the @ref{vnc_security} section for details on generating
 certificates.
-
-@end table
-
-@item -k @var{language}
-
-Use keyboard layout @var{language} (for example @code{fr} for
-French). This option is only needed where it is not easy to get raw PC
-keycodes (e.g. on Macs, with some X11 servers or with a VNC
-display). You don't normally need to use it on PC/Linux or PC/Windows
-hosts.
-
-The available layouts are:
-@example
-ar  de-ch  es  fo     fr-ca  hu  ja  mk     no  pt-br  sv
-da  en-gb  et  fr     fr-ch  is  lt  nl     pl  ru     th
-de  en-us  fi  fr-be  hr     it  lv  nl-be  pt  sl     tr
-@end example
-
-The default is @code{en-us}.
-
-@end table
-
-USB options:
-@table @option
-
-@item -usb
-Enable the USB driver (will be the default soon)
-
-@item -usbdevice @var{devname}
-Add the USB device @var{devname}. @xref{usb_devices}.
-
-@table @code
-
-@item mouse
-Virtual Mouse. This will override the PS/2 mouse emulation when activated.
-
-@item tablet
-Pointer device that uses absolute coordinates (like a touchscreen). This
-means qemu is able to report the mouse position without having to grab the
-mouse. Also overrides the PS/2 mouse emulation when activated.
-
-@item disk:[format=@var{format}]:file
-Mass storage device based on file. The optional @var{format} argument
-will be used rather than detecting the format. Can be used to specifiy
-format=raw to avoid interpreting an untrusted format header.
-
-@item host:bus.addr
-Pass through the host device identified by bus.addr (Linux only).
-
-@item host:vendor_id:product_id
-Pass through the host device identified by vendor_id:product_id (Linux only).
-
-@item serial:[vendorid=@var{vendor_id}][,productid=@var{product_id}]:@var{dev}
-Serial converter to host character device @var{dev}, see @code{-serial} for the
-available devices.
-
-@item braille
-Braille device.  This will use BrlAPI to display the braille output on a real
-or fake device.
-
-@item net:options
-Network adapter that supports CDC ethernet and RNDIS protocols.
 
 @end table
 
@@ -856,6 +867,34 @@ Virtual wireless keyboard implementing the HIDP bluetooth profile.
 
 @end table
 
+i386 target only:
+
+@table @option
+
+@item -win2k-hack
+Use it when installing Windows 2000 to avoid a disk full bug. After
+Windows 2000 is installed, you no longer need this option (this option
+slows down the IDE transfers).
+
+@item -rtc-td-hack
+Use it if you experience time drift problem in Windows with ACPI HAL.
+This option will try to figure out how many timer interrupts were not
+processed by the Windows guest and will re-inject them.
+
+@item -no-fd-bootchk
+Disable boot signature checking for floppy disks in Bochs BIOS. It may
+be needed to boot from old floppy disks.
+
+@item -no-acpi
+Disable ACPI (Advanced Configuration and Power Interface) support. Use
+it if your guest OS complains about ACPI problems (PC target machine
+only).
+
+@item -no-hpet
+Disable HPET support.
+
+@end table
+
 Linux boot specific: When using these options, you can use a given
 Linux kernel without installing it in the disk image. It can be useful
 for easier testing of various kernels.
@@ -881,7 +920,7 @@ Redirect the virtual serial port to host character device
 @var{dev}. The default device is @code{vc} in graphical mode and
 @code{stdio} in non graphical mode.
 
-This option can be used several times to simulate up to 4 serials
+This option can be used several times to simulate up to 4 serial
 ports.
 
 Use @code{-serial none} to disable all serial ports.
@@ -1015,6 +1054,92 @@ serial port).
 The default device is @code{vc} in graphical mode and @code{stdio} in
 non graphical mode.
 
+@item -pidfile @var{file}
+Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
+from a script.
+
+@item -S
+Do not start CPU at startup (you must type 'c' in the monitor).
+
+@item -s
+Wait gdb connection to port 1234 (@pxref{gdb_usage}).
+
+@item -p @var{port}
+Change gdb connection port.  @var{port} can be either a decimal number
+to specify a TCP port, or a host device (same devices as the serial port).
+
+@item -d
+Output log in /tmp/qemu.log
+@item -hdachs @var{c},@var{h},@var{s},[,@var{t}]
+Force hard disk 0 physical geometry (1 <= @var{c} <= 16383, 1 <=
+@var{h} <= 16, 1 <= @var{s} <= 63) and optionally force the BIOS
+translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
+all those parameters. This option is useful for old MS-DOS disk
+images.
+
+@item -L  @var{path}
+Set the directory for the BIOS, VGA BIOS and keymaps.
+
+@item -bios @var{file}
+Set the filename for the BIOS.
+
+@item -kernel-kqemu
+Enable KQEMU full virtualization (default is user mode only).
+
+@item -no-kqemu
+Disable KQEMU kernel module usage. KQEMU options are only available if
+KQEMU support is enabled when compiling.
+
+@item -enable-kvm
+Enable KVM full virtualization support. This option is only available
+if KVM support is enabled when compiling.
+
+@item -no-reboot
+Exit instead of rebooting.
+
+@item -no-shutdown
+Don't exit QEMU on guest shutdown, but instead only stop the emulation.
+This allows for instance switching to monitor to commit changes to the
+disk image.
+
+@item -loadvm @var{file}
+Start right away with a saved state (@code{loadvm} in monitor)
+
+@item -daemonize
+Daemonize the QEMU process after initialization.  QEMU will not detach from
+standard IO until it is ready to receive connections on any of its devices.
+This option is a useful way for external programs to launch QEMU without having
+to cope with initialization race conditions.
+
+@item -option-rom @var{file}
+Load the contents of @var{file} as an option ROM.
+This option is useful to load things like EtherBoot.
+
+@item -clock @var{method}
+Force the use of the given methods for timer alarm. To see what timers
+are available use -clock ?.
+
+@item -localtime
+Set the real time clock to local time (the default is to UTC
+time). This option is needed to have correct date in MS-DOS or
+Windows.
+
+@item -startdate @var{date}
+Set the initial date of the real time clock. Valid formats for
+@var{date} are: @code{now} or @code{2006-06-17T16:01:21} or
+@code{2006-06-17}. The default value is @code{now}.
+
+@item -icount [N|auto]
+Enable virtual instruction counter.  The virtual cpu will execute one
+instruction every 2^N ns of virtual time.  If @code{auto} is specified
+then the virtual cpu speed will be automatically adjusted to keep virtual
+time within a few seconds of real time.
+
+Note that while this option can give deterministic behavior, it does not
+provide cycle accurate emulation.  Modern CPUs contain superscalar out of
+order cores with complex cache hierarchies.  The number of instructions
+executed often has little or no correlation with actual performance.
+
 @item -echr numeric_ascii_value
 Change the escape character used for switching to the monitor when using
 monitor and serial sharing.  The default is @code{0x01} when using the
@@ -1028,79 +1153,6 @@ character to Control-t.
 @item -echr 20
 @end table
 
-@item -s
-Wait gdb connection to port 1234 (@pxref{gdb_usage}).
-@item -p @var{port}
-Change gdb connection port.  @var{port} can be either a decimal number
-to specify a TCP port, or a host device (same devices as the serial port).
-@item -S
-Do not start CPU at startup (you must type 'c' in the monitor).
-@item -d
-Output log in /tmp/qemu.log
-@item -hdachs @var{c},@var{h},@var{s},[,@var{t}]
-Force hard disk 0 physical geometry (1 <= @var{c} <= 16383, 1 <=
-@var{h} <= 16, 1 <= @var{s} <= 63) and optionally force the BIOS
-translation mode (@var{t}=none, lba or auto). Usually QEMU can guess
-all those parameters. This option is useful for old MS-DOS disk
-images.
-
-@item -L path
-Set the directory for the BIOS, VGA BIOS and keymaps.
-
-@item -vga @var{type}
-Select type of VGA card to emulate. Valid values for @var{type} are
-@table @code
-@item cirrus
-Cirrus Logic GD5446 Video card. All Windows versions starting from
-Windows 95 should recognize and use this graphic card. For optimal
-performances, use 16 bit color depth in the guest and the host OS.
-(This one is the default)
-@item std
-Standard VGA card with Bochs VBE extensions.  If your guest OS
-supports the VESA 2.0 VBE extensions (e.g. Windows XP) and if you want
-to use high resolution modes (>= 1280x1024x16) then you should use
-this option.
-@item vmware
-VMWare SVGA-II compatible adapter. Use it if you have sufficiently
-recent XFree86/XOrg server or Windows guest with a driver for this
-card.
-@end table
-
-@item -no-acpi
-Disable ACPI (Advanced Configuration and Power Interface) support. Use
-it if your guest OS complains about ACPI problems (PC target machine
-only).
-
-@item -no-reboot
-Exit instead of rebooting.
-
-@item -no-shutdown
-Don't exit QEMU on guest shutdown, but instead only stop the emulation.
-This allows for instance switching to monitor to commit changes to the
-disk image.
-
-@item -loadvm file
-Start right away with a saved state (@code{loadvm} in monitor)
-
-@item -semihosting
-Enable semihosting syscall emulation (ARM and M68K target machines only).
-
-On ARM this implements the "Angel" interface.
-On M68K this implements the "ColdFire GDB" interface used by libgloss.
-
-Note that this allows guest direct access to the host filesystem,
-so should only be used with trusted guest OS.
-
-@item -icount [N|auto]
-Enable virtual instruction counter.  The virtual cpu will execute one
-instruction every 2^N ns of virtual time.  If @code{auto} is specified
-then the virtual cpu speed will be automatically adjusted to keep virtual
-time within a few seconds of real time.
-
-Note that while this option can give deterministic behavior, it does not
-provide cycle accurate emulation.  Modern CPUs contain superscalar out of
-order cores with complex cache hierarchies.  The number of instructions
-executed often has little or no correlation with actual performance.
 @end table
 
 @c man end
@@ -1138,13 +1190,14 @@ During emulation, if you are using the @option{-nographic} option, use
 
 @table @key
 @item Ctrl-a h
+@item Ctrl-a ?
 Print this help
 @item Ctrl-a x
 Exit emulator
 @item Ctrl-a s
 Save disk data back to file (if -snapshot)
 @item Ctrl-a t
-toggle console timestamps
+Toggle console timestamps
 @item Ctrl-a b
 Send break (magic sysrq in Linux)
 @item Ctrl-a c
@@ -1203,26 +1256,68 @@ Commit changes to the disk images (if -snapshot is used).
 Show various information about the system state.
 
 @table @option
+@item info version
+show the version of QEMU
 @item info network
 show the various VLANs and the associated devices
+@item info chardev
+show the character devices
 @item info block
 show the block devices
+@item info block
+show block device statistics
 @item info registers
 show the cpu registers
+@item info cpus
+show infos for each CPU
 @item info history
 show the command line history
+@item info irq
+show the interrupts statistics (if available)
+@item info pic
+show i8259 (PIC) state
 @item info pci
-show emulated PCI device
+show emulated PCI device info
+@item info tlb
+show virtual to physical memory mappings (i386 only)
+@item info mem
+show the active virtual memory mappings (i386 only)
+@item info hpet
+show state of HPET (i386 only)
+@item info kqemu
+show KQEMU information
+@item info kvm
+show KVM information
 @item info usb
 show USB devices plugged on the virtual USB hub
 @item info usbhost
 show all USB host devices
+@item info profile
+show profiling information
 @item info capture
 show information about active capturing
 @item info snapshots
 show list of VM snapshots
+@item info status
+show the current VM status (running|paused)
+@item info pcmcia
+show guest PCMCIA status
 @item info mice
 show which guest mouse is receiving events
+@item info vnc
+show the vnc server status
+@item info name
+show the current VM name
+@item info uuid
+show the current VM UUID
+@item info cpustats
+show CPU statistics
+@item info slirp
+show SLIRP statistics (if available)
+@item info migrate
+show migration status
+@item info balloon
+show balloon information
 @end table
 
 @item q or quit
@@ -1236,12 +1331,14 @@ Eject a removable medium (use -f to force it).
 Change the configuration of a device.
 
 @table @option
-@item change @var{diskdevice} @var{filename}
+@item change @var{diskdevice} @var{filename} [@var{format}]
 Change the medium for a removable disk device to point to @var{filename}. eg
 
 @example
 (qemu) change ide1-cd0 /path/to/some.iso
 @end example
+
+@var{format} is optional.
 
 @item change vnc @var{display},@var{options}
 Change the configuration of the VNC server. The valid syntax for @var{display}
@@ -1267,36 +1364,8 @@ Password: ********
 @item screendump @var{filename}
 Save screen into PPM image @var{filename}.
 
-@item mouse_move @var{dx} @var{dy} [@var{dz}]
-Move the active mouse to the specified coordinates @var{dx} @var{dy}
-with optional scroll axis @var{dz}.
-
-@item mouse_button @var{val}
-Change the active mouse button state @var{val} (1=L, 2=M, 4=R).
-
-@item mouse_set @var{index}
-Set which mouse device receives events at given @var{index}, index
-can be obtained with
-@example
-info mice
-@end example
-
-@item wavcapture @var{filename} [@var{frequency} [@var{bits} [@var{channels}]]]
-Capture audio into @var{filename}. Using sample rate @var{frequency}
-bits per sample @var{bits} and number of channels @var{channels}.
-
-Defaults:
-@itemize @minus
-@item Sample rate = 44100 Hz - CD quality
-@item Bits = 16
-@item Number of channels = 2 - Stereo
-@end itemize
-
-@item stopcapture @var{index}
-Stop capture with a given @var{index}, index can be obtained with
-@example
-info capture
-@end example
+@item logfile @var{filename}
+Output logs to @var{filename}.
 
 @item log @var{item1}[,...]
 Activate logging of the specified items to @file{/tmp/qemu.log}.
@@ -1403,13 +1472,13 @@ intercepts at low level, such as @code{ctrl-alt-f1} in X Window.
 
 Reset the system.
 
-@item boot_set @var{bootdevicelist}
+@item system_powerdown
 
-Define new values for the boot device list. Those values will override
-the values specified on the command line through the @code{-boot} option.
+Power down the system (if supported).
 
-The values that can be specified here depend on the machine type, but are
-the same that can be specified in the @code{-boot} command line option.
+@item sum @var{addr} @var{size}
+
+Compute the checksum of a memory region.
 
 @item usb_add @var{devname}
 
@@ -1421,6 +1490,69 @@ Add the USB device @var{devname}.  For details of available devices see
 Remove the USB device @var{devname} from the QEMU virtual USB
 hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
 command @code{info usb} to see the devices you can remove.
+
+@item mouse_move @var{dx} @var{dy} [@var{dz}]
+Move the active mouse to the specified coordinates @var{dx} @var{dy}
+with optional scroll axis @var{dz}.
+
+@item mouse_button @var{val}
+Change the active mouse button state @var{val} (1=L, 2=M, 4=R).
+
+@item mouse_set @var{index}
+Set which mouse device receives events at given @var{index}, index
+can be obtained with
+@example
+info mice
+@end example
+
+@item wavcapture @var{filename} [@var{frequency} [@var{bits} [@var{channels}]]]
+Capture audio into @var{filename}. Using sample rate @var{frequency}
+bits per sample @var{bits} and number of channels @var{channels}.
+
+Defaults:
+@itemize @minus
+@item Sample rate = 44100 Hz - CD quality
+@item Bits = 16
+@item Number of channels = 2 - Stereo
+@end itemize
+
+@item stopcapture @var{index}
+Stop capture with a given @var{index}, index can be obtained with
+@example
+info capture
+@end example
+
+@item memsave @var{addr} @var{size} @var{file}
+save to disk virtual memory dump starting at @var{addr} of size @var{size}.
+
+@item pmemsave @var{addr} @var{size} @var{file}
+save to disk physical memory dump starting at @var{addr} of size @var{size}.
+
+@item boot_set @var{bootdevicelist}
+
+Define new values for the boot device list. Those values will override
+the values specified on the command line through the @code{-boot} option.
+
+The values that can be specified here depend on the machine type, but are
+the same that can be specified in the @code{-boot} command line option.
+
+@item nmi @var{cpu}
+Inject an NMI on the given CPU.
+
+@item migrate [-d] @var{uri}
+Migrate to @var{uri} (using -d to not wait for completion).
+
+@item migrate_cancel
+Cancel the current VM migration.
+
+@item migrate_set_speed @var{value}
+Set maximum speed to @var{value} (in bytes) for migrations.
+
+@item balloon @var{value}
+Request VM to change its memory allocation to @var{value} (in MB).
+
+@item set_link @var{name} [up|down]
+Set link @var{name} up or down.
 
 @end table
 
@@ -2850,6 +2982,22 @@ Three on-chip UARTs
 A Linux 2.6 test image is available on the QEMU web site. More
 information is available in the QEMU mailing-list archive.
 
+@c man begin OPTIONS
+
+The following options are specific to the ARM emulation:
+
+@table @option
+
+@item -semihosting
+Enable semihosting syscall emulation.
+
+On ARM this implements the "Angel" interface.
+
+Note that this allows guest direct access to the host filesystem,
+so should only be used with trusted guest OS.
+
+@end table
+
 @node ColdFire System emulator
 @section ColdFire System emulator
 
@@ -2875,6 +3023,22 @@ MCF5206 ColdFire V2 Microprocessor.
 @item
 Two on-chip UARTs.
 @end itemize
+
+@c man begin OPTIONS
+
+The following options are specific to the ARM emulation:
+
+@table @option
+
+@item -semihosting
+Enable semihosting syscall emulation.
+
+On M68K this implements the "ColdFire GDB" interface used by libgloss.
+
+Note that this allows guest direct access to the host filesystem,
+so should only be used with trusted guest OS.
+
+@end table
 
 @node QEMU User space emulator
 @chapter QEMU User space emulator

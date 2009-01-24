@@ -3851,14 +3851,18 @@ static int main_loop(void)
 
 static void help(int exitcode)
 {
+    /* Please keep in synch with QEMU_OPTION_ enums, qemu_options[]
+       and qemu-doc.texi */
     printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
            "usage: %s [options] [disk_image]\n"
            "\n"
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
            "\n"
            "Standard options:\n"
+           "-h or -help     display this help and exit\n"
            "-M machine      select emulated machine (-M ? for list)\n"
            "-cpu cpu        select CPU (-cpu ? for list)\n"
+           "-smp n          set the number of CPUs to 'n' [default=1]\n"
            "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n"
            "-hda/-hdb file  use 'file' as IDE hard disk 0/1 image\n"
            "-hdc/-hdd file  use 'file' as IDE hard disk 2/3 image\n"
@@ -3872,19 +3876,7 @@ static void help(int exitcode)
            "-pflash file    use 'file' as a parallel flash image\n"
            "-boot [a|c|d|n] boot on floppy (a), hard disk (c), CD-ROM (d), or network (n)\n"
            "-snapshot       write to temporary files instead of disk image files\n"
-#ifdef CONFIG_SDL
-           "-no-frame       open SDL window without a frame and window decorations\n"
-           "-alt-grab       use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt)\n"
-           "-no-quit        disable SDL window close capability\n"
-           "-sdl            enable SDL\n"
-#endif
-#ifdef TARGET_I386
-           "-no-fd-bootchk  disable boot signature checking for floppy disks\n"
-#endif
            "-m megs         set virtual RAM size to megs MB [default=%d]\n"
-           "-smp n          set the number of CPUs to 'n' [default=1]\n"
-           "-nographic      disable graphical output and redirect serial I/Os to console\n"
-           "-portrait       rotate graphical output 90 deg left (only PXA LCD)\n"
 #ifndef _WIN32
            "-k language     use keyboard layout (for example \"fr\" for French)\n"
 #endif
@@ -3895,21 +3887,31 @@ static void help(int exitcode)
            "                use -soundhw ? to get the list of supported cards\n"
            "                use -soundhw all to enable all of them\n"
 #endif
-           "-vga [std|cirrus|vmware|none]\n"
-           "                select video card type\n"
-           "-localtime      set the real time clock to local time [default=utc]\n"
-           "-full-screen    start in full screen\n"
-#ifdef TARGET_I386
-           "-win2k-hack     use it when installing Windows 2000 to avoid a disk full bug\n"
-           "-rtc-td-hack    use it to fix time drift in Windows ACPI HAL\n"
-#endif
            "-usb            enable the USB driver (will be the default soon)\n"
            "-usbdevice name add the host or guest USB device 'name'\n"
+           "-name string    set the name of the guest\n"
+           "-uuid %%08x-%%04x-%%04x-%%04x-%%012x\n"
+           "                specify machine UUID\n"
+           "\n"
+           "Display options:\n"
+           "-nographic      disable graphical output and redirect serial I/Os to console\n"
+#ifdef CONFIG_CURSES
+           "-curses         use a curses/ncurses interface instead of SDL\n"
+#endif
+#ifdef CONFIG_SDL
+           "-no-frame       open SDL window without a frame and window decorations\n"
+           "-alt-grab       use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt)\n"
+           "-no-quit        disable SDL window close capability\n"
+           "-sdl            enable SDL\n"
+#endif
+           "-portrait       rotate graphical output 90 deg left (only PXA LCD)\n"
+           "-vga [std|cirrus|vmware|none]\n"
+           "                select video card type\n"
+           "-full-screen    start in full screen\n"
 #if defined(TARGET_PPC) || defined(TARGET_SPARC)
            "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n"
 #endif
-           "-name string    set the name of the guest\n"
-           "-uuid %%08x-%%04x-%%04x-%%04x-%%012x specify machine UUID\n"
+           "-vnc display    start a VNC server on display\n"
            "\n"
            "Network options:\n"
            "-net nic[,vlan=n][,macaddr=addr][,model=type][,name=str]\n"
@@ -3943,17 +3945,6 @@ static void help(int exitcode)
 #endif
            "-net none       use it alone to have zero network devices; if no -net option\n"
            "                is provided, the default is '-net nic -net user'\n"
-           "\n"
-           "-bt hci,null    Dumb bluetooth HCI - doesn't respond to commands\n"
-           "-bt hci,host[:id]\n"
-           "                Use host's HCI with the given name\n"
-           "-bt hci[,vlan=n]\n"
-           "                Emulate a standard HCI in virtual scatternet 'n'\n"
-           "-bt vhci[,vlan=n]\n"
-           "                Add host computer to virtual scatternet 'n' using VHCI\n"
-           "-bt device:dev[,vlan=n]\n"
-           "                Emulate a bluetooth device 'dev' in scatternet 'n'\n"
-           "\n"
 #ifdef CONFIG_SLIRP
            "-tftp dir       allow tftp access to files in dir [-net user]\n"
            "-bootp file     advertise file in BOOTP replies\n"
@@ -3964,23 +3955,44 @@ static void help(int exitcode)
            "                redirect TCP or UDP connections from host to guest [-net user]\n"
 #endif
            "\n"
+           "-bt hci,null    dumb bluetooth HCI - doesn't respond to commands\n"
+           "-bt hci,host[:id]\n"
+           "                use host's HCI with the given name\n"
+           "-bt hci[,vlan=n]\n"
+           "                emulate a standard HCI in virtual scatternet 'n'\n"
+           "-bt vhci[,vlan=n]\n"
+           "                add host computer to virtual scatternet 'n' using VHCI\n"
+           "-bt device:dev[,vlan=n]\n"
+           "                emulate a bluetooth device 'dev' in scatternet 'n'\n"
+           "\n"
+#ifdef TARGET_I386
+           "\n"
+           "i386 target only:\n"
+           "-win2k-hack     use it when installing Windows 2000 to avoid a disk full bug\n"
+           "-rtc-td-hack    use it to fix time drift in Windows ACPI HAL\n"
+           "-no-fd-bootchk  disable boot signature checking for floppy disks\n"
+           "-no-acpi        disable ACPI\n"
+           "-no-hpet        disable HPET\n"
+#endif
            "Linux boot specific:\n"
            "-kernel bzImage use 'bzImage' as kernel image\n"
            "-append cmdline use 'cmdline' as kernel command line\n"
            "-initrd file    use 'file' as initial ram disk\n"
            "\n"
            "Debug/Expert options:\n"
-           "-monitor dev    redirect the monitor to char device 'dev'\n"
            "-serial dev     redirect the serial port to char device 'dev'\n"
            "-parallel dev   redirect the parallel port to char device 'dev'\n"
-           "-pidfile file   Write PID to 'file'\n"
+           "-monitor dev    redirect the monitor to char device 'dev'\n"
+           "-pidfile file   write PID to 'file'\n"
            "-S              freeze CPU at startup (use 'c' to start execution)\n"
            "-s              wait gdb connection to port\n"
            "-p port         set gdb connection port [default=%s]\n"
            "-d item1,...    output log to %s (use -d ? for a list of log items)\n"
-           "-hdachs c,h,s[,t]  force hard disk 0 physical geometry and the optional BIOS\n"
+           "-hdachs c,h,s[,t]\n"
+           "                force hard disk 0 physical geometry and the optional BIOS\n"
            "                translation (t=none or lba) (usually qemu can guess them)\n"
            "-L path         set the directory for the BIOS, VGA BIOS and keymaps\n"
+           "-bios file      set the filename for the BIOS\n"
 #ifdef USE_KQEMU
            "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n"
            "-no-kqemu       disable KQEMU kernel module usage\n"
@@ -3988,29 +4000,36 @@ static void help(int exitcode)
 #ifdef CONFIG_KVM
            "-enable-kvm     enable KVM full virtualization support\n"
 #endif
-#ifdef TARGET_I386
-           "-no-acpi        disable ACPI\n"
-           "-no-hpet        disable HPET\n"
-#endif
-#ifdef CONFIG_CURSES
-           "-curses         use a curses/ncurses interface instead of SDL\n"
-#endif
            "-no-reboot      exit instead of rebooting\n"
            "-no-shutdown    stop before shutdown\n"
-           "-loadvm [tag|id]  start right away with a saved state (loadvm in monitor)\n"
-	   "-vnc display    start a VNC server on display\n"
+           "-loadvm [tag|id]\n"
+           "                start right away with a saved state (loadvm in monitor)\n"
 #ifndef _WIN32
 	   "-daemonize      daemonize QEMU after initializing\n"
 #endif
 	   "-option-rom rom load a file, rom, into the option ROM space\n"
-#ifdef TARGET_SPARC
-           "-prom-env variable=value  set OpenBIOS nvram variables\n"
+#if defined(TARGET_SPARC) || defined(TARGET_PPC)
+           "-prom-env variable=value\n"
+           "                set OpenBIOS nvram variables\n"
 #endif
            "-clock          force the use of the given methods for timer alarm.\n"
            "                To see what timers are available use -clock ?\n"
+           "-localtime      set the real time clock to local time [default=utc]\n"
            "-startdate      select initial date of the clock\n"
            "-icount [N|auto]\n"
-           "                Enable virtual instruction counter with 2^N clock ticks per instruction\n"
+           "                enable virtual instruction counter with 2^N clock ticks per instruction\n"
+           "-echr chr       set terminal escape character instead of ctrl-a\n"
+           "-virtioconsole c\n"
+           "                set virtio console\n"
+           "-show-cursor    show cursor\n"
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
+           "-semihosting    semihosting mode\n"
+#endif
+#if defined(TARGET_ARM)
+           "-old-param      old param mode\n"
+#endif
+           "-tb-size n      set TB size\n"
+           "-incoming p     prepare for incoming migration, listen on port p\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -4033,34 +4052,49 @@ static void help(int exitcode)
 #define HAS_ARG 0x0001
 
 enum {
+    /* Please keep in synch with help, qemu_options[] and
+       qemu-doc.texi */
+    /* Standard options: */
     QEMU_OPTION_h,
-
     QEMU_OPTION_M,
     QEMU_OPTION_cpu,
+    QEMU_OPTION_smp,
     QEMU_OPTION_fda,
     QEMU_OPTION_fdb,
     QEMU_OPTION_hda,
     QEMU_OPTION_hdb,
     QEMU_OPTION_hdc,
     QEMU_OPTION_hdd,
-    QEMU_OPTION_drive,
     QEMU_OPTION_cdrom,
+    QEMU_OPTION_drive,
     QEMU_OPTION_mtdblock,
     QEMU_OPTION_sd,
     QEMU_OPTION_pflash,
     QEMU_OPTION_boot,
     QEMU_OPTION_snapshot,
-#ifdef TARGET_I386
-    QEMU_OPTION_no_fd_bootchk,
-#endif
     QEMU_OPTION_m,
-    QEMU_OPTION_nographic,
-    QEMU_OPTION_portrait,
-#ifdef HAS_AUDIO
+    QEMU_OPTION_k,
     QEMU_OPTION_audio_help,
     QEMU_OPTION_soundhw,
-#endif
+    QEMU_OPTION_usb,
+    QEMU_OPTION_usbdevice,
+    QEMU_OPTION_name,
+    QEMU_OPTION_uuid,
 
+    /* Display options: */
+    QEMU_OPTION_nographic,
+    QEMU_OPTION_curses,
+    QEMU_OPTION_no_frame,
+    QEMU_OPTION_alt_grab,
+    QEMU_OPTION_no_quit,
+    QEMU_OPTION_sdl,
+    QEMU_OPTION_portrait,
+    QEMU_OPTION_vga,
+    QEMU_OPTION_full_screen,
+    QEMU_OPTION_g,
+    QEMU_OPTION_vnc,
+
+    /* Network options: */
     QEMU_OPTION_net,
     QEMU_OPTION_tftp,
     QEMU_OPTION_bootp,
@@ -4068,10 +4102,23 @@ enum {
     QEMU_OPTION_redir,
     QEMU_OPTION_bt,
 
+    /* i386 target only: */
+    QEMU_OPTION_win2k_hack,
+    QEMU_OPTION_rtc_td_hack,
+    QEMU_OPTION_no_fd_bootchk,
+    QEMU_OPTION_no_acpi,
+    QEMU_OPTION_no_hpet,
+
+    /* Linux boot specific: */
     QEMU_OPTION_kernel,
     QEMU_OPTION_append,
     QEMU_OPTION_initrd,
 
+    /* Debug/Expert options: */
+    QEMU_OPTION_serial,
+    QEMU_OPTION_parallel,
+    QEMU_OPTION_monitor,
+    QEMU_OPTION_pidfile,
     QEMU_OPTION_S,
     QEMU_OPTION_s,
     QEMU_OPTION_p,
@@ -4079,48 +4126,25 @@ enum {
     QEMU_OPTION_hdachs,
     QEMU_OPTION_L,
     QEMU_OPTION_bios,
-    QEMU_OPTION_k,
-    QEMU_OPTION_localtime,
-    QEMU_OPTION_g,
-    QEMU_OPTION_vga,
-    QEMU_OPTION_echr,
-    QEMU_OPTION_monitor,
-    QEMU_OPTION_serial,
-    QEMU_OPTION_virtiocon,
-    QEMU_OPTION_parallel,
-    QEMU_OPTION_loadvm,
-    QEMU_OPTION_full_screen,
-    QEMU_OPTION_no_frame,
-    QEMU_OPTION_alt_grab,
-    QEMU_OPTION_no_quit,
-    QEMU_OPTION_sdl,
-    QEMU_OPTION_pidfile,
-    QEMU_OPTION_no_kqemu,
     QEMU_OPTION_kernel_kqemu,
+    QEMU_OPTION_no_kqemu,
     QEMU_OPTION_enable_kvm,
-    QEMU_OPTION_win2k_hack,
-    QEMU_OPTION_rtc_td_hack,
-    QEMU_OPTION_usb,
-    QEMU_OPTION_usbdevice,
-    QEMU_OPTION_smp,
-    QEMU_OPTION_vnc,
-    QEMU_OPTION_no_acpi,
-    QEMU_OPTION_no_hpet,
-    QEMU_OPTION_curses,
     QEMU_OPTION_no_reboot,
     QEMU_OPTION_no_shutdown,
-    QEMU_OPTION_show_cursor,
+    QEMU_OPTION_loadvm,
     QEMU_OPTION_daemonize,
     QEMU_OPTION_option_rom,
-    QEMU_OPTION_semihosting,
-    QEMU_OPTION_name,
     QEMU_OPTION_prom_env,
-    QEMU_OPTION_old_param,
     QEMU_OPTION_clock,
+    QEMU_OPTION_localtime,
     QEMU_OPTION_startdate,
-    QEMU_OPTION_tb_size,
     QEMU_OPTION_icount,
-    QEMU_OPTION_uuid,
+    QEMU_OPTION_echr,
+    QEMU_OPTION_virtiocon,
+    QEMU_OPTION_show_cursor,
+    QEMU_OPTION_semihosting,
+    QEMU_OPTION_old_param,
+    QEMU_OPTION_tb_size,
     QEMU_OPTION_incoming,
 };
 
@@ -4131,36 +4155,60 @@ typedef struct QEMUOption {
 } QEMUOption;
 
 static const QEMUOption qemu_options[] = {
+    /* Please keep in synch with help, QEMU_OPTION_ enums, and
+       qemu-doc.texi */
+    /* Standard options: */
     { "h", 0, QEMU_OPTION_h },
     { "help", 0, QEMU_OPTION_h },
-
     { "M", HAS_ARG, QEMU_OPTION_M },
     { "cpu", HAS_ARG, QEMU_OPTION_cpu },
+    { "smp", HAS_ARG, QEMU_OPTION_smp },
     { "fda", HAS_ARG, QEMU_OPTION_fda },
     { "fdb", HAS_ARG, QEMU_OPTION_fdb },
     { "hda", HAS_ARG, QEMU_OPTION_hda },
     { "hdb", HAS_ARG, QEMU_OPTION_hdb },
     { "hdc", HAS_ARG, QEMU_OPTION_hdc },
     { "hdd", HAS_ARG, QEMU_OPTION_hdd },
-    { "drive", HAS_ARG, QEMU_OPTION_drive },
     { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
+    { "drive", HAS_ARG, QEMU_OPTION_drive },
     { "mtdblock", HAS_ARG, QEMU_OPTION_mtdblock },
     { "sd", HAS_ARG, QEMU_OPTION_sd },
     { "pflash", HAS_ARG, QEMU_OPTION_pflash },
     { "boot", HAS_ARG, QEMU_OPTION_boot },
     { "snapshot", 0, QEMU_OPTION_snapshot },
-#ifdef TARGET_I386
-    { "no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk },
-#endif
     { "m", HAS_ARG, QEMU_OPTION_m },
-    { "nographic", 0, QEMU_OPTION_nographic },
-    { "portrait", 0, QEMU_OPTION_portrait },
+#ifndef _WIN32
     { "k", HAS_ARG, QEMU_OPTION_k },
+#endif
 #ifdef HAS_AUDIO
     { "audio-help", 0, QEMU_OPTION_audio_help },
     { "soundhw", HAS_ARG, QEMU_OPTION_soundhw },
 #endif
+    { "usb", 0, QEMU_OPTION_usb },
+    { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
+    { "name", HAS_ARG, QEMU_OPTION_name },
+    { "uuid", HAS_ARG, QEMU_OPTION_uuid },
 
+    /* Display options: */
+    { "nographic", 0, QEMU_OPTION_nographic },
+#ifdef CONFIG_CURSES
+    { "curses", 0, QEMU_OPTION_curses },
+#endif
+#ifdef CONFIG_SDL
+    { "no-frame", 0, QEMU_OPTION_no_frame },
+    { "alt-grab", 0, QEMU_OPTION_alt_grab },
+    { "no-quit", 0, QEMU_OPTION_no_quit },
+    { "sdl", 0, QEMU_OPTION_sdl },
+#endif
+    { "portrait", 0, QEMU_OPTION_portrait },
+    { "vga", HAS_ARG, QEMU_OPTION_vga },
+    { "full-screen", 0, QEMU_OPTION_full_screen },
+#if defined(TARGET_PPC) || defined(TARGET_SPARC)
+    { "g", 1, QEMU_OPTION_g },
+#endif
+    { "vnc", HAS_ARG, QEMU_OPTION_vnc },
+
+    /* Network options: */
     { "net", HAS_ARG, QEMU_OPTION_net},
 #ifdef CONFIG_SLIRP
     { "tftp", HAS_ARG, QEMU_OPTION_tftp },
@@ -4171,11 +4219,25 @@ static const QEMUOption qemu_options[] = {
     { "redir", HAS_ARG, QEMU_OPTION_redir },
 #endif
     { "bt", HAS_ARG, QEMU_OPTION_bt },
+#ifdef TARGET_I386
+    /* i386 target only: */
+    { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
+    { "rtc-td-hack", 0, QEMU_OPTION_rtc_td_hack },
+    { "no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk },
+    { "no-acpi", 0, QEMU_OPTION_no_acpi },
+    { "no-hpet", 0, QEMU_OPTION_no_hpet },
+#endif
 
+    /* Linux boot specific: */
     { "kernel", HAS_ARG, QEMU_OPTION_kernel },
     { "append", HAS_ARG, QEMU_OPTION_append },
     { "initrd", HAS_ARG, QEMU_OPTION_initrd },
 
+    /* Debug/Expert options: */
+    { "serial", HAS_ARG, QEMU_OPTION_serial },
+    { "parallel", HAS_ARG, QEMU_OPTION_parallel },
+    { "monitor", HAS_ARG, QEMU_OPTION_monitor },
+    { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
     { "S", 0, QEMU_OPTION_S },
     { "s", 0, QEMU_OPTION_s },
     { "p", HAS_ARG, QEMU_OPTION_p },
@@ -4184,64 +4246,34 @@ static const QEMUOption qemu_options[] = {
     { "L", HAS_ARG, QEMU_OPTION_L },
     { "bios", HAS_ARG, QEMU_OPTION_bios },
 #ifdef USE_KQEMU
-    { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
     { "kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu },
+    { "no-kqemu", 0, QEMU_OPTION_no_kqemu },
 #endif
 #ifdef CONFIG_KVM
     { "enable-kvm", 0, QEMU_OPTION_enable_kvm },
 #endif
-#if defined(TARGET_PPC) || defined(TARGET_SPARC)
-    { "g", 1, QEMU_OPTION_g },
-#endif
-    { "localtime", 0, QEMU_OPTION_localtime },
-    { "vga", HAS_ARG, QEMU_OPTION_vga },
-    { "echr", HAS_ARG, QEMU_OPTION_echr },
-    { "monitor", HAS_ARG, QEMU_OPTION_monitor },
-    { "serial", HAS_ARG, QEMU_OPTION_serial },
-    { "virtioconsole", HAS_ARG, QEMU_OPTION_virtiocon },
-    { "parallel", HAS_ARG, QEMU_OPTION_parallel },
-    { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
-    { "full-screen", 0, QEMU_OPTION_full_screen },
-#ifdef CONFIG_SDL
-    { "no-frame", 0, QEMU_OPTION_no_frame },
-    { "alt-grab", 0, QEMU_OPTION_alt_grab },
-    { "no-quit", 0, QEMU_OPTION_no_quit },
-    { "sdl", 0, QEMU_OPTION_sdl },
-#endif
-    { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
-    { "win2k-hack", 0, QEMU_OPTION_win2k_hack },
-    { "rtc-td-hack", 0, QEMU_OPTION_rtc_td_hack },
-    { "usbdevice", HAS_ARG, QEMU_OPTION_usbdevice },
-    { "smp", HAS_ARG, QEMU_OPTION_smp },
-    { "vnc", HAS_ARG, QEMU_OPTION_vnc },
-#ifdef CONFIG_CURSES
-    { "curses", 0, QEMU_OPTION_curses },
-#endif
-    { "uuid", HAS_ARG, QEMU_OPTION_uuid },
-
-    /* temporary options */
-    { "usb", 0, QEMU_OPTION_usb },
-    { "no-acpi", 0, QEMU_OPTION_no_acpi },
-    { "no-hpet", 0, QEMU_OPTION_no_hpet },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "no-shutdown", 0, QEMU_OPTION_no_shutdown },
-    { "show-cursor", 0, QEMU_OPTION_show_cursor },
+    { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "daemonize", 0, QEMU_OPTION_daemonize },
     { "option-rom", HAS_ARG, QEMU_OPTION_option_rom },
-#if defined(TARGET_ARM) || defined(TARGET_M68K)
-    { "semihosting", 0, QEMU_OPTION_semihosting },
-#endif
-    { "name", HAS_ARG, QEMU_OPTION_name },
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
     { "prom-env", HAS_ARG, QEMU_OPTION_prom_env },
+#endif
+    { "clock", HAS_ARG, QEMU_OPTION_clock },
+    { "localtime", 0, QEMU_OPTION_localtime },
+    { "startdate", HAS_ARG, QEMU_OPTION_startdate },
+    { "icount", HAS_ARG, QEMU_OPTION_icount },
+    { "echr", HAS_ARG, QEMU_OPTION_echr },
+    { "virtioconsole", HAS_ARG, QEMU_OPTION_virtiocon },
+    { "show-cursor", 0, QEMU_OPTION_show_cursor },
+#if defined(TARGET_ARM) || defined(TARGET_M68K)
+    { "semihosting", 0, QEMU_OPTION_semihosting },
 #endif
 #if defined(TARGET_ARM)
     { "old-param", 0, QEMU_OPTION_old_param },
 #endif
-    { "clock", HAS_ARG, QEMU_OPTION_clock },
-    { "startdate", HAS_ARG, QEMU_OPTION_startdate },
     { "tb-size", HAS_ARG, QEMU_OPTION_tb_size },
-    { "icount", HAS_ARG, QEMU_OPTION_icount },
     { "incoming", HAS_ARG, QEMU_OPTION_incoming },
     { NULL },
 };
