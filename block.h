@@ -2,6 +2,7 @@
 #define BLOCK_H
 
 #include "qemu-aio.h"
+#include "qemu-common.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -25,6 +26,8 @@ typedef struct BlockDriverInfo {
     int cluster_size;
     /* offset at which the VM state can be saved (0 if not possible) */
     int64_t vm_state_offset;
+    int64_t highest_alloc; /* highest allocated block offset (in bytes) */
+    int64_t num_free_bytes; /* below highest_alloc  */
 } BlockDriverInfo;
 
 typedef struct QEMUSnapshotInfo {
@@ -84,6 +87,13 @@ int bdrv_commit(BlockDriverState *bs);
 /* async block I/O */
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
+
+BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
+                                 QEMUIOVector *iov, int nb_sectors,
+                                 BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
+                                  QEMUIOVector *iov, int nb_sectors,
+                                  BlockDriverCompletionFunc *cb, void *opaque);
 
 BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
                                 uint8_t *buf, int nb_sectors,

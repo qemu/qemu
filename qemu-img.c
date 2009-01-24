@@ -727,6 +727,10 @@ static int img_info(int argc, char **argv)
     if (bdrv_get_info(bs, &bdi) >= 0) {
         if (bdi.cluster_size != 0)
             printf("cluster_size: %d\n", bdi.cluster_size);
+        if (bdi.highest_alloc)
+            printf("highest_alloc: %ld\n", bdi.highest_alloc);
+        if (bdi.num_free_bytes)
+            printf("num_free_bytes: %ld\n", bdi.num_free_bytes);
     }
     bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
     if (backing_filename[0] != '\0') {

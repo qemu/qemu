@@ -11,6 +11,8 @@
  *
  */
 
+#include <qemu-common.h>
+#include <sysemu.h>
 #include "virtio-blk.h"
 #include "block_int.h"
 
@@ -19,6 +21,7 @@ typedef struct VirtIOBlock
     VirtIODevice vdev;
     BlockDriverState *bs;
     VirtQueue *vq;
+    void *rq;
 } VirtIOBlock;
 
 static VirtIOBlock *to_virtio_blk(VirtIODevice *vdev)
@@ -34,12 +37,44 @@ typedef struct VirtIOBlockReq
     struct virtio_blk_outhdr *out;
     size_t size;
     uint8_t *buffer;
+    struct VirtIOBlockReq *next;
 } VirtIOBlockReq;
+
+static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
+{
+    VirtIOBlock *s = req->dev;
+
+    req->in->status = status;
+    virtqueue_push(s->vq, &req->elem, req->size + sizeof(*req->in));
+    virtio_notify(&s->vdev, s->vq);
+
+    qemu_free(req->buffer);
+    qemu_free(req);
+}
+
+static int virtio_blk_handle_write_error(VirtIOBlockReq *req, int error)
+{
+    BlockInterfaceErrorAction action = drive_get_onerror(req->dev->bs);
+    VirtIOBlock *s = req->dev;
+
+    if (action == BLOCK_ERR_IGNORE)
+        return 0;
+
+    if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
+            || action == BLOCK_ERR_STOP_ANY) {
+        req->next = s->rq;
+        s->rq = req;
+        vm_stop(0);
+    } else {
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+    }
+
+    return 1;
+}
 
 static void virtio_blk_rw_complete(void *opaque, int ret)
 {
     VirtIOBlockReq *req = opaque;
-    VirtIOBlock *s = req->dev;
 
     /* Copy read data to the guest */
     if (!ret && !(req->out->type & VIRTIO_BLK_T_OUT)) {
@@ -58,31 +93,69 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
                    len);
             offset += len;
         }
+    } else if (ret && (req->out->type & VIRTIO_BLK_T_OUT)) {
+        if (virtio_blk_handle_write_error(req, -ret))
+            return;
     }
 
-    req->in->status = ret ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
-    virtqueue_push(s->vq, &req->elem, req->size + sizeof(*req->in));
-    virtio_notify(&s->vdev, s->vq);
+    virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
+}
 
-    qemu_free(req->buffer);
-    qemu_free(req);
+static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
+{
+    VirtIOBlockReq *req = qemu_mallocz(sizeof(*req));
+    if (req != NULL)
+        req->dev = s;
+    return req;
 }
 
 static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
 {
-    VirtIOBlockReq *req;
+    VirtIOBlockReq *req = virtio_blk_alloc_request(s);
 
-    req = qemu_mallocz(sizeof(*req));
-    if (req == NULL)
-        return NULL;
-
-    req->dev = s;
-    if (!virtqueue_pop(s->vq, &req->elem)) {
-        qemu_free(req);
-        return NULL;
+    if (req != NULL) {
+        if (!virtqueue_pop(s->vq, &req->elem)) {
+            qemu_free(req);
+            return NULL;
+        }
     }
 
     return req;
+}
+
+static int virtio_blk_handle_write(VirtIOBlockReq *req)
+{
+    if (!req->buffer) {
+        size_t offset = 0;
+        int i;
+
+        for (i = 1; i < req->elem.out_num; i++)
+            req->size += req->elem.out_sg[i].iov_len;
+
+        req->buffer = qemu_memalign(512, req->size);
+        if (req->buffer == NULL) {
+            qemu_free(req);
+            return -1;
+        }
+
+        /* We copy the data from the SG list to avoid splitting up the request.
+           This helps performance a lot until we can pass full sg lists as AIO
+           operations */
+        for (i = 1; i < req->elem.out_num; i++) {
+            size_t len;
+
+            len = MIN(req->elem.out_sg[i].iov_len,
+                    req->size - offset);
+            memcpy(req->buffer + offset,
+                    req->elem.out_sg[i].iov_base,
+                    len);
+            offset += len;
+        }
+    }
+
+    bdrv_aio_write(req->dev->bs, req->out->sector, req->buffer, req->size / 512,
+            virtio_blk_rw_complete, req);
+    return 0;
 }
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -115,36 +188,8 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             virtio_notify(vdev, vq);
             qemu_free(req);
         } else if (req->out->type & VIRTIO_BLK_T_OUT) {
-            size_t offset;
-
-            for (i = 1; i < req->elem.out_num; i++)
-                req->size += req->elem.out_sg[i].iov_len;
-
-            req->buffer = qemu_memalign(512, req->size);
-            if (req->buffer == NULL) {
-                qemu_free(req);
+            if (virtio_blk_handle_write(req) < 0)
                 break;
-            }
-
-            /* We copy the data from the SG list to avoid splitting up the request.  This helps
-               performance a lot until we can pass full sg lists as AIO operations */
-            offset = 0;
-            for (i = 1; i < req->elem.out_num; i++) {
-                size_t len;
-
-                len = MIN(req->elem.out_sg[i].iov_len,
-                          req->size - offset);
-                memcpy(req->buffer + offset,
-                       req->elem.out_sg[i].iov_base,
-                       len);
-                offset += len;
-            }
-
-            bdrv_aio_write(s->bs, req->out->sector,
-                           req->buffer,
-                           req->size / 512,
-                           virtio_blk_rw_complete,
-                           req);
         } else {
             for (i = 0; i < req->elem.in_num - 1; i++)
                 req->size += req->elem.in_sg[i].iov_len;
@@ -167,6 +212,22 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
      * so cached reads and writes are reported as quickly as possible. But
      * that should be done in the generic block layer.
      */
+}
+
+static void virtio_blk_dma_restart_cb(void *opaque, int running, int reason)
+{
+    VirtIOBlock *s = opaque;
+    VirtIOBlockReq *req = s->rq;
+
+    if (!running)
+        return;
+
+    s->rq = NULL;
+
+    while (req) {
+        virtio_blk_handle_write(req);
+        req = req->next;
+    }
 }
 
 static void virtio_blk_reset(VirtIODevice *vdev)
@@ -203,17 +264,32 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev)
 static void virtio_blk_save(QEMUFile *f, void *opaque)
 {
     VirtIOBlock *s = opaque;
+    VirtIOBlockReq *req = s->rq;
+
     virtio_save(&s->vdev, f);
+    
+    while (req) {
+        qemu_put_sbyte(f, 1);
+        qemu_put_buffer(f, (unsigned char*)&req->elem, sizeof(req->elem));
+        req = req->next;
+    }
+    qemu_put_sbyte(f, 0);
 }
 
 static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIOBlock *s = opaque;
 
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
 
     virtio_load(&s->vdev, f);
+    while (qemu_get_sbyte(f)) {
+        VirtIOBlockReq *req = virtio_blk_alloc_request(s);
+        qemu_get_buffer(f, (unsigned char*)&req->elem, sizeof(req->elem));
+        req->next = s->rq;
+        s->rq = req->next;
+    }
 
     return 0;
 }
@@ -237,12 +313,14 @@ void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs)
     s->vdev.get_features = virtio_blk_get_features;
     s->vdev.reset = virtio_blk_reset;
     s->bs = bs;
+    s->rq = NULL;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
     bdrv_set_geometry_hint(s->bs, cylinders, heads, secs);
 
     s->vq = virtio_add_queue(&s->vdev, 128, virtio_blk_handle_output);
 
-    register_savevm("virtio-blk", virtio_blk_id++, 1,
+    qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
+    register_savevm("virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
 
     return s;

@@ -285,7 +285,9 @@ static int dsound_init_out (HWVoiceOut *hw, struct audsettings *as)
 }
 
 #undef NAME
+#undef NAME2
 #undef TYPE
 #undef IFACE
 #undef BUFPTR
 #undef FIELD
+#undef FIELD2

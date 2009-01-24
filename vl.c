@@ -2431,8 +2431,8 @@ static int drive_init(struct drive_opt *arg, int snapshot,
 
     onerror = BLOCK_ERR_REPORT;
     if (get_param_value(buf, sizeof(serial), "werror", str)) {
-        if (type != IF_IDE) {
-            fprintf(stderr, "werror is supported only by IDE\n");
+        if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO) {
+            fprintf(stderr, "werror is no supported by this format\n");
             return -1;
         }
         if (!strcmp(buf, "ignore"))
@@ -3453,29 +3453,13 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
     qemu_free (e);
 }
 
-static void vm_state_notify(int running)
+static void vm_state_notify(int running, int reason)
 {
     VMChangeStateEntry *e;
 
     for (e = vm_change_state_head.lh_first; e; e = e->entries.le_next) {
-        e->cb(e->opaque, running);
+        e->cb(e->opaque, running, reason);
     }
-}
-
-/* XXX: support several handlers */
-static VMStopHandler *vm_stop_cb;
-static void *vm_stop_opaque;
-
-int qemu_add_vm_stop_handler(VMStopHandler *cb, void *opaque)
-{
-    vm_stop_cb = cb;
-    vm_stop_opaque = opaque;
-    return 0;
-}
-
-void qemu_del_vm_stop_handler(VMStopHandler *cb, void *opaque)
-{
-    vm_stop_cb = NULL;
 }
 
 void vm_start(void)
@@ -3483,7 +3467,7 @@ void vm_start(void)
     if (!vm_running) {
         cpu_enable_ticks();
         vm_running = 1;
-        vm_state_notify(1);
+        vm_state_notify(1, 0);
         qemu_rearm_alarm_timer(alarm_timer);
     }
 }
@@ -3493,12 +3477,7 @@ void vm_stop(int reason)
     if (vm_running) {
         cpu_disable_ticks();
         vm_running = 0;
-        if (reason != 0) {
-            if (vm_stop_cb) {
-                vm_stop_cb(vm_stop_opaque, reason);
-            }
-        }
-        vm_state_notify(0);
+        vm_state_notify(0, reason);
     }
 }
 
@@ -5637,10 +5616,11 @@ int main(int argc, char **argv, char **envp)
                     if (vnc_display_open(ds, vnc_display) < 0)
                         exit(1);
                 }
-                if (sdl || !vnc_display)
 #if defined(CONFIG_SDL)
+                if (sdl || !vnc_display)
                     sdl_display_init(ds, full_screen, no_frame);
 #elif defined(CONFIG_COCOA)
+                if (sdl || !vnc_display)
                     cocoa_display_init(ds, full_screen);
 #endif
             }

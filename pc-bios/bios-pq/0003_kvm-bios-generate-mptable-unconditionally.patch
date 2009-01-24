@@ -1,0 +1,25 @@
+generate mptable unconditionally (Avi Kivity)
+
+VMware ESX requires an mptable even for uniprocessor guests.
+
+Signed-off-by: Avi Kivity <avi@qumranet.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+Index: bochs/bios/rombios32.c
+===================================================================
+--- bochs.orig/bios/rombios32.c
++++ bochs/bios/rombios32.c
+@@ -970,11 +970,6 @@ static void mptable_init(void)
+     int ioapic_id, i, len;
+     int mp_config_table_size;
+
+-#ifdef BX_QEMU
+-    if (smp_cpus <= 1)
+-        return;
+-#endif
+-
+ #ifdef BX_USE_EBDA_TABLES
+     mp_config_table = (uint8_t *)(ram_size - ACPI_DATA_SIZE - MPTABLE_MAX_SIZE);
+ #else
+
+

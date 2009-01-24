@@ -30,7 +30,9 @@ qemu-nbd.pod
 *.tp
 *.vr
 *.d
+*.o
 .pc
 patches
 pc-bios/bios-pq/status
 pc-bios/vgabios-pq/status
+.stgit-*

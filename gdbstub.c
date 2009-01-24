@@ -1867,7 +1867,7 @@ void gdb_set_stop_cpu(CPUState *env)
 }
 
 #ifndef CONFIG_USER_ONLY
-static void gdb_vm_stopped(void *opaque, int reason)
+static void gdb_vm_state_change(void *opaque, int running, int reason)
 {
     GDBState *s = gdbserver_state;
     CPUState *env = s->c_cpu;
@@ -1875,7 +1875,8 @@ static void gdb_vm_stopped(void *opaque, int reason)
     const char *type;
     int ret;
 
-    if (s->state == RS_SYSCALL)
+    if (running || (reason != EXCP_DEBUG && reason != EXCP_INTERRUPT) ||
+        s->state == RS_SYSCALL)
         return;
 
     /* disable single step if it was enable */
@@ -1904,10 +1905,8 @@ static void gdb_vm_stopped(void *opaque, int reason)
         }
 	tb_flush(env);
         ret = GDB_SIGNAL_TRAP;
-    } else if (reason == EXCP_INTERRUPT) {
-        ret = GDB_SIGNAL_INT;
     } else {
-        ret = 0;
+        ret = GDB_SIGNAL_INT;
     }
     snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, env->cpu_index+1);
     put_packet(s, buf);
@@ -2300,7 +2299,7 @@ int gdbserver_start(const char *port)
     gdbserver_state = s;
     qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
                           gdb_chr_event, NULL);
-    qemu_add_vm_stop_handler(gdb_vm_stopped, NULL);
+    qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
     return 0;
 }
 #endif
