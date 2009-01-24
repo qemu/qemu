@@ -9345,6 +9345,51 @@ static int gdb_set_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
+static int gdb_get_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+#if defined(TARGET_PPC64)
+        stl_p(mem_buf, env->gpr[n] >> 32);
+#else
+        stl_p(mem_buf, env->gprh[n]);
+#endif
+        return 4;
+    }
+    if (n == 33) {
+        stq_p(mem_buf, env->spe_acc);
+        return 8;
+    }
+    if (n == 34) {
+        /* SPEFSCR not implemented */
+        memset(mem_buf, 0, 4);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_set_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+#if defined(TARGET_PPC64)
+        target_ulong lo = (uint32_t)env->gpr[n];
+        target_ulong hi = (target_ulong)ldl_p(mem_buf) << 32;
+        env->gpr[n] = lo | hi;
+#else
+        env->gprh[n] = ldl_p(mem_buf);
+#endif
+        return 4;
+    }
+    if (n == 33) {
+        env->spe_acc = ldq_p(mem_buf);
+        return 8;
+    }
+    if (n == 34) {
+        /* SPEFSCR not implemented */
+        return 4;
+    }
+    return 0;
+}
+
 int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
 {
     env->msr_mask = def->msr_mask;
@@ -9366,6 +9411,11 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
         gdb_register_coprocessor(env, gdb_get_avr_reg, gdb_set_avr_reg,
                                  34, "power-altivec.xml", 0);
     }
+    if ((def->insns_flags & PPC_SPE) | (def->insns_flags & PPC_SPEFPU)) {
+        gdb_register_coprocessor(env, gdb_get_spe_reg, gdb_set_spe_reg,
+                                 34, "power-spe.xml", 0);
+    }
+
 #if defined(PPC_DUMP_CPU)
     {
         const char *mmu_model, *excp_model, *bus_model;
