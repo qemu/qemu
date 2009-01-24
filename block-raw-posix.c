@@ -579,7 +579,7 @@ static RawAIOCB *raw_aio_setup(BlockDriverState *bs,
     if (!acb)
         return NULL;
     acb->aiocb.aio_fildes = s->fd;
-    acb->aiocb.sigev_signo = SIGUSR2;
+    acb->aiocb.ev_signo = SIGUSR2;
     acb->aiocb.aio_buf = buf;
     if (nb_sectors < 0)
         acb->aiocb.aio_nbytes = -nb_sectors;

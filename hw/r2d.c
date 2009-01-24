@@ -238,10 +238,8 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     {
       int kernel_size;
       /* initialization which should be done by firmware */
-      uint32_t bcr1 = 1 << 3; /* cs3 SDRAM */
-      uint16_t bcr2 = 3 << (3 * 2); /* cs3 32-bit */
-      cpu_physical_memory_write(SH7750_BCR1_A7, (uint8_t *)&bcr1, 4);
-      cpu_physical_memory_write(SH7750_BCR2_A7, (uint8_t *)&bcr2, 2);
+      stl_phys(SH7750_BCR1, 1<<3); /* cs3 SDRAM */
+      stw_phys(SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
 
       kernel_size = load_image(kernel_filename, phys_ram_base);
 

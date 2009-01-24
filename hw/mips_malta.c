@@ -834,8 +834,13 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
-    ram_addr = qemu_ram_alloc(ram_size);
-    cpu_register_physical_memory(0, ram_size, ram_addr | IO_MEM_RAM);
+    if (ram_size > (256 << 20)) {
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d MB, maximum 256 MB\n",
+                ((unsigned int)ram_size / (1 << 20)));
+        exit(1);
+    }
+    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
 
     /* Map the bios at two physical locations, as on the real board. */
     bios_offset = ram_size + vga_ram_size;
@@ -947,7 +952,7 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     /* Super I/O */
     //~ super_io_init();
     i8042_init(i8259[1], i8259[12], 0x60);
-    rtc_state = rtc_init(0x70, i8259[8]);
+    rtc_state = rtc_init(0x70, i8259[8], 2000);
     serial_init(0x3f8, i8259[4], 115200, serial_hds[0]);
     serial_init(0x2f8, i8259[3], 115200, serial_hds[1]);
     if (parallel_hds[0])

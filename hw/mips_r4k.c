@@ -188,6 +188,12 @@ static void mips_init(ram_addr_t ram_size, int vga_ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
+    if (ram_size > (256 << 20)) {
+        fprintf(stderr,
+                "qemu: Too much memory for this machine: %d MB, maximum 256 MB\n",
+                ((unsigned int)ram_size / (1 << 20)));
+        exit(1);
+    }
     cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
 
     if (!mips_qemu_iomemtype) {
@@ -239,7 +245,7 @@ static void mips_init(ram_addr_t ram_size, int vga_ram_size,
     /* The PIC is attached to the MIPS CPU INT0 pin */
     i8259 = i8259_init(env->irq[2]);
 
-    rtc_state = rtc_init(0x70, i8259[8]);
+    rtc_state = rtc_init(0x70, i8259[8], 2000);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
     isa_mmio_init(0x14000000, 0x00010000);

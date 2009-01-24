@@ -191,6 +191,8 @@ static void bootp_reply(struct bootp_t *bp)
     rbp->bp_yiaddr = daddr.sin_addr; /* Client IP address */
     rbp->bp_siaddr = saddr.sin_addr; /* Server IP address */
 
+    daddr.sin_addr.s_addr = 0xffffffffu;
+
     q = rbp->bp_vend;
     memcpy(q, rfc1533_cookie, 4);
     q += 4;

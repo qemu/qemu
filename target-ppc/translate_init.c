@@ -25,6 +25,7 @@
 
 #include "dis-asm.h"
 #include "host-utils.h"
+#include "gdbstub.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -9271,6 +9272,124 @@ static void dump_ppc_insns (CPUPPCState *env)
 }
 #endif
 
+static int gdb_get_float_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        stfq_p(mem_buf, env->fpr[n]);
+        return 8;
+    }
+    if (n == 32) {
+        /* FPSCR not implemented  */
+        memset(mem_buf, 0, 4);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_set_float_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        env->fpr[n] = ldfq_p(mem_buf);
+        return 8;
+    }
+    if (n == 32) {
+        /* FPSCR not implemented  */
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_get_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+#ifdef WORDS_BIGENDIAN
+        stq_p(mem_buf, env->avr[n].u64[0]);
+        stq_p(mem_buf+8, env->avr[n].u64[1]);
+#else
+        stq_p(mem_buf, env->avr[n].u64[1]);
+        stq_p(mem_buf+8, env->avr[n].u64[0]);
+#endif
+        return 16;
+    }
+    if (n == 33) {
+        stl_p(mem_buf, env->vscr);
+        return 4;
+    }
+    if (n == 34) {
+        stl_p(mem_buf, (uint32_t)env->spr[SPR_VRSAVE]);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_set_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+#ifdef WORDS_BIGENDIAN
+        env->avr[n].u64[0] = ldq_p(mem_buf);
+        env->avr[n].u64[1] = ldq_p(mem_buf+8);
+#else
+        env->avr[n].u64[1] = ldq_p(mem_buf);
+        env->avr[n].u64[0] = ldq_p(mem_buf+8);
+#endif
+        return 16;
+    }
+    if (n == 33) {
+        env->vscr = ldl_p(mem_buf);
+        return 4;
+    }
+    if (n == 34) {
+        env->spr[SPR_VRSAVE] = (target_ulong)ldl_p(mem_buf);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_get_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+#if defined(TARGET_PPC64)
+        stl_p(mem_buf, env->gpr[n] >> 32);
+#else
+        stl_p(mem_buf, env->gprh[n]);
+#endif
+        return 4;
+    }
+    if (n == 33) {
+        stq_p(mem_buf, env->spe_acc);
+        return 8;
+    }
+    if (n == 34) {
+        /* SPEFSCR not implemented */
+        memset(mem_buf, 0, 4);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_set_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+#if defined(TARGET_PPC64)
+        target_ulong lo = (uint32_t)env->gpr[n];
+        target_ulong hi = (target_ulong)ldl_p(mem_buf) << 32;
+        env->gpr[n] = lo | hi;
+#else
+        env->gprh[n] = ldl_p(mem_buf);
+#endif
+        return 4;
+    }
+    if (n == 33) {
+        env->spe_acc = ldq_p(mem_buf);
+        return 8;
+    }
+    if (n == 34) {
+        /* SPEFSCR not implemented */
+        return 4;
+    }
+    return 0;
+}
+
 int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
 {
     env->msr_mask = def->msr_mask;
@@ -9283,6 +9402,20 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     if (create_ppc_opcodes(env, def) < 0)
         return -1;
     init_ppc_proc(env, def);
+
+    if (def->insns_flags & PPC_FLOAT) {
+        gdb_register_coprocessor(env, gdb_get_float_reg, gdb_set_float_reg,
+                                 33, "power-fpu.xml", 0);
+    }
+    if (def->insns_flags & PPC_ALTIVEC) {
+        gdb_register_coprocessor(env, gdb_get_avr_reg, gdb_set_avr_reg,
+                                 34, "power-altivec.xml", 0);
+    }
+    if ((def->insns_flags & PPC_SPE) | (def->insns_flags & PPC_SPEFPU)) {
+        gdb_register_coprocessor(env, gdb_get_spe_reg, gdb_set_spe_reg,
+                                 34, "power-spe.xml", 0);
+    }
+
 #if defined(PPC_DUMP_CPU)
     {
         const char *mmu_model, *excp_model, *bus_model;

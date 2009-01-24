@@ -12,6 +12,7 @@ The following commands are supported:
 @item commit [-f @var{fmt}] @var{filename}
 @item convert [-c] [-e] [-6] [-f @var{fmt}] [-O @var{output_fmt}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 @item info [-f @var{fmt}] @var{filename}
+@item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot}] @var{filename}
 @end table
 
 Command parameters:
@@ -59,7 +60,8 @@ CD-ROM images present for example in the Knoppix CD-ROMs.
 
 @item size
 is the disk image size in kilobytes. Optional suffixes @code{M}
-(megabyte) and @code{G} (gigabyte) are supported
+(megabyte, 1024 * 1024) and @code{G} (gigabyte, 1024 * 1024 * 1024)
+are supported and any @code{k} or @code{K} is ignored.
 
 @item output_filename
 is the destination disk image filename
@@ -73,6 +75,24 @@ indicates that target image must be compressed (qcow format only)
 indicates that the target image must be encrypted (qcow format only)
 @item -6
 indicates that the target image must use compatibility level 6 (vmdk format only)
+@item -h
+with or without a command shows help and lists the supported formats
+@end table
+
+Parameters to snapshot subcommand:
+
+@table @option
+
+@item snapshot
+is the name of the snapshot to create, apply or delete
+@item -a
+applies a snapshot (revert disk to saved state)
+@item -c
+creates a snapshot
+@item -d
+deletes a snapshot
+@item -l
+lists all snapshots in the given image
 @end table
 
 Command description:
@@ -115,6 +135,10 @@ Give information about the disk image @var{filename}. Use it in
 particular to know the size reserved on disk which can be different
 from the displayed size. If VM snapshots are stored in the disk image,
 they are displayed too.
+
+@item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot} ] @var{filename}
+
+List, apply, create or delete snapshots in image @var{filename}.
 @end table
 
 @c man end

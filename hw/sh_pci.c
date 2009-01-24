@@ -29,9 +29,6 @@
 typedef struct {
     PCIBus *bus;
     PCIDevice *dev;
-    uint32_t regbase;
-    uint32_t iopbase;
-    uint32_t membase;
     uint32_t par;
     uint32_t mbr;
     uint32_t iobr;
@@ -181,15 +178,15 @@ PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
 
     p->dev = pci_register_device(p->bus, "SH PCIC", sizeof(PCIDevice),
                                  -1, NULL, NULL);
-    p->regbase = 0x1e200000;
-    p->iopbase = 0x1e240000;
-    p->membase = 0xfd000000;
     reg = cpu_register_io_memory(0, sh_pci_reg.r, sh_pci_reg.w, p);
-    mem = cpu_register_io_memory(0, sh_pci_mem.r, sh_pci_mem.w, p);
     iop = cpu_register_io_memory(0, sh_pci_iop.r, sh_pci_iop.w, p);
-    cpu_register_physical_memory(p->regbase, 0x224, reg);
-    cpu_register_physical_memory(p->iopbase, 0x40000, iop);
-    cpu_register_physical_memory(p->membase, 0x1000000, mem);
+    mem = cpu_register_io_memory(0, sh_pci_mem.r, sh_pci_mem.w, p);
+    cpu_register_physical_memory(0x1e200000, 0x224, reg);
+    cpu_register_physical_memory(0x1e240000, 0x40000, iop);
+    cpu_register_physical_memory(0x1d000000, 0x1000000, mem);
+    cpu_register_physical_memory(0xfe200000, 0x224, reg);
+    cpu_register_physical_memory(0xfe240000, 0x40000, iop);
+    cpu_register_physical_memory(0xfd000000, 0x1000000, mem);
 
     p->dev->config[0x00] = 0x54; // HITACHI
     p->dev->config[0x01] = 0x10; //
