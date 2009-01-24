@@ -9272,6 +9272,33 @@ static void dump_ppc_insns (CPUPPCState *env)
 }
 #endif
 
+static int gdb_get_float_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        stfq_p(mem_buf, env->fpr[n]);
+        return 8;
+    }
+    if (n == 32) {
+        /* FPSCR not implemented  */
+        memset(mem_buf, 0, 4);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_set_float_reg(CPUState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        env->fpr[n] = ldfq_p(mem_buf);
+        return 8;
+    }
+    if (n == 32) {
+        /* FPSCR not implemented  */
+        return 4;
+    }
+    return 0;
+}
+
 int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
 {
     env->msr_mask = def->msr_mask;
@@ -9284,6 +9311,11 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     if (create_ppc_opcodes(env, def) < 0)
         return -1;
     init_ppc_proc(env, def);
+
+    if (def->insns_flags & PPC_FLOAT) {
+        gdb_register_coprocessor(env, gdb_get_float_reg, gdb_set_float_reg,
+                                 33, "power-fpu.xml", 0);
+    }
 #if defined(PPC_DUMP_CPU)
     {
         const char *mmu_model, *excp_model, *bus_model;
