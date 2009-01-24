@@ -1638,6 +1638,7 @@ case "$target_cpu" in
     echo "TARGET_ARCH=ppc" >> $config_mak
     echo "#define TARGET_ARCH \"ppc\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
+    gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
   ;;
   ppcemb)
     echo "TARGET_ARCH=ppcemb" >> $config_mak
@@ -1650,6 +1651,7 @@ case "$target_cpu" in
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
       echo "#define CONFIG_KVM 1" >> $config_h
     fi
+    gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
   ;;
   ppc64)
     echo "TARGET_ARCH=ppc64" >> $config_mak
@@ -1657,6 +1659,7 @@ case "$target_cpu" in
     echo "#define TARGET_ARCH \"ppc64\"" >> $config_h
     echo "#define TARGET_PPC 1" >> $config_h
     echo "#define TARGET_PPC64 1" >> $config_h
+    gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
   ;;
   ppc64abi32)
     echo "TARGET_ARCH=ppc64" >> $config_mak
@@ -1666,6 +1669,7 @@ case "$target_cpu" in
     echo "#define TARGET_PPC 1" >> $config_h
     echo "#define TARGET_PPC64 1" >> $config_h
     echo "#define TARGET_ABI32 1" >> $config_h
+    gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
   ;;
   sh4|sh4eb)
     echo "TARGET_ARCH=sh4" >> $config_mak

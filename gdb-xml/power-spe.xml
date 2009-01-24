@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2007, 2008 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.power.spe">
+  <reg name="ev0h" bitsize="32"/>
+  <reg name="ev1h" bitsize="32"/>
+  <reg name="ev2h" bitsize="32"/>
+  <reg name="ev3h" bitsize="32"/>
+  <reg name="ev4h" bitsize="32"/>
+  <reg name="ev5h" bitsize="32"/>
+  <reg name="ev6h" bitsize="32"/>
+  <reg name="ev7h" bitsize="32"/>
+  <reg name="ev8h" bitsize="32"/>
+  <reg name="ev9h" bitsize="32"/>
+  <reg name="ev10h" bitsize="32"/>
+  <reg name="ev11h" bitsize="32"/>
+  <reg name="ev12h" bitsize="32"/>
+  <reg name="ev13h" bitsize="32"/>
+  <reg name="ev14h" bitsize="32"/>
+  <reg name="ev15h" bitsize="32"/>
+  <reg name="ev16h" bitsize="32"/>
+  <reg name="ev17h" bitsize="32"/>
+  <reg name="ev18h" bitsize="32"/>
+  <reg name="ev19h" bitsize="32"/>
+  <reg name="ev20h" bitsize="32"/>
+  <reg name="ev21h" bitsize="32"/>
+  <reg name="ev22h" bitsize="32"/>
+  <reg name="ev23h" bitsize="32"/>
+  <reg name="ev24h" bitsize="32"/>
+  <reg name="ev25h" bitsize="32"/>
+  <reg name="ev26h" bitsize="32"/>
+  <reg name="ev27h" bitsize="32"/>
+  <reg name="ev28h" bitsize="32"/>
+  <reg name="ev29h" bitsize="32"/>
+  <reg name="ev30h" bitsize="32"/>
+  <reg name="ev31h" bitsize="32"/>
+
+  <reg name="acc" bitsize="64"/>
+  <reg name="spefscr" bitsize="32"/>
+</feature>
