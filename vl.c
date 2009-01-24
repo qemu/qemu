@@ -161,11 +161,7 @@
 #  define LOG_IOPORT(...) do { } while (0)
 #endif
 
-#ifdef TARGET_PPC
-#define DEFAULT_RAM_SIZE 144
-#else
 #define DEFAULT_RAM_SIZE 128
-#endif
 
 /* Max number of USB devices that can be specified on the commandline.  */
 #define MAX_USB_CMDLINE 8
