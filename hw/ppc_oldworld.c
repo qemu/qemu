@@ -121,7 +121,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     m48t59_t *m48t59;
     int linux_boot, i;
     ram_addr_t ram_offset, vga_ram_offset, bios_offset, vga_bios_offset;
-    uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
+    uint32_t kernel_base, initrd_base;
+    int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
     int vga_bios_size, bios_size;
