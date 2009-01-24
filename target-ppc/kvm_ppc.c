@@ -22,7 +22,7 @@ static QEMUTimer *kvmppc_timer;
 static unsigned int kvmppc_timer_rate;
 
 #ifdef HAVE_FDT
-static int kvmppc_read_host_property(const char *node_path, const char *prop,
+int kvmppc_read_host_property(const char *node_path, const char *prop,
                                      void *val, size_t len)
 {
     char *path;
