@@ -53,8 +53,9 @@ do { printf("FLOPPY ERROR: %s: " fmt, __func__ , ##args); } while (0)
 #define SET_CUR_DRV(fdctrl, drive) ((fdctrl)->cur_drv = (drive))
 
 /* Will always be a fixed parameter for us */
-#define FD_SECTOR_LEN 512
-#define FD_SECTOR_SC  2   /* Sector size code */
+#define FD_SECTOR_LEN          512
+#define FD_SECTOR_SC           2   /* Sector size code */
+#define FD_RESET_SENSEI_COUNT  4   /* Number of sense interrupts on RESET */
 
 /* Floppy disk drive emulation */
 typedef enum fdisk_type_t {
@@ -506,6 +507,7 @@ struct fdctrl_t {
     int sun4m;
     /* Floppy drives */
     fdrive_t drives[MAX_FD];
+    int reset_sensei;
 };
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
@@ -763,6 +765,7 @@ static void fdctrl_raise_irq (fdctrl_t *fdctrl, uint8_t status0)
         qemu_set_irq(fdctrl->irq, 1);
         fdctrl->sra |= FD_SRA_INTPEND;
     }
+    fdctrl->reset_sensei = 0;
     fdctrl->status0 = status0;
     FLOPPY_DPRINTF("Set interrupt status to 0x%02x\n", fdctrl->status0);
 }
@@ -793,6 +796,7 @@ static void fdctrl_reset (fdctrl_t *fdctrl, int do_irq)
     fdctrl_reset_fifo(fdctrl);
     if (do_irq) {
         fdctrl_raise_irq(fdctrl, FD_SR0_RDYCHG);
+        fdctrl->reset_sensei = FD_RESET_SENSEI_COUNT;
     }
 }
 
@@ -1601,16 +1605,18 @@ static void fdctrl_handle_sense_interrupt_status (fdctrl_t *fdctrl, int directio
 {
     fdrive_t *cur_drv = get_cur_drv(fdctrl);
 
-#if 0
-    fdctrl->fifo[0] =
-        fdctrl->status0 | (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
-#else
-    /* XXX: status0 handling is broken for read/write
-       commands, so we do this hack. It should be suppressed
-       ASAP */
-    fdctrl->fifo[0] =
-        FD_SR0_SEEK | (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
-#endif
+    if(fdctrl->reset_sensei > 0) {
+        fdctrl->fifo[0] =
+            FD_SR0_RDYCHG + FD_RESET_SENSEI_COUNT - fdctrl->reset_sensei;
+        fdctrl->reset_sensei--;
+    } else {
+        /* XXX: status0 handling is broken for read/write
+           commands, so we do this hack. It should be suppressed
+           ASAP */
+        fdctrl->fifo[0] =
+            FD_SR0_SEEK | (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
+    }
+
     fdctrl->fifo[1] = cur_drv->track;
     fdctrl_set_fifo(fdctrl, 2, 0);
     fdctrl_reset_irq(fdctrl);
