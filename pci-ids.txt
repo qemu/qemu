@@ -19,8 +19,9 @@ VirtIO Device IDs
 1af4:1000  network device
 1af4:1001  block device
 1af4:1002  balloon device
+1af4:1003  console device
 
-1af4:1003  Reserved.
+1af4:1004  Reserved.
    to      Contact Gerd Hoffmann <kraxel@redhat.com> to get a
 1af4:10ef  device ID assigned for your new virtio device.
 
