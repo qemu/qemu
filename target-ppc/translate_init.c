@@ -25,6 +25,7 @@
 
 #include "dis-asm.h"
 #include "host-utils.h"
+#include "gdbstub.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
