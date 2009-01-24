@@ -235,7 +235,7 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
     /* The PIC is attached to the MIPS CPU INT0 pin */
     i8259 = i8259_init(env->irq[2]);
 
-    rtc_state = rtc_init(0x70, i8259[8]);
+    rtc_state = rtc_init(0x70, i8259[8], 2000);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
     isa_mmio_init(0x14000000, 0x00010000);

@@ -60,6 +60,7 @@ struct RTCState {
     uint8_t cmos_data[128];
     uint8_t cmos_index;
     struct tm current_tm;
+    int base_year;
     qemu_irq irq;
     int it_shift;
     /* periodic timer */
@@ -235,12 +236,13 @@ static void rtc_set_time(RTCState *s)
     tm->tm_wday = from_bcd(s, s->cmos_data[RTC_DAY_OF_WEEK]) - 1;
     tm->tm_mday = from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
     tm->tm_mon = from_bcd(s, s->cmos_data[RTC_MONTH]) - 1;
-    tm->tm_year = from_bcd(s, s->cmos_data[RTC_YEAR]) + 100;
+    tm->tm_year = from_bcd(s, s->cmos_data[RTC_YEAR]) + s->base_year - 1900;
 }
 
 static void rtc_copy_date(RTCState *s)
 {
     const struct tm *tm = &s->current_tm;
+    int year;
 
     s->cmos_data[RTC_SECONDS] = to_bcd(s, tm->tm_sec);
     s->cmos_data[RTC_MINUTES] = to_bcd(s, tm->tm_min);
@@ -256,7 +258,10 @@ static void rtc_copy_date(RTCState *s)
     s->cmos_data[RTC_DAY_OF_WEEK] = to_bcd(s, tm->tm_wday + 1);
     s->cmos_data[RTC_DAY_OF_MONTH] = to_bcd(s, tm->tm_mday);
     s->cmos_data[RTC_MONTH] = to_bcd(s, tm->tm_mon + 1);
-    s->cmos_data[RTC_YEAR] = to_bcd(s, tm->tm_year % 100);
+    year = (tm->tm_year - s->base_year) % 100;
+    if (year < 0)
+        year += 100;
+    s->cmos_data[RTC_YEAR] = to_bcd(s, year);
 }
 
 /* month is between 0 and 11. */
@@ -522,7 +527,7 @@ static int rtc_load_td(QEMUFile *f, void *opaque, int version_id)
 }
 #endif
 
-RTCState *rtc_init(int base, qemu_irq irq)
+RTCState *rtc_init(int base, qemu_irq irq, int base_year)
 {
     RTCState *s;
 
@@ -536,6 +541,7 @@ RTCState *rtc_init(int base, qemu_irq irq)
     s->cmos_data[RTC_REG_C] = 0x00;
     s->cmos_data[RTC_REG_D] = 0x80;
 
+    s->base_year = base_year;
     rtc_set_date_from_host(s);
 
     s->periodic_timer = qemu_new_timer(vm_clock,
@@ -631,7 +637,8 @@ static CPUWriteMemoryFunc *rtc_mm_write[] = {
     &cmos_mm_writel,
 };
 
-RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq)
+RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
+                      int base_year)
 {
     RTCState *s;
     int io_memory;
@@ -646,6 +653,7 @@ RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq)
     s->cmos_data[RTC_REG_C] = 0x00;
     s->cmos_data[RTC_REG_D] = 0x80;
 
+    s->base_year = base_year;
     rtc_set_date_from_host(s);
 
     s->periodic_timer = qemu_new_timer(vm_clock,

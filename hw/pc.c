@@ -968,7 +968,7 @@ vga_bios_error:
         }
     }
 
-    rtc_state = rtc_init(0x70, i8259[8]);
+    rtc_state = rtc_init(0x70, i8259[8], 2000);
 
     qemu_register_boot_set(pc_boot_set, rtc_state);
 
