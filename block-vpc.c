@@ -105,7 +105,7 @@ struct vhd_dyndisk_header {
 };
 
 typedef struct BDRVVPCState {
-    int fd;
+    BlockDriverState *hd;
 
     int max_table_entries;
     uint32_t *pagetable;
@@ -130,20 +130,18 @@ static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
 static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVVPCState *s = bs->opaque;
-    int fd, i;
+    int ret, i;
     struct vhd_footer* footer;
     struct vhd_dyndisk_header* dyndisk_header;
     uint8_t buf[HEADER_SIZE];
 
-    fd = open(filename, O_RDONLY | O_BINARY);
-    if (fd < 0)
-        return -1;
-
     bs->read_only = 1; // no write support yet
 
-    s->fd = fd;
+    ret = bdrv_file_open(&s->hd, filename, flags);
+    if (ret < 0)
+        return ret;
 
-    if (read(fd, buf, HEADER_SIZE) != HEADER_SIZE)
+    if (bdrv_pread(s->hd, 0, buf, HEADER_SIZE) != HEADER_SIZE)
         goto fail;
 
     footer = (struct vhd_footer*) buf;
@@ -156,8 +154,8 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     bs->total_sectors = (int64_t)
         be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
 
-    lseek(s->fd, be64_to_cpu(footer->data_offset), SEEK_SET);
-    if (read(fd, buf, HEADER_SIZE) != HEADER_SIZE)
+    if (bdrv_pread(s->hd, be64_to_cpu(footer->data_offset), buf, HEADER_SIZE)
+            != HEADER_SIZE)
         goto fail;
 
     footer = NULL;
@@ -166,15 +164,16 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     if (strncmp(dyndisk_header->magic, "cxsparse", 8))
         goto fail;
 
-    lseek(s->fd, be64_to_cpu(dyndisk_header->table_offset), SEEK_SET);
 
     s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
     s->pagetable = qemu_malloc(s->max_table_entries * 4);
     if (!s->pagetable)
-	goto fail;
-    if (read(s->fd, s->pagetable, s->max_table_entries * 4) !=
-	s->max_table_entries * 4)
-	goto fail;
+        goto fail;
+
+    if (bdrv_pread(s->hd, be64_to_cpu(dyndisk_header->table_offset),
+            s->pagetable, s->max_table_entries * 4) != s->max_table_entries * 4)
+	    goto fail;
+
     for (i = 0; i < s->max_table_entries; i++)
 	be32_to_cpus(&s->pagetable[i]);
 
@@ -190,11 +189,15 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 
     return 0;
  fail:
-    close(fd);
+    bdrv_delete(s->hd);
     return -1;
 }
 
-static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
+/*
+ * Returns the absolute byte offset of the given sector in the image file.
+ * If the sector is not allocated, -1 is returned instead.
+ */
+static inline int64_t get_sector_offset(BlockDriverState *bs, int64_t sector_num)
 {
     BDRVVPCState *s = bs->opaque;
     uint64_t offset = sector_num * 512;
@@ -241,9 +244,8 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 	return -1; // not allocated
 #endif
 #endif
-    lseek(s->fd, block_offset, SEEK_SET);
 
-    return 0;
+    return block_offset;
 }
 
 static int vpc_read(BlockDriverState *bs, int64_t sector_num,
@@ -251,16 +253,19 @@ static int vpc_read(BlockDriverState *bs, int64_t sector_num,
 {
     BDRVVPCState *s = bs->opaque;
     int ret;
+    int64_t offset;
 
     while (nb_sectors > 0) {
-	if (!seek_to_sector(bs, sector_num))
-	{
-	    ret = read(s->fd, buf, 512);
-	    if (ret != 512)
-		return -1;
-	}
-	else
+        offset = get_sector_offset(bs, sector_num);
+
+        if (offset == -1) {
             memset(buf, 0, 512);
+        } else {
+            ret = bdrv_pread(s->hd, offset, buf, 512);
+            if (ret != 512)
+                return -1;
+        }
+
         nb_sectors--;
         sector_num++;
         buf += 512;
@@ -275,7 +280,7 @@ static void vpc_close(BlockDriverState *bs)
 #ifdef CACHE
     qemu_free(s->pageentry_u8);
 #endif
-    close(s->fd);
+    bdrv_delete(s->hd);
 }
 
 BlockDriver bdrv_vpc = {
