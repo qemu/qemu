@@ -109,7 +109,9 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R11,
 #endif
     TCG_REG_R12,
+#ifndef __linux__
     TCG_REG_R13,
+#endif
     TCG_REG_R0,
     TCG_REG_R1,
     TCG_REG_R2,
@@ -1527,6 +1529,9 @@ void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R1);
 #ifndef __APPLE__
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R2);
+#endif
+#ifdef __linux__
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13);
 #endif
 
     tcg_add_target_add_op_defs(ppc_op_defs);
