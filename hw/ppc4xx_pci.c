@@ -366,6 +366,7 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     PPC4xxPCIState *controller;
     int index;
     static int ppc4xx_pci_id;
+    uint8_t *pci_conf;
 
     controller = qemu_mallocz(sizeof(PPC4xxPCIState));
     if (!controller)
@@ -378,12 +379,11 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     controller->pci_dev = pci_register_device(controller->pci_state.bus,
                                               "host bridge", sizeof(PCIDevice),
                                               0, NULL, NULL);
-    controller->pci_dev->config[0x00] = 0x14; // vendor_id
-    controller->pci_dev->config[0x01] = 0x10;
-    controller->pci_dev->config[0x02] = 0x7f; // device_id
-    controller->pci_dev->config[0x03] = 0x02;
-    controller->pci_dev->config[0x0a] = 0x80; // class_sub = other bridge type
-    controller->pci_dev->config[0x0b] = 0x06; // class_base = PCI_bridge
+    pci_conf = controller->pci_dev->config;
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_IBM);
+    pci_config_set_device_id(pci_conf, 0x027f); // device_id
+    pci_conf[0x0a] = 0x80; // class_sub = other bridge type
+    pci_conf[0x0b] = 0x06; // class_base = PCI_bridge
 
     /* CFGADDR */
     index = cpu_register_io_memory(0, pci4xx_cfgaddr_read,

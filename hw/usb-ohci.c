@@ -1671,8 +1671,6 @@ static void ohci_mapfunc(PCIDevice *pci_dev, int i,
 void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn)
 {
     OHCIPCIState *ohci;
-    int vid = 0x106b;
-    int did = 0x003f;
 
     ohci = (OHCIPCIState *)pci_register_device(bus, "OHCI USB", sizeof(*ohci),
                                                devfn, NULL, NULL);
@@ -1681,10 +1679,8 @@ void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn)
         return;
     }
 
-    ohci->pci_dev.config[0x00] = vid & 0xff;
-    ohci->pci_dev.config[0x01] = (vid >> 8) & 0xff;
-    ohci->pci_dev.config[0x02] = did & 0xff;
-    ohci->pci_dev.config[0x03] = (did >> 8) & 0xff;
+    pci_config_set_vendor_id(ohci->pci_dev.config, PCI_VENDOR_ID_APPLE);
+    pci_config_set_device_id(ohci->pci_dev.config, 0x003f); // device_id
     ohci->pci_dev.config[0x09] = 0x10; /* OHCI */
     ohci->pci_dev.config[0x0a] = 0x3;
     ohci->pci_dev.config[0x0b] = 0xc;

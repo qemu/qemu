@@ -188,10 +188,8 @@ PCIBus *sh_pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     cpu_register_physical_memory(0xfe240000, 0x40000, iop);
     cpu_register_physical_memory(0xfd000000, 0x1000000, mem);
 
-    p->dev->config[0x00] = 0x54; // HITACHI
-    p->dev->config[0x01] = 0x10; //
-    p->dev->config[0x02] = 0x0e; // SH7751R
-    p->dev->config[0x03] = 0x35; //
+    pci_config_set_vendor_id(p->dev->config, PCI_VENDOR_ID_HITACHI);
+    pci_config_set_device_id(p->dev->config, 0x350e); // SH7751R
     p->dev->config[0x04] = 0x80;
     p->dev->config[0x05] = 0x00;
     p->dev->config[0x06] = 0x90;

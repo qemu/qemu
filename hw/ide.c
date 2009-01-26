@@ -3342,10 +3342,8 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
                                            NULL, NULL);
     d->type = IDE_TYPE_CMD646;
     pci_conf = d->dev.config;
-    pci_conf[0x00] = 0x95; // CMD646
-    pci_conf[0x01] = 0x10;
-    pci_conf[0x02] = 0x46;
-    pci_conf[0x03] = 0x06;
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CMD);
+    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_CMD_646);
 
     pci_conf[0x08] = 0x07; // IDE controller revision
     pci_conf[0x09] = 0x8f;
@@ -3417,10 +3415,8 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     d->type = IDE_TYPE_PIIX3;
 
     pci_conf = d->dev.config;
-    pci_conf[0x00] = 0x86; // Intel
-    pci_conf[0x01] = 0x80;
-    pci_conf[0x02] = 0x10;
-    pci_conf[0x03] = 0x70;
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
+    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_1);
     pci_conf[0x09] = 0x80; // legacy ATA mode
     pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
@@ -3456,10 +3452,8 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     d->type = IDE_TYPE_PIIX4;
 
     pci_conf = d->dev.config;
-    pci_conf[0x00] = 0x86; // Intel
-    pci_conf[0x01] = 0x80;
-    pci_conf[0x02] = 0x11;
-    pci_conf[0x03] = 0x71;
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
+    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB);
     pci_conf[0x09] = 0x80; // legacy ATA mode
     pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
     pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage

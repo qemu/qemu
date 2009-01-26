@@ -124,11 +124,9 @@ PCIBus *pci_vpb_init(qemu_irq *pic, int irq, int realview)
         isa_mmio_init(base + 0x03000000, 0x00100000);
     }
 
-    d->config[0x00] = 0xee; // vendor_id
-    d->config[0x01] = 0x10;
+    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_XILINX);
     /* Both boards have the same device ID.  Oh well.  */
-    d->config[0x02] = 0x00; // device_id
-    d->config[0x03] = 0x03;
+    pci_config_set_device_id(d->config, 0x0300); // device_id
     d->config[0x04] = 0x00;
     d->config[0x05] = 0x00;
     d->config[0x06] = 0x20;

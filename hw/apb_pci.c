@@ -252,10 +252,8 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
 
     d = pci_register_device(s->bus, "Advanced PCI Bus", sizeof(PCIDevice),
                             0, NULL, NULL);
-    d->config[0x00] = 0x8e; // vendor_id : Sun
-    d->config[0x01] = 0x10;
-    d->config[0x02] = 0x00; // device_id
-    d->config[0x03] = 0xa0;
+    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_SUN);
+    pci_config_set_device_id(d->config, PCI_DEVICE_ID_SUN_SABRE);
     d->config[0x04] = 0x06; // command = bus master, pci mem
     d->config[0x05] = 0x00;
     d->config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error

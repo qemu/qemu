@@ -8,7 +8,63 @@
 
 extern target_phys_addr_t pci_mem_base;
 
-/* see pci-ids.txt */
+#define PCI_VENDOR_ID_LSI_LOGIC          0x1000
+#define PCI_DEVICE_ID_LSI_53C895A        0x0012
+
+#define PCI_VENDOR_ID_DEC                0x1011
+
+#define PCI_VENDOR_ID_CIRRUS             0x1013
+
+#define PCI_VENDOR_ID_IBM                0x1014
+
+#define PCI_VENDOR_ID_AMD                0x1022
+#define PCI_DEVICE_ID_AMD_LANCE          0x2000
+
+#define PCI_VENDOR_ID_HITACHI            0x1054
+
+#define PCI_VENDOR_ID_MOTOROLA           0x1057
+#define PCI_DEVICE_ID_MOTOROLA_MPC106    0x0002
+#define PCI_DEVICE_ID_MOTOROLA_RAVEN     0x4801
+
+#define PCI_VENDOR_ID_APPLE              0x106b
+#define PCI_DEVICE_ID_APPLE_UNI_N_AGP    0x0020
+
+#define PCI_VENDOR_ID_SUN                0x108e
+#define PCI_DEVICE_ID_SUN_EBUS           0x1000
+#define PCI_DEVICE_ID_SUN_SABRE          0xa000
+
+#define PCI_VENDOR_ID_CMD                0x1095
+#define PCI_DEVICE_ID_CMD_646            0x0646
+
+#define PCI_VENDOR_ID_REALTEK            0x10ec
+#define PCI_DEVICE_ID_REALTEK_8139       0x8139
+
+#define PCI_VENDOR_ID_XILINX             0x10ee
+
+#define PCI_VENDOR_ID_MARVELL            0x11ab
+
+#define PCI_VENDOR_ID_ENSONIQ            0x1274
+#define PCI_DEVICE_ID_ENSONIQ_ES1370     0x5000
+
+#define PCI_VENDOR_ID_VMWARE             0x15ad
+#define PCI_DEVICE_ID_VMWARE_SVGA2       0x0405
+#define PCI_DEVICE_ID_VMWARE_SVGA        0x0710
+#define PCI_DEVICE_ID_VMWARE_NET         0x0720
+#define PCI_DEVICE_ID_VMWARE_SCSI        0x0730
+#define PCI_DEVICE_ID_VMWARE_IDE         0x1729
+
+#define PCI_VENDOR_ID_INTEL              0x8086
+#define PCI_DEVICE_ID_INTEL_82441        0x1237
+#define PCI_DEVICE_ID_INTEL_82801AA_5    0x2415
+#define PCI_DEVICE_ID_INTEL_82371SB_0    0x7000
+#define PCI_DEVICE_ID_INTEL_82371SB_1    0x7010
+#define PCI_DEVICE_ID_INTEL_82371SB_2    0x7020
+#define PCI_DEVICE_ID_INTEL_82371AB_0    0x7110
+#define PCI_DEVICE_ID_INTEL_82371AB      0x7111
+#define PCI_DEVICE_ID_INTEL_82371AB_2    0x7112
+#define PCI_DEVICE_ID_INTEL_82371AB_3    0x7113
+
+/* Red Hat / Qumranet (for QEMU) -- see pci-ids.txt */
 #define PCI_VENDOR_ID_REDHAT_QUMRANET    0x1af4
 #define PCI_SUBVENDOR_ID_REDHAT_QUMRANET 0x1af4
 #define PCI_SUBDEVICE_ID_QEMU            0x1100
@@ -129,6 +185,18 @@ void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d));
 void pci_info(void);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint32_t id,
                         pci_map_irq_fn map_irq, const char *name);
+
+static inline void
+pci_config_set_vendor_id(uint8_t *pci_config, uint16_t val)
+{
+    cpu_to_le16wu((uint16_t *)&pci_config[PCI_VENDOR_ID], val);
+}
+
+static inline void
+pci_config_set_device_id(uint8_t *pci_config, uint16_t val)
+{
+    cpu_to_le16wu((uint16_t *)&pci_config[PCI_DEVICE_ID], val);
+}
 
 /* lsi53c895a.c */
 #define LSI_MAX_DEVS 7

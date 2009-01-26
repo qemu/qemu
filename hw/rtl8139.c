@@ -1187,8 +1187,8 @@ static void rtl8139_reset(RTL8139State *s)
     s->eeprom.contents[0] = 0x8129;
 #if 1
     // PCI vendor and device ID should be mirrored here
-    s->eeprom.contents[1] = 0x10ec;
-    s->eeprom.contents[2] = 0x8139;
+    s->eeprom.contents[1] = PCI_VENDOR_ID_REALTEK;
+    s->eeprom.contents[2] = PCI_DEVICE_ID_REALTEK_8139;
 #endif
 
     s->eeprom.contents[7] = s->macaddr[0] | s->macaddr[1] << 8;
@@ -3425,10 +3425,8 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
                                               devfn,
                                               NULL, NULL);
     pci_conf = d->dev.config;
-    pci_conf[0x00] = 0xec; /* Realtek 8139 */
-    pci_conf[0x01] = 0x10;
-    pci_conf[0x02] = 0x39;
-    pci_conf[0x03] = 0x81;
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
+    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8139);
     pci_conf[0x04] = 0x05; /* command = I/O space, Bus Master */
     pci_conf[0x08] = RTL8139_PCI_REVID; /* PCI revision ID; >=0x20 is for 8139C+ */
     pci_conf[0x0a] = 0x00; /* ethernet network controller */

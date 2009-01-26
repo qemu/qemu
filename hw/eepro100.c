@@ -422,9 +422,9 @@ static void pci_reset(EEPRO100State * s)
     logout("%p\n", s);
 
     /* PCI Vendor ID */
-    PCI_CONFIG_16(PCI_VENDOR_ID, 0x8086);
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     /* PCI Device ID */
-    PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
+    pci_config_set_device_id(pci_conf, 0x1209);
     /* PCI Command */
     PCI_CONFIG_16(PCI_COMMAND, 0x0000);
     /* PCI Status */

@@ -1017,10 +1017,8 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
         if (opp == NULL)
             return NULL;
         pci_conf = opp->pci_dev.config;
-        pci_conf[0x00] = 0x14; // IBM MPIC2
-        pci_conf[0x01] = 0x10;
-        pci_conf[0x02] = 0xFF;
-        pci_conf[0x03] = 0xFF;
+        pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_IBM);
+        pci_config_set_device_id(pci_conf, 0xffff); // MPIC2
         pci_conf[0x0a] = 0x80; // PIC
         pci_conf[0x0b] = 0x08;
         pci_conf[0x0e] = 0x00; // header_type

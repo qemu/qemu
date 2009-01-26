@@ -106,10 +106,9 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
         macio_state->ide_mem_index[i] = -1;
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
-    d->config[0x00] = 0x6b; // vendor_id
-    d->config[0x01] = 0x10;
-    d->config[0x02] = device_id;
-    d->config[0x03] = device_id >> 8;
+
+    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_APPLE);
+    pci_config_set_device_id(d->config, device_id);
 
     d->config[0x0a] = 0x00; // class_sub = pci2pci
     d->config[0x0b] = 0xff; // class_base = bridge

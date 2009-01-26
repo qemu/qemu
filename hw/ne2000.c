@@ -790,10 +790,8 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
                                               devfn,
                                               NULL, NULL);
     pci_conf = d->dev.config;
-    pci_conf[0x00] = 0xec; // Realtek 8029
-    pci_conf[0x01] = 0x10;
-    pci_conf[0x02] = 0x29;
-    pci_conf[0x03] = 0x80;
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
+    pci_config_set_device_id(pci_conf, 0x8029); // Realtek 8029
     pci_conf[0x0a] = 0x00; // ethernet network controller
     pci_conf[0x0b] = 0x02;
     pci_conf[0x0e] = 0x00; // header_type
