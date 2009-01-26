@@ -37,6 +37,9 @@ enum vhd_type {
     VHD_DIFFERENCING    = 4,
 };
 
+// Seconds since Jan 1, 2000 0:00:00 (UTC)
+#define VHD_TIMESTAMP_BASE 946684800
+
 // always big-endian
 struct vhd_footer {
     char        creator[8]; // "conectix"
@@ -127,6 +130,18 @@ typedef struct BDRVVPCState {
 #endif
 } BDRVVPCState;
 
+static uint32_t vpc_checksum(uint8_t* buf, size_t size)
+{
+    uint32_t res = 0;
+    int i;
+
+    for (i = 0; i < size; i++)
+        res += buf[i];
+
+    return ~res;
+}
+
+
 static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     if (buf_size >= 8 && !strncmp((char *)buf, "conectix", 8))
@@ -141,6 +156,7 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     struct vhd_footer* footer;
     struct vhd_dyndisk_header* dyndisk_header;
     uint8_t buf[HEADER_SIZE];
+    uint32_t checksum;
 
     ret = bdrv_file_open(&s->hd, filename, flags);
     if (ret < 0)
@@ -152,6 +168,12 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     footer = (struct vhd_footer*) s->footer_buf;
     if (strncmp(footer->creator, "conectix", 8))
         goto fail;
+
+    checksum = be32_to_cpu(footer->checksum);
+    footer->checksum = 0;
+    if (vpc_checksum(s->footer_buf, HEADER_SIZE) != checksum)
+        fprintf(stderr, "block-vpc: The header checksum of '%s' is "
+            "incorrect.\n", filename);
 
     // The visible size of a image in Virtual PC depends on the geometry
     // rather than on the size stored in the footer (the size in the footer
@@ -407,6 +429,152 @@ static int vpc_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+
+/*
+ * Calculates the number of cylinders, heads and sectors per cylinder
+ * based on a given number of sectors. This is the algorithm described
+ * in the VHD specification.
+ *
+ * Note that the geometry doesn't always exactly match total_sectors but
+ * may round it down.
+ */
+static void calculate_geometry(int64_t total_sectors, uint16_t* cyls,
+    uint8_t* heads, uint8_t* secs_per_cyl)
+{
+    uint32_t cyls_times_heads;
+
+    if (total_sectors > 65535 * 16 * 255)
+        total_sectors = 65535 * 16 * 255;
+
+    if (total_sectors > 65535 * 16 * 63) {
+        *secs_per_cyl = 255;
+        *heads = 16;
+        cyls_times_heads = total_sectors / *secs_per_cyl;
+    } else {
+        *secs_per_cyl = 17;
+        cyls_times_heads = total_sectors / *secs_per_cyl;
+        *heads = (cyls_times_heads + 1023) / 1024;
+
+        if (*heads < 4)
+            *heads = 4;
+
+        if (cyls_times_heads >= (*heads * 1024) || *heads > 16) {
+            *secs_per_cyl = 31;
+            *heads = 16;
+            cyls_times_heads = total_sectors / *secs_per_cyl;
+        }
+
+        if (cyls_times_heads >= (*heads * 1024)) {
+            *secs_per_cyl = 63;
+            *heads = 16;
+            cyls_times_heads = total_sectors / *secs_per_cyl;
+        }
+    }
+
+    // Note: Rounding up deviates from the Virtual PC behaviour
+    // However, we need this to avoid truncating images in qemu-img convert
+    *cyls = (cyls_times_heads + *heads - 1) / *heads;
+}
+
+static int vpc_create(const char *filename, int64_t total_sectors,
+    const char *backing_file, int flags)
+{
+    uint8_t buf[1024];
+    struct vhd_footer* footer = (struct vhd_footer*) buf;
+    struct vhd_dyndisk_header* dyndisk_header =
+        (struct vhd_dyndisk_header*) buf;
+    int fd, i;
+    uint16_t cyls;
+    uint8_t heads;
+    uint8_t secs_per_cyl;
+    size_t block_size, num_bat_entries;
+
+    if (backing_file != NULL)
+        return -ENOTSUP;
+
+    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
+    if (fd < 0)
+        return -EIO;
+
+    // Calculate matching total_size and geometry
+    calculate_geometry(total_sectors, &cyls, &heads, &secs_per_cyl);
+    total_sectors = (int64_t) cyls * heads * secs_per_cyl;
+
+    // Prepare the Hard Disk Footer
+    memset(buf, 0, 1024);
+
+    strncpy(footer->creator, "conectix", 8);
+    // TODO Check if "qemu" creator_app is ok for VPC
+    strncpy(footer->creator_app, "qemu", 4);
+    strncpy(footer->creator_os, "Wi2k", 4);
+
+    footer->features = be32_to_cpu(0x02);
+    footer->version = be32_to_cpu(0x00010000);
+    footer->data_offset = be64_to_cpu(HEADER_SIZE);
+    footer->timestamp = be32_to_cpu(time(NULL) - VHD_TIMESTAMP_BASE);
+
+    // Version of Virtual PC 2007
+    footer->major = be16_to_cpu(0x0005);
+    footer->minor =be16_to_cpu(0x0003);
+
+    footer->orig_size = be64_to_cpu(total_sectors * 512);
+    footer->size = be64_to_cpu(total_sectors * 512);
+
+    footer->cyls = be16_to_cpu(cyls);
+    footer->heads = heads;
+    footer->secs_per_cyl = secs_per_cyl;
+
+    footer->type = be32_to_cpu(VHD_DYNAMIC);
+
+    // TODO uuid is missing
+
+    footer->checksum = be32_to_cpu(vpc_checksum(buf, HEADER_SIZE));
+
+    // Write the footer (twice: at the beginning and at the end)
+    block_size = 0x200000;
+    num_bat_entries = (total_sectors + block_size / 512) / (block_size / 512);
+
+    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE)
+        return -EIO;
+
+    if (lseek(fd, 1536 + ((num_bat_entries * 4 + 511) & ~511), SEEK_SET) < 0)
+        return -EIO;
+    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE)
+        return -EIO;
+
+    // Write the initial BAT
+    if (lseek(fd, 3 * 512, SEEK_SET) < 0)
+        return -EIO;
+
+    memset(buf, 0xFF, 512);
+    for (i = 0; i < (num_bat_entries * 4 + 511) / 512; i++)
+        if (write(fd, buf, 512) != 512)
+            return -EIO;
+
+
+    // Prepare the Dynamic Disk Header
+    memset(buf, 0, 1024);
+
+    strncpy(dyndisk_header->magic, "cxsparse", 8);
+
+    dyndisk_header->data_offset = be64_to_cpu(0xFFFFFFFF);
+    dyndisk_header->table_offset = be64_to_cpu(3 * 512);
+    dyndisk_header->version = be32_to_cpu(0x00010000);
+    dyndisk_header->block_size = be32_to_cpu(block_size);
+    dyndisk_header->max_table_entries = be32_to_cpu(num_bat_entries);
+
+    dyndisk_header->checksum = be32_to_cpu(vpc_checksum(buf, 1024));
+
+    // Write the header
+    if (lseek(fd, 512, SEEK_SET) < 0)
+        return -EIO;
+    if (write(fd, buf, 1024) != 1024)
+        return -EIO;
+
+    close(fd);
+    return 0;
+}
+
 static void vpc_close(BlockDriverState *bs)
 {
     BDRVVPCState *s = bs->opaque;
@@ -425,4 +593,5 @@ BlockDriver bdrv_vpc = {
     vpc_read,
     vpc_write,
     vpc_close,
+    vpc_create,
 };
