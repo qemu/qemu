@@ -174,7 +174,8 @@ void *virtio_balloon_init(PCIBus *bus)
     s = (VirtIOBalloon *)virtio_init_pci(bus, "virtio-balloon",
                                          PCI_VENDOR_ID_REDHAT_QUMRANET,
                                          PCI_DEVICE_ID_VIRTIO_BALLOON,
-                                         0, VIRTIO_ID_BALLOON,
+                                         PCI_VENDOR_ID_REDHAT_QUMRANET,
+                                         VIRTIO_ID_BALLOON,
                                          0x05, 0x00, 0x00,
                                          8, sizeof(VirtIOBalloon));
     if (s == NULL)

@@ -323,7 +323,8 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n = (VirtIONet *)virtio_init_pci(bus, "virtio-net",
                                      PCI_VENDOR_ID_REDHAT_QUMRANET,
                                      PCI_DEVICE_ID_VIRTIO_NET,
-                                     0, VIRTIO_ID_NET,
+                                     PCI_VENDOR_ID_REDHAT_QUMRANET,
+                                     VIRTIO_ID_NET,
                                      0x02, 0x00, 0x00,
                                      sizeof(struct virtio_net_config),
                                      sizeof(VirtIONet));
