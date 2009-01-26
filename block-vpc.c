@@ -150,6 +150,12 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     if (strncmp(footer->creator, "conectix", 8))
         goto fail;
 
+    // The visible size of a image in Virtual PC depends on the geometry
+    // rather than on the size stored in the footer (the size in the footer
+    // is too large usually)
+    bs->total_sectors = (int64_t)
+        be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
+
     lseek(s->fd, be64_to_cpu(footer->data_offset), SEEK_SET);
     if (read(fd, buf, HEADER_SIZE) != HEADER_SIZE)
         goto fail;
@@ -159,9 +165,6 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 
     if (strncmp(dyndisk_header->magic, "cxsparse", 8))
         goto fail;
-
-    bs->total_sectors = ((uint64_t)be32_to_cpu(dyndisk_header->max_table_entries) *
-			be32_to_cpu(dyndisk_header->block_size)) / 512;
 
     lseek(s->fd, be64_to_cpu(dyndisk_header->table_offset), SEEK_SET);
 
