@@ -445,10 +445,6 @@ static int kvm_get_sregs(CPUState *env)
             }
     }
     env->hflags = (env->hflags & HFLAG_COPY_MASK) | hflags;
-    env->cc_src = env->eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    env->df = 1 - (2 * ((env->eflags >> 10) & 1));
-    env->cc_op = CC_OP_EFLAGS;
-    env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
 
     return 0;
 }
