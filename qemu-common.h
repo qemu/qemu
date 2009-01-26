@@ -195,13 +195,14 @@ typedef struct QEMUIOVector {
     struct iovec *iov;
     int niov;
     int nalloc;
+    size_t size;
 } QEMUIOVector;
 
 void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint);
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
 void qemu_iovec_destroy(QEMUIOVector *qiov);
 void qemu_iovec_to_buffer(QEMUIOVector *qiov, void *buf);
-void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf);
+void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count);
 
 #endif /* dyngen-exec.h hack */
 

@@ -1265,7 +1265,7 @@ static void bdrv_aio_rw_vector_cb(void *opaque, int ret)
     VectorTranslationState *s = opaque;
 
     if (!s->is_write) {
-        qemu_iovec_from_buffer(s->iov, s->bounce);
+        qemu_iovec_from_buffer(s->iov, s->bounce, s->iov->size);
     }
     qemu_free(s->bounce);
     s->this_aiocb->cb(s->this_aiocb->opaque, ret);
