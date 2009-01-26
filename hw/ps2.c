@@ -497,6 +497,7 @@ static void ps2_reset(void *opaque)
     q->rptr = 0;
     q->wptr = 0;
     q->count = 0;
+    s->update_irq(s->update_arg, 0);
 }
 
 static void ps2_common_save (QEMUFile *f, PS2State *s)
