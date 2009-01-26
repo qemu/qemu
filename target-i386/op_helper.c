@@ -1251,6 +1251,9 @@ void do_interrupt(int intno, int is_int, int error_code,
     }
 }
 
+/* This should come from sysemu.h - if we could include it here... */
+void qemu_system_reset_request(void);
+
 /*
  * Check nested exceptions and change to double or triple fault if
  * needed. It should only be called, if this is not an interrupt.
@@ -1267,8 +1270,18 @@ static int check_exception(int intno, int *error_code)
     qemu_log_mask(CPU_LOG_INT, "check_exception old: 0x%x new 0x%x\n",
                 env->old_exception, intno);
 
-    if (env->old_exception == EXCP08_DBLE)
-        cpu_abort(env, "triple fault");
+#if !defined(CONFIG_USER_ONLY)
+    if (env->old_exception == EXCP08_DBLE) {
+        if (env->hflags & HF_SVMI_MASK)
+            helper_vmexit(SVM_EXIT_SHUTDOWN, 0); /* does not return */
+
+        if (loglevel & CPU_LOG_RESET)
+            fprintf(logfile, "Triple fault\n");
+
+        qemu_system_reset_request();
+        return EXCP_HLT;
+    }
+#endif
 
     if ((first_contributory && second_contributory)
         || (env->old_exception == EXCP0E_PAGE &&
