@@ -30,41 +30,87 @@
 
 //#define CACHE
 
+enum vhd_type {
+    VHD_FIXED           = 2,
+    VHD_DYNAMIC         = 3,
+    VHD_DIFFERENCING    = 4,
+};
+
 // always big-endian
 struct vhd_footer {
-    char creator[8]; // "conectix
-    uint32_t unk1[2];
-    uint32_t unk2; // always zero?
-    uint32_t subheader_offset;
-    uint32_t unk3; // some size?
-    char creator_app[4]; // "vpc "
-    uint16_t major;
-    uint16_t minor;
-    char guest[4]; // "Wi2k"
-    uint32_t unk4[7];
-    uint8_t vnet_id[16]; // virtual network id, purpose unknown
-    // next 16 longs are used, but dunno the purpose
-    // next 6 longs unknown, following 7 long maybe a serial
+    char        creator[8]; // "conectix"
+    uint32_t    features;
+    uint32_t    version;
+
+    // Offset of next header structure, 0xFFFFFFFF if none
+    uint64_t    data_offset;
+
+    // Seconds since Jan 1, 2000 0:00:00 (UTC)
+    uint32_t    timestamp;
+
+    char        creator_app[4]; // "vpc "
+    uint16_t    major;
+    uint16_t    minor;
+    char        creator_os[4]; // "Wi2k"
+
+    uint64_t    orig_size;
+    uint64_t    size;
+
+    uint16_t    cyls;
+    uint8_t     heads;
+    uint8_t     secs_per_cyl;
+
+    uint32_t    type;
+
+    // Checksum of the Hard Disk Footer ("one's complement of the sum of all
+    // the bytes in the footer without the checksum field")
+    uint32_t    checksum;
+
+    // UUID used to identify a parent hard disk (backing file)
+    uint8_t     uuid[16];
+
+    uint8_t     in_saved_state;
 };
 
 struct vhd_dyndisk_header {
-    char magic[8]; // "cxsparse"
-    uint32_t unk1[2]; // all bits set
-    uint32_t unk2; // always zero?
-    uint32_t pagetable_offset;
-    uint32_t unk3;
-    uint32_t pagetable_entries; // 32bit/entry
-    uint32_t pageentry_size; // 512*8*512
-    uint32_t nb_sectors;
+    char        magic[8]; // "cxsparse"
+
+    // Offset of next header structure, 0xFFFFFFFF if none
+    uint64_t    data_offset;
+
+    // Offset of the Block Allocation Table (BAT)
+    uint64_t    table_offset;
+
+    uint32_t    version;
+    uint32_t    max_table_entries; // 32bit/entry
+
+    // 2 MB by default, must be a power of two
+    uint32_t    block_size;
+
+    uint32_t    checksum;
+    uint8_t     parent_uuid[16];
+    uint32_t    parent_timestamp;
+    uint32_t    reserved;
+
+    // Backing file name (in UTF-16)
+    uint8_t     parent_name[512];
+
+    struct {
+        uint32_t    platform;
+        uint32_t    data_space;
+        uint32_t    data_length;
+        uint32_t    reserved;
+        uint64_t    data_offset;
+    } parent_locator[8];
 };
 
 typedef struct BDRVVPCState {
     int fd;
 
-    int pagetable_entries;
+    int max_table_entries;
     uint32_t *pagetable;
 
-    uint32_t pageentry_size;
+    uint32_t block_size;
 #ifdef CACHE
     uint8_t *pageentry_u8;
     uint32_t *pageentry_u32;
@@ -104,7 +150,7 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     if (strncmp(footer->creator, "conectix", 8))
         goto fail;
 
-    lseek(s->fd, be32_to_cpu(footer->subheader_offset), SEEK_SET);
+    lseek(s->fd, be64_to_cpu(footer->data_offset), SEEK_SET);
     if (read(fd, buf, HEADER_SIZE) != HEADER_SIZE)
         goto fail;
 
@@ -114,22 +160,22 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     if (strncmp(dyndisk_header->magic, "cxsparse", 8))
         goto fail;
 
-    bs->total_sectors = ((uint64_t)be32_to_cpu(dyndisk_header->pagetable_entries) *
-			be32_to_cpu(dyndisk_header->pageentry_size)) / 512;
+    bs->total_sectors = ((uint64_t)be32_to_cpu(dyndisk_header->max_table_entries) *
+			be32_to_cpu(dyndisk_header->block_size)) / 512;
 
-    lseek(s->fd, be32_to_cpu(dyndisk_header->pagetable_offset), SEEK_SET);
+    lseek(s->fd, be64_to_cpu(dyndisk_header->table_offset), SEEK_SET);
 
-    s->pagetable_entries = be32_to_cpu(dyndisk_header->pagetable_entries);
-    s->pagetable = qemu_malloc(s->pagetable_entries * 4);
+    s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
+    s->pagetable = qemu_malloc(s->max_table_entries * 4);
     if (!s->pagetable)
 	goto fail;
-    if (read(s->fd, s->pagetable, s->pagetable_entries * 4) !=
-	s->pagetable_entries * 4)
+    if (read(s->fd, s->pagetable, s->max_table_entries * 4) !=
+	s->max_table_entries * 4)
 	goto fail;
-    for (i = 0; i < s->pagetable_entries; i++)
+    for (i = 0; i < s->max_table_entries; i++)
 	be32_to_cpus(&s->pagetable[i]);
 
-    s->pageentry_size = be32_to_cpu(dyndisk_header->pageentry_size);
+    s->block_size = be32_to_cpu(dyndisk_header->block_size);
 #ifdef CACHE
     s->pageentry_u8 = qemu_malloc(512);
     if (!s->pageentry_u8)
@@ -152,10 +198,10 @@ static inline int seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     uint64_t bitmap_offset, block_offset;
     uint32_t pagetable_index, pageentry_index;
 
-    pagetable_index = offset / s->pageentry_size;
-    pageentry_index = (offset % s->pageentry_size) / 512;
+    pagetable_index = offset / s->block_size;
+    pageentry_index = (offset % s->block_size) / 512;
 
-    if (pagetable_index > s->pagetable_entries || s->pagetable[pagetable_index] == 0xffffffff)
+    if (pagetable_index > s->max_table_entries || s->pagetable[pagetable_index] == 0xffffffff)
 	return -1; // not allocated
 
     bitmap_offset = 512 * s->pagetable[pagetable_index];
