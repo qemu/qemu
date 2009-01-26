@@ -261,7 +261,24 @@
 
 #define MSR_IA32_PERF_STATUS            0x198
 
+#define MSR_MTRRphysBase(reg)		(0x200 + 2 * (reg))
+#define MSR_MTRRphysMask(reg)		(0x200 + 2 * (reg) + 1)
+
+#define MSR_MTRRfix64K_00000		0x250
+#define MSR_MTRRfix16K_80000		0x258
+#define MSR_MTRRfix16K_A0000		0x259
+#define MSR_MTRRfix4K_C0000		0x268
+#define MSR_MTRRfix4K_C8000		0x269
+#define MSR_MTRRfix4K_D0000		0x26a
+#define MSR_MTRRfix4K_D8000		0x26b
+#define MSR_MTRRfix4K_E0000		0x26c
+#define MSR_MTRRfix4K_E8000		0x26d
+#define MSR_MTRRfix4K_F0000		0x26e
+#define MSR_MTRRfix4K_F8000		0x26f
+
 #define MSR_PAT                         0x277
+
+#define MSR_MTRRdefType			0x2ff
 
 #define MSR_EFER                        0xc0000080
 
@@ -629,6 +646,14 @@ typedef struct CPUX86State {
     uint32_t cpuid_ext3_features;
     uint32_t cpuid_apic_id;
 
+    /* MTRRs */
+    uint64_t mtrr_fixed[11];
+    uint64_t mtrr_deftype;
+    struct {
+        uint64_t base;
+        uint64_t mask;
+    } mtrr_var[8];
+
 #ifdef USE_KQEMU
     int kqemu_enabled;
     int last_io_time;
@@ -805,7 +830,7 @@ static inline int cpu_get_time_fast(void)
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 
-#define CPU_SAVE_VERSION 7
+#define CPU_SAVE_VERSION 8
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
