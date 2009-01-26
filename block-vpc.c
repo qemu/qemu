@@ -2,6 +2,7 @@
  * Block driver for Conectix/Microsoft Virtual PC images
  *
  * Copyright (c) 2005 Alex Beregszaszi
+ * Copyright (c) 2009 Kevin Wolf <kwolf@suse.de>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -107,10 +108,16 @@ struct vhd_dyndisk_header {
 typedef struct BDRVVPCState {
     BlockDriverState *hd;
 
+    uint8_t footer_buf[HEADER_SIZE];
+    uint64_t free_data_block_offset;
     int max_table_entries;
     uint32_t *pagetable;
+    uint64_t bat_offset;
+    uint64_t last_bitmap_offset;
 
     uint32_t block_size;
+    uint32_t bitmap_size;
+
 #ifdef CACHE
     uint8_t *pageentry_u8;
     uint32_t *pageentry_u32;
@@ -135,16 +142,14 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     struct vhd_dyndisk_header* dyndisk_header;
     uint8_t buf[HEADER_SIZE];
 
-    bs->read_only = 1; // no write support yet
-
     ret = bdrv_file_open(&s->hd, filename, flags);
     if (ret < 0)
         return ret;
 
-    if (bdrv_pread(s->hd, 0, buf, HEADER_SIZE) != HEADER_SIZE)
+    if (bdrv_pread(s->hd, 0, s->footer_buf, HEADER_SIZE) != HEADER_SIZE)
         goto fail;
 
-    footer = (struct vhd_footer*) buf;
+    footer = (struct vhd_footer*) s->footer_buf;
     if (strncmp(footer->creator, "conectix", 8))
         goto fail;
 
@@ -158,26 +163,41 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
             != HEADER_SIZE)
         goto fail;
 
-    footer = NULL;
     dyndisk_header = (struct vhd_dyndisk_header*) buf;
 
     if (strncmp(dyndisk_header->magic, "cxsparse", 8))
         goto fail;
 
 
+    s->block_size = be32_to_cpu(dyndisk_header->block_size);
+    s->bitmap_size = ((s->block_size / (8 * 512)) + 511) & ~511;
+
     s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
     s->pagetable = qemu_malloc(s->max_table_entries * 4);
     if (!s->pagetable)
         goto fail;
 
-    if (bdrv_pread(s->hd, be64_to_cpu(dyndisk_header->table_offset),
-            s->pagetable, s->max_table_entries * 4) != s->max_table_entries * 4)
+    s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
+    if (bdrv_pread(s->hd, s->bat_offset, s->pagetable,
+            s->max_table_entries * 4) != s->max_table_entries * 4)
 	    goto fail;
 
-    for (i = 0; i < s->max_table_entries; i++)
-	be32_to_cpus(&s->pagetable[i]);
+    s->free_data_block_offset =
+        (s->bat_offset + (s->max_table_entries * 4) + 511) & ~511;
 
-    s->block_size = be32_to_cpu(dyndisk_header->block_size);
+    for (i = 0; i < s->max_table_entries; i++) {
+        be32_to_cpus(&s->pagetable[i]);
+        if (s->pagetable[i] != 0xFFFFFFFF) {
+            int64_t next = (512 * (int64_t) s->pagetable[i]) +
+                s->bitmap_size + s->block_size;
+
+            if (next> s->free_data_block_offset)
+                s->free_data_block_offset = next;
+        }
+    }
+
+    s->last_bitmap_offset = (int64_t) -1;
+
 #ifdef CACHE
     s->pageentry_u8 = qemu_malloc(512);
     if (!s->pageentry_u8)
@@ -196,8 +216,12 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 /*
  * Returns the absolute byte offset of the given sector in the image file.
  * If the sector is not allocated, -1 is returned instead.
+ *
+ * The parameter write must be 1 if the offset will be used for a write
+ * operation (the block bitmaps is updated then), 0 otherwise.
  */
-static inline int64_t get_sector_offset(BlockDriverState *bs, int64_t sector_num)
+static inline int64_t get_sector_offset(BlockDriverState *bs,
+    int64_t sector_num, int write)
 {
     BDRVVPCState *s = bs->opaque;
     uint64_t offset = sector_num * 512;
@@ -207,11 +231,24 @@ static inline int64_t get_sector_offset(BlockDriverState *bs, int64_t sector_num
     pagetable_index = offset / s->block_size;
     pageentry_index = (offset % s->block_size) / 512;
 
-    if (pagetable_index > s->max_table_entries || s->pagetable[pagetable_index] == 0xffffffff)
-	return -1; // not allocated
+    if (pagetable_index >= s->max_table_entries || s->pagetable[pagetable_index] == 0xffffffff)
+        return -1; // not allocated
 
     bitmap_offset = 512 * s->pagetable[pagetable_index];
-    block_offset = bitmap_offset + 512 + (512 * pageentry_index);
+    block_offset = bitmap_offset + s->bitmap_size + (512 * pageentry_index);
+
+    // We must ensure that we don't write to any sectors which are marked as
+    // unused in the bitmap. We get away with setting all bits in the block
+    // bitmap each time we write to a new block. This might cause Virtual PC to
+    // miss sparse read optimization, but it's not a problem in terms of
+    // correctness.
+    if (write && (s->last_bitmap_offset != bitmap_offset)) {
+        uint8_t bitmap[s->bitmap_size];
+
+        s->last_bitmap_offset = bitmap_offset;
+        memset(bitmap, 0xff, s->bitmap_size);
+        bdrv_pwrite(s->hd, bitmap_offset, bitmap, s->bitmap_size);
+    }
 
 //    printf("sector: %" PRIx64 ", index: %x, offset: %x, bioff: %" PRIx64 ", bloff: %" PRIx64 "\n",
 //	sector_num, pagetable_index, pageentry_index,
@@ -248,6 +285,75 @@ static inline int64_t get_sector_offset(BlockDriverState *bs, int64_t sector_num
     return block_offset;
 }
 
+/*
+ * Writes the footer to the end of the image file. This is needed when the
+ * file grows as it overwrites the old footer
+ *
+ * Returns 0 on success and < 0 on error
+ */
+static int rewrite_footer(BlockDriverState* bs)
+{
+    int ret;
+    BDRVVPCState *s = bs->opaque;
+    int64_t offset = s->free_data_block_offset;
+
+    ret = bdrv_pwrite(s->hd, offset, s->footer_buf, HEADER_SIZE);
+    if (ret < 0)
+        return ret;
+
+    return 0;
+}
+
+/*
+ * Allocates a new block. This involves writing a new footer and updating
+ * the Block Allocation Table to use the space at the old end of the image
+ * file (overwriting the old footer)
+ *
+ * Returns the sectors' offset in the image file on success and < 0 on error
+ */
+static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
+{
+    BDRVVPCState *s = bs->opaque;
+    int64_t bat_offset;
+    uint32_t index, bat_value;
+    int ret;
+    uint8_t bitmap[s->bitmap_size];
+
+    // Check if sector_num is valid
+    if ((sector_num < 0) || (sector_num > bs->total_sectors))
+        return -1;
+
+    // Write entry into in-memory BAT
+    index = (sector_num * 512) / s->block_size;
+    if (s->pagetable[index] != 0xFFFFFFFF)
+        return -1;
+
+    s->pagetable[index] = s->free_data_block_offset / 512;
+
+    // Initialize the block's bitmap
+    memset(bitmap, 0xff, s->bitmap_size);
+    bdrv_pwrite(s->hd, s->free_data_block_offset, bitmap, s->bitmap_size);
+
+    // Write new footer (the old one will be overwritten)
+    s->free_data_block_offset += s->block_size + s->bitmap_size;
+    ret = rewrite_footer(bs);
+    if (ret < 0)
+        goto fail;
+
+    // Write BAT entry to disk
+    bat_offset = s->bat_offset + (4 * index);
+    bat_value = be32_to_cpu(s->pagetable[index]);
+    ret = bdrv_pwrite(s->hd, bat_offset, &bat_value, 4);
+    if (ret < 0)
+        goto fail;
+
+    return get_sector_offset(bs, sector_num, 0);
+
+fail:
+    s->free_data_block_offset -= (s->block_size + s->bitmap_size);
+    return -1;
+}
+
 static int vpc_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
@@ -256,7 +362,7 @@ static int vpc_read(BlockDriverState *bs, int64_t sector_num,
     int64_t offset;
 
     while (nb_sectors > 0) {
-        offset = get_sector_offset(bs, sector_num);
+        offset = get_sector_offset(bs, sector_num, 0);
 
         if (offset == -1) {
             memset(buf, 0, 512);
@@ -270,6 +376,34 @@ static int vpc_read(BlockDriverState *bs, int64_t sector_num,
         sector_num++;
         buf += 512;
     }
+    return 0;
+}
+
+static int vpc_write(BlockDriverState *bs, int64_t sector_num,
+    const uint8_t *buf, int nb_sectors)
+{
+    BDRVVPCState *s = bs->opaque;
+    int64_t offset;
+    int ret;
+
+    while (nb_sectors > 0) {
+        offset = get_sector_offset(bs, sector_num, 1);
+
+        if (offset == -1) {
+            offset = alloc_block(bs, sector_num);
+            if (offset < 0)
+                return -1;
+        }
+
+        ret = bdrv_pwrite(s->hd, offset, buf, 512);
+        if (ret != 512)
+            return -1;
+
+        nb_sectors--;
+        sector_num++;
+        buf += 512;
+    }
+
     return 0;
 }
 
@@ -289,6 +423,6 @@ BlockDriver bdrv_vpc = {
     vpc_probe,
     vpc_open,
     vpc_read,
-    NULL,
+    vpc_write,
     vpc_close,
 };
