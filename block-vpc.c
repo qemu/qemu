@@ -31,36 +31,31 @@
 //#define CACHE
 
 // always big-endian
-struct vpc_subheader {
-    char magic[8]; // "conectix" / "cxsparse"
-    union {
-	struct {
-	    uint32_t unk1[2];
-	    uint32_t unk2; // always zero?
-	    uint32_t subheader_offset;
-	    uint32_t unk3; // some size?
-	    char creator[4]; // "vpc "
-	    uint16_t major;
-	    uint16_t minor;
-	    char guest[4]; // "Wi2k"
-	    uint32_t unk4[7];
-	    uint8_t vnet_id[16]; // virtual network id, purpose unknown
-	    // next 16 longs are used, but dunno the purpose
-	    // next 6 longs unknown, following 7 long maybe a serial
-	    char padding[HEADER_SIZE - 84];
-	} main;
-	struct {
-	    uint32_t unk1[2]; // all bits set
-	    uint32_t unk2; // always zero?
-	    uint32_t pagetable_offset;
-	    uint32_t unk3;
-	    uint32_t pagetable_entries; // 32bit/entry
-	    uint32_t pageentry_size; // 512*8*512
-	    uint32_t nb_sectors;
-	    char padding[HEADER_SIZE - 40];
-	} sparse;
-	char padding[HEADER_SIZE - 8];
-    } type;
+struct vhd_footer {
+    char creator[8]; // "conectix
+    uint32_t unk1[2];
+    uint32_t unk2; // always zero?
+    uint32_t subheader_offset;
+    uint32_t unk3; // some size?
+    char creator_app[4]; // "vpc "
+    uint16_t major;
+    uint16_t minor;
+    char guest[4]; // "Wi2k"
+    uint32_t unk4[7];
+    uint8_t vnet_id[16]; // virtual network id, purpose unknown
+    // next 16 longs are used, but dunno the purpose
+    // next 6 longs unknown, following 7 long maybe a serial
+};
+
+struct vhd_dyndisk_header {
+    char magic[8]; // "cxsparse"
+    uint32_t unk1[2]; // all bits set
+    uint32_t unk2; // always zero?
+    uint32_t pagetable_offset;
+    uint32_t unk3;
+    uint32_t pagetable_entries; // 32bit/entry
+    uint32_t pageentry_size; // 512*8*512
+    uint32_t nb_sectors;
 };
 
 typedef struct BDRVVPCState {
@@ -90,7 +85,9 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVVPCState *s = bs->opaque;
     int fd, i;
-    struct vpc_subheader header;
+    struct vhd_footer* footer;
+    struct vhd_dyndisk_header* dyndisk_header;
+    uint8_t buf[HEADER_SIZE];
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
@@ -100,25 +97,29 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 
     s->fd = fd;
 
-    if (read(fd, &header, HEADER_SIZE) != HEADER_SIZE)
+    if (read(fd, buf, HEADER_SIZE) != HEADER_SIZE)
         goto fail;
 
-    if (strncmp(header.magic, "conectix", 8))
-        goto fail;
-    lseek(s->fd, be32_to_cpu(header.type.main.subheader_offset), SEEK_SET);
-
-    if (read(fd, &header, HEADER_SIZE) != HEADER_SIZE)
+    footer = (struct vhd_footer*) buf;
+    if (strncmp(footer->creator, "conectix", 8))
         goto fail;
 
-    if (strncmp(header.magic, "cxsparse", 8))
-	goto fail;
+    lseek(s->fd, be32_to_cpu(footer->subheader_offset), SEEK_SET);
+    if (read(fd, buf, HEADER_SIZE) != HEADER_SIZE)
+        goto fail;
 
-    bs->total_sectors = ((uint64_t)be32_to_cpu(header.type.sparse.pagetable_entries) *
-			be32_to_cpu(header.type.sparse.pageentry_size)) / 512;
+    footer = NULL;
+    dyndisk_header = (struct vhd_dyndisk_header*) buf;
 
-    lseek(s->fd, be32_to_cpu(header.type.sparse.pagetable_offset), SEEK_SET);
+    if (strncmp(dyndisk_header->magic, "cxsparse", 8))
+        goto fail;
 
-    s->pagetable_entries = be32_to_cpu(header.type.sparse.pagetable_entries);
+    bs->total_sectors = ((uint64_t)be32_to_cpu(dyndisk_header->pagetable_entries) *
+			be32_to_cpu(dyndisk_header->pageentry_size)) / 512;
+
+    lseek(s->fd, be32_to_cpu(dyndisk_header->pagetable_offset), SEEK_SET);
+
+    s->pagetable_entries = be32_to_cpu(dyndisk_header->pagetable_entries);
     s->pagetable = qemu_malloc(s->pagetable_entries * 4);
     if (!s->pagetable)
 	goto fail;
@@ -128,7 +129,7 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
     for (i = 0; i < s->pagetable_entries; i++)
 	be32_to_cpus(&s->pagetable[i]);
 
-    s->pageentry_size = be32_to_cpu(header.type.sparse.pageentry_size);
+    s->pageentry_size = be32_to_cpu(dyndisk_header->pageentry_size);
 #ifdef CACHE
     s->pageentry_u8 = qemu_malloc(512);
     if (!s->pageentry_u8)
