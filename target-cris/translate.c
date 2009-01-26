@@ -36,6 +36,7 @@
 #include "disas.h"
 #include "tcg-op.h"
 #include "helper.h"
+#include "mmu.h"
 #include "crisv32-decode.h"
 #include "qemu-common.h"
 
@@ -3471,6 +3472,7 @@ void cpu_reset (CPUCRISState *env)
 	/* start in user mode with interrupts enabled.  */
 	env->pregs[PR_CCS] |= U_FLAG | I_FLAG;
 #else
+	cris_mmu_init(env);
 	env->pregs[PR_CCS] = 0;
 #endif
 }
