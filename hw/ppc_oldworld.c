@@ -207,10 +207,16 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     if (linux_boot) {
+        uint64_t lowaddr = 0;
         kernel_base = KERNEL_LOAD_ADDR;
-        /* now we can load the kernel */
-        kernel_size = load_elf(kernel_filename, kernel_base - 0xc0000000ULL,
-                               NULL, NULL, NULL);
+        /* Now we can load the kernel. The first step tries to load the kernel
+           supposing PhysAddr = 0x00000000. If that was wrong the kernel is
+           loaded again, the new PhysAddr being computed from lowaddr. */
+        kernel_size = load_elf(kernel_filename, kernel_base, NULL, &lowaddr, NULL);
+        if (kernel_size > 0 && lowaddr != KERNEL_LOAD_ADDR) {
+            kernel_size = load_elf(kernel_filename, (2 * kernel_base) - lowaddr,
+                                   NULL, 0, NULL);
+        }
         if (kernel_size < 0)
             kernel_size = load_aout(kernel_filename, kernel_base,
                                     ram_size - kernel_base);
