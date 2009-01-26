@@ -467,7 +467,8 @@ static void pit_reset(void *opaque)
 void hpet_pit_disable(void) {
     PITChannelState *s;
     s = &pit_state.channels[0];
-    qemu_del_timer(s->irq_timer);
+    if (s->irq_timer)
+        qemu_del_timer(s->irq_timer);
 }
 
 /* When HPET is reset or leaving legacy mode, it must reenable i8254
