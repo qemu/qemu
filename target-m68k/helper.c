@@ -143,6 +143,11 @@ static int cpu_m68k_set_model(CPUM68KState *env, const char *name)
 
 void cpu_reset(CPUM68KState *env)
 {
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
     memset(env, 0, offsetof(CPUM68KState, breakpoints));
 #if !defined (CONFIG_USER_ONLY)
     env->sr = 0x2700;

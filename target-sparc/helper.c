@@ -639,6 +639,11 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 
 void cpu_reset(CPUSPARCState *env)
 {
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
     tlb_flush(env, 1);
     env->cwp = 0;
     env->wim = 1;

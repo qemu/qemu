@@ -418,6 +418,11 @@ void cpu_reset(CPUX86State *env)
 {
     int i;
 
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, X86_DUMP_FPU | X86_DUMP_CCOP);
+    }
+
     memset(env, 0, offsetof(CPUX86State, breakpoints));
 
     tlb_flush(env, 1);

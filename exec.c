@@ -1569,6 +1569,8 @@ const CPULogItem cpu_log_items[] = {
 #ifdef TARGET_I386
     { CPU_LOG_PCALL, "pcall",
       "show protected mode far calls/returns/exceptions" },
+    { CPU_LOG_RESET, "cpu_reset",
+      "show CPU state before CPU resets" },
 #endif
 #ifdef DEBUG_IOPORT
     { CPU_LOG_IOPORT, "ioport",

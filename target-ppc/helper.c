@@ -2709,10 +2709,14 @@ void cpu_dump_rfi (target_ulong RA, target_ulong msr)
 
 void cpu_ppc_reset (void *opaque)
 {
-    CPUPPCState *env;
+    CPUPPCState *env = opaque;
     target_ulong msr;
 
-    env = opaque;
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
     msr = (target_ulong)0;
     if (0) {
         /* XXX: find a suitable condition to enable the hypervisor mode */
