@@ -31,6 +31,7 @@ extern target_phys_addr_t pci_mem_base;
 
 #define PCI_VENDOR_ID_SUN                0x108e
 #define PCI_DEVICE_ID_SUN_EBUS           0x1000
+#define PCI_DEVICE_ID_SUN_SIMBA          0x5000
 #define PCI_DEVICE_ID_SUN_SABRE          0xa000
 
 #define PCI_VENDOR_ID_CMD                0x1095
@@ -183,7 +184,7 @@ int pci_bus_num(PCIBus *s);
 void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d));
 
 void pci_info(void);
-PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint32_t id,
+PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name);
 
 static inline void

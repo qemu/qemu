@@ -713,16 +713,16 @@ static void pci_bridge_write_config(PCIDevice *d,
     pci_default_write_config(d, address, val, len);
 }
 
-PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint32_t id,
+PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name)
 {
     PCIBridge *s;
     s = (PCIBridge *)pci_register_device(bus, name, sizeof(PCIBridge),
                                          devfn, NULL, pci_bridge_write_config);
-    s->dev.config[0x00] = id >> 16;
-    s->dev.config[0x01] = id >> 24;
-    s->dev.config[0x02] = id; // device_id
-    s->dev.config[0x03] = id >> 8;
+
+    pci_config_set_vendor_id(s->dev.config, vid);
+    pci_config_set_device_id(s->dev.config, did);
+
     s->dev.config[0x04] = 0x06; // command = bus master, pci mem
     s->dev.config[0x05] = 0x00;
     s->dev.config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error
