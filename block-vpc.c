@@ -256,7 +256,7 @@ static inline int64_t get_sector_offset(BlockDriverState *bs,
     if (pagetable_index >= s->max_table_entries || s->pagetable[pagetable_index] == 0xffffffff)
         return -1; // not allocated
 
-    bitmap_offset = 512 * s->pagetable[pagetable_index];
+    bitmap_offset = 512 * (uint64_t) s->pagetable[pagetable_index];
     block_offset = bitmap_offset + s->bitmap_size + (512 * pageentry_index);
 
     // We must ensure that we don't write to any sectors which are marked as
