@@ -346,7 +346,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
 {
     SCSIDeviceState *s = d->state;
     uint64_t nb_sectors;
-    uint32_t lba;
+    uint64_t lba;
     uint32_t len;
     int cmdlen;
     int is_write;
@@ -368,23 +368,29 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
     switch (command >> 5) {
     case 0:
-        lba = buf[3] | (buf[2] << 8) | ((buf[1] & 0x1f) << 16);
+        lba = (uint64_t) buf[3] | ((uint64_t) buf[2] << 8) |
+              (((uint64_t) buf[1] & 0x1f) << 16);
         len = buf[4];
         cmdlen = 6;
         break;
     case 1:
     case 2:
-        lba = buf[5] | (buf[4] << 8) | (buf[3] << 16) | (buf[2] << 24);
+        lba = (uint64_t) buf[5] | ((uint64_t) buf[4] << 8) |
+              ((uint64_t) buf[3] << 16) | ((uint64_t) buf[2] << 24);
         len = buf[8] | (buf[7] << 8);
         cmdlen = 10;
         break;
     case 4:
-        lba = buf[5] | (buf[4] << 8) | (buf[3] << 16) | (buf[2] << 24);
+        lba = (uint64_t) buf[9] | ((uint64_t) buf[8] << 8) |
+              ((uint64_t) buf[7] << 16) | ((uint64_t) buf[6] << 24) |
+              ((uint64_t) buf[5] << 32) | ((uint64_t) buf[4] << 40) |
+              ((uint64_t) buf[3] << 48) | ((uint64_t) buf[2] << 56);
         len = buf[13] | (buf[12] << 8) | (buf[11] << 16) | (buf[10] << 24);
         cmdlen = 16;
         break;
     case 5:
-        lba = buf[5] | (buf[4] << 8) | (buf[3] << 16) | (buf[2] << 24);
+        lba = (uint64_t) buf[5] | ((uint64_t) buf[4] << 8) |
+              ((uint64_t) buf[3] << 16) | ((uint64_t) buf[2] << 24);
         len = buf[9] | (buf[8] << 8) | (buf[7] << 16) | (buf[6] << 24);
         cmdlen = 12;
         break;
@@ -750,13 +756,15 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
 	break;
     case 0x08:
     case 0x28:
-        DPRINTF("Read (sector %d, count %d)\n", lba, len);
+    case 0x88:
+        DPRINTF("Read (sector %lld, count %d)\n", lba, len);
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         break;
     case 0x0a:
     case 0x2a:
-        DPRINTF("Write (sector %d, count %d)\n", lba, len);
+    case 0x8a:
+        DPRINTF("Write (sector %lld, count %d)\n", lba, len);
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
@@ -820,6 +828,37 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         if (buf[1] & 3)
             goto fail;
         break;
+    case 0x9e:
+        /* Service Action In subcommands. */
+        if ((buf[1] & 31) == 0x10) {
+            DPRINTF("SAI READ CAPACITY(16)\n");
+            memset(outbuf, 0, len);
+            bdrv_get_geometry(s->bdrv, &nb_sectors);
+            /* Returned value is the address of the last sector.  */
+            if (nb_sectors) {
+                nb_sectors--;
+                outbuf[0] = (nb_sectors >> 56) & 0xff;
+                outbuf[1] = (nb_sectors >> 48) & 0xff;
+                outbuf[2] = (nb_sectors >> 40) & 0xff;
+                outbuf[3] = (nb_sectors >> 32) & 0xff;
+                outbuf[4] = (nb_sectors >> 24) & 0xff;
+                outbuf[5] = (nb_sectors >> 16) & 0xff;
+                outbuf[6] = (nb_sectors >> 8) & 0xff;
+                outbuf[7] = nb_sectors & 0xff;
+                outbuf[8] = 0;
+                outbuf[9] = 0;
+                outbuf[10] = s->cluster_size * 2;
+                outbuf[11] = 0;
+                /* Protection, exponent and lowest lba field left blank. */
+                r->buf_len = len;
+            } else {
+                scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_NOT_READY);
+                return 0;
+            }
+            break;
+        }
+        DPRINTF("Unsupported Service Action In\n");
+        goto fail;
     case 0xa0:
         DPRINTF("Report LUNs (len %d)\n", len);
         if (len < 16)
