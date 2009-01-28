@@ -47,11 +47,11 @@ do { fprintf(stderr, "scsi-disk: " fmt , ##args); } while (0)
 typedef struct SCSIRequest {
     SCSIDeviceState *dev;
     uint32_t tag;
-    /* ??? We should probably keep track of whether the data trasfer is
+    /* ??? We should probably keep track of whether the data transfer is
        a read or a write.  Currently we rely on the host getting it right.  */
     /* Both sector and sector_count are in terms of qemu 512 byte blocks.  */
-    int sector;
-    int sector_count;
+    uint64_t sector;
+    uint32_t sector_count;
     /* The amounnt of data in the buffer.  */
     int buf_len;
     uint8_t *dma_buf;
@@ -731,6 +731,9 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         /* Returned value is the address of the last sector.  */
         if (nb_sectors) {
             nb_sectors--;
+            /* Clip to 2TB, instead of returning capacity modulo 2TB. */
+            if (nb_sectors > UINT32_MAX)
+                nb_sectors = UINT32_MAX;
             outbuf[0] = (nb_sectors >> 24) & 0xff;
             outbuf[1] = (nb_sectors >> 16) & 0xff;
             outbuf[2] = (nb_sectors >> 8) & 0xff;
