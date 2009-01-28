@@ -173,8 +173,7 @@
 #define CIRRUS_MMIO_LINEDRAW_MODE     0x39	// byte
 #define CIRRUS_MMIO_BLTSTATUS         0x40	// byte
 
-// PCI 0x00: vendor, 0x02: device
-#define PCI_VENDOR_CIRRUS             0x1013
+// PCI 0x02: device
 #define PCI_DEVICE_CLGD5462           0x00d0
 #define PCI_DEVICE_CLGD5465           0x00d6
 
@@ -3376,10 +3375,8 @@ void pci_cirrus_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
                                                  sizeof(PCICirrusVGAState),
                                                  -1, NULL, pci_cirrus_write_config);
     pci_conf = d->dev.config;
-    pci_conf[0x00] = (uint8_t) (PCI_VENDOR_CIRRUS & 0xff);
-    pci_conf[0x01] = (uint8_t) (PCI_VENDOR_CIRRUS >> 8);
-    pci_conf[0x02] = (uint8_t) (device_id & 0xff);
-    pci_conf[0x03] = (uint8_t) (device_id >> 8);
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CIRRUS);
+    pci_config_set_device_id(pci_conf, device_id);
     pci_conf[0x04] = PCI_COMMAND_IOACCESS | PCI_COMMAND_MEMACCESS;
     pci_conf[0x0a] = PCI_CLASS_SUB_VGA;
     pci_conf[0x0b] = PCI_CLASS_BASE_DISPLAY;

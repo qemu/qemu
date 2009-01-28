@@ -1247,7 +1247,15 @@ static void vga_get_text_resolution(VGAState *s, int *pwidth, int *pheight,
 
 typedef unsigned int rgb_to_pixel_dup_func(unsigned int r, unsigned int g, unsigned b);
 
-static rgb_to_pixel_dup_func *rgb_to_pixel_dup_table[NB_DEPTHS];
+static rgb_to_pixel_dup_func *rgb_to_pixel_dup_table[NB_DEPTHS] = {
+    rgb_to_pixel8_dup,
+    rgb_to_pixel15_dup,
+    rgb_to_pixel16_dup,
+    rgb_to_pixel32_dup,
+    rgb_to_pixel32bgr_dup,
+    rgb_to_pixel15bgr_dup,
+    rgb_to_pixel16bgr_dup,
+};
 
 /*
  * Text mode update
@@ -1512,16 +1520,6 @@ static vga_draw_line_func *vga_draw_line_table[NB_DEPTHS * VGA_DRAW_LINE_NB] = {
     vga_draw_line32_32bgr,
     vga_draw_line32_15bgr,
     vga_draw_line32_16bgr,
-};
-
-static rgb_to_pixel_dup_func *rgb_to_pixel_dup_table[NB_DEPTHS] = {
-    rgb_to_pixel8_dup,
-    rgb_to_pixel15_dup,
-    rgb_to_pixel16_dup,
-    rgb_to_pixel32_dup,
-    rgb_to_pixel32bgr_dup,
-    rgb_to_pixel15bgr_dup,
-    rgb_to_pixel16bgr_dup,
 };
 
 static int vga_get_bpp(VGAState *s)
@@ -2514,10 +2512,8 @@ int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
     s->pci_dev = &d->dev;
 
     pci_conf = d->dev.config;
-    pci_conf[0x00] = 0x34; // dummy VGA (same as Bochs ID)
-    pci_conf[0x01] = 0x12;
-    pci_conf[0x02] = 0x11;
-    pci_conf[0x03] = 0x11;
+    pci_config_set_vendor_id(pci_conf, 0x1234); // dummy VGA (same as Bochs ID)
+    pci_config_set_device_id(pci_conf, 0x1111);
     pci_conf[0x0a] = 0x00; // VGA controller
     pci_conf[0x0b] = 0x03;
     pci_conf[0x0e] = 0x00; // header_type

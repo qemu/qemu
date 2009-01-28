@@ -184,6 +184,11 @@ void cpu_dump_state(CPUState * env, FILE * f,
 
 static void cpu_sh4_reset(CPUSH4State * env)
 {
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
 #if defined(CONFIG_USER_ONLY)
     env->sr = 0;
 #else

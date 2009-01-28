@@ -10,6 +10,7 @@ struct cris_mmu_result_t
 	int bf_vec;
 };
 
+void cris_mmu_init(CPUState *env);
 void cris_mmu_flush_pid(CPUState *env, uint32_t pid);
 int cris_mmu_translate(struct cris_mmu_result_t *res,
 		       CPUState *env, uint32_t vaddr,

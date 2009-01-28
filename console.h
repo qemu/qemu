@@ -83,6 +83,7 @@ struct PixelFormat {
     uint32_t rmask, gmask, bmask, amask;
     uint8_t rshift, gshift, bshift, ashift;
     uint8_t rmax, gmax, bmax, amax;
+    uint8_t rbits, gbits, bbits, abits;
 };
 
 struct DisplaySurface {

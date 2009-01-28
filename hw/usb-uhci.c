@@ -1080,10 +1080,8 @@ void usb_uhci_piix3_init(PCIBus *bus, int devfn)
                                         "USB-UHCI", sizeof(UHCIState),
                                         devfn, NULL, NULL);
     pci_conf = s->dev.config;
-    pci_conf[0x00] = 0x86;
-    pci_conf[0x01] = 0x80;
-    pci_conf[0x02] = 0x20;
-    pci_conf[0x03] = 0x70;
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
+    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_2);
     pci_conf[0x08] = 0x01; // revision number
     pci_conf[0x09] = 0x00;
     pci_conf[0x0a] = 0x03;
@@ -1117,10 +1115,8 @@ void usb_uhci_piix4_init(PCIBus *bus, int devfn)
                                         "USB-UHCI", sizeof(UHCIState),
                                         devfn, NULL, NULL);
     pci_conf = s->dev.config;
-    pci_conf[0x00] = 0x86;
-    pci_conf[0x01] = 0x80;
-    pci_conf[0x02] = 0x12;
-    pci_conf[0x03] = 0x71;
+    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
+    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB_2);
     pci_conf[0x08] = 0x01; // revision number
     pci_conf[0x09] = 0x00;
     pci_conf[0x0a] = 0x03;

@@ -365,10 +365,8 @@ pci_ebus_init(PCIBus *bus, int devfn)
     PCIDevice *s;
 
     s = pci_register_device(bus, "EBUS", sizeof(*s), devfn, NULL, NULL);
-    s->config[0x00] = 0x8e; // vendor_id : Sun
-    s->config[0x01] = 0x10;
-    s->config[0x02] = 0x00; // device_id
-    s->config[0x03] = 0x10;
+    pci_config_set_vendor_id(s->config, PCI_VENDOR_ID_SUN);
+    pci_config_set_device_id(s->config, PCI_DEVICE_ID_SUN_EBUS);
     s->config[0x04] = 0x06; // command = bus master, pci mem
     s->config[0x05] = 0x00;
     s->config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error

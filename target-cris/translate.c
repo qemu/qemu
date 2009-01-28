@@ -37,6 +37,7 @@
 #include "disas.h"
 #include "tcg-op.h"
 #include "helper.h"
+#include "mmu.h"
 #include "crisv32-decode.h"
 #include "qemu-common.h"
 
@@ -3459,6 +3460,11 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 
 void cpu_reset (CPUCRISState *env)
 {
+	if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+		qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+		log_cpu_state(env, 0);
+	}
+
 	memset(env, 0, offsetof(CPUCRISState, breakpoints));
 	tlb_flush(env, 1);
 
@@ -3467,6 +3473,7 @@ void cpu_reset (CPUCRISState *env)
 	/* start in user mode with interrupts enabled.  */
 	env->pregs[PR_CCS] |= U_FLAG | I_FLAG;
 #else
+	cris_mmu_init(env);
 	env->pregs[PR_CCS] = 0;
 #endif
 }

@@ -56,6 +56,12 @@ static void vnc_debug_gnutls_log(int level, const char* str) {
 #define VNC_DEBUG(fmt, ...) do { } while (0)
 #endif
 
+#define count_bits(c, v) { \
+    for (c = 0; v; v >>= 1) \
+    { \
+        c += v & 1; \
+    } \
+}
 
 typedef struct Buffer
 {
@@ -329,12 +335,12 @@ static void vnc_convert_pixel(VncState *vs, uint8_t *buf, uint32_t v)
 {
     uint8_t r, g, b;
 
-    r = ((v >> vs->serverds.pf.rshift) & vs->serverds.pf.rmax) * (vs->clientds.pf.rmax + 1) /
-        (vs->serverds.pf.rmax + 1);
-    g = ((v >> vs->serverds.pf.gshift) & vs->serverds.pf.gmax) * (vs->clientds.pf.gmax + 1) /
-        (vs->serverds.pf.gmax + 1);
-    b = ((v >> vs->serverds.pf.bshift) & vs->serverds.pf.bmax) * (vs->clientds.pf.bmax + 1) /
-        (vs->serverds.pf.bmax + 1);
+    r = ((((v & vs->serverds.pf.rmask) >> vs->serverds.pf.rshift) << vs->clientds.pf.rbits) >>
+        vs->serverds.pf.rbits);
+    g = ((((v & vs->serverds.pf.gmask) >> vs->serverds.pf.gshift) << vs->clientds.pf.gbits) >>
+        vs->serverds.pf.gbits);
+    b = ((((v & vs->serverds.pf.bmask) >> vs->serverds.pf.bshift) << vs->clientds.pf.bbits) >>
+        vs->serverds.pf.bbits);
     v = (r << vs->clientds.pf.rshift) |
         (g << vs->clientds.pf.gshift) |
         (b << vs->clientds.pf.bshift);
@@ -1272,12 +1278,15 @@ static void set_pixel_format(VncState *vs,
 
     vs->clientds = vs->serverds;
     vs->clientds.pf.rmax = red_max;
+    count_bits(vs->clientds.pf.rbits, red_max);
     vs->clientds.pf.rshift = red_shift;
     vs->clientds.pf.rmask = red_max << red_shift;
     vs->clientds.pf.gmax = green_max;
+    count_bits(vs->clientds.pf.gbits, green_max);
     vs->clientds.pf.gshift = green_shift;
     vs->clientds.pf.gmask = green_max << green_shift;
     vs->clientds.pf.bmax = blue_max;
+    count_bits(vs->clientds.pf.bbits, blue_max);
     vs->clientds.pf.bshift = blue_shift;
     vs->clientds.pf.bmask = blue_max << blue_shift;
     vs->clientds.pf.bits_per_pixel = bits_per_pixel;
@@ -2106,6 +2115,7 @@ static void vnc_connect(VncState *vs)
     memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
     vs->has_resize = 0;
     vs->has_hextile = 0;
+    vs->has_WMVi = 0;
     dcl->dpy_copy = NULL;
     vnc_update_client(vs);
     reset_keys(vs);

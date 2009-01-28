@@ -31,7 +31,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
 
-#define INLINE		__inline
+#define INLINE		static inline
 #define HAS_YM3812	1
 
 #include <stdio.h>

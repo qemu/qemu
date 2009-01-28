@@ -421,6 +421,16 @@ static ssize_t vc_sendv_compat(VLANClientState *vc, const struct iovec *iov,
     return offset;
 }
 
+static ssize_t calc_iov_length(const struct iovec *iov, int iovcnt)
+{
+    size_t offset = 0;
+    int i;
+
+    for (i = 0; i < iovcnt; i++)
+        offset += iov[i].iov_len;
+    return offset;
+}
+
 ssize_t qemu_sendv_packet(VLANClientState *vc1, const struct iovec *iov,
                           int iovcnt)
 {
@@ -428,12 +438,17 @@ ssize_t qemu_sendv_packet(VLANClientState *vc1, const struct iovec *iov,
     VLANClientState *vc;
     ssize_t max_len = 0;
 
+    if (vc1->link_down)
+        return calc_iov_length(iov, iovcnt);
+
     for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
         ssize_t len = 0;
 
         if (vc == vc1)
             continue;
 
+        if (vc->link_down)
+            len = calc_iov_length(iov, iovcnt);
         if (vc->fd_readv)
             len = vc->fd_readv(vc->opaque, iov, iovcnt);
         else if (vc->fd_read)

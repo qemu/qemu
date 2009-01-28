@@ -243,11 +243,21 @@ oss_lib="-lossaudio"
 Darwin)
 bsd="yes"
 darwin="yes"
+# on Leopard most of the system is 32-bit, so we have to ask the kernel it if we can run 64-bit userspace code
+is_x86_64=`sysctl -n hw.optional.x86_64`
+if [ "$is_x86_64" = "1" ]; then
+    cpu=x86_64
+fi
+if [ "$cpu" = "x86_64" ] ; then
+    OS_CFLAGS="-arch x86_64"
+    LDFLAGS="-arch x86_64"
+else
+    OS_CFLAGS="-mdynamic-no-pic"
+fi
 darwin_user="yes"
 cocoa="yes"
 audio_drv_list="coreaudio"
 audio_possible_drivers="coreaudio sdl fmod"
-OS_CFLAGS="-mdynamic-no-pic"
 OS_LDFLAGS="-framework CoreFoundation -framework IOKit"
 ;;
 SunOS)

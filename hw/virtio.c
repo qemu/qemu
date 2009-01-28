@@ -830,10 +830,8 @@ VirtIODevice *virtio_init_pci(PCIBus *bus, const char *name,
     vdev->vq = qemu_mallocz(sizeof(VirtQueue) * VIRTIO_PCI_QUEUE_MAX);
 
     config = pci_dev->config;
-    config[0x00] = vendor & 0xFF;
-    config[0x01] = (vendor >> 8) & 0xFF;
-    config[0x02] = device & 0xFF;
-    config[0x03] = (device >> 8) & 0xFF;
+    pci_config_set_vendor_id(config, vendor);
+    pci_config_set_device_id(config, device);
 
     config[0x08] = VIRTIO_PCI_ABI_VERSION;
 
