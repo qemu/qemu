@@ -18,9 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
 #include "config.h"
+#include "qemu-common.h"
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <winioctl.h>
 #else
 #include <sys/types.h>
@@ -30,17 +29,9 @@
 #ifdef HOST_SOLARIS
 #include <sys/ioccom.h>
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <inttypes.h>
 
 #include "cpu.h"
 #include "exec-all.h"
-#include "qemu-common.h"
 
 #ifdef USE_KQEMU
 

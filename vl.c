@@ -4501,10 +4501,9 @@ static void select_vgahw (const char *p)
 }
 
 #ifdef _WIN32
-static BOOL WINAPI qemu_ctrl_handler(DWORD type)
+static BOOL WINAPI noreturn qemu_ctrl_handler(DWORD type)
 {
     exit(STATUS_CONTROL_C_EXIT);
-    return TRUE;
 }
 #endif
 

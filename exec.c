@@ -18,25 +18,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
 #include "config.h"
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
+#include "qemu-common.h"
+#ifndef _WIN32
 #include <sys/types.h>
 #include <sys/mman.h>
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
 #include <stddef.h>     /* offsetof */
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <inttypes.h>
 
 #include "cpu.h"
 #include "exec-all.h"
-#include "qemu-common.h"
 #include "tcg.h"
 #include "hw/hw.h"
 #include "osdep.h"
@@ -99,6 +89,9 @@ spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 #define code_gen_section                                \
     __attribute__((__section__(".gen_code")))           \
     __attribute__((aligned (32)))
+#elif defined(_WIN32)
+#define code_gen_section                                \
+    __attribute__((aligned (16)))
 #else
 #define code_gen_section                                \
     __attribute__((aligned (32)))
