@@ -278,7 +278,8 @@ static void sdl_grab_start(void)
 {
     if (guest_cursor) {
         SDL_SetCursor(guest_sprite);
-        SDL_WarpMouse(guest_x, guest_y);
+        if (!kbd_mouse_is_absolute() && !absolute_enabled)
+            SDL_WarpMouse(guest_x, guest_y);
     } else
         sdl_hide_cursor();
 
@@ -549,7 +550,8 @@ static void sdl_mouse_warp(int x, int y, int on)
             sdl_show_cursor();
         if (gui_grab || kbd_mouse_is_absolute() || absolute_enabled) {
             SDL_SetCursor(guest_sprite);
-            SDL_WarpMouse(x, y);
+            if (!kbd_mouse_is_absolute() && !absolute_enabled)
+                SDL_WarpMouse(x, y);
         }
     } else if (gui_grab)
         sdl_hide_cursor();
