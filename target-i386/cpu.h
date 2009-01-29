@@ -251,6 +251,11 @@
 #define MSR_IA32_APICBASE_ENABLE        (1<<11)
 #define MSR_IA32_APICBASE_BASE          (0xfffff<<12)
 
+#define MSR_MTRRcap			0xfe
+#define MSR_MTRRcap_VCNT		8
+#define MSR_MTRRcap_FIXRANGE_SUPPORT	(1 << 8)
+#define MSR_MTRRcap_WC_SUPPORTED	(1 << 10)
+
 #define MSR_IA32_SYSENTER_CS            0x174
 #define MSR_IA32_SYSENTER_ESP           0x175
 #define MSR_IA32_SYSENTER_EIP           0x176

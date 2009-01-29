@@ -3215,6 +3215,13 @@ void helper_rdmsr(void)
     case MSR_MTRRdefType:
         val = env->mtrr_deftype;
         break;
+    case MSR_MTRRcap:
+        if (env->cpuid_features & CPUID_MTRR)
+            val = MSR_MTRRcap_VCNT | MSR_MTRRcap_FIXRANGE_SUPPORT | MSR_MTRRcap_WC_SUPPORTED;
+        else
+            /* XXX: exception ? */
+            val = 0;
+        break;
     default:
         /* XXX: exception ? */
         val = 0;
