@@ -607,8 +607,10 @@ OBJS += ne2000.o
 OBJS += pcnet.o
 OBJS += rtl8139.o
 OBJS += e1000.o
+ifndef CONFIG_WIN32
 OBJS += atheros_wlan.o atheros_wlan_io.o atheros_wlan_ap.o
 OBJS += atheros_wlan_packet.o atheros_wlan_crc32.o
+endif
 OBJS += tnetw1130.o
 
 ifeq ($(TARGET_BASE_ARCH), i386)
