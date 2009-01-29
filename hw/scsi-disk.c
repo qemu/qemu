@@ -67,6 +67,7 @@ struct SCSIDeviceState
     /* The qemu block layer uses a fixed 512 byte sector size.
        This is the number of 512 byte blocks in a single scsi sector.  */
     int cluster_size;
+    uint64_t max_lba;
     int sense;
     int tcq;
     /* Completion functions may be called from either scsi_{read,write}_data
@@ -738,6 +739,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         /* Returned value is the address of the last sector.  */
         if (nb_sectors) {
             nb_sectors--;
+            /* Remember the new size for read/write sanity checking. */
+            s->max_lba = nb_sectors;
             /* Clip to 2TB, instead of returning capacity modulo 2TB. */
             if (nb_sectors > UINT32_MAX)
                 nb_sectors = UINT32_MAX;
@@ -759,6 +762,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case 0x28:
     case 0x88:
         DPRINTF("Read (sector %lld, count %d)\n", lba, len);
+        if (lba > s->max_lba)
+            goto illegal_lba;
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         break;
@@ -766,6 +771,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     case 0x2a:
     case 0x8a:
         DPRINTF("Write (sector %lld, count %d)\n", lba, len);
+        if (lba > s->max_lba)
+            goto illegal_lba;
         r->sector = lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         is_write = 1;
@@ -839,6 +846,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             /* Returned value is the address of the last sector.  */
             if (nb_sectors) {
                 nb_sectors--;
+                /* Remember the new size for read/write sanity checking. */
+                s->max_lba = nb_sectors;
                 outbuf[0] = (nb_sectors >> 56) & 0xff;
                 outbuf[1] = (nb_sectors >> 48) & 0xff;
                 outbuf[2] = (nb_sectors >> 40) & 0xff;
@@ -877,6 +886,9 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     fail:
         scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_ILLEGAL_REQUEST);
 	return 0;
+    illegal_lba:
+        scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_HARDWARE_ERROR);
+        return 0;
     }
     if (r->sector_count == 0 && r->buf_len == 0) {
         scsi_command_complete(r, STATUS_GOOD, SENSE_NO_SENSE);
@@ -902,6 +914,7 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv, int tcq,
 {
     SCSIDevice *d;
     SCSIDeviceState *s;
+    uint64_t nb_sectors;
 
     s = (SCSIDeviceState *)qemu_mallocz(sizeof(SCSIDeviceState));
     s->bdrv = bdrv;
@@ -913,6 +926,11 @@ SCSIDevice *scsi_disk_init(BlockDriverState *bdrv, int tcq,
     } else {
         s->cluster_size = 1;
     }
+    bdrv_get_geometry(s->bdrv, &nb_sectors);
+    nb_sectors /= s->cluster_size;
+    if (nb_sectors)
+        nb_sectors--;
+    s->max_lba = nb_sectors;
     strncpy(s->drive_serial_str, drive_get_serial(s->bdrv),
             sizeof(s->drive_serial_str));
     if (strlen(s->drive_serial_str) == 0)
