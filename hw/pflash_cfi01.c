@@ -293,7 +293,7 @@ static void pflash_update(pflash_t *pfl, int offset,
 #define FlashCommandReadESR     0x71
 #define FlashCommandSCSWrite    0xE8
 
-#if CFI_OPTIONAL
+#if defined(CFI_OPTIONAL) && CFI_OPTIONAL
 #define FlashCommandLock        0x60
 #define FlashCommandUnlock      0x60
 #define FlashCommandLockConfirm 0x01
