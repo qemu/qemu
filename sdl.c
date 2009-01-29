@@ -93,7 +93,9 @@ static void sdl_resize(DisplayState *ds)
     if (gui_noframe)
         flags |= SDL_NOFRAME;
 
-    real_screen = SDL_SetVideoMode(ds_get_width(ds), ds_get_height(ds), 0, flags);
+    width = ds_get_width(ds);
+    height = ds_get_height(ds);
+    real_screen = SDL_SetVideoMode(width, height, 0, flags);
     if (!real_screen) {
         fprintf(stderr, "Could not open SDL display\n");
         exit(1);
