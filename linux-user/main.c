@@ -37,6 +37,8 @@
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
+char *exec_path;
+
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 
@@ -2341,6 +2343,7 @@ int main(int argc, char **argv, char **envp)
     if (optind >= argc)
         usage();
     filename = argv[optind];
+    exec_path = argv[optind];
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
