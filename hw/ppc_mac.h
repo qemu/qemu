@@ -39,9 +39,6 @@
 
 #define ESCC_CLOCK 3686400
 
-/* DBDMA */
-void dbdma_init (int *dbdma_mem_index);
-
 /* Cuda */
 void cuda_init (int *cuda_mem_index, qemu_irq irq);
 

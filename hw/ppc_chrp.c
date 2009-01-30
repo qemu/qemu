@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppc_mac.h"
+#include "mac_dbdma.h"
 #include "nvram.h"
 #include "pc.h"
 #include "pci.h"
@@ -86,6 +87,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     int ppc_boot_device;
     int index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    void *dbdma;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -280,6 +282,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
         else
             hd[i] = NULL;
     }
+    dbdma = DBDMA_init(&dbdma_mem_index);
 #if 1
     ide_mem_index[0] = pmac_ide_init(&hd[0], pic[0x13]);
     ide_mem_index[1] = pmac_ide_init(&hd[2], pic[0x14]);
@@ -292,7 +295,6 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
 
-    dbdma_init(&dbdma_mem_index);
 
     macio_init(pci_bus, 0x0022, 0, pic_mem_index, dbdma_mem_index,
                cuda_mem_index, NULL, 2, ide_mem_index, escc_mem_index);

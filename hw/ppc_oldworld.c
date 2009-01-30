@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppc_mac.h"
+#include "mac_dbdma.h"
 #include "nvram.h"
 #include "pc.h"
 #include "sysemu.h"
@@ -132,6 +133,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     int index;
     void *fw_cfg;
+    void *dbdma;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -343,6 +345,9 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
         hd[1] = NULL;
     else
         hd[1] =  drives_table[index].bdrv;
+
+    dbdma = DBDMA_init(&dbdma_mem_index);
+
     ide_mem_index[0] = -1;
     ide_mem_index[1] = pmac_ide_init(hd, pic[0x0D]);
 
@@ -354,8 +359,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 
     nvr = macio_nvram_init(&nvram_mem_index, 0x2000);
     pmac_format_nvram_partition(nvr, 0x2000);
-
-    dbdma_init(&dbdma_mem_index);
 
     macio_init(pci_bus, 0x0010, 1, pic_mem_index, dbdma_mem_index,
                cuda_mem_index, nvr, 2, ide_mem_index, escc_mem_index);
