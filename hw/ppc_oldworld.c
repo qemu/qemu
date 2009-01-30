@@ -349,7 +349,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     dbdma = DBDMA_init(&dbdma_mem_index);
 
     ide_mem_index[0] = -1;
-    ide_mem_index[1] = pmac_ide_init(hd, pic[0x0D]);
+    ide_mem_index[1] = pmac_ide_init(hd, pic[0x0D], dbdma, 0x16, pic[0x02]);
 
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem_index, pic[0x12]);

@@ -284,8 +284,8 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     }
     dbdma = DBDMA_init(&dbdma_mem_index);
 #if 1
-    ide_mem_index[0] = pmac_ide_init(&hd[0], pic[0x13]);
-    ide_mem_index[1] = pmac_ide_init(&hd[2], pic[0x14]);
+    ide_mem_index[0] = pmac_ide_init(&hd[0], pic[0x13], dbdma, 0x14, pic[0x01]);
+    ide_mem_index[1] = pmac_ide_init(&hd[2], pic[0x14], dbdma, 0x16, pic[0x02]);
 #else
     pci_cmd646_ide_init(pci_bus, &hd[0], 0);
 #endif
