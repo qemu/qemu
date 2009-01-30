@@ -1141,7 +1141,7 @@ struct target_stat {
 #endif
 };
 
-struct target_stat64 {
+struct __attribute__((__packed__)) target_stat64 {
 	unsigned long long st_dev;
         unsigned long long st_ino;
 	unsigned int st_mode;
@@ -1149,10 +1149,11 @@ struct target_stat64 {
 	unsigned int st_uid;
 	unsigned int st_gid;
 	unsigned long long st_rdev;
-	unsigned short pad0;
+	unsigned long long __pad0;
 	long long      st_size;
 	int	       st_blksize;
 	long long      st_blocks;	/* Number 512-byte blocks allocated. */
+	unsigned int   __pad1;
 	int	       target_st_atime;
         unsigned int   target_st_atime_nsec;
 	int	       target_st_mtime;
