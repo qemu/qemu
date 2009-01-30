@@ -1267,6 +1267,9 @@ static abi_long do_getsockname(int fd, abi_ulong target_addr,
     void *addr;
     abi_long ret;
 
+    if (target_addr == 0)
+       return get_errno(accept(fd, NULL, NULL));
+
     if (get_user_u32(addrlen, target_addrlen_addr))
         return -TARGET_EFAULT;
 
