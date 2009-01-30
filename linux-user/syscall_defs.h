@@ -1475,7 +1475,7 @@ struct target_stat {
 /* This matches struct stat64 in glibc2.1, hence the absolutely
  * insane amounts of padding around dev_t's.
  */
-struct target_stat64 {
+struct __attribute__((__packed__)) target_stat64 {
 	unsigned long long	st_dev;
 	unsigned char	__pad0[4];
 
