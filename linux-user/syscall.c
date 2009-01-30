@@ -3437,10 +3437,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0; /* avoid warning */
         break;
     case TARGET_NR_read:
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
-            goto efault;
-        ret = get_errno(read(arg1, p, arg3));
-        unlock_user(p, arg2, ret);
+        if (arg3 == 0)
+            ret = 0;
+        else {
+            if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
+                goto efault;
+            ret = get_errno(read(arg1, p, arg3));
+            unlock_user(p, arg2, ret);
+        }
         break;
     case TARGET_NR_write:
         if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
@@ -3941,10 +3945,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         goto unimplemented;
 #endif
     case TARGET_NR_acct:
-        if (!(p = lock_user_string(arg1)))
-            goto efault;
-        ret = get_errno(acct(path(p)));
-        unlock_user(p, arg1, 0);
+        if (arg1 == 0) {
+            ret = get_errno(acct(NULL));
+        } else {
+            if (!(p = lock_user_string(arg1)))
+                goto efault;
+            ret = get_errno(acct(path(p)));
+            unlock_user(p, arg1, 0);
+        }
         break;
 #ifdef TARGET_NR_umount2 /* not on alpha */
     case TARGET_NR_umount2:
