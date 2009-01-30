@@ -32,6 +32,9 @@
 /* For tb_lock */
 #include "exec-all.h"
 
+
+#include "envlist.h"
+
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
@@ -2186,6 +2189,8 @@ static void usage(void)
            "-s size           set the stack size in bytes (default=%ld)\n"
            "-cpu model        select CPU (-cpu ? for list)\n"
            "-drop-ld-preload  drop LD_PRELOAD for target process\n"
+           "-E var=value      sets/modifies targets environment variable(s)\n"
+           "-U var            unsets targets environment variable(s)\n"
            "\n"
            "Debug options:\n"
            "-d options   activate log (logfile=%s)\n"
@@ -2195,6 +2200,12 @@ static void usage(void)
            "Environment variables:\n"
            "QEMU_STRACE       Print system calls and arguments similar to the\n"
            "                  'strace' program.  Enable by setting to any value.\n"
+           "You can use -E and -U options to set/unset environment variables\n"
+           "for target process.  It is possible to provide several variables\n"
+           "by repeating the option.  For example:\n"
+           "    -E var1=val2 -E var2=val2 -U LD_PRELOAD -U LD_DEBUG\n"
+           "Note that if you provide several changes to single variable\n"
+           "last change will stay in effect.\n"
            ,
            TARGET_ARCH,
            interp_prefix,
@@ -2229,8 +2240,8 @@ int main(int argc, char **argv, char **envp)
     int optind;
     const char *r;
     int gdbstub_port = 0;
-    int drop_ld_preload = 0, environ_count = 0;
-    char **target_environ, **wrk, **dst;
+    char **target_environ, **wrk;
+    envlist_t *envlist = NULL;
 
     if (argc <= 1)
         usage();
@@ -2239,6 +2250,16 @@ int main(int argc, char **argv, char **envp)
 
     /* init debug */
     cpu_set_log_filename(DEBUG_LOGFILE);
+
+    if ((envlist = envlist_create()) == NULL) {
+        (void) fprintf(stderr, "Unable to allocate envlist\n");
+        exit(1);
+    }
+
+    /* add current environment into the list */
+    for (wrk = environ; *wrk != NULL; wrk++) {
+        (void) envlist_setenv(envlist, *wrk);
+    }
 
     cpu_model = NULL;
     optind = 1;
@@ -2269,6 +2290,14 @@ int main(int argc, char **argv, char **envp)
                 exit(1);
             }
             cpu_set_log(mask);
+        } else if (!strcmp(r, "E")) {
+            r = argv[optind++];
+            if (envlist_setenv(envlist, r) != 0)
+                usage();
+        } else if (!strcmp(r, "U")) {
+            r = argv[optind++];
+            if (envlist_unsetenv(envlist, r) != 0)
+                usage();
         } else if (!strcmp(r, "s")) {
             r = argv[optind++];
             x86_stack_size = strtol(r, (char **)&r, 0);
@@ -2301,7 +2330,7 @@ int main(int argc, char **argv, char **envp)
                 _exit(1);
             }
         } else if (!strcmp(r, "drop-ld-preload")) {
-            drop_ld_preload = 1;
+            (void) envlist_unsetenv(envlist, "LD_PRELOAD");
         } else if (!strcmp(r, "strace")) {
             do_strace = 1;
         } else
@@ -2369,19 +2398,8 @@ int main(int argc, char **argv, char **envp)
         do_strace = 1;
     }
 
-    wrk = environ;
-    while (*(wrk++))
-        environ_count++;
-
-    target_environ = malloc((environ_count + 1) * sizeof(char *));
-    if (!target_environ)
-        abort();
-    for (wrk = environ, dst = target_environ; *wrk; wrk++) {
-        if (drop_ld_preload && !strncmp(*wrk, "LD_PRELOAD=", 11))
-            continue;
-        *(dst++) = strdup(*wrk);
-    }
-    *dst = NULL; /* NULL terminate target_environ */
+    target_environ = envlist_to_environ(envlist, NULL);
+    envlist_free(envlist);
 
     if (loader_exec(filename, argv+optind, target_environ, regs, info) != 0) {
         printf("Error loading %s\n", filename);
