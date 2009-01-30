@@ -1399,7 +1399,7 @@ restore_sigcontext(CPUState *env, struct target_sigcontext *sc)
 	return err;
 }
 
-long do_sigreturn_v1(CPUState *env)
+static long do_sigreturn_v1(CPUState *env)
 {
         abi_ulong frame_addr;
 	struct sigframe_v1 *frame;
@@ -1469,7 +1469,7 @@ static int do_sigframe_return_v2(CPUState *env, target_ulong frame_addr,
     return 0;
 }
 
-long do_sigreturn_v2(CPUState *env)
+static long do_sigreturn_v2(CPUState *env)
 {
         abi_ulong frame_addr;
 	struct sigframe_v2 *frame;
@@ -1507,7 +1507,7 @@ long do_sigreturn(CPUState *env)
     }
 }
 
-long do_rt_sigreturn_v1(CPUState *env)
+static long do_rt_sigreturn_v1(CPUState *env)
 {
         abi_ulong frame_addr;
 	struct rt_sigframe_v1 *frame;
@@ -1548,7 +1548,7 @@ badframe:
 	return 0;
 }
 
-long do_rt_sigreturn_v2(CPUState *env)
+static long do_rt_sigreturn_v2(CPUState *env)
 {
         abi_ulong frame_addr;
 	struct rt_sigframe_v2 *frame;
