@@ -134,6 +134,15 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be16s(f, &env->intercept_dr_write);
     qemu_put_be32s(f, &env->intercept_exceptions);
     qemu_put_8s(f, &env->v_tpr);
+
+    /* MTRRs */
+    for(i = 0; i < 11; i++)
+        qemu_put_be64s(f, &env->mtrr_fixed[i]);
+    qemu_put_be64s(f, &env->mtrr_deftype);
+    for(i = 0; i < 8; i++) {
+        qemu_put_be64s(f, &env->mtrr_var[i].base);
+        qemu_put_be64s(f, &env->mtrr_var[i].mask);
+    }
 }
 
 #ifdef USE_X86LDOUBLE
@@ -169,7 +178,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     int32_t a20_mask;
 
     if (version_id != 3 && version_id != 4 && version_id != 5
-        && version_id != 6 && version_id != 7)
+        && version_id != 6 && version_id != 7 && version_id != 8)
         return -EINVAL;
     for(i = 0; i < CPU_NB_REGS; i++)
         qemu_get_betls(f, &env->regs[i]);
@@ -302,6 +311,18 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_be32s(f, &env->intercept_exceptions);
         qemu_get_8s(f, &env->v_tpr);
     }
+
+    if (version_id >= 8) {
+        /* MTRRs */
+        for(i = 0; i < 11; i++)
+            qemu_get_be64s(f, &env->mtrr_fixed[i]);
+        qemu_get_be64s(f, &env->mtrr_deftype);
+        for(i = 0; i < 8; i++) {
+            qemu_get_be64s(f, &env->mtrr_var[i].base);
+            qemu_get_be64s(f, &env->mtrr_var[i].mask);
+        }
+    }
+
     /* XXX: ensure compatiblity for halted bit ? */
     /* XXX: compute redundant hflags bits */
     env->hflags = hflags;
