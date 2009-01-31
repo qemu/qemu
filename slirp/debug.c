@@ -18,7 +18,7 @@ int slirp_debug = 0;
 
 /* Carry over one item from main.c so that the tty's restored.
  * Only done when the tty being used is /dev/tty --RedWolf */
-#ifndef CONFIG_QEMU
+#if !defined(CONFIG_QEMU) || defined(DEBUG)
 extern struct termios slirp_tty_settings;
 extern int slirp_tty_restore;
 

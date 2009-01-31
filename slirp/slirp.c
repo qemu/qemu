@@ -173,7 +173,9 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
 
 void slirp_init(int restrict, char *special_ip)
 {
-    //    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
+#if defined(DEBUG)
+    debug_init("/tmp/slirp.log", DEBUG_DEFAULT);
+#endif
 
 #ifdef _WIN32
     {
