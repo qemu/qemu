@@ -36,7 +36,6 @@ typedef struct {
     QEMUTimer *timer;
     qemu_irq irq;
 
-    uint64_t start_time;
     uint32_t tick_offset;
 
     uint32_t mr;

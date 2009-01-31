@@ -31,6 +31,7 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "ppc_mac.h"
+#include "mac_dbdma.h"
 #include "sh.h"
 
 /* debug IDE devices */
@@ -437,6 +438,8 @@ typedef struct IDEState {
     uint32_t mdata_size;
     uint8_t *mdata_storage;
     int media_changed;
+    /* for pmac */
+    int is_read;
 } IDEState;
 
 /* XXX: DVDs that could fit on a CD will be reported as a CD */
@@ -1094,6 +1097,7 @@ static void ide_sector_read_dma(IDEState *s)
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
+    s->is_read = 1;
     ide_dma_start(s, ide_read_dma_cb);
 }
 
@@ -1222,6 +1226,7 @@ static void ide_sector_write_dma(IDEState *s)
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
+    s->is_read = 0;
     ide_dma_start(s, ide_write_dma_cb);
 }
 
@@ -3473,21 +3478,130 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     register_savevm("ide", 0, 2, pci_ide_save, pci_ide_load, d);
 }
 
+#if defined(TARGET_PPC)
 /***********************************************************/
 /* MacIO based PowerPC IDE */
+
+typedef struct MACIOIDEState {
+    IDEState ide_if[2];
+    void *dbdma;
+    int stream_index;
+} MACIOIDEState;
+
+static int pmac_atapi_read(DBDMA_transfer *info, DBDMA_transfer_cb cb)
+{
+    MACIOIDEState *m = info->opaque;
+    IDEState *s = m->ide_if->cur_drive;
+    int ret;
+
+    if (s->lba == -1)
+        return 0;
+
+    info->buf_pos = 0;
+
+    while (info->buf_pos < info->len && s->packet_transfer_size > 0) {
+
+        ret = cd_read_sector(s->bs, s->lba, s->io_buffer, s->cd_sector_size);
+        if (ret < 0) {
+            ide_transfer_stop(s);
+            ide_atapi_io_error(s, ret);
+            return info->buf_pos;
+        }
+
+        info->buf = s->io_buffer + m->stream_index;
+
+        info->buf_len = s->cd_sector_size;
+        if (info->buf_pos + info->buf_len > info->len)
+            info->buf_len = info->len - info->buf_pos;
+
+        cb(info);
+
+	/* db-dma can ask for 512 bytes whereas block size is 2048... */
+
+        m->stream_index += info->buf_len;
+        s->lba += m->stream_index / s->cd_sector_size;
+        m->stream_index %= s->cd_sector_size;
+
+        info->buf_pos += info->buf_len;
+        s->packet_transfer_size -= info->buf_len;
+    }
+    if (s->packet_transfer_size <= 0) {
+        s->status = READY_STAT | SEEK_STAT;
+        s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO
+                                       | ATAPI_INT_REASON_CD;
+        ide_set_irq(s);
+    }
+
+    return info->buf_pos;
+}
+
+static int pmac_ide_transfer(DBDMA_transfer *info,
+                             DBDMA_transfer_cb cb)
+{
+    MACIOIDEState *m = info->opaque;
+    IDEState *s = m->ide_if->cur_drive;
+    int64_t sector_num;
+    int ret, n;
+
+    if (s->is_cdrom)
+        return pmac_atapi_read(info, cb);
+
+    info->buf = s->io_buffer;
+    info->buf_pos = 0;
+    while (info->buf_pos < info->len && s->nsector > 0) {
+
+        sector_num = ide_get_sector(s);
+
+        n = s->nsector;
+        if (n > IDE_DMA_BUF_SECTORS)
+            n = IDE_DMA_BUF_SECTORS;
+
+        info->buf_len = n << 9;
+        if (info->buf_pos + info->buf_len > info->len)
+            info->buf_len = info->len - info->buf_pos;
+        n = info->buf_len >> 9;
+
+        if (s->is_read) {
+            ret = bdrv_read(s->bs, sector_num, s->io_buffer, n);
+            if (ret == 0)
+                cb(info);
+        } else {
+            cb(info);
+            ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
+        }
+
+        if (ret != 0) {
+            ide_rw_error(s);
+            return info->buf_pos;
+        }
+
+        info->buf_pos += n << 9;
+        ide_set_sector(s, sector_num + n);
+        s->nsector -= n;
+    }
+
+    if (s->nsector <= 0) {
+        s->status = READY_STAT | SEEK_STAT;
+        ide_set_irq(s);
+    }
+
+    return info->buf_pos;
+}
 
 /* PowerMac IDE memory IO */
 static void pmac_ide_writeb (void *opaque,
                              target_phys_addr_t addr, uint32_t val)
 {
+    MACIOIDEState *d = opaque;
+
     addr = (addr & 0xFFF) >> 4;
     switch (addr) {
     case 1 ... 7:
-        ide_ioport_write(opaque, addr, val);
+        ide_ioport_write(d->ide_if, addr, val);
         break;
     case 8:
     case 22:
-        ide_cmd_write(opaque, 0, val);
+        ide_cmd_write(d->ide_if, 0, val);
         break;
     default:
         break;
@@ -3497,15 +3611,16 @@ static void pmac_ide_writeb (void *opaque,
 static uint32_t pmac_ide_readb (void *opaque,target_phys_addr_t addr)
 {
     uint8_t retval;
+    MACIOIDEState *d = opaque;
 
     addr = (addr & 0xFFF) >> 4;
     switch (addr) {
     case 1 ... 7:
-        retval = ide_ioport_read(opaque, addr);
+        retval = ide_ioport_read(d->ide_if, addr);
         break;
     case 8:
     case 22:
-        retval = ide_status_read(opaque, 0);
+        retval = ide_status_read(d->ide_if, 0);
         break;
     default:
         retval = 0xFF;
@@ -3517,22 +3632,25 @@ static uint32_t pmac_ide_readb (void *opaque,target_phys_addr_t addr)
 static void pmac_ide_writew (void *opaque,
                              target_phys_addr_t addr, uint32_t val)
 {
+    MACIOIDEState *d = opaque;
+
     addr = (addr & 0xFFF) >> 4;
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap16(val);
 #endif
     if (addr == 0) {
-        ide_data_writew(opaque, 0, val);
+        ide_data_writew(d->ide_if, 0, val);
     }
 }
 
 static uint32_t pmac_ide_readw (void *opaque,target_phys_addr_t addr)
 {
     uint16_t retval;
+    MACIOIDEState *d = opaque;
 
     addr = (addr & 0xFFF) >> 4;
     if (addr == 0) {
-        retval = ide_data_readw(opaque, 0);
+        retval = ide_data_readw(d->ide_if, 0);
     } else {
         retval = 0xFFFF;
     }
@@ -3545,22 +3663,25 @@ static uint32_t pmac_ide_readw (void *opaque,target_phys_addr_t addr)
 static void pmac_ide_writel (void *opaque,
                              target_phys_addr_t addr, uint32_t val)
 {
+    MACIOIDEState *d = opaque;
+
     addr = (addr & 0xFFF) >> 4;
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
     if (addr == 0) {
-        ide_data_writel(opaque, 0, val);
+        ide_data_writel(d->ide_if, 0, val);
     }
 }
 
 static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
 {
     uint32_t retval;
+    MACIOIDEState *d = opaque;
 
     addr = (addr & 0xFFF) >> 4;
     if (addr == 0) {
-        retval = ide_data_readl(opaque, 0);
+        retval = ide_data_readl(d->ide_if, 0);
     } else {
         retval = 0xFFFFFFFF;
     }
@@ -3584,7 +3705,8 @@ static CPUReadMemoryFunc *pmac_ide_read[] = {
 
 static void pmac_ide_save(QEMUFile *f, void *opaque)
 {
-    IDEState *s = (IDEState *)opaque;
+    MACIOIDEState *d = opaque;
+    IDEState *s = d->ide_if;
     uint8_t drive1_selected;
     unsigned int i;
 
@@ -3601,7 +3723,8 @@ static void pmac_ide_save(QEMUFile *f, void *opaque)
 
 static int pmac_ide_load(QEMUFile *f, void *opaque, int version_id)
 {
-    IDEState *s = (IDEState *)opaque;
+    MACIOIDEState *d = opaque;
+    IDEState *s = d->ide_if;
     uint8_t drive1_selected;
     unsigned int i;
 
@@ -3622,7 +3745,8 @@ static int pmac_ide_load(QEMUFile *f, void *opaque, int version_id)
 
 static void pmac_ide_reset(void *opaque)
 {
-    IDEState *s = (IDEState *)opaque;
+    MACIOIDEState *d = opaque;
+    IDEState *s = d->ide_if;
 
     ide_reset(&s[0]);
     ide_reset(&s[1]);
@@ -3631,21 +3755,29 @@ static void pmac_ide_reset(void *opaque)
 /* hd_table must contain 4 block drivers */
 /* PowerMac uses memory mapped registers, not I/O. Return the memory
    I/O index to access the ide. */
-int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq)
+int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
+		   void *dbdma, int channel, qemu_irq dma_irq)
 {
-    IDEState *ide_if;
+    MACIOIDEState *d;
     int pmac_ide_memory;
 
-    ide_if = qemu_mallocz(sizeof(IDEState) * 2);
-    ide_init2(&ide_if[0], hd_table[0], hd_table[1], irq);
+    d = qemu_mallocz(sizeof(MACIOIDEState));
+    ide_init2(d->ide_if, hd_table[0], hd_table[1], irq);
+
+    if (dbdma) {
+        d->dbdma = dbdma;
+        DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, d);
+    }
 
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
-                                             pmac_ide_write, &ide_if[0]);
-    register_savevm("ide", 0, 1, pmac_ide_save, pmac_ide_load, &ide_if[0]);
-    qemu_register_reset(pmac_ide_reset, &ide_if[0]);
-    pmac_ide_reset(&ide_if[0]);
+                                             pmac_ide_write, d);
+    register_savevm("ide", 0, 1, pmac_ide_save, pmac_ide_load, d);
+    qemu_register_reset(pmac_ide_reset, d);
+    pmac_ide_reset(d);
+
     return pmac_ide_memory;
 }
+#endif /* TARGET_PPC */
 
 /***********************************************************/
 /* MMIO based ide port

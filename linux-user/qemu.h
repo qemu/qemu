@@ -120,6 +120,7 @@ typedef struct TaskState {
     uint8_t stack[0];
 } __attribute__((aligned(16))) TaskState;
 
+extern char *exec_path;
 void init_task_state(TaskState *ts);
 extern const char *qemu_uname_release;
 
