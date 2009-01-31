@@ -1,5 +1,20 @@
 TODO list for AR7 / QEMU
 
+2009-01-30
+
+High network load crashs Qemu (tested with malta and ar7).
+Reverting change r6288 (from official Qemu trunk) fixes this.
+
+#0  ip_reass (ip=0x1bfa800, fp=0x1874050) at /home/stefan/src/qemu/trunk/slirp/ip_input.c:403
+#1  0x00000000004cca01 in ip_input (m=0x1bfa7b0) at /home/stefan/src/qemu/trunk/slirp/ip_input.c:224
+#2  0x00000000004aaba5 in slirp_input (pkt=0x1977bd0 "RT", pkt_len=1294) at /home/stefan/src/qemu/trunk/slirp/slirp.c:679
+#3  0x000000000049295d in qemu_send_packet (vc1=0x177a480, buf=0x1977bd0 "RT", size=1294) at /home/stefan/src/qemu/trunk/net.c:399
+#4  0x000000000042bc74 in pcnet_transmit (s=0x1977810) at /home/stefan/src/qemu/trunk/hw/pcnet.c:1300
+#5  0x000000000042c190 in pcnet_poll_timer (opaque=0x1977810) at /home/stefan/src/qemu/trunk/hw/pcnet.c:1363
+#6  0x000000000042ca79 in pcnet_ioport_writew (opaque=0x1977810, addr=4146, val=0) at /home/stefan/src/qemu/trunk/hw/pcnet.c:1645
+#7  0x0000000040632fb5 in ?? ()
+#8  0x0000000000000000 in ?? ()
+
 2008-12-16
 
 AR7_RESET_PEREPHERIAL
