@@ -382,8 +382,7 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     pci_conf = controller->pci_dev->config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_IBM);
     pci_config_set_device_id(pci_conf, 0x027f); // device_id
-    pci_conf[0x0a] = 0x80; // class_sub = other bridge type
-    pci_conf[0x0b] = 0x06; // class_base = PCI_bridge
+    pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_OTHER);
 
     /* CFGADDR */
     index = cpu_register_io_memory(0, pci4xx_cfgaddr_read,

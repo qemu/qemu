@@ -130,7 +130,7 @@ void *virtio_console_init(PCIBus *bus, CharDriverState *chr)
                                          PCI_DEVICE_ID_VIRTIO_CONSOLE,
                                          PCI_VENDOR_ID_REDHAT_QUMRANET,
                                          VIRTIO_ID_CONSOLE,
-                                         0x03, 0x80, 0x00,
+                                         PCI_CLASS_DISPLAY_OTHER, 0x00,
                                          0, sizeof(VirtIOConsole));
     if (s == NULL)
         return NULL;

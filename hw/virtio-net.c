@@ -325,7 +325,7 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
                                      PCI_DEVICE_ID_VIRTIO_NET,
                                      PCI_VENDOR_ID_REDHAT_QUMRANET,
                                      VIRTIO_ID_NET,
-                                     0x02, 0x00, 0x00,
+                                     PCI_CLASS_NETWORK_ETHERNET, 0x00,
                                      sizeof(struct virtio_net_config),
                                      sizeof(VirtIONet));
     if (!n)

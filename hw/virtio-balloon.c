@@ -176,7 +176,7 @@ void *virtio_balloon_init(PCIBus *bus)
                                          PCI_DEVICE_ID_VIRTIO_BALLOON,
                                          PCI_VENDOR_ID_REDHAT_QUMRANET,
                                          VIRTIO_ID_BALLOON,
-                                         0x05, 0x00, 0x00,
+                                         PCI_CLASS_MEMORY_RAM, 0x00,
                                          8, sizeof(VirtIOBalloon));
     if (s == NULL)
         return NULL;

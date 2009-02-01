@@ -296,8 +296,9 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     adb_mouse_init(&adb_bus);
 
 
-    macio_init(pci_bus, 0x0022, 0, pic_mem_index, dbdma_mem_index,
-               cuda_mem_index, NULL, 2, ide_mem_index, escc_mem_index);
+    macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem_index,
+               dbdma_mem_index, cuda_mem_index, NULL, 2, ide_mem_index,
+               escc_mem_index);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, 3, -1);

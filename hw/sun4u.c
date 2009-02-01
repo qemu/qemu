@@ -373,8 +373,7 @@ pci_ebus_init(PCIBus *bus, int devfn)
     s->config[0x07] = 0x03; // status = medium devsel
     s->config[0x08] = 0x01; // revision
     s->config[0x09] = 0x00; // programming i/f
-    s->config[0x0A] = 0x80; // class_sub = misc bridge
-    s->config[0x0B] = 0x06; // class_base = PCI_bridge
+    pci_config_set_class(s->config, PCI_CLASS_BRIDGE_OTHER);
     s->config[0x0D] = 0x0a; // latency_timer
     s->config[0x0E] = 0x00; // header_type
 

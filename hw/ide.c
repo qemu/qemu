@@ -3353,8 +3353,7 @@ void pci_cmd646_ide_init(PCIBus *bus, BlockDriverState **hd_table,
     pci_conf[0x08] = 0x07; // IDE controller revision
     pci_conf[0x09] = 0x8f;
 
-    pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
-    pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
+    pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_conf[0x0e] = 0x00; // header_type
 
     pci_conf[0x51] = 0x04; // enable IDE0
@@ -3423,8 +3422,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_1);
     pci_conf[0x09] = 0x80; // legacy ATA mode
-    pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
-    pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
+    pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_conf[0x0e] = 0x00; // header_type
 
     qemu_register_reset(piix3_reset, d);
@@ -3460,8 +3458,7 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB);
     pci_conf[0x09] = 0x80; // legacy ATA mode
-    pci_conf[0x0a] = 0x01; // class_sub = PCI_IDE
-    pci_conf[0x0b] = 0x01; // class_base = PCI_mass_storage
+    pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_IDE);
     pci_conf[0x0e] = 0x00; // header_type
 
     qemu_register_reset(piix3_reset, d);

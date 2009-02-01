@@ -3378,8 +3378,7 @@ void pci_cirrus_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_CIRRUS);
     pci_config_set_device_id(pci_conf, device_id);
     pci_conf[0x04] = PCI_COMMAND_IOACCESS | PCI_COMMAND_MEMACCESS;
-    pci_conf[0x0a] = PCI_CLASS_SUB_VGA;
-    pci_conf[0x0b] = PCI_CLASS_BASE_DISPLAY;
+    pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
     pci_conf[0x0e] = PCI_CLASS_HEADERTYPE_00h;
 
     /* setup VGA */

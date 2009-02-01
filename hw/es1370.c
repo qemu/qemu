@@ -1034,8 +1034,7 @@ int es1370_init (PCIBus *bus, AudioState *audio)
     pci_config_set_vendor_id(c, PCI_VENDOR_ID_ENSONIQ);
     pci_config_set_device_id(c, PCI_DEVICE_ID_ENSONIQ_ES1370);
     c[0x07] = 2 << 1;
-    c[0x0a] = 0x01;
-    c[0x0b] = 0x04;
+    pci_config_set_class(c, PCI_CLASS_MULTIMEDIA_AUDIO);
 
 #if 1
     c[0x2c] = 0x42;
