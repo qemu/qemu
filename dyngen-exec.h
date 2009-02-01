@@ -49,7 +49,7 @@ extern int fprintf(FILE *, const char *, ...);
 extern int fputs(const char *, FILE *);
 extern int printf(const char *, ...);
 #undef NULL
-#define NULL 0
+#define NULL ((void *)0)
 
 #if defined(__i386__)
 #define AREG0 "ebp"
