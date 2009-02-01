@@ -1896,9 +1896,8 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 	    break;
         if (num_insns >= max_insns)
             break;
-#ifdef SH4_SINGLE_STEP
-	break;
-#endif
+        if (vm_singlestep)
+            break;
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();

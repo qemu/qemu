@@ -493,6 +493,18 @@ static void do_log(const char *items)
     cpu_set_log(mask);
 }
 
+static void do_singlestep(const char *option)
+{
+    qemu_printf("setting vm_singlestep to %s\n", option);
+    if (!option) {
+        vm_singlestep = 1;
+    } else if (!strcmp(option, "off")) {
+        vm_singlestep = 0;
+    } else {
+        term_printf("unexpected option %s\n", option);
+    }
+}
+
 static void do_stop(void)
 {
     vm_stop(EXCP_INTERRUPT);
@@ -1407,9 +1419,13 @@ static void do_inject_nmi(int cpu_index)
 
 static void do_info_status(void)
 {
-    if (vm_running)
-       term_printf("VM status: running\n");
-    else
+    if (vm_running) {
+        if (vm_singlestep) {
+            term_printf("VM status: running (single step mode)\n");
+        } else {
+            term_printf("VM status: running\n");
+        }
+    } else
        term_printf("VM status: paused\n");
 }
 
@@ -1461,6 +1477,8 @@ static const term_cmd_t term_cmds[] = {
       "tag|id", "restore a VM snapshot from its tag or id" },
     { "delvm", "s", do_delvm,
       "tag|id", "delete a VM snapshot from its tag or id" },
+    { "singlestep", "s?", do_singlestep,
+      "[off]", "run emulation in singlestep mode or switch to normal mode", },
     { "stop", "", do_stop,
       "", "stop emulation", },
     { "c|cont", "", do_cont,

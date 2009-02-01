@@ -193,6 +193,7 @@ ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
+int vm_singlestep;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
@@ -3986,6 +3987,7 @@ static void noreturn help(int exitcode)
            "-parallel dev   redirect the parallel port to char device 'dev'\n"
            "-monitor dev    redirect the monitor to char device 'dev'\n"
            "-pidfile file   write PID to 'file'\n"
+           "-singlestep     always run in singlestep mode\n"
            "-S              freeze CPU at startup (use 'c' to start execution)\n"
            "-s              wait gdb connection to port\n"
            "-p port         set gdb connection port [default=%s]\n"
@@ -4121,6 +4123,7 @@ enum {
     QEMU_OPTION_parallel,
     QEMU_OPTION_monitor,
     QEMU_OPTION_pidfile,
+    QEMU_OPTION_singlestep,
     QEMU_OPTION_S,
     QEMU_OPTION_s,
     QEMU_OPTION_p,
@@ -4240,6 +4243,7 @@ static const QEMUOption qemu_options[] = {
     { "parallel", HAS_ARG, QEMU_OPTION_parallel },
     { "monitor", HAS_ARG, QEMU_OPTION_monitor },
     { "pidfile", HAS_ARG, QEMU_OPTION_pidfile },
+    { "singlestep", 0, QEMU_OPTION_singlestep },
     { "S", 0, QEMU_OPTION_S },
     { "s", 0, QEMU_OPTION_s },
     { "p", HAS_ARG, QEMU_OPTION_p },

@@ -1064,6 +1064,9 @@ Do not start CPU at startup (you must type 'c' in the monitor).
 @item -s
 Wait gdb connection to port 1234 (@pxref{gdb_usage}).
 
+@item -singlestep
+Run the emulation in single step mode.
+
 @item -p @var{port}
 Change gdb connection port.  @var{port} can be either a decimal number
 to specify a TCP port, or a host device (same devices as the serial port).
@@ -1382,6 +1385,10 @@ Set the whole virtual machine to the snapshot identified by the tag
 
 @item delvm @var{tag}|@var{id}
 Delete the snapshot identified by @var{tag} or @var{id}.
+
+@item singlestep [off]
+Run the emulation in single step mode.
+If called with option off, the emulation returns to normal mode.
 
 @item stop
 Stop emulation.
