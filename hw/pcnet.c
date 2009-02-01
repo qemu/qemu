@@ -2006,8 +2006,7 @@ void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
     *(uint16_t *)&pci_conf[0x06] = cpu_to_le16(0x0280);
     pci_conf[0x08] = 0x10;
     pci_conf[0x09] = 0x00;
-    pci_conf[0x0a] = 0x00; // ethernet network controller
-    pci_conf[0x0b] = 0x02;
+    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     pci_conf[0x0e] = 0x00; // header_type
 
     *(uint32_t *)&pci_conf[0x10] = cpu_to_le32(0x00000001);

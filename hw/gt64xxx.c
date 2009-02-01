@@ -1146,8 +1146,7 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
 
     d->config[0x08] = 0x10;
     d->config[0x09] = 0x00;
-    d->config[0x0A] = 0x00;
-    d->config[0x0B] = 0x06;
+    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
 
     d->config[0x10] = 0x08;
     d->config[0x14] = 0x08;

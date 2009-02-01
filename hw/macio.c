@@ -109,9 +109,7 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
 
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_APPLE);
     pci_config_set_device_id(d->config, device_id);
-
-    d->config[0x0a] = 0x00; // class_sub = pci2pci
-    d->config[0x0b] = 0xff; // class_base = bridge
+    pci_config_set_class(d->config, PCI_CLASS_OTHERS << 8);
     d->config[0x0e] = 0x00; // header_type
 
     d->config[0x3d] = 0x01; // interrupt on pin 1

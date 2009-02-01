@@ -433,8 +433,7 @@ static void pci_reset(EEPRO100State * s)
     PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
     /* PCI Class Code */
     PCI_CONFIG_8(0x09, 0x00);
-    PCI_CONFIG_8(PCI_SUBCLASS_CODE, 0x00);      // ethernet network controller
-    PCI_CONFIG_8(PCI_CLASS_CODE, 0x02); // network controller
+    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
     /* PCI Cache Line Size */
     /* check cache line size!!! */
     //~ PCI_CONFIG_8(0x0c, 0x00);

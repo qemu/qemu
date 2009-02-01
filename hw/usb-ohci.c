@@ -1682,8 +1682,7 @@ void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn)
     pci_config_set_vendor_id(ohci->pci_dev.config, PCI_VENDOR_ID_APPLE);
     pci_config_set_device_id(ohci->pci_dev.config, 0x003f); // device_id
     ohci->pci_dev.config[0x09] = 0x10; /* OHCI */
-    ohci->pci_dev.config[0x0a] = 0x3;
-    ohci->pci_dev.config[0x0b] = 0xc;
+    pci_config_set_class(ohci->pci_dev.config, PCI_CLASS_SERIAL_USB);
     ohci->pci_dev.config[0x3d] = 0x01; /* interrupt pin 1 */
 
     usb_ohci_init(&ohci->state, num_ports, devfn, ohci->pci_dev.irq[0],

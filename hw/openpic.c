@@ -1019,8 +1019,7 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
         pci_conf = opp->pci_dev.config;
         pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_IBM);
         pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_IBM_OPENPIC2);
-        pci_conf[0x0a] = 0x80; // PIC
-        pci_conf[0x0b] = 0x08;
+        pci_config_set_class(pci_conf, PCI_CLASS_SYSTEM_OTHER); // FIXME?
         pci_conf[0x0e] = 0x00; // header_type
         pci_conf[0x3d] = 0x00; // no interrupt pin
 

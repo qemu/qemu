@@ -729,8 +729,7 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     s->dev.config[0x07] = 0x00; // status = fast devsel
     s->dev.config[0x08] = 0x00; // revision
     s->dev.config[0x09] = 0x00; // programming i/f
-    s->dev.config[0x0A] = 0x04; // class_sub = PCI to PCI bridge
-    s->dev.config[0x0B] = 0x06; // class_base = PCI_bridge
+    pci_config_set_class(s->dev.config, PCI_CLASS_BRIDGE_PCI);
     s->dev.config[0x0D] = 0x10; // latency_timer
     s->dev.config[0x0E] = 0x81; // header_type
     s->dev.config[0x1E] = 0xa0; // secondary status

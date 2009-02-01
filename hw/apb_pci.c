@@ -260,8 +260,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     d->config[0x07] = 0x03; // status = medium devsel
     d->config[0x08] = 0x00; // revision
     d->config[0x09] = 0x00; // programming i/f
-    d->config[0x0A] = 0x00; // class_sub = pci host
-    d->config[0x0B] = 0x06; // class_base = PCI_bridge
+    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0D] = 0x10; // latency_timer
     d->config[0x0E] = 0x00; // header_type
 

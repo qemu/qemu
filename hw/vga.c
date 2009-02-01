@@ -2513,8 +2513,7 @@ int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
     // dummy VGA (same as Bochs ID)
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_QEMU);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_QEMU_VGA);
-    pci_conf[0x0a] = 0x00; // VGA controller
-    pci_conf[0x0b] = 0x03;
+    pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
     pci_conf[0x0e] = 0x00; // header_type
 
     /* XXX: vga_ram_size must be a power of two */

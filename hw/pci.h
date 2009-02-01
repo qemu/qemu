@@ -8,6 +8,36 @@
 
 extern target_phys_addr_t pci_mem_base;
 
+/* Device classes and subclasses */
+
+#define PCI_CLASS_STORAGE_SCSI           0x0100
+#define PCI_CLASS_STORAGE_IDE            0x0101
+#define PCI_CLASS_STORAGE_OTHER          0x0180
+
+#define PCI_CLASS_NETWORK_ETHERNET       0x0200
+
+#define PCI_CLASS_DISPLAY_VGA            0x0300
+#define PCI_CLASS_DISPLAY_OTHER          0x0380
+
+#define PCI_CLASS_MULTIMEDIA_AUDIO       0x0401
+
+#define PCI_CLASS_MEMORY_RAM             0x0500
+
+#define PCI_CLASS_SYSTEM_OTHER           0x0880
+
+#define PCI_CLASS_SERIAL_USB             0x0c03
+
+#define PCI_CLASS_BRIDGE_HOST            0x0600
+#define PCI_CLASS_BRIDGE_ISA             0x0601
+#define PCI_CLASS_BRIDGE_PCI             0x0604
+#define PCI_CLASS_BRIDGE_OTHER           0x0680
+
+#define PCI_CLASS_PROCESSOR_CO           0x0b40
+
+#define PCI_CLASS_OTHERS                 0xff
+
+/* Vendors and devices. */
+
 #define PCI_VENDOR_ID_LSI_LOGIC          0x1000
 #define PCI_DEVICE_ID_LSI_53C895A        0x0012
 
@@ -207,6 +237,12 @@ static inline void
 pci_config_set_device_id(uint8_t *pci_config, uint16_t val)
 {
     cpu_to_le16wu((uint16_t *)&pci_config[PCI_DEVICE_ID], val);
+}
+
+static inline void
+pci_config_set_class(uint8_t *pci_config, uint16_t val)
+{
+    cpu_to_le16wu((uint16_t *)&pci_config[PCI_CLASS_DEVICE], val);
 }
 
 /* lsi53c895a.c */

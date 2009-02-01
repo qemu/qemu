@@ -133,8 +133,7 @@ PCIBus *pci_vpb_init(qemu_irq *pic, int irq, int realview)
     d->config[0x07] = 0x02;
     d->config[0x08] = 0x00; // revision
     d->config[0x09] = 0x00; // programming i/f
-    d->config[0x0A] = 0x40; // class_sub = pci host
-    d->config[0x0B] = 0x0b; // class_base = PCI_bridge
+    pci_config_set_class(d->config, PCI_CLASS_PROCESSOR_CO);
     d->config[0x0D] = 0x10; // latency_timer
 
     return s;

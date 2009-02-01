@@ -148,8 +148,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_MOTOROLA_MPC106);
     d->config[0x08] = 0x00; // revision
     d->config[0x09] = 0x01;
-    d->config[0x0a] = 0x00; // class_sub = host
-    d->config[0x0b] = 0x06; // class_base = PCI_bridge
+    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0e] = 0x00; // header_type
 
 #if 0
@@ -157,8 +156,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_DEC);
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_DEC_21154);
     d->config[0x08] = 0x02; // revision
-    d->config[0x0a] = 0x04; // class_sub = pci2pci
-    d->config[0x0b] = 0x06; // class_base = PCI_bridge
+    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_PCI);
     d->config[0x0e] = 0x01; // header_type
 
     d->config[0x18] = 0x0;  // primary_bus

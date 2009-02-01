@@ -305,7 +305,7 @@ void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs)
                                        PCI_DEVICE_ID_VIRTIO_BLOCK,
                                        PCI_VENDOR_ID_REDHAT_QUMRANET,
                                        VIRTIO_ID_BLOCK,
-                                       0x01, 0x80, 0x00,
+                                       PCI_CLASS_STORAGE_OTHER, 0x00,
                                        sizeof(struct virtio_blk_config), sizeof(VirtIOBlock));
     if (!s)
         return NULL;

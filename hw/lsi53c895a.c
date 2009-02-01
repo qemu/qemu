@@ -1979,7 +1979,7 @@ void *lsi_scsi_init(PCIBus *bus, int devfn)
     /* PCI device ID (word) */
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_LSI_53C895A);
     /* PCI base class code */
-    pci_conf[0x0b] = 0x01;
+    pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_SCSI);
     /* PCI subsystem ID */
     pci_conf[0x2e] = 0x00;
     pci_conf[0x2f] = 0x10;
