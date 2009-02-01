@@ -8,9 +8,9 @@
 #include <windows.h>
 #endif
 
-#define noreturn __attribute__ ((__noreturn__))
+#define QEMU_NORETURN __attribute__ ((__noreturn__))
 
-/* Hack around the mess dyngen-exec.h causes: We need noreturn in files that
+/* Hack around the mess dyngen-exec.h causes: We need QEMU_NORETURN in files that
    cannot include the following headers without conflicts. This condition has
    to be removed once dyngen is gone. */
 #ifndef __DYNGEN_EXEC_H__
@@ -144,7 +144,7 @@ void *get_mmap_addr(unsigned long size);
 
 /* Error handling.  */
 
-void noreturn hw_error(const char *fmt, ...)
+void QEMU_NORETURN hw_error(const char *fmt, ...)
     __attribute__ ((__format__ (__printf__, 1, 2)));
 
 /* IO callbacks.  */

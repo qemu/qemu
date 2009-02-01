@@ -1303,8 +1303,8 @@ static int check_exception(int intno, int *error_code)
  * EIP value AFTER the interrupt instruction. It is only relevant if
  * is_int is TRUE.
  */
-static void noreturn raise_interrupt(int intno, int is_int, int error_code,
-                                     int next_eip_addend)
+static void QEMU_NORETURN raise_interrupt(int intno, int is_int, int error_code,
+                                          int next_eip_addend)
 {
     if (!is_int) {
         helper_svm_check_intercept_param(SVM_EXIT_EXCP_BASE + intno, error_code);

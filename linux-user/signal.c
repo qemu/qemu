@@ -349,7 +349,7 @@ static inline void free_sigqueue(CPUState *env, struct sigqueue *q)
 }
 
 /* abort execution with signal */
-static void noreturn force_sig(int sig)
+static void QEMU_NORETURN force_sig(int sig)
 {
     int host_sig;
     host_sig = target_to_host_signal(sig);

@@ -34,7 +34,7 @@
 /* Default to cache=writeback as data integrity is not important for qemu-tcg. */
 #define BRDV_O_FLAGS BDRV_O_CACHE_WB
 
-static void noreturn error(const char *fmt, ...)
+static void QEMU_NORETURN error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
