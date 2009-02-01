@@ -12,10 +12,12 @@ extern target_phys_addr_t pci_mem_base;
 #define PCI_DEVICE_ID_LSI_53C895A        0x0012
 
 #define PCI_VENDOR_ID_DEC                0x1011
+#define PCI_DEVICE_ID_DEC_21154          0x0026
 
 #define PCI_VENDOR_ID_CIRRUS             0x1013
 
 #define PCI_VENDOR_ID_IBM                0x1014
+#define PCI_DEVICE_ID_IBM_OPENPIC2       0xffff
 
 #define PCI_VENDOR_ID_AMD                0x1022
 #define PCI_DEVICE_ID_AMD_LANCE          0x2000
@@ -27,7 +29,11 @@ extern target_phys_addr_t pci_mem_base;
 #define PCI_DEVICE_ID_MOTOROLA_RAVEN     0x4801
 
 #define PCI_VENDOR_ID_APPLE              0x106b
+#define PCI_DEVICE_ID_APPLE_343S1201     0x0010
+#define PCI_DEVICE_ID_APPLE_UNI_N_I_PCI  0x001e
+#define PCI_DEVICE_ID_APPLE_UNI_N_PCI    0x001f
 #define PCI_DEVICE_ID_APPLE_UNI_N_AGP    0x0020
+#define PCI_DEVICE_ID_APPLE_UNI_N_KEYL   0x0022
 
 #define PCI_VENDOR_ID_SUN                0x108e
 #define PCI_DEVICE_ID_SUN_EBUS           0x1000
@@ -38,11 +44,15 @@ extern target_phys_addr_t pci_mem_base;
 #define PCI_DEVICE_ID_CMD_646            0x0646
 
 #define PCI_VENDOR_ID_REALTEK            0x10ec
+#define PCI_DEVICE_ID_REALTEK_RTL8029    0x8029
 #define PCI_DEVICE_ID_REALTEK_8139       0x8139
 
 #define PCI_VENDOR_ID_XILINX             0x10ee
 
 #define PCI_VENDOR_ID_MARVELL            0x11ab
+
+#define PCI_VENDOR_ID_QEMU               0x1234
+#define PCI_DEVICE_ID_QEMU_VGA           0x1111
 
 #define PCI_VENDOR_ID_ENSONIQ            0x1274
 #define PCI_DEVICE_ID_ENSONIQ_ES1370     0x5000

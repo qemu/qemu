@@ -154,10 +154,8 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
 
 #if 0
     /* PCI2PCI bridge same values as PearPC - check this */
-    d->config[0x00] = 0x11; // vendor_id
-    d->config[0x01] = 0x10;
-    d->config[0x02] = 0x26; // device_id
-    d->config[0x03] = 0x00;
+    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_DEC);
+    pci_config_set_device_id(d->config, PCI_DEVICE_ID_DEC_21154);
     d->config[0x08] = 0x02; // revision
     d->config[0x0a] = 0x04; // class_sub = pci2pci
     d->config[0x0b] = 0x06; // class_base = PCI_bridge
