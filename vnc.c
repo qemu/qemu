@@ -103,6 +103,10 @@ struct VncState
     int last_x;
     int last_y;
 
+    uint32_t vnc_encoding;
+    uint8_t tight_quality;
+    uint8_t tight_compression;
+
     int major;
     int minor;
 
@@ -450,10 +454,14 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
 
 static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 {
-	if (vnc_has_feature(vs, VNC_FEATURE_HEXTILE))
+    switch(vs->vnc_encoding) {
+	case VNC_ENCODING_HEXTILE:
 	    send_framebuffer_update_hextile(vs, x, y, w, h);
-	else
+	    break;
+	default:
 	    send_framebuffer_update_raw(vs, x, y, w, h);
+	    break;
+    }
 }
 
 static void vnc_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int dst_y, int w, int h)
@@ -1164,6 +1172,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
     unsigned int enc = 0;
 
     vs->features = 0;
+    vs->vnc_encoding = 0;
+    vs->tight_compression = 9;
+    vs->tight_quality = 9;
     vs->absolute = -1;
     dcl->dpy_copy = NULL;
 
@@ -1171,12 +1182,14 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         enc = encodings[i];
         switch (enc) {
         case VNC_ENCODING_RAW:
+            vs->vnc_encoding = enc;
             break;
         case VNC_ENCODING_COPYRECT:
             dcl->dpy_copy = vnc_copy;
             break;
         case VNC_ENCODING_HEXTILE:
             vs->features |= VNC_FEATURE_HEXTILE_MASK;
+            vs->vnc_encoding = enc;
             break;
         case VNC_ENCODING_DESKTOPRESIZE:
             vs->features |= VNC_FEATURE_RESIZE_MASK;
@@ -1192,6 +1205,12 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         case VNC_ENCODING_WMVi:
             vs->features |= VNC_FEATURE_WMVI_MASK;
+            break;
+        case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
+            vs->tight_compression = (enc & 0x0F);
+            break;
+        case VNC_ENCODING_QUALITYLEVEL0 ... VNC_ENCODING_QUALITYLEVEL0 + 9:
+            vs->tight_quality = (enc & 0x0F);
             break;
         default:
             VNC_DEBUG("Unknown encoding: %d (0x%.8x): %d\n", i, enc, enc);
