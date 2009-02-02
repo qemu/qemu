@@ -47,7 +47,7 @@
 #ifdef _VNC_DEBUG
 #define VNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 
-#if CONFIG_VNC_TLS && _VNC_DEBUG >= 2
+#if defined(CONFIG_VNC_TLS) && _VNC_DEBUG >= 2
 /* Very verbose, so only enabled for _VNC_DEBUG >= 2 */
 static void vnc_debug_gnutls_log(int level, const char* str) {
     VNC_DEBUG("%d %s", level, str);
