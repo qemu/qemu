@@ -417,8 +417,6 @@ static void send_framebuffer_update_raw(VncState *vs, int x, int y, int w, int h
     int i;
     uint8_t *row;
 
-    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
-
     row = ds_get_data(vs->ds) + y * ds_get_linesize(vs->ds) + x * ds_get_bytes_per_pixel(vs->ds);
     for (i = 0; i < h; i++) {
 	vs->write_pixels(vs, row, w * ds_get_bytes_per_pixel(vs->ds));
@@ -468,8 +466,6 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
     int has_fg, has_bg;
     uint8_t *last_fg, *last_bg;
 
-    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
-
     last_fg = (uint8_t *) malloc(vs->serverds.pf.bytes_per_pixel);
     last_bg = (uint8_t *) malloc(vs->serverds.pf.bytes_per_pixel);
     has_fg = has_bg = 0;
@@ -489,9 +485,11 @@ static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 {
     switch(vs->vnc_encoding) {
 	case VNC_ENCODING_HEXTILE:
+	    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
 	    send_framebuffer_update_hextile(vs, x, y, w, h);
 	    break;
 	default:
+	    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
 	    send_framebuffer_update_raw(vs, x, y, w, h);
 	    break;
     }
