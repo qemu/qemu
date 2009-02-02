@@ -983,12 +983,13 @@ static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
     return val;
 }
 
-static void noreturn dp8381x_writeb(pci_dp8381x_t * d,
-                                    target_phys_addr_t addr, uint8_t val);
-static void noreturn dp8381x_ioport_writeb(void *opaque,
-                                           uint32_t addr, uint32_t val);
-static void noreturn dp8381x_mmio_writeb(void *opaque,
-                                         target_phys_addr_t addr, uint32_t val);
+static void QEMU_NORETURN dp8381x_writeb(pci_dp8381x_t * d,
+                                         target_phys_addr_t addr, uint8_t val);
+static void QEMU_NORETURN dp8381x_ioport_writeb(void *opaque,
+                                                uint32_t addr, uint32_t val);
+static void QEMU_NORETURN dp8381x_mmio_writeb(void *opaque,
+                                              target_phys_addr_t addr,
+                                              uint32_t val);
 
 static void dp8381x_writeb(pci_dp8381x_t * d, target_phys_addr_t addr,
                            uint8_t val)

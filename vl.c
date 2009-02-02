@@ -3852,7 +3852,7 @@ static int main_loop(void)
     return ret;
 }
 
-static void noreturn help(int exitcode)
+static void QEMU_NORETURN help(int exitcode)
 {
     /* Please keep in synch with QEMU_OPTION_ enums, qemu_options[]
        and qemu-doc.texi */
@@ -4505,7 +4505,7 @@ static void select_vgahw (const char *p)
 }
 
 #ifdef _WIN32
-static BOOL WINAPI noreturn qemu_ctrl_handler(DWORD type)
+static BOOL WINAPI QEMU_NORETURN qemu_ctrl_handler(DWORD type)
 {
     exit(STATUS_CONTROL_C_EXIT);
 }

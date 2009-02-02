@@ -105,7 +105,7 @@ void qerror(const char *fmt, ...);
 void write_dt(void *ptr, unsigned long addr, unsigned long limit, int flags);
 
 extern CPUState *global_env;
-void noreturn cpu_loop(CPUState *env);
+void QEMU_NORETURN cpu_loop(CPUState *env);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
 

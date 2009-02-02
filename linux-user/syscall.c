@@ -2861,7 +2861,7 @@ typedef struct {
     sigset_t sigmask;
 } new_thread_info;
 
-static void * noreturn clone_func(void *arg)
+static void * QEMU_NORETURN clone_func(void *arg)
 {
     new_thread_info *info = arg;
     CPUState *env;
@@ -2890,7 +2890,7 @@ static void * noreturn clone_func(void *arg)
    thread/process */
 #define NEW_STACK_SIZE 8192
 
-static int noreturn clone_func(void *arg)
+static int QEMU_NORETURN clone_func(void *arg)
 {
     CPUState *env = arg;
     cpu_loop(env);

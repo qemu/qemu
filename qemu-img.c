@@ -51,7 +51,7 @@ static void format_print(void *opaque, const char *name)
 }
 
 /* Please keep in synch with qemu-img.texi */
-static void noreturn help(void)
+static void QEMU_NORETURN help(void)
 {
     printf("qemu-img version " QEMU_VERSION ", Copyright (c) 2004-2008 Fabrice Bellard\n"
            "usage: qemu-img command [command options]\n"

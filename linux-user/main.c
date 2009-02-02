@@ -2178,7 +2178,7 @@ void cpu_loop (CPUState *env)
 }
 #endif /* TARGET_ALPHA */
 
-static void noreturn usage(void)
+static void QEMU_NORETURN usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
            "usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"

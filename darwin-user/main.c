@@ -737,7 +737,7 @@ void cpu_loop(CPUX86State *env)
 }
 #endif
 
-static void __attribute((noreturn)) usage(void)
+static void QEMU_NORETURN usage(void)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2004 Fabrice Bellard\n"
            "usage: qemu-" TARGET_ARCH " [-h] [-d opts] [-L path] [-s size] program [arguments...]\n"

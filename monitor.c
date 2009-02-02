@@ -380,7 +380,7 @@ static void do_info_cpu_stats (void)
 }
 #endif
 
-static void noreturn do_quit(void)
+static void QEMU_NORETURN do_quit(void)
 {
     exit(0);
 }
@@ -1963,7 +1963,7 @@ static const MonitorDef monitor_defs[] = {
     { NULL },
 };
 
-static void noreturn expr_error(const char *msg)
+static void QEMU_NORETURN expr_error(const char *msg)
 {
     term_printf("%s\n", msg);
     longjmp(expr_env, 1);

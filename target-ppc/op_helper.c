@@ -38,7 +38,7 @@
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
-void noreturn helper_raise_exception_err (uint32_t exception, uint32_t error_code)
+void QEMU_NORETURN helper_raise_exception_err (uint32_t exception, uint32_t error_code)
 {
 #if 0
     printf("Raise exception %3x code : %d\n", exception, error_code);
@@ -48,7 +48,7 @@ void noreturn helper_raise_exception_err (uint32_t exception, uint32_t error_cod
     cpu_loop_exit();
 }
 
-void noreturn helper_raise_exception (uint32_t exception)
+void QEMU_NORETURN helper_raise_exception (uint32_t exception)
 {
     helper_raise_exception_err(exception, 0);
 }

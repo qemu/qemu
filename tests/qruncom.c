@@ -126,7 +126,7 @@ int errno;
 
 #define COM_BASE_ADDR    0x10100
 
-static void __attribute((noreturn)) usage(void)
+static void QEMU_NORETURN usage(void)
 {
     printf("qruncom version 0.1 (c) 2003 Fabrice Bellard\n"
            "usage: qruncom file.com\n"
