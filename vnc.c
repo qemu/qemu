@@ -263,6 +263,39 @@ static void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
     vnc_write_s32(vs, encoding);
 }
 
+static void buffer_reserve(Buffer *buffer, size_t len)
+{
+    if ((buffer->capacity - buffer->offset) < len) {
+	buffer->capacity += (len + 1024);
+	buffer->buffer = qemu_realloc(buffer->buffer, buffer->capacity);
+	if (buffer->buffer == NULL) {
+	    fprintf(stderr, "vnc: out of memory\n");
+	    exit(1);
+	}
+    }
+}
+
+static int buffer_empty(Buffer *buffer)
+{
+    return buffer->offset == 0;
+}
+
+static uint8_t *buffer_end(Buffer *buffer)
+{
+    return buffer->buffer + buffer->offset;
+}
+
+static void buffer_reset(Buffer *buffer)
+{
+	buffer->offset = 0;
+}
+
+static void buffer_append(Buffer *buffer, const void *data, size_t len)
+{
+    memcpy(buffer->buffer + buffer->offset, data, len);
+    buffer->offset += len;
+}
+
 static void vnc_dpy_resize(DisplayState *ds)
 {
     int size_changed;
@@ -596,39 +629,6 @@ static int vnc_listen_poll(void *opaque)
     if (vs->csock == -1)
 	return 1;
     return 0;
-}
-
-static void buffer_reserve(Buffer *buffer, size_t len)
-{
-    if ((buffer->capacity - buffer->offset) < len) {
-	buffer->capacity += (len + 1024);
-	buffer->buffer = qemu_realloc(buffer->buffer, buffer->capacity);
-	if (buffer->buffer == NULL) {
-	    fprintf(stderr, "vnc: out of memory\n");
-	    exit(1);
-	}
-    }
-}
-
-static int buffer_empty(Buffer *buffer)
-{
-    return buffer->offset == 0;
-}
-
-static uint8_t *buffer_end(Buffer *buffer)
-{
-    return buffer->buffer + buffer->offset;
-}
-
-static void buffer_reset(Buffer *buffer)
-{
-	buffer->offset = 0;
-}
-
-static void buffer_append(Buffer *buffer, const void *data, size_t len)
-{
-    memcpy(buffer->buffer + buffer->offset, data, len);
-    buffer->offset += len;
 }
 
 /* audio */
