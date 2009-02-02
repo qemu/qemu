@@ -32,6 +32,7 @@
 
 #define VNC_REFRESH_INTERVAL (1000 / 30)
 
+#include "vnc.h"
 #include "vnc_keysym.h"
 #include "keymaps.c"
 #include "d3des.h"
@@ -87,41 +88,6 @@ typedef void VncSendHextileTile(VncState *vs,
 #define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
 
 #define VNC_AUTH_CHALLENGE_SIZE 16
-
-enum {
-    VNC_AUTH_INVALID = 0,
-    VNC_AUTH_NONE = 1,
-    VNC_AUTH_VNC = 2,
-    VNC_AUTH_RA2 = 5,
-    VNC_AUTH_RA2NE = 6,
-    VNC_AUTH_TIGHT = 16,
-    VNC_AUTH_ULTRA = 17,
-    VNC_AUTH_TLS = 18,
-    VNC_AUTH_VENCRYPT = 19
-};
-
-#ifdef CONFIG_VNC_TLS
-enum {
-    VNC_WIREMODE_CLEAR,
-    VNC_WIREMODE_TLS,
-};
-
-enum {
-    VNC_AUTH_VENCRYPT_PLAIN = 256,
-    VNC_AUTH_VENCRYPT_TLSNONE = 257,
-    VNC_AUTH_VENCRYPT_TLSVNC = 258,
-    VNC_AUTH_VENCRYPT_TLSPLAIN = 259,
-    VNC_AUTH_VENCRYPT_X509NONE = 260,
-    VNC_AUTH_VENCRYPT_X509VNC = 261,
-    VNC_AUTH_VENCRYPT_X509PLAIN = 262,
-};
-
-#define X509_CA_CERT_FILE "ca-cert.pem"
-#define X509_CA_CRL_FILE "ca-crl.pem"
-#define X509_SERVER_KEY_FILE "server-key.pem"
-#define X509_SERVER_CERT_FILE "server-cert.pem"
-
-#endif /* CONFIG_VNC_TLS */
 
 struct VncState
 {

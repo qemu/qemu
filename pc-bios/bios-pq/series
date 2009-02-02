@@ -8,3 +8,4 @@
 0008_kvm-bios-switch-mtrrs-to-cover-only-the-pci-range-and--default-to-wb.patch
 0009_kvm-bios-resolve-memory-device-roll-over-reporting--issues-with-32g-guests.patch
 0010_kvm-bios-fix-smbios-memory-device-length-boundary--condition.patch
+enable-serial-output.patch
