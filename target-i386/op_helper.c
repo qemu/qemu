@@ -1303,8 +1303,8 @@ static int check_exception(int intno, int *error_code)
  * EIP value AFTER the interrupt instruction. It is only relevant if
  * is_int is TRUE.
  */
-static void noreturn raise_interrupt(int intno, int is_int, int error_code,
-                                     int next_eip_addend)
+static void QEMU_NORETURN raise_interrupt(int intno, int is_int, int error_code,
+                                          int next_eip_addend)
 {
     if (!is_int) {
         helper_svm_check_intercept_param(SVM_EXIT_EXCP_BASE + intno, error_code);
@@ -3030,6 +3030,8 @@ void helper_wrmsr(void)
                 update_mask |= MSR_EFER_NXE;
             if (env->cpuid_ext3_features & CPUID_EXT3_SVM)
                 update_mask |= MSR_EFER_SVME;
+            if (env->cpuid_ext2_features & CPUID_EXT2_FFXSR)
+                update_mask |= MSR_EFER_FFXSR;
             cpu_load_efer(env, (env->efer & ~update_mask) |
                           (val & update_mask));
         }
@@ -4352,10 +4354,15 @@ void helper_fxsave(target_ulong ptr, int data64)
         else
             nb_xmm_regs = 8;
         addr = ptr + 0xa0;
-        for(i = 0; i < nb_xmm_regs; i++) {
-            stq(addr, env->xmm_regs[i].XMM_Q(0));
-            stq(addr + 8, env->xmm_regs[i].XMM_Q(1));
-            addr += 16;
+        /* Fast FXSAVE leaves out the XMM registers */
+        if (!(env->efer & MSR_EFER_FFXSR)
+          || (env->hflags & HF_CPL_MASK)
+          || !(env->hflags & HF_LMA_MASK)) {
+            for(i = 0; i < nb_xmm_regs; i++) {
+                stq(addr, env->xmm_regs[i].XMM_Q(0));
+                stq(addr + 8, env->xmm_regs[i].XMM_Q(1));
+                addr += 16;
+            }
         }
     }
 }
@@ -4392,10 +4399,15 @@ void helper_fxrstor(target_ulong ptr, int data64)
         else
             nb_xmm_regs = 8;
         addr = ptr + 0xa0;
-        for(i = 0; i < nb_xmm_regs; i++) {
-            env->xmm_regs[i].XMM_Q(0) = ldq(addr);
-            env->xmm_regs[i].XMM_Q(1) = ldq(addr + 8);
-            addr += 16;
+        /* Fast FXRESTORE leaves out the XMM registers */
+        if (!(env->efer & MSR_EFER_FFXSR)
+          || (env->hflags & HF_CPL_MASK)
+          || !(env->hflags & HF_LMA_MASK)) {
+            for(i = 0; i < nb_xmm_regs; i++) {
+                env->xmm_regs[i].XMM_Q(0) = ldq(addr);
+                env->xmm_regs[i].XMM_Q(1) = ldq(addr + 8);
+                addr += 16;
+            }
         }
     }
 }

@@ -753,7 +753,7 @@ void cpu_dump_statistics (CPUState *env, FILE *f,
                           int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                           int flags);
 
-void noreturn cpu_abort(CPUState *env, const char *fmt, ...)
+void QEMU_NORETURN cpu_abort(CPUState *env, const char *fmt, ...)
     __attribute__ ((__format__ (__printf__, 2, 3)));
 extern CPUState *first_cpu;
 extern CPUState *cpu_single_env;

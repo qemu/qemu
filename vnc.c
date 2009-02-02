@@ -29,9 +29,11 @@
 #include "qemu_socket.h"
 #include "qemu-timer.h"
 #include "audio/audio.h"
+#include <zlib.h>
 
 #define VNC_REFRESH_INTERVAL (1000 / 30)
 
+#include "vnc.h"
 #include "vnc_keysym.h"
 #include "keymaps.c"
 #include "d3des.h"
@@ -46,7 +48,7 @@
 #ifdef _VNC_DEBUG
 #define VNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 
-#if CONFIG_VNC_TLS && _VNC_DEBUG >= 2
+#if defined(CONFIG_VNC_TLS) && _VNC_DEBUG >= 2
 /* Very verbose, so only enabled for _VNC_DEBUG >= 2 */
 static void vnc_debug_gnutls_log(int level, const char* str) {
     VNC_DEBUG("%d %s", level, str);
@@ -88,41 +90,6 @@ typedef void VncSendHextileTile(VncState *vs,
 
 #define VNC_AUTH_CHALLENGE_SIZE 16
 
-enum {
-    VNC_AUTH_INVALID = 0,
-    VNC_AUTH_NONE = 1,
-    VNC_AUTH_VNC = 2,
-    VNC_AUTH_RA2 = 5,
-    VNC_AUTH_RA2NE = 6,
-    VNC_AUTH_TIGHT = 16,
-    VNC_AUTH_ULTRA = 17,
-    VNC_AUTH_TLS = 18,
-    VNC_AUTH_VENCRYPT = 19
-};
-
-#ifdef CONFIG_VNC_TLS
-enum {
-    VNC_WIREMODE_CLEAR,
-    VNC_WIREMODE_TLS,
-};
-
-enum {
-    VNC_AUTH_VENCRYPT_PLAIN = 256,
-    VNC_AUTH_VENCRYPT_TLSNONE = 257,
-    VNC_AUTH_VENCRYPT_TLSVNC = 258,
-    VNC_AUTH_VENCRYPT_TLSPLAIN = 259,
-    VNC_AUTH_VENCRYPT_X509NONE = 260,
-    VNC_AUTH_VENCRYPT_X509VNC = 261,
-    VNC_AUTH_VENCRYPT_X509PLAIN = 262,
-};
-
-#define X509_CA_CERT_FILE "ca-cert.pem"
-#define X509_CA_CRL_FILE "ca-crl.pem"
-#define X509_SERVER_KEY_FILE "server-key.pem"
-#define X509_SERVER_CERT_FILE "server-cert.pem"
-
-#endif /* CONFIG_VNC_TLS */
-
 struct VncState
 {
     QEMUTimer *timer;
@@ -132,13 +99,14 @@ struct VncState
     int need_update;
     uint32_t dirty_row[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
     char *old_data;
-    int has_resize;
-    int has_hextile;
-    int has_pointer_type_change;
-    int has_WMVi;
+    uint32_t features;
     int absolute;
     int last_x;
     int last_y;
+
+    uint32_t vnc_encoding;
+    uint8_t tight_quality;
+    uint8_t tight_compression;
 
     int major;
     int minor;
@@ -177,6 +145,10 @@ struct VncState
     size_t read_handler_expect;
     /* input */
     uint8_t modifiers_state[256];
+
+    Buffer zlib;
+    Buffer zlib_tmp;
+    z_stream zlib_stream[4];
 };
 
 static VncState *vnc_state; /* needed for info vnc */
@@ -196,6 +168,10 @@ void do_info_vnc(void)
 	else
 	    term_printf("Client connected\n");
     }
+}
+
+static inline uint32_t vnc_has_feature(VncState *vs, int feature) {
+    return (vs->features & (1 << feature));
 }
 
 /* TODO
@@ -292,6 +268,39 @@ static void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
     vnc_write_s32(vs, encoding);
 }
 
+static void buffer_reserve(Buffer *buffer, size_t len)
+{
+    if ((buffer->capacity - buffer->offset) < len) {
+	buffer->capacity += (len + 1024);
+	buffer->buffer = qemu_realloc(buffer->buffer, buffer->capacity);
+	if (buffer->buffer == NULL) {
+	    fprintf(stderr, "vnc: out of memory\n");
+	    exit(1);
+	}
+    }
+}
+
+static int buffer_empty(Buffer *buffer)
+{
+    return buffer->offset == 0;
+}
+
+static uint8_t *buffer_end(Buffer *buffer)
+{
+    return buffer->buffer + buffer->offset;
+}
+
+static void buffer_reset(Buffer *buffer)
+{
+	buffer->offset = 0;
+}
+
+static void buffer_append(Buffer *buffer, const void *data, size_t len)
+{
+    memcpy(buffer->buffer + buffer->offset, data, len);
+    buffer->offset += len;
+}
+
 static void vnc_dpy_resize(DisplayState *ds)
 {
     int size_changed;
@@ -311,11 +320,12 @@ static void vnc_dpy_resize(DisplayState *ds)
                    ds_get_height(ds) != vs->serverds.height;
     vs->serverds = *(ds->surface);
     if (size_changed) {
-        if (vs->csock != -1 && vs->has_resize) {
+        if (vs->csock != -1 && vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
             vnc_write_u8(vs, 0);  /* msg id */
             vnc_write_u8(vs, 0);
             vnc_write_u16(vs, 1); /* number of rects */
-            vnc_framebuffer_update(vs, 0, 0, ds_get_width(ds), ds_get_height(ds), -223);
+            vnc_framebuffer_update(vs, 0, 0, ds_get_width(ds), ds_get_height(ds),
+                                   VNC_ENCODING_DESKTOPRESIZE);
             vnc_flush(vs);
         }
     }
@@ -412,8 +422,6 @@ static void send_framebuffer_update_raw(VncState *vs, int x, int y, int w, int h
     int i;
     uint8_t *row;
 
-    vnc_framebuffer_update(vs, x, y, w, h, 0);
-
     row = ds_get_data(vs->ds) + y * ds_get_linesize(vs->ds) + x * ds_get_bytes_per_pixel(vs->ds);
     for (i = 0; i < h; i++) {
 	vs->write_pixels(vs, row, w * ds_get_bytes_per_pixel(vs->ds));
@@ -463,8 +471,6 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
     int has_fg, has_bg;
     uint8_t *last_fg, *last_bg;
 
-    vnc_framebuffer_update(vs, x, y, w, h, 5);
-
     last_fg = (uint8_t *) malloc(vs->serverds.pf.bytes_per_pixel);
     last_bg = (uint8_t *) malloc(vs->serverds.pf.bytes_per_pixel);
     has_fg = has_bg = 0;
@@ -480,12 +486,117 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
 
 }
 
+static void vnc_zlib_init(VncState *vs)
+{
+    int i;
+    for (i=0; i<(sizeof(vs->zlib_stream) / sizeof(z_stream)); i++)
+        vs->zlib_stream[i].opaque = NULL;
+}
+
+static void vnc_zlib_start(VncState *vs)
+{
+    buffer_reset(&vs->zlib);
+
+    // make the output buffer be the zlib buffer, so we can compress it later
+    vs->zlib_tmp = vs->output;
+    vs->output = vs->zlib;
+}
+
+static int vnc_zlib_stop(VncState *vs, int stream_id)
+{
+    z_streamp zstream = &vs->zlib_stream[stream_id];
+    int previous_out;
+
+    // switch back to normal output/zlib buffers
+    vs->zlib = vs->output;
+    vs->output = vs->zlib_tmp;
+
+    // compress the zlib buffer
+
+    // initialize the stream
+    // XXX need one stream per session
+    if (zstream->opaque != vs) {
+        int err;
+
+        VNC_DEBUG("VNC: initializing zlib stream %d\n", stream_id);
+        VNC_DEBUG("VNC: opaque = %p | vs = %p\n", zstream->opaque, vs);
+        zstream->zalloc = Z_NULL;
+        zstream->zfree = Z_NULL;
+
+        err = deflateInit2(zstream, vs->tight_compression, Z_DEFLATED, MAX_WBITS,
+                           MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+
+        if (err != Z_OK) {
+            fprintf(stderr, "VNC: error initializing zlib\n");
+            return -1;
+        }
+
+        zstream->opaque = vs;
+    }
+
+    // XXX what to do if tight_compression changed in between?
+
+    // reserve memory in output buffer
+    buffer_reserve(&vs->output, vs->zlib.offset + 64);
+
+    // set pointers
+    zstream->next_in = vs->zlib.buffer;
+    zstream->avail_in = vs->zlib.offset;
+    zstream->next_out = vs->output.buffer + vs->output.offset;
+    zstream->avail_out = vs->output.capacity - vs->output.offset;
+    zstream->data_type = Z_BINARY;
+    previous_out = zstream->total_out;
+
+    // start encoding
+    if (deflate(zstream, Z_SYNC_FLUSH) != Z_OK) {
+        fprintf(stderr, "VNC: error during zlib compression\n");
+        return -1;
+    }
+
+    vs->output.offset = vs->output.capacity - zstream->avail_out;
+    return zstream->total_out - previous_out;
+}
+
+static void send_framebuffer_update_zlib(VncState *vs, int x, int y, int w, int h)
+{
+    int old_offset, new_offset, bytes_written;
+
+    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_ZLIB);
+
+    // remember where we put in the follow-up size
+    old_offset = vs->output.offset;
+    vnc_write_s32(vs, 0);
+
+    // compress the stream
+    vnc_zlib_start(vs);
+    send_framebuffer_update_raw(vs, x, y, w, h);
+    bytes_written = vnc_zlib_stop(vs, 0);
+
+    if (bytes_written == -1)
+        return;
+
+    // hack in the size
+    new_offset = vs->output.offset;
+    vs->output.offset = old_offset;
+    vnc_write_u32(vs, bytes_written);
+    vs->output.offset = new_offset;
+}
+
 static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 {
-	if (vs->has_hextile)
+    switch(vs->vnc_encoding) {
+	case VNC_ENCODING_ZLIB:
+	    send_framebuffer_update_zlib(vs, x, y, w, h);
+	    break;
+	case VNC_ENCODING_HEXTILE:
+	    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
 	    send_framebuffer_update_hextile(vs, x, y, w, h);
-	else
+	    break;
+	default:
+	    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
 	    send_framebuffer_update_raw(vs, x, y, w, h);
+	    break;
+    }
 }
 
 static void vnc_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int dst_y, int w, int h)
@@ -497,7 +608,7 @@ static void vnc_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int dst_
     vnc_write_u8(vs, 0);  /* msg id */
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1); /* number of rects */
-    vnc_framebuffer_update(vs, dst_x, dst_y, w, h, 1);
+    vnc_framebuffer_update(vs, dst_x, dst_y, w, h, VNC_ENCODING_COPYRECT);
     vnc_write_u16(vs, src_x);
     vnc_write_u16(vs, src_y);
     vnc_flush(vs);
@@ -620,39 +731,6 @@ static int vnc_listen_poll(void *opaque)
     if (vs->csock == -1)
 	return 1;
     return 0;
-}
-
-static void buffer_reserve(Buffer *buffer, size_t len)
-{
-    if ((buffer->capacity - buffer->offset) < len) {
-	buffer->capacity += (len + 1024);
-	buffer->buffer = qemu_realloc(buffer->buffer, buffer->capacity);
-	if (buffer->buffer == NULL) {
-	    fprintf(stderr, "vnc: out of memory\n");
-	    exit(1);
-	}
-    }
-}
-
-static int buffer_empty(Buffer *buffer)
-{
-    return buffer->offset == 0;
-}
-
-static uint8_t *buffer_end(Buffer *buffer)
-{
-    return buffer->buffer + buffer->offset;
-}
-
-static void buffer_reset(Buffer *buffer)
-{
-	buffer->offset = 0;
-}
-
-static void buffer_append(Buffer *buffer, const void *data, size_t len)
-{
-    memcpy(buffer->buffer + buffer->offset, data, len);
-    buffer->offset += len;
 }
 
 /* audio */
@@ -953,12 +1031,13 @@ static void client_cut_text(VncState *vs, size_t len, uint8_t *text)
 
 static void check_pointer_type_change(VncState *vs, int absolute)
 {
-    if (vs->has_pointer_type_change && vs->absolute != absolute) {
+    if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE) && vs->absolute != absolute) {
 	vnc_write_u8(vs, 0);
 	vnc_write_u8(vs, 0);
 	vnc_write_u16(vs, 1);
 	vnc_framebuffer_update(vs, absolute, 0,
-			       ds_get_width(vs->ds), ds_get_height(vs->ds), -257);
+			       ds_get_width(vs->ds), ds_get_height(vs->ds),
+                               VNC_ENCODING_POINTER_TYPE_CHANGE);
 	vnc_flush(vs);
     }
     vs->absolute = absolute;
@@ -984,7 +1063,7 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
 	kbd_mouse_event(x * 0x7FFF / (ds_get_width(vs->ds) - 1),
 			y * 0x7FFF / (ds_get_height(vs->ds) - 1),
 			dz, buttons);
-    } else if (vs->has_pointer_type_change) {
+    } else if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE)) {
 	x -= 0x7FFF;
 	y -= 0x7FFF;
 
@@ -1174,7 +1253,8 @@ static void send_ext_key_event_ack(VncState *vs)
     vnc_write_u8(vs, 0);
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1);
-    vnc_framebuffer_update(vs, 0, 0, ds_get_width(vs->ds), ds_get_height(vs->ds), -258);
+    vnc_framebuffer_update(vs, 0, 0, ds_get_width(vs->ds), ds_get_height(vs->ds),
+                           VNC_ENCODING_EXT_KEY_EVENT);
     vnc_flush(vs);
 }
 
@@ -1183,50 +1263,66 @@ static void send_ext_audio_ack(VncState *vs)
     vnc_write_u8(vs, 0);
     vnc_write_u8(vs, 0);
     vnc_write_u16(vs, 1);
-    vnc_framebuffer_update(vs, 0, 0, ds_get_width(vs->ds), ds_get_height(vs->ds), -259);
+    vnc_framebuffer_update(vs, 0, 0, ds_get_width(vs->ds), ds_get_height(vs->ds),
+                           VNC_ENCODING_AUDIO);
     vnc_flush(vs);
 }
 
 static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 {
     int i;
+    unsigned int enc = 0;
 
-    vs->has_hextile = 0;
-    vs->has_resize = 0;
-    vs->has_pointer_type_change = 0;
-    vs->has_WMVi = 0;
+    vnc_zlib_init(vs);
+    vs->features = 0;
+    vs->vnc_encoding = 0;
+    vs->tight_compression = 9;
+    vs->tight_quality = 9;
     vs->absolute = -1;
     dcl->dpy_copy = NULL;
 
     for (i = n_encodings - 1; i >= 0; i--) {
-	switch (encodings[i]) {
-	case 0: /* Raw */
-	    vs->has_hextile = 0;
-	    break;
-	case 1: /* CopyRect */
-	    dcl->dpy_copy = vnc_copy;
-	    break;
-	case 5: /* Hextile */
-	    vs->has_hextile = 1;
-	    break;
-	case -223: /* DesktopResize */
-	    vs->has_resize = 1;
-	    break;
-	case -257:
-	    vs->has_pointer_type_change = 1;
-	    break;
-        case -258:
+        enc = encodings[i];
+        switch (enc) {
+        case VNC_ENCODING_RAW:
+            vs->vnc_encoding = enc;
+            break;
+        case VNC_ENCODING_COPYRECT:
+            dcl->dpy_copy = vnc_copy;
+            break;
+        case VNC_ENCODING_HEXTILE:
+            vs->features |= VNC_FEATURE_HEXTILE_MASK;
+            vs->vnc_encoding = enc;
+            break;
+        case VNC_ENCODING_ZLIB:
+            vs->features |= VNC_FEATURE_ZLIB_MASK;
+            vs->vnc_encoding = enc;
+            break;
+        case VNC_ENCODING_DESKTOPRESIZE:
+            vs->features |= VNC_FEATURE_RESIZE_MASK;
+            break;
+        case VNC_ENCODING_POINTER_TYPE_CHANGE:
+            vs->features |= VNC_FEATURE_POINTER_TYPE_CHANGE_MASK;
+            break;
+        case VNC_ENCODING_EXT_KEY_EVENT:
             send_ext_key_event_ack(vs);
             break;
-        case -259:
+        case VNC_ENCODING_AUDIO:
             send_ext_audio_ack(vs);
             break;
-        case 0x574D5669:
-            vs->has_WMVi = 1;
+        case VNC_ENCODING_WMVi:
+            vs->features |= VNC_FEATURE_WMVI_MASK;
             break;
-	default:
-	    break;
-	}
+        case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
+            vs->tight_compression = (enc & 0x0F);
+            break;
+        case VNC_ENCODING_QUALITYLEVEL0 ... VNC_ENCODING_QUALITYLEVEL0 + 9:
+            vs->tight_quality = (enc & 0x0F);
+            break;
+        default:
+            VNC_DEBUG("Unknown encoding: %d (0x%.8x): %d\n", i, enc, enc);
+            break;
+        }
     }
 
     check_pointer_type_change(vs, kbd_mouse_is_absolute());
@@ -1340,12 +1436,13 @@ static void vnc_colordepth(DisplayState *ds)
 {
     struct VncState *vs = ds->opaque;
 
-    if (vs->csock != -1 && vs->has_WMVi) {
+    if (vs->csock != -1 && vnc_has_feature(vs, VNC_FEATURE_WMVI)) {
         /* Sending a WMVi message to notify the client*/
         vnc_write_u8(vs, 0);  /* msg id */
         vnc_write_u8(vs, 0);
         vnc_write_u16(vs, 1); /* number of rects */
-        vnc_framebuffer_update(vs, 0, 0, ds_get_width(ds), ds_get_height(ds), 0x574D5669);
+        vnc_framebuffer_update(vs, 0, 0, ds_get_width(ds), ds_get_height(ds),
+                               VNC_ENCODING_WMVi);
         pixel_format_message(vs);
         vnc_flush(vs);
     } else {
@@ -2113,9 +2210,7 @@ static void vnc_connect(VncState *vs)
     vnc_read_when(vs, protocol_version, 12);
     memset(vs->old_data, 0, ds_get_linesize(vs->ds) * ds_get_height(vs->ds));
     memset(vs->dirty_row, 0xFF, sizeof(vs->dirty_row));
-    vs->has_resize = 0;
-    vs->has_hextile = 0;
-    vs->has_WMVi = 0;
+    vs->features = 0;
     dcl->dpy_copy = NULL;
     vnc_update_client(vs);
     reset_keys(vs);
