@@ -2861,7 +2861,7 @@ static always_inline uint32_t efscfsi (uint32_t val)
 {
     CPU_FloatU u;
 
-    u.f = int32_to_float32(val, &env->spe_status);
+    u.f = int32_to_float32(val, &env->vec_status);
 
     return u.l;
 }
@@ -2870,7 +2870,7 @@ static always_inline uint32_t efscfui (uint32_t val)
 {
     CPU_FloatU u;
 
-    u.f = uint32_to_float32(val, &env->spe_status);
+    u.f = uint32_to_float32(val, &env->vec_status);
 
     return u.l;
 }
@@ -2884,7 +2884,7 @@ static always_inline int32_t efsctsi (uint32_t val)
     if (unlikely(float32_is_nan(u.f)))
         return 0;
 
-    return float32_to_int32(u.f, &env->spe_status);
+    return float32_to_int32(u.f, &env->vec_status);
 }
 
 static always_inline uint32_t efsctui (uint32_t val)
@@ -2896,7 +2896,7 @@ static always_inline uint32_t efsctui (uint32_t val)
     if (unlikely(float32_is_nan(u.f)))
         return 0;
 
-    return float32_to_uint32(u.f, &env->spe_status);
+    return float32_to_uint32(u.f, &env->vec_status);
 }
 
 static always_inline uint32_t efsctsiz (uint32_t val)
@@ -2908,7 +2908,7 @@ static always_inline uint32_t efsctsiz (uint32_t val)
     if (unlikely(float32_is_nan(u.f)))
         return 0;
 
-    return float32_to_int32_round_to_zero(u.f, &env->spe_status);
+    return float32_to_int32_round_to_zero(u.f, &env->vec_status);
 }
 
 static always_inline uint32_t efsctuiz (uint32_t val)
@@ -2920,7 +2920,7 @@ static always_inline uint32_t efsctuiz (uint32_t val)
     if (unlikely(float32_is_nan(u.f)))
         return 0;
 
-    return float32_to_uint32_round_to_zero(u.f, &env->spe_status);
+    return float32_to_uint32_round_to_zero(u.f, &env->vec_status);
 }
 
 static always_inline uint32_t efscfsf (uint32_t val)
@@ -2928,9 +2928,9 @@ static always_inline uint32_t efscfsf (uint32_t val)
     CPU_FloatU u;
     float32 tmp;
 
-    u.f = int32_to_float32(val, &env->spe_status);
-    tmp = int64_to_float32(1ULL << 32, &env->spe_status);
-    u.f = float32_div(u.f, tmp, &env->spe_status);
+    u.f = int32_to_float32(val, &env->vec_status);
+    tmp = int64_to_float32(1ULL << 32, &env->vec_status);
+    u.f = float32_div(u.f, tmp, &env->vec_status);
 
     return u.l;
 }
@@ -2940,9 +2940,9 @@ static always_inline uint32_t efscfuf (uint32_t val)
     CPU_FloatU u;
     float32 tmp;
 
-    u.f = uint32_to_float32(val, &env->spe_status);
-    tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
-    u.f = float32_div(u.f, tmp, &env->spe_status);
+    u.f = uint32_to_float32(val, &env->vec_status);
+    tmp = uint64_to_float32(1ULL << 32, &env->vec_status);
+    u.f = float32_div(u.f, tmp, &env->vec_status);
 
     return u.l;
 }
@@ -2956,10 +2956,10 @@ static always_inline uint32_t efsctsf (uint32_t val)
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(float32_is_nan(u.f)))
         return 0;
-    tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
-    u.f = float32_mul(u.f, tmp, &env->spe_status);
+    tmp = uint64_to_float32(1ULL << 32, &env->vec_status);
+    u.f = float32_mul(u.f, tmp, &env->vec_status);
 
-    return float32_to_int32(u.f, &env->spe_status);
+    return float32_to_int32(u.f, &env->vec_status);
 }
 
 static always_inline uint32_t efsctuf (uint32_t val)
@@ -2971,10 +2971,10 @@ static always_inline uint32_t efsctuf (uint32_t val)
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(float32_is_nan(u.f)))
         return 0;
-    tmp = uint64_to_float32(1ULL << 32, &env->spe_status);
-    u.f = float32_mul(u.f, tmp, &env->spe_status);
+    tmp = uint64_to_float32(1ULL << 32, &env->vec_status);
+    u.f = float32_mul(u.f, tmp, &env->vec_status);
 
-    return float32_to_uint32(u.f, &env->spe_status);
+    return float32_to_uint32(u.f, &env->vec_status);
 }
 
 #define HELPER_SPE_SINGLE_CONV(name)                                          \
@@ -3036,7 +3036,7 @@ static always_inline uint32_t efsadd (uint32_t op1, uint32_t op2)
     CPU_FloatU u1, u2;
     u1.l = op1;
     u2.l = op2;
-    u1.f = float32_add(u1.f, u2.f, &env->spe_status);
+    u1.f = float32_add(u1.f, u2.f, &env->vec_status);
     return u1.l;
 }
 
@@ -3045,7 +3045,7 @@ static always_inline uint32_t efssub (uint32_t op1, uint32_t op2)
     CPU_FloatU u1, u2;
     u1.l = op1;
     u2.l = op2;
-    u1.f = float32_sub(u1.f, u2.f, &env->spe_status);
+    u1.f = float32_sub(u1.f, u2.f, &env->vec_status);
     return u1.l;
 }
 
@@ -3054,7 +3054,7 @@ static always_inline uint32_t efsmul (uint32_t op1, uint32_t op2)
     CPU_FloatU u1, u2;
     u1.l = op1;
     u2.l = op2;
-    u1.f = float32_mul(u1.f, u2.f, &env->spe_status);
+    u1.f = float32_mul(u1.f, u2.f, &env->vec_status);
     return u1.l;
 }
 
@@ -3063,7 +3063,7 @@ static always_inline uint32_t efsdiv (uint32_t op1, uint32_t op2)
     CPU_FloatU u1, u2;
     u1.l = op1;
     u2.l = op2;
-    u1.f = float32_div(u1.f, u2.f, &env->spe_status);
+    u1.f = float32_div(u1.f, u2.f, &env->vec_status);
     return u1.l;
 }
 
@@ -3102,7 +3102,7 @@ static always_inline uint32_t efststlt (uint32_t op1, uint32_t op2)
     CPU_FloatU u1, u2;
     u1.l = op1;
     u2.l = op2;
-    return float32_lt(u1.f, u2.f, &env->spe_status) ? 4 : 0;
+    return float32_lt(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
 static always_inline uint32_t efststgt (uint32_t op1, uint32_t op2)
@@ -3110,7 +3110,7 @@ static always_inline uint32_t efststgt (uint32_t op1, uint32_t op2)
     CPU_FloatU u1, u2;
     u1.l = op1;
     u2.l = op2;
-    return float32_le(u1.f, u2.f, &env->spe_status) ? 0 : 4;
+    return float32_le(u1.f, u2.f, &env->vec_status) ? 0 : 4;
 }
 
 static always_inline uint32_t efststeq (uint32_t op1, uint32_t op2)
@@ -3118,7 +3118,7 @@ static always_inline uint32_t efststeq (uint32_t op1, uint32_t op2)
     CPU_FloatU u1, u2;
     u1.l = op1;
     u2.l = op2;
-    return float32_eq(u1.f, u2.f, &env->spe_status) ? 4 : 0;
+    return float32_eq(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
 static always_inline uint32_t efscmplt (uint32_t op1, uint32_t op2)
@@ -3185,7 +3185,7 @@ uint64_t helper_efdcfsi (uint32_t val)
 {
     CPU_DoubleU u;
 
-    u.d = int32_to_float64(val, &env->spe_status);
+    u.d = int32_to_float64(val, &env->vec_status);
 
     return u.ll;
 }
@@ -3194,7 +3194,7 @@ uint64_t helper_efdcfsid (uint64_t val)
 {
     CPU_DoubleU u;
 
-    u.d = int64_to_float64(val, &env->spe_status);
+    u.d = int64_to_float64(val, &env->vec_status);
 
     return u.ll;
 }
@@ -3203,7 +3203,7 @@ uint64_t helper_efdcfui (uint32_t val)
 {
     CPU_DoubleU u;
 
-    u.d = uint32_to_float64(val, &env->spe_status);
+    u.d = uint32_to_float64(val, &env->vec_status);
 
     return u.ll;
 }
@@ -3212,7 +3212,7 @@ uint64_t helper_efdcfuid (uint64_t val)
 {
     CPU_DoubleU u;
 
-    u.d = uint64_to_float64(val, &env->spe_status);
+    u.d = uint64_to_float64(val, &env->vec_status);
 
     return u.ll;
 }
@@ -3226,7 +3226,7 @@ uint32_t helper_efdctsi (uint64_t val)
     if (unlikely(float64_is_nan(u.d)))
         return 0;
 
-    return float64_to_int32(u.d, &env->spe_status);
+    return float64_to_int32(u.d, &env->vec_status);
 }
 
 uint32_t helper_efdctui (uint64_t val)
@@ -3238,7 +3238,7 @@ uint32_t helper_efdctui (uint64_t val)
     if (unlikely(float64_is_nan(u.d)))
         return 0;
 
-    return float64_to_uint32(u.d, &env->spe_status);
+    return float64_to_uint32(u.d, &env->vec_status);
 }
 
 uint32_t helper_efdctsiz (uint64_t val)
@@ -3250,7 +3250,7 @@ uint32_t helper_efdctsiz (uint64_t val)
     if (unlikely(float64_is_nan(u.d)))
         return 0;
 
-    return float64_to_int32_round_to_zero(u.d, &env->spe_status);
+    return float64_to_int32_round_to_zero(u.d, &env->vec_status);
 }
 
 uint64_t helper_efdctsidz (uint64_t val)
@@ -3262,7 +3262,7 @@ uint64_t helper_efdctsidz (uint64_t val)
     if (unlikely(float64_is_nan(u.d)))
         return 0;
 
-    return float64_to_int64_round_to_zero(u.d, &env->spe_status);
+    return float64_to_int64_round_to_zero(u.d, &env->vec_status);
 }
 
 uint32_t helper_efdctuiz (uint64_t val)
@@ -3274,7 +3274,7 @@ uint32_t helper_efdctuiz (uint64_t val)
     if (unlikely(float64_is_nan(u.d)))
         return 0;
 
-    return float64_to_uint32_round_to_zero(u.d, &env->spe_status);
+    return float64_to_uint32_round_to_zero(u.d, &env->vec_status);
 }
 
 uint64_t helper_efdctuidz (uint64_t val)
@@ -3286,7 +3286,7 @@ uint64_t helper_efdctuidz (uint64_t val)
     if (unlikely(float64_is_nan(u.d)))
         return 0;
 
-    return float64_to_uint64_round_to_zero(u.d, &env->spe_status);
+    return float64_to_uint64_round_to_zero(u.d, &env->vec_status);
 }
 
 uint64_t helper_efdcfsf (uint32_t val)
@@ -3294,9 +3294,9 @@ uint64_t helper_efdcfsf (uint32_t val)
     CPU_DoubleU u;
     float64 tmp;
 
-    u.d = int32_to_float64(val, &env->spe_status);
-    tmp = int64_to_float64(1ULL << 32, &env->spe_status);
-    u.d = float64_div(u.d, tmp, &env->spe_status);
+    u.d = int32_to_float64(val, &env->vec_status);
+    tmp = int64_to_float64(1ULL << 32, &env->vec_status);
+    u.d = float64_div(u.d, tmp, &env->vec_status);
 
     return u.ll;
 }
@@ -3306,9 +3306,9 @@ uint64_t helper_efdcfuf (uint32_t val)
     CPU_DoubleU u;
     float64 tmp;
 
-    u.d = uint32_to_float64(val, &env->spe_status);
-    tmp = int64_to_float64(1ULL << 32, &env->spe_status);
-    u.d = float64_div(u.d, tmp, &env->spe_status);
+    u.d = uint32_to_float64(val, &env->vec_status);
+    tmp = int64_to_float64(1ULL << 32, &env->vec_status);
+    u.d = float64_div(u.d, tmp, &env->vec_status);
 
     return u.ll;
 }
@@ -3322,10 +3322,10 @@ uint32_t helper_efdctsf (uint64_t val)
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(float64_is_nan(u.d)))
         return 0;
-    tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
-    u.d = float64_mul(u.d, tmp, &env->spe_status);
+    tmp = uint64_to_float64(1ULL << 32, &env->vec_status);
+    u.d = float64_mul(u.d, tmp, &env->vec_status);
 
-    return float64_to_int32(u.d, &env->spe_status);
+    return float64_to_int32(u.d, &env->vec_status);
 }
 
 uint32_t helper_efdctuf (uint64_t val)
@@ -3337,10 +3337,10 @@ uint32_t helper_efdctuf (uint64_t val)
     /* NaN are not treated the same way IEEE 754 does */
     if (unlikely(float64_is_nan(u.d)))
         return 0;
-    tmp = uint64_to_float64(1ULL << 32, &env->spe_status);
-    u.d = float64_mul(u.d, tmp, &env->spe_status);
+    tmp = uint64_to_float64(1ULL << 32, &env->vec_status);
+    u.d = float64_mul(u.d, tmp, &env->vec_status);
 
-    return float64_to_uint32(u.d, &env->spe_status);
+    return float64_to_uint32(u.d, &env->vec_status);
 }
 
 uint32_t helper_efscfd (uint64_t val)
@@ -3349,7 +3349,7 @@ uint32_t helper_efscfd (uint64_t val)
     CPU_FloatU u2;
 
     u1.ll = val;
-    u2.f = float64_to_float32(u1.d, &env->spe_status);
+    u2.f = float64_to_float32(u1.d, &env->vec_status);
 
     return u2.l;
 }
@@ -3360,7 +3360,7 @@ uint64_t helper_efdcfs (uint32_t val)
     CPU_FloatU u1;
 
     u1.l = val;
-    u2.d = float32_to_float64(u1.f, &env->spe_status);
+    u2.d = float32_to_float64(u1.f, &env->vec_status);
 
     return u2.ll;
 }
@@ -3371,7 +3371,7 @@ uint64_t helper_efdadd (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    u1.d = float64_add(u1.d, u2.d, &env->spe_status);
+    u1.d = float64_add(u1.d, u2.d, &env->vec_status);
     return u1.ll;
 }
 
@@ -3380,7 +3380,7 @@ uint64_t helper_efdsub (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    u1.d = float64_sub(u1.d, u2.d, &env->spe_status);
+    u1.d = float64_sub(u1.d, u2.d, &env->vec_status);
     return u1.ll;
 }
 
@@ -3389,7 +3389,7 @@ uint64_t helper_efdmul (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    u1.d = float64_mul(u1.d, u2.d, &env->spe_status);
+    u1.d = float64_mul(u1.d, u2.d, &env->vec_status);
     return u1.ll;
 }
 
@@ -3398,7 +3398,7 @@ uint64_t helper_efddiv (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    u1.d = float64_div(u1.d, u2.d, &env->spe_status);
+    u1.d = float64_div(u1.d, u2.d, &env->vec_status);
     return u1.ll;
 }
 
@@ -3408,7 +3408,7 @@ uint32_t helper_efdtstlt (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    return float64_lt(u1.d, u2.d, &env->spe_status) ? 4 : 0;
+    return float64_lt(u1.d, u2.d, &env->vec_status) ? 4 : 0;
 }
 
 uint32_t helper_efdtstgt (uint64_t op1, uint64_t op2)
@@ -3416,7 +3416,7 @@ uint32_t helper_efdtstgt (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    return float64_le(u1.d, u2.d, &env->spe_status) ? 0 : 4;
+    return float64_le(u1.d, u2.d, &env->vec_status) ? 0 : 4;
 }
 
 uint32_t helper_efdtsteq (uint64_t op1, uint64_t op2)
@@ -3424,7 +3424,7 @@ uint32_t helper_efdtsteq (uint64_t op1, uint64_t op2)
     CPU_DoubleU u1, u2;
     u1.ll = op1;
     u2.ll = op2;
-    return float64_eq(u1.d, u2.d, &env->spe_status) ? 4 : 0;
+    return float64_eq(u1.d, u2.d, &env->vec_status) ? 4 : 0;
 }
 
 uint32_t helper_efdcmplt (uint64_t op1, uint64_t op2)

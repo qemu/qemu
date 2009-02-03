@@ -611,8 +611,10 @@ struct CPUPPCState {
     uint32_t vscr;
     /* SPE registers */
     uint64_t spe_acc;
-    float_status spe_status;
     uint32_t spe_fscr;
+    /* SPE and Altivec can share a status since they will never be used
+     * simultaneously */
+    float_status vec_status;
 
     /* Internal devices resources */
     /* Time base and decrementer */
