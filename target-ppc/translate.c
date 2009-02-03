@@ -6263,7 +6263,7 @@ GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC)
     t = tcg_temp_new_i32();
     tcg_gen_ld_i32(t, cpu_env, offsetof(CPUState, vscr));
     tcg_gen_extu_i32_i64(cpu_avrl[rD(ctx->opcode)], t);
-    tcg_temp_free(t);
+    tcg_temp_free_i32(t);
 }
 
 GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC)
@@ -6511,7 +6511,7 @@ GEN_VXFORM_UIMM(vspltw, 6, 10);
 GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
 {
     TCGv_ptr ra, rb, rd;
-    TCGv sh;
+    TCGv_i32 sh;
     if (unlikely(!ctx->altivec_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VPU);
         return;
@@ -6524,7 +6524,7 @@ GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
     tcg_temp_free_ptr(ra);
     tcg_temp_free_ptr(rb);
     tcg_temp_free_ptr(rd);
-    tcg_temp_free(sh);
+    tcg_temp_free_i32(sh);
 }
 
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
