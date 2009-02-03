@@ -4424,7 +4424,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     }
                 else
                     ret = get_errno(readlink(path(p), p2, arg3));
-                break;
             }
             unlock_user(p2, arg2, ret);
             unlock_user(p, arg1, 0);
