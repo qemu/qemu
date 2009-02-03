@@ -2050,6 +2050,16 @@ STVE(stvewx, stl, bswap32, u32)
 #undef I
 #undef LVE
 
+void helper_mtvscr (ppc_avr_t *r)
+{
+#if defined(WORDS_BIGENDIAN)
+    env->vscr = r->u32[3];
+#else
+    env->vscr = r->u32[0];
+#endif
+    set_flush_to_zero(vscr_nj, &env->vec_status);
+}
+
 void helper_vaddcuw (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i;

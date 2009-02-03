@@ -220,6 +220,7 @@ DEF_HELPER_4(vmsumuhs, void, avr, avr, avr, avr)
 DEF_HELPER_4(vmsumshm, void, avr, avr, avr, avr)
 DEF_HELPER_4(vmsumshs, void, avr, avr, avr, avr)
 DEF_HELPER_4(vmladduhm, void, avr, avr, avr, avr)
+DEF_HELPER_1(mtvscr, void, avr);
 DEF_HELPER_2(lvebx, void, avr, tl)
 DEF_HELPER_2(lvehx, void, avr, tl)
 DEF_HELPER_2(lvewx, void, avr, tl)

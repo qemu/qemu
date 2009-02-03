@@ -6268,15 +6268,14 @@ GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC)
 
 GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC)
 {
-    TCGv_i32 t;
+    TCGv_ptr p;
     if (unlikely(!ctx->altivec_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VPU);
         return;
     }
-    t = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(t, cpu_avrl[rD(ctx->opcode)]);
-    tcg_gen_st_i32(t, cpu_env, offsetof(CPUState, vscr));
-    tcg_temp_free_i32(t);
+    p = gen_avr_ptr(rD(ctx->opcode));
+    gen_helper_mtvscr(p);
+    tcg_temp_free_ptr(p);
 }
 
 /* Logical operations */
