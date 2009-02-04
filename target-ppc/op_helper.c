@@ -1501,15 +1501,13 @@ uint64_t helper_fsqrt (uint64_t arg)
 /* fre - fre. */
 uint64_t helper_fre (uint64_t arg)
 {
-    CPU_DoubleU fone, farg;
-    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
-    farg.ll = arg;
+    CPU_DoubleU farg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else {
-        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
+        farg.d = float64_div(float64_one, farg.d, &env->fp_status);
     }
     return farg.d;
 }
@@ -1517,16 +1515,14 @@ uint64_t helper_fre (uint64_t arg)
 /* fres - fres. */
 uint64_t helper_fres (uint64_t arg)
 {
-    CPU_DoubleU fone, farg;
+    CPU_Double farg;
     float32 f32;
-    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
-    farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
     } else {
-        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
+        farg.d = float64_div(float64_one, farg.d, &env->fp_status);
         f32 = float64_to_float32(farg.d, &env->fp_status);
         farg.d = float32_to_float64(f32, &env->fp_status);
     }
@@ -1536,10 +1532,8 @@ uint64_t helper_fres (uint64_t arg)
 /* frsqrte  - frsqrte. */
 uint64_t helper_frsqrte (uint64_t arg)
 {
-    CPU_DoubleU fone, farg;
+    CPU_DoubleU farg;
     float32 f32;
-    fone.ll = 0x3FF0000000000000ULL; /* 1.0 */
-    farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal square root */
@@ -1549,7 +1543,7 @@ uint64_t helper_frsqrte (uint64_t arg)
         farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSQRT);
     } else {
         farg.d = float64_sqrt(farg.d, &env->fp_status);
-        farg.d = float64_div(fone.d, farg.d, &env->fp_status);
+        farg.d = float64_div(float64_one, farg.d, &env->fp_status);
         f32 = float64_to_float32(farg.d, &env->fp_status);
         farg.d = float32_to_float64(f32, &env->fp_status);
     }
