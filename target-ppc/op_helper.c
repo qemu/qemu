@@ -1502,6 +1502,7 @@ uint64_t helper_fsqrt (uint64_t arg)
 uint64_t helper_fre (uint64_t arg)
 {
     CPU_DoubleU farg;
+    farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
@@ -1515,8 +1516,9 @@ uint64_t helper_fre (uint64_t arg)
 /* fres - fres. */
 uint64_t helper_fres (uint64_t arg)
 {
-    CPU_Double farg;
+    CPU_DoubleU farg;
     float32 f32;
+    farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
@@ -1534,6 +1536,7 @@ uint64_t helper_frsqrte (uint64_t arg)
 {
     CPU_DoubleU farg;
     float32 f32;
+    farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal square root */
