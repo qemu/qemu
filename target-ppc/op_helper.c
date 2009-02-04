@@ -2160,6 +2160,19 @@ VAVG(w, s32, int64_t, u32, uint64_t)
 #undef VAVG_DO
 #undef VAVG
 
+#define VCF(suffix, cvt, element)                                       \
+    void helper_vcf##suffix (ppc_avr_t *r, ppc_avr_t *b, uint32_t uim)  \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            float32 t = cvt(b->element[i], &env->vec_status);           \
+            r->f[i] = float32_scalbn (t, -uim, &env->vec_status);       \
+        }                                                               \
+    }
+VCF(ux, uint32_to_float32, u32)
+VCF(sx, int32_to_float32, s32)
+#undef VCF
+
 #define VCMP_DO(suffix, compare, element, record)                       \
     void helper_vcmp##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b) \
     {                                                                   \

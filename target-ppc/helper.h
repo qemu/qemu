@@ -236,6 +236,8 @@ DEF_HELPER_2(vrfim, void, avr, avr)
 DEF_HELPER_2(vrfin, void, avr, avr)
 DEF_HELPER_2(vrfip, void, avr, avr)
 DEF_HELPER_2(vrfiz, void, avr, avr)
+DEF_HELPER_3(vcfux, void, avr, avr, i32)
+DEF_HELPER_3(vcfsx, void, avr, avr, i32)
 
 DEF_HELPER_1(efscfsi, i32, i32)
 DEF_HELPER_1(efscfui, i32, i32)

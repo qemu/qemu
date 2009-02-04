@@ -6510,6 +6510,8 @@ GEN_VXFORM_NOA(vrfiz, 5, 11);
 GEN_VXFORM_UIMM(vspltb, 6, 8);
 GEN_VXFORM_UIMM(vsplth, 6, 9);
 GEN_VXFORM_UIMM(vspltw, 6, 10);
+GEN_VXFORM_UIMM(vcfux, 5, 12);
+GEN_VXFORM_UIMM(vcfsx, 5, 13);
 
 GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
 {
