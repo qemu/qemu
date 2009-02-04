@@ -6468,6 +6468,10 @@ GEN_VXFORM_NOA(vupklsb, 7, 10);
 GEN_VXFORM_NOA(vupklsh, 7, 11);
 GEN_VXFORM_NOA(vupkhpx, 7, 13);
 GEN_VXFORM_NOA(vupklpx, 7, 15);
+GEN_VXFORM_NOA(vrfim, 5, 8);
+GEN_VXFORM_NOA(vrfin, 5, 9);
+GEN_VXFORM_NOA(vrfip, 5, 10);
+GEN_VXFORM_NOA(vrfiz, 5, 11);
 
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \

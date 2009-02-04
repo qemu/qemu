@@ -2490,6 +2490,24 @@ VPK(uwum, u32, u16, I, 0)
 #undef VPK
 #undef PKBIG
 
+#define VRFI(suffix, rounding)                                          \
+    void helper_vrfi##suffix (ppc_avr_t *r, ppc_avr_t *b)               \
+    {                                                                   \
+        int i;                                                          \
+        float_status s = env->vec_status;                               \
+        set_float_rounding_mode(rounding, &s);                          \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            HANDLE_NAN1(r->f[i], b->f[i]) {                             \
+                r->f[i] = float32_round_to_int (b->f[i], &s);           \
+            }                                                           \
+        }                                                               \
+    }
+VRFI(n, float_round_nearest_even)
+VRFI(m, float_round_down)
+VRFI(p, float_round_up)
+VRFI(z, float_round_to_zero)
+#undef VRFI
+
 #define VROTATE(suffix, element)                                        \
     void helper_vrl##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
     {                                                                   \
