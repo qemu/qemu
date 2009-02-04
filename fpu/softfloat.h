@@ -307,6 +307,7 @@ INLINE int float32_is_zero(float32 a)
 }
 
 #define float32_zero make_float32(0)
+#define float32_one make_float32(0x3f800000)
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE double-precision conversion routines.
@@ -376,6 +377,7 @@ INLINE int float64_is_zero(float64 a)
 }
 
 #define float64_zero make_float64(0)
+#define float64_one make_float64(0x3ff0000000000000LL)
 
 #ifdef FLOATX80
 
