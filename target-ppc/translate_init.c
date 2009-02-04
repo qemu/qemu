@@ -472,6 +472,14 @@ static void spr_write_excp_vector (void *opaque, int sprn, int gprn)
 }
 #endif
 
+static inline void vscr_init (CPUPPCState *env, uint32_t val)
+{
+    env->vscr = val;
+    /* Altivec always uses round-to-nearest */
+    set_float_rounding_mode(float_round_nearest_even, &env->vec_status);
+    set_flush_to_zero(vscr_nj, &env->vec_status);
+}
+
 #if defined(CONFIG_USER_ONLY)
 #define spr_register(env, num, name, uea_read, uea_write,                     \
                      oea_read, oea_write, initial_value)                      \
@@ -1220,6 +1228,8 @@ static void gen_spr_74xx (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
+    /* Not strictly an SPR */
+    vscr_init(env, 0x00010000);
 }
 
 static void gen_l3_ctrl (CPUPPCState *env)
@@ -5919,6 +5929,9 @@ static void init_proc_970 (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
+    /* Can't find information on what this should be on reset.  This
+     * value is the one used by 74xx processors. */
+    vscr_init(env, 0x00010000);
 }
 
 /* PowerPC 970FX (aka G5)                                                    */
@@ -6005,6 +6018,9 @@ static void init_proc_970FX (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
+    /* Can't find information on what this should be on reset.  This
+     * value is the one used by 74xx processors. */
+    vscr_init(env, 0x00010000);
 }
 
 /* PowerPC 970 GX                                                            */
@@ -6091,6 +6107,9 @@ static void init_proc_970GX (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
+    /* Can't find information on what this should be on reset.  This
+     * value is the one used by 74xx processors. */
+    vscr_init(env, 0x00010000);
 }
 
 /* PowerPC 970 MP                                                            */
@@ -6177,6 +6196,9 @@ static void init_proc_970MP (CPUPPCState *env)
     env->icache_line_size = 128;
     /* Allocate hardware IRQ controller */
     ppc970_irq_init(env);
+    /* Can't find information on what this should be on reset.  This
+     * value is the one used by 74xx processors. */
+    vscr_init(env, 0x00010000);
 }
 
 /* PowerPC 620                                                               */

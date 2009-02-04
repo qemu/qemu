@@ -6262,20 +6262,19 @@ GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC)
     t = tcg_temp_new_i32();
     tcg_gen_ld_i32(t, cpu_env, offsetof(CPUState, vscr));
     tcg_gen_extu_i32_i64(cpu_avrl[rD(ctx->opcode)], t);
-    tcg_temp_free(t);
+    tcg_temp_free_i32(t);
 }
 
 GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC)
 {
-    TCGv_i32 t;
+    TCGv_ptr p;
     if (unlikely(!ctx->altivec_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VPU);
         return;
     }
-    t = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(t, cpu_avrl[rD(ctx->opcode)]);
-    tcg_gen_st_i32(t, cpu_env, offsetof(CPUState, vscr));
-    tcg_temp_free_i32(t);
+    p = gen_avr_ptr(rD(ctx->opcode));
+    gen_helper_mtvscr(p);
+    tcg_temp_free_ptr(p);
 }
 
 /* Logical operations */
@@ -6468,6 +6467,10 @@ GEN_VXFORM_NOA(vupklsb, 7, 10);
 GEN_VXFORM_NOA(vupklsh, 7, 11);
 GEN_VXFORM_NOA(vupkhpx, 7, 13);
 GEN_VXFORM_NOA(vupklpx, 7, 15);
+GEN_VXFORM_NOA(vrfim, 5, 8);
+GEN_VXFORM_NOA(vrfin, 5, 9);
+GEN_VXFORM_NOA(vrfip, 5, 10);
+GEN_VXFORM_NOA(vrfiz, 5, 11);
 
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \
@@ -6506,11 +6509,13 @@ GEN_VXFORM_NOA(vupklpx, 7, 15);
 GEN_VXFORM_UIMM(vspltb, 6, 8);
 GEN_VXFORM_UIMM(vsplth, 6, 9);
 GEN_VXFORM_UIMM(vspltw, 6, 10);
+GEN_VXFORM_UIMM(vcfux, 5, 12);
+GEN_VXFORM_UIMM(vcfsx, 5, 13);
 
 GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
 {
     TCGv_ptr ra, rb, rd;
-    TCGv sh;
+    TCGv_i32 sh;
     if (unlikely(!ctx->altivec_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VPU);
         return;
@@ -6523,7 +6528,7 @@ GEN_HANDLER(vsldoi, 0x04, 0x16, 0xFF, 0x00000400, PPC_ALTIVEC)
     tcg_temp_free_ptr(ra);
     tcg_temp_free_ptr(rb);
     tcg_temp_free_ptr(rd);
-    tcg_temp_free(sh);
+    tcg_temp_free_i32(sh);
 }
 
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
