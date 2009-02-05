@@ -550,8 +550,6 @@ qemu_irq *i8259_init(qemu_irq parent_irq)
     PicState2 *s;
 
     s = qemu_mallocz(sizeof(PicState2));
-    if (!s)
-        return NULL;
     pic_init1(0x20, 0x4d0, &s->pics[0]);
     pic_init1(0xa0, 0x4d1, &s->pics[1]);
     s->pics[0].elcr_mask = 0xf8;

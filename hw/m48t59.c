@@ -622,13 +622,7 @@ m48t59_t *m48t59_init (qemu_irq IRQ, target_phys_addr_t mem_base,
     target_phys_addr_t save_base;
 
     s = qemu_mallocz(sizeof(m48t59_t));
-    if (!s)
-	return NULL;
     s->buffer = qemu_mallocz(size);
-    if (!s->buffer) {
-        qemu_free(s);
-        return NULL;
-    }
     s->IRQ = IRQ;
     s->size = size;
     s->io_base = io_base;

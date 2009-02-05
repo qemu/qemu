@@ -171,8 +171,6 @@ void cs_init(target_phys_addr_t base, int irq, void *intctl)
     CSState *s;
 
     s = qemu_mallocz(sizeof(CSState));
-    if (!s)
-        return;
 
     cs_io_memory = cpu_register_io_memory(0, cs_mem_read, cs_mem_write, s);
     cpu_register_physical_memory(base, CS_SIZE, cs_io_memory);

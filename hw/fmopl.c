@@ -619,26 +619,10 @@ static int OPLOpenTable( void )
 	double pom;
 
 	/* allocate dynamic tables */
-	if( (TL_TABLE = malloc(TL_MAX*2*sizeof(INT32))) == NULL)
-		return 0;
-	if( (SIN_TABLE = malloc(SIN_ENT*4 *sizeof(INT32 *))) == NULL)
-	{
-		free(TL_TABLE);
-		return 0;
-	}
-	if( (AMS_TABLE = malloc(AMS_ENT*2 *sizeof(INT32))) == NULL)
-	{
-		free(TL_TABLE);
-		free(SIN_TABLE);
-		return 0;
-	}
-	if( (VIB_TABLE = malloc(VIB_ENT*2 *sizeof(INT32))) == NULL)
-	{
-		free(TL_TABLE);
-		free(SIN_TABLE);
-		free(AMS_TABLE);
-		return 0;
-	}
+	TL_TABLE = qemu_malloc(TL_MAX*2*sizeof(INT32));
+	SIN_TABLE = qemu_malloc(SIN_ENT*4 *sizeof(INT32 *));
+	AMS_TABLE = qemu_malloc(AMS_ENT*2 *sizeof(INT32));
+	VIB_TABLE = qemu_malloc(VIB_ENT*2 *sizeof(INT32));
 	/* make total level table */
 	for (t = 0;t < EG_ENT-1 ;t++){
 		rate = ((1<<TL_BITS)-1)/pow(10,EG_STEP*t/20);	/* dB -> voltage */
@@ -1221,8 +1205,7 @@ FM_OPL *OPLCreate(int type, int clock, int rate)
 	if(type&OPL_TYPE_ADPCM) state_size+= sizeof(YM_DELTAT);
 #endif
 	/* allocate memory block */
-	ptr = malloc(state_size);
-	if(ptr==NULL) return NULL;
+	ptr = qemu_malloc(state_size);
 	/* clear */
 	memset(ptr,0,state_size);
 	OPL        = (FM_OPL *)ptr; ptr+=sizeof(FM_OPL);

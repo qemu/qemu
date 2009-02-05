@@ -152,13 +152,8 @@ void *ds1225y_init(target_phys_addr_t mem_base, const char *filename)
     QEMUFile *file;
 
     s = qemu_mallocz(sizeof(ds1225y_t));
-    if (!s)
-        return NULL;
     s->chip_size = 0x2000; /* Fixed for ds1225y chip: 8 KiB */
     s->contents = qemu_mallocz(s->chip_size);
-    if (!s->contents) {
-        return NULL;
-    }
     s->protection = 7;
 
     /* Read current file */

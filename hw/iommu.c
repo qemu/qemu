@@ -371,8 +371,6 @@ void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
     int iommu_io_memory;
 
     s = qemu_mallocz(sizeof(IOMMUState));
-    if (!s)
-        return NULL;
 
     s->version = version;
     s->irq = irq;

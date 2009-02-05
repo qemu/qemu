@@ -397,8 +397,6 @@ USBDevice *usb_wacom_init(void)
     USBWacomState *s;
 
     s = qemu_mallocz(sizeof(USBWacomState));
-    if (!s)
-        return NULL;
     s->dev.speed = USB_SPEED_FULL;
     s->dev.handle_packet = usb_generic_handle_packet;
 

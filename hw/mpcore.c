@@ -265,8 +265,6 @@ static qemu_irq *mpcore_priv_init(uint32_t base, qemu_irq *pic_irq)
     int i;
 
     s = (mpcore_priv_state *)qemu_mallocz(sizeof(mpcore_priv_state));
-    if (!s)
-        return NULL;
     s->gic = gic_init(base + 0x1000, pic_irq);
     if (!s->gic)
         return NULL;

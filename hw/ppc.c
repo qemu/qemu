@@ -645,8 +645,6 @@ clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
     ppc_tb_t *tb_env;
 
     tb_env = qemu_mallocz(sizeof(ppc_tb_t));
-    if (tb_env == NULL)
-        return NULL;
     env->tb_env = tb_env;
     /* Create new timer */
     tb_env->decr_timer = qemu_new_timer(vm_clock, &cpu_ppc_decr_cb, env);
@@ -915,9 +913,6 @@ clk_setup_cb ppc_emb_timers_init (CPUState *env, uint32_t freq)
     ppcemb_timer_t *ppcemb_timer;
 
     tb_env = qemu_mallocz(sizeof(ppc_tb_t));
-    if (tb_env == NULL) {
-        return NULL;
-    }
     env->tb_env = tb_env;
     ppcemb_timer = qemu_mallocz(sizeof(ppcemb_timer_t));
     tb_env->tb_freq = freq;
@@ -1024,8 +1019,6 @@ int ppc_dcr_init (CPUState *env, int (*read_error)(int dcrn),
     ppc_dcr_t *dcr_env;
 
     dcr_env = qemu_mallocz(sizeof(ppc_dcr_t));
-    if (dcr_env == NULL)
-        return -1;
     dcr_env->read_error = read_error;
     dcr_env->write_error = write_error;
     env->dcr_env = dcr_env;

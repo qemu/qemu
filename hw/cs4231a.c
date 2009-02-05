@@ -647,11 +647,6 @@ int cs4231a_init (AudioState *audio, qemu_irq *pic)
     }
 
     s = qemu_mallocz (sizeof (*s));
-    if (!s) {
-        lerr ("Could not allocate memory for cs4231a (%zu bytes)\n",
-               sizeof (*s));
-        return -1;
-    }
 
     s->pic = pic;
     s->irq = conf.irq;

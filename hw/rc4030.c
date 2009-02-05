@@ -718,8 +718,6 @@ qemu_irq *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     int s_chipset, s_jazzio;
 
     s = qemu_mallocz(sizeof(rc4030State));
-    if (!s)
-        return NULL;
 
     *dmas = rc4030_allocate_dmas(s, 4);
     *dma_read = rc4030_dma_read;

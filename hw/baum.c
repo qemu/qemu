@@ -575,12 +575,7 @@ CharDriverState *chr_baum_init(void)
     int tty;
 
     baum = qemu_mallocz(sizeof(BaumDriverState));
-    if (!baum)
-        return NULL;
-
     baum->chr = chr = qemu_mallocz(sizeof(CharDriverState));
-    if (!chr)
-        goto fail_baum;
 
     chr->opaque = baum;
     chr->chr_write = baum_write;
@@ -588,8 +583,6 @@ CharDriverState *chr_baum_init(void)
     chr->chr_accept_input = baum_accept_input;
 
     handle = qemu_mallocz(brlapi_getHandleSize());
-    if (!handle)
-        goto fail_chr;
     baum->brlapi = handle;
 
     baum->brlapi_fd = brlapi__openConnection(handle, NULL, NULL);
@@ -628,11 +621,8 @@ CharDriverState *chr_baum_init(void)
 fail:
     qemu_free_timer(baum->cellCount_timer);
     brlapi__closeConnection(handle);
-fail_handle:
     free(handle);
-fail_chr:
     free(chr);
-fail_baum:
     free(baum);
     return NULL;
 }

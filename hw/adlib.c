@@ -331,13 +331,6 @@ int Adlib_init (AudioState *audio, qemu_irq *pic)
     s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
     s->mixbuf = qemu_mallocz (s->samples << SHIFT);
 
-    if (!s->mixbuf) {
-        dolog ("Could not allocate mixing buffer, %d samples (each %d bytes)\n",
-               s->samples, 1 << SHIFT);
-        Adlib_fini (s);
-        return -1;
-    }
-
     register_ioport_read (0x388, 4, 1, adlib_read, s);
     register_ioport_write (0x388, 4, 1, adlib_write, s);
 

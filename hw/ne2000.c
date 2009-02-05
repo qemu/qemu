@@ -725,8 +725,6 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
     qemu_check_nic_model(nd, "ne2k_isa");
 
     s = qemu_mallocz(sizeof(NE2000State));
-    if (!s)
-        return;
 
     register_ioport_write(base, 16, 1, ne2000_ioport_write, s);
     register_ioport_read(base, 16, 1, ne2000_ioport_read, s);

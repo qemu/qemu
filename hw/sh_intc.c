@@ -432,9 +432,7 @@ int sh_intc_init(struct intc_desc *desc,
     desc->nr_prio_regs = nr_prio_regs;
 
     i = sizeof(struct intc_source) * nr_sources;
-    desc->sources = malloc(i);
-    if (!desc->sources)
-        return -1;
+    desc->sources = qemu_malloc(i);
 
     memset(desc->sources, 0, i);
     for (i = 0; i < desc->nr_sources; i++) {

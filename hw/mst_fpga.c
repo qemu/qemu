@@ -225,8 +225,6 @@ qemu_irq *mst_irq_init(struct pxa2xx_state_s *cpu, uint32_t base, int irq)
 	s = (mst_irq_state  *)
 		qemu_mallocz(sizeof(mst_irq_state));
 
-	if (!s)
-		return NULL;
 	s->parent = &cpu->pic[irq];
 
 	/* alloc the external 16 irqs */

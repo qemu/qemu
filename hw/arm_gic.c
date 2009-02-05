@@ -725,8 +725,6 @@ static gic_state *gic_init(uint32_t dist_base, qemu_irq *parent_irq)
     int i;
 
     s = (gic_state *)qemu_mallocz(sizeof(gic_state));
-    if (!s)
-        return NULL;
     s->in = qemu_allocate_irqs(gic_set_irq, s, GIC_NIRQ);
     for (i = 0; i < NCPU; i++) {
         s->parent_irq[i] = parent_irq[i];

@@ -727,8 +727,6 @@ int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
     SerialState *s;
 
     s = qemu_mallocz(sizeof(SerialState));
-    if (!s)
-        return 0;
 
     escc_io_memory = cpu_register_io_memory(0, escc_mem_read,
                                             escc_mem_write,
@@ -909,8 +907,6 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
     SerialState *s;
 
     s = qemu_mallocz(sizeof(SerialState));
-    if (!s)
-        return;
 
     s->it_shift = it_shift;
     for (i = 0; i < 2; i++) {

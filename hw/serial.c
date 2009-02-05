@@ -732,8 +732,6 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     SerialState *s;
 
     s = qemu_mallocz(sizeof(SerialState));
-    if (!s)
-        return NULL;
 
     serial_init_core(s, irq, baudbase, chr);
 
@@ -824,8 +822,6 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     int s_io_memory;
 
     s = qemu_mallocz(sizeof(SerialState));
-    if (!s)
-        return NULL;
 
     s->it_shift = it_shift;
 

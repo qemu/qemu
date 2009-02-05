@@ -261,11 +261,6 @@ int GUS_init (AudioState *audio, qemu_irq *pic)
     }
 
     s = qemu_mallocz (sizeof (*s));
-    if (!s) {
-        dolog ("Could not allocate memory for GUS (%zu bytes)\n",
-               sizeof (*s));
-        return -1;
-    }
 
     AUD_register_card (audio, "gus", &s->card);
 
@@ -292,12 +287,6 @@ int GUS_init (AudioState *audio, qemu_irq *pic)
     s->shift = 2;
     s->samples = AUD_get_buffer_size_out (s->voice) >> s->shift;
     s->mixbuf = qemu_mallocz (s->samples << s->shift);
-    if (!s->mixbuf) {
-        AUD_close_out (&s->card, s->voice);
-        AUD_remove_card (&s->card);
-        qemu_free (s);
-        return -1;
-    }
 
     register_ioport_write (conf.port, 1, 1, gus_writeb, s);
     register_ioport_write (conf.port, 1, 2, gus_writew, s);

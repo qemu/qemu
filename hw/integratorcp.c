@@ -378,8 +378,6 @@ static qemu_irq *icp_pic_init(uint32_t base,
     qemu_irq *qi;
 
     s = (icp_pic_state *)qemu_mallocz(sizeof(icp_pic_state));
-    if (!s)
-        return NULL;
     qi = qemu_allocate_irqs(icp_pic_set_irq, s, 32);
     s->parent_irq = parent_irq;
     s->parent_fiq = parent_fiq;

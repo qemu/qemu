@@ -2444,8 +2444,6 @@ int isa_vga_init(uint8_t *vga_ram_base,
     VGAState *s;
 
     s = qemu_mallocz(sizeof(VGAState));
-    if (!s)
-        return -1;
 
     vga_common_init(s, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_init(s);
@@ -2469,8 +2467,6 @@ int isa_vga_mm_init(uint8_t *vga_ram_base,
     VGAState *s;
 
     s = qemu_mallocz(sizeof(VGAState));
-    if (!s)
-        return -1;
 
     vga_common_init(s, vga_ram_base, vga_ram_offset, vga_ram_size);
     vga_mm_init(s, vram_base, ctrl_base, it_shift);

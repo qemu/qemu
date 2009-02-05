@@ -2895,8 +2895,6 @@ void isa_ide_init(int iobase, int iobase2, qemu_irq irq,
     IDEState *ide_state;
 
     ide_state = qemu_mallocz(sizeof(IDEState) * 2);
-    if (!ide_state)
-        return;
 
     ide_init2(ide_state, hd0, hd1, irq);
     ide_init_ioport(ide_state, iobase, iobase2);

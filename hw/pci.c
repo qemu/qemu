@@ -178,8 +178,6 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     found: ;
     }
     pci_dev = qemu_mallocz(instance_size);
-    if (!pci_dev)
-        return NULL;
     pci_dev->bus = bus;
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);

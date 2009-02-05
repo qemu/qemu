@@ -532,8 +532,6 @@ RTCState *rtc_init(int base, qemu_irq irq, int base_year)
     RTCState *s;
 
     s = qemu_mallocz(sizeof(RTCState));
-    if (!s)
-        return NULL;
 
     s->irq = irq;
     s->cmos_data[RTC_REG_A] = 0x26;
@@ -644,8 +642,6 @@ RTCState *rtc_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
     int io_memory;
 
     s = qemu_mallocz(sizeof(RTCState));
-    if (!s)
-        return NULL;
 
     s->irq = irq;
     s->cmos_data[RTC_REG_A] = 0x26;

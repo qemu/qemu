@@ -376,8 +376,6 @@ void sh_serial_init (target_phys_addr_t base, int feat,
     int s_io_memory;
 
     s = qemu_mallocz(sizeof(sh_serial_state));
-    if (!s)
-        return;
 
     s->feat = feat;
     s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;

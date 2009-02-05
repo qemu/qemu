@@ -653,8 +653,6 @@ void *esp_init(target_phys_addr_t espaddr, int it_shift,
     int esp_io_memory;
 
     s = qemu_mallocz(sizeof(ESPState));
-    if (!s)
-        return NULL;
 
     s->irq = irq;
     s->it_shift = it_shift;

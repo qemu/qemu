@@ -519,8 +519,6 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
 
     pfl = qemu_mallocz(sizeof(pflash_t));
 
-    if (pfl == NULL)
-        return NULL;
     pfl->storage = phys_ram_base + off;
     pfl->fl_mem = cpu_register_io_memory(0,
                     pflash_read_ops, pflash_write_ops, pfl);

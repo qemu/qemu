@@ -135,8 +135,6 @@ static qemu_irq *vpb_sic_init(uint32_t base, qemu_irq *parent, int irq)
     int iomemtype;
 
     s = (vpb_sic_state *)qemu_mallocz(sizeof(vpb_sic_state));
-    if (!s)
-        return NULL;
     qi = qemu_allocate_irqs(vpb_sic_set_irq, s, 32);
     s->parent = parent;
     s->irq = irq;

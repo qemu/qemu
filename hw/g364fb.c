@@ -593,8 +593,6 @@ int g364fb_mm_init(uint8_t *vram, ram_addr_t vram_offset,
     int io_ctrl;
 
     s = qemu_mallocz(sizeof(G364State));
-    if (!s)
-        return -1;
 
     s->vram = vram;
     s->vram_offset = vram_offset;

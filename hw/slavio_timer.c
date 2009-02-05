@@ -372,8 +372,6 @@ static SLAVIO_TIMERState *slavio_timer_init(target_phys_addr_t addr,
     QEMUBH *bh;
 
     s = qemu_mallocz(sizeof(SLAVIO_TIMERState));
-    if (!s)
-        return s;
     s->irq = irq;
     s->master = master;
     s->slave_index = slave_index;

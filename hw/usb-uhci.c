@@ -155,14 +155,13 @@ typedef struct UHCI_QH {
 static UHCIAsync *uhci_async_alloc(UHCIState *s)
 {
     UHCIAsync *async = qemu_malloc(sizeof(UHCIAsync));
-    if (async) {
-        memset(&async->packet, 0, sizeof(async->packet));
-        async->valid = 0;
-        async->td    = 0;
-        async->token = 0;
-        async->done  = 0;
-        async->next  = NULL;
-    }
+
+    memset(&async->packet, 0, sizeof(async->packet));
+    async->valid = 0;
+    async->td    = 0;
+    async->token = 0;
+    async->done  = 0;
+    async->next  = NULL;
 
     return async;
 }

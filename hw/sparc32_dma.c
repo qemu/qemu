@@ -248,8 +248,6 @@ void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
     int dma_io_memory;
 
     s = qemu_mallocz(sizeof(DMAState));
-    if (!s)
-        return NULL;
 
     s->irq = parent_irq;
     s->iommu = iommu;

@@ -192,8 +192,6 @@ struct etraxfs_pic *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
 
 	pic = qemu_mallocz(sizeof *pic);
 	pic->internal = fs = qemu_mallocz(sizeof *fs);
-	if (!fs || !pic)
-		goto err;
 
 	fs->env = env;
 	pic->irq = qemu_allocate_irqs(irq_handler, fs, 30);
@@ -204,8 +202,4 @@ struct etraxfs_pic *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
 	cpu_register_physical_memory(base, 0x14, intr_vect_regs);
 
 	return pic;
-  err:
-	free(pic);
-	free(fs);
-	return NULL;
 }
