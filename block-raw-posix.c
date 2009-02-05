@@ -533,8 +533,6 @@ static int posix_aio_init(void)
         return 0;
 
     s = qemu_malloc(sizeof(PosixAioState));
-    if (s == NULL)
-        return -ENOMEM;
 
     sigfillset(&act.sa_mask);
     act.sa_flags = 0; /* do not restart syscalls to interrupt select() */

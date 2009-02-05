@@ -151,8 +151,6 @@ BlockDriverState *bdrv_new(const char *device_name)
     BlockDriverState **pbs, *bs;
 
     bs = qemu_mallocz(sizeof(BlockDriverState));
-    if(!bs)
-        return NULL;
     pstrcpy(bs->device_name, sizeof(bs->device_name), device_name);
     if (device_name[0] != '\0') {
         /* insert at the end */
@@ -395,8 +393,6 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     }
     bs->drv = drv;
     bs->opaque = qemu_mallocz(drv->instance_size);
-    if (bs->opaque == NULL && drv->instance_size > 0)
-        return -1;
     /* Note: for compatibility, we open disk image files as RDWR, and
        RDONLY as fallback */
     if (!(flags & BDRV_O_FILE))
@@ -1498,8 +1494,6 @@ void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
         drv->free_aiocb = acb->next;
     } else {
         acb = qemu_mallocz(drv->aiocb_size);
-        if (!acb)
-            return NULL;
     }
     acb->bs = bs;
     acb->cb = cb;

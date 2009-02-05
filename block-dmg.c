@@ -159,10 +159,8 @@ dmg_close:
     }
 
     /* initialize zlib engine */
-    if(!(s->compressed_chunk = malloc(max_compressed_size+1)))
-	goto dmg_close;
-    if(!(s->uncompressed_chunk = malloc(512*max_sectors_per_chunk)))
-	goto dmg_close;
+    s->compressed_chunk = qemu_malloc(max_compressed_size+1);
+    s->uncompressed_chunk = qemu_malloc(512*max_sectors_per_chunk);
     if(inflateInit(&s->zstream) != Z_OK)
 	goto dmg_close;
 
