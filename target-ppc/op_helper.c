@@ -2539,7 +2539,7 @@ void helper_vsel (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     r->u64[1] = (a->u64[1] & ~c->u64[1]) | (b->u64[1] & c->u64[1]);
 }
 
-void helper_vrlogefp (ppc_avr_t *r, ppc_avr_t *b)
+void helper_vlogefp (ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {

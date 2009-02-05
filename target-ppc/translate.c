@@ -6468,7 +6468,7 @@ GEN_VXFORM_NOA(vupklsb, 7, 10);
 GEN_VXFORM_NOA(vupklsh, 7, 11);
 GEN_VXFORM_NOA(vupkhpx, 7, 13);
 GEN_VXFORM_NOA(vupklpx, 7, 15);
-GEN_VXFORM_NOA(vrlogefp, 5, 7);
+GEN_VXFORM_NOA(vlogefp, 5, 7);
 GEN_VXFORM_NOA(vrfim, 5, 8);
 GEN_VXFORM_NOA(vrfin, 5, 9);
 GEN_VXFORM_NOA(vrfip, 5, 10);
