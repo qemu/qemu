@@ -16,9 +16,10 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
-#define VIRTIO_NET_VM_VERSION    5
+#define VIRTIO_NET_VM_VERSION    6
 
 #define MAC_TABLE_ENTRIES    32
+#define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
 
 typedef struct VirtIONet
 {
@@ -38,6 +39,7 @@ typedef struct VirtIONet
         int in_use;
         uint8_t *macs;
     } mac_table;
+    uint32_t *vlans;
 } VirtIONet;
 
 /* TODO
@@ -94,9 +96,10 @@ static void virtio_net_reset(VirtIODevice *vdev)
     n->promisc = 1;
     n->allmulti = 0;
 
-    /* Flush any MAC filter table state */
+    /* Flush any MAC and VLAN filter table state */
     n->mac_table.in_use = 0;
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
+    memset(n->vlans, 0, MAX_VLAN >> 3);
 }
 
 static uint32_t virtio_net_get_features(VirtIODevice *vdev)
@@ -104,7 +107,8 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev)
     uint32_t features = (1 << VIRTIO_NET_F_MAC) |
                         (1 << VIRTIO_NET_F_STATUS) |
                         (1 << VIRTIO_NET_F_CTRL_VQ) |
-                        (1 << VIRTIO_NET_F_CTRL_RX);
+                        (1 << VIRTIO_NET_F_CTRL_RX) |
+                        (1 << VIRTIO_NET_F_CTRL_VLAN);
 
     return features;
 }
@@ -185,6 +189,31 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
     return VIRTIO_NET_OK;
 }
 
+static int virtio_net_handle_vlan_table(VirtIONet *n, uint8_t cmd,
+                                        VirtQueueElement *elem)
+{
+    uint16_t vid;
+
+    if (elem->out_num != 2 || elem->out_sg[1].iov_len != sizeof(vid)) {
+        fprintf(stderr, "virtio-net ctrl invalid vlan command\n");
+        return VIRTIO_NET_ERR;
+    }
+
+    vid = lduw_le_p(elem->out_sg[1].iov_base);
+
+    if (vid >= MAX_VLAN)
+        return VIRTIO_NET_ERR;
+
+    if (cmd == VIRTIO_NET_CTRL_VLAN_ADD)
+        n->vlans[vid >> 5] |= (1U << (vid & 0x1f));
+    else if (cmd == VIRTIO_NET_CTRL_VLAN_DEL)
+        n->vlans[vid >> 5] &= ~(1U << (vid & 0x1f));
+    else
+        return VIRTIO_NET_ERR;
+
+    return VIRTIO_NET_OK;
+}
+
 static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = to_virtio_net(vdev);
@@ -211,6 +240,8 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             status = virtio_net_handle_rx_mode(n, ctrl.cmd, &elem);
         else if (ctrl.class == VIRTIO_NET_CTRL_MAC)
             status = virtio_net_handle_mac(n, ctrl.cmd, &elem);
+        else if (ctrl.class == VIRTIO_NET_CTRL_VLAN)
+            status = virtio_net_handle_vlan_table(n, ctrl.cmd, &elem);
 
         stb_p(elem.in_sg[elem.in_num - 1].iov_base, status);
 
@@ -285,6 +316,7 @@ static int receive_header(VirtIONet *n, struct iovec *iov, int iovcnt,
 static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
 {
     static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    static const uint8_t vlan[] = {0x81, 0x00};
     uint8_t *ptr = (uint8_t *)buf;
     int i;
 
@@ -295,6 +327,12 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     if (tap_has_vnet_hdr(n->vc->vlan->first_client))
         ptr += sizeof(struct virtio_net_hdr);
 #endif
+
+    if (!memcmp(&ptr[12], vlan, sizeof(vlan))) {
+        int vid = be16_to_cpup((uint16_t *)(ptr + 14)) & 0xfff;
+        if (!(n->vlans[vid >> 5] & (1U << (vid & 0x1f))))
+            return 0;
+    }
 
     if ((ptr[0] & 1) && n->allmulti)
         return 1;
@@ -474,6 +512,7 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, n->allmulti);
     qemu_put_be32(f, n->mac_table.in_use);
     qemu_put_buffer(f, n->mac_table.macs, n->mac_table.in_use * ETH_ALEN);
+    qemu_put_buffer(f, (uint8_t *)n->vlans, MAX_VLAN >> 3);
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
@@ -510,6 +549,9 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
  
+    if (version_id >= 6)
+        qemu_get_buffer(f, (uint8_t *)n->vlans, MAX_VLAN >> 3);
+
     if (n->tx_timer_active) {
         qemu_mod_timer(n->tx_timer,
                        qemu_get_clock(vm_clock) + TX_TIMER_INTERVAL);
@@ -557,6 +599,10 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     n->mac_table.macs = qemu_mallocz(MAC_TABLE_ENTRIES * ETH_ALEN);
     if (!n->mac_table.macs)
+        return;
+
+    n->vlans = qemu_mallocz(MAX_VLAN >> 3);
+    if (!n->vlans)
         return;
 
     register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
