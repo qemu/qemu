@@ -120,11 +120,6 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
     ops.destroy = wav_destroy;
 
     wav = qemu_mallocz (sizeof (*wav));
-    if (!wav) {
-        term_printf ("Could not allocate memory for wav capture (%zu bytes)",
-                     sizeof (*wav));
-        return -1;
-    }
 
     shift = bits16 + stereo;
     hdr[34] = bits16 ? 0x10 : 0x08;
