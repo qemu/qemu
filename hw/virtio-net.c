@@ -25,6 +25,7 @@ typedef struct VirtIONet
     uint16_t status;
     VirtQueue *rx_vq;
     VirtQueue *tx_vq;
+    VirtQueue *ctrl_vq;
     VLANClientState *vc;
     QEMUTimer *tx_timer;
     int tx_timer_active;
@@ -79,7 +80,9 @@ static void virtio_net_set_link_status(VLANClientState *vc)
 
 static uint32_t virtio_net_get_features(VirtIODevice *vdev)
 {
-    uint32_t features = (1 << VIRTIO_NET_F_MAC) | (1 << VIRTIO_NET_F_STATUS);
+    uint32_t features = (1 << VIRTIO_NET_F_MAC) |
+                        (1 << VIRTIO_NET_F_STATUS) |
+                        (1 << VIRTIO_NET_F_CTRL_VQ);
 
     return features;
 }
@@ -89,6 +92,34 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     VirtIONet *n = to_virtio_net(vdev);
 
     n->mergeable_rx_bufs = !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF));
+}
+
+static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
+{
+    struct virtio_net_ctrl_hdr ctrl;
+    virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
+    VirtQueueElement elem;
+
+    while (virtqueue_pop(vq, &elem)) {
+        if ((elem.in_num < 1) || (elem.out_num < 1)) {
+            fprintf(stderr, "virtio-net ctrl missing headers\n");
+            exit(1);
+        }
+
+        if (elem.out_sg[0].iov_len < sizeof(ctrl) ||
+            elem.out_sg[elem.in_num - 1].iov_len < sizeof(status)) {
+            fprintf(stderr, "virtio-net ctrl header not in correct element\n");
+            exit(1);
+        }
+
+        ctrl.class = ldub_p(elem.out_sg[0].iov_base);
+        ctrl.cmd = ldub_p(elem.out_sg[0].iov_base + sizeof(ctrl.class));
+
+        stb_p(elem.in_sg[elem.in_num - 1].iov_base, status);
+
+        virtqueue_push(vq, &elem, sizeof(status));
+        virtio_notify(vdev, vq);
+    }
 }
 
 /* RX */
@@ -356,6 +387,7 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->vdev.set_features = virtio_net_set_features;
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
+    n->ctrl_vq = virtio_add_queue(&n->vdev, 16, virtio_net_handle_ctrl);
     memcpy(n->mac, nd->macaddr, ETH_ALEN);
     n->status = VIRTIO_NET_S_LINK_UP;
     n->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,

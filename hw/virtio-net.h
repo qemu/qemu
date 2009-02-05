@@ -40,6 +40,7 @@
 #define VIRTIO_NET_F_HOST_UFO   14      /* Host can handle UFO in. */
 #define VIRTIO_NET_F_MRG_RXBUF  15      /* Host can merge receive buffers. */
 #define VIRTIO_NET_F_STATUS     16      /* virtio_net_config.status available */
+#define VIRTIO_NET_F_CTRL_VQ    17      /* Control channel available */
 
 #define VIRTIO_NET_S_LINK_UP    1       /* Link is up */
 
@@ -83,5 +84,22 @@ struct virtio_net_hdr_mrg_rxbuf
 };
 
 void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn);
+
+/*
+ * Control virtqueue data structures
+ *
+ * The control virtqueue expects a header in the first sg entry
+ * and an ack/status response in the last entry.  Data for the
+ * command goes in between.
+ */
+struct virtio_net_ctrl_hdr {
+    uint8_t class;
+    uint8_t cmd;
+};
+
+typedef uint8_t virtio_net_ctrl_ack;
+
+#define VIRTIO_NET_OK     0
+#define VIRTIO_NET_ERR    1
 
 #endif
