@@ -21,7 +21,7 @@
 typedef struct VirtIONet
 {
     VirtIODevice vdev;
-    uint8_t mac[6];
+    uint8_t mac[ETH_ALEN];
     uint16_t status;
     VirtQueue *rx_vq;
     VirtQueue *tx_vq;
@@ -46,7 +46,7 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     struct virtio_net_config netcfg;
 
     netcfg.status = n->status;
-    memcpy(netcfg.mac, n->mac, 6);
+    memcpy(netcfg.mac, n->mac, ETH_ALEN);
     memcpy(config, &netcfg, sizeof(netcfg));
 }
 
@@ -57,8 +57,8 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
 
     memcpy(&netcfg, config, sizeof(netcfg));
 
-    if (memcmp(netcfg.mac, n->mac, 6)) {
-        memcpy(n->mac, netcfg.mac, 6);
+    if (memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
+        memcpy(n->mac, netcfg.mac, ETH_ALEN);
         qemu_format_nic_info_str(n->vc, n->mac);
     }
 }
@@ -304,7 +304,7 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
 
     virtio_save(&n->vdev, f);
 
-    qemu_put_buffer(f, n->mac, 6);
+    qemu_put_buffer(f, n->mac, ETH_ALEN);
     qemu_put_be32(f, n->tx_timer_active);
     qemu_put_be32(f, n->mergeable_rx_bufs);
     qemu_put_be16(f, n->status);
@@ -319,7 +319,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 
     virtio_load(&n->vdev, f);
 
-    qemu_get_buffer(f, n->mac, 6);
+    qemu_get_buffer(f, n->mac, ETH_ALEN);
     n->tx_timer_active = qemu_get_be32(f);
     n->mergeable_rx_bufs = qemu_get_be32(f);
 
@@ -356,7 +356,7 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->vdev.set_features = virtio_net_set_features;
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
-    memcpy(n->mac, nd->macaddr, 6);
+    memcpy(n->mac, nd->macaddr, ETH_ALEN);
     n->status = VIRTIO_NET_S_LINK_UP;
     n->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                  virtio_net_receive, virtio_net_can_receive, n);

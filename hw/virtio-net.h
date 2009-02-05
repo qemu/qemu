@@ -18,6 +18,8 @@
 #include "net.h"
 #include "pci.h"
 
+#define ETH_ALEN    6
+
 /* from Linux's virtio_net.h */
 
 /* The ID for virtio_net */
