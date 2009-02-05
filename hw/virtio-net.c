@@ -40,7 +40,7 @@ static VirtIONet *to_virtio_net(VirtIODevice *vdev)
     return (VirtIONet *)vdev;
 }
 
-static void virtio_net_update_config(VirtIODevice *vdev, uint8_t *config)
+static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIONet *n = to_virtio_net(vdev);
     struct virtio_net_config netcfg;
@@ -48,6 +48,19 @@ static void virtio_net_update_config(VirtIODevice *vdev, uint8_t *config)
     netcfg.status = n->status;
     memcpy(netcfg.mac, n->mac, 6);
     memcpy(config, &netcfg, sizeof(netcfg));
+}
+
+static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
+{
+    VirtIONet *n = to_virtio_net(vdev);
+    struct virtio_net_config netcfg;
+
+    memcpy(&netcfg, config, sizeof(netcfg));
+
+    if (memcmp(netcfg.mac, n->mac, 6)) {
+        memcpy(n->mac, netcfg.mac, 6);
+        qemu_format_nic_info_str(n->vc, n->mac);
+    }
 }
 
 static void virtio_net_set_link_status(VLANClientState *vc)
@@ -337,7 +350,8 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     if (!n)
         return;
 
-    n->vdev.get_config = virtio_net_update_config;
+    n->vdev.get_config = virtio_net_get_config;
+    n->vdev.set_config = virtio_net_set_config;
     n->vdev.get_features = virtio_net_get_features;
     n->vdev.set_features = virtio_net_set_features;
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
