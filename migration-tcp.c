@@ -89,8 +89,6 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
         return NULL;
 
     s = qemu_mallocz(sizeof(*s));
-    if (s == NULL)
-        return NULL;
 
     s->get_error = socket_errno;
     s->write = socket_write;

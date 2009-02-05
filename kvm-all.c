@@ -220,11 +220,6 @@ void kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr, target_phys_a
     alloc_size = mem->memory_size >> TARGET_PAGE_BITS / sizeof(d.dirty_bitmap);
     d.dirty_bitmap = qemu_mallocz(alloc_size);
 
-    if (d.dirty_bitmap == NULL) {
-        dprintf("Could not allocate dirty bitmap\n");
-        return;
-    }
-
     d.slot = mem->slot;
     dprintf("slot %d, phys_addr %llx, uaddr: %llx\n",
             d.slot, mem->start_addr, mem->phys_offset);
@@ -295,8 +290,6 @@ int kvm_init(int smp_cpus)
         return -EINVAL;
 
     s = qemu_mallocz(sizeof(KVMState));
-    if (s == NULL)
-        return -ENOMEM;
 
     for (i = 0; i < ARRAY_SIZE(s->slots); i++)
         s->slots[i].slot = i;

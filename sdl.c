@@ -638,8 +638,6 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     }
 
     dcl = qemu_mallocz(sizeof(DisplayChangeListener));
-    if (!dcl)
-        exit(1);
     dcl->dpy_update = sdl_update;
     dcl->dpy_resize = sdl_resize;
     dcl->dpy_refresh = sdl_refresh;

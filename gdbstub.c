@@ -2189,11 +2189,6 @@ static void gdb_accept(void)
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
 
     s = qemu_mallocz(sizeof(GDBState));
-    if (!s) {
-        errno = ENOMEM;
-        perror("accept");
-        return;
-    }
 
     memset (s, 0, sizeof (GDBState));
     s->c_cpu = first_cpu;
@@ -2311,9 +2306,6 @@ int gdbserver_start(const char *port)
         return -1;
 
     s = qemu_mallocz(sizeof(GDBState));
-    if (!s) {
-        return -1;
-    }
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
     s->chr = chr;

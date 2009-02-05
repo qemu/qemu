@@ -409,8 +409,6 @@ int main(int argc, char **argv)
     }
 
     sharing_fds = qemu_malloc((shared + 1) * sizeof(int));
-    if (sharing_fds == NULL)
-        errx(ENOMEM, "Cannot allocate sharing fds");
 
     if (socket) {
         sharing_fds[0] = unix_socket_incoming(socket);

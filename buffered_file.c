@@ -228,8 +228,6 @@ QEMUFile *qemu_fopen_ops_buffered(void *opaque,
     QEMUFileBuffered *s;
 
     s = qemu_mallocz(sizeof(*s));
-    if (s == NULL)
-        return NULL;
 
     s->opaque = opaque;
     s->xfer_limit = bytes_per_sec / 10;

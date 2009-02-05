@@ -476,10 +476,6 @@ static void code_gen_alloc(unsigned long tb_size)
     }
 #else
     code_gen_buffer = qemu_malloc(code_gen_buffer_size);
-    if (!code_gen_buffer) {
-        fprintf(stderr, "Could not allocate dynamic translator buffer\n");
-        exit(1);
-    }
     map_exec(code_gen_buffer, code_gen_buffer_size);
 #endif
 #endif /* !USE_STATIC_CODE_GEN_BUFFER */
@@ -825,8 +821,6 @@ static void build_page_bitmap(PageDesc *p)
     TranslationBlock *tb;
 
     p->code_bitmap = qemu_mallocz(TARGET_PAGE_SIZE / 8);
-    if (!p->code_bitmap)
-        return;
 
     tb = p->first_tb;
     while (tb != NULL) {
@@ -1318,8 +1312,6 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
         return -EINVAL;
     }
     wp = qemu_malloc(sizeof(*wp));
-    if (!wp)
-        return -ENOMEM;
 
     wp->vaddr = addr;
     wp->len_mask = len_mask;
@@ -1384,8 +1376,6 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
     CPUBreakpoint *bp;
 
     bp = qemu_malloc(sizeof(*bp));
-    if (!bp)
-        return -ENOMEM;
 
     bp->pc = pc;
     bp->flags = flags;
@@ -2795,17 +2785,16 @@ static void *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
     int subpage_memory;
 
     mmio = qemu_mallocz(sizeof(subpage_t));
-    if (mmio != NULL) {
-        mmio->base = base;
-        subpage_memory = cpu_register_io_memory(0, subpage_read, subpage_write, mmio);
+
+    mmio->base = base;
+    subpage_memory = cpu_register_io_memory(0, subpage_read, subpage_write, mmio);
 #if defined(DEBUG_SUBPAGE)
-        printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
-               mmio, base, TARGET_PAGE_SIZE, subpage_memory);
+    printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
+           mmio, base, TARGET_PAGE_SIZE, subpage_memory);
 #endif
-        *phys = subpage_memory | IO_MEM_SUBPAGE;
-        subpage_register(mmio, 0, TARGET_PAGE_SIZE - 1, orig_memory,
+    *phys = subpage_memory | IO_MEM_SUBPAGE;
+    subpage_register(mmio, 0, TARGET_PAGE_SIZE - 1, orig_memory,
                          region_offset);
-    }
 
     return mmio;
 }

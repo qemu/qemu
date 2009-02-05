@@ -1371,10 +1371,6 @@ static void do_wav_capture (const char *path,
     CaptureState *s;
 
     s = qemu_mallocz (sizeof (*s));
-    if (!s) {
-        term_printf ("Not enough memory to add wave capture\n");
-        return;
-    }
 
     freq = has_freq ? freq : 44100;
     bits = has_bits ? bits : 16;

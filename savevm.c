@@ -214,10 +214,6 @@ QEMUFile *qemu_popen(FILE *popen_file, const char *mode)
     }
 
     s = qemu_mallocz(sizeof(QEMUFilePopen));
-    if (!s) {
-        fprintf(stderr, "qemu_popen: malloc failed\n");
-        return NULL;
-    }
 
     s->popen_file = popen_file;
 
@@ -245,9 +241,6 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
 QEMUFile *qemu_fopen_socket(int fd)
 {
     QEMUFileSocket *s = qemu_mallocz(sizeof(QEMUFileSocket));
-
-    if (s == NULL)
-        return NULL;
 
     s->fd = fd;
     s->file = qemu_fopen_ops(s, NULL, socket_get_buffer, socket_close, NULL);
@@ -288,8 +281,6 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
     QEMUFileStdio *s;
 
     s = qemu_mallocz(sizeof(QEMUFileStdio));
-    if (!s)
-        return NULL;
 
     s->outfile = fopen(filename, mode);
     if (!s->outfile)
@@ -339,8 +330,6 @@ static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_wr
     QEMUFileBdrv *s;
 
     s = qemu_mallocz(sizeof(QEMUFileBdrv));
-    if (!s)
-        return NULL;
 
     s->bs = bs;
     s->base_offset = offset;
@@ -359,8 +348,6 @@ QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
     QEMUFile *f;
 
     f = qemu_mallocz(sizeof(QEMUFile));
-    if (!f)
-        return NULL;
 
     f->opaque = opaque;
     f->put_buffer = put_buffer;
@@ -615,8 +602,6 @@ int register_savevm_live(const char *idstr,
     static int global_section_id;
 
     se = qemu_malloc(sizeof(SaveStateEntry));
-    if (!se)
-        return -1;
     pstrcpy(se->idstr, sizeof(se->idstr), idstr);
     se->instance_id = (instance_id == -1) ? 0 : instance_id;
     se->version_id = version_id;
@@ -908,10 +893,6 @@ int qemu_loadvm_state(QEMUFile *f)
 
             /* Add entry */
             le = qemu_mallocz(sizeof(*le));
-            if (le == NULL) {
-                ret = -ENOMEM;
-                goto out;
-            }
 
             le->se = se;
             le->section_id = section_id;

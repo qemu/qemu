@@ -266,8 +266,6 @@ static void *load_at(int fd, int offset, int size)
     if (lseek(fd, offset, SEEK_SET) < 0)
         return NULL;
     ptr = qemu_malloc(size);
-    if (!ptr)
-        return NULL;
     if (read(fd, ptr, size) != size) {
         qemu_free(ptr);
         return NULL;
@@ -505,8 +503,6 @@ int load_uimage(const char *filename, target_ulong *ep, target_ulong *loadaddr,
 
     *ep = hdr->ih_ep;
     data = qemu_malloc(hdr->ih_size);
-    if (!data)
-        goto out;
 
     if (read(fd, data, hdr->ih_size) != hdr->ih_size) {
         fprintf(stderr, "Error reading file\n");

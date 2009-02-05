@@ -79,8 +79,6 @@ int qemu_aio_set_fd_handler(int fd,
         if (node == NULL) {
             /* Alloc and insert if it's not already there */
             node = qemu_mallocz(sizeof(AioHandler));
-            if (node == NULL)
-                return -ENOMEM;
             node->fd = fd;
             LIST_INSERT_HEAD(&aio_handlers, node, node);
         }
