@@ -33,6 +33,7 @@
 #include "ppc_mac.h"
 #include "mac_dbdma.h"
 #include "sh.h"
+#include "dma.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
@@ -423,7 +424,7 @@ typedef struct IDEState {
     int atapi_dma; /* true if dma is requested for the packet cmd */
     /* ATA DMA state */
     int io_buffer_size;
-    QEMUIOVector iovec;
+    QEMUSGList sg;
     /* PIO transfer handling */
     int req_nb_sectors; /* number of sectors per interrupt */
     EndTransferFunc *end_transfer_func;
@@ -876,10 +877,8 @@ static int dma_buf_prepare(BMDMAState *bm, int is_write)
         uint32_t size;
     } prd;
     int l, len;
-    void *mem;
-    target_phys_addr_t l1;
 
-    qemu_iovec_init(&s->iovec, s->nsector / (TARGET_PAGE_SIZE/512) + 1);
+    qemu_sglist_init(&s->sg, s->nsector / (TARGET_PAGE_SIZE/512) + 1);
     s->io_buffer_size = 0;
     for(;;) {
         if (bm->cur_prd_len == 0) {
@@ -900,15 +899,10 @@ static int dma_buf_prepare(BMDMAState *bm, int is_write)
         }
         l = bm->cur_prd_len;
         if (l > 0) {
-            l1 = l;
-            mem = cpu_physical_memory_map(bm->cur_prd_addr, &l1, is_write);
-            if (!mem) {
-                break;
-            }
-            qemu_iovec_add(&s->iovec, mem, l1);
-            bm->cur_prd_addr += l1;
-            bm->cur_prd_len -= l1;
-            s->io_buffer_size += l1;
+            qemu_sglist_add(&s->sg, bm->cur_prd_addr, l);
+            bm->cur_prd_addr += l;
+            bm->cur_prd_len -= l;
+            s->io_buffer_size += l;
         }
     }
     return 1;
@@ -916,14 +910,7 @@ static int dma_buf_prepare(BMDMAState *bm, int is_write)
 
 static void dma_buf_commit(IDEState *s, int is_write)
 {
-    int i;
-
-    for (i = 0; i < s->iovec.niov; ++i) {
-        cpu_physical_memory_unmap(s->iovec.iov[i].iov_base,
-                                  s->iovec.iov[i].iov_len, is_write,
-                                  s->iovec.iov[i].iov_len);
-    }
-    qemu_iovec_destroy(&s->iovec);
+    qemu_sglist_destroy(&s->sg);
 }
 
 static void ide_dma_error(IDEState *s)
@@ -1006,39 +993,6 @@ static int dma_buf_rw(BMDMAState *bm, int is_write)
     return 1;
 }
 
-typedef struct {
-    BMDMAState *bm;
-    void (*cb)(void *opaque, int ret);
-    QEMUBH *bh;
-} MapFailureContinuation;
-
-static void reschedule_dma(void *opaque)
-{
-    MapFailureContinuation *cont = opaque;
-
-    cont->cb(cont->bm, 0);
-    qemu_bh_delete(cont->bh);
-    qemu_free(cont);
-}
-
-static void continue_after_map_failure(void *opaque)
-{
-    MapFailureContinuation *cont = opaque;
-
-    cont->bh = qemu_bh_new(reschedule_dma, opaque);
-    qemu_bh_schedule(cont->bh);
-}
-
-static void wait_for_bounce_buffer(BMDMAState *bmdma,
-                                   void (*cb)(void *opaque, int ret))
-{
-    MapFailureContinuation *cont = qemu_malloc(sizeof(*cont));
-
-    cont->bm = bmdma;
-    cont->cb = cb;
-    cpu_register_map_client(cont, continue_after_map_failure);
-}
-
 static void ide_read_dma_cb(void *opaque, int ret)
 {
     BMDMAState *bm = opaque;
@@ -1080,15 +1034,10 @@ static void ide_read_dma_cb(void *opaque, int ret)
     s->io_buffer_size = n * 512;
     if (dma_buf_prepare(bm, 1) == 0)
         goto eot;
-    if (!s->iovec.niov) {
-        wait_for_bounce_buffer(bm, ide_read_dma_cb);
-        return;
-    }
 #ifdef DEBUG_AIO
     printf("aio_read: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #endif
-    bm->aiocb = bdrv_aio_readv(s->bs, sector_num, &s->iovec, n,
-                               ide_read_dma_cb, bm);
+    bm->aiocb = dma_bdrv_read(s->bs, &s->sg, sector_num, ide_read_dma_cb, bm);
     ide_dma_submit_check(s, ide_read_dma_cb, bm);
 }
 
@@ -1209,15 +1158,10 @@ static void ide_write_dma_cb(void *opaque, int ret)
     /* launch next transfer */
     if (dma_buf_prepare(bm, 0) == 0)
         goto eot;
-    if (!s->iovec.niov) {
-        wait_for_bounce_buffer(bm, ide_write_dma_cb);
-        return;
-    }
 #ifdef DEBUG_AIO
     printf("aio_write: sector_num=%" PRId64 " n=%d\n", sector_num, n);
 #endif
-    bm->aiocb = bdrv_aio_writev(s->bs, sector_num, &s->iovec, n,
-                                ide_write_dma_cb, bm);
+    bm->aiocb = dma_bdrv_write(s->bs, &s->sg, sector_num, ide_write_dma_cb, bm);
     ide_dma_submit_check(s, ide_write_dma_cb, bm);
 }
 
