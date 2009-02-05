@@ -222,6 +222,31 @@ static int receive_header(VirtIONet *n, struct iovec *iov, int iovcnt,
     return offset;
 }
 
+static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
+{
+    static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    uint8_t *ptr = (uint8_t *)buf;
+
+    if (n->promisc)
+        return 1;
+
+#ifdef TAP_VNET_HDR
+    if (tap_has_vnet_hdr(n->vc->vlan->first_client))
+        ptr += sizeof(struct virtio_net_hdr);
+#endif
+
+    if ((ptr[0] & 1) && n->allmulti)
+        return 1;
+
+    if (!memcmp(ptr, bcast, sizeof(bcast)))
+        return 1;
+
+    if (!memcmp(ptr, n->mac, ETH_ALEN))
+        return 1;
+
+    return 0;
+}
+
 static void virtio_net_receive(void *opaque, const uint8_t *buf, int size)
 {
     VirtIONet *n = opaque;
@@ -229,6 +254,9 @@ static void virtio_net_receive(void *opaque, const uint8_t *buf, int size)
     size_t hdr_len, offset, i;
 
     if (!do_virtio_net_can_receive(n, size))
+        return;
+
+    if (!receive_filter(n, buf, size))
         return;
 
     /* hdr_len refers to the header we supply to the guest */
