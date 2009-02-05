@@ -16,6 +16,8 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
+#define VIRTIO_NET_VM_VERSION    3
+
 typedef struct VirtIONet
 {
     VirtIODevice vdev;
@@ -292,13 +294,14 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_buffer(f, n->mac, 6);
     qemu_put_be32(f, n->tx_timer_active);
     qemu_put_be32(f, n->mergeable_rx_bufs);
+    qemu_put_be16(f, n->status);
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
 
-    if (version_id != 2)
+    if (version_id < 2 || version_id > VIRTIO_NET_VM_VERSION)
         return -EINVAL;
 
     virtio_load(&n->vdev, f);
@@ -306,6 +309,9 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_buffer(f, n->mac, 6);
     n->tx_timer_active = qemu_get_be32(f);
     n->mergeable_rx_bufs = qemu_get_be32(f);
+
+    if (version_id >= 3)
+        n->status = qemu_get_be16(f);
 
     if (n->tx_timer_active) {
         qemu_mod_timer(n->tx_timer,
@@ -348,6 +354,6 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->tx_timer_active = 0;
     n->mergeable_rx_bufs = 0;
 
-    register_savevm("virtio-net", virtio_net_id++, 2,
+    register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
 }
