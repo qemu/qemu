@@ -22,6 +22,14 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include <stdlib.h>
+
+static void *oom_check(void *ptr)
+{
+    if (ptr == NULL)
+        exit(13);
+    return ptr;
+}
 
 void *get_mmap_addr(unsigned long size)
 {
@@ -35,20 +43,18 @@ void qemu_free(void *ptr)
 
 void *qemu_malloc(size_t size)
 {
-    return malloc(size);
+    return oom_check(malloc(size));
 }
 
 void *qemu_realloc(void *ptr, size_t size)
 {
-    return realloc(ptr, size);
+    return oom_check(realloc(ptr, size));
 }
 
 void *qemu_mallocz(size_t size)
 {
     void *ptr;
     ptr = qemu_malloc(size);
-    if (!ptr)
-        return NULL;
     memset(ptr, 0, size);
     return ptr;
 }
@@ -58,8 +64,6 @@ char *qemu_strdup(const char *str)
     char *ptr;
     size_t len = strlen(str);
     ptr = qemu_malloc(len + 1);
-    if (!ptr)
-        return NULL;
     memcpy(ptr, str, len + 1);
     return ptr;
 }
