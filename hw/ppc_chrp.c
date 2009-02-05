@@ -37,14 +37,30 @@
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
 
+/* debug UniNorth */
+//#define DEBUG_UNIN
+
+#ifdef DEBUG_UNIN
+#define UNIN_DPRINTF(fmt, args...) \
+do { printf("UNIN: " fmt , ##args); } while (0)
+#else
+#define UNIN_DPRINTF(fmt, args...)
+#endif
+
 /* UniN device */
 static void unin_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
+    UNIN_DPRINTF("writel addr " TARGET_FMT_plx " val %x\n", addr, value);
 }
 
 static uint32_t unin_readl (void *opaque, target_phys_addr_t addr)
 {
-    return 0;
+    uint32_t value;
+
+    value = 0;
+    UNIN_DPRINTF("readl addr " TARGET_FMT_plx " val %x\n", addr, value);
+
+    return value;
 }
 
 static CPUWriteMemoryFunc *unin_write[] = {
