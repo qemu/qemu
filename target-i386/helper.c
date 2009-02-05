@@ -1645,8 +1645,6 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
     static int inited;
 
     env = qemu_mallocz(sizeof(CPUX86State));
-    if (!env)
-        return NULL;
     cpu_exec_init(env);
     env->cpu_model_str = cpu_model;
 

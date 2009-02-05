@@ -97,8 +97,6 @@ static int kvm_has_msr_star(CPUState *env)
 
         kvm_msr_list = qemu_mallocz(sizeof(msr_list) +
                                     msr_list.nmsrs * sizeof(msr_list.indices[0]));
-        if (kvm_msr_list == NULL)
-            return 0;
 
         kvm_msr_list->nmsrs = msr_list.nmsrs;
         ret = kvm_ioctl(env->kvm_state, KVM_GET_MSR_INDEX_LIST, kvm_msr_list);

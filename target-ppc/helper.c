@@ -2761,8 +2761,6 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
         return NULL;
 
     env = qemu_mallocz(sizeof(CPUPPCState));
-    if (!env)
-        return NULL;
     cpu_exec_init(env);
     ppc_translate_init();
     env->cpu_model_str = cpu_model;

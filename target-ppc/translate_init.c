@@ -9040,8 +9040,6 @@ static int create_new_table (opc_handler_t **table, unsigned char idx)
     opc_handler_t **tmp;
 
     tmp = malloc(0x20 * sizeof(opc_handler_t));
-    if (tmp == NULL)
-        return -1;
     fill_new_table(tmp, 0x20);
     table[idx] = (opc_handler_t *)((unsigned long)tmp | PPC_INDIRECT);
 

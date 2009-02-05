@@ -2466,8 +2466,6 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     uint64_t hwpcb;
 
     env = qemu_mallocz(sizeof(CPUAlphaState));
-    if (!env)
-        return NULL;
     cpu_exec_init(env);
     alpha_translate_init();
     tlb_flush(env, 1);

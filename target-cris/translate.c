@@ -3400,8 +3400,6 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	int i;
 
 	env = qemu_mallocz(sizeof(CPUCRISState));
-	if (!env)
-		return NULL;
 
 	cpu_exec_init(env);
 	cpu_reset(env);

@@ -248,8 +248,6 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
     if (id == 0)
         return NULL;
     env = qemu_mallocz(sizeof(CPUARMState));
-    if (!env)
-        return NULL;
     cpu_exec_init(env);
     if (!inited) {
         inited = 1;
@@ -468,8 +466,6 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 static void allocate_mmon_state(CPUState *env)
 {
     env->mmon_entry = malloc(sizeof (mmon_state));
-    if (!env->mmon_entry)
-        abort();
     memset (env->mmon_entry, 0, sizeof (mmon_state));
     env->mmon_entry->cpu_env = env;
     mmon_head = env->mmon_entry;
