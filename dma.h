@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include "cpu.h"
+#include "block.h"
 
 typedef struct {
     target_phys_addr_t base;
@@ -29,5 +30,12 @@ void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint);
 void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
                      target_phys_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
+
+BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
+                                QEMUSGList *sg, uint64_t sector,
+                                BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
+                                 QEMUSGList *sg, uint64_t sector,
+                                 BlockDriverCompletionFunc *cb, void *opaque);
 
 #endif
