@@ -16,7 +16,9 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
-#define VIRTIO_NET_VM_VERSION    4
+#define VIRTIO_NET_VM_VERSION    5
+
+#define MAC_TABLE_ENTRIES    32
 
 typedef struct VirtIONet
 {
@@ -32,6 +34,10 @@ typedef struct VirtIONet
     int mergeable_rx_bufs;
     int promisc;
     int allmulti;
+    struct {
+        int in_use;
+        uint8_t *macs;
+    } mac_table;
 } VirtIONet;
 
 /* TODO
@@ -87,13 +93,18 @@ static void virtio_net_reset(VirtIODevice *vdev)
     /* Reset back to compatibility mode */
     n->promisc = 1;
     n->allmulti = 0;
+
+    /* Flush any MAC filter table state */
+    n->mac_table.in_use = 0;
+    memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
 }
 
 static uint32_t virtio_net_get_features(VirtIODevice *vdev)
 {
     uint32_t features = (1 << VIRTIO_NET_F_MAC) |
                         (1 << VIRTIO_NET_F_STATUS) |
-                        (1 << VIRTIO_NET_F_CTRL_VQ);
+                        (1 << VIRTIO_NET_F_CTRL_VQ) |
+                        (1 << VIRTIO_NET_F_CTRL_RX);
 
     return features;
 }
@@ -127,6 +138,53 @@ static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
     return VIRTIO_NET_OK;
 }
 
+static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
+                                 VirtQueueElement *elem)
+{
+    struct virtio_net_ctrl_mac mac_data;
+
+    if (cmd != VIRTIO_NET_CTRL_MAC_TABLE_SET || elem->out_num != 3 ||
+        elem->out_sg[1].iov_len < sizeof(mac_data) ||
+        elem->out_sg[2].iov_len < sizeof(mac_data))
+        return VIRTIO_NET_ERR;
+
+    n->mac_table.in_use = 0;
+    memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
+
+    mac_data.entries = ldl_le_p(elem->out_sg[1].iov_base);
+
+    if (sizeof(mac_data.entries) +
+        (mac_data.entries * ETH_ALEN) > elem->out_sg[1].iov_len)
+        return VIRTIO_NET_ERR;
+
+    if (mac_data.entries <= MAC_TABLE_ENTRIES) {
+        memcpy(n->mac_table.macs, elem->out_sg[1].iov_base + sizeof(mac_data),
+               mac_data.entries * ETH_ALEN);
+        n->mac_table.in_use += mac_data.entries;
+    } else {
+        n->promisc = 1;
+        return VIRTIO_NET_OK;
+    }
+
+    mac_data.entries = ldl_le_p(elem->out_sg[2].iov_base);
+
+    if (sizeof(mac_data.entries) +
+        (mac_data.entries * ETH_ALEN) > elem->out_sg[2].iov_len)
+        return VIRTIO_NET_ERR;
+
+    if (mac_data.entries) {
+        if (n->mac_table.in_use + mac_data.entries <= MAC_TABLE_ENTRIES) {
+            memcpy(n->mac_table.macs + (n->mac_table.in_use * ETH_ALEN),
+                   elem->out_sg[2].iov_base + sizeof(mac_data),
+                   mac_data.entries * ETH_ALEN);
+            n->mac_table.in_use += mac_data.entries;
+        } else
+            n->allmulti = 1;
+    }
+
+    return VIRTIO_NET_OK;
+}
+
 static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = to_virtio_net(vdev);
@@ -151,6 +209,8 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
         if (ctrl.class == VIRTIO_NET_CTRL_RX_MODE)
             status = virtio_net_handle_rx_mode(n, ctrl.cmd, &elem);
+        else if (ctrl.class == VIRTIO_NET_CTRL_MAC)
+            status = virtio_net_handle_mac(n, ctrl.cmd, &elem);
 
         stb_p(elem.in_sg[elem.in_num - 1].iov_base, status);
 
@@ -226,6 +286,7 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
 {
     static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     uint8_t *ptr = (uint8_t *)buf;
+    int i;
 
     if (n->promisc)
         return 1;
@@ -243,6 +304,11 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
 
     if (!memcmp(ptr, n->mac, ETH_ALEN))
         return 1;
+
+    for (i = 0; i < n->mac_table.in_use; i++) {
+        if (!memcmp(ptr, &n->mac_table.macs[i * ETH_ALEN], ETH_ALEN))
+            return 1;
+    }
 
     return 0;
 }
@@ -406,6 +472,8 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_be16(f, n->status);
     qemu_put_be32(f, n->promisc);
     qemu_put_be32(f, n->allmulti);
+    qemu_put_be32(f, n->mac_table.in_use);
+    qemu_put_buffer(f, n->mac_table.macs, n->mac_table.in_use * ETH_ALEN);
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
@@ -429,6 +497,19 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         n->allmulti = qemu_get_be32(f);
     }
 
+    if (version_id >= 5) {
+        n->mac_table.in_use = qemu_get_be32(f);
+        /* MAC_TABLE_ENTRIES may be different from the saved image */
+        if (n->mac_table.in_use <= MAC_TABLE_ENTRIES) {
+            qemu_get_buffer(f, n->mac_table.macs,
+                            n->mac_table.in_use * ETH_ALEN);
+        } else if (n->mac_table.in_use) {
+            qemu_fseek(f, n->mac_table.in_use * ETH_ALEN, SEEK_CUR);
+            n->promisc = 1;
+            n->mac_table.in_use = 0;
+        }
+    }
+ 
     if (n->tx_timer_active) {
         qemu_mod_timer(n->tx_timer,
                        qemu_get_clock(vm_clock) + TX_TIMER_INTERVAL);
@@ -473,6 +554,10 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->tx_timer_active = 0;
     n->mergeable_rx_bufs = 0;
     n->promisc = 1; /* for compatibility */
+
+    n->mac_table.macs = qemu_mallocz(MAC_TABLE_ENTRIES * ETH_ALEN);
+    if (!n->mac_table.macs)
+        return;
 
     register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
