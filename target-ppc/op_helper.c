@@ -2539,6 +2539,16 @@ void helper_vsel (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     r->u64[1] = (a->u64[1] & ~c->u64[1]) | (b->u64[1] & c->u64[1]);
 }
 
+void helper_vrlogefp (ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN1(r->f[i], b->f[i]) {
+            r->f[i] = float32_log2(b->f[i], &env->vec_status);
+        }
+    }
+}
+
 #if defined(WORDS_BIGENDIAN)
 #define LEFT 0
 #define RIGHT 1
