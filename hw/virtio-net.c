@@ -16,7 +16,7 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
-#define VIRTIO_NET_VM_VERSION    3
+#define VIRTIO_NET_VM_VERSION    4
 
 typedef struct VirtIONet
 {
@@ -30,6 +30,8 @@ typedef struct VirtIONet
     QEMUTimer *tx_timer;
     int tx_timer_active;
     int mergeable_rx_bufs;
+    int promisc;
+    int allmulti;
 } VirtIONet;
 
 /* TODO
@@ -78,6 +80,15 @@ static void virtio_net_set_link_status(VLANClientState *vc)
         virtio_notify_config(&n->vdev);
 }
 
+static void virtio_net_reset(VirtIODevice *vdev)
+{
+    VirtIONet *n = to_virtio_net(vdev);
+
+    /* Reset back to compatibility mode */
+    n->promisc = 1;
+    n->allmulti = 0;
+}
+
 static uint32_t virtio_net_get_features(VirtIODevice *vdev)
 {
     uint32_t features = (1 << VIRTIO_NET_F_MAC) |
@@ -94,8 +105,31 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     n->mergeable_rx_bufs = !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF));
 }
 
+static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
+                                     VirtQueueElement *elem)
+{
+    uint8_t on;
+
+    if (elem->out_num != 2 || elem->out_sg[1].iov_len != sizeof(on)) {
+        fprintf(stderr, "virtio-net ctrl invalid rx mode command\n");
+        exit(1);
+    }
+
+    on = ldub_p(elem->out_sg[1].iov_base);
+
+    if (cmd == VIRTIO_NET_CTRL_RX_MODE_PROMISC)
+        n->promisc = on;
+    else if (cmd == VIRTIO_NET_CTRL_RX_MODE_ALLMULTI)
+        n->allmulti = on;
+    else
+        return VIRTIO_NET_ERR;
+
+    return VIRTIO_NET_OK;
+}
+
 static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
+    VirtIONet *n = to_virtio_net(vdev);
     struct virtio_net_ctrl_hdr ctrl;
     virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
     VirtQueueElement elem;
@@ -114,6 +148,9 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
         ctrl.class = ldub_p(elem.out_sg[0].iov_base);
         ctrl.cmd = ldub_p(elem.out_sg[0].iov_base + sizeof(ctrl.class));
+
+        if (ctrl.class == VIRTIO_NET_CTRL_RX_MODE)
+            status = virtio_net_handle_rx_mode(n, ctrl.cmd, &elem);
 
         stb_p(elem.in_sg[elem.in_num - 1].iov_base, status);
 
@@ -339,6 +376,8 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, n->tx_timer_active);
     qemu_put_be32(f, n->mergeable_rx_bufs);
     qemu_put_be16(f, n->status);
+    qemu_put_be32(f, n->promisc);
+    qemu_put_be32(f, n->allmulti);
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
@@ -356,6 +395,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 
     if (version_id >= 3)
         n->status = qemu_get_be16(f);
+
+    if (version_id >= 4) {
+        n->promisc = qemu_get_be32(f);
+        n->allmulti = qemu_get_be32(f);
+    }
 
     if (n->tx_timer_active) {
         qemu_mod_timer(n->tx_timer,
@@ -385,6 +429,7 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->vdev.set_config = virtio_net_set_config;
     n->vdev.get_features = virtio_net_get_features;
     n->vdev.set_features = virtio_net_set_features;
+    n->vdev.reset = virtio_net_reset;
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
     n->ctrl_vq = virtio_add_queue(&n->vdev, 16, virtio_net_handle_ctrl);
@@ -399,6 +444,7 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
     n->tx_timer_active = 0;
     n->mergeable_rx_bufs = 0;
+    n->promisc = 1; /* for compatibility */
 
     register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
