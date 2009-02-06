@@ -116,7 +116,7 @@ static struct arm_boot_info sx1_binfo = {
 };
 
 static void sx1_init(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model,
                 const int version)
@@ -201,24 +201,25 @@ static void sx1_init(ram_addr_t ram_size, int vga_ram_size,
         cpu->env->regs[15] = 0x00000000;
     }
 
-    qemu_console_resize(ds, 640, 480);
+    /* TODO: fix next line */
+    //~ qemu_console_resize(ds, 640, 480);
 }
 
 static void sx1_init_v1(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    sx1_init(ram_size, vga_ram_size, boot_device, ds, kernel_filename,
+    sx1_init(ram_size, vga_ram_size, boot_device, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, 1);
 }
 
 static void sx1_init_v2(ram_addr_t ram_size, int vga_ram_size,
-                const char *boot_device, DisplayState *ds,
+                const char *boot_device,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
-    sx1_init(ram_size, vga_ram_size, boot_device, ds, kernel_filename,
+    sx1_init(ram_size, vga_ram_size, boot_device, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, 2);
 }
 
