@@ -621,6 +621,7 @@ CharDriverState *chr_baum_init(void)
 fail:
     qemu_free_timer(baum->cellCount_timer);
     brlapi__closeConnection(handle);
+fail_handle:
     free(handle);
     free(chr);
     free(baum);
