@@ -1005,7 +1005,7 @@ static void do_interrupt64(int intno, int is_int, int error_code,
 
 #ifdef TARGET_X86_64
 #if defined(CONFIG_USER_ONLY)
-void helper_syscall(int next_eip_addend)
+void QEMU_NORETURN helper_syscall(int next_eip_addend)
 {
     env->exception_index = EXCP_SYSCALL;
     env->exception_next_eip = env->eip + next_eip_addend;
@@ -1898,7 +1898,7 @@ void helper_cmpxchg16b(target_ulong a0)
 }
 #endif
 
-void helper_single_step(void)
+void QEMU_NORETURN helper_single_step(void)
 {
 #ifndef CONFIG_USER_ONLY
     check_hw_breakpoints(env, 1);
@@ -2975,7 +2975,7 @@ void helper_rdtsc(void)
     EDX = (uint32_t)(val >> 32);
 }
 
-void helper_rdpmc(void)
+void QEMU_NORETURN helper_rdpmc(void)
 {
     if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
         raise_exception(EXCP0D_GPF);
@@ -4612,7 +4612,7 @@ void helper_idivq_EAX(target_ulong t0)
 }
 #endif
 
-static void do_hlt(void)
+static QEMU_NORETURN void do_hlt(void)
 {
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
     env->halted = 1;
@@ -4620,7 +4620,7 @@ static void do_hlt(void)
     cpu_loop_exit();
 }
 
-void helper_hlt(int next_eip_addend)
+void QEMU_NORETURN helper_hlt(int next_eip_addend)
 {
     helper_svm_check_intercept_param(SVM_EXIT_HLT, 0);
     EIP += next_eip_addend;
@@ -4652,18 +4652,18 @@ void helper_mwait(int next_eip_addend)
     }
 }
 
-void helper_debug(void)
+void QEMU_NORETURN helper_debug(void)
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit();
 }
 
-void helper_raise_interrupt(int intno, int next_eip_addend)
+void QEMU_NORETURN helper_raise_interrupt(int intno, int next_eip_addend)
 {
     raise_interrupt(intno, 1, 0, next_eip_addend);
 }
 
-void helper_raise_exception(int exception_index)
+void QEMU_NORETURN helper_raise_exception(int exception_index)
 {
     raise_exception(exception_index);
 }
@@ -5036,7 +5036,7 @@ void helper_vmrun(int aflag, int next_eip_addend)
     }
 }
 
-void helper_vmmcall(void)
+void QEMU_NORETURN helper_vmmcall(void)
 {
     helper_svm_check_intercept_param(SVM_EXIT_VMMCALL, 0);
     raise_exception(EXCP06_ILLOP);
@@ -5124,7 +5124,7 @@ void helper_clgi(void)
     env->hflags2 &= ~HF2_GIF_MASK;
 }
 
-void helper_skinit(void)
+void QEMU_NORETURN helper_skinit(void)
 {
     helper_svm_check_intercept_param(SVM_EXIT_SKINIT, 0);
     /* XXX: not implemented */
@@ -5231,7 +5231,7 @@ void helper_svm_check_io(uint32_t port, uint32_t param,
 }
 
 /* Note: currently only 32 bits of exit_code are used */
-void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
+void QEMU_NORETURN helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
 {
     uint32_t int_ctl;
 
