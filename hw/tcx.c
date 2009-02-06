@@ -499,8 +499,6 @@ void tcx_init(target_phys_addr_t addr, uint8_t *vram_base,
     int size;
 
     s = qemu_mallocz(sizeof(TCXState));
-    if (!s)
-        return;
     s->addr = addr;
     s->vram_offset = vram_offset;
     s->width = width;

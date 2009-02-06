@@ -553,8 +553,6 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
     BlockDriverState *fd[MAX_FD];
 
     sysctrl = qemu_mallocz(sizeof(sysctrl_t));
-    if (sysctrl == NULL)
-        return;
 
     linux_boot = (kernel_filename != NULL);
 

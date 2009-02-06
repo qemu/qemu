@@ -865,8 +865,6 @@ void* DBDMA_init (int *dbdma_mem_index)
     DBDMA_channel *s;
 
     s = qemu_mallocz(sizeof(DBDMA_channel) * DBDMA_CHANNELS);
-    if (!s)
-        return NULL;
 
     *dbdma_mem_index = cpu_register_io_memory(0, dbdma_read, dbdma_write, s);
     register_savevm("dbdma", -1, 1, dbdma_save, dbdma_load, s);

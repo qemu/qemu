@@ -246,18 +246,16 @@ ppc4xx_mmio_t *ppc4xx_mmio_init (CPUState *env, target_phys_addr_t base)
     int mmio_memory;
 
     mmio = qemu_mallocz(sizeof(ppc4xx_mmio_t));
-    if (mmio != NULL) {
-        mmio->base = base;
-        mmio_memory = cpu_register_io_memory(0, mmio_read, mmio_write, mmio);
+    mmio->base = base;
+    mmio_memory = cpu_register_io_memory(0, mmio_read, mmio_write, mmio);
 #if defined(DEBUG_MMIO)
-        printf("%s: base " PADDRX " len %08x %d\n", __func__,
-               base, TARGET_PAGE_SIZE, mmio_memory);
+    printf("%s: base " PADDRX " len %08x %d\n", __func__,
+           base, TARGET_PAGE_SIZE, mmio_memory);
 #endif
-        cpu_register_physical_memory(base, TARGET_PAGE_SIZE, mmio_memory);
-        ppc4xx_mmio_register(env, mmio, 0, TARGET_PAGE_SIZE,
-                             unassigned_mmio_read, unassigned_mmio_write,
-                             mmio);
-    }
+    cpu_register_physical_memory(base, TARGET_PAGE_SIZE, mmio_memory);
+    ppc4xx_mmio_register(env, mmio, 0, TARGET_PAGE_SIZE,
+                         unassigned_mmio_read, unassigned_mmio_write,
+                         mmio);
 
     return mmio;
 }
@@ -492,18 +490,16 @@ qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
     int i;
 
     uic = qemu_mallocz(sizeof(ppcuic_t));
-    if (uic != NULL) {
-        uic->dcr_base = dcr_base;
-        uic->irqs = irqs;
-        if (has_vr)
-            uic->use_vectors = 1;
-        for (i = 0; i < DCR_UICMAX; i++) {
-            ppc_dcr_register(env, dcr_base + i, uic,
-                             &dcr_read_uic, &dcr_write_uic);
-        }
-        qemu_register_reset(ppcuic_reset, uic);
-        ppcuic_reset(uic);
+    uic->dcr_base = dcr_base;
+    uic->irqs = irqs;
+    if (has_vr)
+        uic->use_vectors = 1;
+    for (i = 0; i < DCR_UICMAX; i++) {
+        ppc_dcr_register(env, dcr_base + i, uic,
+                         &dcr_read_uic, &dcr_write_uic);
     }
+    qemu_register_reset(ppcuic_reset, uic);
+    ppcuic_reset(uic);
 
     return qemu_allocate_irqs(&ppcuic_set_irq, uic, UIC_MAX_IRQ);
 }
@@ -829,24 +825,22 @@ void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
     ppc4xx_sdram_t *sdram;
 
     sdram = qemu_mallocz(sizeof(ppc4xx_sdram_t));
-    if (sdram != NULL) {
-        sdram->irq = irq;
-        sdram->nbanks = nbanks;
-        memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));
-        memcpy(sdram->ram_bases, ram_bases,
-               nbanks * sizeof(target_phys_addr_t));
-        memset(sdram->ram_sizes, 0, 4 * sizeof(target_phys_addr_t));
-        memcpy(sdram->ram_sizes, ram_sizes,
-               nbanks * sizeof(target_phys_addr_t));
-        sdram_reset(sdram);
-        qemu_register_reset(&sdram_reset, sdram);
-        ppc_dcr_register(env, SDRAM0_CFGADDR,
-                         sdram, &dcr_read_sdram, &dcr_write_sdram);
-        ppc_dcr_register(env, SDRAM0_CFGDATA,
-                         sdram, &dcr_read_sdram, &dcr_write_sdram);
-        if (do_init)
-            sdram_map_bcr(sdram);
-    }
+    sdram->irq = irq;
+    sdram->nbanks = nbanks;
+    memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));
+    memcpy(sdram->ram_bases, ram_bases,
+           nbanks * sizeof(target_phys_addr_t));
+    memset(sdram->ram_sizes, 0, 4 * sizeof(target_phys_addr_t));
+    memcpy(sdram->ram_sizes, ram_sizes,
+           nbanks * sizeof(target_phys_addr_t));
+    sdram_reset(sdram);
+    qemu_register_reset(&sdram_reset, sdram);
+    ppc_dcr_register(env, SDRAM0_CFGADDR,
+                     sdram, &dcr_read_sdram, &dcr_write_sdram);
+    ppc_dcr_register(env, SDRAM0_CFGDATA,
+                     sdram, &dcr_read_sdram, &dcr_write_sdram);
+    if (do_init)
+        sdram_map_bcr(sdram);
 }
 
 /* Fill in consecutive SDRAM banks with 'ram_size' bytes of memory.

@@ -2089,8 +2089,6 @@ void lance_init(NICInfo *nd, target_phys_addr_t leaddr, void *dma_opaque,
     qemu_check_nic_model(nd, "lance");
 
     d = qemu_mallocz(sizeof(PCNetState));
-    if (!d)
-        return;
 
     lance_io_memory =
         cpu_register_io_memory(0, lance_mem_read, lance_mem_write, d);

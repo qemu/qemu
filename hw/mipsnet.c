@@ -239,8 +239,6 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
     qemu_check_nic_model(nd, "mipsnet");
 
     s = qemu_mallocz(sizeof(MIPSnetState));
-    if (!s)
-        return;
 
     register_ioport_write(base, 36, 1, mipsnet_ioport_write, s);
     register_ioport_read(base, 36, 1, mipsnet_ioport_read, s);

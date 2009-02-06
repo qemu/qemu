@@ -25,6 +25,16 @@
 #include "ppc_mac.h"
 #include "pci.h"
 
+/* debug UniNorth */
+//#define DEBUG_UNIN
+
+#ifdef DEBUG_UNIN
+#define UNIN_DPRINTF(fmt, args...) \
+do { printf("UNIN: " fmt , ##args); } while (0)
+#else
+#define UNIN_DPRINTF(fmt, args...)
+#endif
+
 typedef target_phys_addr_t pci_addr_t;
 #include "pci_host.h"
 
@@ -36,6 +46,7 @@ static void pci_unin_main_config_writel (void *opaque, target_phys_addr_t addr,
     UNINState *s = opaque;
     int i;
 
+    UNIN_DPRINTF("config_writel addr " TARGET_FMT_plx " val %x\n", addr, val);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
@@ -63,6 +74,7 @@ static uint32_t pci_unin_main_config_readl (void *opaque,
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
+    UNIN_DPRINTF("config_readl addr " TARGET_FMT_plx " val %x\n", addr, val);
 
     return val;
 }
@@ -152,6 +164,27 @@ static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 static void pci_unin_set_irq(qemu_irq *pic, int irq_num, int level)
 {
     qemu_set_irq(pic[irq_num + 8], level);
+}
+
+static void pci_unin_save(QEMUFile* f, void *opaque)
+{
+    PCIDevice *d = opaque;
+
+    pci_device_save(d, f);
+}
+
+static int pci_unin_load(QEMUFile* f, void *opaque, int version_id)
+{
+    PCIDevice *d = opaque;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    return pci_device_load(d, f);
+}
+
+static void pci_unin_reset(void *opaque)
+{
 }
 
 PCIBus *pci_pmac_init(qemu_irq *pic)
@@ -254,5 +287,9 @@ PCIBus *pci_pmac_init(qemu_irq *pic)
     d->config[0x0E] = 0x00; // header_type
     d->config[0x34] = 0x00; // capabilities_pointer
 #endif
+    register_savevm("uninorth", 0, 1, pci_unin_save, pci_unin_load, d);
+    qemu_register_reset(pci_unin_reset, d);
+    pci_unin_reset(d);
+
     return s->bus;
 }

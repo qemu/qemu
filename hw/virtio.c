@@ -447,8 +447,7 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
             sg->iov_len = 2 << 20;
 
         sg->iov_base = qemu_malloc(sg->iov_len);
-        if (sg->iov_base && 
-            !(vring_desc_flags(vq, i) & VRING_DESC_F_WRITE)) {
+        if (!(vring_desc_flags(vq, i) & VRING_DESC_F_WRITE)) {
             cpu_physical_memory_read(vring_desc_addr(vq, i),
                                      sg->iov_base,
                                      sg->iov_len);

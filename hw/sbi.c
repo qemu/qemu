@@ -146,8 +146,6 @@ void *sbi_init(target_phys_addr_t addr, qemu_irq **irq, qemu_irq **cpu_irq,
     SBIState *s;
 
     s = qemu_mallocz(sizeof(SBIState));
-    if (!s)
-        return NULL;
 
     for (i = 0; i < MAX_CPUS; i++) {
         s->cpu_irqs[i] = parent_irq[i];

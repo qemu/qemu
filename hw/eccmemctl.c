@@ -320,8 +320,6 @@ void * ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
     ECCState *s;
 
     s = qemu_mallocz(sizeof(ECCState));
-    if (!s)
-        return NULL;
 
     s->version = version;
     s->regs[0] = version;

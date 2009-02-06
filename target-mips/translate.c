@@ -8476,8 +8476,6 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
     if (!def)
         return NULL;
     env = qemu_mallocz(sizeof(CPUMIPSState));
-    if (!env)
-        return NULL;
     env->cpu_model = def;
 
     cpu_exec_init(env);

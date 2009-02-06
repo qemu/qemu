@@ -275,8 +275,6 @@ void *vmmouse_init(void *m)
     DPRINTF("vmmouse_init\n");
 
     s = qemu_mallocz(sizeof(VMMouseState));
-    if (!s)
-        return NULL;
 
     s->status = 0xffff;
     s->ps2_mouse = m;

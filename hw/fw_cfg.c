@@ -206,8 +206,6 @@ int fw_cfg_add_i16(void *opaque, uint16_t key, uint16_t value)
     uint16_t *copy;
 
     copy = qemu_malloc(sizeof(value));
-    if (!copy)
-        return 0;
     *copy = cpu_to_le16(value);
     return fw_cfg_add_bytes(opaque, key, (uint8_t *)copy, sizeof(value));
 }
@@ -217,8 +215,6 @@ int fw_cfg_add_i32(void *opaque, uint16_t key, uint32_t value)
     uint32_t *copy;
 
     copy = qemu_malloc(sizeof(value));
-    if (!copy)
-        return 0;
     *copy = cpu_to_le32(value);
     return fw_cfg_add_bytes(opaque, key, (uint8_t *)copy, sizeof(value));
 }
@@ -228,8 +224,6 @@ int fw_cfg_add_i64(void *opaque, uint16_t key, uint64_t value)
     uint64_t *copy;
 
     copy = qemu_malloc(sizeof(value));
-    if (!copy)
-        return 0;
     *copy = cpu_to_le64(value);
     return fw_cfg_add_bytes(opaque, key, (uint8_t *)copy, sizeof(value));
 }
@@ -263,8 +257,6 @@ void *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     int io_ctl_memory, io_data_memory;
 
     s = qemu_mallocz(sizeof(FWCfgState));
-    if (!s)
-        return NULL;
 
     if (ctl_port) {
         register_ioport_write(ctl_port, 2, 2, fw_cfg_io_writew, s);

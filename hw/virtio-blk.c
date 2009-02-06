@@ -104,8 +104,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
 static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 {
     VirtIOBlockReq *req = qemu_mallocz(sizeof(*req));
-    if (req != NULL)
-        req->dev = s;
+    req->dev = s;
     return req;
 }
 

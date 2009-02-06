@@ -67,11 +67,9 @@ static void add_to_key_range(struct key_range **krp, int code) {
     }
     if (kr == NULL) {
 	kr = qemu_mallocz(sizeof(*kr));
-	if (kr) {
-	    kr->start = kr->end = code;
-	    kr->next = *krp;
-	    *krp = kr;
-	}
+        kr->start = kr->end = code;
+        kr->next = *krp;
+        *krp = kr;
     }
 }
 
@@ -88,8 +86,6 @@ static kbd_layout_t *parse_keyboard_layout(const char *language,
 
     if (!k)
 	k = qemu_mallocz(sizeof(kbd_layout_t));
-    if (!k)
-        return 0;
     if (!(f = fopen(file_name, "r"))) {
 	fprintf(stderr,
 		"Could not read keymap file: '%s'\n", file_name);

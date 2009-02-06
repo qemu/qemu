@@ -16,17 +16,30 @@
 #include "qemu-timer.h"
 #include "virtio-net.h"
 
+#define VIRTIO_NET_VM_VERSION    6
+
+#define MAC_TABLE_ENTRIES    32
+#define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
+
 typedef struct VirtIONet
 {
     VirtIODevice vdev;
-    uint8_t mac[6];
+    uint8_t mac[ETH_ALEN];
     uint16_t status;
     VirtQueue *rx_vq;
     VirtQueue *tx_vq;
+    VirtQueue *ctrl_vq;
     VLANClientState *vc;
     QEMUTimer *tx_timer;
     int tx_timer_active;
     int mergeable_rx_bufs;
+    int promisc;
+    int allmulti;
+    struct {
+        int in_use;
+        uint8_t *macs;
+    } mac_table;
+    uint32_t *vlans;
 } VirtIONet;
 
 /* TODO
@@ -38,14 +51,27 @@ static VirtIONet *to_virtio_net(VirtIODevice *vdev)
     return (VirtIONet *)vdev;
 }
 
-static void virtio_net_update_config(VirtIODevice *vdev, uint8_t *config)
+static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIONet *n = to_virtio_net(vdev);
     struct virtio_net_config netcfg;
 
     netcfg.status = n->status;
-    memcpy(netcfg.mac, n->mac, 6);
+    memcpy(netcfg.mac, n->mac, ETH_ALEN);
     memcpy(config, &netcfg, sizeof(netcfg));
+}
+
+static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
+{
+    VirtIONet *n = to_virtio_net(vdev);
+    struct virtio_net_config netcfg;
+
+    memcpy(&netcfg, config, sizeof(netcfg));
+
+    if (memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
+        memcpy(n->mac, netcfg.mac, ETH_ALEN);
+        qemu_format_nic_info_str(n->vc, n->mac);
+    }
 }
 
 static void virtio_net_set_link_status(VLANClientState *vc)
@@ -62,9 +88,27 @@ static void virtio_net_set_link_status(VLANClientState *vc)
         virtio_notify_config(&n->vdev);
 }
 
+static void virtio_net_reset(VirtIODevice *vdev)
+{
+    VirtIONet *n = to_virtio_net(vdev);
+
+    /* Reset back to compatibility mode */
+    n->promisc = 1;
+    n->allmulti = 0;
+
+    /* Flush any MAC and VLAN filter table state */
+    n->mac_table.in_use = 0;
+    memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
+    memset(n->vlans, 0, MAX_VLAN >> 3);
+}
+
 static uint32_t virtio_net_get_features(VirtIODevice *vdev)
 {
-    uint32_t features = (1 << VIRTIO_NET_F_MAC) | (1 << VIRTIO_NET_F_STATUS);
+    uint32_t features = (1 << VIRTIO_NET_F_MAC) |
+                        (1 << VIRTIO_NET_F_STATUS) |
+                        (1 << VIRTIO_NET_F_CTRL_VQ) |
+                        (1 << VIRTIO_NET_F_CTRL_RX) |
+                        (1 << VIRTIO_NET_F_CTRL_VLAN);
 
     return features;
 }
@@ -74,6 +118,136 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
     VirtIONet *n = to_virtio_net(vdev);
 
     n->mergeable_rx_bufs = !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF));
+}
+
+static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
+                                     VirtQueueElement *elem)
+{
+    uint8_t on;
+
+    if (elem->out_num != 2 || elem->out_sg[1].iov_len != sizeof(on)) {
+        fprintf(stderr, "virtio-net ctrl invalid rx mode command\n");
+        exit(1);
+    }
+
+    on = ldub_p(elem->out_sg[1].iov_base);
+
+    if (cmd == VIRTIO_NET_CTRL_RX_MODE_PROMISC)
+        n->promisc = on;
+    else if (cmd == VIRTIO_NET_CTRL_RX_MODE_ALLMULTI)
+        n->allmulti = on;
+    else
+        return VIRTIO_NET_ERR;
+
+    return VIRTIO_NET_OK;
+}
+
+static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
+                                 VirtQueueElement *elem)
+{
+    struct virtio_net_ctrl_mac mac_data;
+
+    if (cmd != VIRTIO_NET_CTRL_MAC_TABLE_SET || elem->out_num != 3 ||
+        elem->out_sg[1].iov_len < sizeof(mac_data) ||
+        elem->out_sg[2].iov_len < sizeof(mac_data))
+        return VIRTIO_NET_ERR;
+
+    n->mac_table.in_use = 0;
+    memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
+
+    mac_data.entries = ldl_le_p(elem->out_sg[1].iov_base);
+
+    if (sizeof(mac_data.entries) +
+        (mac_data.entries * ETH_ALEN) > elem->out_sg[1].iov_len)
+        return VIRTIO_NET_ERR;
+
+    if (mac_data.entries <= MAC_TABLE_ENTRIES) {
+        memcpy(n->mac_table.macs, elem->out_sg[1].iov_base + sizeof(mac_data),
+               mac_data.entries * ETH_ALEN);
+        n->mac_table.in_use += mac_data.entries;
+    } else {
+        n->promisc = 1;
+        return VIRTIO_NET_OK;
+    }
+
+    mac_data.entries = ldl_le_p(elem->out_sg[2].iov_base);
+
+    if (sizeof(mac_data.entries) +
+        (mac_data.entries * ETH_ALEN) > elem->out_sg[2].iov_len)
+        return VIRTIO_NET_ERR;
+
+    if (mac_data.entries) {
+        if (n->mac_table.in_use + mac_data.entries <= MAC_TABLE_ENTRIES) {
+            memcpy(n->mac_table.macs + (n->mac_table.in_use * ETH_ALEN),
+                   elem->out_sg[2].iov_base + sizeof(mac_data),
+                   mac_data.entries * ETH_ALEN);
+            n->mac_table.in_use += mac_data.entries;
+        } else
+            n->allmulti = 1;
+    }
+
+    return VIRTIO_NET_OK;
+}
+
+static int virtio_net_handle_vlan_table(VirtIONet *n, uint8_t cmd,
+                                        VirtQueueElement *elem)
+{
+    uint16_t vid;
+
+    if (elem->out_num != 2 || elem->out_sg[1].iov_len != sizeof(vid)) {
+        fprintf(stderr, "virtio-net ctrl invalid vlan command\n");
+        return VIRTIO_NET_ERR;
+    }
+
+    vid = lduw_le_p(elem->out_sg[1].iov_base);
+
+    if (vid >= MAX_VLAN)
+        return VIRTIO_NET_ERR;
+
+    if (cmd == VIRTIO_NET_CTRL_VLAN_ADD)
+        n->vlans[vid >> 5] |= (1U << (vid & 0x1f));
+    else if (cmd == VIRTIO_NET_CTRL_VLAN_DEL)
+        n->vlans[vid >> 5] &= ~(1U << (vid & 0x1f));
+    else
+        return VIRTIO_NET_ERR;
+
+    return VIRTIO_NET_OK;
+}
+
+static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIONet *n = to_virtio_net(vdev);
+    struct virtio_net_ctrl_hdr ctrl;
+    virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
+    VirtQueueElement elem;
+
+    while (virtqueue_pop(vq, &elem)) {
+        if ((elem.in_num < 1) || (elem.out_num < 1)) {
+            fprintf(stderr, "virtio-net ctrl missing headers\n");
+            exit(1);
+        }
+
+        if (elem.out_sg[0].iov_len < sizeof(ctrl) ||
+            elem.out_sg[elem.in_num - 1].iov_len < sizeof(status)) {
+            fprintf(stderr, "virtio-net ctrl header not in correct element\n");
+            exit(1);
+        }
+
+        ctrl.class = ldub_p(elem.out_sg[0].iov_base);
+        ctrl.cmd = ldub_p(elem.out_sg[0].iov_base + sizeof(ctrl.class));
+
+        if (ctrl.class == VIRTIO_NET_CTRL_RX_MODE)
+            status = virtio_net_handle_rx_mode(n, ctrl.cmd, &elem);
+        else if (ctrl.class == VIRTIO_NET_CTRL_MAC)
+            status = virtio_net_handle_mac(n, ctrl.cmd, &elem);
+        else if (ctrl.class == VIRTIO_NET_CTRL_VLAN)
+            status = virtio_net_handle_vlan_table(n, ctrl.cmd, &elem);
+
+        stb_p(elem.in_sg[elem.in_num - 1].iov_base, status);
+
+        virtqueue_push(vq, &elem, sizeof(status));
+        virtio_notify(vdev, vq);
+    }
 }
 
 /* RX */
@@ -139,6 +313,44 @@ static int receive_header(VirtIONet *n, struct iovec *iov, int iovcnt,
     return offset;
 }
 
+static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
+{
+    static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    static const uint8_t vlan[] = {0x81, 0x00};
+    uint8_t *ptr = (uint8_t *)buf;
+    int i;
+
+    if (n->promisc)
+        return 1;
+
+#ifdef TAP_VNET_HDR
+    if (tap_has_vnet_hdr(n->vc->vlan->first_client))
+        ptr += sizeof(struct virtio_net_hdr);
+#endif
+
+    if (!memcmp(&ptr[12], vlan, sizeof(vlan))) {
+        int vid = be16_to_cpup((uint16_t *)(ptr + 14)) & 0xfff;
+        if (!(n->vlans[vid >> 5] & (1U << (vid & 0x1f))))
+            return 0;
+    }
+
+    if ((ptr[0] & 1) && n->allmulti)
+        return 1;
+
+    if (!memcmp(ptr, bcast, sizeof(bcast)))
+        return 1;
+
+    if (!memcmp(ptr, n->mac, ETH_ALEN))
+        return 1;
+
+    for (i = 0; i < n->mac_table.in_use; i++) {
+        if (!memcmp(ptr, &n->mac_table.macs[i * ETH_ALEN], ETH_ALEN))
+            return 1;
+    }
+
+    return 0;
+}
+
 static void virtio_net_receive(void *opaque, const uint8_t *buf, int size)
 {
     VirtIONet *n = opaque;
@@ -146,6 +358,9 @@ static void virtio_net_receive(void *opaque, const uint8_t *buf, int size)
     size_t hdr_len, offset, i;
 
     if (!do_virtio_net_can_receive(n, size))
+        return;
+
+    if (!receive_filter(n, buf, size))
         return;
 
     /* hdr_len refers to the header we supply to the guest */
@@ -289,23 +504,53 @@ static void virtio_net_save(QEMUFile *f, void *opaque)
 
     virtio_save(&n->vdev, f);
 
-    qemu_put_buffer(f, n->mac, 6);
+    qemu_put_buffer(f, n->mac, ETH_ALEN);
     qemu_put_be32(f, n->tx_timer_active);
     qemu_put_be32(f, n->mergeable_rx_bufs);
+    qemu_put_be16(f, n->status);
+    qemu_put_be32(f, n->promisc);
+    qemu_put_be32(f, n->allmulti);
+    qemu_put_be32(f, n->mac_table.in_use);
+    qemu_put_buffer(f, n->mac_table.macs, n->mac_table.in_use * ETH_ALEN);
+    qemu_put_buffer(f, (uint8_t *)n->vlans, MAX_VLAN >> 3);
 }
 
 static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
 
-    if (version_id != 2)
+    if (version_id < 2 || version_id > VIRTIO_NET_VM_VERSION)
         return -EINVAL;
 
     virtio_load(&n->vdev, f);
 
-    qemu_get_buffer(f, n->mac, 6);
+    qemu_get_buffer(f, n->mac, ETH_ALEN);
     n->tx_timer_active = qemu_get_be32(f);
     n->mergeable_rx_bufs = qemu_get_be32(f);
+
+    if (version_id >= 3)
+        n->status = qemu_get_be16(f);
+
+    if (version_id >= 4) {
+        n->promisc = qemu_get_be32(f);
+        n->allmulti = qemu_get_be32(f);
+    }
+
+    if (version_id >= 5) {
+        n->mac_table.in_use = qemu_get_be32(f);
+        /* MAC_TABLE_ENTRIES may be different from the saved image */
+        if (n->mac_table.in_use <= MAC_TABLE_ENTRIES) {
+            qemu_get_buffer(f, n->mac_table.macs,
+                            n->mac_table.in_use * ETH_ALEN);
+        } else if (n->mac_table.in_use) {
+            qemu_fseek(f, n->mac_table.in_use * ETH_ALEN, SEEK_CUR);
+            n->promisc = 1;
+            n->mac_table.in_use = 0;
+        }
+    }
+ 
+    if (version_id >= 6)
+        qemu_get_buffer(f, (uint8_t *)n->vlans, MAX_VLAN >> 3);
 
     if (n->tx_timer_active) {
         qemu_mod_timer(n->tx_timer,
@@ -331,12 +576,15 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     if (!n)
         return;
 
-    n->vdev.get_config = virtio_net_update_config;
+    n->vdev.get_config = virtio_net_get_config;
+    n->vdev.set_config = virtio_net_set_config;
     n->vdev.get_features = virtio_net_get_features;
     n->vdev.set_features = virtio_net_set_features;
+    n->vdev.reset = virtio_net_reset;
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
-    memcpy(n->mac, nd->macaddr, 6);
+    n->ctrl_vq = virtio_add_queue(&n->vdev, 16, virtio_net_handle_ctrl);
+    memcpy(n->mac, nd->macaddr, ETH_ALEN);
     n->status = VIRTIO_NET_S_LINK_UP;
     n->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                  virtio_net_receive, virtio_net_can_receive, n);
@@ -347,7 +595,16 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->tx_timer = qemu_new_timer(vm_clock, virtio_net_tx_timer, n);
     n->tx_timer_active = 0;
     n->mergeable_rx_bufs = 0;
+    n->promisc = 1; /* for compatibility */
 
-    register_savevm("virtio-net", virtio_net_id++, 2,
+    n->mac_table.macs = qemu_mallocz(MAC_TABLE_ENTRIES * ETH_ALEN);
+    if (!n->mac_table.macs)
+        return;
+
+    n->vlans = qemu_mallocz(MAX_VLAN >> 3);
+    if (!n->vlans)
+        return;
+
+    register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
 }

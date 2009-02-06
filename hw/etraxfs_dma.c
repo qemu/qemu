@@ -756,22 +756,14 @@ void *etraxfs_dmac_init(CPUState *env,
 	struct fs_dma_ctrl *ctrl = NULL;
 
 	ctrl = qemu_mallocz(sizeof *ctrl);
-	if (!ctrl)
-		return NULL;
 
         ctrl->bh = qemu_bh_new(DMA_run, ctrl);
 
 	ctrl->env = env;
 	ctrl->nr_channels = nr_channels;
 	ctrl->channels = qemu_mallocz(sizeof ctrl->channels[0] * nr_channels);
-	if (!ctrl->channels)
-		goto err;
 
 	ctrl->map = cpu_register_io_memory(0, dma_read, dma_write, ctrl);
 	cpu_register_physical_memory(base, nr_channels * 0x2000, ctrl->map);
 	return ctrl;
-  err:
-	qemu_free(ctrl->channels);
-	qemu_free(ctrl);
-	return NULL;
 }

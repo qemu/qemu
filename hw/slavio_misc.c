@@ -446,8 +446,6 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
     MiscState *s;
 
     s = qemu_mallocz(sizeof(MiscState));
-    if (!s)
-        return NULL;
 
     if (base) {
         /* 8 bit registers */

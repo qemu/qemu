@@ -340,8 +340,6 @@ USBDevice *usb_host_device_open(const char *devname)
 
     if (dfd >= 0) {
         dev = qemu_mallocz(sizeof(USBHostDevice));
-        if (!dev)
-            goto fail;
         dev->devfd = dfd;
 
         if (ioctl(dfd, USB_GET_DEVICEINFO, &dev_info) < 0) {

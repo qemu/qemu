@@ -204,8 +204,6 @@ void *sun4c_intctl_init(target_phys_addr_t addr, qemu_irq **irq,
     Sun4c_INTCTLState *s;
 
     s = qemu_mallocz(sizeof(Sun4c_INTCTLState));
-    if (!s)
-        return NULL;
 
     sun4c_intctl_io_memory = cpu_register_io_memory(0, sun4c_intctl_mem_read,
                                                     sun4c_intctl_mem_write, s);

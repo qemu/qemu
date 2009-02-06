@@ -443,13 +443,9 @@ static i2c_interface *musicpal_audio_init(uint32_t base, qemu_irq irq)
     }
 
     s = qemu_mallocz(sizeof(musicpal_audio_state));
-    if (!s)
-        return NULL;
     s->irq = irq;
 
     i2c = qemu_mallocz(sizeof(i2c_interface));
-    if (!i2c)
-        return NULL;
     i2c->bus = i2c_init_bus();
     i2c->current_addr = -1;
 
@@ -717,8 +713,6 @@ static void mv88w8618_eth_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     qemu_check_nic_model(nd, "mv88w8618");
 
     s = qemu_mallocz(sizeof(mv88w8618_eth_state));
-    if (!s)
-        return;
     s->irq = irq;
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                  eth_receive, eth_can_receive, s);
@@ -911,8 +905,6 @@ static void musicpal_lcd_init(uint32_t base)
     int iomemtype;
 
     s = qemu_mallocz(sizeof(musicpal_lcd_state));
-    if (!s)
-        return;
     iomemtype = cpu_register_io_memory(0, musicpal_lcd_readfn,
                                        musicpal_lcd_writefn, s);
     cpu_register_physical_memory(base, MP_LCD_SIZE, iomemtype);
@@ -1008,8 +1000,6 @@ static qemu_irq *mv88w8618_pic_init(uint32_t base, qemu_irq parent_irq)
     qemu_irq *qi;
 
     s = qemu_mallocz(sizeof(mv88w8618_pic_state));
-    if (!s)
-        return NULL;
     qi = qemu_allocate_irqs(mv88w8618_pic_set_irq, s, 32);
     s->parent_irq = parent_irq;
     iomemtype = cpu_register_io_memory(0, mv88w8618_pic_readfn,
@@ -1134,8 +1124,6 @@ static void mv88w8618_pit_init(uint32_t base, qemu_irq *pic, int irq)
     mv88w8618_pit_state *s;
 
     s = qemu_mallocz(sizeof(mv88w8618_pit_state));
-    if (!s)
-        return;
 
     /* Letting them all run at 1 MHz is likely just a pragmatic
      * simplification. */
@@ -1200,8 +1188,6 @@ static void mv88w8618_flashcfg_init(uint32_t base)
     mv88w8618_flashcfg_state *s;
 
     s = qemu_mallocz(sizeof(mv88w8618_flashcfg_state));
-    if (!s)
-        return;
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
     iomemtype = cpu_register_io_memory(0, mv88w8618_flashcfg_readfn,

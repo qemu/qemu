@@ -129,6 +129,12 @@ void qemu_iovec_destroy(QEMUIOVector *qiov)
     qemu_free(qiov->iov);
 }
 
+void qemu_iovec_reset(QEMUIOVector *qiov)
+{
+    qiov->niov = 0;
+    qiov->size = 0;
+}
+
 void qemu_iovec_to_buffer(QEMUIOVector *qiov, void *buf)
 {
     uint8_t *p = (uint8_t *)buf;

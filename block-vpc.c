@@ -196,8 +196,6 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 
     s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
     s->pagetable = qemu_malloc(s->max_table_entries * 4);
-    if (!s->pagetable)
-        goto fail;
 
     s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
     if (bdrv_pread(s->hd, s->bat_offset, s->pagetable,
@@ -222,8 +220,6 @@ static int vpc_open(BlockDriverState *bs, const char *filename, int flags)
 
 #ifdef CACHE
     s->pageentry_u8 = qemu_malloc(512);
-    if (!s->pageentry_u8)
-	goto fail;
     s->pageentry_u32 = s->pageentry_u8;
     s->pageentry_u16 = s->pageentry_u8;
     s->last_pagetable = -1;

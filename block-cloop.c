@@ -75,8 +75,7 @@ cloop_close:
 
     /* read offsets */
     offsets_size=s->n_blocks*sizeof(uint64_t);
-    if(!(s->offsets=(uint64_t*)malloc(offsets_size)))
-	goto cloop_close;
+    s->offsets=(uint64_t*)qemu_malloc(offsets_size);
     if(read(s->fd,s->offsets,offsets_size)<offsets_size)
 	goto cloop_close;
     for(i=0;i<s->n_blocks;i++) {
@@ -89,10 +88,8 @@ cloop_close:
     }
 
     /* initialize zlib engine */
-    if(!(s->compressed_block = malloc(max_compressed_block_size+1)))
-	goto cloop_close;
-    if(!(s->uncompressed_block = malloc(s->block_size)))
-	goto cloop_close;
+    s->compressed_block = qemu_malloc(max_compressed_block_size+1);
+    s->uncompressed_block = qemu_malloc(s->block_size);
     if(inflateInit(&s->zstream) != Z_OK)
 	goto cloop_close;
     s->current_block=s->n_blocks;

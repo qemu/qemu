@@ -43,10 +43,6 @@ void *load_device_tree(const char *filename_path, void *load_addr)
 
     /* First allocate space in qemu for device tree */
     dt_file = qemu_mallocz(dt_file_size);
-    if (dt_file == NULL) {
-        printf("Unable to allocate memory in qemu for device tree\n");
-        goto fail;
-    }
 
     dt_file_load_size = load_image(filename_path, dt_file);
 

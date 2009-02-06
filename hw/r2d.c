@@ -170,8 +170,6 @@ static qemu_irq *r2d_fpga_init(target_phys_addr_t base, qemu_irq irl)
     r2d_fpga_t *s;
 
     s = qemu_mallocz(sizeof(r2d_fpga_t));
-    if (!s)
-        return NULL;
 
     s->irl = irl;
 

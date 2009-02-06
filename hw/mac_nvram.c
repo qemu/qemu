@@ -132,13 +132,7 @@ MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size)
     MacIONVRAMState *s;
 
     s = qemu_mallocz(sizeof(MacIONVRAMState));
-    if (!s)
-        return NULL;
     s->data = qemu_mallocz(size);
-    if (!s->data) {
-        qemu_free(s);
-	return NULL;
-    }
     s->size = size;
 
     s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);

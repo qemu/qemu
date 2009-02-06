@@ -277,8 +277,6 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model)
     if (!def)
 	return NULL;
     env = qemu_mallocz(sizeof(CPUSH4State));
-    if (!env)
-	return NULL;
     env->features = def->features;
     cpu_exec_init(env);
     sh4_translate_init();

@@ -445,8 +445,6 @@ ParallelState *parallel_init(int base, qemu_irq irq, CharDriverState *chr)
     uint8_t dummy;
 
     s = qemu_mallocz(sizeof(ParallelState));
-    if (!s)
-        return NULL;
     s->irq = irq;
     s->chr = chr;
     parallel_reset(s);
@@ -539,8 +537,6 @@ ParallelState *parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq 
     int io_sw;
 
     s = qemu_mallocz(sizeof(ParallelState));
-    if (!s)
-        return NULL;
     s->irq = irq;
     s->chr = chr;
     s->it_shift = it_shift;

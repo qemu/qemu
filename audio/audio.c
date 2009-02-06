@@ -197,8 +197,8 @@ void *audio_calloc (const char *funcname, int nmemb, size_t size)
 static char *audio_alloc_prefix (const char *s)
 {
     const char qemu_prefix[] = "QEMU_";
-    size_t len;
-    char *r;
+    size_t len, i;
+    char *r, *u;
 
     if (!s) {
         return NULL;
@@ -207,17 +207,15 @@ static char *audio_alloc_prefix (const char *s)
     len = strlen (s);
     r = qemu_malloc (len + sizeof (qemu_prefix));
 
-    if (r) {
-        size_t i;
-        char *u = r + sizeof (qemu_prefix) - 1;
+    u = r + sizeof (qemu_prefix) - 1;
 
-        pstrcpy (r, len + sizeof (qemu_prefix), qemu_prefix);
-        pstrcat (r, len + sizeof (qemu_prefix), s);
+    pstrcpy (r, len + sizeof (qemu_prefix), qemu_prefix);
+    pstrcat (r, len + sizeof (qemu_prefix), s);
 
-        for (i = 0; i < len; ++i) {
-            u[i] = qemu_toupper(u[i]);
-        }
+    for (i = 0; i < len; ++i) {
+        u[i] = qemu_toupper(u[i]);
     }
+
     return r;
 }
 
@@ -460,11 +458,6 @@ static void audio_process_options (const char *prefix,
          * sizeof) */
         optlen = len + preflen + sizeof (qemu_prefix) + 1;
         optname = qemu_malloc (optlen);
-        if (!optname) {
-            dolog ("Could not allocate memory for option name `%s'\n",
-                   opt->name);
-            continue;
-        }
 
         pstrcpy (optname, optlen, qemu_prefix);
 

@@ -530,8 +530,6 @@ USBDevice *usb_hub_init(int nb_ports)
     if (nb_ports > MAX_PORTS)
         return NULL;
     s = qemu_mallocz(sizeof(USBHubState));
-    if (!s)
-        return NULL;
     s->dev.speed = USB_SPEED_FULL;
     s->dev.handle_packet = usb_hub_handle_packet;
 

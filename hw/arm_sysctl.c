@@ -194,8 +194,6 @@ void arm_sysctl_init(uint32_t base, uint32_t sys_id)
     int iomemtype;
 
     s = (arm_sysctl_state *)qemu_mallocz(sizeof(arm_sysctl_state));
-    if (!s)
-        return;
     s->sys_id = sys_id;
     /* The MPcore bootloader uses these flags to start secondary CPUs.
        We don't use a bootloader, so do this here.  */

@@ -1430,8 +1430,6 @@ USBDevice *usb_net_init(NICInfo *nd)
     USBNetState *s;
 
     s = qemu_mallocz(sizeof(USBNetState));
-    if (!s)
-        return NULL;
     s->dev.speed = USB_SPEED_FULL;
     s->dev.handle_packet = usb_generic_handle_packet;
 

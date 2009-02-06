@@ -369,8 +369,6 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     uint8_t *pci_conf;
 
     controller = qemu_mallocz(sizeof(PPC4xxPCIState));
-    if (!controller)
-        return NULL;
 
     controller->pci_state.bus = pci_register_bus(ppc4xx_pci_set_irq,
                                                  ppc4xx_pci_map_irq,

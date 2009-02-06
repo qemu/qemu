@@ -37,6 +37,7 @@ static void ppc_init_cacheline_sizes(char **envp)
 }
 
 #elif defined __APPLE__
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -46,6 +47,7 @@ static void ppc_init_cacheline_sizes(void)
     unsigned cacheline;
     int name[2] = { CTL_HW, HW_CACHELINE };
 
+    len = sizeof(cacheline);
     if (sysctl(name, 2, &cacheline, &len, NULL, 0)) {
         perror("sysctl CTL_HW HW_CACHELINE failed");
     } else {

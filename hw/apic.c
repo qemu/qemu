@@ -898,8 +898,6 @@ int apic_init(CPUState *env)
     if (last_apic_id >= MAX_APICS)
         return -1;
     s = qemu_mallocz(sizeof(APICState));
-    if (!s)
-        return -1;
     env->apic_state = s;
     s->id = last_apic_id++;
     env->cpuid_apic_id = s->id;
@@ -1124,8 +1122,6 @@ IOAPICState *ioapic_init(void)
     int io_memory;
 
     s = qemu_mallocz(sizeof(IOAPICState));
-    if (!s)
-        return NULL;
     ioapic_reset(s);
     s->id = last_apic_id++;
 

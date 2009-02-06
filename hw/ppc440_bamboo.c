@@ -42,8 +42,6 @@ static void *bamboo_load_device_tree(void *addr,
 
     pathlen = snprintf(NULL, 0, "%s/%s", bios_dir, BINARY_DEVICE_TREE_FILE) + 1;
     path = qemu_malloc(pathlen);
-    if (path == NULL)
-        return NULL;
 
     snprintf(path, pathlen, "%s/%s", bios_dir, BINARY_DEVICE_TREE_FILE);
 

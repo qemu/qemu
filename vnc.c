@@ -471,8 +471,8 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
     int has_fg, has_bg;
     uint8_t *last_fg, *last_bg;
 
-    last_fg = (uint8_t *) malloc(vs->serverds.pf.bytes_per_pixel);
-    last_bg = (uint8_t *) malloc(vs->serverds.pf.bytes_per_pixel);
+    last_fg = (uint8_t *) qemu_malloc(vs->serverds.pf.bytes_per_pixel);
+    last_bg = (uint8_t *) qemu_malloc(vs->serverds.pf.bytes_per_pixel);
     has_fg = has_bg = 0;
     for (j = y; j < (y + h); j += 16) {
 	for (i = x; i < (x + w); i += 16) {
@@ -2237,8 +2237,6 @@ void vnc_display_init(DisplayState *ds)
 
     vs = qemu_mallocz(sizeof(VncState));
     dcl = qemu_mallocz(sizeof(DisplayChangeListener));
-    if (!vs || !dcl)
-	exit(1);
 
     ds->opaque = vs;
     dcl->idle = 1;
@@ -2289,8 +2287,7 @@ static int vnc_set_x509_credential(VncState *vs,
 	*cred = NULL;
     }
 
-    if (!(*cred = qemu_malloc(strlen(certdir) + strlen(filename) + 2)))
-	return -1;
+    *cred = qemu_malloc(strlen(certdir) + strlen(filename) + 2);
 
     strcpy(*cred, certdir);
     strcat(*cred, "/");

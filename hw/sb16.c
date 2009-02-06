@@ -1411,11 +1411,6 @@ int SB16_init (AudioState *audio, qemu_irq *pic)
     }
 
     s = qemu_mallocz (sizeof (*s));
-    if (!s) {
-        dolog ("Could not allocate memory for SB16 (%zu bytes)\n",
-               sizeof (*s));
-        return -1;
-    }
 
     s->cmd = -1;
     s->pic = pic;

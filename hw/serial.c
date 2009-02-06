@@ -749,8 +749,6 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     //~ fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
 
     s = qemu_mallocz(sizeof(SerialState));
-    if (!s)
-        return NULL;
 
     s->base = base;
     s->it_shift = 0;
@@ -848,8 +846,6 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     //~ fprintf(stderr, "%s()\n", __func__);
 
     s = qemu_mallocz(sizeof(SerialState));
-    if (!s)
-        return NULL;
 
     s->base = base;
     s->it_shift = it_shift;

@@ -2057,6 +2057,53 @@ float32 float32_sqrt( float32 a STATUS_PARAM )
 }
 
 /*----------------------------------------------------------------------------
+| Returns the binary log of the single-precision floating-point value `a'.
+| The operation is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+float32 float32_log2( float32 a STATUS_PARAM )
+{
+    flag aSign, zSign;
+    int16 aExp;
+    bits32 aSig, zSig, i;
+
+    aSig = extractFloat32Frac( a );
+    aExp = extractFloat32Exp( a );
+    aSign = extractFloat32Sign( a );
+
+    if ( aExp == 0 ) {
+        if ( aSig == 0 ) return packFloat32( 1, 0xFF, 0 );
+        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
+    }
+    if ( aSign ) {
+        float_raise( float_flag_invalid STATUS_VAR);
+        return float32_default_nan;
+    }
+    if ( aExp == 0xFF ) {
+        if ( aSig ) return propagateFloat32NaN( a, float32_zero STATUS_VAR );
+        return a;
+    }
+
+    aExp -= 0x7F;
+    aSig |= 0x00800000;
+    zSign = aExp < 0;
+    zSig = aExp << 23;
+
+    for (i = 1 << 22; i > 0; i >>= 1) {
+        aSig = ( (bits64)aSig * aSig ) >> 23;
+        if ( aSig & 0x01000000 ) {
+            aSig >>= 1;
+            zSig |= i;
+        }
+    }
+
+    if ( zSign )
+        zSig = -zSig;
+
+    return normalizeRoundAndPackFloat32( zSign, 0x85, zSig STATUS_VAR );
+}
+
+/*----------------------------------------------------------------------------
 | Returns 1 if the single-precision floating-point value `a' is equal to
 | the corresponding value `b', and 0 otherwise.  The comparison is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
@@ -3003,6 +3050,52 @@ float64 float64_sqrt( float64 a STATUS_PARAM )
     }
     return roundAndPackFloat64( 0, zExp, zSig STATUS_VAR );
 
+}
+
+/*----------------------------------------------------------------------------
+| Returns the binary log of the double-precision floating-point value `a'.
+| The operation is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+float64 float64_log2( float64 a STATUS_PARAM )
+{
+    flag aSign, zSign;
+    int16 aExp;
+    bits64 aSig, aSig0, aSig1, zSig, i;
+
+    aSig = extractFloat64Frac( a );
+    aExp = extractFloat64Exp( a );
+    aSign = extractFloat64Sign( a );
+
+    if ( aExp == 0 ) {
+        if ( aSig == 0 ) return packFloat64( 1, 0x7FF, 0 );
+        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
+    }
+    if ( aSign ) {
+        float_raise( float_flag_invalid STATUS_VAR);
+        return float64_default_nan;
+    }
+    if ( aExp == 0x7FF ) {
+        if ( aSig ) return propagateFloat64NaN( a, float64_zero STATUS_VAR );
+        return a;
+    }
+
+    aExp -= 0x3FF;
+    aSig |= LIT64( 0x0010000000000000 );
+    zSign = aExp < 0;
+    zSig = (bits64)aExp << 52;
+    for (i = 1LL << 51; i > 0; i >>= 1) {
+        mul64To128( aSig, aSig, &aSig0, &aSig1 );
+        aSig = ( aSig0 << 12 ) | ( aSig1 >> 52 );
+        if ( aSig & LIT64( 0x0020000000000000 ) ) {
+            aSig >>= 1;
+            zSig |= i;
+        }
+    }
+
+    if ( zSign )
+        zSig = -zSig;
+    return normalizeRoundAndPackFloat64( zSign, 0x408, zSig STATUS_VAR );
 }
 
 /*----------------------------------------------------------------------------

@@ -193,8 +193,6 @@ void pl031_init(uint32_t base, qemu_irq irq)
     struct tm tm;
 
     s = qemu_mallocz(sizeof(pl031_state));
-    if (!s)
-        cpu_abort(cpu_single_env, "pl031_init: Out of memory\n");
 
     iomemtype = cpu_register_io_memory(0, pl031_readfn, pl031_writefn, s);
     if (iomemtype == -1)

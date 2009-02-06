@@ -851,8 +851,6 @@ USBDevice *usb_tablet_init(void)
     USBHIDState *s;
 
     s = qemu_mallocz(sizeof(USBHIDState));
-    if (!s)
-        return NULL;
     s->dev.speed = USB_SPEED_FULL;
     s->dev.handle_packet = usb_generic_handle_packet;
 
@@ -874,8 +872,6 @@ USBDevice *usb_mouse_init(void)
     USBHIDState *s;
 
     s = qemu_mallocz(sizeof(USBHIDState));
-    if (!s)
-        return NULL;
     s->dev.speed = USB_SPEED_FULL;
     s->dev.handle_packet = usb_generic_handle_packet;
 
@@ -897,8 +893,6 @@ USBDevice *usb_keyboard_init(void)
     USBHIDState *s;
 
     s = qemu_mallocz(sizeof(USBHIDState));
-    if (!s)
-        return NULL;
     s->dev.speed = USB_SPEED_FULL;
     s->dev.handle_packet = usb_generic_handle_packet;
 

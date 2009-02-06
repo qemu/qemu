@@ -1866,13 +1866,7 @@ static fdctrl_t *fdctrl_init_common (qemu_irq irq, int dma_chann,
 
     FLOPPY_DPRINTF("init controller\n");
     fdctrl = qemu_mallocz(sizeof(fdctrl_t));
-    if (!fdctrl)
-        return NULL;
     fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
-    if (fdctrl->fifo == NULL) {
-        qemu_free(fdctrl);
-        return NULL;
-    }
     fdctrl->result_timer = qemu_new_timer(vm_clock,
                                           fdctrl_result_timer, fdctrl);
 

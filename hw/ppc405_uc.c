@@ -169,13 +169,11 @@ void ppc4xx_plb_init (CPUState *env)
     ppc4xx_plb_t *plb;
 
     plb = qemu_mallocz(sizeof(ppc4xx_plb_t));
-    if (plb != NULL) {
-        ppc_dcr_register(env, PLB0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
-        ppc_dcr_register(env, PLB0_BEAR, plb, &dcr_read_plb, &dcr_write_plb);
-        ppc_dcr_register(env, PLB0_BESR, plb, &dcr_read_plb, &dcr_write_plb);
-        ppc4xx_plb_reset(plb);
-        qemu_register_reset(ppc4xx_plb_reset, plb);
-    }
+    ppc_dcr_register(env, PLB0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
+    ppc_dcr_register(env, PLB0_BEAR, plb, &dcr_read_plb, &dcr_write_plb);
+    ppc_dcr_register(env, PLB0_BESR, plb, &dcr_read_plb, &dcr_write_plb);
+    ppc4xx_plb_reset(plb);
+    qemu_register_reset(ppc4xx_plb_reset, plb);
 }
 
 /*****************************************************************************/
@@ -248,13 +246,11 @@ void ppc4xx_pob_init (CPUState *env)
     ppc4xx_pob_t *pob;
 
     pob = qemu_mallocz(sizeof(ppc4xx_pob_t));
-    if (pob != NULL) {
-        ppc_dcr_register(env, POB0_BEAR, pob, &dcr_read_pob, &dcr_write_pob);
-        ppc_dcr_register(env, POB0_BESR0, pob, &dcr_read_pob, &dcr_write_pob);
-        ppc_dcr_register(env, POB0_BESR1, pob, &dcr_read_pob, &dcr_write_pob);
-        qemu_register_reset(ppc4xx_pob_reset, pob);
-        ppc4xx_pob_reset(env);
-    }
+    ppc_dcr_register(env, POB0_BEAR, pob, &dcr_read_pob, &dcr_write_pob);
+    ppc_dcr_register(env, POB0_BESR0, pob, &dcr_read_pob, &dcr_write_pob);
+    ppc_dcr_register(env, POB0_BESR1, pob, &dcr_read_pob, &dcr_write_pob);
+    qemu_register_reset(ppc4xx_pob_reset, pob);
+    ppc4xx_pob_reset(env);
 }
 
 /*****************************************************************************/
@@ -384,16 +380,14 @@ void ppc4xx_opba_init (CPUState *env, ppc4xx_mmio_t *mmio,
     ppc4xx_opba_t *opba;
 
     opba = qemu_mallocz(sizeof(ppc4xx_opba_t));
-    if (opba != NULL) {
-        opba->base = offset;
+    opba->base = offset;
 #ifdef DEBUG_OPBA
-        printf("%s: offset " PADDRX "\n", __func__, offset);
+    printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
-        ppc4xx_mmio_register(env, mmio, offset, 0x002,
-                             opba_read, opba_write, opba);
-        qemu_register_reset(ppc4xx_opba_reset, opba);
-        ppc4xx_opba_reset(opba);
-    }
+    ppc4xx_mmio_register(env, mmio, offset, 0x002,
+                         opba_read, opba_write, opba);
+    qemu_register_reset(ppc4xx_opba_reset, opba);
+    ppc4xx_opba_reset(opba);
 }
 
 /*****************************************************************************/
@@ -585,14 +579,12 @@ void ppc405_ebc_init (CPUState *env)
     ppc4xx_ebc_t *ebc;
 
     ebc = qemu_mallocz(sizeof(ppc4xx_ebc_t));
-    if (ebc != NULL) {
-        ebc_reset(ebc);
-        qemu_register_reset(&ebc_reset, ebc);
-        ppc_dcr_register(env, EBC0_CFGADDR,
-                         ebc, &dcr_read_ebc, &dcr_write_ebc);
-        ppc_dcr_register(env, EBC0_CFGDATA,
-                         ebc, &dcr_read_ebc, &dcr_write_ebc);
-    }
+    ebc_reset(ebc);
+    qemu_register_reset(&ebc_reset, ebc);
+    ppc_dcr_register(env, EBC0_CFGADDR,
+                     ebc, &dcr_read_ebc, &dcr_write_ebc);
+    ppc_dcr_register(env, EBC0_CFGDATA,
+                     ebc, &dcr_read_ebc, &dcr_write_ebc);
 }
 
 /*****************************************************************************/
@@ -678,59 +670,57 @@ void ppc405_dma_init (CPUState *env, qemu_irq irqs[4])
     ppc405_dma_t *dma;
 
     dma = qemu_mallocz(sizeof(ppc405_dma_t));
-    if (dma != NULL) {
-        memcpy(dma->irqs, irqs, 4 * sizeof(qemu_irq));
-        ppc405_dma_reset(dma);
-        qemu_register_reset(&ppc405_dma_reset, dma);
-        ppc_dcr_register(env, DMA0_CR0,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_CT0,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_DA0,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SA0,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SG0,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_CR1,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_CT1,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_DA1,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SA1,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SG1,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_CR2,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_CT2,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_DA2,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SA2,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SG2,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_CR3,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_CT3,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_DA3,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SA3,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SG3,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SR,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SGC,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_SLP,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-        ppc_dcr_register(env, DMA0_POL,
-                         dma, &dcr_read_dma, &dcr_write_dma);
-    }
+    memcpy(dma->irqs, irqs, 4 * sizeof(qemu_irq));
+    ppc405_dma_reset(dma);
+    qemu_register_reset(&ppc405_dma_reset, dma);
+    ppc_dcr_register(env, DMA0_CR0,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_CT0,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_DA0,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SA0,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SG0,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_CR1,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_CT1,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_DA1,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SA1,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SG1,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_CR2,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_CT2,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_DA2,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SA2,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SG2,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_CR3,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_CT3,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_DA3,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SA3,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SG3,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SR,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SGC,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_SLP,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, DMA0_POL,
+                     dma, &dcr_read_dma, &dcr_write_dma);
 }
 
 /*****************************************************************************/
@@ -845,16 +835,14 @@ void ppc405_gpio_init (CPUState *env, ppc4xx_mmio_t *mmio,
     ppc405_gpio_t *gpio;
 
     gpio = qemu_mallocz(sizeof(ppc405_gpio_t));
-    if (gpio != NULL) {
-        gpio->base = offset;
-        ppc405_gpio_reset(gpio);
-        qemu_register_reset(&ppc405_gpio_reset, gpio);
+    gpio->base = offset;
+    ppc405_gpio_reset(gpio);
+    qemu_register_reset(&ppc405_gpio_reset, gpio);
 #ifdef DEBUG_GPIO
-        printf("%s: offset " PADDRX "\n", __func__, offset);
+    printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
-        ppc4xx_mmio_register(env, mmio, offset, 0x038,
-                             ppc405_gpio_read, ppc405_gpio_write, gpio);
-    }
+    ppc4xx_mmio_register(env, mmio, offset, 0x038,
+                         ppc405_gpio_read, ppc405_gpio_write, gpio);
 }
 
 /*****************************************************************************/
@@ -1038,19 +1026,17 @@ void ppc405_ocm_init (CPUState *env, unsigned long offset)
     ppc405_ocm_t *ocm;
 
     ocm = qemu_mallocz(sizeof(ppc405_ocm_t));
-    if (ocm != NULL) {
-        ocm->offset = offset;
-        ocm_reset(ocm);
-        qemu_register_reset(&ocm_reset, ocm);
-        ppc_dcr_register(env, OCM0_ISARC,
-                         ocm, &dcr_read_ocm, &dcr_write_ocm);
-        ppc_dcr_register(env, OCM0_ISACNTL,
-                         ocm, &dcr_read_ocm, &dcr_write_ocm);
-        ppc_dcr_register(env, OCM0_DSARC,
-                         ocm, &dcr_read_ocm, &dcr_write_ocm);
-        ppc_dcr_register(env, OCM0_DSACNTL,
-                         ocm, &dcr_read_ocm, &dcr_write_ocm);
-    }
+    ocm->offset = offset;
+    ocm_reset(ocm);
+    qemu_register_reset(&ocm_reset, ocm);
+    ppc_dcr_register(env, OCM0_ISARC,
+                     ocm, &dcr_read_ocm, &dcr_write_ocm);
+    ppc_dcr_register(env, OCM0_ISACNTL,
+                     ocm, &dcr_read_ocm, &dcr_write_ocm);
+    ppc_dcr_register(env, OCM0_DSARC,
+                     ocm, &dcr_read_ocm, &dcr_write_ocm);
+    ppc_dcr_register(env, OCM0_DSACNTL,
+                     ocm, &dcr_read_ocm, &dcr_write_ocm);
 }
 
 /*****************************************************************************/
@@ -1286,17 +1272,15 @@ void ppc405_i2c_init (CPUState *env, ppc4xx_mmio_t *mmio,
     ppc4xx_i2c_t *i2c;
 
     i2c = qemu_mallocz(sizeof(ppc4xx_i2c_t));
-    if (i2c != NULL) {
-        i2c->base = offset;
-        i2c->irq = irq;
-        ppc4xx_i2c_reset(i2c);
+    i2c->base = offset;
+    i2c->irq = irq;
+    ppc4xx_i2c_reset(i2c);
 #ifdef DEBUG_I2C
-        printf("%s: offset " PADDRX "\n", __func__, offset);
+    printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
-        ppc4xx_mmio_register(env, mmio, offset, 0x011,
-                             i2c_read, i2c_write, i2c);
-        qemu_register_reset(ppc4xx_i2c_reset, i2c);
-    }
+    ppc4xx_mmio_register(env, mmio, offset, 0x011,
+                         i2c_read, i2c_write, i2c);
+    qemu_register_reset(ppc4xx_i2c_reset, i2c);
 }
 
 /*****************************************************************************/
@@ -1568,19 +1552,17 @@ void ppc4xx_gpt_init (CPUState *env, ppc4xx_mmio_t *mmio,
     int i;
 
     gpt = qemu_mallocz(sizeof(ppc4xx_gpt_t));
-    if (gpt != NULL) {
-        gpt->base = offset;
-        for (i = 0; i < 5; i++)
-            gpt->irqs[i] = irqs[i];
-        gpt->timer = qemu_new_timer(vm_clock, &ppc4xx_gpt_cb, gpt);
-        ppc4xx_gpt_reset(gpt);
+    gpt->base = offset;
+    for (i = 0; i < 5; i++)
+        gpt->irqs[i] = irqs[i];
+    gpt->timer = qemu_new_timer(vm_clock, &ppc4xx_gpt_cb, gpt);
+    ppc4xx_gpt_reset(gpt);
 #ifdef DEBUG_GPT
-        printf("%s: offset " PADDRX "\n", __func__, offset);
+    printf("%s: offset " PADDRX "\n", __func__, offset);
 #endif
-        ppc4xx_mmio_register(env, mmio, offset, 0x0D4,
-                             gpt_read, gpt_write, gpt);
-        qemu_register_reset(ppc4xx_gpt_reset, gpt);
-    }
+    ppc4xx_mmio_register(env, mmio, offset, 0x0D4,
+                         gpt_read, gpt_write, gpt);
+    qemu_register_reset(ppc4xx_gpt_reset, gpt);
 }
 
 /*****************************************************************************/
@@ -1802,50 +1784,48 @@ void ppc405_mal_init (CPUState *env, qemu_irq irqs[4])
     int i;
 
     mal = qemu_mallocz(sizeof(ppc40x_mal_t));
-    if (mal != NULL) {
-        for (i = 0; i < 4; i++)
-            mal->irqs[i] = irqs[i];
-        ppc40x_mal_reset(mal);
-        qemu_register_reset(&ppc40x_mal_reset, mal);
-        ppc_dcr_register(env, MAL0_CFG,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_ESR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_IER,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_TXCASR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_TXCARR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_TXEOBISR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_TXDEIR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_RXCASR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_RXCARR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_RXEOBISR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_RXDEIR,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_TXCTP0R,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_TXCTP1R,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_TXCTP2R,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_TXCTP3R,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_RXCTP0R,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_RXCTP1R,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_RCBS0,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-        ppc_dcr_register(env, MAL0_RCBS1,
-                         mal, &dcr_read_mal, &dcr_write_mal);
-    }
+    for (i = 0; i < 4; i++)
+        mal->irqs[i] = irqs[i];
+    ppc40x_mal_reset(mal);
+    qemu_register_reset(&ppc40x_mal_reset, mal);
+    ppc_dcr_register(env, MAL0_CFG,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_ESR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_IER,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXCASR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXCARR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXEOBISR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXDEIR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXCASR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXCARR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXEOBISR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXDEIR,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXCTP0R,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXCTP1R,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXCTP2R,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_TXCTP3R,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXCTP0R,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RXCTP1R,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RCBS0,
+                     mal, &dcr_read_mal, &dcr_write_mal);
+    ppc_dcr_register(env, MAL0_RCBS1,
+                     mal, &dcr_read_mal, &dcr_write_mal);
 }
 
 /*****************************************************************************/
@@ -2170,31 +2150,29 @@ static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
     ppc405cr_cpc_t *cpc;
 
     cpc = qemu_mallocz(sizeof(ppc405cr_cpc_t));
-    if (cpc != NULL) {
-        memcpy(cpc->clk_setup, clk_setup,
-               PPC405CR_CLK_NB * sizeof(clk_setup_t));
-        cpc->sysclk = sysclk;
-        cpc->jtagid = 0x42051049;
-        ppc_dcr_register(env, PPC405CR_CPC0_PSR, cpc,
-                         &dcr_read_crcpc, &dcr_write_crcpc);
-        ppc_dcr_register(env, PPC405CR_CPC0_CR0, cpc,
-                         &dcr_read_crcpc, &dcr_write_crcpc);
-        ppc_dcr_register(env, PPC405CR_CPC0_CR1, cpc,
-                         &dcr_read_crcpc, &dcr_write_crcpc);
-        ppc_dcr_register(env, PPC405CR_CPC0_JTAGID, cpc,
-                         &dcr_read_crcpc, &dcr_write_crcpc);
-        ppc_dcr_register(env, PPC405CR_CPC0_PLLMR, cpc,
-                         &dcr_read_crcpc, &dcr_write_crcpc);
-        ppc_dcr_register(env, PPC405CR_CPC0_ER, cpc,
-                         &dcr_read_crcpc, &dcr_write_crcpc);
-        ppc_dcr_register(env, PPC405CR_CPC0_FR, cpc,
-                         &dcr_read_crcpc, &dcr_write_crcpc);
-        ppc_dcr_register(env, PPC405CR_CPC0_SR, cpc,
-                         &dcr_read_crcpc, &dcr_write_crcpc);
-        ppc405cr_clk_init(cpc);
-        qemu_register_reset(ppc405cr_cpc_reset, cpc);
-        ppc405cr_cpc_reset(cpc);
-    }
+    memcpy(cpc->clk_setup, clk_setup,
+           PPC405CR_CLK_NB * sizeof(clk_setup_t));
+    cpc->sysclk = sysclk;
+    cpc->jtagid = 0x42051049;
+    ppc_dcr_register(env, PPC405CR_CPC0_PSR, cpc,
+                     &dcr_read_crcpc, &dcr_write_crcpc);
+    ppc_dcr_register(env, PPC405CR_CPC0_CR0, cpc,
+                     &dcr_read_crcpc, &dcr_write_crcpc);
+    ppc_dcr_register(env, PPC405CR_CPC0_CR1, cpc,
+                     &dcr_read_crcpc, &dcr_write_crcpc);
+    ppc_dcr_register(env, PPC405CR_CPC0_JTAGID, cpc,
+                     &dcr_read_crcpc, &dcr_write_crcpc);
+    ppc_dcr_register(env, PPC405CR_CPC0_PLLMR, cpc,
+                     &dcr_read_crcpc, &dcr_write_crcpc);
+    ppc_dcr_register(env, PPC405CR_CPC0_ER, cpc,
+                     &dcr_read_crcpc, &dcr_write_crcpc);
+    ppc_dcr_register(env, PPC405CR_CPC0_FR, cpc,
+                     &dcr_read_crcpc, &dcr_write_crcpc);
+    ppc_dcr_register(env, PPC405CR_CPC0_SR, cpc,
+                     &dcr_read_crcpc, &dcr_write_crcpc);
+    ppc405cr_clk_init(cpc);
+    qemu_register_reset(ppc405cr_cpc_reset, cpc);
+    ppc405cr_cpc_reset(cpc);
 }
 
 CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
@@ -2516,38 +2494,36 @@ static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
     ppc405ep_cpc_t *cpc;
 
     cpc = qemu_mallocz(sizeof(ppc405ep_cpc_t));
-    if (cpc != NULL) {
-        memcpy(cpc->clk_setup, clk_setup,
-               PPC405EP_CLK_NB * sizeof(clk_setup_t));
-        cpc->jtagid = 0x20267049;
-        cpc->sysclk = sysclk;
-        ppc405ep_cpc_reset(cpc);
-        qemu_register_reset(&ppc405ep_cpc_reset, cpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_BOOT, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_EPCTL, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_PLLMR0, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_PLLMR1, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_UCR, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_SRR, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_JTAGID, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_PCI, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
+    memcpy(cpc->clk_setup, clk_setup,
+           PPC405EP_CLK_NB * sizeof(clk_setup_t));
+    cpc->jtagid = 0x20267049;
+    cpc->sysclk = sysclk;
+    ppc405ep_cpc_reset(cpc);
+    qemu_register_reset(&ppc405ep_cpc_reset, cpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_BOOT, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_EPCTL, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_PLLMR0, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_PLLMR1, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_UCR, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_SRR, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_JTAGID, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_PCI, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
 #if 0
-        ppc_dcr_register(env, PPC405EP_CPC0_ER, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_FR, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
-        ppc_dcr_register(env, PPC405EP_CPC0_SR, cpc,
-                         &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_ER, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_FR, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
+    ppc_dcr_register(env, PPC405EP_CPC0_SR, cpc,
+                     &dcr_read_epcpc, &dcr_write_epcpc);
 #endif
-    }
 }
 
 CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],

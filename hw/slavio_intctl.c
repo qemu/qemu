@@ -381,14 +381,10 @@ void *slavio_intctl_init(target_phys_addr_t addr, target_phys_addr_t addrg,
     SLAVIO_CPUINTCTLState *slave;
 
     s = qemu_mallocz(sizeof(SLAVIO_INTCTLState));
-    if (!s)
-        return NULL;
 
     s->intbit_to_level = intbit_to_level;
     for (i = 0; i < MAX_CPUS; i++) {
         slave = qemu_mallocz(sizeof(SLAVIO_CPUINTCTLState));
-        if (!slave)
-            return NULL;
 
         slave->cpu = i;
         slave->master = s;
