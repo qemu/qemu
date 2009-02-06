@@ -27,7 +27,7 @@
 static void *oom_check(void *ptr)
 {
     if (ptr == NULL)
-        exit(13);
+        abort();
     return ptr;
 }
 
