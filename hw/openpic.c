@@ -24,7 +24,7 @@
 /*
  *
  * Based on OpenPic implementations:
- * - Intel GW80314 I/O compagnion chip developper's manual
+ * - Intel GW80314 I/O companion chip developer's manual
  * - Motorola MPC8245 & MPC8540 user manuals.
  * - Motorola MCP750 (aka Raven) programmer manual.
  * - Motorola Harrier programmer manuel
@@ -367,8 +367,9 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     openpic_update_irq(opp, n_IRQ);
 }
 
-static void openpic_reset (openpic_t *opp)
+static void openpic_reset (void *opaque)
 {
+    openpic_t *opp = (openpic_t *)opaque;
     int i;
 
     opp->glbc = 0x80000000;
@@ -1001,6 +1002,135 @@ static void openpic_map(PCIDevice *pci_dev, int region_num,
 #endif
 }
 
+static void openpic_save_IRQ_queue(QEMUFile* f, IRQ_queue_t *q)
+{
+    unsigned int i;
+
+    for (i = 0; i < BF_WIDTH(MAX_IRQ); i++)
+        qemu_put_be32s(f, &q->queue[i]);
+
+    qemu_put_sbe32s(f, &q->next);
+    qemu_put_sbe32s(f, &q->priority);
+}
+
+static void openpic_save(QEMUFile* f, void *opaque)
+{
+    openpic_t *opp = (openpic_t *)opaque;
+    unsigned int i;
+
+    qemu_put_be32s(f, &opp->frep);
+    qemu_put_be32s(f, &opp->glbc);
+    qemu_put_be32s(f, &opp->micr);
+    qemu_put_be32s(f, &opp->veni);
+    qemu_put_be32s(f, &opp->pint);
+    qemu_put_be32s(f, &opp->spve);
+    qemu_put_be32s(f, &opp->tifr);
+
+    for (i = 0; i < MAX_IRQ; i++) {
+        qemu_put_be32s(f, &opp->src[i].ipvp);
+        qemu_put_be32s(f, &opp->src[i].ide);
+        qemu_put_sbe32s(f, &opp->src[i].type);
+        qemu_put_sbe32s(f, &opp->src[i].last_cpu);
+        qemu_put_sbe32s(f, &opp->src[i].pending);
+    }
+
+    for (i = 0; i < MAX_IRQ; i++) {
+        qemu_put_be32s(f, &opp->dst[i].pctp);
+        qemu_put_be32s(f, &opp->dst[i].pcsr);
+        openpic_save_IRQ_queue(f, &opp->dst[i].raised);
+        openpic_save_IRQ_queue(f, &opp->dst[i].servicing);
+    }
+
+    qemu_put_sbe32s(f, &opp->nb_cpus);
+
+    for (i = 0; i < MAX_TMR; i++) {
+        qemu_put_be32s(f, &opp->timers[i].ticc);
+        qemu_put_be32s(f, &opp->timers[i].tibc);
+    }
+
+#if MAX_DBL > 0
+    qemu_put_be32s(f, &opp->dar);
+
+    for (i = 0; i < MAX_DBL; i++) {
+        qemu_put_be32s(f, &opp->doorbells[i].dmr);
+    }
+#endif
+
+#if MAX_MBX > 0
+    for (i = 0; i < MAX_MAILBOXES; i++) {
+        qemu_put_be32s(f, &opp->mailboxes[i].mbr);
+    }
+#endif
+
+    pci_device_save(&opp->pci_dev, f);
+}
+
+static void openpic_load_IRQ_queue(QEMUFile* f, IRQ_queue_t *q)
+{
+    unsigned int i;
+
+    for (i = 0; i < BF_WIDTH(MAX_IRQ); i++)
+        qemu_get_be32s(f, &q->queue[i]);
+
+    qemu_get_sbe32s(f, &q->next);
+    qemu_get_sbe32s(f, &q->priority);
+}
+
+static int openpic_load(QEMUFile* f, void *opaque, int version_id)
+{
+    openpic_t *opp = (openpic_t *)opaque;
+    unsigned int i;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    qemu_get_be32s(f, &opp->frep);
+    qemu_get_be32s(f, &opp->glbc);
+    qemu_get_be32s(f, &opp->micr);
+    qemu_get_be32s(f, &opp->veni);
+    qemu_get_be32s(f, &opp->pint);
+    qemu_get_be32s(f, &opp->spve);
+    qemu_get_be32s(f, &opp->tifr);
+
+    for (i = 0; i < MAX_IRQ; i++) {
+        qemu_get_be32s(f, &opp->src[i].ipvp);
+        qemu_get_be32s(f, &opp->src[i].ide);
+        qemu_get_sbe32s(f, &opp->src[i].type);
+        qemu_get_sbe32s(f, &opp->src[i].last_cpu);
+        qemu_get_sbe32s(f, &opp->src[i].pending);
+    }
+
+    for (i = 0; i < MAX_IRQ; i++) {
+        qemu_get_be32s(f, &opp->dst[i].pctp);
+        qemu_get_be32s(f, &opp->dst[i].pcsr);
+        openpic_load_IRQ_queue(f, &opp->dst[i].raised);
+        openpic_load_IRQ_queue(f, &opp->dst[i].servicing);
+    }
+
+    qemu_get_sbe32s(f, &opp->nb_cpus);
+
+    for (i = 0; i < MAX_TMR; i++) {
+        qemu_get_be32s(f, &opp->timers[i].ticc);
+        qemu_get_be32s(f, &opp->timers[i].tibc);
+    }
+
+#if MAX_DBL > 0
+    qemu_get_be32s(f, &opp->dar);
+
+    for (i = 0; i < MAX_DBL; i++) {
+        qemu_get_be32s(f, &opp->doorbells[i].dmr);
+    }
+#endif
+
+#if MAX_MBX > 0
+    for (i = 0; i < MAX_MAILBOXES; i++) {
+        qemu_get_be32s(f, &opp->mailboxes[i].mbr);
+    }
+#endif
+
+    return pci_device_load(&opp->pci_dev, f);
+}
+
 qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
                         qemu_irq **irqs, qemu_irq irq_out)
 {
@@ -1055,6 +1185,9 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     for (i = 0; i < nb_cpus; i++)
         opp->dst[i].irqs = irqs[i];
     opp->irq_out = irq_out;
+
+    register_savevm("openpic", 0, 1, openpic_save, openpic_load, opp);
+    qemu_register_reset(openpic_reset, opp);
     openpic_reset(opp);
     if (pmem_index)
         *pmem_index = opp->mem_index;
