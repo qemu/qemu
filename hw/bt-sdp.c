@@ -21,6 +21,10 @@
 #include "qemu-common.h"
 #include "bt.h"
 
+/* windef.h also defines FALSE, TRUE, so undef it here. */
+#undef FALSE
+#undef TRUE
+
 struct bt_l2cap_sdp_state_s {
     struct bt_l2cap_conn_params_s *channel;
 

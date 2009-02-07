@@ -17,6 +17,8 @@
  * Our socket structure
  */
 
+struct iovec;
+
 struct socket {
   struct socket *so_next,*so_prev;      /* For a linked list of sockets */
 

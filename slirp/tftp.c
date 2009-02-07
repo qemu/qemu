@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#include <slirp.h>
 #include "qemu-common.h" // for pstrcpy
+#include <slirp.h>
 
 struct tftp_session {
     int in_use;
