@@ -40,6 +40,7 @@ do { printf("NVR: " fmt , ##args); } while (0)
 struct MacIONVRAMState {
     target_phys_addr_t size;
     int mem_index;
+    unsigned int it_shift;
     uint8_t *data;
 };
 
@@ -75,7 +76,7 @@ static void macio_nvram_writeb (void *opaque,
 {
     MacIONVRAMState *s = opaque;
 
-    addr = (addr >> 4) & (s->size - 1);
+    addr = (addr >> s->it_shift) & (s->size - 1);
     s->data[addr] = value;
     NVR_DPRINTF("writeb addr %04x val %x\n", (int)addr, value);
 }
@@ -85,7 +86,7 @@ static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
     MacIONVRAMState *s = opaque;
     uint32_t value;
 
-    addr = (addr >> 4) & (s->size - 1);
+    addr = (addr >> s->it_shift) & (s->size - 1);
     value = s->data[addr];
     NVR_DPRINTF("readb addr %04x val %x\n", (int)addr, value);
 
@@ -127,13 +128,15 @@ static void macio_nvram_reset(void *opaque)
 {
 }
 
-MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size)
+MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size,
+                                   unsigned int it_shift)
 {
     MacIONVRAMState *s;
 
     s = qemu_mallocz(sizeof(MacIONVRAMState));
     s->data = qemu_mallocz(size);
     s->size = size;
+    s->it_shift = it_shift;
 
     s->mem_index = cpu_register_io_memory(0, nvram_read, nvram_write, s);
     *mem_index = s->mem_index;
@@ -150,7 +153,8 @@ void macio_nvram_map (void *opaque, target_phys_addr_t mem_base)
     MacIONVRAMState *s;
 
     s = opaque;
-    cpu_register_physical_memory(mem_base, s->size << 4, s->mem_index);
+    cpu_register_physical_memory(mem_base, s->size << s->it_shift,
+                                 s->mem_index);
 }
 
 /* Set up a system OpenBIOS NVRAM partition */

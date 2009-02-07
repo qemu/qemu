@@ -357,7 +357,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
 
-    nvr = macio_nvram_init(&nvram_mem_index, 0x2000);
+    nvr = macio_nvram_init(&nvram_mem_index, 0x2000, 4);
     pmac_format_nvram_partition(nvr, 0x2000);
 
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_343S1201, 1, pic_mem_index,

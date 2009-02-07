@@ -42,8 +42,12 @@ typedef struct SH7750State {
     uint32_t periph_freq;
     /* SDRAM controller */
     uint32_t bcr1;
-    uint32_t bcr2;
+    uint16_t bcr2;
+    uint16_t bcr3;
+    uint32_t bcr4;
     uint16_t rfcr;
+    /* PCMCIA controller */
+    uint16_t pcr;
     /* IO ports */
     uint16_t gpioic;
     uint32_t pctra;
@@ -66,7 +70,10 @@ typedef struct SH7750State {
     struct intc_desc intc;
 } SH7750State;
 
-
+static int inline has_bcr3_and_bcr4(SH7750State * s)
+{
+	return (s->cpu->features & SH_FEATURE_BCR3_AND_BCR4);
+}
 /**********************************************************************
  I/O ports
 **********************************************************************/
@@ -211,8 +218,14 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
     switch (addr) {
     case SH7750_BCR2_A7:
 	return s->bcr2;
+    case SH7750_BCR3_A7:
+	if(!has_bcr3_and_bcr4(s))
+	    error_access("word read", addr);
+	return s->bcr3;
     case SH7750_FRQCR_A7:
 	return 0;
+    case SH7750_PCR_A7:
+	return s->pcr;
     case SH7750_RFCR_A7:
 	fprintf(stderr,
 		"Read access to refresh count register, incrementing\n");
@@ -221,6 +234,11 @@ static uint32_t sh7750_mem_readw(void *opaque, target_phys_addr_t addr)
 	return porta_lines(s);
     case SH7750_PDTRB_A7:
 	return portb_lines(s);
+    case SH7750_RTCOR_A7:
+    case SH7750_RTCNT_A7:
+    case SH7750_RTCSR_A7:
+	ignore_access("word read", addr);
+	return 0;
     default:
 	error_access("word read", addr);
 	assert(0);
@@ -235,6 +253,9 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
     case SH7750_BCR1_A7:
 	return s->bcr1;
     case SH7750_BCR4_A7:
+	if(!has_bcr3_and_bcr4(s))
+	    error_access("long read", addr);
+	return s->bcr4;
     case SH7750_WCR1_A7:
     case SH7750_WCR2_A7:
     case SH7750_WCR3_A7:
@@ -271,19 +292,19 @@ static uint32_t sh7750_mem_readl(void *opaque, target_phys_addr_t addr)
     }
 }
 
+#define is_in_sdrmx(a, x) (a >= SH7750_SDMR ## x ## _A7 \
+			&& a <= (SH7750_SDMR ## x ## _A7 + SH7750_SDMR ## x ## _REGNB))
 static void sh7750_mem_writeb(void *opaque, target_phys_addr_t addr,
 			      uint32_t mem_value)
 {
-    switch (addr) {
-	/* PRECHARGE ? XXXXX */
-    case SH7750_PRECHARGE0_A7:
-    case SH7750_PRECHARGE1_A7:
+
+    if (is_in_sdrmx(addr, 2) || is_in_sdrmx(addr, 3)) {
 	ignore_access("byte write", addr);
 	return;
-    default:
-	error_access("byte write", addr);
-	assert(0);
     }
+
+    error_access("byte write", addr);
+    assert(0);
 }
 
 static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
@@ -298,8 +319,15 @@ static void sh7750_mem_writew(void *opaque, target_phys_addr_t addr,
         s->bcr2 = mem_value;
         return;
     case SH7750_BCR3_A7:
-    case SH7750_RTCOR_A7:
+	if(!has_bcr3_and_bcr4(s))
+	    error_access("word write", addr);
+	s->bcr3 = mem_value;
+	return;
+    case SH7750_PCR_A7:
+	s->pcr = mem_value;
+	return;
     case SH7750_RTCNT_A7:
+    case SH7750_RTCOR_A7:
     case SH7750_RTCSR_A7:
 	ignore_access("word write", addr);
 	return;
@@ -343,6 +371,10 @@ static void sh7750_mem_writel(void *opaque, target_phys_addr_t addr,
         s->bcr1 = mem_value;
         return;
     case SH7750_BCR4_A7:
+	if(!has_bcr3_and_bcr4(s))
+	    error_access("long write", addr);
+	s->bcr4 = mem_value;
+	return;
     case SH7750_WCR1_A7:
     case SH7750_WCR2_A7:
     case SH7750_WCR3_A7:

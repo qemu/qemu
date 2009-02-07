@@ -80,8 +80,8 @@ static regname_t regnames[] = {
 	REGNAME(SH7750_ICR_A7)
 	REGNAME(SH7750_BCR3_A7)
 	REGNAME(SH7750_BCR4_A7)
-	REGNAME(SH7750_PRECHARGE0_A7)
-    REGNAME(SH7750_PRECHARGE1_A7) {(uint32_t) - 1, 0}
+	REGNAME(SH7750_SDMR2_A7)
+	REGNAME(SH7750_SDMR3_A7) {(uint32_t) - 1, 0}
 };
 
 const char *regname(uint32_t addr)

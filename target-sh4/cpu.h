@@ -95,6 +95,7 @@ typedef struct tlb_t {
 
 enum sh_features {
     SH_FEATURE_SH4A = 1,
+    SH_FEATURE_BCR3_AND_BCR4 = 2,
 };
 
 typedef struct CPUSH4State {

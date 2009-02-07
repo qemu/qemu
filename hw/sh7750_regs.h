@@ -979,6 +979,17 @@
 
 #define SH7750_RFCR_KEY       0xA400	/* RFCR write key */
 
+/* Synchronous DRAM mode registers - SDMR */
+#define SH7750_SDMR2_REGOFS   0x900000	/* base offset */
+#define SH7750_SDMR2_REGNB    0x0FFC	/* nb of register */
+#define SH7750_SDMR2          SH7750_P4_REG32(SH7750_SDMR2_REGOFS)
+#define SH7750_SDMR2_A7       SH7750_A7_REG32(SH7750_SDMR2_REGOFS)
+
+#define SH7750_SDMR3_REGOFS   0x940000	/* offset */
+#define SH7750_SDMR3_REGNB    0x0FFC	/* nb of register */
+#define SH7750_SDMR3          SH7750_P4_REG32(SH7750_SDMR3_REGOFS)
+#define SH7750_SDMR3_A7       SH7750_A7_REG32(SH7750_SDMR3_REGOFS)
+
 /*
  * Direct Memory Access Controller (DMAC)
  */
@@ -1262,7 +1273,5 @@
  */
 #define SH7750_BCR3_A7       0x1f800050
 #define SH7750_BCR4_A7       0x1e0a00f0
-#define SH7750_PRECHARGE0_A7 0x1f900088
-#define SH7750_PRECHARGE1_A7 0x1f940088
 
 #endif
