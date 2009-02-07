@@ -278,8 +278,8 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     pic = openpic_init(NULL, &pic_mem_index, smp_cpus, openpic_irqs, NULL);
     pci_bus = pci_pmac_init(pic);
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, phys_ram_base + ram_size,
-                 ram_size, vga_ram_size,
+    pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
+                 vga_ram_offset, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
 
     /* XXX: suppress that */
