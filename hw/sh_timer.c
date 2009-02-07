@@ -25,6 +25,11 @@
 #define TIMER_FEAT_CAPT   (1 << 0)
 #define TIMER_FEAT_EXTCLK (1 << 1)
 
+#define OFFSET_TCOR   0
+#define OFFSET_TCNT   1
+#define OFFSET_TCR    2
+#define OFFSET_TCPR   3
+
 typedef struct {
     ptimer_state *timer;
     uint32_t tcnt;
@@ -57,13 +62,13 @@ static uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
     sh_timer_state *s = (sh_timer_state *)opaque;
 
     switch (offset >> 2) {
-    case 0:
+    case OFFSET_TCOR:
         return s->tcor;
-    case 1:
+    case OFFSET_TCNT:
         return ptimer_get_count(s->timer);
-    case 2:
+    case OFFSET_TCR:
         return s->tcr | (s->int_level ? TIMER_TCR_UNF : 0);
-    case 3:
+    case OFFSET_TCPR:
         if (s->feat & TIMER_FEAT_CAPT)
             return s->tcpr;
     default:
@@ -80,15 +85,15 @@ static void sh_timer_write(void *opaque, target_phys_addr_t offset,
     int freq;
 
     switch (offset >> 2) {
-    case 0:
+    case OFFSET_TCOR:
         s->tcor = value;
         ptimer_set_limit(s->timer, s->tcor, 0);
         break;
-    case 1:
+    case OFFSET_TCNT:
         s->tcnt = value;
         ptimer_set_count(s->timer, s->tcnt);
         break;
-    case 2:
+    case OFFSET_TCR:
         if (s->enabled) {
             /* Pause the timer if it is running.  This may cause some
                inaccuracy dure to rounding, but avoids a whole lot of other
@@ -145,7 +150,7 @@ static void sh_timer_write(void *opaque, target_phys_addr_t offset,
             ptimer_run(s->timer, 0);
         }
         break;
-    case 3:
+    case OFFSET_TCPR:
         if (s->feat & TIMER_FEAT_CAPT) {
             s->tcpr = value;
 	    break;
@@ -196,12 +201,17 @@ static void *sh_timer_init(uint32_t freq, int feat, qemu_irq irq)
     s->tcor = 0xffffffff;
     s->tcnt = 0xffffffff;
     s->tcpr = 0xdeadbeef;
-    s->tcor = 0;
+    s->tcr = 0;
     s->enabled = 0;
     s->irq = irq;
 
     bh = qemu_bh_new(sh_timer_tick, s);
     s->timer = ptimer_init(bh);
+
+    sh_timer_write(s, OFFSET_TCOR >> 2, s->tcor);
+    sh_timer_write(s, OFFSET_TCNT >> 2, s->tcnt);
+    sh_timer_write(s, OFFSET_TCPR >> 2, s->tcpr);
+    sh_timer_write(s, OFFSET_TCR  >> 2, s->tcpr);
     /* ??? Save/restore.  */
     return s;
 }
