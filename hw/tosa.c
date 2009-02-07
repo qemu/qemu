@@ -172,7 +172,7 @@ static void tosa_dac_event(i2c_slave *i2c, enum i2c_event event)
     }
 }
 
-int tosa_dac_recv(i2c_slave *s)
+static int tosa_dac_recv(i2c_slave *s)
 {
     printf("%s: recv not supported!!!\n", __FUNCTION__);
     return -1;
