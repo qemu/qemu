@@ -58,4 +58,4 @@ static inline int cpu_halted(CPUState *env) {
 #include "softmmu_exec.h"
 #endif
 
-void raise_exception(int);
+void QEMU_NORETURN raise_exception(int);

@@ -406,13 +406,12 @@ static void pxa2xx_dma_write(void *opaque,
     }
 }
 
-static uint32_t pxa2xx_dma_readbad(void *opaque, target_phys_addr_t offset)
+static uint32_t QEMU_NORETURN pxa2xx_dma_readbad(void *opaque, target_phys_addr_t offset)
 {
     cpu_abort(cpu_single_env, "%s: Bad access width\n", __FUNCTION__);
-    return 5;
 }
 
-static void pxa2xx_dma_writebad(void *opaque,
+static void QEMU_NORETURN pxa2xx_dma_writebad(void *opaque,
                  target_phys_addr_t offset, uint32_t value)
 {
     cpu_abort(cpu_single_env, "%s: Bad access width\n", __FUNCTION__);

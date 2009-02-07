@@ -49,13 +49,13 @@ static inline void address_mask(CPUState *env1, target_ulong *addr)
 #endif
 }
 
-static void raise_exception(int tt)
+static void QEMU_NORETURN raise_exception(int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit();
 }
 
-void HELPER(raise_exception)(int tt)
+void QEMU_NORETURN HELPER(raise_exception)(int tt)
 {
     raise_exception(tt);
 }
@@ -2514,7 +2514,7 @@ void helper_ldxfsr(uint64_t new_fsr)
 }
 #endif
 
-void helper_debug(void)
+void QEMU_NORETURN helper_debug(void)
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit();
@@ -3036,8 +3036,8 @@ static void cpu_restore_state2(void *retaddr)
     }
 }
 
-static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
-                                void *retaddr)
+static void QEMU_NORETURN do_unaligned_access(target_ulong addr,
+                                int is_write, int is_user, void *retaddr)
 {
 #ifdef DEBUG_UNALIGNED
     printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx

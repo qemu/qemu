@@ -245,14 +245,14 @@ uint32_t HELPER(usat16)(uint32_t x, uint32_t shift)
     return res;
 }
 
-void HELPER(wfi)(void)
+void QEMU_NORETURN HELPER(wfi)(void)
 {
     env->exception_index = EXCP_HLT;
     env->halted = 1;
     cpu_loop_exit();
 }
 
-void HELPER(exception)(uint32_t excp)
+void QEMU_NORETURN HELPER(exception)(uint32_t excp)
 {
     env->exception_index = excp;
     cpu_loop_exit();
