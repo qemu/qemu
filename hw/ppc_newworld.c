@@ -100,7 +100,6 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
-    int ide_mem_index[2];
     int ppc_boot_device;
     int index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
@@ -296,12 +295,8 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
             hd[i] = NULL;
     }
     dbdma = DBDMA_init(&dbdma_mem_index);
-#if 1
-    ide_mem_index[0] = pmac_ide_init(&hd[0], pic[0x13], dbdma, 0x14, pic[0x01]);
-    ide_mem_index[1] = pmac_ide_init(&hd[2], pic[0x14], dbdma, 0x16, pic[0x02]);
-#else
-    pci_cmd646_ide_init(pci_bus, &hd[0], 0);
-#endif
+    pci_cmd646_ide_init(pci_bus, hd, 0);
+
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem_index, pic[0x19]);
 
@@ -310,7 +305,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
 
 
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem_index,
-               dbdma_mem_index, cuda_mem_index, NULL, 2, ide_mem_index,
+               dbdma_mem_index, cuda_mem_index, NULL, 0, NULL,
                escc_mem_index);
 
     if (usb_enabled) {
