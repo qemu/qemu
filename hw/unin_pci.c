@@ -44,22 +44,13 @@ static void pci_unin_main_config_writel (void *opaque, target_phys_addr_t addr,
                                          uint32_t val)
 {
     UNINState *s = opaque;
-    int i;
 
     UNIN_DPRINTF("config_writel addr " TARGET_FMT_plx " val %x\n", addr, val);
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif
 
-    for (i = 11; i < 32; i++) {
-        if ((val & (1 << i)) != 0)
-            break;
-    }
-#if 0
-    s->config_reg = 0x80000000 | (1 << 16) | (val & 0x7FC) | (i << 11);
-#else
-    s->config_reg = 0x80000000 | (0 << 16) | (val & 0x7FC) | (i << 11);
-#endif
+    s->config_reg = val;
 }
 
 static uint32_t pci_unin_main_config_readl (void *opaque,
@@ -67,10 +58,8 @@ static uint32_t pci_unin_main_config_readl (void *opaque,
 {
     UNINState *s = opaque;
     uint32_t val;
-    int devfn;
 
-    devfn = (s->config_reg >> 8) & 0xFF;
-    val = (1 << (devfn >> 3)) | ((devfn & 0x07) << 8) | (s->config_reg & 0xFC);
+    val = s->config_reg;
 #ifdef TARGET_WORDS_BIGENDIAN
     val = bswap32(val);
 #endif

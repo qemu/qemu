@@ -602,6 +602,70 @@ static void rc4030_reset(void *opaque)
     qemu_irq_lower(s->jazz_bus_irq);
 }
 
+static int rc4030_load(QEMUFile *f, void *opaque, int version_id)
+{
+    rc4030State* s = opaque;
+    int i, j;
+
+    if (version_id != 1)
+        return -EINVAL;
+
+    s->config = qemu_get_be32(f);
+    s->invalid_address_register = qemu_get_be32(f);
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < 4; j++)
+            s->dma_regs[i][j] = qemu_get_be32(f);
+    s->dma_tl_base = qemu_get_be32(f);
+    s->dma_tl_limit = qemu_get_be32(f);
+    s->remote_failed_address = qemu_get_be32(f);
+    s->memory_failed_address = qemu_get_be32(f);
+    s->cache_ptag = qemu_get_be32(f);
+    s->cache_ltag = qemu_get_be32(f);
+    s->cache_bmask = qemu_get_be32(f);
+    s->cache_bwin = qemu_get_be32(f);
+    s->offset210 = qemu_get_be32(f);
+    s->nvram_protect = qemu_get_be32(f);
+    s->offset238 = qemu_get_be32(f);
+    for (i = 0; i < 15; i++)
+        s->rem_speed[i] = qemu_get_be32(f);
+    s->imr_jazz = qemu_get_be32(f);
+    s->isr_jazz = qemu_get_be32(f);
+    s->itr = qemu_get_be32(f);
+
+    set_next_tick(s);
+    update_jazz_irq(s);
+
+    return 0;
+}
+
+static void rc4030_save(QEMUFile *f, void *opaque)
+{
+    rc4030State* s = opaque;
+    int i, j;
+
+    qemu_put_be32(f, s->config);
+    qemu_put_be32(f, s->invalid_address_register);
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < 4; j++)
+            qemu_put_be32(f, s->dma_regs[i][j]);
+    qemu_put_be32(f, s->dma_tl_base);
+    qemu_put_be32(f, s->dma_tl_limit);
+    qemu_put_be32(f, s->remote_failed_address);
+    qemu_put_be32(f, s->memory_failed_address);
+    qemu_put_be32(f, s->cache_ptag);
+    qemu_put_be32(f, s->cache_ltag);
+    qemu_put_be32(f, s->cache_bmask);
+    qemu_put_be32(f, s->cache_bwin);
+    qemu_put_be32(f, s->offset210);
+    qemu_put_be32(f, s->nvram_protect);
+    qemu_put_be32(f, s->offset238);
+    for (i = 0; i < 15; i++)
+        qemu_put_be32(f, s->rem_speed[i]);
+    qemu_put_be32(f, s->imr_jazz);
+    qemu_put_be32(f, s->isr_jazz);
+    qemu_put_be32(f, s->itr);
+}
+
 static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_write)
 {
     rc4030State *s = opaque;
@@ -728,6 +792,7 @@ qemu_irq *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     s->jazz_bus_irq = jazz_bus;
 
     qemu_register_reset(rc4030_reset, s);
+    register_savevm("rc4030", 0, 1, rc4030_save, rc4030_load, s);
     rc4030_reset(s);
 
     s_chipset = cpu_register_io_memory(0, rc4030_read, rc4030_write, s);

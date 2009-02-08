@@ -32,10 +32,12 @@
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
+#include "fw_cfg.h"
 #include "escc.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
+#define CFG_ADDR 0xf0000510
 
 /* debug UniNorth */
 //#define DEBUG_UNIN
@@ -91,19 +93,15 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     ram_addr_t ram_offset, vga_ram_offset, bios_offset, vga_bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
-    nvram_t nvram;
-#if 0
     MacIONVRAMState *nvr;
     int nvram_mem_index;
-#endif
-    m48t59_t *m48t59;
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
-    int ide_mem_index[2];
     int ppc_boot_device;
     int index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    void *fw_cfg;
     void *dbdma;
 
     linux_boot = (kernel_filename != NULL);
@@ -125,13 +123,6 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
         qemu_register_reset(&cpu_ppc_reset, env);
         envs[i] = env;
     }
-    if (env->nip < 0xFFF80000) {
-        /* Special test for PowerPC 601:
-         * the boot vector is at 0xFFF00100, then we need a 1MB BIOS.
-         * But the NVRAM is located at 0xFFF04000...
-         */
-        cpu_abort(env, "Mac99 hardware can not handle 1 MB BIOS\n");
-    }
 
     /* allocate RAM */
     ram_offset = qemu_ram_alloc(ram_size);
@@ -143,20 +134,16 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     /* allocate and load BIOS */
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
     if (bios_name == NULL)
-        bios_name = BIOS_FILENAME;
+        bios_name = PROM_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    cpu_register_physical_memory(PROM_ADDR, BIOS_SIZE, bios_offset | IO_MEM_ROM);
+
+    /* Load OpenBIOS (ELF) */
+    bios_size = load_elf(buf, 0, NULL, NULL, NULL);
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         cpu_abort(env, "qemu: could not load PowerPC bios '%s'\n", buf);
         exit(1);
     }
-    bios_size = (bios_size + 0xfff) & ~0xfff;
-    if (bios_size > 0x00080000) {
-        /* As the NVRAM is located at 0xFFF04000, we cannot use 1 MB BIOSes */
-        cpu_abort(env, "Mac99 hardware can not handle 1 MB BIOS\n");
-    }
-    cpu_register_physical_memory((uint32_t)(-bios_size),
-                                 bios_size, bios_offset | IO_MEM_ROM);
 
     /* allocate and load VGA BIOS */
     vga_bios_offset = qemu_ram_alloc(VGA_BIOS_SIZE);
@@ -303,12 +290,8 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
             hd[i] = NULL;
     }
     dbdma = DBDMA_init(&dbdma_mem_index);
-#if 1
-    ide_mem_index[0] = pmac_ide_init(&hd[0], pic[0x13], dbdma, 0x14, pic[0x01]);
-    ide_mem_index[1] = pmac_ide_init(&hd[2], pic[0x14], dbdma, 0x16, pic[0x02]);
-#else
-    pci_cmd646_ide_init(pci_bus, &hd[0], 0);
-#endif
+    pci_cmd646_ide_init(pci_bus, hd, 0);
+
     /* cuda also initialize ADB */
     cuda_init(&cuda_mem_index, pic[0x19]);
 
@@ -317,7 +300,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
 
 
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem_index,
-               dbdma_mem_index, cuda_mem_index, NULL, 2, ide_mem_index,
+               dbdma_mem_index, cuda_mem_index, NULL, 0, NULL,
                escc_mem_index);
 
     if (usb_enabled) {
@@ -326,31 +309,17 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
         graphic_depth = 15;
-#if 0 /* XXX: this is ugly but needed for now, or OHW won't boot */
+
     /* The NewWorld NVRAM is not located in the MacIO device */
     nvr = macio_nvram_init(&nvram_mem_index, 0x2000, 1);
     pmac_format_nvram_partition(nvr, 0x2000);
     macio_nvram_map(nvr, 0xFFF04000);
-    nvram.opaque = nvr;
-    nvram.read_fn = &macio_nvram_read;
-    nvram.write_fn = &macio_nvram_write;
-#else
-    m48t59 = m48t59_init(dummy_irq[8], 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
-    nvram.opaque = m48t59;
-    nvram.read_fn = &m48t59_read;
-    nvram.write_fn = &m48t59_write;
-#endif
-    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "MAC99", ram_size,
-                         ppc_boot_device, kernel_base, kernel_size,
-                         kernel_cmdline,
-                         initrd_base, initrd_size,
-                         /* XXX: need an option to load a NVRAM image */
-                         0,
-                         graphic_width, graphic_height, graphic_depth);
     /* No PCI init: the BIOS will do it */
 
-    /* Special port to get debug messages from Open-Firmware */
-    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_MAC99);
 }
 
 QEMUMachine core99_machine = {

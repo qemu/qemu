@@ -961,6 +961,8 @@ This implements UDP Net Console.
 When @var{remote_host} or @var{src_ip} are not specified
 they default to @code{0.0.0.0}.
 When not using a specified @var{src_port} a random port is automatically chosen.
+@item msmouse
+Three button serial mouse. Configure the guest to use Microsoft protocol.
 
 If you just want a simple readonly console you can use @code{netcat} or
 @code{nc}, by starting qemu with: @code{-serial udp::4555} and nc as:
@@ -2440,7 +2442,7 @@ QEMU emulates the following PowerMac peripherals:
 
 @itemize @minus
 @item
-UniNorth PCI Bridge
+UniNorth or Grackle PCI Bridge
 @item
 PCI VGA compatible card with VESA Bochs Extensions
 @item
@@ -2478,9 +2480,9 @@ QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
 @url{http://perso.magic.fr/l_indien/OpenHackWare/index.htm}.
 
 Since version 0.9.1, QEMU uses OpenBIOS @url{http://www.openbios.org/}
-for the g3beige PowerMac machine. OpenBIOS is a free (GPL v2) portable
-firmware implementation. The goal is to implement a 100% IEEE
-1275-1994 (referred to as Open Firmware) compliant firmware.
+for the g3beige and mac99 PowerMac machines. OpenBIOS is a free (GPL
+v2) portable firmware implementation. The goal is to implement a 100%
+IEEE 1275-1994 (referred to as Open Firmware) compliant firmware.
 
 @c man begin OPTIONS
 
@@ -2709,7 +2711,7 @@ PCnet32 PCI network card
 @item
 Malta FPGA serial device
 @item
-Cirrus VGA graphics card
+Cirrus (default) or any other PCI VGA graphics card
 @end itemize
 
 The ACER Pica emulation supports:
