@@ -30,6 +30,7 @@
 #include "block.h"
 #include "hw/usb.h"
 #include "hw/baum.h"
+#include "hw/msmouse.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -2105,6 +2106,8 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
         } else {
             printf("Unable to open driver: %s\n", p);
         }
+    } else if (!strcmp(filename, "msmouse")) {
+        chr = qemu_chr_open_msmouse();
     } else
 #ifndef _WIN32
     if (strstart(filename, "unix:", &p)) {
