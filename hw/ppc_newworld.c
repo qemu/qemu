@@ -93,12 +93,8 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     ram_addr_t ram_offset, vga_ram_offset, bios_offset, vga_bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
-    nvram_t nvram;
-#if 0
     MacIONVRAMState *nvr;
     int nvram_mem_index;
-#endif
-    m48t59_t *m48t59;
     int vga_bios_size, bios_size;
     qemu_irq *dummy_irq;
     int pic_mem_index, dbdma_mem_index, cuda_mem_index, escc_mem_index;
@@ -313,27 +309,11 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
         graphic_depth = 15;
-#if 0 /* XXX: this is ugly but needed for now, or OHW won't boot */
+
     /* The NewWorld NVRAM is not located in the MacIO device */
     nvr = macio_nvram_init(&nvram_mem_index, 0x2000, 1);
     pmac_format_nvram_partition(nvr, 0x2000);
     macio_nvram_map(nvr, 0xFFF04000);
-    nvram.opaque = nvr;
-    nvram.read_fn = &macio_nvram_read;
-    nvram.write_fn = &macio_nvram_write;
-#else
-    m48t59 = m48t59_init(dummy_irq[8], 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
-    nvram.opaque = m48t59;
-    nvram.read_fn = &m48t59_read;
-    nvram.write_fn = &m48t59_write;
-#endif
-    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "MAC99", ram_size,
-                         ppc_boot_device, kernel_base, kernel_size,
-                         kernel_cmdline,
-                         initrd_base, initrd_size,
-                         /* XXX: need an option to load a NVRAM image */
-                         0,
-                         graphic_width, graphic_height, graphic_depth);
     /* No PCI init: the BIOS will do it */
 
     fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
