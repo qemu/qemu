@@ -2700,7 +2700,7 @@ PCnet32 PCI network card
 @item
 Malta FPGA serial device
 @item
-Cirrus VGA graphics card
+Cirrus (default) or any other PCI VGA graphics card
 @end itemize
 
 The ACER Pica emulation supports:

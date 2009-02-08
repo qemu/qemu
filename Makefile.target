@@ -614,6 +614,7 @@ OBJS+= ide.o gt64xxx.o pckbd.o ps2.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds122
 OBJS+= piix_pci.o parallel.o cirrus_vga.o pcspk.o $(SOUND_HW)
 OBJS+= mipsnet.o
 OBJS+= pflash_cfi01.o
+OBJS+= vmware_vga.o
 CPPFLAGS += -DHAS_AUDIO -DHAS_AUDIO_CHOICE
 endif
 ifeq ($(TARGET_BASE_ARCH), cris)
