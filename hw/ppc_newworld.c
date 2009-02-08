@@ -125,13 +125,6 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
         qemu_register_reset(&cpu_ppc_reset, env);
         envs[i] = env;
     }
-    if (env->nip < 0xFFF80000) {
-        /* Special test for PowerPC 601:
-         * the boot vector is at 0xFFF00100, then we need a 1MB BIOS.
-         * But the NVRAM is located at 0xFFF04000...
-         */
-        cpu_abort(env, "Mac99 hardware can not handle 1 MB BIOS\n");
-    }
 
     /* allocate RAM */
     ram_offset = qemu_ram_alloc(ram_size);
