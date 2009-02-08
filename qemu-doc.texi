@@ -2433,7 +2433,7 @@ QEMU emulates the following PowerMac peripherals:
 
 @itemize @minus
 @item
-UniNorth PCI Bridge
+UniNorth or Grackle PCI Bridge
 @item
 PCI VGA compatible card with VESA Bochs Extensions
 @item
@@ -2471,9 +2471,9 @@ QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
 @url{http://perso.magic.fr/l_indien/OpenHackWare/index.htm}.
 
 Since version 0.9.1, QEMU uses OpenBIOS @url{http://www.openbios.org/}
-for the g3beige PowerMac machine. OpenBIOS is a free (GPL v2) portable
-firmware implementation. The goal is to implement a 100% IEEE
-1275-1994 (referred to as Open Firmware) compliant firmware.
+for the g3beige and mac99 PowerMac machines. OpenBIOS is a free (GPL
+v2) portable firmware implementation. The goal is to implement a 100%
+IEEE 1275-1994 (referred to as Open Firmware) compliant firmware.
 
 @c man begin OPTIONS
 

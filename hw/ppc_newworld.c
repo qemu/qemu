@@ -32,10 +32,12 @@
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
+#include "fw_cfg.h"
 #include "escc.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536
+#define CFG_ADDR 0xf0000510
 
 /* debug UniNorth */
 //#define DEBUG_UNIN
@@ -103,6 +105,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     int ppc_boot_device;
     int index;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    void *fw_cfg;
     void *dbdma;
 
     linux_boot = (kernel_filename != NULL);
@@ -135,20 +138,16 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     /* allocate and load BIOS */
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
     if (bios_name == NULL)
-        bios_name = BIOS_FILENAME;
+        bios_name = PROM_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    cpu_register_physical_memory(PROM_ADDR, BIOS_SIZE, bios_offset | IO_MEM_ROM);
+
+    /* Load OpenBIOS (ELF) */
+    bios_size = load_elf(buf, 0, NULL, NULL, NULL);
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
         cpu_abort(env, "qemu: could not load PowerPC bios '%s'\n", buf);
         exit(1);
     }
-    bios_size = (bios_size + 0xfff) & ~0xfff;
-    if (bios_size > 0x00080000) {
-        /* As the NVRAM is located at 0xFFF04000, we cannot use 1 MB BIOSes */
-        cpu_abort(env, "Mac99 hardware can not handle 1 MB BIOS\n");
-    }
-    cpu_register_physical_memory((uint32_t)(-bios_size),
-                                 bios_size, bios_offset | IO_MEM_ROM);
 
     /* allocate and load VGA BIOS */
     vga_bios_offset = qemu_ram_alloc(VGA_BIOS_SIZE);
@@ -337,8 +336,10 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
                          graphic_width, graphic_height, graphic_depth);
     /* No PCI init: the BIOS will do it */
 
-    /* Special port to get debug messages from Open-Firmware */
-    register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
+    fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
+    fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_MAC99);
 }
 
 QEMUMachine core99_machine = {
