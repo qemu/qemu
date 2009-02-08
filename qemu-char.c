@@ -1047,17 +1047,17 @@ static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
             int *targ = (int *)arg;
             ioctl(s->fd_in, TIOCMGET, &sarg);
             *targ = 0;
-            if (sarg | TIOCM_CTS)
+            if (sarg & TIOCM_CTS)
                 *targ |= CHR_TIOCM_CTS;
-            if (sarg | TIOCM_CAR)
+            if (sarg & TIOCM_CAR)
                 *targ |= CHR_TIOCM_CAR;
-            if (sarg | TIOCM_DSR)
+            if (sarg & TIOCM_DSR)
                 *targ |= CHR_TIOCM_DSR;
-            if (sarg | TIOCM_RI)
+            if (sarg & TIOCM_RI)
                 *targ |= CHR_TIOCM_RI;
-            if (sarg | TIOCM_DTR)
+            if (sarg & TIOCM_DTR)
                 *targ |= CHR_TIOCM_DTR;
-            if (sarg | TIOCM_RTS)
+            if (sarg & TIOCM_RTS)
                 *targ |= CHR_TIOCM_RTS;
         }
         break;
@@ -1065,9 +1065,20 @@ static int tty_serial_ioctl(CharDriverState *chr, int cmd, void *arg)
         {
             int sarg = *(int *)arg;
             int targ = 0;
-            if (sarg | CHR_TIOCM_DTR)
+            ioctl(s->fd_in, TIOCMGET, &targ);
+            targ &= ~(CHR_TIOCM_CTS | CHR_TIOCM_CAR | CHR_TIOCM_DSR
+                     | CHR_TIOCM_RI | CHR_TIOCM_DTR | CHR_TIOCM_RTS);
+            if (sarg & CHR_TIOCM_CTS)
+                targ |= TIOCM_CTS;
+            if (sarg & CHR_TIOCM_CAR)
+                targ |= TIOCM_CAR;
+            if (sarg & CHR_TIOCM_DSR)
+                targ |= TIOCM_DSR;
+            if (sarg & CHR_TIOCM_RI)
+                targ |= TIOCM_RI;
+            if (sarg & CHR_TIOCM_DTR)
                 targ |= TIOCM_DTR;
-            if (sarg | CHR_TIOCM_RTS)
+            if (sarg & CHR_TIOCM_RTS)
                 targ |= TIOCM_RTS;
             ioctl(s->fd_in, TIOCMSET, &targ);
         }
