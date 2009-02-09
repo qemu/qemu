@@ -2664,6 +2664,16 @@ VPK(uwum, u32, u16, I, 0)
 #undef VPK
 #undef PKBIG
 
+void helper_vrefp (ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN1(r->f[i], b->f[i]) {
+            r->f[i] = float32_div(float32_one, b->f[i], &env->vec_status);
+        }
+    }
+}
+
 #define VRFI(suffix, rounding)                                          \
     void helper_vrfi##suffix (ppc_avr_t *r, ppc_avr_t *b)               \
     {                                                                   \
