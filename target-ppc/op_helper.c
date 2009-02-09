@@ -2288,6 +2288,33 @@ void helper_vcmpbfp_dot (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     vcmpbfp_internal(r, a, b, 1);
 }
 
+#define VCT(suffix, satcvt, element)                                    \
+    void helper_vct##suffix (ppc_avr_t *r, ppc_avr_t *b, uint32_t uim)  \
+    {                                                                   \
+        int i;                                                          \
+        int sat = 0;                                                    \
+        float_status s = env->vec_status;                               \
+        set_float_rounding_mode(float_round_to_zero, &s);               \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            if (float32_is_nan(b->f[i]) ||                              \
+                float32_is_signaling_nan(b->f[i])) {                    \
+                r->element[i] = 0;                                      \
+            } else {                                                    \
+                float64 t = float32_to_float64(b->f[i], &s);            \
+                int64_t j;                                              \
+                t = float64_scalbn(t, uim, &s);                         \
+                j = float64_to_int64(t, &s);                            \
+                r->element[i] = satcvt(j, &sat);                        \
+            }                                                           \
+        }                                                               \
+        if (sat) {                                                      \
+            env->vscr |= (1 << VSCR_SAT);                               \
+        }                                                               \
+    }
+VCT(uxs, cvtsduw, u32)
+VCT(sxs, cvtsdsw, s32)
+#undef VCT
+
 void helper_vmaddfp (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     int i;
