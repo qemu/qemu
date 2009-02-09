@@ -959,6 +959,10 @@ void *s1d13745_init(qemu_irq gpio_int)
 
     s->fb = qemu_malloc(0x180000);
 
+    s->state = graphic_console_init(blizzard_update_display,
+                                 blizzard_invalidate_display,
+                                 blizzard_screen_dump, NULL, s);
+
     switch (ds_get_bits_per_pixel(s->state)) {
     case 0:
         s->line_fn_tab[0] = s->line_fn_tab[1] =
@@ -990,10 +994,6 @@ void *s1d13745_init(qemu_irq gpio_int)
     }
 
     blizzard_reset(s);
-
-    s->state = graphic_console_init(blizzard_update_display,
-                                 blizzard_invalidate_display,
-                                 blizzard_screen_dump, NULL, s);
 
     return s;
 }
