@@ -51,6 +51,32 @@ int kvm_arch_init_vcpu(CPUState *env)
         struct kvm_cpuid_entry2 *c = &cpuid_data.entries[cpuid_i++];
 
         switch (i) {
+        case 2: {
+            /* Keep reading function 2 till all the input is received */
+            int times;
+
+            cpu_x86_cpuid(env, i, 0, &eax, &ebx, &ecx, &edx);
+            times = eax & 0xff;
+
+            c->function = i;
+            c->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
+            c->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
+            c->eax = eax;
+            c->ebx = ebx;
+            c->ecx = ecx;
+            c->edx = edx;
+
+            for (j = 1; j < times; ++j) {
+                cpu_x86_cpuid(env, i, 0, &eax, &ebx, &ecx, &edx);
+                c->function = i;
+                c->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
+                c->eax = eax;
+                c->ebx = ebx;
+                c->ecx = ecx;
+                c->edx = edx;
+            }
+            break;
+        }
         case 4:
         case 0xb:
         case 0xd:
