@@ -2099,6 +2099,20 @@ VARITH(uwm, u32)
 #undef VARITH_DO
 #undef VARITH
 
+#define VARITHFP(suffix, func)                                          \
+    void helper_v##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)    \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            HANDLE_NAN2(r->f[i], a->f[i], b->f[i]) {                    \
+                r->f[i] = func(a->f[i], b->f[i], &env->vec_status);     \
+            }                                                           \
+        }                                                               \
+    }
+VARITHFP(addfp, float32_add)
+VARITHFP(subfp, float32_sub)
+#undef VARITHFP
+
 #define VARITHSAT_CASE(type, op, cvt, element)                          \
     {                                                                   \
         type result = (type)a->element[i] op (type)b->element[i];       \

@@ -6395,6 +6395,8 @@ GEN_VXFORM(vsum4sbs, 4, 28);
 GEN_VXFORM(vsum4shs, 4, 25);
 GEN_VXFORM(vsum2sws, 4, 26);
 GEN_VXFORM(vsumsws, 4, 30);
+GEN_VXFORM(vaddfp, 5, 0);
+GEN_VXFORM(vsubfp, 5, 1);
 GEN_VXFORM(vmaxfp, 5, 16);
 GEN_VXFORM(vminfp, 5, 17);
 
