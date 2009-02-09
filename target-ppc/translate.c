@@ -6395,6 +6395,8 @@ GEN_VXFORM(vsum4sbs, 4, 28);
 GEN_VXFORM(vsum4shs, 4, 25);
 GEN_VXFORM(vsum2sws, 4, 26);
 GEN_VXFORM(vsumsws, 4, 30);
+GEN_VXFORM(vmaxfp, 5, 16);
+GEN_VXFORM(vminfp, 5, 17);
 
 #define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
     GEN_HANDLER2(name, str, 0x4, opc2, opc3, 0x00000000, PPC_ALTIVEC)   \
