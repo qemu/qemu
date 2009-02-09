@@ -1913,7 +1913,7 @@ void helper_cpuid(void)
 
     helper_svm_check_intercept_param(SVM_EXIT_CPUID, 0);
 
-    cpu_x86_cpuid(env, (uint32_t)EAX, &eax, &ebx, &ecx, &edx);
+    cpu_x86_cpuid(env, (uint32_t)EAX, (uint32_t)ECX, &eax, &ebx, &ecx, &edx);
     EAX = eax;
     EBX = ebx;
     ECX = ecx;

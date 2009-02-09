@@ -44,13 +44,13 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     cpuid_i = 0;
 
-    cpu_x86_cpuid(env, 0, &eax, &ebx, &ecx, &edx);
+    cpu_x86_cpuid(env, 0, 0, &eax, &ebx, &ecx, &edx);
     limit = eax;
 
     for (i = 0; i <= limit; i++) {
         struct kvm_cpuid_entry *c = &cpuid_data.entries[cpuid_i++];
 
-        cpu_x86_cpuid(env, i, &eax, &ebx, &ecx, &edx);
+        cpu_x86_cpuid(env, i, 0, &eax, &ebx, &ecx, &edx);
         c->function = i;
         c->eax = eax;
         c->ebx = ebx;
@@ -58,13 +58,13 @@ int kvm_arch_init_vcpu(CPUState *env)
         c->edx = edx;
     }
 
-    cpu_x86_cpuid(env, 0x80000000, &eax, &ebx, &ecx, &edx);
+    cpu_x86_cpuid(env, 0x80000000, 0, &eax, &ebx, &ecx, &edx);
     limit = eax;
 
     for (i = 0x80000000; i <= limit; i++) {
         struct kvm_cpuid_entry *c = &cpuid_data.entries[cpuid_i++];
 
-        cpu_x86_cpuid(env, i, &eax, &ebx, &ecx, &edx);
+        cpu_x86_cpuid(env, i, 0, &eax, &ebx, &ecx, &edx);
         c->function = i;
         c->eax = eax;
         c->ebx = ebx;
