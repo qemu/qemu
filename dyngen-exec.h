@@ -203,13 +203,6 @@ extern int printf(const char *, ...);
 #define stringify(s)	tostring(s)
 #define tostring(s)	#s
 
-#if defined(__alpha__) || defined(__s390__)
-/* the symbols are considered non exported so a br immediate is generated */
-#define __hidden __attribute__((visibility("hidden")))
-#else
-#define __hidden
-#endif
-
 /* The return address may point to the start of the next instruction.
    Subtracting one gets us the call instruction itself.  */
 #if defined(__s390__)
