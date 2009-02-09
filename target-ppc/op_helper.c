@@ -2220,6 +2220,74 @@ VCMP(gtsw, >, s32)
 #undef VCMP_DO
 #undef VCMP
 
+#define VCMPFP_DO(suffix, compare, order, record)                       \
+    void helper_vcmp##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b) \
+    {                                                                   \
+        uint32_t ones = (uint32_t)-1;                                   \
+        uint32_t all = ones;                                            \
+        uint32_t none = 0;                                              \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            uint32_t result;                                            \
+            int rel = float32_compare_quiet(a->f[i], b->f[i], &env->vec_status); \
+            if (rel == float_relation_unordered) {                      \
+                result = 0;                                             \
+            } else if (rel compare order) {                             \
+                result = ones;                                          \
+            } else {                                                    \
+                result = 0;                                             \
+            }                                                           \
+            r->u32[i] = result;                                         \
+            all &= result;                                              \
+            none |= result;                                             \
+        }                                                               \
+        if (record) {                                                   \
+            env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);       \
+        }                                                               \
+    }
+#define VCMPFP(suffix, compare, order)           \
+    VCMPFP_DO(suffix, compare, order, 0)         \
+    VCMPFP_DO(suffix##_dot, compare, order, 1)
+VCMPFP(eqfp, ==, float_relation_equal)
+VCMPFP(gefp, !=, float_relation_less)
+VCMPFP(gtfp, ==, float_relation_greater)
+#undef VCMPFP_DO
+#undef VCMPFP
+
+static always_inline void vcmpbfp_internal (ppc_avr_t *r, ppc_avr_t *a,
+                                            ppc_avr_t *b, int record)
+{
+    int i;
+    int all_in = 0;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        int le_rel = float32_compare_quiet(a->f[i], b->f[i], &env->vec_status);
+        if (le_rel == float_relation_unordered) {
+            r->u32[i] = 0xc0000000;
+            /* ALL_IN does not need to be updated here.  */
+        } else {
+            float32 bneg = float32_chs(b->f[i]);
+            int ge_rel = float32_compare_quiet(a->f[i], bneg, &env->vec_status);
+            int le = le_rel != float_relation_greater;
+            int ge = ge_rel != float_relation_less;
+            r->u32[i] = ((!le) << 31) | ((!ge) << 30);
+            all_in |= (!le | !ge);
+        }
+    }
+    if (record) {
+        env->crf[6] = (all_in == 0) << 1;
+    }
+}
+
+void helper_vcmpbfp (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    vcmpbfp_internal(r, a, b, 0);
+}
+
+void helper_vcmpbfp_dot (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    vcmpbfp_internal(r, a, b, 1);
+}
+
 void helper_vmaddfp (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     int i;

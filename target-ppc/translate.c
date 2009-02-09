@@ -6430,6 +6430,10 @@ GEN_VXRFORM(vcmpgtsw, 3, 14)
 GEN_VXRFORM(vcmpgtub, 3, 8)
 GEN_VXRFORM(vcmpgtuh, 3, 9)
 GEN_VXRFORM(vcmpgtuw, 3, 10)
+GEN_VXRFORM(vcmpeqfp, 3, 3)
+GEN_VXRFORM(vcmpgefp, 3, 7)
+GEN_VXRFORM(vcmpgtfp, 3, 11)
+GEN_VXRFORM(vcmpbfp, 3, 15)
 
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
     GEN_HANDLER(name, 0x04, opc2, opc3, 0x00000000, PPC_ALTIVEC)        \
