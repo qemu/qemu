@@ -2220,6 +2220,24 @@ VCMP(gtsw, >, s32)
 #undef VCMP_DO
 #undef VCMP
 
+void helper_vmaddfp (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN3(r->f[i], a->f[i], b->f[i], c->f[i]) {
+            /* Need to do the computation in higher precision and round
+             * once at the end.  */
+            float64 af, bf, cf, t;
+            af = float32_to_float64(a->f[i], &env->vec_status);
+            bf = float32_to_float64(b->f[i], &env->vec_status);
+            cf = float32_to_float64(c->f[i], &env->vec_status);
+            t = float64_mul(af, cf, &env->vec_status);
+            t = float64_add(t, bf, &env->vec_status);
+            r->f[i] = float64_to_float32(t, &env->vec_status);
+        }
+    }
+}
+
 void helper_vmhaddshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     int sat = 0;
@@ -2455,6 +2473,25 @@ VMUL(ub, u8, u16)
 VMUL(uh, u16, u32)
 #undef VMUL_DO
 #undef VMUL
+
+void helper_vnmsubfp (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN3(r->f[i], a->f[i], b->f[i], c->f[i]) {
+            /* Need to do the computation is higher precision and round
+             * once at the end.  */
+            float64 af, bf, cf, t;
+            af = float32_to_float64(a->f[i], &env->vec_status);
+            bf = float32_to_float64(b->f[i], &env->vec_status);
+            cf = float32_to_float64(c->f[i], &env->vec_status);
+            t = float64_mul(af, cf, &env->vec_status);
+            t = float64_sub(t, bf, &env->vec_status);
+            t = float64_chs(t);
+            r->f[i] = float64_to_float32(t, &env->vec_status);
+        }
+    }
+}
 
 void helper_vperm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {

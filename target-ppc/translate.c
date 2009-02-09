@@ -6584,6 +6584,7 @@ GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18)
 GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19)
 GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20)
 GEN_VAFORM_PAIRED(vsel, vperm, 21)
+GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23)
 
 /***                           SPE extension                               ***/
 /* Register moves */
