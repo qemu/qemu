@@ -2301,6 +2301,8 @@ int main(int argc, char **argv, char **envp)
             if (envlist_unsetenv(envlist, r) != 0)
                 usage();
         } else if (!strcmp(r, "s")) {
+            if (optind >= argc)
+                break;
             r = argv[optind++];
             x86_stack_size = strtol(r, (char **)&r, 0);
             if (x86_stack_size <= 0)
@@ -2312,6 +2314,8 @@ int main(int argc, char **argv, char **envp)
         } else if (!strcmp(r, "L")) {
             interp_prefix = argv[optind++];
         } else if (!strcmp(r, "p")) {
+            if (optind >= argc)
+                break;
             qemu_host_page_size = atoi(argv[optind++]);
             if (qemu_host_page_size == 0 ||
                 (qemu_host_page_size & (qemu_host_page_size - 1)) != 0) {
@@ -2319,12 +2323,14 @@ int main(int argc, char **argv, char **envp)
                 exit(1);
             }
         } else if (!strcmp(r, "g")) {
+            if (optind >= argc)
+                break;
             gdbstub_port = atoi(argv[optind++]);
 	} else if (!strcmp(r, "r")) {
 	    qemu_uname_release = argv[optind++];
         } else if (!strcmp(r, "cpu")) {
             cpu_model = argv[optind++];
-            if (strcmp(cpu_model, "?") == 0) {
+            if (cpu_model == NULL || strcmp(cpu_model, "?") == 0) {
 /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list)
                     cpu_list(stdout, &fprintf);
