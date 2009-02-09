@@ -3984,7 +3984,7 @@ static void init_proc_G2LE (CPUPPCState *env)
  * all SPE multiply-accumulate instructions
  */
 #define POWERPC_INSNS_e200   (PPC_INSNS_BASE | PPC_ISEL |                     \
-                              PPC_SPE | PPC_SPEFPU |                          \
+                              PPC_SPE | PPC_SPE_SINGLE |                      \
                               PPC_WRTEE | PPC_RFDI |                          \
                               PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |   \
                               PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
@@ -4147,13 +4147,13 @@ static void init_proc_e300 (CPUPPCState *env)
     ppc6xx_irq_init(env);
 }
 
-/* e500 core                                                                 */
-#define POWERPC_INSNS_e500   (PPC_INSNS_BASE | PPC_ISEL |                     \
-                              PPC_SPE | PPC_SPEFPU |                          \
-                              PPC_WRTEE | PPC_RFDI |                          \
-                              PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |   \
-                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
-                              PPC_MEM_TLBSYNC | PPC_TLBIVAX |                 \
+/* e500 core                                                               */
+#define POWERPC_INSNS_e500   (PPC_INSNS_BASE | PPC_ISEL |             \
+                              PPC_SPE | PPC_SPE_SINGLE | PPC_SPE_DOUBLE |   \
+                              PPC_WRTEE | PPC_RFDI |                  \
+                              PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
+                              PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
+                              PPC_MEM_TLBSYNC | PPC_TLBIVAX |         \
                               PPC_BOOKE)
 #define POWERPC_MSRM_e500    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500     (POWERPC_MMU_BOOKE_FSL)
@@ -9431,7 +9431,7 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
         gdb_register_coprocessor(env, gdb_get_avr_reg, gdb_set_avr_reg,
                                  34, "power-altivec.xml", 0);
     }
-    if ((def->insns_flags & PPC_SPE) | (def->insns_flags & PPC_SPEFPU)) {
+    if (def->insns_flags & PPC_SPE) {
         gdb_register_coprocessor(env, gdb_get_spe_reg, gdb_set_spe_reg,
                                  34, "power-spe.xml", 0);
     }
