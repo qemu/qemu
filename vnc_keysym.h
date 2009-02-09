@@ -204,6 +204,7 @@ static const name2keysym_t name2keysym[]={
 {"EuroSign", 0x20ac},  /* XK_EuroSign */
 
     /* modifiers */
+{"ISO_Level3_Shift", 0xfe03}, /* XK_ISO_Level3_Shift */
 {"Control_L", 0xffe3}, /* XK_Control_L */
 {"Control_R", 0xffe4}, /* XK_Control_R */
 {"Alt_L", 0xffe9},     /* XK_Alt_L */
@@ -285,6 +286,28 @@ static const name2keysym_t name2keysym[]={
 {"Num_Lock", 0xff7f},    /* XK_Num_Lock */
 {"Pause", 0xff13},       /* XK_Pause */
 {"Escape", 0xff1b},      /* XK_Escape */
+
+/* dead keys */
+{"dead_grave", 0xfe50}, /* XK_dead_grave */
+{"dead_acute", 0xfe51}, /* XK_dead_acute */
+{"dead_circumflex", 0xfe52}, /* XK_dead_circumflex */
+{"dead_tilde", 0xfe53}, /* XK_dead_tilde */
+{"dead_macron", 0xfe54}, /* XK_dead_macron */
+{"dead_breve", 0xfe55}, /* XK_dead_breve */
+{"dead_abovedot", 0xfe56}, /* XK_dead_abovedot */
+{"dead_diaeresis", 0xfe57}, /* XK_dead_diaeresis */
+{"dead_abovering", 0xfe58}, /* XK_dead_abovering */
+{"dead_doubleacute", 0xfe59}, /* XK_dead_doubleacute */
+{"dead_caron", 0xfe5a}, /* XK_dead_caron */
+{"dead_cedilla", 0xfe5b}, /* XK_dead_cedilla */
+{"dead_ogonek", 0xfe5c}, /* XK_dead_ogonek */
+{"dead_iota", 0xfe5d}, /* XK_dead_iota */
+{"dead_voiced_sound", 0xfe5e}, /* XK_dead_voiced_sound */
+{"dead_semivoiced_sound", 0xfe5f}, /* XK_dead_semivoiced_sound */
+{"dead_belowdot", 0xfe60}, /* XK_dead_belowdot */
+{"dead_hook", 0xfe61}, /* XK_dead_hook */
+{"dead_horn", 0xfe62}, /* XK_dead_horn */
+
 
     /* localized keys */
 {"BackApostrophe", 0xff21},
