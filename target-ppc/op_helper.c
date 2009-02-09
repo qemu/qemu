@@ -2707,6 +2707,17 @@ VROTATE(h, u16)
 VROTATE(w, u32)
 #undef VROTATE
 
+void helper_vrsqrtefp (ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN1(r->f[i], b->f[i]) {
+            float32 t = float32_sqrt(b->f[i], &env->vec_status);
+            r->f[i] = float32_div(float32_one, t, &env->vec_status);
+        }
+    }
+}
+
 void helper_vsel (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     r->u64[0] = (a->u64[0] & ~c->u64[0]) | (b->u64[0] & c->u64[0]);
