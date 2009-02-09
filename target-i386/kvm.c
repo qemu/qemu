@@ -36,10 +36,10 @@
 int kvm_arch_init_vcpu(CPUState *env)
 {
     struct {
-        struct kvm_cpuid cpuid;
-        struct kvm_cpuid_entry entries[100];
+        struct kvm_cpuid2 cpuid;
+        struct kvm_cpuid_entry2 entries[100];
     } __attribute__((packed)) cpuid_data;
-    uint32_t limit, i, cpuid_i;
+    uint32_t limit, i, j, cpuid_i;
     uint32_t eax, ebx, ecx, edx;
 
     cpuid_i = 0;
@@ -48,21 +48,46 @@ int kvm_arch_init_vcpu(CPUState *env)
     limit = eax;
 
     for (i = 0; i <= limit; i++) {
-        struct kvm_cpuid_entry *c = &cpuid_data.entries[cpuid_i++];
+        struct kvm_cpuid_entry2 *c = &cpuid_data.entries[cpuid_i++];
 
-        cpu_x86_cpuid(env, i, 0, &eax, &ebx, &ecx, &edx);
-        c->function = i;
-        c->eax = eax;
-        c->ebx = ebx;
-        c->ecx = ecx;
-        c->edx = edx;
+        switch (i) {
+        case 4:
+        case 0xb:
+        case 0xd:
+            for (j = 0; ; j++) {
+                cpu_x86_cpuid(env, i, j, &eax, &ebx, &ecx, &edx);
+                c->function = i;
+                c->flags = KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
+                c->index = j;
+                c->eax = eax;
+                c->ebx = ebx;
+                c->ecx = ecx;
+                c->edx = edx;
+                c = &cpuid_data.entries[++cpuid_i];
+
+                if (i == 4 && eax == 0)
+                    break;
+                if (i == 0xb && !(ecx & 0xff00))
+                    break;
+                if (i == 0xd && eax == 0)
+                    break;
+            }
+            break;
+        default:
+            cpu_x86_cpuid(env, i, 0, &eax, &ebx, &ecx, &edx);
+            c->function = i;
+            c->eax = eax;
+            c->ebx = ebx;
+            c->ecx = ecx;
+            c->edx = edx;
+            break;
+        }
     }
-
     cpu_x86_cpuid(env, 0x80000000, 0, &eax, &ebx, &ecx, &edx);
     limit = eax;
 
     for (i = 0x80000000; i <= limit; i++) {
-        struct kvm_cpuid_entry *c = &cpuid_data.entries[cpuid_i++];
+        struct kvm_cpuid_entry2 *c = &cpuid_data.entries[cpuid_i++];
 
         cpu_x86_cpuid(env, i, 0, &eax, &ebx, &ecx, &edx);
         c->function = i;
@@ -74,7 +99,7 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     cpuid_data.cpuid.nent = cpuid_i;
 
-    return kvm_vcpu_ioctl(env, KVM_SET_CPUID, &cpuid_data);
+    return kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
 }
 
 static int kvm_has_msr_star(CPUState *env)
