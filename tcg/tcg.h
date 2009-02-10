@@ -390,8 +390,6 @@ typedef struct TCGTargetOpDef {
     const char *args_ct_str[TCG_MAX_OP_ARGS];
 } TCGTargetOpDef;
 
-extern TCGOpDef tcg_op_defs[];
-
 void tcg_target_init(TCGContext *s);
 void tcg_target_qemu_prologue(TCGContext *s);
 
