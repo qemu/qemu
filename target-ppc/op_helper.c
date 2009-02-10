@@ -2099,6 +2099,20 @@ VARITH(uwm, u32)
 #undef VARITH_DO
 #undef VARITH
 
+#define VARITHFP(suffix, func)                                          \
+    void helper_v##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)    \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            HANDLE_NAN2(r->f[i], a->f[i], b->f[i]) {                    \
+                r->f[i] = func(a->f[i], b->f[i], &env->vec_status);     \
+            }                                                           \
+        }                                                               \
+    }
+VARITHFP(addfp, float32_add)
+VARITHFP(subfp, float32_sub)
+#undef VARITHFP
+
 #define VARITHSAT_CASE(type, op, cvt, element)                          \
     {                                                                   \
         type result = (type)a->element[i] op (type)b->element[i];       \
@@ -2206,6 +2220,119 @@ VCMP(gtsw, >, s32)
 #undef VCMP_DO
 #undef VCMP
 
+#define VCMPFP_DO(suffix, compare, order, record)                       \
+    void helper_vcmp##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b) \
+    {                                                                   \
+        uint32_t ones = (uint32_t)-1;                                   \
+        uint32_t all = ones;                                            \
+        uint32_t none = 0;                                              \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            uint32_t result;                                            \
+            int rel = float32_compare_quiet(a->f[i], b->f[i], &env->vec_status); \
+            if (rel == float_relation_unordered) {                      \
+                result = 0;                                             \
+            } else if (rel compare order) {                             \
+                result = ones;                                          \
+            } else {                                                    \
+                result = 0;                                             \
+            }                                                           \
+            r->u32[i] = result;                                         \
+            all &= result;                                              \
+            none |= result;                                             \
+        }                                                               \
+        if (record) {                                                   \
+            env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);       \
+        }                                                               \
+    }
+#define VCMPFP(suffix, compare, order)           \
+    VCMPFP_DO(suffix, compare, order, 0)         \
+    VCMPFP_DO(suffix##_dot, compare, order, 1)
+VCMPFP(eqfp, ==, float_relation_equal)
+VCMPFP(gefp, !=, float_relation_less)
+VCMPFP(gtfp, ==, float_relation_greater)
+#undef VCMPFP_DO
+#undef VCMPFP
+
+static always_inline void vcmpbfp_internal (ppc_avr_t *r, ppc_avr_t *a,
+                                            ppc_avr_t *b, int record)
+{
+    int i;
+    int all_in = 0;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        int le_rel = float32_compare_quiet(a->f[i], b->f[i], &env->vec_status);
+        if (le_rel == float_relation_unordered) {
+            r->u32[i] = 0xc0000000;
+            /* ALL_IN does not need to be updated here.  */
+        } else {
+            float32 bneg = float32_chs(b->f[i]);
+            int ge_rel = float32_compare_quiet(a->f[i], bneg, &env->vec_status);
+            int le = le_rel != float_relation_greater;
+            int ge = ge_rel != float_relation_less;
+            r->u32[i] = ((!le) << 31) | ((!ge) << 30);
+            all_in |= (!le | !ge);
+        }
+    }
+    if (record) {
+        env->crf[6] = (all_in == 0) << 1;
+    }
+}
+
+void helper_vcmpbfp (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    vcmpbfp_internal(r, a, b, 0);
+}
+
+void helper_vcmpbfp_dot (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    vcmpbfp_internal(r, a, b, 1);
+}
+
+#define VCT(suffix, satcvt, element)                                    \
+    void helper_vct##suffix (ppc_avr_t *r, ppc_avr_t *b, uint32_t uim)  \
+    {                                                                   \
+        int i;                                                          \
+        int sat = 0;                                                    \
+        float_status s = env->vec_status;                               \
+        set_float_rounding_mode(float_round_to_zero, &s);               \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            if (float32_is_nan(b->f[i]) ||                              \
+                float32_is_signaling_nan(b->f[i])) {                    \
+                r->element[i] = 0;                                      \
+            } else {                                                    \
+                float64 t = float32_to_float64(b->f[i], &s);            \
+                int64_t j;                                              \
+                t = float64_scalbn(t, uim, &s);                         \
+                j = float64_to_int64(t, &s);                            \
+                r->element[i] = satcvt(j, &sat);                        \
+            }                                                           \
+        }                                                               \
+        if (sat) {                                                      \
+            env->vscr |= (1 << VSCR_SAT);                               \
+        }                                                               \
+    }
+VCT(uxs, cvtsduw, u32)
+VCT(sxs, cvtsdsw, s32)
+#undef VCT
+
+void helper_vmaddfp (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN3(r->f[i], a->f[i], b->f[i], c->f[i]) {
+            /* Need to do the computation in higher precision and round
+             * once at the end.  */
+            float64 af, bf, cf, t;
+            af = float32_to_float64(a->f[i], &env->vec_status);
+            bf = float32_to_float64(b->f[i], &env->vec_status);
+            cf = float32_to_float64(c->f[i], &env->vec_status);
+            t = float64_mul(af, cf, &env->vec_status);
+            t = float64_add(t, bf, &env->vec_status);
+            r->f[i] = float64_to_float32(t, &env->vec_status);
+        }
+    }
+}
+
 void helper_vmhaddshs (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     int sat = 0;
@@ -2261,6 +2388,24 @@ VMINMAX(uh, u16)
 VMINMAX(uw, u32)
 #undef VMINMAX_DO
 #undef VMINMAX
+
+#define VMINMAXFP(suffix, rT, rF)                                       \
+    void helper_v##suffix (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)    \
+    {                                                                   \
+        int i;                                                          \
+        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+            HANDLE_NAN2(r->f[i], a->f[i], b->f[i]) {                    \
+                if (float32_lt_quiet(a->f[i], b->f[i], &env->vec_status)) { \
+                    r->f[i] = rT->f[i];                                 \
+                } else {                                                \
+                    r->f[i] = rF->f[i];                                 \
+                }                                                       \
+            }                                                           \
+        }                                                               \
+    }
+VMINMAXFP(minfp, a, b)
+VMINMAXFP(maxfp, b, a)
+#undef VMINMAXFP
 
 void helper_vmladduhm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
@@ -2424,6 +2569,25 @@ VMUL(uh, u16, u32)
 #undef VMUL_DO
 #undef VMUL
 
+void helper_vnmsubfp (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN3(r->f[i], a->f[i], b->f[i], c->f[i]) {
+            /* Need to do the computation is higher precision and round
+             * once at the end.  */
+            float64 af, bf, cf, t;
+            af = float32_to_float64(a->f[i], &env->vec_status);
+            bf = float32_to_float64(b->f[i], &env->vec_status);
+            cf = float32_to_float64(c->f[i], &env->vec_status);
+            t = float64_mul(af, cf, &env->vec_status);
+            t = float64_sub(t, bf, &env->vec_status);
+            t = float64_chs(t);
+            r->f[i] = float64_to_float32(t, &env->vec_status);
+        }
+    }
+}
+
 void helper_vperm (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     ppc_avr_t result;
@@ -2500,6 +2664,16 @@ VPK(uwum, u32, u16, I, 0)
 #undef VPK
 #undef PKBIG
 
+void helper_vrefp (ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN1(r->f[i], b->f[i]) {
+            r->f[i] = float32_div(float32_one, b->f[i], &env->vec_status);
+        }
+    }
+}
+
 #define VRFI(suffix, rounding)                                          \
     void helper_vrfi##suffix (ppc_avr_t *r, ppc_avr_t *b)               \
     {                                                                   \
@@ -2532,6 +2706,17 @@ VROTATE(b, u8)
 VROTATE(h, u16)
 VROTATE(w, u32)
 #undef VROTATE
+
+void helper_vrsqrtefp (ppc_avr_t *r, ppc_avr_t *b)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
+        HANDLE_NAN1(r->f[i], b->f[i]) {
+            float32 t = float32_sqrt(b->f[i], &env->vec_status);
+            r->f[i] = float32_div(float32_one, t, &env->vec_status);
+        }
+    }
+}
 
 void helper_vsel (ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {

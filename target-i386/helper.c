@@ -1403,7 +1403,8 @@ static void breakpoint_handler(CPUState *env)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-static void host_cpuid(uint32_t function, uint32_t *eax, uint32_t *ebx,
+static void host_cpuid(uint32_t function, uint32_t count,
+                       uint32_t *eax, uint32_t *ebx,
                        uint32_t *ecx, uint32_t *edx)
 {
 #if defined(CONFIG_KVM)
@@ -1411,19 +1412,19 @@ static void host_cpuid(uint32_t function, uint32_t *eax, uint32_t *ebx,
 
 #ifdef __x86_64__
     asm volatile("cpuid"
-		 : "=a"(vec[0]), "=b"(vec[1]),
-		   "=c"(vec[2]), "=d"(vec[3])
-		 : "0"(function) : "cc");
+                 : "=a"(vec[0]), "=b"(vec[1]),
+                   "=c"(vec[2]), "=d"(vec[3])
+                 : "0"(function), "c"(count) : "cc");
 #else
     asm volatile("pusha \n\t"
-		 "cpuid \n\t"
-		 "mov %%eax, 0(%1) \n\t"
-		 "mov %%ebx, 4(%1) \n\t"
-		 "mov %%ecx, 8(%1) \n\t"
-		 "mov %%edx, 12(%1) \n\t"
-		 "popa"
-		 : : "a"(function), "S"(vec)
-		 : "memory", "cc");
+                 "cpuid \n\t"
+                 "mov %%eax, 0(%1) \n\t"
+                 "mov %%ebx, 4(%1) \n\t"
+                 "mov %%ecx, 8(%1) \n\t"
+                 "mov %%edx, 12(%1) \n\t"
+                 "popa"
+                 : : "a"(function), "c"(count), "S"(vec)
+                 : "memory", "cc");
 #endif
 
     if (eax)
@@ -1437,7 +1438,7 @@ static void host_cpuid(uint32_t function, uint32_t *eax, uint32_t *ebx,
 #endif
 }
 
-void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
+void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx)
 {
@@ -1462,7 +1463,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
          * actuall cpu, and say goodbye to migration between different vendors
          * is you use compatibility mode. */
         if (kvm_enabled())
-            host_cpuid(0, NULL, ebx, ecx, edx);
+            host_cpuid(0, 0, NULL, ebx, ecx, edx);
         break;
     case 1:
         *eax = env->cpuid_version;
@@ -1483,7 +1484,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
         break;
     case 4:
         /* cache info: needed for Core compatibility */
-        switch (*ecx) {
+        switch (count) {
             case 0: /* L1 dcache info */
                 *eax = 0x0000121;
                 *ebx = 0x1c0003f;
@@ -1509,7 +1510,6 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
                 *edx = 0;
                 break;
         }
-
         break;
     case 5:
         /* mwait info: needed for Core compatibility */
@@ -1554,7 +1554,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
         if (kvm_enabled()) {
             uint32_t h_eax, h_edx;
 
-            host_cpuid(0x80000001, &h_eax, NULL, NULL, &h_edx);
+            host_cpuid(index, 0, &h_eax, NULL, NULL, &h_edx);
 
             /* disable CPU features that the host does not support */
 

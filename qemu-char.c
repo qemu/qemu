@@ -1992,6 +1992,10 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
             do_nodelay = 1;
         } else if (!strncmp(ptr,"to=",3)) {
             /* nothing, inet_listen() parses this one */;
+        } else if (!strncmp(ptr,"ipv4",4)) {
+            /* nothing, inet_connect() and inet_listen() parse this one */;
+        } else if (!strncmp(ptr,"ipv6",4)) {
+            /* nothing, inet_connect() and inet_listen() parse this one */;
         } else {
             printf("Unknown option: %s\n", ptr);
             goto fail;

@@ -772,7 +772,7 @@ int cpu_x86_signal_handler(int host_signum, void *pinfo,
 int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
                              int is_write, int mmu_idx, int is_softmmu);
 void cpu_x86_set_a20(CPUX86State *env, int a20_state);
-void cpu_x86_cpuid(CPUX86State *env, uint32_t index,
+void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx);
 

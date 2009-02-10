@@ -142,6 +142,7 @@ enum bfd_architecture
 #define bfd_mach_ppc64         1
 #define bfd_mach_ppc_403       403
 #define bfd_mach_ppc_403gc     4030
+#define bfd_mach_ppc_e500      500
 #define bfd_mach_ppc_505       505
 #define bfd_mach_ppc_601       601
 #define bfd_mach_ppc_602       602

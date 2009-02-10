@@ -1273,7 +1273,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
     struct n800_s *s = (struct n800_s *) qemu_mallocz(sizeof(*s));
     int sdram_size = binfo->ram_size;
     int onenandram_size = 0x00010000;
-    DisplayState *ds = get_displaystate();
+    DisplayState *ds;
 
     if (ram_size < sdram_size + onenandram_size + OMAP242X_SRAM_SIZE) {
         fprintf(stderr, "This architecture uses %i bytes of memory\n",
@@ -1361,6 +1361,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
     /* FIXME: We shouldn't really be doing this here.  The LCD controller
        will set the size once configured, so this just sets an initial
        size until the guest activates the display.  */
+    ds = get_displaystate();
     ds->surface = qemu_resize_displaysurface(ds->surface, 800, 480, 32, 4 * 800);
     dpy_resize(ds);
 }

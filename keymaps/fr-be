@@ -50,7 +50,6 @@ underscore 0x0d shift
 dead_cedilla 0x0d altgr
 dead_ogonek 0x0d shift altgr
 a 0x10 addupper
-at 0x10 altgr
 Greek_OMEGA 0x10 shift altgr
 z 0x11 addupper
 lstroke 0x11 altgr
@@ -83,7 +82,6 @@ q 0x1e addupper
 ae 0x1e altgr
 AE 0x1e shift altgr
 ssharp 0x1f altgr
-section 0x1f shift altgr
 eth 0x20 altgr
 ETH 0x20 shift altgr
 dstroke 0x21 altgr
@@ -93,7 +91,6 @@ ENG 0x22 shift altgr
 hstroke 0x23 altgr
 Hstroke 0x23 shift altgr
 kra 0x25 altgr
-ampersand 0x25 shift altgr
 lstroke 0x26 altgr
 Lstroke 0x26 shift altgr
 m 0x27 addupper
@@ -112,15 +109,12 @@ dead_grave 0x2b altgr
 dead_breve 0x2b shift altgr
 w 0x2c addupper
 guillemotleft 0x2c altgr
-less 0x2c shift altgr
 guillemotright 0x2d altgr
-greater 0x2d shift altgr
 cent 0x2e altgr
 copyright 0x2e shift altgr
 leftdoublequotemark 0x2f altgr
 grave 0x2f shift altgr
 rightdoublequotemark 0x30 altgr
-apostrophe 0x30 shift altgr
 comma 0x32
 question 0x32 shift
 dead_cedilla 0x32 altgr

@@ -865,7 +865,7 @@ int main(int argc, char **argv)
     if (argc < 2)
         help();
     cmd = argv[1];
-    optind++;
+    argc--; argv++;
     if (!strcmp(cmd, "create")) {
         img_create(argc, argv);
     } else if (!strcmp(cmd, "commit")) {
