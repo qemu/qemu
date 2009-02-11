@@ -134,6 +134,7 @@ typedef struct DriveInfo {
     BlockInterfaceType type;
     int bus;
     int unit;
+    int used;
     BlockInterfaceErrorAction onerror;
     char serial[21];
 } DriveInfo;
