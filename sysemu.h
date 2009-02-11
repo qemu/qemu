@@ -154,6 +154,15 @@ extern void drive_remove(int index);
 extern const char *drive_get_serial(BlockDriverState *bdrv);
 extern BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv);
 
+struct drive_opt {
+    const char *file;
+    char opt[1024];
+    int used;
+};
+
+extern struct drive_opt drives_opt[MAX_DRIVES];
+extern int nb_drives_opt;
+
 /* serial ports */
 
 #define MAX_SERIAL_PORTS 4
