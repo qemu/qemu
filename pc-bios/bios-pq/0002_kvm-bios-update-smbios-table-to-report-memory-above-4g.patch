@@ -6,19 +6,43 @@ Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
 
 Index: bochs/bios/rombios32.c
 ===================================================================
---- bochs.orig/bios/rombios32.c
-+++ bochs/bios/rombios32.c
-@@ -2081,7 +2081,8 @@ void smbios_init(void)
+diff --git a/bios/rombios32.c b/bios/rombios32.c
+index 3269be5..9587288 100644
+--- a/bios/rombios32.c
++++ b/bios/rombios32.c
+@@ -429,6 +429,7 @@ uint32_t cpuid_signature;
+ uint32_t cpuid_features;
+ uint32_t cpuid_ext_features;
+ unsigned long ram_size;
++uint64_t ram_end;
+ uint8_t bios_uuid[16];
+ #ifdef BX_USE_EBDA_TABLES
+ unsigned long ebda_cur_addr;
+@@ -571,6 +572,13 @@ void ram_probe(void)
+     ram_size = (cmos_readb(0x30) | (cmos_readb(0x31) << 8)) * 1024 +
+         1 * 1024 * 1024;
+   BX_INFO("ram_size=0x%08lx\n", ram_size);
++  if (cmos_readb(0x5b) | cmos_readb(0x5c) | cmos_readb(0x5d))
++    ram_end = (((uint64_t)cmos_readb(0x5b) << 16) |
++               ((uint64_t)cmos_readb(0x5c) << 24) |
++               ((uint64_t)cmos_readb(0x5d) << 32)) + (1ull << 32);
++  else
++    ram_end = ram_size;
++  BX_INFO("end of ram=%ldMB\n", ram_end >> 20);
+ #ifdef BX_USE_EBDA_TABLES
+   ebda_cur_addr = ((*(uint16_t *)(0x40e)) << 4) + 0x380;
+   BX_INFO("ebda_cur_addr: 0x%08lx\n", ebda_cur_addr);
+@@ -2174,7 +2182,8 @@ void smbios_init(void)
  {
      unsigned cpu_num, nr_structs = 0, max_struct_size = 0;
      char *start, *p, *q;
 -    int memsize = ram_size / (1024 * 1024);
 +    int memsize = (ram_end == ram_size) ? ram_size / (1024 * 1024) :
 +                  (ram_end - (1ull << 32) + ram_size) / (1024 * 1024);
-
+ 
  #ifdef BX_USE_EBDA_TABLES
      ebda_cur_addr = align(ebda_cur_addr, 16);
-@@ -2108,8 +2109,8 @@ void smbios_init(void)
+@@ -2201,8 +2210,8 @@ void smbios_init(void)
          add_struct(smbios_type_4_init(p, cpu_num));
      add_struct(smbios_type_16_init(p, memsize));
      add_struct(smbios_type_17_init(p, memsize));
@@ -28,6 +52,4 @@ Index: bochs/bios/rombios32.c
 +    add_struct(smbios_type_20_init(p, ram_end / (1024 * 1024)));
      add_struct(smbios_type_32_init(p));
      add_struct(smbios_type_127_init(p));
-
-
-
+ 
