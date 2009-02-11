@@ -1597,7 +1597,7 @@ int net_client_init(const char *device, const char *p)
         name = NULL;
         nb_nics++;
         vlan->nb_guest_devs++;
-        ret = 0;
+        ret = idx;
     } else
     if (!strcmp(device, "none")) {
         /* does nothing. It is needed to signal that no network cards

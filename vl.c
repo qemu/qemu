@@ -2158,14 +2158,14 @@ static int drive_get_free_idx(void)
     return -1;
 }
 
-static int drive_add(const char *file, const char *fmt, ...)
+int drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
     int index = drive_opt_get_free_idx();
 
     if (nb_drives_opt >= MAX_DRIVES || index == -1) {
         fprintf(stderr, "qemu: too many drives\n");
-        exit(1);
+        return -1;
     }
 
     drives_opt[index].file = file;
@@ -2255,8 +2255,7 @@ void drive_uninit(BlockDriverState *bdrv)
         }
 }
 
-static int drive_init(struct drive_opt *arg, int snapshot,
-                      QEMUMachine *machine)
+int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
 {
     char buf[128];
     char file[1024];
@@ -2269,6 +2268,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     int cyls, heads, secs, translation;
     BlockDriverState *bdrv;
     BlockDriver *drv = NULL;
+    QEMUMachine *machine = opaque;
     int max_devs;
     int index;
     int cache;
@@ -2535,7 +2535,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
      */
 
     if (drive_get_index(type, bus_id, unit_id) != -1)
-        return 0;
+        return -2;
 
     /* init */
 
@@ -2585,7 +2585,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         break;
     }
     if (!file[0])
-        return 0;
+        return -2;
     bdrv_flags = 0;
     if (snapshot) {
         bdrv_flags |= BDRV_O_SNAPSHOT;
@@ -2602,7 +2602,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
                         file);
         return -1;
     }
-    return 0;
+    return drives_table_idx;
 }
 
 /***********************************************************/
