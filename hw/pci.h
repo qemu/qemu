@@ -8,6 +8,10 @@
 
 extern target_phys_addr_t pci_mem_base;
 
+#define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
+#define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
+#define PCI_FUNC(devfn)         ((devfn) & 0x07)
+
 /* Device classes and subclasses */
 
 #define PCI_CLASS_STORAGE_SCSI           0x0100
@@ -222,6 +226,8 @@ void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
 int pci_bus_num(PCIBus *s);
 void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d));
+PCIBus *pci_find_bus(int bus_num);
+PCIDevice *pci_find_device(int bus_num, int slot, int function);
 
 void pci_info(void);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
