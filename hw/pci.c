@@ -247,6 +247,13 @@ void pci_register_io_region(PCIDevice *pci_dev, int region_num,
 
     if ((unsigned int)region_num >= PCI_NUM_REGIONS)
         return;
+
+    if (size & (size-1)) {
+        fprintf(stderr, "ERROR: PCI region size must be pow2 "
+                    "type=0x%x, size=0x%x\n", type, size);
+        exit(1);
+    }
+
     r = &pci_dev->io_regions[region_num];
     r->addr = -1;
     r->size = size;
