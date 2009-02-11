@@ -1501,6 +1501,16 @@ VLANState *qemu_find_vlan(int id)
     return vlan;
 }
 
+static int nic_get_free_idx(void)
+{
+    int index;
+
+    for (index = 0; index < MAX_NICS; index++)
+        if (!nd_table[index].used)
+            return index;
+    return -1;
+}
+
 void qemu_check_nic_model(NICInfo *nd, const char *model)
 {
     const char *models[2];
@@ -1557,19 +1567,20 @@ int net_client_init(const char *device, const char *p)
     if (!strcmp(device, "nic")) {
         NICInfo *nd;
         uint8_t *macaddr;
+        int idx = nic_get_free_idx();
 
-        if (nb_nics >= MAX_NICS) {
+        if (idx == -1 || nb_nics >= MAX_NICS) {
             fprintf(stderr, "Too Many NICs\n");
             return -1;
         }
-        nd = &nd_table[nb_nics];
+        nd = &nd_table[idx];
         macaddr = nd->macaddr;
         macaddr[0] = 0x52;
         macaddr[1] = 0x54;
         macaddr[2] = 0x00;
         macaddr[3] = 0x12;
         macaddr[4] = 0x34;
-        macaddr[5] = 0x56 + nb_nics;
+        macaddr[5] = 0x56 + idx;
 
         if (get_param_value(buf, sizeof(buf), "macaddr", p)) {
             if (parse_macaddr(macaddr, buf) < 0) {
@@ -1582,6 +1593,7 @@ int net_client_init(const char *device, const char *p)
         }
         nd->vlan = vlan;
         nd->name = name;
+        nd->used = 1;
         name = NULL;
         nb_nics++;
         vlan->nb_guest_devs++;
