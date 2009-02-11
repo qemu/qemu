@@ -56,6 +56,12 @@ qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n)
     return s;
 }
 
+void qemu_free_irqs(qemu_irq *s)
+{
+    qemu_free(s[0]);
+    qemu_free(s);
+}
+
 static void qemu_notirq(void *opaque, int line, int level)
 {
     struct IRQState *irq = opaque;
