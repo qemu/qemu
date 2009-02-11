@@ -366,6 +366,19 @@ void qemu_del_vlan_client(VLANClientState *vc)
             pvc = &(*pvc)->next;
 }
 
+VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque)
+{
+    VLANClientState **pvc = &vlan->first_client;
+
+    while (*pvc != NULL)
+        if ((*pvc)->opaque == opaque)
+            return *pvc;
+        else
+            pvc = &(*pvc)->next;
+
+    return NULL;
+}
+
 int qemu_can_send_packet(VLANClientState *vc1)
 {
     VLANState *vlan = vc1->vlan;
@@ -1711,6 +1724,14 @@ int net_client_init(const char *device, const char *p)
     if (name)
         free(name);
     return ret;
+}
+
+void net_client_uninit(NICInfo *nd)
+{
+    nd->vlan->nb_guest_devs--;
+    nb_nics--;
+    nd->used = 0;
+    free((void *)nd->model);
 }
 
 int net_client_parse(const char *str)

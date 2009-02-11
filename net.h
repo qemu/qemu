@@ -42,6 +42,7 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       IOCanRWHandler *fd_can_read,
                                       void *opaque);
 void qemu_del_vlan_client(VLANClientState *vc);
+VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque);
 int qemu_can_send_packet(VLANClientState *vc);
 ssize_t qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov,
                           int iovcnt);
@@ -94,6 +95,7 @@ void net_checksum_calculate(uint8_t *data, int length);
 
 /* from net.c */
 int net_client_init(const char *device, const char *p);
+void net_client_uninit(NICInfo *nd);
 int net_client_parse(const char *str);
 void net_slirp_smb(const char *exported_dir);
 void net_slirp_redir(const char *redir_str);
