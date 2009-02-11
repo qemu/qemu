@@ -777,7 +777,7 @@ static void ne2000_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
 }
 
-void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
+PCIDevice *pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     PCINE2000State *d;
     NE2000State *s;
@@ -807,4 +807,6 @@ void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
     register_savevm("ne2000", -1, 3, ne2000_save, ne2000_load, s);
+
+    return (PCIDevice *)d;
 }

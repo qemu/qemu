@@ -1034,7 +1034,7 @@ e1000_mmio_map(PCIDevice *pci_dev, int region_num,
                                      excluded_regs[i] - 4);
 }
 
-void
+PCIDevice *
 pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     E1000State *d;
@@ -1092,4 +1092,6 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
     qemu_format_nic_info_str(d->vc, d->nd->macaddr);
 
     register_savevm(info_str, -1, 2, nic_save, nic_load, d);
+
+    return (PCIDevice *)d;
 }

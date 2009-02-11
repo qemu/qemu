@@ -220,7 +220,7 @@ typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          qemu_irq *pic, int devfn_min, int nirq);
 
-void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
+PCIDevice *pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
                   const char *default_model);
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
@@ -269,23 +269,23 @@ void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn);
 
 /* eepro100.c */
 
-void pci_i82551_init(PCIBus *bus, NICInfo *nd, int devfn);
-void pci_i82557b_init(PCIBus *bus, NICInfo *nd, int devfn);
-void pci_i82559er_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_i82551_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_i82557b_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_i82559er_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* ne2000.c */
 
-void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* rtl8139.c */
 
-void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* e1000.c */
-void pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* pcnet.c */
-void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* prep_pci.c */
 PCIBus *pci_prep_init(qemu_irq *pic);

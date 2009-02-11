@@ -560,7 +560,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
+PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     VirtIONet *n;
     static int virtio_net_id;
@@ -574,7 +574,7 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
                                      sizeof(struct virtio_net_config),
                                      sizeof(VirtIONet));
     if (!n)
-        return;
+        return NULL;
 
     n->vdev.get_config = virtio_net_get_config;
     n->vdev.set_config = virtio_net_set_config;
@@ -599,12 +599,13 @@ void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
 
     n->mac_table.macs = qemu_mallocz(MAC_TABLE_ENTRIES * ETH_ALEN);
     if (!n->mac_table.macs)
-        return;
+        return NULL;
 
     n->vlans = qemu_mallocz(MAX_VLAN >> 3);
     if (!n->vlans)
-        return;
+        return NULL;
 
     register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
+    return (PCIDevice *)n;
 }

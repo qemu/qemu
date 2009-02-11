@@ -662,7 +662,7 @@ static const char * const pci_nic_models[] = {
     NULL
 };
 
-typedef void (*PCINICInitFn)(PCIBus *, NICInfo *, int);
+typedef PCIDevice *(*PCINICInitFn)(PCIBus *, NICInfo *, int);
 
 static PCINICInitFn pci_nic_init_fns[] = {
     pci_ne2000_init,
@@ -677,16 +677,23 @@ static PCINICInitFn pci_nic_init_fns[] = {
 };
 
 /* Initialize a PCI NIC.  */
-void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
+PCIDevice *pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
                   const char *default_model)
 {
+    PCIDevice *pci_dev;
     int i;
 
     qemu_check_nic_model_list(nd, pci_nic_models, default_model);
 
     for (i = 0; pci_nic_models[i]; i++)
-        if (strcmp(nd->model, pci_nic_models[i]) == 0)
-            pci_nic_init_fns[i](bus, nd, devfn);
+        if (strcmp(nd->model, pci_nic_models[i]) == 0) {
+            pci_dev = pci_nic_init_fns[i](bus, nd, devfn);
+            if (pci_dev)
+                nd->private = pci_dev;
+            return pci_dev;
+        }
+
+    return NULL;
 }
 
 typedef struct {
