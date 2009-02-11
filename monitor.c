@@ -1513,7 +1513,8 @@ static const term_cmd_t term_cmds[] = {
       "value", "set maximum speed (in bytes) for migrations" },
     { "balloon", "i", do_balloon,
       "target", "request VM to change it's memory allocation (in MB)" },
-    { "set_link", "ss", do_set_link, "name [up|down]" },
+    { "set_link", "ss", do_set_link,
+      "name [up|down]", "change the link status of a network adapter" },
     { NULL, NULL, },
 };
 
