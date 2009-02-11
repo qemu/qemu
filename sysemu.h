@@ -170,6 +170,20 @@ extern int drive_init(struct drive_opt *arg, int snapshot, void *machine);
 void qemu_system_hot_add_init(void);
 void qemu_system_device_hot_add(int pcibus, int slot, int state);
 
+/* device-hotplug */
+
+typedef int (dev_match_fn)(void *dev_private, void *arg);
+
+int add_init_drive(const char *opts);
+void destroy_nic(dev_match_fn *match_fn, void *arg);
+void destroy_bdrvs(dev_match_fn *match_fn, void *arg);
+
+/* pci-hotplug */
+void pci_device_hot_add(const char *pci_addr, const char *type, const char *opts);
+void drive_hot_add(const char *pci_addr, const char *opts);
+void pci_device_hot_remove(const char *pci_addr);
+void pci_device_hot_remove_success(int pcibus, int slot);
+
 /* serial ports */
 
 #define MAX_SERIAL_PORTS 4

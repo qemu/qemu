@@ -14,6 +14,9 @@ extern target_phys_addr_t pci_mem_base;
 
 /* Device classes and subclasses */
 
+#define PCI_BASE_CLASS_STORAGE           0x01
+#define PCI_BASE_CLASS_NETWORK           0x02
+
 #define PCI_CLASS_STORAGE_SCSI           0x0100
 #define PCI_CLASS_STORAGE_IDE            0x0101
 #define PCI_CLASS_STORAGE_OTHER          0x0180

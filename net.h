@@ -102,6 +102,8 @@ void net_slirp_redir(const char *redir_str);
 void net_cleanup(void);
 int slirp_is_inited(void);
 void net_client_check(void);
+void net_host_device_add(const char *device, const char *opts);
+void net_host_device_remove(int vlan_id, const char *device);
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"

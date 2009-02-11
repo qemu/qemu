@@ -3405,6 +3405,7 @@ static void qemu_bh_update_timeout(int *timeout)
 /* machine registration */
 
 static QEMUMachine *first_machine = NULL;
+QEMUMachine *current_machine = NULL;
 
 int qemu_register_machine(QEMUMachine *m)
 {
@@ -5586,6 +5587,8 @@ int main(int argc, char **argv, char **envp)
 
     machine->init(ram_size, vga_ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
+
+    current_machine = machine;
 
     /* Set KVM's vcpu state to qemu's initial CPUState. */
     if (kvm_enabled()) {

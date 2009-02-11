@@ -679,7 +679,11 @@ static uint32_t pciej_read(void *opaque, uint32_t addr)
 
 static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
 {
+#if defined (TARGET_I386)
     int slot = ffs(val) - 1;
+
+    pci_device_hot_remove_success(0, slot);
+#endif
 
 #if defined(DEBUG)
     printf("pciej write %lx <== %d\n", addr, val);

@@ -1734,6 +1734,62 @@ void net_client_uninit(NICInfo *nd)
     free((void *)nd->model);
 }
 
+static int net_host_check_device(const char *device)
+{
+    int i;
+    const char *valid_param_list[] = { "tap", "socket"
+#ifdef CONFIG_SLIRP
+                                       ,"user"
+#endif
+#ifdef CONFIG_VDE
+                                       ,"vde"
+#endif
+    };
+    for (i = 0; i < sizeof(valid_param_list) / sizeof(char *); i++) {
+        if (!strncmp(valid_param_list[i], device,
+                     strlen(valid_param_list[i])))
+            return 1;
+    }
+
+    return 0;
+}
+
+void net_host_device_add(const char *device, const char *opts)
+{
+    if (!net_host_check_device(device)) {
+        term_printf("invalid host network device %s\n", device);
+        return;
+    }
+    net_client_init(device, opts);
+}
+
+void net_host_device_remove(int vlan_id, const char *device)
+{
+    VLANState *vlan;
+    VLANClientState *vc;
+
+    if (!net_host_check_device(device)) {
+        term_printf("invalid host network device %s\n", device);
+        return;
+    }
+
+    vlan = qemu_find_vlan(vlan_id);
+    if (!vlan) {
+        term_printf("can't find vlan %d\n", vlan_id);
+        return;
+    }
+
+   for(vc = vlan->first_client; vc != NULL; vc = vc->next)
+        if (!strcmp(vc->name, device))
+            break;
+
+    if (!vc) {
+        term_printf("can't find device %s\n", device);
+        return;
+    }
+    qemu_del_vlan_client(vc);
+}
+
 int net_client_parse(const char *str)
 {
     const char *p;
