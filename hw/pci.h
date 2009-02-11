@@ -125,6 +125,7 @@ typedef uint32_t PCIConfigReadFunc(PCIDevice *pci_dev,
                                    uint32_t address, int len);
 typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num,
                                 uint32_t addr, uint32_t size, int type);
+typedef int PCIUnregisterFunc(PCIDevice *pci_dev);
 
 #define PCI_ADDRESS_SPACE_MEM		0x00
 #define PCI_ADDRESS_SPACE_IO		0x01
@@ -189,6 +190,7 @@ struct PCIDevice {
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
+    PCIUnregisterFunc *unregister;
     /* ??? This is a PC-specific hack, and should be removed.  */
     int irq_index;
 
@@ -203,6 +205,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                int instance_size, int devfn,
                                PCIConfigReadFunc *config_read,
                                PCIConfigWriteFunc *config_write);
+int pci_unregister_device(PCIDevice *pci_dev);
 
 void pci_register_io_region(PCIDevice *pci_dev, int region_num,
                             uint32_t size, int type,

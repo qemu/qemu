@@ -196,6 +196,48 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     return pci_dev;
 }
 
+static target_phys_addr_t pci_to_cpu_addr(target_phys_addr_t addr)
+{
+    return addr + pci_mem_base;
+}
+
+static void pci_unregister_io_regions(PCIDevice *pci_dev)
+{
+    PCIIORegion *r;
+    int i;
+
+    for(i = 0; i < PCI_NUM_REGIONS; i++) {
+        r = &pci_dev->io_regions[i];
+        if (!r->size || r->addr == -1)
+            continue;
+        if (r->type == PCI_ADDRESS_SPACE_IO) {
+            isa_unassign_ioport(r->addr, r->size);
+        } else {
+            cpu_register_physical_memory(pci_to_cpu_addr(r->addr),
+                                                     r->size,
+                                                     IO_MEM_UNASSIGNED);
+        }
+    }
+}
+
+int pci_unregister_device(PCIDevice *pci_dev)
+{
+    int ret = 0;
+
+    if (pci_dev->unregister)
+        ret = pci_dev->unregister(pci_dev);
+    if (ret)
+        return ret;
+
+    pci_unregister_io_regions(pci_dev);
+
+    qemu_free_irqs(pci_dev->irq);
+    pci_irq_index--;
+    pci_dev->bus->devices[pci_dev->devfn] = NULL;
+    qemu_free(pci_dev);
+    return 0;
+}
+
 void pci_register_io_region(PCIDevice *pci_dev, int region_num,
                             uint32_t size, int type,
                             PCIMapIORegionFunc *map_func)
@@ -216,11 +258,6 @@ void pci_register_io_region(PCIDevice *pci_dev, int region_num,
         addr = 0x10 + region_num * 4;
     }
     *(uint32_t *)(pci_dev->config + addr) = cpu_to_le32(type);
-}
-
-static target_phys_addr_t pci_to_cpu_addr(target_phys_addr_t addr)
-{
-    return addr + pci_mem_base;
 }
 
 static void pci_update_mappings(PCIDevice *d)
