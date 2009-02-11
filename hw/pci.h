@@ -232,6 +232,9 @@ void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d));
 PCIBus *pci_find_bus(int bus_num);
 PCIDevice *pci_find_device(int bus_num, int slot, int function);
 
+int pci_read_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp);
+int pci_assign_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp);
+
 void pci_info(void);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name);

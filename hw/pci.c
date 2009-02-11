@@ -26,6 +26,7 @@
 #include "console.h"
 #include "net.h"
 #include "virtio-net.h"
+#include "sysemu.h"
 
 //#define DEBUG_PCI
 
@@ -156,6 +157,82 @@ static int pci_set_default_subsystem_id(PCIDevice *pci_dev)
     id[0] = cpu_to_le16(pci_default_sub_vendor_id);
     id[1] = cpu_to_le16(pci_default_sub_device_id);
     return 0;
+}
+
+/*
+ * Parse [[<domain>:]<bus>:]<slot>, return -1 on error
+ */
+static int pci_parse_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
+{
+    const char *p;
+    char *e;
+    unsigned long val;
+    unsigned long dom = 0, bus = 0;
+    unsigned slot = 0;
+
+    p = addr;
+    val = strtoul(p, &e, 16);
+    if (e == p)
+	return -1;
+    if (*e == ':') {
+	bus = val;
+	p = e + 1;
+	val = strtoul(p, &e, 16);
+	if (e == p)
+	    return -1;
+	if (*e == ':') {
+	    dom = bus;
+	    bus = val;
+	    p = e + 1;
+	    val = strtoul(p, &e, 16);
+	    if (e == p)
+		return -1;
+	}
+    }
+
+    if (dom > 0xffff || bus > 0xff || val > 0x1f)
+	return -1;
+
+    slot = val;
+
+    if (*e)
+	return -1;
+
+    /* Note: QEMU doesn't implement domains other than 0 */
+    if (dom != 0 || pci_find_bus(bus) == NULL)
+	return -1;
+
+    *domp = dom;
+    *busp = bus;
+    *slotp = slot;
+    return 0;
+}
+
+int pci_read_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
+{
+    char devaddr[32];
+
+    if (!get_param_value(devaddr, sizeof(devaddr), "pci_addr", addr))
+        return -1;
+
+    return pci_parse_devaddr(devaddr, domp, busp, slotp);
+}
+
+int pci_assign_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp)
+{
+    char devaddr[32];
+
+    if (!get_param_value(devaddr, sizeof(devaddr), "pci_addr", addr))
+	return -1;
+
+    if (!strcmp(devaddr, "auto")) {
+        *domp = *busp = 0;
+        *slotp = -1;
+        /* want to support dom/bus auto-assign at some point */
+        return 0;
+    }
+
+    return pci_parse_devaddr(devaddr, domp, busp, slotp);
 }
 
 /* -1 for devfn means auto assign */
