@@ -28,6 +28,7 @@
 #include "scsi-disk.h"
 #include "pcmcia.h"
 #include "block.h"
+#include "block_int.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "ppc_mac.h"
@@ -3352,6 +3353,7 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
 {
     PCIIDEState *d;
     uint8_t *pci_conf;
+    int i;
 
     /* register a function 1 of PIIX3 */
     d = (PCIIDEState *)pci_register_device(bus, "PIIX3 IDE",
@@ -3377,6 +3379,10 @@ void pci_piix3_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
     ide_init2(&d->ide_if[2], hd_table[2], hd_table[3], pic[15]);
     ide_init_ioport(&d->ide_if[0], 0x1f0, 0x3f6);
     ide_init_ioport(&d->ide_if[2], 0x170, 0x376);
+
+    for (i = 0; i < 4; i++)
+        if (hd_table[i])
+            hd_table[i]->private = &d->dev;
 
     register_savevm("ide", 0, 2, pci_ide_save, pci_ide_load, d);
 }

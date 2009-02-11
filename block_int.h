@@ -127,6 +127,7 @@ struct BlockDriverState {
     int type;
     char device_name[32];
     BlockDriverState *next;
+    void *private;
 };
 
 struct BlockDriverAIOCB {
