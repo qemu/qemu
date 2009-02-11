@@ -1034,6 +1034,16 @@ e1000_mmio_map(PCIDevice *pci_dev, int region_num,
                                      excluded_regs[i] - 4);
 }
 
+static int
+pci_e1000_uninit(PCIDevice *dev)
+{
+    E1000State *d = (E1000State *) dev;
+
+    cpu_unregister_io_memory(d->mmio_index);
+
+    return 0;
+}
+
 PCIDevice *
 pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
@@ -1092,6 +1102,7 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
     qemu_format_nic_info_str(d->vc, d->nd->macaddr);
 
     register_savevm(info_str, -1, 2, nic_save, nic_load, d);
+    d->dev.unregister = pci_e1000_uninit;
 
     return (PCIDevice *)d;
 }
