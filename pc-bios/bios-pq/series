@@ -3,3 +3,8 @@
 0003_kvm-bios-generate-mptable-unconditionally.patch
 0004_kvm-bios-resolve-memory-device-roll-over-reporting--issues-with-32g-guests.patch
 0005_kvm-bios-fix-smbios-memory-device-length-boundary--condition.patch
+0006_qemu-bios-use-preprocessor-for-pci-link-routing.patch
+0007_bios-add-26-pci-slots,-bringing-the-total-to-32.patch
+0008_qemu-bios-provide-gpe-_l0x-methods.patch
+0009_qemu-bios-pci-hotplug-support.patch
+0010_bios-mark-the-acpi-sci-interrupt-as-connected-to-irq-9.patch
