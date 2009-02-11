@@ -48,7 +48,10 @@ void *qemu_malloc(size_t size)
 
 void *qemu_realloc(void *ptr, size_t size)
 {
-    return oom_check(realloc(ptr, size));
+    if (size)
+        return oom_check(realloc(ptr, size));
+    else
+        return realloc(ptr, size);
 }
 
 void *qemu_mallocz(size_t size)
