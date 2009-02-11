@@ -909,6 +909,7 @@ int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc **mem_read,
                            CPUWriteMemoryFunc **mem_write,
                            void *opaque);
+void cpu_unregister_io_memory(int table_address);
 CPUWriteMemoryFunc **cpu_get_io_memory_write(int io_index);
 CPUReadMemoryFunc **cpu_get_io_memory_read(int io_index);
 
