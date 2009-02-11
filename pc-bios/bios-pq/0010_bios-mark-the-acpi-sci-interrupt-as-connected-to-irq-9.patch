@@ -1,0 +1,26 @@
+bios: mark the acpi sci interrupt as connected to irq 9 (Avi Kivity)
+
+Due to a chipset bug, the sci interrupt is hardwired to irq 9.  Set the
+pci interrupt line register accordingly.
+    
+Signed-off-by: Avi Kivity <avi@qumranet.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+Index: bochs/bios/rombios32.c
+===================================================================
+--- bochs.orig/bios/rombios32.c
++++ bochs/bios/rombios32.c
+@@ -981,6 +981,8 @@ static void pci_bios_init_device(PCIDevi
+         /* PIIX4 Power Management device (for ACPI) */
+         pm_io_base = PM_IO_BASE;
+         smb_io_base = SMB_IO_BASE;
++        // acpi sci is hardwired to 9
++        pci_config_writeb(d, PCI_INTERRUPT_LINE, 9);
+         pm_sci_int = pci_config_readb(d, PCI_INTERRUPT_LINE);
+         piix4_pm_enable(d);
+         acpi_enabled = 1;
+
+-- 
+
+
+

@@ -317,7 +317,7 @@ static int Atheros_WLAN_load(QEMUFile* f, void* opaque, int version_id)
 }
 
 
-void pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn)
+PCIDevice *pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
 	PCIAtheros_WLANState *d;
 	Atheros_WLANState *s;
@@ -350,6 +350,8 @@ void pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn)
 	register_savevm("Atheros_WLAN", 0, 3, Atheros_WLAN_save, Atheros_WLAN_load, s);
 
 	Atheros_WLAN_reset(nd, s);
+
+    return (PCIDevice *)d;
 }
 
 #endif /* CONFIG_WIN32 */

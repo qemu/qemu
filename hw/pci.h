@@ -8,7 +8,14 @@
 
 extern target_phys_addr_t pci_mem_base;
 
+#define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
+#define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
+#define PCI_FUNC(devfn)         ((devfn) & 0x07)
+
 /* Device classes and subclasses */
+
+#define PCI_BASE_CLASS_STORAGE           0x01
+#define PCI_BASE_CLASS_NETWORK           0x02
 
 #define PCI_CLASS_STORAGE_SCSI           0x0100
 #define PCI_CLASS_STORAGE_IDE            0x0101
@@ -121,6 +128,7 @@ typedef uint32_t PCIConfigReadFunc(PCIDevice *pci_dev,
                                    uint32_t address, int len);
 typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num,
                                 uint32_t addr, uint32_t size, int type);
+typedef int PCIUnregisterFunc(PCIDevice *pci_dev);
 
 #define PCI_ADDRESS_SPACE_MEM		0x00
 #define PCI_ADDRESS_SPACE_IO		0x01
@@ -185,6 +193,7 @@ struct PCIDevice {
     /* do not access the following fields */
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
+    PCIUnregisterFunc *unregister;
     /* ??? This is a PC-specific hack, and should be removed.  */
     int irq_index;
 
@@ -199,6 +208,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                int instance_size, int devfn,
                                PCIConfigReadFunc *config_read,
                                PCIConfigWriteFunc *config_write);
+int pci_unregister_device(PCIDevice *pci_dev);
 
 void pci_register_io_region(PCIDevice *pci_dev, int region_num,
                             uint32_t size, int type,
@@ -216,12 +226,17 @@ typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          qemu_irq *pic, int devfn_min, int nirq);
 
-void pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
+PCIDevice *pci_nic_init(PCIBus *bus, NICInfo *nd, int devfn,
                   const char *default_model);
 void pci_data_write(void *opaque, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(void *opaque, uint32_t addr, int len);
 int pci_bus_num(PCIBus *s);
 void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d));
+PCIBus *pci_find_bus(int bus_num);
+PCIDevice *pci_find_device(int bus_num, int slot, int function);
+
+int pci_read_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp);
+int pci_assign_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp);
 
 void pci_info(void);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
@@ -262,34 +277,33 @@ void usb_uhci_piix4_init(PCIBus *bus, int devfn);
 void usb_ohci_init_pci(struct PCIBus *bus, int num_ports, int devfn);
 
 /* dp83815.c */
-void pci_dp83816_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_dp83816_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* e100.c */
-void pci_e100_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_e100_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* eepro100.c */
-
-void pci_eepro100_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_eepro100_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* ne2000.c */
 
-void pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* rtl8139.c */
 
-void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* atheros_wlan.c */
-void pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* e1000.c */
-void pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* pcnet.c */
-void pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* tnetw1130.c */
-void pci_tnetw1130_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *pci_tnetw1130_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /* prep_pci.c */
 PCIBus *pci_prep_init(qemu_irq *pic);

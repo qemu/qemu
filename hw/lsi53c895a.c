@@ -13,6 +13,7 @@
 #include "hw.h"
 #include "pci.h"
 #include "scsi-disk.h"
+#include "block_int.h"
 
 //#define DEBUG_LSI
 //#define DEBUG_LSI_REG
@@ -1958,6 +1959,19 @@ void lsi_scsi_attach(void *opaque, BlockDriverState *bd, int id)
     s->scsi_dev[id] = scsi_generic_init(bd, 1, lsi_command_complete, s);
     if (s->scsi_dev[id] == NULL)
         s->scsi_dev[id] = scsi_disk_init(bd, 1, lsi_command_complete, s);
+    bd->private = &s->pci_dev;
+}
+
+static int lsi_scsi_uninit(PCIDevice *d)
+{
+    LSIState *s = (LSIState *) d;
+
+    cpu_unregister_io_memory(s->mmio_io_addr);
+    cpu_unregister_io_memory(s->ram_io_addr);
+
+    qemu_free(s->queue);
+
+    return 0;
 }
 
 void *lsi_scsi_init(PCIBus *bus, int devfn)
@@ -2002,6 +2016,7 @@ void *lsi_scsi_init(PCIBus *bus, int devfn)
     s->queue = qemu_malloc(sizeof(lsi_queue));
     s->queue_len = 1;
     s->active_commands = 0;
+    s->pci_dev.unregister = lsi_scsi_uninit;
 
     lsi_soft_reset(s);
 

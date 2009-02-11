@@ -243,11 +243,8 @@ int alt_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 #endif
-static int nb_drives_opt;
-static struct drive_opt {
-    const char *file;
-    char opt[1024];
-} drives_opt[MAX_DRIVES];
+int nb_drives_opt;
+struct drive_opt drives_opt[MAX_DRIVES];
 
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
@@ -408,6 +405,8 @@ void isa_unassign_ioport(int start, int length)
         ioport_write_table[0][i] = default_ioport_writeb;
         ioport_write_table[1][i] = default_ioport_writew;
         ioport_write_table[2][i] = default_ioport_writel;
+
+        ioport_opaque[i] = NULL;
     }
 }
 
@@ -2135,22 +2134,56 @@ static int bt_parse(const char *opt)
 #define MTD_ALIAS "if=mtd"
 #define SD_ALIAS "index=0,if=sd"
 
-static int drive_add(const char *file, const char *fmt, ...)
+static int drive_opt_get_free_idx(void)
+{
+    int index;
+
+    for (index = 0; index < MAX_DRIVES; index++)
+        if (!drives_opt[index].used) {
+            drives_opt[index].used = 1;
+            return index;
+        }
+
+    return -1;
+}
+
+static int drive_get_free_idx(void)
+{
+    int index;
+
+    for (index = 0; index < MAX_DRIVES; index++)
+        if (!drives_table[index].used) {
+            drives_table[index].used = 1;
+            return index;
+        }
+
+    return -1;
+}
+
+int drive_add(const char *file, const char *fmt, ...)
 {
     va_list ap;
+    int index = drive_opt_get_free_idx();
 
-    if (nb_drives_opt >= MAX_DRIVES) {
+    if (nb_drives_opt >= MAX_DRIVES || index == -1) {
         fprintf(stderr, "qemu: too many drives\n");
-        exit(1);
+        return -1;
     }
 
-    drives_opt[nb_drives_opt].file = file;
+    drives_opt[index].file = file;
     va_start(ap, fmt);
-    vsnprintf(drives_opt[nb_drives_opt].opt,
+    vsnprintf(drives_opt[index].opt,
               sizeof(drives_opt[0].opt), fmt, ap);
     va_end(ap);
 
-    return nb_drives_opt++;
+    nb_drives_opt++;
+    return index;
+}
+
+void drive_remove(int index)
+{
+    drives_opt[index].used = 0;
+    nb_drives_opt--;
 }
 
 int drive_get_index(BlockInterfaceType type, int bus, int unit)
@@ -2159,10 +2192,11 @@ int drive_get_index(BlockInterfaceType type, int bus, int unit)
 
     /* seek interface, bus and unit */
 
-    for (index = 0; index < nb_drives; index++)
+    for (index = 0; index < MAX_DRIVES; index++)
         if (drives_table[index].type == type &&
 	    drives_table[index].bus == bus &&
-	    drives_table[index].unit == unit)
+	    drives_table[index].unit == unit &&
+	    drives_table[index].used)
         return index;
 
     return -1;
@@ -2209,8 +2243,21 @@ static void bdrv_format_print(void *opaque, const char *name)
     fprintf(stderr, " %s", name);
 }
 
-static int drive_init(struct drive_opt *arg, int snapshot,
-                      QEMUMachine *machine)
+void drive_uninit(BlockDriverState *bdrv)
+{
+    int i;
+
+    for (i = 0; i < MAX_DRIVES; i++)
+        if (drives_table[i].bdrv == bdrv) {
+            drives_table[i].bdrv = NULL;
+            drives_table[i].used = 0;
+            drive_remove(drives_table[i].drive_opt_idx);
+            nb_drives--;
+            break;
+        }
+}
+
+int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
 {
     char buf[128];
     char file[1024];
@@ -2223,10 +2270,12 @@ static int drive_init(struct drive_opt *arg, int snapshot,
     int cyls, heads, secs, translation;
     BlockDriverState *bdrv;
     BlockDriver *drv = NULL;
+    QEMUMachine *machine = opaque;
     int max_devs;
     int index;
     int cache;
     int bdrv_flags, onerror;
+    int drives_table_idx;
     char *str = arg->opt;
     static const char * const params[] = { "bus", "unit", "if", "index",
                                            "cyls", "heads", "secs", "trans",
@@ -2488,7 +2537,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
      */
 
     if (drive_get_index(type, bus_id, unit_id) != -1)
-        return 0;
+        return -2;
 
     /* init */
 
@@ -2501,11 +2550,13 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         snprintf(buf, sizeof(buf), "%s%s%i",
                  devname, mediastr, unit_id);
     bdrv = bdrv_new(buf);
-    drives_table[nb_drives].bdrv = bdrv;
-    drives_table[nb_drives].type = type;
-    drives_table[nb_drives].bus = bus_id;
-    drives_table[nb_drives].unit = unit_id;
-    drives_table[nb_drives].onerror = onerror;
+    drives_table_idx = drive_get_free_idx();
+    drives_table[drives_table_idx].bdrv = bdrv;
+    drives_table[drives_table_idx].type = type;
+    drives_table[drives_table_idx].bus = bus_id;
+    drives_table[drives_table_idx].unit = unit_id;
+    drives_table[drives_table_idx].onerror = onerror;
+    drives_table[drives_table_idx].drive_opt_idx = arg - drives_opt;
     strncpy(drives_table[nb_drives].serial, serial, sizeof(serial));
     nb_drives++;
 
@@ -2536,7 +2587,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
         break;
     }
     if (!file[0])
-        return 0;
+        return -2;
     bdrv_flags = 0;
     if (snapshot) {
         bdrv_flags |= BDRV_O_SNAPSHOT;
@@ -2553,7 +2604,7 @@ static int drive_init(struct drive_opt *arg, int snapshot,
                         file);
         return -1;
     }
-    return 0;
+    return drives_table_idx;
 }
 
 /***********************************************************/
@@ -3357,6 +3408,7 @@ static void qemu_bh_update_timeout(int *timeout)
 /* machine registration */
 
 static QEMUMachine *first_machine = NULL;
+QEMUMachine *current_machine = NULL;
 
 int qemu_register_machine(QEMUMachine *m)
 {
@@ -5586,6 +5638,8 @@ int main(int argc, char **argv, char **envp)
 
     machine->init(ram_size, vga_ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
+
+    current_machine = machine;
 
     /* Set KVM's vcpu state to qemu's initial CPUState. */
     if (kvm_enabled()) {

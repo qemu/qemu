@@ -85,7 +85,7 @@ struct virtio_net_hdr_mrg_rxbuf
     uint16_t num_buffers;   /* Number of merged rx buffers */
 };
 
-void virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn);
+PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn);
 
 /*
  * Control virtqueue data structures

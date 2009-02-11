@@ -1,0 +1,49 @@
+bios: add 26 pci slots, bringing the total to 32 (Avi Kivity)
+
+lack of pci slots causes Windows to complain when installing too many devices.
+
+Signed-off-by: Avi Kivity <avi@qumranet.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+Index: bochs/bios/acpi-dsdt.dsl
+===================================================================
+--- bochs.orig/bios/acpi-dsdt.dsl
++++ bochs/bios/acpi-dsdt.dsl
+@@ -63,6 +63,32 @@ DefinitionBlock (
+                prt_slot3(0x0003),
+                prt_slot0(0x0004),
+                prt_slot1(0x0005),
++               prt_slot2(0x0006),
++               prt_slot3(0x0007),
++               prt_slot0(0x0008),
++               prt_slot1(0x0009),
++               prt_slot2(0x000a),
++               prt_slot3(0x000b),
++               prt_slot0(0x000c),
++               prt_slot1(0x000d),
++               prt_slot2(0x000e),
++               prt_slot3(0x000f),
++               prt_slot0(0x0010),
++               prt_slot1(0x0011),
++               prt_slot2(0x0012),
++               prt_slot3(0x0013),
++               prt_slot0(0x0014),
++               prt_slot1(0x0015),
++               prt_slot2(0x0016),
++               prt_slot3(0x0017),
++               prt_slot0(0x0018),
++               prt_slot1(0x0019),
++               prt_slot2(0x001a),
++               prt_slot3(0x001b),
++               prt_slot0(0x001c),
++               prt_slot1(0x001d),
++               prt_slot2(0x001e),
++               prt_slot3(0x001f),
+             })
+ 
+             Name (_CRS, ResourceTemplate ()
+
+-- 
+
+
+

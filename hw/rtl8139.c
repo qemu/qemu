@@ -3414,7 +3414,7 @@ static void rtl8139_timer(void *opaque)
 }
 #endif /* RTL8139_ONBOARD_TIMER */
 
-void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
+PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     PCIRTL8139State *d;
     RTL8139State *s;
@@ -3466,4 +3466,5 @@ void pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     qemu_mod_timer(s->timer,
         rtl8139_get_next_tctr_time(s,qemu_get_clock(vm_clock)));
 #endif /* RTL8139_ONBOARD_TIMER */
+    return (PCIDevice *)d;
 }

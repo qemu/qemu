@@ -2470,7 +2470,7 @@ static void eeprom_init(E100State *s)
 
 }
 
-static void e100_init(PCIBus * bus, NICInfo * nd,
+static PCIDevice *e100_init(PCIBus * bus, NICInfo * nd,
         const char *name, uint32_t device)
 {
     PCIE100State *d;
@@ -2519,10 +2519,12 @@ static void e100_init(PCIBus * bus, NICInfo * nd,
     qemu_register_reset(e100_reset, s);
 
     register_savevm(name, 0, 3, e100_save, e100_load, s);
+
+    return (PCIDevice *)d;
 }
 
-void pci_e100_init(PCIBus * bus, NICInfo * nd, int devfn)
+PCIDevice *pci_e100_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
-    e100_init(bus, nd, "e100", i82557C);
+    return e100_init(bus, nd, "e100", i82557C);
 }
 

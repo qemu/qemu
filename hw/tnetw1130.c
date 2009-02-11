@@ -889,7 +889,7 @@ static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
                     tnetw1130_save, tnetw1130_load, d);
 }
 
-void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
+PCIDevice *pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
     pci_tnetw1130_t *d = (pci_tnetw1130_t *) pci_register_device(bus, "TNETW1130",
                                               sizeof(pci_tnetw1130_t),
@@ -899,6 +899,7 @@ void pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
 #endif
     TRACE(TNETW, logout("\n"));
     tnetw1130_init(d, nd);
+    return (PCIDevice *)d;
 }
 
 static pci_tnetw1130_t vlynq;

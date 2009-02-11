@@ -1,0 +1,92 @@
+qemu: bios: provide gpe _L0x methods (Glauber Costa)
+
+provide methods for gpe blk 0, even though they do nothing atm
+    
+Signed-off-by: Glauber Costa <gcosta@redhat.com>
+Signed-off-by: Avi Kivity <avi@qumranet.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+Index: bochs/bios/acpi-dsdt.dsl
+===================================================================
+--- bochs.orig/bios/acpi-dsdt.dsl
++++ bochs/bios/acpi-dsdt.dsl
+@@ -597,4 +597,59 @@ DefinitionBlock (
+         Zero,  /* reserved */
+         Zero   /* reserved */
+     })
++
++    Scope (\_GPE)
++    {
++        Name(_HID, "ACPI0006")
++
++        Method(_L00) {
++            Return(0x01)
++        }
++        Method(_L01) {
++            Return(0x01)
++        }
++        Method(_L02) {
++            Return(0x01)
++        }
++        Method(_L03) {
++            Return(0x01)
++        }
++        Method(_L04) {
++            Return(0x01)
++        }
++        Method(_L05) {
++            Return(0x01)
++        }
++        Method(_L06) {
++            Return(0x01)
++        }
++        Method(_L07) {
++            Return(0x01)
++        }
++        Method(_L08) {
++            Return(0x01)
++        }
++        Method(_L09) {
++            Return(0x01)
++        }
++        Method(_L0A) {
++            Return(0x01)
++        }
++        Method(_L0B) {
++            Return(0x01)
++        }
++        Method(_L0C) {
++            Return(0x01)
++        }
++        Method(_L0D) {
++            Return(0x01)
++        }
++        Method(_L0E) {
++            Return(0x01)
++        }
++        Method(_L0F) {
++            Return(0x01)
++        }
++    }
++
+ }
+Index: bochs/bios/rombios32.c
+===================================================================
+--- bochs.orig/bios/rombios32.c
++++ bochs/bios/rombios32.c
+@@ -1647,6 +1647,8 @@ void acpi_bios_init(void)
+     fadt->pm_tmr_len = 4;
+     fadt->plvl2_lat = cpu_to_le16(0xfff); // C2 state not supported
+     fadt->plvl3_lat = cpu_to_le16(0xfff); // C3 state not supported
++    fadt->gpe0_blk = cpu_to_le32(0xafe0);
++    fadt->gpe0_blk_len = 4;
+     /* WBINVD + PROC_C1 + PWR_BUTTON + SLP_BUTTON + FIX_RTC */
+     fadt->flags = cpu_to_le32((1 << 0) | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 6));
+     acpi_build_table_header((struct acpi_table_header *)fadt, "FACP",
+
+-- 
+
+
+
+
+

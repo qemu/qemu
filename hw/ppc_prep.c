@@ -543,7 +543,7 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
     m48t59_t *m48t59;
     int PPC_io_memory;
     int linux_boot, i, nb_nics1, bios_size;
-    unsigned long bios_offset;
+    ram_addr_t ram_offset, vga_ram_offset, bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
     qemu_irq *i8259;
@@ -577,10 +577,14 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(ram_size);
+    cpu_register_physical_memory(0, ram_size, ram_offset);
+
+    /* allocate VGA RAM */
+    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
 
     /* allocate and load BIOS */
-    bios_offset = ram_size + vga_ram_size;
+    bios_offset = qemu_ram_alloc(BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
@@ -653,8 +657,8 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
     cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
 
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, phys_ram_base + ram_size, ram_size,
-                 vga_ram_size, 0, 0);
+    pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
+                 vga_ram_offset, vga_ram_size, 0, 0);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, i8259[0]);
     rtc_init(0x70, i8259[8], 2000);

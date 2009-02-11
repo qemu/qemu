@@ -1965,7 +1965,7 @@ static void nic_save(QEMUFile * f, void *opaque)
     qemu_put_buffer(f, s->configuration, sizeof(s->configuration));
 }
 
-static void nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
+static PCIDevice *nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
 {
     PCIEEPRO100State *d;
     EEPRO100State *s;
@@ -2014,6 +2014,7 @@ static void nic_init(PCIBus * bus, NICInfo * nd, uint32_t device)
     qemu_register_reset(nic_reset, s);
 
     register_savevm(nd->model, -1, 3, nic_save, nic_load, s);
+    return (PCIDevice *)d;
 }
 
 typedef struct {
@@ -2031,15 +2032,17 @@ static const key_value_t devicetable[] = {
   {"i82559er", i82559ER},
 };
 
-void pci_eepro100_init(PCIBus * bus, NICInfo * nd, int devfn)
+PCIDevice *pci_eepro100_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
+  PCIDevice *device = NULL;
   size_t i;
   for (i = 0; i < ARRAY_SIZE(devicetable); i++) {
     if (strcmp(devicetable[i].name, nd->model) == 0) {
-      nic_init(bus, nd, devicetable[i].value);
+      device = nic_init(bus, nd, devicetable[i].value);
       break;
     }
   }
+  return device;
 }
 
 /* eof */

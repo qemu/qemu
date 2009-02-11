@@ -1501,8 +1501,8 @@ static void eeprom_init(dp8381x_t * s)
 }
 #endif
 
-static void pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
-                             uint32_t silicon_revision)
+static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
+                                   uint32_t silicon_revision)
 {
     pci_dp8381x_t *d;
     dp8381x_t *s;
@@ -1565,20 +1565,22 @@ static void pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
 
     register_savevm("dp8381x", dp8381x_instance, dp8381x_version,
                     dp8381x_save, dp8381x_load, d);
+
+    return (PCIDevice *)d;
 }
 
 #if defined(DP83815)
-void pci_dp83815_init(PCIBus * bus, NICInfo * nd)
+PCIDevice *pci_dp83815_init(PCIBus * bus, NICInfo * nd)
 {
     logout("\n");
-    pci_dp8381x_init(bus, nd, DP83815DVNG);
-    //~ pci_dp8381x_init(bus, nd, DP83816AVNG);
+    return pci_dp8381x_init(bus, nd, DP83815DVNG);
+    //~ return pci_dp8381x_init(bus, nd, DP83816AVNG);
 }
 #else
-void pci_dp83816_init(PCIBus * bus, NICInfo * nd, int devfn)
+PCIDevice *pci_dp83816_init(PCIBus * bus, NICInfo * nd, int devfn)
 {
     logout("\n");
-    pci_dp8381x_init(bus, nd, DP83816AVNG);
+    return pci_dp8381x_init(bus, nd, DP83816AVNG);
 }
 #endif
 
