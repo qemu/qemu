@@ -404,6 +404,8 @@ void isa_unassign_ioport(int start, int length)
         ioport_write_table[0][i] = default_ioport_writeb;
         ioport_write_table[1][i] = default_ioport_writew;
         ioport_write_table[2][i] = default_ioport_writel;
+
+        ioport_opaque[i] = NULL;
     }
 }
 
