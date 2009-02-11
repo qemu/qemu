@@ -561,3 +561,71 @@ void qemu_system_powerdown(void)
     }
 }
 #endif
+
+#define GPE_BASE 0xafe0
+
+struct gpe_regs {
+    uint16_t sts; /* status */
+    uint16_t en;  /* enabled */
+};
+
+static struct gpe_regs gpe;
+
+static uint32_t gpe_readb(void *opaque, uint32_t addr)
+{
+    uint32_t val = 0;
+    struct gpe_regs *g = opaque;
+    switch (addr) {
+        case GPE_BASE:
+            val = g->sts & 0xFF;
+            break;
+        case GPE_BASE + 1:
+            val =  (g->sts >> 8) & 0xFF;
+            break;
+        case GPE_BASE + 2:
+            val =  g->en & 0xFF;
+            break;
+        case GPE_BASE + 3:
+            val =  (g->en >> 8) & 0xFF;
+            break;
+        default:
+            break;
+    }
+
+#if defined(DEBUG)
+    printf("gpe read %lx == %lx\n", addr, val);
+#endif
+    return val;
+}
+
+static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
+{
+    struct gpe_regs *g = opaque;
+    switch (addr) {
+        case GPE_BASE:
+            g->sts = (g->sts & ~0xFFFF) | (val & 0xFFFF);
+            break;
+        case GPE_BASE + 1:
+            g->sts = (g->sts & 0xFFFF) | (val << 8);
+            break;
+        case GPE_BASE + 2:
+            g->en = (g->en & ~0xFFFF) | (val & 0xFFFF);
+            break;
+        case GPE_BASE + 3:
+            g->en = (g->en & 0xFFFF) | (val << 8);
+            break;
+        default:
+            break;
+   }
+
+#if defined(DEBUG)
+    printf("gpe write %lx <== %d\n", addr, val);
+#endif
+}
+
+void qemu_system_hot_add_init(void)
+{
+    register_ioport_write(GPE_BASE, 4, 1, gpe_writeb, &gpe);
+    register_ioport_read(GPE_BASE, 4, 1,  gpe_readb, &gpe);
+
+}
