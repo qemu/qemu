@@ -127,7 +127,7 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
-#ifndef TARGET_SPARC
+#if !defined(TARGET_SPARC) || defined(TARGET_SPARC64)
 #define VGA_RAM_SIZE (8192 * 1024)
 #else
 #define VGA_RAM_SIZE (9 * 1024 * 1024)
