@@ -4657,7 +4657,9 @@ int main(int argc, char **argv, char **envp)
     const char *cpu_model;
     const char *usb_devices[MAX_USB_CMDLINE];
     int usb_devices_index;
+#ifndef _WIN32
     int fds[2];
+#endif
     int tb_size;
     const char *pid_file = NULL;
     int autostart;
@@ -5232,9 +5234,11 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-	    case QEMU_OPTION_daemonize:
-		daemonize = 1;
-		break;
+#ifndef _WIN32
+            case QEMU_OPTION_daemonize:
+                daemonize = 1;
+                break;
+#endif
 	    case QEMU_OPTION_option_rom:
 		if (nb_option_roms >= MAX_OPTION_ROMS) {
 		    fprintf(stderr, "Too many option ROMs\n");
@@ -5397,6 +5401,7 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 
+#ifndef _WIN32
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
         if (daemonize) {
             uint8_t status = 1;
@@ -5405,6 +5410,7 @@ int main(int argc, char **argv, char **envp)
             fprintf(stderr, "Could not acquire pid file\n");
         exit(1);
     }
+#endif
 
 #ifdef USE_KQEMU
     if (smp_cpus > 1)
@@ -5770,6 +5776,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+#ifndef _WIN32
     if (daemonize) {
 	uint8_t status = 0;
 	ssize_t len;
@@ -5794,6 +5801,7 @@ int main(int argc, char **argv, char **envp)
 
 	close(fd);
     }
+#endif
 
     main_loop();
     quit_timers();
