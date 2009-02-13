@@ -312,8 +312,9 @@ qemu-doc.dvi qemu-doc.html qemu-doc.info: qemu-img.texi qemu-nbd.texi
 VERSION ?= $(shell cat VERSION)
 FILE = qemu-$(VERSION)
 
-#~ qemu-setup.exe: all $(SRC_PATH)/qemu.nsi
-qemu-setup.exe: $(SRC_PATH)/qemu.nsi
+i386-softmmu/qemu.exe: subdir-i386-softmmu
+
+qemu-setup.exe: $(SRC_PATH)/qemu.nsi i386-softmmu/qemu.exe
 	makensis -NOCD -DSRC_PATH="$(SRC_PATH)" -V2 $(SRC_PATH)/qemu.nsi
 
 # tar release (use 'make -k tar' on a checkouted tree)

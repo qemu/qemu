@@ -55,7 +55,7 @@ Section "${PRODUCT} (required)"
   ; Set output path to the installation directory.
   SetOutPath "$INSTDIR"
 
-  File "i386-softmmu\qemu"
+  File "i386-softmmu\qemu.exe"
   ;;;File "SDL.dll"
   File "${SRC_PATH}/Changelog"
   File "${SRC_PATH}/COPYING"
