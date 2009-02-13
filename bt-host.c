@@ -197,6 +197,7 @@ struct HCIInfo *bt_host_hci(const char *id)
     return &s->hci;
 }
 #else
+# include "hw/bt.h"
 struct HCIInfo *bt_host_hci(const char *id)
 {
     fprintf(stderr, "qemu: bluetooth passthrough not supported (yet)\n");
