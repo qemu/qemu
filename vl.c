@@ -172,7 +172,11 @@
 /* XXX: use a two level table to limit memory usage */
 #define MAX_IOPORTS 65536
 
+#ifdef _WIN32
+const char *bios_dir;
+#else
 const char *bios_dir = CONFIG_QEMU_SHAREDIR;
+#endif
 const char *bios_name = NULL;
 static void *ioport_opaque[MAX_IOPORTS];
 static IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
@@ -4695,6 +4699,15 @@ int main(int argc, char **argv, char **envp)
                 SetProcessAffinityMask(h, mask);
             }
         }
+    }
+
+    /* Derive the bios path name from the name of the executable. */
+    {
+        char filename[MAX_PATH];
+        GetModuleFileName(0, filename, sizeof(filename));
+        char *p = strrchr(filename, '\\');
+        if (p) *p = '\0';
+        bios_dir = strdup(filename);
     }
 #endif
 
