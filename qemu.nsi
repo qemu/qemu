@@ -66,7 +66,7 @@ Section "${PRODUCT} (required)"
   SetOutPath "$INSTDIR\keymaps"
   File /r /x .svn "${SRC_PATH}/keymaps"
 
-  SetOutPath "$INSTDIR\pc-bios"
+  SetOutPath "$INSTDIR"
   File "${SRC_PATH}/pc-bios/bios.bin"
   File "${SRC_PATH}/pc-bios/vgabios.bin"
   File "${SRC_PATH}/pc-bios/vgabios-cirrus.bin"
