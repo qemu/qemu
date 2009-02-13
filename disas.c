@@ -204,7 +204,7 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     return;
 #endif
 
-    for (pc = code; pc < code + size; pc += count) {
+    for (pc = code; size > 0; pc += count, size -= count) {
 	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
 	count = print_insn(pc, &disasm_info);
 #if 0
@@ -276,7 +276,7 @@ void disas(FILE *out, void *code, unsigned long size)
 	    (long) code);
     return;
 #endif
-    for (pc = (unsigned long)code; pc < (unsigned long)code + size; pc += count) {
+    for (pc = (unsigned long)code; size > 0; pc += count, size -= count) {
 	fprintf(out, "0x%08lx:  ", pc);
 #ifdef __arm__
         /* since data is included in the code, it is better to
