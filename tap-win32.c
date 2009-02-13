@@ -214,9 +214,9 @@ static int is_tap_win32_dev(const char *guid)
         char unit_string[256];
         HKEY unit_key;
         char component_id_string[] = "ComponentId";
-        char component_id[256];
+        BYTE component_id[256];
         char net_cfg_instance_id_string[] = "NetCfgInstanceId";
-        char net_cfg_instance_id[256];
+        BYTE net_cfg_instance_id[256];
         DWORD data_type;
 
         len = sizeof (enum_name);
@@ -270,7 +270,7 @@ static int is_tap_win32_dev(const char *guid)
 
                 if (status == ERROR_SUCCESS && data_type == REG_SZ) {
                     if (/* !strcmp (component_id, TAP_COMPONENT_ID) &&*/
-                        !strcmp (net_cfg_instance_id, guid)) {
+                        !strcmp ((char *)net_cfg_instance_id, guid)) {
                         RegCloseKey (unit_key);
                         RegCloseKey (netcard_key);
                         return TRUE;
@@ -314,7 +314,7 @@ static int get_device_guid(
         char enum_name[256];
         char connection_string[256];
         HKEY connection_key;
-        char name_data[256];
+        BYTE name_data[256];
         DWORD name_type;
         const char name_string[] = "Name";
 
@@ -365,7 +365,7 @@ static int get_device_guid(
                     snprintf(name, name_size, "%s", enum_name);
                     if (actual_name) {
                         if (strcmp(actual_name, "") != 0) {
-                            if (strcmp(name_data, actual_name) != 0) {
+                            if (strcmp((char *)name_data, actual_name) != 0) {
                                 RegCloseKey (connection_key);
                                 ++i;
                                 continue;
@@ -559,7 +559,7 @@ static int tap_win32_read(tap_win32_overlapped_t *overlapped,
 }
 
 static void tap_win32_free_buffer(tap_win32_overlapped_t *overlapped,
-                                  char* pbuf)
+                                  uint8_t *pbuf)
 {
     tun_buffer_t* buffer = (tun_buffer_t*)pbuf;
     put_buffer_on_free_list(overlapped, buffer);
@@ -579,7 +579,7 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
         unsigned long minor;
         unsigned long debug;
     } version;
-    LONG version_len;
+    DWORD version_len;
     DWORD idThread;
     HANDLE hThread;
 
