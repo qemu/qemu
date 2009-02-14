@@ -17,6 +17,8 @@
 ; You should have received a copy of the GNU General Public License
 ; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+; NSIS_WIN32_MAKENSIS
+
 !define PRODUCT "QEMU"
 !define UNINST_EXE "$INSTDIR\${PRODUCT}-uninstall.exe"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT}"
@@ -56,20 +58,21 @@ Section "${PRODUCT} (required)"
   SetOutPath "$INSTDIR"
 
   File "i386-softmmu\qemu.exe"
+  File "qemu-img.exe"
   ;;;File "SDL.dll"
-  File "${SRC_PATH}/Changelog"
-  File "${SRC_PATH}/COPYING"
-  File "${SRC_PATH}/COPYING.LIB"
-  File "${SRC_PATH}/README"
-  File "${SRC_PATH}/VERSION"
+  File "${SRC_PATH}\Changelog"
+  File "${SRC_PATH}\COPYING"
+  File "${SRC_PATH}\COPYING.LIB"
+  File "${SRC_PATH}\README"
+  File "${SRC_PATH}\VERSION"
 
   SetOutPath "$INSTDIR\keymaps"
-  File /r /x .svn "${SRC_PATH}/keymaps"
+  File /r /x .svn "${SRC_PATH}\keymaps"
 
   SetOutPath "$INSTDIR"
-  File "${SRC_PATH}/pc-bios/bios.bin"
-  File "${SRC_PATH}/pc-bios/vgabios.bin"
-  File "${SRC_PATH}/pc-bios/vgabios-cirrus.bin"
+  File "${SRC_PATH}\pc-bios\bios.bin"
+  File "${SRC_PATH}\pc-bios\vgabios.bin"
+  File "${SRC_PATH}\pc-bios\vgabios-cirrus.bin"
 
   ; Write the installation path into the registry
   WriteRegStr HKLM SOFTWARE\${PRODUCT} "Install_Dir" "$INSTDIR"
@@ -82,12 +85,12 @@ Section "${PRODUCT} (required)"
   WriteUninstaller "${PRODUCT}-uninstall.exe"
 SectionEnd
 
-Section "${PRODUCT} Documentation"
-  SetOutPath "$INSTDIR"
-  File qemu-doc.html
-  File qemu-tech.html
-  CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\qemu-doc.html" "" "$INSTDIR\qemu-doc.html" 0
-SectionEnd
+; Section "${PRODUCT} Documentation"
+;   SetOutPath "$INSTDIR"
+;   File qemu-doc.html
+;   File qemu-tech.html
+;   CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\qemu-doc.html" "" "$INSTDIR\qemu-doc.html" 0
+; SectionEnd
 
 ; Optional section (can be disabled by the user)
 Section "Start Menu Shortcuts"
