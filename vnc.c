@@ -2333,6 +2333,8 @@ void vnc_display_close(DisplayState *ds)
 {
     VncState *vs = ds ? (VncState *)ds->opaque : vnc_state;
 
+    if (!vs)
+        return;
     if (vs->display) {
 	qemu_free(vs->display);
 	vs->display = NULL;
@@ -2392,6 +2394,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
     int tls = 0, x509 = 0;
 #endif
 
+    if (!vnc_state)
+        return -1;
     vnc_display_close(ds);
     if (strcmp(display, "none") == 0)
 	return 0;

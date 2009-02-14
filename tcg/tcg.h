@@ -272,7 +272,6 @@ struct TCGContext {
     int op_count_max; /* max insn per TB */
     int64_t temp_count;
     int temp_count_max;
-    int64_t old_op_count;
     int64_t del_op_count;
     int64_t code_in_len;
     int64_t code_out_len;

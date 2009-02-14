@@ -155,6 +155,11 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_R21,
     TCG_REG_R22,
     TCG_REG_R23,
+    TCG_REG_R24,
+    TCG_REG_R25,
+    TCG_REG_R26,
+    /* TCG_REG_R27, */ /* currently used for the global env, so no
+                          need to save */
     TCG_REG_R28,
     TCG_REG_R29,
     TCG_REG_R30,

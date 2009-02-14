@@ -76,6 +76,7 @@ int kvm_arch_init_vcpu(CPUState *env)
                 c->ebx = ebx;
                 c->ecx = ecx;
                 c->edx = edx;
+                c = &cpuid_data.entries[++cpuid_i];
             }
             break;
         }
