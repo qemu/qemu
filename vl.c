@@ -137,6 +137,13 @@
 #ifdef CONFIG_SDL
 #ifdef __APPLE__
 #include <SDL/SDL.h>
+int qemu_main(int argc, char **argv, char **envp);
+int main(int argc, char **argv)
+{
+    qemu_main(argc, argv, NULL);
+}
+#undef main
+#define main qemu_main
 #endif
 #endif /* CONFIG_SDL */
 
