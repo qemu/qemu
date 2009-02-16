@@ -579,22 +579,25 @@ struct pci_status {
 static struct gpe_regs gpe;
 static struct pci_status pci0_status;
 
+static uint32_t gpe_read_val(uint16_t val, uint32_t addr)
+{
+    if (addr & 1)
+        return (val >> 8) & 0xff;
+    return val & 0xff;
+}
+
 static uint32_t gpe_readb(void *opaque, uint32_t addr)
 {
     uint32_t val = 0;
     struct gpe_regs *g = opaque;
     switch (addr) {
         case GPE_BASE:
-            val = g->sts & 0xFF;
-            break;
         case GPE_BASE + 1:
-            val =  (g->sts >> 8) & 0xFF;
+            val = gpe_read_val(g->sts, addr);
             break;
         case GPE_BASE + 2:
-            val =  g->en & 0xFF;
-            break;
         case GPE_BASE + 3:
-            val =  (g->en >> 8) & 0xFF;
+            val = gpe_read_val(g->en, addr);
             break;
         default:
             break;
@@ -606,21 +609,37 @@ static uint32_t gpe_readb(void *opaque, uint32_t addr)
     return val;
 }
 
+static void gpe_write_val(uint16_t *cur, int addr, uint32_t val)
+{
+    if (addr & 1)
+        *cur = (*cur & 0xff) | (val << 8);
+    else
+        *cur = (*cur & 0xff00) | (val & 0xff);
+}
+
+static void gpe_reset_val(uint16_t *cur, int addr, uint32_t val)
+{
+    uint16_t x1, x0 = val & 0xff;
+    int shift = (addr & 1) ? 8 : 0;
+
+    x1 = (*cur >> shift) & 0xff;
+
+    x1 = x1 & ~x0;
+
+    *cur = (*cur & (0xff << (8 - shift))) | (x1 << shift);
+}
+
 static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     struct gpe_regs *g = opaque;
     switch (addr) {
         case GPE_BASE:
-            g->sts = (g->sts & ~0xFFFF) | (val & 0xFFFF);
-            break;
         case GPE_BASE + 1:
-            g->sts = (g->sts & 0xFFFF) | (val << 8);
+            gpe_reset_val(&g->sts, addr, val);
             break;
         case GPE_BASE + 2:
-            g->en = (g->en & ~0xFFFF) | (val & 0xFFFF);
-            break;
         case GPE_BASE + 3:
-            g->en = (g->en & 0xFFFF) | (val << 8);
+            gpe_write_val(&g->en, addr, val);
             break;
         default:
             break;
