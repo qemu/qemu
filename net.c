@@ -670,6 +670,23 @@ void do_info_slirp(void)
     slirp_stats();
 }
 
+struct VMChannel {
+    CharDriverState *hd;
+    int port;
+} *vmchannels;
+
+static int vmchannel_can_read(void *opaque)
+{
+    struct VMChannel *vmc = (struct VMChannel*)opaque;
+    return slirp_socket_can_recv(4, vmc->port);
+}
+
+static void vmchannel_read(void *opaque, const uint8_t *buf, int size)
+{
+    struct VMChannel *vmc = (struct VMChannel*)opaque;
+    slirp_socket_recv(4, vmc->port, buf, size);
+}
+
 #endif /* CONFIG_SLIRP */
 
 #if !defined(_WIN32)
@@ -1630,6 +1647,30 @@ int net_client_init(const char *device, const char *p)
         }
         vlan->nb_host_devs++;
         ret = net_slirp_init(vlan, device, name);
+    } else if (!strcmp(device, "channel")) {
+        long port;
+        char name[20], *devname;
+        struct VMChannel *vmc;
+
+        port = strtol(p, &devname, 10);
+        devname++;
+        if (port < 1 || port > 65535) {
+            fprintf(stderr, "vmchannel wrong port number\n"); 
+            return -1;
+        }
+        vmc = malloc(sizeof(struct VMChannel));
+        snprintf(name, 20, "vmchannel%ld", port);
+        vmc->hd = qemu_chr_open(name, devname, NULL);
+        if (!vmc->hd) {
+            fprintf(stderr, "qemu: could not open vmchannel device"
+                    "'%s'\n", devname);
+            return -1;
+        }
+        vmc->port = port;
+        slirp_add_exec(3, vmc->hd, 4, port);
+        qemu_chr_add_handlers(vmc->hd, vmchannel_can_read, vmchannel_read,
+                NULL, vmc);
+        ret = 0;
     } else
 #endif
 #ifdef _WIN32
