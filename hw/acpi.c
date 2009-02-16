@@ -724,25 +724,25 @@ void qemu_system_hot_add_init(void)
 static void enable_device(struct pci_status *p, struct gpe_regs *g, int slot)
 {
     g->sts |= 2;
-    g->en |= 2;
     p->up |= (1 << slot);
 }
 
 static void disable_device(struct pci_status *p, struct gpe_regs *g, int slot)
 {
     g->sts |= 2;
-    g->en |= 2;
     p->down |= (1 << slot);
 }
 
 void qemu_system_device_hot_add(int bus, int slot, int state)
 {
-    qemu_set_irq(pm_state->irq, 1);
     pci0_status.up = 0;
     pci0_status.down = 0;
     if (state)
         enable_device(&pci0_status, &gpe, slot);
     else
         disable_device(&pci0_status, &gpe, slot);
-    qemu_set_irq(pm_state->irq, 0);
+    if (gpe.en & 2) {
+        qemu_set_irq(pm_state->irq, 1);
+        qemu_set_irq(pm_state->irq, 0);
+    }
 }
