@@ -598,12 +598,8 @@ PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->promisc = 1; /* for compatibility */
 
     n->mac_table.macs = qemu_mallocz(MAC_TABLE_ENTRIES * ETH_ALEN);
-    if (!n->mac_table.macs)
-        return NULL;
 
     n->vlans = qemu_mallocz(MAX_VLAN >> 3);
-    if (!n->vlans)
-        return NULL;
 
     register_savevm("virtio-net", virtio_net_id++, VIRTIO_NET_VM_VERSION,
                     virtio_net_save, virtio_net_load, n);
