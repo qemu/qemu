@@ -730,10 +730,10 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
     s->get_resolution((VGAState *)s, &width, &height);
 
     /* extra x, y */
-    sx = (src % (width * depth)) / depth;
-    sy = (src / (width * depth));
-    dx = (dst % (width *depth)) / depth;
-    dy = (dst / (width * depth));
+    sx = (src % ABS(s->cirrus_blt_srcpitch)) / depth;
+    sy = (src / ABS(s->cirrus_blt_srcpitch));
+    dx = (dst % ABS(s->cirrus_blt_dstpitch)) / depth;
+    dy = (dst / ABS(s->cirrus_blt_dstpitch));
 
     /* normalize width */
     w /= depth;

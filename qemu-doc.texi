@@ -643,6 +643,9 @@ Use the user mode network stack which requires no administrator
 privilege to run.  @option{hostname=name} can be used to specify the client
 hostname reported by the builtin DHCP server.
 
+@item -net channel,@var{port}:@var{dev}
+Forward @option{user} TCP connection to port @var{port} to character device @var{dev}
+
 @item -net tap[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}]
 Connect the host TAP network interface @var{name} to VLAN @var{n}, use
 the network script @var{file} to configure it and the network script 
