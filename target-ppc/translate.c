@@ -278,7 +278,9 @@ static always_inline void gen_exception (DisasContext *ctx, uint32_t excp)
 static always_inline void gen_debug_exception (DisasContext *ctx)
 {
     TCGv_i32 t0;
-    gen_update_nip(ctx, ctx->nip);
+
+    if (ctx->exception != POWERPC_EXCP_BRANCH)
+        gen_update_nip(ctx, ctx->nip);
     t0 = tcg_const_i32(EXCP_DEBUG);
     gen_helper_raise_exception(t0);
     tcg_temp_free_i32(t0);
