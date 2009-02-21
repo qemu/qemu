@@ -25,6 +25,7 @@
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 static pthread_t thread_id;
+static pthread_attr_t attr;
 static int max_threads = 64;
 static int cur_threads = 0;
 static int idle_threads = 0;
@@ -76,7 +77,10 @@ static void thread_create(pthread_t *thread, pthread_attr_t *attr,
 
 static void *aio_thread(void *unused)
 {
+    pid_t pid;
     sigset_t set;
+
+    pid = getpid();
 
     /* block all signals */
     if (sigfillset(&set)) die("sigfillset");
@@ -142,7 +146,7 @@ static void *aio_thread(void *unused)
         idle_threads++;
         mutex_unlock(&lock);
 
-        if (kill(getpid(), aiocb->ev_signo)) die("kill failed");
+        if (kill(pid, aiocb->ev_signo)) die("kill failed");
     }
 
     idle_threads--;
@@ -154,23 +158,21 @@ static void *aio_thread(void *unused)
 
 static void spawn_thread(void)
 {
-    int ret;
-    pthread_attr_t attr;
-
     cur_threads++;
     idle_threads++;
-
-    ret = pthread_attr_init(&attr);
-    if (ret) die2 (ret, "pthread_attr_init");
-    ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (ret) die2 (ret, "pthread_attr_setdetachstate");
     thread_create(&thread_id, &attr, aio_thread, NULL);
-    ret = pthread_attr_destroy(&attr);
-    if (ret) die2 (ret, "pthread_attr_destroy");
 }
 
 int qemu_paio_init(struct qemu_paioinit *aioinit)
 {
+    int ret;
+
+    ret = pthread_attr_init(&attr);
+    if (ret) die2(ret, "pthread_attr_init");
+
+    ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if (ret) die2(ret, "pthread_attr_setdetachstate");
+
     TAILQ_INIT(&request_list);
 
     return 0;
