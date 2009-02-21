@@ -14,7 +14,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/time.h>
+#include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -86,16 +86,17 @@ static void *aio_thread(void *unused)
         struct qemu_paiocb *aiocb;
         size_t offset;
         int ret = 0;
+        qemu_timeval tv;
+        struct timespec ts;
+
+        qemu_gettimeofday(&tv);
+        ts.tv_sec = tv.tv_sec + 10;
+        ts.tv_nsec = 0;
 
         mutex_lock(&lock);
 
         while (TAILQ_EMPTY(&request_list) &&
                !(ret == ETIMEDOUT)) {
-            struct timespec ts = { 0 };
-            qemu_timeval tv;
-
-            qemu_gettimeofday(&tv);
-            ts.tv_sec = tv.tv_sec + 10;
             ret = cond_timedwait(&cond, &lock, &ts);
         }
 
