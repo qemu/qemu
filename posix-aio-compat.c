@@ -104,7 +104,7 @@ static void *aio_thread(void *unused)
             ret = cond_timedwait(&cond, &lock, &ts);
         }
 
-        if (ret == ETIMEDOUT)
+        if (TAILQ_EMPTY(&request_list))
             break;
 
         aiocb = TAILQ_FIRST(&request_list);
