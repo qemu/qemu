@@ -61,10 +61,10 @@ static int cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
     return ret;
 }
 
-static void cond_broadcast(pthread_cond_t *cond)
+static void cond_signal(pthread_cond_t *cond)
 {
-    int ret = pthread_cond_broadcast(cond);
-    if (ret) die2(ret, "pthread_cond_broadcast");
+    int ret = pthread_cond_signal(cond);
+    if (ret) die2(ret, "pthread_cond_signal");
 }
 
 static void thread_create(pthread_t *thread, pthread_attr_t *attr,
@@ -186,7 +186,7 @@ static int qemu_paio_submit(struct qemu_paiocb *aiocb, int is_write)
         spawn_thread();
     TAILQ_INSERT_TAIL(&request_list, aiocb, node);
     mutex_unlock(&lock);
-    cond_broadcast(&cond);
+    cond_signal(&cond);
 
     return 0;
 }
