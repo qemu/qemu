@@ -26,6 +26,7 @@
 #include <ctype.h>
 #include "hw.h"
 #include "qemu-char.h"
+#include "etraxfs.h"
 
 #define D(x)
 

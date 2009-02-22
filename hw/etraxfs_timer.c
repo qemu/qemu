@@ -26,6 +26,7 @@
 #include "hw.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
+#include "etraxfs.h"
 
 #define D(x)
 

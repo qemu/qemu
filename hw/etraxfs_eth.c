@@ -25,8 +25,7 @@
 #include <stdio.h>
 #include "hw.h"
 #include "net.h"
-
-#include "etraxfs_dma.h"
+#include "etraxfs.h"
 
 #define D(x)
 

@@ -2633,7 +2633,8 @@ static unsigned int dec_movem_mr(DisasContext *dc)
 		tmp32 = tcg_temp_new_i32();
 		tcg_gen_addi_tl(addr, cpu_R[dc->op1], i * 8);
 		gen_load(dc, tmp32, addr, 4, 0);
-	}
+	} else
+		TCGV_UNUSED(tmp32);
 	tcg_temp_free(addr);
 
 	for (i = 0; i < (nr >> 1); i++) {
