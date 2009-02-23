@@ -2144,6 +2144,7 @@ DISAS_INSN(fpu)
             switch ((insn >> 3) & 7) {
             case 2:
             case 3:
+                break;
             case 4:
                 tcg_gen_addi_i32(tmp32, tmp32, -8);
                 break;
@@ -2257,6 +2258,7 @@ DISAS_INSN(fpu)
             switch ((insn >> 3) & 7) {
             case 2:
             case 3:
+                break;
             case 4:
                 tcg_gen_addi_i32(tmp32, tmp32, -8);
                 break;
