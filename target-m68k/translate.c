@@ -2237,7 +2237,7 @@ DISAS_INSN(fpu)
                 }
                 mask >>= 1;
             }
-            tcg_temp_free_i32(tmp32);
+            tcg_temp_free_i32(addr);
         }
         return;
     }
