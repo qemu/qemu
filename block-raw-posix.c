@@ -604,13 +604,14 @@ static void raw_aio_remove(RawAIOCB *acb)
     pacb = &posix_aio_state->first_aio;
     for(;;) {
         if (*pacb == NULL) {
+            fprintf(stderr, "raw_aio_remove: aio request not found!\n");
             break;
         } else if (*pacb == acb) {
             *pacb = acb->next;
             qemu_aio_release(acb);
             break;
         }
-        pacb = &acb->next;
+        pacb = &(*pacb)->next;
     }
 }
 
