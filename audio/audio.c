@@ -1127,6 +1127,7 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
 
     hw = sw->hw;
     if (sw->active != on) {
+        AudioState *s = &glob_audio_state;
         SWVoiceOut *temp_sw;
         SWVoiceCap *sc;
 
@@ -1134,7 +1135,9 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
             hw->pending_disable = 0;
             if (!hw->enabled) {
                 hw->enabled = 1;
-                hw->pcm_ops->ctl_out (hw, VOICE_ENABLE);
+                if (s->vm_running) {
+                    hw->pcm_ops->ctl_out (hw, VOICE_ENABLE);
+                }
             }
         }
         else {
@@ -1170,12 +1173,15 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
 
     hw = sw->hw;
     if (sw->active != on) {
+        AudioState *s = &glob_audio_state;
         SWVoiceIn *temp_sw;
 
         if (on) {
             if (!hw->enabled) {
                 hw->enabled = 1;
-                hw->pcm_ops->ctl_in (hw, VOICE_ENABLE);
+                if (s->vm_running) {
+                    hw->pcm_ops->ctl_in (hw, VOICE_ENABLE);
+                }
             }
             sw->total_hw_samples_acquired = hw->total_samples_captured;
         }
@@ -1623,6 +1629,7 @@ static void audio_vm_change_state_handler (void *opaque, int running,
     HWVoiceIn *hwi = NULL;
     int op = running ? VOICE_ENABLE : VOICE_DISABLE;
 
+    s->vm_running = running;
     while ((hwo = audio_pcm_hw_find_any_enabled_out (s, hwo))) {
         hwo->pcm_ops->ctl_out (hwo, op);
     }

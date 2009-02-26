@@ -192,6 +192,7 @@ struct AudioState {
     LIST_HEAD (cap_listhead, CaptureVoiceOut) cap_head;
     int nb_hw_voices_out;
     int nb_hw_voices_in;
+    int vm_running;
 };
 
 extern struct audio_driver no_audio_driver;
