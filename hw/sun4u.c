@@ -274,13 +274,13 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(env);
     env->tick_cmpr = TICK_INT_DIS | 0;
     ptimer_set_limit(env->tick, TICK_MAX, 1);
-    ptimer_run(env->tick, 0);
+    ptimer_run(env->tick, 1);
     env->stick_cmpr = TICK_INT_DIS | 0;
     ptimer_set_limit(env->stick, TICK_MAX, 1);
-    ptimer_run(env->stick, 0);
+    ptimer_run(env->stick, 1);
     env->hstick_cmpr = TICK_INT_DIS | 0;
     ptimer_set_limit(env->hstick, TICK_MAX, 1);
-    ptimer_run(env->hstick, 0);
+    ptimer_run(env->hstick, 1);
     env->gregs[1] = 0; // Memory start
     env->gregs[2] = ram_size; // Memory size
     env->gregs[3] = 0; // Machine description XXX
