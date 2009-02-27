@@ -52,6 +52,7 @@
 #include <zlib.h>
 
 #ifndef _WIN32
+#include <pwd.h>
 #include <sys/times.h>
 #include <sys/wait.h>
 #include <termios.h>
@@ -4075,6 +4076,10 @@ static void help(int exitcode)
 #endif
            "-tb-size n      set TB size\n"
            "-incoming p     prepare for incoming migration, listen on port p\n"
+#ifndef _WIN32
+           "-chroot dir     Chroot to dir just before starting the VM.\n"
+           "-runas user     Change to user id user just before starting the VM.\n"
+#endif
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -4192,6 +4197,8 @@ enum {
     QEMU_OPTION_old_param,
     QEMU_OPTION_tb_size,
     QEMU_OPTION_incoming,
+    QEMU_OPTION_chroot,
+    QEMU_OPTION_runas,
 };
 
 typedef struct QEMUOption {
@@ -4322,6 +4329,8 @@ static const QEMUOption qemu_options[] = {
 #endif
     { "tb-size", HAS_ARG, QEMU_OPTION_tb_size },
     { "incoming", HAS_ARG, QEMU_OPTION_incoming },
+    { "chroot", HAS_ARG, QEMU_OPTION_chroot },
+    { "runas", HAS_ARG, QEMU_OPTION_runas },
     { NULL },
 };
 
@@ -4632,6 +4641,10 @@ int main(int argc, char **argv, char **envp)
     const char *pid_file = NULL;
     int autostart;
     const char *incoming = NULL;
+    int fd;
+    struct passwd *pwd;
+    const char *chroot_dir = NULL;
+    const char *run_as = NULL;
 
     qemu_cache_utils_init(envp);
 
@@ -5287,6 +5300,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_incoming:
                 incoming = optarg;
                 break;
+            case QEMU_OPTION_chroot:
+                chroot_dir = optarg;
+                break;
+            case QEMU_OPTION_runas:
+                run_as = optarg;
+                break;
             }
         }
     }
@@ -5739,7 +5758,6 @@ int main(int argc, char **argv, char **envp)
     if (daemonize) {
 	uint8_t status = 0;
 	ssize_t len;
-	int fd;
 
     again1:
 	len = write(fds[1], &status, 1);
@@ -5753,12 +5771,47 @@ int main(int argc, char **argv, char **envp)
 	TFR(fd = open("/dev/null", O_RDWR));
 	if (fd == -1)
 	    exit(1);
+    }
 
-	dup2(fd, 0);
-	dup2(fd, 1);
-	dup2(fd, 2);
+#ifndef _WIN32
+    if (run_as) {
+        pwd = getpwnam(run_as);
+        if (!pwd) {
+            fprintf(stderr, "User \"%s\" doesn't exist\n", run_as);
+            exit(1);
+        }
+    }
 
-	close(fd);
+    if (chroot_dir) {
+        if (chroot(chroot_dir) < 0) {
+            fprintf(stderr, "chroot failed\n");
+            exit(1);
+        }
+        chdir("/");
+    }
+
+    if (run_as) {
+        if (setgid(pwd->pw_gid) < 0) {
+            fprintf(stderr, "Failed to setgid(%d)\n", pwd->pw_gid);
+            exit(1);
+        }
+        if (setuid(pwd->pw_uid) < 0) {
+            fprintf(stderr, "Failed to setuid(%d)\n", pwd->pw_uid);
+            exit(1);
+        }
+        if (setuid(0) != -1) {
+            fprintf(stderr, "Dropping privileges failed\n");
+            exit(1);
+        }
+    }
+#endif
+
+    if (daemonize) {
+        dup2(fd, 0);
+        dup2(fd, 1);
+        dup2(fd, 2);
+
+        close(fd);
     }
 
     main_loop();

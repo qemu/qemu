@@ -1161,6 +1161,14 @@ character to Control-t.
 @item -echr 20
 @end table
 
+@item -chroot dir
+Immediately before starting guest execution, chroot to the specified
+directory.  Especially useful in combination with -runas.
+
+@item -runas user
+Immediately before starting guest execution, drop root privileges, switching
+to the specified user.
+
 @end table
 
 @c man end
