@@ -4016,6 +4016,8 @@ static void help(int exitcode)
            "-no-fd-bootchk  disable boot signature checking for floppy disks\n"
            "-no-acpi        disable ACPI\n"
            "-no-hpet        disable HPET\n"
+           "-acpitable [sig=str][,rev=n][,oem_id=str][,oem_table_id=str][,oem_rev=n][,asl_compiler_id=str][,asl_compiler_rev=n][,data=file1[:file2]...]\n"
+           "                ACPI table description\n"
 #endif
            "Linux boot specific:\n"
            "-kernel bzImage use 'bzImage' as kernel image\n"
@@ -4151,6 +4153,7 @@ enum {
     QEMU_OPTION_no_fd_bootchk,
     QEMU_OPTION_no_acpi,
     QEMU_OPTION_no_hpet,
+    QEMU_OPTION_acpitable,
 
     /* Linux boot specific: */
     QEMU_OPTION_kernel,
@@ -4269,6 +4272,7 @@ static const QEMUOption qemu_options[] = {
     { "no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-hpet", 0, QEMU_OPTION_no_hpet },
+    { "acpitable", HAS_ARG, QEMU_OPTION_acpitable },
 #endif
 
     /* Linux boot specific: */
@@ -5126,6 +5130,12 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_rtc_td_hack:
                 rtc_td_hack = 1;
+                break;
+            case QEMU_OPTION_acpitable:
+                if(acpi_table_add(optarg) < 0) {
+                    fprintf(stderr, "Wrong acpi table provided\n");
+                    exit(1);
+                }
                 break;
 #endif
 #ifdef USE_KQEMU

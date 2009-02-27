@@ -896,6 +896,9 @@ only).
 @item -no-hpet
 Disable HPET support.
 
+@item -acpitable [sig=@var{str}][,rev=@var{n}][,oem_id=@var{str}][,oem_table_id=@var{str}][,oem_rev=@var{n}] [,asl_compiler_id=@var{str}][,asl_compiler_rev=@var{n}][,data=@var{file1}[:@var{file2}]...]
+Add ACPI table with specified header fields and context from specified files.
+
 @end table
 
 Linux boot specific: When using these options, you can use a given
