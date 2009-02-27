@@ -4641,8 +4641,8 @@ int main(int argc, char **argv, char **envp)
     const char *pid_file = NULL;
     int autostart;
     const char *incoming = NULL;
-    int fd;
-    struct passwd *pwd;
+    int fd = 0;
+    struct passwd *pwd = NULL;
     const char *chroot_dir = NULL;
     const char *run_as = NULL;
 

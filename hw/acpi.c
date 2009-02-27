@@ -841,7 +841,7 @@ int acpi_table_add(const char *t)
     f = buf;
     while (buf[0]) {
         struct stat s;
-        char *n = index(f, ':');
+        char *n = strchr(f, ':');
         if (n)
             *n = '\0';
         if(stat(f, &s) < 0) {
@@ -873,7 +873,7 @@ int acpi_table_add(const char *t)
     while (buf[0]) {
         struct stat s;
         int fd;
-        char *n = index(f, ':');
+        char *n = strchr(f, ':');
         if (n)
             *n = '\0';
         fd = open(f, O_RDONLY);
