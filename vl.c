@@ -4691,8 +4691,7 @@ int main(int argc, char **argv, char **envp)
         parallel_devices[i] = NULL;
     parallel_device_index = 0;
 
-    virtio_consoles[0] = "vc:80Cx24C";
-    for(i = 1; i < MAX_VIRTIO_CONSOLES; i++)
+    for(i = 0; i < MAX_VIRTIO_CONSOLES; i++)
         virtio_consoles[i] = NULL;
     virtio_console_index = 0;
 
@@ -5305,8 +5304,6 @@ int main(int argc, char **argv, char **envp)
            parallel_devices[0] = "null";
        if (strncmp(monitor_device, "vc", 2) == 0)
            monitor_device = "stdio";
-       if (virtio_console_index == 0)
-           virtio_consoles[0] = "null";
     }
 
 #ifndef _WIN32
