@@ -307,6 +307,19 @@ static void spr_write_sdr1 (void *opaque, int sprn, int gprn)
 /* 64 bits PowerPC specific SPRs */
 /* ASR */
 #if defined(TARGET_PPC64)
+static void spr_read_hior (void *opaque, int gprn, int sprn)
+{
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, excp_prefix));
+}
+
+static void spr_write_hior (void *opaque, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_andi_tl(t0, cpu_gpr[gprn], 0x3FFFFF00000ULL);
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_prefix));
+    tcg_temp_free(t0);
+}
+
 static void spr_read_asr (void *opaque, int gprn, int sprn)
 {
     tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, asr));
@@ -5939,8 +5952,8 @@ static void init_proc_970 (CPUPPCState *env)
                  0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFF00000); /* XXX: This is a hack */
+                 &spr_read_hior, &spr_write_hior,
+                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
@@ -6028,8 +6041,8 @@ static void init_proc_970FX (CPUPPCState *env)
                  0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFF00000); /* XXX: This is a hack */
+                 &spr_read_hior, &spr_write_hior,
+                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
@@ -6117,8 +6130,8 @@ static void init_proc_970GX (CPUPPCState *env)
                  0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFF00000); /* XXX: This is a hack */
+                 &spr_read_hior, &spr_write_hior,
+                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
@@ -6206,8 +6219,8 @@ static void init_proc_970MP (CPUPPCState *env)
                  0x00000000); /* TOFIX */
     spr_register(env, SPR_HIOR, "SPR_HIOR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFF00000); /* XXX: This is a hack */
+                 &spr_read_hior, &spr_write_hior,
+                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
