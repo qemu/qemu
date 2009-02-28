@@ -2243,7 +2243,7 @@ BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv)
         if (drives_table[index].bdrv == bdrv)
             return drives_table[index].onerror;
 
-    return BLOCK_ERR_REPORT;
+    return BLOCK_ERR_STOP_ENOSPC;
 }
 
 static void bdrv_format_print(void *opaque, const char *name)
@@ -2479,7 +2479,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     if (!get_param_value(serial, sizeof(serial), "serial", str))
 	    memset(serial, 0,  sizeof(serial));
 
-    onerror = BLOCK_ERR_REPORT;
+    onerror = BLOCK_ERR_STOP_ENOSPC;
     if (get_param_value(buf, sizeof(serial), "werror", str)) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO) {
             fprintf(stderr, "werror is no supported by this format\n");
