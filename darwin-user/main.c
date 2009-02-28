@@ -756,7 +756,7 @@ void usage(void)
            interp_prefix,
            stack_size,
            DEBUG_LOGFILE);
-    _exit(1);
+    exit(1);
 }
 
 /* XXX: currently only used for async signals (see signal.c) */
@@ -840,7 +840,7 @@ int main(int argc, char **argv)
 #if defined(cpu_list)
                     cpu_list(stdout, &fprintf);
 #endif
-                _exit(1);
+                exit(1);
             }
         } else
         {
