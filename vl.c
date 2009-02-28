@@ -52,6 +52,7 @@
 #include <zlib.h>
 
 #ifndef _WIN32
+#include <pwd.h>
 #include <sys/times.h>
 #include <sys/wait.h>
 #include <termios.h>
@@ -2246,7 +2247,7 @@ BlockInterfaceErrorAction drive_get_onerror(BlockDriverState *bdrv)
         if (drives_table[index].bdrv == bdrv)
             return drives_table[index].onerror;
 
-    return BLOCK_ERR_REPORT;
+    return BLOCK_ERR_STOP_ENOSPC;
 }
 
 static void bdrv_format_print(void *opaque, const char *name)
@@ -2482,7 +2483,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     if (!get_param_value(serial, sizeof(serial), "serial", str))
 	    memset(serial, 0,  sizeof(serial));
 
-    onerror = BLOCK_ERR_REPORT;
+    onerror = BLOCK_ERR_STOP_ENOSPC;
     if (get_param_value(buf, sizeof(serial), "werror", str)) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO) {
             fprintf(stderr, "werror is no supported by this format\n");
@@ -4023,6 +4024,8 @@ static void QEMU_NORETURN help(int exitcode)
            "-no-fd-bootchk  disable boot signature checking for floppy disks\n"
            "-no-acpi        disable ACPI\n"
            "-no-hpet        disable HPET\n"
+           "-acpitable [sig=str][,rev=n][,oem_id=str][,oem_table_id=str][,oem_rev=n][,asl_compiler_id=str][,asl_compiler_rev=n][,data=file1[:file2]...]\n"
+           "                ACPI table description\n"
 #endif
            "Linux boot specific:\n"
            "-kernel bzImage use 'bzImage' as kernel image\n"
@@ -4081,6 +4084,10 @@ static void QEMU_NORETURN help(int exitcode)
 #endif
            "-tb-size n      set TB size\n"
            "-incoming p     prepare for incoming migration, listen on port p\n"
+#ifndef _WIN32
+           "-chroot dir     Chroot to dir just before starting the VM.\n"
+           "-runas user     Change to user id user just before starting the VM.\n"
+#endif
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -4159,6 +4166,7 @@ enum {
     QEMU_OPTION_no_fd_bootchk,
     QEMU_OPTION_no_acpi,
     QEMU_OPTION_no_hpet,
+    QEMU_OPTION_acpitable,
 
     /* Linux boot specific: */
     QEMU_OPTION_kernel,
@@ -4198,6 +4206,8 @@ enum {
     QEMU_OPTION_old_param,
     QEMU_OPTION_tb_size,
     QEMU_OPTION_incoming,
+    QEMU_OPTION_chroot,
+    QEMU_OPTION_runas,
 };
 
 typedef struct QEMUOption {
@@ -4278,6 +4288,7 @@ static const QEMUOption qemu_options[] = {
     { "no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-hpet", 0, QEMU_OPTION_no_hpet },
+    { "acpitable", HAS_ARG, QEMU_OPTION_acpitable },
 #endif
 
     /* Linux boot specific: */
@@ -4328,6 +4339,8 @@ static const QEMUOption qemu_options[] = {
 #endif
     { "tb-size", HAS_ARG, QEMU_OPTION_tb_size },
     { "incoming", HAS_ARG, QEMU_OPTION_incoming },
+    { "chroot", HAS_ARG, QEMU_OPTION_chroot },
+    { "runas", HAS_ARG, QEMU_OPTION_runas },
     { NULL },
 };
 
@@ -4675,6 +4688,10 @@ int main(int argc, char **argv, char **envp)
     const char *pid_file = NULL;
     int autostart;
     const char *incoming = NULL;
+    int fd = 0;
+    struct passwd *pwd = NULL;
+    const char *chroot_dir = NULL;
+    const char *run_as = NULL;
 
     qemu_cache_utils_init(envp);
 
@@ -4749,7 +4766,7 @@ int main(int argc, char **argv, char **envp)
         serial_devices[i] = NULL;
     serial_device_index = 0;
 
-    parallel_devices[0] = "vc:640x480";
+    parallel_devices[0] = "vc:80Cx24C";
     for(i = 1; i < MAX_PARALLEL_PORTS; i++)
         parallel_devices[i] = NULL;
     parallel_device_index = 0;
@@ -5192,6 +5209,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_rtc_td_hack:
                 rtc_td_hack = 1;
                 break;
+            case QEMU_OPTION_acpitable:
+                if(acpi_table_add(optarg) < 0) {
+                    fprintf(stderr, "Wrong acpi table provided\n");
+                    exit(1);
+                }
+                break;
 #endif
 #ifdef USE_KQEMU
             case QEMU_OPTION_no_kqemu:
@@ -5343,6 +5366,12 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_incoming:
                 incoming = optarg;
+                break;
+            case QEMU_OPTION_chroot:
+                chroot_dir = optarg;
+                break;
+            case QEMU_OPTION_runas:
+                run_as = optarg;
                 break;
             }
         }
@@ -5797,7 +5826,6 @@ int main(int argc, char **argv, char **envp)
     if (daemonize) {
 	uint8_t status = 0;
 	ssize_t len;
-	int fd;
 
     again1:
 	len = write(fds[1], &status, 1);
@@ -5811,14 +5839,49 @@ int main(int argc, char **argv, char **envp)
 	TFR(fd = open("/dev/null", O_RDWR));
 	if (fd == -1)
 	    exit(1);
+    }
 
-	dup2(fd, 0);
-	dup2(fd, 1);
-	dup2(fd, 2);
+#ifndef _WIN32
+    if (run_as) {
+        pwd = getpwnam(run_as);
+        if (!pwd) {
+            fprintf(stderr, "User \"%s\" doesn't exist\n", run_as);
+            exit(1);
+        }
+    }
 
-	close(fd);
+    if (chroot_dir) {
+        if (chroot(chroot_dir) < 0) {
+            fprintf(stderr, "chroot failed\n");
+            exit(1);
+        }
+        chdir("/");
     }
 #endif
+
+    if (run_as) {
+        if (setgid(pwd->pw_gid) < 0) {
+            fprintf(stderr, "Failed to setgid(%d)\n", pwd->pw_gid);
+            exit(1);
+        }
+        if (setuid(pwd->pw_uid) < 0) {
+            fprintf(stderr, "Failed to setuid(%d)\n", pwd->pw_uid);
+            exit(1);
+        }
+        if (setuid(0) != -1) {
+            fprintf(stderr, "Dropping privileges failed\n");
+            exit(1);
+        }
+    }
+#endif
+
+    if (daemonize) {
+        dup2(fd, 0);
+        dup2(fd, 1);
+        dup2(fd, 2);
+
+        close(fd);
+    }
 
     main_loop();
     quit_timers();
