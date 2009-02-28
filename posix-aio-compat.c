@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "qemu-common.h"
 #include "osdep.h"
 
 #include "posix-aio-compat.h"
@@ -31,13 +32,13 @@ static int cur_threads = 0;
 static int idle_threads = 0;
 static TAILQ_HEAD(, qemu_paiocb) request_list;
 
-static void die2(int err, const char *what)
+static void QEMU_NORETURN die2(int err, const char *what)
 {
     fprintf(stderr, "%s failed: %s\n", what, strerror(err));
     abort();
 }
 
-static void die(const char *what)
+static void QEMU_NORETURN die(const char *what)
 {
     die2(errno, what);
 }
