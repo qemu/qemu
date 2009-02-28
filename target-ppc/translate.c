@@ -2624,7 +2624,7 @@ static always_inline void gen_qemu_ld32u(DisasContext *ctx, TCGv arg1, TCGv arg2
 #if defined(TARGET_PPC64)
 static always_inline void gen_qemu_ld32s(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
-    if (unlikely(ctx->mem_idx)) {
+    if (unlikely(ctx->le_mode)) {
         TCGv_i32 t0;
         tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
         t0 = tcg_temp_new_i32();
