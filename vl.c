@@ -127,6 +127,10 @@
 #include <libvdeplug.h>
 #endif
 
+#ifndef _WIN32
+# define CONFIG_CHROOT
+#endif
+
 #ifdef _WIN32
 #include <malloc.h>
 #include <sys/timeb.h>
@@ -4339,7 +4343,9 @@ static const QEMUOption qemu_options[] = {
 #endif
     { "tb-size", HAS_ARG, QEMU_OPTION_tb_size },
     { "incoming", HAS_ARG, QEMU_OPTION_incoming },
+#ifdef CONFIG_CHROOT
     { "chroot", HAS_ARG, QEMU_OPTION_chroot },
+#endif
     { "runas", HAS_ARG, QEMU_OPTION_runas },
     { NULL },
 };
@@ -4689,8 +4695,12 @@ int main(int argc, char **argv, char **envp)
     int autostart;
     const char *incoming = NULL;
     int fd = 0;
+#ifndef _WIN32
     struct passwd *pwd = NULL;
+#endif
+#ifdef CONFIG_CHROOT
     const char *chroot_dir = NULL;
+#endif
     const char *run_as = NULL;
 
     qemu_cache_utils_init(envp);
@@ -5367,9 +5377,11 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_incoming:
                 incoming = optarg;
                 break;
+#ifdef CONFIG_CHROOT
             case QEMU_OPTION_chroot:
                 chroot_dir = optarg;
                 break;
+#endif
             case QEMU_OPTION_runas:
                 run_as = optarg;
                 break;
@@ -5850,6 +5862,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+#ifdef CONFIG_CHROOT
     if (chroot_dir) {
         if (chroot(chroot_dir) < 0) {
             fprintf(stderr, "chroot failed\n");
@@ -5857,6 +5870,7 @@ int main(int argc, char **argv, char **envp)
         }
         chdir("/");
     }
+#endif
 #endif
 
     if (run_as) {
