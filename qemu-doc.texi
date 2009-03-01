@@ -1167,6 +1167,7 @@ character to Control-t.
 @item -chroot dir
 Immediately before starting guest execution, chroot to the specified
 directory.  Especially useful in combination with -runas.
+This option is not supported for Windows hosts.
 
 @item -runas user
 Immediately before starting guest execution, drop root privileges, switching
