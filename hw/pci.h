@@ -40,6 +40,7 @@ extern target_phys_addr_t pci_mem_base;
 #define PCI_CLASS_BRIDGE_OTHER           0x0680
 
 #define PCI_CLASS_PROCESSOR_CO           0x0b40
+#define PCI_CLASS_PROCESSOR_POWERPC      0x0b20
 
 #define PCI_CLASS_OTHERS                 0xff
 
@@ -111,6 +112,9 @@ extern target_phys_addr_t pci_mem_base;
 #define PCI_DEVICE_ID_INTEL_82371AB      0x7111
 #define PCI_DEVICE_ID_INTEL_82371AB_2    0x7112
 #define PCI_DEVICE_ID_INTEL_82371AB_3    0x7113
+
+#define PCI_VENDOR_ID_FSL                0x1957
+#define PCI_DEVICE_ID_FSL_E500           0x0030
 
 /* Red Hat / Qumranet (for QEMU) -- see pci-ids.txt */
 #define PCI_VENDOR_ID_REDHAT_QUMRANET    0x1af4
