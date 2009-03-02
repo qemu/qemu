@@ -1669,7 +1669,7 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
         CPUWriteMemoryFunc **write;
         target_phys_addr_t start_addr;
         ram_addr_t size;
-    } list[] = {
+    } const list[] = {
         {mpic_glb_read, mpic_glb_write, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},
         {mpic_tmr_read, mpic_tmr_write, MPIC_TMR_REG_START, MPIC_TMR_REG_SIZE},
         {mpic_ext_read, mpic_ext_write, MPIC_EXT_REG_START, MPIC_EXT_REG_SIZE},
