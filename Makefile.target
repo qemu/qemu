@@ -603,7 +603,7 @@ OBJS+= unin_pci.o ppc_newworld.o
 OBJS+= pflash_cfi02.o ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 OBJS+= ppc440.o ppc440_bamboo.o
 # PowerPC E500 boards
-OBJS+= ppce500_pci.o
+OBJS+= ppce500_pci.o ppce500_mpc8544ds.o
 ifdef FDT_LIBS
 OBJS+= device_tree.o
 LIBS+= $(FDT_LIBS)
