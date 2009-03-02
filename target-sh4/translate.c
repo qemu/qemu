@@ -72,7 +72,7 @@ static TCGv_ptr cpu_env;
 static TCGv cpu_gregs[24];
 static TCGv cpu_pc, cpu_sr, cpu_ssr, cpu_spc, cpu_gbr;
 static TCGv cpu_vbr, cpu_sgr, cpu_dbr, cpu_mach, cpu_macl;
-static TCGv cpu_pr, cpu_fpscr, cpu_fpul;
+static TCGv cpu_pr, cpu_fpscr, cpu_fpul, cpu_ldst;
 static TCGv cpu_fregs[32];
 
 /* internal register indexes */
@@ -144,6 +144,8 @@ static void sh4_translate_init(void)
     cpu_delayed_pc = tcg_global_mem_new_i32(TCG_AREG0,
 					    offsetof(CPUState, delayed_pc),
 					    "_delayed_pc_");
+    cpu_ldst = tcg_global_mem_new_i32(TCG_AREG0,
+				      offsetof(CPUState, ldst), "_ldst_");
 
     for (i = 0; i < 32; i++)
         cpu_fregs[i] = tcg_global_mem_new_i32(TCG_AREG0,
@@ -1559,6 +1561,37 @@ static void _decode_opc(DisasContext * ctx)
     case 0x0029:		/* movt Rn */
 	tcg_gen_andi_i32(REG(B11_8), cpu_sr, SR_T);
 	return;
+    case 0x0073:
+        /* MOVCO.L
+	       LDST -> T
+               If (T == 1) R0 -> (Rn)
+               0 -> LDST
+        */
+        if (ctx->features & SH_FEATURE_SH4A) {
+	    int label = gen_new_label();
+	    gen_clr_t();
+	    tcg_gen_or_i32(cpu_sr, cpu_sr, cpu_ldst);
+	    tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_ldst, 0, label);
+	    tcg_gen_qemu_st32(REG(0), REG(B11_8), ctx->memidx);
+	    gen_set_label(label);
+	    tcg_gen_movi_i32(cpu_ldst, 0);
+	    return;
+	} else
+	    break;
+    case 0x0063:
+        /* MOVLI.L @Rm,R0
+               1 -> LDST
+               (Rm) -> R0
+               When interrupt/exception
+               occurred 0 -> LDST
+        */
+	if (ctx->features & SH_FEATURE_SH4A) {
+	    tcg_gen_movi_i32(cpu_ldst, 0);
+	    tcg_gen_qemu_ld32s(REG(0), REG(B11_8), ctx->memidx);
+	    tcg_gen_movi_i32(cpu_ldst, 1);
+	    return;
+	} else
+	    break;
     case 0x0093:		/* ocbi @Rn */
 	{
 	    TCGv dummy = tcg_temp_new();

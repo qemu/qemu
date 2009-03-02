@@ -1356,6 +1356,16 @@ enum {
 };
 
 enum {
+    /* PowerPC E500 input pins */
+    PPCE500_INPUT_RESET_CORE = 0,
+    PPCE500_INPUT_MCK        = 1,
+    PPCE500_INPUT_CINT       = 3,
+    PPCE500_INPUT_INT        = 4,
+    PPCE500_INPUT_DEBUG      = 6,
+    PPCE500_INPUT_NB,
+};
+
+enum {
     /* PowerPC 40x input pins */
     PPC40x_INPUT_RESET_CORE = 0,
     PPC40x_INPUT_RESET_CHIP = 1,

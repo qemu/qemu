@@ -31,6 +31,7 @@ extern CPUReadMemoryFunc *PPC_io_read[];
 void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val);
 
 void ppc40x_irq_init (CPUState *env);
+void ppce500_irq_init (CPUState *env);
 void ppc6xx_irq_init (CPUState *env);
 void ppc970_irq_init (CPUState *env);
 

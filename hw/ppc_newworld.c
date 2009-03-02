@@ -34,6 +34,7 @@
 #include "boards.h"
 #include "fw_cfg.h"
 #include "escc.h"
+#include "openpic.h"
 
 #define MAX_IDE_BUS 2
 #define VGA_BIOS_SIZE 65536

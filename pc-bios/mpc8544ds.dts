@@ -1,0 +1,122 @@
+/*
+ * MPC8544 DS Device Tree Source
+ *
+ * Copyright 2007, 2008 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+/ {
+	model = "MPC8544DS";
+	compatible = "MPC8544DS", "MPC85xxDS";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,8544@0 {
+			device_type = "cpu";
+			reg = <0x0>;
+			d-cache-line-size = <32>;	// 32 bytes
+			i-cache-line-size = <32>;	// 32 bytes
+			d-cache-size = <0x8000>;		// L1, 32K
+			i-cache-size = <0x8000>;		// L1, 32K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;	// Filled by U-Boot
+	};
+
+	soc8544@e0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "soc";
+		compatible = "simple-bus";
+
+		ranges = <0x0 0xe0000000 0x100000>;
+		reg = <0xe0000000 0x1000>;	// CCSRBAR 1M
+		bus-frequency = <0>;		// Filled out by uboot.
+
+		serial0: serial@4500 {
+			cell-index = <0>;
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x4500 0x100>;
+			clock-frequency = <0>;
+			interrupts = <42 2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		serial1: serial@4600 {
+			cell-index = <1>;
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x4600 0x100>;
+			clock-frequency = <0>;
+			interrupts = <42 2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		mpic: pic@40000 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <0x40000 0x40000>;
+			compatible = "chrp,open-pic";
+			device_type = "open-pic";
+		};
+	};
+
+	pci0: pci@e0008000 {
+		cell-index = <0>;
+		compatible = "fsl,mpc8540-pci";
+		device_type = "pci";
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+
+			/* IDSEL 0x11 J17 Slot 1 */
+			0x8800 0x0 0x0 0x1 &mpic 0x2 0x1
+			0x8800 0x0 0x0 0x2 &mpic 0x3 0x1
+			0x8800 0x0 0x0 0x3 &mpic 0x4 0x1
+			0x8800 0x0 0x0 0x4 &mpic 0x1 0x1
+
+			/* IDSEL 0x12 J16 Slot 2 */
+
+			0x9000 0x0 0x0 0x1 &mpic 0x3 0x1
+			0x9000 0x0 0x0 0x2 &mpic 0x4 0x1
+			0x9000 0x0 0x0 0x3 &mpic 0x2 0x1
+			0x9000 0x0 0x0 0x4 &mpic 0x1 0x1>;
+
+		interrupt-parent = <&mpic>;
+		interrupts = <24 2>;
+		bus-range = <0 255>;
+		ranges = <0x2000000 0x0 0xc0000000 0xc0000000 0x0 0x20000000
+			  0x1000000 0x0 0x0 0xe1000000 0x0 0x10000>;
+		clock-frequency = <66666666>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0xe0008000 0x1000>;
+	};
+
+	chosen {
+		linux,stdout-path = "/soc8544@e0000000/serial@4500";
+	};
+};

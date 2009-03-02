@@ -63,6 +63,7 @@ void glue(glue(ppc, name),_irq_init) (CPUPPCState *env);
 PPC_IRQ_INIT_FN(40x);
 PPC_IRQ_INIT_FN(6xx);
 PPC_IRQ_INIT_FN(970);
+PPC_IRQ_INIT_FN(e500);
 
 /* Generic callbacks:
  * do nothing but store/retrieve spr value
@@ -4198,7 +4199,6 @@ static void init_proc_e300 (CPUPPCState *env)
 #define check_pow_e500v2       check_pow_hid0
 #define init_proc_e500v2       init_proc_e500
 
-__attribute__ (( unused ))
 static void init_proc_e500 (CPUPPCState *env)
 {
     /* Time base */
@@ -4300,7 +4300,8 @@ static void init_proc_e500 (CPUPPCState *env)
     init_excp_e200(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
-    /* XXX: TODO: allocate internal IRQ controller */
+    /* Allocate hardware IRQ controller */
+    ppce500_irq_init(env);
 }
 
 /* Non-embedded PowerPC                                                      */
