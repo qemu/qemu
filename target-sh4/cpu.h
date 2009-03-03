@@ -165,6 +165,8 @@ static inline void cpu_set_tls(CPUSH4State *env, target_ulong newtls)
   env->gbr = newtls;
 }
 
+void cpu_load_tlb(CPUSH4State * env);
+
 #include "softfloat.h"
 
 #define CPUState CPUSH4State

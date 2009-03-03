@@ -313,8 +313,8 @@ static void increment_urc(CPUState * env)
    Return entry, MMU_ITLB_MISS, MMU_ITLB_MULTIPLE or MMU_DTLB_MULTIPLE
    Update the itlb from utlb if update is not 0
 */
-int find_itlb_entry(CPUState * env, target_ulong address,
-		    int use_asid, int update)
+static int find_itlb_entry(CPUState * env, target_ulong address,
+                           int use_asid, int update)
 {
     int e, n;
 
@@ -344,7 +344,7 @@ int find_itlb_entry(CPUState * env, target_ulong address,
 
 /* Find utlb entry
    Return entry, MMU_DTLB_MISS, MMU_DTLB_MULTIPLE */
-int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
+static int find_utlb_entry(CPUState * env, target_ulong address, int use_asid)
 {
     /* per utlb access */
     increment_urc(env);
@@ -418,9 +418,9 @@ static int get_mmu_address(CPUState * env, target_ulong * physical,
     return n;
 }
 
-int get_physical_address(CPUState * env, target_ulong * physical,
-			 int *prot, target_ulong address,
-			 int rw, int access_type)
+static int get_physical_address(CPUState * env, target_ulong * physical,
+                                int *prot, target_ulong address,
+                                int rw, int access_type)
 {
     /* P1, P2 and P4 areas do not use translation */
     if ((address >= 0x80000000 && address < 0xc0000000) ||
@@ -525,7 +525,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
     return physical;
 }
 
-void cpu_load_tlb(CPUState * env)
+void cpu_load_tlb(CPUSH4State * env)
 {
     int n = cpu_mmucr_urc(env->mmucr);
     tlb_t * entry = &env->utlb[n];
