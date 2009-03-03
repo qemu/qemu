@@ -320,6 +320,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
         bdrv_delete(bs);
         return ret;
     }
+    bs->growable = 1;
     *pbs = bs;
     return 0;
 }
@@ -521,6 +522,39 @@ int bdrv_commit(BlockDriverState *bs)
     return 0;
 }
 
+static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
+                                   size_t size)
+{
+    int64_t len;
+
+    if (!bdrv_is_inserted(bs))
+        return -ENOMEDIUM;
+
+    if (bs->growable)
+        return 0;
+
+    len = bdrv_getlength(bs);
+
+    if ((offset + size) > len)
+        return -EIO;
+
+    return 0;
+}
+
+static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
+                              int nb_sectors)
+{
+    int64_t offset;
+
+    /* Deal with byte accesses */
+    if (sector_num < 0)
+        offset = -sector_num;
+    else
+        offset = sector_num * 512;
+
+    return bdrv_check_byte_request(bs, offset, nb_sectors * 512);
+}
+
 /* return < 0 if error. See bdrv_write() for the return codes */
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors)
@@ -529,6 +563,8 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
 
     if (!drv)
         return -ENOMEDIUM;
+    if (bdrv_check_request(bs, sector_num, nb_sectors))
+        return -EIO;
 
     if (drv->bdrv_pread) {
         int ret, len;
@@ -562,6 +598,9 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
         return -ENOMEDIUM;
     if (bs->read_only)
         return -EACCES;
+    if (bdrv_check_request(bs, sector_num, nb_sectors))
+        return -EIO;
+
     if (drv->bdrv_pwrite) {
         int ret, len, count = 0;
         len = nb_sectors * 512;
@@ -683,6 +722,9 @@ int bdrv_pread(BlockDriverState *bs, int64_t offset,
 
     if (!drv)
         return -ENOMEDIUM;
+    if (bdrv_check_byte_request(bs, offset, count1))
+        return -EIO;
+
     if (!drv->bdrv_pread)
         return bdrv_pread_em(bs, offset, buf1, count1);
     return drv->bdrv_pread(bs, offset, buf1, count1);
@@ -698,6 +740,9 @@ int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
 
     if (!drv)
         return -ENOMEDIUM;
+    if (bdrv_check_byte_request(bs, offset, count1))
+        return -EIO;
+
     if (!drv->bdrv_pwrite)
         return bdrv_pwrite_em(bs, offset, buf1, count1);
     return drv->bdrv_pwrite(bs, offset, buf1, count1);
@@ -1265,7 +1310,7 @@ static void bdrv_aio_rw_vector_cb(void *opaque, int ret)
     if (!s->is_write) {
         qemu_iovec_from_buffer(s->iov, s->bounce, s->iov->size);
     }
-    qemu_free(s->bounce);
+    qemu_vfree(s->bounce);
     s->this_aiocb->cb(s->this_aiocb->opaque, ret);
     qemu_aio_release(s->this_aiocb);
 }
@@ -1301,6 +1346,9 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                                  QEMUIOVector *iov, int nb_sectors,
                                  BlockDriverCompletionFunc *cb, void *opaque)
 {
+    if (bdrv_check_request(bs, sector_num, nb_sectors))
+        return NULL;
+
     return bdrv_aio_rw_vector(bs, sector_num, iov, nb_sectors,
                               cb, opaque, 0);
 }
@@ -1309,6 +1357,9 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                   QEMUIOVector *iov, int nb_sectors,
                                   BlockDriverCompletionFunc *cb, void *opaque)
 {
+    if (bdrv_check_request(bs, sector_num, nb_sectors))
+        return NULL;
+
     return bdrv_aio_rw_vector(bs, sector_num, iov, nb_sectors,
                               cb, opaque, 1);
 }
@@ -1321,6 +1372,8 @@ BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
     BlockDriverAIOCB *ret;
 
     if (!drv)
+        return NULL;
+    if (bdrv_check_request(bs, sector_num, nb_sectors))
         return NULL;
 
     ret = drv->bdrv_aio_read(bs, sector_num, buf, nb_sectors, cb, opaque);
@@ -1344,6 +1397,8 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
     if (!drv)
         return NULL;
     if (bs->read_only)
+        return NULL;
+    if (bdrv_check_request(bs, sector_num, nb_sectors))
         return NULL;
 
     ret = drv->bdrv_aio_write(bs, sector_num, buf, nb_sectors, cb, opaque);

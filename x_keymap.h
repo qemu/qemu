@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2009 Laurent Vivier
+ * QEMU SDL display driver
+ *
+ * Copyright (c) 2003 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,23 +22,11 @@
  * THE SOFTWARE.
  */
 
-typedef struct DBDMA_io DBDMA_io;
+#ifndef QEMU_X_KEYMAP_H
+#define QEMU_X_KEYMAP_H
 
-typedef void (*DBDMA_rw)(DBDMA_io *io);
-typedef void (*DBDMA_end)(DBDMA_io *io);
-struct DBDMA_io {
-    void *opaque;
-    void *channel;
-    target_phys_addr_t addr;
-    int len;
-    int is_last;
-    int is_dma_out;
-    DBDMA_end dma_end;
-};
+extern uint8_t translate_xfree86_keycode(const int key);
 
+extern uint8_t translate_evdev_keycode(const int key);
 
-void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
-                            DBDMA_rw rw,
-                            void *opaque);
-void DBDMA_schedule(void);
-void* DBDMA_init (int *dbdma_mem_index);
+#endif

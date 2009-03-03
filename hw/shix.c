@@ -45,21 +45,6 @@ void pic_info(void)
     /* XXXXX */
 }
 
-void vga_update_display(void)
-{
-    /* XXXXX */
-}
-
-void vga_invalidate_display(void)
-{
-    /* XXXXX */
-}
-
-void vga_screen_dump(const char *filename)
-{
-    /* XXXXX */
-}
-
 static void shix_init(ram_addr_t ram_size, int vga_ram_size,
                const char *boot_device,
 	       const char *kernel_filename, const char *kernel_cmdline,

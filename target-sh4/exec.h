@@ -53,10 +53,4 @@ static inline void env_to_regs(void)
     /* XXXXX */
 }
 
-void cpu_load_tlb(CPUState * env);
-
-int find_itlb_entry(CPUState * env, target_ulong address,
-		    int use_asid, int update);
-int find_utlb_entry(CPUState * env, target_ulong address, int use_asid);
-
 #endif				/* _EXEC_SH4_H */

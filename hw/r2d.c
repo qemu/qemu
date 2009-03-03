@@ -224,13 +224,13 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
 	       serial_hds[2]);
 
     /* onboard CF (True IDE mode, Master only). */
-    mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
-        drives_table[drive_get_index(IF_IDE, 0, 0)].bdrv, NULL);
+    if ((i = drive_get_index(IF_IDE, 0, 0)) != -1)
+	mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
+		      drives_table[i].bdrv, NULL);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
-    pci_nic_init(pci, &nd_table[0], 2 << 3, "rtl8139");
-    for (i = 1; i < nb_nics; i++)
-        pci_nic_init(pci, &nd_table[i], -1, "ne2k_pci");
+    for (i = 0; i < nb_nics; i++)
+        pci_nic_init(pci, &nd_table[i], (i==0)? 2<<3: -1, "rtl8139");
 
     /* Todo: register on board registers */
     {
