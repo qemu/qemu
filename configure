@@ -187,6 +187,7 @@ kerneldir=""
 aix="no"
 blobs="yes"
 fdt="yes"
+sdl_x11="no"
 
 # OS specific
 if check_define __linux__ ; then
@@ -805,6 +806,21 @@ else
     fi
 fi # -z $sdl
 
+if test "$sdl" = "yes" ; then
+cat > $TMPC <<EOF
+#include <SDL.h>
+#if defined(SDL_VIDEO_DRIVER_X11)
+#include <X11/XKBlib.h>
+#else
+#error No x11 support
+#endif
+int main(void) { return 0; }
+EOF
+    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` > /dev/null 2>&1 ; then
+	sdl_x11="yes"
+    fi
+fi
+
 ##########################################
 # VNC TLS detection
 if test "$vnc_tls" = "yes" ; then
@@ -1393,6 +1409,8 @@ if test "$sdl1" = "yes" ; then
   echo "CONFIG_SDL=yes" >> $config_mak
   if test "$target_softmmu" = "no" -o "$static" = "yes"; then
     echo "SDL_LIBS=$sdl_static_libs" >> $config_mak
+  elif test "$sdl_x11" = "yes" ; then
+    echo "SDL_LIBS=`$sdl_config --libs` -lX11" >> $config_mak
   else
     echo "SDL_LIBS=`$sdl_config --libs`" >> $config_mak
   fi

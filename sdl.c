@@ -24,8 +24,10 @@
 #include "qemu-common.h"
 #include "console.h"
 #include "sysemu.h"
+#include "x_keymap.h"
 
 #include <SDL.h>
+#include <SDL/SDL_syswm.h>
 
 #ifndef _WIN32
 #include <signal.h>
@@ -136,9 +138,54 @@ static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
 
 #else
 
+#if defined(SDL_VIDEO_DRIVER_X11)
+#include <X11/XKBlib.h>
+
+static int check_for_evdev(void)
+{
+    SDL_SysWMinfo info;
+    XkbDescPtr desc;
+    int has_evdev = 0;
+    const char *keycodes;
+
+    SDL_VERSION(&info.version);
+    if (!SDL_GetWMInfo(&info))
+        return 0;
+
+    desc = XkbGetKeyboard(info.info.x11.display,
+                          XkbGBN_AllComponentsMask,
+                          XkbUseCoreKbd);
+    if (desc == NULL || desc->names == NULL)
+        return 0;
+
+    keycodes = XGetAtomName(info.info.x11.display, desc->names->keycodes);
+    if (keycodes == NULL)
+        fprintf(stderr, "could not lookup keycode name\n");
+    else if (strstart(keycodes, "evdev_", NULL))
+        has_evdev = 1;
+    else if (!strstart(keycodes, "xfree86_", NULL))
+        fprintf(stderr,
+                "unknown keycodes `%s', please report to qemu-devel@nongnu.org\n",
+                keycodes);
+
+    XkbFreeClientMap(desc, XkbGBN_AllComponentsMask, True);
+
+    return has_evdev;
+}
+#else
+static int check_for_evdev(void)
+{
+	return 0;
+}
+#endif
+
 static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
 {
     int keycode;
+    static int has_evdev = -1;
+
+    if (has_evdev == -1)
+        has_evdev = check_for_evdev();
 
     keycode = ev->keysym.scancode;
 
@@ -146,9 +193,16 @@ static uint8_t sdl_keyevent_to_keycode(const SDL_KeyboardEvent *ev)
         keycode = 0;
     } else if (keycode < 97) {
         keycode -= 8; /* just an offset */
-    } else if (keycode < 212) {
+    } else if (keycode < 158) {
         /* use conversion table */
-        keycode = _translate_keycode(keycode - 97);
+        if (has_evdev)
+            keycode = translate_evdev_keycode(keycode - 97);
+        else
+            keycode = translate_xfree86_keycode(keycode - 97);
+    } else if (keycode == 208) { /* Hiragana_Katakana */
+        keycode = 0x70;
+    } else if (keycode == 211) { /* backslash */
+        keycode = 0x73;
     } else {
         keycode = 0;
     }

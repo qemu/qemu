@@ -292,9 +292,6 @@ void do_info_vnc(void);
 /* curses.c */
 void curses_display_init(DisplayState *ds, int full_screen);
 
-/* x_keymap.c */
-extern uint8_t _translate_keycode(const int key);
-
 /* FIXME: term_printf et al should probably go elsewhere so everything
    does not need to include console.h  */
 /* monitor.c */
