@@ -34,14 +34,14 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cc_size);
     qemu_put_be32(f, env->cc_x);
 
-    for (s = 0; s < 4; i++) {
+    for (s = 0; s < 4; s++) {
         for (i = 0; i < 16; i++)
             qemu_put_be32(f, env->sregs[s][i]);
     }
 
     qemu_put_be32(f, env->mmu_rand_lfsr);
     for (mmu = 0; mmu < 2; mmu++) {
-        for (s = 0; s < 4; i++) {
+        for (s = 0; s < 4; s++) {
             for (i = 0; i < 16; i++) {
                 qemu_put_be32(f, env->tlbsets[mmu][s][i].lo);
                 qemu_put_be32(f, env->tlbsets[mmu][s][i].hi);
@@ -77,14 +77,14 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cc_size = qemu_get_be32(f);
     env->cc_x = qemu_get_be32(f);
 
-    for (s = 0; s < 4; i++) {
+    for (s = 0; s < 4; s++) {
         for (i = 0; i < 16; i++)
             env->sregs[s][i] = qemu_get_be32(f);
     }
 
     env->mmu_rand_lfsr = qemu_get_be32(f);
     for (mmu = 0; mmu < 2; mmu++) {
-        for (s = 0; s < 4; i++) {
+        for (s = 0; s < 4; s++) {
             for (i = 0; i < 16; i++) {
                 env->tlbsets[mmu][s][i].lo = qemu_get_be32(f);
                 env->tlbsets[mmu][s][i].hi = qemu_get_be32(f);
