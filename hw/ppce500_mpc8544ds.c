@@ -47,6 +47,7 @@
 #define MPC8544_PCI_IO             0xE1000000
 #define MPC8544_PCI_IOLEN          0x10000
 
+#ifdef HAVE_FDT
 static int mpc8544_copy_soc_cell(void *fdt, const char *node, const char *prop)
 {
     uint32_t cell;
@@ -68,6 +69,7 @@ static int mpc8544_copy_soc_cell(void *fdt, const char *node, const char *prop)
 out:
     return ret;
 }
+#endif
 
 static void *mpc8544_load_device_tree(void *addr,
                                      uint32_t ramsize,
