@@ -121,6 +121,9 @@ struct BlockDriverState {
     uint64_t rd_ops;
     uint64_t wr_ops;
 
+    /* Whether the disk can expand beyond total_sectors */
+    int growable;
+
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
     int cyls, heads, secs, translation;
