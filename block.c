@@ -1263,7 +1263,7 @@ static void bdrv_aio_rw_vector_cb(void *opaque, int ret)
     if (!s->is_write) {
         qemu_iovec_from_buffer(s->iov, s->bounce, s->iov->size);
     }
-    qemu_free(s->bounce);
+    qemu_vfree(s->bounce);
     s->this_aiocb->cb(s->this_aiocb->opaque, ret);
     qemu_aio_release(s->this_aiocb);
 }
