@@ -1245,6 +1245,35 @@ static void mem_info(void)
 }
 #endif
 
+#if defined(TARGET_SH4)
+
+static void print_tlb(int idx, tlb_t *tlb)
+{
+    term_printf(" tlb%i:\t"
+                "asid=%hhu vpn=%x\tppn=%x\tsz=%hhu size=%u\t"
+                "v=%hhu shared=%hhu cached=%hhu prot=%hhu "
+                "dirty=%hhu writethrough=%hhu\n",
+                idx,
+                tlb->asid, tlb->vpn, tlb->ppn, tlb->sz, tlb->size,
+                tlb->v, tlb->sh, tlb->c, tlb->pr,
+                tlb->d, tlb->wt);
+}
+
+static void tlb_info(void)
+{
+    CPUState *env = mon_get_cpu();
+    int i;
+
+    term_printf ("ITLB:\n");
+    for (i = 0 ; i < ITLB_SIZE ; i++)
+        print_tlb (i, &env->itlb[i]);
+    term_printf ("UTLB:\n");
+    for (i = 0 ; i < UTLB_SIZE ; i++)
+        print_tlb (i, &env->utlb[i]);
+}
+
+#endif
+
 static void do_info_kqemu(void)
 {
 #ifdef USE_KQEMU
@@ -1556,9 +1585,11 @@ static const term_cmd_t info_cmds[] = {
       "", "show i8259 (PIC) state", },
     { "pci", "", pci_info,
       "", "show PCI info", },
-#if defined(TARGET_I386)
+#if defined(TARGET_I386) || defined(TARGET_SH4)
     { "tlb", "", tlb_info,
       "", "show virtual to physical memory mappings", },
+#endif
+#if defined(TARGET_I386)
     { "mem", "", mem_info,
       "", "show the active virtual memory mappings", },
     { "hpet", "", do_info_hpet,
