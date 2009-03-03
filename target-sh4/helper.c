@@ -304,7 +304,7 @@ static void increment_urc(CPUState * env)
     urb = ((env->mmucr) >> 18) & 0x3f;
     urc = ((env->mmucr) >> 10) & 0x3f;
     urc++;
-    if (urc == urb || urc == UTLB_SIZE - 1)
+    if (urc == urb || urc == UTLB_SIZE)
 	urc = 0;
     env->mmucr = (env->mmucr & 0xffff03ff) | (urc << 10);
 }
