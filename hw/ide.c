@@ -3429,71 +3429,69 @@ void pci_piix4_ide_init(PCIBus *bus, BlockDriverState **hd_table, int devfn,
 
 typedef struct MACIOIDEState {
     IDEState ide_if[2];
-    void *dbdma;
     int stream_index;
 } MACIOIDEState;
 
-static int pmac_atapi_read(DBDMA_transfer *info, DBDMA_transfer_cb cb)
+static void pmac_atapi_read(DBDMA_io *io)
 {
-    MACIOIDEState *m = info->opaque;
+    MACIOIDEState *m = io->opaque;
     IDEState *s = m->ide_if->cur_drive;
-    int ret;
+    int ret, len;
 
-    if (s->lba == -1)
-        return 0;
+    while (io->len > 0 &&
+           s->packet_transfer_size > 0) {
 
-    info->buf_pos = 0;
-
-    while (info->buf_pos < info->len && s->packet_transfer_size > 0) {
-
-        ret = cd_read_sector(s->bs, s->lba, s->io_buffer, s->cd_sector_size);
+        len = s->cd_sector_size;
+        ret = cd_read_sector(s->bs, s->lba, s->io_buffer, len);
         if (ret < 0) {
+            io->dma_end(io);
             ide_transfer_stop(s);
             ide_atapi_io_error(s, ret);
-            return info->buf_pos;
+            return;
         }
 
-        info->buf = s->io_buffer + m->stream_index;
+        if (len > io->len)
+            len = io->len;
 
-        info->buf_len = s->cd_sector_size;
-        if (info->buf_pos + info->buf_len > info->len)
-            info->buf_len = info->len - info->buf_pos;
-
-        cb(info);
+        cpu_physical_memory_write(io->addr,
+                                  s->io_buffer + m->stream_index, len);
 
 	/* db-dma can ask for 512 bytes whereas block size is 2048... */
 
-        m->stream_index += info->buf_len;
+        m->stream_index += len;
         s->lba += m->stream_index / s->cd_sector_size;
         m->stream_index %= s->cd_sector_size;
 
-        info->buf_pos += info->buf_len;
-        s->packet_transfer_size -= info->buf_len;
+        io->len -= len;
+        io->addr += len;
+        s->packet_transfer_size -= len;
     }
+
+    if (io->len <= 0)
+        io->dma_end(io);
+
     if (s->packet_transfer_size <= 0) {
         s->status = READY_STAT | SEEK_STAT;
         s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO
                                        | ATAPI_INT_REASON_CD;
         ide_set_irq(s);
     }
-
-    return info->buf_pos;
 }
 
-static int pmac_ide_transfer(DBDMA_transfer *info,
-                             DBDMA_transfer_cb cb)
+static void pmac_ide_transfer(DBDMA_io *io)
 {
-    MACIOIDEState *m = info->opaque;
+    MACIOIDEState *m = io->opaque;
     IDEState *s = m->ide_if->cur_drive;
     int64_t sector_num;
     int ret, n;
+    int len;
 
-    if (s->is_cdrom)
-        return pmac_atapi_read(info, cb);
+    if (s->is_cdrom) {
+        pmac_atapi_read(io);
+        return;
+    }
 
-    info->buf = s->io_buffer;
-    info->buf_pos = 0;
-    while (info->buf_pos < info->len && s->nsector > 0) {
+    while (io->len > 0 && s->nsector > 0) {
 
         sector_num = ide_get_sector(s);
 
@@ -3501,36 +3499,40 @@ static int pmac_ide_transfer(DBDMA_transfer *info,
         if (n > IDE_DMA_BUF_SECTORS)
             n = IDE_DMA_BUF_SECTORS;
 
-        info->buf_len = n << 9;
-        if (info->buf_pos + info->buf_len > info->len)
-            info->buf_len = info->len - info->buf_pos;
-        n = info->buf_len >> 9;
+        len = n << 9;
+        if (len > io->len)
+            len = io->len;
+        n = (len + 511) >> 9;
 
         if (s->is_read) {
             ret = bdrv_read(s->bs, sector_num, s->io_buffer, n);
-            if (ret == 0)
-                cb(info);
+            cpu_physical_memory_write(io->addr, s->io_buffer, len);
         } else {
-            cb(info);
+            cpu_physical_memory_read(io->addr, s->io_buffer, len);
             ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
         }
 
         if (ret != 0) {
+            io->dma_end(io);
             ide_rw_error(s);
-            return info->buf_pos;
+            return;
         }
 
-        info->buf_pos += n << 9;
+        io->len -= len;
+        io->addr += len;
         ide_set_sector(s, sector_num + n);
         s->nsector -= n;
     }
+
+    if (io->len <= 0)
+        io->dma_end(io);
 
     if (s->nsector <= 0) {
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s);
     }
 
-    return info->buf_pos;
+    return;
 }
 
 /* PowerMac IDE memory IO */
@@ -3709,10 +3711,8 @@ int pmac_ide_init (BlockDriverState **hd_table, qemu_irq irq,
     d = qemu_mallocz(sizeof(MACIOIDEState));
     ide_init2(d->ide_if, hd_table[0], hd_table[1], irq);
 
-    if (dbdma) {
-        d->dbdma = dbdma;
+    if (dbdma)
         DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, d);
-    }
 
     pmac_ide_memory = cpu_register_io_memory(0, pmac_ide_read,
                                              pmac_ide_write, d);

@@ -20,22 +20,23 @@
  * THE SOFTWARE.
  */
 
-typedef struct {
+typedef struct DBDMA_io DBDMA_io;
+
+typedef void (*DBDMA_rw)(DBDMA_io *io);
+typedef void (*DBDMA_end)(DBDMA_io *io);
+struct DBDMA_io {
     void *opaque;
     void *channel;
+    target_phys_addr_t addr;
     int len;
     int is_last;
-    void *buf;
-    int buf_pos;
-    int buf_len;
-} DBDMA_transfer;
+    int is_dma_out;
+    DBDMA_end dma_end;
+};
 
-typedef int (*DBDMA_transfer_cb)(DBDMA_transfer *info);
-typedef int (*DBDMA_transfer_handler)(DBDMA_transfer *info,
-                                      DBDMA_transfer_cb cb);
 
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
-                            DBDMA_transfer_handler transfer_handler,
+                            DBDMA_rw rw,
                             void *opaque);
 void DBDMA_schedule(void);
 void* DBDMA_init (int *dbdma_mem_index);
