@@ -5,7 +5,7 @@
      are permitted in any medium without royalty provided the copyright
      notice and this notice are preserved.  -->
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
-<feature name="org.gnu.gdb.arm.neon">
+<feature name="org.gnu.gdb.arm.vfp">
   <vector id="neon_uint8x8" type="uint8" count="8"/>
   <vector id="neon_uint16x4" type="uint16" count="4"/>
   <vector id="neon_uint32x2" type="uint32" count="2"/>
