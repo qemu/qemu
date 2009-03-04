@@ -1,9 +1,29 @@
+version 0.10.0:
+
+  - TCG support (No longer requires GCC 3.x)
+  - Kernel Virtual Machine acceleration support
+  - BSD userspace emulation
+  - Bluetooth emulation and host passthrough support
+  - GDB XML register description support
+  - Intel e1000 emulation
+  - HPET emulation
+  - VirtIO paravirtual device support
+  - Marvell 88w8618 / MusicPal emulation
+  - Nokia N-series tablet emulation / OMAP2 processor emulation
+  - PCI hotplug support
+  - Live migration and new save/restore formats
+  - Curses display support
+  - qemu-nbd utility to mount supported block formats
+  - Altivec support in PPC emulation and new firmware (OpenBIOS)
+  - Multiple VNC clients are now supported
+  - TLS encryption is now supported in VNC
   - MIPS Magnum R4000 machine (Hervé Poussineau)
   - Braille support (Samuel Thibault)
   - Freecom MusicPal system emulation (Jan Kiszka)
   - OMAP242x and Nokia N800, N810 machines (Andrzej Zaborowski)
   - EsounD audio driver (Frederick Reeve)
   - Gravis Ultrasound GF1 sound card (Tibor "TS" Schütz)
+  - Many, many, bug fixes and new features
 
 version 0.9.1:
 
