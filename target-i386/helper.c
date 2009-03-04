@@ -578,6 +578,9 @@ void cpu_dump_state(CPUState *env, FILE *f,
     char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
 
+    if (kvm_enabled())
+        kvm_arch_get_registers(env);
+
     eflags = env->eflags;
 #ifdef TARGET_X86_64
     if (env->hflags & HF_CS64_MASK) {
