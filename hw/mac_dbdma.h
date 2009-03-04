@@ -22,6 +22,7 @@
 
 typedef struct DBDMA_io DBDMA_io;
 
+typedef void (*DBDMA_flush)(DBDMA_io *io);
 typedef void (*DBDMA_rw)(DBDMA_io *io);
 typedef void (*DBDMA_end)(DBDMA_io *io);
 struct DBDMA_io {
@@ -36,7 +37,7 @@ struct DBDMA_io {
 
 
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
-                            DBDMA_rw rw,
+                            DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque);
 void DBDMA_schedule(void);
 void* DBDMA_init (int *dbdma_mem_index);
