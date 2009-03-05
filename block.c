@@ -1101,8 +1101,7 @@ void bdrv_info(void)
 	    }
             term_printf(" ro=%d", bs->read_only);
             term_printf(" drv=%s", bs->drv->format_name);
-            if (bs->encrypted)
-                term_printf(" encrypted");
+            term_printf(" encrypted=%d", bdrv_is_encrypted(bs));
         } else {
             term_printf(" [not inserted]");
         }
