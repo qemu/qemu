@@ -4696,7 +4696,7 @@ int main(int argc, char **argv, char **envp)
     kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
-    monitor_device = "vc";
+    monitor_device = "vc:80Cx24C";
 
     serial_devices[0] = "vc:80Cx24C";
     for(i = 1; i < MAX_SERIAL_PORTS; i++)
