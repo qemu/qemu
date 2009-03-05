@@ -97,11 +97,17 @@ static void monitor_read_command(Monitor *mon, int show_prompt)
         readline_show_prompt(mon->rs);
 }
 
-static void monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
-                                  void *opaque)
+static int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
+                                 void *opaque)
 {
-    readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
-    /* prompt is printed on return from the command handler */
+    if (mon->rs) {
+        readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
+        /* prompt is printed on return from the command handler */
+        return 0;
+    } else {
+        monitor_printf(mon, "terminal does not support password prompting\n");
+        return -ENOTTY;
+    }
 }
 
 void monitor_flush(Monitor *mon)
@@ -373,6 +379,8 @@ static void do_info_history(Monitor *mon)
     int i;
     const char *str;
 
+    if (!mon->rs)
+        return;
     i = 0;
     for(;;) {
         str = readline_get_history(mon->rs, i);
@@ -2890,8 +2898,15 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
 
     cur_mon = opaque;
 
-    for (i = 0; i < size; i++)
-        readline_handle_byte(cur_mon->rs, buf[i]);
+    if (cur_mon->rs) {
+        for (i = 0; i < size; i++)
+            readline_handle_byte(cur_mon->rs, buf[i]);
+    } else {
+        if (size == 0 || buf[size - 1] != 0)
+            monitor_printf(cur_mon, "corrupted command\n");
+        else
+            monitor_handle_command(cur_mon, (char *)buf);
+    }
 
     cur_mon = old_mon;
 }
@@ -2903,13 +2918,18 @@ static void monitor_command_cb(Monitor *mon, const char *cmdline, void *opaque)
     monitor_resume(mon);
 }
 
-void monitor_suspend(Monitor *mon)
+int monitor_suspend(Monitor *mon)
 {
+    if (!mon->rs)
+        return -ENOTTY;
     mon->suspend_cnt++;
+    return 0;
 }
 
 void monitor_resume(Monitor *mon)
 {
+    if (!mon->rs)
+        return;
     if (--mon->suspend_cnt == 0)
         readline_show_prompt(mon->rs);
 }
@@ -2957,8 +2977,10 @@ void monitor_init(CharDriverState *chr, int flags)
     mon->flags = flags;
     if (mon->chr->focus != 0)
         mon->suspend_cnt = 1; /* mux'ed monitors start suspended */
-    mon->rs = readline_init(mon, monitor_find_completion);
-    monitor_read_command(mon, 0);
+    if (flags & MONITOR_USE_READLINE) {
+        mon->rs = readline_init(mon, monitor_find_completion);
+        monitor_read_command(mon, 0);
+    }
 
     qemu_chr_add_handlers(chr, monitor_can_read, monitor_read, monitor_event,
                           mon);
@@ -2987,6 +3009,8 @@ void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
                                  BlockDriverCompletionFunc *completion_cb,
                                  void *opaque)
 {
+    int err;
+
     if (!bdrv_key_required(bs)) {
         if (completion_cb)
             completion_cb(opaque, 0);
@@ -2999,5 +3023,8 @@ void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
     mon->password_completion_cb = completion_cb;
     mon->password_opaque = opaque;
 
-    monitor_read_password(mon, bdrv_password_cb, bs);
+    err = monitor_read_password(mon, bdrv_password_cb, bs);
+
+    if (err && completion_cb)
+        completion_cb(opaque, err);
 }

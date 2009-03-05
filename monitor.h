@@ -9,10 +9,11 @@ extern Monitor *cur_mon;
 
 /* flags for monitor_init */
 #define MONITOR_IS_DEFAULT    0x01
+#define MONITOR_USE_READLINE  0x02
 
 void monitor_init(CharDriverState *chr, int flags);
 
-void monitor_suspend(Monitor *mon);
+int monitor_suspend(Monitor *mon);
 void monitor_resume(Monitor *mon);
 
 void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,

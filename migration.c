@@ -128,8 +128,11 @@ void do_info_migrate(Monitor *mon)
 void migrate_fd_monitor_suspend(FdMigrationState *s)
 {
     s->mon_resume = cur_mon;
-    monitor_suspend(cur_mon);
-    dprintf("suspending monitor\n");
+    if (monitor_suspend(cur_mon) == 0)
+        dprintf("suspending monitor\n");
+    else
+        monitor_printf(cur_mon, "terminal does not allow synchronous "
+                       "migration, continuing detached\n");
 }
 
 void migrate_fd_error(FdMigrationState *s)
