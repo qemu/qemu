@@ -23,7 +23,7 @@
  */
 #include "hw.h"
 #include "sun4m.h"
-#include "console.h"
+#include "monitor.h"
 //#define DEBUG_IRQ_COUNT
 //#define DEBUG_IRQ
 
@@ -90,26 +90,26 @@ static CPUWriteMemoryFunc *sun4c_intctl_mem_write[3] = {
     NULL,
 };
 
-void sun4c_pic_info(void *opaque)
+void sun4c_pic_info(Monitor *mon, void *opaque)
 {
     Sun4c_INTCTLState *s = opaque;
 
-    term_printf("master: pending 0x%2.2x, enabled 0x%2.2x\n", s->pending,
-                s->reg);
+    monitor_printf(mon, "master: pending 0x%2.2x, enabled 0x%2.2x\n",
+                   s->pending, s->reg);
 }
 
-void sun4c_irq_info(void *opaque)
+void sun4c_irq_info(Monitor *mon, void *opaque)
 {
 #ifndef DEBUG_IRQ_COUNT
-    term_printf("irq statistic code not compiled.\n");
+    monitor_printf(mon, "irq statistic code not compiled.\n");
 #else
     Sun4c_INTCTLState *s = opaque;
     int64_t count;
 
-    term_printf("IRQ statistics:\n");
+    monitor_printf(mon, "IRQ statistics:\n");
     count = s->irq_count[i];
     if (count > 0)
-        term_printf("%2d: %" PRId64 "\n", i, count);
+        monitor_printf(mon, "%2d: %" PRId64 "\n", i, count);
 #endif
 }
 

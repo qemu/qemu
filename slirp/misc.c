@@ -557,14 +557,14 @@ relay(s)
 #endif
 
 #ifdef CONFIG_QEMU
-extern void term_vprintf(const char *fmt, va_list ap);
+#include "monitor.h"
 
 void lprint(const char *format, ...)
 {
     va_list args;
 
     va_start(args, format);
-    term_vprintf(format, args);
+    monitor_vprintf(cur_mon, format, args);
     va_end(args);
 }
 #else

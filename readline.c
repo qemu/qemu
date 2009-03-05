@@ -21,8 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "qemu-common.h"
-#include "console.h"
+#include "readline.h"
+#include "monitor.h"
 
 #define TERM_CMD_BUF_SIZE 4095
 #define TERM_MAX_CMDS 64
@@ -49,7 +49,7 @@ static char *term_history[TERM_MAX_CMDS];
 static int term_hist_entry = -1;
 
 static int nb_completions;
-int completion_index;
+static int completion_index;
 static char *completions[NB_COMPLETIONS_MAX];
 
 static ReadLineFunc *term_readline_func;
@@ -59,8 +59,10 @@ static void *term_readline_opaque;
 
 void readline_show_prompt(void)
 {
-    term_printf("%s", term_prompt);
-    term_flush();
+    Monitor *mon = cur_mon;
+
+    monitor_printf(mon, "%s", term_prompt);
+    monitor_flush(mon);
     term_last_cmd_buf_index = 0;
     term_last_cmd_buf_size = 0;
     term_esc_state = IS_NORM;
@@ -69,22 +71,23 @@ void readline_show_prompt(void)
 /* update the displayed command line */
 static void term_update(void)
 {
+    Monitor *mon = cur_mon;
     int i, delta, len;
 
     if (term_cmd_buf_size != term_last_cmd_buf_size ||
         memcmp(term_cmd_buf, term_last_cmd_buf, term_cmd_buf_size) != 0) {
         for(i = 0; i < term_last_cmd_buf_index; i++) {
-            term_printf("\033[D");
+            monitor_printf(mon, "\033[D");
         }
         term_cmd_buf[term_cmd_buf_size] = '\0';
         if (term_is_password) {
             len = strlen(term_cmd_buf);
             for(i = 0; i < len; i++)
-                term_printf("*");
+                monitor_printf(mon, "*");
         } else {
-            term_printf("%s", term_cmd_buf);
+            monitor_printf(mon, "%s", term_cmd_buf);
         }
-        term_printf("\033[K");
+        monitor_printf(mon, "\033[K");
         memcpy(term_last_cmd_buf, term_cmd_buf, term_cmd_buf_size);
         term_last_cmd_buf_size = term_cmd_buf_size;
         term_last_cmd_buf_index = term_cmd_buf_size;
@@ -93,17 +96,17 @@ static void term_update(void)
         delta = term_cmd_buf_index - term_last_cmd_buf_index;
         if (delta > 0) {
             for(i = 0;i < delta; i++) {
-                term_printf("\033[C");
+                monitor_printf(mon, "\033[C");
             }
         } else {
             delta = -delta;
             for(i = 0;i < delta; i++) {
-                term_printf("\033[D");
+                monitor_printf(mon, "\033[D");
             }
         }
         term_last_cmd_buf_index = term_cmd_buf_index;
     }
-    term_flush();
+    monitor_flush(mon);
 }
 
 static void term_insert_char(int ch)
@@ -285,15 +288,21 @@ static void term_hist_add(const char *cmdline)
 
 /* completion support */
 
-void add_completion(const char *str)
+void readline_add_completion(const char *str)
 {
     if (nb_completions < NB_COMPLETIONS_MAX) {
         completions[nb_completions++] = qemu_strdup(str);
     }
 }
 
+void readline_set_completion_index(int index)
+{
+    completion_index = index;
+}
+
 static void term_completion(void)
 {
+    Monitor *mon = cur_mon;
     int len, i, j, max_width, nb_cols, max_prefix;
     char *cmdline;
 
@@ -317,7 +326,7 @@ static void term_completion(void)
         if (len > 0 && completions[0][len - 1] != '/')
             term_insert_char(' ');
     } else {
-        term_printf("\n");
+        monitor_printf(mon, "\n");
         max_width = 0;
         max_prefix = 0;	
         for(i = 0; i < nb_completions; i++) {
@@ -347,9 +356,9 @@ static void term_completion(void)
         nb_cols = 80 / max_width;
         j = 0;
         for(i = 0; i < nb_completions; i++) {
-            term_printf("%-*s", max_width, completions[i]);
+            monitor_printf(mon, "%-*s", max_width, completions[i]);
             if (++j == nb_cols || i == (nb_completions - 1)) {
-                term_printf("\n");
+                monitor_printf(mon, "\n");
                 j = 0;
             }
         }
@@ -360,6 +369,8 @@ static void term_completion(void)
 /* return true if command handled */
 void readline_handle_byte(int ch)
 {
+    Monitor *mon = cur_mon;
+
     switch(term_esc_state) {
     case IS_NORM:
         switch(ch) {
@@ -380,13 +391,13 @@ void readline_handle_byte(int ch)
             term_cmd_buf[term_cmd_buf_size] = '\0';
             if (!term_is_password)
                 term_hist_add(term_cmd_buf);
-            term_printf("\n");
+            monitor_printf(mon, "\n");
             term_cmd_buf_index = 0;
             term_cmd_buf_size = 0;
             term_last_cmd_buf_index = 0;
             term_last_cmd_buf_size = 0;
             /* NOTE: readline_start can be called here */
-            term_readline_func(term_readline_opaque, term_cmd_buf);
+            term_readline_func(mon, term_cmd_buf, term_readline_opaque);
             break;
         case 23:
             /* ^W */

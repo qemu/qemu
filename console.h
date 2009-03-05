@@ -43,8 +43,8 @@ struct mouse_transform_info_s {
     int a[7];
 };
 
-void do_info_mice(void);
-void do_mouse_set(int index);
+void do_info_mice(Monitor *mon);
+void do_mouse_set(Monitor *mon, int index);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
    constants) */
@@ -287,39 +287,9 @@ void vnc_display_init(DisplayState *ds);
 void vnc_display_close(DisplayState *ds);
 int vnc_display_open(DisplayState *ds, const char *display);
 int vnc_display_password(DisplayState *ds, const char *password);
-void do_info_vnc(void);
+void do_info_vnc(Monitor *mon);
 
 /* curses.c */
 void curses_display_init(DisplayState *ds, int full_screen);
-
-/* FIXME: term_printf et al should probably go elsewhere so everything
-   does not need to include console.h  */
-/* monitor.c */
-void monitor_init(CharDriverState *hd, int show_banner);
-void term_puts(const char *str);
-void term_vprintf(const char *fmt, va_list ap);
-void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-void term_print_filename(const char *filename);
-void term_flush(void);
-void term_print_help(void);
-void monitor_suspend(void);
-void monitor_resume(void);
-
-#include "block.h"
-void monitor_read_bdrv_key_start(BlockDriverState *bs,
-                                 BlockDriverCompletionFunc *completion_cb,
-                                 void *opaque);
-
-/* readline.c */
-typedef void ReadLineFunc(void *opaque, const char *str);
-
-extern int completion_index;
-void add_completion(const char *str);
-void readline_handle_byte(int ch);
-void readline_find_completion(const char *cmdline);
-const char *readline_get_history(unsigned int index);
-void readline_start(const char *prompt, int is_password,
-                    ReadLineFunc *readline_func, void *opaque);
-void readline_show_prompt(void);
 
 #endif

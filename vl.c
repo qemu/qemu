@@ -31,6 +31,7 @@
 #include "hw/baum.h"
 #include "hw/bt.h"
 #include "net.h"
+#include "monitor.h"
 #include "console.h"
 #include "sysemu.h"
 #include "gdbstub.h"
@@ -653,34 +654,34 @@ int kbd_mouse_is_absolute(void)
     return qemu_put_mouse_event_current->qemu_put_mouse_event_absolute;
 }
 
-void do_info_mice(void)
+void do_info_mice(Monitor *mon)
 {
     QEMUPutMouseEntry *cursor;
     int index = 0;
 
     if (!qemu_put_mouse_event_head) {
-        term_printf("No mouse devices connected\n");
+        monitor_printf(mon, "No mouse devices connected\n");
         return;
     }
 
-    term_printf("Mouse devices available:\n");
+    monitor_printf(mon, "Mouse devices available:\n");
     cursor = qemu_put_mouse_event_head;
     while (cursor != NULL) {
-        term_printf("%c Mouse #%d: %s\n",
-                    (cursor == qemu_put_mouse_event_current ? '*' : ' '),
-                    index, cursor->qemu_put_mouse_event_name);
+        monitor_printf(mon, "%c Mouse #%d: %s\n",
+                       (cursor == qemu_put_mouse_event_current ? '*' : ' '),
+                       index, cursor->qemu_put_mouse_event_name);
         index++;
         cursor = cursor->next;
     }
 }
 
-void do_mouse_set(int index)
+void do_mouse_set(Monitor *mon, int index)
 {
     QEMUPutMouseEntry *cursor;
     int i = 0;
 
     if (!qemu_put_mouse_event_head) {
-        term_printf("No mouse devices connected\n");
+        monitor_printf(mon, "No mouse devices connected\n");
         return;
     }
 
@@ -693,7 +694,7 @@ void do_mouse_set(int index)
     if (cursor != NULL)
         qemu_put_mouse_event_current = cursor;
     else
-        term_printf("Mouse at given index not found\n");
+        monitor_printf(mon, "Mouse at given index not found\n");
 }
 
 /* compute with 96 bit intermediate result: (a*b)/c */
@@ -2697,7 +2698,8 @@ static int usb_device_add(const char *devname, int is_hotplug)
         if (bdrv_key_required(bs)) {
             autostart = 0;
             if (is_hotplug) {
-                monitor_read_bdrv_key_start(bs, usb_msd_password_cb, dev);
+                monitor_read_bdrv_key_start(cur_mon, bs, usb_msd_password_cb,
+                                            dev);
                 return 0;
             }
         }
@@ -2779,24 +2781,24 @@ static int usb_device_del(const char *devname)
     return usb_device_del_addr(bus_num, addr);
 }
 
-void do_usb_add(const char *devname)
+void do_usb_add(Monitor *mon, const char *devname)
 {
     usb_device_add(devname, 1);
 }
 
-void do_usb_del(const char *devname)
+void do_usb_del(Monitor *mon, const char *devname)
 {
     usb_device_del(devname);
 }
 
-void usb_info(void)
+void usb_info(Monitor *mon)
 {
     USBDevice *dev;
     USBPort *port;
     const char *speed_str;
 
     if (!usb_enabled) {
-        term_printf("USB support not enabled\n");
+        monitor_printf(mon, "USB support not enabled\n");
         return;
     }
 
@@ -2818,8 +2820,8 @@ void usb_info(void)
             speed_str = "?";
             break;
         }
-        term_printf("  Device %d.%d, Speed %s Mb/s, Product %s\n",
-                    0, dev->addr, speed_str, dev->devname);
+        monitor_printf(mon, "  Device %d.%d, Speed %s Mb/s, Product %s\n",
+                       0, dev->addr, speed_str, dev->devname);
     }
 }
 
@@ -2853,16 +2855,17 @@ void pcmcia_socket_unregister(struct pcmcia_socket_s *socket)
         }
 }
 
-void pcmcia_info(void)
+void pcmcia_info(Monitor *mon)
 {
     struct pcmcia_socket_entry_s *iter;
+
     if (!pcmcia_sockets)
-        term_printf("No PCMCIA sockets\n");
+        monitor_printf(mon, "No PCMCIA sockets\n");
 
     for (iter = pcmcia_sockets; iter; iter = iter->next)
-        term_printf("%s: %s\n", iter->socket->slot_string,
-                    iter->socket->attached ? iter->socket->card_string :
-                    "Empty");
+        monitor_printf(mon, "%s: %s\n", iter->socket->slot_string,
+                       iter->socket->attached ? iter->socket->card_string :
+                       "Empty");
 }
 
 /***********************************************************/
@@ -5726,7 +5729,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     if (loadvm)
-        do_loadvm(loadvm);
+        do_loadvm(cur_mon, loadvm);
 
     if (incoming) {
         autostart = 0; /* fixme how to deal with -daemonize */

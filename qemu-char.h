@@ -1,7 +1,9 @@
 #ifndef QEMU_CHAR_H
 #define QEMU_CHAR_H
 
+#include "qemu-common.h"
 #include "sys-queue.h"
+
 /* character device */
 
 #define CHR_EVENT_BREAK 0 /* serial break char */
@@ -78,7 +80,7 @@ void qemu_chr_initial_reset(void);
 int qemu_chr_can_read(CharDriverState *s);
 void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len);
 void qemu_chr_accept_input(CharDriverState *s);
-void qemu_chr_info(void);
+void qemu_chr_info(Monitor *mon);
 
 extern int term_escape_char;
 

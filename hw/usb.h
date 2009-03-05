@@ -244,7 +244,7 @@ USBDevice *usb_hub_init(int nb_ports);
 /* usb-linux.c */
 USBDevice *usb_host_device_open(const char *devname);
 int usb_host_device_close(const char *devname);
-void usb_host_info(void);
+void usb_host_info(Monitor *mon);
 
 /* usb-hid.c */
 USBDevice *usb_mouse_init(void);

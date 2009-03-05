@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "net.h"
+#include "monitor.h"
 #include "console.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
@@ -2199,11 +2200,11 @@ void qemu_chr_close(CharDriverState *chr)
     qemu_free(chr);
 }
 
-void qemu_chr_info(void)
+void qemu_chr_info(Monitor *mon)
 {
     CharDriverState *chr;
 
     TAILQ_FOREACH(chr, &chardevs, next) {
-        term_printf("%s: filename=%s\n", chr->label, chr->filename);
+        monitor_printf(mon, "%s: filename=%s\n", chr->label, chr->filename);
     }
 }

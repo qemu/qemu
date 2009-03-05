@@ -23,7 +23,7 @@
  */
 #include "hw.h"
 #include "pci.h"
-#include "console.h"
+#include "monitor.h"
 #include "net.h"
 #include "virtio-net.h"
 #include "sysemu.h"
@@ -705,42 +705,44 @@ static const pci_class_desc pci_class_descriptions[] =
 
 static void pci_info_device(PCIDevice *d)
 {
+    Monitor *mon = cur_mon;
     int i, class;
     PCIIORegion *r;
     const pci_class_desc *desc;
 
-    term_printf("  Bus %2d, device %3d, function %d:\n",
-           d->bus->bus_num, d->devfn >> 3, d->devfn & 7);
+    monitor_printf(mon, "  Bus %2d, device %3d, function %d:\n",
+                   d->bus->bus_num, d->devfn >> 3, d->devfn & 7);
     class = le16_to_cpu(*((uint16_t *)(d->config + PCI_CLASS_DEVICE)));
-    term_printf("    ");
+    monitor_printf(mon, "    ");
     desc = pci_class_descriptions;
     while (desc->desc && class != desc->class)
         desc++;
     if (desc->desc) {
-        term_printf("%s", desc->desc);
+        monitor_printf(mon, "%s", desc->desc);
     } else {
-        term_printf("Class %04x", class);
+        monitor_printf(mon, "Class %04x", class);
     }
-    term_printf(": PCI device %04x:%04x\n",
+    monitor_printf(mon, ": PCI device %04x:%04x\n",
            le16_to_cpu(*((uint16_t *)(d->config + PCI_VENDOR_ID))),
            le16_to_cpu(*((uint16_t *)(d->config + PCI_DEVICE_ID))));
 
     if (d->config[PCI_INTERRUPT_PIN] != 0) {
-        term_printf("      IRQ %d.\n", d->config[PCI_INTERRUPT_LINE]);
+        monitor_printf(mon, "      IRQ %d.\n",
+                       d->config[PCI_INTERRUPT_LINE]);
     }
     if (class == 0x0604) {
-        term_printf("      BUS %d.\n", d->config[0x19]);
+        monitor_printf(mon, "      BUS %d.\n", d->config[0x19]);
     }
     for(i = 0;i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
         if (r->size != 0) {
-            term_printf("      BAR%d: ", i);
+            monitor_printf(mon, "      BAR%d: ", i);
             if (r->type & PCI_ADDRESS_SPACE_IO) {
-                term_printf("I/O at 0x%04x [0x%04x].\n",
-                       r->addr, r->addr + r->size - 1);
+                monitor_printf(mon, "I/O at 0x%04x [0x%04x].\n",
+                               r->addr, r->addr + r->size - 1);
             } else {
-                term_printf("32 bit memory at 0x%08x [0x%08x].\n",
-                       r->addr, r->addr + r->size - 1);
+                monitor_printf(mon, "32 bit memory at 0x%08x [0x%08x].\n",
+                               r->addr, r->addr + r->size - 1);
             }
         }
     }
@@ -766,7 +768,7 @@ void pci_for_each_device(int bus_num, void (*fn)(PCIDevice *d))
     }
 }
 
-void pci_info(void)
+void pci_info(Monitor *mon)
 {
     pci_for_each_device(0, pci_info_device);
 }

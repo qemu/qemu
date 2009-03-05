@@ -16,7 +16,7 @@
 #include "migration.h"
 #include "qemu-char.h"
 #include "sysemu.h"
-#include "console.h"
+#include "monitor.h"
 #include "buffered_file.h"
 #include "block.h"
 
@@ -110,7 +110,7 @@ MigrationState *tcp_start_outgoing_migration(const char *host_port,
 
     if (s->detach == 1) {
         dprintf("detaching from monitor\n");
-        monitor_suspend();
+        monitor_suspend(cur_mon);
         s->detach = 2;
     }
 

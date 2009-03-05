@@ -2,6 +2,8 @@
 #define SYSEMU_H
 /* Misc. things related to the system emulator.  */
 
+#include "qemu-common.h"
+
 /* vl.c */
 extern const char *bios_name;
 extern const char *bios_dir;
@@ -39,10 +41,10 @@ void qemu_system_powerdown(void);
 #endif
 void qemu_system_reset(void);
 
-void do_savevm(const char *name);
-void do_loadvm(const char *name);
-void do_delvm(const char *name);
-void do_info_snapshots(void);
+void do_savevm(Monitor *mon, const char *name);
+void do_loadvm(Monitor *mon, const char *name);
+void do_delvm(Monitor *mon, const char *name);
+void do_info_snapshots(Monitor *mon);
 
 void qemu_announce_self(void);
 
@@ -75,7 +77,7 @@ int tap_win32_init(VLANState *vlan, const char *model,
                    const char *name, const char *ifname);
 
 /* SLIRP */
-void do_info_slirp(void);
+void do_info_slirp(Monitor *mon);
 
 extern int bios_size;
 extern int cirrus_vga_enabled;
@@ -179,9 +181,10 @@ void destroy_nic(dev_match_fn *match_fn, void *arg);
 void destroy_bdrvs(dev_match_fn *match_fn, void *arg);
 
 /* pci-hotplug */
-void pci_device_hot_add(const char *pci_addr, const char *type, const char *opts);
-void drive_hot_add(const char *pci_addr, const char *opts);
-void pci_device_hot_remove(const char *pci_addr);
+void pci_device_hot_add(Monitor *mon, const char *pci_addr, const char *type,
+                        const char *opts);
+void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts);
+void pci_device_hot_remove(Monitor *mon, const char *pci_addr);
 void pci_device_hot_remove_success(int pcibus, int slot);
 
 /* serial ports */
@@ -237,9 +240,9 @@ struct soundhw {
 extern struct soundhw soundhw[];
 #endif
 
-void do_usb_add(const char *devname);
-void do_usb_del(const char *devname);
-void usb_info(void);
+void do_usb_add(Monitor *mon, const char *devname);
+void do_usb_del(Monitor *mon, const char *devname);
+void usb_info(Monitor *mon);
 
 const char *get_opt_name(char *buf, int buf_size, const char *p);
 const char *get_opt_value(char *buf, int buf_size, const char *p);

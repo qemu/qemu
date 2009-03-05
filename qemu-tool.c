@@ -12,7 +12,7 @@
  */
 
 #include "qemu-common.h"
-#include "console.h"
+#include "monitor.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
 
@@ -30,11 +30,13 @@ void qemu_service_io(void)
 {
 }
 
-void term_printf(const char *fmt, ...)
+Monitor *cur_mon;
+
+void monitor_printf(Monitor *mon, const char *fmt, ...)
 {
 }
 
-void term_print_filename(const char *filename)
+void monitor_print_filename(Monitor *mon, const char *filename)
 {
 }
 

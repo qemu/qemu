@@ -308,8 +308,7 @@ const char *lookup_symbol(target_ulong orig_addr)
 
 #if !defined(CONFIG_USER_ONLY)
 
-void term_vprintf(const char *fmt, va_list ap);
-void term_printf(const char *fmt, ...);
+#include "monitor.h"
 
 static int monitor_disas_is_physical;
 static CPUState *monitor_disas_env;
@@ -330,19 +329,19 @@ static int monitor_fprintf(FILE *stream, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    term_vprintf(fmt, ap);
+    monitor_vprintf((Monitor *)stream, fmt, ap);
     va_end(ap);
     return 0;
 }
 
-void monitor_disas(CPUState *env,
+void monitor_disas(Monitor *mon, CPUState *env,
                    target_ulong pc, int nb_insn, int is_physical, int flags)
 {
     int count, i;
     struct disassemble_info disasm_info;
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
 
-    INIT_DISASSEMBLE_INFO(disasm_info, NULL, monitor_fprintf);
+    INIT_DISASSEMBLE_INFO(disasm_info, (FILE *)mon, monitor_fprintf);
 
     monitor_disas_env = env;
     monitor_disas_is_physical = is_physical;
@@ -388,15 +387,15 @@ void monitor_disas(CPUState *env,
     print_insn = print_insn_little_mips;
 #endif
 #else
-    term_printf("0x" TARGET_FMT_lx
-		": Asm output not supported on this arch\n", pc);
+    monitor_printf(mon, "0x" TARGET_FMT_lx
+                   ": Asm output not supported on this arch\n", pc);
     return;
 #endif
 
     for(i = 0; i < nb_insn; i++) {
-	term_printf("0x" TARGET_FMT_lx ":  ", pc);
+	monitor_printf(mon, "0x" TARGET_FMT_lx ":  ", pc);
 	count = print_insn(pc, &disasm_info);
-	term_printf("\n");
+	monitor_printf(mon, "\n");
 	if (count < 0)
 	    break;
         pc += count;

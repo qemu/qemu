@@ -8,14 +8,15 @@
  */
 
 #include "hw.h"
+#include "pc.h"
 #include "arm-misc.h"
 
 /* Stub functions for hardware that doesn't exist.  */
-void pic_info(void)
+void pic_info(Monitor *mon)
 {
 }
 
-void irq_info(void)
+void irq_info(Monitor *mon)
 {
 }
 

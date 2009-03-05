@@ -28,7 +28,7 @@
 #include "net.h"
 #include "sysemu.h"
 #include "pc.h"
-#include "console.h"
+#include "monitor.h"
 #include "block_int.h"
 #include "virtio-blk.h"
 
@@ -43,7 +43,7 @@ static PCIDevice *qemu_pci_hot_add_nic(PCIBus *pci_bus, const char *opts)
     return pci_nic_init (pci_bus, &nd_table[ret], -1, "rtl8139");
 }
 
-void drive_hot_add(const char *pci_addr, const char *opts)
+void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts)
 {
     int dom, pci_bus;
     unsigned slot;
@@ -52,13 +52,13 @@ void drive_hot_add(const char *pci_addr, const char *opts)
     PCIDevice *dev;
 
     if (pci_read_devaddr(pci_addr, &dom, &pci_bus, &slot)) {
-        term_printf("Invalid pci address\n");
+        monitor_printf(mon, "Invalid pci address\n");
         return;
     }
 
     dev = pci_find_device(pci_bus, slot, 0);
     if (!dev) {
-        term_printf("no pci device with address %s\n", pci_addr);
+        monitor_printf(mon, "no pci device with address %s\n", pci_addr);
         return;
     }
 
@@ -75,16 +75,18 @@ void drive_hot_add(const char *pci_addr, const char *opts)
                          drives_table[drive_idx].unit);
         break;
     default:
-        term_printf("Can't hot-add drive to type %d\n", type);
+        monitor_printf(mon, "Can't hot-add drive to type %d\n", type);
     }
 
     if (success)
-        term_printf("OK bus %d, unit %d\n", drives_table[drive_idx].bus,
-                                            drives_table[drive_idx].unit);
+        monitor_printf(mon, "OK bus %d, unit %d\n",
+                       drives_table[drive_idx].bus,
+                       drives_table[drive_idx].unit);
     return;
 }
 
-static PCIDevice *qemu_pci_hot_add_storage(PCIBus *pci_bus, const char *opts)
+static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon, PCIBus *pci_bus,
+                                           const char *opts)
 {
     void *opaque = NULL;
     int type = -1, drive_idx = -1;
@@ -97,7 +99,7 @@ static PCIDevice *qemu_pci_hot_add_storage(PCIBus *pci_bus, const char *opts)
             type = IF_VIRTIO;
         }
     } else {
-        term_printf("no if= specified\n");
+        monitor_printf(mon, "no if= specified\n");
         return NULL;
     }
 
@@ -106,7 +108,7 @@ static PCIDevice *qemu_pci_hot_add_storage(PCIBus *pci_bus, const char *opts)
         if (drive_idx < 0)
             return NULL;
     } else if (type == IF_VIRTIO) {
-        term_printf("virtio requires a backing file/device.\n");
+        monitor_printf(mon, "virtio requires a backing file/device.\n");
         return NULL;
     }
 
@@ -121,13 +123,14 @@ static PCIDevice *qemu_pci_hot_add_storage(PCIBus *pci_bus, const char *opts)
         opaque = virtio_blk_init (pci_bus, drives_table[drive_idx].bdrv);
         break;
     default:
-        term_printf ("type %s not a hotpluggable PCI device.\n", buf);
+        monitor_printf(mon, "type %s not a hotpluggable PCI device.\n", buf);
     }
 
     return opaque;
 }
 
-void pci_device_hot_add(const char *pci_addr, const char *type, const char *opts)
+void pci_device_hot_add(Monitor *mon, const char *pci_addr, const char *type,
+                        const char *opts)
 {
     PCIDevice *dev = NULL;
     PCIBus *pci_bus;
@@ -135,47 +138,47 @@ void pci_device_hot_add(const char *pci_addr, const char *type, const char *opts
     unsigned slot;
 
     if (pci_assign_devaddr(pci_addr, &dom, &bus, &slot)) {
-        term_printf("Invalid pci address\n");
+        monitor_printf(mon, "Invalid pci address\n");
         return;
     }
 
     pci_bus = pci_find_bus(bus);
     if (!pci_bus) {
-        term_printf("Can't find pci_bus %d\n", bus);
+        monitor_printf(mon, "Can't find pci_bus %d\n", bus);
         return;
     }
 
     if (strcmp(type, "nic") == 0)
         dev = qemu_pci_hot_add_nic(pci_bus, opts);
     else if (strcmp(type, "storage") == 0)
-        dev = qemu_pci_hot_add_storage(pci_bus, opts);
+        dev = qemu_pci_hot_add_storage(mon, pci_bus, opts);
     else
-        term_printf("invalid type: %s\n", type);
+        monitor_printf(mon, "invalid type: %s\n", type);
 
     if (dev) {
         qemu_system_device_hot_add(bus, PCI_SLOT(dev->devfn), 1);
-        term_printf("OK domain %d, bus %d, slot %d, function %d\n",
-                    0, pci_bus_num(dev->bus), PCI_SLOT(dev->devfn),
-                    PCI_FUNC(dev->devfn));
+        monitor_printf(mon, "OK domain %d, bus %d, slot %d, function %d\n",
+                       0, pci_bus_num(dev->bus), PCI_SLOT(dev->devfn),
+                       PCI_FUNC(dev->devfn));
     } else
-        term_printf("failed to add %s\n", opts);
+        monitor_printf(mon, "failed to add %s\n", opts);
 }
 #endif
 
-void pci_device_hot_remove(const char *pci_addr)
+void pci_device_hot_remove(Monitor *mon, const char *pci_addr)
 {
     PCIDevice *d;
     int dom, bus;
     unsigned slot;
 
     if (pci_read_devaddr(pci_addr, &dom, &bus, &slot)) {
-        term_printf("Invalid pci address\n");
+        monitor_printf(mon, "Invalid pci address\n");
         return;
     }
 
     d = pci_find_device(bus, slot, 0);
     if (!d) {
-        term_printf("slot %d empty\n", slot);
+        monitor_printf(mon, "slot %d empty\n", slot);
         return;
     }
 
@@ -199,7 +202,7 @@ void pci_device_hot_remove_success(int pcibus, int slot)
     int class_code;
 
     if (!d) {
-        term_printf("invalid slot %d\n", slot);
+        monitor_printf(cur_mon, "invalid slot %d\n", slot);
         return;
     }
 

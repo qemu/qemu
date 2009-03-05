@@ -56,8 +56,8 @@ typedef struct QEMUSnapshotInfo {
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_CACHE_DEF)
 
-void bdrv_info(void);
-void bdrv_info_stats(void);
+void bdrv_info(Monitor *mon);
+void bdrv_info_stats(Monitor *mon);
 
 void bdrv_init(void);
 BlockDriver *bdrv_find_format(const char *format_name);

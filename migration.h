@@ -14,6 +14,8 @@
 #ifndef QEMU_MIGRATION_H
 #define QEMU_MIGRATION_H
 
+#include "qemu-common.h"
+
 #define MIG_STATE_ERROR		-1
 #define MIG_STATE_COMPLETED	0
 #define MIG_STATE_CANCELLED	1
@@ -47,13 +49,13 @@ struct FdMigrationState
 
 void qemu_start_incoming_migration(const char *uri);
 
-void do_migrate(int detach, const char *uri);
+void do_migrate(Monitor *mon, int detach, const char *uri);
 
-void do_migrate_cancel(void);
+void do_migrate_cancel(Monitor *mon);
 
-void do_migrate_set_speed(const char *value);
+void do_migrate_set_speed(Monitor *mon, const char *value);
 
-void do_info_migrate(void);
+void do_info_migrate(Monitor *mon);
 
 int exec_start_incoming_migration(const char *host_port);
 

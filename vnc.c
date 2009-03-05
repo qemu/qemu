@@ -24,6 +24,7 @@
  */
 
 #include "qemu-common.h"
+#include "monitor.h"
 #include "console.h"
 #include "sysemu.h"
 #include "qemu_socket.h"
@@ -166,19 +167,19 @@ struct VncState
 static VncDisplay *vnc_display; /* needed for info vnc */
 static DisplayChangeListener *dcl;
 
-void do_info_vnc(void)
+void do_info_vnc(Monitor *mon)
 {
     if (vnc_display == NULL || vnc_display->display == NULL)
-	term_printf("VNC server disabled\n");
+        monitor_printf(mon, "VNC server disabled\n");
     else {
-	term_printf("VNC server active on: ");
-	term_print_filename(vnc_display->display);
-	term_printf("\n");
+        monitor_printf(mon, "VNC server active on: ");
+        monitor_print_filename(mon, vnc_display->display);
+        monitor_printf(mon, "\n");
 
 	if (vnc_display->clients == NULL)
-	    term_printf("No client connected\n");
+            monitor_printf(mon, "No client connected\n");
 	else
-	    term_printf("Client connected\n");
+	    monitor_printf(mon, "Client connected\n");
     }
 }
 
@@ -807,10 +808,11 @@ static void audio_capture(void *opaque, void *buf, int size)
 
 static void audio_add(VncState *vs)
 {
+    Monitor *mon = cur_mon;
     struct audio_capture_ops ops;
 
     if (vs->audio_cap) {
-        term_printf ("audio already running\n");
+        monitor_printf(mon, "audio already running\n");
         return;
     }
 
@@ -820,7 +822,7 @@ static void audio_add(VncState *vs)
 
     vs->audio_cap = AUD_add_capture(NULL, &vs->as, &ops, vs);
     if (!vs->audio_cap) {
-        term_printf ("Failed to add audio capture\n");
+        monitor_printf(mon, "Failed to add audio capture\n");
     }
 }
 

@@ -205,6 +205,9 @@ void qemu_iovec_reset(QEMUIOVector *qiov);
 void qemu_iovec_to_buffer(QEMUIOVector *qiov, void *buf);
 void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count);
 
+struct Monitor;
+typedef struct Monitor Monitor;
+
 #endif /* dyngen-exec.h hack */
 
 #endif

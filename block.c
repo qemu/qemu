@@ -28,7 +28,7 @@
 #endif
 
 #include "qemu-common.h"
-#include "console.h"
+#include "monitor.h"
 #include "block_int.h"
 
 #ifdef _BSD
@@ -1091,66 +1091,66 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     return bs->drv->bdrv_is_allocated(bs, sector_num, nb_sectors, pnum);
 }
 
-void bdrv_info(void)
+void bdrv_info(Monitor *mon)
 {
     BlockDriverState *bs;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-        term_printf("%s:", bs->device_name);
-        term_printf(" type=");
+        monitor_printf(mon, "%s:", bs->device_name);
+        monitor_printf(mon, " type=");
         switch(bs->type) {
         case BDRV_TYPE_HD:
-            term_printf("hd");
+            monitor_printf(mon, "hd");
             break;
         case BDRV_TYPE_CDROM:
-            term_printf("cdrom");
+            monitor_printf(mon, "cdrom");
             break;
         case BDRV_TYPE_FLOPPY:
-            term_printf("floppy");
+            monitor_printf(mon, "floppy");
             break;
         }
-        term_printf(" removable=%d", bs->removable);
+        monitor_printf(mon, " removable=%d", bs->removable);
         if (bs->removable) {
-            term_printf(" locked=%d", bs->locked);
+            monitor_printf(mon, " locked=%d", bs->locked);
         }
         if (bs->drv) {
-            term_printf(" file=");
-	    term_print_filename(bs->filename);
+            monitor_printf(mon, " file=");
+            monitor_print_filename(mon, bs->filename);
             if (bs->backing_file[0] != '\0') {
-                term_printf(" backing_file=");
-		term_print_filename(bs->backing_file);
-	    }
-            term_printf(" ro=%d", bs->read_only);
-            term_printf(" drv=%s", bs->drv->format_name);
-            term_printf(" encrypted=%d", bdrv_is_encrypted(bs));
+                monitor_printf(mon, " backing_file=");
+                monitor_print_filename(mon, bs->backing_file);
+            }
+            monitor_printf(mon, " ro=%d", bs->read_only);
+            monitor_printf(mon, " drv=%s", bs->drv->format_name);
+            monitor_printf(mon, " encrypted=%d", bdrv_is_encrypted(bs));
         } else {
-            term_printf(" [not inserted]");
+            monitor_printf(mon, " [not inserted]");
         }
-        term_printf("\n");
+        monitor_printf(mon, "\n");
     }
 }
 
 /* The "info blockstats" command. */
-void bdrv_info_stats (void)
+void bdrv_info_stats(Monitor *mon)
 {
     BlockDriverState *bs;
     BlockDriverInfo bdi;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-	term_printf ("%s:"
-		     " rd_bytes=%" PRIu64
-		     " wr_bytes=%" PRIu64
-		     " rd_operations=%" PRIu64
-		     " wr_operations=%" PRIu64
-                     ,
-		     bs->device_name,
-		     bs->rd_bytes, bs->wr_bytes,
-		     bs->rd_ops, bs->wr_ops);
+        monitor_printf(mon, "%s:"
+                       " rd_bytes=%" PRIu64
+                       " wr_bytes=%" PRIu64
+                       " rd_operations=%" PRIu64
+                       " wr_operations=%" PRIu64
+                       ,
+                       bs->device_name,
+                       bs->rd_bytes, bs->wr_bytes,
+                       bs->rd_ops, bs->wr_ops);
         if (bdrv_get_info(bs, &bdi) == 0)
-            term_printf(" high=%" PRId64
-                        " bytes_free=%" PRId64,
-                        bdi.highest_alloc, bdi.num_free_bytes);
-        term_printf("\n");
+            monitor_printf(mon, " high=%" PRId64
+                           " bytes_free=%" PRId64,
+                           bdi.highest_alloc, bdi.num_free_bytes);
+        monitor_printf(mon, "\n");
     }
 }
 
