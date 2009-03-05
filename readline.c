@@ -57,20 +57,13 @@ static int term_is_password;
 static char term_prompt[256];
 static void *term_readline_opaque;
 
-static void term_show_prompt2(void)
+void readline_show_prompt(void)
 {
     term_printf("%s", term_prompt);
     term_flush();
     term_last_cmd_buf_index = 0;
     term_last_cmd_buf_size = 0;
     term_esc_state = IS_NORM;
-}
-
-static void term_show_prompt(void)
-{
-    term_show_prompt2();
-    term_cmd_buf_index = 0;
-    term_cmd_buf_size = 0;
 }
 
 /* update the displayed command line */
@@ -360,7 +353,7 @@ static void term_completion(void)
                 j = 0;
             }
         }
-        term_show_prompt2();
+        readline_show_prompt();
     }
 }
 
@@ -473,7 +466,8 @@ void readline_start(const char *prompt, int is_password,
     term_readline_func = readline_func;
     term_readline_opaque = opaque;
     term_is_password = is_password;
-    term_show_prompt();
+    term_cmd_buf_index = 0;
+    term_cmd_buf_size = 0;
 }
 
 const char *readline_get_history(unsigned int index)

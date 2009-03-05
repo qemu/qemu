@@ -2855,6 +2855,7 @@ void monitor_resume(void)
 static void monitor_start_input(void)
 {
     readline_start("(qemu) ", 0, monitor_handle_command1, NULL);
+    readline_show_prompt();
 }
 
 static void term_event(void *opaque, int event)
@@ -2913,6 +2914,7 @@ static void monitor_readline(const char *prompt, int is_password,
                              char *buf, int buf_size)
 {
     readline_start(prompt, is_password, monitor_readline_cb, NULL);
+    readline_show_prompt();
     monitor_readline_buf = buf;
     monitor_readline_buf_size = buf_size;
     monitor_readline_started = 1;
