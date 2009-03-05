@@ -103,8 +103,6 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
                                  BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
-int qemu_key_check(BlockDriverState *bs, const char *name);
-
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
 void bdrv_flush_all(void);
@@ -144,7 +142,9 @@ BlockDriverState *bdrv_find(const char *name);
 void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),
                   void *opaque);
 int bdrv_is_encrypted(BlockDriverState *bs);
+int bdrv_key_required(BlockDriverState *bs);
 int bdrv_set_key(BlockDriverState *bs, const char *key);
+int bdrv_query_missing_keys(void);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque);
 const char *bdrv_get_device_name(BlockDriverState *bs);

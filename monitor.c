@@ -76,6 +76,8 @@ static uint8_t term_outbuf[1024];
 static int term_outbuf_index;
 
 static void monitor_start_input(void);
+static void monitor_readline(const char *prompt, int is_password,
+                             char *buf, int buf_size);
 
 static CPUState *mon_cpu = NULL;
 
@@ -433,7 +435,7 @@ static void do_change_block(const char *device, const char *filename, const char
     if (eject_device(bs, 0) < 0)
         return;
     bdrv_open2(bs, filename, 0, drv);
-    qemu_key_check(bs, filename);
+    monitor_read_bdrv_key(bs);
 }
 
 static void do_change_vnc(const char *target, const char *arg)
@@ -494,9 +496,24 @@ static void do_stop(void)
     vm_stop(EXCP_INTERRUPT);
 }
 
+static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
+{
+    int *err = opaque;
+
+    if (bdrv_key_required(bs))
+        *err = monitor_read_bdrv_key(bs);
+    else
+        *err = 0;
+}
+
 static void do_cont(void)
 {
-    vm_start();
+    int err = 0;
+
+    bdrv_iterate(encrypted_bdrv_it, &err);
+    /* only resume the vm if all keys are set and valid */
+    if (!err)
+        vm_start();
 }
 
 #ifdef CONFIG_GDBSTUB
@@ -2892,8 +2909,8 @@ static void monitor_readline_cb(void *opaque, const char *input)
     monitor_readline_started = 0;
 }
 
-void monitor_readline(const char *prompt, int is_password,
-                      char *buf, int buf_size)
+static void monitor_readline(const char *prompt, int is_password,
+                             char *buf, int buf_size)
 {
     int i;
     int old_focus[MAX_MON];
@@ -2922,4 +2939,23 @@ void monitor_readline(const char *prompt, int is_password,
             if (old_focus[i])
                 monitor_hd[i]->focus = old_focus[i];
     }
+}
+
+int monitor_read_bdrv_key(BlockDriverState *bs)
+{
+    char password[256];
+    int i;
+
+    if (!bdrv_is_encrypted(bs))
+        return 0;
+
+    term_printf("%s (%s) is encrypted.\n", bdrv_get_device_name(bs),
+                bdrv_get_encrypted_filename(bs));
+    for(i = 0; i < 3; i++) {
+        monitor_readline("Password: ", 1, password, sizeof(password));
+        if (bdrv_set_key(bs, password) == 0)
+            return 0;
+        term_printf("invalid password\n");
+    }
+    return -EPERM;
 }
