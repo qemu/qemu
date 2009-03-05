@@ -1011,12 +1011,12 @@ BlockDriverState *bdrv_find(const char *name)
     return NULL;
 }
 
-void bdrv_iterate(void (*it)(void *opaque, const char *name), void *opaque)
+void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs), void *opaque)
 {
     BlockDriverState *bs;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-        it(opaque, bs->device_name);
+        it(opaque, bs);
     }
 }
 

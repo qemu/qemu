@@ -2679,8 +2679,9 @@ static void file_completion(const char *input)
     closedir(ffs);
 }
 
-static void block_completion_it(void *opaque, const char *name)
+static void block_completion_it(void *opaque, BlockDriverState *bs)
 {
+    const char *name = bdrv_get_device_name(bs);
     const char *input = opaque;
 
     if (input[0] == '\0' ||
