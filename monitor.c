@@ -2912,32 +2912,12 @@ static void monitor_readline_cb(void *opaque, const char *input)
 static void monitor_readline(const char *prompt, int is_password,
                              char *buf, int buf_size)
 {
-    int i;
-    int old_focus[MAX_MON];
-
-    if (is_password) {
-        for (i = 0; i < MAX_MON; i++) {
-            old_focus[i] = 0;
-            if (monitor_hd[i]) {
-                old_focus[i] = monitor_hd[i]->focus;
-                monitor_hd[i]->focus = 0;
-                qemu_chr_send_event(monitor_hd[i], CHR_EVENT_FOCUS);
-            }
-        }
-    }
-
     readline_start(prompt, is_password, monitor_readline_cb, NULL);
     monitor_readline_buf = buf;
     monitor_readline_buf_size = buf_size;
     monitor_readline_started = 1;
     while (monitor_readline_started) {
         main_loop_wait(10);
-    }
-    /* restore original focus */
-    if (is_password) {
-        for (i = 0; i < MAX_MON; i++)
-            if (old_focus[i])
-                monitor_hd[i]->focus = old_focus[i];
     }
 }
 
