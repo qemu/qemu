@@ -1134,6 +1134,16 @@ void bdrv_info_stats (void)
     }
 }
 
+const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
+{
+    if (bs->backing_hd && bs->backing_hd->encrypted)
+        return bs->backing_file;
+    else if (bs->encrypted)
+        return bs->filename;
+    else
+        return NULL;
+}
+
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
 {
