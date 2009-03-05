@@ -67,8 +67,12 @@ typedef struct mon_cmd_t {
     const char *help;
 } mon_cmd_t;
 
-#define MAX_MON 4
-static CharDriverState *monitor_hd[MAX_MON];
+struct Monitor {
+    CharDriverState *chr;
+    LIST_ENTRY(Monitor) entry;
+};
+
+static LIST_HEAD(mon_list, Monitor) mon_list;
 static int hide_banner;
 
 static const mon_cmd_t mon_cmds[];
@@ -79,7 +83,7 @@ static int term_outbuf_index;
 static BlockDriverCompletionFunc *password_completion_cb;
 static void *password_opaque;
 
-Monitor *cur_mon;
+Monitor *cur_mon = NULL;
 
 static void monitor_start_input(void);
 
@@ -93,11 +97,13 @@ static void monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
 
 void monitor_flush(Monitor *mon)
 {
-    int i;
+    Monitor *m;
+
     if (term_outbuf_index > 0) {
-        for (i = 0; i < MAX_MON; i++)
-            if (monitor_hd[i] && monitor_hd[i]->focus == 0)
-                qemu_chr_write(monitor_hd[i], term_outbuf, term_outbuf_index);
+        LIST_FOREACH(m, &mon_list, entry) {
+            if (m->chr->focus == 0)
+                qemu_chr_write(m->chr, term_outbuf, term_outbuf_index);
+        }
         term_outbuf_index = 0;
     }
 }
@@ -2921,27 +2927,24 @@ static int is_first_init = 1;
 
 void monitor_init(CharDriverState *chr, int show_banner)
 {
-    int i;
+    Monitor *mon;
 
     if (is_first_init) {
         key_timer = qemu_new_timer(vm_clock, release_keys, NULL);
-        if (!key_timer)
-            return;
-        for (i = 0; i < MAX_MON; i++) {
-            monitor_hd[i] = NULL;
-        }
         is_first_init = 0;
     }
-    for (i = 0; i < MAX_MON; i++) {
-        if (monitor_hd[i] == NULL) {
-            monitor_hd[i] = chr;
-            break;
-        }
-    }
+
+    mon = qemu_mallocz(sizeof(*mon));
 
     hide_banner = !show_banner;
 
-    qemu_chr_add_handlers(chr, term_can_read, term_read, term_event, cur_mon);
+    mon->chr = chr;
+
+    qemu_chr_add_handlers(chr, term_can_read, term_read, term_event, mon);
+
+    LIST_INSERT_HEAD(&mon_list, mon, entry);
+    if (!cur_mon)
+        cur_mon = mon;
 
     readline_start("", 0, monitor_command_cb, NULL);
 }
