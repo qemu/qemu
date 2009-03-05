@@ -30,6 +30,7 @@
 
 #include "qemu.h"
 #else
+#include "monitor.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "gdbstub.h"
@@ -285,6 +286,7 @@ typedef struct GDBState {
     int running_state;
 #else
     CharDriverState *chr;
+    CharDriverState *mon_chr;
 #endif
 } GDBState;
 
@@ -1819,7 +1821,22 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, buf);
             break;
         }
-#endif
+#else /* !CONFIG_LINUX_USER */
+        else if (strncmp(p, "Rcmd,", 5) == 0) {
+            int len = strlen(p + 5);
+
+            if ((len % 2) != 0) {
+                put_packet(s, "E01");
+                break;
+            }
+            hextomem(mem_buf, p + 5, len);
+            len = len / 2;
+            mem_buf[len++] = 0;
+            qemu_chr_read(s->mon_chr, mem_buf, len);
+            put_packet(s, "OK");
+            break;
+        }
+#endif /* !CONFIG_LINUX_USER */
         if (strncmp(p, "Supported", 9) == 0) {
             snprintf(buf, sizeof(buf), "PacketSize=%x", MAX_PACKET_LENGTH);
 #ifdef GDB_CORE_XML
@@ -2282,6 +2299,35 @@ static void gdb_chr_event(void *opaque, int event)
     }
 }
 
+static void gdb_monitor_output(GDBState *s, const char *msg, int len)
+{
+    char buf[MAX_PACKET_LENGTH];
+
+    buf[0] = 'O';
+    if (len > (MAX_PACKET_LENGTH/2) - 1)
+        len = (MAX_PACKET_LENGTH/2) - 1;
+    memtohex(buf + 1, (uint8_t *)msg, len);
+    put_packet(s, buf);
+}
+
+static int gdb_monitor_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    const char *p = (const char *)buf;
+    int max_sz;
+
+    max_sz = (sizeof(gdbserver_state->last_packet) - 2) / 2;
+    for (;;) {
+        if (len <= max_sz) {
+            gdb_monitor_output(gdbserver_state, p, len);
+            break;
+        }
+        gdb_monitor_output(gdbserver_state, p, max_sz);
+        p += max_sz;
+        len -= max_sz;
+    }
+    return len;
+}
+
 int gdbserver_start(const char *port)
 {
     GDBState *s;
@@ -2313,6 +2359,12 @@ int gdbserver_start(const char *port)
     qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
                           gdb_chr_event, NULL);
     qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
+
+    /* Initialize a monitor terminal for gdb */
+    s->mon_chr = qemu_mallocz(sizeof(*s->mon_chr));
+    s->mon_chr->chr_write = gdb_monitor_write;
+    monitor_init(s->mon_chr, 0);
+
     return 0;
 }
 #endif
