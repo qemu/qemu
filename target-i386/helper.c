@@ -1421,10 +1421,10 @@ static void host_cpuid(uint32_t function, uint32_t count,
 #else
     asm volatile("pusha \n\t"
                  "cpuid \n\t"
-                 "mov %%eax, 0(%1) \n\t"
-                 "mov %%ebx, 4(%1) \n\t"
-                 "mov %%ecx, 8(%1) \n\t"
-                 "mov %%edx, 12(%1) \n\t"
+                 "mov %%eax, 0(%2) \n\t"
+                 "mov %%ebx, 4(%2) \n\t"
+                 "mov %%ecx, 8(%2) \n\t"
+                 "mov %%edx, 12(%2) \n\t"
                  "popa"
                  : : "a"(function), "c"(count), "S"(vec)
                  : "memory", "cc");
