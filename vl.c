@@ -2661,6 +2661,16 @@ int usb_device_add_dev(USBDevice *dev)
     return 0;
 }
 
+static void usb_msd_password_cb(void *opaque, int err)
+{
+    USBDevice *dev = opaque;
+
+    if (!err)
+        usb_device_add_dev(dev);
+    else
+        dev->handle_destroy(dev);
+}
+
 static int usb_device_add(const char *devname, int is_hotplug)
 {
     const char *p;
@@ -2680,14 +2690,15 @@ static int usb_device_add(const char *devname, int is_hotplug)
     } else if (strstart(devname, "disk:", &p)) {
         BlockDriverState *bs;
 
-        dev = usb_msd_init(p, &bs);
+        dev = usb_msd_init(p);
         if (!dev)
             return -1;
+        bs = usb_msd_get_bdrv(dev);
         if (bdrv_key_required(bs)) {
             autostart = 0;
-            if (is_hotplug && monitor_read_bdrv_key(bs) < 0) {
-                dev->handle_destroy(dev);
-                return -1;
+            if (is_hotplug) {
+                monitor_read_bdrv_key_start(bs, usb_msd_password_cb, dev);
+                return 0;
             }
         }
     } else if (!strcmp(devname, "wacom-tablet")) {

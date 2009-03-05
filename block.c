@@ -430,11 +430,12 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         }
     }
 
-    /* call the change callback */
-    bs->media_changed = 1;
-    if (bs->change_cb)
-        bs->change_cb(bs->change_opaque);
-
+    if (!bdrv_key_required(bs)) {
+        /* call the change callback */
+        bs->media_changed = 1;
+        if (bs->change_cb)
+            bs->change_cb(bs->change_opaque);
+    }
     return 0;
 }
 
@@ -989,7 +990,15 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     if (!bs->encrypted || !bs->drv || !bs->drv->bdrv_set_key)
         return -1;
     ret = bs->drv->bdrv_set_key(bs, key);
-    bs->valid_key = (ret == 0);
+    if (ret < 0) {
+        bs->valid_key = 0;
+    } else if (!bs->valid_key) {
+        bs->valid_key = 1;
+        /* call the change callback now, we skipped it on open */
+        bs->media_changed = 1;
+        if (bs->change_cb)
+            bs->change_cb(bs->change_opaque);
+    }
     return ret;
 }
 

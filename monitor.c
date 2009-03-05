@@ -74,12 +74,17 @@ static const term_cmd_t info_cmds[];
 
 static uint8_t term_outbuf[1024];
 static int term_outbuf_index;
+static BlockDriverCompletionFunc *password_completion_cb;
+static void *password_opaque;
 
 static void monitor_start_input(void);
-static void monitor_readline(const char *prompt, int is_password,
-                             char *buf, int buf_size);
 
 static CPUState *mon_cpu = NULL;
+
+static void monitor_read_password(ReadLineFunc *readline_func, void *opaque)
+{
+    readline_start("Password: ", 1, readline_func, opaque);
+}
 
 void term_flush(void)
 {
@@ -435,21 +440,29 @@ static void do_change_block(const char *device, const char *filename, const char
     if (eject_device(bs, 0) < 0)
         return;
     bdrv_open2(bs, filename, 0, drv);
-    monitor_read_bdrv_key(bs);
+    monitor_read_bdrv_key_start(bs, NULL, NULL);
+}
+
+static void change_vnc_password_cb(void *opaque, const char *password)
+{
+    if (vnc_display_password(NULL, password) < 0)
+        term_printf("could not set VNC server password\n");
+
+    monitor_start_input();
 }
 
 static void do_change_vnc(const char *target, const char *arg)
 {
     if (strcmp(target, "passwd") == 0 ||
 	strcmp(target, "password") == 0) {
-	char password[9];
 	if (arg) {
+            char password[9];
 	    strncpy(password, arg, sizeof(password));
 	    password[sizeof(password) - 1] = '\0';
-	} else
-	    monitor_readline("Password: ", 1, password, sizeof(password));
-	if (vnc_display_password(NULL, password) < 0)
-	    term_printf("could not set VNC server password\n");
+            change_vnc_password_cb(NULL, password);
+        } else {
+            monitor_read_password(change_vnc_password_cb, NULL);
+        }
     } else {
 	if (vnc_display_open(NULL, target) < 0)
 	    term_printf("could not start VNC server on %s\n", target);
@@ -496,15 +509,7 @@ static void do_stop(void)
     vm_stop(EXCP_INTERRUPT);
 }
 
-static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
-{
-    int *err = opaque;
-
-    if (bdrv_key_required(bs))
-        *err = monitor_read_bdrv_key(bs);
-    else
-        *err = 0;
-}
+static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs);
 
 static void do_cont(void)
 {
@@ -514,6 +519,23 @@ static void do_cont(void)
     /* only resume the vm if all keys are set and valid */
     if (!err)
         vm_start();
+}
+
+static void bdrv_key_cb(void *opaque, int err)
+{
+    /* another key was set successfully, retry to continue */
+    if (!err)
+        do_cont();
+}
+
+static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
+{
+    int *err = opaque;
+
+    if (!*err && bdrv_key_required(bs)) {
+        *err = -EBUSY;
+        monitor_read_bdrv_key_start(bs, bdrv_key_cb, NULL);
+    }
 }
 
 #ifdef CONFIG_GDBSTUB
@@ -2835,7 +2857,7 @@ static void monitor_handle_command1(void *opaque, const char *cmdline)
 {
     monitor_handle_command(cmdline);
     if (!monitor_suspended)
-        monitor_start_input();
+        readline_show_prompt();
     else
         monitor_suspended = 2;
 }
@@ -2898,46 +2920,36 @@ void monitor_init(CharDriverState *hd, int show_banner)
     readline_start("", 0, monitor_handle_command1, NULL);
 }
 
-/* XXX: use threads ? */
-/* modal monitor readline */
-static int monitor_readline_started;
-static char *monitor_readline_buf;
-static int monitor_readline_buf_size;
-
-static void monitor_readline_cb(void *opaque, const char *input)
+static void bdrv_password_cb(void *opaque, const char *password)
 {
-    pstrcpy(monitor_readline_buf, monitor_readline_buf_size, input);
-    monitor_readline_started = 0;
-}
+    BlockDriverState *bs = opaque;
+    int ret = 0;
 
-static void monitor_readline(const char *prompt, int is_password,
-                             char *buf, int buf_size)
-{
-    readline_start(prompt, is_password, monitor_readline_cb, NULL);
-    readline_show_prompt();
-    monitor_readline_buf = buf;
-    monitor_readline_buf_size = buf_size;
-    monitor_readline_started = 1;
-    while (monitor_readline_started) {
-        main_loop_wait(10);
+    if (bdrv_set_key(bs, password) != 0) {
+        term_printf("invalid password\n");
+        ret = -EPERM;
     }
+    if (password_completion_cb)
+        password_completion_cb(password_opaque, ret);
+
+    monitor_start_input();
 }
 
-int monitor_read_bdrv_key(BlockDriverState *bs)
+void monitor_read_bdrv_key_start(BlockDriverState *bs,
+                                 BlockDriverCompletionFunc *completion_cb,
+                                 void *opaque)
 {
-    char password[256];
-    int i;
-
-    if (!bdrv_is_encrypted(bs))
-        return 0;
+    if (!bdrv_key_required(bs)) {
+        if (completion_cb)
+            completion_cb(opaque, 0);
+        return;
+    }
 
     term_printf("%s (%s) is encrypted.\n", bdrv_get_device_name(bs),
                 bdrv_get_encrypted_filename(bs));
-    for(i = 0; i < 3; i++) {
-        monitor_readline("Password: ", 1, password, sizeof(password));
-        if (bdrv_set_key(bs, password) == 0)
-            return 0;
-        term_printf("invalid password\n");
-    }
-    return -EPERM;
+
+    password_completion_cb = completion_cb;
+    password_opaque = opaque;
+
+    monitor_read_password(bdrv_password_cb, bs);
 }

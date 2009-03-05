@@ -304,7 +304,11 @@ void term_flush(void);
 void term_print_help(void);
 void monitor_suspend(void);
 void monitor_resume(void);
-int monitor_read_bdrv_key(BlockDriverState *bs);
+
+#include "block.h"
+void monitor_read_bdrv_key_start(BlockDriverState *bs,
+                                 BlockDriverCompletionFunc *completion_cb,
+                                 void *opaque);
 
 /* readline.c */
 typedef void ReadLineFunc(void *opaque, const char *str);
