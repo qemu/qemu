@@ -5693,6 +5693,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     text_consoles_set_display(display_state);
+    qemu_chr_initial_reset();
 
     if (monitor_device && monitor_hd)
         monitor_init(monitor_hd, !nographic);
