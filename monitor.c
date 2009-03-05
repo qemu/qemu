@@ -81,6 +81,7 @@ static uint8_t term_outbuf[1024];
 static int term_outbuf_index;
 static BlockDriverCompletionFunc *password_completion_cb;
 static void *password_opaque;
+ReadLineState *rs;
 
 Monitor *cur_mon = NULL;
 
@@ -91,7 +92,7 @@ static CPUState *mon_cpu = NULL;
 static void monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                                   void *opaque)
 {
-    readline_start("Password: ", 1, readline_func, opaque);
+    readline_start(rs, "Password: ", 1, readline_func, opaque);
 }
 
 void monitor_flush(Monitor *mon)
@@ -366,7 +367,7 @@ static void do_info_history(Monitor *mon)
 
     i = 0;
     for(;;) {
-        str = readline_get_history(i);
+        str = readline_get_history(rs, i);
         if (!str)
             break;
         monitor_printf(mon, "%d: '%s'\n", i, str);
@@ -2687,7 +2688,7 @@ static void cmd_completion(const char *name, const char *list)
         memcpy(cmd, pstart, len);
         cmd[len] = '\0';
         if (name[0] == '\0' || !strncmp(name, cmd, strlen(name))) {
-            readline_add_completion(cmd);
+            readline_add_completion(rs, cmd);
         }
         if (*p == '\0')
             break;
@@ -2740,7 +2741,7 @@ static void file_completion(const char *input)
             stat(file, &sb);
             if(S_ISDIR(sb.st_mode))
                 pstrcat(file, sizeof(file), "/");
-            readline_add_completion(file);
+            readline_add_completion(rs, file);
         }
     }
     closedir(ffs);
@@ -2753,7 +2754,7 @@ static void block_completion_it(void *opaque, BlockDriverState *bs)
 
     if (input[0] == '\0' ||
         !strncmp(name, (char *)input, strlen(input))) {
-        readline_add_completion(name);
+        readline_add_completion(rs, name);
     }
 }
 
@@ -2783,7 +2784,7 @@ static void parse_cmdline(const char *cmdline,
     *pnb_args = nb_args;
 }
 
-void readline_find_completion(const char *cmdline)
+static void monitor_find_completion(const char *cmdline)
 {
     const char *cmdname;
     char *args[MAX_ARGS];
@@ -2813,7 +2814,7 @@ void readline_find_completion(const char *cmdline)
             cmdname = "";
         else
             cmdname = args[0];
-        readline_set_completion_index(strlen(cmdname));
+        readline_set_completion_index(rs, strlen(cmdname));
         for(cmd = mon_cmds; cmd->name != NULL; cmd++) {
             cmd_completion(cmdname, cmd->name);
         }
@@ -2837,23 +2838,23 @@ void readline_find_completion(const char *cmdline)
         switch(*ptype) {
         case 'F':
             /* file completion */
-            readline_set_completion_index(strlen(str));
+            readline_set_completion_index(rs, strlen(str));
             file_completion(str);
             break;
         case 'B':
             /* block device name completion */
-            readline_set_completion_index(strlen(str));
+            readline_set_completion_index(rs, strlen(str));
             bdrv_iterate(block_completion_it, (void *)str);
             break;
         case 's':
             /* XXX: more generic ? */
             if (!strcmp(cmd->name, "info")) {
-                readline_set_completion_index(strlen(str));
+                readline_set_completion_index(rs, strlen(str));
                 for(cmd = info_cmds; cmd->name != NULL; cmd++) {
                     cmd_completion(str, cmd->name);
                 }
             } else if (!strcmp(cmd->name, "sendkey")) {
-                readline_set_completion_index(strlen(str));
+                readline_set_completion_index(rs, strlen(str));
                 for(key = key_defs; key->name != NULL; key++) {
                     cmd_completion(str, key->name);
                 }
@@ -2876,8 +2877,8 @@ static void term_read(void *opaque, const uint8_t *buf, int size)
 {
     int i;
 
-    for (i = 0; i < size; i++)
-        readline_handle_byte(buf[i]);
+    for(i = 0; i < size; i++)
+        readline_handle_byte(rs, buf[i]);
 }
 
 static int monitor_suspended;
@@ -2886,7 +2887,7 @@ static void monitor_command_cb(Monitor *mon, const char *cmdline, void *opaque)
 {
     monitor_handle_command(mon, cmdline);
     if (!monitor_suspended)
-        readline_show_prompt();
+        readline_show_prompt(rs);
     else
         monitor_suspended = 2;
 }
@@ -2905,8 +2906,8 @@ void monitor_resume(Monitor *mon)
 
 static void monitor_start_input(void)
 {
-    readline_start("(qemu) ", 0, monitor_command_cb, NULL);
-    readline_show_prompt();
+    readline_start(rs, "(qemu) ", 0, monitor_command_cb, NULL);
+    readline_show_prompt(rs);
 }
 
 static void term_event(void *opaque, int event)
@@ -2935,6 +2936,7 @@ void monitor_init(CharDriverState *chr)
     mon = qemu_mallocz(sizeof(*mon));
 
     mon->chr = chr;
+    rs = readline_init(mon, monitor_find_completion);
 
     qemu_chr_add_handlers(chr, term_can_read, term_read, term_event, mon);
 
@@ -2942,7 +2944,7 @@ void monitor_init(CharDriverState *chr)
     if (!cur_mon)
         cur_mon = mon;
 
-    readline_start("", 0, monitor_command_cb, NULL);
+    readline_start(rs, "", 0, monitor_command_cb, NULL);
 }
 
 static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
