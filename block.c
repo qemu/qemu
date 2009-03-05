@@ -311,8 +311,6 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     int ret;
 
     bs = bdrv_new("");
-    if (!bs)
-        return -ENOMEM;
     ret = bdrv_open2(bs, filename, flags | BDRV_O_FILE, NULL);
     if (ret < 0) {
         bdrv_delete(bs);
@@ -349,12 +347,10 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
 
         /* if there is a backing file, use it */
         bs1 = bdrv_new("");
-        if (!bs1) {
-            return -ENOMEM;
-        }
-        if (bdrv_open(bs1, filename, 0) < 0) {
+        ret = bdrv_open(bs1, filename, 0);
+        if (ret < 0) {
             bdrv_delete(bs1);
-            return -1;
+            return ret;
         }
         total_size = bdrv_getlength(bs1) >> SECTOR_BITS;
 
@@ -372,9 +368,10 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         else
             realpath(filename, backing_filename);
 
-        if (bdrv_create(&bdrv_qcow2, tmp_filename,
-                        total_size, backing_filename, 0) < 0) {
-            return -1;
+        ret = bdrv_create(&bdrv_qcow2, tmp_filename,
+                          total_size, backing_filename, 0);
+        if (ret < 0) {
+            return ret;
         }
         filename = tmp_filename;
         bs->is_temporary = 1;
@@ -383,14 +380,12 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
     if (flags & BDRV_O_FILE) {
         drv = find_protocol(filename);
-        if (!drv)
-            return -ENOENT;
-    } else {
-        if (!drv) {
-            drv = find_image_format(filename);
-            if (!drv)
-                return -1;
-        }
+    } else if (!drv) {
+        drv = find_image_format(filename);
+    }
+    if (!drv) {
+        ret = -ENOENT;
+        goto unlink_and_fail;
     }
     bs->drv = drv;
     bs->opaque = qemu_mallocz(drv->instance_size);
@@ -409,6 +404,9 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         qemu_free(bs->opaque);
         bs->opaque = NULL;
         bs->drv = NULL;
+    unlink_and_fail:
+        if (bs->is_temporary)
+            unlink(filename);
         return ret;
     }
     if (drv->bdrv_getlength) {
@@ -422,15 +420,13 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     if (bs->backing_file[0] != '\0') {
         /* if there is a backing file, use it */
         bs->backing_hd = bdrv_new("");
-        if (!bs->backing_hd) {
-        fail:
-            bdrv_close(bs);
-            return -ENOMEM;
-        }
         path_combine(backing_filename, sizeof(backing_filename),
                      filename, bs->backing_file);
-        if (bdrv_open(bs->backing_hd, backing_filename, open_flags) < 0)
-            goto fail;
+        ret = bdrv_open(bs->backing_hd, backing_filename, open_flags);
+        if (ret < 0) {
+            bdrv_close(bs);
+            return ret;
+        }
     }
 
     /* call the change callback */
