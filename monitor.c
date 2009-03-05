@@ -73,7 +73,6 @@ struct Monitor {
 };
 
 static LIST_HEAD(mon_list, Monitor) mon_list;
-static int hide_banner;
 
 static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
@@ -2917,15 +2916,14 @@ static void term_event(void *opaque, int event)
     if (event != CHR_EVENT_RESET)
 	return;
 
-    if (!hide_banner)
-        monitor_printf(mon, "QEMU %s monitor - type 'help' for more "
-                       "information\n", QEMU_VERSION);
+    monitor_printf(mon, "QEMU %s monitor - type 'help' for more information\n",
+                   QEMU_VERSION);
     monitor_start_input();
 }
 
 static int is_first_init = 1;
 
-void monitor_init(CharDriverState *chr, int show_banner)
+void monitor_init(CharDriverState *chr)
 {
     Monitor *mon;
 
@@ -2935,8 +2933,6 @@ void monitor_init(CharDriverState *chr, int show_banner)
     }
 
     mon = qemu_mallocz(sizeof(*mon));
-
-    hide_banner = !show_banner;
 
     mon->chr = chr;
 

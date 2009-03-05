@@ -7,7 +7,7 @@
 
 extern Monitor *cur_mon;
 
-void monitor_init(CharDriverState *chr, int show_banner);
+void monitor_init(CharDriverState *chr);
 
 void monitor_suspend(Monitor *mon);
 void monitor_resume(Monitor *mon);
