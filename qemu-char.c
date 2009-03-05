@@ -225,12 +225,15 @@ typedef struct {
     IOEventHandler *chr_event[MAX_MUX];
     void *ext_opaque[MAX_MUX];
     CharDriverState *drv;
-    unsigned char buffer[MUX_BUFFER_SIZE];
-    int prod;
-    int cons;
     int mux_cnt;
     int term_got_escape;
     int max_size;
+    /* Intermediate input buffer allows to catch escape sequences even if the
+       currently active device is not accepting any input - but only until it
+       is full as well. */
+    unsigned char buffer[MAX_MUX][MUX_BUFFER_SIZE];
+    int prod[MAX_MUX];
+    int cons[MAX_MUX];
 } MuxDriver;
 
 
@@ -360,11 +363,11 @@ static void mux_chr_accept_input(CharDriverState *chr)
     int m = chr->focus;
     MuxDriver *d = chr->opaque;
 
-    while (d->prod != d->cons &&
+    while (d->prod[m] != d->cons[m] &&
            d->chr_can_read[m] &&
            d->chr_can_read[m](d->ext_opaque[m])) {
         d->chr_read[m](d->ext_opaque[m],
-                       &d->buffer[d->cons++ & MUX_BUFFER_MASK], 1);
+                       &d->buffer[m][d->cons[m]++ & MUX_BUFFER_MASK], 1);
     }
 }
 
@@ -372,11 +375,12 @@ static int mux_chr_can_read(void *opaque)
 {
     CharDriverState *chr = opaque;
     MuxDriver *d = chr->opaque;
+    int m = chr->focus;
 
-    if ((d->prod - d->cons) < MUX_BUFFER_SIZE)
+    if ((d->prod[m] - d->cons[m]) < MUX_BUFFER_SIZE)
         return 1;
-    if (d->chr_can_read[chr->focus])
-        return d->chr_can_read[chr->focus](d->ext_opaque[chr->focus]);
+    if (d->chr_can_read[m])
+        return d->chr_can_read[m](d->ext_opaque[m]);
     return 0;
 }
 
@@ -391,12 +395,12 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
 
     for(i = 0; i < size; i++)
         if (mux_proc_byte(chr, d, buf[i])) {
-            if (d->prod == d->cons &&
+            if (d->prod[m] == d->cons[m] &&
                 d->chr_can_read[m] &&
                 d->chr_can_read[m](d->ext_opaque[m]))
                 d->chr_read[m](d->ext_opaque[m], &buf[i], 1);
             else
-                d->buffer[d->prod++ & MUX_BUFFER_MASK] = buf[i];
+                d->buffer[m][d->prod[m]++ & MUX_BUFFER_MASK] = buf[i];
         }
 }
 
