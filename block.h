@@ -141,7 +141,8 @@ void bdrv_set_change_cb(BlockDriverState *bs,
                         void (*change_cb)(void *opaque), void *opaque);
 void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
 BlockDriverState *bdrv_find(const char *name);
-void bdrv_iterate(void (*it)(void *opaque, const char *name), void *opaque);
+void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),
+                  void *opaque);
 int bdrv_is_encrypted(BlockDriverState *bs);
 int bdrv_set_key(BlockDriverState *bs, const char *key);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
