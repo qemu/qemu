@@ -69,6 +69,14 @@ typedef struct mon_cmd_t {
 
 struct Monitor {
     CharDriverState *chr;
+    int flags;
+    int suspend_cnt;
+    uint8_t outbuf[1024];
+    int outbuf_index;
+    ReadLineState *rs;
+    CPUState *mon_cpu;
+    BlockDriverCompletionFunc *password_completion_cb;
+    void *password_opaque;
     LIST_ENTRY(Monitor) entry;
 };
 
@@ -77,34 +85,30 @@ static LIST_HEAD(mon_list, Monitor) mon_list;
 static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
 
-static uint8_t term_outbuf[1024];
-static int term_outbuf_index;
-static BlockDriverCompletionFunc *password_completion_cb;
-static void *password_opaque;
-ReadLineState *rs;
-
 Monitor *cur_mon = NULL;
 
-static void monitor_start_input(void);
+static void monitor_command_cb(Monitor *mon, const char *cmdline,
+                               void *opaque);
 
-static CPUState *mon_cpu = NULL;
+static void monitor_read_command(Monitor *mon, int show_prompt)
+{
+    readline_start(mon->rs, "(qemu) ", 0, monitor_command_cb, NULL);
+    if (show_prompt)
+        readline_show_prompt(mon->rs);
+}
 
 static void monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                                   void *opaque)
 {
-    readline_start(rs, "Password: ", 1, readline_func, opaque);
+    readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
+    /* prompt is printed on return from the command handler */
 }
 
 void monitor_flush(Monitor *mon)
 {
-    Monitor *m;
-
-    if (term_outbuf_index > 0) {
-        LIST_FOREACH(m, &mon_list, entry) {
-            if (m->chr->focus == 0)
-                qemu_chr_write(m->chr, term_outbuf, term_outbuf_index);
-        }
-        term_outbuf_index = 0;
+    if (mon && mon->outbuf_index != 0 && mon->chr->focus == 0) {
+        qemu_chr_write(mon->chr, mon->outbuf, mon->outbuf_index);
+        mon->outbuf_index = 0;
     }
 }
 
@@ -112,15 +116,19 @@ void monitor_flush(Monitor *mon)
 static void monitor_puts(Monitor *mon, const char *str)
 {
     char c;
+
+    if (!mon)
+        return;
+
     for(;;) {
         c = *str++;
         if (c == '\0')
             break;
         if (c == '\n')
-            term_outbuf[term_outbuf_index++] = '\r';
-        term_outbuf[term_outbuf_index++] = c;
-        if (term_outbuf_index >= (sizeof(term_outbuf) - 1) ||
-            c == '\n')
+            mon->outbuf[mon->outbuf_index++] = '\r';
+        mon->outbuf[mon->outbuf_index++] = c;
+        if (mon->outbuf_index >= (sizeof(mon->outbuf) - 1)
+            || c == '\n')
             monitor_flush(mon);
     }
 }
@@ -291,7 +299,7 @@ static int mon_set_cpu(int cpu_index)
 
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
         if (env->cpu_index == cpu_index) {
-            mon_cpu = env;
+            cur_mon->mon_cpu = env;
             return 0;
         }
     }
@@ -300,10 +308,10 @@ static int mon_set_cpu(int cpu_index)
 
 static CPUState *mon_get_cpu(void)
 {
-    if (!mon_cpu) {
+    if (!cur_mon->mon_cpu) {
         mon_set_cpu(0);
     }
-    return mon_cpu;
+    return cur_mon->mon_cpu;
 }
 
 static void do_info_registers(Monitor *mon)
@@ -330,7 +338,7 @@ static void do_info_cpus(Monitor *mon)
 
     for(env = first_cpu; env != NULL; env = env->next_cpu) {
         monitor_printf(mon, "%c CPU #%d:",
-                       (env == mon_cpu) ? '*' : ' ',
+                       (env == mon->mon_cpu) ? '*' : ' ',
                        env->cpu_index);
 #if defined(TARGET_I386)
         monitor_printf(mon, " pc=0x" TARGET_FMT_lx,
@@ -367,7 +375,7 @@ static void do_info_history(Monitor *mon)
 
     i = 0;
     for(;;) {
-        str = readline_get_history(rs, i);
+        str = readline_get_history(mon->rs, i);
         if (!str)
             break;
         monitor_printf(mon, "%d: '%s'\n", i, str);
@@ -451,7 +459,7 @@ static void change_vnc_password_cb(Monitor *mon, const char *password,
     if (vnc_display_password(NULL, password) < 0)
         monitor_printf(mon, "could not set VNC server password\n");
 
-    monitor_start_input();
+    monitor_read_command(mon, 1);
 }
 
 static void do_change_vnc(Monitor *mon, const char *target, const char *arg)
@@ -2688,7 +2696,7 @@ static void cmd_completion(const char *name, const char *list)
         memcpy(cmd, pstart, len);
         cmd[len] = '\0';
         if (name[0] == '\0' || !strncmp(name, cmd, strlen(name))) {
-            readline_add_completion(rs, cmd);
+            readline_add_completion(cur_mon->rs, cmd);
         }
         if (*p == '\0')
             break;
@@ -2741,7 +2749,7 @@ static void file_completion(const char *input)
             stat(file, &sb);
             if(S_ISDIR(sb.st_mode))
                 pstrcat(file, sizeof(file), "/");
-            readline_add_completion(rs, file);
+            readline_add_completion(cur_mon->rs, file);
         }
     }
     closedir(ffs);
@@ -2754,7 +2762,7 @@ static void block_completion_it(void *opaque, BlockDriverState *bs)
 
     if (input[0] == '\0' ||
         !strncmp(name, (char *)input, strlen(input))) {
-        readline_add_completion(rs, name);
+        readline_add_completion(cur_mon->rs, name);
     }
 }
 
@@ -2814,7 +2822,7 @@ static void monitor_find_completion(const char *cmdline)
             cmdname = "";
         else
             cmdname = args[0];
-        readline_set_completion_index(rs, strlen(cmdname));
+        readline_set_completion_index(cur_mon->rs, strlen(cmdname));
         for(cmd = mon_cmds; cmd->name != NULL; cmd++) {
             cmd_completion(cmdname, cmd->name);
         }
@@ -2838,23 +2846,23 @@ static void monitor_find_completion(const char *cmdline)
         switch(*ptype) {
         case 'F':
             /* file completion */
-            readline_set_completion_index(rs, strlen(str));
+            readline_set_completion_index(cur_mon->rs, strlen(str));
             file_completion(str);
             break;
         case 'B':
             /* block device name completion */
-            readline_set_completion_index(rs, strlen(str));
+            readline_set_completion_index(cur_mon->rs, strlen(str));
             bdrv_iterate(block_completion_it, (void *)str);
             break;
         case 's':
             /* XXX: more generic ? */
             if (!strcmp(cmd->name, "info")) {
-                readline_set_completion_index(rs, strlen(str));
+                readline_set_completion_index(cur_mon->rs, strlen(str));
                 for(cmd = info_cmds; cmd->name != NULL; cmd++) {
                     cmd_completion(str, cmd->name);
                 }
             } else if (!strcmp(cmd->name, "sendkey")) {
-                readline_set_completion_index(rs, strlen(str));
+                readline_set_completion_index(cur_mon->rs, strlen(str));
                 for(key = key_defs; key->name != NULL; key++) {
                     cmd_completion(str, key->name);
                 }
@@ -2868,49 +2876,45 @@ static void monitor_find_completion(const char *cmdline)
         qemu_free(args[i]);
 }
 
-static int term_can_read(void *opaque)
+static int monitor_can_read(void *opaque)
 {
-    return 128;
+    Monitor *mon = opaque;
+
+    return (mon->suspend_cnt == 0) ? 128 : 0;
 }
 
-static void term_read(void *opaque, const uint8_t *buf, int size)
+static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
+    Monitor *old_mon = cur_mon;
     int i;
 
-    for(i = 0; i < size; i++)
-        readline_handle_byte(rs, buf[i]);
-}
+    cur_mon = opaque;
 
-static int monitor_suspended;
+    for (i = 0; i < size; i++)
+        readline_handle_byte(cur_mon->rs, buf[i]);
+
+    cur_mon = old_mon;
+}
 
 static void monitor_command_cb(Monitor *mon, const char *cmdline, void *opaque)
 {
+    monitor_suspend(mon);
     monitor_handle_command(mon, cmdline);
-    if (!monitor_suspended)
-        readline_show_prompt(rs);
-    else
-        monitor_suspended = 2;
+    monitor_resume(mon);
 }
 
 void monitor_suspend(Monitor *mon)
 {
-    monitor_suspended = 1;
+    mon->suspend_cnt++;
 }
 
 void monitor_resume(Monitor *mon)
 {
-    if (monitor_suspended == 2)
-        monitor_start_input();
-    monitor_suspended = 0;
+    if (--mon->suspend_cnt == 0)
+        readline_show_prompt(mon->rs);
 }
 
-static void monitor_start_input(void)
-{
-    readline_start(rs, "(qemu) ", 0, monitor_command_cb, NULL);
-    readline_show_prompt(rs);
-}
-
-static void term_event(void *opaque, int event)
+static void monitor_event(void *opaque, int event)
 {
     Monitor *mon = opaque;
 
@@ -2919,13 +2923,12 @@ static void term_event(void *opaque, int event)
 
     monitor_printf(mon, "QEMU %s monitor - type 'help' for more information\n",
                    QEMU_VERSION);
-    monitor_start_input();
+    readline_show_prompt(mon->rs);
 }
 
-static int is_first_init = 1;
-
-void monitor_init(CharDriverState *chr)
+void monitor_init(CharDriverState *chr, int flags)
 {
+    static int is_first_init = 1;
     Monitor *mon;
 
     if (is_first_init) {
@@ -2936,15 +2939,16 @@ void monitor_init(CharDriverState *chr)
     mon = qemu_mallocz(sizeof(*mon));
 
     mon->chr = chr;
-    rs = readline_init(mon, monitor_find_completion);
+    mon->flags = flags;
+    mon->rs = readline_init(mon, monitor_find_completion);
+    monitor_read_command(mon, 0);
 
-    qemu_chr_add_handlers(chr, term_can_read, term_read, term_event, mon);
+    qemu_chr_add_handlers(chr, monitor_can_read, monitor_read, monitor_event,
+                          mon);
 
     LIST_INSERT_HEAD(&mon_list, mon, entry);
-    if (!cur_mon)
+    if (!cur_mon || (flags & MONITOR_IS_DEFAULT))
         cur_mon = mon;
-
-    readline_start(rs, "", 0, monitor_command_cb, NULL);
 }
 
 static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
@@ -2956,10 +2960,10 @@ static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
         monitor_printf(mon, "invalid password\n");
         ret = -EPERM;
     }
-    if (password_completion_cb)
-        password_completion_cb(password_opaque, ret);
+    if (mon->password_completion_cb)
+        mon->password_completion_cb(mon->password_opaque, ret);
 
-    monitor_start_input();
+    monitor_read_command(mon, 1);
 }
 
 void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
@@ -2975,8 +2979,8 @@ void monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
     monitor_printf(mon, "%s (%s) is encrypted.\n", bdrv_get_device_name(bs),
                    bdrv_get_encrypted_filename(bs));
 
-    password_completion_cb = completion_cb;
-    password_opaque = opaque;
+    mon->password_completion_cb = completion_cb;
+    mon->password_opaque = opaque;
 
     monitor_read_password(mon, bdrv_password_cb, bs);
 }

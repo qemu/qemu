@@ -2123,7 +2123,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
         chr = qemu_chr_open(label, p, NULL);
         if (chr) {
             chr = qemu_chr_open_mux(chr);
-            monitor_init(chr);
+            monitor_init(chr, 0);
         } else {
             printf("Unable to open driver: %s\n", p);
         }

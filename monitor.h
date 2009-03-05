@@ -7,7 +7,10 @@
 
 extern Monitor *cur_mon;
 
-void monitor_init(CharDriverState *chr);
+/* flags for monitor_init */
+#define MONITOR_IS_DEFAULT    0x01
+
+void monitor_init(CharDriverState *chr, int flags);
 
 void monitor_suspend(Monitor *mon);
 void monitor_resume(Monitor *mon);

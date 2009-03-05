@@ -39,7 +39,7 @@ struct FdMigrationState
     int64_t bandwidth_limit;
     QEMUFile *file;
     int fd;
-    int detach;
+    Monitor *mon_resume;
     int state;
     int (*get_error)(struct FdMigrationState*);
     int (*close)(struct FdMigrationState*);
@@ -68,6 +68,8 @@ int tcp_start_incoming_migration(const char *host_port);
 MigrationState *tcp_start_outgoing_migration(const char *host_port,
 					     int64_t bandwidth_limit,
 					     int detach);
+
+void migrate_fd_monitor_suspend(FdMigrationState *s);
 
 void migrate_fd_error(FdMigrationState *s);
 

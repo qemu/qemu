@@ -125,6 +125,13 @@ void do_info_migrate(Monitor *mon)
 
 /* shared migration helpers */
 
+void migrate_fd_monitor_suspend(FdMigrationState *s)
+{
+    s->mon_resume = cur_mon;
+    monitor_suspend(cur_mon);
+    dprintf("suspending monitor\n");
+}
+
 void migrate_fd_error(FdMigrationState *s)
 {
     dprintf("setting error state\n");
@@ -145,10 +152,8 @@ void migrate_fd_cleanup(FdMigrationState *s)
         close(s->fd);
 
     /* Don't resume monitor until we've flushed all of the buffers */
-    if (s->detach == 2) {
-        monitor_resume(cur_mon);
-        s->detach = 0;
-    }
+    if (s->mon_resume)
+        monitor_resume(s->mon_resume);
 
     s->fd = -1;
 }

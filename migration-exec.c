@@ -18,7 +18,6 @@
 #include "migration.h"
 #include "qemu-char.h"
 #include "sysemu.h"
-#include "monitor.h"
 #include "buffered_file.h"
 #include "block.h"
 
@@ -55,7 +54,7 @@ static int exec_close(FdMigrationState *s)
 
 MigrationState *exec_start_outgoing_migration(const char *command,
                                              int64_t bandwidth_limit,
-                                             int async)
+                                             int detach)
 {
     FdMigrationState *s;
     FILE *f;
@@ -89,14 +88,11 @@ MigrationState *exec_start_outgoing_migration(const char *command,
     s->mig_state.release = migrate_fd_release;
 
     s->state = MIG_STATE_ACTIVE;
-    s->detach = !async;
+    s->mon_resume = NULL;
     s->bandwidth_limit = bandwidth_limit;
 
-    if (s->detach == 1) {
-        dprintf("detaching from monitor\n");
-        monitor_suspend(cur_mon);
-        s->detach = 2;
-    }
+    if (!detach)
+        migrate_fd_monitor_suspend(s);
 
     migrate_fd_connect(s);
     return &s->mig_state;
