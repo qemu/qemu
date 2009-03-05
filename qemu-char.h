@@ -6,9 +6,11 @@
 
 /* character device */
 
-#define CHR_EVENT_BREAK 0 /* serial break char */
-#define CHR_EVENT_FOCUS 1 /* focus to this terminal (modal input needed) */
-#define CHR_EVENT_RESET 2 /* new connection established */
+#define CHR_EVENT_BREAK   0 /* serial break char */
+#define CHR_EVENT_FOCUS   1 /* focus to this terminal (modal input needed) */
+#define CHR_EVENT_RESET   2 /* new connection established */
+#define CHR_EVENT_MUX_IN  3 /* mux-focus was set to this terminal */
+#define CHR_EVENT_MUX_OUT 4 /* mux-focus will move on */
 
 
 #define CHR_IOCTL_SERIAL_SET_PARAMS   1

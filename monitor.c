@@ -2918,12 +2918,27 @@ static void monitor_event(void *opaque, int event)
 {
     Monitor *mon = opaque;
 
-    if (event != CHR_EVENT_RESET)
-	return;
+    switch (event) {
+    case CHR_EVENT_MUX_IN:
+        readline_restart(mon->rs);
+        monitor_resume(mon);
+        monitor_flush(mon);
+        break;
 
-    monitor_printf(mon, "QEMU %s monitor - type 'help' for more information\n",
-                   QEMU_VERSION);
-    readline_show_prompt(mon->rs);
+    case CHR_EVENT_MUX_OUT:
+        if (mon->suspend_cnt == 0)
+            monitor_printf(mon, "\n");
+        monitor_flush(mon);
+        monitor_suspend(mon);
+        break;
+
+    case CHR_EVENT_RESET:
+        monitor_printf(mon, "QEMU %s monitor - type 'help' for more "
+                       "information\n", QEMU_VERSION);
+        if (mon->chr->focus == 0)
+            readline_show_prompt(mon->rs);
+        break;
+    }
 }
 
 void monitor_init(CharDriverState *chr, int flags)
@@ -2940,6 +2955,8 @@ void monitor_init(CharDriverState *chr, int flags)
 
     mon->chr = chr;
     mon->flags = flags;
+    if (mon->chr->focus != 0)
+        mon->suspend_cnt = 1; /* mux'ed monitors start suspended */
     mon->rs = readline_init(mon, monitor_find_completion);
     monitor_read_command(mon, 0);
 

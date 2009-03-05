@@ -310,6 +310,12 @@ static void mux_print_help(CharDriverState *chr)
     }
 }
 
+static void mux_chr_send_event(MuxDriver *d, int mux_nr, int event)
+{
+    if (d->chr_event[mux_nr])
+        d->chr_event[mux_nr](d->ext_opaque[mux_nr], event);
+}
+
 static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
 {
     if (d->term_got_escape) {
@@ -341,9 +347,11 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
             break;
         case 'c':
             /* Switch to the next registered device */
+            mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_OUT);
             chr->focus++;
             if (chr->focus >= d->mux_cnt)
                 chr->focus = 0;
+            mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_IN);
             break;
        case 't':
            term_timestamps = !term_timestamps;
@@ -413,8 +421,7 @@ static void mux_chr_event(void *opaque, int event)
 
     /* Send the event to all registered listeners */
     for (i = 0; i < d->mux_cnt; i++)
-        if (d->chr_event[i])
-            d->chr_event[i](d->ext_opaque[i], event);
+        mux_chr_send_event(d, i, event);
 }
 
 static void mux_chr_update_read_handler(CharDriverState *chr)

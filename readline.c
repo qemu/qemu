@@ -444,6 +444,11 @@ void readline_start(ReadLineState *rs, const char *prompt, int read_password,
     rs->readline_func = readline_func;
     rs->readline_opaque = opaque;
     rs->read_password = read_password;
+    readline_restart(rs);
+}
+
+void readline_restart(ReadLineState *rs)
+{
     rs->cmd_buf_index = 0;
     rs->cmd_buf_size = 0;
 }

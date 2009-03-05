@@ -46,6 +46,7 @@ void readline_handle_byte(ReadLineState *rs, int ch);
 
 void readline_start(ReadLineState *rs, const char *prompt, int read_password,
                     ReadLineFunc *readline_func, void *opaque);
+void readline_restart(ReadLineState *rs);
 void readline_show_prompt(ReadLineState *rs);
 
 ReadLineState *readline_init(Monitor *mon,
