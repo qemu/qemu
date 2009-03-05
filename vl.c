@@ -201,6 +201,7 @@ ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
+static int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
@@ -2607,11 +2608,13 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         bdrv_flags |= BDRV_O_CACHE_WB;
     else if (cache == 3) /* not specified */
         bdrv_flags |= BDRV_O_CACHE_DEF;
-    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0 || qemu_key_check(bdrv, file)) {
+    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return -1;
     }
+    if (bdrv_key_required(bdrv))
+        autostart = 0;
     return drives_table_idx;
 }
 
@@ -2658,7 +2661,7 @@ int usb_device_add_dev(USBDevice *dev)
     return 0;
 }
 
-static int usb_device_add(const char *devname)
+static int usb_device_add(const char *devname, int is_hotplug)
 {
     const char *p;
     USBDevice *dev;
@@ -2675,7 +2678,18 @@ static int usb_device_add(const char *devname)
     } else if (!strcmp(devname, "keyboard")) {
         dev = usb_keyboard_init();
     } else if (strstart(devname, "disk:", &p)) {
-        dev = usb_msd_init(p);
+        BlockDriverState *bs;
+
+        dev = usb_msd_init(p, &bs);
+        if (!dev)
+            return -1;
+        if (bdrv_key_required(bs)) {
+            autostart = 0;
+            if (is_hotplug && monitor_read_bdrv_key(bs) < 0) {
+                dev->handle_destroy(dev);
+                return -1;
+            }
+        }
     } else if (!strcmp(devname, "wacom-tablet")) {
         dev = usb_wacom_init();
     } else if (strstart(devname, "serial:", &p)) {
@@ -2756,7 +2770,7 @@ static int usb_device_del(const char *devname)
 
 void do_usb_add(const char *devname)
 {
-    usb_device_add(devname);
+    usb_device_add(devname, 1);
 }
 
 void do_usb_del(const char *devname)
@@ -4334,45 +4348,6 @@ static const QEMUOption qemu_options[] = {
     { NULL },
 };
 
-/* password input */
-
-int qemu_key_check(BlockDriverState *bs, const char *name)
-{
-    char password[256];
-    int i;
-
-    if (!bdrv_is_encrypted(bs))
-        return 0;
-
-    term_printf("%s is encrypted.\n", name);
-    for(i = 0; i < 3; i++) {
-        monitor_readline("Password: ", 1, password, sizeof(password));
-        if (bdrv_set_key(bs, password) == 0)
-            return 0;
-        term_printf("invalid password\n");
-    }
-    return -EPERM;
-}
-
-static BlockDriverState *get_bdrv(int index)
-{
-    if (index > nb_drives)
-        return NULL;
-    return drives_table[index].bdrv;
-}
-
-static void read_passwords(void)
-{
-    BlockDriverState *bs;
-    int i;
-
-    for(i = 0; i < 6; i++) {
-        bs = get_bdrv(i);
-        if (bs)
-            qemu_key_check(bs, bdrv_get_device_name(bs));
-    }
-}
-
 #ifdef HAS_AUDIO
 struct soundhw soundhw[] = {
 #ifdef HAS_AUDIO_CHOICE
@@ -4639,7 +4614,6 @@ int main(int argc, char **argv, char **envp)
     int fds[2];
     int tb_size;
     const char *pid_file = NULL;
-    int autostart;
     const char *incoming = NULL;
     int fd = 0;
     struct passwd *pwd = NULL;
@@ -5637,7 +5611,7 @@ int main(int argc, char **argv, char **envp)
     /* init USB devices */
     if (usb_enabled) {
         for(i = 0; i < usb_devices_index; i++) {
-            if (usb_device_add(usb_devices[i]) < 0) {
+            if (usb_device_add(usb_devices[i], 0) < 0) {
                 fprintf(stderr, "Warning: could not add USB device %s\n",
                         usb_devices[i]);
             }
@@ -5748,13 +5722,8 @@ int main(int argc, char **argv, char **envp)
         qemu_start_incoming_migration(incoming);
     }
 
-    {
-        /* XXX: simplify init */
-        read_passwords();
-        if (autostart) {
-            vm_start();
-        }
-    }
+    if (autostart)
+        vm_start();
 
     if (daemonize) {
 	uint8_t status = 0;

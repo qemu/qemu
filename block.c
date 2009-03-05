@@ -336,6 +336,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     bs->read_only = 0;
     bs->is_temporary = 0;
     bs->encrypted = 0;
+    bs->valid_key = 0;
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -966,6 +967,15 @@ int bdrv_is_encrypted(BlockDriverState *bs)
     return bs->encrypted;
 }
 
+int bdrv_key_required(BlockDriverState *bs)
+{
+    BlockDriverState *backing_hd = bs->backing_hd;
+
+    if (backing_hd && backing_hd->encrypted && !backing_hd->valid_key)
+        return 1;
+    return (bs->encrypted && !bs->valid_key);
+}
+
 int bdrv_set_key(BlockDriverState *bs, const char *key)
 {
     int ret;
@@ -978,7 +988,9 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     }
     if (!bs->encrypted || !bs->drv || !bs->drv->bdrv_set_key)
         return -1;
-    return bs->drv->bdrv_set_key(bs, key);
+    ret = bs->drv->bdrv_set_key(bs, key);
+    bs->valid_key = (ret == 0);
+    return ret;
 }
 
 void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size)
