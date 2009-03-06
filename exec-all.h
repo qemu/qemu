@@ -381,11 +381,7 @@ static inline int kqemu_is_ok(CPUState *env)
 
 #endif
 
-#if defined(CONFIG_USER_ONLY)
-# define vm_singlestep 0
-#else
 extern int vm_singlestep;
-#endif
 
 typedef void (CPUDebugExcpHandler)(CPUState *env);
 

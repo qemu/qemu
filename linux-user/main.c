@@ -39,6 +39,8 @@
 
 char *exec_path;
 
+int vm_singlestep;
+
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
 
@@ -2197,6 +2199,7 @@ static void QEMU_NORETURN usage(void)
            "Debug options:\n"
            "-d options   activate log (logfile=%s)\n"
            "-p pagesize  set the host page size to 'pagesize'\n"
+           "-singlestep  always run in singlestep mode\n"
            "-strace      log system calls\n"
            "\n"
            "Environment variables:\n"
@@ -2341,6 +2344,8 @@ int main(int argc, char **argv, char **envp)
             }
         } else if (!strcmp(r, "drop-ld-preload")) {
             (void) envlist_unsetenv(envlist, "LD_PRELOAD");
+        } else if (!strcmp(r, "singlestep")) {
+            vm_singlestep = 1;
         } else if (!strcmp(r, "strace")) {
             do_strace = 1;
         } else
