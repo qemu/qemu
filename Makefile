@@ -145,6 +145,9 @@ ifdef CONFIG_CURSES
 OBJS+=curses.o
 endif
 OBJS+=vnc.o d3des.o
+ifdef CONFIG_VNC_TLS
+OBJS+=vnc-tls.o vnc-auth-vencrypt.o
+endif
 
 ifdef CONFIG_COCOA
 OBJS+=cocoa.o
@@ -168,9 +171,15 @@ sdl.o: sdl.c keymaps.h sdl_keysym.h
 
 sdl.o audio/sdlaudio.o: CFLAGS += $(SDL_CFLAGS)
 
-vnc.o: vnc.c keymaps.h sdl_keysym.h vnchextile.h d3des.c d3des.h
+vnc.h: vnc-tls.h vnc-auth-vencrypt.h keymaps.h
+
+vnc.o: vnc.c vnc.h vnc_keysym.h vnchextile.h d3des.c d3des.h
 
 vnc.o: CFLAGS += $(CONFIG_VNC_TLS_CFLAGS)
+
+vnc-tls.o: vnc-tls.c vnc.h
+
+vnc-auth-vencrypt.o: vnc-auth-vencrypt.c vnc.h
 
 curses.o: curses.c keymaps.h curses_keys.h
 

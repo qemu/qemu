@@ -33,12 +33,15 @@
 #include "audio/audio.h"
 #include <zlib.h>
 
-#ifdef CONFIG_VNC_TLS
-#include <gnutls/gnutls.h>
-#include <gnutls/x509.h>
-#endif /* CONFIG_VNC_TLS */
-
 #include "keymaps.h"
+
+// #define _VNC_DEBUG 1
+
+#ifdef _VNC_DEBUG
+#define VNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+#else
+#define VNC_DEBUG(fmt, ...) do { } while (0)
+#endif
 
 /*****************************************************************************
  *
@@ -73,6 +76,11 @@ typedef void VncSendHextileTile(VncState *vs,
 
 typedef struct VncDisplay VncDisplay;
 
+#ifdef CONFIG_VNC_TLS
+#include "vnc-tls.h"
+#include "vnc-auth-vencrypt.h"
+#endif
+
 struct VncDisplay
 {
     int lsock;
@@ -84,13 +92,8 @@ struct VncDisplay
     char *password;
     int auth;
 #ifdef CONFIG_VNC_TLS
-    int subauth;
-    int x509verify;
-
-    char *x509cacert;
-    char *x509cacrl;
-    char *x509cert;
-    char *x509key;
+    int subauth; /* Used by VeNCrypt */
+    VncDisplayTLS tls;
 #endif
 };
 
@@ -118,8 +121,7 @@ struct VncState
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
 
 #ifdef CONFIG_VNC_TLS
-    int wiremode;
-    gnutls_session_t tls_session;
+    VncStateTLS tls;
 #endif
 
     Buffer output;
@@ -163,12 +165,6 @@ enum {
     VNC_AUTH_VENCRYPT = 19
 };
 
-#ifdef CONFIG_VNC_TLS
-enum {
-    VNC_WIREMODE_CLEAR,
-    VNC_WIREMODE_TLS,
-};
-
 enum {
     VNC_AUTH_VENCRYPT_PLAIN = 256,
     VNC_AUTH_VENCRYPT_TLSNONE = 257,
@@ -179,12 +175,6 @@ enum {
     VNC_AUTH_VENCRYPT_X509PLAIN = 262,
 };
 
-#define X509_CA_CERT_FILE "ca-cert.pem"
-#define X509_CA_CRL_FILE "ca-crl.pem"
-#define X509_SERVER_KEY_FILE "server-key.pem"
-#define X509_SERVER_CERT_FILE "server-cert.pem"
-
-#endif /* CONFIG_VNC_TLS */
 
 /*****************************************************************************
  *
@@ -254,5 +244,39 @@ enum {
 #define VNC_FEATURE_TIGHT_MASK               (1 << VNC_FEATURE_TIGHT)
 #define VNC_FEATURE_ZLIB_MASK                (1 << VNC_FEATURE_ZLIB)
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
+
+
+/*****************************************************************************
+ *
+ * Internal APIs
+ *
+ *****************************************************************************/
+
+/* Event loop functions */
+void vnc_client_read(void *opaque);
+void vnc_client_write(void *opaque);
+
+
+/* Protocol I/O functions */
+void vnc_write(VncState *vs, const void *data, size_t len);
+void vnc_write_u32(VncState *vs, uint32_t value);
+void vnc_write_s32(VncState *vs, int32_t value);
+void vnc_write_u16(VncState *vs, uint16_t value);
+void vnc_write_u8(VncState *vs, uint8_t value);
+void vnc_flush(VncState *vs);
+void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting);
+
+
+/* Buffer I/O functions */
+uint8_t read_u8(uint8_t *data, size_t offset);
+uint16_t read_u16(uint8_t *data, size_t offset);
+int32_t read_s32(uint8_t *data, size_t offset);
+uint32_t read_u32(uint8_t *data, size_t offset);
+
+/* Protocol stage functions */
+void vnc_client_error(VncState *vs);
+
+void start_client_init(VncState *vs);
+void start_auth_vnc(VncState *vs);
 
 #endif /* __QEMU_VNC_H */
