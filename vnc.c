@@ -2098,14 +2098,6 @@ static int protocol_client_vencrypt_auth(VncState *vs, uint8_t *data, size_t len
 	    VNC_DEBUG("Failed to complete TLS\n");
 	    return 0;
 	}
-
-	if (vs->wiremode == VNC_WIREMODE_TLS) {
-	    VNC_DEBUG("Starting VeNCrypt subauth\n");
-	    return start_auth_vencrypt_subauth(vs);
-	} else {
-	    VNC_DEBUG("TLS handshake blocked\n");
-	    return 0;
-	}
     }
     return 0;
 }
