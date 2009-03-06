@@ -137,6 +137,7 @@ endif
 AUDIO_OBJS+= wavcapture.o
 OBJS+=$(addprefix audio/, $(AUDIO_OBJS))
 
+OBJS+=keymaps.o
 ifdef CONFIG_SDL
 OBJS+=sdl.o x_keymap.o
 endif
@@ -161,15 +162,17 @@ LIBS+=$(VDE_LIBS)
 
 cocoa.o: cocoa.m
 
-sdl.o: sdl.c keymaps.c sdl_keysym.h
+keymaps.o: keymaps.c keymaps.h
+
+sdl.o: sdl.c keymaps.h sdl_keysym.h
 
 sdl.o audio/sdlaudio.o: CFLAGS += $(SDL_CFLAGS)
 
-vnc.o: vnc.c keymaps.c sdl_keysym.h vnchextile.h d3des.c d3des.h
+vnc.o: vnc.c keymaps.h sdl_keysym.h vnchextile.h d3des.c d3des.h
 
 vnc.o: CFLAGS += $(CONFIG_VNC_TLS_CFLAGS)
 
-curses.o: curses.c keymaps.c curses_keys.h
+curses.o: curses.c keymaps.h curses_keys.h
 
 bt-host.o: CFLAGS += $(CONFIG_BLUEZ_CFLAGS)
 

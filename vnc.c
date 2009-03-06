@@ -36,7 +36,6 @@
 
 #include "vnc.h"
 #include "vnc_keysym.h"
-#include "keymaps.c"
 #include "d3des.h"
 
 #ifdef CONFIG_VNC_TLS
@@ -2422,9 +2421,9 @@ void vnc_display_init(DisplayState *ds)
     vs->ds = ds;
 
     if (keyboard_layout)
-        vs->kbd_layout = init_keyboard_layout(keyboard_layout);
+        vs->kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);
     else
-        vs->kbd_layout = init_keyboard_layout("en-us");
+        vs->kbd_layout = init_keyboard_layout(name2keysym, "en-us");
 
     if (!vs->kbd_layout)
 	exit(1);
