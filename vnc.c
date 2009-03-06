@@ -68,7 +68,8 @@ static char *addr_to_string(const char *format,
     return addr;
 }
 
-static char *vnc_socket_local_addr(const char *format, int fd) {
+
+char *vnc_socket_local_addr(const char *format, int fd) {
     struct sockaddr_storage sa;
     socklen_t salen;
 
@@ -79,7 +80,8 @@ static char *vnc_socket_local_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
-static char *vnc_socket_remote_addr(const char *format, int fd) {
+
+char *vnc_socket_remote_addr(const char *format, int fd) {
     struct sockaddr_storage sa;
     socklen_t salen;
 
@@ -125,12 +127,18 @@ static const char *vnc_auth_name(VncDisplay *vd) {
             return "vencrypt+x509+vnc";
         case VNC_AUTH_VENCRYPT_X509PLAIN:
             return "vencrypt+x509+plain";
+	case VNC_AUTH_VENCRYPT_TLSSASL:
+	    return "vencrypt+tls+sasl";
+	case VNC_AUTH_VENCRYPT_X509SASL:
+	    return "vencrypt+x509+sasl";
         default:
             return "vencrypt";
         }
 #else
         return "vencrypt";
 #endif
+    case VNC_AUTH_SASL:
+	return "sasl";
     }
     return "unknown";
 }
@@ -278,7 +286,7 @@ static void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
     vnc_write_s32(vs, encoding);
 }
 
-static void buffer_reserve(Buffer *buffer, size_t len)
+void buffer_reserve(Buffer *buffer, size_t len)
 {
     if ((buffer->capacity - buffer->offset) < len) {
 	buffer->capacity += (len + 1024);
@@ -290,22 +298,22 @@ static void buffer_reserve(Buffer *buffer, size_t len)
     }
 }
 
-static int buffer_empty(Buffer *buffer)
+int buffer_empty(Buffer *buffer)
 {
     return buffer->offset == 0;
 }
 
-static uint8_t *buffer_end(Buffer *buffer)
+uint8_t *buffer_end(Buffer *buffer)
 {
     return buffer->buffer + buffer->offset;
 }
 
-static void buffer_reset(Buffer *buffer)
+void buffer_reset(Buffer *buffer)
 {
 	buffer->offset = 0;
 }
 
-static void buffer_append(Buffer *buffer, const void *data, size_t len)
+void buffer_append(Buffer *buffer, const void *data, size_t len)
 {
     memcpy(buffer->buffer + buffer->offset, data, len);
     buffer->offset += len;
@@ -822,7 +830,8 @@ static void audio_del(VncState *vs)
     }
 }
 
-static int vnc_client_io_error(VncState *vs, int ret, int last_errno)
+
+int vnc_client_io_error(VncState *vs, int ret, int last_errno)
 {
     if (ret == 0 || ret == -1) {
         if (ret == -1) {
@@ -848,6 +857,9 @@ static int vnc_client_io_error(VncState *vs, int ret, int last_errno)
 #ifdef CONFIG_VNC_TLS
 	vnc_tls_client_cleanup(vs);
 #endif /* CONFIG_VNC_TLS */
+#ifdef CONFIG_VNC_SASL
+        vnc_sasl_client_cleanup(vs);
+#endif /* CONFIG_VNC_SASL */
         audio_del(vs);
 
         VncState *p, *parent = NULL;
@@ -878,14 +890,28 @@ void vnc_client_error(VncState *vs)
     vnc_client_io_error(vs, -1, EINVAL);
 }
 
-void vnc_client_write(void *opaque)
+
+/*
+ * Called to write a chunk of data to the client socket. The data may
+ * be the raw data, or may have already been encoded by SASL.
+ * The data will be written either straight onto the socket, or
+ * written via the GNUTLS wrappers, if TLS/SSL encryption is enabled
+ *
+ * NB, it is theoretically possible to have 2 layers of encryption,
+ * both SASL, and this TLS layer. It is highly unlikely in practice
+ * though, since SASL encryption will typically be a no-op if TLS
+ * is active
+ *
+ * Returns the number of bytes written, which may be less than
+ * the requested 'datalen' if the socket would block. Returns
+ * -1 on error, and disconnects the client socket.
+ */
+long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
 {
     long ret;
-    VncState *vs = opaque;
-
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
-	ret = gnutls_write(vs->tls.session, vs->output.buffer, vs->output.offset);
+	ret = gnutls_write(vs->tls.session, data, datalen);
 	if (ret < 0) {
 	    if (ret == GNUTLS_E_AGAIN)
 		errno = EAGAIN;
@@ -895,10 +921,42 @@ void vnc_client_write(void *opaque)
 	}
     } else
 #endif /* CONFIG_VNC_TLS */
-	ret = send(vs->csock, vs->output.buffer, vs->output.offset, 0);
-    ret = vnc_client_io_error(vs, ret, socket_error());
+	ret = send(vs->csock, data, datalen, 0);
+    VNC_DEBUG("Wrote wire %p %d -> %ld\n", data, datalen, ret);
+    return vnc_client_io_error(vs, ret, socket_error());
+}
+
+
+/*
+ * Called to write buffered data to the client socket, when not
+ * using any SASL SSF encryption layers. Will write as much data
+ * as possible without blocking. If all buffered data is written,
+ * will switch the FD poll() handler back to read monitoring.
+ *
+ * Returns the number of bytes written, which may be less than
+ * the buffered output data if the socket would block. Returns
+ * -1 on error, and disconnects the client socket.
+ */
+static long vnc_client_write_plain(VncState *vs)
+{
+    long ret;
+
+#ifdef CONFIG_VNC_SASL
+    VNC_DEBUG("Write Plain: Pending output %p size %d offset %d. Wait SSF %d\n",
+              vs->output.buffer, vs->output.capacity, vs->output.offset,
+              vs->sasl.waitWriteSSF);
+
+    if (vs->sasl.conn &&
+        vs->sasl.runSSF &&
+        vs->sasl.waitWriteSSF) {
+        ret = vnc_client_write_buf(vs, vs->output.buffer, vs->sasl.waitWriteSSF);
+        if (ret)
+            vs->sasl.waitWriteSSF -= ret;
+    } else
+#endif /* CONFIG_VNC_SASL */
+        ret = vnc_client_write_buf(vs, vs->output.buffer, vs->output.offset);
     if (!ret)
-	return;
+        return 0;
 
     memmove(vs->output.buffer, vs->output.buffer + ret, (vs->output.offset - ret));
     vs->output.offset -= ret;
@@ -906,6 +964,29 @@ void vnc_client_write(void *opaque)
     if (vs->output.offset == 0) {
 	qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
     }
+
+    return ret;
+}
+
+
+/*
+ * First function called whenever there is data to be written to
+ * the client socket. Will delegate actual work according to whether
+ * SASL SSF layers are enabled (thus requiring encryption calls)
+ */
+void vnc_client_write(void *opaque)
+{
+    long ret;
+    VncState *vs = opaque;
+
+#ifdef CONFIG_VNC_SASL
+    if (vs->sasl.conn &&
+        vs->sasl.runSSF &&
+        !vs->sasl.waitWriteSSF)
+        ret = vnc_client_write_sasl(vs);
+    else
+#endif /* CONFIG_VNC_SASL */
+        ret = vnc_client_write_plain(vs);
 }
 
 void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
@@ -914,16 +995,28 @@ void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
     vs->read_handler_expect = expecting;
 }
 
-void vnc_client_read(void *opaque)
+
+/*
+ * Called to read a chunk of data from the client socket. The data may
+ * be the raw data, or may need to be further decoded by SASL.
+ * The data will be read either straight from to the socket, or
+ * read via the GNUTLS wrappers, if TLS/SSL encryption is enabled
+ *
+ * NB, it is theoretically possible to have 2 layers of encryption,
+ * both SASL, and this TLS layer. It is highly unlikely in practice
+ * though, since SASL encryption will typically be a no-op if TLS
+ * is active
+ *
+ * Returns the number of bytes read, which may be less than
+ * the requested 'datalen' if the socket would block. Returns
+ * -1 on error, and disconnects the client socket.
+ */
+long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
 {
-    VncState *vs = opaque;
     long ret;
-
-    buffer_reserve(&vs->input, 4096);
-
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
-	ret = gnutls_read(vs->tls.session, buffer_end(&vs->input), 4096);
+	ret = gnutls_read(vs->tls.session, data, datalen);
 	if (ret < 0) {
 	    if (ret == GNUTLS_E_AGAIN)
 		errno = EAGAIN;
@@ -933,12 +1026,52 @@ void vnc_client_read(void *opaque)
 	}
     } else
 #endif /* CONFIG_VNC_TLS */
-	ret = recv(vs->csock, buffer_end(&vs->input), 4096, 0);
-    ret = vnc_client_io_error(vs, ret, socket_error());
+	ret = recv(vs->csock, data, datalen, 0);
+    VNC_DEBUG("Read wire %p %d -> %ld\n", data, datalen, ret);
+    return vnc_client_io_error(vs, ret, socket_error());
+}
+
+
+/*
+ * Called to read data from the client socket to the input buffer,
+ * when not using any SASL SSF encryption layers. Will read as much
+ * data as possible without blocking.
+ *
+ * Returns the number of bytes read. Returns -1 on error, and
+ * disconnects the client socket.
+ */
+static long vnc_client_read_plain(VncState *vs)
+{
+    int ret;
+    VNC_DEBUG("Read plain %p size %d offset %d\n",
+              vs->input.buffer, vs->input.capacity, vs->input.offset);
+    buffer_reserve(&vs->input, 4096);
+    ret = vnc_client_read_buf(vs, buffer_end(&vs->input), 4096);
+    if (!ret)
+        return 0;
+    vs->input.offset += ret;
+    return ret;
+}
+
+
+/*
+ * First function called whenever there is more data to be read from
+ * the client socket. Will delegate actual work according to whether
+ * SASL SSF layers are enabled (thus requiring decryption calls)
+ */
+void vnc_client_read(void *opaque)
+{
+    VncState *vs = opaque;
+    long ret;
+
+#ifdef CONFIG_VNC_SASL
+    if (vs->sasl.conn && vs->sasl.runSSF)
+        ret = vnc_client_read_sasl(vs);
+    else
+#endif /* CONFIG_VNC_SASL */
+        ret = vnc_client_read_plain(vs);
     if (!ret)
 	return;
-
-    vs->input.offset += ret;
 
     while (vs->read_handler && vs->input.offset >= vs->read_handler_expect) {
 	size_t len = vs->read_handler_expect;
@@ -1723,6 +1856,13 @@ static int protocol_client_auth(VncState *vs, uint8_t *data, size_t len)
            break;
 #endif /* CONFIG_VNC_TLS */
 
+#ifdef CONFIG_VNC_SASL
+       case VNC_AUTH_SASL:
+           VNC_DEBUG("Accept SASL auth\n");
+           start_auth_sasl(vs);
+           break;
+#endif /* CONFIG_VNC_SASL */
+
        default: /* Should not be possible, but just in case */
            VNC_DEBUG("Reject auth %d\n", vs->vd->auth);
            vnc_write_u8(vs, 1);
@@ -1924,6 +2064,10 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #ifdef CONFIG_VNC_TLS
     int tls = 0, x509 = 0;
 #endif
+#ifdef CONFIG_VNC_SASL
+    int sasl = 0;
+    int saslErr;
+#endif
 
     if (!vnc_display)
         return -1;
@@ -1943,6 +2087,10 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	    reverse = 1;
 	} else if (strncmp(options, "to=", 3) == 0) {
             to_port = atoi(options+3) + 5900;
+#ifdef CONFIG_VNC_SASL
+	} else if (strncmp(options, "sasl", 4) == 0) {
+	    sasl = 1; /* Require SASL auth */
+#endif
 #ifdef CONFIG_VNC_TLS
 	} else if (strncmp(options, "tls", 3) == 0) {
 	    tls = 1; /* Require TLS */
@@ -1979,6 +2127,22 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	}
     }
 
+    /*
+     * Combinations we support here:
+     *
+     *  - no-auth                (clear text, no auth)
+     *  - password               (clear text, weak auth)
+     *  - sasl                   (encrypt, good auth *IF* using Kerberos via GSSAPI)
+     *  - tls                    (encrypt, weak anonymous creds, no auth)
+     *  - tls + password         (encrypt, weak anonymous creds, weak auth)
+     *  - tls + sasl             (encrypt, weak anonymous creds, good auth)
+     *  - tls + x509             (encrypt, good x509 creds, no auth)
+     *  - tls + x509 + password  (encrypt, good x509 creds, weak auth)
+     *  - tls + x509 + sasl      (encrypt, good x509 creds, good auth)
+     *
+     * NB1. TLS is a stackable auth scheme.
+     * NB2. the x509 schemes have option to validate a client cert dname
+     */
     if (password) {
 #ifdef CONFIG_VNC_TLS
 	if (tls) {
@@ -1991,13 +2155,34 @@ int vnc_display_open(DisplayState *ds, const char *display)
 		vs->subauth = VNC_AUTH_VENCRYPT_TLSVNC;
 	    }
 	} else {
-#endif
+#endif /* CONFIG_VNC_TLS */
 	    VNC_DEBUG("Initializing VNC server with password auth\n");
 	    vs->auth = VNC_AUTH_VNC;
 #ifdef CONFIG_VNC_TLS
 	    vs->subauth = VNC_AUTH_INVALID;
 	}
-#endif
+#endif /* CONFIG_VNC_TLS */
+#ifdef CONFIG_VNC_SASL
+    } else if (sasl) {
+#ifdef CONFIG_VNC_TLS
+        if (tls) {
+            vs->auth = VNC_AUTH_VENCRYPT;
+            if (x509) {
+		VNC_DEBUG("Initializing VNC server with x509 SASL auth\n");
+                vs->subauth = VNC_AUTH_VENCRYPT_X509SASL;
+            } else {
+		VNC_DEBUG("Initializing VNC server with TLS SASL auth\n");
+                vs->subauth = VNC_AUTH_VENCRYPT_TLSSASL;
+            }
+        } else {
+#endif /* CONFIG_VNC_TLS */
+	    VNC_DEBUG("Initializing VNC server with SASL auth\n");
+            vs->auth = VNC_AUTH_SASL;
+#ifdef CONFIG_VNC_TLS
+            vs->subauth = VNC_AUTH_INVALID;
+        }
+#endif /* CONFIG_VNC_TLS */
+#endif /* CONFIG_VNC_SASL */
     } else {
 #ifdef CONFIG_VNC_TLS
 	if (tls) {
@@ -2018,6 +2203,16 @@ int vnc_display_open(DisplayState *ds, const char *display)
 	}
 #endif
     }
+
+#ifdef CONFIG_VNC_SASL
+    if ((saslErr = sasl_server_init(NULL, "qemu")) != SASL_OK) {
+        fprintf(stderr, "Failed to initialize SASL auth %s",
+                sasl_errstring(saslErr, NULL, NULL));
+        free(vs->display);
+        vs->display = NULL;
+        return -1;
+    }
+#endif
 
     if (reverse) {
         /* connect to viewer */

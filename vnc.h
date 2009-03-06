@@ -80,6 +80,10 @@ typedef struct VncDisplay VncDisplay;
 #include "vnc-tls.h"
 #include "vnc-auth-vencrypt.h"
 #endif
+#ifdef CONFIG_VNC_SASL
+#include "vnc-auth-sasl.h"
+#endif
+
 
 struct VncDisplay
 {
@@ -119,9 +123,11 @@ struct VncState
     int minor;
 
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
-
 #ifdef CONFIG_VNC_TLS
     VncStateTLS tls;
+#endif
+#ifdef CONFIG_VNC_SASL
+    VncStateSASL sasl;
 #endif
 
     Buffer output;
@@ -161,8 +167,9 @@ enum {
     VNC_AUTH_RA2NE = 6,
     VNC_AUTH_TIGHT = 16,
     VNC_AUTH_ULTRA = 17,
-    VNC_AUTH_TLS = 18,
-    VNC_AUTH_VENCRYPT = 19
+    VNC_AUTH_TLS = 18,      /* Supported in GTK-VNC & VINO */
+    VNC_AUTH_VENCRYPT = 19, /* Supported in GTK-VNC & VeNCrypt */
+    VNC_AUTH_SASL = 20,     /* Supported in GTK-VNC & VINO */
 };
 
 enum {
@@ -173,6 +180,8 @@ enum {
     VNC_AUTH_VENCRYPT_X509NONE = 260,
     VNC_AUTH_VENCRYPT_X509VNC = 261,
     VNC_AUTH_VENCRYPT_X509PLAIN = 262,
+    VNC_AUTH_VENCRYPT_X509SASL = 263,
+    VNC_AUTH_VENCRYPT_TLSSASL = 264,
 };
 
 
@@ -256,6 +265,8 @@ enum {
 void vnc_client_read(void *opaque);
 void vnc_client_write(void *opaque);
 
+long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
+long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
 
 /* Protocol I/O functions */
 void vnc_write(VncState *vs, const void *data, size_t len);
@@ -275,8 +286,22 @@ uint32_t read_u32(uint8_t *data, size_t offset);
 
 /* Protocol stage functions */
 void vnc_client_error(VncState *vs);
+int vnc_client_io_error(VncState *vs, int ret, int last_errno);
 
 void start_client_init(VncState *vs);
 void start_auth_vnc(VncState *vs);
+
+/* Buffer management */
+void buffer_reserve(Buffer *buffer, size_t len);
+int buffer_empty(Buffer *buffer);
+uint8_t *buffer_end(Buffer *buffer);
+void buffer_reset(Buffer *buffer);
+void buffer_append(Buffer *buffer, const void *data, size_t len);
+
+
+/* Misc helpers */
+
+char *vnc_socket_local_addr(const char *format, int fd);
+char *vnc_socket_remote_addr(const char *format, int fd);
 
 #endif /* __QEMU_VNC_H */

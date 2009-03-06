@@ -164,6 +164,7 @@ fmod_lib=""
 fmod_inc=""
 oss_lib=""
 vnc_tls="yes"
+vnc_sasl="yes"
 bsd="no"
 linux="no"
 solaris="no"
@@ -388,6 +389,8 @@ for opt do
   ;;
   --disable-vnc-tls) vnc_tls="no"
   ;;
+  --disable-vnc-sasl) vnc_sasl="no"
+  ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-vde) vde="no"
@@ -545,6 +548,7 @@ echo "                           Available cards: $audio_possible_cards"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
+echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
 echo "  --disable-curses         disable curses output"
 echo "  --disable-bluez          disable bluez stack connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
@@ -835,6 +839,25 @@ EOF
 	:
     else
 	vnc_tls="no"
+    fi
+fi
+
+##########################################
+# VNC SASL detection
+if test "$vnc_sasl" = "yes" ; then
+cat > $TMPC <<EOF
+#include <sasl/sasl.h>
+#include <stdio.h>
+int main(void) { sasl_server_init(NULL, "qemu"); return 0; }
+EOF
+    # Assuming Cyrus-SASL installed in /usr prefix
+    vnc_sasl_cflags=""
+    vnc_sasl_libs="-lsasl2"
+    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $vnc_sasl_cflags $TMPC \
+           $vnc_sasl_libs 2> /dev/null ; then
+	:
+    else
+	vnc_sasl="no"
     fi
 fi
 
@@ -1146,6 +1169,11 @@ if test "$vnc_tls" = "yes" ; then
     echo "    TLS CFLAGS    $vnc_tls_cflags"
     echo "    TLS LIBS      $vnc_tls_libs"
 fi
+echo "VNC SASL support  $vnc_sasl"
+if test "$vnc_sasl" = "yes" ; then
+    echo "    SASL CFLAGS    $vnc_sasl_cflags"
+    echo "    SASL LIBS      $vnc_sasl_libs"
+fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
@@ -1386,6 +1414,12 @@ if test "$vnc_tls" = "yes" ; then
   echo "CONFIG_VNC_TLS_CFLAGS=$vnc_tls_cflags" >> $config_mak
   echo "CONFIG_VNC_TLS_LIBS=$vnc_tls_libs" >> $config_mak
   echo "#define CONFIG_VNC_TLS 1" >> $config_h
+fi
+if test "$vnc_sasl" = "yes" ; then
+  echo "CONFIG_VNC_SASL=yes" >> $config_mak
+  echo "CONFIG_VNC_SASL_CFLAGS=$vnc_sasl_cflags" >> $config_mak
+  echo "CONFIG_VNC_SASL_LIBS=$vnc_sasl_libs" >> $config_mak
+  echo "#define CONFIG_VNC_SASL 1" >> $config_h
 fi
 qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_mak

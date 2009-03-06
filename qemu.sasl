@@ -1,0 +1,34 @@
+# If you want to use the non-TLS socket, then you *must* include
+# the GSSAPI or DIGEST-MD5 mechanisms, because they are the only
+# ones that can offer session encryption as well as authentication.
+#
+# If you're only using TLS, then you can turn on any mechanisms
+# you like for authentication, because TLS provides the encryption
+#
+# Default to a simple username+password mechanism
+# NB digest-md5 is no longer considered secure by current standards
+mech_list: digest-md5
+
+# Before you can use GSSAPI, you need a service principle on the
+# KDC server for libvirt, and that to be exported to the keytab
+# file listed below
+#mech_list: gssapi
+#
+# You can also list many mechanisms at once, then the user can choose
+# by adding  '?auth=sasl.gssapi' to their libvirt URI, eg
+#   qemu+tcp://hostname/system?auth=sasl.gssapi
+#mech_list: digest-md5 gssapi
+
+# Some older builds of MIT kerberos on Linux ignore this option &
+# instead need KRB5_KTNAME env var.
+# For modern Linux, and other OS, this should be sufficient
+keytab: /etc/qemu/krb5.tab
+
+# If using digest-md5 for username/passwds, then this is the file
+# containing the passwds. Use 'saslpasswd2 -a qemu [username]'
+# to add entries, and 'sasldblistusers2 -a qemu' to browse it
+sasldb_path: /etc/qemu/passwd.db
+
+
+auxprop_plugin: sasldb
+

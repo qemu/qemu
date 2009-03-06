@@ -616,6 +616,21 @@ path following this option specifies where the x509 certificates are to
 be loaded from. See the @ref{vnc_security} section for details on generating
 certificates.
 
+@item sasl
+
+Require that the client use SASL to authenticate with the VNC server.
+The exact choice of authentication method used is controlled from the
+system / user's SASL configuration file for the 'qemu' service. This
+is typically found in /etc/sasl2/qemu.conf. If running QEMU as an
+unprivileged user, an environment variable SASL_CONF_PATH can be used
+to make it search alternate locations for the service config.
+While some SASL auth methods can also provide data encryption (eg GSSAPI),
+it is recommended that SASL always be combined with the 'tls' and
+'x509' settings to enable use of SSL and server certificates. This
+ensures a data encryption preventing compromise of authentication
+credentials. See the @ref{vnc_security} section for details on using
+SASL authentication.
+
 @end table
 
 @end table
@@ -2061,7 +2076,10 @@ considerations depending on the deployment scenarios.
 * vnc_sec_certificate::
 * vnc_sec_certificate_verify::
 * vnc_sec_certificate_pw::
+* vnc_sec_sasl::
+* vnc_sec_certificate_sasl::
 * vnc_generate_cert::
+* vnc_setup_sasl::
 @end menu
 @node vnc_sec_none
 @subsection Without passwords
@@ -2143,6 +2161,41 @@ qemu [...OPTIONS...] -vnc :1,password,tls,x509verify=/etc/pki/qemu -monitor stdi
 Password: ********
 (qemu)
 @end example
+
+
+@node vnc_sec_sasl
+@subsection With SASL authentication
+
+The SASL authentication method is a VNC extension, that provides an
+easily extendable, pluggable authentication method. This allows for
+integration with a wide range of authentication mechanisms, such as
+PAM, GSSAPI/Kerberos, LDAP, SQL databases, one-time keys and more.
+The strength of the authentication depends on the exact mechanism
+configured. If the chosen mechanism also provides a SSF layer, then
+it will encrypt the datastream as well.
+
+Refer to the later docs on how to choose the exact SASL mechanism
+used for authentication, but assuming use of one supporting SSF,
+then QEMU can be launched with:
+
+@example
+qemu [...OPTIONS...] -vnc :1,sasl -monitor stdio
+@end example
+
+@node vnc_sec_certificate_sasl
+@subsection With x509 certificates and SASL authentication
+
+If the desired SASL authentication mechanism does not supported
+SSF layers, then it is strongly advised to run it in combination
+with TLS and x509 certificates. This provides securely encrypted
+data stream, avoiding risk of compromising of the security
+credentials. This can be enabled, by combining the 'sasl' option
+with the aforementioned TLS + x509 options:
+
+@example
+qemu [...OPTIONS...] -vnc :1,tls,x509,sasl -monitor stdio
+@end example
+
 
 @node vnc_generate_cert
 @subsection Generating certificates for VNC
@@ -2254,6 +2307,50 @@ EOF
 
 The @code{client-key.pem} and @code{client-cert.pem} files should now be securely
 copied to the client for which they were generated.
+
+
+@node vnc_setup_sasl
+
+@subsection Configuring SASL mechanisms
+
+The following documentation assumes use of the Cyrus SASL implementation on a
+Linux host, but the principals should apply to any other SASL impl. When SASL
+is enabled, the mechanism configuration will be loaded from system default
+SASL service config /etc/sasl2/qemu.conf. If running QEMU as an
+unprivileged user, an environment variable SASL_CONF_PATH can be used
+to make it search alternate locations for the service config.
+
+The default configuration might contain
+
+@example
+mech_list: digest-md5
+sasldb_path: /etc/qemu/passwd.db
+@end example
+
+This says to use the 'Digest MD5' mechanism, which is similar to the HTTP
+Digest-MD5 mechanism. The list of valid usernames & passwords is maintained
+in the /etc/qemu/passwd.db file, and can be updated using the saslpasswd2
+command. While this mechanism is easy to configure and use, it is not
+considered secure by modern standards, so only suitable for developers /
+ad-hoc testing.
+
+A more serious deployment might use Kerberos, which is done with the 'gssapi'
+mechanism
+
+@example
+mech_list: gssapi
+keytab: /etc/qemu/krb5.tab
+@end example
+
+For this to work the administrator of your KDC must generate a Kerberos
+principal for the server, with a name of  'qemu/somehost.example.com@@EXAMPLE.COM'
+replacing 'somehost.example.com' with the fully qualified host name of the
+machine running QEMU, and 'EXAMPLE.COM' with the Keberos Realm.
+
+Other configurations will be left as an exercise for the reader. It should
+be noted that only Digest-MD5 and GSSAPI provides a SSF layer for data
+encryption. For all other mechanisms, VNC should always be configured to
+use TLS and x509 certificates to protect security credentials from snooping.
 
 @node gdb_usage
 @section GDB usage
