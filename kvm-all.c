@@ -445,7 +445,7 @@ int kvm_cpu_exec(CPUState *env)
     do {
         kvm_arch_pre_run(env, run);
 
-        if ((env->interrupt_request & CPU_INTERRUPT_EXIT)) {
+        if (env->exit_request) {
             dprintf("interrupt exit requested\n");
             ret = 0;
             break;
@@ -512,8 +512,8 @@ int kvm_cpu_exec(CPUState *env)
         }
     } while (ret > 0);
 
-    if ((env->interrupt_request & CPU_INTERRUPT_EXIT)) {
-        env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
+    if (env->exit_request) {
+        env->exit_request = 0;
         env->exception_index = EXCP_INTERRUPT;
     }
 

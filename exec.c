@@ -1501,9 +1501,12 @@ void cpu_interrupt(CPUState *env, int mask)
 #endif
     int old_mask;
 
+    if (mask & CPU_INTERRUPT_EXIT) {
+        env->exit_request = 1;
+        mask &= ~CPU_INTERRUPT_EXIT;
+    }
+
     old_mask = env->interrupt_request;
-    /* FIXME: This is probably not threadsafe.  A different thread could
-       be in the middle of a read-modify-write operation.  */
     env->interrupt_request |= mask;
 #if defined(USE_NPTL)
     /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
@@ -1514,10 +1517,8 @@ void cpu_interrupt(CPUState *env, int mask)
     if (use_icount) {
         env->icount_decr.u16.high = 0xffff;
 #ifndef CONFIG_USER_ONLY
-        /* CPU_INTERRUPT_EXIT isn't a real interrupt.  It just means
-           an async event happened and we need to process it.  */
         if (!can_do_io(env)
-            && (mask & ~(old_mask | CPU_INTERRUPT_EXIT)) != 0) {
+            && (mask & ~old_mask) != 0) {
             cpu_abort(env, "Raised interrupt while not in I/O function");
         }
 #endif
