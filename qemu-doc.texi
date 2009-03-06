@@ -631,6 +631,19 @@ ensures a data encryption preventing compromise of authentication
 credentials. See the @ref{vnc_security} section for details on using
 SASL authentication.
 
+@item acl
+
+Turn on access control lists for checking of the x509 client certificate
+and SASL party. For x509 certs, the ACL check is made against the
+certificate's distinguished name. This is something that looks like
+@code{C=GB,O=ACME,L=Boston,CN=bob}. For SASL party, the ACL check is
+made against the username, which depending on the SASL plugin, may
+include a realm component, eg @code{bob} or @code{bob\@EXAMPLE.COM}.
+When the @option{acl} flag is set, the initial access list will be
+empty, with a @code{deny} policy. Thus no one will be allowed to
+use the VNC server until the ACLs have been loaded. This can be
+achieved using the @code{acl} monitor command.
+
 @end table
 
 @end table
@@ -1390,6 +1403,42 @@ significant up to 8 letters. eg
 Password: ********
 @end example
 
+@end table
+
+@item acl @var{subcommand} @var{aclname} @var{match} @var{index}
+
+Manage access control lists for network services. There are currently
+two named access control lists, @var{vnc.x509dname} and @var{vnc.username}
+matching on the x509 client certificate distinguished name, and SASL
+username respectively.
+
+@table @option
+@item acl show <aclname>
+list all the match rules in the access control list, and the default
+policy
+@item acl policy <aclname> @code{allow|deny}
+set the default access control list policy, used in the event that
+none of the explicit rules match. The default policy at startup is
+always @code{deny}
+@item acl allow <aclname> <match> [<index>]
+add a match to the access control list, allowing access. The match will
+normally be an exact username or x509 distinguished name, but can
+optionally include wildcard globs. eg @code{*\@EXAMPLE.COM} to allow
+all users in the @code{EXAMPLE.COM} kerberos realm. The match will
+normally be appended to the end of the ACL, but can be inserted
+earlier in the list if the optional @code{index} parameter is supplied.
+@item acl deny <aclname> <match> [<index>]
+add a match to the access control list, denying access. The match will
+normally be an exact username or x509 distinguished name, but can
+optionally include wildcard globs. eg @code{*\@EXAMPLE.COM} to allow
+all users in the @code{EXAMPLE.COM} kerberos realm. The match will
+normally be appended to the end of the ACL, but can be inserted
+earlier in the list if the optional @code{index} parameter is supplied.
+@item acl remove <aclname> <match>
+remove the specified match rule from the access control list.
+@item acl reset <aclname>
+remove all matches from the access control list, and set the default
+policy back to @code{deny}.
 @end table
 
 @item screendump @var{filename}

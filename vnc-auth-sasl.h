@@ -30,6 +30,9 @@
 #include <sasl/sasl.h>
 
 typedef struct VncStateSASL VncStateSASL;
+typedef struct VncDisplaySASL VncDisplaySASL;
+
+#include "acl.h"
 
 struct VncStateSASL {
     sasl_conn_t *conn;
@@ -54,6 +57,10 @@ struct VncStateSASL {
     unsigned int encodedOffset;
     char *username;
     char *mechlist;
+};
+
+struct VncDisplaySASL {
+    qemu_acl *acl;
 };
 
 void vnc_sasl_client_cleanup(VncState *vs);

@@ -28,6 +28,7 @@
 #include "sysemu.h"
 #include "qemu_socket.h"
 #include "qemu-timer.h"
+#include "acl.h"
 
 #define VNC_REFRESH_INTERVAL (1000 / 30)
 
@@ -2083,6 +2084,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
     int sasl = 0;
     int saslErr;
 #endif
+    int acl = 0;
 
     if (!vnc_display)
         return -1;
@@ -2139,8 +2141,27 @@ int vnc_display_open(DisplayState *ds, const char *display)
 		return -1;
 	    }
 #endif
+	} else if (strncmp(options, "acl", 3) == 0) {
+	    acl = 1;
 	}
     }
+
+#ifdef CONFIG_VNC_TLS
+    if (acl && x509 && vs->tls.x509verify) {
+	if (!(vs->tls.acl = qemu_acl_init("vnc.x509dname"))) {
+	    fprintf(stderr, "Failed to create x509 dname ACL\n");
+	    exit(1);
+	}
+    }
+#endif
+#ifdef CONFIG_VNC_SASL
+    if (acl && sasl) {
+	if (!(vs->sasl.acl = qemu_acl_init("vnc.username"))) {
+	    fprintf(stderr, "Failed to create username ACL\n");
+	    exit(1);
+	}
+    }
+#endif
 
     /*
      * Combinations we support here:

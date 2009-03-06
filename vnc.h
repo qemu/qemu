@@ -99,6 +99,9 @@ struct VncDisplay
     int subauth; /* Used by VeNCrypt */
     VncDisplayTLS tls;
 #endif
+#ifdef CONFIG_VNC_SASL
+    VncDisplaySASL sasl;
+#endif
 };
 
 struct VncState

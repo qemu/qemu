@@ -41,6 +41,7 @@
 #include "qemu-timer.h"
 #include "migration.h"
 #include "kvm.h"
+#include "acl.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -1532,6 +1533,86 @@ static void do_info_balloon(Monitor *mon)
         monitor_printf(mon, "balloon: actual=%d\n", (int)(actual >> 20));
 }
 
+static void do_acl(Monitor *mon,
+                   const char *command,
+		   const char *aclname,
+		   const char *match,
+		   int has_index,
+		   int index)
+{
+    qemu_acl *acl;
+
+    acl = qemu_acl_find(aclname);
+    if (!acl) {
+	monitor_printf(mon, "acl: unknown list '%s'\n", aclname);
+	return;
+    }
+
+    if (strcmp(command, "show") == 0) {
+	int i = 0;
+	qemu_acl_entry *entry;
+	monitor_printf(mon, "policy: %s\n",
+                       acl->defaultDeny ? "deny" : "allow");
+	TAILQ_FOREACH(entry, &acl->entries, next) {
+	    i++;
+	    monitor_printf(mon, "%d: %s %s\n", i,
+                           entry->deny ? "deny" : "allow",
+                           entry->match);
+	}
+    } else if (strcmp(command, "reset") == 0) {
+	qemu_acl_reset(acl);
+	monitor_printf(mon, "acl: removed all rules\n");
+    } else if (strcmp(command, "policy") == 0) {
+	if (!match) {
+	    monitor_printf(mon, "acl: missing policy parameter\n");
+	    return;
+	}
+
+	if (strcmp(match, "allow") == 0) {
+	    acl->defaultDeny = 0;
+	    monitor_printf(mon, "acl: policy set to 'allow'\n");
+	} else if (strcmp(match, "deny") == 0) {
+	    acl->defaultDeny = 1;
+	    monitor_printf(mon, "acl: policy set to 'deny'\n");
+	} else {
+	    monitor_printf(mon, "acl: unknown policy '%s', expected 'deny' or 'allow'\n", match);
+	}
+    } else if ((strcmp(command, "allow") == 0) ||
+	       (strcmp(command, "deny") == 0)) {
+	int deny = strcmp(command, "deny") == 0 ? 1 : 0;
+	int ret;
+
+	if (!match) {
+	    monitor_printf(mon, "acl: missing match parameter\n");
+	    return;
+	}
+
+	if (has_index)
+	    ret = qemu_acl_insert(acl, deny, match, index);
+	else
+	    ret = qemu_acl_append(acl, deny, match);
+	if (ret < 0)
+	    monitor_printf(mon, "acl: unable to add acl entry\n");
+	else
+	    monitor_printf(mon, "acl: added rule at position %d\n", ret);
+    } else if (strcmp(command, "remove") == 0) {
+	int ret;
+
+	if (!match) {
+	    monitor_printf(mon, "acl: missing match parameter\n");
+	    return;
+	}
+
+	ret = qemu_acl_remove(acl, match);
+	if (ret < 0)
+	    monitor_printf(mon, "acl: no matching acl entry\n");
+	else
+	    monitor_printf(mon, "acl: removed rule at position %d\n", ret);
+    } else {
+	monitor_printf(mon, "acl: unknown command '%s'\n", command);
+    }
+}
+
 /* Please update qemu-doc.texi when adding or changing commands */
 static const mon_cmd_t mon_cmds[] = {
     { "help|?", "s?", help_cmd,
@@ -1636,6 +1717,12 @@ static const mon_cmd_t mon_cmds[] = {
       "target", "request VM to change it's memory allocation (in MB)" },
     { "set_link", "ss", do_set_link,
       "name [up|down]", "change the link status of a network adapter" },
+    { "acl", "sss?i?", do_acl, "<command> <aclname> [<match>] [<index>]\n",
+                               "acl show vnc.username\n"
+                               "acl policy vnc.username deny\n"
+                               "acl allow vnc.username fred\n"
+                               "acl deny vnc.username bob\n"
+                               "acl reset vnc.username\n" },
     { NULL, NULL, },
 };
 
@@ -2960,6 +3047,15 @@ static void monitor_event(void *opaque, int event)
         break;
     }
 }
+
+
+/*
+ * Local variables:
+ *  c-indent-level: 4
+ *  c-basic-offset: 4
+ *  tab-width: 8
+ * End:
+ */
 
 void monitor_init(CharDriverState *chr, int flags)
 {
