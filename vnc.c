@@ -167,19 +167,136 @@ struct VncState
 static VncDisplay *vnc_display; /* needed for info vnc */
 static DisplayChangeListener *dcl;
 
+static char *addr_to_string(const char *format,
+                            struct sockaddr_storage *sa,
+                            socklen_t salen) {
+    char *addr;
+    char host[NI_MAXHOST];
+    char serv[NI_MAXSERV];
+    int err;
+
+    if ((err = getnameinfo((struct sockaddr *)sa, salen,
+                           host, sizeof(host),
+                           serv, sizeof(serv),
+                           NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
+        VNC_DEBUG("Cannot resolve address %d: %s\n",
+                  err, gai_strerror(err));
+        return NULL;
+    }
+
+    if (asprintf(&addr, format, host, serv) < 0)
+        return NULL;
+
+    return addr;
+}
+
+static char *vnc_socket_local_addr(const char *format, int fd) {
+    struct sockaddr_storage sa;
+    socklen_t salen;
+
+    salen = sizeof(sa);
+    if (getsockname(fd, (struct sockaddr*)&sa, &salen) < 0)
+        return NULL;
+
+    return addr_to_string(format, &sa, salen);
+}
+
+static char *vnc_socket_remote_addr(const char *format, int fd) {
+    struct sockaddr_storage sa;
+    socklen_t salen;
+
+    salen = sizeof(sa);
+    if (getpeername(fd, (struct sockaddr*)&sa, &salen) < 0)
+        return NULL;
+
+    return addr_to_string(format, &sa, salen);
+}
+
+static const char *vnc_auth_name(VncDisplay *vd) {
+    switch (vd->auth) {
+    case VNC_AUTH_INVALID:
+        return "invalid";
+    case VNC_AUTH_NONE:
+        return "none";
+    case VNC_AUTH_VNC:
+        return "vnc";
+    case VNC_AUTH_RA2:
+        return "ra2";
+    case VNC_AUTH_RA2NE:
+        return "ra2ne";
+    case VNC_AUTH_TIGHT:
+        return "tight";
+    case VNC_AUTH_ULTRA:
+        return "ultra";
+    case VNC_AUTH_TLS:
+        return "tls";
+    case VNC_AUTH_VENCRYPT:
+#ifdef CONFIG_VNC_TLS
+        switch (vd->subauth) {
+        case VNC_AUTH_VENCRYPT_PLAIN:
+            return "vencrypt+plain";
+        case VNC_AUTH_VENCRYPT_TLSNONE:
+            return "vencrypt+tls+none";
+        case VNC_AUTH_VENCRYPT_TLSVNC:
+            return "vencrypt+tls+vnc";
+        case VNC_AUTH_VENCRYPT_TLSPLAIN:
+            return "vencrypt+tls+plain";
+        case VNC_AUTH_VENCRYPT_X509NONE:
+            return "vencrypt+x509+none";
+        case VNC_AUTH_VENCRYPT_X509VNC:
+            return "vencrypt+x509+vnc";
+        case VNC_AUTH_VENCRYPT_X509PLAIN:
+            return "vencrypt+x509+plain";
+        default:
+            return "vencrypt";
+        }
+#else
+        return "vencrypt";
+#endif
+    }
+    return "unknown";
+}
+
+#define VNC_SOCKET_FORMAT_PRETTY "local %s:%s"
+
+static void do_info_vnc_client(Monitor *mon, VncState *client)
+{
+    char *clientAddr =
+        vnc_socket_remote_addr("     address: %s:%s\n",
+                               client->csock);
+    if (!clientAddr)
+        return;
+
+    monitor_printf(mon, "Client:\n");
+    monitor_printf(mon, "%s", clientAddr);
+    free(clientAddr);
+}
+
 void do_info_vnc(Monitor *mon)
 {
-    if (vnc_display == NULL || vnc_display->display == NULL)
-        monitor_printf(mon, "VNC server disabled\n");
-    else {
-        monitor_printf(mon, "VNC server active on: ");
-        monitor_print_filename(mon, vnc_display->display);
-        monitor_printf(mon, "\n");
+    if (vnc_display == NULL || vnc_display->display == NULL) {
+        monitor_printf(mon, "Server: disabled\n");
+    } else {
+        char *serverAddr = vnc_socket_local_addr("     address: %s:%s\n",
+                                                 vnc_display->lsock);
 
-	if (vnc_display->clients == NULL)
-            monitor_printf(mon, "No client connected\n");
-	else
-	    monitor_printf(mon, "Client connected\n");
+        if (!serverAddr)
+            return;
+
+        monitor_printf(mon, "Server:\n");
+        monitor_printf(mon, "%s", serverAddr);
+        free(serverAddr);
+        monitor_printf(mon, "        auth: %s\n", vnc_auth_name(vnc_display));
+
+        if (vnc_display->clients) {
+            VncState *client = vnc_display->clients;
+            while (client) {
+                do_info_vnc_client(mon, client);
+                client = client->next;
+            }
+        } else {
+            monitor_printf(mon, "Client: none\n");
+        }
     }
 }
 
