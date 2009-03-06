@@ -1,5 +1,149 @@
-#ifndef __VNCTIGHT_H
-#define __VNCTIGHT_H
+/*
+ * QEMU VNC display driver
+ *
+ * Copyright (C) 2006 Anthony Liguori <anthony@codemonkey.ws>
+ * Copyright (C) 2006 Fabrice Bellard
+ * Copyright (C) 2009 Red Hat, Inc
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+#ifndef __QEMU_VNC_H
+#define __QEMU_VNC_H
+
+#include "qemu-common.h"
+#include "console.h"
+#include "monitor.h"
+#include "audio/audio.h"
+#include <zlib.h>
+
+#ifdef CONFIG_VNC_TLS
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
+#endif /* CONFIG_VNC_TLS */
+
+#include "keymaps.h"
+
+/*****************************************************************************
+ *
+ * Core data structures
+ *
+ *****************************************************************************/
+
+typedef struct Buffer
+{
+    size_t capacity;
+    size_t offset;
+    uint8_t *buffer;
+} Buffer;
+
+typedef struct VncState VncState;
+
+typedef int VncReadEvent(VncState *vs, uint8_t *data, size_t len);
+
+typedef void VncWritePixels(VncState *vs, void *data, int size);
+
+typedef void VncSendHextileTile(VncState *vs,
+                                int x, int y, int w, int h,
+                                void *last_bg,
+                                void *last_fg,
+                                int *has_bg, int *has_fg);
+
+#define VNC_MAX_WIDTH 2048
+#define VNC_MAX_HEIGHT 2048
+#define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
+
+#define VNC_AUTH_CHALLENGE_SIZE 16
+
+typedef struct VncDisplay VncDisplay;
+
+struct VncDisplay
+{
+    int lsock;
+    DisplayState *ds;
+    VncState *clients;
+    kbd_layout_t *kbd_layout;
+
+    char *display;
+    char *password;
+    int auth;
+#ifdef CONFIG_VNC_TLS
+    int subauth;
+    int x509verify;
+
+    char *x509cacert;
+    char *x509cacrl;
+    char *x509cert;
+    char *x509key;
+#endif
+};
+
+struct VncState
+{
+    QEMUTimer *timer;
+    int csock;
+    DisplayState *ds;
+    VncDisplay *vd;
+    int need_update;
+    uint32_t dirty_row[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    char *old_data;
+    uint32_t features;
+    int absolute;
+    int last_x;
+    int last_y;
+
+    uint32_t vnc_encoding;
+    uint8_t tight_quality;
+    uint8_t tight_compression;
+
+    int major;
+    int minor;
+
+    char challenge[VNC_AUTH_CHALLENGE_SIZE];
+
+#ifdef CONFIG_VNC_TLS
+    int wiremode;
+    gnutls_session_t tls_session;
+#endif
+
+    Buffer output;
+    Buffer input;
+    /* current output mode information */
+    VncWritePixels *write_pixels;
+    VncSendHextileTile *send_hextile_tile;
+    DisplaySurface clientds, serverds;
+
+    CaptureVoiceOut *audio_cap;
+    struct audsettings as;
+
+    VncReadEvent *read_handler;
+    size_t read_handler_expect;
+    /* input */
+    uint8_t modifiers_state[256];
+
+    Buffer zlib;
+    Buffer zlib_tmp;
+    z_stream zlib_stream[4];
+
+    VncState *next;
+};
+
 
 /*****************************************************************************
  *
@@ -111,4 +255,4 @@ enum {
 #define VNC_FEATURE_ZLIB_MASK                (1 << VNC_FEATURE_ZLIB)
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
 
-#endif /* __VNCTIGHT_H */
+#endif /* __QEMU_VNC_H */
