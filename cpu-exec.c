@@ -311,7 +311,7 @@ int cpu_exec(CPUState *env1)
                 env->exception_index = -1;
             }
 #ifdef USE_KQEMU
-            if (kqemu_is_ok(env) && env->interrupt_request == 0) {
+            if (kqemu_is_ok(env) && env->interrupt_request == 0 && env->exit_request == 0) {
                 int ret;
                 env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
                 ret = kqemu_cpu_exec(env);
@@ -326,7 +326,7 @@ int cpu_exec(CPUState *env1)
                 } else if (ret == 2) {
                     /* softmmu execution needed */
                 } else {
-                    if (env->interrupt_request != 0) {
+                    if (env->interrupt_request != 0 || env->exit_request != 0) {
                         /* hardware interrupt will be executed just after */
                     } else {
                         /* otherwise, we restart */
@@ -525,11 +525,11 @@ int cpu_exec(CPUState *env1)
                            the program flow was changed */
                         next_tb = 0;
                     }
-                    if (interrupt_request & CPU_INTERRUPT_EXIT) {
-                        env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
-                        env->exception_index = EXCP_INTERRUPT;
-                        cpu_loop_exit();
-                    }
+                }
+                if (unlikely(env->exit_request)) {
+                    env->exit_request = 0;
+                    env->exception_index = EXCP_INTERRUPT;
+                    cpu_loop_exit();
                 }
 #ifdef DEBUG_EXEC
                 if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
@@ -599,7 +599,7 @@ int cpu_exec(CPUState *env1)
                    TB, but before it is linked into a potentially
                    infinite loop and becomes env->current_tb. Avoid
                    starting execution if there is a pending interrupt. */
-                if (unlikely (env->interrupt_request & CPU_INTERRUPT_EXIT))
+                if (unlikely (env->exit_request))
                     env->current_tb = NULL;
 
                 while (env->current_tb) {
