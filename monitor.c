@@ -160,25 +160,25 @@ void monitor_print_filename(Monitor *mon, const char *filename)
     int i;
 
     for (i = 0; filename[i]; i++) {
-	switch (filename[i]) {
-	case ' ':
-	case '"':
-	case '\\':
-	    monitor_printf(mon, "\\%c", filename[i]);
-	    break;
-	case '\t':
-	    monitor_printf(mon, "\\t");
-	    break;
-	case '\r':
-	    monitor_printf(mon, "\\r");
-	    break;
-	case '\n':
-	    monitor_printf(mon, "\\n");
-	    break;
-	default:
-	    monitor_printf(mon, "%c", filename[i]);
-	    break;
-	}
+        switch (filename[i]) {
+        case ' ':
+        case '"':
+        case '\\':
+            monitor_printf(mon, "\\%c", filename[i]);
+            break;
+        case '\t':
+            monitor_printf(mon, "\\t");
+            break;
+        case '\r':
+            monitor_printf(mon, "\\r");
+            break;
+        case '\n':
+            monitor_printf(mon, "\\n");
+            break;
+        default:
+            monitor_printf(mon, "%c", filename[i]);
+            break;
+        }
     }
 }
 
@@ -474,17 +474,17 @@ static void change_vnc_password_cb(Monitor *mon, const char *password,
 static void do_change_vnc(Monitor *mon, const char *target, const char *arg)
 {
     if (strcmp(target, "passwd") == 0 ||
-	strcmp(target, "password") == 0) {
-	if (arg) {
+        strcmp(target, "password") == 0) {
+        if (arg) {
             char password[9];
-	    strncpy(password, arg, sizeof(password));
-	    password[sizeof(password) - 1] = '\0';
+            strncpy(password, arg, sizeof(password));
+            password[sizeof(password) - 1] = '\0';
             change_vnc_password_cb(mon, password, NULL);
         } else {
             monitor_read_password(mon, change_vnc_password_cb, NULL);
         }
     } else {
-	if (vnc_display_open(NULL, target) < 0)
+        if (vnc_display_open(NULL, target) < 0)
             monitor_printf(mon, "could not start VNC server on %s\n", target);
     }
 }
@@ -493,9 +493,9 @@ static void do_change(Monitor *mon, const char *device, const char *target,
                       const char *arg)
 {
     if (strcmp(device, "vnc") == 0) {
-	do_change_vnc(mon, target, arg);
+        do_change_vnc(mon, target, arg);
     } else {
-	do_change_block(mon, device, target, arg);
+        do_change_block(mon, device, target, arg);
     }
 }
 
@@ -1535,81 +1535,81 @@ static void do_info_balloon(Monitor *mon)
 
 static void do_acl(Monitor *mon,
                    const char *command,
-		   const char *aclname,
-		   const char *match,
-		   int has_index,
-		   int index)
+                   const char *aclname,
+                   const char *match,
+                   int has_index,
+                   int index)
 {
     qemu_acl *acl;
 
     acl = qemu_acl_find(aclname);
     if (!acl) {
-	monitor_printf(mon, "acl: unknown list '%s'\n", aclname);
-	return;
+        monitor_printf(mon, "acl: unknown list '%s'\n", aclname);
+        return;
     }
 
     if (strcmp(command, "show") == 0) {
-	int i = 0;
-	qemu_acl_entry *entry;
-	monitor_printf(mon, "policy: %s\n",
+        int i = 0;
+        qemu_acl_entry *entry;
+        monitor_printf(mon, "policy: %s\n",
                        acl->defaultDeny ? "deny" : "allow");
-	TAILQ_FOREACH(entry, &acl->entries, next) {
-	    i++;
-	    monitor_printf(mon, "%d: %s %s\n", i,
+        TAILQ_FOREACH(entry, &acl->entries, next) {
+            i++;
+            monitor_printf(mon, "%d: %s %s\n", i,
                            entry->deny ? "deny" : "allow",
                            entry->match);
-	}
+        }
     } else if (strcmp(command, "reset") == 0) {
-	qemu_acl_reset(acl);
-	monitor_printf(mon, "acl: removed all rules\n");
+        qemu_acl_reset(acl);
+        monitor_printf(mon, "acl: removed all rules\n");
     } else if (strcmp(command, "policy") == 0) {
-	if (!match) {
-	    monitor_printf(mon, "acl: missing policy parameter\n");
-	    return;
-	}
+        if (!match) {
+            monitor_printf(mon, "acl: missing policy parameter\n");
+            return;
+        }
 
-	if (strcmp(match, "allow") == 0) {
-	    acl->defaultDeny = 0;
-	    monitor_printf(mon, "acl: policy set to 'allow'\n");
-	} else if (strcmp(match, "deny") == 0) {
-	    acl->defaultDeny = 1;
-	    monitor_printf(mon, "acl: policy set to 'deny'\n");
-	} else {
-	    monitor_printf(mon, "acl: unknown policy '%s', expected 'deny' or 'allow'\n", match);
-	}
+        if (strcmp(match, "allow") == 0) {
+            acl->defaultDeny = 0;
+            monitor_printf(mon, "acl: policy set to 'allow'\n");
+        } else if (strcmp(match, "deny") == 0) {
+            acl->defaultDeny = 1;
+            monitor_printf(mon, "acl: policy set to 'deny'\n");
+        } else {
+            monitor_printf(mon, "acl: unknown policy '%s', expected 'deny' or 'allow'\n", match);
+        }
     } else if ((strcmp(command, "allow") == 0) ||
-	       (strcmp(command, "deny") == 0)) {
-	int deny = strcmp(command, "deny") == 0 ? 1 : 0;
-	int ret;
+               (strcmp(command, "deny") == 0)) {
+        int deny = strcmp(command, "deny") == 0 ? 1 : 0;
+        int ret;
 
-	if (!match) {
-	    monitor_printf(mon, "acl: missing match parameter\n");
-	    return;
-	}
+        if (!match) {
+            monitor_printf(mon, "acl: missing match parameter\n");
+            return;
+        }
 
-	if (has_index)
-	    ret = qemu_acl_insert(acl, deny, match, index);
-	else
-	    ret = qemu_acl_append(acl, deny, match);
-	if (ret < 0)
-	    monitor_printf(mon, "acl: unable to add acl entry\n");
-	else
-	    monitor_printf(mon, "acl: added rule at position %d\n", ret);
+        if (has_index)
+            ret = qemu_acl_insert(acl, deny, match, index);
+        else
+            ret = qemu_acl_append(acl, deny, match);
+        if (ret < 0)
+            monitor_printf(mon, "acl: unable to add acl entry\n");
+        else
+            monitor_printf(mon, "acl: added rule at position %d\n", ret);
     } else if (strcmp(command, "remove") == 0) {
-	int ret;
+        int ret;
 
-	if (!match) {
-	    monitor_printf(mon, "acl: missing match parameter\n");
-	    return;
-	}
+        if (!match) {
+            monitor_printf(mon, "acl: missing match parameter\n");
+            return;
+        }
 
-	ret = qemu_acl_remove(acl, match);
-	if (ret < 0)
-	    monitor_printf(mon, "acl: no matching acl entry\n");
-	else
-	    monitor_printf(mon, "acl: removed rule at position %d\n", ret);
+        ret = qemu_acl_remove(acl, match);
+        if (ret < 0)
+            monitor_printf(mon, "acl: no matching acl entry\n");
+        else
+            monitor_printf(mon, "acl: removed rule at position %d\n", ret);
     } else {
-	monitor_printf(mon, "acl: unknown command '%s'\n", command);
+        monitor_printf(mon, "acl: unknown command '%s'\n", command);
     }
 }
 
@@ -1839,7 +1839,7 @@ static target_long monitor_get_ccr (const struct MonitorDef *md, int val)
 
     u = 0;
     for (i = 0; i < 8; i++)
-	u |= env->crf[i] << (32 - (4 * i));
+        u |= env->crf[i] << (32 - (4 * i));
 
     return u;
 }

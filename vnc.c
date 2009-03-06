@@ -128,10 +128,10 @@ static const char *vnc_auth_name(VncDisplay *vd) {
             return "vencrypt+x509+vnc";
         case VNC_AUTH_VENCRYPT_X509PLAIN:
             return "vencrypt+x509+plain";
-	case VNC_AUTH_VENCRYPT_TLSSASL:
-	    return "vencrypt+tls+sasl";
-	case VNC_AUTH_VENCRYPT_X509SASL:
-	    return "vencrypt+x509+sasl";
+        case VNC_AUTH_VENCRYPT_TLSSASL:
+            return "vencrypt+tls+sasl";
+        case VNC_AUTH_VENCRYPT_X509SASL:
+            return "vencrypt+x509+sasl";
         default:
             return "vencrypt";
         }
@@ -139,7 +139,7 @@ static const char *vnc_auth_name(VncDisplay *vd) {
         return "vencrypt";
 #endif
     case VNC_AUTH_SASL:
-	return "sasl";
+        return "sasl";
     }
     return "unknown";
 }
@@ -160,17 +160,17 @@ static void do_info_vnc_client(Monitor *mon, VncState *client)
 
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session &&
-	client->tls.dname)
-	monitor_printf(mon, "  x509 dname: %s\n", client->tls.dname);
+        client->tls.dname)
+        monitor_printf(mon, "  x509 dname: %s\n", client->tls.dname);
     else
-	monitor_printf(mon, "  x509 dname: none\n");
+        monitor_printf(mon, "  x509 dname: none\n");
 #endif
 #ifdef CONFIG_VNC_SASL
     if (client->sasl.conn &&
-	client->sasl.username)
-	monitor_printf(mon, "    username: %s\n", client->sasl.username);
+        client->sasl.username)
+        monitor_printf(mon, "    username: %s\n", client->sasl.username);
     else
-	monitor_printf(mon, "    username: none\n");
+        monitor_printf(mon, "    username: none\n");
 #endif
 }
 
@@ -277,8 +277,8 @@ static void vnc_update(VncState *vs, int x, int y, int w, int h)
     h = MIN(h, vs->serverds.height);
 
     for (; y < h; y++)
-	for (i = 0; i < w; i += 16)
-	    vnc_set_bit(vs->dirty_row[y], (x + i) / 16);
+        for (i = 0; i < w; i += 16)
+            vnc_set_bit(vs->dirty_row[y], (x + i) / 16);
 }
 
 static void vnc_dpy_update(DisplayState *ds, int x, int y, int w, int h)
@@ -292,7 +292,7 @@ static void vnc_dpy_update(DisplayState *ds, int x, int y, int w, int h)
 }
 
 static void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
-				   int32_t encoding)
+                                   int32_t encoding)
 {
     vnc_write_u16(vs, x);
     vnc_write_u16(vs, y);
@@ -305,12 +305,12 @@ static void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 void buffer_reserve(Buffer *buffer, size_t len)
 {
     if ((buffer->capacity - buffer->offset) < len) {
-	buffer->capacity += (len + 1024);
-	buffer->buffer = qemu_realloc(buffer->buffer, buffer->capacity);
-	if (buffer->buffer == NULL) {
-	    fprintf(stderr, "vnc: out of memory\n");
-	    exit(1);
-	}
+        buffer->capacity += (len + 1024);
+        buffer->buffer = qemu_realloc(buffer->buffer, buffer->capacity);
+        if (buffer->buffer == NULL) {
+            fprintf(stderr, "vnc: out of memory\n");
+            exit(1);
+        }
     }
 }
 
@@ -326,7 +326,7 @@ uint8_t *buffer_end(Buffer *buffer)
 
 void buffer_reset(Buffer *buffer)
 {
-	buffer->offset = 0;
+        buffer->offset = 0;
 }
 
 void buffer_append(Buffer *buffer, const void *data, size_t len)
@@ -344,8 +344,8 @@ static void vnc_resize(VncState *vs)
     vs->old_data = qemu_realloc(vs->old_data, ds_get_linesize(ds) * ds_get_height(ds));
 
     if (vs->old_data == NULL) {
-	fprintf(stderr, "vnc: memory allocation failed\n");
-	exit(1);
+        fprintf(stderr, "vnc: memory allocation failed\n");
+        exit(1);
     }
 
     if (ds_get_bytes_per_pixel(ds) != vs->serverds.pf.bytes_per_pixel)
@@ -469,8 +469,8 @@ static void send_framebuffer_update_raw(VncState *vs, int x, int y, int w, int h
 
     row = ds_get_data(vs->ds) + y * ds_get_linesize(vs->ds) + x * ds_get_bytes_per_pixel(vs->ds);
     for (i = 0; i < h; i++) {
-	vs->write_pixels(vs, row, w * ds_get_bytes_per_pixel(vs->ds));
-	row += ds_get_linesize(vs->ds);
+        vs->write_pixels(vs, row, w * ds_get_bytes_per_pixel(vs->ds));
+        row += ds_get_linesize(vs->ds);
     }
 }
 
@@ -520,11 +520,11 @@ static void send_framebuffer_update_hextile(VncState *vs, int x, int y, int w, i
     last_bg = (uint8_t *) qemu_malloc(vs->serverds.pf.bytes_per_pixel);
     has_fg = has_bg = 0;
     for (j = y; j < (y + h); j += 16) {
-	for (i = x; i < (x + w); i += 16) {
+        for (i = x; i < (x + w); i += 16) {
             vs->send_hextile_tile(vs, i, j,
                                   MIN(16, x + w - i), MIN(16, y + h - j),
                                   last_bg, last_fg, &has_bg, &has_fg);
-	}
+        }
     }
     free(last_fg);
     free(last_bg);
@@ -630,17 +630,17 @@ static void send_framebuffer_update_zlib(VncState *vs, int x, int y, int w, int 
 static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 {
     switch(vs->vnc_encoding) {
-	case VNC_ENCODING_ZLIB:
-	    send_framebuffer_update_zlib(vs, x, y, w, h);
-	    break;
-	case VNC_ENCODING_HEXTILE:
-	    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
-	    send_framebuffer_update_hextile(vs, x, y, w, h);
-	    break;
-	default:
-	    vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
-	    send_framebuffer_update_raw(vs, x, y, w, h);
-	    break;
+        case VNC_ENCODING_ZLIB:
+            send_framebuffer_update_zlib(vs, x, y, w, h);
+            break;
+        case VNC_ENCODING_HEXTILE:
+            vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_HEXTILE);
+            send_framebuffer_update_hextile(vs, x, y, w, h);
+            break;
+        default:
+            vnc_framebuffer_update(vs, x, y, w, h, VNC_ENCODING_RAW);
+            send_framebuffer_update_raw(vs, x, y, w, h);
+            break;
     }
 }
 
@@ -675,11 +675,11 @@ static int find_dirty_height(VncState *vs, int y, int last_x, int x)
     int h;
 
     for (h = 1; h < (vs->serverds.height - y); h++) {
-	int tmp_x;
-	if (!vnc_get_bit(vs->dirty_row[y + h], last_x))
-	    break;
-	for (tmp_x = last_x; tmp_x < x; tmp_x++)
-	    vnc_clear_bit(vs->dirty_row[y + h], tmp_x);
+        int tmp_x;
+        if (!vnc_get_bit(vs->dirty_row[y + h], last_x))
+            break;
+        for (tmp_x = last_x; tmp_x < x; tmp_x++)
+            vnc_clear_bit(vs->dirty_row[y + h], tmp_x);
     }
 
     return h;
@@ -689,88 +689,88 @@ static void vnc_update_client(void *opaque)
 {
     VncState *vs = opaque;
     if (vs->need_update && vs->csock != -1) {
-	int y;
-	uint8_t *row;
-	char *old_row;
-	uint32_t width_mask[VNC_DIRTY_WORDS];
-	int n_rectangles;
-	int saved_offset;
-	int has_dirty = 0;
+        int y;
+        uint8_t *row;
+        char *old_row;
+        uint32_t width_mask[VNC_DIRTY_WORDS];
+        int n_rectangles;
+        int saved_offset;
+        int has_dirty = 0;
 
         vga_hw_update();
 
         vnc_set_bits(width_mask, (ds_get_width(vs->ds) / 16), VNC_DIRTY_WORDS);
 
-	/* Walk through the dirty map and eliminate tiles that
-	   really aren't dirty */
-	row = ds_get_data(vs->ds);
-	old_row = vs->old_data;
+        /* Walk through the dirty map and eliminate tiles that
+           really aren't dirty */
+        row = ds_get_data(vs->ds);
+        old_row = vs->old_data;
 
-	for (y = 0; y < ds_get_height(vs->ds); y++) {
-	    if (vnc_and_bits(vs->dirty_row[y], width_mask, VNC_DIRTY_WORDS)) {
-		int x;
-		uint8_t *ptr;
-		char *old_ptr;
+        for (y = 0; y < ds_get_height(vs->ds); y++) {
+            if (vnc_and_bits(vs->dirty_row[y], width_mask, VNC_DIRTY_WORDS)) {
+                int x;
+                uint8_t *ptr;
+                char *old_ptr;
 
-		ptr = row;
-		old_ptr = (char*)old_row;
+                ptr = row;
+                old_ptr = (char*)old_row;
 
-		for (x = 0; x < ds_get_width(vs->ds); x += 16) {
-		    if (memcmp(old_ptr, ptr, 16 * ds_get_bytes_per_pixel(vs->ds)) == 0) {
-			vnc_clear_bit(vs->dirty_row[y], (x / 16));
-		    } else {
-			has_dirty = 1;
-			memcpy(old_ptr, ptr, 16 * ds_get_bytes_per_pixel(vs->ds));
-		    }
+                for (x = 0; x < ds_get_width(vs->ds); x += 16) {
+                    if (memcmp(old_ptr, ptr, 16 * ds_get_bytes_per_pixel(vs->ds)) == 0) {
+                        vnc_clear_bit(vs->dirty_row[y], (x / 16));
+                    } else {
+                        has_dirty = 1;
+                        memcpy(old_ptr, ptr, 16 * ds_get_bytes_per_pixel(vs->ds));
+                    }
 
-		    ptr += 16 * ds_get_bytes_per_pixel(vs->ds);
-		    old_ptr += 16 * ds_get_bytes_per_pixel(vs->ds);
-		}
-	    }
+                    ptr += 16 * ds_get_bytes_per_pixel(vs->ds);
+                    old_ptr += 16 * ds_get_bytes_per_pixel(vs->ds);
+                }
+            }
 
-	    row += ds_get_linesize(vs->ds);
-	    old_row += ds_get_linesize(vs->ds);
-	}
+            row += ds_get_linesize(vs->ds);
+            old_row += ds_get_linesize(vs->ds);
+        }
 
-	if (!has_dirty && !vs->audio_cap) {
-	    qemu_mod_timer(vs->timer, qemu_get_clock(rt_clock) + VNC_REFRESH_INTERVAL);
-	    return;
-	}
+        if (!has_dirty && !vs->audio_cap) {
+            qemu_mod_timer(vs->timer, qemu_get_clock(rt_clock) + VNC_REFRESH_INTERVAL);
+            return;
+        }
 
-	/* Count rectangles */
-	n_rectangles = 0;
-	vnc_write_u8(vs, 0);  /* msg id */
-	vnc_write_u8(vs, 0);
-	saved_offset = vs->output.offset;
-	vnc_write_u16(vs, 0);
+        /* Count rectangles */
+        n_rectangles = 0;
+        vnc_write_u8(vs, 0);  /* msg id */
+        vnc_write_u8(vs, 0);
+        saved_offset = vs->output.offset;
+        vnc_write_u16(vs, 0);
 
-	for (y = 0; y < vs->serverds.height; y++) {
-	    int x;
-	    int last_x = -1;
-	    for (x = 0; x < vs->serverds.width / 16; x++) {
-		if (vnc_get_bit(vs->dirty_row[y], x)) {
-		    if (last_x == -1) {
-			last_x = x;
-		    }
-		    vnc_clear_bit(vs->dirty_row[y], x);
-		} else {
-		    if (last_x != -1) {
-			int h = find_dirty_height(vs, y, last_x, x);
-			send_framebuffer_update(vs, last_x * 16, y, (x - last_x) * 16, h);
-			n_rectangles++;
-		    }
-		    last_x = -1;
-		}
-	    }
-	    if (last_x != -1) {
-		int h = find_dirty_height(vs, y, last_x, x);
-		send_framebuffer_update(vs, last_x * 16, y, (x - last_x) * 16, h);
-		n_rectangles++;
-	    }
-	}
-	vs->output.buffer[saved_offset] = (n_rectangles >> 8) & 0xFF;
-	vs->output.buffer[saved_offset + 1] = n_rectangles & 0xFF;
-	vnc_flush(vs);
+        for (y = 0; y < vs->serverds.height; y++) {
+            int x;
+            int last_x = -1;
+            for (x = 0; x < vs->serverds.width / 16; x++) {
+                if (vnc_get_bit(vs->dirty_row[y], x)) {
+                    if (last_x == -1) {
+                        last_x = x;
+                    }
+                    vnc_clear_bit(vs->dirty_row[y], x);
+                } else {
+                    if (last_x != -1) {
+                        int h = find_dirty_height(vs, y, last_x, x);
+                        send_framebuffer_update(vs, last_x * 16, y, (x - last_x) * 16, h);
+                        n_rectangles++;
+                    }
+                    last_x = -1;
+                }
+            }
+            if (last_x != -1) {
+                int h = find_dirty_height(vs, y, last_x, x);
+                send_framebuffer_update(vs, last_x * 16, y, (x - last_x) * 16, h);
+                n_rectangles++;
+            }
+        }
+        vs->output.buffer[saved_offset] = (n_rectangles >> 8) & 0xFF;
+        vs->output.buffer[saved_offset + 1] = n_rectangles & 0xFF;
+        vnc_flush(vs);
 
     }
 
@@ -863,15 +863,15 @@ int vnc_client_io_error(VncState *vs, int ret, int last_errno)
             }
         }
 
-	VNC_DEBUG("Closing down client sock %d %d\n", ret, ret < 0 ? last_errno : 0);
-	qemu_set_fd_handler2(vs->csock, NULL, NULL, NULL, NULL);
-	closesocket(vs->csock);
+        VNC_DEBUG("Closing down client sock %d %d\n", ret, ret < 0 ? last_errno : 0);
+        qemu_set_fd_handler2(vs->csock, NULL, NULL, NULL, NULL);
+        closesocket(vs->csock);
         qemu_del_timer(vs->timer);
         qemu_free_timer(vs->timer);
         if (vs->input.buffer) qemu_free(vs->input.buffer);
         if (vs->output.buffer) qemu_free(vs->output.buffer);
 #ifdef CONFIG_VNC_TLS
-	vnc_tls_client_cleanup(vs);
+        vnc_tls_client_cleanup(vs);
 #endif /* CONFIG_VNC_TLS */
 #ifdef CONFIG_VNC_SASL
         vnc_sasl_client_cleanup(vs);
@@ -895,7 +895,7 @@ int vnc_client_io_error(VncState *vs, int ret, int last_errno)
         qemu_free(vs->old_data);
         qemu_free(vs);
   
-	return 0;
+        return 0;
     }
     return ret;
 }
@@ -927,17 +927,17 @@ long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
     long ret;
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
-	ret = gnutls_write(vs->tls.session, data, datalen);
-	if (ret < 0) {
-	    if (ret == GNUTLS_E_AGAIN)
-		errno = EAGAIN;
-	    else
-		errno = EIO;
-	    ret = -1;
-	}
+        ret = gnutls_write(vs->tls.session, data, datalen);
+        if (ret < 0) {
+            if (ret == GNUTLS_E_AGAIN)
+                errno = EAGAIN;
+            else
+                errno = EIO;
+            ret = -1;
+        }
     } else
 #endif /* CONFIG_VNC_TLS */
-	ret = send(vs->csock, data, datalen, 0);
+        ret = send(vs->csock, data, datalen, 0);
     VNC_DEBUG("Wrote wire %p %d -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }
@@ -978,7 +978,7 @@ static long vnc_client_write_plain(VncState *vs)
     vs->output.offset -= ret;
 
     if (vs->output.offset == 0) {
-	qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
+        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, NULL, vs);
     }
 
     return ret;
@@ -1032,17 +1032,17 @@ long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
     long ret;
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
-	ret = gnutls_read(vs->tls.session, data, datalen);
-	if (ret < 0) {
-	    if (ret == GNUTLS_E_AGAIN)
-		errno = EAGAIN;
-	    else
-		errno = EIO;
-	    ret = -1;
-	}
+        ret = gnutls_read(vs->tls.session, data, datalen);
+        if (ret < 0) {
+            if (ret == GNUTLS_E_AGAIN)
+                errno = EAGAIN;
+            else
+                errno = EIO;
+            ret = -1;
+        }
     } else
 #endif /* CONFIG_VNC_TLS */
-	ret = recv(vs->csock, data, datalen, 0);
+        ret = recv(vs->csock, data, datalen, 0);
     VNC_DEBUG("Read wire %p %d -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }
@@ -1087,22 +1087,22 @@ void vnc_client_read(void *opaque)
 #endif /* CONFIG_VNC_SASL */
         ret = vnc_client_read_plain(vs);
     if (!ret)
-	return;
+        return;
 
     while (vs->read_handler && vs->input.offset >= vs->read_handler_expect) {
-	size_t len = vs->read_handler_expect;
-	int ret;
+        size_t len = vs->read_handler_expect;
+        int ret;
 
-	ret = vs->read_handler(vs, vs->input.buffer, len);
-	if (vs->csock == -1)
-	    return;
+        ret = vs->read_handler(vs, vs->input.buffer, len);
+        if (vs->csock == -1)
+            return;
 
-	if (!ret) {
-	    memmove(vs->input.buffer, vs->input.buffer + len, (vs->input.offset - len));
-	    vs->input.offset -= len;
-	} else {
-	    vs->read_handler_expect = ret;
-	}
+        if (!ret) {
+            memmove(vs->input.buffer, vs->input.buffer + len, (vs->input.offset - len));
+            vs->input.offset -= len;
+        } else {
+            vs->read_handler_expect = ret;
+        }
     }
 }
 
@@ -1111,7 +1111,7 @@ void vnc_write(VncState *vs, const void *data, size_t len)
     buffer_reserve(&vs->output, len);
 
     if (buffer_empty(&vs->output)) {
-	qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, vnc_client_write, vs);
+        qemu_set_fd_handler2(vs->csock, NULL, vnc_client_read, vnc_client_write, vs);
     }
 
     buffer_append(&vs->output, data, len);
@@ -1152,7 +1152,7 @@ void vnc_write_u8(VncState *vs, uint8_t value)
 void vnc_flush(VncState *vs)
 {
     if (vs->output.offset)
-	vnc_client_write(vs);
+        vnc_client_write(vs);
 }
 
 uint8_t read_u8(uint8_t *data, size_t offset)
@@ -1168,13 +1168,13 @@ uint16_t read_u16(uint8_t *data, size_t offset)
 int32_t read_s32(uint8_t *data, size_t offset)
 {
     return (int32_t)((data[offset] << 24) | (data[offset + 1] << 16) |
-		     (data[offset + 2] << 8) | data[offset + 3]);
+                     (data[offset + 2] << 8) | data[offset + 3]);
 }
 
 uint32_t read_u32(uint8_t *data, size_t offset)
 {
     return ((data[offset] << 24) | (data[offset + 1] << 16) |
-	    (data[offset + 2] << 8) | data[offset + 3]);
+            (data[offset + 2] << 8) | data[offset + 3]);
 }
 
 static void client_cut_text(VncState *vs, size_t len, uint8_t *text)
@@ -1184,13 +1184,13 @@ static void client_cut_text(VncState *vs, size_t len, uint8_t *text)
 static void check_pointer_type_change(VncState *vs, int absolute)
 {
     if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE) && vs->absolute != absolute) {
-	vnc_write_u8(vs, 0);
-	vnc_write_u8(vs, 0);
-	vnc_write_u16(vs, 1);
-	vnc_framebuffer_update(vs, absolute, 0,
-			       ds_get_width(vs->ds), ds_get_height(vs->ds),
+        vnc_write_u8(vs, 0);
+        vnc_write_u8(vs, 0);
+        vnc_write_u16(vs, 1);
+        vnc_framebuffer_update(vs, absolute, 0,
+                               ds_get_width(vs->ds), ds_get_height(vs->ds),
                                VNC_ENCODING_POINTER_TYPE_CHANGE);
-	vnc_flush(vs);
+        vnc_flush(vs);
     }
     vs->absolute = absolute;
 }
@@ -1201,32 +1201,32 @@ static void pointer_event(VncState *vs, int button_mask, int x, int y)
     int dz = 0;
 
     if (button_mask & 0x01)
-	buttons |= MOUSE_EVENT_LBUTTON;
+        buttons |= MOUSE_EVENT_LBUTTON;
     if (button_mask & 0x02)
-	buttons |= MOUSE_EVENT_MBUTTON;
+        buttons |= MOUSE_EVENT_MBUTTON;
     if (button_mask & 0x04)
-	buttons |= MOUSE_EVENT_RBUTTON;
+        buttons |= MOUSE_EVENT_RBUTTON;
     if (button_mask & 0x08)
-	dz = -1;
+        dz = -1;
     if (button_mask & 0x10)
-	dz = 1;
+        dz = 1;
 
     if (vs->absolute) {
-	kbd_mouse_event(x * 0x7FFF / (ds_get_width(vs->ds) - 1),
-			y * 0x7FFF / (ds_get_height(vs->ds) - 1),
-			dz, buttons);
+        kbd_mouse_event(x * 0x7FFF / (ds_get_width(vs->ds) - 1),
+                        y * 0x7FFF / (ds_get_height(vs->ds) - 1),
+                        dz, buttons);
     } else if (vnc_has_feature(vs, VNC_FEATURE_POINTER_TYPE_CHANGE)) {
-	x -= 0x7FFF;
-	y -= 0x7FFF;
+        x -= 0x7FFF;
+        y -= 0x7FFF;
 
-	kbd_mouse_event(x, y, dz, buttons);
+        kbd_mouse_event(x, y, dz, buttons);
     } else {
-	if (vs->last_x != -1)
-	    kbd_mouse_event(x - vs->last_x,
-			    y - vs->last_y,
-			    dz, buttons);
-	vs->last_x = x;
-	vs->last_y = y;
+        if (vs->last_x != -1)
+            kbd_mouse_event(x - vs->last_x,
+                            y - vs->last_y,
+                            dz, buttons);
+        vs->last_x = x;
+        vs->last_y = y;
     }
 
     check_pointer_type_change(vs, kbd_mouse_is_absolute());
@@ -1274,8 +1274,8 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
             return;
         }
         break;
-    case 0x3a:			/* CapsLock */
-    case 0x45:			/* NumLock */
+    case 0x3a:                        /* CapsLock */
+    case 0x45:                        /* NumLock */
         if (!down)
             vs->modifiers_state[keycode] ^= 1;
         break;
@@ -1357,7 +1357,7 @@ static void key_event(VncState *vs, int down, uint32_t sym)
     int keycode;
 
     if (sym >= 'A' && sym <= 'Z' && is_graphic_console())
-	sym = sym - 'A' + 'a';
+        sym = sym - 'A' + 'a';
 
     keycode = keysym2scancode(vs->vd->kbd_layout, sym & 0xFFFF);
     do_key_event(vs, down, keycode, sym);
@@ -1374,8 +1374,8 @@ static void ext_key_event(VncState *vs, int down,
 }
 
 static void framebuffer_update_request(VncState *vs, int incremental,
-				       int x_position, int y_position,
-				       int w, int h)
+                                       int x_position, int y_position,
+                                       int w, int h)
 {
     if (x_position > ds_get_width(vs->ds))
         x_position = ds_get_width(vs->ds);
@@ -1389,14 +1389,14 @@ static void framebuffer_update_request(VncState *vs, int incremental,
     int i;
     vs->need_update = 1;
     if (!incremental) {
-	char *old_row = vs->old_data + y_position * ds_get_linesize(vs->ds);
+        char *old_row = vs->old_data + y_position * ds_get_linesize(vs->ds);
 
-	for (i = 0; i < h; i++) {
+        for (i = 0; i < h; i++) {
             vnc_set_bits(vs->dirty_row[y_position + i],
                          (ds_get_width(vs->ds) / 16), VNC_DIRTY_WORDS);
-	    memset(old_row, 42, ds_get_width(vs->ds) * ds_get_bytes_per_pixel(vs->ds));
-	    old_row += ds_get_linesize(vs->ds);
-	}
+            memset(old_row, 42, ds_get_width(vs->ds) * ds_get_bytes_per_pixel(vs->ds));
+            old_row += ds_get_linesize(vs->ds);
+        }
     }
 }
 
@@ -1513,13 +1513,13 @@ static void set_pixel_conversion(VncState *vs)
 }
 
 static void set_pixel_format(VncState *vs,
-			     int bits_per_pixel, int depth,
-			     int big_endian_flag, int true_color_flag,
-			     int red_max, int green_max, int blue_max,
-			     int red_shift, int green_shift, int blue_shift)
+                             int bits_per_pixel, int depth,
+                             int big_endian_flag, int true_color_flag,
+                             int red_max, int green_max, int blue_max,
+                             int red_shift, int green_shift, int blue_shift)
 {
     if (!true_color_flag) {
-	vnc_client_error(vs);
+        vnc_client_error(vs);
         return;
     }
 
@@ -1606,65 +1606,65 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
     switch (data[0]) {
     case 0:
-	if (len == 1)
-	    return 20;
+        if (len == 1)
+            return 20;
 
-	set_pixel_format(vs, read_u8(data, 4), read_u8(data, 5),
-			 read_u8(data, 6), read_u8(data, 7),
-			 read_u16(data, 8), read_u16(data, 10),
-			 read_u16(data, 12), read_u8(data, 14),
-			 read_u8(data, 15), read_u8(data, 16));
-	break;
+        set_pixel_format(vs, read_u8(data, 4), read_u8(data, 5),
+                         read_u8(data, 6), read_u8(data, 7),
+                         read_u16(data, 8), read_u16(data, 10),
+                         read_u16(data, 12), read_u8(data, 14),
+                         read_u8(data, 15), read_u8(data, 16));
+        break;
     case 2:
-	if (len == 1)
-	    return 4;
+        if (len == 1)
+            return 4;
 
-	if (len == 4) {
+        if (len == 4) {
             limit = read_u16(data, 2);
             if (limit > 0)
                 return 4 + (limit * 4);
         } else
             limit = read_u16(data, 2);
 
-	for (i = 0; i < limit; i++) {
-	    int32_t val = read_s32(data, 4 + (i * 4));
-	    memcpy(data + 4 + (i * 4), &val, sizeof(val));
-	}
+        for (i = 0; i < limit; i++) {
+            int32_t val = read_s32(data, 4 + (i * 4));
+            memcpy(data + 4 + (i * 4), &val, sizeof(val));
+        }
 
-	set_encodings(vs, (int32_t *)(data + 4), limit);
-	break;
+        set_encodings(vs, (int32_t *)(data + 4), limit);
+        break;
     case 3:
-	if (len == 1)
-	    return 10;
+        if (len == 1)
+            return 10;
 
-	framebuffer_update_request(vs,
-				   read_u8(data, 1), read_u16(data, 2), read_u16(data, 4),
-				   read_u16(data, 6), read_u16(data, 8));
-	break;
+        framebuffer_update_request(vs,
+                                   read_u8(data, 1), read_u16(data, 2), read_u16(data, 4),
+                                   read_u16(data, 6), read_u16(data, 8));
+        break;
     case 4:
-	if (len == 1)
-	    return 8;
+        if (len == 1)
+            return 8;
 
-	key_event(vs, read_u8(data, 1), read_u32(data, 4));
-	break;
+        key_event(vs, read_u8(data, 1), read_u32(data, 4));
+        break;
     case 5:
-	if (len == 1)
-	    return 6;
+        if (len == 1)
+            return 6;
 
-	pointer_event(vs, read_u8(data, 1), read_u16(data, 2), read_u16(data, 4));
-	break;
+        pointer_event(vs, read_u8(data, 1), read_u16(data, 2), read_u16(data, 4));
+        break;
     case 6:
-	if (len == 1)
-	    return 8;
+        if (len == 1)
+            return 8;
 
-	if (len == 8) {
+        if (len == 8) {
             uint32_t dlen = read_u32(data, 4);
             if (dlen > 0)
                 return 8 + dlen;
         }
 
-	client_cut_text(vs, read_u32(data, 4), data + 8);
-	break;
+        client_cut_text(vs, read_u32(data, 4), data + 8);
+        break;
     case 255:
         if (len == 1)
             return 2;
@@ -1726,9 +1726,9 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         }
         break;
     default:
-	printf("Msg: %d\n", data[0]);
-	vnc_client_error(vs);
-	break;
+        printf("Msg: %d\n", data[0]);
+        vnc_client_error(vs);
+        break;
     }
 
     vnc_read_when(vs, protocol_client_msg, 1);
@@ -1781,16 +1781,16 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
     unsigned char key[8];
 
     if (!vs->vd->password || !vs->vd->password[0]) {
-	VNC_DEBUG("No password configured on server");
-	vnc_write_u32(vs, 1); /* Reject auth */
-	if (vs->minor >= 8) {
-	    static const char err[] = "Authentication failed";
-	    vnc_write_u32(vs, sizeof(err));
-	    vnc_write(vs, err, sizeof(err));
-	}
-	vnc_flush(vs);
-	vnc_client_error(vs);
-	return 0;
+        VNC_DEBUG("No password configured on server");
+        vnc_write_u32(vs, 1); /* Reject auth */
+        if (vs->minor >= 8) {
+            static const char err[] = "Authentication failed";
+            vnc_write_u32(vs, sizeof(err));
+            vnc_write(vs, err, sizeof(err));
+        }
+        vnc_flush(vs);
+        vnc_client_error(vs);
+        return 0;
     }
 
     memcpy(response, vs->challenge, VNC_AUTH_CHALLENGE_SIZE);
@@ -1805,19 +1805,19 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
 
     /* Compare expected vs actual challenge response */
     if (memcmp(response, data, VNC_AUTH_CHALLENGE_SIZE) != 0) {
-	VNC_DEBUG("Client challenge reponse did not match\n");
-	vnc_write_u32(vs, 1); /* Reject auth */
-	if (vs->minor >= 8) {
-	    static const char err[] = "Authentication failed";
-	    vnc_write_u32(vs, sizeof(err));
-	    vnc_write(vs, err, sizeof(err));
-	}
-	vnc_flush(vs);
-	vnc_client_error(vs);
+        VNC_DEBUG("Client challenge reponse did not match\n");
+        vnc_write_u32(vs, 1); /* Reject auth */
+        if (vs->minor >= 8) {
+            static const char err[] = "Authentication failed";
+            vnc_write_u32(vs, sizeof(err));
+            vnc_write(vs, err, sizeof(err));
+        }
+        vnc_flush(vs);
+        vnc_client_error(vs);
     } else {
-	VNC_DEBUG("Accepting VNC challenge response\n");
-	vnc_write_u32(vs, 0); /* Accept auth */
-	vnc_flush(vs);
+        VNC_DEBUG("Accepting VNC challenge response\n");
+        vnc_write_u32(vs, 0); /* Accept auth */
+        vnc_flush(vs);
 
         start_client_init(vs);
     }
@@ -1901,35 +1901,35 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
     local[12] = 0;
 
     if (sscanf(local, "RFB %03d.%03d\n", &vs->major, &vs->minor) != 2) {
-	VNC_DEBUG("Malformed protocol version %s\n", local);
-	vnc_client_error(vs);
-	return 0;
+        VNC_DEBUG("Malformed protocol version %s\n", local);
+        vnc_client_error(vs);
+        return 0;
     }
     VNC_DEBUG("Client request protocol version %d.%d\n", vs->major, vs->minor);
     if (vs->major != 3 ||
-	(vs->minor != 3 &&
-	 vs->minor != 4 &&
-	 vs->minor != 5 &&
-	 vs->minor != 7 &&
-	 vs->minor != 8)) {
-	VNC_DEBUG("Unsupported client version\n");
-	vnc_write_u32(vs, VNC_AUTH_INVALID);
-	vnc_flush(vs);
-	vnc_client_error(vs);
-	return 0;
+        (vs->minor != 3 &&
+         vs->minor != 4 &&
+         vs->minor != 5 &&
+         vs->minor != 7 &&
+         vs->minor != 8)) {
+        VNC_DEBUG("Unsupported client version\n");
+        vnc_write_u32(vs, VNC_AUTH_INVALID);
+        vnc_flush(vs);
+        vnc_client_error(vs);
+        return 0;
     }
     /* Some broken clients report v3.4 or v3.5, which spec requires to be treated
      * as equivalent to v3.3 by servers
      */
     if (vs->minor == 4 || vs->minor == 5)
-	vs->minor = 3;
+        vs->minor = 3;
 
     if (vs->minor == 3) {
-	if (vs->vd->auth == VNC_AUTH_NONE) {
+        if (vs->vd->auth == VNC_AUTH_NONE) {
             VNC_DEBUG("Tell client auth none\n");
             vnc_write_u32(vs, vs->vd->auth);
             vnc_flush(vs);
-	    start_client_init(vs);
+            start_client_init(vs);
        } else if (vs->vd->auth == VNC_AUTH_VNC) {
             VNC_DEBUG("Tell client VNC auth\n");
             vnc_write_u32(vs, vs->vd->auth);
@@ -1942,11 +1942,11 @@ static int protocol_version(VncState *vs, uint8_t *version, size_t len)
             vnc_client_error(vs);
        }
     } else {
-	VNC_DEBUG("Telling client we support auth %d\n", vs->vd->auth);
-	vnc_write_u8(vs, 1); /* num auth */
-	vnc_write_u8(vs, vs->vd->auth);
-	vnc_read_when(vs, protocol_client_auth, 1);
-	vnc_flush(vs);
+        VNC_DEBUG("Telling client we support auth %d\n", vs->vd->auth);
+        vnc_write_u8(vs, 1); /* num auth */
+        vnc_write_u8(vs, vs->vd->auth);
+        vnc_read_when(vs, protocol_client_auth, 1);
+        vnc_flush(vs);
     }
 
     return 0;
@@ -2022,7 +2022,7 @@ void vnc_display_init(DisplayState *ds)
         vs->kbd_layout = init_keyboard_layout(name2keysym, "en-us");
 
     if (!vs->kbd_layout)
-	exit(1);
+        exit(1);
 
     dcl->dpy_copy = vnc_dpy_copy;
     dcl->dpy_update = vnc_dpy_update;
@@ -2039,13 +2039,13 @@ void vnc_display_close(DisplayState *ds)
     if (!vs)
         return;
     if (vs->display) {
-	qemu_free(vs->display);
-	vs->display = NULL;
+        qemu_free(vs->display);
+        vs->display = NULL;
     }
     if (vs->lsock != -1) {
-	qemu_set_fd_handler2(vs->lsock, NULL, NULL, NULL, NULL);
-	close(vs->lsock);
-	vs->lsock = -1;
+        qemu_set_fd_handler2(vs->lsock, NULL, NULL, NULL, NULL);
+        close(vs->lsock);
+        vs->lsock = -1;
     }
     vs->auth = VNC_AUTH_INVALID;
 #ifdef CONFIG_VNC_TLS
@@ -2059,12 +2059,12 @@ int vnc_display_password(DisplayState *ds, const char *password)
     VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
 
     if (vs->password) {
-	qemu_free(vs->password);
-	vs->password = NULL;
+        qemu_free(vs->password);
+        vs->password = NULL;
     }
     if (password && password[0]) {
-	if (!(vs->password = qemu_strdup(password)))
-	    return -1;
+        if (!(vs->password = qemu_strdup(password)))
+            return -1;
     }
 
     return 0;
@@ -2090,76 +2090,76 @@ int vnc_display_open(DisplayState *ds, const char *display)
         return -1;
     vnc_display_close(ds);
     if (strcmp(display, "none") == 0)
-	return 0;
+        return 0;
 
     if (!(vs->display = strdup(display)))
-	return -1;
+        return -1;
 
     options = display;
     while ((options = strchr(options, ','))) {
-	options++;
-	if (strncmp(options, "password", 8) == 0) {
-	    password = 1; /* Require password auth */
-	} else if (strncmp(options, "reverse", 7) == 0) {
-	    reverse = 1;
-	} else if (strncmp(options, "to=", 3) == 0) {
+        options++;
+        if (strncmp(options, "password", 8) == 0) {
+            password = 1; /* Require password auth */
+        } else if (strncmp(options, "reverse", 7) == 0) {
+            reverse = 1;
+        } else if (strncmp(options, "to=", 3) == 0) {
             to_port = atoi(options+3) + 5900;
 #ifdef CONFIG_VNC_SASL
-	} else if (strncmp(options, "sasl", 4) == 0) {
-	    sasl = 1; /* Require SASL auth */
+        } else if (strncmp(options, "sasl", 4) == 0) {
+            sasl = 1; /* Require SASL auth */
 #endif
 #ifdef CONFIG_VNC_TLS
-	} else if (strncmp(options, "tls", 3) == 0) {
-	    tls = 1; /* Require TLS */
-	} else if (strncmp(options, "x509", 4) == 0) {
-	    char *start, *end;
-	    x509 = 1; /* Require x509 certificates */
-	    if (strncmp(options, "x509verify", 10) == 0)
-	        vs->tls.x509verify = 1; /* ...and verify client certs */
+        } else if (strncmp(options, "tls", 3) == 0) {
+            tls = 1; /* Require TLS */
+        } else if (strncmp(options, "x509", 4) == 0) {
+            char *start, *end;
+            x509 = 1; /* Require x509 certificates */
+            if (strncmp(options, "x509verify", 10) == 0)
+                vs->tls.x509verify = 1; /* ...and verify client certs */
 
-	    /* Now check for 'x509=/some/path' postfix
-	     * and use that to setup x509 certificate/key paths */
-	    start = strchr(options, '=');
-	    end = strchr(options, ',');
-	    if (start && (!end || (start < end))) {
-		int len = end ? end-(start+1) : strlen(start+1);
-		char *path = qemu_strndup(start + 1, len);
+            /* Now check for 'x509=/some/path' postfix
+             * and use that to setup x509 certificate/key paths */
+            start = strchr(options, '=');
+            end = strchr(options, ',');
+            if (start && (!end || (start < end))) {
+                int len = end ? end-(start+1) : strlen(start+1);
+                char *path = qemu_strndup(start + 1, len);
 
-		VNC_DEBUG("Trying certificate path '%s'\n", path);
-		if (vnc_tls_set_x509_creds_dir(vs, path) < 0) {
-		    fprintf(stderr, "Failed to find x509 certificates/keys in %s\n", path);
-		    qemu_free(path);
-		    qemu_free(vs->display);
-		    vs->display = NULL;
-		    return -1;
-		}
-		qemu_free(path);
-	    } else {
-		fprintf(stderr, "No certificate path provided\n");
-		qemu_free(vs->display);
-		vs->display = NULL;
-		return -1;
-	    }
+                VNC_DEBUG("Trying certificate path '%s'\n", path);
+                if (vnc_tls_set_x509_creds_dir(vs, path) < 0) {
+                    fprintf(stderr, "Failed to find x509 certificates/keys in %s\n", path);
+                    qemu_free(path);
+                    qemu_free(vs->display);
+                    vs->display = NULL;
+                    return -1;
+                }
+                qemu_free(path);
+            } else {
+                fprintf(stderr, "No certificate path provided\n");
+                qemu_free(vs->display);
+                vs->display = NULL;
+                return -1;
+            }
 #endif
-	} else if (strncmp(options, "acl", 3) == 0) {
-	    acl = 1;
-	}
+        } else if (strncmp(options, "acl", 3) == 0) {
+            acl = 1;
+        }
     }
 
 #ifdef CONFIG_VNC_TLS
     if (acl && x509 && vs->tls.x509verify) {
-	if (!(vs->tls.acl = qemu_acl_init("vnc.x509dname"))) {
-	    fprintf(stderr, "Failed to create x509 dname ACL\n");
-	    exit(1);
-	}
+        if (!(vs->tls.acl = qemu_acl_init("vnc.x509dname"))) {
+            fprintf(stderr, "Failed to create x509 dname ACL\n");
+            exit(1);
+        }
     }
 #endif
 #ifdef CONFIG_VNC_SASL
     if (acl && sasl) {
-	if (!(vs->sasl.acl = qemu_acl_init("vnc.username"))) {
-	    fprintf(stderr, "Failed to create username ACL\n");
-	    exit(1);
-	}
+        if (!(vs->sasl.acl = qemu_acl_init("vnc.username"))) {
+            fprintf(stderr, "Failed to create username ACL\n");
+            exit(1);
+        }
     }
 #endif
 
@@ -2181,22 +2181,22 @@ int vnc_display_open(DisplayState *ds, const char *display)
      */
     if (password) {
 #ifdef CONFIG_VNC_TLS
-	if (tls) {
-	    vs->auth = VNC_AUTH_VENCRYPT;
-	    if (x509) {
-		VNC_DEBUG("Initializing VNC server with x509 password auth\n");
-		vs->subauth = VNC_AUTH_VENCRYPT_X509VNC;
-	    } else {
-		VNC_DEBUG("Initializing VNC server with TLS password auth\n");
-		vs->subauth = VNC_AUTH_VENCRYPT_TLSVNC;
-	    }
-	} else {
+        if (tls) {
+            vs->auth = VNC_AUTH_VENCRYPT;
+            if (x509) {
+                VNC_DEBUG("Initializing VNC server with x509 password auth\n");
+                vs->subauth = VNC_AUTH_VENCRYPT_X509VNC;
+            } else {
+                VNC_DEBUG("Initializing VNC server with TLS password auth\n");
+                vs->subauth = VNC_AUTH_VENCRYPT_TLSVNC;
+            }
+        } else {
 #endif /* CONFIG_VNC_TLS */
-	    VNC_DEBUG("Initializing VNC server with password auth\n");
-	    vs->auth = VNC_AUTH_VNC;
+            VNC_DEBUG("Initializing VNC server with password auth\n");
+            vs->auth = VNC_AUTH_VNC;
 #ifdef CONFIG_VNC_TLS
-	    vs->subauth = VNC_AUTH_INVALID;
-	}
+            vs->subauth = VNC_AUTH_INVALID;
+        }
 #endif /* CONFIG_VNC_TLS */
 #ifdef CONFIG_VNC_SASL
     } else if (sasl) {
@@ -2204,15 +2204,15 @@ int vnc_display_open(DisplayState *ds, const char *display)
         if (tls) {
             vs->auth = VNC_AUTH_VENCRYPT;
             if (x509) {
-		VNC_DEBUG("Initializing VNC server with x509 SASL auth\n");
+                VNC_DEBUG("Initializing VNC server with x509 SASL auth\n");
                 vs->subauth = VNC_AUTH_VENCRYPT_X509SASL;
             } else {
-		VNC_DEBUG("Initializing VNC server with TLS SASL auth\n");
+                VNC_DEBUG("Initializing VNC server with TLS SASL auth\n");
                 vs->subauth = VNC_AUTH_VENCRYPT_TLSSASL;
             }
         } else {
 #endif /* CONFIG_VNC_TLS */
-	    VNC_DEBUG("Initializing VNC server with SASL auth\n");
+            VNC_DEBUG("Initializing VNC server with SASL auth\n");
             vs->auth = VNC_AUTH_SASL;
 #ifdef CONFIG_VNC_TLS
             vs->subauth = VNC_AUTH_INVALID;
@@ -2221,22 +2221,22 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #endif /* CONFIG_VNC_SASL */
     } else {
 #ifdef CONFIG_VNC_TLS
-	if (tls) {
-	    vs->auth = VNC_AUTH_VENCRYPT;
-	    if (x509) {
-		VNC_DEBUG("Initializing VNC server with x509 no auth\n");
-		vs->subauth = VNC_AUTH_VENCRYPT_X509NONE;
-	    } else {
-		VNC_DEBUG("Initializing VNC server with TLS no auth\n");
-		vs->subauth = VNC_AUTH_VENCRYPT_TLSNONE;
-	    }
-	} else {
+        if (tls) {
+            vs->auth = VNC_AUTH_VENCRYPT;
+            if (x509) {
+                VNC_DEBUG("Initializing VNC server with x509 no auth\n");
+                vs->subauth = VNC_AUTH_VENCRYPT_X509NONE;
+            } else {
+                VNC_DEBUG("Initializing VNC server with TLS no auth\n");
+                vs->subauth = VNC_AUTH_VENCRYPT_TLSNONE;
+            }
+        } else {
 #endif
-	    VNC_DEBUG("Initializing VNC server with no auth\n");
-	    vs->auth = VNC_AUTH_NONE;
+            VNC_DEBUG("Initializing VNC server with no auth\n");
+            vs->auth = VNC_AUTH_NONE;
 #ifdef CONFIG_VNC_TLS
-	    vs->subauth = VNC_AUTH_INVALID;
-	}
+            vs->subauth = VNC_AUTH_INVALID;
+        }
 #endif
     }
 

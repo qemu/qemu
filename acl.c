@@ -41,8 +41,8 @@ qemu_acl *qemu_acl_find(const char *aclname)
 {
     int i;
     for (i = 0 ; i < nacls ; i++) {
-	if (strcmp(acls[i]->aclname, aclname) == 0)
-	    return acls[i];
+        if (strcmp(acls[i]->aclname, aclname) == 0)
+            return acls[i];
     }
 
     return NULL;
@@ -54,7 +54,7 @@ qemu_acl *qemu_acl_init(const char *aclname)
 
     acl = qemu_acl_find(aclname);
     if (acl)
-	return acl;
+        return acl;
 
     acl = qemu_malloc(sizeof(*acl));
     acl->aclname = qemu_strdup(aclname);
@@ -74,19 +74,19 @@ qemu_acl *qemu_acl_init(const char *aclname)
 }
 
 int qemu_acl_party_is_allowed(qemu_acl *acl,
-			      const char *party)
+                              const char *party)
 {
     qemu_acl_entry *entry;
 
     TAILQ_FOREACH(entry, &acl->entries, next) {
 #ifdef HAVE_FNMATCH_H
-	if (fnmatch(entry->match, party, 0) == 0)
-	    return entry->deny ? 0 : 1;
+        if (fnmatch(entry->match, party, 0) == 0)
+            return entry->deny ? 0 : 1;
 #else
-	/* No fnmatch, so fallback to exact string matching
-	 * instead of allowing wildcards */
-	if (strcmp(entry->match, party) == 0)
-	    return entry->deny ? 0 : 1;
+        /* No fnmatch, so fallback to exact string matching
+         * instead of allowing wildcards */
+        if (strcmp(entry->match, party) == 0)
+            return entry->deny ? 0 : 1;
 #endif
     }
 
@@ -103,17 +103,17 @@ void qemu_acl_reset(qemu_acl *acl)
      * access control list */
     acl->defaultDeny = 1;
     TAILQ_FOREACH(entry, &acl->entries, next) {
-	TAILQ_REMOVE(&acl->entries, entry, next);
-	free(entry->match);
-	free(entry);
+        TAILQ_REMOVE(&acl->entries, entry, next);
+        free(entry->match);
+        free(entry);
     }
     acl->nentries = 0;
 }
 
 
 int qemu_acl_append(qemu_acl *acl,
-		    int deny,
-		    const char *match)
+                    int deny,
+                    const char *match)
 {
     qemu_acl_entry *entry;
 
@@ -129,18 +129,18 @@ int qemu_acl_append(qemu_acl *acl,
 
 
 int qemu_acl_insert(qemu_acl *acl,
-		    int deny,
-		    const char *match,
-		    int index)
+                    int deny,
+                    const char *match,
+                    int index)
 {
     qemu_acl_entry *entry;
     qemu_acl_entry *tmp;
     int i = 0;
 
     if (index <= 0)
-	return -1;
+        return -1;
     if (index >= acl->nentries)
-	return qemu_acl_append(acl, deny, match);
+        return qemu_acl_append(acl, deny, match);
 
 
     entry = qemu_malloc(sizeof(*entry));
@@ -148,29 +148,29 @@ int qemu_acl_insert(qemu_acl *acl,
     entry->deny = deny;
 
     TAILQ_FOREACH(tmp, &acl->entries, next) {
-	i++;
-	if (i == index) {
-	    TAILQ_INSERT_BEFORE(tmp, entry, next);
-	    acl->nentries++;
-	    break;
-	}
+        i++;
+        if (i == index) {
+            TAILQ_INSERT_BEFORE(tmp, entry, next);
+            acl->nentries++;
+            break;
+        }
     }
 
     return i;
 }
 
 int qemu_acl_remove(qemu_acl *acl,
-		    const char *match)
+                    const char *match)
 {
     qemu_acl_entry *entry;
     int i = 0;
 
     TAILQ_FOREACH(entry, &acl->entries, next) {
-	i++;
-	if (strcmp(entry->match, match) == 0) {
-	    TAILQ_REMOVE(&acl->entries, entry, next);
-	    return i;
-	}
+        i++;
+        if (strcmp(entry->match, match) == 0) {
+            TAILQ_REMOVE(&acl->entries, entry, next);
+            return i;
+        }
     }
     return -1;
 }
