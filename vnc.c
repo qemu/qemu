@@ -156,6 +156,21 @@ static void do_info_vnc_client(Monitor *mon, VncState *client)
     monitor_printf(mon, "Client:\n");
     monitor_printf(mon, "%s", clientAddr);
     free(clientAddr);
+
+#ifdef CONFIG_VNC_TLS
+    if (client->tls.session &&
+	client->tls.dname)
+	monitor_printf(mon, "  x509 dname: %s\n", client->tls.dname);
+    else
+	monitor_printf(mon, "  x509 dname: none\n");
+#endif
+#ifdef CONFIG_VNC_SASL
+    if (client->sasl.conn &&
+	client->sasl.username)
+	monitor_printf(mon, "    username: %s\n", client->sasl.username);
+    else
+	monitor_printf(mon, "    username: none\n");
+#endif
 }
 
 void do_info_vnc(Monitor *mon)
@@ -1824,7 +1839,7 @@ static int protocol_client_auth(VncState *vs, uint8_t *data, size_t len)
     /* We only advertise 1 auth scheme at a time, so client
      * must pick the one we sent. Verify this */
     if (data[0] != vs->vd->auth) { /* Reject auth */
-       VNC_DEBUG("Reject auth %d\n", (int)data[0]);
+       VNC_DEBUG("Reject auth %d because it didn't match advertized\n", (int)data[0]);
        vnc_write_u32(vs, 1);
        if (vs->minor >= 8) {
            static const char err[] = "Authentication failed";
@@ -1864,7 +1879,7 @@ static int protocol_client_auth(VncState *vs, uint8_t *data, size_t len)
 #endif /* CONFIG_VNC_SASL */
 
        default: /* Should not be possible, but just in case */
-           VNC_DEBUG("Reject auth %d\n", vs->vd->auth);
+           VNC_DEBUG("Reject auth %d server code bug\n", vs->vd->auth);
            vnc_write_u8(vs, 1);
            if (vs->minor >= 8) {
                static const char err[] = "Authentication failed";
