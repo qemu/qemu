@@ -226,7 +226,7 @@ static always_inline int _pte_check (mmu_ctx_t *ctx, int is_64b,
             ptem = pte0 & PTE64_PTEM_MASK;
             mmask = PTE64_CHECK_MASK;
             pp = (pte1 & 0x00000003) | ((pte1 >> 61) & 0x00000004);
-            ctx->nx |= (pte1 >> 2) & 1; /* No execute bit */
+            ctx->nx  = (pte1 >> 2) & 1; /* No execute bit */
             ctx->nx |= (pte1 >> 3) & 1; /* Guarded bit    */
         } else
 #endif
