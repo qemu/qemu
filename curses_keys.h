@@ -206,7 +206,7 @@ static const int curses2keycode[CURSES_KEYS] = {
     [0x006] = 33 | CNTRL, /* Control + f */
     [0x007] = 34 | CNTRL, /* Control + g */
     [0x008] = 35 | CNTRL, /* Control + h */
-    [0x00a] = 36 | CNTRL, /* Control + j */
+    /* Control + j collides with Return */
     [0x00b] = 37 | CNTRL, /* Control + k */
     [0x00c] = 38 | CNTRL, /* Control + l */
 
