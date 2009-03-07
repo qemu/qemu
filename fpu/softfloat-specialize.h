@@ -166,7 +166,7 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
         res = bIsNaN ? bv : av;
     }
     else if ( aIsNaN ) {
-        if ( bIsSignalingNaN | ! bIsNaN )
+        if ( bIsSignalingNaN || ! bIsNaN )
             res = av;
         else {
  returnLargerSignificand:
@@ -301,7 +301,7 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
         res = bIsNaN ? bv : av;
     }
     else if ( aIsNaN ) {
-        if ( bIsSignalingNaN | ! bIsNaN )
+        if ( bIsSignalingNaN || ! bIsNaN )
             res = av;
         else {
  returnLargerSignificand:
@@ -441,7 +441,7 @@ static floatx80 propagateFloatx80NaN( floatx80 a, floatx80 b STATUS_PARAM)
         return bIsNaN ? b : a;
     }
     else if ( aIsNaN ) {
-        if ( bIsSignalingNaN | ! bIsNaN ) return a;
+        if ( bIsSignalingNaN || ! bIsNaN ) return a;
  returnLargerSignificand:
         if ( a.low < b.low ) return b;
         if ( b.low < a.low ) return a;
@@ -567,7 +567,7 @@ static float128 propagateFloat128NaN( float128 a, float128 b STATUS_PARAM)
         return bIsNaN ? b : a;
     }
     else if ( aIsNaN ) {
-        if ( bIsSignalingNaN | ! bIsNaN ) return a;
+        if ( bIsSignalingNaN || ! bIsNaN ) return a;
  returnLargerSignificand:
         if ( lt128( a.high<<1, a.low, b.high<<1, b.low ) ) return b;
         if ( lt128( b.high<<1, b.low, a.high<<1, a.low ) ) return a;
