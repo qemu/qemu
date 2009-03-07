@@ -4394,6 +4394,20 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA)
 #endif
 }
 
+/* tlbiel */
+GEN_HANDLER(tlbiel, 0x1F, 0x12, 0x08, 0x03FF0001, PPC_MEM_TLBIE)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    if (unlikely(!ctx->mem_idx)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+    gen_helper_tlbie(cpu_gpr[rB(ctx->opcode)]);
+#endif
+}
+
 /* tlbie */
 GEN_HANDLER(tlbie, 0x1F, 0x12, 0x09, 0x03FF0001, PPC_MEM_TLBIE)
 {
