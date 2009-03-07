@@ -107,7 +107,7 @@ static void set_kernel_args_old(struct arm_boot_info *info,
                 int initrd_size, void *base)
 {
     uint32_t *p;
-    unsigned char *s;
+    char *s;
 
     /* see linux/include/asm-arm/setup.h */
     p = (uint32_t *)(base + KERNEL_ARGS_ADDR);
