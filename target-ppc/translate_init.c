@@ -6056,7 +6056,7 @@ static void init_proc_970FX (CPUPPCState *env)
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
 #if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 32;
+    env->slb_nr = 64;
 #endif
     init_excp_970(env);
     env->dcache_line_size = 128;

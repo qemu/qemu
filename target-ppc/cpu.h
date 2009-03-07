@@ -344,6 +344,12 @@ union ppc_tlb_t {
     ppcemb_tlb_t tlbe;
 };
 
+typedef struct ppc_slb_t ppc_slb_t;
+struct ppc_slb_t {
+    uint64_t tmp64;
+    uint32_t tmp;
+};
+
 /*****************************************************************************/
 /* Machine state register bits definition                                    */
 #define MSR_SF   63 /* Sixty-four-bit mode                            hflags */
@@ -584,6 +590,7 @@ struct CPUPPCState {
     /* Address space register */
     target_ulong asr;
     /* PowerPC 64 SLB area */
+    ppc_slb_t slb[64];
     int slb_nr;
 #endif
     /* segment registers */
