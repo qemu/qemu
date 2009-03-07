@@ -1357,13 +1357,13 @@ int get_physical_address (CPUState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         case POWERPC_MMU_601:
         case POWERPC_MMU_SOFT_6xx:
         case POWERPC_MMU_SOFT_74xx:
+            /* Try to find a BAT */
+            if (env->nb_BATs != 0)
+                ret = get_bat(env, ctx, eaddr, rw, access_type);
 #if defined(TARGET_PPC64)
         case POWERPC_MMU_620:
         case POWERPC_MMU_64B:
 #endif
-            /* Try to find a BAT */
-            if (env->nb_BATs != 0)
-                ret = get_bat(env, ctx, eaddr, rw, access_type);
             if (ret < 0) {
                 /* We didn't match any BAT entry or don't have BATs */
                 ret = get_segment(env, ctx, eaddr, rw, access_type);
