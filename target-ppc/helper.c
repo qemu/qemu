@@ -821,27 +821,34 @@ target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr)
     return rt;
 }
 
-void ppc_store_slb (CPUPPCState *env, int slb_nr, target_ulong rs)
+void ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs)
 {
     target_phys_addr_t sr_base;
     uint64_t tmp64;
     uint32_t tmp;
 
+    uint64_t vsid;
+    uint64_t esid;
+    int flags, valid, slb_nr;
+
+    vsid = rs >> 12;
+    flags = ((rs >> 8) & 0xf);
+
+    esid = rb >> 28;
+    valid = (rb & (1 << 27));
+    slb_nr = rb & 0xfff;
+
+    tmp64 = (esid << 28) | valid | (vsid >> 24);
+    tmp = (vsid << 8) | (flags << 3);
+
+    /* Write SLB entry to memory */
     sr_base = env->spr[SPR_ASR];
     sr_base += 12 * slb_nr;
-    /* Copy Rs bits 37:63 to SLB 62:88 */
-    tmp = rs << 8;
-    tmp64 = (rs >> 24) & 0x7;
-    /* Copy Rs bits 33:36 to SLB 89:92 */
-    tmp |= ((rs >> 27) & 0xF) << 4;
-    /* Set the valid bit */
-    tmp64 |= 1 << 27;
-    /* Set ESID */
-    tmp64 |= (uint32_t)slb_nr << 28;
-    LOG_SLB("%s: %d " ADDRX " => " PADDRX " %016" PRIx64
+
+    LOG_SLB("%s: %d " ADDRX " - " ADDRX " => " PADDRX " %016" PRIx64
                 " %08" PRIx32 "\n", __func__,
-                slb_nr, rs, sr_base, tmp64, tmp);
-    /* Write SLB entry to memory */
+                slb_nr, rb, rs, sr_base, tmp64, tmp);
+
     stq_phys(sr_base, tmp64);
     stl_phys(sr_base + 8, tmp);
 }
@@ -1945,10 +1952,37 @@ void ppc_store_sdr1 (CPUPPCState *env, target_ulong value)
     }
 }
 
+#if defined(TARGET_PPC64)
+target_ulong ppc_load_sr (CPUPPCState *env, int slb_nr)
+{
+    // XXX
+    return 0;
+}
+#endif
+
 void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value)
 {
     LOG_MMU("%s: reg=%d " ADDRX " " ADDRX "\n",
                 __func__, srnum, value, env->sr[srnum]);
+#if defined(TARGET_PPC64)
+    if (env->mmu_model & POWERPC_MMU_64) {
+        uint64_t rb = 0, rs = 0;
+
+        /* ESID = srnum */
+        rb |= ((uint32_t)srnum & 0xf) << 28;
+        /* Set the valid bit */
+        rb |= 1 << 27;
+        /* Index = ESID */
+        rb |= (uint32_t)srnum;
+
+        /* VSID = VSID */
+        rs |= (value & 0xfffffff) << 12;
+        /* flags = flags */
+        rs |= ((value >> 27) & 0xf) << 9;
+
+        ppc_store_slb(env, rb, rs);
+    } else
+#endif
     if (env->sr[srnum] != value) {
         env->sr[srnum] = value;
 #if !defined(FLUSH_ALL_TLBS) && 0

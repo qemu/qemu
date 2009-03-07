@@ -3752,6 +3752,10 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 /* Segment registers load and store */
 target_ulong helper_load_sr (target_ulong sr_num)
 {
+#if defined(TARGET_PPC64)
+    if (env->mmu_model & POWERPC_MMU_64)
+        return ppc_load_sr(env, sr_num);
+#endif
     return env->sr[sr_num];
 }
 
@@ -3767,9 +3771,9 @@ target_ulong helper_load_slb (target_ulong slb_nr)
     return ppc_load_slb(env, slb_nr);
 }
 
-void helper_store_slb (target_ulong slb_nr, target_ulong rs)
+void helper_store_slb (target_ulong rb, target_ulong rs)
 {
-    ppc_store_slb(env, slb_nr, rs);
+    ppc_store_slb(env, rb, rs);
 }
 
 void helper_slbia (void)
