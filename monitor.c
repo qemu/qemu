@@ -43,7 +43,6 @@
 #include "qemu-timer.h"
 #include "migration.h"
 #include "kvm.h"
-#include "acl.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -162,25 +161,25 @@ void monitor_print_filename(Monitor *mon, const char *filename)
     int i;
 
     for (i = 0; filename[i]; i++) {
-        switch (filename[i]) {
-        case ' ':
-        case '"':
-        case '\\':
-            monitor_printf(mon, "\\%c", filename[i]);
-            break;
-        case '\t':
-            monitor_printf(mon, "\\t");
-            break;
-        case '\r':
-            monitor_printf(mon, "\\r");
-            break;
-        case '\n':
-            monitor_printf(mon, "\\n");
-            break;
-        default:
-            monitor_printf(mon, "%c", filename[i]);
-            break;
-        }
+	switch (filename[i]) {
+	case ' ':
+	case '"':
+	case '\\':
+	    monitor_printf(mon, "\\%c", filename[i]);
+	    break;
+	case '\t':
+	    monitor_printf(mon, "\\t");
+	    break;
+	case '\r':
+	    monitor_printf(mon, "\\r");
+	    break;
+	case '\n':
+	    monitor_printf(mon, "\\n");
+	    break;
+	default:
+	    monitor_printf(mon, "%c", filename[i]);
+	    break;
+	}
     }
 }
 
@@ -476,17 +475,17 @@ static void change_vnc_password_cb(Monitor *mon, const char *password,
 static void do_change_vnc(Monitor *mon, const char *target, const char *arg)
 {
     if (strcmp(target, "passwd") == 0 ||
-        strcmp(target, "password") == 0) {
-        if (arg) {
+	strcmp(target, "password") == 0) {
+	if (arg) {
             char password[9];
-            strncpy(password, arg, sizeof(password));
-            password[sizeof(password) - 1] = '\0';
+	    strncpy(password, arg, sizeof(password));
+	    password[sizeof(password) - 1] = '\0';
             change_vnc_password_cb(mon, password, NULL);
         } else {
             monitor_read_password(mon, change_vnc_password_cb, NULL);
         }
     } else {
-        if (vnc_display_open(NULL, target) < 0)
+	if (vnc_display_open(NULL, target) < 0)
             monitor_printf(mon, "could not start VNC server on %s\n", target);
     }
 }
@@ -495,9 +494,9 @@ static void do_change(Monitor *mon, const char *device, const char *target,
                       const char *arg)
 {
     if (strcmp(device, "vnc") == 0) {
-        do_change_vnc(mon, target, arg);
+	do_change_vnc(mon, target, arg);
     } else {
-        do_change_block(mon, device, target, arg);
+	do_change_block(mon, device, target, arg);
     }
 }
 
@@ -529,7 +528,7 @@ static void do_log(Monitor *mon, const char *items)
     cpu_set_log(mask);
 }
 
-static void do_singlestep(const char *option)
+static void do_singlestep(Monitor *mon, const char *option)
 {
     qemu_printf("setting vm_singlestep to %s\n", option);
     if (!option) {
@@ -537,7 +536,7 @@ static void do_singlestep(const char *option)
     } else if (!strcmp(option, "off")) {
         vm_singlestep = 0;
     } else {
-        term_printf("unexpected option %s\n", option);
+        monitor_printf(mon, "unexpected option %s\n", option);
     }
 }
 
@@ -1522,19 +1521,13 @@ static void do_inject_nmi(Monitor *mon, int cpu_index)
 
 static void do_info_status(Monitor *mon)
 {
-<<<<<<< .working
     if (vm_running) {
         if (vm_singlestep) {
-            term_printf("VM status: running (single step mode)\n");
+            monitor_printf(mon, "VM status: running (single step mode)\n");
         } else {
-            term_printf("VM status: running\n");
+            monitor_printf(mon, "VM status: running\n");
         }
     } else
-=======
-    if (vm_running)
-       monitor_printf(mon, "VM status: running\n");
-    else
->>>>>>> .merge-rechts.r6718
        monitor_printf(mon, "VM status: paused\n");
 }
 
@@ -1557,86 +1550,6 @@ static void do_info_balloon(Monitor *mon)
         monitor_printf(mon, "Ballooning not activated in VM\n");
     else
         monitor_printf(mon, "balloon: actual=%d\n", (int)(actual >> 20));
-}
-
-static void do_acl(Monitor *mon,
-                   const char *command,
-                   const char *aclname,
-                   const char *match,
-                   int has_index,
-                   int index)
-{
-    qemu_acl *acl;
-
-    acl = qemu_acl_find(aclname);
-    if (!acl) {
-        monitor_printf(mon, "acl: unknown list '%s'\n", aclname);
-        return;
-    }
-
-    if (strcmp(command, "show") == 0) {
-        int i = 0;
-        qemu_acl_entry *entry;
-        monitor_printf(mon, "policy: %s\n",
-                       acl->defaultDeny ? "deny" : "allow");
-        TAILQ_FOREACH(entry, &acl->entries, next) {
-            i++;
-            monitor_printf(mon, "%d: %s %s\n", i,
-                           entry->deny ? "deny" : "allow",
-                           entry->match);
-        }
-    } else if (strcmp(command, "reset") == 0) {
-        qemu_acl_reset(acl);
-        monitor_printf(mon, "acl: removed all rules\n");
-    } else if (strcmp(command, "policy") == 0) {
-        if (!match) {
-            monitor_printf(mon, "acl: missing policy parameter\n");
-            return;
-        }
-
-        if (strcmp(match, "allow") == 0) {
-            acl->defaultDeny = 0;
-            monitor_printf(mon, "acl: policy set to 'allow'\n");
-        } else if (strcmp(match, "deny") == 0) {
-            acl->defaultDeny = 1;
-            monitor_printf(mon, "acl: policy set to 'deny'\n");
-        } else {
-            monitor_printf(mon, "acl: unknown policy '%s', expected 'deny' or 'allow'\n", match);
-        }
-    } else if ((strcmp(command, "allow") == 0) ||
-               (strcmp(command, "deny") == 0)) {
-        int deny = strcmp(command, "deny") == 0 ? 1 : 0;
-        int ret;
-
-        if (!match) {
-            monitor_printf(mon, "acl: missing match parameter\n");
-            return;
-        }
-
-        if (has_index)
-            ret = qemu_acl_insert(acl, deny, match, index);
-        else
-            ret = qemu_acl_append(acl, deny, match);
-        if (ret < 0)
-            monitor_printf(mon, "acl: unable to add acl entry\n");
-        else
-            monitor_printf(mon, "acl: added rule at position %d\n", ret);
-    } else if (strcmp(command, "remove") == 0) {
-        int ret;
-
-        if (!match) {
-            monitor_printf(mon, "acl: missing match parameter\n");
-            return;
-        }
-
-        ret = qemu_acl_remove(acl, match);
-        if (ret < 0)
-            monitor_printf(mon, "acl: no matching acl entry\n");
-        else
-            monitor_printf(mon, "acl: removed rule at position %d\n", ret);
-    } else {
-        monitor_printf(mon, "acl: unknown command '%s'\n", command);
-    }
 }
 
 /* Please update qemu-doc.texi when adding or changing commands */
@@ -1747,12 +1660,6 @@ static const mon_cmd_t mon_cmds[] = {
       "target", "request VM to change it's memory allocation (in MB)" },
     { "set_link", "ss", do_set_link,
       "name [up|down]", "change the link status of a network adapter" },
-    { "acl", "sss?i?", do_acl, "<command> <aclname> [<match>] [<index>]\n",
-                               "acl show vnc.username\n"
-                               "acl policy vnc.username deny\n"
-                               "acl allow vnc.username fred\n"
-                               "acl deny vnc.username bob\n"
-                               "acl reset vnc.username\n" },
     { NULL, NULL, },
 };
 
@@ -1869,7 +1776,7 @@ static target_long monitor_get_ccr (const struct MonitorDef *md, int val)
 
     u = 0;
     for (i = 0; i < 8; i++)
-        u |= env->crf[i] << (32 - (4 * i));
+	u |= env->crf[i] << (32 - (4 * i));
 
     return u;
 }
@@ -2176,11 +2083,7 @@ static const MonitorDef monitor_defs[] = {
     { NULL },
 };
 
-<<<<<<< .working
-static void QEMU_NORETURN expr_error(const char *msg)
-=======
-static void expr_error(Monitor *mon, const char *msg)
->>>>>>> .merge-rechts.r6718
+static void QEMU_NORETURN expr_error(Monitor *mon, const char *msg)
 {
     monitor_printf(mon, "%s\n", msg);
     longjmp(expr_env, 1);
@@ -3081,15 +2984,6 @@ static void monitor_event(void *opaque, int event)
         break;
     }
 }
-
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 8
- * End:
- */
 
 void monitor_init(CharDriverState *chr, int flags)
 {
