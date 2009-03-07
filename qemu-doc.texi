@@ -638,7 +638,7 @@ and SASL party. For x509 certs, the ACL check is made against the
 certificate's distinguished name. This is something that looks like
 @code{C=GB,O=ACME,L=Boston,CN=bob}. For SASL party, the ACL check is
 made against the username, which depending on the SASL plugin, may
-include a realm component, eg @code{bob} or @code{bob\@EXAMPLE.COM}.
+include a realm component, eg @code{bob} or @code{bob@@EXAMPLE.COM}.
 When the @option{acl} flag is set, the initial access list will be
 empty, with a @code{deny} policy. Thus no one will be allowed to
 use the VNC server until the ACLs have been loaded. This can be
@@ -1423,14 +1423,14 @@ always @code{deny}
 @item acl allow <aclname> <match> [<index>]
 add a match to the access control list, allowing access. The match will
 normally be an exact username or x509 distinguished name, but can
-optionally include wildcard globs. eg @code{*\@EXAMPLE.COM} to allow
+optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to allow
 all users in the @code{EXAMPLE.COM} kerberos realm. The match will
 normally be appended to the end of the ACL, but can be inserted
 earlier in the list if the optional @code{index} parameter is supplied.
 @item acl deny <aclname> <match> [<index>]
 add a match to the access control list, denying access. The match will
 normally be an exact username or x509 distinguished name, but can
-optionally include wildcard globs. eg @code{*\@EXAMPLE.COM} to allow
+optionally include wildcard globs. eg @code{*@@EXAMPLE.COM} to allow
 all users in the @code{EXAMPLE.COM} kerberos realm. The match will
 normally be appended to the end of the ACL, but can be inserted
 earlier in the list if the optional @code{index} parameter is supplied.
