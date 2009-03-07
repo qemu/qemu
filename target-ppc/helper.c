@@ -2612,7 +2612,7 @@ static always_inline void powerpc_excp (CPUState *env,
             new_msr |= (target_ulong)1 << MSR_CM;
         }
     } else {
-        if (!msr_isf) {
+        if (!msr_isf && !(env->mmu_model & POWERPC_MMU_64)) {
             new_msr &= ~((target_ulong)1 << MSR_SF);
             vector = (uint32_t)vector;
         } else {
@@ -2793,6 +2793,10 @@ void cpu_ppc_reset (void *opaque)
         ppc_tlb_invalidate_all(env);
 #endif
     env->msr = msr & env->msr_mask;
+#if defined(TARGET_PPC64)
+    if (env->mmu_model & POWERPC_MMU_64)
+        env->msr |= (1ULL << MSR_SF);
+#endif
     hreg_compute_hflags(env);
     env->reserve = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */
