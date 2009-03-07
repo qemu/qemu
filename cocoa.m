@@ -57,7 +57,7 @@ typedef struct {
 int qemu_main(int argc, char **argv); // main defined in qemu/vl.c
 NSWindow *normalWindow;
 id cocoaView;
-static void *screenBuffer;
+static DisplayChangeListener *dcl;
 
 int gArgc;
 char **gArgv;
@@ -292,9 +292,6 @@ int cocoa_keycode_to_qemu(int keycode)
 {
     COCOA_DEBUG("QemuCocoaView: dealloc\n");
 
-    if (screenBuffer)
-        free(screenBuffer);
-
     if (dataProviderRef)
         CGDataProviderRelease(dataProviderRef);
 
@@ -304,9 +301,6 @@ int cocoa_keycode_to_qemu(int keycode)
 - (void) drawRect:(NSRect) rect
 {
     COCOA_DEBUG("QemuCocoaView: drawRect\n");
-
-    if ((int)screenBuffer == -1)
-        return;
 
     // get CoreGraphic context
     CGContextRef viewContextRef = [[NSGraphicsContext currentContext] graphicsPort];
@@ -320,10 +314,10 @@ int cocoa_keycode_to_qemu(int keycode)
             screen.height, //height
             screen.bitsPerComponent, //bitsPerComponent
             screen.bitsPerPixel, //bitsPerPixel
-            (screen.width * 4), //bytesPerRow
+            (screen.width * (screen.bitsPerComponent/2)), //bytesPerRow
 #if __LITTLE_ENDIAN__
             CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
-            kCGImageAlphaNoneSkipLast,
+            kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
 #else
             CGColorSpaceCreateDeviceRGB(), //colorspace for OS X < 10.4 (actually ppc)
             kCGImageAlphaNoneSkipFirst, //bitmapInfo
@@ -395,22 +389,12 @@ int cocoa_keycode_to_qemu(int keycode)
     // update screenBuffer
     if (dataProviderRef)
         CGDataProviderRelease(dataProviderRef);
-    if (screenBuffer)
-        free(screenBuffer);
-    screenBuffer = malloc( w * 4 * h );
 
-    ds->data = screenBuffer;
-    ds->linesize =  (w * 4);
-    ds->depth = 32;
-    ds->width = w;
-    ds->height = h;
-#ifdef __LITTLE_ENDIAN__
-    ds->bgr = 1;
-#else
-    ds->bgr = 0;
-#endif
+    //sync host window color space with guests
+	screen.bitsPerPixel = ds_get_bits_per_pixel(ds);
+	screen.bitsPerComponent = ds_get_bytes_per_pixel(ds) * 2;
 
-    dataProviderRef = CGDataProviderCreateWithData(NULL, screenBuffer, w * 4 * h, NULL);
+    dataProviderRef = CGDataProviderCreateWithData(NULL, ds_get_data(ds), w * 4 * h, NULL);
 
     // update windows
     if (isFullscreen) {
@@ -423,6 +407,7 @@ int cocoa_keycode_to_qemu(int keycode)
     }
     screen.width = w;
     screen.height = h;
+	[normalWindow center];
     [self setContentDimensions];
     [self setFrame:NSMakeRect(cx, cy, cw, ch)];
 }
@@ -740,6 +725,7 @@ int cocoa_keycode_to_qemu(int keycode)
         [normalWindow setTitle:[NSString stringWithFormat:@"QEMU"]];
         [normalWindow setContentView:cocoaView];
         [normalWindow makeKeyAndOrderFront:self];
+		[normalWindow center];
 
     }
     return self;
@@ -939,11 +925,11 @@ static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
     [cocoaView displayRect:rect];
 }
 
-static void cocoa_resize(DisplayState *ds, int w, int h)
+static void cocoa_resize(DisplayState *ds)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
 
-    [cocoaView resizeContentToWidth:w height:h displayState:ds];
+    [cocoaView resizeContentToWidth:(int)(ds_get_width(ds)) height:(int)(ds_get_height(ds)) displayState:ds];
 }
 
 static void cocoa_refresh(DisplayState *ds)
@@ -975,20 +961,21 @@ static void cocoa_refresh(DisplayState *ds)
 static void cocoa_cleanup(void)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_cleanup\n");
-
+	qemu_free(dcl);
 }
 
 void cocoa_display_init(DisplayState *ds, int full_screen)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
 
-    // register vga outpu callbacks
-    ds->dpy_update = cocoa_update;
-    ds->dpy_resize = cocoa_resize;
-    ds->dpy_refresh = cocoa_refresh;
+	dcl = qemu_mallocz(sizeof(DisplayChangeListener));
+	
+    // register vga output callbacks
+    dcl->dpy_update = cocoa_update;
+    dcl->dpy_resize = cocoa_resize;
+    dcl->dpy_refresh = cocoa_refresh;
 
-    // give window a initial Size
-    cocoa_resize(ds, 640, 400);
+	register_displaychangelistener(ds, dcl);
 
     // register cleanup function
     atexit(cocoa_cleanup);

@@ -554,6 +554,7 @@ static void usb_info_device(int bus_num, int addr, int class_id,
                             int speed)
 {
     const char *class_str, *speed_str;
+    Monitor *mon = cur_mon;
 
     switch(speed) {
     case USB_SPEED_LOW:
@@ -570,20 +571,21 @@ static void usb_info_device(int bus_num, int addr, int class_id,
         break;
     }
 
-    term_printf("  Device %d.%d, speed %s Mb/s\n",
-                bus_num, addr, speed_str);
+    monitor_printf(mon, "  Device %d.%d, speed %s Mb/s\n",
+                   bus_num, addr, speed_str);
     class_str = usb_class_str(class_id);
     if (class_str)
-        term_printf("    %s:", class_str);
+        monitor_printf(mon, "    %s:", class_str);
     else
-        term_printf("    Class %02x:", class_id);
-    term_printf(" USB device %04x:%04x", vendor_id, product_id);
+        monitor_printf(mon, "    Class %02x:", class_id);
+    monitor_printf(mon, " USB device %04x:%04x", vendor_id, product_id);
     if (product_name[0] != '\0')
-        term_printf(", %s", product_name);
-    term_printf("\n");
+        monitor_printf(mon, ", %s", product_name);
+    monitor_printf(mon, "\n");
 }
 
-static int usb_host_info_device(void *opaque, int bus_num, int addr,
+static int usb_host_info_device(void *opaque,
+                                int bus_num, int addr,
                                 int class_id,
                                 int vendor_id, int product_id,
                                 const char *product_name,
@@ -594,7 +596,7 @@ static int usb_host_info_device(void *opaque, int bus_num, int addr,
     return 0;
 }
 
-void usb_host_info(void)
+void usb_host_info(Monitor *mon)
 {
     usb_host_scan(NULL, usb_host_info_device);
 }

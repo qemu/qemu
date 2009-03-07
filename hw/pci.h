@@ -1,6 +1,8 @@
 #ifndef QEMU_PCI_H
 #define QEMU_PCI_H
 
+#include "qemu-common.h"
+
 /* PCI includes legacy ISA access.  */
 #include "isa.h"
 
@@ -242,7 +244,7 @@ PCIDevice *pci_find_device(int bus_num, int slot, int function);
 int pci_read_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp);
 int pci_assign_devaddr(const char *addr, int *domp, int *busp, unsigned *slotp);
 
-void pci_info(void);
+void pci_info(Monitor *mon);
 PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
                         pci_map_irq_fn map_irq, const char *name);
 

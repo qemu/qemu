@@ -7,6 +7,7 @@
  */
 
 #include "hw.h"
+#include "pc.h"
 #include "mcf.h"
 #include "sysemu.h"
 #include "boards.h"
@@ -16,11 +17,11 @@
 #define AN5206_RAMBAR_ADDR 0x20000000
 
 /* Stub functions for hardware that doesn't exist.  */
-void pic_info(void)
+void pic_info(Monitor *mon)
 {
 }
 
-void irq_info(void)
+void irq_info(Monitor *mon)
 {
 }
 

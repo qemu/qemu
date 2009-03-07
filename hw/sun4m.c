@@ -283,16 +283,16 @@ static void nvram_init(m48t59_t *nvram, uint8_t *macaddr, const char *cmdline,
 
 static void *slavio_intctl;
 
-void pic_info(void)
+void pic_info(Monitor *mon)
 {
     if (slavio_intctl)
-        slavio_pic_info(slavio_intctl);
+        slavio_pic_info(mon, slavio_intctl);
 }
 
-void irq_info(void)
+void irq_info(Monitor *mon)
 {
     if (slavio_intctl)
-        slavio_irq_info(slavio_intctl);
+        slavio_irq_info(mon, slavio_intctl);
 }
 
 void cpu_check_irqs(CPUState *env)

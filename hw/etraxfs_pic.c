@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include "hw.h"
+#include "pc.h"
 #include "etraxfs.h"
 
 #define D(x)
@@ -135,11 +136,11 @@ static CPUWriteMemoryFunc *pic_write[] = {
 	&pic_writel,
 };
 
-void pic_info(void)
+void pic_info(Monitor *mon)
 {
 }
 
-void irq_info(void)
+void irq_info(Monitor *mon)
 {
 }
 

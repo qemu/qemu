@@ -23,7 +23,7 @@
  */
 #include "hw/hw.h"
 #include "audio.h"
-#include "console.h"
+#include "monitor.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
 
@@ -328,10 +328,10 @@ void AUD_vlog (const char *cap, const char *fmt, va_list ap)
 {
     if (conf.log_to_monitor) {
         if (cap) {
-            term_printf ("%s: ", cap);
+            monitor_printf(cur_mon, "%s: ", cap);
         }
 
-        term_vprintf (fmt, ap);
+        monitor_vprintf(cur_mon, fmt, ap);
     }
     else {
         if (cap) {

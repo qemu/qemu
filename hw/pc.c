@@ -31,7 +31,7 @@
 #include "net.h"
 #include "smbus.h"
 #include "boards.h"
-#include "console.h"
+#include "monitor.h"
 #include "fw_cfg.h"
 #include "virtio-blk.h"
 #include "virtio-balloon.h"
@@ -208,6 +208,7 @@ static int boot_device2nibble(char boot_device)
  and used there as well */
 static int pc_boot_set(void *opaque, const char *boot_device)
 {
+    Monitor *mon = cur_mon;
 #define PC_MAX_BOOT_DEVICES 3
     RTCState *s = (RTCState *)opaque;
     int nbds, bds[3] = { 0, };
@@ -215,14 +216,14 @@ static int pc_boot_set(void *opaque, const char *boot_device)
 
     nbds = strlen(boot_device);
     if (nbds > PC_MAX_BOOT_DEVICES) {
-        term_printf("Too many boot devices for PC\n");
+        monitor_printf(mon, "Too many boot devices for PC\n");
         return(1);
     }
     for (i = 0; i < nbds; i++) {
         bds[i] = boot_device2nibble(boot_device[i]);
         if (bds[i] == 0) {
-            term_printf("Invalid boot device for PC: '%c'\n",
-                    boot_device[i]);
+            monitor_printf(mon, "Invalid boot device for PC: '%c'\n",
+                           boot_device[i]);
             return(1);
         }
     }

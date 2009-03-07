@@ -160,6 +160,7 @@ typedef struct DBDMA_channel {
     qemu_irq irq;
     DBDMA_io io;
     DBDMA_rw rw;
+    DBDMA_flush flush;
     dbdma_cmd current;
     int processing;
 } DBDMA_channel;
@@ -367,7 +368,8 @@ static void dbdma_end(DBDMA_io *io)
     current->xfer_status = cpu_to_le16(be32_to_cpu(ch->regs[DBDMA_STATUS]));
     current->res_count = cpu_to_le16(be32_to_cpu(io->len));
     dbdma_cmdptr_save(ch);
-    ch->regs[DBDMA_STATUS] &= cpu_to_be32(~FLUSH);
+    if (io->is_last)
+        ch->regs[DBDMA_STATUS] &= cpu_to_be32(~FLUSH);
 
     conditional_interrupt(ch);
     conditional_branch(ch);
@@ -632,7 +634,7 @@ static void DBDMA_run_bh(void *opaque)
 }
 
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
-                            DBDMA_rw rw,
+                            DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque)
 {
     DBDMA_channel *ch = ( DBDMA_channel *)dbdma + nchan;
@@ -642,6 +644,7 @@ void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
     ch->irq = irq;
     ch->channel = nchan;
     ch->rw = rw;
+    ch->flush = flush;
     ch->io.opaque = opaque;
     ch->io.channel = ch;
 }
@@ -687,6 +690,8 @@ dbdma_control_write(DBDMA_channel *ch)
 
     if (status & ACTIVE)
         qemu_bh_schedule(dbdma_bh);
+    if (status & FLUSH)
+        ch->flush(&ch->io);
 }
 
 static void dbdma_writel (void *opaque,

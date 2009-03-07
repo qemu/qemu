@@ -31,6 +31,7 @@
 #include "hw/baum.h"
 #include "hw/bt.h"
 #include "net.h"
+#include "monitor.h"
 #include "console.h"
 #include "sysemu.h"
 #include "gdbstub.h"
@@ -210,6 +211,7 @@ int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
 int vm_singlestep;
+static int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
@@ -661,34 +663,34 @@ int kbd_mouse_is_absolute(void)
     return qemu_put_mouse_event_current->qemu_put_mouse_event_absolute;
 }
 
-void do_info_mice(void)
+void do_info_mice(Monitor *mon)
 {
     QEMUPutMouseEntry *cursor;
     int index = 0;
 
     if (!qemu_put_mouse_event_head) {
-        term_printf("No mouse devices connected\n");
+        monitor_printf(mon, "No mouse devices connected\n");
         return;
     }
 
-    term_printf("Mouse devices available:\n");
+    monitor_printf(mon, "Mouse devices available:\n");
     cursor = qemu_put_mouse_event_head;
     while (cursor != NULL) {
-        term_printf("%c Mouse #%d: %s\n",
-                    (cursor == qemu_put_mouse_event_current ? '*' : ' '),
-                    index, cursor->qemu_put_mouse_event_name);
+        monitor_printf(mon, "%c Mouse #%d: %s\n",
+                       (cursor == qemu_put_mouse_event_current ? '*' : ' '),
+                       index, cursor->qemu_put_mouse_event_name);
         index++;
         cursor = cursor->next;
     }
 }
 
-void do_mouse_set(int index)
+void do_mouse_set(Monitor *mon, int index)
 {
     QEMUPutMouseEntry *cursor;
     int i = 0;
 
     if (!qemu_put_mouse_event_head) {
-        term_printf("No mouse devices connected\n");
+        monitor_printf(mon, "No mouse devices connected\n");
         return;
     }
 
@@ -701,7 +703,7 @@ void do_mouse_set(int index)
     if (cursor != NULL)
         qemu_put_mouse_event_current = cursor;
     else
-        term_printf("Mouse at given index not found\n");
+        monitor_printf(mon, "Mouse at given index not found\n");
 }
 
 /* compute with 96 bit intermediate result: (a*b)/c */
@@ -2615,11 +2617,13 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         bdrv_flags |= BDRV_O_CACHE_WB;
     else if (cache == 3) /* not specified */
         bdrv_flags |= BDRV_O_CACHE_DEF;
-    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0 || qemu_key_check(bdrv, file)) {
+    if (bdrv_open2(bdrv, file, bdrv_flags, drv) < 0) {
         fprintf(stderr, "qemu: could not open disk image %s\n",
                         file);
         return -1;
     }
+    if (bdrv_key_required(bdrv))
+        autostart = 0;
     return drives_table_idx;
 }
 
@@ -2666,7 +2670,17 @@ int usb_device_add_dev(USBDevice *dev)
     return 0;
 }
 
-static int usb_device_add(const char *devname)
+static void usb_msd_password_cb(void *opaque, int err)
+{
+    USBDevice *dev = opaque;
+
+    if (!err)
+        usb_device_add_dev(dev);
+    else
+        dev->handle_destroy(dev);
+}
+
+static int usb_device_add(const char *devname, int is_hotplug)
 {
     const char *p;
     USBDevice *dev;
@@ -2683,7 +2697,20 @@ static int usb_device_add(const char *devname)
     } else if (!strcmp(devname, "keyboard")) {
         dev = usb_keyboard_init();
     } else if (strstart(devname, "disk:", &p)) {
+        BlockDriverState *bs;
+
         dev = usb_msd_init(p);
+        if (!dev)
+            return -1;
+        bs = usb_msd_get_bdrv(dev);
+        if (bdrv_key_required(bs)) {
+            autostart = 0;
+            if (is_hotplug) {
+                monitor_read_bdrv_key_start(cur_mon, bs, usb_msd_password_cb,
+                                            dev);
+                return 0;
+            }
+        }
     } else if (!strcmp(devname, "wacom-tablet")) {
         dev = usb_wacom_init();
     } else if (strstart(devname, "serial:", &p)) {
@@ -2762,24 +2789,24 @@ static int usb_device_del(const char *devname)
     return usb_device_del_addr(bus_num, addr);
 }
 
-void do_usb_add(const char *devname)
+void do_usb_add(Monitor *mon, const char *devname)
 {
-    usb_device_add(devname);
+    usb_device_add(devname, 1);
 }
 
-void do_usb_del(const char *devname)
+void do_usb_del(Monitor *mon, const char *devname)
 {
     usb_device_del(devname);
 }
 
-void usb_info(void)
+void usb_info(Monitor *mon)
 {
     USBDevice *dev;
     USBPort *port;
     const char *speed_str;
 
     if (!usb_enabled) {
-        term_printf("USB support not enabled\n");
+        monitor_printf(mon, "USB support not enabled\n");
         return;
     }
 
@@ -2801,8 +2828,8 @@ void usb_info(void)
             speed_str = "?";
             break;
         }
-        term_printf("  Device %d.%d, Speed %s Mb/s, Product %s\n",
-                    0, dev->addr, speed_str, dev->devname);
+        monitor_printf(mon, "  Device %d.%d, Speed %s Mb/s, Product %s\n",
+                       0, dev->addr, speed_str, dev->devname);
     }
 }
 
@@ -2836,16 +2863,17 @@ void pcmcia_socket_unregister(struct pcmcia_socket_s *socket)
         }
 }
 
-void pcmcia_info(void)
+void pcmcia_info(Monitor *mon)
 {
     struct pcmcia_socket_entry_s *iter;
+
     if (!pcmcia_sockets)
-        term_printf("No PCMCIA sockets\n");
+        monitor_printf(mon, "No PCMCIA sockets\n");
 
     for (iter = pcmcia_sockets; iter; iter = iter->next)
-        term_printf("%s: %s\n", iter->socket->slot_string,
-                    iter->socket->attached ? iter->socket->card_string :
-                    "Empty");
+        monitor_printf(mon, "%s: %s\n", iter->socket->slot_string,
+                       iter->socket->attached ? iter->socket->card_string :
+                       "Empty");
 }
 
 /***********************************************************/
@@ -4350,45 +4378,6 @@ static const QEMUOption qemu_options[] = {
     { NULL },
 };
 
-/* password input */
-
-int qemu_key_check(BlockDriverState *bs, const char *name)
-{
-    char password[256];
-    int i;
-
-    if (!bdrv_is_encrypted(bs))
-        return 0;
-
-    term_printf("%s is encrypted.\n", name);
-    for(i = 0; i < 3; i++) {
-        monitor_readline("Password: ", 1, password, sizeof(password));
-        if (bdrv_set_key(bs, password) == 0)
-            return 0;
-        term_printf("invalid password\n");
-    }
-    return -EPERM;
-}
-
-static BlockDriverState *get_bdrv(int index)
-{
-    if (index > nb_drives)
-        return NULL;
-    return drives_table[index].bdrv;
-}
-
-static void read_passwords(void)
-{
-    BlockDriverState *bs;
-    int i;
-
-    for(i = 0; i < 6; i++) {
-        bs = get_bdrv(i);
-        if (bs)
-            qemu_key_check(bs, bdrv_get_device_name(bs));
-    }
-}
-
 #ifdef HAS_AUDIO
 struct soundhw soundhw[] = {
 #ifdef HAS_AUDIO_CHOICE
@@ -4692,7 +4681,6 @@ int main(int argc, char **argv, char **envp)
 #endif
     int tb_size;
     const char *pid_file = NULL;
-    int autostart;
     const char *incoming = NULL;
     int fd = 0;
 #ifndef _WIN32
@@ -5719,7 +5707,7 @@ int main(int argc, char **argv, char **envp)
     /* init USB devices */
     if (usb_enabled) {
         for(i = 0; i < usb_devices_index; i++) {
-            if (usb_device_add(usb_devices[i]) < 0) {
+            if (usb_device_add(usb_devices[i], 0) < 0) {
                 fprintf(stderr, "Warning: could not add USB device %s\n",
                         usb_devices[i]);
             }
@@ -5775,9 +5763,10 @@ int main(int argc, char **argv, char **envp)
     }
 
     text_consoles_set_display(display_state);
+    qemu_chr_initial_reset();
 
     if (monitor_device && monitor_hd)
-        monitor_init(monitor_hd, !nographic);
+        monitor_init(monitor_hd, MONITOR_USE_READLINE | MONITOR_IS_DEFAULT);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
@@ -5819,20 +5808,15 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     if (loadvm)
-        do_loadvm(loadvm);
+        do_loadvm(cur_mon, loadvm);
 
     if (incoming) {
         autostart = 0; /* fixme how to deal with -daemonize */
         qemu_start_incoming_migration(incoming);
     }
 
-    {
-        /* XXX: simplify init */
-        read_passwords();
-        if (autostart) {
-            vm_start();
-        }
-    }
+    if (autostart)
+        vm_start();
 
 #ifndef _WIN32
     if (daemonize) {

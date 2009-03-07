@@ -32,7 +32,7 @@
 
 #include "qemu-common.h"
 #include "qemu-timer.h"
-#include "console.h"
+#include "monitor.h"
 
 #include <dirent.h>
 #include <sys/ioctl.h>
@@ -985,6 +985,7 @@ static int usb_host_auto_del(const char *spec);
 
 USBDevice *usb_host_device_open(const char *devname)
 {
+    Monitor *mon = cur_mon;
     int bus_num, addr;
     char product_name[PRODUCT_NAME_SZ];
 
@@ -998,7 +999,8 @@ USBDevice *usb_host_device_open(const char *devname)
         return NULL;
 
     if (hostdev_find(bus_num, addr)) {
-       term_printf("husb: host usb device %d.%d is already open\n", bus_num, addr);
+       monitor_printf(mon, "husb: host usb device %d.%d is already open\n",
+                      bus_num, addr);
        return NULL;
     }
 
@@ -1149,6 +1151,7 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
  */
 static int usb_host_read_file(char *line, size_t line_size, const char *device_file, const char *device_name)
 {
+    Monitor *mon = cur_mon;
     FILE *f;
     int ret = 0;
     char filename[PATH_MAX];
@@ -1161,7 +1164,7 @@ static int usb_host_read_file(char *line, size_t line_size, const char *device_f
         fclose(f);
         ret = 1;
     } else {
-        term_printf("husb: could not open %s\n", filename);
+        monitor_printf(mon, "husb: could not open %s\n", filename);
     }
 
     return ret;
@@ -1254,6 +1257,7 @@ static int usb_host_scan_sys(void *opaque, USBScanFunc *func)
  */
 static int usb_host_scan(void *opaque, USBScanFunc *func)
 {
+    Monitor *mon = cur_mon;
     FILE *f = 0;
     DIR *dir = 0;
     int ret = 0;
@@ -1292,14 +1296,15 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
         }
     found_devices:
         if (!usb_fs_type) {
-            term_printf("husb: unable to access USB devices\n");
+            monitor_printf(mon, "husb: unable to access USB devices\n");
             return -ENOENT;
         }
 
         /* the module setting (used later for opening devices) */
         usb_host_device_path = qemu_mallocz(strlen(devpath)+1);
         strcpy(usb_host_device_path, devpath);
-        term_printf("husb: using %s file-system with %s\n", fs_type[usb_fs_type], usb_host_device_path);
+        monitor_printf(mon, "husb: using %s file-system with %s\n",
+                       fs_type[usb_fs_type], usb_host_device_path);
     }
 
     switch (usb_fs_type) {
@@ -1606,6 +1611,7 @@ static void usb_info_device(int bus_num, int addr, int class_id,
                             const char *product_name,
                             int speed)
 {
+    Monitor *mon = cur_mon;
     const char *class_str, *speed_str;
 
     switch(speed) {
@@ -1623,17 +1629,17 @@ static void usb_info_device(int bus_num, int addr, int class_id,
         break;
     }
 
-    term_printf("  Device %d.%d, speed %s Mb/s\n",
+    monitor_printf(mon, "  Device %d.%d, speed %s Mb/s\n",
                 bus_num, addr, speed_str);
     class_str = usb_class_str(class_id);
     if (class_str)
-        term_printf("    %s:", class_str);
+        monitor_printf(mon, "    %s:", class_str);
     else
-        term_printf("    Class %02x:", class_id);
-    term_printf(" USB device %04x:%04x", vendor_id, product_id);
+        monitor_printf(mon, "    Class %02x:", class_id);
+    monitor_printf(mon, " USB device %04x:%04x", vendor_id, product_id);
     if (product_name[0] != '\0')
-        term_printf(", %s", product_name);
-    term_printf("\n");
+        monitor_printf(mon, ", %s", product_name);
+    monitor_printf(mon, "\n");
 }
 
 static int usb_host_info_device(void *opaque, int bus_num, int addr,
@@ -1663,20 +1669,21 @@ static void hex2str(int val, char *str, size_t size)
         snprintf(str, size, "%x", val);
 }
 
-void usb_host_info(void)
+void usb_host_info(Monitor *mon)
 {
     struct USBAutoFilter *f;
 
     usb_host_scan(NULL, usb_host_info_device);
 
     if (usb_auto_filter)
-        term_printf("  Auto filters:\n");
+        monitor_printf(mon, "  Auto filters:\n");
     for (f = usb_auto_filter; f; f = f->next) {
         char bus[10], addr[10], vid[10], pid[10];
         dec2str(f->bus_num, bus, sizeof(bus));
         dec2str(f->addr, addr, sizeof(addr));
         hex2str(f->vendor_id, vid, sizeof(vid));
         hex2str(f->product_id, pid, sizeof(pid));
-    	term_printf("    Device %s.%s ID %s:%s\n", bus, addr, vid, pid);
+        monitor_printf(mon, "    Device %s.%s ID %s:%s\n",
+                       bus, addr, vid, pid);
     }
 }

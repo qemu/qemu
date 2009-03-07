@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "net.h"
+#include "monitor.h"
 #include "console.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
@@ -101,6 +102,10 @@
 /***********************************************************/
 /* character device */
 
+static TAILQ_HEAD(CharDriverStateHead, CharDriverState) chardevs =
+    TAILQ_HEAD_INITIALIZER(chardevs);
+static int initial_reset_issued;
+
 static void qemu_chr_event(CharDriverState *s, int event)
 {
     if (!s->chr_event)
@@ -118,9 +123,20 @@ static void qemu_chr_reset_bh(void *opaque)
 
 void qemu_chr_reset(CharDriverState *s)
 {
-    if (s->bh == NULL) {
+    if (s->bh == NULL && initial_reset_issued) {
 	s->bh = qemu_bh_new(qemu_chr_reset_bh, s);
 	qemu_bh_schedule(s->bh);
+    }
+}
+
+void qemu_chr_initial_reset(void)
+{
+    CharDriverState *chr;
+
+    initial_reset_issued = 1;
+
+    TAILQ_FOREACH(chr, &chardevs, next) {
+        qemu_chr_reset(chr);
     }
 }
 
@@ -210,12 +226,15 @@ typedef struct {
     IOEventHandler *chr_event[MAX_MUX];
     void *ext_opaque[MAX_MUX];
     CharDriverState *drv;
-    unsigned char buffer[MUX_BUFFER_SIZE];
-    int prod;
-    int cons;
     int mux_cnt;
     int term_got_escape;
     int max_size;
+    /* Intermediate input buffer allows to catch escape sequences even if the
+       currently active device is not accepting any input - but only until it
+       is full as well. */
+    unsigned char buffer[MAX_MUX][MUX_BUFFER_SIZE];
+    int prod[MAX_MUX];
+    int cons[MAX_MUX];
 } MuxDriver;
 
 
@@ -291,6 +310,12 @@ static void mux_print_help(CharDriverState *chr)
     }
 }
 
+static void mux_chr_send_event(MuxDriver *d, int mux_nr, int event)
+{
+    if (d->chr_event[mux_nr])
+        d->chr_event[mux_nr](d->ext_opaque[mux_nr], event);
+}
+
 static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
 {
     if (d->term_got_escape) {
@@ -322,9 +347,11 @@ static int mux_proc_byte(CharDriverState *chr, MuxDriver *d, int ch)
             break;
         case 'c':
             /* Switch to the next registered device */
+            mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_OUT);
             chr->focus++;
             if (chr->focus >= d->mux_cnt)
                 chr->focus = 0;
+            mux_chr_send_event(d, chr->focus, CHR_EVENT_MUX_IN);
             break;
        case 't':
            term_timestamps = !term_timestamps;
@@ -345,11 +372,11 @@ static void mux_chr_accept_input(CharDriverState *chr)
     int m = chr->focus;
     MuxDriver *d = chr->opaque;
 
-    while (d->prod != d->cons &&
+    while (d->prod[m] != d->cons[m] &&
            d->chr_can_read[m] &&
            d->chr_can_read[m](d->ext_opaque[m])) {
         d->chr_read[m](d->ext_opaque[m],
-                       &d->buffer[d->cons++ & MUX_BUFFER_MASK], 1);
+                       &d->buffer[m][d->cons[m]++ & MUX_BUFFER_MASK], 1);
     }
 }
 
@@ -357,11 +384,12 @@ static int mux_chr_can_read(void *opaque)
 {
     CharDriverState *chr = opaque;
     MuxDriver *d = chr->opaque;
+    int m = chr->focus;
 
-    if ((d->prod - d->cons) < MUX_BUFFER_SIZE)
+    if ((d->prod[m] - d->cons[m]) < MUX_BUFFER_SIZE)
         return 1;
-    if (d->chr_can_read[chr->focus])
-        return d->chr_can_read[chr->focus](d->ext_opaque[chr->focus]);
+    if (d->chr_can_read[m])
+        return d->chr_can_read[m](d->ext_opaque[m]);
     return 0;
 }
 
@@ -376,12 +404,12 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
 
     for(i = 0; i < size; i++)
         if (mux_proc_byte(chr, d, buf[i])) {
-            if (d->prod == d->cons &&
+            if (d->prod[m] == d->cons[m] &&
                 d->chr_can_read[m] &&
                 d->chr_can_read[m](d->ext_opaque[m]))
                 d->chr_read[m](d->ext_opaque[m], &buf[i], 1);
             else
-                d->buffer[d->prod++ & MUX_BUFFER_MASK] = buf[i];
+                d->buffer[m][d->prod[m]++ & MUX_BUFFER_MASK] = buf[i];
         }
 }
 
@@ -393,8 +421,7 @@ static void mux_chr_event(void *opaque, int event)
 
     /* Send the event to all registered listeners */
     for (i = 0; i < d->mux_cnt; i++)
-        if (d->chr_event[i])
-            d->chr_event[i](d->ext_opaque[i], event);
+        mux_chr_send_event(d, i, event);
 }
 
 static void mux_chr_update_read_handler(CharDriverState *chr)
@@ -2076,9 +2103,6 @@ static CharDriverState *qemu_chr_open_tcp(const char *host_str,
     return NULL;
 }
 
-static TAILQ_HEAD(CharDriverStateHead, CharDriverState) chardevs
-= TAILQ_HEAD_INITIALIZER(chardevs);
-
 CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s))
 {
     const char *p;
@@ -2106,7 +2130,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
         chr = qemu_chr_open(label, p, NULL);
         if (chr) {
             chr = qemu_chr_open_mux(chr);
-            monitor_init(chr, !nographic);
+            monitor_init(chr, MONITOR_USE_READLINE);
         } else {
             printf("Unable to open driver: %s\n", p);
         }
@@ -2183,11 +2207,11 @@ void qemu_chr_close(CharDriverState *chr)
     qemu_free(chr);
 }
 
-void qemu_chr_info(void)
+void qemu_chr_info(Monitor *mon)
 {
     CharDriverState *chr;
 
     TAILQ_FOREACH(chr, &chardevs, next) {
-        term_printf("%s: filename=%s\n", chr->label, chr->filename);
+        monitor_printf(mon, "%s: filename=%s\n", chr->label, chr->filename);
     }
 }

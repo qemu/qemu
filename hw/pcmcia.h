@@ -1,5 +1,7 @@
 /* PCMCIA/Cardbus */
 
+#include "qemu-common.h"
+
 struct pcmcia_socket_s {
     qemu_irq irq;
     int attached;
@@ -9,7 +11,7 @@ struct pcmcia_socket_s {
 
 void pcmcia_socket_register(struct pcmcia_socket_s *socket);
 void pcmcia_socket_unregister(struct pcmcia_socket_s *socket);
-void pcmcia_info(void);
+void pcmcia_info(Monitor *mon);
 
 struct pcmcia_card_s {
     void *state;

@@ -33,10 +33,11 @@
 #include "qemu-common.h"
 #include "console.h"
 #include "hw/usb.h"
+#include "monitor.h"
 
-void usb_host_info(void)
+void usb_host_info(Monitor *mon)
 {
-    term_printf("USB host devices not supported\n");
+    monitor_printf(mon, "USB host devices not supported\n");
 }
 
 /* XXX: modify configure to compile the right host driver */

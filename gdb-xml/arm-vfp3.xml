@@ -5,7 +5,7 @@
      are permitted in any medium without royalty provided the copyright
      notice and this notice are preserved.  -->
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
-<feature name="org.gnu.gdb.arm.vfpv3">
+<feature name="org.gnu.gdb.arm.vfp">
   <reg name="d0" bitsize="64" type="float"/>
   <reg name="d1" bitsize="64" type="float"/>
   <reg name="d2" bitsize="64" type="float"/>
