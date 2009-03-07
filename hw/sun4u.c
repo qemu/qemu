@@ -205,11 +205,11 @@ static int sun4u_NVRAM_set_params (m48t59_t *nvram, uint16_t NVRAM_size,
     return 0;
 }
 
-void pic_info(void)
+void pic_info(Monitor *mon)
 {
 }
 
-void irq_info(void)
+void irq_info(Monitor *mon)
 {
 }
 
