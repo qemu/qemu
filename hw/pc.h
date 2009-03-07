@@ -101,6 +101,9 @@ int ioport_get_a20(void);
 
 /* acpi.c */
 extern int acpi_enabled;
+extern char *acpi_tables;
+extern size_t acpi_tables_len;
+
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                        qemu_irq sci_irq);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
