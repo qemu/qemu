@@ -948,7 +948,7 @@ static int bt_l2cap_sdp_new_ch(struct bt_l2cap_device_s *dev,
         &sdp_service_sdp_s,
         &sdp_service_hid_s,
         &sdp_service_pnp_s,
-        0,
+        NULL,
     };
 
     sdp->channel = params;

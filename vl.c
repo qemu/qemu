@@ -21,29 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw/hw.h"
-#include "hw/boards.h"
-#include "hw/usb.h"
-#include "hw/pcmcia.h"
-#include "hw/pc.h"
-#include "hw/audiodev.h"
-#include "hw/isa.h"
-#include "hw/baum.h"
-#include "hw/bt.h"
-#include "net.h"
-#include "monitor.h"
-#include "console.h"
-#include "sysemu.h"
-#include "gdbstub.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
-#include "cache-utils.h"
-#include "block.h"
-#include "audio/audio.h"
-#include "migration.h"
-#include "kvm.h"
-#include "balloon.h"
-
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -114,12 +91,6 @@
 #endif
 #endif
 
-#include "qemu_socket.h"
-
-#if defined(CONFIG_SLIRP)
-#include "libslirp.h"
-#endif
-
 #if defined(__OpenBSD__)
 #include <util.h>
 #endif
@@ -154,9 +125,38 @@ int main(int argc, char **argv)
 #define main qemu_main
 #endif /* CONFIG_COCOA */
 
+#include "hw/hw.h"
+#include "hw/boards.h"
+#include "hw/usb.h"
+#include "hw/pcmcia.h"
+#include "hw/pc.h"
+#include "hw/audiodev.h"
+#include "hw/isa.h"
+#include "hw/baum.h"
+#include "hw/bt.h"
+#include "net.h"
+#include "monitor.h"
+#include "console.h"
+#include "sysemu.h"
+#include "gdbstub.h"
+#include "qemu-timer.h"
+#include "qemu-char.h"
+#include "cache-utils.h"
+#include "block.h"
+#include "audio/audio.h"
+#include "migration.h"
+#include "kvm.h"
+#include "balloon.h"
+
 #include "disas.h"
 
 #include "exec-all.h"
+
+#include "qemu_socket.h"
+
+#if defined(CONFIG_SLIRP)
+#include "libslirp.h"
+#endif
 
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT

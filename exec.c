@@ -179,7 +179,7 @@ static void io_mem_init(void);
 CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
 CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
 void *io_mem_opaque[IO_MEM_NB_ENTRIES];
-char io_mem_used[IO_MEM_NB_ENTRIES];
+static char io_mem_used[IO_MEM_NB_ENTRIES];
 static int io_mem_watch;
 #endif
 

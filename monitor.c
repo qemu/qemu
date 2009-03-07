@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <dirent.h>
 #include "hw/hw.h"
 #include "hw/usb.h"
 #include "hw/pcmcia.h"
@@ -37,7 +38,6 @@
 #include "audio/audio.h"
 #include "disas.h"
 #include "balloon.h"
-#include <dirent.h>
 #include "qemu-timer.h"
 #include "migration.h"
 #include "kvm.h"

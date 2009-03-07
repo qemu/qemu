@@ -324,7 +324,8 @@ static void bt_hid_control_transaction(struct bt_hid_device_s *s,
             break;
         }
         s->proto = parameter;
-        s->usbdev->handle_control(s->usbdev, SET_PROTOCOL, s->proto, 0, 0, 0);
+        s->usbdev->handle_control(s->usbdev, SET_PROTOCOL, s->proto, 0, 0,
+                                  NULL);
         ret = BT_HS_SUCCESSFUL;
         break;
 
@@ -347,7 +348,7 @@ static void bt_hid_control_transaction(struct bt_hid_device_s *s,
         /* We don't need to know about the Idle Rate here really,
          * so just pass it on to the device.  */
         ret = s->usbdev->handle_control(s->usbdev,
-                        SET_IDLE, data[1], 0, 0, 0) ?
+                        SET_IDLE, data[1], 0, 0, NULL) ?
                 BT_HS_SUCCESSFUL : BT_HS_ERR_INVALID_PARAMETER;
         /* XXX: Does this generate a handshake? */
         break;
@@ -462,7 +463,7 @@ static void bt_hid_close_control(void *opaque)
 {
     struct bt_hid_device_s *hid = opaque;
 
-    hid->control = 0;
+    hid->control = NULL;
     bt_hid_connected_update(hid);
 }
 
@@ -470,7 +471,7 @@ static void bt_hid_close_interrupt(void *opaque)
 {
     struct bt_hid_device_s *hid = opaque;
 
-    hid->interrupt = 0;
+    hid->interrupt = NULL;
     bt_hid_connected_update(hid);
 }
 

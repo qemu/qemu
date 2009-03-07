@@ -1327,7 +1327,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds, const c
     unsigned height;
     static int color_inited;
 
-    s = new_console(ds, (p == 0) ? TEXT_CONSOLE : TEXT_CONSOLE_FIXED_SIZE);
+    s = new_console(ds, (p == NULL) ? TEXT_CONSOLE : TEXT_CONSOLE_FIXED_SIZE);
     if (!s) {
         free(chr);
         return;
@@ -1353,7 +1353,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds, const c
     s->y = 0;
     width = ds_get_width(s->ds);
     height = ds_get_height(s->ds);
-    if (p != 0) {
+    if (p != NULL) {
         width = strtoul(p, (char **)&p, 10);
         if (*p == 'C') {
             p++;

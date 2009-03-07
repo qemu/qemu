@@ -21,14 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "qemu-common.h"
-#include "net.h"
-#include "monitor.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
-#include "audio/audio.h"
-
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -98,12 +90,6 @@
 #endif
 #endif
 
-#include "qemu_socket.h"
-
-#if defined(CONFIG_SLIRP)
-#include "libslirp.h"
-#endif
-
 #if defined(__OpenBSD__)
 #include <util.h>
 #endif
@@ -119,6 +105,20 @@
 #define getopt_long_only getopt_long
 #define memalign(align, size) malloc(size)
 #endif
+
+#include "qemu-common.h"
+#include "net.h"
+#include "monitor.h"
+#include "sysemu.h"
+#include "qemu-timer.h"
+#include "qemu-char.h"
+#include "audio/audio.h"
+#include "qemu_socket.h"
+
+#if defined(CONFIG_SLIRP)
+#include "libslirp.h"
+#endif
+
 
 static VLANState *first_vlan;
 
@@ -585,7 +585,7 @@ static void erase_dir(char *dir_name)
     char filename[1024];
 
     /* erase all the files in the directory */
-    if ((d = opendir(dir_name)) != 0) {
+    if ((d = opendir(dir_name)) != NULL) {
         for(;;) {
             de = readdir(d);
             if (!de)
@@ -673,7 +673,7 @@ void do_info_slirp(Monitor *mon)
 struct VMChannel {
     CharDriverState *hd;
     int port;
-} *vmchannels;
+};
 
 static int vmchannel_can_read(void *opaque)
 {

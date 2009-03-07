@@ -165,5 +165,5 @@ void bt_vhci_init(struct HCIInfo *info)
     s->info->evt_recv = vhci_out_hci_packet_event;
     s->info->acl_recv = vhci_out_hci_packet_acl;
 
-    qemu_set_fd_handler(s->fd, vhci_read, 0, s);
+    qemu_set_fd_handler(s->fd, vhci_read, NULL, s);
 }

@@ -446,7 +446,7 @@ static inline uint8_t *bt_hci_event_start(struct bt_hci_s *hci,
     mask_byte = (evt - 1) >> 3;
     mask = 1 << ((evt - 1) & 3);
     if (mask & bt_event_reserved_mask[mask_byte] & ~hci->event_mask[mask_byte])
-        return 0;
+        return NULL;
 
     packet = hci->evt_packet(hci->opaque);
     packet[0] = evt;
@@ -664,7 +664,7 @@ static void bt_hci_lmp_link_establish(struct bt_hci_s *hci,
 static void bt_hci_lmp_link_teardown(struct bt_hci_s *hci, uint16_t handle)
 {
     handle &= ~HCI_HANDLE_OFFSET;
-    hci->lm.handle[handle].link = 0;
+    hci->lm.handle[handle].link = NULL;
 
     if (bt_hci_role_master(hci, handle)) {
         qemu_del_timer(hci->lm.handle[handle].acl_mode_timer);
@@ -1138,7 +1138,7 @@ static void bt_hci_reset(struct bt_hci_s *hci)
     hci->device.page_scan = 0;
     if (hci->device.lmp_name)
         qemu_free((void *) hci->device.lmp_name);
-    hci->device.lmp_name = 0;
+    hci->device.lmp_name = NULL;
     hci->device.class[0] = 0x00;
     hci->device.class[1] = 0x00;
     hci->device.class[2] = 0x00;
@@ -1617,7 +1617,7 @@ static void bt_submit_hci(struct HCIInfo *info,
 
         bt_hci_event_status(hci, HCI_SUCCESS);
         bt_hci_connection_accept(hci, hci->conn_req_host);
-        hci->conn_req_host = 0;
+        hci->conn_req_host = NULL;
         break;
 
     case cmd_opcode_pack(OGF_LINK_CTL, OCF_REJECT_CONN_REQ):
@@ -1634,7 +1634,7 @@ static void bt_submit_hci(struct HCIInfo *info,
         bt_hci_connection_reject(hci, hci->conn_req_host,
                         PARAM(reject_conn_req, reason));
         bt_hci_connection_reject_event(hci, &hci->conn_req_host->bd_addr);
-        hci->conn_req_host = 0;
+        hci->conn_req_host = NULL;
         break;
 
     case cmd_opcode_pack(OGF_LINK_CTL, OCF_AUTH_REQUESTED):

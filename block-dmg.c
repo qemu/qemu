@@ -85,7 +85,7 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
         return -errno;
     bs->read_only = 1;
     s->n_chunks = 0;
-    s->offsets = s->lengths = s->sectors = s->sectorcounts = 0;
+    s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
 
     /* read offset of info blocks */
     if(lseek(s->fd,-0x1d8,SEEK_END)<0) {

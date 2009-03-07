@@ -33,9 +33,6 @@
 #include <sys/statvfs.h>
 #endif
 
-#include "qemu-common.h"
-#include "sysemu.h"
-
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -45,6 +42,8 @@
 #include <malloc.h>
 #endif
 
+#include "qemu-common.h"
+#include "sysemu.h"
 #include "qemu_socket.h"
 
 #if defined(_WIN32)

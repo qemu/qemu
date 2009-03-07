@@ -21,17 +21,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "qemu-common.h"
-#include "console.h"
-#include "sysemu.h"
-#include "x_keymap.h"
-
 #include <SDL.h>
 #include <SDL/SDL_syswm.h>
 
 #ifndef _WIN32
 #include <signal.h>
 #endif
+
+#include "qemu-common.h"
+#include "console.h"
+#include "sysemu.h"
+#include "x_keymap.h"
 
 static DisplayChangeListener *dcl;
 static SDL_Surface *real_screen;

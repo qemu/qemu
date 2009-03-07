@@ -134,7 +134,7 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
         cid_str_size = sizeof("CID");
     }
 
-    if ((p_name = strstr(desc,cid_str)) != 0) {
+    if ((p_name = strstr(desc,cid_str)) != NULL) {
         p_name += cid_str_size;
         sscanf(p_name,"%x",&cid);
     }
@@ -154,7 +154,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
 
     tmp_str = strstr(desc,"parentCID");
     pstrcpy(tmp_desc, sizeof(tmp_desc), tmp_str);
-    if ((p_name = strstr(desc,"CID")) != 0) {
+    if ((p_name = strstr(desc,"CID")) != NULL) {
         p_name += sizeof("CID");
         snprintf(p_name, sizeof(desc) - (p_name - desc), "%x\n", cid);
         pstrcat(desc, sizeof(desc), tmp_desc);
@@ -239,7 +239,7 @@ static int vmdk_snapshot_create(const char *filename, const char *backing_file)
     if (read(p_fd, p_desc, DESC_SIZE) != DESC_SIZE)
         goto fail;
 
-    if ((p_name = strstr(p_desc,"CID")) != 0) {
+    if ((p_name = strstr(p_desc,"CID")) != NULL) {
         p_name += sizeof("CID");
         sscanf(p_name,"%x",&p_cid);
     }
@@ -330,12 +330,12 @@ static int vmdk_parent_open(BlockDriverState *bs, const char * filename)
     if (bdrv_pread(s->hd, 0x200, desc, DESC_SIZE) != DESC_SIZE)
         return -1;
 
-    if ((p_name = strstr(desc,"parentFileNameHint")) != 0) {
+    if ((p_name = strstr(desc,"parentFileNameHint")) != NULL) {
         char *end_name;
         struct stat file_buf;
 
         p_name += sizeof("parentFileNameHint") + 1;
-        if ((end_name = strchr(p_name,'\"')) == 0)
+        if ((end_name = strchr(p_name,'\"')) == NULL)
             return -1;
         if ((end_name - p_name) > sizeof (s->hd->backing_file) - 1)
             return -1;
