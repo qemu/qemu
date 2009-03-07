@@ -46,4 +46,13 @@
   <reg name="lr" bitsize="32" type="code_ptr"/>
   <reg name="ctr" bitsize="32" type="uint32"/>
   <reg name="xer" bitsize="32" type="uint32"/>
+  <!-- HACK: The way the QEMU GDB stub code is currently written requires
+       the "integer" registers from the XML file to span the entirety of
+       NUM_CORE_REGS that non-XML-aware GDB requires.  Otherwise, XML-aware
+       GDB thinks that "coprocessor" registers from XML, such as the
+       floating-point registers, have register numbers less than
+       NUM_CORE_REGS.  This can lead to problems.  Work around it by using
+       an unnamed register as padding; NUM_CORE_REGS on Power is 71 and
+       this register is 70.  It would be fpscr for non-XML-aware GDB.  -->
+  <reg name="" bitsize="32" type="uint32"/>
 </feature>
