@@ -2139,11 +2139,7 @@ static int bt_parse(const char *opt)
 /* QEMU Block devices */
 
 #define HD_ALIAS "index=%d,media=disk"
-#ifdef TARGET_PPC
-#define CDROM_ALIAS "index=1,media=cdrom"
-#else
 #define CDROM_ALIAS "index=2,media=cdrom"
-#endif
 #define FD_ALIAS "index=%d,if=floppy"
 #define PFLASH_ALIAS "if=pflash"
 #define MTD_ALIAS "if=mtd"
