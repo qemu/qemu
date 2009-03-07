@@ -604,6 +604,7 @@ enum {
 
 #if defined(DO_PPC_STATISTICS)
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
+extern opcode_t opc_##name;                                                   \
 OPCODES_SECTION opcode_t opc_##name = {                                       \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -633,6 +634,7 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
 }
 #else
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ)                           \
+extern opcode_t opc_##name;                                                   \
 OPCODES_SECTION opcode_t opc_##name = {                                       \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -646,6 +648,7 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
     .oname = stringify(name),                                                 \
 }
 #define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ)                    \
+extern opcode_t opc_##name;                                                   \
 OPCODES_SECTION opcode_t opc_##name = {                                       \
     .opc1 = op1,                                                              \
     .opc2 = op2,                                                              \
@@ -661,6 +664,7 @@ OPCODES_SECTION opcode_t opc_##name = {                                       \
 #endif
 
 #define GEN_OPCODE_MARK(name)                                                 \
+extern opcode_t opc_##name;                                                   \
 OPCODES_SECTION opcode_t opc_##name = {                                       \
     .opc1 = 0xFF,                                                             \
     .opc2 = 0xFF,                                                             \
