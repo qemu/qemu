@@ -223,6 +223,9 @@ static inline int cpu_mmu_index (CPUState *env)
     return (env->sr & SR_S) == 0 ? 1 : 0;
 }
 
+int cpu_m68k_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+                              int mmu_idx, int is_softmmu);
+
 #if defined(CONFIG_USER_ONLY)
 static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 {

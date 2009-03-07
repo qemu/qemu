@@ -454,11 +454,6 @@ uint32_t HELPER(xflag_lt)(uint32_t a, uint32_t b)
     return a < b;
 }
 
-uint32_t HELPER(btest)(uint32_t x)
-{
-    return x != 0;
-}
-
 void HELPER(set_sr)(CPUState *env, uint32_t val)
 {
     env->sr = val & 0xffff;
