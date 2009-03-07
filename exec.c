@@ -454,7 +454,7 @@ static void code_gen_alloc(unsigned long tb_size)
             exit(1);
         }
     }
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
     {
         int flags;
         void *addr = NULL;

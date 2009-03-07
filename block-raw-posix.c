@@ -63,6 +63,11 @@
 #include <sys/dkio.h>
 #endif
 
+#ifdef __DragonFly__
+#include <sys/ioctl.h>
+#include <sys/diskslice.h>
+#endif
+
 //#define DEBUG_FLOPPY
 
 //#define DEBUG_BLOCK
@@ -762,6 +767,15 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
 #ifdef DIOCGMEDIASIZE
 	if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
+#elif defined(DIOCGPART)
+        {
+                struct partinfo pi;
+                if (ioctl(fd, DIOCGPART, &pi) == 0)
+                        size = pi.media_size;
+                else
+                        size = 0;
+        }
+        if (size == 0)
 #endif
 #ifdef CONFIG_COCOA
         size = LONG_LONG_MAX;

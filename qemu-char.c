@@ -67,6 +67,10 @@
 #include <libutil.h>
 #include <dev/ppbus/ppi.h>
 #include <dev/ppbus/ppbconf.h>
+#elif defined(__DragonFly__)
+#include <libutil.h>
+#include <dev/misc/ppi/ppi.h>
+#include <bus/ppbus/ppbconf.h>
 #else
 #include <util.h>
 #endif
@@ -806,7 +810,7 @@ void cfmakeraw (struct termios *termios_p)
 #endif
 
 #if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
-    || defined(__NetBSD__) || defined(__OpenBSD__)
+    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
 
 typedef struct {
     int fd;
@@ -934,7 +938,7 @@ static CharDriverState *qemu_chr_open_pty(void)
     PtyCharDriver *s;
     struct termios tty;
     int slave_fd, len;
-#if defined(__OpenBSD__)
+#if defined(__OpenBSD__) || defined(__DragonFly__)
     char pty_name[PATH_MAX];
 #define q_ptsname(x) pty_name
 #else
@@ -1280,7 +1284,7 @@ static CharDriverState *qemu_chr_open_pp(const char *filename)
 }
 #endif /* __linux__ */
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__DragonFly__)
 static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
 {
     int fd = (int)chr->opaque;
@@ -2153,13 +2157,13 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     if (strstart(filename, "/dev/parport", NULL)) {
         chr = qemu_chr_open_pp(filename);
     } else
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
     if (strstart(filename, "/dev/ppi", NULL)) {
         chr = qemu_chr_open_pp(filename);
     } else
 #endif
 #if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
-    || defined(__NetBSD__) || defined(__OpenBSD__)
+    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
     if (strstart(filename, "/dev/", NULL)) {
         chr = qemu_chr_open_tty(filename);
     } else

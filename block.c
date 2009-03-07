@@ -35,7 +35,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#ifndef __DragonFly__
 #include <sys/disk.h>
+#endif
 #endif
 
 #define SECTOR_BITS 9

@@ -229,6 +229,15 @@ if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     kqemu="yes"
 fi
 ;;
+DragonFly)
+bsd="yes"
+audio_drv_list="oss"
+audio_possible_drivers="oss sdl esd pa"
+if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
+    kqemu="yes"
+fi
+aio="no"
+;;
 NetBSD)
 bsd="yes"
 audio_drv_list="oss"

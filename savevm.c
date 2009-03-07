@@ -54,7 +54,7 @@
 #include <sys/select.h>
 #ifdef _BSD
 #include <sys/stat.h>
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__DragonFly__)
 #include <libutil.h>
 #else
 #include <util.h>
