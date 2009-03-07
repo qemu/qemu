@@ -5,6 +5,8 @@
 
 #define ELF_MACHINE	EM_MIPS
 
+#define CPUState struct CPUMIPSState
+
 #include "config.h"
 #include "mips-defs.h"
 #include "cpu-defs.h"
@@ -473,7 +475,6 @@ void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int unused, int size);
 
-#define CPUState CPUMIPSState
 #define cpu_init cpu_mips_init
 #define cpu_exec cpu_mips_exec
 #define cpu_gen_code cpu_mips_gen_code

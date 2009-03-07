@@ -534,6 +534,9 @@ void cpu_exec_init(CPUState *env)
     CPUState **penv;
     int cpu_index;
 
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_lock();
+#endif
     env->next_cpu = NULL;
     penv = &first_cpu;
     cpu_index = 0;
@@ -545,6 +548,9 @@ void cpu_exec_init(CPUState *env)
     TAILQ_INIT(&env->breakpoints);
     TAILQ_INIT(&env->watchpoints);
     *penv = env;
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_unlock();
+#endif
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
     register_savevm("cpu_common", cpu_index, CPU_COMMON_SAVE_VERSION,
                     cpu_common_save, cpu_common_load, env);

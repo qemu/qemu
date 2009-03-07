@@ -23,6 +23,8 @@
 
 #define TARGET_LONG_BITS 32
 
+#define CPUState struct CPUM68KState
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"
@@ -207,7 +209,6 @@ void register_m68k_insns (CPUM68KState *env);
 #define TARGET_PAGE_BITS 10
 #endif
 
-#define CPUState CPUM68KState
 #define cpu_init cpu_m68k_init
 #define cpu_exec cpu_m68k_exec
 #define cpu_gen_code cpu_m68k_gen_code

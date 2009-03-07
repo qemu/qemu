@@ -54,6 +54,8 @@
 
 #endif /* defined (TARGET_PPC64) */
 
+#define CPUState struct CPUPPCState
+
 #include "cpu-defs.h"
 
 #define REGX "%016" PRIx64
@@ -786,7 +788,6 @@ static always_inline uint64_t ppc_dump_gpr (CPUPPCState *env, int gprn)
 int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp);
 int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 
-#define CPUState CPUPPCState
 #define cpu_init cpu_ppc_init
 #define cpu_exec cpu_ppc_exec
 #define cpu_gen_code cpu_ppc_gen_code

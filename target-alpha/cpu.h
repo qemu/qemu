@@ -25,6 +25,8 @@
 
 #define TARGET_LONG_BITS 64
 
+#define CPUState struct CPUAlphaState
+
 #include "cpu-defs.h"
 
 #include <setjmp.h>
@@ -291,7 +293,6 @@ struct CPUAlphaState {
     pal_handler_t *pal_handler;
 };
 
-#define CPUState CPUAlphaState
 #define cpu_init cpu_alpha_init
 #define cpu_exec cpu_alpha_exec
 #define cpu_gen_code cpu_alpha_gen_code

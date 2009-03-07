@@ -37,6 +37,8 @@
 #define SH_CPU_SH7750_ALL (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7750R)
 #define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
 
+#define CPUState struct CPUSH4State
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"
@@ -169,7 +171,6 @@ void cpu_load_tlb(CPUSH4State * env);
 
 #include "softfloat.h"
 
-#define CPUState CPUSH4State
 #define cpu_init cpu_sh4_init
 #define cpu_exec cpu_sh4_exec
 #define cpu_gen_code cpu_sh4_gen_code

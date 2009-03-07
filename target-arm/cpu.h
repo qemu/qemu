@@ -24,6 +24,8 @@
 
 #define ELF_MACHINE	EM_ARM
 
+#define CPUState struct CPUARMState
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"
@@ -398,7 +400,6 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define TARGET_PAGE_BITS 10
 #endif
 
-#define CPUState CPUARMState
 #define cpu_init cpu_arm_init
 #define cpu_exec cpu_arm_exec
 #define cpu_gen_code cpu_arm_gen_code

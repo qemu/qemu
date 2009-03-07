@@ -15,6 +15,8 @@
 
 #define TARGET_PHYS_ADDR_BITS 64
 
+#define CPUState struct CPUSPARCState
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"
@@ -436,7 +438,6 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int is_asi, int size);
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 
-#define CPUState CPUSPARCState
 #define cpu_init cpu_sparc_init
 #define cpu_exec cpu_sparc_exec
 #define cpu_gen_code cpu_sparc_gen_code

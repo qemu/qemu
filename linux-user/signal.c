@@ -2691,7 +2691,7 @@ static int setup_sigcontext(struct target_sigcontext *sc,
     return err;
 }
 
-static int restore_sigcontext(struct CPUState *regs,
+static int restore_sigcontext(CPUState *regs,
 			      struct target_sigcontext *sc)
 {
     unsigned int err = 0;
