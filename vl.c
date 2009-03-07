@@ -29,6 +29,9 @@
 #include <sys/time.h>
 #include <zlib.h>
 
+/* Needed early for _BSD etc. */
+#include "config-host.h"
+
 #ifndef _WIN32
 #include <pwd.h>
 #include <sys/times.h>
