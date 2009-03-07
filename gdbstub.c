@@ -1808,7 +1808,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 }
             break;
         }
-#ifdef CONFIG_LINUX_USER
+#ifdef CONFIG_USER_ONLY
         else if (strncmp(p, "Offsets", 7) == 0) {
             TaskState *ts = s->c_cpu->opaque;
 
@@ -1821,7 +1821,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, buf);
             break;
         }
-#else /* !CONFIG_LINUX_USER */
+#else /* !CONFIG_USER_ONLY */
         else if (strncmp(p, "Rcmd,", 5) == 0) {
             int len = strlen(p + 5);
 
@@ -1836,7 +1836,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, "OK");
             break;
         }
-#endif /* !CONFIG_LINUX_USER */
+#endif /* !CONFIG_USER_ONLY */
         if (strncmp(p, "Supported", 9) == 0) {
             snprintf(buf, sizeof(buf), "PacketSize=%x", MAX_PACKET_LENGTH);
 #ifdef GDB_CORE_XML
