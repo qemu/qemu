@@ -3855,8 +3855,8 @@ GEN_HANDLER(mfcr, 0x1F, 0x13, 0x00, 0x00000801, PPC_MISC)
         if (likely(crm && ((crm & (crm - 1)) == 0))) {
             crn = ctz32 (crm);
             tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], cpu_crf[7 - crn]);
-            tcg_gen_shli_i32(cpu_gpr[rD(ctx->opcode)],
-                             cpu_gpr[rD(ctx->opcode)], crn * 4);
+            tcg_gen_shli_tl(cpu_gpr[rD(ctx->opcode)],
+                            cpu_gpr[rD(ctx->opcode)], crn * 4);
         }
     } else {
         gen_helper_load_cr(cpu_gpr[rD(ctx->opcode)]);
