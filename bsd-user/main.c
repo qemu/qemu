@@ -50,6 +50,43 @@ void gemu_log(const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 }
+
+/* These are no-ops because we are not threadsafe.  */
+static inline void cpu_exec_start(CPUState *env)
+{
+}
+
+static inline void cpu_exec_end(CPUState *env)
+{
+}
+
+static inline void start_exclusive(void)
+{
+}
+
+static inline void end_exclusive(void)
+{
+}
+
+void fork_start(void)
+{
+}
+
+void fork_end(int child)
+{
+    if (child) {
+        gdbserver_fork(thread_env);
+    }
+}
+
+void cpu_list_lock(void)
+{
+}
+
+void cpu_list_unlock(void)
+{
+}
+
 #ifdef TARGET_SPARC
 #define SPARC64_STACK_BIAS 2047
 
