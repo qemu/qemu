@@ -284,11 +284,10 @@ static void dmg_close(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_dmg = {
-    "dmg",
-    sizeof(BDRVDMGState),
-    dmg_probe,
-    dmg_open,
-    dmg_read,
-    NULL,
-    dmg_close,
+    .format_name	= "dmg",
+    .instance_size	= sizeof(BDRVDMGState),
+    .bdrv_probe		= dmg_probe,
+    .bdrv_open		= dmg_open,
+    .bdrv_read		= dmg_read,
+    .bdrv_close		= dmg_close,
 };

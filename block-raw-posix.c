@@ -1180,32 +1180,28 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 #endif /* !linux */
 
 BlockDriver bdrv_host_device = {
-    "host_device",
-    sizeof(BDRVRawState),
-    NULL, /* no probe for protocols */
-    hdev_open,
-    NULL,
-    NULL,
-    raw_close,
-    NULL,
-    raw_flush,
+    .format_name	= "host_device",
+    .instance_size	= sizeof(BDRVRawState),
+    .bdrv_open		= hdev_open,
+    .bdrv_close		= raw_close,
+    .bdrv_flush		= raw_flush,
 
 #ifdef CONFIG_AIO
-    .bdrv_aio_read = raw_aio_read,
-    .bdrv_aio_write = raw_aio_write,
-    .bdrv_aio_cancel = raw_aio_cancel,
-    .aiocb_size = sizeof(RawAIOCB),
+    .bdrv_aio_read	= raw_aio_read,
+    .bdrv_aio_write	= raw_aio_write,
+    .bdrv_aio_cancel	= raw_aio_cancel,
+    .aiocb_size		= sizeof(RawAIOCB),
 #endif
 
-    .bdrv_pread = raw_pread,
-    .bdrv_pwrite = raw_pwrite,
-    .bdrv_getlength = raw_getlength,
+    .bdrv_pread		= raw_pread,
+    .bdrv_pwrite	= raw_pwrite,
+    .bdrv_getlength	= raw_getlength,
 
     /* removable device support */
-    .bdrv_is_inserted = raw_is_inserted,
-    .bdrv_media_changed = raw_media_changed,
-    .bdrv_eject = raw_eject,
-    .bdrv_set_locked = raw_set_locked,
+    .bdrv_is_inserted	= raw_is_inserted,
+    .bdrv_media_changed	= raw_media_changed,
+    .bdrv_eject		= raw_eject,
+    .bdrv_set_locked	= raw_set_locked,
     /* generic scsi device */
-    .bdrv_ioctl = raw_ioctl,
+    .bdrv_ioctl		= raw_ioctl,
 };

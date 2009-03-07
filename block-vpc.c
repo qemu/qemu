@@ -582,12 +582,12 @@ static void vpc_close(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_vpc = {
-    "vpc",
-    sizeof(BDRVVPCState),
-    vpc_probe,
-    vpc_open,
-    vpc_read,
-    vpc_write,
-    vpc_close,
-    vpc_create,
+    .format_name	= "vpc",
+    .instance_size	= sizeof(BDRVVPCState),
+    .bdrv_probe		= vpc_probe,
+    .bdrv_open		= vpc_open,
+    .bdrv_read		= vpc_read,
+    .bdrv_write		= vpc_write,
+    .bdrv_close		= vpc_close,
+    .bdrv_create	= vpc_create,
 };

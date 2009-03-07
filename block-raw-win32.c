@@ -495,23 +495,19 @@ static int raw_set_locked(BlockDriverState *bs, int locked)
 #endif
 
 BlockDriver bdrv_host_device = {
-    "host_device",
-    sizeof(BDRVRawState),
-    NULL, /* no probe for protocols */
-    hdev_open,
-    NULL,
-    NULL,
-    raw_close,
-    NULL,
-    raw_flush,
+    .format_name	= "host_device",
+    .instance_size	= sizeof(BDRVRawState),
+    .bdrv_open		= hdev_open,
+    .bdrv_close		= raw_close,
+    .bdrv_flush		= raw_flush,
 
 #ifdef WIN32_AIO
-    .bdrv_aio_read = raw_aio_read,
-    .bdrv_aio_write = raw_aio_write,
-    .bdrv_aio_cancel = raw_aio_cancel,
-    .aiocb_size = sizeof(RawAIOCB);
+    .bdrv_aio_read	= raw_aio_read,
+    .bdrv_aio_write	= raw_aio_write,
+    .bdrv_aio_cancel	= raw_aio_cancel,
+    .aiocb_size		= sizeof(RawAIOCB);
 #endif
-    .bdrv_pread = raw_pread,
-    .bdrv_pwrite = raw_pwrite,
-    .bdrv_getlength = raw_getlength,
+    .bdrv_pread		= raw_pread,
+    .bdrv_pwrite	= raw_pwrite,
+    .bdrv_getlength	= raw_getlength,
 };

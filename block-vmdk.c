@@ -812,14 +812,14 @@ static void vmdk_flush(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_vmdk = {
-    "vmdk",
-    sizeof(BDRVVmdkState),
-    vmdk_probe,
-    vmdk_open,
-    vmdk_read,
-    vmdk_write,
-    vmdk_close,
-    vmdk_create,
-    vmdk_flush,
-    vmdk_is_allocated,
+    .format_name	= "vmdk",
+    .instance_size	= sizeof(BDRVVmdkState),
+    .bdrv_probe		= vmdk_probe,
+    .bdrv_open		= vmdk_open,
+    .bdrv_read		= vmdk_read,
+    .bdrv_write		= vmdk_write,
+    .bdrv_close		= vmdk_close,
+    .bdrv_create	= vmdk_create,
+    .bdrv_flush		= vmdk_flush,
+    .bdrv_is_allocated	= vmdk_is_allocated,
 };

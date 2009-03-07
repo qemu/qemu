@@ -2805,17 +2805,14 @@ static void vvfat_close(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_vvfat = {
-    "vvfat",
-    sizeof(BDRVVVFATState),
-    NULL, /* no probe for protocols */
-    vvfat_open,
-    vvfat_read,
-    vvfat_write,
-    vvfat_close,
-    NULL, /* ??? Not sure if we can do any meaningful flushing.  */
-    NULL,
-    vvfat_is_allocated,
-    .protocol_name = "fat",
+    .format_name	= "vvfat",
+    .instance_size	= sizeof(BDRVVVFATState),
+    .bdrv_open		= vvfat_open,
+    .bdrv_read		= vvfat_read,
+    .bdrv_write		= vvfat_write,
+    .bdrv_close		= vvfat_close,
+    .bdrv_is_allocated	= vvfat_is_allocated,
+    .protocol_name	= "fat",
 };
 
 #ifdef DEBUG

@@ -253,15 +253,15 @@ static void cow_flush(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_cow = {
-    "cow",
-    sizeof(BDRVCowState),
-    cow_probe,
-    cow_open,
-    cow_read,
-    cow_write,
-    cow_close,
-    cow_create,
-    cow_flush,
-    cow_is_allocated,
+    .format_name	= "cow",
+    .instance_size	= sizeof(BDRVCowState),
+    .bdrv_probe		= cow_probe,
+    .bdrv_open		= cow_open,
+    .bdrv_read		= cow_read,
+    .bdrv_write		= cow_write,
+    .bdrv_close		= cow_close,
+    .bdrv_create	= cow_create,
+    .bdrv_flush		= cow_flush,
+    .bdrv_is_allocated	= cow_is_allocated,
 };
 #endif
