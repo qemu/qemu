@@ -677,6 +677,7 @@ struct CPUPPCState {
 typedef struct mmu_ctx_t mmu_ctx_t;
 struct mmu_ctx_t {
     target_phys_addr_t raddr;      /* Real address              */
+    target_phys_addr_t eaddr;      /* Effective address         */
     int prot;                      /* Protection bits           */
     target_phys_addr_t pg_addr[2]; /* PTE tables base addresses */
     target_ulong ptem;             /* Virtual segment ID | API  */

@@ -582,7 +582,8 @@ static always_inline int get_bat (CPUState *env, mmu_ctx_t *ctx,
 
 /* PTE table lookup */
 static always_inline int _find_pte (mmu_ctx_t *ctx, int is_64b, int h,
-                                    int rw, int type)
+                                    int rw, int type,
+                                    int target_page_bits)
 {
     target_ulong base, pte0, pte1;
     int i, good = -1;
@@ -594,7 +595,14 @@ static always_inline int _find_pte (mmu_ctx_t *ctx, int is_64b, int h,
 #if defined(TARGET_PPC64)
         if (is_64b) {
             pte0 = ldq_phys(base + (i * 16));
-            pte1 =  ldq_phys(base + (i * 16) + 8);
+            pte1 = ldq_phys(base + (i * 16) + 8);
+
+            /* We have a TLB that saves 4K pages, so let's
+             * split a huge page to 4k chunks */
+            if (target_page_bits != TARGET_PAGE_BITS)
+                pte1 |= (ctx->eaddr & (( 1 << target_page_bits ) - 1))
+                        & TARGET_PAGE_MASK;
+
             r = pte64_check(ctx, pte0, pte1, h, rw, type);
             LOG_MMU("Load pte from " ADDRX " => " ADDRX " " ADDRX
                         " %d %d %d " ADDRX "\n",
@@ -658,27 +666,30 @@ static always_inline int _find_pte (mmu_ctx_t *ctx, int is_64b, int h,
     return ret;
 }
 
-static always_inline int find_pte32 (mmu_ctx_t *ctx, int h, int rw, int type)
+static always_inline int find_pte32 (mmu_ctx_t *ctx, int h, int rw,
+                                     int type, int target_page_bits)
 {
-    return _find_pte(ctx, 0, h, rw, type);
+    return _find_pte(ctx, 0, h, rw, type, target_page_bits);
 }
 
 #if defined(TARGET_PPC64)
-static always_inline int find_pte64 (mmu_ctx_t *ctx, int h, int rw, int type)
+static always_inline int find_pte64 (mmu_ctx_t *ctx, int h, int rw,
+                                     int type, int target_page_bits)
 {
-    return _find_pte(ctx, 1, h, rw, type);
+    return _find_pte(ctx, 1, h, rw, type, target_page_bits);
 }
 #endif
 
 static always_inline int find_pte (CPUState *env, mmu_ctx_t *ctx,
-                                   int h, int rw, int type)
+                                   int h, int rw, int type,
+                                   int target_page_bits)
 {
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64)
-        return find_pte64(ctx, h, rw, type);
+        return find_pte64(ctx, h, rw, type, target_page_bits);
 #endif
 
-    return find_pte32(ctx, h, rw, type);
+    return find_pte32(ctx, h, rw, type, target_page_bits);
 }
 
 #if defined(TARGET_PPC64)
@@ -694,7 +705,8 @@ static always_inline void slb_invalidate (uint64_t *slb64)
 
 static always_inline int slb_lookup (CPUPPCState *env, target_ulong eaddr,
                                      target_ulong *vsid,
-                                     target_ulong *page_mask, int *attr)
+                                     target_ulong *page_mask, int *attr,
+                                     int *target_page_bits)
 {
     target_phys_addr_t sr_base;
     target_ulong mask;
@@ -714,19 +726,16 @@ static always_inline int slb_lookup (CPUPPCState *env, target_ulong eaddr,
                     PRIx32 "\n", __func__, n, sr_base, tmp64, tmp);
         if (slb_is_valid(tmp64)) {
             /* SLB entry is valid */
-            switch (tmp64 & 0x0000000006000000ULL) {
-            case 0x0000000000000000ULL:
-                /* 256 MB segment */
-                mask = 0xFFFFFFFFF0000000ULL;
-                break;
-            case 0x0000000002000000ULL:
-                /* 1 TB segment */
+            if (tmp & 0x8) {
+                /* 1 TB Segment */
                 mask = 0xFFFF000000000000ULL;
-                break;
-            case 0x0000000004000000ULL:
-            case 0x0000000006000000ULL:
-                /* Reserved => segment is invalid */
-                continue;
+                if (target_page_bits)
+                    *target_page_bits = 24; // XXX 16M pages?
+            } else {
+                /* 256MB Segment */
+                mask = 0xFFFFFFFFF0000000ULL;
+                if (target_page_bits)
+                    *target_page_bits = TARGET_PAGE_BITS;
             }
             if ((eaddr & mask) == (tmp64 & mask)) {
                 /* SLB match */
@@ -777,7 +786,7 @@ void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
     int attr;
     int n;
 
-    n = slb_lookup(env, T0, &vsid, &page_mask, &attr);
+    n = slb_lookup(env, T0, &vsid, &page_mask, &attr, NULL);
     if (n >= 0) {
         sr_base = env->spr[SPR_ASR];
         sr_base += 12 * n;
@@ -871,20 +880,22 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
 #if defined(TARGET_PPC64)
     int attr;
 #endif
-    int ds, vsid_sh, sdr_sh, pr;
+    int ds, vsid_sh, sdr_sh, pr, target_page_bits;
     int ret, ret2;
 
     pr = msr_pr;
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
         LOG_MMU("Check SLBs\n");
-        ret = slb_lookup(env, eaddr, &vsid, &page_mask, &attr);
+        ret = slb_lookup(env, eaddr, &vsid, &page_mask, &attr,
+                         &target_page_bits);
         if (ret < 0)
             return ret;
         ctx->key = ((attr & 0x40) && (pr != 0)) ||
             ((attr & 0x80) && (pr == 0)) ? 1 : 0;
         ds = 0;
-        ctx->nx = attr & 0x20 ? 1 : 0;
+        ctx->nx = attr & 0x10 ? 1 : 0;
+        ctx->eaddr = eaddr;
         vsid_mask = 0x00003FFFFFFFFF80ULL;
         vsid_sh = 7;
         sdr_sh = 18;
@@ -903,6 +914,7 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
         vsid_sh = 6;
         sdr_sh = 16;
         sdr_mask = 0xFFC0;
+        target_page_bits = TARGET_PAGE_BITS;
         LOG_MMU("Check segment v=" ADDRX " %d " ADDRX
                     " nip=" ADDRX " lr=" ADDRX " ir=%d dr=%d pr=%d %d t=%d\n",
                     eaddr, (int)(eaddr >> 28), sr, env->nip,
@@ -918,7 +930,7 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
             /* Page address translation */
             /* Primary table address */
             sdr = env->sdr1;
-            pgidx = (eaddr & page_mask) >> TARGET_PAGE_BITS;
+            pgidx = (eaddr & page_mask) >> target_page_bits;
 #if defined(TARGET_PPC64)
             if (env->mmu_model & POWERPC_MMU_64) {
                 htab_mask = 0x0FFFFFFF >> (28 - (sdr & 0x1F));
@@ -944,7 +956,12 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
 #if defined(TARGET_PPC64)
             if (env->mmu_model & POWERPC_MMU_64) {
                 /* Only 5 bits of the page index are used in the AVPN */
-                ctx->ptem = (vsid << 12) | ((pgidx >> 4) & 0x0F80);
+                if (target_page_bits > 23) {
+                    ctx->ptem = (vsid << 12) |
+                                ((pgidx << (target_page_bits - 16)) & 0xF80);
+                } else {
+                    ctx->ptem = (vsid << 12) | ((pgidx >> 4) & 0x0F80);
+                }
             } else
 #endif
             {
@@ -962,7 +979,7 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
                             " pg_addr=" PADDRX "\n",
                             sdr, vsid, pgidx, hash, ctx->pg_addr[0]);
                 /* Primary table lookup */
-                ret = find_pte(env, ctx, 0, rw, type);
+                ret = find_pte(env, ctx, 0, rw, type, target_page_bits);
                 if (ret < 0) {
                     /* Secondary table lookup */
                     if (eaddr != 0xEFFFFFFF)
@@ -970,7 +987,8 @@ static always_inline int get_segment (CPUState *env, mmu_ctx_t *ctx,
                                 "api=" ADDRX " hash=" PADDRX
                                 " pg_addr=" PADDRX "\n",
                                 sdr, vsid, pgidx, hash, ctx->pg_addr[1]);
-                    ret2 = find_pte(env, ctx, 1, rw, type);
+                    ret2 = find_pte(env, ctx, 1, rw, type,
+                                    target_page_bits);
                     if (ret2 != -1)
                         ret = ret2;
                 }
