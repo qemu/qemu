@@ -200,7 +200,7 @@ static inline void start_exclusive(void)
     for (other = first_cpu; other; other = other->next_cpu) {
         if (other->running) {
             pending_cpus++;
-            cpu_interrupt(other, CPU_INTERRUPT_EXIT);
+            cpu_exit(other);
         }
     }
     if (pending_cpus > 1) {

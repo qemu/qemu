@@ -449,7 +449,7 @@ void DMA_schedule(int nchan)
 {
     CPUState *env = cpu_single_env;
     if (env)
-        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+        cpu_exit(env);
 }
 
 static void dma_reset(void *opaque)

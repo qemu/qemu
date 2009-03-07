@@ -460,7 +460,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     host_to_target_siginfo_noswap(&tinfo, info);
     if (queue_signal(thread_env, sig, &tinfo) == 1) {
         /* interrupt the virtual CPU as soon as possible */
-        cpu_interrupt(thread_env, CPU_INTERRUPT_EXIT);
+        cpu_exit(thread_env);
     }
 }
 

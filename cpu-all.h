@@ -760,7 +760,6 @@ extern CPUState *cpu_single_env;
 extern int64_t qemu_icount;
 extern int use_icount;
 
-#define CPU_INTERRUPT_EXIT   0x01 /* wants exit from main loop */
 #define CPU_INTERRUPT_HARD   0x02 /* hardware interrupt pending */
 #define CPU_INTERRUPT_EXITTB 0x04 /* exit the current TB (use for x86 a20 case) */
 #define CPU_INTERRUPT_TIMER  0x08 /* internal timer exception pending */
@@ -773,6 +772,8 @@ extern int use_icount;
 
 void cpu_interrupt(CPUState *s, int mask);
 void cpu_reset_interrupt(CPUState *env, int mask);
+
+void cpu_exit(CPUState *s);
 
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01

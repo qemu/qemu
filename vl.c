@@ -1181,7 +1181,7 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
         }
         /* Interrupt execution to force deadline recalculation.  */
         if (use_icount && cpu_single_env) {
-            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+            cpu_exit(cpu_single_env);
         }
     }
 }
@@ -1348,7 +1348,7 @@ static void host_alarm_handler(int host_signum)
 
         if (env) {
             /* stop the currently executing cpu because a timer occured */
-            cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+            cpu_exit(env);
 #ifdef USE_KQEMU
             if (env->kqemu_enabled) {
                 kqemu_cpu_interrupt(env);
@@ -3326,7 +3326,7 @@ void qemu_service_io(void)
 {
     CPUState *env = cpu_single_env;
     if (env) {
-        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+        cpu_exit(env);
 #ifdef USE_KQEMU
         if (env->kqemu_enabled) {
             kqemu_cpu_interrupt(env);
@@ -3407,7 +3407,7 @@ void qemu_bh_schedule(QEMUBH *bh)
     bh->idle = 0;
     /* stop the currently executing CPU to execute the BH ASAP */
     if (env) {
-        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+        cpu_exit(env);
     }
 }
 
@@ -3618,21 +3618,21 @@ void qemu_system_reset_request(void)
         reset_requested = 1;
     }
     if (cpu_single_env)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        cpu_exit(cpu_single_env);
 }
 
 void qemu_system_shutdown_request(void)
 {
     shutdown_requested = 1;
     if (cpu_single_env)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        cpu_exit(cpu_single_env);
 }
 
 void qemu_system_powerdown_request(void)
 {
     powerdown_requested = 1;
     if (cpu_single_env)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        cpu_exit(cpu_single_env);
 }
 
 #ifdef _WIN32

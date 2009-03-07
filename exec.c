@@ -523,7 +523,9 @@ static int cpu_common_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_be32s(f, &env->halted);
     qemu_get_be32s(f, &env->interrupt_request);
-    env->interrupt_request &= ~CPU_INTERRUPT_EXIT;
+    /* 0x01 was CPU_INTERRUPT_EXIT. This line can be removed when the
+       version_id is increased. */
+    env->interrupt_request &= ~0x01;
     tlb_flush(env, 1);
 
     return 0;
@@ -1499,28 +1501,36 @@ void cpu_set_log_filename(const char *filename)
     cpu_set_log(loglevel);
 }
 
-/* mask must never be zero, except for A20 change call */
-void cpu_interrupt(CPUState *env, int mask)
+static void cpu_unlink_tb(CPUState *env)
 {
-#if !defined(USE_NPTL)
-    TranslationBlock *tb;
-    static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
-#endif
-    int old_mask;
-
-    if (mask & CPU_INTERRUPT_EXIT) {
-        env->exit_request = 1;
-        mask &= ~CPU_INTERRUPT_EXIT;
-    }
-
-    old_mask = env->interrupt_request;
-    env->interrupt_request |= mask;
 #if defined(USE_NPTL)
     /* FIXME: TB unchaining isn't SMP safe.  For now just ignore the
        problem and hope the cpu will stop of its own accord.  For userspace
        emulation this often isn't actually as bad as it sounds.  Often
        signals are used primarily to interrupt blocking syscalls.  */
 #else
+    TranslationBlock *tb;
+    static spinlock_t interrupt_lock = SPIN_LOCK_UNLOCKED;
+
+    tb = env->current_tb;
+    /* if the cpu is currently executing code, we must unlink it and
+       all the potentially executing TB */
+    if (tb && !testandset(&interrupt_lock)) {
+        env->current_tb = NULL;
+        tb_reset_jump_recursive(tb);
+        resetlock(&interrupt_lock);
+    }
+#endif
+}
+
+/* mask must never be zero, except for A20 change call */
+void cpu_interrupt(CPUState *env, int mask)
+{
+    int old_mask;
+
+    old_mask = env->interrupt_request;
+    env->interrupt_request |= mask;
+
     if (use_icount) {
         env->icount_decr.u16.high = 0xffff;
 #ifndef CONFIG_USER_ONLY
@@ -1530,21 +1540,19 @@ void cpu_interrupt(CPUState *env, int mask)
         }
 #endif
     } else {
-        tb = env->current_tb;
-        /* if the cpu is currently executing code, we must unlink it and
-           all the potentially executing TB */
-        if (tb && !testandset(&interrupt_lock)) {
-            env->current_tb = NULL;
-            tb_reset_jump_recursive(tb);
-            resetlock(&interrupt_lock);
-        }
+        cpu_unlink_tb(env);
     }
-#endif
 }
 
 void cpu_reset_interrupt(CPUState *env, int mask)
 {
     env->interrupt_request &= ~mask;
+}
+
+void cpu_exit(CPUState *env)
+{
+    env->exit_request = 1;
+    cpu_unlink_tb(env);
 }
 
 const CPULogItem cpu_log_items[] = {
