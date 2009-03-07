@@ -158,7 +158,6 @@ static void curses_cursor_position(DisplayState *ds, int x, int y)
 /* generic keyboard conversion */
 
 #include "curses_keys.h"
-#include "keymaps.c"
 
 static kbd_layout_t *kbd_layout = 0;
 static int keycode2keysym[CURSES_KEYS];
@@ -311,7 +310,7 @@ static void curses_keyboard_setup(void)
         keyboard_layout = "en-us";
 #endif
     if(keyboard_layout) {
-        kbd_layout = init_keyboard_layout(keyboard_layout);
+        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);
         if (!kbd_layout)
             exit(1);
     }

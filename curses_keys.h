@@ -21,6 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include "keymaps.h"
+
+
 #define KEY_RELEASE         0x80
 #define KEY_MASK            0x7f
 #define SHIFT_CODE          0x2a
@@ -238,11 +242,6 @@ static const int curses2keysym[CURSES_KEYS] = {
     [0x168] = QEMU_KEY_END,
 
 };
-
-typedef struct {
-	const char* name;
-	int keysym;
-} name2keysym_t;
 
 static const name2keysym_t name2keysym[] = {
     /* Plain ASCII */

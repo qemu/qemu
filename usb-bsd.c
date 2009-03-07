@@ -25,7 +25,7 @@
  */
 
 #include "qemu-common.h"
-#include "console.h"
+#include "monitor.h"
 #include "hw/usb.h"
 
 /* usb.h declares these */

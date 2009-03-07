@@ -109,7 +109,6 @@ static void sdl_resize(DisplayState *ds)
 /* generic keyboard conversion */
 
 #include "sdl_keysym.h"
-#include "keymaps.c"
 
 static kbd_layout_t *kbd_layout = NULL;
 
@@ -677,7 +676,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         keyboard_layout = "en-us";
 #endif
     if(keyboard_layout) {
-        kbd_layout = init_keyboard_layout(keyboard_layout);
+        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);
         if (!kbd_layout)
             exit(1);
     }

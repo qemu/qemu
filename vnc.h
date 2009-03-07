@@ -1,5 +1,160 @@
-#ifndef __VNCTIGHT_H
-#define __VNCTIGHT_H
+/*
+ * QEMU VNC display driver
+ *
+ * Copyright (C) 2006 Anthony Liguori <anthony@codemonkey.ws>
+ * Copyright (C) 2006 Fabrice Bellard
+ * Copyright (C) 2009 Red Hat, Inc
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+#ifndef __QEMU_VNC_H
+#define __QEMU_VNC_H
+
+#include "qemu-common.h"
+#include "console.h"
+#include "monitor.h"
+#include "audio/audio.h"
+#include <zlib.h>
+
+#include "keymaps.h"
+
+// #define _VNC_DEBUG 1
+
+#ifdef _VNC_DEBUG
+#define VNC_DEBUG(fmt, ...) do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+#else
+#define VNC_DEBUG(fmt, ...) do { } while (0)
+#endif
+
+/*****************************************************************************
+ *
+ * Core data structures
+ *
+ *****************************************************************************/
+
+typedef struct Buffer
+{
+    size_t capacity;
+    size_t offset;
+    uint8_t *buffer;
+} Buffer;
+
+typedef struct VncState VncState;
+
+typedef int VncReadEvent(VncState *vs, uint8_t *data, size_t len);
+
+typedef void VncWritePixels(VncState *vs, void *data, int size);
+
+typedef void VncSendHextileTile(VncState *vs,
+                                int x, int y, int w, int h,
+                                void *last_bg,
+                                void *last_fg,
+                                int *has_bg, int *has_fg);
+
+#define VNC_MAX_WIDTH 2048
+#define VNC_MAX_HEIGHT 2048
+#define VNC_DIRTY_WORDS (VNC_MAX_WIDTH / (16 * 32))
+
+#define VNC_AUTH_CHALLENGE_SIZE 16
+
+typedef struct VncDisplay VncDisplay;
+
+#ifdef CONFIG_VNC_TLS
+#include "vnc-tls.h"
+#include "vnc-auth-vencrypt.h"
+#endif
+#ifdef CONFIG_VNC_SASL
+#include "vnc-auth-sasl.h"
+#endif
+
+
+struct VncDisplay
+{
+    int lsock;
+    DisplayState *ds;
+    VncState *clients;
+    kbd_layout_t *kbd_layout;
+
+    char *display;
+    char *password;
+    int auth;
+#ifdef CONFIG_VNC_TLS
+    int subauth; /* Used by VeNCrypt */
+    VncDisplayTLS tls;
+#endif
+#ifdef CONFIG_VNC_SASL
+    VncDisplaySASL sasl;
+#endif
+};
+
+struct VncState
+{
+    QEMUTimer *timer;
+    int csock;
+    DisplayState *ds;
+    VncDisplay *vd;
+    int need_update;
+    uint32_t dirty_row[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    char *old_data;
+    uint32_t features;
+    int absolute;
+    int last_x;
+    int last_y;
+
+    uint32_t vnc_encoding;
+    uint8_t tight_quality;
+    uint8_t tight_compression;
+
+    int major;
+    int minor;
+
+    char challenge[VNC_AUTH_CHALLENGE_SIZE];
+#ifdef CONFIG_VNC_TLS
+    VncStateTLS tls;
+#endif
+#ifdef CONFIG_VNC_SASL
+    VncStateSASL sasl;
+#endif
+
+    Buffer output;
+    Buffer input;
+    /* current output mode information */
+    VncWritePixels *write_pixels;
+    VncSendHextileTile *send_hextile_tile;
+    DisplaySurface clientds, serverds;
+
+    CaptureVoiceOut *audio_cap;
+    struct audsettings as;
+
+    VncReadEvent *read_handler;
+    size_t read_handler_expect;
+    /* input */
+    uint8_t modifiers_state[256];
+
+    Buffer zlib;
+    Buffer zlib_tmp;
+    z_stream zlib_stream[4];
+
+    VncState *next;
+};
+
 
 /*****************************************************************************
  *
@@ -15,14 +170,9 @@ enum {
     VNC_AUTH_RA2NE = 6,
     VNC_AUTH_TIGHT = 16,
     VNC_AUTH_ULTRA = 17,
-    VNC_AUTH_TLS = 18,
-    VNC_AUTH_VENCRYPT = 19
-};
-
-#ifdef CONFIG_VNC_TLS
-enum {
-    VNC_WIREMODE_CLEAR,
-    VNC_WIREMODE_TLS,
+    VNC_AUTH_TLS = 18,      /* Supported in GTK-VNC & VINO */
+    VNC_AUTH_VENCRYPT = 19, /* Supported in GTK-VNC & VeNCrypt */
+    VNC_AUTH_SASL = 20,     /* Supported in GTK-VNC & VINO */
 };
 
 enum {
@@ -33,14 +183,10 @@ enum {
     VNC_AUTH_VENCRYPT_X509NONE = 260,
     VNC_AUTH_VENCRYPT_X509VNC = 261,
     VNC_AUTH_VENCRYPT_X509PLAIN = 262,
+    VNC_AUTH_VENCRYPT_X509SASL = 263,
+    VNC_AUTH_VENCRYPT_TLSSASL = 264,
 };
 
-#define X509_CA_CERT_FILE "ca-cert.pem"
-#define X509_CA_CRL_FILE "ca-crl.pem"
-#define X509_SERVER_KEY_FILE "server-key.pem"
-#define X509_SERVER_CERT_FILE "server-cert.pem"
-
-#endif /* CONFIG_VNC_TLS */
 
 /*****************************************************************************
  *
@@ -111,4 +257,54 @@ enum {
 #define VNC_FEATURE_ZLIB_MASK                (1 << VNC_FEATURE_ZLIB)
 #define VNC_FEATURE_COPYRECT_MASK            (1 << VNC_FEATURE_COPYRECT)
 
-#endif /* __VNCTIGHT_H */
+
+/*****************************************************************************
+ *
+ * Internal APIs
+ *
+ *****************************************************************************/
+
+/* Event loop functions */
+void vnc_client_read(void *opaque);
+void vnc_client_write(void *opaque);
+
+long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
+long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
+
+/* Protocol I/O functions */
+void vnc_write(VncState *vs, const void *data, size_t len);
+void vnc_write_u32(VncState *vs, uint32_t value);
+void vnc_write_s32(VncState *vs, int32_t value);
+void vnc_write_u16(VncState *vs, uint16_t value);
+void vnc_write_u8(VncState *vs, uint8_t value);
+void vnc_flush(VncState *vs);
+void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting);
+
+
+/* Buffer I/O functions */
+uint8_t read_u8(uint8_t *data, size_t offset);
+uint16_t read_u16(uint8_t *data, size_t offset);
+int32_t read_s32(uint8_t *data, size_t offset);
+uint32_t read_u32(uint8_t *data, size_t offset);
+
+/* Protocol stage functions */
+void vnc_client_error(VncState *vs);
+int vnc_client_io_error(VncState *vs, int ret, int last_errno);
+
+void start_client_init(VncState *vs);
+void start_auth_vnc(VncState *vs);
+
+/* Buffer management */
+void buffer_reserve(Buffer *buffer, size_t len);
+int buffer_empty(Buffer *buffer);
+uint8_t *buffer_end(Buffer *buffer);
+void buffer_reset(Buffer *buffer);
+void buffer_append(Buffer *buffer, const void *data, size_t len);
+
+
+/* Misc helpers */
+
+char *vnc_socket_local_addr(const char *format, int fd);
+char *vnc_socket_remote_addr(const char *format, int fd);
+
+#endif /* __QEMU_VNC_H */
