@@ -243,7 +243,7 @@ static inline void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
     }
     if (opc & P_EXT)
         tcg_out8(s, 0x0f);
-    tcg_out8(s, opc);
+    tcg_out8(s, opc & 0xff);
 }
 
 static inline void tcg_out_modrm(TCGContext *s, int opc, int r, int rm)
