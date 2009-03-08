@@ -113,40 +113,6 @@ static inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
     env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-void helper_madd (target_ulong t0, target_ulong t1)
-{
-    int64_t tmp;
-
-    tmp = ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1);
-    set_HILO((int64_t)get_HILO() + tmp);
-}
-
-void helper_maddu (target_ulong t0, target_ulong t1)
-{
-    uint64_t tmp;
-
-    tmp = ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1);
-    set_HILO(get_HILO() + tmp);
-}
-
-void helper_msub (target_ulong t0, target_ulong t1)
-{
-    int64_t tmp;
-
-    tmp = ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1);
-    set_HILO((int64_t)get_HILO() - tmp);
-}
-
-void helper_msubu (target_ulong t0, target_ulong t1)
-{
-    uint64_t tmp;
-
-    tmp = ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1);
-    set_HILO(get_HILO() - tmp);
-}
-#endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
-
 /* Multiplication variants of the vr54xx. */
 target_ulong helper_muls (target_ulong t0, target_ulong t1)
 {
