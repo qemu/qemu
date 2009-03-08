@@ -292,15 +292,15 @@ cscope:
 	texi2dvi $<
 
 qemu.1: qemu-doc.texi
-	$(SRC_PATH)/texi2pod.pl $< qemu.pod
+	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu.pod
 	pod2man --section=1 --center=" " --release=" " qemu.pod > $@
 
 qemu-img.1: qemu-img.texi
-	$(SRC_PATH)/texi2pod.pl $< qemu-img.pod
+	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-img.pod
 	pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@
 
 qemu-nbd.8: qemu-nbd.texi
-	$(SRC_PATH)/texi2pod.pl $< qemu-nbd.pod
+	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-nbd.pod
 	pod2man --section=8 --center=" " --release=" " qemu-nbd.pod > $@
 
 info: qemu-doc.info qemu-tech.info
