@@ -33,13 +33,13 @@
 #include <sys/statvfs.h>
 #endif
 
-/* Needed early for _BSD etc. */
+/* Needed early for HOST_BSD etc. */
 #include "config-host.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#elif defined(_BSD)
+#elif defined(HOST_BSD)
 #include <stdlib.h>
 #else
 #include <malloc.h>
@@ -188,7 +188,7 @@ void *qemu_memalign(size_t alignment, size_t size)
     if (ret != 0)
         return NULL;
     return ptr;
-#elif defined(_BSD)
+#elif defined(HOST_BSD)
     return valloc(size);
 #else
     return memalign(alignment, size);

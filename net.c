@@ -29,7 +29,7 @@
 #include <sys/time.h>
 #include <zlib.h>
 
-/* Needed early for _BSD etc. */
+/* Needed early for HOST_BSD etc. */
 #include "config-host.h"
 
 #ifndef _WIN32
@@ -52,7 +52,7 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#ifdef _BSD
+#ifdef HOST_BSD
 #include <sys/stat.h>
 #if defined(__FreeBSD__) || defined(__DragonFly__)
 #include <libutil.h>
@@ -769,7 +769,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     return s;
 }
 
-#if defined (_BSD) || defined (__FreeBSD_kernel__)
+#if defined (HOST_BSD) || defined (__FreeBSD_kernel__)
 static int tap_open(char *ifname, int ifname_size)
 {
     int fd;

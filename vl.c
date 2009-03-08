@@ -29,7 +29,7 @@
 #include <sys/time.h>
 #include <zlib.h>
 
-/* Needed early for _BSD etc. */
+/* Needed early for HOST_BSD etc. */
 #include "config-host.h"
 
 #ifndef _WIN32
@@ -53,7 +53,7 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#ifdef _BSD
+#ifdef HOST_BSD
 #include <sys/stat.h>
 #if defined(__FreeBSD__) || defined(__DragonFly__)
 #include <libutil.h>

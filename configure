@@ -1520,7 +1520,7 @@ fi
 if [ "$bsd" = "yes" ] ; then
   echo "#define O_LARGEFILE 0" >> $config_h
   echo "#define MAP_ANONYMOUS MAP_ANON" >> $config_h
-  echo "#define _BSD 1" >> $config_h
+  echo "#define HOST_BSD 1" >> $config_h
 fi
 
 echo "#define CONFIG_UNAME_RELEASE \"$uname_release\"" >> $config_h
