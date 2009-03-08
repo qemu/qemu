@@ -57,42 +57,6 @@ DO_REG(1)
 DO_REG(2)
 #endif
 
-#ifdef AREG3
-DO_REG(3)
-#endif
-
-#ifdef AREG4
-DO_REG(4)
-#endif
-
-#ifdef AREG5
-DO_REG(5)
-#endif
-
-#ifdef AREG6
-DO_REG(6)
-#endif
-
-#ifdef AREG7
-DO_REG(7)
-#endif
-
-#ifdef AREG8
-DO_REG(8)
-#endif
-
-#ifdef AREG9
-DO_REG(9)
-#endif
-
-#ifdef AREG10
-DO_REG(10)
-#endif
-
-#ifdef AREG11
-DO_REG(11)
-#endif
-
 #undef SAVE_HOST_REGS
 #undef DECLARE_HOST_REGS
 #undef DO_REG

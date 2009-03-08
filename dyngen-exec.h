@@ -97,57 +97,31 @@ extern int printf(const char *, ...);
 #define AREG0 "ebp"
 #define AREG1 "ebx"
 #define AREG2 "esi"
-#define AREG3 "edi"
 #elif defined(__x86_64__)
 #define AREG0 "r14"
 #define AREG1 "r15"
 #define AREG2 "r12"
-#define AREG3 "r13"
-//#define AREG4 "rbp"
-//#define AREG5 "rbx"
 #elif defined(_ARCH_PPC)
 #define AREG0 "r27"
 #define AREG1 "r24"
 #define AREG2 "r25"
-#define AREG3 "r26"
-/* XXX: suppress this hack */
-#if defined(CONFIG_USER_ONLY)
-#define AREG4 "r16"
-#define AREG5 "r17"
-#define AREG6 "r18"
-#define AREG7 "r19"
-#define AREG8 "r20"
-#define AREG9 "r21"
-#define AREG10 "r22"
-#define AREG11 "r23"
-#endif
 #elif defined(__arm__)
 #define AREG0 "r7"
 #define AREG1 "r4"
 #define AREG2 "r5"
-#define AREG3 "r6"
 #elif defined(__hppa__)
 #define AREG0 "r17"
 #define AREG1 "r14"
 #define AREG2 "r15"
-#define AREG3 "r16"
 #elif defined(__mips__)
 #define AREG0 "fp"
 #define AREG1 "s0"
 #define AREG2 "s1"
-#define AREG3 "s2"
-#define AREG4 "s3"
-#define AREG5 "s4"
-#define AREG6 "s5"
-#define AREG7 "s6"
-#define AREG8 "s7"
 #elif defined(__sparc__)
 #ifdef HOST_SOLARIS
 #define AREG0 "g2"
 #define AREG1 "g3"
 #define AREG2 "g4"
-#define AREG3 "g5"
-#define AREG4 "g6"
 #else
 #ifdef __sparc_v9__
 #define AREG0 "g5"
@@ -157,43 +131,26 @@ extern int printf(const char *, ...);
 #define AREG0 "g6"
 #define AREG1 "g1"
 #define AREG2 "g2"
-#define AREG3 "g3"
-#define AREG4 "l0"
-#define AREG5 "l1"
-#define AREG6 "l2"
-#define AREG7 "l3"
-#define AREG8 "l4"
-#define AREG9 "l5"
-#define AREG10 "l6"
-#define AREG11 "l7"
 #endif
 #endif
 #elif defined(__s390__)
 #define AREG0 "r10"
 #define AREG1 "r7"
 #define AREG2 "r8"
-#define AREG3 "r9"
 #elif defined(__alpha__)
 /* Note $15 is the frame pointer, so anything in op-i386.c that would
    require a frame pointer, like alloca, would probably loose.  */
 #define AREG0 "$15"
 #define AREG1 "$9"
 #define AREG2 "$10"
-#define AREG3 "$11"
-#define AREG4 "$12"
-#define AREG5 "$13"
-#define AREG6 "$14"
 #elif defined(__mc68000)
 #define AREG0 "%a5"
 #define AREG1 "%a4"
 #define AREG2 "%d7"
-#define AREG3 "%d6"
-#define AREG4 "%d5"
 #elif defined(__ia64__)
 #define AREG0 "r7"
 #define AREG1 "r4"
 #define AREG2 "r5"
-#define AREG3 "r6"
 #else
 #error unsupported CPU
 #endif
