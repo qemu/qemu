@@ -2957,6 +2957,9 @@ static void monitor_find_completion(const char *cmdline)
                     cmd_completion(str, cmd->name);
                 }
             } else if (!strcmp(cmd->name, "sendkey")) {
+                char *sep = strrchr(str, '-');
+                if (sep)
+                    str = sep + 1;
                 readline_set_completion_index(cur_mon->rs, strlen(str));
                 for(key = key_defs; key->name != NULL; key++) {
                     cmd_completion(str, key->name);
