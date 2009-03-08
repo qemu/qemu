@@ -64,7 +64,6 @@ enum {
     TCG_AREG0 = TCG_REG_R7,
     TCG_AREG1 = TCG_REG_R4,
     TCG_AREG2 = TCG_REG_R5,
-    TCG_AREG3 = TCG_REG_R6,
 };
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
