@@ -220,6 +220,7 @@ static int img_create(int argc, char **argv)
     const char *filename;
     const char *base_filename = NULL;
     uint64_t size;
+    double sizef;
     const char *p;
     BlockDriver *drv;
 
@@ -260,13 +261,13 @@ static int img_create(int argc, char **argv)
         if (optind >= argc)
             help();
         p = argv[optind];
-        size = strtoul(p, (char **)&p, 0);
+        sizef = strtod(p, (char **)&p);
         if (*p == 'M') {
-            size *= 1024 * 1024;
+            size = (uint64_t)(sizef * 1024 * 1024);
         } else if (*p == 'G') {
-            size *= 1024 * 1024 * 1024;
+            size = (uint64_t)(sizef * 1024 * 1024 * 1024);
         } else if (*p == 'k' || *p == 'K' || *p == '\0') {
-            size *= 1024;
+            size = (uint64_t)(sizef * 1024);
         } else {
             help();
         }
