@@ -26,7 +26,7 @@
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
-void do_raise_exception_err (uint32_t exception, int error_code)
+void helper_raise_exception_err (uint32_t exception, int error_code)
 {
 #if 1
     if (exception < 0x100)
@@ -37,12 +37,12 @@ void do_raise_exception_err (uint32_t exception, int error_code)
     cpu_loop_exit();
 }
 
-void do_raise_exception (uint32_t exception)
+void helper_raise_exception (uint32_t exception)
 {
-    do_raise_exception_err(exception, 0);
+    helper_raise_exception_err(exception, 0);
 }
 
-void do_interrupt_restart (void)
+void helper_interrupt_restart (void)
 {
     if (!(env->CP0_Status & (1 << CP0St_EXL)) &&
         !(env->CP0_Status & (1 << CP0St_ERL)) &&
@@ -50,7 +50,7 @@ void do_interrupt_restart (void)
         (env->CP0_Status & (1 << CP0St_IE)) &&
         (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask)) {
         env->CP0_Cause &= ~(0x1f << CP0Ca_EC);
-        do_raise_exception(EXCP_EXT_INTERRUPT);
+        helper_raise_exception(EXCP_EXT_INTERRUPT);
     }
 }
 
@@ -67,23 +67,23 @@ static void do_restore_state (void *pc_ptr)
 }
 #endif
 
-target_ulong do_clo (target_ulong t0)
+target_ulong helper_clo (target_ulong t0)
 {
     return clo32(t0);
 }
 
-target_ulong do_clz (target_ulong t0)
+target_ulong helper_clz (target_ulong t0)
 {
     return clz32(t0);
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong do_dclo (target_ulong t0)
+target_ulong helper_dclo (target_ulong t0)
 {
     return clo64(t0);
 }
 
-target_ulong do_dclz (target_ulong t0)
+target_ulong helper_dclz (target_ulong t0)
 {
     return clz64(t0);
 }
@@ -114,7 +114,7 @@ static inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
 }
 
 #if TARGET_LONG_BITS > HOST_LONG_BITS
-void do_madd (target_ulong t0, target_ulong t1)
+void helper_madd (target_ulong t0, target_ulong t1)
 {
     int64_t tmp;
 
@@ -122,7 +122,7 @@ void do_madd (target_ulong t0, target_ulong t1)
     set_HILO((int64_t)get_HILO() + tmp);
 }
 
-void do_maddu (target_ulong t0, target_ulong t1)
+void helper_maddu (target_ulong t0, target_ulong t1)
 {
     uint64_t tmp;
 
@@ -130,7 +130,7 @@ void do_maddu (target_ulong t0, target_ulong t1)
     set_HILO(get_HILO() + tmp);
 }
 
-void do_msub (target_ulong t0, target_ulong t1)
+void helper_msub (target_ulong t0, target_ulong t1)
 {
     int64_t tmp;
 
@@ -138,7 +138,7 @@ void do_msub (target_ulong t0, target_ulong t1)
     set_HILO((int64_t)get_HILO() - tmp);
 }
 
-void do_msubu (target_ulong t0, target_ulong t1)
+void helper_msubu (target_ulong t0, target_ulong t1)
 {
     uint64_t tmp;
 
@@ -148,98 +148,98 @@ void do_msubu (target_ulong t0, target_ulong t1)
 #endif /* TARGET_LONG_BITS > HOST_LONG_BITS */
 
 /* Multiplication variants of the vr54xx. */
-target_ulong do_muls (target_ulong t0, target_ulong t1)
+target_ulong helper_muls (target_ulong t0, target_ulong t1)
 {
     set_HI_LOT0(t0, 0 - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
 
     return t0;
 }
 
-target_ulong do_mulsu (target_ulong t0, target_ulong t1)
+target_ulong helper_mulsu (target_ulong t0, target_ulong t1)
 {
     set_HI_LOT0(t0, 0 - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
 
     return t0;
 }
 
-target_ulong do_macc (target_ulong t0, target_ulong t1)
+target_ulong helper_macc (target_ulong t0, target_ulong t1)
 {
     set_HI_LOT0(t0, ((int64_t)get_HILO()) + ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
 
     return t0;
 }
 
-target_ulong do_macchi (target_ulong t0, target_ulong t1)
+target_ulong helper_macchi (target_ulong t0, target_ulong t1)
 {
     set_HIT0_LO(t0, ((int64_t)get_HILO()) + ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
 
     return t0;
 }
 
-target_ulong do_maccu (target_ulong t0, target_ulong t1)
+target_ulong helper_maccu (target_ulong t0, target_ulong t1)
 {
     set_HI_LOT0(t0, ((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
 
     return t0;
 }
 
-target_ulong do_macchiu (target_ulong t0, target_ulong t1)
+target_ulong helper_macchiu (target_ulong t0, target_ulong t1)
 {
     set_HIT0_LO(t0, ((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
 
     return t0;
 }
 
-target_ulong do_msac (target_ulong t0, target_ulong t1)
+target_ulong helper_msac (target_ulong t0, target_ulong t1)
 {
     set_HI_LOT0(t0, ((int64_t)get_HILO()) - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
 
     return t0;
 }
 
-target_ulong do_msachi (target_ulong t0, target_ulong t1)
+target_ulong helper_msachi (target_ulong t0, target_ulong t1)
 {
     set_HIT0_LO(t0, ((int64_t)get_HILO()) - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
 
     return t0;
 }
 
-target_ulong do_msacu (target_ulong t0, target_ulong t1)
+target_ulong helper_msacu (target_ulong t0, target_ulong t1)
 {
     set_HI_LOT0(t0, ((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
 
     return t0;
 }
 
-target_ulong do_msachiu (target_ulong t0, target_ulong t1)
+target_ulong helper_msachiu (target_ulong t0, target_ulong t1)
 {
     set_HIT0_LO(t0, ((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
 
     return t0;
 }
 
-target_ulong do_mulhi (target_ulong t0, target_ulong t1)
+target_ulong helper_mulhi (target_ulong t0, target_ulong t1)
 {
     set_HIT0_LO(t0, (int64_t)(int32_t)t0 * (int64_t)(int32_t)t1);
 
     return t0;
 }
 
-target_ulong do_mulhiu (target_ulong t0, target_ulong t1)
+target_ulong helper_mulhiu (target_ulong t0, target_ulong t1)
 {
     set_HIT0_LO(t0, (uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1);
 
     return t0;
 }
 
-target_ulong do_mulshi (target_ulong t0, target_ulong t1)
+target_ulong helper_mulshi (target_ulong t0, target_ulong t1)
 {
     set_HIT0_LO(t0, 0 - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
 
     return t0;
 }
 
-target_ulong do_mulshiu (target_ulong t0, target_ulong t1)
+target_ulong helper_mulshiu (target_ulong t0, target_ulong t1)
 {
     set_HIT0_LO(t0, 0 - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
 
@@ -247,12 +247,12 @@ target_ulong do_mulshiu (target_ulong t0, target_ulong t1)
 }
 
 #ifdef TARGET_MIPS64
-void do_dmult (target_ulong t0, target_ulong t1)
+void helper_dmult (target_ulong t0, target_ulong t1)
 {
     muls64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), t0, t1);
 }
 
-void do_dmultu (target_ulong t0, target_ulong t1)
+void helper_dmultu (target_ulong t0, target_ulong t1)
 {
     mulu64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), t0, t1);
 }
@@ -266,7 +266,7 @@ void do_dmultu (target_ulong t0, target_ulong t1)
 #define GET_OFFSET(addr, offset) (addr - (offset))
 #endif
 
-target_ulong do_lwl(target_ulong t0, target_ulong t1, int mem_idx)
+target_ulong helper_lwl(target_ulong t0, target_ulong t1, int mem_idx)
 {
     target_ulong tmp;
 
@@ -303,7 +303,7 @@ target_ulong do_lwl(target_ulong t0, target_ulong t1, int mem_idx)
     return (int32_t)t1;
 }
 
-target_ulong do_lwr(target_ulong t0, target_ulong t1, int mem_idx)
+target_ulong helper_lwr(target_ulong t0, target_ulong t1, int mem_idx)
 {
     target_ulong tmp;
 
@@ -340,7 +340,7 @@ target_ulong do_lwr(target_ulong t0, target_ulong t1, int mem_idx)
     return (int32_t)t1;
 }
 
-void do_swl(target_ulong t0, target_ulong t1, int mem_idx)
+void helper_swl(target_ulong t0, target_ulong t1, int mem_idx)
 {
 #ifdef CONFIG_USER_ONLY
 #define stfun stb_raw
@@ -367,7 +367,7 @@ void do_swl(target_ulong t0, target_ulong t1, int mem_idx)
         stfun(GET_OFFSET(t0, 3), (uint8_t)t1);
 }
 
-void do_swr(target_ulong t0, target_ulong t1, int mem_idx)
+void helper_swr(target_ulong t0, target_ulong t1, int mem_idx)
 {
 #ifdef CONFIG_USER_ONLY
 #define stfun stb_raw
@@ -404,7 +404,7 @@ void do_swr(target_ulong t0, target_ulong t1, int mem_idx)
 #define GET_LMASK64(v) (((v) & 7) ^ 7)
 #endif
 
-target_ulong do_ldl(target_ulong t0, target_ulong t1, int mem_idx)
+target_ulong helper_ldl(target_ulong t0, target_ulong t1, int mem_idx)
 {
     uint64_t tmp;
 
@@ -462,7 +462,7 @@ target_ulong do_ldl(target_ulong t0, target_ulong t1, int mem_idx)
     return t1;
 }
 
-target_ulong do_ldr(target_ulong t0, target_ulong t1, int mem_idx)
+target_ulong helper_ldr(target_ulong t0, target_ulong t1, int mem_idx)
 {
     uint64_t tmp;
 
@@ -520,7 +520,7 @@ target_ulong do_ldr(target_ulong t0, target_ulong t1, int mem_idx)
     return t1;
 }
 
-void do_sdl(target_ulong t0, target_ulong t1, int mem_idx)
+void helper_sdl(target_ulong t0, target_ulong t1, int mem_idx)
 {
 #ifdef CONFIG_USER_ONLY
 #define stfun stb_raw
@@ -559,7 +559,7 @@ void do_sdl(target_ulong t0, target_ulong t1, int mem_idx)
         stfun(GET_OFFSET(t0, 7), (uint8_t)t1);
 }
 
-void do_sdr(target_ulong t0, target_ulong t1, int mem_idx)
+void helper_sdr(target_ulong t0, target_ulong t1, int mem_idx)
 {
 #ifdef CONFIG_USER_ONLY
 #define stfun stb_raw
@@ -601,32 +601,32 @@ void do_sdr(target_ulong t0, target_ulong t1, int mem_idx)
 
 #ifndef CONFIG_USER_ONLY
 /* CP0 helpers */
-target_ulong do_mfc0_mvpcontrol (void)
+target_ulong helper_mfc0_mvpcontrol (void)
 {
     return env->mvp->CP0_MVPControl;
 }
 
-target_ulong do_mfc0_mvpconf0 (void)
+target_ulong helper_mfc0_mvpconf0 (void)
 {
     return env->mvp->CP0_MVPConf0;
 }
 
-target_ulong do_mfc0_mvpconf1 (void)
+target_ulong helper_mfc0_mvpconf1 (void)
 {
     return env->mvp->CP0_MVPConf1;
 }
 
-target_ulong do_mfc0_random (void)
+target_ulong helper_mfc0_random (void)
 {
     return (int32_t)cpu_mips_get_random(env);
 }
 
-target_ulong do_mfc0_tcstatus (void)
+target_ulong helper_mfc0_tcstatus (void)
 {
     return env->active_tc.CP0_TCStatus;
 }
 
-target_ulong do_mftc0_tcstatus(void)
+target_ulong helper_mftc0_tcstatus(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -636,12 +636,12 @@ target_ulong do_mftc0_tcstatus(void)
         return env->tcs[other_tc].CP0_TCStatus;
 }
 
-target_ulong do_mfc0_tcbind (void)
+target_ulong helper_mfc0_tcbind (void)
 {
     return env->active_tc.CP0_TCBind;
 }
 
-target_ulong do_mftc0_tcbind(void)
+target_ulong helper_mftc0_tcbind(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -651,12 +651,12 @@ target_ulong do_mftc0_tcbind(void)
         return env->tcs[other_tc].CP0_TCBind;
 }
 
-target_ulong do_mfc0_tcrestart (void)
+target_ulong helper_mfc0_tcrestart (void)
 {
     return env->active_tc.PC;
 }
 
-target_ulong do_mftc0_tcrestart(void)
+target_ulong helper_mftc0_tcrestart(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -666,12 +666,12 @@ target_ulong do_mftc0_tcrestart(void)
         return env->tcs[other_tc].PC;
 }
 
-target_ulong do_mfc0_tchalt (void)
+target_ulong helper_mfc0_tchalt (void)
 {
     return env->active_tc.CP0_TCHalt;
 }
 
-target_ulong do_mftc0_tchalt(void)
+target_ulong helper_mftc0_tchalt(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -681,12 +681,12 @@ target_ulong do_mftc0_tchalt(void)
         return env->tcs[other_tc].CP0_TCHalt;
 }
 
-target_ulong do_mfc0_tccontext (void)
+target_ulong helper_mfc0_tccontext (void)
 {
     return env->active_tc.CP0_TCContext;
 }
 
-target_ulong do_mftc0_tccontext(void)
+target_ulong helper_mftc0_tccontext(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -696,12 +696,12 @@ target_ulong do_mftc0_tccontext(void)
         return env->tcs[other_tc].CP0_TCContext;
 }
 
-target_ulong do_mfc0_tcschedule (void)
+target_ulong helper_mfc0_tcschedule (void)
 {
     return env->active_tc.CP0_TCSchedule;
 }
 
-target_ulong do_mftc0_tcschedule(void)
+target_ulong helper_mftc0_tcschedule(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -711,12 +711,12 @@ target_ulong do_mftc0_tcschedule(void)
         return env->tcs[other_tc].CP0_TCSchedule;
 }
 
-target_ulong do_mfc0_tcschefback (void)
+target_ulong helper_mfc0_tcschefback (void)
 {
     return env->active_tc.CP0_TCScheFBack;
 }
 
-target_ulong do_mftc0_tcschefback(void)
+target_ulong helper_mftc0_tcschefback(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -726,12 +726,12 @@ target_ulong do_mftc0_tcschefback(void)
         return env->tcs[other_tc].CP0_TCScheFBack;
 }
 
-target_ulong do_mfc0_count (void)
+target_ulong helper_mfc0_count (void)
 {
     return (int32_t)cpu_mips_get_count(env);
 }
 
-target_ulong do_mftc0_entryhi(void)
+target_ulong helper_mftc0_entryhi(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     int32_t tcstatus;
@@ -744,7 +744,7 @@ target_ulong do_mftc0_entryhi(void)
     return (env->CP0_EntryHi & ~0xff) | (tcstatus & 0xff);
 }
 
-target_ulong do_mftc0_status(void)
+target_ulong helper_mftc0_status(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     target_ulong t0;
@@ -763,22 +763,22 @@ target_ulong do_mftc0_status(void)
     return t0;
 }
 
-target_ulong do_mfc0_lladdr (void)
+target_ulong helper_mfc0_lladdr (void)
 {
     return (int32_t)env->CP0_LLAddr >> 4;
 }
 
-target_ulong do_mfc0_watchlo (uint32_t sel)
+target_ulong helper_mfc0_watchlo (uint32_t sel)
 {
     return (int32_t)env->CP0_WatchLo[sel];
 }
 
-target_ulong do_mfc0_watchhi (uint32_t sel)
+target_ulong helper_mfc0_watchhi (uint32_t sel)
 {
     return env->CP0_WatchHi[sel];
 }
 
-target_ulong do_mfc0_debug (void)
+target_ulong helper_mfc0_debug (void)
 {
     target_ulong t0 = env->CP0_Debug;
     if (env->hflags & MIPS_HFLAG_DM)
@@ -787,7 +787,7 @@ target_ulong do_mfc0_debug (void)
     return t0;
 }
 
-target_ulong do_mftc0_debug(void)
+target_ulong helper_mftc0_debug(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     int32_t tcstatus;
@@ -803,43 +803,43 @@ target_ulong do_mftc0_debug(void)
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong do_dmfc0_tcrestart (void)
+target_ulong helper_dmfc0_tcrestart (void)
 {
     return env->active_tc.PC;
 }
 
-target_ulong do_dmfc0_tchalt (void)
+target_ulong helper_dmfc0_tchalt (void)
 {
     return env->active_tc.CP0_TCHalt;
 }
 
-target_ulong do_dmfc0_tccontext (void)
+target_ulong helper_dmfc0_tccontext (void)
 {
     return env->active_tc.CP0_TCContext;
 }
 
-target_ulong do_dmfc0_tcschedule (void)
+target_ulong helper_dmfc0_tcschedule (void)
 {
     return env->active_tc.CP0_TCSchedule;
 }
 
-target_ulong do_dmfc0_tcschefback (void)
+target_ulong helper_dmfc0_tcschefback (void)
 {
     return env->active_tc.CP0_TCScheFBack;
 }
 
-target_ulong do_dmfc0_lladdr (void)
+target_ulong helper_dmfc0_lladdr (void)
 {
     return env->CP0_LLAddr >> 4;
 }
 
-target_ulong do_dmfc0_watchlo (uint32_t sel)
+target_ulong helper_dmfc0_watchlo (uint32_t sel)
 {
     return env->CP0_WatchLo[sel];
 }
 #endif /* TARGET_MIPS64 */
 
-void do_mtc0_index (target_ulong t0)
+void helper_mtc0_index (target_ulong t0)
 {
     int num = 1;
     unsigned int tmp = env->tlb->nb_tlb;
@@ -851,7 +851,7 @@ void do_mtc0_index (target_ulong t0)
     env->CP0_Index = (env->CP0_Index & 0x80000000) | (t0 & (num - 1));
 }
 
-void do_mtc0_mvpcontrol (target_ulong t0)
+void helper_mtc0_mvpcontrol (target_ulong t0)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -868,7 +868,7 @@ void do_mtc0_mvpcontrol (target_ulong t0)
     env->mvp->CP0_MVPControl = newval;
 }
 
-void do_mtc0_vpecontrol (target_ulong t0)
+void helper_mtc0_vpecontrol (target_ulong t0)
 {
     uint32_t mask;
     uint32_t newval;
@@ -885,7 +885,7 @@ void do_mtc0_vpecontrol (target_ulong t0)
     env->CP0_VPEControl = newval;
 }
 
-void do_mtc0_vpeconf0 (target_ulong t0)
+void helper_mtc0_vpeconf0 (target_ulong t0)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -902,7 +902,7 @@ void do_mtc0_vpeconf0 (target_ulong t0)
     env->CP0_VPEConf0 = newval;
 }
 
-void do_mtc0_vpeconf1 (target_ulong t0)
+void helper_mtc0_vpeconf1 (target_ulong t0)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -920,25 +920,25 @@ void do_mtc0_vpeconf1 (target_ulong t0)
     env->CP0_VPEConf1 = newval;
 }
 
-void do_mtc0_yqmask (target_ulong t0)
+void helper_mtc0_yqmask (target_ulong t0)
 {
     /* Yield qualifier inputs not implemented. */
     env->CP0_YQMask = 0x00000000;
 }
 
-void do_mtc0_vpeopt (target_ulong t0)
+void helper_mtc0_vpeopt (target_ulong t0)
 {
     env->CP0_VPEOpt = t0 & 0x0000ffff;
 }
 
-void do_mtc0_entrylo0 (target_ulong t0)
+void helper_mtc0_entrylo0 (target_ulong t0)
 {
     /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo0 = t0 & 0x3FFFFFFF;
 }
 
-void do_mtc0_tcstatus (target_ulong t0)
+void helper_mtc0_tcstatus (target_ulong t0)
 {
     uint32_t mask = env->CP0_TCStatus_rw_bitmask;
     uint32_t newval;
@@ -950,7 +950,7 @@ void do_mtc0_tcstatus (target_ulong t0)
     env->active_tc.CP0_TCStatus = newval;
 }
 
-void do_mttc0_tcstatus (target_ulong t0)
+void helper_mttc0_tcstatus (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -962,7 +962,7 @@ void do_mttc0_tcstatus (target_ulong t0)
         env->tcs[other_tc].CP0_TCStatus = t0;
 }
 
-void do_mtc0_tcbind (target_ulong t0)
+void helper_mtc0_tcbind (target_ulong t0)
 {
     uint32_t mask = (1 << CP0TCBd_TBE);
     uint32_t newval;
@@ -973,7 +973,7 @@ void do_mtc0_tcbind (target_ulong t0)
     env->active_tc.CP0_TCBind = newval;
 }
 
-void do_mttc0_tcbind (target_ulong t0)
+void helper_mttc0_tcbind (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     uint32_t mask = (1 << CP0TCBd_TBE);
@@ -990,7 +990,7 @@ void do_mttc0_tcbind (target_ulong t0)
     }
 }
 
-void do_mtc0_tcrestart (target_ulong t0)
+void helper_mtc0_tcrestart (target_ulong t0)
 {
     env->active_tc.PC = t0;
     env->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
@@ -998,7 +998,7 @@ void do_mtc0_tcrestart (target_ulong t0)
     /* MIPS16 not implemented. */
 }
 
-void do_mttc0_tcrestart (target_ulong t0)
+void helper_mttc0_tcrestart (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1015,14 +1015,14 @@ void do_mttc0_tcrestart (target_ulong t0)
     }
 }
 
-void do_mtc0_tchalt (target_ulong t0)
+void helper_mtc0_tchalt (target_ulong t0)
 {
     env->active_tc.CP0_TCHalt = t0 & 0x1;
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 }
 
-void do_mttc0_tchalt (target_ulong t0)
+void helper_mttc0_tchalt (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1034,12 +1034,12 @@ void do_mttc0_tchalt (target_ulong t0)
         env->tcs[other_tc].CP0_TCHalt = t0;
 }
 
-void do_mtc0_tccontext (target_ulong t0)
+void helper_mtc0_tccontext (target_ulong t0)
 {
     env->active_tc.CP0_TCContext = t0;
 }
 
-void do_mttc0_tccontext (target_ulong t0)
+void helper_mttc0_tccontext (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1049,12 +1049,12 @@ void do_mttc0_tccontext (target_ulong t0)
         env->tcs[other_tc].CP0_TCContext = t0;
 }
 
-void do_mtc0_tcschedule (target_ulong t0)
+void helper_mtc0_tcschedule (target_ulong t0)
 {
     env->active_tc.CP0_TCSchedule = t0;
 }
 
-void do_mttc0_tcschedule (target_ulong t0)
+void helper_mttc0_tcschedule (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1064,12 +1064,12 @@ void do_mttc0_tcschedule (target_ulong t0)
         env->tcs[other_tc].CP0_TCSchedule = t0;
 }
 
-void do_mtc0_tcschefback (target_ulong t0)
+void helper_mtc0_tcschefback (target_ulong t0)
 {
     env->active_tc.CP0_TCScheFBack = t0;
 }
 
-void do_mttc0_tcschefback (target_ulong t0)
+void helper_mttc0_tcschefback (target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1079,25 +1079,25 @@ void do_mttc0_tcschefback (target_ulong t0)
         env->tcs[other_tc].CP0_TCScheFBack = t0;
 }
 
-void do_mtc0_entrylo1 (target_ulong t0)
+void helper_mtc0_entrylo1 (target_ulong t0)
 {
     /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
     env->CP0_EntryLo1 = t0 & 0x3FFFFFFF;
 }
 
-void do_mtc0_context (target_ulong t0)
+void helper_mtc0_context (target_ulong t0)
 {
     env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (t0 & ~0x007FFFFF);
 }
 
-void do_mtc0_pagemask (target_ulong t0)
+void helper_mtc0_pagemask (target_ulong t0)
 {
     /* 1k pages not implemented */
     env->CP0_PageMask = t0 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
 }
 
-void do_mtc0_pagegrain (target_ulong t0)
+void helper_mtc0_pagegrain (target_ulong t0)
 {
     /* SmartMIPS not implemented */
     /* Large physaddr (PABITS) not implemented */
@@ -1105,47 +1105,47 @@ void do_mtc0_pagegrain (target_ulong t0)
     env->CP0_PageGrain = 0;
 }
 
-void do_mtc0_wired (target_ulong t0)
+void helper_mtc0_wired (target_ulong t0)
 {
     env->CP0_Wired = t0 % env->tlb->nb_tlb;
 }
 
-void do_mtc0_srsconf0 (target_ulong t0)
+void helper_mtc0_srsconf0 (target_ulong t0)
 {
     env->CP0_SRSConf0 |= t0 & env->CP0_SRSConf0_rw_bitmask;
 }
 
-void do_mtc0_srsconf1 (target_ulong t0)
+void helper_mtc0_srsconf1 (target_ulong t0)
 {
     env->CP0_SRSConf1 |= t0 & env->CP0_SRSConf1_rw_bitmask;
 }
 
-void do_mtc0_srsconf2 (target_ulong t0)
+void helper_mtc0_srsconf2 (target_ulong t0)
 {
     env->CP0_SRSConf2 |= t0 & env->CP0_SRSConf2_rw_bitmask;
 }
 
-void do_mtc0_srsconf3 (target_ulong t0)
+void helper_mtc0_srsconf3 (target_ulong t0)
 {
     env->CP0_SRSConf3 |= t0 & env->CP0_SRSConf3_rw_bitmask;
 }
 
-void do_mtc0_srsconf4 (target_ulong t0)
+void helper_mtc0_srsconf4 (target_ulong t0)
 {
     env->CP0_SRSConf4 |= t0 & env->CP0_SRSConf4_rw_bitmask;
 }
 
-void do_mtc0_hwrena (target_ulong t0)
+void helper_mtc0_hwrena (target_ulong t0)
 {
     env->CP0_HWREna = t0 & 0x0000000F;
 }
 
-void do_mtc0_count (target_ulong t0)
+void helper_mtc0_count (target_ulong t0)
 {
     cpu_mips_store_count(env, t0);
 }
 
-void do_mtc0_entryhi (target_ulong t0)
+void helper_mtc0_entryhi (target_ulong t0)
 {
     target_ulong old, val;
 
@@ -1165,7 +1165,7 @@ void do_mtc0_entryhi (target_ulong t0)
         cpu_mips_tlb_flush(env, 1);
 }
 
-void do_mttc0_entryhi(target_ulong t0)
+void helper_mttc0_entryhi(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     int32_t tcstatus;
@@ -1180,12 +1180,12 @@ void do_mttc0_entryhi(target_ulong t0)
     }
 }
 
-void do_mtc0_compare (target_ulong t0)
+void helper_mtc0_compare (target_ulong t0)
 {
     cpu_mips_store_compare(env, t0);
 }
 
-void do_mtc0_status (target_ulong t0)
+void helper_mtc0_status (target_ulong t0)
 {
     uint32_t val, old;
     uint32_t mask = env->CP0_Status_rw_bitmask;
@@ -1194,12 +1194,22 @@ void do_mtc0_status (target_ulong t0)
     old = env->CP0_Status;
     env->CP0_Status = (env->CP0_Status & ~mask) | val;
     compute_hflags(env);
-    if (qemu_loglevel_mask(CPU_LOG_EXEC))
-        do_mtc0_status_debug(old, val);
+    if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
+        qemu_log("Status %08x (%08x) => %08x (%08x) Cause %08x",
+                old, old & env->CP0_Cause & CP0Ca_IP_mask,
+                val, val & env->CP0_Cause & CP0Ca_IP_mask,
+                env->CP0_Cause);
+        switch (env->hflags & MIPS_HFLAG_KSU) {
+        case MIPS_HFLAG_UM: qemu_log(", UM\n"); break;
+        case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
+        case MIPS_HFLAG_KM: qemu_log("\n"); break;
+        default: cpu_abort(env, "Invalid MMU mode!\n"); break;
+	}
+    }
     cpu_mips_update_irq(env);
 }
 
-void do_mttc0_status(target_ulong t0)
+void helper_mttc0_status(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     int32_t tcstatus = env->tcs[other_tc].CP0_TCStatus;
@@ -1214,19 +1224,19 @@ void do_mttc0_status(target_ulong t0)
         env->tcs[other_tc].CP0_TCStatus = tcstatus;
 }
 
-void do_mtc0_intctl (target_ulong t0)
+void helper_mtc0_intctl (target_ulong t0)
 {
     /* vectored interrupts not implemented, no performance counters. */
     env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (t0 & 0x000002e0);
 }
 
-void do_mtc0_srsctl (target_ulong t0)
+void helper_mtc0_srsctl (target_ulong t0)
 {
     uint32_t mask = (0xf << CP0SRSCtl_ESS) | (0xf << CP0SRSCtl_PSS);
     env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (t0 & mask);
 }
 
-void do_mtc0_cause (target_ulong t0)
+void helper_mtc0_cause (target_ulong t0)
 {
     uint32_t mask = 0x00C00300;
     uint32_t old = env->CP0_Cause;
@@ -1250,49 +1260,49 @@ void do_mtc0_cause (target_ulong t0)
     }
 }
 
-void do_mtc0_ebase (target_ulong t0)
+void helper_mtc0_ebase (target_ulong t0)
 {
     /* vectored interrupts not implemented */
     /* Multi-CPU not implemented */
     env->CP0_EBase = 0x80000000 | (t0 & 0x3FFFF000);
 }
 
-void do_mtc0_config0 (target_ulong t0)
+void helper_mtc0_config0 (target_ulong t0)
 {
     env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (t0 & 0x00000007);
 }
 
-void do_mtc0_config2 (target_ulong t0)
+void helper_mtc0_config2 (target_ulong t0)
 {
     /* tertiary/secondary caches not implemented */
     env->CP0_Config2 = (env->CP0_Config2 & 0x8FFF0FFF);
 }
 
-void do_mtc0_watchlo (target_ulong t0, uint32_t sel)
+void helper_mtc0_watchlo (target_ulong t0, uint32_t sel)
 {
     /* Watch exceptions for instructions, data loads, data stores
        not implemented. */
     env->CP0_WatchLo[sel] = (t0 & ~0x7);
 }
 
-void do_mtc0_watchhi (target_ulong t0, uint32_t sel)
+void helper_mtc0_watchhi (target_ulong t0, uint32_t sel)
 {
     env->CP0_WatchHi[sel] = (t0 & 0x40FF0FF8);
     env->CP0_WatchHi[sel] &= ~(env->CP0_WatchHi[sel] & t0 & 0x7);
 }
 
-void do_mtc0_xcontext (target_ulong t0)
+void helper_mtc0_xcontext (target_ulong t0)
 {
     target_ulong mask = (1ULL << (env->SEGBITS - 7)) - 1;
     env->CP0_XContext = (env->CP0_XContext & mask) | (t0 & ~mask);
 }
 
-void do_mtc0_framemask (target_ulong t0)
+void helper_mtc0_framemask (target_ulong t0)
 {
     env->CP0_Framemask = t0; /* XXX */
 }
 
-void do_mtc0_debug (target_ulong t0)
+void helper_mtc0_debug (target_ulong t0)
 {
     env->CP0_Debug = (env->CP0_Debug & 0x8C03FC1F) | (t0 & 0x13300120);
     if (t0 & (1 << CP0DB_DM))
@@ -1301,7 +1311,7 @@ void do_mtc0_debug (target_ulong t0)
         env->hflags &= ~MIPS_HFLAG_DM;
 }
 
-void do_mttc0_debug(target_ulong t0)
+void helper_mttc0_debug(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     uint32_t val = t0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
@@ -1315,52 +1325,33 @@ void do_mttc0_debug(target_ulong t0)
                      (t0 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
 }
 
-void do_mtc0_performance0 (target_ulong t0)
+void helper_mtc0_performance0 (target_ulong t0)
 {
     env->CP0_Performance0 = t0 & 0x000007ff;
 }
 
-void do_mtc0_taglo (target_ulong t0)
+void helper_mtc0_taglo (target_ulong t0)
 {
     env->CP0_TagLo = t0 & 0xFFFFFCF6;
 }
 
-void do_mtc0_datalo (target_ulong t0)
+void helper_mtc0_datalo (target_ulong t0)
 {
     env->CP0_DataLo = t0; /* XXX */
 }
 
-void do_mtc0_taghi (target_ulong t0)
+void helper_mtc0_taghi (target_ulong t0)
 {
     env->CP0_TagHi = t0; /* XXX */
 }
 
-void do_mtc0_datahi (target_ulong t0)
+void helper_mtc0_datahi (target_ulong t0)
 {
     env->CP0_DataHi = t0; /* XXX */
 }
 
-void do_mtc0_status_debug(uint32_t old, uint32_t val)
-{
-    qemu_log("Status %08x (%08x) => %08x (%08x) Cause %08x",
-            old, old & env->CP0_Cause & CP0Ca_IP_mask,
-            val, val & env->CP0_Cause & CP0Ca_IP_mask,
-            env->CP0_Cause);
-    switch (env->hflags & MIPS_HFLAG_KSU) {
-    case MIPS_HFLAG_UM: qemu_log(", UM\n"); break;
-    case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
-    case MIPS_HFLAG_KM: qemu_log("\n"); break;
-    default: cpu_abort(env, "Invalid MMU mode!\n"); break;
-    }
-}
-
-void do_mtc0_status_irqraise_debug(void)
-{
-    qemu_log("Raise pending IRQs\n");
-}
-
 /* MIPS MT functions */
-target_ulong do_mftgpr(uint32_t sel)
+target_ulong helper_mftgpr(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1370,7 +1361,7 @@ target_ulong do_mftgpr(uint32_t sel)
         return env->tcs[other_tc].gpr[sel];
 }
 
-target_ulong do_mftlo(uint32_t sel)
+target_ulong helper_mftlo(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1380,7 +1371,7 @@ target_ulong do_mftlo(uint32_t sel)
         return env->tcs[other_tc].LO[sel];
 }
 
-target_ulong do_mfthi(uint32_t sel)
+target_ulong helper_mfthi(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1390,7 +1381,7 @@ target_ulong do_mfthi(uint32_t sel)
         return env->tcs[other_tc].HI[sel];
 }
 
-target_ulong do_mftacx(uint32_t sel)
+target_ulong helper_mftacx(uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1400,7 +1391,7 @@ target_ulong do_mftacx(uint32_t sel)
         return env->tcs[other_tc].ACX[sel];
 }
 
-target_ulong do_mftdsp(void)
+target_ulong helper_mftdsp(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1410,7 +1401,7 @@ target_ulong do_mftdsp(void)
         return env->tcs[other_tc].DSPControl;
 }
 
-void do_mttgpr(target_ulong t0, uint32_t sel)
+void helper_mttgpr(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1420,7 +1411,7 @@ void do_mttgpr(target_ulong t0, uint32_t sel)
         env->tcs[other_tc].gpr[sel] = t0;
 }
 
-void do_mttlo(target_ulong t0, uint32_t sel)
+void helper_mttlo(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1430,7 +1421,7 @@ void do_mttlo(target_ulong t0, uint32_t sel)
         env->tcs[other_tc].LO[sel] = t0;
 }
 
-void do_mtthi(target_ulong t0, uint32_t sel)
+void helper_mtthi(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1440,7 +1431,7 @@ void do_mtthi(target_ulong t0, uint32_t sel)
         env->tcs[other_tc].HI[sel] = t0;
 }
 
-void do_mttacx(target_ulong t0, uint32_t sel)
+void helper_mttacx(target_ulong t0, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1450,7 +1441,7 @@ void do_mttacx(target_ulong t0, uint32_t sel)
         env->tcs[other_tc].ACX[sel] = t0;
 }
 
-void do_mttdsp(target_ulong t0)
+void helper_mttdsp(target_ulong t0)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
@@ -1461,7 +1452,7 @@ void do_mttdsp(target_ulong t0)
 }
 
 /* MIPS MT functions */
-target_ulong do_dmt(target_ulong t0)
+target_ulong helper_dmt(target_ulong t0)
 {
     // TODO
     t0 = 0;
@@ -1470,7 +1461,7 @@ target_ulong do_dmt(target_ulong t0)
     return t0;
 }
 
-target_ulong do_emt(target_ulong t0)
+target_ulong helper_emt(target_ulong t0)
 {
     // TODO
     t0 = 0;
@@ -1479,7 +1470,7 @@ target_ulong do_emt(target_ulong t0)
     return t0;
 }
 
-target_ulong do_dvpe(target_ulong t0)
+target_ulong helper_dvpe(target_ulong t0)
 {
     // TODO
     t0 = 0;
@@ -1488,7 +1479,7 @@ target_ulong do_dvpe(target_ulong t0)
     return t0;
 }
 
-target_ulong do_evpe(target_ulong t0)
+target_ulong helper_evpe(target_ulong t0)
 {
     // TODO
     t0 = 0;
@@ -1498,14 +1489,14 @@ target_ulong do_evpe(target_ulong t0)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-void do_fork(target_ulong t0, target_ulong t1)
+void helper_fork(target_ulong t0, target_ulong t1)
 {
     // t0 = rt, t1 = rs
     t0 = 0;
     // TODO: store to TC register
 }
 
-target_ulong do_yield(target_ulong t0)
+target_ulong helper_yield(target_ulong t0)
 {
     if (t0 < 0) {
         /* No scheduling policy implemented. */
@@ -1514,13 +1505,13 @@ target_ulong do_yield(target_ulong t0)
                 env->active_tc.CP0_TCStatus & (1 << CP0TCSt_DT)) {
                 env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
                 env->CP0_VPEControl |= 4 << CP0VPECo_EXCPT;
-                do_raise_exception(EXCP_THREAD);
+                helper_raise_exception(EXCP_THREAD);
             }
         }
     } else if (t0 == 0) {
         if (0 /* TODO: TC underflow */) {
             env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
-            do_raise_exception(EXCP_THREAD);
+            helper_raise_exception(EXCP_THREAD);
         } else {
             // TODO: Deallocate TC
         }
@@ -1528,7 +1519,7 @@ target_ulong do_yield(target_ulong t0)
         /* Yield qualifier inputs not implemented. */
         env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
         env->CP0_VPEControl |= 2 << CP0VPECo_EXCPT;
-        do_raise_exception(EXCP_THREAD);
+        helper_raise_exception(EXCP_THREAD);
     }
     return env->CP0_YQMask;
 }
@@ -1573,7 +1564,7 @@ static void r4k_fill_tlb (int idx)
     tlb->PFN[1] = (env->CP0_EntryLo1 >> 6) << 12;
 }
 
-void r4k_do_tlbwi (void)
+void r4k_helper_tlbwi (void)
 {
     int idx;
 
@@ -1588,7 +1579,7 @@ void r4k_do_tlbwi (void)
     r4k_fill_tlb(idx);
 }
 
-void r4k_do_tlbwr (void)
+void r4k_helper_tlbwr (void)
 {
     int r = cpu_mips_get_random(env);
 
@@ -1596,7 +1587,7 @@ void r4k_do_tlbwr (void)
     r4k_fill_tlb(r);
 }
 
-void r4k_do_tlbp (void)
+void r4k_helper_tlbp (void)
 {
     r4k_tlb_t *tlb;
     target_ulong mask;
@@ -1638,7 +1629,7 @@ void r4k_do_tlbp (void)
     }
 }
 
-void r4k_do_tlbr (void)
+void r4k_helper_tlbr (void)
 {
     r4k_tlb_t *tlb;
     uint8_t ASID;
@@ -1662,28 +1653,28 @@ void r4k_do_tlbr (void)
                         (tlb->C1 << 3) | (tlb->PFN[1] >> 6);
 }
 
-void do_tlbwi(void)
+void helper_tlbwi(void)
 {
-    env->tlb->do_tlbwi();
+    env->tlb->helper_tlbwi();
 }
 
-void do_tlbwr(void)
+void helper_tlbwr(void)
 {
-    env->tlb->do_tlbwr();
+    env->tlb->helper_tlbwr();
 }
 
-void do_tlbp(void)
+void helper_tlbp(void)
 {
-    env->tlb->do_tlbp();
+    env->tlb->helper_tlbp();
 }
 
-void do_tlbr(void)
+void helper_tlbr(void)
 {
-    env->tlb->do_tlbr();
+    env->tlb->helper_tlbr();
 }
 
 /* Specials */
-target_ulong do_di (void)
+target_ulong helper_di (void)
 {
     target_ulong t0 = env->CP0_Status;
 
@@ -1693,7 +1684,7 @@ target_ulong do_di (void)
     return t0;
 }
 
-target_ulong do_ei (void)
+target_ulong helper_ei (void)
 {
     target_ulong t0 = env->CP0_Status;
 
@@ -1734,7 +1725,7 @@ static void debug_post_eret (void)
     }
 }
 
-void do_eret (void)
+void helper_eret (void)
 {
     debug_pre_eret();
     if (env->CP0_Status & (1 << CP0St_ERL)) {
@@ -1749,7 +1740,7 @@ void do_eret (void)
     env->CP0_LLAddr = 1;
 }
 
-void do_deret (void)
+void helper_deret (void)
 {
     debug_pre_eret();
     env->active_tc.PC = env->CP0_DEPC;
@@ -1760,51 +1751,51 @@ void do_deret (void)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-target_ulong do_rdhwr_cpunum(void)
+target_ulong helper_rdhwr_cpunum(void)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 0)))
         return env->CP0_EBase & 0x3ff;
     else
-        do_raise_exception(EXCP_RI);
+        helper_raise_exception(EXCP_RI);
 
     return 0;
 }
 
-target_ulong do_rdhwr_synci_step(void)
+target_ulong helper_rdhwr_synci_step(void)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 1)))
         return env->SYNCI_Step;
     else
-        do_raise_exception(EXCP_RI);
+        helper_raise_exception(EXCP_RI);
 
     return 0;
 }
 
-target_ulong do_rdhwr_cc(void)
+target_ulong helper_rdhwr_cc(void)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 2)))
         return env->CP0_Count;
     else
-        do_raise_exception(EXCP_RI);
+        helper_raise_exception(EXCP_RI);
 
     return 0;
 }
 
-target_ulong do_rdhwr_ccres(void)
+target_ulong helper_rdhwr_ccres(void)
 {
     if ((env->hflags & MIPS_HFLAG_CP0) ||
         (env->CP0_HWREna & (1 << 3)))
         return env->CCRes;
     else
-        do_raise_exception(EXCP_RI);
+        helper_raise_exception(EXCP_RI);
 
     return 0;
 }
 
-void do_pmon (int function)
+void helper_pmon (int function)
 {
     function /= 2;
     switch (function) {
@@ -1830,10 +1821,10 @@ void do_pmon (int function)
     }
 }
 
-void do_wait (void)
+void helper_wait (void)
 {
     env->halted = 1;
-    do_raise_exception(EXCP_HLT);
+    helper_raise_exception(EXCP_HLT);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1859,7 +1850,7 @@ static void do_unaligned_access (target_ulong addr, int is_write, int is_user, v
 {
     env->CP0_BadVAddr = addr;
     do_restore_state (retaddr);
-    do_raise_exception ((is_write == 1) ? EXCP_AdES : EXCP_AdEL);
+    helper_raise_exception ((is_write == 1) ? EXCP_AdES : EXCP_AdEL);
 }
 
 void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
@@ -1885,7 +1876,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
                 cpu_restore_state(tb, env, pc, NULL);
             }
         }
-        do_raise_exception_err(env->exception_index, env->error_code);
+        helper_raise_exception_err(env->exception_index, env->error_code);
     }
     env = saved_env;
 }
@@ -1894,9 +1885,9 @@ void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int unused, int size)
 {
     if (is_exec)
-        do_raise_exception(EXCP_IBE);
+        helper_raise_exception(EXCP_IBE);
     else
-        do_raise_exception(EXCP_DBE);
+        helper_raise_exception(EXCP_DBE);
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -1922,7 +1913,7 @@ unsigned int ieee_rm[] = {
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3], &env->active_fpu.fp_status)
 
-target_ulong do_cfc1 (uint32_t reg)
+target_ulong helper_cfc1 (uint32_t reg)
 {
     target_ulong t0;
 
@@ -1947,7 +1938,7 @@ target_ulong do_cfc1 (uint32_t reg)
     return t0;
 }
 
-void do_ctc1 (target_ulong t0, uint32_t reg)
+void helper_ctc1 (target_ulong t0, uint32_t reg)
 {
     switch(reg) {
     case 25:
@@ -1979,7 +1970,7 @@ void do_ctc1 (target_ulong t0, uint32_t reg)
     RESTORE_ROUNDING_MODE;
     set_float_exception_flags(0, &env->active_fpu.fp_status);
     if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31))
-        do_raise_exception(EXCP_FPE);
+        helper_raise_exception(EXCP_FPE);
 }
 
 static inline char ieee_ex_to_mips(char xcpt)
@@ -2006,7 +1997,7 @@ static inline void update_fcr31(void)
 
     SET_FP_CAUSE(env->active_fpu.fcr31, tmp);
     if (GET_FP_ENABLE(env->active_fpu.fcr31) & tmp)
-        do_raise_exception(EXCP_FPE);
+        helper_raise_exception(EXCP_FPE);
     else
         UPDATE_FP_FLAGS(env->active_fpu.fcr31, tmp);
 }
@@ -2017,17 +2008,17 @@ static inline void update_fcr31(void)
    paired single lower "pl", paired single upper "pu".  */
 
 /* unary operations, modifying fp status  */
-uint64_t do_float_sqrt_d(uint64_t fdt0)
+uint64_t helper_float_sqrt_d(uint64_t fdt0)
 {
     return float64_sqrt(fdt0, &env->active_fpu.fp_status);
 }
 
-uint32_t do_float_sqrt_s(uint32_t fst0)
+uint32_t helper_float_sqrt_s(uint32_t fst0)
 {
     return float32_sqrt(fst0, &env->active_fpu.fp_status);
 }
 
-uint64_t do_float_cvtd_s(uint32_t fst0)
+uint64_t helper_float_cvtd_s(uint32_t fst0)
 {
     uint64_t fdt2;
 
@@ -2037,7 +2028,7 @@ uint64_t do_float_cvtd_s(uint32_t fst0)
     return fdt2;
 }
 
-uint64_t do_float_cvtd_w(uint32_t wt0)
+uint64_t helper_float_cvtd_w(uint32_t wt0)
 {
     uint64_t fdt2;
 
@@ -2047,7 +2038,7 @@ uint64_t do_float_cvtd_w(uint32_t wt0)
     return fdt2;
 }
 
-uint64_t do_float_cvtd_l(uint64_t dt0)
+uint64_t helper_float_cvtd_l(uint64_t dt0)
 {
     uint64_t fdt2;
 
@@ -2057,7 +2048,7 @@ uint64_t do_float_cvtd_l(uint64_t dt0)
     return fdt2;
 }
 
-uint64_t do_float_cvtl_d(uint64_t fdt0)
+uint64_t helper_float_cvtl_d(uint64_t fdt0)
 {
     uint64_t dt2;
 
@@ -2069,7 +2060,7 @@ uint64_t do_float_cvtl_d(uint64_t fdt0)
     return dt2;
 }
 
-uint64_t do_float_cvtl_s(uint32_t fst0)
+uint64_t helper_float_cvtl_s(uint32_t fst0)
 {
     uint64_t dt2;
 
@@ -2081,7 +2072,7 @@ uint64_t do_float_cvtl_s(uint32_t fst0)
     return dt2;
 }
 
-uint64_t do_float_cvtps_pw(uint64_t dt0)
+uint64_t helper_float_cvtps_pw(uint64_t dt0)
 {
     uint32_t fst2;
     uint32_t fsth2;
@@ -2093,7 +2084,7 @@ uint64_t do_float_cvtps_pw(uint64_t dt0)
     return ((uint64_t)fsth2 << 32) | fst2;
 }
 
-uint64_t do_float_cvtpw_ps(uint64_t fdt0)
+uint64_t helper_float_cvtpw_ps(uint64_t fdt0)
 {
     uint32_t wt2;
     uint32_t wth2;
@@ -2109,7 +2100,7 @@ uint64_t do_float_cvtpw_ps(uint64_t fdt0)
     return ((uint64_t)wth2 << 32) | wt2;
 }
 
-uint32_t do_float_cvts_d(uint64_t fdt0)
+uint32_t helper_float_cvts_d(uint64_t fdt0)
 {
     uint32_t fst2;
 
@@ -2119,7 +2110,7 @@ uint32_t do_float_cvts_d(uint64_t fdt0)
     return fst2;
 }
 
-uint32_t do_float_cvts_w(uint32_t wt0)
+uint32_t helper_float_cvts_w(uint32_t wt0)
 {
     uint32_t fst2;
 
@@ -2129,7 +2120,7 @@ uint32_t do_float_cvts_w(uint32_t wt0)
     return fst2;
 }
 
-uint32_t do_float_cvts_l(uint64_t dt0)
+uint32_t helper_float_cvts_l(uint64_t dt0)
 {
     uint32_t fst2;
 
@@ -2139,7 +2130,7 @@ uint32_t do_float_cvts_l(uint64_t dt0)
     return fst2;
 }
 
-uint32_t do_float_cvts_pl(uint32_t wt0)
+uint32_t helper_float_cvts_pl(uint32_t wt0)
 {
     uint32_t wt2;
 
@@ -2149,7 +2140,7 @@ uint32_t do_float_cvts_pl(uint32_t wt0)
     return wt2;
 }
 
-uint32_t do_float_cvts_pu(uint32_t wth0)
+uint32_t helper_float_cvts_pu(uint32_t wth0)
 {
     uint32_t wt2;
 
@@ -2159,7 +2150,7 @@ uint32_t do_float_cvts_pu(uint32_t wth0)
     return wt2;
 }
 
-uint32_t do_float_cvtw_s(uint32_t fst0)
+uint32_t helper_float_cvtw_s(uint32_t fst0)
 {
     uint32_t wt2;
 
@@ -2171,7 +2162,7 @@ uint32_t do_float_cvtw_s(uint32_t fst0)
     return wt2;
 }
 
-uint32_t do_float_cvtw_d(uint64_t fdt0)
+uint32_t helper_float_cvtw_d(uint64_t fdt0)
 {
     uint32_t wt2;
 
@@ -2183,7 +2174,7 @@ uint32_t do_float_cvtw_d(uint64_t fdt0)
     return wt2;
 }
 
-uint64_t do_float_roundl_d(uint64_t fdt0)
+uint64_t helper_float_roundl_d(uint64_t fdt0)
 {
     uint64_t dt2;
 
@@ -2196,7 +2187,7 @@ uint64_t do_float_roundl_d(uint64_t fdt0)
     return dt2;
 }
 
-uint64_t do_float_roundl_s(uint32_t fst0)
+uint64_t helper_float_roundl_s(uint32_t fst0)
 {
     uint64_t dt2;
 
@@ -2209,7 +2200,7 @@ uint64_t do_float_roundl_s(uint32_t fst0)
     return dt2;
 }
 
-uint32_t do_float_roundw_d(uint64_t fdt0)
+uint32_t helper_float_roundw_d(uint64_t fdt0)
 {
     uint32_t wt2;
 
@@ -2222,7 +2213,7 @@ uint32_t do_float_roundw_d(uint64_t fdt0)
     return wt2;
 }
 
-uint32_t do_float_roundw_s(uint32_t fst0)
+uint32_t helper_float_roundw_s(uint32_t fst0)
 {
     uint32_t wt2;
 
@@ -2235,7 +2226,7 @@ uint32_t do_float_roundw_s(uint32_t fst0)
     return wt2;
 }
 
-uint64_t do_float_truncl_d(uint64_t fdt0)
+uint64_t helper_float_truncl_d(uint64_t fdt0)
 {
     uint64_t dt2;
 
@@ -2246,7 +2237,7 @@ uint64_t do_float_truncl_d(uint64_t fdt0)
     return dt2;
 }
 
-uint64_t do_float_truncl_s(uint32_t fst0)
+uint64_t helper_float_truncl_s(uint32_t fst0)
 {
     uint64_t dt2;
 
@@ -2257,7 +2248,7 @@ uint64_t do_float_truncl_s(uint32_t fst0)
     return dt2;
 }
 
-uint32_t do_float_truncw_d(uint64_t fdt0)
+uint32_t helper_float_truncw_d(uint64_t fdt0)
 {
     uint32_t wt2;
 
@@ -2268,7 +2259,7 @@ uint32_t do_float_truncw_d(uint64_t fdt0)
     return wt2;
 }
 
-uint32_t do_float_truncw_s(uint32_t fst0)
+uint32_t helper_float_truncw_s(uint32_t fst0)
 {
     uint32_t wt2;
 
@@ -2279,7 +2270,7 @@ uint32_t do_float_truncw_s(uint32_t fst0)
     return wt2;
 }
 
-uint64_t do_float_ceill_d(uint64_t fdt0)
+uint64_t helper_float_ceill_d(uint64_t fdt0)
 {
     uint64_t dt2;
 
@@ -2292,7 +2283,7 @@ uint64_t do_float_ceill_d(uint64_t fdt0)
     return dt2;
 }
 
-uint64_t do_float_ceill_s(uint32_t fst0)
+uint64_t helper_float_ceill_s(uint32_t fst0)
 {
     uint64_t dt2;
 
@@ -2305,7 +2296,7 @@ uint64_t do_float_ceill_s(uint32_t fst0)
     return dt2;
 }
 
-uint32_t do_float_ceilw_d(uint64_t fdt0)
+uint32_t helper_float_ceilw_d(uint64_t fdt0)
 {
     uint32_t wt2;
 
@@ -2318,7 +2309,7 @@ uint32_t do_float_ceilw_d(uint64_t fdt0)
     return wt2;
 }
 
-uint32_t do_float_ceilw_s(uint32_t fst0)
+uint32_t helper_float_ceilw_s(uint32_t fst0)
 {
     uint32_t wt2;
 
@@ -2331,7 +2322,7 @@ uint32_t do_float_ceilw_s(uint32_t fst0)
     return wt2;
 }
 
-uint64_t do_float_floorl_d(uint64_t fdt0)
+uint64_t helper_float_floorl_d(uint64_t fdt0)
 {
     uint64_t dt2;
 
@@ -2344,7 +2335,7 @@ uint64_t do_float_floorl_d(uint64_t fdt0)
     return dt2;
 }
 
-uint64_t do_float_floorl_s(uint32_t fst0)
+uint64_t helper_float_floorl_s(uint32_t fst0)
 {
     uint64_t dt2;
 
@@ -2357,7 +2348,7 @@ uint64_t do_float_floorl_s(uint32_t fst0)
     return dt2;
 }
 
-uint32_t do_float_floorw_d(uint64_t fdt0)
+uint32_t helper_float_floorw_d(uint64_t fdt0)
 {
     uint32_t wt2;
 
@@ -2370,7 +2361,7 @@ uint32_t do_float_floorw_d(uint64_t fdt0)
     return wt2;
 }
 
-uint32_t do_float_floorw_s(uint32_t fst0)
+uint32_t helper_float_floorw_s(uint32_t fst0)
 {
     uint32_t wt2;
 
@@ -2385,15 +2376,15 @@ uint32_t do_float_floorw_s(uint32_t fst0)
 
 /* unary operations, not modifying fp status  */
 #define FLOAT_UNOP(name)                                       \
-uint64_t do_float_ ## name ## _d(uint64_t fdt0)                \
+uint64_t helper_float_ ## name ## _d(uint64_t fdt0)                \
 {                                                              \
     return float64_ ## name(fdt0);                             \
 }                                                              \
-uint32_t do_float_ ## name ## _s(uint32_t fst0)                \
+uint32_t helper_float_ ## name ## _s(uint32_t fst0)                \
 {                                                              \
     return float32_ ## name(fst0);                             \
 }                                                              \
-uint64_t do_float_ ## name ## _ps(uint64_t fdt0)               \
+uint64_t helper_float_ ## name ## _ps(uint64_t fdt0)               \
 {                                                              \
     uint32_t wt0;                                              \
     uint32_t wth0;                                             \
@@ -2407,7 +2398,7 @@ FLOAT_UNOP(chs)
 #undef FLOAT_UNOP
 
 /* MIPS specific unary operations */
-uint64_t do_float_recip_d(uint64_t fdt0)
+uint64_t helper_float_recip_d(uint64_t fdt0)
 {
     uint64_t fdt2;
 
@@ -2417,7 +2408,7 @@ uint64_t do_float_recip_d(uint64_t fdt0)
     return fdt2;
 }
 
-uint32_t do_float_recip_s(uint32_t fst0)
+uint32_t helper_float_recip_s(uint32_t fst0)
 {
     uint32_t fst2;
 
@@ -2427,7 +2418,7 @@ uint32_t do_float_recip_s(uint32_t fst0)
     return fst2;
 }
 
-uint64_t do_float_rsqrt_d(uint64_t fdt0)
+uint64_t helper_float_rsqrt_d(uint64_t fdt0)
 {
     uint64_t fdt2;
 
@@ -2438,7 +2429,7 @@ uint64_t do_float_rsqrt_d(uint64_t fdt0)
     return fdt2;
 }
 
-uint32_t do_float_rsqrt_s(uint32_t fst0)
+uint32_t helper_float_rsqrt_s(uint32_t fst0)
 {
     uint32_t fst2;
 
@@ -2449,7 +2440,7 @@ uint32_t do_float_rsqrt_s(uint32_t fst0)
     return fst2;
 }
 
-uint64_t do_float_recip1_d(uint64_t fdt0)
+uint64_t helper_float_recip1_d(uint64_t fdt0)
 {
     uint64_t fdt2;
 
@@ -2459,7 +2450,7 @@ uint64_t do_float_recip1_d(uint64_t fdt0)
     return fdt2;
 }
 
-uint32_t do_float_recip1_s(uint32_t fst0)
+uint32_t helper_float_recip1_s(uint32_t fst0)
 {
     uint32_t fst2;
 
@@ -2469,7 +2460,7 @@ uint32_t do_float_recip1_s(uint32_t fst0)
     return fst2;
 }
 
-uint64_t do_float_recip1_ps(uint64_t fdt0)
+uint64_t helper_float_recip1_ps(uint64_t fdt0)
 {
     uint32_t fst2;
     uint32_t fsth2;
@@ -2481,7 +2472,7 @@ uint64_t do_float_recip1_ps(uint64_t fdt0)
     return ((uint64_t)fsth2 << 32) | fst2;
 }
 
-uint64_t do_float_rsqrt1_d(uint64_t fdt0)
+uint64_t helper_float_rsqrt1_d(uint64_t fdt0)
 {
     uint64_t fdt2;
 
@@ -2492,7 +2483,7 @@ uint64_t do_float_rsqrt1_d(uint64_t fdt0)
     return fdt2;
 }
 
-uint32_t do_float_rsqrt1_s(uint32_t fst0)
+uint32_t helper_float_rsqrt1_s(uint32_t fst0)
 {
     uint32_t fst2;
 
@@ -2503,7 +2494,7 @@ uint32_t do_float_rsqrt1_s(uint32_t fst0)
     return fst2;
 }
 
-uint64_t do_float_rsqrt1_ps(uint64_t fdt0)
+uint64_t helper_float_rsqrt1_ps(uint64_t fdt0)
 {
     uint32_t fst2;
     uint32_t fsth2;
@@ -2517,11 +2508,11 @@ uint64_t do_float_rsqrt1_ps(uint64_t fdt0)
     return ((uint64_t)fsth2 << 32) | fst2;
 }
 
-#define FLOAT_OP(name, p) void do_float_##name##_##p(void)
+#define FLOAT_OP(name, p) void helper_float_##name##_##p(void)
 
 /* binary operations */
 #define FLOAT_BINOP(name)                                          \
-uint64_t do_float_ ## name ## _d(uint64_t fdt0, uint64_t fdt1)     \
+uint64_t helper_float_ ## name ## _d(uint64_t fdt0, uint64_t fdt1)     \
 {                                                                  \
     uint64_t dt2;                                                  \
                                                                    \
@@ -2533,7 +2524,7 @@ uint64_t do_float_ ## name ## _d(uint64_t fdt0, uint64_t fdt1)     \
     return dt2;                                                    \
 }                                                                  \
                                                                    \
-uint32_t do_float_ ## name ## _s(uint32_t fst0, uint32_t fst1)     \
+uint32_t helper_float_ ## name ## _s(uint32_t fst0, uint32_t fst1)     \
 {                                                                  \
     uint32_t wt2;                                                  \
                                                                    \
@@ -2545,7 +2536,7 @@ uint32_t do_float_ ## name ## _s(uint32_t fst0, uint32_t fst1)     \
     return wt2;                                                    \
 }                                                                  \
                                                                    \
-uint64_t do_float_ ## name ## _ps(uint64_t fdt0, uint64_t fdt1)    \
+uint64_t helper_float_ ## name ## _ps(uint64_t fdt0, uint64_t fdt1)    \
 {                                                                  \
     uint32_t fst0 = fdt0 & 0XFFFFFFFF;                             \
     uint32_t fsth0 = fdt0 >> 32;                                   \
@@ -2573,21 +2564,21 @@ FLOAT_BINOP(div)
 
 /* ternary operations */
 #define FLOAT_TERNOP(name1, name2)                                        \
-uint64_t do_float_ ## name1 ## name2 ## _d(uint64_t fdt0, uint64_t fdt1,  \
+uint64_t helper_float_ ## name1 ## name2 ## _d(uint64_t fdt0, uint64_t fdt1,  \
                                            uint64_t fdt2)                 \
 {                                                                         \
     fdt0 = float64_ ## name1 (fdt0, fdt1, &env->active_fpu.fp_status);          \
     return float64_ ## name2 (fdt0, fdt2, &env->active_fpu.fp_status);          \
 }                                                                         \
                                                                           \
-uint32_t do_float_ ## name1 ## name2 ## _s(uint32_t fst0, uint32_t fst1,  \
+uint32_t helper_float_ ## name1 ## name2 ## _s(uint32_t fst0, uint32_t fst1,  \
                                            uint32_t fst2)                 \
 {                                                                         \
     fst0 = float32_ ## name1 (fst0, fst1, &env->active_fpu.fp_status);          \
     return float32_ ## name2 (fst0, fst2, &env->active_fpu.fp_status);          \
 }                                                                         \
                                                                           \
-uint64_t do_float_ ## name1 ## name2 ## _ps(uint64_t fdt0, uint64_t fdt1, \
+uint64_t helper_float_ ## name1 ## name2 ## _ps(uint64_t fdt0, uint64_t fdt1, \
                                             uint64_t fdt2)                \
 {                                                                         \
     uint32_t fst0 = fdt0 & 0XFFFFFFFF;                                    \
@@ -2610,7 +2601,7 @@ FLOAT_TERNOP(mul, sub)
 
 /* negated ternary operations */
 #define FLOAT_NTERNOP(name1, name2)                                       \
-uint64_t do_float_n ## name1 ## name2 ## _d(uint64_t fdt0, uint64_t fdt1, \
+uint64_t helper_float_n ## name1 ## name2 ## _d(uint64_t fdt0, uint64_t fdt1, \
                                            uint64_t fdt2)                 \
 {                                                                         \
     fdt0 = float64_ ## name1 (fdt0, fdt1, &env->active_fpu.fp_status);          \
@@ -2618,7 +2609,7 @@ uint64_t do_float_n ## name1 ## name2 ## _d(uint64_t fdt0, uint64_t fdt1, \
     return float64_chs(fdt2);                                             \
 }                                                                         \
                                                                           \
-uint32_t do_float_n ## name1 ## name2 ## _s(uint32_t fst0, uint32_t fst1, \
+uint32_t helper_float_n ## name1 ## name2 ## _s(uint32_t fst0, uint32_t fst1, \
                                            uint32_t fst2)                 \
 {                                                                         \
     fst0 = float32_ ## name1 (fst0, fst1, &env->active_fpu.fp_status);          \
@@ -2626,7 +2617,7 @@ uint32_t do_float_n ## name1 ## name2 ## _s(uint32_t fst0, uint32_t fst1, \
     return float32_chs(fst2);                                             \
 }                                                                         \
                                                                           \
-uint64_t do_float_n ## name1 ## name2 ## _ps(uint64_t fdt0, uint64_t fdt1,\
+uint64_t helper_float_n ## name1 ## name2 ## _ps(uint64_t fdt0, uint64_t fdt1,\
                                            uint64_t fdt2)                 \
 {                                                                         \
     uint32_t fst0 = fdt0 & 0XFFFFFFFF;                                    \
@@ -2650,7 +2641,7 @@ FLOAT_NTERNOP(mul, sub)
 #undef FLOAT_NTERNOP
 
 /* MIPS specific binary operations */
-uint64_t do_float_recip2_d(uint64_t fdt0, uint64_t fdt2)
+uint64_t helper_float_recip2_d(uint64_t fdt0, uint64_t fdt2)
 {
     set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float64_mul(fdt0, fdt2, &env->active_fpu.fp_status);
@@ -2659,7 +2650,7 @@ uint64_t do_float_recip2_d(uint64_t fdt0, uint64_t fdt2)
     return fdt2;
 }
 
-uint32_t do_float_recip2_s(uint32_t fst0, uint32_t fst2)
+uint32_t helper_float_recip2_s(uint32_t fst0, uint32_t fst2)
 {
     set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_mul(fst0, fst2, &env->active_fpu.fp_status);
@@ -2668,7 +2659,7 @@ uint32_t do_float_recip2_s(uint32_t fst0, uint32_t fst2)
     return fst2;
 }
 
-uint64_t do_float_recip2_ps(uint64_t fdt0, uint64_t fdt2)
+uint64_t helper_float_recip2_ps(uint64_t fdt0, uint64_t fdt2)
 {
     uint32_t fst0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;
@@ -2684,7 +2675,7 @@ uint64_t do_float_recip2_ps(uint64_t fdt0, uint64_t fdt2)
     return ((uint64_t)fsth2 << 32) | fst2;
 }
 
-uint64_t do_float_rsqrt2_d(uint64_t fdt0, uint64_t fdt2)
+uint64_t helper_float_rsqrt2_d(uint64_t fdt0, uint64_t fdt2)
 {
     set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float64_mul(fdt0, fdt2, &env->active_fpu.fp_status);
@@ -2694,7 +2685,7 @@ uint64_t do_float_rsqrt2_d(uint64_t fdt0, uint64_t fdt2)
     return fdt2;
 }
 
-uint32_t do_float_rsqrt2_s(uint32_t fst0, uint32_t fst2)
+uint32_t helper_float_rsqrt2_s(uint32_t fst0, uint32_t fst2)
 {
     set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_mul(fst0, fst2, &env->active_fpu.fp_status);
@@ -2704,7 +2695,7 @@ uint32_t do_float_rsqrt2_s(uint32_t fst0, uint32_t fst2)
     return fst2;
 }
 
-uint64_t do_float_rsqrt2_ps(uint64_t fdt0, uint64_t fdt2)
+uint64_t helper_float_rsqrt2_ps(uint64_t fdt0, uint64_t fdt2)
 {
     uint32_t fst0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;
@@ -2722,7 +2713,7 @@ uint64_t do_float_rsqrt2_ps(uint64_t fdt0, uint64_t fdt2)
     return ((uint64_t)fsth2 << 32) | fst2;
 }
 
-uint64_t do_float_addr_ps(uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_float_addr_ps(uint64_t fdt0, uint64_t fdt1)
 {
     uint32_t fst0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;
@@ -2738,7 +2729,7 @@ uint64_t do_float_addr_ps(uint64_t fdt0, uint64_t fdt1)
     return ((uint64_t)fsth2 << 32) | fst2;
 }
 
-uint64_t do_float_mulr_ps(uint64_t fdt0, uint64_t fdt1)
+uint64_t helper_float_mulr_ps(uint64_t fdt0, uint64_t fdt1)
 {
     uint32_t fst0 = fdt0 & 0XFFFFFFFF;
     uint32_t fsth0 = fdt0 >> 32;
@@ -2756,7 +2747,7 @@ uint64_t do_float_mulr_ps(uint64_t fdt0, uint64_t fdt1)
 
 /* compare operations */
 #define FOP_COND_D(op, cond)                                   \
-void do_cmp_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
+void helper_cmp_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 {                                                              \
     int c = cond;                                              \
     update_fcr31();                                            \
@@ -2765,7 +2756,7 @@ void do_cmp_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
     else                                                       \
         CLEAR_FP_COND(cc, env->active_fpu);                    \
 }                                                              \
-void do_cmpabs_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
+void helper_cmpabs_d_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
 {                                                              \
     int c;                                                     \
     fdt0 = float64_abs(fdt0);                                  \
@@ -2814,7 +2805,7 @@ FOP_COND_D(le,  !float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status)
 FOP_COND_D(ngt, float64_is_unordered(1, fdt1, fdt0, &env->active_fpu.fp_status)  || float64_le(fdt0, fdt1, &env->active_fpu.fp_status))
 
 #define FOP_COND_S(op, cond)                                   \
-void do_cmp_s_ ## op (uint32_t fst0, uint32_t fst1, int cc)    \
+void helper_cmp_s_ ## op (uint32_t fst0, uint32_t fst1, int cc)    \
 {                                                              \
     int c = cond;                                              \
     update_fcr31();                                            \
@@ -2823,7 +2814,7 @@ void do_cmp_s_ ## op (uint32_t fst0, uint32_t fst1, int cc)    \
     else                                                       \
         CLEAR_FP_COND(cc, env->active_fpu);                    \
 }                                                              \
-void do_cmpabs_s_ ## op (uint32_t fst0, uint32_t fst1, int cc) \
+void helper_cmpabs_s_ ## op (uint32_t fst0, uint32_t fst1, int cc) \
 {                                                              \
     int c;                                                     \
     fst0 = float32_abs(fst0);                                  \
@@ -2872,7 +2863,7 @@ FOP_COND_S(le,  !float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)
 FOP_COND_S(ngt, float32_is_unordered(1, fst1, fst0, &env->active_fpu.fp_status)  || float32_le(fst0, fst1, &env->active_fpu.fp_status))
 
 #define FOP_COND_PS(op, condl, condh)                           \
-void do_cmp_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
+void helper_cmp_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
 {                                                               \
     uint32_t fst0 = float32_abs(fdt0 & 0XFFFFFFFF);             \
     uint32_t fsth0 = float32_abs(fdt0 >> 32);                   \
@@ -2891,7 +2882,7 @@ void do_cmp_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc)    \
     else                                                        \
         CLEAR_FP_COND(cc + 1, env->active_fpu);                 \
 }                                                               \
-void do_cmpabs_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
+void helper_cmpabs_ps_ ## op (uint64_t fdt0, uint64_t fdt1, int cc) \
 {                                                               \
     uint32_t fst0 = float32_abs(fdt0 & 0XFFFFFFFF);             \
     uint32_t fsth0 = float32_abs(fdt0 >> 32);                   \

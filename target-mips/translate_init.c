@@ -456,10 +456,10 @@ static void r4k_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     env->tlb->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
     env->tlb->map_address = &r4k_map_address;
-    env->tlb->do_tlbwi = r4k_do_tlbwi;
-    env->tlb->do_tlbwr = r4k_do_tlbwr;
-    env->tlb->do_tlbp = r4k_do_tlbp;
-    env->tlb->do_tlbr = r4k_do_tlbr;
+    env->tlb->helper_tlbwi = r4k_helper_tlbwi;
+    env->tlb->helper_tlbwr = r4k_helper_tlbwr;
+    env->tlb->helper_tlbp = r4k_helper_tlbp;
+    env->tlb->helper_tlbr = r4k_helper_tlbr;
 }
 
 static void mmu_init (CPUMIPSState *env, const mips_def_t *def)

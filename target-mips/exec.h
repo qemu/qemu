@@ -17,8 +17,6 @@ register struct CPUMIPSState *env asm(AREG0);
 #include "softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-void do_mtc0_status_debug(uint32_t old, uint32_t val);
-void do_mtc0_status_irqraise_debug(void);
 void dump_fpu(CPUState *env);
 void fpu_dump_state(CPUState *env, FILE *f,
                     int (*fpu_fprintf)(FILE *f, const char *fmt, ...),
