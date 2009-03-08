@@ -8,6 +8,12 @@
 #define FW_CFG_NOGRAPHIC        0x04
 #define FW_CFG_NB_CPUS          0x05
 #define FW_CFG_MACHINE_ID       0x06
+#define FW_CFG_KERNEL_ADDR      0x07
+#define FW_CFG_KERNEL_SIZE      0x08
+#define FW_CFG_KERNEL_CMDLINE   0x09
+#define FW_CFG_INITRD_ADDR      0x0a
+#define FW_CFG_INITRD_SIZE      0x0b
+#define FW_CFG_BOOT_DEVICE      0x0c
 #define FW_CFG_MAX_ENTRY        0x10
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
