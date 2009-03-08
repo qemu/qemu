@@ -590,6 +590,7 @@ if test "$mingw32" = "yes" ; then
     oss="no"
     linux_user="no"
     bsd_user="no"
+    OS_CFLAGS="$OS_CFLAGS -DWIN32_LEAN_AND_MEAN -DWINVER=0x501"
 fi
 
 if test ! -x "$(which cgcc 2>/dev/null)"; then

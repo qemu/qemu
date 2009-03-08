@@ -102,6 +102,7 @@
 #endif
 
 #ifdef _WIN32
+#include <windows.h>
 #include <malloc.h>
 #include <sys/timeb.h>
 #include <mmsystem.h>

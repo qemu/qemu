@@ -40,6 +40,10 @@
 #endif
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #define SECTOR_BITS 9
 #define SECTOR_SIZE (1 << SECTOR_BITS)
 
