@@ -37,9 +37,6 @@ static inline void regs_to_env(void)
 {
 }
 
-int cpu_m68k_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu);
-
 #if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif

@@ -121,10 +121,10 @@ tcp_reass(register struct tcpcb *tp, register struct tcpiphdr *ti,
 	int flags;
 
 	/*
-	 * Call with ti==0 after become established to
+	 * Call with ti==NULL after become established to
 	 * force pre-ESTABLISHED data up to user socket.
 	 */
-	if (ti == 0)
+        if (ti == NULL)
 		goto present;
 
 	/*
@@ -230,19 +230,16 @@ present:
  * protocol specification dated September, 1981 very closely.
  */
 void
-tcp_input(m, iphlen, inso)
-	register struct mbuf *m;
-	int iphlen;
-	struct socket *inso;
+tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 {
   	struct ip save_ip, *ip;
 	register struct tcpiphdr *ti;
 	caddr_t optp = NULL;
 	int optlen = 0;
 	int len, tlen, off;
-	register struct tcpcb *tp = 0;
+        register struct tcpcb *tp = NULL;
 	register int tiflags;
-	struct socket *so = 0;
+        struct socket *so = NULL;
 	int todrop, acked, ourfinisacked, needoutput = 0;
 /*	int dropsocket = 0; */
 	int iss = 0;
@@ -264,7 +261,7 @@ tcp_input(m, iphlen, inso)
 		/* Re-set a few variables */
 		tp = sototcpcb(so);
 		m = so->so_m;
-		so->so_m = 0;
+                so->so_m = NULL;
 		ti = so->so_ti;
 		tiwin = ti->ti_win;
 		tiflags = ti->ti_flags;
@@ -298,8 +295,8 @@ tcp_input(m, iphlen, inso)
 	 * Checksum extended TCP header and data.
 	 */
 	tlen = ((struct ip *)ti)->ip_len;
-	tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = 0;
-    memset(&ti->ti_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
+        tcpiphdr2qlink(ti)->next = tcpiphdr2qlink(ti)->prev = NULL;
+        memset(&ti->ti_i.ih_mbuf, 0 , sizeof(struct mbuf_ptr));
 	ti->ti_x1 = 0;
 	ti->ti_len = htons((u_int16_t)tlen);
 	len = sizeof(struct ip ) + tlen;
@@ -399,7 +396,7 @@ findso:
 	 * the only flag set, then create a session, mark it
 	 * as if it was LISTENING, and continue...
 	 */
-	if (so == 0) {
+        if (so == NULL) {
 	  if ((tiflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) != TH_SYN)
 	    goto dropwithreset;
 
@@ -439,7 +436,7 @@ findso:
 	tp = sototcpcb(so);
 
 	/* XXX Should never fail */
-	if (tp == 0)
+        if (tp == NULL)
 		goto dropwithreset;
 	if (tp->t_state == TCPS_CLOSED)
 		goto drop;
@@ -1697,9 +1694,7 @@ tcp_xmit_timer(register struct tcpcb *tp, int rtt)
  */
 
 int
-tcp_mss(tp, offer)
-        register struct tcpcb *tp;
-        u_int offer;
+tcp_mss(struct tcpcb *tp, u_int offer)
 {
 	struct socket *so = tp->t_socket;
 	int mss;

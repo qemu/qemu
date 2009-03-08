@@ -33,18 +33,20 @@
 #include <sys/statvfs.h>
 #endif
 
-#include "qemu-common.h"
-#include "sysemu.h"
+/* Needed early for HOST_BSD etc. */
+#include "config-host.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#elif defined(_BSD)
+#elif defined(HOST_BSD)
 #include <stdlib.h>
 #else
 #include <malloc.h>
 #endif
 
+#include "qemu-common.h"
+#include "sysemu.h"
 #include "qemu_socket.h"
 
 #if defined(_WIN32)
@@ -90,7 +92,7 @@ static void *kqemu_vmalloc(size_t size)
     void *ptr;
 
 /* no need (?) for a dummy file on OpenBSD/FreeBSD */
-#if defined(__OpenBSD__) || defined(__FreeBSD__)
+#if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
     int map_anon = MAP_ANON;
 #else
     int map_anon = 0;
@@ -157,7 +159,7 @@ static void *kqemu_vmalloc(size_t size)
     }
     size = (size + 4095) & ~4095;
     ftruncate(phys_ram_fd, phys_ram_size + size);
-#endif /* !(__OpenBSD__ || __FreeBSD__) */
+#endif /* !(__OpenBSD__ || __FreeBSD__ || __DragonFly__) */
     ptr = mmap(NULL,
                size,
                PROT_WRITE | PROT_READ, map_anon | MAP_SHARED,
@@ -186,7 +188,7 @@ void *qemu_memalign(size_t alignment, size_t size)
     if (ret != 0)
         return NULL;
     return ptr;
-#elif defined(_BSD)
+#elif defined(HOST_BSD)
     return valloc(size);
 #else
     return memalign(alignment, size);

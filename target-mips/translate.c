@@ -5451,25 +5451,25 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
         break;
     case OPC_TLBWI:
         opn = "tlbwi";
-        if (!env->tlb->do_tlbwi)
+        if (!env->tlb->helper_tlbwi)
             goto die;
         gen_helper_tlbwi();
         break;
     case OPC_TLBWR:
         opn = "tlbwr";
-        if (!env->tlb->do_tlbwr)
+        if (!env->tlb->helper_tlbwr)
             goto die;
         gen_helper_tlbwr();
         break;
     case OPC_TLBP:
         opn = "tlbp";
-        if (!env->tlb->do_tlbp)
+        if (!env->tlb->helper_tlbp)
             goto die;
         gen_helper_tlbp();
         break;
     case OPC_TLBR:
         opn = "tlbr";
-        if (!env->tlb->do_tlbr)
+        if (!env->tlb->helper_tlbr)
             goto die;
         gen_helper_tlbr();
         break;

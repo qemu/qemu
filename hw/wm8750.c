@@ -184,12 +184,12 @@ static void wm8750_set_format(struct wm8750_s *s)
     for (i = 0; i < IN_PORT_N; i ++)
         if (s->adc_voice[i]) {
             AUD_close_in(&s->card, s->adc_voice[i]);
-            s->adc_voice[i] = 0;
+            s->adc_voice[i] = NULL;
         }
     for (i = 0; i < OUT_PORT_N; i ++)
         if (s->dac_voice[i]) {
             AUD_close_out(&s->card, s->dac_voice[i]);
-            s->dac_voice[i] = 0;
+            s->dac_voice[i] = NULL;
         }
 
     if (!s->enable)

@@ -461,7 +461,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     host_to_target_siginfo_noswap(&tinfo, info);
     if (queue_signal(thread_env, sig, &tinfo) == 1) {
         /* interrupt the virtual CPU as soon as possible */
-        cpu_interrupt(thread_env, CPU_INTERRUPT_EXIT);
+        cpu_exit(thread_env);
     }
 }
 
@@ -2692,7 +2692,7 @@ static int setup_sigcontext(struct target_sigcontext *sc,
     return err;
 }
 
-static int restore_sigcontext(struct CPUState *regs,
+static int restore_sigcontext(CPUState *regs,
 			      struct target_sigcontext *sc)
 {
     unsigned int err = 0;

@@ -21,29 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw/hw.h"
-#include "hw/boards.h"
-#include "hw/usb.h"
-#include "hw/pcmcia.h"
-#include "hw/pc.h"
-#include "hw/audiodev.h"
-#include "hw/isa.h"
-#include "hw/baum.h"
-#include "hw/bt.h"
-#include "net.h"
-#include "monitor.h"
-#include "console.h"
-#include "sysemu.h"
-#include "gdbstub.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
-#include "cache-utils.h"
-#include "block.h"
-#include "audio/audio.h"
-#include "migration.h"
-#include "kvm.h"
-#include "balloon.h"
-
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -51,6 +28,9 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <zlib.h>
+
+/* Needed early for HOST_BSD etc. */
+#include "config-host.h"
 
 #ifndef _WIN32
 #include <pwd.h>
@@ -73,9 +53,9 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#ifdef _BSD
+#ifdef HOST_BSD
 #include <sys/stat.h>
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__DragonFly__)
 #include <libutil.h>
 #else
 #include <util.h>
@@ -112,12 +92,6 @@
 #include <stropts.h>
 #endif
 #endif
-#endif
-
-#include "qemu_socket.h"
-
-#if defined(CONFIG_SLIRP)
-#include "libslirp.h"
 #endif
 
 #if defined(__OpenBSD__)
@@ -158,11 +132,41 @@ int main(int argc, char **argv)
 #define main qemu_main
 #endif /* CONFIG_COCOA */
 
+#include "hw/hw.h"
+#include "hw/boards.h"
+#include "hw/usb.h"
+#include "hw/pcmcia.h"
+#include "hw/pc.h"
+#include "hw/audiodev.h"
+#include "hw/isa.h"
+#include "hw/baum.h"
+#include "hw/bt.h"
+#include "net.h"
+#include "monitor.h"
+#include "console.h"
+#include "sysemu.h"
+#include "gdbstub.h"
+#include "qemu-timer.h"
+#include "qemu-char.h"
+#include "cache-utils.h"
+#include "block.h"
+#include "audio/audio.h"
+#include "migration.h"
+#include "kvm.h"
+#include "balloon.h"
+
 #include "disas.h"
 
 #include "exec-all.h"
 
+#include "qemu_socket.h"
+
+#if defined(CONFIG_SLIRP)
+#include "libslirp.h"
+#endif
+
 #define DEBUG_UNUSED_IOPORT
+//#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 //#define DEBUG_NET
 //#define DEBUG_SLIRP
@@ -765,7 +769,8 @@ static int use_rt_clock;
 static void init_get_clock(void)
 {
     use_rt_clock = 0;
-#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000)
+#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000) \
+    || defined(__DragonFly__)
     {
         struct timespec ts;
         if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
@@ -777,7 +782,8 @@ static void init_get_clock(void)
 
 static int64_t get_clock(void)
 {
-#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000)
+#if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000) \
+	|| defined(__DragonFly__)
     if (use_rt_clock) {
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -1190,7 +1196,7 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
         }
         /* Interrupt execution to force deadline recalculation.  */
         if (use_icount && cpu_single_env) {
-            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+            cpu_exit(cpu_single_env);
         }
     }
 }
@@ -1351,7 +1357,7 @@ static void host_alarm_handler(int host_signum)
 
         if (env) {
             /* stop the currently executing cpu because a timer occured */
-            cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+            cpu_exit(env);
 #ifdef USE_KQEMU
             if (env->kqemu_enabled) {
                 kqemu_cpu_interrupt(env);
@@ -2142,11 +2148,7 @@ static int bt_parse(const char *opt)
 /* QEMU Block devices */
 
 #define HD_ALIAS "index=%d,media=disk"
-#ifdef TARGET_PPC
-#define CDROM_ALIAS "index=1,media=cdrom"
-#else
 #define CDROM_ALIAS "index=2,media=cdrom"
-#endif
 #define FD_ALIAS "index=%d,if=floppy"
 #define PFLASH_ALIAS "if=pflash"
 #define MTD_ALIAS "if=mtd"
@@ -3332,7 +3334,7 @@ void qemu_service_io(void)
 {
     CPUState *env = cpu_single_env;
     if (env) {
-        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+        cpu_exit(env);
 #ifdef USE_KQEMU
         if (env->kqemu_enabled) {
             kqemu_cpu_interrupt(env);
@@ -3413,7 +3415,7 @@ void qemu_bh_schedule(QEMUBH *bh)
     bh->idle = 0;
     /* stop the currently executing CPU to execute the BH ASAP */
     if (env) {
-        cpu_interrupt(env, CPU_INTERRUPT_EXIT);
+        cpu_exit(env);
     }
 }
 
@@ -3624,21 +3626,21 @@ void qemu_system_reset_request(void)
         reset_requested = 1;
     }
     if (cpu_single_env)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        cpu_exit(cpu_single_env);
 }
 
 void qemu_system_shutdown_request(void)
 {
     shutdown_requested = 1;
     if (cpu_single_env)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        cpu_exit(cpu_single_env);
 }
 
 void qemu_system_powerdown_request(void)
 {
     powerdown_requested = 1;
     if (cpu_single_env)
-        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_EXIT);
+        cpu_exit(cpu_single_env);
 }
 
 #ifdef _WIN32

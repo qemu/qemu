@@ -54,6 +54,8 @@
 
 #endif /* defined (TARGET_PPC64) */
 
+#define CPUState struct CPUPPCState
+
 #include "cpu-defs.h"
 
 #define REGX "%016" PRIx64
@@ -342,6 +344,12 @@ union ppc_tlb_t {
     ppcemb_tlb_t tlbe;
 };
 
+typedef struct ppc_slb_t ppc_slb_t;
+struct ppc_slb_t {
+    uint64_t tmp64;
+    uint32_t tmp;
+};
+
 /*****************************************************************************/
 /* Machine state register bits definition                                    */
 #define MSR_SF   63 /* Sixty-four-bit mode                            hflags */
@@ -582,6 +590,7 @@ struct CPUPPCState {
     /* Address space register */
     target_ulong asr;
     /* PowerPC 64 SLB area */
+    ppc_slb_t slb[64];
     int slb_nr;
 #endif
     /* segment registers */
@@ -675,6 +684,7 @@ struct CPUPPCState {
 typedef struct mmu_ctx_t mmu_ctx_t;
 struct mmu_ctx_t {
     target_phys_addr_t raddr;      /* Real address              */
+    target_phys_addr_t eaddr;      /* Effective address         */
     int prot;                      /* Protection bits           */
     target_phys_addr_t pg_addr[2]; /* PTE tables base addresses */
     target_ulong ptem;             /* Virtual segment ID | API  */
@@ -714,7 +724,8 @@ void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
 #if defined(TARGET_PPC64)
 void ppc_store_asr (CPUPPCState *env, target_ulong value);
 target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr);
-void ppc_store_slb (CPUPPCState *env, int slb_nr, target_ulong rs);
+target_ulong ppc_load_sr (CPUPPCState *env, int sr_nr);
+void ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
 #endif /* defined(TARGET_PPC64) */
 void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
@@ -786,7 +797,6 @@ static always_inline uint64_t ppc_dump_gpr (CPUPPCState *env, int gprn)
 int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, target_ulong *valp);
 int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 
-#define CPUState CPUPPCState
 #define cpu_init cpu_ppc_init
 #define cpu_exec cpu_ppc_exec
 #define cpu_gen_code cpu_ppc_gen_code

@@ -21,11 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
-#include "qemu-common.h"
-#include "console.h"
-#include "sysemu.h"
-
 #include <curses.h>
 
 #ifndef _WIN32
@@ -37,6 +32,10 @@
 #ifdef __OpenBSD__
 #define resize_term resizeterm
 #endif
+
+#include "qemu-common.h"
+#include "console.h"
+#include "sysemu.h"
 
 #define FONT_HEIGHT 16
 #define FONT_WIDTH 8

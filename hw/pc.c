@@ -54,9 +54,6 @@
 
 #define MAX_IDE_BUS 2
 
-extern uint8_t *acpi_tables;
-extern size_t acpi_tables_len;
-
 static fdctrl_t *floppy_controller;
 static RTCState *rtc_state;
 static PITState *pit;
@@ -443,7 +440,8 @@ static void bochs_bios_init(void)
     fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
     fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
-    fw_cfg_add_bytes(fw_cfg, FW_CFG_ACPI_TABLES, acpi_tables, acpi_tables_len);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_ACPI_TABLES, (uint8_t *)acpi_tables,
+                     acpi_tables_len);
 }
 
 /* Generate an initial boot sector which sets state and jump to

@@ -5,6 +5,8 @@
 
 #define ELF_MACHINE	EM_MIPS
 
+#define CPUState struct CPUMIPSState
+
 #include "config.h"
 #include "mips-defs.h"
 #include "cpu-defs.h"
@@ -39,10 +41,10 @@ struct CPUMIPSTLBContext {
     uint32_t nb_tlb;
     uint32_t tlb_in_use;
     int (*map_address) (struct CPUMIPSState *env, target_ulong *physical, int *prot, target_ulong address, int rw, int access_type);
-    void (*do_tlbwi) (void);
-    void (*do_tlbwr) (void);
-    void (*do_tlbp) (void);
-    void (*do_tlbr) (void);
+    void (*helper_tlbwi) (void);
+    void (*helper_tlbwr) (void);
+    void (*helper_tlbp) (void);
+    void (*helper_tlbr) (void);
     union {
         struct {
             r4k_tlb_t tlb[MIPS_TLB_MAX];
@@ -467,16 +469,15 @@ int fixed_mmu_map_address (CPUMIPSState *env, target_ulong *physical, int *prot,
                            target_ulong address, int rw, int access_type);
 int r4k_map_address (CPUMIPSState *env, target_ulong *physical, int *prot,
                      target_ulong address, int rw, int access_type);
-void r4k_do_tlbwi (void);
-void r4k_do_tlbwr (void);
-void r4k_do_tlbp (void);
-void r4k_do_tlbr (void);
+void r4k_helper_tlbwi (void);
+void r4k_helper_tlbwr (void);
+void r4k_helper_tlbp (void);
+void r4k_helper_tlbr (void);
 void mips_cpu_list (FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...));
 
 void do_unassigned_access(target_phys_addr_t addr, int is_write, int is_exec,
                           int unused, int size);
 
-#define CPUState CPUMIPSState
 #define cpu_init cpu_mips_init
 #define cpu_exec cpu_mips_exec
 #define cpu_gen_code cpu_mips_gen_code

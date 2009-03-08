@@ -1,10 +1,5 @@
 #include "def-helper.h"
 
-/* FIXME: We should rename the helper functions and remove this hack.  */
-#undef HELPER
-#define HELPER(name) do_##name
-
-
 DEF_HELPER_2(raise_exception_err, void, i32, int)
 DEF_HELPER_1(raise_exception, void, i32)
 DEF_HELPER_0(interrupt_restart, void)

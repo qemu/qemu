@@ -154,11 +154,10 @@ static void cloop_close(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_cloop = {
-    "cloop",
-    sizeof(BDRVCloopState),
-    cloop_probe,
-    cloop_open,
-    cloop_read,
-    NULL,
-    cloop_close,
+    .format_name	= "cloop",
+    .instance_size	= sizeof(BDRVCloopState),
+    .bdrv_probe		= cloop_probe,
+    .bdrv_open		= cloop_open,
+    .bdrv_read		= cloop_read,
+    .bdrv_close		= cloop_close,
 };

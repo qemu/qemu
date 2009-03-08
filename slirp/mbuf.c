@@ -29,7 +29,7 @@ int mbuf_max = 0;
 #define SLIRP_MSIZE (IF_MTU + IF_MAXLINKHDR + sizeof(struct m_hdr ) + 6)
 
 void
-m_init()
+m_init(void)
 {
 	m_freelist.m_next = m_freelist.m_prev = &m_freelist;
 	m_usedlist.m_next = m_usedlist.m_prev = &m_usedlist;
@@ -44,7 +44,7 @@ m_init()
  * which tells m_free to actually free() it
  */
 struct mbuf *
-m_get()
+m_get(void)
 {
 	register struct mbuf *m;
 	int flags = 0;
@@ -72,16 +72,15 @@ m_get()
 	m->m_size = SLIRP_MSIZE - sizeof(struct m_hdr);
 	m->m_data = m->m_dat;
 	m->m_len = 0;
-	m->m_nextpkt = 0;
-	m->m_prevpkt = 0;
+        m->m_nextpkt = NULL;
+        m->m_prevpkt = NULL;
 end_error:
 	DEBUG_ARG("m = %lx", (long )m);
 	return m;
 }
 
 void
-m_free(m)
-	struct mbuf *m;
+m_free(struct mbuf *m)
 {
 
   DEBUG_CALL("m_free");
@@ -115,8 +114,7 @@ m_free(m)
  * an M_EXT data segment
  */
 void
-m_cat(m, n)
-	register struct mbuf *m, *n;
+m_cat(struct mbuf *m, struct mbuf *n)
 {
 	/*
 	 * If there's no room, realloc
@@ -133,9 +131,7 @@ m_cat(m, n)
 
 /* make m size bytes large */
 void
-m_inc(m, size)
-        struct mbuf *m;
-        int size;
+m_inc(struct mbuf *m, int size)
 {
 	int datasize;
 
@@ -170,9 +166,7 @@ m_inc(m, size)
 
 
 void
-m_adj(m, len)
-	struct mbuf *m;
-	int len;
+m_adj(struct mbuf *m, int len)
 {
 	if (m == NULL)
 		return;
@@ -192,9 +186,7 @@ m_adj(m, len)
  * Copy len bytes from m, starting off bytes into n
  */
 int
-m_copy(n, m, off, len)
-	struct mbuf *n, *m;
-	int off, len;
+m_copy(struct mbuf *n, struct mbuf *m, int off, int len)
 {
 	if (len > M_FREEROOM(n))
 		return -1;
@@ -211,8 +203,7 @@ m_copy(n, m, off, len)
  * Fortunately, it's not used often
  */
 struct mbuf *
-dtom(dat)
-	void *dat;
+dtom(void *dat)
 {
 	struct mbuf *m;
 

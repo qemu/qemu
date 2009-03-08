@@ -85,7 +85,7 @@ static int dmg_open(BlockDriverState *bs, const char *filename, int flags)
         return -errno;
     bs->read_only = 1;
     s->n_chunks = 0;
-    s->offsets = s->lengths = s->sectors = s->sectorcounts = 0;
+    s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
 
     /* read offset of info blocks */
     if(lseek(s->fd,-0x1d8,SEEK_END)<0) {
@@ -284,11 +284,10 @@ static void dmg_close(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_dmg = {
-    "dmg",
-    sizeof(BDRVDMGState),
-    dmg_probe,
-    dmg_open,
-    dmg_read,
-    NULL,
-    dmg_close,
+    .format_name	= "dmg",
+    .instance_size	= sizeof(BDRVDMGState),
+    .bdrv_probe		= dmg_probe,
+    .bdrv_open		= dmg_open,
+    .bdrv_read		= dmg_read,
+    .bdrv_close		= dmg_close,
 };

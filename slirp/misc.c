@@ -70,7 +70,7 @@ redir_x(inaddr, start_port, display, screen)
  * Get our IP address and put it in our_addr
  */
 void
-getouraddr()
+getouraddr(void)
 {
 	char buff[256];
 	struct hostent *he = NULL;
@@ -89,8 +89,7 @@ struct quehead {
 };
 
 inline void
-insque(a, b)
-	void *a, *b;
+insque(void *a, void *b)
 {
 	register struct quehead *element = (struct quehead *) a;
 	register struct quehead *head = (struct quehead *) b;
@@ -102,8 +101,7 @@ insque(a, b)
 }
 
 inline void
-remque(a)
-     void *a;
+remque(void *a)
 {
   register struct quehead *element = (struct quehead *) a;
   ((struct quehead *)(element->qh_link))->qh_rlink = element->qh_rlink;
@@ -116,12 +114,7 @@ remque(a)
 
 
 int
-add_exec(ex_ptr, do_pty, exec, addr, port)
-	struct ex_list **ex_ptr;
-	int do_pty;
-	char *exec;
-	int addr;
-	int port;
+add_exec(struct ex_list **ex_ptr, int do_pty, char *exec, int addr, int port)
 {
 	struct ex_list *tmp_ptr;
 
@@ -363,7 +356,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 			argv[i++] = strdup(curarg);
 		   } while (c);
 
-		argv[i] = 0;
+                argv[i] = NULL;
 		execvp(argv[0], (char **)argv);
 
 		/* Ooops, failed, let's tell the user why */
@@ -402,9 +395,9 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 		fd_nonblock(so->s);
 
 		/* Append the telnet options now */
-		if (so->so_m != 0 && do_pty == 1)  {
+                if (so->so_m != NULL && do_pty == 1)  {
 			sbappend(so, so->so_m);
-			so->so_m = 0;
+                        so->so_m = NULL;
 		}
 
 		return 1;
@@ -764,8 +757,7 @@ sprintf_len(va_alist) va_dcl
 #endif
 
 void
-u_sleep(usec)
-	int usec;
+u_sleep(int usec)
 {
 	struct timeval t;
 	fd_set fdset;
@@ -783,8 +775,7 @@ u_sleep(usec)
  */
 
 void
-fd_nonblock(fd)
-	int fd;
+fd_nonblock(int fd)
 {
 #ifdef FIONBIO
 	int opt = 1;
@@ -800,8 +791,7 @@ fd_nonblock(fd)
 }
 
 void
-fd_block(fd)
-	int fd;
+fd_block(int fd)
 {
 #ifdef FIONBIO
 	int opt = 0;

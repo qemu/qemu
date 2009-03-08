@@ -1210,7 +1210,7 @@ static void ide_atapi_cmd_check_status(IDEState *s)
 static inline void cpu_to_ube16(uint8_t *buf, int val)
 {
     buf[0] = val >> 8;
-    buf[1] = val;
+    buf[1] = val & 0xff;
 }
 
 static inline void cpu_to_ube32(uint8_t *buf, unsigned int val)
@@ -1218,7 +1218,7 @@ static inline void cpu_to_ube32(uint8_t *buf, unsigned int val)
     buf[0] = val >> 24;
     buf[1] = val >> 16;
     buf[2] = val >> 8;
-    buf[3] = val;
+    buf[3] = val & 0xff;
 }
 
 static inline int ube16_to_cpu(const uint8_t *buf)

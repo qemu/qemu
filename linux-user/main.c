@@ -145,6 +145,7 @@ int64_t cpu_get_real_ticks(void)
    We don't require a full sync, only that no cpus are executing guest code.
    The alternative is to map target atomic ops onto host equivalents,
    which requires quite a lot of per host/target work.  */
+static pthread_mutex_t cpu_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t exclusive_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t exclusive_cond = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t exclusive_resume = PTHREAD_COND_INITIALIZER;
@@ -167,6 +168,7 @@ void fork_end(int child)
         thread_env->next_cpu = NULL;
         pending_cpus = 0;
         pthread_mutex_init(&exclusive_lock, NULL);
+        pthread_mutex_init(&cpu_list_mutex, NULL);
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
         pthread_mutex_init(&tb_lock, NULL);
@@ -200,7 +202,7 @@ static inline void start_exclusive(void)
     for (other = first_cpu; other; other = other->next_cpu) {
         if (other->running) {
             pending_cpus++;
-            cpu_interrupt(other, CPU_INTERRUPT_EXIT);
+            cpu_exit(other);
         }
     }
     if (pending_cpus > 1) {
@@ -239,6 +241,16 @@ static inline void cpu_exec_end(CPUState *env)
     exclusive_idle();
     pthread_mutex_unlock(&exclusive_lock);
 }
+
+void cpu_list_lock(void)
+{
+    pthread_mutex_lock(&cpu_list_mutex);
+}
+
+void cpu_list_unlock(void)
+{
+    pthread_mutex_unlock(&cpu_list_mutex);
+}
 #else /* if !USE_NPTL */
 /* These are no-ops because we are not threadsafe.  */
 static inline void cpu_exec_start(CPUState *env)
@@ -266,6 +278,14 @@ void fork_end(int child)
     if (child) {
         gdbserver_fork(thread_env);
     }
+}
+
+void cpu_list_lock(void)
+{
+}
+
+void cpu_list_unlock(void)
+{
 }
 #endif
 

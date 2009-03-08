@@ -32,7 +32,7 @@ ifs_remque(struct mbuf *ifm)
 }
 
 void
-if_init()
+if_init(void)
 {
 	if_fastq.ifq_next = if_fastq.ifq_prev = &if_fastq;
 	if_batchq.ifq_next = if_batchq.ifq_prev = &if_batchq;
@@ -133,9 +133,7 @@ if_input(ttyp)
  * it'll temporarily get downgraded to the batchq)
  */
 void
-if_output(so, ifm)
-	struct socket *so;
-	struct mbuf *ifm;
+if_output(struct socket *so, struct mbuf *ifm)
 {
 	struct mbuf *ifq;
 	int on_fastq = 1;

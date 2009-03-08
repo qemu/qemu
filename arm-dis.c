@@ -1554,32 +1554,6 @@ enum map_type last_type;
 int last_mapping_sym = -1;
 bfd_vma last_mapping_addr = 0;
 
-
-/* Functions.  */
-int
-get_arm_regname_num_options (void)
-{
-  return NUM_ARM_REGNAMES;
-}
-
-int
-set_arm_regname_option (int option)
-{
-  int old = regname_selected;
-  regname_selected = option;
-  return old;
-}
-
-int
-get_arm_regnames (int option, const char **setname, const char **setdescription,
-		  const char *const **register_names)
-{
-  *setname = regnames[option].name;
-  *setdescription = regnames[option].description;
-  *register_names = regnames[option].reg_names;
-  return 16;
-}
-
 /* Decode a bitfield of the form matching regexp (N(-N)?,)*N(-N)?.
    Returns pointer to following character of the format string and
    fills in *VALUEP and *WIDTHP with the extracted value and number of
@@ -4143,23 +4117,4 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
       ifthen_address += size;
     }
   return size;
-}
-
-void
-print_arm_disassembler_options (FILE *stream)
-{
-  int i;
-
-  fprintf (stream, _("\n\
-The following ARM specific disassembler options are supported for use with\n\
-the -M switch:\n"));
-
-  for (i = NUM_ARM_REGNAMES; i--;)
-    fprintf (stream, "  reg-names-%s %*c%s\n",
-	     regnames[i].name,
-	     (int)(14 - strlen (regnames[i].name)), ' ',
-	     regnames[i].description);
-
-  fprintf (stream, "  force-thumb              Assume all insns are Thumb insns\n");
-  fprintf (stream, "  no-force-thumb           Examine preceeding label to determine an insn's type\n\n");
 }

@@ -612,9 +612,9 @@ static void usb_bt_handle_destroy(USBDevice *dev)
 {
     struct USBBtState *s = (struct USBBtState *) dev->opaque;
 
-    s->hci->opaque = 0;
-    s->hci->evt_recv = 0;
-    s->hci->acl_recv = 0;
+    s->hci->opaque = NULL;
+    s->hci->evt_recv = NULL;
+    s->hci->acl_recv = NULL;
     qemu_free(s);
 }
 

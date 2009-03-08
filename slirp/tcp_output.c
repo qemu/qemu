@@ -64,8 +64,7 @@ static const u_char  tcp_outflags[TCP_NSTATES] = {
  * Tcp output routine: figure out what should be sent and send it.
  */
 int
-tcp_output(tp)
-	register struct tcpcb *tp;
+tcp_output(struct tcpcb *tp)
 {
 	register struct socket *so = tp->t_socket;
 	register long len, win;
@@ -582,8 +581,7 @@ out:
 }
 
 void
-tcp_setpersist(tp)
-	register struct tcpcb *tp;
+tcp_setpersist(struct tcpcb *tp)
 {
     int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
 

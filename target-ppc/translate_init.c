@@ -6043,8 +6043,20 @@ static void init_proc_970FX (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_hior, &spr_write_hior,
                  0x00000000);
+    spr_register(env, SPR_CTRL, "SPR_CTRL",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_UCTRL, "SPR_UCTRL",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_VRSAVE, "SPR_VRSAVE",
+                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 32;
+    env->slb_nr = 64;
 #endif
     init_excp_970(env);
     env->dcache_line_size = 128;
@@ -9367,11 +9379,11 @@ static int gdb_get_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
 #endif
         return 16;
     }
-    if (n == 33) {
+    if (n == 32) {
         stl_p(mem_buf, env->vscr);
         return 4;
     }
-    if (n == 34) {
+    if (n == 33) {
         stl_p(mem_buf, (uint32_t)env->spr[SPR_VRSAVE]);
         return 4;
     }
@@ -9390,11 +9402,11 @@ static int gdb_set_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
 #endif
         return 16;
     }
-    if (n == 33) {
+    if (n == 32) {
         env->vscr = ldl_p(mem_buf);
         return 4;
     }
-    if (n == 34) {
+    if (n == 33) {
         env->spr[SPR_VRSAVE] = (target_ulong)ldl_p(mem_buf);
         return 4;
     }
@@ -9411,11 +9423,11 @@ static int gdb_get_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
 #endif
         return 4;
     }
-    if (n == 33) {
+    if (n == 32) {
         stq_p(mem_buf, env->spe_acc);
         return 8;
     }
-    if (n == 34) {
+    if (n == 33) {
         /* SPEFSCR not implemented */
         memset(mem_buf, 0, 4);
         return 4;
@@ -9435,11 +9447,11 @@ static int gdb_set_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
 #endif
         return 4;
     }
-    if (n == 33) {
+    if (n == 32) {
         env->spe_acc = ldq_p(mem_buf);
         return 8;
     }
-    if (n == 34) {
+    if (n == 33) {
         /* SPEFSCR not implemented */
         return 4;
     }

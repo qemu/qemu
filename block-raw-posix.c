@@ -63,6 +63,11 @@
 #include <sys/dkio.h>
 #endif
 
+#ifdef __DragonFly__
+#include <sys/ioctl.h>
+#include <sys/diskslice.h>
+#endif
+
 //#define DEBUG_FLOPPY
 
 //#define DEBUG_BLOCK
@@ -745,7 +750,7 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
     int64_t size;
-#ifdef _BSD
+#ifdef HOST_BSD
     struct stat sb;
 #endif
 #ifdef __sun__
@@ -758,10 +763,19 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     if (ret < 0)
         return ret;
 
-#ifdef _BSD
+#ifdef HOST_BSD
     if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
 #ifdef DIOCGMEDIASIZE
 	if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
+#elif defined(DIOCGPART)
+        {
+                struct partinfo pi;
+                if (ioctl(fd, DIOCGPART, &pi) == 0)
+                        size = pi.media_size;
+                else
+                        size = 0;
+        }
+        if (size == 0)
 #endif
 #ifdef CONFIG_COCOA
         size = LONG_LONG_MAX;
@@ -1166,32 +1180,28 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 #endif /* !linux */
 
 BlockDriver bdrv_host_device = {
-    "host_device",
-    sizeof(BDRVRawState),
-    NULL, /* no probe for protocols */
-    hdev_open,
-    NULL,
-    NULL,
-    raw_close,
-    NULL,
-    raw_flush,
+    .format_name	= "host_device",
+    .instance_size	= sizeof(BDRVRawState),
+    .bdrv_open		= hdev_open,
+    .bdrv_close		= raw_close,
+    .bdrv_flush		= raw_flush,
 
 #ifdef CONFIG_AIO
-    .bdrv_aio_read = raw_aio_read,
-    .bdrv_aio_write = raw_aio_write,
-    .bdrv_aio_cancel = raw_aio_cancel,
-    .aiocb_size = sizeof(RawAIOCB),
+    .bdrv_aio_read	= raw_aio_read,
+    .bdrv_aio_write	= raw_aio_write,
+    .bdrv_aio_cancel	= raw_aio_cancel,
+    .aiocb_size		= sizeof(RawAIOCB),
 #endif
 
-    .bdrv_pread = raw_pread,
-    .bdrv_pwrite = raw_pwrite,
-    .bdrv_getlength = raw_getlength,
+    .bdrv_pread		= raw_pread,
+    .bdrv_pwrite	= raw_pwrite,
+    .bdrv_getlength	= raw_getlength,
 
     /* removable device support */
-    .bdrv_is_inserted = raw_is_inserted,
-    .bdrv_media_changed = raw_media_changed,
-    .bdrv_eject = raw_eject,
-    .bdrv_set_locked = raw_set_locked,
+    .bdrv_is_inserted	= raw_is_inserted,
+    .bdrv_media_changed	= raw_media_changed,
+    .bdrv_eject		= raw_eject,
+    .bdrv_set_locked	= raw_set_locked,
     /* generic scsi device */
-    .bdrv_ioctl = raw_ioctl,
+    .bdrv_ioctl		= raw_ioctl,
 };

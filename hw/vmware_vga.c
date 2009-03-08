@@ -230,7 +230,6 @@ enum {
 #ifdef VERBOSE
 # define GUEST_OS_BASE		0x5001
 static const char *vmsvga_guest_id[] = {
-    [0x00 ... 0x15] = "an unknown OS",
     [0x00] = "Dos",
     [0x01] = "Windows 3.1",
     [0x02] = "Windows 95",
@@ -240,8 +239,18 @@ static const char *vmsvga_guest_id[] = {
     [0x06] = "Windows 2000",
     [0x07] = "Linux",
     [0x08] = "OS/2",
+    [0x09] = "an unknown OS",
     [0x0a] = "BSD",
     [0x0b] = "Whistler",
+    [0x0c] = "an unknown OS",
+    [0x0d] = "an unknown OS",
+    [0x0e] = "an unknown OS",
+    [0x0f] = "an unknown OS",
+    [0x10] = "an unknown OS",
+    [0x11] = "an unknown OS",
+    [0x12] = "an unknown OS",
+    [0x13] = "an unknown OS",
+    [0x14] = "an unknown OS",
     [0x15] = "Windows 2003",
 };
 #endif

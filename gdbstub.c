@@ -2012,7 +2012,7 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
 #ifdef CONFIG_USER_ONLY
     gdb_handlesig(s->c_cpu, 0);
 #else
-    cpu_interrupt(s->c_cpu, CPU_INTERRUPT_EXIT);
+    cpu_exit(s->c_cpu);
 #endif
 }
 

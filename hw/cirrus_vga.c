@@ -2246,7 +2246,7 @@ static void cirrus_cursor_invalidate(VGAState *s1)
     CirrusVGAState *s = (CirrusVGAState *)s1;
     int size;
 
-    if (!s->sr[0x12] & CIRRUS_CURSOR_SHOW) {
+    if (!(s->sr[0x12] & CIRRUS_CURSOR_SHOW)) {
         size = 0;
     } else {
         if (s->sr[0x12] & CIRRUS_CURSOR_LARGE)

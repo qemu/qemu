@@ -39,7 +39,7 @@ typedef struct gic_irq_state
     unsigned enabled:1;
     unsigned pending:NCPU;
     unsigned active:NCPU;
-    unsigned level:1;
+    unsigned level:NCPU;
     unsigned model:1; /* 0 = N:N, 1 = 1:N */
     unsigned trigger:1; /* nonzero = edge triggered.  */
 } gic_irq_state;

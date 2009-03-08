@@ -21,14 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "qemu-common.h"
-#include "net.h"
-#include "monitor.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
-#include "audio/audio.h"
-
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -36,6 +28,9 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <zlib.h>
+
+/* Needed early for HOST_BSD etc. */
+#include "config-host.h"
 
 #ifndef _WIN32
 #include <sys/times.h>
@@ -57,9 +52,9 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
-#ifdef _BSD
+#ifdef HOST_BSD
 #include <sys/stat.h>
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__DragonFly__)
 #include <libutil.h>
 #else
 #include <util.h>
@@ -98,12 +93,6 @@
 #endif
 #endif
 
-#include "qemu_socket.h"
-
-#if defined(CONFIG_SLIRP)
-#include "libslirp.h"
-#endif
-
 #if defined(__OpenBSD__)
 #include <util.h>
 #endif
@@ -119,6 +108,20 @@
 #define getopt_long_only getopt_long
 #define memalign(align, size) malloc(size)
 #endif
+
+#include "qemu-common.h"
+#include "net.h"
+#include "monitor.h"
+#include "sysemu.h"
+#include "qemu-timer.h"
+#include "qemu-char.h"
+#include "audio/audio.h"
+#include "qemu_socket.h"
+
+#if defined(CONFIG_SLIRP)
+#include "libslirp.h"
+#endif
+
 
 static VLANState *first_vlan;
 
@@ -585,7 +588,7 @@ static void erase_dir(char *dir_name)
     char filename[1024];
 
     /* erase all the files in the directory */
-    if ((d = opendir(dir_name)) != 0) {
+    if ((d = opendir(dir_name)) != NULL) {
         for(;;) {
             de = readdir(d);
             if (!de)
@@ -673,7 +676,7 @@ void do_info_slirp(Monitor *mon)
 struct VMChannel {
     CharDriverState *hd;
     int port;
-} *vmchannels;
+};
 
 static int vmchannel_can_read(void *opaque)
 {
@@ -766,7 +769,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     return s;
 }
 
-#if defined (_BSD) || defined (__FreeBSD_kernel__)
+#if defined (HOST_BSD) || defined (__FreeBSD_kernel__)
 static int tap_open(char *ifname, int ifname_size)
 {
     int fd;

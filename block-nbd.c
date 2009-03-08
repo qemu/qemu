@@ -177,13 +177,12 @@ static int64_t nbd_getlength(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_nbd = {
-    "nbd",
-    sizeof(BDRVNBDState),
-    NULL, /* no probe for protocols */
-    nbd_open,
-    nbd_read,
-    nbd_write,
-    nbd_close,
-    .bdrv_getlength = nbd_getlength,
-    .protocol_name = "nbd",
+    .format_name	= "nbd",
+    .instance_size	= sizeof(BDRVNBDState),
+    .bdrv_open		= nbd_open,
+    .bdrv_read		= nbd_read,
+    .bdrv_write		= nbd_write,
+    .bdrv_close		= nbd_close,
+    .bdrv_getlength	= nbd_getlength,
+    .protocol_name	= "nbd",
 };

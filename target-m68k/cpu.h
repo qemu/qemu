@@ -23,6 +23,8 @@
 
 #define TARGET_LONG_BITS 32
 
+#define CPUState struct CPUM68KState
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"
@@ -207,7 +209,6 @@ void register_m68k_insns (CPUM68KState *env);
 #define TARGET_PAGE_BITS 10
 #endif
 
-#define CPUState CPUM68KState
 #define cpu_init cpu_m68k_init
 #define cpu_exec cpu_m68k_exec
 #define cpu_gen_code cpu_m68k_gen_code
@@ -221,6 +222,9 @@ static inline int cpu_mmu_index (CPUState *env)
 {
     return (env->sr & SR_S) == 0 ? 1 : 0;
 }
+
+int cpu_m68k_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+                              int mmu_idx, int is_softmmu);
 
 #if defined(CONFIG_USER_ONLY)
 static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)

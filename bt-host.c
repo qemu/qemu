@@ -171,7 +171,7 @@ struct HCIInfo *bt_host_hci(const char *id)
     if (fd < 0) {
         fprintf(stderr, "qemu: Can't open `%s': %s (%i)\n",
                         id, strerror(errno), errno);
-        return 0;
+        return NULL;
     }
 
 # ifdef CONFIG_BLUEZ
@@ -192,7 +192,7 @@ struct HCIInfo *bt_host_hci(const char *id)
     s->hci.acl_send = bt_host_acl;
     s->hci.bdaddr_set = bt_host_bdaddr_set;
 
-    qemu_set_fd_handler2(s->fd, bt_host_read_poll, bt_host_read, 0, s);
+    qemu_set_fd_handler2(s->fd, bt_host_read_poll, bt_host_read, NULL, s);
 
     return &s->hci;
 }

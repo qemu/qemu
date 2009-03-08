@@ -42,6 +42,8 @@
 #define ELF_MACHINE	EM_386
 #endif
 
+#define CPUState struct CPUX86State
+
 #include "cpu-defs.h"
 
 #include "softfloat.h"
@@ -828,7 +830,6 @@ static inline int cpu_get_time_fast(void)
 
 #define TARGET_PAGE_BITS 12
 
-#define CPUState CPUX86State
 #define cpu_init cpu_x86_init
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code

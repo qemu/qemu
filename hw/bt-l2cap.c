@@ -401,7 +401,7 @@ static inline struct bt_l2cap_psm_s *l2cap_psm(
 static struct l2cap_chan_s *l2cap_channel_open(struct l2cap_instance_s *l2cap,
                 int psm, int source_cid)
 {
-    struct l2cap_chan_s *ch = 0;
+    struct l2cap_chan_s *ch = NULL;
     struct bt_l2cap_psm_s *psm_info;
     int result, status;
     int cid = l2cap_cid_new(l2cap);
@@ -452,7 +452,7 @@ static struct l2cap_chan_s *l2cap_channel_open(struct l2cap_instance_s *l2cap,
 static void l2cap_channel_close(struct l2cap_instance_s *l2cap,
                 int cid, int source_cid)
 {
-    struct l2cap_chan_s *ch = 0;
+    struct l2cap_chan_s *ch = NULL;
 
     /* According to Volume 3, section 6.1.1, pg 1048 of BT Core V2.0, a
      * connection in CLOSED state still responds with a L2CAP_DisconnectRsp
@@ -472,7 +472,7 @@ static void l2cap_channel_close(struct l2cap_instance_s *l2cap,
             return;
         }
 
-        l2cap->cid[cid] = 0;
+        l2cap->cid[cid] = NULL;
 
         ch->params.close(ch->params.opaque);
         qemu_free(ch);
@@ -484,7 +484,7 @@ static void l2cap_channel_close(struct l2cap_instance_s *l2cap,
 static void l2cap_channel_config_null(struct l2cap_instance_s *l2cap,
                 struct l2cap_chan_s *ch)
 {
-    l2cap_configuration_request(l2cap, ch->remote_cid, 0, 0, 0);
+    l2cap_configuration_request(l2cap, ch->remote_cid, 0, NULL, 0);
     ch->config_req_id = l2cap->last_id;
     ch->config &= ~L2CAP_CFG_INIT;
 }

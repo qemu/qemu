@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include <dirent.h>
 #include <stddef.h>     /* offsetof */
 #include "hw/hw.h"
 #include "hw/usb.h"
@@ -39,7 +40,6 @@
 #include "audio/audio.h"
 #include "disas.h"
 #include "balloon.h"
-#include <dirent.h>
 #include "qemu-timer.h"
 #include "migration.h"
 #include "kvm.h"
