@@ -1061,7 +1061,7 @@ EOF
     kvm="no";
     if [ -x "`which awk 2>/dev/null`" ] && \
        [ -x "`which grep 2>/dev/null`" ]; then
-      kvmerr=`$cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $kvm_cflags $TMPC 2>&1 \
+      kvmerr=`LANG=C $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $kvm_cflags $TMPC 2>&1 \
 	| grep "error: " \
 	| awk -F "error: " '{if (NR>1) printf(", "); printf("%s",$2);}'`
       if test "$kvmerr" != "" ; then
