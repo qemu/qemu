@@ -1108,6 +1108,13 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         tcg_out_modrm(s, 0xf7 | P_REXW, 3, args[0]);
         break;
 
+    case INDEX_op_not_i32:
+        tcg_out_modrm(s, 0xf7, 2, args[0]);
+        break;
+    case INDEX_op_not_i64:
+        tcg_out_modrm(s, 0xf7 | P_REXW, 2, args[0]);
+        break;
+
     case INDEX_op_ext8s_i32:
         tcg_out_modrm(s, 0xbe | P_EXT | P_REXB, args[0], args[1]);
         break;
@@ -1285,6 +1292,9 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
 
     { INDEX_op_neg_i32, { "r", "0" } },
     { INDEX_op_neg_i64, { "r", "0" } },
+
+    { INDEX_op_not_i32, { "r", "0" } },
+    { INDEX_op_not_i64, { "r", "0" } },
 
     { INDEX_op_ext8s_i32, { "r", "r"} },
     { INDEX_op_ext16s_i32, { "r", "r"} },

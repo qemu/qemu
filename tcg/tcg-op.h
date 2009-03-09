@@ -1425,12 +1425,20 @@ static inline void tcg_gen_neg_i64(TCGv_i64 ret, TCGv_i64 arg)
 
 static inline void tcg_gen_not_i32(TCGv_i32 ret, TCGv_i32 arg)
 {
+#ifdef TCG_TARGET_HAS_not_i32
+    tcg_gen_op2_i32(INDEX_op_not_i32, ret, arg);
+#else
     tcg_gen_xori_i32(ret, arg, -1);
+#endif
 }
 
 static inline void tcg_gen_not_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
+#ifdef TCG_TARGET_HAS_not_i64
+    tcg_gen_op2_i32(INDEX_op_not_i64, ret, arg);
+#else
     tcg_gen_xori_i64(ret, arg, -1);
+#endif
 }
 
 static inline void tcg_gen_discard_i32(TCGv_i32 arg)

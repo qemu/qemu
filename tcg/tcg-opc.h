@@ -147,6 +147,12 @@ DEF2(ext32s_i64, 1, 1, 0, 0)
 DEF2(bswap_i64, 1, 1, 0, 0)
 #endif
 #endif
+#ifdef TCG_TARGET_HAS_not_i32
+DEF2(not_i32, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_not_i64
+DEF2(not_i64, 1, 1, 0, 0)
+#endif
 #ifdef TCG_TARGET_HAS_neg_i32
 DEF2(neg_i32, 1, 1, 0, 0)
 #endif
