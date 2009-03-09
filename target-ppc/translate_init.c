@@ -448,6 +448,23 @@ static void spr_write_pir (void *opaque, int sprn, int gprn)
 }
 #endif
 
+/* SPE specific registers */
+static void spr_read_spefscr (void *opaque, int gprn, int sprn)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, spe_fscr));
+    tcg_gen_extu_i32_tl(cpu_gpr[gprn], t0);
+    tcg_temp_free_i32(t0);
+}
+
+static void spr_write_spefscr (void *opaque, int sprn, int gprn)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(t0, cpu_gpr[gprn]);
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, spe_fscr));
+    tcg_temp_free_i32(t0);
+}
+
 #if !defined(CONFIG_USER_ONLY)
 /* Callback used to write the exception vector base */
 static void spr_write_excp_prefix (void *opaque, int sprn, int gprn)
@@ -2565,7 +2582,6 @@ static void gen_spr_8xx (CPUPPCState *env)
  * HSRR1   => SPR 315 (Power 2.04 hypv)
  * LPCR    => SPR 316 (970)
  * LPIDR   => SPR 317 (970)
- * SPEFSCR => SPR 512 (Power 2.04 emb)
  * EPR     => SPR 702 (Power 2.04 emb)
  * perf    => 768-783 (Power 2.04)
  * perf    => 784-799 (Power 2.04)
@@ -4021,8 +4037,8 @@ static void init_proc_e200 (CPUPPCState *env)
     gen_spr_BookE(env, 0x000000070000FFFFULL);
     /* XXX : not implemented */
     spr_register(env, SPR_BOOKE_SPEFSCR, "SPEFSCR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_spefscr, &spr_write_spefscr,
+                 &spr_read_spefscr, &spr_write_spefscr,
                  0x00000000);
     /* Memory management */
     gen_spr_BookE_FSL(env, 0x0000005D);
@@ -4210,8 +4226,8 @@ static void init_proc_e500 (CPUPPCState *env)
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_BOOKE_SPEFSCR, "SPEFSCR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_spefscr, &spr_write_spefscr,
+                 &spr_read_spefscr, &spr_write_spefscr,
                  0x00000000);
     /* Memory management */
 #if !defined(CONFIG_USER_ONLY)
@@ -9428,8 +9444,7 @@ static int gdb_get_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
         return 8;
     }
     if (n == 33) {
-        /* SPEFSCR not implemented */
-        memset(mem_buf, 0, 4);
+        stl_p(mem_buf, env->spe_fscr);
         return 4;
     }
     return 0;
@@ -9452,7 +9467,7 @@ static int gdb_set_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
         return 8;
     }
     if (n == 33) {
-        /* SPEFSCR not implemented */
+        env->spe_fscr = ldl_p(mem_buf);
         return 4;
     }
     return 0;
