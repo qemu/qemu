@@ -1573,6 +1573,9 @@ static inline void tcg_gen_orc_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
 static inline void tcg_gen_rotl_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
+#ifdef TCG_TARGET_HAS_rot_i32
+    tcg_gen_op3_i32(INDEX_op_rotl_i32, ret, arg1, arg2);
+#else
     TCGv_i32 t0, t1;
 
     t0 = tcg_temp_new_i32();
@@ -1583,10 +1586,14 @@ static inline void tcg_gen_rotl_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     tcg_gen_or_i32(ret, t0, t1);
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
+#endif
 }
 
 static inline void tcg_gen_rotl_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
+#ifdef TCG_TARGET_HAS_rot_i64
+    tcg_gen_op3_i64(INDEX_op_rotl_i64, ret, arg1, arg2);
+#else
     TCGv_i64 t0, t1;
 
     t0 = tcg_temp_new_i64();
@@ -1597,6 +1604,7 @@ static inline void tcg_gen_rotl_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     tcg_gen_or_i64(ret, t0, t1);
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
+#endif
 }
 
 static inline void tcg_gen_rotli_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
@@ -1605,6 +1613,11 @@ static inline void tcg_gen_rotli_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
     if (arg2 == 0) {
         tcg_gen_mov_i32(ret, arg1);
     } else {
+#ifdef TCG_TARGET_HAS_rot_i32
+        TCGv_i32 t0 = tcg_const_i32(arg2);
+        tcg_gen_rotl_i32(ret, arg1, t0);
+        tcg_temp_free_i32(t0);
+#else
         TCGv_i32 t0, t1;
         t0 = tcg_temp_new_i32();
         t1 = tcg_temp_new_i32();
@@ -1613,6 +1626,7 @@ static inline void tcg_gen_rotli_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
         tcg_gen_or_i32(ret, t0, t1);
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
+#endif
     }
 }
 
@@ -1622,6 +1636,11 @@ static inline void tcg_gen_rotli_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
     if (arg2 == 0) {
         tcg_gen_mov_i64(ret, arg1);
     } else {
+#ifdef TCG_TARGET_HAS_rot_i64
+        TCGv_i64 t0 = tcg_const_i64(arg2);
+        tcg_gen_rotl_i64(ret, arg1, t0);
+        tcg_temp_free_i64(t0);
+#else
         TCGv_i64 t0, t1;
         t0 = tcg_temp_new_i64();
         t1 = tcg_temp_new_i64();
@@ -1630,11 +1649,15 @@ static inline void tcg_gen_rotli_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
         tcg_gen_or_i64(ret, t0, t1);
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
+#endif
     }
 }
 
 static inline void tcg_gen_rotr_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
+#ifdef TCG_TARGET_HAS_rot_i32
+    tcg_gen_op3_i32(INDEX_op_rotr_i32, ret, arg1, arg2);
+#else
     TCGv_i32 t0, t1;
 
     t0 = tcg_temp_new_i32();
@@ -1645,10 +1668,14 @@ static inline void tcg_gen_rotr_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     tcg_gen_or_i32(ret, t0, t1);
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
+#endif
 }
 
 static inline void tcg_gen_rotr_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
+#ifdef TCG_TARGET_HAS_rot_i64
+    tcg_gen_op3_i64(INDEX_op_rotr_i64, ret, arg1, arg2);
+#else
     TCGv_i64 t0, t1;
 
     t0 = tcg_temp_new_i64();
@@ -1659,6 +1686,7 @@ static inline void tcg_gen_rotr_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     tcg_gen_or_i64(ret, t0, t1);
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
+#endif
 }
 
 static inline void tcg_gen_rotri_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
