@@ -1772,42 +1772,41 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
 static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
 {
     const char *opn = "hilo";
-    TCGv t0 = tcg_temp_local_new();
 
     if (reg == 0 && (opc == OPC_MFHI || opc == OPC_MFLO)) {
         /* Treat as NOP. */
         MIPS_DEBUG("NOP");
-        goto out;
+        return;
     }
     switch (opc) {
     case OPC_MFHI:
-        tcg_gen_mov_tl(t0, cpu_HI[0]);
-        gen_store_gpr(t0, reg);
+        tcg_gen_mov_tl(cpu_gpr[reg], cpu_HI[0]);
         opn = "mfhi";
         break;
     case OPC_MFLO:
-        tcg_gen_mov_tl(t0, cpu_LO[0]);
-        gen_store_gpr(t0, reg);
+        tcg_gen_mov_tl(cpu_gpr[reg], cpu_LO[0]);
         opn = "mflo";
         break;
     case OPC_MTHI:
-        gen_load_gpr(t0, reg);
-        tcg_gen_mov_tl(cpu_HI[0], t0);
+        if (reg != 0)
+            tcg_gen_mov_tl(cpu_HI[0], cpu_gpr[reg]);
+        else
+            tcg_gen_movi_tl(cpu_HI[0], 0);
         opn = "mthi";
         break;
     case OPC_MTLO:
-        gen_load_gpr(t0, reg);
-        tcg_gen_mov_tl(cpu_LO[0], t0);
+        if (reg != 0)
+            tcg_gen_mov_tl(cpu_LO[0], cpu_gpr[reg]);
+        else
+            tcg_gen_movi_tl(cpu_LO[0], 0);
         opn = "mtlo";
         break;
     default:
         MIPS_INVAL(opn);
         generate_exception(ctx, EXCP_RI);
-        goto out;
+        return;
     }
     MIPS_DEBUG("%s %s", opn, regnames[reg]);
- out:
-    tcg_temp_free(t0);
 }
 
 static void gen_muldiv (DisasContext *ctx, uint32_t opc,
