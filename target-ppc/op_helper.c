@@ -54,30 +54,6 @@ void helper_raise_exception (uint32_t exception)
 }
 
 /*****************************************************************************/
-/* Registers load and stores */
-target_ulong helper_load_cr (void)
-{
-    return (env->crf[0] << 28) |
-           (env->crf[1] << 24) |
-           (env->crf[2] << 20) |
-           (env->crf[3] << 16) |
-           (env->crf[4] << 12) |
-           (env->crf[5] << 8) |
-           (env->crf[6] << 4) |
-           (env->crf[7] << 0);
-}
-
-void helper_store_cr (target_ulong val, uint32_t mask)
-{
-    int i, sh;
-
-    for (i = 0, sh = 7; i < 8; i++, sh--) {
-        if (mask & (1 << sh))
-            env->crf[i] = (val >> (sh * 4)) & 0xFUL;
-    }
-}
-
-/*****************************************************************************/
 /* SPR accesses */
 void helper_load_dump_spr (uint32_t sprn)
 {
