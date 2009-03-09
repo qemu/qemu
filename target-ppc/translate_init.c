@@ -474,6 +474,7 @@ static void spr_write_excp_prefix (void *opaque, int sprn, int gprn)
     tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_prefix));
     gen_store_spr(sprn, t0);
+    tcg_temp_free(t0);
 }
 
 static void spr_write_excp_vector (void *opaque, int sprn, int gprn)
