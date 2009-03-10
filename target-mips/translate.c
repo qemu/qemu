@@ -1613,8 +1613,7 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         opn = "and";
         break;
     case OPC_NOR:
-        tcg_gen_or_tl(t0, t0, t1);
-        tcg_gen_not_tl(t0, t0);
+        tcg_gen_nor_tl(t0, t0, t1);
         opn = "nor";
         break;
     case OPC_OR:
