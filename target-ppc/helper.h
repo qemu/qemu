@@ -30,9 +30,6 @@ DEF_HELPER_1(dcbz_970, void, tl)
 DEF_HELPER_1(icbi, void, tl)
 DEF_HELPER_4(lscbx, tl, tl, i32, i32, i32)
 
-DEF_HELPER_0(load_cr, tl)
-DEF_HELPER_2(store_cr, void, tl, i32)
-
 #if defined(TARGET_PPC64)
 DEF_HELPER_2(mulhd, i64, i64, i64)
 DEF_HELPER_2(mulhdu, i64, i64, i64)

@@ -90,11 +90,13 @@ int fread_targphys(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
     while (nbytes) {
 	want = nbytes > sizeof(buf) ? sizeof(buf) : nbytes;
 	did = fread(buf, 1, want, f);
-	if (did == 0) break;
 
+        /* TODO: check code for did == 0 || did < 0 || did != 4096 */
 	cpu_physical_memory_write_rom(dst_addr, buf, did);
 	dst_addr += did;
 	nbytes -= did;
+	if (did != want)
+	    break;
     }
     return dst_addr - dst_begin;
 }
@@ -272,6 +274,7 @@ static void *load_at(int fd, int offset, int size)
     }
     return ptr;
 }
+
 
 #define ELF_CLASS   ELFCLASS32
 #include "elf.h"

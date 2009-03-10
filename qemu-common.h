@@ -2,12 +2,6 @@
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define WINVER 0x0501  /* needed for ipv6 bits */
-#include <windows.h>
-#endif
-
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
 
 /* Hack around the mess dyngen-exec.h causes: We need QEMU_NORETURN in files that

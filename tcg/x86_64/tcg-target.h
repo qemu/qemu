@@ -60,17 +60,20 @@ enum {
 #define TCG_TARGET_HAS_bswap_i64
 #define TCG_TARGET_HAS_neg_i32
 #define TCG_TARGET_HAS_neg_i64
+#define TCG_TARGET_HAS_not_i32
+#define TCG_TARGET_HAS_not_i64
 #define TCG_TARGET_HAS_ext8s_i32
 #define TCG_TARGET_HAS_ext16s_i32
 #define TCG_TARGET_HAS_ext8s_i64
 #define TCG_TARGET_HAS_ext16s_i64
 #define TCG_TARGET_HAS_ext32s_i64
+#define TCG_TARGET_HAS_rot_i32
+#define TCG_TARGET_HAS_rot_i64
 
 /* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_R14
 #define TCG_AREG1 TCG_REG_R15
 #define TCG_AREG2 TCG_REG_R12
-#define TCG_AREG3 TCG_REG_R13
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
 {

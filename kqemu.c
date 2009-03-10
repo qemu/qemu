@@ -20,6 +20,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #ifdef _WIN32
+#include <windows.h>
 #include <winioctl.h>
 #else
 #include <sys/types.h>

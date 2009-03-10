@@ -4,6 +4,10 @@
 
 #include "qemu-common.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /* vl.c */
 extern const char *bios_name;
 extern const char *bios_dir;

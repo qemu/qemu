@@ -90,7 +90,7 @@ typedef int64_t sbits64;
 #define FLOAT128
 #else
 /* native float support */
-#if (defined(__i386__) || defined(__x86_64__)) && !defined(_BSD)
+#if (defined(__i386__) || defined(__x86_64__)) && !defined(HOST_BSD)
 #define FLOATX80
 #endif
 #endif /* !CONFIG_SOFTFLOAT */

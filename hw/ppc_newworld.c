@@ -78,6 +78,12 @@ static CPUReadMemoryFunc *unin_read[] = {
     &unin_readl,
 };
 
+static int fw_cfg_boot_set(void *opaque, const char *boot_device)
+{
+    fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    return 0;
+}
+
 /* PowerPC Mac99 hardware initialisation */
 static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
                              const char *boot_device,
@@ -167,9 +173,24 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     if (linux_boot) {
+        uint64_t lowaddr = 0;
         kernel_base = KERNEL_LOAD_ADDR;
-        /* now we can load the kernel */
-        kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
+
+        /* Now we can load the kernel. The first step tries to load the kernel
+           supposing PhysAddr = 0x00000000. If that was wrong the kernel is
+           loaded again, the new PhysAddr being computed from lowaddr. */
+        kernel_size = load_elf(kernel_filename, kernel_base, NULL, &lowaddr, NULL);
+        if (kernel_size > 0 && lowaddr != KERNEL_LOAD_ADDR) {
+            kernel_size = load_elf(kernel_filename, (2 * kernel_base) - lowaddr,
+                                   NULL, 0, NULL);
+        }
+        if (kernel_size < 0)
+            kernel_size = load_aout(kernel_filename, kernel_base,
+                                    ram_size - kernel_base);
+        if (kernel_size < 0)
+            kernel_size = load_image_targphys(kernel_filename,
+                                              kernel_base,
+                                              ram_size - kernel_base);
         if (kernel_size < 0) {
             cpu_abort(env, "qemu: could not load kernel '%s'\n",
                       kernel_filename);
@@ -321,6 +342,18 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_MAC99);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_base);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
+    if (kernel_cmdline) {
+        fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, CMDLINE_ADDR);
+        pstrcpy_targphys(CMDLINE_ADDR, TARGET_PAGE_SIZE, kernel_cmdline);
+    } else {
+        fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, 0);
+    }
+    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_base);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ppc_boot_device);
+    qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
 QEMUMachine core99_machine = {

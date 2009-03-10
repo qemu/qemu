@@ -108,6 +108,12 @@ static int vga_osi_call (CPUState *env)
     return 1; /* osi_call handled */
 }
 
+static int fw_cfg_boot_set(void *opaque, const char *boot_device)
+{
+    fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    return 0;
+}
+
 static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
                                const char *boot_device,
                                const char *kernel_filename,
@@ -118,8 +124,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     CPUState *env = NULL, *envs[MAX_CPUS];
     char buf[1024];
     qemu_irq *pic, **heathrow_irqs;
-    nvram_t nvram;
-    m48t59_t *m48t59;
     int linux_boot, i;
     ram_addr_t ram_offset, vga_ram_offset, bios_offset, vga_bios_offset;
     uint32_t kernel_base, initrd_base;
@@ -129,7 +133,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     int vga_bios_size, bios_size;
     int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
     int escc_mem_index, ide_mem_index[2];
-    int ppc_boot_device;
+    uint16_t ppc_boot_device;
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     int index;
     void *fw_cfg;
@@ -363,23 +367,24 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
         graphic_depth = 15;
 
-    m48t59 = m48t59_init(0, 0xFFF04000, 0x0074, NVRAM_SIZE, 59);
-    nvram.opaque = m48t59;
-    nvram.read_fn = &m48t59_read;
-    nvram.write_fn = &m48t59_write;
-    PPC_NVRAM_set_params(&nvram, NVRAM_SIZE, "HEATHROW", ram_size,
-                         ppc_boot_device, kernel_base, kernel_size,
-                         kernel_cmdline,
-                         initrd_base, initrd_size,
-                         /* XXX: need an option to load a NVRAM image */
-                         0,
-                         graphic_width, graphic_height, graphic_depth);
     /* No PCI init: the BIOS will do it */
 
     fw_cfg = fw_cfg_init(0, 0, CFG_ADDR, CFG_ADDR + 2);
     fw_cfg_add_i32(fw_cfg, FW_CFG_ID, 1);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_HEATHROW);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_base);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
+    if (kernel_cmdline) {
+        fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, CMDLINE_ADDR);
+        pstrcpy_targphys(CMDLINE_ADDR, TARGET_PAGE_SIZE, kernel_cmdline);
+    } else {
+        fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_CMDLINE, 0);
+    }
+    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_base);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ppc_boot_device);
+    qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 
 QEMUMachine heathrow_machine = {

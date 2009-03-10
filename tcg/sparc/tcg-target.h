@@ -97,8 +97,6 @@ enum {
 #define TCG_AREG0 TCG_REG_G2
 #define TCG_AREG1 TCG_REG_G3
 #define TCG_AREG2 TCG_REG_G4
-#define TCG_AREG3 TCG_REG_G5
-#define TCG_AREG4 TCG_REG_G6
 #elif defined(__sparc_v9__)
 #define TCG_AREG0 TCG_REG_G5
 #define TCG_AREG1 TCG_REG_G6
@@ -107,7 +105,6 @@ enum {
 #define TCG_AREG0 TCG_REG_G6
 #define TCG_AREG1 TCG_REG_G1
 #define TCG_AREG2 TCG_REG_G2
-#define TCG_AREG3 TCG_REG_G3
 #endif
 
 static inline void flush_icache_range(unsigned long start, unsigned long stop)
