@@ -153,6 +153,9 @@ typedef int TCGv_i64;
 #define MAKE_TCGV_I64(x) (x)
 #define GET_TCGV_I32(t) (t)
 #define GET_TCGV_I64(t) (t)
+#define TCGV_EQUAL_I32(a, b) (GET_TCGV_I32(a) == GET_TCGV_I32(b))
+#define TCGV_EQUAL_I64(a, b) (GET_TCGV_I64(a) == GET_TCGV_I64(b))
+
 #if TCG_TARGET_REG_BITS == 32
 #define TCGV_LOW(t) (t)
 #define TCGV_HIGH(t) ((t) + 1)
