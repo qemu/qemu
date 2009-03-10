@@ -20,11 +20,20 @@
 #include "audio/audio.h"
 #include "i2c.h"
 
+#define MP_MISC_BASE            0x80002000
+#define MP_MISC_SIZE            0x00001000
+
 #define MP_ETH_BASE             0x80008000
 #define MP_ETH_SIZE             0x00001000
 
+#define MP_WLAN_BASE            0x8000C000
+#define MP_WLAN_SIZE            0x00000800
+
 #define MP_UART1_BASE           0x8000C840
 #define MP_UART2_BASE           0x8000C940
+
+#define MP_GPIO_BASE            0x8000D000
+#define MP_GPIO_SIZE            0x00001000
 
 #define MP_FLASHCFG_BASE        0x90006000
 #define MP_FLASHCFG_SIZE        0x00001000
@@ -429,7 +438,7 @@ static CPUWriteMemoryFunc *musicpal_audio_writefn[] = {
     musicpal_audio_write
 };
 
-static i2c_interface *musicpal_audio_init(uint32_t base, qemu_irq irq)
+static i2c_interface *musicpal_audio_init(qemu_irq irq)
 {
     AudioState *audio;
     musicpal_audio_state *s;
@@ -457,14 +466,14 @@ static i2c_interface *musicpal_audio_init(uint32_t base, qemu_irq irq)
 
     iomemtype = cpu_register_io_memory(0, musicpal_audio_readfn,
                        musicpal_audio_writefn, s);
-    cpu_register_physical_memory(base, MP_AUDIO_SIZE, iomemtype);
+    cpu_register_physical_memory(MP_AUDIO_BASE, MP_AUDIO_SIZE, iomemtype);
 
     qemu_register_reset(musicpal_audio_reset, s);
 
     return i2c;
 }
 #else  /* !HAS_AUDIO */
-static i2c_interface *musicpal_audio_init(uint32_t base, qemu_irq irq)
+static i2c_interface *musicpal_audio_init(qemu_irq irq)
 {
     return NULL;
 }
@@ -899,7 +908,7 @@ static CPUWriteMemoryFunc *musicpal_lcd_writefn[] = {
     musicpal_lcd_write
 };
 
-static void musicpal_lcd_init(uint32_t base)
+static void musicpal_lcd_init(void)
 {
     musicpal_lcd_state *s;
     int iomemtype;
@@ -907,7 +916,7 @@ static void musicpal_lcd_init(uint32_t base)
     s = qemu_mallocz(sizeof(musicpal_lcd_state));
     iomemtype = cpu_register_io_memory(0, musicpal_lcd_readfn,
                                        musicpal_lcd_writefn, s);
-    cpu_register_physical_memory(base, MP_LCD_SIZE, iomemtype);
+    cpu_register_physical_memory(MP_LCD_BASE, MP_LCD_SIZE, iomemtype);
 
     s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
                                  NULL, NULL, s);
@@ -1195,20 +1204,102 @@ static void mv88w8618_flashcfg_init(uint32_t base)
     cpu_register_physical_memory(base, MP_FLASHCFG_SIZE, iomemtype);
 }
 
-/* Various registers in the 0x80000000 domain */
-#define MP_BOARD_REVISION       0x2018
+/* Misc register offsets */
+#define MP_MISC_BOARD_REVISION  0x18
 
-#define MP_WLAN_MAGIC1          0xc11c
-#define MP_WLAN_MAGIC2          0xc124
+#define MP_BOARD_REVISION       0x31
 
-#define MP_GPIO_OE_LO           0xd008
-#define MP_GPIO_OUT_LO          0xd00c
-#define MP_GPIO_IN_LO           0xd010
-#define MP_GPIO_ISR_LO          0xd020
-#define MP_GPIO_OE_HI           0xd508
-#define MP_GPIO_OUT_HI          0xd50c
-#define MP_GPIO_IN_HI           0xd510
-#define MP_GPIO_ISR_HI          0xd520
+static uint32_t musicpal_misc_read(void *opaque, target_phys_addr_t offset)
+{
+    switch (offset) {
+    case MP_MISC_BOARD_REVISION:
+        return MP_BOARD_REVISION;
+
+    default:
+        return 0;
+    }
+}
+
+static void musicpal_misc_write(void *opaque, target_phys_addr_t offset,
+                                uint32_t value)
+{
+}
+
+static CPUReadMemoryFunc *musicpal_misc_readfn[] = {
+    musicpal_misc_read,
+    musicpal_misc_read,
+    musicpal_misc_read,
+};
+
+static CPUWriteMemoryFunc *musicpal_misc_writefn[] = {
+    musicpal_misc_write,
+    musicpal_misc_write,
+    musicpal_misc_write,
+};
+
+static void musicpal_misc_init(void)
+{
+    int iomemtype;
+
+    iomemtype = cpu_register_io_memory(0, musicpal_misc_readfn,
+                                       musicpal_misc_writefn, NULL);
+    cpu_register_physical_memory(MP_MISC_BASE, MP_MISC_SIZE, iomemtype);
+}
+
+/* WLAN register offsets */
+#define MP_WLAN_MAGIC1          0x11c
+#define MP_WLAN_MAGIC2          0x124
+
+static uint32_t mv88w8618_wlan_read(void *opaque, target_phys_addr_t offset)
+{
+    switch (offset) {
+    /* Workaround to allow loading the binary-only wlandrv.ko crap
+     * from the original Freecom firmware. */
+    case MP_WLAN_MAGIC1:
+        return ~3;
+    case MP_WLAN_MAGIC2:
+        return -1;
+
+    default:
+        return 0;
+    }
+}
+
+static void mv88w8618_wlan_write(void *opaque, target_phys_addr_t offset,
+                                 uint32_t value)
+{
+}
+
+static CPUReadMemoryFunc *mv88w8618_wlan_readfn[] = {
+    mv88w8618_wlan_read,
+    mv88w8618_wlan_read,
+    mv88w8618_wlan_read,
+};
+
+static CPUWriteMemoryFunc *mv88w8618_wlan_writefn[] = {
+    mv88w8618_wlan_write,
+    mv88w8618_wlan_write,
+    mv88w8618_wlan_write,
+};
+
+static void mv88w8618_wlan_init(uint32_t base)
+{
+    int iomemtype;
+
+    iomemtype = cpu_register_io_memory(0, mv88w8618_wlan_readfn,
+                                       mv88w8618_wlan_writefn, NULL);
+    cpu_register_physical_memory(base, MP_WLAN_SIZE, iomemtype);
+}
+
+/* GPIO register offsets */
+#define MP_GPIO_OE_LO           0x008
+#define MP_GPIO_OUT_LO          0x00c
+#define MP_GPIO_IN_LO           0x010
+#define MP_GPIO_ISR_LO          0x020
+#define MP_GPIO_OE_HI           0x508
+#define MP_GPIO_OUT_HI          0x50c
+#define MP_GPIO_IN_HI           0x510
+#define MP_GPIO_ISR_HI          0x520
 
 /* GPIO bits & masks */
 #define MP_GPIO_WHEEL_VOL       (1 << 8)
@@ -1227,12 +1318,9 @@ static void mv88w8618_flashcfg_init(uint32_t base)
 /* LCD brightness bits in GPIO_OE_HI */
 #define MP_OE_LCD_BRIGHTNESS    0x0007
 
-static uint32_t musicpal_read(void *opaque, target_phys_addr_t offset)
+static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
 {
     switch (offset) {
-    case MP_BOARD_REVISION:
-        return 0x0031;
-
     case MP_GPIO_OE_HI: /* used for LCD brightness control */
         return lcd_brightness & MP_OE_LCD_BRIGHTNESS;
 
@@ -1254,20 +1342,13 @@ static uint32_t musicpal_read(void *opaque, target_phys_addr_t offset)
     case MP_GPIO_ISR_HI:
         return gpio_isr >> 16;
 
-    /* Workaround to allow loading the binary-only wlandrv.ko crap
-     * from the original Freecom firmware. */
-    case MP_WLAN_MAGIC1:
-        return ~3;
-    case MP_WLAN_MAGIC2:
-        return -1;
-
     default:
         return 0;
     }
 }
 
-static void musicpal_write(void *opaque, target_phys_addr_t offset,
-                           uint32_t value)
+static void musicpal_gpio_write(void *opaque, target_phys_addr_t offset,
+                                uint32_t value)
 {
     switch (offset) {
     case MP_GPIO_OE_HI: /* used for LCD brightness control */
@@ -1288,6 +1369,27 @@ static void musicpal_write(void *opaque, target_phys_addr_t offset,
         break;
 
     }
+}
+
+static CPUReadMemoryFunc *musicpal_gpio_readfn[] = {
+    musicpal_gpio_read,
+    musicpal_gpio_read,
+    musicpal_gpio_read,
+};
+
+static CPUWriteMemoryFunc *musicpal_gpio_writefn[] = {
+    musicpal_gpio_write,
+    musicpal_gpio_write,
+    musicpal_gpio_write,
+};
+
+static void musicpal_gpio_init(void)
+{
+    int iomemtype;
+
+    iomemtype = cpu_register_io_memory(0, musicpal_gpio_readfn,
+                                       musicpal_gpio_writefn, NULL);
+    cpu_register_physical_memory(MP_GPIO_BASE, MP_GPIO_SIZE, iomemtype);
 }
 
 /* Keyboard codes & masks */
@@ -1370,18 +1472,6 @@ static void musicpal_key_event(void *opaque, int keycode)
     kbd_extended = 0;
 }
 
-static CPUReadMemoryFunc *musicpal_readfn[] = {
-    musicpal_read,
-    musicpal_read,
-    musicpal_read,
-};
-
-static CPUWriteMemoryFunc *musicpal_writefn[] = {
-    musicpal_write,
-    musicpal_write,
-    musicpal_write,
-};
-
 static struct arm_boot_info musicpal_binfo = {
     .loader_start = 0x0,
     .board_id = 0x20e,
@@ -1395,7 +1485,6 @@ static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
     CPUState *env;
     qemu_irq *pic;
     int index;
-    int iomemtype;
     unsigned long flash_size;
 
     if (!cpu_model)
@@ -1414,11 +1503,6 @@ static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
 
     sram_off = qemu_ram_alloc(MP_SRAM_SIZE);
     cpu_register_physical_memory(MP_SRAM_BASE, MP_SRAM_SIZE, sram_off);
-
-    /* Catch various stuff not handled by separate subsystems */
-    iomemtype = cpu_register_io_memory(0, musicpal_readfn,
-                                       musicpal_writefn, env);
-    cpu_register_physical_memory(0x80000000, 0x10000, iomemtype);
 
     pic = mv88w8618_pic_init(MP_PIC_BASE, pic[ARM_PIC_CPU_IRQ]);
     mv88w8618_pit_init(MP_PIT_BASE, pic, MP_TIMER1_IRQ);
@@ -1454,13 +1538,18 @@ static void musicpal_init(ram_addr_t ram_size, int vga_ram_size,
     }
     mv88w8618_flashcfg_init(MP_FLASHCFG_BASE);
 
-    musicpal_lcd_init(MP_LCD_BASE);
+    musicpal_lcd_init();
 
     qemu_add_kbd_event_handler(musicpal_key_event, pic[MP_GPIO_IRQ]);
 
     mv88w8618_eth_init(&nd_table[0], MP_ETH_BASE, pic[MP_ETH_IRQ]);
 
-    mixer_i2c = musicpal_audio_init(MP_AUDIO_BASE, pic[MP_AUDIO_IRQ]);
+    mixer_i2c = musicpal_audio_init(pic[MP_AUDIO_IRQ]);
+
+    mv88w8618_wlan_init(MP_WLAN_BASE);
+
+    musicpal_misc_init();
+    musicpal_gpio_init();
 
     musicpal_binfo.ram_size = MP_RAM_DEFAULT_SIZE;
     musicpal_binfo.kernel_filename = kernel_filename;
