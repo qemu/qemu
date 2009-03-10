@@ -452,7 +452,7 @@ static void spr_write_pir (void *opaque, int sprn, int gprn)
 static void spr_read_spefscr (void *opaque, int gprn, int sprn)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
-    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, spe_fscr));
+    tcg_gen_ld_i32(t0, cpu_env, offsetof(CPUState, spe_fscr));
     tcg_gen_extu_i32_tl(cpu_gpr[gprn], t0);
     tcg_temp_free_i32(t0);
 }
@@ -461,7 +461,7 @@ static void spr_write_spefscr (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[gprn]);
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, spe_fscr));
+    tcg_gen_st_i32(t0, cpu_env, offsetof(CPUState, spe_fscr));
     tcg_temp_free_i32(t0);
 }
 
