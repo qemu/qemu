@@ -318,7 +318,7 @@ static inline void tcg_gen_br(int label)
 
 static inline void tcg_gen_mov_i32(TCGv_i32 ret, TCGv_i32 arg)
 {
-    if (GET_TCGV_I32(ret) != GET_TCGV_I32(arg))
+    if (!TCGV_EQUAL_I32(ret, arg))
         tcg_gen_op2_i32(INDEX_op_mov_i32, ret, arg);
 }
 
@@ -625,7 +625,7 @@ static inline void tcg_gen_remu_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 
 static inline void tcg_gen_mov_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
-    if (GET_TCGV_I64(ret) != GET_TCGV_I64(arg)) {
+    if (!TCGV_EQUAL_I64(ret, arg)) {
         tcg_gen_mov_i32(TCGV_LOW(ret), TCGV_LOW(arg));
         tcg_gen_mov_i32(TCGV_HIGH(ret), TCGV_HIGH(arg));
     }
@@ -858,7 +858,7 @@ static inline void tcg_gen_remu_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
 static inline void tcg_gen_mov_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
-    if (GET_TCGV_I64(ret) != GET_TCGV_I64(arg))
+    if (!TCGV_EQUAL_I64(ret, arg))
         tcg_gen_op2_i64(INDEX_op_mov_i64, ret, arg);
 }
 
@@ -1545,27 +1545,27 @@ static inline void tcg_gen_nand_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
 static inline void tcg_gen_nor_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
-    if (GET_TCGV_I32(arg1) != GET_TCGV_I32(arg2)) {
+    if (TCGV_EQUAL_I32(arg1, arg2)) {
+        tcg_gen_not_i32(ret, arg1);
+    } else {
         TCGv_i32 t0;
         t0 = tcg_temp_new_i32();
         tcg_gen_or_i32(t0, arg1, arg2);
         tcg_gen_not_i32(ret, t0);
         tcg_temp_free_i32(t0);
-    } else {
-        tcg_gen_not_i32(ret, arg1);
     }
 }
 
 static inline void tcg_gen_nor_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    if (GET_TCGV_I64(arg1) != GET_TCGV_I64(arg2)) {
+    if (TCGV_EQUAL_I64(arg1, arg2)) {
+        tcg_gen_not_i64(ret, arg1);
+    } else {
         TCGv_i64 t0;
         t0 = tcg_temp_new_i64();
         tcg_gen_or_i64(t0, arg1, arg2);
         tcg_gen_not_i64(ret, t0);
         tcg_temp_free_i64(t0);
-    } else {
-        tcg_gen_not_i64(ret, arg1);
     }
 }
 
@@ -1742,7 +1742,7 @@ static inline void tcg_gen_rotri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 #define tcg_gen_qemu_ldst_op tcg_gen_op3i_i32
 #define tcg_gen_qemu_ldst_op_i64 tcg_gen_qemu_ldst_op_i64_i32
 #define TCGV_UNUSED(x) TCGV_UNUSED_I32(x)
-#define TCGV_EQUAL(a, b) (GET_TCGV_I32(a) == GET_TCGV_I32(b))
+#define TCGV_EQUAL(a, b) TCGV_EQUAL_I32(a, b)
 #else
 #define TCGv TCGv_i64
 #define tcg_temp_new() tcg_temp_new_i64()
@@ -1753,7 +1753,7 @@ static inline void tcg_gen_rotri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 #define tcg_gen_qemu_ldst_op tcg_gen_op3i_i64
 #define tcg_gen_qemu_ldst_op_i64 tcg_gen_qemu_ldst_op_i64_i64
 #define TCGV_UNUSED(x) TCGV_UNUSED_I64(x)
-#define TCGV_EQUAL(a, b) (GET_TCGV_I64(a) == GET_TCGV_I64(b))
+#define TCGV_EQUAL(a, b) TCGV_EQUAL_I64(a, b)
 #endif
 
 /* debug info: write the PC of the corresponding QEMU CPU instruction */
