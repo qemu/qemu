@@ -1645,7 +1645,6 @@ static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     bdi->cluster_size = s->cluster_size;
     bdi->vm_state_offset = (int64_t)s->l1_vm_state_index <<
         (s->cluster_bits + s->l2_bits);
-    bdi->highest_alloc = s->highest_alloc << s->cluster_bits;
     return 0;
 }
 
