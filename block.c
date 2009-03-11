@@ -1140,7 +1140,6 @@ void bdrv_info(Monitor *mon)
 void bdrv_info_stats(Monitor *mon)
 {
     BlockDriverState *bs;
-    BlockDriverInfo bdi;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
         monitor_printf(mon, "%s:"
@@ -1148,14 +1147,10 @@ void bdrv_info_stats(Monitor *mon)
                        " wr_bytes=%" PRIu64
                        " rd_operations=%" PRIu64
                        " wr_operations=%" PRIu64
-                       ,
+                       "\n",
                        bs->device_name,
                        bs->rd_bytes, bs->wr_bytes,
                        bs->rd_ops, bs->wr_ops);
-        if (bdrv_get_info(bs, &bdi) == 0)
-            monitor_printf(mon, " high=%" PRId64,
-                           bdi.highest_alloc);
-        monitor_printf(mon, "\n");
     }
 }
 
