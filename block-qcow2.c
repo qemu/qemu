@@ -145,7 +145,6 @@ typedef struct BDRVQcowState {
     AES_KEY aes_decrypt_key;
 
     int64_t highest_alloc; /* highest cluester allocated (in clusters) */
-    int64_t nc_free;       /* num of free clusters below highest_alloc */
 
     uint64_t snapshots_offset;
     int snapshots_size;
@@ -174,7 +173,7 @@ static void free_clusters(BlockDriverState *bs,
 #ifdef DEBUG_ALLOC
 static void check_refcounts(BlockDriverState *bs);
 #endif
-static void scan_refcount(BlockDriverState *bs, int64_t *high, int64_t *free);
+static void scan_refcount(BlockDriverState *bs, int64_t *high);
 
 
 static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -276,7 +275,7 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     if (refcount_init(bs) < 0)
         goto fail;
 
-    scan_refcount(bs, &s->highest_alloc, &s->nc_free);
+    scan_refcount(bs, &s->highest_alloc);
 
     /* read the backing file name */
     if (header.backing_file_offset != 0) {
@@ -1647,7 +1646,6 @@ static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     bdi->vm_state_offset = (int64_t)s->l1_vm_state_index <<
         (s->cluster_bits + s->l2_bits);
     bdi->highest_alloc = s->highest_alloc << s->cluster_bits;
-    bdi->num_free_bytes = s->nc_free  << s->cluster_bits;
     return 0;
 }
 
@@ -2166,35 +2164,25 @@ static int load_refcount_block(BlockDriverState *bs,
     return 0;
 }
 
-static void scan_refcount(BlockDriverState *bs, int64_t *high, int64_t *free)
+static void scan_refcount(BlockDriverState *bs, int64_t *high)
 {
     BDRVQcowState *s = bs->opaque;
-    int64_t refcnt_index, cluster_index, cluster_end, h = 0, f = 0;
-    int64_t tail = 0; /* do not count last consecutive free entries */
+    int64_t refcnt_index, cluster_index, cluster_end, h = 0;
 
     for (refcnt_index=0; refcnt_index < s->refcount_table_size; refcnt_index++){
         if (s->refcount_table[refcnt_index] == 0) {
-            f += 1 << (s->cluster_bits - REFCOUNT_SHIFT);
-            tail += 1 << (s->cluster_bits - REFCOUNT_SHIFT);
             continue;
         }
         cluster_index = refcnt_index << (s->cluster_bits - REFCOUNT_SHIFT);
         cluster_end = (refcnt_index + 1) << (s->cluster_bits - REFCOUNT_SHIFT);
         for ( ; cluster_index < cluster_end; cluster_index++) {
-            if (get_refcount(bs, cluster_index) == 0) {
-                f++;
-                tail++;
-            }
-            else {
+            if (get_refcount(bs, cluster_index) == 0)
+                /* do nothing -- reserved for free counting */;
+            else
                 h = cluster_index;
-                tail = 0;
-            }
         }
     }
 
-    f -= tail;
-    if (free)
-        *free = f;
     if (high)
         *high = (h+1);
 }
@@ -2240,10 +2228,8 @@ retry:
             (s->free_cluster_index - nb_clusters) << s->cluster_bits);
 #endif
 
-    if (s->highest_alloc < s->free_cluster_index) {
-        s->nc_free += (s->free_cluster_index - s->highest_alloc);
+    if (s->highest_alloc < s->free_cluster_index)
         s->highest_alloc = s->free_cluster_index;
-    }
 
     return (s->free_cluster_index - nb_clusters) << s->cluster_bits;
 }
@@ -2418,12 +2404,6 @@ static int update_cluster_refcount(BlockDriverState *bs,
     block_index = cluster_index &
         ((1 << (s->cluster_bits - REFCOUNT_SHIFT)) - 1);
     refcount = be16_to_cpu(s->refcount_block_cache[block_index]);
-
-    if (refcount == 1 && addend == -1)
-        s->nc_free += 1;
-    else if (refcount == 0 && addend == 1)
-        s->nc_free -= 1;
-
     refcount += addend;
     if (refcount < 0 || refcount > 0xffff)
         return -EINVAL;
