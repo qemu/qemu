@@ -112,9 +112,6 @@ void bt_device_done(struct bt_device_s *dev);
 /* bt-hci.c */
 struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net);
 
-/* bt-host.c */
-struct HCIInfo *bt_host_hci(const char *id);
-
 /* bt-vhci.c */
 void bt_vhci_init(struct HCIInfo *info);
 

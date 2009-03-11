@@ -18,15 +18,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
 #include "config.h"
-#include "qemu-common.h"
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/types.h>
 #include <sys/mman.h>
 #endif
-#include <stddef.h>     /* offsetof */
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <inttypes.h>
 
 #include "cpu.h"
 #include "exec-all.h"
+#include "qemu-common.h"
 #include "tcg.h"
 #include "hw/hw.h"
 #include "osdep.h"

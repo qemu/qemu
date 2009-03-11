@@ -63,7 +63,7 @@ static char *addr_to_string(const char *format,
         return NULL;
     }
 
-    if (asprintf(&addr, format, host, serv) < 0)
+    //~ if (asprintf(&addr, format, host, serv) < 0)
         return NULL;
 
     return addr;

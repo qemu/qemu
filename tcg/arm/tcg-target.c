@@ -1011,8 +1011,13 @@ static inline void tcg_out_qemu_ld(TCGContext *s, int cond,
     case 3:
         /* TODO: use block load -
          * check that data_reg2 > data_reg or the other way */
-        tcg_out_ld32_12(s, COND_AL, data_reg, addr_reg, 0);
-        tcg_out_ld32_12(s, COND_AL, data_reg2, addr_reg, 4);
+        if (data_reg == addr_reg) {
+            tcg_out_ld32_12(s, COND_AL, data_reg2, addr_reg, 4);
+            tcg_out_ld32_12(s, COND_AL, data_reg, addr_reg, 0);
+        } else {
+            tcg_out_ld32_12(s, COND_AL, data_reg, addr_reg, 0);
+            tcg_out_ld32_12(s, COND_AL, data_reg2, addr_reg, 4);
+        }
         break;
     }
 #endif

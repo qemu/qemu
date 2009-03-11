@@ -92,6 +92,12 @@ DEF2(ext16s_i32, 1, 1, 0, 0)
 #ifdef TCG_TARGET_HAS_bswap_i32
 DEF2(bswap_i32, 1, 1, 0, 0)
 #endif
+#ifdef TCG_TARGET_HAS_not_i32
+DEF2(not_i32, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_neg_i32
+DEF2(neg_i32, 1, 1, 0, 0)
+#endif
 
 #if TCG_TARGET_REG_BITS == 64
 DEF2(mov_i64, 1, 1, 0, 0)
@@ -146,18 +152,12 @@ DEF2(ext32s_i64, 1, 1, 0, 0)
 #ifdef TCG_TARGET_HAS_bswap_i64
 DEF2(bswap_i64, 1, 1, 0, 0)
 #endif
-#endif
-#ifdef TCG_TARGET_HAS_not_i32
-DEF2(not_i32, 1, 1, 0, 0)
-#endif
 #ifdef TCG_TARGET_HAS_not_i64
 DEF2(not_i64, 1, 1, 0, 0)
 #endif
-#ifdef TCG_TARGET_HAS_neg_i32
-DEF2(neg_i32, 1, 1, 0, 0)
-#endif
 #ifdef TCG_TARGET_HAS_neg_i64
 DEF2(neg_i64, 1, 1, 0, 0)
+#endif
 #endif
 
 /* QEMU specific */
