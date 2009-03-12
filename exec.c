@@ -1457,9 +1457,13 @@ void cpu_single_step(CPUState *env, int enabled)
 #if defined(TARGET_HAS_ICE)
     if (env->singlestep_enabled != enabled) {
         env->singlestep_enabled = enabled;
-        /* must flush all the translated code to avoid inconsistancies */
-        /* XXX: only flush what is necessary */
-        tb_flush(env);
+        if (kvm_enabled())
+            kvm_update_guest_debug(env, 0);
+        else {
+            /* must flush all the translated code to avoid inconsistancies */
+            /* XXX: only flush what is necessary */
+            tb_flush(env);
+        }
     }
 #endif
 }
