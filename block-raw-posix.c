@@ -358,6 +358,12 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
     return raw_pread_aligned(bs, offset, buf, count) + sum;
 }
 
+static int raw_read(BlockDriverState *bs, int64_t sector_num,
+                    uint8_t *buf, int nb_sectors)
+{
+    return raw_pread(bs, sector_num * 512, buf, (uint64_t)nb_sectors * 512);
+}
+
 /*
  * offset and count are in bytes and possibly not aligned. For files opened
  * with O_DIRECT, necessary alignments are ensured before calling
@@ -434,6 +440,12 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
         }
     }
     return raw_pwrite_aligned(bs, offset, buf, count) + sum;
+}
+
+static int raw_write(BlockDriverState *bs, int64_t sector_num,
+                     const uint8_t *buf, int nb_sectors)
+{
+    return raw_pwrite(bs, sector_num * 512, buf, (uint64_t)nb_sectors * 512);
 }
 
 #ifdef CONFIG_AIO
@@ -843,8 +855,8 @@ BlockDriver bdrv_raw = {
     .aiocb_size = sizeof(RawAIOCB),
 #endif
 
-    .bdrv_pread = raw_pread,
-    .bdrv_pwrite = raw_pwrite,
+    .bdrv_read = raw_read,
+    .bdrv_write = raw_write,
     .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
 };
@@ -1219,8 +1231,8 @@ BlockDriver bdrv_host_device = {
     .aiocb_size		= sizeof(RawAIOCB),
 #endif
 
-    .bdrv_pread		= raw_pread,
-    .bdrv_pwrite	= raw_pwrite,
+    .bdrv_read          = raw_read,
+    .bdrv_write         = raw_write,
     .bdrv_getlength	= raw_getlength,
 
     /* removable device support */

@@ -58,10 +58,6 @@ struct BlockDriver {
     int aiocb_size;
 
     const char *protocol_name;
-    int (*bdrv_pread)(BlockDriverState *bs, int64_t offset,
-                      uint8_t *buf, int count);
-    int (*bdrv_pwrite)(BlockDriverState *bs, int64_t offset,
-                       const uint8_t *buf, int count);
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
     int (*bdrv_write_compressed)(BlockDriverState *bs, int64_t sector_num,

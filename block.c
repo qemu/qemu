@@ -142,7 +142,7 @@ static void bdrv_register(BlockDriver *bdrv)
         bdrv->bdrv_aio_write = bdrv_aio_write_em;
         bdrv->bdrv_aio_cancel = bdrv_aio_cancel_em;
         bdrv->aiocb_size = sizeof(BlockDriverAIOCBSync);
-    } else if (!bdrv->bdrv_read && !bdrv->bdrv_pread) {
+    } else if (!bdrv->bdrv_read) {
         /* add synchronous IO emulation layer */
         bdrv->bdrv_read = bdrv_read_em;
         bdrv->bdrv_write = bdrv_write_em;
@@ -568,22 +568,7 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return -EIO;
 
-    if (drv->bdrv_pread) {
-        int ret, len;
-        len = nb_sectors * 512;
-        ret = drv->bdrv_pread(bs, sector_num * 512, buf, len);
-        if (ret < 0)
-            return ret;
-        else if (ret != len)
-            return -EINVAL;
-        else {
-	    bs->rd_bytes += (unsigned) len;
-	    bs->rd_ops ++;
-            return 0;
-	}
-    } else {
-        return drv->bdrv_read(bs, sector_num, buf, nb_sectors);
-    }
+    return drv->bdrv_read(bs, sector_num, buf, nb_sectors);
 }
 
 /* Return < 0 if error. Important errors are:
@@ -603,27 +588,11 @@ int bdrv_write(BlockDriverState *bs, int64_t sector_num,
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return -EIO;
 
-    if (drv->bdrv_pwrite) {
-        int ret, len, count = 0;
-        len = nb_sectors * 512;
-        do {
-            ret = drv->bdrv_pwrite(bs, sector_num * 512, buf, len - count);
-            if (ret < 0) {
-                printf("bdrv_write ret=%d\n", ret);
-                return ret;
-            }
-            count += ret;
-            buf += ret;
-        } while (count != len);
-        bs->wr_bytes += (unsigned) len;
-        bs->wr_ops ++;
-        return 0;
-    }
     return drv->bdrv_write(bs, sector_num, buf, nb_sectors);
 }
 
-static int bdrv_pread_em(BlockDriverState *bs, int64_t offset,
-                         uint8_t *buf, int count1)
+int bdrv_pread(BlockDriverState *bs, int64_t offset,
+               void *buf, int count1)
 {
     uint8_t tmp_buf[SECTOR_SIZE];
     int len, nb_sectors, count;
@@ -666,8 +635,8 @@ static int bdrv_pread_em(BlockDriverState *bs, int64_t offset,
     return count1;
 }
 
-static int bdrv_pwrite_em(BlockDriverState *bs, int64_t offset,
-                          const uint8_t *buf, int count1)
+int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
+                const void *buf, int count1)
 {
     uint8_t tmp_buf[SECTOR_SIZE];
     int len, nb_sectors, count;
@@ -712,42 +681,6 @@ static int bdrv_pwrite_em(BlockDriverState *bs, int64_t offset,
             return -EIO;
     }
     return count1;
-}
-
-/**
- * Read with byte offsets (needed only for file protocols)
- */
-int bdrv_pread(BlockDriverState *bs, int64_t offset,
-               void *buf1, int count1)
-{
-    BlockDriver *drv = bs->drv;
-
-    if (!drv)
-        return -ENOMEDIUM;
-    if (bdrv_check_byte_request(bs, offset, count1))
-        return -EIO;
-
-    if (!drv->bdrv_pread)
-        return bdrv_pread_em(bs, offset, buf1, count1);
-    return drv->bdrv_pread(bs, offset, buf1, count1);
-}
-
-/**
- * Write with byte offsets (needed only for file protocols)
- */
-int bdrv_pwrite(BlockDriverState *bs, int64_t offset,
-                const void *buf1, int count1)
-{
-    BlockDriver *drv = bs->drv;
-
-    if (!drv)
-        return -ENOMEDIUM;
-    if (bdrv_check_byte_request(bs, offset, count1))
-        return -EIO;
-
-    if (!drv->bdrv_pwrite)
-        return bdrv_pwrite_em(bs, offset, buf1, count1);
-    return drv->bdrv_pwrite(bs, offset, buf1, count1);
 }
 
 /**
