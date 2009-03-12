@@ -15,6 +15,7 @@
 #define QEMU_KVM_H
 
 #include "config.h"
+#include "sys-queue.h"
 
 #ifdef CONFIG_KVM
 extern int kvm_allowed;
@@ -49,6 +50,13 @@ int kvm_has_sync_mmu(void);
 int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 
+int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
+                          target_ulong len, int type);
+int kvm_remove_breakpoint(CPUState *current_env, target_ulong addr,
+                          target_ulong len, int type);
+void kvm_remove_all_breakpoints(CPUState *current_env);
+int kvm_update_guest_debug(CPUState *env, unsigned long reinject_trap);
+
 /* internal API */
 
 struct KVMState;
@@ -75,5 +83,48 @@ int kvm_arch_put_registers(CPUState *env);
 int kvm_arch_init(KVMState *s, int smp_cpus);
 
 int kvm_arch_init_vcpu(CPUState *env);
+
+struct kvm_guest_debug;
+struct kvm_debug_exit_arch;
+
+struct kvm_sw_breakpoint {
+    target_ulong pc;
+    target_ulong saved_insn;
+    int use_count;
+    TAILQ_ENTRY(kvm_sw_breakpoint) entry;
+};
+
+TAILQ_HEAD(kvm_sw_breakpoint_head, kvm_sw_breakpoint);
+
+int kvm_arch_debug(struct kvm_debug_exit_arch *arch_info);
+
+struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *env,
+                                                 target_ulong pc);
+
+int kvm_sw_breakpoints_active(CPUState *env);
+
+int kvm_arch_insert_sw_breakpoint(CPUState *current_env,
+                                  struct kvm_sw_breakpoint *bp);
+int kvm_arch_remove_sw_breakpoint(CPUState *current_env,
+                                  struct kvm_sw_breakpoint *bp);
+int kvm_arch_insert_hw_breakpoint(target_ulong addr,
+                                  target_ulong len, int type);
+int kvm_arch_remove_hw_breakpoint(target_ulong addr,
+                                  target_ulong len, int type);
+void kvm_arch_remove_all_hw_breakpoints(void);
+
+void kvm_arch_update_guest_debug(CPUState *env, struct kvm_guest_debug *dbg);
+
+/* generic hooks - to be moved/refactored once there are more users */
+
+static inline void cpu_synchronize_state(CPUState *env, int modified)
+{
+    if (kvm_enabled()) {
+        if (modified)
+            kvm_arch_put_registers(env);
+        else
+            kvm_arch_get_registers(env);
+    }
+}
 
 #endif

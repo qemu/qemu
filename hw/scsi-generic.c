@@ -201,6 +201,7 @@ static int execute_command(BlockDriverState *bdrv,
                            SCSIRequest *r, int direction,
 			   BlockDriverCompletionFunc *complete)
 {
+    int ret;
 
     r->io_header.interface_id = 'S';
     r->io_header.dxfer_direction = direction;
@@ -214,25 +215,27 @@ static int execute_command(BlockDriverState *bdrv,
     r->io_header.usr_ptr = r;
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
 
-    if (bdrv_pwrite(bdrv, -1, &r->io_header, sizeof(r->io_header)) == -1) {
+    ret = bdrv_sg_send_command(bdrv, &r->io_header, sizeof(r->io_header));
+    if (ret < 0) {
         BADF("execute_command: write failed ! (%d)\n", errno);
         return -1;
     }
     if (complete == NULL) {
         int ret;
         r->aiocb = NULL;
-        while ((ret = bdrv_pread(bdrv, -1, &r->io_header,
-                                           sizeof(r->io_header))) == -1 &&
-                      errno == EINTR);
-        if (ret == -1) {
+        while ((ret = bdrv_sg_recv_response(bdrv, &r->io_header,
+                                            sizeof(r->io_header))) < 0 &&
+               ret == -EINTR)
+            ;
+        if (ret < 0) {
             BADF("execute_command: read failed !\n");
             return -1;
         }
         return 0;
     }
 
-    r->aiocb = bdrv_aio_read(bdrv, 0, (uint8_t*)&r->io_header,
-                          -(int64_t)sizeof(r->io_header), complete, r);
+    r->aiocb = bdrv_sg_aio_read(bdrv, (uint8_t*)&r->io_header,
+                                sizeof(r->io_header), complete, r);
     if (r->aiocb == NULL) {
         BADF("execute_command: read failed !\n");
         return -1;
@@ -634,14 +637,15 @@ static int get_blocksize(BlockDriverState *bdrv)
     io_header.sbp = sensebuf;
     io_header.timeout = 6000; /* XXX */
 
-    ret = bdrv_pwrite(bdrv, -1, &io_header, sizeof(io_header));
-    if (ret == -1)
+    ret = bdrv_sg_send_command(bdrv, &io_header, sizeof(io_header));
+    if (ret < 0)
         return -1;
 
-    while ((ret = bdrv_pread(bdrv, -1, &io_header, sizeof(io_header))) == -1 &&
-           errno == EINTR);
+    while ((ret = bdrv_sg_recv_response(bdrv, &io_header, sizeof(io_header))) < 0 &&
+           ret == -EINTR)
+        ;
 
-    if (ret == -1)
+    if (ret < 0)
         return -1;
 
     return (buf[4] << 24) | (buf[5] << 16) | (buf[6] << 8) | buf[7];
@@ -671,14 +675,15 @@ static int get_stream_blocksize(BlockDriverState *bdrv)
     io_header.sbp = sensebuf;
     io_header.timeout = 6000; /* XXX */
 
-    ret = bdrv_pwrite(bdrv, -1, &io_header, sizeof(io_header));
-    if (ret == -1)
+    ret = bdrv_sg_send_command(bdrv, &io_header, sizeof(io_header));
+    if (ret < 0)
         return -1;
 
-    while ((ret = bdrv_pread(bdrv, -1, &io_header, sizeof(io_header))) == -1 &&
-           errno == EINTR);
+    while ((ret = bdrv_sg_recv_response(bdrv, &io_header, sizeof(io_header))) < 0 &&
+           ret == -EINTR)
+        ;
 
-    if (ret == -1)
+    if (ret < 0)
         return -1;
 
     return (buf[9] << 16) | (buf[10] << 8) | buf[11];

@@ -101,6 +101,14 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
                                  BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
+/* sg packet commands */
+int bdrv_sg_send_command(BlockDriverState *bs, void *buf, int count);
+int bdrv_sg_recv_response(BlockDriverState *bs, void *buf, int count);
+BlockDriverAIOCB *bdrv_sg_aio_read(BlockDriverState *bs, void *buf, int count,
+                                   BlockDriverCompletionFunc *cb, void *opaque);
+BlockDriverAIOCB *bdrv_sg_aio_write(BlockDriverState *bs, void *buf, int count,
+                                    BlockDriverCompletionFunc *cb, void *opaque);
+
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
 void bdrv_flush_all(void);
