@@ -84,6 +84,16 @@ struct BlockDriver {
 
     /* to control generic scsi devices */
     int (*bdrv_ioctl)(BlockDriverState *bs, unsigned long int req, void *buf);
+    int (*bdrv_sg_send_command)(BlockDriverState *bs, void *buf, int count);
+    int (*bdrv_sg_recv_response)(BlockDriverState *bs, void *buf, int count);
+    BlockDriverAIOCB *(*bdrv_sg_aio_read)(BlockDriverState *bs,
+                                          void *buf, int count,
+                                          BlockDriverCompletionFunc *cb,
+                                          void *opaque);
+    BlockDriverAIOCB *(*bdrv_sg_aio_write)(BlockDriverState *bs,
+                                           void *buf, int count,
+                                           BlockDriverCompletionFunc *cb,
+                                           void *opaque);
 
     BlockDriverAIOCB *free_aiocb;
     struct BlockDriver *next;

@@ -1179,6 +1179,32 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 }
 #endif /* !linux */
 
+static int raw_sg_send_command(BlockDriverState *bs, void *buf, int count)
+{
+    return raw_pwrite(bs, -1, buf, count);
+}
+
+static int raw_sg_recv_response(BlockDriverState *bs, void *buf, int count)
+{
+    return raw_pread(bs, -1, buf, count);
+}
+
+static BlockDriverAIOCB *raw_sg_aio_read(BlockDriverState *bs,
+                                         void *buf, int count,
+                                         BlockDriverCompletionFunc *cb,
+                                         void *opaque)
+{
+    return raw_aio_read(bs, 0, buf, -(int64_t)count, cb, opaque);
+}
+
+static BlockDriverAIOCB *raw_sg_aio_write(BlockDriverState *bs,
+                                          void *buf, int count,
+                                          BlockDriverCompletionFunc *cb,
+                                          void *opaque)
+{
+    return raw_aio_write(bs, 0, buf, -(int64_t)count, cb, opaque);
+}
+
 BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
@@ -1204,4 +1230,8 @@ BlockDriver bdrv_host_device = {
     .bdrv_set_locked	= raw_set_locked,
     /* generic scsi device */
     .bdrv_ioctl		= raw_ioctl,
+    .bdrv_sg_send_command  = raw_sg_send_command,
+    .bdrv_sg_recv_response = raw_sg_recv_response,
+    .bdrv_sg_aio_read      = raw_sg_aio_read,
+    .bdrv_sg_aio_write     = raw_sg_aio_write,
 };
