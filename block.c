@@ -1675,3 +1675,25 @@ int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
         return drv->bdrv_ioctl(bs, req, buf);
     return -ENOTSUP;
 }
+
+int bdrv_sg_send_command(BlockDriverState *bs, void *buf, int count)
+{
+    return bdrv_pwrite(bs, -1, buf, count);
+}
+
+int bdrv_sg_recv_response(BlockDriverState *bs, void *buf, int count)
+{
+    return bdrv_pread(bs, -1, buf, count);
+}
+
+BlockDriverAIOCB *bdrv_sg_aio_read(BlockDriverState *bs, void *buf, int count,
+                                   BlockDriverCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_read(bs, 0, buf, -(int64_t)count, cb, opaque);
+}
+
+BlockDriverAIOCB *bdrv_sg_aio_write(BlockDriverState *bs, void *buf, int count,
+                                    BlockDriverCompletionFunc *cb, void *opaque)
+{
+    return bdrv_aio_write(bs, 0, buf, -(int64_t)count, cb, opaque);
+}
