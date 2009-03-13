@@ -28,7 +28,7 @@
 #undef TCG_TARGET_WORDS_BIGENDIAN
 #undef TCG_TARGET_HAS_div_i32
 #undef TCG_TARGET_HAS_div_i64
-#undef TCG_TARGET_HAS_bswap_i32
+#undef TCG_TARGET_HAS_bswap32_i32
 #define TCG_TARGET_HAS_ext8s_i32
 #define TCG_TARGET_HAS_ext16s_i32
 #define TCG_TARGET_HAS_neg_i32

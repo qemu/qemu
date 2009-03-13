@@ -78,7 +78,7 @@ enum {
 //#define TCG_TARGET_HAS_ext8s_i32
 //#define TCG_TARGET_HAS_ext16s_i32
 //#define TCG_TARGET_HAS_bswap16_i32
-//#define TCG_TARGET_HAS_bswap_i32
+//#define TCG_TARGET_HAS_bswap32_i32
 
 /* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_R17

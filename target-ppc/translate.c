@@ -2579,35 +2579,16 @@ static always_inline void gen_qemu_ld16u(DisasContext *ctx, TCGv arg1, TCGv arg2
 {
     tcg_gen_qemu_ld16u(arg1, arg2, ctx->mem_idx);
     if (unlikely(ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap16_i32(t0, t0);
-        tcg_gen_extu_i32_tl(arg1, t0);
-        tcg_temp_free_i32(t0);
-#else
-        tcg_gen_bswap16_i32(arg1, arg1);
-#endif
+        tcg_gen_bswap16_tl(arg1, arg1);
     }
 }
 
 static always_inline void gen_qemu_ld16s(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (unlikely(ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0;
         tcg_gen_qemu_ld16u(arg1, arg2, ctx->mem_idx);
-        t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap16_i32(t0, t0);
-        tcg_gen_extu_i32_tl(arg1, t0);
+        tcg_gen_bswap16_tl(arg1, arg1);
         tcg_gen_ext16s_tl(arg1, arg1);
-        tcg_temp_free_i32(t0);
-#else
-        tcg_gen_qemu_ld16u(arg1, arg2, ctx->mem_idx);
-        tcg_gen_bswap16_i32(arg1, arg1);
-        tcg_gen_ext16s_i32(arg1, arg1);
-#endif
     } else {
         tcg_gen_qemu_ld16s(arg1, arg2, ctx->mem_idx);
     }
@@ -2617,15 +2598,7 @@ static always_inline void gen_qemu_ld32u(DisasContext *ctx, TCGv arg1, TCGv arg2
 {
     tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
     if (unlikely(ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
-        tcg_gen_extu_i32_tl(arg1, t0);
-        tcg_temp_free_i32(t0);
-#else
-        tcg_gen_bswap_i32(arg1, arg1);
-#endif
+        tcg_gen_bswap32_tl(arg1, arg1);
     }
 }
 
@@ -2633,13 +2606,9 @@ static always_inline void gen_qemu_ld32u(DisasContext *ctx, TCGv arg1, TCGv arg2
 static always_inline void gen_qemu_ld32s(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (unlikely(ctx->le_mode)) {
-        TCGv_i32 t0;
         tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
-        t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
-        tcg_gen_ext_i32_tl(arg1, t0);
-        tcg_temp_free_i32(t0);
+        tcg_gen_bswap32_tl(arg1, arg1);
+        tcg_gen_ext32s_tl(arg1, arg1);
     } else
         tcg_gen_qemu_ld32s(arg1, arg2, ctx->mem_idx);
 }
@@ -2649,7 +2618,7 @@ static always_inline void gen_qemu_ld64(DisasContext *ctx, TCGv_i64 arg1, TCGv a
 {
     tcg_gen_qemu_ld64(arg1, arg2, ctx->mem_idx);
     if (unlikely(ctx->le_mode)) {
-        tcg_gen_bswap_i64(arg1, arg1);
+        tcg_gen_bswap64_i64(arg1, arg1);
     }
 }
 
@@ -2661,25 +2630,11 @@ static always_inline void gen_qemu_st8(DisasContext *ctx, TCGv arg1, TCGv arg2)
 static always_inline void gen_qemu_st16(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (unlikely(ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0;
-        TCGv t1;
-        t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_ext16u_i32(t0, t0);
-        tcg_gen_bswap16_i32(t0, t0);
-        t1 = tcg_temp_new();
-        tcg_gen_extu_i32_tl(t1, t0);
-        tcg_temp_free_i32(t0);
-        tcg_gen_qemu_st16(t1, arg2, ctx->mem_idx);
-        tcg_temp_free(t1);
-#else
         TCGv t0 = tcg_temp_new();
         tcg_gen_ext16u_tl(t0, arg1);
-        tcg_gen_bswap16_i32(t0, t0);
+        tcg_gen_bswap16_tl(t0, t0);
         tcg_gen_qemu_st16(t0, arg2, ctx->mem_idx);
         tcg_temp_free(t0);
-#endif
     } else {
         tcg_gen_qemu_st16(arg1, arg2, ctx->mem_idx);
     }
@@ -2688,23 +2643,11 @@ static always_inline void gen_qemu_st16(DisasContext *ctx, TCGv arg1, TCGv arg2)
 static always_inline void gen_qemu_st32(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (unlikely(ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0;
-        TCGv t1;
-        t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
-        t1 = tcg_temp_new();
-        tcg_gen_extu_i32_tl(t1, t0);
-        tcg_temp_free_i32(t0);
-        tcg_gen_qemu_st32(t1, arg2, ctx->mem_idx);
-        tcg_temp_free(t1);
-#else
-        TCGv t0 = tcg_temp_new_i32();
-        tcg_gen_bswap_i32(t0, arg1);
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_ext32u_tl(t0, arg1);
+        tcg_gen_bswap32_tl(t0, t0);
         tcg_gen_qemu_st32(t0, arg2, ctx->mem_idx);
         tcg_temp_free(t0);
-#endif
     } else {
         tcg_gen_qemu_st32(arg1, arg2, ctx->mem_idx);
     }
@@ -2714,7 +2657,7 @@ static always_inline void gen_qemu_st64(DisasContext *ctx, TCGv_i64 arg1, TCGv a
 {
     if (unlikely(ctx->le_mode)) {
         TCGv_i64 t0 = tcg_temp_new_i64();
-        tcg_gen_bswap_i64(t0, arg1);
+        tcg_gen_bswap64_i64(t0, arg1);
         tcg_gen_qemu_st64(t0, arg2, ctx->mem_idx);
         tcg_temp_free_i64(t0);
     } else
@@ -2992,15 +2935,7 @@ static void always_inline gen_qemu_ld16ur(DisasContext *ctx, TCGv arg1, TCGv arg
 {
     tcg_gen_qemu_ld16u(arg1, arg2, ctx->mem_idx);
     if (likely(!ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap16_i32(t0, t0);
-        tcg_gen_extu_i32_tl(arg1, t0);
-        tcg_temp_free_i32(t0);
-#else
-        tcg_gen_bswap16_i32(arg1, arg1);
-#endif
+        tcg_gen_bswap16_tl(arg1, arg1);
     }
 }
 GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER);
@@ -3010,15 +2945,7 @@ static void always_inline gen_qemu_ld32ur(DisasContext *ctx, TCGv arg1, TCGv arg
 {
     tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
     if (likely(!ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
-        tcg_gen_extu_i32_tl(arg1, t0);
-        tcg_temp_free_i32(t0);
-#else
-        tcg_gen_bswap_i32(arg1, arg1);
-#endif
+        tcg_gen_bswap32_tl(arg1, arg1);
     }
 }
 GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
@@ -3027,25 +2954,11 @@ GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 static void always_inline gen_qemu_st16r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (likely(!ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0;
-        TCGv t1;
-        t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_ext16u_i32(t0, t0);
-        tcg_gen_bswap16_i32(t0, t0);
-        t1 = tcg_temp_new();
-        tcg_gen_extu_i32_tl(t1, t0);
-        tcg_temp_free_i32(t0);
-        tcg_gen_qemu_st16(t1, arg2, ctx->mem_idx);
-        tcg_temp_free(t1);
-#else
         TCGv t0 = tcg_temp_new();
         tcg_gen_ext16u_tl(t0, arg1);
-        tcg_gen_bswap16_i32(t0, t0);
+        tcg_gen_bswap16_tl(t0, t0);
         tcg_gen_qemu_st16(t0, arg2, ctx->mem_idx);
         tcg_temp_free(t0);
-#endif
     } else {
         tcg_gen_qemu_st16(arg1, arg2, ctx->mem_idx);
     }
@@ -3056,23 +2969,11 @@ GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER);
 static void always_inline gen_qemu_st32r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
     if (likely(!ctx->le_mode)) {
-#if defined(TARGET_PPC64)
-        TCGv_i32 t0;
-        TCGv t1;
-        t0 = tcg_temp_new_i32();
-        tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
-        t1 = tcg_temp_new();
-        tcg_gen_extu_i32_tl(t1, t0);
-        tcg_temp_free_i32(t0);
-        tcg_gen_qemu_st32(t1, arg2, ctx->mem_idx);
-        tcg_temp_free(t1);
-#else
-        TCGv t0 = tcg_temp_new_i32();
-        tcg_gen_bswap_i32(t0, arg1);
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_ext32u_tl(t0, arg1);
+        tcg_gen_bswap32_tl(t0, t0);
         tcg_gen_qemu_st32(t0, arg2, ctx->mem_idx);
         tcg_temp_free(t0);
-#endif
     } else {
         tcg_gen_qemu_st32(arg1, arg2, ctx->mem_idx);
     }

@@ -263,16 +263,17 @@ ext32u_i64 t0, t1
 
 8, 16 or 32 bit sign/zero extension (both operands must have the same type)
 
-* bswap16_i32 t0, t1
+* bswap16_i32/i64 t0, t1
 
-16 bit byte swap on a 32 bit value. The two high order bytes must be set
-to zero.
+16 bit byte swap on a 32/64 bit value. The two/six high order bytes must be
+set to zero.
 
-* bswap_i32 t0, t1
+* bswap32_i32/i64 t0, t1
 
-32 bit byte swap
+32 bit byte swap on a 32/64 bit value. With a 32 bit value, the four high
+order bytes must be set to zero.
 
-* bswap_i64 t0, t1
+* bswap64_i64 t0, t1
 
 64 bit byte swap
 
