@@ -1629,18 +1629,14 @@ static void vga_draw_graphic(VGAState *s, int full_update)
 #else
         if (depth == 32) {
 #endif
-            if (is_graphic_console()) {
-                qemu_free_displaysurface(s->ds);
-                s->ds->surface = qemu_create_displaysurface_from(disp_width, height, depth,
-                                                               s->line_offset,
-                                                               s->vram_ptr + (s->start_addr * 4));
+            qemu_free_displaysurface(s->ds);
+            s->ds->surface = qemu_create_displaysurface_from(disp_width, height, depth,
+                    s->line_offset,
+                    s->vram_ptr + (s->start_addr * 4));
 #if defined(WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
-                s->ds->surface->pf = qemu_different_endianness_pixelformat(depth);
+            s->ds->surface->pf = qemu_different_endianness_pixelformat(depth);
 #endif
-                dpy_resize(s->ds);
-            } else {
-                qemu_console_resize(s->ds, disp_width, height);
-            }
+            dpy_resize(s->ds);
         } else {
             qemu_console_resize(s->ds, disp_width, height);
         }
@@ -1651,7 +1647,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         s->last_line_offset = s->line_offset;
         s->last_depth = depth;
         full_update = 1;
-    } else if (is_graphic_console() && is_buffer_shared(s->ds->surface) &&
+    } else if (is_buffer_shared(s->ds->surface) &&
                (full_update || s->ds->surface->data != s->vram_ptr + (s->start_addr * 4))) {
         s->ds->surface->data = s->vram_ptr + (s->start_addr * 4);
         dpy_setdata(s->ds);
