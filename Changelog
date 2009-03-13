@@ -1,3 +1,25 @@
+version 0.10.1:
+
+  - virtio-net: check right return size on sg list (Alex Williamson)
+  - Make qemu_announce_self handle holes (live migration after hotplug)
+    (Marcelo Tosatti)
+  - Revert r6804-r6808 (qcow2 allocation info).  This series of changes added
+    a high cost to startup for large qcow2 images (Anthony Liguori)
+  - qemu-img: fix help message (Aurelien Jarno)
+  - Fix build for non-default installs of SDL (Anthony Liguori)
+  - Fix race condition in env->interrupt_request.  When using TCG and a dynticks
+    host timer, this condition could cause TCG to get stuck in an infinite
+    loop (Aurelien Jarno)
+  - Fix reading encrypted hard disk passwords during early startup (Jan Kiszka)
+  - Fix encrypted disk reporting in 'info block' (Jan Kiszka)
+  - Fix console size with tiny displays (MusicPal) (Jan Kiszka)
+  - Improve error handling in bdrv_open2 (Jan Kiszka)
+  - Avoid leaking data in mux'ed character devices (Jan Kiszka)
+  - Fix initial character device reset (no banner in monitor) (Jan Kiszka)
+  - Fix cpuid KVM crash on i386 host (Lubomir Rintel)
+  - Fix SLES10sp2 installation by adding ISTAT1 register to LSI SCSI emulation
+    (Ryan Harper)
+
 version 0.10.0:
 
   - TCG support (No longer requires GCC 3.x)
