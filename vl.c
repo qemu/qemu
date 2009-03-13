@@ -2874,6 +2874,12 @@ void pcmcia_info(Monitor *mon)
 /***********************************************************/
 /* register display */
 
+struct DisplayAllocator default_allocator = {
+    defaultallocator_create_displaysurface,
+    defaultallocator_resize_displaysurface,
+    defaultallocator_free_displaysurface
+};
+
 void register_displaystate(DisplayState *ds)
 {
     DisplayState **s;
@@ -2889,12 +2895,19 @@ DisplayState *get_displaystate(void)
     return display_state;
 }
 
+DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da)
+{
+    if(ds->allocator ==  &default_allocator) ds->allocator = da;
+    return ds->allocator;
+}
+
 /* dumb display */
 
 static void dumb_display_init(void)
 {
     DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
-    ds->surface = qemu_create_displaysurface(640, 480, 32, 640 * 4);
+    ds->allocator = &default_allocator;
+    ds->surface = qemu_create_displaysurface(ds, 640, 480);
     register_displaystate(ds);
 }
 

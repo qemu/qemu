@@ -364,7 +364,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
     dcl->dpy_refresh = curses_refresh;
     dcl->dpy_text_cursor = curses_cursor_position;
     register_displaychangelistener(ds, dcl);
-    qemu_free_displaysurface(ds->surface);
+    qemu_free_displaysurface(ds);
     ds->surface = qemu_create_displaysurface_from(640, 400, 0, 0, (uint8_t*) screen);
 
     invalidate = 1;

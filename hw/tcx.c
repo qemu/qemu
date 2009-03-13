@@ -66,7 +66,10 @@ static void update_palette_entries(TCXState *s, int start, int end)
             s->palette[i] = rgb_to_pixel16(s->r[i], s->g[i], s->b[i]);
             break;
         case 32:
-            s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
+            if (is_surface_bgr(s->ds->surface))
+                s->palette[i] = rgb_to_pixel32bgr(s->r[i], s->g[i], s->b[i]);
+            else
+                s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
             break;
         }
     }
@@ -124,11 +127,12 @@ static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
                                      const uint32_t *cplane,
                                      const uint32_t *s24)
 {
-    int x, r, g, b;
+    int x, bgr, r, g, b;
     uint8_t val, *p8;
     uint32_t *p = (uint32_t *)d;
     uint32_t dval;
 
+    bgr = is_surface_bgr(s1->ds->surface);
     for(x = 0; x < width; x++, s++, s24++) {
         if ((be32_to_cpu(*cplane++) & 0xff000000) == 0x03000000) {
             // 24-bit direct, BGR order
@@ -137,7 +141,10 @@ static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
             b = *p8++;
             g = *p8++;
             r = *p8++;
-            dval = rgb_to_pixel32(r, g, b);
+            if (bgr)
+                dval = rgb_to_pixel32bgr(r, g, b);
+            else
+                dval = rgb_to_pixel32(r, g, b);
         } else {
             val = *s;
             dval = s1->palette[val];
