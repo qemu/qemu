@@ -1207,16 +1207,13 @@ static inline void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg)
 #ifdef TCG_TARGET_HAS_bswap16_i32
     tcg_gen_op2_i32(INDEX_op_bswap16_i32, ret, arg);
 #else
-    TCGv_i32 t0, t1;
-    t0 = tcg_temp_new_i32();
-    t1 = tcg_temp_new_i32();
+    TCGv_i32 t0 = tcg_temp_new_i32();
     
-    tcg_gen_shri_i32(t0, arg, 8);
-    tcg_gen_andi_i32(t1, arg, 0x000000ff);
-    tcg_gen_shli_i32(t1, t1, 8);
-    tcg_gen_or_i32(ret, t0, t1);
+    tcg_gen_ext8u_i32(t0, arg);
+    tcg_gen_shli_i32(t0, t0, 8);
+    tcg_gen_shri_i32(ret, arg, 8);
+    tcg_gen_or_i32(ret, ret, t0);
     tcg_temp_free_i32(t0);
-    tcg_temp_free_i32(t1);
 #endif
 }
 
