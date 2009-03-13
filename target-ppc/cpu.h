@@ -68,8 +68,7 @@
 
 #define TARGET_HAS_ICE 1
 
-/* Load a 32 bit BIOS also on 64 bit machines */
-#if defined (TARGET_PPC64) && defined(CONFIG_USER_ONLY)
+#if defined (TARGET_PPC64)
 #define ELF_MACHINE     EM_PPC64
 #else
 #define ELF_MACHINE     EM_PPC
