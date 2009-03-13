@@ -1094,7 +1094,14 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
                        args[3], P_REXW);
         break;
 
+    case INDEX_op_bswap16_i32:
+    case INDEX_op_bswap16_i64:
+        tcg_out8(s, 0x66);
+        tcg_out_modrm(s, 0xc1, SHIFT_ROL, args[0]);
+        tcg_out8(s, 8);
+        break;
     case INDEX_op_bswap32_i32:
+    case INDEX_op_bswap32_i64:
         tcg_out_opc(s, (0xc8 + (args[0] & 7)) | P_EXT, 0, args[0], 0);
         break;
     case INDEX_op_bswap64_i64:
@@ -1287,7 +1294,10 @@ static const TCGTargetOpDef x86_64_op_defs[] = {
 
     { INDEX_op_brcond_i64, { "r", "re" } },
 
+    { INDEX_op_bswap16_i32, { "r", "0" } },
+    { INDEX_op_bswap16_i64, { "r", "0" } },
     { INDEX_op_bswap32_i32, { "r", "0" } },
+    { INDEX_op_bswap32_i64, { "r", "0" } },
     { INDEX_op_bswap64_i64, { "r", "0" } },
 
     { INDEX_op_neg_i32, { "r", "0" } },
