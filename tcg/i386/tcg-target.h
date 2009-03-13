@@ -45,7 +45,7 @@ enum {
 #define TCG_TARGET_CALL_STACK_OFFSET 0
 
 /* optional instructions */
-#define TCG_TARGET_HAS_bswap_i32
+#define TCG_TARGET_HAS_bswap32_i32
 #define TCG_TARGET_HAS_neg_i32
 #define TCG_TARGET_HAS_not_i32
 #define TCG_TARGET_HAS_ext8s_i32

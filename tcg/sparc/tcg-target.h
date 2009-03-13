@@ -86,8 +86,8 @@ enum {
 #endif
 
 /* optional instructions */
-//#define TCG_TARGET_HAS_bswap_i32
-//#define TCG_TARGET_HAS_bswap_i64
+//#define TCG_TARGET_HAS_bswap32_i32
+//#define TCG_TARGET_HAS_bswap64_i64
 //#define TCG_TARGET_HAS_neg_i32
 //#define TCG_TARGET_HAS_neg_i64
 

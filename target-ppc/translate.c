@@ -2621,11 +2621,11 @@ static always_inline void gen_qemu_ld32u(DisasContext *ctx, TCGv arg1, TCGv arg2
 #if defined(TARGET_PPC64)
         TCGv_i32 t0 = tcg_temp_new_i32();
         tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
+        tcg_gen_bswap32_i32(t0, t0);
         tcg_gen_extu_i32_tl(arg1, t0);
         tcg_temp_free_i32(t0);
 #else
-        tcg_gen_bswap_i32(arg1, arg1);
+        tcg_gen_bswap32_i32(arg1, arg1);
 #endif
     }
 }
@@ -2638,7 +2638,7 @@ static always_inline void gen_qemu_ld32s(DisasContext *ctx, TCGv arg1, TCGv arg2
         tcg_gen_qemu_ld32u(arg1, arg2, ctx->mem_idx);
         t0 = tcg_temp_new_i32();
         tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
+        tcg_gen_bswap32_i32(t0, t0);
         tcg_gen_ext_i32_tl(arg1, t0);
         tcg_temp_free_i32(t0);
     } else
@@ -2650,7 +2650,7 @@ static always_inline void gen_qemu_ld64(DisasContext *ctx, TCGv_i64 arg1, TCGv a
 {
     tcg_gen_qemu_ld64(arg1, arg2, ctx->mem_idx);
     if (unlikely(ctx->le_mode)) {
-        tcg_gen_bswap_i64(arg1, arg1);
+        tcg_gen_bswap64_i64(arg1, arg1);
     }
 }
 
@@ -2694,7 +2694,7 @@ static always_inline void gen_qemu_st32(DisasContext *ctx, TCGv arg1, TCGv arg2)
         TCGv t1;
         t0 = tcg_temp_new_i32();
         tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
+        tcg_gen_bswap32_i32(t0, t0);
         t1 = tcg_temp_new();
         tcg_gen_extu_i32_tl(t1, t0);
         tcg_temp_free_i32(t0);
@@ -2702,7 +2702,7 @@ static always_inline void gen_qemu_st32(DisasContext *ctx, TCGv arg1, TCGv arg2)
         tcg_temp_free(t1);
 #else
         TCGv t0 = tcg_temp_new_i32();
-        tcg_gen_bswap_i32(t0, arg1);
+        tcg_gen_bswap32_i32(t0, arg1);
         tcg_gen_qemu_st32(t0, arg2, ctx->mem_idx);
         tcg_temp_free(t0);
 #endif
@@ -2715,7 +2715,7 @@ static always_inline void gen_qemu_st64(DisasContext *ctx, TCGv_i64 arg1, TCGv a
 {
     if (unlikely(ctx->le_mode)) {
         TCGv_i64 t0 = tcg_temp_new_i64();
-        tcg_gen_bswap_i64(t0, arg1);
+        tcg_gen_bswap64_i64(t0, arg1);
         tcg_gen_qemu_st64(t0, arg2, ctx->mem_idx);
         tcg_temp_free_i64(t0);
     } else
@@ -3014,11 +3014,11 @@ static void always_inline gen_qemu_ld32ur(DisasContext *ctx, TCGv arg1, TCGv arg
 #if defined(TARGET_PPC64)
         TCGv_i32 t0 = tcg_temp_new_i32();
         tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
+        tcg_gen_bswap32_i32(t0, t0);
         tcg_gen_extu_i32_tl(arg1, t0);
         tcg_temp_free_i32(t0);
 #else
-        tcg_gen_bswap_i32(arg1, arg1);
+        tcg_gen_bswap32_i32(arg1, arg1);
 #endif
     }
 }
@@ -3062,7 +3062,7 @@ static void always_inline gen_qemu_st32r(DisasContext *ctx, TCGv arg1, TCGv arg2
         TCGv t1;
         t0 = tcg_temp_new_i32();
         tcg_gen_trunc_tl_i32(t0, arg1);
-        tcg_gen_bswap_i32(t0, t0);
+        tcg_gen_bswap32_i32(t0, t0);
         t1 = tcg_temp_new();
         tcg_gen_extu_i32_tl(t1, t0);
         tcg_temp_free_i32(t0);
@@ -3070,7 +3070,7 @@ static void always_inline gen_qemu_st32r(DisasContext *ctx, TCGv arg1, TCGv arg2
         tcg_temp_free(t1);
 #else
         TCGv t0 = tcg_temp_new_i32();
-        tcg_gen_bswap_i32(t0, arg1);
+        tcg_gen_bswap32_i32(t0, arg1);
         tcg_gen_qemu_st32(t0, arg2, ctx->mem_idx);
         tcg_temp_free(t0);
 #endif

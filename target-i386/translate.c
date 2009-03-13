@@ -6640,7 +6640,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 #ifdef TARGET_X86_64
         if (dflag == 2) {
             gen_op_mov_TN_reg(OT_QUAD, 0, reg);
-            tcg_gen_bswap_i64(cpu_T[0], cpu_T[0]);
+            tcg_gen_bswap64_i64(cpu_T[0], cpu_T[0]);
             gen_op_mov_reg_T0(OT_QUAD, reg);
         } else
         {
@@ -6649,14 +6649,14 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             
             tmp0 = tcg_temp_new_i32();
             tcg_gen_trunc_i64_i32(tmp0, cpu_T[0]);
-            tcg_gen_bswap_i32(tmp0, tmp0);
+            tcg_gen_bswap32_i32(tmp0, tmp0);
             tcg_gen_extu_i32_i64(cpu_T[0], tmp0);
             gen_op_mov_reg_T0(OT_LONG, reg);
         }
 #else
         {
             gen_op_mov_TN_reg(OT_LONG, 0, reg);
-            tcg_gen_bswap_i32(cpu_T[0], cpu_T[0]);
+            tcg_gen_bswap32_i32(cpu_T[0], cpu_T[0]);
             gen_op_mov_reg_T0(OT_LONG, reg);
         }
 #endif

@@ -1247,7 +1247,7 @@ DISAS_INSN(byterev)
     TCGv reg;
 
     reg = DREG(insn, 0);
-    tcg_gen_bswap_i32(reg, reg);
+    tcg_gen_bswap32_i32(reg, reg);
 }
 
 DISAS_INSN(move)
