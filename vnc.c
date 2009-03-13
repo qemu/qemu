@@ -53,6 +53,7 @@ static char *addr_to_string(const char *format,
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
     int err;
+    size_t addrlen;
 
     if ((err = getnameinfo((struct sockaddr *)sa, salen,
                            host, sizeof(host),
@@ -63,8 +64,12 @@ static char *addr_to_string(const char *format,
         return NULL;
     }
 
-    if (asprintf(&addr, format, host, serv) < 0)
-        return NULL;
+    /* Enough for the existing format + the 2 vars we're
+     * subsituting in. */
+    addrlen = strlen(format) + strlen(host) + strlen(serv);
+    addr = qemu_malloc(addrlen + 1);
+    snprintf(addr, addrlen, format, host, serv);
+    addr[addrlen] = '\0';
 
     return addr;
 }
