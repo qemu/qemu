@@ -152,6 +152,12 @@ DEF2(ext16s_i64, 1, 1, 0, 0)
 #ifdef TCG_TARGET_HAS_ext32s_i64
 DEF2(ext32s_i64, 1, 1, 0, 0)
 #endif
+#ifdef TCG_TARGET_HAS_bswap16_i64
+DEF2(bswap16_i64, 1, 1, 0, 0)
+#endif
+#ifdef TCG_TARGET_HAS_bswap32_i64
+DEF2(bswap32_i64, 1, 1, 0, 0)
+#endif
 #ifdef TCG_TARGET_HAS_bswap64_i64
 DEF2(bswap64_i64, 1, 1, 0, 0)
 #endif
