@@ -361,7 +361,12 @@ static int raw_pread(BlockDriverState *bs, int64_t offset,
 static int raw_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
-    return raw_pread(bs, sector_num * 512, buf, (uint64_t)nb_sectors * 512);
+    int ret;
+
+    ret = raw_pread(bs, sector_num * 512, buf, nb_sectors * 512);
+    if (ret == (nb_sectors * 512))
+        ret = 0;
+    return ret;
 }
 
 /*
@@ -445,7 +450,11 @@ static int raw_pwrite(BlockDriverState *bs, int64_t offset,
 static int raw_write(BlockDriverState *bs, int64_t sector_num,
                      const uint8_t *buf, int nb_sectors)
 {
-    return raw_pwrite(bs, sector_num * 512, buf, (uint64_t)nb_sectors * 512);
+    int ret;
+    ret = raw_pwrite(bs, sector_num * 512, buf, nb_sectors * 512);
+    if (ret == (nb_sectors * 512))
+        ret = 0;
+    return ret;
 }
 
 #ifdef CONFIG_AIO

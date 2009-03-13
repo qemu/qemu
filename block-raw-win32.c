@@ -145,6 +145,8 @@ static int raw_read(BlockDriverState *bs, int64_t sector_num,
 #endif
             return ret_count;
     }
+    if (ret_count == count)
+        ret_count = 0;
     return ret_count;
 }
 
@@ -171,6 +173,8 @@ static int raw_write(BlockDriverState *bs, int64_t sector_num,
 #endif
             return ret_count;
     }
+    if (ret_count == count)
+        ret_count = 0;
     return ret_count;
 }
 
