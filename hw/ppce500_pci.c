@@ -324,8 +324,8 @@ PCIBus *ppce500_pci_init(qemu_irq pci_irqs[4], target_phys_addr_t registers)
                             "host bridge", sizeof(PCIDevice),
                             0, NULL, NULL);
 
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_FSL);
-    pci_config_set_device_id(d->config, PCI_DEVICE_ID_FSL_E500);
+    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_FREESCALE);
+    pci_config_set_device_id(d->config, PCI_DEVICE_ID_MPC8533E);
     pci_config_set_class(d->config, PCI_CLASS_PROCESSOR_POWERPC);
 
     controller->pci_dev = d;

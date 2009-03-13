@@ -1137,7 +1137,7 @@ PCIBus *pci_gt64120_init(qemu_irq *pic)
     /* FIXME: Malta specific hw assumptions ahead */
 
     pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_MARVELL);
-    pci_config_set_device_id(d->config, 0x4620); /* device_id */
+    pci_config_set_device_id(d->config, PCI_DEVICE_ID_MARVELL_GT6412X);
 
     d->config[0x04] = 0x00;
     d->config[0x05] = 0x00;
