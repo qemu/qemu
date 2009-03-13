@@ -948,7 +948,10 @@ static inline int get_depth_index(DisplayState *s)
     case 16:
         return 2;
     case 32:
-        return 3;
+	if (is_surface_bgr(s->surface))
+	    return 4;
+	else
+	    return 3;
     }
 }
 

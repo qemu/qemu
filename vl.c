@@ -2883,6 +2883,12 @@ void pcmcia_info(Monitor *mon)
 /***********************************************************/
 /* register display */
 
+struct DisplayAllocator default_allocator = {
+    defaultallocator_create_displaysurface,
+    defaultallocator_resize_displaysurface,
+    defaultallocator_free_displaysurface
+};
+
 void register_displaystate(DisplayState *ds)
 {
     DisplayState **s;
@@ -2898,15 +2904,22 @@ DisplayState *get_displaystate(void)
     return display_state;
 }
 
+DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da)
+{
+    if(ds->allocator ==  &default_allocator) ds->allocator = da;
+    return ds->allocator;
+}
+
 /* dumb display */
 
 static void dumb_display_init(void)
 {
     DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
+    ds->allocator = &default_allocator;
     // TODO: this is a workaround - smaller surface would crash when
     // monitor display is selected.
-    //~ ds->surface = qemu_create_displaysurface(640, 480, 32, 640 * 4);
-    ds->surface = qemu_create_displaysurface(132 * 8, 43 * 16, 32, 132 * 8 * 4);
+    //~ ds->surface = qemu_create_displaysurface(ds, 640, 480);
+    ds->surface = qemu_create_displaysurface(ds, 132 * 8, 43 * 16);
     register_displaystate(ds);
 }
 

@@ -228,7 +228,7 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         }
 
         if (elem.out_sg[0].iov_len < sizeof(ctrl) ||
-            elem.out_sg[elem.in_num - 1].iov_len < sizeof(status)) {
+            elem.in_sg[elem.in_num - 1].iov_len < sizeof(status)) {
             fprintf(stderr, "virtio-net ctrl header not in correct element\n");
             exit(1);
         }

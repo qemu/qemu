@@ -196,12 +196,14 @@ static void readline_up_char(ReadLineState *rs)
 
 static void readline_down_char(ReadLineState *rs)
 {
-    if (rs->hist_entry == READLINE_MAX_CMDS - 1 || rs->hist_entry == -1)
-	return;
-    if (rs->history[++rs->hist_entry] != NULL) {
+    if (rs->hist_entry == -1)
+        return;
+    if (rs->hist_entry < READLINE_MAX_CMDS - 1 &&
+        rs->history[++rs->hist_entry] != NULL) {
 	pstrcpy(rs->cmd_buf, sizeof(rs->cmd_buf),
                 rs->history[rs->hist_entry]);
     } else {
+        rs->cmd_buf[0] = 0;
 	rs->hist_entry = -1;
     }
     rs->cmd_buf_index = rs->cmd_buf_size = strlen(rs->cmd_buf);

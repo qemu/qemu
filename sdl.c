@@ -53,17 +53,20 @@ static int absolute_enabled = 0;
 static int guest_cursor = 0;
 static int guest_x, guest_y;
 static SDL_Cursor *guest_sprite = 0;
+static uint8_t allocator;
+static uint8_t hostbpp;
 
 static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
 {
-    SDL_Rect rec;
-    rec.x = x;
-    rec.y = y;
-    rec.w = w;
-    rec.h = h;
     //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
-
-    SDL_BlitSurface(guest_screen, &rec, real_screen, &rec);
+    if (guest_screen) {
+        SDL_Rect rec;
+        rec.x = x;
+        rec.y = y;
+        rec.w = w;
+        rec.h = h;
+        SDL_BlitSurface(guest_screen, &rec, real_screen, &rec);
+    }
     SDL_UpdateRect(real_screen, x, y, w, h);
 }
 
@@ -83,7 +86,7 @@ static void sdl_setdata(DisplayState *ds)
                                             ds->surface->pf.bmask, ds->surface->pf.amask);
 }
 
-static void sdl_resize(DisplayState *ds)
+static void do_sdl_resize(int width, int height, int bpp)
 {
     int flags;
 
@@ -95,15 +98,101 @@ static void sdl_resize(DisplayState *ds)
     if (gui_noframe)
         flags |= SDL_NOFRAME;
 
-    width = ds_get_width(ds);
-    height = ds_get_height(ds);
-    real_screen = SDL_SetVideoMode(width, height, 0, flags);
+    real_screen = SDL_SetVideoMode(width, height, bpp, flags);
     if (!real_screen) {
         fprintf(stderr, "Could not open SDL display\n");
         exit(1);
     }
+}
 
-    sdl_setdata(ds);
+static void sdl_resize(DisplayState *ds)
+{
+    if  (!allocator) {
+        do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
+        sdl_setdata(ds);
+    } else {
+        if (guest_screen != NULL) {
+            SDL_FreeSurface(guest_screen);
+            guest_screen = NULL;
+        }
+    }
+}
+
+static PixelFormat sdl_to_qemu_pixelformat(SDL_PixelFormat *sdl_pf)
+{
+    PixelFormat qemu_pf;
+
+    memset(&qemu_pf, 0x00, sizeof(PixelFormat));
+
+    qemu_pf.bits_per_pixel = sdl_pf->BitsPerPixel;
+    qemu_pf.bytes_per_pixel = sdl_pf->BytesPerPixel;
+    qemu_pf.depth = (qemu_pf.bits_per_pixel) == 32 ? 24 : (qemu_pf.bits_per_pixel);
+
+    qemu_pf.rmask = sdl_pf->Rmask;
+    qemu_pf.gmask = sdl_pf->Gmask;
+    qemu_pf.bmask = sdl_pf->Bmask;
+    qemu_pf.amask = sdl_pf->Amask;
+
+    qemu_pf.rshift = sdl_pf->Rshift;
+    qemu_pf.gshift = sdl_pf->Gshift;
+    qemu_pf.bshift = sdl_pf->Bshift;
+    qemu_pf.ashift = sdl_pf->Ashift;
+
+    qemu_pf.rbits = 8 - sdl_pf->Rloss;
+    qemu_pf.gbits = 8 - sdl_pf->Gloss;
+    qemu_pf.bbits = 8 - sdl_pf->Bloss;
+    qemu_pf.abits = 8 - sdl_pf->Aloss;
+
+    qemu_pf.rmax = ((1 << qemu_pf.rbits) - 1);
+    qemu_pf.gmax = ((1 << qemu_pf.gbits) - 1);
+    qemu_pf.bmax = ((1 << qemu_pf.bbits) - 1);
+    qemu_pf.amax = ((1 << qemu_pf.abits) - 1);
+
+    return qemu_pf;
+}
+
+static DisplaySurface* sdl_create_displaysurface(int width, int height)
+{
+    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
+    if (surface == NULL) {
+        fprintf(stderr, "sdl_create_displaysurface: malloc failed\n");
+        exit(1);
+    }
+
+    surface->width = width;
+    surface->height = height;
+
+    if (hostbpp == 16)
+        do_sdl_resize(width, height, 16);
+    else
+        do_sdl_resize(width, height, 32);
+
+    surface->pf = sdl_to_qemu_pixelformat(real_screen->format);
+    surface->linesize = real_screen->pitch;
+    surface->data = real_screen->pixels;
+
+#ifdef WORDS_BIGENDIAN
+    surface->flags = QEMU_ALLOCATED_FLAG | QEMU_BIG_ENDIAN_FLAG;
+#else
+    surface->flags = QEMU_ALLOCATED_FLAG;
+#endif
+    allocator = 1;
+
+    return surface;
+}
+
+static void sdl_free_displaysurface(DisplaySurface *surface)
+{
+    allocator = 0;
+    if (surface == NULL)
+        return;
+    qemu_free(surface);
+}
+
+static DisplaySurface* sdl_resize_displaysurface(DisplaySurface *surface, int width, int height)
+{
+    sdl_free_displaysurface(surface);
+    return sdl_create_displaysurface(width, height);
 }
 
 /* generic keyboard conversion */
@@ -391,7 +480,7 @@ static void sdl_send_mouse_event(int dx, int dy, int dz, int x, int y, int state
 static void toggle_full_screen(DisplayState *ds)
 {
     gui_fullscreen = !gui_fullscreen;
-    sdl_resize(ds);
+    do_sdl_resize(real_screen->w, real_screen->h, real_screen->format->BitsPerPixel);
     if (gui_fullscreen) {
         gui_saved_grab = gui_grab;
         sdl_grab_start();
@@ -669,6 +758,8 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 {
     int flags;
     uint8_t data = 0;
+    DisplayAllocator *da;
+    const SDL_VideoInfo *vi;
 
 #if defined(__APPLE__)
     /* always use generic keymaps */
@@ -689,6 +780,8 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         fprintf(stderr, "Could not initialize SDL - exiting\n");
         exit(1);
     }
+    vi = SDL_GetVideoInfo();
+    hostbpp = vi->vfmt->BitsPerPixel;
 
     dcl = qemu_mallocz(sizeof(DisplayChangeListener));
     dcl->dpy_update = sdl_update;
@@ -699,6 +792,18 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     ds->mouse_set = sdl_mouse_warp;
     ds->cursor_define = sdl_mouse_define;
     register_displaychangelistener(ds, dcl);
+
+    da = qemu_mallocz(sizeof(DisplayAllocator));
+    da->create_displaysurface = sdl_create_displaysurface;
+    da->resize_displaysurface = sdl_resize_displaysurface;
+    da->free_displaysurface = sdl_free_displaysurface;
+    if (register_displayallocator(ds, da) == da) {
+        DisplaySurface *surf;
+        surf = sdl_create_displaysurface(ds_get_width(ds), ds_get_height(ds));
+        defaultallocator_free_displaysurface(ds->surface);
+        ds->surface = surf;
+        dpy_resize(ds);
+    }
 
     sdl_update_caption();
     SDL_EnableKeyRepeat(250, 50);

@@ -1163,7 +1163,10 @@ static inline int get_depth_index(DisplayState *s)
     case 16:
         return 2;
     case 32:
-        return 3;
+        if (is_surface_bgr(s->surface))
+            return 4;
+        else
+            return 3;
     }
 }
 
@@ -1628,18 +1631,14 @@ static void vga_draw_graphic(VGAState *s, int full_update)
 #else
         if (depth == 32) {
 #endif
-            if (is_graphic_console()) {
-                qemu_free_displaysurface(s->ds->surface);
-                s->ds->surface = qemu_create_displaysurface_from(disp_width, height, depth,
-                                                               s->line_offset,
-                                                               s->vram_ptr + (s->start_addr * 4));
+            qemu_free_displaysurface(s->ds);
+            s->ds->surface = qemu_create_displaysurface_from(disp_width, height, depth,
+                    s->line_offset,
+                    s->vram_ptr + (s->start_addr * 4));
 #if defined(WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
-                s->ds->surface->pf = qemu_different_endianness_pixelformat(depth);
+            s->ds->surface->pf = qemu_different_endianness_pixelformat(depth);
 #endif
-                dpy_resize(s->ds);
-            } else {
-                qemu_console_resize(s->ds, disp_width, height);
-            }
+            dpy_resize(s->ds);
         } else {
             qemu_console_resize(s->ds, disp_width, height);
         }
@@ -1650,7 +1649,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         s->last_line_offset = s->line_offset;
         s->last_depth = depth;
         full_update = 1;
-    } else if (is_graphic_console() && is_buffer_shared(s->ds->surface) &&
+    } else if (is_buffer_shared(s->ds->surface) &&
                (full_update || s->ds->surface->data != s->vram_ptr + (s->start_addr * 4))) {
         s->ds->surface->data = s->vram_ptr + (s->start_addr * 4);
         dpy_setdata(s->ds);
@@ -2484,6 +2483,17 @@ int isa_vga_mm_init(uint8_t *vga_ram_base,
     return 0;
 }
 
+static void pci_vga_write_config(PCIDevice *d,
+                                 uint32_t address, uint32_t val, int len)
+{
+    PCIVGAState *pvs = container_of(d, PCIVGAState, dev);
+    VGAState *s = &pvs->vga_state;
+
+    vga_dirty_log_stop(s);
+    pci_default_write_config(d, address, val, len);
+    vga_dirty_log_start(s);
+}
+
 int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
                  unsigned long vga_ram_offset, int vga_ram_size,
                  unsigned long vga_bios_offset, int vga_bios_size)
@@ -2494,7 +2504,7 @@ int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
 
     d = (PCIVGAState *)pci_register_device(bus, "VGA",
                                            sizeof(PCIVGAState),
-                                           -1, NULL, NULL);
+                                           -1, NULL, pci_vga_write_config);
     if (!d)
         return -1;
     s = &d->vga_state;
@@ -2621,7 +2631,7 @@ static void vga_screen_dump_common(VGAState *s, const char *filename,
     dcl.dpy_resize = vga_save_dpy_resize;
     dcl.dpy_refresh = vga_save_dpy_refresh;
     register_displaychangelistener(ds, &dcl);
-    ds->surface = qemu_create_displaysurface(w, h, 32, 4 * w);
+    ds->surface = qemu_create_displaysurface(ds, w, h);
 
     s->ds = ds;
     s->graphic_mode = -1;
@@ -2629,7 +2639,7 @@ static void vga_screen_dump_common(VGAState *s, const char *filename,
 
     ppm_save(filename, ds->surface);
 
-    qemu_free_displaysurface(ds->surface);
+    qemu_free_displaysurface(ds);
     s->ds = saved_ds;
 }
 
