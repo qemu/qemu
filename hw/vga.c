@@ -2481,6 +2481,17 @@ int isa_vga_mm_init(uint8_t *vga_ram_base,
     return 0;
 }
 
+static void pci_vga_write_config(PCIDevice *d,
+                                 uint32_t address, uint32_t val, int len)
+{
+    PCIVGAState *pvs = container_of(d, PCIVGAState, dev);
+    VGAState *s = &pvs->vga_state;
+
+    vga_dirty_log_stop(s);
+    pci_default_write_config(d, address, val, len);
+    vga_dirty_log_start(s);
+}
+
 int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
                  unsigned long vga_ram_offset, int vga_ram_size,
                  unsigned long vga_bios_offset, int vga_bios_size)
@@ -2491,7 +2502,7 @@ int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
 
     d = (PCIVGAState *)pci_register_device(bus, "VGA",
                                            sizeof(PCIVGAState),
-                                           -1, NULL, NULL);
+                                           -1, NULL, pci_vga_write_config);
     if (!d)
         return -1;
     s = &d->vga_state;
