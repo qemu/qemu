@@ -122,7 +122,9 @@ void qemu_announce_self(void)
     VLANClientState *vc;
     uint8_t buf[256];
 
-    for (i = 0; i < nb_nics; i++) {
+    for (i = 0; i < MAX_NICS; i++) {
+        if (!nd_table[i].used)
+            continue;
         len = announce_self_create(buf, nd_table[i].macaddr);
         vlan = nd_table[i].vlan;
         for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
