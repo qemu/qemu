@@ -89,6 +89,9 @@ DEF2(ext8s_i32, 1, 1, 0, 0)
 #ifdef TCG_TARGET_HAS_ext16s_i32
 DEF2(ext16s_i32, 1, 1, 0, 0)
 #endif
+#ifdef TCG_TARGET_HAS_bswap16_i32
+DEF2(bswap16_i32, 1, 1, 0, 0)
+#endif
 #ifdef TCG_TARGET_HAS_bswap32_i32
 DEF2(bswap32_i32, 1, 1, 0, 0)
 #endif
