@@ -142,13 +142,13 @@ extern const char *qemu_uname_release;
 struct linux_binprm {
         char buf[128];
         void *page[MAX_ARG_PAGES];
-        abi_ulong p;
-	int fd;
+        int fd;
         int e_uid, e_gid;
         int argc, envc;
         char **argv;
         char **envp;
         char * filename;        /* Name of binary */
+        abi_ulong p;
 };
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
