@@ -47,22 +47,11 @@
 
 /* Common declarations for all PCI devices. */
 
-#define PCI_VENDOR_ID           0x00    /* 16 bits */
 #define PCI_DEVICE_ID           0x02    /* 16 bits */
 #define PCI_COMMAND             0x04    /* 16 bits */
 #define PCI_STATUS              0x06    /* 16 bits */
 
 #define PCI_REVISION_ID         0x08    /* 8 bits  */
-#define PCI_CLASS_CODE          0x0b    /* 8 bits */
-#define PCI_SUBCLASS_CODE       0x0a    /* 8 bits */
-#define PCI_HEADER_TYPE         0x0e    /* 8 bits */
-
-#define PCI_BASE_ADDRESS_0      0x10    /* 32 bits */
-#define PCI_BASE_ADDRESS_1      0x14    /* 32 bits */
-#define PCI_BASE_ADDRESS_2      0x18    /* 32 bits */
-#define PCI_BASE_ADDRESS_3      0x1c    /* 32 bits */
-#define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
-#define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
 
 #define PCI_CONFIG_8(offset, value) \
     (pci_conf[offset] = (value))
@@ -198,12 +187,6 @@ typedef enum {
     ru_no_resources = 2,
     ru_ready = 4
 } ru_state_t;
-
-#if defined(__BIG_ENDIAN_BITFIELD)
-#define X(a,b)	b,a
-#else
-#define X(a,b)	a,b
-#endif
 
 typedef struct {
 #if 1
@@ -1464,8 +1447,6 @@ static int nic_can_receive(void *opaque)
     return get_ru_state(s) == ru_ready;
     //~ return !eepro100_buffer_full(s);
 }
-
-#define MIN_BUF_SIZE 60
 
 static void nic_receive(void *opaque, const uint8_t * buf, int size)
 {

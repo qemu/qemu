@@ -44,7 +44,6 @@
 #else
 #define DPRINTF(fmt, args...) do { } while (0)
 #endif
-#define ERROR(fmr, args...) do { printf("ERROR: " fmr , ##args); } while (0)
 
 #define USE_MPCxxx /* Intel model is broken, for now */
 

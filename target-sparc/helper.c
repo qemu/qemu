@@ -1366,8 +1366,6 @@ void sparc_cpu_list(FILE *f, int (*cpu_fprintf)(FILE *f, const char *fmt, ...))
                    "fpu_version mmu_version nwindows\n");
 }
 
-#define GET_FLAG(a,b) ((env->psr & a)?b:'-')
-
 void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
@@ -1411,6 +1409,9 @@ void cpu_dump_state(CPUState *env, FILE *f,
                 env->cansave, env->canrestore, env->otherwin, env->wstate,
                 env->cleanwin, env->nwindows - 1 - env->cwp);
 #else
+
+#define GET_FLAG(a,b) ((env->psr & a)?b:'-')
+
     cpu_fprintf(f, "psr: 0x%08x -> %c%c%c%c %c%c%c wim: 0x%08x\n",
                 GET_PSR(env), GET_FLAG(PSR_ZERO, 'Z'), GET_FLAG(PSR_OVF, 'V'),
                 GET_FLAG(PSR_NEG, 'N'), GET_FLAG(PSR_CARRY, 'C'),

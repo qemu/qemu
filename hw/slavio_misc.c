@@ -56,10 +56,7 @@ typedef struct MiscState {
 
 #define MISC_SIZE 1
 #define SYSCTRL_SIZE 4
-#define LED_MAXADDR 1
-#define LED_SIZE (LED_MAXADDR + 1)
 
-#define MISC_MASK 0x0fff0000
 #define MISC_LEDS 0x01600000
 #define MISC_CFG  0x01800000
 #define MISC_DIAG 0x01a00000

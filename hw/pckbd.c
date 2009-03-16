@@ -109,8 +109,6 @@
 #define MOUSE_STATUS_ENABLED    0x20
 #define MOUSE_STATUS_SCALE21    0x10
 
-#define KBD_QUEUE_SIZE 256
-
 #define KBD_PENDING_KBD         1
 #define KBD_PENDING_AUX         2
 

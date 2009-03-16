@@ -6,7 +6,6 @@
  */
 
 #include "qemu-common.h"
-#define WANT_SYS_IOCTL_H
 #include <slirp.h>
 #include "ip_icmp.h"
 #ifdef __sun__

@@ -199,7 +199,6 @@ static void bswap_ahdr(struct exec *e)
     (N_MAGIC(x) == ZMAGIC ? _N_HDROFF((x)) + sizeof (struct exec) :	\
      (N_MAGIC(x) == QMAGIC ? 0 : sizeof (struct exec)))
 #define N_TXTADDR(x) (N_MAGIC(x) == QMAGIC ? TARGET_PAGE_SIZE : 0)
-#define N_DATOFF(x) (N_TXTOFF(x) + (x).a_text)
 #define _N_SEGMENT_ROUND(x) (((x) + TARGET_PAGE_SIZE - 1) & ~(TARGET_PAGE_SIZE - 1))
 
 #define _N_TXTENDADDR(x) (N_TXTADDR(x)+(x).a_text)

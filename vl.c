@@ -2914,8 +2914,6 @@ static void dumb_display_init(void)
 /***********************************************************/
 /* I/O handling */
 
-#define MAX_IO_HANDLERS 64
-
 typedef struct IOHandlerRecord {
     int fd;
     IOCanRWHandler *fd_read_poll;

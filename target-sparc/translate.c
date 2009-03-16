@@ -92,11 +92,9 @@ typedef struct DisasContext {
 #define GET_FIELD_SPs(x,a,b) sign_extend (GET_FIELD_SP(x,a,b), ((b) - (a) + 1))
 
 #ifdef TARGET_SPARC64
-#define FFPREG(r) (r)
 #define DFPREG(r) (((r & 1) << 5) | (r & 0x1e))
 #define QFPREG(r) (((r & 1) << 5) | (r & 0x1c))
 #else
-#define FFPREG(r) (r)
 #define DFPREG(r) (r & 0x1e)
 #define QFPREG(r) (r & 0x1c)
 #endif
@@ -2846,24 +2844,6 @@ static void disas_sparc_insn(DisasContext * dc)
 #undef FMOVSCC
 #undef FMOVDCC
 #undef FMOVQCC
-#define FMOVCC(size_FDQ, icc)                                           \
-                    {                                                   \
-                        TCGv r_cond;                                    \
-                        int l1;                                         \
-                                                                        \
-                        l1 = gen_new_label();                           \
-                        r_cond = tcg_temp_new();             \
-                        cond = GET_FIELD_SP(insn, 14, 17);              \
-                        gen_cond(r_cond, icc, cond);                    \
-                        tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
-                                           0, l1);                      \
-                        glue(glue(gen_op_load_fpr_, size_FDQ), T0)      \
-                            (glue(size_FDQ, FPREG(rs2)));               \
-                        glue(glue(gen_op_store_, size_FDQ), T0_fpr)     \
-                            (glue(size_FDQ, FPREG(rd)));                \
-                        gen_set_label(l1);                              \
-                        tcg_temp_free(r_cond);                          \
-                    }
 #define FMOVSCC(icc)                                                    \
                     {                                                   \
                         TCGv r_cond;                                    \

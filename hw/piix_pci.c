@@ -210,9 +210,6 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
 static PCIDevice *piix3_dev;
 PCIDevice *piix4_dev;
 
-/* just used for simpler irq handling. */
-#define PCI_IRQ_WORDS   ((PCI_DEVICES_MAX + 31) / 32)
-
 static void piix3_set_irq(qemu_irq *pic, int irq_num, int level)
 {
     int i, pic_irq, pic_level;

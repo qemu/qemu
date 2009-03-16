@@ -49,8 +49,6 @@
  *
  ***************************************/
 
-#define qemu_MIN(a,b) ((a) < (b) ? (a) : (b))
-
 // ID
 #define CIRRUS_ID_CLGD5422  (0x23<<2)
 #define CIRRUS_ID_CLGD5426  (0x24<<2)
@@ -172,10 +170,6 @@
 #define CIRRUS_MMIO_BRESENHAM_DIRECTION 0x38	// byte
 #define CIRRUS_MMIO_LINEDRAW_MODE     0x39	// byte
 #define CIRRUS_MMIO_BLTSTATUS         0x40	// byte
-
-// PCI 0x02: device
-#define PCI_DEVICE_CLGD5462           0x00d0
-#define PCI_DEVICE_CLGD5465           0x00d6
 
 // PCI 0x04: command(word), 0x06(word): status
 #define PCI_COMMAND_IOACCESS                0x0001

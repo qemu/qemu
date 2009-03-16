@@ -242,8 +242,6 @@ static void sd_set_cid(SDState *sd)
 #define SECTOR_SHIFT	5			/* 16 kilobytes */
 #define WPGROUP_SHIFT	7			/* 2 megs */
 #define CMULT_SHIFT	9			/* 512 times HWBLOCK_SIZE */
-#define BLOCK_SIZE	(1 << (HWBLOCK_SHIFT))
-#define SECTOR_SIZE	(1 << (HWBLOCK_SHIFT + SECTOR_SHIFT))
 #define WPGROUP_SIZE	(1 << (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT))
 
 static const uint8_t sd_csd_rw_mask[16] = {
