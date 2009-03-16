@@ -5,7 +5,6 @@
  * terms and conditions of the copyright.
  */
 
-#define WANT_SYS_IOCTL_H
 #include <slirp.h>
 
 u_int curtime, time_fasttimo, last_slowtimo;

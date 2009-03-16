@@ -149,8 +149,6 @@ static const char *vnc_auth_name(VncDisplay *vd) {
     return "unknown";
 }
 
-#define VNC_SOCKET_FORMAT_PRETTY "local %s:%s"
-
 static void do_info_vnc_client(Monitor *mon, VncState *client)
 {
     char *clientAddr =

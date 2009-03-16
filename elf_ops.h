@@ -194,8 +194,21 @@ static int glue(load_elf, SZ)(int fd, int64_t address_offset,
         glue(bswap_ehdr, SZ)(&ehdr);
     }
 
-    if (ELF_MACHINE != ehdr.e_machine)
-        goto fail;
+    switch (ELF_MACHINE) {
+        case EM_PPC64:
+            if (EM_PPC64 != ehdr.e_machine)
+                if (EM_PPC != ehdr.e_machine)
+                    goto fail;
+            break;
+        case EM_X86_64:
+            if (EM_X86_64 != ehdr.e_machine)
+                if (EM_386 != ehdr.e_machine)
+                    goto fail;
+            break;
+        default:
+            if (ELF_MACHINE != ehdr.e_machine)
+                goto fail;
+    }
 
     if (pentry)
    	*pentry = (uint64_t)(elf_sword)ehdr.e_entry;

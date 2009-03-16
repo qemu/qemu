@@ -28,11 +28,9 @@
 
 #define dolog(...) fprintf (stderr, "dma: " __VA_ARGS__)
 #ifdef DEBUG_DMA
-#define lwarn(...) fprintf (stderr, "dma: " __VA_ARGS__)
 #define linfo(...) fprintf (stderr, "dma: " __VA_ARGS__)
 #define ldebug(...) fprintf (stderr, "dma: " __VA_ARGS__)
 #else
-#define lwarn(...)
 #define linfo(...)
 #define ldebug(...)
 #endif

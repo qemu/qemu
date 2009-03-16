@@ -29,8 +29,6 @@ do { printf("MXCC: " fmt , ##args); } while (0)
 #ifdef DEBUG_ASI
 #define DPRINTF_ASI(fmt, args...) \
 do { printf("ASI: " fmt , ##args); } while (0)
-#else
-#define DPRINTF_ASI(fmt, args...) do {} while (0)
 #endif
 
 #ifdef TARGET_SPARC64
