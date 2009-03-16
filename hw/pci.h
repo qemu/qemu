@@ -97,8 +97,13 @@ typedef struct PCIIORegion {
 #define PCI_COMMAND		0x04	/* 16 bits */
 #define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
 #define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
+#define PCI_STATUS              0x06    /* 16 bits */
 #define PCI_REVISION            0x08
 #define PCI_CLASS_DEVICE        0x0a    /* Device class */
+#define PCI_HEADER_TYPE         0x0e    /* 8 bits */
+#define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */
+#define PCI_SUBSYSTEM_ID        0x2e    /* 16 bits */
+/* Next two declarations are old, don't use them. */
 #define PCI_SUBVENDOR_ID	0x2c	/* 16 bits */
 #define PCI_SUBDEVICE_ID	0x2e	/* 16 bits */
 #define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */

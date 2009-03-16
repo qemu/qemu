@@ -50,26 +50,6 @@
 
 /* Common declarations for all PCI devices. */
 
-#define PCI_VENDOR_ID           0x00    /* 16 bits */
-#define PCI_DEVICE_ID           0x02    /* 16 bits */
-#define PCI_COMMAND             0x04    /* 16 bits */
-#define PCI_STATUS              0x06    /* 16 bits */
-
-#define PCI_REVISION_ID         0x08    /* 8 bits  */
-#define PCI_CLASS_CODE          0x0b    /* 8 bits */
-#define PCI_SUBCLASS_CODE       0x0a    /* 8 bits */
-#define PCI_HEADER_TYPE         0x0e    /* 8 bits */
-
-#define PCI_BASE_ADDRESS_0      0x10    /* 32 bits */
-#define PCI_BASE_ADDRESS_1      0x14    /* 32 bits */
-#define PCI_BASE_ADDRESS_2      0x18    /* 32 bits */
-#define PCI_BASE_ADDRESS_3      0x1c    /* 32 bits */
-#define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
-#define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
-
-#define PCI_SUBSYSTEM_ID        0x2c    /* 16 bits */
-#define PCI_SUBSYSTEM_VENDOR    0x2e    /* 16 bits */
-
 #define PCI_CONFIG_8(offset, value) \
     (pci_conf[offset] = (value))
 #define PCI_CONFIG_16(offset, value) \
@@ -564,42 +544,42 @@ static void pci_reset(EEPRO100State * s)
     switch (device) {
     case i82551:
         //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
-        PCI_CONFIG_8(PCI_REVISION_ID, 0x0f);
+        PCI_CONFIG_8(PCI_REVISION, 0x0f);
         break;
     case i82557A:
         PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
-        PCI_CONFIG_8(PCI_REVISION_ID, 0x01);
+        PCI_CONFIG_8(PCI_REVISION, 0x01);
         PCI_CONFIG_8(0x34, 0x00);
         break;
     case i82557B:
         PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
-        PCI_CONFIG_8(PCI_REVISION_ID, 0x02);
+        PCI_CONFIG_8(PCI_REVISION, 0x02);
         PCI_CONFIG_8(0x34, 0x00);
         break;
     case i82557C:
         PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
-        PCI_CONFIG_8(PCI_REVISION_ID, 0x03);
+        PCI_CONFIG_8(PCI_REVISION, 0x03);
         PCI_CONFIG_8(0x34, 0x00);
         break;
     case i82558B:
         PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
-        PCI_CONFIG_8(PCI_REVISION_ID, 0x05);
+        PCI_CONFIG_8(PCI_REVISION, 0x05);
         break;
     case i82559C:
         PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
-        //~ PCI_CONFIG_8(PCI_REVISION_ID, 0x08);
-        PCI_CONFIG_8(PCI_REVISION_ID, 0x0c);
+        //~ PCI_CONFIG_8(PCI_REVISION, 0x08);
+        PCI_CONFIG_8(PCI_REVISION, 0x0c);
 #if EEPROM_SIZE > 0
-        PCI_CONFIG_16(PCI_SUBSYSTEM_ID, 0x8086);
-        PCI_CONFIG_16(PCI_SUBSYSTEM_VENDOR, 0x0040);
+        PCI_CONFIG_16(PCI_SUBSYSTEM_VENDOR_ID, 0x8086);
+        PCI_CONFIG_16(PCI_SUBSYSTEM_ID, 0x0040);
 #endif
         break;
     case i82559ER:
         //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
-        PCI_CONFIG_8(PCI_REVISION_ID, 0x09);
+        PCI_CONFIG_8(PCI_REVISION, 0x09);
         break;
     //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1029);
     //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1030);       /* 82559 InBusiness 10/100 !!! */
@@ -1686,8 +1666,6 @@ static int nic_can_receive(void *opaque)
     return get_ru_state(s) == ru_ready;
     //~ return !eepro100_buffer_full(s);
 }
-
-#define MIN_BUF_SIZE 60
 
 static void nic_receive(void *opaque, const uint8_t * buf, int size)
 {

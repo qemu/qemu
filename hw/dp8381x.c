@@ -1,7 +1,7 @@
 /*
  * QEMU emulation for National Semiconductor DP83815 / DP83816.
  * 
- * Copyright (C) 2006-2007 Stefan Weil
+ * Copyright (C) 2006-2009 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,23 +45,6 @@
  * Common declarations for all PCI devices.
  *
  ****************************************************************************/
-
-#define PCI_VENDOR_ID           0x00    /* 16 bits */
-#define PCI_DEVICE_ID           0x02    /* 16 bits */
-#define PCI_COMMAND             0x04    /* 16 bits */
-#define PCI_STATUS              0x06    /* 16 bits */
-
-#define PCI_REVISION_ID         0x08    /* 8 bits  */
-#define PCI_CLASS_CODE          0x0b    /* 8 bits */
-#define PCI_SUBCLASS_CODE       0x0a    /* 8 bits */
-#define PCI_HEADER_TYPE         0x0e    /* 8 bits */
-
-#define PCI_BASE_ADDRESS_0      0x10    /* 32 bits */
-#define PCI_BASE_ADDRESS_1      0x14    /* 32 bits */
-#define PCI_BASE_ADDRESS_2      0x18    /* 32 bits */
-#define PCI_BASE_ADDRESS_3      0x1c    /* 32 bits */
-#define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
-#define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
 
 #define PCI_CONFIG_8(offset, value) \
     (pci_conf[offset] = (value))
@@ -1519,7 +1502,7 @@ static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x0020100b);
     PCI_CONFIG_32(PCI_COMMAND, 0x02900000);
     /* ethernet network controller */
-    PCI_CONFIG_32(PCI_REVISION_ID, 0x02000000);
+    PCI_CONFIG_32(PCI_REVISION, 0x02000000);
     /* Address registers are set by pci_register_io_region. */
     /* Capabilities Pointer, CLOFS */
     PCI_CONFIG_32(0x34, 0x00000040);

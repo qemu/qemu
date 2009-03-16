@@ -40,24 +40,6 @@
 #include "net.h"
 #include "qemu_socket.h"
 
-enum
-{
-    //~ E100_PCI_VENDOR_ID = 0x00,        /* 16 bits */
-    //~ E100_PCI_DEVICE_ID = 0x02,        /* 16 bits */
-    //~ E100_PCI_COMMAND = 0x04,        /* 16 bits */
-    //~ E100_PCI_STATUS = 0x06,            /* 16 bits */
-    E100_PCI_REVISION_ID = 0x08,    /* 8 bits */
-    //~ E100_PCI_CLASS_CODE = 0x0b,        /* 8 bits */
-    //~ E100_PCI_SUBCLASS_CODE = 0x0a,    /* 8 bits */
-    //~ E100_PCI_HEADER_TYPE = 0x0e,    /* 8 bits */
-    //~ E100_PCI_BASE_ADDRESS_0 = 0x10,    /* 32 bits */
-    //~ E100_PCI_BASE_ADDRESS_1 = 0x14,    /* 32 bits */
-    //~ E100_PCI_BASE_ADDRESS_2 = 0x18,    /* 32 bits */
-    //~ E100_PCI_BASE_ADDRESS_3 = 0x1c,    /* 32 bits */
-    //~ E100_PCI_BASE_ADDRESS_4 = 0x20,    /* 32 bits */
-    //~ E100_PCI_BASE_ADDRESS_5 = 0x24    /* 32 bits */
-}PCI_CONFIGURE_SPACE;
-
 #define PCI_CONFIG_8(offset, value) \
     (*(uint8_t *)&pci_conf[offset] = (value))
 #define PCI_CONFIG_16(offset, value) \
@@ -800,7 +782,7 @@ static void pci_reset(E100State * s)
     logout("%p\n", s);
 
     /* I82557 */
-    PCI_CONFIG_8(E100_PCI_REVISION_ID, 0x01);
+    PCI_CONFIG_8(PCI_REVISION, 0x01);
 
     PCI_CONFIG_8(0x3c, 0x0);
 

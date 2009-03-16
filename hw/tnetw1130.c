@@ -1,7 +1,7 @@
 /*
  * QEMU emulation for Texas Instruments TNETW1130 (ACX111) wireless.
  * 
- * Copyright (C) 2007 Stefan Weil
+ * Copyright (C) 2007-2009 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,23 +30,6 @@
  * Common declarations for all PCI devices.
  *
  ****************************************************************************/
-
-#define PCI_VENDOR_ID           0x00    /* 16 bits */
-#define PCI_DEVICE_ID           0x02    /* 16 bits */
-#define PCI_COMMAND             0x04    /* 16 bits */
-#define PCI_STATUS              0x06    /* 16 bits */
-
-#define PCI_REVISION_ID         0x08    /* 8 bits  */
-#define PCI_CLASS_CODE          0x0b    /* 8 bits */
-#define PCI_SUBCLASS_CODE       0x0a    /* 8 bits */
-#define PCI_HEADER_TYPE         0x0e    /* 8 bits */
-
-#define PCI_BASE_ADDRESS_0      0x10    /* 32 bits */
-#define PCI_BASE_ADDRESS_1      0x14    /* 32 bits */
-#define PCI_BASE_ADDRESS_2      0x18    /* 32 bits */
-#define PCI_BASE_ADDRESS_3      0x1c    /* 32 bits */
-#define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
-#define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
 
 #define PCI_CONFIG_8(offset, value) \
     (pci_conf[offset] = (value))
@@ -831,7 +814,7 @@ static void tnetw1130_pci_config(uint8_t *pci_conf)
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x9066104c);
     PCI_CONFIG_32(PCI_COMMAND, 0x02100000);
     /* ethernet network controller */
-    PCI_CONFIG_32(PCI_REVISION_ID, 0x02800000);
+    PCI_CONFIG_32(PCI_REVISION, 0x02800000);
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_0,
                   //~ PCI_ADDRESS_SPACE_MEM | PCI_ADDRESS_SPACE_MEM_PREFETCH);
     //~ PCI_CONFIG_32(PCI_BASE_ADDRESS_1,
