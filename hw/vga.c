@@ -1619,6 +1619,16 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         s->double_scan = double_scan;
     }
 
+    if (shift_control == 0) {
+        if (s->sr[0x01] & 8) {
+            disp_width <<= 1;
+        }
+    } else if (shift_control == 1) {
+        if (s->sr[0x01] & 8) {
+            disp_width <<= 1;
+        }
+    }
+
     depth = s->get_bpp(s);
     if (s->line_offset != s->last_line_offset ||
         disp_width != s->last_width ||
@@ -1660,7 +1670,6 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         full_update |= update_palette16(s);
         if (s->sr[0x01] & 8) {
             v = VGA_DRAW_LINE4D2;
-            disp_width <<= 1;
         } else {
             v = VGA_DRAW_LINE4;
         }
@@ -1669,7 +1678,6 @@ static void vga_draw_graphic(VGAState *s, int full_update)
         full_update |= update_palette16(s);
         if (s->sr[0x01] & 8) {
             v = VGA_DRAW_LINE2D2;
-            disp_width <<= 1;
         } else {
             v = VGA_DRAW_LINE2;
         }
