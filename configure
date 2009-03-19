@@ -732,12 +732,6 @@ if test "$cpu" = "x86_64" \
     hostlongbits="64"
 fi
 
-# check gcc options support
-cat > $TMPC <<EOF
-int main(void) {
-}
-EOF
-
 # Check host NPTL support
 cat > $TMPC <<EOF
 #include <sched.h>
