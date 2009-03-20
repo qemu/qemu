@@ -666,8 +666,8 @@ e1000_receive(void *opaque, const uint8_t *buf, int size)
     n = E1000_ICS_RXT0;
     if ((rdt = s->mac_reg[RDT]) < s->mac_reg[RDH])
         rdt += s->mac_reg[RDLEN] / sizeof(desc);
-    if (((rdt - s->mac_reg[RDH]) * sizeof(desc)) << s->rxbuf_min_shift >=
-        s->mac_reg[RDLEN])
+    if (((rdt - s->mac_reg[RDH]) * sizeof(desc)) <= s->mac_reg[RDLEN] >>
+        s->rxbuf_min_shift)
         n |= E1000_ICS_RXDMT0;
 
     set_ics(s, 0, n);
