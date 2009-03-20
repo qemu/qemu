@@ -10,6 +10,8 @@
 #include "dma.h"
 #include "block_int.h"
 
+static AIOPool dma_aio_pool;
+
 void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint)
 {
     qsg->sg = qemu_malloc(alloc_hint * sizeof(ScatterGatherEntry));
@@ -126,7 +128,7 @@ static BlockDriverAIOCB *dma_bdrv_io(
     DMABlockState *dbs = qemu_malloc(sizeof(*dbs));
 
     dbs->bs = bs;
-    dbs->acb = qemu_aio_get(bs, cb, opaque);
+    dbs->acb = qemu_aio_get_pool(&dma_aio_pool, bs, cb, opaque);
     dbs->sg = sg;
     dbs->sector_num = sector_num;
     dbs->sg_cur_index = 0;
@@ -153,3 +155,14 @@ BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
     return dma_bdrv_io(bs, sg, sector, cb, opaque, 1);
 }
 
+static void dma_aio_cancel(BlockDriverAIOCB *acb)
+{
+    DMABlockState *dbs = (DMABlockState *)acb->opaque;
+
+    bdrv_aio_cancel(dbs->acb);
+}
+
+void dma_helper_init(void)
+{
+    aio_pool_init(&dma_aio_pool, sizeof(BlockDriverAIOCB), dma_aio_cancel);
+}
