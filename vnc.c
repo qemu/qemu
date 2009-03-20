@@ -957,7 +957,7 @@ long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
     } else
 #endif /* CONFIG_VNC_TLS */
         ret = send(vs->csock, data, datalen, 0);
-    VNC_DEBUG("Wrote wire %p %d -> %ld\n", data, datalen, ret);
+    VNC_DEBUG("Wrote wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }
 
@@ -977,7 +977,7 @@ static long vnc_client_write_plain(VncState *vs)
     long ret;
 
 #ifdef CONFIG_VNC_SASL
-    VNC_DEBUG("Write Plain: Pending output %p size %d offset %d. Wait SSF %d\n",
+    VNC_DEBUG("Write Plain: Pending output %p size %zd offset %zd. Wait SSF %d\n",
               vs->output.buffer, vs->output.capacity, vs->output.offset,
               vs->sasl.waitWriteSSF);
 
@@ -1062,7 +1062,7 @@ long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
     } else
 #endif /* CONFIG_VNC_TLS */
         ret = recv(vs->csock, data, datalen, 0);
-    VNC_DEBUG("Read wire %p %d -> %ld\n", data, datalen, ret);
+    VNC_DEBUG("Read wire %p %zd -> %ld\n", data, datalen, ret);
     return vnc_client_io_error(vs, ret, socket_error());
 }
 
@@ -1078,7 +1078,7 @@ long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
 static long vnc_client_read_plain(VncState *vs)
 {
     int ret;
-    VNC_DEBUG("Read plain %p size %d offset %d\n",
+    VNC_DEBUG("Read plain %p size %zd offset %zd\n",
               vs->input.buffer, vs->input.capacity, vs->input.offset);
     buffer_reserve(&vs->input, 4096);
     ret = vnc_client_read_buf(vs, buffer_end(&vs->input), 4096);
