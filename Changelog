@@ -1,5 +1,10 @@
 version 0.10.1:
 
+  - virtio-net: allow masking of notifications on empty queue (Alex Williamson)
+  - e1000: fix rx descriptor low threshold logic (Alex Willaimson)
+  - x86 tcg: add NULL checks to lsl instruction (Jan Kiszka)
+  - kvm vga: fix screen corruption with -std-vga and Windows (Avi Kivity)
+  - kvm vga: fix screen corruption with Ubuntu installations (Glauber Costa)
   - virtio-net: check right return size on sg list (Alex Williamson)
   - Make qemu_announce_self handle holes (live migration after hotplug)
     (Marcelo Tosatti)
