@@ -657,6 +657,7 @@ static void send_framebuffer_update(VncState *vs, int x, int y, int w, int h)
 
 static void vnc_copy(VncState *vs, int src_x, int src_y, int dst_x, int dst_y, int w, int h)
 {
+    vs->force_update = 1;
     vnc_update_client(vs);
 
     vnc_write_u8(vs, 0);  /* msg id */
@@ -710,6 +711,12 @@ static void vnc_update_client(void *opaque)
         int saved_offset;
         int has_dirty = 0;
 
+        if (vs->output.offset && !vs->audio_cap && !vs->force_update) {
+            /* kernel send buffers are full -> drop frames to throttle */
+            qemu_mod_timer(vs->timer, qemu_get_clock(rt_clock) + VNC_REFRESH_INTERVAL);
+            return;
+        }
+
         vga_hw_update();
 
         /*
@@ -745,7 +752,7 @@ static void vnc_update_client(void *opaque)
             server_row += ds_get_linesize(vs->ds);
         }
 
-        if (!has_dirty && !vs->audio_cap) {
+        if (!has_dirty && !vs->audio_cap && !vs->force_update) {
             qemu_mod_timer(vs->timer, qemu_get_clock(rt_clock) + VNC_REFRESH_INTERVAL);
             return;
         }
@@ -789,6 +796,7 @@ static void vnc_update_client(void *opaque)
         vs->output.buffer[saved_offset] = (n_rectangles >> 8) & 0xFF;
         vs->output.buffer[saved_offset + 1] = n_rectangles & 0xFF;
         vnc_flush(vs);
+        vs->force_update = 0;
 
     }
 
@@ -1407,6 +1415,7 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 
     int i;
     vs->need_update = 1;
+    vs->force_update = 1;
     if (!incremental) {
         for (i = 0; i < h; i++) {
             vnc_set_bits(vs->guest.dirty[y_position + i],
