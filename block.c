@@ -1255,31 +1255,32 @@ char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
 /**************************************************************/
 /* async I/Os */
 
-typedef struct VectorTranslationState {
+typedef struct VectorTranslationAIOCB {
+    BlockDriverAIOCB common;
     QEMUIOVector *iov;
     uint8_t *bounce;
     int is_write;
     BlockDriverAIOCB *aiocb;
-    BlockDriverAIOCB *this_aiocb;
-} VectorTranslationState;
+} VectorTranslationAIOCB;
 
-static void bdrv_aio_cancel_vector(BlockDriverAIOCB *acb)
+static void bdrv_aio_cancel_vector(BlockDriverAIOCB *_acb)
 {
-    VectorTranslationState *s = acb->opaque;
+    VectorTranslationAIOCB *acb
+        = container_of(_acb, VectorTranslationAIOCB, common);
 
-    bdrv_aio_cancel(s->aiocb);
+    bdrv_aio_cancel(acb->aiocb);
 }
 
 static void bdrv_aio_rw_vector_cb(void *opaque, int ret)
 {
-    VectorTranslationState *s = opaque;
+    VectorTranslationAIOCB *s = (VectorTranslationAIOCB *)opaque;
 
     if (!s->is_write) {
         qemu_iovec_from_buffer(s->iov, s->bounce, s->iov->size);
     }
     qemu_vfree(s->bounce);
-    s->this_aiocb->cb(s->this_aiocb->opaque, ret);
-    qemu_aio_release(s->this_aiocb);
+    s->common.cb(s->common.opaque, ret);
+    qemu_aio_release(s);
 }
 
 static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
@@ -1291,11 +1292,9 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
                                             int is_write)
 
 {
-    VectorTranslationState *s = qemu_mallocz(sizeof(*s));
-    BlockDriverAIOCB *aiocb = qemu_aio_get_pool(&vectored_aio_pool, bs,
-                                                cb, opaque);
+    VectorTranslationAIOCB *s = qemu_aio_get_pool(&vectored_aio_pool, bs,
+                                                  cb, opaque);
 
-    s->this_aiocb = aiocb;
     s->iov = iov;
     s->bounce = qemu_memalign(512, nb_sectors * 512);
     s->is_write = is_write;
@@ -1307,7 +1306,7 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
         s->aiocb = bdrv_aio_read(bs, sector_num, s->bounce, nb_sectors,
                                  bdrv_aio_rw_vector_cb, s);
     }
-    return aiocb;
+    return &s->common;
 }
 
 BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
@@ -1483,7 +1482,7 @@ static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
 
 void bdrv_init(void)
 {
-    aio_pool_init(&vectored_aio_pool, sizeof(BlockDriverAIOCB),
+    aio_pool_init(&vectored_aio_pool, sizeof(VectorTranslationAIOCB),
                   bdrv_aio_cancel_vector);
 
     bdrv_register(&bdrv_raw);
