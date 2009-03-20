@@ -104,15 +104,23 @@ struct VncDisplay
 #endif
 };
 
+struct VncSurface
+{
+    uint32_t dirty[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
+    DisplaySurface *ds;
+};
+
 struct VncState
 {
     QEMUTimer *timer;
     int csock;
+
     DisplayState *ds;
+    struct VncSurface guest;   /* guest visible surface (aka ds->surface) */
+    struct VncSurface server;  /* vnc server surface */
+
     VncDisplay *vd;
     int need_update;
-    uint32_t dirty_row[VNC_MAX_HEIGHT][VNC_DIRTY_WORDS];
-    char *old_data;
     uint32_t features;
     int absolute;
     int last_x;
@@ -138,7 +146,7 @@ struct VncState
     /* current output mode information */
     VncWritePixels *write_pixels;
     VncSendHextileTile *send_hextile_tile;
-    DisplaySurface clientds, serverds;
+    DisplaySurface clientds;
 
     CaptureVoiceOut *audio_cap;
     struct audsettings as;
