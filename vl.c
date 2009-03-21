@@ -143,6 +143,7 @@ int main(int argc, char **argv)
 #include "hw/baum.h"
 #include "hw/bt.h"
 #include "bt-host.h"
+#include "dma.h"
 #include "net.h"
 #include "monitor.h"
 #include "console.h"
