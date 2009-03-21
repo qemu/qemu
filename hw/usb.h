@@ -21,6 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include "block.h"
+
 #define USB_TOKEN_SETUP 0x2d
 #define USB_TOKEN_IN    0x69 /* device -> host */
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
@@ -250,7 +253,7 @@ USBDevice *usb_keyboard_init(void);
 void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *));
 
 /* usb-msd.c */
-USBDevice *usb_msd_init(const char *filename);
+USBDevice *usb_msd_init(const char *filename, BlockDriverState **pbs);
 
 /* usb-net.c */
 USBDevice *usb_net_init(NICInfo *nd);

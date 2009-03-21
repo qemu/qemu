@@ -74,6 +74,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
                            void *opaque);
 int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg);
 void qemu_chr_reset(CharDriverState *s);
+void qemu_chr_initial_reset(void);
 int qemu_chr_can_read(CharDriverState *s);
 void qemu_chr_read(CharDriverState *s, uint8_t *buf, int len);
 void qemu_chr_accept_input(CharDriverState *s);

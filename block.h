@@ -26,8 +26,6 @@ typedef struct BlockDriverInfo {
     int cluster_size;
     /* offset at which the VM state can be saved (0 if not possible) */
     int64_t vm_state_offset;
-    int64_t highest_alloc; /* highest allocated block offset (in bytes) */
-    int64_t num_free_bytes; /* below highest_alloc  */
 } BlockDriverInfo;
 
 typedef struct QEMUSnapshotInfo {
@@ -103,8 +101,6 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
                                  BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
-int qemu_key_check(BlockDriverState *bs, const char *name);
-
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
 void bdrv_flush_all(void);
@@ -141,9 +137,12 @@ void bdrv_set_change_cb(BlockDriverState *bs,
                         void (*change_cb)(void *opaque), void *opaque);
 void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
 BlockDriverState *bdrv_find(const char *name);
-void bdrv_iterate(void (*it)(void *opaque, const char *name), void *opaque);
+void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),
+                  void *opaque);
 int bdrv_is_encrypted(BlockDriverState *bs);
+int bdrv_key_required(BlockDriverState *bs);
 int bdrv_set_key(BlockDriverState *bs, const char *key);
+int bdrv_query_missing_keys(void);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque);
 const char *bdrv_get_device_name(BlockDriverState *bs);
@@ -151,6 +150,7 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf, int nb_sectors);
 int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 
+const char *bdrv_get_encrypted_filename(BlockDriverState *bs);
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
 int bdrv_snapshot_create(BlockDriverState *bs,
