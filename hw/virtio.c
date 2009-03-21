@@ -726,9 +726,10 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
-    /* Always notify when queue is empty */
-    if ((vq->inuse || vring_avail_idx(vq) != vq->last_avail_idx) &&
-        (vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT))
+    /* Always notify when queue is empty (when feature acknowledge) */
+    if ((vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT) &&
+        (!(vdev->features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) ||
+         (vq->inuse || vring_avail_idx(vq) != vq->last_avail_idx)))
         return;
 
     vdev->isr |= 0x01;

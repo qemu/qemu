@@ -86,7 +86,7 @@ static void sdl_setdata(DisplayState *ds)
                                             ds->surface->pf.bmask, ds->surface->pf.amask);
 }
 
-static void do_sdl_resize(int width, int height, int bpp)
+static void do_sdl_resize(int new_width, int new_height, int bpp)
 {
     int flags;
 
@@ -98,6 +98,8 @@ static void do_sdl_resize(int width, int height, int bpp)
     if (gui_noframe)
         flags |= SDL_NOFRAME;
 
+    width = new_width;
+    height = new_height;
     real_screen = SDL_SetVideoMode(width, height, bpp, flags);
     if (!real_screen) {
         fprintf(stderr, "Could not open SDL display\n");

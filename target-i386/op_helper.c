@@ -3241,6 +3241,8 @@ target_ulong helper_lsl(target_ulong selector1)
 
     selector = selector1 & 0xffff;
     eflags = helper_cc_compute_all(CC_OP);
+    if ((selector & 0xfffc) == 0)
+        goto fail;
     if (load_segment(&e1, &e2, selector) != 0)
         goto fail;
     rpl = selector & 3;

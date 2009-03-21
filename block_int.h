@@ -30,6 +30,12 @@
 #define BLOCK_FLAG_COMPRESS	2
 #define BLOCK_FLAG_COMPAT6	4
 
+typedef struct AIOPool {
+    void (*cancel)(BlockDriverAIOCB *acb);
+    int aiocb_size;
+    BlockDriverAIOCB *free_aiocb;
+} AIOPool;
+
 struct BlockDriver {
     const char *format_name;
     int instance_size;
@@ -91,7 +97,7 @@ struct BlockDriver {
                                            BlockDriverCompletionFunc *cb,
                                            void *opaque);
 
-    BlockDriverAIOCB *free_aiocb;
+    AIOPool aio_pool;
     struct BlockDriver *next;
 };
 
@@ -141,6 +147,7 @@ struct BlockDriverState {
 };
 
 struct BlockDriverAIOCB {
+    AIOPool *pool;
     BlockDriverState *bs;
     BlockDriverCompletionFunc *cb;
     void *opaque;
@@ -149,8 +156,13 @@ struct BlockDriverAIOCB {
 
 void get_tmp_filename(char *filename, int size);
 
+void aio_pool_init(AIOPool *pool, int aiocb_size,
+                   void (*cancel)(BlockDriverAIOCB *acb));
+
 void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
                    void *opaque);
+void *qemu_aio_get_pool(AIOPool *pool, BlockDriverState *bs,
+                        BlockDriverCompletionFunc *cb, void *opaque);
 void qemu_aio_release(void *p);
 
 extern BlockDriverState *bdrv_first;
