@@ -1369,6 +1369,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
     CASE_GET_REG32(dsa, 0x10)
     case 0x14: /* ISTAT0 */
         return s->istat0;
+    case 0x15: /* ISTAT1 */
+        return s->istat1;
     case 0x16: /* MBOX0 */
         return s->mbox0;
     case 0x17: /* MBOX1 */

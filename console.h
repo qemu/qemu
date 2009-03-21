@@ -302,10 +302,9 @@ void term_printf(const char *fmt, ...) __attribute__ ((__format__ (__printf__, 1
 void term_print_filename(const char *filename);
 void term_flush(void);
 void term_print_help(void);
-void monitor_readline(const char *prompt, int is_password,
-                      char *buf, int buf_size);
 void monitor_suspend(void);
 void monitor_resume(void);
+int monitor_read_bdrv_key(BlockDriverState *bs);
 
 /* readline.c */
 typedef void ReadLineFunc(void *opaque, const char *str);

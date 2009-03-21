@@ -74,8 +74,8 @@ static void help(void)
            "    differ\n"
            "  'fmt' is the disk image format. It is guessed automatically in most cases\n"
            "  'size' is the disk image size in kilobytes. Optional suffixes\n"
-           "    'M' (megabyte, 1024 * 1024) and 'G' (gigabyte, 1024 * 1024 * 1024) are"
-           "    supported any @code{k} or @code{K} is ignored\n"
+           "    'M' (megabyte, 1024 * 1024) and 'G' (gigabyte, 1024 * 1024 * 1024) are\n"
+           "    supported any 'k' or 'K' is ignored\n"
            "  'output_filename' is the destination disk image filename\n"
            "  'output_fmt' is the destination format\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
@@ -730,10 +730,6 @@ static int img_info(int argc, char **argv)
     if (bdrv_get_info(bs, &bdi) >= 0) {
         if (bdi.cluster_size != 0)
             printf("cluster_size: %d\n", bdi.cluster_size);
-        if (bdi.highest_alloc)
-            printf("highest_alloc: %" PRId64 "\n", bdi.highest_alloc);
-        if (bdi.num_free_bytes)
-            printf("num_free_bytes: %" PRId64 "\n", bdi.num_free_bytes);
     }
     bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
     if (backing_filename[0] != '\0') {

@@ -311,8 +311,6 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     int ret;
 
     bs = bdrv_new("");
-    if (!bs)
-        return -ENOMEM;
     ret = bdrv_open2(bs, filename, flags | BDRV_O_FILE, NULL);
     if (ret < 0) {
         bdrv_delete(bs);
@@ -338,6 +336,7 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     bs->read_only = 0;
     bs->is_temporary = 0;
     bs->encrypted = 0;
+    bs->valid_key = 0;
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -349,12 +348,10 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
 
         /* if there is a backing file, use it */
         bs1 = bdrv_new("");
-        if (!bs1) {
-            return -ENOMEM;
-        }
-        if (bdrv_open(bs1, filename, 0) < 0) {
+        ret = bdrv_open(bs1, filename, 0);
+        if (ret < 0) {
             bdrv_delete(bs1);
-            return -1;
+            return ret;
         }
         total_size = bdrv_getlength(bs1) >> SECTOR_BITS;
 
@@ -372,9 +369,10 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         else
             realpath(filename, backing_filename);
 
-        if (bdrv_create(&bdrv_qcow2, tmp_filename,
-                        total_size, backing_filename, 0) < 0) {
-            return -1;
+        ret = bdrv_create(&bdrv_qcow2, tmp_filename,
+                          total_size, backing_filename, 0);
+        if (ret < 0) {
+            return ret;
         }
         filename = tmp_filename;
         bs->is_temporary = 1;
@@ -383,14 +381,12 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
     if (flags & BDRV_O_FILE) {
         drv = find_protocol(filename);
-        if (!drv)
-            return -ENOENT;
-    } else {
-        if (!drv) {
-            drv = find_image_format(filename);
-            if (!drv)
-                return -1;
-        }
+    } else if (!drv) {
+        drv = find_image_format(filename);
+    }
+    if (!drv) {
+        ret = -ENOENT;
+        goto unlink_and_fail;
     }
     bs->drv = drv;
     bs->opaque = qemu_mallocz(drv->instance_size);
@@ -409,6 +405,9 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         qemu_free(bs->opaque);
         bs->opaque = NULL;
         bs->drv = NULL;
+    unlink_and_fail:
+        if (bs->is_temporary)
+            unlink(filename);
         return ret;
     }
     if (drv->bdrv_getlength) {
@@ -422,15 +421,13 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     if (bs->backing_file[0] != '\0') {
         /* if there is a backing file, use it */
         bs->backing_hd = bdrv_new("");
-        if (!bs->backing_hd) {
-        fail:
-            bdrv_close(bs);
-            return -ENOMEM;
-        }
         path_combine(backing_filename, sizeof(backing_filename),
                      filename, bs->backing_file);
-        if (bdrv_open(bs->backing_hd, backing_filename, open_flags) < 0)
-            goto fail;
+        ret = bdrv_open(bs->backing_hd, backing_filename, open_flags);
+        if (ret < 0) {
+            bdrv_close(bs);
+            return ret;
+        }
     }
 
     /* call the change callback */
@@ -970,6 +967,15 @@ int bdrv_is_encrypted(BlockDriverState *bs)
     return bs->encrypted;
 }
 
+int bdrv_key_required(BlockDriverState *bs)
+{
+    BlockDriverState *backing_hd = bs->backing_hd;
+
+    if (backing_hd && backing_hd->encrypted && !backing_hd->valid_key)
+        return 1;
+    return (bs->encrypted && !bs->valid_key);
+}
+
 int bdrv_set_key(BlockDriverState *bs, const char *key)
 {
     int ret;
@@ -982,7 +988,9 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     }
     if (!bs->encrypted || !bs->drv || !bs->drv->bdrv_set_key)
         return -1;
-    return bs->drv->bdrv_set_key(bs, key);
+    ret = bs->drv->bdrv_set_key(bs, key);
+    bs->valid_key = (ret == 0);
+    return ret;
 }
 
 void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size)
@@ -1015,12 +1023,12 @@ BlockDriverState *bdrv_find(const char *name)
     return NULL;
 }
 
-void bdrv_iterate(void (*it)(void *opaque, const char *name), void *opaque)
+void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs), void *opaque)
 {
     BlockDriverState *bs;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
-        it(opaque, bs->device_name);
+        it(opaque, bs);
     }
 }
 
@@ -1105,8 +1113,7 @@ void bdrv_info(void)
 	    }
             term_printf(" ro=%d", bs->read_only);
             term_printf(" drv=%s", bs->drv->format_name);
-            if (bs->encrypted)
-                term_printf(" encrypted");
+            term_printf(" encrypted=%d", bdrv_is_encrypted(bs));
         } else {
             term_printf(" [not inserted]");
         }
@@ -1118,7 +1125,6 @@ void bdrv_info(void)
 void bdrv_info_stats (void)
 {
     BlockDriverState *bs;
-    BlockDriverInfo bdi;
 
     for (bs = bdrv_first; bs != NULL; bs = bs->next) {
 	term_printf ("%s:"
@@ -1126,16 +1132,21 @@ void bdrv_info_stats (void)
 		     " wr_bytes=%" PRIu64
 		     " rd_operations=%" PRIu64
 		     " wr_operations=%" PRIu64
-                     ,
+                     "\n",
 		     bs->device_name,
 		     bs->rd_bytes, bs->wr_bytes,
 		     bs->rd_ops, bs->wr_ops);
-        if (bdrv_get_info(bs, &bdi) == 0)
-            term_printf(" high=%" PRId64
-                        " bytes_free=%" PRId64,
-                        bdi.highest_alloc, bdi.num_free_bytes);
-        term_printf("\n");
     }
+}
+
+const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
+{
+    if (bs->backing_hd && bs->backing_hd->encrypted)
+        return bs->backing_file;
+    else if (bs->encrypted)
+        return bs->filename;
+    else
+        return NULL;
 }
 
 void bdrv_get_backing_filename(BlockDriverState *bs,
