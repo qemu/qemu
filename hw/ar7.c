@@ -26,6 +26,7 @@
  * - TNETD7300 (best emulation)
  *
  * TODO:
+ * - nodisk_ok should be removed everywhere
  * - ldl_phys, stl_phys wrong for big endian AR7
  * - TNETD7100 emulation is missing
  * - TNETD7200 emulation is very incomplete
