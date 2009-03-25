@@ -22,6 +22,10 @@ ppc specific:
 - TLB invalidate not needed if msr_pr changes
 - enable shift optimizations ?
 
+sparc specific:
+--------------
+- Unassigned mem write 0000000ff1100006 = 0x0a unknown caller
+
 linux-user specific:
 -------------------
 - remove threading support as it cannot work at this point
