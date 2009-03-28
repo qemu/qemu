@@ -148,6 +148,7 @@ int main(int argc, char **argv)
 #include "qemu-char.h"
 #include "cache-utils.h"
 #include "block.h"
+#include "dma.h"
 #include "audio/audio.h"
 #include "migration.h"
 #include "kvm.h"
