@@ -432,7 +432,6 @@ static TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC], cpu_ACX[MIPS_DSP_ACC];
 static TCGv cpu_dspctrl, btarget;
 static TCGv_i32 bcond;
 static TCGv_i32 fpu_fpr32[32], fpu_fpr32h[32];
-static TCGv_i64 fpu_fpr64[32];
 static TCGv_i32 fpu_fcr0, fpu_fcr31;
 
 #include "gen-icount.h"
@@ -500,12 +499,6 @@ static const char *fregnames[] =
       "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
       "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
       "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", };
-
-static const char *fregnames_64[] =
-    { "F0",  "F1",  "F2",  "F3",  "F4",  "F5",  "F6",  "F7",
-      "F8",  "F9",  "F10", "F11", "F12", "F13", "F14", "F15",
-      "F16", "F17", "F18", "F19", "F20", "F21", "F22", "F23",
-      "F24", "F25", "F26", "F27", "F28", "F29", "F30", "F31", };
 
 static const char *fregnames_h[] =
     { "h0",  "h1",  "h2",  "h3",  "h4",  "h5",  "h6",  "h7",
@@ -617,18 +610,20 @@ static inline void gen_store_fpr32 (TCGv_i32 t, int reg)
 
 static inline void gen_load_fpr64 (DisasContext *ctx, TCGv_i64 t, int reg)
 {
-    if (ctx->hflags & MIPS_HFLAG_F64)
-        tcg_gen_mov_i64(t, fpu_fpr64[reg]);
-    else {
+    if (ctx->hflags & MIPS_HFLAG_F64) {
+        tcg_gen_concat_i32_i64(t, fpu_fpr32[reg], fpu_fpr32h[reg]);
+    } else {
         tcg_gen_concat_i32_i64(t, fpu_fpr32[reg & ~1], fpu_fpr32[reg | 1]);
     }
 }
 
 static inline void gen_store_fpr64 (DisasContext *ctx, TCGv_i64 t, int reg)
 {
-    if (ctx->hflags & MIPS_HFLAG_F64)
-        tcg_gen_mov_i64(fpu_fpr64[reg], t);
-    else {
+    if (ctx->hflags & MIPS_HFLAG_F64) {
+        tcg_gen_trunc_i64_i32(fpu_fpr32[reg], t);
+        tcg_gen_shri_i64(t, t, 32);
+        tcg_gen_trunc_i64_i32(fpu_fpr32h[reg], t);
+    } else {
         tcg_gen_trunc_i64_i32(fpu_fpr32[reg & ~1], t);
         tcg_gen_shri_i64(t, t, 32);
         tcg_gen_trunc_i64_i32(fpu_fpr32[reg | 1], t);
@@ -8441,10 +8436,6 @@ static void mips_tcg_init(void)
         fpu_fpr32[i] = tcg_global_mem_new_i32(TCG_AREG0,
             offsetof(CPUState, active_fpu.fpr[i].w[FP_ENDIAN_IDX]),
             fregnames[i]);
-    for (i = 0; i < 32; i++)
-        fpu_fpr64[i] = tcg_global_mem_new_i64(TCG_AREG0,
-            offsetof(CPUState, active_fpu.fpr[i]),
-            fregnames_64[i]);
     for (i = 0; i < 32; i++)
         fpu_fpr32h[i] = tcg_global_mem_new_i32(TCG_AREG0,
             offsetof(CPUState, active_fpu.fpr[i].w[!FP_ENDIAN_IDX]),
