@@ -47,12 +47,6 @@
 
 /* Common declarations for all PCI devices. */
 
-#define PCI_DEVICE_ID           0x02    /* 16 bits */
-#define PCI_COMMAND             0x04    /* 16 bits */
-#define PCI_STATUS              0x06    /* 16 bits */
-
-#define PCI_REVISION_ID         0x08    /* 8 bits  */
-
 #define PCI_CONFIG_8(offset, value) \
     (pci_conf[offset] = (value))
 #define PCI_CONFIG_16(offset, value) \

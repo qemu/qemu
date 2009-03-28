@@ -55,7 +55,7 @@ extern target_phys_addr_t pci_mem_base;
 #define PCI_DEVICE_ID_VMWARE_SCSI        0x0730
 #define PCI_DEVICE_ID_VMWARE_IDE         0x1729
 
-#define PCI_VENDOR_ID_INTEL              0x8086
+/* Intel (0x8086) */
 #define PCI_DEVICE_ID_INTEL_82551IT      0x1209
 
 /* Red Hat / Qumranet (for QEMU) -- see pci-ids.txt */
@@ -92,19 +92,26 @@ typedef struct PCIIORegion {
 
 #define PCI_DEVICES_MAX 64
 
+/* Declarations from linux/pci_regs.h */
 #define PCI_VENDOR_ID		0x00	/* 16 bits */
 #define PCI_DEVICE_ID		0x02	/* 16 bits */
 #define PCI_COMMAND		0x04	/* 16 bits */
 #define  PCI_COMMAND_IO		0x1	/* Enable response in I/O space */
 #define  PCI_COMMAND_MEMORY	0x2	/* Enable response in Memory space */
-#define PCI_REVISION            0x08
+#define PCI_STATUS              0x06    /* 16 bits */
+#define PCI_REVISION_ID         0x08    /* 8 bits  */
 #define PCI_CLASS_DEVICE        0x0a    /* Device class */
-#define PCI_SUBVENDOR_ID	0x2c	/* 16 bits */
-#define PCI_SUBDEVICE_ID	0x2e	/* 16 bits */
+#define PCI_HEADER_TYPE         0x0e    /* 8 bits */
+#define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */
+#define PCI_SUBSYSTEM_ID        0x2e    /* 16 bits */
 #define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */
 #define PCI_INTERRUPT_PIN	0x3d	/* 8 bits */
 #define PCI_MIN_GNT		0x3e	/* 8 bits */
 #define PCI_MAX_LAT		0x3f	/* 8 bits */
+
+#define PCI_REVISION            0x08    /* obsolete, use PCI_REVISION_ID */
+#define PCI_SUBVENDOR_ID        0x2c    /* obsolete, use PCI_SUBSYSTEM_VENDOR_ID */
+#define PCI_SUBDEVICE_ID        0x2e    /* obsolete, use PCI_SUBSYSTEM_ID */
 
 /* Bits in the PCI Status Register (PCI 2.3 spec) */
 #define PCI_STATUS_RESERVED1	0x007
