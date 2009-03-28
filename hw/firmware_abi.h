@@ -43,12 +43,14 @@ OpenBIOS_set_var(uint8_t *nvram, uint32_t addr, const char *str)
 }
 
 /* Sun IDPROM structure at the end of NVRAM */
+/* from http://www.squirrel.com/squirrel/sun-nvram-hostid.faq.html */
 struct Sun_nvram {
-    uint8_t type;
-    uint8_t machine_id;
-    uint8_t macaddr[6];
-    uint8_t unused[7];
-    uint8_t checksum;
+    uint8_t type;       /* always 01 */
+    uint8_t machine_id; /* first byte of host id (machine type) */
+    uint8_t macaddr[6]; /* 6 byte ethernet address (first 3 bytes 08, 00, 20) */
+    uint8_t date[4];    /* date of manufacture */
+    uint8_t hostid[3];  /* remaining 3 bytes of host id (serial number) */
+    uint8_t checksum;   /* bitwise xor of previous bytes */
 };
 
 static inline void
