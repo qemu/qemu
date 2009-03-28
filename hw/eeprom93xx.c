@@ -95,7 +95,19 @@ static void eeprom_save(QEMUFile *f, void *opaque)
     /* Save EEPROM data. */
     unsigned address;
     eeprom_t *eeprom = (eeprom_t *)opaque;
-    qemu_put_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom) - 2);
+
+    qemu_put_byte(f, eeprom->tick);
+    qemu_put_byte(f, eeprom->address);
+    qemu_put_byte(f, eeprom->command);
+    qemu_put_byte(f, eeprom->writeable);
+
+    qemu_put_byte(f, eeprom->eecs);
+    qemu_put_byte(f, eeprom->eesk);
+    qemu_put_byte(f, eeprom->eedo);
+
+    qemu_put_byte(f, eeprom->addrbits);
+    qemu_put_byte(f, eeprom->size);
+    qemu_put_byte(f, 0);                  /* padding for compatiblity */
     qemu_put_be16(f, eeprom->data);
     for (address = 0; address < eeprom->size; address++) {
         qemu_put_be16(f, eeprom->contents[address]);
@@ -111,7 +123,20 @@ static int eeprom_load(QEMUFile *f, void *opaque, int version_id)
     if (version_id == eeprom_version) {
         unsigned address;
         uint8_t size = eeprom->size;
-        qemu_get_buffer(f, (uint8_t *)eeprom, sizeof(*eeprom) - 2);
+
+        eeprom->tick = qemu_get_byte(f);
+        eeprom->address = qemu_get_byte(f);
+        eeprom->command = qemu_get_byte(f);
+        eeprom->writeable = qemu_get_byte(f);
+
+        eeprom->eecs = qemu_get_byte(f);
+        eeprom->eesk = qemu_get_byte(f);
+        eeprom->eedo = qemu_get_byte(f);
+
+        eeprom->addrbits = qemu_get_byte(f);
+        eeprom->size = qemu_get_byte(f);
+        qemu_get_byte(f);                   /* skip padding byte */
+
         if (eeprom->size == size) {
             eeprom->data = qemu_get_be16(f);
             for (address = 0; address < eeprom->size; address++) {
