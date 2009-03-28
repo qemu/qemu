@@ -84,6 +84,7 @@ typedef struct {
     uint32_t len;
 } QCowExtension;
 #define  QCOW_EXT_MAGIC_END 0
+#define  QCOW_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
 
 
 typedef struct __attribute__((packed)) QCowSnapshotHeader {
@@ -235,6 +236,24 @@ static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
         switch (ext.magic) {
         case QCOW_EXT_MAGIC_END:
             return 0;
+
+        case QCOW_EXT_MAGIC_BACKING_FORMAT:
+            if (ext.len >= sizeof(bs->backing_format)) {
+                fprintf(stderr, "ERROR: ext_backing_format: len=%u too large"
+                        " (>=%lu)\n",
+                        ext.len, sizeof(bs->backing_format));
+                return 2;
+            }
+            if (bdrv_pread(s->hd, offset , bs->backing_format,
+                           ext.len) != ext.len)
+                return 3;
+            bs->backing_format[ext.len] = '\0';
+#ifdef DEBUG_EXT
+            printf("Qcow2: Got format extension %s\n", bs->backing_format);
+#endif
+            offset += ((ext.len + 7) & ~7);
+            break;
+
         default:
             /* unknown magic -- just skip it */
             offset += ((ext.len + 7) & ~7);
@@ -1526,13 +1545,18 @@ static void create_refcount_update(QCowCreateState *s,
     }
 }
 
-static int qcow_create(const char *filename, int64_t total_size,
-                      const char *backing_file, int flags)
+static int qcow_create2(const char *filename, int64_t total_size,
+                        const char *backing_file, const char *backing_format,
+                        int flags)
 {
+
     int fd, header_size, backing_filename_len, l1_size, i, shift, l2_bits;
+    int backing_format_len = 0;
     QCowHeader header;
     uint64_t tmp, offset;
     QCowCreateState s1, *s = &s1;
+    QCowExtension ext_bf = {0, 0};
+
 
     memset(s, 0, sizeof(*s));
 
@@ -1546,6 +1570,12 @@ static int qcow_create(const char *filename, int64_t total_size,
     header_size = sizeof(header);
     backing_filename_len = 0;
     if (backing_file) {
+        if (backing_format) {
+            ext_bf.magic = QCOW_EXT_MAGIC_BACKING_FORMAT;
+            backing_format_len = strlen(backing_format);
+            ext_bf.len = (backing_format_len + 7) & ~7;
+            header_size += ((sizeof(ext_bf) + ext_bf.len + 7) & ~7);
+        }
         header.backing_file_offset = cpu_to_be64(header_size);
         backing_filename_len = strlen(backing_file);
         header.backing_file_size = cpu_to_be32(backing_filename_len);
@@ -1590,6 +1620,19 @@ static int qcow_create(const char *filename, int64_t total_size,
     /* write all the data */
     write(fd, &header, sizeof(header));
     if (backing_file) {
+        if (backing_format_len) {
+            char zero[16];
+            int d = ext_bf.len - backing_format_len;
+
+            memset(zero, 0, sizeof(zero));
+            cpu_to_be32s(&ext_bf.magic);
+            cpu_to_be32s(&ext_bf.len);
+            write(fd, &ext_bf, sizeof(ext_bf));
+            write(fd, backing_format, backing_format_len);
+            if (d>0) {
+                write(fd, zero, d);
+            }
+        }
         write(fd, backing_file, backing_filename_len);
     }
     lseek(fd, s->l1_table_offset, SEEK_SET);
@@ -1607,6 +1650,12 @@ static int qcow_create(const char *filename, int64_t total_size,
     qemu_free(s->refcount_block);
     close(fd);
     return 0;
+}
+
+static int qcow_create(const char *filename, int64_t total_size,
+                       const char *backing_file, int flags)
+{
+    return qcow_create2(filename, total_size, backing_file, NULL, flags);
 }
 
 static int qcow_make_empty(BlockDriverState *bs)
@@ -2685,4 +2734,6 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_snapshot_delete = qcow_snapshot_delete,
     .bdrv_snapshot_list	= qcow_snapshot_list,
     .bdrv_get_info	= qcow_get_info,
+
+    .bdrv_create2 = qcow_create2,
 };
