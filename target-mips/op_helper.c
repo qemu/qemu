@@ -1879,6 +1879,9 @@ unsigned int ieee_rm[] = {
 #define RESTORE_ROUNDING_MODE \
     set_float_rounding_mode(ieee_rm[env->active_fpu.fcr31 & 3], &env->active_fpu.fp_status)
 
+#define RESTORE_FLUSH_MODE \
+    set_flush_to_zero((env->active_fpu.fcr31 & (1 << 24)) != 0, &env->active_fpu.fp_status);
+
 target_ulong helper_cfc1 (uint32_t reg)
 {
     target_ulong t0;
@@ -1934,6 +1937,8 @@ void helper_ctc1 (target_ulong t0, uint32_t reg)
     }
     /* set rounding mode */
     RESTORE_ROUNDING_MODE;
+    /* set flush-to-zero mode */
+    RESTORE_FLUSH_MODE;
     set_float_exception_flags(0, &env->active_fpu.fp_status);
     if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31))
         helper_raise_exception(EXCP_FPE);
