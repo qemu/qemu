@@ -25,6 +25,7 @@
 #include "osdep.h"
 #include "block_int.h"
 #include <assert.h>
+#include <stdio.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -57,7 +58,7 @@ static void help(void)
            "QEMU disk image utility\n"
            "\n"
            "Command syntax:\n"
-           "  create [-e] [-6] [-b base_image] [-f fmt] filename [size]\n"
+           "  create [-e] [-6] [-F fmt] [-b base_image] [-f fmt] filename [size]\n"
            "  commit [-f fmt] filename\n"
            "  convert [-c] [-e] [-6] [-f fmt] [-O output_fmt] [-B output_base_image] filename [filename2 [...]] output_filename\n"
            "  info [-f fmt] filename\n"
@@ -217,6 +218,7 @@ static int img_create(int argc, char **argv)
 {
     int c, ret, flags;
     const char *fmt = "raw";
+    const char *base_fmt = NULL;
     const char *filename;
     const char *base_filename = NULL;
     uint64_t size;
@@ -226,12 +228,15 @@ static int img_create(int argc, char **argv)
 
     flags = 0;
     for(;;) {
-        c = getopt(argc, argv, "b:f:he6");
+        c = getopt(argc, argv, "F:b:f:he6");
         if (c == -1)
             break;
         switch(c) {
         case 'h':
             help();
+            break;
+        case 'F':
+            base_fmt = optarg;
             break;
         case 'b':
             base_filename = optarg;
@@ -253,7 +258,15 @@ static int img_create(int argc, char **argv)
     size = 0;
     if (base_filename) {
         BlockDriverState *bs;
-        bs = bdrv_new_open(base_filename, NULL);
+        BlockDriver *base_drv = NULL;
+
+        if (base_fmt) {
+            base_drv = bdrv_find_format(base_fmt);
+            if (base_drv == NULL)
+                error("Unknown basefile format '%s'", base_fmt);
+        }
+
+        bs = bdrv_new_open(base_filename, base_fmt);
         bdrv_get_geometry(bs, &size);
         size *= 512;
         bdrv_delete(bs);
@@ -284,9 +297,12 @@ static int img_create(int argc, char **argv)
     if (base_filename) {
         printf(", backing_file=%s",
                base_filename);
+         if (base_fmt)
+             printf(", backing_fmt=%s",
+                    base_fmt);
     }
     printf(", size=%" PRIu64 " kB\n", size / 1024);
-    ret = bdrv_create(drv, filename, size / 512, base_filename, flags);
+    ret = bdrv_create2(drv, filename, size / 512, base_filename, base_fmt, flags);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting or formatting option not supported for file format '%s'", fmt);
