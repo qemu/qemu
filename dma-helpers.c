@@ -70,20 +70,26 @@ static void continue_after_map_failure(void *opaque)
     qemu_bh_schedule(dbs->bh);
 }
 
-static void dma_bdrv_cb(void *opaque, int ret)
+static void dma_bdrv_unmap(DMAAIOCB *dbs)
 {
-    DMAAIOCB *dbs = (DMAAIOCB *)opaque;
-    target_phys_addr_t cur_addr, cur_len;
-    void *mem;
     int i;
 
-    dbs->acb = NULL;
-    dbs->sector_num += dbs->iov.size / 512;
     for (i = 0; i < dbs->iov.niov; ++i) {
         cpu_physical_memory_unmap(dbs->iov.iov[i].iov_base,
                                   dbs->iov.iov[i].iov_len, !dbs->is_write,
                                   dbs->iov.iov[i].iov_len);
     }
+}
+
+void dma_bdrv_cb(void *opaque, int ret)
+{
+    DMAAIOCB *dbs = (DMAAIOCB *)opaque;
+    target_phys_addr_t cur_addr, cur_len;
+    void *mem;
+
+    dbs->acb = NULL;
+    dbs->sector_num += dbs->iov.size / 512;
+    dma_bdrv_unmap(dbs);
     qemu_iovec_reset(&dbs->iov);
 
     if (dbs->sg_cur_index == dbs->sg->nsg || ret < 0) {
@@ -119,6 +125,11 @@ static void dma_bdrv_cb(void *opaque, int ret)
         dbs->acb = bdrv_aio_readv(dbs->bs, dbs->sector_num, &dbs->iov,
                                   dbs->iov.size / 512, dma_bdrv_cb, dbs);
     }
+    if (!dbs->acb) {
+        dma_bdrv_unmap(dbs);
+        qemu_iovec_destroy(&dbs->iov);
+        return;
+    }
 }
 
 static BlockDriverAIOCB *dma_bdrv_io(
@@ -138,6 +149,10 @@ static BlockDriverAIOCB *dma_bdrv_io(
     dbs->bh = NULL;
     qemu_iovec_init(&dbs->iov, sg->nsg);
     dma_bdrv_cb(dbs, 0);
+    if (!dbs->acb) {
+        qemu_aio_release(dbs);
+        return NULL;
+    }
     return &dbs->common;
 }
 
