@@ -45,6 +45,7 @@
 
 //#define DEBUG_ALLOC
 //#define DEBUG_ALLOC2
+//#define DEBUG_EXT
 
 #define QCOW_MAGIC (('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
 #define QCOW_VERSION 2
@@ -76,6 +77,14 @@ typedef struct QCowHeader {
     uint32_t nb_snapshots;
     uint64_t snapshots_offset;
 } QCowHeader;
+
+
+typedef struct {
+    uint32_t magic;
+    uint32_t len;
+} QCowExtension;
+#define  QCOW_EXT_MAGIC_END 0
+
 
 typedef struct __attribute__((packed)) QCowSnapshotHeader {
     /* header is 8 byte aligned */
@@ -183,11 +192,66 @@ static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
+
+/* 
+ * read qcow2 extension and fill bs
+ * start reading from start_offset
+ * finish reading upon magic of value 0 or when end_offset reached
+ * unknown magic is skipped (future extension this version knows nothing about)
+ * return 0 upon success, non-0 otherwise
+ */
+static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
+                                uint64_t end_offset)
+{
+    BDRVQcowState *s = bs->opaque;
+    QCowExtension ext;
+    uint64_t offset;
+
+#ifdef DEBUG_EXT
+    printf("qcow_read_extensions: start=%ld end=%ld\n", start_offset, end_offset);
+#endif
+    offset = start_offset;
+    while (offset < end_offset) {
+
+#ifdef DEBUG_EXT
+        /* Sanity check */
+        if (offset > s->cluster_size)
+            printf("qcow_handle_extension: suspicious offset %lu\n", offset);
+
+        printf("attemting to read extended header in offset %lu\n", offset);
+#endif
+
+        if (bdrv_pread(s->hd, offset, &ext, sizeof(ext)) != sizeof(ext)) {
+            fprintf(stderr, "qcow_handle_extension: ERROR: pread fail from offset %lu\n",
+                    offset);
+            return 1;
+        }
+        be32_to_cpus(&ext.magic);
+        be32_to_cpus(&ext.len);
+        offset += sizeof(ext);
+#ifdef DEBUG_EXT
+        printf("ext.magic = 0x%x\n", ext.magic);
+#endif
+        switch (ext.magic) {
+        case QCOW_EXT_MAGIC_END:
+            return 0;
+        default:
+            /* unknown magic -- just skip it */
+            offset += ((ext.len + 7) & ~7);
+            break;
+        }
+    }
+
+    return 0;
+}
+
+
 static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVQcowState *s = bs->opaque;
     int len, i, shift, ret;
     QCowHeader header;
+    uint64_t ext_end;
 
     /* Performance is terrible right now with cache=writethrough due mainly
      * to reference count updates.  If the user does not explicitly specify
@@ -268,6 +332,14 @@ static int qcow_open(BlockDriverState *bs, const char *filename, int flags)
     s->cluster_cache_offset = -1;
 
     if (refcount_init(bs) < 0)
+        goto fail;
+
+    /* read qcow2 extensions */
+    if (header.backing_file_offset)
+        ext_end = header.backing_file_offset;
+    else
+        ext_end = s->cluster_size;
+    if (qcow_read_extensions(bs, sizeof(header), ext_end))
         goto fail;
 
     /* read the backing file name */
