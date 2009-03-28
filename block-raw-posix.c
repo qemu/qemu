@@ -55,6 +55,7 @@
 #ifdef __FreeBSD__
 #include <signal.h>
 #include <sys/disk.h>
+#include <sys/cdio.h>
 #endif
 
 #ifdef __OpenBSD__
@@ -110,12 +111,21 @@ typedef struct BDRVRawState {
     int fd_got_error;
     int fd_media_changed;
 #endif
+#if defined(__FreeBSD__)
+    int cd_open_flags;
+#endif
     uint8_t* aligned_buf;
 } BDRVRawState;
 
 static int posix_aio_init(void);
 
 static int fd_open(BlockDriverState *bs);
+
+#if defined(__FreeBSD__)
+static int cd_open(BlockDriverState *bs);
+#endif
+
+static int raw_is_inserted(BlockDriverState *bs);
 
 static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 {
@@ -773,6 +783,9 @@ static int64_t  raw_getlength(BlockDriverState *bs)
     int64_t size;
 #ifdef HOST_BSD
     struct stat sb;
+#ifdef __FreeBSD__
+    int reopened = 0;
+#endif
 #endif
 #ifdef __sun__
     struct dk_minfo minfo;
@@ -785,6 +798,9 @@ static int64_t  raw_getlength(BlockDriverState *bs)
         return ret;
 
 #ifdef HOST_BSD
+#ifdef __FreeBSD__
+again:
+#endif
     if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
 #ifdef DIOCGMEDIASIZE
 	if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
@@ -802,6 +818,19 @@ static int64_t  raw_getlength(BlockDriverState *bs)
         size = LONG_LONG_MAX;
 #else
         size = lseek(fd, 0LL, SEEK_END);
+#endif
+#ifdef __FreeBSD__
+        switch(s->type) {
+        case FTYPE_CD:
+            /* XXX FreeBSD acd returns UINT_MAX sectors for an empty drive */
+            if (size == 2048LL * (unsigned)-1)
+                size = 0;
+            /* XXX no disc?  maybe we need to reopen... */
+            if (size <= 0 && !reopened && cd_open(bs) >= 0) {
+                reopened = 1;
+                goto again;
+            }
+        }
 #endif
     } else
 #endif
@@ -993,6 +1022,14 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         bs->sg = 1;
     }
 #endif
+#if defined(__FreeBSD__)
+    if (strstart(filename, "/dev/cd", NULL) ||
+        strstart(filename, "/dev/acd", NULL)) {
+        s->type = FTYPE_CD;
+        s->cd_open_flags = open_flags;
+    }
+#endif
+    s->fd = -1;
     fd = open(filename, open_flags, 0644);
     if (fd < 0) {
         ret = -errno;
@@ -1001,6 +1038,11 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         return ret;
     }
     s->fd = fd;
+#if defined(__FreeBSD__)
+    /* make sure the door isnt locked at this time */
+    if (s->type == FTYPE_CD)
+        ioctl (s->fd, CDIOCALLOW);
+#endif
 #if defined(__linux__)
     /* close fd so that we can reopen it as needed */
     if (s->type == FTYPE_FD) {
@@ -1167,7 +1209,116 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 
     return ioctl(s->fd, req, buf);
 }
-#else
+#elif defined(__FreeBSD__)
+
+static int fd_open(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+
+    /* this is just to ensure s->fd is sane (its called by io ops) */
+    if (s->fd >= 0)
+        return 0;
+    return -EIO;
+}
+
+static int cd_open(BlockDriverState *bs)
+{
+#if defined(__FreeBSD__)
+    BDRVRawState *s = bs->opaque;
+    int fd;
+
+    switch(s->type) {
+    case FTYPE_CD:
+        /* XXX force reread of possibly changed/newly loaded disc,
+         * FreeBSD seems to not notice sometimes... */
+        if (s->fd >= 0)
+            close (s->fd);
+        fd = open(bs->filename, s->cd_open_flags, 0644);
+        if (fd < 0) {
+            s->fd = -1;
+            return -EIO;
+        }
+        s->fd = fd;
+        /* make sure the door isnt locked at this time */
+        ioctl (s->fd, CDIOCALLOW);
+    }
+#endif
+    return 0;
+}
+
+static int raw_is_inserted(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+
+    switch(s->type) {
+    case FTYPE_CD:
+        return (raw_getlength(bs) > 0);
+    case FTYPE_FD:
+        /* XXX handle this */
+        /* FALLTHRU */
+    default:
+        return 1;
+    }
+}
+
+static int raw_media_changed(BlockDriverState *bs)
+{
+    return -ENOTSUP;
+}
+
+static int raw_eject(BlockDriverState *bs, int eject_flag)
+{
+    BDRVRawState *s = bs->opaque;
+
+    switch(s->type) {
+    case FTYPE_CD:
+        if (s->fd < 0)
+            return -ENOTSUP;
+        (void) ioctl (s->fd, CDIOCALLOW);
+        if (eject_flag) {
+            if (ioctl (s->fd, CDIOCEJECT) < 0)
+                perror("CDIOCEJECT");
+        } else {
+            if (ioctl (s->fd, CDIOCCLOSE) < 0)
+                perror("CDIOCCLOSE");
+        }
+        if (cd_open(bs) < 0)
+            return -ENOTSUP;
+        break;
+    case FTYPE_FD:
+        /* XXX handle this */
+        /* FALLTHRU */
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
+static int raw_set_locked(BlockDriverState *bs, int locked)
+{
+    BDRVRawState *s = bs->opaque;
+
+    switch(s->type) {
+    case FTYPE_CD:
+        if (s->fd < 0)
+            return -ENOTSUP;
+        if (ioctl (s->fd, (locked ? CDIOCPREVENT : CDIOCALLOW)) < 0) {
+            /* Note: an error can happen if the distribution automatically
+               mounts the CD-ROM */
+            //        perror("CDROM_LOCKDOOR");
+        }
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
+static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+{
+    return -ENOTSUP;
+}
+#else /* !linux && !FreeBSD */
 
 static int fd_open(BlockDriverState *bs)
 {
@@ -1198,7 +1349,7 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
     return -ENOTSUP;
 }
-#endif /* !linux */
+#endif /* !linux && !FreeBSD */
 
 static int raw_sg_send_command(BlockDriverState *bs, void *buf, int count)
 {
