@@ -194,6 +194,7 @@ typedef struct QEMUIOVector {
 } QEMUIOVector;
 
 void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint);
+void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov);
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
 void qemu_iovec_destroy(QEMUIOVector *qiov);
 void qemu_iovec_reset(QEMUIOVector *qiov);
