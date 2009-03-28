@@ -35,8 +35,7 @@ typedef struct VirtIOBlockReq
     VirtQueueElement elem;
     struct virtio_blk_inhdr *in;
     struct virtio_blk_outhdr *out;
-    size_t size;
-    uint8_t *buffer;
+    QEMUIOVector qiov;
     struct VirtIOBlockReq *next;
 } VirtIOBlockReq;
 
@@ -45,10 +44,9 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
     VirtIOBlock *s = req->dev;
 
     req->in->status = status;
-    virtqueue_push(s->vq, &req->elem, req->size + sizeof(*req->in));
+    virtqueue_push(s->vq, &req->elem, req->qiov.size + sizeof(*req->in));
     virtio_notify(&s->vdev, s->vq);
 
-    qemu_free(req->buffer);
     qemu_free(req);
 }
 
@@ -76,24 +74,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
 {
     VirtIOBlockReq *req = opaque;
 
-    /* Copy read data to the guest */
-    if (!ret && !(req->out->type & VIRTIO_BLK_T_OUT)) {
-        size_t offset = 0;
-        int i;
-
-        for (i = 0; i < req->elem.in_num - 1; i++) {
-            size_t len;
-
-            /* Be pretty defensive wrt malicious guests */
-            len = MIN(req->elem.in_sg[i].iov_len,
-                      req->size - offset);
-
-            memcpy(req->elem.in_sg[i].iov_base,
-                   req->buffer + offset,
-                   len);
-            offset += len;
-        }
-    } else if (ret && (req->out->type & VIRTIO_BLK_T_OUT)) {
+    if (ret && (req->out->type & VIRTIO_BLK_T_OUT)) {
         if (virtio_blk_handle_write_error(req, -ret))
             return;
     }
@@ -122,39 +103,16 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
     return req;
 }
 
-static int virtio_blk_handle_write(VirtIOBlockReq *req)
+static void virtio_blk_handle_write(VirtIOBlockReq *req)
 {
-    if (!req->buffer) {
-        size_t offset = 0;
-        int i;
+    bdrv_aio_writev(req->dev->bs, req->out->sector, &req->qiov,
+                    req->qiov.size / 512, virtio_blk_rw_complete, req);
+}
 
-        for (i = 1; i < req->elem.out_num; i++)
-            req->size += req->elem.out_sg[i].iov_len;
-
-        req->buffer = qemu_memalign(512, req->size);
-        if (req->buffer == NULL) {
-            qemu_free(req);
-            return -1;
-        }
-
-        /* We copy the data from the SG list to avoid splitting up the request.
-           This helps performance a lot until we can pass full sg lists as AIO
-           operations */
-        for (i = 1; i < req->elem.out_num; i++) {
-            size_t len;
-
-            len = MIN(req->elem.out_sg[i].iov_len,
-                    req->size - offset);
-            memcpy(req->buffer + offset,
-                    req->elem.out_sg[i].iov_base,
-                    len);
-            offset += len;
-        }
-    }
-
-    bdrv_aio_write(req->dev->bs, req->out->sector, req->buffer, req->size / 512,
-            virtio_blk_rw_complete, req);
-    return 0;
+static void virtio_blk_handle_read(VirtIOBlockReq *req)
+{
+    bdrv_aio_readv(req->dev->bs, req->out->sector, &req->qiov,
+                   req->qiov.size / 512, virtio_blk_rw_complete, req);
 }
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -163,8 +121,6 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOBlockReq *req;
 
     while ((req = virtio_blk_get_request(s))) {
-        int i;
-
         if (req->elem.out_num < 1 || req->elem.in_num < 1) {
             fprintf(stderr, "virtio-blk missing headers\n");
             exit(1);
@@ -187,23 +143,13 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             virtio_notify(vdev, vq);
             qemu_free(req);
         } else if (req->out->type & VIRTIO_BLK_T_OUT) {
-            if (virtio_blk_handle_write(req) < 0)
-                break;
+            qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
+                                     req->elem.out_num - 1);
+            virtio_blk_handle_write(req);
         } else {
-            for (i = 0; i < req->elem.in_num - 1; i++)
-                req->size += req->elem.in_sg[i].iov_len;
-
-            req->buffer = qemu_memalign(512, req->size);
-            if (req->buffer == NULL) {
-                qemu_free(req);
-                break;
-            }
-
-            bdrv_aio_read(s->bs, req->out->sector,
-                          req->buffer,
-                          req->size / 512,
-                          virtio_blk_rw_complete,
-                          req);
+            qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
+                                     req->elem.in_num - 1);
+            virtio_blk_handle_read(req);
         }
     }
     /*
