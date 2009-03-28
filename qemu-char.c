@@ -917,6 +917,8 @@ static void pty_chr_close(struct CharDriverState *chr)
 
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
     close(s->fd);
+    qemu_del_timer(s->timer);
+    qemu_free_timer(s->timer);
     qemu_free(s);
 }
 
@@ -1746,6 +1748,16 @@ static void udp_chr_update_read_handler(CharDriverState *chr)
     }
 }
 
+static void udp_chr_close(CharDriverState *chr)
+{
+    NetCharDriver *s = chr->opaque;
+    if (s->fd >= 0) {
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        closesocket(s->fd);
+    }
+    qemu_free(s);
+}
+
 static CharDriverState *qemu_chr_open_udp(const char *def)
 {
     CharDriverState *chr = NULL;
@@ -1779,6 +1791,7 @@ static CharDriverState *qemu_chr_open_udp(const char *def)
     chr->opaque = s;
     chr->chr_write = udp_chr_write;
     chr->chr_update_read_handler = udp_chr_update_read_handler;
+    chr->chr_close = udp_chr_close;
     return chr;
 
 return_err:
@@ -1981,10 +1994,14 @@ static void tcp_chr_accept(void *opaque)
 static void tcp_chr_close(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
-    if (s->fd >= 0)
+    if (s->fd >= 0) {
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
         closesocket(s->fd);
-    if (s->listen_fd >= 0)
+    }
+    if (s->listen_fd >= 0) {
+        qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
         closesocket(s->listen_fd);
+    }
     qemu_free(s);
 }
 
