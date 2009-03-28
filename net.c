@@ -1818,11 +1818,6 @@ void net_host_device_remove(int vlan_id, const char *device)
     VLANState *vlan;
     VLANClientState *vc;
 
-    if (!net_host_check_device(device)) {
-        term_printf("invalid host network device %s\n", device);
-        return;
-    }
-
     vlan = qemu_find_vlan(vlan_id);
     if (!vlan) {
         term_printf("can't find vlan %d\n", vlan_id);
