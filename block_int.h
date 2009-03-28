@@ -91,6 +91,12 @@ struct BlockDriver {
         BlockDriverCompletionFunc *cb, void *opaque);
 
     AIOPool aio_pool;
+
+    /* new create with backing file format */
+    int (*bdrv_create2)(const char *filename, int64_t total_sectors,
+                        const char *backing_file, const char *backing_format,
+                        int flags);
+
     struct BlockDriver *next;
 };
 
@@ -113,6 +119,7 @@ struct BlockDriverState {
     char filename[1024];
     char backing_file[1024]; /* if non zero, the image is a diff of
                                 this file image */
+    char backing_format[16]; /* if non-zero and backing_file exists */
     int is_temporary;
     int media_changed;
 

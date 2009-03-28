@@ -62,6 +62,10 @@ BlockDriver *bdrv_find_format(const char *format_name);
 int bdrv_create(BlockDriver *drv,
                 const char *filename, int64_t size_in_sectors,
                 const char *backing_file, int flags);
+int bdrv_create2(BlockDriver *drv,
+                 const char *filename, int64_t size_in_sectors,
+                 const char *backing_file, const char *backing_format,
+                 int flags);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
