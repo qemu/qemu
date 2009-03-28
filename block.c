@@ -1306,6 +1306,11 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
         s->aiocb = bdrv_aio_read(bs, sector_num, s->bounce, nb_sectors,
                                  bdrv_aio_rw_vector_cb, s);
     }
+    if (!s->aiocb) {
+        qemu_vfree(s->bounce);
+        qemu_aio_release(s);
+        return NULL;
+    }
     return &s->common;
 }
 
