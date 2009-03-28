@@ -40,3 +40,5 @@ case "$1" in
 "-t") hxtotexi ;;
 *) exit 1 ;;
 esac
+
+exit 0
