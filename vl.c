@@ -4244,9 +4244,7 @@ static const QEMUOption qemu_options[] = {
     { "boot", HAS_ARG, QEMU_OPTION_boot },
     { "snapshot", 0, QEMU_OPTION_snapshot },
     { "m", HAS_ARG, QEMU_OPTION_m },
-#ifndef _WIN32
     { "k", HAS_ARG, QEMU_OPTION_k },
-#endif
 #ifdef HAS_AUDIO
     { "audio-help", 0, QEMU_OPTION_audio_help },
     { "soundhw", HAS_ARG, QEMU_OPTION_soundhw },
