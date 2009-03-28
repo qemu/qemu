@@ -686,31 +686,12 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
 }
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
-static int kvm_patch_opcode_byte(CPUState *env, target_ulong addr, uint8_t val)
-{
-    target_phys_addr_t phys_page_addr;
-    unsigned long pd;
-    uint8_t *ptr;
-
-    phys_page_addr = cpu_get_phys_page_debug(env, addr & TARGET_PAGE_MASK);
-    if (phys_page_addr == -1)
-        return -EINVAL;
-
-    pd = cpu_get_physical_page_desc(phys_page_addr);
-    if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM &&
-        (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM && !(pd & IO_MEM_ROMD))
-        return -EINVAL;
-
-    ptr = phys_ram_base + (pd & TARGET_PAGE_MASK)
-                        + (addr & ~TARGET_PAGE_MASK);
-    *ptr = val;
-    return 0;
-}
-
 int kvm_arch_insert_sw_breakpoint(CPUState *env, struct kvm_sw_breakpoint *bp)
 {
+    const static uint8_t int3 = 0xcc;
+
     if (cpu_memory_rw_debug(env, bp->pc, (uint8_t *)&bp->saved_insn, 1, 0) ||
-        kvm_patch_opcode_byte(env, bp->pc, 0xcc))
+        cpu_memory_rw_debug(env, bp->pc, (uint8_t *)&int3, 1, 1))
         return -EINVAL;
     return 0;
 }
@@ -720,7 +701,7 @@ int kvm_arch_remove_sw_breakpoint(CPUState *env, struct kvm_sw_breakpoint *bp)
     uint8_t int3;
 
     if (cpu_memory_rw_debug(env, bp->pc, &int3, 1, 0) || int3 != 0xcc ||
-        kvm_patch_opcode_byte(env, bp->pc, bp->saved_insn))
+        cpu_memory_rw_debug(env, bp->pc, (uint8_t *)&bp->saved_insn, 1, 1))
         return -EINVAL;
     return 0;
 }
