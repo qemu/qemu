@@ -215,7 +215,6 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* Allocate memory space */
-    qemu_ram_alloc(SDRAM_BASE); /* to adjust the offset */
     sdram_addr = qemu_ram_alloc(SDRAM_SIZE);
     cpu_register_physical_memory(SDRAM_BASE, SDRAM_SIZE, sdram_addr);
     /* Register peripherals */
@@ -250,7 +249,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
           env->pc = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000;
           pstrcpy_targphys(SDRAM_BASE + 0x10100, 256, kernel_cmdline);
       } else {
-          kernel_size = load_image(kernel_filename, SDRAM_BASE);
+          kernel_size = load_image_targphys(kernel_filename, SDRAM_BASE, SDRAM_SIZE);
           env->pc = SDRAM_BASE | 0xa0000000; /* Start from P2 area */
       }
 
@@ -265,5 +264,5 @@ QEMUMachine r2d_machine = {
     .name = "r2d",
     .desc = "r2d-plus board",
     .init = r2d_init,
-    .ram_require = (SDRAM_BASE + SDRAM_SIZE + SM501_VRAM_SIZE) | RAMSIZE_FIXED,
+    .ram_require = (SDRAM_SIZE + SM501_VRAM_SIZE) | RAMSIZE_FIXED,
 };
