@@ -739,11 +739,10 @@ $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
 endif # !CONFIG_USER_ONLY
 
 gdbstub-xml.c: $(TARGET_XML_FILES) feature_to_c.sh
-	rm -f $@
 ifeq ($(TARGET_XML_FILES),)
-	echo > $@
+	$(call quiet-command,rm -f $@ && echo > $@,"  GEN   $(TARGET_DIR)$@")
 else
-	$(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES)
+	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
 endif
 
 qemu-options.h: $(SRC_PATH)/qemu-options.hx
