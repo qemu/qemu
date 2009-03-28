@@ -292,7 +292,7 @@ cscope:
 	texi2dvi -I . $<
 
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx
-	sh ./hxtool -t < $< > $@
+	sh $(SRC_PATH)/hxtool -t < $< > $@
 
 qemu.1: qemu-doc.texi
 	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu.pod
