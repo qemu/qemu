@@ -270,7 +270,7 @@ set to zero.
 
 * bswap32_i32/i64 t0, t1
 
-32 bit byte swap on a 32/64 bit value. With a 32 bit value, the four high
+32 bit byte swap on a 32/64 bit value. With a 64 bit value, the four high
 order bytes must be set to zero.
 
 * bswap64_i64 t0, t1
