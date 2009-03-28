@@ -265,6 +265,7 @@ typedef struct GDBRegisterState {
 } GDBRegisterState;
 
 enum RSState {
+    RS_INACTIVE,
     RS_IDLE,
     RS_GETLINE,
     RS_CHKSUM1,
@@ -1924,7 +1925,7 @@ static void gdb_vm_state_change(void *opaque, int running, int reason)
     int ret;
 
     if (running || (reason != EXCP_DEBUG && reason != EXCP_INTERRUPT) ||
-        s->state == RS_SYSCALL)
+        s->state == RS_INACTIVE || s->state == RS_SYSCALL)
         return;
 
     /* disable single step if it was enable */
@@ -2342,36 +2343,50 @@ int gdbserver_start(const char *port)
     char gdbstub_port_name[128];
     int port_num;
     char *p;
-    CharDriverState *chr;
+    CharDriverState *chr = NULL;
+    CharDriverState *mon_chr;
 
     if (!port || !*port)
       return -1;
+    if (strcmp(port, "none") != 0) {
+        port_num = strtol(port, &p, 10);
+        if (*p == 0) {
+            /* A numeric value is interpreted as a port number.  */
+            snprintf(gdbstub_port_name, sizeof(gdbstub_port_name),
+                     "tcp::%d,nowait,nodelay,server", port_num);
+            port = gdbstub_port_name;
+        }
 
-    port_num = strtol(port, &p, 10);
-    if (*p == 0) {
-        /* A numeric value is interpreted as a port number.  */
-        snprintf(gdbstub_port_name, sizeof(gdbstub_port_name),
-                 "tcp::%d,nowait,nodelay,server", port_num);
-        port = gdbstub_port_name;
+        chr = qemu_chr_open("gdb", port, NULL);
+        if (!chr)
+            return -1;
+
+        qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
+                              gdb_chr_event, NULL);
     }
 
-    chr = qemu_chr_open("gdb", port, NULL);
-    if (!chr)
-        return -1;
+    s = gdbserver_state;
+    if (!s) {
+        s = qemu_mallocz(sizeof(GDBState));
+        gdbserver_state = s;
 
-    s = qemu_mallocz(sizeof(GDBState));
+        qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
+
+        /* Initialize a monitor terminal for gdb */
+        mon_chr = qemu_mallocz(sizeof(*mon_chr));
+        mon_chr->chr_write = gdb_monitor_write;
+        monitor_init(mon_chr, 0);
+    } else {
+        if (s->chr)
+            qemu_chr_close(s->chr);
+        mon_chr = s->mon_chr;
+        memset(s, 0, sizeof(GDBState));
+    }
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
     s->chr = chr;
-    gdbserver_state = s;
-    qemu_chr_add_handlers(chr, gdb_chr_can_receive, gdb_chr_receive,
-                          gdb_chr_event, NULL);
-    qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
-
-    /* Initialize a monitor terminal for gdb */
-    s->mon_chr = qemu_mallocz(sizeof(*s->mon_chr));
-    s->mon_chr->chr_write = gdb_monitor_write;
-    monitor_init(s->mon_chr, 0);
+    s->state = chr ? RS_IDLE : RS_INACTIVE;
+    s->mon_chr = mon_chr;
 
     return 0;
 }
