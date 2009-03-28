@@ -2216,8 +2216,6 @@ static void gdb_accept(void)
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
 
     s = qemu_mallocz(sizeof(GDBState));
-
-    memset (s, 0, sizeof (GDBState));
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
     s->fd = fd;
