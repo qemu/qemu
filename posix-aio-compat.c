@@ -11,6 +11,7 @@
  *
  */
 
+#include <sys/ioctl.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
@@ -75,6 +76,47 @@ static void thread_create(pthread_t *thread, pthread_attr_t *attr,
     if (ret) die2(ret, "pthread_create");
 }
 
+static size_t handle_aiocb_readwrite(struct qemu_paiocb *aiocb)
+{
+    size_t offset = 0;
+    ssize_t len;
+
+    while (offset < aiocb->aio_nbytes) {
+        if (aiocb->aio_type == QEMU_PAIO_WRITE)
+            len = pwrite(aiocb->aio_fildes,
+                         (const char *)aiocb->aio_buf + offset,
+                         aiocb->aio_nbytes - offset,
+                         aiocb->aio_offset + offset);
+        else
+            len = pread(aiocb->aio_fildes,
+                        (char *)aiocb->aio_buf + offset,
+                        aiocb->aio_nbytes - offset,
+                        aiocb->aio_offset + offset);
+
+        if (len == -1 && errno == EINTR)
+            continue;
+        else if (len == -1) {
+            offset = -errno;
+            break;
+        } else if (len == 0)
+            break;
+
+        offset += len;
+    }
+
+    return offset;
+}
+
+static size_t handle_aiocb_ioctl(struct qemu_paiocb *aiocb)
+{
+	int ret;
+
+	ret = ioctl(aiocb->aio_fildes, aiocb->aio_ioctl_cmd, aiocb->aio_buf);
+	if (ret == -1)
+		return -errno;
+	return ret;
+}
+
 static void *aio_thread(void *unused)
 {
     pid_t pid;
@@ -88,8 +130,7 @@ static void *aio_thread(void *unused)
 
     while (1) {
         struct qemu_paiocb *aiocb;
-        size_t offset;
-        int ret = 0;
+        size_t ret = 0;
         qemu_timeval tv;
         struct timespec ts;
 
@@ -109,40 +150,26 @@ static void *aio_thread(void *unused)
 
         aiocb = TAILQ_FIRST(&request_list);
         TAILQ_REMOVE(&request_list, aiocb, node);
-
-        offset = 0;
         aiocb->active = 1;
-
         idle_threads--;
         mutex_unlock(&lock);
 
-        while (offset < aiocb->aio_nbytes) {
-            ssize_t len;
-
-            if (aiocb->is_write)
-                len = pwrite(aiocb->aio_fildes,
-                             (const char *)aiocb->aio_buf + offset,
-                             aiocb->aio_nbytes - offset,
-                             aiocb->aio_offset + offset);
-            else
-                len = pread(aiocb->aio_fildes,
-                            (char *)aiocb->aio_buf + offset,
-                            aiocb->aio_nbytes - offset,
-                            aiocb->aio_offset + offset);
-
-            if (len == -1 && errno == EINTR)
-                continue;
-            else if (len == -1) {
-                offset = -errno;
-                break;
-            } else if (len == 0)
-                break;
-
-            offset += len;
-        }
+        switch (aiocb->aio_type) {
+        case QEMU_PAIO_READ:
+        case QEMU_PAIO_WRITE:
+		ret = handle_aiocb_readwrite(aiocb);
+		break;
+        case QEMU_PAIO_IOCTL:
+		ret = handle_aiocb_ioctl(aiocb);
+		break;
+	default:
+		fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
+		ret = -EINVAL;
+		break;
+	}
 
         mutex_lock(&lock);
-        aiocb->ret = offset;
+        aiocb->ret = ret;
         idle_threads++;
         mutex_unlock(&lock);
 
@@ -178,9 +205,9 @@ int qemu_paio_init(struct qemu_paioinit *aioinit)
     return 0;
 }
 
-static int qemu_paio_submit(struct qemu_paiocb *aiocb, int is_write)
+static int qemu_paio_submit(struct qemu_paiocb *aiocb, int type)
 {
-    aiocb->is_write = is_write;
+    aiocb->aio_type = type;
     aiocb->ret = -EINPROGRESS;
     aiocb->active = 0;
     mutex_lock(&lock);
@@ -195,12 +222,17 @@ static int qemu_paio_submit(struct qemu_paiocb *aiocb, int is_write)
 
 int qemu_paio_read(struct qemu_paiocb *aiocb)
 {
-    return qemu_paio_submit(aiocb, 0);
+    return qemu_paio_submit(aiocb, QEMU_PAIO_READ);
 }
 
 int qemu_paio_write(struct qemu_paiocb *aiocb)
 {
-    return qemu_paio_submit(aiocb, 1);
+    return qemu_paio_submit(aiocb, QEMU_PAIO_WRITE);
+}
+
+int qemu_paio_ioctl(struct qemu_paiocb *aiocb)
+{
+    return qemu_paio_submit(aiocb, QEMU_PAIO_IOCTL);
 }
 
 ssize_t qemu_paio_return(struct qemu_paiocb *aiocb)

@@ -1209,6 +1209,26 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 
     return ioctl(s->fd, req, buf);
 }
+
+static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
+        unsigned long int req, void *buf,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    RawAIOCB *acb;
+
+    acb = raw_aio_setup(bs, 0, buf, 0, cb, opaque);
+    if (!acb)
+        return NULL;
+
+    acb->aiocb.aio_ioctl_cmd = req;
+    if (qemu_paio_ioctl(&acb->aiocb) < 0) {
+        raw_aio_remove(acb);
+        return NULL;
+    }
+
+    return &acb->common;
+}
+
 #elif defined(__FreeBSD__)
 
 static int fd_open(BlockDriverState *bs)
@@ -1349,33 +1369,14 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
     return -ENOTSUP;
 }
+
+static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
+        unsigned long int req, void *buf,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    return -ENOTSUP;
+}
 #endif /* !linux && !FreeBSD */
-
-static int raw_sg_send_command(BlockDriverState *bs, void *buf, int count)
-{
-    return raw_pwrite(bs, -1, buf, count);
-}
-
-static int raw_sg_recv_response(BlockDriverState *bs, void *buf, int count)
-{
-    return raw_pread(bs, -1, buf, count);
-}
-
-static BlockDriverAIOCB *raw_sg_aio_read(BlockDriverState *bs,
-                                         void *buf, int count,
-                                         BlockDriverCompletionFunc *cb,
-                                         void *opaque)
-{
-    return raw_aio_read(bs, 0, buf, -(int64_t)count, cb, opaque);
-}
-
-static BlockDriverAIOCB *raw_sg_aio_write(BlockDriverState *bs,
-                                          void *buf, int count,
-                                          BlockDriverCompletionFunc *cb,
-                                          void *opaque)
-{
-    return raw_aio_write(bs, 0, buf, -(int64_t)count, cb, opaque);
-}
 
 BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
@@ -1402,8 +1403,5 @@ BlockDriver bdrv_host_device = {
     .bdrv_set_locked	= raw_set_locked,
     /* generic scsi device */
     .bdrv_ioctl		= raw_ioctl,
-    .bdrv_sg_send_command  = raw_sg_send_command,
-    .bdrv_sg_recv_response = raw_sg_recv_response,
-    .bdrv_sg_aio_read      = raw_sg_aio_read,
-    .bdrv_sg_aio_write     = raw_sg_aio_write,
+    .bdrv_aio_ioctl	= raw_aio_ioctl,
 };

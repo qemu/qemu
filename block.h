@@ -102,12 +102,10 @@ BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
 /* sg packet commands */
-int bdrv_sg_send_command(BlockDriverState *bs, void *buf, int count);
-int bdrv_sg_recv_response(BlockDriverState *bs, void *buf, int count);
-BlockDriverAIOCB *bdrv_sg_aio_read(BlockDriverState *bs, void *buf, int count,
-                                   BlockDriverCompletionFunc *cb, void *opaque);
-BlockDriverAIOCB *bdrv_sg_aio_write(BlockDriverState *bs, void *buf, int count,
-                                    BlockDriverCompletionFunc *cb, void *opaque);
+int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
+BlockDriverAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
+        unsigned long int req, void *buf,
+        BlockDriverCompletionFunc *cb, void *opaque);
 
 /* Ensure contents are flushed to disk.  */
 void bdrv_flush(BlockDriverState *bs);
@@ -169,7 +167,6 @@ int bdrv_snapshot_delete(BlockDriverState *bs, const char *snapshot_id);
 int bdrv_snapshot_list(BlockDriverState *bs,
                        QEMUSnapshotInfo **psn_info);
 char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn);
-int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf);
 
 char *get_human_readable_size(char *buf, int buf_size, int64_t size);
 int path_is_absolute(const char *path);
