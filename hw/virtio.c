@@ -16,8 +16,6 @@
 #include "virtio.h"
 #include "sysemu.h"
 
-//#define VIRTIO_ZERO_COPY
-
 /* from Linux's linux/virtio_pci.h */
 
 /* A 32-bit r/o bitmask of the features supported by the host */
@@ -113,43 +111,6 @@ struct VirtQueue
 #define VIRTIO_PCI_QUEUE_MAX        16
 
 /* virt queue functions */
-#ifdef VIRTIO_ZERO_COPY
-static void *virtio_map_gpa(target_phys_addr_t addr, size_t size)
-{
-    ram_addr_t off;
-    target_phys_addr_t addr1;
-
-    off = cpu_get_physical_page_desc(addr);
-    if ((off & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
-        fprintf(stderr, "virtio DMA to IO ram\n");
-        exit(1);
-    }
-
-    off = (off & TARGET_PAGE_MASK) | (addr & ~TARGET_PAGE_MASK);
-
-    for (addr1 = addr + TARGET_PAGE_SIZE;
-         addr1 < TARGET_PAGE_ALIGN(addr + size);
-         addr1 += TARGET_PAGE_SIZE) {
-        ram_addr_t off1;
-
-        off1 = cpu_get_physical_page_desc(addr1);
-        if ((off1 & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
-            fprintf(stderr, "virtio DMA to IO ram\n");
-            exit(1);
-        }
-
-        off1 = (off1 & TARGET_PAGE_MASK) | (addr1 & ~TARGET_PAGE_MASK);
-
-        if (off1 != (off + (addr1 - addr))) {
-            fprintf(stderr, "discontigous virtio memory\n");
-            exit(1);
-        }
-    }
-
-    return phys_ram_base + off;
-}
-#endif
-
 static void virtqueue_init(VirtQueue *vq, target_phys_addr_t pa)
 {
     vq->vring.desc = pa;
@@ -274,34 +235,21 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
     unsigned int offset;
     int i;
 
-#ifndef VIRTIO_ZERO_COPY
-    for (i = 0; i < elem->out_num; i++)
-        qemu_free(elem->out_sg[i].iov_base);
-#endif
-
     offset = 0;
     for (i = 0; i < elem->in_num; i++) {
         size_t size = MIN(len - offset, elem->in_sg[i].iov_len);
 
-#ifdef VIRTIO_ZERO_COPY
-        if (size) {
-            ram_addr_t addr = (uint8_t *)elem->in_sg[i].iov_base - phys_ram_base;
-            ram_addr_t off;
+        cpu_physical_memory_unmap(elem->in_sg[i].iov_base,
+                                  elem->in_sg[i].iov_len,
+                                  1, size);
 
-            for (off = 0; off < size; off += TARGET_PAGE_SIZE)
-                cpu_physical_memory_set_dirty(addr + off);
-        }
-#else
-        if (size)
-            cpu_physical_memory_write(elem->in_addr[i],
-                                      elem->in_sg[i].iov_base,
-                                      size);
-
-        qemu_free(elem->in_sg[i].iov_base);
-#endif
-        
-        offset += size;
+        offset += elem->in_sg[i].iov_len;
     }
+
+    for (i = 0; i < elem->out_num; i++)
+        cpu_physical_memory_unmap(elem->out_sg[i].iov_base,
+                                  elem->out_sg[i].iov_len,
+                                  0, elem->out_sg[i].iov_len);
 
     idx = (idx + vring_used_idx(vq)) % vq->vring.num;
 
@@ -414,6 +362,7 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
 int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
 {
     unsigned int i, head;
+    target_phys_addr_t len;
 
     if (!virtqueue_num_heads(vq, vq->last_avail_idx))
         return 0;
@@ -424,37 +373,23 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
     i = head = virtqueue_get_head(vq, vq->last_avail_idx++);
     do {
         struct iovec *sg;
+        int is_write = 0;
 
         if (vring_desc_flags(vq, i) & VRING_DESC_F_WRITE) {
             elem->in_addr[elem->in_num] = vring_desc_addr(vq, i);
             sg = &elem->in_sg[elem->in_num++];
+            is_write = 1;
         } else
             sg = &elem->out_sg[elem->out_num++];
 
         /* Grab the first descriptor, and check it's OK. */
         sg->iov_len = vring_desc_len(vq, i);
+        len = sg->iov_len;
 
-#ifdef VIRTIO_ZERO_COPY
-        sg->iov_base = virtio_map_gpa(vring_desc_addr(vq, i), sg->iov_len);
-#else
-        /* cap individual scatter element size to prevent unbounded allocations
-           of memory from the guest.  Practically speaking, no virtio driver
-           will ever pass more than a page in each element.  We set the cap to
-           be 2MB in case for some reason a large page makes it way into the
-           sg list.  When we implement a zero copy API, this limitation will
-           disappear */
-        if (sg->iov_len > (2 << 20))
-            sg->iov_len = 2 << 20;
+        sg->iov_base = cpu_physical_memory_map(vring_desc_addr(vq, i), &len, is_write);
 
-        sg->iov_base = qemu_malloc(sg->iov_len);
-        if (!(vring_desc_flags(vq, i) & VRING_DESC_F_WRITE)) {
-            cpu_physical_memory_read(vring_desc_addr(vq, i),
-                                     sg->iov_base,
-                                     sg->iov_len);
-        }
-#endif
-        if (sg->iov_base == NULL) {
-            fprintf(stderr, "Invalid mapping\n");
+        if (sg->iov_base == NULL || len != sg->iov_len) {
+            fprintf(stderr, "virtio: trying to map MMIO memory\n");
             exit(1);
         }
 
