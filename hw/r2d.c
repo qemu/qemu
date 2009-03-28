@@ -37,6 +37,9 @@
 
 #define SM501_VRAM_SIZE 0x800000
 
+/* CONFIG_BOOT_LINK_OFFSET of Linux kernel */
+#define LINUX_LOAD_OFFSET 0x800000
+
 #define PA_IRLMSK	0x00
 #define PA_POWOFF	0x30
 #define PA_VERREG	0x32
@@ -212,6 +215,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* Allocate memory space */
+    qemu_ram_alloc(SDRAM_BASE); /* to adjust the offset */
     sdram_addr = qemu_ram_alloc(SDRAM_SIZE);
     cpu_register_physical_memory(SDRAM_BASE, SDRAM_SIZE, sdram_addr);
     /* Register peripherals */
@@ -233,20 +237,27 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
         pci_nic_init(pci, &nd_table[i], (i==0)? 2<<3: -1, "rtl8139");
 
     /* Todo: register on board registers */
-    {
+    if (kernel_filename) {
       int kernel_size;
       /* initialization which should be done by firmware */
       stl_phys(SH7750_BCR1, 1<<3); /* cs3 SDRAM */
       stw_phys(SH7750_BCR2, 3<<(3*2)); /* cs3 32bit */
 
-      kernel_size = load_image(kernel_filename, phys_ram_base);
+      if (kernel_cmdline) {
+          kernel_size = load_image_targphys(kernel_filename,
+				   SDRAM_BASE + LINUX_LOAD_OFFSET,
+				   SDRAM_SIZE - LINUX_LOAD_OFFSET);
+          env->pc = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000;
+          pstrcpy_targphys(SDRAM_BASE + 0x10100, 256, kernel_cmdline);
+      } else {
+          kernel_size = load_image(kernel_filename, SDRAM_BASE);
+          env->pc = SDRAM_BASE | 0xa0000000; /* Start from P2 area */
+      }
 
       if (kernel_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
         exit(1);
       }
-
-      env->pc = SDRAM_BASE | 0xa0000000; /* Start from P2 area */
     }
 }
 
@@ -254,5 +265,5 @@ QEMUMachine r2d_machine = {
     .name = "r2d",
     .desc = "r2d-plus board",
     .init = r2d_init,
-    .ram_require = (SDRAM_SIZE + SM501_VRAM_SIZE) | RAMSIZE_FIXED,
+    .ram_require = (SDRAM_BASE + SDRAM_SIZE + SM501_VRAM_SIZE) | RAMSIZE_FIXED,
 };
