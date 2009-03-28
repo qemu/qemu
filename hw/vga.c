@@ -2637,6 +2637,7 @@ static void vga_screen_dump_common(VGAState *s, const char *filename,
     dcl.dpy_resize = vga_save_dpy_resize;
     dcl.dpy_refresh = vga_save_dpy_refresh;
     register_displaychangelistener(ds, &dcl);
+    ds->allocator = &default_allocator;
     ds->surface = qemu_create_displaysurface(ds, w, h);
 
     s->ds = ds;
