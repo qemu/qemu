@@ -729,6 +729,8 @@ LDFLAGS+=-p
 main.o: CFLAGS+=-p
 endif
 
+vl.o: qemu-options.h
+
 $(QEMU_PROG): LIBS += $(SDL_LIBS) $(COCOA_LIBS) $(CURSES_LIBS) $(BRLAPI_LIBS) $(VDE_LIBS)
 
 $(QEMU_PROG): $(OBJS) ../libqemu_common.a libqemu.a
@@ -744,8 +746,11 @@ else
 	$(SHELL) $(SRC_PATH)/feature_to_c.sh $@ $(TARGET_XML_FILES)
 endif
 
+qemu-options.h: $(SRC_PATH)/qemu-options.hx
+	sh ../hxtool -h < $< > $@
+
 clean:
-	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
+	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o qemu-options.h
 	rm -f *.d */*.d tcg/*.o
 
 install: all

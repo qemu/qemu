@@ -1,0 +1,42 @@
+#!/bin/sh
+
+hxtoh()
+{
+    flag=1
+    while read str; do
+        case $str in
+            HXCOMM*)
+            ;;
+            STEXI*|ETEXI*) flag=$(($flag^1))
+            ;;
+            *)
+            test $flag -eq 1 && echo $str
+            ;;
+        esac
+    done
+}
+
+hxtotexi()
+{
+    flag=0
+    while read str; do
+        case "$str" in
+            HXCOMM*)
+            ;;
+            STEXI*|ETEXI*) flag=$(($flag^1))
+            ;;
+            DEFHEADING*)
+            echo $(expr "$str" : "DEFHEADING(\(.*\))")
+            ;;
+            *)
+            test $flag -eq 1 && echo $str
+            ;;
+        esac
+    done
+}
+
+case "$1" in
+"-h") hxtoh ;;
+"-t") hxtotexi ;;
+*) exit 1 ;;
+esac

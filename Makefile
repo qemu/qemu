@@ -283,13 +283,16 @@ cscope:
 
 # documentation
 %.html: %.texi
-	texi2html -monolithic -number $<
+	texi2html -I=. -monolithic -number $<
 
 %.info: %.texi
-	makeinfo $< -o $@
+	makeinfo -I . $< -o $@
 
 %.dvi: %.texi
-	texi2dvi $<
+	texi2dvi -I . $<
+
+qemu-options.texi: $(SRC_PATH)/qemu-options.hx
+	sh ./hxtool -t < $< > $@
 
 qemu.1: qemu-doc.texi
 	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu.pod
@@ -309,7 +312,7 @@ dvi: qemu-doc.dvi qemu-tech.dvi
 
 html: qemu-doc.html qemu-tech.html
 
-qemu-doc.dvi qemu-doc.html qemu-doc.info: qemu-img.texi qemu-nbd.texi
+qemu-doc.dvi qemu-doc.html qemu-doc.info: qemu-img.texi qemu-nbd.texi qemu-options.texi
 
 VERSION ?= $(shell cat VERSION)
 FILE = qemu-$(VERSION)
