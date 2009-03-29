@@ -290,7 +290,7 @@ static always_inline void gen_store_mem (DisasContext *ctx,
 
 static always_inline void gen_bcond (DisasContext *ctx,
                                      TCGCond cond,
-                                     int ra, int32_t disp16, int mask)
+                                     int ra, int32_t disp, int mask)
 {
     int l1, l2;
 
@@ -313,7 +313,7 @@ static always_inline void gen_bcond (DisasContext *ctx,
     tcg_gen_movi_i64(cpu_pc, ctx->pc);
     tcg_gen_br(l2);
     gen_set_label(l1);
-    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp16 << 2));
+    tcg_gen_movi_i64(cpu_pc, ctx->pc + (int64_t)(disp << 2));
     gen_set_label(l2);
 }
 
@@ -2285,42 +2285,42 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         break;
     case 0x38:
         /* BLBC */
-        gen_bcond(ctx, TCG_COND_EQ, ra, disp16, 1);
+        gen_bcond(ctx, TCG_COND_EQ, ra, disp21, 1);
         ret = 1;
         break;
     case 0x39:
         /* BEQ */
-        gen_bcond(ctx, TCG_COND_EQ, ra, disp16, 0);
+        gen_bcond(ctx, TCG_COND_EQ, ra, disp21, 0);
         ret = 1;
         break;
     case 0x3A:
         /* BLT */
-        gen_bcond(ctx, TCG_COND_LT, ra, disp16, 0);
+        gen_bcond(ctx, TCG_COND_LT, ra, disp21, 0);
         ret = 1;
         break;
     case 0x3B:
         /* BLE */
-        gen_bcond(ctx, TCG_COND_LE, ra, disp16, 0);
+        gen_bcond(ctx, TCG_COND_LE, ra, disp21, 0);
         ret = 1;
         break;
     case 0x3C:
         /* BLBS */
-        gen_bcond(ctx, TCG_COND_NE, ra, disp16, 1);
+        gen_bcond(ctx, TCG_COND_NE, ra, disp21, 1);
         ret = 1;
         break;
     case 0x3D:
         /* BNE */
-        gen_bcond(ctx, TCG_COND_NE, ra, disp16, 0);
+        gen_bcond(ctx, TCG_COND_NE, ra, disp21, 0);
         ret = 1;
         break;
     case 0x3E:
         /* BGE */
-        gen_bcond(ctx, TCG_COND_GE, ra, disp16, 0);
+        gen_bcond(ctx, TCG_COND_GE, ra, disp21, 0);
         ret = 1;
         break;
     case 0x3F:
         /* BGT */
-        gen_bcond(ctx, TCG_COND_GT, ra, disp16, 0);
+        gen_bcond(ctx, TCG_COND_GT, ra, disp21, 0);
         ret = 1;
         break;
     invalid_opc:
