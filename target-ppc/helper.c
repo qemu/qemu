@@ -2009,6 +2009,8 @@ void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value)
 #endif
     if (env->sr[srnum] != value) {
         env->sr[srnum] = value;
+/* Invalidating 256MB of virtual memory in 4kB pages is way longer than
+   flusing the whole TLB. */
 #if !defined(FLUSH_ALL_TLBS) && 0
         {
             target_ulong page, end;
