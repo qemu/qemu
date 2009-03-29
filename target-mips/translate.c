@@ -2128,42 +2128,36 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
                     int rd, int rs)
 {
     const char *opn = "CLx";
-    TCGv t0 = tcg_temp_local_new();
+    TCGv t0;
 
     if (rd == 0) {
         /* Treat as NOP. */
         MIPS_DEBUG("NOP");
-        goto out;
+        return;
     }
+    t0 = tcg_temp_new();
     gen_load_gpr(t0, rs);
     switch (opc) {
     case OPC_CLO:
-        gen_helper_clo(t0, t0);
+        gen_helper_clo(cpu_gpr[rd], t0);
         opn = "clo";
         break;
     case OPC_CLZ:
-        gen_helper_clz(t0, t0);
+        gen_helper_clz(cpu_gpr[rd], t0);
         opn = "clz";
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DCLO:
-        gen_helper_dclo(t0, t0);
+        gen_helper_dclo(cpu_gpr[rd], t0);
         opn = "dclo";
         break;
     case OPC_DCLZ:
-        gen_helper_dclz(t0, t0);
+        gen_helper_dclz(cpu_gpr[rd], t0);
         opn = "dclz";
         break;
 #endif
-    default:
-        MIPS_INVAL(opn);
-        generate_exception(ctx, EXCP_RI);
-        goto out;
     }
-    gen_store_gpr(t0, rd);
     MIPS_DEBUG("%s %s, %s", opn, regnames[rd], regnames[rs]);
-
- out:
     tcg_temp_free(t0);
 }
 
@@ -7711,7 +7705,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_MUL:
             gen_arith(env, ctx, op1, rd, rs, rt);
             break;
-        case OPC_CLZ ... OPC_CLO:
+        case OPC_CLO:
+        case OPC_CLZ:
             check_insn(env, ctx, ISA_MIPS32);
             gen_cl(ctx, op1, rd, rs);
             break;
@@ -7728,7 +7723,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             /* Treat as NOP. */
             break;
 #if defined(TARGET_MIPS64)
-        case OPC_DCLZ ... OPC_DCLO:
+        case OPC_DCLO:
+        case OPC_DCLZ:
             check_insn(env, ctx, ISA_MIPS64);
             check_mips_64(ctx);
             gen_cl(ctx, op1, rd, rs);
