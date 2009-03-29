@@ -429,8 +429,8 @@ enum {
 static TCGv_ptr cpu_env;
 static TCGv cpu_gpr[32], cpu_PC;
 static TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC], cpu_ACX[MIPS_DSP_ACC];
-static TCGv cpu_dspctrl, btarget;
-static TCGv bcond;
+static TCGv cpu_dspctrl, btarget, bcond;
+static TCGv_i32 hflags;
 static TCGv_i32 fpu_fpr32[32], fpu_fpr32h[32];
 static TCGv_i32 fpu_fcr0, fpu_fcr31;
 
@@ -758,11 +758,7 @@ static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
         ctx->saved_pc = ctx->pc;
     }
     if (ctx->hflags != ctx->saved_hflags) {
-        TCGv_i32 r_tmp = tcg_temp_new_i32();
-
-        tcg_gen_movi_i32(r_tmp, ctx->hflags);
-        tcg_gen_st_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
-        tcg_temp_free_i32(r_tmp);
+        tcg_gen_movi_i32(hflags, ctx->hflags);
         ctx->saved_hflags = ctx->hflags;
         switch (ctx->hflags & MIPS_HFLAG_BMASK) {
         case MIPS_HFLAG_BR:
@@ -7555,13 +7551,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
         MIPS_DEBUG("blikely condition (" TARGET_FMT_lx ")", ctx->pc + 4);
         tcg_gen_brcondi_tl(TCG_COND_NE, bcond, 0, l1);
-        {
-            TCGv_i32 r_tmp = tcg_temp_new_i32();
-
-            tcg_gen_movi_i32(r_tmp, ctx->hflags & ~MIPS_HFLAG_BMASK);
-            tcg_gen_st_i32(r_tmp, cpu_env, offsetof(CPUState, hflags));
-            tcg_temp_free_i32(r_tmp);
-        }
+        tcg_gen_movi_i32(hflags, ctx->hflags & ~MIPS_HFLAG_BMASK);
         gen_goto_tb(ctx, 1, ctx->pc + 4);
         gen_set_label(l1);
     }
@@ -8413,6 +8403,9 @@ static void mips_tcg_init(void)
                                offsetof(CPUState, bcond), "bcond");
     btarget = tcg_global_mem_new(TCG_AREG0,
                                  offsetof(CPUState, btarget), "btarget");
+    hflags = tcg_global_mem_new_i32(TCG_AREG0,
+                                    offsetof(CPUState, hflags), "hflags");
+
     for (i = 0; i < 32; i++)
         fpu_fpr32[i] = tcg_global_mem_new_i32(TCG_AREG0,
             offsetof(CPUState, active_fpu.fpr[i].w[FP_ENDIAN_IDX]),
