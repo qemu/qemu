@@ -1847,6 +1847,8 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
         {
             int l1 = gen_new_label();
 
+            tcg_gen_ext32u_tl(t0, t0);
+            tcg_gen_ext32u_tl(t1, t1);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
             tcg_gen_divu_tl(cpu_LO[0], t0, t1);
             tcg_gen_remu_tl(cpu_HI[0], t0, t1);
