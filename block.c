@@ -569,15 +569,7 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
                               int nb_sectors)
 {
-    int64_t offset;
-
-    /* Deal with byte accesses */
-    if (sector_num < 0)
-        offset = -sector_num;
-    else
-        offset = sector_num * 512;
-
-    return bdrv_check_byte_request(bs, offset, nb_sectors * 512);
+    return bdrv_check_byte_request(bs, sector_num * 512, nb_sectors * 512);
 }
 
 /* return < 0 if error. See bdrv_write() for the return codes */
