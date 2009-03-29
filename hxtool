@@ -10,7 +10,7 @@ hxtoh()
             STEXI*|ETEXI*) flag=$(($flag^1))
             ;;
             *)
-            test $flag -eq 1 && echo "$str"
+            test $flag -eq 1 && printf "%s\n" "$str"
             ;;
         esac
     done
