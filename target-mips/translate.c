@@ -2619,56 +2619,72 @@ fail:
 
 static void gen_bshfl (DisasContext *ctx, uint32_t op2, int rt, int rd)
 {
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
+    TCGv t0;
 
-    gen_load_gpr(t1, rt);
+    if (rd == 0) {
+        /* If no destination, treat it as a NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rt);
     switch (op2) {
     case OPC_WSBH:
-        tcg_gen_shri_tl(t0, t1, 8);
-        tcg_gen_andi_tl(t0, t0, 0x00FF00FF);
-        tcg_gen_shli_tl(t1, t1, 8);
-        tcg_gen_andi_tl(t1, t1, ~0x00FF00FF);
-        tcg_gen_or_tl(t0, t0, t1);
-        tcg_gen_ext32s_tl(t0, t0);
+        {
+            TCGv t1 = tcg_temp_new();
+
+            tcg_gen_shri_tl(t1, t0, 8);
+            tcg_gen_andi_tl(t1, t1, 0x00FF00FF);
+            tcg_gen_shli_tl(t0, t0, 8);
+            tcg_gen_andi_tl(t0, t0, ~0x00FF00FF);
+            tcg_gen_or_tl(t0, t0, t1);
+            tcg_temp_free(t1);
+            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+        }
         break;
     case OPC_SEB:
-        tcg_gen_ext8s_tl(t0, t1);
+        tcg_gen_ext8s_tl(cpu_gpr[rd], t0);
         break;
     case OPC_SEH:
-        tcg_gen_ext16s_tl(t0, t1);
+        tcg_gen_ext16s_tl(cpu_gpr[rd], t0);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DSBH:
-        gen_load_gpr(t1, rt);
-        tcg_gen_shri_tl(t0, t1, 8);
-        tcg_gen_andi_tl(t0, t0, 0x00FF00FF00FF00FFULL);
-        tcg_gen_shli_tl(t1, t1, 8);
-        tcg_gen_andi_tl(t1, t1, ~0x00FF00FF00FF00FFULL);
-        tcg_gen_or_tl(t0, t0, t1);
+        {
+            TCGv t1 = tcg_temp_new();
+
+            tcg_gen_shri_tl(t1, t0, 8);
+            tcg_gen_andi_tl(t1, t1, 0x00FF00FF00FF00FFULL);
+            tcg_gen_shli_tl(t0, t0, 8);
+            tcg_gen_andi_tl(t0, t0, ~0x00FF00FF00FF00FFULL);
+            tcg_gen_or_tl(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t1);
+        }
         break;
     case OPC_DSHD:
-        gen_load_gpr(t1, rt);
-        tcg_gen_shri_tl(t0, t1, 16);
-        tcg_gen_andi_tl(t0, t0, 0x0000FFFF0000FFFFULL);
-        tcg_gen_shli_tl(t1, t1, 16);
-        tcg_gen_andi_tl(t1, t1, ~0x0000FFFF0000FFFFULL);
-        tcg_gen_or_tl(t1, t0, t1);
-        tcg_gen_shri_tl(t0, t1, 32);
-        tcg_gen_shli_tl(t1, t1, 32);
-        tcg_gen_or_tl(t0, t0, t1);
+        {
+            TCGv t1 = tcg_temp_new();
+
+            tcg_gen_shri_tl(t1, t0, 16);
+            tcg_gen_andi_tl(t1, t1, 0x0000FFFF0000FFFFULL);
+            tcg_gen_shli_tl(t0, t0, 16);
+            tcg_gen_andi_tl(t0, t0, ~0x0000FFFF0000FFFFULL);
+            tcg_gen_or_tl(t0, t0, t1);
+            tcg_gen_shri_tl(t1, t0, 32);
+            tcg_gen_shli_tl(t0, t0, 32);
+            tcg_gen_or_tl(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t1);
+        }
         break;
 #endif
     default:
         MIPS_INVAL("bsfhl");
         generate_exception(ctx, EXCP_RI);
         tcg_temp_free(t0);
-        tcg_temp_free(t1);
         return;
     }
-    gen_store_gpr(t0, rd);
     tcg_temp_free(t0);
-    tcg_temp_free(t1);
 }
 
 #ifndef CONFIG_USER_ONLY
