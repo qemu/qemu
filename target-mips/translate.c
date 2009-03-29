@@ -1795,10 +1795,6 @@ static void gen_HILO (DisasContext *ctx, uint32_t opc, int reg)
             tcg_gen_movi_tl(cpu_LO[0], 0);
         opn = "mtlo";
         break;
-    default:
-        MIPS_INVAL(opn);
-        generate_exception(ctx, EXCP_RI);
-        return;
     }
     MIPS_DEBUG("%s %s", opn, regnames[reg]);
 }
