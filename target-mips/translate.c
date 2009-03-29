@@ -2166,7 +2166,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
                       int rs, int rt, int16_t imm)
 {
     int cond;
-    TCGv t0 = tcg_temp_local_new();
+    TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
     cond = 0;
@@ -2208,7 +2208,7 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
         case OPC_TGEU:  /* rs >= rs unsigned */
         case OPC_TGEIU: /* r0 >= 0  unsigned */
             /* Always trap */
-            tcg_gen_movi_tl(t0, 1);
+            generate_exception(ctx, EXCP_TRAP);
             break;
         case OPC_TLT:   /* rs < rs           */
         case OPC_TLTI:  /* r0 < 0            */
@@ -2217,54 +2217,40 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
         case OPC_TNE:   /* rs != rs          */
         case OPC_TNEI:  /* r0 != 0           */
             /* Never trap: treat as NOP. */
-            goto out;
-        default:
-            MIPS_INVAL("trap");
-            generate_exception(ctx, EXCP_RI);
-            goto out;
+            break;
         }
     } else {
+        int l1 = gen_new_label();
+
         switch (opc) {
         case OPC_TEQ:
         case OPC_TEQI:
-            gen_op_eq(t0, t0, t1);
+            tcg_gen_brcond_tl(TCG_COND_NE, t0, t1, l1);
             break;
         case OPC_TGE:
         case OPC_TGEI:
-            gen_op_ge(t0, t0, t1);
+            tcg_gen_brcond_tl(TCG_COND_LT, t0, t1, l1);
             break;
         case OPC_TGEU:
         case OPC_TGEIU:
-            gen_op_geu(t0, t0, t1);
+            tcg_gen_brcond_tl(TCG_COND_LTU, t0, t1, l1);
             break;
         case OPC_TLT:
         case OPC_TLTI:
-            gen_op_lt(t0, t0, t1);
+            tcg_gen_brcond_tl(TCG_COND_GE, t0, t1, l1);
             break;
         case OPC_TLTU:
         case OPC_TLTIU:
-            gen_op_ltu(t0, t0, t1);
+            tcg_gen_brcond_tl(TCG_COND_GEU, t0, t1, l1);
             break;
         case OPC_TNE:
         case OPC_TNEI:
-            gen_op_ne(t0, t0, t1);
+            tcg_gen_brcond_tl(TCG_COND_EQ, t0, t1, l1);
             break;
-        default:
-            MIPS_INVAL("trap");
-            generate_exception(ctx, EXCP_RI);
-            goto out;
         }
-    }
-    save_cpu_state(ctx, 1);
-    {
-        int l1 = gen_new_label();
-
-        tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-        gen_helper_0i(raise_exception, EXCP_TRAP);
+        generate_exception(ctx, EXCP_TRAP);
         gen_set_label(l1);
     }
-    ctx->bstate = BS_STOP;
- out:
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }
