@@ -2048,8 +2048,8 @@ static void gen_mul_vr54xx (DisasContext *ctx, uint32_t opc,
                             int rd, int rs, int rt)
 {
     const char *opn = "mul vr54xx";
-    TCGv t0 = tcg_temp_local_new();
-    TCGv t1 = tcg_temp_local_new();
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
 
     gen_load_gpr(t0, rs);
     gen_load_gpr(t1, rt);
