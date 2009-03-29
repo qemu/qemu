@@ -725,6 +725,10 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         break;
     case 0x1b:
         DPRINTF("Start Stop Unit\n");
+        if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM &&
+            (buf[4] & 2))
+            /* load/eject medium */
+            bdrv_eject(s->bdrv, !(buf[4] & 1));
 	break;
     case 0x1e:
         DPRINTF("Prevent Allow Medium Removal (prevent = %d)\n", buf[4] & 3);
