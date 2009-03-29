@@ -223,8 +223,8 @@ static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #endif
 
         if (bdrv_pread(s->hd, offset, &ext, sizeof(ext)) != sizeof(ext)) {
-            fprintf(stderr, "qcow_handle_extension: ERROR: pread fail from offset %lu\n",
-                    offset);
+            fprintf(stderr, "qcow_handle_extension: ERROR: pread fail from offset %llu\n",
+                    (unsigned long long)offset);
             return 1;
         }
         be32_to_cpus(&ext.magic);
@@ -240,7 +240,7 @@ static int qcow_read_extensions(BlockDriverState *bs, uint64_t start_offset,
         case QCOW_EXT_MAGIC_BACKING_FORMAT:
             if (ext.len >= sizeof(bs->backing_format)) {
                 fprintf(stderr, "ERROR: ext_backing_format: len=%u too large"
-                        " (>=%lu)\n",
+                        " (>=%zu)\n",
                         ext.len, sizeof(bs->backing_format));
                 return 2;
             }
