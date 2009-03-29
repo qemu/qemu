@@ -790,6 +790,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             start_track = buf[6];
             bdrv_get_geometry(s->bdrv, &nb_sectors);
             DPRINTF("Read TOC (track %d format %d msf %d)\n", start_track, format, msf >> 1);
+            nb_sectors /= s->cluster_size;
             switch(format) {
             case 0:
                 toclen = cdrom_read_toc(nb_sectors, outbuf, msf, start_track);
