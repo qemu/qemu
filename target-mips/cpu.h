@@ -443,7 +443,7 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_BL     0x0C00 /* Likely branch                      */
 #define MIPS_HFLAG_BR     0x1000 /* branch to register (can't link TB) */
     target_ulong btarget;        /* Jump / branch target               */
-    int bcond;                   /* Branch condition (if needed)       */
+    target_ulong bcond;          /* Branch condition (if needed)       */
 
     int SYNCI_Step; /* Address step size for SYNCI */
     int CCRes; /* Cycle count resolution/divisor */
