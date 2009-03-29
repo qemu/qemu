@@ -8213,10 +8213,10 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
                 lj++;
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
-                gen_opc_pc[lj] = ctx.nip;
-                gen_opc_instr_start[lj] = 1;
-                gen_opc_icount[lj] = num_insns;
             }
+            gen_opc_pc[lj] = ctx.nip;
+            gen_opc_instr_start[lj] = 1;
+            gen_opc_icount[lj] = num_insns;
         }
         LOG_DISAS("----------------\n");
         LOG_DISAS("nip=" ADDRX " super=%d ir=%d\n",
