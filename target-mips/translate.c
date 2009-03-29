@@ -643,18 +643,12 @@ static inline void gen_store_fpr64 (DisasContext *ctx, TCGv_i64 t, int reg)
     }
 }
 
-static inline void get_fp_cond (TCGv_i32 t)
+static inline int get_fp_bit (int cc)
 {
-    TCGv_i32 r_tmp1 = tcg_temp_new_i32();
-    TCGv_i32 r_tmp2 = tcg_temp_new_i32();
-
-    tcg_gen_shri_i32(r_tmp2, fpu_fcr31, 24);
-    tcg_gen_andi_i32(r_tmp2, r_tmp2, 0xfe);
-    tcg_gen_shri_i32(r_tmp1, fpu_fcr31, 23);
-    tcg_gen_andi_i32(r_tmp1, r_tmp1, 0x1);
-    tcg_gen_or_i32(t, r_tmp1, r_tmp2);
-    tcg_temp_free_i32(r_tmp1);
-    tcg_temp_free_i32(r_tmp2);
+    if (cc)
+        return 24 + cc;
+    else
+        return 23;
 }
 
 #define FOP_CONDS(type, fmt, bits)                                            \
@@ -5500,132 +5494,88 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
 
     switch (op) {
     case OPC_BC1F:
-        {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            get_fp_cond(t0);
-            tcg_gen_andi_i32(t0, t0, 0x1 << cc);
-            tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, l1);
-            tcg_gen_movi_tl(bcond, 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(bcond, 1);
-            gen_set_label(l2);
-        }
+        tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
+        tcg_gen_not_i32(t0, t0);
+        tcg_gen_andi_i32(t0, t0, 1);
+        tcg_gen_extu_i32_tl(bcond, t0);
         opn = "bc1f";
         goto not_likely;
     case OPC_BC1FL:
-        {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            get_fp_cond(t0);
-            tcg_gen_andi_i32(t0, t0, 0x1 << cc);
-            tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, l1);
-            tcg_gen_movi_tl(bcond, 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(bcond, 1);
-            gen_set_label(l2);
-        }
+        tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
+        tcg_gen_not_i32(t0, t0);
+        tcg_gen_andi_i32(t0, t0, 1);
+        tcg_gen_extu_i32_tl(bcond, t0);
         opn = "bc1fl";
         goto likely;
     case OPC_BC1T:
-        {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            get_fp_cond(t0);
-            tcg_gen_andi_i32(t0, t0, 0x1 << cc);
-            tcg_gen_brcondi_i32(TCG_COND_NE, t0, 0, l1);
-            tcg_gen_movi_tl(bcond, 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(bcond, 1);
-            gen_set_label(l2);
-        }
+        tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
+        tcg_gen_andi_i32(t0, t0, 1);
+        tcg_gen_extu_i32_tl(bcond, t0);
         opn = "bc1t";
         goto not_likely;
     case OPC_BC1TL:
-        {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            get_fp_cond(t0);
-            tcg_gen_andi_i32(t0, t0, 0x1 << cc);
-            tcg_gen_brcondi_i32(TCG_COND_NE, t0, 0, l1);
-            tcg_gen_movi_tl(bcond, 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(bcond, 1);
-            gen_set_label(l2);
-        }
+        tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
+        tcg_gen_andi_i32(t0, t0, 1);
+        tcg_gen_extu_i32_tl(bcond, t0);
         opn = "bc1tl";
     likely:
         ctx->hflags |= MIPS_HFLAG_BL;
         break;
     case OPC_BC1FANY2:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            get_fp_cond(t0);
-            tcg_gen_andi_i32(t0, t0, 0x3 << cc);
-            tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, l1);
-            tcg_gen_movi_tl(bcond, 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(bcond, 1);
-            gen_set_label(l2);
+            TCGv_i32 t1 = tcg_temp_new_i32();
+            tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
+            tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+1));
+            tcg_gen_or_i32(t0, t0, t1);
+            tcg_temp_free_i32(t1);
+            tcg_gen_not_i32(t0, t0);
+            tcg_gen_andi_i32(t0, t0, 1);
+            tcg_gen_extu_i32_tl(bcond, t0);
         }
         opn = "bc1any2f";
         goto not_likely;
     case OPC_BC1TANY2:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            get_fp_cond(t0);
-            tcg_gen_andi_i32(t0, t0, 0x3 << cc);
-            tcg_gen_brcondi_i32(TCG_COND_NE, t0, 0, l1);
-            tcg_gen_movi_tl(bcond, 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(bcond, 1);
-            gen_set_label(l2);
+            TCGv_i32 t1 = tcg_temp_new_i32();
+            tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
+            tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+1));
+            tcg_gen_or_i32(t0, t0, t1);
+            tcg_temp_free_i32(t1);
+            tcg_gen_andi_i32(t0, t0, 1);
+            tcg_gen_extu_i32_tl(bcond, t0);
         }
         opn = "bc1any2t";
         goto not_likely;
     case OPC_BC1FANY4:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            get_fp_cond(t0);
-            tcg_gen_andi_i32(t0, t0, 0xf << cc);
-            tcg_gen_brcondi_i32(TCG_COND_EQ, t0, 0, l1);
-            tcg_gen_movi_tl(bcond, 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(bcond, 1);
-            gen_set_label(l2);
+            TCGv_i32 t1 = tcg_temp_new_i32();
+            tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
+            tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+1));
+            tcg_gen_or_i32(t0, t0, t1);
+            tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+2));
+            tcg_gen_or_i32(t0, t0, t1);
+            tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+3));
+            tcg_gen_or_i32(t0, t0, t1);
+            tcg_temp_free_i32(t1);
+            tcg_gen_not_i32(t0, t0);
+            tcg_gen_andi_i32(t0, t0, 1);
+            tcg_gen_extu_i32_tl(bcond, t0);
         }
         opn = "bc1any4f";
         goto not_likely;
     case OPC_BC1TANY4:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            get_fp_cond(t0);
-            tcg_gen_andi_i32(t0, t0, 0xf << cc);
-            tcg_gen_brcondi_i32(TCG_COND_NE, t0, 0, l1);
-            tcg_gen_movi_tl(bcond, 0);
-            tcg_gen_br(l2);
-            gen_set_label(l1);
-            tcg_gen_movi_tl(bcond, 1);
-            gen_set_label(l2);
+            TCGv_i32 t1 = tcg_temp_new_i32();
+            tcg_gen_shri_i32(t0, fpu_fcr31, get_fp_bit(cc));
+            tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+1));
+            tcg_gen_or_i32(t0, t0, t1);
+            tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+2));
+            tcg_gen_or_i32(t0, t0, t1);
+            tcg_gen_shri_i32(t1, fpu_fcr31, get_fp_bit(cc+3));
+            tcg_gen_or_i32(t0, t0, t1);
+            tcg_temp_free_i32(t1);
+            tcg_gen_andi_i32(t0, t0, 1);
+            tcg_gen_extu_i32_tl(bcond, t0);
         }
         opn = "bc1any4t";
     not_likely:
