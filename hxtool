@@ -3,14 +3,14 @@
 hxtoh()
 {
     flag=1
-    while read str; do
+    while read -r str; do
         case $str in
             HXCOMM*)
             ;;
             STEXI*|ETEXI*) flag=$(($flag^1))
             ;;
             *)
-            test $flag -eq 1 && echo $str
+            test $flag -eq 1 && echo "$str"
             ;;
         esac
     done
@@ -19,7 +19,7 @@ hxtoh()
 hxtotexi()
 {
     flag=0
-    while read str; do
+    while read -r str; do
         case "$str" in
             HXCOMM*)
             ;;
