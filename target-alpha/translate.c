@@ -753,7 +753,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         /* LDWU */
         if (!(ctx->amask & AMASK_BWX))
             goto invalid_opc;
-        gen_load_mem(ctx, &tcg_gen_qemu_ld16u, ra, rb, disp16, 0, 1);
+        gen_load_mem(ctx, &tcg_gen_qemu_ld16u, ra, rb, disp16, 0, 0);
         break;
     case 0x0D:
         /* STW */
