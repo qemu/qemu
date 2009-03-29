@@ -688,18 +688,18 @@ FOP_CONDS(abs, ps, 64)
 #undef FOP_CONDS
 
 /* Tests */
-#define OP_COND(name, cond)                                   \
-static inline void glue(gen_op_, name) (TCGv t0, TCGv t1)     \
-{                                                             \
-    int l1 = gen_new_label();                                 \
-    int l2 = gen_new_label();                                 \
-                                                              \
-    tcg_gen_brcond_tl(cond, t0, t1, l1);                      \
-    tcg_gen_movi_tl(t0, 0);                                   \
-    tcg_gen_br(l2);                                           \
-    gen_set_label(l1);                                        \
-    tcg_gen_movi_tl(t0, 1);                                   \
-    gen_set_label(l2);                                        \
+#define OP_COND(name, cond)                                         \
+static inline void glue(gen_op_, name) (TCGv ret, TCGv t0, TCGv t1) \
+{                                                                   \
+    int l1 = gen_new_label();                                       \
+    int l2 = gen_new_label();                                       \
+                                                                    \
+    tcg_gen_brcond_tl(cond, t0, t1, l1);                            \
+    tcg_gen_movi_tl(ret, 0);                                        \
+    tcg_gen_br(l2);                                                 \
+    gen_set_label(l1);                                              \
+    tcg_gen_movi_tl(ret, 1);                                        \
+    gen_set_label(l2);                                              \
 }
 OP_COND(eq, TCG_COND_EQ);
 OP_COND(ne, TCG_COND_NE);
@@ -709,34 +709,34 @@ OP_COND(lt, TCG_COND_LT);
 OP_COND(ltu, TCG_COND_LTU);
 #undef OP_COND
 
-#define OP_CONDI(name, cond)                                  \
-static inline void glue(gen_op_, name) (TCGv t, target_ulong val) \
-{                                                             \
-    int l1 = gen_new_label();                                 \
-    int l2 = gen_new_label();                                 \
-                                                              \
-    tcg_gen_brcondi_tl(cond, t, val, l1);                     \
-    tcg_gen_movi_tl(t, 0);                                    \
-    tcg_gen_br(l2);                                           \
-    gen_set_label(l1);                                        \
-    tcg_gen_movi_tl(t, 1);                                    \
-    gen_set_label(l2);                                        \
+#define OP_CONDI(name, cond)                                                 \
+static inline void glue(gen_op_, name) (TCGv ret, TCGv t0, target_ulong val) \
+{                                                                            \
+    int l1 = gen_new_label();                                                \
+    int l2 = gen_new_label();                                                \
+                                                                             \
+    tcg_gen_brcondi_tl(cond, t0, val, l1);                                   \
+    tcg_gen_movi_tl(ret, 0);                                                 \
+    tcg_gen_br(l2);                                                          \
+    gen_set_label(l1);                                                       \
+    tcg_gen_movi_tl(ret, 1);                                                 \
+    gen_set_label(l2);                                                       \
 }
 OP_CONDI(lti, TCG_COND_LT);
 OP_CONDI(ltiu, TCG_COND_LTU);
 #undef OP_CONDI
 
 #define OP_CONDZ(name, cond)                                  \
-static inline void glue(gen_op_, name) (TCGv t)               \
+static inline void glue(gen_op_, name) (TCGv ret, TCGv t0)    \
 {                                                             \
     int l1 = gen_new_label();                                 \
     int l2 = gen_new_label();                                 \
                                                               \
-    tcg_gen_brcondi_tl(cond, t, 0, l1);                       \
-    tcg_gen_movi_tl(t, 0);                                    \
+    tcg_gen_brcondi_tl(cond, t0, 0, l1);                      \
+    tcg_gen_movi_tl(ret, 0);                                  \
     tcg_gen_br(l2);                                           \
     gen_set_label(l1);                                        \
-    tcg_gen_movi_tl(t, 1);                                    \
+    tcg_gen_movi_tl(ret, 1);                                  \
     gen_set_label(l2);                                        \
 }
 OP_CONDZ(gez, TCG_COND_GE);
@@ -1309,11 +1309,11 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
 #endif
     case OPC_SLTI:
-        gen_op_lti(t0, uimm);
+        gen_op_lti(t0, t0, uimm);
         opn = "slti";
         break;
     case OPC_SLTIU:
-        gen_op_ltiu(t0, uimm);
+        gen_op_ltiu(t0, t0, uimm);
         opn = "sltiu";
         break;
     case OPC_ANDI:
@@ -1596,11 +1596,11 @@ static void gen_arith (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
 #endif
     case OPC_SLT:
-        gen_op_lt(t0, t1);
+        gen_op_lt(t0, t0, t1);
         opn = "slt";
         break;
     case OPC_SLTU:
-        gen_op_ltu(t0, t1);
+        gen_op_ltu(t0, t0, t1);
         opn = "sltu";
         break;
     case OPC_AND:
@@ -2227,27 +2227,27 @@ static void gen_trap (DisasContext *ctx, uint32_t opc,
         switch (opc) {
         case OPC_TEQ:
         case OPC_TEQI:
-            gen_op_eq(t0, t1);
+            gen_op_eq(t0, t0, t1);
             break;
         case OPC_TGE:
         case OPC_TGEI:
-            gen_op_ge(t0, t1);
+            gen_op_ge(t0, t0, t1);
             break;
         case OPC_TGEU:
         case OPC_TGEIU:
-            gen_op_geu(t0, t1);
+            gen_op_geu(t0, t0, t1);
             break;
         case OPC_TLT:
         case OPC_TLTI:
-            gen_op_lt(t0, t1);
+            gen_op_lt(t0, t0, t1);
             break;
         case OPC_TLTU:
         case OPC_TLTIU:
-            gen_op_ltu(t0, t1);
+            gen_op_ltu(t0, t0, t1);
             break;
         case OPC_TNE:
         case OPC_TNEI:
-            gen_op_ne(t0, t1);
+            gen_op_ne(t0, t0, t1);
             break;
         default:
             MIPS_INVAL("trap");
@@ -2427,69 +2427,69 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     } else {
         switch (opc) {
         case OPC_BEQ:
-            gen_op_eq(t0, t1);
+            gen_op_eq(t0, t0, t1);
             MIPS_DEBUG("beq %s, %s, " TARGET_FMT_lx,
                        regnames[rs], regnames[rt], btgt);
             goto not_likely;
         case OPC_BEQL:
-            gen_op_eq(t0, t1);
+            gen_op_eq(t0, t0, t1);
             MIPS_DEBUG("beql %s, %s, " TARGET_FMT_lx,
                        regnames[rs], regnames[rt], btgt);
             goto likely;
         case OPC_BNE:
-            gen_op_ne(t0, t1);
+            gen_op_ne(t0, t0, t1);
             MIPS_DEBUG("bne %s, %s, " TARGET_FMT_lx,
                        regnames[rs], regnames[rt], btgt);
             goto not_likely;
         case OPC_BNEL:
-            gen_op_ne(t0, t1);
+            gen_op_ne(t0, t0, t1);
             MIPS_DEBUG("bnel %s, %s, " TARGET_FMT_lx,
                        regnames[rs], regnames[rt], btgt);
             goto likely;
         case OPC_BGEZ:
-            gen_op_gez(t0);
+            gen_op_gez(t0, t0);
             MIPS_DEBUG("bgez %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto not_likely;
         case OPC_BGEZL:
-            gen_op_gez(t0);
+            gen_op_gez(t0, t0);
             MIPS_DEBUG("bgezl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BGEZAL:
-            gen_op_gez(t0);
+            gen_op_gez(t0, t0);
             MIPS_DEBUG("bgezal %s, " TARGET_FMT_lx, regnames[rs], btgt);
             blink = 31;
             goto not_likely;
         case OPC_BGEZALL:
-            gen_op_gez(t0);
+            gen_op_gez(t0, t0);
             blink = 31;
             MIPS_DEBUG("bgezall %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BGTZ:
-            gen_op_gtz(t0);
+            gen_op_gtz(t0, t0);
             MIPS_DEBUG("bgtz %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto not_likely;
         case OPC_BGTZL:
-            gen_op_gtz(t0);
+            gen_op_gtz(t0, t0);
             MIPS_DEBUG("bgtzl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BLEZ:
-            gen_op_lez(t0);
+            gen_op_lez(t0, t0);
             MIPS_DEBUG("blez %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto not_likely;
         case OPC_BLEZL:
-            gen_op_lez(t0);
+            gen_op_lez(t0, t0);
             MIPS_DEBUG("blezl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BLTZ:
-            gen_op_ltz(t0);
+            gen_op_ltz(t0, t0);
             MIPS_DEBUG("bltz %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto not_likely;
         case OPC_BLTZL:
-            gen_op_ltz(t0);
+            gen_op_ltz(t0, t0);
             MIPS_DEBUG("bltzl %s, " TARGET_FMT_lx, regnames[rs], btgt);
             goto likely;
         case OPC_BLTZAL:
-            gen_op_ltz(t0);
+            gen_op_ltz(t0, t0);
             blink = 31;
             MIPS_DEBUG("bltzal %s, " TARGET_FMT_lx, regnames[rs], btgt);
         not_likely:
@@ -2497,7 +2497,7 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
             tcg_gen_trunc_tl_i32(bcond, t0);
             break;
         case OPC_BLTZALL:
-            gen_op_ltz(t0);
+            gen_op_ltz(t0, t0);
             blink = 31;
             MIPS_DEBUG("bltzall %s, " TARGET_FMT_lx, regnames[rs], btgt);
         likely:
