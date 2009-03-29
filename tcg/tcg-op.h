@@ -2054,8 +2054,8 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_muli_tl tcg_gen_muli_i64
 #define tcg_gen_div_tl tcg_gen_div_i64
 #define tcg_gen_rem_tl tcg_gen_rem_i64
-#define tcg_gen_divu_tl tcg_gen_div_i64
-#define tcg_gen_remu_tl tcg_gen_rem_i64
+#define tcg_gen_divu_tl tcg_gen_divu_i64
+#define tcg_gen_remu_tl tcg_gen_remu_i64
 #define tcg_gen_discard_tl tcg_gen_discard_i64
 #define tcg_gen_trunc_tl_i32 tcg_gen_trunc_i64_i32
 #define tcg_gen_trunc_i64_tl tcg_gen_mov_i64
@@ -2124,8 +2124,8 @@ static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
 #define tcg_gen_muli_tl tcg_gen_muli_i32
 #define tcg_gen_div_tl tcg_gen_div_i32
 #define tcg_gen_rem_tl tcg_gen_rem_i32
-#define tcg_gen_divu_tl tcg_gen_div_i32
-#define tcg_gen_remu_tl tcg_gen_rem_i32
+#define tcg_gen_divu_tl tcg_gen_divu_i32
+#define tcg_gen_remu_tl tcg_gen_remu_i32
 #define tcg_gen_discard_tl tcg_gen_discard_i32
 #define tcg_gen_trunc_tl_i32 tcg_gen_mov_i32
 #define tcg_gen_trunc_i64_tl tcg_gen_trunc_i64_i32
