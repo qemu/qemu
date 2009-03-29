@@ -1793,62 +1793,62 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 tcg_gen_movi_i64(addr, disp12);
             switch ((insn >> 12) & 0xF) {
             case 0x0:
-                /* Longword physical access */
+                /* Longword physical access (hw_ldl/p) */
                 gen_helper_ldl_raw(cpu_ir[ra], addr);
                 break;
             case 0x1:
-                /* Quadword physical access */
+                /* Quadword physical access (hw_ldq/p) */
                 gen_helper_ldq_raw(cpu_ir[ra], addr);
                 break;
             case 0x2:
-                /* Longword physical access with lock */
+                /* Longword physical access with lock (hw_ldl_l/p) */
                 gen_helper_ldl_l_raw(cpu_ir[ra], addr);
                 break;
             case 0x3:
-                /* Quadword physical access with lock */
+                /* Quadword physical access with lock (hw_ldq_l/p) */
                 gen_helper_ldq_l_raw(cpu_ir[ra], addr);
                 break;
             case 0x4:
-                /* Longword virtual PTE fetch */
-                gen_helper_ldl_kernel(cpu_ir[ra], addr);
+                /* Longword virtual PTE fetch (hw_ldl/v) */
+                tcg_gen_qemu_ld32s(cpu_ir[ra], addr, 0);
                 break;
             case 0x5:
-                /* Quadword virtual PTE fetch */
-                gen_helper_ldq_kernel(cpu_ir[ra], addr);
+                /* Quadword virtual PTE fetch (hw_ldq/v) */
+                tcg_gen_qemu_ld64(cpu_ir[ra], addr, 0);
                 break;
             case 0x6:
                 /* Incpu_ir[ra]id */
-                goto incpu_ir[ra]id_opc;
+                goto invalid_opc;
             case 0x7:
                 /* Incpu_ir[ra]id */
-                goto incpu_ir[ra]id_opc;
+                goto invalid_opc;
             case 0x8:
-                /* Longword virtual access */
+                /* Longword virtual access (hw_ldl) */
                 gen_helper_st_virt_to_phys(addr, addr);
                 gen_helper_ldl_raw(cpu_ir[ra], addr);
                 break;
             case 0x9:
-                /* Quadword virtual access */
+                /* Quadword virtual access (hw_ldq) */
                 gen_helper_st_virt_to_phys(addr, addr);
                 gen_helper_ldq_raw(cpu_ir[ra], addr);
                 break;
             case 0xA:
-                /* Longword virtual access with protection check */
-                tcg_gen_qemu_ld32s(cpu_ir[ra], addr, ctx->flags);
+                /* Longword virtual access with protection check (hw_ldl/w) */
+                tcg_gen_qemu_ld32s(cpu_ir[ra], addr, 0);
                 break;
             case 0xB:
-                /* Quadword virtual access with protection check */
-                tcg_gen_qemu_ld64(cpu_ir[ra], addr, ctx->flags);
+                /* Quadword virtual access with protection check (hw_ldq/w) */
+                tcg_gen_qemu_ld64(cpu_ir[ra], addr, 0);
                 break;
             case 0xC:
-                /* Longword virtual access with altenate access mode */
+                /* Longword virtual access with alt access mode (hw_ldl/a)*/
                 gen_helper_set_alt_mode();
                 gen_helper_st_virt_to_phys(addr, addr);
                 gen_helper_ldl_raw(cpu_ir[ra], addr);
                 gen_helper_restore_mode();
                 break;
             case 0xD:
-                /* Quadword virtual access with altenate access mode */
+                /* Quadword virtual access with alt access mode (hw_ldq/a) */
                 gen_helper_set_alt_mode();
                 gen_helper_st_virt_to_phys(addr, addr);
                 gen_helper_ldq_raw(cpu_ir[ra], addr);
@@ -1856,7 +1856,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 break;
             case 0xE:
                 /* Longword virtual access with alternate access mode and
-                 * protection checks
+                 * protection checks (hw_ldl/wa)
                  */
                 gen_helper_set_alt_mode();
                 gen_helper_ldl_data(cpu_ir[ra], addr);
@@ -1864,7 +1864,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 break;
             case 0xF:
                 /* Quadword virtual access with alternate access mode and
-                 * protection checks
+                 * protection checks (hw_ldq/wa)
                  */
                 gen_helper_set_alt_mode();
                 gen_helper_ldq_data(cpu_ir[ra], addr);
