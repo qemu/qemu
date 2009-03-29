@@ -417,6 +417,8 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     switch (command) {
     case 0x0:
 	DPRINTF("Test Unit Ready\n");
+        if (!bdrv_is_inserted(s->bdrv))
+            goto notready;
 	break;
     case 0x03:
         DPRINTF("Request Sense (len %d)\n", len);
@@ -766,6 +768,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             outbuf[7] = 0;
             r->buf_len = 8;
         } else {
+        notready:
             scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_NOT_READY);
             return 0;
         }
