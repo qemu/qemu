@@ -423,10 +423,18 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         if (len < 4)
             goto fail;
         memset(outbuf, 0, 4);
+        r->buf_len = 4;
+        if (s->sense == SENSE_NOT_READY && len >= 18) {
+            memset(outbuf, 0, 18);
+            r->buf_len = 18;
+            outbuf[7] = 10;
+            /* asc 0x3a, ascq 0: Medium not present */
+            outbuf[12] = 0x3a;
+            outbuf[13] = 0;
+        }
         outbuf[0] = 0xf0;
         outbuf[1] = 0;
         outbuf[2] = s->sense;
-        r->buf_len = 4;
         break;
     case 0x12:
         DPRINTF("Inquiry (len %d)\n", len);
