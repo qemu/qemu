@@ -44,7 +44,7 @@ static struct target_sigaction sigact_table[TARGET_NSIG];
 static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc);
 
-static uint8_t host_to_target_signal_table[65] = {
+static uint8_t host_to_target_signal_table[_NSIG] = {
     [SIGHUP] = TARGET_SIGHUP,
     [SIGINT] = TARGET_SIGINT,
     [SIGQUIT] = TARGET_SIGQUIT,
@@ -87,7 +87,7 @@ static uint8_t host_to_target_signal_table[65] = {
     [__SIGRTMIN] = __SIGRTMAX,
     [__SIGRTMAX] = __SIGRTMIN,
 };
-static uint8_t target_to_host_signal_table[65];
+static uint8_t target_to_host_signal_table[_NSIG];
 
 static inline int on_sig_stack(unsigned long sp)
 {
@@ -103,14 +103,14 @@ static inline int sas_ss_flags(unsigned long sp)
 
 int host_to_target_signal(int sig)
 {
-    if (sig > 64)
+    if (sig >= _NSIG)
         return sig;
     return host_to_target_signal_table[sig];
 }
 
 int target_to_host_signal(int sig)
 {
-    if (sig > 64)
+    if (sig >= _NSIG)
         return sig;
     return target_to_host_signal_table[sig];
 }
@@ -311,11 +311,11 @@ void signal_init(void)
     int host_sig;
 
     /* generate signal conversion tables */
-    for(i = 1; i <= 64; i++) {
+    for(i = 1; i < _NSIG; i++) {
         if (host_to_target_signal_table[i] == 0)
             host_to_target_signal_table[i] = i;
     }
-    for(i = 1; i <= 64; i++) {
+    for(i = 1; i < _NSIG; i++) {
         j = host_to_target_signal_table[i];
         target_to_host_signal_table[j] = i;
     }
