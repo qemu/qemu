@@ -2637,8 +2637,7 @@ PREP Non Volatile RAM
 PC compatible keyboard and mouse.
 @end itemize
 
-QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS available at
-@url{http://perso.magic.fr/l_indien/OpenHackWare/index.htm}.
+QEMU uses the Open Hack'Ware Open Firmware Compatible BIOS.
 
 Since version 0.9.1, QEMU uses OpenBIOS @url{http://www.openbios.org/}
 for the g3beige and mac99 PowerMac machines. OpenBIOS is a free (GPL
@@ -2670,10 +2669,6 @@ These variables are not used by Open Hack'Ware.
 @end table
 
 @c man end
-
-
-More information is available at
-@url{http://perso.magic.fr/l_indien/qemu-ppc/}.
 
 @node Sparc32 System emulator
 @section Sparc32 System emulator
