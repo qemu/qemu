@@ -2186,11 +2186,10 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
                 /* Invalid */
                 goto invalid_opc;
             }
-            if (ra != 31)
+            if (ra == 31)
                 tcg_temp_free(val);
             tcg_temp_free(addr);
         }
-        ret = 2;
         break;
 #endif
     case 0x20:
