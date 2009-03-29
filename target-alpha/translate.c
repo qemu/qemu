@@ -692,7 +692,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             if (ctx->mem_idx & 1)
                 goto invalid_opc;
             else
-                gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x1F) << 6), 0);
+                gen_excp(ctx, EXCP_CALL_PALP + ((palcode & 0x3F) << 6), 0);
 #endif
         } else {
             /* Invalid PAL call */
