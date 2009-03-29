@@ -389,16 +389,6 @@ enum {
 };
 
 enum {
-    PALCODE_CALL = 0x00000000,
-    PALCODE_LD   = 0x01000000,
-    PALCODE_ST   = 0x02000000,
-    PALCODE_MFPR = 0x03000000,
-    PALCODE_MTPR = 0x04000000,
-    PALCODE_REI  = 0x05000000,
-    PALCODE_INIT = 0xF0000000,
-};
-
-enum {
     IR_V0   = 0,
     IR_T0   = 1,
     IR_T1   = 2,
