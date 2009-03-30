@@ -1374,7 +1374,7 @@ static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
-    return -ENOTSUP;
+    return NULL;
 }
 #endif /* !linux && !FreeBSD */
 
