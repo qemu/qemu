@@ -417,16 +417,26 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     switch (command) {
     case 0x0:
 	DPRINTF("Test Unit Ready\n");
+        if (!bdrv_is_inserted(s->bdrv))
+            goto notready;
 	break;
     case 0x03:
         DPRINTF("Request Sense (len %d)\n", len);
         if (len < 4)
             goto fail;
         memset(outbuf, 0, 4);
+        r->buf_len = 4;
+        if (s->sense == SENSE_NOT_READY && len >= 18) {
+            memset(outbuf, 0, 18);
+            r->buf_len = 18;
+            outbuf[7] = 10;
+            /* asc 0x3a, ascq 0: Medium not present */
+            outbuf[12] = 0x3a;
+            outbuf[13] = 0;
+        }
         outbuf[0] = 0xf0;
         outbuf[1] = 0;
         outbuf[2] = s->sense;
-        r->buf_len = 4;
         break;
     case 0x12:
         DPRINTF("Inquiry (len %d)\n", len);
@@ -725,6 +735,10 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
         break;
     case 0x1b:
         DPRINTF("Start Stop Unit\n");
+        if (bdrv_get_type_hint(s->bdrv) == BDRV_TYPE_CDROM &&
+            (buf[4] & 2))
+            /* load/eject medium */
+            bdrv_eject(s->bdrv, !(buf[4] & 1));
 	break;
     case 0x1e:
         DPRINTF("Prevent Allow Medium Removal (prevent = %d)\n", buf[4] & 3);
@@ -754,6 +768,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             outbuf[7] = 0;
             r->buf_len = 8;
         } else {
+        notready:
             scsi_command_complete(r, STATUS_CHECK_CONDITION, SENSE_NOT_READY);
             return 0;
         }
@@ -790,6 +805,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
             start_track = buf[6];
             bdrv_get_geometry(s->bdrv, &nb_sectors);
             DPRINTF("Read TOC (track %d format %d msf %d)\n", start_track, format, msf >> 1);
+            nb_sectors /= s->cluster_size;
             switch(format) {
             case 0:
                 toclen = cdrom_read_toc(nb_sectors, outbuf, msf, start_track);

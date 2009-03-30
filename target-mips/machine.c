@@ -55,6 +55,7 @@ static void save_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
 void cpu_save(QEMUFile *f, void *opaque)
 {
     CPUState *env = opaque;
+    // TODO: i is too small?
     int i;
 
     /* Save active TC */
@@ -94,7 +95,8 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_sbe32s(f, &env->error_code);
     qemu_put_be32s(f, &env->hflags);
     qemu_put_betls(f, &env->btarget);
-    qemu_put_sbe32s(f, &env->bcond);
+    i = env->bcond;
+    qemu_put_sbe32s(f, &i);
 
     /* Save remaining CP1 registers */
     qemu_put_sbe32s(f, &env->CP0_Index);
@@ -243,7 +245,8 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_sbe32s(f, &env->error_code);
     qemu_get_be32s(f, &env->hflags);
     qemu_get_betls(f, &env->btarget);
-    qemu_get_sbe32s(f, &env->bcond);
+    qemu_get_sbe32s(f, &i);
+    env->bcond = i;
 
     /* Load remaining CP1 registers */
     qemu_get_sbe32s(f, &env->CP0_Index);

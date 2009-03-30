@@ -29,12 +29,16 @@ struct qemu_paiocb
     int aio_fildes;
     void *aio_buf;
     size_t aio_nbytes;
+#define aio_ioctl_cmd   aio_nbytes /* for QEMU_PAIO_IOCTL */
     int ev_signo;
     off_t aio_offset;
 
     /* private */
     TAILQ_ENTRY(qemu_paiocb) node;
-    int is_write;
+    int aio_type;
+#define QEMU_PAIO_READ         0x01
+#define QEMU_PAIO_WRITE        0x02
+#define QEMU_PAIO_IOCTL        0x03
     ssize_t ret;
     int active;
 };
@@ -49,6 +53,7 @@ struct qemu_paioinit
 int qemu_paio_init(struct qemu_paioinit *aioinit);
 int qemu_paio_read(struct qemu_paiocb *aiocb);
 int qemu_paio_write(struct qemu_paiocb *aiocb);
+int qemu_paio_ioctl(struct qemu_paiocb *aiocb);
 int qemu_paio_error(struct qemu_paiocb *aiocb);
 ssize_t qemu_paio_return(struct qemu_paiocb *aiocb);
 int qemu_paio_cancel(int fd, struct qemu_paiocb *aiocb);

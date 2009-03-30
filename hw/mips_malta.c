@@ -991,7 +991,6 @@ QEMUMachine mips_malta_machine = {
     .desc = "MIPS Malta Core LV",
     .init = mips_malta_init,
     .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
-    .nodisk_ok = 1,
 };
 
 

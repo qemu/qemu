@@ -4062,7 +4062,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "MIPS 4KEc / AR7 platform",
     .init = mips_ar7_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
   {
@@ -4070,7 +4069,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "MIPS AR7 with AMD flash",
     .init = ar7_amd_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
   {
@@ -4078,7 +4076,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "MIPS 4KEc / TNETD7200 platform",
     .init = mips_tnetd7200_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
   {
@@ -4086,7 +4083,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "MIPS 4KEc / TNETD7300 platform",
     .init = mips_tnetd7300_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -4095,7 +4091,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "Zyxel 2 MiB flash (AR7 platform)",
     .init = zyxel_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
 #else
@@ -4104,7 +4099,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "FBox 4 MiB flash (AR7 platform)",
     .init = fbox4_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
   {
@@ -4112,7 +4106,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "FBox 8 MiB flash (AR7 platform)",
     .init = fbox8_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
   {
@@ -4120,7 +4113,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "Sinus DSL Basic SE (AR7 platform)",
     .init = sinus_basic_se_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
   {
@@ -4128,7 +4120,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "Sinus DSL SE (AR7 platform)",
     .init = sinus_se_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
   {
@@ -4136,7 +4127,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "Sinus DSL Basic 3 (AR7 platform)",
     .init = sinus_basic_3_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
   {
@@ -4144,7 +4134,6 @@ static QEMUMachine mips_machines[] = {
     .desc = "Speedport (AR7 platform)",
     .init = speedport_init,
     .ram_require = RAMSIZE,
-    .nodisk_ok = 1,
     .max_cpus = 1,
   },
 #endif

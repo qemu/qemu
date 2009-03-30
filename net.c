@@ -1822,11 +1822,6 @@ void net_host_device_remove(Monitor *mon, int vlan_id, const char *device)
     VLANState *vlan;
     VLANClientState *vc;
 
-    if (!net_host_check_device(device)) {
-        monitor_printf(mon, "invalid host network device %s\n", device);
-        return;
-    }
-
     vlan = qemu_find_vlan(vlan_id);
     if (!vlan) {
         monitor_printf(mon, "can't find vlan %d\n", vlan_id);

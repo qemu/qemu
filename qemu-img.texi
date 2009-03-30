@@ -8,7 +8,7 @@ usage: qemu-img command [command options]
 
 The following commands are supported:
 @table @option
-@item create [-e] [-6] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
+@item create [-e] [-6] [-F @var{base_fmt}] [-b @var{base_image}] [-f @var{fmt}] @var{filename} [@var{size}]
 @item commit [-f @var{fmt}] @var{filename}
 @item convert [-c] [-e] [-6] [-f @var{fmt}] [-O @var{output_fmt}] [-B @var{output_base_image}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 @item info [-f @var{fmt}] @var{filename}
@@ -27,6 +27,8 @@ forces the output image to be created as a copy on write
 image of the specified base image; @code{output_base_image} should have the same
 content as the input's base image, however the path, image format, etc may
 differ
+@item base_fmt
+is the disk image format of @var{base_image}. for more information look at @var{fmt}
 @item fmt
 is the disk image format. It is guessed automatically in most cases. The following formats are supported:
 
