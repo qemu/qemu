@@ -78,7 +78,6 @@ uint64_t ptimer_get_count(ptimer_state *s)
         } else {
             uint64_t rem;
             uint64_t div;
-            uint32_t frac;
             int clz1, clz2;
             int shift;
 
