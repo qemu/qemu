@@ -90,11 +90,12 @@ int fread_targphys(target_phys_addr_t dst_addr, size_t nbytes, FILE *f)
     while (nbytes) {
 	want = nbytes > sizeof(buf) ? sizeof(buf) : nbytes;
 	did = fread(buf, 1, want, f);
-	if (did != want) break;
 
 	cpu_physical_memory_write_rom(dst_addr, buf, did);
 	dst_addr += did;
 	nbytes -= did;
+	if (did != want)
+	    break;
     }
     return dst_addr - dst_begin;
 }
