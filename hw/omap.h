@@ -490,7 +490,7 @@ struct omap_dma_lcd_channel_s {
     int dual;
 
     int current_frame;
-    ram_addr_t phys_framebuffer[2];
+    target_phys_addr_t phys_framebuffer[2];
     qemu_irq irq;
     struct omap_mpu_state_s *mpu;
 } *omap_dma_get_lcdch(struct soc_dma_s *s);

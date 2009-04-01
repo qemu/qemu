@@ -10,6 +10,7 @@
 #include "hw.h"
 #include "primecell.h"
 #include "console.h"
+#include "framebuffer.h"
 
 #define PL110_CR_EN   0x001
 #define PL110_CR_BGR  0x100
@@ -61,8 +62,6 @@ static const unsigned char pl110_versatile_id[] =
 
 #include "pixel_ops.h"
 
-typedef void (*drawfn)(uint32_t *, uint8_t *, const uint8_t *, int);
-
 #define BITS 8
 #include "pl110_template.h"
 #define BITS 15
@@ -84,17 +83,11 @@ static void pl110_update_display(void *opaque)
     pl110_state *s = (pl110_state *)opaque;
     drawfn* fntable;
     drawfn fn;
-    uint32_t *pallette;
-    uint32_t addr;
-    uint32_t base;
     int dest_width;
     int src_width;
-    uint8_t *dest;
-    uint8_t *src;
-    int first, last = 0;
-    int dirty, new_dirty;
-    int i;
     int bpp_offset;
+    int first;
+    int last;
 
     if (!pl110_enabled(s))
         return;
@@ -159,47 +152,17 @@ static void pl110_update_display(void *opaque)
         break;
     }
     dest_width *= s->cols;
-    pallette = s->pallette;
-    base = s->upbase;
-    /* HACK: Arm aliases physical memory at 0x80000000.  */
-    if (base > 0x80000000)
-        base -= 0x80000000;
-    src = phys_ram_base + base;
-    dest = ds_get_data(s->ds);
-    first = -1;
-    addr = base;
-
-    dirty = cpu_physical_memory_get_dirty(addr, VGA_DIRTY_FLAG);
-    new_dirty = dirty;
-    for (i = 0; i < s->rows; i++) {
-        if ((addr & ~TARGET_PAGE_MASK) + src_width >= TARGET_PAGE_SIZE) {
-            uint32_t tmp;
-            new_dirty = 0;
-            for (tmp = 0; tmp < src_width; tmp += TARGET_PAGE_SIZE) {
-                new_dirty |= cpu_physical_memory_get_dirty(addr + tmp,
-                                                           VGA_DIRTY_FLAG);
-            }
-        }
-
-        if (dirty || new_dirty || s->invalidate) {
-            fn(pallette, dest, src, s->cols);
-            if (first == -1)
-                first = i;
-            last = i;
-        }
-        dirty = new_dirty;
-        addr += src_width;
-        dest += dest_width;
-        src += src_width;
+    first = 0;
+    framebuffer_update_display(s->ds,
+                               s->upbase, s->cols, s->rows,
+                               src_width, dest_width, 0,
+                               s->invalidate,
+                               fn, s->pallette,
+                               &first, &last);
+    if (first >= 0) {
+        dpy_update(s->ds, 0, first, s->cols, last - first + 1);
     }
-    if (first < 0)
-      return;
-
     s->invalidate = 0;
-    cpu_physical_memory_reset_dirty(base + first * src_width,
-                                    base + (last + 1) * src_width,
-                                    VGA_DIRTY_FLAG);
-    dpy_update(s->ds, 0, first, s->cols, last - first + 1);
 }
 
 static void pl110_invalidate_display(void * opaque)
