@@ -59,30 +59,7 @@ static const unsigned char pl110_versatile_id[] =
 #define pl110_versatile_id pl110_id
 #endif
 
-static inline uint32_t rgb_to_pixel8(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 5) << 5) | ((g >> 5) << 2) | (b >> 6);
-}
-
-static inline uint32_t rgb_to_pixel15(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-}
-
-static inline uint32_t rgb_to_pixel16(unsigned int r, unsigned int g, unsigned b)
-{
-    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-}
-
-static inline uint32_t rgb_to_pixel24(unsigned int r, unsigned int g, unsigned b)
-{
-    return (r << 16) | (g << 8) | b;
-}
-
-static inline uint32_t rgb_to_pixel32(unsigned int r, unsigned int g, unsigned b)
-{
-    return (r << 16) | (g << 8) | b;
-}
+#include "pixel_ops.h"
 
 typedef void (*drawfn)(uint32_t *, uint8_t *, const uint8_t *, int);
 
