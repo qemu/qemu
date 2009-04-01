@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
 #include <assert.h>
+#include <stdlib.h>
 #include "exec.h"
 #include "helper.h"
 
@@ -120,6 +121,57 @@ void helper_trapa(uint32_t tra)
     env->tra = tra << 2;
     env->exception_index = 0x160;
     cpu_loop_exit();
+}
+
+void helper_movcal(uint32_t address, uint32_t value)
+{
+    if (cpu_sh4_is_cached (env, address))
+    {
+	memory_content *r = malloc (sizeof(memory_content));
+	r->address = address;
+	r->value = value;
+	r->next = NULL;
+
+	*(env->movcal_backup_tail) = r;
+	env->movcal_backup_tail = &(r->next);
+    }
+}
+
+void helper_discard_movcal_backup(void)
+{
+    memory_content *current = env->movcal_backup;
+
+    while(current)
+    {
+	memory_content *next = current->next;
+	free (current);
+	env->movcal_backup = current = next;
+	if (current == 0)
+	    env->movcal_backup_tail = &(env->movcal_backup);
+    } 
+}
+
+void helper_ocbi(uint32_t address)
+{
+    memory_content **current = &(env->movcal_backup);
+    while (*current)
+    {
+	uint32_t a = (*current)->address;
+	if ((a & ~0x1F) == (address & ~0x1F))
+	{
+	    memory_content *next = (*current)->next;
+	    stl(a, (*current)->value);
+	    
+	    if (next == 0)
+	    {
+		env->movcal_backup_tail = current;
+	    }
+
+	    free (*current);
+	    *current = next;
+	    break;
+	}
+    }
 }
 
 uint32_t helper_addc(uint32_t arg0, uint32_t arg1)
