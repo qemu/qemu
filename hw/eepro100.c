@@ -1,7 +1,7 @@
 /*
  * QEMU i8255x (PRO100) emulation
  *
- * Copyright (C) 2006-2008 Stefan Weil
+ * Copyright (C) 2006-2009 Stefan Weil
  *
  * Portions of the code are copies from grub / etherboot eepro100.c
  * and linux e100.c.
@@ -1399,6 +1399,10 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
         val = eepro100_read_port(s);
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
         break;
+    case SCBflash:
+        val = eepro100_read_eeprom(s);
+        TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
+        break;
     case SCBCtrlMDI:
         val = le32_to_cpu(eepro100_read_mdi(s));
         break;
@@ -1502,6 +1506,11 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
     case SCBPort:
         TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
         eepro100_write_port(s, val);
+        break;
+    case SCBflash:
+        TRACE(OTHER, logout("addr=%s val=0x%08x\n", regname(addr), val));
+        val = val >> 16;
+        eepro100_write_eeprom(s->eeprom, val);
         break;
     case SCBCtrlMDI:
         eepro100_write_mdi(s, val);
