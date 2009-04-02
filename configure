@@ -80,6 +80,12 @@ if check_define __i386__ ; then
   cpu="i386"
 elif check_define __x86_64__ ; then
   cpu="x86_64"
+elif check_define __mips__ ; then
+  if check_define __mips64 ; then
+    cpu="mips64"
+  else
+    cpu="mips"
+  fi
 elif check_define __sparc__ ; then
   # We can't check for 64 bit (when gcc is biarch) or V8PLUSA
   # They must be specified using --sparc_cpu
