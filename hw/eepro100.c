@@ -1070,7 +1070,6 @@ static uint16_t eepro100_read_eeprom(EEPRO100State * s)
         val |= EEPROM_DO;
     } else {
         val &= ~EEPROM_DO;
-    
     }
     val = cpu_to_le16(val);
     TRACE(OTHER, logout("val=0x%04x\n", val));
