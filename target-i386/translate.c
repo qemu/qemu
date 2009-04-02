@@ -1551,7 +1551,6 @@ static inline void tcg_gen_lshift(TCGv ret, TCGv arg1, target_long arg2)
         tcg_gen_shri_tl(ret, arg1, -arg2);
 }
 
-/* XXX: add faster immediate case */
 static void gen_rot_rm_T1(DisasContext *s, int ot, int op1, 
                           int is_right)
 {
@@ -1645,6 +1644,83 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1,
     tcg_temp_free(t0);
     tcg_temp_free(t1);
     tcg_temp_free(t2);
+    tcg_temp_free(a0);
+}
+
+static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
+                          int is_right)
+{
+    int mask;
+    int data_bits;
+    TCGv t0, t1, a0;
+
+    /* XXX: inefficient, but we must use local temps */
+    t0 = tcg_temp_local_new();
+    t1 = tcg_temp_local_new();
+    a0 = tcg_temp_local_new();
+
+    if (ot == OT_QUAD)
+        mask = 0x3f;
+    else
+        mask = 0x1f;
+
+    /* load */
+    if (op1 == OR_TMP0) {
+        tcg_gen_mov_tl(a0, cpu_A0);
+        gen_op_ld_v(ot + s->mem_index, t0, a0);
+    } else {
+        gen_op_mov_v_reg(ot, t0, op1);
+    }
+
+    gen_extu(ot, t0);
+    tcg_gen_mov_tl(t1, t0);
+
+    op2 &= mask;
+    data_bits = 8 << ot;
+    if (op2 != 0) {
+        int shift = op2 & ((1 << (3 + ot)) - 1);
+        if (is_right) {
+            tcg_gen_shri_tl(cpu_tmp4, t0, shift);
+            tcg_gen_shli_tl(t0, t0, data_bits - shift);
+        }
+        else {
+            tcg_gen_shli_tl(cpu_tmp4, t0, shift);
+            tcg_gen_shri_tl(t0, t0, data_bits - shift);
+        }
+        tcg_gen_or_tl(t0, t0, cpu_tmp4);
+    }
+
+    /* store */
+    if (op1 == OR_TMP0) {
+        gen_op_st_v(ot + s->mem_index, t0, a0);
+    } else {
+        gen_op_mov_reg_v(ot, op1, t0);
+    }
+
+    if (op2 != 0) {
+        /* update eflags */
+        if (s->cc_op != CC_OP_DYNAMIC)
+            gen_op_set_cc_op(s->cc_op);
+
+        gen_compute_eflags(cpu_cc_src);
+        tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~(CC_O | CC_C));
+        tcg_gen_xor_tl(cpu_tmp0, t1, t0);
+        tcg_gen_lshift(cpu_tmp0, cpu_tmp0, 11 - (data_bits - 1));
+        tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, CC_O);
+        tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_tmp0);
+        if (is_right) {
+            tcg_gen_shri_tl(t0, t0, data_bits - 1);
+        }
+        tcg_gen_andi_tl(t0, t0, CC_C);
+        tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, t0);
+
+        tcg_gen_discard_tl(cpu_cc_dst);
+        tcg_gen_movi_i32(cpu_cc_op, CC_OP_EFLAGS);
+        s->cc_op = CC_OP_EFLAGS;
+    }
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
     tcg_temp_free(a0);
 }
 
@@ -1862,6 +1938,12 @@ static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
 static void gen_shifti(DisasContext *s1, int op, int ot, int d, int c)
 {
     switch(op) {
+    case OP_ROL:
+        gen_rot_rm_im(s1, ot, d, c, 0);
+        break;
+    case OP_ROR:
+        gen_rot_rm_im(s1, ot, d, c, 1);
+        break;
     case OP_SHL:
     case OP_SHL1:
         gen_shift_rm_im(s1, ot, d, c, 0, 0);
