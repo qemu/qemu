@@ -84,6 +84,10 @@ ifeq ($(ARCH),i386)
 HELPER_CFLAGS+=-fomit-frame-pointer
 endif
 
+ifeq ($(subst ppc64,ppc,$(ARCH))$(TARGET_BASE_ARCH),ppcppc)
+translate.o: CFLAGS := $(CFLAGS) $(call cc-option, $(CFLAGS), -fno-unit-at-a-time,)
+endif
+
 ifeq ($(ARCH),sparc)
   CFLAGS+=-ffixed-g2 -ffixed-g3
   ifneq ($(CONFIG_SOLARIS),yes)
