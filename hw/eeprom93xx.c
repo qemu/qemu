@@ -1,7 +1,7 @@
 /*
  * QEMU EEPROM 93xx emulation
  *
- * Copyright (c) 2006-2007 Stefan Weil
+ * Copyright (c) 2006-2009 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
 #include "eeprom93xx.h"
 
 /* Debug EEPROM emulation. */
-#define DEBUG_EEPROM
+//~ #define DEBUG_EEPROM
 
 #ifdef DEBUG_EEPROM
 #define logout(fmt, args...) fprintf(stderr, "EEPROM\t%-24s" fmt, __func__, ##args)
