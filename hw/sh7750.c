@@ -202,7 +202,7 @@ static void ignore_access(const char *kind, target_phys_addr_t addr)
 	    kind, regname(addr), addr);
 }
 
-static uint32_t sh7750_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t QEMU_NORETURN sh7750_mem_readb(void *opaque, target_phys_addr_t addr)
 {
     switch (addr) {
     default:
@@ -614,11 +614,11 @@ static struct intc_group groups_irl[] = {
 #define MM_UTLB_DATA     (7)
 #define MM_REGION_TYPE(addr)  ((addr & MM_REGION_MASK) >> 24)
 
-static uint32_t invalid_read(void *opaque, target_phys_addr_t addr)
+static uint32_t QEMU_NORETURN invalid_read(void *opaque, target_phys_addr_t addr)
 {
     assert(0);
 
-    return 0;
+    //~ return 0;
 }
 
 static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
@@ -651,8 +651,8 @@ static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void invalid_write(void *opaque, target_phys_addr_t addr,
-			  uint32_t mem_value)
+static void QEMU_NORETURN invalid_write(void *opaque, target_phys_addr_t addr,
+                                        uint32_t mem_value)
 {
     assert(0);
 }

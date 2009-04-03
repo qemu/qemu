@@ -68,7 +68,11 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 
 #endif
 
+#ifdef CONFIG_USER_ONLY
+void QEMU_NORETURN helper_ldtlb(void)
+#else
 void helper_ldtlb(void)
+#endif
 {
 #ifdef CONFIG_USER_ONLY
     /* XXXXX */
@@ -78,37 +82,37 @@ void helper_ldtlb(void)
 #endif
 }
 
-void helper_raise_illegal_instruction(void)
+void QEMU_NORETURN helper_raise_illegal_instruction(void)
 {
     env->exception_index = 0x180;
     cpu_loop_exit();
 }
 
-void helper_raise_slot_illegal_instruction(void)
+void QEMU_NORETURN helper_raise_slot_illegal_instruction(void)
 {
     env->exception_index = 0x1a0;
     cpu_loop_exit();
 }
 
-void helper_raise_fpu_disable(void)
+void QEMU_NORETURN helper_raise_fpu_disable(void)
 {
   env->exception_index = 0x800;
   cpu_loop_exit();
 }
 
-void helper_raise_slot_fpu_disable(void)
+void QEMU_NORETURN helper_raise_slot_fpu_disable(void)
 {
   env->exception_index = 0x820;
   cpu_loop_exit();
 }
 
-void helper_debug(void)
+void QEMU_NORETURN helper_debug(void)
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit();
 }
 
-void helper_sleep(uint32_t next_pc)
+void QEMU_NORETURN helper_sleep(uint32_t next_pc)
 {
     env->halted = 1;
     env->exception_index = EXCP_HLT;
@@ -116,7 +120,7 @@ void helper_sleep(uint32_t next_pc)
     cpu_loop_exit();
 }
 
-void helper_trapa(uint32_t tra)
+void QEMU_NORETURN helper_trapa(uint32_t tra)
 {
     env->tra = tra << 2;
     env->exception_index = 0x160;
