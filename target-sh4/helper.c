@@ -63,7 +63,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 {
     /* For user mode, only U0 area is cachable. */
-    return !!(addr & 0x80000000);
+    return !(addr & 0x80000000);
 }
 
 #else /* !CONFIG_USER_ONLY */
