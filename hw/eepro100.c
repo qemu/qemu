@@ -543,31 +543,31 @@ static void pci_reset(EEPRO100State * s)
 
     switch (device) {
     case i82551:
-        //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
+        //~ pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         PCI_CONFIG_8(PCI_REVISION, 0x0f);
         break;
     case i82557A:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION, 0x01);
         PCI_CONFIG_8(0x34, 0x00);
         break;
     case i82557B:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION, 0x02);
         PCI_CONFIG_8(0x34, 0x00);
         break;
     case i82557C:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_8(PCI_REVISION, 0x03);
         PCI_CONFIG_8(0x34, 0x00);
         break;
     case i82558B:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
         PCI_CONFIG_8(PCI_REVISION, 0x05);
         break;
     case i82559C:
-        PCI_CONFIG_16(PCI_DEVICE_ID, 0x1229);
+        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82557);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
         //~ PCI_CONFIG_8(PCI_REVISION, 0x08);
         PCI_CONFIG_8(PCI_REVISION, 0x0c);
@@ -577,12 +577,12 @@ static void pci_reset(EEPRO100State * s)
 #endif
         break;
     case i82559ER:
-        //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1209);
+        //~ pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82551IT);
         PCI_CONFIG_16(PCI_STATUS, 0x0290);
         PCI_CONFIG_8(PCI_REVISION, 0x09);
         break;
-    //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1029);
-    //~ PCI_CONFIG_16(PCI_DEVICE_ID, 0x1030);       /* 82559 InBusiness 10/100 !!! */
+    //~ pci_config_set_device_id(pci_conf, 0x1029);
+    //~ pci_config_set_device_id(pci_conf, 0x1030);       /* 82559 InBusiness 10/100 !!! */
     default:
         logout("Device %X is undefined!\n", device);
     }
