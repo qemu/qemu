@@ -9,6 +9,10 @@ DEF_HELPER_0(debug, void)
 DEF_HELPER_1(sleep, void, i32)
 DEF_HELPER_1(trapa, void, i32)
 
+DEF_HELPER_2(movcal, void, i32, i32)
+DEF_HELPER_0(discard_movcal_backup, void)
+DEF_HELPER_1(ocbi, void, i32)
+
 DEF_HELPER_2(addv, i32, i32, i32)
 DEF_HELPER_2(addc, i32, i32, i32)
 DEF_HELPER_2(subv, i32, i32, i32)

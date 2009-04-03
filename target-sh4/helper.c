@@ -644,4 +644,48 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, target_phys_addr_t addr,
     }
 }
 
+int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
+{
+    int n;
+    int use_asid = (env->mmucr & MMUCR_SV) == 0 || (env->sr & SR_MD) == 0;
+
+    /* check area */
+    if (env->sr & SR_MD) {
+        /* For previledged mode, P2 and P4 area is not cachable. */
+        if ((0xA0000000 <= addr && addr < 0xC0000000) || 0xE0000000 <= addr)
+            return 0;
+    } else {
+        /* For user mode, only U0 area is cachable. */
+        if (0x80000000 <= addr)
+            return 0;
+    }
+
+    /*
+     * TODO : Evaluate CCR and check if the cache is on or off.
+     *        Now CCR is not in CPUSH4State, but in SH7750State.
+     *        When you move the ccr inot CPUSH4State, the code will be
+     *        as follows.
+     */
+#if 0
+    /* check if operand cache is enabled or not. */
+    if (!(env->ccr & 1))
+        return 0;
+#endif
+
+    /* if MMU is off, no check for TLB. */
+    if (env->mmucr & MMUCR_AT)
+        return 1;
+
+    /* check TLB */
+    n = find_tlb_entry(env, addr, env->itlb, ITLB_SIZE, use_asid);
+    if (n >= 0)
+        return env->itlb[n].c;
+
+    n = find_tlb_entry(env, addr, env->utlb, UTLB_SIZE, use_asid);
+    if (n >= 0)
+        return env->utlb[n].c;
+
+    return 0;
+}
+
 #endif
