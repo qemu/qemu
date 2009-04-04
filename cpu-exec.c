@@ -253,6 +253,11 @@ int cpu_exec(CPUState *env1)
     /* prepare setjmp context for exception handling */
     for(;;) {
         if (setjmp(env->jmp_env) == 0) {
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
+#undef env
+                    env = cpu_single_env;
+#define env cpu_single_env
+#endif
             env->current_tb = NULL;
             /* if an exception is pending, we execute it here */
             if (env->exception_index >= 0) {
@@ -390,6 +395,11 @@ int cpu_exec(CPUState *env1)
                             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
                             intno = cpu_get_pic_interrupt(env);
                             qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing hardware INT=0x%02x\n", intno);
+#if defined(__sparc__) && !defined(HOST_SOLARIS)
+#undef env
+                    env = cpu_single_env;
+#define env cpu_single_env
+#endif
                             do_interrupt(intno, 0, 0, 0, 1);
                             /* ensure that no TB jump will be modified as
                                the program flow was changed */
