@@ -117,6 +117,13 @@ static void patch_reloc(uint8_t *code_ptr, int type,
             tcg_abort();
         *(uint32_t *)code_ptr = ((*(uint32_t *)code_ptr) & ~0x3fffff) | value;
         break;
+    case R_SPARC_WDISP19:
+        value -= (long)code_ptr;
+        value >>= 2;
+        if (!check_fit_tl(value, 19))
+            tcg_abort();
+        *(uint32_t *)code_ptr = ((*(uint32_t *)code_ptr) & ~0x7ffff) | value;
+        break;
     default:
         tcg_abort();
     }
@@ -185,6 +192,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define INSN_ASI(x) ((x) << 5)
 
 #define INSN_IMM13(x) ((1 << 13) | ((x) & 0x1fff))
+#define INSN_OFF19(x) (((x) >> 2) & 0x07ffff)
 #define INSN_OFF22(x) (((x) >> 2) & 0x3fffff)
 
 #define INSN_COND(x, a) (((x) << 25) | ((a) << 29))
@@ -421,7 +429,7 @@ static inline void tcg_out_nop(TCGContext *s)
     tcg_out_sethi(s, TCG_REG_G0, 0);
 }
 
-static void tcg_out_branch(TCGContext *s, int opc, int label_index)
+static void tcg_out_branch_i32(TCGContext *s, int opc, int label_index)
 {
     int32_t val;
     TCGLabel *l = &s->labels[label_index];
@@ -436,6 +444,25 @@ static void tcg_out_branch(TCGContext *s, int opc, int label_index)
     }
 }
 
+#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+static void tcg_out_branch_i64(TCGContext *s, int opc, int label_index)
+{
+    int32_t val;
+    TCGLabel *l = &s->labels[label_index];
+
+    if (l->has_value) {
+        val = l->u.value - (tcg_target_long)s->code_ptr;
+        tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x1) |
+                      (0x5 << 19) |
+                      INSN_OFF19(l->u.value - (unsigned long)s->code_ptr)));
+    } else {
+        tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, label_index, 0);
+        tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x1) |
+                      (0x5 << 19) | 0));
+    }
+}
+#endif
+
 static const uint8_t tcg_cond_to_bcond[10] = {
     [TCG_COND_EQ] = COND_E,
     [TCG_COND_NE] = COND_NE,
@@ -449,9 +476,9 @@ static const uint8_t tcg_cond_to_bcond[10] = {
     [TCG_COND_GTU] = COND_GU,
 };
 
-static void tcg_out_brcond(TCGContext *s, int cond,
-                           TCGArg arg1, TCGArg arg2, int const_arg2,
-                           int label_index)
+static void tcg_out_brcond_i32(TCGContext *s, int cond,
+                               TCGArg arg1, TCGArg arg2, int const_arg2,
+                               int label_index)
 {
     if (const_arg2 && arg2 == 0)
         /* orcc %g0, r, %g0 */
@@ -459,9 +486,25 @@ static void tcg_out_brcond(TCGContext *s, int cond,
     else
         /* subcc r1, r2, %g0 */
         tcg_out_arith(s, TCG_REG_G0, arg1, arg2, ARITH_SUBCC);
-    tcg_out_branch(s, tcg_cond_to_bcond[cond], label_index);
+    tcg_out_branch_i32(s, tcg_cond_to_bcond[cond], label_index);
     tcg_out_nop(s);
 }
+
+#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
+static void tcg_out_brcond_i64(TCGContext *s, int cond,
+                               TCGArg arg1, TCGArg arg2, int const_arg2,
+                               int label_index)
+{
+    if (const_arg2 && arg2 == 0)
+        /* orcc %g0, r, %g0 */
+        tcg_out_arith(s, TCG_REG_G0, TCG_REG_G0, arg1, ARITH_ORCC);
+    else
+        /* subcc r1, r2, %g0 */
+        tcg_out_arith(s, TCG_REG_G0, arg1, arg2, ARITH_SUBCC);
+    tcg_out_branch_i64(s, tcg_cond_to_bcond[cond], label_index);
+    tcg_out_nop(s);
+}
+#endif
 
 /* Generate global QEMU prologue and epilogue code */
 void tcg_target_qemu_prologue(TCGContext *s)
@@ -559,7 +602,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     tcg_out_arith(s, TCG_REG_G0, arg0, arg2, ARITH_SUBCC);
 
     /* will become:
-       be label1 */
+       be label1
+        or
+       be,pt %xcc label1 */
     label1_ptr = (uint32_t *)s->code_ptr;
     tcg_out32(s, 0);
 
@@ -627,9 +672,17 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     tcg_out_nop(s);
 
     /* label1: */
+#if TARGET_LONG_BITS == 32
+    /* be label1 */
     *label1_ptr = (INSN_OP(0) | INSN_COND(COND_E, 0) | INSN_OP2(0x2) |
                    INSN_OFF22((unsigned long)s->code_ptr -
                               (unsigned long)label1_ptr));
+#else
+    /* be,pt %xcc label1 */
+    *label1_ptr = (INSN_OP(0) | INSN_COND(COND_E, 0) | INSN_OP2(0x1) |
+                   (0x5 << 19) | INSN_OFF19((unsigned long)s->code_ptr -
+                              (unsigned long)label1_ptr));
+#endif
 
     /* ld [arg1 + x], arg1 */
     tcg_out_ldst(s, arg1, arg1, offsetof(CPUTLBEntry, addend) -
@@ -761,7 +814,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     tcg_out_arith(s, TCG_REG_G0, arg0, arg2, ARITH_SUBCC);
 
     /* will become:
-       be label1 */
+       be label1
+        or
+       be,pt %xcc label1 */
     label1_ptr = (uint32_t *)s->code_ptr;
     tcg_out32(s, 0);
 
@@ -797,10 +852,17 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     /* nop (delay slot) */
     tcg_out_nop(s);
 
-    /* label1: */
+#if TARGET_LONG_BITS == 32
+    /* be label1 */
     *label1_ptr = (INSN_OP(0) | INSN_COND(COND_E, 0) | INSN_OP2(0x2) |
                    INSN_OFF22((unsigned long)s->code_ptr -
                               (unsigned long)label1_ptr));
+#else
+    /* be,pt %xcc label1 */
+    *label1_ptr = (INSN_OP(0) | INSN_COND(COND_E, 0) | INSN_OP2(0x1) |
+                   (0x5 << 19) | INSN_OFF19((unsigned long)s->code_ptr -
+                              (unsigned long)label1_ptr));
+#endif
 
     /* ld [arg1 + x], arg1 */
     tcg_out_ldst(s, arg1, arg1, offsetof(CPUTLBEntry, addend) -
@@ -917,7 +979,7 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         break;
     case INDEX_op_jmp:
     case INDEX_op_br:
-        tcg_out_branch(s, COND_A, args[0]);
+        tcg_out_branch_i32(s, COND_A, args[0]);
         tcg_out_nop(s);
         break;
     case INDEX_op_movi_i32:
@@ -1009,8 +1071,8 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
 #endif
 
     case INDEX_op_brcond_i32:
-        tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
-                       args[3]);
+        tcg_out_brcond_i32(s, args[2], args[0], args[1], const_args[1],
+                           args[3]);
         break;
 
     case INDEX_op_qemu_ld8u:
@@ -1074,8 +1136,8 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
         goto gen_arith32;
 
     case INDEX_op_brcond_i64:
-        tcg_out_brcond(s, args[2], args[0], args[1], const_args[1],
-                       args[3]);
+        tcg_out_brcond_i64(s, args[2], args[0], args[1], const_args[1],
+                           args[3]);
         break;
     case INDEX_op_qemu_ld64:
         tcg_out_qemu_ld(s, args, 3);
