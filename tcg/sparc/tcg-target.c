@@ -578,9 +578,11 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
        global registers */
     // delay slot
     tcg_out_ldst(s, TCG_AREG0, TCG_REG_CALL_STACK,
-                 TCG_TARGET_CALL_STACK_OFFSET - sizeof(long), HOST_ST_OP);
+                 TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
+                 sizeof(long), HOST_ST_OP);
     tcg_out_ldst(s, TCG_AREG0, TCG_REG_CALL_STACK,
-                 TCG_TARGET_CALL_STACK_OFFSET - sizeof(long), HOST_LD_OP);
+                 TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
+                 sizeof(long), HOST_LD_OP);
 
     /* data_reg = sign_extend(arg0) */
     switch(opc) {
@@ -781,9 +783,11 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
        global registers */
     // delay slot
     tcg_out_ldst(s, TCG_AREG0, TCG_REG_CALL_STACK,
-                 TCG_TARGET_CALL_STACK_OFFSET - sizeof(long), HOST_ST_OP);
+                 TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
+                 sizeof(long), HOST_ST_OP);
     tcg_out_ldst(s, TCG_AREG0, TCG_REG_CALL_STACK,
-                 TCG_TARGET_CALL_STACK_OFFSET - sizeof(long), HOST_LD_OP);
+                 TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
+                 sizeof(long), HOST_LD_OP);
 
     /* will become:
        ba label2 */
@@ -905,9 +909,11 @@ static inline void tcg_out_op(TCGContext *s, int opc, const TCGArg *args,
            global registers */
         // delay slot
         tcg_out_ldst(s, TCG_AREG0, TCG_REG_CALL_STACK,
-                     TCG_TARGET_CALL_STACK_OFFSET - sizeof(long), HOST_ST_OP);
+                     TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
+                     sizeof(long), HOST_ST_OP);
         tcg_out_ldst(s, TCG_AREG0, TCG_REG_CALL_STACK,
-                     TCG_TARGET_CALL_STACK_OFFSET - sizeof(long), HOST_LD_OP);
+                     TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
+                     sizeof(long), HOST_LD_OP);
         break;
     case INDEX_op_jmp:
     case INDEX_op_br:
