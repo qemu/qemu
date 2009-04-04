@@ -89,18 +89,8 @@ translate.o: CFLAGS := $(CFLAGS) $(call cc-option, $(CFLAGS), -fno-unit-at-a-tim
 endif
 
 ifeq ($(ARCH),sparc)
-  CFLAGS+=-ffixed-g2 -ffixed-g3
   ifneq ($(CONFIG_SOLARIS),yes)
-    CFLAGS+=-ffixed-g1 -ffixed-g6
     HELPER_CFLAGS+=-ffixed-i0
-  endif
-endif
-
-ifeq ($(ARCH),sparc64)
-  ifneq ($(CONFIG_SOLARIS),yes)
-    CFLAGS+=-ffixed-g5 -ffixed-g6 -ffixed-g7
-  else
-    CFLAGS+=-ffixed-g1 -ffixed-g4 -ffixed-g5 -ffixed-g7
   endif
 endif
 

@@ -498,6 +498,10 @@ case "$cpu" in
                ARCH_CFLAGS="${SP_CFLAGS}"
                ARCH_LDFLAGS="${SP_LDFLAGS}"
            fi
+           ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g2 -ffixed-g3"
+           if test "$solaris" = "no" ; then
+               ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g1 -ffixed-g6"
+           fi
            ;;
     sparc64) if test -z "$sparc_cpu" ; then
                ARCH_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__"
@@ -505,6 +509,11 @@ case "$cpu" in
            else
                ARCH_CFLAGS="${SP_CFLAGS}"
                ARCH_LDFLAGS="${SP_LDFLAGS}"
+           fi
+           if test "$solaris" = "no" ; then
+               ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g5 -ffixed-g6 -ffixed-g7"
+           else
+               ARCH_CFLAGS="$ARCH_CFLAGS -ffixed-g1 -ffixed-g5 -ffixed-g6 -ffixed-g7"
            fi
            ;;
     s390)
