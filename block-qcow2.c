@@ -2601,6 +2601,31 @@ static void dump_refcounts(BlockDriverState *bs)
 #endif
 #endif
 
+static int qcow_put_buffer(BlockDriverState *bs, const uint8_t *buf,
+                           int64_t pos, int size)
+{
+    int growable = bs->growable;
+
+    bs->growable = 1;
+    bdrv_pwrite(bs, pos, buf, size);
+    bs->growable = growable;
+
+    return size;
+}
+
+static int qcow_get_buffer(BlockDriverState *bs, uint8_t *buf,
+                           int64_t pos, int size)
+{
+    int growable = bs->growable;
+    int ret;
+
+    bs->growable = 1;
+    ret = bdrv_pread(bs, pos, buf, size);
+    bs->growable = growable;
+
+    return ret;
+}
+
 BlockDriver bdrv_qcow2 = {
     "qcow2",
     sizeof(BDRVQcowState),
@@ -2626,4 +2651,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_snapshot_delete = qcow_snapshot_delete,
     .bdrv_snapshot_list = qcow_snapshot_list,
     .bdrv_get_info = qcow_get_info,
+
+    .bdrv_put_buffer    = qcow_put_buffer,
+    .bdrv_get_buffer    = qcow_get_buffer,
 };
