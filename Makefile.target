@@ -741,7 +741,7 @@ else
 endif
 
 qemu-options.h: $(SRC_PATH)/qemu-options.hx
-	sh $(SRC_PATH)/hxtool -h < $< > $@
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o qemu-options.h

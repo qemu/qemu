@@ -283,28 +283,34 @@ cscope:
 
 # documentation
 %.html: %.texi
-	texi2html -I=. -monolithic -number $<
+	$(call quiet-command,texi2html -I=. -monolithic -number $<,"  GEN   $@")
 
 %.info: %.texi
-	makeinfo -I . $< -o $@
+	$(call quiet-command,makeinfo -I . $< -o $@,"  GEN   $@")
 
 %.dvi: %.texi
-	texi2dvi -I . $<
+	$(call quiet-command,texi2dvi -I . $<,"  GEN   $@")
 
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx
-	sh $(SRC_PATH)/hxtool -t < $< > $@
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -t < $< > $@,"  GEN   $@")
 
 qemu.1: qemu-doc.texi
-	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu.pod
-	pod2man --section=1 --center=" " --release=" " qemu.pod > $@
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu.pod && \
+	  pod2man --section=1 --center=" " --release=" " qemu.pod > $@, \
+	  "  GEN   $@")
 
 qemu-img.1: qemu-img.texi
-	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-img.pod
-	pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-img.pod && \
+	  pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@, \
+	  "  GEN   $@")
 
 qemu-nbd.8: qemu-nbd.texi
-	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-nbd.pod
-	pod2man --section=8 --center=" " --release=" " qemu-nbd.pod > $@
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-nbd.pod && \
+	  pod2man --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
+	  "  GEN   $@")
 
 info: qemu-doc.info qemu-tech.info
 
