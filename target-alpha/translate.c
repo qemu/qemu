@@ -2414,8 +2414,9 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
             break;
         }
 
-        if (vm_singlestep)
+        if (singlestep) {
             break;
+        }
     }
     if (ret != 1 && ret != 3) {
         tcg_gen_movi_i64(cpu_pc, ctx.pc);

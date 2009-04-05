@@ -8287,15 +8287,13 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
             gen_exception(ctxp, POWERPC_EXCP_TRACE);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
                             (env->singlestep_enabled) ||
+                            singlestep ||
                             num_insns >= max_insns)) {
             /* if we reach a page boundary or are single stepping, stop
              * generation
              */
             break;
         }
-
-        if (vm_singlestep)
-            break;
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();

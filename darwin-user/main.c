@@ -41,7 +41,7 @@
 #include <mach/mach_init.h>
 #include <mach/vm_map.h>
 
-int vm_singlestep;
+int singlestep;
 
 const char *interp_prefix = "";
 
@@ -846,7 +846,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
         } else if (!strcmp(r, "singlestep")) {
-            vm_singlestep = 1;
+            singlestep = 1;
         } else
         {
             usage();

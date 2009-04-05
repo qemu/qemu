@@ -3033,7 +3033,8 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 	disas_m68k_insn(env, dc);
         num_insns++;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
-             !env->singlestep_enabled && !vm_singlestep &&
+             !env->singlestep_enabled &&
+             !singlestep &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32) &&
              num_insns < max_insns);
 

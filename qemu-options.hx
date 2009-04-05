@@ -1210,7 +1210,7 @@ from a script.
 ETEXI
 
 DEF("singlestep", 0, QEMU_OPTION_singlestep, \
-    "-singlestep     always run in singlestep mode\n")
+    "-singlestep   always run in singlestep mode\n")
 STEXI
 @item -singlestep
 Run the emulation in single step mode.

@@ -1967,7 +1967,7 @@ gen_intermediate_code_internal(CPUState * env, TranslationBlock * tb,
 	    break;
         if (num_insns >= max_insns)
             break;
-        if (vm_singlestep)
+        if (singlestep)
             break;
     }
     if (tb->cflags & CF_LAST_IO)

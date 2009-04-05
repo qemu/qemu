@@ -3273,7 +3273,7 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 			break;
 	} while (!dc->is_jmp && !dc->cpustate_changed
 		 && gen_opc_ptr < gen_opc_end
-		 && !vm_singlestep
+                 && !singlestep
 		 && (dc->pc < next_page_start)
                  && num_insns < max_insns);
 

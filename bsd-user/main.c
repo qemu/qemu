@@ -33,7 +33,7 @@
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
-int vm_singlestep;
+int singlestep;
 
 static const char *interp_prefix = CONFIG_QEMU_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
@@ -504,7 +504,7 @@ int main(int argc, char **argv)
             }
             optind++;
         } else if (!strcmp(r, "singlestep")) {
-            vm_singlestep = 1;
+            singlestep = 1;
         } else if (!strcmp(r, "strace")) {
             do_strace = 1;
         } else

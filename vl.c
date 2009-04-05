@@ -217,7 +217,6 @@ ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
-int vm_singlestep;
 static int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
@@ -246,6 +245,7 @@ int win2k_install_hack = 0;
 int rtc_td_hack = 0;
 #endif
 int usb_enabled = 0;
+int singlestep = 0;
 int smp_cpus = 1;
 const char *vnc_display;
 int acpi_enabled = 1;
@@ -4727,6 +4727,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_bios:
                 bios_name = optarg;
+                break;
+            case QEMU_OPTION_singlestep:
+                singlestep = 1;
                 break;
             case QEMU_OPTION_S:
                 autostart = 0;

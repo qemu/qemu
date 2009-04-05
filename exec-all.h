@@ -381,9 +381,11 @@ static inline int kqemu_is_ok(CPUState *env)
 
 #endif
 
-extern int vm_singlestep;
-
 typedef void (CPUDebugExcpHandler)(CPUState *env);
 
 CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
+
+/* vl.c */
+extern int singlestep;
+
 #endif

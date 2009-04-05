@@ -7734,7 +7734,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
             gen_eob(dc);
             break;
         }
-        if (vm_singlestep) {
+        if (singlestep) {
             gen_jmp_im(pc_ptr - dc->cs_base);
             gen_eob(dc);
             break;
