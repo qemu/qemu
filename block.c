@@ -1146,6 +1146,26 @@ int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return drv->bdrv_get_info(bs, bdi);
 }
 
+int bdrv_put_buffer(BlockDriverState *bs, const uint8_t *buf, int64_t pos, int size)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv)
+        return -ENOMEDIUM;
+    if (!drv->bdrv_put_buffer)
+        return -ENOTSUP;
+    return drv->bdrv_put_buffer(bs, buf, pos, size);
+}
+
+int bdrv_get_buffer(BlockDriverState *bs, uint8_t *buf, int64_t pos, int size)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv)
+        return -ENOMEDIUM;
+    if (!drv->bdrv_get_buffer)
+        return -ENOTSUP;
+    return drv->bdrv_get_buffer(bs, buf, pos, size);
+}
+
 /**************************************************************/
 /* handling of snapshots */
 

@@ -78,6 +78,11 @@ struct BlockDriver {
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
 
+    int (*bdrv_put_buffer)(BlockDriverState *bs, const uint8_t *buf,
+                           int64_t pos, int size);
+    int (*bdrv_get_buffer)(BlockDriverState *bs, uint8_t *buf,
+                           int64_t pos, int size);
+
     /* removable device specific */
     int (*bdrv_is_inserted)(BlockDriverState *bs);
     int (*bdrv_media_changed)(BlockDriverState *bs);

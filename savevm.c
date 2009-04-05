@@ -310,18 +310,18 @@ typedef struct QEMUFileBdrv
     int64_t base_offset;
 } QEMUFileBdrv;
 
-static int bdrv_put_buffer(void *opaque, const uint8_t *buf,
+static int block_put_buffer(void *opaque, const uint8_t *buf,
                            int64_t pos, int size)
 {
     QEMUFileBdrv *s = opaque;
-    bdrv_pwrite(s->bs, s->base_offset + pos, buf, size);
+    bdrv_put_buffer(s->bs, buf, s->base_offset + pos, size);
     return size;
 }
 
-static int bdrv_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static int block_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
     QEMUFileBdrv *s = opaque;
-    return bdrv_pread(s->bs, s->base_offset + pos, buf, size);
+    return bdrv_get_buffer(s->bs, buf, s->base_offset + pos, size);
 }
 
 static int bdrv_fclose(void *opaque)
@@ -341,9 +341,9 @@ static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int64_t offset, int is_wr
     s->base_offset = offset;
 
     if (is_writable)
-        return qemu_fopen_ops(s, bdrv_put_buffer, NULL, bdrv_fclose, NULL);
+        return qemu_fopen_ops(s, block_put_buffer, NULL, bdrv_fclose, NULL);
 
-    return qemu_fopen_ops(s, NULL, bdrv_get_buffer, bdrv_fclose, NULL);
+    return qemu_fopen_ops(s, NULL, block_get_buffer, bdrv_fclose, NULL);
 }
 
 QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
