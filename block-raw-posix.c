@@ -1018,8 +1018,10 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         s->fd_open_flags = open_flags;
         /* open will not fail even if no floppy is inserted */
         open_flags |= O_NONBLOCK;
+#ifdef CONFIG_AIO
     } else if (strstart(filename, "/dev/sg", NULL)) {
         bs->sg = 1;
+#endif
     }
 #endif
 #if defined(__FreeBSD__)
@@ -1210,6 +1212,7 @@ static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
     return ioctl(s->fd, req, buf);
 }
 
+#ifdef CONFIG_AIO
 static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockDriverCompletionFunc *cb, void *opaque)
@@ -1228,6 +1231,7 @@ static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
 
     return &acb->common;
 }
+#endif
 
 #elif defined(__FreeBSD__)
 
@@ -1439,5 +1443,7 @@ BlockDriver bdrv_host_device = {
     .bdrv_set_locked	= raw_set_locked,
     /* generic scsi device */
     .bdrv_ioctl		= raw_ioctl,
+#ifdef CONFIG_AIO
     .bdrv_aio_ioctl	= raw_aio_ioctl,
+#endif
 };
