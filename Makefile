@@ -206,7 +206,9 @@ qemu-img$(EXESUF): qemu-img.o qemu-tool.o osdep.o $(BLOCK_OBJS)
 
 qemu-nbd$(EXESUF):  qemu-nbd.o qemu-tool.o osdep.o $(BLOCK_OBJS)
 
-qemu-img$(EXESUF) qemu-nbd$(EXESUF): LIBS += -lz
+qemu-io$(EXESUF):  qemu-io.o qemu-tool.o osdep.o cmd.o $(BLOCK_OBJS)
+
+qemu-img$(EXESUF) qemu-nbd$(EXESUF) qemu-io$(EXESUF): LIBS += -lz
 
 clean:
 # avoid old build problems by removing potentially incorrect old files
