@@ -370,6 +370,11 @@ int qemu_file_has_error(QEMUFile *f)
     return f->has_error;
 }
 
+void qemu_file_set_error(QEMUFile *f)
+{
+    f->has_error = 1;
+}
+
 void qemu_fflush(QEMUFile *f)
 {
     if (!f->put_buffer)
