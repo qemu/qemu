@@ -451,6 +451,13 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
     switch (addr) {
     case VIRTIO_PCI_GUEST_FEATURES:
+	/* Guest does not negotiate properly?  We have to assume nothing. */
+	if (val & (1 << VIRTIO_F_BAD_FEATURE)) {
+	    if (vdev->bad_features)
+		val = vdev->bad_features(vdev);
+	    else
+		val = 0;
+	}
         if (vdev->set_features)
             vdev->set_features(vdev, val);
         vdev->features = val;
@@ -490,7 +497,7 @@ static uint32_t virtio_ioport_read(void *opaque, uint32_t addr)
     switch (addr) {
     case VIRTIO_PCI_HOST_FEATURES:
         ret = vdev->get_features(vdev);
-        ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY);
+        ret |= (1 << VIRTIO_F_NOTIFY_ON_EMPTY) | (1 << VIRTIO_F_BAD_FEATURE);
         break;
     case VIRTIO_PCI_GUEST_FEATURES:
         ret = vdev->features;
