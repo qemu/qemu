@@ -4838,7 +4838,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             break;
         /* if single step mode, we generate only one instruction and
            generate an exception */
-        if (env->singlestep_enabled) {
+        if (env->singlestep_enabled || singlestep) {
             tcg_gen_movi_tl(cpu_pc, dc->pc);
             tcg_gen_exit_tb(0);
             break;

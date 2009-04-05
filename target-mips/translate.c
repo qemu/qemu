@@ -38,7 +38,6 @@
 
 //#define MIPS_DEBUG_DISAS
 //#define MIPS_DEBUG_SIGN_EXTENSIONS
-//#define MIPS_SINGLE_STEP
 
 /* MIPS major opcodes */
 #define MASK_OP_MAJOR(op)  (op & (0x3F << 26))
@@ -8140,9 +8139,9 @@ gen_intermediate_code_internal (CPUState *env, TranslationBlock *tb,
 
         if (num_insns >= max_insns)
             break;
-#if defined (MIPS_SINGLE_STEP)
-        break;
-#endif
+
+        if (singlestep)
+            break;
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();

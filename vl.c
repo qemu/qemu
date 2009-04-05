@@ -236,6 +236,7 @@ int win2k_install_hack = 0;
 int rtc_td_hack = 0;
 #endif
 int usb_enabled = 0;
+int singlestep = 0;
 int smp_cpus = 1;
 const char *vnc_display;
 int acpi_enabled = 1;
@@ -4659,6 +4660,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_bios:
                 bios_name = optarg;
+                break;
+            case QEMU_OPTION_singlestep:
+                singlestep = 1;
                 break;
             case QEMU_OPTION_S:
                 autostart = 0;

@@ -7733,6 +7733,11 @@ static inline void gen_intermediate_code_internal(CPUState *env,
             gen_eob(dc);
             break;
         }
+        if (singlestep) {
+            gen_jmp_im(pc_ptr - dc->cs_base);
+            gen_eob(dc);
+            break;
+        }
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();

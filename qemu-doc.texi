@@ -490,6 +490,10 @@ Set the whole virtual machine to the snapshot identified by the tag
 @item delvm @var{tag}|@var{id}
 Delete the snapshot identified by @var{tag} or @var{id}.
 
+@item singlestep [off]
+Run the emulation in single step mode.
+If called with option off, the emulation returns to normal mode.
+
 @item stop
 Stop emulation.
 
@@ -2370,6 +2374,8 @@ Activate log (logfile=/tmp/qemu.log)
 Act as if the host page size was 'pagesize' bytes
 @item -g port
 Wait gdb connection to port
+@item -singlestep
+Run the emulation in single step mode.
 @end table
 
 Environment variables:
@@ -2488,6 +2494,8 @@ Debug options:
 Activate log (logfile=/tmp/qemu.log)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
+@item -singlestep
+Run the emulation in single step mode.
 @end table
 
 @node BSD User space emulator
@@ -2550,6 +2558,8 @@ Debug options:
 Activate log (logfile=/tmp/qemu.log)
 @item -p pagesize
 Act as if the host page size was 'pagesize' bytes
+@item -singlestep
+Run the emulation in single step mode.
 @end table
 
 @node compilation

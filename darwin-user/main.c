@@ -41,6 +41,8 @@
 #include <mach/mach_init.h>
 #include <mach/vm_map.h>
 
+int singlestep;
+
 const char *interp_prefix = "";
 
 asm(".zerofill __STD_PROG_ZONE, __STD_PROG_ZONE, __std_prog_zone, 0x0dfff000");
@@ -751,6 +753,7 @@ void usage(void)
            "-d options   activate log (logfile='%s')\n"
            "-g wait for gdb on port 1234\n"
            "-p pagesize  set the host page size to 'pagesize'\n",
+           "-singlestep  always run in singlestep mode\n"
            TARGET_ARCH,
            TARGET_ARCH,
            interp_prefix,
@@ -842,6 +845,8 @@ int main(int argc, char **argv)
 #endif
                 exit(1);
             }
+        } else if (!strcmp(r, "singlestep")) {
+            singlestep = 1;
         } else
         {
             usage();

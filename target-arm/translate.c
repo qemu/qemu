@@ -8791,6 +8791,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
         num_insns ++;
     } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
+             !singlestep &&
              dc->pc < next_page_start &&
              num_insns < max_insns);
 

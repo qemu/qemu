@@ -39,7 +39,6 @@
 #define GDBSTUB_SINGLE_STEP 0x4
 
 /* Include definitions for instructions classes and implementations flags */
-//#define DO_SINGLE_STEP
 //#define PPC_DEBUG_DISAS
 //#define DO_PPC_STATISTICS
 
@@ -8288,15 +8287,13 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
             gen_exception(ctxp, POWERPC_EXCP_TRACE);
         } else if (unlikely(((ctx.nip & (TARGET_PAGE_SIZE - 1)) == 0) ||
                             (env->singlestep_enabled) ||
+                            singlestep ||
                             num_insns >= max_insns)) {
             /* if we reach a page boundary or are single stepping, stop
              * generation
              */
             break;
         }
-#if defined (DO_SINGLE_STEP)
-        break;
-#endif
     }
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();

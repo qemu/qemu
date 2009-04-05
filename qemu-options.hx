@@ -1209,6 +1209,13 @@ Store the QEMU process PID in @var{file}. It is useful if you launch QEMU
 from a script.
 ETEXI
 
+DEF("singlestep", 0, QEMU_OPTION_singlestep, \
+    "-singlestep   always run in singlestep mode\n")
+STEXI
+@item -singlestep
+Run the emulation in single step mode.
+ETEXI
+
 DEF("S", 0, QEMU_OPTION_S, \
     "-S              freeze CPU at startup (use 'c' to start execution)\n")
 STEXI

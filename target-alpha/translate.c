@@ -2412,11 +2412,11 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
         if (env->singlestep_enabled) {
             gen_excp(&ctx, EXCP_DEBUG, 0);
             break;
-	}
+        }
 
-#if defined (DO_SINGLE_STEP)
-        break;
-#endif
+        if (singlestep) {
+            break;
+        }
     }
     if (ret != 1 && ret != 3) {
         tcg_gen_movi_i64(cpu_pc, ctx.pc);
