@@ -97,19 +97,22 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon, PCIBus *pci_bus,
             type = IF_SCSI;
         else if (!strcmp(buf, "virtio")) {
             type = IF_VIRTIO;
+        } else {
+            monitor_printf(mon, "type %s not a hotpluggable PCI device.\n", buf);
+            goto out;
         }
     } else {
         monitor_printf(mon, "no if= specified\n");
-        return NULL;
+        goto out;
     }
 
     if (get_param_value(buf, sizeof(buf), "file", opts)) {
         drive_idx = add_init_drive(opts);
         if (drive_idx < 0)
-            return NULL;
+            goto out;
     } else if (type == IF_VIRTIO) {
         monitor_printf(mon, "virtio requires a backing file/device.\n");
-        return NULL;
+        goto out;
     }
 
     switch (type) {
@@ -122,10 +125,9 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon, PCIBus *pci_bus,
     case IF_VIRTIO:
         opaque = virtio_blk_init (pci_bus, drives_table[drive_idx].bdrv);
         break;
-    default:
-        monitor_printf(mon, "type %s not a hotpluggable PCI device.\n", buf);
     }
 
+out:
     return opaque;
 }
 
