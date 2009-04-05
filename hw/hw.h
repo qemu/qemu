@@ -67,6 +67,7 @@ unsigned int qemu_get_be32(QEMUFile *f);
 uint64_t qemu_get_be64(QEMUFile *f);
 int qemu_file_rate_limit(QEMUFile *f);
 int qemu_file_has_error(QEMUFile *f);
+void qemu_file_set_error(QEMUFile *f);
 
 /* Try to send any outstanding data.  This function is useful when output is
  * halted due to rate limiting or EAGAIN errors occur as it can be used to
