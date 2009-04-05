@@ -761,6 +761,10 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
 
     nb_available = (nb_available >> 9) + index_in_cluster;
 
+    if (nb_needed > nb_available) {
+        nb_needed = nb_available;
+    }
+
     cluster_offset = 0;
 
     /* seek the the l2 offset in the l1 table */
