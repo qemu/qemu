@@ -2337,27 +2337,40 @@ static int gdb_monitor_write(CharDriverState *chr, const uint8_t *buf, int len)
     return len;
 }
 
-int gdbserver_start(const char *port)
+#ifndef _WIN32
+static void gdb_sigterm_handler(int signal)
+{
+    if (vm_running)
+        vm_stop(EXCP_INTERRUPT);
+}
+#endif
+
+int gdbserver_start(const char *device)
 {
     GDBState *s;
-    char gdbstub_port_name[128];
-    int port_num;
-    char *p;
+    char gdbstub_device_name[128];
     CharDriverState *chr = NULL;
     CharDriverState *mon_chr;
 
-    if (!port || !*port)
-      return -1;
-    if (strcmp(port, "none") != 0) {
-        port_num = strtol(port, &p, 10);
-        if (*p == 0) {
-            /* A numeric value is interpreted as a port number.  */
-            snprintf(gdbstub_port_name, sizeof(gdbstub_port_name),
-                     "tcp::%d,nowait,nodelay,server", port_num);
-            port = gdbstub_port_name;
+    if (!device)
+        return -1;
+    if (strcmp(device, "none") != 0) {
+        if (strstart(device, "tcp:", NULL)) {
+            /* enforce required TCP attributes */
+            snprintf(gdbstub_device_name, sizeof(gdbstub_device_name),
+                     "%s,nowait,nodelay,server", device);
+            device = gdbstub_device_name;
         }
+#ifndef _WIN32
+        else if (strcmp(device, "stdio") == 0) {
+            struct sigaction act;
 
-        chr = qemu_chr_open("gdb", port, NULL);
+            memset(&act, 0, sizeof(act));
+            act.sa_handler = gdb_sigterm_handler;
+            sigaction(SIGINT, &act, NULL);
+        }
+#endif
+        chr = qemu_chr_open("gdb", device, NULL);
         if (!chr)
             return -1;
 

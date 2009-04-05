@@ -4233,8 +4233,7 @@ static void termsig_setup(void)
 int main(int argc, char **argv, char **envp)
 {
 #ifdef CONFIG_GDBSTUB
-    int use_gdbstub;
-    const char *gdbstub_port;
+    const char *gdbstub_dev = NULL;
 #endif
     uint32_t boot_devices_bitmap = 0;
     int i;
@@ -4317,10 +4316,6 @@ int main(int argc, char **argv, char **envp)
     initrd_filename = NULL;
     ram_size = 0;
     vga_ram_size = VGA_RAM_SIZE;
-#ifdef CONFIG_GDBSTUB
-    use_gdbstub = 0;
-    gdbstub_port = DEFAULT_GDBSTUB_PORT;
-#endif
     snapshot = 0;
     nographic = 0;
     curses = 0;
@@ -4653,10 +4648,10 @@ int main(int argc, char **argv, char **envp)
                 break;
 #ifdef CONFIG_GDBSTUB
             case QEMU_OPTION_s:
-                use_gdbstub = 1;
+                gdbstub_dev = "tcp::" DEFAULT_GDBSTUB_PORT;
                 break;
-            case QEMU_OPTION_p:
-                gdbstub_port = optarg;
+            case QEMU_OPTION_gdb:
+                gdbstub_dev = optarg;
                 break;
 #endif
             case QEMU_OPTION_L:
@@ -5370,14 +5365,10 @@ int main(int argc, char **argv, char **envp)
     }
 
 #ifdef CONFIG_GDBSTUB
-    if (use_gdbstub) {
-        /* XXX: use standard host:port notation and modify options
-           accordingly. */
-        if (gdbserver_start(gdbstub_port) < 0) {
-            fprintf(stderr, "qemu: could not open gdbstub device on port '%s'\n",
-                    gdbstub_port);
-            exit(1);
-        }
+    if (gdbstub_dev && gdbserver_start(gdbstub_dev) < 0) {
+        fprintf(stderr, "qemu: could not open gdbserver on device '%s'\n",
+                gdbstub_dev);
+        exit(1);
     }
 #endif
 

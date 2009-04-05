@@ -1216,19 +1216,25 @@ STEXI
 Do not start CPU at startup (you must type 'c' in the monitor).
 ETEXI
 
-DEF("s", 0, QEMU_OPTION_s, \
-    "-s              wait gdb connection to port\n")
+DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \
+    "-gdb dev        wait for gdb connection on 'dev'\n")
 STEXI
-@item -s
-Wait gdb connection to port 1234 (@pxref{gdb_usage}).
+@item -gdb @var{dev}
+Wait for gdb connection on device @var{dev} (@pxref{gdb_usage}). Typical
+connections will likely be TCP-based, but also UDP, pseudo TTY, or even
+stdio are reasonable use case. The latter is allowing to start qemu from
+within gdb and establish the connection via a pipe:
+@example
+(gdb) target remote | exec qemu -gdb stdio ...
+@end example
 ETEXI
 
-DEF("p", HAS_ARG, QEMU_OPTION_p, \
-    "-p port         set gdb connection port [default=%s]\n")
+DEF("s", 0, QEMU_OPTION_s, \
+    "-s              shorthand for -gdb tcp::%s\n")
 STEXI
-@item -p @var{port}
-Change gdb connection port.  @var{port} can be either a decimal number
-to specify a TCP port, or a host device (same devices as the serial port).
+@item -s
+Shorthand for -gdb tcp::1234, i.e. open a gdbserver on TCP port 1234
+(@pxref{gdb_usage}).
 ETEXI
 
 DEF("d", HAS_ARG, QEMU_OPTION_d, \

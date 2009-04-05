@@ -570,17 +570,18 @@ static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
 }
 
 #ifdef CONFIG_GDBSTUB
-static void do_gdbserver(Monitor *mon, const char *port)
+static void do_gdbserver(Monitor *mon, const char *device)
 {
-    if (!port)
-        port = DEFAULT_GDBSTUB_PORT;
-    if (gdbserver_start(port) < 0) {
-        monitor_printf(mon, "Could not open gdbserver socket on port '%s'\n",
-                       port);
-    } else if (strcmp(port, "none") == 0) {
+    if (!device)
+        device = "tcp::" DEFAULT_GDBSTUB_PORT;
+    if (gdbserver_start(device) < 0) {
+        monitor_printf(mon, "Could not open gdbserver on device '%s'\n",
+                       device);
+    } else if (strcmp(device, "none") == 0) {
         monitor_printf(mon, "Disabled gdbserver\n");
     } else {
-        monitor_printf(mon, "Waiting gdb connection on port '%s'\n", port);
+        monitor_printf(mon, "Waiting for gdb connection on device '%s'\n",
+                       device);
     }
 }
 #endif
