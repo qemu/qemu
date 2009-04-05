@@ -777,7 +777,11 @@ void
 fd_nonblock(int fd)
 {
 #ifdef FIONBIO
-	int opt = 1;
+#ifdef _WIN32
+        long opt = 1;
+#else
+        int opt = 1;
+#endif
 
 	ioctlsocket(fd, FIONBIO, &opt);
 #else

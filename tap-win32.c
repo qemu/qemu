@@ -254,7 +254,7 @@ static int is_tap_win32_dev(const char *guid)
                 component_id_string,
                 NULL,
                 &data_type,
-                component_id,
+                (LPBYTE)component_id,
                 &len);
 
             if (!(status != ERROR_SUCCESS || data_type != REG_SZ)) {
@@ -264,7 +264,7 @@ static int is_tap_win32_dev(const char *guid)
                     net_cfg_instance_id_string,
                     NULL,
                     &data_type,
-                    net_cfg_instance_id,
+                    (LPBYTE)net_cfg_instance_id,
                     &len);
 
                 if (status == ERROR_SUCCESS && data_type == REG_SZ) {
@@ -353,7 +353,7 @@ static int get_device_guid(
                 name_string,
                 NULL,
                 &name_type,
-                name_data,
+                (LPBYTE)name_data,
                 &len);
 
             if (status != ERROR_SUCCESS || name_type != REG_SZ) {

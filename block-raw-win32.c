@@ -188,8 +188,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
 
     switch(s->type) {
     case FTYPE_FILE:
-        l.LowPart = GetFileSize(s->hfile, &count);
-        l.HighPart = count;
+        l.LowPart = GetFileSize(s->hfile, (PDWORD)&l.HighPart);
         if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
             return -EIO;
         break;
