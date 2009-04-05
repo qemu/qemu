@@ -219,7 +219,7 @@ clean:
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h $(DOCS)
+	rm -f config-host.mak config-host.h $(DOCS) qemu-options.texi
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \

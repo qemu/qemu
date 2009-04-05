@@ -744,7 +744,7 @@ qemu-options.h: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 clean:
-	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o qemu-options.h
+	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o qemu-options.h gdbstub-xml.c
 	rm -f *.d */*.d tcg/*.o
 
 install: all
