@@ -113,6 +113,21 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev)
     return features;
 }
 
+static uint32_t virtio_net_bad_features(VirtIODevice *vdev)
+{
+    uint32_t features = 0;
+
+    /* Linux kernel 2.6.25.  It understood MAC (as everyone must),
+     * but also these: */
+    features |= (1 << VIRTIO_NET_F_MAC);
+    features |= (1 << VIRTIO_NET_F_GUEST_CSUM);
+    features |= (1 << VIRTIO_NET_F_GUEST_TSO4);
+    features |= (1 << VIRTIO_NET_F_GUEST_TSO6);
+    features |= (1 << VIRTIO_NET_F_GUEST_ECN);
+
+    return features & virtio_net_get_features(vdev);
+}
+
 static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
 {
     VirtIONet *n = to_virtio_net(vdev);
@@ -580,6 +595,7 @@ PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     n->vdev.set_config = virtio_net_set_config;
     n->vdev.get_features = virtio_net_get_features;
     n->vdev.set_features = virtio_net_set_features;
+    n->vdev.bad_features = virtio_net_bad_features;
     n->vdev.reset = virtio_net_reset;
     n->rx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_rx);
     n->tx_vq = virtio_add_queue(&n->vdev, 256, virtio_net_handle_tx);
