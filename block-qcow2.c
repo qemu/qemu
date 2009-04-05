@@ -1555,7 +1555,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
 {
 
     int fd, header_size, backing_filename_len, l1_size, i, shift, l2_bits;
-    int backing_format_len = 0;
+    int ref_clusters, backing_format_len = 0;
     QCowHeader header;
     uint64_t tmp, offset;
     QCowCreateState s1, *s = &s1;
@@ -1604,22 +1604,28 @@ static int qcow_create2(const char *filename, int64_t total_size,
     offset += align_offset(l1_size * sizeof(uint64_t), s->cluster_size);
 
     s->refcount_table = qemu_mallocz(s->cluster_size);
-    s->refcount_block = qemu_mallocz(s->cluster_size);
 
     s->refcount_table_offset = offset;
     header.refcount_table_offset = cpu_to_be64(offset);
     header.refcount_table_clusters = cpu_to_be32(1);
     offset += s->cluster_size;
-
-    s->refcount_table[0] = cpu_to_be64(offset);
     s->refcount_block_offset = offset;
-    offset += s->cluster_size;
+
+    /* count how many refcount blocks needed */
+    tmp = offset >> s->cluster_bits;
+    ref_clusters = (tmp >> (s->cluster_bits - REFCOUNT_SHIFT)) + 1;
+    for (i=0; i < ref_clusters; i++) {
+        s->refcount_table[i] = cpu_to_be64(offset);
+        offset += s->cluster_size;
+    }
+
+    s->refcount_block = qemu_mallocz(ref_clusters * s->cluster_size);
 
     /* update refcounts */
     create_refcount_update(s, 0, header_size);
     create_refcount_update(s, s->l1_table_offset, l1_size * sizeof(uint64_t));
     create_refcount_update(s, s->refcount_table_offset, s->cluster_size);
-    create_refcount_update(s, s->refcount_block_offset, s->cluster_size);
+    create_refcount_update(s, s->refcount_block_offset, ref_clusters * s->cluster_size);
 
     /* write all the data */
     write(fd, &header, sizeof(header));
@@ -1648,7 +1654,7 @@ static int qcow_create2(const char *filename, int64_t total_size,
     write(fd, s->refcount_table, s->cluster_size);
 
     lseek(fd, s->refcount_block_offset, SEEK_SET);
-    write(fd, s->refcount_block, s->cluster_size);
+    write(fd, s->refcount_block, ref_clusters * s->cluster_size);
 
     qemu_free(s->refcount_table);
     qemu_free(s->refcount_block);
