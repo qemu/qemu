@@ -493,7 +493,7 @@ static int img_convert(int argc, char **argv)
     ret = bdrv_create(drv, out_filename, total_sectors, out_baseimg, flags);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
-            error("Formatting not supported for file format '%s'", fmt);
+            error("Formatting not supported for file format '%s'", out_fmt);
         } else {
             error("Error while formatting '%s'", out_filename);
         }
@@ -592,18 +592,17 @@ static int img_convert(int argc, char **argv)
             if (n > bs_offset + bs_sectors - sector_num)
                 n = bs_offset + bs_sectors - sector_num;
 
-            /* If the output image is being created as a copy on write image,
-               assume that sectors which are unallocated in the input image
-               are present in both the output's and input's base images (no
-               need to copy them). */
-            if (out_baseimg) {
-               if (!bdrv_is_allocated(bs[bs_i], sector_num - bs_offset, n, &n1)) {
-                  sector_num += n1;
-                  continue;
-               }
-               /* The next 'n1' sectors are allocated in the input image. Copy
-                  only those as they may be followed by unallocated sectors. */
-               n = n1;
+            if (drv != &bdrv_host_device) {
+                if (!bdrv_is_allocated(bs[bs_i], sector_num - bs_offset,
+                                       n, &n1)) {
+                    sector_num += n1;
+                    continue;
+                }
+                /* The next 'n1' sectors are allocated in the input image. Copy
+                   only those as they may be followed by unallocated sectors. */
+                n = n1;
+            } else {
+                n1 = n;
             }
 
             if (bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n) < 0) 
@@ -615,8 +614,13 @@ static int img_convert(int argc, char **argv)
             while (n > 0) {
                 /* If the output image is being created as a copy on write image,
                    copy all sectors even the ones containing only NUL bytes,
-                   because they may differ from the sectors in the base image. */
-                if (out_baseimg || is_allocated_sectors(buf1, n, &n1)) {
+                   because they may differ from the sectors in the base image.
+
+                   If the output is to a host device, we also write out
+                   sectors that are entirely 0, since whatever data was
+                   already there is garbage, not 0s. */
+                if (drv == &bdrv_host_device || out_baseimg ||
+                    is_allocated_sectors(buf1, n, &n1)) {
                     if (bdrv_write(out_bs, sector_num, buf1, n1) < 0)
                         error("error while writing");
                 }

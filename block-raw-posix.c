@@ -1378,11 +1378,47 @@ static BlockDriverAIOCB *raw_aio_ioctl(BlockDriverState *bs,
 }
 #endif /* !linux && !FreeBSD */
 
+#if defined(__linux__) || defined(__FreeBSD__)
+static int hdev_create(const char *filename, int64_t total_size,
+                       const char *backing_file, int flags)
+{
+    int fd;
+    int ret = 0;
+    struct stat stat_buf;
+
+    if (flags || backing_file)
+        return -ENOTSUP;
+
+    fd = open(filename, O_WRONLY | O_BINARY);
+    if (fd < 0)
+        return -EIO;
+
+    if (fstat(fd, &stat_buf) < 0)
+        ret = -EIO;
+    else if (!S_ISBLK(stat_buf.st_mode))
+        ret = -EIO;
+    else if (lseek(fd, 0, SEEK_END) < total_size * 512)
+        ret = -ENOSPC;
+
+    close(fd);
+    return ret;
+}
+
+#else  /* !(linux || freebsd) */
+
+static int hdev_create(const char *filename, int64_t total_size,
+                       const char *backing_file, int flags)
+{
+    return -ENOTSUP;
+}
+#endif
+
 BlockDriver bdrv_host_device = {
     .format_name	= "host_device",
     .instance_size	= sizeof(BDRVRawState),
     .bdrv_open		= hdev_open,
     .bdrv_close		= raw_close,
+    .bdrv_create        = hdev_create,
     .bdrv_flush		= raw_flush,
 
 #ifdef CONFIG_AIO
