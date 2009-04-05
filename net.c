@@ -1903,9 +1903,9 @@ done:
 
 void net_cleanup(void)
 {
+#if !defined(_WIN32)
     VLANState *vlan;
 
-#if !defined(_WIN32)
     /* close network clients */
     for(vlan = first_vlan; vlan != NULL; vlan = vlan->next) {
         VLANClientState *vc;

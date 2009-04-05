@@ -245,7 +245,9 @@ int no_reboot = 0;
 int no_shutdown = 0;
 int cursor_hide = 1;
 int graphic_rotate = 0;
+#ifndef _WIN32
 int daemonize = 0;
+#endif
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
@@ -1297,8 +1299,9 @@ static int timer_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 #ifdef _WIN32
-void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
-                                 DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2)
+static void CALLBACK host_alarm_handler(UINT uTimerID, UINT uMsg,
+                                        DWORD_PTR dwUser, DWORD_PTR dw1,
+                                        DWORD_PTR dw2)
 #else
 static void host_alarm_handler(int host_signum)
 #endif
@@ -4262,14 +4265,18 @@ int main(int argc, char **argv, char **envp)
     const char *cpu_model;
     const char *usb_devices[MAX_USB_CMDLINE];
     int usb_devices_index;
+#ifndef _WIN32
     int fds[2];
+#endif
     int tb_size;
     const char *pid_file = NULL;
     const char *incoming = NULL;
+#ifndef _WIN32
     int fd = 0;
     struct passwd *pwd = NULL;
     const char *chroot_dir = NULL;
     const char *run_as = NULL;
+#endif
 
     qemu_cache_utils_init(envp);
 
@@ -5015,7 +5022,6 @@ int main(int argc, char **argv, char **envp)
         signal(SIGTTOU, SIG_IGN);
         signal(SIGTTIN, SIG_IGN);
     }
-#endif
 
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
         if (daemonize) {
@@ -5025,6 +5031,7 @@ int main(int argc, char **argv, char **envp)
             fprintf(stderr, "Could not acquire pid file\n");
         exit(1);
     }
+#endif
 
 #ifdef USE_KQEMU
     if (smp_cpus > 1)
@@ -5385,6 +5392,7 @@ int main(int argc, char **argv, char **envp)
     if (autostart)
         vm_start();
 
+#ifndef _WIN32
     if (daemonize) {
 	uint8_t status = 0;
 	ssize_t len;
@@ -5403,7 +5411,6 @@ int main(int argc, char **argv, char **envp)
 	    exit(1);
     }
 
-#ifndef _WIN32
     if (run_as) {
         pwd = getpwnam(run_as);
         if (!pwd) {
@@ -5434,7 +5441,6 @@ int main(int argc, char **argv, char **envp)
             exit(1);
         }
     }
-#endif
 
     if (daemonize) {
         dup2(fd, 0);
@@ -5443,6 +5449,7 @@ int main(int argc, char **argv, char **envp)
 
         close(fd);
     }
+#endif
 
     main_loop();
     quit_timers();

@@ -579,7 +579,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
 	if ((request.from + request.len) > size) {
 	        LOG("From: %" PRIu64 ", Len: %u, Size: %" PRIu64
 		    ", Offset: %" PRIu64 "\n",
-		     request.from, request.len, size, dev_offset);
+                    request.from, request.len, (uint64_t)size, dev_offset);
 		LOG("requested operation past EOF--bad client?");
 		errno = EINVAL;
 		return -1;

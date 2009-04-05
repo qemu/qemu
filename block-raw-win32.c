@@ -166,7 +166,7 @@ static void raw_close(BlockDriverState *bs)
 static int raw_truncate(BlockDriverState *bs, int64_t offset)
 {
     BDRVRawState *s = bs->opaque;
-    DWORD low, high;
+    LONG low, high;
 
     low = offset;
     high = offset >> 32;
@@ -188,7 +188,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
 
     switch(s->type) {
     case FTYPE_FILE:
-        l.LowPart = GetFileSize(s->hfile, &l.HighPart);
+        l.LowPart = GetFileSize(s->hfile, (PDWORD)&l.HighPart);
         if (l.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
             return -EIO;
         break;
