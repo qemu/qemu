@@ -1368,7 +1368,8 @@ ETEXI
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
     "-icount [N|auto]\n" \
-    "                enable virtual instruction counter with 2^N clock ticks per instruction\n")
+    "                enable virtual instruction counter with 2^N clock ticks per\n" \
+    "                instruction\n")
 STEXI
 @item -icount [N|auto]
 Enable virtual instruction counter.  The virtual cpu will execute one
