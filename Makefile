@@ -251,7 +251,7 @@ endif
 install: all $(if $(BUILD_DOCS),install-doc)
 	mkdir -p "$(DESTDIR)$(bindir)"
 ifneq ($(TOOLS),)
-	$(INSTALL) -m 755 -s $(TOOLS) "$(DESTDIR)$(bindir)"
+	$(INSTALL) -m 755 $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
 endif
 ifneq ($(BLOBS),)
 	mkdir -p "$(DESTDIR)$(datadir)"
