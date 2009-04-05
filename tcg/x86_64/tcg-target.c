@@ -44,22 +44,21 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #endif
 
 static const int tcg_target_reg_alloc_order[] = {
-    TCG_REG_RDI,
-    TCG_REG_RSI,
-    TCG_REG_RDX,
-    TCG_REG_RCX,
-    TCG_REG_R8,
-    TCG_REG_R9,
-    TCG_REG_RAX,
-    TCG_REG_R10,
-    TCG_REG_R11,
-
     TCG_REG_RBP,
     TCG_REG_RBX,
     TCG_REG_R12,
     TCG_REG_R13,
     TCG_REG_R14,
     TCG_REG_R15,
+    TCG_REG_R10,
+    TCG_REG_R11,
+    TCG_REG_R9,
+    TCG_REG_R8,
+    TCG_REG_RCX,
+    TCG_REG_RDX,
+    TCG_REG_RSI,
+    TCG_REG_RDI,
+    TCG_REG_RAX,
 };
 
 static const int tcg_target_call_iarg_regs[6] = {
