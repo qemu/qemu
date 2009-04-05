@@ -1,0 +1,78 @@
+Qemu Coding Style
+=================
+
+1. Whitespace
+
+Of course, the most important aspect in any coding style is whitespace.
+Crusty old coders who have trouble spotting the glasses on their noses
+can tell the difference between a tab and eight spaces from a distance
+of approximately fifteen parsecs.  Many a flamewar have been fought and
+lost on this issue.
+
+QEMU indents are four spaces.  Tabs are never used, except in Makefiles
+where they have been irreversibly coded into the syntax by some moron.
+Spaces of course are superior to tabs because:
+
+ - You have just one way to specify whitespace, not two.  Ambiguity breeds
+   mistakes.
+ - The confusion surrounding 'use tabs to indent, spaces to justify' is gone.
+ - Tab indents push your code to the right, making your screen seriously
+   unbalanced.
+ - Tabs will be rendered incorrectly on editors who are misconfigured not
+   to use tab stops of eight positions.
+ - Tabs are rendered badly in patches, causing off-by-one errors in almost
+   every line.
+ - It is the QEMU coding style.
+
+Do not leave whitespace dangling off the ends of lines.
+
+2. Line width
+
+Lines are 80 characters; not longer.
+
+Rationale:
+ - Some people like to tile their 24" screens with a 6x4 matrix of 80x24
+   xterms and use vi in all of them.  The best way to punish them is to
+   let them keep doing it.
+ - Code and especially patches is much more readable if limited to a sane
+   line length.  Eighty is traditional.
+ - It is the QEMU coding style.
+
+3. Naming
+
+Variables are lower_case_with_underscores; easy to type and read.  Structured
+type names are in CamelCase; harder to type but standing out.  Scalar type
+names are lower_case_with_underscores_ending_with_a_t, like the POSIX
+uint64_t and family.  Note that this last convention contradicts POSIX
+and is therefore likely to be changed.
+
+Typedefs are used to eliminate the redundant 'struct' keyword.  It is the
+QEMU coding style.
+
+4. Block structure
+
+Every indented statement is braced; even if the block contains just one
+statement.  The opening brace is on the line that contains the control
+flow statement that introduces the new block; the closing brace is on the
+same line as the else keyword, or on a line by itself if there is no else
+keyword.  Example:
+
+    if (a == 5) {
+        printf("a was 5.\n");
+    } else if (a == 6) {
+        printf("a was 6.\n");
+    } else {
+        printf("a was something else entirely.\n");
+    }
+
+An exception is the opening brace for a function; for reasons of tradition
+and clarity it comes on a line by itself:
+
+    void a_function(void)
+    {
+        do_something();
+    }
+
+Rationale: a consistent (except for functions...) bracing style reduces
+ambiguity and avoids needless churn when lines are added or removed.
+Furthermore, it is the QEMU coding style.

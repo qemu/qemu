@@ -806,15 +806,15 @@ else
 endif
 
 qemu-options.h: $(SRC_PATH)/qemu-options.hx
-	sh $(SRC_PATH)/hxtool -h < $< > $@
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 clean:
-	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o qemu-options.h
+	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o qemu-options.h gdbstub-xml.c
 	rm -f *.d */*.d tcg/*.o
 
 install: all
 ifneq ($(PROGS),)
-	$(INSTALL) -m 755 -s $(PROGS) "$(DESTDIR)$(bindir)"
+	$(INSTALL) -m 755 $(STRIP_OPT) $(PROGS) "$(DESTDIR)$(bindir)"
 endif
 
 # Include automatically generated dependency files

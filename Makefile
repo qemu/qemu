@@ -236,7 +236,7 @@ clean:
         done
 
 distclean: clean
-	rm -f config-host.mak config-host.h $(DOCS)
+	rm -f config-host.mak config-host.h $(DOCS) qemu-options.texi
 	rm -f qemu-{doc,tech}.{info,aux,cp,dvi,fn,info,ky,log,pg,toc,tp,vr}
 	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
@@ -268,7 +268,7 @@ endif
 install: all $(if $(BUILD_DOCS),install-doc)
 	mkdir -p "$(DESTDIR)$(bindir)"
 ifneq ($(TOOLS),)
-	$(INSTALL) -m 755 -s $(TOOLS) "$(DESTDIR)$(bindir)"
+	$(INSTALL) -m 755 $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
 endif
 ifneq ($(BLOBS),)
 	mkdir -p "$(DESTDIR)$(datadir)"
@@ -300,28 +300,34 @@ cscope:
 
 # documentation
 %.html: %.texi
-	texi2html -I=. -monolithic -number $<
+	$(call quiet-command,texi2html -I=. -monolithic -number $<,"  GEN   $@")
 
 %.info: %.texi
-	makeinfo -I . $< -o $@
+	$(call quiet-command,makeinfo -I . $< -o $@,"  GEN   $@")
 
 %.dvi: %.texi
-	texi2dvi -I . $<
+	$(call quiet-command,texi2dvi -I . $<,"  GEN   $@")
 
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx
-	sh $(SRC_PATH)/hxtool -t < $< > $@
+	$(call quiet-command,sh $(SRC_PATH)/hxtool -t < $< > $@,"  GEN   $@")
 
 qemu.1: qemu-doc.texi
-	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu.pod
-	pod2man --section=1 --center=" " --release=" " qemu.pod > $@
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu.pod && \
+	  pod2man --section=1 --center=" " --release=" " qemu.pod > $@, \
+	  "  GEN   $@")
 
 qemu-img.1: qemu-img.texi
-	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-img.pod
-	pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-img.pod && \
+	  pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@, \
+	  "  GEN   $@")
 
 qemu-nbd.8: qemu-nbd.texi
-	perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-nbd.pod
-	pod2man --section=8 --center=" " --release=" " qemu-nbd.pod > $@
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu-nbd.pod && \
+	  pod2man --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
+	  "  GEN   $@")
 
 info: qemu-doc.info qemu-tech.info
 
