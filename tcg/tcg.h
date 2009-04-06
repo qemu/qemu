@@ -174,10 +174,14 @@ typedef int TCGv_i64;
 #define TCG_CALL_TYPE_REGPARM_1 0x0001 /* i386 style regparm call (1 reg) */
 #define TCG_CALL_TYPE_REGPARM_2 0x0002 /* i386 style regparm call (2 regs) */
 #define TCG_CALL_TYPE_REGPARM   0x0003 /* i386 style regparm call (3 regs) */
-/* A pure function only reads its arguments and globals variables and
-   cannot raise exceptions. Hence a call to a pure function can be
+/* A pure function only reads its arguments and TCG globals variables
+   and cannot raise exceptions. Hence a call to a pure function can be
    safely suppressed if the return value is not used. */
 #define TCG_CALL_PURE           0x0010 
+/* A const function only reads its arguments and does not use TCG
+   globals variables. Hence a call to such a function does not
+   save TCG globals variabes back to their canonical location. */
+#define TCG_CALL_CONST          0x0020
 
 /* used to align parameters */
 #define TCG_CALL_DUMMY_TCGV     MAKE_TCGV_I32(-1)

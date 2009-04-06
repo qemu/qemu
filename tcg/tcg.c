@@ -1122,9 +1122,11 @@ static void tcg_liveness_analysis(TCGContext *s)
                         dead_temps[arg] = 1;
                     }
                     
-                    /* globals are live (they may be used by the call) */
-                    memset(dead_temps, 0, s->nb_globals);
-                    
+                    if (!(call_flags & TCG_CALL_CONST)) {
+                        /* globals are live (they may be used by the call) */
+                        memset(dead_temps, 0, s->nb_globals);
+                    }
+
                     /* input args are live */
                     dead_iargs = 0;
                     for(i = 0; i < nb_iargs; i++) {
@@ -1821,7 +1823,9 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     
     /* store globals and free associated registers (we assume the call
        can modify any global. */
-    save_globals(s, allocated_regs);
+    if (!(flags & TCG_CALL_CONST)) {
+        save_globals(s, allocated_regs);
+    }
 
     tcg_out_op(s, opc, &func_arg, &const_func_arg);
     
