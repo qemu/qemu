@@ -228,10 +228,8 @@ a suffix of ``M'' or ``G'' can be used to signify a value in megabytes or
 gigabytes respectively.
 ETEXI
 
-#ifndef _WIN32
 DEF("k", HAS_ARG, QEMU_OPTION_k,
     "-k language     use keyboard layout (for example 'fr' for French)\n")
-#endif
 STEXI
 @item -k @var{language}
 
