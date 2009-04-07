@@ -1598,7 +1598,7 @@ static void pixel_format_message (VncState *vs) {
     else if (vs->ds->surface->pf.bits_per_pixel == 8)
         vs->send_hextile_tile = send_hextile_tile_8;
     vs->clientds = *(vs->ds->surface);
-    vs->clientds.flags |= ~QEMU_ALLOCATED_FLAG;
+    vs->clientds.flags &= ~QEMU_ALLOCATED_FLAG;
     vs->write_pixels = vnc_write_pixels_copy;
 
     vnc_write(vs, pad, 3);           /* padding */
