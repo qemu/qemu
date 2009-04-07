@@ -1734,12 +1734,18 @@ void tlb_flush(CPUState *env, int flush_global)
         env->tlb_table[2][i].addr_read = -1;
         env->tlb_table[2][i].addr_write = -1;
         env->tlb_table[2][i].addr_code = -1;
-#if (NB_MMU_MODES == 4)
+#endif
+#if (NB_MMU_MODES >= 4)
         env->tlb_table[3][i].addr_read = -1;
         env->tlb_table[3][i].addr_write = -1;
         env->tlb_table[3][i].addr_code = -1;
 #endif
+#if (NB_MMU_MODES >= 5)
+        env->tlb_table[4][i].addr_read = -1;
+        env->tlb_table[4][i].addr_write = -1;
+        env->tlb_table[4][i].addr_code = -1;
 #endif
+
     }
 
     memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
@@ -1783,9 +1789,12 @@ void tlb_flush_page(CPUState *env, target_ulong addr)
     tlb_flush_entry(&env->tlb_table[1][i], addr);
 #if (NB_MMU_MODES >= 3)
     tlb_flush_entry(&env->tlb_table[2][i], addr);
-#if (NB_MMU_MODES == 4)
+#endif
+#if (NB_MMU_MODES >= 4)
     tlb_flush_entry(&env->tlb_table[3][i], addr);
 #endif
+#if (NB_MMU_MODES >= 5)
+    tlb_flush_entry(&env->tlb_table[4][i], addr);
 #endif
 
     tlb_flush_jmp_cache(env, addr);
@@ -1869,10 +1878,14 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
 #if (NB_MMU_MODES >= 3)
         for(i = 0; i < CPU_TLB_SIZE; i++)
             tlb_reset_dirty_range(&env->tlb_table[2][i], start1, length);
-#if (NB_MMU_MODES == 4)
+#endif
+#if (NB_MMU_MODES >= 4)
         for(i = 0; i < CPU_TLB_SIZE; i++)
             tlb_reset_dirty_range(&env->tlb_table[3][i], start1, length);
 #endif
+#if (NB_MMU_MODES >= 5)
+        for(i = 0; i < CPU_TLB_SIZE; i++)
+            tlb_reset_dirty_range(&env->tlb_table[4][i], start1, length);
 #endif
     }
 }
@@ -1918,10 +1931,14 @@ void cpu_tlb_update_dirty(CPUState *env)
 #if (NB_MMU_MODES >= 3)
     for(i = 0; i < CPU_TLB_SIZE; i++)
         tlb_update_dirty(&env->tlb_table[2][i]);
-#if (NB_MMU_MODES == 4)
+#endif
+#if (NB_MMU_MODES >= 4)
     for(i = 0; i < CPU_TLB_SIZE; i++)
         tlb_update_dirty(&env->tlb_table[3][i]);
 #endif
+#if (NB_MMU_MODES >= 5)
+    for(i = 0; i < CPU_TLB_SIZE; i++)
+        tlb_update_dirty(&env->tlb_table[4][i]);
 #endif
 }
 
@@ -1943,9 +1960,12 @@ static inline void tlb_set_dirty(CPUState *env, target_ulong vaddr)
     tlb_set_dirty1(&env->tlb_table[1][i], vaddr);
 #if (NB_MMU_MODES >= 3)
     tlb_set_dirty1(&env->tlb_table[2][i], vaddr);
-#if (NB_MMU_MODES == 4)
+#endif
+#if (NB_MMU_MODES >= 4)
     tlb_set_dirty1(&env->tlb_table[3][i], vaddr);
 #endif
+#if (NB_MMU_MODES >= 5)
+    tlb_set_dirty1(&env->tlb_table[4][i], vaddr);
 #endif
 }
 

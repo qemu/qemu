@@ -60,6 +60,7 @@
 #include "softmmu_header.h"
 #undef ACCESS_TYPE
 #undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 3) */
 
 #if (NB_MMU_MODES >= 4)
 
@@ -78,12 +79,30 @@
 #include "softmmu_header.h"
 #undef ACCESS_TYPE
 #undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 4) */
 
-#if (NB_MMU_MODES > 4)
-#error "NB_MMU_MODES > 4 is not supported for now"
-#endif /* (NB_MMU_MODES > 4) */
-#endif /* (NB_MMU_MODES == 4) */
-#endif /* (NB_MMU_MODES >= 3) */
+#if (NB_MMU_MODES >= 5)
+
+#define ACCESS_TYPE 4
+#define MEMSUFFIX MMU_MODE4_SUFFIX
+#define DATA_SIZE 1
+#include "softmmu_header.h"
+
+#define DATA_SIZE 2
+#include "softmmu_header.h"
+
+#define DATA_SIZE 4
+#include "softmmu_header.h"
+
+#define DATA_SIZE 8
+#include "softmmu_header.h"
+#undef ACCESS_TYPE
+#undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 5) */
+
+#if (NB_MMU_MODES > 5)
+#error "NB_MMU_MODES > 5 is not supported for now"
+#endif /* (NB_MMU_MODES > 5) */
 
 /* these access are slower, they must be as rare as possible */
 #define ACCESS_TYPE (NB_MMU_MODES)
