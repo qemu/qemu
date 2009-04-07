@@ -229,20 +229,16 @@ static int raw_create(const char *filename, int64_t total_size,
 }
 
 BlockDriver bdrv_raw = {
-    "raw",
-    sizeof(BDRVRawState),
-    NULL, /* no probe for protocols */
-    raw_open,
-    NULL,
-    NULL,
-    raw_close,
-    raw_create,
-    raw_flush,
-
-    .bdrv_read = raw_read,
-    .bdrv_write = raw_write,
-    .bdrv_truncate = raw_truncate,
-    .bdrv_getlength = raw_getlength,
+    .format_name	= "raw",
+    .instance_size	= sizeof(BDRVRawState),
+    .bdrv_open		= raw_open,
+    .bdrv_close		= raw_close,
+    .bdrv_create	= raw_create,
+    .bdrv_flush		= raw_flush,
+    .bdrv_read		= raw_read,
+    .bdrv_write		= raw_write,
+    .bdrv_truncate	= raw_truncate,
+    .bdrv_getlength	= raw_getlength,
 };
 
 /***********************************************/
