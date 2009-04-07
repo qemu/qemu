@@ -525,7 +525,9 @@ static int qcow_write(BlockDriverState *bs, int64_t sector_num,
 typedef struct QCowAIOCB {
     BlockDriverAIOCB common;
     int64_t sector_num;
+    QEMUIOVector *qiov;
     uint8_t *buf;
+    void *orig_buf;
     int nb_sectors;
     int n;
     uint64_t cluster_offset;
@@ -543,12 +545,8 @@ static void qcow_aio_read_cb(void *opaque, int ret)
     int index_in_cluster;
 
     acb->hd_aiocb = NULL;
-    if (ret < 0) {
-    fail:
-        acb->common.cb(acb->common.opaque, ret);
-        qemu_aio_release(acb);
-        return;
-    }
+    if (ret < 0)
+        goto done;
 
  redo:
     /* post process the read buffer */
@@ -570,9 +568,8 @@ static void qcow_aio_read_cb(void *opaque, int ret)
 
     if (acb->nb_sectors == 0) {
         /* request completed */
-        acb->common.cb(acb->common.opaque, 0);
-        qemu_aio_release(acb);
-        return;
+        ret = 0;
+        goto done;
     }
 
     /* prepare next AIO request */
@@ -592,7 +589,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
             acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
                 &acb->hd_qiov, acb->n, qcow_aio_read_cb, acb);
             if (acb->hd_aiocb == NULL)
-                goto fail;
+                goto done;
         } else {
             /* Note: in this case, no need to wait */
             memset(acb->buf, 0, 512 * acb->n);
@@ -601,14 +598,14 @@ static void qcow_aio_read_cb(void *opaque, int ret)
     } else if (acb->cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
         if (decompress_cluster(s, acb->cluster_offset) < 0)
-            goto fail;
+            goto done;
         memcpy(acb->buf,
                s->cluster_cache + index_in_cluster * 512, 512 * acb->n);
         goto redo;
     } else {
         if ((acb->cluster_offset & 511) != 0) {
             ret = -EIO;
-            goto fail;
+            goto done;
         }
         acb->hd_iov.iov_base = acb->buf;
         acb->hd_iov.iov_len = acb->n * 512;
@@ -617,12 +614,22 @@ static void qcow_aio_read_cb(void *opaque, int ret)
                             (acb->cluster_offset >> 9) + index_in_cluster,
                             &acb->hd_qiov, acb->n, qcow_aio_read_cb, acb);
         if (acb->hd_aiocb == NULL)
-            goto fail;
+            goto done;
     }
+
+    return;
+
+done:
+    if (acb->qiov->niov > 1) {
+        qemu_iovec_from_buffer(acb->qiov, acb->orig_buf, acb->qiov->size);
+        qemu_vfree(acb->orig_buf);
+    }
+    acb->common.cb(acb->common.opaque, ret);
+    qemu_aio_release(acb);
 }
 
-static BlockDriverAIOCB *qcow_aio_read(BlockDriverState *bs,
-        int64_t sector_num, uint8_t *buf, int nb_sectors,
+static BlockDriverAIOCB *qcow_aio_readv(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     QCowAIOCB *acb;
@@ -632,7 +639,11 @@ static BlockDriverAIOCB *qcow_aio_read(BlockDriverState *bs,
         return NULL;
     acb->hd_aiocb = NULL;
     acb->sector_num = sector_num;
-    acb->buf = buf;
+    acb->qiov = qiov;
+    if (qiov->niov > 1)
+        acb->buf = acb->orig_buf = qemu_memalign(512, qiov->size);
+    else
+        acb->buf = qiov->iov->iov_base;
     acb->nb_sectors = nb_sectors;
     acb->n = 0;
     acb->cluster_offset = 0;
@@ -652,12 +663,8 @@ static void qcow_aio_write_cb(void *opaque, int ret)
 
     acb->hd_aiocb = NULL;
 
-    if (ret < 0) {
-    fail:
-        acb->common.cb(acb->common.opaque, ret);
-        qemu_aio_release(acb);
-        return;
-    }
+    if (ret < 0)
+        goto done;
 
     acb->nb_sectors -= acb->n;
     acb->sector_num += acb->n;
@@ -665,9 +672,8 @@ static void qcow_aio_write_cb(void *opaque, int ret)
 
     if (acb->nb_sectors == 0) {
         /* request completed */
-        acb->common.cb(acb->common.opaque, 0);
-        qemu_aio_release(acb);
-        return;
+        ret = 0;
+        goto done;
     }
 
     index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
@@ -679,14 +685,14 @@ static void qcow_aio_write_cb(void *opaque, int ret)
                                         index_in_cluster + acb->n);
     if (!cluster_offset || (cluster_offset & 511) != 0) {
         ret = -EIO;
-        goto fail;
+        goto done;
     }
     if (s->crypt_method) {
         if (!acb->cluster_data) {
             acb->cluster_data = qemu_mallocz(s->cluster_size);
             if (!acb->cluster_data) {
                 ret = -ENOMEM;
-                goto fail;
+                goto done;
             }
         }
         encrypt_sectors(s, acb->sector_num, acb->cluster_data, acb->buf,
@@ -704,11 +710,18 @@ static void qcow_aio_write_cb(void *opaque, int ret)
                                     &acb->hd_qiov, acb->n,
                                     qcow_aio_write_cb, acb);
     if (acb->hd_aiocb == NULL)
-        goto fail;
+        goto done;
+    return;
+
+done:
+    if (acb->qiov->niov > 1)
+        qemu_vfree(acb->orig_buf);
+    acb->common.cb(acb->common.opaque, ret);
+    qemu_aio_release(acb);
 }
 
-static BlockDriverAIOCB *qcow_aio_write(BlockDriverState *bs,
-        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVQcowState *s = bs->opaque;
@@ -721,7 +734,12 @@ static BlockDriverAIOCB *qcow_aio_write(BlockDriverState *bs,
         return NULL;
     acb->hd_aiocb = NULL;
     acb->sector_num = sector_num;
-    acb->buf = (uint8_t *)buf;
+    acb->qiov = qiov;
+    if (qiov->niov > 1) {
+        acb->buf = acb->orig_buf = qemu_memalign(512, qiov->size);
+        qemu_iovec_to_buffer(qiov, acb->buf);
+    } else
+        acb->buf = qiov->iov->iov_base;
     acb->nb_sectors = nb_sectors;
     acb->n = 0;
 
@@ -909,8 +927,8 @@ BlockDriver bdrv_qcow = {
     .bdrv_is_allocated	= qcow_is_allocated,
     .bdrv_set_key	= qcow_set_key,
     .bdrv_make_empty	= qcow_make_empty,
-    .bdrv_aio_read	= qcow_aio_read,
-    .bdrv_aio_write	= qcow_aio_write,
+    .bdrv_aio_readv	= qcow_aio_readv,
+    .bdrv_aio_writev	= qcow_aio_writev,
     .bdrv_aio_cancel	= qcow_aio_cancel,
     .aiocb_size		= sizeof(QCowAIOCB),
     .bdrv_write_compressed = qcow_write_compressed,
