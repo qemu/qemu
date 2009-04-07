@@ -147,11 +147,8 @@ typedef void (* vga_update_retrace_info_fn)(struct VGAState *s);
     DisplayState *ds;                                                   \
     uint32_t font_offsets[2];                                           \
     int graphic_mode;                                                   \
-    int want_full_update;                                               \
     uint8_t shift_control;                                              \
     uint8_t double_scan;                                                \
-    uint8_t multi_run;                                                  \
-    uint8_t multi_scan;                                                 \
     uint32_t line_offset;                                               \
     uint32_t line_compare;                                              \
     uint32_t start_addr;                                                \
@@ -198,7 +195,6 @@ void vga_common_init(VGAState *s, uint8_t *vga_ram_base,
                      ram_addr_t vga_ram_offset, int vga_ram_size);
 void vga_init(VGAState *s);
 void vga_reset(void *s);
-void vga_update_resolution(VGAState *s);
 
 void vga_dirty_log_start(VGAState *s);
 void vga_dirty_log_stop(VGAState *s);
