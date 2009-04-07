@@ -158,7 +158,7 @@ enum {
     IPR_ITB_PTE      = 0x01,            /* 21264 */
     IPR_ITB_IAP      = 0x02,
     IPR_ITB_IA       = 0x03,            /* 21264 */
-    IPR_ITB_IS       = 0x04,
+    IPR_ITB_IS       = 0x04,            /* 21264 */
     IPR_PMPC         = 0x05,
     IPR_EXC_ADDR     = 0x06,            /* 21264 */
     IPR_IVA_FORM     = 0x07,            /* 21264 */
@@ -221,7 +221,7 @@ enum {
     IPR_M_CTL        = 0x28,            /* 21264 */
 #define IPR_M_CTL_SPE_SHIFT 1
 #define IPR_M_CTL_SPE_MASK 7
-    IPR_DC_CTL       = 0x29,
+    IPR_DC_CTL       = 0x29,            /* 21264 */
     IPR_DC_STAT      = 0x2A,            /* 21264 */
     /* Cbox IPRs */
     IPR_C_DATA       = 0x2B,
