@@ -3379,11 +3379,14 @@ static void *clone_func(void *arg)
 {
     new_thread_info *info = arg;
     CPUState *env;
+    TaskState *ts;
 
     env = info->env;
     thread_env = env;
+    ts = (TaskState *)thread_env->opaque;
     info->tid = gettid();
     env->host_tid = info->tid;
+    task_settid(ts);
     if (info->child_tidptr)
         put_user_u32(info->tid, info->child_tidptr);
     if (info->parent_tidptr)
@@ -3435,6 +3438,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         flags &= ~(CLONE_VFORK | CLONE_VM);
 
     if (flags & CLONE_VM) {
+        TaskState *parent_ts = (TaskState *)env->opaque;
 #if defined(USE_NPTL)
         new_thread_info info;
         pthread_attr_t attr;
@@ -3447,6 +3451,8 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         /* Init regs that differ from the parent.  */
         cpu_clone_regs(new_env, newsp);
         new_env->opaque = ts;
+        ts->bprm = parent_ts->bprm;
+        ts->info = parent_ts->info;
 #if defined(USE_NPTL)
         nptl_flags = flags;
         flags &= ~CLONE_NPTL_FLAGS2;
