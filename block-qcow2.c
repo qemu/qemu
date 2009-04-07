@@ -1270,6 +1270,8 @@ typedef struct QCowAIOCB {
     uint64_t cluster_offset;
     uint8_t *cluster_data;
     BlockDriverAIOCB *hd_aiocb;
+    struct iovec hd_iov;
+    QEMUIOVector hd_qiov;
     QEMUBH *bh;
     QCowL2Meta l2meta;
 } QCowAIOCB;
@@ -1347,8 +1349,12 @@ fail:
             n1 = backing_read1(bs->backing_hd, acb->sector_num,
                                acb->buf, acb->n);
             if (n1 > 0) {
-                acb->hd_aiocb = bdrv_aio_read(bs->backing_hd, acb->sector_num,
-                                    acb->buf, acb->n, qcow_aio_read_cb, acb);
+                acb->hd_iov.iov_base = acb->buf;
+                acb->hd_iov.iov_len = acb->n * 512;
+                qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
+                acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
+                                    &acb->hd_qiov, acb->n,
+				    qcow_aio_read_cb, acb);
                 if (acb->hd_aiocb == NULL)
                     goto fail;
             } else {
@@ -1377,9 +1383,13 @@ fail:
             ret = -EIO;
             goto fail;
         }
-        acb->hd_aiocb = bdrv_aio_read(s->hd,
+
+        acb->hd_iov.iov_base = acb->buf;
+        acb->hd_iov.iov_len = acb->n * 512;
+        qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
+        acb->hd_aiocb = bdrv_aio_readv(s->hd,
                             (acb->cluster_offset >> 9) + index_in_cluster,
-                            acb->buf, acb->n, qcow_aio_read_cb, acb);
+                            &acb->hd_qiov, acb->n, qcow_aio_read_cb, acb);
         if (acb->hd_aiocb == NULL)
             goto fail;
     }
@@ -1476,10 +1486,13 @@ static void qcow_aio_write_cb(void *opaque, int ret)
     } else {
         src_buf = acb->buf;
     }
-    acb->hd_aiocb = bdrv_aio_write(s->hd,
-                                   (acb->cluster_offset >> 9) + index_in_cluster,
-                                   src_buf, acb->n,
-                                   qcow_aio_write_cb, acb);
+    acb->hd_iov.iov_base = (void *)src_buf;
+    acb->hd_iov.iov_len = acb->n * 512;
+    qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
+    acb->hd_aiocb = bdrv_aio_writev(s->hd,
+                                    (acb->cluster_offset >> 9) + index_in_cluster,
+                                    &acb->hd_qiov, acb->n,
+                                    qcow_aio_write_cb, acb);
     if (acb->hd_aiocb == NULL)
         goto fail;
 }
