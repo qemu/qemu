@@ -280,10 +280,15 @@ static int find_device_type(BlockDriverState *bs, const char *filename)
             return FTYPE_HARDDISK;
         snprintf(s->drive_path, sizeof(s->drive_path), "%c:\\", p[0]);
         type = GetDriveType(s->drive_path);
-        if (type == DRIVE_CDROM)
+        switch (type) {
+        case DRIVE_REMOVABLE:
+        case DRIVE_FIXED:
+            return FTYPE_HARDDISK;
+        case DRIVE_CDROM:
             return FTYPE_CD;
-        else
+        default:
             return FTYPE_FILE;
+        }
     } else {
         return FTYPE_FILE;
     }
