@@ -33,6 +33,12 @@ static int cur_threads = 0;
 static int idle_threads = 0;
 static TAILQ_HEAD(, qemu_paiocb) request_list;
 
+#ifdef HAVE_PREADV
+static int preadv_present = 1;
+#else
+static int preadv_present = 0;
+#endif
+
 static void die2(int err, const char *what)
 {
     fprintf(stderr, "%s failed: %s\n", what, strerror(err));
@@ -87,6 +93,36 @@ static size_t handle_aiocb_ioctl(struct qemu_paiocb *aiocb)
 	return ret;
 }
 
+#ifdef HAVE_PREADV
+
+static ssize_t
+qemu_preadv(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+{
+    return preadv(fd, iov, nr_iov, offset);
+}
+
+static ssize_t
+qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+{
+    return pwritev(fd, iov, nr_iov, offset);
+}
+
+#else
+
+static ssize_t
+qemu_preadv(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+{
+    return -ENOSYS;
+}
+
+static ssize_t
+qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+{
+    return -ENOSYS;
+}
+
+#endif
+
 /*
  * Check if we need to copy the data in the aiocb into a new
  * properly aligned buffer.
@@ -102,6 +138,29 @@ static int aiocb_needs_copy(struct qemu_paiocb *aiocb)
     }
 
     return 0;
+}
+
+static size_t handle_aiocb_rw_vector(struct qemu_paiocb *aiocb)
+{
+    size_t offset = 0;
+    ssize_t len;
+
+    do {
+        if (aiocb->aio_type == QEMU_PAIO_WRITE)
+            len = qemu_pwritev(aiocb->aio_fildes,
+                               aiocb->aio_iov,
+                               aiocb->aio_niov,
+                               aiocb->aio_offset + offset);
+         else
+            len = qemu_preadv(aiocb->aio_fildes,
+                              aiocb->aio_iov,
+                              aiocb->aio_niov,
+                              aiocb->aio_offset + offset);
+    } while (len == -1 && errno == EINTR);
+
+    if (len == -1)
+        return -errno;
+    return len;
 }
 
 static size_t handle_aiocb_rw_linear(struct qemu_paiocb *aiocb, char *buf)
@@ -140,12 +199,34 @@ static size_t handle_aiocb_rw(struct qemu_paiocb *aiocb)
     size_t nbytes;
     char *buf;
 
-    if (!aiocb_needs_copy(aiocb) && aiocb->aio_niov == 1) {
+    if (!aiocb_needs_copy(aiocb)) {
         /*
          * If there is just a single buffer, and it is properly aligned
          * we can just use plain pread/pwrite without any problems.
          */
-        return handle_aiocb_rw_linear(aiocb, aiocb->aio_iov->iov_base);
+        if (aiocb->aio_niov == 1)
+             return handle_aiocb_rw_linear(aiocb, aiocb->aio_iov->iov_base);
+
+        /*
+         * We have more than one iovec, and all are properly aligned.
+         *
+         * Try preadv/pwritev first and fall back to linearizing the
+         * buffer if it's not supported.
+         */
+	if (preadv_present) {
+            nbytes = handle_aiocb_rw_vector(aiocb);
+            if (nbytes == aiocb->aio_nbytes)
+	        return nbytes;
+            if (nbytes < 0 && nbytes != -ENOSYS)
+                return nbytes;
+            preadv_present = 0;
+        }
+
+        /*
+         * XXX(hch): short read/write.  no easy way to handle the reminder
+         * using these interfaces.  For now retry using plain
+         * pread/pwrite?
+         */
     }
 
     /*

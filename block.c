@@ -1354,10 +1354,9 @@ static void bdrv_aio_bh_cb(void *opaque)
 {
     BlockDriverAIOCBSync *acb = opaque;
 
-    qemu_vfree(acb->bounce);
-
     if (!acb->is_write)
         qemu_iovec_from_buffer(acb->qiov, acb->bounce, acb->qiov->size);
+    qemu_vfree(acb->bounce);
     acb->common.cb(acb->common.opaque, acb->ret);
 
     qemu_aio_release(acb);
