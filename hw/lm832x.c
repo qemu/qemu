@@ -519,8 +519,10 @@ void lm832x_key_event(struct i2c_slave *i2c, int key, int state)
     if ((s->status & INT_ERROR) && (s->error & ERR_FIFOOVR))
         return;
 
-    if (s->kbd.len >= sizeof(s->kbd.fifo))
-        return lm_kbd_error(s, ERR_FIFOOVR);
+    if (s->kbd.len >= sizeof(s->kbd.fifo)) {
+        lm_kbd_error(s, ERR_FIFOOVR);
+        return;
+    }
 
     s->kbd.fifo[(s->kbd.start + s->kbd.len ++) & (sizeof(s->kbd.fifo) - 1)] =
             key | (state << 7);

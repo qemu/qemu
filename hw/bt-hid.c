@@ -383,7 +383,7 @@ static void bt_hid_control_sdu(void *opaque, const uint8_t *data, int len)
 {
     struct bt_hid_device_s *hid = opaque;
 
-    return bt_hid_control_transaction(hid, data, len);
+    bt_hid_control_transaction(hid, data, len);
 }
 
 static void bt_hid_datain(void *opaque)
