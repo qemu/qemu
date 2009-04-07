@@ -3940,10 +3940,15 @@ static int main_loop(void)
     return ret;
 }
 
+static void version(void)
+{
+    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n");
+}
+
 static void help(int exitcode)
 {
-    printf("QEMU PC emulator version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
-           "usage: %s [options] [disk_image]\n"
+    version();
+    printf("usage: %s [options] [disk_image]\n"
            "\n"
            "'disk_image' is a raw hard image image for IDE hard disk 0\n"
            "\n"
@@ -4597,6 +4602,10 @@ int main(int argc, char **argv, char **envp)
 #endif
             case QEMU_OPTION_h:
                 help(0);
+                break;
+            case QEMU_OPTION_version:
+                version();
+                exit(0);
                 break;
             case QEMU_OPTION_m: {
                 uint64_t value;
