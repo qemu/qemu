@@ -50,11 +50,12 @@
 
 #define REG_A_UIP 0x80
 
-#define REG_B_SET 0x80
-#define REG_B_PIE 0x40
-#define REG_B_AIE 0x20
-#define REG_B_UIE 0x10
-#define REG_B_DM  0x04
+#define REG_B_SET  0x80
+#define REG_B_PIE  0x40
+#define REG_B_AIE  0x20
+#define REG_B_UIE  0x10
+#define REG_B_SQWE 0x08
+#define REG_B_DM   0x04
 
 struct RTCState {
     uint8_t cmos_data[128];
@@ -62,6 +63,7 @@ struct RTCState {
     struct tm current_tm;
     int base_year;
     qemu_irq irq;
+    qemu_irq sqw_irq;
     int it_shift;
     /* periodic timer */
     QEMUTimer *periodic_timer;
@@ -95,16 +97,20 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
 {
     int period_code, period;
     int64_t cur_clock, next_irq_clock;
+    int enable_pie;
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
 #if defined TARGET_I386 || defined TARGET_X86_64
     /* disable periodic timer if hpet is in legacy mode, since interrupts are
      * disabled anyway.
      */
-    if (period_code != 0 && (s->cmos_data[RTC_REG_B] & REG_B_PIE) && !hpet_in_legacy_mode()) {
+    enable_pie = hpet_in_legacy_mode();
 #else
-    if (period_code != 0 && (s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
+    enable_pie = 1;
 #endif
+    if (period_code != 0
+        && (((s->cmos_data[RTC_REG_B] & REG_B_PIE) && enable_pie)
+            || ((s->cmos_data[RTC_REG_B] & REG_B_SQWE) && s->sqw_irq))) {
         if (period_code <= 2)
             period_code += 7;
         /* period in 32 Khz cycles */
@@ -138,8 +144,15 @@ static void rtc_periodic_timer(void *opaque)
         return;
     }
 #endif
-    s->cmos_data[RTC_REG_C] |= 0xc0;
-    rtc_irq_raise(s->irq);
+    if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
+        s->cmos_data[RTC_REG_C] |= 0xc0;
+        rtc_irq_raise(s->irq);
+    }
+    if (s->cmos_data[RTC_REG_B] & REG_B_SQWE) {
+        /* Not square wave at all but we don't want 2048Hz interrupts!
+           Must be seen as a pulse.  */
+        qemu_irq_raise(s->sqw_irq);
+    }
 }
 
 static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
@@ -527,13 +540,14 @@ static int rtc_load_td(QEMUFile *f, void *opaque, int version_id)
 }
 #endif
 
-RTCState *rtc_init(int base, qemu_irq irq, int base_year)
+RTCState *rtc_init_sqw(int base, qemu_irq irq, qemu_irq sqw_irq, int base_year)
 {
     RTCState *s;
 
     s = qemu_mallocz(sizeof(RTCState));
 
     s->irq = irq;
+    s->sqw_irq = sqw_irq;
     s->cmos_data[RTC_REG_A] = 0x26;
     s->cmos_data[RTC_REG_B] = 0x02;
     s->cmos_data[RTC_REG_C] = 0x00;
@@ -561,6 +575,11 @@ RTCState *rtc_init(int base, qemu_irq irq, int base_year)
         register_savevm("mc146818rtc-td", base, 1, rtc_save_td, rtc_load_td, s);
 #endif
     return s;
+}
+
+RTCState *rtc_init(int base, qemu_irq irq, int base_year)
+{
+    return rtc_init_sqw(base, irq, NULL, base_year);
 }
 
 /* Memory mapped interface */
