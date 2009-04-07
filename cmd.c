@@ -212,8 +212,6 @@ command_loop(void)
 # include <histedit.h>
 #endif
 
-extern char *progname;
-
 static char *
 get_prompt(void)
 {

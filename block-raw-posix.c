@@ -876,15 +876,15 @@ static void raw_flush(BlockDriverState *bs)
 }
 
 BlockDriver bdrv_raw = {
-    "raw",
-    sizeof(BDRVRawState),
-    NULL, /* no probe for protocols */
-    raw_open,
-    NULL,
-    NULL,
-    raw_close,
-    raw_create,
-    raw_flush,
+    .format_name = "raw",
+    .instance_size = sizeof(BDRVRawState),
+    .bdrv_probe = NULL, /* no probe for protocols */
+    .bdrv_open = raw_open,
+    .bdrv_read = raw_read,
+    .bdrv_write = raw_write,
+    .bdrv_close = raw_close,
+    .bdrv_create = raw_create,
+    .bdrv_flush = raw_flush,
 
 #ifdef CONFIG_AIO
     .bdrv_aio_read = raw_aio_read,
@@ -893,8 +893,6 @@ BlockDriver bdrv_raw = {
     .aiocb_size = sizeof(RawAIOCB),
 #endif
 
-    .bdrv_read = raw_read,
-    .bdrv_write = raw_write,
     .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
 };
