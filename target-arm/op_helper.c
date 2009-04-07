@@ -307,7 +307,7 @@ void HELPER(set_user_reg)(uint32_t regno, uint32_t val)
 uint32_t HELPER (add_cc)(uint32_t a, uint32_t b)
 {
     uint32_t result;
-    result = T0 + T1;
+    result = a + b;
     env->NF = env->ZF = result;
     env->CF = result < a;
     env->VF = (a ^ b ^ -1) & (a ^ result);
