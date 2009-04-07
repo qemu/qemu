@@ -685,7 +685,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         /* CALL_PAL */
         if (palcode >= 0x80 && palcode < 0xC0) {
             /* Unprivileged PAL call */
-            gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x1F) << 6), 0);
+            gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
 #if !defined (CONFIG_USER_ONLY)
         } else if (palcode < 0x40) {
             /* Privileged PAL code */
