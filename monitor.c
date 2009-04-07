@@ -273,7 +273,7 @@ static void do_info(Monitor *mon, const char *item)
 
 static void do_info_version(Monitor *mon)
 {
-    monitor_printf(mon, "%s\n", QEMU_VERSION);
+    monitor_printf(mon, "%s\n", QEMU_VERSION QEMU_PKGVERSION);
 }
 
 static void do_info_name(Monitor *mon)

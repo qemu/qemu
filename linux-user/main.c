@@ -2202,7 +2202,7 @@ void cpu_loop (CPUState *env)
 
 static void usage(void)
 {
-    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
+    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION QEMU_PKGVERSION ", Copyright (c) 2003-2008 Fabrice Bellard\n"
            "usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
            "Linux CPU emulator (compiled for %s emulation)\n"
            "\n"

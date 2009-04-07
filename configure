@@ -190,6 +190,7 @@ aix="no"
 blobs="yes"
 fdt="yes"
 sdl_x11="no"
+pkgversion=""
 
 # OS specific
 if check_define __linux__ ; then
@@ -469,6 +470,8 @@ for opt do
   --disable-blobs) blobs="no"
   ;;
   --kerneldir=*) kerneldir="$optarg"
+  ;;
+  --with-pkgversion=*) pkgversion=" ($optarg)"
   ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
@@ -1478,6 +1481,8 @@ fi
 qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_mak
 echo "#define QEMU_VERSION \"$qemu_version\"" >> $config_h
+
+echo "#define QEMU_PKGVERSION \"$pkgversion\"" >> $config_h
 
 echo "SRC_PATH=$source_path" >> $config_mak
 if [ "$source_path_used" = "yes" ]; then
