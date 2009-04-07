@@ -40,7 +40,7 @@
 #define ICACHE_LINE_SIZE 32
 #define DCACHE_LINE_SIZE 32
 
-#define TARGET_PAGE_BITS 12
+#define TARGET_PAGE_BITS 13
 
 #define VA_BITS 43
 
