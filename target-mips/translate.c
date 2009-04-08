@@ -1124,7 +1124,7 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
                           int base, int16_t offset)
 {
     const char *opn = "flt_ldst";
-    TCGv t0 = tcg_temp_local_new();
+    TCGv t0 = tcg_temp_new();
 
     if (base == 0) {
         tcg_gen_movi_tl(t0, offset);
@@ -7152,8 +7152,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
 {
     const char *opn = "extended float load/store";
     int store = 0;
-    TCGv t0 = tcg_temp_local_new();
-    TCGv t1 = tcg_temp_local_new();
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
 
     if (base == 0) {
         gen_load_gpr(t0, index);
@@ -7165,6 +7165,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
+    save_cpu_state(ctx, 0);
     switch (opc) {
     case OPC_LWXC1:
         check_cop1x(ctx);
@@ -7241,12 +7242,6 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         opn = "suxc1";
         store = 1;
         break;
-    default:
-        MIPS_INVAL(opn);
-        generate_exception(ctx, EXCP_RI);
-        tcg_temp_free(t0);
-        tcg_temp_free(t1);
-        return;
     }
     tcg_temp_free(t0);
     tcg_temp_free(t1);
