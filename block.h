@@ -96,13 +96,6 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
 BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                   QEMUIOVector *iov, int nb_sectors,
                                   BlockDriverCompletionFunc *cb, void *opaque);
-
-BlockDriverAIOCB *bdrv_aio_read(BlockDriverState *bs, int64_t sector_num,
-                                uint8_t *buf, int nb_sectors,
-                                BlockDriverCompletionFunc *cb, void *opaque);
-BlockDriverAIOCB *bdrv_aio_write(BlockDriverState *bs, int64_t sector_num,
-                                 const uint8_t *buf, int nb_sectors,
-                                 BlockDriverCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockDriverAIOCB *acb);
 
 /* sg packet commands */

@@ -54,11 +54,11 @@ struct BlockDriver {
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
     /* aio */
-    BlockDriverAIOCB *(*bdrv_aio_read)(BlockDriverState *bs,
-        int64_t sector_num, uint8_t *buf, int nb_sectors,
+    BlockDriverAIOCB *(*bdrv_aio_readv)(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
-    BlockDriverAIOCB *(*bdrv_aio_write)(BlockDriverState *bs,
-        int64_t sector_num, const uint8_t *buf, int nb_sectors,
+    BlockDriverAIOCB *(*bdrv_aio_writev)(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
     void (*bdrv_aio_cancel)(BlockDriverAIOCB *acb);
     int aiocb_size;

@@ -685,7 +685,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         /* CALL_PAL */
         if (palcode >= 0x80 && palcode < 0xC0) {
             /* Unprivileged PAL call */
-            gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x1F) << 6), 0);
+            gen_excp(ctx, EXCP_CALL_PAL + ((palcode & 0x3F) << 6), 0);
 #if !defined (CONFIG_USER_ONLY)
         } else if (palcode < 0x40) {
             /* Privileged PAL code */
@@ -2404,15 +2404,19 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
         /* if we reach a page boundary or are single stepping, stop
          * generation
          */
-        if (((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0) ||
-            num_insns >= max_insns) {
-            break;
-        }
-
         if (env->singlestep_enabled) {
             gen_excp(&ctx, EXCP_DEBUG, 0);
             break;
         }
+
+        if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
+            break;
+
+        if (gen_opc_ptr >= gen_opc_end)
+            break;
+
+        if (num_insns >= max_insns)
+            break;
 
         if (singlestep) {
             break;

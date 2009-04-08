@@ -1392,8 +1392,6 @@ cirrus_hook_write_sr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 	break;
     }
 
-    vga_update_resolution((VGAState *)s);
-
     return CIRRUS_HOOK_HANDLED;
 }
 
@@ -1421,7 +1419,6 @@ static void cirrus_write_hidden_dac(CirrusVGAState * s, int reg_value)
 #endif
     }
     s->cirrus_hidden_dac_lockindex = 0;
-    vga_update_resolution((VGAState *)s);
 }
 
 /***************************************
@@ -1707,8 +1704,6 @@ cirrus_hook_write_cr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 #endif
 	break;
     }
-
-    vga_update_resolution((VGAState *)s);
 
     return CIRRUS_HOOK_HANDLED;
 }
@@ -2835,7 +2830,6 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	if (s->ar_flip_flop == 0) {
 	    val &= 0x3f;
 	    s->ar_index = val;
-            vga_update_resolution((VGAState *)s);
 	} else {
 	    index = s->ar_index & 0x1f;
 	    switch (index) {
@@ -2929,7 +2923,6 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	    /* can always write bit 4 of CR7 */
 	    if (s->cr_index == 7)
 		s->cr[7] = (s->cr[7] & ~0x10) | (val & 0x10);
-            vga_update_resolution((VGAState *)s);
 	    return;
 	}
 	switch (s->cr_index) {
@@ -2958,7 +2951,6 @@ static void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 	    s->update_retrace_info((VGAState *) s);
 	    break;
 	}
-        vga_update_resolution((VGAState *)s);
 	break;
     case 0x3ba:
     case 0x3da:
@@ -3165,8 +3157,7 @@ static int cirrus_vga_load(QEMUFile *f, void *opaque, int version_id)
 
     cirrus_update_memory_access(s);
     /* force refresh */
-    vga_update_resolution((VGAState *)s);
-    s->want_full_update = 1;
+    s->graphic_mode = -1;
     cirrus_update_bank_ptr(s, 0);
     cirrus_update_bank_ptr(s, 1);
     return 0;

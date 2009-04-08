@@ -17,6 +17,13 @@ STEXI
 Display help and exit
 ETEXI
 
+DEF("version", 0, QEMU_OPTION_version,
+    "-version        display version information and exit\n")
+STEXI
+@item -version
+Display version information and exit
+ETEXI
+
 DEF("M", HAS_ARG, QEMU_OPTION_M,
     "-M machine      select emulated machine (-M ? for list)\n")
 STEXI

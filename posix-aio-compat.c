@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include "qemu-common.h"
 #include "osdep.h"
+#include "qemu-common.h"
 
 #include "posix-aio-compat.h"
 
@@ -32,6 +33,12 @@ static int max_threads = 64;
 static int cur_threads = 0;
 static int idle_threads = 0;
 static TAILQ_HEAD(, qemu_paiocb) request_list;
+
+#ifdef HAVE_PREADV
+static int preadv_present = 1;
+#else
+static int preadv_present = 0;
+#endif
 
 static void QEMU_NORETURN die2(int err, const char *what)
 {
@@ -77,45 +84,185 @@ static void thread_create(pthread_t *thread, pthread_attr_t *attr,
     if (ret) die2(ret, "pthread_create");
 }
 
-static size_t handle_aiocb_readwrite(struct qemu_paiocb *aiocb)
+static size_t handle_aiocb_ioctl(struct qemu_paiocb *aiocb)
+{
+	int ret;
+
+	ret = ioctl(aiocb->aio_fildes, aiocb->aio_ioctl_cmd, aiocb->aio_ioctl_buf);
+	if (ret == -1)
+		return -errno;
+	return ret;
+}
+
+#ifdef HAVE_PREADV
+
+static ssize_t
+qemu_preadv(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+{
+    return preadv(fd, iov, nr_iov, offset);
+}
+
+static ssize_t
+qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+{
+    return pwritev(fd, iov, nr_iov, offset);
+}
+
+#else
+
+static ssize_t
+qemu_preadv(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+{
+    return -ENOSYS;
+}
+
+static ssize_t
+qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
+{
+    return -ENOSYS;
+}
+
+#endif
+
+/*
+ * Check if we need to copy the data in the aiocb into a new
+ * properly aligned buffer.
+ */
+static int aiocb_needs_copy(struct qemu_paiocb *aiocb)
+{
+    if (aiocb->aio_flags & QEMU_AIO_SECTOR_ALIGNED) {
+        int i;
+
+        for (i = 0; i < aiocb->aio_niov; i++)
+            if ((uintptr_t) aiocb->aio_iov[i].iov_base % 512)
+                return 1;
+    }
+
+    return 0;
+}
+
+static size_t handle_aiocb_rw_vector(struct qemu_paiocb *aiocb)
 {
     size_t offset = 0;
     ssize_t len;
 
-    while (offset < aiocb->aio_nbytes) {
+    do {
         if (aiocb->aio_type == QEMU_PAIO_WRITE)
-            len = pwrite(aiocb->aio_fildes,
-                         (const char *)aiocb->aio_buf + offset,
+            len = qemu_pwritev(aiocb->aio_fildes,
+                               aiocb->aio_iov,
+                               aiocb->aio_niov,
+                               aiocb->aio_offset + offset);
+         else
+            len = qemu_preadv(aiocb->aio_fildes,
+                              aiocb->aio_iov,
+                              aiocb->aio_niov,
+                              aiocb->aio_offset + offset);
+    } while (len == -1 && errno == EINTR);
+
+    if (len == -1)
+        return -errno;
+    return len;
+}
+
+static size_t handle_aiocb_rw_linear(struct qemu_paiocb *aiocb, char *buf)
+{
+    size_t offset = 0;
+    size_t len;
+
+    while (offset < aiocb->aio_nbytes) {
+         if (aiocb->aio_type == QEMU_PAIO_WRITE)
+             len = pwrite(aiocb->aio_fildes,
+                          (const char *)buf + offset,
+                          aiocb->aio_nbytes - offset,
+                          aiocb->aio_offset + offset);
+         else
+             len = pread(aiocb->aio_fildes,
+                         buf + offset,
                          aiocb->aio_nbytes - offset,
                          aiocb->aio_offset + offset);
-        else
-            len = pread(aiocb->aio_fildes,
-                        (char *)aiocb->aio_buf + offset,
-                        aiocb->aio_nbytes - offset,
-                        aiocb->aio_offset + offset);
 
-        if (len == -1 && errno == EINTR)
-            continue;
-        else if (len == -1) {
-            offset = -errno;
-            break;
-        } else if (len == 0)
-            break;
+         if (len == -1 && errno == EINTR)
+             continue;
+         else if (len == -1) {
+             offset = -errno;
+             break;
+         } else if (len == 0)
+             break;
 
-        offset += len;
+         offset += len;
     }
 
     return offset;
 }
 
-static size_t handle_aiocb_ioctl(struct qemu_paiocb *aiocb)
+static size_t handle_aiocb_rw(struct qemu_paiocb *aiocb)
 {
-	int ret;
+    size_t nbytes;
+    char *buf;
 
-	ret = ioctl(aiocb->aio_fildes, aiocb->aio_ioctl_cmd, aiocb->aio_buf);
-	if (ret == -1)
-		return -errno;
-	return ret;
+    if (!aiocb_needs_copy(aiocb)) {
+        /*
+         * If there is just a single buffer, and it is properly aligned
+         * we can just use plain pread/pwrite without any problems.
+         */
+        if (aiocb->aio_niov == 1)
+             return handle_aiocb_rw_linear(aiocb, aiocb->aio_iov->iov_base);
+
+        /*
+         * We have more than one iovec, and all are properly aligned.
+         *
+         * Try preadv/pwritev first and fall back to linearizing the
+         * buffer if it's not supported.
+         */
+	if (preadv_present) {
+            nbytes = handle_aiocb_rw_vector(aiocb);
+            if (nbytes == aiocb->aio_nbytes)
+	        return nbytes;
+            if (nbytes < 0 && nbytes != -ENOSYS)
+                return nbytes;
+            preadv_present = 0;
+        }
+
+        /*
+         * XXX(hch): short read/write.  no easy way to handle the reminder
+         * using these interfaces.  For now retry using plain
+         * pread/pwrite?
+         */
+    }
+
+    /*
+     * Ok, we have to do it the hard way, copy all segments into
+     * a single aligned buffer.
+     */
+    buf = qemu_memalign(512, aiocb->aio_nbytes);
+    if (aiocb->aio_type == QEMU_PAIO_WRITE) {
+        char *p = buf;
+        int i;
+
+        for (i = 0; i < aiocb->aio_niov; ++i) {
+            memcpy(p, aiocb->aio_iov[i].iov_base, aiocb->aio_iov[i].iov_len);
+            p += aiocb->aio_iov[i].iov_len;
+        }
+    }
+
+    nbytes = handle_aiocb_rw_linear(aiocb, buf);
+    if (aiocb->aio_type != QEMU_PAIO_WRITE) {
+        char *p = buf;
+        size_t count = aiocb->aio_nbytes, copy;
+        int i;
+
+        for (i = 0; i < aiocb->aio_niov && count; ++i) {
+            copy = count;
+            if (copy > aiocb->aio_iov[i].iov_len)
+                copy = aiocb->aio_iov[i].iov_len;
+            memcpy(aiocb->aio_iov[i].iov_base, p, copy);
+            p     += copy;
+            count -= copy;
+        }
+    }
+    qemu_vfree(buf);
+
+    return nbytes;
 }
 
 static void *aio_thread(void *unused)
@@ -158,7 +305,7 @@ static void *aio_thread(void *unused)
         switch (aiocb->aio_type) {
         case QEMU_PAIO_READ:
         case QEMU_PAIO_WRITE:
-		ret = handle_aiocb_readwrite(aiocb);
+		ret = handle_aiocb_rw(aiocb);
 		break;
         case QEMU_PAIO_IOCTL:
 		ret = handle_aiocb_ioctl(aiocb);

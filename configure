@@ -196,6 +196,7 @@ aix="no"
 blobs="yes"
 fdt="yes"
 sdl_x11="no"
+pkgversion=""
 
 # OS specific
 if check_define __linux__ ; then
@@ -476,6 +477,8 @@ for opt do
   ;;
   --kerneldir=*) kerneldir="$optarg"
   ;;
+  --with-pkgversion=*) pkgversion=" ($optarg)"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -565,6 +568,8 @@ echo "  --source-path=PATH       path of source code [$source_path]"
 echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for dyngen etc."
+echo "  --extra-cflags=CFLAGS    add C compiler flags CFLAGS"
+echo "  --extra-ldflags=LDFLAGS  add linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --static                 enable static build [$static]"
@@ -1123,6 +1128,19 @@ if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
 fi
 
 ##########################################
+# preadv probe
+cat > $TMPC <<EOF
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+int main(void) { preadv; }
+EOF
+preadv=no
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC > /dev/null 2> /dev/null ; then
+  preadv=yes
+fi
+
+##########################################
 # fdt probe
 if test "$fdt" = "yes" ; then
     fdt=no
@@ -1236,6 +1254,7 @@ echo "AIO support       $aio"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 echo "fdt support       $fdt"
+echo "preadv support    $preadv"
 
 if test $sdl_too_old = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -1478,6 +1497,8 @@ qemu_version=`head $source_path/VERSION`
 echo "VERSION=$qemu_version" >>$config_mak
 echo "#define QEMU_VERSION \"$qemu_version\"" >> $config_h
 
+echo "#define QEMU_PKGVERSION \"$pkgversion\"" >> $config_h
+
 echo "SRC_PATH=$source_path" >> $config_mak
 if [ "$source_path_used" = "yes" ]; then
   echo "VPATH=$source_path" >> $config_mak
@@ -1536,6 +1557,9 @@ if test "$blobs" = "yes" ; then
 fi
 if test "$iovec" = "yes" ; then
   echo "#define HAVE_IOVEC 1" >> $config_h
+fi
+if test "$preadv" = "yes" ; then
+  echo "#define HAVE_PREADV 1" >> $config_h
 fi
 if test "$fdt" = "yes" ; then
   echo "#define HAVE_FDT 1" >> $config_h

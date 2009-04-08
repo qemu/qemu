@@ -75,4 +75,6 @@ enum {
 
 extern void	timestr(struct timeval *tv, char *str, size_t sz, int flags);
 
+extern char *progname;
+
 #endif	/* __COMMAND_H__ */

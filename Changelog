@@ -1,3 +1,19 @@
+version 0.10.2:
+
+  - fix savevm/loadvm (Anthony Liguori)
+  - live migration: fix dirty tracking windows (Glauber Costa)
+  - live migration: improve error propogation (Glauber Costa)
+  - qcow2: fix image creation for > ~2TB images (Chris Wright)
+  - hotplug: fix error handling for if= parameter (Eduardo Habkost)
+  - qcow2: fix data corruption (Nolan Leake)
+  - virtio: fix guest oops with 2.6.25 kernels (Rusty Russell)
+  - SH4: add support for -kernel (Takashi Yoshii, Aurelien Jarno)
+  - hotplug: fix closing of char devices (Jan Kiszka)
+  - hotplug: remove incorrect check for device name (Eduardo Habkost)
+  - enable -k on win32 (Herve Poussineau)
+  - configure: use LANG=C for grep (Andreas Faerber)
+  - fix VGA regression (malc)
+	
 version 0.10.1:
 
   - virtio-net: check right return size on sg list (Alex Williamson)

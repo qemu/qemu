@@ -108,7 +108,7 @@ static uint32_t fw_cfg_io_readb(void *opaque, uint32_t addr)
 
 static void fw_cfg_io_writeb(void *opaque, uint32_t addr, uint32_t value)
 {
-    return fw_cfg_write(opaque, (uint8_t)value);
+    fw_cfg_write(opaque, (uint8_t)value);
 }
 
 static void fw_cfg_io_writew(void *opaque, uint32_t addr, uint32_t value)
@@ -124,7 +124,7 @@ static uint32_t fw_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
 static void fw_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
                               uint32_t value)
 {
-    return fw_cfg_write(opaque, (uint8_t)value);
+    fw_cfg_write(opaque, (uint8_t)value);
 }
 
 static void fw_cfg_mem_writew(void *opaque, target_phys_addr_t addr,

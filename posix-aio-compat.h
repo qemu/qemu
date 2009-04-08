@@ -27,11 +27,18 @@
 struct qemu_paiocb
 {
     int aio_fildes;
-    void *aio_buf;
+    union {
+        struct iovec *aio_iov;
+	void *aio_ioctl_buf;
+    };
+    int aio_niov;
     size_t aio_nbytes;
 #define aio_ioctl_cmd   aio_nbytes /* for QEMU_PAIO_IOCTL */
     int ev_signo;
     off_t aio_offset;
+    unsigned aio_flags;
+/* 512 byte alignment required for buffer, offset and length */
+#define QEMU_AIO_SECTOR_ALIGNED	0x01
 
     /* private */
     TAILQ_ENTRY(qemu_paiocb) node;

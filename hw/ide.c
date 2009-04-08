@@ -496,6 +496,8 @@ typedef struct BMDMAState {
     IDEState *ide_if;
     BlockDriverCompletionFunc *dma_cb;
     BlockDriverAIOCB *aiocb;
+    struct iovec iov;
+    QEMUIOVector qiov;
     int64_t sector_num;
     uint32_t nsector;
 } BMDMAState;
@@ -1467,9 +1469,11 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 #ifdef DEBUG_AIO
     printf("aio_read_cd: lba=%u n=%d\n", s->lba, n);
 #endif
-    bm->aiocb = bdrv_aio_read(s->bs, (int64_t)s->lba << 2,
-                              s->io_buffer + data_offset, n * 4,
-                              ide_atapi_cmd_read_dma_cb, bm);
+    bm->iov.iov_base = s->io_buffer + data_offset;
+    bm->iov.iov_len = n * 4 * 512;
+    qemu_iovec_init_external(&bm->qiov, &bm->iov, 1);
+    bm->aiocb = bdrv_aio_readv(s->bs, (int64_t)s->lba << 2, &bm->qiov,
+                               n * 4, ide_atapi_cmd_read_dma_cb, bm);
     if (!bm->aiocb) {
         /* Note: media not present is the most likely case */
         ide_atapi_cmd_error(s, SENSE_NOT_READY,

@@ -706,7 +706,7 @@ void wm8750_dac_commit(void *opaque)
 {
     struct wm8750_s *s = (struct wm8750_s *) opaque;
 
-    return wm8750_out_flush(s);
+    wm8750_out_flush(s);
 }
 
 uint32_t wm8750_adc_dat(void *opaque)

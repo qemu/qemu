@@ -81,7 +81,7 @@ static void dma_bdrv_unmap(DMAAIOCB *dbs)
     }
 }
 
-void dma_bdrv_cb(void *opaque, int ret)
+static void dma_bdrv_cb(void *opaque, int ret)
 {
     DMAAIOCB *dbs = (DMAAIOCB *)opaque;
     target_phys_addr_t cur_addr, cur_len;

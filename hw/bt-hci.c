@@ -564,9 +564,11 @@ static void bt_hci_inquiry_result(struct bt_hci_s *hci,
 
     switch (hci->lm.inquiry_mode) {
     case 0x00:
-        return bt_hci_inquiry_result_standard(hci, slave);
+        bt_hci_inquiry_result_standard(hci, slave);
+        return;
     case 0x01:
-        return bt_hci_inquiry_result_with_rssi(hci, slave);
+        bt_hci_inquiry_result_with_rssi(hci, slave);
+        return;
     default:
         fprintf(stderr, "%s: bad inquiry mode %02x\n", __FUNCTION__,
                         hci->lm.inquiry_mode);
@@ -771,9 +773,11 @@ static void bt_hci_lmp_connection_request(struct bt_link_s *link)
     struct bt_hci_s *hci = hci_from_device(link->slave);
     evt_conn_request params;
 
-    if (hci->conn_req_host)
-        return bt_hci_connection_reject(hci, link->host,
-                        HCI_REJECTED_LIMITED_RESOURCES);
+    if (hci->conn_req_host) {
+        bt_hci_connection_reject(hci, link->host,
+                                 HCI_REJECTED_LIMITED_RESOURCES);
+        return;
+    }
     hci->conn_req_host = link->host;
     /* TODO: if masked and auto-accept, then auto-accept,
      * if masked and not auto-accept, then auto-reject */
@@ -2125,7 +2129,7 @@ static void bt_hci_evt_submit(void *opaque, int len)
     /* TODO: notify upper layer */
     struct bt_hci_s *s = opaque;
 
-    return s->info.evt_recv(s->info.opaque, s->evt_buf, len);
+    s->info.evt_recv(s->info.opaque, s->evt_buf, len);
 }
 
 static int bt_hci_bdaddr_set(struct HCIInfo *info, const uint8_t *bd_addr)
@@ -2141,7 +2145,7 @@ static void bt_hci_destroy(struct bt_device_s *dev)
 {
     struct bt_hci_s *hci = hci_from_device(dev);
 
-    return bt_hci_done(&hci->info);
+    bt_hci_done(&hci->info);
 }
 
 struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net)
@@ -2196,9 +2200,11 @@ static void bt_hci_done(struct HCIInfo *info)
     /* Be gentle and send DISCONNECT to all connected peers and those
      * currently waiting for us to accept or reject a connection request.
      * This frees the links.  */
-    if (hci->conn_req_host)
-        return bt_hci_connection_reject(hci,
-                        hci->conn_req_host, HCI_OE_POWER_OFF);
+    if (hci->conn_req_host) {
+        bt_hci_connection_reject(hci,
+                                 hci->conn_req_host, HCI_OE_POWER_OFF);
+        return;
+    }
 
     for (handle = HCI_HANDLE_OFFSET;
                     handle < (HCI_HANDLE_OFFSET | HCI_HANDLES_MAX); handle ++)

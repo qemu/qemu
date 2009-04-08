@@ -10,7 +10,7 @@ of approximately fifteen parsecs.  Many a flamewar have been fought and
 lost on this issue.
 
 QEMU indents are four spaces.  Tabs are never used, except in Makefiles
-where they have been irreversibly coded into the syntax by some moron.
+where they have been irreversibly coded into the syntax.
 Spaces of course are superior to tabs because:
 
  - You have just one way to specify whitespace, not two.  Ambiguity breeds
