@@ -7259,39 +7259,37 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
         check_cp1_64bitmode(ctx);
         {
             TCGv t0 = tcg_temp_local_new();
-            TCGv_i32 fp0 = tcg_temp_local_new_i32();
-            TCGv_i32 fph0 = tcg_temp_local_new_i32();
-            TCGv_i32 fp1 = tcg_temp_local_new_i32();
-            TCGv_i32 fph1 = tcg_temp_local_new_i32();
+            TCGv_i32 fp = tcg_temp_new_i32();
+            TCGv_i32 fph = tcg_temp_new_i32();
             int l1 = gen_new_label();
             int l2 = gen_new_label();
 
             gen_load_gpr(t0, fr);
             tcg_gen_andi_tl(t0, t0, 0x7);
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32h(fph0, fs);
-            gen_load_fpr32(fp1, ft);
-            gen_load_fpr32h(fph1, ft);
 
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
-            gen_store_fpr32(fp0, fd);
-            gen_store_fpr32h(fph0, fd);
+            gen_load_fpr32(fp, fs);
+            gen_load_fpr32h(fph, fs);
+            gen_store_fpr32(fp, fd);
+            gen_store_fpr32h(fph, fd);
             tcg_gen_br(l2);
             gen_set_label(l1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 4, l2);
             tcg_temp_free(t0);
 #ifdef TARGET_WORDS_BIGENDIAN
-            gen_store_fpr32(fph1, fd);
-            gen_store_fpr32h(fp0, fd);
+            gen_load_fpr32(fp, fs);
+            gen_load_fpr32h(fph, ft);
+            gen_store_fpr32h(fp, fd);
+            gen_store_fpr32(fph, fd);
 #else
-            gen_store_fpr32(fph0, fd);
-            gen_store_fpr32h(fp1, fd);
+            gen_load_fpr32h(fph, fs);
+            gen_load_fpr32(fp, ft);
+            gen_store_fpr32(fph, fd);
+            gen_store_fpr32h(fp, fd);
 #endif
             gen_set_label(l2);
-            tcg_temp_free_i32(fp0);
-            tcg_temp_free_i32(fph0);
-            tcg_temp_free_i32(fp1);
-            tcg_temp_free_i32(fph1);
+            tcg_temp_free_i32(fp);
+            tcg_temp_free_i32(fph);
         }
         opn = "alnv.ps";
         break;
