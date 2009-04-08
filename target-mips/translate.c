@@ -3484,8 +3484,6 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
         default:
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 10:
         switch (sel) {
@@ -3507,8 +3505,6 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
         default:
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 12:
         switch (sel) {
@@ -3553,8 +3549,6 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
         default:
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 14:
         switch (sel) {
@@ -4756,7 +4750,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
             ctx->bstate = BS_STOP;
             break;
         case 1:
-            /* ignored */
+            /* ignored, read only */
             rn = "Config1";
             break;
         case 2:
@@ -5350,21 +5344,14 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             /* Treat as NOP. */
             return;
         }
-        {
-            TCGv t0 = tcg_temp_local_new();
-
-            gen_mfc0(env, ctx, t0, rd, ctx->opcode & 0x7);
-            gen_store_gpr(t0, rt);
-            tcg_temp_free(t0);
-        }
+        gen_mfc0(env, ctx, cpu_gpr[rt], rd, ctx->opcode & 0x7);
         opn = "mfc0";
         break;
     case OPC_MTC0:
         {
-            TCGv t0 = tcg_temp_local_new();
+            TCGv t0 = tcg_temp_new();
 
             gen_load_gpr(t0, rt);
-            save_cpu_state(ctx, 1);
             gen_mtc0(env, ctx, t0, rd, ctx->opcode & 0x7);
             tcg_temp_free(t0);
         }
@@ -5377,22 +5364,15 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             /* Treat as NOP. */
             return;
         }
-        {
-            TCGv t0 = tcg_temp_local_new();
-
-            gen_dmfc0(env, ctx, t0, rd, ctx->opcode & 0x7);
-            gen_store_gpr(t0, rt);
-            tcg_temp_free(t0);
-        }
+        gen_dmfc0(env, ctx, cpu_gpr[rt], rd, ctx->opcode & 0x7);
         opn = "dmfc0";
         break;
     case OPC_DMTC0:
         check_insn(env, ctx, ISA_MIPS3);
         {
-            TCGv t0 = tcg_temp_local_new();
+            TCGv t0 = tcg_temp_new();
 
             gen_load_gpr(t0, rt);
-            save_cpu_state(ctx, 1);
             gen_dmtc0(env, ctx, t0, rd, ctx->opcode & 0x7);
             tcg_temp_free(t0);
         }
@@ -5442,7 +5422,6 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
     case OPC_ERET:
         opn = "eret";
         check_insn(env, ctx, ISA_MIPS2);
-        save_cpu_state(ctx, 1);
         gen_helper_eret();
         ctx->bstate = BS_EXCP;
         break;
@@ -5453,7 +5432,6 @@ static void gen_cp0 (CPUState *env, DisasContext *ctx, uint32_t opc, int rt, int
             MIPS_INVAL(opn);
             generate_exception(ctx, EXCP_RI);
         } else {
-            save_cpu_state(ctx, 1);
             gen_helper_deret();
             ctx->bstate = BS_EXCP;
         }
