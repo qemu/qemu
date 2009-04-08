@@ -5578,7 +5578,7 @@ static void gen_compute_branch1 (CPUState *env, DisasContext *ctx, uint32_t op,
 static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
 {
     const char *opn = "cp1 move";
-    TCGv t0 = tcg_temp_local_new();
+    TCGv t0 = tcg_temp_new();
 
     switch (opc) {
     case OPC_MFC1:
@@ -5613,28 +5613,18 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         gen_helper_1i(ctc1, t0, fs);
         opn = "ctc1";
         break;
+#if defined(TARGET_MIPS64)
     case OPC_DMFC1:
-        {
-            TCGv_i64 fp0 = tcg_temp_new_i64();
-
-            gen_load_fpr64(ctx, fp0, fs);
-            tcg_gen_trunc_i64_tl(t0, fp0);
-            tcg_temp_free_i64(fp0);
-        }
+        gen_load_fpr64(ctx, t0, fs);
         gen_store_gpr(t0, rt);
         opn = "dmfc1";
         break;
     case OPC_DMTC1:
         gen_load_gpr(t0, rt);
-        {
-            TCGv_i64 fp0 = tcg_temp_new_i64();
-
-            tcg_gen_extu_tl_i64(fp0, t0);
-            gen_store_fpr64(ctx, fp0, fs);
-            tcg_temp_free_i64(fp0);
-        }
+        gen_store_fpr64(ctx, t0, fs);
         opn = "dmtc1";
         break;
+#endif
     case OPC_MFHC1:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
