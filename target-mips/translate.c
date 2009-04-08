@@ -7527,7 +7527,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_MOVCI:
             check_insn(env, ctx, ISA_MIPS4 | ISA_MIPS32);
             if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-                save_cpu_state(ctx, 1);
                 check_cp1_enabled(ctx);
                 gen_movci(ctx, rd, rs, (ctx->opcode >> 18) & 0x7,
                           (ctx->opcode >> 16) & 1);
@@ -7623,28 +7622,33 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_RDHWR:
             check_insn(env, ctx, ISA_MIPS32R2);
             {
-                TCGv t0 = tcg_temp_local_new();
+                TCGv t0 = tcg_temp_new();
 
                 switch (rd) {
                 case 0:
                     save_cpu_state(ctx, 1);
                     gen_helper_rdhwr_cpunum(t0);
+                    gen_store_gpr(t0, rt);
                     break;
                 case 1:
                     save_cpu_state(ctx, 1);
                     gen_helper_rdhwr_synci_step(t0);
+                    gen_store_gpr(t0, rt);
                     break;
                 case 2:
                     save_cpu_state(ctx, 1);
                     gen_helper_rdhwr_cc(t0);
+                    gen_store_gpr(t0, rt);
                     break;
                 case 3:
                     save_cpu_state(ctx, 1);
                     gen_helper_rdhwr_ccres(t0);
+                    gen_store_gpr(t0, rt);
                     break;
                 case 29:
 #if defined(CONFIG_USER_ONLY)
                     tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, tls_value));
+                    gen_store_gpr(t0, rt);
                     break;
 #else
                     /* XXX: Some CPUs implement this in hardware.
@@ -7655,15 +7659,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                     generate_exception(ctx, EXCP_RI);
                     break;
                 }
-                gen_store_gpr(t0, rt);
                 tcg_temp_free(t0);
             }
             break;
         case OPC_FORK:
             check_insn(env, ctx, ASE_MT);
             {
-                TCGv t0 = tcg_temp_local_new();
-                TCGv t1 = tcg_temp_local_new();
+                TCGv t0 = tcg_temp_new();
+                TCGv t1 = tcg_temp_new();
 
                 gen_load_gpr(t0, rt);
                 gen_load_gpr(t1, rs);
@@ -7675,8 +7678,9 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_YIELD:
             check_insn(env, ctx, ASE_MT);
             {
-                TCGv t0 = tcg_temp_local_new();
+                TCGv t0 = tcg_temp_new();
 
+                save_cpu_state(ctx, 1);
                 gen_load_gpr(t0, rs);
                 gen_helper_yield(t0, t0);
                 gen_store_gpr(t0, rd);
@@ -7748,37 +7752,41 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         case OPC_MFMC0:
 #ifndef CONFIG_USER_ONLY
             {
-                TCGv t0 = tcg_temp_local_new();
+                TCGv t0 = tcg_temp_new();
 
                 op2 = MASK_MFMC0(ctx->opcode);
                 switch (op2) {
                 case OPC_DMT:
                     check_insn(env, ctx, ASE_MT);
                     gen_helper_dmt(t0, t0);
+                    gen_store_gpr(t0, rt);
                     break;
                 case OPC_EMT:
                     check_insn(env, ctx, ASE_MT);
                     gen_helper_emt(t0, t0);
+                    gen_store_gpr(t0, rt);
                     break;
                 case OPC_DVPE:
                     check_insn(env, ctx, ASE_MT);
                     gen_helper_dvpe(t0, t0);
+                    gen_store_gpr(t0, rt);
                     break;
                 case OPC_EVPE:
                     check_insn(env, ctx, ASE_MT);
                     gen_helper_evpe(t0, t0);
+                    gen_store_gpr(t0, rt);
                     break;
                 case OPC_DI:
                     check_insn(env, ctx, ISA_MIPS32R2);
-                    save_cpu_state(ctx, 1);
                     gen_helper_di(t0);
+                    gen_store_gpr(t0, rt);
                     /* Stop translation as we may have switched the execution mode */
                     ctx->bstate = BS_STOP;
                     break;
                 case OPC_EI:
                     check_insn(env, ctx, ISA_MIPS32R2);
-                    save_cpu_state(ctx, 1);
                     gen_helper_ei(t0);
+                    gen_store_gpr(t0, rt);
                     /* Stop translation as we may have switched the execution mode */
                     ctx->bstate = BS_STOP;
                     break;
@@ -7787,7 +7795,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                     generate_exception(ctx, EXCP_RI);
                     break;
                 }
-                gen_store_gpr(t0, rt);
                 tcg_temp_free(t0);
             }
 #endif /* !CONFIG_USER_ONLY */
@@ -7839,7 +7846,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     case OPC_SWC1:
     case OPC_SDC1:
         if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-            save_cpu_state(ctx, 1);
             check_cp1_enabled(ctx);
             gen_flt_ldst(ctx, op, rt, rs, imm);
         } else {
@@ -7849,7 +7855,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
     case OPC_CP1:
         if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-            save_cpu_state(ctx, 1);
             check_cp1_enabled(ctx);
             op1 = MASK_CP1(ctx->opcode);
             switch (op1) {
@@ -7908,7 +7913,6 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 
     case OPC_CP3:
         if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-            save_cpu_state(ctx, 1);
             check_cp1_enabled(ctx);
             op1 = MASK_CP3(ctx->opcode);
             switch (op1) {
