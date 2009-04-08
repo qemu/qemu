@@ -6109,19 +6109,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = do_futex(arg1, arg2, arg3, arg4, arg5, arg6);
         break;
 #endif
-#ifdef TARGET_NR_inotify_init
+#if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
     case TARGET_NR_inotify_init:
         ret = get_errno(sys_inotify_init());
         break;
 #endif
-#ifdef TARGET_NR_inotify_add_watch
+#if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
     case TARGET_NR_inotify_add_watch:
         p = lock_user_string(arg2);
         ret = get_errno(sys_inotify_add_watch(arg1, path(p), arg3));
         unlock_user(p, arg2, 0);
         break;
 #endif
-#ifdef TARGET_NR_inotify_rm_watch
+#if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
     case TARGET_NR_inotify_rm_watch:
         ret = get_errno(sys_inotify_rm_watch(arg1, arg2));
         break;
