@@ -169,6 +169,7 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_linkat __NR_linkat
 #define __NR_sys_mkdirat __NR_mkdirat
 #define __NR_sys_mknodat __NR_mknodat
+#define __NR_sys_newfstatat __NR_newfstatat
 #define __NR_sys_openat __NR_openat
 #define __NR_sys_readlinkat __NR_readlinkat
 #define __NR_sys_renameat __NR_renameat
@@ -209,7 +210,8 @@ _syscall4(int,sys_fchmodat,int,dirfd,const char *,pathname,
 _syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
           uid_t,owner,gid_t,group,int,flags)
 #endif
-#if defined(TARGET_NR_fstatat64) && defined(__NR_fstatat64)
+#if (defined(TARGET_NR_fstatat64) || defined(TARGET_NR_newfstatat)) && \
+        defined(__NR_fstatat64)
 _syscall4(int,sys_fstatat64,int,dirfd,const char *,pathname,
           struct stat *,buf,int,flags)
 #endif
@@ -239,6 +241,11 @@ _syscall3(int,sys_mkdirat,int,dirfd,const char *,pathname,mode_t,mode)
 #if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
 _syscall4(int,sys_mknodat,int,dirfd,const char *,pathname,
           mode_t,mode,dev_t,dev)
+#endif
+#if (defined(TARGET_NR_newfstatat) || defined(TARGET_NR_fstatat64) ) && \
+        defined(__NR_newfstatat)
+_syscall4(int,sys_newfstatat,int,dirfd,const char *,pathname,
+          struct stat *,buf,int,flags)
 #endif
 #if defined(TARGET_NR_openat) && defined(__NR_openat)
 _syscall4(int,sys_openat,int,dirfd,const char *,pathname,int,flags,mode_t,mode)
@@ -3280,7 +3287,7 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
     return 0;
 }
 
-#ifdef TARGET_NR_stat64
+#if defined(TARGET_NR_stat64) || defined(TARGET_NR_newfstatat)
 static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
                                              struct stat *host_st)
@@ -3312,11 +3319,15 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
     } else
 #endif
     {
+#if TARGET_LONG_BITS == 64
+        struct target_stat *target_st;
+#else
         struct target_stat64 *target_st;
+#endif
 
         if (!lock_user_struct(VERIFY_WRITE, target_st, target_addr, 0))
             return -TARGET_EFAULT;
-        memset(target_st, 0, sizeof(struct target_stat64));
+        memset(target_st, 0, sizeof(*target_st));
         __put_user(host_st->st_dev, &target_st->st_dev);
         __put_user(host_st->st_ino, &target_st->st_ino);
 #ifdef TARGET_STAT64_HAS_BROKEN_ST_INO
@@ -5459,11 +5470,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = host_to_target_stat64(cpu_env, arg2, &st);
         break;
 #endif
-#if defined(TARGET_NR_fstatat64) && defined(__NR_fstatat64)
+#if (defined(TARGET_NR_fstatat64) || defined(TARGET_NR_newfstatat)) && \
+        (defined(__NR_fstatat64) || defined(__NR_newfstatat))
+#ifdef TARGET_NR_fstatat64
     case TARGET_NR_fstatat64:
+#endif
+#ifdef TARGET_NR_newfstatat
+    case TARGET_NR_newfstatat:
+#endif
         if (!(p = lock_user_string(arg2)))
             goto efault;
+#ifdef __NR_fstatat64
         ret = get_errno(sys_fstatat64(arg1, path(p), &st, arg4));
+#else
+        ret = get_errno(sys_newfstatat(arg1, path(p), &st, arg4));
+#endif
         if (!is_error(ret))
             ret = host_to_target_stat64(cpu_env, arg3, &st);
         break;
