@@ -6122,32 +6122,32 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(18, 16):
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_new();
-            TCGv_i32 fp0 = tcg_temp_local_new_i32();
+            TCGv_i32 fp0;
 
-            gen_load_gpr(t0, ft);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
+            if (ft != 0) {
+                tcg_gen_brcondi_tl(TCG_COND_NE, cpu_gpr[ft], 0, l1);
+            }
+            fp0 = tcg_temp_new_i32();
             gen_load_fpr32(fp0, fs);
             gen_store_fpr32(fp0, fd);
             tcg_temp_free_i32(fp0);
             gen_set_label(l1);
-            tcg_temp_free(t0);
         }
         opn = "movz.s";
         break;
     case FOP(19, 16):
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_new();
-            TCGv_i32 fp0 = tcg_temp_local_new_i32();
+            TCGv_i32 fp0;
 
-            gen_load_gpr(t0, ft);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-            gen_load_fpr32(fp0, fs);
-            gen_store_fpr32(fp0, fd);
-            tcg_temp_free_i32(fp0);
-            gen_set_label(l1);
-            tcg_temp_free(t0);
+            if (ft != 0) {
+                tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[ft], 0, l1);
+                fp0 = tcg_temp_new_i32();
+                gen_load_fpr32(fp0, fs);
+                gen_store_fpr32(fp0, fd);
+                tcg_temp_free_i32(fp0);
+                gen_set_label(l1);
+            }
         }
         opn = "movn.s";
         break;
@@ -6541,32 +6541,32 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
     case FOP(18, 17):
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_new();
-            TCGv_i64 fp0 = tcg_temp_local_new_i64();
+            TCGv_i64 fp0;
 
-            gen_load_gpr(t0, ft);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
+            if (ft != 0) {
+                tcg_gen_brcondi_tl(TCG_COND_NE, cpu_gpr[ft], 0, l1);
+            }
+            fp0 = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp0, fs);
             gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free_i64(fp0);
             gen_set_label(l1);
-            tcg_temp_free(t0);
         }
         opn = "movz.d";
         break;
     case FOP(19, 17):
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_new();
-            TCGv_i64 fp0 = tcg_temp_local_new_i64();
+            TCGv_i64 fp0;
 
-            gen_load_gpr(t0, ft);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-            gen_load_fpr64(ctx, fp0, fs);
-            gen_store_fpr64(ctx, fp0, fd);
-            tcg_temp_free_i64(fp0);
-            gen_set_label(l1);
-            tcg_temp_free(t0);
+            if (ft != 0) {
+                tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[ft], 0, l1);
+                fp0 = tcg_temp_new_i64();
+                gen_load_fpr64(ctx, fp0, fs);
+                gen_store_fpr64(ctx, fp0, fd);
+                tcg_temp_free_i64(fp0);
+                gen_set_label(l1);
+            }
         }
         opn = "movn.d";
         break;
@@ -6876,20 +6876,15 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_new();
-            TCGv_i32 fp0 = tcg_temp_local_new_i32();
-            TCGv_i32 fph0 = tcg_temp_local_new_i32();
+            TCGv_i32 fp0;
 
-            gen_load_gpr(t0, ft);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32h(fph0, fs);
-            gen_store_fpr32(fp0, fd);
-            gen_store_fpr32h(fph0, fd);
-            tcg_temp_free_i32(fp0);
-            tcg_temp_free_i32(fph0);
+            if (ft != 0)
+                tcg_gen_brcondi_tl(TCG_COND_NE, cpu_gpr[ft], 0, l1);
+            fp0 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fs);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
             gen_set_label(l1);
-            tcg_temp_free(t0);
         }
         opn = "movz.ps";
         break;
@@ -6897,20 +6892,16 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         {
             int l1 = gen_new_label();
-            TCGv t0 = tcg_temp_new();
-            TCGv_i32 fp0 = tcg_temp_local_new_i32();
-            TCGv_i32 fph0 = tcg_temp_local_new_i32();
+            TCGv_i32 fp0;
 
-            gen_load_gpr(t0, ft);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32h(fph0, fs);
-            gen_store_fpr32(fp0, fd);
-            gen_store_fpr32h(fph0, fd);
-            tcg_temp_free_i32(fp0);
-            tcg_temp_free_i32(fph0);
-            gen_set_label(l1);
-            tcg_temp_free(t0);
+            if (ft != 0) {
+                tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[ft], 0, l1);
+                fp0 = tcg_temp_new_i64();
+                gen_load_fpr64(ctx, fp0, fs);
+                gen_store_fpr64(ctx, fp0, fd);
+                tcg_temp_free_i64(fp0);
+                gen_set_label(l1);
+            }
         }
         opn = "movn.ps";
         break;
