@@ -20,6 +20,7 @@
 
 static struct arm_boot_info realview_binfo = {
     .loader_start = 0x0,
+    .smp_loader_start = 0x80000000,
     .board_id = 0x33b,
 };
 

@@ -53,124 +53,135 @@ static void main_cpu_reset(void *opaque)
     /* TODO:  Reset secondary CPUs.  */
 }
 
-static void set_kernel_args(struct arm_boot_info *info,
-                int initrd_size, void *base)
-{
-    uint32_t *p;
+#define WRITE_WORD(p, value) do { \
+    stl_phys_notdirty(p, value);  \
+    p += 4;                       \
+} while (0)
 
-    p = (uint32_t *)(base + KERNEL_ARGS_ADDR);
+static void set_kernel_args(struct arm_boot_info *info,
+                int initrd_size, target_phys_addr_t base)
+{
+    target_phys_addr_t p;
+
+    p = base + KERNEL_ARGS_ADDR;
     /* ATAG_CORE */
-    stl_raw(p++, 5);
-    stl_raw(p++, 0x54410001);
-    stl_raw(p++, 1);
-    stl_raw(p++, 0x1000);
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 5);
+    WRITE_WORD(p, 0x54410001);
+    WRITE_WORD(p, 1);
+    WRITE_WORD(p, 0x1000);
+    WRITE_WORD(p, 0);
     /* ATAG_MEM */
     /* TODO: handle multiple chips on one ATAG list */
-    stl_raw(p++, 4);
-    stl_raw(p++, 0x54410002);
-    stl_raw(p++, info->ram_size);
-    stl_raw(p++, info->loader_start);
+    WRITE_WORD(p, 4);
+    WRITE_WORD(p, 0x54410002);
+    WRITE_WORD(p, info->ram_size);
+    WRITE_WORD(p, info->loader_start);
     if (initrd_size) {
         /* ATAG_INITRD2 */
-        stl_raw(p++, 4);
-        stl_raw(p++, 0x54420005);
-        stl_raw(p++, info->loader_start + INITRD_LOAD_ADDR);
-        stl_raw(p++, initrd_size);
+        WRITE_WORD(p, 4);
+        WRITE_WORD(p, 0x54420005);
+        WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
+        WRITE_WORD(p, initrd_size);
     }
     if (info->kernel_cmdline && *info->kernel_cmdline) {
         /* ATAG_CMDLINE */
         int cmdline_size;
 
         cmdline_size = strlen(info->kernel_cmdline);
-        memcpy(p + 2, info->kernel_cmdline, cmdline_size + 1);
+        cpu_physical_memory_write(p + 8, (void *)info->kernel_cmdline,
+                                  cmdline_size + 1);
         cmdline_size = (cmdline_size >> 2) + 1;
-        stl_raw(p++, cmdline_size + 2);
-        stl_raw(p++, 0x54410009);
-        p += cmdline_size;
+        WRITE_WORD(p, cmdline_size + 2);
+        WRITE_WORD(p, 0x54410009);
+        p += cmdline_size * 4;
     }
     if (info->atag_board) {
         /* ATAG_BOARD */
         int atag_board_len;
+        uint8_t atag_board_buf[0x1000];
 
-        atag_board_len = (info->atag_board(info, p + 2) + 3) >> 2;
-        stl_raw(p++, 2 + atag_board_len);
-        stl_raw(p++, 0x414f4d50);
+        atag_board_len = (info->atag_board(info, atag_board_buf) + 3) & ~3;
+        WRITE_WORD(p, (atag_board_len + 8) >> 2);
+        WRITE_WORD(p, 0x414f4d50);
+        cpu_physical_memory_write(p, atag_board_buf, atag_board_len);
         p += atag_board_len;
     }
     /* ATAG_END */
-    stl_raw(p++, 0);
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
+    WRITE_WORD(p, 0);
 }
 
 static void set_kernel_args_old(struct arm_boot_info *info,
-                int initrd_size, void *base)
+                int initrd_size, target_phys_addr_t base)
 {
-    uint32_t *p;
-    char *s;
+    target_phys_addr_t p;
+    const char *s;
+
 
     /* see linux/include/asm-arm/setup.h */
-    p = (uint32_t *)(base + KERNEL_ARGS_ADDR);
+    p = base + KERNEL_ARGS_ADDR;
     /* page_size */
-    stl_raw(p++, 4096);
+    WRITE_WORD(p, 4096);
     /* nr_pages */
-    stl_raw(p++, info->ram_size / 4096);
+    WRITE_WORD(p, info->ram_size / 4096);
     /* ramdisk_size */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
 #define FLAG_READONLY	1
 #define FLAG_RDLOAD	4
 #define FLAG_RDPROMPT	8
     /* flags */
-    stl_raw(p++, FLAG_READONLY | FLAG_RDLOAD | FLAG_RDPROMPT);
+    WRITE_WORD(p, FLAG_READONLY | FLAG_RDLOAD | FLAG_RDPROMPT);
     /* rootdev */
-    stl_raw(p++, (31 << 8) | 0);	/* /dev/mtdblock0 */
+    WRITE_WORD(p, (31 << 8) | 0);	/* /dev/mtdblock0 */
     /* video_num_cols */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* video_num_rows */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* video_x */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* video_y */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* memc_control_reg */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* unsigned char sounddefault */
     /* unsigned char adfsdrives */
     /* unsigned char bytes_per_char_h */
     /* unsigned char bytes_per_char_v */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* pages_in_bank[4] */
-    stl_raw(p++, 0);
-    stl_raw(p++, 0);
-    stl_raw(p++, 0);
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
+    WRITE_WORD(p, 0);
+    WRITE_WORD(p, 0);
+    WRITE_WORD(p, 0);
     /* pages_in_vram */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* initrd_start */
     if (initrd_size)
-        stl_raw(p++, info->loader_start + INITRD_LOAD_ADDR);
+        WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
     else
-        stl_raw(p++, 0);
+        WRITE_WORD(p, 0);
     /* initrd_size */
-    stl_raw(p++, initrd_size);
+    WRITE_WORD(p, initrd_size);
     /* rd_start */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* system_rev */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* system_serial_low */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* system_serial_high */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* mem_fclk_21285 */
-    stl_raw(p++, 0);
+    WRITE_WORD(p, 0);
     /* zero unused fields */
-    memset(p, 0, 256 + 1024 -
-           (p - ((uint32_t *)(base + KERNEL_ARGS_ADDR))));
-    s = base + KERNEL_ARGS_ADDR + 256 + 1024;
-    if (info->kernel_cmdline)
-        strcpy (s, info->kernel_cmdline);
-    else
-        stb_raw(s, 0);
+    while (p < base + KERNEL_ARGS_ADDR + 256 + 1024) {
+        WRITE_WORD(p, 0);
+    }
+    s = info->kernel_cmdline;
+    if (s) {
+        cpu_physical_memory_write(p, (void *)s, strlen(s) + 1);
+    } else {
+        WRITE_WORD(p, 0);
+    }
 }
 
 void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
@@ -197,6 +208,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         qemu_register_reset(main_cpu_reset, env);
     }
 
+    /* FIXME: We should make load_image take a guest physical address.  */
     pd = cpu_get_physical_page_desc(info->loader_start);
     loader_phys = phys_ram_base + (pd & TARGET_PAGE_MASK) +
             (info->loader_start & ~TARGET_PAGE_MASK);
@@ -239,14 +251,17 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         bootloader[2] |= (info->board_id >> 8) & 0xff;
         bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
         bootloader[6] = entry;
-        for (n = 0; n < sizeof(bootloader) / 4; n++)
-            stl_raw(loader_phys + (n * 4), bootloader[n]);
-        if (info->nb_cpus > 1)
-            for (n = 0; n < sizeof(smpboot) / 4; n++)
-                stl_raw(loader_phys + info->ram_size + (n * 4), smpboot[n]);
+        for (n = 0; n < sizeof(bootloader) / 4; n++) {
+            stl_phys_notdirty(info->loader_start + (n * 4), bootloader[n]);
+        }
+        if (info->nb_cpus > 1) {
+            for (n = 0; n < sizeof(smpboot) / 4; n++) {
+                stl_phys_notdirty(info->smp_loader_start + (n * 4), smpboot[n]);
+            }
+        }
         if (old_param)
-            set_kernel_args_old(info, initrd_size, loader_phys);
+            set_kernel_args_old(info, initrd_size, info->loader_start);
         else
-            set_kernel_args(info, initrd_size, loader_phys);
+            set_kernel_args(info, initrd_size, info->loader_start);
     }
 }
