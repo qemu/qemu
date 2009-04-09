@@ -2427,6 +2427,14 @@ void qemu_ram_free(ram_addr_t addr)
 {
 }
 
+/* Return a host pointer to ram allocated with qemu_ram_alloc.
+   This may only be used if you actually allocated the ram, and
+   aready know how but the ram block is.  */
+void *qemu_get_ram_ptr(ram_addr_t addr)
+{
+    return phys_ram_base + addr;
+}
+
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
 {
 #ifdef DEBUG_UNASSIGNED

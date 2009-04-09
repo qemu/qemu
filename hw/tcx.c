@@ -497,13 +497,17 @@ static CPUWriteMemoryFunc *tcx_dummy_write[3] = {
     tcx_dummy_writel,
 };
 
-void tcx_init(target_phys_addr_t addr, uint8_t *vram_base,
-              unsigned long vram_offset, int vram_size, int width, int height,
+void tcx_init(target_phys_addr_t addr, int vram_size, int width, int height,
               int depth)
 {
     TCXState *s;
     int io_memory, dummy_memory;
+    ram_addr_t vram_offset;
     int size;
+    uint8_t *vram_base;
+
+    vram_offset = qemu_ram_alloc(vram_size);
+    vram_base = qemu_get_ram_ptr(vram_offset);
 
     s = qemu_mallocz(sizeof(TCXState));
     s->addr = addr;
