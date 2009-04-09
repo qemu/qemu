@@ -1341,6 +1341,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
     }
 
     if (option_rom[0] && (boot_device[0] == 'n' || !kernel_filename)) {
+        int rom_size;
         /* No, wait, better start at the ROM.  */
         s->cpu->env->regs[15] = OMAP2_Q2_BASE + 0x400000;
 
@@ -1353,8 +1354,10 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
          *
          * The code above is for loading the `zImage' file from Nokia
          * images.  */
-        printf("%i bytes of image loaded\n", load_image(option_rom[0],
-                                phys_ram_base + 0x400000));
+        rom_size = load_image_targphys(option_rom[0],
+                                       OMAP2_Q2_BASE + 0x400000,
+                                       sdram_size - 0x400000);
+        printf("%i bytes of image loaded\n", rom_size);
 
         n800_setup_nolo_tags(phys_ram_base + sdram_size);
     }

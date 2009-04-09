@@ -86,8 +86,8 @@ static void load_kernel (CPUState *env)
                         loaderparams.initrd_filename);
                 exit(1);
             }
-            initrd_size = load_image(loaderparams.initrd_filename,
-                                     phys_ram_base + initrd_offset);
+            initrd_size = load_image_targphys(loaderparams.initrd_filename,
+                initrd_offset, loaderparams.ram_size - initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
@@ -113,7 +113,8 @@ mips_mipssim_init (ram_addr_t ram_size, int vga_ram_size,
                    const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
-    unsigned long bios_offset;
+    ram_addr_t ram_offset;
+    ram_addr_t bios_offset;
     CPUState *env;
     int bios_size;
 
@@ -133,14 +134,19 @@ mips_mipssim_init (ram_addr_t ram_size, int vga_ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* Allocate RAM. */
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(ram_size);
+    bios_offset = qemu_ram_alloc(BIOS_SIZE);
 
+    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
+
+    /* Map the BIOS / boot exception handler. */
+    cpu_register_physical_memory(0x1fc00000LL,
+                                 BIOS_SIZE, bios_offset | IO_MEM_ROM);
     /* Load a BIOS / boot exception handler image. */
-    bios_offset = ram_size + vga_ram_size;
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    bios_size = load_image_targphys(buf, 0x1fc00000LL, BIOS_SIZE);
     if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
         /* Bail out if we have neither a kernel image nor boot vector code. */
         fprintf(stderr,
@@ -148,9 +154,6 @@ mips_mipssim_init (ram_addr_t ram_size, int vga_ram_size,
                 buf);
         exit(1);
     } else {
-        /* Map the BIOS / boot exception handler. */
-        cpu_register_physical_memory(0x1fc00000LL,
-                                     bios_size, bios_offset | IO_MEM_ROM);
         /* We have a boot vector start address. */
         env->active_tc.PC = (target_long)(int32_t)0xbfc00000;
     }

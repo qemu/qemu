@@ -73,7 +73,7 @@ static void shix_init(ram_addr_t ram_size, int vga_ram_size,
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     printf("%s: load BIOS '%s'\n", __func__, bios_name);
-    ret = load_image(bios_name, phys_ram_base);
+    ret = load_image_targphys(bios_name, 0, 0x4000);
     if (ret < 0) {		/* Check bios size */
 	fprintf(stderr, "ret=%d\n", ret);
 	fprintf(stderr, "qemu: could not load SHIX bios '%s'\n",
