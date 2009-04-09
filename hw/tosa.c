@@ -239,7 +239,7 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
     tosa_binfo.initrd_filename = initrd_filename;
     tosa_binfo.board_id = 0x208;
     arm_load_kernel(cpu->env, &tosa_binfo);
-    sl_bootparam_write(SL_PXA_PARAM_BASE - PXA2XX_SDRAM_BASE);
+    sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
 QEMUMachine tosapda_machine = {

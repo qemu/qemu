@@ -18,6 +18,6 @@ void scoop_gpio_out_set(struct scoop_info_s *s, int line,
                 qemu_irq handler);
 
 #define SL_PXA_PARAM_BASE	0xa0000a00
-void sl_bootparam_write(uint32_t ptr);
+void sl_bootparam_write(target_phys_addr_t ptr);
 
 #endif

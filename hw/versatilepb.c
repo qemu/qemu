@@ -160,6 +160,7 @@ static void versatile_init(ram_addr_t ram_size, int vga_ram_size,
                      int board_id)
 {
     CPUState *env;
+    ram_addr_t ram_offset;
     qemu_irq *pic;
     qemu_irq *sic;
     void *scsi_hba;
@@ -176,9 +177,10 @@ static void versatile_init(ram_addr_t ram_size, int vga_ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    ram_offset = qemu_ram_alloc(ram_size);
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     arm_sysctl_init(0x10000000, 0x41007004);
     pic = arm_pic_init_cpu(env);

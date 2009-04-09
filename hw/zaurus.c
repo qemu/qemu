@@ -275,8 +275,8 @@ static struct __attribute__ ((__packed__)) sl_param_info {
     .phadadj		= 0x01,
 };
 
-void sl_bootparam_write(uint32_t ptr)
+void sl_bootparam_write(target_phys_addr_t ptr)
 {
-    memcpy(phys_ram_base + ptr, &zaurus_bootparam,
-                    sizeof(struct sl_param_info));
+    cpu_physical_memory_write(ptr, (void *)&zaurus_bootparam,
+                              sizeof(struct sl_param_info));
 }
