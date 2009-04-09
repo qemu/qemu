@@ -864,19 +864,20 @@ static void tx_command(EEPRO100State *s)
     //~ eepro100_cx_interrupt(s);
 }
 
-static void set_multicast_list(EEPRO100State *s, uint16_t multicast_count)
+static void set_multicast_list(EEPRO100State *s)
 {
-      uint16_t i;
-      memset(&s->mult[0], 0, sizeof(s->mult));
-      TRACE(OTHER, logout("multicast list, multicast count = %u\n", multicast_count));
-      for (i = 0; i < multicast_count; i += 6) {
-          uint8_t multicast_addr[6];
-          cpu_physical_memory_read(s->cb_address + 10 + i, multicast_addr, 6);
-          TRACE(OTHER, logout("multicast entry %s\n", nic_dump(multicast_addr, 6)));
-          unsigned mcast_idx = compute_mcast_idx(multicast_addr);
-          assert(mcast_idx < 64);
-          s->mult[mcast_idx >> 3] |= (1 << (mcast_idx & 7));
-      }
+    uint16_t multicast_count = s->tx.tbd_array_addr & BITS(13, 0);
+    uint16_t i;
+    memset(&s->mult[0], 0, sizeof(s->mult));
+    TRACE(OTHER, logout("multicast list, multicast count = %u\n", multicast_count));
+    for (i = 0; i < multicast_count; i += 6) {
+        uint8_t multicast_addr[6];
+        cpu_physical_memory_read(s->cb_address + 10 + i, multicast_addr, 6);
+        TRACE(OTHER, logout("multicast entry %s\n", nic_dump(multicast_addr, 6)));
+        unsigned mcast_idx = compute_mcast_idx(multicast_addr);
+        assert(mcast_idx < 64);
+        s->mult[mcast_idx >> 3] |= (1 << (mcast_idx & 7));
+    }
 }
 
 static void action_command(EEPRO100State *s)
@@ -905,7 +906,7 @@ static void action_command(EEPRO100State *s)
             TRACE(OTHER, logout("configuration: %s\n", nic_dump(&s->configuration[0], 16)));
             break;
         case CmdMulticastList:
-            set_multicast_list(s, s->tx.tbd_array_addr & BITS(13, 0));
+            set_multicast_list(s);
             break;
         case CmdTx:
             tx_command(s);
@@ -1712,19 +1713,25 @@ static void nic_receive(void *opaque, const uint8_t * buf, int size)
         /* Broadcast frame. */
         TRACE(RXTX, logout("%p received broadcast, len=%d\n", s, size));
         rfd_status |= 0x0002;
-    } else if (buf[0] & 0x01) { // !!!
+    } else if (buf[0] & 0x01) {
         /* Multicast frame. */
         TRACE(RXTX, logout("%p received multicast, len=%d,%s\n", s, size, nic_dump(buf, size)));
         if (s->configuration[21] & BIT(3)) {
-          /* Multicast all bit is set, receive all frames. */
+          /* Multicast all bit is set, receive all multicast frames. */
         } else {
           unsigned mcast_idx = compute_mcast_idx(buf);
           assert(mcast_idx < 64);
-          if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7)))) {
+          if (s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))) {
+            /* Multicast frame is allowed in hash table. */
+          } else if (s->configuration[15] & 1) {
+              /* Promiscuous: receive all. */
+              rfd_status |= 0x0004;
+          } else {
               TRACE(RXTX, logout("%p multicast ignored\n", s));
               return;
           }
         }
+        /* TODO: Next not for promiscuous mode? */
         rfd_status |= 0x0002;
     } else if (s->configuration[15] & 1) {
         /* Promiscuous: receive all. */
