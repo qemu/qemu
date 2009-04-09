@@ -192,8 +192,6 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
     int is_linux = 0;
     uint64_t elf_entry;
     target_ulong entry;
-    uint32_t pd;
-    void *loader_phys;
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
@@ -208,11 +206,6 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         qemu_register_reset(main_cpu_reset, env);
     }
 
-    /* FIXME: We should make load_image take a guest physical address.  */
-    pd = cpu_get_physical_page_desc(info->loader_start);
-    loader_phys = phys_ram_base + (pd & TARGET_PAGE_MASK) +
-            (info->loader_start & ~TARGET_PAGE_MASK);
-
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = load_elf(info->kernel_filename, 0, &elf_entry, NULL, NULL);
     entry = elf_entry;
@@ -221,9 +214,9 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
                                   &is_linux);
     }
     if (kernel_size < 0) {
-        kernel_size = load_image(info->kernel_filename,
-                                 loader_phys + KERNEL_LOAD_ADDR);
         entry = info->loader_start + KERNEL_LOAD_ADDR;
+        kernel_size = load_image_targphys(info->kernel_filename, entry,
+                                          ram_size - KERNEL_LOAD_ADDR);
         is_linux = 1;
     }
     if (kernel_size < 0) {
@@ -237,8 +230,10 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         env->thumb = entry & 1;
     } else {
         if (info->initrd_filename) {
-            initrd_size = load_image(info->initrd_filename,
-                                     loader_phys + INITRD_LOAD_ADDR);
+            initrd_size = load_image_targphys(info->initrd_filename,
+                                              info->loader_start
+                                              + INITRD_LOAD_ADDR,
+                                              ram_size - INITRD_LOAD_ADDR);
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initrd '%s'\n",
                         info->initrd_filename);
