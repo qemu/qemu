@@ -148,7 +148,8 @@ static void bamboo_init(ram_addr_t ram_size, int vga_ram_size,
     /* Load initrd. */
     if (initrd_filename) {
         initrd_base = kernel_size + loadaddr;
-        initrd_size = load_image(initrd_filename, phys_ram_base + initrd_base);
+        initrd_size = load_image_targphys(initrd_filename, initrd_base,
+                                          ram_size - initrd_base);
 
         if (initrd_size < 0) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",

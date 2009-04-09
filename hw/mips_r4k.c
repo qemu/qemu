@@ -107,8 +107,9 @@ static void load_kernel (CPUState *env)
                         loaderparams.initrd_filename);
                 exit(1);
             }
-            initrd_size = load_image(loaderparams.initrd_filename,
-                                     phys_ram_base + initrd_offset);
+            initrd_size = load_image_targphys(loaderparams.initrd_filename,
+                                              initrd_offset,
+                                              ram_size - initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
@@ -153,7 +154,9 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
                     const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
-    unsigned long bios_offset;
+    ram_addr_t ram_offset;
+    ram_addr_t vga_ram_offset;
+    ram_addr_t bios_offset;
     int bios_size;
     CPUState *env;
     RTCState *rtc_state;
@@ -184,7 +187,10 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(ram_size);
+    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
+
+    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     if (!mips_qemu_iomemtype) {
         mips_qemu_iomemtype = cpu_register_io_memory(0, mips_qemu_read,
@@ -196,19 +202,20 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
        but initialize the hardware ourselves. When a kernel gets
        preloaded we also initialize the hardware, since the BIOS wasn't
        run. */
-    bios_offset = ram_size + vga_ram_size;
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    bios_size = get_image_size(buf);
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
-	cpu_register_physical_memory(0x1fc00000,
-				     BIOS_SIZE, bios_offset | IO_MEM_ROM);
+        bios_offset = qemu_ram_alloc(BIOS_SIZE);
+	cpu_register_physical_memory(0x1fc00000, BIOS_SIZE,
+                                     bios_offset | IO_MEM_ROM);
+
+        load_image_targphys(buf, 0x1fc00000, BIOS_SIZE);
     } else if ((index = drive_get_index(IF_PFLASH, 0, 0)) > -1) {
         uint32_t mips_rom = 0x00400000;
-        cpu_register_physical_memory(0x1fc00000, mips_rom,
-	                     qemu_ram_alloc(mips_rom) | IO_MEM_ROM);
-        if (!pflash_cfi01_register(0x1fc00000, qemu_ram_alloc(mips_rom),
+        bios_offset = qemu_ram_alloc(mips_rom);
+        if (!pflash_cfi01_register(0x1fc00000, bios_offset,
             drives_table[index].bdrv, sector_len, mips_rom / sector_len,
             4, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
@@ -250,7 +257,7 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
         }
     }
 
-    isa_vga_init(phys_ram_base + ram_size, ram_size,
+    isa_vga_init(phys_ram_base + vga_ram_offset, ram_size,
                  vga_ram_size);
 
     if (nd_table[0].vlan)

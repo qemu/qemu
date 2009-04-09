@@ -129,7 +129,8 @@ void bareetraxfs_init (ram_addr_t ram_size, int vga_ram_size,
         bootstrap_pc = entry;
         if (kernel_size < 0) {
             /* Takes a kimage from the axis devboard SDK.  */
-            kernel_size = load_image(kernel_filename, phys_ram_base + 0x4000);
+            kernel_size = load_image_targphys(kernel_filename, 0x40004000,
+                                              ram_size);
             bootstrap_pc = 0x40004000;
             env->regs[9] = 0x40004000 + kernel_size;
         }

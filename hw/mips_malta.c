@@ -717,8 +717,9 @@ static int64_t load_kernel (CPUState *env)
                         loaderparams.initrd_filename);
                 exit(1);
             }
-            initrd_size = load_image(loaderparams.initrd_filename,
-                                     phys_ram_base + initrd_offset);
+            initrd_size = load_image_targphys(loaderparams.initrd_filename,
+                                              initrd_offset,
+                                              ram_size - initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
@@ -767,7 +768,9 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
                       const char *initrd_filename, const char *cpu_model)
 {
     char buf[1024];
-    unsigned long bios_offset;
+    ram_addr_t ram_offset;
+    ram_addr_t vga_ram_offset;
+    ram_addr_t bios_offset;
     target_long bios_size;
     int64_t kernel_entry;
     PCIBus *pci_bus;
@@ -808,10 +811,14 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(ram_size);
+    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
+    bios_offset = qemu_ram_alloc(BIOS_SIZE);
+
+
+    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     /* Map the bios at two physical locations, as on the real board. */
-    bios_offset = ram_size + vga_ram_size;
     cpu_register_physical_memory(0x1e000000LL,
                                  BIOS_SIZE, bios_offset | IO_MEM_ROM);
     cpu_register_physical_memory(0x1fc00000LL,
@@ -851,7 +858,7 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
             if (bios_name == NULL)
                 bios_name = BIOS_FILENAME;
             snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-            bios_size = load_image(buf, phys_ram_base + bios_offset);
+            bios_size = load_image_targphys(buf, 0x1fc00000LL, BIOS_SIZE);
             if ((bios_size < 0 || bios_size > BIOS_SIZE) && !kernel_filename) {
                 fprintf(stderr,
                         "qemu: Could not load MIPS bios '%s', and no -kernel argument was specified\n",
@@ -942,13 +949,13 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* Optional PCI video card */
     if (cirrus_vga_enabled) {
-        pci_cirrus_vga_init(pci_bus, phys_ram_base + ram_size,
+        pci_cirrus_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
                             ram_size, vga_ram_size);
     } else if (vmsvga_enabled) {
-        pci_vmsvga_init(pci_bus, phys_ram_base + ram_size,
+        pci_vmsvga_init(pci_bus, phys_ram_base + vga_ram_offset,
                         ram_size, vga_ram_size);
     } else if (std_vga_enabled) {
-        pci_vga_init(pci_bus, phys_ram_base + ram_size,
+        pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
                      ram_size, vga_ram_size, 0, 0);
     }
 }

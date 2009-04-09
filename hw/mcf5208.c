@@ -220,7 +220,7 @@ static void mcf5208evb_init(ram_addr_t ram_size, int vga_ram_size,
     env->vbr = 0;
     /* TODO: Configure BARs.  */
 
-    /* DRAM at 0x20000000 */
+    /* DRAM at 0x40000000 */
     cpu_register_physical_memory(0x40000000, ram_size,
         qemu_ram_alloc(ram_size) | IO_MEM_RAM);
 
@@ -278,8 +278,9 @@ static void mcf5208evb_init(ram_addr_t ram_size, int vga_ram_size,
         kernel_size = load_uimage(kernel_filename, &entry, NULL, NULL);
     }
     if (kernel_size < 0) {
-        kernel_size = load_image(kernel_filename, phys_ram_base);
-        entry = 0x20000000;
+        kernel_size = load_image_targphys(kernel_filename, 0x40000000,
+                                          ram_size);
+        entry = 0x40000000;
     }
     if (kernel_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);

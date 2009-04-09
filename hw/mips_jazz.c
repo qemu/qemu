@@ -129,7 +129,6 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
                      enum jazz_model_e jazz_model)
 {
     char buf[1024];
-    unsigned long bios_offset;
     int bios_size, n;
     CPUState *env;
     qemu_irq *rc4030, *i8259;
@@ -141,6 +140,9 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     PITState *pit;
     BlockDriverState *fds[MAX_FD];
     qemu_irq esp_reset;
+    ram_addr_t ram_offset;
+    ram_addr_t bios_offset;
+    ram_addr_t vga_ram_offset;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -159,24 +161,26 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    ram_offset = qemu_ram_alloc(ram_size);
+    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
+
+    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
+    bios_offset = qemu_ram_alloc(MAGNUM_BIOS_SIZE);
+    cpu_register_physical_memory(0x1fc00000LL,
+                                 MAGNUM_BIOS_SIZE, bios_offset | IO_MEM_ROM);
+    cpu_register_physical_memory(0xfff00000LL,
+                                 MAGNUM_BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
     /* load the BIOS image. */
-    bios_offset = ram_size + vga_ram_size;
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-    bios_size = load_image(buf, phys_ram_base + bios_offset);
+    bios_size = load_image_targphys(buf, 0xfff00000LL, MAGNUM_BIOS_SIZE);
     if (bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) {
         fprintf(stderr, "qemu: Could not load MIPS bios '%s'\n",
                 buf);
         exit(1);
     }
-
-    cpu_register_physical_memory(0x1fc00000LL,
-                                 MAGNUM_BIOS_SIZE, bios_offset | IO_MEM_ROM);
-    cpu_register_physical_memory(0xfff00000LL,
-                                 MAGNUM_BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
     /* Init CPU internal devices */
     cpu_mips_irq_init_cpu(env);
@@ -201,11 +205,11 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        g364fb_mm_init(phys_ram_base + ram_size, ram_size, vga_ram_size,
+        g364fb_mm_init(phys_ram_base + vga_ram_offset, ram_size, vga_ram_size,
                         0x40000000, 0x60000000, 0, rc4030[3]);
         break;
     case JAZZ_PICA61:
-        isa_vga_mm_init(phys_ram_base + ram_size, ram_size, vga_ram_size,
+        isa_vga_mm_init(phys_ram_base + vga_ram_offset, ram_size, vga_ram_size,
                         0x40000000, 0x60000000, 0);
         break;
     default:
