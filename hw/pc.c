@@ -446,7 +446,7 @@ static void bochs_bios_init(void)
 
 /* Generate an initial boot sector which sets state and jump to
    a specified vector */
-static void generate_bootsect(uint8_t *option_rom,
+static void generate_bootsect(target_phys_addr_t option_rom,
                               uint32_t gpr[8], uint16_t segs[6], uint16_t ip)
 {
     uint8_t rom[512], *p, *reloc;
@@ -520,7 +520,7 @@ static void generate_bootsect(uint8_t *option_rom,
         sum += rom[i];
     rom[sizeof(rom) - 1] = -sum;
 
-    memcpy(option_rom, rom, sizeof(rom));
+    cpu_physical_memory_write_rom(option_rom, rom, sizeof(rom));
 }
 
 static long get_file_size(FILE *f)
@@ -537,7 +537,7 @@ static long get_file_size(FILE *f)
     return size;
 }
 
-static void load_linux(uint8_t *option_rom,
+static void load_linux(target_phys_addr_t option_rom,
                        const char *kernel_filename,
 		       const char *initrd_filename,
 		       const char *kernel_cmdline)
@@ -909,7 +909,7 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
         oprom_area_size = 0x8000;
 
     if (linux_boot) {
-        load_linux(phys_ram_base + option_rom_offset + oprom_area_size,
+        load_linux(0xc0000 + oprom_area_size,
                    kernel_filename, initrd_filename, kernel_cmdline);
         oprom_area_size += 2048;
     }
