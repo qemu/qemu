@@ -29,6 +29,7 @@ static void realview_init(ram_addr_t ram_size, int vga_ram_size,
                      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
+    ram_addr_t ram_offset;
     qemu_irq *pic;
     void *scsi_hba;
     PCIBus *pci_bus;
@@ -64,9 +65,10 @@ static void realview_init(ram_addr_t ram_size, int vga_ram_size,
         }
     }
 
+    ram_offset = qemu_ram_alloc(ram_size);
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
-    cpu_register_physical_memory(0, ram_size, IO_MEM_RAM);
+    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
     arm_sysctl_init(0x10000000, 0xc1400400);
 
@@ -182,18 +184,19 @@ static void realview_init(ram_addr_t ram_size, int vga_ram_size,
     /* 0x68000000 PCI mem 1.  */
     /* 0x6c000000 PCI mem 2.  */
 
+    /* ??? Hack to map an additional page of ram for the secondary CPU
+       startup code.  I guess this works on real hardware because the
+       BootROM happens to be in ROM/flash or in memory that isn't clobbered
+       until after Linux boots the secondary CPUs.  */
+    ram_offset = qemu_ram_alloc(0x1000);
+    cpu_register_physical_memory(0x80000000, 0x1000, ram_offset | IO_MEM_RAM);
+
     realview_binfo.ram_size = ram_size;
     realview_binfo.kernel_filename = kernel_filename;
     realview_binfo.kernel_cmdline = kernel_cmdline;
     realview_binfo.initrd_filename = initrd_filename;
     realview_binfo.nb_cpus = ncpu;
     arm_load_kernel(first_cpu, &realview_binfo);
-
-    /* ??? Hack to map an additional page of ram for the secondary CPU
-       startup code.  I guess this works on real hardware because the
-       BootROM happens to be in ROM/flash or in memory that isn't clobbered
-       until after Linux boots the secondary CPUs.  */
-    cpu_register_physical_memory(0x80000000, 0x1000, IO_MEM_RAM + ram_size);
 }
 
 QEMUMachine realview_machine = {
