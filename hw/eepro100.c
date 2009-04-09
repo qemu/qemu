@@ -642,6 +642,8 @@ static void nic_reset(void *opaque)
     if (!first) {
         first = 1;
     }
+    /* TODO: Clearing of multicast table for selective reset, too? */
+    memset(&s->mult[0], 0, sizeof(s->mult));
     nic_selective_reset(s);
 }
 
