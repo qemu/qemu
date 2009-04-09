@@ -964,11 +964,11 @@ static void pcnet_rdte_poll(PCNetState *s)
             (BCR_SWSTYLE(s) ? 16 : 8 );
 #endif
 
-        CHECK_RMD(PHYSADDR(s,crda), bad);
+        CHECK_RMD(crda, bad);
         if (!bad) {
-            CHECK_RMD(PHYSADDR(s,nrda), bad);
+            CHECK_RMD(nrda, bad);
             if (bad || (nrda == crda)) nrda = 0;
-            CHECK_RMD(PHYSADDR(s,nnrd), bad);
+            CHECK_RMD(nnrd, bad);
             if (bad || (nnrd == crda)) nnrd = 0;
 
             s->csr[28] = crda & 0xffff;
@@ -980,11 +980,11 @@ static void pcnet_rdte_poll(PCNetState *s)
 #ifdef PCNET_DEBUG
             if (bad) {
                 printf("pcnet: BAD RMD RECORDS AFTER 0x" TARGET_FMT_plx "\n",
-                       PHYSADDR(s,crda));
+                       crda);
             }
         } else {
             printf("pcnet: BAD RMD RDA=0x" TARGET_FMT_plx "\n",
-                   PHYSADDR(s,crda));
+                   crda);
 #endif
         }
     }
@@ -1023,7 +1023,7 @@ static int pcnet_tdte_poll(PCNetState *s)
             (CSR_XMTRL(s) - CSR_XMTRC(s)) *
             (BCR_SWSTYLE(s) ? 16 : 8);
         int bad = 0;
-        CHECK_TMD(PHYSADDR(s, cxda),bad);
+        CHECK_TMD(cxda, bad);
         if (!bad) {
             if (CSR_CXDA(s) != cxda) {
                 s->csr[60] = s->csr[34];
@@ -1034,7 +1034,7 @@ static int pcnet_tdte_poll(PCNetState *s)
             s->csr[34] = cxda & 0xffff;
             s->csr[35] = cxda >> 16;
 #ifdef PCNET_DEBUG_X
-            printf("pcnet: BAD TMD XDA=0x%08x\n", PHYSADDR(s,cxda));
+            printf("pcnet: BAD TMD XDA=0x%08x\n", cxda);
 #endif
         }
     }
@@ -1107,7 +1107,7 @@ static void pcnet_receive(void *opaque, const uint8_t *buf, int size)
                 nrda = s->rdra +
                     (CSR_RCVRL(s) - rcvrc) *
                     (BCR_SWSTYLE(s) ? 16 : 8 );
-                RMDLOAD(&rmd, PHYSADDR(s,nrda));
+                RMDLOAD(&rmd, nrda);
                 if (GET_FIELD(rmd.status, RMDS, OWN)) {
 #ifdef PCNET_DEBUG_RMD
                     printf("pcnet - scan buffer: RCVRC=%d PREV_RCVRC=%d\n",
@@ -1319,12 +1319,12 @@ static void pcnet_transmit(PCNetState *s)
     } else
     if (s->xmit_pos >= 0) {
         struct pcnet_TMD tmd;
-        TMDLOAD(&tmd, PHYSADDR(s,xmit_cxda));
+        TMDLOAD(&tmd, xmit_cxda);
         SET_FIELD(&tmd.misc, TMDM, BUFF, 1);
         SET_FIELD(&tmd.misc, TMDM, UFLO, 1);
         SET_FIELD(&tmd.status, TMDS, ERR, 1);
         SET_FIELD(&tmd.status, TMDS, OWN, 0);
-        TMDSTORE(&tmd, PHYSADDR(s,xmit_cxda));
+        TMDSTORE(&tmd, xmit_cxda);
         s->csr[0] |= 0x0200;    /* set TINT */
         if (!CSR_DXSUFLO(s)) {
             s->csr[0] &= ~0x0010;
