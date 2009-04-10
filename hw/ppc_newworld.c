@@ -97,7 +97,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     qemu_irq *pic, **openpic_irqs;
     int unin_memory;
     int linux_boot, i;
-    ram_addr_t ram_offset, vga_ram_offset, bios_offset, vga_bios_offset;
+    ram_addr_t ram_offset, bios_offset, vga_bios_offset;
     uint32_t kernel_base, kernel_size, initrd_base, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
@@ -135,9 +135,6 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     /* allocate RAM */
     ram_offset = qemu_ram_alloc(ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);
-
-    /* allocate VGA RAM */
-    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
 
     /* allocate and load BIOS */
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
@@ -288,8 +285,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     pic = openpic_init(NULL, &pic_mem_index, smp_cpus, openpic_irqs, NULL);
     pci_bus = pci_pmac_init(pic);
     /* init basic PC hardware */
-    pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
-                 vga_ram_offset, vga_ram_size,
+    pci_vga_init(pci_bus, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
 
     /* XXX: suppress that */

@@ -2266,8 +2266,7 @@ static void vga_map(PCIDevice *pci_dev, int region_num,
     vga_dirty_log_start(s);
 }
 
-void vga_common_init(VGAState *s, uint8_t *vga_ram_base,
-                     ram_addr_t vga_ram_offset, int vga_ram_size)
+void vga_common_init(VGAState *s, int vga_ram_size)
 {
     int i, j, v, b;
 
@@ -2294,8 +2293,8 @@ void vga_common_init(VGAState *s, uint8_t *vga_ram_base,
         expand4to8[i] = v;
     }
 
-    s->vram_ptr = vga_ram_base;
-    s->vram_offset = vga_ram_offset;
+    s->vram_offset = qemu_ram_alloc(vga_ram_size);
+    s->vram_ptr = qemu_get_ram_ptr(s->vram_offset);
     s->vram_size = vga_ram_size;
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
@@ -2445,14 +2444,13 @@ static void vga_mm_init(VGAState *s, target_phys_addr_t vram_base,
     qemu_register_coalesced_mmio(vram_base + 0x000a0000, 0x20000);
 }
 
-int isa_vga_init(uint8_t *vga_ram_base,
-                 unsigned long vga_ram_offset, int vga_ram_size)
+int isa_vga_init(int vga_ram_size)
 {
     VGAState *s;
 
     s = qemu_mallocz(sizeof(VGAState));
 
-    vga_common_init(s, vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_common_init(s, vga_ram_size);
     vga_init(s);
 
     s->ds = graphic_console_init(s->update, s->invalidate,
@@ -2461,21 +2459,19 @@ int isa_vga_init(uint8_t *vga_ram_base,
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                 vga_ram_size, vga_ram_offset);
+                                 vga_ram_size, s->vram_offset);
 #endif
     return 0;
 }
 
-int isa_vga_mm_init(uint8_t *vga_ram_base,
-                    unsigned long vga_ram_offset, int vga_ram_size,
-                    target_phys_addr_t vram_base, target_phys_addr_t ctrl_base,
-                    int it_shift)
+int isa_vga_mm_init(int vga_ram_size, target_phys_addr_t vram_base,
+                    target_phys_addr_t ctrl_base, int it_shift)
 {
     VGAState *s;
 
     s = qemu_mallocz(sizeof(VGAState));
 
-    vga_common_init(s, vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_common_init(s, vga_ram_size);
     vga_mm_init(s, vram_base, ctrl_base, it_shift);
 
     s->ds = graphic_console_init(s->update, s->invalidate,
@@ -2484,7 +2480,7 @@ int isa_vga_mm_init(uint8_t *vga_ram_base,
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
     cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                 vga_ram_size, vga_ram_offset);
+                                 vga_ram_size, s->vram_offset);
 #endif
     return 0;
 }
@@ -2500,8 +2496,7 @@ static void pci_vga_write_config(PCIDevice *d,
     vga_dirty_log_start(s);
 }
 
-int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
-                 unsigned long vga_ram_offset, int vga_ram_size,
+int pci_vga_init(PCIBus *bus, int vga_ram_size,
                  unsigned long vga_bios_offset, int vga_bios_size)
 {
     PCIVGAState *d;
@@ -2515,7 +2510,7 @@ int pci_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
         return -1;
     s = &d->vga_state;
 
-    vga_common_init(s, vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_common_init(s, vga_ram_size);
     vga_init(s);
 
     s->ds = graphic_console_init(s->update, s->invalidate,

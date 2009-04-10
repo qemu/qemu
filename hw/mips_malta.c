@@ -769,7 +769,6 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
 {
     char buf[1024];
     ram_addr_t ram_offset;
-    ram_addr_t vga_ram_offset;
     ram_addr_t bios_offset;
     target_long bios_size;
     int64_t kernel_entry;
@@ -812,7 +811,6 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
     ram_offset = qemu_ram_alloc(ram_size);
-    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
 
 
@@ -949,14 +947,11 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* Optional PCI video card */
     if (cirrus_vga_enabled) {
-        pci_cirrus_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
-                            ram_size, vga_ram_size);
+        pci_cirrus_vga_init(pci_bus, vga_ram_size);
     } else if (vmsvga_enabled) {
-        pci_vmsvga_init(pci_bus, phys_ram_base + vga_ram_offset,
-                        ram_size, vga_ram_size);
+        pci_vmsvga_init(pci_bus, vga_ram_size);
     } else if (std_vga_enabled) {
-        pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
-                     ram_size, vga_ram_size, 0, 0);
+        pci_vga_init(pci_bus, vga_ram_size, 0, 0);
     }
 }
 

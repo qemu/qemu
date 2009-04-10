@@ -3289,15 +3289,13 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
  *
  ***************************************/
 
-void isa_cirrus_vga_init(uint8_t *vga_ram_base,
-                         ram_addr_t vga_ram_offset, int vga_ram_size)
+void isa_cirrus_vga_init(int vga_ram_size)
 {
     CirrusVGAState *s;
 
     s = qemu_mallocz(sizeof(CirrusVGAState));
 
-    vga_common_init((VGAState *)s,
-                    vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_common_init((VGAState *)s, vga_ram_size);
     cirrus_init_common(s, CIRRUS_ID_CLGD5430, 0);
     s->ds = graphic_console_init(s->update, s->invalidate,
                                  s->screen_dump, s->text_update, s);
@@ -3358,8 +3356,7 @@ static void pci_cirrus_write_config(PCIDevice *d,
     vga_dirty_log_start((VGAState *)s);
 }
 
-void pci_cirrus_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
-                         ram_addr_t vga_ram_offset, int vga_ram_size)
+void pci_cirrus_vga_init(PCIBus *bus, int vga_ram_size)
 {
     PCICirrusVGAState *d;
     uint8_t *pci_conf;
@@ -3381,8 +3378,7 @@ void pci_cirrus_vga_init(PCIBus *bus, uint8_t *vga_ram_base,
 
     /* setup VGA */
     s = &d->cirrus_vga;
-    vga_common_init((VGAState *)s,
-                    vga_ram_base, vga_ram_offset, vga_ram_size);
+    vga_common_init((VGAState *)s, vga_ram_size);
     cirrus_init_common(s, device_id, 1);
 
     s->ds = graphic_console_init(s->update, s->invalidate,

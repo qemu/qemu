@@ -142,7 +142,6 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     qemu_irq esp_reset;
     ram_addr_t ram_offset;
     ram_addr_t bios_offset;
-    ram_addr_t vga_ram_offset;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -164,7 +163,6 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     ram_offset = qemu_ram_alloc(ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
-    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
     bios_offset = qemu_ram_alloc(MAGNUM_BIOS_SIZE);
     cpu_register_physical_memory(0x1fc00000LL,
                                  MAGNUM_BIOS_SIZE, bios_offset | IO_MEM_ROM);
@@ -205,12 +203,10 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        g364fb_mm_init(phys_ram_base + vga_ram_offset, ram_size, vga_ram_size,
-                        0x40000000, 0x60000000, 0, rc4030[3]);
+        g364fb_mm_init(vga_ram_size, 0x40000000, 0x60000000, 0, rc4030[3]);
         break;
     case JAZZ_PICA61:
-        isa_vga_mm_init(phys_ram_base + vga_ram_offset, ram_size, vga_ram_size,
-                        0x40000000, 0x60000000, 0);
+        isa_vga_mm_init(vga_ram_size, 0x40000000, 0x60000000, 0);
         break;
     default:
         break;

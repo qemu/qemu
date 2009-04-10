@@ -155,7 +155,6 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
 {
     char buf[1024];
     ram_addr_t ram_offset;
-    ram_addr_t vga_ram_offset;
     ram_addr_t bios_offset;
     int bios_size;
     CPUState *env;
@@ -188,7 +187,6 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
     ram_offset = qemu_ram_alloc(ram_size);
-    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
 
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
@@ -257,8 +255,7 @@ void mips_r4k_init (ram_addr_t ram_size, int vga_ram_size,
         }
     }
 
-    isa_vga_init(phys_ram_base + vga_ram_offset, ram_size,
-                 vga_ram_size);
+    isa_vga_init(vga_ram_size);
 
     if (nd_table[0].vlan)
         isa_ne2000_init(0x300, i8259[9], &nd_table[0]);
