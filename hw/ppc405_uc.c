@@ -51,38 +51,38 @@ ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
         bdloc = 0x01000000UL - sizeof(struct ppc4xx_bd_info_t);
     else
         bdloc = bd->bi_memsize - sizeof(struct ppc4xx_bd_info_t);
-    stl_raw(phys_ram_base + bdloc + 0x00, bd->bi_memstart);
-    stl_raw(phys_ram_base + bdloc + 0x04, bd->bi_memsize);
-    stl_raw(phys_ram_base + bdloc + 0x08, bd->bi_flashstart);
-    stl_raw(phys_ram_base + bdloc + 0x0C, bd->bi_flashsize);
-    stl_raw(phys_ram_base + bdloc + 0x10, bd->bi_flashoffset);
-    stl_raw(phys_ram_base + bdloc + 0x14, bd->bi_sramstart);
-    stl_raw(phys_ram_base + bdloc + 0x18, bd->bi_sramsize);
-    stl_raw(phys_ram_base + bdloc + 0x1C, bd->bi_bootflags);
-    stl_raw(phys_ram_base + bdloc + 0x20, bd->bi_ipaddr);
+    stl_phys(bdloc + 0x00, bd->bi_memstart);
+    stl_phys(bdloc + 0x04, bd->bi_memsize);
+    stl_phys(bdloc + 0x08, bd->bi_flashstart);
+    stl_phys(bdloc + 0x0C, bd->bi_flashsize);
+    stl_phys(bdloc + 0x10, bd->bi_flashoffset);
+    stl_phys(bdloc + 0x14, bd->bi_sramstart);
+    stl_phys(bdloc + 0x18, bd->bi_sramsize);
+    stl_phys(bdloc + 0x1C, bd->bi_bootflags);
+    stl_phys(bdloc + 0x20, bd->bi_ipaddr);
     for (i = 0; i < 6; i++)
-        stb_raw(phys_ram_base + bdloc + 0x24 + i, bd->bi_enetaddr[i]);
-    stw_raw(phys_ram_base + bdloc + 0x2A, bd->bi_ethspeed);
-    stl_raw(phys_ram_base + bdloc + 0x2C, bd->bi_intfreq);
-    stl_raw(phys_ram_base + bdloc + 0x30, bd->bi_busfreq);
-    stl_raw(phys_ram_base + bdloc + 0x34, bd->bi_baudrate);
+        stb_phys(bdloc + 0x24 + i, bd->bi_enetaddr[i]);
+    stw_phys(bdloc + 0x2A, bd->bi_ethspeed);
+    stl_phys(bdloc + 0x2C, bd->bi_intfreq);
+    stl_phys(bdloc + 0x30, bd->bi_busfreq);
+    stl_phys(bdloc + 0x34, bd->bi_baudrate);
     for (i = 0; i < 4; i++)
-        stb_raw(phys_ram_base + bdloc + 0x38 + i, bd->bi_s_version[i]);
+        stb_phys(bdloc + 0x38 + i, bd->bi_s_version[i]);
     for (i = 0; i < 32; i++)
-        stb_raw(phys_ram_base + bdloc + 0x3C + i, bd->bi_s_version[i]);
-    stl_raw(phys_ram_base + bdloc + 0x5C, bd->bi_plb_busfreq);
-    stl_raw(phys_ram_base + bdloc + 0x60, bd->bi_pci_busfreq);
+        stb_phys(bdloc + 0x3C + i, bd->bi_s_version[i]);
+    stl_phys(bdloc + 0x5C, bd->bi_plb_busfreq);
+    stl_phys(bdloc + 0x60, bd->bi_pci_busfreq);
     for (i = 0; i < 6; i++)
-        stb_raw(phys_ram_base + bdloc + 0x64 + i, bd->bi_pci_enetaddr[i]);
+        stb_phys(bdloc + 0x64 + i, bd->bi_pci_enetaddr[i]);
     n = 0x6A;
     if (flags & 0x00000001) {
         for (i = 0; i < 6; i++)
-            stb_raw(phys_ram_base + bdloc + n++, bd->bi_pci_enetaddr2[i]);
+            stb_phys(bdloc + n++, bd->bi_pci_enetaddr2[i]);
     }
-    stl_raw(phys_ram_base + bdloc + n, bd->bi_opbfreq);
+    stl_phys(bdloc + n, bd->bi_opbfreq);
     n += 4;
     for (i = 0; i < 2; i++) {
-        stl_raw(phys_ram_base + bdloc + n, bd->bi_iic_fast[i]);
+        stl_phys(bdloc + n, bd->bi_iic_fast[i]);
         n += 4;
     }
 
@@ -1021,12 +1021,12 @@ static void ocm_reset (void *opaque)
     ocm->dsacntl = dsacntl;
 }
 
-void ppc405_ocm_init (CPUState *env, unsigned long offset)
+void ppc405_ocm_init (CPUState *env)
 {
     ppc405_ocm_t *ocm;
 
     ocm = qemu_mallocz(sizeof(ppc405_ocm_t));
-    ocm->offset = offset;
+    ocm->offset = qemu_ram_alloc(4096);
     ocm_reset(ocm);
     qemu_register_reset(&ocm_reset, ocm);
     ppc_dcr_register(env, OCM0_ISARC,
@@ -2178,15 +2178,13 @@ static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
 CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
                          target_phys_addr_t ram_sizes[4],
                          uint32_t sysclk, qemu_irq **picp,
-                         ram_addr_t *offsetp, int do_init)
+                         int do_init)
 {
     clk_setup_t clk_setup[PPC405CR_CLK_NB];
     qemu_irq dma_irqs[4];
     CPUState *env;
     ppc4xx_mmio_t *mmio;
     qemu_irq *pic, *irqs;
-    ram_addr_t offset;
-    int i;
 
     memset(clk_setup, 0, sizeof(clk_setup));
     env = ppc4xx_init("405cr", &clk_setup[PPC405CR_CPU_CLK],
@@ -2209,9 +2207,6 @@ CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
     *picp = pic;
     /* SDRAM controller */
     ppc4xx_sdram_init(env, pic[14], 1, ram_bases, ram_sizes, do_init);
-    offset = 0;
-    for (i = 0; i < 4; i++)
-        offset += ram_sizes[i];
     /* External bus controller */
     ppc405_ebc_init(env);
     /* DMA controller */
@@ -2233,7 +2228,6 @@ CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
     ppc405_gpio_init(env, mmio, 0x700);
     /* CPU control */
     ppc405cr_cpc_init(env, clk_setup, sysclk);
-    *offsetp = offset;
 
     return env;
 }
@@ -2529,15 +2523,13 @@ static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
 CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
                          target_phys_addr_t ram_sizes[2],
                          uint32_t sysclk, qemu_irq **picp,
-                         ram_addr_t *offsetp, int do_init)
+                         int do_init)
 {
     clk_setup_t clk_setup[PPC405EP_CLK_NB], tlb_clk_setup;
     qemu_irq dma_irqs[4], gpt_irqs[5], mal_irqs[4];
     CPUState *env;
     ppc4xx_mmio_t *mmio;
     qemu_irq *pic, *irqs;
-    ram_addr_t offset;
-    int i;
 
     memset(clk_setup, 0, sizeof(clk_setup));
     /* init CPUs */
@@ -2565,9 +2557,6 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
     /* SDRAM controller */
 	/* XXX 405EP has no ECC interrupt */
     ppc4xx_sdram_init(env, pic[17], 2, ram_bases, ram_sizes, do_init);
-    offset = 0;
-    for (i = 0; i < 2; i++)
-        offset += ram_sizes[i];
     /* External bus controller */
     ppc405_ebc_init(env);
     /* DMA controller */
@@ -2588,8 +2577,7 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
         ppc405_serial_init(env, mmio, 0x400, pic[1], serial_hds[1]);
     }
     /* OCM */
-    ppc405_ocm_init(env, ram_sizes[0] + ram_sizes[1]);
-    offset += 4096;
+    ppc405_ocm_init(env);
     /* GPT */
     gpt_irqs[0] = pic[19];
     gpt_irqs[1] = pic[20];
@@ -2609,7 +2597,6 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
     /* Uses pic[9], pic[15], pic[17] */
     /* CPU control */
     ppc405ep_cpc_init(env, clk_setup, sysclk);
-    *offsetp = offset;
 
     return env;
 }

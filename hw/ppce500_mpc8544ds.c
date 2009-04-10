@@ -71,7 +71,7 @@ out:
 }
 #endif
 
-static void *mpc8544_load_device_tree(void *addr,
+static void *mpc8544_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
                                      target_phys_addr_t initrd_size,
@@ -81,6 +81,7 @@ static void *mpc8544_load_device_tree(void *addr,
 #ifdef HAVE_FDT
     uint32_t mem_reg_property[] = {0, ramsize};
     char *path;
+    int fdt_size;
     int pathlen;
     int ret;
 
@@ -89,7 +90,7 @@ static void *mpc8544_load_device_tree(void *addr,
 
     snprintf(path, pathlen, "%s/%s", bios_dir, BINARY_DEVICE_TREE_FILE);
 
-    fdt = load_device_tree(path, addr);
+    fdt = load_device_tree(path, &fdt_size);
     qemu_free(path);
     if (fdt == NULL)
         goto out;
@@ -141,6 +142,8 @@ static void *mpc8544_load_device_tree(void *addr,
         mpc8544_copy_soc_cell(fdt, buf, "clock-frequency");
         mpc8544_copy_soc_cell(fdt, buf, "timebase-frequency");
     }
+
+    cpu_physical_memory_write (addr, (void *)fdt, fdt_size);
 
 out:
 #endif
@@ -259,7 +262,7 @@ static void mpc8544ds_init(ram_addr_t ram_size, int vga_ram_size,
 
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
-        fdt = mpc8544_load_device_tree(phys_ram_base + dt_base, ram_size,
+        fdt = mpc8544_load_device_tree(dt_base, ram_size,
                                       initrd_base, initrd_size, kernel_cmdline);
         if (fdt == NULL) {
             fprintf(stderr, "couldn't load device tree\n");

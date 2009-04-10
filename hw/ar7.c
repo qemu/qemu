@@ -3786,8 +3786,8 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
 
     ram_offset = qemu_ram_alloc(machine_ram_size);
     cpu_register_physical_memory_offset(KERNEL_LOAD_ADDR, machine_ram_size, ram_offset | IO_MEM_RAM, KERNEL_LOAD_ADDR);
-    fprintf(stderr, "%s: ram_base = %p, ram_size = 0x%08x\n",
-        __func__, phys_ram_base, (unsigned)machine_ram_size);
+    fprintf(stderr, "%s: ram_size = 0x%08x\n",
+        __func__, (unsigned)machine_ram_size);
 
     /* load_kernel would fail when ram_offset != 0. */
     assert(ram_offset == 0);

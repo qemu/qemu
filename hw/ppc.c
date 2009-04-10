@@ -1257,7 +1257,7 @@ int PPC_NVRAM_set_params (nvram_t *nvram, uint16_t NVRAM_size,
     NVRAM_set_lword(nvram,  0x3C, kernel_size);
     if (cmdline) {
         /* XXX: put the cmdline in NVRAM too ? */
-        strcpy((char *)(phys_ram_base + CMDLINE_ADDR), cmdline);
+        pstrcpy_targphys(CMDLINE_ADDR, RAM_size - CMDLINE_ADDR, cmdline);
         NVRAM_set_lword(nvram,  0x40, CMDLINE_ADDR);
         NVRAM_set_lword(nvram,  0x44, strlen(cmdline));
     } else {

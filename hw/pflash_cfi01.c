@@ -566,7 +566,8 @@ pflash_t *pflash_cfi01_register (target_phys_addr_t base, ram_addr_t off,
         total_len != (32 * MiB) && total_len != (64 * MiB))
         return NULL;
     pfl = qemu_mallocz(sizeof(pflash_t));
-    pfl->storage = phys_ram_base + off;
+    /* FIXME: Allocate ram ourselves.  */
+    pfl->storage = qemu_get_ram_ptr(off);
     pfl->fl_mem = cpu_register_io_memory(0, pflash_read_ops, pflash_write_ops, pfl);
     pfl->off = off;
     pfl->base = base;

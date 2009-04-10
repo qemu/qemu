@@ -582,25 +582,6 @@ static CPUWriteMemoryFunc *omap_disc1_writefn[] = {
     omap_disc_write,
 };
 
-static void *omap_rfbi_get_buffer(struct omap_dss_s *s)
-{
-    target_phys_addr_t fb;
-    uint32_t pd;
-
-    /* TODO */
-    fb = s->dispc.l[0].addr[0];
-
-    pd = cpu_get_physical_page_desc(fb);
-    if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM)
-        /* TODO */
-        cpu_abort(cpu_single_env, "%s: framebuffer outside RAM!\n",
-                        __FUNCTION__);
-    else
-        return phys_ram_base +
-                (pd & TARGET_PAGE_MASK) +
-                (fb & ~TARGET_PAGE_MASK);
-}
-
 static void omap_rfbi_transfer_stop(struct omap_dss_s *s)
 {
     if (!s->rfbi.busy)
@@ -614,8 +595,11 @@ static void omap_rfbi_transfer_stop(struct omap_dss_s *s)
 static void omap_rfbi_transfer_start(struct omap_dss_s *s)
 {
     void *data;
-    size_t len;
+    target_phys_addr_t len;
+    target_phys_addr_t data_addr;
     int pitch;
+    static void *bounce_buffer;
+    static target_phys_addr_t bounce_len;
 
     if (!s->rfbi.enable || s->rfbi.busy)
         return;
@@ -633,10 +617,24 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
 
     s->rfbi.busy = 1;
 
-    data = omap_rfbi_get_buffer(s);
+    len = s->rfbi.pixels * 2;
+
+    data_addr = s->dispc.l[0].addr[0];
+    data = cpu_physical_memory_map(data_addr, &len, 0);
+    if (data && len != s->rfbi.pixels * 2) {
+        cpu_physical_memory_unmap(data, len, 0, 0);
+        data = NULL;
+        len = s->rfbi.pixels * 2;
+    }
+    if (!data) {
+        if (len > bounce_len) {
+            bounce_buffer = qemu_realloc(bounce_buffer, len);
+        }
+        data = bounce_buffer;
+        cpu_physical_memory_read(data_addr, data, len);
+    }
 
     /* TODO bpp */
-    len = s->rfbi.pixels * 2;
     s->rfbi.pixels = 0;
 
     /* TODO: negative values */
@@ -646,6 +644,10 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
         s->rfbi.chip[0]->block(s->rfbi.chip[0]->opaque, 1, data, len, pitch);
     if ((s->rfbi.control & (1 << 3)) && s->rfbi.chip[1])
         s->rfbi.chip[1]->block(s->rfbi.chip[1]->opaque, 1, data, len, pitch);
+
+    if (data != bounce_buffer) {
+        cpu_physical_memory_unmap(data, len, 0, len);
+    }
 
     omap_rfbi_transfer_stop(s);
 

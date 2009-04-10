@@ -94,7 +94,9 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             if ((addr & ~TARGET_PAGE_MASK) != IO_MEM_RAM)
                 continue;
 
-            balloon_page(phys_ram_base + addr, !!(vq == s->dvq));
+            /* Using qemu_get_ram_ptr is bending the rules a bit, but
+               should be OK because we only want a single page.  */
+            balloon_page(qemu_get_ram_ptr(addr), !!(vq == s->dvq));
         }
 
         virtqueue_push(vq, &elem, offset);
