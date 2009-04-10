@@ -5860,11 +5860,10 @@ static inline void gen_movcf_ps (int fs, int fd, int cc, int tf)
 
     tcg_gen_andi_i32(t0, fpu_fcr31, get_fp_bit(cc+1));
     tcg_gen_brcondi_i32(cond, t0, 0, l2);
-    tcg_temp_free_i32(t0);
     gen_load_fpr32h(t0, fs);
     gen_store_fpr32h(t0, fd);
+    tcg_temp_free_i32(t0);
     gen_set_label(l2);
-
 }
 
 
