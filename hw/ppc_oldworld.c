@@ -125,7 +125,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     char buf[1024];
     qemu_irq *pic, **heathrow_irqs;
     int linux_boot, i;
-    ram_addr_t ram_offset, vga_ram_offset, bios_offset, vga_bios_offset;
+    ram_addr_t ram_offset, bios_offset, vga_bios_offset;
     uint32_t kernel_base, initrd_base;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
@@ -138,6 +138,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     int index;
     void *fw_cfg;
     void *dbdma;
+    uint8_t *vga_bios_ptr;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -168,9 +169,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     ram_offset = qemu_ram_alloc(ram_size);
     cpu_register_physical_memory(0, ram_size, ram_offset);
 
-    /* allocate VGA RAM */
-    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
-
     /* allocate and load BIOS */
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
     if (bios_name == NULL)
@@ -187,8 +185,9 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* allocate and load VGA BIOS */
     vga_bios_offset = qemu_ram_alloc(VGA_BIOS_SIZE);
+    vga_bios_ptr = qemu_get_ram_ptr(vga_bios_offset);
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
-    vga_bios_size = load_image(buf, phys_ram_base + vga_bios_offset + 8);
+    vga_bios_size = load_image(buf, vga_bios_ptr + 8);
     if (vga_bios_size < 0) {
         /* if no bios is present, we can still work */
         fprintf(stderr, "qemu: warning: could not load VGA bios '%s'\n", buf);
@@ -196,12 +195,11 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     } else {
         /* set a specific header (XXX: find real Apple format for NDRV
            drivers) */
-        phys_ram_base[vga_bios_offset] = 'N';
-        phys_ram_base[vga_bios_offset + 1] = 'D';
-        phys_ram_base[vga_bios_offset + 2] = 'R';
-        phys_ram_base[vga_bios_offset + 3] = 'V';
-        cpu_to_be32w((uint32_t *)(phys_ram_base + vga_bios_offset + 4),
-                     vga_bios_size);
+        vga_bios_ptr[0] = 'N';
+        vga_bios_ptr[1] = 'D';
+        vga_bios_ptr[2] = 'R';
+        vga_bios_ptr[3] = 'V';
+        cpu_to_be32w((uint32_t *)(vga_bios_ptr + 4), vga_bios_size);
         vga_bios_size += 8;
     }
 
@@ -302,8 +300,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     }
     pic = heathrow_pic_init(&pic_mem_index, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic);
-    pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
-                 vga_ram_offset, vga_ram_size,
+    pci_vga_init(pci_bus, vga_ram_size,
                  vga_bios_offset, vga_bios_size);
 
     escc_mem_index = escc_init(0x80013000, pic[0x0f], pic[0x10], serial_hds[0],

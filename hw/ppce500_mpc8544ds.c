@@ -182,7 +182,7 @@ static void mpc8544ds_init(ram_addr_t ram_size, int vga_ram_size,
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
 
     /* Register Memory */
-    cpu_register_physical_memory(0, ram_size, 0);
+    cpu_register_physical_memory(0, ram_size, qemu_ram_alloc(ram_size));
 
     /* MPIC */
     irqs = qemu_mallocz(sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
@@ -247,7 +247,8 @@ static void mpc8544ds_init(ram_addr_t ram_size, int vga_ram_size,
 
     /* Load initrd. */
     if (initrd_filename) {
-        initrd_size = load_image(initrd_filename, phys_ram_base + initrd_base);
+        initrd_size = load_image_targphys(initrd_filename, initrd_base,
+                                          ram_size - initrd_base);
 
         if (initrd_size < 0) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",

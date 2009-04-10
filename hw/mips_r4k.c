@@ -84,6 +84,7 @@ static void load_kernel (CPUState *env)
     int64_t entry, kernel_low, kernel_high;
     long kernel_size, initrd_size;
     ram_addr_t initrd_offset;
+    int ret;
 
     kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
                            (uint64_t *)&entry, (uint64_t *)&kernel_low,
@@ -127,21 +128,19 @@ static void load_kernel (CPUState *env)
 
     /* Store command line.  */
     if (initrd_size > 0) {
-        int ret;
-        ret = sprintf((char *)(phys_ram_base + (16 << 20) - 256),
-                      "rd_start=0x" TARGET_FMT_lx " rd_size=%li ",
-                      PHYS_TO_VIRT((uint32_t)initrd_offset),
-                      initrd_size);
-        strcpy ((char *)(phys_ram_base + (16 << 20) - 256 + ret),
-                loaderparams.kernel_cmdline);
+        char buf[64];
+        ret = snprintf(buf, 64, "rd_start=0x" TARGET_FMT_lx " rd_size=%li ",
+                       PHYS_TO_VIRT((uint32_t)initrd_offset),
+                       initrd_size);
+        cpu_physical_memory_write((16 << 20) - 256, (void *)buf, 64);
+    } else {
+        ret = 0;
     }
-    else {
-        strcpy ((char *)(phys_ram_base + (16 << 20) - 256),
-                loaderparams.kernel_cmdline);
-    }
+    pstrcpy_targphys((16 << 20) - 256 + ret, 256,
+                     loaderparams.kernel_cmdline);
 
-    *(int32_t *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
-    *(int32_t *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+    stl_phys((16 << 20) - 260, 0x12345678);
+    stl_phys((16 << 20) - 264, ram_size);
 }
 
 static void main_cpu_reset(void *opaque)
@@ -161,7 +160,6 @@ static void mips_init(ram_addr_t ram_size, int vga_ram_size,
 {
     char buf[1024];
     ram_addr_t ram_offset;
-    ram_addr_t vga_ram_offset;
     ram_addr_t bios_offset;
     int bios_size;
     CPUState *env;
@@ -198,7 +196,6 @@ static void mips_init(ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
     ram_offset = qemu_ram_alloc(ram_size);
-    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
 
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
@@ -267,8 +264,7 @@ static void mips_init(ram_addr_t ram_size, int vga_ram_size,
         }
     }
 
-    isa_vga_init(phys_ram_base + vga_ram_offset, ram_size,
-                 vga_ram_size);
+    isa_vga_init(vga_ram_size);
 
     if (nd_table[0].vlan)
         isa_ne2000_init(0x300, i8259[9], &nd_table[0]);

@@ -382,7 +382,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *esp_reset, *le_reset;
     qemu_irq *fdc_tc;
     qemu_irq *cpu_halt;
-    ram_addr_t ram_offset, prom_offset, tcx_offset, idreg_offset;
+    ram_addr_t ram_offset, prom_offset, idreg_offset;
     unsigned long kernel_size;
     int ret;
     char buf[1024];
@@ -478,9 +478,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_offset = qemu_ram_alloc(hwdef->vram_size);
-    tcx_init(hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
-             hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
+    tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
+             graphic_depth);
 
     lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
 
@@ -1183,7 +1182,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_irqs[MAX_CPUS], *sbi_irq, *sbi_cpu_irq,
         *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
-    ram_addr_t ram_offset, prom_offset, tcx_offset;
+    ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
     int ret;
     char buf[1024];
@@ -1264,9 +1263,8 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_offset = qemu_ram_alloc(hwdef->vram_size);
-    tcx_init(hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
-             hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
+    tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
+             graphic_depth);
 
     lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
 
@@ -1409,7 +1407,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
     qemu_irq *cpu_irqs, *slavio_irq, *espdma_irq, *ledma_irq;
     qemu_irq *esp_reset, *le_reset;
     qemu_irq *fdc_tc;
-    ram_addr_t ram_offset, prom_offset, tcx_offset;
+    ram_addr_t ram_offset, prom_offset;
     unsigned long kernel_size;
     int ret;
     char buf[1024];
@@ -1481,9 +1479,8 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
         fprintf(stderr, "qemu: Unsupported depth: %d\n", graphic_depth);
         exit (1);
     }
-    tcx_offset = qemu_ram_alloc(hwdef->vram_size);
-    tcx_init(hwdef->tcx_base, phys_ram_base + tcx_offset, tcx_offset,
-             hwdef->vram_size, graphic_width, graphic_height, graphic_depth);
+    tcx_init(hwdef->tcx_base, hwdef->vram_size, graphic_width, graphic_height,
+             graphic_depth);
 
     lance_init(&nd_table[0], hwdef->le_base, ledma, *ledma_irq, le_reset);
 

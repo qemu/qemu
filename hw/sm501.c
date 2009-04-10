@@ -455,6 +455,7 @@ typedef struct SM501State {
     target_phys_addr_t base;
     uint32_t local_mem_size_index;
     uint8_t * local_mem;
+    ram_addr_t local_mem_offset;
     uint32_t last_width;
     uint32_t last_height;
 
@@ -972,6 +973,7 @@ static void sm501_draw_crt(SM501State * s)
     int y_start = -1;
     int page_min = 0x7fffffff;
     int page_max = -1;
+    ram_addr_t offset = s->local_mem_offset;
 
     /* choose draw_line function */
     switch (s->dc_crt_control & 3) {
@@ -1005,10 +1007,9 @@ static void sm501_draw_crt(SM501State * s)
     /* draw each line according to conditions */
     for (y = 0; y < height; y++) {
 	int update = full_update;
-	uint8_t * line_end = &src[width * src_bpp - 1];
-	int page0 = (src - phys_ram_base) & TARGET_PAGE_MASK;
-	int page1 = (line_end - phys_ram_base) & TARGET_PAGE_MASK;
-	int page;
+	ram_addr_t page0 = offset & TARGET_PAGE_MASK;
+	ram_addr_t page1 = (offset + width * src_bpp - 1) & TARGET_PAGE_MASK;
+	ram_addr_t page;
 
 	/* check dirty flags for each line */
 	for (page = page0; page <= page1; page += TARGET_PAGE_SIZE)
@@ -1033,6 +1034,7 @@ static void sm501_draw_crt(SM501State * s)
 	}
 
 	src += width * src_bpp;
+	offset += width * src_bpp;
     }
 
     /* complete flush to display */
@@ -1053,8 +1055,7 @@ static void sm501_update_display(void *opaque)
 	sm501_draw_crt(s);
 }
 
-void sm501_init(uint32_t base, unsigned long local_mem_base,
-		uint32_t local_mem_bytes, CharDriverState *chr)
+void sm501_init(uint32_t base, uint32_t local_mem_bytes, CharDriverState *chr)
 {
     SM501State * s;
     int sm501_system_config_index;
@@ -1073,8 +1074,9 @@ void sm501_init(uint32_t base, unsigned long local_mem_base,
     s->dc_crt_control = 0x00010000;
 
     /* allocate local memory */
-    s->local_mem = (uint8 *)phys_ram_base + local_mem_base;
-    cpu_register_physical_memory(base, local_mem_bytes, local_mem_base);
+    s->local_mem_offset = qemu_ram_alloc(local_mem_bytes);
+    s->local_mem = qemu_get_ram_ptr(s->local_mem_offset);
+    cpu_register_physical_memory(base, local_mem_bytes, s->local_mem_offset);
 
     /* map mmio */
     sm501_system_config_index

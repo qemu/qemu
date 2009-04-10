@@ -541,7 +541,8 @@ static void network_init (PCIBus *pci_bus)
      a3 - RAM size in bytes
 */
 
-static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t kernel_entry)
+static void write_bootloader (CPUState *env, uint8_t *base,
+                              int64_t kernel_entry)
 {
     uint32_t *p;
 
@@ -550,28 +551,28 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
     }
 
     /* Small bootloader */
-    p = (uint32_t *) (phys_ram_base + bios_offset);
+    p = (uint32_t *)base;
     stl_raw(p++, 0x0bf00160);                                      /* j 0x1fc00580 */
     stl_raw(p++, 0x00000000);                                      /* nop */
 
     /* YAMON service vector */
-    stl_raw(phys_ram_base + bios_offset + 0x500, 0xbfc00580);      /* start: */
-    stl_raw(phys_ram_base + bios_offset + 0x504, 0xbfc0083c);      /* print_count: */
-    stl_raw(phys_ram_base + bios_offset + 0x520, 0xbfc00580);      /* start: */
-    stl_raw(phys_ram_base + bios_offset + 0x52c, 0xbfc00800);      /* flush_cache: */
-    stl_raw(phys_ram_base + bios_offset + 0x534, 0xbfc00808);      /* print: */
-    stl_raw(phys_ram_base + bios_offset + 0x538, 0xbfc00800);      /* reg_cpu_isr: */
-    stl_raw(phys_ram_base + bios_offset + 0x53c, 0xbfc00800);      /* unred_cpu_isr: */
-    stl_raw(phys_ram_base + bios_offset + 0x540, 0xbfc00800);      /* reg_ic_isr: */
-    stl_raw(phys_ram_base + bios_offset + 0x544, 0xbfc00800);      /* unred_ic_isr: */
-    stl_raw(phys_ram_base + bios_offset + 0x548, 0xbfc00800);      /* reg_esr: */
-    stl_raw(phys_ram_base + bios_offset + 0x54c, 0xbfc00800);      /* unreg_esr: */
-    stl_raw(phys_ram_base + bios_offset + 0x550, 0xbfc00800);      /* getchar: */
-    stl_raw(phys_ram_base + bios_offset + 0x554, 0xbfc00800);      /* syscon_read: */
+    stl_raw(base + 0x500, 0xbfc00580);      /* start: */
+    stl_raw(base + 0x504, 0xbfc0083c);      /* print_count: */
+    stl_raw(base + 0x520, 0xbfc00580);      /* start: */
+    stl_raw(base + 0x52c, 0xbfc00800);      /* flush_cache: */
+    stl_raw(base + 0x534, 0xbfc00808);      /* print: */
+    stl_raw(base + 0x538, 0xbfc00800);      /* reg_cpu_isr: */
+    stl_raw(base + 0x53c, 0xbfc00800);      /* unred_cpu_isr: */
+    stl_raw(base + 0x540, 0xbfc00800);      /* reg_ic_isr: */
+    stl_raw(base + 0x544, 0xbfc00800);      /* unred_ic_isr: */
+    stl_raw(base + 0x548, 0xbfc00800);      /* reg_esr: */
+    stl_raw(base + 0x54c, 0xbfc00800);      /* unreg_esr: */
+    stl_raw(base + 0x550, 0xbfc00800);      /* getchar: */
+    stl_raw(base + 0x554, 0xbfc00800);      /* syscon_read: */
 
 
     /* Second part of the bootloader */
-    p = (uint32_t *) (phys_ram_base + bios_offset + 0x580);
+    p = (uint32_t *) (base + 0x580);
     stl_raw(p++, 0x24040002);                                      /* addiu a0, zero, 2 */
     stl_raw(p++, 0x3c1d0000 | (((ENVP_ADDR - 64) >> 16) & 0xffff)); /* lui sp, high(ENVP_ADDR) */
     stl_raw(p++, 0x37bd0000 | ((ENVP_ADDR - 64) & 0xffff));        /* ori sp, sp, low(ENVP_ADDR) */
@@ -640,7 +641,7 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
     stl_raw(p++, 0x00000000);                                      /* nop */
 
     /* YAMON subroutines */
-    p = (uint32_t *) (phys_ram_base + bios_offset + 0x800);
+    p = (uint32_t *) (base + 0x800);
     stl_raw(p++, 0x03e00008);                                     /* jr ra */
     stl_raw(p++, 0x24020000);                                     /* li v0,0 */
    /* 808 YAMON print */
@@ -686,30 +687,29 @@ static void write_bootloader (CPUState *env, unsigned long bios_offset, int64_t 
 
 static void prom_set(int index, const char *string, ...)
 {
+    char buf[ENVP_ENTRY_SIZE];
+    target_phys_addr_t p;
     va_list ap;
-    int32_t *p;
     int32_t table_addr;
-    char *s;
 
     if (index >= ENVP_NB_ENTRIES)
         return;
 
-    p = (int32_t *) (phys_ram_base + ENVP_ADDR + VIRT_TO_PHYS_ADDEND);
-    p += index;
+    p = ENVP_ADDR + VIRT_TO_PHYS_ADDEND + index * 4;
 
     if (string == NULL) {
-        stl_raw(p, 0);
+        stl_phys(p, 0);
         return;
     }
 
-    table_addr = ENVP_ADDR + sizeof(int32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
-    s = (char *) (phys_ram_base + VIRT_TO_PHYS_ADDEND + table_addr);
-
+    table_addr = ENVP_ADDR + sizeof(int32_t) * ENVP_NB_ENTRIES
+                 + index * ENVP_ENTRY_SIZE + VIRT_TO_PHYS_ADDEND;
     stl_raw(p, table_addr);
 
     va_start(ap, string);
-    vsnprintf (s, ENVP_ENTRY_SIZE, string, ap);
+    vsnprintf(buf, ENVP_ENTRY_SIZE, string, ap);
     va_end(ap);
+    pstrcpy_targphys(table_addr, ENVP_ENTRY_SIZE, buf);
 }
 
 /* Kernel */
@@ -793,7 +793,6 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
 {
     char buf[1024];
     ram_addr_t ram_offset;
-    ram_addr_t vga_ram_offset;
     ram_addr_t bios_offset;
     target_long bios_size;
     int64_t kernel_entry;
@@ -843,7 +842,6 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
         exit(1);
     }
     ram_offset = qemu_ram_alloc(ram_size);
-    vga_ram_offset = qemu_ram_alloc(vga_ram_size);
     bios_offset = qemu_ram_alloc(BIOS_SIZE);
 
 
@@ -867,7 +865,7 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
         loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel(env);
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
-        write_bootloader(env, bios_offset, kernel_entry);
+        write_bootloader(env, qemu_get_ram_ptr(bios_offset), kernel_entry);
     } else {
         index = drive_get_index(IF_PFLASH, 0, fl_idx);
         if (index != -1) {
@@ -901,12 +899,11 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
            a neat trick which allows bi-endian firmware. */
 #if !defined(TARGET_WORDS_BIGENDIAN) && 0
         {
-            uint32_t *addr;
-            for (addr = (uint32_t *)(phys_ram_base + bios_offset);
-                 addr < (uint32_t *)(phys_ram_base + bios_offset + bios_size);
-                 addr++) {
-                   fprintf(stderr, "0x%08x\n", *addr);
-                *addr = bswap32(*addr);
+            uint32_t *addr = qemu_get_ram_ptr(bios_offset);;
+            uint32_t *end = addr + bios_size;
+            while (addr < end) {
+                fprintf(stderr, "0x%08x\n", *addr);
+                bswap32s(addr);
             }
         }
 #endif
@@ -915,7 +912,7 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
     /* Board ID = 0x420 (Malta Board with CoreLV)
        XXX: theoretically 0x1e000010 should map to flash and 0x1fc00010 should
        map to the board ID. */
-    stl_raw(phys_ram_base + bios_offset + 0x10, 0x00000420);
+    stl_phys(0x1fc00010LL, 0x00000420);
 
     /* Init internal devices */
     cpu_mips_irq_init_cpu(env);
@@ -982,14 +979,11 @@ void mips_malta_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* Optional PCI video card */
     if (cirrus_vga_enabled) {
-        pci_cirrus_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
-                            ram_size, vga_ram_size);
+        pci_cirrus_vga_init(pci_bus, vga_ram_size);
     } else if (vmsvga_enabled) {
-        pci_vmsvga_init(pci_bus, phys_ram_base + vga_ram_offset,
-                        ram_size, vga_ram_size);
+        pci_vmsvga_init(pci_bus, vga_ram_size);
     } else if (std_vga_enabled) {
-        pci_vga_init(pci_bus, phys_ram_base + vga_ram_offset,
-                     ram_size, vga_ram_size, 0, 0);
+        pci_vga_init(pci_bus, vga_ram_size, 0, 0);
     }
 }
 

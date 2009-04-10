@@ -283,12 +283,11 @@ static inline void pxa2xx_dma_rdst_set(struct pxa2xx_lcdc_s *s)
 /* Load new Frame Descriptors from DMA */
 static void pxa2xx_descriptor_load(struct pxa2xx_lcdc_s *s)
 {
-    struct pxa_frame_descriptor_s *desc[PXA_LCDDMA_CHANS];
+    struct pxa_frame_descriptor_s desc;
     target_phys_addr_t descptr;
     int i;
 
     for (i = 0; i < PXA_LCDDMA_CHANS; i ++) {
-        desc[i] = 0;
         s->dma_ch[i].source = 0;
 
         if (!s->dma_ch[i].up)
@@ -303,15 +302,14 @@ static void pxa2xx_descriptor_load(struct pxa2xx_lcdc_s *s)
             descptr = s->dma_ch[i].descriptor;
 
         if (!(descptr >= PXA2XX_SDRAM_BASE && descptr +
-                    sizeof(*desc[i]) <= PXA2XX_SDRAM_BASE + phys_ram_size))
+                    sizeof(desc) <= PXA2XX_SDRAM_BASE + phys_ram_size))
             continue;
 
-        descptr -= PXA2XX_SDRAM_BASE;
-        desc[i] = (struct pxa_frame_descriptor_s *) (phys_ram_base + descptr);
-        s->dma_ch[i].descriptor = desc[i]->fdaddr;
-        s->dma_ch[i].source = desc[i]->fsaddr;
-        s->dma_ch[i].id = desc[i]->fidr;
-        s->dma_ch[i].command = desc[i]->ldcmd;
+        cpu_physical_memory_read(descptr, (void *)&desc, sizeof(desc));
+        s->dma_ch[i].descriptor = tswap32(desc.fdaddr);
+        s->dma_ch[i].source = tswap32(desc.fsaddr);
+        s->dma_ch[i].id = tswap32(desc.fidr);
+        s->dma_ch[i].command = tswap32(desc.ldcmd);
     }
 }
 

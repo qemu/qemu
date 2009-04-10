@@ -104,7 +104,7 @@ static void rtc_timer_update(RTCState *s, int64_t current_time)
     /* disable periodic timer if hpet is in legacy mode, since interrupts are
      * disabled anyway.
      */
-    enable_pie = hpet_in_legacy_mode();
+    enable_pie = !hpet_in_legacy_mode();
 #else
     enable_pie = 1;
 #endif

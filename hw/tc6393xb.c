@@ -123,6 +123,7 @@ struct tc6393xb_s {
 
     DisplayState *ds;
     ram_addr_t vram_addr;
+    uint16_t *vram_ptr;
     uint32_t scr_width, scr_height; /* in pixels */
     qemu_irq l3v;
     unsigned blank : 1,
@@ -593,6 +594,7 @@ struct tc6393xb_s *tc6393xb_init(uint32_t base, qemu_irq irq)
     cpu_register_physical_memory(base, 0x10000, iomemtype);
 
     s->vram_addr = qemu_ram_alloc(0x100000);
+    s->vram_ptr = qemu_get_ram_ptr(s->vram_addr);
     cpu_register_physical_memory(base + 0x100000, 0x100000, s->vram_addr);
     s->scr_width = 480;
     s->scr_height = 640;

@@ -24,8 +24,7 @@ static inline void sparc_iommu_memory_write(void *opaque,
 }
 
 /* tcx.c */
-void tcx_init(target_phys_addr_t addr, uint8_t *vram_base,
-              unsigned long vram_offset, int vram_size, int width, int height,
+void tcx_init(target_phys_addr_t addr, int vram_size, int width, int height,
               int depth);
 
 /* slavio_intctl.c */
