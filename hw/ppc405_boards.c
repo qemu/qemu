@@ -192,7 +192,7 @@ static void ref405ep_init (ram_addr_t ram_size, int vga_ram_size,
     int index;
 
     /* XXX: fix this */
-    ram_bases[0] = 0x00000000;
+    ram_bases[0] = qemu_ram_alloc(0x08000000);
     ram_sizes[0] = 0x08000000;
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
@@ -200,25 +200,26 @@ static void ref405ep_init (ram_addr_t ram_size, int vga_ram_size,
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register cpu\n", __func__);
 #endif
-    env = ppc405ep_init(ram_bases, ram_sizes, 33333333, &pic, &sram_offset,
+    env = ppc405ep_init(ram_bases, ram_sizes, 33333333, &pic,
                         kernel_filename == NULL ? 0 : 1);
     /* allocate SRAM */
+    sram_size = 512 * 1024;
+    sram_offset = qemu_ram_alloc(sram_size);
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register SRAM at offset %08lx\n", __func__, sram_offset);
 #endif
-    sram_size = 512 * 1024;
     cpu_register_physical_memory(0xFFF00000, sram_size,
                                  sram_offset | IO_MEM_RAM);
     /* allocate and load BIOS */
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register BIOS\n", __func__);
 #endif
-    bios_offset = sram_offset + sram_size;
     fl_idx = 0;
 #ifdef USE_FLASH_BIOS
     index = drive_get_index(IF_PFLASH, 0, fl_idx);
     if (index != -1) {
         bios_size = bdrv_getlength(drives_table[index].bdrv);
+        bios_offset = qemu_ram_alloc(bios_size);
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size " ADDRX " at offset %08lx "
@@ -239,7 +240,8 @@ static void ref405ep_init (ram_addr_t ram_size, int vga_ram_size,
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-        bios_size = load_image(buf, phys_ram_base + bios_offset);
+        bios_offset = qemu_ram_alloc(BIOS_SIZE);
+        bios_size = load_image(buf, qemu_get_ram_ptr(bios_offset));
         if (bios_size < 0 || bios_size > BIOS_SIZE) {
             fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n", buf);
             exit(1);
@@ -248,7 +250,6 @@ static void ref405ep_init (ram_addr_t ram_size, int vga_ram_size,
         cpu_register_physical_memory((uint32_t)(-bios_size),
                                      bios_size, bios_offset | IO_MEM_ROM);
     }
-    bios_offset += bios_size;
     /* Register FPGA */
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register FPGA\n", __func__);
@@ -294,23 +295,20 @@ static void ref405ep_init (ram_addr_t ram_size, int vga_ram_size,
         env->gpr[3] = bdloc;
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
-        kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
+        kernel_size = load_image_targphys(kernel_filename, kernel_base,
+                                          ram_size - kernel_base);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
             exit(1);
         }
-        printf("Load kernel size " TARGET_FMT_ld " at " TARGET_FMT_lx
-               " %02x %02x %02x %02x\n", kernel_size, kernel_base,
-               *(char *)(phys_ram_base + kernel_base),
-               *(char *)(phys_ram_base + kernel_base + 1),
-               *(char *)(phys_ram_base + kernel_base + 2),
-               *(char *)(phys_ram_base + kernel_base + 3));
+        printf("Load kernel size " TARGET_FMT_ld " at " TARGET_FMT_lx,
+               kernel_size, kernel_base);
         /* load initrd */
         if (initrd_filename) {
             initrd_base = INITRD_LOAD_ADDR;
-            initrd_size = load_image(initrd_filename,
-                                     phys_ram_base + initrd_base);
+            initrd_size = load_image_targphys(initrd_filename, initrd_base,
+                                              ram_size - initrd_base);
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
@@ -326,7 +324,7 @@ static void ref405ep_init (ram_addr_t ram_size, int vga_ram_size,
         if (kernel_cmdline != NULL) {
             len = strlen(kernel_cmdline);
             bdloc -= ((len + 255) & ~255);
-            memcpy(phys_ram_base + bdloc, kernel_cmdline, len + 1);
+            cpu_physical_memory_write(bdloc, (void *)kernel_cmdline, len + 1);
             env->gpr[6] = bdloc;
             env->gpr[7] = bdloc + len;
         } else {
@@ -344,8 +342,7 @@ static void ref405ep_init (ram_addr_t ram_size, int vga_ram_size,
 #ifdef DEBUG_BOARD_INIT
     printf("%s: Done\n", __func__);
 #endif
-    printf("bdloc %016lx %s\n",
-           (unsigned long)bdloc, (char *)(phys_ram_base + bdloc));
+    printf("bdloc %016lx\n", (unsigned long)bdloc);
 }
 
 QEMUMachine ref405ep_machine = {
@@ -511,14 +508,14 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
     int index;
 
     /* RAM is soldered to the board so the size cannot be changed */
-    ram_bases[0] = 0x00000000;
+    ram_bases[0] = qemu_ram_alloc(0x04000000);
     ram_sizes[0] = 0x04000000;
-    ram_bases[1] = 0x04000000;
+    ram_bases[1] = qemu_ram_alloc(0x04000000);
     ram_sizes[1] = 0x04000000;
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register cpu\n", __func__);
 #endif
-    env = ppc405ep_init(ram_bases, ram_sizes, 33333333, &pic, &bios_offset,
+    env = ppc405ep_init(ram_bases, ram_sizes, 33333333, &pic,
                         kernel_filename == NULL ? 0 : 1);
     /* allocate and load BIOS */
 #ifdef DEBUG_BOARD_INIT
@@ -532,6 +529,7 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
         /* XXX: should check that size is 2MB */
         //        bios_size = 2 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
+        bios_offset = qemu_ram_alloc(bios_size);
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size " ADDRX " at offset %08lx "
                " addr " ADDRX " '%s' %d\n",
@@ -550,8 +548,9 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
 #endif
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
+        bios_offset = qemu_ram_alloc(BIOS_SIZE);
         snprintf(buf, sizeof(buf), "%s/%s", bios_dir, bios_name);
-        bios_size = load_image(buf, phys_ram_base + bios_offset);
+        bios_size = load_image(buf, qemu_get_ram_ptr(bios_offset));
         if (bios_size < 0 || bios_size > BIOS_SIZE) {
             fprintf(stderr, "qemu: could not load PowerPC bios '%s'\n", buf);
             exit(1);
@@ -560,7 +559,6 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
         cpu_register_physical_memory((uint32_t)(-bios_size),
                                      bios_size, bios_offset | IO_MEM_ROM);
     }
-    bios_offset += bios_size;
     /* Register Linux flash */
     index = drive_get_index(IF_PFLASH, 0, fl_idx);
     if (index != -1) {
@@ -574,6 +572,7 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
                fl_idx, bios_size, bios_offset, (target_ulong)0xfc000000,
                bdrv_get_device_name(drives_table[index].bdrv));
 #endif
+        bios_offset = qemu_ram_alloc(bios_size);
         pflash_cfi02_register(0xfc000000, bios_offset,
                               drives_table[index].bdrv, 65536, fl_sectors, 1,
                               4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA);
@@ -592,7 +591,8 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
 #endif
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
-        kernel_size = load_image(kernel_filename, phys_ram_base + kernel_base);
+        kernel_size = load_image_targphys(kernel_filename, kernel_base,
+                                          ram_size - kernel_base);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
@@ -601,8 +601,8 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
         /* load initrd */
         if (initrd_filename) {
             initrd_base = INITRD_LOAD_ADDR;
-            initrd_size = load_image(initrd_filename,
-                                     phys_ram_base + initrd_base);
+            initrd_size = load_image_targphys(initrd_filename, initrd_base,
+                                              ram_size - initrd_base);
             if (initrd_size < 0) {
                 fprintf(stderr,
                         "qemu: could not load initial ram disk '%s'\n",

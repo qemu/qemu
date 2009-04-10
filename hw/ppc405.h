@@ -78,7 +78,7 @@ void ppc405_serial_init (CPUState *env, ppc4xx_mmio_t *mmio,
                          target_phys_addr_t offset, qemu_irq irq,
                          CharDriverState *chr);
 /* On Chip Memory */
-void ppc405_ocm_init (CPUState *env, unsigned long offset);
+void ppc405_ocm_init (CPUState *env);
 /* I2C controller */
 void ppc405_i2c_init (CPUState *env, ppc4xx_mmio_t *mmio,
                       target_phys_addr_t offset, qemu_irq irq);
@@ -91,11 +91,11 @@ void ppc405_mal_init (CPUState *env, qemu_irq irqs[4]);
 CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
                          target_phys_addr_t ram_sizes[4],
                          uint32_t sysclk, qemu_irq **picp,
-                         ram_addr_t *offsetp, int do_init);
+                         int do_init);
 CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
                          target_phys_addr_t ram_sizes[2],
                          uint32_t sysclk, qemu_irq **picp,
-                         ram_addr_t *offsetp, int do_init);
+                         int do_init);
 /* IBM STBxxx microcontrollers */
 CPUState *ppc_stb025_init (target_phys_addr_t ram_bases[2],
                            target_phys_addr_t ram_sizes[2],

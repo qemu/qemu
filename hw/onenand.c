@@ -642,7 +642,7 @@ void *onenand_init(uint32_t id, int regshift, qemu_irq irq)
     s->otp = memset(qemu_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
     s->ram = qemu_ram_alloc(0xc000 << s->shift);
-    ram = phys_ram_base + s->ram;
+    ram = qemu_get_ram_ptr(s->ram);
     s->boot[0] = ram + (0x0000 << s->shift);
     s->boot[1] = ram + (0x8000 << s->shift);
     s->data[0][0] = ram + ((0x0200 + (0 << (PAGE_SHIFT - 1))) << s->shift);

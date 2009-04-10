@@ -855,7 +855,7 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
                                target_phys_addr_t ram_sizes[],
                                const unsigned int sdram_bank_sizes[])
 {
-    ram_addr_t ram_end = 0;
+    ram_addr_t size_left = ram_size;
     int i;
     int j;
 
@@ -863,24 +863,24 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
         for (j = 0; sdram_bank_sizes[j] != 0; j++) {
             unsigned int bank_size = sdram_bank_sizes[j];
 
-            if (bank_size <= ram_size) {
-                ram_bases[i] = ram_end;
+            if (bank_size <= size_left) {
+                ram_bases[i] = qemu_ram_alloc(bank_size);
                 ram_sizes[i] = bank_size;
-                ram_end += bank_size;
-                ram_size -= bank_size;
+                size_left -= bank_size;
                 break;
             }
         }
 
-        if (!ram_size) {
+        if (!size_left) {
             /* No need to use the remaining banks. */
             break;
         }
     }
 
+    ram_size -= size_left;
     if (ram_size)
         printf("Truncating memory to %d MiB to fit SDRAM controller limits.\n",
-               (int)(ram_end >> 20));
+               (int)(ram_size >> 20));
 
-    return ram_end;
+    return ram_size;
 }
