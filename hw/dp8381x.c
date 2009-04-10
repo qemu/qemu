@@ -857,7 +857,7 @@ static uint16_t dp8381x_readw(pci_dp8381x_t * d, target_phys_addr_t addr)
         logout("addr=%s val=0x%04x\n", dp8381x_regname(addr), val);
     }
 #if defined(TARGET_WORDS_BIGENDIAN)
-    val = bswap16(val);
+    bswap16s(&val);
 #endif
     return val;
 }
@@ -961,7 +961,7 @@ static uint32_t dp8381x_readl(pci_dp8381x_t * d, target_phys_addr_t addr)
         logout("addr=%s val=0x%08x\n", dp8381x_regname(addr), val);
     }
 #if defined(TARGET_WORDS_BIGENDIAN)
-    val = bswap32(val);
+    bswap32s(&val);
 #endif
     return val;
 }
@@ -993,7 +993,7 @@ static void dp8381x_writew(pci_dp8381x_t * d, target_phys_addr_t addr,
     dp8381x_t *s = &d->dp8381x;
     int logging = 1;
 #if defined(TARGET_WORDS_BIGENDIAN)
-    val = bswap16(val);
+    bswap16s(&val);
 #endif
     if ((addr & 1) != 0) {
         logout("??? address not on word boundary, addr=%s val=0x%08x\n",
@@ -1051,7 +1051,7 @@ static void dp8381x_writel(pci_dp8381x_t * d, target_phys_addr_t addr,
     dp8381x_t *s = &d->dp8381x;
     int logging = 1;
 #if defined(TARGET_WORDS_BIGENDIAN)
-    val = bswap32(val);
+    bswap32s(&val);
 #endif
     if ((addr & 3) != 0) {
         logout("??? address not on double word boundary, addr=%s val=0x%08x\n",

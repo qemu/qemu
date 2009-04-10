@@ -1376,7 +1376,7 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
     }
     val = cpu_to_le16(val);
 #if defined(TARGET_WORDS_BIGENDIAN)
-    val = bswap16(val);
+    bswap16s(&val);
 #endif
     return val;
 }
@@ -1414,7 +1414,7 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
     }
     val = cpu_to_le32(val);
 #if defined(TARGET_WORDS_BIGENDIAN)
-    val = bswap32(val);
+    bswap32s(&val);
 #endif
     return val;
 }
@@ -1462,7 +1462,7 @@ static void eepro100_write1(EEPRO100State * s, uint32_t addr, uint8_t val)
 static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 {
 #if defined(TARGET_WORDS_BIGENDIAN)
-    val = bswap16(val);
+    bswap16s(&val);
 #endif
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
@@ -1493,7 +1493,7 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
 {
 #if defined(TARGET_WORDS_BIGENDIAN)
-    val = bswap32(val);
+    bswap32s(&val);
 #endif
     if (addr <= sizeof(s->mem) - sizeof(val)) {
         memcpy(&s->mem[addr], &val, sizeof(val));
