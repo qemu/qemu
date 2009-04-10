@@ -43,7 +43,7 @@ static void glue(tc6393xb_draw_graphic, BITS)(struct tc6393xb_s *s)
     uint16_t *data_buffer;
     uint8_t *data_display;
 
-    data_buffer = (uint16_t*)(phys_ram_base + s->vram_addr);
+    data_buffer = s->vram_ptr;
     w_display = s->scr_width * BITS / 8;
     data_display = ds_get_data(s->ds);
     for(i = 0; i < s->scr_height; i++) {

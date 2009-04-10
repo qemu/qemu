@@ -110,6 +110,7 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     BlockDriverState *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     void *dbdma;
+    uint8_t *vga_bios_ptr;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -154,8 +155,9 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* allocate and load VGA BIOS */
     vga_bios_offset = qemu_ram_alloc(VGA_BIOS_SIZE);
+    vga_bios_ptr = qemu_get_ram_ptr(vga_bios_offset);
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, VGABIOS_FILENAME);
-    vga_bios_size = load_image(buf, phys_ram_base + vga_bios_offset + 8);
+    vga_bios_size = load_image(buf, vga_bios_ptr + 8);
     if (vga_bios_size < 0) {
         /* if no bios is present, we can still work */
         fprintf(stderr, "qemu: warning: could not load VGA bios '%s'\n", buf);
@@ -163,12 +165,11 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
     } else {
         /* set a specific header (XXX: find real Apple format for NDRV
            drivers) */
-        phys_ram_base[vga_bios_offset] = 'N';
-        phys_ram_base[vga_bios_offset + 1] = 'D';
-        phys_ram_base[vga_bios_offset + 2] = 'R';
-        phys_ram_base[vga_bios_offset + 3] = 'V';
-        cpu_to_be32w((uint32_t *)(phys_ram_base + vga_bios_offset + 4),
-                     vga_bios_size);
+        vga_bios_ptr[0] = 'N';
+        vga_bios_ptr[1] = 'D';
+        vga_bios_ptr[2] = 'R';
+        vga_bios_ptr[3] = 'V';
+        cpu_to_be32w((uint32_t *)(vga_bios_ptr + 4), vga_bios_size);
         vga_bios_size += 8;
     }
 
@@ -199,8 +200,8 @@ static void ppc_core99_init (ram_addr_t ram_size, int vga_ram_size,
         /* load initrd */
         if (initrd_filename) {
             initrd_base = INITRD_LOAD_ADDR;
-            initrd_size = load_image(initrd_filename,
-                                     phys_ram_base + initrd_base);
+            initrd_size = load_image_targphys(initrd_filename, initrd_base,
+                                              ram_size - initrd_base);
             if (initrd_size < 0) {
                 cpu_abort(env, "qemu: could not load initial ram disk '%s'\n",
                           initrd_filename);

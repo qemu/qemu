@@ -193,8 +193,8 @@ qemu_irq *armv7m_init(int flash_size, int sram_size,
        regular ROM image and perform the normal CPU reset sequence.
        Otherwise jump directly to the entry point.  */
     if (lowaddr == 0) {
-	env->regs[13] = tswap32(*(uint32_t *)phys_ram_base);
-	pc = tswap32(*(uint32_t *)(phys_ram_base + 4));
+	env->regs[13] = ldl_phys(0);
+	pc = ldl_phys(4);
     } else {
 	pc = entry;
     }

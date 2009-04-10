@@ -871,7 +871,7 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
         goto bios_error;
     }
     bios_offset = qemu_ram_alloc(bios_size);
-    ret = load_image(buf, phys_ram_base + bios_offset);
+    ret = load_image(buf, qemu_get_ram_ptr(bios_offset));
     if (ret != bios_size) {
     bios_error:
         fprintf(stderr, "qemu: could not load PC BIOS '%s'\n", buf);

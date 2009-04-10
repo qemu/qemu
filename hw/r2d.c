@@ -200,7 +200,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
 {
     CPUState *env;
     struct SH7750State *s;
-    ram_addr_t sdram_addr, sm501_vga_ram_addr;
+    ram_addr_t sdram_addr;
     qemu_irq *irq;
     PCIBus *pci;
     int i;
@@ -222,9 +222,7 @@ static void r2d_init(ram_addr_t ram_size, int vga_ram_size,
     irq = r2d_fpga_init(0x04000000, sh7750_irl(s));
     pci = sh_pci_register_bus(r2d_pci_set_irq, r2d_pci_map_irq, irq, 0, 4);
 
-    sm501_vga_ram_addr = qemu_ram_alloc(SM501_VRAM_SIZE);
-    sm501_init(0x10000000, sm501_vga_ram_addr, SM501_VRAM_SIZE,
-	       serial_hds[2]);
+    sm501_init(0x10000000, SM501_VRAM_SIZE, serial_hds[2]);
 
     /* onboard CF (True IDE mode, Master only). */
     if ((i = drive_get_index(IF_IDE, 0, 0)) != -1)
