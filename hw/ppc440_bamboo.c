@@ -27,7 +27,7 @@
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
 
-static void *bamboo_load_device_tree(void *addr,
+static void *bamboo_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
                                      target_phys_addr_t initrd_size,
@@ -37,6 +37,7 @@ static void *bamboo_load_device_tree(void *addr,
 #ifdef HAVE_FDT
     uint32_t mem_reg_property[] = { 0, 0, ramsize };
     char *path;
+    int fdt_size;
     int pathlen;
     int ret;
 
@@ -45,7 +46,7 @@ static void *bamboo_load_device_tree(void *addr,
 
     snprintf(path, pathlen, "%s/%s", bios_dir, BINARY_DEVICE_TREE_FILE);
 
-    fdt = load_device_tree(path, addr);
+    fdt = load_device_tree(path, &fdt_size);
     free(path);
     if (fdt == NULL)
         goto out;
@@ -74,6 +75,8 @@ static void *bamboo_load_device_tree(void *addr,
 
     if (kvm_enabled())
         kvmppc_fdt_update(fdt);
+
+    cpu_physical_memory_write (addr, (void *)fdt, fdt_size);
 
 out:
 #endif
@@ -165,7 +168,7 @@ static void bamboo_init(ram_addr_t ram_size, int vga_ram_size,
         else
             dt_base = kernel_size + loadaddr;
 
-        fdt = bamboo_load_device_tree(phys_ram_base + dt_base, ram_size,
+        fdt = bamboo_load_device_tree(dt_base, ram_size,
                                       initrd_base, initrd_size, kernel_cmdline);
         if (fdt == NULL) {
             fprintf(stderr, "couldn't load device tree\n");
