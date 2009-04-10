@@ -80,6 +80,7 @@ static void load_kernel (CPUState *env)
     int64_t entry, kernel_low, kernel_high;
     long kernel_size, initrd_size;
     ram_addr_t initrd_offset;
+    int ret;
 
     kernel_size = load_elf(loaderparams.kernel_filename, VIRT_TO_PHYS_ADDEND,
                            (uint64_t *)&entry, (uint64_t *)&kernel_low,
@@ -120,21 +121,19 @@ static void load_kernel (CPUState *env)
 
     /* Store command line.  */
     if (initrd_size > 0) {
-        int ret;
-        ret = sprintf((char *)(phys_ram_base + (16 << 20) - 256),
-                      "rd_start=0x" TARGET_FMT_lx " rd_size=%li ",
-                      PHYS_TO_VIRT((uint32_t)initrd_offset),
-                      initrd_size);
-        strcpy ((char *)(phys_ram_base + (16 << 20) - 256 + ret),
-                loaderparams.kernel_cmdline);
+        char buf[64];
+        ret = snprintf(buf, 64, "rd_start=0x" TARGET_FMT_lx " rd_size=%li ",
+                       PHYS_TO_VIRT((uint32_t)initrd_offset),
+                       initrd_size);
+        cpu_physical_memory_write((16 << 20) - 256, (void *)buf, 64);
+    } else {
+        ret = 0;
     }
-    else {
-        strcpy ((char *)(phys_ram_base + (16 << 20) - 256),
-                loaderparams.kernel_cmdline);
-    }
+    pstrcpy_targphys((16 << 20) - 256 + ret, 256,
+                     loaderparams.kernel_cmdline);
 
-    *(int32_t *)(phys_ram_base + (16 << 20) - 260) = tswap32 (0x12345678);
-    *(int32_t *)(phys_ram_base + (16 << 20) - 264) = tswap32 (ram_size);
+    stl_phys((16 << 20) - 260, 0x12345678);
+    stl_phys((16 << 20) - 264, ram_size);
 }
 
 static void main_cpu_reset(void *opaque)
