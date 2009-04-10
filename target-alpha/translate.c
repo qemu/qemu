@@ -51,6 +51,7 @@ struct DisasContext {
 #if !defined (CONFIG_USER_ONLY)
     int pal_mode;
 #endif
+    CPUAlphaState *env;
     uint32_t amask;
 };
 
@@ -1159,9 +1160,20 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* AMASK */
             if (likely(rc != 31)) {
                 if (islit)
-                    tcg_gen_movi_i64(cpu_ir[rc], helper_amask(lit));
+                    tcg_gen_movi_i64(cpu_ir[rc], lit);
                 else
-                    gen_helper_amask(cpu_ir[rc], cpu_ir[rb]);
+                    tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
+                switch (ctx->env->implver) {
+                case IMPLVER_2106x:
+                    /* EV4, EV45, LCA, LCA45 & EV5 */
+                    break;
+                case IMPLVER_21164:
+                case IMPLVER_21264:
+                case IMPLVER_21364:
+                    tcg_gen_andi_i64(cpu_ir[rc], cpu_ir[rc],
+                                     ~(uint64_t)ctx->amask);
+                    break;
+                }
             }
             break;
         case 0x64:
@@ -1175,7 +1187,7 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
         case 0x6C:
             /* IMPLVER */
             if (rc != 31)
-                gen_helper_load_implver(cpu_ir[rc]);
+                tcg_gen_movi_i64(cpu_ir[rc], ctx->env->implver);
             break;
         default:
             goto invalid_opc;
@@ -2352,6 +2364,7 @@ static always_inline void gen_intermediate_code_internal (CPUState *env,
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
     ctx.amask = env->amask;
+    ctx.env = env;
 #if defined (CONFIG_USER_ONLY)
     ctx.mem_idx = 0;
 #else

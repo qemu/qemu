@@ -133,7 +133,7 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     CPUState *env;
     qemu_irq *rc4030, *i8259;
     rc4030_dma *dmas;
-    rc4030_dma_function dma_read, dma_write;
+    void* rc4030_opaque;
     void *scsi_hba;
     int hd;
     int s_rtc, s_dma_dummy;
@@ -185,8 +185,7 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     cpu_mips_clock_init(env);
 
     /* Chipset */
-    rc4030 = rc4030_init(env->irq[6], env->irq[3],
-                         &dmas, &dma_read, &dma_write);
+    rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas);
     s_dma_dummy = cpu_register_io_memory(0, dma_dummy_read, dma_dummy_write, NULL);
     cpu_register_physical_memory(0x8000d000, 0x00001000, s_dma_dummy);
 
@@ -217,7 +216,7 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
 
     /* SCSI adapter */
     scsi_hba = esp_init(0x80002000, 0,
-                        dma_read, dma_write, dmas[0],
+                        rc4030_dma_read, rc4030_dma_write, dmas[0],
                         rc4030[5], &esp_reset);
     for (n = 0; n < ESP_MAX_DEVS; n++) {
         hd = drive_get_index(IF_SCSI, 0, n);

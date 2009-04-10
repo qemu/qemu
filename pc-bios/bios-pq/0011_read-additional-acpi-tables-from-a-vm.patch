@@ -4,10 +4,10 @@ Signed-off-by: Gleb Natapov <gleb@redhat.com>
 Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
 
 diff --git a/bios/rombios32.c b/bios/rombios32.c
-index 3269be5..191707d 100644
+index 27c5952..7be4216 100644
 --- a/bios/rombios32.c
 +++ b/bios/rombios32.c
-@@ -457,6 +457,8 @@ void wrmsr_smp(uint32_t index, uint64_t val)
+@@ -469,6 +469,8 @@ void wrmsr_smp(uint32_t index, uint64_t val)
  #define QEMU_CFG_SIGNATURE  0x00
  #define QEMU_CFG_ID         0x01
  #define QEMU_CFG_UUID       0x02
@@ -16,7 +16,7 @@ index 3269be5..191707d 100644
  
  int qemu_cfg_port;
  
-@@ -484,6 +486,27 @@ void qemu_cfg_read(uint8_t *buf, int len)
+@@ -496,6 +498,27 @@ void qemu_cfg_read(uint8_t *buf, int len)
      while (len--)
          *(buf++) = inb(QEMU_CFG_DATA_PORT);
  }
@@ -44,7 +44,7 @@ index 3269be5..191707d 100644
  #endif
  
  void uuid_probe(void)
-@@ -1534,8 +1557,8 @@ void acpi_bios_init(void)
+@@ -1550,8 +1573,8 @@ void acpi_bios_init(void)
      uint32_t hpet_addr;
  #endif
      uint32_t base_addr, rsdt_addr, fadt_addr, addr, facs_addr, dsdt_addr, ssdt_addr;
@@ -55,7 +55,7 @@ index 3269be5..191707d 100644
  
      /* reserve memory space for tables */
  #ifdef BX_USE_EBDA_TABLES
-@@ -1548,10 +1571,17 @@ void acpi_bios_init(void)
+@@ -1564,10 +1587,17 @@ void acpi_bios_init(void)
      bios_table_cur_addr += sizeof(*rsdp);
  #endif
  
@@ -74,7 +74,7 @@ index 3269be5..191707d 100644
  
      fadt_addr = addr;
      fadt = (void *)(addr);
-@@ -1590,12 +1620,6 @@ void acpi_bios_init(void)
+@@ -1606,12 +1636,6 @@ void acpi_bios_init(void)
      addr += sizeof(*hpet);
  #endif
  
@@ -87,7 +87,7 @@ index 3269be5..191707d 100644
      /* RSDP */
      memset(rsdp, 0, sizeof(*rsdp));
      memcpy(rsdp->signature, "RSD PTR ", 8);
-@@ -1607,17 +1631,6 @@ void acpi_bios_init(void)
+@@ -1623,17 +1647,6 @@ void acpi_bios_init(void)
      rsdp->rsdt_physical_address = cpu_to_le32(rsdt_addr);
      rsdp->checksum = acpi_checksum((void *)rsdp, 20);
  
@@ -105,7 +105,7 @@ index 3269be5..191707d 100644
      /* FADT */
      memset(fadt, 0, sizeof(*fadt));
      fadt->firmware_ctrl = cpu_to_le32(facs_addr);
-@@ -1692,6 +1705,7 @@ void acpi_bios_init(void)
+@@ -1710,6 +1723,7 @@ void acpi_bios_init(void)
                                  "APIC", madt_size, 1);
      }
  
@@ -113,7 +113,7 @@ index 3269be5..191707d 100644
  #ifdef BX_QEMU
      /* HPET */
      memset(hpet, 0, sizeof(*hpet));
-@@ -1702,7 +1716,34 @@ void acpi_bios_init(void)
+@@ -1720,7 +1734,34 @@ void acpi_bios_init(void)
      hpet->addr.address = cpu_to_le32(ACPI_HPET_ADDRESS);
      acpi_build_table_header((struct  acpi_table_header *)hpet,
                               "HPET", sizeof(*hpet), 1);
@@ -148,8 +148,3 @@ index 3269be5..191707d 100644
  
  }
  
---
-			Gleb.
-
-
-

@@ -37,30 +37,10 @@ void helper_excp (int excp, int error)
     cpu_loop_exit();
 }
 
-uint64_t helper_amask (uint64_t arg)
-{
-    switch (env->implver) {
-    case IMPLVER_2106x:
-        /* EV4, EV45, LCA, LCA45 & EV5 */
-        break;
-    case IMPLVER_21164:
-    case IMPLVER_21264:
-    case IMPLVER_21364:
-        arg &= ~env->amask;
-        break;
-    }
-    return arg;
-}
-
 uint64_t helper_load_pcc (void)
 {
     /* XXX: TODO */
     return 0;
-}
-
-uint64_t helper_load_implver (void)
-{
-    return env->implver;
 }
 
 uint64_t helper_load_fpcr (void)
@@ -158,22 +138,22 @@ uint64_t helper_addlv (uint64_t op1, uint64_t op2)
 
 uint64_t helper_subqv (uint64_t op1, uint64_t op2)
 {
-    uint64_t tmp = op1;
-    op1 -= op2;
-    if (unlikely(((~tmp) ^ op1 ^ (-1ULL)) & ((~tmp) ^ op2) & (1ULL << 63))) {
+    uint64_t res;
+    res = op1 - op2;
+    if (unlikely((op1 ^ op2) & (res ^ op1) & (1ULL << 63))) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
-    return op1;
+    return res;
 }
 
 uint64_t helper_sublv (uint64_t op1, uint64_t op2)
 {
-    uint64_t tmp = op1;
-    op1 = (uint32_t)(op1 - op2);
-    if (unlikely(((~tmp) ^ op1 ^ (-1UL)) & ((~tmp) ^ op2) & (1UL << 31))) {
+    uint32_t res;
+    res = op1 - op2;
+    if (unlikely((op1 ^ op2) & (res ^ op1) & (1UL << 31))) {
         helper_excp(EXCP_ARITH, EXCP_ARITH_OVERFLOW);
     }
-    return op1;
+    return res;
 }
 
 uint64_t helper_mullv (uint64_t op1, uint64_t op2)
