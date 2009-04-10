@@ -3645,6 +3645,7 @@ static int64_t load_kernel (CPUState *env)
     /* TODO: use code from Malta for command line setup. */
     if (loaderparams.kernel_cmdline && *loaderparams.kernel_cmdline) {
         /* Load kernel parameters (argv, envp) from file. */
+        // TODO: use cpu_physical_memory_write(bdloc, (void *)kernel_cmdline, len + 1)
         uint8_t *address = phys_ram_base + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
         int argc;
         uint32_t *argv;
