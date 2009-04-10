@@ -1165,17 +1165,28 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
 # define EIP_sig(context)  (*((unsigned long*)&(context)->uc_mcontext->ss.eip))
 # define TRAP_sig(context)    ((context)->uc_mcontext->es.trapno)
 # define ERROR_sig(context)   ((context)->uc_mcontext->es.err)
+# define MASK_sig(context)    ((context)->uc_sigmask)
+#elif defined(__OpenBSD__)
+# define EIP_sig(context)     ((context)->sc_eip)
+# define TRAP_sig(context)    ((context)->sc_trapno)
+# define ERROR_sig(context)   ((context)->sc_err)
+# define MASK_sig(context)    ((context)->sc_mask)
 #else
 # define EIP_sig(context)     ((context)->uc_mcontext.gregs[REG_EIP])
 # define TRAP_sig(context)    ((context)->uc_mcontext.gregs[REG_TRAPNO])
 # define ERROR_sig(context)   ((context)->uc_mcontext.gregs[REG_ERR])
+# define MASK_sig(context)    ((context)->uc_sigmask)
 #endif
 
 int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
     siginfo_t *info = pinfo;
+#if defined(__OpenBSD__)
+    struct sigcontext *uc = puc;
+#else
     struct ucontext *uc = puc;
+#endif
     unsigned long pc;
     int trapno;
 
@@ -1190,7 +1201,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
                              trapno == 0xe ?
                              (ERROR_sig(uc) >> 1) & 1 : 0,
-                             &uc->uc_sigmask, puc);
+                             &MASK_sig(uc), puc);
 }
 
 #elif defined(__x86_64__)
