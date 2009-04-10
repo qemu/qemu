@@ -28,9 +28,11 @@ extern void cpu_mips_clock_init(CPUState *);
 
 /* rc4030.c */
 typedef struct rc4030DMAState *rc4030_dma;
-typedef void (*rc4030_dma_function)(void *dma, uint8_t *buf, int len);
-qemu_irq *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
-                      rc4030_dma **dmas,
-                      rc4030_dma_function *dma_read, rc4030_dma_function *dma_write);
+void rc4030_dma_memory_rw(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len, int is_write);
+void rc4030_dma_read(void *dma, uint8_t *buf, int len);
+void rc4030_dma_write(void *dma, uint8_t *buf, int len);
+
+void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
+                  qemu_irq **irqs, rc4030_dma **dmas);
 
 #endif

@@ -675,7 +675,7 @@ static void rc4030_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->itr);
 }
 
-static void rc4030_dma_memory_rw(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len, int is_write)
+void rc4030_dma_memory_rw(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len, int is_write)
 {
     rc4030State *s = opaque;
     target_phys_addr_t entry_addr;
@@ -766,13 +766,13 @@ struct rc4030DMAState {
     int n;
 };
 
-static void rc4030_dma_read(void *dma, uint8_t *buf, int len)
+void rc4030_dma_read(void *dma, uint8_t *buf, int len)
 {
     rc4030_dma s = dma;
     rc4030_do_dma(s->opaque, s->n, buf, len, 0);
 }
 
-static void rc4030_dma_write(void *dma, uint8_t *buf, int len)
+void rc4030_dma_write(void *dma, uint8_t *buf, int len)
 {
     rc4030_dma s = dma;
     rc4030_do_dma(s->opaque, s->n, buf, len, 1);
@@ -795,18 +795,16 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
     return s;
 }
 
-qemu_irq *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
-                      rc4030_dma **dmas,
-                      rc4030_dma_function *dma_read, rc4030_dma_function *dma_write)
+void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
+                  qemu_irq **irqs, rc4030_dma **dmas)
 {
     rc4030State *s;
     int s_chipset, s_jazzio;
 
     s = qemu_mallocz(sizeof(rc4030State));
 
+    *irqs = qemu_allocate_irqs(rc4030_irq_jazz_request, s, 16);
     *dmas = rc4030_allocate_dmas(s, 4);
-    *dma_read = rc4030_dma_read;
-    *dma_write = rc4030_dma_write;
 
     s->periodic_timer = qemu_new_timer(vm_clock, rc4030_periodic_timer, s);
     s->timer_irq = timer;
@@ -821,5 +819,5 @@ qemu_irq *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     s_jazzio = cpu_register_io_memory(0, jazzio_read, jazzio_write, s);
     cpu_register_physical_memory(0xf0000000, 0x00001000, s_jazzio);
 
-    return qemu_allocate_irqs(rc4030_irq_jazz_request, s, 16);
+    return s;
 }
