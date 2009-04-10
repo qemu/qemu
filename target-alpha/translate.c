@@ -1160,9 +1160,20 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             /* AMASK */
             if (likely(rc != 31)) {
                 if (islit)
-                    tcg_gen_movi_i64(cpu_ir[rc], helper_amask(lit));
+                    tcg_gen_movi_i64(cpu_ir[rc], lit);
                 else
-                    gen_helper_amask(cpu_ir[rc], cpu_ir[rb]);
+                    tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
+                switch (ctx->env->implver) {
+                case IMPLVER_2106x:
+                    /* EV4, EV45, LCA, LCA45 & EV5 */
+                    break;
+                case IMPLVER_21164:
+                case IMPLVER_21264:
+                case IMPLVER_21364:
+                    tcg_gen_andi_i64(cpu_ir[rc], cpu_ir[rc],
+                                     ~(uint64_t)ctx->amask);
+                    break;
+                }
             }
             break;
         case 0x64:

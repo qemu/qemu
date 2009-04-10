@@ -37,21 +37,6 @@ void helper_excp (int excp, int error)
     cpu_loop_exit();
 }
 
-uint64_t helper_amask (uint64_t arg)
-{
-    switch (env->implver) {
-    case IMPLVER_2106x:
-        /* EV4, EV45, LCA, LCA45 & EV5 */
-        break;
-    case IMPLVER_21164:
-    case IMPLVER_21264:
-    case IMPLVER_21364:
-        arg &= ~env->amask;
-        break;
-    }
-    return arg;
-}
-
 uint64_t helper_load_pcc (void)
 {
     /* XXX: TODO */
