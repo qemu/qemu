@@ -58,11 +58,6 @@ uint64_t helper_load_pcc (void)
     return 0;
 }
 
-uint64_t helper_load_implver (void)
-{
-    return env->implver;
-}
-
 uint64_t helper_load_fpcr (void)
 {
     uint64_t ret = 0;
