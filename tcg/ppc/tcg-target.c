@@ -372,9 +372,6 @@ static int tcg_target_const_match(tcg_target_long val,
 #define SRW    XO31(536)
 #define SRAW   XO31(792)
 
-#define LMW    OPCD(46)
-#define STMW   OPCD(47)
-
 #define TW     XO31(4)
 #define TRAP   (TW | TO (31))
 
