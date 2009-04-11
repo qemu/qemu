@@ -302,7 +302,7 @@ static void pxa2xx_descriptor_load(struct pxa2xx_lcdc_s *s)
             descptr = s->dma_ch[i].descriptor;
 
         if (!(descptr >= PXA2XX_SDRAM_BASE && descptr +
-                    sizeof(desc) <= PXA2XX_SDRAM_BASE + phys_ram_size))
+                    sizeof(desc) <= PXA2XX_SDRAM_BASE + ram_size))
             continue;
 
         cpu_physical_memory_read(descptr, (void *)&desc, sizeof(desc));
@@ -764,7 +764,7 @@ static void pxa2xx_update_display(void *opaque)
             }
             fbptr = s->dma_ch[ch].source;
             if (!(fbptr >= PXA2XX_SDRAM_BASE &&
-                    fbptr <= PXA2XX_SDRAM_BASE + phys_ram_size)) {
+                    fbptr <= PXA2XX_SDRAM_BASE + ram_size)) {
                 pxa2xx_dma_ber_set(s, ch);
                 continue;
             }
