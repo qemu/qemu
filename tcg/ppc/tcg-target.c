@@ -112,9 +112,6 @@ static const int tcg_target_reg_alloc_order[] = {
 #ifndef __linux__
     TCG_REG_R13,
 #endif
-    TCG_REG_R0,
-    TCG_REG_R1,
-    TCG_REG_R2,
     TCG_REG_R24,
     TCG_REG_R25,
     TCG_REG_R26,
