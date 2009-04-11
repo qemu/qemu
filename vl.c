@@ -3097,7 +3097,7 @@ static int ram_load_v1(QEMUFile *f, void *opaque)
     if (qemu_get_be32(f) != phys_ram_size)
         return -EINVAL;
     for(i = 0; i < phys_ram_size; i+= TARGET_PAGE_SIZE) {
-        ret = ram_get_page(f, phys_ram_base + i, TARGET_PAGE_SIZE);
+        ret = ram_get_page(f, qemu_get_ram_ptr(i), TARGET_PAGE_SIZE);
         if (ret)
             return ret;
     }
@@ -3184,20 +3184,20 @@ static int ram_save_block(QEMUFile *f)
 
     while (addr < phys_ram_size) {
         if (cpu_physical_memory_get_dirty(current_addr, MIGRATION_DIRTY_FLAG)) {
-            uint8_t ch;
+            uint8_t *p;
 
             cpu_physical_memory_reset_dirty(current_addr,
                                             current_addr + TARGET_PAGE_SIZE,
                                             MIGRATION_DIRTY_FLAG);
 
-            ch = *(phys_ram_base + current_addr);
+            p = qemu_get_ram_ptr(current_addr);
 
-            if (is_dup_page(phys_ram_base + current_addr, ch)) {
+            if (is_dup_page(p, *p)) {
                 qemu_put_be64(f, current_addr | RAM_SAVE_FLAG_COMPRESS);
-                qemu_put_byte(f, ch);
+                qemu_put_byte(f, *p);
             } else {
                 qemu_put_be64(f, current_addr | RAM_SAVE_FLAG_PAGE);
-                qemu_put_buffer(f, phys_ram_base + current_addr, TARGET_PAGE_SIZE);
+                qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
             }
 
             found = 1;
@@ -3278,7 +3278,8 @@ static int ram_load_dead(QEMUFile *f, void *opaque)
             goto error;
         }
         if (buf[0] == 0) {
-            if (ram_decompress_buf(s, phys_ram_base + i, BDRV_HASH_BLOCK_SIZE) < 0) {
+            if (ram_decompress_buf(s, qemu_get_ram_ptr(i),
+                                   BDRV_HASH_BLOCK_SIZE) < 0) {
                 fprintf(stderr, "Error while reading ram block address=0x%08" PRIx64, (uint64_t)i);
                 goto error;
             }
@@ -3328,9 +3329,9 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         
         if (flags & RAM_SAVE_FLAG_COMPRESS) {
             uint8_t ch = qemu_get_byte(f);
-            memset(phys_ram_base + addr, ch, TARGET_PAGE_SIZE);
+            memset(qemu_get_ram_ptr(addr), ch, TARGET_PAGE_SIZE);
         } else if (flags & RAM_SAVE_FLAG_PAGE)
-            qemu_get_buffer(f, phys_ram_base + addr, TARGET_PAGE_SIZE);
+            qemu_get_buffer(f, qemu_get_ram_ptr(addr), TARGET_PAGE_SIZE);
     } while (!(flags & RAM_SAVE_FLAG_EOS));
 
     return 0;

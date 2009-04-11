@@ -908,6 +908,9 @@ ram_addr_t qemu_ram_alloc(ram_addr_t);
 void qemu_ram_free(ram_addr_t addr);
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);
+/* This should not be used by devices.  */
+ram_addr_t qemu_ram_addr_from_host(void *ptr);
+
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc **mem_read,
                            CPUWriteMemoryFunc **mem_write,

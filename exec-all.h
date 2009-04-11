@@ -316,6 +316,7 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
 {
     int mmu_idx, page_index, pd;
+    void *p;
 
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env1);
@@ -331,7 +332,9 @@ static inline target_ulong get_phys_addr_code(CPUState *env1, target_ulong addr)
         cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
 #endif
     }
-    return addr + env1->tlb_table[mmu_idx][page_index].addend - (unsigned long)phys_ram_base;
+    p = (void *)(unsigned long)addr
+        + env1->tlb_table[mmu_idx][page_index].addend;
+    return qemu_ram_addr_from_host(p);
 }
 
 /* Deterministic execution requires that IO only be performed on the last
