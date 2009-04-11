@@ -73,18 +73,20 @@ endif
 OBJS=$(BLOCK_OBJS)
 OBJS+=readline.o console.o
 
-OBJS+=irq.o
+OBJS+=irq.o ptimer.o
 OBJS+=i2c.o smbus.o smbus_eeprom.o max7310.o max111x.o wm8750.o
 OBJS+=ssd0303.o ssd0323.o ads7846.o stellaris_input.o twl92230.o
-OBJS+=tmp105.o lm832x.o
+OBJS+=tmp105.o lm832x.o eeprom93xx.o tsc2005.o
 OBJS+=scsi-disk.o cdrom.o
 OBJS+=scsi-generic.o
 OBJS+=usb.o usb-hub.o usb-$(HOST_USB).o usb-hid.o usb-msd.o usb-wacom.o
 OBJS+=usb-serial.o usb-net.o
 OBJS+=sd.o ssi-sd.o
 OBJS+=bt.o bt-host.o bt-vhci.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o usb-bt.o
+OBJS+=bt-hci-csr.o
 OBJS+=buffered_file.o migration.o migration-tcp.o net.o qemu-sockets.o
 OBJS+=qemu-char.o aio.o net-checksum.o savevm.o cache-utils.o
+OBJS+=msmouse.o ps2.o
 
 ifdef CONFIG_BRLAPI
 OBJS+= baum.o
