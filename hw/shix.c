@@ -92,5 +92,4 @@ QEMUMachine shix_machine = {
     .name = "shix",
     .desc = "shix card",
     .init = shix_init,
-    .ram_require = (0x00004000 + 0x01000000 + 0x01000000) | RAMSIZE_FIXED,
 };

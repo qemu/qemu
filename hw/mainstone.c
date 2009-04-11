@@ -139,6 +139,4 @@ QEMUMachine mainstone2_machine = {
     .name = "mainstone",
     .desc = "Mainstone II (PXA27x)",
     .init = mainstone_init,
-    .ram_require = (MAINSTONE_RAM + MAINSTONE_ROM + 2 * MAINSTONE_FLASH +
-                    PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };

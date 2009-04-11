@@ -284,5 +284,4 @@ QEMUMachine mips_machine = {
     .name = "mips",
     .desc = "mips r4k platform",
     .init = mips_r4k_init,
-    .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
 };

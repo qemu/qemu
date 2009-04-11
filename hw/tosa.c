@@ -240,5 +240,4 @@ QEMUMachine tosapda_machine = {
     .name = "tosa",
     .desc = "Tosa PDA (PXA255)",
     .init = tosa_init,
-    .ram_require = TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE + RAMSIZE_FIXED + TC6393XB_RAM,
 };

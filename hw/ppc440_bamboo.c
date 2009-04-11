@@ -190,5 +190,4 @@ QEMUMachine bamboo_machine = {
     .name = "bamboo",
     .desc = "bamboo",
     .init = bamboo_init,
-    .ram_require = 8<<20 | RAMSIZE_FIXED,
 };

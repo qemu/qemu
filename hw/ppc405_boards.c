@@ -349,7 +349,6 @@ QEMUMachine ref405ep_machine = {
     .name = "ref405ep",
     .desc = "ref405ep",
     .init = ref405ep_init,
-    .ram_require = (128 * 1024 * 1024 + 4096 + 512 * 1024 + BIOS_SIZE) | RAMSIZE_FIXED,
 };
 
 /*****************************************************************************/
@@ -630,5 +629,4 @@ QEMUMachine taihu_machine = {
     "taihu",
     "taihu",
     taihu_405ep_init,
-    (128 * 1024 * 1024 + 4096 + BIOS_SIZE + 32 * 1024 * 1024) | RAMSIZE_FIXED,
 };

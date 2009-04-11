@@ -292,7 +292,6 @@ QEMUMachine mips_magnum_machine = {
     .name = "magnum",
     .desc = "MIPS Magnum",
     .init = mips_magnum_init,
-    .ram_require = MAGNUM_BIOS_SIZE + VGA_RAM_SIZE,
     .use_scsi = 1,
 };
 
@@ -300,6 +299,5 @@ QEMUMachine mips_pica61_machine = {
     .name = "pica61",
     .desc = "Acer Pica 61",
     .init = mips_pica61_init,
-    .ram_require = MAGNUM_BIOS_SIZE + VGA_RAM_SIZE,
     .use_scsi = 1,
 };

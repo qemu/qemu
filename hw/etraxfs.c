@@ -157,5 +157,4 @@ QEMUMachine bareetraxfs_machine = {
     .name = "bareetraxfs",
     .desc = "Bare ETRAX FS board",
     .init = bareetraxfs_init,
-    .ram_require = 0x8000000,
 };

@@ -88,5 +88,4 @@ QEMUMachine an5206_machine = {
     .name = "an5206",
     .desc = "Arnewsh 5206",
     .init = an5206_init,
-    .ram_require = 512,
 };

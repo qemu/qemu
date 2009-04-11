@@ -262,5 +262,4 @@ QEMUMachine r2d_machine = {
     .name = "r2d",
     .desc = "r2d-plus board",
     .init = r2d_init,
-    .ram_require = (SDRAM_SIZE + SM501_VRAM_SIZE) | RAMSIZE_FIXED,
 };

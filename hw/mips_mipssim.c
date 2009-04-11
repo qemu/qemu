@@ -187,5 +187,4 @@ QEMUMachine mips_mipssim_machine = {
     .name = "mipssim",
     .desc = "MIPS MIPSsim platform",
     .init = mips_mipssim_init,
-    .ram_require = BIOS_SIZE + VGA_RAM_SIZE /* unused */,
 };
