@@ -25,6 +25,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <machine/trap.h>
+#include <sys/types.h>
+#include <sys/mman.h>
 
 #include "qemu.h"
 #include "qemu-common.h"
@@ -52,6 +54,46 @@ void gemu_log(const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 }
+
+void cpu_outb(CPUState *env, int addr, int val)
+{
+    fprintf(stderr, "outb: port=0x%04x, data=%02x\n", addr, val);
+}
+
+void cpu_outw(CPUState *env, int addr, int val)
+{
+    fprintf(stderr, "outw: port=0x%04x, data=%04x\n", addr, val);
+}
+
+void cpu_outl(CPUState *env, int addr, int val)
+{
+    fprintf(stderr, "outl: port=0x%04x, data=%08x\n", addr, val);
+}
+
+int cpu_inb(CPUState *env, int addr)
+{
+    fprintf(stderr, "inb: port=0x%04x\n", addr);
+    return 0;
+}
+
+int cpu_inw(CPUState *env, int addr)
+{
+    fprintf(stderr, "inw: port=0x%04x\n", addr);
+    return 0;
+}
+
+int cpu_inl(CPUState *env, int addr)
+{
+    fprintf(stderr, "inl: port=0x%04x\n", addr);
+    return 0;
+}
+
+#if defined(TARGET_I386)
+int cpu_get_pic_interrupt(CPUState *env)
+{
+    return -1;
+}
+#endif
 
 /* These are no-ops because we are not threadsafe.  */
 static inline void cpu_exec_start(CPUState *env)
@@ -88,6 +130,226 @@ void cpu_list_lock(void)
 void cpu_list_unlock(void)
 {
 }
+
+#ifdef TARGET_I386
+/***********************************************************/
+/* CPUX86 core interface */
+
+void cpu_smm_update(CPUState *env)
+{
+}
+
+uint64_t cpu_get_tsc(CPUX86State *env)
+{
+    return cpu_get_real_ticks();
+}
+
+static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
+                     int flags)
+{
+    unsigned int e1, e2;
+    uint32_t *p;
+    e1 = (addr << 16) | (limit & 0xffff);
+    e2 = ((addr >> 16) & 0xff) | (addr & 0xff000000) | (limit & 0x000f0000);
+    e2 |= flags;
+    p = ptr;
+    p[0] = tswap32(e1);
+    p[1] = tswap32(e2);
+}
+
+static uint64_t *idt_table;
+#ifdef TARGET_X86_64
+static void set_gate64(void *ptr, unsigned int type, unsigned int dpl,
+                       uint64_t addr, unsigned int sel)
+{
+    uint32_t *p, e1, e2;
+    e1 = (addr & 0xffff) | (sel << 16);
+    e2 = (addr & 0xffff0000) | 0x8000 | (dpl << 13) | (type << 8);
+    p = ptr;
+    p[0] = tswap32(e1);
+    p[1] = tswap32(e2);
+    p[2] = tswap32(addr >> 32);
+    p[3] = 0;
+}
+/* only dpl matters as we do only user space emulation */
+static void set_idt(int n, unsigned int dpl)
+{
+    set_gate64(idt_table + n * 2, 0, dpl, 0, 0);
+}
+#else
+static void set_gate(void *ptr, unsigned int type, unsigned int dpl,
+                     uint32_t addr, unsigned int sel)
+{
+    uint32_t *p, e1, e2;
+    e1 = (addr & 0xffff) | (sel << 16);
+    e2 = (addr & 0xffff0000) | 0x8000 | (dpl << 13) | (type << 8);
+    p = ptr;
+    p[0] = tswap32(e1);
+    p[1] = tswap32(e2);
+}
+
+/* only dpl matters as we do only user space emulation */
+static void set_idt(int n, unsigned int dpl)
+{
+    set_gate(idt_table + n, 0, dpl, 0, 0);
+}
+#endif
+
+void cpu_loop(CPUX86State *env, enum BSDType bsd_type)
+{
+    int trapnr;
+    abi_ulong pc;
+    //target_siginfo_t info;
+
+    for(;;) {
+        trapnr = cpu_x86_exec(env);
+        switch(trapnr) {
+        case 0x80:
+            /* syscall from int $0x80 */
+            env->regs[R_EAX] = do_openbsd_syscall(env,
+                                                  env->regs[R_EAX],
+                                                  env->regs[R_EBX],
+                                                  env->regs[R_ECX],
+                                                  env->regs[R_EDX],
+                                                  env->regs[R_ESI],
+                                                  env->regs[R_EDI],
+                                                  env->regs[R_EBP]);
+            break;
+#ifndef TARGET_ABI32
+        case EXCP_SYSCALL:
+            /* linux syscall from syscall intruction */
+            env->regs[R_EAX] = do_openbsd_syscall(env,
+                                                  env->regs[R_EAX],
+                                                  env->regs[R_EDI],
+                                                  env->regs[R_ESI],
+                                                  env->regs[R_EDX],
+                                                  env->regs[10],
+                                                  env->regs[8],
+                                                  env->regs[9]);
+            env->eip = env->exception_next_eip;
+            break;
+#endif
+#if 0
+        case EXCP0B_NOSEG:
+        case EXCP0C_STACK:
+            info.si_signo = SIGBUS;
+            info.si_errno = 0;
+            info.si_code = TARGET_SI_KERNEL;
+            info._sifields._sigfault._addr = 0;
+            queue_signal(env, info.si_signo, &info);
+            break;
+        case EXCP0D_GPF:
+            /* XXX: potential problem if ABI32 */
+#ifndef TARGET_X86_64
+            if (env->eflags & VM_MASK) {
+                handle_vm86_fault(env);
+            } else
+#endif
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                info.si_code = TARGET_SI_KERNEL;
+                info._sifields._sigfault._addr = 0;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        case EXCP0E_PAGE:
+            info.si_signo = SIGSEGV;
+            info.si_errno = 0;
+            if (!(env->error_code & 1))
+                info.si_code = TARGET_SEGV_MAPERR;
+            else
+                info.si_code = TARGET_SEGV_ACCERR;
+            info._sifields._sigfault._addr = env->cr[2];
+            queue_signal(env, info.si_signo, &info);
+            break;
+        case EXCP00_DIVZ:
+#ifndef TARGET_X86_64
+            if (env->eflags & VM_MASK) {
+                handle_vm86_trap(env, trapnr);
+            } else
+#endif
+            {
+                /* division by zero */
+                info.si_signo = SIGFPE;
+                info.si_errno = 0;
+                info.si_code = TARGET_FPE_INTDIV;
+                info._sifields._sigfault._addr = env->eip;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        case EXCP01_DB:
+        case EXCP03_INT3:
+#ifndef TARGET_X86_64
+            if (env->eflags & VM_MASK) {
+                handle_vm86_trap(env, trapnr);
+            } else
+#endif
+            {
+                info.si_signo = SIGTRAP;
+                info.si_errno = 0;
+                if (trapnr == EXCP01_DB) {
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    info._sifields._sigfault._addr = env->eip;
+                } else {
+                    info.si_code = TARGET_SI_KERNEL;
+                    info._sifields._sigfault._addr = 0;
+                }
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        case EXCP04_INTO:
+        case EXCP05_BOUND:
+#ifndef TARGET_X86_64
+            if (env->eflags & VM_MASK) {
+                handle_vm86_trap(env, trapnr);
+            } else
+#endif
+            {
+                info.si_signo = SIGSEGV;
+                info.si_errno = 0;
+                info.si_code = TARGET_SI_KERNEL;
+                info._sifields._sigfault._addr = 0;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        case EXCP06_ILLOP:
+            info.si_signo = SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->eip;
+            queue_signal(env, info.si_signo, &info);
+            break;
+#endif
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
+#if 0
+        case EXCP_DEBUG:
+            {
+                int sig;
+
+                sig = gdb_handlesig (env, TARGET_SIGTRAP);
+                if (sig)
+                  {
+                    info.si_signo = sig;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_TRAP_BRKPT;
+                    queue_signal(env, info.si_signo, &info);
+                  }
+            }
+            break;
+#endif
+        default:
+            pc = env->segs[R_CS].base + env->eip;
+            fprintf(stderr, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n",
+                    (long)pc, trapnr);
+            abort();
+        }
+        process_pending_signals(env);
+    }
+}
+#endif
 
 #ifdef TARGET_SPARC
 #define SPARC64_STACK_BIAS 2047
@@ -526,7 +788,13 @@ int main(int argc, char **argv)
     init_paths(interp_prefix);
 
     if (cpu_model == NULL) {
-#if defined(TARGET_SPARC)
+#if defined(TARGET_I386)
+#ifdef TARGET_X86_64
+        cpu_model = "qemu64";
+#else
+        cpu_model = "qemu32";
+#endif
+#elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
         cpu_model = "TI UltraSparc II";
 #else
@@ -601,7 +869,124 @@ int main(int argc, char **argv)
     ts->info = info;
     env->opaque = ts;
 
-#if defined(TARGET_SPARC)
+#if defined(TARGET_I386)
+    cpu_x86_set_cpl(env, 3);
+
+    env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
+    env->hflags |= HF_PE_MASK;
+    if (env->cpuid_features & CPUID_SSE) {
+        env->cr[4] |= CR4_OSFXSR_MASK;
+        env->hflags |= HF_OSFXSR_MASK;
+    }
+#ifndef TARGET_ABI32
+    /* enable 64 bit mode if possible */
+    if (!(env->cpuid_ext2_features & CPUID_EXT2_LM)) {
+        fprintf(stderr, "The selected x86 CPU does not support 64 bit mode\n");
+        exit(1);
+    }
+    env->cr[4] |= CR4_PAE_MASK;
+    env->efer |= MSR_EFER_LMA | MSR_EFER_LME;
+    env->hflags |= HF_LMA_MASK;
+#endif
+
+    /* flags setup : we activate the IRQs by default as in user mode */
+    env->eflags |= IF_MASK;
+
+    /* linux register setup */
+#ifndef TARGET_ABI32
+    env->regs[R_EAX] = regs->rax;
+    env->regs[R_EBX] = regs->rbx;
+    env->regs[R_ECX] = regs->rcx;
+    env->regs[R_EDX] = regs->rdx;
+    env->regs[R_ESI] = regs->rsi;
+    env->regs[R_EDI] = regs->rdi;
+    env->regs[R_EBP] = regs->rbp;
+    env->regs[R_ESP] = regs->rsp;
+    env->eip = regs->rip;
+#else
+    env->regs[R_EAX] = regs->eax;
+    env->regs[R_EBX] = regs->ebx;
+    env->regs[R_ECX] = regs->ecx;
+    env->regs[R_EDX] = regs->edx;
+    env->regs[R_ESI] = regs->esi;
+    env->regs[R_EDI] = regs->edi;
+    env->regs[R_EBP] = regs->ebp;
+    env->regs[R_ESP] = regs->esp;
+    env->eip = regs->eip;
+#endif
+
+    /* linux interrupt setup */
+#ifndef TARGET_ABI32
+    env->idt.limit = 511;
+#else
+    env->idt.limit = 255;
+#endif
+    env->idt.base = target_mmap(0, sizeof(uint64_t) * (env->idt.limit + 1),
+                                PROT_READ|PROT_WRITE,
+                                MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    idt_table = g2h(env->idt.base);
+    set_idt(0, 0);
+    set_idt(1, 0);
+    set_idt(2, 0);
+    set_idt(3, 3);
+    set_idt(4, 3);
+    set_idt(5, 0);
+    set_idt(6, 0);
+    set_idt(7, 0);
+    set_idt(8, 0);
+    set_idt(9, 0);
+    set_idt(10, 0);
+    set_idt(11, 0);
+    set_idt(12, 0);
+    set_idt(13, 0);
+    set_idt(14, 0);
+    set_idt(15, 0);
+    set_idt(16, 0);
+    set_idt(17, 0);
+    set_idt(18, 0);
+    set_idt(19, 0);
+    set_idt(0x80, 3);
+
+    /* linux segment setup */
+    {
+        uint64_t *gdt_table;
+        env->gdt.base = target_mmap(0, sizeof(uint64_t) * TARGET_GDT_ENTRIES,
+                                    PROT_READ|PROT_WRITE,
+                                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+        env->gdt.limit = sizeof(uint64_t) * TARGET_GDT_ENTRIES - 1;
+        gdt_table = g2h(env->gdt.base);
+#ifdef TARGET_ABI32
+        write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
+#else
+        /* 64 bit code segment */
+        write_dt(&gdt_table[__USER_CS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 DESC_L_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0xa << DESC_TYPE_SHIFT));
+#endif
+        write_dt(&gdt_table[__USER_DS >> 3], 0, 0xfffff,
+                 DESC_G_MASK | DESC_B_MASK | DESC_P_MASK | DESC_S_MASK |
+                 (3 << DESC_DPL_SHIFT) | (0x2 << DESC_TYPE_SHIFT));
+    }
+
+    cpu_x86_load_seg(env, R_CS, __USER_CS);
+    cpu_x86_load_seg(env, R_SS, __USER_DS);
+#ifdef TARGET_ABI32
+    cpu_x86_load_seg(env, R_DS, __USER_DS);
+    cpu_x86_load_seg(env, R_ES, __USER_DS);
+    cpu_x86_load_seg(env, R_FS, __USER_DS);
+    cpu_x86_load_seg(env, R_GS, __USER_DS);
+    /* This hack makes Wine work... */
+    env->segs[R_FS].selector = 0;
+#else
+    cpu_x86_load_seg(env, R_DS, 0);
+    cpu_x86_load_seg(env, R_ES, 0);
+    cpu_x86_load_seg(env, R_FS, 0);
+    cpu_x86_load_seg(env, R_GS, 0);
+#endif
+#elif defined(TARGET_SPARC)
     {
         int i;
         env->pc = regs->pc;

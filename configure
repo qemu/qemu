@@ -693,6 +693,9 @@ sparc32plus-linux-user \
 # the following are BSD specific
     if [ "$bsd_user" = "yes" ] ; then
         target_list="${target_list}\
+i386-bsd-user \
+x86_64-bsd-user \
+sparc-bsd-user \
 sparc64-bsd-user \
 "
     fi
