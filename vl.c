@@ -3094,9 +3094,9 @@ static int ram_load_v1(QEMUFile *f, void *opaque)
     int ret;
     ram_addr_t i;
 
-    if (qemu_get_be32(f) != phys_ram_size)
+    if (qemu_get_be32(f) != last_ram_offset)
         return -EINVAL;
-    for(i = 0; i < phys_ram_size; i+= TARGET_PAGE_SIZE) {
+    for(i = 0; i < last_ram_offset; i+= TARGET_PAGE_SIZE) {
         ret = ram_get_page(f, qemu_get_ram_ptr(i), TARGET_PAGE_SIZE);
         if (ret)
             return ret;
@@ -3182,7 +3182,7 @@ static int ram_save_block(QEMUFile *f)
     ram_addr_t addr = 0;
     int found = 0;
 
-    while (addr < phys_ram_size) {
+    while (addr < last_ram_offset) {
         if (cpu_physical_memory_get_dirty(current_addr, MIGRATION_DIRTY_FLAG)) {
             uint8_t *p;
 
@@ -3204,7 +3204,7 @@ static int ram_save_block(QEMUFile *f)
             break;
         }
         addr += TARGET_PAGE_SIZE;
-        current_addr = (saved_addr + addr) % phys_ram_size;
+        current_addr = (saved_addr + addr) % last_ram_offset;
     }
 
     return found;
@@ -3217,7 +3217,7 @@ static ram_addr_t ram_save_remaining(void)
     ram_addr_t addr;
     ram_addr_t count = 0;
 
-    for (addr = 0; addr < phys_ram_size; addr += TARGET_PAGE_SIZE) {
+    for (addr = 0; addr < last_ram_offset; addr += TARGET_PAGE_SIZE) {
         if (cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG))
             count++;
     }
@@ -3231,7 +3231,7 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
 
     if (stage == 1) {
         /* Make sure all dirty bits are set */
-        for (addr = 0; addr < phys_ram_size; addr += TARGET_PAGE_SIZE) {
+        for (addr = 0; addr < last_ram_offset; addr += TARGET_PAGE_SIZE) {
             if (!cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG))
                 cpu_physical_memory_set_dirty(addr);
         }
@@ -3239,7 +3239,7 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
         /* Enable dirty memory tracking */
         cpu_physical_memory_set_dirty_tracking(1);
 
-        qemu_put_be64(f, phys_ram_size | RAM_SAVE_FLAG_MEM_SIZE);
+        qemu_put_be64(f, last_ram_offset | RAM_SAVE_FLAG_MEM_SIZE);
     }
 
     while (!qemu_file_rate_limit(f)) {
@@ -3272,7 +3272,7 @@ static int ram_load_dead(QEMUFile *f, void *opaque)
 
     if (ram_decompress_open(s, f) < 0)
         return -EINVAL;
-    for(i = 0; i < phys_ram_size; i+= BDRV_HASH_BLOCK_SIZE) {
+    for(i = 0; i < last_ram_offset; i+= BDRV_HASH_BLOCK_SIZE) {
         if (ram_decompress_buf(s, buf, 1) < 0) {
             fprintf(stderr, "Error while reading ram block header\n");
             goto error;
@@ -3303,7 +3303,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         return ram_load_v1(f, opaque);
 
     if (version_id == 2) {
-        if (qemu_get_be32(f) != phys_ram_size)
+        if (qemu_get_be32(f) != last_ram_offset)
             return -EINVAL;
         return ram_load_dead(f, opaque);
     }
@@ -3318,7 +3318,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         addr &= TARGET_PAGE_MASK;
 
         if (flags & RAM_SAVE_FLAG_MEM_SIZE) {
-            if (addr != phys_ram_size)
+            if (addr != last_ram_offset)
                 return -EINVAL;
         }
 
@@ -5132,31 +5132,21 @@ int main(int argc, char **argv, char **envp)
             exit(1);
 
     /* init the memory */
-    phys_ram_size = machine->ram_require & ~RAMSIZE_FIXED;
+    if (ram_size == 0)
+        ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
 
-    if (machine->ram_require & RAMSIZE_FIXED) {
-        if (ram_size > 0) {
-            if (ram_size < phys_ram_size) {
-                fprintf(stderr, "Machine `%s' requires %llu bytes of memory\n",
-                                machine->name, (unsigned long long) phys_ram_size);
-                exit(-1);
-            }
-
-            phys_ram_size = ram_size;
-        } else
-            ram_size = phys_ram_size;
-    } else {
-        if (ram_size == 0)
-            ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
-
-        phys_ram_size += ram_size;
+#ifdef USE_KQEMU
+    /* FIXME: This is a nasty hack because kqemu can't cope with dynamic
+       guest ram allocation.  It needs to go away.  */
+    if (kqemu_allowed) {
+        kqemu_phys_ram_size = ram_size + VGA_RAM_SIZE + 4 * 1024 * 1024;
+        kqemu_phys_ram_base = qemu_vmalloc(kqemu_phys_ram_size);
+        if (!kqemu_phys_ram_base) {
+            fprintf(stderr, "Could not allocate physical memory\n");
+            exit(1);
+        }
     }
-
-    phys_ram_base = qemu_vmalloc(phys_ram_size);
-    if (!phys_ram_base) {
-        fprintf(stderr, "Could not allocate physical memory\n");
-        exit(1);
-    }
+#endif
 
     /* init the dynamic translator */
     cpu_exec_init_all(tb_size * 1024 * 1024);

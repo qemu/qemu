@@ -107,12 +107,22 @@ static unsigned long code_gen_buffer_max_size;
 uint8_t *code_gen_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
-ram_addr_t phys_ram_size;
 int phys_ram_fd;
-uint8_t *phys_ram_base;
 uint8_t *phys_ram_dirty;
 static int in_migration;
-static ram_addr_t phys_ram_alloc_offset = 0;
+
+typedef struct RAMBlock {
+    uint8_t *host;
+    ram_addr_t offset;
+    ram_addr_t length;
+    struct RAMBlock *next;
+} RAMBlock;
+
+static RAMBlock *ram_blocks;
+/* TODO: When we implement (and use) ram deallocation (e.g. for hotplug)
+   then we can no longet assume contiguous ram offsets, and external uses
+   of this variable will break.  */
+ram_addr_t last_ram_offset;
 #endif
 
 CPUState *first_cpu;
@@ -411,7 +421,7 @@ static void code_gen_alloc(unsigned long tb_size)
         code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
 #else
         /* XXX: needs ajustments */
-        code_gen_buffer_size = (unsigned long)(phys_ram_size / 4);
+        code_gen_buffer_size = (unsigned long)(ram_size / 4);
 #endif
     }
     if (code_gen_buffer_size < MIN_CODE_GEN_BUFFER_SIZE)
@@ -2419,22 +2429,55 @@ void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
         kvm_uncoalesce_mmio_region(addr, size);
 }
 
+#ifdef USE_KQEMU
 /* XXX: better than nothing */
-ram_addr_t qemu_ram_alloc(ram_addr_t size)
+static ram_addr_t kqemu_ram_alloc(ram_addr_t size)
 {
     ram_addr_t addr;
-    if ((phys_ram_alloc_offset + size) > phys_ram_size) {
+    if ((last_ram_offset + size) > kqemu_phys_ram_size) {
         fprintf(stderr, "Not enough memory (requested_size = %" PRIu64 ", max memory = %" PRIu64 ")\n",
-                (uint64_t)size, (uint64_t)phys_ram_size);
+                (uint64_t)size, (uint64_t)kqemu_phys_ram_size);
         abort();
     }
-    addr = phys_ram_alloc_offset;
-    phys_ram_alloc_offset = TARGET_PAGE_ALIGN(phys_ram_alloc_offset + size);
+    addr = last_ram_offset;
+    last_ram_offset = TARGET_PAGE_ALIGN(last_ram_offset + size);
     return addr;
+}
+#endif
+
+ram_addr_t qemu_ram_alloc(ram_addr_t size)
+{
+    RAMBlock *new_block;
+
+#ifdef USE_KQEMU
+    if (kqemu_phys_ram_base) {
+        return kqemu_ram_alloc(size);
+    }
+#endif
+
+    size = TARGET_PAGE_ALIGN(size);
+    new_block = qemu_malloc(sizeof(*new_block));
+
+    new_block->host = qemu_vmalloc(size);
+    new_block->offset = last_ram_offset;
+    new_block->length = size;
+
+    new_block->next = ram_blocks;
+    ram_blocks = new_block;
+
+    phys_ram_dirty = qemu_realloc(phys_ram_dirty,
+        (last_ram_offset + size) >> TARGET_PAGE_BITS);
+    memset(phys_ram_dirty + (last_ram_offset >> TARGET_PAGE_BITS),
+           0xff, size >> TARGET_PAGE_BITS);
+
+    last_ram_offset += size;
+
+    return new_block->offset;
 }
 
 void qemu_ram_free(ram_addr_t addr)
 {
+    /* TODO: implement this.  */
 }
 
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
@@ -2447,14 +2490,69 @@ void qemu_ram_free(ram_addr_t addr)
  */
 void *qemu_get_ram_ptr(ram_addr_t addr)
 {
-    return phys_ram_base + addr;
+    RAMBlock *prev;
+    RAMBlock **prevp;
+    RAMBlock *block;
+
+#ifdef USE_KQEMU
+    if (kqemu_phys_ram_base) {
+        return kqemu_phys_ram_base + addr;
+    }
+#endif
+
+    prev = NULL;
+    prevp = &ram_blocks;
+    block = ram_blocks;
+    while (block && (block->offset > addr
+                     || block->offset + block->length <= addr)) {
+        if (prev)
+          prevp = &prev->next;
+        prev = block;
+        block = block->next;
+    }
+    if (!block) {
+        fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
+        abort();
+    }
+    /* Move this entry to to start of the list.  */
+    if (prev) {
+        prev->next = block->next;
+        block->next = *prevp;
+        *prevp = block;
+    }
+    return block->host + (addr - block->offset);
 }
 
 /* Some of the softmmu routines need to translate from a host pointer
    (typically a TLB entry) back to a ram offset.  */
 ram_addr_t qemu_ram_addr_from_host(void *ptr)
 {
-  return (uint8_t *)ptr - phys_ram_base;
+    RAMBlock *prev;
+    RAMBlock **prevp;
+    RAMBlock *block;
+    uint8_t *host = ptr;
+
+#ifdef USE_KQEMU
+    if (kqemu_phys_ram_base) {
+        return host - kqemu_phys_ram_base;
+    }
+#endif
+
+    prev = NULL;
+    prevp = &ram_blocks;
+    block = ram_blocks;
+    while (block && (block->host > host
+                     || block->host + block->length <= host)) {
+        if (prev)
+          prevp = &prev->next;
+        prev = block;
+        block = block->next;
+    }
+    if (!block) {
+        fprintf(stderr, "Bad ram pointer %p\n", ptr);
+        abort();
+    }
+    return block->offset + (host - block->host);
 }
 
 static uint32_t unassigned_mem_readb(void *opaque, target_phys_addr_t addr)
@@ -2895,9 +2993,13 @@ static void io_mem_init(void)
 
     io_mem_watch = cpu_register_io_memory(0, watch_mem_read,
                                           watch_mem_write, NULL);
-    /* alloc dirty bits array */
-    phys_ram_dirty = qemu_vmalloc(phys_ram_size >> TARGET_PAGE_BITS);
-    memset(phys_ram_dirty, 0xff, phys_ram_size >> TARGET_PAGE_BITS);
+#ifdef USE_KQEMU
+    if (kqemu_phys_ram_base) {
+        /* alloc dirty bits array */
+        phys_ram_dirty = qemu_vmalloc(kqemu_phys_ram_size >> TARGET_PAGE_BITS);
+        memset(phys_ram_dirty, 0xff, kqemu_phys_ram_size >> TARGET_PAGE_BITS);
+    }
+#endif
 }
 
 /* mem_read and mem_write are arrays of functions containing the

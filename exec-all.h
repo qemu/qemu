@@ -370,6 +370,9 @@ void kqemu_record_dump(void);
 
 extern uint32_t kqemu_comm_base;
 
+extern ram_addr_t kqemu_phys_ram_size;
+extern uint8_t *kqemu_phys_ram_base;
+
 static inline int kqemu_is_ok(CPUState *env)
 {
     return(env->kqemu_enabled &&

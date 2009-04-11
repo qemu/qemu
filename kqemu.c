@@ -91,6 +91,8 @@ unsigned int nb_modified_ram_pages;
 uint8_t *modified_ram_pages_table;
 int qpi_io_memory;
 uint32_t kqemu_comm_base; /* physical address of the QPI communication page */
+ram_addr_t kqemu_phys_ram_size;
+uint8_t *kqemu_phys_ram_base;
 
 #define cpuid(index, eax, ebx, ecx, edx) \
   asm volatile ("cpuid" \
@@ -214,13 +216,14 @@ int kqemu_init(CPUState *env)
                                       sizeof(uint64_t));
     if (!modified_ram_pages)
         goto fail;
-    modified_ram_pages_table = qemu_mallocz(phys_ram_size >> TARGET_PAGE_BITS);
+    modified_ram_pages_table =
+        qemu_mallocz(kqemu_phys_ram_size >> TARGET_PAGE_BITS);
     if (!modified_ram_pages_table)
         goto fail;
 
     memset(&kinit, 0, sizeof(kinit)); /* set the paddings to zero */
-    kinit.ram_base = phys_ram_base;
-    kinit.ram_size = phys_ram_size;
+    kinit.ram_base = kqemu_phys_ram_base;
+    kinit.ram_size = kqemu_phys_ram_size;
     kinit.ram_dirty = phys_ram_dirty;
     kinit.pages_to_flush = pages_to_flush;
     kinit.ram_pages_to_update = ram_pages_to_update;

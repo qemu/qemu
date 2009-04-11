@@ -854,11 +854,10 @@ typedef unsigned long ram_addr_t;
 
 /* memory API */
 
-extern ram_addr_t phys_ram_size;
 extern int phys_ram_fd;
-extern uint8_t *phys_ram_base;
 extern uint8_t *phys_ram_dirty;
 extern ram_addr_t ram_size;
+extern ram_addr_t last_ram_offset;
 
 /* physical memory access */
 
