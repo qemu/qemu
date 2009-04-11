@@ -57,10 +57,12 @@ enum {
     OPC_ADDIU    = (0x09 << 26),
     OPC_SLTI     = (0x0A << 26),
     OPC_SLTIU    = (0x0B << 26),
+    /* logic with immediate */
     OPC_ANDI     = (0x0C << 26),
     OPC_ORI      = (0x0D << 26),
     OPC_XORI     = (0x0E << 26),
     OPC_LUI      = (0x0F << 26),
+    /* arithmetic with immediate */
     OPC_DADDI    = (0x18 << 26),
     OPC_DADDIU   = (0x19 << 26),
     /* Jump and branches */
@@ -1197,140 +1199,184 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
 static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
                            int rt, int rs, int16_t imm)
 {
-    target_ulong uimm;
+    target_ulong uimm = (target_long)imm; /* Sign extend to 32/64 bits */
     const char *opn = "imm arith";
-    TCGv t0 = tcg_temp_local_new();
 
     if (rt == 0 && opc != OPC_ADDI && opc != OPC_DADDI) {
         /* If no destination, treat it as a NOP.
            For addi, we must generate the overflow exception when needed. */
         MIPS_DEBUG("NOP");
-        goto out;
-    }
-    uimm = (uint16_t)imm;
-    switch (opc) {
-    case OPC_ADDI:
-    case OPC_ADDIU:
-#if defined(TARGET_MIPS64)
-    case OPC_DADDI:
-    case OPC_DADDIU:
-#endif
-    case OPC_SLTI:
-    case OPC_SLTIU:
-        uimm = (target_long)imm; /* Sign extend to 32/64 bits */
-        /* Fall through. */
-    case OPC_ANDI:
-    case OPC_ORI:
-    case OPC_XORI:
-        gen_load_gpr(t0, rs);
-        break;
-    case OPC_LUI:
-        tcg_gen_movi_tl(t0, imm << 16);
-        break;
-    case OPC_SLL:
-    case OPC_SRA:
-    case OPC_SRL:
-#if defined(TARGET_MIPS64)
-    case OPC_DSLL:
-    case OPC_DSRA:
-    case OPC_DSRL:
-    case OPC_DSLL32:
-    case OPC_DSRA32:
-    case OPC_DSRL32:
-#endif
-        uimm &= 0x1f;
-        gen_load_gpr(t0, rs);
-        break;
+        return;
     }
     switch (opc) {
     case OPC_ADDI:
         {
-            TCGv r_tmp1 = tcg_temp_new();
-            TCGv r_tmp2 = tcg_temp_new();
+            TCGv t0 = tcg_temp_local_new();
+            TCGv t1 = tcg_temp_new();
+            TCGv t2 = tcg_temp_new();
             int l1 = gen_new_label();
 
-            save_cpu_state(ctx, 1);
-            tcg_gen_ext32s_tl(r_tmp1, t0);
-            tcg_gen_addi_tl(t0, r_tmp1, uimm);
+            gen_load_gpr(t1, rs);
+            tcg_gen_addi_tl(t0, t1, uimm);
+            tcg_gen_ext32s_tl(t0, t0);
 
-            tcg_gen_xori_tl(r_tmp1, r_tmp1, ~uimm);
-            tcg_gen_xori_tl(r_tmp2, t0, uimm);
-            tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
-            tcg_temp_free(r_tmp2);
-            tcg_gen_brcondi_tl(TCG_COND_GE, r_tmp1, 0, l1);
+            tcg_gen_xori_tl(t1, t1, ~uimm);
+            tcg_gen_xori_tl(t2, t0, uimm);
+            tcg_gen_and_tl(t1, t1, t2);
+            tcg_temp_free(t2);
+            tcg_gen_brcondi_tl(TCG_COND_GE, t1, 0, l1);
+            tcg_temp_free(t1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
-            tcg_temp_free(r_tmp1);
-
             tcg_gen_ext32s_tl(t0, t0);
+            gen_store_gpr(t0, rt);
+            tcg_temp_free(t0);
         }
         opn = "addi";
         break;
     case OPC_ADDIU:
-        tcg_gen_addi_tl(t0, t0, uimm);
-        tcg_gen_ext32s_tl(t0, t0);
+        if (rs != 0) {
+            tcg_gen_addi_tl(cpu_gpr[rt], cpu_gpr[rs], uimm);
+            tcg_gen_ext32s_tl(cpu_gpr[rt], cpu_gpr[rt]);
+        } else {
+            tcg_gen_movi_tl(cpu_gpr[rt], uimm);
+        }
         opn = "addiu";
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DADDI:
         {
-            TCGv r_tmp1 = tcg_temp_new();
-            TCGv r_tmp2 = tcg_temp_new();
+            TCGv t0 = tcg_temp_local_new();
+            TCGv t1 = tcg_temp_new();
+            TCGv t2 = tcg_temp_new();
             int l1 = gen_new_label();
 
-            save_cpu_state(ctx, 1);
-            tcg_gen_mov_tl(r_tmp1, t0);
-            tcg_gen_addi_tl(t0, t0, uimm);
+            gen_load_gpr(t1, rs);
+            tcg_gen_addi_tl(t0, t1, uimm);
 
-            tcg_gen_xori_tl(r_tmp1, r_tmp1, ~uimm);
-            tcg_gen_xori_tl(r_tmp2, t0, uimm);
-            tcg_gen_and_tl(r_tmp1, r_tmp1, r_tmp2);
-            tcg_temp_free(r_tmp2);
-            tcg_gen_brcondi_tl(TCG_COND_GE, r_tmp1, 0, l1);
+            tcg_gen_xori_tl(t1, t1, ~uimm);
+            tcg_gen_xori_tl(t2, t0, uimm);
+            tcg_gen_and_tl(t1, t1, t2);
+            tcg_temp_free(t2);
+            tcg_gen_brcondi_tl(TCG_COND_GE, t1, 0, l1);
+            tcg_temp_free(t1);
             /* operands of same sign, result different sign */
             generate_exception(ctx, EXCP_OVERFLOW);
             gen_set_label(l1);
-            tcg_temp_free(r_tmp1);
+            gen_store_gpr(t0, rt);
+            tcg_temp_free(t0);
         }
         opn = "daddi";
         break;
     case OPC_DADDIU:
-        tcg_gen_addi_tl(t0, t0, uimm);
+        if (rs != 0) {
+            tcg_gen_addi_tl(cpu_gpr[rt], cpu_gpr[rs], uimm);
+        } else {
+            tcg_gen_movi_tl(cpu_gpr[rt], uimm);
+        }
         opn = "daddiu";
         break;
 #endif
-    case OPC_SLTI:
-        gen_op_lti(t0, t0, uimm);
-        opn = "slti";
-        break;
-    case OPC_SLTIU:
-        gen_op_ltiu(t0, t0, uimm);
-        opn = "sltiu";
-        break;
+    }
+    MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
+}
+
+/* Logic with immediate operand */
+static void gen_logic_imm (CPUState *env, uint32_t opc, int rt, int rs, int16_t imm)
+{
+    target_ulong uimm;
+    const char *opn = "imm logic";
+
+    if (rt == 0) {
+        /* If no destination, treat it as a NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+    uimm = (uint16_t)imm;
+    switch (opc) {
     case OPC_ANDI:
-        tcg_gen_andi_tl(t0, t0, uimm);
+        if (likely(rs != 0))
+            tcg_gen_andi_tl(cpu_gpr[rt], cpu_gpr[rs], uimm);
+        else
+            tcg_gen_movi_tl(cpu_gpr[rt], 0);
         opn = "andi";
         break;
     case OPC_ORI:
-        tcg_gen_ori_tl(t0, t0, uimm);
+        if (rs != 0)
+            tcg_gen_ori_tl(cpu_gpr[rt], cpu_gpr[rs], uimm);
+        else
+            tcg_gen_movi_tl(cpu_gpr[rt], uimm);
         opn = "ori";
         break;
     case OPC_XORI:
-        tcg_gen_xori_tl(t0, t0, uimm);
+        if (likely(rs != 0))
+            tcg_gen_xori_tl(cpu_gpr[rt], cpu_gpr[rs], uimm);
+        else
+            tcg_gen_movi_tl(cpu_gpr[rt], uimm);
         opn = "xori";
         break;
     case OPC_LUI:
+        tcg_gen_movi_tl(cpu_gpr[rt], imm << 16);
         opn = "lui";
         break;
+    }
+    MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
+}
+
+/* Set on less than with immediate operand */
+static void gen_slt_imm (CPUState *env, uint32_t opc, int rt, int rs, int16_t imm)
+{
+    target_ulong uimm = (target_long)imm; /* Sign extend to 32/64 bits */
+    const char *opn = "imm arith";
+    TCGv t0;
+
+    if (rt == 0) {
+        /* If no destination, treat it as a NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rs);
+    switch (opc) {
+    case OPC_SLTI:
+        gen_op_lti(cpu_gpr[rt], t0, uimm);
+        opn = "slti";
+        break;
+    case OPC_SLTIU:
+        gen_op_ltiu(cpu_gpr[rt], t0, uimm);
+        opn = "sltiu";
+        break;
+    }
+    MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
+    tcg_temp_free(t0);
+}
+
+/* Shifts with immediate operand */
+static void gen_shift_imm(CPUState *env, DisasContext *ctx, uint32_t opc,
+                          int rt, int rs, int16_t imm)
+{
+    target_ulong uimm = ((uint16_t)imm) & 0x1f;
+    const char *opn = "imm shift";
+    TCGv t0;
+
+    if (rt == 0) {
+        /* If no destination, treat it as a NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rs);
+    switch (opc) {
     case OPC_SLL:
         tcg_gen_shli_tl(t0, t0, uimm);
-        tcg_gen_ext32s_tl(t0, t0);
+        tcg_gen_ext32s_tl(cpu_gpr[rt], t0);
         opn = "sll";
         break;
     case OPC_SRA:
         tcg_gen_ext32s_tl(t0, t0);
-        tcg_gen_sari_tl(t0, t0, uimm);
+        tcg_gen_sari_tl(cpu_gpr[rt], t0, uimm);
         opn = "sra";
         break;
     case OPC_SRL:
@@ -1338,9 +1384,9 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         case 0:
             if (uimm != 0) {
                 tcg_gen_ext32u_tl(t0, t0);
-                tcg_gen_shri_tl(t0, t0, uimm);
+                tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
             } else {
-                tcg_gen_ext32s_tl(t0, t0);
+                tcg_gen_ext32s_tl(cpu_gpr[rt], t0);
             }
             opn = "srl";
             break;
@@ -1352,16 +1398,16 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
 
                     tcg_gen_trunc_tl_i32(r_tmp1, t0);
                     tcg_gen_rotri_i32(r_tmp1, r_tmp1, uimm);
-                    tcg_gen_ext_i32_tl(t0, r_tmp1);
+                    tcg_gen_ext_i32_tl(cpu_gpr[rt], r_tmp1);
                     tcg_temp_free_i32(r_tmp1);
                 }
                 opn = "rotr";
             } else {
                 if (uimm != 0) {
                     tcg_gen_ext32u_tl(t0, t0);
-                    tcg_gen_shri_tl(t0, t0, uimm);
+                    tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
                 } else {
-                    tcg_gen_ext32s_tl(t0, t0);
+                    tcg_gen_ext32s_tl(cpu_gpr[rt], t0);
                 }
                 opn = "srl";
             }
@@ -1374,28 +1420,28 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DSLL:
-        tcg_gen_shli_tl(t0, t0, uimm);
+        tcg_gen_shli_tl(cpu_gpr[rt], t0, uimm);
         opn = "dsll";
         break;
     case OPC_DSRA:
-        tcg_gen_sari_tl(t0, t0, uimm);
+        tcg_gen_sari_tl(cpu_gpr[rt], t0, uimm);
         opn = "dsra";
         break;
     case OPC_DSRL:
         switch ((ctx->opcode >> 21) & 0x1f) {
         case 0:
-            tcg_gen_shri_tl(t0, t0, uimm);
+            tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
             opn = "dsrl";
             break;
         case 1:
             /* drotr is decoded as dsrl on non-R2 CPUs */
             if (env->insn_flags & ISA_MIPS32R2) {
                 if (uimm != 0) {
-                    tcg_gen_rotri_tl(t0, t0, uimm);
+                    tcg_gen_rotri_tl(cpu_gpr[rt], t0, uimm);
                 }
                 opn = "drotr";
             } else {
-                tcg_gen_shri_tl(t0, t0, uimm);
+                tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm);
                 opn = "dsrl";
             }
             break;
@@ -1406,26 +1452,26 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         }
         break;
     case OPC_DSLL32:
-        tcg_gen_shli_tl(t0, t0, uimm + 32);
+        tcg_gen_shli_tl(cpu_gpr[rt], t0, uimm + 32);
         opn = "dsll32";
         break;
     case OPC_DSRA32:
-        tcg_gen_sari_tl(t0, t0, uimm + 32);
+        tcg_gen_sari_tl(cpu_gpr[rt], t0, uimm + 32);
         opn = "dsra32";
         break;
     case OPC_DSRL32:
         switch ((ctx->opcode >> 21) & 0x1f) {
         case 0:
-            tcg_gen_shri_tl(t0, t0, uimm + 32);
+            tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm + 32);
             opn = "dsrl32";
             break;
         case 1:
             /* drotr32 is decoded as dsrl32 on non-R2 CPUs */
             if (env->insn_flags & ISA_MIPS32R2) {
-                tcg_gen_rotri_tl(t0, t0, uimm + 32);
+                tcg_gen_rotri_tl(cpu_gpr[rt], t0, uimm + 32);
                 opn = "drotr32";
             } else {
-                tcg_gen_shri_tl(t0, t0, uimm + 32);
+                tcg_gen_shri_tl(cpu_gpr[rt], t0, uimm + 32);
                 opn = "dsrl32";
             }
             break;
@@ -1436,14 +1482,8 @@ static void gen_arith_imm (CPUState *env, DisasContext *ctx, uint32_t opc,
         }
         break;
 #endif
-    default:
-        MIPS_INVAL(opn);
-        generate_exception(ctx, EXCP_RI);
-        goto out;
     }
-    gen_store_gpr(t0, rt);
     MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
- out:
     tcg_temp_free(t0);
 }
 
@@ -7556,9 +7596,10 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
     case OPC_SPECIAL:
         op1 = MASK_SPECIAL(ctx->opcode);
         switch (op1) {
-        case OPC_SLL:          /* Arithmetic with immediate */
-        case OPC_SRL ... OPC_SRA:
-            gen_arith_imm(env, ctx, op1, rd, rt, sa);
+        case OPC_SLL:          /* Shift with immediate */
+        case OPC_SRA:
+        case OPC_SRL:
+            gen_shift_imm(env, ctx, op1, rd, rt, sa);
             break;
         case OPC_MOVN:         /* Conditional move */
         case OPC_MOVZ:
@@ -7648,12 +7689,14 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
 #if defined(TARGET_MIPS64)
        /* MIPS64 specific opcodes */
         case OPC_DSLL:
-        case OPC_DSRL ... OPC_DSRA:
+        case OPC_DSRA:
+        case OPC_DSRL:
         case OPC_DSLL32:
-        case OPC_DSRL32 ... OPC_DSRA32:
+        case OPC_DSRA32:
+        case OPC_DSRL32:
             check_insn(env, ctx, ISA_MIPS3);
             check_mips_64(ctx);
-            gen_arith_imm(env, ctx, op1, rd, rt, sa);
+            gen_shift_imm(env, ctx, op1, rd, rt, sa);
             break;
         case OPC_DADD ... OPC_DSUBU:
             check_insn(env, ctx, ISA_MIPS3);
@@ -7928,8 +7971,19 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             break;
         }
         break;
-    case OPC_ADDI ... OPC_LUI: /* Arithmetic with immediate opcode */
+    case OPC_ADDI: /* Arithmetic with immediate opcode */
+    case OPC_ADDIU:
          gen_arith_imm(env, ctx, op, rt, rs, imm);
+         break;
+    case OPC_SLTI: /* Set on less than with immediate opcode */
+    case OPC_SLTIU:
+         gen_slt_imm(env, op, rt, rs, imm);
+         break;
+    case OPC_ANDI: /* Arithmetic with immediate opcode */
+    case OPC_LUI:
+    case OPC_ORI:
+    case OPC_XORI:
+         gen_logic_imm(env, op, rt, rs, imm);
          break;
     case OPC_J ... OPC_JAL: /* Jump */
          offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
@@ -8080,7 +8134,8 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
         check_mips_64(ctx);
         gen_ldst(ctx, op, rt, rs, imm);
         break;
-    case OPC_DADDI ... OPC_DADDIU:
+    case OPC_DADDI:
+    case OPC_DADDIU:
         check_insn(env, ctx, ISA_MIPS3);
         check_mips_64(ctx);
         gen_arith_imm(env, ctx, op, rt, rs, imm);
