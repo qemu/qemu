@@ -216,12 +216,6 @@ static void palmte_init(ram_addr_t ram_size, int vga_ram_size,
     int rom_size, rom_loaded = 0;
     DisplayState *ds = get_displaystate();
 
-    if (ram_size < flash_size + sdram_size + OMAP15XX_SRAM_SIZE) {
-        fprintf(stderr, "This architecture uses %i bytes of memory\n",
-                        flash_size + sdram_size + OMAP15XX_SRAM_SIZE);
-        exit(1);
-    }
-
     cpu = omap310_mpu_init(sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */

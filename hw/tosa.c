@@ -205,12 +205,6 @@ static void tosa_init(ram_addr_t ram_size, int vga_ram_size,
     struct tc6393xb_s *tmio;
     struct scoop_info_s *scp0, *scp1;
 
-    if (ram_size < (TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE + TC6393XB_RAM)) {
-        fprintf(stderr, "This platform requires %i bytes of memory\n",
-                TOSA_RAM + TOSA_ROM + PXA2XX_INTERNAL_SIZE);
-        exit(1);
-    }
-
     if (!cpu_model)
         cpu_model = "pxa255";
 

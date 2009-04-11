@@ -83,14 +83,6 @@ static void mainstone_common_init(ram_addr_t ram_size, int vga_ram_size,
         cpu_model = "pxa270-c5";
 
     /* Setup CPU & memory */
-    if (ram_size < MAINSTONE_RAM + MAINSTONE_ROM + 2 * MAINSTONE_FLASH +
-                    PXA2XX_INTERNAL_SIZE) {
-        fprintf(stderr, "This platform requires %i bytes of memory\n",
-                        MAINSTONE_RAM + MAINSTONE_ROM + 2 * MAINSTONE_FLASH +
-                        PXA2XX_INTERNAL_SIZE);
-        exit(1);
-    }
-
     cpu = pxa270_init(mainstone_binfo.ram_size, cpu_model);
     cpu_register_physical_memory(0, MAINSTONE_ROM,
                     qemu_ram_alloc(MAINSTONE_ROM) | IO_MEM_ROM);

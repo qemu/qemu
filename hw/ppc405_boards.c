@@ -512,6 +512,7 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
     ram_sizes[0] = 0x04000000;
     ram_bases[1] = qemu_ram_alloc(0x04000000);
     ram_sizes[1] = 0x04000000;
+    ram_size = 0x08000000;
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register cpu\n", __func__);
 #endif

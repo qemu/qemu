@@ -919,11 +919,6 @@ static void spitz_common_init(ram_addr_t ram_size, int vga_ram_size,
         cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
 
     /* Setup CPU & memory */
-    if (ram_size < SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE) {
-        fprintf(stderr, "This platform requires %i bytes of memory\n",
-                        SPITZ_RAM + SPITZ_ROM + PXA2XX_INTERNAL_SIZE);
-        exit(1);
-    }
     cpu = pxa270_init(spitz_binfo.ram_size, cpu_model);
 
     sl_flash_register(cpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
