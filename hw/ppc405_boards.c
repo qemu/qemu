@@ -626,7 +626,7 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine taihu_machine = {
-    "taihu",
-    "taihu",
-    taihu_405ep_init,
+    .name = "taihu",
+    .desc = "taihu",
+    .init = taihu_405ep_init,
 };
