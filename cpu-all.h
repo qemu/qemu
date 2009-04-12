@@ -854,11 +854,10 @@ typedef unsigned long ram_addr_t;
 
 /* memory API */
 
-extern ram_addr_t phys_ram_size;
 extern int phys_ram_fd;
-extern uint8_t *phys_ram_base;
 extern uint8_t *phys_ram_dirty;
 extern ram_addr_t ram_size;
+extern ram_addr_t last_ram_offset;
 
 /* physical memory access */
 
@@ -908,6 +907,9 @@ ram_addr_t qemu_ram_alloc(ram_addr_t);
 void qemu_ram_free(ram_addr_t addr);
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);
+/* This should not be used by devices.  */
+ram_addr_t qemu_ram_addr_from_host(void *ptr);
+
 int cpu_register_io_memory(int io_index,
                            CPUReadMemoryFunc * const *mem_read,
                            CPUWriteMemoryFunc * const *mem_write,

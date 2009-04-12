@@ -204,6 +204,5 @@ QEMUMachine realview_machine = {
     .name = "realview",
     .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
     .init = realview_init,
-    .ram_require = 0x1000,
     .use_scsi = 1,
 };

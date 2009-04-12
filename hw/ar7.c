@@ -3646,7 +3646,7 @@ static int64_t load_kernel (CPUState *env)
     if (loaderparams.kernel_cmdline && *loaderparams.kernel_cmdline) {
         /* Load kernel parameters (argv, envp) from file. */
         // TODO: use cpu_physical_memory_write(bdloc, (void *)kernel_cmdline, len + 1)
-        uint8_t *address = phys_ram_base + INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR;
+        uint8_t *address = qemu_get_ram_ptr(INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR);
         int argc;
         uint32_t *argv;
         uint32_t *arg0;
@@ -3754,6 +3754,8 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     int drive_index;
     ram_addr_t flash_offset;
     ram_addr_t ram_offset;
+    ram_addr_t rom_offset;
+    int rom_size;
 
 #if defined(DEBUG_AR7)
     set_traceflags();
@@ -3802,8 +3804,6 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
        but initialize the hardware ourselves. When a kernel gets
        preloaded we also initialize the hardware, since the BIOS wasn't
        run. */
-    flash_offset = qemu_ram_alloc(0);
-
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "flashimage.bin");
     drive_index = drive_get_index(IF_PFLASH, 0, 0);
     if (drive_index != -1) {
@@ -3817,6 +3817,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
                                         flash_size, 2,
                                         flash_manufacturer, flash_type);
         } else {
+            flash_offset = qemu_ram_alloc(flash_size);
             pf = pflash_device_register(FLASH_ADDR, flash_offset,
                                         0,
                                         flash_size, 2,
@@ -3824,6 +3825,7 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         }
     } else {
         pflash_t *pf;
+        flash_offset = qemu_ram_alloc(flash_size);
         pf = pflash_device_register(FLASH_ADDR, flash_offset,
                                     0,
                                     flash_size, 2,
@@ -3833,11 +3835,11 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
     fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
-    flash_offset = qemu_ram_alloc(4 * KiB);
+    rom_offset = qemu_ram_alloc(4 * KiB);
     snprintf(buf, sizeof(buf), "%s/%s", bios_dir, "mips_bios.bin");
-    flash_size = load_image_targphys(buf, PROM_ADDR, 4 * KiB);
-    if ((flash_size > 0) && (flash_size <= 4 * KiB)) {
-        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, flash_size);
+    rom_size = load_image_targphys(buf, PROM_ADDR, 4 * KiB);
+    if ((rom_size > 0) && (rom_size <= 4 * KiB)) {
+        fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, buf, rom_size);
     } else {
         /* Not fatal, write a jump to address 0xb0000000 into memory. */
         static const uint8_t jump[] = {
@@ -3847,10 +3849,10 @@ static void mips_ar7_common_init (ram_addr_t machine_ram_size,
         fprintf(stderr, "QEMU: Warning, could not load MIPS bios '%s'.\n"
                 "QEMU added a jump instruction to flash start.\n", buf);
         cpu_physical_memory_write_rom(PROM_ADDR, jump, sizeof(jump));
-        flash_size = 4 * KiB;
+        rom_size = 4 * KiB;
     }
     cpu_register_physical_memory_offset(PROM_ADDR,
-                                 flash_size, flash_offset | IO_MEM_ROM, PROM_ADDR);
+                                 rom_size, rom_offset | IO_MEM_ROM, PROM_ADDR);
 
     if (kernel_filename) {
         load_kernel(env);
@@ -4062,28 +4064,24 @@ static QEMUMachine mips_machines[] = {
     .name = "ar7",
     .desc = "MIPS 4KEc / AR7 platform",
     .init = mips_ar7_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
   {
     .name = "ar7-amd",
     .desc = "MIPS AR7 with AMD flash",
     .init = ar7_amd_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
   {
     .name = "tnetd7200",
     .desc = "MIPS 4KEc / TNETD7200 platform",
     .init = mips_tnetd7200_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
   {
     .name = "tnetd7300",
     .desc = "MIPS 4KEc / TNETD7300 platform",
     .init = mips_tnetd7300_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -4091,7 +4089,6 @@ static QEMUMachine mips_machines[] = {
     .name = "zyxel",
     .desc = "Zyxel 2 MiB flash (AR7 platform)",
     .init = zyxel_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
 #else
@@ -4099,42 +4096,36 @@ static QEMUMachine mips_machines[] = {
     .name = "fbox-4mb",
     .desc = "FBox 4 MiB flash (AR7 platform)",
     .init = fbox4_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
   {
     .name = "fbox-8mb",
     .desc = "FBox 8 MiB flash (AR7 platform)",
     .init = fbox8_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
   {
     .name = "sinus-basic-se",
     .desc = "Sinus DSL Basic SE (AR7 platform)",
     .init = sinus_basic_se_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
   {
     .name = "sinus-se",
     .desc = "Sinus DSL SE (AR7 platform)",
     .init = sinus_se_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
   {
     .name = "sinus-basic-3",
     .desc = "Sinus DSL Basic 3 (AR7 platform)",
     .init = sinus_basic_3_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
   {
     .name = "speedport",
     .desc = "Speedport (AR7 platform)",
     .init = speedport_init,
-    .ram_require = RAMSIZE,
     .max_cpus = 1,
   },
 #endif

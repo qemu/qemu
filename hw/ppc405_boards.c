@@ -349,7 +349,6 @@ QEMUMachine ref405ep_machine = {
     .name = "ref405ep",
     .desc = "ref405ep",
     .init = ref405ep_init,
-    .ram_require = (128 * 1024 * 1024 + 4096 + 512 * 1024 + BIOS_SIZE) | RAMSIZE_FIXED,
 };
 
 /*****************************************************************************/
@@ -512,6 +511,7 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
     ram_sizes[0] = 0x04000000;
     ram_bases[1] = qemu_ram_alloc(0x04000000);
     ram_sizes[1] = 0x04000000;
+    ram_size = 0x08000000;
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register cpu\n", __func__);
 #endif
@@ -626,8 +626,7 @@ static void taihu_405ep_init(ram_addr_t ram_size, int vga_ram_size,
 }
 
 QEMUMachine taihu_machine = {
-    "taihu",
-    "taihu",
-    taihu_405ep_init,
-    (128 * 1024 * 1024 + 4096 + BIOS_SIZE + 32 * 1024 * 1024) | RAMSIZE_FIXED,
+    .name = "taihu",
+    .desc = "taihu",
+    .init = taihu_405ep_init,
 };

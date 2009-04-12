@@ -101,7 +101,7 @@ static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
     mem.slot = slot->slot;
     mem.guest_phys_addr = slot->start_addr;
     mem.memory_size = slot->memory_size;
-    mem.userspace_addr = (unsigned long)phys_ram_base + slot->phys_offset;
+    mem.userspace_addr = (unsigned long)qemu_get_ram_ptr(slot->phys_offset);
     mem.flags = slot->flags;
 
     return kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
@@ -329,7 +329,7 @@ int kvm_init(int smp_cpus)
 
     /* initially, KVM allocated its own memory and we had to jump through
      * hooks to make phys_ram_base point to this.  Modern versions of KVM
-     * just use a user allocated buffer so we can use phys_ram_base
+     * just use a user allocated buffer so we can use regular pages
      * unmodified.  Make sure we have a sufficiently modern version of KVM.
      */
     ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_USER_MEMORY);

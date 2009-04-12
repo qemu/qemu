@@ -366,5 +366,4 @@ QEMUMachine axisdev88_machine = {
     .name = "axis-dev88",
     .desc = "AXIS devboard 88",
     .init = axisdev88_init,
-    .ram_require = 0x8000000,
 };

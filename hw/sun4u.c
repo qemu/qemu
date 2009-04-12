@@ -593,7 +593,6 @@ QEMUMachine sun4u_machine = {
     .name = "sun4u",
     .desc = "Sun4u platform",
     .init = sun4u_init,
-    .ram_require = PROM_SIZE_MAX + VGA_RAM_SIZE,
     .max_cpus = 1, // XXX for now
 };
 
@@ -601,7 +600,6 @@ QEMUMachine sun4v_machine = {
     .name = "sun4v",
     .desc = "Sun4v platform",
     .init = sun4v_init,
-    .ram_require = PROM_SIZE_MAX + VGA_RAM_SIZE,
     .max_cpus = 1, // XXX for now
 };
 
@@ -609,6 +607,5 @@ QEMUMachine niagara_machine = {
     .name = "Niagara",
     .desc = "Sun4v platform, Niagara",
     .init = niagara_init,
-    .ram_require = PROM_SIZE_MAX + VGA_RAM_SIZE,
     .max_cpus = 1, // XXX for now
 };

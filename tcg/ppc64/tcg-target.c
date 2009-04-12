@@ -104,10 +104,6 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R10,
     TCG_REG_R11,
     TCG_REG_R12,
-    TCG_REG_R13,
-    TCG_REG_R0,
-    TCG_REG_R1,
-    TCG_REG_R2,
     TCG_REG_R24,
     TCG_REG_R25,
     TCG_REG_R26,
@@ -372,9 +368,6 @@ static int tcg_target_const_match (tcg_target_long val,
 #define SRD    XO31(539)
 #define SRAD   XO31(794)
 #define SRADI  XO31(413<<1)
-
-#define LMW    OPCD( 46)
-#define STMW   OPCD( 47)
 
 #define TW     XO31( 4)
 #define TRAP   (TW | TO (31))

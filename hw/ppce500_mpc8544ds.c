@@ -286,5 +286,4 @@ QEMUMachine mpc8544ds_machine = {
     .name = "mpc8544ds",
     .desc = "mpc8544ds",
     .init = mpc8544ds_init,
-    .ram_require = RAM_SIZES_ALIGN | RAMSIZE_FIXED,
 };

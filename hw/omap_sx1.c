@@ -227,12 +227,10 @@ QEMUMachine sx1_machine_v2 = {
     .name = "sx1",
     .desc = "Siemens SX1 (OMAP310) V2",
     .init = sx1_init_v2,
-    .ram_require = total_ram_v2 | RAMSIZE_FIXED,
 };
 
 QEMUMachine sx1_machine_v1 = {
     .name = "sx1-v1",
     .desc = "Siemens SX1 (OMAP310) V1",
     .init = sx1_init_v1,
-    .ram_require = total_ram_v1 | RAMSIZE_FIXED,
 };

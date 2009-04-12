@@ -52,12 +52,6 @@ static void connex_init(ram_addr_t ram_size, int vga_ram_size,
     uint32_t connex_rom = 0x01000000;
     uint32_t connex_ram = 0x04000000;
 
-    if (ram_size < (connex_ram + connex_rom + PXA2XX_INTERNAL_SIZE)) {
-        fprintf(stderr, "This platform requires %i bytes of memory\n",
-                connex_ram + connex_rom + PXA2XX_INTERNAL_SIZE);
-        exit(1);
-    }
-
     cpu = pxa255_init(connex_ram);
 
     index = drive_get_index(IF_PFLASH, 0, 0);
@@ -92,12 +86,6 @@ static void verdex_init(ram_addr_t ram_size, int vga_ram_size,
     uint32_t verdex_rom = 0x02000000;
     uint32_t verdex_ram = 0x10000000;
 
-    if (ram_size < (verdex_ram + verdex_rom + PXA2XX_INTERNAL_SIZE)) {
-        fprintf(stderr, "This platform requires %i bytes of memory\n",
-                verdex_ram + verdex_rom + PXA2XX_INTERNAL_SIZE);
-        exit(1);
-    }
-
     cpu = pxa270_init(verdex_ram, cpu_model ?: "pxa270-c0");
 
     index = drive_get_index(IF_PFLASH, 0, 0);
@@ -125,12 +113,10 @@ QEMUMachine connex_machine = {
     .name = "connex",
     .desc = "Gumstix Connex (PXA255)",
     .init = connex_init,
-    .ram_require = (0x05000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };
 
 QEMUMachine verdex_machine = {
     .name = "verdex",
     .desc = "Gumstix Verdex (PXA270)",
     .init = verdex_init,
-    .ram_require = (0x12000000 + PXA2XX_INTERNAL_SIZE) | RAMSIZE_FIXED,
 };

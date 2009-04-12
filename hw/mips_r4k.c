@@ -319,13 +319,11 @@ static QEMUMachine mips_machines[] = {
     .name = "mips",
     .desc = "MIPS r4k platform",
     .init = mips_r4k_init,
-    .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
   },
   {
     .name = "mipsel",
     .desc = "MIPS r4k platform (little endian)",
     .init = mipsel_r4k_init,
-    .ram_require = VGA_RAM_SIZE + BIOS_SIZE,
     .max_cpus = 1,
   },
 };
