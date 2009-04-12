@@ -6951,7 +6951,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         {
             int l1 = gen_new_label();
-            TCGv_i32 fp0;
+            TCGv_i64 fp0;
 
             if (ft != 0)
                 tcg_gen_brcondi_tl(TCG_COND_NE, cpu_gpr[ft], 0, l1);
@@ -6967,7 +6967,7 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         check_cp1_64bitmode(ctx);
         {
             int l1 = gen_new_label();
-            TCGv_i32 fp0;
+            TCGv_i64 fp0;
 
             if (ft != 0) {
                 tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[ft], 0, l1);
