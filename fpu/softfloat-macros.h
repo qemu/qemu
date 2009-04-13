@@ -590,12 +590,12 @@ static bits32 estimateSqrt32( int16 aExp, bits32 a )
 
     index = ( a>>27 ) & 15;
     if ( aExp & 1 ) {
-        z = 0x4000 + ( a>>17 ) - sqrtOddAdjustments[ index ];
+        z = 0x4000 + ( a>>17 ) - sqrtOddAdjustments[ (int)index ];
         z = ( ( a / z )<<14 ) + ( z<<15 );
         a >>= 1;
     }
     else {
-        z = 0x8000 + ( a>>17 ) - sqrtEvenAdjustments[ index ];
+        z = 0x8000 + ( a>>17 ) - sqrtEvenAdjustments[ (int)index ];
         z = a / z + z;
         z = ( 0x20000 <= z ) ? 0xFFFF8000 : ( z<<15 );
         if ( z <= a ) return (bits32) ( ( (sbits32) a )>>1 );

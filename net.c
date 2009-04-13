@@ -626,7 +626,7 @@ void net_slirp_smb(const char *exported_dir)
     }
 
     /* XXX: better tmp dir construction */
-    snprintf(smb_dir, sizeof(smb_dir), "/tmp/qemu-smb.%d", getpid());
+    snprintf(smb_dir, sizeof(smb_dir), "/tmp/qemu-smb.%ld", (long)getpid());
     if (mkdir(smb_dir, 0700) < 0) {
         fprintf(stderr, "qemu: could not create samba server dir '%s'\n", smb_dir);
         exit(1);
@@ -740,7 +740,7 @@ static void tap_send(void *opaque)
     struct strbuf sbuf;
     int f = 0;
     sbuf.maxlen = sizeof(buf);
-    sbuf.buf = buf;
+    sbuf.buf = (char *)buf;
     size = getmsg(s->fd, NULL, &sbuf, &f) >=0 ? sbuf.len : -1;
 #else
     size = read(s->fd, buf, sizeof(buf));
@@ -796,7 +796,7 @@ static int tap_open(char *ifname, int ifname_size)
  * Allocate TAP device, returns opened fd.
  * Stores dev name in the first arg(must be large enough).
  */
-int tap_alloc(char *dev, size_t dev_size)
+static int tap_alloc(char *dev, size_t dev_size)
 {
     int tap_fd, if_fd, ppa = -1;
     static int ip_fd = 0;

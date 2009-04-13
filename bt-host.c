@@ -53,7 +53,7 @@ static void bt_host_send(struct HCIInfo *hci,
     struct iovec iv[2];
     int ret;
 
-    iv[0].iov_base = &pkt;
+    iv[0].iov_base = (void *)&pkt;
     iv[0].iov_len  = 1;
     iv[1].iov_base = (void *) data;
     iv[1].iov_len  = len;

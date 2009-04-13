@@ -203,6 +203,10 @@ if check_define __linux__ ; then
   targetos="Linux"
 elif check_define _WIN32 ; then
   targetos='MINGW32'
+elif check_define __OpenBSD__ ; then
+  targetos='OpenBSD'
+elif check_define __sun__ ; then
+  targetos='SunOS'
 else
   targetos=`uname -s`
 fi
@@ -284,6 +288,7 @@ SunOS)
     make="gmake"
     install="ginstall"
     needs_libsunmath="no"
+    kvm="no"
     solarisrev=`uname -r | cut -f2 -d.`
     # have to select again, because `uname -m` returns i86pc
     # even on an x86_64 box.
@@ -311,6 +316,7 @@ SunOS)
         audio_drv_list="oss"
     fi
     audio_possible_drivers="oss sdl"
+    OS_CFLAGS=-std=gnu99
 ;;
 AIX)
 aix="yes"
@@ -1025,7 +1031,10 @@ if test "$curses" = "yes" ; then
   curses=no
   cat > $TMPC << EOF
 #include <curses.h>
-int main(void) { return curses_version(); }
+#ifdef __OpenBSD__
+#define resize_term resizeterm
+#endif
+int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
   if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses > /dev/null 2> /dev/null ; then
     curses=yes

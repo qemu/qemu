@@ -754,8 +754,8 @@ static CharDriverState *qemu_chr_open_stdio(void)
 
 #ifdef __sun__
 /* Once Solaris has openpty(), this is going to be removed. */
-int openpty(int *amaster, int *aslave, char *name,
-            struct termios *termp, struct winsize *winp)
+static int openpty(int *amaster, int *aslave, char *name,
+                   struct termios *termp, struct winsize *winp)
 {
         const char *slave;
         int mfd = -1, sfd = -1;
@@ -795,7 +795,7 @@ err:
         return -1;
 }
 
-void cfmakeraw (struct termios *termios_p)
+static void cfmakeraw (struct termios *termios_p)
 {
         termios_p->c_iflag &=
                 ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);

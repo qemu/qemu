@@ -335,7 +335,7 @@ static uint8_t *scsi_get_buf(SCSIDevice *d, uint32_t tag)
         BADF("Bad buffer tag 0x%x\n", tag);
         return NULL;
     }
-    return r->iov.iov_base;
+    return (uint8_t *)r->iov.iov_base;
 }
 
 /* Execute a scsi command.  Returns the length of the data expected by the
@@ -365,7 +365,7 @@ static int32_t scsi_send_command(SCSIDevice *d, uint32_t tag,
     /* ??? Tags are not unique for different luns.  We only implement a
        single lun, so this should not matter.  */
     r = scsi_new_request(s, tag);
-    outbuf = r->iov.iov_base;
+    outbuf = (uint8_t *)r->iov.iov_base;
     is_write = 0;
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
     switch (command >> 5) {

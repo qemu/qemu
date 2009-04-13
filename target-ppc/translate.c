@@ -81,6 +81,7 @@ void ppc_translate_init(void)
 {
     int i;
     char* p;
+    size_t cpu_reg_names_size;
     static int done_init = 0;
 
     if (done_init)
@@ -89,32 +90,37 @@ void ppc_translate_init(void)
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 
     p = cpu_reg_names;
+    cpu_reg_names_size = sizeof(cpu_reg_names);
 
     for (i = 0; i < 8; i++) {
-        sprintf(p, "crf%d", i);
+        snprintf(p, cpu_reg_names_size, "crf%d", i);
         cpu_crf[i] = tcg_global_mem_new_i32(TCG_AREG0,
                                             offsetof(CPUState, crf[i]), p);
         p += 5;
+        cpu_reg_names_size -= 5;
     }
 
     for (i = 0; i < 32; i++) {
-        sprintf(p, "r%d", i);
+        snprintf(p, cpu_reg_names_size, "r%d", i);
         cpu_gpr[i] = tcg_global_mem_new(TCG_AREG0,
                                         offsetof(CPUState, gpr[i]), p);
         p += (i < 10) ? 3 : 4;
+        cpu_reg_names_size -= (i < 10) ? 3 : 4;
 #if !defined(TARGET_PPC64)
-        sprintf(p, "r%dH", i);
+        snprintf(p, cpu_reg_names_size, "r%dH", i);
         cpu_gprh[i] = tcg_global_mem_new_i32(TCG_AREG0,
                                              offsetof(CPUState, gprh[i]), p);
         p += (i < 10) ? 4 : 5;
+        cpu_reg_names_size -= (i < 10) ? 4 : 5;
 #endif
 
-        sprintf(p, "fp%d", i);
+        snprintf(p, cpu_reg_names_size, "fp%d", i);
         cpu_fpr[i] = tcg_global_mem_new_i64(TCG_AREG0,
                                             offsetof(CPUState, fpr[i]), p);
         p += (i < 10) ? 4 : 5;
+        cpu_reg_names_size -= (i < 10) ? 4 : 5;
 
-        sprintf(p, "avr%dH", i);
+        snprintf(p, cpu_reg_names_size, "avr%dH", i);
 #ifdef WORDS_BIGENDIAN
         cpu_avrh[i] = tcg_global_mem_new_i64(TCG_AREG0,
                                              offsetof(CPUState, avr[i].u64[0]), p);
@@ -123,8 +129,9 @@ void ppc_translate_init(void)
                                              offsetof(CPUState, avr[i].u64[1]), p);
 #endif
         p += (i < 10) ? 6 : 7;
+        cpu_reg_names_size -= (i < 10) ? 6 : 7;
 
-        sprintf(p, "avr%dL", i);
+        snprintf(p, cpu_reg_names_size, "avr%dL", i);
 #ifdef WORDS_BIGENDIAN
         cpu_avrl[i] = tcg_global_mem_new_i64(TCG_AREG0,
                                              offsetof(CPUState, avr[i].u64[1]), p);
@@ -133,6 +140,7 @@ void ppc_translate_init(void)
                                              offsetof(CPUState, avr[i].u64[0]), p);
 #endif
         p += (i < 10) ? 6 : 7;
+        cpu_reg_names_size -= (i < 10) ? 6 : 7;
     }
 
     cpu_nip = tcg_global_mem_new(TCG_AREG0,
