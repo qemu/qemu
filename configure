@@ -1010,7 +1010,10 @@ if test "$curses" = "yes" ; then
   curses=no
   cat > $TMPC << EOF
 #include <curses.h>
-int main(void) { return curses_version(); }
+#ifdef __OpenBSD__
+#define resize_term resizeterm
+#endif
+int main(void) { resize_term(0, 0); return curses_version(); }
 EOF
   if $cc $ARCH_CFLAGS -o $TMPE $TMPC -lcurses > /dev/null 2> /dev/null ; then
     curses=yes
