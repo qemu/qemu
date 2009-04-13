@@ -313,7 +313,7 @@ static int iov_fill(struct iovec *iov, int iovcnt, const void *buf, int count)
 static int receive_header(VirtIONet *n, struct iovec *iov, int iovcnt,
                           const void *buf, size_t size, size_t hdr_len)
 {
-    struct virtio_net_hdr *hdr = iov[0].iov_base;
+    struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)iov[0].iov_base;
     int offset = 0;
 
     hdr->flags = 0;

@@ -1434,7 +1434,7 @@ static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
     QEMUIOVector qiov;
 
     async_ret = NOT_DONE;
-    iov.iov_base = buf;
+    iov.iov_base = (void *)buf;
     iov.iov_len = nb_sectors * 512;
     qemu_iovec_init_external(&qiov, &iov, 1);
     acb = bdrv_aio_readv(bs, sector_num, &qiov, nb_sectors,

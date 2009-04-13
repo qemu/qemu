@@ -1469,7 +1469,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 #ifdef DEBUG_AIO
     printf("aio_read_cd: lba=%u n=%d\n", s->lba, n);
 #endif
-    bm->iov.iov_base = s->io_buffer + data_offset;
+    bm->iov.iov_base = (void *)(s->io_buffer + data_offset);
     bm->iov.iov_len = n * 4 * 512;
     qemu_iovec_init_external(&bm->qiov, &bm->iov, 1);
     bm->aiocb = bdrv_aio_readv(s->bs, (int64_t)s->lba << 2, &bm->qiov,

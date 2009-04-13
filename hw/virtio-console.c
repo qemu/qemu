@@ -38,8 +38,10 @@ static void virtio_console_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         ssize_t len = 0;
         int d;
 
-        for (d=0; d < elem.out_num; d++)
-            len += qemu_chr_write(s->chr, elem.out_sg[d].iov_base,elem.out_sg[d].iov_len);
+        for (d = 0; d < elem.out_num; d++) {
+            len += qemu_chr_write(s->chr, (uint8_t *)elem.out_sg[d].iov_base,
+                                  elem.out_sg[d].iov_len);
+        }
         virtqueue_push(vq, &elem, len);
         virtio_notify(vdev, vq);
     }

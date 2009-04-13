@@ -583,7 +583,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
     if (!acb->cluster_offset) {
         if (bs->backing_hd) {
             /* read from the base image */
-            acb->hd_iov.iov_base = acb->buf;
+            acb->hd_iov.iov_base = (void *)acb->buf;
             acb->hd_iov.iov_len = acb->n * 512;
             qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
             acb->hd_aiocb = bdrv_aio_readv(bs->backing_hd, acb->sector_num,
@@ -607,7 +607,7 @@ static void qcow_aio_read_cb(void *opaque, int ret)
             ret = -EIO;
             goto done;
         }
-        acb->hd_iov.iov_base = acb->buf;
+        acb->hd_iov.iov_base = (void *)acb->buf;
         acb->hd_iov.iov_len = acb->n * 512;
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_readv(s->hd,
@@ -643,7 +643,7 @@ static BlockDriverAIOCB *qcow_aio_readv(BlockDriverState *bs,
     if (qiov->niov > 1)
         acb->buf = acb->orig_buf = qemu_memalign(512, qiov->size);
     else
-        acb->buf = qiov->iov->iov_base;
+        acb->buf = (uint8_t *)qiov->iov->iov_base;
     acb->nb_sectors = nb_sectors;
     acb->n = 0;
     acb->cluster_offset = 0;
@@ -738,8 +738,9 @@ static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
     if (qiov->niov > 1) {
         acb->buf = acb->orig_buf = qemu_memalign(512, qiov->size);
         qemu_iovec_to_buffer(qiov, acb->buf);
-    } else
-        acb->buf = qiov->iov->iov_base;
+    } else {
+        acb->buf = (uint8_t *)qiov->iov->iov_base;
+    }
     acb->nb_sectors = nb_sectors;
     acb->n = 0;
 
