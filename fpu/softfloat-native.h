@@ -20,7 +20,7 @@
  *   are defined in <iso/math_c99.h> with a compiler directive
  */
 #if defined(HOST_SOLARIS) && (( HOST_SOLARIS <= 9 ) || ((HOST_SOLARIS >= 10) \
-                                                        && (__GNUC__ <= 4))) \
+                                                        && (__GNUC__ < 4))) \
     || (defined(__OpenBSD__) && (OpenBSD < 200811))
 /*
  * C99 7.12.3 classification macros

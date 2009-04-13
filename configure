@@ -306,6 +306,7 @@ SunOS)
         audio_drv_list="oss"
     fi
     audio_possible_drivers="oss sdl"
+    OS_CFLAGS=-std=gnu99
 ;;
 AIX)
 aix="yes"
