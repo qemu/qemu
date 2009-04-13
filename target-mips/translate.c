@@ -3698,6 +3698,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
     case 12:
         switch (sel) {
         case 0:
+            save_cpu_state(ctx, 1);
             gen_helper_mtc0_status(t0);
             /* BS_STOP isn't good enough here, hflags may have changed. */
             gen_save_pc(ctx->pc + 4);
@@ -3732,6 +3733,7 @@ static void gen_mtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int se
     case 13:
         switch (sel) {
         case 0:
+            save_cpu_state(ctx, 1);
             gen_helper_mtc0_cause(t0);
             rn = "Cause";
             break;
@@ -4862,6 +4864,7 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     case 12:
         switch (sel) {
         case 0:
+            save_cpu_state(ctx, 1);
             gen_helper_mtc0_status(t0);
             /* BS_STOP isn't good enough here, hflags may have changed. */
             gen_save_pc(ctx->pc + 4);
@@ -4896,14 +4899,13 @@ static void gen_dmtc0 (CPUState *env, DisasContext *ctx, TCGv t0, int reg, int s
     case 13:
         switch (sel) {
         case 0:
+            save_cpu_state(ctx, 1);
             gen_helper_mtc0_cause(t0);
             rn = "Cause";
             break;
         default:
             goto die;
         }
-        /* Stop translation as we may have switched the execution mode */
-        ctx->bstate = BS_STOP;
         break;
     case 14:
         switch (sel) {
@@ -7973,6 +7975,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                     break;
                 case OPC_DI:
                     check_insn(env, ctx, ISA_MIPS32R2);
+                    save_cpu_state(ctx, 1);
                     gen_helper_di(t0);
                     gen_store_gpr(t0, rt);
                     /* Stop translation as we may have switched the execution mode */
@@ -7980,6 +7983,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
                     break;
                 case OPC_EI:
                     check_insn(env, ctx, ISA_MIPS32R2);
+                    save_cpu_state(ctx, 1);
                     gen_helper_ei(t0);
                     gen_store_gpr(t0, rt);
                     /* Stop translation as we may have switched the execution mode */
