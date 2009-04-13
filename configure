@@ -278,6 +278,7 @@ SunOS)
     make="gmake"
     install="ginstall"
     needs_libsunmath="no"
+    kvm="no"
     solarisrev=`uname -r | cut -f2 -d.`
     # have to select again, because `uname -m` returns i86pc
     # even on an x86_64 box.
