@@ -22,9 +22,6 @@
  * THE SOFTWARE.
  */
 
-/* define it to suppress various consistency checks (faster) */
-#define NDEBUG
-
 /* define it to use liveness analysis (better code) */
 #define USE_LIVENESS_ANALYSIS
 
@@ -44,6 +41,11 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "cache-utils.h"
+
+#ifndef DEBUG_TCG
+/* define it to suppress various consistency checks (faster) */
+#define NDEBUG
+#endif
 
 /* Note: the long term plan is to reduce the dependancies on the QEMU
    CPU definitions. Currently they are used for qemu_ld/st

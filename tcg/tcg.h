@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qemu-common.h"
 #include "tcg-target.h"
 
 #if TCG_TARGET_REG_BITS == 32
@@ -120,7 +121,9 @@ typedef tcg_target_ulong TCGArg;
    are aliases for target_ulong and host pointer sized values respectively.
  */
 
-//#define DEBUG_TCGV 1
+#ifdef DEBUG_TCG
+#define DEBUG_TCGV 1
+#endif
 
 #ifdef DEBUG_TCGV
 
