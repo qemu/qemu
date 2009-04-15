@@ -314,7 +314,7 @@ static int sys_fchmodat(int dirfd, const char *pathname, mode_t mode, int flags)
   return (fchmodat(dirfd, pathname, mode, flags));
 }
 #endif
-#ifdef TARGET_NR_fchownat
+#if defined(TARGET_NR_fchownat) && defined(USE_UID16)
 static int sys_fchownat(int dirfd, const char *pathname, uid_t owner,
     gid_t group, int flags)
 {
