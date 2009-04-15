@@ -67,25 +67,25 @@ static void do_restore_state (void *pc_ptr)
 }
 #endif
 
-target_ulong helper_clo (target_ulong t0)
+target_ulong helper_clo (target_ulong arg1)
 {
-    return clo32(t0);
+    return clo32(arg1);
 }
 
-target_ulong helper_clz (target_ulong t0)
+target_ulong helper_clz (target_ulong arg1)
 {
-    return clz32(t0);
+    return clz32(arg1);
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong helper_dclo (target_ulong t0)
+target_ulong helper_dclo (target_ulong arg1)
 {
-    return clo64(t0);
+    return clo64(arg1);
 }
 
-target_ulong helper_dclz (target_ulong t0)
+target_ulong helper_dclz (target_ulong arg1)
 {
-    return clz64(t0);
+    return clz64(arg1);
 }
 #endif /* TARGET_MIPS64 */
 
@@ -101,126 +101,126 @@ static inline void set_HILO (uint64_t HILO)
     env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
-static inline void set_HIT0_LO (target_ulong t0, uint64_t HILO)
+static inline void set_HIT0_LO (target_ulong arg1, uint64_t HILO)
 {
     env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
-    t0 = env->active_tc.HI[0] = (int32_t)(HILO >> 32);
+    arg1 = env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
-static inline void set_HI_LOT0 (target_ulong t0, uint64_t HILO)
+static inline void set_HI_LOT0 (target_ulong arg1, uint64_t HILO)
 {
-    t0 = env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
+    arg1 = env->active_tc.LO[0] = (int32_t)(HILO & 0xFFFFFFFF);
     env->active_tc.HI[0] = (int32_t)(HILO >> 32);
 }
 
 /* Multiplication variants of the vr54xx. */
-target_ulong helper_muls (target_ulong t0, target_ulong t1)
+target_ulong helper_muls (target_ulong arg1, target_ulong arg2)
 {
-    set_HI_LOT0(t0, 0 - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+    set_HI_LOT0(arg1, 0 - ((int64_t)(int32_t)arg1 * (int64_t)(int32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_mulsu (target_ulong t0, target_ulong t1)
+target_ulong helper_mulsu (target_ulong arg1, target_ulong arg2)
 {
-    set_HI_LOT0(t0, 0 - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+    set_HI_LOT0(arg1, 0 - ((uint64_t)(uint32_t)arg1 * (uint64_t)(uint32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_macc (target_ulong t0, target_ulong t1)
+target_ulong helper_macc (target_ulong arg1, target_ulong arg2)
 {
-    set_HI_LOT0(t0, ((int64_t)get_HILO()) + ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+    set_HI_LOT0(arg1, ((int64_t)get_HILO()) + ((int64_t)(int32_t)arg1 * (int64_t)(int32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_macchi (target_ulong t0, target_ulong t1)
+target_ulong helper_macchi (target_ulong arg1, target_ulong arg2)
 {
-    set_HIT0_LO(t0, ((int64_t)get_HILO()) + ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+    set_HIT0_LO(arg1, ((int64_t)get_HILO()) + ((int64_t)(int32_t)arg1 * (int64_t)(int32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_maccu (target_ulong t0, target_ulong t1)
+target_ulong helper_maccu (target_ulong arg1, target_ulong arg2)
 {
-    set_HI_LOT0(t0, ((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+    set_HI_LOT0(arg1, ((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)arg1 * (uint64_t)(uint32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_macchiu (target_ulong t0, target_ulong t1)
+target_ulong helper_macchiu (target_ulong arg1, target_ulong arg2)
 {
-    set_HIT0_LO(t0, ((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+    set_HIT0_LO(arg1, ((uint64_t)get_HILO()) + ((uint64_t)(uint32_t)arg1 * (uint64_t)(uint32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_msac (target_ulong t0, target_ulong t1)
+target_ulong helper_msac (target_ulong arg1, target_ulong arg2)
 {
-    set_HI_LOT0(t0, ((int64_t)get_HILO()) - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+    set_HI_LOT0(arg1, ((int64_t)get_HILO()) - ((int64_t)(int32_t)arg1 * (int64_t)(int32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_msachi (target_ulong t0, target_ulong t1)
+target_ulong helper_msachi (target_ulong arg1, target_ulong arg2)
 {
-    set_HIT0_LO(t0, ((int64_t)get_HILO()) - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+    set_HIT0_LO(arg1, ((int64_t)get_HILO()) - ((int64_t)(int32_t)arg1 * (int64_t)(int32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_msacu (target_ulong t0, target_ulong t1)
+target_ulong helper_msacu (target_ulong arg1, target_ulong arg2)
 {
-    set_HI_LOT0(t0, ((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+    set_HI_LOT0(arg1, ((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)arg1 * (uint64_t)(uint32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_msachiu (target_ulong t0, target_ulong t1)
+target_ulong helper_msachiu (target_ulong arg1, target_ulong arg2)
 {
-    set_HIT0_LO(t0, ((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+    set_HIT0_LO(arg1, ((uint64_t)get_HILO()) - ((uint64_t)(uint32_t)arg1 * (uint64_t)(uint32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_mulhi (target_ulong t0, target_ulong t1)
+target_ulong helper_mulhi (target_ulong arg1, target_ulong arg2)
 {
-    set_HIT0_LO(t0, (int64_t)(int32_t)t0 * (int64_t)(int32_t)t1);
+    set_HIT0_LO(arg1, (int64_t)(int32_t)arg1 * (int64_t)(int32_t)arg2);
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_mulhiu (target_ulong t0, target_ulong t1)
+target_ulong helper_mulhiu (target_ulong arg1, target_ulong arg2)
 {
-    set_HIT0_LO(t0, (uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1);
+    set_HIT0_LO(arg1, (uint64_t)(uint32_t)arg1 * (uint64_t)(uint32_t)arg2);
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_mulshi (target_ulong t0, target_ulong t1)
+target_ulong helper_mulshi (target_ulong arg1, target_ulong arg2)
 {
-    set_HIT0_LO(t0, 0 - ((int64_t)(int32_t)t0 * (int64_t)(int32_t)t1));
+    set_HIT0_LO(arg1, 0 - ((int64_t)(int32_t)arg1 * (int64_t)(int32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_mulshiu (target_ulong t0, target_ulong t1)
+target_ulong helper_mulshiu (target_ulong arg1, target_ulong arg2)
 {
-    set_HIT0_LO(t0, 0 - ((uint64_t)(uint32_t)t0 * (uint64_t)(uint32_t)t1));
+    set_HIT0_LO(arg1, 0 - ((uint64_t)(uint32_t)arg1 * (uint64_t)(uint32_t)arg2));
 
-    return t0;
+    return arg1;
 }
 
 #ifdef TARGET_MIPS64
-void helper_dmult (target_ulong t0, target_ulong t1)
+void helper_dmult (target_ulong arg1, target_ulong arg2)
 {
-    muls64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), t0, t1);
+    muls64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), arg1, arg2);
 }
 
-void helper_dmultu (target_ulong t0, target_ulong t1)
+void helper_dmultu (target_ulong arg1, target_ulong arg2)
 {
-    mulu64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), t0, t1);
+    mulu64(&(env->active_tc.LO[0]), &(env->active_tc.HI[0]), arg1, arg2);
 }
 #endif
 
@@ -232,7 +232,7 @@ void helper_dmultu (target_ulong t0, target_ulong t1)
 #define GET_OFFSET(addr, offset) (addr - (offset))
 #endif
 
-target_ulong helper_lwl(target_ulong t0, target_ulong t1, int mem_idx)
+target_ulong helper_lwl(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
     target_ulong tmp;
 
@@ -249,27 +249,27 @@ target_ulong helper_lwl(target_ulong t0, target_ulong t1, int mem_idx)
     case 2: ldfun = ldub_user; break;
     }
 #endif
-    tmp = ldfun(t0);
-    t1 = (t1 & 0x00FFFFFF) | (tmp << 24);
+    tmp = ldfun(arg2);
+    arg1 = (arg1 & 0x00FFFFFF) | (tmp << 24);
 
-    if (GET_LMASK(t0) <= 2) {
-        tmp = ldfun(GET_OFFSET(t0, 1));
-        t1 = (t1 & 0xFF00FFFF) | (tmp << 16);
+    if (GET_LMASK(arg2) <= 2) {
+        tmp = ldfun(GET_OFFSET(arg2, 1));
+        arg1 = (arg1 & 0xFF00FFFF) | (tmp << 16);
     }
 
-    if (GET_LMASK(t0) <= 1) {
-        tmp = ldfun(GET_OFFSET(t0, 2));
-        t1 = (t1 & 0xFFFF00FF) | (tmp << 8);
+    if (GET_LMASK(arg2) <= 1) {
+        tmp = ldfun(GET_OFFSET(arg2, 2));
+        arg1 = (arg1 & 0xFFFF00FF) | (tmp << 8);
     }
 
-    if (GET_LMASK(t0) == 0) {
-        tmp = ldfun(GET_OFFSET(t0, 3));
-        t1 = (t1 & 0xFFFFFF00) | tmp;
+    if (GET_LMASK(arg2) == 0) {
+        tmp = ldfun(GET_OFFSET(arg2, 3));
+        arg1 = (arg1 & 0xFFFFFF00) | tmp;
     }
-    return (int32_t)t1;
+    return (int32_t)arg1;
 }
 
-target_ulong helper_lwr(target_ulong t0, target_ulong t1, int mem_idx)
+target_ulong helper_lwr(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
     target_ulong tmp;
 
@@ -286,27 +286,27 @@ target_ulong helper_lwr(target_ulong t0, target_ulong t1, int mem_idx)
     case 2: ldfun = ldub_user; break;
     }
 #endif
-    tmp = ldfun(t0);
-    t1 = (t1 & 0xFFFFFF00) | tmp;
+    tmp = ldfun(arg2);
+    arg1 = (arg1 & 0xFFFFFF00) | tmp;
 
-    if (GET_LMASK(t0) >= 1) {
-        tmp = ldfun(GET_OFFSET(t0, -1));
-        t1 = (t1 & 0xFFFF00FF) | (tmp << 8);
+    if (GET_LMASK(arg2) >= 1) {
+        tmp = ldfun(GET_OFFSET(arg2, -1));
+        arg1 = (arg1 & 0xFFFF00FF) | (tmp << 8);
     }
 
-    if (GET_LMASK(t0) >= 2) {
-        tmp = ldfun(GET_OFFSET(t0, -2));
-        t1 = (t1 & 0xFF00FFFF) | (tmp << 16);
+    if (GET_LMASK(arg2) >= 2) {
+        tmp = ldfun(GET_OFFSET(arg2, -2));
+        arg1 = (arg1 & 0xFF00FFFF) | (tmp << 16);
     }
 
-    if (GET_LMASK(t0) == 3) {
-        tmp = ldfun(GET_OFFSET(t0, -3));
-        t1 = (t1 & 0x00FFFFFF) | (tmp << 24);
+    if (GET_LMASK(arg2) == 3) {
+        tmp = ldfun(GET_OFFSET(arg2, -3));
+        arg1 = (arg1 & 0x00FFFFFF) | (tmp << 24);
     }
-    return (int32_t)t1;
+    return (int32_t)arg1;
 }
 
-void helper_swl(target_ulong t0, target_ulong t1, int mem_idx)
+void helper_swl(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
 #ifdef CONFIG_USER_ONLY
 #define stfun stb_raw
@@ -321,19 +321,19 @@ void helper_swl(target_ulong t0, target_ulong t1, int mem_idx)
     case 2: stfun = stb_user; break;
     }
 #endif
-    stfun(t0, (uint8_t)(t1 >> 24));
+    stfun(arg2, (uint8_t)(arg1 >> 24));
 
-    if (GET_LMASK(t0) <= 2)
-        stfun(GET_OFFSET(t0, 1), (uint8_t)(t1 >> 16));
+    if (GET_LMASK(arg2) <= 2)
+        stfun(GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 16));
 
-    if (GET_LMASK(t0) <= 1)
-        stfun(GET_OFFSET(t0, 2), (uint8_t)(t1 >> 8));
+    if (GET_LMASK(arg2) <= 1)
+        stfun(GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 8));
 
-    if (GET_LMASK(t0) == 0)
-        stfun(GET_OFFSET(t0, 3), (uint8_t)t1);
+    if (GET_LMASK(arg2) == 0)
+        stfun(GET_OFFSET(arg2, 3), (uint8_t)arg1);
 }
 
-void helper_swr(target_ulong t0, target_ulong t1, int mem_idx)
+void helper_swr(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
 #ifdef CONFIG_USER_ONLY
 #define stfun stb_raw
@@ -348,16 +348,16 @@ void helper_swr(target_ulong t0, target_ulong t1, int mem_idx)
     case 2: stfun = stb_user; break;
     }
 #endif
-    stfun(t0, (uint8_t)t1);
+    stfun(arg2, (uint8_t)arg1);
 
-    if (GET_LMASK(t0) >= 1)
-        stfun(GET_OFFSET(t0, -1), (uint8_t)(t1 >> 8));
+    if (GET_LMASK(arg2) >= 1)
+        stfun(GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8));
 
-    if (GET_LMASK(t0) >= 2)
-        stfun(GET_OFFSET(t0, -2), (uint8_t)(t1 >> 16));
+    if (GET_LMASK(arg2) >= 2)
+        stfun(GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16));
 
-    if (GET_LMASK(t0) == 3)
-        stfun(GET_OFFSET(t0, -3), (uint8_t)(t1 >> 24));
+    if (GET_LMASK(arg2) == 3)
+        stfun(GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24));
 }
 
 #if defined(TARGET_MIPS64)
@@ -370,7 +370,7 @@ void helper_swr(target_ulong t0, target_ulong t1, int mem_idx)
 #define GET_LMASK64(v) (((v) & 7) ^ 7)
 #endif
 
-target_ulong helper_ldl(target_ulong t0, target_ulong t1, int mem_idx)
+target_ulong helper_ldl(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
     uint64_t tmp;
 
@@ -387,48 +387,48 @@ target_ulong helper_ldl(target_ulong t0, target_ulong t1, int mem_idx)
     case 2: ldfun = ldub_user; break;
     }
 #endif
-    tmp = ldfun(t0);
-    t1 = (t1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
+    tmp = ldfun(arg2);
+    arg1 = (arg1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
 
-    if (GET_LMASK64(t0) <= 6) {
-        tmp = ldfun(GET_OFFSET(t0, 1));
-        t1 = (t1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
+    if (GET_LMASK64(arg2) <= 6) {
+        tmp = ldfun(GET_OFFSET(arg2, 1));
+        arg1 = (arg1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
     }
 
-    if (GET_LMASK64(t0) <= 5) {
-        tmp = ldfun(GET_OFFSET(t0, 2));
-        t1 = (t1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
+    if (GET_LMASK64(arg2) <= 5) {
+        tmp = ldfun(GET_OFFSET(arg2, 2));
+        arg1 = (arg1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
     }
 
-    if (GET_LMASK64(t0) <= 4) {
-        tmp = ldfun(GET_OFFSET(t0, 3));
-        t1 = (t1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
+    if (GET_LMASK64(arg2) <= 4) {
+        tmp = ldfun(GET_OFFSET(arg2, 3));
+        arg1 = (arg1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
     }
 
-    if (GET_LMASK64(t0) <= 3) {
-        tmp = ldfun(GET_OFFSET(t0, 4));
-        t1 = (t1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
+    if (GET_LMASK64(arg2) <= 3) {
+        tmp = ldfun(GET_OFFSET(arg2, 4));
+        arg1 = (arg1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
     }
 
-    if (GET_LMASK64(t0) <= 2) {
-        tmp = ldfun(GET_OFFSET(t0, 5));
-        t1 = (t1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
+    if (GET_LMASK64(arg2) <= 2) {
+        tmp = ldfun(GET_OFFSET(arg2, 5));
+        arg1 = (arg1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
     }
 
-    if (GET_LMASK64(t0) <= 1) {
-        tmp = ldfun(GET_OFFSET(t0, 6));
-        t1 = (t1 & 0xFFFFFFFFFFFF00FFULL) | (tmp << 8);
+    if (GET_LMASK64(arg2) <= 1) {
+        tmp = ldfun(GET_OFFSET(arg2, 6));
+        arg1 = (arg1 & 0xFFFFFFFFFFFF00FFULL) | (tmp << 8);
     }
 
-    if (GET_LMASK64(t0) == 0) {
-        tmp = ldfun(GET_OFFSET(t0, 7));
-        t1 = (t1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
+    if (GET_LMASK64(arg2) == 0) {
+        tmp = ldfun(GET_OFFSET(arg2, 7));
+        arg1 = (arg1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
     }
 
-    return t1;
+    return arg1;
 }
 
-target_ulong helper_ldr(target_ulong t0, target_ulong t1, int mem_idx)
+target_ulong helper_ldr(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
     uint64_t tmp;
 
@@ -445,48 +445,48 @@ target_ulong helper_ldr(target_ulong t0, target_ulong t1, int mem_idx)
     case 2: ldfun = ldub_user; break;
     }
 #endif
-    tmp = ldfun(t0);
-    t1 = (t1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
+    tmp = ldfun(arg2);
+    arg1 = (arg1 & 0xFFFFFFFFFFFFFF00ULL) | tmp;
 
-    if (GET_LMASK64(t0) >= 1) {
-        tmp = ldfun(GET_OFFSET(t0, -1));
-        t1 = (t1 & 0xFFFFFFFFFFFF00FFULL) | (tmp  << 8);
+    if (GET_LMASK64(arg2) >= 1) {
+        tmp = ldfun(GET_OFFSET(arg2, -1));
+        arg1 = (arg1 & 0xFFFFFFFFFFFF00FFULL) | (tmp  << 8);
     }
 
-    if (GET_LMASK64(t0) >= 2) {
-        tmp = ldfun(GET_OFFSET(t0, -2));
-        t1 = (t1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
+    if (GET_LMASK64(arg2) >= 2) {
+        tmp = ldfun(GET_OFFSET(arg2, -2));
+        arg1 = (arg1 & 0xFFFFFFFFFF00FFFFULL) | (tmp << 16);
     }
 
-    if (GET_LMASK64(t0) >= 3) {
-        tmp = ldfun(GET_OFFSET(t0, -3));
-        t1 = (t1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
+    if (GET_LMASK64(arg2) >= 3) {
+        tmp = ldfun(GET_OFFSET(arg2, -3));
+        arg1 = (arg1 & 0xFFFFFFFF00FFFFFFULL) | (tmp << 24);
     }
 
-    if (GET_LMASK64(t0) >= 4) {
-        tmp = ldfun(GET_OFFSET(t0, -4));
-        t1 = (t1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
+    if (GET_LMASK64(arg2) >= 4) {
+        tmp = ldfun(GET_OFFSET(arg2, -4));
+        arg1 = (arg1 & 0xFFFFFF00FFFFFFFFULL) | (tmp << 32);
     }
 
-    if (GET_LMASK64(t0) >= 5) {
-        tmp = ldfun(GET_OFFSET(t0, -5));
-        t1 = (t1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
+    if (GET_LMASK64(arg2) >= 5) {
+        tmp = ldfun(GET_OFFSET(arg2, -5));
+        arg1 = (arg1 & 0xFFFF00FFFFFFFFFFULL) | (tmp << 40);
     }
 
-    if (GET_LMASK64(t0) >= 6) {
-        tmp = ldfun(GET_OFFSET(t0, -6));
-        t1 = (t1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
+    if (GET_LMASK64(arg2) >= 6) {
+        tmp = ldfun(GET_OFFSET(arg2, -6));
+        arg1 = (arg1 & 0xFF00FFFFFFFFFFFFULL) | (tmp << 48);
     }
 
-    if (GET_LMASK64(t0) == 7) {
-        tmp = ldfun(GET_OFFSET(t0, -7));
-        t1 = (t1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
+    if (GET_LMASK64(arg2) == 7) {
+        tmp = ldfun(GET_OFFSET(arg2, -7));
+        arg1 = (arg1 & 0x00FFFFFFFFFFFFFFULL) | (tmp << 56);
     }
 
-    return t1;
+    return arg1;
 }
 
-void helper_sdl(target_ulong t0, target_ulong t1, int mem_idx)
+void helper_sdl(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
 #ifdef CONFIG_USER_ONLY
 #define stfun stb_raw
@@ -501,31 +501,31 @@ void helper_sdl(target_ulong t0, target_ulong t1, int mem_idx)
     case 2: stfun = stb_user; break;
     }
 #endif
-    stfun(t0, (uint8_t)(t1 >> 56));
+    stfun(arg2, (uint8_t)(arg1 >> 56));
 
-    if (GET_LMASK64(t0) <= 6)
-        stfun(GET_OFFSET(t0, 1), (uint8_t)(t1 >> 48));
+    if (GET_LMASK64(arg2) <= 6)
+        stfun(GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 48));
 
-    if (GET_LMASK64(t0) <= 5)
-        stfun(GET_OFFSET(t0, 2), (uint8_t)(t1 >> 40));
+    if (GET_LMASK64(arg2) <= 5)
+        stfun(GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 40));
 
-    if (GET_LMASK64(t0) <= 4)
-        stfun(GET_OFFSET(t0, 3), (uint8_t)(t1 >> 32));
+    if (GET_LMASK64(arg2) <= 4)
+        stfun(GET_OFFSET(arg2, 3), (uint8_t)(arg1 >> 32));
 
-    if (GET_LMASK64(t0) <= 3)
-        stfun(GET_OFFSET(t0, 4), (uint8_t)(t1 >> 24));
+    if (GET_LMASK64(arg2) <= 3)
+        stfun(GET_OFFSET(arg2, 4), (uint8_t)(arg1 >> 24));
 
-    if (GET_LMASK64(t0) <= 2)
-        stfun(GET_OFFSET(t0, 5), (uint8_t)(t1 >> 16));
+    if (GET_LMASK64(arg2) <= 2)
+        stfun(GET_OFFSET(arg2, 5), (uint8_t)(arg1 >> 16));
 
-    if (GET_LMASK64(t0) <= 1)
-        stfun(GET_OFFSET(t0, 6), (uint8_t)(t1 >> 8));
+    if (GET_LMASK64(arg2) <= 1)
+        stfun(GET_OFFSET(arg2, 6), (uint8_t)(arg1 >> 8));
 
-    if (GET_LMASK64(t0) <= 0)
-        stfun(GET_OFFSET(t0, 7), (uint8_t)t1);
+    if (GET_LMASK64(arg2) <= 0)
+        stfun(GET_OFFSET(arg2, 7), (uint8_t)arg1);
 }
 
-void helper_sdr(target_ulong t0, target_ulong t1, int mem_idx)
+void helper_sdr(target_ulong arg1, target_ulong arg2, int mem_idx)
 {
 #ifdef CONFIG_USER_ONLY
 #define stfun stb_raw
@@ -540,28 +540,28 @@ void helper_sdr(target_ulong t0, target_ulong t1, int mem_idx)
     case 2: stfun = stb_user; break;
     }
 #endif
-    stfun(t0, (uint8_t)t1);
+    stfun(arg2, (uint8_t)arg1);
 
-    if (GET_LMASK64(t0) >= 1)
-        stfun(GET_OFFSET(t0, -1), (uint8_t)(t1 >> 8));
+    if (GET_LMASK64(arg2) >= 1)
+        stfun(GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8));
 
-    if (GET_LMASK64(t0) >= 2)
-        stfun(GET_OFFSET(t0, -2), (uint8_t)(t1 >> 16));
+    if (GET_LMASK64(arg2) >= 2)
+        stfun(GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16));
 
-    if (GET_LMASK64(t0) >= 3)
-        stfun(GET_OFFSET(t0, -3), (uint8_t)(t1 >> 24));
+    if (GET_LMASK64(arg2) >= 3)
+        stfun(GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24));
 
-    if (GET_LMASK64(t0) >= 4)
-        stfun(GET_OFFSET(t0, -4), (uint8_t)(t1 >> 32));
+    if (GET_LMASK64(arg2) >= 4)
+        stfun(GET_OFFSET(arg2, -4), (uint8_t)(arg1 >> 32));
 
-    if (GET_LMASK64(t0) >= 5)
-        stfun(GET_OFFSET(t0, -5), (uint8_t)(t1 >> 40));
+    if (GET_LMASK64(arg2) >= 5)
+        stfun(GET_OFFSET(arg2, -5), (uint8_t)(arg1 >> 40));
 
-    if (GET_LMASK64(t0) >= 6)
-        stfun(GET_OFFSET(t0, -6), (uint8_t)(t1 >> 48));
+    if (GET_LMASK64(arg2) >= 6)
+        stfun(GET_OFFSET(arg2, -6), (uint8_t)(arg1 >> 48));
 
-    if (GET_LMASK64(t0) == 7)
-        stfun(GET_OFFSET(t0, -7), (uint8_t)(t1 >> 56));
+    if (GET_LMASK64(arg2) == 7)
+        stfun(GET_OFFSET(arg2, -7), (uint8_t)(arg1 >> 56));
 }
 #endif /* TARGET_MIPS64 */
 
@@ -805,7 +805,7 @@ target_ulong helper_dmfc0_watchlo (uint32_t sel)
 }
 #endif /* TARGET_MIPS64 */
 
-void helper_mtc0_index (target_ulong t0)
+void helper_mtc0_index (target_ulong arg1)
 {
     int num = 1;
     unsigned int tmp = env->tlb->nb_tlb;
@@ -814,10 +814,10 @@ void helper_mtc0_index (target_ulong t0)
         tmp >>= 1;
         num <<= 1;
     } while (tmp);
-    env->CP0_Index = (env->CP0_Index & 0x80000000) | (t0 & (num - 1));
+    env->CP0_Index = (env->CP0_Index & 0x80000000) | (arg1 & (num - 1));
 }
 
-void helper_mtc0_mvpcontrol (target_ulong t0)
+void helper_mtc0_mvpcontrol (target_ulong arg1)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -827,21 +827,21 @@ void helper_mtc0_mvpcontrol (target_ulong t0)
                 (1 << CP0MVPCo_EVP);
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (1 << CP0MVPCo_STLB);
-    newval = (env->mvp->CP0_MVPControl & ~mask) | (t0 & mask);
+    newval = (env->mvp->CP0_MVPControl & ~mask) | (arg1 & mask);
 
     // TODO: Enable/disable shared TLB, enable/disable VPEs.
 
     env->mvp->CP0_MVPControl = newval;
 }
 
-void helper_mtc0_vpecontrol (target_ulong t0)
+void helper_mtc0_vpecontrol (target_ulong arg1)
 {
     uint32_t mask;
     uint32_t newval;
 
     mask = (1 << CP0VPECo_YSI) | (1 << CP0VPECo_GSI) |
            (1 << CP0VPECo_TE) | (0xff << CP0VPECo_TargTC);
-    newval = (env->CP0_VPEControl & ~mask) | (t0 & mask);
+    newval = (env->CP0_VPEControl & ~mask) | (arg1 & mask);
 
     /* Yield scheduler intercept not implemented. */
     /* Gating storage scheduler intercept not implemented. */
@@ -851,7 +851,7 @@ void helper_mtc0_vpecontrol (target_ulong t0)
     env->CP0_VPEControl = newval;
 }
 
-void helper_mtc0_vpeconf0 (target_ulong t0)
+void helper_mtc0_vpeconf0 (target_ulong arg1)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -861,14 +861,14 @@ void helper_mtc0_vpeconf0 (target_ulong t0)
             mask |= (0xff << CP0VPEC0_XTC);
         mask |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
     }
-    newval = (env->CP0_VPEConf0 & ~mask) | (t0 & mask);
+    newval = (env->CP0_VPEConf0 & ~mask) | (arg1 & mask);
 
     // TODO: TC exclusive handling due to ERL/EXL.
 
     env->CP0_VPEConf0 = newval;
 }
 
-void helper_mtc0_vpeconf1 (target_ulong t0)
+void helper_mtc0_vpeconf1 (target_ulong arg1)
 {
     uint32_t mask = 0;
     uint32_t newval;
@@ -876,7 +876,7 @@ void helper_mtc0_vpeconf1 (target_ulong t0)
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (0xff << CP0VPEC1_NCX) | (0xff << CP0VPEC1_NCP2) |
                 (0xff << CP0VPEC1_NCP1);
-    newval = (env->CP0_VPEConf1 & ~mask) | (t0 & mask);
+    newval = (env->CP0_VPEConf1 & ~mask) | (arg1 & mask);
 
     /* UDI not implemented. */
     /* CP2 not implemented. */
@@ -886,60 +886,60 @@ void helper_mtc0_vpeconf1 (target_ulong t0)
     env->CP0_VPEConf1 = newval;
 }
 
-void helper_mtc0_yqmask (target_ulong t0)
+void helper_mtc0_yqmask (target_ulong arg1)
 {
     /* Yield qualifier inputs not implemented. */
     env->CP0_YQMask = 0x00000000;
 }
 
-void helper_mtc0_vpeopt (target_ulong t0)
+void helper_mtc0_vpeopt (target_ulong arg1)
 {
-    env->CP0_VPEOpt = t0 & 0x0000ffff;
+    env->CP0_VPEOpt = arg1 & 0x0000ffff;
 }
 
-void helper_mtc0_entrylo0 (target_ulong t0)
+void helper_mtc0_entrylo0 (target_ulong arg1)
 {
     /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo0 = t0 & 0x3FFFFFFF;
+    env->CP0_EntryLo0 = arg1 & 0x3FFFFFFF;
 }
 
-void helper_mtc0_tcstatus (target_ulong t0)
+void helper_mtc0_tcstatus (target_ulong arg1)
 {
     uint32_t mask = env->CP0_TCStatus_rw_bitmask;
     uint32_t newval;
 
-    newval = (env->active_tc.CP0_TCStatus & ~mask) | (t0 & mask);
+    newval = (env->active_tc.CP0_TCStatus & ~mask) | (arg1 & mask);
 
     // TODO: Sync with CP0_Status.
 
     env->active_tc.CP0_TCStatus = newval;
 }
 
-void helper_mttc0_tcstatus (target_ulong t0)
+void helper_mttc0_tcstatus (target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     // TODO: Sync with CP0_Status.
 
     if (other_tc == env->current_tc)
-        env->active_tc.CP0_TCStatus = t0;
+        env->active_tc.CP0_TCStatus = arg1;
     else
-        env->tcs[other_tc].CP0_TCStatus = t0;
+        env->tcs[other_tc].CP0_TCStatus = arg1;
 }
 
-void helper_mtc0_tcbind (target_ulong t0)
+void helper_mtc0_tcbind (target_ulong arg1)
 {
     uint32_t mask = (1 << CP0TCBd_TBE);
     uint32_t newval;
 
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (1 << CP0TCBd_CurVPE);
-    newval = (env->active_tc.CP0_TCBind & ~mask) | (t0 & mask);
+    newval = (env->active_tc.CP0_TCBind & ~mask) | (arg1 & mask);
     env->active_tc.CP0_TCBind = newval;
 }
 
-void helper_mttc0_tcbind (target_ulong t0)
+void helper_mttc0_tcbind (target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     uint32_t mask = (1 << CP0TCBd_TBE);
@@ -948,122 +948,122 @@ void helper_mttc0_tcbind (target_ulong t0)
     if (env->mvp->CP0_MVPControl & (1 << CP0MVPCo_VPC))
         mask |= (1 << CP0TCBd_CurVPE);
     if (other_tc == env->current_tc) {
-        newval = (env->active_tc.CP0_TCBind & ~mask) | (t0 & mask);
+        newval = (env->active_tc.CP0_TCBind & ~mask) | (arg1 & mask);
         env->active_tc.CP0_TCBind = newval;
     } else {
-        newval = (env->tcs[other_tc].CP0_TCBind & ~mask) | (t0 & mask);
+        newval = (env->tcs[other_tc].CP0_TCBind & ~mask) | (arg1 & mask);
         env->tcs[other_tc].CP0_TCBind = newval;
     }
 }
 
-void helper_mtc0_tcrestart (target_ulong t0)
+void helper_mtc0_tcrestart (target_ulong arg1)
 {
-    env->active_tc.PC = t0;
+    env->active_tc.PC = arg1;
     env->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
     env->CP0_LLAddr = 0ULL;
     /* MIPS16 not implemented. */
 }
 
-void helper_mttc0_tcrestart (target_ulong t0)
+void helper_mttc0_tcrestart (target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc) {
-        env->active_tc.PC = t0;
+        env->active_tc.PC = arg1;
         env->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
         env->CP0_LLAddr = 0ULL;
         /* MIPS16 not implemented. */
     } else {
-        env->tcs[other_tc].PC = t0;
+        env->tcs[other_tc].PC = arg1;
         env->tcs[other_tc].CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
         env->CP0_LLAddr = 0ULL;
         /* MIPS16 not implemented. */
     }
 }
 
-void helper_mtc0_tchalt (target_ulong t0)
+void helper_mtc0_tchalt (target_ulong arg1)
 {
-    env->active_tc.CP0_TCHalt = t0 & 0x1;
+    env->active_tc.CP0_TCHalt = arg1 & 0x1;
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 }
 
-void helper_mttc0_tchalt (target_ulong t0)
+void helper_mttc0_tchalt (target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 
     if (other_tc == env->current_tc)
-        env->active_tc.CP0_TCHalt = t0;
+        env->active_tc.CP0_TCHalt = arg1;
     else
-        env->tcs[other_tc].CP0_TCHalt = t0;
+        env->tcs[other_tc].CP0_TCHalt = arg1;
 }
 
-void helper_mtc0_tccontext (target_ulong t0)
+void helper_mtc0_tccontext (target_ulong arg1)
 {
-    env->active_tc.CP0_TCContext = t0;
+    env->active_tc.CP0_TCContext = arg1;
 }
 
-void helper_mttc0_tccontext (target_ulong t0)
+void helper_mttc0_tccontext (target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc)
-        env->active_tc.CP0_TCContext = t0;
+        env->active_tc.CP0_TCContext = arg1;
     else
-        env->tcs[other_tc].CP0_TCContext = t0;
+        env->tcs[other_tc].CP0_TCContext = arg1;
 }
 
-void helper_mtc0_tcschedule (target_ulong t0)
+void helper_mtc0_tcschedule (target_ulong arg1)
 {
-    env->active_tc.CP0_TCSchedule = t0;
+    env->active_tc.CP0_TCSchedule = arg1;
 }
 
-void helper_mttc0_tcschedule (target_ulong t0)
+void helper_mttc0_tcschedule (target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc)
-        env->active_tc.CP0_TCSchedule = t0;
+        env->active_tc.CP0_TCSchedule = arg1;
     else
-        env->tcs[other_tc].CP0_TCSchedule = t0;
+        env->tcs[other_tc].CP0_TCSchedule = arg1;
 }
 
-void helper_mtc0_tcschefback (target_ulong t0)
+void helper_mtc0_tcschefback (target_ulong arg1)
 {
-    env->active_tc.CP0_TCScheFBack = t0;
+    env->active_tc.CP0_TCScheFBack = arg1;
 }
 
-void helper_mttc0_tcschefback (target_ulong t0)
+void helper_mttc0_tcschefback (target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc)
-        env->active_tc.CP0_TCScheFBack = t0;
+        env->active_tc.CP0_TCScheFBack = arg1;
     else
-        env->tcs[other_tc].CP0_TCScheFBack = t0;
+        env->tcs[other_tc].CP0_TCScheFBack = arg1;
 }
 
-void helper_mtc0_entrylo1 (target_ulong t0)
+void helper_mtc0_entrylo1 (target_ulong arg1)
 {
     /* Large physaddr (PABITS) not implemented */
     /* 1k pages not implemented */
-    env->CP0_EntryLo1 = t0 & 0x3FFFFFFF;
+    env->CP0_EntryLo1 = arg1 & 0x3FFFFFFF;
 }
 
-void helper_mtc0_context (target_ulong t0)
+void helper_mtc0_context (target_ulong arg1)
 {
-    env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (t0 & ~0x007FFFFF);
+    env->CP0_Context = (env->CP0_Context & 0x007FFFFF) | (arg1 & ~0x007FFFFF);
 }
 
-void helper_mtc0_pagemask (target_ulong t0)
+void helper_mtc0_pagemask (target_ulong arg1)
 {
     /* 1k pages not implemented */
-    env->CP0_PageMask = t0 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
+    env->CP0_PageMask = arg1 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
 }
 
-void helper_mtc0_pagegrain (target_ulong t0)
+void helper_mtc0_pagegrain (target_ulong arg1)
 {
     /* SmartMIPS not implemented */
     /* Large physaddr (PABITS) not implemented */
@@ -1071,52 +1071,52 @@ void helper_mtc0_pagegrain (target_ulong t0)
     env->CP0_PageGrain = 0;
 }
 
-void helper_mtc0_wired (target_ulong t0)
+void helper_mtc0_wired (target_ulong arg1)
 {
-    env->CP0_Wired = t0 % env->tlb->nb_tlb;
+    env->CP0_Wired = arg1 % env->tlb->nb_tlb;
 }
 
-void helper_mtc0_srsconf0 (target_ulong t0)
+void helper_mtc0_srsconf0 (target_ulong arg1)
 {
-    env->CP0_SRSConf0 |= t0 & env->CP0_SRSConf0_rw_bitmask;
+    env->CP0_SRSConf0 |= arg1 & env->CP0_SRSConf0_rw_bitmask;
 }
 
-void helper_mtc0_srsconf1 (target_ulong t0)
+void helper_mtc0_srsconf1 (target_ulong arg1)
 {
-    env->CP0_SRSConf1 |= t0 & env->CP0_SRSConf1_rw_bitmask;
+    env->CP0_SRSConf1 |= arg1 & env->CP0_SRSConf1_rw_bitmask;
 }
 
-void helper_mtc0_srsconf2 (target_ulong t0)
+void helper_mtc0_srsconf2 (target_ulong arg1)
 {
-    env->CP0_SRSConf2 |= t0 & env->CP0_SRSConf2_rw_bitmask;
+    env->CP0_SRSConf2 |= arg1 & env->CP0_SRSConf2_rw_bitmask;
 }
 
-void helper_mtc0_srsconf3 (target_ulong t0)
+void helper_mtc0_srsconf3 (target_ulong arg1)
 {
-    env->CP0_SRSConf3 |= t0 & env->CP0_SRSConf3_rw_bitmask;
+    env->CP0_SRSConf3 |= arg1 & env->CP0_SRSConf3_rw_bitmask;
 }
 
-void helper_mtc0_srsconf4 (target_ulong t0)
+void helper_mtc0_srsconf4 (target_ulong arg1)
 {
-    env->CP0_SRSConf4 |= t0 & env->CP0_SRSConf4_rw_bitmask;
+    env->CP0_SRSConf4 |= arg1 & env->CP0_SRSConf4_rw_bitmask;
 }
 
-void helper_mtc0_hwrena (target_ulong t0)
+void helper_mtc0_hwrena (target_ulong arg1)
 {
-    env->CP0_HWREna = t0 & 0x0000000F;
+    env->CP0_HWREna = arg1 & 0x0000000F;
 }
 
-void helper_mtc0_count (target_ulong t0)
+void helper_mtc0_count (target_ulong arg1)
 {
-    cpu_mips_store_count(env, t0);
+    cpu_mips_store_count(env, arg1);
 }
 
-void helper_mtc0_entryhi (target_ulong t0)
+void helper_mtc0_entryhi (target_ulong arg1)
 {
     target_ulong old, val;
 
     /* 1k pages not implemented */
-    val = t0 & ((TARGET_PAGE_MASK << 1) | 0xFF);
+    val = arg1 & ((TARGET_PAGE_MASK << 1) | 0xFF);
 #if defined(TARGET_MIPS64)
     val &= env->SEGMask;
 #endif
@@ -1131,32 +1131,32 @@ void helper_mtc0_entryhi (target_ulong t0)
         cpu_mips_tlb_flush(env, 1);
 }
 
-void helper_mttc0_entryhi(target_ulong t0)
+void helper_mttc0_entryhi(target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     int32_t tcstatus;
 
-    env->CP0_EntryHi = (env->CP0_EntryHi & 0xff) | (t0 & ~0xff);
+    env->CP0_EntryHi = (env->CP0_EntryHi & 0xff) | (arg1 & ~0xff);
     if (other_tc == env->current_tc) {
-        tcstatus = (env->active_tc.CP0_TCStatus & ~0xff) | (t0 & 0xff);
+        tcstatus = (env->active_tc.CP0_TCStatus & ~0xff) | (arg1 & 0xff);
         env->active_tc.CP0_TCStatus = tcstatus;
     } else {
-        tcstatus = (env->tcs[other_tc].CP0_TCStatus & ~0xff) | (t0 & 0xff);
+        tcstatus = (env->tcs[other_tc].CP0_TCStatus & ~0xff) | (arg1 & 0xff);
         env->tcs[other_tc].CP0_TCStatus = tcstatus;
     }
 }
 
-void helper_mtc0_compare (target_ulong t0)
+void helper_mtc0_compare (target_ulong arg1)
 {
-    cpu_mips_store_compare(env, t0);
+    cpu_mips_store_compare(env, arg1);
 }
 
-void helper_mtc0_status (target_ulong t0)
+void helper_mtc0_status (target_ulong arg1)
 {
     uint32_t val, old;
     uint32_t mask = env->CP0_Status_rw_bitmask;
 
-    val = t0 & mask;
+    val = arg1 & mask;
     old = env->CP0_Status;
     env->CP0_Status = (env->CP0_Status & ~mask) | val;
     compute_hflags(env);
@@ -1175,34 +1175,34 @@ void helper_mtc0_status (target_ulong t0)
     cpu_mips_update_irq(env);
 }
 
-void helper_mttc0_status(target_ulong t0)
+void helper_mttc0_status(target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     int32_t tcstatus = env->tcs[other_tc].CP0_TCStatus;
 
-    env->CP0_Status = t0 & ~0xf1000018;
-    tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (t0 & (0xf << CP0St_CU0));
-    tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((t0 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
-    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((t0 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
+    env->CP0_Status = arg1 & ~0xf1000018;
+    tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (arg1 & (0xf << CP0St_CU0));
+    tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((arg1 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
+    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((arg1 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
     if (other_tc == env->current_tc)
         env->active_tc.CP0_TCStatus = tcstatus;
     else
         env->tcs[other_tc].CP0_TCStatus = tcstatus;
 }
 
-void helper_mtc0_intctl (target_ulong t0)
+void helper_mtc0_intctl (target_ulong arg1)
 {
     /* vectored interrupts not implemented, no performance counters. */
-    env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (t0 & 0x000002e0);
+    env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (arg1 & 0x000002e0);
 }
 
-void helper_mtc0_srsctl (target_ulong t0)
+void helper_mtc0_srsctl (target_ulong arg1)
 {
     uint32_t mask = (0xf << CP0SRSCtl_ESS) | (0xf << CP0SRSCtl_PSS);
-    env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (t0 & mask);
+    env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (arg1 & mask);
 }
 
-void helper_mtc0_cause (target_ulong t0)
+void helper_mtc0_cause (target_ulong arg1)
 {
     uint32_t mask = 0x00C00300;
     uint32_t old = env->CP0_Cause;
@@ -1210,7 +1210,7 @@ void helper_mtc0_cause (target_ulong t0)
     if (env->insn_flags & ISA_MIPS32R2)
         mask |= 1 << CP0Ca_DC;
 
-    env->CP0_Cause = (env->CP0_Cause & ~mask) | (t0 & mask);
+    env->CP0_Cause = (env->CP0_Cause & ~mask) | (arg1 & mask);
 
     if ((old ^ env->CP0_Cause) & (1 << CP0Ca_DC)) {
         if (env->CP0_Cause & (1 << CP0Ca_DC))
@@ -1221,66 +1221,66 @@ void helper_mtc0_cause (target_ulong t0)
 
     /* Handle the software interrupt as an hardware one, as they
        are very similar */
-    if (t0 & CP0Ca_IP_mask) {
+    if (arg1 & CP0Ca_IP_mask) {
         cpu_mips_update_irq(env);
     }
 }
 
-void helper_mtc0_ebase (target_ulong t0)
+void helper_mtc0_ebase (target_ulong arg1)
 {
     /* vectored interrupts not implemented */
     /* Multi-CPU not implemented */
-    env->CP0_EBase = 0x80000000 | (t0 & 0x3FFFF000);
+    env->CP0_EBase = 0x80000000 | (arg1 & 0x3FFFF000);
 }
 
-void helper_mtc0_config0 (target_ulong t0)
+void helper_mtc0_config0 (target_ulong arg1)
 {
-    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (t0 & 0x00000007);
+    env->CP0_Config0 = (env->CP0_Config0 & 0x81FFFFF8) | (arg1 & 0x00000007);
 }
 
-void helper_mtc0_config2 (target_ulong t0)
+void helper_mtc0_config2 (target_ulong arg1)
 {
     /* tertiary/secondary caches not implemented */
     env->CP0_Config2 = (env->CP0_Config2 & 0x8FFF0FFF);
 }
 
-void helper_mtc0_watchlo (target_ulong t0, uint32_t sel)
+void helper_mtc0_watchlo (target_ulong arg1, uint32_t sel)
 {
     /* Watch exceptions for instructions, data loads, data stores
        not implemented. */
-    env->CP0_WatchLo[sel] = (t0 & ~0x7);
+    env->CP0_WatchLo[sel] = (arg1 & ~0x7);
 }
 
-void helper_mtc0_watchhi (target_ulong t0, uint32_t sel)
+void helper_mtc0_watchhi (target_ulong arg1, uint32_t sel)
 {
-    env->CP0_WatchHi[sel] = (t0 & 0x40FF0FF8);
-    env->CP0_WatchHi[sel] &= ~(env->CP0_WatchHi[sel] & t0 & 0x7);
+    env->CP0_WatchHi[sel] = (arg1 & 0x40FF0FF8);
+    env->CP0_WatchHi[sel] &= ~(env->CP0_WatchHi[sel] & arg1 & 0x7);
 }
 
-void helper_mtc0_xcontext (target_ulong t0)
+void helper_mtc0_xcontext (target_ulong arg1)
 {
     target_ulong mask = (1ULL << (env->SEGBITS - 7)) - 1;
-    env->CP0_XContext = (env->CP0_XContext & mask) | (t0 & ~mask);
+    env->CP0_XContext = (env->CP0_XContext & mask) | (arg1 & ~mask);
 }
 
-void helper_mtc0_framemask (target_ulong t0)
+void helper_mtc0_framemask (target_ulong arg1)
 {
-    env->CP0_Framemask = t0; /* XXX */
+    env->CP0_Framemask = arg1; /* XXX */
 }
 
-void helper_mtc0_debug (target_ulong t0)
+void helper_mtc0_debug (target_ulong arg1)
 {
-    env->CP0_Debug = (env->CP0_Debug & 0x8C03FC1F) | (t0 & 0x13300120);
-    if (t0 & (1 << CP0DB_DM))
+    env->CP0_Debug = (env->CP0_Debug & 0x8C03FC1F) | (arg1 & 0x13300120);
+    if (arg1 & (1 << CP0DB_DM))
         env->hflags |= MIPS_HFLAG_DM;
     else
         env->hflags &= ~MIPS_HFLAG_DM;
 }
 
-void helper_mttc0_debug(target_ulong t0)
+void helper_mttc0_debug(target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-    uint32_t val = t0 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
+    uint32_t val = arg1 & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt));
 
     /* XXX: Might be wrong, check with EJTAG spec. */
     if (other_tc == env->current_tc)
@@ -1288,32 +1288,32 @@ void helper_mttc0_debug(target_ulong t0)
     else
         env->tcs[other_tc].CP0_Debug_tcstatus = val;
     env->CP0_Debug = (env->CP0_Debug & ((1 << CP0DB_SSt) | (1 << CP0DB_Halt))) |
-                     (t0 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
+                     (arg1 & ~((1 << CP0DB_SSt) | (1 << CP0DB_Halt)));
 }
 
-void helper_mtc0_performance0 (target_ulong t0)
+void helper_mtc0_performance0 (target_ulong arg1)
 {
-    env->CP0_Performance0 = t0 & 0x000007ff;
+    env->CP0_Performance0 = arg1 & 0x000007ff;
 }
 
-void helper_mtc0_taglo (target_ulong t0)
+void helper_mtc0_taglo (target_ulong arg1)
 {
-    env->CP0_TagLo = t0 & 0xFFFFFCF6;
+    env->CP0_TagLo = arg1 & 0xFFFFFCF6;
 }
 
-void helper_mtc0_datalo (target_ulong t0)
+void helper_mtc0_datalo (target_ulong arg1)
 {
-    env->CP0_DataLo = t0; /* XXX */
+    env->CP0_DataLo = arg1; /* XXX */
 }
 
-void helper_mtc0_taghi (target_ulong t0)
+void helper_mtc0_taghi (target_ulong arg1)
 {
-    env->CP0_TagHi = t0; /* XXX */
+    env->CP0_TagHi = arg1; /* XXX */
 }
 
-void helper_mtc0_datahi (target_ulong t0)
+void helper_mtc0_datahi (target_ulong arg1)
 {
-    env->CP0_DataHi = t0; /* XXX */
+    env->CP0_DataHi = arg1; /* XXX */
 }
 
 /* MIPS MT functions */
@@ -1367,106 +1367,106 @@ target_ulong helper_mftdsp(void)
         return env->tcs[other_tc].DSPControl;
 }
 
-void helper_mttgpr(target_ulong t0, uint32_t sel)
+void helper_mttgpr(target_ulong arg1, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc)
-        env->active_tc.gpr[sel] = t0;
+        env->active_tc.gpr[sel] = arg1;
     else
-        env->tcs[other_tc].gpr[sel] = t0;
+        env->tcs[other_tc].gpr[sel] = arg1;
 }
 
-void helper_mttlo(target_ulong t0, uint32_t sel)
+void helper_mttlo(target_ulong arg1, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc)
-        env->active_tc.LO[sel] = t0;
+        env->active_tc.LO[sel] = arg1;
     else
-        env->tcs[other_tc].LO[sel] = t0;
+        env->tcs[other_tc].LO[sel] = arg1;
 }
 
-void helper_mtthi(target_ulong t0, uint32_t sel)
+void helper_mtthi(target_ulong arg1, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc)
-        env->active_tc.HI[sel] = t0;
+        env->active_tc.HI[sel] = arg1;
     else
-        env->tcs[other_tc].HI[sel] = t0;
+        env->tcs[other_tc].HI[sel] = arg1;
 }
 
-void helper_mttacx(target_ulong t0, uint32_t sel)
+void helper_mttacx(target_ulong arg1, uint32_t sel)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc)
-        env->active_tc.ACX[sel] = t0;
+        env->active_tc.ACX[sel] = arg1;
     else
-        env->tcs[other_tc].ACX[sel] = t0;
+        env->tcs[other_tc].ACX[sel] = arg1;
 }
 
-void helper_mttdsp(target_ulong t0)
+void helper_mttdsp(target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
 
     if (other_tc == env->current_tc)
-        env->active_tc.DSPControl = t0;
+        env->active_tc.DSPControl = arg1;
     else
-        env->tcs[other_tc].DSPControl = t0;
+        env->tcs[other_tc].DSPControl = arg1;
 }
 
 /* MIPS MT functions */
-target_ulong helper_dmt(target_ulong t0)
+target_ulong helper_dmt(target_ulong arg1)
 {
     // TODO
-    t0 = 0;
-    // rt = t0
+    arg1 = 0;
+    // rt = arg1
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_emt(target_ulong t0)
+target_ulong helper_emt(target_ulong arg1)
 {
     // TODO
-    t0 = 0;
-    // rt = t0
+    arg1 = 0;
+    // rt = arg1
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_dvpe(target_ulong t0)
+target_ulong helper_dvpe(target_ulong arg1)
 {
     // TODO
-    t0 = 0;
-    // rt = t0
+    arg1 = 0;
+    // rt = arg1
 
-    return t0;
+    return arg1;
 }
 
-target_ulong helper_evpe(target_ulong t0)
+target_ulong helper_evpe(target_ulong arg1)
 {
     // TODO
-    t0 = 0;
-    // rt = t0
+    arg1 = 0;
+    // rt = arg1
 
-    return t0;
+    return arg1;
 }
 #endif /* !CONFIG_USER_ONLY */
 
-void helper_fork(target_ulong t0, target_ulong t1)
+void helper_fork(target_ulong arg1, target_ulong arg2)
 {
-    // t0 = rt, t1 = rs
-    t0 = 0;
+    // arg1 = rt, arg2 = rs
+    arg1 = 0;
     // TODO: store to TC register
 }
 
-target_ulong helper_yield(target_ulong t0)
+target_ulong helper_yield(target_ulong arg1)
 {
-    if (t0 < 0) {
+    if (arg1 < 0) {
         /* No scheduling policy implemented. */
-        if (t0 != -2) {
+        if (arg1 != -2) {
             if (env->CP0_VPEControl & (1 << CP0VPECo_YSI) &&
                 env->active_tc.CP0_TCStatus & (1 << CP0TCSt_DT)) {
                 env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
@@ -1474,14 +1474,14 @@ target_ulong helper_yield(target_ulong t0)
                 helper_raise_exception(EXCP_THREAD);
             }
         }
-    } else if (t0 == 0) {
+    } else if (arg1 == 0) {
         if (0 /* TODO: TC underflow */) {
             env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
             helper_raise_exception(EXCP_THREAD);
         } else {
             // TODO: Deallocate TC
         }
-    } else if (t0 > 0) {
+    } else if (arg1 > 0) {
         /* Yield qualifier inputs not implemented. */
         env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
         env->CP0_VPEControl |= 2 << CP0VPECo_EXCPT;
@@ -1884,53 +1884,53 @@ unsigned int ieee_rm[] = {
 
 target_ulong helper_cfc1 (uint32_t reg)
 {
-    target_ulong t0;
+    target_ulong arg1;
 
     switch (reg) {
     case 0:
-        t0 = (int32_t)env->active_fpu.fcr0;
+        arg1 = (int32_t)env->active_fpu.fcr0;
         break;
     case 25:
-        t0 = ((env->active_fpu.fcr31 >> 24) & 0xfe) | ((env->active_fpu.fcr31 >> 23) & 0x1);
+        arg1 = ((env->active_fpu.fcr31 >> 24) & 0xfe) | ((env->active_fpu.fcr31 >> 23) & 0x1);
         break;
     case 26:
-        t0 = env->active_fpu.fcr31 & 0x0003f07c;
+        arg1 = env->active_fpu.fcr31 & 0x0003f07c;
         break;
     case 28:
-        t0 = (env->active_fpu.fcr31 & 0x00000f83) | ((env->active_fpu.fcr31 >> 22) & 0x4);
+        arg1 = (env->active_fpu.fcr31 & 0x00000f83) | ((env->active_fpu.fcr31 >> 22) & 0x4);
         break;
     default:
-        t0 = (int32_t)env->active_fpu.fcr31;
+        arg1 = (int32_t)env->active_fpu.fcr31;
         break;
     }
 
-    return t0;
+    return arg1;
 }
 
-void helper_ctc1 (target_ulong t0, uint32_t reg)
+void helper_ctc1 (target_ulong arg1, uint32_t reg)
 {
     switch(reg) {
     case 25:
-        if (t0 & 0xffffff00)
+        if (arg1 & 0xffffff00)
             return;
-        env->active_fpu.fcr31 = (env->active_fpu.fcr31 & 0x017fffff) | ((t0 & 0xfe) << 24) |
-                     ((t0 & 0x1) << 23);
+        env->active_fpu.fcr31 = (env->active_fpu.fcr31 & 0x017fffff) | ((arg1 & 0xfe) << 24) |
+                     ((arg1 & 0x1) << 23);
         break;
     case 26:
-        if (t0 & 0x007c0000)
+        if (arg1 & 0x007c0000)
             return;
-        env->active_fpu.fcr31 = (env->active_fpu.fcr31 & 0xfffc0f83) | (t0 & 0x0003f07c);
+        env->active_fpu.fcr31 = (env->active_fpu.fcr31 & 0xfffc0f83) | (arg1 & 0x0003f07c);
         break;
     case 28:
-        if (t0 & 0x007c0000)
+        if (arg1 & 0x007c0000)
             return;
-        env->active_fpu.fcr31 = (env->active_fpu.fcr31 & 0xfefff07c) | (t0 & 0x00000f83) |
-                     ((t0 & 0x4) << 22);
+        env->active_fpu.fcr31 = (env->active_fpu.fcr31 & 0xfefff07c) | (arg1 & 0x00000f83) |
+                     ((arg1 & 0x4) << 22);
         break;
     case 31:
-        if (t0 & 0x007c0000)
+        if (arg1 & 0x007c0000)
             return;
-        env->active_fpu.fcr31 = t0;
+        env->active_fpu.fcr31 = arg1;
         break;
     default:
         return;
