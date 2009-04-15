@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <limits.h>
+#include <mqueue.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -635,6 +636,43 @@ static inline abi_long copy_to_user_timeval(abi_ulong target_tv_addr,
     return 0;
 }
 
+static inline abi_long copy_from_user_mq_attr(struct mq_attr *attr,
+                                              abi_ulong target_mq_attr_addr)
+{
+    struct target_mq_attr *target_mq_attr;
+
+    if (!lock_user_struct(VERIFY_READ, target_mq_attr,
+                          target_mq_attr_addr, 1))
+        return -TARGET_EFAULT;
+
+    __get_user(attr->mq_flags, &target_mq_attr->mq_flags);
+    __get_user(attr->mq_maxmsg, &target_mq_attr->mq_maxmsg);
+    __get_user(attr->mq_msgsize, &target_mq_attr->mq_msgsize);
+    __get_user(attr->mq_curmsgs, &target_mq_attr->mq_curmsgs);
+
+    unlock_user_struct(target_mq_attr, target_mq_attr_addr, 0);
+
+    return 0;
+}
+
+static inline abi_long copy_to_user_mq_attr(abi_ulong target_mq_attr_addr,
+                                            const struct mq_attr *attr)
+{
+    struct target_mq_attr *target_mq_attr;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_mq_attr,
+                          target_mq_attr_addr, 0))
+        return -TARGET_EFAULT;
+
+    __put_user(attr->mq_flags, &target_mq_attr->mq_flags);
+    __put_user(attr->mq_maxmsg, &target_mq_attr->mq_maxmsg);
+    __put_user(attr->mq_msgsize, &target_mq_attr->mq_msgsize);
+    __put_user(attr->mq_curmsgs, &target_mq_attr->mq_curmsgs);
+
+    unlock_user_struct(target_mq_attr, target_mq_attr_addr, 1);
+
+    return 0;
+}
 
 /* do_select() must return target values and target errnos. */
 static abi_long do_select(int n,
@@ -6145,6 +6183,81 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
     case TARGET_NR_inotify_rm_watch:
         ret = get_errno(sys_inotify_rm_watch(arg1, arg2));
+        break;
+#endif
+
+#ifdef TARGET_NR_mq_open
+    case TARGET_NR_mq_open:
+        {
+            struct mq_attr posix_mq_attr;
+
+            p = lock_user_string(arg1 - 1);
+            if (arg4 != 0)
+                copy_from_user_mq_attr (&posix_mq_attr, arg4);
+            ret = get_errno(mq_open(p, arg2, arg3, &posix_mq_attr));
+            unlock_user (p, arg1, 0);
+        }
+        break;
+
+    case TARGET_NR_mq_unlink:
+        p = lock_user_string(arg1 - 1);
+        ret = get_errno(mq_unlink(p));
+        unlock_user (p, arg1, 0);
+        break;
+
+    case TARGET_NR_mq_timedsend:
+        {
+            struct timespec ts;
+
+            p = lock_user (VERIFY_READ, arg2, arg3, 1);
+            if (arg5 != 0) {
+                target_to_host_timespec(&ts, arg5);
+                ret = get_errno(mq_timedsend(arg1, p, arg3, arg4, &ts));
+                host_to_target_timespec(arg5, &ts);
+            }
+            else
+                ret = get_errno(mq_send(arg1, p, arg3, arg4));
+            unlock_user (p, arg2, arg3);
+        }
+        break;
+
+    case TARGET_NR_mq_timedreceive:
+        {
+            struct timespec ts;
+            unsigned int prio;
+
+            p = lock_user (VERIFY_READ, arg2, arg3, 1);
+            if (arg5 != 0) {
+                target_to_host_timespec(&ts, arg5);
+                ret = get_errno(mq_timedreceive(arg1, p, arg3, &prio, &ts));
+                host_to_target_timespec(arg5, &ts);
+            }
+            else
+                ret = get_errno(mq_receive(arg1, p, arg3, &prio));
+            unlock_user (p, arg2, arg3);
+            if (arg4 != 0)
+                put_user_u32(prio, arg4);
+        }
+        break;
+
+    /* Not implemented for now... */
+/*     case TARGET_NR_mq_notify: */
+/*         break; */
+
+    case TARGET_NR_mq_getsetattr:
+        {
+            struct mq_attr posix_mq_attr_in, posix_mq_attr_out;
+            ret = 0;
+            if (arg3 != 0) {
+                ret = mq_getattr(arg1, &posix_mq_attr_out);
+                copy_to_user_mq_attr(arg3, &posix_mq_attr_out);
+            }
+            if (arg2 != 0) {
+                copy_from_user_mq_attr(&posix_mq_attr_in, arg2);
+                ret |= mq_setattr(arg1, &posix_mq_attr_in, &posix_mq_attr_out);
+            }
+
+        }
         break;
 #endif
 

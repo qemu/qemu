@@ -524,22 +524,22 @@
 { TARGET_NR_mpx, "mpx" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_mq_getsetattr
-{ TARGET_NR_mq_getsetattr, "mq_getsetattr" , NULL, NULL, NULL },
+{ TARGET_NR_mq_getsetattr, "mq_getsetattr" , "%s(%d,%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_mq_notify
-{ TARGET_NR_mq_notify, "mq_notify" , NULL, NULL, NULL },
+{ TARGET_NR_mq_notify, "mq_notify" , "%s(%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_mq_open
-{ TARGET_NR_mq_open, "mq_open" , NULL, NULL, NULL },
+{ TARGET_NR_mq_open, "mq_open" , "%s(\"/%s\",%#x,%#o,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_mq_timedreceive
-{ TARGET_NR_mq_timedreceive, "mq_timedreceive" , NULL, NULL, NULL },
+{ TARGET_NR_mq_timedreceive, "mq_timedreceive" , "%s(%d,%p,%d,%u,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_mq_timedsend
-{ TARGET_NR_mq_timedsend, "mq_timedsend" , NULL, NULL, NULL },
+{ TARGET_NR_mq_timedsend, "mq_timedsend" , "%s(%d,%p,%d,%u,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_mq_unlink
-{ TARGET_NR_mq_unlink, "mq_unlink" , NULL, NULL, NULL },
+{ TARGET_NR_mq_unlink, "mq_unlink" , "%s(%s)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_mremap
 { TARGET_NR_mremap, "mremap" , NULL, NULL, NULL },
