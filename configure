@@ -1181,7 +1181,7 @@ EOF
   fi
 fi
 
-# Check for initofy functions when we are building linux-user
+# Check for inotify functions when we are building linux-user
 # emulator.  This is done because older glibc versions don't
 # have syscall stubs for these implemented.  In that case we
 # don't provide them even if kernel supports them.
