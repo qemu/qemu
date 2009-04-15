@@ -1998,6 +1998,13 @@ struct linux_dirent64 {
     char            d_name[256];
 };
 
+struct target_mq_attr {
+    abi_long mq_flags;
+    abi_long mq_maxmsg;
+    abi_long mq_msgsize;
+    abi_long mq_curmsgs;
+};
+
 #include "socket.h"
 
 #include "errno_defs.h"
