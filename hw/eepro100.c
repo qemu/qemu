@@ -60,7 +60,7 @@
 #define KiB 1024
 
 /* debug EEPRO100 card */
-#define DEBUG_EEPRO100
+//~ #define DEBUG_EEPRO100
 
 #ifdef DEBUG_EEPRO100
 #define logout(fmt, args...) fprintf(stderr, "EE100\t%-24s" fmt, __func__, ##args)
@@ -665,12 +665,12 @@ static char *regname(uint32_t addr)
     if (addr < PCI_IO_SIZE) {
         const char *r = e100_reg[addr / 4];
         if (r != 0) {
-            sprintf(buf, "%s+%u", r, addr % 4);
+            snprintf(buf, sizeof(buf), "%s+%u", r, addr % 4);
         } else {
-            sprintf(buf, "0x%02x", addr);
+            snprintf(buf, sizeof(buf), "0x%02x", addr);
         }
     } else {
-        sprintf(buf, "??? 0x%08x", addr);
+        snprintf(buf, sizeof(buf), "??? 0x%08x", addr);
     }
     return buf;
 }
@@ -1129,7 +1129,7 @@ static const char *reg2name(uint8_t reg)
     if (reg < ARRAY_SIZE(mdi_reg_name)) {
         p = mdi_reg_name[reg];
     } else {
-        sprintf(buffer, "reg=0x%02x", reg);
+        snprintf(buffer, sizeof(buf), "reg=0x%02x", reg);
     }
     return p;
 }
