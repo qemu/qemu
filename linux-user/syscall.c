@@ -53,6 +53,7 @@
 #include <sys/statfs.h>
 #include <utime.h>
 #include <sys/sysinfo.h>
+#include <sys/utsname.h>
 //#include <sys/user.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
@@ -200,7 +201,229 @@ static int gettid(void) {
     return -ENOSYS;
 }
 #endif
-_syscall1(int,sys_uname,struct new_utsname *,buf)
+#if TARGET_ABI_BITS == 32
+_syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count);
+#endif
+#if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
+_syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
+#endif
+_syscall2(int, sys_getpriority, int, which, int, who);
+#if !defined (__x86_64__)
+_syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
+          loff_t *, res, uint, wh);
+#endif
+_syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
+_syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
+#if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
+_syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
+#endif
+#if defined(TARGET_NR_tkill) && defined(__NR_tkill)
+_syscall2(int,sys_tkill,int,tid,int,sig)
+#endif
+#ifdef __NR_exit_group
+_syscall1(int,exit_group,int,error_code)
+#endif
+#if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
+_syscall1(int,set_tid_address,int *,tidptr)
+#endif
+#if defined(USE_NPTL)
+#if defined(TARGET_NR_futex) && defined(__NR_futex)
+_syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
+          const struct timespec *,timeout,int *,uaddr2,int,val3)
+#endif
+#endif
+
+static bitmask_transtbl fcntl_flags_tbl[] = {
+  { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
+  { TARGET_O_ACCMODE,   TARGET_O_RDWR,      O_ACCMODE,   O_RDWR,      },
+  { TARGET_O_CREAT,     TARGET_O_CREAT,     O_CREAT,     O_CREAT,     },
+  { TARGET_O_EXCL,      TARGET_O_EXCL,      O_EXCL,      O_EXCL,      },
+  { TARGET_O_NOCTTY,    TARGET_O_NOCTTY,    O_NOCTTY,    O_NOCTTY,    },
+  { TARGET_O_TRUNC,     TARGET_O_TRUNC,     O_TRUNC,     O_TRUNC,     },
+  { TARGET_O_APPEND,    TARGET_O_APPEND,    O_APPEND,    O_APPEND,    },
+  { TARGET_O_NONBLOCK,  TARGET_O_NONBLOCK,  O_NONBLOCK,  O_NONBLOCK,  },
+  { TARGET_O_SYNC,      TARGET_O_SYNC,      O_SYNC,      O_SYNC,      },
+  { TARGET_FASYNC,      TARGET_FASYNC,      FASYNC,      FASYNC,      },
+  { TARGET_O_DIRECTORY, TARGET_O_DIRECTORY, O_DIRECTORY, O_DIRECTORY, },
+  { TARGET_O_NOFOLLOW,  TARGET_O_NOFOLLOW,  O_NOFOLLOW,  O_NOFOLLOW,  },
+  { TARGET_O_LARGEFILE, TARGET_O_LARGEFILE, O_LARGEFILE, O_LARGEFILE, },
+#if defined(O_DIRECT)
+  { TARGET_O_DIRECT,    TARGET_O_DIRECT,    O_DIRECT,    O_DIRECT,    },
+#endif
+  { 0, 0, 0, 0 }
+};
+
+#define COPY_UTSNAME_FIELD(dest, src) \
+  do { \
+      /* __NEW_UTS_LEN doesn't include terminating null */ \
+      (void) strncpy((dest), (src), __NEW_UTS_LEN); \
+      (dest)[__NEW_UTS_LEN] = '\0'; \
+  } while (0)
+
+static int sys_uname(struct new_utsname *buf)
+{
+  struct utsname uts_buf;
+
+  if (uname(&uts_buf) < 0)
+      return (-1);
+
+  /*
+   * Just in case these have some differences, we
+   * translate utsname to new_utsname (which is the
+   * struct linux kernel uses).
+   */
+
+  bzero(buf, sizeof (*buf));
+  COPY_UTSNAME_FIELD(buf->sysname, uts_buf.sysname);
+  COPY_UTSNAME_FIELD(buf->nodename, uts_buf.nodename);
+  COPY_UTSNAME_FIELD(buf->release, uts_buf.release);
+  COPY_UTSNAME_FIELD(buf->version, uts_buf.version);
+  COPY_UTSNAME_FIELD(buf->machine, uts_buf.machine);
+#ifdef _GNU_SOURCE
+  COPY_UTSNAME_FIELD(buf->domainname, uts_buf.domainname);
+#endif
+  return (0);
+
+#undef COPY_UTSNAME_FIELD
+}
+
+static int sys_getcwd1(char *buf, size_t size)
+{
+  if (getcwd(buf, size) == NULL) {
+      /* getcwd() sets errno */
+      return (-1);
+  }
+  return (0);
+}
+
+#ifdef CONFIG_ATFILE
+/*
+ * Host system seems to have atfile syscall stubs available.  We
+ * now enable them one by one as specified by target syscall_nr.h.
+ */
+
+#ifdef TARGET_NR_faccessat
+static int sys_faccessat(int dirfd, const char *pathname, int mode, int flags)
+{
+  return (faccessat(dirfd, pathname, mode, flags));
+}
+#endif
+#ifdef TARGET_NR_fchmodat
+static int sys_fchmodat(int dirfd, const char *pathname, mode_t mode, int flags)
+{
+  return (fchmodat(dirfd, pathname, mode, flags));
+}
+#endif
+#ifdef TARGET_NR_fchownat
+static int sys_fchownat(int dirfd, const char *pathname, uid_t owner,
+    gid_t group, int flags)
+{
+  return (fchownat(dirfd, pathname, owner, group, flags));
+}
+#endif
+#ifdef __NR_fstatat64
+static int sys_fstatat64(int dirfd, const char *pathname, struct stat *buf,
+    int flags)
+{
+  return (fstatat(dirfd, pathname, buf, flags));
+}
+#endif
+#ifdef __NR_newfstatat
+static int sys_newfstatat(int dirfd, const char *pathname, struct stat *buf,
+    int flags)
+{
+  return (fstatat(dirfd, pathname, buf, flags));
+}
+#endif
+#ifdef TARGET_NR_futimesat
+static int sys_futimesat(int dirfd, const char *pathname,
+    const struct timeval times[2])
+{
+  return (futimesat(dirfd, pathname, times));
+}
+#endif
+#ifdef TARGET_NR_linkat
+static int sys_linkat(int olddirfd, const char *oldpath,
+    int newdirfd, const char *newpath, int flags)
+{
+  return (linkat(olddirfd, oldpath, newdirfd, newpath, flags));
+}
+#endif
+#ifdef TARGET_NR_mkdirat
+static int sys_mkdirat(int dirfd, const char *pathname, mode_t mode)
+{
+  return (mkdirat(dirfd, pathname, mode));
+}
+#endif
+#ifdef TARGET_NR_mknodat
+static int sys_mknodat(int dirfd, const char *pathname, mode_t mode,
+    dev_t dev)
+{
+  return (mknodat(dirfd, pathname, mode, dev));
+}
+#endif
+#ifdef TARGET_NR_openat
+static int sys_openat(int dirfd, const char *pathname, int flags, ...)
+{
+  /*
+   * open(2) has extra parameter 'mode' when called with
+   * flag O_CREAT.
+   */
+  if ((flags & O_CREAT) != 0) {
+      va_list ap;
+      mode_t mode;
+
+      /*
+       * Get the 'mode' parameter and translate it to
+       * host bits.
+       */
+      va_start(ap, flags);
+      mode = va_arg(ap, mode_t);
+      mode = target_to_host_bitmask(mode, fcntl_flags_tbl);
+      va_end(ap);
+
+      return (openat(dirfd, pathname, flags, mode));
+  }
+  return (openat(dirfd, pathname, flags));
+}
+#endif
+#ifdef TARGET_NR_readlinkat
+static int sys_readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz)
+{
+  return (readlinkat(dirfd, pathname, buf, bufsiz));
+}
+#endif
+#ifdef TARGET_NR_renameat
+static int sys_renameat(int olddirfd, const char *oldpath,
+    int newdirfd, const char *newpath)
+{
+  return (renameat(olddirfd, oldpath, newdirfd, newpath));
+}
+#endif
+#ifdef TARGET_NR_symlinkat
+static int sys_symlinkat(const char *oldpath, int newdirfd, const char *newpath)
+{
+  return (symlinkat(oldpath, newdirfd, newpath));
+}
+#endif
+#ifdef TARGET_NR_unlinkat
+static int sys_unlinkat(int dirfd, const char *pathname, int flags)
+{
+  return (unlinkat(dirfd, pathname, flags));
+}
+#endif
+#ifdef TARGET_NR_utimensat
+static int sys_utimensat(int dirfd, const char *pathname,
+    const struct timespec times[2], int flags)
+{
+  return (utimensat(dirfd, pathname, times, flags));
+}
+#endif
+#else /* !CONFIG_ATFILE */
+
+/*
+ * Try direct syscalls instead
+ */
 #if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
 _syscall4(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode,int,flags)
 #endif
@@ -221,21 +444,14 @@ _syscall4(int,sys_fstatat64,int,dirfd,const char *,pathname,
 _syscall3(int,sys_futimesat,int,dirfd,const char *,pathname,
          const struct timeval *,times)
 #endif
-_syscall2(int,sys_getcwd1,char *,buf,size_t,size)
-#if TARGET_ABI_BITS == 32
-_syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count);
-#endif
-#if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
-_syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
-#endif
-_syscall2(int, sys_getpriority, int, which, int, who);
-#if !defined (__x86_64__)
-_syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
-          loff_t *, res, uint, wh);
+#if (defined(TARGET_NR_newfstatat) || defined(TARGET_NR_fstatat64) ) && \
+        defined(__NR_newfstatat)
+_syscall4(int,sys_newfstatat,int,dirfd,const char *,pathname,
+          struct stat *,buf,int,flags)
 #endif
 #if defined(TARGET_NR_linkat) && defined(__NR_linkat)
 _syscall5(int,sys_linkat,int,olddirfd,const char *,oldpath,
-	  int,newdirfd,const char *,newpath,int,flags)
+      int,newdirfd,const char *,newpath,int,flags)
 #endif
 #if defined(TARGET_NR_mkdirat) && defined(__NR_mkdirat)
 _syscall3(int,sys_mkdirat,int,dirfd,const char *,pathname,mode_t,mode)
@@ -243,11 +459,6 @@ _syscall3(int,sys_mkdirat,int,dirfd,const char *,pathname,mode_t,mode)
 #if defined(TARGET_NR_mknodat) && defined(__NR_mknodat)
 _syscall4(int,sys_mknodat,int,dirfd,const char *,pathname,
           mode_t,mode,dev_t,dev)
-#endif
-#if (defined(TARGET_NR_newfstatat) || defined(TARGET_NR_fstatat64) ) && \
-        defined(__NR_newfstatat)
-_syscall4(int,sys_newfstatat,int,dirfd,const char *,pathname,
-          struct stat *,buf,int,flags)
 #endif
 #if defined(TARGET_NR_openat) && defined(__NR_openat)
 _syscall4(int,sys_openat,int,dirfd,const char *,pathname,int,flags,mode_t,mode)
@@ -260,23 +471,9 @@ _syscall4(int,sys_readlinkat,int,dirfd,const char *,pathname,
 _syscall4(int,sys_renameat,int,olddirfd,const char *,oldpath,
           int,newdirfd,const char *,newpath)
 #endif
-_syscall3(int,sys_rt_sigqueueinfo,int,pid,int,sig,siginfo_t *,uinfo)
 #if defined(TARGET_NR_symlinkat) && defined(__NR_symlinkat)
 _syscall3(int,sys_symlinkat,const char *,oldpath,
           int,newdirfd,const char *,newpath)
-#endif
-_syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
-#if defined(TARGET_NR_tgkill) && defined(__NR_tgkill)
-_syscall3(int,sys_tgkill,int,tgid,int,pid,int,sig)
-#endif
-#if defined(TARGET_NR_tkill) && defined(__NR_tkill)
-_syscall2(int,sys_tkill,int,tid,int,sig)
-#endif
-#ifdef __NR_exit_group
-_syscall1(int,exit_group,int,error_code)
-#endif
-#if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
-_syscall1(int,set_tid_address,int *,tidptr)
 #endif
 #if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
 _syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
@@ -285,21 +482,36 @@ _syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
 #endif
+
+#endif /* CONFIG_ATFILE */
+
+#ifdef CONFIG_INOTIFY
+
 #if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
-_syscall0(int,sys_inotify_init)
+static int sys_inotify_init(void)
+{
+  return (inotify_init());
+}
 #endif
 #if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
-_syscall3(int,sys_inotify_add_watch,int,fd,const char *,pathname,uint32_t,mask)
+static int sys_inotify_add_watch(int fd,const char *pathname, int32_t mask)
+{
+  return (inotify_add_watch(fd, pathname, mask));
+}
 #endif
 #if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
-_syscall2(int,sys_inotify_rm_watch,int,fd,uint32_t,wd)
+static int sys_inotify_rm_watch(int fd, int32_t wd)
+{
+  return (inotify_rm_watch(fd,pathname, wd));
+}
 #endif
-#if defined(USE_NPTL)
-#if defined(TARGET_NR_futex) && defined(__NR_futex)
-_syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
-          const struct timespec *,timeout,int *,uaddr2,int,val3)
-#endif
-#endif
+#else
+/* Userspace can usually survive runtime without inotify */
+#undef TARGET_NR_inotify_init
+#undef TARGET_NR_inotify_add_watch
+#undef TARGET_NR_inotify_rm_watch
+#endif /* CONFIG_INOTIFY  */
+
 
 extern int personality(int);
 extern int flock(int, int);
@@ -2577,26 +2789,6 @@ static bitmask_transtbl mmap_flags_tbl[] = {
 	{ TARGET_MAP_DENYWRITE, TARGET_MAP_DENYWRITE, MAP_DENYWRITE, MAP_DENYWRITE },
 	{ TARGET_MAP_EXECUTABLE, TARGET_MAP_EXECUTABLE, MAP_EXECUTABLE, MAP_EXECUTABLE },
 	{ TARGET_MAP_LOCKED, TARGET_MAP_LOCKED, MAP_LOCKED, MAP_LOCKED },
-	{ 0, 0, 0, 0 }
-};
-
-static bitmask_transtbl fcntl_flags_tbl[] = {
-	{ TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
-	{ TARGET_O_ACCMODE,   TARGET_O_RDWR,      O_ACCMODE,   O_RDWR,      },
-	{ TARGET_O_CREAT,     TARGET_O_CREAT,     O_CREAT,     O_CREAT,     },
-	{ TARGET_O_EXCL,      TARGET_O_EXCL,      O_EXCL,      O_EXCL,      },
-	{ TARGET_O_NOCTTY,    TARGET_O_NOCTTY,    O_NOCTTY,    O_NOCTTY,    },
-	{ TARGET_O_TRUNC,     TARGET_O_TRUNC,     O_TRUNC,     O_TRUNC,     },
-	{ TARGET_O_APPEND,    TARGET_O_APPEND,    O_APPEND,    O_APPEND,    },
-	{ TARGET_O_NONBLOCK,  TARGET_O_NONBLOCK,  O_NONBLOCK,  O_NONBLOCK,  },
-	{ TARGET_O_SYNC,      TARGET_O_SYNC,      O_SYNC,      O_SYNC,      },
-	{ TARGET_FASYNC,      TARGET_FASYNC,      FASYNC,      FASYNC,      },
-	{ TARGET_O_DIRECTORY, TARGET_O_DIRECTORY, O_DIRECTORY, O_DIRECTORY, },
-	{ TARGET_O_NOFOLLOW,  TARGET_O_NOFOLLOW,  O_NOFOLLOW,  O_NOFOLLOW,  },
-	{ TARGET_O_LARGEFILE, TARGET_O_LARGEFILE, O_LARGEFILE, O_LARGEFILE, },
-#if defined(O_DIRECT)
-	{ TARGET_O_DIRECT,    TARGET_O_DIRECT,    O_DIRECT,    O_DIRECT,    },
-#endif
 	{ 0, 0, 0, 0 }
 };
 

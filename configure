@@ -1156,6 +1156,53 @@ EOF
   fi
 fi
 
+#
+# Check for xxxat() functions when we are building linux-user
+# emulator.  This is done because older glibc versions don't
+# have syscall stubs for these implemented.
+#
+atfile=no
+if [ "$linux_user" = "yes" ] ; then
+  cat > $TMPC << EOF
+#define _ATFILE_SOURCE
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int
+main(void)
+{
+	/* try to unlink nonexisting file */
+	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
+}
+EOF
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+    atfile=yes
+  fi
+fi
+
+# Check for initofy functions when we are building linux-user
+# emulator.  This is done because older glibc versions don't
+# have syscall stubs for these implemented.  In that case we
+# don't provide them even if kernel supports them.
+#
+inotify=no
+if [ "$linux_user" = "yes" ] ; then
+  cat > $TMPC << EOF
+#include <sys/inotify.h>
+
+int
+main(void)
+{
+	/* try to start inotify */
+	return inotify_init(void);
+}
+EOF
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+    inotify=yes
+  fi
+fi
+
 # Check if tools are available to build documentation.
 if [ -x "`which texi2html 2>/dev/null`" ] && \
    [ -x "`which pod2man 2>/dev/null`" ]; then
@@ -1543,6 +1590,12 @@ if test "$curses" = "yes" ; then
   echo "#define CONFIG_CURSES 1" >> $config_h
   echo "CONFIG_CURSES=yes" >> $config_mak
   echo "CURSES_LIBS=-lcurses" >> $config_mak
+fi
+if test "$atfile" = "yes" ; then
+  echo "#define CONFIG_ATFILE 1" >> $config_h
+fi
+if test "$inotify" = "yes" ; then
+  echo "#define CONFIG_INOTIFY 1" >> $config_h
 fi
 if test "$brlapi" = "yes" ; then
   echo "CONFIG_BRLAPI=yes" >> $config_mak
