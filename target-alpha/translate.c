@@ -1732,12 +1732,6 @@ static always_inline int translate_one (DisasContext *ctx, uint32_t insn)
             break;
         case 0xE800:
             /* ECB */
-            /* XXX: TODO: evict tb cache at address rb */
-#if 0
-            ret = 2;
-#else
-            goto invalid_opc;
-#endif
             break;
         case 0xF000:
             /* RS */
