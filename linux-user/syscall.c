@@ -44,6 +44,7 @@
 #include <signal.h>
 #include <sched.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/times.h>
@@ -735,13 +736,37 @@ static inline abi_long target_to_host_sockaddr(struct sockaddr *addr,
                                                abi_ulong target_addr,
                                                socklen_t len)
 {
+    const socklen_t unix_maxlen = sizeof (struct sockaddr_un);
+    sa_family_t sa_family;
     struct target_sockaddr *target_saddr;
 
     target_saddr = lock_user(VERIFY_READ, target_addr, len, 1);
     if (!target_saddr)
         return -TARGET_EFAULT;
+
+    sa_family = tswap16(target_saddr->sa_family);
+
+    /* Oops. The caller might send a incomplete sun_path; sun_path
+     * must be terminated by \0 (see the manual page), but
+     * unfortunately it is quite common to specify sockaddr_un
+     * length as "strlen(x->sun_path)" while it should be
+     * "strlen(...) + 1". We'll fix that here if needed.
+     * Linux kernel has a similar feature.
+     */
+
+    if (sa_family == AF_UNIX) {
+        if (len < unix_maxlen && len > 0) {
+            char *cp = (char*)target_saddr;
+
+            if ( cp[len-1] && !cp[len] )
+                len++;
+        }
+        if (len > unix_maxlen)
+            len = unix_maxlen;
+    }
+
     memcpy(addr, target_saddr, len);
-    addr->sa_family = tswap16(target_saddr->sa_family);
+    addr->sa_family = sa_family;
     unlock_user(target_saddr, target_addr, 0);
 
     return 0;
@@ -1195,7 +1220,7 @@ static abi_long do_bind(int sockfd, abi_ulong target_addr,
     if (addrlen < 0 || addrlen > MAX_SOCK_ADDR)
         return -TARGET_EINVAL;
 
-    addr = alloca(addrlen);
+    addr = alloca(addrlen+1);
 
     target_to_host_sockaddr(addr, target_addr, addrlen);
     return get_errno(bind(sockfd, addr, addrlen));
