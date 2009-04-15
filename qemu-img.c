@@ -306,6 +306,8 @@ static int img_create(int argc, char **argv)
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting or formatting option not supported for file format '%s'", fmt);
+        } else if (ret == -EFBIG) {
+            error("The image size is too large for file format '%s'", fmt);
         } else {
             error("Error while formatting");
         }
@@ -494,6 +496,8 @@ static int img_convert(int argc, char **argv)
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             error("Formatting not supported for file format '%s'", out_fmt);
+        } else if (ret == -EFBIG) {
+            error("The image size is too large for file format '%s'", out_fmt);
         } else {
             error("Error while formatting '%s'", out_filename);
         }

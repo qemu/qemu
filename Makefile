@@ -2,14 +2,12 @@
 
 ifneq ($(wildcard config-host.mak),)
 include config-host.mak
+include $(SRC_PATH)/rules.mak
 else
 config-host.mak:
 	@echo "Please call configure before running make!"
+	@exit 1
 endif
-
-include $(SRC_PATH)/rules.mak
-
-VPATH=$(SRC_PATH):$(SRC_PATH)/hw
 
 .PHONY: all clean cscope distclean dvi html info install install-doc \
 	recurse-all speed tar tarbin test
@@ -43,6 +41,12 @@ LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
 all: $(TOOLS) $(DOCS) recurse-all
+
+config-host.mak: configure
+ifneq ($(wildcard config-host.mak),)
+	@echo $@ is out-of-date, running configure
+	@fgrep "Configured with:" $@ | sed s/.*Configured.with:.// | sh
+endif
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
@@ -211,15 +215,6 @@ USER_OBJS=cutils.o  cache-utils.o
 libqemu_user.a: $(USER_OBJS)
 
 ######################################################################
-
-config-host.mak: configure
-ifneq ($(wildcard config-host.mak),)
-	@echo $@ is out-of-date, running configure
-	@fgrep "Configured with:" $@ | sed s/.*Configured.with:.// | sh
-else
-	@echo "Please call configure before running make!"
-	@exit 1
-endif
 
 qemu-img$(EXESUF): qemu-img.o qemu-tool.o osdep.o $(BLOCK_OBJS)
 
