@@ -1,7 +1,13 @@
 # Makefile for QEMU.
 
+ifneq ($(wildcard config-host.mak),)
 include config-host.mak
 include $(SRC_PATH)/rules.mak
+else
+config-host.mak:
+	@echo "Please call configure before running make!"
+	@exit 1
+endif
 
 .PHONY: all clean cscope distclean dvi html info install install-doc \
 	recurse-all speed tar tarbin test
@@ -35,6 +41,12 @@ LIBS+=-lwinmm -lws2_32 -liphlpapi
 endif
 
 all: $(TOOLS) $(DOCS) recurse-all
+
+config-host.mak: configure
+ifneq ($(wildcard config-host.mak),)
+	@echo $@ is out-of-date, running configure
+	@fgrep "Configured with:" $@ | sed s/.*Configured.with:.// | sh
+endif
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
