@@ -35,4 +35,9 @@ void rc4030_dma_write(void *dma, uint8_t *buf, int len);
 void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
                   qemu_irq **irqs, rc4030_dma **dmas);
 
+/* dp8393x.c */
+void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
+                  qemu_irq irq, void* mem_opaque,
+                  void (*memory_rw)(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len, int is_write));
+
 #endif

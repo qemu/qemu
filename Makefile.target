@@ -608,7 +608,7 @@ endif
 ifeq ($(TARGET_BASE_ARCH), mips)
 OBJS+= mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 OBJS+= mips_timer.o mips_int.o dma.o vga.o serial.o i8254.o i8259.o rc4030.o
-OBJS+= g364fb.o jazz_led.o
+OBJS+= g364fb.o jazz_led.o dp8393x.o
 OBJS+= ide.o gt64xxx.o pckbd.o fdc.o mc146818rtc.o usb-uhci.o acpi.o ds1225y.o
 OBJS+= piix_pci.o parallel.o cirrus_vga.o pcspk.o $(SOUND_HW)
 OBJS+= mipsnet.o

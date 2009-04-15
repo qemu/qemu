@@ -137,6 +137,7 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     void *scsi_hba;
     int hd;
     int s_rtc, s_dma_dummy;
+    NICInfo *nd;
     PITState *pit;
     BlockDriverState *fds[MAX_FD];
     qemu_irq esp_reset;
@@ -212,7 +213,22 @@ void mips_jazz_init (ram_addr_t ram_size, int vga_ram_size,
     }
 
     /* Network controller */
-    /* FIXME: missing NS SONIC DP83932 */
+    for (n = 0; n < nb_nics; n++) {
+        nd = &nd_table[n];
+        if (!nd->model)
+            nd->model = "dp83932";
+        if (strcmp(nd->model, "dp83932") == 0) {
+            dp83932_init(nd, 0x80001000, 2, rc4030[4],
+                         rc4030_opaque, rc4030_dma_memory_rw);
+            break;
+        } else if (strcmp(nd->model, "?") == 0) {
+            fprintf(stderr, "qemu: Supported NICs: dp83932\n");
+            exit(1);
+        } else {
+            fprintf(stderr, "qemu: Unsupported NIC: %s\n", nd->model);
+            exit(1);
+        }
+    }
 
     /* SCSI adapter */
     scsi_hba = esp_init(0x80002000, 0,
