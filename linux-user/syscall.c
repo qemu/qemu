@@ -1208,16 +1208,13 @@ static abi_long do_socket(int domain, int type, int protocol)
     return get_errno(socket(domain, type, protocol));
 }
 
-/* MAX_SOCK_ADDR from linux/net/socket.c */
-#define MAX_SOCK_ADDR	128
-
 /* do_bind() Must return target values and target errnos. */
 static abi_long do_bind(int sockfd, abi_ulong target_addr,
                         socklen_t addrlen)
 {
     void *addr;
 
-    if (addrlen < 0 || addrlen > MAX_SOCK_ADDR)
+    if (addrlen < 0)
         return -TARGET_EINVAL;
 
     addr = alloca(addrlen+1);
@@ -1232,7 +1229,7 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
 {
     void *addr;
 
-    if (addrlen < 0 || addrlen > MAX_SOCK_ADDR)
+    if (addrlen < 0)
         return -TARGET_EINVAL;
 
     addr = alloca(addrlen);
@@ -1307,7 +1304,7 @@ static abi_long do_accept(int fd, abi_ulong target_addr,
     if (get_user_u32(addrlen, target_addrlen_addr))
         return -TARGET_EFAULT;
 
-    if (addrlen < 0 || addrlen > MAX_SOCK_ADDR)
+    if (addrlen < 0)
         return -TARGET_EINVAL;
 
     addr = alloca(addrlen);
@@ -1332,7 +1329,7 @@ static abi_long do_getpeername(int fd, abi_ulong target_addr,
     if (get_user_u32(addrlen, target_addrlen_addr))
         return -TARGET_EFAULT;
 
-    if (addrlen < 0 || addrlen > MAX_SOCK_ADDR)
+    if (addrlen < 0)
         return -TARGET_EINVAL;
 
     addr = alloca(addrlen);
@@ -1360,7 +1357,7 @@ static abi_long do_getsockname(int fd, abi_ulong target_addr,
     if (get_user_u32(addrlen, target_addrlen_addr))
         return -TARGET_EFAULT;
 
-    if (addrlen < 0 || addrlen > MAX_SOCK_ADDR)
+    if (addrlen < 0)
         return -TARGET_EINVAL;
 
     addr = alloca(addrlen);
@@ -1398,7 +1395,7 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
     void *host_msg;
     abi_long ret;
 
-    if (addrlen < 0 || addrlen > MAX_SOCK_ADDR)
+    if (addrlen < 0)
         return -TARGET_EINVAL;
 
     host_msg = lock_user(VERIFY_READ, msg, len, 1);
@@ -1433,7 +1430,7 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
             ret = -TARGET_EFAULT;
             goto fail;
         }
-        if (addrlen < 0 || addrlen > MAX_SOCK_ADDR) {
+        if (addrlen < 0) {
             ret = -TARGET_EINVAL;
             goto fail;
         }
