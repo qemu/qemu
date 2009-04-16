@@ -102,7 +102,7 @@ static inline int sas_ss_flags(unsigned long sp)
             : on_sig_stack(sp) ? SS_ONSTACK : 0);
 }
 
-static inline int host_to_target_signal(int sig)
+int host_to_target_signal(int sig)
 {
     if (sig > 64)
         return sig;

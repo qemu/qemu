@@ -201,6 +201,7 @@ int queue_signal(CPUState *env, int sig, target_siginfo_t *info);
 void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
 int target_to_host_signal(int sig);
+int host_to_target_signal(int sig);
 long do_sigreturn(CPUState *env);
 long do_rt_sigreturn(CPUState *env);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);

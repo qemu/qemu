@@ -3643,6 +3643,20 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
 }
 #endif
 
+/* Map host to target signal numbers for the wait family of syscalls.
+   Assume all other status bits are the same.  */
+static int host_to_target_waitstatus(int status)
+{
+    if (WIFSIGNALED(status)) {
+        return host_to_target_signal(WTERMSIG(status)) | (status & ~0x7f);
+    }
+    if (WIFSTOPPED(status)) {
+        return (host_to_target_signal(WSTOPSIG(status)) << 8)
+               | (status & 0xff);
+    }
+    return status;
+}
+
 int get_osversion(void)
 {
     static int osversion;
@@ -3786,7 +3800,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             int status;
             ret = get_errno(waitpid(arg1, &status, arg3));
             if (!is_error(ret) && arg2
-                && put_user_s32(status, arg2))
+                && put_user_s32(host_to_target_waitstatus(status), arg2))
                 goto efault;
         }
         break;
@@ -5136,6 +5150,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(wait4(arg1, &status, arg3, rusage_ptr));
             if (!is_error(ret)) {
                 if (status_ptr) {
+                    status = host_to_target_waitstatus(status);
                     if (put_user_s32(status, status_ptr))
                         goto efault;
                 }
