@@ -1180,12 +1180,10 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_LWC1:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            TCGv t1 = tcg_temp_new();
 
-            tcg_gen_qemu_ld32s(t1, t0, ctx->mem_idx);
-            tcg_gen_trunc_tl_i32(fp0, t1);
+            tcg_gen_qemu_ld32s(t0, t0, ctx->mem_idx);
+            tcg_gen_trunc_tl_i32(fp0, t0);
             gen_store_fpr32(fp0, ft);
-            tcg_temp_free(t1);
             tcg_temp_free_i32(fp0);
         }
         opn = "lwc1";
