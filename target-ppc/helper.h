@@ -31,23 +31,23 @@ DEF_HELPER_1(icbi, void, tl)
 DEF_HELPER_4(lscbx, tl, tl, i32, i32, i32)
 
 #if defined(TARGET_PPC64)
-DEF_HELPER_2(mulhd, i64, i64, i64)
-DEF_HELPER_2(mulhdu, i64, i64, i64)
+DEF_HELPER_FLAGS_2(mulhd, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(mulhdu, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
 DEF_HELPER_2(mulldo, i64, i64, i64)
 #endif
 
-DEF_HELPER_1(cntlzw, tl, tl)
-DEF_HELPER_1(popcntb, tl, tl)
+DEF_HELPER_FLAGS_1(cntlzw, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_FLAGS_1(popcntb, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 DEF_HELPER_2(sraw, tl, tl, tl)
 #if defined(TARGET_PPC64)
-DEF_HELPER_1(cntlzd, tl, tl)
-DEF_HELPER_1(popcntb_64, tl, tl)
+DEF_HELPER_FLAGS_1(cntlzd, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_FLAGS_1(popcntb_64, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 DEF_HELPER_2(srad, tl, tl, tl)
 #endif
 
-DEF_HELPER_1(cntlsw32, i32, i32)
-DEF_HELPER_1(cntlzw32, i32, i32)
-DEF_HELPER_2(brinc, tl, tl, tl)
+DEF_HELPER_FLAGS_1(cntlsw32, TCG_CALL_CONST | TCG_CALL_PURE, i32, i32)
+DEF_HELPER_FLAGS_1(cntlzw32, TCG_CALL_CONST | TCG_CALL_PURE, i32, i32)
+DEF_HELPER_FLAGS_2(brinc, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl, tl)
 
 DEF_HELPER_0(float_check_status, void)
 #ifdef CONFIG_SOFTFLOAT
@@ -335,22 +335,22 @@ DEF_HELPER_1(6xx_tlbd, void, tl)
 DEF_HELPER_1(6xx_tlbi, void, tl)
 DEF_HELPER_1(74xx_tlbd, void, tl)
 DEF_HELPER_1(74xx_tlbi, void, tl)
-DEF_HELPER_0(tlbia, void)
-DEF_HELPER_1(tlbie, void, tl)
+DEF_HELPER_FLAGS_0(tlbia, TCG_CALL_CONST, void)
+DEF_HELPER_FLAGS_1(tlbie, TCG_CALL_CONST, void, tl)
 #if defined(TARGET_PPC64)
-DEF_HELPER_1(load_slb, tl, tl)
-DEF_HELPER_2(store_slb, void, tl, tl)
-DEF_HELPER_0(slbia, void)
-DEF_HELPER_1(slbie, void, tl)
+DEF_HELPER_FLAGS_1(load_slb, TCG_CALL_CONST, tl, tl)
+DEF_HELPER_FLAGS_2(store_slb, TCG_CALL_CONST, void, tl, tl)
+DEF_HELPER_FLAGS_0(slbia, TCG_CALL_CONST, void)
+DEF_HELPER_FLAGS_1(slbie, TCG_CALL_CONST, void, tl)
 #endif
-DEF_HELPER_1(load_sr, tl, tl);
-DEF_HELPER_2(store_sr, void, tl, tl)
+DEF_HELPER_FLAGS_1(load_sr, TCG_CALL_CONST, tl, tl);
+DEF_HELPER_FLAGS_2(store_sr, TCG_CALL_CONST, void, tl, tl)
 
-DEF_HELPER_1(602_mfrom, tl, tl)
+DEF_HELPER_FLAGS_1(602_mfrom, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 #endif
 
 DEF_HELPER_3(dlmzb, tl, tl, tl, i32)
-DEF_HELPER_1(clcs, tl, i32)
+DEF_HELPER_FLAGS_1(clcs, TCG_CALL_CONST | TCG_CALL_PURE, tl, i32)
 #if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_1(rac, tl, tl)
 #endif

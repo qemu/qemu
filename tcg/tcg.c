@@ -25,6 +25,13 @@
 /* define it to use liveness analysis (better code) */
 #define USE_LIVENESS_ANALYSIS
 
+#include "config.h"
+
+#ifndef DEBUG_TCG
+/* define it to suppress various consistency checks (faster) */
+#define NDEBUG
+#endif
+
 #include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -38,14 +45,8 @@
 #include <alloca.h>
 #endif
 
-#include "config.h"
 #include "qemu-common.h"
 #include "cache-utils.h"
-
-#ifndef DEBUG_TCG
-/* define it to suppress various consistency checks (faster) */
-#define NDEBUG
-#endif
 
 /* Note: the long term plan is to reduce the dependancies on the QEMU
    CPU definitions. Currently they are used for qemu_ld/st
