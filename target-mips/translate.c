@@ -7295,7 +7295,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
             tcg_gen_extu_i32_tl(t1, fp0);
             tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
             tcg_temp_free_i32(fp0);
-            tcg_temp_free_i32(t1);
+            tcg_temp_free(t1);
         }
         opn = "swxc1";
         store = 1;
