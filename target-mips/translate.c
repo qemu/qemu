@@ -7697,6 +7697,7 @@ static void decode_opc (CPUState *env, DisasContext *ctx)
             break;
         case OPC_SYSCALL:
             generate_exception(ctx, EXCP_SYSCALL);
+            ctx->bstate = BS_STOP;
             break;
         case OPC_BREAK:
             generate_exception(ctx, EXCP_BREAK);
