@@ -7221,7 +7221,6 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     const char *opn = "extended float load/store";
     int store = 0;
     TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
 
     if (base == 0) {
         gen_load_gpr(t0, index);
@@ -7240,8 +7239,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            tcg_gen_qemu_ld32s(t1, t0, ctx->mem_idx);
-            tcg_gen_trunc_tl_i32(fp0, t1);
+            tcg_gen_qemu_ld32s(t0, t0, ctx->mem_idx);
+            tcg_gen_trunc_tl_i32(fp0, t0);
             gen_store_fpr32(fp0, fd);
             tcg_temp_free_i32(fp0);
         }
@@ -7275,11 +7274,13 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         check_cop1x(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
+            TCGv t1 = tcg_temp_new();
 
             gen_load_fpr32(fp0, fs);
             tcg_gen_extu_i32_tl(t1, fp0);
             tcg_gen_qemu_st32(t1, t0, ctx->mem_idx);
             tcg_temp_free_i32(fp0);
+            tcg_temp_free_i32(t1);
         }
         opn = "swxc1";
         store = 1;
@@ -7312,7 +7313,6 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         break;
     }
     tcg_temp_free(t0);
-    tcg_temp_free(t1);
     MIPS_DEBUG("%s %s, %s(%s)", opn, fregnames[store ? fs : fd],
                regnames[index], regnames[base]);
 }
