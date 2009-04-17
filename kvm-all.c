@@ -76,6 +76,25 @@ static KVMSlot *kvm_alloc_slot(KVMState *s)
             return &s->slots[i];
     }
 
+    fprintf(stderr, "%s: no free slot available\n", __func__);
+    abort();
+}
+
+static KVMSlot *kvm_lookup_matching_slot(KVMState *s,
+                                         target_phys_addr_t start_addr,
+                                         target_phys_addr_t end_addr)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s->slots); i++) {
+        KVMSlot *mem = &s->slots[i];
+
+        if (start_addr == mem->start_addr &&
+            end_addr == mem->start_addr + mem->memory_size) {
+            return mem;
+        }
+    }
+
     return NULL;
 }
 
@@ -163,14 +182,16 @@ int kvm_sync_vcpus(void)
 /*
  * dirty pages logging control
  */
-static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr, target_phys_addr_t end_addr,
-                                      unsigned flags,
+static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
+                                      ram_addr_t size, unsigned flags,
                                       unsigned mask)
 {
     KVMState *s = kvm_state;
-    KVMSlot *mem = kvm_lookup_slot(s, phys_addr);
+    KVMSlot *mem = kvm_lookup_matching_slot(s, phys_addr, phys_addr + size);
     if (mem == NULL)  {
-            dprintf("invalid parameters %llx-%llx\n", phys_addr, end_addr);
+            fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
+                    TARGET_FMT_plx "\n", __func__, phys_addr,
+                    phys_addr + size - 1);
             return -EINVAL;
     }
 
@@ -184,16 +205,16 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr, target_phys_
     return kvm_set_user_memory_region(s, mem);
 }
 
-int kvm_log_start(target_phys_addr_t phys_addr, target_phys_addr_t end_addr)
+int kvm_log_start(target_phys_addr_t phys_addr, ram_addr_t size)
 {
-        return kvm_dirty_pages_log_change(phys_addr, end_addr,
+        return kvm_dirty_pages_log_change(phys_addr, size,
                                           KVM_MEM_LOG_DIRTY_PAGES,
                                           KVM_MEM_LOG_DIRTY_PAGES);
 }
 
-int kvm_log_stop(target_phys_addr_t phys_addr, target_phys_addr_t end_addr)
+int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size)
 {
-        return kvm_dirty_pages_log_change(phys_addr, end_addr,
+        return kvm_dirty_pages_log_change(phys_addr, size,
                                           0,
                                           KVM_MEM_LOG_DIRTY_PAGES);
 }
@@ -203,21 +224,24 @@ int kvm_log_stop(target_phys_addr_t phys_addr, target_phys_addr_t end_addr)
  * This function updates qemu's dirty bitmap using cpu_physical_memory_set_dirty().
  * This means all bits are set to dirty.
  *
- * @start_add: start of logged region. This is what we use to search the memslot
+ * @start_add: start of logged region.
  * @end_addr: end of logged region.
  */
-void kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr, target_phys_addr_t end_addr)
+void kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
+                                    target_phys_addr_t end_addr)
 {
     KVMState *s = kvm_state;
     KVMDirtyLog d;
-    KVMSlot *mem = kvm_lookup_slot(s, start_addr);
+    KVMSlot *mem = kvm_lookup_matching_slot(s, start_addr, end_addr);
     unsigned long alloc_size;
     ram_addr_t addr;
     target_phys_addr_t phys_addr = start_addr;
 
-    dprintf("sync addr: %llx into %lx\n", start_addr, mem->phys_offset);
+    dprintf("sync addr: " TARGET_FMT_lx " into %lx\n", start_addr,
+            mem->phys_offset);
     if (mem == NULL) {
-            fprintf(stderr, "BUG: %s: invalid parameters\n", __func__);
+            fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
+                    TARGET_FMT_plx "\n", __func__, phys_addr, end_addr - 1);
             return;
     }
 
@@ -544,6 +568,11 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
     KVMState *s = kvm_state;
     ram_addr_t flags = phys_offset & ~TARGET_PAGE_MASK;
     KVMSlot *mem;
+
+    if (start_addr & ~TARGET_PAGE_MASK) {
+        fprintf(stderr, "Only page-aligned memory slots supported\n");
+        abort();
+    }
 
     /* KVM does not support read-only slots */
     phys_offset &= ~IO_MEM_ROM;
