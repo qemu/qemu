@@ -570,6 +570,21 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void virtio_net_cleanup(VLANClientState *vc)
+{
+    VirtIONet *n = vc->opaque;
+
+    unregister_savevm("virtio-net", n);
+
+    qemu_free(n->mac_table.macs);
+    qemu_free(n->vlans);
+
+    qemu_del_timer(n->tx_timer);
+    qemu_free_timer(n->tx_timer);
+
+    virtio_cleanup(&n->vdev);
+}
+
 PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     VirtIONet *n;
@@ -598,7 +613,9 @@ PCIDevice *virtio_net_init(PCIBus *bus, NICInfo *nd, int devfn)
     memcpy(n->mac, nd->macaddr, ETH_ALEN);
     n->status = VIRTIO_NET_S_LINK_UP;
     n->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 virtio_net_receive, virtio_net_can_receive, n);
+                                 virtio_net_receive,
+                                 virtio_net_can_receive,
+                                 virtio_net_cleanup, n);
     n->vc->link_status_changed = virtio_net_set_link_status;
 
     qemu_format_nic_info_str(n->vc, n->mac);

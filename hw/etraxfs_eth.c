@@ -554,6 +554,16 @@ static CPUWriteMemoryFunc *eth_write[] = {
 	&eth_writel,
 };
 
+static void eth_cleanup(VLANClientState *vc)
+{
+        struct fs_eth *eth = vc->opaque;
+
+        cpu_unregister_io_memory(eth->ethregs);
+
+        qemu_free(eth->dma_out);
+        qemu_free(eth);
+}
+
 void *etraxfs_eth_init(NICInfo *nd, CPUState *env, 
 		       qemu_irq *irq, target_phys_addr_t base, int phyaddr)
 {
@@ -585,7 +595,8 @@ void *etraxfs_eth_init(NICInfo *nd, CPUState *env,
 	cpu_register_physical_memory (base, 0x5c, eth->ethregs);
 
 	eth->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-				       eth_receive, eth_can_receive, eth);
+				       eth_receive, eth_can_receive,
+				       eth_cleanup, eth);
 	eth->vc->opaque = eth;
 	eth->vc->link_status_changed = eth_set_link;
 

@@ -638,6 +638,18 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
      tap_win32_overlapped_t *handle;
  } TAPState;
 
+static void tap_cleanup(VLANClientState *vc)
+{
+    TAPState *s = vc->opaque;
+
+    qemu_del_wait_object(s->handle->tap_semaphore, NULL, NULL);
+
+    /* FIXME: need to kill thread and close file handle:
+       tap_win32_close(s);
+    */
+    qemu_free(s);
+}
+
 static void tap_receive(void *opaque, const uint8_t *buf, int size)
 {
     TAPState *s = opaque;
@@ -672,7 +684,8 @@ int tap_win32_init(VLANState *vlan, const char *model,
         return -1;
     }
 
-    s->vc = qemu_new_vlan_client(vlan, model, name, tap_receive, NULL, s);
+    s->vc = qemu_new_vlan_client(vlan, model, name, tap_receive,
+                                 NULL, tap_cleanup, s);
 
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "tap: ifname=%s", ifname);

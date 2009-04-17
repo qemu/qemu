@@ -140,6 +140,7 @@ typedef struct NE2000State {
     uint8_t curpag;
     uint8_t mult[8]; /* multicast mask array */
     qemu_irq irq;
+    int isa_io_base;
     PCIDevice *pci_dev;
     VLANClientState *vc;
     uint8_t macaddr[6];
@@ -718,6 +719,19 @@ static int ne2000_load(QEMUFile* f,void* opaque,int version_id)
 	return 0;
 }
 
+static void isa_ne2000_cleanup(VLANClientState *vc)
+{
+    NE2000State *s = vc->opaque;
+
+    unregister_savevm("ne2000", s);
+
+    isa_unassign_ioport(s->isa_io_base, 16);
+    isa_unassign_ioport(s->isa_io_base + 0x10, 2);
+    isa_unassign_ioport(s->isa_io_base + 0x1f, 1);
+
+    qemu_free(s);
+}
+
 void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
 {
     NE2000State *s;
@@ -736,13 +750,15 @@ void isa_ne2000_init(int base, qemu_irq irq, NICInfo *nd)
 
     register_ioport_write(base + 0x1f, 1, 1, ne2000_reset_ioport_write, s);
     register_ioport_read(base + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
+    s->isa_io_base = base;
     s->irq = irq;
     memcpy(s->macaddr, nd->macaddr, 6);
 
     ne2000_reset(s);
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 ne2000_receive, ne2000_can_receive, s);
+                                 ne2000_receive, ne2000_can_receive,
+                                 isa_ne2000_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
@@ -777,6 +793,13 @@ static void ne2000_map(PCIDevice *pci_dev, int region_num,
     register_ioport_read(addr + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
 }
 
+static void ne2000_cleanup(VLANClientState *vc)
+{
+    NE2000State *s = vc->opaque;
+
+    unregister_savevm("ne2000", s);
+}
+
 PCIDevice *pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     PCINE2000State *d;
@@ -802,7 +825,8 @@ PCIDevice *pci_ne2000_init(PCIBus *bus, NICInfo *nd, int devfn)
     memcpy(s->macaddr, nd->macaddr, 6);
     ne2000_reset(s);
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 ne2000_receive, ne2000_can_receive, s);
+                                 ne2000_receive, ne2000_can_receive,
+                                 ne2000_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
