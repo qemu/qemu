@@ -486,6 +486,7 @@ _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
 #endif /* CONFIG_ATFILE */
 
 #ifdef CONFIG_INOTIFY
+#include <sys/inotify.h>
 
 #if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
 static int sys_inotify_init(void)
@@ -502,7 +503,7 @@ static int sys_inotify_add_watch(int fd,const char *pathname, int32_t mask)
 #if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
 static int sys_inotify_rm_watch(int fd, int32_t wd)
 {
-  return (inotify_rm_watch(fd,pathname, wd));
+  return (inotify_rm_watch(fd, wd));
 }
 #endif
 #else

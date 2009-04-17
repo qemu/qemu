@@ -1195,7 +1195,7 @@ int
 main(void)
 {
 	/* try to start inotify */
-	return inotify_init(void);
+	return inotify_init();
 }
 EOF
   if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
