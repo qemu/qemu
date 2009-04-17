@@ -702,7 +702,6 @@ typedef struct TAPState {
     char down_script_arg[128];
 } TAPState;
 
-#ifdef HAVE_IOVEC
 static ssize_t tap_receive_iov(void *opaque, const struct iovec *iov,
                                int iovcnt)
 {
@@ -715,7 +714,6 @@ static ssize_t tap_receive_iov(void *opaque, const struct iovec *iov,
 
     return len;
 }
-#endif
 
 static void tap_receive(void *opaque, const uint8_t *buf, int size)
 {
@@ -762,9 +760,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     s = qemu_mallocz(sizeof(TAPState));
     s->fd = fd;
     s->vc = qemu_new_vlan_client(vlan, model, name, tap_receive, NULL, s);
-#ifdef HAVE_IOVEC
     s->vc->fd_readv = tap_receive_iov;
-#endif
     qemu_set_fd_handler(s->fd, tap_send, NULL, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str), "fd=%d", fd);
     return s;
