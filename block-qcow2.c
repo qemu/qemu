@@ -1007,7 +1007,7 @@ static int alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
         goto err;
 
     for (i = 0; i < j; i++)
-        free_any_clusters(bs, old_cluster[i], 1);
+        free_any_clusters(bs, be64_to_cpu(old_cluster[i]), 1);
 
     ret = 0;
 err:
