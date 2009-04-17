@@ -239,6 +239,8 @@ int register_savevm_live(const char *idstr,
                          LoadStateHandler *load_state,
                          void *opaque);
 
+void unregister_savevm(const char *idstr, void *opaque);
+
 typedef void QEMUResetHandler(void *opaque);
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque);
