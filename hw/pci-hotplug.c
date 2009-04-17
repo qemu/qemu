@@ -37,10 +37,10 @@ static PCIDevice *qemu_pci_hot_add_nic(PCIBus *pci_bus, const char *opts)
 {
     int ret;
 
-    ret = net_client_init ("nic", opts);
-    if (ret < 0 || !nd_table[ret].model)
+    ret = net_client_init("nic", opts);
+    if (ret < 0)
         return NULL;
-    return pci_nic_init (pci_bus, &nd_table[ret], -1, "rtl8139");
+    return pci_nic_init(pci_bus, &nd_table[ret], -1, "rtl8139");
 }
 
 void drive_hot_add(Monitor *mon, const char *pci_addr, const char *opts)
