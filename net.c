@@ -1011,8 +1011,6 @@ static int net_tap_init(VLANState *vlan, const char *model,
 	    return -1;
     }
     s = net_tap_fd_init(vlan, model, name, fd);
-    if (!s)
-        return -1;
     snprintf(s->vc->info_str, sizeof(s->vc->info_str),
              "ifname=%s,script=%s,downscript=%s",
              ifname, setup_script, down_script);
@@ -1592,10 +1590,7 @@ int net_client_init(const char *device, const char *p)
         vlan_id = strtol(buf, NULL, 0);
     }
     vlan = qemu_find_vlan(vlan_id);
-    if (!vlan) {
-        fprintf(stderr, "Could not create vlan %d\n", vlan_id);
-        return -1;
-    }
+
     if (get_param_value(buf, sizeof(buf), "name", p)) {
         name = strdup(buf);
     }
@@ -1703,9 +1698,8 @@ int net_client_init(const char *device, const char *p)
         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
             fd = strtol(buf, NULL, 0);
             fcntl(fd, F_SETFL, O_NONBLOCK);
-            ret = -1;
-            if (net_tap_fd_init(vlan, device, name, fd))
-                ret = 0;
+            net_tap_fd_init(vlan, device, name, fd);
+            ret = 0;
         } else {
             if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
                 ifname[0] = '\0';
@@ -1821,10 +1815,6 @@ void net_host_device_remove(int vlan_id, const char *device)
     VLANClientState *vc;
 
     vlan = qemu_find_vlan(vlan_id);
-    if (!vlan) {
-        term_printf("can't find vlan %d\n", vlan_id);
-        return;
-    }
 
    for(vc = vlan->first_client; vc != NULL; vc = vc->next)
         if (!strcmp(vc->name, device))
