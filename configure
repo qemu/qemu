@@ -145,8 +145,11 @@ case "$cpu" in
   ppc64)
     cpu="ppc64"
   ;;
-  s390*)
+  s390)
     cpu="s390"
+  ;;
+  s390x)
+    cpu="s390x"
   ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
@@ -776,6 +779,7 @@ hostlongbits="32"
 if test "$cpu" = "x86_64" \
      -o "$cpu" = "alpha" \
      -o "$cpu" = "ia64" \
+     -o "$cpu" = "s390x" \
      -o "$cpu" = "sparc64" \
      -o "$cpu" = "ppc64"; then
     hostlongbits="64"
@@ -1424,6 +1428,10 @@ case "$cpu" in
   s390)
     echo "ARCH=s390" >> $config_mak
     echo "#define HOST_S390 1" >> $config_h
+  ;;
+  s390x)
+    echo "ARCH=s390x" >> $config_mak
+    echo "#define HOST_S390X 1" >> $config_h
   ;;
   sparc)
     echo "ARCH=sparc" >> $config_mak

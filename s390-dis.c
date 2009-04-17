@@ -195,10 +195,10 @@ init_disasm (struct disassemble_info *info)
 //  switch (info->mach)
 //    {
 //    case bfd_mach_s390_31:
-      current_arch_mask = 1 << S390_OPCODE_ESA;
+//      current_arch_mask = 1 << S390_OPCODE_ESA;
 //      break;
 //    case bfd_mach_s390_64:
-//      current_arch_mask = 1 << S390_OPCODE_ZARCH;
+      current_arch_mask = 1 << S390_OPCODE_ZARCH;
 //      break;
 //    default:
 //      abort ();

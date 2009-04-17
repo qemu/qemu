@@ -165,6 +165,9 @@ CPPFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
 ifeq ($(ARCH),sparc64)
 CPPFLAGS+=-I$(SRC_PATH)/tcg/sparc
 endif
+ifeq ($(ARCH),s390x)
+CPPFLAGS+=-I$(SRC_PATH)/tcg/s390
+endif
 ifdef CONFIG_SOFTFLOAT
 LIBOBJS+=fpu/softfloat.o
 else
@@ -294,6 +297,9 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),s390)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+ifeq ($(ARCH),s390x)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
@@ -459,6 +465,9 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
 ifeq ($(ARCH),s390)
+LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
+endif
+ifeq ($(ARCH),s390x)
 LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH).ld
 endif
 
