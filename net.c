@@ -1610,7 +1610,8 @@ int net_client_init(const char *device, const char *p)
 
         if (idx == -1 || nb_nics >= MAX_NICS) {
             fprintf(stderr, "Too Many NICs\n");
-            return -1;
+            ret = -1;
+            goto out;
         }
         nd = &nd_table[idx];
         macaddr = nd->macaddr;
@@ -1624,7 +1625,8 @@ int net_client_init(const char *device, const char *p)
         if (get_param_value(buf, sizeof(buf), "macaddr", p)) {
             if (parse_macaddr(macaddr, buf) < 0) {
                 fprintf(stderr, "invalid syntax for ethernet address\n");
-                return -1;
+                ret = -1;
+                goto out;
             }
         }
         if (get_param_value(buf, sizeof(buf), "model", p)) {
@@ -1664,8 +1666,9 @@ int net_client_init(const char *device, const char *p)
         port = strtol(p, &devname, 10);
         devname++;
         if (port < 1 || port > 65535) {
-            fprintf(stderr, "vmchannel wrong port number\n"); 
-            return -1;
+            fprintf(stderr, "vmchannel wrong port number\n");
+            ret = -1;
+            goto out;
         }
         vmc = malloc(sizeof(struct VMChannel));
         snprintf(name, 20, "vmchannel%ld", port);
@@ -1673,7 +1676,8 @@ int net_client_init(const char *device, const char *p)
         if (!vmc->hd) {
             fprintf(stderr, "qemu: could not open vmchannel device"
                     "'%s'\n", devname);
-            return -1;
+            ret = -1;
+            goto out;
         }
         vmc->port = port;
         slirp_add_exec(3, vmc->hd, 4, port);
@@ -1687,7 +1691,8 @@ int net_client_init(const char *device, const char *p)
         char ifname[64];
         if (get_param_value(ifname, sizeof(ifname), "ifname", p) <= 0) {
             fprintf(stderr, "tap: no interface name\n");
-            return -1;
+            ret = -1;
+            goto out;
         }
         vlan->nb_host_devs++;
         ret = tap_win32_init(vlan, device, name, ifname);
@@ -1734,7 +1739,8 @@ int net_client_init(const char *device, const char *p)
             ret = net_socket_mcast_init(vlan, device, name, buf);
         } else {
             fprintf(stderr, "Unknown socket options: %s\n", p);
-            return -1;
+            ret = -1;
+            goto out;
         }
         vlan->nb_host_devs++;
     } else
@@ -1764,13 +1770,13 @@ int net_client_init(const char *device, const char *p)
 #endif
     {
         fprintf(stderr, "Unknown network device: %s\n", device);
-        if (name)
-            free(name);
-        return -1;
+        ret = -1;
+        goto out;
     }
     if (ret < 0) {
         fprintf(stderr, "Could not initialize device '%s'\n", device);
     }
+out:
     if (name)
         free(name);
     return ret;
