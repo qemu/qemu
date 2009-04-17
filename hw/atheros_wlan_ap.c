@@ -25,6 +25,8 @@
  *  2008-February-24  Clemens Kolbitsch :
  *                                  New implementation based on ne2000.c
  *
+ * TODO: register_savevm is missing.
+ *
  */
 
 #include "config-host.h"
@@ -269,6 +271,17 @@ static void Atheros_WLAN_receive(void *opaque, const uint8_t *buf, int size)
 	}
 }
 
+static void Atheros_WLAN_cleanup(VLANClientState *vc)
+{
+#if 0
+    Atheros_WLANState *d = vc->opaque;
+    unregister_savevm("e100", d);
+
+    qemu_del_timer(d->poll_timer);
+    qemu_free_timer(d->poll_timer);
+#endif
+}
+
 void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 {
 	Atheros_WLANState *s;
@@ -300,7 +313,8 @@ void Atheros_WLAN_setup_ap(NICInfo *nd, PCIAtheros_WLANState *d)
 
         s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                      Atheros_WLAN_receive,
-                                     Atheros_WLAN_can_receive, s);
+                                     Atheros_WLAN_can_receive,
+                                     Atheros_WLAN_cleanup, s);
 
         qemu_format_nic_info_str(s->vc, s->macaddr);
 }

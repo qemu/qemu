@@ -2430,6 +2430,18 @@ static void e100_receive(void *opaque, const uint8_t * buf, int size)
     return;
 }
 
+static void e100_cleanup(VLANClientState *vc)
+{
+    PCIE100State *d = vc->opaque;
+
+    unregister_savevm("e100", d);
+
+#if 0
+    qemu_del_timer(d->poll_timer);
+    qemu_free_timer(d->poll_timer);
+#endif
+}
+
 static void eeprom_init(E100State *s)
 {
     int i;
@@ -2494,7 +2506,8 @@ static PCIDevice *e100_init(PCIBus * bus, NICInfo * nd,
     e100_reset(s);
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 e100_receive, e100_can_receive, s);
+                                 e100_receive, e100_can_receive,
+                                 e100_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 

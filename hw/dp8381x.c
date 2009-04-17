@@ -1380,6 +1380,18 @@ static CPUWriteMemoryFunc *dp8381x_mmio_write[] = {
     dp8381x_mmio_writel
 };
 
+static void dp8381x_cleanup(VLANClientState *vc)
+{
+    pci_dp8381x_t *d = vc->opaque;
+
+    unregister_savevm("dp8381x", d);
+
+#if 0
+    qemu_del_timer(d->poll_timer);
+    qemu_free_timer(d->poll_timer);
+#endif
+}
+
 static int dp8381x_load(QEMUFile * f, void *opaque, int version_id)
 {
     pci_dp8381x_t *d = (pci_dp8381x_t *) opaque;
@@ -1540,7 +1552,8 @@ static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
 #endif
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 dp8381x_receive, dp8381x_can_receive, s);
+                                 dp8381x_receive, dp8381x_can_receive,
+                                 dp8381x_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 

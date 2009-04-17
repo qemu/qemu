@@ -809,6 +809,17 @@ static void tnetw1130_receive(void *opaque, const uint8_t * buf, int size)
 {
 }
 
+static void tnetw1130_cleanup(VLANClientState *vc)
+{
+    pci_tnetw1130_t *d = vc->opaque;
+    unregister_savevm("tnetw1130", d);
+
+#if 0
+    qemu_del_timer(d->poll_timer);
+    qemu_free_timer(d->poll_timer);
+#endif
+}
+
 static void tnetw1130_pci_config(uint8_t *pci_conf)
 {
     PCI_CONFIG_32(PCI_VENDOR_ID, 0x9066104c);
@@ -862,7 +873,8 @@ static void tnetw1130_init(pci_tnetw1130_t *d, NICInfo * nd)
     tnetw1130_reset(s);
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 tnetw1130_receive, tnetw1130_can_receive, s);
+                                 tnetw1130_receive, tnetw1130_can_receive,
+                                 tnetw1130_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 

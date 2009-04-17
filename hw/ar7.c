@@ -3422,6 +3422,19 @@ static void ar7_nic_receive(void *opaque, const uint8_t * buf, int size)
     }
 }
 
+static void ar7_nic_cleanup(VLANClientState *vc)
+{
+    /* TODO: check this code. */
+    void *d = vc->opaque;
+    assert(d == 0);    /* just to trigger always an assertion... */
+    unregister_savevm("ar7", d);
+
+#if 0
+    qemu_del_timer(d->poll_timer);
+    qemu_free_timer(d->poll_timer);
+#endif
+}
+
 static void ar7_nic_init(void)
 {
     unsigned i;
@@ -3436,7 +3449,7 @@ static void ar7_nic_init(void)
                 ar7.nic[n].vc =
                     qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                          ar7_nic_receive, ar7_nic_can_receive,
-                                         uint2ptr(n));
+                                         ar7_nic_cleanup, uint2ptr(n));
                 //~ qemu_format_nic_info_str(ar7.nic[n].vc, ar7.nic[n].mac);
                 n++;
                 emac_reset(n);

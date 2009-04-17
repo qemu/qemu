@@ -3414,6 +3414,33 @@ static void rtl8139_timer(void *opaque)
 }
 #endif /* RTL8139_ONBOARD_TIMER */
 
+static void rtl8139_cleanup(VLANClientState *vc)
+{
+    RTL8139State *s = vc->opaque;
+
+    if (s->cplus_txbuffer) {
+        qemu_free(s->cplus_txbuffer);
+        s->cplus_txbuffer = NULL;
+    }
+
+#ifdef RTL8139_ONBOARD_TIMER
+    qemu_del_timer(s->timer);
+    qemu_free_timer(s->timer);
+#endif
+
+    unregister_savevm("rtl8139", s);
+}
+
+static int pci_rtl8139_uninit(PCIDevice *dev)
+{
+    PCIRTL8139State *d = (PCIRTL8139State *)dev;
+    RTL8139State *s = &d->rtl8139;
+
+    cpu_unregister_io_memory(s->rtl8139_mmio_io_addr);
+
+    return 0;
+}
+
 PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
 {
     PCIRTL8139State *d;
@@ -3424,6 +3451,7 @@ PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
                                               "RTL8139", sizeof(PCIRTL8139State),
                                               devfn,
                                               NULL, NULL);
+    d->dev.unregister = pci_rtl8139_uninit;
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8139);
@@ -3450,7 +3478,8 @@ PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     memcpy(s->macaddr, nd->macaddr, 6);
     rtl8139_reset(s);
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 rtl8139_receive, rtl8139_can_receive, s);
+                                 rtl8139_receive, rtl8139_can_receive,
+                                 rtl8139_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 

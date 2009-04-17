@@ -156,6 +156,7 @@ typedef struct dp8393xState {
     QEMUTimer *watchdog;
     int64_t wt_last_update;
     VLANClientState *vc;
+    int mmio_index;
 
     /* Registers */
     uint8_t cam[16][6];
@@ -858,12 +859,23 @@ static void nic_reset(void *opaque)
     dp8393x_update_irq(s);
 }
 
+static void nic_cleanup(VLANClientState *vc)
+{
+    dp8393xState *s = vc->opaque;
+
+    cpu_unregister_io_memory(s->mmio_index);
+
+    qemu_del_timer(s->watchdog);
+    qemu_free_timer(s->watchdog);
+
+    qemu_free(s);
+}
+
 void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
                   qemu_irq irq, void* mem_opaque,
                   void (*memory_rw)(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len, int is_write))
 {
     dp8393xState *s;
-    int io;
 
     qemu_check_nic_model(nd, "dp83932");
 
@@ -877,12 +889,12 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 nic_receive, nic_can_receive, s);
+                                 nic_receive, nic_can_receive, nic_cleanup, s);
 
     qemu_format_nic_info_str(s->vc, nd->macaddr);
     qemu_register_reset(nic_reset, s);
     nic_reset(s);
 
-    io = cpu_register_io_memory(0, dp8393x_read, dp8393x_write, s);
-    cpu_register_physical_memory(base, 0x40 << it_shift, io);
+    s->mmio_index = cpu_register_io_memory(0, dp8393x_read, dp8393x_write, s);
+    cpu_register_physical_memory(base, 0x40 << it_shift, s->mmio_index);
 }

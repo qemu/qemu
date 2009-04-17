@@ -117,6 +117,8 @@ void virtio_save(VirtIODevice *vdev, QEMUFile *f);
 
 void virtio_load(VirtIODevice *vdev, QEMUFile *f);
 
+void virtio_cleanup(VirtIODevice *vdev);
+
 void virtio_notify_config(VirtIODevice *vdev);
 
 void virtio_queue_set_notification(VirtQueue *vq, int enable);

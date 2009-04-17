@@ -536,6 +536,7 @@ typedef struct mv88w8618_eth_state {
     uint32_t smir;
     uint32_t icr;
     uint32_t imr;
+    int mmio_index;
     int vlan_header;
     uint32_t tx_queue[2];
     uint32_t rx_queue[4];
@@ -745,20 +746,29 @@ static CPUWriteMemoryFunc *mv88w8618_eth_writefn[] = {
     mv88w8618_eth_write
 };
 
+static void eth_cleanup(VLANClientState *vc)
+{
+    mv88w8618_eth_state *s = vc->opaque;
+
+    cpu_unregister_io_memory(s->mmio_index);
+
+    qemu_free(s);
+}
+
 static void mv88w8618_eth_init(NICInfo *nd, uint32_t base, qemu_irq irq)
 {
     mv88w8618_eth_state *s;
-    int iomemtype;
 
     qemu_check_nic_model(nd, "mv88w8618");
 
     s = qemu_mallocz(sizeof(mv88w8618_eth_state));
     s->irq = irq;
     s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
-                                 eth_receive, eth_can_receive, s);
-    iomemtype = cpu_register_io_memory(0, mv88w8618_eth_readfn,
-                                       mv88w8618_eth_writefn, s);
-    cpu_register_physical_memory(base, MP_ETH_SIZE, iomemtype);
+                                 eth_receive, eth_can_receive,
+                                 eth_cleanup, s);
+    s->mmio_index = cpu_register_io_memory(0, mv88w8618_eth_readfn,
+                                           mv88w8618_eth_writefn, s);
+    cpu_register_physical_memory(base, MP_ETH_SIZE, s->mmio_index);
 }
 
 /* LCD register offsets */

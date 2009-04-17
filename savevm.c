@@ -647,6 +647,22 @@ int register_savevm(const char *idstr,
                                 NULL, save_state, load_state, opaque);
 }
 
+void unregister_savevm(const char *idstr, void *opaque)
+{
+    SaveStateEntry **pse;
+
+    pse = &first_se;
+    while (*pse != NULL) {
+        if (strcmp((*pse)->idstr, idstr) == 0 && (*pse)->opaque == opaque) {
+            SaveStateEntry *next = (*pse)->next;
+            qemu_free(*pse);
+            *pse = next;
+            continue;
+        }
+        pse = &(*pse)->next;
+    }
+}
+
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
 #define QEMU_VM_FILE_VERSION         0x00000003

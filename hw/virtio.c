@@ -750,6 +750,13 @@ void virtio_load(VirtIODevice *vdev, QEMUFile *f)
     virtio_update_irq(vdev);
 }
 
+void virtio_cleanup(VirtIODevice *vdev)
+{
+    if (vdev->config)
+        qemu_free(vdev->config);
+    qemu_free(vdev->vq);
+}
+
 VirtIODevice *virtio_init_pci(PCIBus *bus, const char *name,
                               uint16_t vendor, uint16_t device,
                               uint16_t subvendor, uint16_t subdevice,
