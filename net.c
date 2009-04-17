@@ -369,7 +369,7 @@ void qemu_del_vlan_client(VLANClientState *vc)
             }
             free(vc->name);
             free(vc->model);
-            free(vc);
+            qemu_free(vc);
             break;
         } else
             pvc = &(*pvc)->next;
