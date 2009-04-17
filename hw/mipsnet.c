@@ -35,7 +35,6 @@ typedef struct MIPSnetState {
     uint8_t tx_buffer[MAX_ETH_FRAME_SIZE];
     qemu_irq irq;
     VLANClientState *vc;
-    NICInfo *nd;
 } MIPSnetState;
 
 static void mipsnet_reset(MIPSnetState *s)
@@ -248,7 +247,6 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
     register_ioport_read(base, 36, 4, mipsnet_ioport_read, s);
 
     s->irq = irq;
-    s->nd = nd;
     if (nd && nd->vlan) {
         s->vc = qemu_new_vlan_client(nd->vlan, nd->model, nd->name,
                                      mipsnet_receive, mipsnet_can_receive, s);
@@ -256,7 +254,7 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
         s->vc = NULL;
     }
 
-    qemu_format_nic_info_str(s->vc, s->nd->macaddr);
+    qemu_format_nic_info_str(s->vc, nd->macaddr);
 
     mipsnet_reset(s);
     register_savevm("mipsnet", 0, 0, mipsnet_save, mipsnet_load, s);
