@@ -2258,12 +2258,10 @@ static void vga_map(PCIDevice *pci_dev, int region_num,
         cpu_register_physical_memory(addr, s->bios_size, s->bios_offset);
     } else {
         cpu_register_physical_memory(addr, s->vram_size, s->vram_offset);
+        s->map_addr = addr;
+        s->map_end = addr + s->vram_size;
+        vga_dirty_log_start(s);
     }
-
-    s->map_addr = addr;
-    s->map_end = addr + VGA_RAM_SIZE;
-
-    vga_dirty_log_start(s);
 }
 
 void vga_common_init(VGAState *s, int vga_ram_size)
@@ -2493,6 +2491,8 @@ static void pci_vga_write_config(PCIDevice *d,
 
     vga_dirty_log_stop(s);
     pci_default_write_config(d, address, val, len);
+    if (s->map_addr && pvs->dev.io_regions[0].addr == -1)
+        s->map_addr = 0;
     vga_dirty_log_start(s);
 }
 
