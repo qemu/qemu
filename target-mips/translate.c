@@ -793,8 +793,6 @@ generate_exception_err (DisasContext *ctx, int excp, int err)
     gen_helper_raise_exception_err(texcp, terr);
     tcg_temp_free_i32(terr);
     tcg_temp_free_i32(texcp);
-    gen_helper_interrupt_restart();
-    tcg_gen_exit_tb(0);
 }
 
 static inline void
@@ -802,8 +800,6 @@ generate_exception (DisasContext *ctx, int excp)
 {
     save_cpu_state(ctx, 1);
     gen_helper_0i(raise_exception, excp);
-    gen_helper_interrupt_restart();
-    tcg_gen_exit_tb(0);
 }
 
 /* Addresses computation */
