@@ -4200,7 +4200,7 @@ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 }
 #endif
 
-static int qemu_uuid_parse(const char *str, uint8_t *uuid)
+int qemu_uuid_parse(const char *str, uint8_t *uuid)
 {
     int ret;
 
