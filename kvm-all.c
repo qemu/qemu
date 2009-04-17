@@ -550,7 +550,7 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
 
     mem = kvm_lookup_slot(s, start_addr);
     if (mem) {
-        if ((flags == IO_MEM_UNASSIGNED) || (flags >= TLB_MMIO)) {
+        if (flags >= IO_MEM_UNASSIGNED) {
             mem->memory_size = 0;
             mem->start_addr = start_addr;
             mem->phys_offset = 0;
