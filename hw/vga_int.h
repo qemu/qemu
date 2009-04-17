@@ -196,7 +196,6 @@ void vga_init(VGAState *s);
 void vga_reset(void *s);
 
 void vga_dirty_log_start(VGAState *s);
-void vga_dirty_log_stop(VGAState *s);
 
 uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr);
 void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val);

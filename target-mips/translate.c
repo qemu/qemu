@@ -794,8 +794,6 @@ generate_exception_err (DisasContext *ctx, int excp, int err)
     gen_helper_raise_exception_err(texcp, terr);
     tcg_temp_free_i32(terr);
     tcg_temp_free_i32(texcp);
-    gen_helper_interrupt_restart();
-    tcg_gen_exit_tb(0);
 }
 
 static inline void
@@ -803,8 +801,6 @@ generate_exception (DisasContext *ctx, int excp)
 {
     save_cpu_state(ctx, 1);
     gen_helper_0i(raise_exception, excp);
-    gen_helper_interrupt_restart();
-    tcg_gen_exit_tb(0);
 }
 
 /* Addresses computation */
@@ -6383,13 +6379,10 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
-            if (ctx->opcode & (1 << 6)) {
-                check_cop1x(ctx);
-            }
-
             gen_load_fpr32(fp0, fs);
             gen_load_fpr32(fp1, ft);
             if (ctx->opcode & (1 << 6)) {
+                check_cop1x(ctx);
                 gen_cmpabs_s(func-48, fp0, fp1, cc);
                 opn = condnames_abs[func-48];
             } else {
@@ -6748,17 +6741,16 @@ static void gen_farith (DisasContext *ctx, uint32_t op1,
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
-            if (ctx->opcode & (1 << 6)) {
-                check_cop1x(ctx);
-            }
-            check_cp1_registers(ctx, fs | ft);
 
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             if (ctx->opcode & (1 << 6)) {
+                check_cop1x(ctx);
+                check_cp1_registers(ctx, fs | ft);
                 gen_cmpabs_d(func-48, fp0, fp1, cc);
                 opn = condnames_abs[func-48];
             } else {
+                check_cp1_registers(ctx, fs | ft);
                 gen_cmp_d(func-48, fp0, fp1, cc);
                 opn = condnames[func-48];
             }
@@ -7227,22 +7219,6 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     int store = 0;
     TCGv t0 = tcg_temp_new();
 
-    switch (opc) {
-    case OPC_LWXC1:
-    case OPC_SWXC1:
-        check_cop1x(ctx);
-        break;
-    case OPC_LDXC1:
-    case OPC_SDXC1:
-        check_cop1x(ctx);
-        check_cp1_registers(ctx, fd);
-        break;
-    case OPC_LUXC1:
-    case OPC_SUXC1:
-        check_cp1_64bitmode(ctx);
-        break;
-    }
-
     if (base == 0) {
         gen_load_gpr(t0, index);
     } else if (index == 0) {
@@ -7256,6 +7232,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     save_cpu_state(ctx, 0);
     switch (opc) {
     case OPC_LWXC1:
+        check_cop1x(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
@@ -7267,6 +7244,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         opn = "lwxc1";
         break;
     case OPC_LDXC1:
+        check_cop1x(ctx);
+        check_cp1_registers(ctx, fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -7277,6 +7256,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         opn = "ldxc1";
         break;
     case OPC_LUXC1:
+        check_cp1_64bitmode(ctx);
         tcg_gen_andi_tl(t0, t0, ~0x7);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
@@ -7288,6 +7268,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         opn = "luxc1";
         break;
     case OPC_SWXC1:
+        check_cop1x(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv t1 = tcg_temp_new();
@@ -7302,6 +7283,8 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         store = 1;
         break;
     case OPC_SDXC1:
+        check_cop1x(ctx);
+        check_cp1_registers(ctx, fs);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -7313,6 +7296,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         store = 1;
         break;
     case OPC_SUXC1:
+        check_cp1_64bitmode(ctx);
         tcg_gen_andi_tl(t0, t0, ~0x7);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
