@@ -1,0 +1,38 @@
+Fix non-ACPI Timer Interrupt Routing (Beth Kon)
+
+Replicate ACPI irq0->inti2 override in mp table for non-acpi case.
+
+v1 -> v2 adds comment suggested by Ryan.
+
+Signed-off-by: Beth Kon <eak@us.ibm.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+diff --git a/bios/rombios32.c b/bios/rombios32.c
+index 7be4216..dc7b5f3 100644
+--- a/bios/rombios32.c
++++ b/bios/rombios32.c
+@@ -1168,6 +1168,12 @@ static void mptable_init(void)
+ 
+     /* irqs */
+     for(i = 0; i < 16; i++) {
++#ifdef BX_QEMU
++        /* One entry per ioapic input. Input 2 is covered by 
++           irq0->inti2 override (i == 0). irq 2 is unused */
++        if (i == 2)
++            continue;
++#endif        
+         putb(&q, 3); /* entry type = I/O interrupt */
+         putb(&q, 0); /* interrupt type = vectored interrupt */
+         putb(&q, 0); /* flags: po=0, el=0 */
+@@ -1175,7 +1181,11 @@ static void mptable_init(void)
+         putb(&q, 0); /* source bus ID = ISA */
+         putb(&q, i); /* source bus IRQ */
+         putb(&q, ioapic_id); /* dest I/O APIC ID */
++#ifdef BX_QEMU
++        putb(&q, i == 0 ? 2 : i); /* dest I/O APIC interrupt in */
++#else
+         putb(&q, i); /* dest I/O APIC interrupt in */
++#endif        
+     }
+     /* patch length */
+     len = q - mp_config_table;

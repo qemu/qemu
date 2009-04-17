@@ -142,6 +142,7 @@ int main(int argc, char **argv)
 #include "hw/isa.h"
 #include "hw/baum.h"
 #include "hw/bt.h"
+#include "hw/smbios.h"
 #include "bt-host.h"
 #include "net.h"
 #include "monitor.h"
@@ -4209,7 +4210,7 @@ static BOOL WINAPI QEMU_NORETURN qemu_ctrl_handler(DWORD type)
 }
 #endif
 
-static int qemu_uuid_parse(const char *str, uint8_t *uuid)
+int qemu_uuid_parse(const char *str, uint8_t *uuid)
 {
     int ret;
 
@@ -4222,6 +4223,10 @@ static int qemu_uuid_parse(const char *str, uint8_t *uuid)
 
     if(ret != 16)
         return -1;
+
+#ifdef TARGET_I386
+    smbios_add_field(1, offsetof(struct smbios_type_1, uuid), 16, uuid);
+#endif
 
     return 0;
 }
@@ -4861,6 +4866,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_acpitable:
                 if(acpi_table_add(optarg) < 0) {
                     fprintf(stderr, "Wrong acpi table provided\n");
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_smbios:
+                if(smbios_entry_add(optarg) < 0) {
+                    fprintf(stderr, "Wrong smbios provided\n");
                     exit(1);
                 }
                 break;

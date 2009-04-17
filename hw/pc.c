@@ -37,6 +37,7 @@
 #include "virtio-balloon.h"
 #include "virtio-console.h"
 #include "hpet_emul.h"
+#include "smbios.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -51,6 +52,7 @@
 #define ACPI_DATA_SIZE       0x10000
 #define BIOS_CFG_IOPORT 0x510
 #define FW_CFG_ACPI_TABLES (FW_CFG_ARCH_LOCAL + 0)
+#define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
 
 #define MAX_IDE_BUS 2
 
@@ -425,6 +427,8 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
 static void bochs_bios_init(void)
 {
     void *fw_cfg;
+    uint8_t *smbios_table;
+    size_t smbios_len;
 
     register_ioport_write(0x400, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x401, 1, 2, bochs_bios_write, NULL);
@@ -442,6 +446,11 @@ static void bochs_bios_init(void)
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_ACPI_TABLES, (uint8_t *)acpi_tables,
                      acpi_tables_len);
+
+    smbios_table = smbios_get_table(&smbios_len);
+    if (smbios_table)
+        fw_cfg_add_bytes(fw_cfg, FW_CFG_SMBIOS_ENTRIES,
+                         smbios_table, smbios_len);
 }
 
 /* Generate an initial boot sector which sets state and jump to
