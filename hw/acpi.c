@@ -483,13 +483,18 @@ static int pm_load(QEMUFile* f,void* opaque,int version_id)
 
 static void piix4_reset(void *opaque)
 {
-	PIIX4PMState *s = opaque;
-	uint8_t *pci_conf = s->dev.config;
+    PIIX4PMState *s = opaque;
+    uint8_t *pci_conf = s->dev.config;
 
-	pci_conf[0x58] = 0;
-	pci_conf[0x59] = 0;
-	pci_conf[0x5a] = 0;
-	pci_conf[0x5b] = 0;
+    pci_conf[0x58] = 0;
+    pci_conf[0x59] = 0;
+    pci_conf[0x5a] = 0;
+    pci_conf[0x5b] = 0;
+
+    if (kvm_enabled()) {
+        /* Mark SMM as already inited (until KVM supports SMM). */
+        pci_conf[0x5B] = 0x02;
+    }
 }
 
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
