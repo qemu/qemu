@@ -9,6 +9,7 @@ typedef ssize_t (IOReadvHandler)(void *, const struct iovec *, int);
 
 typedef struct VLANClientState VLANClientState;
 
+typedef void (NetCleanup) (VLANClientState *);
 typedef void (LinkStatusChanged)(VLANClientState *);
 
 struct VLANClientState {
@@ -17,6 +18,7 @@ struct VLANClientState {
     /* Packets may still be sent if this returns zero.  It's used to
        rate-limit the slirp code.  */
     IOCanRWHandler *fd_can_read;
+    NetCleanup *cleanup;
     LinkStatusChanged *link_status_changed;
     int link_down;
     void *opaque;
@@ -40,6 +42,7 @@ VLANClientState *qemu_new_vlan_client(VLANState *vlan,
                                       const char *name,
                                       IOReadHandler *fd_read,
                                       IOCanRWHandler *fd_can_read,
+                                      NetCleanup *cleanup,
                                       void *opaque);
 void qemu_del_vlan_client(VLANClientState *vc);
 VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque);
