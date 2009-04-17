@@ -45,7 +45,7 @@ all: $(TOOLS) $(DOCS) recurse-all
 config-host.mak: configure
 ifneq ($(wildcard config-host.mak),)
 	@echo $@ is out-of-date, running configure
-	@sed -n "/.*Configured with/{s/[^:]*: //p;q}" $@ | sh
+	@sed -n "/.*Configured with/s/[^:]*: //p" $@ | sh
 endif
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
