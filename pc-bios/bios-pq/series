@@ -10,3 +10,4 @@
 0010_bios-mark-the-acpi-sci-interrupt-as-connected-to-irq-9.patch
 0011_read-additional-acpi-tables-from-a-vm.patch
 0012-load-smbios-entries-and-files-from-qemu.patch
+0013_fix-non-acpi-timer-interrupt-routing.patch
