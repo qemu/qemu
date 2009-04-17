@@ -338,11 +338,6 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     if (n->promisc)
         return 1;
 
-#ifdef TAP_VNET_HDR
-    if (tap_has_vnet_hdr(n->vc->vlan->first_client))
-        ptr += sizeof(struct virtio_net_hdr);
-#endif
-
     if (!memcmp(&ptr[12], vlan, sizeof(vlan))) {
         int vid = be16_to_cpup((uint16_t *)(ptr + 14)) & 0xfff;
         if (!(n->vlans[vid >> 5] & (1U << (vid & 0x1f))))
