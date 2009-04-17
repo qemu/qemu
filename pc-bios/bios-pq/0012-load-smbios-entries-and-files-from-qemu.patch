@@ -1,0 +1,470 @@
+qemu:bios: Load SMBIOS entries and files from qemu (Alex Williamson)
+
+Allow SMBIOS fields to be overridden and entries replaced by those
+read from qemu.
+
+Signed-off-by: Alex Williamson <alex.williamson@hp.com>
+Signed-off-by: Anthony Liguori <aliguori@us.ibm.com>
+
+diff --git a/bios/rombios32.c b/bios/rombios32.c
+index 7be4216..1a1ed64 100644
+--- a/bios/rombios32.c
++++ b/bios/rombios32.c
+@@ -441,7 +441,6 @@ uint32_t cpuid_features;
+ uint32_t cpuid_ext_features;
+ unsigned long ram_size;
+ uint64_t ram_end;
+-uint8_t bios_uuid[16];
+ #ifdef BX_USE_EBDA_TABLES
+ unsigned long ebda_cur_addr;
+ #endif
+@@ -471,6 +470,7 @@ void wrmsr_smp(uint32_t index, uint64_t val)
+ #define QEMU_CFG_UUID       0x02
+ #define QEMU_CFG_ARCH_LOCAL     0x8000
+ #define QEMU_CFG_ACPI_TABLES  (QEMU_CFG_ARCH_LOCAL + 0)
++#define QEMU_CFG_SMBIOS_ENTRIES  (QEMU_CFG_ARCH_LOCAL + 1)
+ 
+ int qemu_cfg_port;
+ 
+@@ -519,19 +519,17 @@ static int acpi_load_table(int i, uint32_t addr, uint16_t *len)
+     qemu_cfg_read((uint8_t*)addr, *len);
+     return 0;
+ }
+-#endif
+ 
+-void uuid_probe(void)
++static uint16_t smbios_entries(void)
+ {
+-#ifdef BX_QEMU
+-    if(qemu_cfg_port) {
+-        qemu_cfg_select(QEMU_CFG_UUID);
+-        qemu_cfg_read(bios_uuid, 16);
+-        return;
+-    }
+-#endif
+-    memset(bios_uuid, 0, 16);
++    uint16_t cnt;
++
++    qemu_cfg_select(QEMU_CFG_SMBIOS_ENTRIES);
++    qemu_cfg_read((uint8_t*)&cnt, sizeof(cnt));
++
++    return cnt;
+ }
++#endif
+ 
+ void cpu_probe(void)
+ {
+@@ -1963,21 +1961,105 @@ smbios_entry_point_init(void *start,
+     ep->intermediate_checksum = -sum;
+     }
+ 
++struct smbios_header {
++    uint16_t length;
++    uint8_t type;
++} __attribute__((__packed__));
++
++struct smbios_field {
++    struct smbios_header header;
++    uint8_t type;
++    uint16_t offset;
++    uint8_t data[];
++} __attribute__((__packed__));
++
++struct smbios_table {
++    struct smbios_header header;
++    uint8_t data[];
++} __attribute__((__packed__));
++
++#define SMBIOS_FIELD_ENTRY 0
++#define SMBIOS_TABLE_ENTRY 1
++
++static size_t
++smbios_load_field(int type, size_t offset, void *addr)
++{
++#ifdef BX_QEMU
++    int i;
++
++    for (i = smbios_entries(); i > 0; i--) {
++        struct smbios_field field;
++
++        qemu_cfg_read((uint8_t *)&field, sizeof(struct smbios_header));
++        field.header.length -= sizeof(struct smbios_header);
++
++        if (field.header.type != SMBIOS_FIELD_ENTRY) {
++            while (field.header.length--)
++                inb(QEMU_CFG_DATA_PORT);
++            continue;
++        }
++
++        qemu_cfg_read((uint8_t *)&field.type,
++                      sizeof(field) - sizeof(struct smbios_header));
++        field.header.length -= sizeof(field) - sizeof(struct smbios_header);
++
++        if (field.type != type || field.offset != offset) {
++            while (field.header.length--)
++                inb(QEMU_CFG_DATA_PORT);
++            continue;
++        }
++
++        qemu_cfg_read(addr, field.header.length);
++        return (size_t)field.header.length;
++    }
++#endif
++    return 0;
++}
++ 
++#define load_str_field_with_default(type, field, def) do {             \
++    size = smbios_load_field(type, offsetof(struct smbios_type_##type, \
++                                            field), end);              \
++    if (size > 0) {                                                    \
++        end += size;                                                   \
++    } else {                                                           \
++        memcpy(end, def, sizeof(def));                                 \
++        end += sizeof(def);                                            \
++    }                                                                  \
++    p->field = ++str_index;                                            \
++} while (0)
++
++#define load_str_field_or_skip(type, field) do {                       \
++    size = smbios_load_field(type, offsetof(struct smbios_type_##type, \
++                                            field), end);              \
++    if (size > 0) {                                                    \
++        end += size;                                                   \
++        p->field = ++str_index;                                        \
++    } else {                                                           \
++        p->field = 0;                                                  \
++    }                                                                  \
++} while (0)
++
+ /* Type 0 -- BIOS Information */
+ #define RELEASE_DATE_STR "01/01/2007"
+ static void *
+-smbios_type_0_init(void *start)
++smbios_init_type_0(void *start)
+ {
+     struct smbios_type_0 *p = (struct smbios_type_0 *)start;
++    char *end = (char *)start + sizeof(struct smbios_type_0);
++    size_t size;
++    int str_index = 0;
+ 
+     p->header.type = 0;
+     p->header.length = sizeof(struct smbios_type_0);
+     p->header.handle = 0;
+ 
+-    p->vendor_str = 1;
+-    p->bios_version_str = 1;
++    load_str_field_with_default(0, vendor_str, BX_APPNAME);
++    load_str_field_with_default(0, bios_version_str, BX_APPNAME);
++
+     p->bios_starting_address_segment = 0xe800;
+-    p->bios_release_date_str = 2;
++
++    load_str_field_with_default(0, bios_release_date_str, RELEASE_DATE_STR);
++
+     p->bios_rom_size = 0; /* FIXME */
+ 
+     memset(p->bios_characteristics, 0, 8);
+@@ -1985,50 +2067,66 @@ smbios_type_0_init(void *start)
+     p->bios_characteristics_extension_bytes[0] = 0;
+     p->bios_characteristics_extension_bytes[1] = 0;
+ 
+-    p->system_bios_major_release = 1;
+-    p->system_bios_minor_release = 0;
++    if (!smbios_load_field(0, offsetof(struct smbios_type_0,
++                                       system_bios_major_release),
++                           &p->system_bios_major_release))
++        p->system_bios_major_release = 1;
++
++    if (!smbios_load_field(0, offsetof(struct smbios_type_0,
++                                       system_bios_minor_release),
++                           &p->system_bios_minor_release))
++        p->system_bios_minor_release = 0;
++
+     p->embedded_controller_major_release = 0xff;
+     p->embedded_controller_minor_release = 0xff;
+ 
+-    start += sizeof(struct smbios_type_0);
+-    memcpy((char *)start, BX_APPNAME, sizeof(BX_APPNAME));
+-    start += sizeof(BX_APPNAME);
+-    memcpy((char *)start, RELEASE_DATE_STR, sizeof(RELEASE_DATE_STR));
+-    start += sizeof(RELEASE_DATE_STR);
+-    *((uint8_t *)start) = 0;
++    *end = 0;
++    end++;
+ 
+-    return start+1;
++    return end;
+ }
+ 
+ /* Type 1 -- System Information */
+ static void *
+-smbios_type_1_init(void *start)
++smbios_init_type_1(void *start)
+ {
+     struct smbios_type_1 *p = (struct smbios_type_1 *)start;
++    char *end = (char *)start + sizeof(struct smbios_type_1);
++    size_t size;
++    int str_index = 0;
++
+     p->header.type = 1;
+     p->header.length = sizeof(struct smbios_type_1);
+     p->header.handle = 0x100;
+ 
+-    p->manufacturer_str = 0;
+-    p->product_name_str = 0;
+-    p->version_str = 0;
+-    p->serial_number_str = 0;
++    load_str_field_or_skip(1, manufacturer_str);
++    load_str_field_or_skip(1, product_name_str);
++    load_str_field_or_skip(1, version_str);
++    load_str_field_or_skip(1, serial_number_str);
+ 
+-    memcpy(p->uuid, bios_uuid, 16);
++    size = smbios_load_field(1, offsetof(struct smbios_type_1,
++                                         uuid), &p->uuid);
++    if (size == 0)
++        memset(p->uuid, 0, 16);
+ 
+     p->wake_up_type = 0x06; /* power switch */
+-    p->sku_number_str = 0;
+-    p->family_str = 0;
+ 
+-    start += sizeof(struct smbios_type_1);
+-    *((uint16_t *)start) = 0;
++    load_str_field_or_skip(1, sku_number_str);
++    load_str_field_or_skip(1, family_str);
+ 
+-    return start+2;
++    *end = 0;
++    end++;
++    if (!str_index) {
++        *end = 0;
++        end++;
++    }
++
++    return end;
+ }
+ 
+ /* Type 3 -- System Enclosure */
+ static void *
+-smbios_type_3_init(void *start)
++smbios_init_type_3(void *start)
+ {
+     struct smbios_type_3 *p = (struct smbios_type_3 *)start;
+ 
+@@ -2058,7 +2156,7 @@ smbios_type_3_init(void *start)
+ 
+ /* Type 4 -- Processor Information */
+ static void *
+-smbios_type_4_init(void *start, unsigned int cpu_number)
++smbios_init_type_4(void *start, unsigned int cpu_number)
+ {
+     struct smbios_type_4 *p = (struct smbios_type_4 *)start;
+ 
+@@ -2098,7 +2196,7 @@ smbios_type_4_init(void *start, unsigned int cpu_number)
+ 
+ /* Type 16 -- Physical Memory Array */
+ static void *
+-smbios_type_16_init(void *start, uint32_t memsize, int nr_mem_devs)
++smbios_init_type_16(void *start, uint32_t memsize, int nr_mem_devs)
+ {
+     struct smbios_type_16 *p = (struct smbios_type_16*)start;
+ 
+@@ -2121,7 +2219,7 @@ smbios_type_16_init(void *start, uint32_t memsize, int nr_mem_devs)
+ 
+ /* Type 17 -- Memory Device */
+ static void *
+-smbios_type_17_init(void *start, uint32_t memory_size_mb, int instance)
++smbios_init_type_17(void *start, uint32_t memory_size_mb, int instance)
+ {
+     struct smbios_type_17 *p = (struct smbios_type_17 *)start;
+ 
+@@ -2151,7 +2249,7 @@ smbios_type_17_init(void *start, uint32_t memory_size_mb, int instance)
+ 
+ /* Type 19 -- Memory Array Mapped Address */
+ static void *
+-smbios_type_19_init(void *start, uint32_t memory_size_mb, int instance)
++smbios_init_type_19(void *start, uint32_t memory_size_mb, int instance)
+ {
+     struct smbios_type_19 *p = (struct smbios_type_19 *)start;
+ 
+@@ -2172,7 +2270,7 @@ smbios_type_19_init(void *start, uint32_t memory_size_mb, int instance)
+ 
+ /* Type 20 -- Memory Device Mapped Address */
+ static void *
+-smbios_type_20_init(void *start, uint32_t memory_size_mb, int instance)
++smbios_init_type_20(void *start, uint32_t memory_size_mb, int instance)
+ {
+     struct smbios_type_20 *p = (struct smbios_type_20 *)start;
+ 
+@@ -2196,7 +2294,7 @@ smbios_type_20_init(void *start, uint32_t memory_size_mb, int instance)
+ 
+ /* Type 32 -- System Boot Information */
+ static void *
+-smbios_type_32_init(void *start)
++smbios_init_type_32(void *start)
+ {
+     struct smbios_type_32 *p = (struct smbios_type_32 *)start;
+ 
+@@ -2214,7 +2312,7 @@ smbios_type_32_init(void *start)
+ 
+ /* Type 127 -- End of Table */
+ static void *
+-smbios_type_127_init(void *start)
++smbios_init_type_127(void *start)
+ {
+     struct smbios_type_127 *p = (struct smbios_type_127 *)start;
+ 
+@@ -2228,6 +2326,78 @@ smbios_type_127_init(void *start)
+     return start + 2;
+ }
+ 
++static int
++smbios_load_external(int type, char **p, unsigned *nr_structs,
++                     unsigned *max_struct_size)
++{
++#ifdef BX_QEMU
++    static uint64_t used_bitmap[4] = { 0 };
++    char *start = *p;
++    int i;
++
++    /* Check if we've already reported these tables */
++    if (used_bitmap[(type >> 6) & 0x3] & (1ULL << (type & 0x3f)))
++        return 1;
++
++    /* Don't introduce spurious end markers */
++    if (type == 127)
++        return 0;
++
++    for (i = smbios_entries(); i > 0; i--) {
++        struct smbios_table table;
++        struct smbios_structure_header *header = (void *)*p;
++        int string;
++
++        qemu_cfg_read((uint8_t *)&table, sizeof(struct smbios_header));
++        table.header.length -= sizeof(struct smbios_header);
++
++        if (table.header.type != SMBIOS_TABLE_ENTRY) {
++            while (table.header.length--)
++                inb(QEMU_CFG_DATA_PORT);
++            continue;
++        }
++
++        qemu_cfg_read((uint8_t *)*p, sizeof(struct smbios_structure_header));
++        table.header.length -= sizeof(struct smbios_structure_header);
++
++        if (header->type != type) {
++            while (table.header.length--)
++                inb(QEMU_CFG_DATA_PORT);
++            continue;
++        }
++
++        *p += sizeof(struct smbios_structure_header);
++
++        /* Entries end with a double NULL char, if there's a string at
++         * the end (length is greater than formatted length), the string
++         * terminator provides the first NULL. */
++        string = header->length < table.header.length +
++                 sizeof(struct smbios_structure_header);
++
++        /* Read the rest and terminate the entry */
++        qemu_cfg_read((uint8_t *)*p, table.header.length);
++        *p += table.header.length;
++        *((uint8_t*)*p) = 0;
++        (*p)++;
++        if (!string) {
++            *((uint8_t*)*p) = 0;
++            (*p)++;
++        }
++
++        (*nr_structs)++;
++        if (*p - (char *)header > *max_struct_size)
++            *max_struct_size = *p - (char *)header;
++    }
++
++    /* Mark that we've reported on this type */
++    used_bitmap[(type >> 6) & 0x3] |= (1ULL << (type & 0x3f));
++
++    return (start != *p);
++#else /* !BX_QEMU */
++    return 0;
++#endif
++}
++
+ void smbios_init(void)
+ {
+     unsigned cpu_num, nr_structs = 0, max_struct_size = 0;
+@@ -2246,34 +2416,39 @@ void smbios_init(void)
+ 
+ 	p = (char *)start + sizeof(struct smbios_entry_point);
+ 
+-#define add_struct(fn) do{ \
+-    q = (fn); \
+-    nr_structs++; \
+-    if ((q - p) > max_struct_size) \
+-        max_struct_size = q - p; \
+-    p = q; \
+-}while (0)
+-
+-    add_struct(smbios_type_0_init(p));
+-    add_struct(smbios_type_1_init(p));
+-    add_struct(smbios_type_3_init(p));
++#define add_struct(type, args...) do {                                    \
++    if (!smbios_load_external(type, &p, &nr_structs, &max_struct_size)) { \
++        q = smbios_init_type_##type(args);                                \
++        nr_structs++;                                                     \
++        if ((q - p) > max_struct_size)                                    \
++            max_struct_size = q - p;                                      \
++        p = q;                                                            \
++    }                                                                     \
++} while (0)
++
++    add_struct(0, p);
++    add_struct(1, p);
++    add_struct(3, p);
+     for (cpu_num = 1; cpu_num <= smp_cpus; cpu_num++)
+-        add_struct(smbios_type_4_init(p, cpu_num));
++        add_struct(4, p, cpu_num);
+ 
+     /* Each 'memory device' covers up to 16GB of address space. */
+     nr_mem_devs = (memsize + 0x3fff) >> 14;
+-    add_struct(smbios_type_16_init(p, memsize, nr_mem_devs));
++    add_struct(16, p, memsize, nr_mem_devs);
+     for ( i = 0; i < nr_mem_devs; i++ )
+     {
+         uint32_t dev_memsize = ((i == (nr_mem_devs - 1))
+                                 ? (((memsize-1) & 0x3fff)+1) : 0x4000);
+-        add_struct(smbios_type_17_init(p, dev_memsize, i));
+-        add_struct(smbios_type_19_init(p, dev_memsize, i));
+-        add_struct(smbios_type_20_init(p, dev_memsize, i));
++        add_struct(17, p, dev_memsize, i);
++        add_struct(19, p, dev_memsize, i);
++        add_struct(20, p, dev_memsize, i);
+     }
+ 
+-    add_struct(smbios_type_32_init(p));
+-    add_struct(smbios_type_127_init(p));
++    add_struct(32, p);
++    /* Add any remaining provided entries before the end marker */
++    for (i = 0; i < 256; i++)
++        smbios_load_external(i, &p, &nr_structs, &max_struct_size);
++    add_struct(127, p);
+ 
+ #undef add_struct
+ 
+@@ -2380,8 +2555,6 @@ void rombios32_init(uint32_t *s3_resume_vector, uint8_t *shutdown_flag)
+ 
+         mptable_init();
+ 
+-        uuid_probe();
+-
+         smbios_init();
+ 
+         if (acpi_enabled)
+
+
+--
+To unsubscribe from this list: send the line "unsubscribe kvm" in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+

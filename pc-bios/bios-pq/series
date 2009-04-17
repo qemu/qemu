@@ -9,3 +9,4 @@
 0009_qemu-bios-pci-hotplug-support.patch
 0010_bios-mark-the-acpi-sci-interrupt-as-connected-to-irq-9.patch
 0011_read-additional-acpi-tables-from-a-vm.patch
+0012-load-smbios-entries-and-files-from-qemu.patch
