@@ -82,9 +82,10 @@
 #define DESC_AVL_MASK   (1 << 20)
 #define DESC_P_MASK     (1 << 15)
 #define DESC_DPL_SHIFT  13
-#define DESC_DPL_MASK   (1 << DESC_DPL_SHIFT)
+#define DESC_DPL_MASK   (3 << DESC_DPL_SHIFT)
 #define DESC_S_MASK     (1 << 12)
 #define DESC_TYPE_SHIFT 8
+#define DESC_TYPE_MASK  (15 << DESC_TYPE_SHIFT)
 #define DESC_A_MASK     (1 << 8)
 
 #define DESC_CS_MASK    (1 << 11) /* 1=code segment 0=data segment */
