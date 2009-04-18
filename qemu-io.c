@@ -172,7 +172,7 @@ static int do_aio_writev(QEMUIOVector *qiov, int64_t offset, int *total)
 	while (async_ret == NOT_DONE)
 		qemu_aio_wait();
 
-	*total = qiov->size >> 9;
+	*total = qiov->size;
 	return async_ret < 0 ? async_ret : 1;
 }
 
@@ -634,7 +634,7 @@ writev_f(int argc, char **argv)
 
 	nr_iov = argc - optind;
 	qemu_iovec_init(&qiov, nr_iov);
-	buf = p = qemu_io_alloc(count, 0xab);
+	buf = p = qemu_io_alloc(count, pattern);
 	for (i = 0; i < nr_iov; i++) {
 	        size_t len;
 
