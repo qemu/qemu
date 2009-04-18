@@ -334,7 +334,7 @@ static int get_char(GDBState *s)
 
 static gdb_syscall_complete_cb gdb_current_syscall_cb;
 
-enum {
+static enum {
     GDB_SYS_UNKNOWN,
     GDB_SYS_ENABLED,
     GDB_SYS_DISABLED,
