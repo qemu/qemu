@@ -433,14 +433,16 @@ static int vpc_write(BlockDriverState *bs, int64_t sector_num,
  *
  * Note that the geometry doesn't always exactly match total_sectors but
  * may round it down.
+ *
+ * Returns 0 on success, -EFBIG if the size is larger than 127 GB
  */
-static void calculate_geometry(int64_t total_sectors, uint16_t* cyls,
+static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     uint8_t* heads, uint8_t* secs_per_cyl)
 {
     uint32_t cyls_times_heads;
 
     if (total_sectors > 65535 * 16 * 255)
-        total_sectors = 65535 * 16 * 255;
+        return -EFBIG;
 
     if (total_sectors > 65535 * 16 * 63) {
         *secs_per_cyl = 255;
@@ -470,6 +472,8 @@ static void calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     // Note: Rounding up deviates from the Virtual PC behaviour
     // However, we need this to avoid truncating images in qemu-img convert
     *cyls = (cyls_times_heads + *heads - 1) / *heads;
+
+    return 0;
 }
 
 static int vpc_create(const char *filename, int64_t total_sectors,
@@ -493,7 +497,8 @@ static int vpc_create(const char *filename, int64_t total_sectors,
         return -EIO;
 
     // Calculate matching total_size and geometry
-    calculate_geometry(total_sectors, &cyls, &heads, &secs_per_cyl);
+    if (calculate_geometry(total_sectors, &cyls, &heads, &secs_per_cyl))
+        return -EFBIG;
     total_sectors = (int64_t) cyls * heads * secs_per_cyl;
 
     // Prepare the Hard Disk Footer
