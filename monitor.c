@@ -1640,7 +1640,7 @@ static const mon_cmd_t mon_cmds[] = {
     { "commit", "s", do_commit,
       "device|all", "commit changes to the disk images (if -snapshot is used) or backing files" },
     { "info", "s?", do_info,
-      "subcommand", "show various information about the system state" },
+      "[subcommand]", "show various information about the system state" },
     { "q|quit", "", do_quit,
       "", "quit the emulator" },
     { "eject", "-fB", do_eject,
@@ -1654,7 +1654,7 @@ static const mon_cmd_t mon_cmds[] = {
     { "log", "s", do_log,
       "item1[,...]", "activate logging of the specified items to '/tmp/qemu.log'" },
     { "savevm", "s?", do_savevm,
-      "tag|id", "save a VM snapshot. If no tag or id are provided, a new snapshot is created" },
+      "[tag|id]", "save a VM snapshot. If no tag or id are provided, a new snapshot is created" },
     { "loadvm", "s", do_loadvm,
       "tag|id", "restore a VM snapshot from its tag or id" },
     { "delvm", "s", do_delvm,
@@ -1667,7 +1667,7 @@ static const mon_cmd_t mon_cmds[] = {
       "", "resume emulation", },
 #ifdef CONFIG_GDBSTUB
     { "gdbserver", "s?", do_gdbserver,
-      "[port]", "start gdbserver session (default port=1234)", },
+      "[device]", "start gdbserver on given device (default 'tcp::1234'), stop with 'none'", },
 #endif
     { "x", "/l", do_memory_dump,
       "/fmt addr", "virtual memory dump starting at 'addr'", },
@@ -1700,7 +1700,7 @@ static const mon_cmd_t mon_cmds[] = {
       "index", "set which mouse device receives events" },
 #ifdef HAS_AUDIO
     { "wavcapture", "si?i?i?", do_wav_capture,
-      "path [frequency bits channels]",
+      "path [frequency [bits [channels]]]",
       "capture audio to a wave file (default frequency=44100 bits=16 channels=2)" },
 #endif
     { "stopcapture", "i", do_stop_capture,
@@ -1738,8 +1738,8 @@ static const mon_cmd_t mon_cmds[] = {
     { "balloon", "i", do_balloon,
       "target", "request VM to change it's memory allocation (in MB)" },
     { "set_link", "ss", do_set_link,
-      "name [up|down]", "change the link status of a network adapter" },
-    { "acl", "sss?i?", do_acl, "<command> <aclname> [<match>] [<index>]\n",
+      "name up|down", "change the link status of a network adapter" },
+    { "acl", "sss?i?", do_acl, "<command> <aclname> [<match> [<index>]]\n",
                                "acl show vnc.username\n"
                                "acl policy vnc.username deny\n"
                                "acl allow vnc.username fred\n"
