@@ -255,30 +255,30 @@ BLOBS=
 endif
 
 install-doc: $(DOCS)
-	mkdir -p "$(DESTDIR)$(docdir)"
-	$(INSTALL) -m 644 qemu-doc.html  qemu-tech.html "$(DESTDIR)$(docdir)"
+	$(INSTALL_DIR) "$(DESTDIR)$(docdir)"
+	$(INSTALL_DATA) qemu-doc.html  qemu-tech.html "$(DESTDIR)$(docdir)"
 ifndef CONFIG_WIN32
-	mkdir -p "$(DESTDIR)$(mandir)/man1"
-	$(INSTALL) -m 644 qemu.1 qemu-img.1 "$(DESTDIR)$(mandir)/man1"
-	mkdir -p "$(DESTDIR)$(mandir)/man8"
-	$(INSTALL) -m 644 qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
+	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
+	$(INSTALL_DATA) qemu.1 qemu-img.1 "$(DESTDIR)$(mandir)/man1"
+	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
+	$(INSTALL_DATA) qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
 endif
 
 install: all $(if $(BUILD_DOCS),install-doc)
-	mkdir -p "$(DESTDIR)$(bindir)"
+	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
 ifneq ($(TOOLS),)
-	$(INSTALL) -m 755 $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
+	$(INSTALL_PROG) $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
 endif
 ifneq ($(BLOBS),)
-	mkdir -p "$(DESTDIR)$(datadir)"
+	$(INSTALL_DIR) "$(DESTDIR)$(datadir)"
 	set -e; for x in $(BLOBS); do \
-		$(INSTALL) -m 644 $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
+		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
 	done
 endif
 ifndef CONFIG_WIN32
-	mkdir -p "$(DESTDIR)$(datadir)/keymaps"
+	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/keymaps"
 	set -e; for x in $(KEYMAPS); do \
-		$(INSTALL) -m 644 $(SRC_PATH)/keymaps/$$x "$(DESTDIR)$(datadir)/keymaps"; \
+		$(INSTALL_DATA) $(SRC_PATH)/keymaps/$$x "$(DESTDIR)$(datadir)/keymaps"; \
 	done
 endif
 	for d in $(TARGET_DIRS); do \

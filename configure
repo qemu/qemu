@@ -1339,6 +1339,9 @@ echo "docdir=\${prefix}$docsuffix" >> $config_mak
 echo "#define CONFIG_QEMU_SHAREDIR \"$prefix$datasuffix\"" >> $config_h
 echo "MAKE=$make" >> $config_mak
 echo "INSTALL=$install" >> $config_mak
+echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_mak
+echo "INSTALL_DATA=$install -m0644 -p" >> $config_mak
+echo "INSTALL_PROG=$install -m0755 -p" >> $config_mak
 echo "CC=$cc" >> $config_mak
 echo "HOST_CC=$host_cc" >> $config_mak
 echo "AR=$ar" >> $config_mak
