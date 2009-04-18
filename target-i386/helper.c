@@ -570,6 +570,61 @@ static const char *cc_op_str[] = {
     "SARQ",
 };
 
+static void
+cpu_x86_dump_seg_cache(CPUState *env, FILE *f,
+                       int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
+                       const char *name, struct SegmentCache *sc)
+{
+#ifdef TARGET_X86_64
+    if (env->hflags & HF_CS64_MASK) {
+        cpu_fprintf(f, "%-3s=%04x %016" PRIx64 " %08x %08x", name,
+                    sc->selector, sc->base, sc->limit, sc->flags);
+    } else
+#endif
+    {
+        cpu_fprintf(f, "%-3s=%04x %08x %08x %08x", name, sc->selector,
+                    (uint32_t)sc->base, sc->limit, sc->flags);
+    }
+
+    if (!(env->hflags & HF_PE_MASK) || !(sc->flags & DESC_P_MASK))
+        goto done;
+
+    cpu_fprintf(f, " DPL=%d ", (sc->flags & DESC_DPL_MASK) >> DESC_DPL_SHIFT);
+    if (sc->flags & DESC_S_MASK) {
+        if (sc->flags & DESC_CS_MASK) {
+            cpu_fprintf(f, (sc->flags & DESC_L_MASK) ? "CS64" :
+                           ((sc->flags & DESC_B_MASK) ? "CS32" : "CS16"));
+            cpu_fprintf(f, " [%c%c", (sc->flags & DESC_C_MASK) ? 'C' : '-',
+                        (sc->flags & DESC_R_MASK) ? 'R' : '-');
+        } else {
+            cpu_fprintf(f, (sc->flags & DESC_B_MASK) ? "DS  " : "DS16");
+            cpu_fprintf(f, " [%c%c", (sc->flags & DESC_E_MASK) ? 'E' : '-',
+                        (sc->flags & DESC_W_MASK) ? 'W' : '-');
+        }
+        cpu_fprintf(f, "%c]", (sc->flags & DESC_A_MASK) ? 'A' : '-');
+    } else {
+        static const char *sys_type_name[2][16] = {
+            { /* 32 bit mode */
+                "Reserved", "TSS16-avl", "LDT", "TSS16-busy",
+                "CallGate16", "TaskGate", "IntGate16", "TrapGate16",
+                "Reserved", "TSS32-avl", "Reserved", "TSS32-busy",
+                "CallGate32", "Reserved", "IntGate32", "TrapGate32"
+            },
+            { /* 64 bit mode */
+                "<hiword>", "Reserved", "LDT", "Reserved", "Reserved",
+                "Reserved", "Reserved", "Reserved", "Reserved",
+                "TSS64-avl", "Reserved", "TSS64-busy", "CallGate64",
+                "Reserved", "IntGate64", "TrapGate64"
+            }
+        };
+        cpu_fprintf(f, sys_type_name[(env->hflags & HF_LMA_MASK) ? 1 : 0]
+                                    [(sc->flags & DESC_TYPE_MASK)
+                                     >> DESC_TYPE_SHIFT]);
+    }
+done:
+    cpu_fprintf(f, "\n");
+}
+
 void cpu_dump_state(CPUState *env, FILE *f,
                     int (*cpu_fprintf)(FILE *f, const char *fmt, ...),
                     int flags)
@@ -648,27 +703,15 @@ void cpu_dump_state(CPUState *env, FILE *f,
                     env->halted);
     }
 
+    for(i = 0; i < 6; i++) {
+        cpu_x86_dump_seg_cache(env, f, cpu_fprintf, seg_name[i],
+                               &env->segs[i]);
+    }
+    cpu_x86_dump_seg_cache(env, f, cpu_fprintf, "LDT", &env->ldt);
+    cpu_x86_dump_seg_cache(env, f, cpu_fprintf, "TR", &env->tr);
+
 #ifdef TARGET_X86_64
     if (env->hflags & HF_LMA_MASK) {
-        for(i = 0; i < 6; i++) {
-            SegmentCache *sc = &env->segs[i];
-            cpu_fprintf(f, "%s =%04x %016" PRIx64 " %08x %08x\n",
-                        seg_name[i],
-                        sc->selector,
-                        sc->base,
-                        sc->limit,
-                        sc->flags);
-        }
-        cpu_fprintf(f, "LDT=%04x %016" PRIx64 " %08x %08x\n",
-                    env->ldt.selector,
-                    env->ldt.base,
-                    env->ldt.limit,
-                    env->ldt.flags);
-        cpu_fprintf(f, "TR =%04x %016" PRIx64 " %08x %08x\n",
-                    env->tr.selector,
-                    env->tr.base,
-                    env->tr.limit,
-                    env->tr.flags);
         cpu_fprintf(f, "GDT=     %016" PRIx64 " %08x\n",
                     env->gdt.base, env->gdt.limit);
         cpu_fprintf(f, "IDT=     %016" PRIx64 " %08x\n",
@@ -685,25 +728,6 @@ void cpu_dump_state(CPUState *env, FILE *f,
     } else
 #endif
     {
-        for(i = 0; i < 6; i++) {
-            SegmentCache *sc = &env->segs[i];
-            cpu_fprintf(f, "%s =%04x %08x %08x %08x\n",
-                        seg_name[i],
-                        sc->selector,
-                        (uint32_t)sc->base,
-                        sc->limit,
-                        sc->flags);
-        }
-        cpu_fprintf(f, "LDT=%04x %08x %08x %08x\n",
-                    env->ldt.selector,
-                    (uint32_t)env->ldt.base,
-                    env->ldt.limit,
-                    env->ldt.flags);
-        cpu_fprintf(f, "TR =%04x %08x %08x %08x\n",
-                    env->tr.selector,
-                    (uint32_t)env->tr.base,
-                    env->tr.limit,
-                    env->tr.flags);
         cpu_fprintf(f, "GDT=     %08x %08x\n",
                     (uint32_t)env->gdt.base, env->gdt.limit);
         cpu_fprintf(f, "IDT=     %08x %08x\n",
