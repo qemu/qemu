@@ -192,6 +192,7 @@ read_help(void)
 " Reads a segment of the currently open file, optionally dumping it to the\n"
 " standard output stream (with -v option) for subsequent inspection.\n"
 " -p, -- use bdrv_pread to read the file\n"
+" -P, -- use a pattern to verify read data\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -v, -- dump buffer to standard output\n"
 " -q, -- quite mode, do not show I/O statistics\n"
@@ -207,14 +208,20 @@ read_f(int argc, char **argv)
 	char *buf;
 	int64_t offset;
 	int count, total;
+	int pattern = 0;
+	int Pflag = 0;
 
-	while ((c = getopt(argc, argv, "Cpqv")) != EOF) {
+	while ((c = getopt(argc, argv, "CpP:qv")) != EOF) {
 		switch (c) {
 		case 'C':
 			Cflag = 1;
 			break;
 		case 'p':
 			pflag = 1;
+			break;
+		case 'P':
+			Pflag = 1;
+			pattern = atoi(optarg);
 			break;
 		case 'q':
 			qflag = 1;
@@ -270,6 +277,17 @@ read_f(int argc, char **argv)
 		return 0;
 	}
 
+	if (Pflag) {
+		void* cmp_buf = malloc(count);
+		memset(cmp_buf, pattern, count);
+		if (memcmp(buf, cmp_buf, count)) {
+			printf("Pattern verification failed at offset %lld, "
+				"%d bytes\n",
+				(long long) offset, count);
+		}
+		free(cmp_buf);
+	}
+
 	if (qflag)
 		return 0;
 
@@ -291,7 +309,7 @@ static const cmdinfo_t read_cmd = {
 	.cfunc		= read_f,
 	.argmin		= 2,
 	.argmax		= -1,
-	.args		= "[-aCpqv] off len",
+	.args		= "[-aCpqv] [-P pattern ] off len",
 	.oneline	= "reads a number of bytes at a specified offset",
 	.help		= read_help,
 };
@@ -312,6 +330,7 @@ readv_help(void)
 " standard output stream (with -v option) for subsequent inspection.\n"
 " Uses multiple iovec buffers if more than one byte range is specified.\n"
 " -C, -- report statistics in a machine parsable format\n"
+" -P, -- use a pattern to verify read data\n"
 " -v, -- dump buffer to standard output\n"
 " -q, -- quite mode, do not show I/O statistics\n"
 "\n");
@@ -328,11 +347,17 @@ readv_f(int argc, char **argv)
 	int count = 0, total;
 	int nr_iov, i;
 	QEMUIOVector qiov;
+	int pattern = 0;
+	int Pflag = 0;
 
-	while ((c = getopt(argc, argv, "Cqv")) != EOF) {
+	while ((c = getopt(argc, argv, "CP:qv")) != EOF) {
 		switch (c) {
 		case 'C':
 			Cflag = 1;
+			break;
+		case 'P':
+			Pflag = 1;
+			pattern = atoi(optarg);
 			break;
 		case 'q':
 			qflag = 1;
@@ -406,6 +431,17 @@ readv_f(int argc, char **argv)
 		return 0;
 	}
 
+	if (Pflag) {
+		void* cmp_buf = malloc(count);
+		memset(cmp_buf, pattern, count);
+		if (memcmp(buf, cmp_buf, count)) {
+			printf("Pattern verification failed at offset %lld, "
+				"%d bytes\n",
+				(long long) offset, count);
+		}
+		free(cmp_buf);
+	}
+
 	if (qflag)
 		return 0;
 
@@ -426,7 +462,7 @@ static const cmdinfo_t readv_cmd = {
 	.cfunc		= readv_f,
 	.argmin		= 2,
 	.argmax		= -1,
-	.args		= "[-Cqv] off len [len..]",
+	.args		= "[-Cqv] [-P pattern ] off len [len..]",
 	.oneline	= "reads a number of bytes at a specified offset",
 	.help		= readv_help,
 };
