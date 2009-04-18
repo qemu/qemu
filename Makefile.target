@@ -131,8 +131,11 @@ all: $(PROGS)
 
 #########################################################
 # cpu emulator library
-LIBOBJS=exec.o kqemu.o translate-all.o cpu-exec.o\
+LIBOBJS=exec.o translate-all.o cpu-exec.o\
         translate.o host-utils.o
+ifdef CONFIG_KQEMU
+LIBOBJS+= kqemu.o
+endif
 # TCG code generator
 LIBOBJS+= tcg/tcg.o tcg/tcg-runtime.o
 CPPFLAGS+=-I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/$(ARCH)
