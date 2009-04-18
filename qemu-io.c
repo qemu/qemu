@@ -794,6 +794,7 @@ alloc_f(int argc, char **argv)
 	char s1[64];
 	int num;
 	int ret;
+	const char *retstr;
 
 	offset = cvtnum(argv[1]);
 	if (offset & 0x1ff) {
@@ -808,18 +809,15 @@ alloc_f(int argc, char **argv)
 		nb_sectors = 1;
 
 	ret = bdrv_is_allocated(bs, offset >> 9, nb_sectors, &num);
-	if (ret) {
-		printf("is_allocated: %s", strerror(ret));
-		return 0;
-	}
 
 	cvtstr(offset, s1, sizeof(s1));
 
+	retstr = ret ? "allocated" : "not allocated";
 	if (nb_sectors == 1)
-		printf("sector allocated at offset %s\n", s1);
+		printf("sector %s at offset %s\n", retstr, s1);
 	else
-		printf("%d/%d sectors allocated at offset %s\n",
-			num, nb_sectors, s1);
+		printf("%d/%d sectors %s at offset %s\n",
+			num, nb_sectors, retstr, s1);
 	return 0;
 }
 
