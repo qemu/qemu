@@ -63,7 +63,7 @@ static void udp_emu(struct socket *so, struct mbuf *m);
 struct	socket *udp_last_so = &udb;
 
 void
-udp_init()
+udp_init(void)
 {
 	udb.so_next = udb.so_prev = &udb;
 }
@@ -72,9 +72,7 @@ udp_init()
  * ip->ip_len length data (IPDU)
  */
 void
-udp_input(m, iphlen)
-	register struct mbuf *m;
-	int iphlen;
+udp_input(register struct mbuf *m, int iphlen)
 {
 	register struct ip *ip;
 	register struct udphdr *uh;
@@ -330,8 +328,7 @@ int udp_output(struct socket *so, struct mbuf *m,
 }
 
 int
-udp_attach(so)
-     struct socket *so;
+udp_attach(struct socket *so)
 {
   struct sockaddr_in addr;
 
@@ -363,8 +360,7 @@ udp_attach(so)
 }
 
 void
-udp_detach(so)
-	struct socket *so;
+udp_detach(struct socket *so)
 {
 	closesocket(so->s);
 	/* if (so->so_m) m_free(so->so_m);    done by sofree */
@@ -631,11 +627,7 @@ struct cu_header {
 }
 
 struct socket *
-udp_listen(port, laddr, lport, flags)
-	u_int port;
-	u_int32_t laddr;
-	u_int lport;
-	int flags;
+udp_listen(u_int port, u_int32_t laddr, u_int lport, int flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
