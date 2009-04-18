@@ -25,6 +25,7 @@ int slirp_add_exec(int do_pty, const void *args, int addr_low_byte,
 
 extern const char *tftp_prefix;
 extern char slirp_hostname[33];
+extern const char *bootp_filename;
 
 void slirp_stats(void);
 void slirp_socket_recv(int addr_low_byte, int guest_port, const uint8_t *buf,

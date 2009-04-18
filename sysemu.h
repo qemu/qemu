@@ -103,7 +103,6 @@ extern int graphic_rotate;
 extern int no_quit;
 extern int semihosting_enabled;
 extern int old_param;
-extern const char *bootp_filename;
 
 #ifdef USE_KQEMU
 extern int kqemu_allowed;
