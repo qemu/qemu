@@ -303,15 +303,15 @@ static int sys_getcwd1(char *buf, size_t size)
  */
 
 #ifdef TARGET_NR_faccessat
-static int sys_faccessat(int dirfd, const char *pathname, int mode, int flags)
+static int sys_faccessat(int dirfd, const char *pathname, int mode)
 {
-  return (faccessat(dirfd, pathname, mode, flags));
+  return (faccessat(dirfd, pathname, mode, 0));
 }
 #endif
 #ifdef TARGET_NR_fchmodat
-static int sys_fchmodat(int dirfd, const char *pathname, mode_t mode, int flags)
+static int sys_fchmodat(int dirfd, const char *pathname, mode_t mode)
 {
-  return (fchmodat(dirfd, pathname, mode, flags));
+  return (fchmodat(dirfd, pathname, mode, 0));
 }
 #endif
 #if defined(TARGET_NR_fchownat) && defined(USE_UID16)
@@ -425,11 +425,10 @@ static int sys_utimensat(int dirfd, const char *pathname,
  * Try direct syscalls instead
  */
 #if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
-_syscall4(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode,int,flags)
+_syscall3(int,sys_faccessat,int,dirfd,const char *,pathname,int,mode)
 #endif
 #if defined(TARGET_NR_fchmodat) && defined(__NR_fchmodat)
-_syscall4(int,sys_fchmodat,int,dirfd,const char *,pathname,
-          mode_t,mode,int,flags)
+_syscall3(int,sys_fchmodat,int,dirfd,const char *,pathname, mode_t,mode)
 #endif
 #if defined(TARGET_NR_fchownat) && defined(__NR_fchownat) && defined(USE_UID16)
 _syscall5(int,sys_fchownat,int,dirfd,const char *,pathname,
@@ -4218,7 +4217,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_faccessat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_faccessat(arg1, p, arg3, arg4));
+        ret = get_errno(sys_faccessat(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
 #endif
@@ -4944,7 +4943,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_fchmodat:
         if (!(p = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(sys_fchmodat(arg1, p, arg3, arg4));
+        ret = get_errno(sys_fchmodat(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
 #endif
