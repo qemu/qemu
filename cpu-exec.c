@@ -314,7 +314,7 @@ int cpu_exec(CPUState *env1)
                 }
                 env->exception_index = -1;
             }
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
             if (kqemu_is_ok(env) && env->interrupt_request == 0 && env->exit_request == 0) {
                 int ret;
                 env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
@@ -594,7 +594,7 @@ int cpu_exec(CPUState *env1)
                    jump. */
                 {
                     if (next_tb != 0 &&
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
                         (env->kqemu_enabled != 2) &&
 #endif
                         tb->page_addr[1] == -1) {
@@ -651,7 +651,7 @@ int cpu_exec(CPUState *env1)
                 }
                 /* reset soft MMU for next block (it can currently
                    only be set by a memory fault) */
-#if defined(USE_KQEMU)
+#if defined(CONFIG_KQEMU)
 #define MIN_CYCLE_BEFORE_SWITCH (100 * 1000)
                 if (kqemu_is_ok(env) &&
                     (cpu_get_time_fast() - env->last_io_time) >= MIN_CYCLE_BEFORE_SWITCH) {

@@ -41,7 +41,7 @@
 #include "exec-all.h"
 #include "qemu-common.h"
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 
 #define DEBUG
 //#define PROFILE

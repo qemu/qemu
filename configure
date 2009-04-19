@@ -1770,7 +1770,7 @@ case "$target_cpu" in
     if test $kqemu = "yes" -a "$target_softmmu" = "yes"
     then
       echo "CONFIG_KQEMU=yes" >> $config_mak
-      echo "#define USE_KQEMU 1" >> $config_h
+      echo "#define CONFIG_KQEMU 1" >> $config_h
     fi
     if test "$kvm" = "yes" ; then
       echo "CONFIG_KVM=yes" >> $config_mak
@@ -1786,7 +1786,7 @@ case "$target_cpu" in
     if test $kqemu = "yes" -a "$target_softmmu" = "yes" -a $cpu = "x86_64"
     then
       echo "CONFIG_KQEMU=yes" >> $config_mak
-      echo "#define USE_KQEMU 1" >> $config_h
+      echo "#define CONFIG_KQEMU 1" >> $config_h
     fi
     if test "$kvm" = "yes" ; then
       echo "CONFIG_KVM=yes" >> $config_mak

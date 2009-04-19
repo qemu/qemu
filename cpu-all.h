@@ -846,7 +846,7 @@ int cpu_inl(CPUState *env, int addr);
 #endif
 
 /* address in the RAM (different from a physical address) */
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 typedef uint32_t ram_addr_t;
 #else
 typedef unsigned long ram_addr_t;

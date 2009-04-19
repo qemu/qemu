@@ -662,7 +662,7 @@ typedef struct CPUX86State {
         uint64_t mask;
     } mtrr_var[8];
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     int kqemu_enabled;
     int last_io_time;
 #endif
@@ -820,7 +820,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define X86_DUMP_FPU  0x0001 /* dump FPU state too */
 #define X86_DUMP_CCOP 0x0002 /* dump qemu flag cache */
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 static inline int cpu_get_time_fast(void)
 {
     int low, high;
