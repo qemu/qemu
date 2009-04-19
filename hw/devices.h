@@ -74,5 +74,10 @@ qemu_irq *tc6393xb_gpio_in_get(struct tc6393xb_s *s);
 qemu_irq tc6393xb_l3v_get(struct tc6393xb_s *s);
 
 /* sm501.c */
-void sm501_init(uint32_t base, uint32_t local_mem_bytes, CharDriverState *chr);
+void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
+                CharDriverState *chr);
+
+/* usb-ohci.c */
+void usb_ohci_init_sm501(uint32_t mmio_base, uint32_t localmem_base,
+                         int num_ports, int devfn, qemu_irq irq);
 #endif

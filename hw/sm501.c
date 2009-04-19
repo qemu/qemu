@@ -1055,7 +1055,8 @@ static void sm501_update_display(void *opaque)
 	sm501_draw_crt(s);
 }
 
-void sm501_init(uint32_t base, uint32_t local_mem_bytes, CharDriverState *chr)
+void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
+                CharDriverState *chr)
 {
     SM501State * s;
     int sm501_system_config_index;
@@ -1088,6 +1089,10 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, CharDriverState *chr)
 						   sm501_disp_ctrl_writefn, s);
     cpu_register_physical_memory(base + MMIO_BASE_OFFSET + SM501_DC,
                                  0x1000, sm501_disp_ctrl_index);
+
+    /* bridge to usb host emulation module */
+    usb_ohci_init_sm501(base + MMIO_BASE_OFFSET + SM501_USB_HOST, base,
+                        2, -1, irq);
 
     /* bridge to serial emulation module */
     if (chr)
