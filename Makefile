@@ -310,7 +310,7 @@ cscope:
 qemu-options.texi: $(SRC_PATH)/qemu-options.hx
 	$(call quiet-command,sh $(SRC_PATH)/hxtool -t < $< > $@,"  GEN   $@")
 
-qemu.1: qemu-doc.texi
+qemu.1: qemu-doc.texi qemu-options.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/texi2pod.pl $< qemu.pod && \
 	  pod2man --section=1 --center=" " --release=" " qemu.pod > $@, \

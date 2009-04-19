@@ -69,7 +69,7 @@ void qemu_vfree(void *ptr)
 
 #else
 
-#if defined(USE_KQEMU)
+#if defined(CONFIG_KQEMU)
 
 #ifdef __OpenBSD__
 #include <sys/param.h>
@@ -197,7 +197,7 @@ void *qemu_memalign(size_t alignment, size_t size)
 /* alloc shared memory pages */
 void *qemu_vmalloc(size_t size)
 {
-#if defined(USE_KQEMU)
+#if defined(CONFIG_KQEMU)
     if (kqemu_allowed)
         return kqemu_vmalloc(size);
 #endif
@@ -206,7 +206,7 @@ void *qemu_vmalloc(size_t size)
 
 void qemu_vfree(void *ptr)
 {
-#if defined(USE_KQEMU)
+#if defined(CONFIG_KQEMU)
     if (kqemu_allowed)
         kqemu_vfree(ptr);
 #endif

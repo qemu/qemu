@@ -444,7 +444,7 @@ void cpu_outb(CPUState *env, int addr, int val)
 {
     LOG_IOPORT("outb: %04x %02x\n", addr, val);
     ioport_write(0, addr, val);
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
 #endif
@@ -454,7 +454,7 @@ void cpu_outw(CPUState *env, int addr, int val)
 {
     LOG_IOPORT("outw: %04x %04x\n", addr, val);
     ioport_write(1, addr, val);
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
 #endif
@@ -464,7 +464,7 @@ void cpu_outl(CPUState *env, int addr, int val)
 {
     LOG_IOPORT("outl: %04x %08x\n", addr, val);
     ioport_write(2, addr, val);
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
 #endif
@@ -475,7 +475,7 @@ int cpu_inb(CPUState *env, int addr)
     int val;
     val = ioport_read(0, addr);
     LOG_IOPORT("inb : %04x %02x\n", addr, val);
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
 #endif
@@ -487,7 +487,7 @@ int cpu_inw(CPUState *env, int addr)
     int val;
     val = ioport_read(1, addr);
     LOG_IOPORT("inw : %04x %04x\n", addr, val);
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
 #endif
@@ -499,7 +499,7 @@ int cpu_inl(CPUState *env, int addr)
     int val;
     val = ioport_read(2, addr);
     LOG_IOPORT("inl : %04x %08x\n", addr, val);
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     if (env)
         env->last_io_time = cpu_get_time_fast();
 #endif
@@ -1364,7 +1364,7 @@ static void host_alarm_handler(int host_signum)
         if (env) {
             /* stop the currently executing cpu because a timer occured */
             cpu_exit(env);
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
             if (env->kqemu_enabled) {
                 kqemu_cpu_interrupt(env);
             }
@@ -3353,7 +3353,7 @@ void qemu_service_io(void)
     CPUState *env = cpu_single_env;
     if (env) {
         cpu_exit(env);
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
         if (env->kqemu_enabled) {
             kqemu_cpu_interrupt(env);
         }
@@ -4701,7 +4701,7 @@ int main(int argc, char **argv, char **envp)
 
                 /* On 32-bit hosts, QEMU is limited by virtual address space */
                 if (value > (2047 << 20)
-#ifndef USE_KQEMU
+#ifndef CONFIG_KQEMU
                     && HOST_LONG_BITS == 32
 #endif
                     ) {
@@ -4876,7 +4876,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
 #endif
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
             case QEMU_OPTION_no_kqemu:
                 kqemu_allowed = 0;
                 break;
@@ -4887,7 +4887,7 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_KVM
             case QEMU_OPTION_enable_kvm:
                 kvm_allowed = 1;
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
                 kqemu_allowed = 0;
 #endif
                 break;
@@ -5043,7 +5043,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-#if defined(CONFIG_KVM) && defined(USE_KQEMU)
+#if defined(CONFIG_KVM) && defined(CONFIG_KQEMU)
     if (kvm_allowed && kqemu_allowed) {
         fprintf(stderr,
                 "You can not enable both KVM and kqemu at the same time\n");
@@ -5123,7 +5123,7 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     if (smp_cpus > 1)
         kqemu_allowed = 0;
 #endif
@@ -5217,7 +5217,7 @@ int main(int argc, char **argv, char **envp)
     if (ram_size == 0)
         ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     /* FIXME: This is a nasty hack because kqemu can't cope with dynamic
        guest ram allocation.  It needs to go away.  */
     if (kqemu_allowed) {

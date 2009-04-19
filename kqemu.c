@@ -34,7 +34,7 @@
 #include "cpu.h"
 #include "exec-all.h"
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 
 #define DEBUG
 //#define PROFILE

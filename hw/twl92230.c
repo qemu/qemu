@@ -777,9 +777,9 @@ static void menelaus_save(QEMUFile *f, void *opaque)
     qemu_put_8s(f, &s->vcore[2]);
     qemu_put_8s(f, &s->vcore[3]);
     qemu_put_8s(f, &s->vcore[4]);
-    qemu_put_8s(f, &s->dcdc[3]);
-    qemu_put_8s(f, &s->dcdc[3]);
-    qemu_put_8s(f, &s->dcdc[3]);
+    qemu_put_8s(f, &s->dcdc[0]);
+    qemu_put_8s(f, &s->dcdc[1]);
+    qemu_put_8s(f, &s->dcdc[2]);
     qemu_put_8s(f, &s->ldo[0]);
     qemu_put_8s(f, &s->ldo[1]);
     qemu_put_8s(f, &s->ldo[2]);
@@ -831,9 +831,9 @@ static int menelaus_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_8s(f, &s->vcore[2]);
     qemu_get_8s(f, &s->vcore[3]);
     qemu_get_8s(f, &s->vcore[4]);
-    qemu_get_8s(f, &s->dcdc[3]);
-    qemu_get_8s(f, &s->dcdc[3]);
-    qemu_get_8s(f, &s->dcdc[3]);
+    qemu_get_8s(f, &s->dcdc[0]);
+    qemu_get_8s(f, &s->dcdc[1]);
+    qemu_get_8s(f, &s->dcdc[2]);
     qemu_get_8s(f, &s->ldo[0]);
     qemu_get_8s(f, &s->ldo[1]);
     qemu_get_8s(f, &s->ldo[2]);

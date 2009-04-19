@@ -76,7 +76,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
     res |= (uint64_t)io_mem_read[index][2](io_mem_opaque[index], physaddr + 4) << 32;
 #endif
 #endif /* SHIFT > 2 */
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     env->last_io_time = cpu_get_time_fast();
 #endif
     return res;
@@ -221,7 +221,7 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
     io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val >> 32);
 #endif
 #endif /* SHIFT > 2 */
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     env->last_io_time = cpu_get_time_fast();
 #endif
 }

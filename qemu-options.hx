@@ -1304,7 +1304,7 @@ STEXI
 Set the filename for the BIOS.
 ETEXI
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 DEF("kernel-kqemu", 0, QEMU_OPTION_kernel_kqemu, \
     "-kernel-kqemu   enable KQEMU full virtualization (default is user mode only)\n")
 #endif
@@ -1313,7 +1313,7 @@ STEXI
 Enable KQEMU full virtualization (default is user mode only).
 ETEXI
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 DEF("no-kqemu", 0, QEMU_OPTION_no_kqemu, \
     "-no-kqemu       disable KQEMU kernel module usage\n")
 #endif

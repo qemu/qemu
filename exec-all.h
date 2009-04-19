@@ -352,7 +352,7 @@ static inline int can_do_io(CPUState *env)
 }
 #endif
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 #define KQEMU_MODIFY_PAGE_MASK (0xff & ~(VGA_DIRTY_FLAG | CODE_DIRTY_FLAG))
 
 #define MSR_QPI_COMMBASE 0xfabe0010

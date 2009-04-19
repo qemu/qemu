@@ -104,7 +104,7 @@ extern int no_quit;
 extern int semihosting_enabled;
 extern int old_param;
 
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
 extern int kqemu_allowed;
 #endif
 

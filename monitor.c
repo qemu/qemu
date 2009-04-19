@@ -1368,7 +1368,7 @@ static void tlb_info(Monitor *mon)
 
 static void do_info_kqemu(Monitor *mon)
 {
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     CPUState *env;
     int val;
     val = 0;
@@ -1445,7 +1445,7 @@ static void do_info_profile(Monitor *mon)
     kqemu_ret_int_count = 0;
     kqemu_ret_excp_count = 0;
     kqemu_ret_intr_count = 0;
-#ifdef USE_KQEMU
+#ifdef CONFIG_KQEMU
     kqemu_record_dump();
 #endif
 }
