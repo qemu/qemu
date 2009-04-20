@@ -8568,6 +8568,8 @@ void cpu_reset (CPUMIPSState *env)
     /* Minimal init */
 #if defined(CONFIG_USER_ONLY)
     env->hflags = MIPS_HFLAG_UM;
+    /* Enable access to the SYNCI_Step register.  */
+    env->CP0_HWREna |= (1 << 1);
 #else
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot,
