@@ -112,7 +112,7 @@ int net_client_init(const char *device, const char *p);
 void net_client_uninit(NICInfo *nd);
 int net_client_parse(const char *str);
 void net_slirp_smb(const char *exported_dir);
-void net_slirp_redir(const char *redir_str);
+void net_slirp_redir(Monitor *mon, const char *redir_str);
 void net_cleanup(void);
 int slirp_is_inited(void);
 void net_client_check(void);

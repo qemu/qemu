@@ -1735,6 +1735,10 @@ static const mon_cmd_t mon_cmds[] = {
       "tap|user|socket|vde|dump [options]", "add host VLAN client" },
     { "host_net_remove", "is", net_host_device_remove,
       "vlan_id name", "remove host VLAN client" },
+#ifdef CONFIG_SLIRP
+    { "host_net_redir", "s", net_slirp_redir,
+      "[tcp|udp]:host-port:[guest-host]:guest-port", "redirect TCP or UDP connections from host to guest (requires -net user)" },
+#endif
     { "balloon", "i", do_balloon,
       "target", "request VM to change it's memory allocation (in MB)" },
     { "set_link", "ss", do_set_link,

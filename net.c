@@ -556,11 +556,11 @@ static int net_slirp_init(VLANState *vlan, const char *model, const char *name)
     return 0;
 }
 
-void net_slirp_redir(const char *redir_str)
+void net_slirp_redir(Monitor *mon, const char *redir_str)
 {
     int is_udp;
     char buf[256], *r;
-    const char *p;
+    const char *p, *errmsg;
     struct in_addr guest_addr;
     int host_port, guest_port;
 
@@ -571,41 +571,48 @@ void net_slirp_redir(const char *redir_str)
 
     p = redir_str;
     if (get_str_sep(buf, sizeof(buf), &p, ':') < 0)
-        goto fail;
-    if (!strcmp(buf, "tcp")) {
+        goto fail_syntax;
+    if (!strcmp(buf, "tcp") || buf[0] == '\0') {
         is_udp = 0;
     } else if (!strcmp(buf, "udp")) {
         is_udp = 1;
     } else {
-        goto fail;
+        goto fail_syntax;
     }
 
     if (get_str_sep(buf, sizeof(buf), &p, ':') < 0)
-        goto fail;
+        goto fail_syntax;
     host_port = strtol(buf, &r, 0);
     if (r == buf)
-        goto fail;
+        goto fail_syntax;
 
     if (get_str_sep(buf, sizeof(buf), &p, ':') < 0)
-        goto fail;
+        goto fail_syntax;
     if (buf[0] == '\0') {
         pstrcpy(buf, sizeof(buf), "10.0.2.15");
     }
     if (!inet_aton(buf, &guest_addr))
-        goto fail;
+        goto fail_syntax;
 
     guest_port = strtol(p, &r, 0);
     if (r == p)
-        goto fail;
+        goto fail_syntax;
 
     if (slirp_redir(is_udp, host_port, guest_addr, guest_port) < 0) {
-        fprintf(stderr, "qemu: could not set up redirection\n");
-        exit(1);
+        errmsg = "could not set up redirection\n";
+        goto fail;
     }
     return;
+
+ fail_syntax:
+    errmsg = "invalid redirection format\n";
  fail:
-    fprintf(stderr, "qemu: syntax: -redir [tcp|udp]:host-port:[guest-host]:guest-port\n");
-    exit(1);
+    if (mon) {
+        monitor_printf(mon, errmsg);
+    } else {
+        fprintf(stderr, "qemu: %s", errmsg);
+        exit(1);
+    }
 }
 
 #ifndef _WIN32

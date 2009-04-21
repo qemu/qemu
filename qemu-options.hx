@@ -943,7 +943,7 @@ When using the user mode network stack, redirect incoming TCP or UDP
 connections to the host port @var{host-port} to the guest
 @var{guest-host} on guest port @var{guest-port}. If @var{guest-host}
 is not specified, its value is 10.0.2.15 (default address given by the
-built-in DHCP server).
+built-in DHCP server). If no connection type is specified, TCP is used.
 
 For example, to redirect host X11 connection from screen 1 to guest
 screen 0, use the following:
