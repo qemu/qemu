@@ -2313,6 +2313,21 @@ struct sigframe {
     target_sigset_t sf_mask;
 };
 
+struct target_ucontext {
+    target_ulong uc_flags;
+    target_ulong uc_link;
+    target_stack_t uc_stack;
+    struct target_sigcontext uc_mcontext;
+    target_sigset_t uc_sigmask;
+};
+
+struct target_rt_sigframe {
+    uint32_t rs_ass[4];               /* argument save space for o32 */
+    uint32_t rs_code[2];              /* signal trampoline */
+    struct target_siginfo rs_info;
+    struct target_ucontext rs_uc;
+};
+
 /* Install trampoline to jump back from signal handler */
 static inline int install_sigtramp(unsigned int *tramp,   unsigned int syscall)
 {
@@ -2592,7 +2607,7 @@ long do_sigreturn(CPUState *regs)
     /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
     regs->CP0_EPC = 0;
-    return 0;
+    return -TARGET_QEMU_ESIGRETURN;
 
 badframe:
     force_sig(TARGET_SIGSEGV/*, current*/);
@@ -2603,13 +2618,95 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
                            target_siginfo_t *info,
 			   target_sigset_t *set, CPUState *env)
 {
-    fprintf(stderr, "setup_rt_frame: not implemented\n");
+    struct target_rt_sigframe *frame;
+    abi_ulong frame_addr;
+    int i;
+
+    frame_addr = get_sigframe(ka, env, sizeof(*frame));
+    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0))
+	goto give_sigsegv;
+
+    install_sigtramp(frame->rs_code, TARGET_NR_rt_sigreturn);
+
+    copy_siginfo_to_user(&frame->rs_info, info);
+
+    __put_user(0, &frame->rs_uc.uc_flags);
+    __put_user(0, &frame->rs_uc.uc_link);
+    __put_user(target_sigaltstack_used.ss_sp, &frame->rs_uc.uc_stack.ss_sp);
+    __put_user(target_sigaltstack_used.ss_size, &frame->rs_uc.uc_stack.ss_size);
+    __put_user(sas_ss_flags(get_sp_from_cpustate(env)),
+               &frame->rs_uc.uc_stack.ss_flags);
+
+    setup_sigcontext(env, &frame->rs_uc.uc_mcontext);
+
+    for(i = 0; i < TARGET_NSIG_WORDS; i++) {
+        __put_user(set->sig[i], &frame->rs_uc.uc_sigmask.sig[i]);
+    }
+
+    /*
+    * Arguments to signal handler:
+    *
+    *   a0 = signal number
+    *   a1 = pointer to struct siginfo
+    *   a2 = pointer to struct ucontext
+    *
+    * $25 and PC point to the signal handler, $29 points to the
+    * struct sigframe.
+    */
+    env->active_tc.gpr[ 4] = sig;
+    env->active_tc.gpr[ 5] = frame_addr
+                             + offsetof(struct target_rt_sigframe, rs_info);
+    env->active_tc.gpr[ 6] = frame_addr
+                             + offsetof(struct target_rt_sigframe, rs_uc);
+    env->active_tc.gpr[29] = frame_addr;
+    env->active_tc.gpr[31] = frame_addr
+                             + offsetof(struct target_rt_sigframe, rs_code);
+    /* The original kernel code sets CP0_EPC to the handler
+    * since it returns to userland using eret
+    * we cannot do this here, and we must set PC directly */
+    env->active_tc.PC = env->active_tc.gpr[25] = ka->_sa_handler;
+    unlock_user_struct(frame, frame_addr, 1);
+    return;
+
+give_sigsegv:
+    unlock_user_struct(frame, frame_addr, 1);
+    force_sig(TARGET_SIGSEGV/*, current*/);
+    return;
 }
 
 long do_rt_sigreturn(CPUState *env)
 {
-    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
+    struct target_rt_sigframe *frame;
+    abi_ulong frame_addr;
+    sigset_t blocked;
+
+#if defined(DEBUG_SIGNAL)
+    fprintf(stderr, "do_rt_sigreturn\n");
+#endif
+    frame_addr = env->active_tc.gpr[29];
+    if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1))
+   	goto badframe;
+
+    target_to_host_sigset(&blocked, &frame->rs_uc.uc_sigmask);
+    sigprocmask(SIG_SETMASK, &blocked, NULL);
+
+    if (restore_sigcontext(env, &frame->rs_uc.uc_mcontext))
+        goto badframe;
+
+    if (do_sigaltstack(frame_addr +
+		       offsetof(struct target_rt_sigframe, rs_uc.uc_stack),
+		       0, get_sp_from_cpustate(env)) == -EFAULT)
+        goto badframe;
+
+    env->active_tc.PC = env->CP0_EPC;
+    /* I am not sure this is right, but it seems to work
+    * maybe a problem with nested signals ? */
+    env->CP0_EPC = 0;
+    return -TARGET_QEMU_ESIGRETURN;
+
+badframe:
+    force_sig(TARGET_SIGSEGV/*, current*/);
+    return 0;
 }
 
 #elif defined(TARGET_SH4)

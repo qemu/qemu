@@ -1858,6 +1858,11 @@ void cpu_loop(CPUMIPSState *env)
                                  env->active_tc.gpr[7],
                                  arg5, arg6/*, arg7, arg8*/);
             }
+            if (ret == -TARGET_QEMU_ESIGRETURN) {
+                /* Returning from a successful sigreturn syscall.
+                   Avoid clobbering register state.  */
+                break;
+            }
             if ((unsigned int)ret >= (unsigned int)(-1133)) {
                 env->active_tc.gpr[7] = 1; /* error flag */
                 ret = -ret;
