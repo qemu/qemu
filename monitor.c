@@ -1409,6 +1409,25 @@ static void do_info_kvm(Monitor *mon)
 #endif
 }
 
+static void do_info_numa(Monitor *mon)
+{
+    int i, j;
+    CPUState *env;
+
+    monitor_printf(mon, "%d nodes\n", nb_numa_nodes);
+    for (i = 0; i < nb_numa_nodes; i++) {
+        monitor_printf(mon, "node %d cpus:", i);
+        for (env = first_cpu; env != NULL; env = env->next_cpu) {
+            if (env->numa_node == i) {
+                monitor_printf(mon, " %d", env->cpu_index);
+            }
+        }
+        monitor_printf(mon, "\n");
+        monitor_printf(mon, "node %d size: %" PRId64 " MB\n", i,
+            node_mem[i] >> 20);
+    }
+}
+
 #ifdef CONFIG_PROFILER
 
 int64_t kqemu_time;
@@ -1792,6 +1811,8 @@ static const mon_cmd_t info_cmds[] = {
       "", "show KQEMU information", },
     { "kvm", "", do_info_kvm,
       "", "show KVM information", },
+    { "numa", "", do_info_numa,
+      "", "show NUMA information", },
     { "usb", "", usb_info,
       "", "show guest USB devices", },
     { "usbhost", "", usb_host_info,
