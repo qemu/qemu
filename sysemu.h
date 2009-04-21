@@ -108,6 +108,10 @@ extern int old_param;
 extern int kqemu_allowed;
 #endif
 
+#define MAX_NODES 64
+extern int nb_numa_nodes;
+extern uint64_t node_mem[MAX_NODES];
+
 #define MAX_OPTION_ROMS 16
 extern const char *option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
@@ -248,7 +252,7 @@ void do_usb_add(Monitor *mon, const char *devname);
 void do_usb_del(Monitor *mon, const char *devname);
 void usb_info(Monitor *mon);
 
-const char *get_opt_name(char *buf, int buf_size, const char *p);
+const char *get_opt_name(char *buf, int buf_size, const char *p, char delim);
 const char *get_opt_value(char *buf, int buf_size, const char *p);
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);

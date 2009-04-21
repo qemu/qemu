@@ -265,6 +265,10 @@ const char *prom_envs[MAX_PROM_ENVS];
 int nb_drives_opt;
 struct drive_opt drives_opt[MAX_DRIVES];
 
+int nb_numa_nodes;
+uint64_t node_mem[MAX_NODES];
+uint64_t node_cpumask[MAX_NODES];
+
 static CPUState *cur_cpu;
 static CPUState *next_cpu;
 static int event_pending = 1;
@@ -1865,12 +1869,12 @@ static int socket_init(void)
 }
 #endif
 
-const char *get_opt_name(char *buf, int buf_size, const char *p)
+const char *get_opt_name(char *buf, int buf_size, const char *p, char delim)
 {
     char *q;
 
     q = buf;
-    while (*p != '\0' && *p != '=') {
+    while (*p != '\0' && *p != delim) {
         if (q && (q - buf) < buf_size - 1)
             *q++ = *p;
         p++;
@@ -1910,7 +1914,7 @@ int get_param_value(char *buf, int buf_size,
 
     p = str;
     for(;;) {
-        p = get_opt_name(option, sizeof(option), p);
+        p = get_opt_name(option, sizeof(option), p, '=');
         if (*p != '=')
             break;
         p++;
@@ -1935,7 +1939,7 @@ int check_params(char *buf, int buf_size,
 
     p = str;
     while (*p != '\0') {
-        p = get_opt_name(buf, buf_size, p);
+        p = get_opt_name(buf, buf_size, p, '=');
         if (*p != '=')
             return -1;
         p++;
@@ -2626,6 +2630,62 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     if (bdrv_key_required(bdrv))
         autostart = 0;
     return drives_table_idx;
+}
+
+static void numa_add(const char *optarg)
+{
+    char option[128];
+    char *endptr;
+    unsigned long long value, endvalue;
+    int nodenr;
+
+    optarg = get_opt_name(option, 128, optarg, ',') + 1;
+    if (!strcmp(option, "node")) {
+        if (get_param_value(option, 128, "nodeid", optarg) == 0) {
+            nodenr = nb_numa_nodes;
+        } else {
+            nodenr = strtoull(option, NULL, 10);
+        }
+
+        if (get_param_value(option, 128, "mem", optarg) == 0) {
+            node_mem[nodenr] = 0;
+        } else {
+            value = strtoull(option, &endptr, 0);
+            switch (*endptr) {
+            case 0: case 'M': case 'm':
+                value <<= 20;
+                break;
+            case 'G': case 'g':
+                value <<= 30;
+                break;
+            }
+            node_mem[nodenr] = value;
+        }
+        if (get_param_value(option, 128, "cpus", optarg) == 0) {
+            node_cpumask[nodenr] = 0;
+        } else {
+            value = strtoull(option, &endptr, 10);
+            if (value >= 64) {
+                value = 63;
+                fprintf(stderr, "only 64 CPUs in NUMA mode supported.\n");
+            } else {
+                if (*endptr == '-') {
+                    endvalue = strtoull(endptr+1, &endptr, 10);
+                    if (endvalue >= 63) {
+                        endvalue = 62;
+                        fprintf(stderr,
+                            "only 63 CPUs in NUMA mode supported.\n");
+                    }
+                    value = (1 << (endvalue + 1)) - (1 << value);
+                } else {
+                    value = 1 << value;
+                }
+            }
+            node_cpumask[nodenr] = value;
+        }
+        nb_numa_nodes++;
+    }
+    return;
 }
 
 /***********************************************************/
@@ -4290,6 +4350,7 @@ int main(int argc, char **argv, char **envp)
     const char *chroot_dir = NULL;
     const char *run_as = NULL;
 #endif
+    CPUState *env;
 
     qemu_cache_utils_init(envp);
 
@@ -4353,12 +4414,18 @@ int main(int argc, char **argv, char **envp)
         virtio_consoles[i] = NULL;
     virtio_console_index = 0;
 
+    for (i = 0; i < MAX_NODES; i++) {
+        node_mem[i] = 0;
+        node_cpumask[i] = 0;
+    }
+
     usb_devices_index = 0;
 
     nb_net_clients = 0;
     nb_bt_opts = 0;
     nb_drives = 0;
     nb_drives_opt = 0;
+    nb_numa_nodes = 0;
     hda_index = -1;
 
     nb_nics = 0;
@@ -4507,6 +4574,13 @@ int main(int argc, char **argv, char **envp)
 			         translation == BIOS_ATA_TRANSLATION_NONE ?
 			             ",trans=none" : "");
                 }
+                break;
+            case QEMU_OPTION_numa:
+                if (nb_numa_nodes >= MAX_NODES) {
+                    fprintf(stderr, "qemu: too many NUMA nodes\n");
+                    exit(1);
+                }
+                numa_add(optarg);
                 break;
             case QEMU_OPTION_nographic:
                 nographic = 1;
@@ -5211,6 +5285,48 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    if (nb_numa_nodes > 0) {
+        int i;
+
+        if (nb_numa_nodes > smp_cpus) {
+            nb_numa_nodes = smp_cpus;
+        }
+
+        /* If no memory size if given for any node, assume the default case
+         * and distribute the available memory equally across all nodes
+         */
+        for (i = 0; i < nb_numa_nodes; i++) {
+            if (node_mem[i] != 0)
+                break;
+        }
+        if (i == nb_numa_nodes) {
+            uint64_t usedmem = 0;
+
+            /* On Linux, the each node's border has to be 8MB aligned,
+             * the final node gets the rest.
+             */
+            for (i = 0; i < nb_numa_nodes - 1; i++) {
+                node_mem[i] = (ram_size / nb_numa_nodes) & ~((1 << 23UL) - 1);
+                usedmem += node_mem[i];
+            }
+            node_mem[i] = ram_size - usedmem;
+        }
+
+        for (i = 0; i < nb_numa_nodes; i++) {
+            if (node_cpumask[i] != 0)
+                break;
+        }
+        /* assigning the VCPUs round-robin is easier to implement, guest OSes
+         * must cope with this anyway, because there are BIOSes out there in
+         * real machines which also use this scheme.
+         */
+        if (i == nb_numa_nodes) {
+            for (i = 0; i < smp_cpus; i++) {
+                node_cpumask[i % nb_numa_nodes] |= 1 << i;
+            }
+        }
+    }
+
     if (kvm_enabled()) {
         int ret;
 
@@ -5273,6 +5389,15 @@ int main(int argc, char **argv, char **envp)
 
     machine->init(ram_size, vga_ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
+
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        for (i = 0; i < nb_numa_nodes; i++) {
+            if (node_cpumask[i] & (1 << env->cpu_index)) {
+                env->numa_node = i;
+            }
+        }
+    }
 
     current_machine = machine;
 

@@ -47,6 +47,14 @@ CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
 to 4.
 ETEXI
 
+DEF("numa", HAS_ARG, QEMU_OPTION_numa,
+    "-numa node[,mem=size][,cpus=cpu[-cpu]][,nodeid=node]\n")
+STEXI
+@item -numa @var{opts}
+Simulate a multi node NUMA system. If mem and cpus are omitted, resources
+are split equally.
+ETEXI
+
 DEF("fda", HAS_ARG, QEMU_OPTION_fda,
     "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n")
 DEF("fdb", HAS_ARG, QEMU_OPTION_fdb, "")
