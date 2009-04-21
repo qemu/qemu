@@ -2666,6 +2666,13 @@ static int check_refcounts_l2(BlockDriverState *bs,
                 errors += inc_refcounts(bs, refcount_table,
                               refcount_table_size,
                               offset, s->cluster_size);
+
+                /* Correct offsets are cluster aligned */
+                if (offset & (s->cluster_size - 1)) {
+                    fprintf(stderr, "ERROR offset=%" PRIx64 ": Cluster is not "
+                        "properly aligned; L2 entry corrupted.\n", offset);
+                    errors++;
+                }
             }
         }
     }
@@ -2733,6 +2740,13 @@ static int check_refcounts_l1(BlockDriverState *bs,
                           refcount_table_size,
                           l2_offset,
                           s->cluster_size);
+
+            /* L2 tables are cluster aligned */
+            if (l2_offset & (s->cluster_size - 1)) {
+                fprintf(stderr, "ERROR l2_offset=%" PRIx64 ": Table is not "
+                    "cluster aligned; L1 entry corrupted\n", l2_offset);
+                errors++;
+            }
 
             /* Process and check L2 entries */
             ret = check_refcounts_l2(bs, refcount_table, refcount_table_size,
