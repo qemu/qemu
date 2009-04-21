@@ -2977,6 +2977,7 @@ static void target_to_host_termios (void *dst, const void *src)
         target_to_host_bitmask(tswap32(target->c_lflag), lflag_tbl);
     host->c_line = target->c_line;
 
+    memset(host->c_cc, 0, sizeof(host->c_cc));
     host->c_cc[VINTR] = target->c_cc[TARGET_VINTR];
     host->c_cc[VQUIT] = target->c_cc[TARGET_VQUIT];
     host->c_cc[VERASE] = target->c_cc[TARGET_VERASE];
@@ -3011,6 +3012,7 @@ static void host_to_target_termios (void *dst, const void *src)
         tswap32(host_to_target_bitmask(host->c_lflag, lflag_tbl));
     target->c_line = host->c_line;
 
+    memset(target->c_cc, 0, sizeof(target->c_cc));
     target->c_cc[TARGET_VINTR] = host->c_cc[VINTR];
     target->c_cc[TARGET_VQUIT] = host->c_cc[VQUIT];
     target->c_cc[TARGET_VERASE] = host->c_cc[VERASE];
