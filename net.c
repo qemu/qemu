@@ -544,15 +544,27 @@ static void slirp_receive(void *opaque, const uint8_t *buf, int size)
     slirp_input(buf, size);
 }
 
+static int slirp_in_use;
+
+static void net_slirp_cleanup(VLANClientState *vc)
+{
+    slirp_in_use = 0;
+}
+
 static int net_slirp_init(VLANState *vlan, const char *model, const char *name)
 {
+    if (slirp_in_use) {
+        /* slirp only supports a single instance so far */
+        return -1;
+    }
     if (!slirp_inited) {
         slirp_inited = 1;
         slirp_init(slirp_restrict, slirp_ip);
     }
     slirp_vc = qemu_new_vlan_client(vlan, model, name,
-                                    slirp_receive, NULL, NULL, NULL);
+                                    slirp_receive, NULL, net_slirp_cleanup, NULL);
     slirp_vc->info_str[0] = '\0';
+    slirp_in_use = 1;
     return 0;
 }
 
