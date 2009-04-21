@@ -406,13 +406,6 @@ static int sys_unlinkat(int dirfd, const char *pathname, int flags)
   return (unlinkat(dirfd, pathname, flags));
 }
 #endif
-#ifdef TARGET_NR_utimensat
-static int sys_utimensat(int dirfd, const char *pathname,
-    const struct timespec times[2], int flags)
-{
-  return (utimensat(dirfd, pathname, times, flags));
-}
-#endif
 #else /* !CONFIG_ATFILE */
 
 /*
@@ -471,12 +464,24 @@ _syscall3(int,sys_symlinkat,const char *,oldpath,
 #if defined(TARGET_NR_unlinkat) && defined(__NR_unlinkat)
 _syscall3(int,sys_unlinkat,int,dirfd,const char *,pathname,int,flags)
 #endif
+
+#endif /* CONFIG_ATFILE */
+
+#ifdef CONFIG_UTIMENSAT
+static int sys_utimensat(int dirfd, const char *pathname,
+    const struct timespec times[2], int flags)
+{
+    if (pathname == NULL)
+        return futimens(dirfd, times);
+    else
+        return utimensat(dirfd, pathname, times, flags);
+}
+#else
 #if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
           const struct timespec *,tsp,int,flags)
 #endif
-
-#endif /* CONFIG_ATFILE */
+#endif /* CONFIG_UTIMENSAT  */
 
 #ifdef CONFIG_INOTIFY
 #include <sys/inotify.h>
@@ -6669,17 +6674,22 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_utimensat) && defined(__NR_utimensat)
     case TARGET_NR_utimensat:
         {
-            struct timespec ts[2];
-            target_to_host_timespec(ts, arg3);
-            target_to_host_timespec(ts+1, arg3+sizeof(struct target_timespec));
+            struct timespec *tsp, ts[2];
+            if (!arg3) {
+                tsp = NULL;
+            } else {
+                target_to_host_timespec(ts, arg3);
+                target_to_host_timespec(ts+1, arg3+sizeof(struct target_timespec));
+                tsp = ts;
+            }
             if (!arg2)
-                ret = get_errno(sys_utimensat(arg1, NULL, ts, arg4));
+                ret = get_errno(sys_utimensat(arg1, NULL, tsp, arg4));
             else {
                 if (!(p = lock_user_string(arg2))) {
                     ret = -TARGET_EFAULT;
                     goto fail;
                 }
-                ret = get_errno(sys_utimensat(arg1, path(p), ts, arg4));
+                ret = get_errno(sys_utimensat(arg1, path(p), tsp, arg4));
                 unlock_user(p, arg2, 0);
             }
         }
