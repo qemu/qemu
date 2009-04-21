@@ -504,9 +504,15 @@ typedef struct {
 #define TARGET_SI_PAD_SIZE	((TARGET_SI_MAX_SIZE/sizeof(int)) - 3)
 
 typedef struct target_siginfo {
+#ifdef TARGET_MIPS
+	int si_signo;
+	int si_code;
+	int si_errno;
+#else
 	int si_signo;
 	int si_errno;
 	int si_code;
+#endif
 
 	union {
 		int _pad[TARGET_SI_PAD_SIZE];
