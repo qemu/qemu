@@ -118,6 +118,7 @@
 #include "qemu-char.h"
 #include "audio/audio.h"
 #include "qemu_socket.h"
+#include "qemu-log.h"
 
 #if defined(CONFIG_SLIRP)
 #include "libslirp.h"
@@ -1558,6 +1559,106 @@ static int net_socket_mcast_init(VLANState *vlan,
 
 }
 
+typedef struct DumpState {
+    VLANClientState *pcap_vc;
+    int fd;
+    int pcap_caplen;
+} DumpState;
+
+#define PCAP_MAGIC 0xa1b2c3d4
+
+struct pcap_file_hdr {
+    uint32_t magic;
+    uint16_t version_major;
+    uint16_t version_minor;
+    int32_t thiszone;
+    uint32_t sigfigs;
+    uint32_t snaplen;
+    uint32_t linktype;
+};
+
+struct pcap_sf_pkthdr {
+    struct {
+        int32_t tv_sec;
+        int32_t tv_usec;
+    } ts;
+    uint32_t caplen;
+    uint32_t len;
+};
+
+static void dump_receive(void *opaque, const uint8_t *buf, int size)
+{
+    DumpState *s = opaque;
+    struct pcap_sf_pkthdr hdr;
+    int64_t ts;
+    int caplen;
+
+    /* Early return in case of previous error. */
+    if (s->fd < 0) {
+        return;
+    }
+
+    ts = muldiv64 (qemu_get_clock(vm_clock),1000000, ticks_per_sec);
+    caplen = size > s->pcap_caplen ? s->pcap_caplen : size;
+
+    hdr.ts.tv_sec = ts / 1000000000LL;
+    hdr.ts.tv_usec = ts % 1000000;
+    hdr.caplen = caplen;
+    hdr.len = size;
+    if (write(s->fd, &hdr, sizeof(hdr)) != sizeof(hdr) ||
+        write(s->fd, buf, caplen) != caplen) {
+        qemu_log("-net dump write error - stop dump\n");
+        close(s->fd);
+        s->fd = -1;
+    }
+}
+
+static void net_dump_cleanup(VLANClientState *vc)
+{
+    DumpState *s = vc->opaque;
+
+    close(s->fd);
+    qemu_free(s);
+}
+
+static int net_dump_init(VLANState *vlan, const char *device,
+                         const char *name, const char *filename, int len)
+{
+    struct pcap_file_hdr hdr;
+    DumpState *s;
+
+    s = qemu_malloc(sizeof(DumpState));
+
+    s->fd = open(filename, O_CREAT | O_WRONLY, 0644);
+    if (s->fd < 0) {
+        fprintf(stderr, "-net dump: can't open %s\n", filename);
+        return -1;
+    }
+
+    s->pcap_caplen = len;
+
+    hdr.magic = PCAP_MAGIC;
+    hdr.version_major = 2;
+    hdr.version_minor = 4;
+    hdr.thiszone = 0;
+    hdr.sigfigs = 0;
+    hdr.snaplen = s->pcap_caplen;
+    hdr.linktype = 1;
+
+    if (write(s->fd, &hdr, sizeof(hdr)) < sizeof(hdr)) {
+        perror("-net dump write error");
+        close(s->fd);
+        qemu_free(s);
+        return -1;
+    }
+
+    s->pcap_vc = qemu_new_vlan_client(vlan, device, name, dump_receive, NULL,
+                                      net_dump_cleanup, s);
+    snprintf(s->pcap_vc->info_str, sizeof(s->pcap_vc->info_str),
+             "dump to %s (len=%d)", filename, len);
+    return 0;
+}
+
 /* find or alloc a new VLAN */
 VLANState *qemu_find_vlan(int id)
 {
@@ -1883,7 +1984,17 @@ int net_client_init(const char *device, const char *p)
 	ret = net_vde_init(vlan, device, name, vde_sock, vde_port, vde_group, vde_mode);
     } else
 #endif
-    {
+    if (!strcmp(device, "dump")) {
+        int len = 65536;
+
+        if (get_param_value(buf, sizeof(buf), "len", p) > 0) {
+            len = strtol(buf, NULL, 0);
+        }
+        if (!get_param_value(buf, sizeof(buf), "file", p)) {
+            snprintf(buf, sizeof(buf), "qemu-vlan%d.pcap", vlan_id);
+        }
+        ret = net_dump_init(vlan, device, name, buf, len);
+    } else {
         fprintf(stderr, "Unknown network device: %s\n", device);
         ret = -1;
         goto out;
@@ -1908,7 +2019,7 @@ void net_client_uninit(NICInfo *nd)
 static int net_host_check_device(const char *device)
 {
     int i;
-    const char *valid_param_list[] = { "tap", "socket"
+    const char *valid_param_list[] = { "tap", "socket", "dump"
 #ifdef CONFIG_SLIRP
                                        ,"user"
 #endif
