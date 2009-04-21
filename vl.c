@@ -1941,7 +1941,7 @@ int check_params(char *buf, int buf_size,
     int i;
 
     p = str;
-    for(;;) {
+    while (*p != '\0') {
         p = get_opt_name(buf, buf_size, p);
         if (*p != '=')
             return -1;
@@ -4656,7 +4656,7 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_redir:
-                net_slirp_redir(optarg);
+                net_slirp_redir(NULL, optarg);
                 break;
 #endif
             case QEMU_OPTION_bt:

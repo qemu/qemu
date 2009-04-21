@@ -745,6 +745,8 @@ DEF("net", HAS_ARG, QEMU_OPTION_net, \
     "                Use group 'groupname' and mode 'octalmode' to change default\n"
     "                ownership and permissions for communication port.\n"
 #endif
+    "-net dump[,vlan=n][,file=f][,len=n]\n"
+    "                dump traffic on vlan 'n' to file 'f' (max n bytes per packet)\n"
     "-net none       use it alone to have zero network devices; if no -net option\n"
     "                is provided, the default is '-net nic -net user'\n")
 STEXI
@@ -865,6 +867,11 @@ vde_switch -F -sock /tmp/myswitch
 qemu linux.img -net nic -net vde,sock=/tmp/myswitch
 @end example
 
+@item -net dump[,vlan=@var{n}][,file=@var{file}][,len=@var{len}]
+Dump network traffic on VLAN @var{n} to file @var{file} (@file{qemu-vlan0.pcap} by default).
+At most @var{len} bytes (64k by default) per packet are stored. The file format is
+libpcap, so it can be analyzed with tools such as tcpdump or Wireshark.
+
 @item -net none
 Indicate that no network devices should be configured. It is used to
 override the default configuration (@option{-net nic -net user}) which
@@ -936,7 +943,7 @@ When using the user mode network stack, redirect incoming TCP or UDP
 connections to the host port @var{host-port} to the guest
 @var{guest-host} on guest port @var{guest-port}. If @var{guest-host}
 is not specified, its value is 10.0.2.15 (default address given by the
-built-in DHCP server).
+built-in DHCP server). If no connection type is specified, TCP is used.
 
 For example, to redirect host X11 connection from screen 1 to guest
 screen 0, use the following:
