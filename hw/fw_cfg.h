@@ -14,6 +14,7 @@
 #define FW_CFG_INITRD_ADDR      0x0a
 #define FW_CFG_INITRD_SIZE      0x0b
 #define FW_CFG_BOOT_DEVICE      0x0c
+#define FW_CFG_NUMA             0x0d
 #define FW_CFG_MAX_ENTRY        0x10
 
 #define FW_CFG_WRITE_CHANNEL    0x4000
