@@ -6579,7 +6579,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_removexattr:
     case TARGET_NR_lremovexattr:
     case TARGET_NR_fremovexattr:
-        goto unimplemented_nowarn;
+        ret = -TARGET_EOPNOTSUPP;
+        break;
 #endif
 #ifdef TARGET_NR_set_thread_area
     case TARGET_NR_set_thread_area:
