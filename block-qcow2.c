@@ -177,9 +177,7 @@ static int64_t alloc_clusters(BlockDriverState *bs, int64_t size);
 static int64_t alloc_bytes(BlockDriverState *bs, int size);
 static void free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size);
-#ifdef DEBUG_ALLOC
-static void check_refcounts(BlockDriverState *bs);
-#endif
+static int check_refcounts(BlockDriverState *bs);
 
 static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -2564,8 +2562,14 @@ static void update_refcount(BlockDriverState *bs,
     }
 }
 
-#ifdef DEBUG_ALLOC
-static void inc_refcounts(BlockDriverState *bs,
+/*
+ * Increases the refcount for a range of clusters in a given refcount table.
+ * This is used to construct a temporary refcount table out of L1 and L2 tables
+ * which can be compared the the refcount table saved in the image.
+ *
+ * Returns the number of errors in the image that were found
+ */
+static int inc_refcounts(BlockDriverState *bs,
                           uint16_t *refcount_table,
                           int refcount_table_size,
                           int64_t offset, int64_t size)
@@ -2573,9 +2577,10 @@ static void inc_refcounts(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     int64_t start, last, cluster_offset;
     int k;
+    int errors = 0;
 
     if (size <= 0)
-        return;
+        return 0;
 
     start = offset & ~(s->cluster_size - 1);
     last = (offset + size - 1) & ~(s->cluster_size - 1);
@@ -2585,13 +2590,17 @@ static void inc_refcounts(BlockDriverState *bs,
         if (k < 0 || k >= refcount_table_size) {
             fprintf(stderr, "ERROR: invalid cluster offset=0x%" PRIx64 "\n",
                 cluster_offset);
+            errors++;
         } else {
             if (++refcount_table[k] == 0) {
                 fprintf(stderr, "ERROR: overflow cluster offset=0x%" PRIx64
                     "\n", cluster_offset);
+                errors++;
             }
         }
     }
+
+    return errors;
 }
 
 static int check_refcounts_l1(BlockDriverState *bs,
@@ -2603,11 +2612,12 @@ static int check_refcounts_l1(BlockDriverState *bs,
     BDRVQcowState *s = bs->opaque;
     uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2;
     int l2_size, i, j, nb_csectors, refcount;
+    int errors = 0;
 
     l2_table = NULL;
     l1_size2 = l1_size * sizeof(uint64_t);
 
-    inc_refcounts(bs, refcount_table, refcount_table_size,
+    errors += inc_refcounts(bs, refcount_table, refcount_table_size,
                   l1_table_offset, l1_size2);
 
     l1_table = qemu_malloc(l1_size2);
@@ -2627,6 +2637,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
                 if ((refcount == 1) != ((l2_offset & QCOW_OFLAG_COPIED) != 0)) {
                     fprintf(stderr, "ERROR OFLAG_COPIED: l2_offset=%" PRIx64
                         " refcount=%d\n", l2_offset, refcount);
+                    errors++;
                 }
             }
             l2_offset &= ~QCOW_OFLAG_COPIED;
@@ -2641,11 +2652,12 @@ static int check_refcounts_l1(BlockDriverState *bs,
                                 "copied flag must never be set for compressed "
                                 "clusters\n", offset >> s->cluster_bits);
                             offset &= ~QCOW_OFLAG_COPIED;
+                            errors++;
                         }
                         nb_csectors = ((offset >> s->csize_shift) &
                                        s->csize_mask) + 1;
                         offset &= s->cluster_offset_mask;
-                        inc_refcounts(bs, refcount_table,
+                        errors += inc_refcounts(bs, refcount_table,
                                       refcount_table_size,
                                       offset & ~511, nb_csectors * 512);
                     } else {
@@ -2654,16 +2666,17 @@ static int check_refcounts_l1(BlockDriverState *bs,
                             if ((refcount == 1) != ((offset & QCOW_OFLAG_COPIED) != 0)) {
                                 fprintf(stderr, "ERROR OFLAG_COPIED: offset=%"
                                     PRIx64 " refcount=%d\n", offset, refcount);
+                                errors++;
                             }
                         }
                         offset &= ~QCOW_OFLAG_COPIED;
-                        inc_refcounts(bs, refcount_table,
+                        errors += inc_refcounts(bs, refcount_table,
                                       refcount_table_size,
                                       offset, s->cluster_size);
                     }
                 }
             }
-            inc_refcounts(bs, refcount_table,
+            errors += inc_refcounts(bs, refcount_table,
                           refcount_table_size,
                           l2_offset,
                           s->cluster_size);
@@ -2671,7 +2684,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
     }
     qemu_free(l1_table);
     qemu_free(l2_table);
-    return 0;
+    return errors;
  fail:
     fprintf(stderr, "ERROR: I/O error in check_refcounts_l1\n");
     qemu_free(l1_table);
@@ -2679,24 +2692,35 @@ static int check_refcounts_l1(BlockDriverState *bs,
     return -EIO;
 }
 
-static void check_refcounts(BlockDriverState *bs)
+/*
+ * Checks an image for refcount consistency.
+ *
+ * Returns 0 if no errors are found, the number of errors in case the image is
+ * detected as corrupted, and -errno when an internal error occured.
+ */
+static int check_refcounts(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t size;
     int nb_clusters, refcount1, refcount2, i;
     QCowSnapshot *sn;
     uint16_t *refcount_table;
+    int ret, errors = 0;
 
     size = bdrv_getlength(s->hd);
     nb_clusters = size_to_clusters(s, size);
     refcount_table = qemu_mallocz(nb_clusters * sizeof(uint16_t));
 
     /* header */
-    inc_refcounts(bs, refcount_table, nb_clusters,
+    errors += inc_refcounts(bs, refcount_table, nb_clusters,
                   0, s->cluster_size);
 
-    check_refcounts_l1(bs, refcount_table, nb_clusters,
+    ret = check_refcounts_l1(bs, refcount_table, nb_clusters,
                        s->l1_table_offset, s->l1_size, 1);
+    if (ret < 0) {
+        return ret;
+    }
+    errors += ret;
 
     /* snapshots */
     for(i = 0; i < s->nb_snapshots; i++) {
@@ -2704,18 +2728,18 @@ static void check_refcounts(BlockDriverState *bs)
         check_refcounts_l1(bs, refcount_table, nb_clusters,
                            sn->l1_table_offset, sn->l1_size, 0);
     }
-    inc_refcounts(bs, refcount_table, nb_clusters,
+    errors += inc_refcounts(bs, refcount_table, nb_clusters,
                   s->snapshots_offset, s->snapshots_size);
 
     /* refcount data */
-    inc_refcounts(bs, refcount_table, nb_clusters,
+    errors += inc_refcounts(bs, refcount_table, nb_clusters,
                   s->refcount_table_offset,
                   s->refcount_table_size * sizeof(uint64_t));
     for(i = 0; i < s->refcount_table_size; i++) {
         int64_t offset;
         offset = s->refcount_table[i];
         if (offset != 0) {
-            inc_refcounts(bs, refcount_table, nb_clusters,
+            errors += inc_refcounts(bs, refcount_table, nb_clusters,
                           offset, s->cluster_size);
         }
     }
@@ -2724,12 +2748,21 @@ static void check_refcounts(BlockDriverState *bs)
     for(i = 0; i < nb_clusters; i++) {
         refcount1 = get_refcount(bs, i);
         refcount2 = refcount_table[i];
-        if (refcount1 != refcount2)
+        if (refcount1 != refcount2) {
             fprintf(stderr, "ERROR cluster %d refcount=%d reference=%d\n",
                    i, refcount1, refcount2);
+            errors++;
+        }
     }
 
     qemu_free(refcount_table);
+
+    return errors;
+}
+
+static int qcow_check(BlockDriverState *bs)
+{
+    return check_refcounts(bs);
 }
 
 #if 0
@@ -2750,7 +2783,6 @@ static void dump_refcounts(BlockDriverState *bs)
         printf("%lld: refcount=%d nb=%lld\n", k, refcount, k - k1);
     }
 }
-#endif
 #endif
 
 static int qcow_put_buffer(BlockDriverState *bs, const uint8_t *buf,
@@ -2806,4 +2838,5 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_get_buffer    = qcow_get_buffer,
 
     .bdrv_create2 = qcow_create2,
+    .bdrv_check = qcow_check,
 };

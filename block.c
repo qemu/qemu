@@ -506,6 +506,20 @@ void bdrv_delete(BlockDriverState *bs)
     qemu_free(bs);
 }
 
+/*
+ * Run consistency checks on an image
+ *
+ * Returns the number of errors or -errno when an internal error occurs
+ */
+int bdrv_check(BlockDriverState *bs)
+{
+    if (bs->drv->bdrv_check == NULL) {
+        return -ENOTSUP;
+    }
+
+    return bs->drv->bdrv_check(bs);
+}
+
 /* commit COW file into the raw image */
 int bdrv_commit(BlockDriverState *bs)
 {

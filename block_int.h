@@ -102,6 +102,9 @@ struct BlockDriver {
                         const char *backing_file, const char *backing_format,
                         int flags);
 
+    /* Returns number of errors in image, -errno for internal errors */
+    int (*bdrv_check)(BlockDriverState* bs);
+
     struct BlockDriver *next;
 };
 
