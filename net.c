@@ -2042,7 +2042,9 @@ void net_host_device_add(Monitor *mon, const char *device, const char *opts)
         monitor_printf(mon, "invalid host network device %s\n", device);
         return;
     }
-    net_client_init(device, opts);
+    if (net_client_init(device, opts ? : "") < 0) {
+        monitor_printf(mon, "adding host network device %s failed\n", device);
+    }
 }
 
 void net_host_device_remove(Monitor *mon, int vlan_id, const char *device)
