@@ -29,11 +29,22 @@ struct VLANClientState {
     char info_str[256];
 };
 
+typedef struct VLANPacket VLANPacket;
+
+struct VLANPacket {
+    struct VLANPacket *next;
+    VLANClientState *sender;
+    int size;
+    uint8_t data[0];
+};
+
 struct VLANState {
     int id;
     VLANClientState *first_client;
     struct VLANState *next;
     unsigned int nb_guest_devs, nb_host_devs;
+    VLANPacket *send_queue;
+    int delivering;
 };
 
 VLANState *qemu_find_vlan(int id);
