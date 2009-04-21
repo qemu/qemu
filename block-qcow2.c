@@ -2603,6 +2603,90 @@ static int inc_refcounts(BlockDriverState *bs,
     return errors;
 }
 
+/*
+ * Increases the refcount in the given refcount table for the all clusters
+ * referenced in the L2 table. While doing so, performs some checks on L2
+ * entries.
+ *
+ * Returns the number of errors found by the checks or -errno if an internal
+ * error occurred.
+ */
+static int check_refcounts_l2(BlockDriverState *bs,
+    uint16_t *refcount_table, int refcount_table_size, int64_t l2_offset,
+    int check_copied)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t *l2_table, offset;
+    int i, l2_size, nb_csectors, refcount;
+    int errors = 0;
+
+    /* Read L2 table from disk */
+    l2_size = s->l2_size * sizeof(uint64_t);
+    l2_table = qemu_malloc(l2_size);
+
+    if (bdrv_pread(s->hd, l2_offset, l2_table, l2_size) != l2_size)
+        goto fail;
+
+    /* Do the actual checks */
+    for(i = 0; i < s->l2_size; i++) {
+        offset = be64_to_cpu(l2_table[i]);
+        if (offset != 0) {
+            if (offset & QCOW_OFLAG_COMPRESSED) {
+                /* Compressed clusters don't have QCOW_OFLAG_COPIED */
+                if (offset & QCOW_OFLAG_COPIED) {
+                    fprintf(stderr, "ERROR: cluster %" PRId64 ": "
+                        "copied flag must never be set for compressed "
+                        "clusters\n", offset >> s->cluster_bits);
+                    offset &= ~QCOW_OFLAG_COPIED;
+                    errors++;
+                }
+
+                /* Mark cluster as used */
+                nb_csectors = ((offset >> s->csize_shift) &
+                               s->csize_mask) + 1;
+                offset &= s->cluster_offset_mask;
+                errors += inc_refcounts(bs, refcount_table,
+                              refcount_table_size,
+                              offset & ~511, nb_csectors * 512);
+            } else {
+                /* QCOW_OFLAG_COPIED must be set iff refcount == 1 */
+                if (check_copied) {
+                    uint64_t entry = offset;
+                    offset &= ~QCOW_OFLAG_COPIED;
+                    refcount = get_refcount(bs, offset >> s->cluster_bits);
+                    if ((refcount == 1) != ((entry & QCOW_OFLAG_COPIED) != 0)) {
+                        fprintf(stderr, "ERROR OFLAG_COPIED: offset=%"
+                            PRIx64 " refcount=%d\n", entry, refcount);
+                        errors++;
+                    }
+                }
+
+                /* Mark cluster as used */
+                offset &= ~QCOW_OFLAG_COPIED;
+                errors += inc_refcounts(bs, refcount_table,
+                              refcount_table_size,
+                              offset, s->cluster_size);
+            }
+        }
+    }
+
+    qemu_free(l2_table);
+    return errors;
+
+fail:
+    fprintf(stderr, "ERROR: I/O error in check_refcounts_l1\n");
+    qemu_free(l2_table);
+    return -EIO;
+}
+
+/*
+ * Increases the refcount for the L1 table, its L2 tables and all referenced
+ * clusters in the given refcount table. While doing so, performs some checks
+ * on L1 and L2 entries.
+ *
+ * Returns the number of errors found by the checks or -errno if an internal
+ * error occurred.
+ */
 static int check_refcounts_l1(BlockDriverState *bs,
                               uint16_t *refcount_table,
                               int refcount_table_size,
@@ -2610,16 +2694,17 @@ static int check_refcounts_l1(BlockDriverState *bs,
                               int check_copied)
 {
     BDRVQcowState *s = bs->opaque;
-    uint64_t *l1_table, *l2_table, l2_offset, offset, l1_size2;
-    int l2_size, i, j, nb_csectors, refcount;
+    uint64_t *l1_table, l2_offset, l1_size2;
+    int i, refcount, ret;
     int errors = 0;
 
-    l2_table = NULL;
     l1_size2 = l1_size * sizeof(uint64_t);
 
+    /* Mark L1 table as used */
     errors += inc_refcounts(bs, refcount_table, refcount_table_size,
                   l1_table_offset, l1_size2);
 
+    /* Read L1 table entries from disk */
     l1_table = qemu_malloc(l1_size2);
     if (bdrv_pread(s->hd, l1_table_offset,
                    l1_table, l1_size2) != l1_size2)
@@ -2627,68 +2712,43 @@ static int check_refcounts_l1(BlockDriverState *bs,
     for(i = 0;i < l1_size; i++)
         be64_to_cpus(&l1_table[i]);
 
-    l2_size = s->l2_size * sizeof(uint64_t);
-    l2_table = qemu_malloc(l2_size);
+    /* Do the actual checks */
     for(i = 0; i < l1_size; i++) {
         l2_offset = l1_table[i];
         if (l2_offset) {
+            /* QCOW_OFLAG_COPIED must be set iff refcount == 1 */
             if (check_copied) {
-                refcount = get_refcount(bs, (l2_offset & ~QCOW_OFLAG_COPIED) >> s->cluster_bits);
+                refcount = get_refcount(bs, (l2_offset & ~QCOW_OFLAG_COPIED)
+                    >> s->cluster_bits);
                 if ((refcount == 1) != ((l2_offset & QCOW_OFLAG_COPIED) != 0)) {
                     fprintf(stderr, "ERROR OFLAG_COPIED: l2_offset=%" PRIx64
                         " refcount=%d\n", l2_offset, refcount);
                     errors++;
                 }
             }
+
+            /* Mark L2 table as used */
             l2_offset &= ~QCOW_OFLAG_COPIED;
-            if (bdrv_pread(s->hd, l2_offset, l2_table, l2_size) != l2_size)
-                goto fail;
-            for(j = 0; j < s->l2_size; j++) {
-                offset = be64_to_cpu(l2_table[j]);
-                if (offset != 0) {
-                    if (offset & QCOW_OFLAG_COMPRESSED) {
-                        if (offset & QCOW_OFLAG_COPIED) {
-                            fprintf(stderr, "ERROR: cluster %" PRId64 ": "
-                                "copied flag must never be set for compressed "
-                                "clusters\n", offset >> s->cluster_bits);
-                            offset &= ~QCOW_OFLAG_COPIED;
-                            errors++;
-                        }
-                        nb_csectors = ((offset >> s->csize_shift) &
-                                       s->csize_mask) + 1;
-                        offset &= s->cluster_offset_mask;
-                        errors += inc_refcounts(bs, refcount_table,
-                                      refcount_table_size,
-                                      offset & ~511, nb_csectors * 512);
-                    } else {
-                        if (check_copied) {
-                            refcount = get_refcount(bs, (offset & ~QCOW_OFLAG_COPIED) >> s->cluster_bits);
-                            if ((refcount == 1) != ((offset & QCOW_OFLAG_COPIED) != 0)) {
-                                fprintf(stderr, "ERROR OFLAG_COPIED: offset=%"
-                                    PRIx64 " refcount=%d\n", offset, refcount);
-                                errors++;
-                            }
-                        }
-                        offset &= ~QCOW_OFLAG_COPIED;
-                        errors += inc_refcounts(bs, refcount_table,
-                                      refcount_table_size,
-                                      offset, s->cluster_size);
-                    }
-                }
-            }
             errors += inc_refcounts(bs, refcount_table,
                           refcount_table_size,
                           l2_offset,
                           s->cluster_size);
+
+            /* Process and check L2 entries */
+            ret = check_refcounts_l2(bs, refcount_table, refcount_table_size,
+                l2_offset, check_copied);
+            if (ret < 0) {
+                goto fail;
+            }
+            errors += ret;
         }
     }
     qemu_free(l1_table);
-    qemu_free(l2_table);
     return errors;
- fail:
+
+fail:
     fprintf(stderr, "ERROR: I/O error in check_refcounts_l1\n");
     qemu_free(l1_table);
-    qemu_free(l2_table);
     return -EIO;
 }
 
@@ -2715,6 +2775,7 @@ static int check_refcounts(BlockDriverState *bs)
     errors += inc_refcounts(bs, refcount_table, nb_clusters,
                   0, s->cluster_size);
 
+    /* current L1 table */
     ret = check_refcounts_l1(bs, refcount_table, nb_clusters,
                        s->l1_table_offset, s->l1_size, 1);
     if (ret < 0) {
