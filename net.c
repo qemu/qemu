@@ -1472,7 +1472,7 @@ static int net_socket_listen_init(VLANState *vlan,
     }
     s->vlan = vlan;
     s->model = strdup(model);
-    s->name = strdup(name);
+    s->name = name ? strdup(name) : NULL;
     s->fd = fd;
     qemu_set_fd_handler(fd, net_socket_accept, NULL, s);
     return 0;
