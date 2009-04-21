@@ -1858,6 +1858,11 @@ void cpu_loop(CPUMIPSState *env)
                                  env->active_tc.gpr[7],
                                  arg5, arg6/*, arg7, arg8*/);
             }
+            if (ret == -TARGET_QEMU_ESIGRETURN) {
+                /* Returning from a successful sigreturn syscall.
+                   Avoid clobbering register state.  */
+                break;
+            }
             if ((unsigned int)ret >= (unsigned int)(-1133)) {
                 env->active_tc.gpr[7] = 1; /* error flag */
                 ret = -ret;
@@ -1868,6 +1873,13 @@ void cpu_loop(CPUMIPSState *env)
             break;
         case EXCP_TLBL:
         case EXCP_TLBS:
+            info.si_signo = TARGET_SIGSEGV;
+            info.si_errno = 0;
+            /* XXX: check env->error_code */
+            info.si_code = TARGET_SEGV_MAPERR;
+            info._sifields._sigfault._addr = env->CP0_BadVAddr;
+            queue_signal(env, info.si_signo, &info);
+            break;
         case EXCP_CpU:
         case EXCP_RI:
             info.si_signo = TARGET_SIGILL;
