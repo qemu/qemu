@@ -1934,7 +1934,7 @@ int check_params(char *buf, int buf_size,
     int i;
 
     p = str;
-    for(;;) {
+    while (*p != '\0') {
         p = get_opt_name(buf, buf_size, p);
         if (*p != '=')
             return -1;
