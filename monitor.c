@@ -1411,7 +1411,7 @@ static void do_info_kvm(Monitor *mon)
 
 static void do_info_numa(Monitor *mon)
 {
-    int i, j;
+    int i;
     CPUState *env;
 
     monitor_printf(mon, "%d nodes\n", nb_numa_nodes);
