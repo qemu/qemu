@@ -191,6 +191,7 @@ aix="no"
 blobs="yes"
 fdt="yes"
 sdl_x11="no"
+xen="yes"
 pkgversion=""
 
 # OS specific
@@ -421,6 +422,8 @@ for opt do
   ;;
   --disable-kqemu) kqemu="no"
   ;;
+  --disable-xen) xen="no"
+  ;;
   --disable-brlapi) brlapi="no"
   ;;
   --disable-bluez) bluez="no"
@@ -586,6 +589,7 @@ echo "                           Available drivers: $audio_possible_drivers"
 echo "  --audio-card-list=LIST   set list of emulated audio cards [$audio_card_list]"
 echo "                           Available cards: $audio_possible_cards"
 echo "  --enable-mixemu          enable mixer emulation"
+echo "  --disable-xen            disable xen backend driver support"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
 echo "  --disable-vnc-sasl       disable SASL encryption for VNC server"
@@ -799,6 +803,22 @@ else
     echo "Make sure to have the zlib libs and headers installed."
     echo
     exit 1
+fi
+
+##########################################
+# xen probe
+
+if test "$xen" = "yes" ; then
+cat > $TMPC <<EOF
+#include <xenctrl.h>
+#include <xs.h>
+int main(void) { xs_daemon_open; xc_interface_open; }
+EOF
+   if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC -lxenstore -lxenctrl 2> /dev/null ; then
+      :
+   else
+      xen="no"
+   fi
 fi
 
 ##########################################
@@ -1296,6 +1316,7 @@ if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
 fi
 echo "kqemu support     $kqemu"
+echo "xen support       $xen"
 echo "brlapi support    $brlapi"
 echo "Documentation     $build_docs"
 [ ! -z "$uname_release" ] && \
@@ -1612,6 +1633,9 @@ if test "$bluez" = "yes" ; then
   echo "CONFIG_BLUEZ_LIBS=$bluez_libs" >> $config_mak
   echo "#define CONFIG_BLUEZ 1" >> $config_h
 fi
+if test "$xen" = "yes" ; then
+  echo "XEN_LIBS=-lxenstore -lxenctrl" >> $config_mak
+fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
   echo "CONFIG_AIO=yes" >> $config_mak
@@ -1777,6 +1801,11 @@ case "$target_cpu" in
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
       echo "#define CONFIG_KVM 1" >> $config_h
     fi
+    if test "$xen" = "yes" -a "$target_softmmu" = "yes";
+    then
+      echo "CONFIG_XEN=yes" >> $config_mak
+      echo "#define CONFIG_XEN 1" >> $config_h
+    fi
   ;;
   x86_64)
     echo "TARGET_ARCH=x86_64" >> $config_mak
@@ -1792,6 +1821,11 @@ case "$target_cpu" in
       echo "CONFIG_KVM=yes" >> $config_mak
       echo "KVM_CFLAGS=$kvm_cflags" >> $config_mak
       echo "#define CONFIG_KVM 1" >> $config_h
+    fi
+    if test "$xen" = "yes" -a "$target_softmmu" = "yes"
+    then
+      echo "CONFIG_XEN=yes" >> $config_mak
+      echo "#define CONFIG_XEN 1" >> $config_h
     fi
   ;;
   alpha)

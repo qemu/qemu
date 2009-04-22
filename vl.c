@@ -139,6 +139,7 @@ int main(int argc, char **argv)
 #include "hw/baum.h"
 #include "hw/bt.h"
 #include "hw/smbios.h"
+#include "hw/xen.h"
 #include "bt-host.h"
 #include "net.h"
 #include "monitor.h"
@@ -5044,6 +5045,17 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_runas:
                 run_as = optarg;
+                break;
+#endif
+#ifdef CONFIG_XEN
+            case QEMU_OPTION_xen_domid:
+                xen_domid = atoi(optarg);
+                break;
+            case QEMU_OPTION_xen_create:
+                xen_mode = XEN_CREATE;
+                break;
+            case QEMU_OPTION_xen_attach:
+                xen_mode = XEN_ATTACH;
                 break;
 #endif
             }
