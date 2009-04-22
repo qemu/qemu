@@ -16,6 +16,7 @@ qemu-img
 qemu-nbd
 qemu-nbd.8
 qemu-nbd.pod
+qemu-io
 .gdbinit
 *.a
 *.aux
