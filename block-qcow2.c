@@ -1412,7 +1412,7 @@ static QCowAIOCB *qcow_aio_setup(BlockDriverState *bs,
     acb->sector_num = sector_num;
     acb->qiov = qiov;
     if (qiov->niov > 1) {
-        acb->buf = acb->orig_buf = qemu_memalign(512, qiov->size);
+        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
         if (is_write)
             qemu_iovec_to_buffer(qiov, acb->buf);
     } else {

@@ -145,6 +145,9 @@ struct BlockDriverState {
     /* Whether the disk can expand beyond total_sectors */
     int growable;
 
+    /* the memory alignment required for the buffers handled by this driver */
+    int buffer_alignment;
+
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
     int cyls, heads, secs, translation;
@@ -172,6 +175,8 @@ void *qemu_aio_get(BlockDriverState *bs, BlockDriverCompletionFunc *cb,
 void *qemu_aio_get_pool(AIOPool *pool, BlockDriverState *bs,
                         BlockDriverCompletionFunc *cb, void *opaque);
 void qemu_aio_release(void *p);
+
+void *qemu_blockalign(BlockDriverState *bs, size_t size);
 
 extern BlockDriverState *bdrv_first;
 

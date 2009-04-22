@@ -362,6 +362,8 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
     bs->is_temporary = 0;
     bs->encrypted = 0;
     bs->valid_key = 0;
+    /* buffer_alignment defaulted to 512, drivers can change this value */
+    bs->buffer_alignment = 512;
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -1390,7 +1392,7 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
     acb = qemu_aio_get(bs, cb, opaque);
     acb->is_write = is_write;
     acb->qiov = qiov;
-    acb->bounce = qemu_memalign(512, qiov->size);
+    acb->bounce = qemu_blockalign(bs, qiov->size);
 
     if (!acb->bh)
         acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
@@ -1639,4 +1641,9 @@ BlockDriverAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
     if (drv && drv->bdrv_aio_ioctl)
         return drv->bdrv_aio_ioctl(bs, req, buf, cb, opaque);
     return NULL;
+}
+
+void *qemu_blockalign(BlockDriverState *bs, size_t size)
+{
+    return qemu_memalign((bs && bs->buffer_alignment) ? bs->buffer_alignment : 512, size);
 }

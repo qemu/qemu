@@ -165,7 +165,7 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     s->fd = fd;
     s->aligned_buf = NULL;
     if ((flags & BDRV_O_NOCACHE)) {
-        s->aligned_buf = qemu_memalign(512, ALIGNED_BUFFER_SIZE);
+        s->aligned_buf = qemu_blockalign(bs, ALIGNED_BUFFER_SIZE);
         if (s->aligned_buf == NULL) {
             ret = -errno;
             close(fd);
