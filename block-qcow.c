@@ -641,7 +641,7 @@ static BlockDriverAIOCB *qcow_aio_readv(BlockDriverState *bs,
     acb->sector_num = sector_num;
     acb->qiov = qiov;
     if (qiov->niov > 1)
-        acb->buf = acb->orig_buf = qemu_memalign(512, qiov->size);
+        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
     else
         acb->buf = (uint8_t *)qiov->iov->iov_base;
     acb->nb_sectors = nb_sectors;
@@ -736,7 +736,7 @@ static BlockDriverAIOCB *qcow_aio_writev(BlockDriverState *bs,
     acb->sector_num = sector_num;
     acb->qiov = qiov;
     if (qiov->niov > 1) {
-        acb->buf = acb->orig_buf = qemu_memalign(512, qiov->size);
+        acb->buf = acb->orig_buf = qemu_blockalign(bs, qiov->size);
         qemu_iovec_to_buffer(qiov, acb->buf);
     } else {
         acb->buf = (uint8_t *)qiov->iov->iov_base;

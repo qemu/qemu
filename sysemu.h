@@ -88,6 +88,7 @@ extern int bios_size;
 extern int cirrus_vga_enabled;
 extern int std_vga_enabled;
 extern int vmsvga_enabled;
+extern int xenfb_enabled;
 extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
@@ -108,6 +109,10 @@ extern int old_param;
 extern int kqemu_allowed;
 #endif
 
+#define MAX_NODES 64
+extern int nb_numa_nodes;
+extern uint64_t node_mem[MAX_NODES];
+
 #define MAX_OPTION_ROMS 16
 extern const char *option_rom[MAX_OPTION_ROMS];
 extern int nb_option_roms;
@@ -127,7 +132,7 @@ extern unsigned int nb_prom_envs;
 #endif
 
 typedef enum {
-    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO
+    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN
 } BlockInterfaceType;
 
 typedef enum {
@@ -248,7 +253,7 @@ void do_usb_add(Monitor *mon, const char *devname);
 void do_usb_del(Monitor *mon, const char *devname);
 void usb_info(Monitor *mon);
 
-const char *get_opt_name(char *buf, int buf_size, const char *p);
+const char *get_opt_name(char *buf, int buf_size, const char *p, char delim);
 const char *get_opt_value(char *buf, int buf_size, const char *p);
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);

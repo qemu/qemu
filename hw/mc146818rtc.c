@@ -73,6 +73,7 @@ struct RTCState {
 #ifdef TARGET_I386
     uint32_t irq_coalesced;
     uint32_t period;
+    QEMUTimer *coalesced_timer;
 #endif
     QEMUTimer *second_timer;
     QEMUTimer *second_timer2;
@@ -92,6 +93,37 @@ static void rtc_irq_raise(qemu_irq irq) {
 
 static void rtc_set_time(RTCState *s);
 static void rtc_copy_date(RTCState *s);
+
+#ifdef TARGET_I386
+static void rtc_coalesced_timer_update(RTCState *s)
+{
+    if (s->irq_coalesced == 0) {
+        qemu_del_timer(s->coalesced_timer);
+    } else {
+        /* divide each RTC interval to 2 - 8 smaller intervals */
+        int c = MIN(s->irq_coalesced, 7) + 1; 
+        int64_t next_clock = qemu_get_clock(vm_clock) +
+		muldiv64(s->period / c, ticks_per_sec, 32768);
+        qemu_mod_timer(s->coalesced_timer, next_clock);
+    }
+}
+
+static void rtc_coalesced_timer(void *opaque)
+{
+    RTCState *s = opaque;
+
+    if (s->irq_coalesced != 0) {
+        apic_reset_irq_delivered();
+        s->cmos_data[RTC_REG_C] |= 0xc0;
+        rtc_irq_raise(s->irq);
+        if (apic_get_irq_delivered()) {
+            s->irq_coalesced--;
+        }
+    }
+
+    rtc_coalesced_timer_update(s);
+}
+#endif
 
 static void rtc_timer_update(RTCState *s, int64_t current_time)
 {
@@ -138,14 +170,18 @@ static void rtc_periodic_timer(void *opaque)
     RTCState *s = opaque;
 
     rtc_timer_update(s, s->next_periodic_time);
-#ifdef TARGET_I386
-    if ((s->cmos_data[RTC_REG_C] & 0xc0) && rtc_td_hack) {
-        s->irq_coalesced++;
-        return;
-    }
-#endif
     if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
         s->cmos_data[RTC_REG_C] |= 0xc0;
+#ifdef TARGET_I386
+        if(rtc_td_hack) {
+            apic_reset_irq_delivered();
+            rtc_irq_raise(s->irq);
+            if (!apic_get_irq_delivered()) {
+                s->irq_coalesced++;
+                rtc_coalesced_timer_update(s);
+            }
+        } else
+#endif
         rtc_irq_raise(s->irq);
     }
     if (s->cmos_data[RTC_REG_B] & REG_B_SQWE) {
@@ -415,15 +451,6 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
         case RTC_REG_C:
             ret = s->cmos_data[s->cmos_index];
             qemu_irq_lower(s->irq);
-#ifdef TARGET_I386
-            if(s->irq_coalesced) {
-                apic_reset_irq_delivered();
-                qemu_irq_raise(s->irq);
-                if (apic_get_irq_delivered())
-                    s->irq_coalesced--;
-                break;
-            }
-#endif
             s->cmos_data[RTC_REG_C] = 0x00;
             break;
         default:
@@ -536,6 +563,7 @@ static int rtc_load_td(QEMUFile *f, void *opaque, int version_id)
 
     s->irq_coalesced = qemu_get_be32(f);
     s->period = qemu_get_be32(f);
+    rtc_coalesced_timer_update(s);
     return 0;
 }
 #endif
@@ -558,6 +586,10 @@ RTCState *rtc_init_sqw(int base, qemu_irq irq, qemu_irq sqw_irq, int base_year)
 
     s->periodic_timer = qemu_new_timer(vm_clock,
                                        rtc_periodic_timer, s);
+#ifdef TARGET_I386
+    if (rtc_td_hack)
+        s->coalesced_timer = qemu_new_timer(vm_clock, rtc_coalesced_timer, s);
+#endif
     s->second_timer = qemu_new_timer(vm_clock,
                                      rtc_update_second, s);
     s->second_timer2 = qemu_new_timer(vm_clock,

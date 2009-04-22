@@ -47,6 +47,14 @@ CPUs are supported. On Sparc32 target, Linux limits the number of usable CPUs
 to 4.
 ETEXI
 
+DEF("numa", HAS_ARG, QEMU_OPTION_numa,
+    "-numa node[,mem=size][,cpus=cpu[-cpu]][,nodeid=node]\n")
+STEXI
+@item -numa @var{opts}
+Simulate a multi node NUMA system. If mem and cpus are omitted, resources
+are split equally.
+ETEXI
+
 DEF("fda", HAS_ARG, QEMU_OPTION_fda,
     "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n")
 DEF("fdb", HAS_ARG, QEMU_OPTION_fdb, "")
@@ -457,7 +465,7 @@ Rotate graphical output 90 deg left (only PXA LCD).
 ETEXI
 
 DEF("vga", HAS_ARG, QEMU_OPTION_vga,
-    "-vga [std|cirrus|vmware|none]\n"
+    "-vga [std|cirrus|vmware|xenfb|none]\n"
     "                select video card type\n")
 STEXI
 @item -vga @var{type}
@@ -1339,6 +1347,17 @@ STEXI
 Enable KVM full virtualization support. This option is only available
 if KVM support is enabled when compiling.
 ETEXI
+
+#ifdef CONFIG_XEN
+DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,
+    "-xen-domid id   specify xen guest domain id\n")
+DEF("xen-create", 0, QEMU_OPTION_xen_create,
+    "-xen-create     create domain using xen hypercalls, bypassing xend\n"
+    "                warning: should not be used when xend is in use\n")
+DEF("xen-attach", 0, QEMU_OPTION_xen_attach,
+    "-xen-attach     attach to existing xen domain\n"
+    "                xend will use this when starting qemu\n")
+#endif
 
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \
     "-no-reboot      exit instead of rebooting\n")
