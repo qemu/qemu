@@ -60,6 +60,7 @@ static void xen_init_pv(ram_addr_t ram_size, int vga_ram_size,
     xen_be_register("vkbd", &xen_kbdmouse_ops);
     xen_be_register("vfb", &xen_framebuffer_ops);
     xen_be_register("qdisk", &xen_blkdev_ops);
+    xen_be_register("qnic", &xen_netdev_ops);
 
     /* setup framebuffer */
     xen_init_display(xen_domid);

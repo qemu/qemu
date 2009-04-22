@@ -89,6 +89,7 @@ extern struct XenDevOps xen_console_ops;      /* xen_console.c     */
 extern struct XenDevOps xen_kbdmouse_ops;     /* xen_framebuffer.c */
 extern struct XenDevOps xen_framebuffer_ops;  /* xen_framebuffer.c */
 extern struct XenDevOps xen_blkdev_ops;       /* xen_disk.c        */
+extern struct XenDevOps xen_netdev_ops;       /* xen_nic.c         */
 
 void xen_init_display(int domid);
 
