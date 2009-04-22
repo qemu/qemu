@@ -216,6 +216,7 @@ static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
 int std_vga_enabled = 0;
 int vmsvga_enabled = 0;
+int xenfb_enabled = 0;
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
 int graphic_height = 768;
@@ -4225,12 +4226,15 @@ static void select_vgahw (const char *p)
     cirrus_vga_enabled = 0;
     std_vga_enabled = 0;
     vmsvga_enabled = 0;
+    xenfb_enabled = 0;
     if (strstart(p, "std", &opts)) {
         std_vga_enabled = 1;
     } else if (strstart(p, "cirrus", &opts)) {
         cirrus_vga_enabled = 1;
     } else if (strstart(p, "vmware", &opts)) {
         vmsvga_enabled = 1;
+    } else if (strstart(p, "xenfb", &opts)) {
+        xenfb_enabled = 1;
     } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
         fprintf(stderr, "Unknown vga type: %s\n", p);

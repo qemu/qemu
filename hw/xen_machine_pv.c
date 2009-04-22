@@ -82,6 +82,12 @@ static void xen_init_pv(ram_addr_t ram_size, int vga_ram_size,
     xen_be_register("qdisk", &xen_blkdev_ops);
     xen_be_register("qnic", &xen_netdev_ops);
 
+    /* configure framebuffer */
+    if (xenfb_enabled) {
+        xen_config_dev_vfb(0, "vnc");
+        xen_config_dev_vkbd(0);
+    }
+
     /* configure disks */
     for (i = 0; i < 16; i++) {
         index = drive_get_index(IF_XEN, 0, i);

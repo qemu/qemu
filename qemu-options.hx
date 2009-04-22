@@ -465,7 +465,7 @@ Rotate graphical output 90 deg left (only PXA LCD).
 ETEXI
 
 DEF("vga", HAS_ARG, QEMU_OPTION_vga,
-    "-vga [std|cirrus|vmware|none]\n"
+    "-vga [std|cirrus|vmware|xenfb|none]\n"
     "                select video card type\n")
 STEXI
 @item -vga @var{type}
