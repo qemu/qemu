@@ -1634,7 +1634,7 @@ if test "$bluez" = "yes" ; then
   echo "#define CONFIG_BLUEZ 1" >> $config_h
 fi
 if test "$xen" = "yes" ; then
-  echo "XEN_LIBS=-lxenstore -lxenctrl" >> $config_mak
+  echo "XEN_LIBS=-lxenstore -lxenctrl -lxenguest" >> $config_mak
 fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h

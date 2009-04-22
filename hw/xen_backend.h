@@ -100,5 +100,8 @@ void xen_init_display(int domid);
 void xen_config_cleanup(void);
 int xen_config_dev_blk(DriveInfo *disk);
 int xen_config_dev_nic(NICInfo *nic);
+int xen_config_dev_vfb(int vdev, const char *type);
+int xen_config_dev_vkbd(int vdev);
+int xen_config_dev_console(int vdev);
 
 #endif /* QEMU_HW_XEN_BACKEND_H */

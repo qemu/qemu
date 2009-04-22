@@ -27,6 +27,7 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "xen_backend.h"
+#include "xen_domainbuild.h"
 
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
@@ -57,6 +58,24 @@ static void xen_init_pv(ram_addr_t ram_size, int vga_ram_size,
         fprintf(stderr, "%s: xen backend core setup failed\n", __FUNCTION__);
         exit(1);
     }
+
+    switch (xen_mode) {
+    case XEN_ATTACH:
+        /* nothing to do, xend handles everything */
+        break;
+    case XEN_CREATE:
+        if (xen_domain_build_pv(kernel_filename, initrd_filename,
+                                kernel_cmdline) < 0) {
+            fprintf(stderr, "xen pv domain creation failed\n");
+            exit(1);
+        }
+        break;
+    case XEN_EMULATE:
+        fprintf(stderr, "xen emulation not implemented (yet)\n");
+        exit(1);
+        break;
+    }
+
     xen_be_register("console", &xen_console_ops);
     xen_be_register("vkbd", &xen_kbdmouse_ops);
     xen_be_register("vfb", &xen_framebuffer_ops);

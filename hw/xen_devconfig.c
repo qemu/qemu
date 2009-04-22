@@ -140,3 +140,32 @@ int xen_config_dev_nic(NICInfo *nic)
     /* common stuff */
     return xen_config_dev_all(fe, be);
 }
+
+int xen_config_dev_vfb(int vdev, const char *type)
+{
+    char fe[256], be[256];
+
+    xen_config_dev_dirs("vfb", "vfb", vdev, fe, be, sizeof(fe));
+
+    /* backend */
+    xenstore_write_str(be, "type",  type);
+
+    /* common stuff */
+    return xen_config_dev_all(fe, be);
+}
+
+int xen_config_dev_vkbd(int vdev)
+{
+    char fe[256], be[256];
+
+    xen_config_dev_dirs("vkbd", "vkbd", vdev, fe, be, sizeof(fe));
+    return xen_config_dev_all(fe, be);
+}
+
+int xen_config_dev_console(int vdev)
+{
+    char fe[256], be[256];
+
+    xen_config_dev_dirs("console", "console", vdev, fe, be, sizeof(fe));
+    return xen_config_dev_all(fe, be);
+}
