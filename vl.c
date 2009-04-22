@@ -2373,7 +2373,10 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
         } else if (!strcmp(buf, "virtio")) {
             type = IF_VIRTIO;
             max_devs = 0;
-        } else {
+	} else if (!strcmp(buf, "xen")) {
+	    type = IF_XEN;
+            max_devs = 0;
+	} else {
             fprintf(stderr, "qemu: '%s' unsupported bus type '%s'\n", str, buf);
             return -1;
 	}
@@ -2587,6 +2590,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     switch(type) {
     case IF_IDE:
     case IF_SCSI:
+    case IF_XEN:
         switch(media) {
 	case MEDIA_DISK:
             if (cyls != 0) {
