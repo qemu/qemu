@@ -561,7 +561,7 @@ LIBS += $(CONFIG_BLUEZ_LIBS)
 endif
 
 # xen backend driver support
-XEN_OBJS := xen_machine_pv.o
+XEN_OBJS := xen_machine_pv.o xen_backend.o
 ifeq ($(CONFIG_XEN), yes)
   OBJS += $(XEN_OBJS)
   LIBS += $(XEN_LIBS)

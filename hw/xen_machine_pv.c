@@ -26,7 +26,7 @@
 #include "pc.h"
 #include "sysemu.h"
 #include "boards.h"
-#include "xen.h"
+#include "xen_backend.h"
 
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
@@ -50,6 +50,12 @@ static void xen_init_pv(ram_addr_t ram_size, int vga_ram_size,
     }
     env = cpu_init(cpu_model);
     env->halted = 1;
+
+    /* Initialize backend core & drivers */
+    if (xen_be_init() != 0) {
+        fprintf(stderr, "%s: xen backend core setup failed\n", __FUNCTION__);
+        exit(1);
+    }
 }
 
 QEMUMachine xenpv_machine = {
