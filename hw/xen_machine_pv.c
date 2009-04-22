@@ -56,6 +56,7 @@ static void xen_init_pv(ram_addr_t ram_size, int vga_ram_size,
         fprintf(stderr, "%s: xen backend core setup failed\n", __FUNCTION__);
         exit(1);
     }
+    xen_be_register("console", &xen_console_ops);
 }
 
 QEMUMachine xenpv_machine = {

@@ -83,4 +83,7 @@ int xen_be_send_notify(struct XenDevice *xendev);
 void xen_be_printf(struct XenDevice *xendev, int msg_level, const char *fmt, ...)
     __attribute__ ((format(printf, 3, 4)));
 
+/* actual backend drivers */
+extern struct XenDevOps xen_console_ops;      /* xen_console.c     */
+
 #endif /* QEMU_HW_XEN_BACKEND_H */
