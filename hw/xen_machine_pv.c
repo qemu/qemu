@@ -39,6 +39,7 @@ static void xen_init_pv(ram_addr_t ram_size, int vga_ram_size,
 			const char *cpu_model)
 {
     CPUState *env;
+    int i, index;
 
     /* Initialize a dummy CPU */
     if (cpu_model == NULL) {
@@ -61,6 +62,24 @@ static void xen_init_pv(ram_addr_t ram_size, int vga_ram_size,
     xen_be_register("vfb", &xen_framebuffer_ops);
     xen_be_register("qdisk", &xen_blkdev_ops);
     xen_be_register("qnic", &xen_netdev_ops);
+
+    /* configure disks */
+    for (i = 0; i < 16; i++) {
+        index = drive_get_index(IF_XEN, 0, i);
+        if (index == -1)
+            continue;
+        xen_config_dev_blk(drives_table + index);
+    }
+
+    /* configure nics */
+    for (i = 0; i < nb_nics; i++) {
+        if (!nd_table[i].model || 0 != strcmp(nd_table[i].model, "xen"))
+            continue;
+        xen_config_dev_nic(nd_table + i);
+    }
+
+    /* config cleanup hook */
+    atexit(xen_config_cleanup);
 
     /* setup framebuffer */
     xen_init_display(xen_domid);

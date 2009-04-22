@@ -3,6 +3,8 @@
 
 #include "xen_common.h"
 #include "sysemu.h"
+#include "net.h"
+#include "block_int.h"
 
 /* ------------------------------------------------------------- */
 
@@ -56,6 +58,7 @@ struct XenDevice {
 /* variables */
 extern int xen_xc;
 extern struct xs_handle *xenstore;
+extern const char *xen_protocol;
 
 /* xenstore helper functions */
 int xenstore_write_str(const char *base, const char *node, const char *val);
@@ -92,5 +95,10 @@ extern struct XenDevOps xen_blkdev_ops;       /* xen_disk.c        */
 extern struct XenDevOps xen_netdev_ops;       /* xen_nic.c         */
 
 void xen_init_display(int domid);
+
+/* configuration (aka xenbus setup) */
+void xen_config_cleanup(void);
+int xen_config_dev_blk(DriveInfo *disk);
+int xen_config_dev_nic(NICInfo *nic);
 
 #endif /* QEMU_HW_XEN_BACKEND_H */

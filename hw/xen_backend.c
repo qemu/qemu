@@ -45,6 +45,7 @@
 /* public */
 int xen_xc;
 struct xs_handle *xenstore = NULL;
+const char *xen_protocol;
 
 /* private */
 static TAILQ_HEAD(XenDeviceHead, XenDevice) xendevs = TAILQ_HEAD_INITIALIZER(xendevs);
