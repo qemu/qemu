@@ -4222,23 +4222,16 @@ static void select_vgahw (const char *p)
 {
     const char *opts;
 
+    cirrus_vga_enabled = 0;
+    std_vga_enabled = 0;
+    vmsvga_enabled = 0;
     if (strstart(p, "std", &opts)) {
         std_vga_enabled = 1;
-        cirrus_vga_enabled = 0;
-        vmsvga_enabled = 0;
     } else if (strstart(p, "cirrus", &opts)) {
         cirrus_vga_enabled = 1;
-        std_vga_enabled = 0;
-        vmsvga_enabled = 0;
     } else if (strstart(p, "vmware", &opts)) {
-        cirrus_vga_enabled = 0;
-        std_vga_enabled = 0;
         vmsvga_enabled = 1;
-    } else if (strstart(p, "none", &opts)) {
-        cirrus_vga_enabled = 0;
-        std_vga_enabled = 0;
-        vmsvga_enabled = 0;
-    } else {
+    } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
         fprintf(stderr, "Unknown vga type: %s\n", p);
         exit(1);
