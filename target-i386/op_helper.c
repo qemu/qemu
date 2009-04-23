@@ -1191,6 +1191,7 @@ void do_interrupt_user(int intno, int is_int, int error_code,
         EIP = next_eip;
 }
 
+#if !defined(CONFIG_USER_ONLY)
 static void handle_even_inj(int intno, int is_int, int error_code,
 		int is_hw, int rm)
 {
@@ -1209,6 +1210,7 @@ static void handle_even_inj(int intno, int is_int, int error_code,
 	    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj), event_inj);
     }
 }
+#endif
 
 /*
  * Begin execution of an interruption. is_int is TRUE if coming from
@@ -1250,8 +1252,10 @@ void do_interrupt(int intno, int is_int, int error_code,
         }
     }
     if (env->cr[0] & CR0_PE_MASK) {
+#if !defined(CONFIG_USER_ONLY)
         if (env->hflags & HF_SVMI_MASK)
             handle_even_inj(intno, is_int, error_code, is_hw, 0);
+#endif
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
             do_interrupt64(intno, is_int, error_code, next_eip, is_hw);
@@ -1261,15 +1265,19 @@ void do_interrupt(int intno, int is_int, int error_code,
             do_interrupt_protected(intno, is_int, error_code, next_eip, is_hw);
         }
     } else {
+#if !defined(CONFIG_USER_ONLY)
         if (env->hflags & HF_SVMI_MASK)
             handle_even_inj(intno, is_int, error_code, is_hw, 1);
+#endif
         do_interrupt_real(intno, is_int, error_code, next_eip);
     }
 
+#if !defined(CONFIG_USER_ONLY)
     if (env->hflags & HF_SVMI_MASK) {
 	    uint32_t event_inj = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj));
 	    stl_phys(env->vm_vmcb + offsetof(struct vmcb, control.event_inj), event_inj & ~SVM_EVTINJ_VALID);
     }
+#endif
 }
 
 /* This should come from sysemu.h - if we could include it here... */
