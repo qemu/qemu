@@ -179,7 +179,7 @@ static int ioreq_parse(struct ioreq *ioreq)
     switch (ioreq->req.operation) {
     case BLKIF_OP_READ:
 	ioreq->prot = PROT_WRITE; /* to memory */
-	if (BLKIF_OP_READ != ioreq->req.operation && blkdev->mode[0] != 'w') {
+        if (ioreq->req.operation != BLKIF_OP_READ && blkdev->mode[0] != 'w') {
 	    xen_be_printf(&blkdev->xendev, 0, "error: write req for ro device\n");
 	    goto err;
 	}
@@ -513,7 +513,7 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
 
     if (use_aio)
         blk_send_response_all(blkdev);
-    while ((rc != rp)) {
+    while (rc != rp) {
         /* pull request from ring */
         if (RING_REQUEST_CONS_OVERFLOW(&blkdev->rings.common, rc))
             break;

@@ -189,7 +189,7 @@ static int con_init(struct XenDevice *xendev)
     free(dom);
 
     type = xenstore_read_str(con->console, "type");
-    if (!type || 0 != strcmp(type, "ioemu")) {
+    if (!type || strcmp(type, "ioemu" != 0)) {
 	xen_be_printf(xendev, 1, "not for me (type=%s)\n", type);
 	return -1;
     }
