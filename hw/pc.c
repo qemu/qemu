@@ -920,8 +920,7 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
 
     option_rom_offset = qemu_ram_alloc(0x20000);
     oprom_area_size = 0;
-    cpu_register_physical_memory(0xc0000, 0x20000,
-                                 option_rom_offset | IO_MEM_ROM);
+    cpu_register_physical_memory(0xc0000, 0x20000, option_rom_offset);
 
     if (using_vga) {
         /* VGA BIOS load */
