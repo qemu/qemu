@@ -899,7 +899,7 @@ vga_bios_error:
             load_linux(phys_ram_base + option_rom_offset,
                        kernel_filename, initrd_filename, kernel_cmdline);
             cpu_register_physical_memory(0xd0000, TARGET_PAGE_SIZE,
-                                         option_rom_offset | IO_MEM_ROM);
+                                         option_rom_offset);
             offset = TARGET_PAGE_SIZE;
         }
 
