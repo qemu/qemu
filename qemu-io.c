@@ -191,11 +191,13 @@ read_help(void)
 "\n"
 " Reads a segment of the currently open file, optionally dumping it to the\n"
 " standard output stream (with -v option) for subsequent inspection.\n"
+" -C, -- report statistics in a machine parsable format\n"
+" -l, -- length for pattern verification (only with -P)\n"
 " -p, -- use bdrv_pread to read the file\n"
 " -P, -- use a pattern to verify read data\n"
-" -C, -- report statistics in a machine parsable format\n"
-" -v, -- dump buffer to standard output\n"
 " -q, -- quite mode, do not show I/O statistics\n"
+" -s, -- start offset for pattern verification (only with -P)\n"
+" -v, -- dump buffer to standard output\n"
 "\n");
 }
 
@@ -204,17 +206,25 @@ read_f(int argc, char **argv)
 {
 	struct timeval t1, t2;
 	int Cflag = 0, pflag = 0, qflag = 0, vflag = 0;
+	int Pflag = 0, sflag = 0, lflag = 0;
 	int c, cnt;
 	char *buf;
 	int64_t offset;
 	int count, total;
-	int pattern = 0;
-	int Pflag = 0;
+	int pattern = 0, pattern_offset = 0, pattern_count = 0;
 
-	while ((c = getopt(argc, argv, "CpP:qv")) != EOF) {
+	while ((c = getopt(argc, argv, "Cl:pP:qs:v")) != EOF) {
 		switch (c) {
 		case 'C':
 			Cflag = 1;
+			break;
+		case 'l':
+			lflag = 1;
+			pattern_count = cvtnum(optarg);
+			if (pattern_count < 0) {
+				printf("non-numeric length argument -- %s\n", optarg);
+				return 0;
+			}
 			break;
 		case 'p':
 			pflag = 1;
@@ -225,6 +235,14 @@ read_f(int argc, char **argv)
 			break;
 		case 'q':
 			qflag = 1;
+			break;
+		case 's':
+			sflag = 1;
+			pattern_offset = cvtnum(optarg);
+			if (pattern_offset < 0) {
+				printf("non-numeric length argument -- %s\n", optarg);
+				return 0;
+			}
 			break;
 		case 'v':
 			vflag = 1;
@@ -249,6 +267,19 @@ read_f(int argc, char **argv)
 		printf("non-numeric length argument -- %s\n", argv[optind]);
 		return 0;
 	}
+
+    if (!Pflag && (lflag || sflag)) {
+        return command_usage(&read_cmd);
+    }
+
+    if (!lflag) {
+        pattern_count = count - pattern_offset;
+    }
+
+    if ((pattern_count < 0) || (pattern_count + pattern_offset > count))  {
+        printf("pattern verfication range exceeds end of read data\n");
+        return 0;
+    }
 
 	if (!pflag)
 		if (offset & 0x1ff) {
@@ -278,12 +309,12 @@ read_f(int argc, char **argv)
 	}
 
 	if (Pflag) {
-		void* cmp_buf = malloc(count);
-		memset(cmp_buf, pattern, count);
-		if (memcmp(buf, cmp_buf, count)) {
+		void* cmp_buf = malloc(pattern_count);
+		memset(cmp_buf, pattern, pattern_count);
+		if (memcmp(buf + pattern_offset, cmp_buf, pattern_count)) {
 			printf("Pattern verification failed at offset %lld, "
 				"%d bytes\n",
-				(long long) offset, count);
+				(long long) offset + pattern_offset, pattern_count);
 		}
 		free(cmp_buf);
 	}
@@ -309,7 +340,7 @@ static const cmdinfo_t read_cmd = {
 	.cfunc		= read_f,
 	.argmin		= 2,
 	.argmax		= -1,
-	.args		= "[-aCpqv] [-P pattern ] off len",
+	.args		= "[-aCpqv] [-P pattern [-s off] [-l len]] off len",
 	.oneline	= "reads a number of bytes at a specified offset",
 	.help		= read_help,
 };
