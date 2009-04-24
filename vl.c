@@ -3740,6 +3740,16 @@ void qemu_init_vcpu(void *_env)
     return;
 }
 
+int qemu_cpu_self(void *env)
+{
+    return 1;
+}
+
+void qemu_cpu_kick(void *env)
+{
+    return;
+}
+
 #ifdef _WIN32
 static void host_main_loop_wait(int *timeout)
 {
