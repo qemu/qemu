@@ -651,9 +651,7 @@ void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
 
 void DBDMA_schedule(void)
 {
-    CPUState *env = cpu_single_env;
-    if (env)
-        cpu_exit(env);
+    qemu_notify_event();
 }
 
 static void

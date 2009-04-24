@@ -355,7 +355,8 @@ endif
 
 OBJS= main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
       elfload.o linuxload.o uaccess.o envlist.o
-LIBS+= $(AIOLIBS)
+LIBS+= $(PTHREADLIBS)
+LIBS+= $(CLOCKLIBS)
 ifdef TARGET_HAS_BFLT
 OBJS+= flatload.o
 endif
@@ -763,7 +764,8 @@ CPPFLAGS+=-I$(SRC_PATH)/slirp
 endif
 endif
 
-LIBS+=$(AIOLIBS)
+LIBS+=$(PTHREADLIBS)
+LIBS+=$(CLOCKLIBS)
 # specific flags are needed for non soft mmu emulator
 ifdef CONFIG_STATIC
 LDFLAGS+=-static

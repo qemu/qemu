@@ -137,7 +137,7 @@ static void xen_domain_poll(void *opaque)
     int rc;
 
     rc = xc_domain_getinfo(xen_xc, xen_domid, 1, &info);
-    if ((1 != rc) || (info.domid != xen_domid)) {
+    if ((rc != 1) || (info.domid != xen_domid)) {
         qemu_log("xen: domain %d is gone\n", xen_domid);
         goto quit;
     }
@@ -186,7 +186,7 @@ static void xen_domain_watcher(void)
         rc = read(fd[0], &byte, 1);
         switch (rc) {
         case -1:
-            if (EINTR == errno)
+            if (errno == EINTR)
                 continue;
             qemu_log("%s: Huh? read error: %s\n", __FUNCTION__, strerror(errno));
             qemu_running = 0;

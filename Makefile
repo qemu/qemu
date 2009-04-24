@@ -30,7 +30,8 @@ else
 DOCS=
 endif
 
-LIBS+=$(AIOLIBS)
+LIBS+=$(PTHREADLIBS)
+LIBS+=$(CLOCKLIBS)
 
 ifdef CONFIG_SOLARIS
 LIBS+=-lsocket -lnsl -lresolv
@@ -168,6 +169,10 @@ endif
 
 ifdef CONFIG_COCOA
 OBJS+=cocoa.o
+endif
+
+ifdef CONFIG_IOTHREAD
+OBJS+=qemu-thread.o
 endif
 
 ifdef CONFIG_SLIRP

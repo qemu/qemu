@@ -338,14 +338,23 @@ static inline void regs_to_env(void)
 #endif
 }
 
+static inline int cpu_has_work(CPUState *env)
+{
+    int work;
+
+    work = (env->interrupt_request & CPU_INTERRUPT_HARD) &&
+           (env->eflags & IF_MASK);
+    work |= env->interrupt_request & CPU_INTERRUPT_NMI;
+
+    return work;
+}
+
 static inline int cpu_halted(CPUState *env) {
     /* handle exit of HALTED state */
     if (!env->halted)
         return 0;
     /* disable halt condition */
-    if (((env->interrupt_request & CPU_INTERRUPT_HARD) &&
-         (env->eflags & IF_MASK)) ||
-        (env->interrupt_request & CPU_INTERRUPT_NMI)) {
+    if (cpu_has_work(env)) {
         env->halted = 0;
         return 0;
     }
