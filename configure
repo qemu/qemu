@@ -181,7 +181,9 @@ bsd_user="no"
 build_docs="no"
 uname_release=""
 curses="yes"
+pthread="yes"
 aio="yes"
+io_thread="no"
 nptl="yes"
 mixemu="no"
 bluez="yes"
@@ -479,7 +481,11 @@ for opt do
   ;;
   --enable-mixemu) mixemu="yes"
   ;;
+  --disable-pthread) pthread="no"
+  ;;
   --disable-aio) aio="no"
+  ;;
+  --enable-io-thread) io_thread="yes"
   ;;
   --disable-blobs) blobs="no"
   ;;
@@ -611,7 +617,9 @@ echo "  --oss-lib                path to OSS library"
 echo "  --enable-uname-release=R Return R for uname -r in usermode emulation"
 echo "  --sparc_cpu=V            Build qemu for Sparc architecture v7, v8, v8plus, v8plusa, v9"
 echo "  --disable-vde            disable support for vde network"
+echo "  --disable-pthread        disable pthread support"
 echo "  --disable-aio            disable AIO support"
+echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --kerneldir=PATH         look for kernel includes in PATH"
 echo ""
@@ -1123,19 +1131,24 @@ EOF
 fi
 
 ##########################################
-# AIO probe
-AIOLIBS=""
+# pthread probe
+PTHREADLIBS=""
 
-if test "$aio" = "yes" ; then
-  aio=no
-  cat > $TMPC << EOF
+if test "$pthread" = yes; then
+  pthread=no
+cat > $TMPC << EOF
 #include <pthread.h>
 int main(void) { pthread_mutex_t lock;  return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $AIOLIBS $TMPC 2> /dev/null ; then
-    aio=yes
-    AIOLIBS="-lpthread"
+  if $cc $ARCH_CFLAGS -o $TMPE $PTHREADLIBS $TMPC 2> /dev/null ; then
+    pthread=yes
+    PTHREADLIBS="-lpthread"
   fi
+fi
+
+if test "$pthread" = no; then
+   aio=no
+   io_thread=no
 fi
 
 ##########################################
@@ -1231,6 +1244,7 @@ fi
 
 ##########################################
 # Do we need librt
+CLOCKLIBS=""
 cat > $TMPC <<EOF
 #include <signal.h>
 #include <time.h>
@@ -1245,8 +1259,7 @@ elif $cc $ARCH_CFLAGS -o $TMPE $TMPC -lrt > /dev/null 2> /dev/null ; then
 fi
 
 if test "$rt" = "yes" ; then
-  # Hack, we should have a general purpose LIBS for this sort of thing
-  AIOLIBS="$AIOLIBS -lrt"
+  CLOCKLIBS="-lrt"
 fi
 
 if test "$mingw32" = "yes" ; then
@@ -1324,6 +1337,7 @@ echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "vde support       $vde"
 echo "AIO support       $aio"
+echo "IO thread         $io_thread"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 echo "fdt support       $fdt"
@@ -1376,7 +1390,8 @@ echo "ARCH_LDFLAGS=$ARCH_LDFLAGS" >> $config_mak
 echo "CFLAGS=$CFLAGS" >> $config_mak
 echo "LDFLAGS=$LDFLAGS" >> $config_mak
 echo "EXESUF=$EXESUF" >> $config_mak
-echo "AIOLIBS=$AIOLIBS" >> $config_mak
+echo "PTHREADLIBS=$PTHREADLIBS" >> $config_mak
+echo "CLOCKLIBS=$CLOCKLIBS" >> $config_mak
 case "$cpu" in
   i386)
     echo "ARCH=i386" >> $config_mak
@@ -1639,6 +1654,10 @@ fi
 if test "$aio" = "yes" ; then
   echo "#define CONFIG_AIO 1" >> $config_h
   echo "CONFIG_AIO=yes" >> $config_mak
+fi
+if test "$io_thread" = "yes" ; then
+  echo "CONFIG_IOTHREAD=yes" >> $config_mak
+  echo "#define CONFIG_IOTHREAD 1" >> $config_h
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_mak
