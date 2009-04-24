@@ -50,6 +50,11 @@ int tb_invalidated_flag;
 //#define DEBUG_EXEC
 //#define DEBUG_SIGNAL
 
+int qemu_cpu_has_work(CPUState *env)
+{
+    return cpu_has_work(env);
+}
+
 void cpu_loop_exit(void)
 {
     /* NOTE: the register at this point must be saved by hand because
