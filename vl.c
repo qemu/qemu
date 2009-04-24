@@ -1346,20 +1346,20 @@ static void host_alarm_handler(int host_signum)
                                qemu_get_clock(vm_clock))) ||
         qemu_timer_expired(active_timers[QEMU_TIMER_REALTIME],
                            qemu_get_clock(rt_clock))) {
-        CPUState *env = next_cpu;
-
         qemu_event_increment();
         alarm_timer->flags |= ALARM_FLAG_EXPIRED;
 
-        if (env) {
+#ifndef CONFIG_IOTHREAD
+        if (next_cpu) {
             /* stop the currently executing cpu because a timer occured */
-            cpu_exit(env);
+            cpu_exit(next_cpu);
 #ifdef CONFIG_KQEMU
-            if (env->kqemu_enabled) {
-                kqemu_cpu_interrupt(env);
+            if (next_cpu->kqemu_enabled) {
+                kqemu_cpu_interrupt(next_cpu);
             }
 #endif
         }
+#endif
         timer_alarm_pending = 1;
         qemu_notify_event();
     }
@@ -3537,6 +3537,9 @@ static void vm_state_notify(int running, int reason)
     }
 }
 
+static void resume_all_vcpus(void);
+static void pause_all_vcpus(void);
+
 void vm_start(void)
 {
     if (!vm_running) {
@@ -3544,6 +3547,7 @@ void vm_start(void)
         vm_running = 1;
         vm_state_notify(1, 0);
         qemu_rearm_alarm_timer(alarm_timer);
+        resume_all_vcpus();
     }
 }
 
@@ -3602,6 +3606,7 @@ static void do_vm_stop(int reason)
     if (vm_running) {
         cpu_disable_ticks();
         vm_running = 0;
+        pause_all_vcpus();
         vm_state_notify(0, reason);
     }
 }
@@ -3654,18 +3659,13 @@ void qemu_system_powerdown_request(void)
     qemu_notify_event();
 }
 
-void qemu_notify_event(void)
+#ifdef CONFIG_IOTHREAD
+static void qemu_system_vmstop_request(int reason)
 {
-    CPUState *env = cpu_single_env;
-
-    if (env) {
-        cpu_exit(env);
-#ifdef USE_KQEMU
-        if (env->kqemu_enabled)
-            kqemu_cpu_interrupt(env);
-#endif
-     }
+    vmstop_requested = reason;
+    qemu_notify_event();
 }
+#endif
 
 #ifndef _WIN32
 static int io_thread_fd = -1;
@@ -3742,6 +3742,16 @@ static void qemu_event_increment(void)
 }
 #endif
 
+static int cpu_can_run(CPUState *env)
+{
+    if (env->stop)
+        return 0;
+    if (env->stopped)
+        return 0;
+    return 1;
+}
+
+#ifndef CONFIG_IOTHREAD
 static int qemu_init_main_loop(void)
 {
     return qemu_event_init();
@@ -3761,9 +3771,30 @@ int qemu_cpu_self(void *env)
     return 1;
 }
 
+static void resume_all_vcpus(void)
+{
+}
+
+static void pause_all_vcpus(void)
+{
+}
+
 void qemu_cpu_kick(void *env)
 {
     return;
+}
+
+void qemu_notify_event(void)
+{
+    CPUState *env = cpu_single_env;
+
+    if (env) {
+        cpu_exit(env);
+#ifdef USE_KQEMU
+        if (env->kqemu_enabled)
+            kqemu_cpu_interrupt(env);
+#endif
+     }
 }
 
 #define qemu_mutex_lock_iothread() do { } while (0)
@@ -3773,6 +3804,321 @@ void vm_stop(int reason)
 {
     do_vm_stop(reason);
 }
+
+#else /* CONFIG_IOTHREAD */
+
+#include "qemu-thread.h"
+
+QemuMutex qemu_global_mutex;
+static QemuMutex qemu_fair_mutex;
+
+static QemuThread io_thread;
+
+static QemuThread *tcg_cpu_thread;
+static QemuCond *tcg_halt_cond;
+
+static int qemu_system_ready;
+/* cpu creation */
+static QemuCond qemu_cpu_cond;
+/* system init */
+static QemuCond qemu_system_cond;
+static QemuCond qemu_pause_cond;
+
+static void block_io_signals(void);
+static void unblock_io_signals(void);
+static int tcg_has_work(void);
+
+static int qemu_init_main_loop(void)
+{
+    int ret;
+
+    ret = qemu_event_init();
+    if (ret)
+        return ret;
+
+    qemu_cond_init(&qemu_pause_cond);
+    qemu_mutex_init(&qemu_fair_mutex);
+    qemu_mutex_init(&qemu_global_mutex);
+    qemu_mutex_lock(&qemu_global_mutex);
+
+    unblock_io_signals();
+    qemu_thread_self(&io_thread);
+
+    return 0;
+}
+
+static void qemu_wait_io_event(CPUState *env)
+{
+    while (!tcg_has_work())
+        qemu_cond_timedwait(env->halt_cond, &qemu_global_mutex, 1000);
+
+    qemu_mutex_unlock(&qemu_global_mutex);
+
+    /*
+     * Users of qemu_global_mutex can be starved, having no chance
+     * to acquire it since this path will get to it first.
+     * So use another lock to provide fairness.
+     */
+    qemu_mutex_lock(&qemu_fair_mutex);
+    qemu_mutex_unlock(&qemu_fair_mutex);
+
+    qemu_mutex_lock(&qemu_global_mutex);
+    if (env->stop) {
+        env->stop = 0;
+        env->stopped = 1;
+        qemu_cond_signal(&qemu_pause_cond);
+    }
+}
+
+static int qemu_cpu_exec(CPUState *env);
+
+static void *kvm_cpu_thread_fn(void *arg)
+{
+    CPUState *env = arg;
+
+    block_io_signals();
+    qemu_thread_self(env->thread);
+
+    /* signal CPU creation */
+    qemu_mutex_lock(&qemu_global_mutex);
+    env->created = 1;
+    qemu_cond_signal(&qemu_cpu_cond);
+
+    /* and wait for machine initialization */
+    while (!qemu_system_ready)
+        qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
+
+    while (1) {
+        if (cpu_can_run(env))
+            qemu_cpu_exec(env);
+        qemu_wait_io_event(env);
+    }
+
+    return NULL;
+}
+
+static void tcg_cpu_exec(void);
+
+static void *tcg_cpu_thread_fn(void *arg)
+{
+    CPUState *env = arg;
+
+    block_io_signals();
+    qemu_thread_self(env->thread);
+
+    /* signal CPU creation */
+    qemu_mutex_lock(&qemu_global_mutex);
+    for (env = first_cpu; env != NULL; env = env->next_cpu)
+        env->created = 1;
+    qemu_cond_signal(&qemu_cpu_cond);
+
+    /* and wait for machine initialization */
+    while (!qemu_system_ready)
+        qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
+
+    while (1) {
+        tcg_cpu_exec();
+        qemu_wait_io_event(cur_cpu);
+    }
+
+    return NULL;
+}
+
+void qemu_cpu_kick(void *_env)
+{
+    CPUState *env = _env;
+    qemu_cond_broadcast(env->halt_cond);
+    if (kvm_enabled())
+        qemu_thread_signal(env->thread, SIGUSR1);
+}
+
+int qemu_cpu_self(void *env)
+{
+    return (cpu_single_env != NULL);
+}
+
+static void cpu_signal(int sig)
+{
+    if (cpu_single_env)
+        cpu_exit(cpu_single_env);
+}
+
+static void block_io_signals(void)
+{
+    sigset_t set;
+    struct sigaction sigact;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR2);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR1);
+    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = cpu_signal;
+    sigaction(SIGUSR1, &sigact, NULL);
+}
+
+static void unblock_io_signals(void)
+{
+    sigset_t set;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR2);
+    sigaddset(&set, SIGIO);
+    sigaddset(&set, SIGALRM);
+    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR1);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+}
+
+static void qemu_signal_lock(unsigned int msecs)
+{
+    qemu_mutex_lock(&qemu_fair_mutex);
+
+    while (qemu_mutex_trylock(&qemu_global_mutex)) {
+        qemu_thread_signal(tcg_cpu_thread, SIGUSR1);
+        if (!qemu_mutex_timedlock(&qemu_global_mutex, msecs))
+            break;
+    }
+    qemu_mutex_unlock(&qemu_fair_mutex);
+}
+
+static void qemu_mutex_lock_iothread(void)
+{
+    if (kvm_enabled()) {
+        qemu_mutex_lock(&qemu_fair_mutex);
+        qemu_mutex_lock(&qemu_global_mutex);
+        qemu_mutex_unlock(&qemu_fair_mutex);
+    } else
+        qemu_signal_lock(100);
+}
+
+static void qemu_mutex_unlock_iothread(void)
+{
+    qemu_mutex_unlock(&qemu_global_mutex);
+}
+
+static int all_vcpus_paused(void)
+{
+    CPUState *penv = first_cpu;
+
+    while (penv) {
+        if (!penv->stopped)
+            return 0;
+        penv = (CPUState *)penv->next_cpu;
+    }
+
+    return 1;
+}
+
+static void pause_all_vcpus(void)
+{
+    CPUState *penv = first_cpu;
+
+    while (penv) {
+        penv->stop = 1;
+        qemu_thread_signal(penv->thread, SIGUSR1);
+        qemu_cpu_kick(penv);
+        penv = (CPUState *)penv->next_cpu;
+    }
+
+    while (!all_vcpus_paused()) {
+        qemu_cond_timedwait(&qemu_pause_cond, &qemu_global_mutex, 100);
+        penv = first_cpu;
+        while (penv) {
+            qemu_thread_signal(penv->thread, SIGUSR1);
+            penv = (CPUState *)penv->next_cpu;
+        }
+    }
+}
+
+static void resume_all_vcpus(void)
+{
+    CPUState *penv = first_cpu;
+
+    while (penv) {
+        penv->stop = 0;
+        penv->stopped = 0;
+        qemu_thread_signal(penv->thread, SIGUSR1);
+        qemu_cpu_kick(penv);
+        penv = (CPUState *)penv->next_cpu;
+    }
+}
+
+static void tcg_init_vcpu(void *_env)
+{
+    CPUState *env = _env;
+    /* share a single thread for all cpus with TCG */
+    if (!tcg_cpu_thread) {
+        env->thread = qemu_mallocz(sizeof(QemuThread));
+        env->halt_cond = qemu_mallocz(sizeof(QemuCond));
+        qemu_cond_init(env->halt_cond);
+        qemu_thread_create(env->thread, tcg_cpu_thread_fn, env);
+        while (env->created == 0)
+            qemu_cond_timedwait(&qemu_cpu_cond, &qemu_global_mutex, 100);
+        tcg_cpu_thread = env->thread;
+        tcg_halt_cond = env->halt_cond;
+    } else {
+        env->thread = tcg_cpu_thread;
+        env->halt_cond = tcg_halt_cond;
+    }
+}
+
+static void kvm_start_vcpu(CPUState *env)
+{
+    kvm_init_vcpu(env);
+    env->thread = qemu_mallocz(sizeof(QemuThread));
+    env->halt_cond = qemu_mallocz(sizeof(QemuCond));
+    qemu_cond_init(env->halt_cond);
+    qemu_thread_create(env->thread, kvm_cpu_thread_fn, env);
+    while (env->created == 0)
+        qemu_cond_timedwait(&qemu_cpu_cond, &qemu_global_mutex, 100);
+}
+
+void qemu_init_vcpu(void *_env)
+{
+    CPUState *env = _env;
+
+    if (kvm_enabled())
+        kvm_start_vcpu(env);
+    else
+        tcg_init_vcpu(env);
+}
+
+void qemu_notify_event(void)
+{
+    qemu_event_increment();
+}
+
+void vm_stop(int reason)
+{
+    QemuThread me;
+    qemu_thread_self(&me);
+
+    if (!qemu_thread_equal(&me, &io_thread)) {
+        qemu_system_vmstop_request(reason);
+        /*
+         * FIXME: should not return to device code in case
+         * vm_stop() has been requested.
+         */
+        if (cpu_single_env) {
+            cpu_exit(cpu_single_env);
+            cpu_single_env->stop = 1;
+        }
+        return;
+    }
+    do_vm_stop(reason);
+}
+
+#endif
+
 
 #ifdef _WIN32
 static void host_main_loop_wait(int *timeout)
@@ -3910,9 +4256,11 @@ void main_loop_wait(int timeout)
     }
 
     /* vm time timers */
-    if (vm_running && likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
-        qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
-                        qemu_get_clock(vm_clock));
+    if (vm_running) {
+        if (!cur_cpu || likely(!(cur_cpu->singlestep_enabled & SSTEP_NOTIMER)))
+            qemu_run_timers(&active_timers[QEMU_TIMER_VIRTUAL],
+                qemu_get_clock(vm_clock));
+    }
 
     /* real time timers */
     qemu_run_timers(&active_timers[QEMU_TIMER_REALTIME],
@@ -3966,7 +4314,7 @@ static int qemu_cpu_exec(CPUState *env)
 
 static void tcg_cpu_exec(void)
 {
-    int ret;
+    int ret = 0;
 
     if (next_cpu == NULL)
         next_cpu = first_cpu;
@@ -3979,7 +4327,8 @@ static void tcg_cpu_exec(void)
             timer_alarm_pending = 0;
             break;
         }
-        ret = qemu_cpu_exec(env);
+        if (cpu_can_run(env))
+            ret = qemu_cpu_exec(env);
         if (ret == EXCP_DEBUG) {
             gdb_set_stop_cpu(env);
             debug_requested = 1;
@@ -3990,6 +4339,10 @@ static void tcg_cpu_exec(void)
 
 static int cpu_has_work(CPUState *env)
 {
+    if (env->stop)
+        return 1;
+    if (env->stopped)
+        return 0;
     if (!env->halted)
         return 1;
     if (qemu_cpu_has_work(env))
@@ -4073,16 +4426,27 @@ static void main_loop(void)
 {
     int r;
 
+#ifdef CONFIG_IOTHREAD
+    qemu_system_ready = 1;
+    qemu_cond_broadcast(&qemu_system_cond);
+#endif
+
     for (;;) {
         do {
 #ifdef CONFIG_PROFILER
             int64_t ti;
 #endif
+#ifndef CONFIG_IOTHREAD
             tcg_cpu_exec();
+#endif
 #ifdef CONFIG_PROFILER
             ti = profile_getclock();
 #endif
+#ifdef CONFIG_IOTHREAD
+            main_loop_wait(1000);
+#else
             main_loop_wait(qemu_calculate_timeout());
+#endif
 #ifdef CONFIG_PROFILER
             dev_time += profile_getclock() - ti;
 #endif
@@ -4097,13 +4461,17 @@ static void main_loop(void)
             } else
                 break;
         }
-        if (qemu_reset_requested())
+        if (qemu_reset_requested()) {
+            pause_all_vcpus();
             qemu_system_reset();
+            resume_all_vcpus();
+        }
         if (qemu_powerdown_requested())
             qemu_system_powerdown();
         if ((r = qemu_vmstop_requested()))
             vm_stop(r);
     }
+    pause_all_vcpus();
 }
 
 static void version(void)
