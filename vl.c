@@ -3568,6 +3568,7 @@ static QEMUResetEntry *first_reset_entry;
 static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
+static int debug_requested;
 
 int qemu_shutdown_requested(void)
 {
@@ -3587,6 +3588,13 @@ int qemu_powerdown_requested(void)
 {
     int r = powerdown_requested;
     powerdown_requested = 0;
+    return r;
+}
+
+static int qemu_debug_requested(void)
+{
+    int r = debug_requested;
+    debug_requested = 0;
     return r;
 }
 
@@ -4019,6 +4027,8 @@ static int vm_can_run(void)
         return 0;
     if (shutdown_requested)
         return 0;
+    if (debug_requested)
+        return 0;
     return 1;
 }
 
@@ -4045,6 +4055,7 @@ static void main_loop(void)
                 ret = qemu_cpu_exec(env);
                 if (ret == EXCP_DEBUG) {
                     gdb_set_stop_cpu(env);
+                    debug_requested = 1;
                     break;
                 }
             }
@@ -4055,11 +4066,11 @@ static void main_loop(void)
 #ifdef CONFIG_PROFILER
             dev_time += profile_getclock() - ti;
 #endif
-        } while (ret != EXCP_DEBUG && vm_can_run());
+        } while (vm_can_run());
 
-        if (ret == EXCP_DEBUG)
+
+        if (qemu_debug_requested())
             vm_stop(EXCP_DEBUG);
-
         if (qemu_shutdown_requested()) {
             if (no_shutdown) {
                 vm_stop(0);
