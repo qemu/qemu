@@ -1193,9 +1193,8 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
             qemu_rearm_alarm_timer(alarm_timer);
         }
         /* Interrupt execution to force deadline recalculation.  */
-        if (use_icount && cpu_single_env) {
-            cpu_exit(cpu_single_env);
-        }
+        if (use_icount)
+            qemu_notify_event();
     }
 }
 
@@ -1370,6 +1369,7 @@ static void host_alarm_handler(int host_signum)
 #endif
         }
         event_pending = 1;
+        qemu_notify_event();
     }
 }
 
@@ -3406,15 +3406,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
 void qemu_service_io(void)
 {
-    CPUState *env = cpu_single_env;
-    if (env) {
-        cpu_exit(env);
-#ifdef CONFIG_KQEMU
-        if (env->kqemu_enabled) {
-            kqemu_cpu_interrupt(env);
-        }
-#endif
-    }
+    qemu_notify_event();
 }
 
 /***********************************************************/
@@ -3482,15 +3474,12 @@ void qemu_bh_schedule_idle(QEMUBH *bh)
 
 void qemu_bh_schedule(QEMUBH *bh)
 {
-    CPUState *env = cpu_single_env;
     if (bh->scheduled)
         return;
     bh->scheduled = 1;
     bh->idle = 0;
     /* stop the currently executing CPU to execute the BH ASAP */
-    if (env) {
-        cpu_exit(env);
-    }
+    qemu_notify_event();
 }
 
 void qemu_bh_cancel(QEMUBH *bh)
@@ -3701,22 +3690,32 @@ void qemu_system_reset_request(void)
     } else {
         reset_requested = 1;
     }
-    if (cpu_single_env)
-        cpu_exit(cpu_single_env);
+    qemu_notify_event();
 }
 
 void qemu_system_shutdown_request(void)
 {
     shutdown_requested = 1;
-    if (cpu_single_env)
-        cpu_exit(cpu_single_env);
+    qemu_notify_event();
 }
 
 void qemu_system_powerdown_request(void)
 {
     powerdown_requested = 1;
-    if (cpu_single_env)
-        cpu_exit(cpu_single_env);
+    qemu_notify_event();
+}
+
+void qemu_notify_event(void)
+{
+    CPUState *env = cpu_single_env;
+
+    if (env) {
+        cpu_exit(env);
+#ifdef USE_KQEMU
+        if (env->kqemu_enabled)
+            kqemu_cpu_interrupt(env);
+#endif
+     }
 }
 
 #ifdef _WIN32
