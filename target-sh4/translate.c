@@ -290,6 +290,7 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model)
     cpu_sh4_reset(env);
     cpu_sh4_register(env, def);
     tlb_flush(env, 1);
+    qemu_init_vcpu(env);
     return env;
 }
 

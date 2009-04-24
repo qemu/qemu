@@ -2505,6 +2505,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     env->ipr[IPR_SISR] = 0;
     env->ipr[IPR_VIRBND] = -1ULL;
 
+    qemu_init_vcpu(env);
     return env;
 }
 

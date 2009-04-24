@@ -3405,6 +3405,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 
 	cpu_exec_init(env);
 	cpu_reset(env);
+	qemu_init_vcpu(env);
 
 	if (tcg_initialized)
 		return env;

@@ -8551,6 +8551,7 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
     env->cpu_model_str = cpu_model;
     mips_tcg_init();
     cpu_reset(env);
+    qemu_init_vcpu(env);
     return env;
 }
 

@@ -3731,6 +3731,15 @@ static int qemu_init_main_loop(void)
     return qemu_event_init();
 }
 
+void qemu_init_vcpu(void *_env)
+{
+    CPUState *env = _env;
+
+    if (kvm_enabled())
+        kvm_init_vcpu(env);
+    return;
+}
+
 #ifdef _WIN32
 static void host_main_loop_wait(int *timeout)
 {

@@ -2831,8 +2831,7 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     cpu_ppc_register_internal(env, def);
     cpu_ppc_reset(env);
 
-    if (kvm_enabled())
-        kvm_init_vcpu(env);
+    qemu_init_vcpu(env);
 
     return env;
 }

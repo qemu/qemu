@@ -267,6 +267,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
         gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  19, "arm-vfp.xml", 0);
     }
+    qemu_init_vcpu(env);
     return env;
 }
 

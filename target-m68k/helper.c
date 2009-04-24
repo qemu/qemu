@@ -180,6 +180,7 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     }
 
     cpu_reset(env);
+    qemu_init_vcpu(env);
     return env;
 }
 
