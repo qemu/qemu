@@ -3951,6 +3951,30 @@ static int qemu_cpu_exec(CPUState *env)
     return ret;
 }
 
+static void tcg_cpu_exec(void)
+{
+    int ret;
+
+    if (next_cpu == NULL)
+        next_cpu = first_cpu;
+    for (; next_cpu != NULL; next_cpu = next_cpu->next_cpu) {
+        CPUState *env = cur_cpu = next_cpu;
+
+        if (!vm_running)
+            break;
+        if (timer_alarm_pending) {
+            timer_alarm_pending = 0;
+            break;
+        }
+        ret = qemu_cpu_exec(env);
+        if (ret == EXCP_DEBUG) {
+            gdb_set_stop_cpu(env);
+            debug_requested = 1;
+            break;
+        }
+    }
+}
+
 static int cpu_has_work(CPUState *env)
 {
     if (!env->halted)
@@ -4034,31 +4058,13 @@ static int vm_can_run(void)
 
 static void main_loop(void)
 {
-    int ret = 0;
-#ifdef CONFIG_PROFILER
-    int64_t ti;
-#endif
-
     for (;;) {
-        do {
-            if (next_cpu == NULL)
-                next_cpu = first_cpu;
-            for (; next_cpu != NULL; next_cpu = next_cpu->next_cpu) {
-                CPUState *env = cur_cpu = next_cpu;
 
-                if (!vm_running)
-                    break;
-                if (timer_alarm_pending) {
-                    timer_alarm_pending = 0;
-                    break;
-                }
-                ret = qemu_cpu_exec(env);
-                if (ret == EXCP_DEBUG) {
-                    gdb_set_stop_cpu(env);
-                    debug_requested = 1;
-                    break;
-                }
-            }
+        do {
+#ifdef CONFIG_PROFILER
+            int64_t ti;
+#endif
+            tcg_cpu_exec();
 #ifdef CONFIG_PROFILER
             ti = profile_getclock();
 #endif
@@ -4067,7 +4073,6 @@ static void main_loop(void)
             dev_time += profile_getclock() - ti;
 #endif
         } while (vm_can_run());
-
 
         if (qemu_debug_requested())
             vm_stop(EXCP_DEBUG);
