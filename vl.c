@@ -3547,15 +3547,6 @@ void vm_start(void)
     }
 }
 
-void vm_stop(int reason)
-{
-    if (vm_running) {
-        cpu_disable_ticks();
-        vm_running = 0;
-        vm_state_notify(0, reason);
-    }
-}
-
 /* reset/shutdown handler */
 
 typedef struct QEMUResetEntry {
@@ -3569,6 +3560,7 @@ static int reset_requested;
 static int shutdown_requested;
 static int powerdown_requested;
 static int debug_requested;
+static int vmstop_requested;
 
 int qemu_shutdown_requested(void)
 {
@@ -3596,6 +3588,22 @@ static int qemu_debug_requested(void)
     int r = debug_requested;
     debug_requested = 0;
     return r;
+}
+
+static int qemu_vmstop_requested(void)
+{
+    int r = vmstop_requested;
+    vmstop_requested = 0;
+    return r;
+}
+
+static void do_vm_stop(int reason)
+{
+    if (vm_running) {
+        cpu_disable_ticks();
+        vm_running = 0;
+        vm_state_notify(0, reason);
+    }
 }
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
@@ -3760,6 +3768,11 @@ void qemu_cpu_kick(void *env)
 
 #define qemu_mutex_lock_iothread() do { } while (0)
 #define qemu_mutex_unlock_iothread() do { } while (0)
+
+void vm_stop(int reason)
+{
+    do_vm_stop(reason);
+}
 
 #ifdef _WIN32
 static void host_main_loop_wait(int *timeout)
@@ -4058,8 +4071,9 @@ static int vm_can_run(void)
 
 static void main_loop(void)
 {
-    for (;;) {
+    int r;
 
+    for (;;) {
         do {
 #ifdef CONFIG_PROFILER
             int64_t ti;
@@ -4087,6 +4101,8 @@ static void main_loop(void)
             qemu_system_reset();
         if (qemu_powerdown_requested())
             qemu_system_powerdown();
+        if ((r = qemu_vmstop_requested()))
+            vm_stop(r);
     }
 }
 
