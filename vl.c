@@ -3750,6 +3750,9 @@ void qemu_cpu_kick(void *env)
     return;
 }
 
+#define qemu_mutex_lock_iothread() do { } while (0)
+#define qemu_mutex_unlock_iothread() do { } while (0)
+
 #ifdef _WIN32
 static void host_main_loop_wait(int *timeout)
 {
@@ -3842,7 +3845,9 @@ void main_loop_wait(int timeout)
         slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
     }
 #endif
+    qemu_mutex_unlock_iothread();
     ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
+    qemu_mutex_lock_iothread();
     if (ret > 0) {
         IOHandlerRecord **pioh;
 
