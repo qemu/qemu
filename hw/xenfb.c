@@ -694,7 +694,6 @@ static void xenfb_send_refresh_period(struct XenFB *xenfb, int period)
 static void xenfb_update(void *opaque)
 {
     struct XenFB *xenfb = opaque;
-    struct DisplayChangeListener *l;
     int i;
 
     if (xenfb->c.xendev.be_state != XenbusStateConnected)
@@ -702,6 +701,7 @@ static void xenfb_update(void *opaque)
 
     if (xenfb->feature_update) {
 #ifdef XENFB_TYPE_REFRESH_PERIOD
+        struct DisplayChangeListener *l;
         int period = 99999999;
         int idle = 1;
 
