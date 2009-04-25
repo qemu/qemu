@@ -440,10 +440,12 @@ static int blk_send_response_one(struct ioreq *ioreq)
 	dst = RING_GET_RESPONSE(&blkdev->rings.native, blkdev->rings.native.rsp_prod_pvt);
 	break;
     case BLKIF_PROTOCOL_X86_32:
-	dst = RING_GET_RESPONSE(&blkdev->rings.x86_32, blkdev->rings.x86_32.rsp_prod_pvt);
+        dst = RING_GET_RESPONSE(&blkdev->rings.x86_32_part,
+                                blkdev->rings.x86_32_part.rsp_prod_pvt);
 	break;
     case BLKIF_PROTOCOL_X86_64:
-	dst = RING_GET_RESPONSE(&blkdev->rings.x86_64, blkdev->rings.x86_64.rsp_prod_pvt);
+        dst = RING_GET_RESPONSE(&blkdev->rings.x86_64_part,
+                                blkdev->rings.x86_64_part.rsp_prod_pvt);
 	break;
     default:
 	dst = NULL;
@@ -491,10 +493,12 @@ static int blk_get_request(struct XenBlkDev *blkdev, struct ioreq *ioreq, RING_I
 	       sizeof(ioreq->req));
 	break;
     case BLKIF_PROTOCOL_X86_32:
-	blkif_get_x86_32_req(&ioreq->req, RING_GET_REQUEST(&blkdev->rings.x86_32, rc));
+        blkif_get_x86_32_req(&ioreq->req,
+                             RING_GET_REQUEST(&blkdev->rings.x86_32_part, rc));
 	break;
     case BLKIF_PROTOCOL_X86_64:
-	blkif_get_x86_64_req(&ioreq->req, RING_GET_REQUEST(&blkdev->rings.x86_64, rc));
+        blkif_get_x86_64_req(&ioreq->req,
+                             RING_GET_REQUEST(&blkdev->rings.x86_64_part, rc));
 	break;
     }
     return 0;
@@ -698,13 +702,15 @@ static int blk_connect(struct XenDevice *xendev)
     case BLKIF_PROTOCOL_X86_32:
     {
 	blkif_x86_32_sring_t *sring_x86_32 = blkdev->sring;
-	BACK_RING_INIT(&blkdev->rings.x86_32, sring_x86_32, XC_PAGE_SIZE);
+
+        BACK_RING_INIT(&blkdev->rings.x86_32_part, sring_x86_32, XC_PAGE_SIZE);
 	break;
     }
     case BLKIF_PROTOCOL_X86_64:
     {
 	blkif_x86_64_sring_t *sring_x86_64 = blkdev->sring;
-	BACK_RING_INIT(&blkdev->rings.x86_64, sring_x86_64, XC_PAGE_SIZE);
+
+        BACK_RING_INIT(&blkdev->rings.x86_64_part, sring_x86_64, XC_PAGE_SIZE);
 	break;
     }
     }

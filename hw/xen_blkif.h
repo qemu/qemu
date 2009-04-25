@@ -59,8 +59,8 @@ DEFINE_RING_TYPES(blkif_x86_64, struct blkif_x86_64_request, struct blkif_x86_64
 union blkif_back_rings {
 	blkif_back_ring_t        native;
 	blkif_common_back_ring_t common;
-	blkif_x86_32_back_ring_t x86_32;
-	blkif_x86_64_back_ring_t x86_64;
+        blkif_x86_32_back_ring_t x86_32_part;
+        blkif_x86_64_back_ring_t x86_64_part;
 };
 typedef union blkif_back_rings blkif_back_rings_t;
 
