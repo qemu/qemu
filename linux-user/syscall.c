@@ -1137,6 +1137,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
     abi_long ret;
     int val;
     struct ip_mreqn *ip_mreq;
+    struct ip_mreq_source *ip_mreq_source;
 
     switch(level) {
     case SOL_TCP:
@@ -1184,6 +1185,18 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             ip_mreq = (struct ip_mreqn *) alloca(optlen);
             target_to_host_ip_mreq(ip_mreq, optval_addr, optlen);
             ret = get_errno(setsockopt(sockfd, level, optname, ip_mreq, optlen));
+            break;
+
+        case IP_BLOCK_SOURCE:
+        case IP_UNBLOCK_SOURCE:
+        case IP_ADD_SOURCE_MEMBERSHIP:
+        case IP_DROP_SOURCE_MEMBERSHIP:
+            if (optlen != sizeof (struct target_ip_mreq_source))
+                return -TARGET_EINVAL;
+
+            ip_mreq_source = lock_user(VERIFY_READ, optval_addr, optlen, 1);
+            ret = get_errno(setsockopt(sockfd, level, optname, ip_mreq_source, optlen));
+            unlock_user (ip_mreq_source, optval_addr, 0);
             break;
 
         default:

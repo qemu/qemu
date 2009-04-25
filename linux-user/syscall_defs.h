@@ -126,6 +126,13 @@ struct target_ip_mreqn {
     abi_long imr_ifindex;
 };
 
+struct target_ip_mreq_source {
+    /* big endian */
+    uint32_t imr_multiaddr;
+    uint32_t imr_interface;
+    uint32_t imr_sourceaddr;
+};
+
 struct target_timeval {
     abi_long tv_sec;
     abi_long tv_usec;
