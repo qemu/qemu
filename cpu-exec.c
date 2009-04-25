@@ -1382,12 +1382,24 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     if ((insn >> 30) == 3) {
       switch((insn >> 19) & 0x3f) {
       case 0x05: // stb
+      case 0x15: // stba
       case 0x06: // sth
+      case 0x16: // stha
       case 0x04: // st
+      case 0x14: // sta
       case 0x07: // std
+      case 0x17: // stda
+      case 0x0e: // stx
+      case 0x1e: // stxa
       case 0x24: // stf
+      case 0x34: // stfa
       case 0x27: // stdf
+      case 0x37: // stdfa
+      case 0x26: // stqf
+      case 0x36: // stqfa
       case 0x25: // stfsr
+      case 0x3c: // casa
+      case 0x3e: // casxa
 	is_write = 1;
 	break;
       }
