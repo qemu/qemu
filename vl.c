@@ -934,7 +934,7 @@ static struct qemu_alarm_timer *alarm_timer;
 struct qemu_alarm_win32 {
     MMRESULT timerId;
     unsigned int period;
-} alarm_win32_data = {0, NULL, -1};
+} alarm_win32_data = {0, -1};
 
 static int win32_start_timer(struct qemu_alarm_timer *t);
 static void win32_stop_timer(struct qemu_alarm_timer *t);
