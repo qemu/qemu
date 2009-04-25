@@ -39,7 +39,7 @@ do { printf("ASI: " fmt , ##args); } while (0)
 #endif
 #endif
 
-#ifdef TARGET_SPARC64
+#if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 // Calculates TSB pointer value for fault page size 8k or 64k
 static uint64_t ultrasparc_tsb_pointer(uint64_t tsb_register,
                                        uint64_t tag_access_register,
