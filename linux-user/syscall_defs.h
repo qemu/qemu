@@ -111,6 +111,21 @@ struct target_sockaddr {
     uint8_t sa_data[14];
 };
 
+struct target_in_addr {
+    uint32_t s_addr; /* big endian */
+};
+
+struct target_ip_mreq {
+    struct target_in_addr imr_multiaddr;
+    struct target_in_addr imr_address;
+};
+
+struct target_ip_mreqn {
+    struct target_in_addr imr_multiaddr;
+    struct target_in_addr imr_address;
+    abi_long imr_ifindex;
+};
+
 struct target_timeval {
     abi_long tv_sec;
     abi_long tv_usec;

@@ -943,6 +943,24 @@ static abi_long do_select(int n,
     return ret;
 }
 
+static inline abi_long target_to_host_ip_mreq(struct ip_mreqn *mreqn,
+                                              abi_ulong target_addr,
+                                              socklen_t len)
+{
+    struct target_ip_mreqn *target_smreqn;
+
+    target_smreqn = lock_user(VERIFY_READ, target_addr, len, 1);
+    if (!target_smreqn)
+        return -TARGET_EFAULT;
+    mreqn->imr_multiaddr.s_addr = target_smreqn->imr_multiaddr.s_addr;
+    mreqn->imr_address.s_addr = target_smreqn->imr_address.s_addr;
+    if (len == sizeof(struct target_ip_mreqn))
+        mreqn->imr_ifindex = tswapl(target_smreqn->imr_ifindex);
+    unlock_user(target_smreqn, target_addr, 0);
+
+    return 0;
+}
+
 static inline abi_long target_to_host_sockaddr(struct sockaddr *addr,
                                                abi_ulong target_addr,
                                                socklen_t len)
@@ -1118,6 +1136,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
 {
     abi_long ret;
     int val;
+    struct ip_mreqn *ip_mreq;
 
     switch(level) {
     case SOL_TCP:
@@ -1156,6 +1175,17 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             }
             ret = get_errno(setsockopt(sockfd, level, optname, &val, sizeof(val)));
             break;
+        case IP_ADD_MEMBERSHIP:
+        case IP_DROP_MEMBERSHIP:
+            if (optlen < sizeof (struct target_ip_mreq) ||
+                optlen > sizeof (struct target_ip_mreqn))
+                return -TARGET_EINVAL;
+
+            ip_mreq = (struct ip_mreqn *) alloca(optlen);
+            target_to_host_ip_mreq(ip_mreq, optval_addr, optlen);
+            ret = get_errno(setsockopt(sockfd, level, optname, ip_mreq, optlen));
+            break;
+
         default:
             goto unimplemented;
         }
