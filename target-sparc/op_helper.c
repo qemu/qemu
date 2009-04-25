@@ -39,6 +39,56 @@ do { printf("ASI: " fmt , ##args); } while (0)
 #endif
 #endif
 
+#ifdef TARGET_SPARC64
+// Calculates TSB pointer value for fault page size 8k or 64k
+static uint64_t ultrasparc_tsb_pointer(uint64_t tsb_register,
+                                       uint64_t tag_access_register,
+                                       int page_size)
+{
+    uint64_t tsb_base = tsb_register & ~0x1fffULL;
+    int tsb_split = (env->dmmuregs[5] & 0x1000ULL) ? 1 : 0;
+    int tsb_size  = env->dmmuregs[5] & 0xf;
+
+    // discard lower 13 bits which hold tag access context
+    uint64_t tag_access_va = tag_access_register & ~0x1fffULL;
+
+    // now reorder bits
+    uint64_t tsb_base_mask = ~0x1fffULL;
+    uint64_t va = tag_access_va;
+
+    // move va bits to correct position
+    if (page_size == 8*1024) {
+        va >>= 9;
+    } else if (page_size == 64*1024) {
+        va >>= 12;
+    }
+
+    if (tsb_size) {
+        tsb_base_mask <<= tsb_size;
+    }
+
+    // calculate tsb_base mask and adjust va if split is in use
+    if (tsb_split) {
+        if (page_size == 8*1024) {
+            va &= ~(1ULL << (13 + tsb_size));
+        } else if (page_size == 64*1024) {
+            va |= (1ULL << (13 + tsb_size));
+        }
+        tsb_base_mask <<= 1;
+    }
+
+    return ((tsb_base & tsb_base_mask) | (va & ~tsb_base_mask)) & ~0xfULL;
+}
+
+// Calculates tag target register value by reordering bits
+// in tag access register
+static uint64_t ultrasparc_tag_target(uint64_t tag_access_register)
+{
+    return ((tag_access_register & 0x1fff) << 48) | (tag_access_register >> 22);
+}
+
+#endif
+
 static inline void address_mask(CPUState *env1, target_ulong *addr)
 {
 #ifdef TARGET_SPARC64
@@ -1652,13 +1702,31 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         {
             int reg = (addr >> 3) & 0xf;
 
-            ret = env->immuregs[reg];
+            if (reg == 0) {
+                // I-TSB Tag Target register
+                ret = ultrasparc_tag_target(env->immuregs[6]);
+            } else {
+                ret = env->immuregs[reg];
+            }
+
             break;
         }
     case 0x51: // I-MMU 8k TSB pointer
+        {
+            // env->immuregs[5] holds I-MMU TSB register value
+            // env->immuregs[6] holds I-MMU Tag Access register value
+            ret = ultrasparc_tsb_pointer(env->immuregs[5], env->immuregs[6],
+                                         8*1024);
+            break;
+        }
     case 0x52: // I-MMU 64k TSB pointer
-        // XXX
-        break;
+        {
+            // env->immuregs[5] holds I-MMU TSB register value
+            // env->immuregs[6] holds I-MMU Tag Access register value
+            ret = ultrasparc_tsb_pointer(env->immuregs[5], env->immuregs[6],
+                                         64*1024);
+            break;
+        }
     case 0x55: // I-MMU data access
         {
             int reg = (addr >> 3) & 0x3f;
@@ -1677,7 +1745,28 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
         {
             int reg = (addr >> 3) & 0xf;
 
-            ret = env->dmmuregs[reg];
+            if (reg == 0) {
+                // D-TSB Tag Target register
+                ret = ultrasparc_tag_target(env->dmmuregs[6]);
+            } else {
+                ret = env->dmmuregs[reg];
+            }
+            break;
+        }
+    case 0x59: // D-MMU 8k TSB pointer
+        {
+            // env->dmmuregs[5] holds D-MMU TSB register value
+            // env->dmmuregs[6] holds D-MMU Tag Access register value
+            ret = ultrasparc_tsb_pointer(env->dmmuregs[5], env->dmmuregs[6],
+                                         8*1024);
+            break;
+        }
+    case 0x5a: // D-MMU 64k TSB pointer
+        {
+            // env->dmmuregs[5] holds D-MMU TSB register value
+            // env->dmmuregs[6] holds D-MMU Tag Access register value
+            ret = ultrasparc_tsb_pointer(env->dmmuregs[5], env->dmmuregs[6],
+                                         64*1024);
             break;
         }
     case 0x5d: // D-MMU data access
@@ -1707,8 +1796,6 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x76: // E-cache tag
     case 0x7e: // E-cache tag
         break;
-    case 0x59: // D-MMU 8k TSB pointer
-    case 0x5a: // D-MMU 64k TSB pointer
     case 0x5b: // D-MMU data pointer
     case 0x48: // Interrupt dispatch, RO
     case 0x49: // Interrupt data receive
