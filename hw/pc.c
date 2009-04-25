@@ -37,6 +37,7 @@
 #include "virtio-balloon.h"
 #include "virtio-console.h"
 #include "hpet_emul.h"
+#include "watchdog.h"
 #include "smbios.h"
 
 /* output Bochs bios info messages */
@@ -1022,6 +1023,8 @@ static void pc_init1(ram_addr_t ram_size, int vga_ram_size,
                           parallel_hds[i]);
         }
     }
+
+    watchdog_pc_init(pci_bus);
 
     for(i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];

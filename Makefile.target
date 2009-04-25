@@ -582,6 +582,10 @@ OBJS += pcnet.o
 OBJS += rtl8139.o
 OBJS += e1000.o
 
+# Generic watchdog support and some watchdog devices
+OBJS += watchdog.o
+OBJS += wdt_ib700.o wdt_i6300esb.o
+
 ifeq ($(TARGET_BASE_ARCH), i386)
 # Hardware support
 OBJS+= ide.o pckbd.o vga.o $(SOUND_HW) dma.o

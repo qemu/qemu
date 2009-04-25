@@ -138,6 +138,7 @@ int main(int argc, char **argv)
 #include "hw/isa.h"
 #include "hw/baum.h"
 #include "hw/bt.h"
+#include "hw/watchdog.h"
 #include "hw/smbios.h"
 #include "hw/xen.h"
 #include "bt-host.h"
@@ -252,6 +253,8 @@ int graphic_rotate = 0;
 #ifndef _WIN32
 int daemonize = 0;
 #endif
+WatchdogTimerModel *watchdog = NULL;
+int watchdog_action = WDT_RESET;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
@@ -4917,6 +4920,8 @@ int main(int argc, char **argv, char **envp)
     tb_size = 0;
     autostart= 1;
 
+    register_watchdogs();
+
     optind = 1;
     for(;;) {
         if (optind >= argc)
@@ -5307,6 +5312,17 @@ int main(int argc, char **argv, char **envp)
                 }
                 serial_devices[serial_device_index] = optarg;
                 serial_device_index++;
+                break;
+            case QEMU_OPTION_watchdog:
+                i = select_watchdog(optarg);
+                if (i > 0)
+                    exit (i == 1 ? 1 : 0);
+                break;
+            case QEMU_OPTION_watchdog_action:
+                if (select_watchdog_action(optarg) == -1) {
+                    fprintf(stderr, "Unknown -watchdog-action parameter\n");
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_virtiocon:
                 if (virtio_console_index >= MAX_VIRTIO_CONSOLES) {

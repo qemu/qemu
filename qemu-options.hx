@@ -1448,6 +1448,55 @@ order cores with complex cache hierarchies.  The number of instructions
 executed often has little or no correlation with actual performance.
 ETEXI
 
+DEF("watchdog", HAS_ARG, QEMU_OPTION_watchdog, \
+    "-watchdog i6300esb|ib700\n" \
+    "                enable virtual hardware watchdog [default=none]\n")
+STEXI
+@item -watchdog @var{model}
+Create a virtual hardware watchdog device.  Once enabled (by a guest
+action), the watchdog must be periodically polled by an agent inside
+the guest or else the guest will be restarted.
+
+The @var{model} is the model of hardware watchdog to emulate.  Choices
+for model are: @code{ib700} (iBASE 700) which is a very simple ISA
+watchdog with a single timer, or @code{i6300esb} (Intel 6300ESB I/O
+controller hub) which is a much more featureful PCI-based dual-timer
+watchdog.  Choose a model for which your guest has drivers.
+
+Use @code{-watchdog ?} to list available hardware models.  Only one
+watchdog can be enabled for a guest.
+ETEXI
+
+DEF("watchdog-action", HAS_ARG, QEMU_OPTION_watchdog_action, \
+    "-watchdog-action reset|shutdown|poweroff|pause|debug|none\n" \
+    "                action when watchdog fires [default=reset]\n")
+STEXI
+@item -watchdog-action @var{action}
+
+The @var{action} controls what QEMU will do when the watchdog timer
+expires.
+The default is
+@code{reset} (forcefully reset the guest).
+Other possible actions are:
+@code{shutdown} (attempt to gracefully shutdown the guest),
+@code{poweroff} (forcefully poweroff the guest),
+@code{pause} (pause the guest),
+@code{debug} (print a debug message and continue), or
+@code{none} (do nothing).
+
+Note that the @code{shutdown} action requires that the guest responds
+to ACPI signals, which it may not be able to do in the sort of
+situations where the watchdog would have expired, and thus
+@code{-watchdog-action shutdown} is not recommended for production use.
+
+Examples:
+
+@table @code
+@item -watchdog i6300esb -watchdog-action pause
+@item -watchdog ib700
+@end table
+ETEXI
+
 DEF("echr", HAS_ARG, QEMU_OPTION_echr, \
     "-echr chr       set terminal escape character instead of ctrl-a\n")
 STEXI
