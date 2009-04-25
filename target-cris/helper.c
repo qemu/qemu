@@ -77,7 +77,7 @@ static void cris_shift_ccs(CPUState *env)
 int cpu_cris_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                                int mmu_idx, int is_softmmu)
 {
-	struct cris_mmu_result_t res;
+	struct cris_mmu_result res;
 	int prot, miss;
 	int r = -1;
 	target_ulong phy;
@@ -191,7 +191,7 @@ void do_interrupt(CPUState *env)
 target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
 {
 	uint32_t phy = addr;
-	struct cris_mmu_result_t res;
+	struct cris_mmu_result res;
 	int miss;
 	miss = cris_mmu_translate(&res, env, addr, 0, 0);
 	if (!miss)
