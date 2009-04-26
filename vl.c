@@ -1866,29 +1866,45 @@ int get_param_value(char *buf, int buf_size,
     return 0;
 }
 
-int check_params(char *buf, int buf_size,
-                 const char * const *params, const char *str)
+int check_params(const char * const *params, const char *str)
 {
+    int name_buf_size = 1;
     const char *p;
-    int i;
+    char *name_buf;
+    int i, len;
+    int ret = 0;
+
+    for (i = 0; params[i] != NULL; i++) {
+        len = strlen(params[i]) + 1;
+        if (len > name_buf_size) {
+            name_buf_size = len;
+        }
+    }
+    name_buf = qemu_malloc(name_buf_size);
 
     p = str;
     while (*p != '\0') {
-        p = get_opt_name(buf, buf_size, p, '=');
-        if (*p != '=')
-            return -1;
+        p = get_opt_name(name_buf, name_buf_size, p, '=');
+        if (*p != '=') {
+            ret = -1;
+            break;
+        }
         p++;
         for(i = 0; params[i] != NULL; i++)
-            if (!strcmp(params[i], buf))
+            if (!strcmp(params[i], name_buf))
                 break;
-        if (params[i] == NULL)
-            return -1;
+        if (params[i] == NULL) {
+            ret = -1;
+            break;
+        }
         p = get_opt_value(NULL, 0, p);
         if (*p != ',')
             break;
         p++;
     }
-    return 0;
+
+    qemu_free(name_buf);
+    return ret;
 }
 
 /***********************************************************/
@@ -2241,7 +2257,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
                                            "cache", "format", "serial", "werror",
                                            NULL };
 
-    if (check_params(buf, sizeof(buf), params, str) < 0) {
+    if (check_params(params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
                          buf, str);
          return -1;
