@@ -2484,6 +2484,9 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
 
     last_ram_offset += size;
 
+    if (kvm_enabled())
+        kvm_setup_guest_memory(new_block->host, size);
+
     return new_block->offset;
 }
 

@@ -773,6 +773,24 @@ int kvm_has_sync_mmu(void)
     return 0;
 }
 
+void kvm_setup_guest_memory(void *start, size_t size)
+{
+    if (!kvm_has_sync_mmu()) {
+#ifdef MADV_DONTFORK
+        int ret = madvise(start, size, MADV_DONTFORK);
+
+        if (ret) {
+            perror("madvice");
+            exit(1);
+        }
+#else
+        fprintf(stderr,
+                "Need MADV_DONTFORK in absence of synchronous KVM MMU\n");
+        exit(1);
+#endif
+    }
+}
+
 #ifdef KVM_CAP_SET_GUEST_DEBUG
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *env,
                                                  target_ulong pc)
