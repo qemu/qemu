@@ -2386,6 +2386,10 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size)
     }
     addr = phys_ram_alloc_offset;
     phys_ram_alloc_offset = TARGET_PAGE_ALIGN(phys_ram_alloc_offset + size);
+
+    if (kvm_enabled())
+        kvm_setup_guest_memory(phys_ram_base + addr, size);
+
     return addr;
 }
 
