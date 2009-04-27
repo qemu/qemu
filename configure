@@ -822,7 +822,7 @@ cat > $TMPC <<EOF
 #include <xs.h>
 int main(void) { xs_daemon_open; xc_interface_open; }
 EOF
-   if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC -lxenstore -lxenctrl 2> /dev/null ; then
+   if $cc $ARCH_CFLAGS -c -o $TMPO $TMPC -lxenstore -lxenctrl 2> /dev/null > /dev/null ; then
       :
    else
       xen="no"
@@ -920,7 +920,7 @@ EOF
     vnc_sasl_cflags=""
     vnc_sasl_libs="-lsasl2"
     if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $vnc_sasl_cflags $TMPC \
-           $vnc_sasl_libs 2> /dev/null ; then
+           $vnc_sasl_libs 2> /dev/null > /dev/null ; then
 	:
     else
 	vnc_sasl="no"
@@ -1140,7 +1140,7 @@ cat > $TMPC << EOF
 #include <pthread.h>
 int main(void) { pthread_mutex_t lock;  return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $PTHREADLIBS $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $PTHREADLIBS $TMPC 2> /dev/null > /dev/null ; then
     pthread=yes
     PTHREADLIBS="-lpthread"
   fi
@@ -1184,7 +1184,7 @@ if test "$fdt" = "yes" ; then
     cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lfdt 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $TMPC -lfdt 2> /dev/null > /dev/null ; then
     fdt=yes
   fi
 fi
@@ -1209,7 +1209,7 @@ main(void)
 	return (unlinkat(AT_FDCWD, "nonexistent_file", 0));
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
     atfile=yes
   fi
 fi
@@ -1231,7 +1231,7 @@ main(void)
 	return inotify_init();
 }
 EOF
-  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null > /dev/null ; then
     inotify=yes
   fi
 fi
