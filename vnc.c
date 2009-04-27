@@ -683,7 +683,7 @@ static int find_and_clear_dirty_height(struct VncSurface *s,
 {
     int h;
 
-    for (h = 1; h < (s->ds->height - y) && h < 1; h++) {
+    for (h = 1; h < (s->ds->height - y); h++) {
         int tmp_x;
         if (!vnc_get_bit(s->dirty[y + h], last_x))
             break;
