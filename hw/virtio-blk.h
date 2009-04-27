@@ -28,6 +28,9 @@
 #define VIRTIO_BLK_F_SIZE_MAX   1       /* Indicates maximum segment size */
 #define VIRTIO_BLK_F_SEG_MAX    2       /* Indicates maximum # of segments */
 #define VIRTIO_BLK_F_GEOMETRY   4       /* Indicates support of legacy geometry */
+#define VIRTIO_BLK_F_RO         5       /* Disk is read-only */
+#define VIRTIO_BLK_F_BLK_SIZE   6       /* Block size of disk is available*/
+#define VIRTIO_BLK_F_SCSI       7       /* Supports scsi command passthru */
 
 struct virtio_blk_config
 {
@@ -68,6 +71,15 @@ struct virtio_blk_outhdr
 struct virtio_blk_inhdr
 {
     unsigned char status;
+};
+
+/* SCSI pass-through header */
+struct virtio_scsi_inhdr
+{
+    uint32_t errors;
+    uint32_t data_len;
+    uint32_t sense_len;
+    uint32_t residual;
 };
 
 void *virtio_blk_init(PCIBus *bus, BlockDriverState *bs);
