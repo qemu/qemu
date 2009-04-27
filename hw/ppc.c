@@ -551,13 +551,13 @@ static void cpu_ppc_tb_start (CPUState *env)
 }
 
 static always_inline uint32_t _cpu_ppc_load_decr (CPUState *env,
-                                                  uint64_t *next)
+                                                  uint64_t next)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint32_t decr;
     int64_t diff;
 
-    diff = tb_env->decr_next - qemu_get_clock(vm_clock);
+    diff = next - qemu_get_clock(vm_clock);
     if (diff >= 0)
         decr = muldiv64(diff, tb_env->decr_freq, ticks_per_sec);
     else
@@ -571,14 +571,14 @@ uint32_t cpu_ppc_load_decr (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
-    return _cpu_ppc_load_decr(env, &tb_env->decr_next);
+    return _cpu_ppc_load_decr(env, tb_env->decr_next);
 }
 
 uint32_t cpu_ppc_load_hdecr (CPUState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
-    return _cpu_ppc_load_decr(env, &tb_env->hdecr_next);
+    return _cpu_ppc_load_decr(env, tb_env->hdecr_next);
 }
 
 uint64_t cpu_ppc_load_purr (CPUState *env)
