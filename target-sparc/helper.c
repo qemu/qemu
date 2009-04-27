@@ -490,7 +490,7 @@ static int get_physical_address_code(CPUState *env,
 #ifdef DEBUG_MMU
     printf("TMISS at 0x%" PRIx64 "\n", address);
 #endif
-    env->immuregs[6] = (address & ~0x1fffULL) | (env->immuregs[1] & 0x1fff);
+    env->immuregs[6] = (address & ~0x1fffULL) | (env->dmmuregs[1] & 0x1fff);
     env->exception_index = TT_TMISS;
     return 1;
 }
