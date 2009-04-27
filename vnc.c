@@ -705,7 +705,7 @@ static void vnc_update_client(void *opaque)
         int y;
         uint8_t *guest_row;
         uint8_t *server_row;
-        int cmp_bytes = 16 * ds_get_bytes_per_pixel(vs->ds);
+        int cmp_bytes;
         uint32_t width_mask[VNC_DIRTY_WORDS];
         int n_rectangles;
         int saved_offset;
@@ -725,6 +725,7 @@ static void vnc_update_client(void *opaque)
          * Update server dirty map.
          */
         vnc_set_bits(width_mask, (ds_get_width(vs->ds) / 16), VNC_DIRTY_WORDS);
+        cmp_bytes = 16 * ds_get_bytes_per_pixel(vs->ds);
         guest_row  = vs->guest.ds->data;
         server_row = vs->server.ds->data;
         for (y = 0; y < vs->guest.ds->height; y++) {
