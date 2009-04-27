@@ -1422,8 +1422,8 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 
     int i;
     vs->need_update = 1;
-    vs->force_update = 1;
     if (!incremental) {
+        vs->force_update = 1;
         for (i = 0; i < h; i++) {
             vnc_set_bits(vs->guest.dirty[y_position + i],
                          (ds_get_width(vs->ds) / 16), VNC_DIRTY_WORDS);
