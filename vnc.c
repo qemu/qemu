@@ -366,17 +366,13 @@ static void vnc_resize(VncState *vs)
     memset(vs->guest.dirty, 0xFF, sizeof(vs->guest.dirty));
 
     /* server surface */
-    if (!vs->server.ds) {
-        vs->server.ds = default_allocator.create_displaysurface(ds_get_width(ds),
-                                                                ds_get_height(ds));
-    } else {
-        default_allocator.resize_displaysurface(vs->server.ds,
-                                                ds_get_width(ds), ds_get_height(ds));
-    }
-    if (vs->server.ds->data == NULL) {
-        fprintf(stderr, "vnc: memory allocation failed\n");
-        exit(1);
-    }
+    if (!vs->server.ds)
+        vs->server.ds = qemu_mallocz(sizeof(*vs->server.ds));
+    if (vs->server.ds->data)
+        qemu_free(vs->server.ds->data);
+    *(vs->server.ds) = *(ds->surface);
+    vs->server.ds->data = qemu_mallocz(vs->server.ds->linesize *
+                                       vs->server.ds->height);
     memset(vs->server.dirty, 0xFF, sizeof(vs->guest.dirty));
 }
 
@@ -919,7 +915,8 @@ int vnc_client_io_error(VncState *vs, int ret, int last_errno)
         if (!vs->vd->clients)
             dcl->idle = 1;
 
-        default_allocator.free_displaysurface(vs->server.ds);
+        qemu_free(vs->server.ds->data);
+        qemu_free(vs->server.ds);
         qemu_free(vs->guest.ds);
         qemu_free(vs);
 
