@@ -404,7 +404,7 @@ static int get_physical_address_data(CPUState *env,
         }
         // ctx match, vaddr match, valid?
         if (env->dmmuregs[1] == (env->dtlb_tag[i] & 0x1fff) &&
-            (address & mask) == (env->dtlb_tag[i] & ~0x1fffULL) &&
+            (address & mask) == (env->dtlb_tag[i] & mask) &&
             (env->dtlb_tte[i] & 0x8000000000000000ULL)) {
             // access ok?
             if (((env->dtlb_tte[i] & 0x4) && is_user) ||
@@ -420,8 +420,8 @@ static int get_physical_address_data(CPUState *env,
 #endif
                 return 1;
             }
-            *physical = (env->dtlb_tte[i] & mask & 0x1fffffff000ULL) +
-                (address & ~mask & 0x1fffffff000ULL);
+            *physical = ((env->dtlb_tte[i] & mask) | (address & ~mask)) &
+                        0x1ffffffe000ULL;
             *prot = PAGE_READ;
             if (env->dtlb_tte[i] & 0x2)
                 *prot |= PAGE_WRITE;
@@ -467,7 +467,7 @@ static int get_physical_address_code(CPUState *env,
         }
         // ctx match, vaddr match, valid?
         if (env->dmmuregs[1] == (env->itlb_tag[i] & 0x1fff) &&
-            (address & mask) == (env->itlb_tag[i] & ~0x1fffULL) &&
+            (address & mask) == (env->itlb_tag[i] & mask) &&
             (env->itlb_tte[i] & 0x8000000000000000ULL)) {
             // access ok?
             if ((env->itlb_tte[i] & 0x4) && is_user) {
@@ -481,8 +481,8 @@ static int get_physical_address_code(CPUState *env,
 #endif
                 return 1;
             }
-            *physical = (env->itlb_tte[i] & mask & 0x1fffffff000ULL) +
-                (address & ~mask & 0x1fffffff000ULL);
+            *physical = ((env->itlb_tte[i] & mask) | (address & ~mask)) &
+                        0x1ffffffe000ULL;
             *prot = PAGE_EXEC;
             return 0;
         }
@@ -490,7 +490,7 @@ static int get_physical_address_code(CPUState *env,
 #ifdef DEBUG_MMU
     printf("TMISS at 0x%" PRIx64 "\n", address);
 #endif
-    env->immuregs[6] = (address & ~0x1fffULL) | (env->dmmuregs[1] & 0x1fff);
+    env->immuregs[6] = (address & ~0x1fffULL) | (env->immuregs[1] & 0x1fff);
     env->exception_index = TT_TMISS;
     return 1;
 }
