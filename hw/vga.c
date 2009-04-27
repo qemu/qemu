@@ -1584,8 +1584,9 @@ static void vga_sync_dirty_bitmap(VGAState *s)
  */
 static void vga_draw_graphic(VGAState *s, int full_update)
 {
-    int y1, y, update, page_min, page_max, linesize, y_start, double_scan, mask, depth;
-    int width, height, shift_control, line_offset, page0, page1, bwidth, bits;
+    int y1, y, update, linesize, y_start, double_scan, mask, depth;
+    int width, height, shift_control, line_offset, bwidth, bits;
+    ram_addr_t page0, page1, page_min, page_max;
     int disp_width, multi_scan, multi_run;
     uint8_t *d;
     uint32_t v, addr1, addr;
@@ -1723,8 +1724,8 @@ static void vga_draw_graphic(VGAState *s, int full_update)
     addr1 = (s->start_addr * 4);
     bwidth = (width * bits + 7) / 8;
     y_start = -1;
-    page_min = 0x7fffffff;
-    page_max = -1;
+    page_min = -1;
+    page_max = 0;
     d = ds_get_data(s->ds);
     linesize = ds_get_linesize(s->ds);
     y1 = 0;
@@ -1791,7 +1792,7 @@ static void vga_draw_graphic(VGAState *s, int full_update)
                    disp_width, y - y_start);
     }
     /* reset modified pages */
-    if (page_max != -1) {
+    if (page_max >= page_min) {
         cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE,
                                         VGA_DIRTY_FLAG);
     }
