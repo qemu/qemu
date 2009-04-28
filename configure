@@ -1064,15 +1064,15 @@ fi # test "$curses"
 ##########################################
 # bluez support probe
 if test "$bluez" = "yes" ; then
-  `pkg-config bluez` || bluez="no"
+  `pkg-config bluez 2> /dev/null` || bluez="no"
 fi
 if test "$bluez" = "yes" ; then
   cat > $TMPC << EOF
 #include <bluetooth/bluetooth.h>
 int main(void) { return bt_error(0); }
 EOF
-  bluez_cflags=`pkg-config --cflags bluez`
-  bluez_libs=`pkg-config --libs bluez`
+  bluez_cflags=`pkg-config --cflags bluez 2> /dev/null`
+  bluez_libs=`pkg-config --libs bluez 2> /dev/null`
   if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} $bluez_cflags $TMPC \
       $bluez_libs > /dev/null 2> /dev/null ; then
     :
