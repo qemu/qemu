@@ -2609,7 +2609,7 @@ static void init_excp_4xx_real (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_FIT]      = 0x00001010;
     env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001020;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     env->ivor_mask = 0x0000FFF0UL;
     env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
@@ -2634,7 +2634,7 @@ static void init_excp_4xx_softmmu (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00001100;
     env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     env->ivor_mask = 0x0000FFF0UL;
     env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
@@ -2660,7 +2660,7 @@ static void init_excp_MPC5xx (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001C00;
     env->excp_vectors[POWERPC_EXCP_MEXTBR]   = 0x00001E00;
     env->excp_vectors[POWERPC_EXCP_NMEXTBR]  = 0x00001F00;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     env->ivor_mask = 0x0000FFF0UL;
     env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
@@ -2692,7 +2692,7 @@ static void init_excp_MPC8xx (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001C00;
     env->excp_vectors[POWERPC_EXCP_MEXTBR]   = 0x00001E00;
     env->excp_vectors[POWERPC_EXCP_NMEXTBR]  = 0x00001F00;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     env->ivor_mask = 0x0000FFF0UL;
     env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
@@ -2720,7 +2720,7 @@ static void init_excp_G2 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2749,7 +2749,7 @@ static void init_excp_e200 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_SPEU]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_EFPDI]    = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_EFPRI]    = 0x00000000;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     env->ivor_mask = 0x0000FFF7UL;
     env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
@@ -2776,7 +2776,7 @@ static void init_excp_BookE (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00000000;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     env->ivor_mask = 0x0000FFE0UL;
     env->ivpr_mask = 0xFFFF0000UL;
     /* Hardware reset vector */
@@ -2799,7 +2799,7 @@ static void init_excp_601 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IO]       = 0x00000A00;
     env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
     env->excp_vectors[POWERPC_EXCP_RUNM]     = 0x00002000;
-    env->excp_prefix = 0xFFF00000UL;
+    env->hreset_excp_prefix = 0xFFF00000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0x00000100UL;
 #endif
@@ -2827,7 +2827,7 @@ static void init_excp_602 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001500;
     env->excp_vectors[POWERPC_EXCP_EMUL]     = 0x00001600;
-    env->excp_prefix = 0xFFF00000UL;
+    env->hreset_excp_prefix = 0xFFF00000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2852,7 +2852,7 @@ static void init_excp_603 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2875,7 +2875,7 @@ static void init_excp_604 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2899,7 +2899,7 @@ static void init_excp_620 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
-    env->excp_prefix = 0xFFF00000UL;
+    env->hreset_excp_prefix = 0xFFF00000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0x0000000000000100ULL;
 #endif
@@ -2924,7 +2924,7 @@ static void init_excp_7x0 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2947,7 +2947,7 @@ static void init_excp_750cl (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2970,7 +2970,7 @@ static void init_excp_750cx (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -2998,7 +2998,7 @@ static void init_excp_7x5 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -3024,7 +3024,7 @@ static void init_excp_7400 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001700;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -3052,7 +3052,7 @@ static void init_excp_7450 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
-    env->excp_prefix = 0x00000000UL;
+    env->hreset_excp_prefix = 0x00000000UL;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -3082,7 +3082,7 @@ static void init_excp_970 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_MAINT]    = 0x00001600;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001700;
     env->excp_vectors[POWERPC_EXCP_THERM]    = 0x00001800;
-    env->excp_prefix   = 0x00000000FFF00000ULL;
+    env->hreset_excp_prefix = 0x00000000FFF00000ULL;
     /* Hardware reset vector */
     env->hreset_vector = 0x0000000000000100ULL;
 #endif
@@ -8892,7 +8892,7 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
     /* Set all exception vectors to an invalid address */
     for (i = 0; i < POWERPC_EXCP_NB; i++)
         env->excp_vectors[i] = (target_ulong)(-1ULL);
-    env->excp_prefix = 0x00000000;
+    env->hreset_excp_prefix = 0x00000000;
     env->ivor_mask = 0x00000000;
     env->ivpr_mask = 0x00000000;
     /* Default MMU definitions */
@@ -8922,6 +8922,9 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
     }
     /* PowerPC implementation specific initialisations (SPRs, timers, ...) */
     (*def->init_proc)(env);
+#if !defined(CONFIG_USER_ONLY)
+    env->excp_prefix = env->hreset_excp_prefix;
+#endif
     /* MSR bits & flags consistency checks */
     if (env->msr_mask & (1 << 25)) {
         switch (env->flags & (POWERPC_FLAG_SPE | POWERPC_FLAG_VRE)) {

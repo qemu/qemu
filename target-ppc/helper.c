@@ -2796,6 +2796,7 @@ void cpu_ppc_reset (void *opaque)
     msr |= (target_ulong)1 << MSR_SPE; /* Allow SPE usage */
     msr |= (target_ulong)1 << MSR_PR;
 #else
+    env->excp_prefix = env->hreset_excp_prefix;
     env->nip = env->hreset_vector | env->excp_prefix;
     if (env->mmu_model != POWERPC_MMU_REAL)
         ppc_tlb_invalidate_all(env);
