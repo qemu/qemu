@@ -409,16 +409,30 @@ int qemu_can_send_packet(VLANClientState *sender)
     return 0;
 }
 
-static void
+static int
 qemu_deliver_packet(VLANClientState *sender, const uint8_t *buf, int size)
 {
     VLANClientState *vc;
+    int ret = -1;
 
     for (vc = sender->vlan->first_client; vc != NULL; vc = vc->next) {
-        if (vc != sender && !vc->link_down) {
-            vc->receive(vc, buf, size);
+        ssize_t len;
+
+        if (vc == sender) {
+            continue;
         }
+
+        if (vc->link_down) {
+            ret = size;
+            continue;
+        }
+
+        len = vc->receive(vc, buf, size);
+
+        ret = (ret >= 0) ? ret : len;
     }
+
+    return ret;
 }
 
 void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size)
