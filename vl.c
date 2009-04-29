@@ -3713,6 +3713,8 @@ static int qemu_event_init(void)
                          (void *)(unsigned long)fds[0]);
 
     io_thread_fd = fds[1];
+    return 0;
+
 fail:
     close(fds[0]);
     close(fds[1]);
