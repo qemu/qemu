@@ -951,21 +951,31 @@ static void tap_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+#ifdef __sun__
+static ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
+{
+    struct strbuf sbuf;
+    int f = 0;
+
+    sbuf.maxlen = maxlen;
+    sbuf.buf = (char *)buf;
+
+    return getmsg(tapfd, NULL, &sbuf, &f) >= 0 ? sbuf.len : -1;
+}
+#else
+static ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
+{
+    return read(tapfd, buf, maxlen);
+}
+#endif
+
 static void tap_send(void *opaque)
 {
     TAPState *s = opaque;
     uint8_t buf[4096];
     int size;
 
-#ifdef __sun__
-    struct strbuf sbuf;
-    int f = 0;
-    sbuf.maxlen = sizeof(buf);
-    sbuf.buf = (char *)buf;
-    size = getmsg(s->fd, NULL, &sbuf, &f) >=0 ? sbuf.len : -1;
-#else
-    size = read(s->fd, buf, sizeof(buf));
-#endif
+    size = tap_read_packet(s->fd, buf, sizeof(buf));
     if (size > 0) {
         qemu_send_packet(s->vc, buf, size);
     }
