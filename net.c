@@ -1079,15 +1079,31 @@ static ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 }
 #endif
 
+static void tap_send(void *opaque);
+
+static void tap_send_completed(VLANClientState *vc)
+{
+    TAPState *s = vc->opaque;
+
+    qemu_set_fd_handler2(s->fd, tap_can_send, tap_send, NULL, s);
+}
+
 static void tap_send(void *opaque)
 {
     TAPState *s = opaque;
     int size;
 
-    size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
-    if (size > 0) {
-        qemu_send_packet(s->vc, s->buf, size);
-    }
+    do {
+        size = tap_read_packet(s->fd, s->buf, sizeof(s->buf));
+        if (size <= 0) {
+            break;
+        }
+
+        size = qemu_send_packet_async(s->vc, s->buf, size, tap_send_completed);
+        if (size == 0) {
+            qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+        }
+    } while (size > 0);
 }
 
 static void tap_cleanup(VLANClientState *vc)
