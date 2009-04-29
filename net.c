@@ -389,15 +389,19 @@ VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque)
     return NULL;
 }
 
-int qemu_can_send_packet(VLANClientState *vc1)
+int qemu_can_send_packet(VLANClientState *sender)
 {
-    VLANState *vlan = vc1->vlan;
+    VLANState *vlan = sender->vlan;
     VLANClientState *vc;
 
-    for(vc = vlan->first_client; vc != NULL; vc = vc->next) {
-        if (vc != vc1) {
-            if (vc->fd_can_read && vc->fd_can_read(vc->opaque))
-                return 1;
+    for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
+        if (vc == sender) {
+            continue;
+        }
+
+        /* no fd_can_read() handler, they can always receive */
+        if (!vc->fd_can_read || vc->fd_can_read(vc->opaque)) {
+            return 1;
         }
     }
     return 0;
