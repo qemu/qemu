@@ -269,6 +269,9 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
 static void virtio_net_handle_rx(VirtIODevice *vdev, VirtQueue *vq)
 {
+    VirtIONet *n = to_virtio_net(vdev);
+
+    qemu_flush_queued_packets(n->vc);
 }
 
 static int do_virtio_net_can_receive(VirtIONet *n, int bufsize)
@@ -368,7 +371,7 @@ static ssize_t virtio_net_receive(VLANClientState *vc, const uint8_t *buf, size_
     size_t hdr_len, offset, i;
 
     if (!do_virtio_net_can_receive(n, size))
-        return -1;
+        return 0;
 
     if (!receive_filter(n, buf, size))
         return size;
