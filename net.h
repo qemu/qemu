@@ -32,10 +32,13 @@ struct VLANClientState {
 
 typedef struct VLANPacket VLANPacket;
 
+typedef void (NetPacketSent) (VLANClientState *);
+
 struct VLANPacket {
     struct VLANPacket *next;
     VLANClientState *sender;
     int size;
+    NetPacketSent *sent_cb;
     uint8_t data[0];
 };
 
@@ -62,7 +65,12 @@ VLANClientState *qemu_find_vlan_client(VLANState *vlan, void *opaque);
 int qemu_can_send_packet(VLANClientState *vc);
 ssize_t qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov,
                           int iovcnt);
+ssize_t qemu_sendv_packet_async(VLANClientState *vc, const struct iovec *iov,
+                                int iovcnt, NetPacketSent *sent_cb);
 void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
+ssize_t qemu_send_packet_async(VLANClientState *vc, const uint8_t *buf,
+                               int size, NetPacketSent *sent_cb);
+void qemu_flush_queued_packets(VLANClientState *vc);
 void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6]);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
 void qemu_check_nic_model_list(NICInfo *nd, const char * const *models,
