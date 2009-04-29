@@ -956,6 +956,13 @@ static void tap_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+static int tap_can_send(void *opaque)
+{
+    TAPState *s = opaque;
+
+    return qemu_can_send_packet(s->vc);
+}
+
 #ifdef __sun__
 static ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 {
@@ -1011,7 +1018,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     s->vc = qemu_new_vlan_client(vlan, model, name, tap_receive,
                                  NULL, tap_cleanup, s);
     s->vc->fd_readv = tap_receive_iov;
-    qemu_set_fd_handler(s->fd, tap_send, NULL, s);
+    qemu_set_fd_handler2(s->fd, tap_can_send, tap_send, NULL, s);
     snprintf(s->vc->info_str, sizeof(s->vc->info_str), "fd=%d", fd);
     return s;
 }
