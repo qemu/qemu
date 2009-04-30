@@ -583,7 +583,15 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
     int err;
 
     if (start_addr & ~TARGET_PAGE_MASK) {
-        fprintf(stderr, "Only page-aligned memory slots supported\n");
+        if (flags >= IO_MEM_UNASSIGNED) {
+            if (!kvm_lookup_overlapping_slot(s, start_addr,
+                                             start_addr + size)) {
+                return;
+            }
+            fprintf(stderr, "Unaligned split of a KVM memory slot\n");
+        } else {
+            fprintf(stderr, "Only page-aligned memory slots supported\n");
+        }
         abort();
     }
 
