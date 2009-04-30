@@ -917,8 +917,6 @@ int cpu_register_io_memory(int io_index,
                            CPUWriteMemoryFunc **mem_write,
                            void *opaque);
 void cpu_unregister_io_memory(int table_address);
-CPUWriteMemoryFunc **cpu_get_io_memory_write(int io_index);
-CPUReadMemoryFunc **cpu_get_io_memory_read(int io_index);
 
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                             int len, int is_write);

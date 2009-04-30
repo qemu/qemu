@@ -3016,8 +3016,7 @@ static void io_mem_init(void)
 
 /* mem_read and mem_write are arrays of functions containing the
    function to access byte (index 0), word (index 1) and dword (index
-   2). Functions can be omitted with a NULL function pointer. The
-   registered functions may be modified dynamically later.
+   2). Functions can be omitted with a NULL function pointer.
    If io_index is non zero, the corresponding io zone is
    modified. If it is zero, a new io zone is allocated. The return
    value can be used with cpu_register_physical_memory(). (-1) is
@@ -3059,16 +3058,6 @@ void cpu_unregister_io_memory(int io_table_address)
     }
     io_mem_opaque[io_index] = NULL;
     io_mem_used[io_index] = 0;
-}
-
-CPUWriteMemoryFunc **cpu_get_io_memory_write(int io_index)
-{
-    return io_mem_write[io_index >> IO_MEM_SHIFT];
-}
-
-CPUReadMemoryFunc **cpu_get_io_memory_read(int io_index)
-{
-    return io_mem_read[io_index >> IO_MEM_SHIFT];
 }
 
 #endif /* !defined(CONFIG_USER_ONLY) */
