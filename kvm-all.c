@@ -57,6 +57,7 @@ struct KVMState
     int fd;
     int vmfd;
     int coalesced_mmio;
+    int broken_set_mem_region;
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
@@ -406,6 +407,14 @@ int kvm_init(int smp_cpus)
     s->coalesced_mmio = 0;
 #endif
 
+    s->broken_set_mem_region = 1;
+#ifdef KVM_CAP_JOIN_MEMORY_REGIONS_WORKS
+    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_JOIN_MEMORY_REGIONS_WORKS);
+    if (ret > 0) {
+        s->broken_set_mem_region = 0;
+    }
+#endif
+
     ret = kvm_arch_init(s, smp_cpus);
     if (ret < 0)
         goto err;
@@ -639,7 +648,8 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
          * address as the first existing one. If not or if some overlapping
          * slot comes around later, we will fail (not seen in practice so far)
          * - and actually require a recent KVM version. */
-        if (old.start_addr == start_addr && old.memory_size < size &&
+        if (s->broken_set_mem_region &&
+            old.start_addr == start_addr && old.memory_size < size &&
             flags < IO_MEM_UNASSIGNED) {
             mem = kvm_alloc_slot(s);
             mem->memory_size = old.memory_size;
