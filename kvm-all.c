@@ -22,6 +22,7 @@
 
 #include "qemu-common.h"
 #include "sysemu.h"
+#include "hw/hw.h"
 #include "gdbstub.h"
 #include "kvm.h"
 
@@ -376,6 +377,11 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
     return ret;
 }
 
+static void kvm_reset_vcpus(void *opaque)
+{
+    kvm_sync_vcpus();
+}
+
 int kvm_init(int smp_cpus)
 {
     KVMState *s;
@@ -461,6 +467,8 @@ int kvm_init(int smp_cpus)
     ret = kvm_arch_init(s, smp_cpus);
     if (ret < 0)
         goto err;
+
+    qemu_register_reset(kvm_reset_vcpus, INT_MAX, NULL);
 
     kvm_state = s;
 
