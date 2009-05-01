@@ -58,6 +58,7 @@ struct KVMState
     int vmfd;
     int coalesced_mmio;
     int broken_set_mem_region;
+    int migration_log;
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
@@ -135,7 +136,9 @@ static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
     mem.memory_size = slot->memory_size;
     mem.userspace_addr = (unsigned long)qemu_get_ram_ptr(slot->phys_offset);
     mem.flags = slot->flags;
-
+    if (s->migration_log) {
+        mem.flags |= KVM_MEM_LOG_DIRTY_PAGES;
+    }
     return kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
 }
 
@@ -196,11 +199,12 @@ int kvm_sync_vcpus(void)
  * dirty pages logging control
  */
 static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
-                                      ram_addr_t size, unsigned flags,
-                                      unsigned mask)
+                                      ram_addr_t size, int flags, int mask)
 {
     KVMState *s = kvm_state;
     KVMSlot *mem = kvm_lookup_matching_slot(s, phys_addr, phys_addr + size);
+    int old_flags;
+
     if (mem == NULL)  {
             fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
                     TARGET_FMT_plx "\n", __func__, phys_addr,
@@ -208,12 +212,18 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
             return -EINVAL;
     }
 
-    flags = (mem->flags & ~mask) | flags;
-    /* Nothing changed, no need to issue ioctl */
-    if (flags == mem->flags)
-            return 0;
+    old_flags = mem->flags;
 
+    flags = (mem->flags & ~mask) | flags;
     mem->flags = flags;
+
+    /* If nothing changed effectively, no need to issue ioctl */
+    if (s->migration_log) {
+        flags |= KVM_MEM_LOG_DIRTY_PAGES;
+    }
+    if (flags == old_flags) {
+            return 0;
+    }
 
     return kvm_set_user_memory_region(s, mem);
 }
@@ -230,6 +240,28 @@ int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size)
         return kvm_dirty_pages_log_change(phys_addr, size,
                                           0,
                                           KVM_MEM_LOG_DIRTY_PAGES);
+}
+
+int kvm_set_migration_log(int enable)
+{
+    KVMState *s = kvm_state;
+    KVMSlot *mem;
+    int i, err;
+
+    s->migration_log = enable;
+
+    for (i = 0; i < ARRAY_SIZE(s->slots); i++) {
+        mem = &s->slots[i];
+
+        if (!!(mem->flags & KVM_MEM_LOG_DIRTY_PAGES) == enable) {
+            continue;
+        }
+        err = kvm_set_user_memory_region(s, mem);
+        if (err) {
+            return err;
+        }
+    }
+    return 0;
 }
 
 /**
