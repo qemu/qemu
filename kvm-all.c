@@ -588,7 +588,15 @@ void kvm_set_phys_mem(target_phys_addr_t start_addr,
     int err;
 
     if (start_addr & ~TARGET_PAGE_MASK) {
-        fprintf(stderr, "Only page-aligned memory slots supported\n");
+        if (flags >= IO_MEM_UNASSIGNED) {
+            if (!kvm_lookup_overlapping_slot(s, start_addr,
+                                             start_addr + size)) {
+                return;
+            }
+            fprintf(stderr, "Unaligned split of a KVM memory slot\n");
+        } else {
+            fprintf(stderr, "Only page-aligned memory slots supported\n");
+        }
         abort();
     }
 
@@ -768,6 +776,24 @@ int kvm_has_sync_mmu(void)
 #endif
 
     return 0;
+}
+
+void kvm_setup_guest_memory(void *start, size_t size)
+{
+    if (!kvm_has_sync_mmu()) {
+#ifdef MADV_DONTFORK
+        int ret = madvise(start, size, MADV_DONTFORK);
+
+        if (ret) {
+            perror("madvice");
+            exit(1);
+        }
+#else
+        fprintf(stderr,
+                "Need MADV_DONTFORK in absence of synchronous KVM MMU\n");
+        exit(1);
+#endif
+    }
 }
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG

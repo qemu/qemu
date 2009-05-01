@@ -15,6 +15,9 @@
 #include <sysemu.h>
 #include "virtio-blk.h"
 #include "block_int.h"
+#ifdef __linux__
+# include <scsi/sg.h>
+#endif
 
 typedef struct VirtIOBlock
 {
@@ -35,6 +38,7 @@ typedef struct VirtIOBlockReq
     VirtQueueElement elem;
     struct virtio_blk_inhdr *in;
     struct virtio_blk_outhdr *out;
+    struct virtio_scsi_inhdr *scsi;
     QEMUIOVector qiov;
     struct VirtIOBlockReq *next;
 } VirtIOBlockReq;
@@ -103,6 +107,108 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
     return req;
 }
 
+#ifdef __linux__
+static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
+{
+    struct sg_io_hdr hdr;
+    int ret, size = 0;
+    int status;
+    int i;
+
+    /*
+     * We require at least one output segment each for the virtio_blk_outhdr
+     * and the SCSI command block.
+     *
+     * We also at least require the virtio_blk_inhdr, the virtio_scsi_inhdr
+     * and the sense buffer pointer in the input segments.
+     */
+    if (req->elem.out_num < 2 || req->elem.in_num < 3) {
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+        return;
+    }
+
+    /*
+     * No support for bidirection commands yet.
+     */
+    if (req->elem.out_num > 2 && req->elem.in_num > 3) {
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
+        return;
+    }
+
+    /*
+     * The scsi inhdr is placed in the second-to-last input segment, just
+     * before the regular inhdr.
+     */
+    req->scsi = (void *)req->elem.in_sg[req->elem.in_num - 2].iov_base;
+    size = sizeof(*req->in) + sizeof(*req->scsi);
+
+    memset(&hdr, 0, sizeof(struct sg_io_hdr));
+    hdr.interface_id = 'S';
+    hdr.cmd_len = req->elem.out_sg[1].iov_len;
+    hdr.cmdp = req->elem.out_sg[1].iov_base;
+    hdr.dxfer_len = 0;
+
+    if (req->elem.out_num > 2) {
+        /*
+         * If there are more than the minimally required 2 output segments
+         * there is write payload starting from the third iovec.
+         */
+        hdr.dxfer_direction = SG_DXFER_TO_DEV;
+        hdr.iovec_count = req->elem.out_num - 2;
+
+        for (i = 0; i < hdr.iovec_count; i++)
+            hdr.dxfer_len += req->elem.out_sg[i + 2].iov_len;
+
+        hdr.dxferp = req->elem.out_sg + 2;
+
+    } else if (req->elem.in_num > 3) {
+        /*
+         * If we have more than 3 input segments the guest wants to actually
+         * read data.
+         */
+        hdr.dxfer_direction = SG_DXFER_FROM_DEV;
+        hdr.iovec_count = req->elem.in_num - 3;
+        for (i = 0; i < hdr.iovec_count; i++)
+            hdr.dxfer_len += req->elem.in_sg[i].iov_len;
+
+        hdr.dxferp = req->elem.in_sg;
+        size += hdr.dxfer_len;
+    } else {
+        /*
+         * Some SCSI commands don't actually transfer any data.
+         */
+        hdr.dxfer_direction = SG_DXFER_NONE;
+    }
+
+    hdr.sbp = req->elem.in_sg[req->elem.in_num - 3].iov_base;
+    hdr.mx_sb_len = req->elem.in_sg[req->elem.in_num - 3].iov_len;
+    size += hdr.mx_sb_len;
+
+    ret = bdrv_ioctl(req->dev->bs, SG_IO, &hdr);
+    if (ret) {
+        status = VIRTIO_BLK_S_UNSUPP;
+        hdr.status = ret;
+        hdr.resid = hdr.dxfer_len;
+    } else if (hdr.status) {
+        status = VIRTIO_BLK_S_IOERR;
+    } else {
+        status = VIRTIO_BLK_S_OK;
+    }
+
+    req->scsi->errors = hdr.status;
+    req->scsi->residual = hdr.resid;
+    req->scsi->sense_len = hdr.sb_len_wr;
+    req->scsi->data_len = hdr.dxfer_len;
+
+    virtio_blk_req_complete(req, status);
+}
+#else
+static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
+{
+    virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
+}
+#endif /* __linux__ */
+
 static void virtio_blk_handle_write(VirtIOBlockReq *req)
 {
     bdrv_aio_writev(req->dev->bs, req->out->sector, &req->qiov,
@@ -136,12 +242,7 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         req->in = (void *)req->elem.in_sg[req->elem.in_num - 1].iov_base;
 
         if (req->out->type & VIRTIO_BLK_T_SCSI_CMD) {
-            unsigned int len = sizeof(*req->in);
-
-            req->in->status = VIRTIO_BLK_S_UNSUPP;
-            virtqueue_push(vq, &req->elem, len);
-            virtio_notify(vdev, vq);
-            qemu_free(req);
+            virtio_blk_handle_scsi(req);
         } else if (req->out->type & VIRTIO_BLK_T_OUT) {
             qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
                                      req->elem.out_num - 1);
@@ -203,7 +304,15 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 
 static uint32_t virtio_blk_get_features(VirtIODevice *vdev)
 {
-    return (1 << VIRTIO_BLK_F_SEG_MAX | 1 << VIRTIO_BLK_F_GEOMETRY);
+    uint32_t features = 0;
+
+    features |= (1 << VIRTIO_BLK_F_SEG_MAX);
+    features |= (1 << VIRTIO_BLK_F_GEOMETRY);
+#ifdef __linux__
+    features |= (1 << VIRTIO_BLK_F_SCSI);
+#endif
+
+    return features;
 }
 
 static void virtio_blk_save(QEMUFile *f, void *opaque)

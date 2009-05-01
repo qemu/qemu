@@ -654,6 +654,7 @@ struct CPUPPCState {
     /* Exception vectors */
     target_ulong excp_vectors[POWERPC_EXCP_NB];
     target_ulong excp_prefix;
+    target_ulong hreset_excp_prefix;
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
@@ -802,7 +803,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, target_ulong val);
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_list ppc_cpu_list
 
-#define CPU_SAVE_VERSION 3
+#define CPU_SAVE_VERSION 4
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _user

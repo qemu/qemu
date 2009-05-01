@@ -3451,7 +3451,11 @@ PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
                                               "RTL8139", sizeof(PCIRTL8139State),
                                               devfn,
                                               NULL, NULL);
+    if (!d)
+	return NULL;
+
     d->dev.unregister = pci_rtl8139_uninit;
+
     pci_conf = d->dev.config;
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_REALTEK);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_REALTEK_8139);

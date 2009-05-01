@@ -279,7 +279,6 @@ typedef struct CirrusVGAState {
     int last_hw_cursor_y_start;
     int last_hw_cursor_y_end;
     int real_vram_size; /* XXX: suppress that */
-    CPUWriteMemoryFunc **cirrus_linear_write;
     int device_id;
     int bustype;
 } CirrusVGAState;
@@ -2485,36 +2484,6 @@ static CPUWriteMemoryFunc *cirrus_linear_write[3] = {
     cirrus_linear_writel,
 };
 
-static void cirrus_linear_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                     uint32_t val)
-{
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
-
-    addr &= s->cirrus_addr_mask;
-    *(s->vram_ptr + addr) = val;
-    cpu_physical_memory_set_dirty(s->vram_offset + addr);
-}
-
-static void cirrus_linear_mem_writew(void *opaque, target_phys_addr_t addr,
-                                     uint32_t val)
-{
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
-
-    addr &= s->cirrus_addr_mask;
-    cpu_to_le16w((uint16_t *)(s->vram_ptr + addr), val);
-    cpu_physical_memory_set_dirty(s->vram_offset + addr);
-}
-
-static void cirrus_linear_mem_writel(void *opaque, target_phys_addr_t addr,
-                                     uint32_t val)
-{
-    CirrusVGAState *s = (CirrusVGAState *) opaque;
-
-    addr &= s->cirrus_addr_mask;
-    cpu_to_le32w((uint32_t *)(s->vram_ptr + addr), val);
-    cpu_physical_memory_set_dirty(s->vram_offset + addr);
-}
-
 /***************************************
  *
  *  system to screen memory access
@@ -2677,15 +2646,9 @@ static void cirrus_update_memory_access(CirrusVGAState *s)
 	mode = s->gr[0x05] & 0x7;
 	if (mode < 4 || mode > 5 || ((s->gr[0x0B] & 0x4) == 0)) {
             map_linear_vram(s);
-            s->cirrus_linear_write[0] = cirrus_linear_mem_writeb;
-            s->cirrus_linear_write[1] = cirrus_linear_mem_writew;
-            s->cirrus_linear_write[2] = cirrus_linear_mem_writel;
         } else {
         generic_io:
             unmap_linear_vram(s);
-            s->cirrus_linear_write[0] = cirrus_linear_writeb;
-            s->cirrus_linear_write[1] = cirrus_linear_writew;
-            s->cirrus_linear_write[2] = cirrus_linear_writel;
         }
     }
 }
@@ -3243,7 +3206,6 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
     /* I/O handler for LFB */
     s->cirrus_linear_io_addr =
         cpu_register_io_memory(0, cirrus_linear_read, cirrus_linear_write, s);
-    s->cirrus_linear_write = cpu_get_io_memory_write(s->cirrus_linear_io_addr);
 
     /* I/O handler for LFB */
     s->cirrus_linear_bitblt_io_addr =

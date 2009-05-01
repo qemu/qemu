@@ -142,6 +142,7 @@ int main(int argc, char **argv)
 #include "hw/isa.h"
 #include "hw/baum.h"
 #include "hw/bt.h"
+#include "hw/watchdog.h"
 #include "hw/smbios.h"
 #include "hw/xen.h"
 #include "bt-host.h"
@@ -261,6 +262,8 @@ int graphic_rotate = 0;
 #ifndef _WIN32
 int daemonize = 0;
 #endif
+WatchdogTimerModel *watchdog = NULL;
+int watchdog_action = WDT_RESET;
 const char *option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int semihosting_enabled = 0;
@@ -943,7 +946,7 @@ static struct qemu_alarm_timer *alarm_timer;
 struct qemu_alarm_win32 {
     MMRESULT timerId;
     unsigned int period;
-} alarm_win32_data = {0, NULL, -1};
+} alarm_win32_data = {0, -1};
 
 static int win32_start_timer(struct qemu_alarm_timer *t);
 static void win32_stop_timer(struct qemu_alarm_timer *t);
@@ -1873,29 +1876,45 @@ int get_param_value(char *buf, int buf_size,
     return 0;
 }
 
-int check_params(char *buf, int buf_size,
-                 const char * const *params, const char *str)
+int check_params(const char * const *params, const char *str)
 {
+    int name_buf_size = 1;
     const char *p;
-    int i;
+    char *name_buf;
+    int i, len;
+    int ret = 0;
+
+    for (i = 0; params[i] != NULL; i++) {
+        len = strlen(params[i]) + 1;
+        if (len > name_buf_size) {
+            name_buf_size = len;
+        }
+    }
+    name_buf = qemu_malloc(name_buf_size);
 
     p = str;
     while (*p != '\0') {
-        p = get_opt_name(buf, buf_size, p, '=');
-        if (*p != '=')
-            return -1;
+        p = get_opt_name(name_buf, name_buf_size, p, '=');
+        if (*p != '=') {
+            ret = -1;
+            break;
+        }
         p++;
         for(i = 0; params[i] != NULL; i++)
-            if (!strcmp(params[i], buf))
+            if (!strcmp(params[i], name_buf))
                 break;
-        if (params[i] == NULL)
-            return -1;
+        if (params[i] == NULL) {
+            ret = -1;
+            break;
+        }
         p = get_opt_value(NULL, 0, p);
         if (*p != ',')
             break;
         p++;
     }
-    return 0;
+
+    qemu_free(name_buf);
+    return ret;
 }
 
 /***********************************************************/
@@ -2248,7 +2267,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
                                            "cache", "format", "serial", "werror",
                                            NULL };
 
-    if (check_params(buf, sizeof(buf), params, str) < 0) {
+    if (check_params(params, str) < 0) {
          fprintf(stderr, "qemu: unknown parameter '%s' in '%s'\n",
                          buf, str);
          return -1;
@@ -2525,7 +2544,7 @@ int drive_init(struct drive_opt *arg, int snapshot, void *opaque)
     drives_table[drives_table_idx].unit = unit_id;
     drives_table[drives_table_idx].onerror = onerror;
     drives_table[drives_table_idx].drive_opt_idx = arg - drives_opt;
-    strncpy(drives_table[nb_drives].serial, serial, sizeof(serial));
+    strncpy(drives_table[drives_table_idx].serial, serial, sizeof(serial));
     nb_drives++;
 
     switch(type) {
@@ -3723,6 +3742,8 @@ static int qemu_event_init(void)
                          (void *)(unsigned long)fds[0]);
 
     io_thread_fd = fds[1];
+    return 0;
+
 fail:
     close(fds[0]);
     close(fds[1]);
@@ -4339,11 +4360,13 @@ static void tcg_cpu_exec(void)
         }
         if (cpu_can_run(env))
             ret = qemu_cpu_exec(env);
+#ifndef CONFIG_GDBSTUB
         if (ret == EXCP_DEBUG) {
             gdb_set_stop_cpu(env);
             debug_requested = 1;
             break;
         }
+#endif
     }
 }
 
@@ -4964,6 +4987,8 @@ int main(int argc, char **argv, char **envp)
     tb_size = 0;
     autostart= 1;
 
+    register_watchdogs();
+
     optind = 1;
     for(;;) {
         if (optind >= argc)
@@ -5356,6 +5381,17 @@ int main(int argc, char **argv, char **envp)
                 }
                 serial_devices[serial_device_index] = optarg;
                 serial_device_index++;
+                break;
+            case QEMU_OPTION_watchdog:
+                i = select_watchdog(optarg);
+                if (i > 0)
+                    exit (i == 1 ? 1 : 0);
+                break;
+            case QEMU_OPTION_watchdog_action:
+                if (select_watchdog_action(optarg) == -1) {
+                    fprintf(stderr, "Unknown -watchdog-action parameter\n");
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_virtiocon:
                 if (virtio_console_index >= MAX_VIRTIO_CONSOLES) {

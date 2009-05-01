@@ -87,6 +87,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     for (i = 0; i < POWERPC_EXCP_NB; i++)
         qemu_put_betls(f, &env->excp_vectors[i]);
     qemu_put_betls(f, &env->excp_prefix);
+    qemu_put_betls(f, &env->hreset_excp_prefix);
     qemu_put_betls(f, &env->ivor_mask);
     qemu_put_betls(f, &env->ivpr_mask);
     qemu_put_betls(f, &env->hreset_vector);
@@ -173,6 +174,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < POWERPC_EXCP_NB; i++)
         qemu_get_betls(f, &env->excp_vectors[i]);
     qemu_get_betls(f, &env->excp_prefix);
+    qemu_get_betls(f, &env->hreset_excp_prefix);
     qemu_get_betls(f, &env->ivor_mask);
     qemu_get_betls(f, &env->ivpr_mask);
     qemu_get_betls(f, &env->hreset_vector);

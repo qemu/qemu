@@ -48,6 +48,8 @@ int kvm_log_stop(target_phys_addr_t phys_addr, ram_addr_t size);
 
 int kvm_has_sync_mmu(void);
 
+void kvm_setup_guest_memory(void *start, size_t size);
+
 int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 

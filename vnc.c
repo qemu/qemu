@@ -366,17 +366,13 @@ static void vnc_resize(VncState *vs)
     memset(vs->guest.dirty, 0xFF, sizeof(vs->guest.dirty));
 
     /* server surface */
-    if (!vs->server.ds) {
-        vs->server.ds = default_allocator.create_displaysurface(ds_get_width(ds),
-                                                                ds_get_height(ds));
-    } else {
-        default_allocator.resize_displaysurface(vs->server.ds,
-                                                ds_get_width(ds), ds_get_height(ds));
-    }
-    if (vs->server.ds->data == NULL) {
-        fprintf(stderr, "vnc: memory allocation failed\n");
-        exit(1);
-    }
+    if (!vs->server.ds)
+        vs->server.ds = qemu_mallocz(sizeof(*vs->server.ds));
+    if (vs->server.ds->data)
+        qemu_free(vs->server.ds->data);
+    *(vs->server.ds) = *(ds->surface);
+    vs->server.ds->data = qemu_mallocz(vs->server.ds->linesize *
+                                       vs->server.ds->height);
     memset(vs->server.dirty, 0xFF, sizeof(vs->guest.dirty));
 }
 
@@ -687,7 +683,7 @@ static int find_and_clear_dirty_height(struct VncSurface *s,
 {
     int h;
 
-    for (h = 1; h < (s->ds->height - y) && h < 1; h++) {
+    for (h = 1; h < (s->ds->height - y); h++) {
         int tmp_x;
         if (!vnc_get_bit(s->dirty[y + h], last_x))
             break;
@@ -705,7 +701,7 @@ static void vnc_update_client(void *opaque)
         int y;
         uint8_t *guest_row;
         uint8_t *server_row;
-        int cmp_bytes = 16 * ds_get_bytes_per_pixel(vs->ds);
+        int cmp_bytes;
         uint32_t width_mask[VNC_DIRTY_WORDS];
         int n_rectangles;
         int saved_offset;
@@ -725,6 +721,7 @@ static void vnc_update_client(void *opaque)
          * Update server dirty map.
          */
         vnc_set_bits(width_mask, (ds_get_width(vs->ds) / 16), VNC_DIRTY_WORDS);
+        cmp_bytes = 16 * ds_get_bytes_per_pixel(vs->ds);
         guest_row  = vs->guest.ds->data;
         server_row = vs->server.ds->data;
         for (y = 0; y < vs->guest.ds->height; y++) {
@@ -918,7 +915,8 @@ int vnc_client_io_error(VncState *vs, int ret, int last_errno)
         if (!vs->vd->clients)
             dcl->idle = 1;
 
-        default_allocator.free_displaysurface(vs->server.ds);
+        qemu_free(vs->server.ds->data);
+        qemu_free(vs->server.ds);
         qemu_free(vs->guest.ds);
         qemu_free(vs);
 
@@ -1345,30 +1343,39 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
             case 0xb8:                          /* Right ALT */
                 break;
             case 0xc8:
+            case 0x48:
                 kbd_put_keysym(QEMU_KEY_UP);
                 break;
             case 0xd0:
+            case 0x50:
                 kbd_put_keysym(QEMU_KEY_DOWN);
                 break;
             case 0xcb:
+            case 0x4b:
                 kbd_put_keysym(QEMU_KEY_LEFT);
                 break;
             case 0xcd:
+            case 0x4d:
                 kbd_put_keysym(QEMU_KEY_RIGHT);
                 break;
             case 0xd3:
+            case 0x53:
                 kbd_put_keysym(QEMU_KEY_DELETE);
                 break;
             case 0xc7:
+            case 0x47:
                 kbd_put_keysym(QEMU_KEY_HOME);
                 break;
             case 0xcf:
+            case 0x4f:
                 kbd_put_keysym(QEMU_KEY_END);
                 break;
             case 0xc9:
+            case 0x49:
                 kbd_put_keysym(QEMU_KEY_PAGEUP);
                 break;
             case 0xd1:
+            case 0x51:
                 kbd_put_keysym(QEMU_KEY_PAGEDOWN);
                 break;
             default:
@@ -1415,8 +1422,8 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 
     int i;
     vs->need_update = 1;
-    vs->force_update = 1;
     if (!incremental) {
+        vs->force_update = 1;
         for (i = 0; i < h; i++) {
             vnc_set_bits(vs->guest.dirty[y_position + i],
                          (ds_get_width(vs->ds) / 16), VNC_DIRTY_WORDS);
