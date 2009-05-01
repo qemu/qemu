@@ -31,7 +31,7 @@
 #include <brlapi_constants.h>
 #include <brlapi_keycodes.h>
 #ifdef CONFIG_SDL
-#include <SDL/SDL_syswm.h>
+#include <SDL_syswm.h>
 #endif
 
 #if 0
