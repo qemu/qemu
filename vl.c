@@ -3232,13 +3232,18 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
 {
     ram_addr_t addr;
 
+    if (cpu_physical_sync_dirty_bitmap(0, last_ram_offset) != 0) {
+        qemu_file_set_error(f);
+        return 0;
+    }
+
     if (stage == 1) {
         /* Make sure all dirty bits are set */
         for (addr = 0; addr < last_ram_offset; addr += TARGET_PAGE_SIZE) {
             if (!cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG))
                 cpu_physical_memory_set_dirty(addr);
         }
-        
+
         /* Enable dirty memory tracking */
         cpu_physical_memory_set_dirty_tracking(1);
 

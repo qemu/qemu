@@ -4,6 +4,7 @@
 #include "hw/isa.h"
 
 #include "exec-all.h"
+#include "kvm.h"
 
 static void cpu_put_seg(QEMUFile *f, SegmentCache *dt)
 {
@@ -28,6 +29,8 @@ void cpu_save(QEMUFile *f, void *opaque)
     uint32_t hflags;
     int32_t a20_mask;
     int i;
+
+    cpu_synchronize_state(env, 0);
 
     for(i = 0; i < CPU_NB_REGS; i++)
         qemu_put_betls(f, &env->regs[i]);
@@ -321,5 +324,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     /* XXX: compute redundant hflags bits */
     env->hflags = hflags;
     tlb_flush(env, 1);
+    cpu_synchronize_state(env, 1);
     return 0;
 }
