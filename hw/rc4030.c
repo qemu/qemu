@@ -810,7 +810,7 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     s->timer_irq = timer;
     s->jazz_bus_irq = jazz_bus;
 
-    qemu_register_reset(rc4030_reset, s);
+    qemu_register_reset(rc4030_reset, 0, s);
     register_savevm("rc4030", 0, 2, rc4030_save, rc4030_load, s);
     rc4030_reset(s);
 

@@ -1329,7 +1329,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
         binfo->initrd_filename = initrd_filename;
         arm_load_kernel(s->cpu->env, binfo);
 
-        qemu_register_reset(n8x0_boot_init, s);
+        qemu_register_reset(n8x0_boot_init, 0, s);
         n8x0_boot_init(s);
     }
 

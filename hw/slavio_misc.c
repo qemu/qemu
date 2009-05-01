@@ -501,7 +501,7 @@ void *slavio_misc_init(target_phys_addr_t base, target_phys_addr_t power_base,
 
     register_savevm("slavio_misc", base, 1, slavio_misc_save, slavio_misc_load,
                     s);
-    qemu_register_reset(slavio_misc_reset, s);
+    qemu_register_reset(slavio_misc_reset, 0, s);
     slavio_misc_reset(s);
 
     return s;

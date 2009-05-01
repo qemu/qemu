@@ -1771,7 +1771,7 @@ static void nic_init(PCIDevice *pci_dev, uint32_t device)
 
     qemu_format_nic_info_str(s->vc, s->macaddr);
 
-    qemu_register_reset(nic_reset, s);
+    qemu_register_reset(nic_reset, 0, s);
 
     register_savevm(s->vc->model, -1, 3, nic_save, nic_load, s);
 }

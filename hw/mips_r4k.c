@@ -171,7 +171,7 @@ void mips_r4k_init (ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, 0, env);
 
     /* allocate RAM */
     if (ram_size > (256 << 20)) {

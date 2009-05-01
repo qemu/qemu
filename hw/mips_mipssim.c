@@ -126,7 +126,7 @@ mips_mipssim_init (ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, 0, env);
 
     /* Allocate RAM. */
     ram_offset = qemu_ram_alloc(ram_size);

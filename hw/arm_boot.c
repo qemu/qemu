@@ -203,7 +203,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         if (info->nb_cpus == 0)
             info->nb_cpus = 1;
         env->boot_info = info;
-        qemu_register_reset(main_cpu_reset, env);
+        qemu_register_reset(main_cpu_reset, 0, env);
     }
 
     /* Assume that raw images are linux kernels, and ELF images are not.  */

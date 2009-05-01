@@ -447,7 +447,7 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_ir
     s->uart = serial_mm_init(base + 0x900, 3, uart_irq, 230400, uart_chr, 1);
 
     malta_fpga_reset(s);
-    qemu_register_reset(malta_fpga_reset, s);
+    qemu_register_reset(malta_fpga_reset, 0, s);
 
     return s;
 }
@@ -792,7 +792,7 @@ void mips_malta_init (ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, 0, env);
 
     /* allocate RAM */
     if (ram_size > (256 << 20)) {

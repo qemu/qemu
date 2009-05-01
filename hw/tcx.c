@@ -560,7 +560,7 @@ void tcx_init(target_phys_addr_t addr, int vram_size, int width, int height,
                                  dummy_memory);
 
     register_savevm("tcx", addr, 4, tcx_save, tcx_load, s);
-    qemu_register_reset(tcx_reset, s);
+    qemu_register_reset(tcx_reset, 0, s);
     tcx_reset(s);
     qemu_console_resize(s->ds, width, height);
 }

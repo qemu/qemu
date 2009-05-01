@@ -81,7 +81,7 @@ static void option_rom_setup_reset(target_phys_addr_t addr, unsigned size)
     cpu_physical_memory_read(addr, rrd->data, size);
     rrd->addr = addr;
     rrd->size = size;
-    qemu_register_reset(option_rom_reset, rrd);
+    qemu_register_reset(option_rom_reset, 0, rrd);
 }
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
@@ -875,7 +875,7 @@ static void pc_init1(ram_addr_t ram_size,
             /* XXX: enable it in all cases */
             env->cpuid_features |= CPUID_APIC;
         }
-        qemu_register_reset(main_cpu_reset, env);
+        qemu_register_reset(main_cpu_reset, 0, env);
         if (pci_enabled) {
             apic_init(env);
         }

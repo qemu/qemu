@@ -213,7 +213,7 @@ void *sun4c_intctl_init(target_phys_addr_t addr, qemu_irq **irq,
     register_savevm("sun4c_intctl", addr, 1, sun4c_intctl_save,
                     sun4c_intctl_load, s);
 
-    qemu_register_reset(sun4c_intctl_reset, s);
+    qemu_register_reset(sun4c_intctl_reset, 0, s);
     *irq = qemu_allocate_irqs(sun4c_set_irq, s, 8);
 
     sun4c_intctl_reset(s);

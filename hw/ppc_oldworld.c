@@ -154,7 +154,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         /* Set time-base frequency to 16.6 Mhz */
         cpu_ppc_tb_init(env,  16600000UL);
         env->osi_call = vga_osi_call;
-        qemu_register_reset(&cpu_ppc_reset, env);
+        qemu_register_reset(&cpu_ppc_reset, 0, env);
         envs[i] = env;
     }
 

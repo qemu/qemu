@@ -497,7 +497,7 @@ PITState *pit_init(int base, qemu_irq irq)
 
     register_savevm("i8254", base, 1, pit_save, pit_load, pit);
 
-    qemu_register_reset(pit_reset, pit);
+    qemu_register_reset(pit_reset, 0, pit);
     register_ioport_write(base, 4, 1, pit_ioport_write, pit);
     register_ioport_read(base, 3, 1, pit_ioport_read, pit);
 

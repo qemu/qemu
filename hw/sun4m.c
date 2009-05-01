@@ -418,9 +418,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         cpu_sparc_set_id(env, i);
         envs[i] = env;
         if (i == 0) {
-            qemu_register_reset(main_cpu_reset, env);
+            qemu_register_reset(main_cpu_reset, 0, env);
         } else {
-            qemu_register_reset(secondary_cpu_reset, env);
+            qemu_register_reset(secondary_cpu_reset, 0, env);
             env->halted = 1;
         }
         cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
@@ -1201,9 +1201,9 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
         cpu_sparc_set_id(env, i);
         envs[i] = env;
         if (i == 0) {
-            qemu_register_reset(main_cpu_reset, env);
+            qemu_register_reset(main_cpu_reset, 0, env);
         } else {
-            qemu_register_reset(secondary_cpu_reset, env);
+            qemu_register_reset(secondary_cpu_reset, 0, env);
             env->halted = 1;
         }
         cpu_irqs[i] = qemu_allocate_irqs(cpu_set_irq, envs[i], MAX_PILS);
@@ -1416,7 +1416,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 
     cpu_sparc_set_id(env, 0);
 
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, 0, env);
     cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
     env->prom_addr = hwdef->slavio_base;
 

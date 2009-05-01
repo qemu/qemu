@@ -656,7 +656,7 @@ int cs4231a_init (qemu_irq *pic)
     DMA_register_channel (s->dma, cs_dma_read, s);
 
     register_savevm ("cs4231a", 0, 1, cs_save, cs_load, s);
-    qemu_register_reset (cs_reset, s);
+    qemu_register_reset (cs_reset, 0, s);
     cs_reset (s);
 
     AUD_register_card ("cs4231a", &s->card);

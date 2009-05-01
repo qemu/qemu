@@ -458,7 +458,7 @@ static void pl181_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq[1]);
     bd = qdev_init_bdrv(&dev->qdev, IF_SD);
     s->card = sd_init(bd, 0);
-    qemu_register_reset(pl181_reset, s);
+    qemu_register_reset(pl181_reset, 0, s);
     pl181_reset(s);
     /* ??? Save/restore.  */
 }

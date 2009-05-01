@@ -176,7 +176,7 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic)
     d->config[0x27] = 0x85;
 #endif
     register_savevm("grackle", 0, 1, pci_grackle_save, pci_grackle_load, d);
-    qemu_register_reset(pci_grackle_reset, d);
+    qemu_register_reset(pci_grackle_reset, 0, d);
     pci_grackle_reset(d);
 
     return s->bus;

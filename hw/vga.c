@@ -2306,7 +2306,7 @@ void vga_init(VGAState *s)
 {
     int vga_io_memory;
 
-    qemu_register_reset(vga_reset, s);
+    qemu_register_reset(vga_reset, 0, s);
     register_savevm("vga", 0, 2, vga_save, vga_load, s);
 
     register_ioport_write(0x3c0, 16, 1, vga_ioport_write, s);
