@@ -1931,10 +1931,14 @@ int cpu_physical_memory_get_dirty_tracking(void)
     return in_migration;
 }
 
-void cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr, target_phys_addr_t end_addr)
+int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
+                                   target_phys_addr_t end_addr)
 {
+    int ret = 0;
+
     if (kvm_enabled())
-        kvm_physical_sync_dirty_bitmap(start_addr, end_addr);
+        ret = kvm_physical_sync_dirty_bitmap(start_addr, end_addr);
+    return ret;
 }
 
 static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)

@@ -272,47 +272,58 @@ int kvm_set_migration_log(int enable)
  * @start_add: start of logged region.
  * @end_addr: end of logged region.
  */
-void kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
-                                    target_phys_addr_t end_addr)
+int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
+                                   target_phys_addr_t end_addr)
 {
     KVMState *s = kvm_state;
-    KVMDirtyLog d;
-    KVMSlot *mem = kvm_lookup_matching_slot(s, start_addr, end_addr);
-    unsigned long alloc_size;
+    unsigned long size, allocated_size = 0;
+    target_phys_addr_t phys_addr;
     ram_addr_t addr;
-    target_phys_addr_t phys_addr = start_addr;
+    KVMDirtyLog d;
+    KVMSlot *mem;
+    int ret = 0;
 
-    dprintf("sync addr: " TARGET_FMT_lx " into %lx\n", start_addr,
-            mem->phys_offset);
-    if (mem == NULL) {
-            fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
-                    TARGET_FMT_plx "\n", __func__, phys_addr, end_addr - 1);
-            return;
+    d.dirty_bitmap = NULL;
+    while (start_addr < end_addr) {
+        mem = kvm_lookup_overlapping_slot(s, start_addr, end_addr);
+        if (mem == NULL) {
+            break;
+        }
+
+        size = ((mem->memory_size >> TARGET_PAGE_BITS) + 7) / 8;
+        if (!d.dirty_bitmap) {
+            d.dirty_bitmap = qemu_malloc(size);
+        } else if (size > allocated_size) {
+            d.dirty_bitmap = qemu_realloc(d.dirty_bitmap, size);
+        }
+        allocated_size = size;
+        memset(d.dirty_bitmap, 0, allocated_size);
+
+        d.slot = mem->slot;
+
+        if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
+            dprintf("ioctl failed %d\n", errno);
+            ret = -1;
+            break;
+        }
+
+        for (phys_addr = mem->start_addr, addr = mem->phys_offset;
+             phys_addr < mem->start_addr + mem->memory_size;
+             phys_addr += TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
+            unsigned long *bitmap = (unsigned long *)d.dirty_bitmap;
+            unsigned nr = (phys_addr - mem->start_addr) >> TARGET_PAGE_BITS;
+            unsigned word = nr / (sizeof(*bitmap) * 8);
+            unsigned bit = nr % (sizeof(*bitmap) * 8);
+
+            if ((bitmap[word] >> bit) & 1) {
+                cpu_physical_memory_set_dirty(addr);
+            }
+        }
+        start_addr = phys_addr;
     }
-
-    alloc_size = ((mem->memory_size >> TARGET_PAGE_BITS) + 7) / 8;
-    d.dirty_bitmap = qemu_mallocz(alloc_size);
-
-    d.slot = mem->slot;
-    dprintf("slot %d, phys_addr %llx, uaddr: %llx\n",
-            d.slot, mem->start_addr, mem->phys_offset);
-
-    if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
-        dprintf("ioctl failed %d\n", errno);
-        goto out;
-    }
-
-    phys_addr = start_addr;
-    for (addr = mem->phys_offset; phys_addr < end_addr; phys_addr+= TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
-        unsigned long *bitmap = (unsigned long *)d.dirty_bitmap;
-        unsigned nr = (phys_addr - start_addr) >> TARGET_PAGE_BITS;
-        unsigned word = nr / (sizeof(*bitmap) * 8);
-        unsigned bit = nr % (sizeof(*bitmap) * 8);
-        if ((bitmap[word] >> bit) & 1)
-            cpu_physical_memory_set_dirty(addr);
-    }
-out:
     qemu_free(d.dirty_bitmap);
+
+    return ret;
 }
 
 int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
