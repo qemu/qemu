@@ -100,6 +100,7 @@ PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     bus->irq_opaque = pic;
     bus->devfn_min = devfn_min;
     bus->nirq = nirq;
+    bus->next = first_bus;
     first_bus = bus;
     register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
     return bus;
