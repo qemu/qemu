@@ -121,10 +121,18 @@ wlan0     Interface doesn't support scanning : Resource temporarily unavailable
 
 * very poor performance on cpmac:
   eth0 sinus-heipc84499         1,4 MBit / s
+  eth0 sinus-heipc84499         2,1 MBit / s    linux-2.6.27.21 preemptive
+  eth0 sinus-heipc84499         2,2 MBit / s    linux-2.6.27.21
   eth0 heipc84499-sinus        23,6 MBit / s
+  eth0 heipc84499-sinus        32,3 MBit / s    linux-2.6.27.21 preemptive
+  eth0 heipc84499-sinus        34,2 MBit / s    linux-2.6.27.21
   lo sinus-sinus               49,0 MBit / s
+  lo sinus-sinus               51,7 MBit / s    linux-2.6.27.21 preemptive
+  lo sinus-sinus               55,2 MBit / s    linux-2.6.27.21
   wlan0 heipc84499-flocke       3,6 MBit / s
+  wlan0 heipc84499-flocke      14,5 MBit / s    2009-04-29
 
+root@OpenWrt:/# netserver
 root@OpenWrt:/# netperf -H 192.168.2.2
 TCP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to 192.168.2.2 (192.168.2.2) port 0 AF_INET
 Recv   Send    Send
@@ -133,6 +141,8 @@ Size   Size    Size     Time     Throughput
 bytes  bytes   bytes    secs.    10^6bits/sec
 
    256  16384  16384    10.02       1.40
+   256  16384  16384    10.01       2.07        2008-04-26, linux-2.6.27.21
+ 87380  16384  16384    10.04      32.29
 
 2008-07-14
 
