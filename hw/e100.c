@@ -2476,6 +2476,10 @@ static PCIDevice *e100_init(PCIBus * bus, NICInfo * nd,
             sizeof(PCIE100State), -1,
             NULL, NULL);
 
+    if (d == NULL) {
+        return NULL;
+    }
+
     s = &d->e100;
     s->device = device;
     s->pci_dev = &d->dev;

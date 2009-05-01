@@ -334,6 +334,11 @@ PCIDevice *pci_Atheros_WLAN_init(PCIBus *bus, NICInfo *nd, int devfn)
 	nd->macaddr[5] = 0x9e;
 
 	d = (PCIAtheros_WLANState *)pci_register_device(bus, "Atheros_WLAN", sizeof(PCIAtheros_WLANState), devfn,  NULL, NULL);
+
+    if (d == NULL) {
+        return NULL;
+    }
+
 	s = &d->Atheros_WLAN;
 
 	// s->irq = 9; /* PCI interrupt */

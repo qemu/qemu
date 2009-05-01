@@ -1508,6 +1508,11 @@ static PCIDevice *pci_dp8381x_init(PCIBus * bus, NICInfo * nd,
     d = (pci_dp8381x_t *) pci_register_device(bus, "DP8381X",
                                               sizeof(pci_dp8381x_t),
                                               -1, NULL, NULL);
+
+    if (d == NULL) {
+        return NULL;
+    }
+
     pci_conf = d->dev.config;
 
     /* National Semiconductor DP83815, DP83816 */

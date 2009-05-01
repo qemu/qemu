@@ -893,7 +893,9 @@ PCIDevice *pci_tnetw1130_init(PCIBus * bus, NICInfo * nd, int devfn)
     set_traceflags("DEBUG_TNETW1130");
 #endif
     TRACE(TNETW, logout("\n"));
-    tnetw1130_init(d, nd);
+    if (d != NULL) {
+        tnetw1130_init(d, nd);
+    }
     return (PCIDevice *)d;
 }
 
