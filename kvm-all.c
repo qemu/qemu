@@ -290,7 +290,7 @@ void kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
             return;
     }
 
-    alloc_size = mem->memory_size >> TARGET_PAGE_BITS / sizeof(d.dirty_bitmap);
+    alloc_size = ((mem->memory_size >> TARGET_PAGE_BITS) + 7) / 8;
     d.dirty_bitmap = qemu_mallocz(alloc_size);
 
     d.slot = mem->slot;
