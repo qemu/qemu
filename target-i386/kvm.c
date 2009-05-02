@@ -126,6 +126,8 @@ int kvm_arch_init_vcpu(CPUState *env)
     uint32_t limit, i, j, cpuid_i;
     uint32_t unused;
 
+    env->mp_state = KVM_MP_STATE_RUNNABLE;
+
     cpuid_i = 0;
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
@@ -645,6 +647,14 @@ int kvm_arch_put_registers(CPUState *env)
         return ret;
 
     ret = kvm_put_msrs(env);
+    if (ret < 0)
+        return ret;
+
+    ret = kvm_put_mp_state(env);
+    if (ret < 0)
+        return ret;
+
+    ret = kvm_get_mp_state(env);
     if (ret < 0)
         return ret;
 

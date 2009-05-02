@@ -181,6 +181,26 @@ err:
     return ret;
 }
 
+int kvm_put_mp_state(CPUState *env)
+{
+    struct kvm_mp_state mp_state = { .mp_state = env->mp_state };
+
+    return kvm_vcpu_ioctl(env, KVM_SET_MP_STATE, &mp_state);
+}
+
+int kvm_get_mp_state(CPUState *env)
+{
+    struct kvm_mp_state mp_state;
+    int ret;
+
+    ret = kvm_vcpu_ioctl(env, KVM_GET_MP_STATE, &mp_state);
+    if (ret < 0) {
+        return ret;
+    }
+    env->mp_state = mp_state.mp_state;
+    return 0;
+}
+
 int kvm_sync_vcpus(void)
 {
     CPUState *env;

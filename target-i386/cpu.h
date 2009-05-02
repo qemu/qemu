@@ -669,6 +669,7 @@ typedef struct CPUX86State {
 
     /* For KVM */
     uint64_t interrupt_bitmap[256 / 64];
+    uint32_t mp_state;
 
     /* in order to simplify APIC support, we leave this pointer to the
        user */
@@ -837,7 +838,7 @@ static inline int cpu_get_time_fast(void)
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 
-#define CPU_SAVE_VERSION 8
+#define CPU_SAVE_VERSION 9
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
