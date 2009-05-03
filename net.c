@@ -1103,7 +1103,7 @@ static void vde_to_qemu(void *opaque)
     uint8_t buf[4096];
     int size;
 
-    size = vde_recv(s->vde, buf, sizeof(buf), 0);
+    size = vde_recv(s->vde, (char *)buf, sizeof(buf), 0);
     if (size > 0) {
         qemu_send_packet(s->vc, buf, size);
     }
@@ -1114,7 +1114,7 @@ static void vde_from_qemu(void *opaque, const uint8_t *buf, int size)
     VDEState *s = opaque;
     int ret;
     for(;;) {
-        ret = vde_send(s->vde, buf, size, 0);
+        ret = vde_send(s->vde, (const char *)buf, size, 0);
         if (ret < 0 && errno == EINTR) {
         } else {
             break;
@@ -1145,7 +1145,7 @@ static int net_vde_init(VLANState *vlan, const char *model,
     };
 
     s = qemu_mallocz(sizeof(VDEState));
-    s->vde = vde_open(init_sock, "QEMU", &args);
+    s->vde = vde_open(init_sock, (char *)"QEMU", &args);
     if (!s->vde){
         free(s);
         return -1;
