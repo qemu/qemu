@@ -2037,7 +2037,7 @@ PCIDevice *pci_pcnet_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_conf[0x08] = 0x10;
     pci_conf[0x09] = 0x00;
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
-    pci_conf[0x0e] = 0x00; // header_type
+    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     *(uint32_t *)&pci_conf[0x10] = cpu_to_le32(0x00000001);
     *(uint32_t *)&pci_conf[0x14] = cpu_to_le32(0x00000000);

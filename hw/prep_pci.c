@@ -161,7 +161,7 @@ PCIBus *pci_prep_init(qemu_irq *pic)
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
-    d->config[0x0E] = 0x00; // header_type
+    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     d->config[0x34] = 0x00; // capabilities_pointer
 
     return s->bus;

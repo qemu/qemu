@@ -187,7 +187,6 @@
 // PCI 0x08, 0x00ff0000
 #define PCI_CLASS_SUB_VGA             0x00
 // PCI 0x0c, 0x00ff0000 (0x0c:cacheline,0x0d:latency,0x0e:headertype,0x0f:Built-in self test)
-#define PCI_CLASS_HEADERTYPE_00h  0x00
 // 0x10-0x3f (headertype 00h)
 // PCI 0x10,0x14,0x18,0x1c,0x20,0x24: base address mapping registers
 //   0x10: MEMBASE, 0x14: IOBASE(hard-coded in XFree86 3.x)
@@ -3319,7 +3318,7 @@ void pci_cirrus_vga_init(PCIBus *bus, int vga_ram_size)
     pci_config_set_device_id(pci_conf, device_id);
     pci_conf[0x04] = PCI_COMMAND_IOACCESS | PCI_COMMAND_MEMACCESS;
     pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
-    pci_conf[0x0e] = PCI_CLASS_HEADERTYPE_00h;
+    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
 
     /* setup VGA */
     s = &d->cirrus_vga;

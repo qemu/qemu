@@ -318,7 +318,7 @@ pci_ebus_init(PCIBus *bus, int devfn)
     s->config[0x09] = 0x00; // programming i/f
     pci_config_set_class(s->config, PCI_CLASS_BRIDGE_OTHER);
     s->config[0x0D] = 0x0a; // latency_timer
-    s->config[0x0E] = 0x00; // header_type
+    s->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     pci_register_io_region(s, 0, 0x1000000, PCI_ADDRESS_SPACE_MEM,
                            ebus_mmio_mapfunc);

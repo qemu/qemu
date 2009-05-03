@@ -3462,7 +3462,7 @@ PCIDevice *pci_rtl8139_init(PCIBus *bus, NICInfo *nd, int devfn)
     pci_conf[0x04] = 0x05; /* command = I/O space, Bus Master */
     pci_conf[0x08] = RTL8139_PCI_REVID; /* PCI revision ID; >=0x20 is for 8139C+ */
     pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_ETHERNET);
-    pci_conf[0x0e] = 0x00; /* header_type */
+    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; /* header_type */
     pci_conf[0x3d] = 1;    /* interrupt pin 0 */
     pci_conf[0x34] = 0xdc;
 

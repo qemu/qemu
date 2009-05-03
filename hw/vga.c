@@ -2507,7 +2507,7 @@ int pci_vga_init(PCIBus *bus, int vga_ram_size,
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_QEMU);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_QEMU_VGA);
     pci_config_set_class(pci_conf, PCI_CLASS_DISPLAY_VGA);
-    pci_conf[0x0e] = 0x00; // header_type
+    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     /* XXX: vga_ram_size must be a power of two */
     pci_register_io_region(&d->dev, 0, vga_ram_size,

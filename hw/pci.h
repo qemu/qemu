@@ -102,6 +102,10 @@ typedef struct PCIIORegion {
 #define PCI_REVISION_ID         0x08    /* 8 bits  */
 #define PCI_CLASS_DEVICE        0x0a    /* Device class */
 #define PCI_HEADER_TYPE         0x0e    /* 8 bits */
+#define  PCI_HEADER_TYPE_NORMAL		0
+#define  PCI_HEADER_TYPE_BRIDGE		1
+#define  PCI_HEADER_TYPE_CARDBUS	2
+#define  PCI_HEADER_TYPE_MULTI_FUNCTION 0x80
 #define PCI_SUBSYSTEM_VENDOR_ID 0x2c    /* 16 bits */
 #define PCI_SUBSYSTEM_ID        0x2e    /* 16 bits */
 #define PCI_INTERRUPT_LINE	0x3c	/* 8 bits */

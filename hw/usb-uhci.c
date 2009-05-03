@@ -1084,7 +1084,7 @@ void usb_uhci_piix3_init(PCIBus *bus, int devfn)
     pci_conf[0x08] = 0x01; // revision number
     pci_conf[0x09] = 0x00;
     pci_config_set_class(pci_conf, PCI_CLASS_SERIAL_USB);
-    pci_conf[0x0e] = 0x00; // header_type
+    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     pci_conf[0x3d] = 4; // interrupt pin 3
     pci_conf[0x60] = 0x10; // release number
 
@@ -1118,7 +1118,7 @@ void usb_uhci_piix4_init(PCIBus *bus, int devfn)
     pci_conf[0x08] = 0x01; // revision number
     pci_conf[0x09] = 0x00;
     pci_config_set_class(pci_conf, PCI_CLASS_SERIAL_USB);
-    pci_conf[0x0e] = 0x00; // header_type
+    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     pci_conf[0x3d] = 4; // interrupt pin 3
     pci_conf[0x60] = 0x10; // release number
 

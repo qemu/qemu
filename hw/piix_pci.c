@@ -196,7 +196,7 @@ PCIBus *i440fx_init(PCIDevice **pi440fx_state, qemu_irq *pic)
     pci_config_set_device_id(d->config, PCI_DEVICE_ID_INTEL_82441);
     d->config[0x08] = 0x02; // revision
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
-    d->config[0x0e] = 0x00; // header_type
+    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     d->config[0x72] = 0x02; /* SMRAM */
 
@@ -334,7 +334,8 @@ int piix3_init(PCIBus *bus, int devfn)
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371SB_0); // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
-    pci_conf[0x0e] = 0x80; // header_type = PCI_multifunction, generic
+    pci_conf[PCI_HEADER_TYPE] =
+        PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
 
     piix3_reset(d);
     return d->devfn;
@@ -355,7 +356,9 @@ int piix4_init(PCIBus *bus, int devfn)
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_INTEL_82371AB_0); // 82371AB/EB/MB PIIX4 PCI-to-ISA bridge
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_ISA);
-    pci_conf[0x0e] = 0x80; // header_type = PCI_multifunction, generic
+    pci_conf[PCI_HEADER_TYPE] =
+        PCI_HEADER_TYPE_NORMAL | PCI_HEADER_TYPE_MULTI_FUNCTION; // header_type = PCI_multifunction, generic
+
 
     piix4_reset(d);
     return d->devfn;

@@ -788,7 +788,7 @@ VirtIODevice *virtio_init_pci(PCIBus *bus, const char *name,
 
     config[0x09] = pif;
     pci_config_set_class(config, class_code);
-    config[0x0e] = 0x00;
+    config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL;
 
     config[0x2c] = subvendor & 0xFF;
     config[0x2d] = (subvendor >> 8) & 0xFF;
