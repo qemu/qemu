@@ -34,6 +34,86 @@
     do { } while (0)
 #endif
 
+#ifdef KVM_CAP_EXT_CPUID
+
+static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
+{
+    struct kvm_cpuid2 *cpuid;
+    int r, size;
+
+    size = sizeof(*cpuid) + max * sizeof(*cpuid->entries);
+    cpuid = (struct kvm_cpuid2 *)qemu_mallocz(size);
+    cpuid->nent = max;
+    r = kvm_ioctl(s, KVM_GET_SUPPORTED_CPUID, cpuid);
+    if (r < 0) {
+        if (r == -E2BIG) {
+            qemu_free(cpuid);
+            return NULL;
+        } else {
+            fprintf(stderr, "KVM_GET_SUPPORTED_CPUID failed: %s\n",
+                    strerror(-r));
+            exit(1);
+        }
+    }
+    return cpuid;
+}
+
+uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
+{
+    struct kvm_cpuid2 *cpuid;
+    int i, max;
+    uint32_t ret = 0;
+    uint32_t cpuid_1_edx;
+
+    if (!kvm_check_extension(env->kvm_state, KVM_CAP_EXT_CPUID)) {
+        return -1U;
+    }
+
+    max = 1;
+    while ((cpuid = try_get_cpuid(env->kvm_state, max)) == NULL) {
+        max *= 2;
+    }
+
+    for (i = 0; i < cpuid->nent; ++i) {
+        if (cpuid->entries[i].function == function) {
+            switch (reg) {
+            case R_EAX:
+                ret = cpuid->entries[i].eax;
+                break;
+            case R_EBX:
+                ret = cpuid->entries[i].ebx;
+                break;
+            case R_ECX:
+                ret = cpuid->entries[i].ecx;
+                break;
+            case R_EDX:
+                ret = cpuid->entries[i].edx;
+                if (function == 0x80000001) {
+                    /* On Intel, kvm returns cpuid according to the Intel spec,
+                     * so add missing bits according to the AMD spec:
+                     */
+                    cpuid_1_edx = kvm_arch_get_supported_cpuid(env, 1, R_EDX);
+                    ret |= cpuid_1_edx & 0xdfeff7ff;
+                }
+                break;
+            }
+        }
+    }
+
+    qemu_free(cpuid);
+
+    return ret;
+}
+
+#else
+
+uint32_t kvm_arch_get_supported_cpuid(CPUState *env, uint32_t function, int reg)
+{
+    return -1U;
+}
+
+#endif
+
 int kvm_arch_init_vcpu(CPUState *env)
 {
     struct {
