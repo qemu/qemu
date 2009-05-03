@@ -139,7 +139,7 @@ If your host crashes or loses power, then the guest may experience data
 corruption.  When using the @option{-snapshot} option, writeback caching is
 used by default.
 
-The host page can be avoided entirely with @option{cache=none}.  This will
+The host page cache can be avoided entirely with @option{cache=none}.  This will
 attempt to do disk IO directly to the guests memory.  QEMU may still perform
 an internal copy of the data.
 
