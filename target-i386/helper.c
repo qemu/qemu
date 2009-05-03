@@ -93,6 +93,21 @@ static void add_flagname_to_bitmaps(char *flagname, uint32_t *features,
     }
 }
 
+static void kvm_trim_features(uint32_t *features, uint32_t supported,
+                              const char *names[])
+{
+    int i;
+    uint32_t mask;
+
+    for (i = 0; i < 32; ++i) {
+        mask = 1U << i;
+        if ((*features & mask) && !(supported & mask)) {
+            printf("Processor feature %s not supported by kvm\n", names[i]);
+            *features &= ~mask;
+        }
+    }
+}
+
 typedef struct x86_def_t {
     const char *name;
     uint32_t level;
@@ -1698,6 +1713,21 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 #endif
 
     qemu_init_vcpu(env);
+
+    if (kvm_enabled()) {
+        kvm_trim_features(&env->cpuid_features,
+                          kvm_arch_get_supported_cpuid(env, 1, R_EDX),
+                          feature_name);
+        kvm_trim_features(&env->cpuid_ext_features,
+                          kvm_arch_get_supported_cpuid(env, 1, R_ECX),
+                          ext_feature_name);
+        kvm_trim_features(&env->cpuid_ext2_features,
+                          kvm_arch_get_supported_cpuid(env, 0x80000001, R_EDX),
+                          ext2_feature_name);
+        kvm_trim_features(&env->cpuid_ext3_features,
+                          kvm_arch_get_supported_cpuid(env, 0x80000001, R_ECX),
+                          ext3_feature_name);
+    }
 
     return env;
 }
