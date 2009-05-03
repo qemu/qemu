@@ -82,7 +82,7 @@ glue(glue(cirrus_bitblt_rop_fwd_transp_, ROP_NAME),_8)(CirrusVGAState *s,
         for (x = 0; x < bltwidth; x++) {
 	    p = *dst;
             ROP_OP(p, *src);
-	    if (p != s->gr[0x34]) *dst = p;
+	    if (p != s->vga.gr[0x34]) *dst = p;
             dst++;
             src++;
         }
@@ -105,7 +105,7 @@ glue(glue(cirrus_bitblt_rop_bkwd_transp_, ROP_NAME),_8)(CirrusVGAState *s,
         for (x = 0; x < bltwidth; x++) {
 	    p = *dst;
             ROP_OP(p, *src);
-	    if (p != s->gr[0x34]) *dst = p;
+	    if (p != s->vga.gr[0x34]) *dst = p;
             dst--;
             src--;
         }
@@ -130,7 +130,7 @@ glue(glue(cirrus_bitblt_rop_fwd_transp_, ROP_NAME),_16)(CirrusVGAState *s,
 	    p2 = *(dst+1);
             ROP_OP(p1, *src);
             ROP_OP(p2, *(src+1));
-	    if ((p1 != s->gr[0x34]) || (p2 != s->gr[0x35])) {
+	    if ((p1 != s->vga.gr[0x34]) || (p2 != s->vga.gr[0x35])) {
 		*dst = p1;
 		*(dst+1) = p2;
 	    }
@@ -158,7 +158,7 @@ glue(glue(cirrus_bitblt_rop_bkwd_transp_, ROP_NAME),_16)(CirrusVGAState *s,
 	    p2 = *dst;
             ROP_OP(p1, *(src-1));
             ROP_OP(p2, *src);
-	    if ((p1 != s->gr[0x34]) || (p2 != s->gr[0x35])) {
+	    if ((p1 != s->vga.gr[0x34]) || (p2 != s->vga.gr[0x35])) {
 		*(dst-1) = p1;
 		*dst = p2;
 	    }

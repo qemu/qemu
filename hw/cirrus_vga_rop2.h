@@ -48,9 +48,9 @@ glue(glue(glue(cirrus_patternfill_, ROP_NAME), _),DEPTH)
     unsigned int col;
     const uint8_t *src1;
 #if DEPTH == 24
-    int skipleft = s->gr[0x2f] & 0x1f;
+    int skipleft = s->vga.gr[0x2f] & 0x1f;
 #else
-    int skipleft = (s->gr[0x2f] & 0x07) * (DEPTH / 8);
+    int skipleft = (s->vga.gr[0x2f] & 0x07) * (DEPTH / 8);
 #endif
 
 #if DEPTH == 8
@@ -105,10 +105,10 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
     unsigned bitmask;
     unsigned index;
 #if DEPTH == 24
-    int dstskipleft = s->gr[0x2f] & 0x1f;
+    int dstskipleft = s->vga.gr[0x2f] & 0x1f;
     int srcskipleft = dstskipleft / 3;
 #else
-    int srcskipleft = s->gr[0x2f] & 0x07;
+    int srcskipleft = s->vga.gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
 #endif
 
@@ -153,7 +153,7 @@ glue(glue(glue(cirrus_colorexpand_, ROP_NAME), _),DEPTH)
     unsigned bits;
     unsigned int col;
     unsigned bitmask;
-    int srcskipleft = s->gr[0x2f] & 0x07;
+    int srcskipleft = s->vga.gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
 
     colors[0] = s->cirrus_blt_bgcol;
@@ -188,10 +188,10 @@ glue(glue(glue(cirrus_colorexpand_pattern_transp_, ROP_NAME), _),DEPTH)
     unsigned int bits, bits_xor;
     unsigned int col;
 #if DEPTH == 24
-    int dstskipleft = s->gr[0x2f] & 0x1f;
+    int dstskipleft = s->vga.gr[0x2f] & 0x1f;
     int srcskipleft = dstskipleft / 3;
 #else
-    int srcskipleft = s->gr[0x2f] & 0x07;
+    int srcskipleft = s->vga.gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
 #endif
 
@@ -232,7 +232,7 @@ glue(glue(glue(cirrus_colorexpand_pattern_, ROP_NAME), _),DEPTH)
     int x, y, bitpos, pattern_y;
     unsigned int bits;
     unsigned int col;
-    int srcskipleft = s->gr[0x2f] & 0x07;
+    int srcskipleft = s->vga.gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
 
     colors[0] = s->cirrus_blt_bgcol;
