@@ -3926,7 +3926,11 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
 
     /* ??? We assume FUTEX_* constants are the same on both host
        and target.  */
+#ifdef FUTEX_CMD_MASK
+    switch ((op&FUTEX_CMD_MASK)) {
+#else
     switch (op) {
+#endif
     case FUTEX_WAIT:
         if (timeout) {
             pts = &ts;
@@ -3934,17 +3938,17 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
         } else {
             pts = NULL;
         }
-        return get_errno(sys_futex(g2h(uaddr), FUTEX_WAIT, tswap32(val),
+        return get_errno(sys_futex(g2h(uaddr), op, tswap32(val),
                          pts, NULL, 0));
     case FUTEX_WAKE:
-        return get_errno(sys_futex(g2h(uaddr), FUTEX_WAKE, val, NULL, NULL, 0));
+        return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_FD:
-        return get_errno(sys_futex(g2h(uaddr), FUTEX_FD, val, NULL, NULL, 0));
+        return get_errno(sys_futex(g2h(uaddr), op, val, NULL, NULL, 0));
     case FUTEX_REQUEUE:
-        return get_errno(sys_futex(g2h(uaddr), FUTEX_REQUEUE, val,
+        return get_errno(sys_futex(g2h(uaddr), op, val,
                          NULL, g2h(uaddr2), 0));
     case FUTEX_CMP_REQUEUE:
-        return get_errno(sys_futex(g2h(uaddr), FUTEX_CMP_REQUEUE, val,
+        return get_errno(sys_futex(g2h(uaddr), op, val,
                          NULL, g2h(uaddr2), tswap32(val3)));
     default:
         return -TARGET_ENOSYS;
