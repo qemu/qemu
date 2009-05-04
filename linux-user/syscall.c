@@ -77,6 +77,7 @@
 #include <linux/soundcard.h>
 #include <linux/kd.h>
 #include <linux/mtio.h>
+#include <linux/fs.h>
 #include "linux_loop.h"
 
 #include "qemu.h"
