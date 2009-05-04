@@ -29,9 +29,8 @@
 //#include <asm/uaccess.h>
 
 static inline
-void loadSingle(const unsigned int Fn,const unsigned int *pMem)
+void loadSingle(const unsigned int Fn, target_ulong addr)
 {
-   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    fpa11->fType[Fn] = typeSingle;
    /* FIXME - handle failure of get_user() */
@@ -39,9 +38,8 @@ void loadSingle(const unsigned int Fn,const unsigned int *pMem)
 }
 
 static inline
-void loadDouble(const unsigned int Fn,const unsigned int *pMem)
+void loadDouble(const unsigned int Fn, target_ulong addr)
 {
-   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    unsigned int *p;
    p = (unsigned int*)&fpa11->fpreg[Fn].fDouble;
@@ -58,9 +56,8 @@ void loadDouble(const unsigned int Fn,const unsigned int *pMem)
 }
 
 static inline
-void loadExtended(const unsigned int Fn,const unsigned int *pMem)
+void loadExtended(const unsigned int Fn, target_ulong addr)
 {
-   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    unsigned int *p;
    p = (unsigned int*)&fpa11->fpreg[Fn].fExtended;
@@ -72,9 +69,8 @@ void loadExtended(const unsigned int Fn,const unsigned int *pMem)
 }
 
 static inline
-void loadMultiple(const unsigned int Fn,const unsigned int *pMem)
+void loadMultiple(const unsigned int Fn, target_ulong addr)
 {
-   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    register unsigned int *p;
    unsigned long x;
@@ -108,9 +104,8 @@ void loadMultiple(const unsigned int Fn,const unsigned int *pMem)
 }
 
 static inline
-void storeSingle(const unsigned int Fn,unsigned int *pMem)
+void storeSingle(const unsigned int Fn, target_ulong addr)
 {
-   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    float32 val;
    register unsigned int *p = (unsigned int*)&val;
@@ -133,9 +128,8 @@ void storeSingle(const unsigned int Fn,unsigned int *pMem)
 }
 
 static inline
-void storeDouble(const unsigned int Fn,unsigned int *pMem)
+void storeDouble(const unsigned int Fn, target_ulong addr)
 {
-   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    float64 val;
    register unsigned int *p = (unsigned int*)&val;
@@ -163,9 +157,8 @@ void storeDouble(const unsigned int Fn,unsigned int *pMem)
 }
 
 static inline
-void storeExtended(const unsigned int Fn,unsigned int *pMem)
+void storeExtended(const unsigned int Fn, target_ulong addr)
 {
-   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    floatx80 val;
    register unsigned int *p = (unsigned int*)&val;
@@ -190,9 +183,8 @@ void storeExtended(const unsigned int Fn,unsigned int *pMem)
 }
 
 static inline
-void storeMultiple(const unsigned int Fn,unsigned int *pMem)
+void storeMultiple(const unsigned int Fn, target_ulong addr)
 {
-   target_ulong addr = (target_ulong)(long)pMem;
    FPA11 *fpa11 = GET_FPA11();
    register unsigned int nType, *p;
 
@@ -220,25 +212,26 @@ void storeMultiple(const unsigned int Fn,unsigned int *pMem)
    }
 }
 
-unsigned int PerformLDF(const unsigned int opcode)
+static unsigned int PerformLDF(const unsigned int opcode)
 {
-   unsigned int *pBase, *pAddress, *pFinal, nRc = 1,
+    target_ulong pBase, pAddress, pFinal;
+    unsigned int nRc = 1,
      write_back = WRITE_BACK(opcode);
 
    //printk("PerformLDF(0x%08x), Fd = 0x%08x\n",opcode,getFd(opcode));
 
-   pBase = (unsigned int*)readRegister(getRn(opcode));
+   pBase = readRegister(getRn(opcode));
    if (REG_PC == getRn(opcode))
    {
-     pBase += 2;
+     pBase += 8;
      write_back = 0;
    }
 
    pFinal = pBase;
    if (BIT_UP_SET(opcode))
-     pFinal += getOffset(opcode);
+     pFinal += getOffset(opcode) * 4;
    else
-     pFinal -= getOffset(opcode);
+     pFinal -= getOffset(opcode) * 4;
 
    if (PREINDEXED(opcode)) pAddress = pFinal; else pAddress = pBase;
 
@@ -254,26 +247,27 @@ unsigned int PerformLDF(const unsigned int opcode)
    return nRc;
 }
 
-unsigned int PerformSTF(const unsigned int opcode)
+static unsigned int PerformSTF(const unsigned int opcode)
 {
-   unsigned int *pBase, *pAddress, *pFinal, nRc = 1,
+   target_ulong pBase, pAddress, pFinal;
+   unsigned int nRc = 1,
      write_back = WRITE_BACK(opcode);
 
    //printk("PerformSTF(0x%08x), Fd = 0x%08x\n",opcode,getFd(opcode));
    SetRoundingMode(ROUND_TO_NEAREST);
 
-   pBase = (unsigned int*)readRegister(getRn(opcode));
+   pBase = readRegister(getRn(opcode));
    if (REG_PC == getRn(opcode))
    {
-     pBase += 2;
+     pBase += 8;
      write_back = 0;
    }
 
    pFinal = pBase;
    if (BIT_UP_SET(opcode))
-     pFinal += getOffset(opcode);
+     pFinal += getOffset(opcode) * 4;
    else
-     pFinal -= getOffset(opcode);
+     pFinal -= getOffset(opcode) * 4;
 
    if (PREINDEXED(opcode)) pAddress = pFinal; else pAddress = pBase;
 
@@ -289,23 +283,24 @@ unsigned int PerformSTF(const unsigned int opcode)
    return nRc;
 }
 
-unsigned int PerformLFM(const unsigned int opcode)
+static unsigned int PerformLFM(const unsigned int opcode)
 {
-   unsigned int i, Fd, *pBase, *pAddress, *pFinal,
+   unsigned int i, Fd,
      write_back = WRITE_BACK(opcode);
+   target_ulong pBase, pAddress, pFinal;
 
-   pBase = (unsigned int*)readRegister(getRn(opcode));
+   pBase = readRegister(getRn(opcode));
    if (REG_PC == getRn(opcode))
    {
-     pBase += 2;
+     pBase += 8;
      write_back = 0;
    }
 
    pFinal = pBase;
    if (BIT_UP_SET(opcode))
-     pFinal += getOffset(opcode);
+     pFinal += getOffset(opcode) * 4;
    else
-     pFinal -= getOffset(opcode);
+     pFinal -= getOffset(opcode) * 4;
 
    if (PREINDEXED(opcode)) pAddress = pFinal; else pAddress = pBase;
 
@@ -313,7 +308,7 @@ unsigned int PerformLFM(const unsigned int opcode)
    for (i=getRegisterCount(opcode);i>0;i--)
    {
      loadMultiple(Fd,pAddress);
-     pAddress += 3; Fd++;
+     pAddress += 12; Fd++;
      if (Fd == 8) Fd = 0;
    }
 
@@ -321,23 +316,24 @@ unsigned int PerformLFM(const unsigned int opcode)
    return 1;
 }
 
-unsigned int PerformSFM(const unsigned int opcode)
+static unsigned int PerformSFM(const unsigned int opcode)
 {
-   unsigned int i, Fd, *pBase, *pAddress, *pFinal,
+   unsigned int i, Fd,
      write_back = WRITE_BACK(opcode);
+   target_ulong pBase, pAddress, pFinal;
 
-   pBase = (unsigned int*)readRegister(getRn(opcode));
+   pBase = readRegister(getRn(opcode));
    if (REG_PC == getRn(opcode))
    {
-     pBase += 2;
+     pBase += 8;
      write_back = 0;
    }
 
    pFinal = pBase;
    if (BIT_UP_SET(opcode))
-     pFinal += getOffset(opcode);
+     pFinal += getOffset(opcode) * 4;
    else
-     pFinal -= getOffset(opcode);
+     pFinal -= getOffset(opcode) * 4;
 
    if (PREINDEXED(opcode)) pAddress = pFinal; else pAddress = pBase;
 
@@ -345,7 +341,7 @@ unsigned int PerformSFM(const unsigned int opcode)
    for (i=getRegisterCount(opcode);i>0;i--)
    {
      storeMultiple(Fd,pAddress);
-     pAddress += 3; Fd++;
+     pAddress += 12; Fd++;
      if (Fd == 8) Fd = 0;
    }
 

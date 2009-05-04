@@ -30,11 +30,6 @@
 
 #include <stdio.h>
 
-/* forward declarations */
-unsigned int EmulateCPDO(const unsigned int);
-unsigned int EmulateCPDT(const unsigned int);
-unsigned int EmulateCPRT(const unsigned int);
-
 FPA11* qemufpa=0;
 CPUARMState* user_registers;
 
