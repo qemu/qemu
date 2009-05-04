@@ -1067,7 +1067,6 @@ pci_e1000_init(PCIBus *bus, NICInfo *nd, int devfn)
 	return NULL;
 
     pci_conf = d->dev.config;
-    memset(pci_conf, 0, 256);
 
     pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_INTEL);
     pci_config_set_device_id(pci_conf, E1000_DEVID);
