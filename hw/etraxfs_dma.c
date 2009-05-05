@@ -392,10 +392,8 @@ static void channel_update_irq(struct fs_dma_ctrl *ctrl, int c)
 		 c,
 		 ctrl->channels[c].regs[R_MASKED_INTR]));
 
-        if (ctrl->channels[c].regs[R_MASKED_INTR])
-                qemu_irq_raise(ctrl->channels[c].irq[0]);
-        else
-                qemu_irq_lower(ctrl->channels[c].irq[0]);
+        qemu_set_irq(ctrl->channels[c].irq[0],
+		     !!ctrl->channels[c].regs[R_MASKED_INTR]);
 }
 
 static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)

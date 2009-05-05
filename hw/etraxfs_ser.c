@@ -67,23 +67,15 @@ struct etrax_serial_t
 
 static void ser_update_irq(struct etrax_serial_t *s)
 {
-	uint32_t o_irq = s->r_masked_intr;
-
 	s->r_intr &= ~(s->rw_ack_intr);
 	s->r_masked_intr = s->r_intr & s->rw_intr_mask;
 
-	if (o_irq != s->r_masked_intr) {
-		D(printf("irq_mask=%x r_intr=%x rmi=%x airq=%x \n", 
-			 s->rw_intr_mask, s->r_intr, 
-			 s->r_masked_intr, s->rw_ack_intr));
-		if (s->r_masked_intr)
-			qemu_irq_raise(s->irq[0]);
-		else
-			qemu_irq_lower(s->irq[0]);
-	}
+	D(printf("irq_mask=%x r_intr=%x rmi=%x airq=%x \n", 
+		 s->rw_intr_mask, s->r_intr, 
+		 s->r_masked_intr, s->rw_ack_intr));
+	qemu_set_irq(s->irq[0], !!s->r_masked_intr);
 	s->rw_ack_intr = 0;
 }
-
 
 static uint32_t ser_readb (void *opaque, target_phys_addr_t addr)
 {
