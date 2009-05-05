@@ -36,13 +36,13 @@
 #define R_R_GURU	4
 #define R_MAX		5
 
-struct fs_pic_state_t
+struct fs_pic_state
 {
 	CPUState *env;
 	uint32_t regs[R_MAX];
 };
 
-static void pic_update(struct fs_pic_state_t *fs)
+static void pic_update(struct fs_pic_state *fs)
 {	
 	CPUState *env = fs->env;
 	uint32_t vector = 0;
@@ -80,7 +80,7 @@ static void pic_update(struct fs_pic_state_t *fs)
 
 static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 {
-	struct fs_pic_state_t *fs = opaque;
+	struct fs_pic_state *fs = opaque;
 	uint32_t rval;
 
 	rval = fs->regs[addr >> 2];
@@ -91,7 +91,7 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 static void
 pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	struct fs_pic_state_t *fs = opaque;
+	struct fs_pic_state *fs = opaque;
 	D(printf("%s addr=%x val=%x\n", __func__, addr, value));
 
 	if (addr == R_RW_MASK) {
@@ -120,7 +120,7 @@ void irq_info(Monitor *mon)
 
 static void irq_handler(void *opaque, int irq, int level)
 {	
-	struct fs_pic_state_t *fs = (void *)opaque;
+	struct fs_pic_state *fs = (void *)opaque;
 	irq -= 1;
 	fs->regs[R_R_VECT] &= ~(1 << irq);
 	fs->regs[R_R_VECT] |= (!!level << irq);
@@ -130,7 +130,7 @@ static void irq_handler(void *opaque, int irq, int level)
 
 static void nmi_handler(void *opaque, int irq, int level)
 {	
-	struct fs_pic_state_t *fs = (void *)opaque;
+	struct fs_pic_state *fs = (void *)opaque;
 	CPUState *env = fs->env;
 	uint32_t mask;
 
@@ -148,13 +148,13 @@ static void nmi_handler(void *opaque, int irq, int level)
 
 static void guru_handler(void *opaque, int irq, int level)
 {	
-	struct fs_pic_state_t *fs = (void *)opaque;
+	struct fs_pic_state *fs = (void *)opaque;
 	cpu_abort(fs->env, "%s unsupported exception\n", __func__);
 }
 
 struct etraxfs_pic *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)
 {
-	struct fs_pic_state_t *fs = NULL;
+	struct fs_pic_state *fs = NULL;
 	struct etraxfs_pic *pic = NULL;
 	int intr_vect_regs;
 
