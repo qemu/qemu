@@ -45,7 +45,7 @@
 #define STAT_TR_IDLE 22
 #define STAT_TR_RDY  24
 
-struct etrax_serial_t
+struct etrax_serial
 {
 	CPUState *env;
 	CharDriverState *chr;
@@ -65,7 +65,7 @@ struct etrax_serial_t
 	uint32_t r_masked_intr;
 };
 
-static void ser_update_irq(struct etrax_serial_t *s)
+static void ser_update_irq(struct etrax_serial *s)
 {
 	s->r_intr &= ~(s->rw_ack_intr);
 	s->r_masked_intr = s->r_intr & s->rw_intr_mask;
@@ -79,7 +79,7 @@ static void ser_update_irq(struct etrax_serial_t *s)
 
 static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 {
-	struct etrax_serial_t *s = opaque;
+	struct etrax_serial *s = opaque;
 	D(CPUState *env = s->env);
 	uint32_t r = 0;
 
@@ -125,7 +125,7 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 static void
 ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
-	struct etrax_serial_t *s = opaque;
+	struct etrax_serial *s = opaque;
 	unsigned char ch = value;
 	D(CPUState *env = s->env);
 
@@ -176,7 +176,7 @@ static CPUWriteMemoryFunc *ser_write[] = {
 
 static void serial_receive(void *opaque, const uint8_t *buf, int size)
 {
-	struct etrax_serial_t *s = opaque;
+	struct etrax_serial *s = opaque;
 
 	s->r_intr |= 8;
 	s->rs_stat_din &= ~0xff;
@@ -187,7 +187,7 @@ static void serial_receive(void *opaque, const uint8_t *buf, int size)
 
 static int serial_can_receive(void *opaque)
 {
-	struct etrax_serial_t *s = opaque;
+	struct etrax_serial *s = opaque;
 	int r;
 
 	/* Is the receiver enabled?  */
@@ -206,7 +206,7 @@ static void serial_event(void *opaque, int event)
 void etraxfs_ser_init(CPUState *env, qemu_irq *irq, CharDriverState *chr,
 		      target_phys_addr_t base)
 {
-	struct etrax_serial_t *s;
+	struct etrax_serial *s;
 	int ser_regs;
 
 	s = qemu_mallocz(sizeof *s);
