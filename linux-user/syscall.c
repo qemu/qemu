@@ -944,6 +944,37 @@ static abi_long do_select(int n,
     return ret;
 }
 
+static abi_long do_pipe2(int host_pipe[], int flags)
+{
+#ifdef CONFIG_PIPE2
+    return pipe2(host_pipe, flags);
+#else
+    return -ENOSYS;
+#endif
+}
+
+static abi_long do_pipe(void *cpu_env, int pipedes, int flags)
+{
+    int host_pipe[2];
+    abi_long ret;
+    ret = flags ? do_pipe2(host_pipe, flags) : pipe(host_pipe);
+
+    if (is_error(ret))
+        return get_errno(ret);
+#if defined(TARGET_MIPS)
+    ((CPUMIPSState*)cpu_env)->active_tc.gpr[3] = host_pipe[1];
+    ret = host_pipe[0];
+#elif defined(TARGET_SH4)
+    ((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];
+    ret = host_pipe[0];
+#else
+    if (put_user_s32(host_pipe[0], pipedes)
+        || put_user_s32(host_pipe[1], pipedes + sizeof(host_pipe[0])))
+        return -TARGET_EFAULT;
+#endif
+    return get_errno(ret);
+}
+
 static inline abi_long target_to_host_ip_mreq(struct ip_mreqn *mreqn,
                                               abi_ulong target_addr,
                                               socklen_t len)
@@ -4529,25 +4560,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(dup(arg1));
         break;
     case TARGET_NR_pipe:
-        {
-            int host_pipe[2];
-            ret = get_errno(pipe(host_pipe));
-            if (!is_error(ret)) {
-#if defined(TARGET_MIPS)
-                CPUMIPSState *env = (CPUMIPSState*)cpu_env;
-		env->active_tc.gpr[3] = host_pipe[1];
-		ret = host_pipe[0];
-#elif defined(TARGET_SH4)
-		((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];
-		ret = host_pipe[0];
-#else
-                if (put_user_s32(host_pipe[0], arg1)
-                    || put_user_s32(host_pipe[1], arg1 + sizeof(host_pipe[0])))
-                    goto efault;
-#endif
-            }
-        }
+        ret = do_pipe(cpu_env, arg1, 0);
         break;
+#ifdef TARGET_NR_pipe2
+    case TARGET_NR_pipe2:
+        ret = do_pipe(cpu_env, arg1, arg2);
+        break;
+#endif
     case TARGET_NR_times:
         {
             struct target_tms *tmsp;

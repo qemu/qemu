@@ -1304,6 +1304,24 @@ if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
   utimens=yes
 fi
 
+# check if pipe2 is there
+pipe2=no
+cat > $TMPC << EOF
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <fcntl.h>
+
+int main(void)
+{
+    int pipefd[2];
+    pipe2(pipefd, O_CLOEXEC);
+    return 0;
+}
+EOF
+if $cc $ARCH_CFLAGS -o $TMPE $TMPC 2> /dev/null ; then
+  pipe2=yes
+fi
+
 # Check if tools are available to build documentation.
 if test "$build_docs" = "yes" -a \( ! -x "`which texi2html 2>/dev/null`" -o ! -x "`which pod2man 2>/dev/null`" \) ; then
   build_docs="no"
@@ -1703,6 +1721,9 @@ if test "$atfile" = "yes" ; then
 fi
 if test "$utimens" = "yes" ; then
   echo "#define CONFIG_UTIMENSAT 1" >> $config_h
+fi
+if test "$pipe2" = "yes" ; then
+  echo "#define CONFIG_PIPE2 1" >> $config_h
 fi
 if test "$inotify" = "yes" ; then
   echo "#define CONFIG_INOTIFY 1" >> $config_h
