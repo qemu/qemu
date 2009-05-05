@@ -77,13 +77,6 @@ static void ser_update_irq(struct etrax_serial_t *s)
 	s->rw_ack_intr = 0;
 }
 
-static uint32_t ser_readb (void *opaque, target_phys_addr_t addr)
-{
-	D(CPUState *env = opaque);
-	D(printf ("%s %x\n", __func__, addr));
-	return 0;
-}
-
 static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 {
 	struct etrax_serial_t *s = opaque;
@@ -130,13 +123,6 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-ser_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-	D(struct etrax_serial_t *s = opaque);
-	D(CPUState *env = s->env);
- 	D(printf ("%s %x %x\n", __func__, addr, value));
-}
-static void
 ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 {
 	struct etrax_serial_t *s = opaque;
@@ -179,14 +165,12 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 }
 
 static CPUReadMemoryFunc *ser_read[] = {
-	&ser_readb,
-	&ser_readb,
+	NULL, NULL,
 	&ser_readl,
 };
 
 static CPUWriteMemoryFunc *ser_write[] = {
-	&ser_writeb,
-	&ser_writeb,
+	NULL, NULL,
 	&ser_writel,
 };
 
