@@ -820,6 +820,19 @@ static inline void gen_bx_T0(DisasContext *s)
     gen_bx(s, tmp);
 }
 
+/* Variant of store_reg which uses branch&exchange logic when storing
+   to r15 in ARM architecture v7 and above. The source must be a temporary
+   and will be marked as dead. */
+static inline void store_reg_bx(CPUState *env, DisasContext *s,
+                                int reg, TCGv var)
+{
+    if (reg == 15 && ENABLE_ARCH_7) {
+        gen_bx(s, var);
+    } else {
+        store_reg(s, reg, var);
+    }
+}
+
 static inline TCGv gen_ld8s(TCGv addr, int index)
 {
     TCGv tmp = new_tmp();
@@ -6131,14 +6144,14 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             if (logic_cc) {
                 gen_logic_CC(tmp);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 0x01:
             tcg_gen_xor_i32(tmp, tmp, tmp2);
             if (logic_cc) {
                 gen_logic_CC(tmp);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 0x02:
             if (set_cc && rd == 15) {
@@ -6154,7 +6167,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 } else {
                     tcg_gen_sub_i32(tmp, tmp, tmp2);
                 }
-                store_reg(s, rd, tmp);
+                store_reg_bx(env, s, rd, tmp);
             }
             break;
         case 0x03:
@@ -6163,7 +6176,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 tcg_gen_sub_i32(tmp, tmp2, tmp);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 0x04:
             if (set_cc) {
@@ -6171,7 +6184,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 tcg_gen_add_i32(tmp, tmp, tmp2);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 0x05:
             if (set_cc) {
@@ -6179,7 +6192,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 gen_add_carry(tmp, tmp, tmp2);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 0x06:
             if (set_cc) {
@@ -6187,7 +6200,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 gen_sub_carry(tmp, tmp, tmp2);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 0x07:
             if (set_cc) {
@@ -6195,7 +6208,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             } else {
                 gen_sub_carry(tmp, tmp2, tmp);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 0x08:
             if (set_cc) {
@@ -6228,7 +6241,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             if (logic_cc) {
                 gen_logic_CC(tmp);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 0x0d:
             if (logic_cc && rd == 15) {
@@ -6241,7 +6254,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                 if (logic_cc) {
                     gen_logic_CC(tmp2);
                 }
-                store_reg(s, rd, tmp2);
+                store_reg_bx(env, s, rd, tmp2);
             }
             break;
         case 0x0e:
@@ -6249,7 +6262,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             if (logic_cc) {
                 gen_logic_CC(tmp);
             }
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         default:
         case 0x0f:
@@ -6257,7 +6270,7 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
             if (logic_cc) {
                 gen_logic_CC(tmp2);
             }
-            store_reg(s, rd, tmp2);
+            store_reg_bx(env, s, rd, tmp2);
             break;
         }
         if (op1 != 0x0f && op1 != 0x0d) {
@@ -7359,7 +7372,7 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             gen_arm_shift_reg(tmp, op, tmp2, logic_cc);
             if (logic_cc)
                 gen_logic_CC(tmp);
-            store_reg(s, rd, tmp);
+            store_reg_bx(env, s, rd, tmp);
             break;
         case 1: /* Sign/zero extend.  */
             tmp = load_reg(s, rm);
