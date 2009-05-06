@@ -282,7 +282,7 @@ static void glue(pl110_draw_line32_,NAME)(void *opaque, uint8_t *d, const uint8_
 #define LSB b
 #define MSB r
 #endif
-#ifdef SWAP_WORDS
+#ifndef SWAP_WORDS
         LSB = data & 0xff;
         g = (data >> 8) & 0xff;
         MSB = (data >> 16) & 0xff;

@@ -262,7 +262,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     d->config[0x09] = 0x00; // programming i/f
     pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
     d->config[0x0D] = 0x10; // latency_timer
-    d->config[0x0E] = 0x00; // header_type
+    d->config[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
 
     /* APB secondary busses */
     *bus2 = pci_bridge_init(s->bus, 8, PCI_VENDOR_ID_SUN,

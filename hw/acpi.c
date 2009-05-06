@@ -515,7 +515,7 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     pci_conf[0x08] = 0x03; // revision number
     pci_conf[0x09] = 0x00;
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_OTHER);
-    pci_conf[0x0e] = 0x00; // header_type
+    pci_conf[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; // header_type
     pci_conf[0x3d] = 0x01; // interrupt pin 1
 
     pci_conf[0x40] = 0x01; /* PM io base read only bit */

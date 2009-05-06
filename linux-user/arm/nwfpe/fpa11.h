@@ -116,6 +116,15 @@ static inline void writeConditionCodes(unsigned int x)
 
 unsigned int EmulateAll(unsigned int opcode, FPA11* qfpa, CPUARMState* qregs);
 
+unsigned int EmulateCPDO(const unsigned int);
+unsigned int EmulateCPDT(const unsigned int);
+unsigned int EmulateCPRT(const unsigned int);
+
+unsigned int SingleCPDO(const unsigned int opcode);
+unsigned int DoubleCPDO(const unsigned int opcode);
+unsigned int ExtendedCPDO(const unsigned int opcode);
+
+
 /* included only for get_user/put_user macros */
 #include "qemu.h"
 

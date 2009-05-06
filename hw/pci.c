@@ -100,6 +100,7 @@ PCIBus *pci_register_bus(pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     bus->irq_opaque = pic;
     bus->devfn_min = devfn_min;
     bus->nirq = nirq;
+    bus->next = first_bus;
     first_bus = bus;
     register_savevm("PCIBUS", nbus++, 1, pcibus_save, pcibus_load, bus);
     return bus;
@@ -905,7 +906,8 @@ PCIBus *pci_bridge_init(PCIBus *bus, int devfn, uint16_t vid, uint16_t did,
     s->dev.config[0x09] = 0x00; // programming i/f
     pci_config_set_class(s->dev.config, PCI_CLASS_BRIDGE_PCI);
     s->dev.config[0x0D] = 0x10; // latency_timer
-    s->dev.config[0x0E] = 0x81; // header_type
+    s->dev.config[PCI_HEADER_TYPE] =
+        PCI_HEADER_TYPE_MULTI_FUNCTION | PCI_HEADER_TYPE_BRIDGE; // header_type
     s->dev.config[0x1E] = 0xa0; // secondary status
 
     s->bus = pci_register_secondary_bus(&s->dev, map_irq);

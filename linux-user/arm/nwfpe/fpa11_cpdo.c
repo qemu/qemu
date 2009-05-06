@@ -22,10 +22,6 @@
 #include "fpa11.h"
 #include "fpopcode.h"
 
-unsigned int SingleCPDO(const unsigned int opcode);
-unsigned int DoubleCPDO(const unsigned int opcode);
-unsigned int ExtendedCPDO(const unsigned int opcode);
-
 unsigned int EmulateCPDO(const unsigned int opcode)
 {
    FPA11 *fpa11 = GET_FPA11();

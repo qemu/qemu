@@ -1348,7 +1348,7 @@ int ac97_init (PCIBus *bus, AudioState *audio)
     c[0x08] = 0x01;      /* rid revision ro */
     c[0x09] = 0x00;      /* pi programming interface ro */
     pci_config_set_class(c, PCI_CLASS_MULTIMEDIA_AUDIO); /* ro */
-    c[0x0e] = 0x00;      /* headtyp header type ro */
+    c[PCI_HEADER_TYPE] = PCI_HEADER_TYPE_NORMAL; /* headtyp header type ro */
 
     c[0x10] = 0x01;      /* nabmar native audio mixer base
                             address rw */
