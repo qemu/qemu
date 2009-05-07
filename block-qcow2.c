@@ -992,6 +992,12 @@ static int alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
         goto err;
 
     for (i = 0; i < m->nb_clusters; i++) {
+        /* if two concurrent writes happen to the same unallocated cluster
+	 * each write allocates separate cluster and writes data concurrently.
+	 * The first one to complete updates l2 table with pointer to its
+	 * cluster the second one has to do RMW (which is done above by
+	 * copy_sectors()), update l2 table with its cluster pointer and free
+	 * old cluster. This is what this loop does */
         if(l2_table[l2_index + i] != 0)
             old_cluster[j++] = l2_table[l2_index + i];
 
@@ -1005,7 +1011,8 @@ static int alloc_cluster_link_l2(BlockDriverState *bs, uint64_t cluster_offset,
         goto err;
 
     for (i = 0; i < j; i++)
-        free_any_clusters(bs, be64_to_cpu(old_cluster[i]), 1);
+        free_any_clusters(bs, be64_to_cpu(old_cluster[i]) & ~QCOW_OFLAG_COPIED,
+                          1);
 
     ret = 0;
 err:
