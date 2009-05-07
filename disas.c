@@ -33,10 +33,7 @@ target_read_memory (bfd_vma memaddr,
                     int length,
                     struct disassemble_info *info)
 {
-    int i;
-    for(i = 0; i < length; i++) {
-        myaddr[i] = ldub_code(memaddr + i);
-    }
+    cpu_memory_rw_debug(cpu_single_env, memaddr, myaddr, length, 0);
     return 0;
 }
 
