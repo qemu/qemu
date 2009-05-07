@@ -49,10 +49,11 @@ ifneq ($(wildcard config-host.mak),)
 	@sed -n "/.*Configured with/s/[^:]*: //p" $@ | sh
 endif
 
+SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory)
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
 subdir-%:
-	$(call quiet-command,$(MAKE) -C $* V="$(V)" TARGET_DIR="$*/" all,)
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
 $(filter %-softmmu,$(SUBDIR_RULES)): libqemu_common.a
 $(filter %-user,$(SUBDIR_RULES)): libqemu_user.a
