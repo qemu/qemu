@@ -159,7 +159,6 @@ strip_opt="yes"
 bigendian="no"
 mingw32="no"
 EXESUF=""
-gdbstub="yes"
 slirp="yes"
 vde="yes"
 fmod_lib=""
@@ -1525,10 +1524,6 @@ fi
 if test -n "$sparc_cpu"; then
   echo "CONFIG__sparc_${sparc_cpu}__=yes" >> $config_mak
   echo "#define __sparc_${sparc_cpu}__ 1" >> $config_h
-fi
-if test "$gdbstub" = "yes" ; then
-  echo "CONFIG_GDBSTUB=yes" >> $config_mak
-  echo "#define CONFIG_GDBSTUB 1" >> $config_h
 fi
 if test "$gprof" = "yes" ; then
   echo "TARGET_GPROF=yes" >> $config_mak

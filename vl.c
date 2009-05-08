@@ -4350,13 +4350,11 @@ static void tcg_cpu_exec(void)
         }
         if (cpu_can_run(env))
             ret = qemu_cpu_exec(env);
-#ifndef CONFIG_GDBSTUB
         if (ret == EXCP_DEBUG) {
             gdb_set_stop_cpu(env);
             debug_requested = 1;
             break;
         }
-#endif
     }
 }
 
@@ -4795,9 +4793,7 @@ static void termsig_setup(void)
 
 int main(int argc, char **argv, char **envp)
 {
-#ifdef CONFIG_GDBSTUB
     const char *gdbstub_dev = NULL;
-#endif
     uint32_t boot_devices_bitmap = 0;
     int i;
     int snapshot, linux_boot, net_boot;
@@ -5229,14 +5225,12 @@ int main(int argc, char **argv, char **envp)
                     cpu_set_log(mask);
                 }
                 break;
-#ifdef CONFIG_GDBSTUB
             case QEMU_OPTION_s:
                 gdbstub_dev = "tcp::" DEFAULT_GDBSTUB_PORT;
                 break;
             case QEMU_OPTION_gdb:
                 gdbstub_dev = optarg;
                 break;
-#endif
             case QEMU_OPTION_L:
                 bios_dir = optarg;
                 break;
@@ -6023,13 +6017,11 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-#ifdef CONFIG_GDBSTUB
     if (gdbstub_dev && gdbserver_start(gdbstub_dev) < 0) {
         fprintf(stderr, "qemu: could not open gdbserver on device '%s'\n",
                 gdbstub_dev);
         exit(1);
     }
-#endif
 
     if (loadvm)
         do_loadvm(cur_mon, loadvm);

@@ -317,7 +317,7 @@ CFLAGS+=-p
 endif
 
 OBJS= main.o syscall.o strace.o mmap.o signal.o path.o thunk.o \
-      elfload.o linuxload.o uaccess.o envlist.o
+      elfload.o linuxload.o uaccess.o envlist.o gdbstub.o gdbstub-xml.o
 LIBS+= $(PTHREADLIBS)
 LIBS+= $(CLOCKLIBS)
 ifdef TARGET_HAS_BFLT
@@ -338,10 +338,6 @@ nwfpe/fpa11_cpdt.o nwfpe/fpa11_cprt.o nwfpe/fpopcode.o nwfpe/single_cpdo.o \
 endif
 ifeq ($(TARGET_ARCH), m68k)
 OBJS+= m68k-sim.o m68k-semi.o
-endif
-
-ifdef CONFIG_GDBSTUB
-OBJS+=gdbstub.o gdbstub-xml.o
 endif
 
 OBJS+= libqemu.a
@@ -373,13 +369,10 @@ LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
 
 LIBS+=-lmx
 
-OBJS= main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o
+OBJS= main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
+      gdbstub.o gdbstub-xml.o
 
 OBJS+= libqemu.a
-
-ifdef CONFIG_GDBSTUB
-OBJS+=gdbstub.o gdbstub-xml.o
-endif
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
@@ -476,14 +469,11 @@ LDFLAGS+=-Wl,-T,$(SRC_PATH)/$(ARCH)el.ld
 endif
 endif
 
-OBJS= main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o
+OBJS= main.o bsdload.o elfload.o mmap.o path.o signal.o strace.o syscall.o \
+      gdbstub.o gdbstub-xml.o
 OBJS+= uaccess.o
 
 OBJS+= libqemu.a
-
-ifdef CONFIG_GDBSTUB
-OBJS+=gdbstub.o
-endif
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in cpu-exec.c.
@@ -498,7 +488,8 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifndef CONFIG_USER_ONLY
 
-OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o dma-helpers.o
+OBJS=vl.o osdep.o monitor.o pci.o loader.o isa_mmio.o machine.o dma-helpers.o \
+     gdbstub.o gdbstub-xml.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 OBJS+=virtio.o virtio-blk.o virtio-balloon.o virtio-net.o virtio-console.o
@@ -685,9 +676,6 @@ endif
 ifeq ($(TARGET_BASE_ARCH), m68k)
 OBJS+= an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
 OBJS+= m68k-semi.o dummy_m68k.o
-endif
-ifdef CONFIG_GDBSTUB
-OBJS+=gdbstub.o gdbstub-xml.o
 endif
 ifdef CONFIG_COCOA
 COCOA_LIBS=-F/System/Library/Frameworks -framework Cocoa -framework IOKit
