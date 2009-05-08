@@ -12,7 +12,6 @@
 #include "hw.h"
 #include "primecell.h"
 #include "qemu-timer.h"
-#include "sysemu.h"
 
 //#define DEBUG_PL031
 
