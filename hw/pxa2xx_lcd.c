@@ -400,8 +400,7 @@ static uint32_t pxa2xx_lcdc_read(void *opaque, target_phys_addr_t offset)
 
     default:
     fail:
-        cpu_abort(cpu_single_env,
-                "%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
+        hw_error("%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
     }
 
     return 0;
@@ -556,8 +555,7 @@ static void pxa2xx_lcdc_write(void *opaque,
 
     default:
     fail:
-        cpu_abort(cpu_single_env,
-                "%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
+        hw_error("%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
     }
 }
 

@@ -148,8 +148,7 @@ static void nmi_handler(void *opaque, int irq, int level)
 
 static void guru_handler(void *opaque, int irq, int level)
 {	
-	struct fs_pic_state *fs = (void *)opaque;
-	cpu_abort(fs->env, "%s unsupported exception\n", __func__);
+	hw_error("%s unsupported exception\n", __func__);
 }
 
 struct etraxfs_pic *etraxfs_pic_init(CPUState *env, target_phys_addr_t base)

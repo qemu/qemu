@@ -1531,7 +1531,7 @@ static uint32_t omap_id_read(void *opaque, target_phys_addr_t addr)
         case omap1510:
             return 0x03310115;
         default:
-            cpu_abort(cpu_single_env, "%s: bad mpu model\n", __FUNCTION__);
+            hw_error("%s: bad mpu model\n", __FUNCTION__);
         }
         break;
 
@@ -1542,7 +1542,7 @@ static uint32_t omap_id_read(void *opaque, target_phys_addr_t addr)
         case omap1510:
             return 0xfb47002f;
         default:
-            cpu_abort(cpu_single_env, "%s: bad mpu model\n", __FUNCTION__);
+            hw_error("%s: bad mpu model\n", __FUNCTION__);
         }
         break;
     }
@@ -2775,15 +2775,14 @@ qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s)
 void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler)
 {
     if (line >= 16 || line < 0)
-        cpu_abort(cpu_single_env, "%s: No GPIO line %i\n", __FUNCTION__, line);
+        hw_error("%s: No GPIO line %i\n", __FUNCTION__, line);
     s->handler[line] = handler;
 }
 
 void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down)
 {
     if (row >= 5 || row < 0)
-        cpu_abort(cpu_single_env, "%s: No key %i-%i\n",
-                        __FUNCTION__, col, row);
+        hw_error("%s: No key %i-%i\n", __FUNCTION__, col, row);
 
     if (down)
         s->buttons[row] |= 1 << col;
@@ -2970,7 +2969,7 @@ qemu_irq *omap_gpio_in_get(struct omap_gpio_s *s)
 void omap_gpio_out_set(struct omap_gpio_s *s, int line, qemu_irq handler)
 {
     if (line >= 16 || line < 0)
-        cpu_abort(cpu_single_env, "%s: No GPIO line %i\n", __FUNCTION__, line);
+        hw_error("%s: No GPIO line %i\n", __FUNCTION__, line);
     s->handler[line] = handler;
 }
 

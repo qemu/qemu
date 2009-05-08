@@ -445,8 +445,7 @@ struct nand_flash_s *nand_init(int manf_id, int chip_id)
     int index;
 
     if (nand_flash_ids[chip_id].size == 0) {
-        cpu_abort(cpu_single_env, "%s: Unsupported NAND chip ID.\n",
-                        __FUNCTION__);
+        hw_error("%s: Unsupported NAND chip ID.\n", __FUNCTION__);
     }
 
     s = (struct nand_flash_s *) qemu_mallocz(sizeof(struct nand_flash_s));
@@ -475,8 +474,7 @@ struct nand_flash_s *nand_init(int manf_id, int chip_id)
         nand_init_2048(s);
         break;
     default:
-        cpu_abort(cpu_single_env, "%s: Unsupported NAND block size.\n",
-                        __FUNCTION__);
+        hw_error("%s: Unsupported NAND block size.\n", __FUNCTION__);
     }
 
     pagesize = 1 << s->oob_shift;

@@ -179,7 +179,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
     /* Load OpenBIOS (ELF) */
     bios_size = load_elf(buf, 0, NULL, NULL, NULL);
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        cpu_abort(env, "qemu: could not load PowerPC bios '%s'\n", buf);
+        hw_error("qemu: could not load PowerPC bios '%s'\n", buf);
         exit(1);
     }
 
@@ -222,7 +222,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
                                               kernel_base,
                                               ram_size - kernel_base);
         if (kernel_size < 0) {
-            cpu_abort(env, "qemu: could not load kernel '%s'\n",
+            hw_error("qemu: could not load kernel '%s'\n",
                       kernel_filename);
             exit(1);
         }
@@ -232,8 +232,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                               ram_size - initrd_base);
             if (initrd_size < 0) {
-                cpu_abort(env, "qemu: could not load initial ram disk '%s'\n",
-                          initrd_filename);
+                hw_error("qemu: could not load initial ram disk '%s'\n",
+                         initrd_filename);
                 exit(1);
             }
         } else {
@@ -288,15 +288,13 @@ static void ppc_heathrow_init (ram_addr_t ram_size, int vga_ram_size,
                 ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT];
             break;
         default:
-            cpu_abort(env, "Bus model not supported on OldWorld Mac machine\n");
-            exit(1);
+            hw_error("Bus model not supported on OldWorld Mac machine\n");
         }
     }
 
     /* init basic PC hardware */
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
-        cpu_abort(env, "Only 6xx bus is supported on heathrow machine\n");
-        exit(1);
+        hw_error("Only 6xx bus is supported on heathrow machine\n");
     }
     pic = heathrow_pic_init(&pic_mem_index, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic);

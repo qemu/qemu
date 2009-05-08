@@ -63,7 +63,7 @@ static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
         }
     case 6: /* CM_LMBUSCNT */
         /* ??? High frequency timer.  */
-        cpu_abort(cpu_single_env, "integratorcm_read: CM_LMBUSCNT");
+        hw_error("integratorcm_read: CM_LMBUSCNT");
     case 7: /* CM_AUXOSC */
         return s->cm_auxosc;
     case 8: /* CM_SDRAM */
@@ -72,7 +72,7 @@ static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
         return s->cm_init;
     case 10: /* CM_REFCT */
         /* ??? High frequency timer.  */
-        cpu_abort(cpu_single_env, "integratorcm_read: CM_REFCT");
+        hw_error("integratorcm_read: CM_REFCT");
     case 12: /* CM_FLAGS */
         return s->cm_flags;
     case 14: /* CM_NVFLAGS */
@@ -98,8 +98,8 @@ static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
         /* ??? Voltage control unimplemented.  */
         return 0;
     default:
-        cpu_abort (cpu_single_env,
-            "integratorcm_read: Unimplemented offset 0x%x\n", (int)offset);
+        hw_error("integratorcm_read: Unimplemented offset 0x%x\n",
+                 (int)offset);
         return 0;
     }
 }
@@ -117,7 +117,7 @@ static void integratorcm_do_remap(integratorcm_state *s, int flash)
 static void integratorcm_set_ctrl(integratorcm_state *s, uint32_t value)
 {
     if (value & 8) {
-        cpu_abort(cpu_single_env, "Board reset\n");
+        hw_error("Board reset\n");
     }
     if ((s->cm_init ^ value) & 4) {
         integratorcm_do_remap(s, (value & 4) == 0);
@@ -133,7 +133,7 @@ static void integratorcm_update(integratorcm_state *s)
     /* ??? The CPU irq/fiq is raised when either the core module or base PIC
        are active.  */
     if (s->int_level & (s->irq_enabled | s->fiq_enabled))
-        cpu_abort(cpu_single_env, "Core module interrupt\n");
+        hw_error("Core module interrupt\n");
 }
 
 static void integratorcm_write(void *opaque, target_phys_addr_t offset,
@@ -205,8 +205,8 @@ static void integratorcm_write(void *opaque, target_phys_addr_t offset,
         /* ??? Voltage control unimplemented.  */
         break;
     default:
-        cpu_abort (cpu_single_env,
-            "integratorcm_write: Unimplemented offset 0x%x\n", (int)offset);
+        hw_error("integratorcm_write: Unimplemented offset 0x%x\n",
+                 (int)offset);
         break;
     }
 }
@@ -401,8 +401,7 @@ static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
     case 3: /* CP_DECODE */
         return 0x11;
     default:
-        cpu_abort (cpu_single_env, "icp_control_read: Bad offset %x\n",
-                   (int)offset);
+        hw_error("icp_control_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -417,8 +416,7 @@ static void icp_control_write(void *opaque, target_phys_addr_t offset,
         /* Nothing interesting implemented yet.  */
         break;
     default:
-        cpu_abort (cpu_single_env, "icp_control_write: Bad offset %x\n",
-                   (int)offset);
+        hw_error("icp_control_write: Bad offset %x\n", (int)offset);
     }
 }
 static CPUReadMemoryFunc *icp_control_readfn[] = {

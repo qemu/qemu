@@ -168,8 +168,7 @@ static uint32_t pl022_read(void *opaque, target_phys_addr_t offset)
         /* Not implemented.  */
         return 0;
     default:
-        cpu_abort (cpu_single_env, "pl022_read: Bad offset %x\n",
-                   (int)offset);
+        hw_error("pl022_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -211,12 +210,12 @@ static void pl022_write(void *opaque, target_phys_addr_t offset,
         pl022_update(s);
         break;
     case 0x20: /* DMACR */
-        if (value)
-            cpu_abort (cpu_single_env, "pl022: DMA not implemented\n");
+        if (value) {
+            hw_error("pl022: DMA not implemented\n");
+        }
         break;
     default:
-        cpu_abort (cpu_single_env, "pl022_write: Bad offset %x\n",
-                   (int)offset);
+        hw_error("pl022_write: Bad offset %x\n", (int)offset);
     }
 }
 

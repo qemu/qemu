@@ -89,8 +89,7 @@ static void m5208_timer_write(void *opaque, target_phys_addr_t offset,
     case 4:
         break;
     default:
-        cpu_abort(cpu_single_env, "m5208_timer_write: Bad offset 0x%x\n",
-                  (int)offset);
+        hw_error("m5208_timer_write: Bad offset 0x%x\n", (int)offset);
         break;
     }
     m5208_timer_update(s);
@@ -114,8 +113,7 @@ static uint32_t m5208_timer_read(void *opaque, target_phys_addr_t addr)
     case 4:
         return ptimer_get_count(s->timer);
     default:
-        cpu_abort(cpu_single_env, "m5208_timer_read: Bad offset 0x%x\n",
-                  (int)addr);
+        hw_error("m5208_timer_read: Bad offset 0x%x\n", (int)addr);
         return 0;
     }
 }
@@ -148,8 +146,7 @@ static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
         return 0;
 
     default:
-        cpu_abort(cpu_single_env, "m5208_sys_read: Bad offset 0x%x\n",
-                  (int)addr);
+        hw_error("m5208_sys_read: Bad offset 0x%x\n", (int)addr);
         return 0;
     }
 }
@@ -157,8 +154,7 @@ static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
 static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
                             uint32_t value)
 {
-    cpu_abort(cpu_single_env, "m5208_sys_write: Bad offset 0x%x\n",
-              (int)addr);
+    hw_error("m5208_sys_write: Bad offset 0x%x\n", (int)addr);
 }
 
 static CPUReadMemoryFunc *m5208_sys_readfn[] = {

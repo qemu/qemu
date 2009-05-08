@@ -266,8 +266,7 @@ static uint32_t pxa2xx_mmci_read(void *opaque, target_phys_addr_t offset)
     case MMC_BLKS_REM:
         return s->numblk;
     default:
-        cpu_abort(cpu_single_env, "%s: Bad offset " REG_FMT "\n",
-                        __FUNCTION__, offset);
+        hw_error("%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
     }
 
     return 0;
@@ -379,8 +378,7 @@ static void pxa2xx_mmci_write(void *opaque,
         break;
 
     default:
-        cpu_abort(cpu_single_env, "%s: Bad offset " REG_FMT "\n",
-                        __FUNCTION__, offset);
+        hw_error("%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
     }
 }
 

@@ -513,8 +513,7 @@ static void tusb_async_writew(void *opaque, target_phys_addr_t addr,
         s->dev_config = value;
         s->host_mode = (value & TUSB_DEV_CONF_USB_HOST_MODE);
         if (value & TUSB_DEV_CONF_PROD_TEST_MODE)
-            cpu_abort(cpu_single_env, "%s: Product Test mode not allowed\n",
-                            __FUNCTION__);
+            hw_error("%s: Product Test mode not allowed\n", __FUNCTION__);
         break;
 
     case TUSB_PHY_OTG_CTRL_ENABLE:

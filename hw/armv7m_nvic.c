@@ -102,7 +102,7 @@ int armv7m_nvic_acknowledge_irq(void *opaque)
 
     irq = gic_acknowledge_irq(s->gic, 0);
     if (irq == 1023)
-        cpu_abort(cpu_single_env, "Interrupt but no vector\n");
+        hw_error("Interrupt but no vector\n");
     if (irq >= 32)
         irq -= 16;
     return irq;
@@ -221,8 +221,7 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
         return val;
     case 0xd28: /* Configurable Fault Status.  */
         /* TODO: Implement Fault Status.  */
-        cpu_abort(cpu_single_env,
-                  "Not implemented: Configurable Fault Status.");
+        hw_error("Not implemented: Configurable Fault Status.");
         return 0;
     case 0xd2c: /* Hard Fault Status.  */
     case 0xd30: /* Debug Fault Status.  */
@@ -260,7 +259,7 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
     /* TODO: Implement debug registers.  */
     default:
     bad_reg:
-        cpu_abort(cpu_single_env, "NVIC: Bad read offset 0x%x\n", offset);
+        hw_error("NVIC: Bad read offset 0x%x\n", offset);
     }
 }
 
@@ -324,10 +323,10 @@ static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
     case 0xd0c: /* Application Interrupt/Reset Control.  */
         if ((value >> 16) == 0x05fa) {
             if (value & 2) {
-                cpu_abort(cpu_single_env, "VECTCLRACTIVE not implemented");
+                hw_error("VECTCLRACTIVE not implemented");
             }
             if (value & 5) {
-                cpu_abort(cpu_single_env, "System reset");
+                hw_error("System reset");
             }
         }
         break;
@@ -362,7 +361,7 @@ static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
         goto bad_reg;
     default:
     bad_reg:
-        cpu_abort(cpu_single_env, "NVIC: Bad write offset 0x%x\n", offset);
+        hw_error("NVIC: Bad write offset 0x%x\n", offset);
     }
 }
 
@@ -402,7 +401,7 @@ qemu_irq *armv7m_nvic_init(CPUState *env)
     s->gic->nvic = s;
     s->systick.timer = qemu_new_timer(vm_clock, systick_timer_tick, s);
     if (env->v7m.nvic)
-        cpu_abort(env, "CPU can only have one NVIC\n");
+        hw_error("CPU can only have one NVIC\n");
     env->v7m.nvic = s;
     register_savevm("armv7m_nvic", -1, 1, nvic_save, nvic_load, s);
     return s->gic->in;

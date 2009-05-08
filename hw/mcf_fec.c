@@ -246,8 +246,7 @@ static uint32_t mcf_fec_read(void *opaque, target_phys_addr_t addr)
     case 0x184: return s->etdsr;
     case 0x188: return s->emrbr;
     default:
-        cpu_abort(cpu_single_env, "mcf_fec_read: Bad address 0x%x\n",
-                  (int)addr);
+        hw_error("mcf_fec_read: Bad address 0x%x\n", (int)addr);
         return 0;
     }
 }
@@ -343,8 +342,7 @@ static void mcf_fec_write(void *opaque, target_phys_addr_t addr, uint32_t value)
         s->emrbr = value & 0x7f0;
         break;
     default:
-        cpu_abort(cpu_single_env, "mcf_fec_write Bad address 0x%x\n",
-                  (int)addr);
+        hw_error("mcf_fec_write Bad address 0x%x\n", (int)addr);
     }
     mcf_fec_update(s);
 }

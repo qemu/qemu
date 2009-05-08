@@ -332,7 +332,7 @@ static uint32_t pl181_read(void *opaque, target_phys_addr_t offset)
             return value;
         }
     default:
-        cpu_abort (cpu_single_env, "pl181_read: Bad offset %x\n", (int)offset);
+        hw_error("pl181_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -403,7 +403,7 @@ static void pl181_write(void *opaque, target_phys_addr_t offset,
         }
         break;
     default:
-        cpu_abort (cpu_single_env, "pl181_write: Bad offset %x\n", (int)offset);
+        hw_error("pl181_write: Bad offset %x\n", (int)offset);
     }
     pl181_update(s);
 }

@@ -72,8 +72,7 @@ static uint32_t sh_timer_read(void *opaque, target_phys_addr_t offset)
         if (s->feat & TIMER_FEAT_CAPT)
             return s->tcpr;
     default:
-        cpu_abort (cpu_single_env, "sh_timer_read: Bad offset %x\n",
-                   (int)offset);
+        hw_error("sh_timer_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -110,23 +109,20 @@ static void sh_timer_write(void *opaque, target_phys_addr_t offset,
         case 4: freq >>= 10; break;
 	case 6:
 	case 7: if (s->feat & TIMER_FEAT_EXTCLK) break;
-	default: cpu_abort (cpu_single_env,
-			   "sh_timer_write: Reserved TPSC value\n"); break;
+	default: hw_error("sh_timer_write: Reserved TPSC value\n"); break;
         }
         switch ((value & TIMER_TCR_CKEG) >> 3) {
 	case 0: break;
         case 1:
         case 2:
         case 3: if (s->feat & TIMER_FEAT_EXTCLK) break;
-	default: cpu_abort (cpu_single_env,
-			   "sh_timer_write: Reserved CKEG value\n"); break;
+	default: hw_error("sh_timer_write: Reserved CKEG value\n"); break;
         }
         switch ((value & TIMER_TCR_ICPE) >> 6) {
 	case 0: break;
         case 2:
         case 3: if (s->feat & TIMER_FEAT_CAPT) break;
-	default: cpu_abort (cpu_single_env,
-			   "sh_timer_write: Reserved ICPE value\n"); break;
+	default: hw_error("sh_timer_write: Reserved ICPE value\n"); break;
         }
 	if ((value & TIMER_TCR_UNF) == 0)
             s->int_level = 0;
@@ -134,14 +130,12 @@ static void sh_timer_write(void *opaque, target_phys_addr_t offset,
 	value &= ~TIMER_TCR_UNF;
 
 	if ((value & TIMER_TCR_ICPF) && (!(s->feat & TIMER_FEAT_CAPT)))
-            cpu_abort (cpu_single_env,
-		       "sh_timer_write: Reserved ICPF value\n");
+            hw_error("sh_timer_write: Reserved ICPF value\n");
 
 	value &= ~TIMER_TCR_ICPF; /* capture not supported */
 
 	if (value & TIMER_TCR_RESERVED)
-            cpu_abort (cpu_single_env,
-		       "sh_timer_write: Reserved TCR bits set\n");
+            hw_error("sh_timer_write: Reserved TCR bits set\n");
         s->tcr = value;
         ptimer_set_limit(s->timer, s->tcor, 0);
         ptimer_set_freq(s->timer, freq);
@@ -156,8 +150,7 @@ static void sh_timer_write(void *opaque, target_phys_addr_t offset,
 	    break;
 	}
     default:
-        cpu_abort (cpu_single_env, "sh_timer_write: Bad offset %x\n",
-                   (int)offset);
+        hw_error("sh_timer_write: Bad offset %x\n", (int)offset);
     }
     sh_timer_update(s);
 }
@@ -234,8 +227,7 @@ static uint32_t tmu012_read(void *opaque, target_phys_addr_t offset)
 
     if (offset >= 0x20) {
         if (!(s->feat & TMU012_FEAT_3CHAN))
-	    cpu_abort (cpu_single_env, "tmu012_write: Bad channel offset %x\n",
-		       (int)offset);
+	    hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
         return sh_timer_read(s->timer[2], offset - 0x20);
     }
 
@@ -251,8 +243,7 @@ static uint32_t tmu012_read(void *opaque, target_phys_addr_t offset)
     if ((s->feat & TMU012_FEAT_TOCR) && offset == 0)
         return s->tocr;
 
-    cpu_abort (cpu_single_env, "tmu012_write: Bad offset %x\n",
-	       (int)offset);
+    hw_error("tmu012_write: Bad offset %x\n", (int)offset);
     return 0;
 }
 
@@ -267,8 +258,7 @@ static void tmu012_write(void *opaque, target_phys_addr_t offset,
 
     if (offset >= 0x20) {
         if (!(s->feat & TMU012_FEAT_3CHAN))
-	    cpu_abort (cpu_single_env, "tmu012_write: Bad channel offset %x\n",
-		       (int)offset);
+	    hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
         sh_timer_write(s->timer[2], offset - 0x20, value);
 	return;
     }
@@ -290,7 +280,7 @@ static void tmu012_write(void *opaque, target_phys_addr_t offset,
             sh_timer_start_stop(s->timer[2], value & (1 << 2));
 	else
             if (value & (1 << 2))
-                cpu_abort (cpu_single_env, "tmu012_write: Bad channel\n");
+                hw_error("tmu012_write: Bad channel\n");
 
 	s->tstr = value;
 	return;

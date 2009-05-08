@@ -205,8 +205,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
         return s->snapshot;
     default:
     badreg:
-        cpu_abort(cpu_single_env, "pxa2xx_timer_read: Bad offset "
-                        REG_FMT "\n", offset);
+        hw_error("pxa2xx_timer_read: Bad offset " REG_FMT "\n", offset);
     }
 
     return 0;
@@ -315,8 +314,7 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
         break;
     default:
     badreg:
-        cpu_abort(cpu_single_env, "pxa2xx_timer_write: Bad offset "
-                        REG_FMT "\n", offset);
+        hw_error("pxa2xx_timer_write: Bad offset " REG_FMT "\n", offset);
     }
 }
 

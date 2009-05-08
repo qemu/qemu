@@ -93,7 +93,7 @@ static void pl080_run(pl080_state *s)
     if ((s->conf & PL080_CONF_E) == 0)
         return;
 
-cpu_abort(cpu_single_env, "DMA active\n");
+hw_error("DMA active\n");
     /* If we are already in the middle of a DMA operation then indicate that
        there may be new DMA requests and return immediately.  */
     if (s->running) {
@@ -111,7 +111,7 @@ again:
                 continue;
             flow = (ch->conf >> 11) & 7;
             if (flow >= 4) {
-                cpu_abort(cpu_single_env,
+                hw_error(
                     "pl080_run: Peripheral flow control not implemented\n");
             }
             src_id = (ch->conf >> 1) & 0x1f;
@@ -242,7 +242,7 @@ static uint32_t pl080_read(void *opaque, target_phys_addr_t offset)
         return s->sync;
     default:
     bad_offset:
-        cpu_abort(cpu_single_env, "pl080_read: Bad offset %x\n", (int)offset);
+        hw_error("pl080_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -288,13 +288,12 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
     case 10: /* SoftLBReq */
     case 11: /* SoftLSReq */
         /* ??? Implement these.  */
-        cpu_abort(cpu_single_env, "pl080_write: Soft DMA not implemented\n");
+        hw_error("pl080_write: Soft DMA not implemented\n");
         break;
     case 12: /* Configuration */
         s->conf = value;
         if (s->conf & (PL080_CONF_M1 | PL080_CONF_M1)) {
-            cpu_abort(cpu_single_env,
-                      "pl080_write: Big-endian DMA not implemented\n");
+            hw_error("pl080_write: Big-endian DMA not implemented\n");
         }
         pl080_run(s);
         break;
@@ -303,7 +302,7 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
         break;
     default:
     bad_offset:
-        cpu_abort(cpu_single_env, "pl080_write: Bad offset %x\n", (int)offset);
+        hw_error("pl080_write: Bad offset %x\n", (int)offset);
     }
     pl080_update(s);
 }

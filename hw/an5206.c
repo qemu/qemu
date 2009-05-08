@@ -41,7 +41,7 @@ static void an5206_init(ram_addr_t ram_size, int vga_ram_size,
         cpu_model = "m5206";
     env = cpu_init(cpu_model);
     if (!env) {
-        cpu_abort(env, "Unable to find m68k CPU definition\n");
+        hw_error("Unable to find m68k CPU definition\n");
     }
 
     /* Initialize CPU registers.  */

@@ -119,8 +119,7 @@ static uint32_t pl031_read(void *opaque, target_phys_addr_t offset)
                 (int)offset);
         break;
     default:
-        cpu_abort(cpu_single_env, "pl031_read: Bad offset 0x%x\n",
-                  (int)offset);
+        hw_error("pl031_read: Bad offset 0x%x\n", (int)offset);
         break;
     }
 
@@ -168,8 +167,7 @@ static void pl031_write(void * opaque, target_phys_addr_t offset,
         break;
 
     default:
-        cpu_abort(cpu_single_env, "pl031_write: Bad offset 0x%x\n",
-                  (int)offset);
+        hw_error("pl031_write: Bad offset 0x%x\n", (int)offset);
         break;
     }
 }
@@ -195,8 +193,9 @@ void pl031_init(uint32_t base, qemu_irq irq)
     s = qemu_mallocz(sizeof(pl031_state));
 
     iomemtype = cpu_register_io_memory(0, pl031_readfn, pl031_writefn, s);
-    if (iomemtype == -1)
-        cpu_abort(cpu_single_env, "pl031_init: Can't register I/O memory\n");
+    if (iomemtype == -1) {
+        hw_error("pl031_init: Can't register I/O memory\n");
+    }
 
     cpu_register_physical_memory(base, 0x00001000, iomemtype);
 

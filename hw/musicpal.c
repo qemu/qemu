@@ -875,7 +875,7 @@ static void lcd_refresh(void *opaque)
     LCD_REFRESH(32, (is_surface_bgr(s->ds->surface) ?
                      rgb_to_pixel32bgr : rgb_to_pixel32))
     default:
-        cpu_abort(cpu_single_env, "unsupported colour depth %i\n",
+        hw_error("unsupported colour depth %i\n",
                   ds_get_bits_per_pixel(s->ds));
     }
 
