@@ -578,7 +578,10 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 
     len = bdrv_getlength(bs);
 
-    if ((offset + size) > len)
+    if (offset < 0)
+        return -EIO;
+
+    if ((offset > len) || (len - offset < size))
         return -EIO;
 
     return 0;
@@ -1150,6 +1153,8 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
         return -ENOMEDIUM;
     if (!drv->bdrv_write_compressed)
         return -ENOTSUP;
+    if (bdrv_check_request(bs, sector_num, nb_sectors))
+        return -EIO;
     return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
 }
 
