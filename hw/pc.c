@@ -63,6 +63,30 @@ static PITState *pit;
 static IOAPICState *ioapic;
 static PCIDevice *i440fx_state;
 
+typedef struct rom_reset_data {
+    uint8_t *data;
+    target_phys_addr_t addr;
+    unsigned size;
+} RomResetData;
+
+static void option_rom_reset(void *_rrd)
+{
+    RomResetData *rrd = _rrd;
+
+    cpu_physical_memory_write_rom(rrd->addr, rrd->data, rrd->size);
+}
+
+static void option_rom_setup_reset(target_phys_addr_t addr, unsigned size)
+{
+    RomResetData *rrd = qemu_malloc(sizeof *rrd);
+
+    rrd->data = qemu_malloc(size);
+    cpu_physical_memory_read(addr, rrd->data, size);
+    rrd->addr = addr;
+    rrd->size = size;
+    qemu_register_reset(option_rom_reset, rrd);
+}
+
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
 }
@@ -806,6 +830,7 @@ static int load_option_rom(const char *oprom, target_phys_addr_t start,
         }
         /* Round up optiom rom size to the next 2k boundary */
         size = (size + 2047) & ~2047;
+        option_rom_setup_reset(start, size);
         return size;
 }
 
