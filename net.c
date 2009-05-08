@@ -1134,38 +1134,46 @@ static int tap_open(char *ifname, int ifname_size)
 
 static int launch_script(const char *setup_script, const char *ifname, int fd)
 {
+    sigset_t oldmask, mask;
     int pid, status;
     char *args[3];
     char **parg;
 
-        /* try to launch network script */
-        pid = fork();
-        if (pid >= 0) {
-            if (pid == 0) {
-                int open_max = sysconf (_SC_OPEN_MAX), i;
-                for (i = 0; i < open_max; i++)
-                    if (i != STDIN_FILENO &&
-                        i != STDOUT_FILENO &&
-                        i != STDERR_FILENO &&
-                        i != fd)
-                        close(i);
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
-                parg = args;
-                *parg++ = (char *)setup_script;
-                *parg++ = (char *)ifname;
-                *parg++ = NULL;
-                execv(setup_script, args);
-                _exit(1);
-            }
-            while (waitpid(pid, &status, 0) != pid);
-            if (!WIFEXITED(status) ||
-                WEXITSTATUS(status) != 0) {
-                fprintf(stderr, "%s: could not launch network script\n",
-                        setup_script);
-                return -1;
+    /* try to launch network script */
+    pid = fork();
+    if (pid == 0) {
+        int open_max = sysconf(_SC_OPEN_MAX), i;
+
+        for (i = 0; i < open_max; i++) {
+            if (i != STDIN_FILENO &&
+                i != STDOUT_FILENO &&
+                i != STDERR_FILENO &&
+                i != fd) {
+                close(i);
             }
         }
-    return 0;
+        parg = args;
+        *parg++ = (char *)setup_script;
+        *parg++ = (char *)ifname;
+        *parg++ = NULL;
+        execv(setup_script, args);
+        _exit(1);
+    } else if (pid > 0) {
+        while (waitpid(pid, &status, 0) != pid) {
+            /* loop */
+        }
+        sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            return 0;
+        }
+    }
+    fprintf(stderr, "%s: could not launch network script\n", setup_script);
+    return -1;
 }
 
 static int net_tap_init(VLANState *vlan, const char *model,

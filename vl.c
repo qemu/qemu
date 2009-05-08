@@ -4783,7 +4783,12 @@ static void termsig_handler(int signal)
     qemu_system_shutdown_request();
 }
 
-static void termsig_setup(void)
+static void sigchld_handler(int signal)
+{
+    waitpid(-1, NULL, WNOHANG);
+}
+
+static void sighandler_setup(void)
 {
     struct sigaction act;
 
@@ -4792,6 +4797,10 @@ static void termsig_setup(void)
     sigaction(SIGINT,  &act, NULL);
     sigaction(SIGHUP,  &act, NULL);
     sigaction(SIGTERM, &act, NULL);
+
+    act.sa_handler = sigchld_handler;
+    act.sa_flags = SA_NOCLDSTOP;
+    sigaction(SIGCHLD, &act, NULL);
 }
 
 #endif
@@ -5918,7 +5927,7 @@ int main(int argc, char **argv, char **envp)
 
 #ifndef _WIN32
     /* must be after terminal init, SDL library changes signal handlers */
-    termsig_setup();
+    sighandler_setup();
 #endif
 
     /* Maintain compatibility with multiple stdio monitors */
