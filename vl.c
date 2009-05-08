@@ -2699,7 +2699,7 @@ static int usb_device_add(const char *devname, int is_hotplug)
     } else if (strstart(devname, "net:", &p)) {
         int nic = nb_nics;
 
-        if (net_client_init("nic", p) < 0)
+        if (net_client_init(NULL, "nic", p) < 0)
             return -1;
         nd_table[nic].model = "usb";
         dev = usb_net_init(&nd_table[nic]);

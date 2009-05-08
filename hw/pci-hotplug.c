@@ -33,11 +33,12 @@
 #include "virtio-blk.h"
 
 #if defined(TARGET_I386) || defined(TARGET_X86_64)
-static PCIDevice *qemu_pci_hot_add_nic(PCIBus *pci_bus, const char *opts)
+static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon, PCIBus *pci_bus,
+                                       const char *opts)
 {
     int ret;
 
-    ret = net_client_init("nic", opts);
+    ret = net_client_init(mon, "nic", opts);
     if (ret < 0)
         return NULL;
     return pci_nic_init(pci_bus, &nd_table[ret], -1, "rtl8139");
@@ -149,7 +150,7 @@ void pci_device_hot_add(Monitor *mon, const char *pci_addr, const char *type,
     }
 
     if (strcmp(type, "nic") == 0)
-        dev = qemu_pci_hot_add_nic(pci_bus, opts);
+        dev = qemu_pci_hot_add_nic(mon, pci_bus, opts);
     else if (strcmp(type, "storage") == 0)
         dev = qemu_pci_hot_add_storage(mon, pci_bus, opts);
     else
