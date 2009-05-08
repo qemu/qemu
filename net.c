@@ -438,8 +438,8 @@ void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size)
         vlan->delivering = 1;
         qemu_deliver_packet(vc, buf, size);
         while ((packet = vlan->send_queue) != NULL) {
-            qemu_deliver_packet(packet->sender, packet->data, packet->size);
             vlan->send_queue = packet->next;
+            qemu_deliver_packet(packet->sender, packet->data, packet->size);
             qemu_free(packet);
         }
         vlan->delivering = 0;
@@ -476,30 +476,57 @@ static ssize_t calc_iov_length(const struct iovec *iov, int iovcnt)
     return offset;
 }
 
-ssize_t qemu_sendv_packet(VLANClientState *vc1, const struct iovec *iov,
+ssize_t qemu_sendv_packet(VLANClientState *sender, const struct iovec *iov,
                           int iovcnt)
 {
-    VLANState *vlan = vc1->vlan;
+    VLANState *vlan = sender->vlan;
     VLANClientState *vc;
+    VLANPacket *packet;
     ssize_t max_len = 0;
+    int i;
 
-    if (vc1->link_down)
+    if (sender->link_down)
         return calc_iov_length(iov, iovcnt);
 
-    for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
-        ssize_t len = 0;
+    if (vlan->delivering) {
+        max_len = calc_iov_length(iov, iovcnt);
 
-        if (vc == vc1)
-            continue;
+        packet = qemu_malloc(sizeof(VLANPacket) + max_len);
+        packet->next = vlan->send_queue;
+        packet->sender = sender;
+        packet->size = 0;
+        for (i = 0; i < iovcnt; i++) {
+            size_t len = iov[i].iov_len;
 
-        if (vc->link_down)
-            len = calc_iov_length(iov, iovcnt);
-        else if (vc->fd_readv)
-            len = vc->fd_readv(vc->opaque, iov, iovcnt);
-        else if (vc->fd_read)
-            len = vc_sendv_compat(vc, iov, iovcnt);
+            memcpy(packet->data + packet->size, iov[i].iov_base, len);
+            packet->size += len;
+        }
+        vlan->send_queue = packet;
+    } else {
+        vlan->delivering = 1;
 
-        max_len = MAX(max_len, len);
+        for (vc = vlan->first_client; vc != NULL; vc = vc->next) {
+            ssize_t len = 0;
+
+            if (vc == sender) {
+                continue;
+            }
+            if (vc->link_down) {
+                len = calc_iov_length(iov, iovcnt);
+            } else if (vc->fd_readv) {
+                len = vc->fd_readv(vc->opaque, iov, iovcnt);
+            } else if (vc->fd_read) {
+                len = vc_sendv_compat(vc, iov, iovcnt);
+            }
+            max_len = MAX(max_len, len);
+        }
+
+        while ((packet = vlan->send_queue) != NULL) {
+            vlan->send_queue = packet->next;
+            qemu_deliver_packet(packet->sender, packet->data, packet->size);
+            qemu_free(packet);
+        }
+        vlan->delivering = 0;
     }
 
     return max_len;
