@@ -270,7 +270,8 @@ void usb_info(Monitor *mon);
 
 int get_param_value(char *buf, int buf_size,
                     const char *tag, const char *str);
-int check_params(const char * const *params, const char *str);
+int check_params(char *buf, int buf_size,
+                 const char * const *params, const char *str);
 
 void register_devices(void);
 
