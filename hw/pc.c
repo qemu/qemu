@@ -579,6 +579,7 @@ static void generate_bootsect(target_phys_addr_t option_rom,
     rom[sizeof(rom) - 1] = -sum;
 
     cpu_physical_memory_write_rom(option_rom, rom, sizeof(rom));
+    option_rom_setup_reset(option_rom, sizeof (rom));
 }
 
 static long get_file_size(FILE *f)
@@ -745,6 +746,12 @@ static void load_linux(target_phys_addr_t option_rom,
     seg[1] = real_seg+0x20;	/* CS */
     memset(gpr, 0, sizeof gpr);
     gpr[4] = cmdline_addr-real_addr-16;	/* SP (-16 is paranoia) */
+
+    option_rom_setup_reset(real_addr, setup_size);
+    option_rom_setup_reset(prot_addr, kernel_size);
+    option_rom_setup_reset(cmdline_addr, cmdline_size);
+    if (initrd_filename)
+        option_rom_setup_reset(initrd_addr, initrd_size);
 
     generate_bootsect(option_rom, gpr, seg, 0);
 }
