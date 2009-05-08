@@ -494,7 +494,7 @@ ssize_t qemu_sendv_packet(VLANClientState *vc1, const struct iovec *iov,
 
         if (vc->link_down)
             len = calc_iov_length(iov, iovcnt);
-        if (vc->fd_readv)
+        else if (vc->fd_readv)
             len = vc->fd_readv(vc->opaque, iov, iovcnt);
         else if (vc->fd_read)
             len = vc_sendv_compat(vc, iov, iovcnt);
