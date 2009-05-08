@@ -60,9 +60,9 @@ do {                                               \
 
 struct pflash_t {
     BlockDriverState *bs;
-    target_ulong base;
-    target_ulong sector_len;
-    target_ulong total_len;
+    target_phys_addr_t base;
+    target_phys_addr_t sector_len;
+    target_phys_addr_t total_len;
     int width;
     int wcycle; /* if 0, the flash is read normally */
     int bypass;
@@ -72,7 +72,7 @@ struct pflash_t {
     uint16_t ident[4];
     uint8_t cfi_len;
     uint8_t cfi_table[0x52];
-    target_ulong counter;
+    target_phys_addr_t counter;
     QEMUTimer *timer;
     ram_addr_t off;
     int fl_mem;
@@ -96,9 +96,10 @@ static void pflash_timer (void *opaque)
     pfl->cmd = 0;
 }
 
-static uint32_t pflash_read (pflash_t *pfl, target_ulong offset, int width)
+static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
+                             int width)
 {
-    target_ulong boff;
+    target_phys_addr_t boff;
     uint32_t ret;
     uint8_t *p;
 
@@ -194,7 +195,7 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
-static void inline pflash_data_write(pflash_t *pfl, target_ulong offset,
+static void inline pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
                           uint32_t value, int width)
 {
     uint8_t *p = pfl->storage;
@@ -235,10 +236,10 @@ static void inline pflash_data_write(pflash_t *pfl, target_ulong offset,
 
 }
 
-static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
-                          int width)
+static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
+                         uint32_t value, int width)
 {
-    target_ulong boff;
+    target_phys_addr_t boff;
     uint8_t *p;
     uint8_t cmd;
 
@@ -398,7 +399,7 @@ static void pflash_write (pflash_t *pfl, target_ulong offset, uint32_t value,
 
  error_flash:
     printf("%s: Unimplemented flash cmd sequence "
-           "(offset " TARGET_FMT_lx ", wcycle 0x%x cmd 0x%x value 0x%x)\n",
+           "(offset " TARGET_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)\n",
            __func__, offset, pfl->wcycle, pfl->cmd, value);
 
  reset_flash:
@@ -506,7 +507,7 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
                                 uint16_t id2, uint16_t id3)
 {
     pflash_t *pfl;
-    target_long total_len;
+    target_phys_addr_t total_len;
 
     total_len = sector_len * nb_blocs;
 
