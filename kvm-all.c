@@ -320,6 +320,18 @@ int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
     return ret;
 }
 
+int kvm_check_extension(KVMState *s, unsigned int extension)
+{
+    int ret;
+
+    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, extension);
+    if (ret < 0) {
+        ret = 0;
+    }
+
+    return ret;
+}
+
 int kvm_init(int smp_cpus)
 {
     KVMState *s;
@@ -368,10 +380,8 @@ int kvm_init(int smp_cpus)
      * just use a user allocated buffer so we can use regular pages
      * unmodified.  Make sure we have a sufficiently modern version of KVM.
      */
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_USER_MEMORY);
-    if (ret <= 0) {
-        if (ret == 0)
-            ret = -EINVAL;
+    if (!kvm_check_extension(s, KVM_CAP_USER_MEMORY)) {
+        ret = -EINVAL;
         fprintf(stderr, "kvm does not support KVM_CAP_USER_MEMORY\n");
         goto err;
     }
@@ -379,11 +389,8 @@ int kvm_init(int smp_cpus)
     /* There was a nasty bug in < kvm-80 that prevents memory slots from being
      * destroyed properly.  Since we rely on this capability, refuse to work
      * with any kernel without this capability. */
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION,
-                    KVM_CAP_DESTROY_MEMORY_REGION_WORKS);
-    if (ret <= 0) {
-        if (ret == 0)
-            ret = -EINVAL;
+    if (!kvm_check_extension(s, KVM_CAP_DESTROY_MEMORY_REGION_WORKS)) {
+        ret = -EINVAL;
 
         fprintf(stderr,
                 "KVM kernel module broken (DESTROY_MEMORY_REGION)\n"
@@ -391,11 +398,10 @@ int kvm_init(int smp_cpus)
         goto err;
     }
 
-    s->coalesced_mmio = 0;
 #ifdef KVM_CAP_COALESCED_MMIO
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
-    if (ret > 0)
-        s->coalesced_mmio = ret;
+    s->coalesced_mmio = kvm_check_extension(s, KVM_CAP_COALESCED_MMIO);
+#else
+    s->coalesced_mmio = 0;
 #endif
 
     ret = kvm_arch_init(s, smp_cpus);
@@ -766,11 +772,10 @@ int kvm_has_sync_mmu(void)
 #ifdef KVM_CAP_SYNC_MMU
     KVMState *s = kvm_state;
 
-    if (kvm_ioctl(s, KVM_CHECK_EXTENSION, KVM_CAP_SYNC_MMU) > 0)
-        return 1;
-#endif
-
+    return kvm_check_extension(s, KVM_CAP_SYNC_MMU);
+#else
     return 0;
+#endif
 }
 
 void kvm_setup_guest_memory(void *start, size_t size)
