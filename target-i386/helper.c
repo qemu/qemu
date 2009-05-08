@@ -102,7 +102,6 @@ static void kvm_trim_features(uint32_t *features, uint32_t supported,
     for (i = 0; i < 32; ++i) {
         mask = 1U << i;
         if ((*features & mask) && !(supported & mask)) {
-            printf("Processor feature %s not supported by kvm\n", names[i]);
             *features &= ~mask;
         }
     }
