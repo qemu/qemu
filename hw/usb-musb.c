@@ -556,7 +556,7 @@ static int musb_timeout(int ttype, int speed, int val)
         /* TODO: what with low-speed Bulk and Isochronous?  */
     }
 
-    cpu_abort(cpu_single_env, "bad interval\n");
+    hw_error("bad interval\n");
 }
 
 static inline void musb_packet(struct musb_s *s, struct musb_ep_s *ep,

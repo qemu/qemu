@@ -301,8 +301,7 @@ static uint32_t pxa2xx_dma_read(void *opaque, target_phys_addr_t offset)
         }
     }
 
-    cpu_abort(cpu_single_env,
-                    "%s: Bad offset 0x" TARGET_FMT_plx "\n", __FUNCTION__, offset);
+    hw_error("%s: Bad offset 0x" TARGET_FMT_plx "\n", __FUNCTION__, offset);
     return 7;
 }
 
@@ -321,8 +320,8 @@ static void pxa2xx_dma_write(void *opaque,
 
         if (value & DRCMR_MAPVLD)
             if ((value & DRCMR_CHLNUM) > s->channels)
-                cpu_abort(cpu_single_env, "%s: Bad DMA channel %i\n",
-                        __FUNCTION__, value & DRCMR_CHLNUM);
+                hw_error("%s: Bad DMA channel %i\n",
+                         __FUNCTION__, value & DRCMR_CHLNUM);
 
         s->req[channel] = value;
         break;
@@ -401,21 +400,20 @@ static void pxa2xx_dma_write(void *opaque,
             break;
         }
     fail:
-        cpu_abort(cpu_single_env, "%s: Bad offset " TARGET_FMT_plx "\n",
-                __FUNCTION__, offset);
+        hw_error("%s: Bad offset " TARGET_FMT_plx "\n", __FUNCTION__, offset);
     }
 }
 
 static uint32_t pxa2xx_dma_readbad(void *opaque, target_phys_addr_t offset)
 {
-    cpu_abort(cpu_single_env, "%s: Bad access width\n", __FUNCTION__);
+    hw_error("%s: Bad access width\n", __FUNCTION__);
     return 5;
 }
 
 static void pxa2xx_dma_writebad(void *opaque,
                  target_phys_addr_t offset, uint32_t value)
 {
-    cpu_abort(cpu_single_env, "%s: Bad access width\n", __FUNCTION__);
+    hw_error("%s: Bad access width\n", __FUNCTION__);
 }
 
 static CPUReadMemoryFunc *pxa2xx_dma_readfn[] = {
@@ -530,8 +528,7 @@ void pxa2xx_dma_request(struct pxa2xx_dma_state_s *s, int req_num, int on)
 {
     int ch;
     if (req_num < 0 || req_num >= PXA2XX_DMA_NUM_REQUESTS)
-        cpu_abort(cpu_single_env,
-              "%s: Bad DMA request %i\n", __FUNCTION__, req_num);
+        hw_error("%s: Bad DMA request %i\n", __FUNCTION__, req_num);
 
     if (!(s->req[req_num] & DRCMR_MAPVLD))
         return;

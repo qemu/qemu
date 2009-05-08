@@ -893,7 +893,7 @@ static uint16_t tsc210x_read(struct tsc210x_state_s *s)
         ret = tsc2102_audio_register_read(s, s->offset);
         break;
     default:
-        cpu_abort(cpu_single_env, "tsc210x_read: wrong memory page\n");
+        hw_error("tsc210x_read: wrong memory page\n");
     }
 
     tsc210x_pin_update(s);
@@ -930,8 +930,7 @@ static void tsc210x_write(struct tsc210x_state_s *s, uint16_t value)
                 tsc2102_audio_register_write(s, s->offset, value);
                 break;
             default:
-                cpu_abort(cpu_single_env,
-                                "tsc210x_write: wrong memory page\n");
+                hw_error("tsc210x_write: wrong memory page\n");
             }
 
         tsc210x_pin_update(s);
@@ -945,8 +944,7 @@ uint32_t tsc210x_txrx(void *opaque, uint32_t value, int len)
     uint32_t ret = 0;
 
     if (len != 16)
-        cpu_abort(cpu_single_env, "%s: FIXME: bad SPI word width %i\n",
-                        __FUNCTION__, len);
+        hw_error("%s: FIXME: bad SPI word width %i\n", __FUNCTION__, len);
 
     /* TODO: sequential reads etc - how do we make sure the host doesn't
      * unintentionally read out a conversion result from a register while

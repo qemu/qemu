@@ -63,8 +63,7 @@ static void cbus_io(struct cbus_priv_s *s)
         s->slave[s->addr]->io(s->slave[s->addr]->opaque,
                         s->rw, s->reg, &s->val);
     else
-        cpu_abort(cpu_single_env, "%s: bad slave address %i\n",
-                        __FUNCTION__, s->addr);
+        hw_error("%s: bad slave address %i\n", __FUNCTION__, s->addr);
 }
 
 static void cbus_cycle(struct cbus_priv_s *s)
@@ -301,8 +300,7 @@ static inline uint16_t retu_read(struct cbus_retu_s *s, int reg)
         return 0x0000;
 
     default:
-        cpu_abort(cpu_single_env, "%s: bad register %02x\n",
-                        __FUNCTION__, reg);
+        hw_error("%s: bad register %02x\n", __FUNCTION__, reg);
     }
 }
 
@@ -375,8 +373,7 @@ static inline void retu_write(struct cbus_retu_s *s, int reg, uint16_t val)
         break;
 
     default:
-        cpu_abort(cpu_single_env, "%s: bad register %02x\n",
-                        __FUNCTION__, reg);
+        hw_error("%s: bad register %02x\n", __FUNCTION__, reg);
     }
 }
 
@@ -542,8 +539,7 @@ static inline uint16_t tahvo_read(struct cbus_tahvo_s *s, int reg)
         return 0x0000;
 
     default:
-        cpu_abort(cpu_single_env, "%s: bad register %02x\n",
-                        __FUNCTION__, reg);
+        hw_error("%s: bad register %02x\n", __FUNCTION__, reg);
     }
 }
 
@@ -593,8 +589,7 @@ static inline void tahvo_write(struct cbus_tahvo_s *s, int reg, uint16_t val)
         break;
 
     default:
-        cpu_abort(cpu_single_env, "%s: bad register %02x\n",
-                        __FUNCTION__, reg);
+        hw_error("%s: bad register %02x\n", __FUNCTION__, reg);
     }
 }
 

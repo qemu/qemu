@@ -595,11 +595,10 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
         bios_size = load_image_targphys(buf, bios_addr, bios_size);
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
-        cpu_abort(env, "qemu: could not load PPC PREP bios '%s'\n", buf);
-        exit(1);
+        hw_error("qemu: could not load PPC PREP bios '%s'\n", buf);
     }
     if (env->nip < 0xFFF80000 && bios_size < 0x00100000) {
-        cpu_abort(env, "PowerPC 601 / 620 / 970 need a 1MB BIOS\n");
+        hw_error("PowerPC 601 / 620 / 970 need a 1MB BIOS\n");
     }
 
     if (linux_boot) {
@@ -608,8 +607,7 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
         kernel_size = load_image_targphys(kernel_filename, kernel_base,
                                           ram_size - kernel_base);
         if (kernel_size < 0) {
-            cpu_abort(env, "qemu: could not load kernel '%s'\n",
-                      kernel_filename);
+            hw_error("qemu: could not load kernel '%s'\n", kernel_filename);
             exit(1);
         }
         /* load initrd */
@@ -618,9 +616,8 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
                                               ram_size - initrd_base);
             if (initrd_size < 0) {
-                cpu_abort(env, "qemu: could not load initial ram disk '%s'\n",
+                hw_error("qemu: could not load initial ram disk '%s'\n",
                           initrd_filename);
-                exit(1);
             }
         } else {
             initrd_base = 0;
@@ -648,8 +645,7 @@ static void ppc_prep_init (ram_addr_t ram_size, int vga_ram_size,
 
     isa_mem_base = 0xc0000000;
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
-        cpu_abort(env, "Only 6xx bus is supported on PREP machine\n");
-        exit(1);
+        hw_error("Only 6xx bus is supported on PREP machine\n");
     }
     i8259 = i8259_init(first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
     pci_bus = pci_prep_init(i8259);

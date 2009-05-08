@@ -190,8 +190,7 @@ static uint32_t stellaris_enet_read(void *opaque, target_phys_addr_t offset)
     case 0x3c: /* Undocuented: Timestamp? */
         return 0;
     default:
-        cpu_abort (cpu_single_env, "stellaris_enet_read: Bad offset %x\n",
-                   (int)offset);
+        hw_error("stellaris_enet_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -298,8 +297,7 @@ static void stellaris_enet_write(void *opaque, target_phys_addr_t offset,
         /* Ignored.  */
         break;
     default:
-        cpu_abort (cpu_single_env, "stellaris_enet_write: Bad offset %x\n",
-                   (int)offset);
+        hw_error("stellaris_enet_write: Bad offset %x\n", (int)offset);
     }
 }
 

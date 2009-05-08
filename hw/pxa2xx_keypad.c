@@ -209,8 +209,7 @@ static uint32_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset)
         return s->kpkdi;
         break;
     default:
-        cpu_abort(cpu_single_env, "%s: Bad offset " REG_FMT "\n",
-                        __FUNCTION__, offset);
+        hw_error("%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
     }
 
     return 0;
@@ -254,8 +253,7 @@ static void pxa2xx_keypad_write(void *opaque,
         break;
 
     default:
-        cpu_abort(cpu_single_env, "%s: Bad offset " REG_FMT "\n",
-                        __FUNCTION__, offset);
+        hw_error("%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
     }
 }
 

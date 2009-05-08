@@ -156,8 +156,7 @@ static void onenand_reset(struct onenand_s *s, int cold)
         memset(s->blockwp, ONEN_LOCK_LOCKED, s->blocks);
 
         if (s->bdrv && bdrv_read(s->bdrv, 0, s->boot[0], 8) < 0)
-            cpu_abort(cpu_single_env, "%s: Loading the BootRAM failed.\n",
-                            __FUNCTION__);
+            hw_error("%s: Loading the BootRAM failed.\n", __FUNCTION__);
     }
 }
 
@@ -500,7 +499,7 @@ static uint32_t onenand_read(void *opaque, target_phys_addr_t addr)
     case 0xff02:	/* ECC Result of spare area data */
     case 0xff03:	/* ECC Result of main area data */
     case 0xff04:	/* ECC Result of spare area data */
-        cpu_abort(cpu_single_env, "%s: imeplement ECC\n", __FUNCTION__);
+        hw_error("%s: imeplement ECC\n", __FUNCTION__);
         return 0x0000;
     }
 

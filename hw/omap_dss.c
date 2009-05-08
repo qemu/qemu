@@ -1064,6 +1064,6 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
 void omap_rfbi_attach(struct omap_dss_s *s, int cs, struct rfbi_chip_s *chip)
 {
     if (cs < 0 || cs > 1)
-        cpu_abort(cpu_single_env, "%s: wrong CS %i\n", __FUNCTION__, cs);
+        hw_error("%s: wrong CS %i\n", __FUNCTION__, cs);
     s->rfbi.chip[cs] = chip;
 }

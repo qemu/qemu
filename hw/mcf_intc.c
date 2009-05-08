@@ -67,7 +67,7 @@ static uint32_t mcf_intc_read(void *opaque, target_phys_addr_t addr)
     case 0xe1: case 0xe2: case 0xe3: case 0xe4:
     case 0xe5: case 0xe6: case 0xe7:
         /* LnIACK */
-        cpu_abort(cpu_single_env, "mcf_intc_read: LnIACK not implemented\n");
+        hw_error("mcf_intc_read: LnIACK not implemented\n");
     default:
         return 0;
     }
@@ -99,8 +99,7 @@ static void mcf_intc_write(void *opaque, target_phys_addr_t addr, uint32_t val)
         s->imr = (s->imr & 0xffffffff00000000ull) | (uint32_t)val;
         break;
     default:
-        cpu_abort(cpu_single_env, "mcf_intc_write: Bad write offset %d\n",
-                  offset);
+        hw_error("mcf_intc_write: Bad write offset %d\n", offset);
         break;
     }
     mcf_intc_update(s);

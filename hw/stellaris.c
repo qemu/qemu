@@ -94,8 +94,7 @@ static void gptm_reload(gptm_state *s, int n, int reset)
     } else if (s->mode[n] == 0xa) {
         /* PWM mode.  Not implemented.  */
     } else {
-        cpu_abort(cpu_single_env, "TODO: 16-bit timer mode 0x%x\n",
-                  s->mode[n]);
+        hw_error("TODO: 16-bit timer mode 0x%x\n", s->mode[n]);
     }
     s->tick[n] = tick;
     qemu_mod_timer(s->timer[n], tick);
@@ -137,8 +136,7 @@ static void gptm_tick(void *opaque)
     } else if (s->mode[n] == 0xa) {
         /* PWM mode.  Not implemented.  */
     } else {
-        cpu_abort(cpu_single_env, "TODO: 16-bit timer mode 0x%x\n",
-                  s->mode[n]);
+        hw_error("TODO: 16-bit timer mode 0x%x\n", s->mode[n]);
     }
     gptm_update_irq(s);
 }
@@ -184,9 +182,9 @@ static uint32_t gptm_read(void *opaque, target_phys_addr_t offset)
         if (s->control == 1)
             return s->rtc;
     case 0x4c: /* TBR */
-        cpu_abort(cpu_single_env, "TODO: Timer value read\n");
+        hw_error("TODO: Timer value read\n");
     default:
-        cpu_abort(cpu_single_env, "gptm_read: Bad offset 0x%x\n", (int)offset);
+        hw_error("gptm_read: Bad offset 0x%x\n", (int)offset);
         return 0;
     }
 }
@@ -266,7 +264,7 @@ static void gptm_write(void *opaque, target_phys_addr_t offset, uint32_t value)
         s->match_prescale[0] = value;
         break;
     default:
-        cpu_abort(cpu_single_env, "gptm_write: Bad offset 0x%x\n", (int)offset);
+        hw_error("gptm_write: Bad offset 0x%x\n", (int)offset);
     }
     gptm_update_irq(s);
 }
@@ -500,7 +498,7 @@ static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
     case 0x1e4: /* USER1 */
         return s->user1;
     default:
-        cpu_abort(cpu_single_env, "ssys_read: Bad offset 0x%x\n", (int)offset);
+        hw_error("ssys_read: Bad offset 0x%x\n", (int)offset);
         return 0;
     }
 }
@@ -577,7 +575,7 @@ static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
         s->ldoarst = value;
         break;
     default:
-        cpu_abort(cpu_single_env, "ssys_write: Bad offset 0x%x\n", (int)offset);
+        hw_error("ssys_write: Bad offset 0x%x\n", (int)offset);
     }
     ssys_update(s);
 }
@@ -724,8 +722,7 @@ static uint32_t stellaris_i2c_read(void *opaque, target_phys_addr_t offset)
     case 0x20: /* MCR */
         return s->mcr;
     default:
-        cpu_abort(cpu_single_env, "strllaris_i2c_read: Bad offset 0x%x\n",
-                  (int)offset);
+        hw_error("strllaris_i2c_read: Bad offset 0x%x\n", (int)offset);
         return 0;
     }
 }
@@ -801,15 +798,15 @@ static void stellaris_i2c_write(void *opaque, target_phys_addr_t offset,
         break;
     case 0x20: /* MCR */
         if (value & 1)
-            cpu_abort(cpu_single_env,
+            hw_error(
                       "stellaris_i2c_write: Loopback not implemented\n");
         if (value & 0x20)
-            cpu_abort(cpu_single_env,
+            hw_error(
                       "stellaris_i2c_write: Slave mode not implemented\n");
         s->mcr = value & 0x31;
         break;
     default:
-        cpu_abort(cpu_single_env, "stellaris_i2c_write: Bad offset 0x%x\n",
+        hw_error("stellaris_i2c_write: Bad offset 0x%x\n",
                   (int)offset);
     }
     stellaris_i2c_update(s);
@@ -1036,7 +1033,7 @@ static uint32_t stellaris_adc_read(void *opaque, target_phys_addr_t offset)
     case 0x30: /* SAC */
         return s->sac;
     default:
-        cpu_abort(cpu_single_env, "strllaris_adc_read: Bad offset 0x%x\n",
+        hw_error("strllaris_adc_read: Bad offset 0x%x\n",
                   (int)offset);
         return 0;
     }
@@ -1057,7 +1054,7 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
             return;
         case 0x04: /* SSCTL */
             if (value != 6) {
-                cpu_abort(cpu_single_env, "ADC: Unimplemented sequence %x\n",
+                hw_error("ADC: Unimplemented sequence %x\n",
                           value);
             }
             s->ssctl[n] = value;
@@ -1070,8 +1067,7 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
     case 0x00: /* ACTSS */
         s->actss = value & 0xf;
         if (value & 0xe) {
-            cpu_abort(cpu_single_env,
-                      "Not implemented:  ADC sequencers 1-3\n");
+            hw_error("Not implemented:  ADC sequencers 1-3\n");
         }
         break;
     case 0x08: /* IM */
@@ -1093,14 +1089,13 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
         s->sspri = value;
         break;
     case 0x28: /* PSSI */
-        cpu_abort(cpu_single_env, "Not implemented:  ADC sample initiate\n");
+        hw_error("Not implemented:  ADC sample initiate\n");
         break;
     case 0x30: /* SAC */
         s->sac = value;
         break;
     default:
-        cpu_abort(cpu_single_env, "stellaris_adc_write: Bad offset 0x%x\n",
-                  (int)offset);
+        hw_error("stellaris_adc_write: Bad offset 0x%x\n", (int)offset);
     }
     stellaris_adc_update(s);
 }

@@ -1070,15 +1070,14 @@ struct omap_gpif_s *omap2_gpio_init(struct omap_target_agent_s *ta,
 qemu_irq *omap2_gpio_in_get(struct omap_gpif_s *s, int start)
 {
     if (start >= s->modules * 32 || start < 0)
-        cpu_abort(cpu_single_env, "%s: No GPIO line %i\n",
-                        __FUNCTION__, start);
+        hw_error("%s: No GPIO line %i\n", __FUNCTION__, start);
     return s->module[start >> 5].in + (start & 31);
 }
 
 void omap2_gpio_out_set(struct omap_gpif_s *s, int line, qemu_irq handler)
 {
     if (line >= s->modules * 32 || line < 0)
-        cpu_abort(cpu_single_env, "%s: No GPIO line %i\n", __FUNCTION__, line);
+        hw_error("%s: No GPIO line %i\n", __FUNCTION__, line);
     s->module[line >> 5].handler[line & 31] = handler;
 }
 
@@ -1399,8 +1398,7 @@ void omap_mcspi_attach(struct omap_mcspi_s *s,
                 int chipselect)
 {
     if (chipselect < 0 || chipselect >= s->chnum)
-        cpu_abort(cpu_single_env, "%s: Bad chipselect %i\n",
-                        __FUNCTION__, chipselect);
+        hw_error("%s: Bad chipselect %i\n", __FUNCTION__, chipselect);
 
     s->ch[chipselect].txrx = txrx;
     s->ch[chipselect].opaque = opaque;
@@ -2642,7 +2640,7 @@ static uint32_t omap_tap_read(void *opaque, target_phys_addr_t addr)
         case omap3430:
             return 0x1b7ae02f;	/* ES 2 */
         default:
-            cpu_abort(cpu_single_env, "%s: Bad mpu model\n", __FUNCTION__);
+            hw_error("%s: Bad mpu model\n", __FUNCTION__);
         }
 
     case 0x208:	/* PRODUCTION_ID_reg for OMAP2 */
@@ -2659,7 +2657,7 @@ static uint32_t omap_tap_read(void *opaque, target_phys_addr_t addr)
         case omap3430:
             return 0x000000f0;
         default:
-            cpu_abort(cpu_single_env, "%s: Bad mpu model\n", __FUNCTION__);
+            hw_error("%s: Bad mpu model\n", __FUNCTION__);
         }
 
     case 0x20c:
@@ -2673,7 +2671,7 @@ static uint32_t omap_tap_read(void *opaque, target_phys_addr_t addr)
         case omap3430:
             return 0xcafeb7ae;	/* ES 2 */
         default:
-            cpu_abort(cpu_single_env, "%s: Bad mpu model\n", __FUNCTION__);
+            hw_error("%s: Bad mpu model\n", __FUNCTION__);
         }
 
     case 0x218:	/* DIE_ID_reg */

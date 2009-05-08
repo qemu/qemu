@@ -195,8 +195,7 @@ static uint32_t mpcore_priv_read(void *opaque, target_phys_addr_t offset)
         return mpcore_timer_read(&s->timer[id], offset & 0xf);
     }
 bad_reg:
-    cpu_abort(cpu_single_env, "mpcore_priv_read: Bad offset %x\n",
-              (int)offset);
+    hw_error("mpcore_priv_read: Bad offset %x\n", (int)offset);
     return 0;
 }
 
@@ -241,8 +240,7 @@ static void mpcore_priv_write(void *opaque, target_phys_addr_t offset,
     }
     return;
 bad_reg:
-    cpu_abort(cpu_single_env, "mpcore_priv_read: Bad offset %x\n",
-              (int)offset);
+    hw_error("mpcore_priv_read: Bad offset %x\n", (int)offset);
 }
 
 static CPUReadMemoryFunc *mpcore_priv_readfn[] = {

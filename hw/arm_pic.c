@@ -39,7 +39,7 @@ static void arm_pic_cpu_handler(void *opaque, int irq, int level)
             cpu_reset_interrupt(env, CPU_INTERRUPT_FIQ);
         break;
     default:
-        cpu_abort(env, "arm_pic_cpu_handler: Bad interrput line %d\n", irq);
+        hw_error("arm_pic_cpu_handler: Bad interrput line %d\n", irq);
     }
 }
 
