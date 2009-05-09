@@ -30,6 +30,7 @@
 #include "qemu-common.h"
 #include "monitor.h"
 #include "block_int.h"
+#include "module.h"
 
 #ifdef HOST_BSD
 #include <sys/types.h>
@@ -138,7 +139,7 @@ void path_combine(char *dest, int dest_size,
 }
 
 
-static void bdrv_register(BlockDriver *bdrv)
+void bdrv_register(BlockDriver *bdrv)
 {
     if (!bdrv->bdrv_aio_readv) {
         /* add AIO emulation layer */
@@ -259,11 +260,11 @@ static BlockDriver *find_protocol(const char *filename)
 #ifdef _WIN32
     if (is_windows_drive(filename) ||
         is_windows_drive_prefix(filename))
-        return &bdrv_raw;
+        return bdrv_find_format("raw");
 #endif
     p = strchr(filename, ':');
     if (!p)
-        return &bdrv_raw;
+        return bdrv_find_format("raw");
     len = p - filename;
     if (len > sizeof(protocol) - 1)
         len = sizeof(protocol) - 1;
@@ -289,23 +290,23 @@ static BlockDriver *find_image_format(const char *filename)
     /* detect host devices. By convention, /dev/cdrom[N] is always
        recognized as a host CDROM */
     if (strstart(filename, "/dev/cdrom", NULL))
-        return &bdrv_host_device;
+        return bdrv_find_format("host_device");
 #ifdef _WIN32
     if (is_windows_drive(filename))
-        return &bdrv_host_device;
+        return bdrv_find_format("host_device");
 #else
     {
         struct stat st;
         if (stat(filename, &st) >= 0 &&
             (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
-            return &bdrv_host_device;
+            return bdrv_find_format("host_device");
         }
     }
 #endif
 
     drv = find_protocol(filename);
     /* no need to test disk image formats for vvfat */
-    if (drv == &bdrv_vvfat)
+    if (strcmp(drv->format_name, "vvfat") == 0)
         return drv;
 
     ret = bdrv_file_open(&bs, filename, BDRV_O_RDONLY);
@@ -396,14 +397,14 @@ int bdrv_open2(BlockDriverState *bs, const char *filename, int flags,
         else
             realpath(filename, backing_filename);
 
-        ret = bdrv_create2(&bdrv_qcow2, tmp_filename,
+        ret = bdrv_create2(bdrv_find_format("qcow2"), tmp_filename,
                            total_size, backing_filename, 
                            (drv ? drv->format_name : NULL), 0);
         if (ret < 0) {
             return ret;
         }
         filename = tmp_filename;
-        drv = &bdrv_qcow2;
+        drv = bdrv_find_format("qcow2");
         bs->is_temporary = 1;
     }
 
@@ -1494,21 +1495,7 @@ static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
 
 void bdrv_init(void)
 {
-    bdrv_register(&bdrv_raw);
-    bdrv_register(&bdrv_host_device);
-#ifndef _WIN32
-    bdrv_register(&bdrv_cow);
-#endif
-    bdrv_register(&bdrv_qcow);
-    bdrv_register(&bdrv_vmdk);
-    bdrv_register(&bdrv_cloop);
-    bdrv_register(&bdrv_dmg);
-    bdrv_register(&bdrv_bochs);
-    bdrv_register(&bdrv_vpc);
-    bdrv_register(&bdrv_vvfat);
-    bdrv_register(&bdrv_qcow2);
-    bdrv_register(&bdrv_parallels);
-    bdrv_register(&bdrv_nbd);
+    module_call_init(MODULE_INIT_BLOCK);
 }
 
 void aio_pool_init(AIOPool *pool, int aiocb_size,

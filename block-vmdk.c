@@ -25,6 +25,7 @@
 
 #include "qemu-common.h"
 #include "block_int.h"
+#include "module.h"
 
 #define VMDK3_MAGIC (('C' << 24) | ('O' << 16) | ('W' << 8) | 'D')
 #define VMDK4_MAGIC (('K' << 24) | ('D' << 16) | ('M' << 8) | 'V')
@@ -811,7 +812,7 @@ static void vmdk_flush(BlockDriverState *bs)
     bdrv_flush(s->hd);
 }
 
-BlockDriver bdrv_vmdk = {
+static BlockDriver bdrv_vmdk = {
     .format_name	= "vmdk",
     .instance_size	= sizeof(BDRVVmdkState),
     .bdrv_probe		= vmdk_probe,
@@ -823,3 +824,10 @@ BlockDriver bdrv_vmdk = {
     .bdrv_flush		= vmdk_flush,
     .bdrv_is_allocated	= vmdk_is_allocated,
 };
+
+static void bdrv_vmdk_init(void)
+{
+    bdrv_register(&bdrv_vmdk);
+}
+
+block_init(bdrv_vmdk_init);

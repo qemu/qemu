@@ -28,6 +28,7 @@
 
 #include "qemu-common.h"
 #include "nbd.h"
+#include "module.h"
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -176,7 +177,7 @@ static int64_t nbd_getlength(BlockDriverState *bs)
     return s->size;
 }
 
-BlockDriver bdrv_nbd = {
+static BlockDriver bdrv_nbd = {
     .format_name	= "nbd",
     .instance_size	= sizeof(BDRVNBDState),
     .bdrv_open		= nbd_open,
@@ -186,3 +187,10 @@ BlockDriver bdrv_nbd = {
     .bdrv_getlength	= nbd_getlength,
     .protocol_name	= "nbd",
 };
+
+static void bdrv_nbd_init(void)
+{
+    bdrv_register(&bdrv_nbd);
+}
+
+block_init(bdrv_nbd_init);

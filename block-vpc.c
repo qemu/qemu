@@ -24,6 +24,7 @@
  */
 #include "qemu-common.h"
 #include "block_int.h"
+#include "module.h"
 
 /**************************************************************/
 
@@ -586,7 +587,7 @@ static void vpc_close(BlockDriverState *bs)
     bdrv_delete(s->hd);
 }
 
-BlockDriver bdrv_vpc = {
+static BlockDriver bdrv_vpc = {
     .format_name	= "vpc",
     .instance_size	= sizeof(BDRVVPCState),
     .bdrv_probe		= vpc_probe,
@@ -596,3 +597,10 @@ BlockDriver bdrv_vpc = {
     .bdrv_close		= vpc_close,
     .bdrv_create	= vpc_create,
 };
+
+static void bdrv_vpc_init(void)
+{
+    bdrv_register(&bdrv_vpc);
+}
+
+block_init(bdrv_vpc_init);
